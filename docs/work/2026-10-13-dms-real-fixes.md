@@ -115,4 +115,25 @@
 - 本机无头 Chrome，375×812 手机宽度、真实构建产物、接口用假数据、保存一律回指定校验码，先滚到页面中间再点保存：
   交车日期、电话、身份证号 → 页面滚到那一栏、光标在里面、红色描边，提示在可视范围内；付款金额 → 滚到付款块、外框描红；
   主档已变 → 不滚动，提示在可视范围内。
+- 流程用例 `dms.booking.editor`（DMS 第一条流程，见下）：两套数据 × 电脑 / 手机宽度 4/4 通过。
 - 真机 LINE：未做（需要随下一批部署后在 testdms 上点一次）。
+
+### DMS 第一条流程用例 `dms.booking.editor`（2026-10-30）
+
+CI 的流程覆盖闸要求改到的产品入口有登记的流程（`tests/flows/registry.toml`）；DMS 之前一条都没有。主会话定：补这一条，后面 DMS 补流程照它走。
+
+- **数据**（`scripts/regression/datasets.py new|old dms`，站点 `dms-new / dms-old.regression.localhost` 加进 `lab_init.py`，幂等）：
+  一个 DMS 连接（模板 + 操作员自己的）、销售操作员 `operator@dms.regression` 已绑一个合成 LINE 用户；DMS 里读到的主档 / 颜色 / 地址 / 客户
+  由实验室直接发布成本地完整快照（与线上夜间同步发布同一种数据），**不连真实 DMS**。新开户最少一套、没有客户；老数据主档多几项、已有一位客户。
+  LINE 走站点本地镜像（`pearnly_line_mirror`，只在站点没配 LINE 凭据时生效），本该发出的消息记进推送台账 `trigger=line_mirror`，**不发出去**。
+- **流程**（`scripts/flows/dms_booking_editor.py`）：给操作员造一张待确认订车草稿（新开户：新客户；老数据：DMS 里已有的客户）→ 用站点会话打开编辑页
+  （LIFF 验签走不了实验室，走同一页面的「本站点已登录账号自己的绑定」回落）→ 交车日期改成 01/01/2026 保存 → 判：被拒、提示在贴底操作条且在
+  可视范围内、页面滚到交车日期那一栏、光标在里面、标红 → 改成两周后再保存 → 判：跳到交接页「已发送，请返回聊天」。
+  库里：草稿换新 nonce、交车日期是改后那天、越界日期从未存入；推送台账正好多一张镜像卡，是这张草稿的预览、写着改后日期与新 nonce。
+- **covers**：`EditorPage.vue`、`lib/dms-editor.ts`、编辑页背后的 `editor/browser_api.py`、交接页 `www/liff/dms-booking.html`（这几处从此改到就要跑它）。
+- **实验室里补的一处前提**：保存时服务端要先问 LINE 这人手机的语言（线上缓存一小时）；实验室站点没有 LINE 凭据，问之前 `_headers()` 抛的
+  「未配置 LINE access token」会被 Frappe 塞进返回消息的第一条，页面拿它对不上校验码、只显示「保存失败」。线上站点都配了 LINE，不会出现；
+  流程在 prepare 里替它把语言写进缓存（等同线上已问过一次）。
+- 跑法：本机自己的栈 `pearnly-dms-flow-lab`（端口 18794–18796；18791–18793 已被 gw-lab 占用），先在工作树里 `vite build`（实验室挂工作树源码，
+  SPA 构建产物要在工作树里），`PEARNLY_FLOWS_LAB=pearnly-dms-flow-lab REGRESSION_LAB_PORT=18796 python3 scripts/flows/run.py --flow dms.booking.editor`。
+  结果 4/4 通过（每格约 104 秒）。

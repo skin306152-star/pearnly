@@ -448,3 +448,20 @@ viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/report/erp_stock_count_variance/*",
 ]
+
+[[flow]]
+id = "dms.booking.editor"
+title = "DMS LINE 订车单编辑页：越界日期保存被拒时提示看得见、那一栏标红，改对后保存、新版预览发回聊天（10-30 真机「像没反应」）"
+module = "scripts/flows/dms_booking_editor.py"
+product = "dms"
+start = "/assets/pearnly_core/pearnly-app/index.html#/dms/editor?draft={nonce}"
+user = "operator"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "frontend/src/pages/dms/EditorPage.vue",
+  "frontend/src/lib/dms-editor.ts",
+  # 编辑页背后的服务端：票据、读草稿、保存、交接页推送回落（DMS 第一条流程，这几处跟着转为拦截）
+  "apps/pearnly_dms/pearnly_dms/editor/browser_api.py",
+  "apps/pearnly_dms/pearnly_dms/www/liff/dms-booking.html",
+]

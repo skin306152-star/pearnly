@@ -13,7 +13,14 @@ Cowork 同样两套（第二个参数 `cowork`）：
 - new：站点 `cowork-new.regression.localhost`，开户后什么都没建（只有开户时建的站点归属）。
 - old：站点 `cowork-old.regression.localhost`，上传导入的两份盘点（一份带实盘）、银行与收入对账预设各一条。
 
-    cd /home/frappe/frappe-bench && env/bin/python /workspace/scripts/regression/datasets.py new|old [erp|cowork]
+DMS 同样两套（第二个参数 `dms`），外部 DMS 一律不连：DMS 里读到的主档 / 地址 / 客户由实验室直接发布成本地完整快照
+（与线上夜间同步发布的是同一种数据），LINE 走站点的本地镜像（`pearnly_line_mirror`，站点没配 LINE 凭据时才生效，
+「本该发出的消息」记进推送台账、不发出去）：
+- new：站点 `dms-new.regression.localhost`。开户后接好一个 DMS 连接，一个销售操作员（`operator@dms.regression`），
+  LINE 已绑定；DMS 主档最少一套（一个车型一个颜色），没有客户。
+- old：站点 `dms-old.regression.localhost`。同样的连接与操作员；主档多几项（两个车型、两个订车地点），DMS 里已有一位客户。
+
+    cd /home/frappe/frappe-bench && env/bin/python /workspace/scripts/regression/datasets.py new|old [erp|cowork|dms]
 """
 import json
 import os
@@ -32,6 +39,10 @@ COWORK_COUNTS = [("ตรวจนับเก่า มีจำนวน", [("
                  ("ตรวจนับเก่า ยังไม่นับ", [("CW-003", "สินค้าเก่า ค", "ชิ้น", 7, None)])]
 # Cowork 老站点的对账预设：(对账类型, 范围, 规则, 答案)
 COWORK_PRESETS = [("bank", "bank|KBANK|4821|1112-01", "grouped", "yes"), ("income", "income|0105556012345|4201", "excluded", "no")]
+DMS_SITES = {"new": "dms-new.regression.localhost", "old": "dms-old.regression.localhost"}
+DMS_OPERATOR = "operator@dms.regression"
+# 合法校验位的合成证号（不是真人）；老站点 DMS 里那位已有客户用它
+DMS_CUSTOMER_PID = "1000000730317"
 ADMIN = "admin@{}"
 JOBS = {"products": ("products", "profile"),
         "stock": ("inventory", "stock-in", "stock-out", "stock-card", "stock-count", "warehouses", "profile"),
@@ -256,7 +267,94 @@ def build_cowork_old():
     return cowork_state(COWORK_SITES["old"], "old")
 
 
+def dms_directory(which):
+    """DMS 里读到的东西（发布成本地完整快照用）：主档、颜色、地址三级、客户。新开户最少一套，老站点多几项、带一位客户。"""
+    masters = {key: [[key + "-1", "LAB", "Lab " + key]] for key in (
+        "cars", "place_books", "term_sales", "branches", "regis_behalfs", "advisors",
+        "source_banks", "cheque_banks", "cashier_banks", "card_banks")}
+    masters["prefixes"] = [["prefix-1", "นาย"], ["prefix-2", "นางสาว"]]
+    masters["company_banks"] = [["bank-1", "LAB", "Lab bank", "0000000000", "lab"]]
+    masters["employees"] = [{"id": "employee-1", "name": "Lab employee"}]
+    paints = {"cars-1": [["paint-1", "LAB", "ขาวมุก"]]}
+    geo = {"provinces": {"": [["P1", "สมุทรปราการ"], ["P2", "กรุงเทพมหานคร"]]},
+           "districts": {"P1": [["D1", "เมืองสมุทรปราการ"]], "P2": [["D2", "ลาดพร้าว"]]},
+           "subdistricts": {"D1": [["S1", "ปากน้ำ"]], "D2": [["S2", "ลาดพร้าว"]]},
+           "zipcodes": {"S1": [["Z1", "10270"]], "S2": [["Z2", "10230"]]}}
+    customers = {}
+    if which == "old":
+        masters["cars"].append(["cars-2", "LAB2", "Lab car two"])
+        masters["place_books"].append(["place_books-2", "LAB2", "Lab place two"])
+        paints["cars-2"] = [["paint-2", "LAB2", "ดำนิล"]]
+        customer = {"customer_id": "customer-1", "name": "ลูกค้าเก่า ทดสอบ", "people_id": DMS_CUSTOMER_PID,
+                    "tax_id": DMS_CUSTOMER_PID, "cuscode": "LAB-CUSTOMER-1", "prefix_id": "prefix-1", "phone": "0800000001",
+                    "birthday_be": "01/01/2530", "house_no": "9/9", "province_id": "P2", "district_id": "D2",
+                    "subdistrict_id": "S2", "zipcode_id": "Z2", "province_name": "กรุงเทพมหานคร", "district_name": "ลาดพร้าว",
+                    "subdistrict_name": "ลาดพร้าว", "zipcode_name": "10230"}
+        for suffix in ("_ct", "_sd"):
+            customer.update({key + suffix: customer[key] for key in
+                             ("house_no", "province_id", "district_id", "subdistrict_id", "zipcode_id")})
+        customers["customer-1"] = customer
+    return {"masters": masters, "paints": paints, "geo": geo, "customers": customers}
+
+
+def build_dms(which):
+    """DMS 一套：本地镜像开着、一个连接（模板 + 操作员自己的）、操作员已绑 LINE、DMS 读到的东西发布成完整快照。
+    每次跑都重新发布一遍快照（线上夜间同步也是整份重发），其余已有就不动。"""
+    import time
+
+    from frappe.installer import update_site_config
+    from pearnly_core import line, line_binding
+    from pearnly_dms.snapshots import store
+
+    site = DMS_SITES[which]
+    if not frappe.conf.get("pearnly_line_mirror"):
+        update_site_config("pearnly_line_mirror", "1")
+        frappe.local.conf.pearnly_line_mirror = "1"
+    if line.is_configured() or not line.mirroring():
+        raise SystemExit("LINE must be the local mirror in the regression laboratory")
+    frappe.set_user("Administrator")
+    lab = "regression-lab-" + which
+    if not frappe.db.exists("Pearnly ERP Endpoint", {"adapter": "mrerp_dms", "owner_user": ["is", "not set"]}):
+        # 连接页填的那一份（店的 DMS 地址 + 管理员账号）：外部地址不可解析，实验室里只读本地快照
+        frappe.get_doc({"doctype": "Pearnly ERP Endpoint", "label": lab, "adapter": "mrerp_dms", "enabled": 1,
+                        "system_url": "https://dms.regression.invalid/dms/", "admin_username": lab + "-admin",
+                        "admin_password": "regression-lab-only", "booking_defaults": "{}"}).insert(ignore_permissions=True)
+    if not frappe.db.exists("DMS Operator", DMS_OPERATOR):
+        frappe.get_doc({"doctype": "DMS Operator", "user": DMS_OPERATOR, "display_name": "Lab operator", "status": "active",
+                        "dms_role": "sales", "dms_username": lab + "-sales", "dms_password": "regression-lab-only",
+                        "can_query_dms": 1}).insert(ignore_permissions=True)
+    commit()
+    endpoint = frappe.db.get_value("Pearnly ERP Endpoint", {"owner_user": DMS_OPERATOR, "enabled": 1})
+    line_user = "Uflowdms" + which  # 合成的 LINE 用户（只在实验室）
+    if line_binding.user_of(line_user) != DMS_OPERATOR:
+        line_binding.bind(line_user, DMS_OPERATOR, "Lab operator")
+    data = dms_directory(which)
+    stamp = time.time() - 5
+    key = store.scope(endpoint)
+    store.publish(endpoint, "geo", data["geo"], stamp, expected_scope=key)
+    store.publish(endpoint, "vehicles", {"masters": {"cars": data["masters"]["cars"]}, "paints": data["paints"],
+                                         "catalogues": {"lab": {}}}, stamp, expected_scope=key)
+    store.publish(endpoint, "company", {"masters": {k: v for k, v in data["masters"].items() if k not in {"cars", "prefixes"}},
+                                        "catalogues": {"lab": {}}}, stamp, expected_scope=key)
+    store.publish(endpoint, "customers", {"customers": data["customers"], "prefixes": data["masters"]["prefixes"]},
+                  stamp, expected_scope=key)
+    commit()
+    return {"dataset": which, "product": "dms", "site": site, "endpoint": endpoint, "operator": DMS_OPERATOR,
+            "line_user_id": line_user, "mirror": line.mirroring(),
+            "masters": {k: data["masters"][k] for k in ("cars", "place_books", "term_sales", "regis_behalfs", "prefixes")},
+            "paints": data["paints"], "geo": data["geo"],
+            "customers": [{"customer_id": cid, "name": c["name"], "people_id": c["people_id"]} for cid, c in data["customers"].items()]}
+
+
 def main(which, product="erp"):
+    if product == "dms":
+        frappe.init(site=DMS_SITES[which], sites_path="/home/frappe/frappe-bench/sites")
+        frappe.connect()
+        try:
+            print(json.dumps(build_dms(which), ensure_ascii=False, default=str))
+        finally:
+            frappe.destroy()
+        return
     sites = COWORK_SITES if product == "cowork" else SITES
     frappe.init(site=sites[which], sites_path="/home/frappe/frappe-bench/sites")
     frappe.connect()
