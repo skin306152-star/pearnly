@@ -2,7 +2,8 @@
 
 库存岗在 LINE 外打开时回落到本账号自己的 LINE 绑定换票据：实验室给库存岗记一条假的绑定（假 LINE 用户号，不连 LINE，只在实验室站点）。
 新开户在没有期初的仓开盘点（空仓，正是事故场景），老数据在有存量的仓开盘点。逐个码输入查询：普通商品要出数量框、品名对，
-填数保存后提示保存、抬头「已盘点」加一（新开户第一件 0→1）、库里记一条（商品、数量对）；按台商品不出数量框；认不到的码要提示。
+填数保存后提示保存、抬头「已盘点」加一（新开户第一件 0→1）、库里记一条（商品、数量对）；按台商品在按台类型的公司里不能按数量记，
+在普通公司照样按数量记（S0）；认不到的码要提示。
 再对第一件多记一笔、点撤销：抬头回落、那一笔在库里作废、原来那笔不动。查码接口只收 POST：GET 调回 403（10-29 热修）。
 手机宽度另用假摄像头点「扫码」读条码，同样要出数量框并能保存。全程页面不能有报错。
 （work-followups 的手机盘点用例 10-29 并入：本账号 LINE 绑定回落、零库存仓、保存后计数加一与「实盘数量」大字、撤销回落、
@@ -25,9 +26,13 @@ def cases(lab, manifest):
     else:
         first, second = manifest["products"][0], manifest["products"][1]
         picks = [("by_code", first["code"], first["name"]), ("by_barcode", second["barcode"], second["name"])]
+    company = manifest.get("company") or manifest["companies"][0]
+    # 按台盘只在「按台类型」的公司（汽车 / 家电）：普通公司的按台商品也按数量盘、照常落库（盘点菜单 S0，用户 10-29）。
+    # 预期用服务端同一个判断（count.per_unit），不写死
     names = lab.python(manifest["site"], f"""
+from pearnly_erp_portal.inventory import count
 rows = frappe.get_all("ERP Product", filters={{"name": ["in", {[p for _, _, p in picks]!r}]}}, fields=["name", "product_name", "track_serial"])
-print(json.dumps({{r.name: [r.product_name, int(r.track_serial or 0)] for r in rows}}))
+print(json.dumps({{r.name: [r.product_name, int(count.per_unit(r, {company!r}))] for r in rows}}))
 """)
     out = [{"key": key, "scan": scan, "product": product, "name": names[product][0],
             "expect": "unit" if names[product][1] else "entry"} for key, scan, product in picks]

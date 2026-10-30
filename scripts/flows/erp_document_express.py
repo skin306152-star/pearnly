@@ -37,6 +37,14 @@ doc = entry.post({{"company": {company!r}, "supplier": supplier, "doc_date": "20
                              "unit_price": 100, "vat_rate": 7, "warehouse": {warehouse!r}, "location": ""}}]}},
                  request_id="flow-express-" + {uuid.uuid4().hex!r})
 frappe.db.commit()
+# 实验室有后台进程：建单排进去的推送任务会把状态从 queued 推到下一步（没连电脑时停在「待处理 · 正在读取 Express 账套」）。
+# 等它稳定再记「看之前」的状态，断言才只量「看弹窗」这一步（10-30：加了后台进程后这里和推送任务赛跑）
+import time
+for _ in range(60):
+    frappe.db.rollback()
+    if frappe.db.get_value("Purchase Document", doc["name"], "express_state") != "queued":
+        break
+    time.sleep(1)
 row = frappe.db.get_value("Purchase Document", doc["name"], ["name", "express_state", "express_job"], as_dict=True)
 print(json.dumps(row, default=str))
 """)
