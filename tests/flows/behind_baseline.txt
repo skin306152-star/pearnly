@@ -308,12 +308,9 @@ apps/pearnly_dms/pearnly_dms/records/access.py
 apps/pearnly_dms/pearnly_dms/snapshots/__init__.py
 apps/pearnly_dms/pearnly_dms/snapshots/manual.py
 apps/pearnly_dms/pearnly_dms/snapshots/store.py
-apps/pearnly_erp_portal/pearnly_erp_portal/integrations/__init__.py
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/binding.py
-apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_cards.py
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py
-apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_menu.py
 apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py
 apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py
 apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/access.py
@@ -327,14 +324,5 @@ apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/records.py
 apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/service.py
 apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/settings.py
 apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/suppliers.py
-apps/pearnly_erp_portal/pearnly_erp_portal/recognition/background.py
 apps/pearnly_erp_portal/pearnly_erp_portal/recognition/billing.py
 apps/pearnly_erp_portal/pearnly_erp_portal/recognition/dates.py
-apps/pearnly_erp_portal/pearnly_erp_portal/recognition/policy.py
-apps/pearnly_erp_portal/pearnly_erp_portal/recognition/progress.py
-apps/pearnly_erp_portal/pearnly_erp_portal/sales/access.py
-apps/pearnly_erp_portal/pearnly_erp_portal/sales/contracts.py
-apps/pearnly_erp_portal/pearnly_erp_portal/sales/files.py
-apps/pearnly_erp_portal/pearnly_erp_portal/sales/preview.py
-apps/pearnly_erp_portal/pearnly_erp_portal/sales/recognition.py
-apps/pearnly_erp_portal/pearnly_erp_portal/sales/records.py
