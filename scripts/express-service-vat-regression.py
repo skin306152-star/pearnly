@@ -3,7 +3,8 @@
 
 对每本账套：整本复制到工作目录 → 用这份源码的 CC 写入代码写几张服务品进货 → 核：
 - 这本没有赊购历史（T 账套是清空的）、载荷没带人选的口径：赊购单 RR 不写，回 SERVICE_VAT_BASIS_CHOICE，账套一个字节都不变；
-- 载荷带人选的 ``srv_vattyp``（cash_basis）：写成，价格类型 2、SRV_VATTYP '2'；
+- 载荷带人选的 ``srv_vattyp``（cash_basis）：写成，价格类型 2、SRV_VATTYP '2'，照原生开单不写进项税记录、单头税期空、进项税借
+  「未到期进项税」（ISINFO.ACCNUM28）；这本账套没设这个科目或不能记账的，回 ACCOUNT_NOT_POSTABLE、账套不变；
 - 同一家再来一张、不带选择：仍不写（Pearnly 自己写的单不算历史）；
 - 账套里补一张 Express 人录的赊购单（另一家供应商、口径 2）当历史：那家的服务品赊购单不带选择也写成 '2'；
 - 现购单 HP：SRV_VATTYP '1'；没有税的赊购单：价格类型 0、SRV_VATTYP '-'；都不看历史、不问；
@@ -166,14 +167,30 @@ def check(acct: Path) -> dict:
         return W.write_purchase(payload(doctype, day, ref, acc, supplier, service, vat, chosen), acct,
                                 allowed_sets=("DATAT",), selected_dir=str(acct), make_backup=False)
 
+    deferred = str((rows(acct, "ISINFO", ("ACCNUM28",)) or [{}])[0].get("ACCNUM28") or "").strip()
+    deferred_ok = bool(deferred) and any(str(r["ACCTYP"]) == "0" for r in rows(acct, "GLACC", ("ACCTYP",), ACCNUM=deferred))
+    vat_acc = accounts["vat_input_acc"]
+
     def expect(res, ref, flgvat, srv):
+        if srv == "2" and not deferred_ok:
+            if res.ok or res.error_code != "ACCOUNT_NOT_POSTABLE":
+                problems.append(f"{ref} no postable ACCNUM28, expected ACCOUNT_NOT_POSTABLE, got ok={res.ok} {res.error_code}")
+            return
         if not res.ok:
             problems.append(f"{ref} {res.error_code}: {res.error}")
             return
         docnums.append(res.docnum)
-        head = rows(acct, "APTRN", ("FLGVAT", "SRV_VATTYP"), DOCNUM=res.docnum)[0]
+        head = rows(acct, "APTRN", ("FLGVAT", "SRV_VATTYP", "VATPRD"), DOCNUM=res.docnum)[0]
         if (head["FLGVAT"], head["SRV_VATTYP"]) != (flgvat, srv):
             problems.append(f"{ref} FLGVAT/SRV {head['FLGVAT']!r}/{head['SRV_VATTYP']!r} != {flgvat!r}/{srv!r}")
+        if flgvat == "0":
+            return
+        vats = rows(acct, "ISVAT", ("AMT01",), DOCNUM=res.docnum)
+        vat_lines = [r["ACCNUM"] for r in rows(acct, "GLJNLIT", ("ACCNUM", "SEQIT"), VOUCHER=res.docnum) if r["SEQIT"] == "3"]
+        want = (0, None, [deferred]) if srv == "2" else (1, "set", [vat_acc])
+        got = (len(vats), "set" if head["VATPRD"] else None, vat_lines)
+        if got != want:
+            problems.append(f"{ref} ISVAT rows / VATPRD / input VAT account {got} != {want}")
 
     res = write("SV-NONE", "RR", suppliers[0], seven)
     if res.ok or res.error_code != service_vat.CHOICE_CODE:
@@ -196,7 +213,8 @@ def check(acct: Path) -> dict:
     if with_runner and docnums:
         problems.extend(cdx_check.problems(cdx_reindex, dbf, S, acct, index_before, docnums))
     return {"state": "fail" if problems else "ok", "why": "; ".join(problems), "docnums": docnums,
-            "vat_initem": (info[0].get("VAT_INITEM") if info else None), "cdx_checked": sorted(index_before)}
+            "vat_initem": (info[0].get("VAT_INITEM") if info else None), "deferred_vat_account": deferred_ok,
+            "cdx_checked": sorted(index_before)}
 
 
 if __name__ == "__main__":

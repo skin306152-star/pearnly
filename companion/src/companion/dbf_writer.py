@@ -67,6 +67,7 @@ ERR_REINDEX_UNAVAILABLE = "REINDEX_UNAVAILABLE"  # 正式包缺 cdx_reindex_runn
 ERR_WAITING_LOCK = "ACCOUNT_BUSY_LOCKED"  # Express 占用账套 → 回滚,稍后自动重试(非失败)
 ERR_SUPPLIER_DUP = "SUPPLIER_DUP_SUSPECTED"  # 疑似重复供应商 → 不建,转人工确认
 ERR_SUPPLIER_AMBIGUOUS = "SUPPLIER_BRANCH_AMBIGUOUS"  # 同税号多分店档定不出唯一 → 转人工
+ERR_DEFERRED_VAT = "ACCOUNT_NOT_POSTABLE"  # 口径 2 的「未到期进项税」科目(ISINFO.ACCNUM28)没设或不能记账 → 不写,转人工
 ERR_SERVICE_VAT = service_vat.CHOICE_CODE  # 赊购单服务品进项税口径账套历史定不了、载荷也没给 → 不写,转人工选一次
 ERR_STOCK_IN = "STOCK_IN_FAILED"  # 采购入库路失败(混行/数量成本非法/建档失败)→ 交会计
 # 载荷 4 的仓库码不合格 / 不在这套账的仓库代码表(ISTAB 21)里 → 整单不写,不回落主仓(见 stock_location)
@@ -387,6 +388,16 @@ def write_purchase(
     if srv is None:
         return DbfWriteResult(False, error_code=ERR_SERVICE_VAT,
                               error=f"service input VAT basis of supplier {existing_code or entry.supplier_name!r} not decided")
+    # 口径 2(เกณฑ์เงินสด)照原生:进项税借「未到期进项税」(账套设置 ISINFO.ACCNUM28)、单头 VATPRD 空、开单不写进项税记录,
+    # 付款时 Express 才转进项税(语料 78 / 78 张没有 ISVAT、6,690 行挂 ACCNUM28;10-30)。科目不能记账就不写、转人工,不挂普通进项税科目
+    deferred_vat = ""
+    if srv == service_vat.CASH_BASIS:
+        deferred_vat = account_rules.default_account(account_dir, service_vat.DEFERRED_VAT_SLOT)
+        if not (deferred_vat and account_rules.postable_account(account_dir, deferred_vat)):
+            return DbfWriteResult(False, error_code=ERR_DEFERRED_VAT,
+                                  error=f"deferred input VAT account {deferred_vat!r} (ISINFO.{service_vat.DEFERRED_VAT_SLOT}) "
+                                        "is not postable")
+    records_vat = vat > 0 and not deferred_vat
 
     clock.lap("checks")
     backup_dir = _backup(account_dir, S.PURCHASE_BACKUP_TABLES + stock_location_tables(locations)) \
@@ -414,6 +425,7 @@ def write_purchase(
             userid,
             depcod,
             srv=srv,
+            deferred_vat=deferred_vat,
             **_located(locations, moves),
         )
         stloc_expected, notes = record_locations(account_dir, moves, notes)
@@ -434,7 +446,7 @@ def write_purchase(
             account_dir,
             docnum,
             total,
-            vat > 0,  # 只有有税额的单写进项税记录（整单免税不写，同原生）
+            records_vat,  # 只有有税额的单写进项税记录（整单免税不写，同原生）；口径 2 开单不写（付款时 Express 记）
             base=base,
             detail_n=detail_n,
             has_stock=has_stock,
@@ -447,7 +459,7 @@ def write_purchase(
         verify = write_verify.check(account_dir, write_verify.Expected(
             side="purchase", docnum=docnum, party_code=entry.supplier_code, docdat=docdat,
             rectyp=S.RECTYP[prefix], refnum=entry.ref_no, lines=gl_rows,
-            tax_id=entry.supplier_tax_id, branch=entry.supplier_branch, has_vat=has_vat))
+            tax_id=entry.supplier_tax_id, branch=entry.supplier_branch, has_vat=records_vat))
         clock.lap("write_check")
         _discard_backup(backup_dir)  # 校验通过(已提交)→ 删快照,磁盘恒定
         clock.lap("cleanup")
@@ -525,6 +537,7 @@ def _write_all(
     depcod="",
     *,
     srv=None,
+    deferred_vat="",
     locations=None,
     moves=None,
 ) -> tuple:
@@ -582,7 +595,7 @@ def _write_all(
                 "DOCNUM": docnum,
                 "DOCDAT": docdat,
                 "REFNUM": entry.ref_no,
-                "VATPRD": vatprd if has_vat else None,
+                "VATPRD": vatprd if has_vat and not deferred_vat else None,  # 口径 2 付款时才定税期
                 "SUPCOD": entry.supplier_code,
                 "FLGVAT": flgvat,
                 "VATRAT": float(entry.vat_rate),
@@ -612,6 +625,9 @@ def _write_all(
 
     # 明细行路由:选库存的行真入库并回吐「借 存货 / 贷 购货」重分类分录,接在本单分录之后。
     gl_rows = purchase_lines.journal_rows(entry)
+    if deferred_vat:
+        # 口径 2：进项税那一行改借「未到期进项税」（同原生）
+        gl_rows = [(seq, deferred_vat if seq == S.SEQIT["input_vat"] else acc, side, amt) for seq, acc, side, amt in gl_rows]
     line_modes, reclass = [], []
     if write_detail:
         line_modes, reclass = purchase_lines.write_detail(
@@ -621,7 +637,7 @@ def _write_all(
         )
         gl_rows += [] if periodic else reclass
 
-    if vat > 0:
+    if vat > 0 and not deferred_vat:
         # 进项税记录只给有税额的单：整单免税（税额 0）原生不记（语料 5,078 张全免税进货单 95% 没有这一行，主会话 10-29）；
         # 混合税率的单照记，免税部分记 AMTRAT0
         iv = _open(account_dir, "ISVAT", dbf.READ_WRITE)

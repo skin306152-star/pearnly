@@ -116,7 +116,9 @@ def payload(doctype, docdate, ref, accounts, supplier, items, base, vat, *, vat_
     out = {"doctype": doctype, "account_set": "DATAT", "docdate_be": docdate, "vat_period_be": docdate[:4] + "01",
            "ref_no": ref, "vat_rate": 7.0, "base_amount": f"{base:.2f}", "vat_amount": f"{vat:.2f}",
            "total_amount": f"{total:.2f}", "items": items, "items_status": "ok", "items_account": debit, "lines": lines,
-           "supplier": {"code": supplier, "name": "", "tax_id": "", "prename": "", "supplier_new": False}}
+           "supplier": {"code": supplier, "name": "", "tax_id": "", "prename": "", "supplier_new": False},
+           # 清空的 T 账套没有赊购历史：服务品进项税口径照人选的（service_vat，10-30；不带的话赊购单按规则不写、转人工）
+           "srv_vattyp": "accrual"}
     if vat_fields:
         out["vat_fields"] = vat_fields
     return out

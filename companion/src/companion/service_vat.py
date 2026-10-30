@@ -26,7 +26,9 @@ VALUES = (ACCRUAL, CASH_BASIS)
 OPTIONS = {"accrual": ACCRUAL, "cash_basis": CASH_BASIS}
 CHOICE_CODE = "SERVICE_VAT_BASIS_CHOICE"
 PAYLOAD_KEY = "srv_vattyp"
-NO_HISTORY = "0"  # 随供应商主档上报：读过、这家没有历史（没有这个键 = 旧版没读）
+NO_HISTORY = "0"
+# 口径 2 的进项税借方：账套设置里的「未到期进项税」(ภาษีซื้อยังไม่ถึงกำหนด) 科目（原生 6,690 行挂这里，10-30）
+DEFERRED_VAT_SLOT = "ACCNUM28"  # 随供应商主档上报：读过、这家没有历史（没有这个键 = 旧版没读）
 
 
 def verdict(values: Iterable[str]) -> str:

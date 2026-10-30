@@ -26,7 +26,8 @@ from decimal import Decimal
 from pathlib import Path
 
 HEAD = ("RECTYP", "DOCNUM", "DOCDAT", "SUPCOD", "FLGVAT", "VATRAT", "AMOUNT", "AFTDISC", "TOTAL", "NETVAL", "AMTRAT0",
-        "VATAMT", "NETAMT", "SRV_VATTYP", "DOCSTAT", "DISCAMT", "REFNUM", "USERID")
+        "VATAMT", "NETAMT", "SRV_VATTYP", "DOCSTAT", "DISCAMT", "REFNUM", "USERID", "VATPRD")
+SLOTS = {f"ACCNUM{i:02d}" for i in range(40)}
 MONEY = ("AMOUNT", "AFTDISC", "TOTAL", "NETVAL", "AMTRAT0", "VATAMT", "NETAMT")
 
 
@@ -131,6 +132,12 @@ def compare_book(answer: Path, copy: Path, per_kind: int) -> list:
     heads = [h for h in raw(table(answer, "APTRN"), set(HEAD)) if h["RECTYP"] in ("1", "3") and h["DOCSTAT"] != "C"]
     heads.sort(key=lambda h: (h.get("DOCDAT") or "", h["DOCNUM"]))
     nums = {h["DOCNUM"] for h in heads}
+    # 进项税借方挂账套设置的哪一栏（ACCNUM06 进项税 / ACCNUM28 未到期进项税）：答案按答案账套的设置认，直写按 T 账套的设置认
+    native_slot = {v: k for k, v in (raw(table(answer, "ISINFO"), SLOTS) or [{}])[0].items() if v}
+    vat_lines = {}
+    for r in raw(table(answer, "GLJNLIT"), {"VOUCHER", "ACCNUM", "TRNTYP", "AMOUNT"}):
+        if r["VOUCHER"] in nums and r["TRNTYP"] == "0":
+            vat_lines.setdefault(r["VOUCHER"], []).append(r)
     lines = defaultdict(list)
     for r in raw(table(answer, "STCRD"), {"DOCNUM", "SEQNUM", "STKCOD", "TRNQTY", "TRNVAL", "NETVAL", "VATCOD"}):
         if r["DOCNUM"] in nums:
@@ -182,7 +189,9 @@ def compare_book(answer: Path, copy: Path, per_kind: int) -> list:
                 rec.update(outcome="write_failed", why=f"{res.error_code}: {res.error}"[:300])
                 results.append(rec)
                 continue
-            rec.update(diffs=diffs(copy, res.docnum, h, lines[h["DOCNUM"]], vats[h["DOCNUM"]]))
+            native = sorted(native_slot.get(r["ACCNUM"], "other") for r in vat_lines.get(h["DOCNUM"], [])
+                            if (h["VATAMT"] or 0) > 0 and d2(r["AMOUNT"]) == d2(h["VATAMT"]))[:1]
+            rec.update(diffs=diffs(copy, res.docnum, h, lines[h["DOCNUM"]], vats[h["DOCNUM"]], native))
             rec["outcome"] = "match" if not rec["diffs"] else "differs"
         except Exception:
             rec.update(outcome="error", why=traceback.format_exc()[-400:])
@@ -217,9 +226,17 @@ def build(h, ls, vat_rows, accounts, cash, calendar):
     return payload
 
 
-def diffs(copy, docnum, h, ls, vat_rows) -> list:
+def diffs(copy, docnum, h, ls, vat_rows, native_slot) -> list:
     out = []
     got = [r for r in raw(table(copy, "APTRN"), set(HEAD)) if r["DOCNUM"] == docnum][0]
+    if bool(got.get("VATPRD")) != bool(h.get("VATPRD")):
+        out.append(f"VATPRD {bool(got.get('VATPRD'))}!={bool(h.get('VATPRD'))}")
+    if native_slot:
+        mine = {v: k for k, v in (raw(table(copy, "ISINFO"), SLOTS) or [{}])[0].items() if v}
+        slot = sorted(mine.get(r["ACCNUM"], "other") for r in raw(table(copy, "GLJNLIT"), {"VOUCHER", "ACCNUM", "SEQIT"})
+                      if r["VOUCHER"] == docnum and r["SEQIT"].strip() == "3")[:1]
+        if slot != native_slot:
+            out.append(f"input VAT account {slot}!={native_slot}")
     for key in ("FLGVAT", "SRV_VATTYP"):
         if str(got.get(key)) != str(h.get(key)):
             out.append(f"{key} {got.get(key)!r}!={h.get(key)!r}")

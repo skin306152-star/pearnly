@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))
 
 import _synth_account  # noqa: E402
+import account_rules_fixture as F  # noqa: E402
 
 from companion import catalog_probe, cdx_reindex, service_vat  # noqa: E402
 from companion import dbf_schema as S  # noqa: E402
@@ -27,6 +28,7 @@ from companion.purchase_adapter import validate_purchase_payload  # noqa: E402
 PURCHASE_ACC = "51-03-00-00"
 VAT_IN_ACC = "11-05-04-01"
 AP_ACC = "21-02-01-00"
+DEFERRED_ACC = "11-05-04-09"  # 未到期进项税（ISINFO.ACCNUM28）
 
 
 def _payload(ref, doctype="RR", mode="non_stock_item", vat="7.00"):
@@ -53,6 +55,27 @@ class ServiceVatWriteTest(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.tmp, True)
         self.acct = _synth_account.build(self.tmp / "70EXP" / "test")
+        F.isinfo(self.acct, ACCNUM28=DEFERRED_ACC)
+        F.glacc(self.acct, (DEFERRED_ACC, "ภาษีซื้อยังไม่ถึงกำหนด"))
+
+    def _rows(self, table, docnum):
+        t = dbf.Table(str(self.acct / f"{table}.DBF"), codepage=S.CODEPAGE)
+        t.open(dbf.READ_ONLY)
+        try:
+            names = {"APTRN": "DOCNUM", "ISVAT": "DOCNUM", "GLJNLIT": "VOUCHER"}
+            return [r for r in t if (r[names[table]] or "").strip() == docnum]
+        finally:
+            t.close()
+
+    def _count(self):
+        """账套里单据表、凭证表、进项税表一共几行（拒写时一行都不多）。"""
+        total = 0
+        for name in ("APTRN", "GLJNLIT", "ISVAT"):
+            t = dbf.Table(str(self.acct / f"{name}.DBF"), codepage=S.CODEPAGE)
+            t.open(dbf.READ_ONLY)
+            total += len(t)
+            t.close()
+        return total
 
     def _history(self, *rows):
         """APTRN 里先放几张 Express 人录的单：(供应商, 口径[, 单别 RECTYP, 价格类型, 录入人, 状态])。"""
@@ -93,11 +116,11 @@ class ServiceVatWriteTest(unittest.TestCase):
     def test_undecided_is_not_written_until_someone_chooses(self):
         """供应商两种都有（或没历史、整本两种都有）：不写、回码，账套里不多一张单；载荷带人选的值就照它写。"""
         self._history(("S001", "1"), ("S001", "2"))
-        before = len(self._srv(""))
+        before = self._count()
         res = self._buy(_payload("SV-3"))
         self.assertFalse(res.ok)
         self.assertEqual(res.error_code, service_vat.CHOICE_CODE)
-        self.assertEqual(len(self._srv("")), before)
+        self.assertEqual(self._count(), before)
         res = self._buy({**_payload("SV-3"), service_vat.PAYLOAD_KEY: "cash_basis"})
         self.assertTrue(res.ok, res.error)
         self.assertEqual(self._srv(res.docnum), ["2"])
@@ -138,6 +161,33 @@ class ServiceVatWriteTest(unittest.TestCase):
         rows = {row["code"]: row for row in catalog_probe.probe_suppliers(self.acct)}
         self.assertEqual(rows["S001"]["srv"], "2")
         self.assertEqual(rows["S009"]["srv"], service_vat.NO_HISTORY)
+
+    def test_cash_basis_defers_the_input_vat_like_native_express(self):
+        """10-30（语料 78 / 78）：口径 2 开单不写进项税记录、税期空，进项税借「未到期进项税」（ISINFO.ACCNUM28），付款时 Express 才转；
+        口径 1 照旧借进项税科目、记税期、写进项税记录。"""
+        self._history(("S001", "2"), ("S002", "1"))
+        cash = self._buy(_payload("SV-8"))
+        self.assertTrue(cash.ok, cash.error)
+        head = self._rows("APTRN", cash.docnum)[0]
+        self.assertEqual(((head.SRV_VATTYP or "").strip(), head.VATPRD), ("2", None))
+        self.assertEqual(self._rows("ISVAT", cash.docnum), [])
+        vat_lines = [(r.ACCNUM or "").strip() for r in self._rows("GLJNLIT", cash.docnum) if (r.SEQIT or "").strip() == "3"]
+        self.assertEqual(vat_lines, [DEFERRED_ACC])
+        accrual = self._buy({**_payload("SV-9"), "supplier": {**_payload("x")["supplier"], "code": "S002"}})
+        self.assertTrue(accrual.ok, accrual.error)
+        self.assertIsNotNone(self._rows("APTRN", accrual.docnum)[0].VATPRD)
+        self.assertEqual(len(self._rows("ISVAT", accrual.docnum)), 1)
+        self.assertEqual([(r.ACCNUM or "").strip() for r in self._rows("GLJNLIT", accrual.docnum)
+                          if (r.SEQIT or "").strip() == "3"], [VAT_IN_ACC])
+
+    def test_cash_basis_without_a_postable_deferred_account_is_not_written(self):
+        F.isinfo(self.acct, ACCNUM28="")
+        self._history(("S001", "2"))
+        before = self._count()
+        res = self._buy(_payload("SV-10"))
+        self.assertFalse(res.ok)
+        self.assertEqual(res.error_code, "ACCOUNT_NOT_POSTABLE")
+        self.assertEqual(self._count(), before)
 
     def test_the_payload_value_must_be_a_known_basis(self):
         self.assertTrue(validate_purchase_payload({**_payload("SV-7"), "srv_vattyp": "accrual"},
