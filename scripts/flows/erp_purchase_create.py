@@ -82,16 +82,18 @@ def judge(params, results, camera_code=None):
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 doc = frappe.db.get_value("Purchase Document", {{"supplier_name": {params['supplier']!r}}}, ["name", "status"], as_dict=True) or {{}}
-lines = frappe.get_all("Purchase Line", filters={{"parent": doc.get("name")}}, fields=["product", "qty", "batch_no", "expiry_date"]) if doc else []
+lines = frappe.get_all("Purchase Line", filters={{"parent": doc.get("name")}}, fields=["product", "qty"]) if doc else []
+# 批次 / 有效期 10-30 彻底删除：库里的列也没有了
+gone = [c for c in ("batch_no", "expiry_date") if frappe.db.has_column("Purchase Line", c)]
 qty = frappe.db.get_value("ERP Stock Balance", {{"product": {params['product']!r}, "warehouse": {params['warehouse']!r}, "location": ""}}, "qty_on_hand") or 0
 frappe.db.set_value("ERP Company", {params['company']!r}, "express_enabled", {params['express']}, update_modified=False)  # 还原
 frappe.db.commit()
-print(json.dumps({{"doc": doc, "lines": [dict(r, qty=float(r.qty)) for r in lines], "after": float(qty)}}, default=str))
+print(json.dumps({{"doc": doc, "lines": [dict(r, qty=float(r.qty)) for r in lines], "after": float(qty), "batch_columns": gone}}, default=str))
 """)
     line = (got["lines"] or [{}])[0]
     return [
         {"case": "purchase submitted without batch or expiry", "saved": got,
          "ok": got["doc"].get("status") == "submitted" and line.get("product") == params["product"] and line.get("qty") == 2.0
-         and not line.get("batch_no") and not line.get("expiry_date")},
+         and got.get("batch_columns") == []},
         {"case": "stock went up by 2", "saved": [params["before"], got["after"]], "ok": got["after"] == params["before"] + 2},
     ]

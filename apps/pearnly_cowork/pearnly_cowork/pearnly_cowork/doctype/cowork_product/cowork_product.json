@@ -7,7 +7,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-10-30 20:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -24,8 +24,6 @@
   "base_unit",
   "enabled",
   "units",
-  "track_batch",
-  "track_expiry",
   "is_weighed",
   "min_stock",
   "default_cost"
@@ -88,18 +86,6 @@
    "fieldtype": "Table",
    "label": "Sell Units",
    "options": "Cowork Product Unit"
-  },
-  {
-   "fieldname": "track_batch",
-   "fieldtype": "Check",
-   "label": "Track Batch",
-   "default": "0"
-  },
-  {
-   "fieldname": "track_expiry",
-   "fieldtype": "Check",
-   "label": "Track Expiry",
-   "default": "0"
   },
   {
    "fieldname": "is_weighed",

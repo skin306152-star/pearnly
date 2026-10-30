@@ -44,3 +44,5 @@ pearnly_erp_portal.patches.v1_18_default_company_warehouse
 pearnly_erp_portal.patches.v1_19_terminal_main_warehouse
 # 商品来由补值：带 Express 编码、来由为空的补成 express，只补空值（10-29 前同步进来的商品，10-30）
 pearnly_erp_portal.patches.v1_20_product_origin_express
+# 批次 / 有效期彻底删除：商品、采购明细、出入库明细的列真删（模型同步不删列，用户 10-30）
+pearnly_erp_portal.patches.v1_21_drop_batch_expiry_columns

@@ -2057,8 +2057,6 @@ This product already has a unit called {0}.	该物料已有名为 {0} 的单位�
 This tax id is already used by another client.	该税号已被其他客户使用。	เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับลูกค้ารายอื่นแล้ว	この納税者番号は既に別の顧客で使用されています。	
 Times Used	使用次数	จำนวนครั้งที่ใช้	使用回数	
 Too many rows to import.	导入行数过多。	จำนวนแถวที่นำเข้ามากเกินไป	インポートする行が多すぎます。	
-Track Batch	按批次管理	ติดตามล็อต	ロット管理	
-Track Expiry	按有效期管理	ติดตามวันหมดอายุ	有効期限管理	
 Unmatched Count	未匹配笔数	จำนวนที่ไม่พบคู่	未照合件数	
 Upload Failed	上传失败数	จำนวนที่อัปโหลดไม่สำเร็จ	アップロード失敗数	
 Use Count	使用次数	จำนวนครั้งที่ใช้	使用回数	

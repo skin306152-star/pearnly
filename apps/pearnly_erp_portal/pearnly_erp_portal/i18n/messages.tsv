@@ -55,8 +55,6 @@ Enable {0} selected	启用选中的 {0} 个	เปิดใช้งาน {0} �
 Updated {0} product(s)	已更新 {0} 个物料	อัปเดต {0} รายการแล้ว	{0}件を更新しました	product.notice.toggledCount
 Base unit	库存单位	หน่วยฐาน	基準単位	product.field.baseUnit
 Category	分类	หมวดหมู่	カテゴリ	product.field.category
-Track batches	批次管理	ติดตามล็อต	ロット管理	product.field.trackBatch
-Track expiry	有效期管理	ติดตามวันหมดอายุ	有効期限管理	product.field.trackExpiry
 Import from Excel	Excel 导入	นำเข้าจาก Excel	Excel から取込	product.action.import
 Reload	刷新	โหลดใหม่	再読み込み	product.action.reload
 Excel file	Excel 文件	ไฟล์ Excel	Excel ファイル	product.field.importFile
@@ -450,7 +448,6 @@ Attachments	附件	ไฟล์แนบ	添付ファイル
 Bank	银行	ธนาคาร	銀行
 Bank Transfer	银行转账	โอนเงินผ่านธนาคาร	銀行振込
 Barcode	条码	บาร์โค้ด	バーコード
-Batch No	批号	หมายเลขล็อต	バッチ番号
 Branch	分支机构	สาขา	支店
 Branch Name	分支机构名称	ชื่อสาขา	支店名
 Branch No	分支机构编号	เลขที่สาขา	支店番号
@@ -491,7 +488,6 @@ Exchange Rate must be greater than zero	汇率必须大于零	อัตราแ
 Expense	费用	ค่าใช้จ่าย	経費
 Expense Amount	费用金额	ยอดค่าใช้จ่าย	経費金額
 Expense Count	费用笔数	จำนวนรายการค่าใช้จ่าย	経費件数
-Expiry Date	失效日期	วันหมดอายุ	有効期限
 Export	导出	ส่งออก	エクスポート
 External System Reference	外部系统引用	รหัสอ้างอิงระบบภายนอก	外部システム参照
 File	文件	ไฟล์	ファイル

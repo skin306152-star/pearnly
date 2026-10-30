@@ -2036,8 +2036,6 @@ Total tax and surcharge,รวมยอดภาษีที่นำส่ง�
 Total tax overpaid after surcharge and penalty,รวมภาษีที่ชำระเกิน หลังคำนวณเงินเพิ่มและเบี้ยปรับแล้ว (12. - 13. - 14.)
 Total tax remitted,รวมยอดภาษีที่นำส่งทั้งสิ้น
 "Total tax, surcharge and penalty payable",รวมภาษี เงินเพิ่ม และเบี้ยปรับที่ต้องชำระ ((11. + 13. + 14.) หรือ (13. + 14. - 12.))
-Track Batch,ติดตามล็อต
-Track Expiry,ติดตามวันหมดอายุ
 Transaction Date,วันที่ทำรายการ
 Transaction type,ประเภทรายการ
 Transfer,โอนเงิน

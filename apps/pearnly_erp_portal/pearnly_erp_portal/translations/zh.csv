@@ -140,7 +140,6 @@ Base Unit,库存单位
 Base unit,库存单位
 Basis Qty,基准数量
 Basis Set,已设基准
-Batch No,批号
 Bind this account first,请先绑定 ERP 账号
 Binding code,绑定码
 Block Duplicate Documents,阻止重复单据
@@ -515,7 +514,6 @@ Expense,费用
 Expense Account,费用科目
 Expense Amount,费用金额
 Expense Count,费用笔数
-Expiry Date,失效日期
 Export,导出
 Export Excel,导出 Excel
 Export {0},导出选中的 {0} 个班次
@@ -1457,9 +1455,7 @@ Total items,总件数
 Total opening value,期初总金额
 Total · {0} row(s),合计 · {0} 条明细
 Totals,合计
-Track batches,批次管理
 Track by unit,按台管理
-Track expiry,有效期管理
 Tracking by unit can only be turned off when every unit is sold or void,全部台已售或作废后才能关闭按台管理
 Transaction type,业务类型
 Transfer,转账
@@ -2186,8 +2182,6 @@ product.field.origin,来由
 product.field.price,售价
 product.field.qr,二维码内容
 product.field.search,搜索名称或条码
-product.field.trackBatch,批次管理
-product.field.trackExpiry,有效期管理
 product.field.unit,单位
 product.field.vat,含 VAT
 product.field.weighed,称重物料

@@ -324,7 +324,7 @@ def main():
     expected = {"product_name", "code", "barcode",
                 "qr_payload", "unit", "base_unit", "category_id", "unit_price",
                 "price_set", "cost_set", "vat_applicable", "is_active", "min_stock",
-                "default_cost", "image_url", "track_batch", "track_expiry",
+                "default_cost", "image_url",
                 "default_warehouse", "default_location",
                 "units"}
     results["fields_missing"] = sorted(expected - ours)

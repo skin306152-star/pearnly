@@ -22,8 +22,6 @@
   "vat_applicable",
   "section_break_stock",
   "min_stock",
-  "track_batch",
-  "track_expiry",
   "track_serial",
   "serial_kind",
   "default_cost",
@@ -154,22 +152,6 @@
    "precision": "3"
   },
   {
-   "fieldname": "track_batch",
-   "hidden": 1,
-   "read_only": 1,
-   "fieldtype": "Check",
-   "label": "Track batches",
-   "default": "0"
-  },
-  {
-   "fieldname": "track_expiry",
-   "hidden": 1,
-   "read_only": 1,
-   "fieldtype": "Check",
-   "label": "Track expiry",
-   "default": "0"
-  },
-  {
    "fieldname": "track_serial",
    "fieldtype": "Check",
    "label": "Track by unit",
@@ -286,7 +268,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-29 13:00:00.000000",
+ "modified": "2026-10-30 20:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Product",
  "naming_rule": "Expression",

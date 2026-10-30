@@ -8,7 +8,6 @@
   "qty",
   "unit",
   "unit_cost",
-  "batch_no",
   "warehouse",
   "location"
  ],
@@ -42,14 +41,6 @@
    "in_list_view": 1
   },
   {
-   "fieldname": "batch_no",
-   "hidden": 1,
-   "read_only": 1,
-   "fieldtype": "Data",
-   "label": "Batch No",
-   "length": 100
-  },
-  {
    "fieldname": "warehouse",
    "fieldtype": "Link",
    "options": "ERP Warehouse",
@@ -64,7 +55,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-29 12:00:00.000000",
+ "modified": "2026-10-30 20:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Stock Entry Line",
  "owner": "Administrator",

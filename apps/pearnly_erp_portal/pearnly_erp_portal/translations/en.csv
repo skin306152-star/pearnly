@@ -140,7 +140,6 @@ Base Unit,Base Unit
 Base unit,Base unit
 Basis Qty,Basis Qty
 Basis Set,Basis Set
-Batch No,Batch No
 Bind this account first,Bind this account first
 Binding code,Binding code
 Block Duplicate Documents,Block Duplicate Documents
@@ -515,7 +514,6 @@ Expense,Expense
 Expense Account,Expense Account
 Expense Amount,Expense Amount
 Expense Count,Expense Count
-Expiry Date,Expiry Date
 Export,Export
 Export Excel,Export Excel
 Export {0},Export {0}
@@ -1457,9 +1455,7 @@ Total items,Total items
 Total opening value,Total opening value
 Total · {0} row(s),Total · {0} row(s)
 Totals,Totals
-Track batches,Track batches
 Track by unit,Track by unit
-Track expiry,Track expiry
 Tracking by unit can only be turned off when every unit is sold or void,Tracking by unit can only be turned off when every unit is sold or void
 Transaction type,Transaction type
 Transfer,Transfer
@@ -2186,8 +2182,6 @@ product.field.origin,Origin
 product.field.price,Selling price
 product.field.qr,QR content
 product.field.search,Search name or barcode
-product.field.trackBatch,Track batches
-product.field.trackExpiry,Track expiry
 product.field.unit,Unit
 product.field.vat,VAT applies
 product.field.weighed,Sold by weight

@@ -223,7 +223,6 @@ class NativeProductRoster(unittest.TestCase):
 			"display_name": "  น้ำปลา  ",
 			"name_th": "น้ำปลา", "name_en": "Fish Sauce", "name_zh": "鱼露",
 			"sku": "FS-001", "min_stock": "6", "default_cost": "12.50",
-			"track_batch": True,
 			"units": [
 				{"unit_name": "ขวด", "factor_to_base": "1", "barcode": "8850000000001",
 					"price": "20.00", "is_default_sell": True},
@@ -231,7 +230,7 @@ class NativeProductRoster(unittest.TestCase):
 			]})
 		self.assertEqual(product["display_name"], "น้ำปลา")
 		self.assertEqual(product["base_unit"], "ชิ้น")           # deployed default
-		self.assertTrue(product["track_batch"])
+		self.assertNotIn("track_batch", product)  # 批次 / 有效期 10-30 彻底删除
 		self.assertEqual(product["min_stock"], 6.0)
 		self.assertEqual(product["default_cost"], 12.5)
 		self.assertEqual(product["names"]["display"], "น้ำปลา / Fish Sauce / 鱼露")

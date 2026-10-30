@@ -140,7 +140,6 @@ Base Unit,基準単位
 Base unit,基準単位
 Basis Qty,基準数量
 Basis Set,基準設定済み
-Batch No,バッチ番号
 Bind this account first,先に ERP アカウントを連携してください
 Binding code,連携コード
 Block Duplicate Documents,重複伝票をブロック
@@ -515,7 +514,6 @@ Expense,経費
 Expense Account,費用勘定
 Expense Amount,経費金額
 Expense Count,経費件数
-Expiry Date,有効期限
 Export,エクスポート
 Export Excel,Excel に出力
 Export {0},{0}件をエクスポート
@@ -1457,9 +1455,7 @@ Total items,合計点数
 Total opening value,期首金額合計
 Total · {0} row(s),合計 · {0} 明細
 Totals,合計
-Track batches,ロット管理
 Track by unit,個体管理
-Track expiry,有効期限管理
 Tracking by unit can only be turned off when every unit is sold or void,すべての個体が販売済みまたは無効の場合のみ個体管理を解除できます
 Transaction type,取引区分
 Transfer,振込
@@ -2186,8 +2182,6 @@ product.field.origin,由来
 product.field.price,販売価格
 product.field.qr,QR 内容
 product.field.search,名前・バーコードで検索
-product.field.trackBatch,ロット管理
-product.field.trackExpiry,有効期限管理
 product.field.unit,単位
 product.field.vat,VAT 対象
 product.field.weighed,量り売り

@@ -22,9 +22,9 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.masters import product_names, product_units
 
 PRODUCT = "Cowork Product"
-# 旧侧 products 表本次新增的六列 + 名称三语（呈现规则在 product_names 里）。
+# 旧侧 products 表本次新增的列 + 名称三语（呈现规则在 product_names 里）；批次 / 有效期 10-30 彻底删除。
 PRODUCT_TEXT_FIELDS = ("name_th", "name_en", "name_zh", "sku", "base_unit")
-PRODUCT_FLAG_FIELDS = ("track_batch", "track_expiry", "is_weighed")
+PRODUCT_FLAG_FIELDS = ("is_weighed",)
 PRODUCT_NUMBER_FIELDS = ("min_stock", "default_cost")
 DEFAULT_BASE_UNIT = "ชิ้น"
 

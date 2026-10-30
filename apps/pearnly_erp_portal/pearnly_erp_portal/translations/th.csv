@@ -140,7 +140,6 @@ Base Unit,หน่วยฐาน
 Base unit,หน่วยฐาน
 Basis Qty,จำนวนฐาน
 Basis Set,กำหนดฐานแล้ว
-Batch No,หมายเลขล็อต
 Bind this account first,กรุณาผูกบัญชี ERP ก่อนใช้งาน
 Binding code,รหัสผูกบัญชี
 Block Duplicate Documents,ป้องกันเอกสารซ้ำ
@@ -515,7 +514,6 @@ Expense,ค่าใช้จ่าย
 Expense Account,บัญชีค่าใช้จ่าย
 Expense Amount,ยอดค่าใช้จ่าย
 Expense Count,จำนวนรายการค่าใช้จ่าย
-Expiry Date,วันหมดอายุ
 Export,ส่งออก
 Export Excel,ส่งออก Excel
 Export {0},ส่งออก {0} กะ
@@ -1457,9 +1455,7 @@ Total items,จำนวนชิ้น
 Total opening value,มูลค่ายกมารวม
 Total · {0} row(s),รวม · {0} รายการ
 Totals,ยอดรวม
-Track batches,ติดตามล็อต
 Track by unit,ติดตามรายชิ้น
-Track expiry,ติดตามวันหมดอายุ
 Tracking by unit can only be turned off when every unit is sold or void,ปิดการติดตามรายชิ้นได้เมื่อทุกรายการขายแล้วหรือยกเลิกแล้วเท่านั้น
 Transaction type,ประเภทรายการ
 Transfer,โอนเงิน
@@ -2186,8 +2182,6 @@ product.field.origin,ที่มา
 product.field.price,ราคาขาย
 product.field.qr,ข้อมูล QR
 product.field.search,ค้นหาชื่อหรือบาร์โค้ด
-product.field.trackBatch,ติดตามล็อต
-product.field.trackExpiry,ติดตามวันหมดอายุ
 product.field.unit,หน่วย
 product.field.vat,คิด VAT
 product.field.weighed,ขายตามน้ำหนัก

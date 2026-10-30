@@ -516,8 +516,7 @@ def api_get_product(name=None, **kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_create_product(**kwargs):
     kwargs.pop("cmd", None)
-    for legacy in ("track_batch", "track_expiry", "origin"):  # 批次 / 有效期 10-29 删除：旧页面还带着就略过；来由不由页面给
-        kwargs.pop(legacy, None)
+    kwargs.pop("origin", None)  # 来由不由页面给
     return create_product(**kwargs)
 
 

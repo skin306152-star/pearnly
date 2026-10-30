@@ -2036,8 +2036,6 @@ Total tax and surcharge,税額と加算金の合計
 Total tax overpaid after surcharge and penalty,加算金・罰金控除後の超過納付額
 Total tax remitted,納付税額の合計
 "Total tax, surcharge and penalty payable",納付すべき税額・加算金・罰金の合計
-Track Batch,ロット管理
-Track Expiry,有効期限管理
 Transaction Date,取引日
 Transaction type,取引区分
 Transfer,振込

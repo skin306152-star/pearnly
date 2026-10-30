@@ -30,3 +30,4 @@ pearnly_cowork.patches.v0_0_23_folder_task_company
 pearnly_cowork.patches.v0_0_24_mrerp_task_company
 pearnly_cowork.patches.v0_0_25_push_queue_index
 pearnly_cowork.patches.v0_0_26_internal_tables_no_native_read
+pearnly_cowork.patches.v0_0_27_drop_batch_expiry_columns

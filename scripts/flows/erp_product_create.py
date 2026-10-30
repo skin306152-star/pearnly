@@ -77,8 +77,10 @@ def judge(params, results, camera_code=None):
 
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
-print(json.dumps(frappe.db.get_value("ERP Product", {{"barcode": {params['barcode']!r}}}, ["product_name", "origin", "track_batch", "track_expiry", "code"], as_dict=True) or {{}}))
+row = frappe.db.get_value("ERP Product", {{"barcode": {params['barcode']!r}}}, ["product_name", "origin", "code"], as_dict=True) or {{}}
+# 批次 / 有效期 10-30 彻底删除：库里的列也没有了
+row["batch_columns"] = [c for c in ("track_batch", "track_expiry") if frappe.db.has_column("ERP Product", c)]
+print(json.dumps(row))
 """)
     return [{"case": "product saved as created manually", "saved": got,
-             "ok": got.get("product_name") == params["name"] and got.get("origin") == "manual" and not got.get("track_batch")
-             and not got.get("track_expiry")}]
+             "ok": got.get("product_name") == params["name"] and got.get("origin") == "manual" and got.get("batch_columns") == []}]
