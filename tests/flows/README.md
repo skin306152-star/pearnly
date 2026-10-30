@@ -7,6 +7,7 @@
 | 文件 | 作用 |
 | --- | --- |
 | `tests/flows/registry.toml` | 登记表：每条流程的模块、起始页、岗位账号、数据集、宽度、`covers`（它覆盖的产品文件） |
+| `tests/flows/behind_baseline.txt` | 入口背后的模块（入口在同一 App 内 import 两层）里开拦截时还没有流程的存量清单：改到时只提醒（CI 摘要、部署脚本都列出）；只许减少——补上流程后对应条目必须删掉，不许新加。不在清单里又没有流程的，改到就拦 |
 | `tests/flows/not_flows.toml` | 确实没有业务流程可跑的入口文件，逐个写原因（只许按文件登记） |
 | `scripts/flows/<流程>.py` | 流程模块：`prepare`（在站点里开单等）、`steps`（页面步骤）、`judge`（页面结果）、`verify`（落库） |
 | `scripts/flows/run.py` | 跑法；`--post-status` 把结果回写成 GitHub 提交状态 `pearnly/flows` |

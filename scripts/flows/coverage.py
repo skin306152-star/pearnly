@@ -11,6 +11,9 @@
 以及带 `@frappe.whitelist` 的服务端模块。登记在 `tests/flows/registry.toml` 各流程的 `covers` 里（glob）。
 入口背后的业务模块（主会话 10-29）：入口模块在**同一个 App** 里 import 的模块，往下追两层。改到它们也要有流程——
 流程直接 covers 它，或流程 covers 的入口两层之内导入了它，都算覆盖。`--behind` 列出全仓这类模块里现在没有流程的。
+存量（主会话 10-29 定 B 方案）：开拦截那天没有流程的这类模块登记在 `tests/flows/behind_baseline.txt`，改到时只提醒
+（写进 CI 摘要）；不在清单里又没有流程的一律拦。清单只许减少：新加条目拦；已有流程覆盖或已不存在的条目必须删掉（拦）。
+入口补上流程后，它背后那一片自动转为拦截。`--deploy-note --base <上次放上生产的提交>` 给部署脚本列出本批改到的存量模块。
 确实没有业务流程可跑的（纯样式、只给框架加载的声明等）登记到 `tests/flows/not_flows.toml`，逐条写原因，只许按文件登记、不许整目录。
 """
 from __future__ import annotations
@@ -53,8 +56,25 @@ def is_entry(path: str) -> bool:
 
 
 HOPS = 2
-# 入口背后的模块没有流程时是否判失败：主会话 10-29 定先出现状清单、定基线，再开；开之前只提醒
-BEHIND_ENFORCED = False
+BASELINE = ROOT / "tests" / "flows" / "behind_baseline.txt"
+
+
+def baseline(text=None) -> list[str]:
+    text = BASELINE.read_text(encoding="utf-8") if text is None else text
+    return [line.strip() for line in text.splitlines() if line.strip() and not line.startswith("#")]
+
+
+def baseline_at(commit) -> list[str] | None:
+    out = subprocess.run(["git", "show", f"{commit}:{BASELINE.relative_to(ROOT)}"], cwd=ROOT, capture_output=True, text=True)
+    return baseline(out.stdout) if out.returncode == 0 else None
+
+
+def summary(lines) -> None:
+    """CI 摘要（GitHub 的 GITHUB_STEP_SUMMARY）：改到的存量模块要显眼。"""
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if path and lines:
+        with open(path, "a", encoding="utf-8") as out:
+            out.write("\n".join(lines) + "\n")
 
 
 def _module_of(path: str) -> str:
@@ -196,6 +216,9 @@ def main(argv=None) -> int:
     parser.add_argument("--status", action="store_true")
     parser.add_argument("--days", type=int, default=30)
     parser.add_argument("--behind", action="store_true")
+    parser.add_argument("--write-baseline", action="store_true", help="按现状重写存量清单（只在开拦截那天用一次）")
+    parser.add_argument("--deploy-note", action="store_true", help="部署脚本用：列出 --base 到 --head 之间改到的存量模块，不判失败")
+    parser.add_argument("--head", default="HEAD")
     args = parser.parse_args(argv)
     covers, exempt = registered()
     problems = []
@@ -209,6 +232,21 @@ def main(argv=None) -> int:
     problems += [f"{path}：not_flows.toml 登记的文件不存在" for path in exempt if not (ROOT / path).is_file()]
     if args.behind:
         print(behind_report(covers, exempt))
+        return 0
+    if args.write_baseline or args.deploy_note:
+        reach = behind_entries(import_graph()[0])
+        bare = sorted(m for m, e in reach.items() if m not in exempt and not behind_covered(m, e, covers))
+        if args.write_baseline:
+            BASELINE.write_text("# 入口背后的模块里开拦截时还没有流程的（scripts/flows/coverage.py，主会话 10-29 B 方案）：改到时只提醒。\n"
+                                "# 只许减少：补上流程后对应条目必须删掉；不许新加。\n" + "\n".join(bare) + "\n", encoding="utf-8")
+            print(f"存量清单 {len(bare)} 条")
+            return 0
+        out = subprocess.run(["git", "diff", "--name-only", "--diff-filter=AMR", args.base, args.head], cwd=ROOT,
+                             capture_output=True, text=True).stdout.split()
+        stock = set(baseline())
+        hit = [f"  - {p}（经 {sorted(reach[p])[0]}）" for p in out if p in stock and p in reach]
+        if hit:
+            print(f"本批改到的存量模块（还没有流程兜底）{len(hit)} 个：\n" + "\n".join(hit))
         return 0
     if args.status:
         print(status(covers, exempt, args.days))
@@ -226,16 +264,23 @@ def main(argv=None) -> int:
     bare = [p for p in entries if p not in exempt and not any(match(p, c) for c in covers)]
     problems += [f"{p}：改到的产品入口文件没有流程用例 —— 在 tests/flows/registry.toml 给覆盖它的流程加 covers（没有就新写一条流程），"
                  "或确实无流程可跑时登记进 tests/flows/not_flows.toml 并写原因" for p in bare]
-    # 入口背后的业务模块：改到了也要有流程（直接 covers，或覆盖了能导入它的入口）
-    behind = [p for p in files if p.endswith(".py") and p.startswith("apps/") and not is_entry(p) and (ROOT / p).is_file()]
-    if behind:
-        reach = behind_entries(import_graph()[0])
-        bare_behind = [f"{p}（经 {sorted(reach[p])[0]}）" for p in behind if p in reach and p not in exempt
-                       and not behind_covered(p, reach[p], covers)]
-        if bare_behind and BEHIND_ENFORCED:
-            problems += [f"{p}：改到的入口背后模块没有流程用例 —— 给覆盖这个入口的流程加 covers，或新写一条" for p in bare_behind]
-        elif bare_behind:
-            print("提醒（入口背后的模块还没开拦截）：改到的这些模块没有流程覆盖：\n" + "\n".join("  - " + p for p in bare_behind))
+    # 入口背后的业务模块：改到了也要有流程（直接 covers，或覆盖了能导入它的入口）；存量清单里的只提醒
+    reach = behind_entries(import_graph()[0])
+    stock = baseline()
+    problems += [f"{p}：存量清单里这条已经有流程覆盖了（或已不是入口背后的模块 / 文件已删），从 tests/flows/behind_baseline.txt 删掉"
+                 for p in stock if p not in reach or behind_covered(p, reach[p], covers)]
+    if args.files is None:
+        before = baseline_at(subprocess.run(["git", "merge-base", args.base, "HEAD"], cwd=ROOT, capture_output=True,
+                                            text=True).stdout.strip() or args.base)
+        if before is not None:
+            problems += [f"{p}：存量清单只许减少，不能新加 —— 给它补流程" for p in stock if p not in set(before)]
+    behind = [p for p in files if p in reach and p not in exempt and not behind_covered(p, reach[p], covers)]
+    reminded = [f"{p}（经 {sorted(reach[p])[0]}）" for p in behind if p in stock]
+    problems += [f"{p}（经 {sorted(reach[p])[0]}）：改到的入口背后模块没有流程用例 —— 给覆盖这个入口的流程加 covers，或新写一条"
+                 for p in behind if p not in stock]
+    if reminded:
+        print("提醒：改到的存量模块还没有流程兜底：\n" + "\n".join("  - " + p for p in reminded))
+        summary(["### 改到的存量模块（还没有流程兜底）", "", *[f"- `{p}`" for p in reminded], ""])
     if problems:
         print(f"流程用例覆盖：不通过（改到入口文件 {len(entries)} 个）")
         print("\n".join("  - " + p for p in problems))

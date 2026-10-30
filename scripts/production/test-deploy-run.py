@@ -235,6 +235,9 @@ class Driver(unittest.TestCase):
             bin_dir.mkdir()
             for f in (DRIVER, RUNNER, READBACK, HERE / 'target.py'):
                 (repo / 'scripts/production' / f.name).write_text(f.read_text())
+            (repo / 'scripts/flows').mkdir(parents=True)
+            (repo / 'scripts/flows/coverage.py').write_text(
+                'import sys\nif "--deploy-note" in sys.argv: print("本批改到的存量模块（还没有流程兜底）1 个：")\n')
             trace = root / 'trace'
             stub(bin_dir / 'git', f'''echo "git $*" >> "{trace}"
 case "$*" in
@@ -250,6 +253,7 @@ case "$1 $2" in
     case "$*" in
       *"length"*) echo 0 ;;
       *build-production*) echo "101 {SHA}" ;;
+      *stage-production*"--json headSha --jq"*) echo {'b' * 40} ;;  # 部署脚本查上次放上生产的提交（存量提醒用）
       *stage-production*) echo "202 {SHA}" ;;
     esac ;;
   "run view")
@@ -316,6 +320,8 @@ esac
                 self.assertIn('scripts/flows/run.py --all --post-status', result.stderr)
         result, calls = self.run_driver()
         self.assertIn('流程用例：all flows', result.stdout)
+        self.assertIn('本批改到的存量模块', result.stdout)  # 存量提醒显示、不挡部署
+        self.assertEqual(result.returncode, 0, result.stderr)
         result, calls = self.run_driver('--dry-run', flows='')
         self.assertEqual(result.returncode, 1)
         self.assertIn('没有流程用例结果', result.stderr)

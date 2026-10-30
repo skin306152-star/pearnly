@@ -116,6 +116,13 @@ flows_gate() {
   [[ "${line%% *}" == success ]] || stop "提交 $short 的流程用例没通过：${line#* }" "生产没动" "看 run.py 的结果修好；$rerun"
   [[ "${line#* }" == "all flows"* ]] || stop "提交 $short 只跑过受影响的流程（${line#* }），部署前要跑全套" "生产没动" "$rerun"
   say "流程用例：${line#* }"
+  # 存量提醒（不拦）：上次放上生产以来改到的、还没有流程兜底的入口背后模块（scripts/flows/coverage.py 的存量清单）
+  local last note
+  last=$(cd "$REPO" && gh run list --workflow stage-production.yml --status success --limit 1 --json headSha --jq '.[0].headSha // ""' 2>/dev/null) || last=
+  if [[ "$last" =~ ^[0-9a-f]{40}$ ]]; then
+    note=$(cd "$REPO" && python3 scripts/flows/coverage.py --deploy-note --base "$last" --head "$sha" 2>/dev/null) || note=
+    [[ -z "$note" ]] || printf '%s\n' "$note" | sed 's/^/  ⚠ /'
+  fi
 }
 
 # ---------- 远端 main ----------
