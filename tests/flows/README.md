@@ -53,9 +53,16 @@ python3 scripts/flows/run.py --changed --base origin/main --post-status
 
 按改动文件对 `covers` 选流程；一个都没涉及也回写通过（说明里是 `0 flows`）。改到入口文件却没有登记的，CI 的覆盖闸已经拦下。
 
+分支上只跑受影响的流程，不跑全套；变基没有冲突就不重跑（主会话 10-30 定）。
+
 ## 部署前（全套）
 
 部署闸只认全套：说明以 `all flows` 开头、状态 success、就在要部署的那个 main 提交上。
+
+全套每次部署只跑一次（主会话 10-30 定，起因是 main 一直前进、反复变基重跑全套，浪费额度和时间）：
+- 冻结点由主会话提前宣布：宣布后 main 不再进别的提交，只合要部署的那一批。
+- 那一批变基到冻结点**一次**，在变基后的提交上跑全套、回写，过了快进合入，主会话用这个提交部署。
+- 不追着 main 跑：冻结前不跑全套；冻结后 main 不动，不会因为别人合入而重跑。
 
 ```bash
 git -C ~/pearnly fetch origin
@@ -63,10 +70,11 @@ git -C ~/pearnly worktree add ~/pearnly-devtools/flows-main origin/main
 cd ~/pearnly-devtools/flows-main
 PEARNLY_REGRESSION_SRC=$PWD docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d --wait
 docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml exec -T bench env/bin/python /workspace/scripts/regression/lab_init.py
-python3 scripts/flows/run.py --all --post-status --out ~/pearnly-devtools/flows-main.json
+python3 scripts/flows/run.py --all --post-status --jobs 3 --out ~/pearnly-devtools/flows-main.json
 ```
 
-- 回写前 `run.py` 自己核对：实验室挂的产品源码就是这个工作树、产品代码没有未提交改动，否则拒绝回写。
+- 回写前 `run.py` 自己核对：实验室挂的产品源码就是这个工作树、产品代码没有未提交改动、CC 前端产物比源码新，否则拒绝回写；
+  `--post-status` 先把实验室全部站点迁移到挂上来的源码；`--jobs 3` 按站点并行（同一站点的格依次跑）。
 - 工作树必须在 `/Users` 下（Docker 挂不了 `/private/tmp`）。跑完 `git worktree remove` 掉。
 - 依赖 / Dockerfile / 底座版本变了时，实时源码盖不到：用 `PEARNLY_REGRESSION_LAB_IMAGE=<候选镜像>` 起实验室再跑。
 
