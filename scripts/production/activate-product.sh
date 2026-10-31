@@ -73,8 +73,37 @@ sites=$("${compose[@]}" run --rm --no-deps -T "$product-web" sh -c 'cd /home/fra
   | tr -d '\r' | grep -E '^[a-z0-9-]+(\.[a-z0-9-]+)+$' || true)
 [[ -n "$sites" ]] || { printf 'No %s sites found to migrate.\n' "$product" >&2; false; }
 : > "/opt/pearnly/state/unfinished-sites-$product.txt"
+# 每站迁移前后各数一次 DocType（doctype_guard.py），变少就停在这里：保持维护、不放开流量、后面的站点不再迁移，打印少了哪些。
+# 起因：10-31 本机实验栈迁移时一个控制器导入失败，Frappe 把一批 DocType 当孤儿删了 75 个，迁移本身照样成功退出。
+# 有意删掉的 DocType 登记在 scripts/production/doctype-removals.txt。开户没做完的站点数不了（还没建表）就不数，照旧交给下面的规则。
+guard="/opt/pearnly/deploy-src/scripts/production/doctype_guard.py"
+census() {  # census <站点> <输出文件>
+  "${compose[@]}" run --rm --no-deps -T "$product-web" env/bin/python "$guard" snapshot "$1" > "$2"
+}
 for site in $sites; do
-  if "${compose[@]}" run --rm --no-deps "$product-web" bench --site "$site" migrate; then continue; fi
+  counted="/opt/pearnly/state/doctypes-$product-$site"
+  guarded=1
+  if ! census "$site" "$counted.before"; then
+    if unfinished "$site"; then
+      guarded=0
+    else
+      printf '%s: could not count DocTypes before migrating.\n' "$site" >&2
+      false
+    fi
+  fi
+  if "${compose[@]}" run --rm --no-deps "$product-web" bench --site "$site" migrate; then
+    if [[ $guarded == 1 ]]; then
+      if ! census "$site" "$counted.after"; then
+        printf '%s: could not count DocTypes after migrating; activation stopped with maintenance kept on.\n' "$site" >&2
+        false
+      fi
+      if ! python3 /opt/pearnly/deploy/scripts/production/doctype_guard.py compare "$counted.before" "$counted.after"; then
+        printf '%s: DocTypes disappeared during migration; activation stopped with maintenance kept on, later sites not migrated.\n' "$site" >&2
+        false
+      fi
+    fi
+    continue
+  fi
   if unfinished "$site"; then
     printf '%s: provisioning is unfinished and its migration failed; kept for the provisioning retry, other sites continue.\n' "$site" >&2
     printf '%s\n' "$site" >> "/opt/pearnly/state/unfinished-sites-$product.txt"

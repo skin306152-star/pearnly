@@ -85,7 +85,7 @@ class DeployToolingMatch(unittest.TestCase):
 class Activation(unittest.TestCase):
     def run_activation(self, failure='', source_file=SOURCE, product='dms', records=None, themes=('pearnly', 'pearnly-ai'),
                        themes_record=None, containers=None, sites=('a.example.test', 'b.example.test'), unfinished=(),
-                       fail_site=''):
+                       fail_site='', lose_site='', uncountable=''):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             source = source_file.read_text().replace('/opt/pearnly', str(root))
@@ -93,6 +93,10 @@ class Activation(unittest.TestCase):
             source = source.replace('"$EUID" == 0', '1 == 1')
             (root / 'state').mkdir()
             (root / 'deploy').mkdir()
+            # 主机那份 doctype_guard.py 做前后比较（真脚本）；容器里数 DocType 由下面的假 docker 回答
+            (root / 'deploy/scripts/production').mkdir(parents=True)
+            for name in ('doctype_guard.py', 'doctype-removals.txt'):
+                (root / 'deploy/scripts/production' / name).write_text((SOURCE.parent / name).read_text())
             records = records if records is not None else {'active-image.json': [LEGACY_IMAGE]}
             for name, value in records.items():
                 (root / 'deploy' / name).write_text(json.dumps(value) + '\n')
@@ -114,6 +118,18 @@ with open(os.environ['TRACE'], 'a') as f:
     f.write(json.dumps({'args': args, 'image': os.environ.get('PEARNLY_IMAGE'),
                         'program': os.path.basename(sys.argv[0])})+'\\n')
 joined = ' '.join(args)
+# 迁移前后数 DocType（doctype_guard.py snapshot <站点>）：FAKE_LOSE_SITE 那站迁移后少两个；FAKE_UNCOUNTABLE 那站数不了
+if 'snapshot' in args and any(a.endswith('doctype_guard.py') for a in args):
+    site = args[-1]
+    if os.environ.get('FAKE_UNCOUNTABLE') == site:
+        sys.exit(1)
+    names = ['DocType', 'ERP Product', 'ERP Stock Entry']
+    migrated = json.dumps(['bench', '--site', site, 'migrate'])[1:-1] in open(os.environ['TRACE']).read()
+    if os.environ.get('FAKE_LOSE_SITE') == site and migrated:
+        names = names[:1]
+    print('Linking fresh assets to volume...')
+    print('DOCTYPES ' + json.dumps(names))
+    sys.exit(0)
 # 产品的站点清单（逐站迁移先列站点）与「开户没做完」（站点配置里没有 pearnly_features）
 if 'site_config.json' in joined and 'for d in' in joined:
     print('Linking fresh assets to volume...')  # 容器启动时的输出不能混进站点清单（10-28 续做脚本踩过）
@@ -163,7 +179,8 @@ elif 'ps' in args:
             script.write_text(source)
             env = dict(os.environ, PATH=str(root)+os.pathsep+os.environ['PATH'],
                        TRACE=str(root/'trace'), FAIL_AT=failure, FAKE_CONTAINERS=json.dumps(containers or {}),
-                       FAKE_SITES='\n'.join(sites), FAKE_UNFINISHED=' '.join(unfinished), FAIL_SITE=fail_site)
+                       FAKE_SITES='\n'.join(sites), FAKE_UNFINISHED=' '.join(unfinished), FAIL_SITE=fail_site,
+                       FAKE_LOSE_SITE=lose_site, FAKE_UNCOUNTABLE=uncountable)
             result = subprocess.run(['bash', str(script), IMAGE, product], env=env,
                                     text=True, capture_output=True, timeout=10)
             trace = [json.loads(line) for line in (root/'trace').read_text().splitlines()]
@@ -294,6 +311,41 @@ elif 'ps' in args:
         calls = [' '.join(row['args']) for row in trace]
         self.assertFalse(any('set-maintenance-mode off' in call or 'up -d' in call for call in calls))
         self.assertFalse(any('start' in row['args'] for row in trace))
+
+    def test_doctypes_are_counted_before_and_after_each_site_migration(self):
+        result, trace = self.run_activation()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        steps = []
+        for row in trace:
+            args = row['args']
+            if 'snapshot' in args:
+                steps.append('count ' + args[-1])
+            elif 'migrate' in args and '--site' in args:
+                steps.append('migrate ' + args[args.index('--site') + 1])
+        self.assertEqual(steps, ['count a.example.test', 'migrate a.example.test', 'count a.example.test',
+                                 'count b.example.test', 'migrate b.example.test', 'count b.example.test'])
+        self.assertIn('DocTypes kept', result.stdout)
+
+    def test_lost_doctypes_stop_the_activation_with_maintenance_kept(self):
+        result, trace = self.run_activation(lose_site='a.example.test')
+        self.assertNotEqual(result.returncode, 0)
+        calls = [' '.join(row['args']) for row in trace]
+        self.assertIn('2 DocTypes disappeared during migration', result.stderr)
+        self.assertIn('ERP Product, ERP Stock Entry', result.stderr)
+        self.assertIn('a.example.test: DocTypes disappeared', result.stderr)
+        self.assertFalse(any('b.example.test migrate' in call for call in calls))
+        self.assertFalse(any('set-maintenance-mode off' in call for call in calls))
+        self.assertFalse(any('up -d' in call for call in calls))
+
+    def test_uncountable_site_stops_unless_its_provisioning_is_unfinished(self):
+        result, trace = self.run_activation(uncountable='a.example.test')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('could not count DocTypes before migrating', result.stderr)
+        self.assertFalse(any('migrate' in row['args'] for row in trace))
+        result, trace = self.run_activation(uncountable='a.example.test', unfinished=('a.example.test',))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [' '.join(row['args']) for row in trace]
+        self.assertTrue(any('bench --site b.example.test migrate' in call for call in calls))
 
     def test_unfinished_site_migration_failure_does_not_stop_other_sites(self):
         """10-28 发布：开户卡在半路的新租户（站点配置里还没有 pearnly_features）迁移失败，不能拖着已开户的站点停在维护里。"""

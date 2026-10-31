@@ -33,6 +33,8 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.append(str(ROOT / "scripts" / "production"))
+import doctype_guard  # noqa: E402  迁移前后数 DocType（与生产激活同一份）
 REGISTRY = ROOT / "tests" / "flows" / "registry.toml"
 STATUS = "pearnly/flows"
 # 实验栈名（docker compose -p）：每个窗口用自己的栈跑、回写同一个 pearnly/flows 状态，不抢一套（主会话 10-29）
@@ -136,12 +138,29 @@ class Lab:
             time.sleep(2)
         raise SystemExit("实验室网页重启后没起来")
 
+    def bench(self, *args, timeout=3600):
+        return subprocess.run(["docker", "exec", "-w", "/home/frappe/frappe-bench", CONTAINER, *args],
+                              capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+
     def migrate(self):
-        """全部站点迁移到挂上来的源码（表结构、补丁、hooks）：站点比源码旧时流程结果不代表这个提交。"""
-        result = subprocess.run(["docker", "exec", "-w", "/home/frappe/frappe-bench", CONTAINER, "bench", "--site", "all", "migrate"],
-                                capture_output=True, text=True, timeout=3600, stdin=subprocess.DEVNULL)
-        if result.returncode:
-            raise SystemExit(f"实验室站点迁移失败：{result.stderr[-800:]}")
+        """全部站点逐个迁移到挂上来的源码（表结构、补丁、hooks）：站点比源码旧时流程结果不代表这个提交。
+        每站迁移前后各数一次 DocType，变少就停、不跑流程不回写（同生产 activate-product.sh，`scripts/production/doctype_guard.py`）：
+        10-31 本机实验栈迁移时一个控制器导入失败，Frappe 把一批 DocType 当孤儿删了 75 个，迁移本身照样成功退出。"""
+        guard = "/workspace/scripts/production/doctype_guard.py"
+        listed = self.exec("sh", "-c", 'for d in */; do [ -f "$d/site_config.json" ] && echo "${d%/}"; done').stdout.split()
+        for site in [name for name in listed if "." in name]:
+            counted = []
+            for step in ("before", "migrate", "after"):
+                result = self.bench("bench", "--site", site, "migrate") if step == "migrate" else \
+                    self.bench("env/bin/python", guard, "snapshot", site, timeout=300)
+                if result.returncode:
+                    raise SystemExit(f"实验室站点 {site} {'迁移' if step == 'migrate' else '数 DocType'}失败：{result.stderr[-800:]}")
+                if step != "migrate":
+                    counted.append(doctype_guard.parse(result.stdout, f"{site} {step}"))
+            lost = doctype_guard.lost(*counted, doctype_guard.allowed_removals())
+            if lost:
+                raise SystemExit(f"实验室站点 {site} 迁移后少了 {len(lost)} 个 DocType（{len(counted[0])} → {len(counted[1])}），"
+                                 f"停下、不跑流程不回写：{', '.join(lost)}")
 
     def client_errors(self, site):
         return self.python(site, 'print(json.dumps({"n": frappe.db.count("Error Log", {"method": ["like", "Browser error%"]})}))')["n"]
