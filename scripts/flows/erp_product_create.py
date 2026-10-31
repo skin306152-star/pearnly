@@ -26,6 +26,8 @@ def prepare(lab, manifest):
 from pearnly_erp_portal.masters import company as companies
 frappe.set_user("products@erp.regression")
 companies.set_active_company({company!r})
+# 按台流程（erp.stock-in.units）把同一套数据的公司改成汽车类型、不还原；这里核的是普通公司
+frappe.db.set_value("ERP Company", {company!r}, "company_type", "general", update_modified=False)
 frappe.db.commit()
 print(json.dumps({{}}))
 """)
