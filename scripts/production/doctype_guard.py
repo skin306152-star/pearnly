@@ -4,7 +4,7 @@
 起因：10-31 本机实验栈迁移时，一个 DocType 控制器导入失败（ImportError），Frappe 把它当成孤儿删掉了 75 个 DocType——迁移本身照样
 「成功」退出。生产 `activate-product.sh` 与实验室 `scripts/flows/run.py` 都在每个站点迁移前后调这个脚本：
 
-    doctype_guard.py snapshot <站点>            在 bench 目录里跑（容器内）：打印一行 ``DOCTYPES <JSON 名单>``
+    doctype_guard.py snapshot <站点>            容器内跑（当前目录不限）：打印一行 ``DOCTYPES <JSON 名单>``
     doctype_guard.py compare <前> <后>          前后两份 snapshot 输出（文件）：迁移后少了的打印出来、退出码 86；没少退出 0
 
 有意删掉的 DocType（随发布删的）逐个登记在同目录的 ``doctype-removals.txt``，比较时不算「少了」；没有别的绕过开关。
@@ -21,9 +21,14 @@ REMOVALS = Path(__file__).with_name("doctype-removals.txt")
 
 
 def snapshot(site: str) -> list[str]:
-    import frappe
+    import os
 
-    frappe.init(site=site, sites_path="sites")
+    import frappe
+    from frappe.utils import get_bench_path
+
+    # Frappe 的日志按「当前目录就是 sites」写 ``../logs``：在 bench 根目录跑会因找不到 /home/frappe/logs 失败（10-31 实验栈实测）
+    os.chdir(os.path.join(get_bench_path(), "sites"))
+    frappe.init(site=site, sites_path=".")
     frappe.connect()
     try:
         # 名单就是全部 DocType 的名字（每站几百个），要整份比对，不分页
