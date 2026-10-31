@@ -249,10 +249,17 @@ STC-00046（进行中）；管理员建的采购单 PUR-2026-00032。浏览器�
   批次链改指（HP0000107 → B/F），几张 IV 的销货成本改了金额，IV0000006 / IV0000027 的成本分录打删除标记，新增一行「ปรับต้นทุนโดยโปรแกรม」1,820,996.64；
   STMAS 12155 → 4。原因是这件品在这本测试账里早就前后不一致（主档 12,155，流水链从期初推下来只有个位数，还有单价 98 万的流水，是之前各轮测试留下的）；
   RL 本身全仓净 0，CC 写的那一对不在重算范围。4.6b 的样本里 Express 作废 RL 也会「批次链改回原样」，只是那次数据一致所以主档没变。
-  **现在这本测试账 STLOC 合计（12155）和 STMAS（4）对不上**：按主会话「不用文件覆盖还原」没有动，怎么处理由主会话定（例如 Express 里「计算成本」，或留着）。
+  作废后这本测试账 STLOC 合计（12155）和 STMAS（4）对不上，报主会话后按下面整本还原。
+- **主会话定：整本还原**（10-31 13:1x）：确认没有 Express 进程，现状另存 `mwh-rl-after-void`，持 `PEARNLY.LCK` 用写前快照整本覆盖回去（实际覆盖 10 个文件：
+  STTRN / STCRD / STLOC / STMAS / ISRUN / GLJNLIT 及索引），再从服务器另拷一份逐文件比对：167 个文件与写前**逐字节一致**。69EXP\TEST 回到测试前原样。
+- **结论 ①：Express 原生作废 RL 会对该商品重算整条成本链**（改 STMAS 结存 / 货值、历史 STCRD 的累计结存与批次链、销货成本分录 GLJNLIT），这是 Express 原生行为。
+  **CC 自己写的作废（`dbf_void` 认 RL）不触发重算**：只把单头改 C、那一对打删除标记、两仓 STLOC 回滚，STMAS 与凭证不动（同 CC 写的其他库存单，成本交给 Express「计算成本」）。
+  所以同一张 RL，在 Express 里作废和由 CC 作废，账套结果不同：数据一致的商品两者 STLOC / 单据状态一样，主档与成本分录只有 Express 作废会重算。
+- **结论 ②：69EXP\TEST 的 น้ำแข็งหลอด 原本主档与流水链不一致**（主档 12,155，流水链从期初推只有个位数，有单价 98 万的旧测试流水）。以后拿这本账测试要避开这件品，
+  或先挑主档与流水链一致的干净商品。
 - **过程事故（已补救）**：第一次写时脚本照搬了回归副本的「不备份」写法，又没带 CC 的索引程序 → 表写进去、索引没重建、没回滚（正式 CC 默认先备份，失败会整单回滚，不是产品缺陷）。
   当场用测试机已装 CC 的 `cdx_reindex_runner.exe` 重建 STTRN / STCRD / ISRUN / STLOC 索引，再跑 CC 自己的写后核对（单头、成对明细、STCRD 单号索引读回）全过，才交给 Express 看。
-- 收尾：Express 已退出、本窗口计划任务 `PearnlyMwhP2` 已删、python 进程 0；保留 `C:\PearnlyStress\_book_record\mwh-rl-before / after / voided` 三份副本与 `C:\PearnlyStress\_rl_srv`（脚本、截图、比对结果），等主会话定何时删。
+- 收尾：Express 已退出、本窗口计划任务 `PearnlyMwhP2` 已删、python 进程 0；保留 `C:\PearnlyStress\_book_record\mwh-rl-before / after / voided / after-void` 四份副本与 `C:\PearnlyStress\_rl_srv`（脚本、截图、比对结果），等主会话定何时删。
 - 没做：ERP 页面 → CC 桌面版测试包 → 账套的端到端（主会话定不装测试包）。
 
 ### 合入前
@@ -260,4 +267,4 @@ STC-00046（进行中）；管理员建的采购单 PUR-2026-00032。浏览器�
 - 分支 `pearnly/multi-wh-p2-ca3eab`，基线 origin/main b7db199f；没合 main、没部署。
 - 载荷版本暂用 14（13 留给 express-rules-vat），合入时按 main 当时最大值 + 1 定，合入顺序由主会话定。
 - 撞文件：express-operator / express-rules-vat 的 `payload_contract.py` 与载荷号、scan-data-matrix 的 `serials.lookup`，它们先合时这里再变基。
-- 后续项（不在本期）：同仓不同库位移动；69EXP\TEST 那件商品 STLOC / STMAS 对不上的处理（主会话定）。
+- 后续项（不在本期）：同仓不同库位移动。
