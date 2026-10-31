@@ -50,6 +50,12 @@ def internal_code(row) -> str:
     return str((row or {}).get("internal_code") or (row or {}).get("express_code") or "")
 
 
+def count_code(row) -> str:
+    """盘点明细「编码」那一格显示什么（Desk 盘点页、LINE 查码回执）：内部编码，没有就用系统编码。
+    Excel 模板另有独立的「编码」（系统编码）与「内部编码」两列，不走这里。"""
+    return internal_code(row) or str((row or {}).get("code") or "")
+
+
 def shown_code(row) -> str:
     """这一格**显示**什么：条码优先，没有条码就用二维码内容（两列都可能为空）。"""
     return str((row or {}).get("barcode") or (row or {}).get("qr_payload") or "")

@@ -43,7 +43,7 @@ frappe.db.commit()
 print(json.dumps({{"count": doc["name"]}}))
 """)
     found = cases(manifest)
-    # 录入框「编码」栏应显示的值：内部编码 → Express 编码 → 系统编码（S2）
+    # 录入框「编码」栏应显示的值：内部编码 → Express 编码 → 系统编码（`products.contracts.count_code`，S2）
     codes = lab.python(manifest["site"], f"""
 rows = frappe.get_all("ERP Product", filters={{"name": ["in", {[c["product"] for c in found if c["product"]]!r}]}},
                       fields=["name", "internal_code", "express_code", "code"], limit_page_length=50)
