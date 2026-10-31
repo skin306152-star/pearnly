@@ -89,7 +89,7 @@
 				kind: existing.qr_payload && !existing.barcode ? "qr" : "barcode" };
 			// **一个 Section 只分一次栏**：原生 `.form-section` 每条都带 12px 上内边距 +
 			// 16px 上外边距，一行一个 Section 会把十行表单撑出三百多像素的空白（实测）。
-			// 左列"这是什么商品"，右列"怎么卖、放哪"。
+			// 左列"这是什么商品"，右列"怎么计量、怎么卖、放哪"（两列长度接近，用户 10-31）。
 			return { state, fields: [
 				{ fieldtype: "Section Break" },
 				{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
@@ -107,23 +107,23 @@
 					// 上限跟服务端二维码那一列（500）对齐：合并后这一格是录入二维码的唯一入口，
 					// 用 Data 的默认 140 会让长二维码内容粘贴不进来。
 					length: 500, default: original },
+				{ fieldtype: "Int", fieldname: "category_id", label: t("product.field.category"),
+					default: value("category_id") },
+				{ fieldtype: "Column Break" },
 				{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit"),
 					default: value("unit") },
 				{ fieldtype: "Data", fieldname: "base_unit", label: t("product.field.baseUnit"),
 					description: t("product.field.baseUnitHint"), default: value("base_unit") },
-				{ fieldtype: "Int", fieldname: "category_id", label: t("product.field.category"),
-					default: value("category_id") },
-				{ fieldtype: "Column Break" },
-				// 商品上的"默认仓"删掉了（用户 2026-09-24："进货就进卖货那个仓"）：进货/出入库
-				// 那一侧取的是收银台配的仓（`warehouses.receiving`），商品这一层再留一个默认仓
-				// 只会让两边对不上。仓位还是商品级建议值，留着。
-				{ fieldtype: "Data", fieldname: "default_location", label: t("product.field.defaultLocation"),
-					description: t("product.field.locationHint"), default: value("default_location") },
 				// 空售价 = "从未设过"，与 ฿0 是两回事（服务端用 *_set 记这个区别）。
 				{ fieldtype: "Currency", fieldname: "unit_price", label: t("product.field.price"),
 					options: "THB", default: existing.price_set ? existing.unit_price : null },
 				{ fieldtype: "Currency", fieldname: "default_cost", label: t("product.field.cost"),
 					options: "THB", default: existing.cost_set ? existing.default_cost : null },
+				// 商品上的"默认仓"删掉了（用户 2026-09-24："进货就进卖货那个仓"）：进货/出入库
+				// 那一侧取的是收银台配的仓（`warehouses.receiving`），商品这一层再留一个默认仓
+				// 只会让两边对不上。仓位还是商品级建议值，留着。
+				{ fieldtype: "Data", fieldname: "default_location", label: t("product.field.defaultLocation"),
+					description: t("product.field.locationHint"), default: value("default_location") },
 				{ fieldtype: "Float", fieldname: "min_stock", label: t("product.field.minStock"),
 					default: value("min_stock") },
 				{ fieldtype: "Section Break" },

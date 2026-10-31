@@ -174,27 +174,24 @@
 			p.breadcrumbs({label: __("nav.company"), route: p.subroute(root),
 				trail: [{label: t("company.new"), route: ""}]});
 			const form = p.layout(page.main, [
-				// 两列排布（用户 2026-09-24："字段视角对齐，排版要合理"）：一列一列对齐、
-				// 别拉成一长条 —— 与公司信息那一屏同一套 Section/Column 写法。
+				// 两列排布（用户 2026-09-24："字段视角对齐，排版要合理"）：一列一列对齐、别拉成一长条。
+				// 与公司信息那一屏同一套两栏（用户 10-31）：左栏公司与税务，右栏联系与收款、接 Express。
 				{fieldtype: "Section Break", label: t("company.section.basic")},
 				f("company_name", "company.field.name", "Data", {reqd: 1}),
-				{fieldtype: "Column Break"},
 				f("short_name", "company.field.shortName", "Data"),
 				f("tax_id", "company.field.taxId", "Data"),
 				// 税号查询与供应商/客户/公司信息三处同一颗按钮、同一个接口。
 				f("lookup", "company.lookup.action", "Button", {click: () => lookup_tax(form)}),
-				{fieldtype: "Column Break"},
 				f("branch", "company.field.branch", "Data"),
 				// 增值税登记户（收银标价含税，登记户的小票逐行拆出税额）：税号查询带出，也可以手选
 				f("vat_registered", "company.field.vatRegistered", "Select", {options: VAT_OPTIONS}),
 				f("company_type", "company.field.companyType", "Select", {options: TYPE_OPTIONS, default: "general"}),
-				f("express_enabled", "company.field.expressEnabled", "Check", {default: 0}),
-				f("phone", "company.field.phone", "Data"),
 				{fieldtype: "Column Break"},
+				f("phone", "company.field.phone", "Data"),
 				f("contact_person", "company.field.contactPerson", "Data"),
 				f("contact_email", "company.field.contactEmail", "Data"),
-				{fieldtype: "Column Break"},
 				f("promptpay_id", "company.field.promptpay", "Data"),
+				f("express_enabled", "company.field.expressEnabled", "Check", {default: 0}),
 				// ── 收银：开关 + 收哪几种钱 ────────────────────────────────────
 				// 文案一律用**术语表里已有的词**（收银台 / 付款方式 / 现金 / 刷卡 / 扫码 / 转账），
 				// 不再自己写说明句（用户 2026-09-24："做新东西不要随意加文案"）。

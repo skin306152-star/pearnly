@@ -62,8 +62,10 @@ def steps(params, camera_code=None):
          "await idle(); if(!frm) return {error:'no profile form'};"
          "const vis=n=>{const f=frm.fields_dict[n]; return !!(f&&f.$wrapper&&f.$wrapper.is(':visible'));};"
          "const ro=n=>{const f=frm.fields_dict[n]; return !!(f&&(f.df.read_only||f.disp_status==='Read'));};"
+         "const shown=frm.layout.wrapper.find('.frappe-control:visible').toArray().map(e=>e.dataset.fieldname).filter(Boolean);"
          "return {first_visible: vis('first_name'), last_visible: vis('last_name'), username_visible: vis('username'),"
-         "first_editable: !ro('first_name'), last_editable: !ro('last_name'), username_readonly: ro('username')};"},
+         "first_editable: !ro('first_name'), last_editable: !ro('last_name'), username_readonly: ro('username'),"
+         "after_first: shown[shown.indexOf('first_name')+1]||'', after_username: shown[shown.indexOf('username')+1]||''};"},
     ]
 
 
@@ -79,6 +81,9 @@ def judge(params, results, camera_code=None):
         {"case": "my profile has editable first and last name and a read only username", "seen": profile,
          "ok": all(profile.get(k) is True for k in ("first_visible", "last_visible", "username_visible", "first_editable",
                                                        "last_editable", "username_readonly"))},
+        {"case": "my profile shows the last name right after the first name, and the company under the username",
+         "seen": {k: profile.get(k) for k in ("after_first", "after_username")},
+         "ok": profile.get("after_first") == "last_name" and profile.get("after_username") == "pearnly_company"},
     ]
 
 
