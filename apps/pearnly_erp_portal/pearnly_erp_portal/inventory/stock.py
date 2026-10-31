@@ -95,7 +95,7 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
                    unit_cost=None, posting_date=None, posting_time=None, ref_type=None,
                    ref_id=None, doc_no=None, reason=None, client_uuid=None,
                    allow_negative=True, internal=False, location="", allow_inactive=False,
-                   company=None, system=False) -> dict:
+                   company=None, system=False, base_unit_cost=None) -> dict:
     """写一笔流水并推进结存。`client_uuid` 是整请求的幂等锚：命中即原样返回，不重复记账。
 
     `allow_negative` 默认与旧线上一致（允许超卖，告警在上层）；要拦负库存时显式传 False。
