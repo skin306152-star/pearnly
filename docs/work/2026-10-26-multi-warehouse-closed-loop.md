@@ -216,8 +216,8 @@ STC-00046（进行中）；管理员建的采购单 PUR-2026-00032。浏览器�
   `stock_location` 加 `KIND_TRANSFER`（不动日期 / 金额栏、新行不带分类）；`dbf_void` 认 RL（成对核、只回滚两仓、不动主档与凭证）；
   `express_masters` 报 RL 单据簿与 `stock_books_checked`；worker 按 `doctype = RL` 派给 `write_transfer`；`payload_contract` 加 14。
 - 流程用例：新 `erp.stock-transfer`（`scripts/flows/erp_stock_transfer.py`，库存岗、两套数据 × 电脑 / 手机：页面建调拨、同仓被拒、提交；
-  库里核 TF 号、一出一进同单价、两仓数量与合计金额、作废回原；按台在服务端调一台车、同仓拒、作废回 A）、新 `erp.sales.receipt`
-  （销售收据出库，单头仓带明细；覆盖 sales-form 的选台改动）；`erp.cashier.first-sale` 加 covers 收银适配器。回归数据库存岗加「调拨」菜单。
+  库里核 TF 号、一出一进同单价、两仓数量与合计金额、作废回原；按台在服务端调一台车、同仓拒、作废回 A）；sales-form 的选台改动由 main 上的
+  `erp.sales.scan` 覆盖（10-31 变基后删掉了本期自写的重复流程 `erp.sales.receipt`）；`erp.cashier.first-sale` 加 covers 收银适配器。回归数据库存岗加「调拨」菜单。
 - 登记表：`erp.page.stock-transfer`（auto）、`erp.cc.stock-transfer`（manual）；`erp.serials.dialog` 步骤加调拨与按行仓 / 库位。
 
 ### 验证（截至 10-30 20:30 暂停）
