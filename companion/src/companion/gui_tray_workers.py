@@ -264,23 +264,3 @@ class PollWorker(QThread):
         else:
             self._logged_offline_errors.pop(profile_id, None)
         self.status.emit(profile_id, key, detail)
-
-
-class UpdateWorker(QThread):
-    done = Signal(str)
-    failed = Signal()
-
-    def __init__(self, backend_url: str, rel_url: str) -> None:
-        super().__init__()
-        self._backend = backend_url
-        self._url = rel_url
-
-    def run(self) -> None:
-        try:
-            from .updater import download_installer
-
-            path = download_installer(self._backend, self._url)
-            self.done.emit(path)
-        except Exception:
-            log.exception("自动更新下载失败")
-            self.failed.emit()

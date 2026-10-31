@@ -33,10 +33,7 @@ from .folder_worker import FolderIntake
 from .request_worker import RequestWorker
 from .gui_font import qt_app
 from .gui_pairing_support import ProbeThread
-from .gui_tray_workers import (
-    PollWorker,
-    UpdateWorker as _UpdateWorker,
-)
+from .gui_tray_workers import PollWorker
 from .i18n import MessageSpec, default_lang, normalize, t
 from .logger import activity, get_logger
 
@@ -493,24 +490,30 @@ class TrayApp(QObject):
                 or _window_open())
 
     def _start_download(self, version: str, url: str) -> None:
-        from .updater import DOWNLOAD_SITE
+        from .updater import DOWNLOAD_SITE, download_installer
 
         activity("log_updating", lang=self.lang, ver=version)
-        # 下载放后台线程 → UI 不卡死(61MB 主线程同步下载是「点了就卡」的根因)。
-        self._update_worker = _UpdateWorker(DOWNLOAD_SITE, url)
-        self._update_worker.done.connect(self._on_update_downloaded)
-        self._update_worker.failed.connect(self._on_update_download_failed)
-        self._update_worker.start()
+        # 下载放后台线程 → UI 不卡死(61MB 主线程同步下载是「点了就卡」的根因)。同「检查更新」：线程真正结束后才松引用、
+        # 交结果。结果信号发出时线程还没退出，那时丢掉最后一个引用，Qt 判「线程还在跑就被销毁」直接退出（11-01 测试机
+        # 1.12.7 自动更新到 1.12.8，下载完就崩在 Qt6Core，安装包没起来）。
+        worker = ProbeThread(lambda: download_installer(DOWNLOAD_SITE, url))
+        self._update_worker = worker
+        result: list = []
+        worker.ok.connect(result.append)
+        worker.err.connect(lambda error: log.error("自动更新下载失败：%r", error))
+        worker.finished.connect(lambda: self._on_update_download_finished(worker, result))
+        worker.start()
 
-    def _on_update_downloaded(self, path: str) -> None:
+    def _on_update_download_finished(self, worker, result: list) -> None:
+        if worker is not self._update_worker:
+            return
         self._update_worker = None
-        self._auto_update.downloaded(path)
-        self._auto_update_tick()
-
-    def _on_update_download_failed(self) -> None:
-        self._update_worker = None
-        self._auto_update.download_failed()
-        self._on_update_failed()
+        if result:
+            self._auto_update.downloaded(result[0])
+            self._auto_update_tick()
+        else:
+            self._auto_update.download_failed()
+            self._on_update_failed()
 
     def _stop_for_update(self) -> None:
         """空闲了：让取任务线程与文件夹线程做完手上这一步就停，停稳再装（不再自愈重启）。"""
