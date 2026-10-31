@@ -19,6 +19,21 @@ FIELD_LABELS = (
     ("qty", "stock.opening.qty"),
     ("unit_cost", "stock.opening.cost"),
 )
+# 按台的公司（车 / 电器，岳父 10-25）：期初表多出号码三列（紧跟条码），按台商品一台一行、数量 1，提交时同一个位置合成一笔期初并登记各台。
+# 叫法同盘点表与按台期初登记模板；普通公司不出这三列（出了也认，商品不按台时不看）。
+UNIT_LABELS = {
+    "vehicle": (("serial_no", "serial.vehicle.primary"), ("secondary_no", "serial.vehicle.secondary"), ("color", "serial.color")),
+    "device": (("serial_no", "serial.device.primary"), ("secondary_no", "serial.device.secondary"), ("color", "serial.color")),
+}
+TEXT_FIELDS = ("product", "product_code", "internal_code", "barcode", "serial_no", "secondary_no")
+
+
+def field_labels(unit_kind=None):
+    units = UNIT_LABELS.get(unit_kind)
+    if not units:
+        return FIELD_LABELS
+    at = [field for field, _ in FIELD_LABELS].index("barcode") + 1
+    return FIELD_LABELS[:at] + units + FIELD_LABELS[at:]
 
 
 def _norm(value):
@@ -26,8 +41,9 @@ def _norm(value):
 
 
 def header_aliases(labels=None):
-    aliases = {_norm(field): field for field, _ in FIELD_LABELS}
-    aliases.update({_norm(key): field for field, key in FIELD_LABELS})
+    every = (*FIELD_LABELS, *(pair for pairs in UNIT_LABELS.values() for pair in pairs))
+    aliases = {_norm(field): field for field, _ in every}
+    aliases.update({_norm(key): field for field, key in every})
     aliases.update({_norm(key): field for key, field in (labels or {}).items()})
     return aliases
 
@@ -56,7 +72,7 @@ def parse_workbook(data, aliases=None):
         sheet = book.worksheets[0]
         if sheet.max_row and sheet.max_row > MAX_ROWS + 1:
             raise ValueError("too_many_rows")
-        if sheet.max_column and sheet.max_column > len(FIELD_LABELS):
+        if sheet.max_column and sheet.max_column > len(field_labels("vehicle")):
             raise ValueError("headers_invalid")
         values = iter(sheet.iter_rows())
         header = next(values, ())
@@ -83,7 +99,7 @@ def parse_workbook(data, aliases=None):
                 continue
             # Numeric codes destroy leading zeros in Excel. Require literal text;
             # silently converting them could select a different existing product.
-            for field in ("product", "product_code", "internal_code", "barcode"):
+            for field in TEXT_FIELDS:
                 if row.get(field) is not None and not isinstance(row[field], str):
                     raise ValueError("identifier_text_required")
             for field in ("qty", "unit_cost"):
@@ -102,7 +118,7 @@ def parse_workbook(data, aliases=None):
         book.close()
 
 
-def build_bytes(headers, rows):
+def build_bytes(headers, rows, unit_kind=None):
     import openpyxl
     from openpyxl.styles import Font, PatternFill
     from openpyxl.utils import get_column_letter
@@ -115,15 +131,16 @@ def build_bytes(headers, rows):
         cell.font = Font(bold=True)
         cell.fill = PatternFill("solid", fgColor="EEE7FC")
         cell.data_type = "s"
+    fields = field_labels(unit_kind)
     for row in rows:
-        sheet.append([row.get(field) for field, _ in FIELD_LABELS])
-        for field, cell in zip((field for field, _ in FIELD_LABELS), sheet[sheet.max_row]):
+        sheet.append([row.get(field) for field, _ in fields])
+        for field, cell in zip((field for field, _ in fields), sheet[sheet.max_row]):
             if isinstance(cell.value, str):
                 cell.data_type = "s"
                 cell.number_format = "@"
-            elif field == "internal_code":
-                cell.number_format = "@"  # 空着的内部编码格也预置成文本：用户手填的数字码不被 Excel 吃掉前导零
-    for number, (field, _) in enumerate(FIELD_LABELS, 1):
+            elif field in TEXT_FIELDS:
+                cell.number_format = "@"  # 空着的内部编码 / 号码格也预置成文本：用户手填的数字码不被 Excel 吃掉前导零
+    for number, (field, _) in enumerate(fields, 1):
         sheet.column_dimensions[get_column_letter(number)].width = 32 if field == "product_name" else 22
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions

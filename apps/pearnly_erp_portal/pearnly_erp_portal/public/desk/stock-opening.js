@@ -12,7 +12,9 @@
 		const page_size = 20, lines = [], visible = [], review_rows = new Map();
 		const back = () => p.redirect_up(root);
 		// `warehouse`：这一行放进哪个仓（空着 = 表头的仓，多仓闭环 P1：一张期初表可以分几个仓）
-		const input_names = ["product", "product_code", "barcode", "unit", "warehouse", "location", "qty", "unit_cost"];
+		// `internal_code`：表里的内部编码一列；`serial_no` 等：按台公司的一台一行（岳父 10-25），这几格只在表里带了值时出现
+		const input_names = ["product", "product_code", "internal_code", "barcode", "serial_no", "secondary_no", "color", "unit", "warehouse",
+			"location", "qty", "unit_cost"];
 		const text_value = value => String(value ?? "");
 		// 表头仓按服务端 `warehouses.prefill` 预填（本人上次 → 卖货仓 → 唯一仓 → 空 = 必须选），页面建好后填进去
 		const header_values = { warehouse: "", as_of_date: frappe.datetime.get_today(), note: "" };
@@ -154,9 +156,9 @@
 						if (!view.ready || reviewed || !visible.includes(view)) return;
 						if (!change("product")) return;
 						const name = view.form.get_value("product"), selection = ++line.selection;
-						Object.assign(line.data, { product_code: "", barcode: "", unit: "", product_name: "", code: "" });
-						Object.assign(view.observed, { product_code: "", barcode: "", unit: "" });
-						await view.form.set_values({ product_code: "", barcode: "", unit: "" });
+						Object.assign(line.data, { product_code: "", internal_code: "", barcode: "", unit: "", product_name: "", code: "" });
+						Object.assign(view.observed, { product_code: "", internal_code: "", barcode: "", unit: "" });
+						await view.form.set_values({ product_code: "", internal_code: "", barcode: "", unit: "" });
 						relabel(view);
 						if (!name) return;
 						const item = await p.call("pearnly_erp_portal.products.service.api_get_product", { name });
@@ -181,8 +183,16 @@
 				{ fieldtype: "Section Break" },
 				{ fieldtype: "Data", fieldname: "product_code", label: t("stock.col.code"),
 					hidden: !initial.product_code, onchange: () => change("product_code") },
+				{ fieldtype: "Data", fieldname: "internal_code", label: t("product.col.internalCode"),
+					hidden: !initial.internal_code, onchange: () => change("internal_code") },
 				{ fieldtype: "Data", fieldname: "barcode", label: t("stock.col.barcode"),
 					hidden: !initial.barcode, onchange: () => change("barcode") },
+				{ fieldtype: "Data", fieldname: "serial_no", label: t(`serial.${p.unit_kind() || "vehicle"}.primary`),
+					hidden: !initial.serial_no, onchange: () => change("serial_no") },
+				{ fieldtype: "Data", fieldname: "secondary_no", label: t(`serial.${p.unit_kind() || "vehicle"}.secondary`),
+					hidden: !initial.serial_no, onchange: () => change("secondary_no") },
+				{ fieldtype: "Data", fieldname: "color", label: t("serial.color"),
+					hidden: !initial.serial_no, onchange: () => change("color") },
 				{ fieldtype: "Small Text", fieldname: "status_text", label: t("stock.col.status"), read_only: 1,
 					hidden: !result, default: result ? (result.error ? __(result.error) : w(result.status)) : "" },
 				{ fieldtype: "Button", fieldname: "remove", label: __("Delete"), click: () => {

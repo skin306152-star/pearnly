@@ -59,7 +59,10 @@ class OpeningBatch(unittest.TestCase):
         frappe.get_all = lambda *args, **kwargs: self.products
         frappe.parse_json = __import__("json").loads
         frappe.clear_messages = lambda: None
-        frappe.db = SimpleNamespace(sql=self.sql, savepoint=self.savepoint, rollback=self.rollback)
+        # 已登记的台（按公司 + 主号）：期初表里的号不能重
+        self.registered_keys, self.registered = set(), []
+        frappe.db = SimpleNamespace(sql=self.sql, savepoint=self.savepoint, rollback=self.rollback,
+                                    exists=lambda doctype, filters: filters.get("serial_key") in self.registered_keys)
         utils = ModuleType("frappe.utils")
         utils.nowdate = lambda: "2026-09-24"
         core = ModuleType("pearnly_core")
@@ -74,8 +77,16 @@ class OpeningBatch(unittest.TestCase):
         inventory.warehouses = SimpleNamespace(required=self.warehouse, remember=lambda kind, warehouse, company=None: None)
         # 库位清单（`positions.check`）：W3 建了清单只有 A-01，其余仓不限
         inventory.positions = SimpleNamespace(check=self.check_location)
+        inventory.serials = SimpleNamespace(
+            DOCTYPE="ERP Serial No", OPENING_REF="serial_opening", MAX_NO=40, MAX_COLOR=60,
+            DUPLICATE="This unit number is already registered", QTY_MISMATCH="The number of units does not match the quantity",
+            clean=lambda value, limit: str(value or "").strip()[:limit], key=lambda company, number: f"{company}:{number}",
+            register=lambda **values: self.registered.append(values))
         masters = ModuleType("pearnly_erp_portal.masters")
-        masters.company = SimpleNamespace(active_company=lambda: "C1")
+        # 公司类型：默认普通公司；按台的用例把 C1 改成汽车公司
+        self.unit_company = False
+        masters.company = SimpleNamespace(active_company=lambda: "C1", unit_tracking=lambda company: self.unit_company,
+                                          company_type=lambda company: "vehicle" if self.unit_company else "general")
         # 接了 Express 的公司不在 ERP 录期初（出入库第一期）：默认没接
         self.express_linked = set()
         express = ModuleType("pearnly_erp_portal.express")
@@ -234,6 +245,42 @@ class OpeningBatch(unittest.TestCase):
         self.assertEqual([row["status"] for row in duplicate["rows"]], ["error", "error"])
         distinct = self.preview(rows=[self.args["rows"][0], {**self.args["rows"][0], "location": "A"}])
         self.assertTrue(distinct["valid"])
+
+    def test_a_unit_company_opens_tracked_products_one_unit_per_row(self):
+        """期初表并入按台（岳父 10-25）：按台商品一台一行、数量 1；同一位置的几台合成一笔期初，提交时逐台登记。"""
+        self.unit_company = True
+        self.products[0].track_serial = 1
+        car = {"product": "P1", "qty": "1", "unit_cost": "500000"}
+        rows = [{**car, "serial_no": " vin-a ", "secondary_no": "E1", "color": "红"}, {**car, "serial_no": "VIN-B"},
+                {"product": "P2", "qty": "4", "unit_cost": "10", "serial_no": "ignored"}]
+        review = self.preview(rows=rows)
+        self.assertTrue(review["valid"], review["rows"])
+        self.assertEqual([row["serial_no"] for row in review["rows"]], ["VIN-A", "VIN-B", ""])  # 不按台的商品号码不看
+        self.assertEqual(review["total_value"], 1000040)
+        result = self.submit(review, rows=rows)
+        self.assertEqual(result, {"created": 2, "skipped": 0, "openings": ["OPN-P1-W1", "OPN-P2-W1"]})
+        self.assertEqual([row.qty for row in self.state["openings"]], [Decimal(2), Decimal(4)])
+        self.assertEqual([row.qty for row in self.state["movements"]], [Decimal(2), Decimal(4)])
+        self.assertEqual([(unit["entry"]["serial_no"], unit["ref_id"], unit["action"]) for unit in self.registered],
+                         [("VIN-A", "OPN-P1-W1", "opening"), ("VIN-B", "OPN-P1-W1", "opening")])
+        self.assertEqual(self.registered[0]["entry"]["color"], "红")
+
+    def test_unit_rows_need_a_new_number_one_each_and_one_cost_per_place(self):
+        self.unit_company = True
+        self.products[0].track_serial = 1
+        car = {"product": "P1", "qty": "1", "unit_cost": "500000"}
+        cases = (([{**car}], ["error"]),  # 没写号
+                 ([{**car, "serial_no": "V1"}, {**car, "serial_no": "v1"}], ["error", "error"]),  # 表里重号
+                 ([{**car, "serial_no": "V1", "qty": "2"}], ["error"]),  # 一台一行
+                 ([{**car, "serial_no": "V1"}, {**car, "serial_no": "V2", "unit_cost": "1"}], ["error", "error"]),  # 同一位置成本不一
+                 ([{**car, "serial_no": "V1"}, {**car, "serial_no": "V2", "location": "A"}], ["ready", "ready"]))  # 不同库位各一笔
+        for rows, statuses in cases:
+            with self.subTest(rows=rows):
+                self.assertEqual([row["status"] for row in self.preview(rows=rows)["rows"]], statuses)
+        self.registered_keys.add("C1:V9")
+        self.assertEqual(self.preview(rows=[{**car, "serial_no": "V9"}])["rows"][0]["error"], "This unit number is already registered")
+        self.unit_company = False  # 普通公司：同一件商品照普通行（号码不看）
+        self.assertTrue(self.preview(rows=[{**car, "qty": "3", "serial_no": "V9"}])["valid"])
 
     def test_code_and_barcode_resolve_and_token_survives_numeric_normalization(self):
         self.args["rows"] = [{"product_code": "code-P1", "barcode": "00P1", "qty": "4.000000", "unit_cost": "10.00"}]

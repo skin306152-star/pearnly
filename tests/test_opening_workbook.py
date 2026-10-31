@@ -44,6 +44,21 @@ class OpeningWorkbook(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "empty"):
             workbook.parse_workbook(data)
 
+    def test_a_unit_company_template_has_the_number_columns_and_reads_them_back_as_text(self):
+        """期初表并入按台（岳父 10-25）：车 / 电器公司多出号码三列紧跟条码；号码必须是文本（前导零）。"""
+        self.assertEqual(workbook.field_labels(None), workbook.FIELD_LABELS)
+        fields = [field for field, _ in workbook.field_labels("vehicle")]
+        at = fields.index("barcode")
+        self.assertEqual(fields[at + 1:at + 4], ["serial_no", "secondary_no", "color"])
+        data = workbook.build_bytes(fields, [{"product": "P1", "unit": "คัน"}], "vehicle")
+        sheet = openpyxl.load_workbook(BytesIO(data)).active
+        self.assertEqual(sheet.cell(2, at + 2).number_format, "@")
+        rows = workbook.parse_workbook(xlsx([["product", "serial.vehicle.primary", "serial.color", "qty", "unit_cost"],
+                                             ["P1", "007VIN", "红", 1, 500000]]))
+        self.assertEqual((rows[0]["serial_no"], rows[0]["color"], rows[0]["qty"]), ("007VIN", "红", "1"))
+        with self.assertRaisesRegex(ValueError, "identifier_text_required"):
+            workbook.parse_workbook(xlsx([["product", "serial_no", "qty", "unit_cost"], ["P1", 7, 1, 1]]))
+
     def test_zero_is_explicit_blank_catalog_rows_skip_and_partial_blanks_preserve(self):
         rows = workbook.parse_workbook(xlsx([
             ["product_code", "qty", "unit_cost"], ["001", None, None],

@@ -12,7 +12,7 @@ from frappe.utils import nowdate
 
 from pearnly_core import browser_text
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.inventory import access, contracts, opening_workbook, positions, stock, warehouses
+from pearnly_erp_portal.inventory import access, contracts, opening_workbook, positions, serials, stock, warehouses
 from pearnly_erp_portal.masters import company as companies
 
 INVALID_ROW = "Check the opening stock row"
@@ -140,8 +140,6 @@ def _product(row, catalog, company=None):
     product = matched[0]
     if not product.is_active:
         raise ValueError("Product is disabled")
-    if product.get("track_serial") and companies.unit_tracking(company):
-        raise ValueError(TRACKED)  # 按台管理的商品期初走「按台期初登记」（`inventory.serials.turn_on`）
     return product
 
 
@@ -197,11 +195,51 @@ def _row_location(warehouse, location):
         raise ValueError(str(error)) from None
 
 
+def _unit(row, product, context, numbers):
+    """按台的公司里按台管理的商品：这一行是一台（主号必填、数量 1、号码不重、没登记过）。别的商品号码三格不看。
+    回 True 表示这一行是一台（岳父 10-25：期初表并入按台，不必另走「按台期初登记」）。"""
+    if not (product.get("track_serial") and companies.unit_tracking(context["company"])):
+        row.update(serial_no="", secondary_no="", color="")
+        return False
+    number = serials.clean(row.get("serial_no"), serials.MAX_NO).upper()
+    row.update(serial_no=number, secondary_no=serials.clean(row.get("secondary_no"), serials.MAX_NO),
+               color=serials.clean(row.get("color"), serials.MAX_COLOR))
+    if not number:
+        raise ValueError(TRACKED)  # 按台管理的商品没写号：要一台一行（或走「按台期初登记」）
+    if number in numbers:
+        numbers[number].update(status="error", error=_(serials.DUPLICATE))
+        raise ValueError(serials.DUPLICATE)
+    numbers[number] = row
+    if frappe.db.exists(serials.DOCTYPE, {"serial_key": serials.key(context["company"], number)}):
+        raise ValueError(serials.DUPLICATE)
+    return True
+
+
+def _unit_positions(groups, context, *, current):
+    """一个位置（商品 × 仓 × 库位）上的几台合成一笔期初：台数就是期初数量，单位成本要一样；位置能不能开账同普通行。"""
+    for (product, warehouse, location), group in groups.items():
+        live = [row for row in group if not row["error"]]
+        if not live:
+            continue
+        costs = {row["unit_cost"] for row in live}
+        try:
+            if len(costs) != 1:
+                raise ValueError(INVALID_ROW)
+            status = _position({"product": product, "warehouse": warehouse, "location": location,
+                                "qty": Decimal(len(live)), "unit_cost": costs.pop()}, context, current=current)
+        except ValueError as error:
+            for row in live:
+                row.update(status="error", error=_(str(error)))
+            continue
+        for row in live:
+            row["status"] = status
+
+
 def _review(rows, context, catalog, *, current=False):
-    output, seen = [], {}
+    output, seen, numbers, groups = [], {}, {}, {}
     for number, source in enumerate(rows, 1):
         row = {key: source.get(key) for key in ("product", "product_code", "internal_code", "barcode", "unit", "warehouse", "location", "qty",
-                                                "unit_cost")} if isinstance(source, dict) else {}
+                                                "unit_cost", "serial_no", "secondary_no", "color")} if isinstance(source, dict) else {}
         row.update(row_number=source.get("row_number", number) if isinstance(source, dict) else number,
                    product_name="", code="", amount=None, status="error", error="")
         try:
@@ -220,6 +258,16 @@ def _review(rows, context, catalog, *, current=False):
             row.update(product=product.name, product_name=product.product_name, code=product.code or "",
                        unit=unit, warehouse=warehouse, location=location)
             identity = (product.name, warehouse, location)
+            if _unit(row, product, context, numbers):
+                row["qty"] = _number(row.get("qty"), 6)
+                row["unit_cost"] = _number(row.get("unit_cost"), 2)
+                if row["qty"] != 1:
+                    raise ValueError(serials.QTY_MISMATCH)
+                row["amount"] = contracts.q2(row["unit_cost"])
+                row["status"] = "ready"  # 位置能不能开账在整张表读完后按台数一起核（`_unit_positions`）
+                groups.setdefault(identity, []).append(row)
+                output.append(row)
+                continue
             if identity in seen:
                 previous = seen[identity]
                 previous.update(status="error", error=_("Each product and location may appear only once"))
@@ -232,8 +280,9 @@ def _review(rows, context, catalog, *, current=False):
                 raise ValueError("The opening stock amount is too large")
             row["status"] = _position(row, context, current=current)
         except ValueError as error:
-            row["error"] = _(str(error))
+            row.update(status="error", error=_(str(error)))
         output.append(row)
+    _unit_positions(groups, context, current=current)
     return output
 
 
@@ -242,8 +291,9 @@ def _token(rows, context, note):
     if not secret:
         frappe.throw(_("Opening stock review is not configured"))
     payload = {**context, "site": frappe.local.site, "user": frappe.session.user, "note": _text(note),
-               "rows": [{key: format(row[key], "f") if key in ("qty", "unit_cost") else row[key]
-                         for key in ("product", "unit", "warehouse", "location", "qty", "unit_cost")} for row in rows]}
+               "rows": [{key: format(row[key], "f") if key in ("qty", "unit_cost") else row.get(key) or ""
+                         for key in ("product", "unit", "warehouse", "location", "qty", "unit_cost", "serial_no", "secondary_no",
+                                     "color")} for row in rows]}
     return hmac.new(str(secret).encode(), json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(), hashlib.sha256).hexdigest()
 
 
@@ -286,8 +336,14 @@ def _submit(*, warehouse, as_of_date, rows, note, review_token=None, legacy=Fals
     savepoint = "opening_batch_" + frappe.generate_hash(length=12)
     frappe.db.savepoint(savepoint)
     created, skipped, names = 0, 0, []
+    # 一个位置一笔期初：普通商品一行就是一个位置；按台商品同一位置的几台合成一笔，数量 = 台数，随后逐台登记
+    places = {}
+    for row in reviewed:
+        places.setdefault((row["product"], row["warehouse"], row["location"]), []).append(row)
     try:
-        for row in reviewed:
+        for group in places.values():
+            row = group[0]
+            qty = sum((item["qty"] for item in group), Decimal(0))
             name = contracts.position_name("OPN", row["product"], row["warehouse"], row["location"])
             names.append(name)
             if row["status"] == "skipped":
@@ -295,14 +351,19 @@ def _submit(*, warehouse, as_of_date, rows, note, review_token=None, legacy=Fals
                 continue
             doc = frappe.get_doc({"doctype": "ERP Stock Opening", "product": row["product"],
                                   "warehouse": row["warehouse"], "location": row["location"],
-                                  "as_of_date": context["as_of_date"], "qty": row["qty"], "posted_qty": row["qty"],
+                                  "as_of_date": context["as_of_date"], "qty": qty, "posted_qty": qty,
                                   "unit_cost": row["unit_cost"], "note": _text(note)})
             access.write_opening(doc, "insert")
             stock.apply_movement(product=row["product"], warehouse=row["warehouse"], location=row["location"],
-                                 movement_type=contracts.OPENING, qty=row["qty"], unit=row["unit"], unit_cost=row["unit_cost"],
+                                 movement_type=contracts.OPENING, qty=qty, unit=row["unit"], unit_cost=row["unit_cost"],
                                  posting_date=context["as_of_date"], posting_time="00:00:00", ref_type="opening", ref_id=doc.name,
                                  reason="opening stock", client_uuid="opening:" + hashlib.sha256(name.encode()).hexdigest(),
                                  internal=True, company=context["company"])
+            for unit in group:
+                if unit.get("serial_no"):
+                    serials.register(product=row["product"], company=context["company"], warehouse=row["warehouse"],
+                                     location=row["location"], entry=unit, ref_type=serials.OPENING_REF, ref_id=doc.name,
+                                     posting_date=context["as_of_date"], action="opening")
             created += 1
     except Exception as error:
         # InnoDB error 1213 already rolled back the whole transaction, including
@@ -343,6 +404,7 @@ def with_product(product, *, warehouse, rows, note=None):
 def template(warehouse):
     require_batch_access()
     context = _context(warehouse, nowdate())
+    kind = companies.company_type(context["company"]) if companies.unit_tracking(context["company"]) else None
     # 只列这家公司 Express 的档和本地档（几十家公司各自同步来的商品不混进来，合起来还会超过模板行数上限）
     rows = frappe.get_all("ERP Product", filters={"is_active": 1},
                           or_filters=[["express_company", "=", context["company"]], ["express_company", "is", "not set"]],
@@ -356,7 +418,8 @@ def template(warehouse):
                "internal_code": product_contracts.internal_code(row),
                "barcode": row.barcode, "unit": row.base_unit or row.unit, "warehouse": "", "location": "", "qty": None, "unit_cost": None}
               for row in rows]
-    return opening_workbook.build_bytes([browser_text.label(key) for _, key in opening_workbook.FIELD_LABELS], values)
+    # 按台的公司多出号码三列：按台商品照旧一行，有几台就复制几行、各填一台的号、数量 1
+    return opening_workbook.build_bytes([browser_text.label(key) for _, key in opening_workbook.field_labels(kind)], values, kind)
 
 
 def read_file(file_url):
@@ -373,8 +436,8 @@ def read_file(file_url):
         frappe.throw(_("Use an XLSX opening stock file"))
     if (doc.file_size or 0) > opening_workbook.MAX_BYTES:
         frappe.throw(_(FILE_ERRORS["file_too_large"]))
-    labels = {text: field for field, key in opening_workbook.FIELD_LABELS
-              for text in browser_text.all_languages(key).values() if text}
+    every = (*opening_workbook.FIELD_LABELS, *(pair for pairs in opening_workbook.UNIT_LABELS.values() for pair in pairs))
+    labels = {text: field for field, key in every for text in browser_text.all_languages(key).values() if text}
     try:
         return {"rows": opening_workbook.parse_workbook(doc.get_content(), opening_workbook.header_aliases(labels))}
     except ValueError as error:
