@@ -361,5 +361,26 @@ class ProductNavigationAccess(unittest.TestCase):
         self.assertEqual(repr(boot), original)
 
 
+class RoutedPageRenders(unittest.TestCase):
+    """`p.routed_page` 把「这次渲染还是不是最新的一次」作为 render 的第二个参数传进去。同一次跳转会触发两次渲染：
+    不接这个参数的页面，先发起、后完成的那次会照样重建表单，把用户刚填的值（例如入库表头的仓）盖成默认值（10-31）。"""
+
+    def test_every_routed_page_render_takes_still_current(self):
+        missing = []
+        for path in sorted((ROOT / 'apps').glob('*/*/public/**/*.js')):
+            source = path.read_text(encoding='utf-8')
+            for call in re.finditer(r'p\.routed_page\(\{([^}]*)\}', source):
+                inner = call.group(1)
+                inline = re.search(r'render:\s*async\s*\(([^)]*)\)', inner)
+                if inline:
+                    params = inline.group(1)
+                else:
+                    named = re.search(r'async function render\(([^)]*)\)', source)
+                    params = named.group(1) if named else ''
+                if len([p for p in params.split(',') if p.strip()]) < 2:
+                    missing.append(f'{path.relative_to(ROOT)}: render({params})')
+        self.assertEqual(missing, [])
+
+
 if __name__ == '__main__':
     unittest.main()

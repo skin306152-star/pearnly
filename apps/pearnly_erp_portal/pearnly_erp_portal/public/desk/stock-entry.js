@@ -327,17 +327,20 @@
 
 		// ── 二级页面：同一套字段摊成整页，提交即过账 ──────────────────────────────
 
-		async function open_new() {
+		// `current()`：这次渲染还是不是最新的一次（`p.routed_page`）。同一次跳转可能触发两次渲染，先发起、后完成的那次
+		// 不能再建表单，否则会用默认仓盖掉用户刚选的仓（10-31 流程摄像头那格入库落到上一遍的仓）。
+		async function open_new(current) {
 			p.breadcrumbs({ label: __(nav_label),
 				route: url(), trail: [{ label: title_new(), route: "" }] });
 			const values = carry || {};
 			carry = null;
 			if (!values.warehouse) values.warehouse = await p.place.prefill(prefill_kind);
+			if (!current()) return;
 			// 带过来的明细行（弹窗里已经填好的那些）原样铺成逐条的小表单。
 			const data = (values.lines?.length ? values.lines : null) || [{ qty: 1 }];
 			const posting_date = values.posting_date || frappe.datetime.get_today();
 			const doc_no = await doc_no_default({}, posting_date);
-			if (frappe.get_route()[0] !== root) return;
+			if (!current()) return;
 			form = p.layout(page.main, [...entry_fields({ doc: values, doc_no, editable: true, data }), ...attachment_fields(true)]);
 			mount_lines(form.fields_dict.lines.$wrapper, data, form);
 			page_files = attachments_area(form, { can_attach: true });
@@ -361,12 +364,12 @@
 
 		// ── 路由 ────────────────────────────────────────────────────────────────
 
-		async function render(rest) {
+		async function render(rest, current) {
 			p.clear_page(page);
 			list = null; form = null; lines = null; head = null; page_files = null;
 			if (!rest.length) { open_list(); return; }
 			if (rest[0] !== SECOND || !canWrite) { p.redirect_up(root); return; }
-			await open_new();
+			await open_new(current);
 		}
 
 		const show = p.routed_page({ wrapper, root, render });

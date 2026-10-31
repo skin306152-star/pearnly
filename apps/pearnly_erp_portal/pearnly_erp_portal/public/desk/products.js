@@ -517,7 +517,8 @@
 			] : []),
 		];
 
-		async function open_new() {
+		// `current()`：这次渲染还是最新的一次（`p.routed_page`）；过时的那次不再建表单，免得盖掉已经打开的那份
+		async function open_new(current) {
 			p.breadcrumbs({ label: __("nav.products"), route: url(),
 				trail: [{ label: t("product.action.new"), route: "" }] });
 			const rows = carry ? [carry] : [{}];
@@ -525,6 +526,7 @@
 			// 编码由服务端在入库那一刻发；这里只是把"本次从哪个号开始"写进提示给人看。
 			const start_code = (await p.call(api + "api_next_product_code")).code;
 			if (can_open()) opening_warehouse = await p.place.prefill("opening");
+			if (!current()) return;
 			form = p.layout(page.main, [
 				{ fieldtype: "Section Break" },
 				{ fieldtype: "Table", fieldname: "products", label: t("product.new.lines"),
@@ -712,12 +714,12 @@
 
 		// ── 路由 ────────────────────────────────────────────────────────────────
 
-		async function render(rest) {
+		async function render(rest, current) {
 			p.clear_page(page);
 			list = null; form = null;
 			if (!rest.length) { await open_list(); return; }
 			if (rest[0] !== SECOND || !can_create) { p.redirect_up(root); return; }
-			await open_new();
+			await open_new(current);
 		}
 
 		if (inline) return inline.name ? open_detail({name: inline.name}) : open_quick();

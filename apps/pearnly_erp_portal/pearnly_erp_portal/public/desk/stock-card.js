@@ -268,7 +268,8 @@
 			frappe.set_route(root, row.product, row.warehouse, row.location || "");
 		}
 
-		async function open_ledger_page(rest) {
+		// `current()`：这次渲染还是最新的一次（`p.routed_page`）；过时的那次取完数不再建页
+		async function open_ledger_page(rest, current) {
 			const [product, warehouse, location = ""] = rest;
 			const dates = {
 				date_from: range?.date_from || frappe.datetime.month_start(),
@@ -276,7 +277,7 @@
 			};
 			range = null;
 			const card = await fetch_card({ product, warehouse, location }, dates);
-			if (frappe.get_route()[0] !== root) return;
+			if (!current()) return;
 			p.breadcrumbs({ label: __("nav.stockCard"), route: url(),
 				trail: [{ label: card.product_name || product, route: "" }] });
 			// 二级页面的重新取数：日期一改就按新区间重取这张卡（期初/期末/明细一起换）。
@@ -324,12 +325,12 @@
 			host.empty().append(p.ledger_table(t, card));
 		}
 
-		async function render(rest) {
+		async function render(rest, current) {
 			p.clear_page(page);
 			list = null; form = null;
 			if (!rest.length) { open_list(); return; }
 			if (rest.length > 3) { p.redirect_up(root); return; }
-			await open_ledger_page(rest);
+			await open_ledger_page(rest, current);
 		}
 
 		const show = p.routed_page({ wrapper, root, render });
