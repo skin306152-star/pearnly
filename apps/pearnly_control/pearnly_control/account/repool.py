@@ -202,12 +202,12 @@ def move(deployment, pool="cowork", confirm="", owner_password="initial") -> dic
             **provisioning.target_credentials(issue.target, POOLS[pool])}),
         (f"{dep.name}:bind_user", "bind_user", {
             "site": site, "group": group, "email": issue.account_email,
-            "full_name": issue.get("account_username") or issue.tenant_name, "subject": owner,  # person-name: 建号时给站点写的初始姓名
+            "full_name": issue.get("account_username") or issue.tenant_name, "subject": owner,
             "deployment": dep.name}),
     ]
     members = [m for m in moved.get("members") or [] if m.get("subject")]
     steps += [(_member_step_key(dep, m["email"]), "bind_user", {
-        "site": site, "group": group, "email": m["email"], "full_name": m["username"], "subject": m["subject"],  # person-name: 建号时给站点写的初始姓名（只在新建本地账号时写）
+        "site": site, "group": group, "email": m["email"], "full_name": m["username"], "subject": m["subject"],
         "deployment": dep.name, "member": True}) for m in members]
     _queue(request, dep, steps)
     removed = None

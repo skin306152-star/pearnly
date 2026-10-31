@@ -309,7 +309,7 @@ erpnext.PointOfSale.PastOrderSummary = class {
 				name: doc.name,
 				send_email: 1,
 				print_format,
-				sender_full_name: frappe.user.full_name(),  // person-name: 官方 POS 发小票邮件的发件人，框架自己取
+				sender_full_name: frappe.user.full_name(),
 				_lang: doc.language,
 			},
 			callback: (r) => {

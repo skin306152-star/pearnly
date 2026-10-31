@@ -750,7 +750,7 @@ def _steps_for(issue, dep, row) -> list[dict]:
              # 这里曾经写的是旧名 `account_name`：旧列还在库里、DocType 元数据里已经没有了，
              # 于是 `bench migrate` 同步一次字段就会让这行抛 AttributeError、把整条开通链卡死
              # （2026-09-19 实踩）。取不到就退回公司名。
-             "full_name": issue.get("account_username") or issue.tenant_name,  # person-name: 建号时给站点写的初始姓名
+             "full_name": issue.get("account_username") or issue.tenant_name,
              # 绑该产品账号池里为本单建的那个身份（Cowork 与 ERP / DMS 分池）。
              "subject": identity_pools.subject_of(issue, dep.product),
              "deployment": dep.name,

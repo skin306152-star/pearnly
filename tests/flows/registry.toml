@@ -603,3 +603,17 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/team/api.py",
   "apps/pearnly_cowork/pearnly_cowork/public/desk/team.js",
 ]
+
+[[flow]]
+id = "cc.person-names"
+title = "CC 问候语带「名」、侧栏用户按钮 / 手机头像是全名（姓名全覆盖，用户 10-30）"
+module = "scripts/flows/cc_person_names.py"
+start = "/assistant"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/shell.py",
+  "apps/pearnly_core/pearnly_core/account/names.py",
+  "frontend/assistant/src/assistant.tsx",
+]

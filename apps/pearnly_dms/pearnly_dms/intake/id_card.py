@@ -24,7 +24,7 @@ LINK = "DMS Customer Link"
 # 列表接口**不返回**证件号，只返回末四位用于人工核对
 LIST_FIELDS = [
     "name", "status", "match_result", "endpoint", "external_ref",
-    "full_name", "birth_date", "push_log_ref", "creation",  # person-name: 客户证件上的姓名，不是账号
+    "full_name", "birth_date", "push_log_ref", "creation",
 ]
 
 
@@ -65,7 +65,7 @@ def create_id_card_intake(
         "match_result": "unknown",
         "endpoint": endpoint,
         "id_number": id_number,
-        "full_name": full_name,  # person-name: 客户证件上的姓名，不是账号
+        "full_name": full_name,
         "birth_date": birth_date,
         "address": address,
         "gender": gender,
@@ -102,7 +102,7 @@ def match_customer(name: str, *, external_customer_ref: str | None = None) -> di
         link = frappe.get_doc({
             "doctype": LINK,
             "id_number": doc.id_number,
-            "full_name": doc.full_name,  # person-name: 客户证件上的姓名，不是账号
+            "full_name": doc.full_name,
             "external_customer_ref": external_customer_ref,
             "endpoint": doc.endpoint,
             "is_new_customer": 1,

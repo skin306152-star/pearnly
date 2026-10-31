@@ -18,3 +18,15 @@ reason = "身份绑定与登录回调：bind_identity 只给开户脚本和系�
 [[file]]
 file = "apps/pearnly_cowork/pearnly_cowork/stocktake/api.py"
 reason = "Cowork 盘点的原生 RPC（建盘点 / 记数 / 导出给程序调），产品页面不调它（页面走 stocktake/desk_api.py，由 cowork.stocktake.list / cowork.exports 覆盖）；导出由 tests/test_exports.py 与 scripts/cowork-stocktake-export-lab-verify.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/company-cards.tsx"
+reason = "CC 右侧栏的公司卡：要 Cowork 公司（先接 Express 账套）才有卡，回归实验室两套 Cowork 数据没有公司、也接不了账套。「谁设的」显示 set_by_name 由 tests/test_cowork_companies.py（接口给姓名）守住；CC 问候与头像的姓名由流程 cc.person-names 实测"
+
+[[file]]
+file = "frontend/assistant/src/lib/companies.ts"
+reason = "同 company-cards.tsx：公司卡的数据类型定义，只在有 Cowork 公司时用到"
+
+[[file]]
+file = "apps/pearnly_dms/pearnly_dms/query/records.py"
+reason = "DMS 推送记录列表：记录来自真推送到外部 DMS 的日志，回归实验室的 DMS 数据没有推送记录。操作员名（花名册名优先、没有用账号姓名）由 tests/test_dms_recording_fixes.py 守住"

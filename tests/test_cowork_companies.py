@@ -1097,9 +1097,13 @@ class ChoiceTests(unittest.TestCase):
         with mock.patch.dict(sys.modules, modules):
             sys.modules["pearnly_cowork.pos_import"].layouts = layouts
             try:
-                rows = choices.listing(self.company, self.sets)
+                # 「谁设的」给姓名（共用显示名，用户 10-30）：CC 公司卡显示 set_by_name，不露账号
+                with mock.patch.object(sys.modules["pearnly_core.account.names"], "display_names",
+                                       lambda users: {user: "Somchai Jaidee" for user in users if user}):
+                    rows = choices.listing(self.company, self.sets)
                 pos = next(row for row in rows if row["source"] == "pos")
                 income = next(row for row in rows if row["source"] == "income")
+                self.assertEqual((pos["set_by"], pos["set_by_name"], income["set_by_name"]), ("a", "Somchai Jaidee", ""))
                 self.assertEqual(layouts.seen[0], ["C1|abc"])
                 self.assertEqual((pos["subject_label"], income["subject_label"], income["value"]),
                                  ("Date · Total", "4100", "yes"))

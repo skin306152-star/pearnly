@@ -1,1 +1,8 @@
-{}
+{
+ "apps/pearnly_control/pearnly_control/account/repool.py": 2,
+ "apps/pearnly_control/pearnly_control/provisioning.py": 1,
+ "apps/pearnly_core/pearnly_core/provisioning.py": 1,
+ "apps/pearnly_dms/pearnly_dms/client/client_ops.py": 2,
+ "apps/pearnly_dms/pearnly_dms/intake/id_card.py": 3,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/official-pos_past_order_summary.js": 1
+}
