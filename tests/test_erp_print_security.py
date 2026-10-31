@@ -87,7 +87,7 @@ class PrintOnlyStoredReadableDocuments(unittest.TestCase):
     def test_the_stored_copy_is_what_gets_printed(self):
         from pearnly_erp_portal.printing import context
 
-        stored = types.SimpleNamespace(doctype=context.STOCK, name="STE-1", has_permission=lambda ptype: True)
+        stored = types.SimpleNamespace(doctype=context.STOCK, name="STE-1", direction="in", has_permission=lambda ptype: True)
         with mock.patch.object(context.frappe, "db", types.SimpleNamespace(exists=lambda doctype, name: True)), \
                 mock.patch.object(context.frappe, "get_doc", lambda doctype, name: stored), \
                 mock.patch.object(context, "_stock", lambda doc, kind=None: {"printed": doc}):
