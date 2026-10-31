@@ -190,6 +190,8 @@
 - **受影响流程**（`run.py --changed --base origin/pearnly/scan-data-matrix`，6 条）在本机跑了一半后按指示停掉，没回写 `pearnly/flows`：
   - 通过：`erp.document.express` 4/4、`erp.stock-in.units` 4/4、`erp.stock-entry.scan` 电脑 2/2；
   - **没跑**：`erp.stock-entry.scan` 手机 2 格（new / old）、`erp.express.service_vat` 4 格（本分支新流程，至今一格都没跑过）、`erp.stocktake.scan` 4 格、`erp.stocktake.gs1` 4 格。
-- **合入前要做**：在 GitHub 机器上跑上面没跑的格（至少 `erp.express.service_vat` 全过）→ 快进 main → 通知代录窗口（local_a0bf1400）发 CC 1.12.8
-  （1.12.7 正式版 10-30 已发，`latest.json` 已核）。服务端先部署，旧版 CC 收到载荷 13 诚实拒收。
+- **补跑与合入（10-31，用户改回本机跑）**：上面没跑的 14 格在本机 `pearnly-flows-port`（挂 `451971a5`）补跑全过——
+  `erp.express.service_vat` 4/4、`erp.stocktake.scan` 4/4、`erp.stocktake.gs1` 4/4、`erp.stock-entry.scan` 手机 2/2（未回写 `pearnly/flows`，分两次单跑）。
+  `451971a5` 上 Development checks 通过后快进合入 main（`451971a5`），已通知代录窗口（local_a0bf1400）发 CC 1.12.8。
+  服务端随下次部署先上线，旧版 CC 收到载荷 13 诚实拒收；CC 1.12.8 + 服务端的端到端实机仍没走过。
 - **实验栈**：`pearnly-flows-port` 已 stop、数据卷保留（挂本工作树 `.claude/worktrees/merge-vat`）。
