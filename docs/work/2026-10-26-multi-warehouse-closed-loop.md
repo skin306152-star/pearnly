@@ -227,7 +227,7 @@ STC-00046（进行中）；管理员建的采购单 PUR-2026-00032。浏览器�
 | 离线单测（ERP） | `test_erp_serials` 16 过（新增调拨换仓 / 作废回退 / 台已卖出或再调走拒 / 出台核库位）；`test_erp_express_direct` 113 过（新增 RL 载荷、两仓码、无码停下、只在报过 RL 时判没有单据簿）；`test_companion_contract` 81 过（新增调拨版本与键两边一致）；`test_native_desk_contract`、`test_document_numbering`（顺手修了 main 上就过期的前缀断言）、`test_erp_locations`、`test_erp_printing`、`test_erp_stock_attachments`、`test_erp_portal_access` 照 CI 方式单跑都过 |
 | 离线单测（CC） | 全量 1237 过、42 跳过（新增 `test_dbf_transfer.py` 13 项：原生单头、成对明细、STLOC 新建行不带日期 / 金额 / 分类、STMAS 不动、无凭证、ISRUN +1、作废、改过的单不作废、坏载荷不动账、仓码不在、没有 RL 簿、未知商品、负库存） |
 | 变基 | 10-31 变基到 origin/main b7db199f：`registry.toml` 冲突按 main 收，本期只补 `erp.stock-transfer` 与收银适配器 covers；`erp_stock_entry_line.json` 与 main 去批次那次同一个 modified，改成 `2026-10-31 09:00` 让迁移认得出 `to_location` |
-| 检查 | 变基后本地同名闸门（照 development.yml）从头跑：152 步全过（5cf478fc） |
+| 检查 | 本地同名闸门（照 development.yml）：152 步全过（5cf478fc；最终 1514fa1b 再跑一遍也是 152 步全过，中途补了 `test-desk-place-and-switch` 的 `put` 用例与库存卡流程覆盖） |
 | 实验栈（真站点） | 起了本窗口自己的栈 `pearnly-mwh-p2`（端口 18797–18799）。第一次跑在建 old 数据集时就抓到本期缺陷：`stock.apply_movement` 函数体用了 `base_unit_cost`、签名里没加，**所有库存流水都会 NameError**（离线单测没走到真函数）；已修（b38f92fe），pyflakes 扫本期改过的全部 Python 没有别的未定义名字。流程结果见下一行 |
 | 流程用例 | 本机栈 `pearnly-mwh-p2` 上 `run.py --changed` 跑了 4 轮。第 4 轮在 3750a362（变基到 0836f929 后）：**30/31 通过**，只有 `erp.stock-entry.scan` 旧数据 / 手机那格账面不对。途中查出并修了：①流程 `pick` 发 change 事件、只剩最近 10 件（36d94714），按名字前缀认错（3750a362），都是测试问题；②旧数据集建了一半（只按公司判断建过没有），重建站点；③调拨流程把出库金额当带符号的数（流水 value_delta 存的是大小）；④**产品竞态两处**：出入库 / 商品 / 库存卡三页 render 没接 still_current（490021f0，加契约测试）、表头建议仓走 Link 异步校验期间人选的仓会被框架丢掉（43438a88，`p.place.put` 同步写入，出入库 / 采购 / 销售 / 期初 / 盘点共用）。修复后那一格单跑 1 次通过（实时源码已含两处修复）。之后按用户指示本机流程停了，见下面「待转 GitHub 流程」 |
 | 测试机：C 盘 T 账套 | 回归脚本改成挑不到正结存、或照负库存规则核不过时，先在副本里用 JU 按缺口垫货（`T9GIS` 主档结存原是 −1，垫 1 不够）。101 本：**80 本写 RL + 读回 + 作废 + 已装 CC 索引程序核 CDX 全过、0 失败**；21 本跳过（15 本没有库存品、5 本没有可记账的 JU、1 本没有 RL 簿）。副本已删、占用表已登记释放 |
@@ -268,6 +268,7 @@ STC-00046（进行中）；管理员建的采购单 PUR-2026-00032。浏览器�
 - 3750a362 之后又改了 `stock-entry.js`、`products.js`、`stock-card.js`、`transactions.js`、`stock-opening.js`、`stocktake.js`，
   这些覆盖到的流程在新提交上**都还没整套跑过**：`erp.stock-entry.scan`、`erp.stock-transfer`、`erp.stock-in.units`、`erp.sales.scan`、
   `erp.purchase.create`、`erp.products.create` / `opening` / `clash`、盘点各条（`erp.stocktake.*`、`erp.stock.excel-units`）、`erp.cashier.first-sale`、`erp.document.express`。
+  另新写的 `erp.stock-card`（库存卡：两次渲染只出一份卡、期末结存与账面一致）**一次都没跑过**，要先在 GitHub 机器上跑通。
 - 已单独验过的：`erp.stock-entry.scan` 旧数据 / 手机修复后 1 次通过（之前 2 次里 1 次不过）；`erp.stock-entry.scan`、`erp.sales.scan` 新数据 / 电脑各 1 次通过（pick 修复后）。
 - 共用件连带回归（`check-impact`）里的手工项（扫码枪、LINE、CC、导出、开户等）本窗口**没测到**：流程转 GitHub、测试机按指示不动，留给验收窗口。
 - 本窗口实验栈 `pearnly-mwh-p2` 已停、数据卷保留（主会话定何时删）。
