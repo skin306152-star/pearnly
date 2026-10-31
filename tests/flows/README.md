@@ -12,7 +12,7 @@
 | `scripts/flows/<流程>.py` | 流程模块：`prepare`（在站点里开单等）、`steps`（页面步骤）、`judge`（页面结果）、`verify`（落库） |
 | `scripts/flows/run.py` | 跑法；`--post-status` 把结果回写成 GitHub 提交状态 `pearnly/flows` |
 | `scripts/flows/coverage.py` | 覆盖闸（CI 跑）：改到产品入口文件却没有流程登记它 → 失败；`--status` 出现状清单（按产品、按近 30 天改动次数排序），补覆盖的顺序见 [四道闸记录](../../docs/work/2026-10-29-four-machine-gates.md) |
-| `scripts/production/deploy.sh` | 部署闸：构建前核对要部署的 main 提交 `pearnly/flows` 是全套通过，不是就停下并打印补跑命令 |
+| `scripts/production/deploy.sh` | 部署闸：构建前核对发布标记所指提交的 `pearnly/flows` 是全套通过，不是就停下并打印补跑命令 |
 
 ## 本机最多三套实验栈、收尾清残留
 
@@ -57,12 +57,13 @@ python3 scripts/flows/run.py --changed --base origin/main --post-status
 
 ## 部署前（全套）
 
-部署闸只认全套：说明以 `all flows` 开头、状态 success、就在要部署的那个 main 提交上。
+部署闸只认全套：说明以 `all flows` 开头、状态 success、就在发布标记所指的那个提交上（或按沿用规则沿用）。
 
-全套每次部署只跑一次（主会话 10-30 定，起因是 main 一直前进、反复变基重跑全套，浪费额度和时间）：
-- 冻结点由主会话提前宣布：宣布后 main 不再进别的提交，只合要部署的那一批。
-- 那一批变基到冻结点**一次**，在变基后的提交上跑全套、回写，过了快进合入，主会话用这个提交部署。
-- 不追着 main 跑：冻结前不跑全套；冻结后 main 不动，不会因为别人合入而重跑。
+全套每次部署只跑一次，跑在要发布的那个 main 提交上（10-31 起按发布标记部署，不再冻结 main）：
+- 选定 main 上要发布的提交，在它上面跑全套、回写；main 照常往前合，不影响这次发布。
+- 过了就给它打发布标记并部署：`git tag -a release-<年月日-时分> <提交> -m "production release" && git push origin refs/tags/<标记>`，
+  再 `scripts/production/deploy.sh --tag <标记>`；那个提交还是 main 最新时直接 `deploy.sh` 也行（自己打标记）。
+- 实验室迁移逐站核 DocType：迁移后少了就停下、不跑流程不回写（`scripts/production/doctype_guard.py`）。
 
 ```bash
 git -C ~/pearnly fetch origin

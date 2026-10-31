@@ -22,6 +22,7 @@ BASE = 'a' * 40   # 首父链上更早、有全套的提交（沿用用）
 DIGEST = 'sha256:' + 'e' * 64
 FLOWS_OK = 'success all flows; 1 flows; datasets new,old; 4/4 runs passed; 812s'
 IMAGE = 'ghcr.io/skin306152-star/pearnly/frappe@' + DIGEST
+TAG = 'release-20261031-1405'  # 已有的发布标记（--tag 用）
 
 
 def stub(path, body):
@@ -228,7 +229,7 @@ class Driver(unittest.TestCase):
     """deploy.sh with fake git / gh / ssh: the order of calls and where it stops."""
 
     def run_driver(self, *args, build='success', stage='success', remote_status='ok', candidate='success',
-                   busy_server=False, attach_failures=0, flows=FLOWS_OK, base_flows='', changed=''):
+                   busy_server=False, attach_failures=0, flows=FLOWS_OK, base_flows='', changed='', on_main=True):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             repo, bin_dir = root / 'repo', root / 'bin'
@@ -240,8 +241,15 @@ class Driver(unittest.TestCase):
             (repo / 'scripts/flows/coverage.py').write_text(
                 'import sys\nif "--deploy-note" in sys.argv: print("本批改到的存量模块（还没有流程兜底）1 个：")\n')
             trace = root / 'trace'
+            # 发布标记：已有的只有 TAG（与本次脚本自己打、推上去的）；--is-ancestor 按 on_main 回
             stub(bin_dir / 'git', f'''echo "git $*" >> "{trace}"
 case "$*" in
+  *"--is-ancestor"*) {'exit 0' if on_main else 'exit 1'} ;;
+  *"tag -l"*) echo {TAG} ;;
+  *"tag -a"*) printf '%s' "$*" | sed 's/.* tag -a \\([^ ]*\\).*/\\1/' > "{root}/made-tag" ;;
+  *"--verify refs/tags/"*)
+    want=$(printf '%s' "$*" | sed 's|.*refs/tags/||; s|\\^{{commit}}||')
+    if [ "$want" = {TAG} ] || [ "$want" = "$(cat "{root}/made-tag" 2>/dev/null)" ]; then echo {SHA}; else exit 1; fi ;;
   *rev-parse*) echo {SHA} ;;
   *rev-list*) {f'echo {BASE}' if base_flows else ':'} ;;
   *"diff --name-only"*) printf '%s\n' {changed!r} ;;
@@ -356,26 +364,71 @@ esac
         self.assertEqual(self.kinds(calls), ['dispatch build-production.yml', 'dispatch stage-production.yml'])
         self.assertIn(f'--digest {DIGEST}', result.stderr)
 
+    def test_deploy_tags_main_and_builds_the_tag(self):
+        result, calls = self.run_driver()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        made = [c for c in calls if c.startswith('git') and ' tag -a ' in c]
+        self.assertEqual(len(made), 1)
+        tag = made[0].split(' tag -a ')[1].split()[0]
+        self.assertRegex(tag, r'^release-\d{8}-\d{4}$')
+        self.assertIn(f'{SHA} -m', made[0])  # 标记打在远端 main 当前提交
+        self.assertTrue(any(c.startswith('git') and f'push -q origin refs/tags/{tag}' in c for c in calls))
+        build = next(c for c in calls if 'workflow run build-production.yml' in c)
+        stage = next(c for c in calls if 'workflow run stage-production.yml' in c)
+        self.assertIn(f'--ref {tag}', build)
+        self.assertIn(f'--ref {tag}', stage)
+        self.assertTrue(any('run list' in c and f'--branch {tag}' in c for c in calls))
+        self.assertFalse(any('run list' in c and '--branch main' in c for c in calls))
+        self.assertIn(f'发布标记 {tag}', result.stdout)
+
+    def test_existing_tag_is_deployed_without_a_new_one(self):
+        result, calls = self.run_driver('--tag', TAG)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse(any(' tag -a ' in c or 'refs/tags/' in c and ' push ' in c for c in calls))
+        self.assertIn(f'--ref {TAG}', next(c for c in calls if 'workflow run build-production.yml' in c))
+
+    def test_tag_off_main_or_unknown_stops_before_anything(self):
+        result, calls = self.run_driver('--tag', TAG, on_main=False)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('不在 main 上', result.stderr)
+        self.assertEqual(self.kinds(calls), [])
+        result, calls = self.run_driver('--tag', 'release-20200101-0000')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('没有发布标记', result.stderr)
+        self.assertEqual(self.kinds(calls), [])
+
+    def test_bad_arguments_are_refused(self):
+        for args in (('--tag', 'v1.0'), ('--digest', DIGEST)):
+            with self.subTest(args=args):
+                result, calls = self.run_driver(*args)
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(calls, [])
+
+    def test_dry_run_makes_no_tag(self):
+        result, calls = self.run_driver('--dry-run')
+        self.assertFalse(any(' tag -a ' in c for c in calls))
+        self.assertFalse(any(' push ' in c for c in calls if c.startswith('git')))
+
     def test_digest_and_skip_stage_go_straight_to_the_server(self):
-        result, calls = self.run_driver('--digest', DIGEST, '--skip-stage')
+        result, calls = self.run_driver('--tag', TAG, '--digest', DIGEST, '--skip-stage')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.kinds(calls), ['ssh start', 'ssh attach'])
 
     def test_busy_server_is_left_alone(self):
-        result, calls = self.run_driver('--digest', DIGEST, '--skip-stage', busy_server=True)
+        result, calls = self.run_driver('--tag', TAG, '--digest', DIGEST, '--skip-stage', busy_server=True)
         self.assertEqual(result.returncode, 1)
         self.assertEqual(self.kinds(calls), ['ssh start'])
         self.assertIn('已有一次部署在跑', result.stderr)
 
     def test_product_failure_is_reported_without_rollback(self):
-        result, calls = self.run_driver('--digest', DIGEST, '--skip-stage', remote_status='failed cowork')
+        result, calls = self.run_driver('--tag', TAG, '--digest', DIGEST, '--skip-stage', remote_status='failed cowork')
         self.assertEqual(result.returncode, 1)
         self.assertIn('激活 cowork 失败', result.stderr)
         self.assertIn('不自动回滚', result.stderr)
         self.assertFalse([c for c in calls if 'activate' in c and 'ssh' in c and 'rollback' in c])
 
     def test_lost_connection_reattaches_without_repeating_lines(self):
-        result, calls = self.run_driver('--digest', DIGEST, '--skip-stage', attach_failures=2)
+        result, calls = self.run_driver('--tag', TAG, '--digest', DIGEST, '--skip-stage', attach_failures=2)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.kinds(calls), ['ssh start', 'ssh attach', 'ssh attach', 'ssh attach'])
         attaches = [c for c in calls if c.startswith('ssh') and 'tail -n' in c]
@@ -384,7 +437,7 @@ esac
         self.assertIn('tail -n +3 ', attaches[2])
 
     def test_interrupted_server_run_stops_with_guidance(self):
-        result, calls = self.run_driver('--digest', DIGEST, '--skip-stage', remote_status='running dms')
+        result, calls = self.run_driver('--tag', TAG, '--digest', DIGEST, '--skip-stage', remote_status='running dms')
         self.assertEqual(result.returncode, 1)
         self.assertIn('部署进程已经不在', result.stderr)
         self.assertEqual(self.kinds(calls), ['ssh start', 'ssh attach'])
