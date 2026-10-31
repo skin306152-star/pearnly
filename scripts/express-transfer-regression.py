@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """CC 写仓间调拨 RL（dbf_transfer）与作废 RL（dbf_void）的真账副本离线回归（多仓闭环 P2，10-30）。
 
-对每本账套：整本复制到工作目录 → 用这份源码的 CC 写入代码，挑一件在某个仓有正结存的库存品，从那个仓调 1 个到这套账的另一个仓
-（ISTAB 21）→ 核原生 RL 记法（实录 RL0000001–0000003，4.6 / 4.6b）：
+对每本账套：整本复制到工作目录 → 用这份源码的 CC 写入代码，挑一件在某个仓有正结存的库存品（没有就先用调整 JU 给第一件库存品
+在第一个仓垫 1 个，10-31），从那个仓调 1 个到这套账的另一个仓（ISTAB 21）→ 核原生 RL 记法（实录 RL0000001–0000003，4.6 / 4.6b）：
 - 单头 STTRN 一行：POSOPR 4、LOCCOD 调出、PEOPLE 调入、TRNVAL 0、NXTSEQ「  1」、DOCSTAT N；
 - 明细 STCRD 一对：调出 4 / 调入 3、同行号、PEOPLE 互指、数量相等、单价金额 0、REIMBURSE \\x00；
 - 两仓 STLOC：调出 −1、调入 +1（调入仓原来没有这件就新建一行）；STMAS 这件品的结存与货值不变；没有凭证；ISRUN 的 RL 号 +1；
 - 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STLOC、ISRUN 及索引；STMAS、GLJNL 也必须不变）；
 - 再作废：单头 C、NXTSEQ 空、那一对不在（删除标记）、两仓回到写前；
 - 给了 ``--runner``：照正式 CC 重建索引，并核写入集合的 CDX 与 DBF 一致（``express_cdx_check``）。
-账套没有 RL 单据簿、只有一个仓、没有 STLOC、没有正结存的库存品时跳过并记原因。源账套只读（只 copytree 出来），工作副本用完删掉。
+账套没有 RL 单据簿、只有一个仓、没有 STLOC、没有库存品（或要垫货却没有可记账的 JU）时跳过并记原因。源账套只读（只 copytree 出来），工作副本用完删掉。
 
     python3 scripts/express-transfer-regression.py --source C:\\PearnlyExpress\\70EXP --pattern "T*" --work C:\\PearnlyStress\\_rl_reg \\
         --companion <仓库>\\companion\\src --out result.jsonl [--runner C:\\Users\\skin3\\AppData\\Local\\Programs\\CC\\cdx_reindex_runner.exe]
@@ -43,9 +43,10 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     sys.path.insert(0, args.companion)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    global dbf, S, T, V, fiscal_period, stock_location, cdx_reindex, cdx_check, with_runner
+    global dbf, S, T, V, D, account_rules, fiscal_period, stock_location, cdx_reindex, cdx_check, with_runner
     import dbf  # noqa: F401
-    from companion import cdx_reindex, fiscal_period, stock_location  # noqa: F401
+    from companion import account_rules, cdx_reindex, fiscal_period, stock_location  # noqa: F401
+    from companion import dbf_stock as D  # noqa: F401
     from companion import dbf_schema as S  # noqa: F401
     from companion import dbf_transfer as T  # noqa: F401
     from companion import dbf_void as V  # noqa: F401
@@ -124,11 +125,21 @@ def check(acct: Path) -> dict:
     calendar = fiscal_period.load(acct)
     if not calendar:
         return {"state": "skip", "why": "no ISPRD"}
-    stock = {text(r["STKCOD"]) for r in rows(acct, "STMAS", ("STKCOD", "STKTYP")) if text(r["STKTYP"]) == "0" and text(r["STKCOD"])}
+    stock = [text(r["STKCOD"]) for r in rows(acct, "STMAS", ("STKCOD", "STKTYP")) if text(r["STKTYP"]) == "0" and text(r["STKCOD"])]
+    if not stock:
+        return {"state": "skip", "why": "no stock item"}
+    first = calendar.periods[0]
+    day = first.beg + dt.timedelta(days=min(14, (first.end - first.beg).days))
+    docdate = f"{(day.year + 543) % 100:02d}{day.month:02d}{day.day:02d}"
     pick = next(((text(r["STKCOD"]), text(r["LOCCOD"])) for r in rows(acct, "STLOC", ("STKCOD", "LOCCOD", "LOCBAL"))
                  if text(r["STKCOD"]) in stock and text(r["LOCCOD"]) in known and num(r["LOCBAL"]) >= 1), None)
+    topped = ""
     if not pick:
-        return {"state": "skip", "why": "no stock item with a positive location balance"}
+        pick = (stock[0], known[0])
+        why = top_up(acct, *pick, docdate)
+        if why:
+            return {"state": "skip", "why": why}
+        topped = pick[1]
     code, source = pick
     target = next(loc for loc in known if loc != source)
     before = places(acct, code)
@@ -137,9 +148,6 @@ def check(acct: Path) -> dict:
     run_before = counter(acct)
     files_before = digests(acct)
     index_before = cdx_check.snapshot(cdx_reindex, acct, WRITE_SET) if with_runner else {}
-    first = calendar.periods[0]
-    day = first.beg + dt.timedelta(days=min(14, (first.end - first.beg).days))
-    docdate = f"{(day.year + 543) % 100:02d}{day.month:02d}{day.day:02d}"
     payload = {"payload_version": 14, "direction": "stock", "doctype": "RL", "docdate_be": docdate, "ref_no": "REG-RL",
                "remark": "reg transfer", "loccod": source, "to_loccod": target,
                "items": [{"code": code, "name": "", "qty": "1", "loccod": source}]}
@@ -197,7 +205,23 @@ def check(acct: Path) -> dict:
     if changed:
         return {"state": "fail", "why": f"tables outside the write set changed after void: {changed}"}
     return {"state": "ok", "doc": docnum, "item": code, "from": source, "to": target, "new_target_row": target not in before,
-            "cdx_checked": sorted(index_before)}
+            "topped_up_with_ju": bool(topped), "cdx_checked": sorted(index_before)}
+
+
+def top_up(acct, code, loccod, docdate):
+    """用调整 JU 给这件品在这个仓垫 1 个（写前快照在这之后取，JU 动的 STMAS / 凭证不算进 RL 的写入集合）；不能垫时回原因。"""
+    row = D.book_row(acct, "JU")
+    if row is None or not account_rules.postable_account(acct, row["account"]):
+        return "no item with a positive location balance and no postable JU book to add one"
+    res = D.write_stock_entry({"payload_version": 6, "direction": "stock", "doctype": "JU", "docdate_be": docdate, "ref_no": "REG-RL-JU",
+                               "remark": "", "loccod": loccod, "items": [{"code": code, "name": "", "qty": "1", "unit_cost": "10",
+                                                                          "loccod": loccod}]},
+                              acct, selected_dir=str(acct), make_backup=False)
+    if not res.ok:
+        return f"JU to add stock {res.error_code}: {res.error}"
+    if places(acct, code).get(loccod, Decimal(0)) < 1:
+        return f"JU {res.docnum} did not put {code} at {loccod}"
+    return ""
 
 
 if __name__ == "__main__":
