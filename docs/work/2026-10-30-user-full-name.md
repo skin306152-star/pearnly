@@ -100,3 +100,31 @@ CC 桌面版（不显示人名，内嵌网页随 CC 网页）；客户证件上�
 - `cowork.exports` 4/4 通过（Cowork 盘点导出的盘点人 / 修改人为姓名）。
 - `erp.stock-entry.scan` 3/4 通过，新开户 / 电脑一格后几项「page lost」，单独重跑通过（偶发）。
 其余 `--changed` 流程在变基前全过；变基只带进 main 的改动（流程登记表合并），按主会话口径不重跑，以 CI 为准。
+
+## 部署前补测：真 Keycloak 建号与登录（10-31，本机样板栈，main `c64dc30d`）
+
+主会话要求部署前在真 Keycloak 上测「建员工把名 / 姓送 Keycloak」与登录不覆盖姓名。样板栈（`pearnly-sample`，源码挂主目录 main）三个站点
+（ERP `qerp.localhost`、Cowork `cowork-a.localhost`、控制面 `control.localhost`）先迁移到 main、重启网页与后台进程。
+
+样板栈的限制（环境，不是产品问题）：本机控制面没开「计费专用 + 分租户令牌」、没配员工建号的 Keycloak 管理连接
+（`pearnly_member_identity_*`），Cowork 样板站点也没配租户与计费地址，所以「站点 → 控制面」这一跳在样板栈里对任何员工都走不通；
+样板 realm 也没跑 `configure-member-identity.py`，不保留归属属性 `pearnly_member_owner`，建号后核归属报冲突。做法：控制面建号函数
+`member_service.create` 在进程内临时注入两个样板站点自带的 Keycloak 管理客户端（不改配置文件）真实写进 Keycloak；站点用团队管理同一个
+`add_member` 建本地账号，只把发往控制面的那次请求换成直接回上一步的身份；登录用本机独立 cookie 真实走 OIDC（站点 → Keycloak 登录页 →
+回调），不碰浏览器里的登录。
+
+| 检查 | ERP（realm pearnly-business） | Cowork（realm pearnly-cowork） |
+| --- | --- | --- |
+| 站点交给身份服务的名 / 姓 | 「สมชาย / 空」「Somsri / Jaidee」 | 同左 |
+| Keycloak 里 firstName / lastName | สมชาย / 空；Somsri / Jaidee | 同左 |
+| 本地账号 first / last / full_name | สมชาย / 空 / สมชาย；Somsri / Jaidee / Somsri Jaidee | 同左 |
+| 真实 OIDC 登录 | 两人都登录成功，落到 /desk/pearnly-home | 同左 |
+| 登录后姓名 | 不变（没被改回用户名） | 同左 |
+| 本人在「我的资料」改名（页面同一个读 / 存接口）后再登录 | 改成「สมศักดิ์ ใหม่」「Malee」，再登录后仍是改后的 | 同左 |
+
+结论：建员工名 / 姓送 Keycloak、登录只投用户名不碰姓名、改名后再登录不被覆盖——通过。没测到：站点 → 控制面这一跳的 HTTP 请求
+（样板栈没配，离线 `pearnly_erp_portal.team.test_identity`、`test_member_service` 守着转发与参数）；CC 公司卡（样板 Cowork 也没有公司）。
+员工没有「我的资料」菜单岗位时打不开自己的资料，是按菜单权限设计的，测试时给测试员工补了这个岗位。
+
+清理：两个站点的 4 个测试员工（账号、身份绑定、会话）已删；Keycloak 里 4 个测试用户已删；控制面 4 条 `Pearnly Member Identity`
+登记有删除保护（审计），按设计留着；容器与本机临时目录里含测试密码、管理参数的文件已删。
