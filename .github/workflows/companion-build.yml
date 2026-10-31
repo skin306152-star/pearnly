@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ${{ vars.COMPANION_RUNS_ON || 'windows-latest' }}   # 同 Companion checks
+    runs-on: windows-latest   # 同 Companion checks：公开仓库不挂自有机器
     timeout-minutes: 40
     defaults:
       run:

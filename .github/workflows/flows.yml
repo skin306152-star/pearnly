@@ -1,0 +1,136 @@
+name: Flows
+
+# 流程用例（tests/flows/README.md）放在 GitHub 的 x86 机器上跑（10-31 起仓库公开，标准机器免费）：
+# 分支 push 只跑改动涉及的流程，main 上跑全套（部署闸只认全套）；格切成几份，每台机器起一套回归实验室跑一份，最后汇总回写提交状态 pearnly/flows。
+# 不跟 pull_request：外人的 PR 不在这里跑，也写不了提交状态。
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: all = 全套（部署前），changed = 只跑相对 origin/main 改动涉及的流程
+        type: choice
+        options: [all, changed]
+        default: all
+
+permissions:
+  contents: read
+
+concurrency:
+  # 分支上新 push 取消旧的；main 上排队跑完，最新的 main 提交总会有全套
+  group: flows-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  SCOPE_ARGS: ${{ (github.event_name == 'workflow_dispatch' && inputs.scope == 'all' || github.event_name == 'push' && github.ref == 'refs/heads/main') && '--all' || '--changed --base origin/main' }}
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: write
+    outputs:
+      plan: ${{ steps.plan.outputs.plan }}
+      cells: ${{ steps.plan.outputs.cells }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0  # --changed 要找与 origin/main 的分叉点
+      - name: Pick the flows and split the runs into shards
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          plan=$(python3 scripts/flows/run.py $SCOPE_ARGS --plan)
+          echo "$plan" | python3 -m json.tool
+          echo "plan=$plan" >> "$GITHUB_OUTPUT"
+          cells=$(echo "$plan" | python3 -c 'import json,sys; print(json.load(sys.stdin)["cells"])')
+          echo "cells=$cells" >> "$GITHUB_OUTPUT"
+          scope=$(echo "$plan" | python3 -c 'import json,sys; p=json.load(sys.stdin); print("%s; %s runs in %s shards" % (p["scope"], p["cells"], len(p["shards"])))')
+          gh api "repos/$GH_REPO/statuses/$GITHUB_SHA" -f state=pending -f context=pearnly/flows -f "description=running $scope" \
+            -f "target_url=$GITHUB_SERVER_URL/$GH_REPO/actions/runs/$GITHUB_RUN_ID" > /dev/null
+
+  shard:
+    needs: plan
+    if: needs.plan.outputs.cells != '0'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read  # 拉私有的生产镜像（GHCR 包仍是私有）
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.plan).shards }}
+    name: shard ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: '22.14.0'  # ui_steps.mjs 用 Node 自带的 WebSocket
+          cache: npm
+          cache-dependency-path: frontend/assistant/package-lock.json
+      - name: Build the assistant frontend (the CC chat flows test this commit's build)
+        working-directory: frontend/assistant
+        run: npm ci && npm run build
+      - name: Start the regression lab on the production image
+        env:
+          REGISTRY_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          PEARNLY_REGRESSION_SRC="$GITHUB_WORKSPACE" docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d --wait
+          docker logout ghcr.io
+      - name: Create the sites of this shard
+        run: docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml exec -T bench env/bin/python /workspace/scripts/regression/lab_init.py ${{ matrix.sites }}
+      - name: Run shard ${{ matrix.shard }}
+        env:
+          SMOKE_CHROME: /usr/bin/google-chrome
+        run: |
+          # Ubuntu 24.04 默认不许普通用户建命名空间，Chrome 的沙箱起不来
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 > /dev/null
+          mkdir -p results
+          python3 scripts/flows/run.py $SCOPE_ARGS --shard ${{ matrix.shard }} --jobs 3 --migrate --out results/shard-${{ strategy.job-index }}.json
+      - name: Lab log on failure
+        if: failure()
+        run: docker logs --tail 200 pearnly-regression-lab-bench-1 2>&1 || true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: always()
+        with:
+          name: flows-shard-${{ strategy.job-index }}
+          path: results/
+          if-no-files-found: ignore
+          retention-days: 1
+
+  report:
+    needs: [plan, shard]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        if: needs.plan.outputs.cells != '0'
+        with:
+          pattern: flows-shard-*
+          path: results
+          merge-multiple: true
+      - name: Check every shard reported and post pearnly/flows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          files=(results/*.json)
+          python3 scripts/flows/run.py $SCOPE_ARGS --merge "${files[@]}" --post-status

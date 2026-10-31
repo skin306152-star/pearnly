@@ -11,9 +11,8 @@ permissions:
 
 jobs:
   architecture-and-offline:
-    # 仓库变量 DEV_RUNS_ON=pearnly-arm 时在自己的 free-arm-2（三个 runner，不计 GitHub 分钟数）上跑；
-    # 那台出问题时删掉这个变量就回到 GitHub 的机器，不用改代码
-    runs-on: ${{ vars.DEV_RUNS_ON || 'ubuntu-24.04' }}
+    # 公开仓库（10-31 起）只用 GitHub 的机器：外人的 PR 能在工作流里指定 runner，自有机器（free-arm-2、测试机）不能再挂
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -93,7 +92,7 @@ jobs:
         run: python3 scripts/check-architecture.py
       - name: Every catch in product front-end code rethrows or goes to the shared error report; expected ones are registered with a reason
         run: python3 scripts/check-swallowed-errors.py
-      - name: Changed product entry files must be covered by a registered flow case (the flows themselves run in the local regression lab)
+      - name: Changed product entry files must be covered by a registered flow case (the flows themselves run in flows.yml)
         env:
           FLOWS_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || 'origin/main' }}
         run: python3 tests/test_flows_coverage.py && python3 scripts/flows/coverage.py

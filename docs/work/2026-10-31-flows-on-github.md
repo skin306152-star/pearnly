@@ -89,3 +89,31 @@ GitHub Actions：仓库机密只有 `COMPANION_PUBLISH_SSH_KEY`、`PRODUCTION_IM
 3. B4 客户名单与 `docs/work` 是否接受公开。
 
 在收到主会话明确通知前，仓库可见性、runner、仓库变量都没动。
+
+## 第二步：流程用例搬到 GitHub（10-31 下午）
+
+主会话转达：用户自己在 GitHub 设置页改公开，**不清理历史、不新建仓库**（那位客户的资料由用户自行决定）。
+主会话已删仓库变量 `DEV_RUNS_ON` / `COMPANION_RUNS_ON`，用 API 删掉 4 个 runner（runner 数 0）。
+
+| 改动 | 内容 |
+|---|---|
+| `.github/workflows/flows.yml`（新） | 分支 push → `--changed --base origin/main`；`main` push → `--all`；手动可选。`plan` 按 `run.py --plan` 切份并回写 `pending`；每份一台 `ubuntu-24.04` 拉 GHCR 生产镜像（工作流自带令牌，`packages: read`，登录后立刻登出、令牌只走标准输入）、起回归实验室、只建本份站点、`run.py --shard i/n --jobs 3 --migrate`；`report` 汇总核对后回写 `pearnly/flows`。不跟 `pull_request`；分支上新 push 取消旧的，`main` 排队不取消 |
+| `scripts/flows/run.py` | 选法抽成 `select()`；加 `--plan`（范围、格数、各份站点）、`--shard I/N`（按（产品, 数据集）排好后连续切）、`--merge`（份数齐全、格与选法一一对上、都是本提交才算过；缺份记不通过）；`--out` 多记范围、提交、份号、用时；重启探活改用本份实有的站点 |
+| `development.yml`、`companion.yml`、`companion-build.yml` | `runs-on` 写死 GitHub 机器，去掉仓库变量入口：公开仓库里重新加变量就会再次把自有机器暴露给外人 PR |
+| `scripts/production/deploy.sh` | 注释与补跑提示改成先看 GitHub 的 Flows 运行、`gh workflow run flows.yml --ref main -f scope=all` 重跑，本机为后备 |
+| `tests/flows/README.md`、`docs/development/verification.md`、`workflow.md` | 写明在哪跑、怎么切份、为什么不跟 PR、不挂自有 runner |
+
+离线核对（本机，不连实验室）：`--plan --all` 得 35 条流程 127 格切 10 份（每份 12–13 格、1–3 个站点）；`--merge` 三份齐全回 `127/127`、缺一份回不通过并写明 `shards 1,3 of 3`、
+没有涉及的流程回 `0 flows` 通过；`--shard` 与 `--post-status` 同用被拒。`check-architecture.py` 通过（产物保留按规矩改成 1 天），`actionlint` 只剩存量的提示级条目。
+
+## 暂停：先不公开（10-31 傍晚）
+
+主会话转达用户改主意：**仓库保持私有，以后再改流程**；第二步暂停，审计留作备用。
+
+- 自有 runner 已恢复：主会话加回仓库变量 `DEV_RUNS_ON=pearnly-arm`、`COMPANION_RUNS_ON=pearnly-win`；本窗口用注册令牌（只经标准输入传给远端，不落日志）
+  重新注册 free-arm-2 的 `free-arm-2-1/2/3`（`/opt/actions-runner-N`，用户 runner，systemd 服务）和测试机 `test-pc`（`C:\actions-runner`，服务账号 NETWORK SERVICE），只动了 runner 服务。
+  回读：4 个 runner 在线，标签 `self-hosted,Linux,ARM64,pearnly-arm` ×3、`self-hosted,Windows,X64,pearnly-win` ×1；仓库仍是 private。
+- 空档期间（约 17:10–17:40）有一次 Development checks（运行 41191726347，multi-wh-p2 分支）落在 GitHub 托管机器上（计私有仓库分钟）；
+  已对它重跑，重跑由 `free-arm-2-2` 领走，确认跑回自有机器。
+- 第二步的改动只在本分支本地提交、**没有推送**：`flows.yml` 在私有仓库会用付费机器，`development.yml` / `companion*.yml` 的 `runs-on` 写死成 GitHub 机器
+  只适用于公开仓库。以后真要公开时，先按「三、公开后的安全面」撤 runner，再把本分支变基、本机跑闸门后推送；仍私有时这几处 `runs-on` 改动要先撤回。

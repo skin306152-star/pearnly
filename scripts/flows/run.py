@@ -5,10 +5,14 @@
     python3 scripts/flows/run.py --flow erp.stocktake.scan
     python3 scripts/flows/run.py --changed --base origin/main      # 只跑改动文件涉及的流程
     ... --out 结果.json --post-status                                # 结果作为提交状态 `pearnly/flows` 回写 GitHub
+    ... --plan --per-shard 14                                       # 只列范围、格数和各份要建的站点（GitHub 工作流分份用）
+    ... --shard 2/8 --out 份2.json                                  # 只跑第 2 份（每台机器各起一套实验室）
+    ... --merge 份*.json --post-status                              # 核对各份齐全后汇总回写
 
 分支：`--changed --post-status` 只跑改动文件涉及的流程；部署前：在要部署的 main 提交上 `--all --post-status` 跑全套，
 `scripts/production/deploy.sh` 只认全套通过（说明以 `all flows` 开头）。回写前核对实验室挂的就是本工作树的源码、产品代码没有未提交改动。
-本机睡眠或实验室没起来时没有这个状态，部署闸照样拦；补跑方法见 `tests/flows/README.md`。
+GitHub 工作流 `.github/workflows/flows.yml` 用同样的选法：把格切成几份，每台机器起一套实验室跑一份，最后一台汇总回写；
+没有状态时部署闸照样拦，补跑方法见 `tests/flows/README.md`。
 
 每个流程 × 每套数据（datasets.py new / old，先跑一遍保证数据齐，拿清单）× 每个宽度（desktop / mobile）：
 建会话 → 流程模块 `prepare`（在站点里开单等）→ 无头 Chrome 按 `steps` 点页面（`scripts/regression/ui_steps.mjs`，手机宽度、假摄像头）
@@ -39,6 +43,7 @@ STATUS = "pearnly/flows"
 LAB = os.environ.get("PEARNLY_FLOWS_LAB", "pearnly-regression-lab")
 CONTAINER = os.environ.get("REGRESSION_LAB_CONTAINER", f"{LAB}-bench-1")
 PORT = int(os.environ.get("REGRESSION_LAB_PORT", "18771"))
+MAX_SHARDS = 10  # GitHub 上同时最多几台机器（公开仓库一个账号同时 20 台）
 
 
 def registry() -> list[dict]:
@@ -89,8 +94,9 @@ def lab_runs_this_tree():
 class Lab:
     """回归实验室容器：在站点里跑一段 Python（已 init / connect，结尾 commit），回它最后一行打印的 JSON。"""
 
-    def __init__(self):
+    def __init__(self, ping_site="erp.regression.localhost"):
         self.manifests = {}  # 每套数据一次运行只补齐一遍
+        self.ping_site = ping_site  # 重启后用它探网页：GitHub 上每份只建自己要的站点
 
     def exec(self, *args, timeout=900):
         return subprocess.run(["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", CONTAINER, *args],
@@ -129,7 +135,7 @@ class Lab:
         （10-30 变基后 terminals.py 新、warehouses 还是旧的，报找不到 main_of）。"""
         subprocess.run(["docker", "restart", CONTAINER], capture_output=True, check=True, timeout=300)
         for _ in range(120):
-            ping = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "-H", "Host: erp.regression.localhost",
+            ping = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "-H", f"Host: {self.ping_site}",
                                    f"http://127.0.0.1:{PORT}/api/method/ping"], capture_output=True, text=True)
             if ping.stdout == "200":
                 return
@@ -233,26 +239,13 @@ def post_status(ok, summary):
     return sha
 
 
-def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--all", action="store_true")
-    parser.add_argument("--flow", action="append", default=[])
-    parser.add_argument("--changed", action="store_true")
-    parser.add_argument("--base", default="origin/main")
-    parser.add_argument("--dataset", choices=["new", "old"], help="只跑这套数据（调试用）")
-    parser.add_argument("--viewport", choices=["desktop", "mobile"], help="只跑这个宽度（调试用）")
-    parser.add_argument("--out")
-    parser.add_argument("--post-status", action="store_true")
-    parser.add_argument("--migrate", action="store_true", help="先重启实验室网页进程、把全部站点迁移到挂上来的源码（--post-status 时总是做）")
-    parser.add_argument("--jobs", type=int, default=1, help="同时跑几个站点（同一站点的格依次跑；实验室 bench 有 3 个网页进程，建议不超过 3）")
-    args = parser.parse_args(argv)
-    flows = registry()
-    if args.post_status:
-        if args.flow or args.dataset or args.viewport:
-            parser.error("--post-status 只配 --changed 或 --all（部分流程的结果不能代表这个提交）")
-        lab_runs_this_tree()
-        spa_fresh()
-    scope = "all flows"
+def dataset_site(product, dataset):
+    return f"{product}-{dataset}.regression.localhost"  # 与 scripts/regression/datasets.py 的站点同名
+
+
+def select(args, parser):
+    """按参数选流程与格：返回 (范围说明, 流程, 格)；格按 (产品, 数据集) 排好，切份时同一站点的格尽量落在同一份。"""
+    flows, scope = registry(), "all flows"
     if args.dataset or args.viewport:
         scope = "partial"
     if args.flow:
@@ -265,15 +258,100 @@ def main(argv=None) -> int:
         flows = [f for f in flows if any(covers(f, path) for path in files)]
     elif not args.all:
         parser.error("--all, --flow or --changed")
-    lab, results, started = Lab(), [], time.monotonic()
-    if flows and (args.migrate or args.post_status):
+    cells = [(flow, dataset, viewport) for flow in flows
+             for dataset in [d for d in flow.get("datasets", ["new", "old"]) if not args.dataset or d == args.dataset]
+             for viewport in [v for v in flow.get("viewports", ["desktop", "mobile"]) if not args.viewport or v == args.viewport]]
+    order = sorted({(flow.get("product", "erp"), dataset) for flow, dataset, _ in cells})
+    cells.sort(key=lambda cell: order.index((cell[0].get("product", "erp"), cell[1])))
+    return scope, flows, cells
+
+
+def shard_of(cells, index, count):
+    """第 index 份（从 1 数）：按顺序连续切，同一站点的格大多在同一份里，每份只建一两个站点。"""
+    return cells[(index - 1) * len(cells) // count:index * len(cells) // count]
+
+
+def cell_key(cell):
+    return f"{cell[0]['id']}|{cell[1]}|{cell[2]}"
+
+
+def plan(scope, flows, cells, per_shard):
+    count = max(1, min(MAX_SHARDS, -(-len(cells) // max(1, per_shard)))) if cells else 0
+    shards = []
+    for index in range(1, count + 1):
+        part = shard_of(cells, index, count)
+        sites = sorted({dataset_site(flow.get("product", "erp"), dataset) for flow, dataset, _ in part})
+        shards.append({"shard": f"{index}/{count}", "cells": len(part), "sites": " ".join(sites)})
+    return {"scope": scope, "flows": len(flows), "cells": len(cells), "shards": shards}
+
+
+def merge(scope, flows, cells, files):
+    """汇总各份 --out：份数齐全、格与本次选法一一对上、都是这个提交，才出全套说明；缺份或对不上记不通过。"""
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    parts = [json.loads(Path(f).read_text(encoding="utf-8")) for f in files]
+    problems, results = [], []
+    counts = {part.get("shard", "").partition("/")[2] for part in parts}
+    seen = sorted(int(part.get("shard", "0/0").partition("/")[0]) for part in parts)
+    if cells and (len(counts) != 1 or seen != list(range(1, int(next(iter(counts)) or 0) + 1))):
+        problems.append(f"shards {','.join(map(str, seen)) or 'none'} of {'/'.join(counts) or '?'}")
+    for part in parts:
+        if part.get("sha") != head or part.get("scope") != scope:
+            problems.append(f"shard {part.get('shard')} ran {str(part.get('sha'))[:12]} {part.get('scope')}")
+        results += part.get("results", [])
+    if sorted(f"{r['flow']}|{r['dataset']}|{r['viewport']}" for r in results) != sorted(map(cell_key, cells)):
+        problems.append(f"{len(results)} of {len(cells)} runs reported")
+    ok = not problems and all(r["ok"] for r in results)
+    datasets = ",".join(sorted({r["dataset"] for r in results})) or "-"
+    seconds = max((part.get("seconds", 0) for part in parts), default=0)
+    summary = (f"{scope}; {len(flows)} flows; datasets {datasets}; {sum(r['ok'] for r in results)}/{len(cells)} runs passed; "
+               f"{seconds}s in {len(parts)} shards" + (f"; {'; '.join(problems)}" if problems else ""))
+    return ok, summary, results
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--all", action="store_true")
+    parser.add_argument("--flow", action="append", default=[])
+    parser.add_argument("--changed", action="store_true")
+    parser.add_argument("--base", default="origin/main")
+    parser.add_argument("--dataset", choices=["new", "old"], help="只跑这套数据（调试用）")
+    parser.add_argument("--viewport", choices=["desktop", "mobile"], help="只跑这个宽度（调试用）")
+    parser.add_argument("--out")
+    parser.add_argument("--post-status", action="store_true")
+    parser.add_argument("--migrate", action="store_true", help="先重启实验室网页进程、把全部站点迁移到挂上来的源码（--post-status 时总是做）")
+    parser.add_argument("--jobs", type=int, default=1, help="同时跑几个站点（同一站点的格依次跑；实验室 bench 有 3 个网页进程，建议不超过 3）")
+    parser.add_argument("--plan", action="store_true", help="只打印范围、流程数、格数和各份要建的站点（JSON），不连实验室")
+    parser.add_argument("--per-shard", type=int, default=14, help="--plan 时每份大约几格（最多切 %d 份）" % MAX_SHARDS)
+    parser.add_argument("--shard", help="I/N：只跑第 I 份（从 1 数）；结果用 --out 交给 --merge 汇总回写")
+    parser.add_argument("--merge", nargs="*", metavar="结果.json", help="汇总各份的 --out（一份都没有也行：没有涉及的流程），配 --post-status 回写")
+    args = parser.parse_args(argv)
+    whole = args.post_status or args.shard or args.merge is not None or args.plan
+    if whole and (args.flow or args.dataset or args.viewport):
+        parser.error("--post-status / --shard / --merge / --plan 只配 --changed 或 --all（部分流程的结果不能代表这个提交）")
+    if args.shard and (args.post_status or args.merge is not None):
+        parser.error("--shard 只跑一份，回写由 --merge 汇总后做")
+    scope, flows, cells = select(args, parser)
+    if args.plan:
+        print(json.dumps(plan(scope, flows, cells, args.per_shard), ensure_ascii=False))
+        return 0
+    if args.merge is not None:
+        ok, summary, _ = merge(scope, flows, cells, args.merge)
+        print(("流程用例：通过 " if ok else "流程用例：不通过 ") + summary)
+        if args.post_status:
+            print("status posted for", post_status(ok, summary))
+        return 0 if ok else 1
+    if args.shard:
+        index, _, count = args.shard.partition("/")
+        cells = shard_of(cells, int(index), int(count))
+    if args.post_status or args.shard:
+        lab_runs_this_tree()
+        spa_fresh()
+    lab, results, started = Lab(dataset_site(cells[0][0].get("product", "erp"), cells[0][1]) if cells else "erp.regression.localhost"), [], time.monotonic()
+    if cells and (args.migrate or args.post_status):
         lab.restart()
         lab.migrate()
         lab.restart()  # 迁移后再起一次：迁移里导入的模块与缓存不带进流程
         print(f"实验室站点已迁移（{round(time.monotonic() - started)}s）", flush=True)
-    cells = [(flow, dataset, viewport) for flow in flows
-             for dataset in [d for d in flow.get("datasets", ["new", "old"]) if not args.dataset or d == args.dataset]
-             for viewport in [v for v in flow.get("viewports", ["desktop", "mobile"]) if not args.viewport or v == args.viewport]]
     # 各套数据先串行补齐（datasets.py 不并发跑），之后各格可以并行
     for product, dataset in sorted({(flow.get("product", "erp"), dataset) for flow, dataset, _ in cells}):
         lab.dataset(dataset, product)
@@ -306,7 +384,10 @@ def main(argv=None) -> int:
                f"{round(time.monotonic() - started)}s")
     print(("流程用例：通过 " if ok else "流程用例：不通过 ") + summary)
     if args.out:
-        Path(args.out).write_text(json.dumps({"ok": ok, "summary": summary, "results": results}, ensure_ascii=False, indent=1))
+        sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+        Path(args.out).write_text(json.dumps({"ok": ok, "summary": summary, "results": results, "scope": scope, "sha": sha,
+                                              "shard": args.shard or "1/1", "seconds": round(time.monotonic() - started)},
+                                             ensure_ascii=False, indent=1))
     if args.post_status:
         print("status posted for", post_status(ok, summary))
     return 0 if ok else 1

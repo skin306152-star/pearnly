@@ -14,8 +14,8 @@ permissions:
 
 jobs:
   companion-tests:
-    # 仓库变量 COMPANION_RUNS_ON 指向测试机的 runner 标签时在测试机上跑；删掉变量回到 GitHub 的机器
-    runs-on: ${{ vars.COMPANION_RUNS_ON || 'windows-latest' }}
+    # 公开仓库（10-31 起）只用 GitHub 的机器：外人的 PR 能在工作流里指定 runner，自有机器（free-arm-2、测试机）不能再挂
+    runs-on: windows-latest
     timeout-minutes: 40
     defaults:
       run:

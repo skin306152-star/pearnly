@@ -8,8 +8,8 @@
 #   scripts/production/deploy.sh --attach        部署还在服务器上跑而本机断开了：重新接上看进度和结果
 #
 # 每一步做什么（和 production-deploy-steps 的人工步骤一一对应，检查一项不少）：
-#   0. 流程用例闸：这个提交的 GitHub 状态 pearnly/flows 必须是全套通过（本机回归实验室 scripts/flows/run.py --all --post-status
-#      回写）；没过就停下。没有全套时沿用首父链上最近一次全套，前提是之后只改了非产品路径（flows_inherit.py）；
+#   0. 流程用例闸：这个提交的 GitHub 状态 pearnly/flows 必须是全套通过（GitHub 工作流 flows.yml 在 main 的每个提交上跑全套
+#      回写，本机 scripts/flows/run.py --all --post-status 可补跑）；没过或还在跑就停下。没有全套时沿用首父链上最近一次全套，前提是之后只改了非产品路径（flows_inherit.py）；
 #      不能沿用就停下、打印补跑命令，不构建、不动生产。
 #   1. 构建：gh workflow run build-production.yml --ref main，等它跑完；候选检查那一步必须是 success；digest 从构建产物取。
 #   2. 放镜像：gh workflow run stage-production.yml -f digest=…，等它跑完（只把镜像拉到生产机，不启动）。
@@ -107,10 +107,10 @@ step_conclusion() {  # step_conclusion <run id> <步骤名前缀>
 }
 
 # 流程用例闸：这个提交的 GitHub 状态 pearnly/flows 要是 success，且是全套（说明以 all flows 开头）。
-# 状态只由本机回归实验室回写（scripts/flows/run.py），本机睡眠或实验室没起来就没有状态，照样拦；没有绕过开关。
+# 状态由 GitHub 工作流 flows.yml（main 每个提交跑全套）或本机回归实验室回写（scripts/flows/run.py）；没有、没过、还在跑都拦，没有绕过开关。
 flows_gate() {
   local line rerun
-  rerun="在挂本提交源码的回归实验室跑全套并回写：git worktree add <目录> $sha && cd <目录> && PEARNLY_REGRESSION_SRC=\$PWD docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d --wait && python3 scripts/flows/run.py --all --post-status（详见 tests/flows/README.md），通过后重跑本脚本"
+  rerun="看 GitHub 上这个提交的 Flows 运行（还在跑就等它跑完）；重跑：gh workflow run flows.yml --ref main -f scope=all。GitHub 跑不了时在本机挂本提交源码的回归实验室跑全套并回写：git worktree add <目录> $sha && cd <目录> && PEARNLY_REGRESSION_SRC=\$PWD docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d --wait && python3 scripts/flows/run.py --all --post-status（详见 tests/flows/README.md），通过后重跑本脚本"
   line=$(cd "$REPO" && gh api "repos/{owner}/{repo}/commits/$sha/status" \
     --jq '[.statuses[] | select(.context == "pearnly/flows")][0] | select(. != null) | "\(.state) \(.description)"') || line=
   if [[ -n "$line" && "${line%% *}" != success ]]; then
