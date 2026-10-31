@@ -159,7 +159,8 @@ print(json.dumps({{"entry": entry, "moves": [dict(m, qty_base=float(m.qty_base),
         {"case": "one out at A and one in at B at the same unit cost", "saved": moves,
          "ok": len(out_) == 1 and len(in_) == 1 and out_[0]["warehouse"] == params["a"] and in_[0]["warehouse"] == params["b"]
          and out_[0]["qty_base"] == -2 and in_[0]["qty_base"] == 2 and out_[0]["unit_cost"] == in_[0]["unit_cost"]
-         and round(out_[0]["value_delta"] + in_[0]["value_delta"], 2) == 0},
+         # 流水的 value_delta 记的是金额大小（出库也是正数，方向看流水类型），一出一进金额相等
+         and round(out_[0]["value_delta"], 2) == round(in_[0]["value_delta"], 2)},
         {"case": "A down 2, B up 2, total value unchanged", "saved": [before_a, before_b, got["after"]],
          "ok": got["after"][0][0] == before_a[0] - 2 and got["after"][1][0] == before_b[0] + 2
          and round(got["after"][0][1] + got["after"][1][1], 2) == round(before_a[1] + before_b[1], 2)},
