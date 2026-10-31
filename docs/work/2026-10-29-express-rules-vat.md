@@ -180,3 +180,16 @@
 - 10-29：分支 `pearnly/express-rules-vat-8fa604` 已推送，没合入 main（主会话要求）；工作树保留（明天继续）。
 - 测试机：回归、统计进程都已跑完退出；临时目录 `C:\PearnlyStress\_srv_reg_src`、`_srv_stats`、`_srv_reg`、`_srv_cmp` 已删，占用表已登记释放。
 - 本机：临时基线检出已删；scratchpad 里的虚拟环境与统计结果随会话清理。
+
+## 待转 GitHub 流程（10-31，合入窗口；用户定流程测试搬到 GitHub 机器跑，本机停下）
+
+- **分支** `pearnly/express-rules-vat-8fa604` @ `ba2a1d6a`（推送后再加本节文档提交），已变基到 main `788197a9`（只有登记表冲突，按 main 的再接本分支 `erp.express.service_vat`；内容核对一致）。**没合入 main**。
+- **已做**：本地全闸门通过；Development checks（architecture-and-offline）、Companion checks 在 `ba2a1d6a` 上都通过；生产镜像 `sha256:961444cc…`
+  候选 offline 车道 90 步通过（跑在 `7703face`，与 `ba2a1d6a` 产品代码相同）；子代理只读复核结论「可以合入」，提醒两点：
+  CC 1.12.8 发出后 Cowork 来的服务品赊购单，账套历史定不了就转人工、Cowork 里没地方选（新年度账套最常见）；`companion/service_vat.py` 读 APTRN 出错时当「没有历史」。
+- **受影响流程**（`run.py --changed --base origin/pearnly/scan-data-matrix`，6 条）在本机跑了一半后按指示停掉，没回写 `pearnly/flows`：
+  - 通过：`erp.document.express` 4/4、`erp.stock-in.units` 4/4、`erp.stock-entry.scan` 电脑 2/2；
+  - **没跑**：`erp.stock-entry.scan` 手机 2 格（new / old）、`erp.express.service_vat` 4 格（本分支新流程，至今一格都没跑过）、`erp.stocktake.scan` 4 格、`erp.stocktake.gs1` 4 格。
+- **合入前要做**：在 GitHub 机器上跑上面没跑的格（至少 `erp.express.service_vat` 全过）→ 快进 main → 通知代录窗口（local_a0bf1400）发 CC 1.12.8
+  （1.12.7 正式版 10-30 已发，`latest.json` 已核）。服务端先部署，旧版 CC 收到载荷 13 诚实拒收。
+- **实验栈**：`pearnly-flows-port` 已 stop、数据卷保留（挂本工作树 `.claude/worktrees/merge-vat`）。
