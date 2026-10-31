@@ -270,9 +270,9 @@ def list_shifts(*, terminal=None, cashier=None, status=None, date_from=None, dat
                 "opening_float", "expected_cash", "counted_cash", "cash_diff"],
         order_by=listing.order_by(sort_by, sort_order, SHIFT_SORT, "opened_at desc"),
         limit_start=int(start or 0), limit_page_length=int(limit))
-    shown = person_names.display_names(row.cashier for row in rows)  # 收银员显示姓名（用户 10-30）
+    shown = person_names.display_names(row.get("cashier") for row in rows)  # 收银员显示姓名（用户 10-30）
     for row in rows:
-        row.cashier_name = shown.get(row.cashier) or ""
+        row["cashier_name"] = shown.get(row.get("cashier")) or ""
     return rows
 
 

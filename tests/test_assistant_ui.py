@@ -4006,7 +4006,7 @@ import { promoteChoice } from "@/lib/companies";
 import { choiceLine, settledView } from "@/components/pending";
 const row = (choice: any, promote = true, open = true) => renderToStaticMarkup(createElement(ChoiceRow, { choice, open, onSet() {}, onForget() {},
   ...(promote ? { onPromote() {} } : {}) }));
-const rule = row({ key: "r1", source: "rule", kind: "payment", subject_label: "ACME", value: "cash", editable: true, branch: "", set_by: "a" });
+const rule = row({ key: "r1", source: "rule", kind: "payment", subject_label: "ACME", value: "cash", editable: true, branch: "", set_by: "a", set_by_name: "a" });
 assert.ok(!rule.includes("<select"));   // 两段式代替下拉框
 assert.deepEqual(text(rule).slice(0, 3), ["ACME", "Cash", "Whole company · a"]);
 assert.deepEqual(buttons(rule), ["ACME Cash", "Cash", "Credit", "Delete"]);   // 规则本身不再提升
