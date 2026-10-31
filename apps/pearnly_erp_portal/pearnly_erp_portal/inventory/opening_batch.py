@@ -212,6 +212,16 @@ def _unit(row, product, context, numbers):
     numbers[number] = row
     if frappe.db.exists(serials.DOCTYPE, {"serial_key": serials.key(context["company"], number)}):
         raise ValueError(serials.DUPLICATE)
+    # 车架号、发动机号与商品的码同一个命名空间（主会话 10-26）：预览就核，别等提交时整批失败
+    from pearnly_erp_portal.products import codes
+
+    for value in (number, row["secondary_no"]):
+        if value:
+            try:
+                codes.assert_free(value, owner=context["company"])
+            except Exception as error:  # noqa: BLE001 - frappe.throw 的校验错：整批预览照常出，错误落在这一行
+                frappe.clear_messages()
+                raise ValueError(str(error)) from None
     return True
 
 

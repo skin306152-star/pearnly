@@ -43,13 +43,14 @@ file.insert(ignore_permissions=True)
 frappe.db.commit()
 print(json.dumps({{"product": product, "code": frappe.db.get_value("ERP Product", product, "code"), "file_url": file.file_url}}))
 """)
-    return {**out, "company": co, "warehouse": warehouse, "vins": vins, "title": f"Excel 按台 {tag}"}
+    return {**out, "company": co, "warehouse": warehouse, "vins": vins, "engine": f"ENG{tag}", "title": f"Excel 按台 {tag}"}
 
 
 def steps(params, camera_code=None):
     api = "pearnly_erp_portal.inventory.api."
     rows = [{"product_code": params["code"], "serial_no": vin, "qty": "1", "unit_cost": "400000"} for vin in params["vins"]]
-    rows[0].update(secondary_no="ENG-1", color="แดง")
+    # 发动机号也和商品的码同一个命名空间：每次跑用新号
+    rows[0].update(secondary_no=params["engine"], color="แดง")
     head = {"warehouse": params["warehouse"], "rows": rows}
     return [
         {"name": "期初预览与提交", "js": JS + f"""
@@ -106,7 +107,7 @@ print(json.dumps({{"units": units, "entries": entries, "kind": kind,
         {"case": "three units registered in stock in the warehouse and the book is 3", "seen": {"units": got["units"], "stock": book},
          "ok": sorted(units) == sorted(params["vins"]) and all(u["status"] == "in_stock" and u["warehouse"] == params["warehouse"]
                                                               for u in units.values())
-         and first.get("secondary_no") == "ENG-1" and first.get("color") == "แดง" and book == 3},
+         and first.get("secondary_no") == params["engine"] and first.get("color") == "แดง" and book == 3},
         {"case": "one import record for the first unit only, and no unit was made for the unknown number",
          "seen": got["entries"], "ok": [(e["serial"], e["source"]) for e in got["entries"]] == [(first.get("name"), "Import")]},
         {"case": "the count template lists each unit with its chassis number, the first counted", "seen": got["template"],

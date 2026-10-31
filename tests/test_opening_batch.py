@@ -92,7 +92,11 @@ class OpeningBatch(unittest.TestCase):
         express = ModuleType("pearnly_erp_portal.express")
         express.push = SimpleNamespace(linked=lambda company: company in self.express_linked)
         frappe.PermissionError = PermissionError
-        modules = {"frappe": frappe, "frappe.utils": utils, "pearnly_core": core,
+        # 商品的码与车架号 / 发动机号同一个命名空间：已被占用的码
+        self.taken_codes = set()
+        products = ModuleType("pearnly_erp_portal.products")
+        products.codes = SimpleNamespace(assert_free=self.assert_free)
+        modules = {"frappe": frappe, "frappe.utils": utils, "pearnly_core": core, "pearnly_erp_portal.products": products,
                    "pearnly_erp_portal": ModuleType("pearnly_erp_portal"),
                    "pearnly_erp_portal.access": access, "pearnly_erp_portal.inventory": inventory,
                    "pearnly_erp_portal.masters": masters, "pearnly_erp_portal.express": express}
@@ -100,6 +104,10 @@ class OpeningBatch(unittest.TestCase):
         self.service = load("opening_test_service", DOMAIN / "opening_batch.py")
         self.args = {"warehouse": "W1", "as_of_date": "2026-09-01", "note": "opening test",
                      "rows": [{"product": "P1", "qty": "4", "unit_cost": "10"}]}
+
+    def assert_free(self, value, owner=None):
+        if value in self.taken_codes:
+            raise ValueError("That code is used by another product")
 
     @staticmethod
     def throw(message, *args):
@@ -277,6 +285,9 @@ class OpeningBatch(unittest.TestCase):
         for rows, statuses in cases:
             with self.subTest(rows=rows):
                 self.assertEqual([row["status"] for row in self.preview(rows=rows)["rows"]], statuses)
+        self.taken_codes.add("E-USED")  # 发动机号撞到已有的码：预览就报在这一行
+        self.assertEqual(self.preview(rows=[{**car, "serial_no": "V8", "secondary_no": "E-USED"}])["rows"][0]["error"],
+                         "That code is used by another product")
         self.registered_keys.add("C1:V9")
         self.assertEqual(self.preview(rows=[{**car, "serial_no": "V9"}])["rows"][0]["error"], "This unit number is already registered")
         self.unit_company = False  # 普通公司：同一件商品照普通行（号码不看）
