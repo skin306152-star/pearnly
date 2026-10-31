@@ -51,7 +51,9 @@ def _fill(route, warehouse, case, qty, camera):
     return JS + f"""
 frappe.set_route({js_value(route)}, 'new');
 const page=await until(()=>pageOf({js_value(route)}),20000); if(!page) return {{error:'page did not open'}};
-const head=await until(()=>page.querySelector('[data-fieldname="warehouse"] input')); setInput(head, {js_value(warehouse)}); await sleep(1200); await idle();
+const head=await until(()=>page.querySelector('[data-fieldname="warehouse"] input'));
+// 先等页面请求都回来：表头默认仓（本人上次用的仓）的 Link 校验是异步的，晚到会把刚设的仓盖回默认（10-31 出库落到上一遍的仓）
+await idle(); setInput(head, {js_value(warehouse)}); await sleep(1200); await idle();
 const line=await until(()=>page.querySelector('[data-fieldname="lines"] [data-fieldname="product"]')); if(!line) return {{error:'no line'}};
 {find}
 const desc=()=>{{const d=page.querySelector('[data-fieldname="lines"] [data-fieldname="description"] textarea, [data-fieldname="lines"] [data-fieldname="description"] input');return d&&d.value;}};
