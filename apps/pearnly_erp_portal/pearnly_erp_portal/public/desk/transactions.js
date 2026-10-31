@@ -20,7 +20,22 @@
 		async prefill(kind, { company, context } = {}) {
 			const result = await p.call("pearnly_erp_portal.inventory.warehouses.api_prefill",
 				{ kind, company: company || frappe.boot.pearnly_company || "", context: context || "" });
-			return result?.warehouse || "";
+			const warehouse = result?.warehouse || "";
+			// 先取好显示名（Link 的标题缓存），`put` 写进去时显示就是同步的
+			if (warehouse && !frappe.utils.get_link_title("ERP Warehouse", warehouse)) {
+				await frappe.utils.fetch_link_title("ERP Warehouse", warehouse);
+			}
+			return warehouse;
+		},
+		// 把服务端给的建议仓写进表头那格：只在还空着时写，并且**同步**写（不走 `set_value` 的 Link 校验）。
+		// 原生 `set_value` 校验那一来一回期间控件处于「正在变更」，人这时选别的仓会被框架丢掉，校验回来又显示建议仓（10-31）；
+		// 建议仓本来就是服务端按这家公司启用的仓算出来的，不需要再校验。`notify`：写完照常走这一格的 onchange。
+		put(form, fieldname, warehouse, { notify = false } = {}) {
+			const control = form?.fields_dict?.[fieldname];
+			if (!control || !warehouse || control.get_value()) return;
+			control.set_input(warehouse);
+			if (notify) control.df.onchange?.call(control);
+			form.refresh_dependency?.();
 		},
 		// 两格官方控件：仓库 Link（只列当前公司启用的仓）、库位（能改时 Autocomplete，按这个仓的清单取；只读时文字）
 		// `current()`：单头仓库此刻的值（库位清单按它取）；`keys`：两格的字段名（调拨的调入仓 / 库位用 to_warehouse / to_location）
@@ -28,7 +43,9 @@
 			keys = { warehouse: "warehouse", location: "location" } } = {}) {
 			return [
 				{ fieldtype: "Link", options: "ERP Warehouse", fieldname: keys.warehouse, label: labels.warehouse,
-					get_query: p.warehouse_query(), only_select: true, reqd: reqd ? 1 : 0, default: warehouse || "",
+					get_query: p.warehouse_query(), only_select: true, reqd: reqd ? 1 : 0,
+					// 能改时不用 `default`（它走 Link 校验，见 `put`），由 `track` 建好时同步写进去；只读照旧
+					...(editable ? { pearnly_place: warehouse || "" } : { default: warehouse || "" }),
 					read_only: editable ? 0 : 1, depends_on, onchange: () => onchange?.("warehouse") },
 				{ fieldtype: editable ? "Autocomplete" : "Data", fieldname: keys.location, label: labels.location,
 					default: location || "", read_only: editable ? 0 : 1, depends_on,
@@ -54,6 +71,7 @@
 		// 换了仓，单头库位清空（库位清单按仓）。`live: false`：表单还要整批填值（打开已有的单），填完调 `sync()` 才开始跟——
 		// 否则填值时触发的 onchange 会把刚填进来的单头库位当成「换了仓」清掉。
 		track(form, rows, { live = true, keys = { warehouse: "warehouse", location: "location" } } = {}) {
+			p.place.put(form, keys.warehouse, form?.fields_dict?.[keys.warehouse]?.df?.pearnly_place);
 			const read = () => ({ warehouse: form.get_value(keys.warehouse) || "", location: form.get_value(keys.location) || "" });
 			let last = read(), started = live;
 			return {

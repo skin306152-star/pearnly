@@ -569,7 +569,7 @@
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 			// 仓库按服务端 `warehouses.prefill` 预填（本人上次 → 唯一仓 → 空 = 必须选，多仓闭环 P1）
 			void p.place.prefill("count").then(warehouse => {
-				if (warehouse && dialog.display && !dialog.get_value("warehouse")) void dialog.set_value("warehouse", warehouse);
+				if (dialog.display) p.place.put(dialog, "warehouse", warehouse, { notify: true });
 			});
 
 			// 只有"上传导入"才需要文件与模版两件事，选"盘点在库"时收起来。

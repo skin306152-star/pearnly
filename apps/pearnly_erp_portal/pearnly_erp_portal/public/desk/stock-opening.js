@@ -309,7 +309,7 @@
 		]);
 		add_line();
 		void p.place.prefill("opening").then(warehouse => {
-			if (warehouse && active() && !form.get_value("warehouse")) void form.set_value("warehouse", warehouse);
+			if (active()) p.place.put(form, "warehouse", warehouse, { notify: true });
 		});
 		page.set_primary_action(w("preview"), preview);
 		page.set_secondary_action(__("Cancel"), back);
