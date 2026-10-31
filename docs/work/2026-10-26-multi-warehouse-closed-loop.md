@@ -262,7 +262,17 @@ STC-00046（进行中）；管理员建的采购单 PUR-2026-00032。浏览器�
 - 收尾：Express 已退出、本窗口计划任务 `PearnlyMwhP2` 已删、python 进程 0；保留 `C:\PearnlyStress\_book_record\mwh-rl-before / after / voided / after-void` 四份副本与 `C:\PearnlyStress\_rl_srv`（脚本、截图、比对结果），等主会话定何时删。
 - 没做：ERP 页面 → CC 桌面版测试包 → 账套的端到端（主会话定不装测试包）。
 
-### 待转 GitHub 流程（10-31，用户指示流程搬到 GitHub 机器跑，本机停）
+### 最终提交上的流程（10-31 晚，用户改回本机跑）
+
+- 1f363f24（基线 0836f929）`run.py --changed --post-status`：13 条 42/45。不过的 3 格：`erp.stock-in.units` 新开户 / 手机超时 900 秒（已知时序问题）；
+  `erp.products.create` 新开户两格，新建弹窗出了按台两格——同一套数据里 `erp.stock-in.units` 把公司改成汽车类型不还原，测试数据串扰，
+  商品新建流程准备时把公司类型设回普通（b2497cb1，变基后号见下）。
+- 变基到 origin/main c64dc30d（冲突：载荷号 main 已占 13，本分支用 14、支持集 1–14；`serials.lookup` 合 GS1 与库位参数；流程登记表两边都留），
+  本地闸门 155 步全过，2a987e5e 上 `run.py --changed --post-status`：16 条 53/57。不过的只有 `erp.exports` 四格「no export action」——
+  已知问题第 18 条（实验栈没接计费控制面，首页加载失败），跑 `scripts/regression/lab_billing.py` 后单跑 4/4 通过。合计 57/57；
+  GitHub 上 2a987e5e 的 `flows` 状态是那次整套的「不通过」，没为这 4 格再跑一小时整套。新写的 `erp.stock-card` 在两轮里都通过。
+
+### 待转 GitHub 流程（10-31，用户指示流程搬到 GitHub 机器跑，本机停；已作废，见上一节）
 
 - 要在**最终提交**上跑：`python3 scripts/flows/run.py --changed --base origin/main --post-status`（本分支相对 main 的受影响流程，约 9–12 条 × 两套数据 × 电脑 / 手机）。
 - 3750a362 之后又改了 `stock-entry.js`、`products.js`、`stock-card.js`、`transactions.js`、`stock-opening.js`、`stocktake.js`，
@@ -275,7 +285,5 @@ STC-00046（进行中）；管理员建的采购单 PUR-2026-00032。浏览器�
 
 ### 合入前
 
-- 分支 `pearnly/multi-wh-p2-ca3eab`，基线 origin/main b7db199f；没合 main、没部署。
-- 载荷版本暂用 14（13 留给 express-rules-vat），合入时按 main 当时最大值 + 1 定，合入顺序由主会话定。
-- 撞文件：express-operator / express-rules-vat 的 `payload_contract.py` 与载荷号、scan-data-matrix 的 `serials.lookup`，它们先合时这里再变基。
+- 分支 `pearnly/multi-wh-p2-ca3eab` 已变基到 c64dc30d；载荷 14（main 上直写口径占 13）；`serials.lookup` 已与 GS1 合并。合入与部署状态见交付说明。
 - 后续项（不在本期）：同仓不同库位移动。
