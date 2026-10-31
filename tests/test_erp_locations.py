@@ -70,6 +70,10 @@ class Locations(unittest.TestCase):
         patcher = mock.patch.object(L.warehouses, "required", lambda value, company=None: value)
         patcher.start()
         self.addCleanup(patcher.stop)
+        # 库位下拉按仓自己的公司核（LINE 改仓 10-30）：这里只测库位，仓的公司替成固定一家。
+        patcher = mock.patch.object(L.warehouses, "company_of", lambda warehouse: "CO-1")
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_a_warehouse_with_a_list_takes_only_listed_locations(self):
         self.assertEqual(P.check("W1", " A-01 "), "A-01")
