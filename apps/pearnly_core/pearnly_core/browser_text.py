@@ -58,6 +58,8 @@ APP_BY_PREFIX = {
     "team.": "pearnly_erp_portal",
     # 公司（本租户的主体资料：抬头/税号/地址那几栏）也是 ERP 的，页面渲染在 ERP。
     "company.": "pearnly_erp_portal",
+    # 按台管理（车架号 / 发动机号 / 序列号 / 颜色）的词在 ERP：盘点 / 期初 / 按台期初 Excel 的表头与导回认表头都按键取（岳父 10-25）
+    "serial.": "pearnly_erp_portal",
     "connect.": "pearnly_core",
     "account.": "pearnly_core",
     "shell.": "pearnly_core",
