@@ -16,7 +16,9 @@ const all=(sel,root=document)=>[...root.querySelectorAll(sel)].filter(vis);
 const until=async(fn,ms=15000)=>{const end=Date.now()+ms;let v;while(Date.now()<end){try{v=await fn();}catch(e){v=null;}if(v)return v;await sleep(200);}return v;};
 const setInput=(el,value)=>{if(!el)return false;el.focus();el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));
   el.dispatchEvent(new Event('change',{bubbles:true}));return true;};
-const pick=async(input,text,match)=>{setInput(input,text);input.dispatchEvent(new KeyboardEvent('keyup',{bubbles:true,key:'a'}));
+// 只发 input 不发 change：change 会让 Link 控件先按单据名校验，码不是单据名就清空、按空串搜，下拉只剩最近改过的 10 件（10-31）
+const pick=async(input,text,match)=>{input.focus();input.value=text;input.dispatchEvent(new Event('input',{bubbles:true}));
+  input.dispatchEvent(new KeyboardEvent('keyup',{bubbles:true,key:'a'}));
   const own=()=>{const id=input.getAttribute('aria-owns');const ul=id&&document.getElementById(id);return ul?[...ul.querySelectorAll('[role=option], li')]:[];};
   const li=await until(()=>[...own(),...document.querySelectorAll('.awesomplete li, ul[role=listbox] li')].find(l=>l.textContent.includes(match||text)),10000);
   if(!li)return false;li.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));li.click();await sleep(400);return true;};
