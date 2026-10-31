@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """CC 写仓间调拨 RL（dbf_transfer）与作废 RL（dbf_void）的真账副本离线回归（多仓闭环 P2，10-30）。
 
-对每本账套：整本复制到工作目录 → 用这份源码的 CC 写入代码，挑一件在某个仓有正结存的库存品（没有就先用调整 JU 给第一件库存品
-在第一个仓垫 1 个，10-31），从那个仓调 1 个到这套账的另一个仓（ISTAB 21）→ 核原生 RL 记法（实录 RL0000001–0000003，4.6 / 4.6b）：
+对每本账套：整本复制到工作目录 → 用这份源码的 CC 写入代码，挑一件在某个仓有正结存的库存品（没有，或照负库存规则核不过，就先用调整 JU
+在副本里垫 1 个，10-31），从那个仓调 1 个到这套账的另一个仓（ISTAB 21）→ 核原生 RL 记法（实录 RL0000001–0000003，4.6 / 4.6b）：
 - 单头 STTRN 一行：POSOPR 4、LOCCOD 调出、PEOPLE 调入、TRNVAL 0、NXTSEQ「  1」、DOCSTAT N；
 - 明细 STCRD 一对：调出 4 / 调入 3、同行号、PEOPLE 互指、数量相等、单价金额 0、REIMBURSE \\x00；
 - 两仓 STLOC：调出 −1、调入 +1（调入仓原来没有这件就新建一行）；STMAS 这件品的结存与货值不变；没有凭证；ISRUN 的 RL 号 +1；
@@ -43,9 +43,9 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     sys.path.insert(0, args.companion)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    global dbf, S, T, V, D, account_rules, fiscal_period, stock_location, cdx_reindex, cdx_check, with_runner
+    global dbf, S, T, V, D, account_rules, fiscal_period, stock_guard, stock_location, cdx_reindex, cdx_check, with_runner
     import dbf  # noqa: F401
-    from companion import account_rules, cdx_reindex, fiscal_period, stock_location  # noqa: F401
+    from companion import account_rules, cdx_reindex, fiscal_period, stock_guard, stock_location  # noqa: F401
     from companion import dbf_stock as D  # noqa: F401
     from companion import dbf_schema as S  # noqa: F401
     from companion import dbf_transfer as T  # noqa: F401
@@ -140,6 +140,12 @@ def check(acct: Path) -> dict:
         if why:
             return {"state": "skip", "why": why}
         topped = pick[1]
+    elif stock_guard.shortages(acct, [{"code": pick[0], "name": "", "qty": "1", "item_mode": "stock_sale"}], [pick[1]]):
+        # 仓里有、但账套按全仓核且主档结存不够（各仓合计与 MREMBAL 对不上的老账）：CC 照 Express 规则停下，这里先垫 1 个再测
+        why = top_up(acct, *pick, docdate)
+        if why:
+            return {"state": "skip", "why": why}
+        topped = pick[1]
     code, source = pick
     target = next(loc for loc in known if loc != source)
     before = places(acct, code)
@@ -209,13 +215,16 @@ def check(acct: Path) -> dict:
 
 
 def top_up(acct, code, loccod, docdate):
-    """用调整 JU 给这件品在这个仓垫 1 个（写前快照在这之后取，JU 动的 STMAS / 凭证不算进 RL 的写入集合）；不能垫时回原因。"""
+    """用调整 JU 给这件品在这个仓垫到这个仓与全仓合计都至少 1 个（主档结存可能本来是负的）；写前快照在这之后取，
+    JU 动的 STMAS / 凭证不算进 RL 的写入集合。不能垫时回原因。"""
     row = D.book_row(acct, "JU")
     if row is None or not account_rules.postable_account(acct, row["account"]):
         return "no item with a positive location balance and no postable JU book to add one"
+    total = sum((num(r["MREMBAL"]) for r in rows(acct, "STMAS", ("STKCOD", "MREMBAL")) if text(r["STKCOD"]) == code), Decimal(0))
+    qty = max(Decimal(1), 1 - min(total, places(acct, code).get(loccod, Decimal(0))))
     res = D.write_stock_entry({"payload_version": 6, "direction": "stock", "doctype": "JU", "docdate_be": docdate, "ref_no": "REG-RL-JU",
-                               "remark": "", "loccod": loccod, "items": [{"code": code, "name": "", "qty": "1", "unit_cost": "10",
-                                                                          "loccod": loccod}]},
+                               "remark": "", "loccod": loccod, "items": [{"code": code, "name": "", "qty": format(qty, "f"),
+                                                                          "unit_cost": "10", "loccod": loccod}]},
                               acct, selected_dir=str(acct), make_backup=False)
     if not res.ok:
         return f"JU to add stock {res.error_code}: {res.error}"
