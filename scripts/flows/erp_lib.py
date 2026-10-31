@@ -20,7 +20,10 @@ const setInput=(el,value)=>{if(!el)return false;el.focus();el.value=value;el.dis
 const pick=async(input,text,match)=>{input.focus();input.value=text;input.dispatchEvent(new Event('input',{bubbles:true}));
   input.dispatchEvent(new KeyboardEvent('keyup',{bubbles:true,key:'a'}));
   const own=()=>{const id=input.getAttribute('aria-owns');const ul=id&&document.getElementById(id);return ul?[...ul.querySelectorAll('[role=option], li')]:[];};
-  const li=await until(()=>[...own(),...document.querySelectorAll('.awesomplete li, ul[role=listbox] li')].find(l=>l.textContent.includes(match||text)),10000);
+  // 有商品名时按名称**整段相等**认（原生下拉名称在 <strong>，组合框是「名称 · 码 · 单号」的第一段）：只看「包含」会把「… รหัส」认成「… รหัสภายใน」，
+  // 搜索结果回来前下拉里还是旧列表，先命中的就是错的那件（10-31）
+  const head=l=>{const s=l.querySelector('strong');return (s?s.textContent:l.textContent.split(' · ')[0]).trim();};
+  const li=await until(()=>[...own(),...document.querySelectorAll('.awesomplete li, ul[role=listbox] li')].find(l=>match?head(l)===match:l.textContent.includes(text)),10000);
   if(!li)return false;li.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));li.click();await sleep(400);return true;};
 const call=(method,args,type)=>frappe.call({method,args,type:type||'POST'}).then(r=>r.message);
 const pageOf=route=>all('.page-container').find(el=>el.getAttribute('data-page-route')===route);
