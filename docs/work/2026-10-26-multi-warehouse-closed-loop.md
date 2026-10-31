@@ -229,7 +229,7 @@ STC-00046（进行中）；管理员建的采购单 PUR-2026-00032。浏览器�
 | 变基 | 10-31 变基到 origin/main b7db199f：`registry.toml` 冲突按 main 收，本期只补 `erp.stock-transfer` 与收银适配器 covers；`erp_stock_entry_line.json` 与 main 去批次那次同一个 modified，改成 `2026-10-31 09:00` 让迁移认得出 `to_location` |
 | 检查 | 变基后本地同名闸门（照 development.yml）从头跑：152 步全过（5cf478fc） |
 | 实验栈（真站点） | 起了本窗口自己的栈 `pearnly-mwh-p2`（端口 18797–18799）。第一次跑在建 old 数据集时就抓到本期缺陷：`stock.apply_movement` 函数体用了 `base_unit_cost`、签名里没加，**所有库存流水都会 NameError**（离线单测没走到真函数）；已修（b38f92fe），pyflakes 扫本期改过的全部 Python 没有别的未定义名字。流程结果见下一行 |
-| 流程用例 | （跑完补） |
+| 流程用例 | 本机栈 `pearnly-mwh-p2` 上 `run.py --changed` 跑了 4 轮。第 4 轮在 3750a362（变基到 0836f929 后）：**30/31 通过**，只有 `erp.stock-entry.scan` 旧数据 / 手机那格账面不对。途中查出并修了：①流程 `pick` 发 change 事件、只剩最近 10 件（36d94714），按名字前缀认错（3750a362），都是测试问题；②旧数据集建了一半（只按公司判断建过没有），重建站点；③调拨流程把出库金额当带符号的数（流水 value_delta 存的是大小）；④**产品竞态两处**：出入库 / 商品 / 库存卡三页 render 没接 still_current（490021f0，加契约测试）、表头建议仓走 Link 异步校验期间人选的仓会被框架丢掉（43438a88，`p.place.put` 同步写入，出入库 / 采购 / 销售 / 期初 / 盘点共用）。修复后那一格单跑 1 次通过（实时源码已含两处修复）。之后按用户指示本机流程停了，见下面「待转 GitHub 流程」 |
 | 测试机：C 盘 T 账套 | 回归脚本改成挑不到正结存、或照负库存规则核不过时，先在副本里用 JU 按缺口垫货（`T9GIS` 主档结存原是 −1，垫 1 不够）。101 本：**80 本写 RL + 读回 + 作废 + 已装 CC 索引程序核 CDX 全过、0 失败**；21 本跳过（15 本没有库存品、5 本没有可记账的 JU、1 本没有 RL 簿）。副本已删、占用表已登记释放 |
 | 测试机：服务器版 Express（69EXP\TEST） | 主会话批准。写前整本只读拷到测试机 `C:\PearnlyStress\_book_record\mwh-rl-before`（167 个文件 4,717,416 字节）；确认没有 Express 进程、账套最后写入 10-30 18:47；持 `PEARNLY.LCK` 用 CC 写入代码写 **RL691031-001**（น้ำแข็งหลอด 1 个，01 → 02；账套允许负库存、01 仓有 12,155，不用垫 JU）。用户本人登录 Express 后远程打开：单号、日期 31/10/69、调出 01 / 调入 02、说明、明细 1 行 1.000 กก **与写入一致**（截图 `rl-open.png`）。再在 Express 里**原生作废**：确认框 → 43 → 红字「ถูกยกเลิก」、明细清空（截图 `rl-void-confirm.png`、`rl-void-msg43.png`、`rl-voided.png`，都在共享笔记 `多仓P2-69EXP-RL截图-10-31`） |
 
@@ -261,6 +261,16 @@ STC-00046（进行中）；管理员建的采购单 PUR-2026-00032。浏览器�
   当场用测试机已装 CC 的 `cdx_reindex_runner.exe` 重建 STTRN / STCRD / ISRUN / STLOC 索引，再跑 CC 自己的写后核对（单头、成对明细、STCRD 单号索引读回）全过，才交给 Express 看。
 - 收尾：Express 已退出、本窗口计划任务 `PearnlyMwhP2` 已删、python 进程 0；保留 `C:\PearnlyStress\_book_record\mwh-rl-before / after / voided / after-void` 四份副本与 `C:\PearnlyStress\_rl_srv`（脚本、截图、比对结果），等主会话定何时删。
 - 没做：ERP 页面 → CC 桌面版测试包 → 账套的端到端（主会话定不装测试包）。
+
+### 待转 GitHub 流程（10-31，用户指示流程搬到 GitHub 机器跑，本机停）
+
+- 要在**最终提交**上跑：`python3 scripts/flows/run.py --changed --base origin/main --post-status`（本分支相对 main 的受影响流程，约 9–12 条 × 两套数据 × 电脑 / 手机）。
+- 3750a362 之后又改了 `stock-entry.js`、`products.js`、`stock-card.js`、`transactions.js`、`stock-opening.js`、`stocktake.js`，
+  这些覆盖到的流程在新提交上**都还没整套跑过**：`erp.stock-entry.scan`、`erp.stock-transfer`、`erp.stock-in.units`、`erp.sales.scan`、
+  `erp.purchase.create`、`erp.products.create` / `opening` / `clash`、盘点各条（`erp.stocktake.*`、`erp.stock.excel-units`）、`erp.cashier.first-sale`、`erp.document.express`。
+- 已单独验过的：`erp.stock-entry.scan` 旧数据 / 手机修复后 1 次通过（之前 2 次里 1 次不过）；`erp.stock-entry.scan`、`erp.sales.scan` 新数据 / 电脑各 1 次通过（pick 修复后）。
+- 共用件连带回归（`check-impact`）里的手工项（扫码枪、LINE、CC、导出、开户等）本窗口**没测到**：流程转 GitHub、测试机按指示不动，留给验收窗口。
+- 本窗口实验栈 `pearnly-mwh-p2` 已停、数据卷保留（主会话定何时删）。
 
 ### 合入前
 
