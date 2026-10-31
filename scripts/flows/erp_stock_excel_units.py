@@ -95,9 +95,15 @@ entries = frappe.get_all("ERP Stock Count Entry", filters={{"count": task, "void
 # 同一个仓里别的流程也留了按台的车：只看这次建的三台
 template = [row for row in counts.template_rows(name=task) if row.get("serial_no") in {params['vins']!r}] if task else []
 kind = counts.template_unit_kind(name=task) if task else None
+heads = []
+if task:  # 这份盘点的模板表头：号码三列要是译好的词，不是词条键（共用取词表登记 serial.）
+    import io, openpyxl
+    from pearnly_erp_portal.inventory import api
+    api.api_stock_count_template(name=task)
+    heads = [c.value for c in openpyxl.load_workbook(io.BytesIO(frappe.local.response.filecontent)).active[1]]
 frappe.db.set_value("ERP Company", {params['company']!r}, "company_type", "general", update_modified=False)  # 还原
 frappe.db.commit()
-print(json.dumps({{"units": units, "entries": entries, "kind": kind,
+print(json.dumps({{"units": units, "entries": entries, "kind": kind, "heads": heads,
                   "template": [{{"serial_no": r["serial_no"], "counted": r["counted_qty"]}} for r in template]}}, default=str))
 """)
     units = {unit["serial_no"]: unit for unit in got["units"]}
@@ -113,4 +119,6 @@ print(json.dumps({{"units": units, "entries": entries, "kind": kind,
         {"case": "the count template lists each unit with its chassis number, the first counted", "seen": got["template"],
          "ok": got["kind"] == "vehicle" and sorted(r["serial_no"] for r in got["template"]) == sorted(params["vins"])
          and {r["serial_no"]: r["counted"] for r in got["template"]}.get(params["vins"][0]) == 1},
+        {"case": "the template headings for the unit columns are translated words, not text keys", "seen": got["heads"],
+         "ok": len(got["heads"]) == 12 and not any(str(h or "").startswith("serial.") for h in got["heads"])},
     ]

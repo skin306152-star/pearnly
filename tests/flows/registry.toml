@@ -481,5 +481,7 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/opening_workbook.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/opening_batch.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
+  # 号码三列的表头按键取词（`serial.` 登记在共用取词表）
+  "apps/pearnly_core/pearnly_core/browser_text.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py",
 ]
