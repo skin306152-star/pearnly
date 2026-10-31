@@ -99,9 +99,42 @@ GS1 码核对 GTIN，其余核对原文（UPC / EAN 按 GTIN 写法对齐）。�
 170 格全过（¹ 第一轮这格 15 秒内没读出，单格复跑读出：LINE 盘点页 × DataBar Expanded、新建物料 × EAN-8，判为偶发）。
 结果 `~/pearnly-devtools/scan-symbols/matrix-full.json`、`matrix-retry.json`。
 
-## 连带回归清单
+## 连带回归清单（10-31，合入窗口，变基到 main `818f6fd5` 后）
 
-（跑完填）
+`python3 scripts/check-impact.py`：命中 `desk-scan-core`（17 个入口）、`erp-count-code`（1 个入口）（另 3 个是同一共用件下的盘点 / 按台入口，一并列出）。
+证据来源：A = 本次变基后在自有实验栈 `pearnly-flows-port`（挂本分支源码）跑的流程（`run.py --changed` 6 条 21/21，
+另补 `erp.stock-entry.scan`、`erp.sales.scan` 手机宽度 4/4，含假摄像头读条码那一遍）；M = 上文「码制 × 入口」矩阵 170/170
+（基线 00736f59，`reader.js` 之后 main 没再改过）；变基时 `count.py` 与 main「就地新建可不带码」有冲突，已合并（有码才解析 GS1、才定栏位），
+A 里的 `erp.stocktake.new-product`、`erp.stocktake.gs1` 覆盖这一处。
+
+| 入口 | 结果 | 依据 |
+|---|---|---|
+| erp.products.new-dialog.scan | 通过 | M（新建物料 17 种码制） |
+| erp.products.new-page.scan | 没测到 | 新建表格页没有流程、矩阵没覆盖；与新建弹窗同一读码器 |
+| erp.products.detail.barcode-scan | 没测到 | 详情条码格没有流程、矩阵没覆盖 |
+| erp.cashier.camera | 通过 | M（收银 17 种码制） |
+| erp.cashier.scanner-gun | 没测到 | 没有扫码枪；收银查码接口由 `erp.pos.shift` / `erp.cashier.first-sale` 覆盖（本分支未改该接口） |
+| erp.stock-count.entry.camera | 通过 | A `erp.stocktake.scan` 4/4、`erp.stocktake.gs1` 4/4（手机宽度含假摄像头）；M |
+| erp.line.stocktake.camera | 部分：页面与读码器通过，LIFF 外壳没测到 | A `erp.line.stocktake.phone` 4/4；M（LINE 盘点页）；真手机 LIFF 要真机 |
+| erp.stock-in.item-scan | 通过 | A `erp.stock-entry.scan` 手机 2/2（假摄像头）；M |
+| erp.stock-out.item-scan | 通过 | 同上（同一流程出库一遍）；M |
+| erp.inventory.opening.item-scan | 没测到 | 期初录入没有扫码流程、矩阵没覆盖 |
+| erp.purchase.item-scan | 通过 | M（采购 17 种码制） |
+| erp.sales.item-scan | 通过 | A `erp.sales.scan` 手机 2/2（假摄像头）；M |
+| cowork.stocktake.entry.camera | 通过 | M（Cowork 盘点 17 种码制） |
+| dms.liff.id-scan | 没测到 | 要真手机 LINE 授权相机；本分支只改读码，不改取景拍照 |
+| shared.upload.take-photo | 没测到 | 电脑相机打不开时的提示要真机；本分支不改拍照 |
+| erp.line.stocktake.liff-camera | 没测到 | 安卓 LINE 富菜单转 LIFF 要真机 |
+| cowork.line.stocktake.liff-camera | 没测到 | 同上 |
+| erp.stock-count.code | 通过 | A `erp.stocktake.scan`、`erp.stocktake.gs1`、`erp.line.stocktake.phone` |
+| erp.serials.dialog | 部分：入库登记通过 | A `erp.stock-in.units` 4/4；出库 / 销售 / 收银选台、扫车身二维码认台没有流程 |
+| erp.scan.pick-product | 没测到 | 撞码候选弹窗没有流程；认码候选的离线测试 `tests/test_erp_gs1_codes.py` 在候选镜像 offline 里过 |
+| erp.stock-count.upload | 没测到 | 上传导入 / 凭证照片没有流程 |
+| erp.records.scope | 没测到 | 按公司范围没有专门流程；A 各流程都在数据清单那家公司里跑 |
+| erp.stock-count.new-product | 通过 | A `erp.stocktake.new-product` 4/4、`erp.stocktake.gs1`（未知 GTIN 就地新建）4/4 |
+| erp.serials.export | 没测到 | 按台导出 / 模板没有扫码相关流程；`erp.stock.excel-units` 1/1 覆盖按台 Excel 期初 |
+
+候选镜像（生产 `sha256:961444cc…`）offline 车道在变基后的 `4e00a50d` 上 90 步通过。没测到的项随下次部署后按清单在测试租户真机点。
 
 ## 没测到 / 限制
 
