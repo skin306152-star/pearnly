@@ -286,7 +286,7 @@ def _import_unit(task, row, company) -> str:
     if quantity is not None and quantity not in (0, 1):
         return "counted_qty:invalid"
     try:
-        warehouse = _warehouse_of(row.get("warehouse"), unit.warehouse)
+        warehouse = _warehouse_of(row.get("warehouse"), unit.warehouse, company)
     except frappe.ValidationError:
         return "warehouse_not_found"
     # 仓库那格空着：就按这台在账的位置；填了仓库就照表里的库位（空 = 不分库位）
