@@ -21,3 +21,14 @@ def display_name(user) -> str:
     if not user:
         return ""
     return frappe.utils.get_fullname(user) or str(user)
+
+
+def display_names(users) -> dict:
+    """一批人各自显示成什么（列表、导出、看板一次取全）：``{账号: 显示名}``，规则同 `display_name`，一条查询。"""
+    wanted = sorted({str(user) for user in users or () if user})
+    if not wanted:
+        return {}
+    rows = frappe.get_all("User", filters={"name": ["in", wanted]}, fields=["name", "full_name"],  # bounded: 调用方这一批的人
+                          limit_page_length=len(wanted))
+    found = {row.name: row.full_name for row in rows}
+    return {user: found.get(user) or user for user in wanted}

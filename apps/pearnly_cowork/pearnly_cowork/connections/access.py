@@ -1,6 +1,7 @@
 """Dedicated service authorization; generic native CRUD never grants access."""
 import frappe
 from frappe import _
+from pearnly_core.account import names
 from pearnly_core.shell import entitlements
 from pearnly_cowork.masters import workspaces
 from . import model
@@ -128,11 +129,12 @@ def require_assignee(actor, workspace, client=None):
 def assignees(limit=500):
     """能进连接名单的人（同 :func:`require_assignee`：启用、有录入 / 推送记录 / 管理角色之一）：``[{email, display}]``，
     按显示名排。设置里「全所可用」名单的候选只从这里取（第 6 批审查第 6 条），勾上的人 `set_members` 照样逐个核。只读、不加锁。"""
-    rows = frappe.db.sql("""SELECT DISTINCT u.name, u.full_name FROM `tabUser` u
+    rows = frappe.db.sql("""SELECT DISTINCT u.name FROM `tabUser` u
         JOIN `tabHas Role` r ON r.parent = u.name AND r.parenttype = 'User'
         WHERE u.enabled = 1 AND u.name <> 'Guest' AND r.role IN %s
-        ORDER BY u.full_name, u.name LIMIT %s""", (ASSIGNEE_ROLES, int(limit)), as_dict=True)
-    return [{"email": row.name, "display": row.full_name or row.name} for row in rows]
+        ORDER BY u.name LIMIT %s""", (ASSIGNEE_ROLES, int(limit)), as_dict=True)
+    shown = names.display_names(row.name for row in rows)  # 姓名（共用显示名，用户 10-30）
+    return sorted(({"email": row.name, "display": shown[row.name]} for row in rows), key=lambda row: row["display"])
 
 
 def default_workspace() -> str:

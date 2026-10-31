@@ -11,6 +11,7 @@ import frappe
 from frappe import _
 from frappe.utils import now
 
+from pearnly_core.account import names as person_names
 from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.cashier import contracts, terminals
@@ -190,6 +191,7 @@ def summary(name, *, own_only=True) -> dict:
     expected = contracts.shift_expected(doc.opening_float, cash_in, change_total)
     return {
         "shift": {"name": doc.name, "terminal": doc.terminal, "cashier": doc.cashier,
+                  "cashier_name": person_names.display_name(doc.cashier),
                   "shift_seq": doc.shift_seq, "status": doc.status,
                   "opened_at": doc.opened_at, "opening_float": float(doc.opening_float or 0)},
         "sales_count": len(sales),
@@ -262,12 +264,16 @@ def list_shifts(*, terminal=None, cashier=None, status=None, date_from=None, dat
                 names=None, limit=50, start=0, sort_by=None, sort_order=None) -> list[dict]:
     """班次列表（按页取、服务端排序）。非管理员只能看自己的班。`names` 用来只取指定的几个班（交班记录导出选中的几行）。"""
     guard.require("shifts.read")
-    return frappe.get_list(
+    rows = frappe.get_list(
         DT, filters=_shift_filters(terminal, cashier, status, date_from, date_to, names),
         fields=["name", "terminal", "cashier", "status", "shift_seq", "opened_at", "closed_at",
                 "opening_float", "expected_cash", "counted_cash", "cash_diff"],
         order_by=listing.order_by(sort_by, sort_order, SHIFT_SORT, "opened_at desc"),
         limit_start=int(start or 0), limit_page_length=int(limit))
+    shown = person_names.display_names(row.cashier for row in rows)  # 收银员显示姓名（用户 10-30）
+    for row in rows:
+        row.cashier_name = shown.get(row.cashier) or ""
+    return rows
 
 
 def count_shifts(*, terminal=None, cashier=None, status=None, date_from=None, date_to=None, names=None) -> int:

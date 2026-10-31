@@ -394,6 +394,14 @@ def _activity(name):
                           fields=["name", "actor", "action", "detail", "content", "creation"])
     for row in rows:
         row.detail = json.loads(row.detail) if row.detail else {}
+    # 活动 / 评论里的人显示姓名（用户 10-30）：已不在看板上的人也给名字，不退成账号
+    from pearnly_core.account import names
+
+    shown = names.display_names([row.actor for row in rows] + [user for row in rows for user in row.detail.get("users") or []]
+                                + [row.detail.get("user") for row in rows])
+    for row in rows:
+        row.names = {user: shown[user] for user in [row.actor, *(row.detail.get("users") or []), row.detail.get("user")]
+                     if user in shown}
     return rows
 
 

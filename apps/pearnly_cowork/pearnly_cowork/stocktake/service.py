@@ -162,21 +162,21 @@ def _entry_data(row):
 
 
 def _entries(task, *, start=0, limit=None):
-    sql = """SELECT e.*, i.product_code, i.product_name, i.barcode, i.unit,
-        COALESCE(NULLIF(u.full_name,''),u.name) AS counted_by_name,
-        COALESCE(NULLIF(m.full_name,''),m.name) AS updated_by_name
+    sql = """SELECT e.*, i.product_code, i.product_name, i.barcode, i.unit
         FROM `tabCowork Stocktake Entry` e JOIN `tabCowork Stocktake Item` i
         ON i.name=e.item AND i.task=e.task AND i.workspace=e.workspace
-        LEFT JOIN `tabUser` u ON u.name=e.counted_by
-        LEFT JOIN `tabUser` m ON m.name=e.updated_by
         WHERE e.task=%s AND e.workspace=%s ORDER BY e.counted_at DESC,e.name"""
     values = [task.name, task.workspace]
     if limit is not None:
         sql += " LIMIT %s OFFSET %s"
         values.extend((limit, start))
     rows = frappe.db.sql(sql + " FOR UPDATE", values, as_dict=True)
-    return [{**_entry_data(row), **{key: row.get(key) for key in ("product_code", "product_name",
-                "barcode", "unit", "counted_by_name", "updated_by_name")}} for row in rows]
+    # 盘点人 / 修改人显示姓名（共用显示名，用户 10-30）
+    from pearnly_core.account import names
+
+    shown = names.display_names([row.counted_by for row in rows] + [row.updated_by for row in rows])
+    return [{**_entry_data(row), **{key: row.get(key) for key in ("product_code", "product_name", "barcode", "unit")},
+             "counted_by_name": shown.get(row.counted_by) or "", "updated_by_name": shown.get(row.updated_by) or ""} for row in rows]
 
 
 def _entry_total(task):

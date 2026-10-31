@@ -75,7 +75,7 @@ class DmsClientOpsMixin:
                 "placebookval": booking.place_book.id,
                 "txtplacebook": booking.place_book.name,
                 "cusval": customer_id,
-                "txtcus": card.full_name,
+                "txtcus": card.full_name,  # person-name: 客户证件上的姓名，不是账号
                 "prefixval": card.prefix_id,
                 "txtprefix": card.prefix_name,
                 "txtpeopleid": card.people_id,
@@ -114,7 +114,7 @@ class DmsClientOpsMixin:
                 "txtearnestmoney": "0.00",
                 "regisbehalfval": booking.regis_behalf.id,
                 "txtregisbehalf": booking.regis_behalf.name,
-                "txtregisname": booking.regis_name or card.full_name,
+                "txtregisname": booking.regis_name or card.full_name,  # person-name: 客户证件上的姓名，不是账号
             }
         )
         # 有订金渠道时覆盖上面的 0.00 默认并补渠道字段；空 payments 则保持现状。

@@ -22,6 +22,7 @@ from pearnly_cowork.companies import identity
 from pearnly_cowork.companies.access import CHOICE, COMPANY, read, write
 from pearnly_cowork.push.express import company_choices
 from pearnly_core.express_rules.push.choices import KINDS
+from pearnly_core.account import names as person_names
 
 RULES_MAX = 500
 CONTEXT_MAX = 40
@@ -53,6 +54,7 @@ def view(row) -> dict:
             "subject_label": get("subject_label") or "", "value": get("value") or "",
             "value_label": get("value_label") or "", "branch": get("branch") or "", "source": get("source") or "person",
             "evidence": _evidence(get("evidence_json")), "set_by": get("set_by") or "",
+            "set_by_name": person_names.display_name(get("set_by")),
             "set_at": str(get("set_at") or get("creation") or "")}
 
 

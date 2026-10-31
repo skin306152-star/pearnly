@@ -146,7 +146,7 @@
 				});
 				else item.default = initial[item.fieldname];
 			}
-			const title = is_new ? t("cowork.team.new") : row.email;
+			const title = is_new ? t("cowork.team.new") : row.display;
 			const label = is_new ? t("cowork.team.new") : __("Save");
 			const save = async values => {
 				const roles = permission_groups().flatMap((_group, i) => values["roles_" + i] || []);

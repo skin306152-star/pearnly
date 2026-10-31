@@ -204,11 +204,13 @@ def profile(tool_input) -> str:
     found = service.detail(row.name, period or None)
     if found.get("choices"):
         # key 只留给能「设为全公司」的行与公司规则（cowork_company_choice_save / _remove 用），其余去掉免得结果太长
+        # 「谁设的」只给姓名（set_by_name），不给账号：模型照着说给用户的是人名（用户 10-30）
         found["choices"] = [{key: value for key, value in item.items()
-                             if key != "key" or item.get("promotable") or item.get("source") == "rule"}
+                             if key != "set_by" and (key != "key" or item.get("promotable") or item.get("source") == "rule")}
                             for item in found["choices"][:CHOICES_MAX]]
     if found.get("choices") is not None:
-        found["rules"] = [{**item, "key": saved_choices.encode("rule", item["id"]), "set_at": service.when(item["set_at"])}
+        found["rules"] = [{**{key: value for key, value in item.items() if key != "set_by"},
+                           "key": saved_choices.encode("rule", item["id"]), "set_at": service.when(item["set_at"])}
                           for item in rules.listing(row.name, CHOICES_MAX)]
     if filed == row.name and filed_scope:
         found["work_branch"] = filed_scope

@@ -435,7 +435,8 @@ def _utc(value) -> str:
 def view(row) -> dict:
     out = {"readback": row.name, "status": row.status, "period": row.period,
            "account_set": row.account_label or row.account_set_key,
-           "requested_by": row.actor or "", "requested_at": _utc(row.requested_at)}
+           "requested_by": row.actor or "", "requested_by_name": _fullname(row.actor) if row.actor else "",
+           "requested_at": _utc(row.requested_at)}
     if row.status == "failed":
         out["code"] = row.error_code or "failed"
     if row.status == "ready":
@@ -514,10 +515,10 @@ MONTH_COUNTS = ("pushed", "unchanged", *diff.CHANGES, "direct")
 
 
 def _fullname(user) -> str:
-    try:
-        return frappe.utils.get_fullname(user) or user
-    except Exception:  # noqa: BLE001 — 显示名取不到就用账号
-        return user
+    """发起回读的人：姓名（共用显示名，用户 10-30）。"""
+    from pearnly_core.account import names as person_names
+
+    return person_names.display_name(user)
 
 
 def month_status(sets, period):

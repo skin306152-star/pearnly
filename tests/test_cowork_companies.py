@@ -234,6 +234,11 @@ class Frappe(types.ModuleType):
 frappe = Frappe()
 sys.modules["frappe"] = frappe
 sys.modules["frappe.utils"] = frappe.utils
+# 共用显示名换成原样回账号的替身：这里测公司与选择，不测人名
+_names = types.ModuleType("pearnly_core.account.names")
+_names.display_name = lambda user: str(user or "")
+_names.display_names = lambda users: {str(user): str(user) for user in users or () if user}
+sys.modules["pearnly_core.account.names"] = _names
 sys.modules["frappe.translate"] = types.SimpleNamespace(get_user_lang=lambda user: {"th@example.com": "th"}.get(user, "en"))
 
 

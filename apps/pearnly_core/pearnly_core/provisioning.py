@@ -5,7 +5,7 @@
 踩过好几次。这里每个函数都能用**一行** `bench execute` 调起来：
 
     bench --site <site> execute pearnly_core.provisioning.ensure_local_user \
-        --kwargs '{"email": "...", "full_name": "...", "subject": "...", "deployment_id": "..."}'
+        --kwargs '{"email": "...", "full_name": "...", "subject": "...", "deployment_id": "..."}'  # person-name: 用法说明，不是显示
 """
 
 import frappe

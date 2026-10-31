@@ -667,6 +667,13 @@ class ServiceHarness:
         utils = types.ModuleType("frappe.utils")
         utils.get_datetime = lambda value: value
         sys.modules["frappe"], sys.modules["frappe.utils"] = frappe, utils
+        # 共用显示名换成原样回账号的替身：这里测回读，不测人名
+        names = types.ModuleType("pearnly_core.account.names")
+        names.display_name = lambda user: str(user or "")
+        names.display_names = lambda users: {str(user): str(user) for user in users or () if user}
+        sys.modules["pearnly_core.account.names"] = names
+        if "pearnly_core.account" in sys.modules:
+            sys.modules["pearnly_core.account"].names = names
         self.frappe = frappe
         stubs = {
             "pearnly_cowork.access.scope": dict(require=self.require, allowed=lambda feature: self.intake),
@@ -979,8 +986,8 @@ class Service(unittest.TestCase):
         self.h.requests[row.request].update(status="failed", code="account_busy")
         self.assertEqual(self.service.status(made["readback"]), {
             "readback": made["readback"], "status": "failed", "period": "2026-05", "account_set": "T9 SINCERE",
-            "requested_by": "a@example.com", "requested_at": row.requested_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "code": "account_busy"})
+            "requested_by": "a@example.com", "requested_by_name": "a@example.com",  # 替身的显示名原样回账号
+            "requested_at": row.requested_at.strftime("%Y-%m-%dT%H:%M:%SZ"), "code": "account_busy"})
         second, second_row = self._start()
         self.h.finish(second_row.request, raw(version=9))
         self.assertEqual(self.service.status(second["readback"])["code"], "cowork.readback.version_unsupported")

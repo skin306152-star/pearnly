@@ -12,6 +12,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import now_datetime
 
+from pearnly_core.account import names
 from pearnly_cowork.reconciliation import bank_recon_access, income_recon_access, presets, vat_check_access
 
 DOCTYPE = "Cowork Recon Preset"
@@ -98,7 +99,7 @@ def listing(workspace, kind):
                           fields=["scope", "rule", "value", "source_task", "set_by", "set_at"],
                           order_by="set_at desc", ignore_permissions=True, limit_page_length=500)
     return [{**row, "scope_label": presets.scope_label(row.scope), "set_at": str(row.set_at or ""),
-             "set_by_name": frappe.utils.get_fullname(row.set_by) if row.set_by else ""}
+             "set_by_name": names.display_name(row.set_by)}
             for row in rows if presets.valid(kind, row.rule, row.value)]
 
 

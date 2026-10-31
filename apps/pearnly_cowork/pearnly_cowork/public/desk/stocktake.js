@@ -47,8 +47,6 @@
 			return (!chosen.warehouse || area_of(row) === chosen.warehouse)
 				&& (!chosen.category || (row.category || BLANK) === chosen.category);
 		};
-		// 记录上的盘点人：Cowork 给的是名字，ERP 给的是账号 —— 都按名字显示。
-		const who = user => frappe.user_info?.(user)?.fullname || user || "";
 		// 手机竖屏只留四列；横屏 / 平板收成六列按比例铺满；电脑上全列。转屏跨档就重画。
 		const screen = () => window.matchMedia("(max-width: 575px)").matches ? "phone"
 			: window.matchMedia("(max-width: 991px)").matches ? "compact" : "full";
@@ -275,7 +273,7 @@
 			for (const entry of state.entries) {
 				const row = owner.get(entry.item);
 				if (!row || entry.voided) continue;
-				areas.get(JSON.stringify([area_of(row), by_category ? row.category || BLANK : ""]))?.people.add(who(entry.counted_by));
+				areas.get(JSON.stringify([area_of(row), by_category ? row.category || BLANK : ""]))?.people.add(entry.counted_by);  // 接口给的就是姓名（stocktake/desk_api.py）
 			}
 			if (areas.size < 2) return;
 			const label = value => value === BLANK ? t("cowork.stock.count.blank") : value;

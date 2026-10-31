@@ -482,8 +482,10 @@ class AccessReadLocks(unittest.TestCase):
             return [Doc(name="boss@x.com", full_name="Boss"), Doc(name="a@x.com", full_name="")]
 
         DB.sql = users
+        shown = {"boss@x.com": "Boss", "a@x.com": "a@x.com"}  # 共用显示名：有姓名用姓名，没有回落账号
         try:
-            found = self.access.assignees()
+            with mock.patch.object(self.access.names, "display_names", lambda users: {user: shown[user] for user in users}):
+                found = self.access.assignees()
         finally:
             DB.sql = original
         self.assertEqual(found, [{"email": "boss@x.com", "display": "Boss"}, {"email": "a@x.com", "display": "a@x.com"}])

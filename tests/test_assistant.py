@@ -105,8 +105,11 @@ class _Sdk(types.ModuleType):
 def _install_fakes():
     frappe, sdk = _Frappe(), _Sdk()
     sys.modules["frappe"], sys.modules["anthropic"] = frappe, sdk
-    for name in ("pearnly_core", "pearnly_core.assistant"):
+    for name in ("pearnly_core", "pearnly_core.assistant", "pearnly_core.account"):
         sys.modules[name] = types.ModuleType(name)
+    # 共用显示名（whoami 的 full_name）：替身原样回账号
+    names = sys.modules["pearnly_core.account"].names = sys.modules["pearnly_core.account.names"] = types.ModuleType("names")
+    names.display_name = lambda user: str(user or "")
     sys.modules["pearnly_core.assistant.contracts"] = sys.modules["pearnly_core.assistant"].contracts = contracts
     engines = _load("pearnly_core.assistant.engines", CORE / "assistant/engines/__init__.py")
     sys.modules["pearnly_core.assistant"].engines = engines

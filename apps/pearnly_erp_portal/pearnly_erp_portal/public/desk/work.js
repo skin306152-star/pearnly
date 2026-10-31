@@ -1022,22 +1022,24 @@
 		};
 
 		// ── 卡片详情（原生 Dialog） ─────────────────────────────────────────────
+		// 活动 / 评论里的人：接口给的姓名优先（已不在看板上的人也有名字），没有再查成员名单
+		const named = row => user => row.names?.[user] || member_name(user);
 		const activity_line = row => {
-			const detail = row.detail || {};
+			const detail = row.detail || {}, name_of = named(row);
 			const args = {
 				move: () => [list_name(t, detail.from), list_name(t, detail.to)],
-				assign: () => [(detail.users || []).map(member_name).join(", ")],
+				assign: () => [(detail.users || []).map(name_of).join(", ")],
 				due: () => [detail.due ? frappe.datetime.str_to_user(detail.due) : t("erp.work.activity.noDue")],
 				repeat: () => [detail.due ? frappe.datetime.str_to_user(detail.due) : ""],
 				attach: () => [detail.file || ""],
 				detach: () => [detail.file || ""],
 				copy: () => [detail.from || ""],
 				mirror: () => [list_name(t, detail.to)],
-				rule: () => [t(`erp.work.rules.action_${detail.action}`), detail.user ? member_name(detail.user)
+				rule: () => [t(`erp.work.rules.action_${detail.action}`), detail.user ? name_of(detail.user)
 					: (detail.label || (detail.due ? frappe.datetime.str_to_user(detail.due) : ""))],
 			}[row.action]?.() || [];
 			return t(`erp.work.activity.${row.action}`, ...args.map(p.escape))
-				.replace("{who}", `<b>${p.escape(member_name(row.actor))}</b>`);
+				.replace("{who}", `<b>${p.escape(name_of(row.actor))}</b>`);
 		};
 		const activity_html = rows => rows.map(row => {
 			const when = `<span class="text-muted small">${comment_when(row.creation)}</span>`;
@@ -1046,7 +1048,7 @@
 				const remove = row.actor === state.me || can("manage") ? `<button type="button" class="btn btn-link btn-xs text-muted"
 					data-comment="${p.escape(row.name)}">${p.escape(__("Delete"))}</button>` : "";
 				return `<div class="pearnly-work-activity">${avatar(row.actor)}<div class="pearnly-work-activity-body">
-					<div><b>${p.escape(member_name(row.actor))}</b> ${when} ${remove}</div>
+					<div><b>${p.escape(named(row)(row.actor))}</b> ${when} ${remove}</div>
 					<div class="pearnly-work-comment">${p.escape(row.content).replace(/\n/g, "<br>")}</div></div></div>`;
 			}
 			return `<div class="pearnly-work-activity">${avatar(row.actor)}<div class="pearnly-work-activity-body">

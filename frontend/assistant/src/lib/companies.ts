@@ -50,7 +50,7 @@ export type Note = { id: string; text: string; origin?: "person" | "cc"; updated
  *  rule = 公司规则（第 2 期，branch 空 = 全公司）；promotable 的行（账套、历史）可「设为全公司」。 */
 export type Choice = {
   key: string; source: string; kind: string; subject_label: string; value: string; value_label?: string; editable?: boolean;
-  year_label?: string; set_by?: string; set_at?: string; count?: number; last_date?: string;
+  year_label?: string; set_by?: string; set_by_name?: string; set_at?: string; count?: number; last_date?: string;
   supplier_name?: string; account_label?: string; branch?: string; promotable?: boolean;
   // MR.ERP 账套记住的导入菜单 / 默认值（source mrerp，2026-10-19）：改的时候可选值按这里点开时现取（loadMrErpOptions）
   mrerp?: MrErpChoice;

@@ -101,9 +101,20 @@ class _Frappe(types.ModuleType):
         return text
 
 
+def _stub_person_names():
+    """共用显示名（`pearnly_core.account.names`）换成原样回账号的替身：这里不测人名，测的是取名之外的行为。"""
+    names = types.ModuleType("pearnly_core.account.names")
+    names.display_name = lambda user: str(user or "")
+    names.display_names = lambda users: {str(user): str(user) for user in users or () if user}
+    sys.modules["pearnly_core.account.names"] = names
+    if "pearnly_core.account" in sys.modules:
+        sys.modules["pearnly_core.account"].names = names
+
+
 def _install():
     frappe = _Frappe()
     sys.modules["frappe"] = frappe
+    _stub_person_names()
     names = ["pearnly_cowork", "pearnly_cowork.access", "pearnly_cowork.connections", "pearnly_cowork.folder_intake",
              "pearnly_cowork.history", "pearnly_cowork.push", "pearnly_cowork.push.application"]
     for name in names:

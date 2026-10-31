@@ -368,7 +368,7 @@ COUNT_DETAIL_COLUMNS = (
     ("unit", "stock.col.unit"),
     ("qty", "stock.count.qty"),
     ("note", "stock.count.note"),
-    ("counted_by", "stock.count.countedBy"),
+    ("counted_by_name", "stock.count.countedBy"),
     ("counted_at", "stock.count.countedAt"),
     ("state", "stock.col.status"),
     ("photo_total", "stock.count.photos"),
@@ -498,7 +498,7 @@ def _count_photo_sheet(book, entries, summary_rows, detail_rows) -> None:
             continue
         caption = " / ".join(str(value) for value in (
             entry.get("product_name"), entry.get("warehouse_name"), entry.get("location"),
-            entry.get("counted_by"), _count_datetime(entry.get("counted_at"))) if value not in (None, ""))
+            entry.get("counted_by_name"), _count_datetime(entry.get("counted_at"))) if value not in (None, ""))
         if entry.get("voided"):
             caption = f"{caption} ({_label('stock.count.entryVoided')})"
         for photo in group:

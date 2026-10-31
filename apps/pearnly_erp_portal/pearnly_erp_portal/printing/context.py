@@ -300,7 +300,10 @@ def _terminal(name) -> frappe._dict:
 
 
 def _user_name(user) -> str:
-    return (frappe.db.get_value("User", user, "full_name") or user or "") if user else ""
+    """小票 / 交班单上的收银员：姓名（共用显示名，用户 10-30）。"""
+    from pearnly_core.account import names
+
+    return names.display_name(user)
 
 
 def _sale(doc) -> dict:

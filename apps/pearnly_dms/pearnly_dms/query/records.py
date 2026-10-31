@@ -69,7 +69,7 @@ def list_records(status="", from_date=None, to_date=None, start=0, page_length=2
     total = frappe.db.sql(f"SELECT COUNT(*) {LOG_SOURCE} WHERE {where}", values)[0][0]
     values.update(limit=page_length, offset=start)
     rows = frappe.db.sql(f"""SELECT l.name, l.creation, l.status, l.business_key,
-        l.actor, COALESCE(NULLIF(op.display_name, ''), NULLIF(u.full_name, ''), '') AS actor_name,
+        l.actor, op.display_name AS actor_name,
         l.attempt, l.error_msg,
         {_json_field("l.request_body", "$.mode")} AS request_mode,
         {_json_field("l.request_body", "$.operation")} AS request_operation,
@@ -77,11 +77,15 @@ def list_records(status="", from_date=None, to_date=None, start=0, page_length=2
                  {_json_field("l.response_body", "$.response_body.cuscode")}) AS cuscode
         {LOG_SOURCE}
         LEFT JOIN `tabDMS Operator` op ON op.user = l.actor
-        LEFT JOIN `tabUser` u ON u.name = l.actor
         WHERE {where}
         ORDER BY l.creation DESC, l.name DESC LIMIT %(limit)s OFFSET %(offset)s""",
         values, as_dict=True)
+    # 操作员：花名册的名字优先，花名册没写就用账号的姓名（共用显示名，用户 10-30）
+    from pearnly_core.account import names as person_names
+
+    shown = person_names.display_names(row.get("actor") for row in rows if not row.get("actor_name"))
     for row in rows:
+        row["actor_name"] = row.get("actor_name") or shown.get(row.get("actor")) or ""
         error = str(row.pop("error_msg", "") or "").strip()
         # Only stable codes are public; raw external errors can contain private payloads.
         row["error_code"] = error if re.fullmatch(r"[A-Z][A-Z0-9_]{1,99}", error) else ""

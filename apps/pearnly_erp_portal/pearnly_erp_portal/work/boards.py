@@ -226,9 +226,12 @@ def people(users):
     users = sorted(set(users))
     if not users:
         return []
-    rows = frappe.get_all("User", filters={"name": ["in", users]}, fields=["name", "full_name", "user_image"],
-                          order_by="full_name asc")
-    return [{"user": row.name, "name": row.full_name or row.name, "image": row.user_image} for row in rows]
+    from pearnly_core.account import names
+
+    rows = frappe.get_all("User", filters={"name": ["in", users]}, fields=["name", "user_image"])
+    shown = names.display_names(users)  # 姓名（共用显示名，用户 10-30）
+    return sorted(({"user": row.name, "name": shown.get(row.name) or row.name, "image": row.user_image} for row in rows),
+                  key=lambda person: person["name"])
 
 
 def assignable(board):

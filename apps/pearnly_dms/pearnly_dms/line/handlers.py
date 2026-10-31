@@ -12,6 +12,7 @@
 import frappe
 
 from pearnly_core import line, line_binding
+from pearnly_core.account import names as person_names
 from pearnly_dms import i18n
 from pearnly_dms.line import cards as cards
 
@@ -174,7 +175,7 @@ def _handle_text(user_id: str, text: str, reply_token: str) -> None:
         profile = line.get_profile(user_id) or {}
         line_binding.bind(user_id, consumed["user"], profile.get("displayName") or "")
         display_name = frappe.db.get_value("DMS Operator", {"user": consumed["user"]}, "display_name")
-        display_name = display_name or frappe.db.get_value("User", consumed["user"], "full_name") or ""
+        display_name = display_name or person_names.display_name(consumed["user"])  # 花名册没写名字：账号的姓名（用户 10-30）
         line.reply(reply_token, [
             {"type": "text", "text": cards.MSG_BIND_OK.format(display_name)}
         ])
@@ -217,7 +218,7 @@ def _binding(line_user_id: str, user: str) -> dict:
 def _reply_need_bind_or_help(user_id: str, reply_token: str) -> None:
     bound = line_binding.user_of(user_id)
     name = (frappe.db.get_value("DMS Operator", {"user": bound}, "display_name")
-            or frappe.db.get_value("User", bound, "full_name")) if bound else ""
+            or person_names.display_name(bound)) if bound else ""
     hint = _UNBIND_HINT.get(i18n.line_lang(), UNBIND_WORDS[0])
     text = cards.MSG_BIND_HELP.format(name or "", hint) if bound else cards.MSG_BIND_NEED
     line.reply(reply_token, [{"type": "text", "text": text}])

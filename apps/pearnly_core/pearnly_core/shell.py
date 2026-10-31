@@ -18,6 +18,8 @@
 import frappe
 from frappe import _
 
+from pearnly_core.account import names as person_names
+
 PRODUCT_LABELS = {
     "cowork": "Cowork",
     "erp": "ERP",
@@ -60,7 +62,8 @@ def describe() -> dict:
         "product_label": PRODUCT_LABELS.get(product, product or "—"),
         "features": entitlements(),
         "user": user,
-        "full_name": frappe.utils.get_fullname(user),
+        # 这个人显示成什么（共用显示名：姓名，没填过是用户名，用户 10-30）；CC 问候、头像、侧栏都用它
+        "full_name": person_names.display_name(user),  # person-name: 值就是共用显示名
         # 站点已按 ADR-006 把租户默认语言设为泰语；这里给的是**本次请求**解析出来的
         # 语言（用户自己的偏好优先），前端拿它设 <html lang>。
         "language": frappe.local.lang or "",

@@ -397,6 +397,12 @@ def _all(company, sets) -> list:
         except (frappe.PermissionError, frappe.ValidationError):
             frappe.clear_messages()
     _name_parties(found, sets)
+    # 「谁设的」显示姓名（共用显示名，用户 10-30；CC 公司卡与对话都用这一格，不露账号）
+    from pearnly_core.account import names as person_names
+
+    shown = person_names.display_names(row.get("set_by") for row in found)
+    for row in found:
+        row["set_by_name"] = shown.get(row.get("set_by")) or ""
     return found
 
 

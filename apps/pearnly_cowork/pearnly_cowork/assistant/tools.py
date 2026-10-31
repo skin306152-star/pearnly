@@ -2984,10 +2984,12 @@ def stocktake_delete(tool_input) -> str:
 WORK_CARDS_SHOWN = 100
 
 
-def _card_brief(card, lists) -> dict:
+def _card_brief(card, lists, people=None) -> dict:
+    # 负责人给姓名（用户 10-30），不给账号：模型照着回用户的话里就是人名
     return _filled({"card": card.get("name"), "title": card.get("title"), "list": lists.get(card.get("board_list")),
                     "due": card.get("due_date"), "done": bool(card.get("completed")),
-                    "assignees": card.get("assignees"), "labels": card.get("labels")})
+                    "assignees": [(people or {}).get(user) or user for user in card.get("assignees") or []] or None,
+                    "labels": card.get("labels")})
 
 
 def work_boards(_input) -> str:
@@ -3007,10 +3009,13 @@ def work_board(tool_input) -> str:
     cards = [c for c in data.get("cards") or [] if not c.get("is_template") and not c.get("archived")]
     if tool_input.get("mine"):
         cards = [c for c in cards if frappe.session.user in (c.get("assignees") or [])]
+    from pearnly_core.account import names as person_names
+
+    people = person_names.display_names(user for card in cards[:WORK_CARDS_SHOWN] for user in card.get("assignees") or [])
     return _json({"board": data.get("board"),
                   "lists": [_filled({"list": row.get("name"), "title": row.get("title"),
                                      "done_list": bool(row.get("is_done_list"))}) for row in data.get("lists") or []],
-                  "cards_total": len(cards), "cards": [_card_brief(c, lists) for c in cards[:WORK_CARDS_SHOWN]]},
+                  "cards_total": len(cards), "cards": [_card_brief(c, lists, people) for c in cards[:WORK_CARDS_SHOWN]]},
                  utc=("archived_at",))
 
 

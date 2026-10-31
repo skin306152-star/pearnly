@@ -8,6 +8,8 @@ import json
 
 import frappe
 
+from pearnly_core.account import names
+
 from pearnly_erp_portal.work import access
 from pearnly_erp_portal.work.documents import persist
 
@@ -44,7 +46,7 @@ def send(users, doc, kind, detail=None, *, actor=None, dedupe=None):
             "dedupe": key,
         }))
         frappe.publish_realtime(EVENT, {"card": doc.name, "title": doc.title, "kind": kind, "actor": actor or None,
-                                        "actor_name": frappe.utils.get_fullname(actor) if actor else "",
+                                        "actor_name": names.display_name(actor) if actor else "",
                                         "detail": detail or {}}, user=user, after_commit=True)
         sent.append(user)
     return sent
@@ -76,7 +78,7 @@ def mine(limit=50):
         row.detail = json.loads(row.detail) if row.detail else {}
         row.title = cards[row.card].title if row.card in cards else ""
         row.board = cards[row.card].board if row.card in cards else ""
-        row.actor_name = frappe.utils.get_fullname(row.actor) if row.actor else ""
+        row.actor_name = names.display_name(row.actor) if row.actor else ""
     unread = frappe.db.count(NOTIFICATION, {**filters, "is_read": 0})
     return {"rows": rows, "unread": unread}
 

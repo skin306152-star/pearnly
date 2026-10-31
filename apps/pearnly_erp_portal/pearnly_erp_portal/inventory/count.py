@@ -22,6 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now
 
+from pearnly_core.account import names as person_names
 from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.masters import access as company_access
@@ -1133,7 +1134,7 @@ def recorded_entries(count: str, items: list) -> list:
     out = []
     for entry in list_entries(count=count, limit=0):
         if entry["item"] in items and not entry["voided"]:
-            out.append({"counted_by": frappe.utils.get_fullname(entry["counted_by"]),
+            out.append({"counted_by": entry["counted_by_name"],
                         "warehouse_name": entry["warehouse_name"], "location": entry.get("location") or "",
                         "qty": entry["qty"]})
     return out
@@ -1303,7 +1304,10 @@ def list_entries(*, count, item=None, limit=50, start=0) -> list[dict]:
     numbers = dict(frappe.get_all("ERP Serial No", filters={"name": ["in", [r.serial for r in result if r.serial] or [""]]},
                                   fields=["name", "serial_no"], as_list=True,  # bounded: 这一页记录上的台
                                   limit_page_length=len(result) or 1))
+    # 盘点人显示姓名（用户 10-30 个人信息加姓名；没填过的老账号是用户名），页面、导出、分区都用这一格
+    people = person_names.display_names(row.counted_by for row in result)
     return [dict(row, warehouse_name=_warehouse_label(row.warehouse), serial_no=numbers.get(row.serial) or "",
+                 counted_by_name=people.get(row.counted_by) or "",
                  product_name=items[row.item].product_name, code=items[row.item].code,
                  unit=items[row.item].unit,
                  book_warehouse_name=_warehouse_label(items[row.item].warehouse),

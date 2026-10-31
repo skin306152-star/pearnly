@@ -20,6 +20,7 @@ import json
 import frappe
 from frappe import _
 
+from pearnly_core.account import names as person_names
 from pearnly_core.assistant import config
 
 
@@ -27,7 +28,7 @@ def whoami(_tool_input) -> str:
     user = frappe.session.user
     return json.dumps({
         "user": user,
-        "full_name": frappe.utils.get_fullname(user),
+        "full_name": person_names.display_name(user),  # 姓名（共用显示名，用户 10-30）  # person-name: 值就是共用显示名
         "product": config.product(),
         "company": frappe.conf.get("pearnly_company_name") or "",
         "language": frappe.local.lang or "",

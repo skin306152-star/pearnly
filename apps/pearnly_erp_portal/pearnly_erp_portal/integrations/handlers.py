@@ -24,8 +24,10 @@ def _is_unbind(text: str) -> bool:
 
 
 def _display_name(user: str) -> str:
-    return (frappe.db.get_value("User", user, "full_name")
-            or frappe.db.get_value("User", user, "name") or "")
+    """LINE 绑定回执里的人：姓名（共用显示名，用户 10-30）。"""
+    from pearnly_core.account import names
+
+    return names.display_name(user)
 
 
 def _bind_with_code(user_id: str, text: str, reply_token: str) -> None:

@@ -99,6 +99,8 @@ jobs:
         run: python3 tests/test_flows_coverage.py && python3 scripts/flows/coverage.py
       - name: Block new unbounded queries and full fetches sorted in the browser (baseline may only shrink)
         run: python3 scripts/check-unbounded-queries.py && python3 tests/test_check_unbounded_queries.py && python3 tests/test_list_filters.py && python3 tests/test_cowork_workbench_sort.py
+      - name: Block new code that reads a person's name itself instead of the shared display name (baseline may only shrink)
+        run: python3 scripts/check-person-names.py && python3 tests/test_check_person_names.py
       - name: Endpoints reachable by GET do not write (Frappe does not commit GET requests; the mobile stocktake lookup lost its rows this way)
         run: python3 scripts/check-get-writes.py && python3 tests/test_check_get_writes.py
       - name: A ternary's else branch that uses || or ?? is parenthesised (unit registration lost scanned numbers to this precedence)

@@ -1224,7 +1224,7 @@ frappe.provide("frappe.pearnly.pos_next");
 				// 「经手人」显示**姓名**（服务端 `api_get_sale` 回的 `cashier_name`，用户 10-30；没填过姓名的老账号就是用户名），
 				// 取不到才回落到邮箱/框架那份。
 				owner: doc.cashier_name || doc.owner || doc.cashier
-					|| frappe.session.user_fullname || frappe.session.user,
+					|| frappe.session.user_fullname || frappe.session.user,  // person-name: 服务端 cashier_name 缺失时的兜底
 				items: (doc.lines || []).map(line => {
 					const rate = flt(line.unit_price ?? line.rate);
 					return {

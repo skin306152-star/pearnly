@@ -26,6 +26,14 @@ class Names(unittest.TestCase):
             self.assertEqual(names.display_name("a@example.test"), "a@example.test")
         self.assertEqual(names.display_name(None), "")
 
+    def test_display_names_takes_a_batch_in_one_query_with_the_same_fallback(self):
+        rows = [names.frappe._dict(name="a@x.test", full_name="Somchai Jaidee"), names.frappe._dict(name="b@x.test", full_name="")]
+        with mock.patch.object(names.frappe, "get_all", return_value=rows) as query:
+            self.assertEqual(names.display_names(["a@x.test", "b@x.test", "c@x.test", "", None, "a@x.test"]),
+                             {"a@x.test": "Somchai Jaidee", "b@x.test": "b@x.test", "c@x.test": "c@x.test"})
+            query.assert_called_once()
+        self.assertEqual(names.display_names([]), {})
+
 
 if __name__ == "__main__":
     unittest.main()

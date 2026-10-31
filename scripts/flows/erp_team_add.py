@@ -30,9 +30,9 @@ const catalog=(await call('{API}api_list_members', {{}}, 'GET')).roles||[];
 const roles=catalog.filter(r=>/stock|products/.test(r.name)).map(r=>r.name).slice(0,2);
 const quiet=args=>new Promise(resolve=>frappe.call({{method:'{API}api_add_member', args, type:'POST', callback:r=>resolve({{ok:true}}),
   error:()=>resolve({{ok:false}})}}).fail(()=>resolve({{ok:false}})));
-await call('{API}api_add_member', {{username: {login}, email: '', password: 'Flow-' + {login}, roles, companies: [{co}]}});
-const bad=await quiet({{username: {login} + 'x', email: 'not-an-email', password: 'Flow-x-9', roles}});
-const dup=await quiet({{username: {login}, email: '', password: 'Flow-y-9', roles}});
+await call('{API}api_add_member', {{username: {login}, first_name: {login}, email: '', password: 'Flow-' + {login}, roles, companies: [{co}]}});
+const bad=await quiet({{username: {login} + 'x', first_name: {login}, email: 'not-an-email', password: 'Flow-x-9', roles}});
+const dup=await quiet({{username: {login}, first_name: {login}, email: '', password: 'Flow-y-9', roles}});
 all('.modal.show .btn-modal-close').forEach(b=>b.click());
 return {{roles, bad_rejected: !bad.ok, dup_rejected: !dup.ok}};"""},
         {"name": "重开团队页", "js": JS + f"""

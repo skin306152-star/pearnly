@@ -51,6 +51,10 @@ class Isolated(unittest.TestCase):
         self.stub("frappe.utils", getdate=lambda value: value, now_datetime=lambda: "now")
         self.frappe.utils = sys.modules["frappe.utils"]
         self.stub("pearnly_core", __path__=[])
+        # 共用显示名：花名册没写名字时的兜底，替身原样回账号
+        self.stub("pearnly_core.account", __path__=[])
+        self.stub("pearnly_core.account.names", display_name=lambda user: str(user or ""),
+                  display_names=lambda users: {str(user): str(user) for user in users or () if user})
         self.stub("pearnly_dms.i18n", t=self.text, line_lang=lambda: "th",
                   all_languages=lambda key: {"th": key})
 

@@ -864,8 +864,8 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
   const meta = history
     ? [co.fromHistory(Number(choice.count) || 0), formatWhen(choice.last_date ?? choice.set_at)]
     : rule
-      ? [ruleScope(choice), choice.set_by ?? "", formatWhen(choice.set_at)]
-      : [choice.year_label ?? "", choice.set_by ?? "", formatWhen(choice.set_at)];
+      ? [ruleScope(choice), choice.set_by_name ?? "", formatWhen(choice.set_at)]
+      : [choice.year_label ?? "", choice.set_by_name ?? "", formatWhen(choice.set_at)];
   const value = choiceValue(choice);
   const full = choiceFullLine(choice, subject);
   const alert = error ? <p role="alert" className="cc-choice-error text-danger" data-slot="cc-choice-error">{error}</p> : null;
