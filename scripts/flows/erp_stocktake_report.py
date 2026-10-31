@@ -1,7 +1,7 @@
 """流程用例：ERP 盘点报表——差异报表看得到记的数与差异、能只看差异；盘点单能打印点数表与结果表、能导出（演示准备 10-30）。
 
-准备：开一份盘点（库存岗、数据清单那家公司的第一个仓），按正式接口给两件商品各记一笔：一件比账面多 3、一件记 0（新开户账面都是 0，
-记 0 的那件差异为 0）。页面上：
+准备：开一份盘点（库存岗、数据清单那家公司的第一个仓），两件商品由管理员当场新建（账面都是 0，不受同一套数据上别的流程留下的库存影响，
+例如收银、销售在零库存时卖成的负数），按正式接口各记一笔：一件记 3（差异 +3）、一件记 0（差异 0）。页面上：
 1. 库存岗打开「盘点差异」报表（筛这份盘点）：不能被拒（员工按菜单发 `ERP Menu stock-count`，10-30 发现报表只给了 ERP Stock），
    两件都在，实盘与差异对；再筛「只看差异」，只剩有差异的那件；
 2. 回到盘点单点「打印」：点数表、结果表各打一次（打印页地址截下来取回内容），页里都有这两件商品；
@@ -21,22 +21,23 @@ REPORT = "ERP Stock Count Variance"
 def prepare(lab, manifest):
     company = manifest.get("company") or manifest["companies"][0]
     warehouse = next(w["name"] for w in manifest["warehouses"] if w.get("company", company) == company)
-    if manifest["dataset"] == "new":
-        picks = [manifest["products"]["by_code"]["product"], manifest["products"]["by_barcode"]["product"]]
-    else:
-        picks = [manifest["products"][0]["name"], manifest["products"][1]["name"]]
     out = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.inventory import count
 from pearnly_erp_portal.masters import company as companies
+from pearnly_erp_portal.products import service
+tag = {uuid.uuid4().hex[:6]!r}
+frappe.set_user("admin@erp.regression")
+companies.set_active_company({company!r})
+picks = [service.create_product(product_name=f"สินค้าตรวจนับรายงาน {{tag}} {{n}}", code=f"RPT-{{tag}}-{{n}}")["name"] for n in (1, 2)]
+frappe.db.commit()
 frappe.set_user("stock@erp.regression")
 companies.set_active_company({company!r})
-doc = count.create_count(title="report " + {uuid.uuid4().hex[:6]!r}, warehouse={warehouse!r})
+doc = count.create_count(title="report " + tag, warehouse={warehouse!r})
 frappe.db.commit()
 rows = []
-for product, extra in zip({picks!r}, (3, None)):
+for product, qty in zip(picks, (3, 0)):
     item = count.ensure_item(count=doc["name"], product=product)
     book = float(item.get("book_qty") or 0)
-    qty = book + extra if extra is not None else 0
     count.add_entry(count=doc["name"], item=item["name"], qty=qty, request_id="report-" + item["name"])
     frappe.db.commit()
     rows.append({{"product": product, "name": frappe.db.get_value("ERP Product", product, "product_name"), "book": book, "counted": qty,

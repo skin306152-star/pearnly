@@ -53,3 +53,12 @@
      `erp.sales.scan` 已修）里，下一轮合入：变基到最新 main，按 `coverage.py` 点名从存量清单删条目，只跑这 8 条受影响的流程，CI 绿后合入。
 - 实验室：回归实验栈（`pearnly-regression-lab`，含 `agents` 假智能体服务、后台 worker）由验收窗口起，归档时停掉、数据卷保留；新窗口用时
   `PEARNLY_REGRESSION_SRC=<工作树> docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d --wait`。
+
+## 合入（10-31，合入窗口）
+
+- 变基到 main `b7db199f`（①fcb65cca 的 8 条流程已在上面）：登记表冲突取 main 的、再把本分支 3 条接在后面。
+- 变基后重跑本分支 4 条：`erp.products.import`、`erp.company.create`、`cc.chat` 两套 × 两宽度全过；`erp.stocktake.report` 新开户两格不过——
+  准备时拿数据清单里的商品、按「账面 + 3」与「记 0」记，同一套数据上收银、销售流程在零库存时卖成了负数，账面为负时实盘也成负数，
+  `count.add_entry` 拒收（QUANTITY_REQUIRED）。不是产品缺陷，是流程取数依赖了别的流程留下的库存。
+- 修（按类）：两件商品由管理员在准备时当场新建，账面都是 0，一件记 3、一件记 0，与别的流程跑过几遍、留下什么库存无关。
+  同类排查：其余流程都是「做前取账面、做后比差」的相对断言，只有这条假设账面为 0。
