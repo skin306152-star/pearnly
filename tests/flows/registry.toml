@@ -465,3 +465,21 @@ covers = [
   "apps/pearnly_dms/pearnly_dms/editor/browser_api.py",
   "apps/pearnly_dms/pearnly_dms/www/liff/dms-booking.html",
 ]
+
+[[flow]]
+id = "erp.stock.excel-units"
+title = "ERP 期初 / 盘点 Excel 按台：汽车公司一台一行、车架号认台、未知号只报不建、重传不重记（岳父 10-25）"
+module = "scripts/flows/erp_stock_excel_units.py"
+start = "/desk/pearnly-stock-count"
+user = "admin"
+# 期初只给没接 Express 的公司：新开户那套接了 Express，只跑老数据
+datasets = ["old"]
+viewports = ["desktop"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/workbook.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/opening_workbook.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/opening_batch.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py",
+]
