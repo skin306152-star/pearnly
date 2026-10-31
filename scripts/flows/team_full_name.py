@@ -86,7 +86,8 @@ def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 row = frappe.db.get_value("User", {{"username": {params['username']!r}}}, ["name", "username", "first_name", "last_name", "full_name"], as_dict=True) or {{}}
 if row.get("name"):
-    frappe.delete_doc("User", row["name"], force=True, ignore_permissions=True)  # 只在实验室：建的员工删掉
+    # 只在实验室：建的员工停用（删用户要改一串关联表，几条流程并行时会撞锁）
+    frappe.db.set_value("User", row["name"], "enabled", 0, update_modified=False)
     frappe.db.commit()
 print(json.dumps(row, default=str))
 """)

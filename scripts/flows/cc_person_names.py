@@ -43,7 +43,8 @@ def judge(params, results, camera_code=None):
     return [
         {"case": "the greeting carries the first name", "seen": seen.get("hello"), "ok": params["first"] in str(seen.get("hello") or "")},
         {"case": "the user button or avatar shows the full name", "seen": {"labels": seen.get("labels"), "texts": seen.get("texts")},
-         "ok": full in (seen.get("labels") or []) or full in (seen.get("texts") or [])},
+         # 电脑宽度：侧栏底部用户按钮的文字（头像缩写 + 全名 · 产品）；手机宽度：抽屉头像的无障碍标签
+         "ok": full in (seen.get("labels") or []) or any(full in text for text in seen.get("texts") or [])},
     ]
 
 
