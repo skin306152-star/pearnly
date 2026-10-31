@@ -639,3 +639,16 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/serials.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py",
 ]
+
+[[flow]]
+id = "erp.stock-card"
+title = "ERP 库存卡：打开一件商品在一个仓的卡，连着两次渲染只出一份卡、期末结存与账面一致（多仓 P2 渲染竞态）"
+module = "scripts/flows/erp_stock_card.py"
+start = "/desk/pearnly-stock-card"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-card.js",
+]

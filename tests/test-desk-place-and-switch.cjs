@@ -19,7 +19,7 @@ function load({ companies = [] } = {}) {
   const msg_dialog = { display: true, custom_onhide: () => calls.push('re_route'), hide() { this.display = false; calls.push('hide'); } };
   const frappe = { provide() {}, pearnly: {}, boot: { pearnly_pages: [], pearnly_company: 'CO-1', pearnly_companies: companies },
     re_route: {}, model: {}, realtime: { on() {}, off() {} }, ui: { Sidebar: class {} }, datetime: { str_to_user: v => v },
-    breadcrumbs: { set_custom_breadcrumbs() {}, add() {} }, utils: { escape_html: v => v }, msg_dialog,
+    breadcrumbs: { set_custom_breadcrumbs() {}, add() {} }, utils: { escape_html: v => v, get_link_title: () => 'Main', fetch_link_title: async () => 'Main' }, msg_dialog,
     show_not_permitted: name => shown.push(name), get_route: () => ['pearnly-purchase', 'PUR-OTHER'],
     call: async ({ method, args }) => { calls.push({ method, args }); return { message: { warehouse: 'WH-2', reason: 'last' } }; } };
   const context = { frappe, window: { addEventListener() {} }, document: { body: { classList: { add() {} } }, addEventListener() {} },
@@ -134,6 +134,34 @@ test('预填问服务端 `warehouses.api_prefill`（单据类型 + 当前公司�
   const call = calls.find(item => item.method);
   assert.equal(call.method, 'pearnly_erp_portal.inventory.warehouses.api_prefill');
   assert.deepEqual({ ...call.args }, { kind: 'purchase', company: 'CO-1', context: '' });
+});
+
+// 建议仓同步写进空格子、不走 Link 校验（校验在途时人选的仓会被框架丢掉，10-31）；已经有值的不动
+test('建议仓只写进空的那格，同步写、不发请求；track 建好时把能改的表头写上建议仓', () => {
+  const { p, calls } = load();
+  const control = (value = '') => ({ value, df: { pearnly_place: 'WH-7' }, get_value() { return this.value; },
+    set_input(v) { this.value = v; } });
+  const form = { fields_dict: { warehouse: control(), location: control() }, refresh_dependency() {},
+    get_value(key) { return this.fields_dict[key].get_value(); } };
+  const before = calls.length;
+  p.place.put(form, 'warehouse', 'WH-2');
+  assert.equal(form.get_value('warehouse'), 'WH-2');
+  p.place.put(form, 'warehouse', 'WH-9');
+  assert.equal(form.get_value('warehouse'), 'WH-2');
+  assert.equal(calls.length, before);
+  const fresh = { fields_dict: { warehouse: control(), location: control() }, refresh_dependency() {},
+    get_value(key) { return this.fields_dict[key].get_value(); } };
+  p.place.track(fresh, () => []);
+  assert.equal(fresh.get_value('warehouse'), 'WH-7');
+});
+
+test('能改的表头仓不用 default（default 走 Link 校验），建议仓记在 pearnly_place；只读照旧用 default', () => {
+  const { p } = load();
+  const [editable] = p.place.fields({ labels: {}, warehouse: 'WH-2' });
+  assert.equal(editable.default, undefined);
+  assert.equal(editable.pearnly_place, 'WH-2');
+  const [readonly] = p.place.fields({ labels: {}, warehouse: 'WH-2', editable: false });
+  assert.equal(readonly.default, 'WH-2');
 });
 
 test('当前公司接了 Express：不给新建仓、不录期初', () => {
