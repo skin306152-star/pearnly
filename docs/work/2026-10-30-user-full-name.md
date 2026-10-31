@@ -91,3 +91,16 @@ CC 桌面版（不显示人名，内嵌网页随 CC 网页）；客户证件上�
 ## 限制
 - 存量账号显示用户名（姓名没填）——口径如此；本人在「我的资料」填了才变。
 - 公司卡界面、真 LINE、真身份服务登录 / 建号、热敏打印没在本机实测，见上表；业务验收（岳父看团队列表与单据人名）待测试窗口。
+
+## 待转 GitHub 流程（10-31 本机流程停，用户指示改在 GitHub 机器跑）
+
+分支变基到 `818f6fd5` 后，`--changed` 涉及的流程里这些还没有在最终代码上跑过 / 没跑通：
+
+| 流程 | 本机情况 | 要在 GitHub 机器上看的 |
+| --- | --- | --- |
+| `erp.exports`（main 新加，覆盖到本分支改的盘点导出） | 本机 0/4 不通过：「导出 ledger: no export action」（总账那一页找不到导出按钮）；本分支没改总账页，没查是否 main 上同样不通过 | 两套 × 电脑 / 手机全过；不过先在 main 上对照 |
+| `cowork.exports`（main 新加，覆盖 Cowork 盘点导出的盘点人） | 跑到一半按指示停掉，没有结果 | 全过，盘点导出「盘点人 / 修改人」是姓名 |
+| `erp.stock-entry.scan` | 前几轮 4 格因选择框测试脚本问题不通过（main `818f6fd5` 已修脚本），修后没在本分支重跑 | 全过 |
+| 其余 `--changed` 流程（`cc.person-names`、`erp.team.full-name`、`cowork.team.full-name`、`erp.team.add-member`、`erp.pos.shift`、`erp.cashier.first-sale`、`erp.work.board`、`cowork.work.board`、`erp.stocktake.*`、`erp.stock.excel-units`、`erp.stock-in.units`、`cowork.stocktake.list`） | 在变基前的代码（基线 `0836f929`）上全过（见上「验证」）；变基后没重跑 | 变基后整组再跑一遍、回写 `pearnly/flows` |
+
+本地闸门（`gate.sh`，同 Development checks）在变基后的代码上全部通过；候选 offline 车道在变基前通过（变基只带进 main 的流程脚本改动）。
