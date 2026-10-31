@@ -220,28 +220,44 @@ STC-00046（进行中）；管理员建的采购单 PUR-2026-00032。浏览器�
   `erp.sales.scan` 覆盖（10-31 变基后删掉了本期自写的重复流程 `erp.sales.receipt`）；`erp.cashier.first-sale` 加 covers 收银适配器。回归数据库存岗加「调拨」菜单。
 - 登记表：`erp.page.stock-transfer`（auto）、`erp.cc.stock-transfer`（manual）；`erp.serials.dialog` 步骤加调拨与按行仓 / 库位。
 
-### 验证（截至 10-30 20:30 暂停）
+### 验证（10-31 续做）
 
 | 层 | 结果 |
 | --- | --- |
 | 离线单测（ERP） | `test_erp_serials` 16 过（新增调拨换仓 / 作废回退 / 台已卖出或再调走拒 / 出台核库位）；`test_erp_express_direct` 113 过（新增 RL 载荷、两仓码、无码停下、只在报过 RL 时判没有单据簿）；`test_companion_contract` 81 过（新增调拨版本与键两边一致）；`test_native_desk_contract`、`test_document_numbering`（顺手修了 main 上就过期的前缀断言）、`test_erp_locations`、`test_erp_printing`、`test_erp_stock_attachments`、`test_erp_portal_access` 照 CI 方式单跑都过 |
 | 离线单测（CC） | 全量 1237 过、42 跳过（新增 `test_dbf_transfer.py` 13 项：原生单头、成对明细、STLOC 新建行不带日期 / 金额 / 分类、STMAS 不动、无凭证、ISRUN +1、作废、改过的单不作废、坏载荷不动账、仓码不在、没有 RL 簿、未知商品、负库存） |
-| 检查 | 架构、文案（新增 10、改动 0）、无上限查询、入口声明、流程覆盖、共用件登记表都过；本地同名闸门第一遍 152 步里 3 步不过（调拨页入口声明缺码、三元括号、调入仓位只读控件登记），已修并单独复跑通过；**整套闸门在修复后还没从头重跑一遍** |
-| 实验栈（真站点） | **没跑**：本机已有三套别的窗口的实验栈（上限三套），一直没有空位；迁移、调拨页面、流程用例 `erp.stock-transfer` / `erp.sales.receipt` 都还没在真站点跑过 |
-| 测试机 | 20:05–20:30 跑了 C 盘 T 账套副本的 RL 回归（`scripts/express-transfer-regression.py`），73 本全部「跳过」：这些 T 账套各仓没有正结存，脚本挑不到可调的货，**等于没测到**；按暂停通知中途停下，副本与源码副本已删、python 进程 0、占用表已登记释放 |
-| 原生样本核对 | 做了：测试机只读拷回 `s12-before / rl2 / rl3 / rl3v` 的 8 张表，逐栏比对，结论写在上面「CC」一条 |
+| 变基 | 10-31 变基到 origin/main b7db199f：`registry.toml` 冲突按 main 收，本期只补 `erp.stock-transfer` 与收银适配器 covers；`erp_stock_entry_line.json` 与 main 去批次那次同一个 modified，改成 `2026-10-31 09:00` 让迁移认得出 `to_location` |
+| 检查 | 变基后本地同名闸门（照 development.yml）从头跑：152 步全过（5cf478fc） |
+| 实验栈（真站点） | 起了本窗口自己的栈 `pearnly-mwh-p2`（端口 18797–18799）。第一次跑在建 old 数据集时就抓到本期缺陷：`stock.apply_movement` 函数体用了 `base_unit_cost`、签名里没加，**所有库存流水都会 NameError**（离线单测没走到真函数）；已修（b38f92fe），pyflakes 扫本期改过的全部 Python 没有别的未定义名字。流程结果见下一行 |
+| 流程用例 | （跑完补） |
+| 测试机：C 盘 T 账套 | 回归脚本改成挑不到正结存、或照负库存规则核不过时，先在副本里用 JU 按缺口垫货（`T9GIS` 主档结存原是 −1，垫 1 不够）。101 本：**80 本写 RL + 读回 + 作废 + 已装 CC 索引程序核 CDX 全过、0 失败**；21 本跳过（15 本没有库存品、5 本没有可记账的 JU、1 本没有 RL 簿）。副本已删、占用表已登记释放 |
+| 测试机：服务器版 Express（69EXP\TEST） | 主会话批准。写前整本只读拷到测试机 `C:\PearnlyStress\_book_record\mwh-rl-before`（167 个文件 4,717,416 字节）；确认没有 Express 进程、账套最后写入 10-30 18:47；持 `PEARNLY.LCK` 用 CC 写入代码写 **RL691031-001**（น้ำแข็งหลอด 1 个，01 → 02；账套允许负库存、01 仓有 12,155，不用垫 JU）。用户本人登录 Express 后远程打开：单号、日期 31/10/69、调出 01 / 调入 02、说明、明细 1 行 1.000 กก **与写入一致**（截图 `rl-open.png`）。再在 Express 里**原生作废**：确认框 → 43 → 红字「ถูกยกเลิก」、明细清空（截图 `rl-void-confirm.png`、`rl-void-msg43.png`、`rl-voided.png`，都在共享笔记 `多仓P2-69EXP-RL截图-10-31`） |
 
-### 暂停点（10-30 20:30，用户下班，主会话通知原地暂停）
+**69EXP\TEST 前后对照**（写前 / CC 写后 / Express 作废后）：
 
-- 分支 `pearnly/multi-wh-p2-ca3eab`，WIP 已提交并推送（SHA 见提交后回读，写在主会话报告里）；变基基线 origin/main d22b7b2b。没合 main、没部署。
-- 实验栈：本窗口**没起过**，无需停；本机三套在跑的是 father3 / fil-delivery-report / fcb65cca-audit 窗口的。测试机：本窗口无残留。
-- **明天第一步**：
-  1. fetch 变基（撞文件：drop-batch-expiry 的 `erp_stock_entry_line.json`、express-operator / express-rules-vat 的 `payload_contract.py` 与载荷号、
-     scan-data-matrix 的 `serials.lookup`）→ 本地同名闸门从头跑一遍。
-  2. 等本机实验栈有空位：起自己的栈（`-p pearnly-mwh-p2`，端口另取）→ 迁移 → `run.py --changed --base origin/main --post-status`
-     （会跑 erp.stock-transfer、erp.sales.receipt、erp.stock-in.units、erp.cashier.first-sale、erp.document.express、erp.stocktake.new-product）→ 停栈。
-  3. 改回归脚本：挑不到正结存时先在副本里用 JU 入 1 个再调（同 `express-stock-entry-regression.py` 的「先入后出」），再上测试机跑 101 本 + 作废，
-     带 CC 索引程序核 CDX；动测试机前登记占用表。
-  4. 端到端（ERP 页面 → CC → C 盘 T 账套）要 CC 测试包 + 测试机 ERP 实验栈，动之前问主会话；服务器版 Express 里看 RL 放白天。
-  5. 推分支、等 Development checks、报主会话合入（载荷号合入时按 main 当时最大值 + 1）。
+| 项 | 写前 | 写后 | 作废后 |
+| --- | --- | --- | --- |
+| STLOC 01 / 02 | 12155 / 无行 | 12154 / 1（新建行） | 12155 / 0 |
+| STTRN RL691031-001 | 无 | 1 行：POSOPR 4、LOCCOD 01、PEOPLE 02、DOCSTAT N | DOCSTAT **C**、NXTSEQ 清空 |
+| STCRD 那一对 | 无 | 2 行（4 / 3） | 2 行打删除标记 |
+| ISRUN RL | 0000001 | 0000002 | 0000002（不回退） |
+| STMAS 结存 / 货值 | 12155 / 18,039,046.22 | 不变 | **4 / 3,203,154.38** |
+| 凭证 | — | 无 | GLJNLIT 改 12 行（见下） |
+| 写入集合外的表 | — | 逐字节不变（只动 STTRN / STCRD / STLOC / ISRUN 及索引） | — |
 
+- **作废时 Express 重算了这件商品的成本链**（10-31 12:59，原始字节比对 `diff-void.json`）：这件品早先 14 行流水的累计结存从约 12,14x 重算成 −2…3，
+  批次链改指（HP0000107 → B/F），几张 IV 的销货成本改了金额，IV0000006 / IV0000027 的成本分录打删除标记，新增一行「ปรับต้นทุนโดยโปรแกรม」1,820,996.64；
+  STMAS 12155 → 4。原因是这件品在这本测试账里早就前后不一致（主档 12,155，流水链从期初推下来只有个位数，还有单价 98 万的流水，是之前各轮测试留下的）；
+  RL 本身全仓净 0，CC 写的那一对不在重算范围。4.6b 的样本里 Express 作废 RL 也会「批次链改回原样」，只是那次数据一致所以主档没变。
+  **现在这本测试账 STLOC 合计（12155）和 STMAS（4）对不上**：按主会话「不用文件覆盖还原」没有动，怎么处理由主会话定（例如 Express 里「计算成本」，或留着）。
+- **过程事故（已补救）**：第一次写时脚本照搬了回归副本的「不备份」写法，又没带 CC 的索引程序 → 表写进去、索引没重建、没回滚（正式 CC 默认先备份，失败会整单回滚，不是产品缺陷）。
+  当场用测试机已装 CC 的 `cdx_reindex_runner.exe` 重建 STTRN / STCRD / ISRUN / STLOC 索引，再跑 CC 自己的写后核对（单头、成对明细、STCRD 单号索引读回）全过，才交给 Express 看。
+- 收尾：Express 已退出、本窗口计划任务 `PearnlyMwhP2` 已删、python 进程 0；保留 `C:\PearnlyStress\_book_record\mwh-rl-before / after / voided` 三份副本与 `C:\PearnlyStress\_rl_srv`（脚本、截图、比对结果），等主会话定何时删。
+- 没做：ERP 页面 → CC 桌面版测试包 → 账套的端到端（主会话定不装测试包）。
+
+### 合入前
+
+- 分支 `pearnly/multi-wh-p2-ca3eab`，基线 origin/main b7db199f；没合 main、没部署。
+- 载荷版本暂用 14（13 留给 express-rules-vat），合入时按 main 当时最大值 + 1 定，合入顺序由主会话定。
+- 撞文件：express-operator / express-rules-vat 的 `payload_contract.py` 与载荷号、scan-data-matrix 的 `serials.lookup`，它们先合时这里再变基。
+- 后续项（不在本期）：同仓不同库位移动；69EXP\TEST 那件商品 STLOC / STMAS 对不上的处理（主会话定）。
