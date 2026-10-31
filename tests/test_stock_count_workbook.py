@@ -3,7 +3,8 @@
 Run with openpyxl (candidate image). No Site.
 - 模板多一列「内部编码」紧跟「编码」，预置成文本；
 - 只给内部编码的行照认（不算缺标识），内部编码列认几种写法；
-- 老模板（没有内部编码列）照样导。
+- 老模板（没有内部编码列）照样导；
+- 按台的公司（车 / 电器）多出号码三列紧跟条码，号码预置文本；只给车架号的行照认（导回按车架号认台）。
 """
 import io
 import unittest
@@ -43,6 +44,30 @@ class StockCountWorkbook(unittest.TestCase):
         rows, problems = workbook.parse_workbook(xlsx([["编码", "实盘数量"], ["P-000001", 2]]))
         self.assertEqual(problems, [])
         self.assertEqual((rows[0]["product_code"], rows[0]["internal_code"]), ("P-000001", ""))
+
+    def test_a_unit_tracking_company_gets_the_number_columns_after_the_barcode(self):
+        self.assertEqual(workbook.field_labels(None), workbook.FIELD_LABELS)
+        fields = [field for field, _ in workbook.field_labels("vehicle")]
+        at = fields.index("barcode")
+        self.assertEqual(fields[at + 1:at + 4], ["serial_no", "secondary_no", "color"])
+        self.assertEqual(dict(workbook.field_labels("vehicle"))["serial_no"], "serial.vehicle.primary")
+        self.assertEqual(dict(workbook.field_labels("device"))["serial_no"], "serial.device.primary")
+        self.assertEqual(workbook.template_headers(lambda key: key, "vehicle"), [key for _, key in workbook.field_labels("vehicle")])
+        data = workbook.build_bytes(fields, [{"product_code": "P-000001", "product_name": "Car", "serial_no": "0012345678ABCDEFG",
+                                              "secondary_no": "0099", "color": "红", "book_qty": 1}], "vehicle")
+        sheet = openpyxl.load_workbook(io.BytesIO(data)).active
+        column = fields.index("serial_no") + 1
+        self.assertEqual(sheet.cell(2, column).value, "0012345678ABCDEFG")
+        self.assertEqual(sheet.cell(2, column).number_format, "@")
+        self.assertEqual(sheet.cell(2, column + 1).number_format, "@")
+
+    def test_a_row_with_only_a_unit_number_is_read(self):
+        rows, problems = workbook.parse_workbook(xlsx([["serial_no", "color", "counted_qty"], ["VIN-1", "红", 1], ["", "", 1]]))
+        self.assertEqual(rows[0]["serial_no"], "VIN-1")
+        self.assertEqual(rows[0]["counted_qty"], 1)
+        self.assertEqual(problems, [{"row": 3, "reason": "no_identifier"}])
+        rows, _ = workbook.parse_workbook(xlsx([["编码", "实盘数量"], ["P-000001", 2]]))
+        self.assertEqual(rows[0]["serial_no"], "")
 
 
 if __name__ == "__main__":

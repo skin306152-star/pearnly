@@ -30,6 +30,24 @@ FIELD_LABELS = (
     ("location", "stock.count.location"),
 )
 
+# 按台的公司（汽车 / 电器类，岳父 10-25）：盘点表一台一行，多出号码三列（紧跟条码）。主号、副号的叫法按公司类型
+# （车：车架号 / 发动机号；电器：序列号 / 第二个号），沿用按台期初登记模板的词条。普通公司不出这三列。
+UNIT_FIELDS = ("serial_no", "secondary_no", "color")
+UNIT_LABELS = {
+    "vehicle": (("serial_no", "serial.vehicle.primary"), ("secondary_no", "serial.vehicle.secondary"), ("color", "serial.color")),
+    "device": (("serial_no", "serial.device.primary"), ("secondary_no", "serial.device.secondary"), ("color", "serial.color")),
+}
+
+
+def field_labels(unit_kind=None) -> tuple:
+    """这张表的列（字段, 词条）：按台的公司在条码后面插号码三列。"""
+    units = UNIT_LABELS.get(unit_kind)
+    if not units:
+        return FIELD_LABELS
+    at = [field for field, _key in FIELD_LABELS].index("barcode") + 1
+    return FIELD_LABELS[:at] + units + FIELD_LABELS[at:]
+
+
 # 旧项目那张表、导出件、客户手里的历史文件长这样，照认（比对前统一去空白、转小写）。
 LEGACY_ALIASES = {
     "product_code": "product_code",
@@ -91,6 +109,9 @@ LEGACY_ALIASES = {
     "棚番": "location",
     "ตำแหน่งเริ่มต้น (ไม่บังคับ)": "location",
     "location (optional)": "location",
+    "serial_no": "serial_no",
+    "secondary_no": "secondary_no",
+    "color": "color",
 }
 
 MAX_ROWS = 10000
@@ -109,8 +130,8 @@ def header_aliases(labels=None) -> dict:
     return aliases
 
 
-def template_headers(label_of) -> list:
-    return [label_of(key) for _field, key in FIELD_LABELS]
+def template_headers(label_of, unit_kind=None) -> list:
+    return [label_of(key) for _field, key in field_labels(unit_kind)]
 
 
 def _norm(value) -> str:
@@ -150,7 +171,7 @@ def parse_workbook(data: bytes, aliases: dict | None = None) -> tuple[list[dict]
             field = aliases.get(_norm(cell))
             if field and field not in columns:
                 columns[field] = index
-        if not {"product_code", "internal_code", "barcode"} & set(columns):
+        if not {"product_code", "internal_code", "barcode", "serial_no"} & set(columns):
             raise ValueError("headers_invalid")
         out, problems = [], []
         for number, cells in enumerate(rows, start=2):
@@ -169,13 +190,15 @@ def parse_workbook(data: bytes, aliases: dict | None = None) -> tuple[list[dict]
                     "unit": str(value("unit") or "").strip(),
                     "warehouse": str(value("warehouse") or "").strip(),
                     "location": str(value("location") or "").strip(),
+                    # 按台：主号认台（副号、颜色只给人看，导回不改台的资料）
+                    "serial_no": str(value("serial_no") or "").strip(),
                     "book_qty": _quantity(value("book_qty"), "book_qty"),
                     "counted_qty": _quantity(value("counted_qty"), "counted_qty"),
                 }
             except ValueError as error:
                 problems.append({"row": number, "reason": str(error)})
                 continue
-            if not (row["product_code"] or row["internal_code"] or row["barcode"]):
+            if not (row["product_code"] or row["internal_code"] or row["barcode"] or row["serial_no"]):
                 problems.append({"row": number, "reason": "no_identifier"})
                 continue
             out.append(row)
@@ -186,7 +209,7 @@ def parse_workbook(data: bytes, aliases: dict | None = None) -> tuple[list[dict]
         book.close()
 
 
-def build_bytes(headers: list, rows: list | None = None) -> bytes:
+def build_bytes(headers: list, rows: list | None = None, unit_kind=None) -> bytes:
     """生成表格：只有表头（模版）或带数据（下载时已经填好的表）。"""
     import openpyxl
     from openpyxl.styles import Font
@@ -202,11 +225,12 @@ def build_bytes(headers: list, rows: list | None = None) -> bytes:
         sheet.column_dimensions[get_column_letter(index)].width = max(
             14, len(str(header)) + 4)
     # 编号与条码预置成文本：Excel 会把长数字的前导零吃掉，写回去就找不到商品了。
-    text_columns = [index for index, (field, _key) in enumerate(FIELD_LABELS, start=1)
-                    if field in ("product_code", "internal_code", "barcode")]
+    fields = field_labels(unit_kind)
+    text_columns = [index for index, (field, _key) in enumerate(fields, start=1)
+                    if field in ("product_code", "internal_code", "barcode", "serial_no", "secondary_no")]
     for row in rows or []:
         line = []
-        for field, _key in FIELD_LABELS:
+        for field, _key in fields:
             cell_value = row.get(field)
             if isinstance(cell_value, Decimal):
                 cell_value = float(cell_value)

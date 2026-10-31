@@ -221,6 +221,15 @@ def apply_import(*, count, rows) -> dict:
     problems = []
     company = count_company(task.name)
     for number, row in enumerate(rows, start=2):
+        if row.get("serial_no") and companies.unit_tracking(company):
+            # 按台公司一台一行（岳父 10-25）：按车架号认台；表里没有的台 = 没盘到（同手机逐台扫）
+            outcome = _import_unit(task, row, company)
+            if outcome not in ("counted", "listed"):
+                problems.append({"row": number, "reason": outcome})
+                continue
+            applied += 1
+            counted += outcome == "counted"
+            continue
         product = _product_of_row(row, company)
         code = (row.get("barcode") or row.get("product_code") or "").strip()
         internal = (row.get("internal_code") or "").strip()
@@ -255,6 +264,58 @@ def apply_import(*, count, rows) -> dict:
             counted += 1
     _refresh_totals(task.name)
     return {"rows": applied, "counted": counted, "problems": problems}
+
+
+def _import_unit(task, row, company) -> str:
+    """表里一台车那一行：认台 → 登记账面行 → 实盘 1 记这一台、0 撤掉上回导入记的那条、空着不记。
+
+    车架号认不到（或认出几台、或和这一行的商品对不上）只报出这一行，**不当场建台**——建台走进货 / 入库单（岳父 10-25：
+    当场建会绕过进货成本）。手机上已逐台扫过的台不重记；同一份表重传是改那一条（幂等锚 `import:<盘点>:unit:<台>`）。
+    回 "counted" / "listed"（只登记了账面行）/ 问题原因。
+    """
+    from pearnly_erp_portal.inventory import serials
+
+    units = serials.lookup(row["serial_no"], company, statuses=(serials.IN_STOCK,))
+    if len(units) != 1:
+        return "unit_not_found"
+    unit = units[0]
+    named = _product_of_row(row, company)
+    if named and named["name"] != unit.product:
+        return "unit_not_found"
+    quantity = row.get("counted_qty")
+    if quantity is not None and quantity not in (0, 1):
+        return "counted_qty:invalid"
+    try:
+        warehouse = _warehouse_of(row.get("warehouse"), unit.warehouse)
+    except frappe.ValidationError:
+        return "warehouse_not_found"
+    # 仓库那格空着：就按这台在账的位置；填了仓库就照表里的库位（空 = 不分库位）
+    location = positions.clean_location(row.get("location") if row.get("warehouse") else (row.get("location") or unit.location))
+    product = frappe.db.get_value(PRODUCT, unit.product, "*", as_dict=True)
+    item = _insert_item(task.name, product, warehouse,
+                        stock_service.current_balance(product["name"], warehouse, location).qty, location)
+    if quantity is None:
+        return "listed"
+    request_id = f"import:{task.name}:unit:{unit.name}"
+    seen = frappe.db.get_value(ENTRY, {"request_id": request_id}, ["name", "voided", "warehouse", "location"], as_dict=True)
+    elsewhere = frappe.db.exists(ENTRY, {"count": task.name, "serial": unit.name, "voided": 0,
+                                         "request_id": ["!=", request_id]})
+    if quantity == 0:
+        if seen and not seen.voided:
+            edit_entry(entry=seen.name, voided=1)
+        return "counted"
+    if elsewhere:
+        return "counted"  # 手机 / 录入框已逐台记过这一台
+    if seen:
+        changes = {} if (seen.warehouse, seen.location or "") == (warehouse, location) else {"warehouse": warehouse, "location": location}
+        if seen.voided:
+            changes["voided"] = 0
+        if changes:
+            edit_entry(entry=seen.name, **changes)
+        return "counted"
+    add_entry(count=task.name, item=item, qty=1, serial=unit.name, warehouse=warehouse, location=location,
+              source="Import", request_id=request_id)
+    return "counted"
 
 
 def _product_of_row(row, company=None) -> dict | None:
@@ -481,6 +542,35 @@ def get_count(name: str) -> dict:
     }
 
 
+def _template_warehouse(name=None, warehouse=None):
+    if name:
+        return frappe.db.get_value(COUNT, name, "warehouse")
+    return (warehouses.resolve(warehouse, create=False) or "__missing__") if warehouse else warehouses.required()
+
+
+def template_unit_kind(*, name=None, warehouse=None) -> str | None:
+    """盘点表要不要号码三列：仓所属公司按台（车 / 电器）就回公司类型，普通公司回 None。"""
+    company = frappe.db.get_value("ERP Warehouse", _template_warehouse(name, warehouse), "company")
+    return companies.company_type(company) if companies.unit_tracking(company) else None
+
+
+def _units_in(company, places, products) -> list:
+    """这几个仓里这几种按台商品的在库台（盘点表一台一行用）。"""
+    from pearnly_erp_portal.inventory import serials
+
+    if not (company and places and products):
+        return []
+    return frappe.get_all(serials.DOCTYPE, filters={"company": company, "status": serials.IN_STOCK,  # bounded: 一份盘点 / 一个仓的按台商品在库台
+                                                    "product": ["in", sorted(products)], "warehouse": ["in", sorted(places)]},
+                          fields=["name", "product", "serial_no", "secondary_no", "color", "warehouse", "location"],
+                          order_by="serial_no asc", limit_page_length=0)
+
+
+def _unit_row(base, unit, counted=None) -> dict:
+    return {**base, "serial_no": unit.serial_no, "secondary_no": unit.secondary_no or "", "color": unit.color or "",
+            "book_qty": 1, "counted_qty": counted}
+
+
 def template_rows(*, name=None, warehouse=None) -> list[dict]:
     """盘点表要填的行：给一份盘点的快照，或**按当前结存现拉一份**。
 
@@ -491,10 +581,11 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
         _get(name)
         rows = list_items(count=name, limit=0)
         # 「编码」一格是系统编码，「内部编码」单独一列（接 Express 的是 Express 编码，岳父 10-25）
-        codes = {row["name"]: row for row in frappe.get_all(
+        codes = {row["name"]: row for row in frappe.get_all(  # bounded: 这份盘点的商品
             PRODUCT, filters={"name": ["in", sorted({row["product"] for row in rows}) or [""]]},
-            fields=["name", "code", "internal_code", "express_code"], limit_page_length=0)}  # bounded: 这份盘点的商品
-        return [{
+            fields=["name", "code", "internal_code", "express_code"], limit_page_length=0)}
+        # (按台公司的按台商品在 `_expand_units` 里一台一行)
+        out = [{
             "product_code": (codes.get(row["product"]) or {}).get("code") or row["code"],
             "internal_code": product_contracts.internal_code(codes.get(row["product"]) or {}),
             "product_name": row["product_name"],
@@ -502,7 +593,8 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
             "counted_qty": row["counted_qty"] if row["counted"] else None,
             "warehouse": _warehouse_label(row["warehouse"]), "location": row["location"] or "",
         } for row in rows]
-    warehouse = (warehouses.resolve(warehouse, create=False) or "__missing__") if warehouse else warehouses.required()
+        return _expand_units(name, rows, out) if template_unit_kind(name=name) else out
+    warehouse = _template_warehouse(warehouse=warehouse)
     balances = frappe.get_all(BALANCE, filters={"warehouse": warehouse},
                                fields=["product", "qty_on_hand", "location"], limit_page_length=0)
     company = frappe.db.get_value("ERP Warehouse", warehouse, "company")
@@ -510,16 +602,30 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
     products = {row["name"]: row for row in frappe.get_list(
         PRODUCT, filters={"is_active": 1},
         or_filters=[["express_company", "=", company or ""], ["express_company", "is", "not set"]],
-        fields=["name", "product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "unit", "base_unit"],
+        fields=["name", "product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "unit", "base_unit",
+                "track_serial"],
         limit_page_length=0)}
     label = _warehouse_label(warehouse)
+    # 按台公司：按台商品一台一行（在这个仓的在库台，带各自库位），没有在库台的照旧一行
+    units = {}
+    if companies.unit_tracking(company):
+        for unit in _units_in(company, [warehouse], [key for key, row in products.items() if row.get("track_serial")]):
+            units.setdefault(unit.product, []).append(unit)
     present = {row["product"] for row in balances}
     balances.extend({"product": key, "qty_on_hand": 0, "location": ""}
                     for key in products if key not in present)
     out = []
+    listed = set()
     for balance in balances:
         product = products.get(balance["product"])
-        if not product:
+        if not product or product["name"] in listed:
+            continue
+        if units.get(product["name"]):
+            listed.add(product["name"])
+            base = {"product_code": product["code"], "internal_code": product_contracts.internal_code(product),
+                    "product_name": product["product_name"], "barcode": product_contracts.shown_code(product),
+                    "unit": product["base_unit"] or product["unit"], "warehouse": label}
+            out.extend(_unit_row({**base, "location": unit.location or ""}, unit) for unit in units[product["name"]])
             continue
         out.append({
             "product_code": product["code"], "internal_code": product_contracts.internal_code(product),
@@ -530,6 +636,41 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
             "warehouse": label, "location": balance.get("location") or "",
         })
     return out
+
+
+def _expand_units(name, items, out) -> list:
+    """一份盘点的表，按台商品换成一台一行：记在这一行上的台（实盘 1）+ 在这一行仓 / 库位、本次还没记过的在库台（实盘空着）。
+    一台都没有的行照旧一行（填了实盘数导回会被逐行报出，要逐台盘）。"""
+    from pearnly_erp_portal.inventory import serials
+
+    tracked = {row.name for row in frappe.get_all(PRODUCT, filters={"name": ["in", sorted({r["product"] for r in items}) or [""]],  # bounded: 这份盘点的商品
+                                                                  "track_serial": 1}, fields=["name"],
+                                                    limit_page_length=0)}
+    if not tracked:
+        return out
+    entries = frappe.get_all(ENTRY, filters={"count": name, "voided": 0, "serial": ["is", "set"]}, fields=["item", "serial"],  # bounded: 这份盘点逐台记的
+                             limit_page_length=0)
+    counted_on = {}
+    for entry in entries:
+        counted_on.setdefault(entry.item, []).append(entry.serial)
+    counted = {entry.serial for entry in entries}
+    info = {unit.name: unit for unit in frappe.get_all(  # bounded: 这份盘点逐台记的台
+        serials.DOCTYPE, filters={"name": ["in", sorted(counted) or [""]]},
+        fields=["name", "product", "serial_no", "secondary_no", "color", "warehouse", "location"],
+        limit_page_length=0)}
+    waiting = {}
+    for unit in _units_in(count_company(name), {r["warehouse"] for r in items if r["product"] in tracked}, tracked):
+        if unit.name not in counted:
+            waiting.setdefault((unit.product, unit.warehouse, unit.location or ""), []).append(unit)
+    result = []
+    for item, row in zip(items, out):
+        if item["product"] not in tracked:
+            result.append(row)
+            continue
+        mine = [_unit_row(row, info[serial], 1) for serial in counted_on.get(item["name"], []) if serial in info]
+        mine += [_unit_row(row, unit) for unit in waiting.pop((item["product"], item["warehouse"], item["location"] or ""), [])]
+        result.extend(mine or [row])
+    return result
 
 
 def _warehouse_label(name) -> str:

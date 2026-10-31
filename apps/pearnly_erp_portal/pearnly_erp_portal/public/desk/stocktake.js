@@ -594,6 +594,7 @@
 				no_identifier: t("stock.count.problemIdentifier"),
 				warehouse_not_found: t("stock.count.problemWarehouse"),
 				unit_by_unit: __("Count products tracked by unit one unit at a time"),
+				unit_not_found: __("Unit not found"),
 				"book_qty:not_a_number": t("stock.count.problemNumber"),
 				"book_qty:invalid": t("stock.count.problemNumber"),
 				"counted_qty:not_a_number": t("stock.count.problemNumber"),

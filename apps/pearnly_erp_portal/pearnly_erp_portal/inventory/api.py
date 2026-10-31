@@ -643,8 +643,9 @@ def api_stock_count_template(**kwargs):
     kwargs = _clean(kwargs)
     name = kwargs.get("name")
     rows = counts.template_rows(name=name, warehouse=kwargs.get("warehouse"))
+    kind = counts.template_unit_kind(name=name, warehouse=kwargs.get("warehouse"))
     frappe.local.response.filename = f"{name or 'stock-count'}-template.xlsx"
-    frappe.local.response.filecontent = workbook.build_bytes(_stock_headers(), rows)
+    frappe.local.response.filecontent = workbook.build_bytes(_stock_headers(kind), rows, kind)
     frappe.local.response.type = "binary"
 
 
@@ -677,7 +678,8 @@ def _stock_label_texts() -> dict:
     from pearnly_core import browser_text
 
     labels: dict = {}
-    for field, key in workbook.FIELD_LABELS:
+    # 按台公司的号码三列：车 / 电器两套叫法都认
+    for field, key in (*workbook.FIELD_LABELS, *(pair for pairs in workbook.UNIT_LABELS.values() for pair in pairs)):
         labels[key] = field
         for text in browser_text.all_languages(key).values():
             if text:
@@ -685,12 +687,12 @@ def _stock_label_texts() -> dict:
     return labels
 
 
-def _stock_headers() -> list:
+def _stock_headers(unit_kind=None) -> list:
     from pearnly_core import browser_text
 
     # 取词就走共享那一份（`pearnly_core.browser_text.label`），别在页面层再写一遍 ——
     # 导出件、模板、界面必须是同一句话。
-    return workbook.template_headers(browser_text.label)
+    return workbook.template_headers(browser_text.label, unit_kind)
 
 
 @frappe.whitelist()
