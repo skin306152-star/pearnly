@@ -10,7 +10,7 @@
 | 0 需求 | ERP、Cowork 的 Desk 页面与全部弹窗，DMS 的 LINE 编辑页、LINE 盘点页：点格子后弹出的键盘不能盖住这一格。不在范围：字段布局（11-01 刚统一过）、说明文案、CC 对话页（`frontend/assistant` 自有 `lib/viewport.ts`，不是这三个产品）。 |
 | 1 同类复用 | 现有零散写法只有一处：DMS 编辑页 `EditorPage.vue` 的 `keepAboveKeyboard`（fce34c27，保存被拒时把出错栏摆到贴底操作条上方）。新建一个共用模块，删掉这处。 |
 | 2 Frappe 原生 | 锁定版本 Frappe 的 `www/desk.html` 写死 viewport（`maximum-scale=1.0 … user-scalable=no, minimal-ui`），没有钩子改；弹窗是 Bootstrap `.modal`（整屏固定、`overflow-y:auto`），手机上没有跟键盘的处理。不改框架文件：viewport 由共用脚本运行时补 `interactive-widget`，弹窗只改外框的 `top / height`，弹窗仍按官方方式自己滚。 |
-| 3 按类通用 | 一类：所有会弹键盘的输入格（input 文本类、textarea、contenteditable），不分页面。Desk 由 `pearnly_core` 的 `app_include_js` 统一加载（ERP、Cowork、DMS、控制面同一份）；LINE 盘点页挂同一份；LINE 票据编辑器（Vue）打进自己的包。 |
+| 3 按类通用 | 一类：所有会弹键盘的输入格（input 文本类、textarea、contenteditable），不分页面。Desk 由 `pearnly_core` 的 `app_include_js` 统一加载（ERP、Cowork、DMS 同一份；控制面站点不装 pearnly_core，不接）；LINE 盘点页挂同一份；LINE 票据编辑器（Vue）打进自己的包。 |
 | 4 上下游 | 纯前端显示，不涉及数据、Express、CC 桌面版载荷。 |
 | 5 隔离权限 | 不涉及（不读写数据、不调接口）。 |
 | 6 入口 | Desk 页面（整页滚）、Desk 弹窗（弹窗里滚）、LINE 票据编辑器 `/assets/pearnly_core/pearnly-app/index.html#/dms/editor`（整页滚、贴底操作条）、LINE 盘点页 `/stocktake`（整页滚）。 |
@@ -58,12 +58,13 @@ Bootstrap 本来就是外框滚、对话框在里面不限高，这样不改对�
 
 | 页面类型 | 例子 | 怎么接上 | 流程（无头 Chrome） | 三星真机 |
 |---|---|---|---|---|
-| Desk 页面（ERP / Cowork / DMS / 控制面） | 入库新建、Cowork 录入复核、DMS 主页 | `pearnly_core` `app_include_js` | cowork.keyboard.intake（安卓式） | 见下表 |
+| Desk 页面（ERP / Cowork / DMS） | 入库新建、Cowork 录入复核、DMS 主页 | `pearnly_core` `app_include_js` | cowork.keyboard.intake（安卓式） | 见下表 |
 | Desk 弹窗（p.dialog / frappe.ui.Dialog / FieldGroup，Bootstrap `.modal`） | 物料新建、团队添加用户 | 同上 + `product.css` 弹窗外框规则 | erp.keyboard.dialogs（iOS 式 + 安卓式） | 见下表 |
-| 网站页（`templates/web.html`） | 改密码 `pearnly-password`、控制面发号页 `pearnly-issue` | `pearnly_core` `web_include_js` | 无（静态检查核接入） | 见下表 |
+| 网站页（`templates/web.html`） | 改密码 `pearnly-password` | `pearnly_core` `web_include_js` | 无（静态检查核接入） | 见下表 |
 | www 独立页 | LINE 手机盘点 `stocktake.html` | 页面 `versioned_asset` 挂 | erp.keyboard.line-stocktake（安卓式） | 见下表 |
 | 前端单页（Frappe UI，LIFF） | DMS LINE 订车编辑页、取景页、账号页（`pearnly-app`） | `frontend/src/main.ts` import 同一文件打进包；`dms-booking.html` / `pearnly-app.html` 交给这个包 | dms.keyboard.editor（安卓式） | 见下表 |
 | CC 对话页 | `assistant.html`、`frontend/assistant` | **不接**：不在三个产品范围；自有 `lib/viewport.ts` 按可见区排版、meta 已带 `interactive-widget`，再挂会重复摆位 | — | — |
+| 控制面 Desk 与发号页 `pearnly-issue` | 控制面站点 | **不接**：控制面站点只装 `pearnly_control`、不装 `pearnly_core`（实验栈 `list-apps` 核过），共用模块挂不上；管理后台在本机电脑上用（AGENTS.md）；用户说过发号页不要管 | 电脑宽零变化见下 | — |
 | CC 智能体入口登录页 | 控制面 `ai.html`（fatcc.com） | **不接**：CC 品牌页，只有首屏居中两格 | — | — |
 | Keycloak 登录 / 改密页 | `infrastructure/keycloak/themes/*` | **不接**：登录页按规矩不改（记忆 login-pages-frozen） | — | — |
 | 打印格式、邮件、Python 拼的中转页 | `printing/templates`、`portal.py` | 没有文字输入格，不需要 | — | — |
@@ -77,6 +78,51 @@ Bootstrap 本来就是外框滚、对话框在里面不限高，这样不改对�
 - `frontend/src/pages/dms/EditorPage.vue` 的 `keepAboveKeyboard`（fce34c27）：出错跳格后聚焦输入框，摆位交给共用模块（贴底操作条由「命中的 sticky 条」通用处理）。
 - 全仓再查 `scrollIntoView / scrollBy / visualViewport / innerHeight`：其余都是分区导航、看板高度、下拉菜单定位，与键盘无关，不动。
 
-## 验证
+## 验证（分支 `pearnly/mobile-keyboard-overlap-211914`）
 
-（下方逐项填实际结果）
+环境：本机回归实验栈 `pearnly-kbd-lab`（生产镜像同一套底座，挂本工作树源码，端口 18801–18803），三星 SM-A146P（Chrome 156，安卓）经 adb 开实验栈页面。
+
+### 单测与静态检查
+
+- `node --test tests/test-desk-keyboard.cjs`：9 项通过（电脑一行不执行、meta 只补一次、整页、贴底条（安卓整页变矮）、固定弹窗、没聚焦不动、
+  勾选框 / 文件 / 日期 / 只读 / 禁用 / 下拉不动、转屏、Link 与日期摆上部三分之一）。
+- `python3 scripts/check-keyboard-coverage.py`：通过（28 个页面）；反向：临时加一个带输入框的 www 页 → 失败并点名，删掉后通过。
+- 本地全闸门（照 development.yml 158 步，`~/pearnly-devtools/gate.sh`）：首轮全过；最终提交上重跑结果见下方「合入前」。
+- 生产镜像候选离线检查（`cand-local.sh offline`，镜像 fd60caff）：通过（EXIT=0）。
+
+### 流程（无头 Chrome，模拟键盘）
+
+| 流程 | 模式 | 有统一模块 | 去掉模块对照（`KEYBOARD_BASELINE=1`） |
+|---|---|---|---|
+| erp.keyboard.dialogs（物料新建、团队添加用户、入库新建明细） | iOS + 安卓 | 17/17 通过：9 格都在可见区、弹窗高 = 可见区 380、滚得到按钮栏；收起后类名去掉 | 8/17：例如物料新建最后一格 566–594、可见区只到 380 |
+| cowork.keyboard.intake（复核页最下面三格） | 安卓 | 4/4 | 3/4：备注 788–828 |
+| dms.keyboard.editor（订车编辑页最下面三格） | 安卓 | 4/4 | 3/4：付款格 776–804 |
+| erp.keyboard.line-stocktake（新建商品最下面三格） | 安卓 | 4/4 | 3/4：成本格 785–825 |
+
+无头 Chrome 的安卓模式是把视口真的变矮，Chrome 不会像真机那样自己把聚焦格滚进来，所以「去掉模块」那一列比真机悲观；真机结果见下表。
+iOS 只模拟了弹窗（整页滚动时 iOS 自己平移可见区，这个平移模拟不了）。
+
+分支受影响流程（`run.py --changed`，电脑 + 手机两种宽度、两套数据）：4e638e56 上 7 条 14/14 通过；最终提交结果见「合入前」。
+
+### 三星真机（实测，截图在共享笔记 `手机键盘真机截图-11-01/`）
+
+| 页面 | 点的格 | 键盘弹起后 | 结果 |
+|---|---|---|---|
+| ERP 物料「新建」弹窗 | 低库存提醒（最下面） | 页面变矮到 354，弹窗外框 354，格子 195–223，提交按钮在键盘上方 | 通过 |
+| ERP 团队「添加用户」弹窗 | 邮箱、密码 | 195–223 / 133–161，弹窗 354 | 通过 |
+| ERP 入库新建（手机上是整页） | 原因、单位成本 | 262–302（可见 418）/ 167–195（可见 354） | 通过 |
+| ERP 入库 仓库 Link 下拉 | 仓库 | 改前：格子不动，下拉被键盘挡得一项都不完整；改后格子到页头下方，5 项 + 「新建仓库」可见 | 通过（改后） |
+| ERP 入库 单据日期（日历弹层） | 日期 | 改前：只露第一周；改后整月可见（只有「今天」按钮半截） | 通过（改后） |
+| ERP 收银台开班弹窗 | 备注；支付方式表格最后一行（表格内联编辑） | 279–319；表格行在键盘上方 | 通过 |
+| ERP 扫码弹窗（入库物料扫码按钮） | 不弹键盘 | 相机画面在播（1080 宽），模块不介入 | 通过 |
+| 弹窗上再弹 msgprint | 邮箱聚焦时 `frappe.msgprint` | 提示框拿走焦点、键盘收起、两个弹窗都回整屏 | 通过 |
+| Cowork 录入复核 | 备注、价税合计 | 363–403 / 264–292（可见 418），贴顶分区导航没挡 | 通过 |
+| DMS LINE 订车编辑页 | 付款金额、登记人姓名、交车日期 | 都在 136–164，贴底操作条在 300 | 通过 |
+| DMS 编辑页保存被拒（删掉的零散补丁原来管的） | 真触摸点保存 | 出错的交车日期标红聚焦，156–184，提示条和保存在 340 | 通过 |
+| LINE 手机盘点 新建商品 | 低库存、默认库位 | 189–230（可见 354） | 通过 |
+| 网站页 改密码（web_include_js） | 确认新密码 | 288–316（可见 354），脚本与 meta 已接上 | 通过 |
+
+没测到：iPhone（没有测试机）；LINE 内置浏览器（实验室站点进不了 LIFF，安卓 LINE 内置浏览器与 Chrome 同为 Chromium 内核，部署后用 LINE 真机看）。
+
+真机顺带发现（不在本次范围，已记进共享笔记「已知问题与结论」）：LINE 盘点页底部透明提示条 `.toast`（opacity 0）仍接收点击，
+格子滚到屏幕最下约 60px 时点不中。

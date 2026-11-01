@@ -3,7 +3,8 @@
 
 接法（模块文件头同样写着）：
 - Desk 页面与弹窗（ERP / Cowork / DMS / 控制面）：`pearnly_core/hooks.py` 的 `app_include_js`；
-- 网站页（`{% extends "templates/web.html" %}`：改密码页、控制面发号页等）：同一文件的 `web_include_js`；
+- 网站页（`{% extends "templates/web.html" %}`：改密码页等）：同一文件的 `web_include_js`——只到得了装了 pearnly_core 的产品站点，
+  控制面站点只装 pearnly_control，它的网站页不算接上；
 - 独立页（`apps/**/www/**/*.html` 等自己写整页 HTML 的，含 Python 里拼出的整页）：页面里用 `versioned_asset('pearnly_core', 'desk/keyboard.js')` 挂；
 - 前端单页（`frontend/**/index.html`）：入口脚本 import 同一个文件打进包。
 
@@ -40,6 +41,7 @@ MOUNT = re.compile(r"""<div\s+id=["'](?:app|root)["']""")
 BUNDLE = re.compile(r"/assets/pearnly_core/([a-z-]+)/index\.html")
 # 前端产物目录 → 源码入口（各自 vite.config.ts 的 outDir）
 BUNDLES = {"pearnly-app": "frontend/index.html", "assistant": "frontend/assistant/index.html"}
+CONTROL = "apps/pearnly_control/"  # 控制面站点不装 pearnly_core：hooks 里的 app_include_js / web_include_js 到不了
 WEB_PAGE = re.compile(r"""\{%\s*extends\s+["']templates/web\.html["']""")
 
 
@@ -123,7 +125,7 @@ def main() -> int:
             how = "没有文字输入格"
         elif MODULE in text:
             how = "页面自己挂 / 打进包"
-        elif WEB_PAGE.search(text):
+        elif WEB_PAGE.search(text) and not name.startswith(CONTROL):
             how = "网站页（web_include_js）"
         else:
             how = ""

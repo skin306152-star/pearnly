@@ -339,7 +339,7 @@ extend_bootinfo = ["pearnly_core.browser_text.extend_bootinfo", "pearnly_core.de
 app_include_css = [versioned_asset("pearnly_core", "desk/product.css"), versioned_asset("pearnly_core", "desk/scan.css")]
 # 顺序即依赖：`errors.js` 最先（页面报错回传，后面的组件出错也抓得到）；`product.js` 先立起 `frappe.pearnly`，后面的共用组件都挂在它上面。
 app_include_js = [versioned_asset("pearnly_core", "desk/errors.js"), versioned_asset("pearnly_core", "desk/keyboard.js"), versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/actions.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/link.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/viewer.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js"), versioned_asset("pearnly_core", "scan/reader.js"), versioned_asset("pearnly_core", "desk/scan.js")]
-# 网站页（`templates/web.html`：改密码页、控制面发号页等）也挂手机键盘处理，与 Desk 同一份（`desk/keyboard.js`，只在触屏且键盘弹起时动作）。
+# 产品站点的网站页（`templates/web.html`：改密码页等）也挂手机键盘处理，与 Desk 同一份（`desk/keyboard.js`，只在触屏且键盘弹起时动作）。
 web_include_js = [versioned_asset("pearnly_core", "desk/keyboard.js")]
 
 # 页面里的 `<audio id="sound-…">` 是 Desk 模板按**各 App 的 `sounds` 钩子**生成的
