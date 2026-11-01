@@ -124,9 +124,9 @@ def api_choices(kind, context, txt="", scan=False, company=None):
     if exact and not text:
         return []
     if exact and kind == "product":
-        from pearnly_erp_portal.products import codes
+        from pearnly_erp_portal.products import codes as product_codes
 
-        codes.refuse_web_address(text)  # 扫到网址（TIS 认证码等）：提示「这不是商品条码」，不当商品码查
+        product_codes.refuse_web_address(text)  # 扫到网址（TIS 认证码等）：提示「这不是商品条码」，不当商品码查
     fields = list(FIELDS[kind])
     if kind == "product" and not guard.cost_visible():
         fields.remove("default_cost")
