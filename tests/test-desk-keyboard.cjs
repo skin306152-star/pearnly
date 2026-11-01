@@ -1,5 +1,6 @@
 // 手机键盘不盖住正在填的格（public/desk/keyboard.js）：可见区（visualViewport）变小时，聚焦的格被滚进
 // 「可见区减去贴顶 / 贴底条」里；整页、弹窗里的滚动容器、贴底操作条、安卓整页变矮四种情况。
+// 带建议列表的格（Link 选择框）摆到可见区上部三分之一、下面留给列表。
 // 不该动的：电脑（非触屏）一行不执行、没聚焦文字格时可见区变化不动、勾选框 / 只读 / 日期格不动、人自己滚动不拉回、键盘收起后弹窗变量清掉。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -18,6 +19,8 @@ function page({ layout = 800, meta = 'width=device-width, initial-scale=1', coar
       top: 0, height: 40,  // 在父元素内容里的位置（父是整页时就是页面坐标）
       ...props,
     };
+    el.getAttribute = (name) => (el.attrs || {})[name] ?? null;
+    el.closest = (selector) => { for (let n = el; n; n = n.parentElement) if ((n.className || '').split(' ').includes(selector.slice(1))) return n; return null; };
     el.contains = (other) => { for (let n = other; n; n = n.parentElement) if (n === el) return true; return false; };
     el.getBoundingClientRect = () => {
       let top = el.top;
@@ -163,4 +166,19 @@ test('turning the phone resets the no-keyboard height', () => {
   assert.ok(!p.root.classList.set.has('pearnly-keyboard-open'));
   p.keyboard(160);  // 横屏下再弹键盘
   assert.ok(p.root.classList.set.has('pearnly-keyboard-open'));
+});
+
+test('a field with a suggestion list (Link) is placed in the top third so the list fits above the keyboard', () => {
+  const p = page();
+  const wrap = p.element({ parentElement: p.body, className: 'awesomplete', top: 0, height: 2000 });
+  const link = input(p, { parentElement: wrap, top: 250 });
+  p.focus(link);
+  p.keyboard(354);  // 250..290 已在可见区里，但列表往下展开会被键盘挡住
+  const rect = link.getBoundingClientRect();
+  assert.ok(rect.top >= 8 && rect.bottom <= 354 / 3, JSON.stringify(rect));
+  const combo = page();
+  const box = input(combo, { top: 60, attrs: { role: 'combobox' } });
+  combo.focus(box);
+  combo.keyboard(354);
+  assert.deepEqual(combo.state.scrolledBy, [], 'already in the top third: nothing moves');
 });
