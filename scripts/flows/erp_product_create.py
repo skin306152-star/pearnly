@@ -11,6 +11,8 @@ import json
 import uuid
 
 TITLE = "ERP 物料：新建弹窗的字段、来由与按码认出"
+ORDER = ("code_value", "product_name", "category", "attribute", "code", "internal_code", "unit", "base_unit", "unit_price",
+         "default_cost", "default_location", "min_stock", "vat_applicable", "image_url")
 IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
 CAPTURE = ("window.__dlgs=window.__dlgs||[];if(!frappe.ui.Dialog.prototype.__cap){const o=frappe.ui.Dialog.prototype.show;"
            "frappe.ui.Dialog.prototype.show=function(){window.__dlgs.push(this);return o.apply(this,arguments)};frappe.ui.Dialog.prototype.__cap=1;}")
@@ -81,9 +83,9 @@ def judge(params, results, camera_code=None):
     fields = (by.get("新建弹窗") or {}).get("fields") or []
     category = by.get("分类原地新建") or {}
     checks = [
-        {"case": "dialog starts with barcode, name, category, attribute", "seen": fields[:5],
-         "ok": [f for f in fields if f in ("code_value", "product_name", "category", "attribute", "code")]
-         == ["code_value", "product_name", "category", "attribute", "code"]},
+        # 手机上叠成一列后的先后（用户 11-01 定）；电脑宽左栏前六项、右栏单位到低库存提醒（字段定义顺序就是叠成一列的顺序）
+        {"case": "dialog order on the phone", "seen": fields,
+         "ok": [f for f in fields if f in ORDER] == list(ORDER)},
         {"case": "category dropdown offers create and the small dialog makes it", "seen": category,
          "ok": category.get("offered") is True and category.get("prefilled") == params["category"] and bool(category.get("made"))
          and category.get("picked") == category.get("made")},

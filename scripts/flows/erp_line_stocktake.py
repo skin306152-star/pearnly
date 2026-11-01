@@ -102,7 +102,8 @@ def steps(params, camera_code=None):
          f"const b=await until(()=>[...document.querySelectorAll('.card b')].find(e=>e.innerText.trim()==={name}));"
          "return {recognised: !!b, options: [...document.querySelectorAll('#loclist option')].map(o=>[o.value,o.label]),"
          # 认出后的物料信息先后（岳父 11-01：条码、名称、分类、特性/颜色，再接编码）
-         " order: [...document.querySelectorAll('#product_info [data-k]')].map(e=>e.dataset.k),"
+         " order: [...document.querySelectorAll('#product_info [data-k], #product_info #store, #product_info #loc, #product_info #qty,"
+         " #product_info #note')].map(e=>e.dataset.k||e.id),"
          " barcode: ((document.querySelector('#product_info [data-k=barcode] span:last-child')||{}).innerText||'').trim()};"},
         {"name": "选库位记数", "js": wait +
          f"const l=document.getElementById('loc'); if(!l) return {{error:'no location box'}}; l.value={loc};"
@@ -134,7 +135,8 @@ def judge(params, results, camera_code=None):
          and (by.get("输没有的码") or {}).get("serial_kind") == "vehicle" and (by.get("输没有的码") or {}).get("vat") is True},
         {"case": "new product recognised", "seen": made, "ok": made.get("recognised") is True},
         {"case": "recognised product shows barcode, name, category, attribute, then code", "seen": made,
-         "ok": made.get("order") == ["barcode", "name", "category", "attribute", "code"] and made.get("barcode") == params["code"]},
+         "ok": made.get("order") == ["barcode", "name", "category", "attribute", "code", "book", "unit", "store", "loc", "qty", "note"]
+         and made.get("barcode") == params["code"]},
         {"case": "location list offered", "seen": options, "ok": not params["location"] or any(o[0] == params["location"] for o in options)},
         {"case": "warehouse defaults to the count's", "seen": by.get("选库位记数"), "ok": (by.get("选库位记数") or {}).get("store_default") == params["warehouse"]},
         {"case": "warehouse list offers the company's other warehouse", "seen": by.get("换仓记数"),

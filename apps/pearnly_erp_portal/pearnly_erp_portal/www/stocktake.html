@@ -285,7 +285,7 @@
           const place = defaultPlace(item);
           // 行是「商品 × 仓库 × 库位」：分几个货架就有几行，员工挑一行来数（库位跟着行走）。
           const picker = rows.length > 1
-            ? '<div class="row"><div style="flex:1"><label>'
+            ? '<div class="row" data-k="book"><div style="flex:1"><label>'
               + esc(t('stock.count.location')) + '</label><select id="place">'
               + rows.map((row, index) => '<option value="' + index + '"'
                 + (row.name === item.name ? ' selected' : '') + '>'
@@ -303,8 +303,10 @@
             + info('category', t('product.field.category'), item.category)
             + info('attribute', t('product.field.attribute'), item.attribute)
             + info('code', t(item.code_internal ? 'product.col.internalCode' : 'stock.col.code'), item.code)
-            + '<div class="row muted">' + esc((item.unit || '') + (item.location ? ' · ' + item.location : '')) + '</div>'
-            + picker
+            // 账面位置（分几个货架时让员工挑一行，同 Desk「账面位置」）、单位，再接实际仓库 / 库位 / 数量（用户 11-01 定的先后）
+            + (picker || info('book', t('stock.workbench.bookPosition'),
+              (item.warehouse_name || '') + ' / ' + (item.location || '—')))
+            + info('unit', t('stock.col.unit'), item.unit)
             + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.workbench.actualWarehouse')) + '</label>'
             + '<select id="store">' + (last?.warehouses || []).map((row) => '<option value="' + esc(row.value) + '"'
               + (row.value === place.warehouse ? ' selected' : '') + '>' + esc(row.label || row.value) + '</option>').join('')
