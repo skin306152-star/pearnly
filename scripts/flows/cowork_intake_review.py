@@ -41,7 +41,8 @@ def steps(params, camera_code=None):
          "const v=n=>(document.querySelector(`.frappe-control[data-fieldname=\"${n}\"] input, .frappe-control[data-fieldname=\"${n}\"] textarea`)||{}).value||'';"
          "return {at, seller: v('party_name'), tax: v('party_tax'), branch: v('party_branch')};"},
         {"name": "改分店号保存", "js": IDLE +
-         "const input=document.querySelector('.frappe-control[data-fieldname=\"party_branch\"] input');"
+         # 产品里一行字的 Data 格是会长高的多行框（`product.js` 的 WrapData），所以 input / textarea 都认
+         "const input=document.querySelector('.frappe-control[data-fieldname=\"party_branch\"] input, .frappe-control[data-fieldname=\"party_branch\"] textarea');"
          "if(!input) return {error:'no branch input'};"
          f"input.value={json.dumps(params['branch'])}; input.dispatchEvent(new Event('input',{{bubbles:true}})); input.dispatchEvent(new Event('change',{{bubbles:true}}));"
          "await new Promise(r=>setTimeout(r,1200)); await idle();"
