@@ -6,6 +6,8 @@
   逐行回报（``line_modes``）的码就是它；永续盘存账套的凭证借贷平衡；
 - 再写一张 JU 甲 +1 → 不再建（同名认回同一条），结存 3；
 - 领用 OU 新物料乙 1 个：账套允许负库存 → 建乙、结存 −1；不许负库存（ISINFO.NEGALLOW = N）→ ``STOCK_INSUFFICIENT``、整本逐字节不变（主会话 11-01）；
+- 有能记账的 TK 单据簿时，盘点调整 TK：盘盈新物料丁 2 个 → 建丁、结存 2（Express 原生盘盈不取载荷单价，挂不上批次记 0 或均价）；
+  盘亏新物料戊 1 个按负库存规则（同领用）；再用 CC 作废代码作废盘盈那张 → DOCSTAT C、丁结存回 0、档留着；
 - 有 RL 单据簿、STLOC、两个以上仓时，调拨新物料丙 1 个（仓 1 → 仓 2）：同上按负库存规则，写成时 STMAS 多一条丙、两仓 −1 / +1；
 - 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STMAS、STLOC、GLJNL、GLJNLIT、ISRUN 及索引）；
 - 给了 ``--runner``：照正式 CC 重建索引，并核写入集合的 CDX 与 DBF 一致（``express_cdx_check``）。
@@ -32,7 +34,7 @@ from decimal import Decimal
 from pathlib import Path
 
 WRITE_SET = {"STTRN", "STCRD", "STMAS", "STLOC", "GLJNL", "GLJNLIT", "ISRUN"}
-NEW_A, NEW_B, NEW_C = "REG ของใหม่ ก", "REG ของใหม่ ข", "REG ของใหม่ ค"
+NEW_A, NEW_B, NEW_C, NEW_D, NEW_E = "REG ของใหม่ ก", "REG ของใหม่ ข", "REG ของใหม่ ค", "REG ของใหม่ ง", "REG ของใหม่ จ"
 
 
 def main(argv=None) -> int:
@@ -49,12 +51,13 @@ def main(argv=None) -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.path.insert(0, args.companion)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    global dbf, S, D, T, account_rules, fiscal_period, stock_guard, stock_location, cdx_reindex, cdx_check, with_runner, catalog_probe
+    global dbf, S, D, T, V, account_rules, fiscal_period, stock_guard, stock_location, cdx_reindex, cdx_check, with_runner, catalog_probe
     import dbf  # noqa: F401
     from companion import account_rules, catalog_probe, cdx_reindex, fiscal_period, stock_guard, stock_location  # noqa: F401
     from companion import dbf_schema as S  # noqa: F401
     from companion import dbf_stock as D  # noqa: F401
     from companion import dbf_transfer as T  # noqa: F401
+    from companion import dbf_void as V  # noqa: F401
     import express_cdx_check as cdx_check  # noqa: F401
     with_runner = cdx_check.use_runner(cdx_reindex, args.runner)
     books = sorted(path for path in Path(args.source).iterdir() if path.is_dir() and fnmatch.fnmatch(path.name, args.pattern))
@@ -147,7 +150,7 @@ def check(acct: Path) -> dict:
     calendar = fiscal_period.load(acct)
     if not calendar:
         return {"state": "skip", "why": "no ISPRD"}
-    if any(items_named(acct, name) for name in (NEW_A, NEW_B, NEW_C)):
+    if any(items_named(acct, name) for name in (NEW_A, NEW_B, NEW_C, NEW_D, NEW_E)):
         return {"state": "skip", "why": "the regression item names already exist"}
     first = calendar.periods[0]
     day = first.beg + dt.timedelta(days=min(14, (first.end - first.beg).days))
@@ -212,6 +215,42 @@ def check(acct: Path) -> dict:
                 return {"state": "fail", "why": why or "OU refused but the book changed"}
             issue = "refused"
 
+    count, voided = "no postable TK book", ""
+    tk = D.book_row(acct, "TK")
+    if tk is not None and account_rules.postable_account(acct, tk["account"]):
+        res = D.write_stock_entry(entry("TK", docdate, [new(NEW_D, 2)], **group), acct, selected_dir=str(acct), make_backup=False)
+        if not res.ok:
+            return {"state": "fail", "why": f"TK gain new {res.error_code}: {res.error}"}
+        written.append(res.docnum)
+        made = items_named(acct, NEW_D)
+        if len(made) != 1 or text(made[0]["STKTYP"]) != "0" or num(made[0]["MREMBAL"]) != 2:
+            return {"state": "fail", "why": f"TK gain new item: {made}"}
+        gain, code_d = res.docnum, text(made[0]["STKCOD"])
+        snapshot = digests(acct, skip=set())
+        res = D.write_stock_entry(entry("TK", docdate, [new(NEW_E, -1)], **group), acct, selected_dir=str(acct), make_backup=False)
+        if negative:
+            if not res.ok:
+                return {"state": "fail", "why": f"TK loss new {res.error_code}: {res.error}"}
+            written.append(res.docnum)
+            made = items_named(acct, NEW_E)
+            if len(made) != 1 or num(made[0]["MREMBAL"]) != -1:
+                return {"state": "fail", "why": f"TK loss new item: {made}"}
+            count = "written"
+        else:
+            why = refused_untouched(acct, res, "TK loss new")
+            if why or digests(acct, skip=set()) != snapshot:
+                return {"state": "fail", "why": why or "TK loss refused but the book changed"}
+            count = "refused"
+        res = V.void_stock_entry({"action": V.ACTION, "doctype": "TK", "docnum": gain, "items": [{"code": code_d, "qty": "2"}]},
+                                 acct, selected_dir=str(acct), make_backup=False)
+        if not res.ok:
+            return {"state": "fail", "why": f"void TK {gain} {res.error_code}: {res.error}"}
+        state = [text(r["DOCSTAT"]) for r in rows(acct, "STTRN", ("DOCNUM", "DOCSTAT")) if text(r["DOCNUM"]) == gain]
+        made = items_named(acct, NEW_D)
+        if state != [V.VOIDED] or len(made) != 1 or num(made[0]["MREMBAL"]) != 0:
+            return {"state": "fail", "why": f"void TK {gain}: DOCSTAT {state}, item {made}"}
+        voided = gain
+
     transfer = "skipped"
     known = sorted(stock_location.warehouses(acct)) if (acct / "STLOC.DBF").is_file() else []
     if T.book_row(acct) is not None and len(known) >= 2:
@@ -236,7 +275,7 @@ def check(acct: Path) -> dict:
             transfer = "refused"
 
     created = len(rows(acct, "STMAS", ("STKCOD",))) - masters_before
-    if created != 1 + (issue == "written") + (transfer == "written"):
+    if created != 1 + (issue == "written") + (count in ("written", "refused")) + (count == "written") + (transfer == "written"):
         return {"state": "fail", "why": f"{created} items created"}
     index_problems = cdx_check.problems(cdx_reindex, dbf, S, acct, index_before, written) if with_runner else []
     if index_problems:
@@ -244,7 +283,7 @@ def check(acct: Path) -> dict:
     changed = sorted(name for name, digest in digests(acct).items() if files_before.get(name) != digest)
     if changed:
         return {"state": "fail", "why": f"tables outside the write set changed: {changed}"}
-    return {"state": "ok", "docs": written, "negative_allowed": negative, "chose_group": group.get("stock_acccod", ""), "issue": issue, "transfer": transfer, "perpetual": perpetual,
+    return {"state": "ok", "docs": written, "negative_allowed": negative, "chose_group": group.get("stock_acccod", ""), "issue": issue, "count": count, "voided": voided, "transfer": transfer, "perpetual": perpetual,
             "cdx_checked": sorted(index_before)}
 
 
