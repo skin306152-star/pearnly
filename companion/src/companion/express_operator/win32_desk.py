@@ -47,7 +47,8 @@ if IS_WIN:
     user32.GetAncestor.argtypes = [HWND, W.UINT]
     user32.GetAncestor.restype = HWND
     user32.SetForegroundWindow.argtypes = [HWND]
-    user32.ShowWindow.argtypes = [HWND, ctypes.c_int]
+    # Express 的窗口是别的进程的：用 ShowWindowAsync（ShowWindow 同步等对方处理，对方停在模态框里会一直不回，同 bg_desk._send）
+    user32.ShowWindowAsync.argtypes = [HWND, ctypes.c_int]
     user32.IsIconic.argtypes = [HWND]
     user32.SetCursorPos.argtypes = [ctypes.c_int, ctypes.c_int]
     user32.GetCursorPos.argtypes = [ctypes.POINTER(W.POINT)]
@@ -353,7 +354,7 @@ class WindowsDesk:
         if self.foreground()["exe"].lower() == PROCESS and not user32.IsIconic(hwnd):
             return {"title": w["title"], "already": True}  # 已在前台：不按 Alt（Alt 会收起展开的菜单）
         if user32.IsIconic(hwnd):
-            user32.ShowWindow(hwnd, 9)
+            user32.ShowWindowAsync(hwnd, 9)
         self._key_event(VK["ALT"], False)  # 按一下 Alt 才允许本进程把别的窗口拉到前台
         self._key_event(VK["ALT"], True)
         user32.SetForegroundWindow(hwnd)
@@ -779,7 +780,7 @@ class WindowsDesk:
             return False
         hwnd = HWND(main["hwnd"])
         if user32.IsIconic(hwnd):
-            user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+            user32.ShowWindowAsync(hwnd, 9)  # SW_RESTORE
         return bool(user32.SetForegroundWindow(hwnd))
 
     def close_express(self) -> Dict:
@@ -803,7 +804,7 @@ class WindowsDesk:
             return simple[op]()
         if op == "maximize_main":
             self.guard()
-            user32.ShowWindow(HWND(self.main_window()["hwnd"]), 3)
+            user32.ShowWindowAsync(HWND(self.main_window()["hwnd"]), 3)
             return {}
         if op == "us_layout":
             self.us_layout()
