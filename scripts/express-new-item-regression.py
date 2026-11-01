@@ -9,7 +9,9 @@
 - 有 RL 单据簿、STLOC、两个以上仓时，调拨新物料丙 1 个（仓 1 → 仓 2）：同上按负库存规则，写成时 STMAS 多一条丙、两仓 −1 / +1；
 - 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STMAS、STLOC、GLJNL、GLJNLIT、ISRUN 及索引）；
 - 给了 ``--runner``：照正式 CC 重建索引，并核写入集合的 CDX 与 DBF 一致（``express_cdx_check``）。
-账套没有 JU 单别、JU 默认科目不能记账、没有 ISPRD、建档找不到模板（``stock_template`` 判不出存货科目）时跳过并记原因。
+账套里用得最多的存货科目组判不出是存货科目（或一件库存品都没有）时，CC 回 ``STOCK_ACC_GROUP_UNFIT``（ERP 让人选一次组）：这里照人
+选的样子取这套账第一个合格的组（``catalog_probe.probe_isacc_candidates``）带 ``stock_acccod`` 再写，之后几张都带它；没有合格组的跳过。
+账套没有 JU 单别、JU 默认科目不能记账、没有 ISPRD 时同样跳过并记原因。
 源账套只读（只 copytree 出来），工作副本用完删掉。
 
     python3 scripts/express-new-item-regression.py --source C:\\PearnlyExpress\\70EXP --pattern "T*" --work C:\\PearnlyStress\\_newitem_reg \\
@@ -47,9 +49,9 @@ def main(argv=None) -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.path.insert(0, args.companion)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    global dbf, S, D, T, account_rules, fiscal_period, stock_guard, stock_location, cdx_reindex, cdx_check, with_runner
+    global dbf, S, D, T, account_rules, fiscal_period, stock_guard, stock_location, cdx_reindex, cdx_check, with_runner, catalog_probe
     import dbf  # noqa: F401
-    from companion import account_rules, cdx_reindex, fiscal_period, stock_guard, stock_location  # noqa: F401
+    from companion import account_rules, catalog_probe, cdx_reindex, fiscal_period, stock_guard, stock_location  # noqa: F401
     from companion import dbf_schema as S  # noqa: F401
     from companion import dbf_stock as D  # noqa: F401
     from companion import dbf_transfer as T  # noqa: F401
@@ -155,12 +157,20 @@ def check(acct: Path) -> dict:
     files_before = digests(acct)
     index_before = cdx_check.snapshot(cdx_reindex, acct, WRITE_SET) if with_runner else {}
     masters_before = len(rows(acct, "STMAS", ("STKCOD",)))
-    written = []
+    written, group = [], {}
+    whole_before = digests(acct, skip=set())
 
     res = D.write_stock_entry(entry("JU", docdate, [new(NEW_A, 2, unit_cost="10")]), acct, selected_dir=str(acct), make_backup=False)
+    if not res.ok and res.error_code == "STOCK_ACC_GROUP_UNFIT":
+        if digests(acct, skip=set()) != whole_before:
+            return {"state": "fail", "why": "the refused JU changed the book"}
+        fit = [row["acccod"] for row in catalog_probe.probe_isacc_candidates(acct) if row.get("fit")]
+        if not fit:
+            return {"state": "skip", "why": f"no fit stock group to choose: {res.error}"[:300]}
+        group = {"stock_acccod": fit[0]}  # 照人在 ERP 里选了这一组
+        res = D.write_stock_entry(entry("JU", docdate, [new(NEW_A, 2, unit_cost="10")], **group), acct, selected_dir=str(acct),
+                                  make_backup=False)
     if not res.ok:
-        if "template" in str(res.error).lower() or "acccod" in str(res.error).lower():
-            return {"state": "skip", "why": f"no stock template: {res.error_code} {res.error}"[:300]}
         return {"state": "fail", "why": f"JU new {res.error_code}: {res.error}"}
     written.append(res.docnum)
     made = items_named(acct, NEW_A)
@@ -174,7 +184,8 @@ def check(acct: Path) -> dict:
     if perpetual and not balanced_journal(acct, res.docnum):
         return {"state": "fail", "why": f"{res.docnum}: journal not balanced"}
 
-    res = D.write_stock_entry(entry("JU", docdate, [new(NEW_A, 1, unit_cost="10")]), acct, selected_dir=str(acct), make_backup=False)
+    res = D.write_stock_entry(entry("JU", docdate, [new(NEW_A, 1, unit_cost="10")], **group), acct, selected_dir=str(acct),
+                              make_backup=False)
     if not res.ok:
         return {"state": "fail", "why": f"JU again {res.error_code}: {res.error}"}
     written.append(res.docnum)
@@ -186,7 +197,7 @@ def check(acct: Path) -> dict:
     issue = "no postable OU book"
     if ou is not None and account_rules.postable_account(acct, ou["account"]):
         snapshot = digests(acct, skip=set())
-        res = D.write_stock_entry(entry("OU", docdate, [new(NEW_B, 1)]), acct, selected_dir=str(acct), make_backup=False)
+        res = D.write_stock_entry(entry("OU", docdate, [new(NEW_B, 1)], **group), acct, selected_dir=str(acct), make_backup=False)
         if negative:
             if not res.ok:
                 return {"state": "fail", "why": f"OU new {res.error_code}: {res.error}"}
@@ -205,7 +216,7 @@ def check(acct: Path) -> dict:
     known = sorted(stock_location.warehouses(acct)) if (acct / "STLOC.DBF").is_file() else []
     if T.book_row(acct) is not None and len(known) >= 2:
         snapshot = digests(acct, skip=set())
-        payload = entry("RL", docdate, [new(NEW_C, 1, loccod=known[0])], loccod=known[0], to_loccod=known[1])
+        payload = entry("RL", docdate, [new(NEW_C, 1, loccod=known[0])], loccod=known[0], to_loccod=known[1], **group)
         res = T.write_transfer(payload, acct, selected_dir=str(acct), make_backup=False)
         if negative:
             if not res.ok:
@@ -233,7 +244,7 @@ def check(acct: Path) -> dict:
     changed = sorted(name for name, digest in digests(acct).items() if files_before.get(name) != digest)
     if changed:
         return {"state": "fail", "why": f"tables outside the write set changed: {changed}"}
-    return {"state": "ok", "docs": written, "negative_allowed": negative, "issue": issue, "transfer": transfer, "perpetual": perpetual,
+    return {"state": "ok", "docs": written, "negative_allowed": negative, "chose_group": group.get("stock_acccod", ""), "issue": issue, "transfer": transfer, "perpetual": perpetual,
             "cdx_checked": sorted(index_before)}
 
 
