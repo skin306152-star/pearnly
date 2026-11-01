@@ -165,6 +165,15 @@ def test_an_item_marked_new_is_created_before_the_transfer(rl_book):
     assert _stloc(rl_book, code, "02")["LOCBAL"] == 2.0
 
 
+def test_a_new_item_is_not_transferred_out_of_a_book_that_forbids_negative_stock(rl_book):
+    from account_rules_fixture import isinfo
+    isinfo(rl_book, MAINLOC="01", ISPERPETUA="Y", NEGALLOW="N")
+    before = _state(rl_book)
+    res = _write(rl_book, _transfer([{"code": "", "name": "ถ่านอัดแท่ง", "qty": "2", "unit": "ถัง", "loccod": "01", "new_ok": True}],
+                                    payload_version=15))
+    assert not res.ok and res.error_code == stock_guard.ERR_STOCK_INSUFFICIENT and _state(rl_book) == before
+
+
 def test_negative_stock_is_refused_at_the_source_when_the_book_forbids_it(rl_book, monkeypatch):
     monkeypatch.setattr(stock_guard, "short_of", lambda *_a, **_k: [{"stkcod": "ICE01", "loccod": "01", "need": 9, "have": 5}])
     res = _write(rl_book, _transfer([_line("ICE01", 9)]))

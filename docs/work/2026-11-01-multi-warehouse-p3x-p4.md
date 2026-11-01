@@ -31,7 +31,7 @@
 - `payload_contract` 加 15，版本 1.12.10。原来把 15 当「未来版本」的三处测试改成 16。
 - 用例：`test_dbf_stock` 2 个（盘点两行同名建一个、非 true 不建、读回失败连新档回滚）、`test_dbf_transfer` 1 个、契约 `test_the_new_item_version_and_key_match`。
 - 本机暂存目录建了只装 pytest / dbf / aenum / httpx 的环境，CC 全部测试 1253 通过、42 跳过（界面类缺 PySide6）。
-- **口径待主会话再定**（11-01 已问）：`ensure_stock_item` 建的档是 `NEGALLOW = Y`，`stock_guard` 又跳过 Express 里没有的商品。所以「同销售」意味着减少方向的新商品在不许负库存的账套里也会照写成负数，评估第 12 节第 1 问「由 stock_guard 停下」不成立。
+- 负库存口径（主会话 11-01 定乙，见评估第 12 节）：`new_item_shortages` 在账套不许负库存时，把要新建且减少库存的行在建档前停下 `STOCK_INSUFFICIENT`（结存 0，原因同结存核对）。减少的行包括领用、盘亏、调出；允许负库存的账套照建照写。用例 `test_dbf_stock` / `test_dbf_transfer` 各 1 个。销售同样的问题本期不动，已列为待定。
 
 ## C 报表
 

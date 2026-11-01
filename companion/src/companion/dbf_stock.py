@@ -20,7 +20,7 @@
   重排（方案九.7 第 3 条核实）。
 - 新存货：行上的码 / 品名认不出 Express 的库存品就停下（``STOCK_ITEM_NOT_FOUND``）；人在 ERP 里选了新建的行（``new_ok``，载荷 15，
   多仓闭环 P3x）在写前备份里建 0 余额存货再写（``create_new_items``，与采购 / 销售同一个建档）。账套不允许负库存时减少的行先核结存
-  （``stock_guard``，口径同销货）。
+  （``stock_guard``，口径同销货）；要新建的行在减少（领用、盘亏）而账套不许负库存，建档前就停（``new_item_shortages``，主会话 11-01 定）。
 
 全程在一份写前备份里：任何一步失败整单回滚；写完读回单头、明细、凭证、各仓结存，不符同样回滚。
 """
@@ -320,7 +320,8 @@ def write_stock_entry(
         locations = stock_location.plan(account_dir, payload)
     except stock_location.LocationError as exc:
         return DbfWriteResult(False, error_code=ERR_LOCATION, error=str(exc))
-    short = stock_guard.shortages(account_dir, _guard_items(doctype, items), locations)
+    short = stock_guard.shortages(account_dir, _guard_items(doctype, items), locations) or new_item_shortages(
+        account_dir, items, found, lambda item: kind == ISSUE or _dec(item.get("qty")) < 0, str(payload.get("loccod") or ""))
     if short:
         return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short))
     remark = _fit(payload.get("remark") or "", 50)
@@ -371,6 +372,17 @@ def write_stock_entry(
 
 def _creatable(item) -> bool:
     return item.get("new_ok") is True and not str(item.get("code") or "").strip()
+
+
+def new_item_shortages(account_dir, items, found, reduces, header_loc="") -> List[Dict[str, Any]]:
+    """要新建的行（``found`` 里留空）里减少库存的（``reduces(item)``）：账套不许负库存时，新建的存货结存是 0，写下去必成负数，建档前
+    就停，原因同结存核对（``stock_guard.message``）；允许负库存的账套照建照写（主会话 11-01：账套设了不许负库存，就不能替它写成负数）。
+    （建档本身照采购 / 销售记 NEGALLOW = Y；商品级标记管的是以后的单，这里按账套的设置判。）"""
+    pending = [item for item, match in zip(items, found) if match is None and reduces(item)]
+    if not pending or stock_guard.negative_allowed(account_dir):
+        return []
+    return [{"stkcod": str(item.get("name") or "").strip(), "loccod": str(item.get("loccod") or header_loc or "").strip(),
+             "need": abs(_dec(item.get("qty"))), "have": Decimal(0)} for item in pending]
 
 
 def create_new_items(account_dir, items, found, *, userid) -> None:
@@ -558,4 +570,4 @@ def _verify(account_dir, docnum: str, line_count: int, total: Decimal, posted: L
 
 
 __all__ = ["DIRECTION", "ERR_ACCOUNT", "ERR_BOOK", "ERR_STOCK_ITEM", "KINDS", "book_row", "create_new_items",
-           "write_stock_entry"]
+           "new_item_shortages", "write_stock_entry"]

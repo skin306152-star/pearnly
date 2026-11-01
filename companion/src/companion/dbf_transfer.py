@@ -40,7 +40,7 @@ from . import stock_sale
 from . import stock_units
 from .consistency import account_company_matches
 from .dbf_stock import (ERR_BOOK, ERR_STOCK_ITEM, _creatable, _dec, _filtered, _fit, _next_docnum, _validate_common,
-                        create_new_items)
+                        create_new_items, new_item_shortages)
 from .dbf_writer import (
     ERR_ACCOUNT_DIR,
     ERR_COMPANY,
@@ -156,7 +156,8 @@ def write_transfer(
                                   error=f"line {index}: {item.get('name') or item.get('code')!r} is not a stock item in Express")
         found.append(match)
     # 不许负库存的账套：调出仓按销货同一个规则核（调入那边是加，不核）
-    short = stock_guard.shortages(account_dir, [{**item, "item_mode": "stock_sale"} for item in items], [source] * len(items))
+    short = stock_guard.shortages(account_dir, [{**item, "item_mode": "stock_sale"} for item in items], [source] * len(items)) \
+        or new_item_shortages(account_dir, items, found, lambda item: True, source)  # 要新建的存货调出仓结存是 0
     if short:
         return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short))
     remark = _fit(payload.get("remark") or "", 50)

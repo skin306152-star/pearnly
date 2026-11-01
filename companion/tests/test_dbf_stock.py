@@ -294,6 +294,23 @@ def test_a_line_marked_new_creates_the_item_once_and_writes_it(book):
     assert not res.ok and res.error_code == "STOCK_ITEM_NOT_FOUND"  # 只认 true，旧值 / 乱写不建
 
 
+def test_a_new_item_that_would_go_negative_stops_when_the_book_forbids_negative_stock(book):
+    """主会话 11-01：账套不许负库存时，要新建的存货在减少（领用、盘亏）就建档前停下（结存 0，原因同结存核对）；增加的照建；
+    允许负库存的账套减少的也照建照写。"""
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", NEGALLOW="N")
+    before = _state(book)
+    for payload in (_entry("OU", [_new("ถ่านอัดแท่ง", 2)], payload_version=15),
+                    _entry("TK", [_line("ICE01", 1), _new("ถ่านอัดแท่ง", -1)], payload_version=15)):
+        res = _write(book, payload)
+        assert not res.ok and res.error_code == stock_guard.ERR_STOCK_INSUFFICIENT, (res.error_code, res.error)
+        assert "ถ่านอัดแท่ง" in res.error and "have 0" in res.error
+        assert _state(book) == before
+    assert _write(book, _entry("JU", [_new("ถ่านอัดแท่ง", 2, unit_cost="5")], payload_version=15)).ok
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", NEGALLOW="Y")
+    res = _write(book, _entry("OU", [_new("ถ่านอีกชนิด", 1)], payload_version=15))
+    assert res.ok, res.error
+
+
 def test_a_failed_write_also_rolls_back_the_new_item(book):
     before = _state(book)
     with mock.patch.object(dbf_stock, "_verify", side_effect=dbf_stock._WriteError("boom", "READBACK_VERIFY_FAILED")):
