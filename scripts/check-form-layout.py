@@ -13,7 +13,8 @@ docs/work/2026-11-01-form-layout-audit.md：每栏放一类、各栏长度接近
 报哪几类（按 Section 算；隐藏字段不算；行高按字段类型估：多行文本、表格算多行，带说明的加一点，带 depends_on 的算半格）：
 - `columns`：一个 Section 超过三栏（电脑宽每栏太窄、手机上又拉得很长）；
 - `balance`：两栏以上、最长一栏比最短一栏多出 LIMIT 行以上；
-- `pair`：成对字段（名 | 姓、用户名 | 密码、起 | 止）既不在同一行、也不在同一栏里上下挨着（中间夹了别的格、或分在两节）。
+- `pair`：成对字段（名 | 姓、用户名 | 密码、起 | 止）既不是同一栏上下挨着，也不是「左栏最后一格 | 右栏第一格」并排
+  （并排的一对要单独成一节，手机上叠成单列后才挨着）。
 
 存量登记在 scripts/form-layout-baseline.json（每条写原因）：**只许减少**；修掉一条后用 `--update` 删掉它。
 条件展开（`...(新建 ? [...] : [])`）按「展开」算，因为新建那一屏最满。
@@ -348,8 +349,12 @@ def problems(form_sections):
                     top += height([item])
         if a in where and b in where:
             (sa, ca, ta, pa), (sb, cb, tb, pb) = where[a], where[b]
-            # 同一行（左右两栏同高）或同一栏上下挨着都算一对（个人信息页姓在名下面，是用户 10-31 定的）
-            ok = sa == sb and ((ca != cb and abs(ta - tb) < 0.5) or (ca == cb and abs(pa - pb) == 1))
+            # 同一栏上下挨着算一对（个人信息页姓在名下面，是用户 10-31 定的）；左右并排的，还要手机上叠成单列后挨着：
+            # 前一格是左栏最后一格、后一格是右边那栏第一格（11-01 真机验收：添加用户名姓并排，手机上中间夹了用户名）
+            cols = form_sections[sa] if sa == sb else []
+            (first, cf, pf), (second, cs, ps) = sorted([(a, ca, pa), (b, cb, pb)], key=lambda x: (x[1], x[2]))
+            beside = (sa == sb and cs == cf + 1 and abs(ta - tb) < 0.5 and pf == len(cols[cf]) - 1 and ps == 0)
+            ok = beside or (sa == sb and ca == cb and abs(pa - pb) == 1)
             if not ok:
                 found.append((f"pair:{a}|{b}", sa, f"{a} | {b} not on one row"))
     return found

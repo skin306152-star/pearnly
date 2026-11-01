@@ -199,18 +199,24 @@
 			const shown_companies = locked ? (data.companies || []).map(c => c.value) : row?.companies || [];
 			let dialog;
 			const fields = [
-				// 两栏成行（用户 10-31）：名 | 姓，用户名 | 初始密码；邮箱放右栏末尾——编辑时没有密码，左右仍各两格（11-01）
+				// 两栏成行（用户 10-31）：名 | 姓，用户名 | 初始密码（编辑时是 用户名 | 邮箱），邮箱在下。
+				// 每一对各占一节（无边框）：手机上叠成单列时也是名、姓、用户名、密码挨着（11-01 真机验收：原来名姓被拆开）。
 				// 姓名（用户 10-30：分清是哪个人）：名必填、姓可空，全站显示人名用它
 				field("first_name", "First Name", "Data", { reqd: 1, default: row?.first_name || "" }),
+				{ fieldtype: "Column Break" },
+				field("last_name", "Last Name", "Data", { default: row?.last_name || "" }),
+				{ fieldtype: "Section Break", hide_border: 1 },
 				// 用户名：**英文和数字**（用户 2026-09-24 的口径），是登录名（和邮箱一样能登）。
 				// 长度不设限；服务端还会再按"只允许英文数字 + 不重名"挡一次。
 				field("username", "Username", "Data",
 					{ reqd: 1, read_only: is_new ? 0 : 1, default: row?.username || "" }),
 				{ fieldtype: "Column Break" },
-				field("last_name", "Last Name", "Data", { default: row?.last_name || "" }),
-				...(is_new ? [field("password", "team.password", "Password", { reqd: 1 })] : []),
+				...(is_new ? [field("password", "team.password", "Password", { reqd: 1 }),
+					{ fieldtype: "Section Break", hide_border: 1 }] : []),
 				field("email", "team.email", "Data",
 					{ options: "Email", read_only: is_new ? 0 : 1, default: row?.email || "" }),
+				// 新建时邮箱单独一行：补一栏空的，宽度与上面两行的左栏一样（同 `p.field_grid` 的做法）
+				...(is_new ? [{ fieldtype: "Column Break" }] : []),
 				...roles_fields(shown_roles, () => dialog),
 				{fieldtype: "Section Break"},
 				...company_search_field(),

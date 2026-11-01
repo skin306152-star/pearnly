@@ -26,17 +26,31 @@ def problems(source):
 
 
 class FormLayout(unittest.TestCase):
-    def test_balanced_two_columns_pass(self):
+    def test_pairs_each_in_own_section_pass(self):
         forms, found = problems("""
             p.dialog(__("New"), [
                 {fieldtype: "Data", fieldname: "first_name", label: "First"},
+                {fieldtype: "Column Break"},
+                {fieldtype: "Data", fieldname: "last_name"},
+                {fieldtype: "Section Break", hide_border: 1},
+                {fieldtype: "Data", fieldname: "username"},
+                {fieldtype: "Column Break"},
+                {fieldtype: "Password", fieldname: "password"},
+            ]);""")
+        self.assertEqual(len(forms), 1)
+        self.assertEqual(found, [])
+
+    def test_side_by_side_pair_split_on_phone(self):
+        # 电脑宽名 | 姓同一行，但左栏名下面还有用户名：手机上叠成单列是名、用户名、姓
+        _, found = problems("""
+            p.dialog(__("New"), [
+                {fieldtype: "Data", fieldname: "first_name"},
                 {fieldtype: "Data", fieldname: "username"},
                 {fieldtype: "Column Break"},
                 {fieldtype: "Data", fieldname: "last_name"},
                 {fieldtype: "Password", fieldname: "password"},
             ]);""")
-        self.assertEqual(len(forms), 1)
-        self.assertEqual(found, [])
+        self.assertEqual(found, ["pair:first_name|last_name::0", "pair:username|password::0"])
 
     def test_unbalanced_and_split_pair(self):
         _, found = problems("""

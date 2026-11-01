@@ -126,16 +126,22 @@
 			const shown_roles = locked ? data.roles.map(role => role.name) : row?.roles || [];
 			let dialog;
 			const fields = [
-				// 两栏成行（用户 10-31）：名 | 姓，用户名 | 初始密码；邮箱放右栏末尾——编辑时没有密码，左右仍各两格（11-01）
+				// 两栏成行（用户 10-31）：名 | 姓，用户名 | 初始密码（编辑时是 用户名 | 邮箱），邮箱在下。
+				// 每一对各占一节（无边框）：手机上叠成单列时也是名、姓、用户名、密码挨着（11-01 真机验收：原来名姓被拆开）。
 				// 姓名（用户 10-30）：名必填、姓可空，全站显示人名用它
 				field("first_name", __("First Name"), "Data", { reqd: 1, default: row?.first_name || "" }),
+				{ fieldtype: "Column Break" },
+				field("last_name", __("Last Name"), "Data", { default: row?.last_name || "" }),
+				{ fieldtype: "Section Break", hide_border: 1 },
 				field("username", __("Username"), "Data",
 					{ reqd: 1, read_only: is_new ? 0 : 1, default: row?.username || "" }),
 				{ fieldtype: "Column Break" },
-				field("last_name", __("Last Name"), "Data", { default: row?.last_name || "" }),
-				...(is_new ? [field("password", t("cowork.team.password"), "Password", { reqd: 1 })] : []),
+				...(is_new ? [field("password", t("cowork.team.password"), "Password", { reqd: 1 }),
+					{ fieldtype: "Section Break", hide_border: 1 }] : []),
 				field("email", t("cowork.team.email"), "Data",
 					{ options: "Email", read_only: is_new ? 0 : 1, default: row?.email || "" }),
+				// 新建时邮箱单独一行：补一栏空的，宽度与上面两行的左栏一样（同 `p.field_grid` 的做法）
+				...(is_new ? [{ fieldtype: "Column Break" }] : []),
 				...roles_fields(shown_roles, () => dialog),
 			];
 			for (const item of fields) {
