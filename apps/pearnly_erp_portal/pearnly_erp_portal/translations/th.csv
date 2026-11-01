@@ -175,6 +175,8 @@ Buyer address,ที่อยู่ผู้ซื้อ
 Buyer branch,สาขาผู้ซื้อ
 Buyer tax ID,เลขประจำตัวผู้เสียภาษีของผู้ซื้อ
 By Payment Method,แยกตามวิธีรับเงิน
+By location,ตามตำแหน่ง
+By product,ตามสินค้า
 CC Desktop could not read this invoice. Check the fields and submit again,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
 CC Desktop needs an update,CC เดสก์ท็อปต้องอัปเดต
@@ -1547,6 +1549,7 @@ Value,มูลค่า
 Value Change,มูลค่าที่เปลี่ยนแปลง
 Vehicle,รถยนต์
 Vehicles,รถยนต์
+View,มุมมอง
 Visibility,การมองเห็น
 Void Reason,เหตุผลการยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ต้องการยกเลิกรายการตรวจนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ
@@ -2397,6 +2400,7 @@ stock.count.voidPick,เลือกรายการที่จะยกเ�
 stock.countEntryVoid,รายการนี้สร้างจากการตรวจนับ ยกเลิกแยกไม่ได้
 stock.field.docNoAuto,สร้างอัตโนมัติ
 stock.field.search,ค้นหาชื่อหรือบาร์โค้ด
+stock.field.view,มุมมอง
 stock.location.description,คำอธิบาย
 stock.location.fromStock,เพิ่มตำแหน่งที่มีสต็อก
 stock.location.list,รายการตำแหน่ง
@@ -2451,6 +2455,8 @@ stock.status.low,สต็อกต่ำ
 stock.status.lowWith,สต็อกต่ำ (≤{0})
 stock.status.ok,มีสินค้า
 stock.status.out,สินค้าหมด
+stock.view.position,ตามตำแหน่ง
+stock.view.product,ตามสินค้า
 stock.workbench.actualLocation,ตำแหน่งที่พบจริง
 stock.workbench.actualPositions,ตำแหน่งจริงและจำนวน
 stock.workbench.actualWarehouse,คลังที่พบจริง

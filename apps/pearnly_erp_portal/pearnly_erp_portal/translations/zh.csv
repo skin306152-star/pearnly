@@ -175,6 +175,8 @@ Buyer address,买方地址
 Buyer branch,买方分支机构
 Buyer tax ID,买方税号
 By Payment Method,按收款方式
+By location,按位置
+By product,按物料
 CC Desktop could not read this invoice. Check the fields and submit again,CC 桌面版无法读取此发票，请核对字段后重新提交
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
 CC Desktop needs an update,CC 桌面版需更新
@@ -1547,6 +1549,7 @@ Value,金额
 Value Change,金额变动
 Vehicle,车
 Vehicles,汽车
+View,显示方式
 Visibility,可见范围
 Void Reason,撤销原因
 Void all current observations for this product and recount it? Previous records remain in the history.,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。
@@ -2397,6 +2400,7 @@ stock.count.voidPick,选择要撤销的记录
 stock.countEntryVoid,此单由盘点生成，不能单独作废
 stock.field.docNoAuto,自动生成
 stock.field.search,搜索名称或条码
+stock.field.view,显示方式
 stock.location.description,说明
 stock.location.fromStock,带入有库存的库位
 stock.location.list,库位清单
@@ -2451,6 +2455,8 @@ stock.status.low,低库存
 stock.status.lowWith,低库存（≤{0}）
 stock.status.ok,正常
 stock.status.out,缺货
+stock.view.position,按位置
+stock.view.product,按物料
 stock.workbench.actualLocation,实际仓位
 stock.workbench.actualPositions,实际仓位及数量
 stock.workbench.actualWarehouse,实际仓库

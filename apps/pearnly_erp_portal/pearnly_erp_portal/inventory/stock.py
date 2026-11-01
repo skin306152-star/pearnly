@@ -10,7 +10,6 @@
 
 import frappe
 from frappe import _
-from frappe.query_builder.functions import Sum
 from frappe.utils import now, nowdate
 
 from pearnly_core.desk import list_filters
@@ -352,6 +351,8 @@ def _qty_matches(qty, op, value) -> bool:
 
 def _company_totals(products) -> dict:
     """这几件商品在当前公司所有仓里的合计在库（低库存按合计比，多仓闭环 P4；不跟页面的仓库 / 库位筛选）。"""
+    from frappe.query_builder.functions import Sum
+
     names = warehouses.names_of()
     if not products or not names:
         return {}

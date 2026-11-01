@@ -60,9 +60,9 @@
 			return {
 				q: filters.search.get_value() || undefined,
 				view: by_product() ? "product" : undefined,
-				product: by_product() ? undefined : picked.product || undefined,
+				product: by_product() ? undefined : (picked.product || undefined),
 				warehouse: picked.warehouse || undefined,
-				location: by_product() ? undefined : picked.location || undefined,
+				location: by_product() ? undefined : (picked.location || undefined),
 				qty_op: qty[2] || undefined,
 				qty_value: qty[3] === undefined || qty[3] === "" ? undefined : qty[3],
 				conditions: p.filter_conditions(list, ["qty_on_hand", "product"]),
