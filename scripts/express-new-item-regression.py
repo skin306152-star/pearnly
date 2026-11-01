@@ -164,7 +164,7 @@ def check(acct: Path) -> dict:
     if not res.ok and res.error_code == "STOCK_ACC_GROUP_UNFIT":
         if digests(acct, skip=set()) != whole_before:
             return {"state": "fail", "why": "the refused JU changed the book"}
-        fit = [row["acccod"] for row in catalog_probe.probe_isacc_candidates(acct) if row.get("fit")]
+        fit = [row["code"] for row in catalog_probe.probe_isacc_candidates(acct) if row.get("fit")]
         if not fit:
             return {"state": "skip", "why": f"no fit stock group to choose: {res.error}"[:300]}
         group = {"stock_acccod": fit[0]}  # 照人在 ERP 里选了这一组
