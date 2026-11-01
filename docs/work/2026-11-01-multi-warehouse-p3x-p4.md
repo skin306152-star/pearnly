@@ -23,6 +23,16 @@
 
 ## B CC 桌面版
 
+- `dbf_stock` / `dbf_transfer`：认码时认不出、且行上 `new_ok is True`、没有码的行先留空，写前备份里 `create_new_items` 用 `product_master.ensure_stock_item` 建 0 余额库存品（同采购 / 销售），按建出的码认回来再写。
+  - 同一张单同名两行只建一个。
+  - 调拨要建档时 STMAS 也进写前备份。
+  - 失败整单连新档一起回滚。
+- 两个模块原来就逐行回报 `line_modes`（序号 / 品名 / 存货码），服务端据此回填，不用改。
+- `payload_contract` 加 15，版本 1.12.10。原来把 15 当「未来版本」的三处测试改成 16。
+- 用例：`test_dbf_stock` 2 个（盘点两行同名建一个、非 true 不建、读回失败连新档回滚）、`test_dbf_transfer` 1 个、契约 `test_the_new_item_version_and_key_match`。
+- 本机暂存目录建了只装 pytest / dbf / aenum / httpx 的环境，CC 全部测试 1253 通过、42 跳过（界面类缺 PySide6）。
+- **口径待主会话再定**（11-01 已问）：`ensure_stock_item` 建的档是 `NEGALLOW = Y`，`stock_guard` 又跳过 Express 里没有的商品。所以「同销售」意味着减少方向的新商品在不许负库存的账套里也会照写成负数，评估第 12 节第 1 问「由 stock_guard 停下」不成立。
+
 ## C 报表
 
 ## 验证

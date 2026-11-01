@@ -16,7 +16,7 @@
 - 批次链（MLOTNUM）不写：原生 RL 的 MLOTNUM 指 Express 自己的先进先出批次，录别的单时 Express 还会重排旧行（4.6b），
   同 CC 写的其他库存单交给 Express「计算成本」排。
 
-不建新存货（认不出的行整单停 ``STOCK_ITEM_NOT_FOUND``）；两个仓都必须在这套账的仓库代码表里、且不是同一个仓；账套不许负库存时按
+认不出的行整单停 ``STOCK_ITEM_NOT_FOUND``，人在 ERP 里选了新建的行（``new_ok``，载荷 15）在写前备份里建 0 余额存货再调（同出入库单）；两个仓都必须在这套账的仓库代码表里、且不是同一个仓；账套不许负库存时按
 调出仓结存核（``stock_guard``）。全程在一份写前备份里，任何一步失败整单回滚；写完读回单头、成对明细、各仓结存、确认没有凭证。
 """
 
@@ -39,7 +39,8 @@ from . import stock_location
 from . import stock_sale
 from . import stock_units
 from .consistency import account_company_matches
-from .dbf_stock import ERR_BOOK, ERR_STOCK_ITEM, _dec, _filtered, _fit, _next_docnum, _validate_common
+from .dbf_stock import (ERR_BOOK, ERR_STOCK_ITEM, _creatable, _dec, _filtered, _fit, _next_docnum, _validate_common,
+                        create_new_items)
 from .dbf_writer import (
     ERR_ACCOUNT_DIR,
     ERR_COMPANY,
@@ -147,6 +148,9 @@ def write_transfer(
             match = stock_sale.find_stock_item(account_dir, str(item.get("name") or ""), str(item.get("code") or ""))
         except stock_sale.StockItemNotFound as exc:
             return DbfWriteResult(False, error_code=ERR_STOCK_ITEM, error=f"line {index}: {exc}")
+        if not match and _creatable(item):
+            found.append(None)  # 人在 ERP 里选了新建：写前备份里再建（`create_new_items`）
+            continue
         if not match:
             return DbfWriteResult(False, error_code=ERR_STOCK_ITEM,
                                   error=f"line {index}: {item.get('name') or item.get('code')!r} is not a stock item in Express")
@@ -157,11 +161,13 @@ def write_transfer(
         return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short))
     remark = _fit(payload.get("remark") or "", 50)
     clock.lap("checks")
-    backup_dir = _backup(account_dir, TABLES) if make_backup else None
+    # 要建新存货时主档也进写前备份（调拨本身不动 STMAS）
+    backup_dir = _backup(account_dir, TABLES + (("STMAS",) if None in found else ())) if make_backup else None
     clock.lap("backup")
     docnum = ""
     try:
         today = today or _dt.date.today()
+        create_new_items(account_dir, items, found, userid=userid)
         docnum, lines, moves = _write(account_dir, docdate_be, docdat, remark, items, found, source, target,
                                       userid=userid, today=today)
         _bump_isrun(account_dir, book["prefix"], book["jnltyp"])

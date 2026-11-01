@@ -18,7 +18,8 @@
   挂不上批次的先进先出账套记 0（同原生），平均成本账套按商品均价（待核）。主档 LASUPD 记盘点日、盘盈那一行成最新一批（MLOTNUM），
   STLOC.TAKDAT 记盘点日。先进先出的批次（MLOTNUM / LOTBAL）不写，由 Express「计算成本」
   重排（方案九.7 第 3 条核实）。
-- 不建新存货：行上的码 / 品名认不出 Express 的库存品就停下（``STOCK_ITEM_NOT_FOUND``）。账套不允许负库存时减少的行先核结存
+- 新存货：行上的码 / 品名认不出 Express 的库存品就停下（``STOCK_ITEM_NOT_FOUND``）；人在 ERP 里选了新建的行（``new_ok``，载荷 15，
+  多仓闭环 P3x）在写前备份里建 0 余额存货再写（``create_new_items``，与采购 / 销售同一个建档）。账套不允许负库存时减少的行先核结存
   （``stock_guard``，口径同销货）。
 
 全程在一份写前备份里：任何一步失败整单回滚；写完读回单头、明细、凭证、各仓结存，不符同样回滚。
@@ -39,6 +40,7 @@ from . import cdx_reindex
 from . import dbf_detail
 from . import dbf_schema as S
 from . import fiscal_period
+from . import product_master
 from . import stock_guard
 from . import stock_location
 from . import stock_sale
@@ -307,6 +309,9 @@ def write_stock_entry(
             match = stock_sale.find_stock_item(account_dir, str(item.get("name") or ""), str(item.get("code") or ""))
         except stock_sale.StockItemNotFound as exc:
             return DbfWriteResult(False, error_code=ERR_STOCK_ITEM, error=f"line {index}: {exc}")
+        if not match and _creatable(item):
+            found.append(None)  # 人在 ERP 里选了新建：写前备份里再建（`create_new_items`）
+            continue
         if not match:
             return DbfWriteResult(False, error_code=ERR_STOCK_ITEM,
                                   error=f"line {index}: {item.get('name') or item.get('code')!r} is not a stock item in Express")
@@ -326,6 +331,7 @@ def write_stock_entry(
     moves = [] if locations is not None else None
     try:
         today = today or _dt.date.today()
+        create_new_items(account_dir, items, found, userid=userid)
         docnum, lines, total, inventory = _write(account_dir, doctype, kind, docdate_be, docdat, account, remark,
                                                  items, found, locations, moves, depcod=depcod, userid=userid,
                                                  ref_no=str(payload.get("ref_no") or ""), today=today,
@@ -361,6 +367,21 @@ def write_stock_entry(
         return DbfWriteResult(False, error_code=_error_code(exc), error=str(exc),
                               backup_dir=str(backup_dir) if backup_dir else None,
                               evidence=exc.evidence if isinstance(exc, _WriteError) else None)
+
+
+def _creatable(item) -> bool:
+    return item.get("new_ok") is True and not str(item.get("code") or "").strip()
+
+
+def create_new_items(account_dir, items, found, *, userid) -> None:
+    """``found`` 里留空（``None``）的行 = Express 里没有、人选了新建的商品：建 0 余额库存品（`product_master.ensure_stock_item`：
+    克隆账套结构、单位取票面或账套众数、记真实建档日，同采购 / 销售），按建出的码认回来填进 ``found``。同一张单同名的两行只建一次
+    （建档先按品名找）。调用方已在写前备份里，失败整单回滚。"""
+    for index, item in enumerate(items):
+        if found[index] is None:
+            made = product_master.ensure_stock_item(account_dir, str(item.get("name") or ""), userid=userid,
+                                                    unit=str(item.get("unit") or ""))
+            found[index] = stock_sale.find_stock_item(account_dir, "", made.stkcod)
 
 
 def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, items, found, locations, moves, *,
@@ -536,4 +557,5 @@ def _verify(account_dir, docnum: str, line_count: int, total: Decimal, posted: L
         fail(f"journal not balanced {debit} / {credit}", "GLJNLIT")
 
 
-__all__ = ["DIRECTION", "ERR_ACCOUNT", "ERR_BOOK", "ERR_STOCK_ITEM", "KINDS", "book_row", "write_stock_entry"]
+__all__ = ["DIRECTION", "ERR_ACCOUNT", "ERR_BOOK", "ERR_STOCK_ITEM", "KINDS", "book_row", "create_new_items",
+           "write_stock_entry"]

@@ -37,7 +37,9 @@ from typing import Optional
 # 恒写 1,所以盖 13,旧版诚实拒收。
 # 14:仓间调拨 RL(``direction = stock``、``doctype = RL``,单头 ``loccod`` 调出 / ``to_loccod`` 调入;作废 RL 同号,dbf_transfer / dbf_void;
 # ERP 多仓闭环 P2)。旧版把 RL 当未知单别拒收或当领用写,所以盖 14,旧版诚实拒收、派单只交给报过支持 14 的电脑。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14})
+# 15:库存单 / 调拨的明细可带 ``new_ok``(Express 里没有、人在 ERP 里选了新建的商品;多仓闭环 P3x):写前备份里建 0 余额存货再写
+# (dbf_stock.create_new_items,与采购 / 销售同一个建档)。旧版认不出就整单停 STOCK_ITEM_NOT_FOUND,所以盖 15,旧版诚实拒收。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

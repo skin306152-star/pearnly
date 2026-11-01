@@ -18,7 +18,7 @@ def test_missing_version_defaults_to_v1_supported():
 
 
 def test_future_version_rejected():
-    assert check_payload_version({"payload_version": 15}) == ERR_PAYLOAD_VERSION
+    assert check_payload_version({"payload_version": 16}) == ERR_PAYLOAD_VERSION
 
 
 def test_supported_set_is_v1_to_v11_today():
@@ -36,7 +36,9 @@ def test_supported_set_is_v1_to_v11_today():
     # v13(2026-10-29):进货单带人选的服务品进项税口径 `srv_vattyp`(账套历史定不了时,service_vat)
     assert check_payload_version({"payload_version": 13}) is None
     # v14(2026-10-30):仓间调拨 RL 与作废 RL(dbf_transfer,多仓闭环 P2)
-    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14})
+    # v15(2026-11-01):库存单 / 调拨明细 `new_ok`(Express 里没有的商品,写前建档;多仓闭环 P3x)
+    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
+    assert check_payload_version({"payload_version": 15}) is None
     assert check_payload_version({"payload_version": 14}) is None
     assert check_payload_version({"payload_version": 12}) is None
     assert check_payload_version({"payload_version": 11}) is None

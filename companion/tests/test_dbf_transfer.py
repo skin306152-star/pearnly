@@ -147,6 +147,24 @@ def test_an_unknown_item_stops_the_whole_transfer(rl_book):
     assert _rows(rl_book, "STTRN", POSOPR="4") == []
 
 
+def test_an_item_marked_new_is_created_before_the_transfer(rl_book):
+    """多仓闭环 P3x：Express 里没有、人选了新建的行（``new_ok``，载荷 15）：主档也进写前备份，建 0 余额存货后照常调；逐行回报建出的码。
+    写失败时新档一起回滚。"""
+    item = {"code": "", "name": "ถ่านอัดแท่ง", "qty": "2", "unit": "ถัง", "loccod": "01", "new_ok": True}
+    before = _state(rl_book)
+    from unittest import mock
+    with mock.patch.object(dbf_transfer, "_verify", side_effect=dbf_transfer._WriteError("boom", "READBACK_VERIFY_FAILED")):
+        res = _write(rl_book, _transfer([item], payload_version=15), make_backup=True)
+    assert not res.ok and _state(rl_book) == before
+    res = _write(rl_book, _transfer([item], payload_version=15))
+    assert res.ok, res.error
+    made = [row for row in _rows(rl_book, "STMAS") if row["STKDES"].strip() == "ถ่านอัดแท่ง"]
+    assert len(made) == 1 and made[0]["MREMBAL"] == 0.0  # 调拨不动全仓结存
+    code = made[0]["STKCOD"].strip()
+    assert [(row["seq"], row["stkcod"]) for row in res.line_modes] == [(1, code)]
+    assert _stloc(rl_book, code, "02")["LOCBAL"] == 2.0
+
+
 def test_negative_stock_is_refused_at_the_source_when_the_book_forbids_it(rl_book, monkeypatch):
     monkeypatch.setattr(stock_guard, "short_of", lambda *_a, **_k: [{"stkcod": "ICE01", "loccod": "01", "need": 9, "have": 5}])
     res = _write(rl_book, _transfer([_line("ICE01", 9)]))

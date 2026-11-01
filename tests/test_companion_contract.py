@@ -747,6 +747,16 @@ class PosPayload(unittest.TestCase):
             self.assertTrue(quoted(path.read_text(encoding="utf-8"), "stock_books_checked"), path)
         self.assertIn('"RL"', (COMPANION / "worker.py").read_text(encoding="utf-8"))
 
+    def test_the_new_item_version_and_key_match(self):
+        """Express 里没有的商品（多仓闭环 P3x）：ERP 标 `new_ok` 时盖的版本 CC 认得，键两边同名，库存单与调拨都会建档。"""
+        erp = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express"
+        version = _literal(erp / "stock_entry.py", "NEW_ITEM_PAYLOAD_VERSION")
+        self.assertIn(version, _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
+        self.assertGreater(version, _literal(erp / "stock_entry.py", "TRANSFER_PAYLOAD_VERSION"))
+        for path in (erp / "stock_entry.py", COMPANION / "dbf_stock.py"):
+            self.assertTrue(quoted(path.read_text(encoding="utf-8"), "new_ok"), path)
+        self.assertIn("create_new_items", (COMPANION / "dbf_transfer.py").read_text(encoding="utf-8"))
+
     def test_the_vat_fields_version_and_key_match(self):
         """载荷 9（ERP 收银日汇总混有免税商品，主会话 10-26）：服务端带 `vat_fields` 时盖的版本 CC 认得、键两边同名。"""
         erp = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express"

@@ -273,9 +273,38 @@ def test_a_failed_readback_rolls_everything_back(book):
     assert _state(book) == before
 
 
+def _new(name, qty, **extra):
+    return {"code": "", "name": name, "qty": str(qty), "unit": "ถัง", "new_ok": True, **extra}
+
+
+def test_a_line_marked_new_creates_the_item_once_and_writes_it(book):
+    """多仓闭环 P3x：Express 里没有、人在 ERP 里选了新建的行（``new_ok``，载荷 15）：写前备份里建 0 余额库存品（同采购 / 销售的建档），
+    再照这个码写；同一张单同名两行只建一个；逐行回报建出的码（ERP 据此回填商品）。没标新建的照旧整单停。"""
+    before = len(_rows(book, "STMAS"))
+    res = _write(book, _entry("TK", [_new("ถ่านอัดแท่ง", 3), _new("ถ่านอัดแท่ง", 2), _line("ICE01", 1)],
+                              payload_version=15))
+    assert res.ok, res.error
+    made = [row for row in _rows(book, "STMAS") if row["STKDES"].strip() == "ถ่านอัดแท่ง"]
+    assert len(made) == 1 and len(_rows(book, "STMAS")) == before + 1
+    code = made[0]["STKCOD"].strip()
+    assert [(row["seq"], row["stkcod"]) for row in res.line_modes] == [(1, code), (2, code), (3, "ICE01")]
+    assert made[0]["MREMBAL"] == 5.0  # 盘盈两行合计
+    assert {row["STKCOD"].strip() for row in _rows(book, "STCRD", DOCNUM=res.docnum)} == {code, "ICE01"}
+    res = _write(book, _entry("JU", [{**_new("ใหม่", 1), "new_ok": "yes"}]))
+    assert not res.ok and res.error_code == "STOCK_ITEM_NOT_FOUND"  # 只认 true，旧值 / 乱写不建
+
+
+def test_a_failed_write_also_rolls_back_the_new_item(book):
+    before = _state(book)
+    with mock.patch.object(dbf_stock, "_verify", side_effect=dbf_stock._WriteError("boom", "READBACK_VERIFY_FAILED")):
+        res = _write(book, _entry("JU", [_new("ถ่านอัดแท่ง", 2, unit_cost="5")], payload_version=15), make_backup=True)
+    assert not res.ok and res.error_code == "READBACK_VERIFY_FAILED"
+    assert _state(book) == before
+
+
 def test_payload_six_is_supported_and_older_cc_desktops_refuse_it():
     assert payload_contract.check_payload_version({"payload_version": 6}) is None
-    assert payload_contract.check_payload_version({"payload_version": 15}) == payload_contract.ERR_PAYLOAD_VERSION
+    assert payload_contract.check_payload_version({"payload_version": 16}) == payload_contract.ERR_PAYLOAD_VERSION
 
 
 def test_the_worker_hands_a_stock_entry_to_the_stock_writer(monkeypatch, tmp_path):
