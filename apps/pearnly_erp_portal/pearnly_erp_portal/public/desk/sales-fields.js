@@ -5,7 +5,7 @@
 	u.call = (method, args = {}, write = false) => p.call(u.api + method, args, write ? "POST" : "GET");
 	u.labels = {
 		express_queued: __("Queued"), express_held: __("Pending"), express_failed: __("Failed"),
-		express_mismatch: __("Mismatch"),
+		express_mismatch: __("Mismatch"), express_detached: __("express.state.detached"),
 		receipt: __("Receipt"), quotation: __("Quotation"),
 		draft: __("Draft"), submitted: __("Submitted"), void: __("Cancelled"),
 		unpaid: __("Unpaid"), partial: __("Partly Paid"), paid: __("Paid"),

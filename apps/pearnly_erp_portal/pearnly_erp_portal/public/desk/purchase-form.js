@@ -199,7 +199,7 @@
 				// LINE 那张源文件由服务端按卡片补上，这里只交用户另加的附件。
 				values.attachments = state.attachments.filter(row => !row.intake && (!amended_from || !(doc.attachments || []).some(old => old.file === row.file)));
 				// 写进 Express 缺人要定的（同期账套、费用科目、同税号几个档…）提交前就问；关掉就不提交
-				if (!(await p.express_preflight("Purchase Document", {...values, company: doc.company || undefined}))) return;
+				if (!(await p.express_preflight("Purchase Document", {...values, company: doc.company || undefined}, amended_from || doc.name))) return;
 				const result = intake ? await p.call("pearnly_erp_portal.integrations.api.api_submit_line_intake", {name: intake, payload: values}, "POST")
 					: await u.call("api_post_purchase", {payload: values, request_id: state.request_id,
 					name: amended_from ? undefined : doc.name, amended_from}, true);
@@ -248,7 +248,7 @@
 				changes();
 			};
 		} else if (doc.status === "submitted" && state.can_write) {
-			if (frappe.boot.pearnly_express && doc.express_state)
+			if (doc.express_state)
 				page.add_inner_button(__("Express"), () => p.express("Purchase Document", doc.name, reload));
 			// 付清之后不再给付款入口（用户 2026-09-23：「已付不可更改」）。
 			if (doc.payment_status !== "paid") page.set_primary_action(__("Payment"), () => u.payment(doc, reload));

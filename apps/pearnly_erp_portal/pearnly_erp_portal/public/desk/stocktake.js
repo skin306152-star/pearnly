@@ -205,7 +205,7 @@
 				page.add_inner_button(t("stock.action.export"), () => void p.export_file(
 					`${api}api_stock_count_export`, {name}));
 				// 过账后整份轧差写进 Express 的盘点调整 TK：同采购 / 出入库单同一个 Express 弹窗（状态、单号、原因、再写一次）
-				if (state.task.express_state && frappe.boot.pearnly_express)
+				if (state.task.express_state)
 					page.add_inner_button(__("Express"), () => p.express("ERP Stock Count", name, () => void show_route()));
 			}
 			await render_data();

@@ -46,3 +46,5 @@ pearnly_erp_portal.patches.v1_19_terminal_main_warehouse
 pearnly_erp_portal.patches.v1_20_product_origin_express
 # 批次 / 有效期彻底删除：商品、采购明细、出入库明细的列真删（模型同步不删列，用户 10-30）
 pearnly_erp_portal.patches.v1_21_drop_batch_expiry_columns
+# 接 Express 的接上时刻：已接上的公司按第一次同步的证据回填（收银起始日 00:00 与最早写 Express 的单取早的，11-01）
+pearnly_erp_portal.patches.v1_22_express_linked_at

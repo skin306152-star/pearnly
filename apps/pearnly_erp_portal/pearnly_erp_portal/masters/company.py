@@ -148,6 +148,8 @@ def company_options(user=None) -> list:
     for row in out:
         if row["is_current"]:
             row["express_linked"] = express_push.linked(row["name"])
+            # 接过 Express（同步落过库）：列表照常出 Express 列，断开后已写 / 已断开的单照样看得见
+            row["express_used"] = bool(frappe.db.get_value(DOCTYPE, row["name"], "express_book"))
             # 页面按当前公司的类型显示按台管理（`p.unit_tracking`）
             row["company_type"] = company_type(row["name"])
     return out
@@ -513,21 +515,38 @@ def save_terminals(company=None, rows=None) -> dict:
 
 
 def disconnect_express(name=None) -> dict:
-    """断开 Express（批复 #6）：这家公司不再推送、同步（CC 桌面版报来的账套对它不再生效）；已写进 Express 的单与本地数据都不动。"""
+    """断开 Express（批复 #6）：这家公司不再推送、同步（CC 桌面版报来的账套对它不再生效）；已写进 Express 的单与本地数据都不动。
+    断开优先（主会话 11-01）：接上时刻清空，还没写进去的单撤下、标「已断开」（`push.detach`）；重新接上后从新的接上时刻算起。"""
     guard.require("company.manage")
     doc = _get(document_company(name))
     doc.express_enabled = 0
+    doc.express_linked_at = None
     doc.save()
+    _detach(doc.name)
     frappe.db.commit()
     return {"name": doc.name, "express_enabled": 0}
+
+
+def _detach(name):
+    from pearnly_erp_portal.express import push as express_push
+
+    express_push.detach(name)
 
 
 def update_company(name, **fields) -> dict:
     guard.require("company.manage")
     doc = _get(document_company(name))
     before = doc.get("vat_registered") or ""
+    was_enabled = bool(doc.get("express_enabled"))
     _apply(doc, fields)
     doc.save()
+    if was_enabled and not doc.express_enabled:
+        _detach(doc.name)  # 没连上时直接取消勾选：同「断开」
+    elif doc.express_enabled and not was_enabled:
+        from pearnly_erp_portal.express import masters as express_masters, push as express_push
+
+        if express_push.connected(doc.name):
+            express_masters.queue(doc.name)  # 重新勾上、已连上：排一次同步，落库那一刻记接上时刻，不等每小时兜底
     if (doc.get("vat_registered") or "") != before:
         _vat_changed(doc.name)
     frappe.db.commit()
@@ -647,6 +666,8 @@ def _apply(doc, fields) -> None:
 
             if express_push.connected(doc.name):
                 frappe.throw(_(DISCONNECT_FIRST))
+        if not wanted:
+            doc.express_linked_at = None
         doc.express_enabled = wanted
     if "fiscal_year_start_month" in fields:
         if not contracts.fiscal_month_ok(fields["fiscal_year_start_month"]):

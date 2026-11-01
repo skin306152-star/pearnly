@@ -698,6 +698,7 @@ Line Total,明细小计
 Line prices include VAT,明细单价已含增值税
 Lines,明细行
 Lines in this shift,当班小票
+Linked to Express At,接上 Express 时刻
 List,列表
 List Price,标价
 List actions,列表操作
@@ -805,6 +806,7 @@ Not found in the Revenue Department records,税务局未查到该税号的登记
 Not found on the document,票面未载明
 Not in the list,不在清单
 Not permitted,没有权限
+Not written to Express (disconnected),未写入 Express（已断开）
 Note,备注
 Notes,备注
 Nothing counted yet,暂无盘点记录
@@ -2129,6 +2131,7 @@ express.reason.stockInsufficient,Express 库存不足
 express.reason.stockShort,{0} · 仓 {1}：需要 {2}，现有 {3}
 express.reason.taxMissing,公司没有 13 位税号
 express.reason.warehouseUnmapped,仓库在 Express 里没有对应的仓库
+express.state.detached,未写入 Express（已断开）
 express.state.handled,已在 Express 手工处理
 express.state.refundPending,待写退货
 express.state.written,已写入

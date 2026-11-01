@@ -12,6 +12,7 @@ import json
 import pathlib
 import sys
 import tempfile
+import types
 import unittest
 from unittest import mock
 
@@ -575,6 +576,33 @@ class MasterSync(Base):
         self.sync._requeue_if_stale("CO-1", {"state": "ready", "stock": "stale"})  # 再排一轮，读写完之后的
         self.assertEqual(table["CO-1"]["express_sync_state"], "queued")
 
+    def test_the_link_time_is_written_by_the_first_landing_while_checked(self):
+        """接上时刻（主会话 11-01）：勾着「接 Express」、第一次落库那一刻记（收银起始日随它）；再落库不改；没勾的不记（断开时在读的
+        同步落进来也不算重新接上）；断开清空后（`masters.company.disconnect_express`）下一次落库重记。"""
+        import datetime as dt
+        from unittest import mock
+        table = fake.STATE.db.table("ERP Company")
+        table["CO-1"] = {"name": "CO-1", "is_active": 1, "express_enabled": 0, "express_linked_at": None}
+        clock = [dt.datetime(2026, 10, 23, 12, 1)]
+
+        def land():
+            with mock.patch.object(self.sync, "_parties", lambda *a: 0), mock.patch.object(self.sync, "_products", lambda *a: 0), \
+                    mock.patch.object(self.sync, "_warehouses", lambda *a: ({}, 0)), \
+                    mock.patch.object(self.sync, "_stock", lambda *a: 0), mock.patch.object(self.sync, "_profile", lambda *a: {}), \
+                    mock.patch.object(self.sync, "now_datetime", lambda: clock[0]), \
+                    mock.patch.object(self.sync.push, "requeue_unmapped", lambda company: 0, create=True), \
+                    mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+                self.sync.apply("CO-1", "T9", {"products": [], "stock": []})
+            return table["CO-1"].get("express_linked_at"), table["CO-1"].get("express_pos_from")
+
+        self.assertEqual(land(), (None, None))  # 没勾
+        table["CO-1"]["express_enabled"] = 1
+        self.assertEqual(land(), (dt.datetime(2026, 10, 23, 12, 1), "2026-10-23"))
+        clock[0] = dt.datetime(2026, 10, 30, 8, 0)
+        self.assertEqual(land()[0], dt.datetime(2026, 10, 23, 12, 1))  # 再落库不改
+        table["CO-1"]["express_linked_at"] = None  # 断开清空、又勾上
+        self.assertEqual(land()[0], dt.datetime(2026, 10, 30, 8, 0))
+
     def test_a_failed_read_is_recorded_once_and_a_cut_off_landing_is_queued_again(self):
         # 10-24 审查：电脑读失败的请求每分钟重发、一直算「读取中」占名额；落库被重启打断的一直停在「同步中」
         import types
@@ -897,6 +925,9 @@ class PushModule(Base):
         self.addCleanup(sys.modules.pop, "pearnly_erp_portal.express.push", None)
         from pearnly_erp_portal.express import push
         self.push = push
+        # 单据所属的公司勾着「接 Express」、已接上（`push.enabled` / `linked_at`）；断开的情形在 LinkStates 里单独测
+        fake.STATE.db.table("ERP Company")["CO-1"] = {"name": "CO-1", "express_enabled": 1,
+                                                      "express_linked_at": "2026-10-01 00:00:00"}
 
 
 class Row(dict):
@@ -1049,6 +1080,332 @@ class StockVoid(PushModule):
         self.assertEqual(reversed_, ["AD-1"])
 
 
+class LinkStates(PushModule):
+    """「接 Express」状态 × 各入口（评估 docs/work/2026-11-01-express-link-states-评估.md 1 节总表，主会话 11-01 审定）：
+    写不写只看公司勾着「接 Express」、有接上时刻，且单据开始时刻（盘点 = 开盘点，其余 = 建单，采购「修改」沿原单）不早于它；
+    不看此刻 CC 桌面版报没报账套（提交时正好没报的照排，停在没有账套等它回来）；断开优先（撤下、标已断开、不再写）。"""
+
+    LINKED = "2026-10-20 00:00:00"
+    BEFORE, AFTER = "2026-10-19 09:00:00", "2026-10-21 09:00:00"
+
+    def setUp(self):
+        super().setUp()
+        import datetime as dt
+        utils = sys.modules["frappe.utils"]
+        utils.get_datetime = lambda value: value if isinstance(value, dt.datetime) else dt.datetime.fromisoformat(str(value))
+        utils.now_datetime = lambda: dt.datetime(2026, 10, 24, 10, 0)
+        patcher = mock.patch.object(frappe, "utils", utils, create=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.enqueued = []
+        for target, value in ((frappe, "enqueue"), (frappe, "publish_realtime")):
+            patcher = mock.patch.object(target, value, lambda *a, **kw: self.enqueued.append(kw), create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        patcher = mock.patch.object(frappe.db, "commit", lambda: None, create=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        fake.STATE.db.table("ERP Warehouse").update({"W1": {"name": "W1", "company": "CO-1"},
+                                                     "W9": {"name": "W9", "company": "CO-9"}})
+        fake.STATE.db.table("ERP Company")["CO-9"] = {"name": "CO-9", "express_enabled": 1,
+                                                      "express_linked_at": self.LINKED}
+        masters = types.ModuleType("pearnly_erp_portal.express.masters")  # 主档同步不在这里测：准备时的读取、写成后的同步
+        masters.ensure = masters.forget = masters.queue = lambda *a, **k: None
+        patcher = mock.patch.dict(sys.modules, {"pearnly_erp_portal.express.masters": masters})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def company(self, enabled=1, linked_at=LINKED):
+        fake.STATE.db.table("ERP Company")["CO-1"].update(express_enabled=enabled, express_linked_at=linked_at)
+
+    def documents(self, created):
+        """五种单各一张，建单 / 开盘点在 ``created``，都已到「可以写了」的状态。"""
+        db = fake.STATE.db
+        db.table("Purchase Document")["PUR-1"] = {"name": "PUR-1", "status": "submitted", "doc_kind": "purchase_invoice",
+                                                  "company": "CO-1", "creation": created}
+        db.table("ERP Sales Document")["SD-1"] = {"name": "SD-1", "status": "submitted", "doc_kind": "receipt",
+                                                  "company": "CO-1", "creation": created}
+        db.table("ERP Stock Entry")["SE-1"] = {"name": "SE-1", "status": "submitted", "direction": "in", "ref_type": None,
+                                               "warehouse": "W1", "creation": created}
+        db.table("ERP Stock Count")["STC-1"] = {"name": "STC-1", "status": "Posted", "warehouse": "W1", "creation": created}
+        db.table("ERP POS Day Summary")["PDS-1"] = {"name": "PDS-1", "status": "submitted", "company": "CO-1",
+                                                    "creation": created}
+        return {"Purchase Document": "PUR-1", "ERP Sales Document": "SD-1", "ERP Stock Entry": "SE-1",
+                "ERP Stock Count": "STC-1", "ERP POS Day Summary": "PDS-1"}
+
+    def queued(self, created):
+        """每种单 :func:`push.queue` 后的状态。"""
+        out = {}
+        for doctype, name in self.documents(created).items():
+            self.push.queue(doctype, name)
+            out[doctype] = fake.STATE.db.table(doctype)[name].get("express_state")
+        return out
+
+    def test_unchecked_or_never_linked_companies_write_nothing(self):
+        """① 没勾；② 勾了但还没接上（CC 桌面版还没报账套、或报了还没第一次同步落库：没有接上时刻）：哪种单都不排。"""
+        for enabled, linked_at in ((0, self.LINKED), (0, None), (1, None)):
+            self.company(enabled, linked_at)
+            self.assertEqual(set(self.queued(self.AFTER).values()), {None}, (enabled, linked_at))
+        self.assertEqual(self.enqueued, [])
+        self.assertFalse(self.push.started_linked("Purchase Document", "PUR-1"))
+        self.assertIsNone(self.push.linked_at("CO-1"))
+
+    def test_documents_started_after_the_link_are_queued_without_looking_at_the_computer(self):
+        """③ 接上：五种单都排（排进后台准备）。判据不看此刻 CC 桌面版报没报账套（④c：提交时正好没报的也排，原来永久漏写）。"""
+        self.company()
+        with mock.patch.object(self.push, "connected", side_effect=AssertionError("must not look at the books")):
+            self.assertEqual(set(self.queued(self.AFTER).values()), {"queued"})
+        self.assertEqual(len(self.enqueued), 5)
+        self.assertTrue(self.push.started_linked("ERP Stock Count", "STC-1"))
+
+    def test_documents_started_before_the_link_are_never_written(self):
+        """④a：开始早于接上时刻（草稿接上前建、接上后提交；接上前开盘点、接上后过账）：不写，也不补。"""
+        self.company()
+        self.assertEqual(set(self.queued(self.BEFORE).values()), {None})
+        self.assertEqual(self.enqueued, [])
+        self.push.poll()  # 每分钟那一轮也不会捡起它们
+        self.assertEqual(self.enqueued, [])
+
+    def test_kinds_that_never_go_to_express_stay_out(self):
+        self.company()
+        self.documents(self.AFTER)
+        fake.STATE.db.table("ERP Sales Document")["SD-1"]["doc_kind"] = "quotation"
+        fake.STATE.db.table("ERP Stock Entry")["SE-1"]["ref_type"] = "count"  # 盘点生成的单：整份盘点写一张 TK
+        for doctype, name in (("ERP Sales Document", "SD-1"), ("ERP Stock Entry", "SE-1")):
+            self.push.queue(doctype, name)
+            self.assertIsNone(fake.STATE.db.table(doctype)[name].get("express_state"))
+
+    def test_an_amended_purchase_keeps_the_start_of_the_first_document(self):
+        """采购「修改」= 作废原单 + 提交新单：新单沿 ``corrected_from`` 取最早那张的开始时刻。接上前的旧单改了也不推（原单会计可能
+        已手录进 Express）；接上后开始的单改了照推。"""
+        self.company()
+        table = fake.STATE.db.table("Purchase Document")
+        for name, created, corrected in (("PUR-OLD", self.BEFORE, None), ("PUR-A1", self.AFTER, "PUR-OLD"),
+                                         ("PUR-A2", self.AFTER, "PUR-A1"), ("PUR-NEW", self.AFTER, None),
+                                         ("PUR-N1", "2026-10-22 09:00:00", "PUR-NEW")):
+            table[name] = {"name": name, "status": "submitted", "doc_kind": "goods", "company": "CO-1", "creation": created,
+                           "corrected_from": corrected}
+        self.assertEqual(str(self.push.started("Purchase Document", "PUR-A2")), self.BEFORE)
+        for name, state in (("PUR-A2", None), ("PUR-N1", "queued")):
+            self.push.queue("Purchase Document", name)
+            self.assertEqual(table[name].get("express_state"), state, name)
+        table["PUR-LOOP"] = {"name": "PUR-LOOP", "creation": self.AFTER, "corrected_from": "PUR-LOOP"}  # 坏数据成环：不死循环
+        self.assertEqual(str(self.push.started("Purchase Document", "PUR-LOOP")), self.AFTER)
+
+    def test_masters_made_with_a_document_belong_to_the_company_only_if_it_started_linked(self):
+        """随单 / 盘点里新建的客户、供应商、商品：单据开始时已接上才归这家公司（写进去后挂码），否则是各家共用的本地档。
+        盘点按开盘点那一刻：开盘点没接、中途接上，盘点里建的物料仍是本地档（这份盘点也不写 TK）。"""
+        self.company()
+        self.assertEqual(self.push.owner("CO-1", self.AFTER), "CO-1")
+        self.assertIsNone(self.push.owner("CO-1", self.BEFORE))
+        self.assertEqual(self.push.owner("CO-1", None), "CO-1")  # 新单：开始时刻就是此刻
+        self.company(linked_at=None)
+        self.assertIsNone(self.push.owner("CO-1", None))
+        self.assertIsNone(self.push.owner(None, self.AFTER))
+        source = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py").read_text(encoding="utf-8")
+        self.assertIn('"express_company": express_push.owner(company, task.creation)', source)
+        for path, owner in (("purchasing/entry.py", "express_push.owner(company, started)"),
+                            ("sales/entry.py", "express_push.owner(company, started)")):
+            self.assertIn(owner, (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal" / path).read_text(encoding="utf-8"))
+
+    def test_a_document_queued_while_the_computer_is_away_waits_and_is_written_when_it_returns(self):
+        """④c：提交时 CC 桌面版没报账套 → 照排，准备时停在「没有账套」（会自己好的原因）；每分钟再试，电脑回来就交进写账队列。"""
+        self.company()
+        self.documents(self.AFTER)
+        self.push.queue("Purchase Document", "PUR-1")
+        row = fake.STATE.db.table("Purchase Document")["PUR-1"]
+        self.assertEqual(row["express_state"], "queued")
+        results = iter([{"hold": E.NO_BOOK}, {"payload": {"payload_version": 4}, "book": {"key": "BK"}}])
+        made = []
+        with mock.patch.object(self.push, "document", lambda doctype, name: {"ref": "PUR-1@x", "number": "IV-1"}), \
+                mock.patch.object(self.push, "_company", lambda name: COMPANY), \
+                mock.patch.object(self.push.prepare, "prepare", lambda *a, **k: next(results)), \
+                mock.patch.object(self.push, "actor_of", lambda *a: "a@x"), \
+                mock.patch.object(self.push.jobs, "of_source", lambda *a: []), \
+                mock.patch.object(self.push.jobs, "enqueue", lambda **kw: made.append(kw) or {"job": "J1"}):
+            self.push.send("Purchase Document", "PUR-1")
+            self.assertEqual((row["express_state"], row["express_reason"]), ("held", E.NO_BOOK))
+            self.assertIn(E.NO_BOOK, E.RETRY_REASONS)
+            self.push.poll()
+        self.assertEqual((len(made), row["express_job"]), (1, "J1"))
+
+    def detach_fixture(self):
+        db = fake.STATE.db
+        rows = {"SE-Q": ("queued", "J1"), "SE-H": ("held", None), "SE-M": ("held", "J2"), "SE-L": ("queued", "J3"),
+                "SE-W": ("written", "J4")}
+        for name, (state, job) in rows.items():
+            db.table("ERP Stock Entry")[name] = {"name": name, "status": "submitted", "warehouse": "W1",
+                                                 "creation": self.AFTER, "express_state": state, "express_job": job,
+                                                 "express_reason": "x", "express_docnum": "OU-1" if state == "written" else ""}
+        db.table("ERP Stock Entry")["SE-OTHER"] = {"name": "SE-OTHER", "status": "submitted", "warehouse": "W9",
+                                                   "creation": self.AFTER, "express_state": "queued", "express_job": None}
+        db.table("Purchase Document")["PUR-H"] = {"name": "PUR-H", "status": "submitted", "company": "CO-1",
+                                                  "creation": self.AFTER, "express_state": "held", "express_job": None}
+        return {"J1": "queued", "J2": "manual", "J3": "leased", "J4": "done"}
+
+    def test_disconnecting_withdraws_what_is_not_written_and_marks_it_detached(self):
+        """④b / 断开优先：断开时这家公司排队中、停下的单撤掉还没被电脑领走的写账件，单据照实标「已断开」（不清空、页面看得见）；
+        电脑正在写的撤不了，结果回来：写成了记写入，没写成标已断开。已写进去的、别家公司的不动。"""
+        self.company()
+        statuses = self.detach_fixture()
+        cancelled = []
+        with mock.patch.object(self.push.jobs, "find_by_name", lambda name: {"job": name, "status": statuses[name]}), \
+                mock.patch.object(self.push.jobs, "cancel", lambda name, reason: cancelled.append((name, reason))):
+            self.company(enabled=0, linked_at=None)
+            self.assertEqual(self.push.detach("CO-1"), 4)
+        self.assertEqual(sorted(cancelled), [("J1", "disconnected"), ("J2", "disconnected")])
+        table = fake.STATE.db.table("ERP Stock Entry")
+        state = lambda doctype, name: (fake.STATE.db.table(doctype)[name]["express_state"],  # noqa: E731
+                                       fake.STATE.db.table(doctype)[name].get("express_reason"))
+        for name in ("SE-Q", "SE-H", "SE-M"):
+            self.assertEqual(state("ERP Stock Entry", name), (E.DETACHED, E.DISCONNECTED), name)
+        self.assertEqual(state("Purchase Document", "PUR-H"), (E.DETACHED, E.DISCONNECTED))
+        self.assertEqual(table["SE-L"]["express_state"], "queued")  # 电脑正在写：等结果
+        self.assertEqual(table["SE-W"]["express_state"], "written")
+        self.assertEqual(table["SE-OTHER"]["express_state"], "queued")
+        with mock.patch.object(self.push, "link_party", lambda *a: None), \
+                mock.patch.object(self.push, "link_products", lambda *a: None):
+            self.push.job_changed({"source_doctype": "ERP Stock Entry", "source_name": "SE-L", "status": "manual",
+                                   "job": "J3", "request_key": "erp:stock:SE-L@x", "reason": "[PERIOD_LOCKED] x"})
+        self.assertEqual(state("ERP Stock Entry", "SE-L"), (E.DETACHED, E.DISCONNECTED))
+        table["SE-L"]["express_state"] = "queued"
+        with mock.patch.object(self.push, "link_party", lambda *a: None), \
+                mock.patch.object(self.push, "link_products", lambda *a: None):
+            self.push.job_changed({"source_doctype": "ERP Stock Entry", "source_name": "SE-L", "status": "success",
+                                   "job": "J3", "request_key": "erp:stock:SE-L@x", "docnum": "OU-9"})
+        self.assertEqual((table["SE-L"]["express_state"], table["SE-L"]["express_docnum"]), ("written", "OU-9"))
+
+    def test_after_disconnecting_send_poll_answer_retry_and_mark_handled_write_nothing(self):
+        """断开后 send / poll / answer / retry / mark_handled 都复核勾选：不再准备、不再交进写账队列（原来照写，评估 4.a 反证 4）。"""
+        self.company(enabled=0, linked_at=None)
+        table = fake.STATE.db.table("Purchase Document")
+        table["PUR-1"] = {"name": "PUR-1", "status": "submitted", "company": "CO-1", "creation": self.AFTER,
+                          "express_state": "queued", "express_job": None, "express_reason": ""}
+        with mock.patch.object(self.push.prepare, "prepare", side_effect=AssertionError("must not prepare")), \
+                mock.patch.object(self.push.jobs, "enqueue", side_effect=AssertionError("must not queue")):
+            self.push.poll()
+        self.assertEqual((table["PUR-1"]["express_state"], table["PUR-1"]["express_reason"]), (E.DETACHED, E.DISCONNECTED))
+        utils = sys.modules["frappe.utils"]
+        for name, value in (("now", lambda: "2026-10-24 00:00:00"), ("flt", lambda v, *a: float(v or 0)),
+                            ("cint", lambda v: int(v or 0)), ("getdate", lambda v=None: v), ("add_days", lambda d, n: d)):
+            setattr(utils, name, getattr(utils, name, value))
+        from pearnly_erp_portal.express import api
+        row = types.SimpleNamespace(name="PDS-1", company="CO-1", express_state="held", express_job=None,
+                                    express_void_state=None, express_book=None, express_docnum="", express_reason="x",
+                                    express_needed=None, get=lambda key: None)
+        with mock.patch.object(api, "_document", lambda doctype, name, write=False: row), \
+                mock.patch.object(api.push, "send", side_effect=AssertionError("must not send")):
+            for call in (lambda: api.answer("ERP POS Day Summary", "PDS-1", "[]"),
+                         lambda: api.retry("ERP POS Day Summary", "PDS-1"),
+                         lambda: api.mark_handled("ERP POS Day Summary", "PDS-1", reason="x")):
+                with self.assertRaises(frappe.PermissionError):
+                    call()
+            view = api._view("ERP POS Day Summary", row)
+        self.assertEqual((view["state"], view["can_answer"], view["can_retry"], view["can_mark_handled"]),
+                         ("held", False, False, False))
+
+    def test_a_written_entry_voided_after_disconnecting_still_voids_in_express(self):
+        """④d：已写进 Express 的出入库单断开后在 ERP 作废，照样排 Express 作废原单（那张单确实在 Express 里）。"""
+        self.company(enabled=0, linked_at=None)
+        fake.STATE.db.table("ERP Stock Entry")["SE-1"] = {"name": "SE-1", "creation": "2026-10-25 10:00:00", "owner": "a@x",
+                                                          "warehouse": "W1", "express_state": "written",
+                                                          "express_docnum": "OU691025-001", "express_void_job": None}
+        made = []
+        with mock.patch.object(self.push, "_company", lambda name: COMPANY), \
+                mock.patch.object(self.push.stock_entry, "void_payload",
+                                  lambda name, company: {"payload": {"payload_version": 8}, "book": {"key": "BK"}}), \
+                mock.patch.object(self.push.jobs, "enqueue", lambda **kw: made.append(kw) or {"job": "J9"}):
+            self.push.void("ERP Stock Entry", "SE-1")
+        self.assertEqual((len(made), fake.STATE.db.table("ERP Stock Entry")["SE-1"]["express_void_state"]), (1, "queued"))
+
+    def test_disconnect_clears_the_link_time_and_relinking_starts_from_the_next_landing(self):
+        """公司页「断开」、没连上时直接取消勾选：清接上时刻、撤单；重新勾上（已连上）排一次同步，落库那一刻重记接上时刻
+        （`masters.apply`，见 MasterSync 的接上时刻测试）。"""
+        from pearnly_erp_portal.masters import company as companies
+        table = fake.STATE.db.table("ERP Company")
+        self.company()
+        table["CO-1"].update(company_name="CO", tax_id=OWN, branch="00012", vat_registered="yes")
+        detached, synced, connected = [], [], {"CO-1": False}
+        masters = sys.modules["pearnly_erp_portal.express.masters"]
+        with mock.patch.object(companies.guard, "require", lambda *a: None), \
+                mock.patch.object(companies, "document_company", lambda name: name), \
+                mock.patch.object(self.push, "detach", lambda name: detached.append(name)), \
+                mock.patch.object(self.push, "connected", lambda name: connected[name]), \
+                mock.patch.object(masters, "queue", synced.append), \
+                mock.patch.dict(sys.modules, {"pearnly_erp_portal.express.push": self.push}):
+            companies.update_company("CO-1", express_enabled=0)  # 没连上：可以直接取消勾选，同断开
+            self.assertEqual((table["CO-1"]["express_enabled"], table["CO-1"]["express_linked_at"], detached),
+                             (0, None, ["CO-1"]))
+            connected["CO-1"] = True
+            companies.update_company("CO-1", express_enabled=1)  # 重新勾上、已连上：排一次同步，接上时刻等落库时记
+            self.assertEqual((table["CO-1"]["express_enabled"], table["CO-1"]["express_linked_at"], synced),
+                             (1, None, ["CO-1"]))
+            table["CO-1"]["express_linked_at"] = self.LINKED
+            with self.assertRaises(frappe.ValidationError):
+                companies.update_company("CO-1", express_enabled=0)  # 连着时要先「断开」
+            companies.disconnect_express("CO-1")
+            self.assertEqual((table["CO-1"]["express_enabled"], table["CO-1"]["express_linked_at"], detached),
+                             (0, None, ["CO-1", "CO-1"]))
+
+    def test_the_cashier_day_takes_only_receipts_sold_after_the_link(self):
+        """收银日汇总 / 退货单只收接上时刻之后卖 / 退的小票（原来按第一次同步那天整天算，断开后重新接上会把断开期间的补写进去，
+        评估 4.a 反证 1）；每晚只轮到勾着、有接上时刻的公司（不看此刻 CC 桌面版报没报账套）。"""
+        from pearnly_erp_portal.express import pos_day
+        for scope in (pos_day._RECEIPTS, pos_day._REFUNDS):
+            self.assertIn("c.express_enabled = 1 AND c.express_linked_at IS NOT NULL AND s.sold_at >= c.express_linked_at",
+                          scope)
+            self.assertNotIn("express_pos_from", scope)
+        self.company()
+        fake.STATE.db.table("ERP Company")["CO-1"]["is_active"] = 1
+        fake.STATE.db.table("ERP Company")["CO-2"] = {"name": "CO-2", "is_active": 1, "express_enabled": 1}
+        fake.STATE.db.table("ERP Company")["CO-3"] = {"name": "CO-3", "is_active": 1, "express_enabled": 0,
+                                                      "express_linked_at": self.LINKED}
+        self.assertEqual([row.name for row in pos_day.linked_companies()], ["CO-1"])
+
+    def test_printing_follows_the_document_not_the_company_at_print_time(self):
+        """销售单标题按单据自己的 Express 状态（排上 / 写成 → 送货单），不按打印时公司接没接；已断开、从没排上的打非税收据。"""
+        self.assertEqual([E.in_express(state) for state in (None, "", "queued", "held", "written", "detached")],
+                         [False, False, True, True, True, False])
+        source = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/printing/context.py").read_text(encoding="utf-8")
+        self.assertIn('express_contracts.in_express(doc.get("express_state"))', source)
+        self.assertNotIn("push.linked(doc.company)", source)
+
+
+class LinkedAtBackfill(unittest.TestCase):
+    """补丁 v1_22：已接上（勾着、落过库）的公司按第一次同步的证据回填接上时刻 —— 收银起始日 00:00 与已排进 / 写进 Express 的单
+    最早的建单时刻取早的（已写过、正在排队的单都不早于它，行为不变）；都查不到记补丁时刻；只填空值。"""
+
+    def test_backfill_takes_the_earliest_evidence(self):
+        import datetime as dt
+        utils = types.ModuleType("frappe.utils")
+        utils.get_datetime = lambda value: value if isinstance(value, dt.datetime) else dt.datetime.fromisoformat(str(value))
+        utils.now_datetime = lambda: dt.datetime(2026, 11, 2, 1, 0)
+        companies = [{"name": "CO-A", "express_pos_from": "2026-10-10", "express_book": "T9"},
+                     {"name": "CO-B", "express_pos_from": "2026-10-10", "express_book": "T9"},
+                     {"name": "CO-C", "express_pos_from": None, "express_book": "T9"}]
+        earliest = {("CO-A", "ERP Stock Entry"): dt.datetime(2026, 10, 9, 13, 0), ("CO-B", "Purchase Document"): "2026-10-12 09:00:00"}
+        written = {}
+
+        def sql(query, values=None, as_dict=False):
+            if "FROM `tabERP Company`" in query:
+                self.assertIn("express_enabled = 1 AND express_linked_at IS NULL", query)
+                return [types.SimpleNamespace(**row) for row in companies]
+            doctype = query.split("FROM `tab", 1)[1].split("`", 1)[0]
+            return [(earliest.get((values[0], doctype)),)]
+
+        db = types.SimpleNamespace(has_column=lambda doctype, column: True, table_exists=lambda doctype: True, sql=sql,
+                                   set_value=lambda doctype, name, field, value, update_modified=True: written.update({name: value}),
+                                   commit=lambda: None)
+        with mock.patch.dict(sys.modules, {"frappe.utils": utils}), mock.patch.object(frappe, "db", db), \
+                mock.patch("builtins.print"):
+            sys.modules.pop("pearnly_erp_portal.patches.v1_22_express_linked_at", None)
+            from pearnly_erp_portal.patches import v1_22_express_linked_at as patch
+            patch.execute()
+        sys.modules.pop("pearnly_erp_portal.patches.v1_22_express_linked_at", None)
+        self.assertEqual(written, {"CO-A": dt.datetime(2026, 10, 9, 13, 0), "CO-B": dt.datetime(2026, 10, 10, 0, 0),
+                                   "CO-C": dt.datetime(2026, 11, 2, 1, 0)})
+
+
 class PosDaySend(PushModule):
     """同一天的退货冲减后（主会话 10-25）：一天全退什么都不写；冲成负数停下交人，原因 ``express.pos_net_negative``。"""
 
@@ -1159,7 +1516,7 @@ class PosDayExits(PushModule):
         from pearnly_erp_portal.express import api
         writes, cancelled, sent, comments = {}, [], [], []
         self.comments = comments
-        doc = types.SimpleNamespace(name="PDS-1", express_job="J1" if job else None, express_void_state=None,
+        doc = types.SimpleNamespace(name="PDS-1", company="CO-1", express_job="J1" if job else None, express_void_state=None,
                                     get=lambda key: None, **row)
         with mock.patch.object(api, "_document", lambda doctype, name, write=False: doc), \
                 mock.patch.object(api, "_view", lambda doctype, row: "view"), \
@@ -1360,68 +1717,108 @@ class ServiceLinesTakeNoWarehouse(unittest.TestCase):
 class StockAlignment(MasterSync):
     """出入库第一期（10-25）：对齐目标算全部还没进 Express 的 ERP 变动；调整写回原库位；Express 自己对不上的存货不抹、进差异清单。"""
 
-    def test_pending_counts_every_erp_move_not_yet_in_express(self):
+    def test_pending_counts_only_moves_of_documents_started_after_the_link(self):
+        """主会话 11-01（库存对齐统一口径）：只叠加开始时刻不早于接上时刻、还没写成的单；更早开始的一律不叠加，接上后 ERP 结存以
+        Express 为准。原来接上前的出入库 / 盘点 / 小票永久叠加，采购 / 销售 / 期初却被覆盖（评估 4.a 反证 3）。"""
+        import types
         sync = self.sync
         sync.stock.MOVEMENT = "ERP Stock Movement"
+        since = "2026-10-20 00:00:00"
+        sync.push.linked_at = lambda company: since if company == "CO-1" else None
+        sync.push.VOIDED = "voided"
+        before, after = "2026-10-19 10:00:00", "2026-10-21 10:00:00"
         moves = [
-            # (ref_type, ref_id, product, warehouse, qty)
-            ("purchase", "PUR-1", "P1", "W1", 10),          # 采购单已写进 Express：不算
-            ("purchase", "PUR-2", "P1", "W1", 4),           # 采购单还没写：算
-            ("ERP Sales Document", "SD-1", "P1", "W1", -3),  # 销售记录还没写：算
-            ("sale", "RCPT-1", "P1", "W1", -2),             # 收银小票还没进已写入的日汇总：算
-            ("sale", "RCPT-9", "P1", "W1", -5),             # 收银小票在已写进 Express 的日汇总里：不算（B3a）
-            ("refund", "RCPT-2", "P1", "W1", 1),
-            ("stock_entry", "SE-1", "P1", "W2", 7),          # 出入库单还没写进 Express（B 段之前开的、没写成的）：算
-            ("stock_entry", "SE-2", "P1", "W2", -4),         # 出入库单已写进 Express：不算
-            ("stock_entry", "SE-3", "P1", "W2", -6),         # 已写进去、又在 Express 作废完的出入库单：原单不算
-            ("void", "SE-3", "P1", "W2", 6),                 # 它的冲销 Express 里也有了：不算（验收 10-25）
-            ("stock_entry", "SE-4", "P1", "W2", -2),         # 已写进去、作废还在排队：原单不算
-            ("void", "SE-4", "P1", "W2", 2),                 # 冲销 Express 里还没有：算
-            ("count", "SC-2", "P1", "W1", 2),                # 盘点生成的单，所在盘点已整份写进 Express：不算
-            ("count", "SC-1", "P1", "W2", -1),               # 盘点调整：算
-            ("void", "PUR-1", "P1", "W1", -10),              # 写进去之后作废的冲销：ERP 独有，算
-            (None, None, "P1", "W2", 5),                     # 没有来源：算
-            ("express_sync", None, "P1", "W1", 99),          # 同步调整本身：不算
-            ("opening", "OP-1", "P1", "W1", 50),             # 期初：不算
-            ("sale", "RCPT-3", "P2", "W1", -6),              # 不是这家公司 Express 来的品：不管
+            # (ref_type, ref_id, product, warehouse, qty, 流水时刻)
+            ("purchase", "PUR-1", "P1", "W1", 10, after),          # 采购单已写进 Express：不算
+            ("purchase", "PUR-2", "P1", "W1", 4, after),           # 接上之后开始、排队中：算
+            ("purchase", "PUR-F", "P1", "W1", 3, after),           # 接上之后开始、写失败：算（还没写成）
+            ("purchase", "PUR-OLD", "P1", "W1", 8, after),         # 草稿接上前建、接上后提交：开始早于接上，不写也不算
+            ("ERP Sales Document", "SD-1", "P1", "W1", -3, after),  # 销售记录停下：算
+            ("stock_entry", "SE-1", "P1", "W2", 7, after),          # 出入库单排队中：算
+            ("stock_entry", "SE-2", "P1", "W2", -4, after),         # 已写进 Express：不算
+            ("stock_entry", "SE-3", "P1", "W2", -6, after),         # 已写进去、又在 Express 作废完：原单不算
+            ("void", "SE-3", "P1", "W2", 6, after),                 # 它的冲销 Express 里也有了：不算（验收 10-25）
+            ("stock_entry", "SE-4", "P1", "W2", -2, after),         # 已写进去、作废还在排队：原单不算
+            ("void", "SE-4", "P1", "W2", 2, after),                 # 冲销 Express 里还没有：算
+            ("stock_entry", "SE-OLD", "P1", "W2", 9, before),       # 接上前的出入库单：不算（原来永久叠加）
+            ("stock_entry", "SE-OLD2", "P1", "W2", 11, after),      # 草稿接上前建、接上后提交：不算
+            ("stock_entry", "SE-D", "P1", "W2", 12, after),         # 断开时撤下的（已断开）：不算
+            ("count", "SC-1", "P1", "W1", -1, after),               # 排队中的盘点生成的单：算
+            ("count", "SC-2", "P1", "W1", 2, after),                # 盘点已整份写进 Express：不算
+            ("count", "SC-OLD", "P1", "W1", 5, before),             # 接上前过账的盘点：不算
+            ("void", "PUR-1", "P1", "W1", -10, after),              # 采购写进去之后在 ERP 作废：ERP 独有，算
+            ("void", "PUR-OLD", "P1", "W1", -8, after),             # 接上前开始的单作废：原单不算，冲销也不算
+            ("sale", "RCPT-1", "P1", "W1", -2, after),              # 接上之后卖、还没汇总：算
+            ("refund", "RCPT-2", "P1", "W1", 1, after),
+            ("sale", "RCPT-9", "P1", "W1", -5, after),              # 在已写进 Express 的日汇总里：不算（B3a）
+            ("sale", "RCPT-OLD", "P1", "W1", -7, before),           # 接上前卖的：不算（原来永久叠加）
+            ("sale", "RCPT-V", "P1", "W1", -4, after),              # 接上后卖、又作废：原单与冲销都算，正好抵消
+            ("void", "RCPT-V", "P1", "W1", 4, after),
+            (None, None, "P1", "W1", 5, after),                     # 没有来源（从不写进 Express）：接上之后的算
+            (None, None, "P1", "W1", 30, before),                   # 接上前的：不算
+            ("express_sync", None, "P1", "W1", 99, after),          # 同步调整本身：不算
+            ("opening", "OP-1", "P1", "W1", 50, after),             # 期初：不算
+            ("sale", "RCPT-3", "P2", "W1", -6, after),              # 不是这家公司 Express 来的品：不管
         ]
-        open_docs = {"Purchase Document": ["PUR-2"], "ERP Sales Document": ["SD-1"], "ERP Stock Entry": ["SE-2", "SE-3", "SE-4"],
-                     "ERP Stock Count": ["STC-2"]}
+        docs = {
+            "Purchase Document": [("PUR-1", "written", None), ("PUR-2", "queued", None), ("PUR-F", "failed", None),
+                                  ("PUR-OLD", None, None)],
+            "ERP Sales Document": [("SD-1", "held", None)],
+            "ERP Stock Entry": [("SE-1", "queued", None), ("SE-2", "written", None), ("SE-3", "written", "voided"),
+                                ("SE-4", "written", "queued"), ("SE-OLD", None, None), ("SE-OLD2", None, None),
+                                ("SE-D", "detached", None)],
+            "ERP Stock Count": [("STC-1", "queued", None), ("STC-2", "written", None), ("STC-OLD", None, None)],
+        }
+        count_entries = {"STC-1": ["SC-1"], "STC-2": ["SC-2"], "STC-OLD": ["SC-OLD"]}
+        receipts = {"RCPT-1": (after, None), "RCPT-2": (after, None), "RCPT-9": (after, "written"),
+                    "RCPT-OLD": (before, None), "RCPT-V": (after, None), "RCPT-3": (after, None)}
+
+        def matches(value, condition):
+            if isinstance(condition, list):
+                op, wanted = condition
+                return {"in": lambda: value in wanted, "not in": lambda: value not in wanted, "!=": lambda: value != wanted,
+                        ">=": lambda: value >= wanted, "=": lambda: value == wanted}[op]()
+            return value == condition
 
         def get_all(doctype, filters=None, fields=None, pluck=None, group_by=None, **kw):
-            if doctype == "ERP Stock Entry" and isinstance(filters, dict) and filters.get("ref_type") == "count":
-                self.assertEqual(filters["ref_id"], ["in", ["STC-2"]])
-                return ["SC-2"]  # 已写进 Express 的那份盘点生成的单
-            if doctype == "ERP Stock Entry" and isinstance(filters, dict) and "express_void_state" in filters:
-                self.assertEqual(filters["express_void_state"], "voided")
-                return ["SE-3"]  # 在 Express 作废完的单
-            if doctype in open_docs:
-                if doctype in ("ERP Stock Entry", "ERP Stock Count"):
-                    self.assertEqual(filters["express_state"], ["in", ("written", "mismatch", "handled")])
-                return list(open_docs[doctype])
-            rows = [dict(zip(("ref_type", "ref_id", "product", "warehouse", "qty"), m)) for m in moves]
-            for field, op, value in filters:
-                rows = [r for r in rows if (r[field] in value if op == "in" else r[field] == value)]
-            keys = [part.strip() for part in group_by.split(",")]
-            out = {}
-            for r in rows:
-                k = tuple(r[f] for f in keys)
-                out[k] = out.get(k, 0) + r["qty"]
-            import types
-            return [types.SimpleNamespace(**dict(zip(keys, k)), qty=v) for k, v in out.items()]
-
-        import types
-        summarized = [types.SimpleNamespace(product="P1", warehouse="W1", qty=-5)]  # RCPT-9 的流水（日汇总已写入）
+            if doctype == "ERP Stock Movement":
+                rows = [dict(zip(("ref_type", "ref_id", "product", "warehouse", "qty", "creation"), m)) for m in moves]
+                for field, op, value in filters:
+                    rows = [r for r in rows if r[field] is not None and matches(r[field], [op, value])]
+                keys = [part.strip() for part in group_by.split(",")]
+                out = {}
+                for r in rows:
+                    k = tuple(r[f] for f in keys)
+                    out[k] = out.get(k, 0) + r["qty"]
+                return [types.SimpleNamespace(**dict(zip(keys, k)), qty=v) for k, v in out.items()]
+            if doctype == "ERP Stock Entry" and filters.get("ref_type") == "count":
+                return [entry for count in filters["ref_id"][1] for entry in count_entries[count]]
+            names = []
+            for name, state, void_state in docs[doctype]:
+                row = {"name": name, "express_state": state or "", "express_void_state": void_state or "",
+                       "company": "CO-1", "warehouse": "W1"}
+                if all(matches(row[field], value) for field, value in filters.items()):
+                    names.append(name)
+            return names
 
         def sql(query, values=None, as_dict=False):
             self.assertIn("tabERP POS Day Summary", query)
-            self.assertEqual(values["written"], ("written", "mismatch", "handled"))
-            return summarized
+            self.assertEqual((values["sales"], values["written"]), (("sale", "refund"), ("written", "mismatch", "handled")))
+            out = {}
+            for ref_type, ref_id, product, warehouse, qty, created in moves:
+                sold = receipts.get(ref_id)
+                if ref_type not in values["sales"] or not sold or sold[0] < values["since"] or created < values["since"] \
+                        or (sold[1] or "") in values["written"] or product not in values["products"]:
+                    continue
+                out[(ref_id, product, warehouse)] = out.get((ref_id, product, warehouse), 0) + qty
+            return [types.SimpleNamespace(ref_id=k[0], product=k[1], warehouse=k[2], qty=v) for k, v in out.items()]
 
         with mock.patch.object(sync.frappe, "get_all", side_effect=get_all), \
                 mock.patch.object(sync.frappe.db, "sql", side_effect=sql):
             pending = sync._pending("CO-1", {"ICE-01": "P1"}, {"01": "W1", "02": "W2"})
-        self.assertEqual(pending, {("ICE-01", "01"): Decimal(4 - 3 - 2 + 1 - 10), ("ICE-01", "02"): Decimal(7 - 1 + 5 + 2)})
+            self.assertEqual(sync._pending("CO-2", {"ICE-01": "P1"}, {"01": "W1"}), {})  # 没接上：不叠加
+        self.assertEqual(pending, {("ICE-01", "01"): Decimal(4 + 3 - 3 - 1 - 10 - 2 + 1 - 4 + 4 + 5),
+                                   ("ICE-01", "02"): Decimal(7 + 2)})
 
     def test_express_own_mismatch_is_listed_and_not_aligned(self):
         sync = self.sync

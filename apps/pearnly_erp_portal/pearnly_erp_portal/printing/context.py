@@ -273,11 +273,12 @@ def _customer(doc) -> dict:
 
 
 def _sales(doc) -> dict:
-    """报价单 / 销售单。销售单标题按税票口径写死：接了 Express 打送货单（并印 Express 单号），没接打非税收据。"""
-    from pearnly_erp_portal.express import push
+    """报价单 / 销售单。销售单标题按税票口径写死：这张单写进 Express（排上了、写成了）打送货单（并印 Express 单号），没写的打
+    非税收据。按单据自己的 Express 状态，不按打印时公司接没接（主会话 11-01：接上前的单接上后打印、写进去后断开再打印都不变）。"""
+    from pearnly_erp_portal.express import contracts as express_contracts
 
     quotation = doc.doc_kind == contracts.QUOTATION
-    linked = (not quotation) and push.linked(doc.company)
+    linked = (not quotation) and express_contracts.in_express(doc.get("express_state"))
     rows = _trade_rows(doc, units=not quotation)
     ctx = _base(doc.doc_kind, doc, doc.company, doc.system_no, doc.doc_date, doc.note, doc.status == "void")
     # 信息框：值是付款方式时标 `method`，模板按付款方式标签表印

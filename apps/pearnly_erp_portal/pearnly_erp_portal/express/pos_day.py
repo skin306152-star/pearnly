@@ -45,19 +45,21 @@ VAT_FIELDS_PAYLOAD_VERSION = 9  # 带 `vat_fields` 的载荷：旧版 CC 会按�
 EXEMPT_MODE = "exempt_mode"
 EXEMPT_SPLIT, EXEMPT_WHOLE = "split", "whole"  # 按商品免税拆开写（建议）/ 照账套现在的设置整张计税
 VAT_REGISTERED = "vat_registered"  # 单据上问一次的那一项：这家公司是不是增值税登记户（记在公司上，`masters.company`）
-# 只汇总公司「收银写 Express 起始日」（第一次接上 Express 那天；已接的公司由补丁记成上线当天）及以后的小票：之前的不补写
-# （会计可能已手录过、期间可能已关账；验收 10-25）。没有起始日的公司一张都不汇总。销售小票，加上原单同一天卖的退货小票。
+# 只汇总公司「接上时刻」（`push.linked_at`：勾着且主档同步落库那一刻，断开清空、重新接上重记；主会话 11-01）之后卖的小票：
+# 之前的不补写（会计可能已手录过、期间可能已关账；验收 10-25），断开期间卖的重新接上后也不补。没接上的公司一张都不汇总。
+# 销售小票，加上原单同一天卖的退货小票。
 # 自连接原单（o）而不是子查询：UPDATE 里子查询读同一张表 MariaDB 不一定认
 _TABLES = """`tabERP Sale` s JOIN `tabERP Warehouse` w ON w.name = s.warehouse
     JOIN `tabERP Company` c ON c.name = w.company LEFT JOIN `tabERP Sale` o ON o.name = s.return_against"""
 _RECEIPTS = """w.company = %(company)s AND s.status = 'completed'
     AND (s.sale_type = 'sale' OR (s.sale_type = 'refund' AND DATE(o.sold_at) = DATE(s.sold_at)
                                   AND COALESCE(o.express_summary, '') = ''))
-    AND c.express_pos_from IS NOT NULL AND DATE(s.sold_at) >= c.express_pos_from"""
+    AND c.express_enabled = 1 AND c.express_linked_at IS NOT NULL AND s.sold_at >= c.express_linked_at"""
 _SCOPE = f"FROM {_TABLES} WHERE {_RECEIPTS}"
-# 退货单 SR 收的退货小票：原小票已经进了某张日汇总（HS），退货自己还没汇总
+# 退货单 SR 收的退货小票：原小票已经进了某张日汇总（HS），退货自己还没汇总，且是接上之后退的（断开期间的不补）
 _REFUNDS = f"""FROM {_TABLES} WHERE w.company = %(company)s AND s.status = 'completed' AND s.sale_type = 'refund'
-    AND COALESCE(s.express_summary, '') = '' AND COALESCE(o.express_summary, '') != ''"""
+    AND COALESCE(s.express_summary, '') = '' AND COALESCE(o.express_summary, '') != ''
+    AND c.express_enabled = 1 AND c.express_linked_at IS NOT NULL AND s.sold_at >= c.express_linked_at"""
 # 退货小票上的数量、金额、收款都是正数：并进日汇总时记负数
 _SIGN = "(CASE WHEN s.sale_type = 'refund' THEN -1 ELSE 1 END)"
 
@@ -151,12 +153,17 @@ def receipt_range(summary):
     return (numbers[0], numbers[-1]) if numbers else (summary, summary)
 
 
+def linked_companies():
+    """接上了 Express 的公司（启用、勾着、有接上时刻）。此刻 CC 桌面版没报账套的也汇总：日汇总停在「没有账套」等它回来。"""
+    filters = {"is_active": 1, "express_enabled": 1, "express_linked_at": ["is", "set"]}
+    return frappe.get_all("ERP Company", filters=filters, fields=["name"], order_by="name asc",  # bounded: 接上 Express 的公司
+                          limit_page_length=0)
+
+
 def nightly():
     """每晚：接了 Express 的公司，昨天及更早还没汇总的完成小票按天合成日汇总（没接 Express 的站点什么都不做）。"""
-    from pearnly_erp_portal.express import masters
-
     today = frappe.utils.nowdate()
-    for company in masters.linked_companies():
+    for company in linked_companies():
         for day in pending_days(company.name, today):
             summarize(company.name, day)
             frappe.db.commit()

@@ -31,6 +31,7 @@
   "express_book",
   "express_synced_at",
   "express_pos_from",
+  "express_linked_at",
   "express_sync_state",
   "express_sync_note",
   "express_mark",
@@ -196,6 +197,13 @@
    "no_copy": 1
   },
   {
+   "fieldname": "express_linked_at",
+   "fieldtype": "Datetime",
+   "label": "Linked to Express At",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
    "fieldname": "express_sync_state",
    "fieldtype": "Data",
    "label": "Express Sync State",
@@ -241,7 +249,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-29 12:00:00.000000",
+ "modified": "2026-11-01 21:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Company",
  "show_title_field_in_link": 1,

@@ -1833,3 +1833,5 @@ transfer_out	调出	โอนออก	移動出庫
 transfer_in	调入	โอนเข้า	移動入庫
 The destination warehouse must differ from the source warehouse	调入仓库不能与调出仓库相同	คลังปลายทางต้องไม่ใช่คลังต้นทาง	移動先倉庫は移動元倉庫と別にしてください
 Pick a destination warehouse	请选择调入仓库	กรุณาเลือกคลังปลายทาง	移動先倉庫を選択してください
+Not written to Express (disconnected)	未写入 Express（已断开）	ไม่ได้บันทึก Express (ยกเลิกเชื่อมต่อ)	Express 未書き込み（接続解除済み）	express.state.detached
+Linked to Express At	接上 Express 时刻	เวลาที่เชื่อมต่อ Express	Express 接続日時

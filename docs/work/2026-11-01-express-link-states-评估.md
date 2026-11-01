@@ -390,3 +390,62 @@
 **后续项（不在本批）**
 - 合格存货科目组的判断只看存货科目、不看成本科目：采购与库存单弹窗可能列出选了照样停的组（SANGJ 000W）。
 - 销售建新存货在不许负库存的账套里也会写成负数（多仓 P3x 评估待定项，等主会话问用户）。
+
+## 9. 施工记录（11-01 晚，分支 `pearnly/express-link-states-bdc9cd`，基线 main `fb22a60f`）
+
+按文首审定四点与 8 节施工范围做完 1–7 项，没有动 `companion/`、载荷版本与 CC 写入代码。
+
+**判据（`express/push.py`）**
+- `linked_at(company)`：勾着「接 Express」且有 `ERP Company.express_linked_at` 才有值；`started(doctype, name)`：建单 / 开盘点时刻，
+  采购沿 `corrected_from` 取最早那张（最多往回 50 张，防成环）；`counts_from` / `started_linked` / `owner` 给各入口共用。
+- `_eligible` / `queue`：种类对 + 单据开始时刻 ≥ 接上时刻；**不再看此刻 connected**。提交时 CC 没报账套照排，`send` 停在
+  `express.account_set_missing`（RETRY_REASONS），每分钟 `poll` 再试，电脑回来就写（修掉 4.a 反证 5 的永久漏写）。
+- 随单 / 盘点里建档的归属：`count.create_product_here` 按开盘点时刻、采购供应商按单据开始时刻（草稿 / 修改沿原单）、销售客户按
+  草稿开始时刻，都走 `push.owner`。
+- 接上时刻：`masters.apply` 在**勾着**且为空时写当前时刻（收银起始日 `express_pos_from` 同时记成那天，只作显示 / 兼容）；
+  断开（`disconnect_express`）与没连上时直接取消勾选（`update_company`）清空；重新勾上且已连上时排一次同步，落库那一刻重记。
+- 收银：`pos_day._RECEIPTS` / `_REFUNDS` 改为 `s.sold_at >= c.express_linked_at`（且勾着），HS 与 SR 都只收接上之后卖 / 退的，
+  断开期间的小票重新接上后不补（4.a 反证 1）；`nightly` 只轮到勾着、有接上时刻的公司（不看此刻 connected）。
+- 采购「修改」：新单继承原单开始时刻，接上前的旧单改了不推（4.a 反证 2）。
+
+**断开优先**
+- 新状态 `express_state = detached`（五种单据 DocType 的 Select 都加了），原因 `express.disconnected`，页面显示「未写入 Express（已断开）」。
+- `push.detach(company)`：这家公司 `queued / held` 的单，写账件在排队 / 转人工的撤掉（`jobs.cancel(..., "disconnected")`），单据标已断开；
+  电脑正在写（leased）的撤不了，结果回来时 `job_changed`：写成照记写入，没写成标已断开。已写进去的单不动；断开后作废已写的出入库单
+  照排 Express 作废（`push.void` 不动）。
+- `send` 开头复核勾选（没勾就标已断开、不准备）；`api.answer / retry / mark_handled` 没勾一律拒（PermissionError）；`api._view` 没勾时
+  不给选、再写一次、标手工处理。
+
+**库存对齐（`masters._pending`，审定第 4 点）**
+- 只叠加：接上之后开始、还没写成（排队 / 停下 / 失败）的采购、销售、出入库、盘点调整；接上之后卖、不在写成的日汇总 / 退货单里的小票；
+  这些单的作废冲销，以及写进去之后在 ERP 作废的冲销（出入库单在 Express 也作废完的除外）；从不写进 Express 的其余来源（手工调整、没有来源）
+  只算接上之后的。开始早于接上时刻的一律不叠加；没有接上时刻的公司不叠加。
+- 口径变了：原测试 `test_pending_counts_every_erp_move_not_yet_in_express` 里「B 段之前开的、没写成的：算」那条改成不算，换成
+  `test_pending_counts_only_moves_of_documents_started_after_the_link`（覆盖 31 种流水）。
+
+**页面与打印**
+- 单据上的「Express」按钮只看单据自己的 `express_state`（不再要求当前公司此刻接着），断开后照样能打开看状态；列表 Express 列按
+  `p.express_used()`（当前公司接着，或同步落过库 `express_book`，启动数据 `express_used`）；预检带上单据名，接上前开始的草稿不问。
+- 销售单打印标题按单据 `express_contracts.in_express(express_state)`（排上 / 写成 → 送货单 + Express 单号；没排上、已断开 → 非税收据），
+  不按打印时 `linked`。期初、建仓仍按此刻 `linked`，没动。
+
+**迁移**
+- `ERP Company.express_linked_at`（Datetime，只读，原生迁移）；补丁 `v1_22_express_linked_at`：勾着且落过库（有 `express_pos_from`
+  或 `express_book`）、接上时刻为空的公司，取「收银起始日 00:00」与「这家公司已排进 / 写进 Express 的单最早建单时刻」两者早的；
+  都没有记补丁运行时刻。每家打印回填值与依据（`pos_from` / `first_document` / `patch_time`）。没勾的、没落过库的不填。
+- 影响：生产上现在没有接上 Express 的公司（主会话 11-01），回填应为 0 家；测试租户若有勾着且落过库的公司，回填后它的单按新判据推。
+
+**以后开户接 Express 的口径（审定第 4 点，本文档即说明处；仓里没有另外的开户说明）**
+- 接上那一刻 = 公司勾着「接 Express」且 CC 桌面版报上账套后第一次主档同步落库的时刻（公司上「接上 Express 时刻」）。
+- 接上前在 ERP 做的出入库、盘点、收银、采购、销售**不会补进 Express**；接上前建的草稿接上后提交、接上前的采购单接上后「修改」也不推。
+  接上后 ERP 结存以 Express 为准（同步时按 Express 结存 + 接上后还没写成的单对齐）。
+- 断开后还没写进去的单标「未写入 Express（已断开）」，不再写；重新接上从新的接上时刻算，断开期间的单与小票不补。
+
+**离线测试（`tests/test_erp_express_direct.py`，137 条全过）**：新增 `LinkStates` 13 条（①②不排、③排且不看 connected、④a 不排不补、
+不写的种类、采购修改继承、主档归属、④c 停 NO_BOOK 后 poll 写成、④b 断开撤单标已断开含正在写的两种结果、断开后 send/poll/answer/retry/
+mark_handled 不写、④d 断开后作废照排、公司页断开 / 取消勾选 / 重新勾上、收银起始跟接上时刻、打印按单据状态）、`MasterSync` 接上时刻写入 /
+不改 / 没勾不写 / 清空后重写、`LinkedAtBackfill` 补丁回填三种依据、`StockAlignment` 新口径。
+
+**未覆盖 / 剩余**
+- 断开时正在读的主档同步仍会落库（主档、库存对齐照做，不会写接上时刻）：同步落库不复核勾选，没改（评估 3 节 `advance` / `start`）。
+- 收银 SQL（`sold_at >= express_linked_at`）的实际取数只能在实验栈流程里验，离线测试只核查询条件。

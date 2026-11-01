@@ -65,7 +65,7 @@
 						cell_class: value => value === "paid" ? "" : "pearnly-payment-due"},
 					{fieldname: "status", width: 72, min_width: 52, label: __("Status"), format: u.label},
 					// 接了事务所 Express 账本的站点：写进去了显示 Express 单号，否则显示状态
-					...(frappe.boot.pearnly_express ? [{fieldname: "express_docnum", width: 110, min_width: 76, label: __("Express"),
+					...(p.express_used() ? [{fieldname: "express_docnum", width: 110, min_width: 76, label: __("Express"),
 						format: (value, row) => value || (row.express_state ? u.label("express_" + row.express_state) : "")}] : []),
 				],
 				// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。

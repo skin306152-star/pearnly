@@ -7,6 +7,10 @@
 
 停下的单（要人选的、没有账套、没有电脑能写、主档还在读）记原因；会自己好的（`contracts.RETRY_REASONS`）每分钟再准备一次
 （:func:`poll`），要人选的在单据上选一次（`api.answer`）后再准备。ERP 自己的库存照旧按单过账，写进 Express 后由主档同步对齐。
+
+写不写只有一条判据（主会话 11-01）：公司勾着「接 Express」、有「接上时刻」（:func:`linked_at`，第一次主档同步落库时记，断开清空），
+且单据开始时刻（:func:`started`：盘点 = 开盘点，其余 = 建单，采购「修改」出的新单沿原单）不早于它。不看此刻 CC 桌面版报没报账套：
+提交时正好没报的照排，停在「没有账套」每分钟再试。断开优先：断开时这家公司还没写进去的单撤掉、标「已断开」（:func:`detach`）。
 """
 import json
 
@@ -46,8 +50,50 @@ def connected(company) -> bool:
 
 
 def linked(company) -> bool:
-    """这家公司接了 Express：公司勾了「接 Express」（用户 10-29）且已连上。没有就不推、不同步（ERP 单据照旧只在 ERP 里）。"""
+    """这家公司此刻接着 Express：公司勾了「接 Express」（用户 10-29）且已连上。同步、建仓、期初、页面开关按它；单据写不写按
+    :func:`started_linked`。"""
     return bool(company and frappe.db.get_value("ERP Company", company, "express_enabled") and connected(company))
+
+
+def enabled(company) -> bool:
+    return bool(company and frappe.db.get_value(COMPANY, company, "express_enabled"))
+
+
+def linked_at(company):
+    """这家公司的「接上时刻」：勾着「接 Express」且第一次主档同步落库后才有（`masters.apply`），断开 / 取消勾选清空、重新接上重记。"""
+    row = frappe.db.get_value(COMPANY, company, ["express_enabled", "express_linked_at"], as_dict=True) if company else None
+    return frappe.utils.get_datetime(row.express_linked_at) if row and row.express_enabled and row.express_linked_at else None
+
+
+AMEND_DEPTH = 50  # 采购「修改」链最多往回找几张（正常只有几张；防坏数据成环）
+
+
+def started(doctype, name):
+    """单据的开始时刻：建单（含草稿）的时刻，盘点是开盘点的时刻；采购「修改」出的新单沿 ``corrected_from`` 取最早那张的。"""
+    row = frappe.db.get_value(doctype, name, ["creation", "corrected_from"] if doctype == PURCHASE else ["creation"],
+                              as_dict=True) if name else None
+    seen = {name}
+    while row and doctype == PURCHASE and row.corrected_from and row.corrected_from not in seen and len(seen) < AMEND_DEPTH:
+        seen.add(row.corrected_from)
+        row = frappe.db.get_value(doctype, row.corrected_from, ["creation", "corrected_from"], as_dict=True) or row
+    return frappe.utils.get_datetime(row.creation) if row and row.creation else None
+
+
+def counts_from(company, at) -> bool:
+    """``at`` 开始的单这家公司写不写进 Express：勾着且接上了、开始时刻不早于接上时刻。"""
+    since = linked_at(company)
+    return bool(since and at and frappe.utils.get_datetime(at) >= since)
+
+
+def started_linked(doctype, name, company=None) -> bool:
+    """这张单开始时这家公司已接上 Express（:func:`counts_from`）：各入口写不写、随单建的主档归不归这家公司都按它。"""
+    company = company or company_of(doctype, name)
+    return counts_from(company, started(doctype, name))
+
+
+def owner(company, at):
+    """随单 / 盘点里新建的客户、供应商、商品归哪家公司：单据开始时已接上的归这家（写进去后挂码），否则是各家共用的本地档。"""
+    return company if company and counts_from(company, at or frappe.utils.now_datetime()) else None
 
 
 def company_of(doctype, name):
@@ -61,15 +107,18 @@ def _eligible(doctype, doc) -> bool:
     if doc.get("status") != ready(doctype):
         return False
     if doctype == STOCK:
-        return stock_entry.eligible(doc) and linked(doc.get("company"))
-    if doctype in (POS_DAY, COUNT):
-        return linked(doc.get("company"))
-    kinds = contracts.SALES_KINDS if doctype == SALES else contracts.PURCHASE_KINDS
-    return (doc.get("doc_kind") or "") in kinds and linked(doc.get("company"))
+        kind_ok = stock_entry.eligible(doc)
+    elif doctype in (POS_DAY, COUNT):
+        kind_ok = True  # 收银日汇总只收接上之后卖的小票（`pos_day`）
+    else:
+        kinds = contracts.SALES_KINDS if doctype == SALES else contracts.PURCHASE_KINDS
+        kind_ok = (doc.get("doc_kind") or "") in kinds
+    return kind_ok and started_linked(doctype, doc.name, doc.get("company"))
 
 
 def queue(doctype, name):
-    """提交事务里调（`post` 的 ``finalize`` 之后、提交之前）：该写就标「排队中」并排提交后的准备；不该写什么都不做。"""
+    """提交事务里调（`post` 的 ``finalize`` 之后、提交之前）：该写（:func:`_eligible`）就标「排队中」并排提交后的准备；不该写
+    什么都不做。提交时 CC 桌面版正好没报账套也排上，停在「没有账套」等它回来（原来那一刻判没接上，这张单就永远不写）。"""
     if doctype not in DIRECTIONS:
         return
     fields = ["name", "status", "ref_type", "direction", "express_state"] if doctype == STOCK else \
@@ -272,9 +321,15 @@ def send(doctype, name):
                                               "express_job", "express_reason"], as_dict=True)
     if not row or row.status != ready(doctype) or row.express_job or row.express_state not in contracts.OPEN_STATES:
         return
+    company = company_of(doctype, name)
+    if not enabled(company):
+        # 排上之后这家公司断开了（断开时撤单与这一件同时发生）：不写，照实标已断开
+        _set(doctype, name, {"express_state": contracts.DETACHED, "express_reason": contracts.DISCONNECTED,
+                             "express_needed": None})
+        frappe.db.commit()
+        return
     from pearnly_erp_portal.express import masters
 
-    company = company_of(doctype, name)
     body = document(doctype, name)
     if doctype == POS_DAY and body.get("net_negative"):
         # 同一天的退货冲减后是负数（共用约定 `net_day`）：不硬写，停下交人
@@ -326,6 +381,37 @@ def send(doctype, name):
                            label=body["number"])
         _set(doctype, name, {"express_job": job["job"]})
     frappe.db.commit()
+
+
+def detach(company) -> int:
+    """断开 Express（公司页「断开」、取消勾选）：这家公司排队中、停下的单不再写 —— 还没被电脑领走的写账件撤掉，单据标「已断开」
+    （原因 :data:`contracts.DISCONNECTED`），页面照常看得见；电脑正在写的撤不了，结果回来照记（写成了记写入，没写成标已断开，
+    见 :func:`job_changed`）。已写进 Express 的单不动（之后在 ERP 作废照样排 Express 作废）。回标了几张。"""
+    from pearnly_erp_portal.inventory import warehouses
+
+    count = 0
+    for doctype in DIRECTIONS:
+        mine = ({"warehouse": ["in", warehouses.names_of(company) or [""]]} if doctype in (STOCK, COUNT)
+                else {"company": company})
+        filters = {"express_state": ["in", contracts.OPEN_STATES], **mine}
+        skipped = []
+        while True:
+            names = frappe.get_all(doctype, filters={**filters, "name": ["not in", skipped or [""]]},  # bounded: 一批 POLL_MAX，改完不再命中
+                                   pluck="name", order_by="modified asc", limit_page_length=POLL_MAX)
+            for name in names:
+                job_name = frappe.db.get_value(doctype, name, "express_job")
+                job = jobs.find_by_name(job_name) if job_name else None
+                if job and job["status"] in ("queued", "manual"):
+                    jobs.cancel(job["job"], "disconnected")  # 回执记回单据（`job_changed`），随后改成已断开
+                elif job and job["status"] not in ("cancelled", "done"):
+                    skipped.append(name)  # 电脑正在写：等结果
+                    continue
+                _set(doctype, name, {"express_state": contracts.DETACHED, "express_reason": contracts.DISCONNECTED,
+                                     "express_needed": None})
+                count += 1
+            if len(names) < POLL_MAX:
+                break
+    return count
 
 
 VOIDED = "voided"
@@ -395,6 +481,11 @@ def job_changed(view):
     values = {"express_state": state, "express_job": view.get("job"), "express_docnum": view.get("docnum") or "",
               "express_reason": "" if state in (contracts.WRITTEN, contracts.QUEUED) else str(view.get("reason") or "")[:500]}
     _set(doctype, name, values)
+    if state not in (contracts.WRITTEN, contracts.MISMATCH) and before.company and not enabled(before.company):
+        # 断开时电脑正在写、结果没写成（或撤掉的那件）：不再写，标已断开（:func:`detach`）
+        _set(doctype, name, {"express_state": contracts.DETACHED, "express_reason": contracts.DISCONNECTED,
+                             "express_needed": None})
+        return
     if doctype == STOCK and state in (contracts.WRITTEN, contracts.MISMATCH) and \
             frappe.db.get_value(doctype, name, "status") == "void":
         void(doctype, name)  # 电脑写的时候 ERP 这边已作废：写完立刻照 Express 原生作废原单

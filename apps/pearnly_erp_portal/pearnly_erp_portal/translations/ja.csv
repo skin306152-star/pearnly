@@ -698,6 +698,7 @@ Line Total,明細小計
 Line prices include VAT,明細単価は税込
 Lines,明細行
 Lines in this shift,このシフトのレシート
+Linked to Express At,Express 接続日時
 List,リスト
 List Price,表示価格
 List actions,リストの操作
@@ -805,6 +806,7 @@ Not found in the Revenue Department records,税務局に登録がありません
 Not found on the document,書類に記載がありません
 Not in the list,一覧にありません
 Not permitted,権限がありません
+Not written to Express (disconnected),Express 未書き込み（接続解除済み）
 Note,備考
 Notes,備考
 Nothing counted yet,まだ棚卸記録がありません
@@ -2129,6 +2131,7 @@ express.reason.stockInsufficient,Express の在庫が足りません
 express.reason.stockShort,{0} · 倉庫 {1}：必要 {2}、在庫 {3}
 express.reason.taxMissing,会社に 13 桁の納税者番号がありません
 express.reason.warehouseUnmapped,この倉庫に対応する Express の倉庫がありません
+express.state.detached,Express 未書き込み（接続解除済み）
 express.state.handled,Express で手動処理済み
 express.state.refundPending,返品書き込み待ち
 express.state.written,書き込み済み

@@ -23,9 +23,13 @@ CENT = Decimal("0.01")
 # ERP 单据上的 Express 状态（只按电脑的回执定：HTTP 成功、交进队列都不算写入）
 QUEUED, WRITTEN, MISMATCH, HELD, FAILED = "queued", "written", "mismatch", "held", "failed"
 HANDLED = "handled"  # 人标记「已在 Express 手工处理」（收银日汇总 / 退货日汇总停住时的出口，主会话 10-26）
-STATES = (QUEUED, WRITTEN, MISMATCH, HELD, FAILED)
-# 还没写进 Express 的状态（库存对齐把这些单的变动加回去；每分钟再看一次停下的）
+# 断开 Express 时还没写进去的单（排队中、停下的）：撤掉写账件、不再写，单据上照实标「未写入 Express（已断开）」（主会话 11-01）
+DETACHED = "detached"
+STATES = (QUEUED, WRITTEN, MISMATCH, HELD, FAILED, DETACHED)
+# 还没写进 Express 的状态（每分钟再看一次停下的；断开时撤掉）
 OPEN_STATES = (QUEUED, HELD)
+# 接上之后开始、还没写成的单（库存对齐把这些单的变动加回去）：排队中、停下的、失败的
+PENDING_STATES = (QUEUED, HELD, FAILED)
 # 停下的原因码（`express_reason`，页面按码出文案）
 NO_TAX = "express.company_tax_missing"
 NO_BOOK = "express.account_set_missing"
@@ -42,6 +46,7 @@ WAREHOUSE_UNMAPPED = "express.warehouse_unmapped"
 # 盘点调整里有还没有 Express 编码的商品（盘点当场新建的）：本批写 TK 前停下交人，CC 在 TK 里建档另排（用户 10-29 批复 #7）
 ITEM_UNMAPPED = "express.item_unmapped"
 REFUND_ORIGINAL_MANUAL = "express.pos_refund_original_manual"  # 原 HS 是人手工处理的：Express 单号不知道，退货单也要手工处理
+DISCONNECTED = "express.disconnected"  # 断开 Express 时还没写进去（`push.detach`）
 CHOICE = "choice_needed"
 # 过一会儿自己会好的（电脑开机、主档读完、有人在电脑上登录 CC、退货单的原 HS 写成了）：每分钟再试；要人选的、单据本身不对的
 # 不自动重试
@@ -49,6 +54,11 @@ RETRY_REASONS = (NO_BOOK, NO_WRITER, READING, REFUND_WAITING)
 # 这几种采购单是真进货 / 费用，推进 Express（采购订单 10-28 已删，见 `purchasing.contracts.RETIRED_KINDS`）
 PURCHASE_KINDS = ("purchase_invoice", "expense", "goods", "service")
 SALES_KINDS = ("receipt",)
+
+
+def in_express(state) -> bool:
+    """单据按自己的 Express 状态算不算「写进 Express 的单」（排上了、停下、写成了…）：没排上过的、断开时撤下的不算。"""
+    return bool(state) and state != DETACHED
 
 
 def d(value) -> Decimal:

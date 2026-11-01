@@ -29,7 +29,7 @@ def flag(value, default=False):
     return default if value is None else value in (True, 1, "1", "true", "True")
 
 
-def _supplier(payload, company=None):
+def _supplier(payload, company=None, started=None):
     from pearnly_erp_portal.masters.selection import match_party, unlinked_party
 
     key = payload.get("supplier")
@@ -70,8 +70,8 @@ def _supplier(payload, company=None):
             "tax_id": payload.get("supplier_tax_id"), "branch_type": branch,
             "branch_no": payload.get("supplier_branch_no"), "branch_name": payload.get("supplier_branch_name"),
             "address": payload.get("supplier_address"), "is_active": 1,
-            # 接了 Express 的公司：随单建的档先归这家公司（不对全租户各家都可见），写进去后挂上 Express 码（`push.link_party`）
-            "express_company": company if company and express_push.linked(company) else None}).insert(ignore_permissions=True)
+            # 单据开始时已接上 Express 的公司：随单建的档先归这家公司（不对全租户各家都可见），写进去后挂上 Express 码（`push.link_party`）
+            "express_company": express_push.owner(company, started)}).insert(ignore_permissions=True)
         key = doc.name
     return key, name
 
@@ -183,7 +183,9 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
             "status": ["!=", "void"]}, pluck="name")
         if any(key not in (name, amended_from) for key in duplicates):
             frappe.throw(_("Document already exists"))
-    supplier, supplier_name = _supplier(payload, company)
+    # 单据开始时刻（草稿按建草稿、「修改」按原单，`push.started`）：随单建的供应商归不归这家公司按它
+    started = express_push.started("Purchase Document", amended_from or name) if (amended_from or name) else None
+    supplier, supplier_name = _supplier(payload, company, started)
     if payload.get("source") == "line":
         # LINE 录单没有选分类的地方：按这个供应商记住的分类补上空着的行（网页在识别时已预填，人可以改）。
         category_memory.fill(supplier, totals["lines"])

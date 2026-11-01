@@ -100,6 +100,8 @@
 	// 当前公司接了 Express（启动数据里当前那家带 `express_linked`）：仓库由 Express 主档同步来、期初从 Express 读回，
 	// ERP 里不给新建仓、不录期初（服务端同样拒，多仓闭环 P1）
 	p.express_company = () => Boolean((frappe.boot.pearnly_companies || []).find(row => row.is_current)?.express_linked);
+	// 当前公司接过 Express（同步落过库）：列表出 Express 列；断开后已写进 / 已断开的单照样看得见（主会话 11-01）
+	p.express_used = () => p.express_company() || Boolean((frappe.boot.pearnly_companies || []).find(row => row.is_current)?.express_used);
 	// 当前公司的类型（用户 10-29）：汽车 / 手机电器按台管理，普通公司不出按台的格子与弹窗（服务端 `companies.unit_tracking` 同一口径）
 	const UNIT_KINDS = { vehicle: "vehicle", device: "device" };
 	p.unit_kind = () => UNIT_KINDS[(frappe.boot.pearnly_companies || []).find(row => row.is_current)?.company_type] || "";
@@ -146,7 +148,8 @@
 		({kind: item.kind, subject: item.subject, value: values[`pick_${index}`]}));
 	// 提交前（用户 10-23：「点提交后，缺字段应该马上弹窗要求选择」）：服务端按写账规则把表单此刻的内容准备一遍，有要人定的
 	// 就当场弹窗问，选完记住再判一遍，直到没有要问的才回 true；关掉弹窗回 false（不提交，单据留在表单里）。没接 Express 直接 true。
-	p.express_preflight = async (doctype, payload) => {
+	// `name`：提交的是已有的草稿（采购「修改」给原单）：接上之前开始的单不写进 Express，服务端不问
+	p.express_preflight = async (doctype, payload, name) => {
 		if (!frappe.boot.pearnly_express) return true;
 		const api = "pearnly_erp_portal.express.api.preflight";
 		const direction = doctype === "Purchase Document" ? "purchase" : "sales";
@@ -154,7 +157,7 @@
 		const shown = error => Boolean(error?._server_messages || error?.responseJSON?._server_messages);
 		let info;
 		try {
-			info = await p.call(api, {doctype, payload: JSON.stringify(payload)}, "POST");
+			info = await p.call(api, {doctype, payload: JSON.stringify(payload), name: name || undefined}, "POST");
 		} catch (error) { globalThis.pearnlyCaught?.(error, "transactions");
 			if (shown(error)) return false;
 			info = null;
@@ -171,7 +174,7 @@
 				dialog.onhide = () => { if (!picked) resolve(null); };
 			});
 			if (!answers) return false;
-			info = await p.call(api, {doctype, payload: JSON.stringify(payload), answers: JSON.stringify(answers)}, "POST")
+			info = await p.call(api, {doctype, payload: JSON.stringify(payload), answers: JSON.stringify(answers), name: name || undefined}, "POST")
 				.catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "transactions"); return (() => null)(caughtError); });
 		}
 		return true;
@@ -198,12 +201,13 @@
 			// 库存不足按仓列出（CC `stock_guard.message`：「物料@仓 need 要 have 有」；没有分仓结存的账套仓记 all）
 			? [...info.reason.matchAll(/(\S+)@(\S+) need (\S+) have (\S+)/g)].map(([, item, loc, need, have]) =>
 				__("express.reason.stockShort", [item, loc === "all" ? __("All") : loc, need, have])) : [];
-		const reason = info.reason && !info.reason.startsWith("choice_needed")
+		// 已断开的单：状态本身就说明了（「未写入 Express（已断开）」），不再重复原因
+		const reason = info.reason && !info.reason.startsWith("choice_needed") && info.state !== "detached"
 			? [__(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || coded || info.reason), ...shortages].join("\n") : "";
 		const fields = [
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,
 				default: __({queued: "Queued", written: "express.state.written", mismatch: "Mismatch", held: "Pending",
-					failed: "Failed", handled: "express.state.handled"}[info.state] || info.state)},
+					failed: "Failed", handled: "express.state.handled", detached: "express.state.detached"}[info.state] || info.state)},
 			...(info.docnum ? [{fieldtype: "Data", fieldname: "docnum", label: __("Express No."), read_only: 1, default: info.docnum}] : []),
 			// 已写进 Express 又在 ERP 作废的单：Express 作废原单的进度
 			...(info.void ? [{fieldtype: "Data", fieldname: "void", label: __("express.void"), read_only: 1,
@@ -316,7 +320,7 @@
 			fields.push({ fieldtype: "Button", fieldname: "print", label: __("Print"),
 				click: () => p.trade.print("ERP Sale", name, "Pearnly POS Receipt") });
 			// 这张小票已合进现销日汇总（接了 Express，B3a）：看那张日汇总写进 Express 的情况（同采购 / 销售的弹窗）
-			if (doc.express_summary && frappe.boot.pearnly_express) {
+			if (doc.express_summary) {
 				fields.push({ fieldtype: "Button", fieldname: "express", label: __("Express"),
 					click: () => p.express("ERP POS Day Summary", doc.express_summary) });
 			}

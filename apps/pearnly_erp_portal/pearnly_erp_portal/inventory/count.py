@@ -402,7 +402,8 @@ def create_product_here(*, count, code, product_name, internal_code=None, track_
     谁 / 何时用原生建档人与时间。按台公司勾了按台就在建档时一并打开（新商品没有库存，不用按台期初登记，同 `serials.turn_on`）。
 
     在盘点锁里先按码再认一次：别人刚用同一个码建过（或这个码其实是停用商品）就直接回那件，不建重复码。之后照常记数（`add_entry`）。
-    接了 Express 的公司建成这家公司自己的档；写盘点调整 TK 时按物料问一次（选现有存货或新建，多仓 P3x），写好后挂上电脑用的码（`push.link_products`）。"""
+    开盘点时已接上 Express 的公司建成这家公司自己的档（按开盘点那一刻，`push.owner`，主会话 11-01）；写盘点调整 TK 时按物料问一次
+    （选现有存货或新建，多仓 P3x），写好后挂上电脑用的码（`push.link_products`）。"""
     from pearnly_erp_portal.express import push as express_push
     from pearnly_erp_portal.products import service as product_service
 
@@ -445,7 +446,7 @@ def create_product_here(*, count, code, product_name, internal_code=None, track_
         **product_service.standard_fields(**{key: value for key, value in standard.items() if key in allowed}),
         "track_serial": 1 if str(track_serial or "") in ("1", "True", "true") and companies.unit_tracking(company) else 0,
         "is_active": 1,
-        "express_company": company if company and express_push.linked(company) else None,
+        "express_company": express_push.owner(company, task.creation),
         "origin": "stocktake", "origin_doctype": COUNT, "origin_name": task.name,
     })
     doc.insert(ignore_permissions=True)  # 建档权限只放这一条路（`count.write`）；商品页的其余能力照旧要 `products.manage`

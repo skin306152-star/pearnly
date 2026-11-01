@@ -698,6 +698,7 @@ Line Total,ยอดรวมบรรทัด
 Line prices include VAT,ราคาต่อรายการรวมภาษีมูลค่าเพิ่มแล้ว
 Lines,รายการ
 Lines in this shift,ใบเสร็จในกะนี้
+Linked to Express At,เวลาที่เชื่อมต่อ Express
 List,รายการ
 List Price,ราคาตั้ง
 List actions,การดำเนินการของรายการ
@@ -805,6 +806,7 @@ Not found in the Revenue Department records,ไม่พบข้อมูลก
 Not found on the document,ไม่ได้ระบุในเอกสาร
 Not in the list,ไม่อยู่ในรายการ
 Not permitted,ไม่ได้รับอนุญาต
+Not written to Express (disconnected),ไม่ได้บันทึก Express (ยกเลิกเชื่อมต่อ)
 Note,หมายเหตุ
 Notes,หมายเหตุ
 Nothing counted yet,ยังไม่มีการนับ
@@ -2129,6 +2131,7 @@ express.reason.stockInsufficient,สินค้าคงเหลือใน E
 express.reason.stockShort,{0} · คลัง {1}: ต้องการ {2} มี {3}
 express.reason.taxMissing,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
 express.reason.warehouseUnmapped,คลังนี้ไม่มีคลังที่ตรงกันใน Express
+express.state.detached,ไม่ได้บันทึก Express (ยกเลิกเชื่อมต่อ)
 express.state.handled,จัดการด้วยมือใน Express แล้ว
 express.state.refundPending,รอบันทึกการคืน
 express.state.written,บันทึกแล้ว

@@ -698,6 +698,7 @@ Line Total,Line Total
 Line prices include VAT,Line prices include VAT
 Lines,Lines
 Lines in this shift,Lines in this shift
+Linked to Express At,Linked to Express At
 List,List
 List Price,List Price
 List actions,List actions
@@ -805,6 +806,7 @@ Not found in the Revenue Department records,Not found in the Revenue Department 
 Not found on the document,Not found on the document
 Not in the list,Not in the list
 Not permitted,Not permitted
+Not written to Express (disconnected),Not written to Express (disconnected)
 Note,Note
 Notes,Notes
 Nothing counted yet,Nothing counted yet
@@ -2129,6 +2131,7 @@ express.reason.stockInsufficient,Not enough stock in Express
 express.reason.stockShort,"{0} · Warehouse {1}: need {2}, have {3}"
 express.reason.taxMissing,The company has no 13-digit tax ID
 express.reason.warehouseUnmapped,The warehouse has no matching Express warehouse
+express.state.detached,Not written to Express (disconnected)
 express.state.handled,Handled manually in Express
 express.state.refundPending,Refund to write
 express.state.written,Written

@@ -122,7 +122,7 @@
    "fieldname": "express_state",
    "fieldtype": "Select",
    "label": "Express Status",
-   "options": "\nqueued\nwritten\nmismatch\nheld\nfailed\nhandled",
+   "options": "\nqueued\nwritten\nmismatch\nheld\nfailed\nhandled\ndetached",
    "read_only": 1,
    "no_copy": 1,
    "in_standard_filter": 1
@@ -186,7 +186,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-26 18:00:00.000000",
+ "modified": "2026-11-01 21:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP POS Day Summary",
  "naming_rule": "Expression",

@@ -50,6 +50,12 @@ def _document(doctype, name, write=False):
     return row
 
 
+def _require_enabled(row):
+    """选、再写一次、标手工处理都要这家公司还勾着「接 Express」：断开优先，断开后不再写（`push.detach`）。"""
+    if not push.enabled(row.company):
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+
+
 def _needed(row):
     try:
         needed = json.loads(row.express_needed or "[]")
@@ -105,6 +111,11 @@ def _party_blocked(doctype, row, job):
 
 
 def _view(doctype, row):
+    if not push.enabled(row.company):
+        # 断开了：只看状态、Express 单号与原因（已断开的照实写），不再给选、再写一次
+        return {"state": row.express_state or "", "docnum": row.express_docnum or "", "reason": row.express_reason or "",
+                "void": row.get("express_void_state") or "", "needed": [], "can_answer": False, "can_retry": False,
+                "can_mark_handled": False, "vat_whole": bool(row.get("vat_whole_document"))}
     data = facts.load(row.express_book) if row.express_book else None
     job = jobs.find_by_name(row.express_job) if row.express_job else None
     blocked = _party_blocked(doctype, row, job)
@@ -139,6 +150,7 @@ def mark_handled(doctype, name, reason=None):
     """人在 Express 里手工处理好了这张收银日汇总 / 退货单：标「已在 Express 手工处理」，不再写；撤掉还挂着的写账件。库存对齐把它
     当作已写进 Express（`masters.WRITTEN_STATES`）。"""
     row = _document(doctype, name, write=True)
+    _require_enabled(row)
     reason = " ".join(str(reason or "").split())[:500]
     if not reason:
         frappe.throw(_("Reason"), frappe.MandatoryError)
@@ -163,10 +175,11 @@ def document_express(doctype, name):
 
 
 @frappe.whitelist(methods=["POST"])
-def preflight(doctype, payload, answers=None):
+def preflight(doctype, payload, answers=None, name=None):
     """提交前（用户 10-23：「点提交后，缺字段应该马上弹窗要求选择」）：表单此刻的内容（不存）按写账规则准备一遍，回要人定的
     项 ``{"needed": [...]}``，页面当场弹窗问；``answers`` 给了先照选的记住（同 :func:`answer` 的核对）再判一遍，直到没有要问的。
-    这家公司没接 Express、主档还没读到、没有账套这类不用人选的：回空，照常提交（提交后自动接着走）。"""
+    这家公司没接 Express、主档还没读到、没有账套这类不用人选的：回空，照常提交（提交后自动接着走）。``name``：改的是已有的草稿
+    （采购「修改」给原单）—— 开始早于接上时刻的单不写进 Express，也不问（`push.started_linked`）。"""
     if doctype not in CAPABILITIES:
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     guard.require(CAPABILITIES[doctype][1])
@@ -174,7 +187,8 @@ def preflight(doctype, payload, answers=None):
     if not isinstance(payload, dict) or not payload.get("lines"):
         return {"needed": []}
     company = companies.document_company(payload.get("company"))
-    if not push.linked(company):
+    at = push.started(doctype, name) if isinstance(name, str) and name and frappe.db.exists(doctype, name) else None
+    if not push.counts_from(company, at or frappe.utils.now_datetime()):
         return {"needed": []}
     company_row = push._company(company)
 
@@ -211,6 +225,7 @@ def preflight(doctype, payload, answers=None):
 def answer(doctype, name, answers):
     """在单据上选要人拿主意的项：``answers`` = ``[{kind, subject, value}]``。只认这一项能选的值；记在这家公司名下后再准备一次。"""
     row = _document(doctype, name, write=True)
+    _require_enabled(row)
     job = jobs.find_by_name(row.express_job) if row.express_job else None
     blocked = _party_blocked(doctype, row, job)
     if row.express_state != contracts.HELD or (row.express_job and not blocked):
@@ -248,6 +263,7 @@ def retry(doctype, name):
     重新核记住的选择，不对的停下来在这里选），不拿原来那份载荷再试；只有结果不明的（可能已经写进去了）原样再排、钉在原来
     那台电脑上，由它按单据号查重。"""
     row = _document(doctype, name, write=True)
+    _require_enabled(row)
     if row.get("express_void_state"):
         void_job = jobs.find_by_name(row.express_void_job) if row.express_void_job else None
         if not void_job or void_job["status"] != "manual":

@@ -9,7 +9,7 @@
 - ERP 里没编码的同编码 / 同税号加分店 / 同名的档，第一次同步时认领过来，不另建一份。
 - Express 里没有了的档（这家公司的）在 ERP 里停用；又出现了就启用。
 - Express 里有的字段完全照 Express 写（空也写），在 ERP 里不能改（`locks`）；ERP 自有字段（图片、分类等）不动。
-库存对齐成「Express 结存 + 还没写进 Express 的 ERP 单的变动」，差额记一笔调整流水（来源 ``express_sync``）。
+库存对齐成「Express 结存 + 接上之后开始、还没写进 Express 的 ERP 单的变动」（:func:`_pending`），差额记一笔调整流水（来源 ``express_sync``）。
 
 自动同步（下面除手动以外的触发）只把公司记成「排队中」（:func:`queue`），每分钟 :func:`advance` 按顺序发起读取（同时最多
 :data:`OPEN_READS` 家）、读好了才排后台任务落库，后台进程不空等电脑（生产 ERP 只有一个后台进程，写单任务也在里面）。
@@ -407,8 +407,11 @@ def apply(company, book, data, stale=False, company_name=""):
     if data.get("mark"):  # 旧版 CC 桌面版读的没有标记：不清掉原来的（清掉了下一轮看标记必不同，又整套读一遍）
         values["express_mark"] = data["mark"]
     values.update(_profile(company, data.get("settings") or {}, company_name))
-    if not frappe.db.get_value(COMPANY, company, "express_pos_from"):
-        # 第一次接上 Express：收银日汇总只从这天起（之前的小票不补写，会计可能已手录过；验收 10-25）
+    linked = frappe.db.get_value(COMPANY, company, ["express_enabled", "express_linked_at"], as_dict=True) or {}
+    if linked.get("express_enabled") and not linked.get("express_linked_at"):
+        # 接上那一刻（第一次、或断开后重新接上的第一次落库；主会话 11-01）：之后开始的单才写进 Express，之前的不补写
+        # （会计可能已手录过、期间可能已关账；验收 10-25）。收银日汇总只收这一刻之后卖的小票，起始日随它
+        values["express_linked_at"] = now_datetime()
         values["express_pos_from"] = nowdate()
     frappe.db.set_value(COMPANY, company, values, update_modified=False)
     frappe.db.commit()
@@ -691,96 +694,95 @@ def _warehouses(company, book, data):
     return {code: name for code, name in found.items() if name}, changed
 
 
-# 写进 Express 的单（采购、销售记录）：它们的原始流水在单子写进去之前算「还没进 Express」，写进去之后不算
-WRITTEN_SOURCES = {"ERP Sales Document": "ERP Sales Document", "purchase": "Purchase Document"}
-# 出入库单与盘点调整（出入库第一期 B 段起写进 Express）：只有已写进去的单不算；没写成的、B 段之前开的（状态是空的）照算
-STOCK_ENTRY_SOURCES = ("stock_entry", "count")
+# 库存对齐只叠加「接上之后开始、还没写成」的单（主会话 11-01）：各类写进 Express 的单按来源类型找回单据
+WRITTEN_SOURCES = {"ERP Sales Document": "ERP Sales Document", "purchase": "Purchase Document", "stock_entry": "ERP Stock Entry"}
 STOCK_COUNT = "ERP Stock Count"
 STOCK_ENTRY = "ERP Stock Entry"
+COUNT_REF, VOID_REF, SALE_REFS = "count", "void", ("sale", "refund")
 WRITTEN_STATES = ("written", "mismatch", "handled")  # 含人标记「已在 Express 手工处理」的收银日汇总 / 退货单
 # 不算 ERP 自己的变动：同步调整本身、期初（Express 有自己的期初，接了 Express 的公司不在 ERP 录期初）
 NOT_ERP_MOVES = (SYNC_REASON, "opening")
+KNOWN_REFS = (*NOT_ERP_MOVES, *WRITTEN_SOURCES, COUNT_REF, VOID_REF, *SALE_REFS)
 
 
 def _pending(company, products, warehouses):
-    """还没进 Express 的 ERP 库存变动：``{(存货码, 仓库码): 带符号基本单位数量}``（出入库第一期，10-25）。
+    """还没进 Express 的 ERP 库存变动：``{(存货码, 仓库码): 带符号基本单位数量}``（出入库第一期 10-25；口径主会话 11-01 统一）。
 
-    - 采购单、销售记录的原始流水：单子还没写进 Express（不管后来有没有作废）就算；
-    - 出入库单、盘点调整（B 段起写进 Express）：已写进去的单不算，其余照算；
-    - 收银小票（B3a 起按天汇总写进 Express）：已写进去的日汇总里的小票（含并进去的同日退货）不算，其余照算；
-    - 其余来源（收银小票 / 退货、作废冲销 ``void``、没有来源的）还不写进 Express，一律算；
-      没写进去就作废的单，原始流水与冲销流水正好抵消；写进去之后作废的，冲销流水是 ERP 独有的，
-      等 Express 里也作废完（出入库单 ``express_void_state`` = voided）就不算；
-    - 同步调整本身、期初不算。
-    原来只算采购单与销售记录两种，收银台卖出、出入库单的变动每次同步都被按 Express 的数抹掉。"""
+    只叠加开始时刻不早于这家公司「接上时刻」（`push.linked_at`）、还没写成的单；更早开始的一律不叠加，接上后 ERP 结存以 Express
+    为准（接上前在 ERP 做的出入库 / 盘点 / 收银 / 采购 / 销售不补进 Express）：
+    - 采购单、销售记录、出入库单、盘点调整：排队中 / 停下 / 失败的（只有接上之后开始的单才会排上，`push.started_linked`）；
+    - 收银小票：接上之后卖的、还没进写成的日汇总 / 退货单；
+    - 作废冲销：原单算的照算（正好抵消）；原单写进去之后在 ERP 作废的是 ERP 独有的变动，也算 —— 出入库单在 Express 也作废完
+      （``express_void_state`` = voided）的除外；
+    - 其余来源（手工调整等，从不写进 Express）：接上之后的照算；同步调整本身、期初不算。
+    没接上（没有接上时刻）的公司不叠加。原来出入库 / 盘点 / 小票接上前的单也永久叠加、采购 / 销售 / 期初却被覆盖，口径不一。"""
+    since = push.linked_at(company)
     code_of = {name: code for code, name in products.items()}
     loc_of = {name: code for code, name in warehouses.items()}
-    if not code_of or not loc_of:
+    if not code_of or not loc_of or not since:
         return {}
     pending = {}
 
-    def add(rows):
+    def add(rows, sign=1):
         for row in rows:
             key = (code_of.get(row.product), loc_of.get(row.warehouse))
             if key[0] and key[1]:
-                pending[key] = pending.get(key, Decimal(0)) + contracts.d(row.qty)
+                pending[key] = pending.get(key, Decimal(0)) + sign * contracts.d(row.qty)
 
-    scope = [["warehouse", "in", list(loc_of)], ["product", "in", list(code_of)]]
-    # 按品 × 仓 × 来源类型在库里求和，再在这里排除不算的类型（空来源照算；不靠「不在」条件处理空值）
+    scope = [["warehouse", "in", list(loc_of)], ["product", "in", list(code_of)], ["creation", ">=", since]]
+
+    def moved(ref_type, names):
+        if not names:
+            return []
+        return frappe.get_all(stock.MOVEMENT,  # bounded: 按品 × 仓分组求和
+                              filters=scope + [["ref_type", "in" if isinstance(ref_type, tuple) else "=", ref_type],
+                                               ["ref_id", "in", names]],
+                              fields=["product", "warehouse", {"SUM": "qty_base", "as": "qty"}],
+                              group_by="product, warehouse", order_by="", limit_page_length=0)
+
+    mine = {"Purchase Document": {"company": company}, "ERP Sales Document": {"company": company},
+            STOCK_ENTRY: {"warehouse": ["in", list(loc_of)]}, STOCK_COUNT: {"warehouse": ["in", list(loc_of)]}}
+    counted, written = set(), set()
+    for ref_type, doctype in WRITTEN_SOURCES.items():
+        open_docs = frappe.get_all(doctype, filters={**mine[doctype], "express_state": ["in", contracts.PENDING_STATES]},
+                                   pluck="name", limit_page_length=0)  # bounded: 接上之后开始、还没写成的单
+        counted.update(open_docs)
+        add(moved(ref_type, open_docs))
+    # 盘点生成的出入库单不逐张写，整份盘点轧差写一张 TK：盘点还没写成，它生成的单就都算（验收 10-25）
+    counts = frappe.get_all(STOCK_COUNT, filters={**mine[STOCK_COUNT], "express_state": ["in", contracts.PENDING_STATES]},
+                            pluck="name", limit_page_length=0)  # bounded: 还没写成的盘点
+    entries = frappe.get_all(STOCK_ENTRY, filters={"ref_type": COUNT_REF, "ref_id": ["in", counts]},  # bounded: 这些盘点的单
+                             pluck="name", limit_page_length=0) if counts else []
+    counted.update(entries)
+    add(moved(COUNT_REF, entries))
+    # 收银小票（B3a / B3b）：接上之后卖的、不在写成的日汇总 / 退货单里的
+    receipts = frappe.db.sql(f"""SELECT m.ref_id, m.product, m.warehouse, SUM(m.qty_base) AS qty FROM `tab{stock.MOVEMENT}` m
+            JOIN `tabERP Sale` s ON s.name = m.ref_id LEFT JOIN `tabERP POS Day Summary` d ON d.name = s.express_summary
+            WHERE m.ref_type IN %(sales)s AND s.sold_at >= %(since)s AND m.creation >= %(since)s
+            AND COALESCE(d.express_state, '') NOT IN %(written)s
+            AND m.warehouse IN %(warehouses)s AND m.product IN %(products)s GROUP BY m.ref_id, m.product, m.warehouse""",
+                             {"sales": SALE_REFS, "since": since, "written": WRITTEN_STATES, "warehouses": tuple(loc_of),
+                              "products": tuple(code_of)}, as_dict=True)
+    counted.update(row.ref_id for row in receipts)
+    add(receipts)
+    # 作废冲销：原单算的（上面已叠加）照算；原单写进去之后作废的也算，出入库单在 Express 也作废完的除外
+    voids = frappe.get_all(stock.MOVEMENT, filters=scope + [["ref_type", "=", VOID_REF]],  # bounded: 接上之后的冲销按原单分组
+                           fields=["ref_id", "product", "warehouse", {"SUM": "qty_base", "as": "qty"}],
+                           group_by="ref_id, product, warehouse", order_by="", limit_page_length=0)
+    originals = sorted({row.ref_id for row in voids if row.ref_id and row.ref_id not in counted})
+    if originals:
+        for doctype in WRITTEN_SOURCES.values():
+            filters = {"name": ["in", originals], "express_state": ["in", WRITTEN_STATES]}
+            if doctype == STOCK_ENTRY:
+                filters["express_void_state"] = ["!=", push.VOIDED]
+            written.update(frappe.get_all(doctype, filters=filters, pluck="name", limit_page_length=0))  # bounded: 这些原单
+    add([row for row in voids if row.ref_id in counted or row.ref_id in written])
+    # 从不写进 Express 的其余来源（手工调整、没有来源的）：接上之后的照算
     for row in frappe.get_all(stock.MOVEMENT, filters=scope,  # bounded: 按品 × 仓 × 来源类型分组求和
                               fields=["product", "warehouse", "ref_type", {"SUM": "qty_base", "as": "qty"}],
                               group_by="product, warehouse, ref_type", order_by="", limit_page_length=0):
-        if (row.ref_type or "") not in NOT_ERP_MOVES and (row.ref_type or "") not in WRITTEN_SOURCES:
+        if (row.ref_type or "") not in KNOWN_REFS:
             add([row])
-    written = frappe.get_all(STOCK_ENTRY, filters={"warehouse": ["in", list(loc_of)],  # bounded: 这家公司已写进 Express 的单
-                                                   "express_state": ["in", WRITTEN_STATES]},
-                             pluck="name", limit_page_length=0)
-    # 盘点生成的出入库单不逐张写，整份盘点轧差写一张 TK：盘点写进去了，它生成的单就都算已写（验收 10-25）
-    counts = frappe.get_all(STOCK_COUNT, filters={"warehouse": ["in", list(loc_of)],  # bounded: 这家公司已写进 Express 的盘点
-                                                  "express_state": ["in", WRITTEN_STATES]},
-                            pluck="name", limit_page_length=0)
-    if counts:
-        written += frappe.get_all(STOCK_ENTRY, filters={"ref_type": "count", "ref_id": ["in", counts]},  # bounded: 这些盘点的单
-                                  pluck="name", limit_page_length=0)
-    if written:
-        for row in frappe.get_all(stock.MOVEMENT,  # bounded: 按品 × 仓分组求和
-                                  filters=scope + [["ref_type", "in", STOCK_ENTRY_SOURCES], ["ref_id", "in", written]],
-                                  fields=["product", "warehouse", {"SUM": "qty_base", "as": "qty"}],
-                                  group_by="product, warehouse", order_by="", limit_page_length=0):
-            key = (code_of.get(row.product), loc_of.get(row.warehouse))
-            if key[0] and key[1]:
-                pending[key] = pending.get(key, Decimal(0)) - contracts.d(row.qty)
-    # 写进去之后又在 Express 作废完的单（B 段 ①）：原单与冲销流水在 Express 里都有了，冲销也不算（验收 10-25：否则同步时 ERP 被多加 / 多减一遍）。
-    # 作废还在排队、转了人工的，Express 里原单还在，冲销照算
-    voided = frappe.get_all(STOCK_ENTRY, filters={"warehouse": ["in", list(loc_of)],  # bounded: 这家公司在 Express 作废完的单
-                                                  "express_void_state": push.VOIDED}, pluck="name", limit_page_length=0)
-    if voided:
-        for row in frappe.get_all(stock.MOVEMENT,  # bounded: 按品 × 仓分组求和
-                                  filters=scope + [["ref_type", "=", "void"], ["ref_id", "in", voided]],
-                                  fields=["product", "warehouse", {"SUM": "qty_base", "as": "qty"}],
-                                  group_by="product, warehouse", order_by="", limit_page_length=0):
-            key = (code_of.get(row.product), loc_of.get(row.warehouse))
-            if key[0] and key[1]:
-                pending[key] = pending.get(key, Decimal(0)) - contracts.d(row.qty)
-    # 收银小票（B3a）：已写进 Express 的日汇总里的小票不算（没汇总的、汇总了还没写进去的照算）；并进日汇总的同日退货小票同样不算；
-    # 写进退货单 SR 的退货小票（B3b，同一个 DocType）也不算，还没写的照算
-    for row in frappe.db.sql(f"""SELECT m.product, m.warehouse, SUM(m.qty_base) AS qty FROM `tab{stock.MOVEMENT}` m
-            JOIN `tabERP Sale` s ON s.name = m.ref_id JOIN `tabERP POS Day Summary` d ON d.name = s.express_summary
-            WHERE m.ref_type IN ('sale', 'refund') AND d.company = %(company)s AND d.express_state IN %(written)s
-            AND m.warehouse IN %(warehouses)s AND m.product IN %(products)s GROUP BY m.product, m.warehouse""",
-                             {"company": company, "written": WRITTEN_STATES, "warehouses": tuple(loc_of),
-                              "products": tuple(code_of)}, as_dict=True):
-        key = (code_of.get(row.product), loc_of.get(row.warehouse))
-        if key[0] and key[1]:
-            pending[key] = pending.get(key, Decimal(0)) - contracts.d(row.qty)
-    for ref_type, doctype in WRITTEN_SOURCES.items():
-        open_docs = frappe.get_all(doctype, filters={"company": company, "express_state": ["in", contracts.OPEN_STATES]},
-                                   pluck="name", limit_page_length=0)  # bounded: 还没写进 Express 的单
-        if open_docs:
-            add(frappe.get_all(stock.MOVEMENT,  # bounded: 按品 × 仓分组求和
-                               filters=scope + [["ref_type", "=", ref_type], ["ref_id", "in", open_docs]],
-                               fields=["product", "warehouse", {"SUM": "qty_base", "as": "qty"}],
-                               group_by="product, warehouse", order_by="", limit_page_length=0))
     return pending
 
 

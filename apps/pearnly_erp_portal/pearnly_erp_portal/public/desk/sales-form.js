@@ -173,7 +173,7 @@
 				// LINE 那张源文件由服务端按卡片补上，这里只交用户另加的附件。
 				values.attachments = state.attachments.filter(row => !row.intake);
 				// 写进 Express 缺人要定的（同期账套、费用科目、同税号几个档…）提交前就问；关掉就不提交
-				if (!(await p.express_preflight("ERP Sales Document", {...values, company: doc.company || undefined}))) return;
+				if (!(await p.express_preflight("ERP Sales Document", {...values, company: doc.company || undefined}, doc.name))) return;
 				const result = intake ? await p.call("pearnly_erp_portal.integrations.api.api_submit_line_intake", {name: intake, payload: values}, "POST")
 					: await u.call("api_post_sale", {payload: values, request_id: state.request_id, name: doc.name || undefined}, true);
 				p.success(__("Submitted")); await go(result.name);
@@ -223,7 +223,7 @@
 				changes();
 			};
 		} else if (doc.status === "submitted" && state.can_write) {
-			if (frappe.boot.pearnly_express && doc.express_state)
+			if (doc.express_state)
 				page.add_inner_button(__("Express"), () => p.express("ERP Sales Document", doc.name, reload));
 			// 收满之后不再给收款入口（用户 2026-09-23：「已收不可更改」）。
 			if (doc.doc_kind === "receipt" && doc.payment_status !== "paid")

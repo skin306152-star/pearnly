@@ -94,7 +94,7 @@ def preview(payload):
 # ── 买方：销项的单据上就有买方块，客户主档可以有也可以没有 ──────────────────
 
 
-def _buyer(payload, company=None):
+def _buyer(payload, company=None, started=None):
     from pearnly_erp_portal.masters.selection import match_party, unlinked_party
 
     key = payload.get("customer")
@@ -134,8 +134,8 @@ def _buyer(payload, company=None):
     if not key and party != "anonymous" and name not in unknown:
         identity = {"tax_id": tax, "branch_type": "branch" if branch and branch != "00000" else "hq",
                     "branch_no": branch if branch and branch != "00000" else None} if tax else {}
-        # 接了 Express 的公司：随单建的档先归这家公司（不对全租户各家都可见），写进去后挂上 Express 码（`push.link_party`）
-        owner = company if company and express_push.linked(company) else None
+        # 单据开始时已接上 Express 的公司：随单建的档先归这家公司（不对全租户各家都可见），写进去后挂上 Express 码（`push.link_party`）
+        owner = express_push.owner(company, started)
         key = frappe.get_doc({"doctype": "ERP Customer", "customer_name": name, "party_type": party,
                               "address": payload.get("address"), "is_active": 1, "express_company": owner,
                               **identity}).insert(ignore_permissions=True).name
@@ -198,7 +198,8 @@ def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
             "status": ["!=", contracts.VOID]}, pluck="name")
         if any(key != name for key in duplicates):
             frappe.throw(_("Document already exists"))
-    customer, buyer_name = _buyer(payload, company)
+    # 单据开始时刻（草稿按建草稿，`push.started`）：随单建的客户归不归这家公司按它
+    customer, buyer_name = _buyer(payload, company, express_push.started(DOCTYPE, name) if name else None)
     # 单头「仓库 + 库位」（多仓闭环 P1）：存在单上，行上没写的用它
     place = positions.header(payload.get("warehouse"), payload.get("location"), company=company)
     rows = [_line_row(raw, computed, company=company, place=place) for raw, computed in zip(payload["lines"], totals["lines"])]
