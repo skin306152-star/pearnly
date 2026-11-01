@@ -166,4 +166,104 @@ LINE 绑定块（实验室没接 LINE 频道，不出二维码）；收银台 PO
 附带变化：控制面 DocType 的字段顺序也决定原生列表列的先后——功能目录列表「代码 / 名称」对调、部署列表「状态」挪到最后、
 LINE 频道列表「状态」挪到产品后面（各人存过列表设置的照旧按设置）。控制面 DocType 的 `modified` 已更新，`migrate` 同步，无数据迁移。
 
-<!-- 清单、改动、截图对照与验证在下面补齐 -->
+## 验证（分支 `pearnly/form-layout-audit-86ed56`，变基到 `origin/main` `53acebda`）
+
+- 静态闸门：`python3 scripts/check-form-layout.py` 通过（48 张带分栏的表单，基线 4 条：两个产品的 LINE 绑定块二维码、两个产品的看板规则行，
+  原因写在 `scripts/form-layout-baseline.json`）；`tests/test_check_form_layout.py` 9 项通过；`development.yml` 加同名一步。
+- 本地闸门 `~/pearnly-devtools/gate.sh`：153 项通过；3 项（吞错、三元混用、只读 Autocomplete）不通过全是本机为实验栈构建的
+  `public/pearnly-app/assets`（不进 git）——在 `git archive HEAD` 的干净树上这 3 项通过。分支 CI「Development checks」通过。
+- 受影响流程（`run.py --changed --base origin/main --jobs 3`，本机栈 `pearnly-form-lab`）：14 条 × 两套数据 × 电脑 / 手机，首轮 47/54；
+  不通过 7 格中 4 格是新写的 `cowork.intake.review` 选择器只认 `input`（产品里 Data 格是会长高的 `textarea`，已修），3 格是无头浏览器
+  卡住 900 秒（`erp.company.create` 手机两套、`erp.purchase.create` 老数据电脑），单独重跑 7 格全部通过。新流程 `erp.party.dialogs`、
+  `cowork.intake.review` 四格都过（电脑宽断言左右栏同行，手机宽断言叠列顺序，改分店号保存落库）。
+- 实测巡检（`form_layout_shots.py`）：改前 / 改后 / 改后手机宽复扫各 43 页 × 本页 / 新建 / 第一行，页面无报错；
+  控制面「订阅」列表手机宽两次卡住超时，没测到（表单未改）。
+- 文案：`check-copy.py` 新增 0、改动 0（只复用了已有的「地址与备注」节标题）。
+
+### 共用件连带回归（改到 `product.css`、`transactions.js`、`intake-upload.js`）
+
+`python3 scripts/smoke/run.py --target local --diff`（本机实验栈，老数据集）：
+
+自动冒烟（local）：通过 42、不通过 0、没测到 28
+
+| 入口 | 产品 | 方式 | 结果 | 说明 |
+|---|---|---|---|---|
+| `erp.page.home` | ERP | auto：page | 通过 | 0.8 秒 |
+| `erp.page.products` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.inventory` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.stock-in` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.stock-out` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.stock-transfer` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.stock-card` | ERP | auto：page | 通过 | 0.6 秒 |
+| `erp.page.stock-count` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.cashier` | ERP | auto：page | 通过 | 0.6 秒 |
+| `erp.page.company` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.warehouses` | ERP | auto：page | 通过 | 0.6 秒 |
+| `erp.page.team` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.purchase` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.suppliers` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.sales` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.pos-receipts` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.pos-shifts` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.clients` | ERP | auto：page | 通过 | 0.6 秒 |
+| `erp.page.tasks` | ERP | auto：page | 通过 | 0.7 秒 |
+| `cowork.page.home` | Cowork | auto：page | 通过 | 1.1 秒 |
+| `cowork.page.intake` | Cowork | auto：page | 通过 | 0.7 秒 |
+| `cowork.page.recon-bank` | Cowork | auto：page | 通过 | 1.0 秒 |
+| `cowork.page.recon-income` | Cowork | auto：page | 通过 | 0.4 秒 |
+| `cowork.page.recon-vat` | Cowork | auto：page | 通过 | 0.5 秒 |
+| `cowork.page.stocktake` | Cowork | auto：page | 通过 | 0.4 秒 |
+| `cowork.page.work` | Cowork | auto：page | 通过 | 0.6 秒 |
+| `cowork.page.team` | Cowork | auto：page | 通过 | 0.4 秒 |
+| `dms.page.home` | DMS | auto：page | 通过 | 1.4 秒 |
+| `dms.page.connect` | DMS | auto：page | 通过 | 0.5 秒 |
+| `dms.page.records` | DMS | auto：page | 通过 | 0.5 秒 |
+| `dms.page.roster` | DMS | auto：page | 通过 | 0.5 秒 |
+| `erp.page.never.push-logs` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.never.reconcile` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.never.guide` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.never.history` | ERP | auto：page | 通过 | 0.6 秒 |
+| `erp.report.stock-count-variance` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `shared.sidebar-order` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.company-menu` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.detail.sales.draft` | ERP | auto：doc_detail | 没测到 | no draft ERP Sales Document |
+| `erp.detail.sales.submitted` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.sales.void` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.purchase.draft` | ERP | auto：doc_detail | 没测到 | no draft Purchase Document |
+| `erp.detail.purchase.submitted` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.purchase.void` | ERP | auto：doc_detail | 没测到 | no void Purchase Document |
+| `erp.detail.stock-in.submitted` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.stock-out.void` | ERP | auto：doc_detail | 没测到 | no void ERP Stock Entry on the first list page |
+| `erp.stock-count.switch.posted-to-active` | ERP | auto：record_switch | 通过 |  |
+| `erp.stock-count.switch.active-to-posted` | ERP | auto：record_switch | 通过 |  |
+| `erp.purchase.detail.not-permitted` | ERP | auto：not_permitted | 没测到 | 没配受限账号 SMOKE_USER_ERP_LIMITED |
+| `erp.sales.detail.not-permitted` | ERP | auto：not_permitted | 没测到 | 没配受限账号 SMOKE_USER_ERP_LIMITED |
+| `cowork.stocktake.switch` | Cowork | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.place.header` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.products.new-dialog.opening` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.inventory.opening.row-warehouse` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.warehouses.express-new-hidden` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `cowork.intake.upload` | Cowork | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `cowork.intake.viewer` | Cowork | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.stock-in.item-scan` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.stock-out.item-scan` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.purchase.item-scan` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.sales.item-scan` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.serials.dialog` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.scan.pick-product` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.stock-in.attach` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.stock-out.attach` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `shared.navigation` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `shared.upload.shrink-photo` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.print.stock-entry` | ERP | manual | 没测到 | manual：交验收窗口按清单实测 |
+| `erp.products.find-by-code` | ERP | auto：find_product | 通过 |  |
+| `cowork.tax-documents` | Cowork | manual | 没测到 | manual：交验收窗口按清单实测 |
+
+人工入口（22 个）与 6 个实验数据里没有的（草稿销售单、草稿 / 作废采购单、作废出库单、受限账号两项）交验收窗口；本次只动字段先后、
+分栏与手机宽弹窗栏内边距，不碰扫码、上传、附件、打印、按台的逻辑。
+
+## 收尾
+
+- 实验栈 `pearnly-form-lab` 用完 `stop`（数据卷保留）；截图全量在共享笔记 `表单排版截图-11-01/`。
+- 不部署（主会话攒批）。
+
