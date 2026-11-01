@@ -286,3 +286,10 @@ def test_a_save_whose_number_cannot_be_read_is_confirmed_from_the_book_not_voide
     rec = _engine(sim).run(d)
     assert rec["outcome"] == "saved" and rec["docnum"] == "HP0000001" and not rec["voided"]
     assert rec["readback"]["ok"]
+
+
+def test_a_late_unit_dialog_is_waited_for_so_the_price_does_not_land_in_it():
+    # Express 慢时单位框晚弹：不等就把单价打进单位框、整行错位（11-01 录制机怀疑的「认不出商品」）
+    d = samples()[1]
+    recs, sim, _, _ = run_docs([d], with_ai=False, inject={"late_unit": 6})
+    assert recs[0]["outcome"] == "saved" and recs[0]["readback"]["ok"] and not recs[0]["voided"]

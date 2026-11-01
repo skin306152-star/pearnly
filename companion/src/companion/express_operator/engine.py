@@ -28,6 +28,7 @@ MAX_TAKEOVERS_PER_DOC = 3
 SLOW_STEP_MS = 500
 SLOW_FORM_S = 60
 SLOW_SAVE_S = 60
+UNIT_WAIT_S = 10  # 录完数量回车后等单位框（或光标到单价格）
 SAVED_UNREAD = "?"  # 画面核对已存上、单号格读不到字：单号以读账套为准
 INPUT_OPS = {"keys", "key", "type", "paste", "click", "drag", "scroll", "grid_click", "command", "dialog_button", "menu",
              "close_form",
@@ -490,15 +491,23 @@ class Engine:
         else:
             self._recover(where, f"cell is '{seen.strip()[:40]}', want '{value}'", line_text, {"stage": "line"})
 
-    def close_unit_dialog(self, where: str, text: str) -> None:
-        """单位框：框里回车是跳格不是确定（试点实测），所以按框里的「ตกลง」。有的商品不弹。"""
+    def close_unit_dialog(self, where: str, text: str, qty_x: Optional[int] = None) -> None:
+        """单位框：框里回车是跳格不是确定（试点实测），所以按框里的「ตกลง」。有的商品不弹。
+        Express 慢时框会晚弹（11-01 录制机）：等到框弹出来，或光标已走到右边的单价格（这件商品不弹），最多 ``UNIT_WAIT_S``；
+        不等就会把单价打进晚弹的单位框，整行错位。"""
         name = self.form.spec["unit_dialog"]
-        hit = [w for w in self.windows if name in self._text(w)] or \
-              [w for w in self.state().get("windows", []) if name in self._text(w)]
-        if hit:
-            self._layer("win32")
-            self.step(where, [{"do": "dialog_button", "text": "ตกลง"}, {"do": "wait", "ms": 600}], text,
-                      {"stage": "line"})
+        for _ in range(max(1, int(UNIT_WAIT_S * 1000 / SLOW_STEP_MS))):
+            hit = [w for w in self.windows if name in self._text(w)] or \
+                  [w for w in self.state().get("windows", []) if name in self._text(w)]
+            if hit:
+                self._layer("win32")
+                self.step(where, [{"do": "dialog_button", "text": "ตกลง"}, {"do": "wait", "ms": 600}], text,
+                          {"stage": "line"})
+                return
+            rect = self._cell().get("rect") or [0, 0, 0, 0]
+            if qty_x is None or rect[0] > qty_x + 8:
+                return  # 光标已到单价格：这件商品不弹单位框
+            self.act([{"do": "wait", "ms": SLOW_STEP_MS}], windows=False)
 
     def enter_lines(self) -> None:
         self._stage = "line"
@@ -513,10 +522,12 @@ class Engine:
             start = self._cell().get("rect") or [0, 0, 0, 0]
             enter = lambda ms: self.step(where, [{"do": "keys", "text": "{ENTER}"}, {"do": "wait", "ms": ms}],  # noqa: E731
                                          text, {"stage": "line"})
+            qty_cell: Dict = {}
             ops = [lambda: self._type_cell(f"{where}.item", line.item_code, text), lambda: enter(1000),
                    lambda: line.loc and self._type_cell(f"{where}.loc", line.loc, text), lambda: enter(400),
-                   lambda: self._type_cell(f"{where}.qty", line.qty, text), lambda: enter(900),
-                   lambda: self.close_unit_dialog(where, text),
+                   lambda: self._type_cell(f"{where}.qty", line.qty, text),
+                   lambda: qty_cell.update(self._cell()), lambda: enter(900),
+                   lambda: self.close_unit_dialog(where, text, (qty_cell.get("rect") or [None])[0]),
                    lambda: self._type_cell(f"{where}.price", line.unit_price, text)]
             for op in ops:
                 op()

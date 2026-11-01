@@ -277,9 +277,18 @@ class FakeExpress:
                 if f"warn4108:{party}" in self.inject:
                     self.dialog("4108", "Message#. 4108", "คำเตือน! ไม่มีประวัติการซื้อจากผู้จำหน่ายรายนี้")
             self.unit_mult = "1.000"
-            self.dialog("unit", "ป้อนหน่วยนับที่ซื้อ", "หน่วยย่อยนับเป็น", buttons=("ตกลง", "ยกเลิก"), after=after_unit)
-            self.dialogs[-1]["row"] = row
-            self.focus = ("grid", row, "price")
+
+            def show_unit():
+                self.dialog("unit", "ป้อนหน่วยนับที่ซื้อ", "หน่วยย่อยนับเป็น", buttons=("ตกลง", "ยกเลิก"), after=after_unit)
+                self.dialogs[-1]["row"] = row
+                self.focus = ("grid", row, "price")
+
+            # 慢的 Express：单位框过几次等待才弹，这之前光标还在数量格（inject「late_unit」= 还要等几次）
+            self.unit_delay = int(self.inject.pop("late_unit", 0))
+            if self.unit_delay:
+                self.pending_unit = show_unit
+            else:
+                show_unit()
         elif col == "price":
             self._set_focus(("grid", row, "disc"))
         elif col == "disc":
@@ -437,6 +446,10 @@ class FakeExpress:
                 self.save_delay -= 1
                 if not self.save_delay:
                     self._save()
+            if getattr(self, "unit_delay", 0):
+                self.unit_delay -= 1
+                if not self.unit_delay:
+                    self.pending_unit()
             return {}
         if op in ("us_layout", "maximize_main", "move", "mouse", "scroll", "drag"):
             return {}
