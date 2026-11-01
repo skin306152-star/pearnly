@@ -80,6 +80,12 @@ def steps(params, camera_code=None):
          f"document.getElementById('code').value={json.dumps(params['unit_code'])}; document.getElementById('find').click();"
          "await until(()=>toast.textContent!==old&&toast.textContent.trim()); await new Promise(r=>setTimeout(r,800));"
          "return {qty_box: !!document.getElementById('qty'), message: (toast.textContent||'').trim().slice(0,200), y_before: before, y_after: head()};"},
+        # 网址（TIS 认证码）不是商品码：提示一句、不出新建卡片（认码那一层统一拒，岳父 11-01）
+        {"name": "输网址码", "js": wait +
+         "const toast=document.querySelector('.toast, #toast')||document.body; const old=toast.textContent;"
+         "document.getElementById('code').value='https://appdb.tisi.go.th/Q/i.php?d=PEARNLYFLOW0002'; document.getElementById('find').click();"
+         "await until(()=>toast.textContent!==old&&toast.textContent.trim()); await new Promise(r=>setTimeout(r,800));"
+         "return {message: (toast.textContent||'').trim().slice(0,200), new_form: !!document.getElementById('np_product_name')};"},
         {"name": "输没有的码", "js": wait +
          f"document.getElementById('code').value={code}; document.getElementById('find').click();"
          "const n=await until(()=>document.getElementById('np_product_name'));"
@@ -94,7 +100,10 @@ def steps(params, camera_code=None):
          f"document.getElementById('np_category').value={json.dumps(params['category'])}; document.getElementById('np_attribute').value='ดำ';"
          "document.getElementById('np_save').click();"
          f"const b=await until(()=>[...document.querySelectorAll('.card b')].find(e=>e.innerText.trim()==={name}));"
-         "return {recognised: !!b, options: [...document.querySelectorAll('#loclist option')].map(o=>[o.value,o.label])};"},
+         "return {recognised: !!b, options: [...document.querySelectorAll('#loclist option')].map(o=>[o.value,o.label]),"
+         # 认出后的物料信息先后（岳父 11-01：条码、名称、分类、特性/颜色，再接编码）
+         " order: [...document.querySelectorAll('#product_info [data-k]')].map(e=>e.dataset.k),"
+         " barcode: ((document.querySelector('#product_info [data-k=barcode] span:last-child')||{}).innerText||'').trim()};"},
         {"name": "选库位记数", "js": wait +
          f"const l=document.getElementById('loc'); if(!l) return {{error:'no location box'}}; l.value={loc};"
          "const store=document.getElementById('store'); const shown=store?store.value:'';"
@@ -117,11 +126,15 @@ def judge(params, results, camera_code=None):
         {"case": "unit tracked product asks for one unit at a time", "seen": unit,
          "ok": unit.get("qty_box") is False and bool(unit.get("message")) and unit.get("y_before") is not None
          and unit.get("y_after") == unit.get("y_before")},
+        {"case": "web address is not a product barcode and offers no new product", "seen": by.get("输网址码"),
+         "ok": bool((by.get("输网址码") or {}).get("message")) and (by.get("输网址码") or {}).get("new_form") is False},
         {"case": "unknown code offers a new product form", "seen": by.get("输没有的码"), "ok": (by.get("输没有的码") or {}).get("new_form") is True},
         {"case": "new product form has the product dialog's fields", "seen": by.get("输没有的码"),
          "ok": (by.get("输没有的码") or {}).get("fields") == NEW_FIELDS and (by.get("输没有的码") or {}).get("code") == params["code"]
          and (by.get("输没有的码") or {}).get("serial_kind") == "vehicle" and (by.get("输没有的码") or {}).get("vat") is True},
         {"case": "new product recognised", "seen": made, "ok": made.get("recognised") is True},
+        {"case": "recognised product shows barcode, name, category, attribute, then code", "seen": made,
+         "ok": made.get("order") == ["barcode", "name", "category", "attribute", "code"] and made.get("barcode") == params["code"]},
         {"case": "location list offered", "seen": options, "ok": not params["location"] or any(o[0] == params["location"] for o in options)},
         {"case": "warehouse defaults to the count's", "seen": by.get("选库位记数"), "ok": (by.get("选库位记数") or {}).get("store_default") == params["warehouse"]},
         {"case": "warehouse list offers the company's other warehouse", "seen": by.get("换仓记数"),

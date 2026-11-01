@@ -24,6 +24,19 @@ KIND_LABELS = {"code": "product.codeKind.code", "internal_code": "product.codeKi
                "express_code": "product.codeKind.expressCode", "barcode": "product.codeKind.barcode",
                "qr_payload": "product.codeKind.qrPayload", UNIT_BARCODE: "product.codeKind.unitBarcode"}
 CLASH = "This code is already used by {0} ({1})"
+NOT_PRODUCT_CODE = "This is not a product barcode"
+
+
+class NotProductCode(frappe.ValidationError):
+    """扫到 / 输入的是网址（产品认证码等），不是商品码（:func:`refuse_web_address`）。"""
+
+
+def refuse_web_address(value) -> None:
+    """网址不是商品码（岳父 11-01：TIS 认证码是网址）：认码、建码都在这里一处拒，各入口不各写一遍。"""
+    from pearnly_erp_portal.products import contracts
+
+    if contracts.web_address(value):
+        frappe.throw(_(NOT_PRODUCT_CODE), NotProductCode)
 TAKEN = "This code is already in use"
 AMBIGUOUS = "Several matches found for {0}. Please select a record."
 
@@ -65,6 +78,7 @@ def holders(value, *, owner=None, exclude=None) -> list:
 def assert_free(value, *, owner=None, exclude=None):
     """新建 / 修改商品的码之前核：撞了就拒，报出撞的那件商品与那种码。撞到的是别家公司从 Express 同步来的档（这个人平时看
     不到那家的主档）只说「已被占用」，不带名称（验收 10-26）。"""
+    refuse_web_address(value)
     found = holders(value, owner=owner, exclude=exclude)
     if not found:
         return
@@ -92,6 +106,7 @@ def candidates(value, company=None, *, active_only=True, exclude=None, rows_of=N
     value = str(value or "").strip()
     if not value:
         return []
+    refuse_web_address(value)
     wanted = gs1.lookup(value)
     fields = ["name", "product_name", "code", "internal_code", "express_code", "barcode", "express_company", "attribute"]
 
@@ -156,4 +171,5 @@ def clashes(company=None, limit=500) -> list:
     return out
 
 
-__all__ = ["AMBIGUOUS", "FIELDS", "KIND_LABELS", "UNIT_BARCODE", "assert_free", "candidates", "clashes", "holders"]
+__all__ = ["AMBIGUOUS", "FIELDS", "KIND_LABELS", "NOT_PRODUCT_CODE", "NotProductCode", "UNIT_BARCODE", "assert_free", "candidates",
+           "clashes", "holders", "refuse_web_address"]

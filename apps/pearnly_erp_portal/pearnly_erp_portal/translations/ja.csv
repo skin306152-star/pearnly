@@ -1420,6 +1420,7 @@ This file holds {0} documents; only the first is filled in. Upload the others se
 This internal code already exists,この社内コードは既に存在します
 This invoice has no lines. Add them and submit again.,この請求書には明細がありません。追加して再送信してください
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,これは返品・値引伝票です。仕入としてはまだ登録できません。
+This is not a product barcode,これは商品バーコードではありません
 This is not a purchase or sales document,これは仕入・売上の書類ではありません
 This item is also stocked at:,この商品は他の場所にも在庫があります:
 This item is not a stock item in Express. Choose another item,この品目は Express の在庫品目ではありません。別の品目を選んでください

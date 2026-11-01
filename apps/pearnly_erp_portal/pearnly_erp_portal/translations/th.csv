@@ -1420,6 +1420,7 @@ This file holds {0} documents; only the first is filled in. Upload the others se
 This internal code already exists,รหัสภายในนี้มีอยู่แล้ว
 This invoice has no lines. Add them and submit again.,เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,เอกสารนี้เป็นใบลดหนี้ ยังไม่รองรับการบันทึกเป็นเอกสารซื้อ
+This is not a product barcode,นี่ไม่ใช่บาร์โค้ดสินค้า
 This is not a purchase or sales document,ไฟล์นี้ไม่ใช่เอกสารซื้อหรือขาย
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 This item is not a stock item in Express. Choose another item,สินค้านี้ไม่ใช่สินค้าคงคลังใน Express กรุณาเลือกสินค้าอื่น

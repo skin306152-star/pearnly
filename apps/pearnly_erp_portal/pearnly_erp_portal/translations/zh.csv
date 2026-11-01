@@ -1420,6 +1420,7 @@ This file holds {0} documents; only the first is filled in. Upload the others se
 This internal code already exists,该内部编码已存在
 This invoice has no lines. Add them and submit again.,此发票没有明细，请补充后重新提交
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,该单据为贷项通知单，暂不支持作为采购单录入。
+This is not a product barcode,这不是商品条码
 This is not a purchase or sales document,该文件不是采购或销售单据
 This item is also stocked at:,该物料还存放于：
 This item is not a stock item in Express. Choose another item,此商品在 Express 中不是库存品，请另选商品

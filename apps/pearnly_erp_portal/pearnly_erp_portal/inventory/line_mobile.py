@@ -20,6 +20,7 @@ from pearnly_core import line
 from pearnly_erp_portal.inventory import count as counts
 from pearnly_erp_portal.inventory import warehouses
 from pearnly_erp_portal.masters import company as companies
+from pearnly_erp_portal.products import contracts as product_contracts
 
 BINDING = "Pearnly LINE Binding"
 PREFIX = "pearnly:erp:stocktake-ticket:"
@@ -154,6 +155,11 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
     """
     as_ticket_user(ticket)
     company = counts.count_company(name)
+    if not kwargs.get("product") and product_contracts.web_address(code):
+        # 网址（TIS 认证码等）不是商品码：提示一句、不出新建卡片，镜头接着扫（同 Desk 录入框）
+        from pearnly_erp_portal.products import codes
+
+        return {"not_product_code": _(codes.NOT_PRODUCT_CODE)}
     matches = counts.products_of_code(code, company)
     chosen_product = kwargs.get("product")
     unit = None

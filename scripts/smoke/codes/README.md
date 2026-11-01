@@ -7,3 +7,4 @@
 | `data-matrix.png` | Data Matrix | `2856`（用户发来的眼镜框吊牌那种：纯数字短码） |
 | `data-matrix-gs1.png` | GS1 Data Matrix | `(01)08850001000019(17)271231(10)LOT7(21)SN12345`：GTIN 是两套数据里条码商品 `8850001000019` |
 | `data-matrix-gs1-unknown.png` | GS1 Data Matrix | `(01)08850001999993(21)SN777`：系统里没有这个 GTIN（走就地新建） |
+| `qr-tis-url.png` | QR | `https://appdb.tisi.go.th/Q/i.php?d=PEARNLYFLOW0001`：泰国工业标准认证（TIS）码那种网址，不是商品码（`erp.stocktake.web-code`，11-01） |

@@ -590,6 +590,7 @@
 			if (!problems || !problems.length) return;
 			const reasons = {
 				code_not_found: t("stock.count.problemCode"),
+				not_product_code: __("This is not a product barcode"),
 				no_identifier: t("stock.count.problemIdentifier"),
 				warehouse_not_found: t("stock.count.problemWarehouse"),
 				unit_by_unit: __("Count products tracked by unit one unit at a time"),

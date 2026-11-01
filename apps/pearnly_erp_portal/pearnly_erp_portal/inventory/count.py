@@ -97,6 +97,8 @@ def products_of_code(code: str, company: str | None = None) -> list:
     售卖单位条码都认。给了 ``company``（这份盘点仓库所属的公司）就只认这家公司 Express 的档和本地档。"""
     from pearnly_erp_portal.products import codes
 
+    if product_contracts.web_address(code):
+        return []  # 网址不是商品码：查码的入口自己先说「这不是商品条码」（`lookup_count`、LINE 页、导入）
     found = codes.candidates(code, company)
     if found:
         return found
@@ -231,6 +233,9 @@ def apply_import(*, count, rows) -> dict:
                 continue
             applied += 1
             counted += outcome == "counted"
+            continue
+        if any(product_contracts.web_address(row.get(key)) for key in ("barcode", "product_code", "internal_code")):
+            problems.append({"row": number, "reason": "not_product_code"})  # 表里抄进来的认证码网址：不认、不建
             continue
         product = _product_of_row(row, company)
         code = (row.get("barcode") or row.get("product_code") or "").strip()
@@ -753,13 +758,15 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
     # 名称不重，名称就能当分组键；存量数字迁移成了同名分类，以前存下的分工范围照样对得上）
     specs = {p.name: p for p in frappe.get_all(  # bounded: 这份盘点的商品
         PRODUCT, filters={"name": ["in", list({row.product for row in rows}) or [""]]},
-        fields=["name", "category", "attribute"], limit_page_length=0)}
+        fields=["name", "category", "attribute", "internal_code", "express_code"], limit_page_length=0)}
     labels = product_categories.names(p.category for p in specs.values())
     for row in rows:
         row.barcode = row.barcode or shown.get(row.product) or None
         spec = specs.get(row.product) or {}
         row.category = labels.get(spec.get("category")) or ""
         row.attribute = spec.get("attribute") or ""
+        # 编码一格显示的是内部编码还是系统编码（LINE 页按它换标签，用户 11-01）
+        row.code_internal = bool(product_contracts.internal_code(spec))
     wanted = (q or "").strip().lower()
     out = []
     tokens = {}
@@ -1113,6 +1120,11 @@ def lookup_count(*, count, code=None, product=None):
     task = _get(count)
     company = count_company(count)
     unit = None
+    if code and not product and product_contracts.web_address(code):
+        # 扫到的是网址（TIS 认证码等）：不查、不出「新建物料」，录入弹窗提示一句、相机接着扫（不弹提示框，同查不到）
+        from pearnly_erp_portal.products import codes
+
+        return {"not_product_code": _(codes.NOT_PRODUCT_CODE)}
     if code and not product:
         matches = products_of_code(code, company)
         if len(matches) > 1:
@@ -1134,6 +1146,10 @@ def lookup_count(*, count, code=None, product=None):
     return {"product": {**{key: found.get(key) for key in ("name", "product_name", "barcode", "base_unit", "unit", "serial_kind",
                                                            "is_active", "attribute")},
                         "code": product_contracts.count_code(found),
+                        # 录入屏「条码」一格：物料存的条码 / 二维码；没存时显示这次扫到的码（比如扫的是箱码），扫的就是编码则不出
+                        "barcode_shown": product_contracts.shown_code(found) or (
+                            str(code or "").strip() if code and str(code).strip() not in (
+                                found.get("code"), found.get("internal_code"), found.get("express_code")) else ""),
                         # 那一格显示的是内部编码还是系统编码：录入屏按它换标签（用户 11-01 批准改文案）
                         "code_internal": bool(product_contracts.internal_code(found)),
                         "category_name": product_categories.names([found.get("category")]).get(found.get("category")) or "",

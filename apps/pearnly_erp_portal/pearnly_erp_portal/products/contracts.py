@@ -51,6 +51,15 @@ def internal_code(row) -> str:
     return str((row or {}).get("internal_code") or (row or {}).get("express_code") or "")
 
 
+# 网址不是商品码（岳父 11-01 扫到过泰国工业标准认证 TIS 码 appdb.tisi.go.th/Q/i.php?d=…）：所有按商品码认物料的入口在认码那一层
+# 一律不查、不建，提示「这不是商品条码」（`products.codes.refuse_web_address`）。按台的车架号 / 序列号不会是网址，不受影响。
+WEB_ADDRESS_PREFIXES = ("http://", "https://")
+
+
+def web_address(value) -> bool:
+    return str(value or "").strip().lower().startswith(WEB_ADDRESS_PREFIXES)
+
+
 def count_code(row) -> str:
     """盘点明细「编码」那一格显示什么（Desk 盘点页、LINE 查码回执）：内部编码，没有就用系统编码。
     Excel 模板另有独立的「编码」（系统编码）与「内部编码」两列，不走这里。"""

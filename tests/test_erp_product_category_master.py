@@ -116,6 +116,17 @@ class Rules(unittest.TestCase):
             create.assert_called_once_with("ไซส์ XL")
             self.assertIsNone(self.c.accept(""))
 
+    def test_web_addresses_are_refused_where_codes_are_read_and_written(self):
+        from pearnly_erp_portal.products import codes
+
+        with mock.patch.object(codes.frappe, "throw", side_effect=lambda message, exc=frappe.ValidationError: (_ for _ in ()).throw(exc(message))), \
+                mock.patch.object(codes, "_", lambda text: text):
+            with self.assertRaises(codes.NotProductCode):
+                codes.candidates("https://appdb.tisi.go.th/Q/i.php?d=x")
+            with self.assertRaises(codes.NotProductCode):
+                codes.assert_free("http://example.test/p")
+            codes.refuse_web_address("8850001000019")
+
     def test_spec_line_skips_empty_parts(self):
         self.assertEqual(self.c.spec("XL", "แดง"), "XL · แดง")
         self.assertEqual(self.c.spec("", "แดง"), "แดง")

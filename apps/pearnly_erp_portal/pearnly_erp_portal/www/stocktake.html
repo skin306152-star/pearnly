@@ -292,13 +292,18 @@
                 + esc((row.location || '—') + ' · ' + number(row.book_qty)) + '</option>').join('')
               + '</select></div></div>'
             : '';
-          return '<div class="card"><div class="row" style="justify-content:space-between">'
-            + '<b>' + esc(item.product_name) + '</b><span class="muted">'
-            + esc((item.code || '') + ' · ' + (item.unit || '')
-              + (item.location ? ' · ' + item.location : '')) + '</span></div>'
-            // 分类、特性/颜色（岳父 11-01）：认货用，有值才出
-            + ((item.category || item.attribute) ? '<div class="row muted">'
-              + esc([item.category, item.attribute].filter(Boolean).join(' · ')) + '</div>' : '')
+          // 认出的物料，先后照岳父 11-01 那张单：条码、名称、分类、特性/颜色，再接编码（标签按显示的是内部编码还是系统编码，
+          // 用户 11-01）、单位与账面库位；条码、分类、特性有值才出（同 Desk 录入屏）
+          const info = (key, label, value, strong) => value ? '<div class="row" data-k="' + key + '" style="justify-content:space-between">'
+            + '<span class="muted">' + esc(label) + '</span>' + (strong ? '<b>' + esc(value) + '</b>' : '<span>' + esc(value) + '</span>')
+            + '</div>' : '';
+          return '<div class="card" id="product_info">'
+            + info('barcode', t('stock.col.barcode'), item.barcode)
+            + info('name', t('stock.col.name'), item.product_name, true)
+            + info('category', t('product.field.category'), item.category)
+            + info('attribute', t('product.field.attribute'), item.attribute)
+            + info('code', t(item.code_internal ? 'product.col.internalCode' : 'stock.col.code'), item.code)
+            + '<div class="row muted">' + esc((item.unit || '') + (item.location ? ' · ' + item.location : '')) + '</div>'
             + picker
             + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.workbench.actualWarehouse')) + '</label>'
             + '<select id="store">' + (last?.warehouses || []).map((row) => '<option value="' + esc(row.value) + '"'
@@ -345,6 +350,12 @@
             if (task?.name !== taskName) return;
             if (result && result.candidates) { choose(code, result.candidates); return; }
             if (result && result.refused) { say(result.refused, true); return; }  // 按台商品：要逐台扫（同电脑），不出数量框
+            // 网址（TIS 认证码等）不是商品码：说一句，不出新建卡片；扫码模式下相机接着开、先跳过这个码（镜头还对着它不再反复读）
+            if (result && result.not_product_code) {
+              say(result.not_product_code, true);
+              if (scanMode && code) { await startCamera((next) => lookup(next)); camera?.reader.resume(code); }
+              return;
+            }
             if (!result || !result.item) { say(t('stock.mobile.notFound'), true); if (code) offerNew(code); return; }
             if (result.task) task = Object.assign({}, task, result.task);  // 抬头（已盘点 x / y）随每次查码刷新
             last = result;

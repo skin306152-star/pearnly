@@ -26,13 +26,15 @@
 			{ fieldtype: "Button", fieldname: "new_product", label: __("product.action.new"), hidden: 1,
 				click: () => create_here(missing) },
 			{ fieldtype: "Section Break", fieldname: "entry_section", hidden: 1 },
+			// 认出的物料，先后照岳父 11-01 那张单：条码、名称、分类、特性/颜色，再接编码（条码、分类、特性有值才出；
+			// 条码是这件物料存的条码 / 二维码，没存时是这次扫到的码——扫的是编码就不出，见服务端 `lookup_count`）
+			{ fieldtype: "Data", fieldname: "product_barcode", label: t("stock.col.barcode"), read_only: 1, hidden: 1 },
 			{ fieldtype: "Data", fieldname: "product_name", label: t("stock.col.name"), read_only: 1 },
+			{ fieldtype: "Data", fieldname: "product_category", label: __("product.field.category"), read_only: 1, hidden: 1 },
+			{ fieldtype: "Data", fieldname: "product_attribute", label: __("product.field.attribute"), read_only: 1, hidden: 1 },
 			// 扫到的那件商品的编码（内部编码，没有就系统编码；服务端 `count_code`，与 LINE 手机页同一个）；标签跟着显示的是哪一种
 			// （用户 11-01 批准：内部编码叫「内部编码」，系统编码叫「编码」）
 			{ fieldtype: "Data", fieldname: "product_code", label: t("stock.col.code"), read_only: 1 },
-			// 分类、特性/颜色（岳父 11-01）：认货用，有值才出；改要去物料（有物料修改权的人点下面「编辑」）
-			{ fieldtype: "Data", fieldname: "product_category", label: __("product.field.category"), read_only: 1, hidden: 1 },
-			{ fieldtype: "Data", fieldname: "product_attribute", label: __("product.field.attribute"), read_only: 1, hidden: 1 },
 			// 这一屏只记数、不改物料；有物料修改权的人在这里开物料页的编辑弹窗（主会话 11-01 批复 ④，服务端 `update_product` 仍判权）
 			{ fieldtype: "Button", fieldname: "edit_product", label: __("product.action.edit"), hidden: 1,
 				click: () => edit_product() },
@@ -256,6 +258,14 @@
 					scanner?.resume(code);
 					return;
 				}
+				if (lookup.not_product_code) {
+					// 扫到的是网址（TIS 认证码等，岳父 11-01）：不是商品码，说一句、不出「新建物料」，相机接着扫、先跳过这个码
+					miss(lookup.not_product_code);
+					lookup = null;
+					scanner?.resume(code);
+					if (code) p.scan_result_sound(false);
+					return;
+				}
 				if (lookup.not_found) {
 					// 系统里没有这个码（服务端照官方 POS 不弹提示框）：停相机、收起画面，「新建物料」就在查找框下面，
 					// 焦点放上去（岳父 11-01 手机上：提示框挡着、按钮在相机画面下面看不到）。换个码就再点相机或手动查找。
@@ -325,7 +335,8 @@
 			await d.set_value("product_name", product.product_name);
 			d.set_df_property("product_code", "label", product.code_internal ? __("product.col.internalCode") : t("stock.col.code"));
 			await d.set_value("product_code", product.code || "");
-			for (const [field, value] of [["product_category", product.category_name], ["product_attribute", product.attribute]]) {
+			for (const [field, value] of [["product_barcode", product.barcode_shown], ["product_category", product.category_name],
+				["product_attribute", product.attribute]]) {
 				await d.set_value(field, value || "");
 				d.set_df_property(field, "hidden", !value);
 			}

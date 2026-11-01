@@ -86,11 +86,21 @@ class StockSheets(unittest.TestCase):
         self.assertEqual(CW._text(" XL "), "XL")
 
 
+class WebAddress(unittest.TestCase):
+    def test_web_addresses_are_not_product_codes(self):
+        for value in ("https://appdb.tisi.go.th/Q/i.php?d=abc", "HTTP://x.test", "  https://x.test  "):
+            self.assertTrue(C.web_address(value), value)
+        for value in ("8850001000019", "P-000001", "httpx", "VIN-https://", "", None):
+            self.assertFalse(C.web_address(value), value)
+
+
 class Copy(unittest.TestCase):
     def test_the_new_words_exist_in_four_languages(self):
         rows = {line.split("\t")[-1]: line.split("\t") for line in (APP / "i18n/messages.tsv").read_text().splitlines()}
         for key in ("product.field.attribute", "product.col.attribute"):
             self.assertEqual(rows[key][:4], ["Attribute / Color", "特性/颜色", "คุณลักษณะ / สี", "特性 / 色"])
+        english = {line.split("\t")[0]: line.split("\t") for line in (APP / "i18n/messages.tsv").read_text().splitlines()}
+        self.assertEqual(english["This is not a product barcode"][1], "这不是商品条码")
 
 
 if __name__ == "__main__":

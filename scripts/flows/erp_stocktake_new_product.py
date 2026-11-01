@@ -96,7 +96,10 @@ def steps(params, camera_code=None):
          " product_name: d.get_value('product_name')||'',"
          " product_code: d.get_value('product_code')||'', message: (d.fields_dict.message.$wrapper.text()||'').trim(),"
          " code_label: d.fields_dict.product_code.df.label===__('product.col.internalCode'), category_shown: d.get_value('product_category')||'',"
-         " attribute_shown: d.get_value('product_attribute')||'', edit_shown: d.fields_dict.edit_product.$wrapper.is(':visible')};"},
+         " attribute_shown: d.get_value('product_attribute')||'', edit_shown: d.fields_dict.edit_product.$wrapper.is(':visible'),"
+         # 录入屏认出物料后的先后（岳父 11-01：条码、名称、分类、特性/颜色，再接编码）
+         " shown_order: d.fields.map(f=>f.fieldname).filter(f=>['product_barcode','product_name','product_category','product_attribute',"
+         "'product_code'].includes(f)&&d.fields_dict[f].$wrapper.is(':visible')), barcode_shown: d.get_value('product_barcode')||''};"},
         {"name": "保存", "js": IDLE + "const d=window.__dlgs.find(x=>x.fields_dict.code); if(!d||!d.fields_dict.qty.$wrapper.is(':visible')) return {error:'no entry'};"
          "d.set_value('qty', 3); await new Promise(r=>setTimeout(r,300)); d.get_primary_btn().trigger('click');"
          "await new Promise(r=>setTimeout(r,300)); await idle();"
@@ -128,6 +131,9 @@ def judge(params, results, camera_code=None):
          "ok": made.get("product_code") == params["internal"] and made.get("code_label") is True
          and made.get("category_shown") == "FLOW-L" and made.get("attribute_shown") == "แดง"},
         {"case": "stock role gets no edit product button", "seen": made, "ok": made.get("edit_shown") is False},
+        {"case": "entry shows barcode, name, category, attribute, then code in that order", "seen": made,
+         "ok": made.get("shown_order") == ["product_barcode", "product_name", "product_category", "product_attribute", "product_code"]
+         and made.get("barcode_shown") == params["code"]},
     ]
 
 

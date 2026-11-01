@@ -139,6 +139,22 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.stocktake.web-code"
+title = "ERP 盘点：扫到网址码（TIS 认证码）提示不是商品条码，不出新建、相机接着扫"
+module = "scripts/flows/erp_stocktake_web_code.py"
+start = "/desk/pearnly-stock-count/{count}"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = true
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/codes.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/contracts.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
+]
+
+[[flow]]
 id = "erp.line.stocktake"
 title = "LINE 手机盘点：当场新建商品、选库位记数（盘点菜单做完整 S3 / S5）"
 module = "scripts/flows/erp_line_stocktake.py"
