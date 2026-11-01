@@ -46,7 +46,8 @@ ROWS = ("const rows=()=>[...document.querySelectorAll('.result .list-row-contain
         "const heads=()=>[...document.querySelectorAll('.list-row-head .list-row-col')].filter(e=>e.offsetParent)"
         ".map(e=>e.innerText.trim()).filter(Boolean);"
         "const wait_rows=async(n)=>{for(let k=0;k<80&&rows().length!==n;k++) await new Promise(r=>setTimeout(r,250)); await idle();};"
-        "const field=n=>document.querySelector(`.page-form [data-fieldname=\"${n}\"] input, .page-form [data-fieldname=\"${n}\"] select`);")
+        # 页头的控件按 Frappe 页面对象取（`page.add_field` 记在 `fields_dict`），用控件自己的 set_value / get_value
+        "const field=n=>frappe.container.page&&frappe.container.page.page&&frappe.container.page.page.fields_dict[n];")
 
 
 def steps(params, camera_code=None):
@@ -54,11 +55,12 @@ def steps(params, camera_code=None):
     return [
         {"name": "按位置", "js": IDLE + ROWS + CAPTURE_EXPORTS + "await idle();"
          "for(let k=0;k<80&&!field('search');k++) await new Promise(r=>setTimeout(r,250));"
-         f"$(field('search')).val({name!r}).trigger('change'); await new Promise(r=>setTimeout(r,800)); await idle();"
+         f"await field('search').set_value({name!r}); await new Promise(r=>setTimeout(r,800)); await idle();"
          "await wait_rows(2); return {rows: rows(), heads: heads()};"},
         {"name": "按物料", "js": IDLE + ROWS + "await idle();"
-         "$(field('view')).val('product').trigger('change'); await new Promise(r=>setTimeout(r,800)); await idle();"
-         "await wait_rows(1); return {rows: rows(), heads: heads(), options: [...field('view').options].map(o=>o.text)};"},
+         "const options=(field('view').df.options||[]).map(o=>o.label||o);"
+         "await field('view').set_value('product'); await new Promise(r=>setTimeout(r,800)); await idle();"
+         "await wait_rows(1); return {rows: rows(), heads: heads(), options, view: field('view').get_value()};"},
         {"name": "导出按物料", "js": IDLE + ACTION + CAPTURE_EXPORTS + "await idle();"
          "const before=window.__exports.length; if(!await action('导出')) return {error:'no export button'};"
          "for(let k=0;k<80&&window.__exports.length===before;k++) await new Promise(r=>setTimeout(r,250));"
@@ -67,9 +69,9 @@ def steps(params, camera_code=None):
         {"name": "点开看各仓", "js": IDLE + ROWS + "await idle();"
          "const row=[...document.querySelectorAll('.result .list-row-container')].find(e=>e.offsetParent&&!e.querySelector('.list-row-head'));"
          "if(!row) return {error:'no product row'}; (row.querySelector('.list-subject a, .list-row-col a')||row.querySelector('.list-row')||row).click();"
-         "for(let k=0;k<80&&field('view').value!=='position';k++) await new Promise(r=>setTimeout(r,250));"
+         "for(let k=0;k<80&&field('view').get_value()!=='position';k++) await new Promise(r=>setTimeout(r,250));"
          "await new Promise(r=>setTimeout(r,800)); await idle(); await wait_rows(2);"
-         "return {view: field('view').value, rows: rows(), filters: (document.querySelector('.filter-selector .filter-label, .filter-button')?.innerText||'').trim()};"},
+         "return {view: field('view').get_value(), rows: rows(), filters: (document.querySelector('.filter-selector .filter-label, .filter-button')?.innerText||'').trim()};"},
     ]
 
 
@@ -82,20 +84,27 @@ def judge(params, results, camera_code=None):
     position, product, export, opened = (_value(results, step) for step in ("按位置", "按物料", "导出按物料", "点开看各仓"))
     low = ("低库存", "Low", "ต่ำ")
     houses = params["warehouses"]
+    # 手机宽度列表只显示名称一类的列（数量、状态在详情里）：这两项只在电脑宽度看行文字，服务端另核（`verify`）
+    wide = " ฿ " in " ".join(position.get("rows") or []) or any(word in " ".join(position.get("rows") or []) for word in low)
     checks = [
         {"case": "by location shows the product in both warehouses", "seen": position.get("rows"),
          "ok": len(position.get("rows") or []) == 2 and all(name in row for row in position.get("rows") or [])},
-        {"case": "each location is low stock by the company total (3 and 1 against 5)", "seen": position.get("rows"),
-         "ok": bool(position.get("rows")) and all(any(word in row for word in low) for row in position.get("rows") or [])},
         {"case": "the view choice has by location and by product", "seen": product.get("options"),
          "ok": len(product.get("options") or []) == 2},
-        {"case": "by product shows one row with the total 4 and low stock", "seen": product.get("rows"),
-         "ok": len(product.get("rows") or []) == 1 and " 4 " in f" {product['rows'][0]} " and any(word in product["rows"][0] for word in low)},
-        {"case": "by product has no warehouse column", "seen": product.get("heads"),
-         "ok": bool(product.get("heads")) and not any(house in " ".join(product.get("rows") or []) for house in houses)},
-        {"case": "opening the product row goes back to its locations", "seen": opened,
-         "ok": opened.get("view") == "position" and len(opened.get("rows") or []) == 2},
+        {"case": "by product shows one row", "seen": product.get("rows"),
+         "ok": product.get("view") == "product" and len(product.get("rows") or []) == 1},
     ]
+    checks.append({"case": "by product has no warehouse column", "seen": product.get("rows"),
+                   "ok": bool(product.get("rows")) and not any(house in " ".join(product.get("rows") or []) for house in houses)})
+    if wide:
+        checks += [
+            {"case": "each location is low stock by the company total (3 and 1 against 5)", "seen": position.get("rows"),
+             "ok": all(any(word in row for word in low) for row in position.get("rows") or [])},
+            {"case": "by product shows the total 4 and low stock", "seen": product.get("rows"),
+             "ok": bool(product.get("rows")) and " 4 " in f" {product['rows'][0]} " and any(word in product["rows"][0] for word in low)},
+        ]
+    checks.append({"case": "opening the product row goes back to its locations", "seen": opened,
+                   "ok": opened.get("view") == "position" and len(opened.get("rows") or []) == 2})
     try:
         _sheets, text = workbook_text(export.get("b64") or "")
         lines = [line for line in text.splitlines() if name in line]
@@ -107,4 +116,16 @@ def judge(params, results, camera_code=None):
 
 
 def verify(lab, manifest, params, camera_code=None):
-    return []
+    """库存岗身份在服务端取两种看法：按位置两行都是低库存（各仓 3 / 1，公司合计 4 ≤ 5）、按物料一行合计 4、低库存。"""
+    out = lab.python(manifest["site"], f"""
+from pearnly_erp_portal.inventory import stock
+frappe.set_user("stock@erp.regression")
+rows = stock.stock_overview(q={params['name']!r}, limit=0)
+merged = stock.stock_overview(q={params['name']!r}, limit=0, view="product")
+print(json.dumps({{"position": [(r["qty_on_hand"], r["status"]) for r in rows],
+                  "product": [(r["qty_on_hand"], r["status"], r["warehouse"]) for r in merged]}}))
+""")
+    return [{"case": "by location: both rows are low stock by the company total", "saved": out["position"],
+             "ok": sorted(out["position"]) == [[1.0, "low"], [3.0, "low"]]},
+            {"case": "by product: one row of 4, low stock, no warehouse", "saved": out["product"],
+             "ok": out["product"] == [[4.0, "low", None]]}]
