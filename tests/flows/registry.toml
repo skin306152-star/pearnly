@@ -504,9 +504,24 @@ viewports = ["desktop", "mobile"]
 covers = [
   "frontend/src/pages/dms/EditorPage.vue",
   "frontend/src/lib/dms-editor.ts",
+  "frontend/src/lib/i18n.ts",
   # 编辑页背后的服务端：票据、读草稿、保存、交接页推送回落（DMS 第一条流程，这几处跟着转为拦截）
   "apps/pearnly_dms/pearnly_dms/editor/browser_api.py",
   "apps/pearnly_dms/pearnly_dms/www/liff/dms-booking.html",
+]
+
+[[flow]]
+id = "dms.liff.scan-loading"
+title = "DMS 扫身份证取景页：弱网加载途中不露词条键，加载完按钮与取景提示是正式文字（11-01 真机 D1）"
+module = "scripts/flows/dms_id_scan_loading.py"
+product = "dms"
+start = "/assets/pearnly_core/pearnly-app/index.html#/dms/scan"
+user = "operator"
+datasets = ["new"]
+viewports = ["mobile"]
+covers = [
+  "frontend/src/pages/dms/ScanPage.vue",
+  "frontend/src/lib/i18n.ts",
 ]
 
 [[flow]]

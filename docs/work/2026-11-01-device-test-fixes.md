@@ -75,13 +75,17 @@
 
 | 项 | 改前（同一环境对照） | 改后 |
 | --- | --- | --- |
-| D1 | 手机 Chrome 限速（1.5 秒往返、40KB/s）开 `#/dms/scan`，每 0.3 秒取页面文字：17 次露出 `dms.edit.loading`、`dms.edit.scanBack`（同真机记录） | 同样限速 25 秒：0 次露键名，最后显示「正在加载资料… / 返回聊天」 |
+| D1 | 手机 Chrome 限速（1.5 秒往返、40KB/s）开 `#/dms/scan`，每 0.3 秒取页面文字：17 次露出 `dms.edit.loading`、`dms.edit.scanBack`（同真机记录）；新流程 `dms.liff.scan-loading` 在旧代码上同样抓到这两个键、不通过 | 同样限速 25 秒：0 次露键名，最后显示「正在加载资料… / 返回聊天」；`dms.liff.scan-loading` 通过（56 次采样 0 个键名，按钮与取景提示是正式文字） |
 | D2 | `tests/test_dms_card_address_line.py` 在基线代码上得到「12/7 5 ลาดพร้าว 71 ลาดพร้าว ลาดพร้าว กรุงเทพมหานคร 10230」 | 测试 3/3 通过；流程 `dms.booking.editor` 加断言「编辑保存后的预览卡地址带 หมู่ / ซ. / จ.」，new/old × desktop/mobile 4/4 通过 |
 | 3 键盘 | 手机 Chrome 真触摸点保存（CDP 触摸事件），两种键盘模式（默认只缩可见区；`interactive-widget=resizes-content` 模拟整页变矮）出错栏都在可见区——Chrome 里复现不出 LINE 的遮挡 | 两种模式下出错栏都在键盘和贴底提示条上方、光标在栏内，无退化。**LINE 内置浏览器里的遮挡没在本机复现、修后没在 LINE 里验**，要随部署后用 LINE 真机看 |
 | 4 团队页 | 流程 `cowork.team.bulk-disable`（改前 team.js）：成功提示有，但「列表当场显示已停用」不通过 | `cowork.team.bulk-disable` 2/2、`erp.team.bulk-disable` 4/4 通过：成功提示约 0.25 秒出现、按钮回到「新建」可点、行不刷新就显示已停用、库里 `enabled=0` |
 | 4 慢 | — | 「按钮灰 20 多秒、无提示」实验栈复现不出：停用接口 0.25 秒；被停用的人有活会话时 0.62 秒，且那人会话随即 403。服务器端不慢；生产那次只有秒级访问日志，未再查 |
 | 5 计时 | — | `test_identity_callback.py` 7/7（新增「每次回调一行计时、不含账号与身份标识」），实验室 bench 容器里跑 |
 
+- 新流程 `dms.liff.scan-loading`：流程驱动加了通用的 `PRELOAD`（`ui_steps.mjs` 的 `preload`，CDP `Page.addScriptToEvaluateOnNewDocument`，页面脚本跑之前注入），
+  这条流程用它把 `browser_text` 放慢 2.5 秒、每 50 毫秒采样页面文字。`frontend/src/lib/i18n.ts` 同时登记进 `dms.booking.editor` 的 covers。
+- 变基到 `760e64a9` 后 `run.py --changed --base origin/main`：7 个流程 21/21 格通过。
+- 候选离线检查：生产当前镜像（`fd60caff…`）挂本工作树五个 App 跑 `scripts/ci-candidate-checks.sh offline`，90 项全过（EXIT=0）。
 - 全量闸门：`.github/workflows/development.yml` 全部 156 项本地通过（改动后重跑，结果见下）。
 - 共用件连带回归（`scripts/check-impact.py`）：命中 `dms-id-scan`（dms.liff.id-scan：手机 Chrome 实测取景页加载，LINE 内拍照上传没测到，要部署后真机）、
   `login-session`（identity.callback 只加计时，登录流程不变；`shared.login` / `shared.line.login` 等手动入口没测到，靠单元测试，部署后三星真机首开一次即覆盖 LINE 登录）、

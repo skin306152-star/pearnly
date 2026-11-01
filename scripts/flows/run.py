@@ -208,9 +208,9 @@ def load_module(path):
     return module
 
 
-def drive(site, sid, start, steps, mobile, video, ready=None):
+def drive(site, sid, start, steps, mobile, video, ready=None, preload=None):
     job = {"base": f"http://{site}:{PORT}", "cookie_domain": site, "sid": sid, "start": start, "mobile": mobile,
-           "video": video or "", "steps": steps, **({"ready": ready} if ready else {})}
+           "video": video or "", "steps": steps, **({"ready": ready} if ready else {}), **({"preload": preload} if preload else {})}
     env = dict(os.environ, SMOKE_CHROME_RULES=f"MAP {site} 127.0.0.1")
     # 自成进程组：超时连同它拉起的无头 Chrome 一起结束，不留残留进程
     proc = subprocess.Popen(["node", str(ROOT / "scripts/regression/ui_steps.mjs"), json.dumps(job)], stdout=subprocess.PIPE,
@@ -261,7 +261,8 @@ def run_flow(lab, flow, dataset, viewport):
         try:
             start = flow["start"].format(**run_params)
             results = drive(site, sid, start, module.steps(run_params, code), viewport == "mobile",
-                            barcode_video(code) if code else None, getattr(module, "READY", None))
+                            barcode_video(code) if code else None, getattr(module, "READY", None),
+                            getattr(module, "PRELOAD", None))
         finally:
             lab.drop(site, user, sid)
         # 页面报错、步骤本身出错、步骤自己判出的错（返回 {error}）都算

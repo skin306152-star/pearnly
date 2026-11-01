@@ -1,6 +1,6 @@
 // 页面操作步骤驱动（回归实验室复核用）：一个无头 Chrome 带会话打开起始页，按顺序在页面里执行若干段 JS（可 await），
 // 每步输出一行 JSON（步骤名、返回值、这一步里的页面报错），可选截图。不点真实鼠标，步骤里直接调框架 / 产品的同一套函数。
-// 用法：node scripts/regression/ui_steps.mjs '<JSON>'，JSON = {base, cookie_domain, sid, start, ready, shots, mobile, width, video, steps: [{name, js, wait_ms, shot, full, file}]}
+// 用法：node scripts/regression/ui_steps.mjs '<JSON>'，JSON = {base, cookie_domain, sid, start, ready, preload, shots, mobile, width, video, steps: [{name, js, wait_ms, shot, full, file}]}
 // width：手机宽度（默认 390）；full：截图时把整张表单截全
 // 实验室站点的域名：SMOKE_CHROME_RULES="MAP erp.regression.localhost 127.0.0.1"
 import { spawn } from "node:child_process";
@@ -55,6 +55,8 @@ try {
   const { sessionId } = await send("Target.attachToTarget", { targetId, flatten: true });
   await send("Runtime.enable", {}, sessionId);
   await send("Page.enable", {}, sessionId);
+  // 页面自己的脚本跑之前先注入的一段（流程模块的 PRELOAD）：例如把某个接口放慢、从第一帧起采样页面，看加载途中的样子
+  if (job.preload) await send("Page.addScriptToEvaluateOnNewDocument", { source: job.preload }, sessionId);
   await send("Network.setCookie", { name: "sid", value: job.sid, domain: job.cookie_domain, path: "/", secure: false }, sessionId);
   // 手机宽度：job.mobile 为真时按安卓手机模拟（390 × 844、触屏、安卓 Chrome 的 UA），页面按手机判
   if (job.mobile) {
