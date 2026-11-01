@@ -296,6 +296,10 @@ jobs:
         run: node --test tests/test-desk-sounds.cjs
       - name: Verify long text fields wrap in product forms
         run: node --test tests/test-wrap-data.cjs
+      - name: Verify the phone keyboard does not cover the focused field (pages, dialogs, sticky bars)
+        run: node --test tests/test-desk-keyboard.cjs
+      - name: Every page that can raise the phone keyboard loads the shared keyboard module (exemptions may only shrink)
+        run: python3 scripts/check-keyboard-coverage.py
       - name: Verify the DMS connection page (read and write accounts)
         run: node tests/test-dms-connect-page.cjs
       - name: Verify stocktake scanning (reader, symbologies and passes, scan hit with no book row in continuous counting, codes turned down are not re-read)

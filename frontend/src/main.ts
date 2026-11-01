@@ -11,6 +11,8 @@ import "./styles/tailwind.css";
 // （例如给官方按钮指定主色，靠的就是"我们的类在后"）。
 // Tailwind 自己带 base 层，所以 tailwind.css 必须排在 design 之后。
 import "./styles/app.css";
+// 手机键盘不盖住正在填的格：与 Desk、LINE 盘点页同一份共用脚本，打进本包（LINE 编辑页直接开的是本包的 index.html）。
+import "../../apps/pearnly_core/pearnly_core/public/desk/keyboard.js";
 
 const app = createApp(App).use(router);
 // Vue 接住的组件报错不会再抛到 window：照常写控制台，并交给站点页面挂的报错回传（public/desk/errors.js）记进 Error Log。

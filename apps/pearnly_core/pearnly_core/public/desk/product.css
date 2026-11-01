@@ -325,6 +325,12 @@ body.pearnly-product-desk textarea.form-control {
 		padding-right: 0;
 	}
 }
+/* 手机键盘开着时（`keyboard.js`）：官方弹窗（Bootstrap `.modal`）按整屏固定，键盘只缩可见区，最后几格怎么滚
+   都在键盘下面。弹窗外框改摆在可见区里，弹窗仍按官方方式在外框里自己滚，再由 `keyboard.js` 把正在填的格滚上来。 */
+html.pearnly-keyboard-open .modal.show {
+	top: var(--pearnly-visible-top, 0);
+	height: var(--pearnly-visible-height, 100%);
+}
 /* 一行字的文字框换成会长高的多行框后（`product.js` 的 `WrapData`）：外观仍是官方单行框 —— 整列宽、
    官方输入框高度起步、不能手拖；写不下才换行往下长（`p.grow_textarea`）。 */
 body.pearnly-product-desk textarea.form-control.pearnly-wrap-data {

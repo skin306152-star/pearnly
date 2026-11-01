@@ -26,6 +26,15 @@ entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page
 not_entries = { "apps/pearnly_core/pearnly_core/hooks.py" = "加载声明（app_include_js 第一个），Desk 页面入口见本共用件 entries" }
 
 [[part]]
+id = "phone-keyboard"
+name = "手机键盘不盖住正在填的格（Desk 页面与弹窗、LINE 独立页）"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/keyboard.js"]
+markers = ["desk/keyboard.js"]
+search = ["apps/**/*.html", "apps/**/hooks.py", "frontend/src/**/*.ts"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "shared.keyboard.erp-dialogs", "shared.keyboard.cowork-intake", "shared.keyboard.dms-editor", "shared.keyboard.erp-line-stocktake"]
+not_entries = { "apps/pearnly_core/pearnly_core/hooks.py" = "加载声明（app_include_js 第二个），Desk 页面与弹窗入口见本共用件 entries" }
+
+[[part]]
 id = "desk-scan-core"
 name = "共用相机与读码器"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/scan.js", "apps/pearnly_core/pearnly_core/public/desk/scan.css", "apps/pearnly_core/pearnly_core/public/scan/reader.js", "apps/pearnly_core/pearnly_core/public/vendor/barcode-detector/**"]
@@ -2294,3 +2303,39 @@ steps = "切到接了 Express 的公司 → 仓库页；别处仓库选择框点
 expect = "没有「新建」按钮、空列表也不出新建；跳过来的说「请在 Express 中建仓库，再在公司页点「同步 Express」」；没接 Express 的公司照旧能新建"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/warehouses.js", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/warehouses.py"]
+
+[[entry]]
+id = "shared.keyboard.erp-dialogs"
+product = "ERP"
+where = "手机宽度的弹窗：物料「新建」、团队「添加用户」、入库「明细」"
+steps = "手机打开 ERP → 物料 → 新建 / 团队 → 添加用户 / 出入库 → 新建入库 → 明细行，逐个点最下面几格"
+expect = "键盘弹出后正在填的格在键盘与弹窗按钮栏之上，弹窗能继续上下滚；关掉键盘弹窗回到整屏"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/public/desk/keyboard.js", "apps/pearnly_core/pearnly_core/public/desk/product.css"]
+
+[[entry]]
+id = "shared.keyboard.cowork-intake"
+product = "Cowork"
+where = "pearnly-intake 录入复核（手机宽度）"
+steps = "手机打开 Cowork → 录入 → 打开一张复核，点最下面的明细 / 备注格"
+expect = "正在填的格不被键盘和贴顶的分区导航盖住"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/public/desk/keyboard.js"]
+
+[[entry]]
+id = "shared.keyboard.dms-editor"
+product = "DMS"
+where = "LINE 订车编辑页（LIFF #/dms/editor）"
+steps = "LINE 里打开订车编辑页，点最下面几格；保存被拒时跳到出错那一格"
+expect = "正在填的格在键盘与贴底操作条（提示 + 保存）之上"
+check = "manual"
+files = ["frontend/src/main.ts", "frontend/index.html", "frontend/src/pages/dms/EditorPage.vue"]
+
+[[entry]]
+id = "shared.keyboard.erp-line-stocktake"
+product = "ERP"
+where = "LINE 手机盘点 /stocktake"
+steps = "LINE → 盘点 → 扫到没有的码出新建商品各格，点最下面几格；数量 / 备注格"
+expect = "正在填的格在键盘之上"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html"]

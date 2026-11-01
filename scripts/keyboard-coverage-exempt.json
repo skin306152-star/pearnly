@@ -1,0 +1,5 @@
+{
+  "apps/pearnly_core/pearnly_core/www/assistant.html": "CC 对话页：不在 ERP / Cowork / DMS 范围，自有键盘处理（frontend/assistant/src/lib/viewport.ts 按可见区排版、meta 已带 interactive-widget），挂共用模块会与它重复摆位",
+  "frontend/assistant/index.html": "CC 对话页的开发入口（同上，产物经 assistant.html 出）",
+  "apps/pearnly_control/pearnly_control/www/ai.html": "CC 智能体入口登录页（fatcc.com，生成文件 scripts/build-ai-entry.py）：CC 品牌页，同 CC 对话页不挂；只有首屏居中的账号密码两格"
+}

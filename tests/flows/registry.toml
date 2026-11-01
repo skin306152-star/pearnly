@@ -760,3 +760,58 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/suppliers.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/clients.js",
 ]
+
+# 手机键盘不盖住正在填的格（共用 `desk/keyboard.js`，11-01）：可见区缩到 45% 模拟键盘（`scripts/flows/keyboard_lib.py`），只点不填
+[[flow]]
+id = "erp.keyboard.dialogs"
+title = "ERP 弹窗（物料新建、团队添加用户、入库新建明细）：键盘弹出后最下面几格不被盖住，弹窗缩进可见区、滚得到按钮栏"
+module = "scripts/flows/erp_keyboard_dialogs.py"
+start = "/desk/pearnly-products"
+user = "admin"
+datasets = ["new"]
+viewports = ["mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/public/desk/keyboard.js",
+  "apps/pearnly_core/pearnly_core/public/desk/product.css",
+]
+
+[[flow]]
+id = "cowork.keyboard.intake"
+title = "Cowork 录入复核：键盘弹出后最下面几格不被键盘和贴顶分区导航盖住"
+module = "scripts/flows/cowork_keyboard_intake.py"
+product = "cowork"
+start = "/desk/pearnly-intake/new/{record}"
+user = "admin"
+datasets = ["new"]
+viewports = ["mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/public/desk/keyboard.js",
+]
+
+[[flow]]
+id = "dms.keyboard.editor"
+title = "DMS LINE 订车编辑页：键盘弹出后最下面几格不被键盘和贴底操作条盖住"
+module = "scripts/flows/dms_keyboard_editor.py"
+product = "dms"
+start = "/assets/pearnly_core/pearnly-app/index.html#/dms/editor?draft={nonce}"
+user = "operator"
+datasets = ["new"]
+viewports = ["mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/public/desk/keyboard.js",
+  "frontend/src/main.ts",
+  "frontend/index.html",
+]
+
+[[flow]]
+id = "erp.keyboard.line-stocktake"
+title = "ERP LINE 手机盘点页：扫到没有的码时新建商品最下面几格，键盘弹出后不被盖住"
+module = "scripts/flows/erp_keyboard_line_stocktake.py"
+start = "/stocktake"
+user = "stock"
+datasets = ["new"]
+viewports = ["mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/public/desk/keyboard.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html",
+]

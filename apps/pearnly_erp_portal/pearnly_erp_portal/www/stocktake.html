@@ -12,8 +12,10 @@
 <html lang="th">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content" />
     <script src="{{ versioned_asset('pearnly_core', 'desk/errors.js') }}"></script>
+    <!-- 手机键盘不盖住正在填的格（与 Desk 同一份）。 -->
+    <script src="{{ versioned_asset('pearnly_core', 'desk/keyboard.js') }}"></script>
     <meta name="theme-color" content="white" />
     <title>Pearnly · {{ _("stock.mobile.title") }}</title>
     <style>

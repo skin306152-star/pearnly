@@ -1,7 +1,7 @@
 // 页面操作步骤驱动（回归实验室复核用）：一个无头 Chrome 带会话打开起始页，按顺序在页面里执行若干段 JS（可 await），
 // 每步输出一行 JSON（步骤名、返回值、这一步里的页面报错），可选截图。不点真实鼠标，步骤里直接调框架 / 产品的同一套函数。
 // 用法：node scripts/regression/ui_steps.mjs '<JSON>'，JSON = {base, cookie_domain, sid, start, ready, preload, shots, mobile, width, video, steps: [{name, js, wait_ms, shot, full, file}]}
-// width：手机宽度（默认 390）；full：截图时把整张表单截全
+// width：手机宽度（默认 390）；full：截图时把整张表单截全；height：手机宽度时这一步之前把视口高度改成它（模拟安卓键盘弹出整页变矮，0 = 还原 844）
 // 实验室站点的域名：SMOKE_CHROME_RULES="MAP erp.regression.localhost 127.0.0.1"
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -75,6 +75,9 @@ try {
   await sleep(1500);
   for (const [index, step] of (job.steps || []).entries()) {
     logs.length = 0;
+    if (job.mobile && step.height !== undefined) {
+      await send("Emulation.setDeviceMetricsOverride", { width: job.width || 390, height: step.height || 844, deviceScaleFactor: 2, mobile: true }, sessionId);
+    }
     const helper = `window.__unmark = () => document.querySelectorAll('.__mark').forEach((e) => e.remove());
       window.__mark = (el, n) => { if (!el) return false; const r = el.getBoundingClientRect(); const pad = 4;
         const box = document.createElement('div'); box.className = '__mark';
