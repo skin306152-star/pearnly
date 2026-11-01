@@ -40,17 +40,32 @@
 			label: t("stock.field.search"),
 			change: () => void list?.reload(),
 		});
+		// 显示方式（多仓闭环 P4）：按位置 = 物料 × 仓库 × 仓位；按物料 = 公司各仓合计，点一行回到按位置看这件物料在各仓的数
+		filters.view = page.add_field({
+			fieldtype: "Select",
+			fieldname: "view",
+			label: t("stock.field.view"),
+			options: [{ value: "position", label: t("stock.view.position") },
+				{ value: "product", label: t("stock.view.product") }],
+			default: "position",
+			// 给默认值时框架也会叫一次 change：列表还没建就不重建
+			change: () => { if (list) void build_list(); },
+		});
+		const by_product = () => filters.view.get_value() === "product";
+		let focus_product = null;  // 按物料那一行点进来：重建按位置列表后加上这件物料的筛选
 		// 原生筛选条件 → 接口参数。数量那格把**比较符**一起带过去（服务端按比较符比）。
 		const query = () => {
 			const picked = p.filter_values(list);
 			const qty = list?.filter_area?.get().find(row => row[1] === "qty_on_hand") || [];
 			return {
 				q: filters.search.get_value() || undefined,
+				view: by_product() ? "product" : undefined,
+				product: by_product() ? undefined : picked.product || undefined,
 				warehouse: picked.warehouse || undefined,
-				location: picked.location || undefined,
+				location: by_product() ? undefined : picked.location || undefined,
 				qty_op: qty[2] || undefined,
 				qty_value: qty[3] === undefined || qty[3] === "" ? undefined : qty[3],
-				conditions: p.filter_conditions(list, ["qty_on_hand"]),
+				conditions: p.filter_conditions(list, ["qty_on_hand", "product"]),
 			};
 		};
 
@@ -81,53 +96,73 @@
 			reason: () => t("stock.action.ledgerSingle"),
 			run: async rows => { void p.stockLedger(rows[0]); },
 		});
-		list = p.list({
-			page,
-			doctype: "ERP Stock Balance",
-			selectable: true,
-			// 本页支持的筛选条件（官方的字段下拉里只列这三个）。
-			filter_fields: [
-				{ fieldname: "warehouse", label: t("stock.col.warehouse"), fieldtype: "Link" },
-				{ fieldname: "location", label: t("stock.count.location"), fieldtype: "Data" },
-				{ fieldname: "qty_on_hand", label: t("stock.col.onHand"), fieldtype: "Float" },
-			],
-			on_selection: selection,
-			on_open: row => p.stockLedger(row),
-			// 十列要**一屏放得下**、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到，
-			// 看下能不能放在一屏显示完整"）。`compact_columns` 让每列按下面的宽度走、并按窗口
-			// 富余空间等比放宽；`min_width` 是底线，窄到放不下时才会回落到框架的横向滚动。
-			compact_columns: true,
-			// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
-			sort_fields: ["product_name", "code", "barcode", "warehouse_name", "location",
-				"unit", "qty_on_hand", "unit_cost", "value"],
-			load: async ({ start, page_length, sort_by, sort_order }) => {
-				// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
-				const [items, total] = await Promise.all([
-					p.call(api + "api_stock",
-						{ start, limit: page_length, sort_by, sort_order, ...query() }),
-					p.call(api + "api_stock_count", query()),
-				]);
-				return { items, total };
-			},
-			columns: [
-				// 十列的底线加起来要能塞进最窄的常见窗口：否则最右那几列会被右边那块（计数）
-				// 盖住、或者要横向滑才看得到（用户 2026-09-23 报的就是这两件事）。
-				{ fieldname: "product_name", width: 160, min_width: 132, label: t("stock.col.name") },
-				{ fieldname: "code", width: 80, min_width: 68, label: t("stock.col.code") },
-				{ fieldname: "barcode", width: 110, min_width: 84, label: t("stock.col.barcode") },
-				{ fieldname: "warehouse_name", width: 116, min_width: 92, label: t("stock.col.warehouse") },
-				{ fieldname: "location", width: 56, min_width: 46, label: t("stock.count.location") },
-				{ fieldname: "unit", width: 50, min_width: 44, label: t("stock.col.unit") },
-				{ fieldname: "qty_on_hand", width: 60, min_width: 50, label: t("stock.col.onHand"),
-					format: (value) => p.number(value) },
-				{ fieldname: "unit_cost", width: 78, min_width: 64, label: t("stock.col.cost"),
-					format: (_value, row) => money(row.cost_known ? row.unit_cost : null) },
-				{ fieldname: "value", width: 82, min_width: 68, label: t("stock.col.value"),
-					format: (_value, row) => money(row.cost_known ? row.value : null) },
-				{ fieldname: "status", width: 68, min_width: 58, label: t("stock.col.status"),
-					format: (_value, row) => status_label(row) },
-			],
-		});
+		// 按物料那一行没有仓库 / 仓位：点开 = 换回按位置、只看这件物料
+		const open_product = row => {
+			focus_product = row.product;
+			filters.view.set_value("position");
+		};
+		const place_columns = ["warehouse_name", "location"];
+		async function build_list() {
+			list?.destroy(); list = null;
+			page.clear_primary_action();
+			const product_view = by_product();
+			list = p.list({
+				page,
+				doctype: "ERP Stock Balance",
+				selectable: !product_view,
+				// 本页支持的筛选条件（官方的字段下拉里只列这几个）；按物料时没有仓位、物料两项。
+				filter_fields: [
+					{ fieldname: "warehouse", label: t("stock.col.warehouse"), fieldtype: "Link" },
+					...(product_view ? [] : [
+						{ fieldname: "location", label: t("stock.count.location"), fieldtype: "Data" },
+						{ fieldname: "product", label: t("trade.product"), fieldtype: "Link" }]),
+					{ fieldname: "qty_on_hand", label: t("stock.col.onHand"), fieldtype: "Float" },
+				],
+				on_selection: product_view ? undefined : selection,
+				on_open: row => (product_view ? open_product(row) : p.stockLedger(row)),
+				// 十列要**一屏放得下**、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到，
+				// 看下能不能放在一屏显示完整"）。`compact_columns` 让每列按下面的宽度走、并按窗口
+				// 富余空间等比放宽；`min_width` 是底线，窄到放不下时才会回落到框架的横向滚动。
+				compact_columns: true,
+				// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
+				sort_fields: ["product_name", "code", "barcode", "warehouse_name", "location",
+					"unit", "qty_on_hand", "unit_cost", "value"].filter(name => !product_view || !place_columns.includes(name)),
+				load: async ({ start, page_length, sort_by, sort_order }) => {
+					// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
+					const [items, total] = await Promise.all([
+						p.call(api + "api_stock",
+							{ start, limit: page_length, sort_by, sort_order, ...query() }),
+						p.call(api + "api_stock_count", query()),
+					]);
+					return { items, total };
+				},
+				columns: [
+					// 十列的底线加起来要能塞进最窄的常见窗口：否则最右那几列会被右边那块（计数）
+					// 盖住、或者要横向滑才看得到（用户 2026-09-23 报的就是这两件事）。
+					{ fieldname: "product_name", width: 160, min_width: 132, label: t("stock.col.name") },
+					{ fieldname: "code", width: 80, min_width: 68, label: t("stock.col.code") },
+					{ fieldname: "barcode", width: 110, min_width: 84, label: t("stock.col.barcode") },
+					{ fieldname: "warehouse_name", width: 116, min_width: 92, label: t("stock.col.warehouse") },
+					{ fieldname: "location", width: 56, min_width: 46, label: t("stock.count.location") },
+					{ fieldname: "unit", width: 50, min_width: 44, label: t("stock.col.unit") },
+					{ fieldname: "qty_on_hand", width: 60, min_width: 50, label: t("stock.col.onHand"),
+						format: (value) => p.number(value) },
+					{ fieldname: "unit_cost", width: 78, min_width: 64, label: t("stock.col.cost"),
+						format: (_value, row) => money(row.cost_known ? row.unit_cost : null) },
+					{ fieldname: "value", width: 82, min_width: 68, label: t("stock.col.value"),
+						format: (_value, row) => money(row.cost_known ? row.value : null) },
+					{ fieldname: "status", width: 68, min_width: 58, label: t("stock.col.status"),
+						format: (_value, row) => status_label(row) },
+				].filter(column => !product_view || !place_columns.includes(column.fieldname)),
+			});
+			await list.ready;
+			if (focus_product && !product_view) {
+				const product = focus_product;
+				focus_product = null;
+				await list.filter_area.add([[list.doctype, "product", "=", product]]);
+			}
+		}
+		await build_list();
 
 		// 工具栏：导出导的是**全部命中行**（不只是当前这一页）。
 		// 小的当场下载，大的排后台、做完推送后下载（`p.export_file`）。
@@ -135,7 +170,6 @@
 		if (can_open()) page.add_inner_button(t("stock.opening.title"), () =>
 			frappe.set_route(root, "opening"));
 
-		await list.ready;
 		if (current()) await refresh_totals();
 		}
 		const show = p.routed_page({ wrapper, root, render: async (rest, current) => {

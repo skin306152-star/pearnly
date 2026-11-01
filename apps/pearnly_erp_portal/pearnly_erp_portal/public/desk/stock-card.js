@@ -224,7 +224,9 @@
 				return {date_from: fields.date_from.get_value() || undefined,
 					date_to: fields.date_to.get_value() || undefined,
 					warehouse: picked.warehouse || undefined, product: picked.product || undefined,
-					conditions: p.filter_conditions(list)};
+					// 仓位只认「等于」（空仓位也是一个位置，服务端按原值比；多仓闭环 P4）
+					location: picked.location === undefined ? undefined : picked.location,
+					conditions: p.filter_conditions(list, ["location"])};
 			};
 			// 这是报表：每行是一个"商品×仓库×仓位"的收发汇总，没有可删的东西。选中一行时给的是
 			// 对应的那一步 —— 打开这条汇总背后的明细（**二级页面**，这个视图字段多）。
@@ -238,9 +240,10 @@
 			});
 			list = p.list({ page, doctype: "ERP Stock Movement", selectable: true, on_selection: selection,
 				on_open: row => open_ledger(row, query()),
-				// 本页支持的筛选条件（官方的字段下拉里只列这两个）。
+				// 本页支持的筛选条件（官方的字段下拉里只列这三个）。
 				filter_fields: [
 					{ fieldname: "warehouse", label: t("trade.warehouse"), fieldtype: "Link" },
+					{ fieldname: "location", label: t("trade.location"), fieldtype: "Data" },
 					{ fieldname: "product", label: t("trade.product"), fieldtype: "Link" },
 				],
 				// 收发存七列一屏放得下、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到，

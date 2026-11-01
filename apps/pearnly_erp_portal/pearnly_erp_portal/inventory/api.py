@@ -309,9 +309,11 @@ def _csv(rows) -> bytes:
     return buffer.getvalue().encode("utf-8-sig")
 
 
-def _stock_export_rows(warehouse=None, q=None, include_zero=None, only_low=None, conditions=None):
-    return stock.stock_overview(warehouse=warehouse, q=q, include_zero=bool(include_zero),
-                                only_low=bool(only_low), limit=0, conditions=conditions)
+def _stock_export_rows(warehouse=None, q=None, include_zero=None, only_low=None, conditions=None, location=None,
+                       qty_op=None, qty_value=None, view=None, product=None):
+    return stock.stock_overview(warehouse=warehouse, location=location, q=q, include_zero=bool(include_zero),
+                                only_low=bool(only_low), qty_op=qty_op, qty_value=qty_value, limit=0, conditions=conditions,
+                                view=view, product=product)
 
 
 def stock_export_size(**kwargs):
@@ -330,8 +332,10 @@ def api_stock_export(**kwargs):
     from pearnly_core.exports import service as exports
 
     kwargs = _clean(kwargs)
-    args = {key: kwargs.get(key) for key in ("warehouse", "q", "include_zero", "only_low", "conditions")
-            if kwargs.get(key)}
+    # 与列表同一套筛选：看法（按位置 / 按商品）、库位、数量条件、只看一件商品也带上（原来漏了库位与数量条件，多仓闭环 P4 补）
+    args = {key: kwargs.get(key) for key in ("warehouse", "location", "q", "include_zero", "only_low", "qty_op", "qty_value",
+                                             "conditions", "view", "product")
+            if kwargs.get(key) not in (None, "")}
     return exports.deliver(count="pearnly_erp_portal.inventory.api.stock_export_size",
                            build="pearnly_erp_portal.inventory.api.stock_export_file", args=args,
                            filename="stock.csv", content_type="text/csv; charset=utf-8")

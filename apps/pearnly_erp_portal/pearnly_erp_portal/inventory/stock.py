@@ -10,6 +10,7 @@
 
 import frappe
 from frappe import _
+from frappe.query_builder.functions import Sum
 from frappe.utils import now, nowdate
 
 from pearnly_core.desk import list_filters
@@ -349,16 +350,32 @@ def _qty_matches(qty, op, value) -> bool:
     }.get(str(op).strip(), True)
 
 
+def _company_totals(products) -> dict:
+    """这几件商品在当前公司所有仓里的合计在库（低库存按合计比，多仓闭环 P4；不跟页面的仓库 / 库位筛选）。"""
+    names = warehouses.names_of()
+    if not products or not names:
+        return {}
+    table = frappe.qb.DocType(BALANCE)
+    # bounded: 一件商品一行，商品就是列表里已经取到的那些
+    rows = (frappe.qb.from_(table).select(table.product, Sum(table.qty_on_hand).as_("qty"))
+            .where(table.warehouse.isin(names)).where(table.product.isin(list(products)))
+            .groupby(table.product).run(as_dict=True))
+    return {row["product"]: contracts.d(row["qty"] or 0) for row in rows}
+
+
 def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False,
-                   qty_op=None, qty_value=None, conditions=None) -> list[dict]:
+                   qty_op=None, qty_value=None, conditions=None, product=None) -> list[dict]:
     """在库一览的全部命中行。成本按岗位遮蔽：没有成本权限的岗位拿到空值，不是 0。
 
     `only_low` 只留低库存与缺货，并且**隐含带上零库存** —— 缺货就是结存 0，
-    否则"只看缺货"会一条都看不到。
+    否则"只看缺货"会一条都看不到。状态：这一行没货是缺货，有货时低库存按这件商品的公司合计比（`contracts.stock_status`）。
+    `product`：只看这一件（按商品合计那一行点进来看各仓）。
     """
     _require("inventory.read")
 
     filters: dict = {}
+    if product:
+        filters["product"] = str(product)
     if warehouse:
         filters["warehouse"] = warehouses.resolve(warehouse, create=False) or "__missing__"
     else:
@@ -388,6 +405,7 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
         "ERP Warehouse", filters={"name": ["in", [r["warehouse"] for r in rows] or [""]]},
         fields=["name", "warehouse_name"], limit_page_length=0)}
     visible = guard.cost_visible()
+    totals = _company_totals({row["product"] for row in rows})
     # 用户自己按原生筛选给了数量条件时，**零库存行不能再被默认藏掉** —— 否则
     # 「在库数量 = 0」永远查不出东西（默认那套是给"平时只看有货的"用的）。
     by_qty = bool(qty_op) and qty_value not in (None, "")
@@ -403,12 +421,8 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
             continue
         min_stock = contracts.d(product.get("min_stock") or 0)
         qty_on_hand = contracts.d(row["qty_on_hand"])
-        if qty_on_hand <= 0:
-            status = "out"
-        elif min_stock and qty_on_hand <= min_stock:
-            status = "low"
-        else:
-            status = "ok"
+        company_qty = totals.get(row["product"], qty_on_hand)
+        status = contracts.stock_status(qty_on_hand, company_qty, min_stock)
         if only_low and status == "ok":
             continue
         out.append({
@@ -424,6 +438,7 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
             # 数量是基准（库存）单位，所以这里显示库存单位 —— 与落账口径同一处。
             "unit": (product.get("base_unit") or product.get("unit") or "").strip() or None,
             "qty_on_hand": float(qty_on_hand), "min_stock": float(min_stock), "status": status,
+            "company_qty": float(company_qty),
             "cost_known": bool(row["cost_known"]),
             "unit_cost": float(row["unit_cost"]) if visible and row["cost_known"] else None,
             "value": float(row["value"]) if visible and row["cost_known"] else None,
@@ -440,12 +455,21 @@ SORT_FIELDS = {
 }
 
 
+def _view_rows(view=None, **query) -> list[dict]:
+    """按位置的命中行，或按商品合计（`view = product`；只看低库存时按商品的状态留）。"""
+    if view != contracts.PRODUCT_VIEW:
+        return _overview_rows(**query)
+    only_low = query.pop("only_low", False)
+    rows = contracts.product_rows(_overview_rows(**query), cost_visible=guard.cost_visible())
+    return [row for row in rows if row["status"] != "ok"] if only_low else rows
+
+
 def stock_overview(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False,
                    qty_op=None, qty_value=None, start=0, limit=200,
-                   sort_by=None, sort_order=None, conditions=None) -> list[dict]:
-    """在库一览（分页）。`limit=0` 表示不分页，整批给。"""
-    rows = _overview_rows(warehouse=warehouse, location=location, q=q, include_zero=include_zero,
-                          only_low=only_low, qty_op=qty_op, qty_value=qty_value, conditions=conditions)
+                   sort_by=None, sort_order=None, conditions=None, view=None, product=None) -> list[dict]:
+    """在库一览（分页）。`limit=0` 表示不分页，整批给。`view = product` 按商品合计（多仓闭环 P4）。"""
+    rows = _view_rows(view, warehouse=warehouse, location=location, q=q, include_zero=include_zero,
+                      only_low=only_low, qty_op=qty_op, qty_value=qty_value, conditions=conditions, product=product)
     rows = listing.sort_rows(rows, sort_by, sort_order, SORT_FIELDS)
     start = int(start or 0)
     if not limit:
@@ -454,10 +478,10 @@ def stock_overview(*, warehouse=None, location=None, q=None, include_zero=False,
 
 
 def stock_count(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False,
-                qty_op=None, qty_value=None, conditions=None) -> int:
+                qty_op=None, qty_value=None, conditions=None, view=None, product=None) -> int:
     """与列表同一套筛选的命中行数（页脚"第 N 项/共 M 项"用）。"""
-    return len(_overview_rows(warehouse=warehouse, location=location, q=q, include_zero=include_zero,
-                              only_low=only_low, qty_op=qty_op, qty_value=qty_value, conditions=conditions))
+    return len(_view_rows(view, warehouse=warehouse, location=location, q=q, include_zero=include_zero,
+                          only_low=only_low, qty_op=qty_op, qty_value=qty_value, conditions=conditions, product=product))
 
 
 def stock_totals(*, warehouse=None, q=None) -> dict:
@@ -471,12 +495,14 @@ def stock_totals(*, warehouse=None, q=None) -> dict:
     rows = _overview_rows(warehouse=warehouse, q=q, include_zero=True)
     visible = guard.cost_visible()
     valued = [row for row in rows if row.get("cost_known")]
+    # 低库存 / 缺货按商品数（公司合计判，与「按商品」看法同一口径，多仓闭环 P4）：一件商品在两个仓都缺只算一件
+    products = contracts.product_rows(rows, cost_visible=visible)
     return {
         "sku_count": len({row["product"] for row in rows if row["qty_on_hand"]}),
         "row_count": len(rows),
         "value": float(sum(row["value"] or 0 for row in valued)) if visible else None,
-        "low_count": len([row for row in rows if row["status"] == "low"]),
-        "out_count": len([row for row in rows if row["status"] == "out"]),
+        "low_count": len([row for row in products if row["status"] == "low"]),
+        "out_count": len([row for row in products if row["status"] == "out"]),
     }
 
 

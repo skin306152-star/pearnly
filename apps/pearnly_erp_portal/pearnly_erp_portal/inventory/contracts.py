@@ -262,3 +262,43 @@ def count_rows(items, *, only="", warehouse="", location=""):
     return [row for row in items if keep(row)
             and (not warehouse or row.get("warehouse") == warehouse)
             and (not location or (row.get("location") or "") == location)]
+
+
+# 库存一览的两种看法（多仓闭环 P4）：按位置（商品 × 仓 × 库位，原来那样）/ 按商品（公司里各仓合计）
+POSITION_VIEW, PRODUCT_VIEW = "position", "product"
+VIEWS = (POSITION_VIEW, PRODUCT_VIEW)
+
+
+def stock_status(qty_on_hand, company_qty, min_stock) -> str:
+    """一行的库存状态：这一行没货是缺货；有货时低库存按这件商品在公司所有仓的合计比（最低库存是商品上的一个数，不分仓）。"""
+    if d(qty_on_hand) <= 0:
+        return "out"
+    if d(min_stock) and d(company_qty) <= d(min_stock):
+        return "low"
+    return "ok"
+
+
+def product_rows(rows, *, cost_visible) -> list:
+    """按位置的行（带 ``company_qty``）→ 按商品合计，次序按每件商品第一次出现。数量、金额相加；有一处成本未确立就整件不确立
+    （同一行的规矩：未确立留空、不是 0），没有成本权限的岗位同样留空；状态按公司合计判。"""
+    merged = {}
+    for row in rows:
+        slot = merged.get(row["product"])
+        if slot is None:
+            slot = merged[row["product"]] = {
+                "name": row["product"], "product": row["product"], "product_name": row.get("product_name"),
+                "code": row.get("code"), "barcode": row.get("barcode"), "warehouse": None, "warehouse_name": None,
+                "location": "", "unit": row.get("unit"), "min_stock": row.get("min_stock") or 0,
+                "company_qty": row.get("company_qty"), "qty": d(0), "value": d(0), "known": True}
+        slot["qty"] += d(row["qty_on_hand"])
+        slot["value"] += d(row.get("value") or 0)
+        slot["known"] = slot["known"] and bool(row.get("cost_known"))
+    out = []
+    for slot in merged.values():
+        qty, value, known = slot.pop("qty"), slot.pop("value"), slot.pop("known")
+        shown = cost_visible and known
+        out.append({**slot, "qty_on_hand": float(qty), "cost_known": known,
+                    "value": float(value) if shown else None,
+                    "unit_cost": float(q2(value / qty)) if shown and qty > 0 else None,
+                    "status": stock_status(slot["company_qty"], slot["company_qty"], slot["min_stock"])})
+    return out
