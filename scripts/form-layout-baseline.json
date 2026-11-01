@@ -1,0 +1,6 @@
+{
+ "apps/pearnly_cowork/pearnly_cowork/public/desk/line-binding.js::qr::balance::0": "LINE 绑定块：左栏是服务端生成的二维码图（HTML，固定 160×160），右栏 Bot ID / 绑定码 / 有效期 / 换一个码约 190px，高度相近；静态估不出图高",
+ "apps/pearnly_cowork/pearnly_cowork/public/desk/work.js::board_list::columns::0": "任务看板自动规则的一行（当…列表 | 就…动作 | 目标 | 启用）：是一排横向控件，一行一条规则，不是表单分栏",
+ "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/line-binding.js::qr::balance::0": "LINE 绑定块：左栏是服务端生成的二维码图（HTML，固定 160×160），右栏 Bot ID / 绑定码 / 有效期 / 换一个码约 190px，高度相近；静态估不出图高",
+ "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/work.js::board_list::columns::0": "任务看板自动规则的一行（当…列表 | 就…动作 | 目标 | 启用）：是一排横向控件，一行一条规则，不是表单分栏"
+}

@@ -307,12 +307,13 @@
 			{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"),
 				options: KIND_OPTIONS, hidden: no_kind},
 
-			// 对方（ERP 这一段没有标题，名字只在字段标签上说一次）：左边名称 / 税号 / 地址，右边分店。
+			// 对方（ERP 这一段没有标题，名字只在字段标签上说一次）：左边名称 / 地址，右边税号 / 分店
+			// （与 ERP 采购单供应商一节同一套，11-01：原来左三格右一格）。
 			{fieldtype: "Section Break"},
 			{fieldtype: "Data", fieldname: "party_name", label: t("intake.field.seller")},
-			{fieldtype: "Data", fieldname: "party_tax", label: t("intake.field.sellerTax")},
 			{fieldtype: "Small Text", fieldname: "party_addr", label: __("Address")},
 			{fieldtype: "Column Break"},
+			{fieldtype: "Data", fieldname: "party_tax", label: t("intake.field.sellerTax")},
 			{fieldtype: "Data", fieldname: "party_branch", label: __("Branch No")},
 			// 另一方（本方）：推送核对本方税号要用，ERP 页面上没有这一段，放在对方下面。
 			{fieldtype: "Section Break"},
@@ -320,11 +321,12 @@
 			{fieldtype: "Column Break"},
 			{fieldtype: "Data", fieldname: "other_tax", label: t("intake.field.buyerTax")},
 			// 税费金额与备注：排在明细下面（ERP 同位置），渲染后整段移到 `amounts_region`。
+			// 左栏币种、净额、折扣，右栏税额与合计（同 ERP 采购单「税费」一节，11-01：原来左二格右四格）。
 			{fieldtype: "Section Break", label: __("Taxes and Charges"), fieldname: "amounts_section"},
-			{fieldtype: "Data", fieldname: "discount", label: __("Discount Amount")},
 			{fieldtype: "Data", fieldname: "currency", label: __("Currency")},
-			{fieldtype: "Column Break"},
 			{fieldtype: "Data", fieldname: "subtotal", label: t("intake.field.netAmount")},
+			{fieldtype: "Data", fieldname: "discount", label: __("Discount Amount")},
+			{fieldtype: "Column Break"},
 			{fieldtype: "Data", fieldname: "vat", label: t("intake.field.vatAmount")},
 			{fieldtype: "Data", fieldname: "wht_amount", label: t("intake.field.whtAmount")},
 			{fieldtype: "Data", fieldname: "total_amount", label: t("intake.col.grandTotal")},
@@ -443,6 +445,8 @@
 				{fieldtype: "Data", fieldname: "subtotal", label: __("Amount"), read_only: !reviewable},
 				{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"), options: KIND_OPTIONS,
 					hidden: no_kind, read_only: !reviewable},
+				// 删除单独一行（同 ERP 采购单物料行），不占右栏
+				{fieldtype: "Section Break"},
 				{fieldtype: "Button", fieldname: "remove", label: __("Delete"), hidden: !reviewable, click: () => {
 					line.removed = true;
 					wrapper.hide();

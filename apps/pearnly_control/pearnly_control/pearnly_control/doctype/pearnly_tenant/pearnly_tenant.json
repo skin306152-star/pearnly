@@ -8,10 +8,11 @@
  "field_order": [
   "tenant_name",
   "status",
+  "ocr_engine",
   "column_break_main",
   "contact_name",
   "contact_phone",
-  "ocr_engine",
+  "section_notes",
   "notes"
  ],
  "fields": [
@@ -33,6 +34,14 @@
    "reqd": 1
   },
   {
+   "fieldname": "ocr_engine",
+   "fieldtype": "Select",
+   "label": "Recognition Engine",
+   "options": "Google\nClaude",
+   "default": "Claude",
+   "description": "Google or Claude. A change applies from the next document."
+  },
+  {
    "fieldname": "column_break_main",
    "fieldtype": "Column Break"
   },
@@ -47,12 +56,8 @@
    "label": "Contact Phone"
   },
   {
-   "fieldname": "ocr_engine",
-   "fieldtype": "Select",
-   "label": "Recognition Engine",
-   "options": "Google\nClaude",
-   "default": "Claude",
-   "description": "Google or Claude. A change applies from the next document."
+   "fieldname": "section_notes",
+   "fieldtype": "Section Break"
   },
   {
    "fieldname": "notes",
@@ -62,7 +67,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-18 21:30:00.000000",
+ "modified": "2026-11-01 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Control",
  "name": "Pearnly Tenant",

@@ -175,7 +175,8 @@
 				trail: [{label: t("company.new"), route: ""}]});
 			const form = p.layout(page.main, [
 				// 两列排布（用户 2026-09-24："字段视角对齐，排版要合理"）：一列一列对齐、别拉成一长条。
-				// 与公司信息那一屏同一套两栏（用户 10-31）：左栏公司与税务，右栏联系与收款、接 Express。
+				// 与公司信息那一屏同一套两栏（用户 10-31）：左栏公司与税务，右栏联系与收款、再是公司类型与接 Express
+				// （11-01：公司类型原在左栏末尾，左七格右五格）；地址 | 备注一节也同详情页，紧跟在下面。
 				{fieldtype: "Section Break", label: t("company.section.basic")},
 				f("company_name", "company.field.name", "Data", {reqd: 1}),
 				f("short_name", "company.field.shortName", "Data"),
@@ -185,13 +186,17 @@
 				f("branch", "company.field.branch", "Data"),
 				// 增值税登记户（收银标价含税，登记户的小票逐行拆出税额）：税号查询带出，也可以手选
 				f("vat_registered", "company.field.vatRegistered", "Select", {options: VAT_OPTIONS}),
-				f("company_type", "company.field.companyType", "Select", {options: TYPE_OPTIONS, default: "general"}),
 				{fieldtype: "Column Break"},
 				f("phone", "company.field.phone", "Data"),
 				f("contact_person", "company.field.contactPerson", "Data"),
 				f("contact_email", "company.field.contactEmail", "Data"),
 				f("promptpay_id", "company.field.promptpay", "Data"),
+				f("company_type", "company.field.companyType", "Select", {options: TYPE_OPTIONS, default: "general"}),
 				f("express_enabled", "company.field.expressEnabled", "Check", {default: 0}),
+				{fieldtype: "Section Break", label: t("company.section.address")},
+				f("address", "company.field.address", "Small Text"),
+				{fieldtype: "Column Break"},
+				f("note", "company.field.note", "Small Text"),
 				// ── 收银：开关 + 收哪几种钱 ────────────────────────────────────
 				// 文案一律用**术语表里已有的词**（收银台 / 付款方式 / 现金 / 刷卡 / 扫码 / 转账），
 				// 不再自己写说明句（用户 2026-09-24："做新东西不要随意加文案"）。
@@ -217,9 +222,6 @@
 						{fieldname: "warehouse", fieldtype: "Data",
 							label: t("company.field.warehouse"), in_list_view: 1},
 					]},
-				{fieldtype: "Section Break"},
-				f("address", "company.field.address", "Small Text"),
-				f("note", "company.field.note", "Small Text"),
 			]);
 			const rows_of = fieldname => (form.get_value(fieldname) || [])
 				.map(row => ({...row}));
@@ -278,20 +280,22 @@
 					})}));
 			return out;
 		};
+		// 还没写进 Express 的退货小票（退货单在排队、等原日汇总写入或停下）
+		const pending_refunds = express => (express.pending_refunds ? [{fieldname: "express_pending_refunds",
+			label: __("express.pendingRefunds"), fieldtype: "Int", read_only: 1, default: express.pending_refunds}] : []);
 		const express_fields = express => [
+			// 两栏成行（11-01）：账套 | 同步时间，状态 | 原因；待写退货放在短的那一栏（原来左二格、右最多四格）
 			{fieldname: "express_book", label: __("Account Set"), fieldtype: "Data", read_only: 1,
 				default: express.express_book || ""},
-			{fieldname: "express_synced_at", label: __("Express Synced At"), fieldtype: "Datetime", read_only: 1,
-				default: express.express_synced_at || ""},
-			{fieldtype: "Column Break"},
 			{fieldname: "express_sync_state", label: __("Status"), fieldtype: "Data", read_only: 1,
 				default: express.express_sync_state ? t(`company.syncExpress.${sync_key(express.express_sync_state)}`) : ""},
+			...(express.express_sync_note ? pending_refunds(express) : []),
+			{fieldtype: "Column Break"},
+			{fieldname: "express_synced_at", label: __("Express Synced At"), fieldtype: "Datetime", read_only: 1,
+				default: express.express_synced_at || ""},
 			...(express.express_sync_note ? [{fieldname: "express_sync_note", label: __("Reason"), fieldtype: "Small Text",
 				read_only: 1, default: SYNC_NOTES[express.express_sync_note]
-					? t(SYNC_NOTES[express.express_sync_note]) : express.express_sync_note}] : []),
-			// 还没写进 Express 的退货小票（退货单在排队、等原日汇总写入或停下）
-			...(express.pending_refunds ? [{fieldname: "express_pending_refunds", label: __("express.pendingRefunds"),
-				fieldtype: "Int", read_only: 1, default: express.pending_refunds}] : []),
+					? t(SYNC_NOTES[express.express_sync_note]) : express.express_sync_note}] : pending_refunds(express)),
 			// Express 自己对不上的存货（全仓结存 ≠ 各仓合计）：同步不按它抹 ERP 的数，这里只列不拦（出入库第一期）。
 			// 只读，用官方 DataTable（`p.table`，见 `show_stock_differences`），不用表格字段（会带勾选框和铅笔）
 			...((express.stock_differences || []).length ? [
@@ -350,8 +354,6 @@
 				f("branch", "company.field.branch", "Data", {default: data.branch || "", ...ro}),
 				f("vat_registered", "company.field.vatRegistered", "Select",
 					{options: VAT_OPTIONS, default: data.vat_registered || "", ...ro}),
-				f("company_type", "company.field.companyType", "Select",
-					{options: TYPE_OPTIONS, default: data.company_type || "general", ...ro}),
 				{fieldtype: "Column Break"},
 				f("phone", "company.field.phone", "Data", {default: data.phone || "", ...locked}),
 				f("contact_person", "company.field.contactPerson", "Data",
@@ -360,6 +362,8 @@
 					{options: "Email", default: data.contact_email || "", ...ro}),
 				f("promptpay_id", "company.field.promptpay", "Data",
 					{default: data.promptpay_id || "", ...ro}),
+				f("company_type", "company.field.companyType", "Select",
+					{options: TYPE_OPTIONS, default: data.company_type || "general", ...ro}),
 				// 单据打印抬头的 Logo（没传就用 App 自带的 PEARNLY，`printing.header`）
 				{fieldname: "logo", label: __("Logo"), fieldtype: "Attach Image", default: data.logo || "", ...ro},
 				{fieldtype: "Section Break", label: t("company.section.address")},

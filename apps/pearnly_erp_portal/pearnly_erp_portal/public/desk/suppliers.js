@@ -73,14 +73,15 @@
 		function editor(row = {}) {
 			const editable = can_write;
 			const d = p.dialog(row.name || t("supplier.new"), [
+				// 先是这家是谁（名称 / 税号 / 分支），再是联系（电话 / 地址 / 备注），同公司信息的分组（11-01）
 				f("supplier_name", "supplier.field.name", "Data", {reqd: 1, default: row.supplier_name || ""}),
-				f("phone", "supplier.field.phone", "Data", {default: row.phone || ""}),
 				f("tax_id", "supplier.field.taxId", "Data", {default: row.tax_id || ""}),
 				f("lookup", "supplier.lookup.action", "Button", {click: () => lookup_tax(d)}),
 				f("branch_type", "supplier.field.branch", "Select", {
 					options: [{value: "head", label: t("supplier.head")}, {value: "branch", label: t("supplier.branch")}],
 					default: row.branch_type || "head"}),
 				f("branch_no", "supplier.field.branchNo", "Data", {default: row.branch_no || ""}),
+				f("phone", "supplier.field.phone", "Data", {default: row.phone || ""}),
 				f("address", "supplier.field.address", "Small Text", {default: row.address || ""}),
 				f("note", "supplier.field.note", "Small Text", {default: row.note || ""}),
 				...(row.name ? [f("is_active", "supplier.field.active", "Check", {default: Number(row.is_active) ? 1 : 0})] : []),

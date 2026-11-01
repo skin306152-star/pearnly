@@ -74,11 +74,12 @@
 						{value: "foreign", label: t("client.party.foreign")},
 						{value: "anonymous", label: t("client.party.anonymous")}],
 					default: row.party_type || "company"}),
-				f("contact_phone", "client.field.phone", "Data", {default: row.contact_phone || ""}),
+				// 先是这家是谁（名称 / 类型 / 税号），再是联系（电话 / 地址 / 备注），同公司信息的分组（11-01）
 				f("tax_id", "client.field.taxId", "Data", {default: row.tax_id || ""}),
 				// 公司才查得到税号登记（个人/外国人没有 RD 记录）。
 				f("lookup", "client.lookup.action", "Button", {click: () => lookup_tax(d),
 					depends_on: "eval:doc.party_type === 'company'"}),
+				f("contact_phone", "client.field.phone", "Data", {default: row.contact_phone || ""}),
 				f("address", "client.field.address", "Small Text", {default: row.address || ""}),
 				f("note", "client.field.note", "Small Text", {default: row.note || ""}),
 				...(row.name ? [f("is_active", "client.field.active", "Check", {default: Number(row.is_active) ? 1 : 0})] : []),

@@ -126,16 +126,16 @@
 			const shown_roles = locked ? data.roles.map(role => role.name) : row?.roles || [];
 			let dialog;
 			const fields = [
-				// 两栏成行（用户 10-31）：名 | 姓，用户名 | 初始密码，邮箱
+				// 两栏成行（用户 10-31）：名 | 姓，用户名 | 初始密码；邮箱放右栏末尾——编辑时没有密码，左右仍各两格（11-01）
 				// 姓名（用户 10-30）：名必填、姓可空，全站显示人名用它
 				field("first_name", __("First Name"), "Data", { reqd: 1, default: row?.first_name || "" }),
 				field("username", __("Username"), "Data",
 					{ reqd: 1, read_only: is_new ? 0 : 1, default: row?.username || "" }),
-				field("email", t("cowork.team.email"), "Data",
-					{ options: "Email", read_only: is_new ? 0 : 1, default: row?.email || "" }),
 				{ fieldtype: "Column Break" },
 				field("last_name", __("Last Name"), "Data", { default: row?.last_name || "" }),
 				...(is_new ? [field("password", t("cowork.team.password"), "Password", { reqd: 1 })] : []),
+				field("email", t("cowork.team.email"), "Data",
+					{ options: "Email", read_only: is_new ? 0 : 1, default: row?.email || "" }),
 				...roles_fields(shown_roles, () => dialog),
 			];
 			for (const item of fields) {

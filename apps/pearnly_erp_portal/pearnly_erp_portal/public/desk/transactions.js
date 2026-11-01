@@ -403,8 +403,8 @@
 		// ── 明细：逐条摊开（入库/出库的录入**不用表格**）───────────────────────────
 		// 用户 2026-09-23："出库和入库界面添加物料那个位置不要用表格，拆出来"。
 		// 版式与采购/销售的自由行同一套：**一条一段**（官方可折叠 Section Break）+ 官方控件，
-		// 段里的每一格与老表格那一列一一对应；字段顺序照抄老表格（物料、仓库、仓位、数量、
-		// 单价、说明、单位），所以换个版式、不换口径。
+		// 段里的每一格与老表格那一列一一对应（物料、仓库、仓位、数量、单价、说明、单位），换个版式、不换口径；
+		// 段里三栏按「物料是什么 / 放哪 / 多少」分（11-01）。
 		// 值仍按 `p.trade.clean()` 认的形状交回去；行里原来带的、界面上没有的键（编辑草稿时
 		// 的 `original_line` 这类）原样带回去 —— 老表格是整行对象，换成小表单别把字段丢了。
 		// 行里的「仓库」是**表头那一个的镜像**，不是一个能各说各话的第二输入框：
@@ -441,26 +441,28 @@
 								unit: item.unit || item.base_unit,
 								[price]: cost ? item.default_cost : (item.price_set ? item.unit_price : 0) });
 						} },
+					// 三栏各管一类（11-01，原来物料、仓位、成本混在三栏里）：物料是什么 | 放哪 | 多少；删除单独一行。
 					// 商品的内部编码（只读，收发货页显示内部编码，10-29）
 					{ fieldtype: "Data", fieldname: "internal_code", label: __("product.field.internalCode"), read_only: 1 },
-					// 仓库：表头的镜像（只读）。放在物料下面 —— 这一行进哪个仓，一眼看得到。
+					{ fieldtype: "Data", fieldname: "description", label: t("trade.description") },
+					{ fieldtype: "Column Break" },
+					// 仓库：表头的镜像（只读）—— 这一行进哪个仓，一眼看得到。
 					{ fieldtype: "Link", options: "ERP Warehouse", only_select: true, read_only: 1,
 						fieldname: "warehouse", label: t("trade.warehouse") },
-					{ fieldtype: "Column Break" },
 					{ fieldtype: "Autocomplete", fieldname: "location", label: t(transfer ? "trade.fromLocation" : "trade.location"),
 						get_query: p.location_query(() => head_warehouse()) },
 					...(transfer ? [{ fieldtype: "Autocomplete", fieldname: "to_location", label: t("trade.toLocation"),
 						get_query: p.location_query(() => to_warehouse() || "") }] : []),
+					{ fieldtype: "Column Break" },
 					{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: 1,
 						precision: 3, formatter: value => p.number(value) },
 					{ fieldtype: "Data", fieldname: "unit", label: t("trade.unit") },
-					{ fieldtype: "Column Break" },
 					{ fieldtype: "Currency", fieldname: price, options: "currency",
 						label: t(cost ? "trade.cost" : "trade.price"),
 						// 出库不给人填价：只锁这一格，行照样能加能改（结存成本由服务端算）。
 						read_only: locked_price ? 1 : 0, formatter: value => p.money(value) },
-					{ fieldtype: "Data", fieldname: "description", label: t("trade.description") },
 					{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
+					{ fieldtype: "Section Break" },
 					{ fieldtype: "Button", fieldname: "remove", label: __("Delete"),
 						click: () => drop(line) },
 				];

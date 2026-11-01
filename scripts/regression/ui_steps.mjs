@@ -1,6 +1,7 @@
 // 页面操作步骤驱动（回归实验室复核用）：一个无头 Chrome 带会话打开起始页，按顺序在页面里执行若干段 JS（可 await），
 // 每步输出一行 JSON（步骤名、返回值、这一步里的页面报错），可选截图。不点真实鼠标，步骤里直接调框架 / 产品的同一套函数。
-// 用法：node scripts/regression/ui_steps.mjs '<JSON>'，JSON = {base, cookie_domain, sid, start, ready, shots, mobile, video, steps: [{name, js, wait_ms, shot, file}]}
+// 用法：node scripts/regression/ui_steps.mjs '<JSON>'，JSON = {base, cookie_domain, sid, start, ready, shots, mobile, width, video, steps: [{name, js, wait_ms, shot, full, file}]}
+// width：手机宽度（默认 390）；full：截图时把整张表单截全
 // 实验室站点的域名：SMOKE_CHROME_RULES="MAP erp.regression.localhost 127.0.0.1"
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -57,7 +58,7 @@ try {
   await send("Network.setCookie", { name: "sid", value: job.sid, domain: job.cookie_domain, path: "/", secure: false }, sessionId);
   // 手机宽度：job.mobile 为真时按安卓手机模拟（390 × 844、触屏、安卓 Chrome 的 UA），页面按手机判
   if (job.mobile) {
-    await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true }, sessionId);
+    await send("Emulation.setDeviceMetricsOverride", { width: job.width || 390, height: 844, deviceScaleFactor: 2, mobile: true }, sessionId);
     await send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 }, sessionId);
     await send("Emulation.setUserAgentOverride", { userAgent: "Mozilla/5.0 (Linux; Android 14; SM-A556E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36" }, sessionId);
   }
@@ -88,7 +89,22 @@ try {
       .catch((error) => ({ exceptionDetails: { exception: { description: String(error) } } }));
     if (step.wait_ms) await sleep(step.wait_ms);
     if (step.shot && job.shots) {
+      // step.full：整张表单截全（弹窗 / 页面比一屏长时把视口临时拉到内容的高度，截完还原）
+      const tall = step.full ? (await send("Runtime.evaluate", { expression: `(() => { const m = [...document.querySelectorAll('.modal.show .modal-dialog')].pop();
+        const main = document.querySelector('.main-section');  // Desk 页面在这一层里滚
+        return Math.ceil(Math.max(document.documentElement.scrollHeight, m ? m.getBoundingClientRect().bottom + 40 : 0,
+          main ? main.getBoundingClientRect().top + main.scrollHeight : 0)); })()`, returnByValue: true }, sessionId)
+        .catch(() => ({})))?.result?.value : 0;
+      const width = job.mobile ? (job.width || 390) : 1280;
+      if (tall > (job.mobile ? 844 : 900)) {
+        await send("Emulation.setDeviceMetricsOverride", { width, height: Math.min(tall, 6000), deviceScaleFactor: job.mobile ? 2 : 1, mobile: !!job.mobile }, sessionId);
+        await sleep(400);
+      }
       const shot = await send("Page.captureScreenshot", { format: "png" }, sessionId).catch(() => null);
+      if (tall > (job.mobile ? 844 : 900)) {
+        if (job.mobile) await send("Emulation.setDeviceMetricsOverride", { width, height: 844, deviceScaleFactor: 2, mobile: true }, sessionId);
+        else await send("Emulation.clearDeviceMetricsOverride", {}, sessionId);
+      }
       if (shot?.data) writeFileSync(join(job.shots, step.file ? `${step.file}.png` : `${index + 1}-${step.name.replace(/[^\w.-]+/g, "_").slice(0, 60)}.png`), Buffer.from(shot.data, "base64"));
     }
     console.log(JSON.stringify({ step: step.name, value: result.result?.value ?? null,

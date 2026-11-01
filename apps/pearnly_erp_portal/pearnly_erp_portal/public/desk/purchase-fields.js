@@ -101,10 +101,12 @@
 			// （用户 2026-09-23："这一页甚至出现供应商/供应商名称，这种重复字段"）。标题去掉，
 			// 分组仍然靠 Section Break 换行；名字只在字段标签上说一次。
 			u.section(""),
+			// 左栏名称 / 地址，右栏税号 / 分支（11-01：总部时原来左三格右一格；Cowork 识别结果的对方一节同一套）
 			p.entry_choice_field("Supplier", editable),
 			f("supplier", "Supplier", "Data", {hidden: 1}),
 			f("supplier_name", "Supplier Name", "Data", {hidden: 1}),
-			f("supplier_tax_id", "Tax ID"), f("supplier_address", "Address", "Small Text"), col(),
+			f("supplier_address", "Address", "Small Text"), col(),
+			f("supplier_tax_id", "Tax ID"),
 			f("supplier_branch_type", "Branch Type", "Select", {options: u.options(["head_office", "branch", "none"])}),
 			f("supplier_branch_no", "Branch No", "Data", {depends_on: "eval:doc.supplier_branch_type === 'branch'"}),
 			f("supplier_branch_name", "Branch Name", "Data", {depends_on: "eval:doc.supplier_branch_type === 'branch'"}),
@@ -128,11 +130,13 @@
 			u.section(""), f("lines", "Items", "HTML"),
 			f("add_line", "Add row", "Button", {hidden: !editable, click: () => state.add_line?.()}),
 			f("merge_lines", "Merge Items", "Button", {hidden: 1, click: () => state.merge?.()}),
+			// 左栏净额 / 折扣 / 尾差，右栏税额与合计（11-01：原来左三格右五格）
 			u.section("Taxes and Charges"),
 			f("has_vat", "Tax Invoice", "Check", {hidden: !editable}),
+			f("subtotal", "Net Total", "Currency", {read_only: 1}),
 			f("discount_total", "Discount Amount", "Currency"), f("rounding", "Rounding Adjustment", "Currency"), col(),
-			...[ ["subtotal", "Net Total"], ["vat_amount", "VAT"], ["wht_amount", "Withholding Tax"],
-				["grand_total", "Grand Total"], ["net_payable", "Amount Payable"]].map(([key, label]) => f(key, label, "Currency", {read_only: 1})),
+			...[["vat_amount", "VAT"], ["wht_amount", "Withholding Tax"], ["grand_total", "Grand Total"],
+				["net_payable", "Amount Payable"]].map(([key, label]) => f(key, label, "Currency", {read_only: 1})),
 			u.section("Invoice Amount", {collapsible: 1, collapsed: 1, hidden: !editable && !doc.amount_override}),
 			f("amount_override", "Manually Set Amounts", "Check", {hidden: !editable, onchange: async () => {
 				if (state.ready && state.form.get_value("amount_override")) await state.form.set_values({

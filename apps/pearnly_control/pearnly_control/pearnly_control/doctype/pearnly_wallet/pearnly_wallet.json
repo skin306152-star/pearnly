@@ -8,24 +8,24 @@
  "field_order": [
   "tenant",
   "balance_thb",
+  "updated_at",
   "column_break_main",
   "pages_used_this_month",
   "usage_month",
-  "usage_checked",
-  "updated_at"
+  "usage_checked"
  ],
  "fields": [
   {"fieldname": "tenant", "fieldtype": "Link", "in_list_view": 1, "label": "Tenant", "options": "Pearnly Tenant", "reqd": 1, "unique": 1},
   {"default": "0", "fieldname": "balance_thb", "fieldtype": "Currency", "in_list_view": 1, "label": "Balance (THB)", "options": "THB", "read_only": 1},
+  {"fieldname": "updated_at", "fieldtype": "Datetime", "label": "Last Updated", "read_only": 1},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
   {"fieldname": "pages_used_this_month", "fieldtype": "Int", "label": "Pages Used This Month", "read_only": 1},
   {"description": "Month of the pay-as-you-go page count (Bangkok time, YYYY-MM)", "fieldname": "usage_month", "fieldtype": "Data", "label": "Usage Month", "length": 7, "read_only": 1},
-  {"description": "Date the page count was last reconciled with the ledger (Bangkok time)", "fieldname": "usage_checked", "fieldtype": "Date", "label": "Usage Checked", "read_only": 1},
-  {"fieldname": "updated_at", "fieldtype": "Datetime", "label": "Last Updated", "read_only": 1}
+  {"description": "Date the page count was last reconciled with the ledger (Bangkok time)", "fieldname": "usage_checked", "fieldtype": "Date", "label": "Usage Checked", "read_only": 1}
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-18 12:00:00.000000",
+ "modified": "2026-11-01 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Control",
  "name": "Pearnly Wallet",

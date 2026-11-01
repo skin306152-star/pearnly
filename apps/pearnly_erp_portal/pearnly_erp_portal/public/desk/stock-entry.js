@@ -54,11 +54,15 @@
 		// 明细：**能录入的时候不用表格** —— 一条一段的官方控件（用户 2026-09-23："出库和入库
 		// 界面添加物料那个位置不要用表格，拆出来"），见 `p.trade.lines_editor`；已提交 / 已作废
 		// 的单据只是看，仍旧用只读的那张表（那是"看"，不是"加物料"）。
+		// 单头两栏成行（11-01，原来六格竖成一长条）：单号 | 日期；仓库 | 库位；调拨是左栏调出、右栏调入。
+		// 明细、用途 / 备注各自一节。
 		const entry_fields = ({ doc = {}, doc_no, editable, data }) => [
 			{ fieldtype: "Data", fieldname: "doc_no", label: t("trade.docNo"), read_only: 1,
 				default: doc_no, description: doc.doc_no ? "" : t("stock.field.docNoAuto") },
+			{ fieldtype: "Column Break" },
 			{ fieldtype: "Date", fieldname: "posting_date", label: t("trade.date"),
 				default: doc.posting_date || frappe.datetime.get_today(), reqd: 1 },
+			{ fieldtype: "Section Break" },
 			// 仓库用**官方原生**的 Link 到 `ERP Warehouse`（用户 2026-09-23："我说用官方原生，
 			// 这是第四遍了"）：下拉里只列**当前公司**的仓库；没找到时 Link 自己会带
 			// 「Create a new ERP Warehouse」（框架原生行为）。服务端只认已有的仓库。
@@ -67,12 +71,13 @@
 			...p.place.fields({ labels: transfer ? { warehouse: t("trade.fromWarehouse"), location: t("trade.fromLocation") }
 				: { warehouse: t("trade.warehouse"), location: t("trade.location") }, editable, reqd: true,
 				warehouse: doc.warehouse, location: doc.location, current: () => head?.fields_dict?.warehouse?.get_value(),
-				onchange: key => place?.changed(key) }),
+				onchange: key => place?.changed(key) }).flatMap((field, index) => (index && !transfer ? [{ fieldtype: "Column Break" }, field] : [field])),
 			// 调拨：调入仓库 + 调入库位（同一家公司的另一个仓；服务端核同公司、不同仓、调入库位在调入仓的清单里）
-			...(transfer ? p.place.fields({ labels: { warehouse: t("trade.toWarehouse"), location: t("trade.toLocation") }, editable,
+			...(transfer ? [{ fieldtype: "Column Break" }, ...p.place.fields({ labels: { warehouse: t("trade.toWarehouse"), location: t("trade.toLocation") }, editable,
 				reqd: true, warehouse: doc.to_warehouse, location: doc.to_location,
 				keys: { warehouse: "to_warehouse", location: "to_location" },
-				current: () => head?.fields_dict?.to_warehouse?.get_value(), onchange: key => to_place?.changed(key) }) : []),
+				current: () => head?.fields_dict?.to_warehouse?.get_value(), onchange: key => to_place?.changed(key) })] : []),
+			{ fieldtype: "Section Break" },
 			...(editable
 				// 明细的宿主（HTML 格）与"添加明细"那颗官方按钮：真正的控件由 `mount_lines` 建。
 				? [{ fieldtype: "HTML", fieldname: "lines" },
@@ -82,9 +87,11 @@
 					data: doc.lines || [] })]),
 			// 用途（录制问题 #14）：入库是退库，出库是内部领用 / 报损；可以不填。调拨没有用途。
 			// 只读时官方 Select 显示的是原值（other / internal_use），已提交的单改用文字框显示译文
+			{ fieldtype: "Section Break" },
 			...(transfer ? [] : [editable ? { fieldtype: "Select", fieldname: "purpose", label: __("stock.purpose.label"),
 				options: [{ value: "", label: "" }, ...purpose_options()], default: doc.purpose || "" }
-				: { fieldtype: "Data", fieldname: "purpose", label: __("stock.purpose.label"), default: purpose_label(doc.purpose) }]),
+				: { fieldtype: "Data", fieldname: "purpose", label: __("stock.purpose.label"), default: purpose_label(doc.purpose) },
+			{ fieldtype: "Column Break" }]),
 			{ fieldtype: "Small Text", fieldname: "reason", label: t("trade.note"),
 				default: doc.reason },
 		].map(field => ({ ...field, read_only: editable ? 0 : 1 }))
