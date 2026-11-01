@@ -102,3 +102,27 @@
   成本 35、低库存 3、含 VAT，来由 stocktake / STC-00434，建档人 stock@erp.regression（盘点岗）；盘点记录 4。
   截图在共享笔记 `盘点标准新建弹窗-真机截图-11-01/`。LINE 页没上真机（流程覆盖）。
 - 没测到：按台公司在 Desk 盘点里勾按台新建（流程数据集是普通公司；服务端在建档时开按台、LINE 流程覆盖了汽车公司的表单）。
+
+### 生产复测（c9e28ace，发布标记 release-20261101-0921，16:49 上线后）
+
+- 三星 SM-A146P，LINE ERP-TEST 富菜单「盘点」→ LIFF 打开 testerp 的 Desk 盘点页（员工 aksarapak），盘点 QA1101（STC-169985）
+  「开始盘点」，真相机拍测试机屏幕上的未知 EAN-13 8859792110273，真触摸：相机读到后停下，提示「未找到与该编号匹配的物料」，
+  「新建物料」在一屏内 → 点开即物料页的标准新建弹窗（编码 P-000009「自动生成」、条码/二维码已预填扫到的码、分类 / 单位 / 库存单位 /
+  售价 / 参考成本 / 默认仓位 / 低库存提醒 / 含 VAT 齐全）→ 填名称、售价 59 提交 →「已保存 QA1101-std-line」、弹窗关掉、回到录入认出这件
+  → 记 4 件「保存并下一项」→「已保存，请扫描下一项」、相机重开，再扫同码认出（「已记录 … · 4」）。物料页打开 P-000009：
+  来由「盘点新建 · STC-169985」、售价 59.00。截图在共享笔记 `盘点标准新建弹窗-生产复测-11-01/`。
+- 结果：通过。手机浏览器外壳没单独测（手机 Chrome 没登录 testerp），同一张 Desk 盘点录入页、同一份代码已在 LINE 内置浏览器通过（主会话 11-01 定）。
+- 测试数据保留在 testerp：物料 P-000009「QA1101-std-line」（条码 8859792110273），盘点 QA1101 里这件记 4。
+- 观察（不是本次改动带来的）：新建时单位不填，存下「单位」为空、「库存单位」为 ชิ้น；物料页新建走同一个 `standard_fields`，口径相同。
+
+### `/stocktake`（LINE 专用盘点页）现在的入口
+
+- ERP 富菜单「盘点」从 09-26 加上（e4e56a41）起就指向 Desk `/desk/pearnly-stock-count`（`integrations/line_menu.py` 的 `STOCKTAKE_ROUTE`，
+  经 `line_login.entry_url`），从没指向过 `/stocktake`。
+- 全仓（apps、companion、frontend/src、infrastructure、scripts）没有链接到这张页的代码：CC 桌面版、通知、LINE 回复里都没有；
+  `frontend/src/lib/nav.ts` 的 `/stocktake` 是 Cowork 前端自己的路由，不是这张页；剩下的只有报错回传白名单
+  （`pearnly_core/desk/client_errors.py` 的 `GUEST_ROUTES`）、读码器注释与回归流程 `erp.line.stocktake` / `erp.line.stocktake.phone`。
+- 唯一可能把人带到这张页的是 LIFF 落地地址：规定 ERP 的 LIFF 落在站点根（`pearnly_control/onboarding/line_liff.py`），只有那里文档记的
+  10-05 生产 mrerp 的 LIFF 落在 `/stocktake`、按「只改用不了的」保留。若 mrerp 现在还是这样，打开不带路径的 `liff.line.me/<id>` 会落到这张页；
+  而富菜单经 `liff.line.me/<id>/api/method/…` 进 Desk 时路径会接在 `/stocktake` 后面。现状要读 LINE 后台或站点 `check_liff` 才能确认，本次没读。
+- 去留由主会话定。
