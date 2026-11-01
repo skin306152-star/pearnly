@@ -71,24 +71,24 @@
 		for (; node && node !== document.body; node = node.parentElement) if (style(node).position === "fixed") return true;
 		return false;
 	};
-	const place = () => {
-		timer = 0;
-		if (!open || !field || !field.isConnected || document.activeElement !== field) return;
+	// 摆一次：要挪就挪、返回挪没挪
+	const shift = () => {
 		const {top, bottom} = visible();
 		const rect = field.getBoundingClientRect();
-		if (!rect.height) return;
+		if (!rect.height) return false;
 		let delta;
 		if (suggests(field)) {
 			// 带建议列表 / 日历弹层的格（Link、日期等）：弹层往下展开，格子摆到可见区上部三分之一以内，下面留给弹层
-			if (rect.top >= top + MARGIN && rect.bottom <= top + (bottom - top) / 3) return;
+			if (rect.top >= top + MARGIN && rect.bottom <= top + (bottom - top) / 3) return false;
 			delta = rect.top - top - MARGIN;
 		} else {
-			if (rect.top >= top + MARGIN && rect.bottom <= bottom - MARGIN) return;
+			if (rect.top >= top + MARGIN && rect.bottom <= bottom - MARGIN) return false;
 			// 高过可见区的（多行文本）顶端对齐，其余摆中间
 			delta = rect.height > bottom - top - 2 * MARGIN
 				? rect.top - top - MARGIN
 				: rect.top + rect.height / 2 - (top + bottom) / 2;
 		}
+		const wanted = delta;
 		for (let node = field.parentElement; node && node !== document.body && node !== root && Math.abs(delta) >= 1; node = node.parentElement) {
 			if (!scrolls(node)) continue;
 			const before = node.scrollTop;
@@ -96,6 +96,13 @@
 			delta -= node.scrollTop - before;
 		}
 		if (Math.abs(delta) >= 1 && !inFixed(field)) window.scrollBy(0, delta);
+		return Math.abs(wanted) >= 1;
+	};
+	// sticky 的条（弹窗标题栏、页头）滚动之后才贴到边上：挪完再量一次，被它盖住就再挪一次
+	const place = () => {
+		timer = 0;
+		if (!open || !field || !field.isConnected || document.activeElement !== field) return;
+		if (shift()) shift();
 	};
 	const later = (wait) => {
 		if (timer) window.clearTimeout(timer);

@@ -187,3 +187,26 @@ test('a field with a suggestion list (Link) is placed in the top third so the li
   dated.keyboard(354);
   assert.ok(date.getBoundingClientRect().bottom <= 354 / 3, JSON.stringify(date.getBoundingClientRect()));
 });
+
+test('a sticky dialog header that only sticks after the scroll does not end up over the field', () => {
+  // 开班弹窗真机：收银台 Link 在第一格，摆到可见区顶端后被滚动才贴顶的标题栏盖住（11-01）
+  const p = page();
+  const modal = p.element({ parentElement: p.body, style: { position: 'fixed', overflowY: 'auto' }, top: 0, height: 800,
+    scrollHeight: 1200, clientHeight: 354 });
+  Object.defineProperty(modal, 'scrollTop', {
+    get() { return this._top || 0; },
+    set(value) { this._top = Math.max(0, Math.min(value, this.scrollHeight - this.clientHeight)); },
+  });
+  const content = p.element({ parentElement: modal, top: 8, height: 1180 });
+  const header = p.element({ parentElement: content, style: { position: 'sticky', overflowY: 'visible' }, top: 0, height: 47 });
+  header.getBoundingClientRect = () => {  // 没滚时在 8–55，滚过 8px 后贴在 0–47
+    const top = Math.max(0, 8 - modal.scrollTop);
+    return { top, bottom: top + 47, height: 47 };
+  };
+  const link = input(p, { parentElement: content, top: 101, attrs: { role: 'combobox' } });
+  p.covers.push(header, modal);
+  p.focus(link);
+  p.keyboard(354);
+  const rect = link.getBoundingClientRect();
+  assert.ok(rect.top >= header.getBoundingClientRect().bottom, JSON.stringify({ rect, header: header.getBoundingClientRect() }));
+});
