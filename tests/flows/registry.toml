@@ -685,3 +685,29 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py",
 ]
+
+[[flow]]
+id = "cowork.intake.review"
+title = "Cowork 录入复核：对方与税费两节的分栏、改分店号保存落库（11-01 表单排版整改）"
+module = "scripts/flows/cowork_intake_review.py"
+product = "cowork"
+start = "/desk/pearnly-intake/new/{record}"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js",
+]
+
+[[flow]]
+id = "erp.party.dialogs"
+title = "ERP 供应商 / 客户弹窗：字段分组与新建落库（11-01 表单排版整改）"
+module = "scripts/flows/erp_party_dialogs.py"
+start = "/desk/pearnly-suppliers"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/suppliers.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/clients.js",
+]
