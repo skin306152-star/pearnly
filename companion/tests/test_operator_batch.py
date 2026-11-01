@@ -212,3 +212,26 @@ def test_a_held_document_handed_back_after_a_choice_is_entered_again(tmp_path):
     done = r.run_one("X")
     assert done.status == K.SAVED and done.docnum
     assert r.add(fixed).status == K.SAVED  # 录成的再交回不重录
+
+
+def test_an_unexpected_error_marks_that_document_and_stops_instead_of_cascading(tmp_path):
+    # 11-01 录制机：一张出意外后 Express 上留着认不出的框，后面每张都报「命令被禁用」，页面上一直「进行中」
+    from companion.express_operator.engine import Unexpected
+
+    r, sim, session, *_ = make(tmp_path)
+    second = r.state.docs[1].doc_id
+    real = r.engine.run
+
+    def run(draft):
+        if draft.doc_id == second:
+            raise Unexpected("refused: command 53504 is disabled")
+        return real(draft)
+
+    r.engine.run = run
+    state = r.run()
+    assert state.status == K.BATCH_STOPPED and state.reason == "unknown_screen"
+    held = state.doc(second)
+    assert held.status == K.WAITING and held.reason == "unknown_screen" and "53504" in held.detail
+    assert state.docs[0].status == K.SAVED
+    assert all(d.status in (K.PENDING, K.SKIPPED) for d in state.docs[2:])  # 后面的不再撞上去；写账线交来时记「已跳过」
+    assert not any(d.status == K.ENTERING for d in state.docs)

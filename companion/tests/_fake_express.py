@@ -108,6 +108,10 @@ class FakeExpress:
         self.trap_saves = 0
         self.esc_pressed = 0
         self.log: List[str] = []
+        # 慢的 Express（11-01 录制机：另开着一个 Express 时第一次开表单、存档都比平常慢）：inject「slow_form」「slow_save」
+        # = 还要等几次（engine 的 wait）表单标题才出来 / 存档才落下
+        self.form_delay = 0
+        self.save_delay = 0
 
     # ── 画面 ───────────────────────────────────────────────────────────────
     def labels(self) -> List[str]:
@@ -119,7 +123,7 @@ class FakeExpress:
     def title(self) -> str:
         if self.dialogs:
             return self.dialogs[-1]["title"]
-        if self.form:
+        if self.form and not self.form_delay:
             name = self.data["forms"][self.form]["title"]
             return f"Express Accounting - {name} - [{name}]"
         return "Express Accounting"
@@ -363,7 +367,9 @@ class FakeExpress:
             self.head[PRICE] = PRICE_TEXT["1"] if self.form == "HS" else PRICE_TEXT["2"]
             self._set_focus(("head", self.labels()[0]))
         elif cmd == SAVE and self.editing:
-            self._save()
+            self.save_delay = int(self.inject.pop("slow_save", 0))
+            if not self.save_delay:
+                self._save()
         elif cmd == CANCEL and self.editing:
             if self.complete_rows():
                 self._trap_save()
@@ -420,7 +426,17 @@ class FakeExpress:
             return {"windows": self.windows()}
         if not self.alive:
             raise RuntimeError("Express not running")
-        if op in ("us_layout", "wait", "maximize_main", "move", "mouse", "scroll", "drag"):
+        if op == "wait":
+            if not a.get("ms"):
+                return {}  # 只刷新、不等：时间没走
+            if self.form_delay:
+                self.form_delay -= 1
+            if self.save_delay:
+                self.save_delay -= 1
+                if not self.save_delay:
+                    self._save()
+            return {}
+        if op in ("us_layout", "maximize_main", "move", "mouse", "scroll", "drag"):
             return {}
         if op == "activate":
             return {"title": self.title()}
@@ -428,6 +444,7 @@ class FakeExpress:
             self.do({"do": "key", "text": "alt"})
             for k in a["path"]:
                 self._key_token(str(k))
+            self.form_delay = int(self.inject.pop("slow_form", 0))
             return {}
         if op == "close_form":
             return self.do({"do": "key", "text": "ctrl+F4"})

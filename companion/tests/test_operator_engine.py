@@ -192,3 +192,67 @@ def test_an_exempt_document_keeps_its_vat_price_type():
     d = from_payload("X", {"doctype": "RR", "docdate_be": "691021", "supplier": {"code": "P001"},
                            "items": [{"code": "501780", "qty": "1", "unit_price": "10", "vat_exempt": True}]})
     assert d.lines[0].exempt is True
+
+
+def _engine(sim, presence=None):
+    return Engine(sim, RECIPE, FakeBook(sim), presence=presence, sleep=lambda _s: None)
+
+
+def test_a_slow_form_open_is_waited_for_not_judged_at_once():
+    # 11-01 录制机：另开着一个 Express 时第一次开表单比平常慢，只读一次就判成画面不对、整张转人工
+    d = samples()[1]
+    recs, sim, site, _ = run_docs([d], with_ai=False, inject={"slow_form": 20})
+    assert recs[0]["outcome"] == "saved" and recs[0]["readback"]["ok"]
+    assert recs[0]["checkpoints"] == 0 and not recs[0]["voided"]
+
+
+def test_a_slow_save_is_waited_for_and_the_saved_document_is_not_voided():
+    # 11-01 录制机：存档慢，原来读 8 次没读到正式单号就判画面不对，把存对了的单作废（HP0000118）
+    d = samples()[1]
+    recs, sim, _, _ = run_docs([d], with_ai=False, inject={"slow_save": 25})
+    assert recs[0]["outcome"] == "saved" and recs[0]["docnum"] == "HP0000001"
+    assert not recs[0]["voided"] and not any(e.startswith("void") for e in sim.log)
+
+
+def test_a_person_touching_express_while_it_saves_restarts_the_wait_instead_of_failing():
+    # 用户 10-30：被打断时先停、等人停手、再从断点接着做；人碰过 Express 的那一下不能当成画面不对作废
+    d = samples()[1]
+    sim = FakeExpress(RECIPE.data, inject={"slow_save": 60})
+    paused = []
+
+    def presence():
+        if 25 <= sim.save_delay <= 30 and not paused:  # 存到一半，人在 Express 里点了一下：停下等人停手
+            paused.append(sim.save_delay)
+            return True
+        return False
+
+    rec = _engine(sim, presence).run(d)
+    assert paused and rec["outcome"] == "saved" and rec["docnum"] == "HP0000001" and not rec["voided"]
+    # 对照：同样慢、人没碰，宽限用完就交给人（画面判不了）
+    sim2 = FakeExpress(RECIPE.data, inject={"slow_save": 60})
+    assert _engine(sim2, lambda: False).run(samples()[1])["outcome"] == "need_human"
+
+
+def test_a_person_touching_express_while_the_form_opens_is_waited_out():
+    d = samples()[1]
+    sim = FakeExpress(RECIPE.data, inject={"slow_form": 200})
+    calls = []
+
+    def presence():
+        calls.append(sim.form_delay)
+        if sim.form_delay and len(calls) > 5:  # 人动过、停手时表单已开好
+            sim.form_delay = 0
+            return True
+        return False
+
+    rec = _engine(sim, presence).run(d)
+    assert rec["outcome"] == "saved" and rec["checkpoints"] == 0
+
+
+def test_the_check_rereads_after_a_person_touched_express_before_judging():
+    # 读画面判对错之前也先看有没有人动过：动过就等人停手、重读，读对了就算对，不截图、不转人工
+    sim = FakeExpress(RECIPE.data)
+    engine = _engine(sim, lambda: True)
+    engine.begin(samples()[1])
+    assert engine.checkpoint("after_save", "已存", {"saved": True}, reverify=lambda: "HP0000001") is True
+    assert engine.rec["checkpoints"] == 0 and engine.rec["events"][-1]["after_pause"] is True

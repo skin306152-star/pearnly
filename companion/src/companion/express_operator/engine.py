@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 import time
 from decimal import Decimal
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from . import book as B
 from .draft import Draft
@@ -22,6 +22,11 @@ from .helper import NoHelper, png_block
 from .recipe import Form, Recipe
 
 MAX_TAKEOVERS_PER_DOC = 3
+# 固定流程读画面的宽限（11-01 录制机实测：另开着一个 Express、网络账套忙时，第一次开表单、存档都比平常慢；只读一次就判成
+# 画面不对、作废了存对的单）。按等待次数算（测试里的等待是假的）；中途有人在本批的 Express 里动过就等人停手、重新计时再读
+SLOW_STEP_MS = 500
+SLOW_FORM_S = 15
+SLOW_SAVE_S = 20
 SAVED_UNREAD = "?"  # 画面核对已存上、单号格读不到字：单号以读账套为准
 INPUT_OPS = {"keys", "key", "type", "paste", "click", "drag", "scroll", "grid_click", "command", "dialog_button", "menu",
              "close_form",
@@ -79,7 +84,7 @@ class Engine:
                  may_void: Callable[[str], bool] = lambda _docnum: True):
         self.desk, self.recipe, self.book = desk, recipe, book
         self.helper = helper or NoHelper()
-        self.presence = presence  # 发键前调用：锁屏 / 有人在用就在里面等，人点停止就抛 Stopped
+        self.presence = presence  # 发键前、读画面判对错前调用：锁屏 / 有人在用就在里面等（等过回真），人点停止就抛 Stopped
         self.evidence = evidence  # (doc_id, png_b64) → 存档截图（只存本机）
         self.log, self.sleep = log, sleep
         self.may_void = may_void  # 批次给的第二道闸：这个单号是不是本批次开录后新建、又不是本批次已存好的单
@@ -112,11 +117,38 @@ class Engine:
         timing = self.rec.setdefault("timing", {})
         timing[name] = round(timing.get(name, 0.0) + seconds, 3)
 
+    def _person(self) -> bool:
+        """锁屏 / 有人在本批的 Express 里动过：在里面等人停手。回这次等没等过。"""
+        if not self.presence:
+            return False
+        started = time.monotonic()
+        paused = bool(self.presence())
+        self._time("paused", time.monotonic() - started)
+        return paused
+
+    def _wait_for(self, check: Callable[[], Any], seconds: float) -> Any:
+        """限时一次次读（``check`` 回真值即成）：Express 慢时多等一会儿，不只读一次就判画面不对。中途有人在本批的 Express
+        里动过（点了、打了字）：等人停手后重新计时再读，人碰过的那一下不算画面不对（用户 10-30：被打断先停、再从断点接着）。
+        回 ``check`` 最后一次的结果。"""
+        tries = left = max(1, int(seconds * 1000 / SLOW_STEP_MS))
+        while True:
+            found = check()
+            if found:
+                return found
+            if self._person():
+                left = tries
+                continue
+            if left <= 0:
+                return found
+            left -= 1
+            self.act([{"do": "wait", "ms": SLOW_STEP_MS}], windows=False)
+
+    def _fg_title(self) -> str:
+        return (self.act([{"do": "wait", "ms": 0}]).get("fg") or {}).get("title", "")
+
     def act(self, actions: List[Dict], windows: bool = True) -> Dict:
-        if self.presence and any(a["do"] in INPUT_OPS for a in actions):
-            started = time.monotonic()
-            self.presence()
-            self._time("paused", time.monotonic() - started)
+        if any(a["do"] in INPUT_OPS for a in actions):
+            self._person()
         started = time.monotonic()
         reply = self.desk.act(actions, windows)
         # 分步计时：等待单算一项（后台做法回实际等了多久，前台做法是写死的时长），其余算到这一批的第一个动作上
@@ -187,7 +219,11 @@ class Engine:
         return res["png"]
 
     # ── AI ──────────────────────────────────────────────────────────────────
-    def checkpoint(self, where: str, expect_text: str, expect: Dict, *, recover: bool = True) -> bool:
+    def checkpoint(self, where: str, expect_text: str, expect: Dict, *, recover: bool = True,
+                   reverify: Optional[Callable[[], Any]] = None) -> bool:
+        if reverify is not None and self._person() and reverify():
+            self._event("check", where=where, problem="", after_pause=True)  # 人碰过 Express：等人停手后重读就对了
+            return True
         png = self.screenshot(where)
         answer = self.helper.check(png, f"期望：{expect_text}\n草稿单：\n{self._describe()}")
         self.rec["checkpoints"] += 1
@@ -378,10 +414,12 @@ class Engine:
         title = (self.act([{"do": "menu", "path": form.menu}, {"do": "wait", "ms": self.recipe.form_open_ms}]).get("fg")
                  or {}).get("title", "")
         self._event("form_open", doc_type=doc_type)
-        if form.title in title:
+        opened = lambda: form.title in self._fg_title()  # noqa: E731
+        if form.title in title or self._wait_for(opened, SLOW_FORM_S):
             self._layer("win32")
         else:
-            self.checkpoint("form_open", f"已打开「{form.title}」单据窗口，处于浏览状态，没有弹窗。", {"form": doc_type})
+            self.checkpoint("form_open", f"已打开「{form.title}」单据窗口，处于浏览状态，没有弹窗。", {"form": doc_type},
+                            reverify=opened)
         self.form_open = doc_type
         self.baseline = {w["hwnd"] for w in self.windows}
         self.labels = {}
@@ -551,6 +589,7 @@ class Engine:
         except Unexpected as e:
             self._recover("save", str(e), saved_text, {"stage": "saved", "saved": True},
                           reverify=lambda: self.saved_check(T) or None)
+        unread = False
         for _ in range(8):
             docnum = self.saved_check(T)
             if docnum:
@@ -558,10 +597,22 @@ class Engine:
                 self._event("saved", docnum=docnum)
                 return docnum
             if self.recipe.commands["save"] not in self.toolbar_on() and not self.docnum_text():
+                unread = True
                 break  # 「保存」已灰、单号格读不到字：看一眼画面，单号留给读账套核对
             self.act([{"do": "wait", "ms": 600}], windows=False)
             self._auto_dialogs()
-        self.checkpoint("after_save", saved_text, {"stage": "saved", "saved": True})
+
+        def saved() -> str:
+            self.act([{"do": "wait", "ms": 0}])  # 刷新弹窗清单：存档途中弹出的认得的框照常处理
+            self._auto_dialogs()
+            return self.saved_check(T)
+
+        docnum = "" if unread else self._wait_for(saved, SLOW_SAVE_S)  # 还在存（「保存」还亮着）：多等一会儿再判
+        if docnum:
+            self._layer("win32")
+            self._event("saved", docnum=docnum)
+            return docnum
+        self.checkpoint("after_save", saved_text, {"stage": "saved", "saved": True}, reverify=lambda: self.saved_check(T))
         return self.saved_check(T) or SAVED_UNREAD
 
     def abandon(self) -> List[str]:

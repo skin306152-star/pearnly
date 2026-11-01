@@ -434,6 +434,13 @@ class Runner:
             except Stopped:
                 self._set(status=K.BATCH_STOPPED, reason="", current="")
                 return False
+            except Exception as e:  # noqa: BLE001 — 引擎没接住的意外（认不出的框留在 Express 上、菜单命令被禁用）
+                # 这张如实记「未完成」（原因 + 原文），不留「正在录」；Express 上留着认不出的东西不乱点，整批停下等人，
+                # 后面的单不再一张张撞上去（11-01 录制机：一张出意外后其余每张都报「命令被禁用」、页面一直「进行中」）
+                d.status, d.reason, d.detail = K.WAITING, "unknown_screen", f"{type(e).__name__}: {e}"[:300]
+                self.engine.form_open = None
+                self._set(status=K.BATCH_STOPPED, reason="unknown_screen", current="")
+                return False
             d.seconds = round(d.seconds + rec.get("seconds", 0.0), 1)
             d.reports += rec.get("reports", [])
             d.voided += rec.get("voided", [])

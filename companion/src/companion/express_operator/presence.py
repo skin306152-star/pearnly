@@ -251,10 +251,11 @@ class Presence:
                 "source": self._source,
                 "title": str(fg.get("title", ""))[:120]}
 
-    def __call__(self) -> None:
+    def __call__(self) -> bool:
+        """锁屏 / 有人在用就在这里等到恢复。回这次等没等过（引擎据此重读画面，不把人碰过的那一下当成画面不对）。"""
         found = self.reason()
         if found is None:
-            return
+            return False
         self.evidence.append(found)
         self.on_pause(found["reason"])
         self._resume_now = False
@@ -267,7 +268,7 @@ class Presence:
                     self._seen = self.signals.last_input_tick()
                     found["paused_s"] = round(self.clock() - found["at"], 1)
                     self.on_resume()
-                    return
+                    return True
             self.sleep(self.poll_s)
 
 
