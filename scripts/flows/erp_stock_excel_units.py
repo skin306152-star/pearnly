@@ -120,5 +120,6 @@ print(json.dumps({{"units": units, "entries": entries, "kind": kind, "heads": he
          "ok": got["kind"] == "vehicle" and sorted(r["serial_no"] for r in got["template"]) == sorted(params["vins"])
          and {r["serial_no"]: r["counted"] for r in got["template"]}.get(params["vins"][0]) == 1},
         {"case": "the template headings for the unit columns are translated words, not text keys", "seen": got["heads"],
-         "ok": len(got["heads"]) == 12 and not any(str(h or "").startswith("serial.") for h in got["heads"])},
+         # 14 列：品名后多「分类」「特性/颜色」两列（岳父 11-01）
+         "ok": len(got["heads"]) == 14 and not any(str(h or "").startswith(("serial.", "product.", "stock.")) for h in got["heads"])},
     ]
