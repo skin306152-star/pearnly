@@ -10,7 +10,12 @@
 """
 from __future__ import annotations
 
+import sys
 import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from erp_lib import company as dataset_company  # noqa: E402
 
 TITLE = "ERP 出入库单遇 Express 里没有的物料：问一次选新建、载荷 15、写完回填编码"
 
@@ -26,7 +31,10 @@ from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.products import service as products
 
 frappe.set_user("admin@erp.regression")
-company = companies.active_company("stock@erp.regression")
+company = {dataset_company(manifest)!r}  # 数据清单里那家，不跟着别的流程切走的当前公司
+frappe.set_user("stock@erp.regression")
+companies.set_active_company(company)  # 页面以库存岗打开，看的是它当前的公司
+frappe.set_user("admin@erp.regression")
 companies.set_active_company(company)
 new = products.create_product(product_name="ของใหม่ {tag}", unit="ชิ้น", unit_price=100, default_cost=10)["name"]
 same = products.create_product(product_name="สินค้าเดิม {tag}", unit="ชิ้น", unit_price=100, default_cost=10)["name"]

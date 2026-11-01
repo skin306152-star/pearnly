@@ -6,9 +6,14 @@
 """
 from __future__ import annotations
 
+import sys
 import uuid
+from pathlib import Path
 
-from desk_list import ACTION, CAPTURE_EXPORTS, IDLE, workbook_text
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from erp_lib import company as dataset_company  # noqa: E402
+
+from desk_list import ACTION, CAPTURE_EXPORTS, IDLE, workbook_text  # noqa: E402
 
 TITLE = "ERP 库存一览按物料：两仓合计、低库存按公司合计、点开看各仓"
 
@@ -20,7 +25,10 @@ from pearnly_erp_portal.inventory import documents
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.products import service as products
 frappe.set_user("admin@erp.regression")
-company = companies.active_company("stock@erp.regression")  # 页面以库存岗打开，看的是它当前的公司
+company = {dataset_company(manifest)!r}  # 数据清单里那家，不跟着别的流程切走的当前公司
+frappe.set_user("stock@erp.regression")
+companies.set_active_company(company)  # 页面以库存岗打开，看的是它当前的公司
+frappe.set_user("admin@erp.regression")
 companies.set_active_company(company)
 houses = frappe.get_all("ERP Warehouse", filters={{"company": company, "is_active": 1}}, fields=["name", "warehouse_name"],
                         order_by="creation asc", limit_page_length=2)
