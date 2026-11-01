@@ -504,7 +504,7 @@ mark_handled 不写、④d 断开后作废照排、公司页断开 / 取消勾�
 | `erp.stock-in.attach` | manual | 没测到（人工入口，交验收窗口按清单实测） |
 | `erp.stock-out.attach` | manual | 没测到（人工入口，交验收窗口按清单实测） |
 | `erp.stock-count.upload` | manual | 没测到（人工入口，交验收窗口按清单实测） |
-| `erp.cc.write` | auto：express | 没测到（本机实验栈没有测试机 CC 与 C 盘 T 账套；写进 Express 前的排队、预检、停下由流程 erp.document.express / erp.express.service_vat / erp.express.new-item-stock 覆盖并通过；CC 写入代码与载荷没改） |
+| `erp.cc.write` | auto：express | 没测到（需测试机真 CC，部署后由主会话安排端到端；写进 Express 前的排队、预检、停下由流程 erp.document.express / erp.express.service_vat / erp.express.new-item-stock 与下面的实验栈端到端覆盖） |
 | `erp.cc.masters` | manual | 没测到（人工入口，交验收窗口按清单实测） |
 | `erp.cc.stock-void` | manual | 没测到（人工入口，交验收窗口按清单实测） |
 | `erp.cc.pos-day` | manual | 没测到（人工入口，交验收窗口按清单实测） |
@@ -514,6 +514,22 @@ mark_handled 不写、④d 断开后作废照排、公司页断开 / 取消勾�
 | `erp.products.find-by-code` | auto：find_product | 通过 |
 | `erp.stock-count.new-product` | manual | 通过（流程 erp.stocktake.new-product） |
 | `erp.execution` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+
+**实验栈端到端（主会话 11-01 要求；erp-new 站点，正式入口建单，假 CC = 按心跳同一入口报 / 撤账套名单 `books.replace`）**
+
+| 步骤 | 结果 |
+|---|---|
+| 接上后建入库单 E1（`documents.create_entry` 提交） | 排队中 → 后台准备后交进共用写账队列（作业 queued） |
+| CC 不再报账套后建 E2 | 照排（不再永久漏写）→ 准备时停「没有账套」`express.account_set_missing`；每分钟 poll 仍停着 |
+| CC 回来，poll | E2 重新准备、交进写账队列（作业 queued） |
+| 公司页「断开」 | 接上时刻清空；E1、E2 作业撤掉（cancelled），单据标 `detached` / `express.disconnected`；单据弹窗照常显示状态，不给选 / 再写一次 |
+| 断开后 answer、retry | 都被拒（PermissionError）；poll、send 不再写，E1、E2 保持已断开 |
+| 断开期间建 E3 | 不排 |
+| 重新勾上 | 排一次同步，接上时刻仍空，等落库 |
+| 同步落库 | 重记接上时刻（晚于第一次）；E1、E2 仍是已断开，E3 再 queue 也不排（开始早于新的接上时刻）；新建 E4 排上并交进写账队列 |
+
+电脑领单、写入回执没有真 CC：断开时「电脑正在写」那件写成 / 没写成的两种结果由离线测试 `LinkStates.test_disconnecting_withdraws_what_is_not_written_and_marks_it_detached` 覆盖；
+真 CC 写 C 盘的端到端部署后由主会话在测试机安排。C 盘 T 账套离线回归经主会话同意免跑（它回放固定载荷，只验 CC 写库，本批没改 companion 与载荷）。
 
 **未覆盖 / 剩余**
 - 断开时正在读的主档同步仍会落库（主档、库存对齐照做，不会写接上时刻）：同步落库不复核勾选，没改（评估 3 节 `advance` / `start`）。
