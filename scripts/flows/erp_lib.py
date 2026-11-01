@@ -92,14 +92,18 @@ tills = frappe.get_all("ERP POS Terminal", filters={{"company": co}}, pluck="nam
 made = []
 def has(doctype, filters):
     return bool(frappe.get_all(doctype, filters=filters, pluck="name", limit_page_length=1))
-def entry(direction, qty):
+def entry(direction, qty, spot):
     documents.create_entry(direction=direction, posting_date=frappe.utils.nowdate(), warehouse=wh, reason="flow seed", submit=True,
-                           lines=[{{"product": product, "qty": qty, "unit_cost": 10, "location": shelf}}])
+                           lines=[{{"product": product, "qty": qty, "unit_cost": 10, "location": spot}}])
     made.append("stock " + direction)
-if not has("ERP Stock Entry", {{"direction": "in", "status": "submitted", "warehouse": ["in", stores]}}):
-    entry("in", 10)
+def held():  # 有货的库位（出库、收银从这里出，不把哪一格扣成负数）
+    row = frappe.db.sql("select location from `tabERP Stock Balance` where product=%s and warehouse=%s and qty_on_hand >= 2 "
+                        "order by qty_on_hand desc, location asc limit 1", (product, wh))
+    return row[0][0] if row else None
+if not has("ERP Stock Entry", {{"direction": "in", "status": "submitted", "warehouse": ["in", stores]}}) or held() is None:
+    entry("in", 10, shelf)
 if not has("ERP Stock Entry", {{"direction": "out", "status": "submitted", "warehouse": ["in", stores]}}):
-    entry("out", 1)
+    entry("out", 1, held() or "")
 line = {{"product": product, "item_type": "goods", "description": "flow seed", "qty": 1, "unit": "ชิ้น", "unit_price": 100, "vat_rate": 7,
          "warehouse": wh, "location": shelf}}
 if not has("Purchase Document", {{"company": co, "status": "submitted", "stock_posted_at": ["is", "set"]}}):

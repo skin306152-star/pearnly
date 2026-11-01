@@ -1,6 +1,6 @@
 """流程用例：ERP 库存卡（一件商品在一个仓的收发与结存，10-31 补）。
 
-库存岗打开一件在某仓有结存的商品的库存卡（`pearnly-stock-card/<商品>/<仓>`；没有结存时 prepare 先入库，不靠别的流程留下的库存），同一次跳转里再连着触发两次页面显示（多仓 P2 查出的竞态：
+库存岗打开一件在某仓某库位有结存的商品的库存卡（`pearnly-stock-card/<商品>/<仓>/<库位>`；没有结存时 prepare 先入库，不靠别的流程留下的库存），同一次跳转里再连着触发两次页面显示（多仓 P2 查出的竞态：
 过时的渲染后完成会再建一份表单）→ 页面上只有一份卡、期末结存与库里这件这个仓的账面一致。页面只读。
 """
 from __future__ import annotations
@@ -16,33 +16,34 @@ TITLE = "ERP 库存卡：打开一件商品在一个仓的卡、期末结存对�
 
 
 def prepare(lab, manifest):
-    """数据清单里按编码那件、这家公司第一个启用的仓：没有结存就先按正式入库记 5 件（有就不动，可重复跑），不靠别的流程先进货。"""
+    """数据清单里按编码那件、这家公司第一个启用的仓：取它结存最多的那个库位（卡按「商品 + 仓 + 库位」一格看）；
+    一格都没有就先按正式入库记 5 件（仓设了库位清单时进第一个库位），有就不动、可重复跑，不靠别的流程先进货。"""
     co, product = company(manifest), codes(manifest)["by_code"]["product"]
     row = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.inventory import documents
 from pearnly_erp_portal.masters import company as companies
 co, product = {co!r}, {product!r}
 warehouse = frappe.get_all("ERP Warehouse", filters={{"company": co, "is_active": 1}}, pluck="name", order_by="creation asc", limit=1)[0]
-held = lambda: float(frappe.db.sql("select coalesce(sum(qty_on_hand), 0) from `tabERP Stock Balance` where product=%s and warehouse=%s",
-                                   (product, warehouse))[0][0])
-if held() <= 0:
+held = lambda: frappe.db.sql(\"\"\"select location, qty_on_hand from `tabERP Stock Balance` where product=%s and warehouse=%s and qty_on_hand > 0
+  order by qty_on_hand desc, location asc limit 1\"\"\", (product, warehouse))
+if not held():
     frappe.set_user("admin@erp.regression")
     companies.set_active_company(co)
-    # 仓设了库位清单时只能进清单里的库位：进第一个
     shelf = frappe.get_all("ERP Warehouse Location", filters={{"parent": warehouse, "parenttype": "ERP Warehouse"}}, pluck="location_name",
                            order_by="idx asc", limit=1)
     documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), warehouse=warehouse, reason="flow stock card", submit=True,
                            lines=[{{"product": product, "qty": 5, "unit_cost": 10, "location": shelf[0] if shelf else ""}}])
     frappe.db.commit()
-print(json.dumps({{"product": product, "warehouse": warehouse, "qty": held()}}))
+location, qty = held()[0]
+print(json.dumps({{"product": product, "warehouse": warehouse, "location": location or "", "qty": float(qty)}}))
 """)
     return {**row, "cases": []}
 
 
 def steps(params, camera_code=None):
-    product, warehouse = js_value(params["product"]), js_value(params["warehouse"])
+    product, warehouse, location = js_value(params["product"]), js_value(params["warehouse"]), js_value(params.get("location", ""))
     return [{"name": "打开库存卡", "js": JS + f"""
-frappe.set_route('pearnly-stock-card', {product}, {warehouse});
+frappe.set_route('pearnly-stock-card', {product}, {warehouse}, {location});
 const wrapper=await until(()=>document.querySelector('[data-page-route="pearnly-stock-card"]'));
 if(!wrapper) return {{error:'page did not open'}};
 wrapper.on_page_show(); await sleep(20); wrapper.on_page_show();
