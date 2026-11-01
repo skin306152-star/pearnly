@@ -41,6 +41,9 @@ _M = {
     ),
     "btn_browse": ("更换…", "เปลี่ยน…"),
     "express_not_found": ("没有找到 Express 数据。", "ไม่พบข้อมูล Express"),
+    "op_login_title": ("Express 登录", "เข้าสู่ระบบ Express"),
+    "op_login_user": ("用户名", "ชื่อผู้ใช้"),
+    "op_login_password": ("密码", "รหัสผ่าน"),
     "browse_title": (
         "请选择 Express 数据所在文件夹",
         "กรุณาเลือกโฟลเดอร์ข้อมูล Express",

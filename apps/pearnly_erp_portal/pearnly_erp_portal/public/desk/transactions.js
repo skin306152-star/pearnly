@@ -120,6 +120,7 @@
 		"express.pos_refund_original_manual": "express.reason.refundOriginalManual",
 		"express.warehouse_unmapped": "express.reason.warehouseUnmapped",
 		"express.item_unmapped": "express.reason.itemUnmapped",
+		"express.operator_owned": "express.reason.operatorOwned",
 		"express.cc_desktop_not_connected": "CC Desktop not connected", "express.cc_desktop_offline": "express.reason.offline",
 	};
 	const EXPRESS_KINDS = {

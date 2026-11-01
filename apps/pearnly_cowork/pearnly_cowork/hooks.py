@@ -595,12 +595,15 @@ scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.s
 # 后台 worker 父进程预先导入的模块（`pearnly_core/execution/worker.py`）：对账长任务与每分钟的定时任务。
 # 任务照旧每次 fork，只是不再每个任务重新导入；导入不能开连接、不能依赖 Site。
 # 智能体工具（ADR-019 / ADR-009）：Cowork 自己声明，共用层汇总并以当前用户身份在服务端执行。
-pearnly_assistant_tools = ["pearnly_cowork.assistant.tools.TOOLS", "pearnly_cowork.assistant.company_tools.TOOLS"]
+# 实操任务页底部的对话用的工具（共用层 pearnly_core.express_operator.tools，对话框甲）也在这里列上
+pearnly_assistant_tools = ["pearnly_cowork.assistant.tools.TOOLS", "pearnly_cowork.assistant.company_tools.TOOLS",
+                           "pearnly_core.express_operator.tools.TOOLS"]
 # Cowork 自己的说话规矩（账套按公司名说，不说文件夹代码）：共用层接在共用说明后面
 pearnly_assistant_guidance = ["pearnly_cowork.assistant.tools.GUIDANCE",
                               "pearnly_cowork.assistant.company_tools.GUIDANCE"]
 # 工具进行中的说法（对话底部的工作状态行，如「正在识别单据」）：共用层汇总，译文在本 App 术语表
-pearnly_assistant_step_names = ["pearnly_cowork.assistant.step_names.STEP_NAMES"]
+pearnly_assistant_step_names = ["pearnly_cowork.assistant.step_names.STEP_NAMES",
+                                "pearnly_core.express_operator.tools.STEP_NAMES"]
 # CC 按公司主档组织对话（ADR-020）：共用层取这个模块的 KIND / PERIOD / SCOPE / allowed / view / context
 pearnly_assistant_projects = ["pearnly_cowork.companies.provider"]
 # 每 5 分钟的提醒入口（`folder_intake.schedule.notices`）顺带叫的：「待处理」早上汇总（ADR-020，补充 乙）。
@@ -671,3 +674,16 @@ pearnly_worker_preload = [
     "pearnly_cowork.work.reminders",
     "pdfminer.high_level",
 ]
+
+# 代录 Express（共用层 pearnly_core.express_operator，评估 docs/work/2026-10-26-express-operator-product-评估.md）：CC 里「代录」
+# 列这家公司「等着录入」的识别单据，交单走推送同一条路、载荷加代录标记（载荷 15），派给选定的电脑。
+pearnly_express_operator = {
+    "allowed": "pearnly_cowork.assistant.operator_source.allowed",
+    "sources": "pearnly_cowork.assistant.operator_source.sources",
+    "precheck": "pearnly_cowork.assistant.operator_source.precheck",
+    "intake": "pearnly_cowork.assistant.operator_source.intake",
+    "regroup": "pearnly_cowork.assistant.operator_source.regroup",
+    "submit": "pearnly_cowork.assistant.operator_source.submit",
+    "status": "pearnly_cowork.assistant.operator_source.status",
+    "resolve": "pearnly_cowork.assistant.operator_source.resolve",
+}

@@ -104,7 +104,9 @@ Change password,パスワード変更
 Change your password and sign out other devices on the account page of the identity service,パスワードの変更と他の端末からのログアウトは、ID サービスのアカウントページで行ってください
 Change your password from your account profile using Change Password.,プロフィールの「パスワード変更」からログインパスワードを変更してください。
 Charges,課金
+Checked the hands-on task,代行入力タスクを確認しました
 Checked your account,アカウント情報を確認しました
+Checking the hands-on task,代行入力タスクを確認しています
 Checking your account,アカウント情報を確認しています
 Checkpoint Key,チェックポイントキー
 Checkpoints,チェックポイント
@@ -120,6 +122,7 @@ Company List,会社一覧
 Company Master,会社マスタ
 Company Profile,会社情報
 Company Tax ID,自社の税番号
+Company Title,会社名
 Configuration is complete. The connection was not tested.,設定は揃っています。接続はテストしていません。
 Confirm,確認
 Confirm new password,新しいパスワード（確認）
@@ -280,6 +283,7 @@ Export details,明細をエクスポート
 Exporting…,エクスポート中…
 Express Document Number,Express 伝票番号
 Express Index Tool,Express インデックスツール
+Express Number,Express 番号
 Express Push Guide,Express プッシュガイド
 External Doc No,外部伝票番号
 External ERP Push,外部ERP連携
@@ -469,6 +473,7 @@ Open in browser,ブラウザで開く
 "Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.",スマートフォンの「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選び、LINE に戻ると自動でスキャンが再開します。
 Operator,ユーザー
 Operator Roster,オペレーター名簿
+Operator Task,代行入力タスク
 Operator added,オペレーターを追加しました
 Operator list,オペレーター一覧
 Operators,オペレーター
@@ -499,6 +504,7 @@ Pearnly Dark,Pearnly ダーク
 Pearnly Light,Pearnly ライト
 Pending,処理待ち
 Pending Carry-over,引き継ぎ待ちの内容
+Pending Controls,保留中の操作
 Pending review,審査待ち
 Period End,期末
 Period Start,期首
@@ -637,6 +643,7 @@ Source,ソース
 Source Attachment,元の添付ファイル
 Stage,段階
 Starred,スター付き
+Start At,開始時刻
 State,状態
 Status,ステータス
 Status cannot go backwards: {0} → {1},ステータスを戻すことはできません: {0} → {1}
@@ -795,6 +802,8 @@ Unit,単位
 Unit Price,単価
 Unit price,単価
 Unknown product: {0},不明な製品: {0}
+Updated the hands-on task,代行入力タスクを更新しました
+Updating the hands-on task,代行入力タスクを更新しています
 Upload,アップロード
 Upload a transfer slip before submitting,送信前に振込明細をアップロードしてください
 Upload a transfer slip up to 10 MB,10 MB 以下の振込明細をアップロードしてください
@@ -819,6 +828,7 @@ VAT Rate %,税率%
 VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,付加価値税申告（ภ.พ.30）と源泉徴収税申告（ภ.ง.ด.3 / ภ.ง.ด.53）の下書きと仕入税チェック
 Valid for {0},残り有効時間 {0}
 Verify State,照合結果
+Voided Number,取消番号
 WHT deducted,源泉徴収税額
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},{0} 秒待っても同一アカウントのロックを取得できません（{1}）。同一アカウントへの同時ログインは禁止です。{2}
 Warehouses,倉庫

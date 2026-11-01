@@ -42,44 +42,55 @@ function parse(raw: string | null | undefined): Set<string> | null {
   }
 }
 
-/** 这个人记下的；没记过用设备上的那份；都没有是空的（各组按默认）。 */
-export function readFold(user: string): Set<string> {
-  return (user ? parse(get(foldKey(user))) : null) ?? parse(get(DEVICE_FOLD_KEY)) ?? new Set();
-}
+// ---------------------------------------------------------------- 一份实例
+// 对话侧一份（键 cc.sidebar.collapsed:<用户>），实操侧另一份（components/operator/prefs.ts，键另起）：同一家公司的组键
+// project:<编号> 两边不互相影响。
+export function createSidebarFold(deviceKey: string) {
+  const keyOf = (user: string) => `${deviceKey}:${user}`;
+  /** 这个人记下的；没记过用设备上的那份；都没有是空的（各组按默认）。 */
+  const readOf = (user: string) => (user ? parse(get(keyOf(user))) : null) ?? parse(get(deviceKey)) ?? new Set<string>();
 
-let owner = get(USER_KEY) ?? "";
+  let owner = get(USER_KEY) ?? "";
 
-export const useSidebarFold = create<{ collapsed: ReadonlySet<string> }>(() => ({ collapsed: readFold(owner) }));
+  const useSidebarFold = create<{ collapsed: ReadonlySet<string> }>(() => ({ collapsed: readOf(owner) }));
 
-function save(next: ReadonlySet<string>) {
-  useSidebarFold.setState({ collapsed: next });
-  try {
-    storage()?.setItem(owner ? foldKey(owner) : DEVICE_FOLD_KEY, JSON.stringify([...next]));
-  } catch (caughtError) { reportCaught(caughtError, "sidebar-fold");
-    // 无痕窗口等存不了：本次照样折叠
+  function save(next: ReadonlySet<string>) {
+    useSidebarFold.setState({ collapsed: next });
+    try {
+      storage()?.setItem(owner ? keyOf(owner) : deviceKey, JSON.stringify([...next]));
+    } catch (caughtError) { reportCaught(caughtError, "sidebar-fold");
+      // 无痕窗口等存不了：本次照样折叠
+    }
   }
+
+  /** 知道当前用户了：换成这个人记下的（同一人不变）。资料到之前点过的、这个人还没记过的，照当前的存给他。 */
+  function bindFoldUser(user: string) {
+    if (!user || user === owner) return;
+    const before = owner;
+    owner = user;
+    const mine = parse(get(keyOf(user)));
+    if (mine) useSidebarFold.setState({ collapsed: mine });
+    else if (!before) save(useSidebarFold.getState().collapsed);
+    else useSidebarFold.setState({ collapsed: readOf(user) });
+  }
+
+  /** 按日分组、ERP / DMS：点组名开 / 收（记组键）。 */
+  function toggleFold(key: string) {
+    const next = new Set(useSidebarFold.getState().collapsed);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    save(next);
+  }
+
+  /** 公司组等：前 5 家默认展开，其余默认收起（键 project:<编号> / open:project:<编号>，见 sidebar-groups 的 groupOpen）。 */
+  function toggleFoldSection(section: { key: string; rank?: number }) {
+    save(toggleGroup(section, useSidebarFold.getState().collapsed));
+  }
+
+  return { useSidebarFold, bindFoldUser, toggleFold, toggleFoldSection };
 }
 
-/** 知道当前用户了：换成这个人记下的（同一人不变）。资料到之前点过的、这个人还没记过的，照当前的存给他。 */
-export function bindFoldUser(user: string) {
-  if (!user || user === owner) return;
-  const before = owner;
-  owner = user;
-  const mine = parse(get(foldKey(user)));
-  if (mine) useSidebarFold.setState({ collapsed: mine });
-  else if (!before) save(useSidebarFold.getState().collapsed);
-  else useSidebarFold.setState({ collapsed: readFold(user) });
-}
+export type SidebarFoldStore = ReturnType<typeof createSidebarFold>;
 
-/** 按日分组、ERP / DMS：点组名开 / 收（记组键）。 */
-export function toggleFold(key: string) {
-  const next = new Set(useSidebarFold.getState().collapsed);
-  if (next.has(key)) next.delete(key);
-  else next.add(key);
-  save(next);
-}
-
-/** 公司组等：前 5 家默认展开，其余默认收起（键 project:<编号> / open:project:<编号>，见 sidebar-groups 的 groupOpen）。 */
-export function toggleFoldSection(section: { key: string; rank?: number }) {
-  save(toggleGroup(section, useSidebarFold.getState().collapsed));
-}
+/** 对话侧的那一份（模块原来的各个出口照旧是它的）。 */
+export const { useSidebarFold, bindFoldUser, toggleFold, toggleFoldSection } = createSidebarFold(DEVICE_FOLD_KEY);

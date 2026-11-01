@@ -34,11 +34,18 @@ _hidden += [
     "winrt.windows.applicationmodel",
 ]
 
+# 代录 Express（10-26，src/companion/express_operator）：领到代录单才按需导入（不代录零占用），静态分析看得见函数里的导入，
+# 这里再逐个列一遍兜底；配方是数据文件（每种表单怎么录），随包放在模块旁边。只用 ctypes，排除名单不动。
+_hidden += [f"src.companion.express_operator.{name}" for name in (
+    "contract", "draft", "recipe", "desk", "win32_desk", "bg_desk", "engine", "helper", "book", "precheck", "session",
+    "credentials", "presence", "probe", "batch", "evidence", "host", "login_dialog", "scheduler")]
+_datas_operator = [("../src/companion/express_operator/recipes/*.json", "src/companion/express_operator/recipes")]
+
 a = Analysis(
     ["launcher_companion.py"],
     pathex=_pathex,
     binaries=[],
-    datas=[("../assets/cc.png", "assets"), ("../assets/pearnly.png", "assets")],  # 托盘/窗口图标(spec 相对路径=packaging/·故 ..)
+    datas=[("../assets/cc.png", "assets"), ("../assets/pearnly.png", "assets")] + _datas_operator,  # 托盘/窗口图标(spec 相对路径=packaging/·故 ..)
     hiddenimports=_hidden,
     hookspath=[],
     hooksconfig={},

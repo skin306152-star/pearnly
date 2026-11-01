@@ -23,6 +23,13 @@ UNKNOWN_RESULT = "ERP_CONFIRMED_PUSH_RESULT_UNKNOWN"
 CONFIRMED_UNACKED = "confirmed_push_unacked"
 
 
+def result_unknown(status, reason) -> bool:
+    """这张票停在「推送结果不明」：电脑领单途中断了，站点不知道写没写进去，要人先在 Express 里核对（复核页「核对」、
+    ``api.resolve_unknown``）再决定重推，不能当作没推过直接再交。"""
+    text = str(reason or "")
+    return status == "manual" and (UNKNOWN_RESULT in text or CONFIRMED_UNACKED in text)
+
+
 def _utc(value):
     if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
         raise LifecycleError("push.utc_required")

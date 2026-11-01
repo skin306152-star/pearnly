@@ -729,6 +729,7 @@ Expense (this kind from now on),记费用（同类单据均记费用）
 Expense account,费用科目
 Expense account when no category matches,未匹配科目的费用
 Expense it,记费用
+Expenses,费用
 Expires At,到期时间
 Export,导出
 Export Excel,导出 Excel
@@ -1281,6 +1282,7 @@ Provider Evidence,服务商调用证据
 Purchase (expense),采购（费用）
 Purchase (goods),采购（货品）
 Purchase or sales?,请选择进项或销项
+Purchases,采购
 Purchases eligible for input tax credit this month,本月可抵扣进项税的购进额
 Purple,紫
 Push Account Set,推送账套
@@ -1491,6 +1493,7 @@ Run requested. CC Desktop starts within a few minutes.,已请求运行，CC 桌�
 Run time,运行时间
 SHA-256,SHA-256
 SKU,SKU
+Sales,销售
 Sales area,销售区域
 Sales invoices,销售发票
 Sales invoices need line items with tax-exclusive amounts before export.,销项发票缺少未税金额明细，无法导出。
@@ -1947,6 +1950,7 @@ This channel is not open yet,此渠道尚未开放
 This choice cannot be saved,无法保存此选择
 This client still has {0} invoice record(s). Reassign them first.,该客户仍有 {0} 条发票记录，请先将其转移给其他客户。
 This computer can no longer handle this document,此电脑已不能处理该单据
+This computer cannot enter documents into Express,此电脑不能代录 Express
 This connection does not support an Express CC Desktop credential.,此连接不支持 Express CC 桌面版凭据。
 This connection does not support scheduled tasks.,此连接不支持定时任务。
 This connection is disabled.,此连接已停用。
@@ -1956,6 +1960,7 @@ This delivery conflicts with the current task state.,此回执与任务当前状
 This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,此单据属于其他分店，与所选账套不符。请选择该分店的账套后重新发送。
 This document does not need this choice,此单据无需选择是否录入
 This document format is not supported.,不支持此文档格式。
+This document is in an Express operator entry,单据在代录中
 This document is not in Express,Express 中找不到此单
 This document type cannot be written to Express. Check it and submit again.,此单据类型无法写入 Express，请核对后重新提交
 This document was changed in Express. Check it in Express,此单在 Express 中已被修改，请在 Express 中核对
@@ -2281,6 +2286,9 @@ cowork.choice.vat,票面税额
 cowork.company.branch_n,分店 {0}
 cowork.company.choice.fiscal_year,{0} 年度
 cowork.company.choice.goods,商品单
+cowork.company.choice.group.expense,费用
+cowork.company.choice.group.purchase,采购
+cowork.company.choice.group.sales,销售
 cowork.company.choice.service,记费用
 cowork.company.choice.stock,走库存
 cowork.company.choice_invalid,该值不在本月账套主档中
@@ -3399,6 +3407,7 @@ intake.error.MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
 intake.error.MISSING_REF_NO,缺少发票号，请补充后重新提交
 intake.error.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
 intake.error.NO_ACCOUNT_SELECTION,此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套
+intake.error.OPERATOR_UNAVAILABLE,此电脑不能代录 Express
 intake.error.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段后重新提交
 intake.error.PERIOD_LOCKED,会计期间已在 Express 关账
 intake.error.POS_INVALID,POS 日汇总的数据格式不对，请重新导入 POS 导出
@@ -3580,6 +3589,7 @@ push.native_state_invalid,当前推送状态不允许此操作。
 push.native_target_changed,推送目标已变更，请重新准备票据。
 push.native_target_mismatch,已冻结的推送目标与授权目标不一致。
 push.no_writer,没有可写入该账套的电脑
+push.operator_owned,单据在代录中
 push.original_reference_invalid,原票据引用无效或不可访问。
 push.posting_kind_invalid,过账类型无效。
 push.preparation_cancelled,尚未发送的推送准备已撤销。

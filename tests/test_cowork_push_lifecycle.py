@@ -190,6 +190,16 @@ class QueueTests(unittest.TestCase):
             self.lease(branch="guess")
 
 
+class ResultUnknownTests(unittest.TestCase):
+    def test_a_push_cut_off_while_leased_is_told_apart_from_other_stops(self):
+        # 代录开工前确认据此先说「结果不明，先在 Express 核对」（10-27 实测：原来交单时才被拒、页面只写「需要处理」）
+        self.assertTrue(flow.result_unknown("manual", flow.UNKNOWN_RESULT))
+        self.assertTrue(flow.result_unknown("manual", "EXPRESS_MANUAL: " + flow.CONFIRMED_UNACKED))
+        self.assertFalse(flow.result_unknown("manual", "[OPERATOR_ITEM_MISSING]"))
+        self.assertFalse(flow.result_unknown("failed", flow.UNKNOWN_RESULT))
+        self.assertFalse(flow.result_unknown("success", ""))
+
+
 class ReceiptTests(unittest.TestCase):
     def decision(self, rows, **kwargs):
         args = dict(tenant_id="T1", endpoint_id="E1", history_id="H1", account_set="book")

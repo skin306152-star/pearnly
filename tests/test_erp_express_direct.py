@@ -1500,6 +1500,228 @@ class UnmappedWarehouse(PushModule):
         self.assertEqual([state(docs, "READING"), state(docs, "VOID"), state(entries, "STE-1"), state(entries, "STE-2")],
                          [("held", E.READING), ("held", E.WAREHOUSE_UNMAPPED), ("queued", ""), ("held", E.WAREHOUSE_UNMAPPED)])
 
+    def test_operator_documents_stop_the_same_way(self):
+        """代录（CC「代录」里交的）同样受「仓库没有 Express 码就停」约束，不排写账件；交单结论回「停下」和原因（主会话 10-27 定）。"""
+        from unittest import mock
+        docs = fake.STATE.db.table(self.push.PURCHASE)
+        docs["PI-1"] = {"name": "PI-1", "creation": "2026-10-25 01:20:00", "status": self.push.ready(self.push.PURCHASE),
+                        "owner": "a@x", "express_state": "queued", "express_job": None, "express_reason": ""}
+        body = {"ref": "PI-1@x", "number": "PI-1", "items": [{"code": "A"}], "unmapped_warehouses": ["WH-2"]}
+        with mock.patch.object(self.push, "document", lambda doctype, name: dict(body)), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                mock.patch.object(self.push, "_company", lambda name: COMPANY), \
+                mock.patch.object(self.push.prepare, "prepare", lambda doc, company, ensure:
+                                  {"payload": {"payload_version": 4}, "book": {"key": "BK"}}), \
+                mock.patch.object(self.push.jobs, "enqueue", side_effect=AssertionError("must not queue")), \
+                mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+            result = self.push.send(self.push.PURCHASE, "PI-1", operator={"id": "b1", "index": 1, "total": 1})
+        self.assertEqual(result, {"status": "held", "reason": E.WAREHOUSE_UNMAPPED})
+        self.assertEqual((docs["PI-1"]["express_state"], docs["PI-1"]["express_reason"]), ("held", E.WAREHOUSE_UNMAPPED))
+
+
+class OperatorExclusion(PushModule):
+    """主会话 10-27：交给代录、还没录成的单（最近一件写账请求号带 ``erp:operator:``、不是 success / cancelled）直写不接，「再写一次」
+    也不改成直写；代录再录时先撤掉停在转人工的那一件、单据回到排队，再按代录交。"""
+
+    def jobs(self, *found):
+        from unittest import mock
+        return mock.patch.object(self.push.jobs, "of_source", lambda doctype, name: list(found))
+
+    def test_a_document_owned_by_the_operator_is_never_sent_directly(self):
+        from unittest import mock
+        owned = {"job": "J1", "request_key": "erp:operator:b1:PI-1@x", "status": "manual"}
+        with self.jobs(owned), mock.patch.object(frappe.db, "get_value", side_effect=AssertionError("must not prepare"),
+                                                 create=True):
+            self.assertEqual(self.push.send(self.push.PURCHASE, "PI-1"), {"status": "held", "reason": E.OPERATOR_OWNED})
+        for released in ({**owned, "status": "success"}, {**owned, "status": "cancelled"},
+                         {"job": "J2", "request_key": "erp:purchase:PI-1@x", "status": "manual"}):
+            with self.jobs(released):
+                self.assertFalse(self.push.operator_owned(self.push.PURCHASE, "PI-1"))
+        with self.jobs():
+            self.assertFalse(self.push.operator_owned(self.push.PURCHASE, "PI-1"))
+
+    def test_the_operator_takes_back_a_held_operator_document_before_sending_it_again(self):
+        from unittest import mock
+        docs = fake.STATE.db.table(self.push.PURCHASE)
+        docs["PI-1"] = {"name": "PI-1", "express_state": "failed", "express_job": "J1", "express_reason": "x"}
+        held = {"job": "J1", "request_key": "erp:operator:b1:PI-1@x", "status": "manual"}
+        cancelled = []
+        with mock.patch.object(self.push.jobs, "find_by_name", lambda name: dict(held)), \
+                mock.patch.object(self.push.jobs, "cancel", lambda name, reason: cancelled.append((name, reason))):
+            self.assertTrue(self.push.release_operator(self.push.PURCHASE, "PI-1"))
+        self.assertEqual(cancelled, [("J1", "replaced")])
+        self.assertEqual((docs["PI-1"]["express_state"], docs["PI-1"]["express_job"]), ("queued", None))
+        for other in ({**held, "request_key": "erp:purchase:PI-1@x"}, {**held, "status": "leased"}):
+            docs["PI-1"].update(express_state="failed", express_job="J1")
+            with mock.patch.object(self.push.jobs, "find_by_name", lambda name, job=other: dict(job)), \
+                    mock.patch.object(self.push.jobs, "cancel", side_effect=AssertionError("must not cancel")):
+                self.assertFalse(self.push.release_operator(self.push.PURCHASE, "PI-1"))
+
+    def test_retry_on_the_document_page_refuses_an_operator_job(self):
+        source = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py").read_text(encoding="utf-8")
+        start = source.index("def retry(")
+        end = source.find("\ndef ", start)
+        retry = source[start:end if end > 0 else len(source)]
+        guard = retry.index("push.OPERATOR_KEY")
+        self.assertLess(guard, retry.index('jobs.cancel(job["job"], "replaced")'))  # 撤旧件、按直写重交之前就挡住
+
+
+class OperatorPrecheck(PushModule):
+    """主会话 10-27（必修 ①）：代录预检走写账准备（`push.prepare_only`，与直写同一条路，不写单据、不排写账件）：要人选的连同可选值
+    一次列出、准备不了的写明原因；开录时先把预检里人定的按单据页同一套核对记下，再交代录。没声明预检的产品：全部当可录。"""
+
+    def setUp(self):
+        super().setUp()
+        sys.modules.pop("pearnly_erp_portal.express.operator", None)
+        self.addCleanup(sys.modules.pop, "pearnly_erp_portal.express.operator", None)
+        from pearnly_erp_portal.express import operator
+        self.operator = operator
+
+    def run_precheck(self, results, job=None):
+        from unittest import mock
+        from pearnly_erp_portal.express import api
+
+        docs = fake.STATE.db.table(self.push.PURCHASE)
+        for name in results:
+            docs[name] = {"name": name, "express_job": job}
+        with mock.patch.object(self.operator.guard, "has", lambda capability, user=None: True), \
+                mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                mock.patch.object(self.push, "prepare_only", lambda doctype, name: results[name]), \
+                mock.patch.object(api, "_options", lambda item, data: [{"code": "B9", "name": "LED"}]), \
+                mock.patch.object(self.operator.jobs, "find_by_name", lambda name: None):
+            return {row["doc_id"]: row for row in self.operator.precheck("CO-1", [f"P:{n}" for n in results])["documents"]}
+
+    def test_each_document_is_prepared_like_a_direct_write_and_choices_are_asked_once(self):
+        found = self.run_precheck({
+            "PI-1": {"payload": {"payload_version": 4}, "book": {"key": "BK"}},
+            "PI-2": {"hold": E.CHOICE + ":item", "needed": [{"kind": "item", "subject": "x|bulb", "label": "LED 9W"}],
+                     "book": {}},
+            "PI-3": {"hold": E.READING},
+            "PI-4": {"failed": E.NO_BOOK},
+            "PI-5": {"hold": E.WAREHOUSE_UNMAPPED, "book": {"key": "BK"}}})
+        self.assertEqual({k: v["state"] for k, v in found.items()},
+                         {"P:PI-1": "ready", "P:PI-2": "choose", "P:PI-3": "waiting", "P:PI-4": "blocked",
+                          "P:PI-5": "blocked"})
+        self.assertEqual(found["P:PI-2"]["needed"][0]["options"], [{"code": "B9", "name": "LED"}])
+        self.assertEqual(found["P:PI-5"]["reason"], E.WAREHOUSE_UNMAPPED)
+
+    def test_the_list_follows_the_tasks_company_not_the_users_active_one(self):
+        # 10-29 测试机：单据列表的权限条件只认本人「当前公司」，任务选了别的公司时一张都取不到。按任务的公司取，可见公司、记录范围自己守
+        from unittest import mock
+        seen = []
+        rows = [Row(name="PI-1", doc_date="2026-10-20", grand_total=1070, system_no="PE-1", supplier_name="S",
+                    express_reason="choice_needed:account", express_job=None)]
+        with mock.patch.object(self.operator, "_company_ok", lambda user, company: company == "CO-9"), \
+                mock.patch.object(self.operator.guard, "has", lambda capability, user=None: capability == "purchase.write"), \
+                mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {"owner": "a@x"}), \
+                mock.patch.object(frappe, "get_all", lambda doctype, **kw: seen.append(kw["filters"]) or rows, create=True), \
+                mock.patch.object(frappe, "get_list", side_effect=AssertionError("must not use the list permission"),
+                                  create=True), \
+                mock.patch.object(frappe, "session", types.SimpleNamespace(user="a@x"), create=True):
+            out = self.operator.sources("CO-9", "2026-10", 0, 50)
+            self.assertEqual(self.operator.sources("CO-1", "2026-10", 0, 50), {"documents": [], "next_offset": None})
+        self.assertEqual([d["doc_id"] for d in out["documents"]], ["P:PI-1"])
+        self.assertEqual((seen[0]["company"], seen[0]["owner"]), ("CO-9", "a@x"))  # 员工只看本人录入的
+
+    def test_a_document_already_queued_elsewhere_is_not_offered(self):
+        found = self.run_precheck({"PI-1": {"payload": {}, "book": {}}}, job="J9")
+        self.assertEqual((found["P:PI-1"]["state"], found["P:PI-1"]["reason"]), ("blocked", "already_queued"))
+
+    def test_the_answers_are_remembered_before_the_operator_gets_the_document(self):
+        from unittest import mock
+        from pearnly_erp_portal.express import api, choices
+
+        calls = []
+        needed = {"hold": E.CHOICE + ":item", "needed": [{"kind": "item", "subject": "x|bulb", "label": "LED 9W"}], "book": {}}
+        with mock.patch.object(self.operator.guard, "has", lambda capability, user=None: True), \
+                mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                mock.patch.object(self.push, "prepare_only", lambda doctype, name: needed), \
+                mock.patch.object(api, "_options", lambda item, data: [{"code": C.NEW, "name": ""}]), \
+                mock.patch.object(choices, "remember", lambda *args: calls.append(("remember",) + args)), \
+                mock.patch.object(self.push, "release_operator", lambda doctype, name: calls.append(("release", name))), \
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: calls.append(
+                    ("send", name, operator["id"])) or {"status": "sent"}), \
+                mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+            out = self.operator.submit("CO-1", ["P:PI-1"], {"id": "b1", "total": 1}, "",
+                                       {"P:PI-1": [{"kind": "item", "subject": "x|bulb", "value": C.NEW}]})
+        self.assertEqual(out, [{"doc_id": "P:PI-1", "status": "sent", "reason": ""}])
+        self.assertEqual([c[0] for c in calls], ["remember", "release", "send"])
+        self.assertEqual(calls[0][1:4], ("CO-1", "item", "x|bulb"))
+        with mock.patch.object(self.operator.guard, "has", lambda capability, user=None: True), \
+                mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                mock.patch.object(self.push, "prepare_only", lambda doctype, name: needed), \
+                mock.patch.object(api, "_options", lambda item, data: [{"code": "B9", "name": ""}]):
+            with self.assertRaises(frappe.ValidationError):  # 不是这一项能选的值：不记、不交
+                self.operator.submit("CO-1", ["P:PI-1"], {"id": "b1", "total": 1}, "",
+                                     {"P:PI-1": [{"kind": "item", "subject": "x|bulb", "value": "ZZ"}]})
+
+    def test_a_question_shared_by_several_documents_is_remembered_once_and_all_are_sent(self):
+        """10-30 实机：三张同问「这家公司这一年用哪套账」，前端每张都带同一个答案；记下第一张后后面两张不再问，原来整批报
+        「请求无效」，而第一张已经交出去了。改为不再问的项跳过，三张都交。"""
+        from unittest import mock
+        from pearnly_erp_portal.express import api, choices
+
+        calls, remembered = [], set()
+        ask = {"kind": "account_set", "subject": "year:2026-01-01", "label": "TEST"}
+
+        def prepare(doctype, name):
+            return {"book": {}} if ask["subject"] in remembered else {"hold": E.CHOICE + ":account_set", "needed": [ask], "book": {}}
+
+        answer = [{"kind": "account_set", "subject": "year:2026-01-01", "value": "BK1"}]
+        with mock.patch.object(self.operator.guard, "has", lambda capability, user=None: True), \
+                mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                mock.patch.object(self.push, "prepare_only", prepare), \
+                mock.patch.object(api, "_options", lambda item, data: [{"code": "BK1", "name": "TEST"}]), \
+                mock.patch.object(choices, "remember", lambda company, kind, subject, *rest: remembered.add(subject) or
+                                  calls.append(("remember", subject))), \
+                mock.patch.object(self.push, "release_operator", lambda doctype, name: None), \
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: calls.append(("send", name))
+                                  or {"status": "sent"}), \
+                mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+            out = self.operator.submit("CO-1", ["P:PI-1", "P:PI-2", "P:PI-3"], {"id": "b1", "total": 3}, "",
+                                       {f"P:PI-{i}": answer for i in (1, 2, 3)})
+        self.assertEqual([row["status"] for row in out], ["sent"] * 3)
+        self.assertEqual(calls, [("remember", "year:2026-01-01"), ("send", "PI-1"), ("send", "PI-2"), ("send", "PI-3")])
+
+    def test_a_product_without_upload_or_regroup_says_unsupported(self):
+        from pearnly_core.express_operator import products
+
+        fake.STATE.hooks.pop(products.HOOK, None)
+        self.assertEqual(products.intake("CO-1", "a.pdf", b"x", "k"), {"accepted": False, "code": "unsupported"})
+        self.assertEqual(products.regroup("CO-1", "P:1", "sales"), {"ok": False, "reason": "unsupported"})
+
+    def test_after_a_restart_the_site_says_where_each_document_stands(self):
+        # CC 重启后恢复出来的任务以站点为准收尾：已写入 / 排着写账件 / 停住 / 没排或撤回 / 别家的单
+        rows = {"PI-1": {"express_state": "written", "express_docnum": "RR0000005", "express_reason": "", "express_job": "J1"},
+                "PI-2": {"express_state": "queued", "express_docnum": "", "express_reason": "", "express_job": "J2"},
+                "PI-3": {"express_state": "held", "express_docnum": "", "express_reason": "express.warehouse_unmapped",
+                         "express_job": None},
+                "PI-4": {"express_state": None, "express_docnum": "", "express_reason": "", "express_job": None}}
+        with mock.patch.object(self.operator.guard, "has", lambda capability, user=None: True), \
+                mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-2" if name == "PI-5" else "CO-1"), \
+                mock.patch.object(frappe.db, "get_value", lambda doctype, name, fields, as_dict=False:
+                                  types.SimpleNamespace(**rows[name]), create=True):
+            out = self.operator.status("CO-1", ["P:PI-1", "P:PI-2", "P:PI-3", "P:PI-4", "P:PI-5"])
+        self.assertEqual([(r["state"], r["docnum"], r["reason"]) for r in out],
+                         [("saved", "RR0000005", ""), ("queued", "", ""), ("not_done", "", "express.warehouse_unmapped"),
+                          ("cancelled", "", ""), ("unknown", "", "")])
+        from pearnly_core.express_operator import products
+
+        fake.STATE.hooks.pop(products.HOOK, None)  # 没声明的产品：一律 unknown，页面照旧按排队显示、不收尾
+        self.assertEqual([r["state"] for r in products.status("CO-1", ["P:1"])], ["unknown"])
+
+    def test_a_product_without_a_precheck_treats_every_document_as_ready(self):
+        from pearnly_core.express_operator import products
+
+        fake.STATE.hooks.pop(products.HOOK, None)
+        self.assertEqual(products.precheck("CO-1", ["P:1", "S:2"]),
+                         {"documents": [{"doc_id": "P:1", "state": "ready"}, {"doc_id": "S:2", "state": "ready"}]})
+
 
 class PosDayExits(PushModule):
     """B3b 验收复核（主会话 10-26）：收银日汇总 / 退货单停住（定不了、跨年、原单是手工处理的、电脑转人工）不能永远卡着：

@@ -1406,6 +1406,7 @@ This device has no camera to scan with,อุปกรณ์นี้ไม่�
 This document cannot be recorded yet,ยังไม่สามารถลงบัญชีเอกสารนี้ได้
 This document has no content,ไฟล์นี้ไม่มีเนื้อหา
 This document is already recorded: {0},เอกสารนี้บันทึกแล้ว: {0}
+This document is in an Express operator entry,เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express
 This document is no longer available,เอกสารนี้ไม่สามารถใช้งานได้แล้ว
 This document is not in Express,ไม่พบเอกสารนี้ใน Express
 This document is too large,ไฟล์นี้ใหญ่เกินไป
@@ -2125,6 +2126,7 @@ express.reason.noBook,ไม่มีชุดบัญชี Express ที่�
 express.reason.noStockBook,ชุดบัญชี Express นี้ไม่มีสมุดสำหรับเอกสารสินค้าประเภทนี้ กรุณาตั้งค่าใน Express
 express.reason.noWriter,ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้
 express.reason.offline,เครื่องออฟไลน์
+express.reason.operatorOwned,เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express
 express.reason.periodLocked,งวดบัญชีนี้ปิดแล้วใน Express
 express.reason.posNetNegative,ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ
 express.reason.reading,กำลังอ่านชุดบัญชี Express

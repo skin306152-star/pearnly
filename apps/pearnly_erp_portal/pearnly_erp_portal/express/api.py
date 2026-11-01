@@ -284,6 +284,8 @@ def retry(doctype, name):
         return _view(doctype, _document(doctype, name))
     if not job or job["status"] != "manual":
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    if str(job.get("request_key") or "").startswith(push.OPERATOR_KEY):
+        frappe.throw(_("express.reason.operatorOwned"))  # 代录的单由代录再录，这里不改成直写
     if job["reason"] == jobs.LOST:
         jobs.retry(job["job"])
         frappe.db.commit()

@@ -729,6 +729,7 @@ Expense (this kind from now on),ค่าใช้จ่าย (เอกสา�
 Expense account,บัญชีค่าใช้จ่าย
 Expense account when no category matches,บัญชีค่าใช้จ่ายเมื่อไม่ตรงหมวด
 Expense it,ลงค่าใช้จ่าย
+Expenses,ค่าใช้จ่าย
 Expires At,เวลาหมดอายุ
 Export,ส่งออก
 Export Excel,ส่งออก Excel
@@ -1281,6 +1282,7 @@ Provider Evidence,หลักฐานการเรียกใช้ผู�
 Purchase (expense),ซื้อ (ค่าใช้จ่าย)
 Purchase (goods),ซื้อ (สินค้า)
 Purchase or sales?,กรุณาเลือกซื้อหรือขาย
+Purchases,ซื้อ
 Purchases eligible for input tax credit this month,ยอดซื้อที่มีสิทธินำภาษีซื้อมาหักในการคำนวณภาษีเดือนนี้
 Purple,ม่วง
 Push Account Set,ชุดบัญชีปลายทาง
@@ -1491,6 +1493,7 @@ Run requested. CC Desktop starts within a few minutes.,ส่งคำขอแ�
 Run time,เวลาทำงาน
 SHA-256,SHA-256
 SKU,SKU
+Sales,ขาย
 Sales area,พื้นที่การขาย
 Sales invoices,ใบกำกับภาษีขาย
 Sales invoices need line items with tax-exclusive amounts before export.,ใบกำกับภาษีขายไม่มีรายการยอดก่อนภาษี จึงไม่สามารถส่งออกได้
@@ -1947,6 +1950,7 @@ This channel is not open yet,ช่องทางนี้ยังไม่เ
 This choice cannot be saved,บันทึกตัวเลือกนี้ไม่ได้
 This client still has {0} invoice record(s). Reassign them first.,ลูกค้ารายนี้ยังมีรายการใบกำกับภาษี {0} รายการ กรุณาย้ายไปยังลูกค้ารายอื่นก่อน
 This computer can no longer handle this document,คอมพิวเตอร์เครื่องนี้ไม่สามารถดำเนินการเอกสารนี้ได้แล้ว
+This computer cannot enter documents into Express,คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้
 This connection does not support an Express CC Desktop credential.,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรอง CC เดสก์ท็อปสำหรับ Express
 This connection does not support scheduled tasks.,การเชื่อมต่อนี้ไม่รองรับงานตามกำหนดเวลา
 This connection is disabled.,การเชื่อมต่อนี้ปิดใช้งานแล้ว
@@ -1956,6 +1960,7 @@ This delivery conflicts with the current task state.,ผลรับนี้ข
 This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,เอกสารนี้เป็นของสาขาอื่น ไม่ตรงกับสาขาของชุดบัญชีที่เลือก กรุณาเลือกชุดบัญชีของสาขานั้นแล้วส่งใหม่
 This document does not need this choice,เอกสารนี้ไม่ต้องเลือกว่าจะบันทึกหรือไม่
 This document format is not supported.,ไม่รองรับรูปแบบเอกสารนี้
+This document is in an Express operator entry,เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express
 This document is not in Express,ไม่พบเอกสารนี้ใน Express
 This document type cannot be written to Express. Check it and submit again.,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 This document was changed in Express. Check it in Express,เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express
@@ -2281,6 +2286,9 @@ cowork.choice.vat,จำนวนภาษีตามเอกสาร
 cowork.company.branch_n,สาขา {0}
 cowork.company.choice.fiscal_year,ปีบัญชี {0}
 cowork.company.choice.goods,เอกสารสินค้า
+cowork.company.choice.group.expense,ค่าใช้จ่าย
+cowork.company.choice.group.purchase,ซื้อ
+cowork.company.choice.group.sales,ขาย
 cowork.company.choice.service,ลงค่าใช้จ่าย
 cowork.company.choice.stock,ลงสินค้าคงเหลือ
 cowork.company.choice_invalid,ค่านี้ไม่มีในชุดบัญชีของเดือนนี้
@@ -3399,6 +3407,7 @@ intake.error.MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้�
 intake.error.MISSING_REF_NO,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
 intake.error.MISSING_SUPPLIER,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
 intake.error.NO_ACCOUNT_SELECTION,CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
+intake.error.OPERATOR_UNAVAILABLE,คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้
 intake.error.PAYLOAD_INVALID,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
 intake.error.PERIOD_LOCKED,งวดบัญชีนี้ปิดแล้วใน Express
 intake.error.POS_INVALID,ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่
@@ -3580,6 +3589,7 @@ push.native_state_invalid,สถานะการส่งปัจจุบั
 push.native_target_changed,ปลายทางการส่งเปลี่ยนแปลงแล้ว กรุณาเตรียมเอกสารใหม่
 push.native_target_mismatch,ปลายทางการส่งที่ล็อกไว้ไม่ตรงกับปลายทางที่ได้รับอนุญาต
 push.no_writer,ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้
+push.operator_owned,เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express
 push.original_reference_invalid,การอ้างอิงเอกสารต้นฉบับไม่ถูกต้องหรือเข้าถึงไม่ได้
 push.posting_kind_invalid,ประเภทการลงบัญชีไม่ถูกต้อง
 push.preparation_cancelled,ยกเลิกการเตรียมส่งที่ยังไม่ได้ส่งแล้ว

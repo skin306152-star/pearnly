@@ -25,6 +25,10 @@ from pearnly_core.express_rules.push.choices import KINDS
 from pearnly_core.account import names as person_names
 
 RULES_MAX = 500
+# 代录资料区拖动时按公司记住的分组（主会话 10-27）：归类键是对方（进项看卖方、销项看买方）税号 + 分店、没有税号按名称，
+# 值是采购 / 费用 / 销售。推送不读这一类（`push.express.company_choices.pick` 只认 KINDS），只给代录资料区与预检用。
+GROUP = "group"
+GROUP_VALUES = ("purchase", "expense", "sales")
 CONTEXT_MAX = 40
 SOURCES = ("person",)
 FIELDS = ["name", "kind", "subject", "subject_label", "value", "value_label", "branch", "source", "evidence_json",
@@ -80,7 +84,8 @@ def save(company, *, workspace, kind, subject, value, branch="", subject_label="
     """存一条（同键覆盖：同公司、同类别、同归类键、同分店）；回存好的那条与 ``created``。值、分店、权限由调用方核过。"""
     branch = company_choices.branch_of(branch)
     value = str(value or "").strip()
-    if kind not in KINDS or not isinstance(subject, str) or not subject or len(subject) > 1000 or branch is None \
+    if (kind not in KINDS and kind != GROUP) or (kind == GROUP and value not in GROUP_VALUES) \
+            or not isinstance(subject, str) or not subject or len(subject) > 1000 or branch is None \
             or not value or len(value) > company_choices.VALUE_MAX:
         frappe.throw(_("cowork.company.choice_unsupported"))
     name = rule_key(company, kind, subject, branch)
@@ -117,7 +122,8 @@ def forget_company(company) -> None:
 
 # 给 CC 的说明里每一类的英文名（`context.company_note`）
 KIND_WORDS = {"party": "party record", "item": "stock item", "account": "expense account", "payment": "payment",
-              "vat": "tax on receipts", "department": "department", "receipt": "receiving account"}
+              "vat": "tax on receipts", "department": "department", "receipt": "receiving account",
+              GROUP: "document group (purchase / expense / sales)"}
 
 
 def context_rows(company) -> list:
@@ -158,6 +164,13 @@ def for_push(connection, account_set, account_row) -> dict | None:
                        "at": str(row.modified or "")} for row in rows]}
 
 
+def groups(company) -> dict:
+    """这家公司记住的分组 ``{归类键: purchase / expense / sales}``（一次查询，代录资料区与预检用）。"""
+    rows = frappe.get_all(CHOICE, filters={"company": company, "kind": GROUP}, fields=["subject", "value"],
+                          limit_page_length=RULES_MAX)
+    return {row.subject: row.value for row in rows if row.value in GROUP_VALUES}
+
+
 IDS_MAX = 500
 
 
@@ -171,5 +184,6 @@ def values_now(ids) -> dict:
     return {row.name: row.value or "" for row in rows}
 
 
-__all__ = ["CONTEXT_MAX", "KIND_WORDS", "RULES_MAX", "account_company", "context_rows", "delete", "for_push", "forget_company", "listing",
+__all__ = ["CONTEXT_MAX", "GROUP", "GROUP_VALUES", "KIND_WORDS", "RULES_MAX", "account_company", "context_rows", "delete", "for_push",
+           "forget_company", "groups", "listing",
            "one", "rule_key", "save", "values_now"]

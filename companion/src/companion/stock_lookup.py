@@ -70,6 +70,7 @@ def find_rows(account_dir, name: str, types: Iterable[str]) -> List[Dict]:
                     "mrembal": float(_gv(r, "MREMBAL") or 0),
                     "mremval": float(_gv(r, "MREMVAL") or 0),
                     "acccod": _gv(r, "ACCCOD"),
+                    "vatcod": str(_gv(r, "VATCOD") or "").strip(),
                 }
             )
         return out

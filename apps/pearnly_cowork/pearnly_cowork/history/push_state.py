@@ -45,7 +45,7 @@ def _announce(history):
 def mirror(row, timestamp, *, select=False):
     if row.status not in {'pending', 'success', 'manual'}:
         return
-    found = frappe.db.sql("""SELECT workspace,client,last_push_record,last_push_status,push_connection,push_account_set
+    found = frappe.db.sql("""SELECT workspace,client,last_push_record,last_push_status,last_push_reason,push_connection,push_account_set
         FROM `tabCowork OCR History` WHERE name=%s FOR UPDATE""", (row.history,), as_dict=True)
     if not found or (found[0].workspace, found[0].client or '') != (row.workspace, row.client or ''):
         frappe.throw(_('Not Permitted'), frappe.PermissionError)
@@ -55,13 +55,17 @@ def mirror(row, timestamp, *, select=False):
     if not select and previous.last_push_record not in (None, '', row.name):
         return
     target = _target(previous, row, select)
-    if previous.last_push_record == row.name and previous.last_push_status == row.status and not target:
+    reason = (row.reason or '')[:500] if row.status == 'manual' else ''
+    # 同一条记录、同一状态但原因变了也要抄（10-29 测试机：结果不明核对成「没有入账」状态都是 manual，原先不抄，
+    # 票上一直是结果不明，再推被当作结果不明拦下）
+    if previous.last_push_record == row.name and previous.last_push_status == row.status \
+            and (previous.get('last_push_reason') or '') == reason and not target:
         return
     # 转人工的原因跟着状态走（列表状态图标悬浮看原因，用户 2026-09-26）；其它状态清掉旧原因。
     frappe.db.set_value('Cowork OCR History', row.history, {
         'last_push_status': row.status, 'last_pushed_at': timestamp,
         'last_push_record': row.name,
-        'last_push_reason': (row.reason or '')[:500] if row.status == 'manual' else '', **target},
+        'last_push_reason': reason, **target},
         update_modified=False)
     _changed(row.history, row.get('owner'))
     _announce(row.history)

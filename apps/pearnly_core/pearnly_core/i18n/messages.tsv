@@ -939,3 +939,13 @@ Type {0} or more characters for results.	至少输入 {0} 个字符	พิมพ
 Enter the first name	请填写名	กรุณากรอกชื่อ	名を入力してください
 First Name	名	ชื่อ	名
 Last Name	姓	นามสกุล	姓
+Company Title	公司名称	ชื่อบริษัท	会社名	
+Start At	开始时间	เวลาเริ่ม	開始時刻	
+Express Number	Express 单号	เลขที่ Express	Express 番号	
+Voided Number	作废单号	เลขที่ที่ยกเลิก	取消番号	
+Checked the hands-on task	查看了实操任务	ตรวจสอบงานทำใน Express แล้ว	代行入力タスクを確認しました
+Updated the hands-on task	更新了实操任务	อัปเดตงานทำใน Express แล้ว	代行入力タスクを更新しました
+Checking the hands-on task	正在查看实操任务	กำลังตรวจสอบงานทำใน Express	代行入力タスクを確認しています
+Updating the hands-on task	正在更新实操任务	กำลังอัปเดตงานทำใน Express	代行入力タスクを更新しています
+Operator Task	实操任务	งานทำใน Express	代行入力タスク
+Pending Controls	待执行的操作	การดำเนินการที่รออยู่	保留中の操作

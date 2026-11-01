@@ -18,7 +18,7 @@
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { Building2Icon, CalendarIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon, StoreIcon, XIcon } from "lucide-react";
 import { DropdownMenu, menuOffset, SubMenu } from "@/components/ui/menu";
-import { type FC, memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type FC, type HTMLAttributes, memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { openAddCompany } from "@/components/add-company";
 import { BranchChip, BranchChoices, PeriodChip, PeriodChoices } from "@/components/period-chip";
 import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/components/assistant-ui/sidebar-group";
@@ -39,7 +39,7 @@ import {
   usePendingCounts,
 } from "@/lib/companies";
 import { openCompanyCard } from "@/lib/company-panel";
-import { useGroupActivity } from "@/lib/managed-agents/activity";
+import { type Activity, useGroupActivity } from "@/lib/managed-agents/activity";
 import {
   type Filing,
   fileSession,
@@ -148,29 +148,17 @@ export const ProjectHeader = memo(function ProjectHeader({
     setView("pending");
   };
   return (
-    <GroupHeader
+    <CompanyHeaderView
       {...(isMobile ? press : {})}
-      data-slot="cc-project"
-      data-open={menuOpen || undefined}
-      className="group/project cc-project-row"
-      onContextMenu={isMobile ? (e) => e.preventDefault() : undefined}
-      icon={<Building2Icon className="cc-group-icon" aria-hidden />}
-      label={project.title}
-      title={project.title}
+      project={project}
       open={open}
       onToggle={onToggle}
-      onMenuKey={() => setMenuOpen(true)}
       handle={handle}
       onMove={onMove}
-      dot={
-        !open && activity ? (
-          <span
-            className="cc-activity cc-group-dot"
-            data-activity={activity}
-            aria-label={activity === "running" ? t("running") : activity === "notice" ? t("newNotice") : t("unread")}
-          />
-        ) : undefined
-      }
+      activity={activity}
+      menuOpen={menuOpen}
+      onMenuKey={() => setMenuOpen(true)}
+      onContextMenu={isMobile ? (e) => e.preventDefault() : undefined}
     >
       {pending > 0 && (
         // 这家的待处理数：点了打开只看这家的待处理
@@ -187,18 +175,77 @@ export const ProjectHeader = memo(function ProjectHeader({
       )}
       <GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} />
       <GroupNew onClick={onNew} />
-    </GroupHeader>
+    </CompanyHeaderView>
   );
 });
+
+/** 公司组头的样子（对话侧 ProjectHeader、实操侧任务的组头同一份，components/operator/operator-sidebar.tsx）：最左公司图标、公司名
+ *  （同会话行标题的字号字色），整行折叠 / 展开；收起时组里有在跑或没看过的，名字后一个点；右侧操作（待处理数、···、＋）由调用方给。
+ *  菜单开着时 data-open 让「＋」照样露着。 */
+export function CompanyHeaderView({
+  project,
+  open,
+  onToggle,
+  handle,
+  onMove,
+  activity,
+  menuOpen = false,
+  onMenuKey,
+  children,
+  ...rest
+}: {
+  project: ProjectRow;
+  open: boolean;
+  onToggle: () => void;
+  handle?: DragHandle;
+  onMove?: (delta: -1 | 1) => void;
+  activity?: Activity;
+  menuOpen?: boolean;
+  onMenuKey?: () => void;
+  children?: ReactNode;
+} & Omit<HTMLAttributes<HTMLDivElement>, "title" | "children">) {
+  return (
+    <GroupHeader
+      {...rest}
+      data-slot="cc-project"
+      data-open={menuOpen || undefined}
+      className="group/project cc-project-row"
+      icon={<Building2Icon className="cc-group-icon" aria-hidden />}
+      label={project.title}
+      title={project.title}
+      open={open}
+      onToggle={onToggle}
+      onMenuKey={onMenuKey}
+      handle={handle}
+      onMove={onMove}
+      dot={
+        !open && activity ? (
+          <span
+            className="cc-activity cc-group-dot"
+            data-activity={activity}
+            aria-label={activity === "running" ? t("running") : activity === "notice" ? t("newNotice") : t("unread")}
+          />
+        ) : undefined
+      }
+    >
+      {children}
+    </GroupHeader>
+  );
+}
 
 /** 侧栏公司下的一行出错提示（服务端给的原文），可关掉。 */
 export const SidebarError: FC = () => {
   const error = useProjects((s) => s.error);
+  return <SidebarErrorLine error={error} onClose={() => setError("")} />;
+};
+
+/** 侧栏出错行的样子（对话侧栏、实操的任务侧栏同一个）：原文 + 关掉。 */
+export const SidebarErrorLine: FC<{ error: string; onClose: () => void }> = ({ error, onClose }) => {
   if (!error) return null;
   return (
     <div role="alert" className="cc-sidebar-error">
       <span className="min-w-0 flex-1">{error}</span>
-      <button type="button" className="cc-row-btn cc-tap" aria-label={t("close")} onClick={() => setError("")}>
+      <button type="button" className="cc-row-btn cc-tap" aria-label={t("close")} onClick={onClose}>
         <XIcon />
       </button>
     </div>

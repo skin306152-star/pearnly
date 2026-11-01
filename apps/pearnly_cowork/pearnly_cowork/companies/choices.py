@@ -57,7 +57,9 @@ SHOWN = 30
 EDITABLE = {"payment": PAYMENT_VALUES, "vat": VAT_VALUES, service_vat.KIND: tuple(service_vat.OPTIONS)}
 VALUE_LABELS = {("payment", "cash"): "Cash", ("payment", "credit"): "Credit", ("vat", "claim"): "Claim VAT",
                 ("vat", "expense"): "Expense it", (service_vat.KIND, "accrual"): "Accrual basis",
-                (service_vat.KIND, "cash_basis"): "Cash basis"}
+                (service_vat.KIND, "cash_basis"): "Cash basis", ("group", "purchase"): "cowork.company.choice.group.purchase",
+                ("group", "expense"): "cowork.company.choice.group.expense",
+                ("group", "sales"): "cowork.company.choice.group.sales"}
 # 商品单入账方式（按公司选的、Express 历史定下的）显示的值
 POLICY_LABELS = {"stock": "cowork.company.choice.stock", "service": "cowork.company.choice.service"}
 HISTORY_HOOK = "cowork_company_history_choices"

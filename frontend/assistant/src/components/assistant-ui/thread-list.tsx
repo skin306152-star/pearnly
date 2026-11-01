@@ -47,7 +47,7 @@ import { isDragging } from "@/lib/layers";
 import { co, dayLabel, sb, t } from "@/i18n";
 import { branchShort, monthLabel, monthShort } from "@/lib/companies";
 import { shownError } from "@/lib/frappe";
-import { useActivity, useBumps } from "@/lib/managed-agents/activity";
+import { type Activity, useActivity, useBumps } from "@/lib/managed-agents/activity";
 import { NO_FILING, type ProjectRow, setDraft, setError, showMore, useProjects } from "@/lib/managed-agents/projects";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { bindFoldUser, toggleFold, toggleFoldSection, useSidebarFold } from "@/lib/managed-agents/sidebar-fold";
@@ -59,6 +59,8 @@ import {
   monthSections,
   pinGuest,
   type SidebarRow,
+  type SidebarSection,
+  type SortOptions,
   unsentDrafts,
   withPinned,
 } from "@/lib/managed-agents/sidebar-groups";
@@ -74,6 +76,7 @@ import {
   setCompanyOrder,
   setGroupOrder,
   setPinnedOrder,
+  type SidebarOrderStore,
   starChat,
   starPending,
   useLifts,
@@ -122,7 +125,7 @@ import {
   SearchIcon,
   TrashIcon,
 } from "lucide-react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type { KeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { fixedPx } from "@/lib/css-var";
 import {
@@ -137,10 +140,16 @@ import {
   useRef,
   useState,
   type ComponentPropsWithoutRef,
+  type ComponentType,
+  type Dispatch,
+  type ElementType,
   type FC,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 import { withReport } from "../../lib/caught";
+
+type LongPress = ReturnType<typeof useLongPressMenu>;
 
 /** 菜单里的「置顶 / 取消置顶」（行菜单、P 键、手机长按菜单、标题栏菜单同一道，sidebar-order.ts 的 starChat）：失败时组件库撤回、
  *  这一条原样留在原位，侧栏出错行写一句通用的原因（断网等；测试窗口第 10 轮 B 段：原来什么都不说）。 */
@@ -237,25 +246,31 @@ const ThreadListMore: FC<{ searching: boolean }> = ({ searching }) => {
   const recentMore = useProjects((s) => !!s.more.recent);
   const hasMore = useAuiState((s) => s.threads.hasMore) && (!kind || !byCompany || searching || recentMore);
   const loadingMore = useAuiState((s) => s.threads.isLoadingMore);
+  const loadMore = useCallback(() => void aui.threads().loadMore(), [aui]);
+  return <ListMore hasMore={hasMore} loading={loadingMore} searching={searching} onMore={loadMore} />;
+};
+
+/** 列表底部（对话列表、实操的任务列表同一份）：滚到离底 --cc-observe-margin 内就取下一页；搜索时把剩下的都取进来；取的时候转圈。 */
+export const ListMore: FC<{ hasMore: boolean; loading: boolean; searching: boolean; onMore: () => void }> = ({ hasMore, loading, searching, onMore }) => {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!hasMore || loadingMore) return;
+    if (!hasMore || loading) return;
     if (searching) {
-      void aui.threads().loadMore();
+      onMore();
       return;
     }
     const el = ref.current;
     if (!el) return;
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry?.isIntersecting) void aui.threads().loadMore();
+      if (entry?.isIntersecting) onMore();
     }, { rootMargin: `${observeMargin()}px` });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [aui, hasMore, loadingMore, searching]);
-  if (!hasMore && !loadingMore) return null;
+  }, [onMore, hasMore, loading, searching]);
+  if (!hasMore && !loading) return null;
   return (
     <div ref={ref} className="flex h-(--cc-row-h) items-center px-(--cc-row-pad) text-ink-3">
-      {loadingMore && <LoaderIcon className="cc-spinner" />}
+      {loading && <LoaderIcon className="cc-spinner" />}
     </div>
   );
 };
@@ -308,22 +323,79 @@ const NoResults: FC = () => (
 );
 
 // 记住（memo）：侧栏整列重画（拖进已置顶、挪回原组、落定存顺序）时，没变的组的行不跟着重画（第 11 轮 B14）
-const Items = memo(function Items({ indices, threadIds }: { indices: readonly number[]; threadIds: readonly string[] }) {
+const Items = memo(function Items({ indices, ids: threadIds }: ItemsProps) {
   return indices.map((index) => <ThreadListPrimitive.ItemByIndex key={threadIds[index]} index={index} components={ITEM_COMPONENTS} />);
 });
 
 // 有公司分组时（Cowork）：按「分组和排序」分组、排序；手机上各组也能折叠。折叠状态每台设备各记各的（pinned、recents、
 // project:<编号>、month:<月份>）。每个组标题右侧都有「···」（分组和排序）；公司组、最近另有「新建」。拖动见文件头
 /** 侧栏行在哪一种拖动里（行组件由组件库按编号渲染，拿不到参数，靠所在的组给）：置顶里排先后（guest：拖进置顶、还没放下的那一行，
- *  照旧按它那一组的拖动挂着）；组里排先后（group：公司编号，最近 ""）。 */
-type GroupScope = { mode: "row"; group: string; locked: boolean; move: (id: string, delta: -1 | 1) => MoveSpot | null };
-type RowScope =
-  | { mode: "pin"; locked: boolean; move: (id: string, delta: -1 | 1) => MoveSpot | null; guest?: { local: string; scope: GroupScope } }
-  | GroupScope;
-const RowScopeContext = createContext<RowScope | null>(null);
+ *  照旧按它那一组的拖动挂着）；组里排先后（group：公司编号，最近 ""）。实操的任务行（components/operator/operator-sidebar.tsx）同一份。 */
+export type GroupScope = { mode: "row"; group: string; locked: boolean; move: (id: string, delta: -1 | 1) => MoveSpot | null };
+export type PinScope = { mode: "pin"; locked: boolean; move: (id: string, delta: -1 | 1) => MoveSpot | null; guest?: { local: string; scope: GroupScope } };
+export type RowScope = PinScope | GroupScope;
+export const RowScopeContext = createContext<RowScope | null>(null);
 
 /** 拖进已置顶、还没放下的那一行（本页编号、它在组件库 threadIds 里的位置、排在置顶的第几位、它原来那一组）。 */
 type Guest = { local: string; index: number; at: number; group?: string };
+
+/** 公司组头（对话侧 projects.tsx 的 ProjectHeader，实操侧任务的组头）：sessions 是这一组各行的编号（收起时名字后的点按它们算）。 */
+export type CompanyHeaderProps = {
+  project: ProjectRow;
+  open: boolean;
+  onToggle: () => void;
+  sessions: readonly string[];
+  handle?: DragHandle;
+  onMove?: (delta: -1 | 1) => void;
+};
+
+/** 一列行（按 ids 里的位置）：对话侧是组件库按编号渲染的行，实操侧是任务行。 */
+export type ItemsProps = { indices: readonly number[]; ids: readonly string[] };
+
+/** 手排顺序的那一份（sidebar-order.ts 的实例：对话侧、实操侧各一份）。 */
+export type GroupOrders = Pick<SidebarOrderStore, "setPinnedOrder" | "setCompanyOrder" | "setGroupOrder" | "forgetInGroups">;
+
+/** 按公司分组的侧栏（已置顶 → 各公司 → 最近 / 各月）与它的拖动、置顶、多选整批：只管样子和交互，数据从外面给。对话侧
+ *  （CompanyGroups，组件库的对话）与实操侧（任务，components/operator/operator-sidebar.tsx）各接各的数据，行为同一份。 */
+export type SidebarGroupsProps = {
+  /** 各行的本页编号（rows 的 index 是它里面的位置）。 */
+  ids: readonly string[];
+  rows: readonly SidebarRow[];
+  sections: SidebarSection[] | null;
+  /** 按公司分组（拖进已置顶、组里排先后只在这时有）。 */
+  byCompany: boolean;
+  searching: boolean;
+  sort: SortOptions;
+  orders: GroupOrders;
+  collapsed: ReadonlySet<string>;
+  toggleSection: (section: { key: string; rank?: number }) => void;
+  /** 本页编号 → 记手排顺序用的编号。 */
+  keyOf: (local: string) => string;
+  /** 这一行已经置顶了（拖进已置顶时不再置顶它）。 */
+  starredOf: (local: string) => boolean;
+  /** 置顶一行（拖进已置顶放下时逐条调，不并发）。 */
+  pinOne: (local: string) => Promise<void>;
+  /** 拖进已置顶放下、服务端还没回的（记手排顺序用的编号）：调用方按置顶摆着。 */
+  setPinning: Dispatch<SetStateAction<ReadonlySet<string>>>;
+  Items: ComponentType<ItemsProps>;
+  Header: ComponentType<CompanyHeaderProps>;
+  /** 一组的行（位置）→ 组头算点用的编号。 */
+  sessionsOf: (indices: readonly number[]) => string[];
+  /** 一家公司的「显示更多」（没有更多时不给）。 */
+  moreOf: (section: Extract<SidebarSection, { type: "project" }>) => (() => void) | undefined;
+  /** 「最近」组头的「新建」。 */
+  onNewRecent?: () => void;
+  /** 已置顶、最近、月份组头有「···」（分组和排序）。 */
+  sortMenu: boolean;
+  onError: (error: unknown) => void;
+  /** 列表上面（侧栏出错行）。 */
+  top?: ReactNode;
+  /** 搜索一条都没命中。 */
+  empty: ReactNode;
+};
+
+/** 对话侧手排顺序的那一份。 */
+const CHAT_ORDERS: GroupOrders = { setPinnedOrder, setCompanyOrder, setGroupOrder, forgetInGroups };
 
 const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const aui = useAui();
@@ -338,27 +410,8 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const newChatIn = useNewChatIn();
   const { collapsed, toggleSection } = useCollapsedGroups();
   const query = searchQuery.trim();
-  // 拿起、放下不重画整列（测试窗口第 10 轮 B 段：拿起那一刻 150–200ms 的长帧里有一份是这里整列重算）：拖的是什么不记成状态，
-  // 摆法只看下面两样（指针到了顶上、拖进已置顶的那一行），它们变了才重画
-  // 拖对话、没有已置顶时，指针拖到了侧栏顶上：临时出一个空的已置顶（onPointer）；first：它前面的标记（下一个就是第一组）
-  const [reveal, setReveal] = useState(false);
-  const first = useRef<HTMLSpanElement>(null);
-  // 拖进已置顶、还没放下的那一行（onOver 改；ref 给连着几次经过用，state 给摆法）
-  const [guest, setGuest] = useState<Guest | null>(null);
-  const guestRef = useRef<Guest | null>(null);
-  const placeGuest = (next: Guest | null) => {
-    guestRef.current = next;
-    setGuest(next);
-  };
   // 拖进已置顶放下、服务端还没回的（对话编号）：先按置顶摆在落点（置顶是逐条做的，整批的其余各条不先回到原组再跳上来）
   const [pinning, setPinning] = useState<ReadonlySet<string>>(() => new Set());
-  // 多选里拖其中一条时，选中的是不是全在拖的这一条那一组（不全在：本组不是落点，只能置顶）
-  const wholeBatch = useRef(true);
-  const scopes = useRef<{ searching: boolean; map: Map<string, GroupScope> }>({ searching: false, map: new Map() });
-  const latestGroups = useRef<{
-    rowIdsOf: (group: string) => string[];
-    saveGroup: (group: string, next: string[] | null, moved?: readonly string[]) => string[] | null;
-  }>({ rowIdsOf: () => [], saveGroup: (_group, next) => next });
   // 取消置顶的对话回到它那一组的最上面（用户 10-17；记号由取消置顶这件事本身记下，sidebar-order.ts 的 noteUnpinned）：眼前有这一行
   // 时照数据挪（它在哪一组、这组此刻最新的时间，各种分组方式、搜索中都一样）。放在下面「置顶了的从组里手排的先后里去掉」之前：
   // 请求失败、组件库撤回置顶时先撤回这次挪动，再按置顶收拾
@@ -399,8 +452,6 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     const gone = Object.keys(order.groups).filter((group) => group && !known.has(group));
     if (gone.length) forgetGroups(gone);
   }, [kind, projects, order.groups]);
-  // 拖动中侧栏被卸下（换产品、退出）：多选整批变淡的标记一并去掉
-  useEffect(() => () => void delete document.documentElement.dataset.ccDragBulk, []);
 
   const searching = !!query;
   const { rows, sections } = useMemo(() => {
@@ -432,7 +483,6 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
       }),
     };
   }, [threadIds, itemsById, dates, unsent, pinning, projects, filings, shown, serverMore, query, view, order]);
-  const byCompany = view.by === "company";
   spotRef.current = (key) => {
     const row = rows.find((entry) => entry.key === key);
     if (!row) return null;
@@ -443,6 +493,83 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     const peers = rows.filter((entry) => !entry.starred && groupOf(entry) === group);
     return { group, stamp: groupStamp(peers, { by: view.sort, desc: view.desc }) };
   };
+  return (
+    <SidebarGroups
+      ids={threadIds}
+      rows={rows}
+      sections={sections}
+      byCompany={view.by === "company"}
+      searching={searching}
+      sort={{ by: view.sort, desc: view.desc }}
+      orders={CHAT_ORDERS}
+      collapsed={collapsed}
+      toggleSection={toggleSection}
+      keyOf={(id) => itemsById.get(id)?.remoteId ?? id}
+      starredOf={(id) => !!itemsById.get(id)?.custom?.starred}
+      pinOne={async (id) => {
+        const item = aui.threads().item({ id });
+        const { custom } = item.getState();
+        if (!custom?.starred) await item.updateCustom({ ...custom, starred: true });
+      }}
+      setPinning={setPinning}
+      Items={Items}
+      Header={ProjectHeader}
+      sessionsOf={(indices) => indices.map((index) => itemsById.get(threadIds[index]!)?.remoteId).filter((id): id is string => !!id)}
+      moreOf={(section) => (section.more ? () => void showMore(section.project.id, section.all.length, () => aui.threads().loadMore()) : undefined)}
+      onNewRecent={() => newChatIn("")}
+      sortMenu
+      onError={(error) => setError(shownError(error))}
+      top={<SidebarError />}
+      empty={<NoResults />}
+    />
+  );
+};
+
+export const SidebarGroups: FC<SidebarGroupsProps> = ({
+  ids: threadIds,
+  rows,
+  sections,
+  byCompany,
+  searching,
+  sort,
+  orders,
+  collapsed,
+  toggleSection,
+  keyOf,
+  starredOf,
+  pinOne,
+  setPinning,
+  Items,
+  Header,
+  sessionsOf,
+  moreOf,
+  onNewRecent,
+  sortMenu,
+  onError,
+  top,
+  empty,
+}) => {
+  // 拿起、放下不重画整列（测试窗口第 10 轮 B 段：拿起那一刻 150–200ms 的长帧里有一份是这里整列重算）：拖的是什么不记成状态，
+  // 摆法只看下面两样（指针到了顶上、拖进已置顶的那一行），它们变了才重画
+  // 拖对话、没有已置顶时，指针拖到了侧栏顶上：临时出一个空的已置顶（onPointer）；first：它前面的标记（下一个就是第一组）
+  const [reveal, setReveal] = useState(false);
+  const first = useRef<HTMLSpanElement>(null);
+  // 拖进已置顶、还没放下的那一行（onOver 改；ref 给连着几次经过用，state 给摆法）
+  const [guest, setGuest] = useState<Guest | null>(null);
+  const guestRef = useRef<Guest | null>(null);
+  const placeGuest = (next: Guest | null) => {
+    guestRef.current = next;
+    setGuest(next);
+  };
+  // 多选里拖其中一条时，选中的是不是全在拖的这一条那一组（不全在：本组不是落点，只能置顶）
+  const wholeBatch = useRef(true);
+  const scopes = useRef<{ searching: boolean; map: Map<string, GroupScope> }>({ searching: false, map: new Map() });
+  const latestGroups = useRef<{
+    rowIdsOf: (group: string) => string[];
+    saveGroup: (group: string, next: string[] | null, moved?: readonly string[]) => string[] | null;
+  }>({ rowIdsOf: () => [], saveGroup: (_group, next) => next });
+  // 拖动中侧栏被卸下（换产品、退出）：多选整批变淡的标记一并去掉
+  useEffect(() => () => void delete document.documentElement.dataset.ccDragBulk, []);
 
   // 眼前的摆法：拖对话时指针到了顶上、没有「已置顶」就补一个空的（拖进去 = 置顶）；拖进已置顶、还没放下的那一行排在置顶里
   const shownSections = useMemo(() => {
@@ -480,13 +607,10 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     [searching, guest],
   );
 
-  if (!sections || !shownSections) return <NoResults />;
+  if (!sections || !shownSections) return <>{empty}</>;
   const local = (index: number) => threadIds[index]!;
-  const keyOf = (index: number) => itemsById.get(local(index))?.remoteId ?? local(index);
-  const sessionsOf = (indices: readonly number[]) =>
-    indices.map((index) => itemsById.get(threadIds[index]!)?.remoteId).filter((id): id is string => !!id);
-  // 拖动编号（本页编号）→ 记顺序用的对话编号
-  const keyOfDrag = (id: string) => itemsById.get(fromDrag(id))?.remoteId ?? fromDrag(id);
+  // 拖动编号（本页编号）→ 记顺序用的编号
+  const keyOfDrag = (id: string) => keyOf(fromDrag(id));
 
   // 置顶：拖进来还没放下的那一行仍用它在组里的拖动编号（同一项，拖动不断）。拖对话时临时补的已置顶（本来没有）：开着、点了不收
   const pinned = shownSections.find((section) => section.type === "pinned");
@@ -494,14 +618,14 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const pinIds = (pinned?.indices ?? []).map((index) => (index === guest?.index ? rowDrag(local(index)) : pinDrag(local(index))));
   // 存下新顺序，回同一份（Alt+↑/↓ 据此念新位置；没挪动为 null）
   const savePins = (next: string[] | null) => {
-    if (next) setPinnedOrder(next.map(keyOfDrag));
+    if (next) orders.setPinnedOrder(next.map(keyOfDrag));
     return next;
   };
   pinsNow.current = { ids: pinIds, save: savePins };
   const companies = shownSections.filter((section) => section.type === "project");
   const companyIds = companies.map((section) => companyDrag(section.project.id));
   const saveCompanies = (next: string[] | null) => {
-    if (next) setCompanyOrder(next.map(fromDrag));
+    if (next) orders.setCompanyOrder(next.map(fromDrag));
     return next;
   };
   // 组里：每组眼前的行（拖动编号）；挪完存这一组手排的先后，at 取这组此刻各行里最新的时间（groupStamp，不用本机时钟）
@@ -512,10 +636,10 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const stampOf = (group: string) => {
     const section = groupSection(group);
     const indices = section?.type === "project" ? section.all : (section?.indices ?? []);
-    return groupStamp(indices.flatMap((index) => rowAt.get(index) ?? ([] as SidebarRow[])), { by: view.sort, desc: view.desc });
+    return groupStamp(indices.flatMap((index) => rowAt.get(index) ?? ([] as SidebarRow[])), sort);
   };
   const saveGroup = (group: string, next: string[] | null, moved: readonly string[] = []) => {
-    if (next) setGroupOrder(group, next.map(keyOfDrag), stampOf(group), moved.map(keyOfDrag));
+    if (next) orders.setGroupOrder(group, next.map(keyOfDrag), stampOf(group), moved.map(keyOfDrag));
     return next;
   };
   latestGroups.current = { rowIdsOf, saveGroup };
@@ -532,23 +656,15 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const pinDropped = (active: DragData, target: DragData) => {
     const { bulk, locals } = batchOf(active);
     const anchor = keyOfDrag(active.id);
-    const block = locals.map((id) => itemsById.get(id)?.remoteId ?? id);
+    const block = locals.map(keyOf);
     const keys = placeBlock(pinDrop(pinIds, active.id, target).map(keyOfDrag), anchor, block);
-    setPinnedOrder(keys);
-    forgetInGroups(block);
+    orders.setPinnedOrder(keys);
+    orders.forgetInGroups(block);
     if (tempPins && collapsed.has("pinned")) toggleSection({ key: "pinned" }); // 临时补的已置顶：放进去以后开着
-    const todo = locals.filter((id) => !itemsById.get(id)?.custom?.starred);
-    const waiting = todo.map((id) => itemsById.get(id)?.remoteId ?? id);
+    const todo = locals.filter((id) => !starredOf(id));
+    const waiting = todo.map(keyOf);
     setPinning((set) => new Set([...set, ...waiting]));
-    void runInOrder(
-      todo,
-      async (id) => {
-        const item = aui.threads().item({ id });
-        const { custom } = item.getState();
-        if (!custom?.starred) await item.updateCustom({ ...custom, starred: true });
-      },
-      (error) => setError(shownError(error)),
-    ).finally(() => {
+    void runInOrder(todo, pinOne, onError).finally(() => {
       setPinning((set) => new Set([...set].filter((key) => !waiting.includes(key))));
       if (bulk) clearSelection();
     });
@@ -559,8 +675,8 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     const next = moveTo(rowIdsOf(group), active.id, target.id);
     if (!next) return;
     const { bulk, locals } = batchOf(active);
-    const block = locals.map((id) => itemsById.get(id)?.remoteId ?? id);
-    setGroupOrder(group, placeBlock(next.map(keyOfDrag), keyOfDrag(active.id), block), stampOf(group), [keyOfDrag(active.id), ...block]);
+    const block = locals.map(keyOf);
+    orders.setGroupOrder(group, placeBlock(next.map(keyOfDrag), keyOfDrag(active.id), block), stampOf(group), [keyOfDrag(active.id), ...block]);
     if (bulk) clearSelection();
   };
 
@@ -622,13 +738,13 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const pinsOpen = tempPins || groupOpen({ key: "pinned" }, collapsed, searching);
   return (
     <DragArea accepts={accepts} onDrop={onDrop} onOver={onOver} onActive={onActive} onReturn={onReturn} onPointer={onPointer} flow={FLOW} texts={texts}>
-      <SidebarError />
+      {top}
       <span ref={first} hidden />
       {pinned && (
-        <PinnedGroup open={pinsOpen} onToggle={tempPins ? () => undefined : () => toggleSection({ key: "pinned" })}>
+        <PinnedGroup open={pinsOpen} menu={sortMenu} onToggle={tempPins ? () => undefined : () => toggleSection({ key: "pinned" })}>
           <RowScopeContext.Provider value={pinScope}>
             <DragList id={PINS} items={pinIds}>
-              <Items indices={pinned.indices} threadIds={threadIds} />
+              <Items indices={pinned.indices} ids={threadIds} />
             </DragList>
           </RowScopeContext.Provider>
         </PinnedGroup>
@@ -644,11 +760,12 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
               sessions={sessionsOf(section.all)}
               locked={searching}
               onMove={(delta) => spotIn(saveCompanies(moveBy(companyIds, companyDrag(section.project.id), delta)), companyDrag(section.project.id))}
-              more={section.more ? () => void showMore(section.project.id, section.all.length, () => aui.threads().loadMore()) : undefined}
+              more={moreOf(section)}
+              Header={Header}
             >
               <RowScopeContext.Provider value={scopeOf(section.project.id)}>
                 <DragList id={rowList(section.project.id)} items={rowIdsOf(section.project.id)}>
-                  <Items indices={section.indices} threadIds={threadIds} />
+                  <Items indices={section.indices} ids={threadIds} />
                 </DragList>
               </RowScopeContext.Provider>
             </CompanyGroup>
@@ -661,22 +778,22 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
         const toggle = () => toggleSection({ key: section.key });
         if (section.type === "recents") {
           return byCompany ? (
-            <RecentsGroup key={section.key} open={open} onToggle={toggle} onNew={() => newChatIn("")}>
+            <RecentsGroup key={section.key} open={open} menu={sortMenu} onToggle={toggle} onNew={onNewRecent}>
               <RowScopeContext.Provider value={scopeOf("")}>
                 <DragList id={rowList("")} items={rowIdsOf("")}>
-                  <Items indices={section.indices} threadIds={threadIds} />
+                  <Items indices={section.indices} ids={threadIds} />
                 </DragList>
               </RowScopeContext.Provider>
             </RecentsGroup>
           ) : (
-            <SectionGroup key={section.key} label={t("recents")} open={open} onToggle={toggle} onNew={() => newChatIn("")}>
-              <Items indices={section.indices} threadIds={threadIds} />
+            <SectionGroup key={section.key} label={t("recents")} open={open} menu={sortMenu} onToggle={toggle} onNew={onNewRecent}>
+              <Items indices={section.indices} ids={threadIds} />
             </SectionGroup>
           );
         }
         return (
-          <SectionGroup key={section.key} label={section.period ? monthLabel(section.period) : sb.noMonth} open={open} onToggle={toggle}>
-            <Items indices={section.indices} threadIds={threadIds} />
+          <SectionGroup key={section.key} label={section.period ? monthLabel(section.period) : sb.noMonth} open={open} menu={sortMenu} onToggle={toggle}>
+            <Items indices={section.indices} ids={threadIds} />
           </SectionGroup>
         );
       })}
@@ -684,13 +801,13 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   );
 };
 
-/** 已置顶、最近、月份组的组标题：「···」（分组和排序）是受控菜单，键盘菜单键 / Shift+F10 也打开它（第 5 轮视觉审查）；
+/** 已置顶、最近、月份组的组标题：「···」（分组和排序，menu 时有）是受控菜单，键盘菜单键 / Shift+F10 也打开它（第 5 轮视觉审查）；
  *  菜单开着时 data-open 让「＋」照样露着、「···」不挪位。 */
-const SectionHeader: FC<{ label: string; open: boolean; onToggle: () => void; onNew?: () => void }> = ({ label, open, onToggle, onNew }) => {
+const SectionHeader: FC<{ label: string; open: boolean; menu: boolean; onToggle: () => void; onNew?: () => void }> = ({ label, open, menu, onToggle, onNew }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <GroupHeader label={label} open={open} onToggle={onToggle} data-open={menuOpen || undefined} onMenuKey={() => setMenuOpen(true)}>
-      <GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} />
+    <GroupHeader label={label} open={open} onToggle={onToggle} data-open={menuOpen || undefined} onMenuKey={menu ? () => setMenuOpen(true) : undefined}>
+      {menu && <GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} />}
       {onNew && <GroupNew onClick={onNew} />}
     </GroupHeader>
   );
@@ -699,10 +816,10 @@ const SectionHeader: FC<{ label: string; open: boolean; onToggle: () => void; on
 /** 一组（标题 + 这组的行）包成一块：公司组整块拖动、对话拖进已置顶整块高亮都按这一块算。 */
 const SectionGroup = forwardRef<
   HTMLDivElement,
-  { label: string; open: boolean; onToggle: () => void; onNew?: () => void; children?: ReactNode } & Record<`data-${string}`, string | undefined>
->(({ label, open, onToggle, onNew, children, ...rest }, ref) => (
+  { label: string; open: boolean; menu: boolean; onToggle: () => void; onNew?: () => void; children?: ReactNode } & Record<`data-${string}`, string | undefined>
+>(({ label, open, menu, onToggle, onNew, children, ...rest }, ref) => (
   <div ref={ref} {...rest} className="cc-group-section" data-slot="cc-group-section">
-    <SectionHeader label={label} open={open} onToggle={onToggle} onNew={onNew} />
+    <SectionHeader label={label} open={open} menu={menu} onToggle={onToggle} onNew={onNew} />
     {open && children && <div className="cc-group-items">{children}</div>}
   </div>
 ));
@@ -712,20 +829,20 @@ SectionGroup.displayName = "SectionGroup";
 const FLOW = '[data-slot="aui_thread-list-item"], .cc-group-row, .cc-show-more';
 
 /** 已置顶：置顶的对话在这里排先后；整块是对话拖进置顶的落点（收着时组头高亮、落到组头并收起）。 */
-const PinnedGroup: FC<{ open: boolean; onToggle: () => void; children?: ReactNode }> = ({ open, onToggle, children }) => {
+const PinnedGroup: FC<{ open: boolean; menu: boolean; onToggle: () => void; children?: ReactNode }> = ({ open, menu, onToggle, children }) => {
   const zone = useDropZone({ id: zoneDrag(PINS), kind: "pins", label: t("starred"), list: PINS }, !open);
   return (
-    <SectionGroup ref={zone.ref} data-drop-target={zone["data-drop-target"]} label={t("starred")} open={open} onToggle={onToggle}>
+    <SectionGroup ref={zone.ref} data-drop-target={zone["data-drop-target"]} label={t("starred")} open={open} menu={menu} onToggle={onToggle}>
       {children}
     </SectionGroup>
   );
 };
 
 /** 按公司分组时的「最近」：没挂公司的对话，在这里排先后；整块是拖进置顶以后挪回这一组的落点。 */
-const RecentsGroup: FC<{ open: boolean; onToggle: () => void; onNew: () => void; children?: ReactNode }> = ({ open, onToggle, onNew, children }) => {
+const RecentsGroup: FC<{ open: boolean; menu: boolean; onToggle: () => void; onNew?: () => void; children?: ReactNode }> = ({ open, menu, onToggle, onNew, children }) => {
   const zone = useDropZone({ id: zoneDrag(rowList("")), kind: "group", label: t("recents"), list: rowList("") }, !open);
   return (
-    <SectionGroup ref={zone.ref} label={t("recents")} open={open} onToggle={onToggle} onNew={onNew}>
+    <SectionGroup ref={zone.ref} label={t("recents")} open={open} menu={menu} onToggle={onToggle} onNew={onNew}>
       {children}
     </SectionGroup>
   );
@@ -740,8 +857,9 @@ const CompanyGroup: FC<{
   locked: boolean;
   onMove: (delta: -1 | 1) => MoveSpot | null;
   more?: () => void;
+  Header: ComponentType<CompanyHeaderProps>;
   children: ReactNode;
-}> = ({ project, open, onToggle, sessions, locked, onMove, more, children }) => {
+}> = ({ project, open, onToggle, sessions, locked, onMove, more, Header, children }) => {
   const drag = useSortableItem(
     { id: companyDrag(project.id), kind: "company", label: project.title, list: "companies", group: project.id },
     { disabled: locked, ownFocus: true },
@@ -770,7 +888,7 @@ const CompanyGroup: FC<{
   );
   return (
     <div {...node} ref={ref} className="cc-group-section" data-slot="cc-group-section">
-      <ProjectHeader project={project} open={open} onToggle={toggle} sessions={shownSessions} handle={drag.handle} onMove={locked ? undefined : move} />
+      <Header project={project} open={open} onToggle={toggle} sessions={shownSessions} handle={drag.handle} onMove={locked ? undefined : move} />
       {open && (
         <div data-slot="cc-project-items" className="cc-group-items">
           {children}
@@ -925,15 +1043,7 @@ export const ThreadListNew = forwardRef<HTMLButtonElement, ComponentPropsWithout
             focusComposer();
           }}
         >
-          {/* 28 的槽里放 20 的圆，加号图标框 16（同 Claude 侧栏，按钮排查 M5） */}
-          <span className="cc-nav-icon">
-            <span className="cc-new-dot">
-              <PlusIcon data-slot="aui_thread-list-new-icon" />
-            </span>
-          </span>
-          <span data-slot="aui_thread-list-new-label" className="cc-nav-label whitespace-nowrap">
-            {t("newChat")}
-          </span>
+          <NavNewLabel label={t("newChat")} />
         </button>
       </ThreadListPrimitive.New>
     );
@@ -941,6 +1051,21 @@ export const ThreadListNew = forwardRef<HTMLButtonElement, ComponentPropsWithout
 );
 
 ThreadListNew.displayName = "ThreadListNew";
+
+/** 「新建」导航项里的图标与字（对话的「新建」、实操的「新建任务」同一个样子）：28 的槽里放 20 的圆，加号图标框 16（同 Claude 侧栏，
+ *  按钮排查 M5）。 */
+export const NavNewLabel: FC<{ label: string }> = ({ label }) => (
+  <>
+    <span className="cc-nav-icon">
+      <span className="cc-new-dot">
+        <PlusIcon data-slot="aui_thread-list-new-icon" />
+      </span>
+    </span>
+    <span data-slot="aui_thread-list-new-label" className="cc-nav-label whitespace-nowrap">
+      {label}
+    </span>
+  </>
+);
 
 const ThreadListSkeleton: FC = () => {
   return (
@@ -989,36 +1114,47 @@ const ITEM_COMPONENTS = { ThreadListItem };
 // 从行尾「···」、菜单、改名输入框按下不拿起
 const ROW_SKIP = '[data-slot="aui_thread-list-item-more"], [role="menu"], input';
 
-const PinnedRow: FC<{ scope: Extract<RowScope, { mode: "pin" }> }> = ({ scope }) => {
-  const localId = useAuiState((s) => s.threadListItem.id);
-  const title = useAuiState((s) => s.threadListItem.title) || t("untitled");
+/** 置顶里的一行拖着排先后（对话行、实操的任务行同一份）：Alt+↑/↓ 挪完念新位置（同键盘拖动的播报）；只依赖播报（drag.moved），
+ *  不随拖动中的位移变。 */
+export function usePinRowDrag(scope: PinScope, localId: string, title: string) {
   const id = pinDrag(localId);
   const drag = useSortableItem({ id, kind: "pin", label: title, list: PINS }, { disabled: scope.locked, ownFocus: true, skip: ROW_SKIP });
-  // Alt+↑/↓ 挪完念新位置（同键盘拖动的播报）；只依赖播报（drag.moved），不随拖动中的位移变
   const said = drag.moved;
   const onMove = useCallback((delta: -1 | 1) => said(scope.move(id, delta)), [said, scope, id]);
-  return <Row drag={drag} onMove={scope.locked ? undefined : onMove} />;
-};
+  return { drag, onMove: scope.locked ? undefined : onMove };
+}
 
-/** 公司组 / 最近里的一行：在本组里排先后，或拖进已置顶（拖进去还没放下时照旧是这一项，挂在置顶里）。 */
-const GroupRow: FC<{ scope: GroupScope }> = ({ scope }) => {
-  const localId = useAuiState((s) => s.threadListItem.id);
-  const remoteId = useAuiState((s) => s.threadListItem.remoteId);
-  const title = useAuiState((s) => s.threadListItem.title) || t("untitled");
-  // 多选里的一条：整批一起拖（浮层上写条数）
+/** 公司组 / 最近里的一行：在本组里排先后，或拖进已置顶（拖进去还没放下时照旧是这一项，挂在置顶里）。多选里的一条：整批一起拖
+ *  （浮层上写条数，items）。没有服务端编号（remoteId）的不能拖。 */
+export function useGroupRowDrag(scope: GroupScope, localId: string, remoteId: string | undefined, title: string, items: (n: number) => string) {
   const count = useSidebarSelection((s) => (s.ids.length > 1 && s.ids.includes(localId) ? s.ids.length : 0));
   const id = rowDrag(localId);
   const locked = scope.locked || !remoteId;
   const drag = useSortableItem(
-    { id, kind: "row", label: count ? sb.drag.items(count) : title, list: rowList(scope.group), group: scope.group, count: count || undefined, session: remoteId },
+    { id, kind: "row", label: count ? items(count) : title, list: rowList(scope.group), group: scope.group, count: count || undefined, session: remoteId },
     { disabled: locked, ownFocus: true, skip: ROW_SKIP },
   );
   const said = drag.moved;
   const onMove = useCallback((delta: -1 | 1) => said(scope.move(id, delta)), [said, scope, id]);
-  return <Row drag={drag} onMove={locked ? undefined : onMove} />;
+  return { drag, onMove: locked ? undefined : onMove };
+}
+
+const PinnedRow: FC<{ scope: PinScope }> = ({ scope }) => {
+  const localId = useAuiState((s) => s.threadListItem.id);
+  const title = useAuiState((s) => s.threadListItem.title) || t("untitled");
+  const { drag, onMove } = usePinRowDrag(scope, localId, title);
+  return <Row drag={drag} onMove={onMove} />;
 };
 
-type RowDrag = { node: { ref: (el: HTMLElement | null) => void } & Record<string, unknown>; handle: DragHandle };
+const GroupRow: FC<{ scope: GroupScope }> = ({ scope }) => {
+  const localId = useAuiState((s) => s.threadListItem.id);
+  const remoteId = useAuiState((s) => s.threadListItem.remoteId);
+  const title = useAuiState((s) => s.threadListItem.title) || t("untitled");
+  const { drag, onMove } = useGroupRowDrag(scope, localId, remoteId, title, sb.drag.items);
+  return <Row drag={drag} onMove={onMove} />;
+};
+
+export type RowDrag = { node: { ref: (el: HTMLElement | null) => void } & Record<string, unknown>; handle: DragHandle };
 
 // 记住（memo）：省下的是行里的字（RowLabel）、行菜单（ThreadListItemMore）与 Marquee 子树——它们的属性在拖动中不变。行本身在拿起、
 // 落定时仍会全部重画（审查实测）：拖动库一开始排序，每一项的 transition 就从无变成一段字符串，useSortableItem 回的 drag 跟着变；
@@ -1033,7 +1169,6 @@ const Row = memo(function Row({ drag, onMove }: { drag?: RowDrag; onMove?: (delt
   const id = useAuiState((s) => s.threadListItem.remoteId);
   const localId = useAuiState((s) => s.threadListItem.id);
   const { current, isMain } = useCurrent();
-  const { isMobile } = useSidebar();
   const selected = useSidebarSelection((s) => s.ids.includes(localId));
   const companies = !!useProjects((s) => s.kind);
   const reenter = (event: React.MouseEvent) => {
@@ -1041,8 +1176,66 @@ const Row = memo(function Row({ drag, onMove }: { drag?: RowDrag; onMove?: (delt
     if (!isMain) event.preventDefault();
     if (id) getSessionController(id).refreshStatus();
   };
-  // 电脑上 Shift 点一段（第一次从正开着的那一行算起）、⌘ / Ctrl 点单条：只选不切对话；不带修饰键点一行就清空多选（同 Claude Code）。
-  // 只在有公司分组的产品（Cowork）：ERP / DMS 的侧栏不变
+  return (
+    <RowShell
+      Root={ThreadListItemPrimitive.Root}
+      Trigger={ThreadListItemPrimitive.Trigger}
+      drag={drag}
+      onMove={onMove}
+      localId={localId}
+      current={current}
+      selected={selected}
+      companies={companies}
+      press={press}
+      renaming={renaming}
+      onMenuKey={() => setMenuOpen(true)}
+      onTrigger={reenter}
+      rename={<ThreadListItemRename onDone={() => setRenaming(false)} />}
+      label={<RowLabel />}
+      menu={<ThreadListItemMore open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} onRename={startRename} />}
+    />
+  );
+});
+
+/** 侧栏一行的外壳（对话行、实操的任务行同一份：类名、data-slot、键盘、多选、拖动都在这里，CSS、sidebar-keys 的 roving 与 ⌘ 数字跳转、
+ *  删除后的焦点都按它找行）。Root / Trigger：对话行是组件库的行与切换钮，任务行是普通的 div / 按钮。
+ *  电脑上 Shift 点一段（第一次从正开着的那一行算起）、⌘ / Ctrl 点单条：只选不切；不带修饰键点一行就清空多选（同 Claude Code）。
+ *  companies：有公司分组（Cowork 的对话、实操的任务）才有多选；ERP / DMS 的侧栏不变。
+ *  拖动：整行是拖动的那一项，行的开关按钮是把手（鼠标按住动 3px、手机长按后再动、键盘空格）。 */
+export function RowShell({
+  Root,
+  Trigger,
+  drag,
+  onMove,
+  localId,
+  current,
+  selected,
+  companies,
+  press,
+  renaming,
+  onMenuKey,
+  onTrigger,
+  rename,
+  label,
+  menu,
+}: {
+  Root: ElementType;
+  Trigger: ElementType;
+  drag?: RowDrag;
+  onMove?: (delta: -1 | 1) => void;
+  localId: string;
+  current: boolean;
+  selected: boolean;
+  companies: boolean;
+  press: LongPress["press"];
+  renaming: boolean;
+  onMenuKey: () => void;
+  onTrigger?: (event: React.MouseEvent) => void;
+  rename: ReactNode;
+  label: ReactNode;
+  menu: ReactNode;
+}) {
+  const { isMobile } = useSidebar();
   const pick = (event: ReactMouseEvent<HTMLElement>) => {
     if (isMobile || !companies || (event.target as HTMLElement).closest('[data-slot="aui_thread-list-item-more"], [role="menu"], input')) return;
     if (!(event.shiftKey || event.metaKey || event.ctrlKey)) return clearSelection();
@@ -1051,11 +1244,10 @@ const Row = memo(function Row({ drag, onMove }: { drag?: RowDrag; onMove?: (delt
     if (event.shiftKey) selectRange(rowOrder(event.currentTarget), localId, currentRow(event.currentTarget));
     else toggleSelected(localId);
   };
-  // 拖动：整行是拖动的那一项，行的开关按钮是把手（鼠标按住动 3px、手机长按后再动、键盘空格）
   const { ref: handleRef, onMouseDown: dragMouse, onTouchStart: dragTouch, onKeyDown: dragKey, onKeyUp: dragKeyUp, ...handleAria } =
     drag?.handle ?? ({} as Partial<DragHandle>);
   return (
-    <ThreadListItemPrimitive.Root
+    <Root
       {...press}
       {...drag?.node}
       onTouchStart={chain(press.onTouchStart, renaming ? undefined : dragTouch)}
@@ -1067,17 +1259,17 @@ const Row = memo(function Row({ drag, onMove }: { drag?: RowDrag; onMove?: (delt
       data-slot="aui_thread-list-item"
       data-marquee-host=""
       onClickCapture={pick}
-      onMouseDown={(e) => {
+      onMouseDown={(e: ReactMouseEvent<HTMLElement>) => {
         if (e.shiftKey && !isMobile && companies) e.preventDefault(); // Shift 点不选中文字
         if (!renaming) dragMouse?.(e);
       }}
-      onKeyDown={(e) => {
+      onKeyDown={(e: KeyboardEvent<HTMLElement>) => {
         if (renaming) return;
         // 键盘拖动中：键只归拖动（方向键由把手标成已处理，组件库行自带的 ↑ ↓ 不移焦点；不开菜单）
         if (isDragging()) return dragKey?.(e);
         if (isMenuKey(e)) {
           e.preventDefault();
-          setMenuOpen(true);
+          onMenuKey();
           return;
         }
         if (onMove && altMove(e, onMove)) return;
@@ -1086,25 +1278,25 @@ const Row = memo(function Row({ drag, onMove }: { drag?: RowDrag; onMove?: (delt
       className="cc-thread-row group/item"
     >
       {renaming ? (
-        <ThreadListItemRename onDone={() => setRenaming(false)} />
+        rename
       ) : (
         <>
-          <ThreadListItemPrimitive.Trigger
+          <Trigger
             ref={handleRef}
             {...handleAria}
             data-slot="aui_thread-list-item-trigger"
             data-roving=""
-            onClick={reenter}
+            onClick={onTrigger}
             className="cc-row-trigger focus-visible:shadow-focus flex min-h-(--cc-row-h) min-w-0 flex-1 items-center self-stretch rounded-md text-start outline-none"
           >
-            <RowLabel />
-          </ThreadListItemPrimitive.Trigger>
-          <ThreadListItemMore open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} onRename={startRename} />
+            {label}
+          </Trigger>
+          {menu}
         </>
       )}
-    </ThreadListItemPrimitive.Root>
+    </Root>
   );
-});
+}
 
 /** 行里的字（标题、第二行、行尾状态）：不随拖动变（拖动库每次拿起、经过、放下都重画所有能拖的行，只有行的位移与把手的属性变），
  *  单独记住，不跟着整行重画（测试窗口第 10 轮 B 段：拿起那一刻整列重画 150–200ms）。里面各自按组件库的状态更新。 */
@@ -1155,6 +1347,11 @@ const ThreadActivity: FC = () => {
   const { view } = useView();
   const activity = useActivity(id);
   if (!activity || (current && view === "chat")) return null;
+  return <ActivityMark activity={activity} />;
+};
+
+/** 行尾的状态标记（对话行、实操的任务行、收起的组头同一个样子：在跑脉冲点、没看过蓝点）。 */
+export const ActivityMark: FC<{ activity: Activity }> = ({ activity }) => {
   const label = activity === "running" ? t("running") : activity === "notice" ? t("newNotice") : t("unread");
   return <span className="cc-activity" data-activity={activity} role="img" aria-label={label} />;
 };
@@ -1168,13 +1365,23 @@ const MenuKey: FC<{ letter: string }> = ({ letter }) => (showShortcuts() ? <span
 export const ThreadListItemRename: FC<{ onDone: () => void; className?: string }> = ({ onDone, className = "cc-row-edit" }) => {
   const aui = useAui();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
+  return <InlineRename value={title} onSave={(next) => void aui.threadListItem().rename(next)} onDone={onDone} className={className} />;
+};
+
+/** 就地改名的输入框（对话行、标题栏、实操的任务行同一个）：onSave 只在改了、不是空的时候调。 */
+export const InlineRename: FC<{ value: string; onSave: (next: string) => void; onDone: () => void; className?: string }> = ({
+  value: title,
+  onSave,
+  onDone,
+  className = "cc-row-edit",
+}) => {
   const [value, setValue] = useState(title);
   const finished = useRef(false);
   const finish = (save: boolean) => {
     if (finished.current) return;
     finished.current = true;
     const next = value.trim();
-    if (save && next && next !== title) void aui.threadListItem().rename(next);
+    if (save && next && next !== title) onSave(next);
     onDone();
   };
   return (
@@ -1228,6 +1435,47 @@ const ThreadListItemMore = memo(function ThreadListItemMore({
   const pin = () => toggleStar(aui.threadListItem(), !starred);
   const remove = () => deleteChat(aui.threadListItem());
   return (
+    <RowMenu
+      open={open}
+      modal={modal}
+      onOpenChange={onOpenChange}
+      starred={starred}
+      onPin={pin}
+      onRename={onRename}
+      onDelete={remove}
+      bulk={bulk ? <BulkItems ids={selection} close={close} /> : undefined}
+    />
+  );
+});
+
+/** 行尾「···」与它的菜单（对话行、实操的任务行同一份）：置顶 P / 重命名 R / 删除 D；bulk：多选时换成的批量项。
+ *  canDelete 为 false 时「删除」置灰、D 键不删（实操里交出去还没收尾的任务）。 */
+export function RowMenu({
+  open,
+  modal = true,
+  onOpenChange,
+  starred,
+  onPin: pin,
+  onRename,
+  onDelete,
+  canDelete = true,
+  bulk,
+}: {
+  open: boolean;
+  modal?: boolean;
+  onOpenChange: (open: boolean) => void;
+  starred: boolean;
+  onPin: () => void;
+  onRename: () => void;
+  onDelete: () => void;
+  canDelete?: boolean;
+  bulk?: ReactNode;
+}) {
+  const close = () => onOpenChange(false);
+  const remove = () => {
+    if (canDelete) onDelete();
+  };
+  return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       <DropdownMenu.Trigger asChild>
         <button
@@ -1241,9 +1489,7 @@ const ThreadListItemMore = memo(function ThreadListItemMore({
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        {bulk ? (
-          <BulkItems ids={selection} close={close} />
-        ) : (
+        {bulk ?? (
           <DropdownMenu.Content
             side="bottom"
             align="end"
@@ -1262,7 +1508,7 @@ const ThreadListItemMore = memo(function ThreadListItemMore({
               <span className="flex-1">{t("rename")}</span>
               <MenuKey letter="R" />
             </DropdownMenu.Item>
-            <DropdownMenu.Item data-slot="aui_thread-list-item-more-item" data-danger="" className="cc-menu-item" onSelect={remove}>
+            <DropdownMenu.Item data-slot="aui_thread-list-item-more-item" data-danger="" className="cc-menu-item" disabled={!canDelete} onSelect={remove}>
               <TrashIcon />
               <span className="flex-1">{t("delete")}</span>
               <MenuKey letter="D" />
@@ -1272,7 +1518,7 @@ const ThreadListItemMore = memo(function ThreadListItemMore({
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
   );
-});
+}
 
 /** 多选时的行菜单（同 Claude Code，没有批量栏）：「置顶 N」（都已置顶时「取消置顶 N」）、「删除 N」。
  *  用组件库各行自己的操作一条一条做（不并发，lib/sidebar-keys.ts 的 runInOrder），做完清空多选；出错显示在侧栏那一行。
@@ -1300,6 +1546,17 @@ const BulkItems: FC<{ ids: readonly string[]; close: () => void }> = ({ ids: sel
   };
   const deleteAll = () =>
     askDelete(ids, () => runInOrder(ids, async (id) => await aui.threads().item({ id }).delete(), report).then(clearSelection));
+  return <BulkMenu count={ids.length} allPinned={allPinned} onPinAll={pinAll} onDeleteAll={deleteAll} close={close} />;
+};
+
+/** 多选时的「置顶 N」/「取消置顶 N」、「删除 N」（对话行、实操的任务行同一份；P / D 单字母）。 */
+export const BulkMenu: FC<{ count: number; allPinned: boolean; onPinAll: () => void; onDeleteAll: () => void; close: () => void }> = ({
+  count,
+  allPinned,
+  onPinAll: pinAll,
+  onDeleteAll: deleteAll,
+  close,
+}) => {
   return (
     <DropdownMenu.Content
       side="bottom"
@@ -1311,12 +1568,12 @@ const BulkItems: FC<{ ids: readonly string[]; close: () => void }> = ({ ids: sel
     >
       <DropdownMenu.Item className="cc-menu-item" onSelect={pinAll}>
         {allPinned ? <PinOffIcon /> : <PinIcon />}
-        <span className="flex-1">{allPinned ? sb.unpinN(ids.length) : sb.pinN(ids.length)}</span>
+        <span className="flex-1">{allPinned ? sb.unpinN(count) : sb.pinN(count)}</span>
         <MenuKey letter="P" />
       </DropdownMenu.Item>
       <DropdownMenu.Item data-danger="" className="cc-menu-item" onSelect={deleteAll}>
         <TrashIcon />
-        <span className="flex-1">{sb.deleteN(ids.length)}</span>
+        <span className="flex-1">{sb.deleteN(count)}</span>
         <MenuKey letter="D" />
       </DropdownMenu.Item>
     </DropdownMenu.Content>

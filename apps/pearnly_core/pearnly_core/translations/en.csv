@@ -104,7 +104,9 @@ Change password,Change password
 Change your password and sign out other devices on the account page of the identity service,Change your password and sign out other devices on the account page of the identity service
 Change your password from your account profile using Change Password.,Change your password from your account profile using Change Password.
 Charges,Charges
+Checked the hands-on task,Checked the hands-on task
 Checked your account,Checked your account
+Checking the hands-on task,Checking the hands-on task
 Checking your account,Checking your account
 Checkpoint Key,Checkpoint Key
 Checkpoints,Checkpoints
@@ -120,6 +122,7 @@ Company List,Company List
 Company Master,Company Master
 Company Profile,Company Profile
 Company Tax ID,Company Tax ID
+Company Title,Company Title
 Configuration is complete. The connection was not tested.,Configuration is complete. The connection was not tested.
 Confirm,Confirm
 Confirm new password,Confirm new password
@@ -280,6 +283,7 @@ Export details,Export details
 Exporting…,Exporting…
 Express Document Number,Express Document Number
 Express Index Tool,Express Index Tool
+Express Number,Express Number
 Express Push Guide,Express Push Guide
 External Doc No,External Doc No
 External ERP Push,External ERP Push
@@ -467,6 +471,7 @@ Open in browser,Open in browser
 "Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.","Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself."
 Operator,Operator
 Operator Roster,Operator Roster
+Operator Task,Operator Task
 Operator added,Operator added
 Operator list,Operator list
 Operators,Operators
@@ -497,6 +502,7 @@ Pearnly Dark,Pearnly Dark
 Pearnly Light,Pearnly Light
 Pending,Pending
 Pending Carry-over,Pending Carry-over
+Pending Controls,Pending Controls
 Pending review,Pending review
 Period End,Period End
 Period Start,Period Start
@@ -635,6 +641,7 @@ Source,Source
 Source Attachment,Source Attachment
 Stage,Stage
 Starred,Starred
+Start At,Start At
 State,State
 Status,Status
 Status cannot go backwards: {0} → {1},Status cannot go backwards: {0} → {1}
@@ -793,6 +800,8 @@ Unit,Unit
 Unit Price,Unit Price
 Unit price,Unit price
 Unknown product: {0},Unknown product: {0}
+Updated the hands-on task,Updated the hands-on task
+Updating the hands-on task,Updating the hands-on task
 Upload,Upload
 Upload a transfer slip before submitting,Upload a transfer slip before submitting
 Upload a transfer slip up to 10 MB,Upload a transfer slip up to 10 MB
@@ -817,6 +826,7 @@ VAT Rate %,VAT Rate %
 VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks
 Valid for {0},Valid for {0}
 Verify State,Verify State
+Voided Number,Voided Number
 WHT deducted,WHT deducted
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}
 Warehouses,Warehouses

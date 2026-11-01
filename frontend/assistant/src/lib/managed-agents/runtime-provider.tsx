@@ -21,7 +21,7 @@ import {
   type AppendMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { noticesShown } from "./activity";
 import { createAttachmentAdapter, filesToSend } from "./attachments";
 import { beginPendingText, clearPending, pendingShownAs } from "./pending-send";
@@ -234,9 +234,18 @@ export function ManagedAgentsRuntimeProvider({ children }: { children: React.Rea
 
 // Convenience for components that want the live session state (files
 // panel, connection banner) without going through message rendering.
+/** 不在对话页运行时里画对话（实操任务页的对话，operator/workspace.tsx）：直接给这段对话的编号（空串 = 还没建）。
+ *  不给（undefined）时按组件库当前打开的那段。 */
+export const SessionIdOverride = createContext<string | undefined>(undefined);
+
+function useShownSessionId(): string | null {
+  const override = useContext(SessionIdOverride);
+  const fromThread = useAuiState((s) => s.threadListItem.externalId ?? s.threadListItem.remoteId) ?? null;
+  return override !== undefined ? override || null : fromThread;
+}
+
 export function useActiveSessionSnapshot(): ControllerSnapshot & { sessionId: string | null } {
-  const sessionId =
-    useAuiState((s) => s.threadListItem.externalId ?? s.threadListItem.remoteId) ?? null;
+  const sessionId = useShownSessionId();
   const controller = sessionId ? getSessionController(sessionId) : null;
   const snapshot = useControllerSnapshot(controller);
   return { ...snapshot, sessionId };
@@ -246,7 +255,7 @@ export function useActiveSessionSnapshot(): ControllerSnapshot & { sessionId: st
  *  两项从会话控制器的同一份快照读（组件库的 thread.isRunning 要等下一次提交才跟上，会和「核对过」错开一拍）；只取这两个值，
  *  回复每来一段不会让整个对话区重画。 */
 export function useOpenState(): OpenState {
-  const sessionId = useAuiState((s) => s.threadListItem.externalId ?? s.threadListItem.remoteId) ?? null;
+  const sessionId = useShownSessionId();
   const controller = sessionId ? getSessionController(sessionId) : null;
   const subscribe = controller ? controller.subscribe : subscribeNothing;
   const read = () => (controller ? controller.getSnapshot() : EMPTY);

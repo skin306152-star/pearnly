@@ -167,3 +167,37 @@ pearnly_erp_portal:Type a word from the warehouse name to find it	zh	输入仓�
 pearnly_erp_portal:cashier.voidSummarized	zh	此小票已计入收银日汇总，请改用退货	2026-10-26	docs/work/2026-10-24-erp-stock-express-plan.md（用户 10-26 同意两处作废拦截文案）
 pearnly_erp_portal:stock.countEntryVoid	zh	此单由盘点生成，不能单独作废	2026-10-26	docs/work/2026-10-24-erp-stock-express-plan.md（用户 10-26 同意两处作废拦截文案）
 pearnly_erp_portal:product.col.internalCode	zh	内部编码	2026-11-01	docs/work/2026-11-01-product-attribute.md（用户 11-01 同意：盘点录入屏显示内部编码时编码那格叫「内部编码」，显示系统编码时叫「编码」）
+assistant:OPERATOR.computer	zh	电脑	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.group.expense	zh	费用	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.account_busy	zh	账套正在使用	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.ai_resolved	zh	已处理意外画面	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.budget	zh	已达本任务费用上限	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.company_mismatch	zh	公司与任务不符	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.crash_repeated	zh	Express 连续关闭	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.item_missing	zh	Express 中没有此商品	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.login_missing	zh	Express 登录未设置	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.negative_stock	zh	库存不够	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.network_wait	zh	正在等待服务器	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.party_missing	zh	Express 中没有此对方	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.readback_mismatch	zh	金额和税不一致	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.recipe_mismatch	zh	此类单据暂不支持	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.tax_setting_mismatch	zh	对方税务设置与票面不符	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.unknown_screen	zh	无法识别的 Express 画面	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.unsupported	zh	此类单据暂不支持	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.refused.already	zh	已提交过	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.refused.failed	zh	未提交	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.refused.held	zh	等待	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.start	zh	开始	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.column.ref	zh	单号	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.column.time	zh	用时	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.directHint	zh	直接写入 Express 账套	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.doc.notDone	zh	未完成	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.kind.payment	zh	付款方式	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.kind.receipt	zh	收款科目	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.option.new	zh	新建	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.option.newItem	zh	库存（新建）	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.reason.company_pick	zh	请在 Express 中选择公司	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.section.files	zh	资料	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.section.handle	zh	需要处理	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.stop	zh	停止	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+assistant:OPERATOR.voidedNo	zh	已作废 {x}	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md

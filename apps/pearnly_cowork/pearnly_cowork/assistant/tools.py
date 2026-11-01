@@ -903,7 +903,7 @@ def _mrerp_setup_of(name) -> dict | None:
     return {"connection": connection, "account_set_key": account_set, **setup} if setup else None
 
 
-def _submit_one(name, connection, account_set_key, posting_kind, route_device) -> dict:
+def _submit_one(name, connection, account_set_key, posting_kind, route_device, operator=None) -> dict:
     """:func:`_push_one` 的准备那一步：停下 / 推不成回给页面的结论；交出去准备好了的回 ``{"submitted": (adapter, 连接, 请求号,
     准备结果)}``。重来时从头读票（撞上冲突的那次整笔回滚了）。"""
     try:
@@ -963,15 +963,17 @@ def _submit_one(name, connection, account_set_key, posting_kind, route_device) -
                     "mrerp_setup": {"connection": target, "account_set_key": going["account_set"], **setup},
                     "note": MRERP_SETUP_NOTE}
     key = _key(name, doc.record_version, doc.last_push_record or doc.last_push_reason)
+    if operator and adapter != "express":
+        return {"document": name, "status": "failed", "reason": "operator_express_only"}  # 代录只录 Express
     result = application.submit(name, target, key, doc.record_version, revision, account_set, None, None, posting_kind,
-                                route_device=route_device if adapter == "express" else "")
+                                route_device=route_device if adapter == "express" else "", operator=operator)
     frappe.db.commit()
     if result.get("status") in ("failed", "cancelled", "manual"):
         return {"document": name, "status": result.get("status"), "reason": str(result.get("reason") or "")[:300]}
     return {"submitted": (adapter, target, key, result)}
 
 
-def _push_one(name, connection=None, account_set_key=None, posting_kind=None, route_device="") -> dict:
+def _push_one(name, connection=None, account_set_key=None, posting_kind=None, route_device="", operator=None) -> dict:
     """推一张票（CC 的 `cowork_push_documents` 每一张、待处理页当场推 / 当场选后重推 / 换账套推都走这里）。``route_device``：
     定时任务的票由读文件夹的那台电脑写（待处理页按 `folder_intake.push.reader_of` 给，ADR-021 第 51 条）；空 = 录入人自己的电脑写。
 
@@ -980,7 +982,7 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None, ro
     请求号唯一；确认只重来确认（已提交的准备不再准备一次，否则请求号随 ``last_push_record`` 变了会多出一份准备）。用尽时原因记在
     票上，回 ``failed``。"""
     try:
-        staged = conflicts.retried(_submit_one, name, connection, account_set_key, posting_kind, route_device)
+        staged = conflicts.retried(_submit_one, name, connection, account_set_key, posting_kind, route_device, operator)
     except conflicts.Exhausted as error:
         reason = str(error)
         application.submission_failed(name, reason)

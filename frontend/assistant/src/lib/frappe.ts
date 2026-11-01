@@ -123,10 +123,15 @@ export async function post<T>(method: string, args: Record<string, unknown> = {}
 }
 
 export async function upload<T>(method: string, args: Record<string, string>, file: File): Promise<T> {
+  return postForm<T>(`${BASE}${method}`, args, file);
+}
+
+/** 上传一个文件（字段 file，其余参数同表单一起交）：附件与「实操」资料都走这里。 */
+async function postForm<T>(url: string, args: Record<string, string>, file: File): Promise<T> {
   const form = new FormData();
   for (const [k, v] of Object.entries(args)) form.set(k, v);
   form.set("file", file, file.name);
-  const res = await siteFetch(`${BASE}${method}`, {
+  const res = await siteFetch(url, {
     method: "POST",
     headers: { "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
     body: form,
@@ -149,6 +154,11 @@ export async function postMethod<T>(method: string, args: Record<string, unknown
     body: JSON.stringify(args),
   });
   return parse<T>(res);
+}
+
+/** 其他 App 的白名单方法上传一个文件（同附件上传那条路：multipart、CSRF、同一套错误处理）。 */
+export function uploadMethod<T>(method: string, args: Record<string, string>, file: File): Promise<T> {
+  return postForm<T>(`/api/method/${method}`, args, file);
 }
 
 /** 用户在这台设备上选语言（左下角菜单「语言」、设置里的「语言」）：存成账号语言，也记在这台设备上

@@ -1677,12 +1677,201 @@ class DocumentPolicySettleTests(unittest.TestCase):
         self.assertEqual(calls, [("cert", "")])
 
 
+class OperatorSourceTests(unittest.TestCase):
+    """代录的 Cowork 一侧（`assistant.operator_source`，主会话 10-27 必修 ① ②、资料区分组按公司记住）：预检逐张走推送准备同一套
+    判断（`service.operator_check`）；开录时先把预检里人定的按复核页同一条路记下，再按代录交（带代录标记），不经待处理、不按直写
+    重推；资料区拖动改单据方向与入账类型并按对方记进公司规则「分组」，列表、预检、交单都照它。"""
+
+    def load(self, checks=None, pages=None, memory=None, docs=None):
+        calls = []
+        self.pages = {name: json.loads(json.dumps(value)) for name, value in (pages or {}).items()}
+        self.memory = dict(memory or {})
+        service = types.SimpleNamespace(
+            operator_check=lambda name, posting_kind=None: calls.append(("check", name, posting_kind)) or dict(
+                (checks or {}).get(name) or {"state": "ready"}),
+            save_choices=lambda *args: calls.append(("save",) + args) or {"saved": 1}, RESULT_UNKNOWN="push.result_unknown")
+        storage = types.SimpleNamespace(read=lambda name: Row(name=name, push_connection="C1",
+                                                              push_account_set="P:\\69EXP\\TEST",
+                                                              **((docs or {}).get(name) or {})))
+
+        def push_one(name, posting_kind=None, route_device="", operator=None):
+            calls.append(("push", name, route_device, operator, posting_kind))
+            return {"status": "sent"}
+
+        def save(name, value, version):
+            calls.append(("history", name, version))
+            self.pages[name] = json.loads(value)
+
+        history = types.SimpleNamespace(detail=lambda name: {"pages": json.dumps(self.pages.get(name) or []),
+                                                             "record_version": 3}, save=save)
+        rules = types.SimpleNamespace(
+            GROUP="group", groups=lambda company: dict(self.memory),
+            save=lambda company, **kw: calls.append(("remember", company, kw)) or self.memory.update(
+                {kw["subject"]: kw["value"]}))
+        tools = types.SimpleNamespace(_push_one=push_one)
+        frappe.db.commits = 0
+        patcher = mock.patch.dict(sys.modules, {
+            "pearnly_cowork.push.application": types.SimpleNamespace(service=service),
+            "pearnly_cowork.push.application.service": service,
+            "pearnly_cowork.history": types.SimpleNamespace(storage=storage, api=history),
+            "pearnly_cowork.history.storage": storage,
+            "pearnly_cowork.history.api": history,
+            "pearnly_cowork.companies": types.SimpleNamespace(rules=rules),
+            "pearnly_cowork.companies.rules": rules,
+            "pearnly_cowork.assistant.tools": tools})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        rows = lambda doctype, filters=None, fields=None, limit_page_length=None: [
+            Row(name=name, pages=json.dumps(self.pages[name])) for name in filters["name"][1] if name in self.pages]
+        db = mock.patch.object(frappe.db, "get_all", rows, create=True)
+        db.start()
+        self.addCleanup(db.stop)
+        workspace = mock.patch.object(frappe.db, "get_value", lambda *a, **k: "W1", create=True)
+        workspace.start()
+        self.addCleanup(workspace.stop)
+        sys.modules.pop("pearnly_cowork.assistant.operator_source", None)
+        module = importlib.import_module("pearnly_cowork.assistant.operator_source")
+        package = sys.modules["pearnly_cowork.assistant"]
+        previous = getattr(package, "tools", None)
+        package.tools = tools
+        self.addCleanup(lambda: setattr(package, "tools", previous) if previous else delattr(package, "tools"))
+        return module, calls
+
+    def test_precheck_runs_the_push_preparation_for_each_document(self):
+        needed = {"state": "choose", "needed": [{"kind": "item", "subject": "s|bulb", "options": [{"code": "__new__"}]}]}
+        module, calls = self.load({"h2": needed})
+        out = module.precheck("CO1", ["h1", "h2"])
+        self.assertEqual(out["documents"], [{"doc_id": "h1", "state": "ready"}, {"doc_id": "h2", **needed}])
+        self.assertEqual([c for c in calls if c[0] == "history"], [])  # 没记过分组：单据不动
+
+    def test_documents_are_grouped_from_what_recognition_already_read(self):
+        module, _calls = self.load()
+        cases = [({"direction": "purchase", "document_type": "tax_invoice"}, "", "purchase"),
+                 ({"direction": "purchase", "document_type": "receipt"}, "", "expense"),
+                 ({"direction": "purchase", "document_type": "simplified_tax_invoice"}, "", "expense"),
+                 ({"direction": "sales", "document_type": "tax_invoice"}, "", "sales"),
+                 ({"direction": "purchase", "document_type": "payment_evidence"}, "", "payment"),
+                 ({"direction": "purchase", "document_type": "order_evidence"}, "", "skip"),
+                 ({"direction": "purchase", "document_type": "other"}, "", "skip"),
+                 ({"direction": "", "document_type": ""}, "", "purchase"),
+                 ({"direction": "purchase", "document_type": "tax_invoice"}, "service", "expense"),
+                 ({"direction": "purchase", "document_type": "receipt"}, "stock", "purchase")]
+        self.assertEqual([module.group_of(row, posting) for row, posting, _ in cases], [group for *_, group in cases])
+
+    def test_the_party_key_is_the_other_side_by_tax_id_and_branch_or_by_name(self):
+        module, _calls = self.load()
+        fields = {"seller_tax": "0105555000011", "seller_branch": "00002", "seller_name": "A",
+                  "buyer_tax": "0105555000029", "buyer_name": "B"}
+        self.assertEqual(module.party_key(fields, "purchase"), ("party|0105555000011|2", "A"))
+        self.assertEqual(module.party_key(fields, "sales"), ("party|0105555000029|0", "B"))
+        self.assertEqual(module.party_key({"seller_name": " Shop  A "}, "purchase")[0][:11], "party|name:")
+        self.assertEqual(module.party_key({}, "purchase"), ("", ""))
+
+    def test_an_upload_is_stored_then_recognized_for_this_companys_book(self):
+        module, _calls = self.load()
+        calls = []
+        files = types.SimpleNamespace(create=lambda *args: calls.append(("store",) + args) or {"name": "CWS-1"})
+        ocr = types.SimpleNamespace(submit=lambda name, key, **kw: calls.append(("ocr", name, key, kw)) or {"accepted": True,
+                                                                                                         "batch": "B1"})
+        row = Row(workspace="W1", seed_connection="C1", seed_account_set="p:\\69exp\\test")
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.files": types.SimpleNamespace(service=files),
+                                           "pearnly_cowork.files.service": files,
+                                           "pearnly_cowork.ocr.execution": types.SimpleNamespace(service=ocr),
+                                           "pearnly_cowork.ocr.execution.service": ocr}), \
+                mock.patch.object(frappe.db, "get_value", lambda *a, **k: row, create=True):
+            out = module.intake("CO1", "a.pdf", b"%PDF", "k1")
+        self.assertEqual(out, {"accepted": True, "source": "CWS-1", "batch": "B1"})
+        self.assertEqual(calls[0], ("store", "W1", "a.pdf", b"%PDF", "k1"))
+        self.assertEqual(calls[1][1:3], ("CWS-1", "k1:ocr"))
+        self.assertEqual(calls[1][3], {"connection": "C1", "account_set_key": "p:\\69exp\\test"})
+
+    def test_dragging_rewrites_the_document_and_remembers_the_group_for_this_party(self):
+        page = {"fields": {"direction": "purchase", "document_type": "tax_invoice", "seller_tax": "0105555000011",
+                           "seller_name": "ร้าน A"}}
+        module, calls = self.load(pages={"h1": [page]})
+        self.assertEqual(module.regroup("CO1", "h1", "expense"), {"ok": True})
+        self.assertEqual(module.regroup("CO1", "h1", "payment"), {"ok": False, "reason": "unsupported"})
+        self.assertEqual(self.pages["h1"][0]["fields"]["posting_kind"], "service")
+        self.assertEqual(self.pages["h1"][0]["fields"]["direction"], "purchase")
+        remembered = [c for c in calls if c[0] == "remember"]
+        self.assertEqual(remembered, [("remember", "CO1", {"workspace": "W1", "kind": "group",
+                                                          "subject": "party|0105555000011|0", "value": "expense",
+                                                          "subject_label": "ร้าน A", "evidence": {"document": "h1"}})])
+
+    def test_the_list_and_the_start_follow_the_remembered_group(self):
+        seller = {"seller_tax": "0105555000011", "seller_name": "ร้าน A"}
+        pages = {"h1": [{"fields": {"direction": "purchase", "document_type": "tax_invoice", **seller}}],
+                 "h2": [{"fields": {"direction": "purchase", "document_type": "tax_invoice", "seller_name": "อื่น"}}]}
+        docs = {name: {"seller_tax": value[0]["fields"].get("seller_tax"),
+                       "seller_name": value[0]["fields"]["seller_name"]} for name, value in pages.items()}
+        module, calls = self.load(pages=pages, memory={"party|0105555000011|0": "expense"}, docs=docs)
+        listed = {"documents": [{"name": "h1", "direction": "purchase", "document_type": "tax_invoice", **seller},
+                                {"name": "h2", "direction": "purchase", "document_type": "tax_invoice",
+                                 "seller_name": "อื่น"}]}
+        sys.modules["pearnly_cowork.assistant.tools"].list_documents = lambda _q: json.dumps(listed)
+        out = module.sources("CO1", "2026-10", 0, 50)
+        self.assertEqual([d["group"] for d in out["documents"]], ["expense", "purchase"])
+        module.precheck("CO1", ["h1", "h2"])
+        self.assertEqual([c for c in calls if c[0] == "check"], [("check", "h1", "service"), ("check", "h2", "")])
+        self.assertEqual(self.pages["h1"][0]["fields"]["posting_kind"], "service")  # 记住的分组落到单据上
+        self.assertNotIn("posting_kind", self.pages["h2"][0]["fields"])
+        module.submit("CO1", ["h1"], {"id": "b1", "total": 1, "start_at": 0}, "CCD-1")
+        self.assertEqual([c[4] for c in calls if c[0] == "push"], ["service"])  # 入账类型明传，单据列不再盖过它
+
+    def test_after_a_restart_the_site_says_where_each_document_stands(self):
+        docs = {"h1": {"last_push_status": "success", "last_push_record": "PR-1"},
+                "h2": {"last_push_status": "pending", "last_push_record": "PR-2"},
+                "h3": {"last_push_status": "manual", "last_push_reason": "[OPERATOR_PARTY_MISSING]"},
+                "h4": {"last_push_status": ""},
+                # CC 重启时正录到一半：站点定成结果不明，同开始前确认一个原因码（页面给「已入账」「没有入账」，10-29 测试机）
+                "h5": {"last_push_status": "manual", "last_push_reason": "ERP_CONFIRMED_PUSH_RESULT_UNKNOWN", "last_push_record": "PR-5"}}
+        module, _calls = self.load(docs=docs)
+        storage = sys.modules["pearnly_cowork.history.storage"]
+        real_read = storage.read
+
+        def read(name):
+            if name == "gone":
+                raise frappe.DoesNotExistError("gone")
+            return real_read(name)
+
+        storage.read = read
+        with mock.patch.object(frappe.db, "get_value", lambda *a, **k: "HS0000014", create=True):
+            out = module.status("CO1", ["h1", "h2", "h3", "h4", "h5", "gone"])
+        self.assertEqual([(r["state"], r["docnum"], r["reason"]) for r in out],
+                         [("saved", "HS0000014", ""), ("queued", "", ""), ("not_done", "", "[OPERATOR_PARTY_MISSING]"),
+                          ("cancelled", "", ""), ("not_done", "", "push.result_unknown"), ("unknown", "", "")])
+        self.assertIn("ref", out[0])  # 单号、对方随状态回给页面（CC 重启后靠它写「单号 · 对方」）
+
+    def test_a_document_whose_last_push_is_unknown_is_resolved_through_the_review_pages_path(self):
+        docs = {"h1": {"last_push_status": "manual", "last_push_reason": "ERP_CONFIRMED_PUSH_RESULT_UNKNOWN",
+                       "last_push_record": "PR-9"},
+                "h2": {"last_push_status": "manual", "last_push_reason": "[OPERATOR_ITEM_MISSING]", "last_push_record": "PR-8"}}
+        module, calls = self.load(docs=docs)
+        service = sys.modules["pearnly_cowork.push.application.service"]
+        service.resolve_unknown = lambda record, entered, docnum: calls.append(("resolve", record, entered, docnum))
+        self.assertEqual(module.resolve("CO1", "h1", False, ""), {"ok": True})
+        self.assertEqual(module.resolve("CO1", "h2", True, "RR1"), {"ok": False, "reason": "not_unknown"})  # 别的原因不走这条
+        self.assertEqual([c for c in calls if c[0] == "resolve"], [("resolve", "PR-9", False, None)])
+
+    def test_answers_are_saved_first_then_the_document_goes_to_the_operator_never_direct(self):
+        module, calls = self.load()
+        answer = [{"kind": "item", "subject": "s|bulb", "value": "__new__", "label": "LED 9W"}]
+        out = module.submit("CO1", ["h1", "h2"], {"id": "b1", "total": 2, "start_at": 0}, "CCD-1", {"h1": answer})
+        self.assertEqual([row["status"] for row in out], ["sent", "sent"])
+        self.assertEqual([call[0] for call in calls], ["save", "push", "push"])
+        self.assertEqual(calls[0][1:4], ("h1", "C1", "P:\\69EXP\\TEST"))
+        self.assertEqual(json.loads(calls[0][4])[0]["value"], "__new__")
+        self.assertEqual([(c[1], c[2], c[3]["index"]) for c in calls[1:]], [("h1", "CCD-1", 1), ("h2", "CCD-1", 2)])
+        self.assertTrue(all(c[3]["id"] == "b1" for c in calls[1:]))  # 都带代录批次（载荷加代录标记），不是直写
+        self.assertEqual([c[3]["doc"] for c in calls[1:]], ["h1", "h2"])  # 带上单据编号，CC 用它当单据号
+
+
 class PendingAnswerTests(unittest.TestCase):
     """「待处理」当场选（补充 乙，对齐 2026-10-15）：列表只给推送去向与要选的类别（不读账套主档）；页面展开时取可选项
     （`push.application.api.choices`），作答经 `assistant.pending_api.answer`：先记下选择，再按 CC 推送同一条路重推。
     只记选择不会自动重推（推送记录停在「要人选」）。"""
 
-    def _answer(self, doc, pushed, rules=(), reader=""):
+    def _answer(self, doc, pushed, rules=(), reader="", owned=False):
         """按真实导入加载 `assistant.pending_api`；单据读取、记选择、CC 的重推换成替身（整个测试期间挂着）。
         ``rules``：这张票出自的定时任务（`folder_intake.push.source_rules` 的替身）；``reader``：读它所在文件夹的电脑
         （`folder_intake.push.reader_of` 的替身，不是定时任务的票为空）。重推带了 ``route_device`` 时记在调用的最后一项。"""
@@ -1709,14 +1898,17 @@ class PendingAnswerTests(unittest.TestCase):
         tools = types.SimpleNamespace(_push_one=push_one, announce_mrerp_choices=lambda *args: calls.append(
             ("announce",) + args))
         frappe.db.commits = 0
+        # 归代录的单（最近一次推送带代录标记、还没录成）：`push.application.service.operator_owned` 的替身
+        service = types.SimpleNamespace(operator_owned=lambda row: owned, OPERATOR_OWNED="push.operator_owned")
         patcher = mock.patch.dict(sys.modules, {
             "pearnly_cowork.history": types.SimpleNamespace(storage=storage, push_state=push_state,
                                                             document_policy=document_policy),
             "pearnly_cowork.history.storage": storage,
             "pearnly_cowork.history.push_state": push_state,
             "pearnly_cowork.history.document_policy": document_policy,
-            "pearnly_cowork.push.application": types.SimpleNamespace(api=application_api),
+            "pearnly_cowork.push.application": types.SimpleNamespace(api=application_api, service=service),
             "pearnly_cowork.push.application.api": application_api,
+            "pearnly_cowork.push.application.service": service,
             "pearnly_cowork.folder_intake.push": folder_push,
             "pearnly_cowork.assistant.tools": tools})
         patcher.start()
@@ -1728,6 +1920,15 @@ class PendingAnswerTests(unittest.TestCase):
         package.tools = tools
         self.addCleanup(lambda: setattr(package, "tools", previous) if previous else delattr(package, "tools"))
         return module, calls
+
+    def test_an_operator_document_only_remembers_the_choice_and_is_never_pushed_directly(self):
+        """主会话 10-27：交给代录、还没录成的单，在待处理里回答选择只记下，由代录去录；绝不按直写重推。"""
+        doc = Row(name="h1", push_connection="C1", push_account_set="P:\\69EXP\\TEST")
+        module, calls = self._answer(doc, {"status": "sent"}, owned=True)
+        items = json.dumps([{"kind": "item", "subject": "purchase|010|bulb", "value": "B9", "label": "LED 9W"}])
+        out = module.answer("h1", items)
+        self.assertEqual((out["status"], out["reason"]), ("operator", "push.operator_owned"))
+        self.assertEqual([call[0] for call in calls], ["save"])  # 记下了选择，没有找读文件夹的电脑、没有重推
 
     def test_answering_saves_then_pushes_again_like_cc(self):
         doc = Row(name="h1", push_connection="C1", push_account_set="S:\\69EXP\\ABC")
@@ -1791,12 +1992,14 @@ class PendingAnswerTests(unittest.TestCase):
         doc = Row(name="h1", push_connection="C1", push_account_set="S:\\69EXP\\ABC")
         module, _calls = self._answer(doc, {"status": "waiting_for_cc", "reason": "offline", "note": "for CC"})
         sys.modules["pearnly_cowork.push.application"].service = types.SimpleNamespace(
-            MASTERS_TEXT={"reading": "cowork.masters.reading", "offline": "cowork.masters.offline"})
+            MASTERS_TEXT={"reading": "cowork.masters.reading", "offline": "cowork.masters.offline"},
+            operator_owned=lambda row: False)
         self.assertEqual(module.answer("h1", "[]"), {"document": "h1", "status": "waiting_for_cc", "reason": "offline",
                                                      "reason_label": "cowork.masters.offline"})
         module, _calls = self._answer(doc, {"status": "failed", "reason": "update_needed", "note": "for CC"})
         sys.modules["pearnly_cowork.push.application"].service = types.SimpleNamespace(
-            MASTERS_TEXT={"reading": "cowork.masters.reading", "update_needed": "cowork.masters.update_needed"})
+            MASTERS_TEXT={"reading": "cowork.masters.reading", "update_needed": "cowork.masters.update_needed"},
+            operator_owned=lambda row: False)
         self.assertEqual(module.answer("h1", "[]")["reason_label"], "cowork.masters.update_needed")
 
     def test_a_document_waiting_for_an_account_set_is_switched_here(self):
@@ -3153,6 +3356,14 @@ class OverlayTests(unittest.TestCase):
                          {"item": "mixed"})
         self.assertNotIn("frappe", (APP / "push/express/company_choices.py").read_text(encoding="utf-8"))
 
+    def test_the_operators_group_rule_never_reaches_the_push(self):
+        # 代录资料区按公司记住的「分组」（主会话 10-27）：直写合并公司规则只认原来七类，这一类一律跳过、结果与没有它时一样
+        group = {"kind": "group", "subject": "party|" + OTHER_TAX + "|0", "value": "expense", "branch": ""}
+        self.assertEqual(company_choices.pick([group], ""), {})
+        rules = [self.rule("account", "5300")]
+        self.assertEqual(self.decide({}, rules + [group]), self.decide({}, rules))
+        self.assertFalse(company_choices.valid("group", "expense", None))
+
 
 class CompanyRuleTests(unittest.TestCase):
     """公司规则的存、提升、改、删（`companies.choices` + `companies.rules`）：存的同一事务删掉各账套同键的记忆；写要录入权限 +
@@ -3341,6 +3552,15 @@ class CompanyRuleTests(unittest.TestCase):
         with self.assertRaisesRegex(frappe.ValidationError, "cowork.company.choice_unsupported"):
             rules.save(self.company.name, workspace="W", kind="payment", subject=SUPPLIER, value="")
         self.assertEqual(self.stored(), [])
+
+    def test_the_operators_group_is_stored_as_a_company_rule_with_its_own_values(self):
+        subject = "party|" + OTHER_TAX + "|0"
+        rules.save(self.company.name, workspace="W", kind=rules.GROUP, subject=subject, value="expense",
+                   subject_label="Makro")
+        self.assertEqual(rules.groups(self.company.name), {subject: "expense"})
+        with self.assertRaisesRegex(frappe.ValidationError, "cowork.company.choice_unsupported"):
+            rules.save(self.company.name, workspace="W", kind=rules.GROUP, subject=subject, value="payment")
+        self.assertEqual(rules.groups(self.company.name), {subject: "expense"})
 
     def test_push_finds_the_rules_by_the_account_sets_identity(self):
         choices.promote(self.company, self.sets, self.row("express", "payment")["key"], "", "2026-09")
@@ -3713,7 +3933,8 @@ class GuardTests(unittest.TestCase):
                                  .read_text(encoding="utf-8"))
         self.assertEqual({field["fieldname"] for field in choice_meta["fields"] if field.get("unique")}, {"input_key"})
         kinds = next(field for field in choice_meta["fields"] if field["fieldname"] == "kind")["options"].split("\n")
-        self.assertEqual(tuple(kinds), importlib.import_module("pearnly_core.express_rules.push.choices").KINDS)
+        # 共用写账的七类 + 代录资料区的「分组」（只在 Cowork，推送不读）
+        self.assertEqual(tuple(kinds), importlib.import_module("pearnly_core.express_rules.push.choices").KINDS + ("group",))
         self.assertEqual(company_access.deny_query(), "1=0")
         company = json.loads((APP / "pearnly_cowork/doctype/cowork_company/cowork_company.json").read_text())
         unique = {field["fieldname"] for field in company["fields"] if field.get("unique")}

@@ -729,6 +729,7 @@ Expense (this kind from now on),費用に計上（以後も同様）
 Expense account,費用勘定
 Expense account when no category matches,区分が一致しない費用の勘定科目
 Expense it,費用計上
+Expenses,経費
 Expires At,有効期限
 Export,エクスポート
 Export Excel,Excel に出力
@@ -1281,6 +1282,7 @@ Provider Evidence,プロバイダー呼び出し証跡
 Purchase (expense),仕入（経費）
 Purchase (goods),仕入（商品）
 Purchase or sales?,仕入ですか、売上ですか？
+Purchases,仕入
 Purchases eligible for input tax credit this month,当月の仕入税額控除対象の仕入高
 Purple,紫
 Push Account Set,送信先会計データ
@@ -1491,6 +1493,7 @@ Run requested. CC Desktop starts within a few minutes.,実行を依頼しまし�
 Run time,実行時刻
 SHA-256,SHA-256
 SKU,SKU
+Sales,売上
 Sales area,販売地域
 Sales invoices,売上請求書
 Sales invoices need line items with tax-exclusive amounts before export.,売上請求書をエクスポートするには、税抜金額を含む明細が必要です。
@@ -1947,6 +1950,7 @@ This channel is not open yet,このチャンネルはまだ開放していませ
 This choice cannot be saved,この選択は保存できません
 This client still has {0} invoice record(s). Reassign them first.,この顧客には請求書の記録が {0} 件残っています。先に別の顧客へ付け替えてください。
 This computer can no longer handle this document,このコンピューターではこの書類を処理できなくなりました
+This computer cannot enter documents into Express,このコンピューターでは Express の代行入力ができません
 This connection does not support an Express CC Desktop credential.,この接続は Express 用の CC デスクトップ認証情報に対応していません。
 This connection does not support scheduled tasks.,この接続は定期タスクに対応していません。
 This connection is disabled.,この接続は無効です。
@@ -1956,6 +1960,7 @@ This delivery conflicts with the current task state.,この受領結果はタス
 This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,この書類は選択した会計データとは別の支店のものです。その支店の会計データを選んで再送してください。
 This document does not need this choice,この伝票ではこの選択は不要です
 This document format is not supported.,この文書形式には対応していません。
+This document is in an Express operator entry,この書類は Express の代行入力中です
 This document is not in Express,この伝票は Express にありません
 This document type cannot be written to Express. Check it and submit again.,この書類の種類は Express に書き込めません。確認して再送信してください
 This document was changed in Express. Check it in Express,この伝票は Express で変更されています。Express で確認してください
@@ -2281,6 +2286,9 @@ cowork.choice.vat,この領収書の税額
 cowork.company.branch_n,支店 {0}
 cowork.company.choice.fiscal_year,{0} 年度
 cowork.company.choice.goods,商品の伝票
+cowork.company.choice.group.expense,経費
+cowork.company.choice.group.purchase,仕入
+cowork.company.choice.group.sales,売上
 cowork.company.choice.service,費用に計上
 cowork.company.choice.stock,在庫に計上
 cowork.company.choice_invalid,この値は今月の帳簿のマスタにありません
@@ -3399,6 +3407,7 @@ intake.error.MISSING_CUSTOMER,顧客がありません。顧客を選択して�
 intake.error.MISSING_REF_NO,請求書番号がありません。追加して再送信してください
 intake.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
 intake.error.NO_ACCOUNT_SELECTION,この PC の CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください
+intake.error.OPERATOR_UNAVAILABLE,このコンピューターでは Express の代行入力ができません
 intake.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 intake.error.PERIOD_LOCKED,会計期間は Express で締め済みです
 intake.error.POS_INVALID,POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください
@@ -3580,6 +3589,7 @@ push.native_state_invalid,現在の送信状態ではこの操作はできませ
 push.native_target_changed,送信先が変更されました。伝票を再度準備してください。
 push.native_target_mismatch,固定された送信先が許可された送信先と一致しません。
 push.no_writer,この会計データに書き込める CC デスクトップのコンピューターがありません
+push.operator_owned,この書類は Express の代行入力中です
 push.original_reference_invalid,元の伝票の参照が無効か、アクセスできません。
 push.posting_kind_invalid,転記タイプが無効です。
 push.preparation_cancelled,未送信の準備を取り消しました。

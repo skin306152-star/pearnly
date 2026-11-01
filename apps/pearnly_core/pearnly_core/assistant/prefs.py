@@ -13,7 +13,9 @@
   （整组回到按排序方式排；对话页下次取到时跟着去掉），不因组多拒收整次——拒收时同一批的别的项也存不上，而且对话页每次回到前台
   重试都失败（审查）。公司组、置顶由对话页按字节截好再交。别的超限（各项本来远用不到）拒收，对话页照样按本机的用。
 - 过渡：旧版对话页的「恢复默认设置」只交 companies、pinned 两个空列表，不知道组里的；这样的一次（两项都交、都空）把组里的一并清掉。
-- 只收 JSON 对象，顶层只认上面三项。
+- 实操侧（operator）：手排顺序、分组视图、右栏分区开合另存一项，同样按项合并、跨设备同步；任务本身在共用层
+  `express_operator.tasks`。
+- 只收 JSON 对象，顶层只认上面四项。
 """
 import json
 import time
@@ -22,7 +24,7 @@ import frappe
 from frappe import _
 
 KEY = "pearnly_cc_layout"
-PARTS = ("order", "view", "cards")
+PARTS = ("order", "view", "cards", "operator")  # operator：实操侧自己的一份（手排顺序、分组视图、右栏分区开合），同对话按项合并
 MAX_BYTES = 32 * 1024
 IN_BYTES = 2 * MAX_BYTES  # 一次交来的上限（组里的超了在合并后按 GROUPS_BYTES 截，不拒收）
 GROUP_FIELD = "group:"  # order 里组里的一组：group:<公司编号>，最近 group:

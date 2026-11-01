@@ -44,6 +44,28 @@ class IntakeChangedTest(unittest.TestCase):
         sent = self.run_with(lambda: push_state.record_failure("H-2", "target offline"), [])
         self.assertEqual({item[1] for item in sent}, {"H-2"})
 
+    def test_a_new_reason_under_the_same_manual_status_still_reaches_the_document(self):
+        # 10-29 测试机：结果不明核对成「没有入账」，状态都是 manual、只是原因变了；票上要换成新原因，否则再推被当结果不明拦下
+        written = []
+        db = SimpleNamespace(sql=lambda *a, **k: [frappe._dict(workspace="W", client="", last_push_record="REC-5",
+                                                               last_push_status="manual",
+                                                               last_push_reason="ERP_CONFIRMED_PUSH_RESULT_UNKNOWN",
+                                                               push_connection="C", push_account_set="A")],
+                             set_value=lambda doctype, name, values, **k: written.append(values),
+                             get_value=lambda *a, **k: "u@x")
+        row = frappe._dict(name="REC-5", history="H-5", status="manual", workspace="W", client="",
+                           reason="confirmed_not_entered", connection="C", account_key="A")
+        with patch.object(frappe, "db", db, create=True), \
+                patch.object(frappe, "session", SimpleNamespace(user="p@x"), create=True), \
+                patch.object(frappe, "publish_realtime", side_effect=lambda *a, **k: None):
+            push_state.mirror(row, "t")
+            self.assertEqual(written[-1]["last_push_reason"], "confirmed_not_entered")
+            db.sql = lambda *a, **k: [frappe._dict(workspace="W", client="", last_push_record="REC-5",
+                                                   last_push_status="manual", last_push_reason="confirmed_not_entered",
+                                                   push_connection="C", push_account_set="A")]
+            push_state.mirror(row, "t")
+        self.assertEqual(len(written), 1)  # 原因也一样：不再写
+
     def test_the_push_target_is_written_to_a_document_that_had_none(self):
         # 2026-10-15 测试机：CC 先「仅识别」再推，票上推送目标空着，公司对话按账套查不到已推的票
         written = []

@@ -76,6 +76,23 @@ def test_probe_matches_grid_sorted_by_compnam(tmp_path):
     assert datat.path == str(root / "TEST")  # 相对 → 相对 express_root
 
 
+def test_rows_follow_express_byte_order_when_one_name_prefixes_another(tmp_path):
+    # 10-30 实机：TEST 登记名词间是 \xa0、从它复制出来的 TEST2 是普通空格并多了后缀；Express 的公司列表按原字节排，
+    # TEST2 在前。行号要和它一致，按行号选才进得对（同名前缀的分公司、新旧年度很常见）
+    root = tmp_path / "69EXP"
+    t = _sccomp(root)
+    t.append({"COMPNAM": "9.บริษัท\xa0Pearnly\xa0จำกัด", "COMPCOD": "DATAT", "PATH": "TEST", "CANDEL": "Y"})
+    t.append({"COMPNAM": "Z.ข้อมูลเปล่า", "COMPCOD": "DATAZ", "PATH": "DAT", "CANDEL": "N"})
+    t.append({"COMPNAM": "9.บริษัท Pearnly จำกัด TEST2", "COMPCOD": "DATAT", "PATH": "TEST2", "CANDEL": "Y"})
+    t.append({"COMPNAM": "9.บริษัท Pearnly จำกัด", "COMPCOD": "DATAT", "PATH": "TEST3", "CANDEL": "Y"})
+    t.close()
+    rows = {Path(s.path).name: s.row for s in probe_account_sets(root, include_details=False)}
+    # 原字节：「…จำกัด」（普通空格、最短）<「…จำกัด TEST2」<「…\xa0…」<「Z.」
+    assert rows == {"TEST3": 1, "TEST2": 2, "TEST": 3, "DAT": 4}
+    named = {Path(s.path).name: s.name for s in probe_account_sets(root, include_details=False)}
+    assert named["TEST"] == "9.บริษัท Pearnly จำกัด"  # 显示名照旧把 \xa0 换成空格
+
+
 def test_absolute_path_kept_cross_drive(tmp_path):
     root = tmp_path / "70EXP"
     abs_acc = tmp_path / "Sdrive" / "58ASIASP"  # 模拟 S:\... 跨盘

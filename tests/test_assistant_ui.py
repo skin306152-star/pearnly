@@ -379,9 +379,11 @@ class ShortcutTests(unittest.TestCase):
                 hints.append(re.search(r'keys="([^"]+)"', line).group(1))
             if name != "components/shortcut.tsx":
                 self.assertNotIn("<kbd", text, name)
-        # 用户菜单的设置，桌面端应用菜单的新建 / 设置 / 重新加载 / 缩放，设置里快捷提问的组合键
-        self.assertEqual(sorted(hints), sorted(["Ctrl ,", "Ctrl N", "Ctrl ,", "Ctrl R", "Ctrl =", "Ctrl -", "Ctrl 0",
-                                                "Ctrl + Alt + Space"]))
+        # 用户菜单的设置，桌面端应用菜单的新建 / 对话 / 代录 / 设置 / 重新加载 / 缩放，设置里快捷提问的组合键。
+        # 对话 / 代录用 Ctrl + Shift + 1 / 2（2026-10-27 主会话定）：Ctrl / ⌘ + 1–9 在桌面窗口已是「打开第 n 条对话」
+        # （lib/sidebar-keys.ts，要求没按 Shift），浏览器里 Ctrl + 数字是切标签页
+        self.assertEqual(sorted(hints), sorted(["Ctrl ,", "Ctrl N", "Ctrl Shift 1", "Ctrl Shift 2", "Ctrl ,", "Ctrl R", "Ctrl =",
+                                                "Ctrl -", "Ctrl 0", "Ctrl + Alt + Space"]))
 
     def test_one_touch_detection_for_the_whole_page(self):
         # 三种触屏判定各管各的（标准化记录 3.4）：lib/touch.ts 的 touchOnly()（hover: none）管「没有悬停」时的行为；
@@ -2748,7 +2750,8 @@ class CompanyMasterSourceTests(unittest.TestCase):
 
     def test_deep_links_for_companies_tasks_and_pending(self):
         nav = read("lib/nav.ts")
-        self.assertIn('export type View = "chat" | "tasks" | "companies" | "company" | "pending";', nav)
+        # operator：代录模式（评估 2026-10-26-express-operator-product-评估.md §10，左上角「对话 | 代录」）
+        self.assertIn('export type View = "chat" | "tasks" | "companies" | "company" | "pending" | "operator";', nav)
         self.assertIn('url.searchParams.delete("company");', nav)
         self.assertIn("useCompanyNav.setState({ taskCompany: company });", nav)
 
@@ -3277,7 +3280,8 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn('<ChevronRightIcon className="cc-group-caret" aria-hidden />', header)  # 名字后的 12px 箭头
         self.assertLess(header.index("cc-group-name"), header.index("cc-group-caret"))
         projects = read("components/assistant-ui/projects.tsx")
-        head = projects.split("export const ProjectHeader = memo(function ProjectHeader(", 1)[1].split("\n});\n", 1)[0]
+        head = projects.split("export const ProjectHeader = memo(function ProjectHeader(", 1)[1].split("\n});\n", 1)[0] + \
+            projects.split("export function CompanyHeaderView(", 1)[1].split("\n}\n", 1)[0]   # 组头的样子在共用的 CompanyHeaderView
         self.assertIn("onClick={() => go(() => openPending(project.id))}", head)   # 待处理数：只看这家
         # 右侧：待处理数、···（分组和排序）、新建（新建在最右，悬停才出）
         order = [head.index(x) for x in ('className="cc-group-count"', "<GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} />", "<GroupNew ")]
@@ -3300,7 +3304,8 @@ class SidebarShellSourceTests(unittest.TestCase):
         projects = read("components/assistant-ui/projects.tsx")
         rows = read("components/assistant-ui/thread-list.tsx")
         css = read("globals.css")
-        head = projects.split("export const ProjectHeader = memo(function ProjectHeader(", 1)[1].split("\n});\n", 1)[0]
+        head = projects.split("export const ProjectHeader = memo(function ProjectHeader(", 1)[1].split("\n});\n", 1)[0] + \
+            projects.split("export function CompanyHeaderView(", 1)[1].split("\n}\n", 1)[0]   # 组头的样子在共用的 CompanyHeaderView
         header = group.split("export const GroupHeader: FC", 1)[1].split("\n);\n", 1)[0]
         # A：公司组头最左是公司图标（同原来「打开公司」那个 Building2Icon），然后公司名；名字同会话行标题的字号字色，
         #    这家的对话行缩进到公司名起点；已置顶 / 最近 / 月份不带图标、不缩进
@@ -3349,10 +3354,12 @@ class SidebarShellSourceTests(unittest.TestCase):
         others = rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0]
         # 已置顶 / 最近 / 月份组标题：受控的「···」，菜单键也打开它（第 5 轮视觉审查），「最近」另有「＋」
         section_header = others.split("const SectionHeader: FC", 1)[1].split("\n};\n", 1)[0]
-        self.assertIn('<GroupHeader label={label} open={open} onToggle={onToggle} data-open={menuOpen || undefined} onMenuKey={() => setMenuOpen(true)}>\n'
-                      '      <GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} />\n'
+        self.assertIn('<GroupHeader label={label} open={open} onToggle={onToggle} data-open={menuOpen || undefined} onMenuKey={menu ? () => setMenuOpen(true) : undefined}>\n'
+                      '      {menu && <GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} />}\n'
                       '      {onNew && <GroupNew onClick={onNew} />}', section_header)
-        self.assertEqual(others.count('onNew={() => newChatIn("")}'), 2)   # 最近（按公司，拖动中临时的「最近」同一处 / 不分组）
+        # 「最近」的「＋」（按公司、不分组两处同一个回调）；对话侧的组标题都有「···」（sortMenu），实操的任务侧栏没有
+        self.assertEqual(others.count('onNew={onNewRecent}'), 2)
+        self.assertIn('onNewRecent={() => newChatIn("")}\n      sortMenu\n', others)
         self.assertNotIn("<GroupSortMenu />", others)
         # 公司页仍有路：会话栏公司卡的名称（顶栏「公司名 ›」、手机胶囊菜单打开会话栏），公司列表页的卡片
         self.assertIn("onClick={() => openCompany(c.id)}", read("components/session-panel.tsx"))
@@ -3449,9 +3456,11 @@ class SidebarShellSourceTests(unittest.TestCase):
         rows = read("components/assistant-ui/thread-list.tsx")
         self.assertNotIn("BulkBar", rows)
         bulk = rows.split("const BulkItems: FC", 1)[1]
-        self.assertIn("sb.pinN(ids.length)", bulk)
-        self.assertIn("sb.unpinN(ids.length)", bulk)
-        self.assertIn("sb.deleteN(ids.length)", bulk)
+        # 菜单的样子在共用的 BulkMenu（实操的任务行同一份），条数按列表里还在的算
+        self.assertIn("<BulkMenu count={ids.length} allPinned={allPinned} onPinAll={pinAll} onDeleteAll={deleteAll} close={close} />", bulk)
+        self.assertIn("sb.pinN(count)", bulk)
+        self.assertIn("sb.unpinN(count)", bulk)
+        self.assertIn("sb.deleteN(count)", bulk)
         self.assertEqual(bulk.count("runInOrder("), 2)
         self.assertIn("await starChat(item, !allPinned, [...back]);", bulk)   # starChat 保留 custom 里别的键
         # 用户 10-17：多选菜单的「移到… (N)」删了（对话不能换公司）
@@ -3471,7 +3480,8 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("if (isMobile || !companies || (event.target as HTMLElement).closest(", rows)
         self.assertIn("const bulk = companies && selection.length > 1 && selection.includes(localId);", rows)
         self.assertIn("selectRange(rowOrder(event.currentTarget), localId, currentRow(event.currentTarget));", rows)
-        self.assertIn("const keys = useSidebarKeys(companies);", read("assistant.tsx"))
+        # 实操的任务侧栏总是按公司分组：多选、⌘ / Ctrl + 数字同 Cowork 的对话侧栏
+        self.assertIn("const keys = useSidebarKeys(companies || operator);", read("assistant.tsx"))
         # ERP / DMS 的日期组开关也在 roving 那一组里（↑ ↓ 不跳过、Tab 不单独停）：电脑上同 Cowork 的组标题（GroupHeader 的开关带
         # data-roving，第 11 轮按钮排查 M6）
         day = rows.split("const DayGroups: FC", 1)[1].split("\n};\n", 1)[0]
@@ -4602,6 +4612,8 @@ class AttachmentCardSourceTests(unittest.TestCase):
     def test_in_place_rename_looks_like_claude_code_and_focus_is_never_clipped(self):
         rows = read("components/assistant-ui/thread-list.tsx")
         rename = rows.split("export const ThreadListItemRename", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn("return <InlineRename value={title} onSave={(next) => void aui.threadListItem().rename(next)} onDone={onDone} className={className} />;", rename)
+        rename = rows.split("export const InlineRename", 1)[1].split("\n};\n", 1)[0]   # 输入框本身（任务行、标题栏同一个）
         self.assertIn('className = "cc-row-edit"', rename)
         self.assertIn('className={cn("cc-inline-edit", className)}', rename)
         self.assertNotIn("cc-input", rename)
@@ -5913,7 +5925,7 @@ assert.equal(row.attrs.get("data-row-id"), "t1");
         self.assertIn("<span ref={first} hidden />", groups)
         self.assertIn("setReveal(false);", groups.split("const onActive = (", 1)[1].split("\n  };\n", 1)[0])
         self.assertIn("if (guest) return pinGuest(sections, guest.index, guest.at);", groups)
-        self.assertIn("<PinnedGroup open={pinsOpen} onToggle={tempPins ? () => undefined : () => toggleSection({ key: \"pinned\" })}>", groups)
+        self.assertIn("<PinnedGroup open={pinsOpen} menu={sortMenu} onToggle={tempPins ? () => undefined : () => toggleSection({ key: \"pinned\" })}>", groups)
         self.assertIn('document.documentElement.dataset.ccDragBulk = "";', groups)
         # 指针进了已置顶（指着置顶的某一行或整块）就排进去，回到自己那一组就挪回去；收着的已置顶只高亮组头
         over = groups.split("const onOver = (", 1)[1].split("\n  };\n", 1)[0]
@@ -5930,11 +5942,14 @@ assert.equal(row.attrs.get("data-row-id"), "t1");
         self.assertIn("const keys = placeBlock(pinDrop(pinIds, active.id, target).map(keyOfDrag), anchor, block);", pin)
         self.assertLess(pin.index("setPinnedOrder(keys);"), pin.index("void runInOrder("))
         self.assertIn("forgetInGroups(block);", pin)
-        self.assertIn("if (!custom?.starred) await item.updateCustom({ ...custom, starred: true });", pin)
+        self.assertIn("void runInOrder(todo, pinOne, onError).finally(() => {", pin)
+        # 对话侧逐条置顶的那一步（pinOne）：已置顶的不再置顶，保留 custom 里别的键
+        self.assertIn("if (!custom?.starred) await item.updateCustom({ ...custom, starred: true });", groups)
         group = groups.split("const groupDropped = (", 1)[1].split("\n  };\n", 1)[0]
         # at 取这组此刻各行里最新的时间（不用本机时钟）；拖的这一条与整块记进去，落点不因条数上限丢
-        self.assertIn("setGroupOrder(group, placeBlock(next.map(keyOfDrag), keyOfDrag(active.id), block), stampOf(group), [keyOfDrag(active.id), ...block]);", group)
-        self.assertIn("return groupStamp(indices.flatMap((index) => rowAt.get(index) ?? ([] as SidebarRow[])), { by: view.sort, desc: view.desc });", groups)
+        self.assertIn("orders.setGroupOrder(group, placeBlock(next.map(keyOfDrag), keyOfDrag(active.id), block), stampOf(group), [keyOfDrag(active.id), ...block]);", group)
+        self.assertIn("return groupStamp(indices.flatMap((index) => rowAt.get(index) ?? ([] as SidebarRow[])), sort);", groups)
+        self.assertIn("sort={{ by: view.sort, desc: view.desc }}", groups)
         self.assertIn("return spotIn(save(group, moveBy(idsOf(group), id, delta), [id]), id);", groups)
         # 侧栏里没有这家公司了：这一组手排的先后整组去掉（公司列表读到了才算，最近不算）
         self.assertIn('const gone = Object.keys(order.groups).filter((group) => group && !known.has(group));', groups)
@@ -5945,7 +5960,8 @@ assert.equal(row.attrs.get("data-row-id"), "t1");
         self.assertIn("const ROW_SKIP = '[data-slot=\"aui_thread-list-item-more\"], [role=\"menu\"], input';", rows)
         self.assertIn('useSortableItem({ id, kind: "pin", label: title, list: PINS }, { disabled: scope.locked, ownFocus: true, skip: ROW_SKIP });', rows)
         self.assertIn("const locked = scope.locked || !remoteId;", rows)
-        self.assertIn("{ id, kind: \"row\", label: count ? sb.drag.items(count) : title, list: rowList(scope.group), group: scope.group, count: count || undefined, session: remoteId },", rows)
+        self.assertIn("{ id, kind: \"row\", label: count ? items(count) : title, list: rowList(scope.group), group: scope.group, count: count || undefined, session: remoteId },", rows)
+        self.assertIn("useGroupRowDrag(scope, localId, remoteId, title, sb.drag.items);", rows)   # 对话行的条数说「N 个对话」
         self.assertIn("if (scope?.mode === \"pin\") return scope.guest?.local === localId ? <GroupRow scope={scope.guest.scope} /> : <PinnedRow scope={scope} />;", rows)
         row = rows.split("\nconst Row = memo(function Row(", 1)[1].split("\nconst RowMeta: FC", 1)[0]
         self.assertIn("if (onMove && altMove(e, onMove)) return;", row)
@@ -6804,7 +6820,8 @@ assert.equal(spotIn(["a"], "x"), null);
         rows = read("components/assistant-ui/thread-list.tsx")
         # 同一份回调（第 10 轮 B 段：行记住，拖动库重画时不跟着重画）
         self.assertEqual(rows.count("const onMove = useCallback((delta: -1 | 1) => said(scope.move(id, delta)), [said, scope, id]);"), 2)
-        self.assertIn("<Row drag={drag} onMove={scope.locked ? undefined : onMove} />", rows)
+        self.assertIn("return { drag, onMove: scope.locked ? undefined : onMove };", rows)   # 置顶行（usePinRowDrag，任务行同一份）
+        self.assertIn("return { drag, onMove: locked ? undefined : onMove };", rows)        # 组里的行（useGroupRowDrag）
         self.assertIn('move: (id, delta) => spotIn(pinsNow.current.save(moveBy(pinsNow.current.ids, id, delta)), id)', rows)
         self.assertIn("pinsNow.current = { ids: pinIds, save: savePins };", rows)
         cards = read("components/company-cards.tsx")
@@ -7838,7 +7855,7 @@ assert.deepEqual(server.order.pinned, ["s1", "s3"]);
         self.assertIn("refetch ||= again;", sync)
         self.assertIn("if (timer !== null && !refetch) {", sync)
         order = read("lib/managed-agents/sidebar-order.ts")
-        unpin = order.split("export async function unpinChat(", 1)[1].split("\n}\n", 1)[0]
+        unpin = order.split("async function unpinChat(", 1)[1].split("\n  }\n", 1)[0]   # 在 createSidebarOrder 实例里
         self.assertLess(unpin.index("unpinSettled(key, true);"), unpin.index("forgetPinned([key]);"))
 
     def test_coming_back_and_unknown_chats_follow_new_activity(self):

@@ -1,0 +1,127 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-10-27 20:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "product",
+  "company",
+  "company_title",
+  "period",
+  "title",
+  "starred",
+  "status",
+  "computer",
+  "start_at",
+  "started_at",
+  "finished_at",
+  "session_id",
+  "controls",
+  "documents"
+ ],
+ "fields": [
+  {
+   "fieldname": "product",
+   "fieldtype": "Select",
+   "label": "Product",
+   "options": "cowork\nerp",
+   "reqd": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Data",
+   "label": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company_title",
+   "fieldtype": "Data",
+   "label": "Company Title"
+  },
+  {
+   "fieldname": "period",
+   "fieldtype": "Data",
+   "label": "Period"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title"
+  },
+  {
+   "fieldname": "starred",
+   "fieldtype": "Check",
+   "label": "Starred",
+   "default": "0"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "preparing\nqueued\nrunning\nattention\nfinished\nstopped",
+   "default": "preparing",
+   "reqd": 1
+  },
+  {
+   "fieldname": "computer",
+   "fieldtype": "Data",
+   "label": "Computer"
+  },
+  {
+   "fieldname": "start_at",
+   "fieldtype": "Datetime",
+   "label": "Start At"
+  },
+  {
+   "fieldname": "started_at",
+   "fieldtype": "Datetime",
+   "label": "Started At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "finished_at",
+   "fieldtype": "Datetime",
+   "label": "Finished At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "session_id",
+   "fieldtype": "Data",
+   "label": "Conversation",
+   "length": 140,
+   "read_only": 1
+  },
+  {
+   "fieldname": "controls",
+   "fieldtype": "Long Text",
+   "label": "Pending Controls",
+   "read_only": 1
+  },
+  {
+   "fieldname": "documents",
+   "fieldtype": "Table",
+   "label": "Documents",
+   "options": "Pearnly Express Operator Task Document"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-30 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly Express Operator Task",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

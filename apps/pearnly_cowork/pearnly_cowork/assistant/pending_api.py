@@ -56,6 +56,11 @@ def answer(document, items):
         application_api.save_choices(name, doc.push_connection, doc.push_account_set or None,
                                      json.dumps(parsed, ensure_ascii=False))
         frappe.db.commit()
+    from pearnly_cowork.push.application import service as application
+
+    if application.operator_owned(doc):
+        # 归代录的单：选择记下就好，由代录去录；这里不按直写重推（主会话 10-27）
+        return _answer(name, {"status": "operator", "reason": application.OPERATOR_OWNED})
     from pearnly_cowork.assistant import tools  # CC 工具模块很大：只在真要推时加载
 
     result = tools._push_one(name, route_device=_reader(name, doc.push_connection))

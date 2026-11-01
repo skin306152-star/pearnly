@@ -39,7 +39,12 @@ from typing import Optional
 # ERP 多仓闭环 P2)。旧版把 RL 当未知单别拒收或当领用写,所以盖 14,旧版诚实拒收、派单只交给报过支持 14 的电脑。
 # 15:库存单 / 调拨的明细可带 ``new_ok``(Express 里没有、人在 ERP 里选了新建的商品;多仓闭环 P3x):写前备份里建 0 余额存货再写
 # (dbf_stock.create_new_items,与采购 / 销售同一个建档)。旧版认不出就整单停 STOCK_ITEM_NOT_FOUND,所以盖 15,旧版诚实拒收。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
+# 16：代录 Express（``entry_mode = operator``，评估 docs/work/2026-10-26-express-operator-product-评估.md）：同一份载荷不直写 DBF，
+# 交给代录在 Express 界面里一张张录，带 ``operator.batch``（批次号、第几张 / 共几张、开始时刻）与 ``operator.vat_included``。
+# 旧版会把它当直写写进 DBF（入口分开的口径就破了），所以盖 16，旧版诚实拒收、派单只交给报过支持 16 的电脑。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
+OPERATOR_PAYLOAD_VERSION = 16
+ENTRY_OPERATOR = "operator"
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

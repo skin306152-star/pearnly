@@ -104,7 +104,9 @@ Change password,เปลี่ยนรหัสผ่าน
 Change your password and sign out other devices on the account page of the identity service,กรุณาเปลี่ยนรหัสผ่านและออกจากระบบอุปกรณ์อื่นในหน้าบัญชีของบริการยืนยันตัวตน
 Change your password from your account profile using Change Password.,กรุณาเปลี่ยนรหัสผ่านเข้าสู่ระบบด้วย «เปลี่ยนรหัสผ่าน» ในข้อมูลส่วนตัว
 Charges,รายการหักเงิน
+Checked the hands-on task,ตรวจสอบงานทำใน Express แล้ว
 Checked your account,ตรวจสอบข้อมูลบัญชีแล้ว
+Checking the hands-on task,กำลังตรวจสอบงานทำใน Express
 Checking your account,กำลังตรวจสอบข้อมูลบัญชี
 Checkpoint Key,คีย์จุดตรวจสอบ
 Checkpoints,จุดตรวจสอบ
@@ -120,6 +122,7 @@ Company List,รายชื่อบริษัท
 Company Master,ข้อมูลหลักบริษัท
 Company Profile,ข้อมูลบริษัท
 Company Tax ID,เลขประจำตัวผู้เสียภาษีของบริษัท
+Company Title,ชื่อบริษัท
 Configuration is complete. The connection was not tested.,ตั้งค่าครบถ้วน ยังไม่ได้ทดสอบการเชื่อมต่อจริง
 Confirm,ยืนยัน
 Confirm new password,ยืนยันรหัสผ่านใหม่
@@ -280,6 +283,7 @@ Export details,ส่งออกรายละเอียด
 Exporting…,กำลังส่งออก…
 Express Document Number,เลขที่เอกสาร Express
 Express Index Tool,โปรแกรมดัชนี Express
+Express Number,เลขที่ Express
 Express Push Guide,คู่มือการส่งเข้า Express
 External Doc No,เลขเอกสารภายนอก
 External ERP Push,ส่งข้อมูลเข้า ERP ภายนอก
@@ -469,6 +473,7 @@ Open in browser,เปิดในเบราว์เซอร์
 "Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.",เปิด การตั้งค่า → แอปพลิเคชัน → LINE → การอนุญาต → กล้อง เลือก อนุญาต แล้วกลับมาที่ LINE ระบบจะเริ่มสแกนใหม่เอง
 Operator,พนักงาน
 Operator Roster,ทะเบียนพนักงาน
+Operator Task,งานทำใน Express
 Operator added,เพิ่มพนักงานแล้ว
 Operator list,รายชื่อพนักงาน
 Operators,พนักงาน
@@ -499,6 +504,7 @@ Pearnly Dark,Pearnly โหมดมืด
 Pearnly Light,Pearnly โหมดสว่าง
 Pending,รอดำเนินการ
 Pending Carry-over,เนื้อหาที่รอโอนต่อ
+Pending Controls,การดำเนินการที่รออยู่
 Pending review,รอตรวจสอบ
 Period End,สิ้นงวด
 Period Start,ต้นงวด
@@ -637,6 +643,7 @@ Source,ที่มา
 Source Attachment,ไฟล์แนบต้นฉบับ
 Stage,ขั้นตอน
 Starred,ติดดาว
+Start At,เวลาเริ่ม
 State,สถานะ
 Status,สถานะ
 Status cannot go backwards: {0} → {1},ไม่สามารถย้อนสถานะกลับได้: {0} → {1}
@@ -795,6 +802,8 @@ Unit,หน่วย
 Unit Price,ราคาต่อหน่วย
 Unit price,ราคาต่อหน่วย
 Unknown product: {0},ผลิตภัณฑ์ที่ไม่รู้จัก: {0}
+Updated the hands-on task,อัปเดตงานทำใน Express แล้ว
+Updating the hands-on task,กำลังอัปเดตงานทำใน Express
 Upload,อัปโหลด
 Upload a transfer slip before submitting,กรุณาอัปโหลดหลักฐานการโอนก่อนส่ง
 Upload a transfer slip up to 10 MB,กรุณาอัปโหลดหลักฐานการโอนขนาดไม่เกิน 10 MB
@@ -819,6 +828,7 @@ VAT Rate %,อัตราภาษี %
 VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,ร่างแบบ ภ.พ.30 และ ภ.ง.ด.3 / ภ.ง.ด.53 พร้อมตรวจภาษีซื้อ
 Valid for {0},เหลืออายุ {0}
 Verify State,ผลการตรวจสอบ
+Voided Number,เลขที่ที่ยกเลิก
 WHT deducted,ภาษีหัก ณ ที่จ่าย
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},รอ {0} วินาทีแล้วยังไม่สามารถขอล็อกของบัญชีเดียวกันได้ ({1}) ไม่สามารถเข้าสู่ระบบบัญชีเดียวกันพร้อมกันได้ {2}
 Warehouses,คลังสินค้า

@@ -274,6 +274,9 @@ class MultiProfileWorker:
             if task is None:
                 self._flush_batch(state)
                 self._emit_status(state, "idle")
+                from .worker import operator_idle
+
+                operator_idle()  # 代录过的话：剩下的单迟迟不来就退出 Express（没代录过什么都不做）
                 continue
 
             self._emit_status(

@@ -5,6 +5,8 @@
 //           lib/managed-agents/sidebar-order.ts）
 //   view  — 侧栏「分组和排序」（by / sort / desc / meta / empty；lib/managed-agents/sidebar-view.ts）
 //   cards — 右侧会话栏卡片的顺序与开合（order / collapsed；lib/company-panel.ts）
+//   operator — 实操侧自己的一份，几块拼成（registerPref 的 prefix）：order/… 侧栏手排顺序（同 order 的各项，另一份实例）、
+//           cards/… 右栏分区开合（components/operator/prefs.ts）。任务号不进对话那几份
 //
 // 侧栏各组的折叠（sidebar-fold.ts）、会话栏停靠时开着没有仍按设备记，不同步。
 //
@@ -71,8 +73,36 @@ let listening = false;
 let fetching = false;
 let syncing: { who: string; done: Promise<void> } | null = null;
 
-export function registerPref(name: string, part: PrefPart) {
-  parts.set(name, part);
+// 一份由几块拼成（实操侧 operator：手排顺序 order/…、右栏分区开合 cards/…，各自的模块登记一块）：块按项名前缀分开
+type Slice = { prefix: string; part: PrefPart };
+const slices = new Map<string, Slice[]>();
+
+/** 登记一份（prefix 空 = 整份；给了 = 这一份里项名以 prefix 开头的那一块，同一份的几块合起来同步）。 */
+export function registerPref(name: string, part: PrefPart, prefix = "") {
+  const list = [...(slices.get(name) ?? []).filter((slice) => slice.prefix !== prefix), { prefix, part }];
+  slices.set(name, list);
+  parts.set(name, list.length === 1 && !prefix ? part : composed(list));
+}
+
+/** 几块拼成的一份：读、迁移、换成服务端的、以服务端为准都按前缀交给各块（交给块的项名去掉前缀）。 */
+function composed(list: readonly Slice[]): PrefPart {
+  const owner = (field: string) => list.find((slice) => slice.prefix && field.startsWith(slice.prefix)) ?? list.find((slice) => !slice.prefix);
+  return {
+    read: () =>
+      Object.fromEntries(list.flatMap((slice) => Object.entries(slice.part.read()).map(([field, value]) => [slice.prefix + field, value]))),
+    changed: () => list.some((slice) => slice.part.changed()),
+    apply: (value, who) => {
+      const fields = value && typeof value === "object" ? Object.entries(value as Record<string, unknown>) : [];
+      for (const slice of list) {
+        const mine = fields.filter(([field]) => owner(field) === slice).map(([field, v]) => [field.slice(slice.prefix.length), v]);
+        slice.part.apply(Object.fromEntries(mine), who);
+      }
+    },
+    serverOwns: (field) => {
+      const slice = owner(field);
+      return !!slice?.part.serverOwns?.(field.slice(slice.prefix.length));
+    },
+  };
 }
 
 function storage(): Storage | null {

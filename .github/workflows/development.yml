@@ -57,6 +57,10 @@ jobs:
         run: python3 tests/test_erp_stock_attachments.py
       - name: CC Desktop shared machine channel (register, routing, writer lock, receipts, on-demand requests)
         run: python3 tests/test_cc_desktop_channel.py
+      - name: Express operator shared rules match CC Desktop, and the trial comparison report puts the three methods side by side
+        run: python3 tests/test_express_operator_shared.py
+      - name: Express operator tasks are visible only to their creator, settle from product receipts and list server-side
+        run: python3 tests/test_express_operator_tasks.py
       - name: ERP master records synced from Express keep their identity fields
         run: python3 tests/test_erp_express_locks.py
       - name: ERP product internal code (typed for local products, the Express code for synced ones; scans, stocktake and the product template read it)
@@ -270,6 +274,8 @@ jobs:
         run: python3 tests/test_cc_mobile_overlays.py
       - name: Verify the ccs values match the official table and cards in the conversation follow the card rules
         run: python3 tests/test_cc_ccs.py
+      - name: CC Express operator frontend (prepare, run, report) on a mock source in three languages, reason codes identical to CC Desktop
+        run: python3 tests/test_cc_operator.py
       - name: Verify the CC title bar, right session panel, company page and list pages (shell line B)
         run: python3 tests/test_cc_session_panel.py
       - name: Verify the month-end ledger card and company page section (digital accountant phase 1)

@@ -258,6 +258,14 @@ const ThreadMessage: FC = () => {
   return <AssistantMessageComponent />;
 };
 
+/** 只画消息（同对话里那样一条条）：实操任务页的对话用（components/operator/task-thread.tsx），套在实操自己的运行时里，
+ *  滚动、输入框由任务页管。 */
+export const ThreadMessages: FC = () => (
+  <div data-slot="aui_message-group" className="flex flex-col gap-y-(--cc-turn-gap) empty:hidden">
+    <ThreadPrimitive.Messages>{() => <ThreadMessage />}</ThreadPrimitive.Messages>
+  </div>
+);
+
 // ── 提醒卡片 ───────────────────────────────────────────────────────────────────────────────────────
 
 type MessageLike = { metadata?: { custom?: Record<string, unknown> } };
@@ -331,11 +339,14 @@ const ThreadScrollToBottom: FC = () => {
   );
 };
 
-const Composer: FC = () => {
-  const { Chin } = useContext(ThreadComponentsContext);
+/** 输入框。实操的主栏用的也是它（components/operator/workspace.tsx，套在实操自己的运行时里）：placeholder 换成实操的问句；
+ *  draft 关掉——实操发出的字不写进对话的发送草稿（DraftWatcher）；chin 是实操自己的下巴（公司、月份）。 */
+export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: ComponentType }> = ({ placeholder: fixed, draft = true, chin }) => {
+  const { Chin: threadChin } = useContext(ThreadComponentsContext);
+  const Chin = chin ?? threadChin;
   // 新对话问「今天能帮你做什么」，对话里就是「回复…」（同 Claude）；打开已有对话、消息还在加载时也已经是「回复…」
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0 || !!s.threadListItem.remoteId);
-  const placeholder = hasMessages ? t("reply") : t("placeholder");
+  const placeholder = fixed ?? (hasMessages ? t("reply") : t("placeholder"));
   // 没在输入、也没有字和附件时标 data-collapsed：手机上收成一行胶囊（「＋」、占位字，同 Claude 手机端），点进去展开成
   // 两行（输入在上、按钮在下）；电脑不按它变（globals.css 只在手机外壳里用）
   const [typing, setTyping] = useState(false);
@@ -376,7 +387,7 @@ const Composer: FC = () => {
           data-collapsed={!typing && empty ? "" : undefined}
         >
           <ComposerAttachments />
-          <DraftWatcher />
+          {draft && <DraftWatcher />}
           <ComposerPrimitive.Input
             ref={input}
             placeholder={placeholder}
@@ -587,8 +598,19 @@ const RunIndicator: FC<{ className?: string }> = ({ className }) => {
   const start = turnStartedAt(snapshot.messages, lastSendAt(), sending, now) ?? now;
   // 等用户回答时同以前收起状态行一样记（不计进「思考了几秒」）
   const thought = thinking.note(waiting ? "hidden" : activity.kind, start, Date.now());
-  if (waiting) {
-    if (phone) return null;
+  if (waiting) return phone ? null : <RunLine kind="input" className={className} />;
+  if (!visible) return null;
+  const step = activity.kind === "tool" ? runningStepLabel(activity.toolName, activity.args, labels) : "";
+  const text = statusText(activity, Math.floor((now - start) / 1000), thought, step);
+  // 读屏只报在做什么，不每秒报一次计时
+  const label = activity.kind === "tool" ? step : activity.kind === "reconnecting" ? text : steps.thinking;
+  return <RunLine kind={activity.kind} text={text} label={label} className={className} />;
+};
+
+/** 工作状态行的样子（对话的 RunIndicator 与实操任务页的状态共用，operator/task-thread.tsx）：等人时橙色小点 +「需要您的输入」，
+ *  其余在动的小点 + 一行字（text，读屏报 label）。 */
+export const RunLine: FC<{ kind: string; text?: string; label?: string; className?: string }> = ({ kind, text = "", label = "", className }) => {
+  if (kind === "input") {
     return (
       <div data-slot="cc-run-indicator" data-kind="input" className={cn("flex min-w-0 items-center font-sans", className)}>
         <span className="cc-needs-input-dot" aria-hidden="true" />
@@ -596,13 +618,8 @@ const RunIndicator: FC<{ className?: string }> = ({ className }) => {
       </div>
     );
   }
-  if (!visible) return null;
-  const step = activity.kind === "tool" ? runningStepLabel(activity.toolName, activity.args, labels) : "";
-  const text = statusText(activity, Math.floor((now - start) / 1000), thought, step);
-  // 读屏只报在做什么，不每秒报一次计时
-  const label = activity.kind === "tool" ? step : activity.kind === "reconnecting" ? text : steps.thinking;
   return (
-    <div data-slot="cc-run-indicator" data-kind={activity.kind} className={cn("flex min-w-0 items-center font-sans", className)}>
+    <div data-slot="cc-run-indicator" data-kind={kind} className={cn("flex min-w-0 items-center font-sans", className)}>
       <TypingDots label={label} showLabel={false} />
       <Marquee className="typing-dots-label ms-(--cc-dots-gap) min-w-0 truncate" aria-hidden="true">{text}</Marquee>
     </div>
@@ -610,7 +627,7 @@ const RunIndicator: FC<{ className?: string }> = ({ className }) => {
 };
 
 /** 显示时每秒走一次的本页时钟。 */
-function useClock(running: boolean): number {
+export function useClock(running: boolean): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!running) return;

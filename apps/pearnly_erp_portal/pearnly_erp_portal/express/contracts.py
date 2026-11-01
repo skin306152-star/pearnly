@@ -45,6 +45,8 @@ REFUND_CROSS_YEAR = "express.pos_refund_cross_year"  # 原 HS 与退货在不同
 WAREHOUSE_UNMAPPED = "express.warehouse_unmapped"
 # 盘点调整里有还没有 Express 编码的商品（盘点当场新建的）：本批写 TK 前停下交人，CC 在 TK 里建档另排（用户 10-29 批复 #7）
 ITEM_UNMAPPED = "express.item_unmapped"
+# 交给代录、还没录成的单（最近一件写账是代录交的）：直写、「再写一次」都不接，由代录去录（主会话 10-27）
+OPERATOR_OWNED = "express.operator_owned"
 REFUND_ORIGINAL_MANUAL = "express.pos_refund_original_manual"  # 原 HS 是人手工处理的：Express 单号不知道，退货单也要手工处理
 DISCONNECTED = "express.disconnected"  # 断开 Express 时还没写进去（`push.detach`）
 CHOICE = "choice_needed"

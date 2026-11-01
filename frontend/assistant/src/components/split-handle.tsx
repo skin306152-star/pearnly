@@ -2,9 +2,10 @@ import { t } from "@/i18n";
 import { cssPx, cssVar, rootFontPx } from "@/lib/css-var";
 import { useCallback, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 
-// 三栏都能拖（同 claude.ai）：左侧栏右边、右侧结果面板左边各有一条分隔条。按住左右拖动调宽度，双击或回车恢复默认，
+// 三栏都能拖（同 claude.ai）：左侧栏右边、右侧结果面板左边、实操右侧栏左边各有一条分隔条。按住左右拖动调宽度，双击或回车恢复默认，
 // 方向键微调。宽度记在本机；默认值和最窄 / 最宽都在 globals.css（--cc-sidebar-w / --cc-sidebar-min-w / --cc-sidebar-max-w，
-// --cc-results-share / --cc-results-min-w / --cc-chat-min-w），这里只在拖动时把新值写回同一个变量。
+// --cc-results-share / --cc-results-min-w / --cc-chat-min-w，--cc-op-panel-w / --cc-op-panel-min-w / --cc-op-panel-max-w），这里只在拖动时
+// 把新值写回同一个变量。
 
 const STEP_PX = 16;
 
@@ -81,7 +82,26 @@ export const sidebarSize = {
   },
 };
 
-type Size = typeof resultsSize | typeof sidebarSize;
+/** 实操的右侧栏（并排时）：按像素宽（宽 = 它的右边 − 指针），夹在 --cc-op-panel-min-w 与 --cc-op-panel-max-w 之间，主栏不窄于
+ *  --cc-chat-min-w。方向键 ← 变宽、→ 变窄（分隔条在它左边）。 */
+export const operatorPanelSize = {
+  key: "cc.operator.panel.width",
+  cssVar: "--cc-op-panel-w",
+  unit: "px" as const,
+  fromPointer(panel: HTMLElement, x: number) {
+    return this.limit(panel, panel.getBoundingClientRect().right - x);
+  },
+  step(panel: HTMLElement, towardStart: boolean) {
+    return this.limit(panel, panel.getBoundingClientRect().width + (towardStart ? STEP_PX : -STEP_PX));
+  },
+  limit(panel: HTMLElement, width: number) {
+    const area = panel.parentElement?.getBoundingClientRect().width ?? 0;
+    const room = area > 0 ? area - px(panel, "--cc-chat-min-w") : Number.POSITIVE_INFINITY;
+    return clamp(width, px(panel, "--cc-op-panel-min-w"), Math.min(px(panel, "--cc-op-panel-max-w"), room));
+  },
+};
+
+type Size = typeof resultsSize | typeof sidebarSize | typeof operatorPanelSize;
 
 /**
  * 分隔条。`edge` 是它贴在所属那一栏的哪一边（结果面板贴左边 start，侧栏贴右边 end）；

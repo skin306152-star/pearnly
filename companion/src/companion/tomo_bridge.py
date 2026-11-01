@@ -45,7 +45,8 @@ REFUSED = json.dumps({"ok": False, "refused": True})
 # ``device_state``（这把密钥不再用、要重新登记），``remove`` 先吊销本机这把密钥再删成员（慢，回 job）；
 # sites = 每个成员带自己的站点与通道（1.11.0，ADR-025）：同一台电脑可以同时连一个 Cowork 站点和一个 ERP 站点，ERP 站点的
 # 对话页据此登记这台电脑（配对码 ``pcc_…``）。
-FEATURES = ("company_folders", "devices", "sites", "express_places")
+# operator = 代录 Express（10-26，入口与直写分开）：operator_state / operator_control / operator_frame / operator_authorize。
+FEATURES = ("company_folders", "devices", "sites", "express_places", "operator")
 
 
 class TomoBridge(QObject):
@@ -169,10 +170,41 @@ class TomoBridge(QObject):
             return s.download()
         if method == "logs":
             return s.open_logs()
+        if method.startswith("operator_"):
+            return self._operator(method, args, lang)
         if method == "window":
             # 对话页画的标题栏（同 Claude 桌面端）：最小化 / 最大化 / 关闭 / 拖动 / 缩放（gui_tomo.TomoWindow.window_action）
             window = self._window()
             return window.window_action(str(args.get("action") or ""), args) if window is not None else {"ok": False}
+        return {"ok": False}
+
+    def _operator(self, method: str, args: dict, lang: str) -> dict:
+        """代录 Express（入口与直写分开，评估 §10）：批次进度、暂停 / 继续 / 停止 / 跳过、实时画面、授权登录。代录包按需导入，
+        托盘不代录时这几个调用只读一份空清单。授权登录弹的是原生小窗，页面拿不到密码，只回成没成。"""
+        from .express_operator import host as operator_host
+
+        current = operator_host.host()
+        if method == "operator_state":
+            from .express_operator import login_dialog
+
+            return {"ok": True, "batches": current.snapshots(), "login": login_dialog.stored()}
+        if method == "operator_control":
+            results = args.get("results") if isinstance(args.get("results"), dict) else None  # settle：站点对各张单的结论
+            ok = current.control(str(args.get("batch") or ""), str(args.get("action") or ""), str(args.get("doc") or ""),
+                                 results)
+            return {"ok": ok}
+        if method == "operator_frame":
+            return {"ok": True, "png": current.frame(str(args.get("batch") or ""))}
+        if method == "operator_show":
+            return {"ok": current.show(str(args.get("batch") or ""))}
+        if method == "operator_authorize":
+            from .express_operator import login_dialog
+
+            return {"ok": login_dialog.ask_and_store(normalize(lang))}
+        if method == "operator_forget":
+            from .express_operator import login_dialog
+
+            return {"ok": login_dialog.forget()}
         return {"ok": False}
 
     @staticmethod

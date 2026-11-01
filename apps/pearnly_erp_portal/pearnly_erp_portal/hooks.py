@@ -594,3 +594,16 @@ permission_query_conditions.update({
     "ERP Work Rule": "pearnly_erp_portal.work.access.rule_query",
     "File": "pearnly_erp_portal.work.access.file_query",
 })
+
+# 代录 Express（共用层 pearnly_core.express_operator，评估 docs/work/2026-10-26-express-operator-product-评估.md）：CC 里「代录」
+# 列这家公司还没交进写账队列的采购 / 销售单，交单走 ERP 推送同一条路、载荷加代录标记（载荷 15）。
+pearnly_express_operator = {
+    "allowed": "pearnly_erp_portal.express.operator.allowed",
+    "sources": "pearnly_erp_portal.express.operator.sources",
+    "precheck": "pearnly_erp_portal.express.operator.precheck",
+    "submit": "pearnly_erp_portal.express.operator.submit",
+    "status": "pearnly_erp_portal.express.operator.status",
+}
+# 实操任务页底部的对话（对话框甲）：查进度、交代跳过 / 重做的工具在共用层，ERP 列上即用；进行中的说法同一个模块
+pearnly_assistant_tools = ["pearnly_core.express_operator.tools.TOOLS"]
+pearnly_assistant_step_names = ["pearnly_core.express_operator.tools.STEP_NAMES"]

@@ -106,7 +106,7 @@ export function choiceSection(choice: Pick<Choice, "source" | "kind">): string {
   return choice.source;
 }
 
-const SECTION_ORDER = ["party", "account", "payment", "vat", "posting", "item", "department", "receipt", "current_book", "pos", "income",
+const SECTION_ORDER = ["party", "account", "payment", "vat", "posting", "group", "item", "department", "receipt", "current_book", "pos", "income",
   "vatCheck", "history", "posting_history", "mrerp_menu", "mrerp_default"];
 
 // ---------------------------------------------------------------- 卡片外框

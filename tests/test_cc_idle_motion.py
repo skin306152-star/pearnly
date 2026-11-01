@@ -72,7 +72,7 @@ BUSY_SITES = [
     ("components/company-page.tsx", "cc-spinner", "if (!rows) return", 0),
     ("components/scheduled-tasks.tsx", "animate-cc-pulse", "rules === null || shown === null ?", 3),
     ("components/ui/skeleton.tsx", "animate-cc-pulse", "function Skeleton(", 5),
-    ("components/assistant-ui/thread-list.tsx", "cc-spinner", "loadingMore &&", 0),
+    ("components/assistant-ui/thread-list.tsx", "cc-spinner", "loading &&", 0),
     ("components/assistant-ui/thread-list.tsx", "<Skeleton", "const ThreadListSkeleton", 15),
     ("components/assistant-ui/attachment.tsx", "<Skeleton", "{loading ?", 0),
     ("components/assistant-ui/thread.tsx", "<TypingDots", "if (!visible) return null;", 12),
@@ -100,6 +100,7 @@ INTERVAL_SITES = [
     ("components/ui/drag.tsx", "if (step && (step < 0 ? d.intent.up : d.intent.down))", "拖动中指针贴着滚动区边缘时自动滚，离开边缘 / 放下即停", 8),
     ("components/assistant-ui/thread.tsx", "if (!running) return;", "工作状态行显示时每秒走一次计时（回合结束即卸下）", 3),
     ("lib/company-panel.ts", "export function useMinuteClock()", "公司页开着时每分钟刷新相对时间", 4),
+    ("components/operator/live-source.ts", "async function startPolling()", "代录视图开着（有订阅）、页面看得见、桥支持代录时每 3 秒读一次桥上进度；退订、切到后台即停", 4),
 ]
 # 自己反复排 requestAnimationFrame 的循环：(文件, 函数名, 停下的条件——函数体里的原文)
 RAF_LOOPS = [

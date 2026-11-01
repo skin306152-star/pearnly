@@ -1406,6 +1406,7 @@ This device has no camera to scan with,当前设备没有可用的摄像头
 This document cannot be recorded yet,该单据暂无法入账
 This document has no content,文件内容为空
 This document is already recorded: {0},该单据已录入：{0}
+This document is in an Express operator entry,单据在代录中
 This document is no longer available,该单据已不可用
 This document is not in Express,Express 中找不到此单
 This document is too large,文件过大
@@ -2125,6 +2126,7 @@ express.reason.noBook,没有覆盖此日期的 Express 账套
 express.reason.noStockBook,此 Express 账套没有这种库存单的单据簿，请在 Express 中设置
 express.reason.noWriter,没有能写此账套的电脑
 express.reason.offline,电脑离线
+express.reason.operatorOwned,单据在代录中
 express.reason.periodLocked,会计期间已在 Express 关账
 express.reason.posNetNegative,当天退货冲减后为负数
 express.reason.reading,正在读取 Express 账套

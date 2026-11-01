@@ -729,6 +729,7 @@ Expense (this kind from now on),Expense (this kind from now on)
 Expense account,Expense account
 Expense account when no category matches,Expense account when no category matches
 Expense it,Expense it
+Expenses,Expenses
 Expires At,Expires At
 Export,Export
 Export Excel,Export Excel
@@ -1281,6 +1282,7 @@ Provider Evidence,Provider Evidence
 Purchase (expense),Purchase (expense)
 Purchase (goods),Purchase (goods)
 Purchase or sales?,Purchase or sales?
+Purchases,Purchases
 Purchases eligible for input tax credit this month,Purchases eligible for input tax credit this month
 Purple,Purple
 Push Account Set,Push Account Set
@@ -1491,6 +1493,7 @@ Run requested. CC Desktop starts within a few minutes.,Run requested. CC Desktop
 Run time,Run time
 SHA-256,SHA-256
 SKU,SKU
+Sales,Sales
 Sales area,Sales area
 Sales invoices,Sales invoices
 Sales invoices need line items with tax-exclusive amounts before export.,Sales invoices need line items with tax-exclusive amounts before export.
@@ -1947,6 +1950,7 @@ This channel is not open yet,This channel is not open yet
 This choice cannot be saved,This choice cannot be saved
 This client still has {0} invoice record(s). Reassign them first.,This client still has {0} invoice record(s). Reassign them first.
 This computer can no longer handle this document,This computer can no longer handle this document
+This computer cannot enter documents into Express,This computer cannot enter documents into Express
 This connection does not support an Express CC Desktop credential.,This connection does not support an Express CC Desktop credential.
 This connection does not support scheduled tasks.,This connection does not support scheduled tasks.
 This connection is disabled.,This connection is disabled.
@@ -1956,6 +1960,7 @@ This delivery conflicts with the current task state.,This delivery conflicts wit
 This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.
 This document does not need this choice,This document does not need this choice
 This document format is not supported.,This document format is not supported.
+This document is in an Express operator entry,This document is in an Express operator entry
 This document is not in Express,This document is not in Express
 This document type cannot be written to Express. Check it and submit again.,This document type cannot be written to Express. Check it and submit again.
 This document was changed in Express. Check it in Express,This document was changed in Express. Check it in Express
@@ -2281,6 +2286,9 @@ cowork.choice.vat,Tax on this receipt
 cowork.company.branch_n,Branch {0}
 cowork.company.choice.fiscal_year,Fiscal year {0}
 cowork.company.choice.goods,Goods documents
+cowork.company.choice.group.expense,Expenses
+cowork.company.choice.group.purchase,Purchases
+cowork.company.choice.group.sales,Sales
 cowork.company.choice.service,Post as expense
 cowork.company.choice.stock,Post to stock
 cowork.company.choice_invalid,This value is not in this month's account set
@@ -3399,6 +3407,7 @@ intake.error.MISSING_CUSTOMER,The customer is missing. Choose the customer and s
 intake.error.MISSING_REF_NO,The invoice number is missing. Add it and submit again.
 intake.error.MISSING_SUPPLIER,The supplier is missing. Add it and submit again.
 intake.error.NO_ACCOUNT_SELECTION,"CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop"
+intake.error.OPERATOR_UNAVAILABLE,This computer cannot enter documents into Express
 intake.error.PAYLOAD_INVALID,CC Desktop could not read this invoice. Check the fields and submit again
 intake.error.PERIOD_LOCKED,The accounting period is closed in Express
 intake.error.POS_INVALID,The POS daily total is not in the expected form. Import the POS export again
@@ -3580,6 +3589,7 @@ push.native_state_invalid,This action is not allowed in the current push state.
 push.native_target_changed,The push target has changed. Prepare the invoice again.
 push.native_target_mismatch,The frozen push target does not match the authorized target.
 push.no_writer,No computer with CC Desktop can write to this account set
+push.operator_owned,This document is in an Express operator entry
 push.original_reference_invalid,The original invoice reference is invalid or unavailable.
 push.posting_kind_invalid,Invalid posting type.
 push.preparation_cancelled,The unsent preparation was cancelled.

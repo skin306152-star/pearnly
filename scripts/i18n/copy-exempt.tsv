@@ -40,3 +40,5 @@ pearnly_core:DMS booking defaults (JSON): model, colour, branch, team, delivery 
 # ── 开户邮件的品牌口号（存量清单第 10 节，10-18）：品牌名与口号不翻译
 代码:apps/pearnly_control/pearnly_control/templates/emails/pearnly_welcome.html	R-HARD	alt=Pearnly — Smart Work, Happy Life	品牌名与品牌口号，四种语言的邮件都不翻译
 代码:apps/pearnly_control/pearnly_control/templates/emails/pearnly_welcome.html	R-HARD	© Pearnly · Smart Work, Happy Life	品牌版权行，品牌口号不翻译
+assistant:OPERATOR.placeholder	R-TALK	这次要处理哪些单据？	实操工作区输入框占位，主会话定稿用词（设计稿 SgtxECheQE4e6gtF1G4WKW，10-27 任务书）
+assistant:OPERATOR.state.attention	R-TALK	需要你处理	实操任务状态，主会话定稿用词（同 Claude 的 Needs you，10-27 任务书）

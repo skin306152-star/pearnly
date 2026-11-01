@@ -21,7 +21,7 @@ def test_future_version_rejected():
     assert check_payload_version({"payload_version": 16}) == ERR_PAYLOAD_VERSION
 
 
-def test_supported_set_is_v1_to_v11_today():
+def test_supported_set_is_v1_to_v12_today():
     # v2(2026-09-28):明细 `code`(选定的存货按码落账)+ 单头 `depcod`(部门码)
     # v3(2026-10-13):POS 日汇总票的 `pos` 块(自编单号、票号起止、付款方式转账凭证)
     # v4(2026-10-22):明细行 / 表头 `loccod`(Express 仓库码,写进指定仓并维护 STLOC)
@@ -37,10 +37,11 @@ def test_supported_set_is_v1_to_v11_today():
     assert check_payload_version({"payload_version": 13}) is None
     # v14(2026-10-30):仓间调拨 RL 与作废 RL(dbf_transfer,多仓闭环 P2)
     # v15(2026-11-01):库存单 / 调拨明细 `new_ok`(Express 里没有的商品,写前建档;多仓闭环 P3x)
-    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
     assert check_payload_version({"payload_version": 15}) is None
+    # v16(2026-11-02):代录 Express(entry_mode = operator)
+    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
+    assert check_payload_version({"payload_version": 16}) is None
     assert check_payload_version({"payload_version": 14}) is None
-    assert check_payload_version({"payload_version": 12}) is None
     assert check_payload_version({"payload_version": 11}) is None
     assert check_payload_version({"payload_version": 5}) is None
     assert check_payload_version({"payload_version": 2}) is None

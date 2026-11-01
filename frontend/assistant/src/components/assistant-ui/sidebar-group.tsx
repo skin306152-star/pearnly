@@ -103,8 +103,9 @@ export function useCloseDrawer() {
   };
 }
 
-/** 组标题右侧的「新建」（悬停组标题才出现；手机、触屏常显）。记住：公司组头随拖动重画时不连带（onClick 由调用方给稳定的）。 */
-export const GroupNew = memo(function GroupNew({ onClick }: { onClick: () => void }) {
+/** 组标题右侧的「新建」（悬停组标题才出现；手机、触屏常显）。记住：公司组头随拖动重画时不连带（onClick 由调用方给稳定的）。
+ *  label：读屏与悬停提示（实操的组头是「新建任务」，默认「新建」对话）。 */
+export const GroupNew = memo(function GroupNew({ onClick, label = t("newChat") }: { onClick: () => void; label?: string }) {
   const go = useCloseDrawer();
   return (
     <button
@@ -112,8 +113,8 @@ export const GroupNew = memo(function GroupNew({ onClick }: { onClick: () => voi
       tabIndex={-1}
       data-slot="aui_thread-list-new"
       className="cc-row-btn cc-group-new"
-      aria-label={t("newChat")}
-      title={t("newChat")}
+      aria-label={label}
+      title={label}
       onClick={() => go(onClick)}
     >
       <PlusIcon />

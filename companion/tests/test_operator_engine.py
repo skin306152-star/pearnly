@@ -1,0 +1,194 @@
+# -*- coding: utf-8 -*-
+"""代录引擎：在假 Express 上回放试点实测的录法（不花钱、不连 Express）。"""
+from __future__ import annotations
+
+from _fake_express import FakeBook, FakeExpress, FakeSite, samples
+
+from companion.express_operator import recipe as R
+from companion.express_operator.draft import Draft, Line
+from companion.express_operator.engine import Engine, same
+from companion.express_operator.helper import ComputerUseHelper
+
+RECIPE = R.load()
+
+
+def run_docs(drafts, *, site_kwargs=None, with_ai=True, **fake):
+    sim = FakeExpress(RECIPE.data, **fake)
+    site = FakeSite(sim, **(site_kwargs or {}))
+    helper = ComputerUseHelper(site, sleep=lambda _s: None) if with_ai else None
+    shots = []
+    engine = Engine(sim, RECIPE, FakeBook(sim), helper=helper, evidence=lambda d, p: shots.append(d),
+                    sleep=lambda _s: None)
+    recs = []
+    for d in drafts:
+        site.draft = d
+        recs.append(engine.run(d))
+    return recs, sim, site, shots
+
+
+def test_four_document_types_enter_with_keyboard_and_win32_only():
+    recs, sim, site, shots = run_docs(samples())
+    assert [r["outcome"] for r in recs] == ["saved"] * 4
+    assert [r["docnum"] for r in recs] == ["RR0000001", "HP0000001", "IV0000001", "HS0000001"]
+    assert all(r["readback"]["ok"] for r in recs)
+    assert site.calls == []  # 流程定型后不调 AI
+    assert all(r["checkpoints"] == 0 and not r["fallbacks"] for r in recs)
+    assert shots == [d.doc_id for d in samples()]  # 每张存好后留一张存档截图
+    assert sim.esc_pressed == 0 and sim.trap_saves == 0
+
+
+def test_price_type_from_party_master_is_set_per_draft():
+    d = samples()[0]
+    recs, sim, _, _ = run_docs([d], inject={"incl_party:P001": True})
+    assert recs[0]["outcome"] == "saved" and recs[0]["readback"]["ok"]
+
+
+def test_duplicate_ref_and_no_history_are_reminders_only():
+    a = samples()[0]
+    b = Draft("S-RR-2", "RR", "2026-10-20", "P001", [Line("501780", "1", "10.00")], ref_no="INV-7781")
+    recs, _, site, _ = run_docs([a, b], inject={"warn4108:P001": True})
+    assert [r["outcome"] for r in recs] == ["saved", "saved"]
+    assert {"reason": "duplicate_ref"} in recs[1]["reports"]  # 照录，汇报里列出
+    assert site.calls == []
+
+
+def test_typo_caught_by_cell_readback_goes_to_ai():
+    d = samples()[1]
+    recs, _, site, _ = run_docs([d], inject={"typo_qty:P002": "50"})
+    assert recs[0]["outcome"] == "saved" and recs[0]["readback"]["ok"]
+    assert any(r["reason"] == "ai_resolved" for r in recs[0]["reports"])
+    assert site.calls[0].startswith("turn:claude-haiku")
+
+
+def test_without_ai_a_mismatch_needs_a_human_and_the_half_document_is_voided():
+    d = samples()[1]
+    recs, sim, _, _ = run_docs([d], with_ai=False, inject={"typo_price:P002": "9"})
+    rec = recs[0]
+    assert rec["outcome"] == "need_human" and rec["reason"] == "unknown_screen"
+    assert sim.esc_pressed == 0
+    assert rec["voided"] or rec["placeholders"]  # 放弃即作废；作废不掉的空单头报给人
+
+
+def test_party_missing_from_master_is_a_human_decision_not_a_guess():
+    d = Draft("X-IV", "IV", "2026-10-22", "NOPE", [Line("501780", "1", "10.00")])
+    recs, sim, site, _ = run_docs([d])
+    assert recs[0]["outcome"] == "blocked" and recs[0]["reason"] == "party_missing"
+    assert site.calls == [] and not sim.dialogs and not sim.editing  # 选择框按「ยกเลิก」关，不选第一项
+
+
+def test_item_missing_from_master():
+    d = Draft("X-RR", "RR", "2026-10-22", "P001", [Line("NOPE", "1", "10.00")], ref_no="Z1")
+    recs, sim, _, _ = run_docs([d], items=("501780",))
+    assert recs[0]["outcome"] == "blocked" and recs[0]["reason"] == "item_missing"
+
+
+def test_unknown_dialog_escalates_from_haiku_to_opus():
+    d = samples()[0]
+    recs, _, site, _ = run_docs([d], inject={"party:P001": {"text": "ข้อความใหม่ 9999"}},
+                                site_kwargs={"haiku_gives_up": True})
+    assert recs[0]["outcome"] == "saved"
+    assert any(c.startswith("turn:claude-opus") for c in site.calls)
+
+
+def test_network_error_is_a_crash_and_nothing_is_clicked():
+    d = samples()[2]
+    recs, sim, _, _ = run_docs([d], inject={"crash_on_save:5001": True})
+    assert recs[0]["outcome"] == "crash" and recs[0]["reason"] == "network_wait"
+    assert sim.dialogs and sim.dialogs[-1]["name"] == "smb"  # -70 框原样留着，不点
+
+
+def test_negative_stock_is_blocked_and_abandoned():
+    d = samples()[0]
+    recs, sim, _, _ = run_docs([d], inject={"block_item:501780": True})
+    rec = recs[0]
+    assert rec["outcome"] == "blocked" and rec["reason"] == "negative_stock"
+    assert not sim.editing and sim.esc_pressed == 0
+
+
+def test_date_outside_period_is_blocked():
+    d = samples()[0]
+    recs, _, _, _ = run_docs([d], inject={"period_outside": True})
+    assert recs[0]["outcome"] == "blocked" and recs[0]["reason"] == "period_outside"
+
+
+def test_readback_catches_what_screen_checks_missed():
+    d = samples()[1]
+    recs, _, _, _ = run_docs([d], readable="none", inject={"typo_qty:P002": "50"}, site_kwargs={"blind": True})
+    rec = recs[0]
+    assert rec["outcome"] == "need_human" and rec["reason"] == "readback_mismatch"
+    assert not rec["readback"]["ok"]
+
+
+def test_unsupported_document_type_is_not_attempted():
+    d = Draft("X-RE", "RE", "2026-10-22", "5001", [Line("501780", "1", "10.00")])
+    recs, sim, site, _ = run_docs([d])
+    assert recs[0]["outcome"] == "need_human" and recs[0]["reason"] == "unsupported"
+    assert sim.form is None and site.calls == []
+
+
+def test_budget_from_the_site_stops():
+    import pytest
+
+    from companion.express_operator.helper import BudgetStop
+
+    d = samples()[1]
+    with pytest.raises(BudgetStop):
+        run_docs([d], inject={"typo_qty:P002": "50"}, site_kwargs={"budget_after": 0})
+
+
+def test_same_treats_numbers_and_nbsp_display():
+    assert same("1000", "1,000.00")
+    assert same("นาย\xa0ทดสอบ", "นาย•ทดสอบ")
+    assert not same("P001", "P002")
+
+
+def test_abandoning_never_voids_the_previous_saved_document():
+    """10-26 实机：取消后单号格显示上一张已存的单，旧逻辑把它当成这一张作废了。"""
+    good = samples()[1]
+    bad = Draft("X-HP", "HP", "2026-10-21", "P002", [Line("501871", "1", "1.00")], ref_no="Z9")
+    recs, sim, _, _ = run_docs([good, bad], with_ai=False, inject={"typo_qty:P002": "50"})
+    first, second = recs
+    assert first["outcome"] == "need_human"  # 第一张录错了，被它自己作废（这一张开录后出现的单号）
+    sim2 = FakeExpress(RECIPE.data)
+    engine = Engine(sim2, RECIPE, FakeBook(sim2), sleep=lambda _s: None)
+    assert engine.run(good)["outcome"] == "saved"
+    rec = engine.run(Draft("X-HP2", "HP", "2026-10-21", "NOPE", [Line("501871", "1", "1.00")], ref_no="Z8"))
+    assert rec["outcome"] == "blocked" and rec["voided"] == []
+    assert all(r["DOCSTAT"] != "C" for r in sim2.book["APTRN"])  # 上一张好单没被作废
+
+
+def test_the_service_vat_basis_prompt_is_answered_on_save_and_while_abandoning():
+    """10-29 实机（rec-laptop）：有服务品的赊购单存档途中 Express 问服务品进项税口径。录单时按配方答 เกณฑ์สิทธิ（同直写的
+    SRV_VATTYP '1'）；放弃一张时「取消」就是存档，同样要答完、存好再作废，不能把半张单留在提问上。"""
+    recs, sim, _, _ = run_docs([samples()[0]], with_ai=False, inject={"basis_on_save": True})
+    assert recs[0]["outcome"] == "saved" and recs[0]["readback"]["ok"] and not sim.dialogs
+    recs, sim, _, _ = run_docs([samples()[0]], with_ai=False, inject={"basis_on_save": True, "block_item:500310": True})
+    rec = recs[0]  # 第二行被拦：第一行已完整，放弃时「取消」就把它存了
+    assert rec["outcome"] == "blocked" and len(rec["voided"]) == 1 and not sim.dialogs
+    assert any(r["DOCSTAT"] == "C" for r in sim.book["APTRN"] if r["DOCNUM"] == rec["voided"][0])
+
+
+def test_a_document_without_vat_is_entered_with_the_no_vat_price_type():
+    """10-29 实机（rec-laptop 覆盖样本）：不收增值税的进货单（税额 0、明细不是免税品）原来按「2 - แยก VAT」录，Express 照 7% 算出税、
+    合计对不上。税额为 0 的单表头价格类型选「0 - ไม่มี VAT」，同直写的 FLGVAT '0'。"""
+    d = Draft("NV-HP", "HP", "2026-10-21", "P002", [Line("501871", "2", "900.00")], ref_no="NV1",
+              expected={"net": "1800.00", "vat": "0.00", "total": "1800.00"})
+    assert d.vat_mode == "0"
+    recs, sim, _, _ = run_docs([d], with_ai=False)
+    assert recs[0]["outcome"] == "saved" and recs[0]["readback"]["ok"]
+    head = next(r for r in sim.book["APTRN"] if r["DOCNUM"] == recs[0]["docnum"])
+    assert head["VATAMT"] == 0.0 and head["NETAMT"] == 1800.0
+
+
+def test_an_exempt_document_keeps_its_vat_price_type():
+    """10-29 语料（158 本）：整单免税的进货单原生是价格类型 1 / 2、明细 VATCOD '0'、零税额 AMTRAT0，不是「0 - ไม่มี VAT」；
+    「无增值税」只给不收增值税、明细也没有免税行的单。"""
+    exempt = Draft("EX-RR", "RR", "2026-10-21", "P001", [Line("501780", "2", "50.00", exempt=True)],
+                   expected={"net": "100.00", "vat": "0.00", "total": "100.00"})
+    plain = Draft("NV-RR", "RR", "2026-10-21", "P001", [Line("501780", "2", "50.00")],
+                  expected={"net": "100.00", "vat": "0.00", "total": "100.00"})
+    assert exempt.vat_mode == "2" and plain.vat_mode == "0"
+    from companion.express_operator.draft import from_payload
+    d = from_payload("X", {"doctype": "RR", "docdate_be": "691021", "supplier": {"code": "P001"},
+                           "items": [{"code": "501780", "qty": "1", "unit_price": "10", "vat_exempt": True}]})
+    assert d.lines[0].exempt is True

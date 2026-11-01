@@ -212,7 +212,7 @@ name = "CC 桌面版机器通道（cc_desktop）"
 paths = ["apps/pearnly_core/pearnly_core/cc_desktop/**"]
 markers = ["pearnly_core.cc_desktop", "pearnly_core import cc_desktop", "pearnly_cc_desktop"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "companion/src/**/*.py"]
-entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel"]
+entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel", "cc.operator.page"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py" = "只在注释里提到 cc_desktop.http_auth 的做法" }
 
 [[part]]
@@ -221,7 +221,7 @@ name = "Express 写账规则（express_rules）"
 paths = ["apps/pearnly_core/pearnly_core/express_rules/**"]
 markers = ["pearnly_core.express_rules", "pearnly_core import express_rules"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day", "erp.cc.pos-refund", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push"]
+entries = ["erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day", "erp.cc.pos-refund", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push", "cc.operator.page"]
 not_entries = { "apps/pearnly_core/pearnly_core/cc_desktop/books.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/contracts.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/report_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_20_express_account_sets.py" = "一次性迁移", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_2_backfill_history_parties.py" = "一次性迁移" }
 
 [[part]]
@@ -321,7 +321,47 @@ name = "CC 对话页与桌面版的桥"
 paths = ["frontend/assistant/src/lib/desktop.ts", "companion/src/companion/tomo_bridge.py"]
 markers = ["from \"@/lib/desktop\"", "tomo_bridge"]
 search = ["frontend/assistant/src/**", "companion/src/**"]
-entries = ["cc.desktop.bridge", "cc.settings.connection"]
+entries = ["cc.desktop.bridge", "cc.settings.connection", "cc.operator.page", "cc.desktop.operator"]
+
+[[part]]
+id = "cc-sidebar-list"
+name = "CC 侧栏列表（对话与实操任务共用：按公司分组、行外壳、行菜单、改名、删除确认、拖动编排、手排顺序与折叠、键盘多选）"
+paths = ["frontend/assistant/src/components/assistant-ui/thread-list.tsx", "frontend/assistant/src/components/assistant-ui/sidebar-group.tsx", "frontend/assistant/src/components/assistant-ui/projects.tsx", "frontend/assistant/src/components/delete-chats.tsx", "frontend/assistant/src/lib/managed-agents/sidebar-groups.ts", "frontend/assistant/src/lib/managed-agents/sidebar-drag.ts", "frontend/assistant/src/lib/managed-agents/sidebar-order.ts", "frontend/assistant/src/lib/managed-agents/sidebar-fold.ts", "frontend/assistant/src/lib/sidebar-keys.ts"]
+markers = ["@/components/assistant-ui/thread-list\"", "@/components/assistant-ui/sidebar-group\"", "@/components/assistant-ui/projects\"", "@/components/delete-chats\"", "@/lib/managed-agents/sidebar-groups\"", "@/lib/managed-agents/sidebar-drag\"", "@/lib/managed-agents/sidebar-order\"", "@/lib/managed-agents/sidebar-fold\"", "@/lib/sidebar-keys\""]
+search = ["frontend/assistant/src/**"]
+entries = ["cc.assistant", "cc.operator.page"]
+
+[[part]]
+id = "cc-drag"
+name = "CC 共用拖动（侧栏对话与任务、会话栏卡片、实操资料分组）"
+paths = ["frontend/assistant/src/components/ui/drag.tsx"]
+markers = ["@/components/ui/drag\""]
+search = ["frontend/assistant/src/**"]
+entries = ["cc.assistant", "cc.operator.page"]
+
+[[part]]
+id = "cc-composer"
+name = "CC 输入框（对话页与实操主栏同一个）"
+paths = ["frontend/assistant/src/components/assistant-ui/thread.tsx", "frontend/assistant/src/components/assistant-ui/attachment.tsx"]
+markers = ["@/components/assistant-ui/thread\"", "@/components/assistant-ui/attachment\""]
+search = ["frontend/assistant/src/**"]
+entries = ["cc.assistant", "cc.operator.page"]
+
+[[part]]
+id = "cc-split-handle"
+name = "CC 拖宽分隔条（左侧栏、文件预览、实操右侧栏）"
+paths = ["frontend/assistant/src/components/split-handle.tsx"]
+markers = ["@/components/split-handle\""]
+search = ["frontend/assistant/src/**"]
+entries = ["cc.assistant", "cc.operator.page"]
+
+[[part]]
+id = "cc-prefs-sync"
+name = "CC 个人排列同步（对话 order / view / cards 与实操 operator 份）"
+paths = ["frontend/assistant/src/lib/prefs-sync.ts", "apps/pearnly_core/pearnly_core/assistant/prefs.py"]
+markers = ["@/lib/prefs-sync\"", "assistant.prefs"]
+search = ["frontend/assistant/src/**", "apps/pearnly_core/**"]
+entries = ["cc.assistant", "cc.operator.page"]
 
 [[part]]
 id = "cc-places-heartbeat"
@@ -337,7 +377,7 @@ name = "CC 按需读取"
 paths = ["companion/src/companion/request_worker.py", "companion/src/companion/request_client.py", "companion/src/companion/request_contract.py", "companion/src/companion/express_read.py", "companion/src/companion/express_masters.py", "companion/src/companion/account_history.py", "companion/src/companion/folder_fetch.py"]
 markers = ["request_worker", "request_client", "request_contract", "express_read", "express_masters", "account_history", "folder_fetch"]
 search = ["companion/src/**"]
-entries = ["cc.desktop.requests", "cc.desktop.places"]
+entries = ["cc.desktop.requests", "cc.desktop.places", "cc.desktop.operator"]
 
 [[part]]
 id = "cc-dbf-write"
@@ -345,7 +385,7 @@ name = "CC 写 Express（dbf 写入路径）"
 paths = ["companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py", "companion/src/companion/dbf_detail.py", "companion/src/companion/pos_journal.py", "companion/src/companion/master_create.py", "companion/src/companion/product_master.py", "companion/src/companion/stock_purchase.py", "companion/src/companion/stock_sale.py", "companion/src/companion/write_verify.py", "companion/src/companion/account_write_lock.py", "companion/src/companion/purchase_adapter.py", "companion/src/companion/sales_adapter.py", "companion/src/companion/purchase_lines.py", "companion/src/companion/stock_location.py", "companion/src/companion/stock_guard.py", "companion/src/companion/dbf_stock.py", "companion/src/companion/dbf_void.py", "companion/src/companion/dbf_refund.py", "companion/src/companion/dbf_fields.py", "companion/src/companion/dbf_schema.py", "companion/src/companion/payload_contract.py", "companion/src/companion/unit_code.py", "companion/src/companion/write_result.py"]
 markers = ["dbf_writer", "dbf_sales", "dbf_detail", "pos_journal", "master_create", "product_master", "stock_purchase", "stock_sale", "write_verify", "account_write_lock", "purchase_lines", "stock_location", "stock_guard", "dbf_stock", "dbf_void", "dbf_refund"]
 search = ["companion/src/**"]
-entries = ["cc.desktop.write", "cowork.cc.channel", "erp.cc.write", "erp.cc.stock-entry", "erp.cc.stock-void", "erp.cc.pos-day", "erp.cc.pos-refund", "erp.cc.stock-transfer"]
+entries = ["cc.desktop.write", "cc.desktop.operator", "cowork.cc.channel", "erp.cc.write", "erp.cc.stock-entry", "erp.cc.stock-void", "erp.cc.pos-day", "erp.cc.pos-refund", "erp.cc.stock-transfer"]
 not_entries = { "companion/src/companion/express_read.py" = "读路径只借用写入的字段常量，入口见 cc-request-worker", "companion/src/companion/express_masters.py" = "读主档只借用库存单单据簿的读法（dbf_stock.book_row，只读），入口见 cc-request-worker" }
 
 [[part]]
@@ -362,7 +402,7 @@ name = "CC 对话（assistant）"
 paths = ["apps/pearnly_core/pearnly_core/assistant/**"]
 markers = ["pearnly_core.assistant", "pearnly_core import assistant", "pearnly_assistant_tools", "pearnly_assistant_guidance", "pearnly_assistant_step_names", "pearnly_assistant_projects"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["control.assistant", "shared.assistant", "cowork.assistant", "cc.assistant"]
+entries = ["control.assistant", "shared.assistant", "cowork.assistant", "cc.assistant", "cc.operator.thread"]
 
 [[part]]
 id = "tax-documents"
@@ -1784,7 +1824,7 @@ where = "写账（两种成员）"
 steps = "Cowork 推一张、ERP 推一张，写 C 盘 T 账套"
 expect = "写入成功、读回一致；旧版 CC 诚实拒收新载荷"
 check = "auto"
-files = ["companion/src/companion/worker.py", "companion/src/companion/gui_tray_workers.py", "companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py"]
+files = ["companion/src/companion/worker.py", "companion/src/companion/gui_tray_workers.py", "companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py", "companion/src/companion/express_operator/masters.py"]
 smoke = "express"
 site = "erp"
 args = { "company_tax" = "0105545112901", "party" = "ก-002", "item" = "1 -    -", "loccod" = "01", "kind" = "purchase" }
@@ -1922,7 +1962,7 @@ where = "CC 对话页（会话列表、实时、附件）"
 steps = "新建对话、发消息、附件、切会话、侧栏排序"
 expect = "照常、无报错"
 check = "manual"
-files = ["frontend/assistant/src/components/document-view.tsx", "frontend/assistant/src/lib/frappe.ts", "frontend/assistant/src/lib/install.ts", "frontend/assistant/src/lib/managed-agents/activity.ts", "frontend/assistant/src/lib/managed-agents/api.ts", "frontend/assistant/src/lib/managed-agents/events.ts", "frontend/assistant/src/lib/managed-agents/list-sync.ts", "frontend/assistant/src/lib/managed-agents/realtime.ts", "frontend/assistant/src/lib/managed-agents/reducer.ts", "frontend/assistant/src/lib/managed-agents/session-controller.ts", "frontend/assistant/src/lib/managed-agents/sidebar-order.ts", "frontend/assistant/src/lib/managed-agents/sidebar-view.ts", "frontend/assistant/src/lib/prefs-sync.ts", "frontend/assistant/src/lib/push.ts", "frontend/assistant/src/lib/tool-labels.ts", "frontend/assistant/vite.config.ts", "apps/pearnly_core/pearnly_core/assistant/sessions.py"]
+files = ["frontend/assistant/src/assistant.tsx", "frontend/assistant/src/components/assistant-ui/thread-list.tsx", "frontend/assistant/src/components/assistant-ui/sidebar-group.tsx", "frontend/assistant/src/components/assistant-ui/projects.tsx", "frontend/assistant/src/components/companies.tsx", "frontend/assistant/src/components/company-cards.tsx", "frontend/assistant/src/components/company-page.tsx", "frontend/assistant/src/components/month-ledger.tsx", "frontend/assistant/src/components/pending.tsx", "frontend/assistant/src/components/session-panel.tsx", "frontend/assistant/src/components/results-panel.tsx", "frontend/assistant/src/lib/company-panel.ts", "frontend/assistant/src/lib/managed-agents/projects.ts", "frontend/assistant/src/lib/managed-agents/session-list-adapter.ts", "frontend/assistant/src/lib/managed-agents/sidebar-drag.ts", "frontend/assistant/src/components/document-view.tsx", "frontend/assistant/src/lib/frappe.ts", "frontend/assistant/src/lib/install.ts", "frontend/assistant/src/lib/managed-agents/activity.ts", "frontend/assistant/src/lib/managed-agents/api.ts", "frontend/assistant/src/lib/managed-agents/events.ts", "frontend/assistant/src/lib/managed-agents/list-sync.ts", "frontend/assistant/src/lib/managed-agents/realtime.ts", "frontend/assistant/src/lib/managed-agents/reducer.ts", "frontend/assistant/src/lib/managed-agents/session-controller.ts", "frontend/assistant/src/lib/managed-agents/sidebar-order.ts", "frontend/assistant/src/lib/managed-agents/sidebar-view.ts", "frontend/assistant/src/lib/prefs-sync.ts", "frontend/assistant/src/lib/push.ts", "frontend/assistant/src/lib/tool-labels.ts", "frontend/assistant/vite.config.ts", "apps/pearnly_core/pearnly_core/assistant/sessions.py"]
 
 [[entry]]
 id = "shared.claude-ocr.self-check"
@@ -2339,3 +2379,30 @@ steps = "LINE → 盘点 → 扫到没有的码出新建商品各格，点最下
 expect = "正在填的格在键盘之上"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html"]
+
+[[entry]]
+id = "cc.operator.thread"
+product = "CC"
+where = "实操任务页底部的对话（对话框甲：任务里一段对话，工具查进度、交代跳过 / 重做，中途要人选的单在任务记录里点选项）"
+steps = "离线：tests/test_express_operator_tasks.py（对话只建一次、说明转义、控制只认本任务的单、作答只交未完成的单、删任务连对话、工具编号）+ tests/test_cc_operator.py；实机：实验栈挂本分支，Cowork、ERP 各开一个实操任务，打字问「今天录了多少」「第 1 张为什么没录」、说「跳过第 2 张」，一张停在要选的单点选项接着录"
+expect = "回答按任务真实进度；跳过 / 重做由执行的电脑照做；点选项后这张交回同一个任务录成；对话侧栏里看不到任务的对话；Cowork、ERP 的其他对话工具照常"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/express_operator/tasks.py", "apps/pearnly_core/pearnly_core/express_operator/tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "frontend/assistant/src/components/operator/task-thread.tsx"]
+
+[[entry]]
+id = "cc.desktop.operator"
+product = "CC"
+where = "代录 Express（companion/src/companion/express_operator，写账线 worker._handle_operator_task 交来 entry_mode=operator 的单）"
+steps = "离线：假 Express 回放四种买卖单、弹窗、放弃作废、断点续录、锁屏暂停、截图到期；开工前建主档（express_operator/masters.py 复用直写建档）：tests/test_operator_masters.py + 测试机 C 盘 T 账套 scripts/express-operator-masters-regression.py --runner；实机：rec-laptop 69EXP\\test（scripts/express-operator/lab_run.py）"
+expect = "读回逐字段一致；只读借用 express_read 复制读账套，整批持有 PEARNLY.LCK 与直写互斥；建主档只动 APMAS / ARMAS / STMAS / ISACC，失败整笔还原，Express 开着时先退出再建，下一张重开后查得到新码"
+check = "offline"
+files = ["companion/src/companion/express_operator/book.py", "companion/src/companion/express_operator/batch.py", "companion/src/companion/express_operator/host.py", "companion/src/companion/express_operator/masters.py"]
+
+[[entry]]
+id = "cc.operator.page"
+product = "CC"
+where = "实操工作区（frontend/assistant/src/components/operator，左上角「直写 / 实操」两个图标、Ctrl / ⌘ + Shift + 1 / 2；任务是站点的任务记录 pearnly_core.express_operator.api 的 task_*，进度：站点 documents / precheck / start / regroup / intake / resolve + 桥 operator_*；侧栏、输入框、拖宽分隔条与对话页同一套）"
+steps = "离线：假数据源、假站点 + 假桥下三语走新建任务（选公司就建、不必说话）/ 开始前确认（含结果不明的单标已入账 / 没有入账）/ 「开始」在报告下面一直能点、还差什么就说 / 进行中 / 完成、侧栏同对话行（只有标题、行尾只有在跑 / 未读标记）、任务号不进对话手排顺序、右栏拖宽记在本机（tests/test_cc_operator.py），对话侧栏照旧（tests/test_assistant_ui.py）；Cowork 账号、ERP 账号各登录 CC（网页、手机、桌面窗口）：切到实操、选公司与月份即出右栏、放资料（输入框附件发送时进资料）、拖动改分组、答完开始前确认后开始，侧栏按公司分组、拖动排序、置顶 / 改名 / 删除（多选）、搜索、键盘；同时开两个任务看各自进度，跳过 / 重试、导出报告，换一台设备看同一批任务（名字、置顶、状态一致），切回直写回到原处"
+expect = "两个产品同一套切换与流程；侧栏与对话侧栏一个样子与交互，行上没有状态字、彩色点；改名、置顶、列表跨设备一致；还不能开始时点「开始」说明还差哪一项并打开那一分区；没收的单在「需要处理」带原因、只能跳过；网页与手机只有交单结果、没有停止；Express 登录设置只在支持实操的桌面窗口；界面不露原因代码；切换不影响对话侧栏（对话的手排顺序里没有任务号）"
+check = "offline"
+files = ["frontend/assistant/src/components/operator/workspace.tsx", "frontend/assistant/src/components/operator/live-source.ts", "frontend/assistant/src/components/operator/operator-sidebar.tsx", "frontend/assistant/src/components/operator/panel.tsx", "frontend/assistant/src/components/operator/controller.tsx", "frontend/assistant/src/components/operator/store.ts", "frontend/assistant/src/components/operator/tasks.ts", "frontend/assistant/src/components/operator/prefs.ts", "frontend/assistant/src/components/operator/model.ts", "frontend/assistant/src/components/operator/mock-source.ts", "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py", "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py"]

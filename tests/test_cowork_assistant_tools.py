@@ -241,7 +241,7 @@ class DeclarationTests(unittest.TestCase):
             self.assertIn(running, terms, tool["name"])
             self.assertTrue(all(terms[running][:3]), f"{running} needs zh / th / ja")
         hooks = (COWORK / "hooks.py").read_text(encoding="utf-8")
-        self.assertIn('pearnly_assistant_step_names = ["pearnly_cowork.assistant.step_names.STEP_NAMES"]', hooks)
+        self.assertIn('pearnly_assistant_step_names = ["pearnly_cowork.assistant.step_names.STEP_NAMES"', hooks)
 
     def test_the_four_capabilities_are_covered(self):
         names = {t["name"] for t in tools.TOOLS}

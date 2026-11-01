@@ -1,0 +1,118 @@
+{
+  "_说明": "服务器版 Express 1.0.1.94（MFC 程序）的代录配方。forms 里每种表单一份：菜单路径、表头按标签填哪些格、走到哪格为止、明细表格入口偏移（按 100% 缩放写）、单位框、底部合计标签（「จำนวนเงิน」按含税价录时显示含税额）、单号格标签。verified=true 的是在 69EXP\\test 上实录过的（试点 31516fff，10-26）；新账套第一次先探路（probe.py）核对表头标签。新增单种：白天在服务器版录一次样本 → 写一份 form → 假 Express 回放 → 实机。",
+  "express_version": "1.0.1.94",
+  "form_open_ms": 6500,
+  "save_wait_ms": 2500,
+  "commands": {"new": 53504, "edit": 53505, "void": 53515, "delete": 53506, "cancel": 53512, "save": 53507},
+  "dialogs": [
+    {"name": "unit", "match": "หน่วยนับ", "auto": false},
+    {"name": "picker", "match": "ค้นหา", "auto": true, "outcome": "blocked", "reason": "master_missing", "close": "ยกเลิก", "_说明": "码在主档里找不到时回车弹选择框（试点实测）：表头上是对方没有，明细里是商品没有；关它按「ยกเลิก」（按「ตกลง」会选中第一项）"},
+    {"name": "duplicate_ref", "match": "\\b1029\\b", "auto": true, "button": "ตกลง", "reason": "duplicate_ref"},
+    {"name": "service_vat_basis", "match": "ภาษีซื้อของสินค้าบริการ", "auto": true, "button": "เกณฑ์สิทธิ", "_说明": "10-29 实机 rec-laptop 69EXP：赊购单（RR）有服务品时，保存中途 Express 问服务品进项税按 เกณฑ์สิทธิ / เกณฑ์เงินสด（两个按钮；不答就停在保存中途：表头、明细已写，进项税没写）。按 เกณฑ์สิทธิ 读回 APTRN.SRV_VATTYP = '1'，与直写 dbf_fields.audit_fields 写的一致"},
+    {"name": "no_history", "match": "\\b4108\\b", "auto": true, "button": "ตกลง"},
+    {"name": "never_bought", "match": "\\b4079\\b", "auto": true, "button": "ตกลง"},
+    {"name": "zero_price_list", "match": "\\b4107\\b", "auto": true, "button": "ตกลง"},
+    {"name": "stock_warning", "match": "\\b605\\b", "auto": true, "button": "ตกลง"},
+    {"name": "negative_stock", "match": "\\b4224\\b|\\b4091\\b", "auto": true, "outcome": "blocked", "reason": "negative_stock"},
+    {"name": "period_outside", "match": "Message#\\.\\s*70\\b", "auto": true, "outcome": "blocked", "reason": "period_outside"},
+    {"name": "license", "match": "-330\\b", "auto": true, "outcome": "blocked", "reason": "license"},
+    {"name": "network", "match": "-70\\b|90621|Reading File", "auto": true, "outcome": "crash", "reason": "network_wait"}
+  ],
+  "session": {
+    "_说明": "开到公司那几步怎么认（10-26 实机 69EXP）：登录后先弹公司列表（按钮「ค้นหา」「เรียงใหม่ <Tab>」），选公司后弹工作日期框（「วันที่ทำการ」，默认今天，按「ตกลง」）。公司列表的选法见 company_pick（10-27 实机）。",
+    "company_list": ["ค้นหา", "เรียงใหม่ <Tab>"],
+    "work_date": "วันที่ทำการ",
+    "company_pick": {
+      "verified": true,
+      "search_button": "ค้นหา",
+      "_说明": "10-27 实机 69EXP：公司列表是 #32770 里的 MFCGridCtrl（读不到行），按钮 ตกลง(1) / ยกเลิก(2) / ค้นหา / เรียงใหม่ <Tab>；表按 COMPNAM 升序、行号 = 登记表 account_set_row（实机核对：第 34 行 = 9.บริษัท Pearnly จำกัด | DATAT | TEST）；默认选中第一行是别家真实公司。做法：先按行号移过去，再用「ค้นหา」按 COMPNAM 查（查找框只有一个输入格 + ตกลง / ยกเลิก），再按 ตกลง；进去后逐字核对状态栏公司名与账套路径"
+    },
+    "masters_refresh": {
+      "verified": false,
+      "how": "reopen_express",
+      "_说明": "开工前建主档（masters.py，复用直写建档）：主档索引（CDX）要独占重建，Express 开着这本账套时建不了。所以批里第一张在开 Express 之前建好；批中途要建时先正常退出 Express，建好后下一张重新开、核公司、从菜单开单据窗口，Express 重新读主档。待实机核对新码在单据窗口里直接查得到后改 verified"
+    }
+  },
+  "login": {
+    "verified": true,
+    "_说明": "登录窗样子 10-27 在 rec-laptop 服务器版 69EXP 上核过（只看样子、没输东西）：标题「เข้าสู่ระบบ/LogIn」，两个输入格左边的标签是「รหัสผู้ใช้」「รหัสผ่าน」（右边另有英文 User ID / Password），按钮 OK / Cancel。按标签找格直接填、按 OK；登录成功那一步等用户在 CC 授权小窗输一次账号密码后实测。",
+    "title_contains": "เข้าสู่ระบบ/LogIn",
+    "user_label": "รหัสผู้ใช้",
+    "password_label": "รหัสผ่าน",
+    "button": "OK",
+    "wait_s": 20
+  },
+  "forms": {
+    "RR": {
+      "verified": true,
+      "menu": ["1", "4", "1"],
+      "title": "RR - ซื้อเงินเชื่อ",
+      "header": {
+        "values": {"วันที่": "date", "ผู้จำหน่าย": "party", "เลขที่บิล": "ref", "ลวท.": "date", "ประเภทราคา": "vat_mode"},
+        "labels": ["แผนก", "เลขที่ใบรับสินค้า", "วันที่", "ผู้จำหน่าย", "Bill be", "สาขา#", "อ้างถึงใบสั่งซื้อ", "เลขที่บิล", "ลวท.", "หมายเหตุ", "เครดิต", "ครบกำหนด", "ขนส่งโดย", "ประเภทราคา"],
+        "stop_after": "ประเภทราคา",
+        "dates": ["วันที่", "ลวท."],
+        "wait_ms": 350
+      },
+      "grid_offset": [112, 30],
+      "unit_dialog": "หน่วยนับ",
+      "totals": {"net": "จำนวนเงิน", "vat": "%", "total": "จำนวนเงินรวมทั้งสิ้น"},
+      "docnum_label": "เลขที่ใบรับสินค้า"
+    },
+    "HP": {
+      "verified": true,
+      "menu": ["1", "2"],
+      "title": "HP - ซื้อเงินสด",
+      "header": {
+        "values": {"วันที่": "date", "ผู้จำหน่าย": "party", "เลขที่บิล": "ref", "ลวท.": "date", "ประเภทราคา": "vat_mode"},
+        "labels": ["แผนก", "เลขที่ใบซื้อสด", "วันที่", "ผู้จำหน่าย", "Bill be", "สาขา#", "อ้างถึงใบสั่งซื้อ", "เลขที่บิล", "ลวท.", "หมายเหตุ", "ขนส่งโดย", "ประเภทราคา"],
+        "stop_after": "ประเภทราคา",
+        "dates": ["วันที่", "ลวท."],
+        "wait_ms": 350
+      },
+      "grid_offset": [112, 30],
+      "unit_dialog": "หน่วยนับ",
+      "totals": {"net": "จำนวนเงิน", "vat": "%", "total": "จำนวนเงินรวมทั้งสิ้น"},
+      "docnum_label": "เลขที่ใบซื้อสด"
+    },
+    "IV": {
+      "verified": true,
+      "menu": ["2", "4"],
+      "title": "IV - ขายเงินเชื่อ",
+      "header": {
+        "values": {"วันที่": "date", "รหัสลูกค้า": "party", "ประเภทราคา": "vat_mode"},
+        "labels": ["แผนก", "เลขที่เอกสาร", "วันที่", "รหัสลูกค้า", "Bill to", "สาขา#", "ใบสั่งขาย", "อ้างอิง", "เครดิต", "ครบกำหนด", "พนักงานขาย", "เขตการขาย", "ขนส่งโดย", "ประเภทราคา"],
+        "stop_after": "ประเภทราคา",
+        "dates": ["วันที่"],
+        "wait_ms": 350
+      },
+      "grid_offset": [112, 30],
+      "unit_dialog": "หน่วยนับ",
+      "totals": {"net": "จำนวนเงิน", "vat": "%", "total": "จำนวนเงินรวมทั้งสิ้น"},
+      "docnum_label": "เลขที่เอกสาร"
+    },
+    "HS": {
+      "verified": true,
+      "menu": ["2", "2"],
+      "title": "HS - ขายเงินสด",
+      "header": {
+        "values": {"วันที่": "date", "รหัสลูกค้า": "party", "ประเภทราคา": "vat_mode"},
+        "labels": ["แผนก", "บิลเงินสด#", "วันที่", "รหัสลูกค้า", "Bill to", "สาขา#", "ใบสั่งขาย", "พนักงานขาย", "เขตการขาย", "ขนส่งโดย", "อ้างอิง", "ประเภทราคา"],
+        "stop_after": "ประเภทราคา",
+        "dates": ["วันที่"],
+        "wait_ms": 350
+      },
+      "grid_offset": [112, 30],
+      "unit_dialog": "หน่วยนับ",
+      "totals": {"net": "จำนวนเงิน", "vat": "%", "total": "จำนวนเงินรวมทั้งสิ้น"},
+      "docnum_label": "บิลเงินสด#"
+    }
+  },
+  "coverage": {
+    "_说明": "评估 §3.1 覆盖面矩阵：单种 → 分期。phase 0 的有配方；其余等录样本后补 form，在这里只登记分期（前端显示「暂不支持」）。",
+    "HS": 0, "IV": 0, "RR": 0, "HP": 0,
+    "RE": 1, "PS": 1, "CN": 1, "DN": 1, "OE": 1, "OI": 1, "RX": 1,
+    "GL": 2, "BD": 2, "BT": 2, "BW": 2, "BV": 2, "BU": 2, "QP": 2, "AE": 2, "AI": 2,
+    "OU": 3, "RL": 3, "JU": 3, "TK": 3, "DR": 3, "CP": 3, "VR": 3
+  }
+}

@@ -1583,6 +1583,9 @@ Stock (this kind from now on)	走库存（同类单据均走库存）	สิน�
 Expense (this kind from now on)	记费用（同类单据均记费用）	ค่าใช้จ่าย (เอกสารประเภทนี้ทั้งหมด)	費用に計上（以後も同様）	cowork.policy.service
 Goods documents	商品单	เอกสารสินค้า	商品の伝票	cowork.company.choice.goods
 Post to stock	走库存	ลงสินค้าคงเหลือ	在庫に計上	cowork.company.choice.stock
+Purchases	采购	ซื้อ	仕入	cowork.company.choice.group.purchase
+Expenses	费用	ค่าใช้จ่าย	経費	cowork.company.choice.group.expense
+Sales	销售	ขาย	売上	cowork.company.choice.group.sales
 Post as expense	记费用	ลงค่าใช้จ่าย	費用に計上	cowork.company.choice.service
 Fiscal year {0}	{0} 年度	ปีบัญชี {0}	{0} 年度	cowork.company.choice.fiscal_year
 Head office	总公司	สำนักงานใหญ่	本店	cowork.company.head_office
@@ -2342,6 +2345,8 @@ Up to six decimal places; empty actual quantity means not counted	最多 6 位�
 This warehouse is not in the Express account set	Express 账套中无此仓库	ไม่มีคลังสินค้านี้ในชุดบัญชี Express	この Express 会計データにこの倉庫はありません	intake.error.ERR_LOCATION
 Express Index Tool	Express 索引程序	โปรแกรมดัชนี Express	Express インデックスツール
 The Express index tool is missing on this computer. Reinstall CC Desktop	此电脑缺少 Express 索引程序，请重新安装 CC 桌面版	คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่	このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください	intake.error.REINDEX_UNAVAILABLE
+This computer cannot enter documents into Express	此电脑不能代录 Express	คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้	このコンピューターでは Express の代行入力ができません	intake.error.OPERATOR_UNAVAILABLE
+This document is in an Express operator entry	单据在代录中	เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express	この書類は Express の代行入力中です	push.operator_owned
 This document was changed in Express. Check it in Express	此单在 Express 中已被修改，请在 Express 中核对	เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express	この伝票は Express で変更されています。Express で確認してください	intake.error.VOID_DOCUMENT_CHANGED
 This document is not in Express	Express 中找不到此单	ไม่พบเอกสารนี้ใน Express	この伝票は Express にありません	intake.error.VOID_DOCUMENT_NOT_FOUND
 The original cash sale is not in Express	Express 中没有原现销单	ไม่พบใบขายเงินสดต้นฉบับใน Express	元の現金売上が Express にありません	intake.error.REFUND_ORIGINAL_NOT_FOUND

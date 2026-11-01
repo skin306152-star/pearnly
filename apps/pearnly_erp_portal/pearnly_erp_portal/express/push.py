@@ -313,43 +313,85 @@ def _set(doctype, name, values):
     frappe.db.set_value(doctype, name, values, update_modified=False)
 
 
-def send(doctype, name):
-    """准备并交进写账队列（后台任务；停下的单每分钟由 :func:`poll` 再叫）。已经交进去的不再交。"""
+def _prepare_body(doctype, company, body):
+    """按写账规则准备一张（`send` 与代录预检 `prepare_only` 同一条路）：回 ``(结论, vat_fields, 没有 Express 码的仓)``。
+    结论同 ``prepare.prepare``：``{"payload", "book"}`` / ``{"hold", "needed"}`` / ``{"failed"}``。"""
+    from pearnly_erp_portal.express import masters
+
+    vat_fields = body.pop("vat_fields", None)
+    unmapped = body.pop("unmapped_warehouses", None)
+    # 盘点当场新建、Express 中没有的商品（``unmapped_items``）：`stock_entry.prepare` 按存货表问一次选现有或新建（P3x）；
+    # 存货表还没读到时停在 item_unmapped
+    if doctype == POS_DAY and "hold" in body:
+        return body, vat_fields, unmapped  # 还不知道这家公司是不是增值税登记户：在单据上问一次（`pos_day.document`）
+    prepared = stock_entry.prepare if doctype in (STOCK, COUNT) else prepare.prepare
+    return prepared(body, _company(company), masters.ensure), vat_fields, unmapped
+
+
+def prepare_only(doctype, name) -> dict:
+    """``send`` 的准备那一半：不写单据、不排写账件（代录预检用，主会话 10-27「预检必须走产品的准备、新商品 / 要人选的项预检里
+    就报」）。回准备的结论；准备好了但单上的仓没有 Express 码时回 ``{"hold": WAREHOUSE_UNMAPPED}``（与 `send` 同一条规则）。"""
+    result, _vat_fields, unmapped = _prepare_body(doctype, company_of(doctype, name), document(doctype, name))
+    if unmapped and "failed" not in result and "hold" not in result:
+        return {"hold": contracts.WAREHOUSE_UNMAPPED, "book": result.get("book") or {}}
+    return result
+
+
+OPERATOR_KEY = "erp:operator:"  # 代录交的写账件的请求号前缀（`send`）
+
+
+def operator_owned(doctype, name) -> bool:
+    """这张单归代录：最近一件写账是代录交的（请求号带 ``OPERATOR_KEY``）、还没录成也没撤掉。归代录的单直写不接。"""
+    found = jobs.of_source(doctype, name)
+    last = found[-1] if found else None
+    return bool(last) and str(last.get("request_key") or "").startswith(OPERATOR_KEY) \
+        and last.get("status") not in ("success", "cancelled")
+
+
+def release_operator(doctype, name) -> bool:
+    """代录再录一次前：这张单上一件是代录交的、转人工了（停在要人处理），撤掉它、单据回到排队，好让代录重新交（同「再写一次」
+    撤旧件的做法，只是之后仍交代录）。不是代录的件、或件还在排队 / 在写，什么都不做。"""
+    current = frappe.db.get_value(doctype, name, "express_job")
+    job = jobs.find_by_name(current) if current else None
+    if not job or job.get("status") != "manual" or not str(job.get("request_key") or "").startswith(OPERATOR_KEY):
+        return False
+    jobs.cancel(job["job"], "replaced")
+    _set(doctype, name, {"express_state": contracts.QUEUED, "express_job": None, "express_reason": "", "express_needed": None})
+    return True
+
+
+def send(doctype, name, operator=None):
+    """准备并交进写账队列（后台任务；停下的单每分钟由 :func:`poll` 再叫）。已经交进去的不再交。
+
+    ``operator``：代录 Express 的批次信息（共用层 ``pearnly_core.express_operator``，CC「代录」里交的）：同一份载荷加代录标记
+    （载荷 15），由 CC 桌面版在 Express 界面里录、不直写；回执照直写同一条（`job_changed`）。回这次的结论（代录交单用）。"""
     if doctype not in DIRECTIONS:
         return
+    if not operator and operator_owned(doctype, name):
+        return {"status": "held", "reason": contracts.OPERATOR_OWNED}
     row = frappe.db.get_value(doctype, name, ["name", "creation", "status", "owner", "express_state",
                                               "express_job", "express_reason"], as_dict=True)
     if not row or row.status != ready(doctype) or row.express_job or row.express_state not in contracts.OPEN_STATES:
-        return
+        return {"status": "already_queued" if row and row.express_job else "not_ready"}
     company = company_of(doctype, name)
     if not enabled(company):
         # 排上之后这家公司断开了（断开时撤单与这一件同时发生）：不写，照实标已断开
         _set(doctype, name, {"express_state": contracts.DETACHED, "express_reason": contracts.DISCONNECTED,
                              "express_needed": None})
         frappe.db.commit()
-        return
-    from pearnly_erp_portal.express import masters
-
+        return {"status": "held", "reason": contracts.DISCONNECTED}
     body = document(doctype, name)
     if doctype == POS_DAY and body.get("net_negative"):
         # 同一天的退货冲减后是负数（共用约定 `net_day`）：不硬写，停下交人
         _set(doctype, name, {"express_state": contracts.HELD, "express_reason": pos_day.NET_NEGATIVE, "express_needed": None})
         frappe.db.commit()
-        return
+        return {"status": "held", "reason": pos_day.NET_NEGATIVE}
     if (doctype == COUNT and not body["lines"]) or (doctype == POS_DAY and body.get("empty")):
         # 整份盘点轧差后没有要调的（只有库位之间挪动）、收银日一天全退（冲减后全部为 0）：Express 里什么都不用写
         _set(doctype, name, {"express_state": None, "express_reason": "", "express_needed": None})
         frappe.db.commit()
-        return
-    vat_fields = body.pop("vat_fields", None)
-    unmapped = body.pop("unmapped_warehouses", None)
-    # 盘点当场新建、Express 中没有的商品（``unmapped_items``）：`stock_entry.prepare` 按存货表问一次选现有或新建（P3x）；
-    # 存货表还没读到时停在 item_unmapped
-    if doctype == POS_DAY and "hold" in body:
-        result = body  # 还不知道这家公司是不是增值税登记户：在单据上问一次（`pos_day.document`）
-    else:
-        prepared = stock_entry.prepare if doctype in (STOCK, COUNT) else prepare.prepare
-        result = prepared(body, _company(company), masters.ensure)
+        return {"status": "nothing_to_write"}
+    result, vat_fields, unmapped = _prepare_body(doctype, company, body)
     book = result.get("book") or {}
     if "failed" in result:
         _set(doctype, name, {"express_state": contracts.FAILED, "express_reason": result["failed"][:500],
@@ -369,18 +411,30 @@ def send(doctype, name):
     else:
         _set(doctype, name, {"express_book": book["key"], "express_needed": None, "express_sent_at": now_datetime()})
         payload = result["payload"]
+        if operator:
+            from pearnly_core.express_operator import contracts as operator_contracts
+
+            payload = operator_contracts.for_operator(payload, operator)
         if vat_fields:
             # 混有免税商品的现销日汇总 / 混合税率的采购：税记录的应税基数按规则交（载荷 9，旧版 CC 诚实拒收）
             payload = {**payload, "vat_fields": vat_fields,
                        "payload_version": max(int(payload.get("payload_version") or 1), pos_day.VAT_FIELDS_PAYLOAD_VERSION)}
         # 再写一次（`api.retry`）撤掉的那件占着原来的请求号：后面的按第几件编号
         earlier = len(jobs.of_source(doctype, name))
-        key = f"erp:{DIRECTIONS[doctype]}:{body['ref']}" + (f"#{earlier + 1}" if earlier else "")
+        key = (f"{OPERATOR_KEY}{operator['id']}:" if operator else f"erp:{DIRECTIONS[doctype]}:") + body['ref'] \
+            + (f"#{earlier + 1}" if earlier else "")
         job = jobs.enqueue(source_doctype=doctype, source_name=name, request_key=key,
                            actor=actor_of(doctype, row, book["key"]), book_key=book["key"], payload=payload, payload_version=int(payload.get("payload_version") or 1),
                            label=body["number"])
         _set(doctype, name, {"express_job": job["job"]})
     frappe.db.commit()
+    if "failed" in result:
+        return {"status": "failed", "reason": result["failed"][:300]}
+    if "hold" in result:
+        return {"status": "held", "reason": result["hold"][:300]}
+    if unmapped:
+        return {"status": "held", "reason": contracts.WAREHOUSE_UNMAPPED}
+    return {"status": "sent"}
 
 
 def detach(company) -> int:

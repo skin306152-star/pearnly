@@ -168,7 +168,7 @@ CODE_SHARED = {
     "sidebar-w": "288px", "sidebar-head": "44px", "search-h": "32px", "search-h-desktop": "28px", "row": "32px", "row-desktop": "30px", "row-phone": "44px",
     "row-gap": "2px", "row-radius": "8px", "row-pad": "10px", "row-ctl": "24px", "row-lead": "28px",
     "group-band": "32px", "group-band-phone": "44px", "group-top": "16px", "group-top-desktop": "14px", "group-chevron": "12px", "row-pulse": "6px",
-    "tray": "48px", "tray-btn": "32px", "sidebar-float": "8px",
+    "tray": "48px", "tray-btn": "32px",
     "menu-pad": "4px", "menu-min-w": "128px", "menu-item": "32px", "menu-item-py": "6px", "menu-item-px": "10px",
     "menu-sep-inset": "10px", "menu-sep-gap": "4px", "menu-sep": "1px",
     # 标题栏（3.9）、右侧会话栏（3.13）、列表页（3.14）
@@ -290,7 +290,7 @@ class OfficialValuesTests(unittest.TestCase):
         self.assertEqual(cc["--cc-shadow-focus-inset"], "inset 0 0 0 var(--cc-focus-w) var(--cc-focus-ring)")
         self.assertNotIn("halo", self.css)
         self.assertEqual(cc["--cc-reveal-rest"], "0")
-        self.assertEqual(cc["--cc-sidebar-float"], "0px")
+        self.assertNotIn("sidebar-float", self.css)  # 侧栏不再浮成卡片（用户 10-27：照 Claude 整张铺开）
         # 结构色只在 --code-* 里分深浅：--cc-* 深色块不再另给底色、叠色与弹层阴影；页面底色所有变体（含手机）同一个
         dark = [b for b in re.findall(r"^\.dark \{\n(.*?)\n\}", self.css, re.M | re.S) if "--cc-brand:" in b][0]
         for name in ("--cc-bg-app", "--cc-bg-sidebar", "--cc-bg-subtle", "--cc-bg-hover", "--cc-bg-selected", "--cc-shadow-pop",
@@ -302,7 +302,7 @@ class OfficialValuesTests(unittest.TestCase):
     def test_three_variants(self):
         self.assertEqual(variant_block(self.css, "desktop"), {
             "--cc-bg-sidebar": "var(--code-sidebar-desktop)", "--cc-row-h": "var(--code-row-desktop)",
-            "--cc-group-top": "var(--code-group-top-desktop)", "--cc-sidebar-float": "var(--code-sidebar-float)",
+            "--cc-group-top": "var(--code-group-top-desktop)",
             # 桌面窗口的侧栏搜索框 28（Claude 桌面版截图约 27.4；第 11 轮按钮排查 G9）
             "--cc-search-h": "var(--code-search-h-desktop)",
         })
@@ -318,11 +318,11 @@ class OfficialValuesTests(unittest.TestCase):
         self.assertIn(':root[data-cc-touch] { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); }\n'
                       ':root[data-cc-touch][data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }', self.css)
         self.assertNotIn("@media (pointer: coarse) {\n  :root", self.css)
-        # 桌面窗口：侧栏浮成卡片（离窗口边 8px、卡片阴影）
-        self.assertIn(':root[data-cc-variant="desktop"] [data-slot="sidebar-container"] { padding: var(--cc-sidebar-float); '
-                      "border-inline-width: 0; }", self.css)
-        self.assertIn(':root[data-cc-variant="desktop"] [data-slot="sidebar-inner"] { border-radius: var(--cc-radius-menu); '
-                      "box-shadow: var(--cc-shadow-card); }", self.css)
+        # 桌面窗口与网页同一个外壳：侧栏整张贴边、靠右边 1px 分隔线隔开主栏，不浮成卡片（用户 10-27：照 Claude 整张铺开、区域之间划线）
+        self.assertNotIn('[data-cc-variant="desktop"] [data-slot="sidebar-container"]', self.css)
+        self.assertNotIn('[data-cc-variant="desktop"] [data-slot="sidebar-inner"]', self.css)
+        sidebar = (SRC / "components/ui/sidebar.tsx").read_text(encoding="utf-8")
+        self.assertIn("group-data-[collapsible=offcanvas]:-start-(--cc-sidebar-w) border-e", sidebar)
         # 启动时写一次（窄屏分界与手机外壳同一条），先于首帧
         variant = (SRC / "lib/variant.ts").read_text(encoding="utf-8")
         self.assertIn('import { MOBILE_QUERY } from "@/hooks/use-mobile";', variant)

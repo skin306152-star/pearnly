@@ -1717,6 +1717,7 @@ Refunds exceed sales for this day after netting	当天退货冲减后为负数	�
 Waiting for the original day summary to be written	等待原日汇总写入	รอบันทึกสรุปยอดขายรายวันต้นทาง	元の日次集計の書き込み待ち	express.reason.refundWaiting
 Original and refund are in different account set years	原单与退货在不同年度账套	ใบต้นฉบับและการคืนอยู่ในชุดบัญชีคนละปี	元伝票と返品が別年度の帳簿にあります	express.reason.refundCrossYear
 The warehouse has no matching Express warehouse	仓库在 Express 里没有对应的仓库	คลังนี้ไม่มีคลังที่ตรงกันใน Express	この倉庫に対応する Express の倉庫がありません	express.reason.warehouseUnmapped
+This document is in an Express operator entry	单据在代录中	เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express	この書類は Express の代行入力中です	express.reason.operatorOwned
 The original day summary was handled manually in Express	原日汇总已在 Express 手工处理	สรุปยอดรายวันต้นฉบับจัดการด้วยมือใน Express แล้ว	元の日次集計は Express で手動処理済みです	express.reason.refundOriginalManual
 Handled manually in Express	已在 Express 手工处理	จัดการด้วยมือใน Express แล้ว	Express で手動処理済み	express.state.handled
 Mark as handled in Express	标记为已在 Express 手工处理	ทำเครื่องหมายว่าจัดการใน Express แล้ว	Express で処理済みにする	express.action.markHandled

@@ -1,0 +1,88 @@
+"""代录的纯规则（多产品共用）：单据 / 批次状态、原因代码与三级。无框架、无 IO。
+
+与 CC 桌面版 ``companion/src/companion/express_operator/contract.py`` 一字不差（两边各一份，因为 CC 桌面版是独立安装包，
+不导入服务端代码；``tests/test_express_operator_shared.py`` 比对）。前端只按代码显示文案。
+"""
+from __future__ import annotations
+
+ENTRY_MODE = "operator"
+
+PENDING, ENTERING, SAVED, VOIDED, WAITING, SKIPPED = "pending", "entering", "saved", "voided", "waiting", "skipped"
+DONE_STATES = frozenset({SAVED, VOIDED, SKIPPED})
+
+BATCH_READY, BATCH_RUNNING, BATCH_PAUSED, BATCH_STOPPED, BATCH_FINISHED = (
+    "ready", "running", "paused", "stopped", "finished")
+
+AUTO, AUTO_REPORTED, HUMAN = "auto", "auto_reported", "human"
+
+REASONS = {
+    "party_missing": HUMAN,
+    "item_missing": HUMAN,
+    "tax_setting_mismatch": HUMAN,
+    "period_locked": HUMAN,
+    "period_outside": HUMAN,
+    "negative_stock": HUMAN,
+    "login_failed": HUMAN,
+    "login_missing": HUMAN,
+    "license": HUMAN,
+    "company_mismatch": HUMAN,
+    "company_pick": HUMAN,  # 停在 Express 公司列表、要人选这家（配方没核过或登记表里找不到）
+    "recipe_mismatch": HUMAN,
+    "unsupported": HUMAN,
+    "readback_mismatch": HUMAN,
+    "unknown_screen": HUMAN,
+    "crash_repeated": HUMAN,
+    "cc_restarted": HUMAN,  # 录到一半 CC 重启：上次留下的 Express 已按放弃收拾，这张没录成
+    "placeholder_left": HUMAN,
+    "network_down": HUMAN,
+    "budget": HUMAN,
+    "duplicate_ref": AUTO_REPORTED,
+    "voided": AUTO_REPORTED,
+    "ai_resolved": AUTO_REPORTED,
+    "express_restarted": AUTO_REPORTED,
+    "screen_locked": AUTO,
+    "user_active": AUTO,
+    "network_wait": AUTO,
+    "account_busy": AUTO,
+    "waiting_start": AUTO,
+}
+
+BATCH_STOPPERS = frozenset({"company_mismatch", "login_failed", "login_missing", "license", "network_down", "budget"})
+
+
+def level(reason: str) -> str:
+    return REASONS.get(reason, HUMAN)
+
+
+# ── 载荷：直写同一份载荷 + 代录标记（载荷 15，CC 桌面版 payload_contract 同号）───────────────────
+OPERATOR_PAYLOAD_VERSION = 15
+
+
+def for_operator(payload: dict, batch: dict, *, vat_included: bool = False) -> dict:
+    """直写载荷 → 代录载荷：加 ``entry_mode = operator`` 与批次信息，版本至少 12（旧版 CC 诚实拒收，不会被当直写写进 DBF）。
+    ``batch``：``{"id", "index", "total", "start_at", "doc", "company"}``（第几张从 1 数；``start_at`` 为 0 = 现在开始；``doc`` 是站点上
+    这张单的编号，CC 用它当批次里的单据号，页面才对得上是哪一张）。"""
+    info = {"id": str(batch.get("id") or ""), "index": int(batch.get("index") or 0),
+            "total": int(batch.get("total") or 0), "start_at": float(batch.get("start_at") or 0)}
+    if batch.get("doc"):
+        info["doc"] = str(batch["doc"])[:140]
+    if batch.get("company"):
+        info["company"] = str(batch["company"])[:140]  # 站点上的公司编号：CC 重启后页面拿它向站点核这一批
+    if not info["id"] or info["index"] < 1 or info["total"] < info["index"]:
+        raise ValueError("bad operator batch")
+    return {**payload, "entry_mode": ENTRY_MODE,
+            "operator": {"batch": info, "vat_included": bool(vat_included)},
+            "payload_version": max(int(payload.get("payload_version") or 1), OPERATOR_PAYLOAD_VERSION)}
+
+
+def is_operator(payload) -> bool:
+    """这份写账载荷是不是交给代录的（``entry_mode=operator``）。产品据此判一张单归代录：归代录、还没录成的单直写一律不接
+    （主会话 10-27）。``payload`` 可以是 dict 或存库的 JSON 文本，认不出按不是。"""
+    if isinstance(payload, (str, bytes)):
+        import json
+
+        try:
+            payload = json.loads(payload or "{}")
+        except ValueError:
+            return False
+    return isinstance(payload, dict) and str(payload.get("entry_mode") or "") == ENTRY_MODE

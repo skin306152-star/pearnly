@@ -967,4 +967,24 @@ class TrayApp(QObject):
         self.app.quit()
 
     def run(self) -> int:
+        _operator_startup_tidy()
         return self.app.exec()
+
+
+def _operator_startup_tidy() -> None:
+    """CC 启动时清一次代录的过期截图（满 30 天按批次日期删），并认出上次留下的 Express（host.startup_tidy）。没代录过（没有
+    代录目录）就不导入代录包、什么都不做。"""
+    import os
+    import threading
+
+    # 没代录过（没有代录目录）就什么都不做；有截图要清、或记着上次留下的 Express 要收拾时才导入
+    root = os.path.join(os.environ.get("APPDATA") or "", "Pearnly", "operator")
+    if not os.path.isdir(root):
+        return
+
+    def tidy():
+        from .express_operator.host import startup_tidy
+
+        startup_tidy()
+
+    threading.Thread(target=tidy, name="operator-tidy", daemon=True).start()

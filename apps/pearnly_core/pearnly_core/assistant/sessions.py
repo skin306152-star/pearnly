@@ -46,7 +46,8 @@ GROUP_FIRST = 5  # 分组列表第一页每组给这么多条
 GROUP_SCAN = 300  # 第一页一次最多读这么多条归在组里的对话，再按组各留 GROUP_FIRST 条
 ORDERED_MAX = 300  # 第一页按组里手排的先后一并给的最多这么多条
 FIELDS = ["name", "session_id", "title", "title_source", "starred", "archived", "creation", "modified",
-          "remote_ids", "context_tokens", "pending_carry", "project", "period", "project_scope", "project_noted"]
+          "remote_ids", "context_tokens", "pending_carry", "project", "period", "project_scope", "project_noted",
+          "operator_task"]
 LIST_FIELDS = ["name", "session_id", "title", "starred", "archived", "creation", "modified", "project", "period",
                "project_scope"]
 UNFILED = ["is", "not set"]  # 「最近」：project 为空（新加的字段，旧行是 NULL）
@@ -250,7 +251,8 @@ def listing(archived=False, after=None, check=None, grouped=False, group=None) -
     （`after` 是那一组的游标）。
     不带 `grouped` 时与以前一样（全部对话一起翻，不分组）。"""
     user = _user()
-    base = {"user": user, "engine_code": config.engine_code(), "archived": 1 if archived else 0}
+    # 实操任务里的对话（`operator_task`，对话框甲）在任务页里看，不进对话侧栏
+    base = {"user": user, "engine_code": config.engine_code(), "archived": 1 if archived else 0, "operator_task": UNFILED}
     starred, groups, ordered = [], None, None
     if grouped and (group is not None or after):
         project = _guard(contracts.project_ref, group)
@@ -502,6 +504,11 @@ def send(session_id, text) -> None:
     relay.ensure(row.session_id, remote, frappe.session.user)
     shown = notices.uncarried(row.session_id, frappe.session.user)
     company, noted = projects.note(row, frappe.session.user)
+    if row.get("operator_task"):
+        from pearnly_core.express_operator import tasks as operator_tasks
+
+        # 实操任务里的对话：每条都带上是哪个任务（工具按任务号查、改）
+        company = "\n\n".join(p for p in (company, operator_tasks.thread_note(row.operator_task)) if p)
     batch = [{"type": "user.message", "content": [{"type": "text", "text": text}]}]
     # 接续的前文、公司说明、还没带过的提醒、界面语言、当地日期时间合成一条系统消息：引擎规定每批最多一条、只能放在最后。
     # 界面语言每条都带（同标题一个来源，`toolrun.interface_language`）：CC 按它回复，不按消息里夹的外文专名猜；

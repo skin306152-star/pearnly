@@ -70,6 +70,55 @@ def test_create_when_no_match(datat):
     assert row["QUCOD"] == "คง"  # 单位名 → ISTAB 单位码,不是名字前两字('คร')
 
 
+def test_no_service_item_to_copy_still_gives_the_express_native_shape(datat):
+    # 10-27 实机：试点账套只有库存品、没有服务品可抄，建出的服务品单位空、换算系数 0，Express 进货单按码查不到。
+    # 现在照 Express 原生服务品：单位按票面（解析不出取本账库存品众数）、商品组取库存品众数、进货 / 销货换算系数 1
+    _add_stmas(datat, STKCOD="OIL01", STKDES="ดีเซล", STKTYP="0", STKGRP="FG", QUCOD="ลต")
+    _add_stmas(datat, STKCOD="OIL02", STKDES="เบนซิน", STKTYP="0", STKGRP="FG", QUCOD="ลต")
+    row = _stmas_row(datat, PM.ensure_item(datat, "ค่าโฆษณาออนไลน์", "52-06-00-00", created_date=_TODAY))
+    assert (row["STKGRP"], row["QUCOD"], row["PQUCOD"], row["SQUCOD"]) == ("FG", "ลต", "ลต", "ลต")
+    assert (row["PFACTOR"], row["SFACTOR"]) == (1.0, 1.0)
+    billed = _stmas_row(datat, PM.ensure_item(datat, "ค่าล้างรถ", "52-06-00-00", created_date=_TODAY, unit="ครั้ง"))
+    assert (billed["QUCOD"], billed["PQUCOD"], billed["SQUCOD"]) == ("คง", "คง", "คง")  # 票面单位优先
+
+
+def test_only_blank_shape_fields_of_our_own_service_items_are_repaired(datat):
+    _add_stmas(datat, STKCOD="OIL01", STKDES="ดีเซล", STKTYP="0", STKGRP="FG", QUCOD="ลต")
+    _add_stmas(datat, STKCOD="PN00009", STKDES="ค่าบริการเก่า", STKTYP="3", STKGRP="", CREBY=S.PEARNLY_USERID,
+               QUCOD="ชน", PFACTOR=0.0, SFACTOR=0.0)
+    _add_stmas(datat, STKCOD="SV01", STKDES="ของเขา", STKTYP="3", STKGRP="", CREBY="BIT9", PFACTOR=0.0)
+    gaps = PM.shape_gaps(datat, "PN00009")
+    # 已有基本单位 ชน：其余单位列跟它走，不补成本账众数 ลต（否则进货单位与库存单位不一致、系数却是 1）
+    assert gaps == {"PFACTOR": 1.0, "SFACTOR": 1.0, "CQUCOD": "ชน", "PQUCOD": "ชน", "SQUCOD": "ชน", "STKGRP": "FG"}
+    PM.repair_shape(datat, "PN00009", gaps)
+    row = _stmas_row(datat, "PN00009")
+    assert row["QUCOD"] == "ชน"  # 已有的值不改
+    assert (row["PFACTOR"], row["STKGRP"]) == (1.0, "FG")
+    assert PM.shape_gaps(datat, "PN00009") == {}
+    assert PM.shape_gaps(datat, "SV01") == {}  # 不是我们建的：不动
+
+
+def test_a_template_missing_shape_fields_still_gives_a_complete_item(datat):
+    # 10-28 百本回归：抄来的服务品模板自己缺商品组、系数 0 → 建出来也缺，第二遍又被当缺口补，账被改
+    _add_stmas(datat, STKCOD="OIL01", STKDES="ดีเซล", STKTYP="0", STKGRP="FG", QUCOD="ลต")
+    _add_stmas(datat, STKCOD="SV01", STKDES="ค่าบริการ", STKTYP="3", STKGRP="", QUCOD="งน", PFACTOR=0.0)
+    code = PM.ensure_item(datat, "ค่าตรวจสอบ", "52-06-00-00", created_date=_TODAY)
+    row = _stmas_row(datat, code)
+    assert (row["STKGRP"], row["QUCOD"], row["PQUCOD"], row["SQUCOD"]) == ("FG", "งน", "งน", "งน")
+    assert (row["PFACTOR"], row["SFACTOR"]) == (1.0, 1.0)
+    assert PM.shape_gaps(datat, code) == {}  # 第二遍不再有可补的
+
+
+def test_an_exempt_line_gets_its_own_exempt_service_item(datat):
+    # 10-29 真实语料：Express 的单据行按商品主档的税码记免税（VATCOD '0'），免税行不能落到同名的应税服务品上
+    _add_stmas(datat, STKCOD="SV01", STKDES="ค่าขนส่ง", STKTYP="3", VATCOD="1")
+    assert PM.ensure_item(datat, "ค่าขนส่ง", "52-02-00-00", created_date=_TODAY) == "SV01"  # 不分税：照旧取同名的
+    exempt = PM.ensure_item(datat, "ค่าขนส่ง", "52-02-00-00", created_date=_TODAY, exempt=True)
+    assert exempt != "SV01" and _stmas_row(datat, exempt)["VATCOD"] == "0"
+    assert PM.ensure_item(datat, "ค่าขนส่ง", "52-02-00-00", created_date=_TODAY, exempt=True) == exempt  # 再来复用
+    assert PM.find_item_code(datat, "ค่าขนส่ง", exempt=True) == exempt
+
+
 def test_acccod_links_target_account(datat):
     code = PM.ensure_item(datat, "ค่าขนส่ง", "41-02-00-00", created_date=_TODAY)
     acccod = _stmas_row(datat, code)["ACCCOD"]

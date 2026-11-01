@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import datetime
 import ntpath
+import sys
 import time
 from dataclasses import replace
 from typing import Callable, Optional
@@ -285,6 +286,11 @@ def _handle_dbf_task(
             error_code="NO_ACCOUNT_SELECTION",
         )
         return "failed"
+    # 代录 Express（载荷 15，入口与直写分开）：同一份载荷交给代录在 Express 界面里录，不直写 DBF
+    from .payload_contract import ENTRY_OPERATOR
+
+    if str(payload.get("entry_mode") or "").strip() == ENTRY_OPERATOR:
+        return _handle_operator_task(cfg, qc, task, st)
     # 方向第一类公民(09 铁律):标签定死表族,绝不串。
     direction = str(payload.get("direction") or "purchase").strip().lower()
     # 三重一致性闸期望值全来自客户所选账套(配对锁定):账套名 + 目录 + 公司。
@@ -358,6 +364,68 @@ def _handle_dbf_task(
     )
     activity("log_record_fail", lang=cfg.ui_lang, err=res.error or res.error_code)
     return outcome  # waiting_lock 等 → 调用方据此设托盘状态(占用≠失败)
+
+
+ERR_OPERATOR_UNAVAILABLE = "OPERATOR_UNAVAILABLE"
+
+
+def _handle_operator_task(cfg, qc, task, st):
+    """代录一张（写账线里，与直写同一把账套锁 PEARNLY.LCK、同一条单线程）。代录包只在这里按需导入：不代录时零占用。
+
+    这台不能代录（不是 Windows、没设服务器版 Express 程序）→ 转人工、写明原因（按「等账套」放回的话同一台会反复领到它）。
+    回执：存上 → 成功（Express 单号）；要人 / 停止 / 跳过 → needs_review（原因代码 ``OPERATOR_<原因>``）；服务器连不上 → 等账套。
+    ``meta.operator`` 带批次号、作废单号、空单头、自动处理的事、用时。"""
+    from .account_write_lock import ERR_WRITER_BUSY, Busy, held
+
+    if sys.platform != "win32" or not str(getattr(st, "express_exe", "") or "").strip():
+        qc.ack_failure(task.id, "this computer cannot operate Express", error_code=ERR_OPERATOR_UNAVAILABLE,
+                       outcome="needs_review")
+        return "needs_review"
+    from .express_operator import host as operator_host
+    from .express_operator import masters as operator_masters
+
+    payload = task.payload or {}
+    try:
+        with held(st.account_dir):
+            # 开工前建主档（直写建档原样复用）：要建时先让宿主退出这一批开着的 Express（主档索引要独占重建）
+            ready = operator_masters.prepare(
+                payload, st, before_create=lambda: operator_host.host().close_express(payload))
+            if not ready.ok:
+                log.warning(f"✗ operator task {task.id} masters: {ready.error_code} · {ready.error}")
+                qc.ack_failure(task.id, ready.error, error_code=ready.error_code, outcome=ready.outcome)
+                return ready.outcome
+            result = operator_host.host().handle(str(task.id), ready.payload, st)
+    except Busy:
+        qc.ack_failure(task.id, "another computer is writing this account set", error_code=ERR_WRITER_BUSY,
+                       outcome="waiting_lock")
+        return "waiting_lock"
+    except Exception as exc:  # noqa: BLE001 — 代录出了意外：交人，不重试（重试可能重录）
+        log.warning(f"✗ operator task {task.id}: {type(exc).__name__}: {exc}")
+        qc.ack_failure(task.id, f"{type(exc).__name__}: {exc}"[:300], error_code="OPERATOR_ERROR",
+                       outcome="needs_review")
+        return "needs_review"
+    meta = {"operator": {**(result.get("meta") or {}), **({"masters": ready.created} if ready.created else {})}}
+    status = result.get("status")
+    if status == "saved":
+        task_journal.remember(task.id, {"docnum": result.get("docnum"), "meta": meta})
+        qc.ack_success(task.id, extracted_invoice_no=result.get("docnum"), meta=meta)
+        activity("log_recorded", lang=cfg.ui_lang, inv=result.get("docnum") or str(task.invoice_no or "?"))
+        return None
+    reason = str(result.get("reason") or "unknown_screen")
+    outcome = "waiting_lock" if status == "waiting" else "needs_review"
+    qc.ack_failure(task.id, result.get("detail") or reason, error_code=f"OPERATOR_{reason.upper()}", outcome=outcome,
+                   meta=meta)
+    return outcome
+
+
+def operator_idle() -> None:
+    """写账线队列空时：代录宿主已经在用（导入过）才叫它看看要不要退出 Express；没代录过什么都不做、不导入。"""
+    module = sys.modules.get(__name__.rsplit(".", 1)[0] + ".express_operator.host")
+    if module is not None and getattr(module, "_HOST", None) is not None:
+        try:
+            module._HOST.idle()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def places_of(cfg) -> tuple:

@@ -270,6 +270,9 @@ export const DEVICES = "devices";
 export const SITES = "sites";
 /** 「Express 位置」清单（CC 桌面版 1.12.0，桥的 add_place / remove_place）：可以添加多个盘 / 文件夹，只读它们下面的 Express。 */
 export const EXPRESS_PLACES = "express_places";
+/** 代录 Express（10-26，入口与直写分开）：桥的 operator_state / operator_control / operator_frame / operator_authorize /
+ *  operator_forget（companion tomo_bridge.py）。没有这一项的桌面版（和网页、手机）上，代录只发起、不在本页看进度。 */
+export const OPERATOR = "operator";
 
 /** 这个产品的站点在桌面端里是哪种通道：ERP 走共用机器通道（core），其余是 Cowork。 */
 export function channelOf(product: string | undefined): string {
@@ -338,7 +341,7 @@ export async function pickFolder(): Promise<PickResult | null> {
 
 /** 在不在 CC 桌面版里；这个桌面版能不能随公司选文件夹（state().features）；这台电脑的电脑名（1.7.0，同绑定里带的 device，
  *  主档页认「本机这一行」：同一条连接上几台电脑各有一行时，连接相同还要电脑名相同）。 */
-export type DesktopFeatures = { app: boolean; companyFolders: boolean; deviceName?: string };
+export type DesktopFeatures = { app: boolean; companyFolders: boolean; deviceName?: string; operator?: boolean };
 
 let features: DesktopFeatures | null = null;
 let readingFeatures: Promise<DesktopFeatures> | null = null;
@@ -352,6 +355,7 @@ export function loadDesktopFeatures(): Promise<DesktopFeatures> {
     .then((state) => ({
       app: true,
       companyFolders: !!state?.features?.includes(COMPANY_FOLDERS),
+      ...(state?.features?.includes(OPERATOR) ? { operator: true } : {}),
       ...(state?.features?.includes(DEVICES) ? { deviceName: String(state.device?.name ?? "") } : {}),
     }))
     .catch(withReport(() => ({ app: true, companyFolders: false }), "desktop"))

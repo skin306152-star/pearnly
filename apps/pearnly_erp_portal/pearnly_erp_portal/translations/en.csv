@@ -1406,6 +1406,7 @@ This device has no camera to scan with,This device has no camera to scan with
 This document cannot be recorded yet,This document cannot be recorded yet
 This document has no content,This document has no content
 This document is already recorded: {0},This document is already recorded: {0}
+This document is in an Express operator entry,This document is in an Express operator entry
 This document is no longer available,This document is no longer available
 This document is not in Express,This document is not in Express
 This document is too large,This document is too large
@@ -2125,6 +2126,7 @@ express.reason.noBook,No Express account set covers this date
 express.reason.noStockBook,This Express account set has no book for this kind of stock document. Set it up in Express
 express.reason.noWriter,No computer can write this account set
 express.reason.offline,Computer offline
+express.reason.operatorOwned,This document is in an Express operator entry
 express.reason.periodLocked,The accounting period is closed in Express
 express.reason.posNetNegative,Refunds exceed sales for this day after netting
 express.reason.reading,Reading the Express account set

@@ -104,7 +104,9 @@ Change password,更改密码
 Change your password and sign out other devices on the account page of the identity service,请在身份服务的账户页修改密码并退出其他设备
 Change your password from your account profile using Change Password.,请在个人资料中使用「更改密码」修改登录密码。
 Charges,扣费
+Checked the hands-on task,查看了实操任务
 Checked your account,已查看账号信息
+Checking the hands-on task,正在查看实操任务
 Checking your account,正在查看账号信息
 Checkpoint Key,检查点键
 Checkpoints,检查点
@@ -120,6 +122,7 @@ Company List,公司列表
 Company Master,公司主档
 Company Profile,公司资料
 Company Tax ID,本方税号
+Company Title,公司名称
 Configuration is complete. The connection was not tested.,配置完整，未测试实际连接。
 Confirm,确认
 Confirm new password,确认新密码
@@ -280,6 +283,7 @@ Export details,导出明细
 Exporting…,导出中…
 Express Document Number,Express 单号
 Express Index Tool,Express 索引程序
+Express Number,Express 单号
 Express Push Guide,Express 推送手册
 External Doc No,外部单据号
 External ERP Push,对外 ERP 推送
@@ -469,6 +473,7 @@ Open in browser,用浏览器打开
 "Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.",打开手机「设置 → 应用程序 → LINE → 权限 → 相机」，选「允许」，然后回到 LINE，会自动重新开始扫码。
 Operator,操作员
 Operator Roster,操作员花名册
+Operator Task,实操任务
 Operator added,操作员已新增
 Operator list,操作员名单
 Operators,操作员
@@ -499,6 +504,7 @@ Pearnly Dark,Pearnly 深色
 Pearnly Light,Pearnly 浅色
 Pending,待处理
 Pending Carry-over,待转入内容
+Pending Controls,待执行的操作
 Pending review,待审核
 Period End,期末
 Period Start,期初
@@ -637,6 +643,7 @@ Source,来源
 Source Attachment,原始附件
 Stage,阶段
 Starred,已加星标
+Start At,开始时间
 State,状态
 Status,状态
 Status cannot go backwards: {0} → {1},状态不能回退：{0} → {1}
@@ -795,6 +802,8 @@ Unit,单位
 Unit Price,单价
 Unit price,单价
 Unknown product: {0},未知产品：{0}
+Updated the hands-on task,更新了实操任务
+Updating the hands-on task,正在更新实操任务
 Upload,上传
 Upload a transfer slip before submitting,请先上传转账凭证再提交
 Upload a transfer slip up to 10 MB,请上传不超过 10 MB 的转账凭证
@@ -819,6 +828,7 @@ VAT Rate %,税率%
 VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,增值税申报（ภ.พ.30）与预扣税申报（ภ.ง.ด.3 / ภ.ง.ด.53）草稿及进项核查
 Valid for {0},剩余有效期 {0}
 Verify State,核对结果
+Voided Number,作废单号
 WHT deducted,预扣税额
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},等待 {0} 秒后仍未获取同一账号的锁（{1}）。同一账号不可并发登录。{2}
 Warehouses,仓库

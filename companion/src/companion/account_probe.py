@@ -270,7 +270,7 @@ def _registry_rows(express_root: str | Path, *, reuse: bool = False) -> List[Tup
         t.open(dbf.READ_ONLY)
     except Exception as e:
         raise RegistryUnavailable(f"读取 Express 公司登记表失败: {e}") from e
-    raw_rows: List[Tuple[str, str, str]] = []
+    keyed: List[Tuple[bytes, Tuple[str, str, str]]] = []
     try:
         for r in t:
             if dbf.is_deleted(r):
@@ -278,16 +278,20 @@ def _registry_rows(express_root: str | Path, *, reuse: bool = False) -> List[Tup
             code = _clean(getattr(r, "COMPCOD", ""))
             if not code:
                 continue
-            raw_rows.append(
+            raw_name = str(getattr(r, "COMPNAM", "") or "")
+            keyed.append(
                 (
-                    _clean(getattr(r, "COMPNAM", "")),
-                    code,
-                    _clean(getattr(r, "PATH", "")),
+                    raw_name.rstrip().encode("cp874", "replace"),
+                    (_clean(raw_name), code, _clean(getattr(r, "PATH", ""))),
                 )
             )
     finally:
         t.close()
-    raw_rows.sort(key=lambda x: x[0])  # grid 排序 = COMPNAM 升序
+    # grid 排序 = Express 的索引（标签 COMPNAM、过滤 NOT DELETED()）：按登记的原字节升序，同名按记录先后（排序稳定）。
+    # 不能先把 \xa0 换成空格再排：10-30 实机，「9.บริษัท\xa0Pearnly\xa0จำกัด」与后建的「9.บริษัท Pearnly จำกัด TEST2」，
+    # Express 里 TEST2 在前（0x20 < 0xA0），按清理后的名字排就反了，按行号进错公司
+    keyed.sort(key=lambda x: x[0])
+    raw_rows = [row for _key, row in keyed]
     INDEX.remember_registry(key, stamp, raw_rows)
     return raw_rows
 

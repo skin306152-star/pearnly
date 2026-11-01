@@ -19,6 +19,7 @@ from pearnly_core.express_rules.contracts.history import primary_page, primary_p
 from pearnly_core.express_rules.contracts.push import clean_tax_id, explicit_direction, resolve_account_direction, resolve_posting_kind
 from pearnly_cowork.history import document_policy, push_state, storage
 from pearnly_cowork.push import choices as choice_store
+from pearnly_cowork.push import lifecycle
 from pearnly_cowork.push.application.provenance import original_history
 from pearnly_cowork.push.automation import rules as automation_rules
 from pearnly_cowork.push.automation import service as automation_service
@@ -81,10 +82,29 @@ def _document_block(doc):
     return policy_rules.push_block(fields, document_policy.read(doc.workspace))
 
 
+OPERATOR_OWNED = "push.operator_owned"
+RESULT_UNKNOWN = "push.result_unknown"
+OPERATOR_DONE = ("success", "cancelled")
+
+
+def operator_owned(doc) -> bool:
+    """这张单交给了代录（最近一次推送的载荷带代录标记 ``entry_mode=operator``，共用层 ``express_operator``）且还没录成、
+    没撤掉：归代录，直写不接。代录批次里跳过 / 撤掉（推送记录 cancelled）或录成后才回到直写。"""
+    record = getattr(doc, "last_push_record", None)
+    if not record:
+        return False
+    from pearnly_core.express_operator import contracts as operator_contracts
+
+    row = frappe.db.get_value("Cowork Push Record", record, ["status", "payload_json"], as_dict=True)
+    return bool(row) and row.status not in OPERATOR_DONE and operator_contracts.is_operator(row.payload_json)
+
+
 def prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
             account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-            *, confirm_duplicate=False, fixed=None, route_device="", automation=None):
-    """``route_device``：定时任务读文件夹的那台电脑，冻结在 Express 推送记录上、只有它写（ADR-021 第 51 条）；
+            *, confirm_duplicate=False, fixed=None, route_device="", automation=None, operator=None):
+    """``operator``：代录 Express 的批次信息（``{"id", "index", "total", "start_at"}``，共用层 ``express_operator``）：载荷加代录
+    标记（载荷 15），交给那台电脑的 CC 桌面版在 Express 界面里录，不直写。
+    ``route_device``：定时任务读文件夹的那台电脑，冻结在 Express 推送记录上、只有它写（ADR-021 第 51 条）；
     网页、手机、LINE、CC 发起的不给，由录入人自己的电脑写。
 
     ``automation``（数字会计员第 3 期第 5 条）：无人值守的自动推（定时任务、网页上传 / LINE 的扫描）给 ``{class, tier,
@@ -125,6 +145,9 @@ def prepare(history, connection, request_key, expected_history_version, expected
     blocked = _document_block(doc)
     if blocked:  # 原因码由提交记在票上，复核页按码出文案与「录入 / 不录入」按钮
         frappe.throw(blocked)
+    if not operator and operator_owned(doc):
+        # 交给代录、还没录成的单：直写一律不接（主会话 10-27；待处理里回答选择只记下，由代录去录）
+        frappe.throw(_(OPERATOR_OWNED))
     if adapter != "express" and pos_contract.present(primary_page(json.loads(doc.pages or "[]"))):
         # POS 日汇总票的付款方式拆分只按 Express 原生记法写（`contracts/pos.py`）：推往别的 ERP 会全额记成现金
         frappe.throw(pos_contract.EXPRESS_ONLY)
@@ -241,6 +264,10 @@ def prepare(history, connection, request_key, expected_history_version, expected
                                     lambda: _account_row(loaded, target))
         if outcome:
             frozen["proposal"] = outcome
+    if operator and prepared.disposition == "ready":
+        from pearnly_core.express_operator import contracts as operator_contracts
+
+        payload = operator_contracts.for_operator(payload, operator)
     row = ledger.reserve(context=context, request_key=request_key, frozen_target=frozen,
         frozen_payload=payload,
         disposition="prepared" if prepared.disposition == "ready" else "manual",
@@ -564,6 +591,54 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
     return result
 
 
+def operator_check(history, posting_kind=None) -> dict:
+    """代录开录前预检一张（主会话 10-27：预检走产品的准备，要人选的一次问完，显示此刻的结果、不读单上旧原因）：与推送准备
+    同一套挡单判断（单据口径、原件引用、账套与票面对不对得上）加同一套「要人选的项」（`choices_view`），不建推送记录、不改单据。
+    回 ``{"state": ready / choose / waiting / blocked, "reason"?, "message"?, "needed"?}``；``needed`` 每项带可选值，
+    商品、对方可选「在 Express 新建」（``NEW``，按直写现有建档、带查重）。``posting_kind``：交单时明传的入账类型（代录资料区的分组）。"""
+    from pearnly_core.express_rules.push.choices import NEW
+
+    scope.require("intake")
+    doc = storage.read(history)
+    if lifecycle.result_unknown(doc.last_push_status, doc.last_push_reason):
+        # 上次领单途中断了、结果不明：先在 Express 里核对（同复核页「核对」），开工前就说，不等交单时才被拒（10-27 实测）
+        return {"state": "blocked", "reason": RESULT_UNKNOWN, "record": doc.last_push_record or "",
+                "message": _("intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN")}
+    try:
+        if not doc.push_connection:
+            frappe.throw(_("cowork.company.pending.no_target"))
+        blocked = _document_block(doc)
+        if blocked:
+            frappe.throw(_(blocked))
+        original_history(doc)
+        loaded = connections.read_for_push(doc.push_connection, doc.workspace, doc.client, lock=True)
+        if loaded.endpoint.get("adapter") != "express":
+            frappe.throw(_("push.adapter_not_connected"))
+        found = _express_context(doc, loaded, doc.push_account_set or None)
+        _require_matching_account(loaded, found["target"], found["direction"], found["fields"], found["invoice_date"])
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.db.rollback()
+        return {"state": "blocked", "message": str(error)[:300]}
+    frappe.db.rollback()  # 只是看
+    view = choices_view(history, doc.push_connection, doc.push_account_set or None, posting_kind or None)
+    if view.get("wait"):
+        return {"state": "waiting", "reason": view["wait"].get("state") or "", "message": view["wait"].get("message") or ""}
+    if not view.get("needed"):
+        return {"state": "ready"}
+    shared = view.get("options") or {}
+    needed = []
+    for item in view["needed"]:
+        kind = item.get("kind")
+        options = item.get("options") or (shared.get("products") if kind == "item" else
+                                          shared.get("accounts") if kind in ("account", "receipt") else []) or []
+        rows = [{"code": str(row.get("code") or ""), "name": str(row.get("name") or "")} for row in options
+                if isinstance(row, dict)]
+        if kind in ("item", "party"):
+            rows.insert(0, {"code": NEW, "name": ""})  # 在 Express 新建（第 3 期前按直写现有建档、带查重，主会话 10-27）
+        needed.append({**item, "options": rows})
+    return {"state": "choose", "needed": needed}
+
+
 def _planned(doc, loaded, found, posting_kind, decision, today):
     """没有要人选的项时，这张票此刻推出去会怎么写（`pushed.planned`）：与准备推送同一套试算（`prepare` 里 ``choices`` 之后那一段，
     同自动推判定 `assess._assess`），只看不记；票面本身指向的现 / 赊按付款判定不带选择再判一次。试算不成（口径没定、预检不过）
@@ -884,7 +959,7 @@ def confirm_server(name, expected_revision, request_key):
 
 def submit(history, connection, request_key, expected_history_version, expected_connection_revision,
            account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-           *, confirm_duplicate=False, fixed=None, route_device="", automation=None):
+           *, confirm_duplicate=False, fixed=None, route_device="", automation=None, operator=None):
     """复核页「提交」的一张票：准备 →（MR.ERP）确认发送并排执行任务；Express 的确认由小助手确认入口做。
 
     失败不抛给页面（用户 2026-09-26：只在列表状态图标上看原因）：整笔回滚后把原因记到这张票上
@@ -893,7 +968,7 @@ def submit(history, connection, request_key, expected_history_version, expected_
     try:
         result = prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
             account_set_key, catalog_request_id, catalog_revision, posting_kind, confirm_duplicate=confirm_duplicate,
-            fixed=fixed, route_device=route_device, automation=automation)
+            fixed=fixed, route_device=route_device, automation=automation, operator=operator)
         if result.get("status") == "disabled":
             return submission_failed(history, _("push.disabled"))
         if result.get("status") == "prepared" and connections.adapter_of(connection) == "mrerp":

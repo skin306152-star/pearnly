@@ -47,7 +47,11 @@ const HOLD_FRAMES = 30;
 /** 关掉后焦点回到哪：那个元素；侧栏行再记行号（行重画换了元素时按行号找回）。 */
 export type Back = { el: HTMLElement | null; row: string };
 
-type Ask = { ids: readonly string[]; run: () => unknown; back: Back };
+/** title：问话（不给是「删除对话？」/「删除 N 个对话？」）；current：此刻正开着的是哪一条（不给按组件库正开着的对话算）。实操删任务
+ *  （components/operator/operator-sidebar.tsx）给自己的问话「删除任务？」与正开着的任务。 */
+export type AskOptions = { title?: string; current?: () => string };
+
+type Ask = { ids: readonly string[]; run: () => unknown; back: Back } & AskOptions;
 
 const useAsk = create<{ ask: Ask | null }>(() => ({ ask: null }));
 
@@ -62,11 +66,11 @@ export function backTarget(active: Element | null = document.activeElement): Bac
 }
 
 /** 先问一次再删：`ids` 是要删的对话（本页编号），点「删除」才执行 `run`。 */
-export function askDelete(ids: readonly string[], run: () => unknown): void {
+export function askDelete(ids: readonly string[], run: () => unknown, options: AskOptions = {}): void {
   // 点菜单项这一刻记下触发处：弹窗下一帧才开，那时菜单已关，焦点已不在菜单里
   const back = backTarget();
   // 等本次点击和菜单收起走完再开：从下拉菜单项里同步打开对话框，菜单收起时会把焦点抢回触发钮、弹窗一开就关
-  requestAnimationFrame(() => useAsk.setState({ ask: { ids, run, back } }));
+  requestAnimationFrame(() => useAsk.setState({ ask: { ids, run, back, ...options } }));
 }
 
 /** 删这一条对话（行菜单、标题栏菜单）：点菜单那一刻就定下是哪条，问完再删时行和菜单可能已经卸载。 */
@@ -189,7 +193,8 @@ export const DeleteChatsHost: FC = () => {
   const confirm = () => {
     const current = asked.current;
     if (!current) return;
-    after.current = focusAfterDelete(current.ids, current.back, () => aui.threads().getState().mainThreadId);
+    if (current.current) after.current = focusAfterDelete(current.ids, current.back, current.current);
+    else after.current = focusAfterDelete(current.ids, current.back, () => aui.threads().getState().mainThreadId);
     close();
     current.run();
   };
@@ -215,7 +220,7 @@ export const DeleteChatsHost: FC = () => {
           }}
         >
           <div className="cc-dialog-head">
-            <DialogPrimitive.Title className="cc-dialog-title">{ask ? sb.deleteAsk(ask.ids.length) : ""}</DialogPrimitive.Title>
+            <DialogPrimitive.Title className="cc-dialog-title">{ask ? (ask.title ?? sb.deleteAsk(ask.ids.length)) : ""}</DialogPrimitive.Title>
             <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>
               <XIcon />
             </DialogPrimitive.Close>

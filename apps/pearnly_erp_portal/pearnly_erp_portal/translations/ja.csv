@@ -1406,6 +1406,7 @@ This device has no camera to scan with,この端末にはスキャンに使え�
 This document cannot be recorded yet,この伝票はまだ記録できません
 This document has no content,この書類は中身がありません
 This document is already recorded: {0},この伝票は登録済みです: {0}
+This document is in an Express operator entry,この書類は Express の代行入力中です
 This document is no longer available,この書類は利用できません
 This document is not in Express,この伝票は Express にありません
 This document is too large,この書類は大きすぎます
@@ -2125,6 +2126,7 @@ express.reason.noBook,この日付を含む Express 帳簿がありません
 express.reason.noStockBook,この Express 帳簿にはこの種類の在庫伝票の伝票帳がありません。Express で設定してください
 express.reason.noWriter,この帳簿に書き込める端末がありません
 express.reason.offline,端末オフライン
+express.reason.operatorOwned,この書類は Express の代行入力中です
 express.reason.periodLocked,会計期間は Express で締め済みです
 express.reason.posNetNegative,この日は返品が売上を上回っています
 express.reason.reading,Express 帳簿を読み取り中

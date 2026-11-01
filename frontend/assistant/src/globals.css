@@ -359,7 +359,6 @@
   --code-row-pulse: 6px;        /* 行尾在跑的脉冲点（明暗呼吸 1.2s，--code-pulse） */
   --code-tray: 48px;
   --code-tray-btn: 32px;
-  --code-sidebar-float: 8px;    /* 桌面窗口：侧栏卡片离窗口边 */
   /* 菜单（设计文档 3.6） */
   --code-menu-pad: 4px;
   --code-menu-min-w: 128px;
@@ -603,7 +602,6 @@
   --cc-sidebar-head-h: var(--code-sidebar-head);
   --cc-sidebar-foot-h: var(--code-tray);
   --cc-tray-btn: var(--code-tray-btn);     /* 托盘里的用户按钮、设置齿轮 32 */
-  --cc-sidebar-float: 0px;                  /* 侧栏卡片离窗口边：网页贴边 */
   --cc-menu-pad: var(--code-menu-pad);
   --cc-menu-min-w: var(--code-menu-min-w);
   --cc-menu-item-h: var(--code-menu-item);
@@ -965,6 +963,13 @@
   --cc-install-title-font: 17px;  /* 现有值·CC 自定：指引标题 */
   --cc-ease-pulse: ease-in-out;   /* 现有值·CC 自定：脉冲点明暗呼吸 */
   --cc-status-dot: 8px;           /* 现有值·CC 自定：状态点、侧栏未读点 */
+  --cc-op-seg-btn: 30px;          /* 现有值·CC 自定：左上「直写 / 实操」图标按钮的点按区（照 Claude 分段，图标 18 用 --cc-icon-md） */
+  --cc-op-seg-stroke: 2;          /* 现有值·CC 自定：「直写 / 实操」两个图标的线宽（24 网格） */
+  --cc-op-narrow: 900px;          /* 现有值·CC 自定：实操右侧栏窄于它改成从右边滑出的抽屉（设计稿 Narrow） */
+  --cc-op-panel-w: 360px;         /* 现有值·CC 自定：实操右侧栏宽（设计稿 Main；并排时拖左边的分隔条改，记在本机） */
+  --cc-op-panel-min-w: 300px;     /* 现有值·CC 自定：实操右侧栏拖到最窄 */
+  --cc-op-panel-max-w: 720px;     /* 现有值·CC 自定：实操右侧栏拖到最宽（主栏另不窄于 --cc-chat-min-w） */
+  --cc-op-select-w: 150px;        /* 现有值·CC 自定：实操「开始前确认」每项下拉的宽（设计稿 BeforeEntry） */
   --cc-title-max-w: 28rem;        /* 现有值·CC 自定：电脑顶栏对话名最宽 */
   --cc-title-edit-w: 18rem;       /* 现有值·CC 自定：顶栏就地改名框宽 */
   --cc-title-company-max-w: 14rem;   /* 现有值·CC 自定：顶栏「公司名 ›」最宽 */
@@ -1037,13 +1042,13 @@
 }
 
 /* ── 变体（设计文档 4.1）：lib/variant.ts 在 <html data-cc-variant> 写 web / desktop / phone。网页是上面的默认值
-   （侧栏贴边、行 32、组上间距 16）；桌面窗口里侧栏浮成卡片（离窗口边 8px，白卡 / 深色 #262626，卡片阴影）、行 30、组上间距 14；
+   （侧栏贴边、行 32、组上间距 16）；桌面窗口侧栏同样整张贴边（白底 / 深色 #262626，右边 1px 分隔线，用户 10-27：照 Claude 整张铺开、
+   区域之间划线，不再浮成卡片）、行 30、组上间距 14；
    手机抽屉行与组标题带 44、组箭头与组操作常显、对话正文 16/24。 */
 :root[data-cc-variant="desktop"] {
   --cc-bg-sidebar: var(--code-sidebar-desktop);
   --cc-row-h: var(--code-row-desktop);
   --cc-group-top: var(--code-group-top-desktop);
-  --cc-sidebar-float: var(--code-sidebar-float);
   --cc-search-h: var(--code-search-h-desktop);
 }
 /* 手机变体：抽屉行与组标题带 44、组箭头与组操作常显、对话正文 16/24、问候与形象缩小。
@@ -1061,8 +1066,6 @@
 }
 :root[data-cc-touch] { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); }
 :root[data-cc-touch][data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }
-:root[data-cc-variant="desktop"] [data-slot="sidebar-container"] { padding: var(--cc-sidebar-float); border-inline-width: 0; }
-:root[data-cc-variant="desktop"] [data-slot="sidebar-inner"] { border-radius: var(--cc-radius-menu); box-shadow: var(--cc-shadow-card); }
 
 /* shadcn / assistant-ui 自带组件用的变量，全部接到上面的 CC 变量（不另设一套数值） */
 @supports (height: 100dvh) { :root { --cc-vh: 100dvh; /* 系统值 */ } }
@@ -2136,6 +2139,118 @@
     [data-slot="sidebar"] :is(input, textarea) { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
   }
 
+  /* 左上角「直写 / 实操」（照 Claude 分段）：叠色底框、两个 30 的图标格；选中格浅底 + 1px 细边；图标 18、颜色跟字色 */
+  .cc-op-seg { display: inline-flex; flex-shrink: 0; gap: var(--cc-space-2); padding: var(--cc-space-2); border-radius: var(--cc-radius-md); background: var(--cc-bg-subtle); }
+  .cc-op-seg-btn {
+    display: inline-flex; align-items: center; justify-content: center; width: var(--cc-op-seg-btn); height: var(--cc-op-seg-btn);
+    border: var(--cc-hairline) solid transparent; border-radius: var(--cc-radius-row-ctl); color: var(--cc-ink-3); outline: none;
+    transition: background-color var(--cc-dur-fast) var(--cc-ease), color var(--cc-dur-fast) var(--cc-ease), border-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-op-seg-btn:hover { color: var(--cc-ink); }
+  .cc-op-seg-btn[aria-checked="true"] { background: var(--cc-bg-surface); border-color: var(--cc-line); color: var(--cc-ink); }
+  .cc-op-seg-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-op-seg-btn svg { width: var(--cc-icon-md); height: var(--cc-icon-md); stroke-width: var(--cc-op-seg-stroke); }
+
+  /* 实操工作区：主栏（记录 + 底部输入框，同对话的内容宽）与右侧栏并排 */
+  .cc-op-work { position: relative; display: flex; flex: 1; min-width: 0; min-height: 0; }
+  .cc-op-main { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+  .cc-op-new {
+    display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: var(--cc-space-12);
+    width: 100%; max-width: var(--cc-thread-w); margin-inline: auto; padding: var(--cc-space-24) var(--cc-space-16);
+  }
+  .cc-op-log { flex: 1; min-height: 0; overflow-y: auto; }
+  .cc-op-log-inner {
+    display: flex; flex-direction: column; gap: var(--cc-space-8); width: 100%; max-width: var(--cc-thread-w); margin-inline: auto;
+    padding: var(--cc-space-16) var(--cc-space-16) var(--cc-space-24); color: var(--cc-ink); font-size: var(--cc-body-size); line-height: var(--cc-body-lh);
+  }
+  .cc-op-you { display: flex; justify-content: flex-end; }
+  .cc-op-meta { color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
+  /* 每张单一行：图标 | 单号 · 对方（下面一行 Express 单号或原因）| 状态 */
+  .cc-op-row { display: grid; grid-template-columns: var(--cc-icon-sm) minmax(0, 1fr) auto; align-items: center; gap: var(--cc-space-12); padding-block: var(--cc-space-4); }
+  .cc-op-row-icon { width: var(--cc-icon-sm); height: var(--cc-icon-sm); color: var(--cc-ink-3); }
+  .cc-op-row-state { color: var(--cc-ink-3); font-size: var(--cc-panel-font); line-height: var(--cc-panel-lh); white-space: nowrap; }
+  .cc-op-row[data-tone="done"] :is(.cc-op-row-icon, .cc-op-row-state) { color: var(--cc-status-online); }
+  .cc-op-row[data-tone="running"] :is(.cc-op-row-icon, .cc-op-row-state) { color: var(--cc-status-processing); }
+  .cc-op-row[data-tone="running"] .cc-op-row-icon { fill: currentColor; }
+  .cc-op-row[data-tone="attention"] :is(.cc-op-row-icon, .cc-op-row-state) { color: var(--cc-status-attention); }
+  .cc-op-finish { padding-block-start: var(--cc-space-8); border-block-start: var(--cc-ring-w) solid var(--cc-line); }
+  .cc-op-attention {
+    display: flex; align-items: center; gap: var(--cc-space-8); min-height: var(--cc-control); padding-inline: var(--cc-space-12);
+    border-radius: var(--cc-radius-md); background: var(--cc-bg-subtle); color: var(--cc-status-attention); text-align: start; outline: none;
+  }
+  .cc-op-attention:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-op-foot { width: 100%; max-width: var(--cc-thread-w); margin-inline: auto; padding: var(--cc-space-8) var(--cc-space-16) var(--cc-space-16); }
+  .cc-op-title { min-width: 0; max-width: var(--cc-title-max-w); overflow: hidden; color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: var(--cc-weight-medium); }
+
+  /* 实操的右侧栏（与对话页会话栏 .cc-panel 分开）：整张贴右边、左边 1px 线、分区之间 1px 线；窄屏从右边整高滑出盖在主栏上
+     （点外面关），手机盖满屏 */
+  .cc-op-panel {
+    position: relative; display: flex; flex-direction: column; flex-shrink: 0; width: var(--cc-op-panel-w); min-height: 0;
+    border-inline-start: var(--cc-ring-w) solid var(--cc-line); background: var(--cc-bg-app);
+  }
+  .cc-op-panel[data-mode="floating"] {
+    position: absolute; inset-block: 0; inset-inline-end: 0; z-index: var(--cc-z-scrim); max-width: 100%; box-shadow: var(--cc-shadow-float);
+    animation: cc-op-slide-in var(--cc-dur) var(--cc-ease) both;
+  }
+  .cc-op-panel[data-mode="phone"] {
+    position: fixed; inset: 0; z-index: var(--cc-z-sheet); width: 100%; border-inline-start-width: 0;
+    padding: env(safe-area-inset-top) 0 max(var(--cc-space-16), env(safe-area-inset-bottom));
+  }
+  .cc-op-scrim { position: absolute; inset: 0; z-index: var(--cc-z-scrim); background: var(--cc-bg-overlay); animation: cc-fade-in var(--cc-dur) var(--cc-ease) both; }
+  .cc-op-panel-top {
+    display: flex; flex-shrink: 0; align-items: center; gap: var(--cc-space-8); min-height: var(--cc-control); padding-inline: var(--cc-space-16) var(--cc-space-8);
+    border-block-end: var(--cc-ring-w) solid var(--cc-line); color: var(--cc-ink); font-weight: var(--cc-weight-medium);
+  }
+  /* 并排时右侧栏最上面一行（与主栏顶栏同高）：右上角的右侧栏开关，桌面窗口里还有窗口按钮；滚动时贴在顶上 */
+  .cc-op-panel-bar { position: sticky; top: 0; z-index: var(--cc-z-raise); flex-shrink: 0; justify-content: flex-end; background: var(--cc-bg-app); }
+  /* 滚动在里面这一层：左边的分隔条（.cc-split）贴着整列，不跟着内容滚走 */
+  .cc-op-panel-scroll { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow-y: auto; }
+  /* 「开始」：报告下面靠右（同报告里「导出报告」那一行的右边），还差什么写在它上面 */
+  .cc-op-start {
+    display: flex; flex-shrink: 0; flex-direction: column; align-items: flex-end; gap: var(--cc-space-8);
+    padding: var(--cc-space-12) calc(var(--cc-space-8) + var(--cc-space-6)) var(--cc-space-16);
+  }
+  .cc-op-start > .cc-alert { align-self: stretch; }
+  .cc-op-section { display: flex; flex-shrink: 0; flex-direction: column; padding: var(--cc-space-4) var(--cc-space-8); border-block-end: var(--cc-ring-w) solid var(--cc-line); }
+  .cc-op-section-toggle {
+    display: flex; align-items: center; gap: var(--cc-space-6); height: var(--cc-panel-head); padding-inline: var(--cc-space-6); border-radius: var(--cc-radius-row-ctl);
+    color: var(--cc-ink-2); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); font-weight: var(--cc-weight-medium); outline: none;
+    transition: color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-op-section-toggle:hover { color: var(--cc-ink); }
+  .cc-op-section-toggle:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-op-section-chevron { flex-shrink: 0; width: var(--cc-group-chevron); height: var(--cc-group-chevron); color: var(--cc-ink-3); transition: transform var(--cc-dur-fast) var(--cc-ease); }
+  .cc-op-section-toggle[aria-expanded="true"] .cc-op-section-chevron { transform: rotate(90deg); }
+  .cc-op-section-summary { flex-shrink: 0; color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); font-weight: var(--cc-weight-regular); font-variant-numeric: tabular-nums; }
+  .cc-op-section-check { flex-shrink: 0; width: var(--cc-icon-xs); height: var(--cc-icon-xs); color: var(--cc-status-online); }
+  .cc-op-section-body {
+    display: flex; flex-direction: column; gap: var(--cc-space-8); padding: var(--cc-space-4) var(--cc-space-6) var(--cc-space-12);
+    color: var(--cc-ink-2); font-size: var(--cc-panel-font); line-height: var(--cc-panel-lh);
+  }
+  .cc-op-drop {
+    display: flex; flex-direction: column; gap: var(--cc-space-8); padding: var(--cc-space-8); border: var(--cc-hairline) dashed var(--cc-line-strong);
+    border-radius: var(--cc-radius-md); background: var(--cc-bg-subtle); transition: border-color var(--cc-dur-fast) var(--cc-ease), background-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-op-drop[data-over] { border-color: var(--cc-ink-3); background: var(--cc-bg-hover); }
+  .cc-op-drop-pick {
+    display: flex; flex-direction: column; align-items: center; gap: var(--cc-space-2); padding-block: var(--cc-space-16); border-radius: var(--cc-radius-row-ctl);
+    color: var(--cc-ink-2); outline: none;
+  }
+  .cc-op-drop-pick:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  :root:not([data-cc-touch]) .cc-op-camera { display: none; }
+  .cc-op-group { display: flex; flex-direction: column; gap: var(--cc-space-2); padding: var(--cc-space-2); border-radius: var(--cc-radius-md); transition: background-color var(--cc-dur-fast) var(--cc-ease); }
+  .cc-op-group[data-drop-target] { background: var(--cc-row-selected); }
+  .cc-op-group-head { display: flex; align-items: center; gap: var(--cc-space-8); min-height: var(--cc-panel-row); padding-inline: var(--cc-space-4); color: var(--cc-ink); font-weight: var(--cc-weight-medium); }
+  .cc-op-doc { border-radius: var(--cc-radius-row-ctl); background: var(--cc-bg-subtle); }
+  .cc-op-doc-handle { display: flex; align-items: center; gap: var(--cc-space-8); min-height: var(--cc-panel-row); padding-inline: var(--cc-space-8); border-radius: var(--cc-radius-row-ctl); outline: none; }
+  .cc-op-doc-handle:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-op-ask-group { display: flex; flex-direction: column; gap: var(--cc-space-6); }
+  .cc-op-ask-kind { color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
+  .cc-op-ask, .cc-op-line { display: flex; align-items: center; gap: var(--cc-space-8); min-height: var(--cc-panel-row); color: var(--cc-ink); }
+  .cc-op-ask-select { flex-shrink: 0; width: var(--cc-op-select-w); max-width: 50%; }
+  .cc-op-handle { display: flex; flex-direction: column; gap: var(--cc-space-4); }
+  :root[data-cc-touch] :is(.cc-op-section-toggle, .cc-op-doc-handle, .cc-op-ask, .cc-op-line) { min-height: var(--cc-tap); }
+
   /* 右侧会话栏（设计文档 3.13 / 4.4）：宽 280；卡片纵向、间距 10；宽屏与对话并排，对话区放不下时浮在对话上，手机盖满屏 */
   .cc-panel {
     display: flex; flex-direction: column; flex-shrink: 0; gap: var(--cc-panel-gap); width: var(--cc-panel-w); min-height: 0;
@@ -2597,12 +2712,13 @@ html[data-cc-mshell], html[data-cc-mshell] body { height: 100%; overflow: hidden
 @keyframes cc-fade-out { to { opacity: 0; } }
 @keyframes cc-spin { to { transform: rotate(360deg); } }
 @keyframes cc-drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
+@keyframes cc-op-slide-in { from { transform: translateX(100%); } to { transform: none; } }
 @keyframes cc-bob { from { transform: translateY(0); } to { transform: translateY(-6px); } }
 @keyframes cc-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 @keyframes cc-results-in { from { opacity: 0; transform: translateX(1.5rem); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   .cc-bubble-user, .cc-bubble-user::before, .cc-reply, .cc-enter, .cc-menu, .cc-drawer-in, .cc-results, .cc-dropzone, .cc-loading .pearnly-mascot-host,
-  .cc-activity::before, .cc-overlay, .cc-pop, .cc-toast, .animate-cc-pulse { animation: none !important; }
+  .cc-activity::before, .cc-overlay, .cc-pop, .cc-toast, .animate-cc-pulse, .cc-op-panel, .cc-op-scrim { animation: none !important; }
 }
 
 /* 产品形象小单：与宣传页同一套规则（website/static/style.css「卡片角上的手绘小单」与 .hm 眨眼），照搬不改 */

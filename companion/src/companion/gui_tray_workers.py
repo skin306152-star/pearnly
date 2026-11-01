@@ -25,6 +25,14 @@ class BusyPrompt:
         self.done = threading.Event()
 
 
+def _operator_task(task) -> bool:
+    """代录的单（载荷 ``entry_mode=operator``）：在 Express 界面里录，Express 开着这本账套是它在用。"""
+    from .payload_contract import ENTRY_OPERATOR
+
+    payload = getattr(task, "payload", None) or {}
+    return isinstance(payload, dict) and str(payload.get("entry_mode") or "").strip() == ENTRY_OPERATOR
+
+
 def friendly_poll_error_spec(error: Exception) -> MessageSpec:
     try:
         import httpx
@@ -177,8 +185,9 @@ class PollWorker(QThread):
             self._abort_task(profile_id, queue, task, lang)
             batch["fail"] += 1
             return "error"
-        # 没人在电脑前的单（定时任务等）不弹询问框：交给写入时的占用检查按「等账套」回报，空出来自动再写
-        if not written and not self._unattended(cfg, task) and not self._stop:
+        # 没人在电脑前的单（定时任务等）不弹询问框：交给写入时的占用检查按「等账套」回报，空出来自动再写。
+        # 代录的单不探：Express 开着这本账套正是代录在用它（10-27 实机：第二张被当成「账套被占用」放回排队、还弹了询问框）
+        if not written and not self._unattended(cfg, task) and not self._stop and not _operator_task(task):
             account_dir = self._account_dir(cfg, task)
             if account_dir and account_lock.is_account_busy(account_dir):
                 return self._release_then_ask(profile_id, queue, task, lang)

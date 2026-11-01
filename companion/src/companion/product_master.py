@@ -79,13 +79,22 @@ def _gv(rec, field, default=""):
     return v.strip() if isinstance(v, str) else v
 
 
-def find_item_code(account_dir: Path, name: str) -> Optional[str]:
+def find_item_code(account_dir: Path, name: str, *, exempt: Optional[bool] = None) -> Optional[str]:
     """只读:同名非库存主档(STKTYP∈3/4/5)的 STKCOD,归一精确匹配。命中返其码。
 
     落档形与比对键都走 stock_lookup(列宽从表头现取),与库存侧共用同一口径 —— 建档侧和
     卖货侧曾各截各的,长名于是永远比不中,重复建档 + 销售死锁。
+    ``exempt``:``True`` 只认免税的(VATCOD '0')、``False`` 只认不是免税的——开了「按商品记增值税」的账套,Express 的单据行
+    按商品主档的税码记免税,免税行不能落到同名的应税品上,应税行也不能落到同名的免税品上(10-29 真实语料与 TEST2 实测
+    RR0000088)。不给(``None``)时照旧,不看税码。
     """
-    return stock_lookup.first_code(account_dir, name, _NONSTOCK_TYPES)
+    if exempt is None:
+        return stock_lookup.first_code(account_dir, name, _NONSTOCK_TYPES)
+    return _first_by_vatcod(stock_lookup.find_rows(account_dir, name, _NONSTOCK_TYPES), exempt)
+
+
+def _first_by_vatcod(rows, exempt: bool) -> Optional[str]:
+    return next((row["stkcod"] for row in rows if row["stkcod"] and (row.get("vatcod") == EXEMPT_VATCOD) == exempt), None)
 
 
 def _pick_template(account_dir: Path) -> Optional[Dict]:
@@ -198,6 +207,64 @@ def _reindex(account_dir: Path, table: str) -> None:
         t.close()
 
 
+# 服务品的形状(Express 原生服务品逐字段核对,10-28):商品组有值、三种单位一致、进货 / 销货换算系数 1
+EXEMPT_VATCOD = "0"  # STMAS / STCRD 的免税税码
+NORMAL_VATCOD = "1"  # 正常税率（Express 商品「ประเภท VAT」：ได้รับยกเว้นVAT = '0'，อัตราปกติ = '1'，ไม่ระบุ = 空）
+_SHAPE_UNITS = ("QUCOD", "CQUCOD", "PQUCOD", "SQUCOD")
+_SHAPE_FACTORS = ("PFACTOR", "SFACTOR")
+
+
+def _shape_defaults(account_dir: Path, unit: str = "") -> Dict:
+    """没有非库存品可抄时的结构字段:单位按票面(解析成本账套合法码),没有就取本账库存品的众数;商品组取本账库存品的
+    众数(同库存品建档 `stock_defaults`);进货 / 销货换算系数 1。取不到的单位、商品组留空,不编。"""
+    defaults = stock_defaults.read(account_dir)
+    row: Dict = {f: 1.0 for f in _SHAPE_FACTORS}
+    qucod = unit_code.resolve(account_dir, unit) or defaults.qucod
+    if qucod:
+        row.update({f: qucod for f in _SHAPE_UNITS})
+    if defaults.stkgrp:
+        row["STKGRP"] = defaults.stkgrp
+    return row
+
+
+def shape_gaps(account_dir: Path, stkcod: str) -> Dict:
+    """我们建的(CREBY = PEARNLY)非库存品缺的形状字段 → 该补成什么;不是我们建的、不缺的回空(不动人家的主档)。只读。"""
+    t = _open(account_dir, "STMAS", dbf.READ_ONLY)
+    try:
+        row = next((r for r in S.live_rows(t) if (_gv(r, "STKCOD") or "").strip() == stkcod), None)
+        if row is None or str(_gv(row, "STKTYP")) not in _NONSTOCK_TYPES \
+                or (_gv(row, "CREBY") or "").strip().upper() != S.PEARNLY_USERID.upper():
+            return {}
+        have = {f: _gv(row, f) for f in ("STKGRP",) + _SHAPE_UNITS + _SHAPE_FACTORS}
+    finally:
+        t.close()
+    return _fill_shape(account_dir, have)
+
+
+def _fill_shape(account_dir: Path, row: Dict, unit: str = "") -> Dict:
+    """``row`` 缺的形状字段(空 / 系数 0)→ 该补成什么。已有基本单位时其余单位列跟它走,不混进本账众数单位。"""
+    wanted = _shape_defaults(account_dir, unit)
+    if row.get("QUCOD"):
+        wanted.update({f: row["QUCOD"] for f in _SHAPE_UNITS})
+    return {f: v for f, v in wanted.items() if not row.get(f)}
+
+
+def repair_shape(account_dir: Path, stkcod: str, gaps: Dict) -> None:
+    """只把 ``gaps``(`shape_gaps` 的结果)写进这一条主档。已在备份-回滚事务内调用;索引由调用方重建。"""
+    if not gaps:
+        return
+    t = _open(account_dir, "STMAS", dbf.READ_WRITE)
+    try:
+        for r in S.live_rows(t):
+            if (_gv(r, "STKCOD") or "").strip() == stkcod:
+                with r as rec:
+                    for field, value in gaps.items():
+                        rec[field] = value
+                return
+    finally:
+        t.close()
+
+
 def _apply_unit(account_dir: Path, row: Dict, unit: str) -> None:
     """按账套 ISTAB 把来件单位解析成合法 QUCOD 再覆写;解析不出就保留模板克隆来的单位。
 
@@ -206,7 +273,8 @@ def _apply_unit(account_dir: Path, row: Dict, unit: str) -> None:
     """
     code = unit_code.resolve(account_dir, unit)
     if code:
-        row["QUCOD"] = code
+        # 四列一起写（同库存品建档、同 Express 原生服务品）：只改 QUCOD 时进货 / 销货单位还是模板那一行的，主档自相矛盾
+        row.update({f: code for f in _SHAPE_UNITS})
 
 
 def verify_item_row(account_dir: Path, stkcod: str) -> Optional[str]:
@@ -236,6 +304,7 @@ def ensure_item(
     userid: str = S.PEARNLY_USERID,
     unit: str = "",
     vatcod: str = "",
+    exempt: Optional[bool] = None,
 ) -> str:
     """find-or-create 非库存商品主档,返回 STKCOD。已在备份-回滚事务内调用。
 
@@ -246,16 +315,22 @@ def ensure_item(
     if not nm:
         raise ValueError("ensure_item: 空品名")
 
-    found = find_item_code(account_dir, nm)
+    found = find_item_code(account_dir, nm, exempt=exempt)
     if found:
         return found
+    if exempt:
+        vatcod = EXEMPT_VATCOD  # 免税行要的服务品：建成免税的
 
-    tpl = _pick_template(account_dir) or {}
+    tpl = _pick_template(account_dir)
     acccod = _ensure_acccod(account_dir, target_account, nm, created_date, userid)
     stkcod = _next_stkcod(account_dir)
 
     # 克隆结构(禁硬编码)。只取非空值,空字段交 dbf 用列默认(避免把 "" 塞进数值列)。
-    row = {f: tpl[f] for f in _CLONE_FIELDS if tpl.get(f) not in ("", None)}
+    # 账里一个非库存品都没有可抄时补齐 Express 原生服务品必有的形状(_shape_defaults):10-27 实机试点账套
+    # 只有库存品,建出的服务品单位空、换算系数 0,Express 进货单按码查不到它。
+    # 抄来的模板自己也常缺商品组、换算系数为 0(10-28 百本回归):同样按原生形状只补空的,建出来就完整。
+    row = {f: tpl[f] for f in _CLONE_FIELDS if tpl.get(f) not in ("", None)} if tpl else {}
+    row.update(_fill_shape(account_dir, row, unit))
     row.update(
         {
             "STKCOD": stkcod,
@@ -274,6 +349,8 @@ def ensure_item(
     _apply_unit(account_dir, row, unit)
     if vatcod:
         row["VATCOD"] = vatcod[:1]
+    elif exempt is False and row.get("VATCOD") == EXEMPT_VATCOD:
+        row["VATCOD"] = NORMAL_VATCOD  # 应税行要的商品，抄来的模板却是免税的：按正常税率建
     # STKTYP 强制可见服务型 3(不跟模板):见 _VISIBLE_NONSTOCK_TYPE 注释——只有 3 型在商品列表
     # 屏显示,4/5 型会"在库却隐身",0 型则是库存货品(会误启库存核算)。绝不默认建库存。
     row["STKTYP"] = _VISIBLE_NONSTOCK_TYPE
@@ -319,13 +396,16 @@ _STOCK_CLONE_FIELDS = (
 _NEG_ALLOW_YES = "Y"
 
 
-def find_stock_item_code(account_dir: Path, name: str) -> Optional[str]:
+def find_stock_item_code(account_dir: Path, name: str, *, exempt: Optional[bool] = None) -> Optional[str]:
     """只读:同名真库存主档(STKTYP=0·含 0 余额)的 STKCOD·归一精确。给新建前幂等查重。
 
     与 stock_sale.find_stock_item 的区别只在返回什么:那个还要结存和科目联动键来结转 COGS。
     **比对口径同一份**(stock_lookup),两边不许各截各的 —— 那正是长名重复建档的根。
+    ``exempt``:只认免税的(VATCOD '0'),同 :func:`find_item_code`(免税的库存品,如生鲜农产品)。
     """
-    return stock_lookup.first_code(account_dir, name, (_STOCK_TYPE,))
+    if exempt is None:
+        return stock_lookup.first_code(account_dir, name, (_STOCK_TYPE,))
+    return _first_by_vatcod(stock_lookup.find_rows(account_dir, name, (_STOCK_TYPE,)), exempt)
 
 
 def _verify_stock_item_row(account_dir: Path, stkcod: str) -> Optional[str]:
@@ -390,6 +470,7 @@ def ensure_stock_item(
     unit: str = "",
     acccod: str = "",
     code: str = "",
+    exempt: Optional[bool] = None,
 ) -> StockItem:
     """find-or-create 真库存商品主档(STKTYP=0),返回 StockItem。已在备份-回滚事务内调用。
 
@@ -408,7 +489,7 @@ def ensure_stock_item(
     if not nm:
         raise ValueError("ensure_stock_item: 空品名")
 
-    found = find_stock_item_code(account_dir, nm)
+    found = find_stock_item_code(account_dir, nm, exempt=exempt)
     if found:
         return StockItem(found)
 
@@ -448,6 +529,10 @@ def ensure_stock_item(
     row.update({f: qucod for f in ("QUCOD", "CQUCOD", "PQUCOD", "SQUCOD")})
     if defaults.stkgrp:  # 取不到就不写,交 DBF 用列默认(别把 '' 塞进去当"填过了")
         row["STKGRP"] = defaults.stkgrp
+    if exempt:  # 免税行要的库存品(10-29 真实语料:生鲜等免税行的库存品主档 VATCOD '0'):建成免税的
+        row["VATCOD"] = EXEMPT_VATCOD
+    elif exempt is False and row.get("VATCOD") == EXEMPT_VATCOD:
+        row["VATCOD"] = NORMAL_VATCOD  # 应税行要的库存品，抄来的模板却是免税的：按正常税率建
 
     t = _open(account_dir, "STMAS", dbf.READ_WRITE)
     try:

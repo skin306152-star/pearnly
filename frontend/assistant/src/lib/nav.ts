@@ -9,15 +9,42 @@
 //   公司、待处理只在有定时任务的产品（Cowork）里有；别的产品同「找不到」处理
 // 来源三处：打开页面时的地址参数（处理完 replaceState 回 /assistant，刷新不再重开，桌面端记住的地址也是干净的）、
 // 后台脚本点通知发来的 pearnly-open（pearnly_core/assistant/service_worker.js）、桌面端的 tomo-open（window.tomo.open）。
+//
+// 两种模式（评估 docs/work/2026-10-26-express-operator-product-评估.md §10 ①，左上角「对话 | 代录」，Ctrl / ⌘ + Shift + 1 / 2）：
+//   对话 — 视图 chat / tasks / companies / company / pending；代录 — 视图 operator。两种模式各记各的最后位置：
+//   切到代录时记下当时的对话视图（对话本身组件库记着），切回来回到它；代录记着看的是哪一批（空 = 新建批次）。
+//   后退 / 前进也记代录看的是哪一批。
 
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { create } from "zustand";
 import { useCompanyNav } from "@/lib/companies";
 import { getSession } from "@/lib/managed-agents/api";
 import { reportCaught, withReport } from "./caught";
 
-export type View = "chat" | "tasks" | "companies" | "company" | "pending";
-type Entry = { view: View; thread: string; company: string };
+export type View = "chat" | "tasks" | "companies" | "company" | "pending" | "operator";
+type Entry = { view: View; thread: string; company: string; batch: string };
+
+export type Mode = "chat" | "operator";
+export const modeOf = (view: View): Mode => (view === "operator" ? "operator" : "chat");
+
+/** 两种模式各自的最后位置：对话模式最后看的视图、代录模式看的批次（空 = 新建批次）。 */
+export const useModePlace = create<{ chatView: View; batch: string }>(() => ({ chatView: "chat", batch: "" }));
+
+/** 切模式：去代录前记下对话视图；回对话时回到它。 */
+export function switchMode(mode: Mode, view: View, setView: (v: View) => void) {
+  if (mode === modeOf(view)) return;
+  if (mode === "operator") {
+    useModePlace.setState({ chatView: view });
+    setView("operator");
+  } else setView(useModePlace.getState().chatView);
+}
+
+/** Ctrl / ⌘ + Shift + 1 / 2 对应的模式（event.code：Shift 按住时 event.key 是符号，按键位认）。 */
+export function modeForKey(event: Pick<KeyboardEvent, "code" | "ctrlKey" | "metaKey" | "shiftKey" | "altKey">): Mode | null {
+  if (!(event.ctrlKey || event.metaKey) || !event.shiftKey || event.altKey) return null;
+  return event.code === "Digit1" ? "chat" : event.code === "Digit2" ? "operator" : null;
+}
 
 export const ViewContext = createContext<{ view: View; setView: (v: View) => void }>({ view: "chat", setView: () => {} });
 export const useView = () => useContext(ViewContext);
@@ -27,6 +54,8 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
   const thread = useAuiState((s) => s.threads.mainThreadId) ?? "";
   // 主档页看的是哪家也记进去：在两家公司之间来回也能后退
   const company = useCompanyNav((s) => (view === "company" ? s.company : ""));
+  // 代录看的是哪一批也记进去：在两批之间来回也能后退
+  const batch = useModePlace((s) => (view === "operator" ? s.batch : ""));
   const stack = useRef<Entry[]>([]);
   const index = useRef(-1);
   const replaying = useRef(false);
@@ -38,11 +67,11 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
       replaying.current = false;
       return;
     }
-    if (current && current.view === view && current.thread === thread && current.company === company) return;
-    stack.current = [...stack.current.slice(0, index.current + 1), { view, thread, company }].slice(-50);
+    if (current && current.view === view && current.thread === thread && current.company === company && current.batch === batch) return;
+    stack.current = [...stack.current.slice(0, index.current + 1), { view, thread, company, batch }].slice(-50);
     index.current = stack.current.length - 1;
     bump((n) => n + 1);
-  }, [view, thread, company]);
+  }, [view, thread, company, batch]);
 
   const go = useCallback(
     (step: number) => {
@@ -51,11 +80,13 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
       index.current += step;
       replaying.current = true;
       if (target.company) useCompanyNav.setState({ company: target.company });
+      // 退回 / 前进到代录：回到那一批；从对话退进代录时也记下对话视图（切回对话回到这里）
+      if (target.view === "operator") useModePlace.setState(view === "operator" ? { batch: target.batch } : { batch: target.batch, chatView: view });
       setView(target.view);
       if (target.thread && target.thread !== thread) void aui.threads().switchToThread(target.thread);
       bump((n) => n + 1);
     },
-    [aui, setView, thread],
+    [aui, setView, thread, view],
   );
 
   return {

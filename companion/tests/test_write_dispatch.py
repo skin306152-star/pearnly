@@ -276,7 +276,8 @@ def test_unattended_worker_never_asks_and_leaves_a_busy_account_set_to_the_waiti
     unattended = source.split("def _unattended(", 1)[1].split("\n    def ", 1)[0]
     assert "always_on" not in unattended
     assert 'getattr(task, "attended", None) is False' in unattended
-    assert "if not written and not self._unattended(cfg, task) and not self._stop:" in handle
+    # 代录单不问「账套正在使用」（代录本来就开着 Express 录），其余照旧
+    assert "if not written and not self._unattended(cfg, task) and not self._stop and not _operator_task(task):" in handle
     # 这台写过的单先于占用探测（写过就照上次回执回报，不放回排队）
     assert handle.index("task_journal.written(task.id)") < handle.index("account_lock.is_account_busy(")
     # 有人值守、账套被占用：先放掉租约（按「等账套」回报）再问，不拿着租约等人点
@@ -353,6 +354,20 @@ def test_a_task_already_written_here_is_never_handed_back_because_express_is_ope
     queue = _AckQueue()
     assert pw.handle_task(_cfg(profile_id="P1"), queue, task, None, "zh", write=worker._handle_dbf_task) is None
     assert queue.acks == [("success", "T-5", None, None)] and prompts == []
+
+
+def test_an_operator_task_goes_to_express_even_though_express_has_the_book_open(monkeypatch):
+    # 10-27 实机：代录在 Express 里开着这本账套录第一张，第二张被当成「账套被占用」放回排队、还弹了询问框，再也录不下去
+    _busy(monkeypatch)
+    pw = _poll_worker()
+    prompts = []
+    pw.busy_prompt.connect(lambda p: prompts.append(p) or p.done.set())
+    written = []
+    task = SimpleNamespace(id="T-9", invoice_no="INV", payload={"entry_mode": "operator"}, attended=True)
+    queue = _AckQueue()
+    assert pw.handle_task(_cfg(profile_id="P1"), queue, task, None, "zh",
+                          write=lambda cfg, q, t, index_batch=None: written.append(t.id)) is None
+    assert written == ["T-9"] and prompts == [] and queue.acks == []
 
 
 def test_abort_follows_the_task_not_the_batch(monkeypatch):
