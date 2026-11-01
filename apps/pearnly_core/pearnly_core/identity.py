@@ -15,6 +15,7 @@
 
 import base64
 import hashlib
+import json
 import secrets
 import time
 from urllib.parse import quote, urlencode
@@ -210,20 +211,60 @@ def _refuse(reason: str):
         primary_label=_("Please sign in"))
 
 
+def _mark(step: str) -> None:
+    """登录回调分段计时：记下从上一段到这里用了几毫秒（见 `_log_timing`）。"""
+    timing = getattr(frappe.local, "pearnly_login_timing", None)
+    if timing is None:
+        return
+    now = time.monotonic()
+    timing["steps"][step] = round((now - timing["last"]) * 1000)
+    timing["last"] = now
+
+
+def _log_timing(outcome: str) -> None:
+    """每次登录回调一行计时（容器标准输出，``docker logs`` 可取；不进 Error Log）：各段毫秒与总耗时，
+    只有计量和是不是 LINE 登录，不记账号、令牌或身份标识。11-01 三星 LIFF 首开约 25 秒，日志只有秒级，
+    分不清 LINE 回调身份服务之后那 14 秒是手机发回调慢还是回调本身慢；有了这一行就分得清。写不出不影响登录。"""
+    try:
+        timing = getattr(frappe.local, "pearnly_login_timing", None)
+        if not timing:
+            return
+        frappe.local.pearnly_login_timing = None
+        print(json.dumps({"event": "login_callback", "site": getattr(frappe.local, "site", ""), "outcome": outcome,
+                          "line": timing.get("line", False), "total_ms": round((time.monotonic() - timing["start"]) * 1000),
+                          "steps": timing["steps"]}, separators=(",", ":")), flush=True)
+    except Exception:
+        pass
+
+
 @frappe.whitelist(allow_guest=True)
 def callback(code: str | None = None, state: str | None = None, error: str | None = None):
+    now = time.monotonic()
+    frappe.local.pearnly_login_timing = {"start": now, "last": now, "steps": {}}
+    try:
+        result = _callback(code, state, error)
+    except Exception:
+        _log_timing("failed")
+        raise
+    _log_timing("done")
+    return result
+
+
+def _callback(code, state, error):
     if error:
         frappe.throw(_("The identity service returned an error: {0}").format(error))
     if not code or not state:
         frappe.throw(_("Missing code or state"))
 
     saved = _take_state(state)
+    _mark("state")
     if saved.get("consumed"):
         return _resume(saved)
     if not saved:
         return _restart()
 
     claims = _exchange_and_verify(code, saved)
+    _mark("verify")
     subject = claims.get("sub")
     token_issuer = claims.get("iss")
     if not subject:
@@ -237,6 +278,7 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
 
     try:
         if line_login.is_line_login(claims):
+            frappe.local.pearnly_login_timing["line"] = True
             user, source = line_login.resolve_line_login(claims)
         else:
             user, source = _resolve_user(token_issuer, subject), {}
@@ -244,6 +286,7 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
             frappe.throw(_("Not permitted"), frappe.PermissionError)
     except frappe.PermissionError as refused:
         return _refuse(str(refused))
+    _mark("resolve")
 
     # 把身份服务侧的会话 id 暂存，交由 on_session_creation 记进会话登记表。
     frappe.local.pearnly_kc = {
@@ -253,6 +296,7 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
         **source,
     }
     _login_as(user)
+    _mark("session")
     tokens = frappe.local.pearnly_verified_tokens
     if source:
         # LINE 专用身份不是本站账号：只留注销凭据，不拿它的令牌改资料、不用它的用户名和语言。
@@ -265,6 +309,7 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
         apply_login_username(user, claims)
         preferences.finish_login_locale(user, claims.get("locale"), saved.get("locale"), bool(saved.get("picked")))
         identity_filters = {"issuer": token_issuer, "subject": subject}
+    _mark("profile")
 
     frappe.db.set_value(
         "Pearnly Identity",
@@ -279,6 +324,7 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     from pearnly_core import workspace as workspace_mod
 
     redirect_to = workspace_mod.resolve_after_login(saved.get("redirect_to"))
+    _mark("landing")
     # OIDC redirects arrive as GET. Native Frappe rolls GET writes back unless
     # explicitly marked: persist the verified profile projection and login audit.
     frappe.flags.commit = True
@@ -371,6 +417,7 @@ def _exchange_and_verify(code: str, saved: dict) -> dict:
         },
         timeout=15,
     )
+    _mark("token")
     if resp.status_code != 200:
         frappe.throw(_("Could not exchange the token: {0}").format(resp.text[:300]))
     tokens = resp.json()

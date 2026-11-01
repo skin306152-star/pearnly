@@ -140,29 +140,42 @@ def geo_name(geo: dict, field: str, value: str) -> str:
     return value
 
 
+def address_line(fields: Dict[str, Any]) -> str:
+    """卡片上的一行地址：门牌、楼、村、หมู่、ซ.、ถ.、ต.、อ.、จ.、邮编（地址名已是可读名）。
+
+    新建卡、"保留 DMS 旧资料"的快照和编辑页保存后的预览卡都用这一份：原来各拼各的，
+    编辑页那张只空格连接、丢了 หมู่ / ซ. / ต. / อ. / จ. 前缀（11-01 真机）。
+    """
+    def val(key: str) -> str:
+        return str(fields.get(key) or "").strip()
+
+    bits = [
+        val("house_no"),
+        val("building"),
+        val("village"),
+        f"หมู่ {val('moo')}" if val("moo") else "",
+        f"ซ.{val('soi')}" if val("soi") else "",
+        f"ถ.{val('road')}" if val("road") else "",
+        f"ต.{val('subdistrict_name')}" if val("subdistrict_name") else "",
+        f"อ.{val('district_name')}" if val("district_name") else "",
+        f"จ.{val('province_name')}" if val("province_name") else "",
+        val("zipcode"),
+    ]
+    return " ".join(part for part in bits if part)
+
+
 def build_summary(draft: Dict[str, str], geo: dict) -> Dict[str, str]:
     """新建卡复述的五要素（证号/姓名/生日/地址/电话）；地址拼成一行可读串。"""
-    bits: List[str] = []
-    if draft.get("house_no"):
-        bits.append(draft["house_no"])
-    if draft.get("moo"):
-        bits.append("หมู่ " + draft["moo"])
-    if draft.get("soi"):
-        bits.append("ซ." + draft["soi"])
-    if draft.get("road"):
-        bits.append("ถ." + draft["road"])
-    for field, pfx in (("subdistrict_id", "ต."), ("district_id", "อ."), ("province_id", "จ.")):
-        name = geo_name(geo, field, draft.get(field, ""))
-        if name:
-            bits.append(pfx + name)
     zc = geo_name(geo, "zipcode_id", draft.get("zipcode_id", ""))
-    if zc:
-        bits.append(zc)
+    names = {
+        f"{level}_name": geo_name(geo, f"{level}_id", draft.get(f"{level}_id", ""))
+        for level in ("subdistrict", "district", "province")
+    }
     return {
         "people_id": draft.get("people_id", ""),
         "name": draft.get("name", ""),
         "birthday_be": draft.get("birthday_be", ""),
-        "address": " ".join(bits),
+        "address": address_line({**draft, **names, "zipcode": zc}),
         "zipcode": zc,
         "phone": draft.get("phone", ""),
     }
@@ -172,21 +185,11 @@ def master_snapshot(fields: dict) -> Tuple[Dict[str, str], Dict[str, str]]:
     """"保留 DMS 旧资料"时，生成后续订车逐问要用的主档快照。"""
     current = {key: str(fields.get(key) or "") for key in _MASTER_DRAFT_KEYS}
     current["zipcode"] = str(fields.get("zipcode_name") or fields.get("zipcode") or "")
-    bits = [
-        current.get("house_no"),
-        f"หมู่ {current['moo']}" if current.get("moo") else "",
-        f"ซ.{current['soi']}" if current.get("soi") else "",
-        f"ถ.{current['road']}" if current.get("road") else "",
-        f"ต.{current['subdistrict_name']}" if current.get("subdistrict_name") else "",
-        f"อ.{current['district_name']}" if current.get("district_name") else "",
-        f"จ.{current['province_name']}" if current.get("province_name") else "",
-        current.get("zipcode"),
-    ]
     summary = {
         "people_id": current.get("people_id", ""),
         "name": current.get("name", ""),
         "birthday_be": current.get("birthday_be", ""),
-        "address": " ".join(part for part in bits if part),
+        "address": address_line(current),
         "zipcode": current.get("zipcode", ""),
         "phone": current.get("phone", ""),
     }

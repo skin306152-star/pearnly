@@ -56,6 +56,8 @@
 					await p.call(api + "api_set_member_active",
 						{ email: row.email, enabled: enabling ? 1 : 0 }, "POST");
 				}
+				// 名单是一次取全放在页面里的（`load` 只在本地排序），做完要重新取，列表刷新才看得到新状态（11-01）
+				await refresh_members();
 			},
 			success: rows => t("cowork.team.notice.toggled", rows.length),
 		});

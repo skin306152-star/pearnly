@@ -83,6 +83,22 @@ class Callback(unittest.TestCase):
         identity.callback(code="c", state="s2")
         self.mocks["preferences"].finish_login_locale.assert_called_once_with("owner@example.test", "zh-CN", "th", False)
 
+    def test_each_callback_prints_one_timing_line_without_identities(self):
+        # 11-01 LIFF 首开：回调里各段几毫秒打到容器标准输出（docker logs），不进 Error Log、不带账号或令牌
+        import io
+        import json
+
+        self.begin()
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            identity.callback(code="c", state="s1")
+        lines = [json.loads(line) for line in out.getvalue().splitlines() if line.startswith("{")]
+        self.assertEqual(len(lines), 1)
+        self.assertEqual((lines[0]["event"], lines[0]["outcome"], lines[0]["line"]), ("login_callback", "done", False))
+        self.assertEqual(list(lines[0]["steps"]), ["state", "verify", "resolve", "session", "profile", "landing"])
+        self.assertNotIn("owner@example.test", out.getvalue())
+        self.assertNotIn("tenant-subject", out.getvalue())
+
     def test_password_login_resolves_by_subject(self):
         self.begin()
         identity.callback(code="c", state="s1")

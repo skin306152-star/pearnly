@@ -28,7 +28,8 @@ import {
 } from "../../lib/id-scan";
 import { loadLiffSdk } from "../../lib/liff";
 
-const { t, locale, load: loadTexts, setLocale } = createTexts([], "dms.");
+// 这一页只用 `dms.edit.*`：只取这一段（约 7KB，整个 `dms.` 约 39KB），LINE 里弱网也快些
+const { t, locale, load: loadTexts, ready: textsReady, setLocale } = createTexts([], "dms.edit.");
 
 const stage = ref<"starting" | "aiming" | "sending" | "failed" | "nocamera">("starting");
 const tip = ref<Hint>("place");
@@ -228,7 +229,7 @@ function changeLocale(value: Locale): void {
         <!-- 手动快门一直在：反光、光线差自动拍不到时随时能按。 -->
         <Button v-if="stage === 'aiming'" variant="solid" :label="t('dms.edit.scanShoot')" @click="capture" />
         <Button v-if="stage === 'failed'" variant="solid" :label="t('dms.edit.scanRetry')" @click="startCamera" />
-        <Button variant="outline" theme="gray" :label="t('dms.edit.scanBack')" @click="backToChat" />
+        <Button v-if="textsReady" variant="outline" theme="gray" :label="t('dms.edit.scanBack')" @click="backToChat" />
       </div>
     </section>
   </LineLayout>

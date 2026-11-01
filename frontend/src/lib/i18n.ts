@@ -83,6 +83,8 @@ export interface Texts {
   /** 带占位符的取词：语言包里写成 `{0}` `{1}`，这里按位置填。 */
   tf: (key: string, ...args: (string | number)[]) => string;
   load: () => Promise<void>;
+  /** 语言包取过一次（成功或失败）。没取回之前 `t` 回空串，要等它的按钮可以先不画。 */
+  ready: Ref<boolean>;
   setLocale: (locale: Locale) => void;
   /** 按**账号**的语言设定（ADR-006：账号为准，浏览器只当缓存）。 */
 }
@@ -101,10 +103,14 @@ export interface Texts {
 export function createTexts(keys: string[] = [], prefix = ""): Texts {
   const texts = ref<Record<string, Record<string, string>>>({});
   const locale = current;
+  // 语言包还没取回（或还在取）时先回空串：页面这时只有转圈，不把一串 key 当文字露出来
+  // （11-01 真机：LINE 里弱网取词约 8 秒，扫身份证页一直显示 `dms.edit.loading`）。
+  // 取过一次（成功或失败）之后，缺的键照旧显示 key 本身。
+  const settled = ref(false);
 
   function t(key: string): string {
     const bag = texts.value[key];
-    if (!bag) return key;
+    if (!bag) return settled.value ? key : "";
     return bag[locale.value] || bag[FALLBACK] || bag.en || key;
   }
 
@@ -122,10 +128,14 @@ export function createTexts(keys: string[] = [], prefix = ""): Texts {
   }
 
   async function load(): Promise<void> {
-    texts.value = await call<Record<string, Record<string, string>>>(
-      "pearnly_core.browser_text.browser_text",
-      { keys: JSON.stringify(keys), prefix },
-    );
+    try {
+      texts.value = await call<Record<string, Record<string, string>>>(
+        "pearnly_core.browser_text.browser_text",
+        { keys: JSON.stringify(keys), prefix },
+      );
+    } finally {
+      settled.value = true;
+    }
   }
 
   function setLocale(next: Locale): void {
@@ -134,5 +144,5 @@ export function createTexts(keys: string[] = [], prefix = ""): Texts {
     document.documentElement.lang = next;
   }
 
-  return { texts, locale, t, tf, load, setLocale };
+  return { texts, locale, t, tf, load, ready: settled, setLocale };
 }

@@ -213,6 +213,28 @@ async function showInvalid(field: string): Promise<void> {
   if (!box) return;
   box.scrollIntoView({ block: "center" });
   box.querySelector<HTMLElement>("input, button, select, textarea")?.focus({ preventScroll: true });
+  keepAboveKeyboard(box);
+}
+
+/**
+ * 光标进栏后手机弹出软键盘：可见区缩小，浏览器只把输入框挪到可见区最底下，正好被贴底的
+ * 操作条（提示 + 保存）盖住（11-01 真机，交车日期那一栏）。键盘弹出的那一下（可见区变化）
+ * 再把这一栏摆到"可见区减去操作条"的中间。
+ */
+function keepAboveKeyboard(box: HTMLElement): void {
+  const view = window.visualViewport;
+  if (!view) return;
+  const place = () => {
+    const rect = box.getBoundingClientRect();
+    const bar = document.querySelector<HTMLElement>(".pn-editor-actions")?.getBoundingClientRect();
+    const top = view.offsetTop;
+    let bottom = view.offsetTop + view.height;
+    if (bar && bar.top < bottom && bar.bottom > top) bottom = bar.top;
+    if (rect.top >= top && rect.bottom <= bottom) return;
+    window.scrollBy(0, rect.top + rect.height / 2 - (top + bottom) / 2);
+  };
+  view.addEventListener("resize", place);
+  window.setTimeout(() => view.removeEventListener("resize", place), 1500);
 }
 
 function fail(err: unknown): void {

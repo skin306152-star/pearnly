@@ -7,7 +7,7 @@ LINE 里的 LIFF 验签走不了实验室，这里走同一个页面的「本站
 prepare 给操作员造一张待确认的订车草稿（新开户：新客户；老数据：DMS 里已有的那位客户）。页面上：先滚到中间、把交车日期
 改成越界的 01/01/2026 点保存 → 被拒，提示在贴底操作条里、看得见，页面滚到交车日期那一栏、光标在里面、那一栏标红（10-30 真机
 「第一次点保存像没反应」）→ 改成两周后再保存 → 跳到交接页。库里：草稿换了新 nonce、交车日期是改后的那天；推送台账多一张镜像卡，
-是这张草稿的预览卡、写着改后的交车日期。
+是这张草稿的预览卡、写着改后的交车日期，地址带 หมู่ / ซ. / จ. 前缀（11-01 真机丢过）。
 """
 from __future__ import annotations
 
@@ -34,11 +34,11 @@ line_user, endpoint = {manifest['line_user_id']!r}, {manifest['endpoint']!r}
 customer = {customer!r}
 if customer:
     draft = {{"people_id": customer["people_id"], "prefix_id": "prefix-1", "name": customer["name"], "birthday_be": "01/01/2530",
-              "phone": "0800000001", "house_no": "9/9", "province_id": "P2", "district_id": "D2", "subdistrict_id": "S2", "zipcode_id": "Z2"}}
+              "phone": "0800000001", "house_no": "9/9", "moo": "5", "soi": "Lab 71", "province_id": "P2", "district_id": "D2", "subdistrict_id": "S2", "zipcode_id": "Z2"}}
     who = {{"id": customer["customer_id"], "name": customer["name"]}}
 else:
     draft = {{"people_id": "1000000730325", "prefix_id": "prefix-1", "name": "ลูกค้าใหม่ ทดสอบ", "birthday_be": "15/05/2535",
-              "phone": "0811111111", "house_no": "1", "province_id": "P1", "district_id": "D1", "subdistrict_id": "S1", "zipcode_id": "Z1"}}
+              "phone": "0811111111", "house_no": "1", "moo": "5", "soi": "Lab 71", "province_id": "P1", "district_id": "D1", "subdistrict_id": "S1", "zipcode_id": "Z1"}}
     who = {{"id": "", "name": draft["name"]}}
 qa = {{"endpoint_id": endpoint, "step": "pay_more", "customer": who, "advisor": {{"id": "advisors-1", "name": "Lab advisor"}},
        "draft": draft,
@@ -126,4 +126,7 @@ print(json.dumps({{"state": sess.get("state"), "nonce": (sess.get("payload") or 
          "ok": got["mirrored_after"] == params["mirrored_before"] + 1},
         {"case": "the preview card is this draft's, with the corrected date and the new nonce", "saved": card[:300],
          "ok": '"flex"' in card and params["good"] in card and str(got["nonce"]) in card and BAD_DATE not in card},
+        # 11-01 真机：编辑保存后的卡地址丢了 หมู่ / ซ. / ต. / อ. / จ. 前缀（与首张卡同一个拼法 `intake.draft.address_line`）
+        {"case": "the preview card writes the address with its Thai prefixes", "saved": card[:300],
+         "ok": "หมู่ 5" in card and "ซ.Lab 71" in card and "จ." in card},
     ]

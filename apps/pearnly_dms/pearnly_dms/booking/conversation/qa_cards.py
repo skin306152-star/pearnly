@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional
 from pearnly_dms.booking import booking_car_details as booking_car_details
 from pearnly_dms.editor import edit_link as dms_edit_link
 from pearnly_dms import i18n
+from pearnly_dms.intake.draft import address_line
 from pearnly_dms.booking.booking_payments import payment_preview_detail
 from pearnly_dms.line import cards as _cards
 from pearnly_dms.line.cards import (
@@ -397,33 +398,17 @@ def _uri_btn(label: str, uri: str) -> Dict[str, Any]:
     }
 
 
-def _address_line(draft: Dict[str, Any]) -> str:
-    parts = [
-        draft.get("house_no"),
-        draft.get("building"),
-        draft.get("village"),
-        draft.get("moo"),
-        draft.get("soi"),
-        draft.get("road"),
-        draft.get("subdistrict_name"),
-        draft.get("district_name"),
-        draft.get("province_name"),
-    ]
-    return " ".join(str(part).strip() for part in parts if str(part or "").strip()) or "—"
-
-
 def _fallback_summary(qa: Dict[str, Any]) -> Dict[str, str]:
     """legacy 会话没有 `summary` 时的可读回退：从 draft + customer 拼五要素。
 
-    地址沿用 `_address_line` 的拼接，邮编追加到地址末尾（不单列一行，与 summary 的
-    地址格式对齐）；字段取值优先级照旧预览卡（`people_id`/`name` 先 draft 后 customer）。
+    地址与新建卡、主档快照同一个拼法（`intake.draft.address_line`，带 หมู่ / ซ. / ต. / อ. / จ.
+    前缀，邮编在末尾）；字段取值优先级照旧预览卡（`people_id`/`name` 先 draft 后 customer）。
+    编辑页保存后也走这里（`editor.booking_edit`）。
     """
     draft = qa.get("draft") or {}
     customer = qa.get("customer") or {}
-    address = _address_line(draft)
     postcode = str(draft.get("zipcode") or draft.get("zipcode_name") or "")
-    if postcode:
-        address = f"{address} {postcode}".strip()
+    address = address_line({**draft, "zipcode": postcode}) or "—"
     return {
         "people_id": str(draft.get("people_id") or customer.get("people_id") or ""),
         "name": str(customer.get("name") or draft.get("name") or ""),

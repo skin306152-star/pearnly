@@ -608,6 +608,36 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.team.bulk-disable"
+title = "ERP 团队页批量停用：成功提示、按钮恢复、列表当场显示已停用（11-01 真机）"
+module = "scripts/flows/team_bulk_disable.py"
+start = "/desk/pearnly-team"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/team/service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/team/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/team.js",
+  "apps/pearnly_core/pearnly_core/public/desk/list.js",
+]
+
+[[flow]]
+id = "cowork.team.bulk-disable"
+title = "Cowork 团队页批量停用：同 ERP"
+module = "scripts/flows/team_bulk_disable.py"
+product = "cowork"
+start = "/desk/pearnly-team"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/team/service.py",
+  "apps/pearnly_cowork/pearnly_cowork/team/api.py",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/team.js",
+]
+
+[[flow]]
 id = "cc.person-names"
 title = "CC 问候语带「名」、侧栏用户按钮 / 手机头像是全名（姓名全覆盖，用户 10-30）"
 module = "scripts/flows/cc_person_names.py"
