@@ -326,7 +326,9 @@ class FakeExpress:
 
     def _trap_save(self) -> None:
         self.trap_saves += 1
-        self._save()
+        self.save_delay = int(self.inject.pop("slow_trap", 0))  # 有明细时「取消」就是存档：慢的 Express 要等几次才落下
+        if not self.save_delay:
+            self._save()
 
     def _key_token(self, token: str) -> None:
         name = token.lstrip("+^%")
@@ -503,6 +505,9 @@ class FakeExpress:
             out = self.fields()
             if self.readable == "none":
                 out = [dict(f, text="") for f in out]
+            elif self.inject.get("blank_docnum") and self.form and not self.editing:
+                # 存好以后单号格一时读不出字（11-01 录制机，存对的单被当成画面不对）
+                out = [dict(f, text="") if f.get("label") == self.docnum_label() else f for f in out]
             return {"fields": out}
         if op == "state":
             f = self.focus_info()

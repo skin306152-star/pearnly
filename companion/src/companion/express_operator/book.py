@@ -128,10 +128,11 @@ def heads_for(draft: Draft, rows: Dict[str, List[Dict]]) -> List[Dict]:
 
 
 def find_saved(draft: Draft, rows: Dict[str, List[Dict]]) -> Dict:
-    """断点续录：在这张单开录之后新增的行里找它。回 ``{"docnum": 已存的单号或空, "placeholders": [金额 0 的空单头]}``。
+    """断点续录：在这张单开录之后新增的行里找它。回 ``{"docnum": 已存的单号或空, "placeholders": [留给人处理的单]}``。
 
     按对方码 + 日期 +（有的话）对方单号 + 含税合计认；录到明细时 Express 会先写一张金额 0 的单头占号，保存才填金额——
-    崩在中间就留下这种空单头，要人去作废（不自动改已存的单）。"""
+    崩在中间就留下这种空单头，要人去作废（不自动改已存的单）。合计对不上、又没作废的（放弃时「取消」把录了一半的明细
+    存成了单、没作废掉，11-01 录制机 HP0000123）同样交给人。"""
     spec = DOC_TYPES[draft.doc_type]
     want = draft.totals()["total"]
     docnum, placeholders = "", []
@@ -144,7 +145,7 @@ def find_saved(draft: Draft, rows: Dict[str, List[Dict]]) -> Dict:
         total = _num(head.get("NETAMT"))
         if total == want:
             docnum = _text(head.get("DOCNUM"))
-        elif total == 0:
+        elif total == 0 or _text(head.get("DOCSTAT")).upper() != "C":
             placeholders.append(_text(head.get("DOCNUM")))
     return {"docnum": docnum, "placeholders": [p for p in placeholders if p != docnum]}
 

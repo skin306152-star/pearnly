@@ -217,7 +217,7 @@ def test_a_slow_save_is_waited_for_and_the_saved_document_is_not_voided():
 def test_a_person_touching_express_while_it_saves_restarts_the_wait_instead_of_failing():
     # 用户 10-30：被打断时先停、等人停手、再从断点接着做；人碰过 Express 的那一下不能当成画面不对作废
     d = samples()[1]
-    sim = FakeExpress(RECIPE.data, inject={"slow_save": 60})
+    sim = FakeExpress(RECIPE.data, inject={"slow_save": 100})
     paused = []
 
     def presence():
@@ -229,7 +229,7 @@ def test_a_person_touching_express_while_it_saves_restarts_the_wait_instead_of_f
     rec = _engine(sim, presence).run(d)
     assert paused and rec["outcome"] == "saved" and rec["docnum"] == "HP0000001" and not rec["voided"]
     # 对照：同样慢、人没碰，宽限用完就交给人（画面判不了）
-    sim2 = FakeExpress(RECIPE.data, inject={"slow_save": 60})
+    sim2 = FakeExpress(RECIPE.data, inject={"slow_save": 100})
     assert _engine(sim2, lambda: False).run(samples()[1])["outcome"] == "need_human"
 
 
@@ -256,3 +256,33 @@ def test_the_check_rereads_after_a_person_touched_express_before_judging():
     engine.begin(samples()[1])
     assert engine.checkpoint("after_save", "已存", {"saved": True}, reverify=lambda: "HP0000001") is True
     assert engine.rec["checkpoints"] == 0 and engine.rec["events"][-1]["after_pause"] is True
+
+
+def test_abandoning_waits_for_a_slow_cancel_save_and_voids_the_half_document():
+    # 11-01 录制机：第二行商品认不出要放弃，「取消」把录好的第一行存成了单；Express 慢、只读一次没读到就当没存，半截单留成有效单
+    d = Draft("X-HP", "HP", "2026-10-22", "P002", [Line("501780", "1", "10.00"), Line("NOPE", "1", "10.00")], ref_no="Z9")
+    sim = FakeExpress(RECIPE.data, inject={"slow_trap": 12})
+    rec = _engine(sim).run(d)
+    assert rec["outcome"] == "blocked" and rec["reason"] == "item_missing"
+    assert rec["voided"] == ["HP0000001"] and any(e == "void HP0000001" for e in sim.log)
+    assert not rec["placeholders"]
+
+
+def test_a_half_document_left_saved_is_reported_not_ignored():
+    # 作废没成（读不到、闸没过）时，金额对不上又没作废的单也交给人，不只报金额 0 的空单头
+    from companion.express_operator import book as B
+
+    d = Draft("X-HP", "HP", "2026-10-22", "P002", [Line("501780", "2", "10.00")], ref_no="Z9")
+    head = {"DOCNUM": "HP0000123", "SUPCOD": "P002", "DOCDAT": "2026-10-22", "REFNUM": "Z9", "NETAMT": 7383.0, "DOCSTAT": "N"}
+    voided = dict(head, DOCNUM="HP0000124", NETAMT=0.0, DOCSTAT="C")
+    found = B.find_saved(d, {"APTRN": [head, voided], "STCRD": [], "ISVAT": []})
+    assert found["docnum"] == "" and "HP0000123" in found["placeholders"]
+
+
+def test_a_save_whose_number_cannot_be_read_is_confirmed_from_the_book_not_voided():
+    # CC 里没接看图：「保存」已灰、单号格读不出字时，按账套里这一张（对方 + 日期 + 对方单号 + 合计）认，不作废存对了的单
+    d = samples()[1]
+    sim = FakeExpress(RECIPE.data, inject={"blank_docnum": True})
+    rec = _engine(sim).run(d)
+    assert rec["outcome"] == "saved" and rec["docnum"] == "HP0000001" and not rec["voided"]
+    assert rec["readback"]["ok"]

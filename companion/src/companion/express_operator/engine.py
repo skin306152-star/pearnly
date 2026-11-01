@@ -228,7 +228,7 @@ class Engine:
         answer = self.helper.check(png, f"期望：{expect_text}\n草稿单：\n{self._describe()}")
         self.rec["checkpoints"] += 1
         self._layer("vision")
-        problem = "no helper" if answer is None else self._judge(answer, expect)
+        problem = f"no helper; {self._screen_note()}" if answer is None else self._judge(answer, expect)
         self._event("check", where=where, problem=problem)
         if not problem:
             return True
@@ -612,6 +612,13 @@ class Engine:
             self._layer("win32")
             self._event("saved", docnum=docnum)
             return docnum
+        # 画面读不出单号：读账套认这张（对方 + 日期 + 对方单号 + 含税合计，同断点续录）。CC 里没接看图（helper 是 NoHelper），
+        # 原来这里只能交给看图、判不了就作废（11-01 录制机：存对了的单因单号格一时读不到字被作废，HP0000125）
+        docnum = self._wait_for(self._booked, SLOW_SAVE_S)
+        if docnum:
+            self._layer("dbf")
+            self._event("saved", docnum=docnum, by="book")
+            return docnum
         self.checkpoint("after_save", saved_text, {"stage": "saved", "saved": True}, reverify=lambda: self.saved_check(T))
         return self.saved_check(T) or SAVED_UNREAD
 
@@ -635,6 +642,8 @@ class Engine:
                 # 有明细时「取消」就是存档：存档途中的提问（如服务品进项税口径，10-29 实机）照配方答完，存好了才能作废；
                 # 拦单的、认不出的抛出去，由下面的 except 记下、留给人
                 self._auto_dialogs()
+                # Express 慢时存档要一会儿：等它落下再读单号（11-01 录制机：只读一次没读到就当没存，半截单 HP0000123 留成了有效单）
+                self._wait_for(lambda: not self.in_edit(), SLOW_SAVE_S)
             docnum = self.saved_check(self.draft.doc_type)
             # 两道硬保护（10-26 实机：取消后 Express 的单号格显示的是上一张已存的单，旧逻辑据此误作废了三张好单
             # HP0000026 / IV0000022 / HS0000007）：①账套里这一张开录后才新出现的单号；②本批次开录后新建、且不是本批次
@@ -656,6 +665,25 @@ class Engine:
             self._event("abandon", ok=False, error=str(e)[:200])
             self.form_open = None
         return voided
+
+    def _screen_note(self) -> str:
+        """判不了画面时记下当时看到的（进「未完成」的明细，给人和排查用）：Express 当前窗口标题、新弹出的框里的字、单号格。"""
+        try:
+            fg = self._fg_title()
+            boxes = [" ".join(w.get("texts", []))[:80] for w in self._dialogs()]
+            number = self.docnum_text() if self.form else ""
+        except Exception as e:  # noqa: BLE001 — 记不下来不影响交给人
+            return f"note failed: {e}"[:120]
+        return f"fg={fg.strip()[:60]} | dialogs={boxes} | docnum={number}"
+
+    def _booked(self) -> str:
+        """账套里这一张开录之后新出现、对方 / 日期 / 对方单号 / 含税合计都对上的单号；读不了、还没有回空串。"""
+        if self._before is None or self.draft is None:
+            return ""
+        try:
+            return B.find_saved(self.draft, self.book.rows_since(self._before))["docnum"]
+        except Exception:  # noqa: BLE001 — 读不了就当还没看到，交给下面的判断
+            return ""
 
     def _ours(self, docnum: str) -> bool:
         """这个单号是不是这一张开录之后才在账套里出现的（读开录前记下的行数之后的新行）。读不了就当不是，不作废。"""
