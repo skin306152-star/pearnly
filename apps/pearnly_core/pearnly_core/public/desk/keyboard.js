@@ -7,9 +7,8 @@
 //    Desk 的 viewport 写在框架 `desk.html` 里，这里运行时补上；LINE 独立页直接写在自己的 meta 里。
 // 2. 键盘弹起期间 `<html>` 带 `pearnly-keyboard-open`，`--pearnly-visible-top / --pearnly-visible-height` 是可见区，
 //    弹窗外框按它摆（`product.css`），弹窗在可见区里照官方方式自己滚；键盘收起即去掉，弹窗回到原样。
-// 3. 聚焦那一刻、键盘弹起那一下（可见区变化）把这一格摆到「可见区减去贴顶 / 贴底条」的中间（带建议列表的 Link 选择框等摆到
-//    上部三分之一，下面留给列表）：滚它所在的滚动容器，
-//    容器滚到头还差的再滚整页；在固定弹层里时不滚整页。不监听页面滚动、不锁滚动，人自己滚动不拉回来。
+// 3. 聚焦那一刻、键盘弹起那一下（可见区变化）把这一格摆到「可见区减去贴顶 / 贴底条」的中间（带建议列表 / 日历弹层的
+//    Link、日期格等摆到上部三分之一，下面留给弹层）：滚它所在的滚动容器，容器滚到头还差的再滚整页；在固定弹层里时不滚整页。不监听页面滚动、不锁滚动，人自己滚动不拉回来。
 // 接入（`scripts/check-keyboard-coverage.py` 拦漏接）：Desk 由 `hooks.app_include_js`、网站页（`templates/web.html`）由
 // `hooks.web_include_js` 加载；LINE 手机盘点页等独立页用 Jinja 的 `versioned_asset` 挂同一份；LINE 票据编辑器（Vue，
 // `frontend/src/main.ts`）把这一份打进自己的包。CC 对话页（`frontend/assistant`）有自己的键盘处理，不挂。同一页挂两次只生效一次。
@@ -39,8 +38,10 @@
 		if (tag === "textarea") return !el.readOnly && !el.disabled;
 		return tag === "input" && !el.readOnly && !el.disabled && !NO_KEYBOARD.has((el.type || "text").toLowerCase());
 	};
+	// 聚焦后在下面弹出列表 / 日历的格：Link（awesomplete）、组合框、datalist、Frappe 日期 / 时间控件（日历弹层）
+	const POPUP_TYPES = new Set(["Date", "Datetime", "Time"]);
 	const suggests = (el) => !!(el.closest && el.closest(".awesomplete")) || el.getAttribute("role") === "combobox"
-		|| !!el.getAttribute("aria-autocomplete") || !!el.getAttribute("list");
+		|| !!el.getAttribute("aria-autocomplete") || !!el.getAttribute("list") || POPUP_TYPES.has(el.getAttribute("data-fieldtype"));
 	const style = (el) => window.getComputedStyle(el);
 	// 盖在可见区上 / 下边的贴顶 / 贴底条：命中点往上找 fixed / sticky 的祖先；包着这一格的（它所在的弹窗）不算
 	const cover = (el) => {
@@ -77,7 +78,7 @@
 		if (!rect.height) return;
 		let delta;
 		if (suggests(field)) {
-			// 带建议列表的格（Link 选择框等）：列表往下展开，格子摆到可见区上部三分之一以内，下面留给列表
+			// 带建议列表 / 日历弹层的格（Link、日期等）：弹层往下展开，格子摆到可见区上部三分之一以内，下面留给弹层
 			if (rect.top >= top + MARGIN && rect.bottom <= top + (bottom - top) / 3) return;
 			delta = rect.top - top - MARGIN;
 		} else {

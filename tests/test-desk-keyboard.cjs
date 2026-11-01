@@ -181,4 +181,9 @@ test('a field with a suggestion list (Link) is placed in the top third so the li
   combo.focus(box);
   combo.keyboard(354);
   assert.deepEqual(combo.state.scrolledBy, [], 'already in the top third: nothing moves');
+  const dated = page();
+  const date = input(dated, { top: 250, attrs: { 'data-fieldtype': 'Date' } });  // Frappe 日期控件：日历弹层在下面
+  dated.focus(date);
+  dated.keyboard(354);
+  assert.ok(date.getBoundingClientRect().bottom <= 354 / 3, JSON.stringify(date.getBoundingClientRect()));
 });
