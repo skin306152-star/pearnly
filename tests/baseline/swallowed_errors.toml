@@ -445,8 +445,3 @@ reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过�
 file = "frontend/assistant/src/components/scheduled-tasks.tsx"
 match = "return name ? localStorage.getItem(`pearnly.intake.account_set.${name}`) || \"\" : \"\";"
 reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
-
-[[allow]]
-file = "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js"
-match = "} catch { return false; }"
-reason = "只判断服务端拒的是不是「没有这个码」（决定出不出「新建物料」）；提示解析不了就当不是，原生提示照常已经弹过"

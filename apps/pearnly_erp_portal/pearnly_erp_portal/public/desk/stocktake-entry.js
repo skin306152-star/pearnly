@@ -5,6 +5,8 @@
 	const PHOTO_MAX = 5;
 	p.stockCountEntry = async ({ count, t, row, entry, continuous = false, on_saved, on_done }) => {
 		let selected, lookup, request_id, scanner, busy = false, closed = false, camera = false;
+		// 查不到的那个码（相机扫到的不在编码栏里，「新建物料」用它）；`rescan`：为新建停了相机，记完下一件再开
+		let missing = "", rescan = false;
 		let last_place = null;
 		// `photos` 是本次要随记录提交的（桌面端上传后拿到 file_url，服务端再挂到这条记录上）；
 		// `existing` 是这条记录**已经有**的照片，只做只读预览（旧项目也没有删照片的入口）。
@@ -22,7 +24,7 @@
 			{ fieldtype: "HTML", fieldname: "message" },
 			// 扫到系统没有的码：当场建商品（有盘点录入权即可，服务端 `count.create_product_here`），建好接着记数
 			{ fieldtype: "Button", fieldname: "new_product", label: __("product.action.new"), hidden: 1,
-				click: () => create_here(d.get_value("code")) },
+				click: () => create_here(missing) },
 			{ fieldtype: "Section Break", fieldname: "entry_section", hidden: 1 },
 			{ fieldtype: "Data", fieldname: "product_name", label: t("stock.col.name"), read_only: 1 },
 			// 扫到的那件商品的编码（内部编码，没有就系统编码；服务端 `count_code`，与 LINE 手机页同一个）
@@ -212,13 +214,6 @@
 			await d.set_value("warehouse", entry?.warehouse_name || source?.warehouse_name || lookup.warehouse_name);
 			await d.set_value("location", entry?.location ?? source?.location ?? "");
 		}
-		// 服务端这次拒的是不是「没有这个码」（417 的原生提示里那一句）
-		const not_found = error => {
-			try {
-				return JSON.parse(error?.responseJSON?._server_messages || "[]")
-					.some(row => String(JSON.parse(row).message || "").includes(__("No product matches this code")));
-			} catch { return false; }
-		};
 		function create_here(code) {
 			code = String(code || "").trim();
 			if (!code) return;
@@ -238,7 +233,7 @@
 		async function match(code, product) {
 			if (busy || selected || closed || (!code && !product)) return;
 			busy = true; scanner?.pause();
-			d.set_df_property("new_product", "hidden", 1);
+			d.set_df_property("new_product", "hidden", 1); missing = "";
 			d.fields_dict.message.$wrapper.empty();  // 上一件的提示（已保存 / 查不到）查下一件时清掉，查不到再写上（验收 10-29）
 			try {
 				lookup = await p.call(api + "api_stock_count_lookup", { count, code: code || undefined, product });
@@ -249,6 +244,17 @@
 					const picked = await p.pick_product(lookup.candidates);
 					if (picked) return match(null, picked);
 					scanner?.resume(code);
+					return;
+				}
+				if (lookup.not_found) {
+					// 系统里没有这个码（服务端照官方 POS 不弹提示框）：停相机、收起画面，「新建物料」就在查找框下面，
+					// 焦点放上去（岳父 11-01 手机上：提示框挡着、按钮在相机画面下面看不到）。换个码就再点相机或手动查找。
+					lookup = null; missing = code;
+					if (camera) { rescan = true; stop_camera(); }
+					miss(__("No product matches this code"));
+					d.set_df_property("new_product", "hidden", 0);
+					d.fields_dict.new_product.$input.trigger("focus");
+					p.scan_result_sound(false);
 					return;
 				}
 				if (lookup.track_serial && !lookup.unit && !entry) {
@@ -298,7 +304,6 @@
 				const refused = error?.status === 417;
 				// 417 时服务端那句已经弹成原生提示框，这里只写进弹窗；查找失败没人提示过，再浮动提示一次。
 				if (refused) message(w("lookupFailed")); else miss(w("lookupError"));
-				d.set_df_property("new_product", "hidden", !(code && not_found(error)));
 				// 这页自己的脚本错交给统一的前端报错（服务端的错服务端自己记）。
 				if (!refused) console.error(error);
 				if (!error?.status) window.pearnlyReportError?.(error, "stocktake-lookup");
@@ -333,6 +338,10 @@
 			await scanner.start();
 			d.set_df_property("torch", "hidden", !scanner?.has_torch());
 		}
+		function stop_camera() {
+			scanner?.stop(); scanner = null; camera = false;
+			d.set_df_property("video", "hidden", true); d.set_df_property("torch", "hidden", true);
+		}
 		// 去设置里开了权限再切回来：重开相机（`p.scan_hint` 只在需要去设置时调它）。
 		function restart_camera() {
 			if (closed) return;
@@ -348,6 +357,7 @@
 			render_elsewhere();   // 换下一条：别处那份提示也收起来
 			render_recorded();
 			if (camera) scanner?.resume();
+			else if (rescan) { rescan = false; void start_camera(); }
 			else d.fields_dict.code.$input.trigger("focus");
 		}
 		editor(false);

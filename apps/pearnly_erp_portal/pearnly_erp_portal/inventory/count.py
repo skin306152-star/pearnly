@@ -1099,6 +1099,10 @@ def lookup_count(*, count, code=None, product=None):
     if not found and code:
         unit = unit_of_code(code, company)  # 按台管理：扫到的是车架号
         found = frappe.db.get_value(PRODUCT, {"name": unit.product, "is_active": 1}, "*", as_dict=True) if unit else None
+    if not found and code and not product:
+        # 扫到系统没有的码是盘点里的正常一步（下一步当场新建物料），照官方 POS 扫不到码的做法不弹提示框：
+        # 回一个结果，录入弹窗停相机、把「新建物料」摆在眼前（岳父 11-01 手机上被提示框挡住、按钮在画面下面）
+        return {"not_found": True}
     if not found:
         frappe.throw(_(CODE_NOT_FOUND))
     rows = [r for r in list_items(count=count, limit=0) if r['product'] == found['name']]

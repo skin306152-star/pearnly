@@ -252,7 +252,8 @@ def run_flow(lab, flow, dataset, viewport):
     camera = flow.get("camera") and next((c for c in params.get("cases", []) if c["key"] == "by_barcode"), None)
     if camera and viewport == "mobile":
         params_camera = module.prepare(lab, manifest)
-        runs.append((params_camera, camera["scan"]))
+        # 相机那一遍读的是它自己那份准备里的码（每次准备都换新码的流程，例如盘点当场新建物料）
+        runs.append((params_camera, next(c for c in params_camera["cases"] if c["key"] == "by_barcode")["scan"]))
     checks, page_errors = [], []
     for run_params, code in runs:
         run_params = run_params or params

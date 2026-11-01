@@ -26,7 +26,7 @@ function $(html) {
 
 function fixture({ lookups, file = ERP }) {
   const source = fs.readFileSync(file, 'utf8');
-  const calls = [], sounds = [], errors = [], resumes = [], reports = [], alerts = [];
+  const calls = [], sounds = [], errors = [], resumes = [], reports = [], alerts = [], camera = { starts: 0, stops: 0 };
   let results = [...lookups], reader;
   const values = {}, fields = {};
   const dialog = {
@@ -41,7 +41,7 @@ function fixture({ lookups, file = ERP }) {
     async call(method, args) { calls.push([method, args]); const next = results.shift(); if (next instanceof Error || next?.status) throw next; return next; },
     async pick_product() { return null; }, scan_result_sound: ok => sounds.push(ok), success() {},
     scan_liff_first: () => false, number: value => String(value),
-    scan_reader({ on_result }) { reader = { on_result, start: async () => {}, pause() {}, resume: code => resumes.push(code ?? ''), stop() {}, has_torch: () => false, torch() {} }; return reader; },
+    scan_reader({ on_result }) { camera.starts += 1; reader = { on_result, start: async () => {}, pause() {}, resume: code => resumes.push(code ?? ''), stop() { camera.stops += 1; }, has_torch: () => false, torch() {} }; return reader; },
   };
   const frappe = { pearnly: p, msgprint() {}, show_alert: options => alerts.push(options.message), DataTable: class {} };
   const window = { pearnlyReportError: (error, kind) => reports.push([error, kind]) };
@@ -51,7 +51,7 @@ function fixture({ lookups, file = ERP }) {
     async open(options = {}) { await p.stockCountEntry({ count: 'STC-00011', t: key => key, continuous: true, ...options }); await flush(); },
     scan: async code => { await reader.on_result(code); await flush(); },
     find: async code => { values.code = code; await fields.find.df.click(); await flush(); },
-    values, fields, calls, sounds, errors, resumes, reports, alerts,
+    values, fields, calls, sounds, errors, resumes, reports, alerts, camera, p,
     message: () => fields.message.$wrapper.text(),
     shown: () => fields.entry_section.df.hidden === false,
   };
@@ -75,6 +75,29 @@ const polymer = (extra = {}) => ({
     assert.equal(f.values.warehouse, '1000');
     assert.deepEqual(f.sounds, [true]);
     assert.deepEqual(f.errors, []);
+  }
+  // 相机扫到系统没有的码（岳父 11-01）：服务端回 not_found 不弹提示框；停相机、收起画面，「新建物料」出来，
+  // 用的是扫到的码（相机扫的不在编码栏里）；建好接着认出这件，记完下一件再开相机
+  {
+    const f = fixture({ lookups: [{ not_found: true }, polymer(), { name: 'E-1' }] });
+    await f.open();
+    await f.scan('8859NEW');
+    assert.equal(f.camera.stops, 1, '查不到要停相机');
+    assert.equal(f.fields.video.df.hidden, true, '相机画面收起');
+    assert.equal(f.fields.new_product.df.hidden, 0, '新建物料要出来');
+    assert.equal(f.message(), 'No product matches this code');
+    assert.deepEqual(f.alerts, ['No product matches this code']);
+    assert.deepEqual(f.resumes, [], '相机已停，不再跳过续扫');
+    assert.deepEqual(f.sounds, [false]);
+    let form;
+    f.p.dialog = (title, list, label, submit) => { form = { code: list.find(df => df.fieldname === 'code').default, submit }; return { hide() {} }; };
+    await f.fields.new_product.df.click();
+    assert.equal(form.code, '8859NEW', '新建用扫到的码');
+    f.p.call = async (method, args) => { f.calls.push([method, args]); return method.endsWith('create_product') ? {} : polymer(); };
+    await form.submit({ product_name: 'New one' });
+    await flush();
+    assert.equal(f.shown(), true, '建好接着认出这件');
+    assert.equal(f.calls.at(-1)[1].code, '8859NEW');
   }
   // 查到下一件时清掉上一件的提示（验收 10-29：查不到 / 已保存那句一直留着）；编码栏带出这件的编码（S2）
   {
