@@ -334,3 +334,59 @@
 - `warehouses.resolve` 不带公司时是否限定当前公司（影响出入库预检用当前公司是否总与仓库公司一致）：未读。
 - 实际站点上「断开」后排队单是否真被写入：只按代码推论，未实测。
 - 盘点里按接上状态新建的物料写进 Express 后的主档同步结果（重复建档）：推论，未实测。
+
+## 8. 交接（11-01 晚，换新窗口施工）
+
+**现状**
+- 本评估与回填缺陷修复已合入 main（SHA 见主会话通知）。5 节改法**未施工**，审定见文首。
+- CC 1.12.10（载荷 15，多仓 P3x 新物料建档）staging 已在测试机从 1.12.9 实机升级通过（11-01 19:05），**正式版未发**：
+  等含回填修复的这批服务端部署上线后再发（`gh workflow run companion-release.yml --ref main -f target=prod` 或推标签
+  `companion-v1.12.10`；发前确认 main 上 `companion/src/companion/version.py` 仍是 1.12.10、`payload_contract` 支持 15）。
+  测试机 skin3 的 CC 现在就是 staging 1.12.10（main 2d484b99），心跳正常；正式版发出后它照常收到同版本，不会再升。
+- 代录窗口（local_ce7e3ac9）载荷用 16，与本批不冲突。
+
+**施工范围（按 5 节，审定四点）**
+1. `ERP Company.express_linked_at`（Datetime，只读，DocType json + 补丁：已接的公司填 `express_pos_from` 当天 00:00，没有就填补丁时刻）。
+   写入：`express/masters.apply` 第一次落库处（现在设 `express_pos_from` 那段，`masters.py:410`）；清空：`masters/company.disconnect_express`、
+   `update_company` 取消勾选；重新接上重写。`express_pos_from` 改从它派生（`pos_day.py:56` 的过滤、补丁 `v1_14` 保留）。
+2. 判据：`express/push._eligible` / `queue`（`push.py:58-87`）改为 `express_enabled` 且 `express_linked_at` 有值且单据开始时刻 ≥ 它，
+   不再要求此刻 connected；单据开始时刻：盘点 `ERP Stock Count.creation`、出入库 / 调拨 / 采购 / 销售 `creation`、
+   采购「修改」沿 `amended_from` 取最早那张、收银小票 `sold_at`。抽一个 `push.started_linked(doctype, doc)` 给各入口共用。
+3. 主档归属同一判据：`inventory/count.create_product_here`（`count.py:448`）、`purchasing/entry.py:74`、`sales/entry.py:138`。
+4. 断开优先：`disconnect_express` / 取消勾选时，这家公司 `express_state ∈ (queued, held)` 的单撤掉还没被领走的写账件（`jobs.cancel`），
+   单据改成一个新状态（如 `express_state = detached`，原因 `express.disconnected`，词条进 `i18n/messages.tsv`）——**不能清空**，页面照常显示
+   「未写入 Express（已断开）」；`send` / `poll` / `answer` / `retry` / `mark_handled` 开头复核 `express_enabled`。新状态要进 `contracts.py`
+   的状态表、列表筛选与 Express 列。已写进 Express 的单断开后作废仍照排作废件（`push.void` 不动）。
+5. 库存对齐 `express/masters._pending`（`masters.py:705-785`）：只叠加开始时刻 ≥ `express_linked_at`、还没写成的单的流水，早于的一律不叠加；
+   改掉 `direct::test_pending_counts_every_erp_move_not_yet_in_express` 里「B 段之前开的、没写成的：算」那条断言（口径变了，要在提交说明写清）。
+6. 页面与打印：`printing/context._sales`（`context.py:280`）按 `express_docnum`；Express 按钮 / 列表列按单据 `express_state`
+   （`desk/transactions.js:149`、`purchase-form.js:251`、`sales-form.js:226`、`stock-entry.js:288`、`stocktake.js:208`、`pos-receipts.js:136`）。
+   期初、建仓仍按此刻 `linked`，不动。
+7. 开户接 Express 的说明照审定第 4 点写明（接上前的单不补进 Express，接上后结存以 Express 为准）——找现有开户 / 公司页说明处，没有就只写进本文档。
+
+**要补的测试**（`tests/test_erp_express_direct.py` 新增一组，离线替身 `tests/fake_frappe` 那套）
+- 1 节总表每格一条：① / ② 不排；③ 排；④a 开始早于接上不排、晚于排；④b 开始已接、断开 → 排队的撤掉、单据标已断开、`send` / `poll` /
+  `answer` / `retry` 不再写；④c 提交时 CC 不报账套照排、停 `express.account_set_missing`、CC 回来写；④d 断开后作废已写的单照排作废。
+- 盘点：开盘点时没接、过账时已接 → 不写 TK、新建物料不挂公司；开盘点时已接 → 写、物料挂本公司、写完回填码（本次修复的测试已在）。
+- `express_linked_at` 写入 / 清空 / 重写；收银起始日跟随；重新接上不补推断开期间的小票。
+- 采购「修改」继承开始时刻；`_pending` 只叠加接上后开始的单；打印标题按 `express_docnum`。
+- 改到共用件：跑 `python3 scripts/check-impact.py` 出清单，按 [共用件连带回归闸门](../development/verification.md) 在实验栈重跑
+  `erp.cc.*`、`erp.document.express`、`erp.stocktake.*`、`erp.express.*`、`erp.stock-entry.*`、收银汇总相关流程。
+
+**C 盘回归怎么跑**（CC 写入代码没改的话不必重跑；改了 `companion/` 才跑）
+- 先在占用表 `side-session-notes/local_1cb93fea-…/测试机占用.md` 登记，问主会话。
+- `scp -r companion/src` 与 `scripts/express-new-item-regression.py`、`scripts/express_cdx_check.py` 到 `C:\PearnlyStress\_newitem_src`，然后
+  `ssh lenovo-office-lan 'cd C:\PearnlyStress\_newitem_src; C:\PearnlyPython311\python.exe -I scripts\express-new-item-regression.py --source C:\PearnlyExpress\70EXP --pattern "T*" --work C:\PearnlyStress\_newitem_reg --companion C:\PearnlyStress\_newitem_src\src --out C:\PearnlyStress\_newitem_src\full.jsonl --runner C:\Users\skin3\AppData\Local\Programs\CC\cdx_reindex_runner.exe'`
+  （约 25 分钟，放后台）。11-01 基准：101 本 92 过、3 本 SANGJ 000W 组缺成本科目停下（已知后续项）、6 本没有可记账的 JU 跳过。跑完删两个目录、登记释放。
+
+**测试机注意**
+- 动实验栈（lab-start / lab-stop / 切域名 / 重启 CC）前先问主会话、登记占用表，和代录窗口错开；今晚收工前必须 lab-stop。
+- CC 走 staging 实机升级的做法：lab-start cowork 后把 latest.json 写到测试机 WSL 的 `/var/www/pearnly-downloads/companion/latest.json`
+  （容器里是只读挂载，不能 docker cp 进去），内容 `{"version", "url": "/downloads/companion/staging/<运行>-1/<提交>/CC-Setup.exe", "sha256"}`；
+  用完删掉。录制机 aksar 的 CC 成员暂停时不会跟着升级。
+- 经 `ssh → wsl → docker exec` 跑 Python 时输出可能被吞：先写到容器里的文件再 `cat`。
+- 仍保留、等主会话定何时删：测试机 `C:\PearnlyStress\_book_record\mwh-rl-*`、`C:\PearnlyStress\_rl_srv`。
+
+**后续项（不在本批）**
+- 合格存货科目组的判断只看存货科目、不看成本科目：采购与库存单弹窗可能列出选了照样停的组（SANGJ 000W）。
+- 销售建新存货在不许负库存的账套里也会写成负数（多仓 P3x 评估待定项，等主会话问用户）。
