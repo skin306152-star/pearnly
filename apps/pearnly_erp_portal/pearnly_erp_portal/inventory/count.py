@@ -394,11 +394,27 @@ def rows_of_product(*, count: str, product: str) -> list:
     """这个商品在这份盘点里的**所有行**（一个货架一行），手机端要拿它给员工挑。"""
     guard.require("count.read")
     _get(count)
-    return frappe.get_list(ITEM, filters={"count": count, "product": product},
-                           fields=["name", "product", "product_name", "code", "barcode", "unit",
-                                   "warehouse", "location", "book_qty", "counted",
-                                   "counted_qty", "difference"],
-                           order_by="location asc, name asc", limit_page_length=0)
+    return _with_specs(frappe.get_list(ITEM, filters={"count": count, "product": product},
+                                       fields=["name", "product", "product_name", "code", "barcode", "unit",
+                                               "warehouse", "location", "book_qty", "counted",
+                                               "counted_qty", "difference"],
+                                       order_by="location asc, name asc", limit_page_length=0))
+
+
+def _with_specs(rows):
+    """盘点行补上物料主档的分类（名称）、特性/颜色和「编码一格是不是内部编码」（岳父 11-01；跟着物料走，不进盘点快照）。
+    分类给名称：分类主档名称不重，名称就能当多人分区盘点的分组键；存量数字迁移成了同名分类，以前存下的分工范围照样对得上。"""
+    specs = {p.name: p for p in frappe.get_all(  # bounded: 这些行的商品
+        PRODUCT, filters={"name": ["in", list({row.product for row in rows}) or [""]]},
+        fields=["name", "category", "attribute", "internal_code", "express_code"], limit_page_length=0)}
+    labels = product_categories.names(p.category for p in specs.values())
+    for row in rows:
+        spec = specs.get(row.product) or {}
+        row.category = labels.get(spec.get("category")) or ""
+        row.attribute = spec.get("attribute") or ""
+        # 编码一格显示的是内部编码还是系统编码（LINE 页按它换标签，用户 11-01）
+        row.code_internal = bool(product_contracts.internal_code(spec))
+    return rows
 
 
 
@@ -754,19 +770,10 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
     missing = {row.product for row in rows if not row.barcode}
     shown = {p["name"]: product_contracts.shown_code(p) for p in frappe.get_all(
         PRODUCT, filters={"name": ["in", list(missing) or [""]]}, fields=["name", "barcode", "qr_payload"])}
-    # 分类（多人分区盘点按「仓库 / 分类」分工）与特性/颜色：跟着商品主档走（不进盘点快照），没设就是空。分类给名称（分类主档
-    # 名称不重，名称就能当分组键；存量数字迁移成了同名分类，以前存下的分工范围照样对得上）
-    specs = {p.name: p for p in frappe.get_all(  # bounded: 这份盘点的商品
-        PRODUCT, filters={"name": ["in", list({row.product for row in rows}) or [""]]},
-        fields=["name", "category", "attribute", "internal_code", "express_code"], limit_page_length=0)}
-    labels = product_categories.names(p.category for p in specs.values())
+    # 分类（多人分区盘点按「仓库 / 分类」分工）与特性/颜色：跟着商品主档走，没设就是空
+    _with_specs(rows)
     for row in rows:
         row.barcode = row.barcode or shown.get(row.product) or None
-        spec = specs.get(row.product) or {}
-        row.category = labels.get(spec.get("category")) or ""
-        row.attribute = spec.get("attribute") or ""
-        # 编码一格显示的是内部编码还是系统编码（LINE 页按它换标签，用户 11-01）
-        row.code_internal = bool(product_contracts.internal_code(spec))
     wanted = (q or "").strip().lower()
     out = []
     tokens = {}
