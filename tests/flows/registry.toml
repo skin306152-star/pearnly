@@ -793,7 +793,8 @@ id = "dms.keyboard.editor"
 title = "DMS LINE 订车编辑页：键盘弹出后最下面几格不被键盘和贴底操作条盖住"
 module = "scripts/flows/dms_keyboard_editor.py"
 product = "dms"
-start = "/assets/pearnly_core/pearnly-app/index.html#/dms/editor?draft={nonce}"
+# 从旧地址 /pearnly-app 进：经过装载页 pearnly-app.html（它的 viewport 也带 interactive-widget）再进同一个包
+start = "/pearnly-app#/dms/editor?draft={nonce}"
 user = "operator"
 datasets = ["new"]
 viewports = ["mobile"]
@@ -801,6 +802,7 @@ covers = [
   "apps/pearnly_core/pearnly_core/public/desk/keyboard.js",
   "frontend/src/main.ts",
   "frontend/index.html",
+  "apps/pearnly_core/pearnly_core/www/pearnly-app.html",
 ]
 
 [[flow]]
