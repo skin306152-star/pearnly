@@ -8,6 +8,7 @@
 手机宽度另用假摄像头点「扫码」读条码，同样要出数量框并能保存。全程页面不能有报错。
 （work-followups 的手机盘点用例 10-29 并入：本账号 LINE 绑定回落、零库存仓、保存后计数加一与「实盘数量」大字、撤销回落、
 GET 调查码 403、落库来源 LINE。）
+最后把格子滚到屏幕最下 60px 内，中心点要点得中，提示条不显示时那一条点不到它（11-01 真机：透明提示条挡住最下面的格）。
 """
 from __future__ import annotations
 
@@ -116,6 +117,17 @@ def steps(params, camera_code=None):
             "const undo=[...document.querySelectorAll('[data-undo]')].find(b=>(b.closest('tr')?.cells[0]?.textContent||'').trim()==='99'); if(!undo) return {error:'no undo button for 99'}; "
             "document.getElementById('toast').textContent=''; undo.click(); await until(()=>undos()===n0&&st().toast); await new Promise(r=>setTimeout(r,400)); "
             "return {before: h0, saved: h1, undone: st().head, toast: st().toast, entries_before: n0, entries_after: undos()};")})
+    # 屏幕最下 60px 内的格要点得中：提示条（fixed、bottom 16px）不显示时不挡点击（11-01 真机：透明提示条挡住最下面的格）
+    out.append({"name": "底部格点得中", "js": (
+        "const toast=document.getElementById('toast'); for(let k=0;k<20&&toast.classList.contains('show');k++) await new Promise(r=>setTimeout(r,250));"
+        "await new Promise(r=>setTimeout(r,300)); const ih=innerHeight; const tried=[];"
+        "for(const el of [...document.querySelectorAll('#app input:not([type=hidden]):not([type=file]), #app button')].filter(e=>e.getClientRects().length&&!e.disabled)){"
+        "  const r0=el.getBoundingClientRect(); window.scrollBy(0, r0.bottom-(ih-20)); await new Promise(r=>setTimeout(r,150));"
+        "  const r=el.getBoundingClientRect(); if(r.bottom<ih-60||r.bottom>ih) continue;"
+        "  const hit=document.elementFromPoint(r.left+Math.min(r.width/2,40), r.top+r.height/2);"
+        "  tried.push({field: el.id||el.textContent.trim().slice(0,20)||el.tagName, bottom: Math.round(r.bottom), ok: !!hit&&(hit===el||el.contains(hit))}); if(tried.length>=3) break;}"
+        "const strip=[ih-10, ih-30, ih-50].map(y=>document.elementFromPoint(innerWidth/2, y)===toast);"
+        "return {ih, tried, toast_hit: strip.some(Boolean), toast_shown: toast.classList.contains('show')};")})
     out.append({"name": "GET 调查码", "js": (
         "const r=await fetch('/api/method/pearnly_erp_portal.inventory.line_mobile.api_line_stocktake_lookup?code=x', {credentials:'same-origin'}); "
         "return {status: r.status};")})
@@ -162,6 +174,10 @@ def judge(params, results, camera_code=None):
         # 同一件商品再记一笔不增加「已盘点件数」，所以看的是撤销后抬头与记之前一致、且出了撤销提示
         checks.append({"case": "再记一笔再撤销", "seen": undo, "ok": bool(undo.get("toast")) and undo.get("undone") == undo.get("before")
                        and not undo.get("error")})
+    bottom = by.get("底部格点得中") or {}
+    checks.append({"case": "屏幕最下 60px 内的格点得中、提示条不显示时不挡点击", "seen": bottom,
+                   "ok": len(bottom.get("tried") or []) > 0 and all(t["ok"] for t in bottom["tried"])
+                   and bottom.get("toast_hit") is False and bottom.get("toast_shown") is False})
     get = by.get("GET 调查码") or {}
     checks.append({"case": "查码接口不收 GET", "seen": get, "ok": get.get("status") == 403})
     return checks
