@@ -654,3 +654,34 @@ camera = false
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-card.js",
 ]
+
+[[flow]]
+id = "erp.inventory.by-product"
+title = "ERP 库存一览按物料：两仓合计、低库存按公司合计判、导出跟看法、点开回各仓（多仓闭环 P4）"
+module = "scripts/flows/erp_inventory_by_product.py"
+start = "/desk/pearnly-inventory"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/inventory.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/stock.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/contracts.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py",
+]
+
+[[flow]]
+id = "erp.express.new-item-stock"
+title = "ERP 出入库单遇 Express 里没有的物料：问一次选新建、载荷 15 标新建、写完回填编码；同名不问、没接 Express 不问（多仓闭环 P3x）"
+module = "scripts/flows/erp_express_new_item.py"
+start = "/desk/pearnly-stock-in"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/stock_entry.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py",
+]
