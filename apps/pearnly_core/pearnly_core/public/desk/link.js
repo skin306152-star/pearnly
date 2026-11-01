@@ -49,7 +49,8 @@
 		}
 		if (control) control.pearnly_editor_open = true;
 		try {
-			const dialog = await p.link_editors[doctype]({name,
+			// `control`：发起的那一格（产品的弹窗要在新建后把新档选上时用，同官方快速录入；不用的弹窗照旧忽略它）
+			const dialog = await p.link_editors[doctype]({name, control,
 				initial: name ? "" : control?.get_label_value?.() || control?.$input?.val() || "",
 				on_saved: row => p.refresh_master_links(doctype, row)});
 			dialog.$wrapper.one("hidden.bs.modal", () => {

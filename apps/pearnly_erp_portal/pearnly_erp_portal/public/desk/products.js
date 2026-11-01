@@ -768,6 +768,8 @@
 			d.hide();
 			p.success(__("Saved"), "click");
 			await context.on_saved?.(saved);
+			// 从分类格里点「新建」建的：建好就选上（同官方快速录入），不用再打一遍
+			if (!row && context.control?.set_value) await context.control.set_value(saved.name);
 		});
 		if (row && !row.can_edit) {
 			Object.values(dialog.fields_dict).forEach(field => dialog.set_df_property(field.df.fieldname, "read_only", 1));

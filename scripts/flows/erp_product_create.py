@@ -59,7 +59,8 @@ def steps(params, camera_code=None):
          "const prefilled=e.get_value('category_name'); e.get_primary_btn().trigger('click');"
          "for(let k=0;k<40&&e.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();"
          f"const r=await frappe.call({{method:'frappe.client.get_value', args:{{doctype:'ERP Product Category', filters:{{category_name:{json.dumps(params['category'])}}}, fieldname:'name'}}}});"
-         "const made=(r.message||{}).name||''; if(made) await c.set_value(made); await idle();"
+         # 建好自动选上（同官方快速录入，不用再打一遍）
+         "const made=(r.message||{}).name||''; await idle();"
          "await d.set_value('attribute', 'แดง');"
          "return {offered, prefilled, made, picked: d.get_value('category')||''};"},
         {"name": "填写提交", "js": IDLE + "const d=window.__product_dialog;"
