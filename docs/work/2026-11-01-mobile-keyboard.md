@@ -144,6 +144,94 @@ iOS 只模拟了弹窗（整页滚动时 iOS 自己平移可见区，这个平�
 真机顺带发现（不在本次范围，已记进共享笔记「已知问题与结论」）：LINE 盘点页底部透明提示条 `.toast`（opacity 0）仍接收点击，
 格子滚到屏幕最下约 60px 时点不中。
 
+## 共用件连带回归清单（`check-impact.py`，最终提交 6f9704c4）
+
+命中共用件 `desk-shell`（product.css）与新登记的 `phone-keyboard`，72 个入口。自动入口用 `scripts/smoke/run.py --target local --diff`
+对本机实验栈跑；人工入口按上面的真机与流程结果逐个填，「没测到」写原因。合计：通过 51、不通过 0、没测到 21。
+
+
+| 入口 | 产品 | 方式 | 结果 | 说明 |
+|---|---|---|---|---|
+| `erp.page.home` | ERP | auto：page | 通过 | 1.0 秒 |
+| `erp.page.products` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.inventory` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.stock-in` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.stock-out` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.stock-transfer` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.stock-card` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.stock-count` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.cashier` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.company` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.warehouses` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.team` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.purchase` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.suppliers` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.sales` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.pos-receipts` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.pos-shifts` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.clients` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.tasks` | ERP | auto：page | 通过 | 0.5 秒 |
+| `cowork.page.home` | Cowork | auto：page | 通过 | 1.4 秒 |
+| `cowork.page.intake` | Cowork | auto：page | 通过 | 0.5 秒 |
+| `cowork.page.recon-bank` | Cowork | auto：page | 通过 | 1.1 秒 |
+| `cowork.page.recon-income` | Cowork | auto：page | 通过 | 0.5 秒 |
+| `cowork.page.recon-vat` | Cowork | auto：page | 通过 | 0.5 秒 |
+| `cowork.page.stocktake` | Cowork | auto：page | 通过 | 0.4 秒 |
+| `cowork.page.work` | Cowork | auto：page | 通过 | 0.4 秒 |
+| `cowork.page.team` | Cowork | auto：page | 通过 | 0.4 秒 |
+| `dms.page.home` | DMS | auto：page | 通过 | 1.3 秒 |
+| `dms.page.connect` | DMS | auto：page | 通过 | 0.4 秒 |
+| `dms.page.records` | DMS | auto：page | 通过 | 0.4 秒 |
+| `dms.page.roster` | DMS | auto：page | 通过 | 0.4 秒 |
+| `erp.page.never.push-logs` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.never.reconcile` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.never.guide` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.page.never.history` | ERP | auto：page | 通过 | 0.5 秒 |
+| `erp.report.stock-count-variance` | ERP | manual | 没测到 | 报表页，手机键盘只在文字格聚焦时动作；页面打开由 Desk 外壳页面冒烟同一加载路径覆盖 |
+| `shared.sidebar-order` | 共用 | manual | 通过 | 受影响流程与组件回归流程（ERP / Cowork 电脑 + 手机宽度）都经过侧栏导航，全过 |
+| `erp.company-menu` | ERP | manual | 没测到 | 只因调用方文件 `pearnly_core/hooks.py` 登记在它下面而列入；本次 hooks.py 只多挂一个 `desk/keyboard.js`、新增 `web_include_js`，不碰这一项的逻辑；挂这个脚本的 Desk 页面打开由上面 41 个自动页面冒烟覆盖（全过） |
+| `erp.detail.sales.draft` | ERP | auto：doc_detail | 没测到 | 实验室这套数据没有草稿单：no draft ERP Sales Document |
+| `erp.detail.sales.submitted` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.sales.void` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.purchase.draft` | ERP | auto：doc_detail | 没测到 | 实验室这套数据没有草稿单：no draft Purchase Document |
+| `erp.detail.purchase.submitted` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.purchase.void` | ERP | auto：doc_detail | 没测到 | 没有作废单：no void Purchase Document |
+| `erp.detail.stock-in.submitted` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.stock-out.void` | ERP | auto：doc_detail | 没测到 | 列表为空：empty list |
+| `erp.stock-count.switch.posted-to-active` | ERP | auto：record_switch | 通过 |  |
+| `erp.stock-count.switch.active-to-posted` | ERP | auto：record_switch | 通过 |  |
+| `erp.purchase.detail.not-permitted` | ERP | auto：not_permitted | 没测到 | 没配受限账号 SMOKE_USER_ERP_LIMITED |
+| `erp.sales.detail.not-permitted` | ERP | auto：not_permitted | 没测到 | 没配受限账号 SMOKE_USER_ERP_LIMITED |
+| `cowork.stocktake.switch` | Cowork | manual | 没测到 | Cowork 盘点详情切换，不涉及文字格；同一 Desk 加载路径由页面冒烟覆盖 |
+| `shared.keyboard.erp-dialogs` | ERP | manual | 通过 | 流程 erp.keyboard.dialogs（iOS + 安卓式 17/17）；三星真机物料新建、团队添加用户、开班弹窗（含表格内联编辑、收银台 Link）全过 |
+| `shared.keyboard.cowork-intake` | Cowork | manual | 通过 | 流程 cowork.keyboard.intake 4/4；三星真机备注、价税合计在键盘上方 |
+| `shared.keyboard.dms-editor` | DMS | manual | 通过 | 流程 dms.keyboard.editor（从 /pearnly-app 进）；三星真机付款金额、登记人、交车日期、保存被拒跳出错格全过 |
+| `shared.keyboard.erp-line-stocktake` | ERP | manual | 通过 | 流程 erp.keyboard.line-stocktake 4/4；三星真机新建商品各格在键盘上方 |
+| `erp.line.stocktake` | ERP | manual | 通过 | 流程 erp.line.stocktake.phone、erp.line.stocktake 两套数据电脑 + 手机全过（LIFF 登录走本账号绑定回落，真 LINE 没测到） |
+| `dms.liff.id-scan` | DMS | manual | 通过（实验室） | 流程 dms.liff.scan-loading 通过（Vue 包入口加了一行 import）；真 LINE 拍证没测到，部署后 LINE 真机补验 |
+| `shared.page-errors` | 共用 | manual | 没测到 | errors.js 与回传接口未改，只是同页多挂一个脚本；各流程都断言页面无报错、站点 Error Log 无新增前端回传，全过 |
+| `erp.line.stocktake.camera` | ERP | manual | 没测到 | LINE LIFF 里的相机要真 LINE；盘点页只多挂一个脚本，扫码没动；Desk 扫码弹窗三星真机相机画面在播 |
+| `erp.scan.pick-product` | ERP | manual | 没测到 | 只因调用方文件 `pearnly_core/hooks.py` 登记在它下面而列入；本次 hooks.py 只多挂一个 `desk/keyboard.js`、新增 `web_include_js`，不碰这一项的逻辑；挂这个脚本的 Desk 页面打开由上面 41 个自动页面冒烟覆盖（全过） |
+| `shared.line.login` | 共用 | manual | 没测到 | 只因调用方文件 `pearnly_core/hooks.py` 登记在它下面而列入；本次 hooks.py 只多挂一个 `desk/keyboard.js`、新增 `web_include_js`，不碰这一项的逻辑；挂这个脚本的 Desk 页面打开由上面 41 个自动页面冒烟覆盖（全过） |
+| `erp.cc.connect` | ERP | manual | 没测到 | 只因调用方文件 `pearnly_core/hooks.py` 登记在它下面而列入；本次 hooks.py 只多挂一个 `desk/keyboard.js`、新增 `web_include_js`，不碰这一项的逻辑；挂这个脚本的 Desk 页面打开由上面 41 个自动页面冒烟覆盖（全过） |
+| `shared.exports` | 共用 | manual | 没测到 | 只因调用方文件 `pearnly_core/hooks.py` 登记在它下面而列入；本次 hooks.py 只多挂一个 `desk/keyboard.js`、新增 `web_include_js`，不碰这一项的逻辑；挂这个脚本的 Desk 页面打开由上面 41 个自动页面冒烟覆盖（全过） |
+| `shared.navigation` | 共用 | manual | 通过 | 各流程与 41 个页面冒烟经过侧栏 / 页头，全过；电脑宽 5 个页面零差异 |
+| `shared.upload.shrink-photo` | 共用 | manual | 没测到 | 只因调用方文件 `pearnly_core/hooks.py` 登记在它下面而列入；本次 hooks.py 只多挂一个 `desk/keyboard.js`、新增 `web_include_js`，不碰这一项的逻辑；挂这个脚本的 Desk 页面打开由上面 41 个自动页面冒烟覆盖（全过） |
+| `erp.line.stocktake.new-product` | ERP | manual | 通过 | 流程 erp.line.stocktake 两套数据全过；三星真机新建商品表单各格（未提交） |
+| `shared.originals.download` | 共用 | manual | 没测到 | 只因调用方文件 `pearnly_core/hooks.py` 登记在它下面而列入；本次 hooks.py 只多挂一个 `desk/keyboard.js`、新增 `web_include_js`，不碰这一项的逻辑；挂这个脚本的 Desk 页面打开由上面 41 个自动页面冒烟覆盖（全过） |
+| `shared.login` | 共用 | manual | 通过（部分） | 网站页改密码页三星真机与电脑宽都正常（web_include_js）；OIDC 登录 / 退出没测到（Keycloak 登录页不改、实验栈无 Keycloak） |
+| `shared.execution` | 共用 | manual | 没测到 | 只因调用方文件 `pearnly_core/hooks.py` 登记在它下面而列入；本次 hooks.py 只多挂一个 `desk/keyboard.js`、新增 `web_include_js`，不碰这一项的逻辑；挂这个脚本的 Desk 页面打开由上面 41 个自动页面冒烟覆盖（全过） |
+| `shared.assistant` | 共用 | manual | 没测到 | CC 对话页按设计不挂共用模块（静态检查豁免、assistant.html 未改） |
+| `shared.browser-text` | 共用 | manual | 没测到 | 只因调用方文件 `pearnly_core/hooks.py` 登记在它下面而列入；本次 hooks.py 只多挂一个 `desk/keyboard.js`、新增 `web_include_js`，不碰这一项的逻辑；挂这个脚本的 Desk 页面打开由上面 41 个自动页面冒烟覆盖（全过） |
+| `erp.browser-text` | ERP | manual | 没测到 | 只因调用方文件 `pearnly_core/hooks.py` 登记在它下面而列入；本次 hooks.py 只多挂一个 `desk/keyboard.js`、新增 `web_include_js`，不碰这一项的逻辑；挂这个脚本的 Desk 页面打开由上面 41 个自动页面冒烟覆盖（全过） |
+
+## 合入前（最终提交 6f9704c4）
+
+- 受影响流程 `run.py --changed --post-status`：7 条 × 两套数据 × 电脑 / 手机，14/14 通过，已回写 `pearnly/flows`。
+- 组件回归流程（新开户数据，电脑 + 手机）：物料新建、采购新建、收银首单 POS、出入库扫码（相机）、销售扫码、团队添加、供应商 / 客户弹窗、
+  盘点扫码、Cowork 复核，9 条 18/18 通过（在 4d52d811 上跑；之后只改了 DMS 键盘流程的起始地址与断言）。DMS 取景页流程通过。
+- 本地全闸门 158 步：在 4d52d811 上只有流程覆盖闸（pearnly-app.html 没有流程覆盖）不过，已补并在 6f9704c4 上单跑覆盖闸通过。
+
 ## 上线后补验（本任务不部署）
 
 - 主会话：下一次部署后在生产上再点一遍 POS 和扫码，作为镜像层补验（本次用本机实验栈 + 真机代替测试机 live-off，主会话 11-01 同意）。
