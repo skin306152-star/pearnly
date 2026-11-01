@@ -1398,3 +1398,16 @@
   - 公司选择：`service_vat` 与单据分组 `group` 两种都留；DocType 选项并上、modified 改 11-01。
   - 侧栏折叠 / 排序：分支改成按工作区的工厂，main 加的报错上报（`reportCaught`）放进工厂里的同几处。
   - 词条、交易列表的原因词、共用件登记表：两边都留。
+
+### 合入 main 后补的闸门（11-01）
+
+- main 在代录暂停期间新加的几道检查，代录这条线都要补：
+  - 吞错闸门（`scripts/check-swallowed-errors.py`）：实操前端 19 处 catch 改为经 `reportCaught` / `withReport` 回传（请求被拒、断网它自己跳过），行为不变。
+  - 流程覆盖闸（`scripts/flows/coverage.py`）：实操页前端、`express_operator/api.py` 与背后的 `products.py`、ERP `express/operator.py`
+    新写流程 `cc.operator`（`scripts/flows/cc_operator.py`，ERP 两套数据、电脑宽度）：切到实操 → 选公司建任务（准备中、侧栏有这一行）
+    → 右栏资料与站点 `operator.sources` 的张数一致 → 任务页说一句、回复画在任务记录下面、等回复时对话框出状态行、回复到了收起
+    → 侧栏「···」删除先问一次 → 库里任务与任务对话都删掉。网页上没有桥，不开始录单。
+    Cowork 的 `pending_api.py`（归代录的单在待处理里回答只记下）与 `push/lifecycle.py`（结果不明判断，代录预检在用）另写 Cowork 流程。
+  - 「在忙」动画登记（`tests/test_cc_idle_motion.py`）与共用件登记表（`scripts/impact/shared-parts.toml`）跟着 `RunLine` 与任务对话补登。
+- 测试机保留项（主会话 11-01 转来，归代录）：计划任务 `PearnlyOpPar`（10-30 并行实测留下，指向 `C:\PearnlyStress\_op_lab\lab_run.py`）
+  与 `C:\PearnlyStress\_op_lab` 目录，等真人按键实测做完一起删；`PearnlyRec2Agent`（10-21）不是代录的，不动。

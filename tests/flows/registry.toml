@@ -358,6 +358,30 @@ covers = [
 ]
 
 [[flow]]
+id = "cc.operator"
+title = "CC 实操（代录 Express）：选公司建任务、右栏资料与站点一致、任务对话一轮与对话框状态行、侧栏删除任务（假智能体后端，网页无桥不开录）"
+module = "scripts/flows/cc_operator.py"
+start = "/assistant"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop"]
+covers = [
+  "frontend/assistant/src/components/operator/*.ts",
+  "frontend/assistant/src/components/operator/*.tsx",
+  "frontend/assistant/src/components/assistant-ui/projects.tsx",
+  "frontend/assistant/src/components/assistant-ui/sidebar-group.tsx",
+  "frontend/assistant/src/components/delete-chats.tsx",
+  "frontend/assistant/src/components/split-handle.tsx",
+  "frontend/assistant/src/lib/desktop.ts",
+  "frontend/assistant/src/lib/nav.ts",
+  "frontend/assistant/src/lib/prefs-sync.ts",
+  "apps/pearnly_core/pearnly_core/express_operator/api.py",
+  "apps/pearnly_core/pearnly_core/express_operator/products.py",
+  "apps/pearnly_core/pearnly_core/express_operator/tasks.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+]
+
+[[flow]]
 id = "cc.settings"
 title = "CC 设置：主题刷新后保留、语言切换落库与整页换语言、还原（电脑齿轮 / 手机抽屉头像菜单）"
 module = "scripts/flows/cc_settings.py"
