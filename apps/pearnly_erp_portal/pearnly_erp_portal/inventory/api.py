@@ -768,6 +768,11 @@ def api_stock_count_create_product(**kwargs):
     return counts.create_product_here(**_clean(kwargs))
 
 
+@frappe.whitelist()
+def api_stock_count_next_product_code(**kwargs):
+    return counts.next_product_code(**_clean(kwargs))
+
+
 @frappe.whitelist(methods=["POST"])
 def api_stock_count_recount(**kwargs):
     return counts.recount_product(**_clean(kwargs))

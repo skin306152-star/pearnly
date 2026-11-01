@@ -1,7 +1,8 @@
 """流程用例：LINE 手机盘点页 —— 扫到系统没有的码当场新建商品、选库位记数（盘点菜单做完整 S3 / S5，用户 10-29 批复）。
 
 LINE 里的 LIFF 验签走不了实验室，这里走同一个页面的「本站点已登录账号自己的绑定」回落路径：实验室给盘点岗账号建一条合成绑定
-（只在实验室）。打开 `/stocktake` → 进这份盘点 → 输一个系统里没有的码 → 出新建表单，填品名、单位 → 建好认出这件 →
+（只在实验室）。打开 `/stocktake` → 进这份盘点 → 输一个系统里没有的码 → 出新建表单（与物料页新建弹窗同一套字段，码已预填，
+汽车公司带按台两格、号码种类默认「车」），填品名、单位、售价 → 建好认出这件 →
 仓位格从库位清单选（有清单时，选项带说明）→ 记 2 件 →「实际仓库」默认是这份盘点的仓，换成同公司另一个仓再记 1 件（岳父 10-26：手机上
 也能改仓库，同电脑）。库里：新商品来由「盘点新建 · 这份盘点」；第一条数量 2、来源 LINE、盘点的仓、库位对；第二条数量 1、记在换过去的仓。
 公司先设成「汽车」类型：扫按台商品的商品码，同电脑只提示要逐台扫、不出数量框，也不为它登记快照行（抬头 y 不变，验收 10-29）；
@@ -13,6 +14,9 @@ import json
 import uuid
 
 TITLE = "LINE 手机盘点：当场新建商品、选库位记数"
+# 新建表单的各格（`www/stocktake.html` 的 NEW_FIELDS，照物料页新建弹窗；按台两格只在汽车 / 手机电器公司出现）
+NEW_FIELDS = ["product_name", "internal_code", "code", "category_id", "unit", "base_unit", "unit_price", "default_cost",
+              "default_location", "min_stock", "track_serial", "serial_kind", "vat_applicable"]
 
 
 def prepare(lab, manifest):
@@ -75,9 +79,14 @@ def steps(params, camera_code=None):
          "return {qty_box: !!document.getElementById('qty'), message: (toast.textContent||'').trim().slice(0,200), y_before: before, y_after: head()};"},
         {"name": "输没有的码", "js": wait +
          f"document.getElementById('code').value={code}; document.getElementById('find').click();"
-         "const n=await until(()=>document.getElementById('np_name')); return {new_form: !!n, button: n?document.getElementById('np_save').innerText.trim():''};"},
+         "const n=await until(()=>document.getElementById('np_product_name'));"
+         f"const ids={json.dumps(NEW_FIELDS)}.filter(x=>document.getElementById('np_'+x));"
+         "return {new_form: !!n, button: n?document.getElementById('np_save').innerText.trim():'', fields: ids,"
+         " code: (document.getElementById('np_code')||{}).value||'', serial_kind: (document.getElementById('np_serial_kind')||{}).value||'',"
+         " vat: !!(document.getElementById('np_vat_applicable')||{}).checked};"},
         {"name": "新建", "js": wait +
-         f"document.getElementById('np_name').value={name}; document.getElementById('np_unit').value='ชิ้น'; document.getElementById('np_save').click();"
+         f"document.getElementById('np_product_name').value={name}; document.getElementById('np_unit').value='ชิ้น';"
+         "document.getElementById('np_unit_price').value='45'; document.getElementById('np_save').click();"
          f"const b=await until(()=>[...document.querySelectorAll('.card b')].find(e=>e.innerText.trim()==={name}));"
          "return {recognised: !!b, options: [...document.querySelectorAll('#loclist option')].map(o=>[o.value,o.label])};"},
         {"name": "选库位记数", "js": wait +
@@ -103,6 +112,9 @@ def judge(params, results, camera_code=None):
          "ok": unit.get("qty_box") is False and bool(unit.get("message")) and unit.get("y_before") is not None
          and unit.get("y_after") == unit.get("y_before")},
         {"case": "unknown code offers a new product form", "seen": by.get("输没有的码"), "ok": (by.get("输没有的码") or {}).get("new_form") is True},
+        {"case": "new product form has the product dialog's fields", "seen": by.get("输没有的码"),
+         "ok": (by.get("输没有的码") or {}).get("fields") == NEW_FIELDS and (by.get("输没有的码") or {}).get("code") == params["code"]
+         and (by.get("输没有的码") or {}).get("serial_kind") == "vehicle" and (by.get("输没有的码") or {}).get("vat") is True},
         {"case": "new product recognised", "seen": made, "ok": made.get("recognised") is True},
         {"case": "location list offered", "seen": options, "ok": not params["location"] or any(o[0] == params["location"] for o in options)},
         {"case": "warehouse defaults to the count's", "seen": by.get("选库位记数"), "ok": (by.get("选库位记数") or {}).get("store_default") == params["warehouse"]},
@@ -113,7 +125,8 @@ def judge(params, results, camera_code=None):
 
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
-p = frappe.db.get_value("ERP Product", {{"barcode": {params['code']!r}}}, ["name", "origin", "origin_name"], as_dict=True) or {{}}
+p = frappe.db.get_value("ERP Product", {{"barcode": {params['code']!r}}}, ["name", "origin", "origin_name", "unit", "unit_price", "price_set",
+                        "vat_applicable", "track_serial"], as_dict=True) or {{}}
 rows = frappe.get_all("ERP Stock Count Entry", filters={{"count": {params['count']!r}, "voided": 0}}, fields=["product", "qty", "source", "location", "warehouse"],
                       order_by="creation asc")
 unit_rows = frappe.db.count("ERP Stock Count Item", {{"count": {params['count']!r}, "product": {params['unit_product']!r},
@@ -125,6 +138,9 @@ print(json.dumps({{"product": p, "entries": [dict(r, qty=float(r.qty), location=
     p = got["product"]
     return [
         {"case": "product origin is this count", "saved": p, "ok": p.get("origin") == "stocktake" and p.get("origin_name") == params["count"]},
+        {"case": "new product fields saved", "saved": p,
+         "ok": p.get("unit") == "ชิ้น" and float(p.get("unit_price") or 0) == 45 and p.get("price_set") == 1 and p.get("vat_applicable") == 1
+         and not p.get("track_serial")},
         {"case": "no count row added for the unit tracked product by the lookup", "saved": got["unit_rows"], "ok": got["unit_rows"] == 0},
         {"case": "entry saved from LINE at the chosen location", "saved": got["entries"],
          "ok": got["entries"][:1] == [{"product": p.get("name"), "qty": 2.0, "source": "LINE", "location": params["location"],

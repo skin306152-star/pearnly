@@ -42,6 +42,8 @@
       .toast.show { opacity: 1; }
       .error { color: #b91c1c; font-size: 13px; }
       .big { font-size: 22px; font-weight: 600; }
+      label.check { display: flex; gap: 8px; align-items: center; font-size: 15px; color: var(--ink); margin: 0; }
+      label.check input { width: auto; }
     </style>
   </head>
   <body>
@@ -131,11 +133,14 @@
             const row = pack2.message[key] || {};
             texts[key] = row[lang] || row.en || row.th || key;
           }
-          const response3 = await fetch(CORE + '?prefix=' + encodeURIComponent('common.scan.'));
-          const pack3 = await response3.json();
-          for (const key of Object.keys(pack3.message || {})) {
-            const row = pack3.message[key] || {};
-            texts[key] = row[lang] || row.en || row.th || key;
+          // 读码提示；新建物料那几格与物料页同名词条（`product.field.*`、按台 `serial.*`）
+          for (const prefix of ['common.scan.', 'product.', 'serial.']) {
+            const response3 = await fetch(CORE + '?prefix=' + encodeURIComponent(prefix));
+            const pack3 = await response3.json();
+            for (const key of Object.keys(pack3.message || {})) {
+              const row = pack3.message[key] || {};
+              texts[key] = row[lang] || row.en || row.th || key;
+            }
           }
           document.getElementById('title').textContent = t('stock.mobile.title');
         }
@@ -344,25 +349,51 @@
           }
         }
 
-        // 扫到系统没有的码：当场建商品（与桌面端同一个服务端函数），建好接着记数
+        // 扫到系统没有的码：当场建商品。这一页不跑 Desk，弹不出物料页那个原生弹窗，字段照它一格不差（`products.js` 的
+        // `product_fields`：同名词条、同一个服务端函数 `count.create_product_here` 与同一份校验）；只少图片一格（这页没有附件控件，
+        // 进物料页再补）。码预填进「条码/二维码」，建好按存下的码接着记数。
+        const NEW_FIELDS = [
+          ['product_name', 'name'], ['internal_code', 'internalCode'], ['code', 'codeValue'], ['category_id', 'category', 'numeric'],
+          ['unit', 'unit'], ['base_unit', 'baseUnit'], ['unit_price', 'price', 'decimal'], ['default_cost', 'cost', 'decimal'],
+          ['default_location', 'defaultLocation'], ['min_stock', 'minStock', 'decimal'],
+        ];
         function offerNew(code) {
           const card = document.getElementById('code')?.closest('.card');
           if (!card) return;
           let box = document.getElementById('newproduct');
           if (!box) { box = document.createElement('div'); box.id = 'newproduct'; card.appendChild(box); }
-          box.innerHTML = '<div class="row"><div style="flex:1"><label>' + esc(t('stock.col.name')) + '</label><input id="np_name"></div></div>'
-            + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.col.unit')) + '</label><input id="np_unit"></div></div>'
-            + '<div class="row"><button id="np_save" class="primary wide">' + esc(t('stock.mobile.newProduct')) + '</button></div>';
+          const kinds = ['vehicle', 'device'];
+          box.innerHTML = '<div class="row"><b>' + esc(t('product.action.new')) + '</b></div>'
+            + NEW_FIELDS.map(([field, key, mode]) => '<div class="row"><div style="flex:1"><label>' + esc(t('product.field.' + key))
+              + '</label><input id="np_' + field + '"' + (mode ? ' inputmode="' + mode + '"' : '')
+              + (field === 'code' ? ' value="' + esc(code) + '"' : '') + '></div></div>').join('')
+            // 按台两格照物料页：只在汽车 / 手机电器类公司出现，号码种类默认跟公司类型
+            + (task.unit_kind ? '<div class="row"><label class="check"><input id="np_track_serial" type="checkbox"> '
+              + esc(t('serial.track')) + '</label></div>'
+              + '<div class="row"><div style="flex:1"><label>' + esc(t('serial.kind')) + '</label><select id="np_serial_kind">'
+              + kinds.map((kind) => '<option value="' + kind + '"' + (kind === task.unit_kind ? ' selected' : '') + '>'
+                + esc(t('serial.kind.' + kind)) + '</option>').join('') + '</select></div></div>' : '')
+            + '<div class="row"><label class="check"><input id="np_vat_applicable" type="checkbox" checked> '
+              + esc(t('product.field.vat')) + '</label></div>'
+            + '<div class="row"><button id="np_save" class="primary wide">' + esc(t('product.action.submit')) + '</button></div>';
+          document.getElementById('np_product_name').focus();
           document.getElementById('np_save').onclick = async () => {
-            const productName = document.getElementById('np_name').value.trim();
-            if (!productName) { say(t('stock.col.name'), true); return; }
+            const value = (field) => document.getElementById('np_' + field)?.value.trim() || undefined;
+            const productName = value('product_name');
+            if (!productName) { say(t('product.field.name'), true); return; }
             const button = document.getElementById('np_save');
             button.disabled = true;
+            const args = { name: task.name };
+            NEW_FIELDS.forEach(([field]) => { args[field] = value(field); });
+            args.vat_applicable = document.getElementById('np_vat_applicable').checked ? 1 : 0;
+            if (task.unit_kind) {
+              args.track_serial = document.getElementById('np_track_serial').checked ? 1 : 0;
+              args.serial_kind = value('serial_kind');
+            }
             try {
-              await call('api_line_stocktake_create_product', { name: task.name, code: code, product_name: productName,
-                unit: document.getElementById('np_unit').value.trim() || undefined }, true);
+              const made = await call('api_line_stocktake_create_product', args, true);
               box.innerHTML = '';
-              await lookup(code);
+              await lookup(args.code || args.internal_code || '');
             } catch (error) {
               say(error.message, true);
               button.disabled = false;

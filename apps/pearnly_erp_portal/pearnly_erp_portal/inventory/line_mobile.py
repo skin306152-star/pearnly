@@ -19,6 +19,7 @@ from pearnly_core.execution import state as pearnly_state
 from pearnly_core import line
 from pearnly_erp_portal.inventory import count as counts
 from pearnly_erp_portal.inventory import warehouses
+from pearnly_erp_portal.masters import company as companies
 
 BINDING = "Pearnly LINE Binding"
 PREFIX = "pearnly:erp:stocktake-ticket:"
@@ -131,6 +132,8 @@ def api_line_stocktake_task(ticket=None, name=None, **kwargs):
     as_ticket_user(ticket)
     task = counts.get_count(name)
     task["entries"] = counts.list_entries(count=name, limit=10)
+    # 新建物料那几格照物料页规则：按台两格只在汽车 / 手机电器类公司出现
+    task["unit_kind"] = companies.UNIT_KINDS.get(companies.company_type(counts.count_company(name)), "")
     return task
 
 
@@ -204,10 +207,11 @@ def _places(warehouse) -> list[dict]:
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-def api_line_stocktake_create_product(ticket=None, name=None, code=None, product_name=None, unit=None, **kwargs):
-    """扫到系统没有的码：当场建商品（与桌面端同一个服务端函数，有盘点录入权即可）。"""
+def api_line_stocktake_create_product(ticket=None, name=None, code=None, product_name=None, **kwargs):
+    """扫到系统没有的码：当场建商品（与桌面端同一个服务端函数、同一套新建物料字段，有盘点录入权即可）。"""
     as_ticket_user(ticket)
-    return counts.create_product_here(count=name, code=code, product_name=product_name, unit=unit)
+    kwargs.pop("cmd", None)
+    return counts.create_product_here(count=name, code=code, product_name=product_name, **kwargs)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])

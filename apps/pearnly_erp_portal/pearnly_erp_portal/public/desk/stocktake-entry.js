@@ -214,20 +214,23 @@
 			await d.set_value("warehouse", entry?.warehouse_name || source?.warehouse_name || lookup.warehouse_name);
 			await d.set_value("location", entry?.location ?? source?.location ?? "");
 		}
-		function create_here(code) {
+		// 物料页同一个新建弹窗（`products.js` 的 `open_quick`，用户 11-01「原地弹出新建物料的弹窗」）：码预填进「条码/二维码」；
+		// 编码预览与保存走盘点录入权的接口（来由记这份盘点，服务端 `count.create_product_here`），建好按存下的码接着记数。
+		async function create_here(code) {
 			code = String(code || "").trim();
 			if (!code) return;
-			const form = p.dialog(__("product.action.new"), [
-				{ fieldtype: "Data", fieldname: "code", label: t("stock.col.code"), default: code, read_only: 1 },
-				{ fieldtype: "Data", fieldname: "product_name", label: t("stock.col.name"), reqd: 1 },
-				{ fieldtype: "Data", fieldname: "unit", label: t("stock.col.unit") },
-				{ fieldtype: "Currency", fieldname: "default_cost", label: __("product.field.cost"), options: "THB" },
-			], __("product.action.submit"), async values => {
-				await p.call(api + "api_stock_count_create_product", { count, code, product_name: values.product_name,
-					unit: values.unit || undefined, default_cost: values.default_cost || undefined }, "POST");
-				form.hide();
-				d.set_df_property("new_product", "hidden", 1);
-				await match(code);
+			await p.link_editors["ERP Product"]({ code,
+				preview: () => p.call(api + "api_stock_count_next_product_code", { count }),
+				submit: (payload, values) => {
+					const { barcode, qr_payload, ...rest } = payload;
+					return p.call(api + "api_stock_count_create_product", { ...rest, count, code: barcode || qr_payload || "",
+						track_serial: values.track_serial ? 1 : 0 }, "POST");
+				},
+				on_saved: async saved => {
+					d.set_df_property("new_product", "hidden", 1);
+					const used = String(saved.code_value || "").trim();
+					await match(used || null, used ? undefined : saved.name);
+				},
 			});
 		}
 		async function match(code, product) {

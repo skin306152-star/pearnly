@@ -208,6 +208,27 @@ def next_code_preview() -> dict:
     return {"code": _allocate_code()}
 
 
+def standard_fields(*, unit=None, unit_price=None, vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
+                    base_unit=None, category_id=None, default_location=None, serial_kind=None) -> dict:
+    """新建物料弹窗（`products.js` 的 `product_fields`）里除品名与各种码以外的那几格 → 落库的列。商品页建档与盘点里
+    就地新建（`inventory.count.create_product_here`）同用这一份，两边收的字段与校验一致。"""
+    unit = _text(unit, contracts.MAX_UNIT)
+    return {
+        "unit": unit,
+        **_price_fields(unit_price),
+        "vat_applicable": 1 if vat_applicable in (True, 1, "1", "true") else 0,
+        "image_url": _text(image_url, contracts.MAX_IMAGE_URL),
+        "min_stock": _optional(min_stock),
+        **_cost_fields(default_cost),
+        # 库存单位留空 = 跟售卖单位一样（旧线上 ERP 建品就是这么补的）。
+        "base_unit": _text(base_unit, contracts.MAX_BASE_UNIT) or unit,
+        "category_id": int(category_id) if str(category_id or "").strip() else None,
+        "default_location": _text(default_location, 140),
+        # 按台管理的号码种类（车 / 其他）；开不开按台走 `inventory.serials.turn_on`（有库存要先按台期初登记）
+        "serial_kind": serial_kind if serial_kind in ("vehicle", "device") else "vehicle",
+    }
+
+
 def create_product(*, product_name, code=None, barcode=None, unit=None, unit_price=None,
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                    qr_payload=None, base_unit=None,
@@ -235,21 +256,12 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         "internal_code": internal_code,
         "barcode": barcode,
         "qr_payload": _text(qr_payload, contracts.MAX_QR),
-        "unit": _text(unit, contracts.MAX_UNIT),
-        **_price_fields(unit_price),
-        "vat_applicable": 1 if vat_applicable in (True, 1, "1", "true") else 0,
-        "image_url": _text(image_url, contracts.MAX_IMAGE_URL),
-        "min_stock": _optional(min_stock),
-        **_cost_fields(default_cost),
-        # 库存单位留空 = 跟售卖单位一样（旧线上 ERP 建品就是这么补的）。
-        "base_unit": _text(base_unit, contracts.MAX_BASE_UNIT) or unit,
-        "category_id": int(category_id) if str(category_id or "").strip() else None,
+        **standard_fields(unit=unit, unit_price=unit_price, vat_applicable=vat_applicable, image_url=image_url,
+                          min_stock=min_stock, default_cost=default_cost, base_unit=base_unit, category_id=category_id,
+                          default_location=default_location, serial_kind=serial_kind),
         "is_active": 1,
         # 来由：手建 / 导入（盘点新建、采购 / 销售自动建、Express 同步各在自己那条路上写）
         "origin": "import" if origin == "import" else "manual",
-        "default_location": _text(default_location, 140),
-        # 按台管理的号码种类（车 / 其他）；开不开按台走 `inventory.serials.turn_on`（有库存要先按台期初登记）
-        "serial_kind": serial_kind if serial_kind in ("vehicle", "device") else "vehicle",
     })
     doc.insert()
     _attach_image(doc.image_url, doc.name)

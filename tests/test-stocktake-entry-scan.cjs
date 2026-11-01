@@ -89,13 +89,26 @@ const polymer = (extra = {}) => ({
     assert.deepEqual(f.alerts, ['No product matches this code']);
     assert.deepEqual(f.resumes, [], '相机已停，不再跳过续扫');
     assert.deepEqual(f.sounds, [false]);
-    let form;
-    f.p.dialog = (title, list, label, submit) => { form = { code: list.find(df => df.fieldname === 'code').default, submit }; return { hide() {} }; };
+    // 点了原地弹物料页同一个新建弹窗（`link_editors["ERP Product"]`，用户 11-01）：扫到的码预填；编码预览与保存走盘点录入权的接口
+    let editor;
+    f.p.link_editors = { 'ERP Product': async context => { editor = context; return {}; } };
     await f.fields.new_product.df.click();
-    assert.equal(form.code, '8859NEW', '新建用扫到的码');
-    f.p.call = async (method, args) => { f.calls.push([method, args]); return method.endsWith('create_product') ? {} : polymer(); };
-    await form.submit({ product_name: 'New one' });
     await flush();
+    assert.equal(editor.code, '8859NEW', '新建用扫到的码');
+    f.p.call = async (method, args) => { f.calls.push([method, args]);
+      return method.endsWith('create_product') ? { name: 'PRD-NEW', created: true } : method.endsWith('next_product_code') ? { code: 'P-000099' } : polymer(); };
+    assert.deepEqual({ ...await editor.preview() }, { code: 'P-000099' });
+    assert.equal(f.calls.at(-1)[0], 'pearnly_erp_portal.inventory.api.api_stock_count_next_product_code');
+    assert.deepEqual({ ...f.calls.at(-1)[1] }, { count: 'STC-00011' });
+    // 弹窗交来的是物料页那份载荷（编码是预览、码按码型落在条码 / 二维码）：盘点把码交给服务端认码型，系统编码由服务端发
+    const saved = await editor.submit({ product_name: 'New one', code: 'P-000099', barcode: '8859NEW', qr_payload: '', unit: 'ชิ้น',
+      unit_price: 10, serial_kind: 'vehicle' }, { track_serial: 1 });
+    assert.equal(f.calls.at(-1)[0], 'pearnly_erp_portal.inventory.api.api_stock_count_create_product');
+    assert.deepEqual({ ...f.calls.at(-1)[1] }, { product_name: 'New one', code: '8859NEW', unit: 'ชิ้น', unit_price: 10,
+      serial_kind: 'vehicle', count: 'STC-00011', track_serial: 1 });
+    await editor.on_saved({ ...saved, code_value: '8859NEW' });
+    await flush();
+    assert.equal(f.fields.new_product.df.hidden, 1, '建好收起新建物料');
     assert.equal(f.shown(), true, '建好接着认出这件');
     assert.equal(f.calls.at(-1)[1].code, '8859NEW');
   }

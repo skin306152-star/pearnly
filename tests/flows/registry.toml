@@ -127,6 +127,8 @@ viewports = ["desktop", "mobile"]
 camera = true
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py",
 ]

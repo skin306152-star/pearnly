@@ -1,8 +1,10 @@
 """流程用例：ERP 盘点扫到系统没有的码 → 当场新建商品 → 接着记数 → 落库（盘点菜单做完整 S3，用户 10-29 批复）。
 
-每套数据：开一份新盘点，录入框输一个系统里没有的码（手机宽度另用假摄像头扫一遍），要出「新建物料」；填品名、单位提交后
-录入框认出这件（品名、编码都有），上一件「查不到」的提示清掉，填数量保存。库里：新商品来由是「盘点新建 · 这份盘点」、
-扫到的码记在条码上、编码系统发；这份盘点有这一条记录、数量对，行来源「新发现」。
+每套数据：开一份新盘点，录入框输一个系统里没有的码（手机宽度另用假摄像头扫一遍），要出「新建物料」；点了原地弹出物料页
+同一个新建物料弹窗（用户 11-01：标准字段齐全、编码是系统预览、扫到的码预填在「条码/二维码」），填品名、内部编码、单位、
+售价、参考成本、仓位、低库存提交后弹窗关掉，录入框认出这件（品名、编码都有），上一件「查不到」的提示清掉，填数量保存。
+库里：新商品来由是「盘点新建 · 这份盘点」、扫到的码记在条码上、编码系统发、弹窗里填的各格都落库；这份盘点有这一条记录、
+数量对，行来源「新发现」。
 
 岳父 11-01 手机上扫到没有的码：原生提示框挡着、「新建物料」在相机画面下面看不到。所以查不到之后要断言：没有提示框、
 相机已停（画面收起）、按钮在可视区域里且没被盖住，点的是按钮所在位置上真正的那个元素（不是直接调按钮的函数）；
@@ -36,7 +38,13 @@ frappe.db.commit()
 print(json.dumps({{"count": doc["name"]}}))
 """)
     return {"count": out["count"], "company": company, "warehouse": warehouse, "code": code,
-            "name": "flow new " + code[-4:], "cases": [{"key": "by_barcode", "scan": code}]}
+            "name": "flow new " + code[-4:], "internal": "FN" + uuid.uuid4().hex[:8].upper(),
+            "cases": [{"key": "by_barcode", "scan": code}]}
+
+
+# 物料页新建弹窗（`products.js` 的 `product_fields`）的标准各格：盘点借的就是这一个，不是自做的几格
+STANDARD = ["product_name", "code", "internal_code", "code_value", "category_id", "unit", "base_unit", "unit_price",
+            "default_cost", "default_location", "min_stock", "vat_applicable", "image_url"]
 
 
 # 「新建物料」在不在眼前：在可视区域里、按钮中心点上就是它（没被提示框或相机画面盖住）
@@ -47,7 +55,7 @@ SEEN = ("const seen=(el)=>{if(!el||!el.offsetParent) return {shown:false};const 
 
 
 def steps(params, camera_code=None):
-    code, name = json.dumps(params["code"]), json.dumps(params["name"])
+    code, name, internal = json.dumps(params["code"]), json.dumps(params["name"]), json.dumps(params["internal"])
     if camera_code:
         find = "d.fields_dict.camera.$input.trigger('click');"
     else:
@@ -71,9 +79,16 @@ def steps(params, camera_code=None):
          "const n=window.__dlgs.length; document.elementFromPoint(s.cx,s.cy).click();"
          "for(let k=0;k<40&&window.__dlgs.length===n;k++) await new Promise(r=>setTimeout(r,250));"
          "const f=window.__dlgs[window.__dlgs.length-1]; if(!f||!f.fields_dict.product_name) return {error:'no new product form'};"
-         f"await f.set_value('product_name', {name}); await f.set_value('unit', 'ชิ้น'); f.get_primary_btn().trigger('click');"
+         "for(let k=0;k<20&&!f.get_value('code');k++) await new Promise(r=>setTimeout(r,250));"
+         f"const fields={json.dumps(STANDARD)}.filter(x=>f.fields_dict[x]);"
+         "const form={title: f.title, fields, preview: f.get_value('code')||'', form_code: f.get_value('code_value')||'',"
+         " opening: !!f.fields_dict.opening};"
+         f"await f.set_values({{product_name: {name}, internal_code: {internal}, unit: 'ชิ้น', unit_price: 120, default_cost: 80,"
+         " default_location: 'A-01', min_stock: 2});"
+         "await new Promise(r=>setTimeout(r,300)); f.get_primary_btn().trigger('click');"
          "for(let k=0;k<60&&!d.fields_dict.qty.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();"
-         "return {form_code: f.get_value('code')||'', entry: d.fields_dict.qty.$wrapper.is(':visible'), product_name: d.get_value('product_name')||'',"
+         "return {...form, form_closed: !f.$wrapper.is(':visible'), entry: d.fields_dict.qty.$wrapper.is(':visible'),"
+         " product_name: d.get_value('product_name')||'',"
          " product_code: d.get_value('product_code')||'', message: (d.fields_dict.message.$wrapper.text()||'').trim()};"},
         {"name": "保存", "js": IDLE + "const d=window.__dlgs.find(x=>x.fields_dict.code); if(!d||!d.fields_dict.qty.$wrapper.is(':visible')) return {error:'no entry'};"
          "d.set_value('qty', 3); await new Promise(r=>setTimeout(r,300)); d.get_primary_btn().trigger('click');"
@@ -94,6 +109,9 @@ def judge(params, results, camera_code=None):
          "ok": bool(button.get("in_view")) and bool(button.get("on_top"))},
         {"case": "camera stopped while offering new product", "seen": found, "ok": not camera_code or bool(found.get("camera_off"))},
         {"case": "new product uses the scanned code", "seen": made, "ok": made.get("form_code") == params["code"]},
+        {"case": "standard new product dialog opens in place", "seen": made,
+         "ok": made.get("fields") == STANDARD and str(made.get("preview") or "").startswith("P-") and not made.get("opening")
+         and bool(made.get("form_closed"))},
         {"case": "camera back on for the next item", "seen": saved, "ok": not camera_code or saved.get("camera_on") is True},
         {"case": "created product is recognised", "seen": made,
          "ok": made.get("entry") is True and made.get("product_name") == params["name"] and bool(made.get("product_code"))
@@ -103,7 +121,9 @@ def judge(params, results, camera_code=None):
 
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
-p = frappe.db.get_value("ERP Product", {{"barcode": {params['code']!r}}}, ["name", "product_name", "code", "origin", "origin_doctype", "origin_name"], as_dict=True) or {{}}
+p = frappe.db.get_value("ERP Product", {{"barcode": {params['code']!r}}}, ["name", "product_name", "code", "origin", "origin_doctype", "origin_name",
+    "internal_code", "unit", "base_unit", "unit_price", "price_set", "default_cost", "cost_set", "default_location", "min_stock",
+    "vat_applicable", "track_serial", "is_active"], as_dict=True) or {{}}
 rows = frappe.get_all("ERP Stock Count Entry", filters={{"count": {params['count']!r}, "voided": 0}}, fields=["product", "qty"], limit_page_length=20)
 item = frappe.db.get_value("ERP Stock Count Item", {{"count": {params['count']!r}, "product": p.get("name")}}, "row_origin") if p else None
 print(json.dumps({{"product": p, "entries": [dict(r, qty=float(r.qty)) for r in rows], "row_origin": item}}, default=str))
@@ -113,6 +133,11 @@ print(json.dumps({{"product": p, "entries": [dict(r, qty=float(r.qty)) for r in 
         {"case": "product origin is this count", "saved": p,
          "ok": p.get("product_name") == params["name"] and p.get("origin") == "stocktake" and p.get("origin_name") == params["count"]
          and str(p.get("code") or "").startswith("P-")},
+        {"case": "dialog fields saved on the product", "saved": p,
+         "ok": p.get("internal_code") == params["internal"] and p.get("unit") == "ชิ้น" and p.get("base_unit") == "ชิ้น"
+         and float(p.get("unit_price") or 0) == 120 and p.get("price_set") == 1 and float(p.get("default_cost") or 0) == 80
+         and p.get("cost_set") == 1 and p.get("default_location") == "A-01" and float(p.get("min_stock") or 0) == 2
+         and p.get("vat_applicable") == 1 and p.get("is_active") == 1 and not p.get("track_serial")},
         {"case": "entry saved on the new row", "saved": got,
          "ok": got["entries"] == [{"product": p.get("name"), "qty": 3.0}] and got["row_origin"] == "new"},
     ]

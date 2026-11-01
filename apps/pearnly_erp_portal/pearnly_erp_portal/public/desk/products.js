@@ -168,7 +168,8 @@
 
 		// 扫码入口就在那一格里（原生输入框 + 右侧图标按钮），不再占对话框底部一颗按钮 ——
 		// 那颗和"保存"并排，既抢眼又容易被当成主操作。
-		function attach_scan_icon(dialog, state, self_name) {
+		// `check_taken`：借这个弹窗的别处（盘点就地新建）不一定有商品查看权，撞码交给它自己的服务端（先按码认一次）。
+		function attach_scan_icon(dialog, state, self_name, check_taken = true) {
 			const field = dialog.get_field("code_value");
 			const label = p.escape(t("product.action.scan"));
 			const button = $(`<button type="button" class="pearnly-scan-icon"
@@ -181,7 +182,7 @@
 					await dialog.set_value("code_value", code);
 					// 结果那一声（官方 POS 的口径：进了才算数）：写进表单是成功，码是别人的
 					// 是要你处理，两种给不同的音。
-					const taken = await flag_taken(code, self_name, () => dialog.hide());
+					const taken = check_taken && await flag_taken(code, self_name, () => dialog.hide());
 					p.scan_result_sound(!taken);
 				} });
 			});
@@ -190,7 +191,7 @@
 			let checked = String(field.get_value() || "").trim();
 			const check = async () => {
 				const code = String(field.$input.val() || "").trim();
-				if (!code || code === checked) return;
+				if (!check_taken || !code || code === checked) return;
 				checked = code;
 				await flag_taken(code, self_name, () => dialog.hide());
 			};
@@ -440,18 +441,24 @@
 		// ── 新建弹窗（快捷）────────────────────────────────────────────────────
 
 		// 快捷新建：编码由服务端发，这里先取一个**预览**填进只读那一格（不占号）。
+		// 别处原地借这个弹窗新建（盘点扫到没有的码，用户 11-01）：`inline.code` 预填进「条码/二维码」；编码预览与保存走
+		// 它自己的接口和权限（`inline.preview` / `inline.submit(payload, values)`，按台在它的服务端建档时一并开）；期初不出（盘点自己记数）。
 		async function open_quick() {
-			const preview_code = (await p.call(api + "api_next_product_code")).code;
-			const { fields, state } = product_fields({product_name: inline?.initial || ""}, preview_code);
-			const opening = can_open() ? opening_grid(await p.place.prefill("opening")) : [];
+			const borrowed = Boolean(inline?.submit);
+			const preview_code = (await (inline?.preview ? inline.preview() : p.call(api + "api_next_product_code"))).code;
+			const scanned = String(inline?.code || "").trim();
+			const { fields, state } = product_fields({product_name: inline?.initial || "",
+				...(scanned ? { [CODE_FIELD[code_kind(scanned)]]: scanned } : {})}, preview_code);
+			const opening = !borrowed && can_open() ? opening_grid(await p.place.prefill("opening")) : [];
 			const dialog = p.dialog(
 				t("product.action.new"),
 				[...fields, ...opening],
 				t("product.action.submit"),
 				async (values, d) => {
-					const saved = await p.call(api + "api_create_product",
-						normalize({ ...values, ...code_changes(state, values) }), "POST");
-					if (p.unit_tracking()) await toggle_serial(saved.name, 0, values.track_serial, values.serial_kind);
+					const payload = normalize({ ...values, ...code_changes(state, values) });
+					const saved = borrowed ? await inline.submit(payload, values)
+						: await p.call(api + "api_create_product", payload, "POST");
+					if (!borrowed && p.unit_tracking()) await toggle_serial(saved.name, 0, values.track_serial, values.serial_kind);
 					d.hide();
 					p.success(t("product.notice.saved", values.product_name), "click");
 					await inline?.on_saved?.({...values, ...saved});
@@ -459,7 +466,7 @@
 				},
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
-			attach_scan_icon(dialog, state, null);
+			attach_scan_icon(dialog, state, null, !borrowed);
 			// 左下角那颗"全屏编辑"（官方插槽）：要批量建、或者字段在弹窗里挤，就进二级页面。
 			if (!inline) p.edit_all(dialog, t("product.action.fullPage"), url(SECOND), values => {
 				// 期初网格的第一行带到整页那一行的期初格（整页一行一个位置）

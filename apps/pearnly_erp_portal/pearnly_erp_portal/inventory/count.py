@@ -395,9 +395,11 @@ def rows_of_product(*, count: str, product: str) -> list:
 
 
 
-def create_product_here(*, count, code, product_name, unit=None, default_cost=None, category_id=None, internal_code=None) -> dict:
-    """盘点里扫到系统没有的码：当场建商品（多仓评估 13.2-6，用户 10-29 批复）。有盘点录入权（``count.write``）就能建，只填建档最少的几项：
-    扫到的码作条码 / 二维码内容，编码系统发；来由记「盘点新建 · 这份盘点」，谁 / 何时用原生建档人与时间。
+def create_product_here(*, count, code, product_name, internal_code=None, track_serial=None, **fields) -> dict:
+    """盘点里扫到系统没有的码：当场建商品（多仓评估 13.2-6，用户 10-29 批复）。有盘点录入权（``count.write``）就能建。
+    Desk 弹的是物料页同一个新建弹窗（用户 11-01），``fields`` 收那几格（`product_service.standard_fields`，与商品页建档同一份）；
+    LINE 手机页与盘点表导入只给品名 / 单位。扫到的码作条码 / 二维码内容，编码系统发；来由记「盘点新建 · 这份盘点」，
+    谁 / 何时用原生建档人与时间。按台公司勾了按台就在建档时一并打开（新商品没有库存，不用按台期初登记，同 `serials.turn_on`）。
 
     在盘点锁里先按码再认一次：别人刚用同一个码建过（或这个码其实是停用商品）就直接回那件，不建重复码。之后照常记数（`add_entry`）。
     接了 Express 的公司建成这家公司自己的档；写进 Express 时这件还没有 Express 编码，盘点调整停下交人（批复 #7）。"""
@@ -436,17 +438,28 @@ def create_product_here(*, count, code, product_name, unit=None, default_cost=No
     system_code = product_service._allocate_code()
     product_service._assert_unique(system_code, code if field == "barcode" else None, internal=internal,
                                    qr=code if field and field != "barcode" else None)
-    unit = product_service._text(unit, product_contracts.MAX_UNIT)
+    allowed = ("unit", "unit_price", "vat_applicable", "image_url", "min_stock", "default_cost", "base_unit", "category_id",
+               "default_location", "serial_kind")
     doc = frappe.get_doc({
         "doctype": PRODUCT, "product_name": name, "code": system_code, **({field: code} if code else {}), "internal_code": internal,
-        "unit": unit, "base_unit": unit, **product_service._price_fields(None), **product_service._cost_fields(default_cost),
-        "category_id": int(category_id) if str(category_id or "").strip() else None,
-        "vat_applicable": 1, "is_active": 1,
+        **product_service.standard_fields(**{key: value for key, value in fields.items() if key in allowed}),
+        "track_serial": 1 if str(track_serial or "") in ("1", "True", "true") and companies.unit_tracking(company) else 0,
+        "is_active": 1,
         "express_company": company if company and express_push.linked(company) else None,
         "origin": "stocktake", "origin_doctype": COUNT, "origin_name": task.name,
     })
     doc.insert(ignore_permissions=True)  # 建档权限只放这一条路（`count.write`）；商品页的其余能力照旧要 `products.manage`
+    product_service._attach_image(doc.image_url, doc.name)
     return {"name": doc.name, "created": True}
+
+
+def next_product_code(*, count) -> dict:
+    """盘点里新建物料弹窗那一格编码的只读预览（同商品页 `next_code_preview`，不占号）；盘点录入权即可。"""
+    guard.require("count.write")
+    _get(count)
+    from pearnly_erp_portal.products import service as product_service
+
+    return {"code": product_service._allocate_code()}
 
 def ensure_item(*, count, code=None, product=None, location="") -> dict:
     """把扫到的货**登记**进这份盘点（没有就补一行，账面取当前结存）。
