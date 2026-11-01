@@ -62,3 +62,30 @@
 - 实验栈 `pearnly-verify-lab`（端口 18781–18783）在跑，挂本工作树源码；已跑 lab_billing、测试账号时区已改 Asia/Bangkok。不用了就
   `docker compose -p pearnly-verify-lab -f infrastructure/compose/regression-lab.yml stop`（保留数据卷）。
 - 三星手机已释放（adb forward / reverse 都已删），占用表已补登。
+
+## 第二步：点「新建物料」原地弹物料页的标准新建弹窗（stocktake-product-dialog，11-01）
+
+分支 `pearnly/stocktake-product-dialog-eb38c3`，基于 `origin/pearnly/stocktake-new-visible`（b00e51a9），合入前变基到 main。
+
+### 改了什么
+
+| 位置 | 改动 |
+|---|---|
+| `public/desk/products.js` `open_quick` | 内联入口（`p.link_editors["ERP Product"](context)`）多收三项：`code` 预填进「条码/二维码」（按码型落条码 / 二维码）、`preview()` 取编码预览、`submit(payload, values)` 自己保存。给了 `submit` 时期初网格不出、不调商品页的 `toggle_serial`、扫码图标不当场查重（借用方不一定有商品查看权，撞码交给它的服务端）。字段就是 `product_fields` 同一份，没有复制 |
+| `public/desk/stocktake-entry.js` `create_here` | 删掉自做的 4 格弹窗，改调上面那个入口：编码预览 `api_stock_count_next_product_code`、保存 `api_stock_count_create_product`（码交给服务端认码型，系统编码服务端发），保存后弹窗关掉、收起「新建物料」、按存下的码接着记数（码清空了就按商品） |
+| `products/service.py` | 抽出 `standard_fields`（单位、售价、含 VAT、图片、低库存、参考成本、库存单位、分类、仓位、号码种类 → 落库列与校验），`create_product` 与盘点建档共用 |
+| `inventory/count.py` `create_product_here` | 守卫、盘点锁、先按码再认一次、GS1 记 GTIN、来由「盘点新建 · 盘点单号」都不变；多收标准字段（白名单后交 `standard_fields`）；按台公司勾了按台就在建档时打开（新商品没库存，同 `serials.turn_on` 无库存分支）；挂图片。新增 `next_product_code`（`count.write`，只读预览不占号） |
+| `inventory/api.py` | `api_stock_count_next_product_code` |
+| `inventory/line_mobile.py`、`www/stocktake.html` | LINE 页不跑 Desk、弹不出原生弹窗：新建卡片照标准弹窗的各格（同名词条 `product.field.*` / `serial.*`、同一个服务端函数），码预填；按台两格只在汽车 / 手机电器公司出现（`task.unit_kind`）。只少「图片」一格（这页没有附件控件，进物料页再补） |
+
+权限口径：盘点里新建只要盘点录入权（`count.write`），三个接口都走 `count.write`；商品页的 `api_create_product` / `api_next_product_code` / `api_find_product` 盘点不调用。
+
+### 同类入口
+
+- 入库 / 出库 / 采购 / 销售 / 期初的物料选择框「新建物料」本来就是 `link_editors["ERP Product"]` → 同一个 `open_quick`，不用改。
+- 全仓搜过 `api_create_product` 与自做新建物料表单：除盘点录入（已改）与 LINE 盘点页（见上）外没有别的。
+- Cowork 盘点没有当场新建。
+
+### 验证
+
+（下面按实际结果补）

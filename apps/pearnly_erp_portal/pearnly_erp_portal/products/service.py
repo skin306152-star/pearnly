@@ -211,7 +211,7 @@ def next_code_preview() -> dict:
 def standard_fields(*, unit=None, unit_price=None, vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                     base_unit=None, category_id=None, default_location=None, serial_kind=None) -> dict:
     """新建物料弹窗（`products.js` 的 `product_fields`）里除品名与各种码以外的那几格 → 落库的列。商品页建档与盘点里
-    就地新建（`inventory.count.create_product_here`）同用这一份，两边收的字段与校验一致。"""
+    就地新建（盘点的 `create_product_here`）同用这一份，两边收的字段与校验一致。"""
     unit = _text(unit, contracts.MAX_UNIT)
     return {
         "unit": unit,
