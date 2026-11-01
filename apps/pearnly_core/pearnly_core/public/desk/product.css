@@ -318,6 +318,12 @@ body.pearnly-product-desk textarea.form-control {
 		width: 100%;
 		min-width: 0;
 	}
+	/* 手机上弹窗里的各栏上下排：官方（`modal.scss`）只去掉最后一栏的左内边距，是按两栏写的——三栏时中间那栏
+	   两边各缩 15px、第一栏右边短 15px，格子左右参差（11-01 表单排版整改，入库 / 调拨明细行实测）。每一栏都贴齐。 */
+	body.pearnly-product-desk .modal .modal-dialog .form-section .form-column {
+		padding-left: 0;
+		padding-right: 0;
+	}
 }
 /* 一行字的文字框换成会长高的多行框后（`product.js` 的 `WrapData`）：外观仍是官方单行框 —— 整列宽、
    官方输入框高度起步、不能手拖；写不下才换行往下长（`p.grow_textarea`）。 */
