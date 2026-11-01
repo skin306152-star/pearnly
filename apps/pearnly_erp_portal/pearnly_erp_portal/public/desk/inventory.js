@@ -139,7 +139,9 @@
 				columns: [
 					// 十列的底线加起来要能塞进最窄的常见窗口：否则最右那几列会被右边那块（计数）
 					// 盖住、或者要横向滑才看得到（用户 2026-09-23 报的就是这两件事）。
-					{ fieldname: "product_name", width: 160, min_width: 132, label: t("stock.col.name") },
+					// 品名后接「分类 · 特性/颜色」（岳父 11-01；十列放不下再加两列，搜索框也搜得到这两样）
+					{ fieldname: "product_name", width: 160, min_width: 132, label: t("stock.col.name"),
+						format: (value, row) => [value, row.category_name, row.attribute].filter(Boolean).join(" · ") },
 					{ fieldname: "code", width: 80, min_width: 68, label: t("stock.col.code") },
 					{ fieldname: "barcode", width: 110, min_width: 84, label: t("stock.col.barcode") },
 					{ fieldname: "warehouse_name", width: 116, min_width: 92, label: t("stock.col.warehouse") },

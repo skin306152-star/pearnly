@@ -238,12 +238,18 @@ def get_entry(name):
     # 明细带上品名与内部编码（收发货页显示内部编码，10-29）；只取这张单的商品
     names = sorted({row.product for row in doc.get("lines") or [] if row.product})
     shown = {item.name: item for item in frappe.get_all(  # bounded: 这张单的商品
-        "ERP Product", filters={"name": ["in", names]}, fields=["name", "product_name", "internal_code"],
+        "ERP Product", filters={"name": ["in", names]}, fields=["name", "product_name", "internal_code", "category", "attribute"],
         limit_page_length=0)} if names else {}
+    # 「分类 · 特性/颜色」（岳父 11-01）：按物料现值显示，单据不存
+    from pearnly_erp_portal.products import categories
+
+    labels = categories.names(item.category for item in shown.values())
     data["lines"] = [
         {"product": row.product, "qty": row.qty, "unit": row.unit,
          "product_name": (shown.get(row.product) or {}).get("product_name") or "",
          "internal_code": (shown.get(row.product) or {}).get("internal_code") or "",
+         "spec": categories.spec(labels.get((shown.get(row.product) or {}).get("category")),
+                                 (shown.get(row.product) or {}).get("attribute")),
          "unit_cost": row.unit_cost, "serials": units.get(row.idx, []), "to_location": row.get("to_location") or "",
          **positions.public(row, doc.warehouse, company=company)}
         for row in doc.get("lines") or []

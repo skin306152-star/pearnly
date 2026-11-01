@@ -48,6 +48,7 @@ Updated {0}	已更新 {0}	อัปเดต {0} แล้ว	{0} を更新し�
 Enable	启用	เปิดใช้งาน	有効化	product.action.enable
 Code	编码	รหัส	コード	product.col.code
 Internal code	内部编码	รหัสภายใน	社内コード	product.col.internalCode
+Attribute / Color	特性/颜色	คุณลักษณะ / สี	特性 / 色	product.col.attribute
 Barcode / QR code	条码/二维码	บาร์โค้ด / คิวอาร์โค้ด	バーコード / QRコード	product.col.codeValue
 Unit	单位	หน่วย	単位	product.col.unit
 Disable {0} selected	停用选中的 {0} 个	ปิดใช้งาน {0} รายการที่เลือก	選択した{0}件を無効化	product.action.bulkDisable
@@ -55,6 +56,7 @@ Enable {0} selected	启用选中的 {0} 个	เปิดใช้งาน {0} �
 Updated {0} product(s)	已更新 {0} 个物料	อัปเดต {0} รายการแล้ว	{0}件を更新しました	product.notice.toggledCount
 Base unit	库存单位	หน่วยฐาน	基準単位	product.field.baseUnit
 Category	分类	หมวดหมู่	カテゴリ	product.field.category
+Attribute / Color	特性/颜色	คุณลักษณะ / สี	特性 / 色	product.field.attribute
 Import from Excel	Excel 导入	นำเข้าจาก Excel	Excel から取込	product.action.import
 Reload	刷新	โหลดใหม่	再読み込み	product.action.reload
 Excel file	Excel 文件	ไฟล์ Excel	Excel ファイル	product.field.importFile
@@ -894,6 +896,9 @@ Not enough stock on hand	库存不足	สินค้าคงเหลือไ
 Unit {0} is not defined on {1}	单位「{0}」未在「{1}」中定义	ไม่ได้กำหนดหน่วย「{0}」ไว้ในสินค้า「{1}」	単位「{0}」は「{1}」に定義されていません
 Warehouse not found	未找到仓库	ไม่พบคลังสินค้า	倉庫が見つかりません
 This warehouse already exists	该仓库已存在	คลังสินค้านี้มีอยู่แล้ว	この倉庫は既に存在します
+This category already exists	该分类已存在	มีหมวดหมู่นี้แล้ว	このカテゴリは既に存在します
+A category needs a name	请填写分类名称	กรุณากรอกชื่อหมวดหมู่	カテゴリ名を入力してください
+Category not found	未找到分类	ไม่พบหมวดหมู่	カテゴリが見つかりません
 No company is available for this account	此账号无可用公司	บัญชีนี้ไม่มีบริษัทที่ใช้งานได้	このアカウントで使える会社がありません
 The fiscal year start month must be between 1 and 12	会计年度的起始月份必须在 1 到 12 之间	เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12	会計年度の開始月は1〜12の範囲で指定してください
 A confirmed draft must point at the record it created	已确认的草稿必须关联其生成的记录	ฉบับร่างที่ยืนยันแล้วต้องเชื่อมโยงกับรายการที่สร้างจากฉบับร่างนั้น	確定した下書きは、それが作成した伝票を指している必要があります

@@ -22,6 +22,9 @@ FIELD_LABELS = (
     # 内部编码单独一列（岳父 10-25）：下载时填内部编码（接 Express 的是 Express 编码），导回时先认它；「编码」一列是系统编码
     ("internal_code", "product.col.internalCode"),
     ("product_name", "stock.col.name"),
+    # 分类、特性/颜色（岳父 11-01）：下载时带上给人认货；导回不改已有商品，只在表里的码系统没有、当场建商品时一起记上
+    ("category", "stock.col.category"),
+    ("attribute", "product.col.attribute"),
     ("barcode", "stock.col.barcode"),
     ("unit", "stock.col.unit"),
     ("book_qty", "stock.count.book"),
@@ -112,6 +115,10 @@ LEGACY_ALIASES = {
     "serial_no": "serial_no",
     "secondary_no": "secondary_no",
     "color": "color",
+    "category": "category",
+    "分类": "category",
+    "หมวดหมู่": "category",
+    "attribute": "attribute",
 }
 
 MAX_ROWS = 10000
@@ -136,6 +143,13 @@ def template_headers(label_of, unit_kind=None) -> list:
 
 def _norm(value) -> str:
     return " ".join(str(value or "").strip().lower().split())
+
+
+def _text(value) -> str:
+    """文字格：Excel 把手输的 3 存成 3.0（分类是数字时），按 3 认。"""
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return str(value if value is not None else "").strip()
 
 
 def _quantity(value, field):
@@ -186,6 +200,8 @@ def parse_workbook(data: bytes, aliases: dict | None = None) -> tuple[list[dict]
                     "product_code": str(value("product_code") or "").strip(),
                     "internal_code": str(value("internal_code") or "").strip(),
                     "product_name": str(value("product_name") or "").strip(),
+                    "category": _text(value("category")),
+                    "attribute": _text(value("attribute")),
                     "barcode": str(value("barcode") or "").strip(),
                     "unit": str(value("unit") or "").strip(),
                     "warehouse": str(value("warehouse") or "").strip(),

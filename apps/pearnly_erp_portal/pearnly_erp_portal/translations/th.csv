@@ -10,6 +10,7 @@
 5 minutes before,ก่อน 5 นาที
 A board needs at least one admin,บอร์ดต้องมีผู้ดูแลอย่างน้อยหนึ่งคน
 A board needs at least one list,บอร์ดต้องมีรายการอย่างน้อยหนึ่งรายการ
+A category needs a name,กรุณากรอกชื่อหมวดหมู่
 A company needs a name,กรุณากรอกชื่อบริษัท
 A company needs at least one warehouse,บริษัทต้องมีคลังสินค้าอย่างน้อย 1 แห่ง
 A confirmed document cannot be edited,ไม่สามารถแก้ไขเอกสารที่ยืนยันแล้วได้
@@ -122,6 +123,7 @@ Attach,แนบ
 Attachment,ไฟล์แนบ
 Attachment Type,ประเภทไฟล์แนบ
 Attachments,ไฟล์แนบ
+Attribute / Color,คุณลักษณะ / สี
 Auto Fetch Serial Numbers,ดึงหมายเลขเครื่องอัตโนมัติ
 Automation,ระบบอัตโนมัติ
 Available Qty,จำนวนที่ใช้ได้
@@ -213,6 +215,7 @@ Cashier Sales to Express From,เริ่มส่งยอดขายหน�
 "Cashier counter, shifts and the cashier's own sales",จุดขาย กะ และยอดขายของพนักงานเก็บเงินเอง
 Category,หมวดหมู่
 Category Name,ชื่อหมวดหมู่
+Category not found,ไม่พบหมวดหมู่
 Change,เงินทอน
 Change Amount,เงินทอน
 Change Total,เงินทอนรวม
@@ -1390,6 +1393,7 @@ This browser cannot scan with the camera; use a scanner or type the code,เบ�
 This card expires in {0} minutes,การ์ดนี้หมดอายุใน {0} นาที
 This card has expired. Please upload the document again.,การ์ดหมดอายุแล้ว กรุณาอัปโหลดเอกสารใหม่
 This card is no longer valid,การ์ดนี้ใช้ไม่ได้แล้ว
+This category already exists,มีหมวดหมู่นี้แล้ว
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
 This code is already in use,รหัสนี้ถูกใช้แล้ว
 This code is already taken,รหัสนี้ถูกใช้ไปแล้ว
@@ -2172,6 +2176,7 @@ product.codeKind.expressCode,รหัส Express
 product.codeKind.internalCode,รหัสภายใน
 product.codeKind.qrPayload,ข้อมูลคิวอาร์โค้ด
 product.codeKind.unitBarcode,บาร์โค้ดหน่วย
+product.col.attribute,คุณลักษณะ / สี
 product.col.avgCost,ต้นทุนเฉลี่ย
 product.col.barcode,บาร์โค้ด
 product.col.code,รหัส
@@ -2184,6 +2189,7 @@ product.col.price,ราคา
 product.col.status,สถานะ
 product.col.unit,หน่วย
 product.error.codeLocked,ไม่สามารถแก้ไขรหัสสินค้าได้
+product.field.attribute,คุณลักษณะ / สี
 product.field.barcode,บาร์โค้ด
 product.field.baseUnit,หน่วยฐาน
 product.field.baseUnitHint,ใช้หน่วยนี้ในการนับสต็อก หากเว้นว่างจะใช้หน่วยเดียวกับหน่วยขาย

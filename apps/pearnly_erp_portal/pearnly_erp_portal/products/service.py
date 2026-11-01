@@ -9,7 +9,7 @@ from frappe import _
 from pearnly_core import browser_text
 from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing, rules
-from pearnly_erp_portal.products import codes, contracts, workbook
+from pearnly_erp_portal.products import categories, codes, contracts, workbook
 
 DOCTYPE = "ERP Product"
 UNIT_DOCTYPE = "ERP Product Unit"
@@ -46,14 +46,15 @@ INVALID_VALUE = "Invalid value"
 # 在这里只能靠标记还原。
 LIST_FIELDS = (
     "name", "product_name", "code", "barcode", "qr_payload",
-    "unit", "base_unit", "category_id", "unit_price", "price_set", "cost_set",
+    "unit", "base_unit", "category", "attribute", "unit_price", "price_set", "cost_set",
     "vat_applicable", "is_active", "min_stock", "default_cost", "image_url",
     "default_location", "express_code", "internal_code", "track_serial", "serial_kind", "origin", "origin_name",
 )
 
 # 扫码当场查重查的是这几列（扫码枪扫出来的就是条码/编码/二维码内容）；列表搜索同一套再加名称。
 LOOKUP_FIELDS = contracts.LOOKUP_FIELDS
-SEARCH_FIELDS = ("product_name", *LOOKUP_FIELDS)
+# 特性/颜色（岳父 11-01）也能搜；分类按名称搜在 `_filters` 里另加（Link 存的是分类单号）
+SEARCH_FIELDS = ("product_name", *LOOKUP_FIELDS, "attribute")
 
 
 def _mask(rows):
@@ -72,6 +73,15 @@ def _mask(rows):
     if isinstance(rows, dict):
         return masked(rows)
     return [masked(row) for row in rows]
+
+
+def _labelled(rows):
+    """分类存的是分类单号：带上名称（``category_name``）给页面显示、给打印与导出用。"""
+    records = [rows] if isinstance(rows, dict) else rows
+    labels = categories.names(row.get("category") for row in records)
+    for row in records:
+        row["category_name"] = labels.get(row.get("category")) or ""
+    return rows
 
 
 def _optional(value):
@@ -209,7 +219,7 @@ def next_code_preview() -> dict:
 
 
 def standard_fields(*, unit=None, unit_price=None, vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
-                    base_unit=None, category_id=None, default_location=None, serial_kind=None) -> dict:
+                    base_unit=None, category=None, attribute=None, default_location=None, serial_kind=None) -> dict:
     """新建物料弹窗（`products.js` 的 `product_fields`）里除品名与各种码以外的那几格 → 落库的列。商品页建档与盘点里
     就地新建（盘点的 `create_product_here`）同用这一份，两边收的字段与校验一致。"""
     unit = _text(unit, contracts.MAX_UNIT)
@@ -222,7 +232,9 @@ def standard_fields(*, unit=None, unit_price=None, vat_applicable=True, image_ur
         **_cost_fields(default_cost),
         # 库存单位留空 = 跟售卖单位一样（旧线上 ERP 建品就是这么补的）。
         "base_unit": _text(base_unit, contracts.MAX_BASE_UNIT) or unit,
-        "category_id": int(category_id) if str(category_id or "").strip() else None,
+        # 分类是主档（`products.categories`，岳父 11-01）：给了就要是现有分类；特性/颜色是一格自由文本
+        "category": categories.require(category),
+        "attribute": _text(attribute, contracts.MAX_ATTRIBUTE),
         "default_location": _text(default_location, 140),
         # 按台管理的号码种类（车 / 其他）；开不开按台走 `inventory.serials.turn_on`（有库存要先按台期初登记）
         "serial_kind": serial_kind if serial_kind in ("vehicle", "device") else "vehicle",
@@ -232,7 +244,7 @@ def standard_fields(*, unit=None, unit_price=None, vat_applicable=True, image_ur
 def create_product(*, product_name, code=None, barcode=None, unit=None, unit_price=None,
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                    qr_payload=None, base_unit=None,
-                   category_id=None,
+                   category=None, attribute=None,
                    default_location=None, internal_code=None, serial_kind=None, opening=None, origin=None):
     """建一件商品。``opening``（可选，多仓闭环 P1 G1）：建好顺手放期初 ``[{warehouse, location, qty, unit_cost}]``，与商品
     同一个事务写（复用期初服务 `opening_batch`，同一套「每个位置只初始化一次」的规矩）；任何一行不成整件商品都不建。
@@ -257,7 +269,8 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         "barcode": barcode,
         "qr_payload": _text(qr_payload, contracts.MAX_QR),
         **standard_fields(unit=unit, unit_price=unit_price, vat_applicable=vat_applicable, image_url=image_url,
-                          min_stock=min_stock, default_cost=default_cost, base_unit=base_unit, category_id=category_id,
+                          min_stock=min_stock, default_cost=default_cost, base_unit=base_unit, category=category,
+                          attribute=attribute,
                           default_location=default_location, serial_kind=serial_kind),
         "is_active": 1,
         # 来由：手建 / 导入（盘点新建、采购 / 销售自动建、Express 同步各在自己那条路上写）
@@ -311,6 +324,8 @@ def _filters(search=None, include_inactive=False, is_active=None, conditions=Non
         filters.append(["is_active", "=", 1])
     or_filters = ([[field, "like", f"%{search}%"] for field in SEARCH_FIELDS]
                   if search else None)
+    if search and (named := categories.matching(search)):
+        or_filters.append(["category", "in", named])
     return filters, or_filters
 
 
@@ -321,6 +336,7 @@ SORT_FIELDS = {
     "code": "code",
     "internal_code": "internal_code",
     "barcode": "barcode",
+    "attribute": "attribute",
     "unit": "unit",
     "unit_price": "unit_price",
     "default_cost": "default_cost",
@@ -338,7 +354,7 @@ def list_products(*, search=None, include_inactive=False, is_active=None, limit=
         order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS, "modified desc"),
         limit_start=int(start), limit_page_length=int(limit),
     ))
-    return rows
+    return _labelled(rows)
 
 
 def find_product(value, exclude=None):
@@ -355,7 +371,7 @@ def find_product(value, exclude=None):
     found = codes.candidates(wanted, exclude=exclude or None,
                              rows_of=lambda filters, fields: frappe.get_list(DOCTYPE, filters=filters, fields=fields,
                                                                             limit_page_length=20))
-    keep = ("name", "product_name", "code", "internal_code", "express_code", "barcode", "matched_by")
+    keep = ("name", "product_name", "attribute", "code", "internal_code", "express_code", "barcode", "matched_by")
     rows = [{key: row.get(key) for key in keep} for row in found]
     if len(rows) > 1:
         return {"ambiguous": 1, "candidates": rows}
@@ -382,7 +398,7 @@ def get_product(name: str):
          "barcode": row.barcode, "price": row.price, "is_default_sell": bool(row.is_default_sell)}
         for row in doc.get("units") or []
     ]
-    return _mask(data)
+    return _labelled(_mask(data))
 
 
 def update_product(name: str, **changes):
@@ -425,9 +441,10 @@ def update_product(name: str, **changes):
     # 明确分过家的（库存单位与单位不同）不动 —— 那是商户自己的口径。
     if "unit" in changes and "base_unit" not in changes and old_base == old_unit:
         doc.base_unit = doc.unit
-    if "category_id" in changes:
-        doc.category_id = (int(changes["category_id"])
-                           if str(changes["category_id"] or "").strip() else None)
+    if "category" in changes:
+        doc.category = categories.require(changes["category"])
+    if "attribute" in changes:
+        doc.attribute = _text(changes["attribute"], contracts.MAX_ATTRIBUTE)
     if changes.get("serial_kind") in ("vehicle", "device"):
         doc.serial_kind = changes["serial_kind"]
     if "product_name" in changes:
@@ -612,6 +629,8 @@ def import_products(data: bytes) -> dict:
     created = 0
     for index, row in enumerate(rows, start=1):
         try:
+            if row.get("category"):
+                row["category"] = categories.ensure(row["category"])  # 表里写的是分类名称：没有就建（有权新建时）
             create_product(**row, origin="import")
             created += 1
         except Exception as exc:  # noqa: BLE001 - 单行失败要变成行级错误，不连累整批

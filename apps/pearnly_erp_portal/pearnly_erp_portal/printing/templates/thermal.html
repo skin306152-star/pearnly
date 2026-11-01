@@ -51,6 +51,7 @@
   <table>
     {% for row in ctx.rows %}
     <tr><td colspan="2">{{ row.name | e }}</td></tr>
+    {% if row.spec %}<tr><td colspan="2" class="tp-sub">{{ row.spec | e }}</td></tr>{% endif %}
     <tr><td style="padding-left: 6px !important">{{ row.qty }} {{ row.unit | e }} x {{ row.price }}</td><td class="tp-r">{{ row.amount }}</td></tr>
     {% if row.discount %}<tr><td class="tp-sub">ส่วนลด / Discount</td><td class="tp-r">-{{ row.discount }}</td></tr>{% endif %}
     {% for unit in row.sub %}<tr><td colspan="2" class="tp-sub">{{ vehicle(unit) }}</td></tr>{% endfor %}

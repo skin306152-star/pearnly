@@ -15,7 +15,8 @@ import uuid
 
 TITLE = "LINE 手机盘点：当场新建商品、选库位记数"
 # 新建表单的各格（`www/stocktake.html` 的 NEW_FIELDS，照物料页新建弹窗；按台两格只在汽车 / 手机电器公司出现）
-NEW_FIELDS = ["product_name", "internal_code", "code", "category_id", "unit", "base_unit", "unit_price", "default_cost",
+# 按页面上的先后比（岳父 11-01：条码、名称、分类、特性/颜色在前，同物料页弹窗）
+NEW_FIELDS = ["code", "product_name", "category", "attribute", "internal_code", "unit", "base_unit", "unit_price", "default_cost",
               "default_location", "min_stock", "track_serial", "serial_kind", "vat_applicable"]
 
 
@@ -59,7 +60,9 @@ print(json.dumps({{"count": doc["name"], "location": places[0] if places else ""
                   "unit_product": frappe.db.get_value("ERP Product", {{"code": unit_code}})}}))
 """)
     code = "8858" + str(uuid.uuid4().int)[:8]
-    return {**out, "company": company, "code": code, "name": "flow line " + code[-4:], "cases": []}
+    # 分类写一个系统里还没有的名称（泰文 + 尺寸）：建商品时一并建出这条分类
+    return {**out, "company": company, "code": code, "name": "flow line " + code[-4:], "category": "ไซส์ XL " + code[-4:],
+            "cases": []}
 
 
 def steps(params, camera_code=None):
@@ -80,13 +83,16 @@ def steps(params, camera_code=None):
         {"name": "输没有的码", "js": wait +
          f"document.getElementById('code').value={code}; document.getElementById('find').click();"
          "const n=await until(()=>document.getElementById('np_product_name'));"
-         f"const ids={json.dumps(NEW_FIELDS)}.filter(x=>document.getElementById('np_'+x));"
+         f"const ids=[...document.querySelectorAll('#newproduct [id^=np_]')].map(e=>e.id.slice(3)).filter(x=>{json.dumps(NEW_FIELDS)}.includes(x));"
          "return {new_form: !!n, button: n?document.getElementById('np_save').innerText.trim():'', fields: ids,"
          " code: (document.getElementById('np_code')||{}).value||'', serial_kind: (document.getElementById('np_serial_kind')||{}).value||'',"
          " vat: !!(document.getElementById('np_vat_applicable')||{}).checked};"},
         {"name": "新建", "js": wait +
          f"document.getElementById('np_product_name').value={name}; document.getElementById('np_unit').value='ชิ้น';"
-         "document.getElementById('np_unit_price').value='45'; document.getElementById('np_save').click();"
+         "document.getElementById('np_unit_price').value='45';"
+         # 分类写名称：这页没有的名称建档时一并建（盘点录入权即可，主会话 11-01）
+         f"document.getElementById('np_category').value={json.dumps(params['category'])}; document.getElementById('np_attribute').value='ดำ';"
+         "document.getElementById('np_save').click();"
          f"const b=await until(()=>[...document.querySelectorAll('.card b')].find(e=>e.innerText.trim()==={name}));"
          "return {recognised: !!b, options: [...document.querySelectorAll('#loclist option')].map(o=>[o.value,o.label])};"},
         {"name": "选库位记数", "js": wait +
@@ -126,7 +132,8 @@ def judge(params, results, camera_code=None):
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 p = frappe.db.get_value("ERP Product", {{"barcode": {params['code']!r}}}, ["name", "origin", "origin_name", "unit", "unit_price", "price_set",
-                        "vat_applicable", "track_serial"], as_dict=True) or {{}}
+                        "vat_applicable", "track_serial", "category", "attribute"], as_dict=True) or {{}}
+p["category_name"] = frappe.db.get_value("ERP Product Category", p.get("category"), "category_name") if p.get("category") else None
 rows = frappe.get_all("ERP Stock Count Entry", filters={{"count": {params['count']!r}, "voided": 0}}, fields=["product", "qty", "source", "location", "warehouse"],
                       order_by="creation asc")
 unit_rows = frappe.db.count("ERP Stock Count Item", {{"count": {params['count']!r}, "product": {params['unit_product']!r},
@@ -140,7 +147,7 @@ print(json.dumps({{"product": p, "entries": [dict(r, qty=float(r.qty), location=
         {"case": "product origin is this count", "saved": p, "ok": p.get("origin") == "stocktake" and p.get("origin_name") == params["count"]},
         {"case": "new product fields saved", "saved": p,
          "ok": p.get("unit") == "ชิ้น" and float(p.get("unit_price") or 0) == 45 and p.get("price_set") == 1 and p.get("vat_applicable") == 1
-         and not p.get("track_serial")},
+         and not p.get("track_serial") and p.get("category_name") == params["category"] and p.get("attribute") == "ดำ"},
         {"case": "no count row added for the unit tracked product by the lookup", "saved": got["unit_rows"], "ok": got["unit_rows"] == 0},
         {"case": "entry saved from LINE at the chosen location", "saved": got["entries"],
          "ok": got["entries"][:1] == [{"product": p.get("name"), "qty": 2.0, "source": "LINE", "location": params["location"],

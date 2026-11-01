@@ -418,13 +418,17 @@ def template(warehouse):
     # 只列这家公司 Express 的档和本地档（几十家公司各自同步来的商品不混进来，合起来还会超过模板行数上限）
     rows = frappe.get_all("ERP Product", filters={"is_active": 1},
                           or_filters=[["express_company", "=", context["company"]], ["express_company", "is", "not set"]],
-                          fields=["name", "product_name", "code", "internal_code", "express_code", "barcode", "base_unit", "unit"],
+                          fields=["name", "product_name", "code", "internal_code", "express_code", "barcode", "base_unit", "unit",
+                                  "category", "attribute"],
                           order_by="name", limit_page_length=opening_workbook.MAX_ROWS + 1)
     if len(rows) > opening_workbook.MAX_ROWS:
         frappe.throw(_("That file has too many rows"))
+    from pearnly_erp_portal.products import categories as product_categories
     from pearnly_erp_portal.products import contracts as product_contracts
 
+    labels = product_categories.names(row.category for row in rows)
     values = [{"product": row.name, "product_name": row.product_name, "product_code": row.code,
+               "category": labels.get(row.category) or "", "attribute": row.attribute or "",
                "internal_code": product_contracts.internal_code(row),
                "barcode": row.barcode, "unit": row.base_unit or row.unit, "warehouse": "", "location": "", "qty": None, "unit_cost": None}
               for row in rows]

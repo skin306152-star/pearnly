@@ -93,7 +93,7 @@ def candidates(value, company=None, *, active_only=True, exclude=None, rows_of=N
     if not value:
         return []
     wanted = gs1.lookup(value)
-    fields = ["name", "product_name", "code", "internal_code", "express_code", "barcode", "express_company"]
+    fields = ["name", "product_name", "code", "internal_code", "express_code", "barcode", "express_company", "attribute"]
 
     def visible(row):
         if rows_of:

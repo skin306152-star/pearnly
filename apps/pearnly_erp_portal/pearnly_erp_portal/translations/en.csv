@@ -10,6 +10,7 @@
 5 minutes before,5 minutes before
 A board needs at least one admin,A board needs at least one admin
 A board needs at least one list,A board needs at least one list
+A category needs a name,A category needs a name
 A company needs a name,A company needs a name
 A company needs at least one warehouse,A company needs at least one warehouse
 A confirmed document cannot be edited,A confirmed document cannot be edited
@@ -122,6 +123,7 @@ Attach,Attach
 Attachment,Attachment
 Attachment Type,Attachment Type
 Attachments,Attachments
+Attribute / Color,Attribute / Color
 Auto Fetch Serial Numbers,Auto Fetch Serial Numbers
 Automation,Automation
 Available Qty,Available Qty
@@ -213,6 +215,7 @@ Cashier Sales to Express From,Cashier Sales to Express From
 "Cashier counter, shifts and the cashier's own sales","Cashier counter, shifts and the cashier's own sales"
 Category,Category
 Category Name,Category Name
+Category not found,Category not found
 Change,Change
 Change Amount,Change Amount
 Change Total,Change Total
@@ -1390,6 +1393,7 @@ This browser cannot scan with the camera; use a scanner or type the code,This br
 This card expires in {0} minutes,This card expires in {0} minutes
 This card has expired. Please upload the document again.,This card has expired. Please upload the document again.
 This card is no longer valid,This card is no longer valid
+This category already exists,This category already exists
 This channel is not open yet,This channel is not open yet
 This code is already in use,This code is already in use
 This code is already taken,This code is already taken
@@ -2172,6 +2176,7 @@ product.codeKind.expressCode,Express code
 product.codeKind.internalCode,Internal code
 product.codeKind.qrPayload,QR code content
 product.codeKind.unitBarcode,Unit barcode
+product.col.attribute,Attribute / Color
 product.col.avgCost,Average cost
 product.col.barcode,Barcode
 product.col.code,Code
@@ -2184,6 +2189,7 @@ product.col.price,Price
 product.col.status,Status
 product.col.unit,Unit
 product.error.codeLocked,The product code cannot be changed
+product.field.attribute,Attribute / Color
 product.field.barcode,Barcode
 product.field.baseUnit,Base unit
 product.field.baseUnitHint,Stock is counted in this unit; leave it empty to use the selling unit

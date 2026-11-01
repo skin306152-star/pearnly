@@ -103,7 +103,7 @@
   <tr>{% for col in columns %}<th style="width: {{ col.width }}">{{ col.th }}<small>{{ col.en }}</small></th>{% endfor %}</tr>
   {% for row in rows %}{% set n = offset + loop.index %}
   <tr class="{{ 'pp-alt' if loop.index is even else '' }}">
-    {% for col in columns %}{% if col.key == "no" %}<td>{{ n }}</td>{% else %}<td class="{{ col.cls or '' }}">{{ (row.get(col.key, "") if row else "") | e }}{% if row and col.key == "name" %}{% for unit in row.get("sub") or [] %}<div class="pp-sub">{{ vehicle(unit) }}</div>{% endfor %}{% endif %}</td>{% endif %}{% endfor %}
+    {% for col in columns %}{% if col.key == "no" %}<td>{{ n }}</td>{% else %}<td class="{{ col.cls or '' }}">{{ (row.get(col.key, "") if row else "") | e }}{% if row and col.key == "name" %}{% if row.get("spec") %}<div class="pp-sub">{{ row.spec | e }}</div>{% endif %}{% for unit in row.get("sub") or [] %}<div class="pp-sub">{{ vehicle(unit) }}</div>{% endfor %}{% endif %}</td>{% endif %}{% endfor %}
   </tr>
   {% endfor %}
 </table></div>

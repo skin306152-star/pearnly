@@ -31,6 +31,7 @@ from pearnly_erp_portal.inventory import stock as stock_service
 from pearnly_erp_portal.inventory import count_live, count_state, documents as stock_documents, positions, warehouses
 # 商品域只管纯规则的 contracts（不依赖框架、IO 或上层流程）：盘点要照它的口径
 # 决定"表上那一列显示条码还是二维码内容"。这是单向依赖，products 不认识 inventory。
+from pearnly_erp_portal.products import categories as product_categories
 from pearnly_erp_portal.products import contracts as product_contracts
 
 COUNT = "ERP Stock Count"
@@ -239,7 +240,8 @@ def apply_import(*, count, rows) -> dict:
             # 表里有品名、码在系统里完全没有：当场建（同 Desk / LINE 的就地新建）；没品名的照旧列进问题行。
             # 内部编码一列有值就记成这件的内部编码（岳父 10-25），条码 / 编码那格照旧作扫码用的码
             made = create_product_here(count=task.name, code=code or None, product_name=row["product_name"], unit=row.get("unit"),
-                                       internal_code=internal or None)
+                                       internal_code=internal or None, attribute=row.get("attribute") or None,
+                                       category=row.get("category") or None)
             product = frappe.db.get_value(PRODUCT, made["name"], "*", as_dict=True)
         if not product:
             problems.append({"row": number, "reason": "code_not_found"})
@@ -439,8 +441,10 @@ def create_product_here(*, count, code, product_name, internal_code=None, track_
     system_code = product_service._allocate_code()
     product_service._assert_unique(system_code, code if field == "barcode" else None, internal=internal,
                                    qr=code if field and field != "barcode" else None)
-    allowed = ("unit", "unit_price", "vat_applicable", "image_url", "min_stock", "default_cost", "base_unit", "category_id",
-               "default_location", "serial_kind")
+    allowed = ("unit", "unit_price", "vat_applicable", "image_url", "min_stock", "default_cost", "base_unit", "category",
+               "attribute", "default_location", "serial_kind")
+    if standard.get("category"):
+        standard["category"] = product_categories.accept(standard["category"])
     doc = frappe.get_doc({
         "doctype": PRODUCT, "product_name": name, "code": system_code, **({field: code} if code else {}), "internal_code": internal,
         **product_service.standard_fields(**{key: value for key, value in standard.items() if key in allowed}),
@@ -606,11 +610,12 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
         codes = {row["name"]: row for row in frappe.get_all(  # bounded: 这份盘点的商品
             PRODUCT, filters={"name": ["in", sorted({row["product"] for row in rows}) or [""]]},
             fields=["name", "code", "internal_code", "express_code"], limit_page_length=0)}
+        # 分类、特性/颜色两列只给人看（导回不改商品）；`list_items` 已按商品主档带好
         # (按台公司的按台商品在 `_expand_units` 里一台一行)
         out = [{
             "product_code": (codes.get(row["product"]) or {}).get("code") or row["code"],
             "internal_code": product_contracts.internal_code(codes.get(row["product"]) or {}),
-            "product_name": row["product_name"],
+            "product_name": row["product_name"], "category": row["category"], "attribute": row["attribute"],
             "barcode": row["barcode"], "unit": row["unit"], "book_qty": row["book_qty"],
             "counted_qty": row["counted_qty"] if row["counted"] else None,
             "warehouse": _warehouse_label(row["warehouse"]), "location": row["location"] or "",
@@ -625,8 +630,9 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
         PRODUCT, filters={"is_active": 1},
         or_filters=[["express_company", "=", company or ""], ["express_company", "is", "not set"]],
         fields=["name", "product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "unit", "base_unit",
-                "track_serial"],
+                "track_serial", "category", "attribute"],
         limit_page_length=0)}
+    labels = product_categories.names(row["category"] for row in products.values())
     label = _warehouse_label(warehouse)
     # 按台公司：按台商品一台一行（在这个仓的在库台，带各自库位），没有在库台的照旧一行
     units = {}
@@ -645,13 +651,15 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
         if units.get(product["name"]):
             listed.add(product["name"])
             base = {"product_code": product["code"], "internal_code": product_contracts.internal_code(product),
-                    "product_name": product["product_name"], "barcode": product_contracts.shown_code(product),
+                    "product_name": product["product_name"], "category": labels.get(product["category"]) or "",
+                    "attribute": product["attribute"] or "", "barcode": product_contracts.shown_code(product),
                     "unit": product["base_unit"] or product["unit"], "warehouse": label}
             out.extend(_unit_row({**base, "location": unit.location or ""}, unit) for unit in units[product["name"]])
             continue
         out.append({
             "product_code": product["code"], "internal_code": product_contracts.internal_code(product),
-            "product_name": product["product_name"],
+            "product_name": product["product_name"], "category": labels.get(product["category"]) or "",
+            "attribute": product["attribute"] or "",
             "barcode": product_contracts.shown_code(product),
             "unit": product["base_unit"] or product["unit"],
             "book_qty": flt(balance["qty_on_hand"], 3), "counted_qty": None,
@@ -741,14 +749,17 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
     missing = {row.product for row in rows if not row.barcode}
     shown = {p["name"]: product_contracts.shown_code(p) for p in frappe.get_all(
         PRODUCT, filters={"name": ["in", list(missing) or [""]]}, fields=["name", "barcode", "qr_payload"])}
-    # 商品类别（多人分区盘点按「仓库 / 类别」分工）：跟着商品主档走，没设就是空。
-    categories = {p.name: p.category_id for p in frappe.get_all(
+    # 分类（多人分区盘点按「仓库 / 分类」分工）与特性/颜色：跟着商品主档走（不进盘点快照），没设就是空。分类给名称（分类主档
+    # 名称不重，名称就能当分组键；存量数字迁移成了同名分类，以前存下的分工范围照样对得上）
+    specs = {p.name: p for p in frappe.get_all(  # bounded: 这份盘点的商品
         PRODUCT, filters={"name": ["in", list({row.product for row in rows}) or [""]]},
-        fields=["name", "category_id"])}
+        fields=["name", "category", "attribute"], limit_page_length=0)}
+    labels = product_categories.names(p.category for p in specs.values())
     for row in rows:
         row.barcode = row.barcode or shown.get(row.product) or None
-        category = categories.get(row.product)
-        row.category = "" if category in (None, "", 0) else str(category)
+        spec = specs.get(row.product) or {}
+        row.category = labels.get(spec.get("category")) or ""
+        row.attribute = spec.get("attribute") or ""
     wanted = (q or "").strip().lower()
     out = []
     tokens = {}
@@ -769,7 +780,7 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
         row.stock_changed = bool(task.status == "Active" and row.counted and (not row.stock_token or row.stock_token != tokens[row.product]))
         if wanted and wanted not in " ".join(
                 str(row.get(key) or "").lower()
-                for key in ("product_name", "code", "barcode")).lower():
+                for key in ("product_name", "code", "barcode", "category", "attribute")).lower():
             continue
         counted = bool(row["counted"])
         if not counted:
@@ -1106,8 +1117,8 @@ def lookup_count(*, count, code=None, product=None):
         matches = products_of_code(code, company)
         if len(matches) > 1:
             # 存量里撞了的码：几件都列出来让人选（再带 product 查一次），不默认挑一个
-            return {"candidates": [{key: row.get(key) for key in ("name", "product_name", "code", "internal_code", "barcode",
-                                                                  "matched_by")} for row in matches]}
+            return {"candidates": [{key: row.get(key) for key in ("name", "product_name", "attribute", "code", "internal_code",
+                                                                  "barcode", "matched_by")} for row in matches]}
     found = product_of_code(code, company) if code and not product else frappe.db.get_value(
         PRODUCT, {"name": product}, "*", as_dict=True)
     if not found and code:
@@ -1121,8 +1132,13 @@ def lookup_count(*, count, code=None, product=None):
         frappe.throw(_(CODE_NOT_FOUND))
     rows = [r for r in list_items(count=count, limit=0) if r['product'] == found['name']]
     return {"product": {**{key: found.get(key) for key in ("name", "product_name", "barcode", "base_unit", "unit", "serial_kind",
-                                                           "is_active")},
-                        "code": product_contracts.count_code(found)},
+                                                           "is_active", "attribute")},
+                        "code": product_contracts.count_code(found),
+                        # 那一格显示的是内部编码还是系统编码：录入屏按它换标签（用户 11-01 批准改文案）
+                        "code_internal": bool(product_contracts.internal_code(found)),
+                        "category_name": product_categories.names([found.get("category")]).get(found.get("category")) or "",
+                        # 有物料修改权的人在录入屏多一个「编辑」，开物料页的编辑弹窗（主会话 11-01 批复 ④）
+                        "can_edit": guard.has("products.manage")},
             "rows": rows,
             "elsewhere": elsewhere_positions(found["name"],
                                              {(r["warehouse"], r["location"] or "") for r in rows}),

@@ -4,8 +4,10 @@
 SERIALS = ("ERP Serial No", "ERP Serial Movement")
 CATALOG = {
     "home": (None, "ERP Admin", (), (), ()),
+    # 物料分类（11-01）：物料岗位与盘点岗位可在原生 Link 下拉里新建（`products.categories` 与控制器再按能力判：盘点岗只能建、
+    # 不能改名 / 停用 / 删），其余业务岗位只读（见 setup.sync_roles 的 dependencies）
     "products": ("products", "ERP Products", ("products.view", "products.manage"),
-                 ("ERP Product",), SERIALS),
+                 ("ERP Product", "ERP Product Category"), SERIALS),
     "inventory": ("warehouses", "ERP Stock", ("inventory.read",), (), ("ERP Stock Balance", *SERIALS)),
     "stock-in": ("warehouses", "ERP Stock", ("stock.in",), ("ERP Stock Entry",), SERIALS),
     "stock-out": ("warehouses", "ERP Stock", ("stock.out",), ("ERP Stock Entry",), SERIALS),
@@ -13,7 +15,7 @@ CATALOG = {
     "stock-transfer": ("warehouses", "ERP Stock", ("stock.transfer",), ("ERP Stock Entry",), SERIALS),
     "stock-card": ("stockcard", "ERP Stock", ("report.read", "report.write"), ("ERP Stock Opening",), ("ERP Stock Movement", *SERIALS)),
     "stock-count": ("stocktake", "ERP Stock", ("count.read", "count.write"),
-                    ("ERP Stock Count", "ERP Stock Count Item", "ERP Stock Count Entry"), SERIALS),
+                    ("ERP Stock Count", "ERP Stock Count Item", "ERP Stock Count Entry", "ERP Product Category"), SERIALS),
     "purchase": ("purchase", "ERP Purchase", ("purchase.read", "purchase.write"),
                  ("Purchase Document", "ERP Purchase Attachment", "ERP Purchase Payment", "ERP LINE Intake"),
                  ("ERP Supplier", "ERP Purchase Settings", "ERP Purchase Category", *SERIALS)),

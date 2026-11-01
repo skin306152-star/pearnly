@@ -166,3 +166,4 @@ pearnly_erp_portal:Type a word from the customer name to find it	zh	输入客户
 pearnly_erp_portal:Type a word from the warehouse name to find it	zh	输入仓库名称关键字查找	2026-10-24	docs/work/2026-10-23-erp-express-auto-companies.md（用户 10-24 同意 5 句打字找提示）
 pearnly_erp_portal:cashier.voidSummarized	zh	此小票已计入收银日汇总，请改用退货	2026-10-26	docs/work/2026-10-24-erp-stock-express-plan.md（用户 10-26 同意两处作废拦截文案）
 pearnly_erp_portal:stock.countEntryVoid	zh	此单由盘点生成，不能单独作废	2026-10-26	docs/work/2026-10-24-erp-stock-express-plan.md（用户 10-26 同意两处作废拦截文案）
+pearnly_erp_portal:product.col.internalCode	zh	内部编码	2026-11-01	docs/work/2026-11-01-product-attribute.md（用户 11-01 同意：盘点录入屏显示内部编码时编码那格叫「内部编码」，显示系统编码时叫「编码」）

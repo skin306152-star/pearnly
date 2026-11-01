@@ -119,12 +119,20 @@ def header(company) -> dict:
 
 
 def _products(names) -> dict:
+    """这张单的商品；``spec`` 是品名下面那一行小字「分类 · 特性/颜色」（岳父 11-01，按物料现值，单据不存）。"""
+    from pearnly_erp_portal.products import categories
+
     names = sorted({name for name in names if name})
     if not names:
         return {}
-    return {row.name: row for row in frappe.get_all("ERP Product", filters={"name": ["in", names]},  # bounded: 这张单的商品
-                                                    fields=["name", "product_name", "code", "express_code", "internal_code", "unit"],
+    rows = {row.name: row for row in frappe.get_all("ERP Product", filters={"name": ["in", names]},  # bounded: 这张单的商品
+                                                    fields=["name", "product_name", "code", "express_code", "internal_code", "unit",
+                                                            "category", "attribute"],
                                                     limit_page_length=0)}
+    labels = categories.names(row.category for row in rows.values())
+    for row in rows.values():
+        row["spec"] = categories.spec(labels.get(row.category), row.attribute)
+    return rows
 
 
 def _code(product) -> str:
@@ -182,6 +190,7 @@ def _stock(doc) -> dict:
         product = products.get(line.product) or {}
         cost = contracts.d(line.unit_cost)
         rows.append({"code": contracts.goods_code(product), "name": product.get("product_name") or "",
+                     "spec": product.get("spec") or "",
                      "unit": line.unit or product.get("unit") or "", "qty": contracts.qty(line.qty),
                      "price": contracts.money(cost) if cost is not None else "",
                      "amount": contracts.money(cost * contracts.d(line.qty)) if cost is not None else ""})
@@ -209,6 +218,7 @@ def _purchase(doc) -> dict:
         qty = contracts.d(line.qty)
         price = contracts.d(line.line_total) / qty if qty else contracts.d(line.unit_price)
         rows.append({"code": contracts.goods_code(product) or line.code or "", "name": product.get("product_name") or line.description or "",
+                     "spec": product.get("spec") or "",
                      "unit": line.unit or product.get("unit") or "", "qty": contracts.qty(line.qty),
                      "price": contracts.money(price),
                      "amount": contracts.money(line.line_total)})
@@ -242,6 +252,7 @@ def _trade_rows(doc, *, units=True) -> list:
         product = products.get(line.product) or {}
         rows.append({"code": _code(product) or line.get("code") or "",
                      "name": line.description or product.get("product_name") or "",
+                     "spec": product.get("spec") or "",
                      "unit": line.unit or product.get("unit") or "", "qty": contracts.qty(line.qty),
                      "price": contracts.money(line.unit_price),
                      "discount": contracts.money(line.discount) if contracts.d(line.discount) else "",
@@ -317,7 +328,8 @@ def _sale(doc) -> dict:
     rows = []
     for line in doc.lines:
         product = products.get(line.product) or {}
-        rows.append({"name": line.description or product.get("product_name") or "", "qty": contracts.qty(line.qty),
+        rows.append({"name": line.description or product.get("product_name") or "", "spec": product.get("spec") or "",
+                     "qty": contracts.qty(line.qty),
                      "unit": line.unit or product.get("unit") or "", "price": contracts.money(line.unit_price),
                      "discount": contracts.money(line.discount) if contracts.d(line.discount) else "",
                      "amount": contracts.money(line.line_total),
@@ -339,7 +351,7 @@ def _sale(doc) -> dict:
                                ("pos_total", doc.grand_total, True)]),
                vat=contracts.money(doc.vat_amount) if contracts.d(doc.vat_amount) else "",
                change=contracts.money(doc.change_amount) if contracts.d(doc.change_amount) else "",
-               paper_mm=contracts.thermal_height_mm(len(rows) + sum(len(row["sub"]) for row in rows),
+               paper_mm=contracts.thermal_height_mm(len(rows) + sum(len(row["sub"]) + bool(row["spec"]) for row in rows),
                                                     len(payments) + 6))
     return ctx
 
@@ -384,9 +396,10 @@ def _count(doc) -> dict:
     wanted = frappe.form_dict or {}
     mode = contracts.count_mode(doc.status, wanted.get("mode") or "", guard.has("stock.manage"))
     items = frappe.get_all(COUNT_ITEM, filters={"count": doc.name},  # bounded: 这一张盘点单的品项
-                           fields=["code", "product_name", "unit", "warehouse", "location", "book_qty", "counted",
+                           fields=["product", "code", "product_name", "unit", "warehouse", "location", "book_qty", "counted",
                                    "counted_qty", "difference"], order_by="location asc, code asc, creation asc",
                            limit_page_length=0)
+    specs = _products(item.product for item in items)
     items = stock_contracts.count_rows(items, only=wanted.get("only") or "", warehouse=wanted.get("warehouse") or "",
                                        location=wanted.get("location") or "")
     notes = {row.location_name: row.description for row in frappe.get_all(  # bounded: 一个仓的库位清单
@@ -395,7 +408,8 @@ def _count(doc) -> dict:
     rows = []
     for item in items:
         location = item.location or ""
-        row = {"code": item.code or "", "name": item.product_name or "", "unit": item.unit or "",
+        row = {"code": item.code or "", "name": item.product_name or "",
+               "spec": (specs.get(item.product) or {}).get("spec") or "", "unit": item.unit or "",
                "location": " · ".join(part for part in (location, notes.get(location)) if part)}
         if mode in ("result", "check"):
             row.update(book=contracts.qty(item.book_qty), counted=contracts.qty(item.counted_qty) if item.counted else "",

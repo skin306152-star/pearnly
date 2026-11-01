@@ -32,6 +32,11 @@ def _columns() -> list:
          "fieldtype": "Data", "width": 220},
         {"label": _label("stock.col.code"), "fieldname": "code",
          "fieldtype": "Data", "width": 110},
+        # 分类、特性/颜色（岳父 11-01）：按物料现值
+        {"label": _label("stock.col.category"), "fieldname": "category",
+         "fieldtype": "Data", "width": 100},
+        {"label": _label("product.col.attribute"), "fieldname": "attribute",
+         "fieldtype": "Data", "width": 110},
         {"label": _label("stock.col.barcode"), "fieldname": "barcode",
          "fieldtype": "Data", "width": 140},
         {"label": _label("stock.col.warehouse"), "fieldname": "warehouse_name",
@@ -90,6 +95,7 @@ def _rows(name: str, only: str, warehouse="", location="") -> list:
         difference = flt(row["difference"], 3) if counted else None
         out.append({
             "product_name": row["product_name"], "code": row["code"],
+            "category": row.get("category") or "", "attribute": row.get("attribute") or "",
             "barcode": row["barcode"], "unit": row["unit"],
             "warehouse_name": warehouses.get(row["warehouse"], row["warehouse"]),
             "location": row["location"],

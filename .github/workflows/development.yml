@@ -61,6 +61,8 @@ jobs:
         run: python3 tests/test_erp_express_locks.py
       - name: ERP product internal code (typed for local products, the Express code for synced ones; scans, stocktake and the product template read it)
         run: python3 tests/test_erp_internal_code.py
+      - name: ERP product category master and attribute / colour (dialog order, import and stock sheet columns, four language words)
+        run: python3 tests/test_erp_product_attribute.py
       - name: ERP warehouse location lists (listed locations only once a warehouse has a list, stocked locations stay on, used ones are kept)
         run: python3 tests/test_erp_locations.py
       - name: ERP products tracked by unit (register on receipt, pick on sale, void back through the unit ledger, opening registration)

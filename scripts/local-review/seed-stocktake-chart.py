@@ -33,8 +33,8 @@ RETIRED_CODE_PREFIX = "DEMO-CHART-"
 RETIRED_TASKS = ("月底盘点", "冷藏区抽盘")
 MAIN_TASK = "2026-09 月度盘点"
 
-# 分类只作商品档案里的一个编号（`ERP Product.category_id` 是整数，旧系统同形）：
-# 1 饮料 · 2 调味 · 3 粮油 · 4 清洁 · 5 日用 · 6 冷藏。
+# 分类（物料分类主档，11-01 起可写文字）：1 饮料 · 2 调味 · 3 粮油 · 4 清洁 · 5 日用 · 6 冷藏。
+CATEGORY_NAMES = {1: "饮料", 2: "调味", 3: "粮油", 4: "清洁", 5: "日用", 6: "冷藏"}
 WAREHOUSE_SHELVES = {
     "主仓": ["A-01", "A-02", "A-03", "B-01", "B-02", "B-03", "C-01", "C-02"],
     "冷藏仓": ["R-01", "R-02", "R-03"],
@@ -177,6 +177,8 @@ def retire_previous_demo(products, counts, stock):
 
 
 def seed_products(service):
+    from pearnly_erp_portal.products import categories
+
     out = {}
     for index, (name, unit, price, cost, category) in enumerate(PRODUCTS):
         existing = frappe.db.get_value("ERP Product", {"product_name": name, "is_active": 1}, "name")
@@ -187,7 +189,7 @@ def seed_products(service):
         # 前缀用 8851：条码列是唯一索引，而上一版演示数据占着 8850 那一段（停用后仍然占号）。
         created = service.create_product(
             product_name=name, barcode=ean13(f"8851{index:08d}"), qr_payload=f"{name} QR",
-            unit=unit, unit_price=price, default_cost=cost, category_id=category)
+            unit=unit, unit_price=price, default_cost=cost, category=categories.ensure(CATEGORY_NAMES[category]))
         out[name] = created["name"]
     return out
 

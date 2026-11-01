@@ -10,6 +10,7 @@
 5 minutes before,5分前
 A board needs at least one admin,ボードには管理者が少なくとも1人必要です
 A board needs at least one list,ボードには少なくとも1つのリストが必要です
+A category needs a name,カテゴリ名を入力してください
 A company needs a name,会社には名前が必要です
 A company needs at least one warehouse,会社には倉庫が 1 つ以上必要です
 A confirmed document cannot be edited,確定済みの伝票は編集できません
@@ -122,6 +123,7 @@ Attach,添付
 Attachment,添付ファイル
 Attachment Type,添付ファイルの種類
 Attachments,添付ファイル
+Attribute / Color,特性 / 色
 Auto Fetch Serial Numbers,シリアル番号を自動取得
 Automation,自動化
 Available Qty,利用可能在庫数
@@ -213,6 +215,7 @@ Cashier Sales to Express From,Express へのレジ売上の開始日
 "Cashier counter, shifts and the cashier's own sales",レジカウンター、シフト、レジ担当自身の売上
 Category,カテゴリ
 Category Name,カテゴリ名
+Category not found,カテゴリが見つかりません
 Change,お釣り
 Change Amount,お釣り
 Change Total,お釣り合計
@@ -1390,6 +1393,7 @@ This browser cannot scan with the camera; use a scanner or type the code,この�
 This card expires in {0} minutes,このカードは {0} 分で期限切れになります
 This card has expired. Please upload the document again.,カードの期限が切れました。もう一度アップロードしてください
 This card is no longer valid,このカードは無効です
+This category already exists,このカテゴリは既に存在します
 This channel is not open yet,このチャンネルはまだ開放していません
 This code is already in use,このコードは使用されています
 This code is already taken,このコードは既に使われています
@@ -2172,6 +2176,7 @@ product.codeKind.expressCode,Express コード
 product.codeKind.internalCode,社内コード
 product.codeKind.qrPayload,QRコード内容
 product.codeKind.unitBarcode,単位バーコード
+product.col.attribute,特性 / 色
 product.col.avgCost,平均原価
 product.col.barcode,バーコード
 product.col.code,コード
@@ -2184,6 +2189,7 @@ product.col.price,価格
 product.col.status,状態
 product.col.unit,単位
 product.error.codeLocked,商品コードは変更できません
+product.field.attribute,特性 / 色
 product.field.barcode,バーコード
 product.field.baseUnit,基準単位
 product.field.baseUnitHint,在庫はこの単位で数えます。空欄なら販売単位と同じ

@@ -34,16 +34,21 @@ from pearnly_erp_portal.masters import company as companies
 frappe.set_user("stock@erp.regression")
 companies.set_active_company({company!r})
 doc = count.create_count(title="flow new product " + {uuid.uuid4().hex[:6]!r}, warehouse={warehouse!r})
+# 分类（物料分类主档）：盘点岗选一条已有的
+frappe.set_user("Administrator")
+from pearnly_erp_portal.products import categories
+category = categories.find("FLOW-L") or frappe.get_doc({{"doctype": categories.DOCTYPE, "category_name": "FLOW-L"}}).insert().name
 frappe.db.commit()
-print(json.dumps({{"count": doc["name"]}}))
+print(json.dumps({{"count": doc["name"], "category": category}}))
 """)
-    return {"count": out["count"], "company": company, "warehouse": warehouse, "code": code,
+    return {"count": out["count"], "category": out["category"], "company": company, "warehouse": warehouse, "code": code,
             "name": "flow new " + code[-4:], "internal": "FN" + uuid.uuid4().hex[:8].upper(),
             "cases": [{"key": "by_barcode", "scan": code}]}
 
 
-# 物料页新建弹窗（`products.js` 的 `product_fields`）的标准各格：盘点借的就是这一个，不是自做的几格
-STANDARD = ["product_name", "code", "internal_code", "code_value", "category_id", "unit", "base_unit", "unit_price",
+# 物料页新建弹窗（`products.js` 的 `product_fields`）的标准各格：盘点借的就是这一个，不是自做的几格。按弹窗里的先后比
+# （岳父 11-01：条码、名称、分类、特性/颜色在前，手机上就是这个顺序）
+STANDARD = ["code_value", "product_name", "category", "attribute", "code", "internal_code", "unit", "base_unit", "unit_price",
             "default_cost", "default_location", "min_stock", "vat_applicable", "image_url"]
 
 
@@ -80,16 +85,18 @@ def steps(params, camera_code=None):
          "for(let k=0;k<40&&window.__dlgs.length===n;k++) await new Promise(r=>setTimeout(r,250));"
          "const f=window.__dlgs[window.__dlgs.length-1]; if(!f||!f.fields_dict.product_name) return {error:'no new product form'};"
          "for(let k=0;k<20&&!f.get_value('code');k++) await new Promise(r=>setTimeout(r,250));"
-         f"const fields={json.dumps(STANDARD)}.filter(x=>f.fields_dict[x]);"
+         f"const fields=Object.keys(f.fields_dict).filter(x=>{json.dumps(STANDARD)}.includes(x));"
          "const form={title: f.title, fields, preview: f.get_value('code')||'', form_code: f.get_value('code_value')||'',"
          " opening: !!f.fields_dict.opening};"
          f"await f.set_values({{product_name: {name}, internal_code: {internal}, unit: 'ชิ้น', unit_price: 120, default_cost: 80,"
-         " default_location: 'A-01', min_stock: 2});"
+         f" default_location: 'A-01', min_stock: 2, category: {json.dumps(params['category'])}, attribute: 'แดง'}});"
          "await new Promise(r=>setTimeout(r,300)); f.get_primary_btn().trigger('click');"
          "for(let k=0;k<60&&!d.fields_dict.qty.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();"
          "return {...form, form_closed: !f.$wrapper.is(':visible'), entry: d.fields_dict.qty.$wrapper.is(':visible'),"
          " product_name: d.get_value('product_name')||'',"
-         " product_code: d.get_value('product_code')||'', message: (d.fields_dict.message.$wrapper.text()||'').trim()};"},
+         " product_code: d.get_value('product_code')||'', message: (d.fields_dict.message.$wrapper.text()||'').trim(),"
+         " code_label: d.fields_dict.product_code.df.label===__('product.col.internalCode'), category_shown: d.get_value('product_category')||'',"
+         " attribute_shown: d.get_value('product_attribute')||'', edit_shown: d.fields_dict.edit_product.$wrapper.is(':visible')};"},
         {"name": "保存", "js": IDLE + "const d=window.__dlgs.find(x=>x.fields_dict.code); if(!d||!d.fields_dict.qty.$wrapper.is(':visible')) return {error:'no entry'};"
          "d.set_value('qty', 3); await new Promise(r=>setTimeout(r,300)); d.get_primary_btn().trigger('click');"
          "await new Promise(r=>setTimeout(r,300)); await idle();"
@@ -116,6 +123,11 @@ def judge(params, results, camera_code=None):
         {"case": "created product is recognised", "seen": made,
          "ok": made.get("entry") is True and made.get("product_name") == params["name"] and bool(made.get("product_code"))
          and not made.get("message")},
+        # 录入屏：显示的是内部编码就叫内部编码（用户 11-01）；分类、特性/颜色只读带出；盘点岗没有物料修改权，不出「编辑」
+        {"case": "entry shows category, attribute and the internal code label", "seen": made,
+         "ok": made.get("product_code") == params["internal"] and made.get("code_label") is True
+         and made.get("category_shown") == "FLOW-L" and made.get("attribute_shown") == "แดง"},
+        {"case": "stock role gets no edit product button", "seen": made, "ok": made.get("edit_shown") is False},
     ]
 
 
@@ -123,7 +135,7 @@ def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 p = frappe.db.get_value("ERP Product", {{"barcode": {params['code']!r}}}, ["name", "product_name", "code", "origin", "origin_doctype", "origin_name",
     "internal_code", "unit", "base_unit", "unit_price", "price_set", "default_cost", "cost_set", "default_location", "min_stock",
-    "vat_applicable", "track_serial", "is_active"], as_dict=True) or {{}}
+    "vat_applicable", "track_serial", "is_active", "category", "attribute"], as_dict=True) or {{}}
 rows = frappe.get_all("ERP Stock Count Entry", filters={{"count": {params['count']!r}, "voided": 0}}, fields=["product", "qty"], limit_page_length=20)
 item = frappe.db.get_value("ERP Stock Count Item", {{"count": {params['count']!r}, "product": p.get("name")}}, "row_origin") if p else None
 print(json.dumps({{"product": p, "entries": [dict(r, qty=float(r.qty)) for r in rows], "row_origin": item}}, default=str))
@@ -137,7 +149,8 @@ print(json.dumps({{"product": p, "entries": [dict(r, qty=float(r.qty)) for r in 
          "ok": p.get("internal_code") == params["internal"] and p.get("unit") == "ชิ้น" and p.get("base_unit") == "ชิ้น"
          and float(p.get("unit_price") or 0) == 120 and p.get("price_set") == 1 and float(p.get("default_cost") or 0) == 80
          and p.get("cost_set") == 1 and p.get("default_location") == "A-01" and float(p.get("min_stock") or 0) == 2
-         and p.get("vat_applicable") == 1 and p.get("is_active") == 1 and not p.get("track_serial")},
+         and p.get("vat_applicable") == 1 and p.get("is_active") == 1 and not p.get("track_serial")
+         and p.get("category") == params["category"] and p.get("attribute") == "แดง"},
         {"case": "entry saved on the new row", "saved": got,
          "ok": got["entries"] == [{"product": p.get("name"), "qty": 3.0}] and got["row_origin"] == "new"},
     ]

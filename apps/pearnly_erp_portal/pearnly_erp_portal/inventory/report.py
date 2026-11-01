@@ -95,11 +95,18 @@ def _warehouse_names(ids) -> dict:
 
 
 def _product_names(products) -> dict:
+    """商品名、单位与「分类 · 特性/颜色」（``spec``，岳父 11-01：品名后接着显示，同名不同色 / 尺寸分得开）。"""
     if not products:
         return {}
-    return {row["name"]: row for row in frappe.get_list(
+    from pearnly_erp_portal.products import categories
+
+    rows = {row["name"]: row for row in frappe.get_list(
         PRODUCT, filters={"name": ["in", list(products)]},
-        fields=["name", "product_name", "unit", "base_unit"], limit_page_length=0)}
+        fields=["name", "product_name", "unit", "base_unit", "category", "attribute"], limit_page_length=0)}
+    labels = categories.names(row.get("category") for row in rows.values())
+    for row in rows.values():
+        row["spec"] = categories.spec(labels.get(row.get("category")), row.get("attribute"))
+    return rows
 
 
 def _public(row: dict, *, cost_visible: bool) -> dict:
@@ -188,6 +195,7 @@ def _summary_rows(keys, movements, *, date_from, visible, names, warehouse_names
                        if contracts.d(r["qty_base"]) < 0), contracts.d(0))
         rows.append({
             "product": product_id, "product_name": (names.get(product_id) or {}).get("product_name"),
+            "spec": (names.get(product_id) or {}).get("spec") or "",
             "warehouse": warehouse_id, "location": location_id,
             "warehouse_name": warehouse_names.get(warehouse_id),
             "name": contracts.position_name("BAL", product_id, warehouse_id, location_id),
@@ -323,7 +331,8 @@ def card(*, product, warehouse=None, location=None, date_from=None, date_to=None
     meta = names.get(product) or {}
     warehouse_names = _warehouse_names(r["warehouse"] for r in rolled)
     return {
-        "product": product, "product_name": meta.get("product_name"), "unit": meta.get("base_unit") or meta.get("unit"),
+        "product": product, "product_name": meta.get("product_name"), "spec": meta.get("spec") or "",
+        "unit": meta.get("base_unit") or meta.get("unit"),
         "warehouse": warehouse, "location": location, "date_from": date_from, "date_to": date_to,
         # 页面顶部显示仓库名，不是内部编号（录制问题 #17）。
         "warehouse_name": frappe.db.get_value("ERP Warehouse", warehouse, "warehouse_name") if warehouse else None,

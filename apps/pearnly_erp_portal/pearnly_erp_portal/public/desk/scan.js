@@ -46,7 +46,7 @@ frappe.provide("frappe.pearnly");
 		let done = false;
 		const dialog = new frappe.ui.Dialog({ title: __("product.scan.pick"), fields: [{ fieldtype: "Select", fieldname: "product",
 			label: __("Item"), reqd: 1, options: candidates.map(row => ({ value: row.name,
-				label: [row.product_name || row.name, row.code, row.internal_code, row.barcode].filter(Boolean).join(" · ") })) }],
+				label: [row.product_name || row.name, row.attribute, row.code, row.internal_code, row.barcode].filter(Boolean).join(" · ") })) }],
 			primary_action_label: __("Select"),
 			primary_action(values) { done = true; dialog.hide(); resolve(values.product); } });
 		dialog.onhide = () => { if (!done) resolve(null); };

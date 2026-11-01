@@ -255,7 +255,8 @@
 				load: ({ start, page_length, sort_by, sort_order }) => p.call(api + "api_stock_summary_page",
 					{ ...query(), start, limit: page_length, sort_by, sort_order }),
 				columns: [
-					{ fieldname: "product_name", width: 200, min_width: 168, label: t("trade.product") },
+					{ fieldname: "product_name", width: 200, min_width: 168, label: t("trade.product"),
+						format: (value, row) => [value, row.spec].filter(Boolean).join(" · ") },
 					{ fieldname: "warehouse_name", width: 132, min_width: 110, label: t("trade.warehouse") },
 					{ fieldname: "location", width: 66, min_width: 54, label: t("trade.location") },
 					{ fieldname: "opening_qty", width: 88, min_width: 78, fieldtype: "Float", label: t("trade.opening"), format: value => p.number(value) },
@@ -313,7 +314,7 @@
 				{ fieldtype: "Date", fieldname: "date_to", label: t("trade.to"),
 					default: dates.date_to, change: () => void refresh_card() },
 				{ fieldtype: "Data", fieldname: "product", label: t("trade.product"),
-					read_only: 1, default: card.product_name || product },
+					read_only: 1, default: [card.product_name || product, card.spec].filter(Boolean).join(" · ") },
 				{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"),
 					read_only: 1, default: card.warehouse_name || warehouse },
 				{ fieldtype: "Data", fieldname: "location", label: t("trade.location"),

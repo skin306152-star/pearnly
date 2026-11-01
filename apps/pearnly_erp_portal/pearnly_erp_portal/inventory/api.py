@@ -246,6 +246,8 @@ def api_stock_count(**kwargs):
 EXPORT_COLUMNS = (
     ("product_name", "stock.col.name"),
     ("code", "stock.col.code"),
+    ("category_name", "stock.col.category"),
+    ("attribute", "product.col.attribute"),
     ("barcode", "stock.col.barcode"),
     ("warehouse_name", "stock.col.warehouse"),
     ("location", "stock.count.location"),
@@ -352,6 +354,9 @@ def api_stock_card(**kwargs):
 COUNT_COLUMNS = (
     ("code", "stock.col.code"),
     ("product_name", "stock.col.name"),
+    # 分类、特性/颜色（岳父 11-01）：按物料现值（`counts.list_items` 带好）
+    ("category", "stock.col.category"),
+    ("attribute", "product.col.attribute"),
     ("barcode", "stock.col.barcode"),
     ("unit", "stock.col.unit"),
     ("warehouse_name", "stock.col.warehouse"),
@@ -365,6 +370,8 @@ COUNT_COLUMNS = (
 COUNT_DETAIL_COLUMNS = (
     ("code", "stock.col.code"),
     ("product_name", "stock.col.name"),
+    ("category", "stock.col.category"),
+    ("attribute", "product.col.attribute"),
     ("book_warehouse_name", "stock.col.warehouse"),
     ("book_location", "stock.count.location"),
     ("warehouse_name", "stock.workbench.actualWarehouse"),
@@ -574,6 +581,8 @@ def _count_workbook(task, items, entries, blind=False) -> bytes:
                 line.append(warehouses.get(row.get("warehouse"), row.get("warehouse")))
             elif field == "counted_at":
                 line.append(_count_datetime(row.get(field)))
+            elif field in ("category", "attribute"):
+                line.append((book_items.get(row.get("item")) or {}).get(field) or "")
             else:
                 value = row.get(field)
                 line.append("" if value is None else value)

@@ -296,6 +296,9 @@
             + '<b>' + esc(item.product_name) + '</b><span class="muted">'
             + esc((item.code || '') + ' · ' + (item.unit || '')
               + (item.location ? ' · ' + item.location : '')) + '</span></div>'
+            // 分类、特性/颜色（岳父 11-01）：认货用，有值才出
+            + ((item.category || item.attribute) ? '<div class="row muted">'
+              + esc([item.category, item.attribute].filter(Boolean).join(' · ')) + '</div>' : '')
             + picker
             + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.workbench.actualWarehouse')) + '</label>'
             + '<select id="store">' + (last?.warehouses || []).map((row) => '<option value="' + esc(row.value) + '"'
@@ -356,8 +359,11 @@
         // 扫到系统没有的码：当场建商品。这一页不跑 Desk，弹不出物料页那个原生弹窗，字段照它一格不差（`products.js` 的
         // `product_fields`：同名词条、同一个服务端函数 `count.create_product_here` 与同一份校验）；只少图片一格（这页没有附件控件，
         // 进物料页再补）。码预填进「条码/二维码」，建好按存下的码接着记数。
+        // 先后同物料页弹窗（岳父 11-01）：条码、名称、分类、特性/颜色，其余在后。分类写名称（候选来自这份盘点的 `categories`，
+        // 打字照收：没有的名称建档时一并建）
         const NEW_FIELDS = [
-          ['product_name', 'name'], ['internal_code', 'internalCode'], ['code', 'codeValue'], ['category_id', 'category', 'numeric'],
+          ['code', 'codeValue'], ['product_name', 'name'], ['category', 'category', '', 'np_categories'], ['attribute', 'attribute'],
+          ['internal_code', 'internalCode'],
           ['unit', 'unit'], ['base_unit', 'baseUnit'], ['unit_price', 'price', 'decimal'], ['default_cost', 'cost', 'decimal'],
           ['default_location', 'defaultLocation'], ['min_stock', 'minStock', 'decimal'],
         ];
@@ -368,9 +374,11 @@
           if (!box) { box = document.createElement('div'); box.id = 'newproduct'; card.appendChild(box); }
           const kinds = ['vehicle', 'device'];
           box.innerHTML = '<div class="row"><b>' + esc(t('product.action.new')) + '</b></div>'
-            + NEW_FIELDS.map(([field, key, mode]) => '<div class="row"><div style="flex:1"><label>' + esc(t('product.field.' + key))
-              + '</label><input id="np_' + field + '"' + (mode ? ' inputmode="' + mode + '"' : '')
+            + NEW_FIELDS.map(([field, key, mode, list]) => '<div class="row"><div style="flex:1"><label>' + esc(t('product.field.' + key))
+              + '</label><input id="np_' + field + '"' + (mode ? ' inputmode="' + mode + '"' : '') + (list ? ' list="' + list + '"' : '')
               + (field === 'code' ? ' value="' + esc(code) + '"' : '') + '></div></div>').join('')
+            + '<datalist id="np_categories">' + (task.categories || []).map((name) => '<option value="' + esc(name) + '">').join('')
+            + '</datalist>'
             // 按台两格照物料页：只在汽车 / 手机电器类公司出现，号码种类默认跟公司类型
             + (task.unit_kind ? '<div class="row"><label class="check"><input id="np_track_serial" type="checkbox"> '
               + esc(t('serial.track')) + '</label></div>'
@@ -412,7 +420,7 @@
           let box = document.getElementById('choices');
           if (!box) { box = document.createElement('div'); box.id = 'choices'; card.appendChild(box); }
           box.innerHTML = candidates.map((row, index) => '<div class="row"><button data-choice="' + index + '">'
-            + esc(row.product_name || row.name) + (row.code ? ' · ' + esc(row.code) : '') + '</button></div>').join('');
+            + esc(row.product_name || row.name) + (row.attribute ? ' · ' + esc(row.attribute) : '') + (row.code ? ' · ' + esc(row.code) : '') + '</button></div>').join('');
           box.querySelectorAll('[data-choice]').forEach((button) => {
             button.onclick = () => { box.innerHTML = ''; lookup(code, candidates[Number(button.dataset.choice)].name); };
           });

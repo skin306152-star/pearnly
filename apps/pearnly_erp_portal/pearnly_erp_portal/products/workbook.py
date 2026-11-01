@@ -27,7 +27,9 @@ FIELD_LABELS = (
     ("code_value", "product.field.codeValue"),
     ("unit", "product.field.unit"),
     ("base_unit", "product.field.baseUnit"),
-    ("category_id", "product.field.category"),
+    # 分类写名称（分类主档，岳父 11-01）；特性/颜色紧跟分类（新建弹窗里也是这个顺序）
+    ("category", "product.field.category"),
+    ("attribute", "product.field.attribute"),
     ("unit_price", "product.field.price"),
     ("default_cost", "product.field.cost"),
     ("min_stock", "product.field.minStock"),
@@ -84,8 +86,17 @@ LEGACY_ALIASES = {
     "vat_applicable": "vat_applicable",
     "vat": "vat_applicable",
     "含税": "vat_applicable",
-    "category_id": "category_id",
-    "分类": "category_id",
+    # 老模板的「分类」一列是数字：迁移时每个数字建成了同名分类，照名称认得回去
+    "category_id": "category",
+    "category": "category",
+    "分类": "category",
+    "หมวดหมู่": "category",
+    "attribute": "attribute",
+    "color": "attribute",
+    "特性": "attribute",
+    "颜色": "attribute",
+    "คุณลักษณะ": "attribute",
+    "สี": "attribute",
     "image_url": "image_url",
     "图片": "image_url",
 }
@@ -109,7 +120,7 @@ def template_headers(label_of) -> list:
     return [label_of(key) for _field, key in FIELD_LABELS]
 
 TEXT_FIELDS = ("product_name", "code", "internal_code", "code_value",
-               "unit", "base_unit", "image_url", "default_location")
+               "unit", "base_unit", "image_url", "default_location", "category", "attribute")
 NUMBER_FIELDS = ("unit_price", "default_cost", "min_stock")
 FLAG_FIELDS = ("vat_applicable",)
 
@@ -152,11 +163,9 @@ def _record(row, columns: dict) -> dict:
             record[field] = _to_number(value)
         elif field in FLAG_FIELDS:
             record[field] = _to_flag(value)
-        elif field == "category_id":
-            try:
-                record[field] = int(value)
-            except (TypeError, ValueError):
-                raise ValueError("not_a_number") from None
+        elif isinstance(value, float) and value.is_integer():
+            # Excel 把手输的 3 存成 3.0：分类、编码这类文字格按 3 认（老模板的分类就是数字）
+            record[field] = str(int(value))
         else:
             record[field] = str(value).strip()
     # 合并的那一列按形状落回条码/二维码两列；表里另外还给了具体某列时，那一列说话

@@ -15,7 +15,8 @@
   "column_break_price",
   "unit",
   "base_unit",
-  "category_id",
+  "category",
+  "attribute",
   "unit_price",
   "price_set",
   "cost_set",
@@ -109,9 +110,17 @@
    "default": "ชิ้น"
   },
   {
-   "fieldname": "category_id",
-   "fieldtype": "Int",
-   "label": "Category"
+   "fieldname": "category",
+   "fieldtype": "Link",
+   "options": "ERP Product Category",
+   "label": "Category",
+   "search_index": 1
+  },
+  {
+   "fieldname": "attribute",
+   "fieldtype": "Data",
+   "label": "Attribute / Color",
+   "length": 140
   },
   {
    "fieldname": "unit_price",
@@ -268,7 +277,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-30 20:00:00.000000",
+ "modified": "2026-11-01 20:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Product",
  "naming_rule": "Expression",
@@ -298,6 +307,6 @@
  "states": [],
  "track_changes": 1,
  "title_field": "product_name",
- "search_fields": "product_name,code,internal_code,barcode,qr_payload",
+ "search_fields": "product_name,code,internal_code,barcode,qr_payload,attribute",
  "show_title_field_in_link": 1
 }

@@ -6,13 +6,13 @@ from pearnly_erp_portal.access import guard, rules
 from pearnly_erp_portal.masters import company as companies
 
 KINDS = {
-    "product": ("ERP Product", "product_name", ("code", "internal_code", "express_code", "barcode", "qr_payload")),
+    "product": ("ERP Product", "product_name", ("code", "internal_code", "express_code", "barcode", "qr_payload", "attribute")),
     "supplier": ("ERP Supplier", "supplier_name", ("express_code", "tax_id", "name")),
     "customer": ("ERP Customer", "customer_name", ("express_code", "tax_id", "name")),
 }
 FIELDS = {
     "product": ("name", "product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "base_unit", "unit",
-                "unit_price", "price_set", "default_cost", "vat_applicable", "default_location"),
+                "unit_price", "price_set", "default_cost", "vat_applicable", "default_location", "category", "attribute"),
     "supplier": ("name", "supplier_name", "express_code", "tax_id", "branch_type", "branch_no", "branch_name", "address"),
     "customer": ("name", "customer_name", "express_code", "tax_id", "branch_type", "branch_no", "party_type", "address"),
 }
@@ -151,4 +151,11 @@ def api_choices(kind, context, txt="", scan=False, company=None):
             extra = frappe.get_all(doctype, filters={**filters, "name": ["in", parents]}, fields=fields,
                                    limit_page_length=20)
             rows = list({row.name: row for row in [*rows, *extra]}.values())
+    if kind == "product":
+        # 「分类 · 特性/颜色」接在品名后面给下拉认货（同名不同色 / 不同尺寸，岳父 11-01）；不进明细的品名快照
+        from pearnly_erp_portal.products import categories
+
+        labels = categories.names(row.get("category") for row in rows)
+        for row in rows:
+            row["spec"] = categories.spec(labels.get(row.get("category")), row.get("attribute"))
     return rows

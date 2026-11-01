@@ -134,6 +134,10 @@ def api_line_stocktake_task(ticket=None, name=None, **kwargs):
     task["entries"] = counts.list_entries(count=name, limit=10)
     # 新建物料那几格照物料页规则：按台两格只在汽车 / 手机电器类公司出现
     task["unit_kind"] = companies.UNIT_KINDS.get(companies.company_type(counts.count_company(name)), "")
+    # 新建物料「分类」那一格的候选（打字照收：没有的名称建档时一并建，盘点录入权即可，主会话 11-01）
+    from pearnly_erp_portal.products import categories
+
+    task["categories"] = categories.active_names()
     return task
 
 
@@ -158,8 +162,8 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
         matches = [row for row in matches if row["name"] == chosen_product]
     elif len(matches) > 1:
         # 存量里撞了的码：列出来让员工点选（页面再带选中的商品查一次），不默认挑一个
-        return {"candidates": [{"name": row["name"], "product_name": row.get("product_name"), "code": row.get("code")}
-                               for row in matches]}
+        return {"candidates": [{"name": row["name"], "product_name": row.get("product_name"), "code": row.get("code"),
+                                "attribute": row.get("attribute")} for row in matches]}
     elif not matches:
         unit = counts.unit_of_code(code, company)  # 按台管理：扫到的是车身标签上的车架号
         matches = [{"name": unit.product}] if unit else []

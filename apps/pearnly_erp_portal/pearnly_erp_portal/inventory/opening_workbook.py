@@ -11,6 +11,9 @@ FIELD_LABELS = (
     # 内部编码单独一列（岳父 10-25，同盘点表）：下载时填内部编码，导回时先认它；「编码」一列是系统编码
     ("internal_code", "product.col.internalCode"),
     ("product_name", "stock.col.name"),
+    # 分类、特性/颜色（岳父 11-01）：下载时带上给人认货，导回不看（期初只认商品标识与数量成本）
+    ("category", "stock.col.category"),
+    ("attribute", "product.col.attribute"),
     ("barcode", "stock.col.barcode"),
     ("unit", "stock.col.unit"),
     # 仓库列（多仓闭环 P1 G5）：空着 = 页面上选的那个仓；一份表可以分几个仓

@@ -10,6 +10,7 @@
 5 minutes before,5 分钟前
 A board needs at least one admin,看板至少需要一位管理员
 A board needs at least one list,看板至少需要保留一个列表
+A category needs a name,请填写分类名称
 A company needs a name,请填写公司名称
 A company needs at least one warehouse,公司至少需要一个仓库
 A confirmed document cannot be edited,已提交的单据不能修改
@@ -122,6 +123,7 @@ Attach,添加文件
 Attachment,附件
 Attachment Type,附件类型
 Attachments,附件
+Attribute / Color,特性/颜色
 Auto Fetch Serial Numbers,自动获取序列号
 Automation,自动化
 Available Qty,可用量
@@ -213,6 +215,7 @@ Cashier Sales to Express From,收银写 Express 起始日
 "Cashier counter, shifts and the cashier's own sales",收银台、班次及收银员本人的销售
 Category,类别
 Category Name,分类名称
+Category not found,未找到分类
 Change,找零
 Change Amount,找零
 Change Total,找零合计
@@ -1390,6 +1393,7 @@ This browser cannot scan with the camera; use a scanner or type the code,当前�
 This card expires in {0} minutes,本卡片 {0} 分钟内有效
 This card has expired. Please upload the document again.,卡片已过期，请重新上传
 This card is no longer valid,这张卡片已失效
+This category already exists,该分类已存在
 This channel is not open yet,该通道尚未开放
 This code is already in use,该码已被占用
 This code is already taken,该条码已被占用
@@ -2172,6 +2176,7 @@ product.codeKind.expressCode,Express 编码
 product.codeKind.internalCode,内部编码
 product.codeKind.qrPayload,二维码内容
 product.codeKind.unitBarcode,单位条码
+product.col.attribute,特性/颜色
 product.col.avgCost,平均成本
 product.col.barcode,条码
 product.col.code,编码
@@ -2184,6 +2189,7 @@ product.col.price,售价
 product.col.status,状态
 product.col.unit,单位
 product.error.codeLocked,物料编码不可修改
+product.field.attribute,特性/颜色
 product.field.barcode,条码
 product.field.baseUnit,库存单位
 product.field.baseUnitHint,库存按此单位计量；留空则与销售单位相同

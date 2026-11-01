@@ -174,12 +174,14 @@ def main():
     ok, _ = as_user(SHOP, service.update_product, product, unit_price="0")
     results["price_set_after_real_zero"] = bool(
         frappe.db.get_value("ERP Product", product, "price_set"))
-    # 分类：Frappe 的 Int 列是 NOT NULL DEFAULT 0，"没填"在库里就是 0（存不下 NULL，
-    # 与 Currency 的"没设价"同一类事实）；填了号就存号。
-    ok, _ = as_user(SHOP, service.update_product, product, category_id="0")
-    results["category_zero_stored"] = frappe.db.get_value("ERP Product", product, "category_id")
-    ok, _ = as_user(SHOP, service.update_product, product, category_id="7")
-    results["category_seven_stored"] = frappe.db.get_value("ERP Product", product, "category_id")
+    # 分类（11-01 起是物料分类主档）：空就是不设；给了名称不认（要分类单号），给了分类单号就存它
+    from pearnly_erp_portal.products import categories
+
+    seven = categories.find("7") or frappe.get_doc({"doctype": categories.DOCTYPE, "category_name": "7"}).insert().name
+    ok, _ = as_user(SHOP, service.update_product, product, category="")
+    results["category_blank_stored"] = frappe.db.get_value("ERP Product", product, "category")
+    ok, _ = as_user(SHOP, service.update_product, product, category=seven)
+    results["category_seven_stored"] = frappe.db.get_value("ERP Product", product, "category") == seven
 
     frappe.set_user("Administrator")
 
@@ -322,7 +324,7 @@ def main():
             if field.fieldtype not in ("Section Break", "Column Break", "Tab Break")}
     # `name` 是框架隐式主键，不在 meta.fields 里，所以不列进来。
     expected = {"product_name", "code", "barcode",
-                "qr_payload", "unit", "base_unit", "category_id", "unit_price",
+                "qr_payload", "unit", "base_unit", "category", "attribute", "unit_price",
                 "price_set", "cost_set", "vat_applicable", "is_active", "min_stock",
                 "default_cost", "image_url",
                 "default_warehouse", "default_location",
@@ -364,8 +366,8 @@ def main():
         "price_after_blank": 0.0,
         "price_set_after_blank": False,
         "price_set_after_real_zero": True,
-        "category_zero_stored": 0,
-        "category_seven_stored": 7,
+        "category_blank_stored": None,
+        "category_seven_stored": True,
         "import_ok": True, "import_created": 2, "import_failed": 1, "import_error_rows": [4],
         "import_raw_tokens_leaked": [],
         "import_auto_code": True,

@@ -396,8 +396,14 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
         PRODUCT, filters={"name": ["in", [r["product"] for r in rows]] or [""]},
         fields=["name", "product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "unit",
                 "base_unit", "min_stock",
-                "is_active"],
+                "is_active", "category", "attribute"],
         limit_page_length=0)}
+    # 分类名称、特性/颜色（岳父 11-01）：显示、搜索、导出都带
+    from pearnly_erp_portal.products import categories
+
+    labels = categories.names(product.get("category") for product in products.values())
+    for product in products.values():
+        product["category_name"] = labels.get(product.get("category")) or ""
     # 售卖单位上的条码（箱码 / 瓶码常挂在单位上）：扫到它也要找到这件商品（与扫码查商品同一口径）。
     wanted = str(q or "").strip()
     unit_hits = set(frappe.get_all("ERP Product Unit", filters={"barcode": wanted, "parent": ["in", list(products)]},
@@ -433,6 +439,7 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
             "product": row["product"], "product_name": product.get("product_name"),
             # 「条码 / 二维码」一格：没有条码就显示二维码内容（同盘点表，录制问题 #23）。
             "code": product.get("code"), "barcode": product_contracts.shown_code(product) or None,
+            "category_name": product.get("category_name") or "", "attribute": product.get("attribute") or "",
             "warehouse": row["warehouse"],
             "location": row.get("location") or "",
             "warehouse_name": names.get(row["warehouse"]),
@@ -451,6 +458,7 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
 # 所以排序也在这里做，键就是行里的字段名。
 SORT_FIELDS = {
     "product_name": "product_name", "code": "code", "barcode": "barcode",
+    "category_name": "category_name", "attribute": "attribute",
     "warehouse_name": "warehouse_name", "location": "location", "unit": "unit",
     "qty_on_hand": "qty_on_hand", "unit_cost": "unit_cost", "value": "value",
 }

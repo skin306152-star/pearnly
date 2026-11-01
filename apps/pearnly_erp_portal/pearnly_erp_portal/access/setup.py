@@ -8,7 +8,7 @@ from pearnly_erp_portal.access import menu, rules
 def sync_roles():
     read = {"read": 1, "select": 1}
     write = {**read, "write": 1, "create": 1, "report": 1, "export": 1}
-    dependencies = ("ERP Product", "ERP Company", "ERP Warehouse", "ERP POS Terminal")
+    dependencies = ("ERP Product", "ERP Product Category", "ERP Company", "ERP Warehouse", "ERP POS Terminal")
     # Costs for employees are projected by live entitlement-aware product services.
     # A static field grant would survive a feature being turned off.
     frappe.db.delete("Custom DocPerm", {"parent": "ERP Product", "permlevel": 1,
@@ -36,6 +36,13 @@ def sync_roles():
         for doctype in menu.SERIALS:
             if frappe.db.exists("DocType", doctype):
                 _grant(doctype, role, {**read, "report": 1, "export": 1})
+    # 物料分类（11-01）：已有站点的管理员与老岗位角色开户时没有这张表，这里按 features.json 同一口径补（新建 / 改名的能力
+    # 控制器再判：盘点岗只能建）
+    if frappe.db.exists("DocType", "ERP Product Category"):
+        for role, perms in ((rules.ADMIN_ROLE, write), ("ERP Products", write), ("ERP Stock", write),
+                            ("ERP Purchase", read), ("ERP Sales", read), ("ERP Cashier", read)):
+            if frappe.db.exists("Role", role):
+                _grant("ERP Product Category", role, perms)
     # LINE 开关就是这个角色（团队管理逐人勾选），不带任何单据权限。
     _ensure_role(rules.LINE_ROLE)
     from pearnly_erp_portal.access.sharing import remove_legacy_shares

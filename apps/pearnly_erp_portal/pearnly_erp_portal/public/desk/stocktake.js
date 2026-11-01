@@ -38,9 +38,8 @@
 		const own_refresh = () => { saved_at = Date.now(); return refresh(); };
 		const BLANK = "\u0000";
 		const area_of = row => row.warehouse_name || BLANK;
-		// ERP 的类别是商品主档上的编号（纯数字），单独显示一个数看不出是什么，前面带上「分类」。
-		const category_label = value => value === BLANK ? t("stock.count.blank")
-			: /^\d+$/.test(value) ? `${t("stock.col.category")} ${value}` : value;
+		// 分类是物料分类主档的名称（服务端 `list_items` 给名称，岳父 11-01 起可以是文字，例如尺寸）；没设分类的归「空」。
+		const category_label = value => value === BLANK ? t("stock.count.blank") : value;
 		const scope = () => ({ warehouse: scope_warehouse?.get_value() || "", category: scope_category?.get_value() || "" });
 		const in_scope = row => {
 			const chosen = scope();
@@ -343,7 +342,7 @@
 			await render_areas();
 			if (!table_host[0].isConnected) return;
 			const q = (search?.get_value() || "").trim().toLowerCase();
-			const rows = state.items.filter(r => in_scope(r) && (!q || [r.product_name,r.code,r.barcode,r.location,r.category,r.actual_positions].join(" ").toLowerCase().includes(q))
+			const rows = state.items.filter(r => in_scope(r) && (!q || [r.product_name,r.code,r.barcode,r.location,r.category,r.attribute,r.actual_positions].join(" ").toLowerCase().includes(q))
 				&& (item_filter !== "uncounted" || !r.counted)
 				&& (item_filter !== "differences" || r.counted && (Number(r.difference) || r.location_difference))
 				&& (item_filter !== "locations" || r.location_difference));
@@ -393,7 +392,9 @@
 				const flagged = quantity_diff || moved || r.stock_changed;
 				// 红色要写在链接自己身上：包在外面会被链接的颜色盖掉。
 				const red = narrow && flagged ? ' style="color: var(--red-600)"' : "";
-				const name = `<a href="#" data-count-row="${p.escape(r.name)}"${red}>${p.escape(r.product_name)}</a>`;
+				// 品名后接「分类 · 特性/颜色」（岳父 11-01：同名不同色 / 尺寸分得开）
+				const spec = [r.category, r.attribute].filter(Boolean).join(" · ");
+				const name = `<a href="#" data-count-row="${p.escape(r.name)}"${red}>${p.escape(r.product_name)}</a>${spec ? ` <span class="text-muted">${p.escape(spec)}</span>` : ""}`;
 				return pick([
 					name, r.code || "", r.barcode || "",
 					`${p.escape(r.warehouse_name)} / ${p.escape(r.location || t("stock.count.blank"))}`,

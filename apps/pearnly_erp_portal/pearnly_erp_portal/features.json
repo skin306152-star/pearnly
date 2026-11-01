@@ -14,7 +14,8 @@
     "库存与收发存报表是同一个岗位（ERP Stock）：它要看得见物料才能做入库/出库，但物料主数据归物料岗位，所以 ERP Stock 在 ERP Product 上只读。",
     "客户表归销售岗位（ERP Sales）：销售要能被开单侧选中，也能建/改买方；收银要能选客户开单，所以在客户表上只读。",
     "空 doctypes = 只建角色、暂不授权（表在后续批次落地）。岗位要先于表存在，否则团队管理里勾不到这个岗位。",
-    "任务管理（看板，2026-10-23 从 Cowork 复制）：看板几张表对岗位一律只读，写只走 work 的专用接口；能看 / 改哪块看板再按看板成员与可见范围判。员工在团队管理里逐人勾「任务管理」。"
+    "任务管理（看板，2026-10-23 从 Cowork 复制）：看板几张表对岗位一律只读，写只走 work 的专用接口；能看 / 改哪块看板再按看板成员与可见范围判。员工在团队管理里逐人勾「任务管理」。",
+    "物料分类（ERP Product Category，11-01）：物料岗位与库存岗位（盘点里就地新建物料时要能建分类）给可写，采购 / 销售 / 收银只读；控制器再按能力判（新建要 products.manage 或 count.write，改名 / 停用 / 删只给 products.manage）。"
   ],
   "features": [
     {
@@ -25,6 +26,7 @@
       "role": "ERP Products",
       "doctypes": [
         "ERP Product",
+        "ERP Product Category",
         "ERP Product Unit",
         "ERP Company",
         "ERP Serial No",
@@ -44,6 +46,7 @@
       "role": "ERP Stock",
       "doctypes": [
         "ERP Product",
+        "ERP Product Category",
         "ERP Warehouse",
         "ERP Stock Entry",
         "ERP Stock Entry Line",
@@ -89,7 +92,8 @@
         "ERP Stock Count Item",
         "ERP Stock Count Entry",
         "ERP Serial No",
-        "ERP Serial Movement"
+        "ERP Serial Movement",
+        "ERP Product Category"
       ],
       "read_only": [
         "ERP Serial No",
@@ -106,6 +110,7 @@
         "Purchase Document",
         "Purchase Line",
         "ERP Product",
+        "ERP Product Category",
         "ERP Supplier",
         "ERP Purchase Settings",
         "ERP Company",
@@ -118,6 +123,7 @@
       ],
       "read_only": [
         "ERP Product",
+        "ERP Product Category",
         "ERP Company",
         "ERP Serial No",
         "ERP Serial Movement"
@@ -134,6 +140,7 @@
         "ERP Sales Document Line",
         "ERP Sales Attachment",
         "ERP Product",
+        "ERP Product Category",
         "ERP Company",
         "ERP LINE Intake",
         "ERP Serial No",
@@ -141,6 +148,7 @@
       ],
       "read_only": [
         "ERP Product",
+        "ERP Product Category",
         "ERP Company",
         "ERP Serial No",
         "ERP Serial Movement"
@@ -171,6 +179,7 @@
         "ERP Shift",
         "ERP Sale",
         "ERP Product",
+        "ERP Product Category",
         "ERP Sale Line",
         "ERP Sale Payment",
         "ERP Customer",
@@ -180,6 +189,7 @@
       ],
       "read_only": [
         "ERP Product",
+        "ERP Product Category",
         "ERP Customer",
         "ERP Company",
         "ERP Serial No",

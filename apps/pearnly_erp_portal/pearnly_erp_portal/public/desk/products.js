@@ -90,25 +90,30 @@
 			// **一个 Section 只分一次栏**：原生 `.form-section` 每条都带 12px 上内边距 +
 			// 16px 上外边距，一行一个 Section 会把十行表单撑出三百多像素的空白（实测）。
 			// 左列"这是什么商品"，右列"怎么计量、怎么卖、放哪"（两列长度接近，用户 10-31）。
+			// 左列先后照岳父手写的那张单（11-01）：条码、名称、分类、特性/颜色，其余在后 —— 手机上左列整列在前，
+			// 扫码进来第一眼就是这四格。
 			return { state, fields: [
 				{ fieldtype: "Section Break" },
-				{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
-					reqd: 1, default: value("product_name") },
-				{ fieldtype: "Data", fieldname: "code", label: t("product.field.code"),
-					read_only: 1, description: t("product.field.codeAuto"),
-					default: value("code") || preview_code },
-				// 来由（多仓评估 13.2-6）：手建 / 导入 / Express 同步 / 采购、销售自动建 / 盘点新建 · 盘点单号；只读
-				...(existing.origin ? [{ fieldtype: "Data", fieldname: "origin_text", label: t("product.field.origin"), read_only: 1,
-					default: [t(`product.origin.${existing.origin}`), existing.origin_name].filter(Boolean).join(" · ") }] : []),
-				// 内部编码（主会话 10-26）：本地商品手输、扫码搜索盘点都认；Express 来的商品就是 Express 编码（只读）
-				{ fieldtype: "Data", fieldname: "internal_code", label: t("product.field.internalCode"),
-					length: 20, default: value("internal_code") || existing.express_code || "" },
 				{ fieldtype: "Data", fieldname: "code_value", label: t("product.field.codeValue"),
 					// 上限跟服务端二维码那一列（500）对齐：合并后这一格是录入二维码的唯一入口，
 					// 用 Data 的默认 140 会让长二维码内容粘贴不进来。
 					length: 500, default: original },
-				{ fieldtype: "Int", fieldname: "category_id", label: t("product.field.category"),
-					default: value("category_id") },
+				{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
+					reqd: 1, default: value("product_name") },
+				// 分类是主档（`products/categories.py`）：打字服务端搜，下拉里原地新建 / 改名（本文件末尾的 link_editors）
+				{ fieldtype: "Link", fieldname: "category", options: "ERP Product Category", label: t("product.field.category"),
+					only_select: true, get_query: () => ({ filters: { is_active: 1 } }), default: value("category") },
+				{ fieldtype: "Data", fieldname: "attribute", label: t("product.field.attribute"),
+					length: 140, default: value("attribute") },
+				{ fieldtype: "Data", fieldname: "code", label: t("product.field.code"),
+					read_only: 1, description: t("product.field.codeAuto"),
+					default: value("code") || preview_code },
+				// 内部编码（主会话 10-26）：本地商品手输、扫码搜索盘点都认；Express 来的商品就是 Express 编码（只读）
+				{ fieldtype: "Data", fieldname: "internal_code", label: t("product.field.internalCode"),
+					length: 20, default: value("internal_code") || existing.express_code || "" },
+				// 来由（多仓评估 13.2-6）：手建 / 导入 / Express 同步 / 采购、销售自动建 / 盘点新建 · 盘点单号；只读
+				...(existing.origin ? [{ fieldtype: "Data", fieldname: "origin_text", label: t("product.field.origin"), read_only: 1,
+					default: [t(`product.origin.${existing.origin}`), existing.origin_name].filter(Boolean).join(" · ") }] : []),
 				{ fieldtype: "Column Break" },
 				{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit"),
 					default: value("unit") },
@@ -387,7 +392,7 @@
 				// 空态用原生那一页（图标 + 按钮），按钮就是这颗"新建商品"。
 				empty_action: can_create ? { label: t("product.action.new"), action: open_quick } : null,
 				// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
-				sort_fields: ["product_name", "code", "internal_code", "barcode", "unit", "unit_price",
+				sort_fields: ["product_name", "code", "internal_code", "barcode", "attribute", "unit", "unit_price",
 					"default_cost", "place", "is_active"],
 				load: async ({ start, page_length, sort_by, sort_order }) => {
 					// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
@@ -406,6 +411,10 @@
 					// 条码与二维码在界面上是同一格：哪个有值就显示哪个，列名跟表单一致。
 					{ fieldname: "barcode", width: 136, min_width: 104, label: t("product.col.codeValue"),
 						format: (_value, row) => row.barcode || row.qr_payload || "" },
+					// 分类、特性/颜色（岳父 11-01）：搜索框也搜得到这两样
+					{ fieldname: "category", width: 88, min_width: 64, label: t("product.field.category"),
+						format: (_value, row) => row.category_name || "" },
+					{ fieldname: "attribute", width: 96, min_width: 72, label: t("product.col.attribute") },
 					{ fieldname: "unit", width: 60, min_width: 52, label: t("product.col.unit") },
 					{ fieldname: "unit_price", width: 92, min_width: 82, label: t("product.col.price"),
 						format: (_value, row) => marked(row, "price_set", row.unit_price) },
@@ -467,6 +476,8 @@
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 			attach_scan_icon(dialog, state, null, !borrowed);
+			// 条码在第一格：码已经带进来（盘点扫到的）就把光标放到名称，不然落在条码上等扫码枪
+			if (scanned) dialog.$wrapper.one("shown.bs.modal", () => setTimeout(() => dialog.fields_dict.product_name?.$input?.trigger("focus"), 0));
 			// 左下角那颗"全屏编辑"（官方插槽）：要批量建、或者字段在弹窗里挤，就进二级页面。
 			if (!inline) p.edit_all(dialog, t("product.action.fullPage"), url(SECOND), values => {
 				// 期初网格的第一行带到整页那一行的期初格（整页一行一个位置）
@@ -506,7 +517,9 @@
 				label: t("product.field.cost"), columns: 2 },
 			{ fieldtype: "Data", fieldname: "base_unit", label: t("product.field.baseUnit"),
 				columns: 2 },
-			{ fieldtype: "Int", fieldname: "category_id", label: t("product.field.category"),
+			{ fieldtype: "Link", fieldname: "category", options: "ERP Product Category", label: t("product.field.category"),
+				only_select: true, get_query: () => ({ filters: { is_active: 1 } }), columns: 2 },
+			{ fieldtype: "Data", fieldname: "attribute", label: t("product.field.attribute"), length: 140,
 				columns: 2 },
 			{ fieldtype: "Float", fieldname: "min_stock", label: t("product.field.minStock"),
 				columns: 2 },
@@ -581,7 +594,8 @@
 				product_name: row.product_name,
 				unit: row.unit,
 				base_unit: row.base_unit,
-				category_id: row.category_id,
+				category: row.category,
+				attribute: row.attribute,
 				default_location: row.default_location,
 				unit_price: Number(row.unit_price) > 0 ? row.unit_price : null,
 				default_cost: Number(row.default_cost) > 0 ? row.default_cost : null,
@@ -737,4 +751,29 @@
 	p.link_editors["ERP Product"] = async context =>
 		p.products(null, await p.texts("product."), null, context);
 	p.link_editors["ERP Product"].label = __("Item");
+
+	// 物料分类（`products/categories.py`）：没有自己的页，选择框里「新建」与箭头原地开这张小弹窗。新建要物料修改权或盘点
+	// 录入权；改名 / 停用只给物料修改权（服务端判，这里按服务端回的 `can_edit` 置只读）。
+	p.link_editors["ERP Product Category"] = async context => {
+		const t = await p.texts("product.");
+		const api = "pearnly_erp_portal.products.categories.";
+		const row = context.name ? await p.call(api + "api_get_category", { name: context.name }) : null;
+		const dialog = p.dialog(t("product.field.category"), [
+			{ fieldtype: "Data", fieldname: "category_name", label: t("product.field.category"), reqd: 1, length: 140,
+				default: row ? row.category_name : context.initial || "" },
+			...(row ? [{ fieldtype: "Check", fieldname: "is_active", label: __("Active"), default: Number(row.is_active) }] : []),
+		], __("Save"), async (values, d) => {
+			const saved = await p.call(api + (row ? "api_update_category" : "api_create_category"),
+				row ? { name: row.name, ...values, is_active: values.is_active ? 1 : 0 } : values, "POST");
+			d.hide();
+			p.success(__("Saved"), "click");
+			await context.on_saved?.(saved);
+		});
+		if (row && !row.can_edit) {
+			Object.values(dialog.fields_dict).forEach(field => dialog.set_df_property(field.df.fieldname, "read_only", 1));
+			dialog.get_primary_btn().prop("disabled", true);
+		}
+		return dialog;
+	};
+	p.link_editors["ERP Product Category"].label = __("product.field.category");
 })();

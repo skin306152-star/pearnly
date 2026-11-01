@@ -80,7 +80,7 @@ frappe.query_reports[report_name] = {
 			fieldtype: "Select",
 			default: "location",
 			options: [{value: "product_name", label: __("stock.col.name")}, {value: "warehouse_name", label: __("stock.col.warehouse")},
-				{value: "location", label: __("stock.board.shelf")}],
+				{value: "location", label: __("stock.board.shelf")}, {value: "category", label: __("stock.col.category")}],
 		},
 	],
 
@@ -88,7 +88,7 @@ frappe.query_reports[report_name] = {
 	// 账面与实盘两条并排。全量行数拉不开看，表格在下面。
 	get_chart_data(columns, data) {
 		const by = frappe.query_report.get_filter_value("chart_by");
-		const field = ["product_name", "warehouse_name"].includes(by) ? by : "location";
+		const field = ["product_name", "warehouse_name", "category"].includes(by) ? by : "location";
 		const groups = new Map();
 		for (const row of data || []) {
 			if (!row.counted) continue;

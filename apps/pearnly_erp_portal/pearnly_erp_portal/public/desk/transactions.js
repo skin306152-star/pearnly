@@ -354,8 +354,9 @@
 					{ fieldtype: readonly ? "Data" : "Link", fieldname: "product", options: "ERP Product",
 						label: t("trade.product"), reqd: stock, in_list_view: 1, columns: 3,
 						get_query: () => ({ filters: { is_active: 1 } }),
+						// 品名后接「分类 · 特性/颜色」（服务端按物料现值给 `spec`，岳父 11-01）
 						formatter: (value, _df, _options, row) => p.escape([row.description || row.product_name || value,
-							stock && row.internal_code].filter(Boolean).join(" · ")),
+							row.spec, stock && row.internal_code].filter(Boolean).join(" · ")),
 						async onchange() {
 							const row = this.doc, selected = row.product;
 							if (!selected || readonly) return;
@@ -444,6 +445,9 @@
 							await line.form.set_values({ description: item.product_name, internal_code: item.internal_code || "",
 								unit: item.unit || item.base_unit,
 								[price]: cost ? item.default_cost : (item.price_set ? item.unit_price : 0) });
+							// 物料格下面一行小字「分类 · 特性/颜色」（岳父 11-01：同名不同色 / 尺寸一眼分得开）
+							line.form.set_df_property("product", "description",
+								[item.category_name, item.attribute].filter(Boolean).join(" · "));
 						} },
 					// 三栏各管一类（11-01，原来物料、仓位、成本混在三栏里）：物料是什么 | 放哪 | 多少；删除单独一行。
 					// 商品的内部编码（只读，收发货页显示内部编码，10-29）
@@ -523,6 +527,7 @@
 				const line = { wrapper, section: outer.sections[0], ready: false,
 					stash: Object.fromEntries(Object.entries(values).filter(([key]) => !field_names.includes(key))) };
 				line.form = p.layout(outer.fields_dict.fields.$wrapper, line_fields(line));
+				if (values.spec) line.form.set_df_property("product", "description", values.spec);
 				scan_by_code(line);
 				lines.push(line);
 				relabel();

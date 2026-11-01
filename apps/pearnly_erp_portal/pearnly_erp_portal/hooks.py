@@ -471,6 +471,8 @@ pearnly_navigation = [{'product': 'erp',
   # 前端据此把这两项接到我们的页面（`pearnly_core/public/desk/link.js`）。
   'links': {'ERP Warehouse': 'pearnly-warehouses',
             'ERP Product': 'pearnly-products',
+            # 物料分类没有自己的页：选择框里新建 / 改名原地开小弹窗（`products.js` 的 link_editors），高级搜索落在物料页
+            'ERP Product Category': 'pearnly-products',
             'ERP Supplier': 'pearnly-suppliers',
             'ERP Customer': 'pearnly-clients',
             'ERP Company': 'pearnly-company'},

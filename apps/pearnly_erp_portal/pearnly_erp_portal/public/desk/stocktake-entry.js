@@ -27,8 +27,15 @@
 				click: () => create_here(missing) },
 			{ fieldtype: "Section Break", fieldname: "entry_section", hidden: 1 },
 			{ fieldtype: "Data", fieldname: "product_name", label: t("stock.col.name"), read_only: 1 },
-			// 扫到的那件商品的编码（内部编码，没有就系统编码；服务端 `count_code`，与 LINE 手机页同一个）
+			// 扫到的那件商品的编码（内部编码，没有就系统编码；服务端 `count_code`，与 LINE 手机页同一个）；标签跟着显示的是哪一种
+			// （用户 11-01 批准：内部编码叫「内部编码」，系统编码叫「编码」）
 			{ fieldtype: "Data", fieldname: "product_code", label: t("stock.col.code"), read_only: 1 },
+			// 分类、特性/颜色（岳父 11-01）：认货用，有值才出；改要去物料（有物料修改权的人点下面「编辑」）
+			{ fieldtype: "Data", fieldname: "product_category", label: __("product.field.category"), read_only: 1, hidden: 1 },
+			{ fieldtype: "Data", fieldname: "product_attribute", label: __("product.field.attribute"), read_only: 1, hidden: 1 },
+			// 这一屏只记数、不改物料；有物料修改权的人在这里开物料页的编辑弹窗（主会话 11-01 批复 ④，服务端 `update_product` 仍判权）
+			{ fieldtype: "Button", fieldname: "edit_product", label: __("product.action.edit"), hidden: 1,
+				click: () => edit_product() },
 			{ fieldtype: "Select", fieldname: "source_row", label: w("bookPosition"), options: [],
 				change: () => choose_source() },
 			{ fieldtype: "Data", fieldname: "unit", label: t("stock.col.unit"), read_only: 1 },
@@ -276,8 +283,7 @@
 				})));
 				d.set_df_property("source_row", "hidden", !lookup.rows.length);
 				await d.set_value("source_row", row?.name || lookup.rows[0]?.name || "");
-				await d.set_value("product_name", selected.product_name);
-				await d.set_value("product_code", selected.code || "");
+				await show_product(selected);
 				await d.set_value("unit", selected.base_unit || selected.unit || "");
 				await choose_source();
 				// 沿用上一件的位置只给**账上没有位置**的新品（同一个货架连续盘时省得重填）；这件在账上有位置
@@ -313,6 +319,27 @@
 				scanner?.resume(code);
 				if (code) p.scan_result_sound(false);
 			} finally { busy = false; }
+		}
+		// 认出的这件物料：名称、编码（标签按内部 / 系统编码换）、分类、特性/颜色、「编辑」入口
+		async function show_product(product) {
+			await d.set_value("product_name", product.product_name);
+			d.set_df_property("product_code", "label", product.code_internal ? __("product.col.internalCode") : t("stock.col.code"));
+			await d.set_value("product_code", product.code || "");
+			for (const [field, value] of [["product_category", product.category_name], ["product_attribute", product.attribute]]) {
+				await d.set_value(field, value || "");
+				d.set_df_property(field, "hidden", !value);
+			}
+			d.set_df_property("edit_product", "hidden", !product.can_edit);
+		}
+		async function edit_product() {
+			if (!selected?.name || !p.link_editors["ERP Product"]) return;
+			const name = selected.name;
+			await p.link_editors["ERP Product"]({ name, on_saved: async () => {
+				const fresh = await p.call(api + "api_stock_count_lookup", { count, product: name });
+				if (closed || selected?.name !== name || !fresh?.product) return;
+				selected = fresh.product;
+				await show_product(selected);
+			} });
 		}
 		async function start_camera() {
 			if (scanner || closed) return;

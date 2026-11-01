@@ -48,7 +48,8 @@ SIGNED_TYPES = (ADJUST, COUNT)
 
 # 库存页搜索框写的是「按名称或条码搜」：名称、编码、条码、二维码内容任一包含关键字就算命中，
 # 与商品列表的搜索（`products.service._filters`）同一口径。扫码枪给的是完整的码，包含也就命中。
-SEARCH_FIELDS = ("product_name", "code", "internal_code", "express_code", "barcode", "qr_payload")
+# 分类名称与特性/颜色（岳父 11-01）也算：`category_name` 由调用方按分类主档补到商品行上
+SEARCH_FIELDS = ("product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "category_name", "attribute")
 
 
 def product_matches(product, query) -> bool:
@@ -287,6 +288,7 @@ def product_rows(rows, *, cost_visible) -> list:
         if slot is None:
             slot = merged[row["product"]] = {
                 "name": row["product"], "product": row["product"], "product_name": row.get("product_name"),
+                "category_name": row.get("category_name") or "", "attribute": row.get("attribute") or "",
                 "code": row.get("code"), "barcode": row.get("barcode"), "warehouse": None, "warehouse_name": None,
                 "location": "", "unit": row.get("unit"), "min_stock": row.get("min_stock") or 0,
                 "company_qty": row.get("company_qty"), "qty": d(0), "value": d(0), "known": True}

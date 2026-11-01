@@ -48,3 +48,5 @@ pearnly_erp_portal.patches.v1_20_product_origin_express
 pearnly_erp_portal.patches.v1_21_drop_batch_expiry_columns
 # 接 Express 的接上时刻：已接上的公司按第一次同步的证据回填（收银起始日 00:00 与最早写 Express 的单取早的，11-01）
 pearnly_erp_portal.patches.v1_22_express_linked_at
+# 商品分类从裸整数改成分类主档：存量数字建成同名分类并挂回，旧列真删（岳父 11-01：分类要能写文字）
+pearnly_erp_portal.patches.v1_23_product_category_master

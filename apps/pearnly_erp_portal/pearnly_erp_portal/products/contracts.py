@@ -15,6 +15,7 @@ MAX_BARCODE = 100
 MAX_QR = 500
 MAX_UNIT = 50
 MAX_BASE_UNIT = 50
+MAX_ATTRIBUTE = 140  # 特性/颜色（岳父 11-01）
 MAX_IMAGE_URL = 1000
 
 # 有成本字段，取数时按岗位遮蔽。`cost_set` 是"参考成本是否真的设过"的标记，
