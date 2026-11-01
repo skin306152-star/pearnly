@@ -395,9 +395,9 @@ def rows_of_product(*, count: str, product: str) -> list:
 
 
 
-def create_product_here(*, count, code, product_name, internal_code=None, track_serial=None, **fields) -> dict:
+def create_product_here(*, count, code, product_name, internal_code=None, track_serial=None, **standard) -> dict:
     """盘点里扫到系统没有的码：当场建商品（多仓评估 13.2-6，用户 10-29 批复）。有盘点录入权（``count.write``）就能建。
-    Desk 弹的是物料页同一个新建弹窗（用户 11-01），``fields`` 收那几格（`product_service.standard_fields`，与商品页建档同一份）；
+    Desk 弹的是物料页同一个新建弹窗（用户 11-01），``standard`` 收那几格（`product_service.standard_fields`，与商品页建档同一份）；
     LINE 手机页与盘点表导入只给品名 / 单位。扫到的码作条码 / 二维码内容，编码系统发；来由记「盘点新建 · 这份盘点」，
     谁 / 何时用原生建档人与时间。按台公司勾了按台就在建档时一并打开（新商品没有库存，不用按台期初登记，同 `serials.turn_on`）。
 
@@ -442,7 +442,7 @@ def create_product_here(*, count, code, product_name, internal_code=None, track_
                "default_location", "serial_kind")
     doc = frappe.get_doc({
         "doctype": PRODUCT, "product_name": name, "code": system_code, **({field: code} if code else {}), "internal_code": internal,
-        **product_service.standard_fields(**{key: value for key, value in fields.items() if key in allowed}),
+        **product_service.standard_fields(**{key: value for key, value in standard.items() if key in allowed}),
         "track_serial": 1 if str(track_serial or "") in ("1", "True", "true") and companies.unit_tracking(company) else 0,
         "is_active": 1,
         "express_company": company if company and express_push.linked(company) else None,
