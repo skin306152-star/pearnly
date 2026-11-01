@@ -95,6 +95,9 @@ def _party_blocked(doctype, row, job):
     if code in prepare.PARTY_CODES:
         return prepare.party_needed(push.document(doctype, row.name), push._company(row.company))
     if code in prepare.GROUP_CODES:
+        if doctype in (push.STOCK, push.COUNT):
+            # 库存单里新建的存货判不出存货科目（多仓闭环 P3x）：按这张单的日期用的那份账套问存货科目组
+            return prepare.book_group_needed(push._company(row.company), push.document(doctype, row.name)["date"])
         return prepare.group_needed(push.document(doctype, row.name), push._company(row.company))
     if code in prepare.SERVICE_VAT_CODES:
         return prepare.service_vat_needed(push.document(doctype, row.name), push._company(row.company))

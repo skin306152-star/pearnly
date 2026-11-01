@@ -311,6 +311,18 @@ def test_a_new_item_that_would_go_negative_stops_when_the_book_forbids_negative_
     assert res.ok, res.error
 
 
+def test_the_stock_group_for_a_new_item_follows_the_payload_and_an_unfit_group_asks_for_one(book):
+    """新建存货的存货科目组同采购：载荷带了 ``stock_acccod`` 就照它建；判不出是存货科目（含载荷给的不合格）报 STOCK_ACC_GROUP_UNFIT
+    （ERP 据此让人选一次存货科目组），整单不写。"""
+    before = _state(book)
+    res = _write(book, _entry("JU", [_new("ถ่านอัดแท่ง", 1, unit_cost="5")], payload_version=15, stock_acccod="NOPE"))
+    assert not res.ok and res.error_code == "STOCK_ACC_GROUP_UNFIT", (res.error_code, res.error)
+    assert _state(book) == before
+    res = _write(book, _entry("JU", [_new("ถ่านอัดแท่ง", 1, unit_cost="5")], payload_version=15, stock_acccod="ST01"))
+    assert res.ok, res.error
+    assert [row["ACCCOD"].strip() for row in _rows(book, "STMAS") if row["STKDES"].strip() == "ถ่านอัดแท่ง"] == ["ST01"]
+
+
 def test_a_failed_write_also_rolls_back_the_new_item(book):
     before = _state(book)
     with mock.patch.object(dbf_stock, "_verify", side_effect=dbf_stock._WriteError("boom", "READBACK_VERIFY_FAILED")):

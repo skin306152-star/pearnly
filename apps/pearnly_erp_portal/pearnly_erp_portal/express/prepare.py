@@ -106,8 +106,12 @@ def service_vat_needed(doc, company_row):
 def group_needed(doc, company_row):
     """被电脑以存货科目组为由拦下后让人选的那一项（``kind = stock_group``）：这份账套过了存货科目判据的组；没有合格的组
     （要先在 Express 里配）或读不到账套资料回 []。"""
-    doc = contracts.checked(doc)
-    picked = target.pick(company_row, doc["date"])
+    return book_group_needed(company_row, contracts.checked(doc)["date"])
+
+
+def book_group_needed(company_row, date):
+    """这家公司这个日期用的那份账套要人选的存货科目组（:func:`group_needed`；库存单在 CC 里新建存货被拦下也用它，多仓闭环 P3x）。"""
+    picked = target.pick(company_row, date)
     book = picked.get("book")
     data = facts.load(book["key"]) if book else None
     if data is None:

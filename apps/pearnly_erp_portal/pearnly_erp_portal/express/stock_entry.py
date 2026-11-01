@@ -16,8 +16,11 @@
   单据簿（CC 桌面版报了 RL 才核，旧版没报的交给电脑，电脑没有回 ``JOURNAL_BOOK_NOT_FOUND``）。载荷盖调拨的版本，旧版诚实拒收。
 - Express 里没有的商品（多仓闭环 P3x，G14）：行上没有 Express 编码时，这份账套有同名存货就交品名、电脑照名认；没有同名的按 ERP 商品
   问一次（``item``，主题 ``stock|<ERP 商品>``，选现有存货或新建，同采购 / 销售的选存货），选新建的行标 ``new_ok``、载荷盖 15，CC
-  桌面版在 Express 建 0 余额存货再写（旧版诚实拒收）。减少的行同样照建照写，账套不许负库存的由电脑的结存核对停下（同销售）。写完
-  `push.link_products` 把电脑用的码挂回 ERP 商品，之后不再问。没读到存货表时不问：出入库照旧交品名，盘点停在 ``item_unmapped``。
+  桌面版在 Express 建 0 余额存货再写（旧版诚实拒收）。减少的行（领用、盘亏、调出）在不许负库存的账套里，电脑建档前就停
+  ``STOCK_INSUFFICIENT``，允许负库存的照建照写（主会话 11-01）。新存货挂哪个存货科目组同采购：这份账套选过就带 ``stock_acccod``；
+  没选过电脑用账套里用得最多的那组，判不出是存货科目时回 ``STOCK_ACC_GROUP_UNFIT``，单据的 Express 弹窗问一次
+  （`prepare.book_group_needed`，按账套记住）。写完 `push.link_products` 把电脑用的码挂回 ERP 商品，之后不再问。没读到存货表时
+  不问：出入库照旧交品名，盘点停在 ``item_unmapped``。
 """
 import frappe
 
@@ -218,6 +221,13 @@ def _version(base, lines) -> int:
     return max(base, NEW_ITEM_PAYLOAD_VERSION) if any(line.get("new_ok") for line in lines) else base
 
 
+def _with_group(payload, company, book) -> dict:
+    """有要新建的存货时带上这份账套选过的存货科目组（同采购的 ``stock_acccod``）；没选过不带，电脑用账套里用得最多的那组。"""
+    group = choices.chosen(company, choices.STOCK_GROUP, book["key"]) if any(
+        line.get("new_ok") for line in payload["items"]) else ""
+    return {**payload, "stock_acccod": group} if group else payload
+
+
 def prepare(body, company_row, ensure_masters) -> dict:
     """``{"payload", "book"}`` 或 ``{"hold": 原因, ...}``（同 `prepare.prepare` 的形状，`push.send` 照样处理）。"""
     from pearnly_erp_portal.express import prepare as invoices
@@ -242,7 +252,8 @@ def prepare(body, company_row, ensure_masters) -> dict:
         return {"hold": contracts.ITEM_UNMAPPED, "book": book}
     items = items or []
     if body["doctype"] == TRANSFER:
-        return _transfer_payload(body, book, data, items)
+        result = _transfer_payload(body, book, data, items)
+        return {**result, "payload": _with_group(result["payload"], company_row["name"], book)} if "payload" in result else result
     subject = account_subject(body["doctype"])
     account = choices.chosen(company_row["name"], ACCOUNT, subject)
     if isinstance(stock_books, dict) and stock_books and body["doctype"] not in stock_books:
@@ -271,7 +282,7 @@ def prepare(body, company_row, ensure_masters) -> dict:
     }
     if account:
         payload["account"] = account
-    return {"payload": payload, "book": book}
+    return {"payload": _with_group(payload, company_row["name"], book), "book": book}
 
 
 def _hold(book, needed) -> dict:

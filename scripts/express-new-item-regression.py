@@ -43,6 +43,8 @@ def main(argv=None) -> int:
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--runner", default="", help="已安装 CC 的 cdx_reindex_runner.exe：给了就重建索引并核 CDX 与 DBF 一致")
     args = parser.parse_args(argv)
+    # 测试机控制台是 cp874：原因里有中文（CC 的报错）会让 print 崩掉；`-I` 下 PYTHONIOENCODING 不生效，这里自己改
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.path.insert(0, args.companion)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     global dbf, S, D, T, account_rules, fiscal_period, stock_guard, stock_location, cdx_reindex, cdx_check, with_runner

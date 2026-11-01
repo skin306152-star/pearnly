@@ -168,7 +168,7 @@ def write_transfer(
     docnum = ""
     try:
         today = today or _dt.date.today()
-        create_new_items(account_dir, items, found, userid=userid)
+        create_new_items(account_dir, items, found, userid=userid, acccod=str(payload.get("stock_acccod") or "").strip())
         docnum, lines, moves = _write(account_dir, docdate_be, docdat, remark, items, found, source, target,
                                       userid=userid, today=today)
         _bump_isrun(account_dir, book["prefix"], book["jnltyp"])

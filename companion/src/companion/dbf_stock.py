@@ -43,6 +43,7 @@ from . import fiscal_period
 from . import product_master
 from . import stock_guard
 from . import stock_location
+from . import stock_template
 from . import stock_sale
 from . import stock_units
 from .consistency import account_company_matches
@@ -332,7 +333,7 @@ def write_stock_entry(
     moves = [] if locations is not None else None
     try:
         today = today or _dt.date.today()
-        create_new_items(account_dir, items, found, userid=userid)
+        create_new_items(account_dir, items, found, userid=userid, acccod=str(payload.get("stock_acccod") or "").strip())
         docnum, lines, total, inventory = _write(account_dir, doctype, kind, docdate_be, docdat, account, remark,
                                                  items, found, locations, moves, depcod=depcod, userid=userid,
                                                  ref_no=str(payload.get("ref_no") or ""), today=today,
@@ -385,14 +386,18 @@ def new_item_shortages(account_dir, items, found, reduces, header_loc="") -> Lis
              "need": abs(_dec(item.get("qty"))), "have": Decimal(0)} for item in pending]
 
 
-def create_new_items(account_dir, items, found, *, userid) -> None:
+def create_new_items(account_dir, items, found, *, userid, acccod="") -> None:
     """``found`` 里留空（``None``）的行 = Express 里没有、人选了新建的商品：建 0 余额库存品（`product_master.ensure_stock_item`：
     克隆账套结构、单位取票面或账套众数、记真实建档日，同采购 / 销售），按建出的码认回来填进 ``found``。同一张单同名的两行只建一次
-    （建档先按品名找）。调用方已在写前备份里，失败整单回滚。"""
+    （建档先按品名找）。``acccod``：人在 ERP 里为这份账套选的存货科目组（载荷 ``stock_acccod``）；没选、账套里用得最多的那组又判不出
+    是存货科目时报 ``STOCK_ACC_GROUP_UNFIT``，同采购，ERP 让人选一次。调用方已在写前备份里，失败整单回滚。"""
     for index, item in enumerate(items):
         if found[index] is None:
-            made = product_master.ensure_stock_item(account_dir, str(item.get("name") or ""), userid=userid,
-                                                    unit=str(item.get("unit") or ""))
+            try:
+                made = product_master.ensure_stock_item(account_dir, str(item.get("name") or ""), userid=userid,
+                                                        unit=str(item.get("unit") or ""), acccod=acccod)
+            except stock_template.InventoryAccountUnfit as exc:
+                raise _WriteError(str(exc), stock_template.ERR_STOCK_GROUP) from exc
             found[index] = stock_sale.find_stock_item(account_dir, "", made.stkcod)
 
 

@@ -33,6 +33,12 @@
 - 本机暂存目录建了只装 pytest / dbf / aenum / httpx 的环境，CC 全部测试 1253 通过、42 跳过（界面类缺 PySide6）。
 - 负库存口径（主会话 11-01 定乙，见评估第 12 节）：`new_item_shortages` 在账套不许负库存时，把要新建且减少库存的行在建档前停下 `STOCK_INSUFFICIENT`（结存 0，原因同结存核对）。减少的行包括领用、盘亏、调出；允许负库存的账套照建照写。用例 `test_dbf_stock` / `test_dbf_transfer` 各 1 个。销售同样的问题本期不动，已列为待定。
 
+- **存货科目组（测试机回归中发现，按类补齐）**：真账套里有用得最多的那组存货科目其实不是存货科目的（如 T7ASIAMI 的 ST01 指向办公设备），建档会被 `stock_template` 拦下。采购早有这条路：电脑报 `STOCK_ACC_GROUP_UNFIT` → 单据弹窗选一次存货科目组 → 按账套记住、载荷带 `stock_acccod`。库存单这边补上：
+  - CC `create_new_items` 带载荷的 `stock_acccod` 建档，判不出存货科目报同一个码（原来是笼统的 `DBF_WRITE_FAILED`）。
+  - 服务端有新建行时带上这份账套记住的组（`stock_entry._with_group`）。
+  - 出入库 / 盘点单被这个码拦下时，按单据日期那份账套问存货科目组（`prepare.book_group_needed`，从 `group_needed` 抽出，采购照旧）。
+  - 用例：服务端 1 个、CC 1 个。
+
 ## C 报表
 
 - 库存一览（`inventory/stock.py`、`inventory.js`）：

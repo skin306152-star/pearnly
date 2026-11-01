@@ -1653,6 +1653,20 @@ class StockEntries(Base):
         result = self.prepared(self.body(lines=[self.new_item()]))
         self.assertEqual(result["needed"][0]["current"], "GONE-01")
 
+    def test_new_items_carry_the_stock_group_chosen_for_the_book(self):
+        """新建存货挂的存货科目组同采购：这份账套选过就带 ``stock_acccod``（只在有新建行时带），没选过不带。"""
+        key = self.computer([book()])[0]
+        self.masters(key)
+        choices.remember(COMPANY["name"], "item", "stock|PRD-9", C.NEW)
+        payload = self.prepared(self.body(lines=[self.new_item()]))["payload"]
+        self.assertNotIn("stock_acccod", payload)
+        choices.remember(COMPANY["name"], choices.STOCK_GROUP, key, "ST02")
+        for doctype, extra in (("JU", {}), ("RL", {"to_loccod": "03"})):
+            payload = self.prepared(self.body(doctype=doctype, lines=[self.new_item()], **extra))["payload"]
+            self.assertEqual(payload["stock_acccod"], "ST02", doctype)
+        payload = self.prepared(self.body(lines=[self.new_item(code="ICE-01", product="PRD-1")]))["payload"]
+        self.assertNotIn("stock_acccod", payload)  # 没有要新建的：不带
+
     def test_without_the_item_list_a_count_with_new_items_still_holds(self):
         """存货表没读到（定不了同名）：盘点当场新建的商品照旧停在 item_unmapped；出入库照旧交品名给电脑认。"""
         key = self.computer([book()])[0]
