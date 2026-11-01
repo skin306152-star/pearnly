@@ -188,6 +188,17 @@ class RerunFailed(unittest.TestCase):
         self.assertEqual(len(data["results"]), 4)
         self.assertNotIn("reran", data)
 
+    def test_reverse_order_runs_each_site_backwards_but_records_registry_order(self):
+        out = self.tmp / "reverse.json"
+        self.main("--all", "--order", "reverse", "--out", str(out))
+        self.assertEqual(self.ran, [("b.two", "old", "desktop"), ("b.two", "new", "desktop"), ("a.one", "new", "mobile"),
+                                    ("a.one", "new", "desktop")])
+        data = json.loads(out.read_text())
+        self.assertEqual([(r["flow"], r["dataset"], r["viewport"]) for r in data["results"]],
+                         [("a.one", "new", "desktop"), ("a.one", "new", "mobile"), ("b.two", "new", "desktop"), ("b.two", "old", "desktop")])
+        self.assertTrue(data["summary"].startswith("all flows; "))
+        self.assertEqual(data["order"], "reverse")
+
     def test_long_description_is_cut_for_github(self):
         posted = []
         saved = run.subprocess.run

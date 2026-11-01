@@ -1,7 +1,7 @@
 """流程用例：ERP 库存卡（一件商品在一个仓的收发与结存，10-31 补）。
 
-库存岗打开一件在某仓有结存的商品的库存卡（`pearnly-stock-card/<商品>/<仓>`），同一次跳转里再连着触发两次页面显示（多仓 P2 查出的竞态：
-过时的渲染后完成会再建一份表单）→ 页面上只有一份卡、期末结存与库里这件这个仓的账面一致。只读，不改数据。
+库存岗打开一件在某仓有结存的商品的库存卡（`pearnly-stock-card/<商品>/<仓>`；没有结存时 prepare 先入库，不靠别的流程留下的库存），同一次跳转里再连着触发两次页面显示（多仓 P2 查出的竞态：
+过时的渲染后完成会再建一份表单）→ 页面上只有一份卡、期末结存与库里这件这个仓的账面一致。页面只读。
 """
 from __future__ import annotations
 
@@ -10,18 +10,31 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from erp_lib import JS, company, js_value  # noqa: E402
+from erp_lib import JS, codes, company, js_value  # noqa: E402
 
 TITLE = "ERP 库存卡：打开一件商品在一个仓的卡、期末结存对得上"
 
 
 def prepare(lab, manifest):
-    co = company(manifest)
+    """数据清单里按编码那件、这家公司第一个启用的仓：没有结存就先按正式入库记 5 件（有就不动，可重复跑），不靠别的流程先进货。"""
+    co, product = company(manifest), codes(manifest)["by_code"]["product"]
     row = lab.python(manifest["site"], f"""
-row = frappe.db.sql(\"\"\"select b.product, b.warehouse, sum(b.qty_on_hand) qty from `tabERP Stock Balance` b
-  join `tabERP Warehouse` w on w.name = b.warehouse where w.company = %s and w.is_active = 1
-  group by b.product, b.warehouse having sum(b.qty_on_hand) > 0 order by b.product, b.warehouse limit 1\"\"\", ({co!r},), as_dict=True)[0]
-print(json.dumps({{"product": row.product, "warehouse": row.warehouse, "qty": float(row.qty)}}))
+from pearnly_erp_portal.inventory import documents
+from pearnly_erp_portal.masters import company as companies
+co, product = {co!r}, {product!r}
+warehouse = frappe.get_all("ERP Warehouse", filters={{"company": co, "is_active": 1}}, pluck="name", order_by="creation asc", limit=1)[0]
+held = lambda: float(frappe.db.sql("select coalesce(sum(qty_on_hand), 0) from `tabERP Stock Balance` where product=%s and warehouse=%s",
+                                   (product, warehouse))[0][0])
+if held() <= 0:
+    frappe.set_user("admin@erp.regression")
+    companies.set_active_company(co)
+    # 仓设了库位清单时只能进清单里的库位：进第一个
+    shelf = frappe.get_all("ERP Warehouse Location", filters={{"parent": warehouse, "parenttype": "ERP Warehouse"}}, pluck="location_name",
+                           order_by="idx asc", limit=1)
+    documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), warehouse=warehouse, reason="flow stock card", submit=True,
+                           lines=[{{"product": product, "qty": 5, "unit_cost": 10, "location": shelf[0] if shelf else ""}}])
+    frappe.db.commit()
+print(json.dumps({{"product": product, "warehouse": warehouse, "qty": held()}}))
 """)
     return {**row, "cases": []}
 

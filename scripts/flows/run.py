@@ -10,6 +10,7 @@
 分支：`--changed --post-status` 只跑改动文件涉及的流程；部署前：在要部署的 main 提交上 `--all --post-status` 跑全套，
 `scripts/production/deploy.sh` 只认全套通过（说明以 `all flows` 开头）。回写前核对实验室挂的就是本工作树的源码、产品代码没有未提交改动。
 本机睡眠或实验室没起来时没有这个状态，部署闸照样拦；补跑方法见 `tests/flows/README.md`。
+每条流程只靠 `datasets.py` 的固定数据和自己 `prepare` 备的数据，不靠排在前面的流程留下的；`--order reverse` 倒过来跑全套查这一点。
 全套里个别格因环境不通过时 `--rerun-failed` 只重跑那几格，与上次结果合并后回写，说明里写明补跑了哪几格（范围仍是上次的）。
 
 每个流程 × 每套数据（datasets.py new / old，先跑一遍保证数据齐，拿清单）× 每个宽度（desktop / mobile）：
@@ -343,6 +344,8 @@ def main(argv=None) -> int:
     parser.add_argument("--viewport", choices=["desktop", "mobile"], help="只跑这个宽度（调试用）")
     parser.add_argument("--rerun-failed", metavar="结果.json",
                         help="只补跑这份结果里不通过的格，与它合并（同一提交；范围沿用它的，不配 --all / --flow / --changed）")
+    parser.add_argument("--order", choices=["registry", "reverse"], default="registry",
+                        help="同一站点的格按登记表顺序还是倒过来跑（reverse 查流程有没有靠排在前面的流程留下的数据；结果仍按登记表顺序记）")
     parser.add_argument("--out")
     parser.add_argument("--post-status", action="store_true")
     parser.add_argument("--migrate", action="store_true", help="先重启实验室网页进程、把全部站点迁移到挂上来的源码（--post-status 时总是做）")
@@ -409,7 +412,7 @@ def main(argv=None) -> int:
 
     # 按站点并行：同一站点的格依次跑（编号序列、同一岗位账号、按站点数的 Error Log 都不互相干扰），不同站点之间同时跑
     groups = {}
-    for cell in cells:
+    for cell in (cells[::-1] if args.order == "reverse" else cells):
         groups.setdefault((cell[0].get("product", "erp"), cell[1]), []).append(cell)
     with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
         done = dict(zip(groups, pool.map(lambda group: [one(cell) for cell in group], groups.values())))
@@ -433,7 +436,7 @@ def main(argv=None) -> int:
     if args.out:
         Path(args.out).write_text(json.dumps({
             "ok": ok, "summary": summary, "sha": head(), "dirty": bool(product_dirty()), "scope": scope, "flow_count": flow_count,
-            "seconds": seconds, **({"merged_from": str(Path(args.rerun_failed).resolve()), "reran": reran} if previous else {}),
+            "seconds": seconds, "order": args.order, **({"merged_from": str(Path(args.rerun_failed).resolve()), "reran": reran} if previous else {}),
             "results": results}, ensure_ascii=False, indent=1))
     if args.post_status:
         print("status posted for", post_status(ok, summary))
