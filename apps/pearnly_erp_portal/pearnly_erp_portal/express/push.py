@@ -480,7 +480,8 @@ def link_products(doctype, name, company, codes):
             continue
         product = frappe.db.get_value("ERP Product", line[0], ["product_name", "express_code", "express_company"],
                                       as_dict=True)
-        if not product or product.express_code or product.express_company:
+        # 接上时随单 / 盘点里建的档已归这家公司、还没有码（`count.create_product_here`）：同对方档（`link_party`）照挂
+        if not product or product.express_code or (product.express_company or company) != company:
             continue
         if label not in {line[1], str(product.product_name or "").strip()}:
             continue

@@ -1309,6 +1309,13 @@ class LinkProducts(PushModule):
             self.assertIsNone(self.products["PRD-1"].get("express_code"), doctype)
         self.assertIsNone(self.push._product_lines("ERP Something", "X"))
 
+    def test_a_product_made_for_this_company_without_a_code_takes_it(self):
+        """接上时盘点里新建的物料已归这家公司（还没有码）：写进去后照样挂上电脑建的码；归别家公司的不动。"""
+        self.products["PRD-1"]["express_company"] = "CO-1"
+        self.assertEqual(self.link([{"seq": 2, "name": "น้ำแข็งก้อน", "code": "ST-0099"}]), ("CO-1", "ST-0099"))
+        self.products["PRD-1"] = {"name": "PRD-1", "product_name": "น้ำแข็งก้อน", "express_company": "CO-2", "is_active": 1}
+        self.assertEqual(self.link([{"seq": 2, "name": "น้ำแข็งก้อน", "code": "ST-0099"}]), ("CO-2", None))
+
 class PurchaseFromOwnCompany(unittest.TestCase):
     """采购页上传本公司开出的单据拒收（用户 10-24「采购页上传收据拒收」）：卖方税号 = 本公司、分店相同或没印分店。"""
 
