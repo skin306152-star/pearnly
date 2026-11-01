@@ -296,3 +296,46 @@ testerp 公司是当前选中的 บริษัท ซิสเตอร์ เ
 顺带发现（与键盘改动无关，未修）：盘点连续盘点里认出上次录在仓「123」的物料后，「实际仓位」每次都弹「未找到仓库」。
 读代码：`stocktake-entry.js` 第 223 行把「实际仓库」设成 `warehouse_name`，仓位候选 `inventory.locations.api_location_options` 用这个值当仓库编号去查；
 仓库名与编号不同时就会查不到。没在库里核实「123」的编号。
+
+## 后续：iPhone LINE 内置浏览器里弹窗最下面的格没滚上来（分支 `pearnly/keyboard-ios`，主会话 11-01 23:31 转用户实测）
+
+- 现象（用户 iPhone、LINE 内置浏览器、生产 testerp）：调拨「新建调拨单」点最下面「备注」，键盘弹起后弹窗收到键盘上方，但内容停在「单位成本」那一段，备注看不见。
+- 复现：Mac 上 iOS 模拟器（iOS 27.0、iPhone 17）。Safari 复现不了；做了一个仿 LINE 的最小 App（顶部栏 + WKWebView，两种键盘处理：
+  WebKit 自己处理 / 键盘弹出时 App 把网页视图缩矮）后复现，与用户截图一致。模拟器 Safari 与宿主里的网页经 `ios_webkit_debug_proxy` 读数。
+- 根因：App 内嵌网页键盘弹起后 `visualViewport.offsetTop` 报 363、高 351，但 `getBoundingClientRect` / `elementFromPoint` 的原点就是可见区顶端
+  （弹窗 CSS `top: 363px`，矩形却是 0–351）。共用模块按「offsetTop 到 offsetTop+高」（363–714）当可见区，备注 568–608 被当成看得见，没滚。
+  Safari、安卓 Chrome 两套坐标一致，所以 Safari、安卓真机和原来的模拟流程都过了。凡是 iOS 上的 App 内置浏览器（LINE、Facebook 等），
+  弹窗与页面里靠下的格都会这样，不只备注。
+- 修法：可见区不再用 visualViewport 的数自己推。键盘弹起期间放一个看不见的 fixed 探针（与弹窗外框同一组变量），读它实际落在哪里；
+  键盘停稳后 400ms 再核一次。电脑与键盘收起时没有探针。
+- 同批修：弹窗里靠下的日期 / 时间格第一次点就收起（上线后补验第 8 项）：Frappe 弹窗滚动时让 Date / Datetime / Time 格失焦，
+  摆它的那一下先拿掉类型标记、两帧后放回；官方日历按可见区重选上 / 下。
+- 数值（仿 LINE 宿主、WebKit 自己处理键盘）：聚焦前可见区 748、弹窗滚到 921，备注 568–608；键盘弹起后 `innerHeight` 351、
+  `visualViewport` 高 351 / `offsetTop` 363 / `pageTop` 397，弹窗 CSS `top` 363px、矩形 0–351，y=50–340 命中弹窗内容。
+  另一种宿主（键盘弹出时 App 把网页视图缩矮）同样复现。
+
+### 暂停点（11-02 00:30，主会话让收工）
+
+现状：
+- 改动在本地分支 `pearnly/keyboard-ios`（工作树 `/Users/skin/pearnly-kbd-ios`，本地提交 5956dc86，**未推送**，基线 main ee77289e + 本记录提交）：
+  - `desk/keyboard.js`：探针读可见区、键盘停稳后 400ms 再核、弹窗日期格摆放时不失焦并按可见区重选日历上 / 下。
+  - 单测 `tests/test-desk-keyboard.cjs` 12/12（新加的 iOS App 内嵌、弹窗日期格两条在旧代码上失败）。
+  - 流程 `keyboard_lib.py` 加「iOS 内嵌」模式（坐标原点跟可见区走、offsetTop 报 420），`erp.keyboard.dialogs` 加调拨新建备注：
+    旧代码只在 4 个「iOS 内嵌」检查上失败，新代码 30/30 通过（实验栈 `pearnly-ios-lab`，new 数据，手机宽）。
+- 模拟器实测（仿 LINE 宿主，新代码）已过：调拨新建（数量 / 单位 / 备注）、POS 开班（收银台 / 备注）、盘点录入（数量 / 说明）；
+  Safari：调拨备注、弹窗下部日期格（第一次点就开，日历在键盘上方）。旧代码全入口对照与新代码三种宿主全量没跑完（收工时停掉）。
+- 实验栈 `pearnly-ios-lab`（端口 18831–18833）已 stop、卷保留；模拟器已关机；没有在跑的进程。
+- 工具在 `~/pearnly-devtools/ios-keyboard-sim/`：`hostapp/`（仿 LINE 宿主源码与 Info.plist，编译命令见下）、`sim.mjs`（经
+  `ios_webkit_debug_proxy` 在模拟器网页里执行 JS）、`sim_entries.py`（逐入口：复用流程数据准备，真软键盘逐格点、量、截图）、`sim_all.sh`（旧代码一遍 + 新代码三种宿主）。
+  宿主编译：`xcrun --sdk iphonesimulator swiftc -sdk $(xcrun --sdk iphonesimulator --show-sdk-path) -target arm64-apple-ios17.0-simulator main.swift -o Host.app/Host`，
+  Info.plist 放进 Host.app，`codesign -f -s - Host.app`，`xcrun simctl install booted Host.app`；宿主为测试放开了「程序聚焦也弹键盘」，只用于本机模拟器。
+
+下一步（11-02）：
+1. 需要用户在本窗口的模拟器面板授权 iPhone 17（「Let Claude use it」）：没有授权时截图和点屏只能走 simctl 与调试代理（今晚就是这样做的，可以继续，但真触摸要授权）。
+2. `docker compose -p pearnly-ios-lab ... start`（同上端口、`PEARNLY_REGRESSION_SRC=/Users/skin/pearnly-kbd-ios`），启动模拟器与调试代理，跑 `sim_all.sh`：
+   出「入口 × iOS Safari × iOS App 内嵌（两种宿主）× 安卓」表，旧代码那一列回答「有多少没被覆盖」。
+3. 安卓：全部键盘流程 + `run.py --changed`，三星真机复核物料 / 入库 / DMS 编辑页（登记占用表）。
+4. 本地全闸门、候选离线检查（改了 pearnly_core）、推分支、CI 绿、合前报主会话、合入；部署前请用户 iPhone 实测。
+
+另记（与键盘无关，未修，报主会话）：盘点连续录入把「实际仓库」设成仓库名称（`stocktake-entry.js` 第 223 行 `warehouse_name`），
+选择框要的是编号（实验库 `WH-00009` / 名称「คลัง 7」），点「实际仓位」时仓位查询拿名称当编号，弹「未找到仓库」。实验栈与生产都复现。
