@@ -91,3 +91,15 @@
   `login-session`（identity.callback 只加计时，登录流程不变；`shared.login` / `shared.line.login` 等手动入口没测到，靠单元测试，部署后三星真机首开一次即覆盖 LINE 登录）、
   `erp.page.team` / `cowork.page.team`（团队页流程 `*.team.full-name`、`erp.team.add-member`、`*.team.bulk-disable` 实验栈通过）、`cc.browser-text`（SPA 取词器：编辑页、取景页实测；其余 SPA 页同一取词器、行为只在取回前不同，没逐页测）。
 - 文案：`check-copy.py` 新增 0、改动 0。
+
+## 后续：停用员工删了管理员自己的推送订阅（主会话 11-01 派，分支 `pearnly/logout-push-subscription`）
+
+- 现象（实验栈实测）：管理员当前登录有一条 CC 推送订阅，停用一位员工（200）后这条订阅 1 → 0。
+- 根因：框架只在两处「替别人登出」——`User.check_enable_disable`（停用）和 `User.on_trash`（删除），都调
+  `LoginManager.logout(user=那个人)`；它先跑 `on_logout` 钩子，钩子只拿到 `login_manager`，不知道登出的是谁。
+  `pearnly_core.assistant.push.forget_session` 一律按当前会话（管理员）删，于是删了管理员的、被停用人的反而留着（发出时才因会话已不在被清）。
+  全仓 `on_logout` / `on_session_creation` 钩子只有这一个 `on_logout` 和 `sessions.register_session`（只在本人登录建会话时记账，不受影响）。
+- 修：`forget_session` 沿调用栈找到 `LoginManager.logout` 那一帧（按函数代码对象认），读它的 `user`。是别人 → 删那个人的全部订阅、不动当前会话的；
+  空或是自己 → 照旧只删本次登录的；找不到这一帧 → 按本人。两处调用点用同一办法覆盖，不用各自打标记（删除没有能抢在框架之前的钩子）。
+- 证据：`tests/test_assistant_push.py` 新增「替别人登出保留我的、删他的」（与框架同签名的替身），生产镜像里 39/39 通过；
+  实验栈真框架：停用员工后管理员这次登录的订阅 1（改前 0）、被停用人的 0；管理员本人退出后自己的 0。删除用户那条调用点没单独实测（同一个 `logout(user=…)`）。

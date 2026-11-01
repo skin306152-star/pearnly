@@ -6,7 +6,8 @@
 - 订阅：`Pearnly Assistant Push Subscription`，按推送地址的 sha256 唯一。对话页每次打开都重新认领，同一台设备换人
   登录就覆盖成当前登录人；每人最多 MAX_PER_USER 台，多了删最久没认领的。只删自己的。
 - 订阅跟着认领它的那次登录走（`sid` 存登录会话编号的摘要，不存编号本身：它就是登录凭据，表又对管理员可读）：
-  退出登录时删掉（`on_logout` 钩子 `forget_session`）；身份服务统一登出、被踢、过期等不经钩子的，发出前核对会话
+  退出登录时删掉（`on_logout` 钩子 `forget_session`）；管理员停用 / 删除别人的账号时框架也走这个钩子（替那个人登出），
+  这时只删那个人的、不动管理员自己这次登录的；身份服务统一登出、被踢、过期等不经钩子的，发出前核对会话
   已不在就删掉、不发。共用的电脑或手机上，上一个人的提醒不会再弹给下一个人。
 - 发出：只发往白名单里的推送服务（`webpush.push_host`），不跟随跳转；推送服务回 404 / 410 表示订阅已失效，删掉；
   其余失败（含 403：签名写错也会 403，不能因此删掉好订阅）只记在订阅行上，并汇总记一次错误日志。
@@ -16,6 +17,7 @@
 只由本模块读写这两张表。
 """
 import hashlib
+import sys
 import time
 
 import frappe
@@ -146,15 +148,44 @@ def unsubscribe(endpoint) -> None:
 
 
 def forget_session(login_manager=None) -> None:
-    """`on_logout` 钩子（框架在删会话之前调）：这次登录认领的设备不再收这个人的推送。别人的、别的登录的都不动；
+    """`on_logout` 钩子（框架在删会话之前调）。本人退出：这次登录认领的设备不再收这个人的推送，别人的、别的登录的都不动。
+    替别人登出（管理员停用 / 删除账号时框架调 `LoginManager.logout(user=那个人)`，当前会话还是管理员）：那个人的登录
+    全部结束，删他的全部订阅，管理员自己这次登录的订阅不动（11-01：原来按当前会话删，管理员停用别人后自己的推送被删了）。
     删不掉只记一条日志，不挡退出。"""
     user, key = frappe.session.user, session_key(frappe.session.sid)
-    if not user or user == "Guest" or not key:
+    target = _signed_out_user()
+    if target and target != user:
+        user, filters = target, {"user": target}
+    elif not user or user == "Guest" or not key:
         return
+    else:
+        filters = {"user": user, "sid": key}
     try:
-        frappe.db.delete(SUBSCRIPTION, {"user": user, "sid": key})
+        frappe.db.delete(SUBSCRIPTION, filters)
     except Exception as exc:  # noqa: BLE001 —— 退出登录不能因为这里失败
         frappe.log_error(title="Assistant push sign-out cleanup failed", message=type(exc).__name__)
+
+
+def _signed_out_user() -> str:
+    """这次 `on_logout` 登出的是谁：框架的钩子只给 `login_manager`，不给 `logout(user=…)` 的那个 user，所以沿调用栈
+    找到 `LoginManager.logout` 那一帧（按函数代码对象认，不按名字）读它的 `user`。本人退出时它是空的（框架在钩子之后
+    才补成当前用户）；找不到这一帧（不是经框架退出）也当本人。"""
+    code = _logout_code()
+    frame = sys._getframe(1) if code else None
+    while frame is not None:
+        if frame.f_code is code:
+            return str(frame.f_locals.get("user") or "")
+        frame = frame.f_back
+    return ""
+
+
+def _logout_code():
+    try:
+        from frappe.auth import LoginManager
+
+        return LoginManager.logout.__code__
+    except Exception:  # noqa: BLE001 —— 没有框架登录管理器（离线脚本）：按本人退出处理
+        return None
 
 
 def _live_sessions(user) -> set:

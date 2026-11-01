@@ -732,6 +732,28 @@ class SessionTests(_Service):
         self.assertEqual(len(frappe.rows), 2)
         self.assertEqual(frappe.logs, [])
 
+    def test_signing_someone_else_out_keeps_my_devices_and_drops_theirs(self):
+        # 管理员停用 / 删除别人的账号：框架调 LoginManager.logout(user=那个人)，钩子里的当前会话还是管理员（11-01）
+        class LoginManager:  # 与框架同一个签名：本人退出时 user 为空，框架在钩子之后才补成当前用户
+            def logout(self, arg="", user=None):
+                push.forget_session(login_manager=self)
+
+        self.subscribe(FCM, user="admin@example.com", sid="sid-admin")
+        self.subscribe(self.APPLE, user="b@example.com", sid="sid-b1")
+        self.subscribe(FCM + "-b2", user="b@example.com", sid="sid-b2")
+        self.subscribe(FCM + "-c", user="c@example.com", sid="sid-c1")
+        frappe.sign_in("admin@example.com", "sid-admin")
+        original, push._logout_code = push._logout_code, lambda: LoginManager.logout.__code__
+        try:
+            LoginManager().logout(user="b@example.com")
+            self.assertEqual(sorted(row["endpoint"] for row in frappe.rows.values()), sorted([FCM, FCM + "-c"]))
+            LoginManager().logout(user="admin@example.com")  # 点名自己 = 本人退出：只删这次登录的
+            LoginManager().logout()
+        finally:
+            push._logout_code = original
+        self.assertEqual([row["endpoint"] for row in frappe.rows.values()], [FCM + "-c"])
+        self.assertEqual(frappe.logs, [])
+
     def test_a_failed_cleanup_never_blocks_signing_out(self):
         self.subscribe(user="a@example.com", sid="sid-a1")
 
