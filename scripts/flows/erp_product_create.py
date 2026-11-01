@@ -48,9 +48,9 @@ def steps(params, camera_code=None):
          "if(!b) return {error:'no new button'}; const n=window.__dlgs.length; b.click();"
          "for(let k=0;k<40&&window.__dlgs.length===n;k++) await new Promise(r=>setTimeout(r,250)); await idle();"
          "const d=window.__dlgs[window.__dlgs.length-1]; if(!d||!d.fields_dict.product_name) return {error:'no product dialog'};"
-         "return {fields: Object.keys(d.fields_dict)};"},
+         "window.__product_dialog=d; return {fields: Object.keys(d.fields_dict)};"},
         # 分类：打一个没有的名称 → 下拉里有「新建」→ 原地开分类小弹窗（名称已带进来）→ 保存 → 选上
-        {"name": "分类原地新建", "js": IDLE + "const d=window.__dlgs[window.__dlgs.length-1]; const c=d.fields_dict.category;"
+        {"name": "分类原地新建", "js": IDLE + "const d=window.__product_dialog; const c=d.fields_dict.category;"
          f"c.$input.trigger('focus').val({json.dumps(params['category'])}).trigger('input'); await new Promise(r=>setTimeout(r,800)); await idle();"
          "const offered=(c.awesomplete&&c.awesomplete._list||[]).some(i=>i&&i.value==='pearnly_create__link_option');"
          "const n=window.__dlgs.length; frappe.pearnly.open_link_create('ERP Product Category', c.$input, c);"
@@ -62,7 +62,7 @@ def steps(params, camera_code=None):
          "const made=(r.message||{}).name||''; if(made) await c.set_value(made); await idle();"
          "await d.set_value('attribute', 'แดง');"
          "return {offered, prefilled, made, picked: d.get_value('category')||''};"},
-        {"name": "填写提交", "js": IDLE + "const d=window.__dlgs[window.__dlgs.length-1];"
+        {"name": "填写提交", "js": IDLE + "const d=window.__product_dialog;"
          f"await d.set_value('product_name', {name}); await d.set_value('unit', 'ชิ้น'); await d.set_value('code_value', {barcode});"
          "await new Promise(r=>setTimeout(r,500)); await idle(); d.get_primary_btn().trigger('click');"
          "for(let k=0;k<40&&d.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();"
