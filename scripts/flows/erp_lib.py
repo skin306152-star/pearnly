@@ -64,3 +64,77 @@ print(json.dumps({{"qty": float(qty)}}))
 
 def js_value(value) -> str:
     return json.dumps(value, ensure_ascii=False)
+
+
+def ensure_documents(lab, manifest) -> dict:
+    """这家公司七类单据（入库、出库、入了库的采购单、销售单、已过账盘点、收银小票、已交班的班次）各保证有一张：已有就不动，
+    没有就按正式函数建（请求号按公司固定，可重复跑）。打印、导出这类「拿库里已有单据」的流程先调它，不靠别的流程先建单。"""
+    co = company(manifest)
+    product = codes(manifest)["by_code"]["product"]
+    return lab.python(manifest["site"], f"""
+from pearnly_erp_portal.cashier import sales as pos, shifts, terminals
+from pearnly_erp_portal.inventory import count, documents
+from pearnly_erp_portal.masters import company as companies, customers
+from pearnly_erp_portal.purchasing import entry as purchase, suppliers
+from pearnly_erp_portal.sales import entry as sales
+co, product = {co!r}, {product!r}
+frappe.set_user("admin@erp.regression")
+companies.set_active_company(co)
+stores = frappe.get_all("ERP Warehouse", filters={{"company": co, "is_active": 1}}, pluck="name", order_by="creation asc")
+till = terminals.ensure_default(company=co)
+if not frappe.db.get_value("ERP POS Terminal", till, "warehouse"):  # 接 Express 的公司默认那台不带仓：同 erp_pos_shift 挂第一个仓
+    first = frappe.get_all("ERP Warehouse", filters={{"company": co, "is_active": 1}}, pluck="name", order_by="express_code asc, creation asc")[0]
+    terminals.update_terminal(till, warehouse=first)
+wh = frappe.db.get_value("ERP POS Terminal", till, "warehouse")
+shelf = (frappe.get_all("ERP Warehouse Location", filters={{"parent": wh, "parenttype": "ERP Warehouse"}}, pluck="location_name",
+                        order_by="idx asc", limit=1) or [""])[0]
+tills = frappe.get_all("ERP POS Terminal", filters={{"company": co}}, pluck="name")
+made = []
+def has(doctype, filters):
+    return bool(frappe.get_all(doctype, filters=filters, pluck="name", limit_page_length=1))
+def entry(direction, qty):
+    documents.create_entry(direction=direction, posting_date=frappe.utils.nowdate(), warehouse=wh, reason="flow seed", submit=True,
+                           lines=[{{"product": product, "qty": qty, "unit_cost": 10, "location": shelf}}])
+    made.append("stock " + direction)
+if not has("ERP Stock Entry", {{"direction": "in", "status": "submitted", "warehouse": ["in", stores]}}):
+    entry("in", 10)
+if not has("ERP Stock Entry", {{"direction": "out", "status": "submitted", "warehouse": ["in", stores]}}):
+    entry("out", 1)
+line = {{"product": product, "item_type": "goods", "description": "flow seed", "qty": 1, "unit": "ชิ้น", "unit_price": 100, "vat_rate": 7,
+         "warehouse": wh, "location": shelf}}
+if not has("Purchase Document", {{"company": co, "status": "submitted", "stock_posted_at": ["is", "set"]}}):
+    supplier = frappe.db.get_value("ERP Supplier", {{"supplier_name": "ผู้ขายโฟลว์"}}) or suppliers.create_supplier(supplier_name="ผู้ขายโฟลว์")["name"]
+    purchase.post({{"company": co, "supplier": supplier, "doc_date": "2026-10-01", "currency": "THB", "fx_rate": 1, "has_vat": 1,
+                   "price_mode": "exclusive", "doc_kind": "purchase_invoice", "update_stock": 1, "doc_no": "FLOW-SEED-IN", "warehouse": wh,
+                   "lines": [line]}}, request_id="flow-seed-purchase-" + co)
+    made.append("purchase")
+if not has("ERP Sales Document", {{"company": co, "status": "submitted", "doc_kind": "receipt", "source": ["!=", "pos"]}}):
+    customer = frappe.db.get_value("ERP Customer", {{"customer_name": "ลูกค้าโฟลว์"}}) or customers.create_customer(customer_name="ลูกค้าโฟลว์")["name"]
+    sales.post({{"company": co, "customer": customer, "doc_date": "2026-10-05", "has_vat": 1, "vat_rate": 7, "source": "manual",
+                "doc_kind": "receipt", "warehouse": wh, "paid_amount": 107, "payment_method": "cash", "payment_date": "2026-10-05",
+                "lines": [dict(line, vat_applicable=1)]}}, request_id="flow-seed-sale-" + co)
+    made.append("sale")
+frappe.db.commit()
+if not has("ERP Stock Count", {{"warehouse": ["in", stores], "status": "Posted"}}):
+    frappe.set_user("stock@erp.regression")
+    companies.set_active_company(co)
+    posted = count.create_count(title="flow seed " + frappe.generate_hash(length=6), warehouse=wh)["name"]
+    count.add_entry(count=posted, product=product, qty=1, warehouse=wh, location=shelf or None, request_id="flow-seed-count-" + posted)
+    count.close_count(posted, review_token=count.review_count(posted)["review_token"])
+    frappe.db.commit()
+    made.append("count")
+    frappe.set_user("admin@erp.regression")
+    companies.set_active_company(co)
+if not (has("ERP Sale", {{"terminal": ["in", tills]}}) and has("ERP Shift", {{"terminal": ["in", tills], "status": "closed"}})):
+    for shift in frappe.get_all("ERP Shift", filters={{"status": "open", "terminal": till}}, pluck="name"):
+        shifts.close_shift(shift, counted={{"cash": shifts.summary(shift, own_only=False)["expected_cash"]}})
+    shift = shifts.open_shift(terminal=till, opening_float=500)["name"]
+    price = float(frappe.db.get_value("ERP Product", product, "unit_price") or 100)
+    pos.create_sale(lines=[{{"product": product, "qty": 1, "unit_price": price}}], payments=[{{"method": "cash", "amount": price}}],
+                    shift=shift, terminal=till, client_uuid="flow-seed-pos-" + shift)
+    shifts.close_shift(shift, counted={{"cash": shifts.summary(shift, own_only=False)["expected_cash"]}})
+    frappe.db.commit()
+    made.append("pos")
+frappe.db.commit()
+print(json.dumps({{"company": co, "made": made}}))
+""")

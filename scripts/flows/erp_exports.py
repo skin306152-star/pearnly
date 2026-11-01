@@ -3,13 +3,15 @@
 
 每套数据、每个有数据可导的页面：在页面上点它自己的导出（页头按钮或「…」菜单、班次是勾选后的「导出选中」），
 页面发出的导出请求是 POST、回 200、是能打开的 xlsx，文件里有库里这家公司的那些单号 / 商品码（老数据）；
-导出不建导出任务（小的当场给文件）。没有可导的（新开户没有过账的盘点、没有班次）就不点那一页。
+导出不建导出任务（小的当场给文件）。公司取数据清单里的那家；各类单据先由 `erp_lib.ensure_documents` 保证各有一张
+（新开户本来没有过账的盘点、班次），六页每次都点，不靠别的流程先建单、也不跟着别的流程切走的当前公司。
 """
 from __future__ import annotations
 
 import json
 
 from desk_list import ACTION, AWAIT_EXPORT, CAPTURE_EXPORTS, IDLE, workbook_text
+from erp_lib import company as dataset_company, ensure_documents
 
 TITLE = "ERP 导出：各页点导出、走 POST、文件里有该有的单据"
 # 页面（路由）、按钮文字（实验室账号界面是中文）、导出接口
@@ -24,32 +26,27 @@ PAGES = {
 
 
 def prepare(lab, manifest):
-    found = lab.python(manifest["site"], """
-from pearnly_erp_portal.masters import company as companies
-company = companies.active_company("admin@erp.regression")
-warehouses = frappe.get_all("ERP Warehouse", filters={"company": company}, pluck="name")
-sales = frappe.get_all("ERP Sales Document", filters={"company": company}, pluck="system_no", limit_page_length=5)
-purchases = frappe.get_all("Purchase Document", filters={"company": company, "status": "submitted"}, pluck="doc_no",
+    ensure_documents(lab, manifest)  # 也把管理员的当前公司切到这家
+    found = lab.python(manifest["site"], f"""
+company = {dataset_company(manifest)!r}
+warehouses = frappe.get_all("ERP Warehouse", filters={{"company": company}}, pluck="name")
+sales = frappe.get_all("ERP Sales Document", filters={{"company": company}}, pluck="system_no", limit_page_length=5)
+purchases = frappe.get_all("Purchase Document", filters={{"company": company, "status": "submitted"}}, pluck="doc_no",
                            limit_page_length=5)
-stocked = frappe.get_all("ERP Stock Balance", filters={"warehouse": ["in", warehouses or [""]], "qty_on_hand": ["!=", 0]},
+stocked = frappe.get_all("ERP Stock Balance", filters={{"warehouse": ["in", warehouses or [""]], "qty_on_hand": ["!=", 0]}},
                          pluck="product", limit_page_length=5)
 codes = [frappe.db.get_value("ERP Product", name, "code") for name in stocked]
-posted = frappe.get_all("ERP Stock Count", filters={"warehouse": ["in", warehouses or [""]], "status": "Posted"}, pluck="name",
+posted = frappe.get_all("ERP Stock Count", filters={{"warehouse": ["in", warehouses or [""]], "status": "Posted"}}, pluck="name",
                         order_by="creation asc", limit_page_length=1)
-counted = frappe.get_all("ERP Stock Count Entry", filters={"count": posted[0], "voided": 0}, pluck="product",
+counted = frappe.get_all("ERP Stock Count Entry", filters={{"count": posted[0], "voided": 0}}, pluck="product",
                          limit_page_length=5) if posted else []
 from pearnly_erp_portal.cashier import contracts as cashier
-shifts = frappe.get_all("ERP Shift", filters={"status": cashier.CLOSED}, pluck="name", limit_page_length=1)
-print(json.dumps({"company": company, "sales": sales, "purchase": [n for n in purchases if n], "inventory": codes,
+shifts = frappe.get_all("ERP Shift", filters={{"status": cashier.CLOSED}}, pluck="name", limit_page_length=1)
+print(json.dumps({{"company": company, "sales": sales, "purchase": [n for n in purchases if n], "inventory": codes,
                   "count": posted[0] if posted else "", "stock_count": [frappe.db.get_value("ERP Product", n, "code") for n in counted],
-                  "shifts": shifts, "jobs": frappe.db.count("Pearnly Export")}))
+                  "shifts": shifts, "jobs": frappe.db.count("Pearnly Export")}}))
 """)
-    pages = ["sales", "purchase", "inventory", "ledger"]
-    if found["count"]:
-        pages.append("stock_count")
-    if found["shifts"]:
-        pages.append("shifts")
-    return {**found, "pages": pages}
+    return {**found, "pages": ["sales", "purchase", "inventory", "ledger", "stock_count", "shifts"]}
 
 
 def _click(key, params):

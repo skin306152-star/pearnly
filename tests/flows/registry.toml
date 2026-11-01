@@ -7,6 +7,10 @@
 # 每条：id、title、module（流程模块，提供 prepare / steps / judge / verify）、start（打开的页面，可用 prepare 回的参数）、
 # user（岗位账号）、datasets、viewports、camera（手机宽度时另用假摄像头读条码跑一遍）、covers（这条流程覆盖的文件，glob）；
 # product（默认 erp）：哪个产品的两套数据与岗位账号（`datasets.py new|old <产品>`、`<岗位>@<产品>.regression`）。
+#
+# 数据只靠两样：`datasets.py` 的固定数据、本流程 `prepare` 自己备的（有就复用、没有就按正式函数建，可重复跑）。
+# 不靠排在前面的别的流程留下的库存、单据、当前公司或语言；要「库里已有的各类单据」用 `erp_lib.ensure_documents`。
+# 查法：新起的实验栈上 `run.py --flow <id>` 单跑能过，`run.py --all --order reverse` 倒过来跑全套也能过（主会话 11-01）。
 
 [[flow]]
 id = "erp.stocktake.scan"

@@ -122,4 +122,21 @@ python3 scripts/flows/run.py --rerun-failed ~/pearnly-devtools/flows-main.json -
 
 1. 写 `scripts/flows/<流程>.py`（照 `erp_stocktake_scan.py`：`prepare` / `steps` / `judge` / `verify`，`verify` 要查库里落的结果，不能只看能不能打开）。
 2. 在 `registry.toml` 登记，`covers` 列出它覆盖的产品文件。
-3. `python3 scripts/flows/run.py --flow <id>` 在两套数据、两种宽度上都过。
+3. `python3 scripts/flows/run.py --flow <id>` 在两套数据、两种宽度上都过，而且要在**新起的实验栈**上单跑也过。
+
+## 流程之间不共用数据（主会话 11-01）
+
+每条流程的数据只能来自两处：`datasets.py` 的固定数据，或者本流程 `prepare` 自己备的。
+- 自己备的要能重复跑：有就复用，没有就按正式函数建。
+- 不靠排在前面的流程留下的库存、单据、当前公司或界面语言。
+- 要「库里已有的各类单据」的（打印、导出），先调 `erp_lib.ensure_documents`：入库、出库、入了库的采购单、销售单、已过账盘点、收银小票、已交班的班次，七类各保证有一张。
+
+以前按登记表顺序跑全套能过，单跑或换了顺序就不过、或者测得少了。起因是 11-01 新栈上单跑库存卡，新开户站点没有库存。
+
+查法：在新起的实验栈上倒过来跑全套，同一站点的格反着跑，靠前面流程留下数据的流程就会排到前面露出来；结果仍按登记表顺序记。
+
+```bash
+python3 scripts/flows/run.py --all --order reverse --jobs 3 --out ~/pearnly-devtools/flows-reverse.json
+```
+
+改了登记表顺序、加了流程或者改了 `prepare` 的，合入前倒序全套跑一遍。部署闸认的全套不论正序倒序（说明都以 `all flows` 开头）。
