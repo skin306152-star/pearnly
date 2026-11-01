@@ -1,4 +1,4 @@
-"""回归实验室：按岗位建测试账号 <岗位>@<产品>.regression（界面中文、Desk User + 岗位角色），已有就对齐角色。
+"""回归实验室：按岗位建测试账号 <岗位>@<产品>.regression（界面中文、Asia/Bangkok、Desk User + 岗位角色），已有就对齐角色与时区。
 站点收尾与功能角色授权走正式开户同一套函数（`pearnly_core.provisioning.finalize_site` / `ensure_feature_roles`，
 清单取控制面 `features.roles_payload`，功能全开），所以岗位看到的权限与线上租户一致；管理员账号由 `ensure_feature_roles`
 换成「产品管理员 + 全部功能角色 + Desk User」、收走 System Manager。"""
@@ -23,6 +23,8 @@ try:
         else:
             doc = frappe.get_doc({"doctype": "User", "email": email, "first_name": job, "send_welcome_email": 0, "enabled": 1})
         doc.language = "zh"
+        # 同站点时区（生产账号也是）：按用户时区取「今天」的页面（库存卡默认本月）在泰国 00:00–01:30 不会落到上个月（11-01 stock-card）
+        doc.time_zone = "Asia/Bangkok"
         doc.user_type = "System User"
         doc.flags.no_welcome_mail = True
         for role in wanted:

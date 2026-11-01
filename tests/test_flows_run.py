@@ -1,0 +1,212 @@
+"""流程用例跑法（scripts/flows/run.py）里不碰实验室的部分：前端产物核对、只补跑失败格的合并、计费站点表。"""
+import contextlib
+import importlib.util
+import io
+import json
+import os
+import tempfile
+import time
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def load(path, name):
+    spec = importlib.util.spec_from_file_location(name, ROOT / path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+run = load("scripts/flows/run.py", "flows_run")
+FLOWS = [{"id": "a.one", "module": "x.py", "start": "/", "datasets": ["new"], "viewports": ["desktop", "mobile"]},
+         {"id": "b.two", "module": "y.py", "start": "/", "datasets": ["new", "old"], "viewports": ["desktop"]}]
+
+
+def cell(flow, dataset, viewport, ok=True):
+    return {"flow": flow, "dataset": dataset, "viewport": viewport, "ok": ok, "seconds": 1.0, "checks": []}
+
+
+class FakeLab:
+    def unbilled(self):
+        return []
+
+    def dataset(self, which, product="erp"):
+        return {}
+
+
+class SpaFresh(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        (self.tmp / "frontend/src").mkdir(parents=True)
+        (self.tmp / "frontend/assistant/src").mkdir(parents=True)
+        self.saved = run.ROOT, run.SPA
+        run.ROOT = self.tmp
+        run.SPA = [(self.tmp / "frontend", self.tmp / "out/pearnly-app/index.html"),
+                   (self.tmp / "frontend/assistant", self.tmp / "out/assistant/index.html")]
+
+    def tearDown(self):
+        run.ROOT, run.SPA = self.saved
+
+    def touch(self, path, age=0):
+        target = self.tmp / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("x")
+        stamp = time.time() - age
+        os.utime(target, (stamp, stamp))
+
+    def test_missing_frontend_build_stops_with_the_build_command(self):
+        self.touch("frontend/src/App.vue", age=100)
+        self.touch("out/assistant/index.html")
+        with self.assertRaises(SystemExit) as stop:
+            run.spa_fresh()
+        self.assertIn("out/pearnly-app/index.html", str(stop.exception))
+        self.assertIn("cd frontend && npm ci && npm run build", str(stop.exception))
+
+    def test_vue_source_newer_than_build_is_stale(self):
+        self.touch("out/pearnly-app/index.html", age=100)
+        self.touch("out/assistant/index.html")
+        self.touch("frontend/src/App.vue")
+        with self.assertRaises(SystemExit) as stop:
+            run.spa_fresh()
+        self.assertIn("比 frontend 的源码旧", str(stop.exception))
+
+    def test_assistant_source_does_not_make_the_outer_build_stale(self):
+        self.touch("frontend/src/App.vue", age=200)
+        self.touch("out/pearnly-app/index.html", age=100)
+        self.touch("frontend/assistant/src/main.tsx", age=10)
+        self.touch("out/assistant/index.html")
+        run.spa_fresh()
+
+
+class RerunFailed(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.saved = {name: getattr(run, name) for name in ("registry", "head", "product_dirty", "Lab", "run_flow", "spa_fresh")}
+        run.registry = lambda: FLOWS
+        run.head = lambda: "f" * 40
+        run.product_dirty = lambda: ""
+        run.Lab = FakeLab
+        run.spa_fresh = lambda: None
+        self.ran = []
+
+        def run_flow(lab, flow, dataset, viewport):
+            self.ran.append((flow["id"], dataset, viewport))
+            return cell(flow["id"], dataset, viewport)
+        run.run_flow = run_flow
+
+    def tearDown(self):
+        for name, value in self.saved.items():
+            setattr(run, name, value)
+
+    def previous(self, **extra):
+        data = {"ok": False, "summary": "…", "sha": "f" * 40, "dirty": False, "scope": "all flows", "flow_count": 2, "seconds": 100,
+                "results": [cell("a.one", "new", "desktop"), cell("a.one", "new", "mobile", ok=False),
+                            cell("b.two", "new", "desktop"), cell("b.two", "old", "desktop")]}
+        data.update(extra)
+        path = self.tmp / "prev.json"
+        path.write_text(json.dumps(data))
+        return path
+
+    def main(self, *argv):
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            code = run.main(list(argv))
+        return code, out.getvalue()
+
+    def test_reruns_only_failed_cells_and_merges_with_the_full_suite(self):
+        out = self.tmp / "merged.json"
+        code, printed = self.main("--rerun-failed", str(self.previous()), "--out", str(out))
+        self.assertEqual(code, 0, printed)
+        self.assertEqual(self.ran, [("a.one", "new", "mobile")])
+        merged = json.loads(out.read_text())
+        self.assertTrue(merged["ok"])
+        self.assertTrue(merged["summary"].startswith("all flows; 2 flows; datasets new,old; 4/4 runs passed; "))
+        self.assertTrue(merged["summary"].endswith("; reran 1: a.one new/mobile"))
+        self.assertEqual(merged["reran"], ["a.one new/mobile"])
+        self.assertEqual([r.get("rerun", False) for r in merged["results"]], [False, True, False, False])
+        self.assertGreaterEqual(merged["seconds"], 100)
+        self.assertEqual((merged["sha"], merged["scope"]), ("f" * 40, "all flows"))
+
+    def test_earlier_reruns_stay_listed(self):
+        out = self.tmp / "merged.json"
+        self.main("--rerun-failed", str(self.previous(reran=["b.two old/desktop"])), "--out", str(out))
+        self.assertEqual(json.loads(out.read_text())["reran"], ["b.two old/desktop", "a.one new/mobile"])
+
+    def test_other_commit_is_refused(self):
+        with self.assertRaises(SystemExit) as stop:
+            self.main("--rerun-failed", str(self.previous(sha="e" * 40)))
+        self.assertIn("同一提交", str(stop.exception))
+        self.assertEqual(self.ran, [])
+
+    def test_result_without_commit_is_refused(self):
+        path = self.previous()
+        data = json.loads(path.read_text())
+        del data["sha"]
+        path.write_text(json.dumps(data))
+        with self.assertRaises(SystemExit):
+            self.main("--rerun-failed", str(path))
+
+    def test_dirty_result_is_refused(self):
+        with self.assertRaises(SystemExit) as stop:
+            self.main("--rerun-failed", str(self.previous(dirty=True)))
+        self.assertIn("未提交改动", str(stop.exception))
+
+    def test_cells_must_match_the_registry(self):
+        path = self.previous()
+        data = json.loads(path.read_text())
+        data["results"].pop()
+        path.write_text(json.dumps(data))
+        with self.assertRaises(SystemExit) as stop:
+            self.main("--rerun-failed", str(path))
+        self.assertIn("对不上", str(stop.exception))
+
+    def test_partial_scope_cannot_post_status(self):
+        with self.assertRaises(SystemExit) as stop:
+            self.main("--rerun-failed", str(self.previous(scope="flows a.one")), "--post-status")
+        self.assertIn("部分范围", str(stop.exception))
+
+    def test_scope_flags_do_not_combine(self):
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            self.main("--rerun-failed", str(self.previous()), "--all")
+
+    def test_nothing_failed_runs_nothing(self):
+        path = self.previous()
+        data = json.loads(path.read_text())
+        for r in data["results"]:
+            r["ok"] = True
+        path.write_text(json.dumps(data))
+        code, printed = self.main("--rerun-failed", str(path))
+        self.assertEqual((code, self.ran), (0, []))
+        self.assertIn("没有不通过的格", printed)
+
+    def test_full_run_records_commit_and_scope_for_a_later_merge(self):
+        out = self.tmp / "full.json"
+        self.main("--all", "--out", str(out))
+        data = json.loads(out.read_text())
+        self.assertEqual((data["sha"], data["dirty"], data["scope"], data["flow_count"]), ("f" * 40, False, "all flows", 2))
+        self.assertEqual(len(data["results"]), 4)
+        self.assertNotIn("reran", data)
+
+    def test_long_description_is_cut_for_github(self):
+        posted = []
+        saved = run.subprocess.run
+        run.subprocess.run = lambda cmd, **kw: posted.append(cmd)
+        try:
+            run.post_status(True, "all flows; " + "x" * 200)
+        finally:
+            run.subprocess.run = saved
+        description = next(arg for arg in posted[0] if arg.startswith("description="))
+        self.assertEqual(len(description), len("description=") + 140)
+        self.assertTrue(description.endswith("…"))
+
+
+class BilledSites(unittest.TestCase):
+    def test_billed_sites_are_lab_sites(self):
+        init = load("scripts/regression/lab_init.py", "lab_init")
+        self.assertTrue({site for _, _, site in init.BILLED} <= set(init.SITES))
+        self.assertIn("lab_billing.py", (ROOT / "scripts/regression/lab_init.py").read_text())
+
+
+if __name__ == "__main__":
+    unittest.main()

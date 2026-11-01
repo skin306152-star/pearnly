@@ -5,10 +5,12 @@
     python3 scripts/flows/run.py --flow erp.stocktake.scan
     python3 scripts/flows/run.py --changed --base origin/main      # 只跑改动文件涉及的流程
     ... --out 结果.json --post-status                                # 结果作为提交状态 `pearnly/flows` 回写 GitHub
+    python3 scripts/flows/run.py --rerun-failed 结果.json --out 合并.json --post-status   # 同一提交上只补跑失败格、并进上次结果
 
 分支：`--changed --post-status` 只跑改动文件涉及的流程；部署前：在要部署的 main 提交上 `--all --post-status` 跑全套，
 `scripts/production/deploy.sh` 只认全套通过（说明以 `all flows` 开头）。回写前核对实验室挂的就是本工作树的源码、产品代码没有未提交改动。
 本机睡眠或实验室没起来时没有这个状态，部署闸照样拦；补跑方法见 `tests/flows/README.md`。
+全套里个别格因环境不通过时 `--rerun-failed` 只重跑那几格，与上次结果合并后回写，说明里写明补跑了哪几格（范围仍是上次的）。
 
 每个流程 × 每套数据（datasets.py new / old，先跑一遍保证数据齐，拿清单）× 每个宽度（desktop / mobile）：
 建会话 → 流程模块 `prepare`（在站点里开单等）→ 无头 Chrome 按 `steps` 点页面（`scripts/regression/ui_steps.mjs`，手机宽度、假摄像头）
@@ -64,16 +66,33 @@ def covers(flow, path) -> bool:
                for pattern in flow.get("covers", []))
 
 
-SPA = [(ROOT / "frontend/assistant", ROOT / "apps/pearnly_core/pearnly_core/public/assistant/index.html")]
+# 前端单页：源码目录 → 构建产物。`frontend/` 是 Frappe UI 单页（DMS 的 LINE 一次性票据编辑器），`frontend/assistant` 是 CC 对话页
+SPA = [(ROOT / "frontend", ROOT / "apps/pearnly_core/pearnly_core/public/pearnly-app/index.html"),
+       (ROOT / "frontend/assistant", ROOT / "apps/pearnly_core/pearnly_core/public/assistant/index.html")]
+SPA_SOURCE = (".ts", ".tsx", ".vue", ".js", ".mjs", ".css", ".html", ".json")
 
 
 def spa_fresh():
-    """前端单页的构建产物不进 git、实时源码也盖不到：产物要比源码新，否则 CC 对话页测的不是这个提交。"""
+    """前端单页的构建产物不进 git、实时源码也盖不到：产物要在、且比源码新，否则页面测的不是这个提交
+    （新工作树没建 `frontend/` 产物时 dms.booking.editor 只看到「找不到网页」，10-31）。"""
+    nested = [source for source, _ in SPA]
     for source, built in SPA:
+        others = [n for n in nested if n != source and source in n.parents]  # 嵌在里面的另一个单页各算各的
         newest = max((f.stat().st_mtime for f in source.rglob("*") if f.is_file() and "node_modules" not in f.parts
-                      and f.suffix in (".ts", ".tsx", ".css", ".html", ".json")), default=0)
-        if not built.exists() or built.stat().st_mtime < newest:
-            raise SystemExit(f"{built.relative_to(ROOT)} 比 {source.relative_to(ROOT)} 的源码旧：先在 {source.relative_to(ROOT)} 里 npm run build 再回写状态")
+                      and f.suffix in SPA_SOURCE and not any(o in f.parents for o in others)), default=0)
+        build = f"cd {source.relative_to(ROOT)} && npm ci && npm run build"
+        if not built.exists():
+            raise SystemExit(f"没有 {built.relative_to(ROOT)}（前端产物不进 git，新工作树要先构建）：{build}")
+        if built.stat().st_mtime < newest:
+            raise SystemExit(f"{built.relative_to(ROOT)} 比 {source.relative_to(ROOT)} 的源码旧：{build}")
+
+
+def lab_billing_module():
+    """建站脚本里的计费站点表（`lab_init.BILLED`，只用标准库，可以在本机导入）。"""
+    spec = importlib.util.spec_from_file_location("lab_init", ROOT / "scripts/regression/lab_init.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def lab_runs_this_tree():
@@ -83,8 +102,8 @@ def lab_runs_this_tree():
     apps = [m for m in mounts if "/apps/" in m]
     if not apps or not all(m.startswith(str(ROOT / "apps") + "/") for m in apps):
         raise SystemExit(f"实验室挂的不是本工作树的源码（{apps[:1]}），用 PEARNLY_REGRESSION_SRC={ROOT} 重建实验室后再回写状态")
-    dirty = subprocess.run(["git", "status", "--porcelain", "apps", "frontend"], cwd=ROOT, capture_output=True, text=True).stdout
-    if dirty.strip():
+    dirty = product_dirty()
+    if dirty:
         raise SystemExit("产品代码有未提交改动，结果不代表这个提交，不回写状态：\n" + dirty[:600])
 
 
@@ -161,6 +180,19 @@ class Lab:
             if lost:
                 raise SystemExit(f"实验室站点 {site} 迁移后少了 {len(lost)} 个 DocType（{len(counted[0])} → {len(counted[1])}），"
                                  f"停下、不跑流程不回写：{', '.join(lost)}")
+
+    def unbilled(self):
+        """实验栈里已建、却没接上实验室计费的站点（首页报「计费服务暂不可用」、导出按钮不出，结果都是假的不通过）。"""
+        init = lab_billing_module()
+        sites = [site for _, _, site in init.BILLED]
+        code = ("import json, pathlib\n"
+                f"sites = {sites!r}\n"
+                "configs = {s: pathlib.Path(s, 'site_config.json') for s in sites}\n"
+                "print(json.dumps([s for s, c in configs.items() if c.exists() and not json.loads(c.read_text()).get('pearnly_billing_token')]))")
+        result = self.exec("../env/bin/python", "-c", code, timeout=120)
+        if result.returncode:
+            raise SystemExit(f"读不到实验室站点配置（{CONTAINER} 起来了吗）：{result.stderr[-400:]}")
+        return json.loads(result.stdout.strip().splitlines()[-1])
 
     def client_errors(self, site):
         return self.python(site, 'print(json.dumps({"n": frappe.db.count("Error Log", {"method": ["like", "Browser error%"]})}))')["n"]
@@ -244,12 +276,59 @@ def run_flow(lab, flow, dataset, viewport):
             "seconds": round(time.monotonic() - started, 1), "checks": checks}
 
 
+def head():
+    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+
+
+def product_dirty():
+    return subprocess.run(["git", "status", "--porcelain", "apps", "frontend"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+
+
 def post_status(ok, summary):
     """回写 GitHub 提交状态 `flows`；说明里带比较基线，部署闸据此确认覆盖到上次上线以来的全部改动。"""
-    sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    sha = head()
+    description = summary if len(summary) <= 140 else summary[:139] + "…"
     subprocess.run(["gh", "api", f"repos/{{owner}}/{{repo}}/statuses/{sha}", "-f", f"state={'success' if ok else 'failure'}",
-                    "-f", f"context={STATUS}", "-f", f"description={summary[:140]}"], cwd=ROOT, check=True, capture_output=True)
+                    "-f", f"context={STATUS}", "-f", f"description={description}"], cwd=ROOT, check=True, capture_output=True)
     return sha
+
+
+def expand(flows, dataset=None, viewport=None):
+    """流程 × 数据集 × 宽度 = 格。"""
+    return [(flow, d, v) for flow in flows
+            for d in [d for d in flow.get("datasets", ["new", "old"]) if not dataset or d == dataset]
+            for v in [v for v in flow.get("viewports", ["desktop", "mobile"]) if not viewport or v == viewport]]
+
+
+def key(cell):
+    return (cell["flow"], cell["dataset"], cell["viewport"]) if isinstance(cell, dict) else (cell[0]["id"], cell[1], cell[2])
+
+
+def scope_flows(flows, scope):
+    """范围说明对应的流程：`all flows` 全部、`base <分叉点>` 改动涉及的；部分范围（--flow / --dataset / --viewport）认不出，回 None。"""
+    if scope == "all flows":
+        return flows
+    if scope.startswith("base ") and " " not in scope[5:]:
+        files = changed_files(scope[5:])
+        return [f for f in flows if any(covers(f, path) for path in files)]
+    return None
+
+
+def previous_failures(path, flows, post):
+    """`--rerun-failed`：上次结果必须是同一提交、产品代码干净时跑的，格与登记表对得上；回 (上次结果, 要补跑的格)。"""
+    previous = json.loads(Path(path).read_text(encoding="utf-8"))
+    sha = head()
+    if previous.get("sha") != sha:
+        raise SystemExit(f"上次结果是 {(previous.get('sha') or '没记提交')[:12]} 上跑的，当前是 {sha[:12]}：只能和同一提交的结果合并，换了提交要跑全套")
+    if previous.get("dirty"):
+        raise SystemExit("上次结果跑的时候产品代码有未提交改动，不代表这个提交，不能合并")
+    expected = scope_flows(flows, previous["scope"])
+    if expected is None and post:
+        raise SystemExit(f"上次结果是部分范围（{previous['scope']}），合并后也不能代表这个提交，不回写状态")
+    if expected is not None and sorted(map(key, expand(expected))) != sorted(map(key, previous["results"])):
+        raise SystemExit("上次结果的格与登记表对不上（登记表改过、或上次不是完整跑完），要重跑这个范围")
+    by_id = {f["id"]: f for f in flows}
+    return previous, [(by_id[r["flow"]], r["dataset"], r["viewport"]) for r in previous["results"] if not r["ok"]]
 
 
 def main(argv=None) -> int:
@@ -260,39 +339,54 @@ def main(argv=None) -> int:
     parser.add_argument("--base", default="origin/main")
     parser.add_argument("--dataset", choices=["new", "old"], help="只跑这套数据（调试用）")
     parser.add_argument("--viewport", choices=["desktop", "mobile"], help="只跑这个宽度（调试用）")
+    parser.add_argument("--rerun-failed", metavar="结果.json",
+                        help="只补跑这份结果里不通过的格，与它合并（同一提交；范围沿用它的，不配 --all / --flow / --changed）")
     parser.add_argument("--out")
     parser.add_argument("--post-status", action="store_true")
     parser.add_argument("--migrate", action="store_true", help="先重启实验室网页进程、把全部站点迁移到挂上来的源码（--post-status 时总是做）")
     parser.add_argument("--jobs", type=int, default=1, help="同时跑几个站点（同一站点的格依次跑；实验室 bench 有 3 个网页进程，建议不超过 3）")
     args = parser.parse_args(argv)
     flows = registry()
+    previous = None
+    if args.rerun_failed:
+        if args.all or args.flow or args.changed or args.dataset or args.viewport:
+            parser.error("--rerun-failed 的范围就是上次结果的范围，不配 --all / --flow / --changed / --dataset / --viewport")
+        previous, cells = previous_failures(args.rerun_failed, flows, args.post_status)
+        scope, flow_count = previous["scope"], previous["flow_count"]
+        if not cells:
+            print("上次结果没有不通过的格，不用补跑")
+            return 0
+    else:
+        if args.post_status and (args.flow or args.dataset or args.viewport):
+            parser.error("--post-status 只配 --changed、--all 或 --rerun-failed（部分流程的结果不能代表这个提交）")
+        scope = "all flows"
+        if args.dataset or args.viewport:
+            scope = "partial"
+        if args.flow:
+            scope = "flows " + ",".join(args.flow) + (" partial" if scope == "partial" else "")
+            flows = [f for f in flows if f["id"] in args.flow]
+        elif args.changed:
+            base = merge_base(args.base)
+            scope = f"base {base[:12]}"
+            files = changed_files(base)
+            flows = [f for f in flows if any(covers(f, path) for path in files)]
+        elif not args.all:
+            parser.error("--all, --flow, --changed or --rerun-failed")
+        cells, flow_count = expand(flows, args.dataset, args.viewport), len(flows)
     if args.post_status:
-        if args.flow or args.dataset or args.viewport:
-            parser.error("--post-status 只配 --changed 或 --all（部分流程的结果不能代表这个提交）")
         lab_runs_this_tree()
-        spa_fresh()
-    scope = "all flows"
-    if args.dataset or args.viewport:
-        scope = "partial"
-    if args.flow:
-        scope = "flows " + ",".join(args.flow) + (" partial" if scope == "partial" else "")
-        flows = [f for f in flows if f["id"] in args.flow]
-    elif args.changed:
-        base = merge_base(args.base)
-        scope = f"base {base[:12]}"
-        files = changed_files(base)
-        flows = [f for f in flows if any(covers(f, path) for path in files)]
-    elif not args.all:
-        parser.error("--all, --flow or --changed")
     lab, results, started = Lab(), [], time.monotonic()
-    if flows and (args.migrate or args.post_status):
+    if cells:
+        spa_fresh()
+        unbilled = lab.unbilled()
+        if unbilled:
+            raise SystemExit(f"这些站点没接实验室计费（首页报计费服务暂不可用，结果不可信）：{', '.join(unbilled)}。先跑 "
+                             f"docker exec -w /home/frappe/frappe-bench {CONTAINER} env/bin/python /workspace/scripts/regression/lab_billing.py")
+    if cells and (args.migrate or args.post_status):
         lab.restart()
         lab.migrate()
         lab.restart()  # 迁移后再起一次：迁移里导入的模块与缓存不带进流程
         print(f"实验室站点已迁移（{round(time.monotonic() - started)}s）", flush=True)
-    cells = [(flow, dataset, viewport) for flow in flows
-             for dataset in [d for d in flow.get("datasets", ["new", "old"]) if not args.dataset or d == args.dataset]
-             for viewport in [v for v in flow.get("viewports", ["desktop", "mobile"]) if not args.viewport or v == args.viewport]]
     # 各套数据先串行补齐（datasets.py 不并发跑），之后各格可以并行
     for product, dataset in sorted({(flow.get("product", "erp"), dataset) for flow, dataset, _ in cells}):
         lab.dataset(dataset, product)
@@ -317,15 +411,28 @@ def main(argv=None) -> int:
         groups.setdefault((cell[0].get("product", "erp"), cell[1]), []).append(cell)
     with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
         done = dict(zip(groups, pool.map(lambda group: [one(cell) for cell in group], groups.values())))
-    results = [done[key][group.index(cell)] for key, group in groups.items() for cell in group]
-    results.sort(key=lambda r: cells.index(next(c for c in cells if c[0]["id"] == r["flow"] and c[1] == r["dataset"] and c[2] == r["viewport"])))
+    results = [done[group_key][group.index(cell)] for group_key, group in groups.items() for cell in group]
+    order = [key(cell) for cell in cells]
+    results.sort(key=lambda r: order.index(key(r)))
+    seconds = round(time.monotonic() - started)
+    reran = []
+    if previous:
+        # 补跑的格替换上次的结果、标上 rerun；其余沿用上次。秒数是两次之和
+        fresh = {key(r): dict(r, rerun=True) for r in results}
+        # 上次本身是合并结果时，之前补跑过的格也照样列出
+        reran = list(dict.fromkeys(previous.get("reran", []) + [f"{flow} {dataset}/{viewport}" for flow, dataset, viewport in fresh]))
+        results = [fresh.get(key(r), r) for r in previous["results"]]
+        seconds += previous.get("seconds", 0)
     ok = all(r["ok"] for r in results)  # 没有涉及的流程 = 通过（覆盖闸另管改到的入口有没有登记）
     datasets = ",".join(sorted({r["dataset"] for r in results})) or "-"
-    summary = (f"{scope}; {len(flows)} flows; datasets {datasets}; {sum(r['ok'] for r in results)}/{len(results)} runs passed; "
-               f"{round(time.monotonic() - started)}s")
+    summary = (f"{scope}; {flow_count} flows; datasets {datasets}; {sum(r['ok'] for r in results)}/{len(results)} runs passed; "
+               f"{seconds}s" + (f"; reran {len(reran)}: {', '.join(reran)}" if reran else ""))
     print(("流程用例：通过 " if ok else "流程用例：不通过 ") + summary)
     if args.out:
-        Path(args.out).write_text(json.dumps({"ok": ok, "summary": summary, "results": results}, ensure_ascii=False, indent=1))
+        Path(args.out).write_text(json.dumps({
+            "ok": ok, "summary": summary, "sha": head(), "dirty": bool(product_dirty()), "scope": scope, "flow_count": flow_count,
+            "seconds": seconds, **({"merged_from": str(Path(args.rerun_failed).resolve()), "reran": reran} if previous else {}),
+            "results": results}, ensure_ascii=False, indent=1))
     if args.post_status:
         print("status posted for", post_status(ok, summary))
     return 0 if ok else 1

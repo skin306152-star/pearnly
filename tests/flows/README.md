@@ -33,6 +33,13 @@ python3 scripts/flows/run.py --changed --base origin/main --post-status
 docker compose -p $PEARNLY_FLOWS_LAB -f infrastructure/compose/regression-lab.yml stop
 ```
 
+`lab_init.py` 建站时做好两件以前要手动补的事（11-01）：
+- 测试账号的时区设成 `Asia/Bangkok`，同站点、同生产账号。以前是 Asia/Kolkata，泰国 00:00–01:30 按用户时区取「本月」的页面会落到上个月，库存卡期末对不上。
+- 建完站自动跑 `scripts/regression/lab_billing.py`，接上实验室计费。没接时首页报「计费服务暂不可用」，导出按钮不出。
+
+老实验栈重跑一遍 `lab_init.py` 就补齐了，它可以重复跑。
+`run.py` 跑前也核对计费：`lab_init.BILLED` 里已建的站点只要有一个没接上，就拦下并打印接计费的命令。
+
 ## 两套数据里与公司设定有关的两点（盘点菜单做完整，10-29）
 
 - 新开户报上 Express 账套后要在公司上勾「接 Express」才算接上（连上且勾了才推送 / 同步），`datasets.py` 照正式做法勾上。
@@ -40,7 +47,7 @@ docker compose -p $PEARNLY_FLOWS_LAB -f infrastructure/compose/regression-lab.ym
 
 ## 为什么在本机跑
 
-生产镜像只有 linux/amd64；回归实验室在本机 Mac 上跑的就是线上同一个 amd64 镜像（colima 里经 qemu 模拟）。放到 free-arm-2 上同样要模拟，
+生产镜像只有 linux/amd64；回归实验室在本机 Mac 上跑的就是线上同一个 amd64 镜像（colima 里经 Rosetta 转译；10-31 之前没装 Rosetta，走的是 qemu，慢三十多倍）。放到 free-arm-2 上同样要模拟，
 还要给 CI 的 runner 加 root 级的 docker 权限。所以流程套件不在 GitHub 的 runner 上跑，结果由本机回写成提交状态。
 
 ## 分支上（只跑受影响的）
@@ -69,15 +76,33 @@ python3 scripts/flows/run.py --changed --base origin/main --post-status
 git -C ~/pearnly fetch origin
 git -C ~/pearnly worktree add ~/pearnly-devtools/flows-main origin/main
 cd ~/pearnly-devtools/flows-main
+(cd frontend && npm ci && npm run build) && (cd frontend/assistant && npm ci && npm run build)   # 前端产物不进 git，新工作树要先建
 PEARNLY_REGRESSION_SRC=$PWD docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d --wait
 docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml exec -T bench env/bin/python /workspace/scripts/regression/lab_init.py
 python3 scripts/flows/run.py --all --post-status --jobs 3 --out ~/pearnly-devtools/flows-main.json
 ```
 
-- 回写前 `run.py` 自己核对：实验室挂的产品源码就是这个工作树、产品代码没有未提交改动、CC 前端产物比源码新，否则拒绝回写；
-  `--post-status` 先重启实验室网页进程（网页用 `--noreload` 起，换了源码不重启就是新旧代码混跑）、把全部站点迁移到挂上来的源码、再重启一次；`--jobs 3` 按站点并行（同一站点的格依次跑）。
+- 回写前 `run.py` 自己核对：实验室挂的产品源码就是这个工作树、产品代码没有未提交改动，否则拒绝回写。
+- 不管回不回写，跑前都核对：两个前端单页的产物都在、且比源码新。`frontend/` → `public/pearnly-app/`（DMS 的 LINE 编辑器），`frontend/assistant` → `public/assistant/`（CC 对话页）。缺了或旧了就拦下并打印构建命令。实验室计费也要接上。
+- `--post-status` 先重启实验室网页进程（网页用 `--noreload` 起，换了源码不重启就是新旧代码混跑）、把全部站点迁移到挂上来的源码、再重启一次；`--jobs 3` 按站点并行（同一站点的格依次跑）。
 - 工作树必须在 `/Users` 下（Docker 挂不了 `/private/tmp`）。跑完 `git worktree remove` 掉。
 - 依赖 / Dockerfile / 底座版本变了时，实时源码盖不到：用 `PEARNLY_REGRESSION_LAB_IMAGE=<候选镜像>` 起实验室再跑。
+
+## 个别格补跑（同一提交上合并）
+
+全套里个别格因环境不通过（漏建前端产物、没接计费、偶发超时等，先查共享笔记「已知问题与结论」），环境修好后不用重跑全套：
+
+```bash
+python3 scripts/flows/run.py --rerun-failed ~/pearnly-devtools/flows-main.json --out ~/pearnly-devtools/flows-main-merged.json --post-status
+```
+
+- 只重跑上次结果里不通过的格，替换后与其余格合并。合并结果标 `rerun`，记 `merged_from` 和 `reran`，然后回写。
+- 上次结果必须是同一个提交、产品代码干净时跑的：`--out` 记了 `sha`、`dirty`、`scope`。
+  - 换了提交就拒绝，要跑全套。
+  - 格与登记表对不上（登记表改过，或上次没跑完）也拒绝。
+  - 部分范围（`--flow`、`--dataset`、`--viewport`）的结果不能回写。
+- 范围沿用上次的，部署闸照样只认全套：合并全套的说明仍以 `all flows` 开头，末尾写明补跑了哪几格。补跑还不通过就回写失败。
+- 合并结果可以再补跑一次，之前补跑过的格照样列出。
 
 ## 本机睡眠、实验室没起来
 
@@ -86,8 +111,12 @@ python3 scripts/flows/run.py --all --post-status --jobs 3 --out ~/pearnly-devtoo
 
 ## 状态说明的格式
 
-`<范围>; <流程数> flows; datasets <数据集>; <通过>/<格数> runs passed; <秒>s`，范围是 `all flows` 或 `base <12 位分叉点>`。
-例如 `all flows; 1 flows; datasets new,old; 4/4 runs passed; 812s`。
+`<范围>; <流程数> flows; datasets <数据集>; <通过>/<格数> runs passed; <秒>s[; reran <格数>: <流程> <数据集>/<宽度>, …]`。
+- 范围是 `all flows` 或 `base <12 位分叉点>`。
+- 补跑合并时末尾加 `reran`，秒数是两次之和。
+- GitHub 只收 140 字，超出截断加「…」；完整清单在 `--out` 的 `reran` 里。
+
+例如 `all flows; 1 flows; datasets new,old; 4/4 runs passed; 812s`、`all flows; 41 flows; datasets new,old; 149/149 runs passed; 3260s; reran 1: dms.booking.editor new/desktop`。
 
 ## 加一条流程
 

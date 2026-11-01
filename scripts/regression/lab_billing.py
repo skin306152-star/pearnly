@@ -3,12 +3,14 @@
 没有计费服务时，首页每次打开都报一条「计费服务暂不可用」（417），页面快照的「页面报错」检查会被它淹掉。
 
 不碰生产令牌、开户目标、真实转账或外发邮件；给每个测试租户记一笔本地测试余额（走正式审核函数，只在实验站点）。可重复跑。
+`lab_init.py` 建完站会自动跑它；接哪些站点见 `lab_init.BILLED`。
 
     cd /home/frappe/frappe-bench && env/bin/python /workspace/scripts/regression/lab_billing.py
 """
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 if os.environ.get("PEARNLY_REGRESSION_LAB") != "1":
@@ -16,12 +18,9 @@ if os.environ.get("PEARNLY_REGRESSION_LAB") != "1":
 
 import frappe  # noqa: E402
 
-CONTROL = "control.regression.localhost"
-# (租户名后缀, 产品, 站点)：基础站点的后缀就是产品名（沿用原来的租户）；两套固定数据的站点各自一个租户（10-30：CC 记对话路由要它）
-PRODUCTS = [("erp", "erp", "erp.regression.localhost"), ("cowork", "cowork", "cowork.regression.localhost"),
-            ("dms", "dms", "dms.regression.localhost"), ("erp-new", "erp", "erp-new.regression.localhost"),
-            ("erp-old", "erp", "erp-old.regression.localhost"), ("cowork-new", "cowork", "cowork-new.regression.localhost"),
-            ("cowork-old", "cowork", "cowork-old.regression.localhost")]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lab_init import BILLED as PRODUCTS, CONTROL  # noqa: E402
+
 PASSWORD = "regression-lab-only"
 CREDIT = 1000
 NOTE = "Regression laboratory test credit; no real transfer"

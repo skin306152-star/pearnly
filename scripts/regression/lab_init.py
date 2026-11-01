@@ -1,5 +1,5 @@
-"""回归基线实验室：建三个产品站点（各装 pearnly_core + 本产品 App，功能全开），再给每个岗位建一个测试账号（界面中文）。
-只在任务自有的回归实验室里跑（PEARNLY_REGRESSION_LAB=1），拒绝陌生的站点卷。重复跑只补缺的。
+"""回归基线实验室：建三个产品站点（各装 pearnly_core + 本产品 App，功能全开），再给每个岗位建一个测试账号（界面中文、泰国时区），
+最后接上实验室计费（`lab_billing.py`）。只在任务自有的回归实验室里跑（PEARNLY_REGRESSION_LAB=1），拒绝陌生的站点卷。重复跑只补缺的。
 
     env/bin/python /workspace/scripts/regression/lab_init.py [站点…]
 """
@@ -23,6 +23,12 @@ SITES = {"erp.regression.localhost": ("erp", "pearnly_erp_portal"),
          "dms-new.regression.localhost": ("dms", "pearnly_dms"),
          "dms-old.regression.localhost": ("dms", "pearnly_dms")}
 CONTROL = "control.regression.localhost"  # 实验室自己的计费控制面（`lab_billing.py` 建），不是产品站点
+# 接计费的站点：(租户名后缀, 产品, 站点)。基础站点的后缀就是产品名（沿用原来的租户）；两套固定数据的站点各自一个租户（10-30：CC 记对话路由要它）。
+# 没接上时首页报「计费服务暂不可用」、导出按钮不出（11-01 新栈 exports 0/8）；`lab_billing.py` 照这张表接，`run.py` 跑前照它核对
+BILLED = [("erp", "erp", "erp.regression.localhost"), ("cowork", "cowork", "cowork.regression.localhost"),
+          ("dms", "dms", "dms.regression.localhost"), ("erp-new", "erp", "erp-new.regression.localhost"),
+          ("erp-old", "erp", "erp-old.regression.localhost"), ("cowork-new", "cowork", "cowork-new.regression.localhost"),
+          ("cowork-old", "cowork", "cowork-old.regression.localhost")]
 # 岗位账号：产品 → {岗位名: 角色}（与开通 / 团队管理发的角色同名；管理员 = 产品管理员 + 全部功能角色）
 ROLES = {
     "erp": {"admin": ["ERP Admin", "ERP Products", "ERP Stock", "ERP Purchase", "ERP Sales", "ERP Cashier", "ERP Tasks"],
@@ -94,6 +100,8 @@ def main(only):
         users = json.dumps(ROLES[product])
         subprocess.run(["../env/bin/python", "/workspace/scripts/regression/lab_users.py", site, product, users], check=True, cwd="sites")
         print("READY", site, flush=True)
+    # 建完站接计费（可重复跑）：新起的实验栈不用再记着手动跑一遍
+    subprocess.run(["env/bin/python", "/workspace/scripts/regression/lab_billing.py"], check=True)
 
 
 if __name__ == "__main__":
