@@ -69,6 +69,17 @@ def _key_lparam(vk: int, up: bool) -> int:
     return value
 
 
+
+SEND_TIMEOUT_MS = 2000  # 同步发给 Express 的消息最多等这么久
+
+
+def _send(hwnd, msg: int, wparam: int, lparam: int, *, ansi: bool = False) -> bool:
+    """同步发消息、有时限（SMTO_ABORTIFHUNG）。Express 停在模态框里时直接 SendMessage 可能一直不回（11-01 录制机：放回焦点时
+    给报错框「Message#. 13」发 WM_ACTIVATE，录单线程卡死 24 分钟，点停止也停不下）。回是否送到、处理完。"""
+    res = ctypes.c_size_t()
+    send = user32.SendMessageTimeoutA if ansi else user32.SendMessageTimeoutW
+    return bool(send(hwnd, msg, wparam, lparam, 0x2, SEND_TIMEOUT_MS, ctypes.byref(res)))
+
 class BackgroundDesk(WindowsDesk):
     def __init__(self, express_exe: str = ""):
         super().__init__(express_exe)
@@ -131,7 +142,8 @@ class BackgroundDesk(WindowsDesk):
         target = user32.GetLastActivePopup(main) or main
         if not user32.IsWindowEnabled(target):
             return None
-        user32.SendMessageW(target, WM_ACTIVATE, WA_ACTIVE, 0)
+        if not _send(target, WM_ACTIVATE, WA_ACTIVE, 0):
+            return None  # Express 没在时限内处理（停在模态框里）：不再等，照旧转人工、由引擎看弹窗
         self.sent += 1
         again = self._thread_info().hwndFocus
         if not again or int(again) == int(getattr(main, "value", main) or 0):
@@ -159,9 +171,9 @@ class BackgroundDesk(WindowsDesk):
     def _select_all(self) -> None:
         focus = self._focus()
         if self._cls(focus) == "ComboBox":
-            user32.SendMessageW(focus, CB_SETEDITSEL, 0, 0xFFFF0000)
+            _send(focus, CB_SETEDITSEL, 0, 0xFFFF0000)
         else:
-            user32.SendMessageW(focus, EM_SETSEL, 0, -1)
+            _send(focus, EM_SETSEL, 0, -1)
         self.sent += 1
 
     def type_any(self, text: str) -> None:
@@ -173,11 +185,11 @@ class BackgroundDesk(WindowsDesk):
         text.encode("cp874", "strict")  # 泰文以外的字 Express 存不下：照旧拒绝
         if any(ord(c) > 126 for c in text) and self._thai_input(focus):
             for ch in text:
-                user32.SendMessageW(focus, WM_CHAR, ord(ch), 1)
+                _send(focus, WM_CHAR, ord(ch), 1)
                 self.sent += 1
             return
         for byte in text.encode("cp874", "strict"):
-            user32.SendMessageA(focus, WM_CHAR, byte, 1)
+            _send(focus, WM_CHAR, byte, 1, ansi=True)
             self.sent += 1
 
     def _thai_input(self, focus, wait_s: float = 1.0) -> bool:

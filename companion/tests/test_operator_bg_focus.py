@@ -34,6 +34,9 @@ class FakeUser32:
         if msg == bg_desk.WM_ACTIVATE:
             self.active, self.focus = hwnd, self.restores_to
 
+    def SendMessageTimeoutW(self, hwnd, msg, wparam, lparam, flags, timeout, result):
+        return 0 if getattr(self, "hung", False) else (self.SendMessageW(hwnd, msg, wparam, lparam) or 1)
+
 
 class Desk(bg_desk.BackgroundDesk):
     def __init__(self, user32):
@@ -89,3 +92,13 @@ def test_express_with_an_active_window_but_no_focus_is_left_alone(u):
     with pytest.raises(Refused):
         Desk(u)._focus()
     assert u.calls == [] and Desk(u).focus_info()["hwnd"] == 0
+
+
+def test_a_dialog_that_does_not_answer_the_activate_hands_over_instead_of_hanging(u):
+    """11-01 录制机：Express 停在报错框「Message#. 13」里，给它发 WM_ACTIVATE 一直不回，录单线程卡死 24 分钟、点停止也停不下。
+    改为有时限地发：没回就不再等，交给引擎看弹窗（转人工）。"""
+    desk = Desk(u)
+    _lose_foreground(u)
+    u.popup, u.hung = POPUP, True
+    with pytest.raises(Refused):
+        desk._focus()

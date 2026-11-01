@@ -33,6 +33,12 @@ class FakeUser32:
     def SendMessageW(self, hwnd, msg, wparam, lparam):
         self.calls.append(("W", wparam))
 
+    def SendMessageTimeoutW(self, hwnd, msg, wparam, lparam, flags, timeout, result):
+        return 0 if getattr(self, "hung", False) else (self.SendMessageW(hwnd, msg, wparam, lparam) or 1)
+
+    def SendMessageTimeoutA(self, hwnd, msg, wparam, lparam, flags, timeout, result):
+        return self.SendMessageA(hwnd, msg, wparam, lparam) or 1
+
     def SendMessageA(self, hwnd, msg, wparam, lparam):
         self.calls.append(("A", wparam))
 
