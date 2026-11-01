@@ -446,6 +446,75 @@
 mark_handled 不写、④d 断开后作废照排、公司页断开 / 取消勾选 / 重新勾上、收银起始跟接上时刻、打印按单据状态）、`MasterSync` 接上时刻写入 /
 不改 / 没勾不写 / 清空后重写、`LinkedAtBackfill` 补丁回填三种依据、`StockAlignment` 新口径。
 
+**共用件连带回归（`check-impact.py`：命中 erp-transactions、erp-printing、erp-count-code，54 个入口）**
+
+本机实验栈 `pearnly-linkstates-lab`（挂本分支 e7d0402b 的源码）：
+- 流程：`run.py --changed` 选出 17 条流程 × 两套数据 × 两种宽度共 61 格，**61/61 通过**（1034 秒，状态已回写 e7d0402b）：
+  erp.stocktake.scan、erp.document.express、erp.stocktake.new-product、erp.stock-in.units、erp.purchase.create、erp.exports、
+  erp.line.stocktake.phone、erp.stock-entry.scan、erp.pos.shift、erp.print.all、erp.sales.scan、erp.company.create、
+  erp.stock.excel-units、erp.stocktake.gs1、erp.express.service_vat、erp.stock-transfer、erp.express.new-item-stock。
+- 真库核查（erp-new 站点，跑完回滚，脚本已删）：同步落库写了接上时刻（20:22:07）；已排进 Express 的 36 张单 `started_linked` 全为真；
+  清空后跑补丁回填成「收银起始日 00:00」，所有已排上的单都不早于它；`pos_day.pending_days` / `refund_groups` / `pending_refunds` 与
+  `masters._pending` 在 MariaDB 上取数正常；断开后 `detach` 撤下 35 张（排队 / 停下的）标已断开，失败的保持失败，此刻新单不再写。
+- 自动冒烟 `scripts/smoke/run.py --target local --diff`：auto 入口 17 通过；逐入口结果：
+
+| 入口 | 方式 | 结果 |
+|---|---|---|
+| `erp.page.inventory` | auto：page | 通过 |
+| `erp.page.stock-in` | auto：page | 通过 |
+| `erp.page.stock-out` | auto：page | 通过 |
+| `erp.page.stock-transfer` | auto：page | 通过 |
+| `erp.page.stock-card` | auto：page | 通过 |
+| `erp.page.stock-count` | auto：page | 通过 |
+| `erp.page.purchase` | auto：page | 通过 |
+| `erp.page.sales` | auto：page | 通过 |
+| `erp.page.pos-receipts` | auto：page | 通过 |
+| `erp.detail.sales.draft` | auto：doc_detail | 没测到（老数据站点没有草稿销售单） |
+| `erp.detail.sales.submitted` | auto：doc_detail | 通过 |
+| `erp.detail.sales.void` | auto：doc_detail | 通过 |
+| `erp.detail.purchase.draft` | auto：doc_detail | 没测到（老数据站点没有草稿采购单） |
+| `erp.detail.purchase.submitted` | auto：doc_detail | 通过 |
+| `erp.detail.purchase.void` | auto：doc_detail | 没测到（老数据站点没有作废的采购单） |
+| `erp.detail.stock-in.submitted` | auto：doc_detail | 通过 |
+| `erp.detail.stock-out.void` | auto：doc_detail | 没测到（老数据站点出库列表第一页没有作废单） |
+| `erp.page.pos-shifts` | auto：page | 通过 |
+| `erp.place.header` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.products.new-dialog.opening` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.inventory.opening.row-warehouse` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.warehouses.express-new-hidden` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.report.stock-count-variance` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.print.stock-entry` | manual | 通过（流程 erp.print.all） |
+| `erp.print.purchase` | manual | 通过（流程 erp.print.all：七类单据各打一张） |
+| `erp.print.sales` | manual | 通过（流程 erp.print.all） |
+| `erp.print.pos-receipt` | manual | 通过（流程 erp.print.all） |
+| `erp.print.pos-shift` | manual | 通过（流程 erp.print.all） |
+| `erp.print.stock-count` | manual | 通过（流程 erp.print.all） |
+| `erp.stock-count.code` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.stock-count.switch.posted-to-active` | auto：record_switch | 通过 |
+| `erp.stock-count.switch.active-to-posted` | auto：record_switch | 通过 |
+| `erp.purchase.detail.not-permitted` | auto：not_permitted | 没测到（本机没配受限账号） |
+| `erp.sales.detail.not-permitted` | auto：not_permitted | 没测到（本机没配受限账号） |
+| `erp.stock-in.item-scan` | manual | 通过（流程 erp.stock-entry.scan） |
+| `erp.stock-out.item-scan` | manual | 通过（流程 erp.stock-entry.scan） |
+| `erp.purchase.item-scan` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.sales.item-scan` | manual | 通过（流程 erp.sales.scan） |
+| `erp.line.stocktake.liff-camera` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.serials.dialog` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.scan.pick-product` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.stock-in.attach` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.stock-out.attach` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.stock-count.upload` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.cc.write` | auto：express | 没测到（本机实验栈没有测试机 CC 与 C 盘 T 账套；写进 Express 前的排队、预检、停下由流程 erp.document.express / erp.express.service_vat / erp.express.new-item-stock 覆盖并通过；CC 写入代码与载荷没改） |
+| `erp.cc.masters` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.cc.stock-void` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.cc.pos-day` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.cc.pos-refund` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.records.scope` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.entry.choices` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+| `erp.products.find-by-code` | auto：find_product | 通过 |
+| `erp.stock-count.new-product` | manual | 通过（流程 erp.stocktake.new-product） |
+| `erp.execution` | manual | 没测到（人工入口，交验收窗口按清单实测） |
+
 **未覆盖 / 剩余**
 - 断开时正在读的主档同步仍会落库（主档、库存对齐照做，不会写接上时刻）：同步落库不复核勾选，没改（评估 3 节 `advance` / `start`）。
 - 收银 SQL（`sold_at >= express_linked_at`）的实际取数只能在实验栈流程里验，离线测试只核查询条件。
