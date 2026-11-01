@@ -135,6 +135,7 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/categories.py",
 ]
 
 [[flow]]
@@ -150,6 +151,7 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/locations.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/categories.py",
 ]
 
 [[flow]]
@@ -181,6 +183,7 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/selection.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/categories.py",
 ]
 
 [[flow]]

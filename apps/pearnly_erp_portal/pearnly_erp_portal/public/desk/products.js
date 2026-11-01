@@ -760,7 +760,7 @@
 		const row = context.name ? await p.call(api + "api_get_category", { name: context.name }) : null;
 		const dialog = p.dialog(t("product.field.category"), [
 			{ fieldtype: "Data", fieldname: "category_name", label: t("product.field.category"), reqd: 1, length: 140,
-				default: row ? row.category_name : context.initial || "" },
+				default: row ? row.category_name : (context.initial || "") },
 			...(row ? [{ fieldtype: "Check", fieldname: "is_active", label: __("Active"), default: Number(row.is_active) }] : []),
 		], __("Save"), async (values, d) => {
 			const saved = await p.call(api + (row ? "api_update_category" : "api_create_category"),
