@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "tests" / "baseline" / "swallowed_errors.toml"
 PATTERNS = ("apps/*/*/public/**/*.js", "apps/*/*/**/doctype/**/*.js", "apps/*/*/**/page/**/*.js", "apps/*/*/**/report/**/*.js",
             "frontend/src/**/*.ts", "frontend/src/**/*.vue", "frontend/assistant/src/**/*.ts", "frontend/assistant/src/**/*.tsx")
-SKIP = ("/dist/", "node_modules", "official-pos", "/vendor/", "/pearnly_control/", "/public/assistant/", ".d.ts", "/test", ".test.", ".spec.")
+SKIP = ("/dist/", "node_modules", "official-pos", "/vendor/", "/pearnly_control/", "/public/assistant/", "/public/pearnly-app/", ".d.ts", "/test", ".test.", ".spec.")
 REPORT = re.compile(r"\bpearnly(ReportError|Caught|Reported)\b|\breportCaught\s*\(|\bwithReport\s*\(")
 RETHROW = re.compile(r"\bthrow\b|\breject\s*\(")
 

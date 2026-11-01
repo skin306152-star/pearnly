@@ -16,7 +16,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 BASELINE = ROOT / "scripts" / "mixed-ternary-baseline.tsv"
-SKIP = ("/official-pos", "/public/assistant/", "/dist/", "node_modules", ".min.js", ".bundle.")
+SKIP = ("/official-pos", "/public/assistant/", "/public/pearnly-app/", "/dist/", "node_modules", ".min.js", ".bundle.")
 CLOSE = {")": "(", "]": "[", "}": "{"}
 
 

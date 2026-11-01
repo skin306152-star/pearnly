@@ -24,7 +24,8 @@ function walk(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (!['node_modules', 'dist', 'build'].includes(entry.name)) walk(full, out);
+      // pearnly-app = frontend/ 的构建产物（不进 git，流程工作树里要建）
+      if (!['node_modules', 'dist', 'build', 'pearnly-app'].includes(entry.name)) walk(full, out);
     } else if (entry.name.endsWith('.js')) out.push(full);
   }
   return out;
