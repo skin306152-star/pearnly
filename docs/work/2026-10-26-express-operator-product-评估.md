@@ -1411,3 +1411,5 @@
   - 「在忙」动画登记（`tests/test_cc_idle_motion.py`）与共用件登记表（`scripts/impact/shared-parts.toml`）跟着 `RunLine` 与任务对话补登。
 - 测试机保留项（主会话 11-01 转来，归代录）：计划任务 `PearnlyOpPar`（10-30 并行实测留下，指向 `C:\PearnlyStress\_op_lab\lab_run.py`）
   与 `C:\PearnlyStress\_op_lab` 目录，等真人按键实测做完一起删；`PearnlyRec2Agent`（10-21）不是代录的，不动。
+- 载荷号与版本（主会话 11-01 下午定）：多仓 P3x 先合 main、拿 15（库存单新物料 new_ok）、CC 1.12.10；代录合入前变基到当时最新 main，
+  载荷改 **16**（服务端、CC、测试一起改），CC 版本排在它后面（1.12.11 或当时 +1）。实测用的测试包是 15，只在实验栈里用。
