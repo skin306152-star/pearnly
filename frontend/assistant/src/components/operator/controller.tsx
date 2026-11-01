@@ -18,6 +18,7 @@ import { type Draft, EMPTY_PREP, forgetPrep, setFold, setPrep, useOperatorStore 
 import { dropTask, loadTasks, upsertTask, useTasks } from "./tasks";
 import type { BatchSnapshot, CreateBatchInput, DocGroup, DocumentOption, OperatorComputer, OperatorSource, PrecheckDoc, TaskRecord } from "./types";
 import { siteSeconds } from "./live-source";
+import { reportCaught, withReport } from "@/lib/caught";
 
 export const PAGE = 50;
 
@@ -185,7 +186,7 @@ export const OperatorProvider: FC<{ source: OperatorSource; active?: boolean; ch
   // 任务列表：实操开着时取第一页；站点推来的记录（进行中、收尾）就地换上
   useEffect(() => {
     if (!active || useTasks.getState().loaded) return;
-    void loadTasks(source).catch(() => undefined);
+    void loadTasks(source).catch(withReport(undefined, "operator-tasks"));
   }, [source, active]);
   useEffect(() => (active ? source.subscribeTasks(upsertTask) : undefined), [source, active]);
   // 打开的任务：取一次带单据的记录（列表里没有的——别的设备新建的、深链接——也取得到）
@@ -211,7 +212,7 @@ export const OperatorProvider: FC<{ source: OperatorSource; active?: boolean; ch
     setError("");
     try {
       await work();
-    } catch (e) {
+    } catch (e) { reportCaught(e, "operator-action");
       setError(shownError(e));
     } finally {
       setBusy(false);

@@ -75,7 +75,7 @@ BUSY_SITES = [
     ("components/assistant-ui/thread-list.tsx", "cc-spinner", "loading &&", 0),
     ("components/assistant-ui/thread-list.tsx", "<Skeleton", "const ThreadListSkeleton", 15),
     ("components/assistant-ui/attachment.tsx", "<Skeleton", "{loading ?", 0),
-    ("components/assistant-ui/thread.tsx", "<TypingDots", "if (!visible) return null;", 12),
+    ("components/assistant-ui/thread.tsx", "<TypingDots", "export const RunLine", 16),  # 状态行的样子：谁、什么时候挂见 BUSY_MOUNTS
     ("components/tool-uis/steps.tsx", "<TypingDots", "running &&", 0),
     ("components/assistant-ui/attachment.tsx", "cc-spinner", "{isUploading && (", 5),
     ("components/pending.tsx", "cc-spinner", "{open && !sets && !error && (", 3),  # 待选账套那一行展开、可换账套还没取回
@@ -90,6 +90,9 @@ BUSY_MOUNTS = [
     ("components/session-panel.tsx", "{!detail && !error && <PanelSkeleton />}"),
     ("components/month-ledger.tsx", "{loading && <PanelSkeleton />}"),
     ("components/assistant-ui/thread.tsx", "if (!pending) return null;"),
+    # 工作状态行（RunLine）：对话这一轮在跑时、实操任务在录或排队时才挂
+    ("components/assistant-ui/thread.tsx", "  if (!visible) return null;\n  const step = activity.kind === \"tool\""),
+    ("components/operator/task-thread.tsx", "if (chatBusy || activity.kind === \"hidden\") return null;"),
 ]
 
 # setInterval：(文件, 所在函数或条件——在调用往上 window 行内出现的原文, 什么时候在跑, window)

@@ -45,6 +45,7 @@ import { siteSeconds } from "./live-source";
 import { bindOperatorUser, taskFold, taskOrder } from "./prefs";
 import { effectiveStatus, loadTasks, markSeen, noteLive, overrideStar, setTasksError, taskActivity, upsertTask, useSeen, useTasks } from "./tasks";
 import type { OperatorSource, TaskRecord } from "./types";
+import { withReport } from "@/lib/caught";
 
 /** 标题：公司 · 月份（没有月份只写公司）。 */
 export const taskTitle = (company: string, period?: string) => [company, period ? monthLabel(period) : ""].filter(Boolean).join(" · ");
@@ -257,7 +258,7 @@ export const OperatorSidebar: FC<{ search?: string; onPick?: () => void }> = ({ 
     },
     [source],
   );
-  const more = useCallback(() => void loadTasks(source, useTasks.getState().rows.length).catch(() => undefined), [source]);
+  const more = useCallback(() => void loadTasks(source, useTasks.getState().rows.length).catch(withReport(undefined, "operator-tasks")), [source]);
 
   return (
     <nav className="flex min-w-0 flex-col gap-(--cc-row-gap)" aria-label={op.tasks} data-slot="cc-operator-sidebar">

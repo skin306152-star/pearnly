@@ -40,6 +40,7 @@ import type {
   TaskRecord,
   TaskStatus,
 } from "./types";
+import { reportCaught, withReport } from "@/lib/caught";
 
 export const API = "pearnly_core.express_operator.api.";
 /** 桥上进度多久读一次（毫秒）：只在实操工作区开着、页面看得见时。 */
@@ -327,7 +328,7 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
   const api = () =>
     (operatorApi ??= bridge()
       .then(async (found) => (found && (await found.state()).features?.includes(OPERATOR) ? found : null))
-      .catch(() => null));
+      .catch(withReport(null, "operator-bridge")));
 
   async function readBridge(): Promise<BatchSnapshot[]> {
     const found = await api();
@@ -369,7 +370,7 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
       if (isFinal(row.status) && !closed.has(row.id)) {
         closed.add(row.id);
         asked.delete(row.id);
-        void settleTask(row.id).catch(() => undefined);
+        void settleTask(row.id).catch(withReport(undefined, "operator-settle"));
       }
     }
   }
@@ -390,7 +391,7 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
         let docs: { doc_id: string; state: string; docnum?: string; reason?: string; ref?: string; party?: string }[];
         try {
           docs = (await settleTask(row.id))?.documents ?? [];
-        } catch {
+        } catch (caughtError) { reportCaught(caughtError, "operator-settle");
           const reply = await get<{ documents?: typeof docs }>(API + "status", { company: row.site, doc_ids: JSON.stringify(open) });
           docs = reply?.documents ?? [];
         }
@@ -401,7 +402,7 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
         const results = Object.fromEntries(docs.map((d) => [String(d.doc_id), d]));
         const done = await found.call("operator_control", { batch: row.id, action: "settle", results });
         changed = changed || !!done?.ok;
-      } catch {
+      } catch (caughtError) { reportCaught(caughtError, "operator-settle");
         // 断网或站点不认：留着按排队显示
       }
     }
@@ -409,7 +410,7 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
   }
 
   async function all(fresh: boolean): Promise<BatchSnapshot[]> {
-    const rows = fresh ? await readBridge().catch(() => bridged) : bridged;
+    const rows = fresh ? await readBridge().catch(withReport(() => bridged, "operator-bridge")) : bridged;
     const byId = new Map<string, BatchSnapshot>();
     for (const row of rows) byId.set(row.id, mergedSnapshot(row, started.get(row.id), listed));
     for (const s of started.values()) if (!byId.has(s.id)) byId.set(s.id, startedSnapshot(s, listed));
@@ -459,9 +460,9 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
       try {
         const reply = await post<{ controls?: Array<{ action?: string; doc_id?: string }> }>(API + "task_controls", { name: s.id });
         for (const c of reply?.controls ?? []) {
-          if ((c.action === "skip" || c.action === "retry") && c.doc_id) await control(s.id, c.action, String(c.doc_id)).catch(() => undefined);
+          if ((c.action === "skip" || c.action === "retry") && c.doc_id) await control(s.id, c.action, String(c.doc_id)).catch(withReport(undefined, "operator-controls"));
         }
-      } catch {
+      } catch (caughtError) { reportCaught(caughtError, "operator-controls");
         // 断网、不是站点上的任务：下一次再取
       }
     }
@@ -493,7 +494,7 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
       const task = taskOf(await get(API + "task_get", { name }));
       // 交出去还没收尾、这台电脑上没在跑的（网页、手机、别的电脑、CC 重启后）：以站点为准收尾一次
       const here = bridged.some((b) => b.id === name && b.live !== false && !isFinal(b.status));
-      if (OPEN_TASK.has(task.status) && !here) return (await settleTask(name).catch(() => null)) ?? task;
+      if (OPEN_TASK.has(task.status) && !here) return (await settleTask(name).catch(withReport(null, "operator-settle"))) ?? task;
       return task;
     },
     async createTask(input) {
@@ -603,7 +604,7 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
     async computers() {
       // 交给「本人自己的电脑」（computer 空串）；Express 登录设置了没有只在桥上知道
       const found = await api();
-      if (found) await readBridge().catch(() => bridged);
+      if (found) await readBridge().catch(withReport(() => bridged, "operator-bridge"));
       const pc: OperatorComputer = { id: "", name: op.thisComputer, online: true, local: !!found, login: found ? login : null };
       return [pc];
     },

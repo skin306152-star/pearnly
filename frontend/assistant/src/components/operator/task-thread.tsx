@@ -32,6 +32,7 @@ import {
 } from "./model";
 import { upsertTask } from "./tasks";
 import type { OperatorSource, PrecheckDoc, TaskRecord } from "./types";
+import { reportCaught } from "@/lib/caught";
 
 const EMPTY: ControllerSnapshot = { ...initialProjection(), isLoaded: true, isTailing: false, transportError: null, stalled: false, isSynced: true };
 const subscribeNothing = () => () => {};
@@ -98,7 +99,7 @@ export const TaskChoices: FC<{ waiting: readonly string[] }> = ({ waiting }) => 
       for (const [docId, list] of Object.entries(byDoc)) upsertTask(await o.source.answerTask(task.name, docId, list));
       setAnswers({});
       setPrechecks(null);
-    } catch (e) {
+    } catch (e) { reportCaught(e, "operator-task-answer");
       setError(shownError(e));
     } finally {
       setBusy(false);

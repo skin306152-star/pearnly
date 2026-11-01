@@ -39,6 +39,7 @@ import { setDrawer, setPanel, useOperatorStore } from "./store";
 import { titleOf } from "./operator-sidebar";
 import { TaskChoices, TaskRunIndicator, type TaskThread, useTaskThread } from "./task-thread";
 import type { CompanyOption } from "./types";
+import { withReport } from "@/lib/caught";
 
 // ── 右侧栏怎么放 ──────────────────────────────────────────────────────────────
 /** 窄屏的分界（globals.css 的 --cc-op-narrow，用时读；回退同值）。 */
@@ -241,9 +242,9 @@ function sender(o: Operator, thread: TaskThread): Send {
   return (text, files) => {
     if (files.length) {
       if (o.draft) o.intake(files);
-      else if (o.task) void o.source.intake(o.task.company, o.task.period, files).catch(() => undefined);
+      else if (o.task) void o.source.intake(o.task.company, o.task.period, files).catch(withReport(undefined, "operator-intake"));
     }
-    if (text) void thread.send(text).catch(() => undefined);
+    if (text) void thread.send(text).catch(withReport(undefined, "operator-thread-send"));
   };
 }
 

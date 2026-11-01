@@ -1766,8 +1766,9 @@ g.done();
         thread = read("components/assistant-ui/thread.tsx")
         # 电脑上等回答时工作状态行换成橙色小点 +「需要您的输入」（照 Claude，在卡片下方）；手机上由输入框上方的浮层代替，不显示
         indicator = thread[thread.index("const RunIndicator: FC"):thread.index("/** 显示时每秒走一次的本页时钟")]
+        # 样子在 RunLine（对话与实操任务页共用）
         self.assertIn('<span className="cc-needs-input-dot" aria-hidden="true" />\n        <span className="cc-needs-input">{t("needsInput")}</span>', indicator)
-        self.assertIn("  if (waiting) {\n    if (phone) return null;", indicator)
+        self.assertIn('  if (waiting) return phone ? null : <RunLine kind="input" className={className} />;', indicator)
         css = read("globals.css")
         self.assertIn("background: var(--cc-brand);", css.split("\n  .cc-needs-input-dot {", 1)[1].split("}", 1)[0])
         # 胶囊的字与圆点同一个品牌橙、浅橙底（第 10 轮审查：原来是警示色的橄榄褐 / 金黄，与圆点不同色）

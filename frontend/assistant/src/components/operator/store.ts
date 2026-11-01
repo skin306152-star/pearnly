@@ -7,6 +7,7 @@
 
 import { create } from "zustand";
 import { prefChanged } from "@/lib/prefs-sync";
+import { reportCaught } from "@/lib/caught";
 
 /** 一个准备中任务在这台设备上的准备。 */
 export type Prep = {
@@ -46,7 +47,7 @@ function load(): Saved {
     const value = JSON.parse(localStorage.getItem(KEY) || "{}") as Partial<Saved>;
     const preps = Object.fromEntries(Object.entries(value.preps ?? {}).filter(([, prep]) => isPrep(prep)));
     return { preps, panel: value.panel !== false, folds: parseFolds(value.folds) };
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "operator-store");
     return { preps: {}, panel: true, folds: {} };
   }
 }
@@ -61,7 +62,7 @@ export const useOperatorStore = create<State>(() => ({ ...load(), drawer: false 
 useOperatorStore.subscribe((s) => {
   try {
     localStorage.setItem(KEY, JSON.stringify({ preps: s.preps, panel: s.panel, folds: s.folds }));
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "operator-store");
     // 存不了：这次照样能用
   }
 });

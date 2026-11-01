@@ -12,6 +12,7 @@ import type { Activity } from "@/lib/managed-agents/activity";
 import { clock } from "@/lib/prefs-sync";
 import { siteSeconds } from "./live-source";
 import type { BatchSnapshot, BatchStatus, OperatorSource, TaskRecord, TaskStatus } from "./types";
+import { reportCaught } from "@/lib/caught";
 
 export const TASK_PAGE = 50;
 
@@ -108,7 +109,7 @@ function readSeen(user: string): Seen | null {
     if (!value || typeof value.base !== "number") return null;
     const seen = value.seen && typeof value.seen === "object" ? value.seen : {};
     return { base: value.base, seen: Object.fromEntries(Object.entries(seen).filter(([, v]) => typeof v === "string")) };
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "operator-tasks-seen");
     return null;
   }
 }
@@ -120,7 +121,7 @@ function keepSeen() {
   if (!user) return;
   try {
     localStorage.setItem(SEEN_KEY(user), JSON.stringify({ base, seen }));
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "operator-tasks-seen");
     // 存不了：本次照样标
   }
 }
