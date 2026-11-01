@@ -131,6 +131,22 @@ class PollWorker(QThread):
             self._live.tick()
         return "abort"
 
+    def _beating(self, run):
+        """代录一张要几十秒到几分钟（等人停手、Express 慢时等画面）：这段时间旁路每秒盖一次存活时标，看门狗不把取任务线程
+        当卡死重启（11-01 录制机：暂停等人时判卡死 184 秒、重启取任务线程，新线程接着领后面的单，和还在录的那张撞在一起，
+        后面每张都「命令被禁用」）。代录自己有时限（画面宽限、服务器断线等待），真卡住由它转人工。"""
+        done = threading.Event()
+
+        def beat():
+            while not done.wait(1.0):
+                self._live.tick()
+
+        threading.Thread(target=beat, name="operator-liveness", daemon=True).start()
+        try:
+            return run()
+        finally:
+            done.set()
+
     def _release_then_ask(self, profile_id: str, queue, task, lang: str) -> str:
         """账套被占用：先按「等账套」回报、放掉租约，再弹询问框（多台电脑 ADR-021：不再拿着租约等人点——别的电脑会把
         过期的租约收成「结果不明」）。选「重试」：下一轮再领（多半还是这张）；选「终止」：这张单以后这台再领到就按终止回报
@@ -194,7 +210,10 @@ class PollWorker(QThread):
         if self._stop:
             return "error"
         try:
-            outcome = write(cfg, queue, task, index_batch=index_batch)
+            if _operator_task(task):
+                outcome = self._beating(lambda: write(cfg, queue, task, index_batch=index_batch))
+            else:
+                outcome = write(cfg, queue, task, index_batch=index_batch)
         except Exception:
             batch["fail"] += 1
             raise

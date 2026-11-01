@@ -581,7 +581,8 @@ class Engine:
                        + (f"、对方单号 {d.ref_no}" if d.ref_no else "") + "，没有弹窗。")
         self.command("new")
         self.act([{"do": "wait", "ms": 1200}])
-        if self.in_edit():
+        # Express 慢、或人刚好在这时点了 Express（11-01 录制机：「新建」晚了一会儿才生效，只读一次就判成画面不对）：限时再读
+        if self.in_edit() or self._wait_for(self.in_edit, SLOW_FORM_S):
             self._layer("win32")
         else:
             self._recover("new", "not in new-document state", header_text, {"stage": "header"})

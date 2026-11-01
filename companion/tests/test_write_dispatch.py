@@ -502,3 +502,20 @@ def test_waiting_for_someone_to_answer_the_busy_prompt_is_not_a_stall():
     now[0] += limit + 10
     time.sleep(0.5)
     assert watchdog.is_stalled(pw.stall_seconds(), limit)
+
+
+def test_a_long_operator_task_keeps_the_watchdog_from_restarting_the_poll_thread(monkeypatch):
+    # 11-01 录制机：代录暂停等人时取任务线程 184 秒没盖时标，看门狗判卡死重启它，新线程接着领后面的单、和在录的那张撞上
+    import time as _time
+
+    pw = _poll_worker()
+    pw._live.tick()
+    stalls = []
+
+    def write(cfg, q, t, index_batch=None):
+        _time.sleep(2.5)
+        stalls.append(pw.stall_seconds())
+
+    task = SimpleNamespace(id="T-11", invoice_no="INV", payload={"entry_mode": "operator"}, attended=True)
+    assert pw.handle_task(_cfg(profile_id="P1"), _AckQueue(), task, None, "zh", write=write) is None
+    assert stalls and stalls[0] < 1.6  # 录单期间照常盖时标（直写的单不变）
