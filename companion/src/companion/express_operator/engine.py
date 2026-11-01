@@ -22,11 +22,12 @@ from .helper import NoHelper, png_block
 from .recipe import Form, Recipe
 
 MAX_TAKEOVERS_PER_DOC = 3
-# 固定流程读画面的宽限（11-01 录制机实测：另开着一个 Express、网络账套忙时，第一次开表单、存档都比平常慢；只读一次就判成
-# 画面不对、作废了存对的单）。按等待次数算（测试里的等待是假的）；中途有人在本批的 Express 里动过就等人停手、重新计时再读
+# 固定流程读画面的宽限（11-01 录制机实测：同一个 Express 里开 HP 表单，平常 0.3–3 秒，间歇会到 6–35 秒，开不开第二个 Express
+# 都出现；只读一次就判成画面不对、作废了存对的单）。按等待次数算（测试里的等待是假的）；中途有人在本批的 Express 里动过就等人
+# 停手、重新计时再读
 SLOW_STEP_MS = 500
-SLOW_FORM_S = 15
-SLOW_SAVE_S = 20
+SLOW_FORM_S = 60
+SLOW_SAVE_S = 60
 SAVED_UNREAD = "?"  # 画面核对已存上、单号格读不到字：单号以读账套为准
 INPUT_OPS = {"keys", "key", "type", "paste", "click", "drag", "scroll", "grid_click", "command", "dialog_button", "menu",
              "close_form",

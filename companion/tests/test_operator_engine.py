@@ -201,7 +201,7 @@ def _engine(sim, presence=None):
 def test_a_slow_form_open_is_waited_for_not_judged_at_once():
     # 11-01 录制机：另开着一个 Express 时第一次开表单比平常慢，只读一次就判成画面不对、整张转人工
     d = samples()[1]
-    recs, sim, site, _ = run_docs([d], with_ai=False, inject={"slow_form": 20})
+    recs, sim, site, _ = run_docs([d], with_ai=False, inject={"slow_form": 80})
     assert recs[0]["outcome"] == "saved" and recs[0]["readback"]["ok"]
     assert recs[0]["checkpoints"] == 0 and not recs[0]["voided"]
 
@@ -209,7 +209,7 @@ def test_a_slow_form_open_is_waited_for_not_judged_at_once():
 def test_a_slow_save_is_waited_for_and_the_saved_document_is_not_voided():
     # 11-01 录制机：存档慢，原来读 8 次没读到正式单号就判画面不对，把存对了的单作废（HP0000118）
     d = samples()[1]
-    recs, sim, _, _ = run_docs([d], with_ai=False, inject={"slow_save": 25})
+    recs, sim, _, _ = run_docs([d], with_ai=False, inject={"slow_save": 100})
     assert recs[0]["outcome"] == "saved" and recs[0]["docnum"] == "HP0000001"
     assert not recs[0]["voided"] and not any(e.startswith("void") for e in sim.log)
 
@@ -217,11 +217,11 @@ def test_a_slow_save_is_waited_for_and_the_saved_document_is_not_voided():
 def test_a_person_touching_express_while_it_saves_restarts_the_wait_instead_of_failing():
     # 用户 10-30：被打断时先停、等人停手、再从断点接着做；人碰过 Express 的那一下不能当成画面不对作废
     d = samples()[1]
-    sim = FakeExpress(RECIPE.data, inject={"slow_save": 100})
+    sim = FakeExpress(RECIPE.data, inject={"slow_save": 300})
     paused = []
 
     def presence():
-        if 25 <= sim.save_delay <= 30 and not paused:  # 存到一半，人在 Express 里点了一下：停下等人停手
+        if 200 <= sim.save_delay <= 205 and not paused:  # 存到一半，人在 Express 里点了一下：停下等人停手
             paused.append(sim.save_delay)
             return True
         return False
@@ -229,13 +229,13 @@ def test_a_person_touching_express_while_it_saves_restarts_the_wait_instead_of_f
     rec = _engine(sim, presence).run(d)
     assert paused and rec["outcome"] == "saved" and rec["docnum"] == "HP0000001" and not rec["voided"]
     # 对照：同样慢、人没碰，宽限用完就交给人（画面判不了）
-    sim2 = FakeExpress(RECIPE.data, inject={"slow_save": 100})
+    sim2 = FakeExpress(RECIPE.data, inject={"slow_save": 300})
     assert _engine(sim2, lambda: False).run(samples()[1])["outcome"] == "need_human"
 
 
 def test_a_person_touching_express_while_the_form_opens_is_waited_out():
     d = samples()[1]
-    sim = FakeExpress(RECIPE.data, inject={"slow_form": 200})
+    sim = FakeExpress(RECIPE.data, inject={"slow_form": 400})
     calls = []
 
     def presence():
