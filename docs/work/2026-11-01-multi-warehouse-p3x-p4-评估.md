@@ -1,6 +1,8 @@
 # 需求影响评估：多仓闭环 P3x（Express 端新商品）+ P4（报表跨仓合计）
 
-> 按 [需求影响评估模板](../development/templates/impact-assessment.md) 填写；只写事实和建议，不施工。交主会话审定。
+> **审定：主会话 11-01 同意按评估施工，12 节四问全部按建议定。** 另两条：载荷号谁先合 main 谁拿 15（代录窗口 local_ce7e3ac9 也占了 15，后合的变基改下一个号，合前告诉主会话）；CC 正式版发布前先走 staging，在测试机从 1.12.9 实机升级通过。施工记录见 [P3x / P4 施工](2026-11-01-multi-warehouse-p3x-p4.md)。
+>
+> 按 [需求影响评估模板](../development/templates/impact-assessment.md) 填写；只写事实和建议，不施工。
 > 基线：origin/main `99ac4898`（多仓 P2 / P2x、盘点 S0–S6 都在内；生产 072fad84）。
 > 来源：[多仓闭环评估](2026-10-26-multi-warehouse-closed-loop-评估.md) 13 节 G14（P3x）、G18（P4）；[盘点评估](2026-10-29-stocktake-complete-评估.md) 12 节第 7 条。
 > 说明：主会话把 P3x 称为「跨仓」，按原分期表 P3x 是 **G14：Express 端新商品**（库存单 / 盘点 / 退货遇到 Express 里没有的商品），跨仓合计是 P4。下文按原表写。

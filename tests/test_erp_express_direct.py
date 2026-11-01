@@ -1283,6 +1283,32 @@ class LinkProducts(PushModule):
         self.assertEqual(self.link(None), (None, None))
 
 
+    def test_stock_documents_count_and_pos_day_link_the_codes_the_computer_used(self):
+        """多仓闭环 P3x：出入库单、盘点（按交给电脑的明细序号）、收银日汇总（按品名）写进去后同样挂码；这几种单只看这件商品有没有在
+        别家公司的仓里动过库存（收银卖的本地商品必然被别的小票用过）。"""
+        from unittest import mock
+        fake.STATE.db.table("ERP Warehouse").update({"W1": {"name": "W1", "company": "CO-1"},
+                                                     "W9": {"name": "W9", "company": "CO-2"}})
+        moves = fake.STATE.db.table("ERP Stock Movement")
+        lines = {"lines": [{"product": "PRD-2", "name": "ถ่าน"}, {"product": "PRD-1", "name": "น้ำแข็งก้อน"}]}
+        codes = [{"seq": 2, "name": "น้ำแข็งก้อน", "code": "ST-0099"}]
+        for doctype, patch in (("ERP Stock Entry", mock.patch.object(self.push.stock_entry, "document", lambda name, ref: lines)),
+                               ("ERP Stock Count", mock.patch.object(self.push.stock_entry, "count_document", lambda name, ref: lines)),
+                               ("ERP POS Day Summary", mock.patch.object(frappe.db, "sql", lambda *a, **k: [
+                                   Row(product="PRD-1", product_name="น้ำแข็งก้อน")], create=True))):
+            self.products["PRD-1"] = {"name": "PRD-1", "product_name": "น้ำแข็งก้อน", "is_active": 1}
+            moves.clear()
+            moves["M1"] = {"name": "M1", "product": "PRD-1", "warehouse": "W1"}  # 这家公司自己的仓里卖过：照挂
+            with patch:
+                self.push.link_products(doctype, "DOC-1", "CO-1", codes)
+            self.assertEqual(self.products["PRD-1"].get("express_code"), "ST-0099", doctype)
+            self.products["PRD-1"] = {"name": "PRD-1", "product_name": "น้ำแข็งก้อน", "is_active": 1}
+            moves["M2"] = {"name": "M2", "product": "PRD-1", "warehouse": "W9"}  # 别家公司的仓也动过：各家共用，不挂
+            with patch:
+                self.push.link_products(doctype, "DOC-1", "CO-1", codes)
+            self.assertIsNone(self.products["PRD-1"].get("express_code"), doctype)
+        self.assertIsNone(self.push._product_lines("ERP Something", "X"))
+
 class PurchaseFromOwnCompany(unittest.TestCase):
     """采购页上传本公司开出的单据拒收（用户 10-24「采购页上传收据拒收」）：卖方税号 = 本公司、分店相同或没印分店。"""
 
@@ -1522,7 +1548,8 @@ class StockEntries(Base):
         self.assertEqual(self.stock.kind({"direction": "transfer"}), "RL")
         body = document()
         self.assertEqual((body["doctype"], body["loccod"], body["to_loccod"]), ("RL", "01", "02"))
-        self.assertEqual(body["lines"], [{"code": "ICE-01", "name": "น้ำแข็ง", "qty": "2", "unit": "ถุง", "loccod": "01"}])
+        self.assertEqual(body["lines"], [{"code": "ICE-01", "name": "น้ำแข็ง", "qty": "2", "unit": "ถุง", "loccod": "01",
+                                          "product": "P1"}])  # ERP 商品只在服务端用（选存货、回填编码），进载荷前去掉
         self.assertNotIn("unmapped_warehouses", body)
         key = self.computer([book()])[0]
         self.masters(key)
@@ -1580,8 +1607,74 @@ class StockEntries(Base):
             body = self.stock.count_document("STC-1", "STC-1@x")
         self.assertEqual((body["doctype"], body["number"], body["remark"], body["loccod"]), ("TK", "STC-1", "ตรวจนับ ต.ค.", "01"))
         self.assertEqual(body["lines"], [
-            {"code": "ICE-02", "name": "น้ำแข็งบด", "qty": "-2", "unit": "ถุง", "loccod": "01"},
-            {"code": "CH-01", "name": "ถ่าน", "qty": "3", "unit": "ถุง", "loccod": "01"}])  # 盘盈不带 ERP 估值，按 Express 均价取
+            {"code": "ICE-02", "name": "น้ำแข็งบด", "qty": "-2", "unit": "ถุง", "loccod": "01", "product": "P2"},
+            {"code": "CH-01", "name": "ถ่าน", "qty": "3", "unit": "ถุง", "loccod": "01", "product": "P3"}])  # 盘盈不带 ERP 估值，按 Express 均价取
+
+    def new_item(self, **override):
+        line = {"code": "", "name": "น้ำแข็งหลอด", "qty": "4", "unit": "ถุง", "loccod": "02", "product": "PRD-9"}
+        line.update(override)
+        return line
+
+    def prepared(self, body):
+        return self.stock.prepare(body, COMPANY, lambda company, chosen: None)
+
+    def test_a_product_express_does_not_have_is_asked_once_and_new_marks_the_line(self):
+        """多仓闭环 P3x（G14）：行上没有 Express 编码、账套里也没有同名存货 → 按 ERP 商品问一次（选现有或新建）；选新建的行标
+        ``new_ok``、载荷盖 15（旧版 CC 诚实拒收），选现有的带那个码照旧 6；ERP 商品不进载荷。"""
+        key = self.computer([book()])[0]
+        self.masters(key)
+        for doctype, extra in (("OU", {}), ("RL", {"to_loccod": "03"})):
+            fake.STATE.db.table(choices.CHOICE).clear()
+            body = self.body(doctype=doctype, lines=[self.new_item(), self.new_item(qty="1")], **extra)
+            result = self.prepared(body)
+            self.assertEqual(result["hold"], E.CHOICE + ":item")
+            self.assertEqual(result["needed"], [{"kind": "item", "subject": "stock|PRD-9", "label": "น้ำแข็งหลอด",
+                                                 "current": ""}])  # 同一件商品两行只问一次
+            choices.remember(COMPANY["name"], "item", "stock|PRD-9", C.NEW)
+            payload = self.prepared(self.body(doctype=doctype, lines=[self.new_item()], **extra))["payload"]
+            self.assertEqual(payload["payload_version"], self.stock.NEW_ITEM_PAYLOAD_VERSION)
+            self.assertEqual(payload["items"], [{"code": "", "name": "น้ำแข็งหลอด", "qty": "4", "unit": "ถุง", "loccod": "02",
+                                                 "new_ok": True}])
+            choices.remember(COMPANY["name"], "item", "stock|PRD-9", "ICE-02")
+            payload = self.prepared(self.body(doctype=doctype, lines=[self.new_item()], **extra))["payload"]
+            self.assertEqual(payload["payload_version"], 6 if doctype == "OU" else self.stock.TRANSFER_PAYLOAD_VERSION)
+            self.assertEqual(payload["items"][0]["code"], "ICE-02")
+            self.assertNotIn("new_ok", payload["items"][0])
+
+    def test_a_same_name_item_or_a_code_on_the_line_is_not_asked(self):
+        key = self.computer([book()])[0]
+        self.masters(key)
+        lines = [self.new_item(name="น้ำแข็งแพ็ค"), self.new_item(code="ICE-01", product="PRD-1")]
+        payload = self.prepared(self.body(lines=lines))["payload"]
+        self.assertEqual(payload["payload_version"], 6)  # 同名：电脑照名认；行上带码：照码写
+        self.assertEqual([item["code"] for item in payload["items"]], ["", "ICE-01"])
+        # 记住的码在这份账套里已经没有了：再问一次，带上原来的值
+        choices.remember(COMPANY["name"], "item", "stock|PRD-9", "GONE-01")
+        result = self.prepared(self.body(lines=[self.new_item()]))
+        self.assertEqual(result["needed"][0]["current"], "GONE-01")
+
+    def test_without_the_item_list_a_count_with_new_items_still_holds(self):
+        """存货表没读到（定不了同名）：盘点当场新建的商品照旧停在 item_unmapped；出入库照旧交品名给电脑认。"""
+        key = self.computer([book()])[0]
+        self.masters(key, products=None)
+        body = self.body(doctype="TK", lines=[self.new_item()], unmapped_items=["น้ำแข็งหลอด"])
+        self.assertEqual(self.prepared(body)["hold"], E.ITEM_UNMAPPED)
+        payload = self.prepared(self.body(lines=[self.new_item()]))["payload"]
+        self.assertEqual((payload["payload_version"], payload["items"][0]["code"]), (6, ""))
+        # 读到了：盘点同样问一次，不再停在 item_unmapped
+        self.masters(key)
+        self.assertEqual(self.prepared(body)["hold"], E.CHOICE + ":item")
+
+    def test_the_form_asks_for_the_lines_before_submit(self):
+        values = {("ERP Product", "PRD-9"): {"product_name": "น้ำแข็งหลอด", "express_code": ""}}
+        with mock.patch.object(frappe.db, "get_value", lambda doctype, name, fields=None, as_dict=False:
+                               Row(values[(doctype, name)]) if (doctype, name) in values else None):
+            body = self.stock.form_body({"direction": "out", "posting_date": "2026-10-20",
+                                         "lines": [{"product": "PRD-9", "qty": 1}, {"product": ""}, "x"]})
+        self.assertEqual(body["lines"], [{"code": "", "name": "น้ำแข็งหลอด", "product": "PRD-9"}])
+        key = self.computer([book()])[0]
+        self.masters(key)
+        self.assertEqual(self.prepared(body)["needed"][0]["subject"], "stock|PRD-9")
 
     def test_a_pack_unit_is_written_in_the_stock_unit(self):
         """验收 10-25：行上选「ลัง（= 12 ถุง）」时原来按 1 写进 Express；现在照行上单位交、带上 ERP 的换算率 12（CC 按 Express 主档的
@@ -1606,9 +1699,9 @@ class StockEntries(Base):
             with self.assertRaises(Exception):
                 self.stock.document("SE-2", "SE-2@x")  # 商品单位表里没有的单位：同 ERP 流水，报错不猜
         self.assertEqual(body["lines"], [{"code": "ICE-01", "name": "น้ำแข็ง", "qty": "3", "unit": "ลัง", "loccod": "01",
-                                          "factor": "12", "unit_cost": "120"}])
+                                          "product": "P1", "factor": "12", "unit_cost": "120"}])
         self.assertEqual(base["lines"], [{"code": "ICE-01", "name": "น้ำแข็ง", "qty": "36", "unit": "ถุง", "loccod": "01",
-                                          "unit_cost": "10"}])
+                                          "product": "P1", "unit_cost": "10"}])
 
 
     def test_a_void_names_the_written_book_the_docnum_and_the_codes_the_computer_used(self):

@@ -288,12 +288,8 @@ def send(doctype, name):
         return
     vat_fields = body.pop("vat_fields", None)
     unmapped = body.pop("unmapped_warehouses", None)
-    if body.pop("unmapped_items", None):
-        # 盘点当场新建、Express 中没有的商品：这一批先不写 TK，停下交人（用户 10-29 批复 #7；CC 在 TK 里建档另排）。
-        # 在 Express 建好、手工处理后标记已处理
-        _set(doctype, name, {"express_state": contracts.HELD, "express_reason": contracts.ITEM_UNMAPPED, "express_needed": None})
-        frappe.db.commit()
-        return
+    # 盘点当场新建、Express 中没有的商品（``unmapped_items``）：`stock_entry.prepare` 按存货表问一次选现有或新建（P3x）；
+    # 存货表还没读到时停在 item_unmapped
     if doctype == POS_DAY and "hold" in body:
         result = body  # 还不知道这家公司是不是增值税登记户：在单据上问一次（`pos_day.document`）
     else:
@@ -465,32 +461,60 @@ PRODUCT_USES = {"Purchase Line": "parent", "ERP Sales Document Line": "parent", 
 def link_products(doctype, name, company, codes):
     """写进 Express 后，把这张单随单自动建的本地商品挂上电脑实际用的存货码（同 :func:`link_party`；10-24：认不到的货物行
     提交时建本地档，电脑在 Express 里另建存货，几家公司的租户主档同步不认领本地档，会按新码再建一条同名档）。
-    只认领只被这张单用过的本地档；这家公司已有挂这个码的档时不动（库存流水已记在本地档上，不改指）。逐行按序号对上、
+    采购 / 销售只认领只被这张单用过的本地档；出入库、盘点、收银日汇总（P3x：库存单里新建的、收银卖的）只认领没在别家公司的仓里
+    动过库存的本地档。这家公司已有挂这个码的档时不动（库存流水已记在本地档上，不改指）。逐行按序号对上（收银日汇总按品名）、
     品名也一致才认。"""
-    if doctype not in LINES or not company or not isinstance(codes, list):
+    lines = _product_lines(doctype, name) if company and isinstance(codes, list) else None
+    if lines is None:
         return
-    lines = frappe.get_all(LINES[doctype], filters={"parent": name, "parenttype": doctype},
-                           fields=["product", "description"], order_by="idx asc", limit_page_length=0)
     for row in codes:
         if not isinstance(row, dict):
             continue
         seq, code = row.get("seq"), str(row.get("code") or "").strip()
-        if not code or not isinstance(seq, int) or not 1 <= seq <= len(lines) or not lines[seq - 1].product:
+        label = str(row.get("name") or "").strip()
+        if isinstance(lines, dict):
+            line = lines.get(label)  # 收银日汇总：一行是几张小票合起来的，按品名认
+        else:
+            line = lines[seq - 1] if isinstance(seq, int) and 1 <= seq <= len(lines) else None
+        if not code or not line or not line[0]:
             continue
-        line = lines[seq - 1]
-        product = frappe.db.get_value("ERP Product", line.product, ["product_name", "express_code", "express_company"],
+        product = frappe.db.get_value("ERP Product", line[0], ["product_name", "express_code", "express_company"],
                                       as_dict=True)
         if not product or product.express_code or product.express_company:
             continue
-        if str(row.get("name") or "").strip() not in {str(line.description or "").strip(),
-                                                      str(product.product_name or "").strip()}:
+        if label not in {line[1], str(product.product_name or "").strip()}:
             continue
         if frappe.db.get_value("ERP Product", {"express_company": company, "express_code": code}, "name"):
             continue
-        if _used_elsewhere(line.product, name):
+        if _used_elsewhere(line[0], name) if doctype in LINES else _moved_elsewhere(line[0], company):
             continue
-        frappe.db.set_value("ERP Product", line.product, {"express_company": company, "express_code": code},
+        frappe.db.set_value("ERP Product", line[0], {"express_company": company, "express_code": code},
                             update_modified=False)
+
+
+def _product_lines(doctype, name):
+    """这张单交给电脑的明细 → ``[(ERP 商品, 行上的品名)]``（按序号）；收银日汇总回 ``{品名: (ERP 商品, 品名)}``；别的单回 None。"""
+    if doctype in LINES:
+        rows = frappe.get_all(LINES[doctype], filters={"parent": name, "parenttype": doctype},  # bounded: 一张单的明细
+                              fields=["product", "description"], order_by="idx asc", limit_page_length=0)
+        return [(row.product, str(row.description or "").strip()) for row in rows]
+    if doctype == STOCK:
+        return [(line["product"], line["name"]) for line in stock_entry.document(name, "link")["lines"]]
+    if doctype == COUNT:
+        return [(line["product"], line["name"]) for line in stock_entry.count_document(name, "link")["lines"]]
+    if doctype == POS_DAY:
+        rows = frappe.db.sql("""SELECT DISTINCT l.product, p.product_name FROM `tabERP Sale Line` l
+            JOIN `tabERP Sale` s ON s.name = l.parent AND l.parenttype = 'ERP Sale'
+            JOIN `tabERP Product` p ON p.name = l.product WHERE s.express_summary = %s""", (name,), as_dict=True)
+        return {str(row.product_name or "").strip(): (row.product, str(row.product_name or "").strip()) for row in rows}
+    return None
+
+
+def _moved_elsewhere(product, company):
+    """这件本地商品在别家公司的仓里动过库存（各家共用的本地档不挂某一家的码）。"""
+    own = frappe.get_all("ERP Warehouse", filters={"company": company}, pluck="name", limit_page_length=0)  # bounded: 一家公司的仓
+    return bool(frappe.get_all("ERP Stock Movement", filters={"product": product, "warehouse": ["not in", own or [""]]},
+                               limit=1))
 
 
 def _used_elsewhere(product, name):
