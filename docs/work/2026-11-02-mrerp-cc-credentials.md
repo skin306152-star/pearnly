@@ -153,24 +153,25 @@ Password 字段（直写、目录采集、主档 / 菜单读取用）。站点�
 - `worker.py` / `queue_client.py`：心跳带 `mrerp_logins`（这个成员站点的连接号）。`channel.py` 两种通道各加 `mrerp_login` 路径。
 - 桥能力 `mrerp_login`；页面据此判断（旧桌面版提示更新）。
 
-## 10. 测试与闸门（绑定分支末端提交，本机 11-02）
+## 10. 测试与闸门（变基到 origin/main `b8bb356d` 之后、按主会话定的权限改完，提交 `8472abd3`，本机 11-02）
 
 | 项 | 结果 |
 |---|---|
-| 新增离线 `tests/test_mrerp_cc_login.py`（票、共用通道两半、精确 POST、心跳存法） | 13 通过 |
-| 新增镜像内 `tests/test_cowork_mrerp_cc_login.py`（权限、写 Password 不升版本、页面不见密码、老连接兼容、机器方法、同账号互斥与执行器排队、假 MR.ERP 站点登录且错密码只试一次） | 13 通过（生产镜像 `ea24fcb9…`） |
+| 新增离线 `tests/test_mrerp_cc_login.py`（票与范围、共用通道：管理员写站点 / 成员只存本机 / 无关人员都不行 / 管理员发票后失权拒写、精确 POST、心跳存法） | 15 通过 |
+| 新增镜像内 `tests/test_cowork_mrerp_cc_login.py`（三种身份、写 Password 不升版本、成员拒写站点但可只存本机、页面不见密码、老连接兼容、机器方法、同账号互斥与执行器排队、假 MR.ERP 站点登录且错密码只试一次） | 15 通过（生产镜像 `ea24fcb9…`） |
 | 新增 `tests/test_mrerp_login_pages.py`（网页无密码框、组件只传票、Desk 弹窗） | 4 通过 |
-| CC 端 `companion/tests/test_mrerp_login.py`（凭据目标名与第 2 步同名、存删用替身、交站点后才存本机、错误码不含密码、桥只收票、实操登录按目标分路 / 没有第 2 步包回不支持、心跳键） | 19 通过 |
-| CC 全套 `companion/tests`（暂存 Python 3.12：pytest、httpx、dbf、aenum、PySide6_Essentials，offscreen） | 1445 通过、46 跳过、0 失败 |
-| 真实站点 `scripts/cowork-mrerp-login-lab-verify.py`（本机 cowork-backend 实验栈、生产镜像、真 MariaDB / Redis / WSGI） | 4 通过；同栈再跑既有 `cowork-companion-heartbeat-lab-verify.py` 26 通过。`cowork-companion-credentials-lab-verify.py`（3 失败 1 错）与 `cowork-connections-lab-verify.py`（4 失败 4 错）换成基线 9b3f66e4 源码在同一栈复跑**失败完全相同**，是这两份脚本落后于现行规则，不是本次引入 |
-| 真 Redis 上的代录租约（一次性 redis 容器）：代录占着时直写短锁拿不到、别的批次租不到、放开 / 过期后直写拿得到 | 通过 |
-| MR.ERP 直写全链路回归（生产镜像）：`test_cowork_mrerp_push` 41、`collector` 15、`catalog` 8、`menus` 17、`test_mrerp_rules_golden` 3、`masters` 12、`folder_tasks_mrerp` 8、`xlsx_source_parity`（2 跳过）、`test_mrerp_core_boundary` 3、`scripts/test-session-lock.py` 5 | 全过 |
+| CC 端 `companion/tests/test_mrerp_login.py`（目标名与第 2 步同名、交站点后才存本机、成员只存本机、错误码不含密码、桥只收票、实操登录按目标分路 / 没有第 2 步包回不支持、心跳键） | 20 通过 |
+| CC 全套 `companion/tests`（暂存 Python 3.12：pytest、httpx、dbf、aenum、PySide6_Essentials，offscreen） | 1446 通过、46 跳过、0 失败 |
+| 真实站点 `scripts/cowork-mrerp-login-lab-verify.py`（本机 cowork-backend 实验栈、生产镜像、真 MariaDB / Redis / WSGI，跑完拆掉） | 6 通过：管理员写站点且版本不变、成员只存本机不写站点、管理员发票后失权拒写、名单外与不认得的电脑拿不到票、只认精确机器 POST、报文错回码不回显 |
+| 变基前另跑：同栈既有 `cowork-companion-heartbeat-lab-verify.py` | 26 通过。`cowork-companion-credentials-lab-verify.py`（3 失败 1 错）与 `cowork-connections-lab-verify.py`（4 失败 4 错）换成基线 9b3f66e4 源码在同一栈复跑**失败完全相同**，是这两份脚本落后于现行规则，不是本次引入 |
+| 真 Redis 上的代录租约（一次性 redis 容器，变基前） | 通过 |
+| MR.ERP 直写全链路回归（生产镜像）：推送 41、采集 15、目录 8、菜单 17、黄金样本 3、主档 12、文件夹任务 8、导入表源码一致（2 跳过）、共用层边界 3、`test-session-lock.py` 5 | 全过 |
 | 候选离线检查 `cand-local.sh offline`（生产镜像） | 通过（exit 0） |
-| 流程 `run.py --changed --base origin/main`（本机专用回归实验室，迁移后跑） | `cc.chat`、`cc.operator`、`cowork.mrerp-login` 3 条 8/8 格通过；新流程单跑两套数据也通过 |
+| 流程 `run.py --changed --base origin/main`（本机专用回归实验室，跑完拆掉） | `cc.chat`、`cc.operator`、`cowork.mrerp-login` 3 条 8/8 格通过 |
+| 全闸门 `gate.sh` | 171 步全过（exit 0） |
 | `check-architecture` | PASS（0 违规） |
 | `check-copy --report` | 新增 8、改动 0、删除 0、拦截 0、标黄 5（5 个隐藏字段的 DocType 标签不在字典里，隐藏字段只标黄） |
-| `i18n-build --check`、`check-i18n --strict` | 通过 |
-| 全闸门 `gate.sh` | 170 步全过（exit 0，提交 `fcad0e37` 之后、对齐目标名之前的工作树）；对齐后只动了 CC 三个文件，CC 全套、`test_companion_contract`、架构、文案、影响、流程覆盖重跑全过 |
+| `i18n-build --check`、`check-i18n --strict`、`check-impact`、流程覆盖闸 | 通过 |
 | 真站点（真实 MR.ERP） | **没测到**（原因：MR.ERP 测试库 test2019 / test2020 不存在；第 0 步已确认，等有可用账套再补） |
 
 流程覆盖闸：新流程 `cowork.mrerp-login`（`scripts/flows/cowork_mrerp_login.py`）覆盖 CC 定时任务页、授权组件、Desk 连接弹窗、发票接口、
