@@ -48,8 +48,9 @@
 2. **存量补建**：每本账套第一次写带明细的单时，在同一张单的写前备份里，把 CC 写过（单头 USERID = PEARNLY）、码在科目表里却不在
    主档的那些科目码补建成商品（`product_master.backfill_account_items`）；这张单提交成功才在本机记「补过了」
    （`%APPDATA%\Pearnly\account_items.json`），回滚了下次再补。会计自己录的、商品后来被删了的旧单不碰。
-3. 未做（要服务端）：`ACCOUNT_CODE_IS_STOCK_ITEM` 的页面文案（服务端词条与 `ack_rules.NEEDS_PERSON_CODES`）；现在 CC 回执带
-   outcome `needs_review`，服务端照转人工，页面显示的是原因原文。
+3. 服务端只加了词条（闸门 `test_cowork_reason_language` 要求 CC 每个错误码都有）：Cowork `intake.error.ACCOUNT_CODE_IS_STOCK_ITEM`、
+   ERP `express.error.ACCOUNT_CODE_IS_STOCK_ITEM`，中文「此科目码已是 Express 库存品的编码」（新增 2、标黄 0）。CC 回执带 outcome
+   `needs_review`，服务端照转人工；没加进 `ack_rules.NEEDS_PERSON_CODES`（那是给不带 outcome 的老版 CC 用的，老版不会回这个码）。
 
 ## 验证
 
