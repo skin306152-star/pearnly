@@ -50,3 +50,5 @@ pearnly_erp_portal.patches.v1_21_drop_batch_expiry_columns
 pearnly_erp_portal.patches.v1_22_express_linked_at
 # 商品分类从裸整数改成分类主档：存量数字建成同名分类并挂回，旧列真删（岳父 11-01：分类要能写文字）
 pearnly_erp_portal.patches.v1_23_product_category_master
+# 单据上的账本栏改成通用列（express_* → ledger_*，另记账本 ledger_target）：旧列抄过来，旧列这一版保留作回退（评估 11-02 §12 第 6 条）
+pearnly_erp_portal.patches.v1_24_ledger_state

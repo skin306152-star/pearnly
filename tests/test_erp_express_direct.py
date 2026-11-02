@@ -1645,6 +1645,144 @@ class LinkRulesUnchanged(PushModule):
         self.assertEqual(got, LINK_RULES_GOLDEN)
 
 
+class LedgerColumnsPatch(unittest.TestCase):
+    """补丁 v1_24（评估 2026-11-02 §12 第 6 条）：五种单的 ``express_*`` 抄到通用的 ``ledger_*``、记 ``ledger_target = express``；
+    从没排进过 Express 的单不动；只抄还没抄过的（重跑不拿旧值盖新状态）；存着的视图改列名；回退把新列抄回旧列、清标记重跑。
+    SQL 在内存 SQLite 上真跑（同一条 UPDATE，反引号与 COALESCE 两边都认）。"""
+
+    DOCTYPES = ("Purchase Document", "ERP Sales Document", "ERP Stock Entry", "ERP Stock Count", "ERP POS Day Summary")
+    NAMES = ("state", "docnum", "reason", "sent_at", "job", "book", "needed")
+    VOIDS = ("void_state", "void_reason", "void_job")
+
+    def setUp(self):
+        import sqlite3
+        self.conn = sqlite3.connect(":memory:")
+        for doctype in self.DOCTYPES:
+            names = self.NAMES + (self.VOIDS if doctype == "ERP Stock Entry" else ())
+            columns = ["name TEXT PRIMARY KEY"] + [f"{prefix}_{name} TEXT" for prefix in ("express", "ledger")
+                                                   for name in names] + ["ledger_target TEXT"]
+            self.conn.execute(f"CREATE TABLE `tab{doctype}` ({', '.join(columns)})")
+        self.conn.execute("CREATE TABLE `tabPatch Log` (patch TEXT)")
+        self.conn.execute("INSERT INTO `tabPatch Log` VALUES ('pearnly_erp_portal.patches.v1_24_ledger_state')")
+        self.renamed = []
+        db = types.SimpleNamespace(
+            table_exists=lambda doctype, **kw: bool(self.conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE name = ?", (f"tab{doctype}",)).fetchone()),
+            has_column=lambda doctype, column: column in [row[1] for row in self.conn.execute(
+                f"PRAGMA table_info(`tab{doctype}`)")],
+            sql=lambda query, values=(): self.conn.execute(query.replace("%s", "?"), tuple(values)).fetchall(),
+            delete=lambda doctype, filters: self.conn.execute(f"DELETE FROM `tab{doctype}` WHERE patch = ?",
+                                                              (filters["patch"],)),
+            commit=lambda: None)
+        helpers = types.ModuleType("frappe.model.utils.rename_field")
+        for name in ("update_reports", "update_users_report_view_settings", "update_property_setters",
+                     "update_user_settings"):
+            setattr(helpers, name, lambda doctype, old, new, name=name: self.renamed.append((name, doctype, old, new)))
+        for patcher in (mock.patch.object(frappe, "db", db),
+                        mock.patch.dict(sys.modules, {"frappe.model": types.ModuleType("frappe.model"),
+                                                      "frappe.model.utils": types.ModuleType("frappe.model.utils"),
+                                                      "frappe.model.utils.rename_field": helpers})):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        sys.modules.pop("pearnly_erp_portal.patches.v1_24_ledger_state", None)
+        from pearnly_erp_portal.patches import v1_24_ledger_state as patch
+        self.patch = patch
+
+    def put(self, doctype, name, **values):
+        columns = ["name", *values]
+        self.conn.execute(f"INSERT INTO `tab{doctype}` ({', '.join(columns)}) VALUES ({', '.join('?' * len(columns))})",
+                          (name, *values.values()))
+
+    def row(self, doctype, name):
+        cursor = self.conn.execute(f"SELECT * FROM `tab{doctype}` WHERE name = ?", (name,))
+        return dict(zip([column[0] for column in cursor.description], cursor.fetchone()))
+
+    def fixture(self):
+        self.put("Purchase Document", "PUR-W", express_state="written", express_docnum="RR6901-001", express_job="J1",
+                 express_book="BK", express_sent_at="2026-10-24 10:00:00")
+        self.put("Purchase Document", "PUR-H", express_state="held", express_reason="choice_needed:account",
+                 express_needed='[{"kind": "account"}]', express_book="BK")
+        self.put("Purchase Document", "PUR-NEVER")
+        self.put("ERP Sales Document", "SD-D", express_state="detached", express_reason="express.disconnected")
+        self.put("ERP Stock Entry", "SE-V", express_state="written", express_docnum="OU-1", express_job="J2",
+                 express_void_state="queued", express_void_job="J3", express_void_reason="")
+        self.put("ERP Stock Entry", "SE-SENT", express_sent_at="2026-10-25 08:00:00")  # 只有送出时刻也算排进过
+        self.put("ERP Stock Count", "STC-1", express_state="queued")
+        self.put("ERP POS Day Summary", "PDS-1", express_state="handled")
+
+    def test_old_columns_are_copied_and_marked_express(self):
+        self.fixture()
+        self.patch.execute()
+        written = self.row("Purchase Document", "PUR-W")
+        self.assertEqual({key: written[key] for key in written if key.startswith("ledger_")},
+                         {"ledger_state": "written", "ledger_docnum": "RR6901-001", "ledger_reason": None,
+                          "ledger_sent_at": "2026-10-24 10:00:00", "ledger_job": "J1", "ledger_book": "BK",
+                          "ledger_needed": None, "ledger_target": "express"})
+        held = self.row("Purchase Document", "PUR-H")
+        self.assertEqual((held["ledger_state"], held["ledger_reason"], held["ledger_needed"], held["ledger_target"]),
+                         ("held", "choice_needed:account", '[{"kind": "account"}]', "express"))
+        never = self.row("Purchase Document", "PUR-NEVER")
+        self.assertEqual((never["ledger_state"], never["ledger_target"]), (None, None))  # 没排进过账本：账本留空
+        voided = self.row("ERP Stock Entry", "SE-V")
+        self.assertEqual((voided["ledger_void_state"], voided["ledger_void_job"], voided["ledger_docnum"]),
+                         ("queued", "J3", "OU-1"))
+        self.assertEqual(self.row("ERP Stock Entry", "SE-SENT")["ledger_target"], "express")
+        for doctype, name, state in (("ERP Sales Document", "SD-D", "detached"), ("ERP Stock Count", "STC-1", "queued"),
+                                     ("ERP POS Day Summary", "PDS-1", "handled")):
+            self.assertEqual((self.row(doctype, name)["ledger_state"], self.row(doctype, name)["ledger_target"]),
+                             (state, "express"))
+        # 存着的视图：每种单每一列 + 栏名都照 Frappe rename_field 的四个函数改
+        self.assertIn(("update_user_settings", "Purchase Document", "express_state", "ledger_state"), self.renamed)
+        self.assertIn(("update_reports", "ERP Stock Entry", "express_void_state", "ledger_void_state"), self.renamed)
+        self.assertIn(("update_property_setters", "ERP Stock Count", "express_section", "ledger_section"), self.renamed)
+        self.assertNotIn(("update_reports", "Purchase Document", "express_void_state", "ledger_void_state"), self.renamed)
+
+    def test_rerunning_never_overwrites_newer_ledger_values(self):
+        self.fixture()
+        self.patch.execute()
+        first = {doctype: [self.row(doctype, name) for (name,) in self.conn.execute(f"SELECT name FROM `tab{doctype}`")]
+                 for doctype in self.DOCTYPES}
+        self.patch.execute()  # 重跑：什么都不变
+        self.assertEqual(first, {doctype: [self.row(doctype, name) for (name,) in
+                                           self.conn.execute(f"SELECT name FROM `tab{doctype}`")]
+                                 for doctype in self.DOCTYPES})
+        # 改列后代码在新列上往前走了（排队中 → 写成）；旧列还是旧值。再跑也不拿旧值盖回去
+        self.conn.execute("UPDATE `tabERP Stock Count` SET ledger_state = 'written', ledger_docnum = 'TK-1' WHERE name = 'STC-1'")
+        # 改列后才排上的单：旧列是空的、排队时就记了账本
+        self.put("Purchase Document", "PUR-NEW", ledger_state="queued", ledger_target="express")
+        self.patch.execute()
+        self.assertEqual((self.row("ERP Stock Count", "STC-1")["ledger_state"],
+                          self.row("ERP Stock Count", "STC-1")["ledger_docnum"]), ("written", "TK-1"))
+        self.assertEqual(self.row("Purchase Document", "PUR-NEW")["ledger_state"], "queued")
+
+    def test_a_site_without_the_new_columns_or_table_is_skipped(self):
+        self.conn.execute("DROP TABLE `tabERP POS Day Summary`")
+        self.conn.execute("CREATE TABLE `tabERP POS Day Summary` (name TEXT, express_state TEXT)")  # 同步还没加新列
+        self.conn.execute("DROP TABLE `tabERP Stock Count`")
+        self.put("ERP POS Day Summary", "PDS-1", express_state="written")
+        self.patch.execute()
+        self.assertEqual(self.row("ERP POS Day Summary", "PDS-1"), {"name": "PDS-1", "express_state": "written"})
+
+    def test_rollback_copies_back_and_lets_the_patch_run_again(self):
+        self.fixture()
+        self.patch.execute()
+        self.conn.execute("UPDATE `tabERP Stock Count` SET ledger_state = 'written', ledger_docnum = 'TK-1' WHERE name = 'STC-1'")
+        self.patch.rollback()
+        count = self.row("ERP Stock Count", "STC-1")
+        self.assertEqual((count["express_state"], count["express_docnum"], count["ledger_target"]), ("written", "TK-1", None))
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM `tabPatch Log`").fetchone()[0], 0)
+        self.assertIn(("update_user_settings", "Purchase Document", "ledger_state", "express_state"), self.renamed)
+        # 旧镜像上又往前走了一步，再升级时补丁重跑、重新抄
+        self.conn.execute("UPDATE `tabPurchase Document` SET express_state = 'written', express_docnum = 'RR-2' WHERE name = 'PUR-H'")
+        self.patch.execute()
+        held = self.row("Purchase Document", "PUR-H")
+        self.assertEqual((held["ledger_state"], held["ledger_docnum"], held["ledger_target"]), ("written", "RR-2", "express"))
+
+    def test_registered_after_the_model_sync(self):
+        text = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/patches.txt").read_text(encoding="utf-8")
+        self.assertGreater(text.index("pearnly_erp_portal.patches.v1_24_ledger_state"), text.index("[post_model_sync]"))
+
+
 class LinkedAtBackfill(unittest.TestCase):
     """补丁 v1_22：已接上（勾着、落过库）的公司按第一次同步的证据回填接上时刻 —— 收银起始日 00:00 与已排进 / 写进 Express 的单
     最早的建单时刻取早的（已写过、正在排队的单都不早于它，行为不变）；都查不到记补丁时刻；只填空值。"""
