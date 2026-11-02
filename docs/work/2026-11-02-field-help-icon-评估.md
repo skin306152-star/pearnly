@@ -1,7 +1,7 @@
 # 需求影响评估：字段说明收进标题旁的注释图标（ERP / Cowork）
 
 基线：`df57672aa`（= main = 生产部署中的版本）；分支 `pearnly/field-help-icon-fcafe3`；Frappe `16.33.0`（样板容器 `frappe/__init__.py` 实读）。
-状态：盘点与方案已写好，**等主会话审定，未施工**。
+状态：主会话 11-02 审定通过（图标用 `info`；B 类留在下方并登记豁免、只减不增；真机走三星 adb 反连本机实验栈，测试机不动；MultiCheck 照现状），已施工，验证记录见文末「施工与验证」。
 
 ## 0. 需求原文与理解
 
@@ -140,3 +140,145 @@ DocType JSON 里 ERP 30 条、Cowork 12 条、共用 15 条 description：产品
 3. 本地闸门 + 改后扫描 + 受影响流程 + 两宽截图：约 60 分钟（本机流程）。
 4. 真机：按 §12 第 3 点，约 20 分钟。
 5. 推分支等 Development checks、变基快进 main（合前发主会话一句）：约 20 分钟。不部署。
+
+## 施工与验证（11-02）
+
+### 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| `apps/pearnly_core/pearnly_core/public/desk/field-help.js`（新增，多产品共用） | 扩展框架 `ControlInput.set_description`：有标题的格把说明放进标题旁 `.help` 插槽，图标 `frappe.utils.icon("info", "xs")`，Bootstrap tooltip（电脑 `hover focus`、触屏 `manual` 点开再点收、点别处 / 关弹窗 / 换页 / 滚动收起、Esc 只收提示不关弹窗），`role=button tabindex=0 aria-label=说明原文`；按钮放在按钮右边；没标题、只有输入框、`description_inline` 照原生并带 `data-pearnly-description="inline"` |
+| `pearnly_core/hooks.py` | `app_include_js` 在 `product.js` 后挂 `desk/field-help.js` |
+| `pearnly_core/desk/navigation.py` | 启动信息 `pearnly_field_help` = 产品声明的 `field_help` |
+| `pearnly_erp_portal/hooks.py`、`pearnly_cowork/hooks.py` | `pearnly_navigation` 声明 `'field_help': 'icon'`（DMS 不声明） |
+| `pearnly_core/public/desk/product.css` | 图标颜色 `--text-muted`、光标、对齐；触屏放大点按范围（不改占位） |
+| B 类 9 个字段（5 个文件） | `description_inline: 1`；定时任务文件夹有文件数时才置 1、没有时说明进图标 |
+| `scripts/check-field-help.py` + `scripts/field-help-inline.json` | 闸门（接线、声明、绕开写法、例外只减不增，比对 merge-base(origin/main)），进 development.yml |
+| `tests/test-desk-field-help.cjs` | 离线用例 8 条（真实 field-help.js + 假控件 / jQuery） |
+| `scripts/regression/ui_steps.mjs`、`scripts/flows/run.py` | 流程每一步后检查「字段下方还有说明」→ 判定项 `field descriptions below fields`；同时记下图标里的说明（运行时清单） |
+| `scripts/regression/form_layout_shots.py` | 排版巡检每屏记下图标与下方说明 |
+| `scripts/impact/shared-parts.toml` | `field-help.js` 并入 `desk-shell` 共用件 |
+
+### 实测（实验栈 `pearnly-fieldhelp-lab`，源码 = 本工作树）
+
+- 物料新建弹窗（erp-old，电脑 1280 / 手机 375 无头 Chrome）：编码（只读）/ 库存单位 / 默认仓位三处都是图标、下方 0 处；悬停显示、移开收起、键盘聚焦显示（带 `aria-describedby`）、Esc 只收提示弹窗仍开；手机点开、再点收起、点别处收起；页面与弹窗横向溢出均为 0。
+- 三星 SM-A146P 真机（Chrome，adb 反连实验栈，真实触摸 `input tap`）：点「库存单位」图标显示说明、再点收起、点空白收起；提示开着时点到提示框本身只收提示；点输入格键盘弹起，`pearnly-keyboard-open` 生效、格子摆在可见区（keyboard.js 未回退）。
+- 剩下的 A 类逐处探针（无头 Chrome，电脑 1280 悬停 / 移开 / 键盘聚焦 / Esc，手机 375 点开 / 再点 / 点别处，均截图）：A8 开班收银台、A10 CC 下载按钮（图标在按钮右边）、A11 银行对账左侧文件、A12 定时任务文件夹（没有文件数时）、A7 Cowork 连续盘点扫码格，全部通过、下方 0 处、横向溢出 0。
+- A4 物料批量新建表格：`in_place_edit` 表格框架不给行展开表单（`grid_row.js` 332 行），这句说明原生也从来不显示，照现状（同 A13）。
+- A9 推 Express 对应项：流程 `erp.express.service_vat` 打开过这个弹窗，那条待选项没有名称；带名称的（出入库待选物料）实验栈没造出来，按 `needed_fields` 同样的字段形状（Autocomplete、带说明、25 个选项）起弹窗核对通过。
+- 泰文长标题（手机 375）：第一版图标掉到单独一行（不横向滚动，但多一行）；改成带图标的标题按行内排后图标跟在最后一个字 / 必填星号后面，物料弹窗两栏高度改前改后都是 411 / 410。
+- 勾选框带说明：点图标不会顺带勾上；英文原文照常翻成中文。
+- 三星真机（反连实验栈）另测 Cowork 定时任务文件夹：点开显示、再点收起。真机截图：共享笔记目录 `字段说明图标-真机截图-11-02/`。
+
+### 运行时清单（流程全套 190 格 + 排版巡检 66 屏，自动记下的图标与下方说明）
+
+| 站点 | 字段 | 说明 | 在哪看到 |
+| --- | --- | --- | --- |
+| ERP | 物料 · 编码 / 库存单位 / 默认仓位 | A1–A3 | products.create、products.opening、keyboard.dialogs、排版巡检 |
+| ERP | 入库 / 出库 / 调拨 · 单号 | A5 | stock-entry.scan、stock-in.units、排版巡检三页 |
+| ERP | 盘点录入 · 扫码格 | A6 | stocktake.gs1 / new-product / places 等 |
+| ERP | 公司设置 · `express_synced_at` | 框架 Datetime 的时区行（A*） | company.settings |
+| Cowork | 银行对账 · 左侧文件 | A11 | 排版巡检 |
+| 两站点 | 字段下方仍有说明 | **0 处**（B 类登记的例外不算） | 全部 190 格每一步、66 屏 |
+| DMS | 花名册 · 密码「留空则不修改当前密码。」 | 仍在下方——DMS 不在范围，照原生，证明没被波及 | 排版巡检 |
+
+### 回归
+
+| 项目 | 结果 |
+| --- | --- |
+| 流程全套（57 条流程 × 两套数据 × 两种宽度） | 190/190 通过（dms.booking.editor new/desktop 首轮负载超时，单独补跑 51.6 秒通过，同共享笔记已知偶发）；新判定「field descriptions below fields」全部通过 |
+| 键盘流程（改样式后重跑：erp.keyboard.dialogs、cowork.keyboard.intake、erp.keyboard.line-stocktake、dms.keyboard.editor） | 4/4 通过 |
+| 排版巡检（ERP / Cowork / DMS 全部页，电脑 1280 + 手机 375 截图） | 66 屏无报错；截图在 scratchpad `shots-all/`（本机，不进仓库） |
+| 静态闸门 | check-field-help、check-architecture、check-form-layout（48 张表单）、check-keyboard-coverage、check-copy（新增 0 改动 0）、check-unbounded-queries、flows/coverage、test_flows_run、test-desk-field-help.cjs（8 条） |
+
+### 共用件连带回归（`check-impact` → `scripts/smoke/run.py --target local --diff`，实验栈 = 本工作树）
+
+自动入口 42 个通过、0 个不通过；没测到的逐条写原因，能由流程用例实测到的标了流程名。
+
+| 入口 | 产品 | 方式 | 结果 | 说明 |
+|---|---|---|---|---|
+| `erp.page.home` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.products` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.inventory` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.stock-in` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.stock-out` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.stock-transfer` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.stock-card` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.stock-count` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.cashier` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.company` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.warehouses` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.team` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.purchase` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.suppliers` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.sales` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.pos-receipts` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.pos-shifts` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.clients` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.tasks` | ERP | auto：page | 通过 | 0.7 秒 |
+| `cowork.page.home` | Cowork | auto：page | 通过 | 1.2 秒 |
+| `cowork.page.intake` | Cowork | auto：page | 通过 | 0.7 秒 |
+| `cowork.page.recon-bank` | Cowork | auto：page | 通过 | 1.3 秒 |
+| `cowork.page.recon-income` | Cowork | auto：page | 通过 | 0.7 秒 |
+| `cowork.page.recon-vat` | Cowork | auto：page | 通过 | 0.7 秒 |
+| `cowork.page.stocktake` | Cowork | auto：page | 通过 | 0.7 秒 |
+| `cowork.page.work` | Cowork | auto：page | 通过 | 0.4 秒 |
+| `cowork.page.team` | Cowork | auto：page | 通过 | 0.5 秒 |
+| `dms.page.home` | DMS | auto：page | 通过 | 1.8 秒 |
+| `dms.page.connect` | DMS | auto：page | 通过 | 0.7 秒 |
+| `dms.page.records` | DMS | auto：page | 通过 | 0.7 秒 |
+| `dms.page.roster` | DMS | auto：page | 通过 | 0.7 秒 |
+| `erp.page.never.push-logs` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.never.reconcile` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.never.guide` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.page.never.history` | ERP | auto：page | 通过 | 0.7 秒 |
+| `erp.report.stock-count-variance` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `shared.sidebar-order` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `erp.company-menu` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `erp.detail.sales.draft` | ERP | auto：doc_detail | 通过（流程用例 erp.sales.scan，全套 190/190） | no draft ERP Sales Document |
+| `erp.detail.sales.submitted` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.sales.void` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.purchase.draft` | ERP | auto：doc_detail | 通过（流程用例 erp.purchase.create，全套 190/190） | no draft Purchase Document |
+| `erp.detail.purchase.submitted` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.purchase.void` | ERP | auto：doc_detail | 没测到 | no void Purchase Document |
+| `erp.detail.stock-in.submitted` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.stock-out.void` | ERP | auto：doc_detail | 没测到 | no void ERP Stock Entry on the first list page |
+| `erp.stock-count.switch.posted-to-active` | ERP | auto：record_switch | 通过 |  |
+| `erp.stock-count.switch.active-to-posted` | ERP | auto：record_switch | 通过 |  |
+| `erp.purchase.detail.not-permitted` | ERP | auto：not_permitted | 没测到 | 没配受限账号 SMOKE_USER_ERP_LIMITED |
+| `erp.sales.detail.not-permitted` | ERP | auto：not_permitted | 没测到 | 没配受限账号 SMOKE_USER_ERP_LIMITED |
+| `cowork.stocktake.switch` | Cowork | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `erp.place.header` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `erp.products.new-dialog.opening` | ERP | manual | 通过（流程用例 erp.products.opening，全套 190/190） | manual：交验收窗口按清单实测 |
+| `erp.inventory.opening.row-warehouse` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `erp.warehouses.express-new-hidden` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `shared.navigation` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `shared.shell-gate` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `shared.keyboard.erp-dialogs` | ERP | manual | 通过（流程用例 erp.keyboard.dialogs，全套 190/190） | manual：交验收窗口按清单实测 |
+| `erp.stock-in.item-scan` | ERP | manual | 通过（流程用例 erp.stock-entry.scan，全套 190/190） | manual：交验收窗口按清单实测 |
+| `erp.stock-out.item-scan` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `erp.purchase.item-scan` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `erp.sales.item-scan` | ERP | manual | 通过（流程用例 erp.sales.scan，全套 190/190） | manual：交验收窗口按清单实测 |
+| `erp.serials.dialog` | ERP | manual | 通过（流程用例 erp.stock-in.units，全套 190/190） | manual：交验收窗口按清单实测 |
+| `erp.scan.pick-product` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `shared.page-head-declared` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `erp.line.chat` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `cowork.line.chat` | Cowork | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `shared.line.login` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `erp.cc.connect` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `shared.exports` | 共用 | manual | 通过（流程用例 erp.exports、cowork.exports，全套 190/190） | manual：交验收窗口按清单实测 |
+| `shared.upload.shrink-photo` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `erp.masters.scope` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `erp.print.purchase` | ERP | manual | 通过（流程用例 erp.print.all，全套 190/190） | manual：交验收窗口按清单实测 |
+| `erp.print.sales` | ERP | manual | 通过（流程用例 erp.print.all，全套 190/190） | manual：交验收窗口按清单实测 |
+| `erp.products.find-by-code` | ERP | auto：find_product | 通过 |  |
+| `shared.originals.download` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `shared.login` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `shared.execution` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `cowork.execution` | Cowork | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `erp.execution` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `shared.assistant` | 共用 | manual | 通过（流程用例 cc.chat，全套 190/190） | manual：交验收窗口按清单实测 |
+| `cowork.assistant` | Cowork | manual | 通过（流程用例 cowork.operator.unknown、cowork.pending.operator，全套 190/190） | manual：交验收窗口按清单实测 |
+| `cc.operator.thread` | CC | manual | 通过（流程用例 cc.operator，全套 190/190） | manual：交验收窗口按清单实测 |
+| `erp.provisioning` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
+| `shared.browser-text` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
