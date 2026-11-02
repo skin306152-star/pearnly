@@ -44,6 +44,7 @@ import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Switch } from "@/components/settings";
 import { openAddCompany } from "@/components/add-company";
+import { MrErpLogin, type MrErpCredential } from "@/components/mrerp-login";
 import {
   cachedDetail,
   folderParts,
@@ -120,7 +121,7 @@ const accountSetsText = (tr: Tr, rows?: AccountSetCount[]) =>
   (rows ?? []).map((row) => tr("cowork.folder.pair", row.account_label, row.tickets)).join("; ");
 // 提醒时刻：运行日前几天（0 = 当天，最多 7 天）+ 曼谷 HH:MM，最多 3 个（同服务端 contracts.remind_times）
 type RemindTime = { days_before: number; time: string };
-type Connection = { name: string; adapter: string; enabled: number | boolean; label?: string; revision?: number; config?: Record<string, string>; main?: boolean };
+type Connection = { name: string; adapter: string; enabled: number | boolean; label?: string; revision?: number; config?: Record<string, string>; main?: boolean; credential?: MrErpCredential };
 // 池的状态（`companion.api.online`，ADR-021）：writers_known = 有能写的电脑（关着也算，能选、排队），computers = 池里有电脑
 type PoolState = { online?: boolean; writers_known?: boolean; needs_update?: boolean; computers?: boolean };
 type Snapshot = { connections: Record<string, Connection | null>; agent: PoolState | null };
@@ -1279,12 +1280,22 @@ function ConnectDialog({ tr, kind, connection, onClose }: { tr: Tr; kind: string
 }
 
 function MrerpConnect({ tr, connection, onClose }: { tr: Tr; connection: Connection | null; onClose: () => void }) {
+  // MR.ERP 的账号密码不在网页上收（ADR-026 第 7 条）：这里只存网址，登录在 CC 桌面版里授权（MrErpLogin，Cowork 与 ERP 同一组件）
   const requestKey = useMemo(key, []);
-  const [url, setUrl] = useState(connection?.config?.system_url || "https://www.mrerp4sme.com");
-  const [user, setUser] = useState("");
-  const [password, setPassword] = useState("");
+  const saved = connection?.config?.system_url || "https://www.mrerp4sme.com";
+  const [url, setUrl] = useState(saved);
+  const [current, setCurrent] = useState<Connection | null>(connection);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const save = async (): Promise<Connection | null> => {
+    if (current && url === (current.config?.system_url || saved)) return current;
+    const next = await postMethod<Connection>(CONN + "configure", {
+      adapter: "mrerp", request_key: requestKey, label: "MR.ERP", config: { system_url: url },
+      ...(current ? { name: current.name, expected_revision: current.revision } : {}),
+    });
+    setCurrent(next);
+    return next;
+  };
   return (
     <Modal
       open
@@ -1298,15 +1309,11 @@ function MrerpConnect({ tr, connection, onClose }: { tr: Tr; connection: Connect
             type="button"
             className="cc-btn"
             data-primary=""
-            disabled={busy || !url || !user || !password}
+            disabled={busy || !url}
             onClick={async () => {
               setBusy(true);
               try {
-                await postMethod(CONN + "configure", {
-                  adapter: "mrerp", request_key: requestKey, label: "MR.ERP", config: { system_url: url },
-                  credentials: { username: user, password },
-                  ...(connection ? { name: connection.name, expected_revision: connection.revision } : {}),
-                });
+                await save();
                 onClose();
               } catch (e) { reportCaught(e, "scheduled-tasks");
                 setError(shownError(e));
@@ -1322,8 +1329,11 @@ function MrerpConnect({ tr, connection, onClose }: { tr: Tr; connection: Connect
     >
       <div className="flex flex-col gap-(--cc-space-16) pb-(--cc-space-8)">
         <Field label={tr("System URL")}><input className="cc-input" value={url} onChange={(e) => setUrl(e.target.value)} /></Field>
-        <Field label={tr("Account")}><input className="cc-input" value={user} onChange={(e) => setUser(e.target.value)} autoComplete="username" /></Field>
-        <Field label={tr("Password")}><input className="cc-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></Field>
+        <MrErpLogin product="cowork" connection={current}
+          ensure={async () => (await save().catch((e) => { reportCaught(e, "scheduled-tasks"); setError(shownError(e)); return null; }))?.name ?? null}
+          onDone={() => void getMethod<Connection[]>(CONN + "records", { limit: 100 })
+            .then((rows) => setCurrent(rows?.find((row) => row.name === current?.name) ?? mainOf(rows, "mrerp")))
+            .catch(withReport(() => undefined, "scheduled-tasks"))} />
       </div>
     </Modal>
   );
