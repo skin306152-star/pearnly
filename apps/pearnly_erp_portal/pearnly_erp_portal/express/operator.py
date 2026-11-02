@@ -53,6 +53,10 @@ def sources(company, period, offset, limit) -> dict:
                                fields=["name", "doc_date", "grand_total", "system_no", party, "express_reason",
                                        "express_job"],
                                order_by="doc_date asc, name asc", limit_start=0, limit_page_length=offset + limit)
+        # 带按台号码的单不交代录（代录还不会在 Express 里点 Note 录行说明，主会话 11-02）：照直写，号码写进附加说明
+        units = set(frappe.db.sql_list("""SELECT DISTINCT parent FROM `tabERP Line Serial`
+            WHERE parenttype = %s AND parent IN %s""", (doctype, tuple(row.name for row in found)))) if found else set()
+        found = [row for row in found if row.name not in units]
         rows += [{"doc_id": f"{prefix}:{row.name}", "kind": "sales" if prefix == "S" else "purchase",
                   "group": "sales" if prefix == "S" else "purchase",
                   "date": str(row.doc_date or ""), "party": row.get(party) or "", "ref": row.system_no or row.name,

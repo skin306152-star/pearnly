@@ -1671,8 +1671,13 @@ class OperatorPrecheck(PushModule):
         from unittest import mock
         seen = []
         rows = [Row(name="PI-1", doc_date="2026-10-20", grand_total=1070, system_no="PE-1", supplier_name="S",
+                    express_reason="choice_needed:account", express_job=None),
+                Row(name="PI-2", doc_date="2026-10-21", grand_total=900000, system_no="PE-2", supplier_name="ISUZU",
                     express_reason="choice_needed:account", express_job=None)]
-        with mock.patch.object(self.operator, "_company_ok", lambda user, company: company == "CO-9"), \
+        # 带按台号码的单不交代录（主会话 11-02）：照直写
+        with mock.patch.object(frappe.db, "sql_list", lambda query, values: ["PI-2"] if "ERP Line Serial" in query else [],
+                               create=True), \
+                mock.patch.object(self.operator, "_company_ok", lambda user, company: company == "CO-9"), \
                 mock.patch.object(self.operator.guard, "has", lambda capability, user=None: capability == "purchase.write"), \
                 mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {"owner": "a@x"}), \
                 mock.patch.object(frappe, "get_all", lambda doctype, **kw: seen.append(kw["filters"]) or rows, create=True), \
@@ -2606,7 +2611,7 @@ class PosDaySummaries(Base):
         self.assertEqual(net.payments, (("เงินสด", D("-80")), ("พร้อมเพย์", D("100"))))
 
     def summary_body(self, lines, paid, total, vat="0", registered="yes", exempt="0", kind=None, against=None,
-                     cross_year=False, exempt_mode="split"):
+                     cross_year=False, exempt_mode="split", units=()):
         """同一天的退货并进日汇总后 `pos_day.document` 的结果（行与收款已按退货记负数求和，见 `_SIGN`；行金额是税前）。
         ``kind="SR"``：退货日汇总（照正数求和），``against`` 是原 HS 的 (Express 状态, Express 单号, 含税合计)。"""
         import types
@@ -2624,10 +2629,14 @@ class PosDaySummaries(Base):
             if doctype == "ERP Company":
                 return {"tax_id": OWN, "branch": "00012"}
             if doctype == "ERP Product":
-                return {"product_name": name, "express_code": name, "express_stock": 1, "base_unit": "ถุง", "unit": "ถุง"}
+                return {"product_name": name, "express_code": name, "express_stock": 1, "base_unit": "ถุง", "unit": "ถุง",
+                        "serial_kind": "device"}
             return "01"
 
         def sql(query, values=None, as_dict=False):
+            if "tabERP Line Serial" in query:  # 小票上登记的台（按台号码）：(品, 小票类型, 主号)
+                return [types.SimpleNamespace(product=product, warehouse="W1", unit="ถุง", sale_type=sale_type,
+                                              serial_no=number, secondary_no="", color="") for product, sale_type, number in units]
             if kind == "SR":  # 退货日汇总全是退货小票，照正数求和
                 self.assertNotIn("CASE WHEN", query)
             else:
@@ -2657,6 +2666,16 @@ class PosDaySummaries(Base):
         if registered and "hold" not in body:
             self.assertEqual(refreshed, [["SI-1", "SI-2"]])  # 写之前按公司此刻的状态重算小票税额
         return body
+
+    def test_the_units_sold_that_day_hang_under_their_line_without_those_returned_the_same_day(self):
+        """按台号码（评估 2026-11-02）：日汇总合并行下挂当天卖出的台，同一天退回的去掉；退货日汇总挂退回的台。"""
+        units = [("A", "sale", "352948094650001"), ("A", "sale", "352948094650002"), ("A", "refund", "352948094650002"),
+                 ("B", "sale", "X1")]
+        body = self.summary_body([("A", "1", "100"), ("B", "1", "50")], [], "157", vat="7", units=units)
+        self.assertEqual([item.get("remarks") for item in body["items"]], [["S/N 352948094650001"], ["S/N X1"]])
+        refund = self.summary_body([("A", "1", "93.46")], [], "100", vat="6.54", kind="SR",
+                                   against=("written", "HS0000039", "200"), units=[("A", "refund", "352948094650002")])
+        self.assertEqual(refund["items"][0].get("remarks"), ["S/N 352948094650002"])
 
     def test_same_day_refunds_net_into_the_day_summary(self):
         """主会话 10-25：同一天卖、同一天退的退货冲进当天日汇总。部分退照净额写；一天全退整张不写；退货的付款方式和原单不同

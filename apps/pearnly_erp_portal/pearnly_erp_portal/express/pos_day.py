@@ -144,6 +144,29 @@ def _natural(value):
     return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", str(value or ""))]
 
 
+def _units(name, refund) -> dict:
+    """这张日汇总里各小票登记的台，按合并键（品 × 仓 × 单位，同 :func:`document`）分好：现销日汇总是当天卖出的台去掉同一天退回的
+    （退货冲进当天，同 `pos_contract.net_day`），退货日汇总是退回的台。"""
+    from collections import Counter
+
+    rows = frappe.db.sql("""SELECT l.product, l.warehouse, l.unit, s.sale_type, u.serial_no, u.secondary_no, u.color
+        FROM `tabERP Line Serial` u JOIN `tabERP Sale` s ON s.name = u.parent AND u.parenttype = 'ERP Sale'
+        JOIN `tabERP Sale Line` l ON l.parent = s.name AND l.parenttype = 'ERP Sale' AND l.idx = u.line_no
+        WHERE s.express_summary = %s ORDER BY s.name, u.line_no, u.idx""", (name,), as_dict=True)
+    returned = Counter() if refund else Counter(str(row.serial_no or "").upper() for row in rows if row.sale_type == "refund")
+    out = {}
+    for row in rows:
+        number = str(row.serial_no or "").upper()
+        if not refund and row.sale_type == "refund":
+            continue
+        if returned[number]:
+            returned[number] -= 1
+            continue
+        out.setdefault((row.product or row.unit, row.warehouse, row.unit), []).append(
+            {"serial_no": row.serial_no or "", "secondary_no": row.secondary_no or "", "color": row.color or ""})
+    return out
+
+
 def receipt_range(summary):
     """销售票号起止（同 Cowork 不含退款单）；只有退货小票时（晚到的同日退货）按退货小票。"""
     numbers = frappe.db.sql_list("SELECT receipt_no FROM `tabERP Sale` WHERE express_summary = %s AND sale_type = 'sale'",
@@ -217,8 +240,8 @@ def document(name, ref) -> dict:
         product = products.get(row.product)
         if row.product and product is None:
             product = products[row.product] = frappe.db.get_value(
-                "ERP Product", row.product, ["product_name", "express_code", "express_stock", "base_unit", "unit"],
-                as_dict=True) or {}
+                "ERP Product", row.product, ["product_name", "express_code", "express_stock", "base_unit", "unit",
+                                             "serial_kind"], as_dict=True) or {}
         product = product or {}
         if row.warehouse and row.warehouse not in warehouses:
             warehouses[row.warehouse] = frappe.db.get_value("ERP Warehouse", row.warehouse, "express_code") or ""
@@ -237,6 +260,10 @@ def document(name, ref) -> dict:
         line["gross"] += contracts.d(row.gross)
         # 这一行没拆出税额（免税商品）：CC 桌面版摊各行含税额时不摊税给它（退货单明细的含税额，验收实测 10-26）
         line["vat_exempt"] = line.get("vat_exempt", True) and not contracts.d(row.vat)
+    # 按台号码（评估 2026-11-02）：合并行下挂这一天这件品卖出（退货日汇总：退回）的台，CC 桌面版写进 Express 这一行的附加说明
+    for key, units in _units(name, refund).items():
+        if key in merged:
+            merged[key].update(stock_entry.remarks_of(units, products.get(key[0])))
     total, vat = contracts.d(summary.grand_total), contracts.d(summary.vat_amount)
     paid = {row.method: contracts.d(row.amount) for row in frappe.db.sql(
         f"""SELECT p.method, SUM({sign} * p.amount) AS amount FROM `tabERP Sale Payment` p
