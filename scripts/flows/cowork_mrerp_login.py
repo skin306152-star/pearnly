@@ -35,8 +35,12 @@ from pearnly_cowork.companies import service as companies
 def cleanup():
     frappe.set_user({USER!r})
     gone = 0
-    for c in frappe.get_all("Cowork ERP Connection", filters={{"label": ["in", [{LABEL!r}, {EXPRESS_LABEL!r}]]}}, pluck="name",
-                            limit_page_length=20):
+    # 页面「连接」会把连接名改成 MR.ERP：按标签找，再按流程写进去的网址找
+    names = set(frappe.get_all("Cowork ERP Connection", filters={{"label": ["in", [{LABEL!r}, {EXPRESS_LABEL!r}]]}}, pluck="name",
+                               limit_page_length=20))
+    names |= set(frappe.get_all("Cowork ERP Connection", filters={{"adapter": "mrerp", "config_json": ["like", "%{NEW_URL}%"]}},
+                                pluck="name", limit_page_length=20))
+    for c in sorted(names):
         for company in frappe.get_all("Cowork Company", filters={{"seed_connection": c}}, pluck="name", limit_page_length=20):
             companies.delete(company)
             frappe.db.delete("Cowork Company Choice", {{"company": company}})
