@@ -26,6 +26,7 @@ import dbf
 
 from . import cdx_reindex
 from . import dbf_detail
+from . import dbf_remarks
 from . import product_master
 from . import account_rules
 from . import dbf_schema as S
@@ -334,6 +335,9 @@ def write_purchase(
     overflow = _field_overflow(entry)
     if overflow:
         return DbfWriteResult(False, error_code=ERR_FIELD_WIDTH, error=overflow)
+    remarks_error = remarks_problem(entry)
+    if remarks_error:
+        return DbfWriteResult(False, error_code=remarks_error[0], error=remarks_error[1])
     # 逐行写进哪个仓、维护 STLOC(没带仓库码:账套有 STLOC 就按主仓记,没有 STLOC → None,整条写路不碰它)
     try:
         locations = stock_location.plan(account_dir, payload)
@@ -401,8 +405,8 @@ def write_purchase(
     records_vat = vat > 0 and not deferred_vat
 
     clock.lap("checks")
-    backup_dir = _backup(account_dir, S.PURCHASE_BACKUP_TABLES + stock_location_tables(locations)) \
-        if make_backup else None
+    backup_dir = _backup(account_dir, S.PURCHASE_BACKUP_TABLES + stock_location_tables(locations)
+                         + dbf_remarks.tables(entry.items)) if make_backup else None
     clock.lap("backup")
     docnum = ""
     moves = [] if locations is not None else None
@@ -430,6 +434,8 @@ def write_purchase(
             **_located(locations, moves),
         )
         stloc_expected, notes = record_locations(account_dir, moves, notes)
+        # 按台号码:明细行号 = 载荷顺序(库存 / 非库存两条路都从 1 起,混行拒收)
+        remarks = dbf_remarks.write(account_dir, docnum, enumerate(entry.items, start=1))
         clock.lap("write")
         detail_n = (
             len(entry.items) if (entry.items_status == "ok" and entry.items) else 0
@@ -440,7 +446,7 @@ def write_purchase(
             detail_n,
             "APMAS" if created_supplier else "",
             index_batch,
-            **({"more": S.LOCATION_TABLES} if stloc_expected else {}),
+            more=(S.LOCATION_TABLES if stloc_expected else ()) + dbf_remarks.tables(entry.items),
         )
         clock.lap("reindex")
         _verify(
@@ -453,6 +459,7 @@ def write_purchase(
             has_stock=has_stock,
         )
         verify_locations(account_dir, stloc_expected)
+        check_remarks(account_dir, docnum, remarks)
         clock.lap("verify")
         _verify_index(account_dir, cdx_reindex.TAG_AP_DOCNUM, docnum)
         clock.lap("index_check")
@@ -781,6 +788,22 @@ def _located(locations, moves=None) -> dict:
     if locations is None:
         return {}
     return {"locations": locations} if moves is None else {"locations": locations, "moves": moves}
+
+
+def remarks_problem(entry) -> Optional[tuple]:
+    """按台号码(明细行 ``remarks``,载荷 17)写前查:每条 ≤ 50 字节、一行 ≤ 10 条;带号的单必须写得出明细(说明挂在明细行下)。
+    采购 / 销售共用,有问题回 ``(错误码, 说明)``。"""
+    if dbf_remarks.any_remarks(entry.items) and entry.items_status != "ok":
+        return ERR_VALIDATION, f"remarks need detail lines (items_status={entry.items_status})"
+    return dbf_remarks.problem(entry.items)
+
+
+def check_remarks(account_dir, docnum, written) -> None:
+    """读回本次写的按台号码,对不上整单回滚(读回不符)。"""
+    try:
+        dbf_remarks.check(account_dir, docnum, written)
+    except dbf_remarks.RemarkError as exc:
+        raise _WriteError(str(exc), ERR_VERIFY) from exc
 
 
 def stock_location_tables(locations) -> tuple:

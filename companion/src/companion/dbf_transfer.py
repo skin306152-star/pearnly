@@ -32,6 +32,7 @@ import dbf
 from . import account_rules
 from . import cdx_reindex
 from . import dbf_detail
+from . import dbf_remarks
 from . import dbf_schema as S
 from . import fiscal_period
 from . import stock_guard
@@ -57,6 +58,7 @@ from .dbf_writer import (
     _reindex,
     _restore,
     _verify_index,
+    check_remarks,
 )
 from .logger import get_logger
 from .write_result import DbfWriteResult
@@ -118,6 +120,9 @@ def write_transfer(
     problem = validate(payload)
     if problem:
         return DbfWriteResult(False, error_code=ERR_VALIDATION, error=problem)
+    remarks_error = dbf_remarks.problem(payload["items"])
+    if remarks_error:
+        return DbfWriteResult(False, error_code=remarks_error[0], error=remarks_error[1])
     account_dir = Path(account_dir)
     if S.path_ambiguity(account_dir) or S.path_ambiguity(selected_dir) or not S.account_dir_allowed(account_dir, selected_dir):
         return DbfWriteResult(False, error_code=ERR_ACCOUNT_DIR,
@@ -163,7 +168,8 @@ def write_transfer(
     remark = _fit(payload.get("remark") or "", 50)
     clock.lap("checks")
     # 要建新存货时主档也进写前备份（调拨本身不动 STMAS）
-    backup_dir = _backup(account_dir, TABLES + (("STMAS",) if None in found else ())) if make_backup else None
+    backup_dir = _backup(account_dir, TABLES + (("STMAS",) if None in found else ()) + dbf_remarks.tables(items)) \
+        if make_backup else None
     clock.lap("backup")
     docnum = ""
     try:
@@ -176,10 +182,12 @@ def write_transfer(
             expected, notes = stock_location.apply(account_dir, moves)
         except stock_location.LocationError as exc:
             raise _WriteError(str(exc), ERR_LOCATION) from exc
+        remarks = dbf_remarks.write(account_dir, docnum, enumerate(items, start=1))  # 按台号码：一对明细同一个行号，说明挂一次
         clock.lap("write")
-        _reindex(account_dir, ("STTRN", "STCRD", "ISRUN") + S.LOCATION_TABLES)
+        _reindex(account_dir, ("STTRN", "STCRD", "ISRUN") + S.LOCATION_TABLES + dbf_remarks.tables(items))
         clock.lap("reindex")
         _verify(account_dir, docnum, found, source, target)
+        check_remarks(account_dir, docnum, remarks)
         try:
             stock_location.verify(account_dir, expected)
         except stock_location.LocationVerifyError as exc:

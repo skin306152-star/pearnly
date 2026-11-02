@@ -38,6 +38,7 @@ import dbf
 from . import account_rules
 from . import cdx_reindex
 from . import dbf_detail
+from . import dbf_remarks
 from . import dbf_schema as S
 from . import fiscal_period
 from . import product_master
@@ -65,6 +66,7 @@ from .dbf_writer import (
     _reindex,
     _restore,
     _verify_index,
+    check_remarks,
     record_locations,
     stock_location_tables,
     verify_locations,
@@ -282,6 +284,9 @@ def write_stock_entry(
     problem = _validate(payload)
     if problem:
         return DbfWriteResult(False, error_code=ERR_VALIDATION, error=problem)
+    remarks_error = dbf_remarks.problem(payload["items"])
+    if remarks_error:
+        return DbfWriteResult(False, error_code=remarks_error[0], error=remarks_error[1])
     doctype = str(payload["doctype"]).strip().upper()
     kind = KINDS[doctype]
     account_dir = Path(account_dir)
@@ -327,7 +332,8 @@ def write_stock_entry(
         return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short))
     remark = _fit(payload.get("remark") or "", 50)
     clock.lap("checks")
-    backup_dir = _backup(account_dir, TABLES + stock_location_tables(locations)) if make_backup else None
+    backup_dir = _backup(account_dir, TABLES + stock_location_tables(locations) + dbf_remarks.tables(items)) \
+        if make_backup else None
     clock.lap("backup")
     docnum = ""
     moves = [] if locations is not None else None
@@ -343,15 +349,17 @@ def write_stock_entry(
                        jnltyp=book["jnltyp"] if doctype == COUNT else "")  # 领用 / 调整照旧 00（已验收），盘点照原生取 ISRUN 的
         _bump_isrun(account_dir, book["prefix"], book["jnltyp"])
         stloc_expected, notes = record_locations(account_dir, moves, None)
+        remarks = dbf_remarks.write(account_dir, docnum, enumerate(items, start=1))  # 按台号码：明细行号 = 载荷顺序
         if doctype == COUNT and moves is not None:
             main = account_rules.main_location(account_dir)
             _stamp_take_dates(account_dir, {(match["stkcod"], stock_location.location_at(locations, index) or main)
                                             for index, match in enumerate(found)}, docdat)
         clock.lap("write")
-        _reindex(account_dir, TABLES + (S.LOCATION_TABLES if stloc_expected else ()))
+        _reindex(account_dir, TABLES + (S.LOCATION_TABLES if stloc_expected else ()) + dbf_remarks.tables(items))
         clock.lap("reindex")
         _verify(account_dir, docnum, len(lines), total, posted)
         verify_locations(account_dir, stloc_expected)
+        check_remarks(account_dir, docnum, remarks)
         clock.lap("verify")
         # 同进货 / 销货：按 Express 自己的明细索引（DOCNUM+SEQNUM）回查到这张单，Express 才看得到
         _verify_index(account_dir, cdx_reindex.TAG_STCRD_DOC, docnum)

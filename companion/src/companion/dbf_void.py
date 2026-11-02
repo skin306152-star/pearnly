@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import dbf
 
+from . import dbf_remarks
 from . import dbf_schema as S
 from . import fiscal_period
 from . import stock_guard
@@ -206,8 +207,10 @@ def void_stock_entry(
     if short:
         return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short))
     has_stloc = stock_location._file(account_dir, stock_location.TABLE) is not None
+    # 行附加说明（按台号码）：原生作废领用 / 调整等给行说明打删除标记，调拨 RL 保留（S 盘副本统计 157 留 : 5 删，11-02）
+    remarks = () if transfer or not dbf_remarks.has_line_remarks(account_dir, docnum) else (dbf_remarks.TABLE,)
     clock.lap("checks")
-    backup_dir = _backup(account_dir, TABLES + (S.LOCATION_TABLES if has_stloc else ())) if make_backup else None
+    backup_dir = _backup(account_dir, TABLES + (S.LOCATION_TABLES if has_stloc else ()) + remarks) if make_backup else None
     clock.lap("backup")
     try:
         moves = _void_lines(account_dir, docnum, kind)
@@ -216,6 +219,8 @@ def void_stock_entry(
         _void_head(account_dir, docnum)
         if not transfer:
             _void_journal(account_dir, docnum)
+        if remarks:
+            dbf_remarks.void(account_dir, docnum)
         expected = {}
         if has_stloc and moves:
             back = [_transfer_back(item) if transfer else stock_location.revert(item) for item in moves]
@@ -224,9 +229,11 @@ def void_stock_entry(
             except stock_location.LocationError as exc:
                 raise _WriteError(str(exc), ERR_LOCATION) from exc
         clock.lap("write")
-        _reindex(account_dir, TABLES + (S.LOCATION_TABLES if has_stloc else ()))
+        _reindex(account_dir, TABLES + (S.LOCATION_TABLES if has_stloc else ()) + remarks)
         clock.lap("reindex")
         _verify(account_dir, docnum)
+        if remarks and dbf_remarks.has_line_remarks(account_dir, docnum):
+            raise _WriteError(f"{docnum}: line remarks still live after void", ERR_VERIFY)
         if expected:
             try:
                 stock_location.verify(account_dir, expected)

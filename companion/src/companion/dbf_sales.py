@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import dbf
 
 from . import dbf_detail
+from . import dbf_remarks
 from . import product_master
 from . import account_rules
 from . import dbf_schema as S
@@ -61,6 +62,8 @@ from .dbf_writer import (
     _verify_index,
     _WriteError,
     amount_fields,
+    check_remarks,
+    remarks_problem,
     inclusive_items,
     audit_fields,
 )
@@ -250,6 +253,9 @@ def write_sale(
     overflow = _field_overflow(entry)
     if overflow:
         return DbfWriteResult(False, error_code=ERR_FIELD_WIDTH, error=overflow)
+    remarks_error = remarks_problem(entry)
+    if remarks_error:
+        return DbfWriteResult(False, error_code=remarks_error[0], error=remarks_error[1])
     # POS 日汇总票的付款方式转账凭证:写前先定普通日记账单据簿、核收款科目可记账,定不下来就不动账套。
     journal, journal_error, journal_reason = pos_journal.check(account_dir, entry.pos_transfers)
     if journal_error:
@@ -300,8 +306,8 @@ def write_sale(
         return DbfWriteResult(False, error_code=ERR_CUSTOMER_DUP, error="dup")
 
     clock.lap("checks")
-    backup_dir = _backup(account_dir, S.SALES_BACKUP_TABLES + stock_location_tables(locations)) \
-        if make_backup else None
+    backup_dir = _backup(account_dir, S.SALES_BACKUP_TABLES + stock_location_tables(locations)
+                         + dbf_remarks.tables(entry.items)) if make_backup else None
     clock.lap("backup")
     docnum = ""
     moves = [] if locations is not None else None
@@ -338,6 +344,8 @@ def write_sale(
             **_located(locations, moves),
         )
         stloc_expected, notes = record_locations(account_dir, moves, notes)
+        # 按台号码:明细行号 = 载荷顺序(库存 / 非库存两条路都从 1 起,混行转人工)
+        remarks = dbf_remarks.write(account_dir, docnum, enumerate(entry.items, start=1))
         vouchers = []
         if journal:
             # 现金科目 = 本单借方实际记的那个(_write_all 已按账套换成 ACCNUM00;账套没设就是云端给的那个)
@@ -360,7 +368,7 @@ def write_sale(
             detail_n,
             "ARMAS" if created_customer else "",
             index_batch,
-            **({"more": S.LOCATION_TABLES} if stloc_expected else {}),
+            more=(S.LOCATION_TABLES if stloc_expected else ()) + dbf_remarks.tables(entry.items),
         )
         clock.lap("reindex")
         _verify(
@@ -374,6 +382,7 @@ def write_sale(
             since=since,
         )
         verify_locations(account_dir, stloc_expected)
+        check_remarks(account_dir, docnum, remarks)
         pos_differ = (pos_journal.verify(account_dir, vouchers, cash_acc, journal_since, docdat=docdat)
                       if vouchers else [])
         clock.lap("verify")

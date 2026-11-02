@@ -696,3 +696,20 @@ def test_a_lost_receipt_then_the_same_payload_again_makes_one_sr(book, tmp_path,
     assert first[1] == resent[1] == pushed[1] == "SR691026-001"
     assert resent[2]["duplicate_skipped"] is True and pushed[2]["duplicate_skipped"] is True
     assert _srs(book) == ["SR691026-001"]
+
+
+def test_a_refund_hangs_the_unit_numbers_under_its_stock_line(book):
+    """载荷 17：退回的那一台的号码写进 ARTRNRM，行号同这张退货单的库存行（dbf_remarks）。"""
+    payload = _refund()
+    payload["items"][0]["remarks"] = ["S/N 352948094653751"]
+    res = _write(book, payload, make_backup=True)
+    assert res.ok, res.error
+    from companion import dbf_schema
+
+    table = dbf.Table(str(book / "ARTRNRM.DBF"), codepage=dbf_schema.CODEPAGE)
+    table.open(dbf.READ_ONLY)
+    try:
+        rows = [(r.SEQNUM, r.REMARK.rstrip()) for r in table if r.DOCNUM.strip() == res.docnum]
+    finally:
+        table.close()
+    assert [(seq.strip(), text) for seq, text in rows] == [("1", "S/N 352948094653751")]

@@ -42,6 +42,7 @@ from . import account_rules
 from . import cdx_reindex
 from . import dbf_detail
 from . import dbf_fields
+from . import dbf_remarks
 from .dbf_fields import EXEMPT_VATCOD
 from .consistency import account_company_matches, read_company
 from . import dbf_schema as S
@@ -71,6 +72,7 @@ from .dbf_writer import (
     _restore,
     _verify_index,
     amount_fields,
+    check_remarks,
     audit_fields,
     record_locations,
     stock_location_tables,
@@ -411,6 +413,9 @@ def write_refund(payload: Dict[str, Any], account_dir, entry, *, userid: str = S
     overflow = _field_overflow(entry)
     if overflow:
         return DbfWriteResult(False, error_code=ERR_FIELD_WIDTH, error=overflow)
+    remarks_error = dbf_remarks.problem(entry.items)
+    if remarks_error:
+        return DbfWriteResult(False, error_code=remarks_error[0], error=remarks_error[1])
     journal, journal_error, journal_reason = pos_journal.check(account_dir, entry.pos_transfers)
     if journal_error:
         return DbfWriteResult(False, error_code=journal_error, error=journal_reason)
@@ -435,7 +440,8 @@ def write_refund(payload: Dict[str, Any], account_dir, entry, *, userid: str = S
     except Refused as exc:
         return DbfWriteResult(False, error_code=exc.code, error=str(exc))
     clock.lap("checks")
-    backup_dir = _backup(account_dir, S.SALES_BACKUP_TABLES + stock_location_tables(locations)) if make_backup else None
+    backup_dir = _backup(account_dir, S.SALES_BACKUP_TABLES + stock_location_tables(locations)
+                         + dbf_remarks.tables(entry.items)) if make_backup else None
     clock.lap("backup")
     docnum = ""
     moves = [] if locations is not None else None
@@ -457,6 +463,7 @@ def write_refund(payload: Dict[str, Any], account_dir, entry, *, userid: str = S
         notes = _update_arbal(account_dir, cuscod, docdat, PREFIX, Decimal(entry.total_amount))
         _reduce_balance(account_dir, cuscod, Decimal(entry.total_amount))
         stloc_expected, notes = record_locations(account_dir, moves, notes)
+        remarks = dbf_remarks.write(account_dir, docnum, ((line.seq, line.item) for line in lines))  # 退货单的行号只数库存行
         vouchers = []
         if journal:
             voucher_dep = depcod or account_rules.book(account_dir, journal).get("DEPCOD", "")
@@ -467,10 +474,11 @@ def write_refund(payload: Dict[str, Any], account_dir, entry, *, userid: str = S
             notes = {**(notes or {}), "pos_vouchers": [item["voucher"] for item in vouchers]}
         clock.lap("write")
         _reindex_or_defer(account_dir, S.SALES_WRITE_TABLES, len(lines), "ARMAS", index_batch,
-                          **({"more": S.LOCATION_TABLES} if stloc_expected else {}))
+                          more=(S.LOCATION_TABLES if stloc_expected else ()) + dbf_remarks.tables(entry.items))
         clock.lap("reindex")
         _verify(account_dir, docnum, entry, len(lines), gl_rows, since)
         verify_locations(account_dir, stloc_expected)
+        check_remarks(account_dir, docnum, remarks)
         if vouchers:
             pos_journal.verify(account_dir, vouchers, cash_acc, journal_since, reverse=True)
         clock.lap("verify")

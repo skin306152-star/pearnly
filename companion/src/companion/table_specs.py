@@ -95,6 +95,8 @@ TABLE_SPECS = {
         # 仓间调拨 RL 的明细写 \x00（真表有；实录 RL0000001–0000003）
         "REIMBURSE C(1)"
     ),
+    # 单据附加说明（按台号码；S 盘副本 1,040 本全是这 3 列，11-02 只读统计）：SEQNUM 行说明 = 行号右对齐 3 位补到 8 位，「@n」= 整单说明
+    "ARTRNRM": "DOCNUM C(12); SEQNUM C(8); REMARK C(50)",
     # 库存单单头（领用 OU / 调整 JU / 盘点 TK；真表 23 列，T9HENG15 10-25 读出的宽度）
     "STTRN": (
         "DOCNUM C(12); DOCDAT D; POSOPR C(1); PEOPLE C(10); REMARK C(50); LOCCOD C(4); TRNVAL B; "
