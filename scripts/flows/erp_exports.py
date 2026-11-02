@@ -105,14 +105,20 @@ for key, output, records, doctype in (("purchase", purchase_output, purchase_rec
                                       ("sales", sales_output, sales_records, "ERP Sales Document")):
     found = output._columns(doctype)
     rows = records.rows({}, limit=1) if key == "purchase" else records.rows({}, start=0, limit=1)
+    # 原生筛选按新列（ledger_state 是标准筛选）：与库里有账本状态的单是同一批
+    filtered = sorted(frappe.get_all(doctype, filters={"ledger_state": ["is", "set"]}, pluck="name", limit_page_length=0))
+    stored = sorted(r[0] for r in frappe.db.sql(f"select name from `tab{doctype}` where ifnull(ledger_state, '') != ''"))
     out[key] = {"ledger": [[f, l] for f, l in found if f.startswith(("ledger_", "express_"))],
-                "list": sorted(k for k in (rows[0] if rows else {}) if k.startswith(("ledger_", "express_")))}
+                "list": sorted(k for k in (rows[0] if rows else {}) if k.startswith(("ledger_", "express_"))),
+                "filter": filtered == stored, "filtered": len(filtered)}
 print(json.dumps(out))
 """)
     # 实验室的数据都很小：当场给文件，不建导出任务
     return [{"case": "small exports are served at once", "saved": jobs, "ok": jobs == params["jobs"]},
             {"case": "purchase / sales exports keep the Express column labels on the general ledger columns", "saved": columns,
              "ok": all(columns[key]["ledger"] == LEDGER_COLUMNS for key in ("purchase", "sales"))},
+            {"case": "filtering by the general ledger state finds the documents that have one", "saved": columns,
+             "ok": all(columns[key]["filter"] for key in ("purchase", "sales"))},
             {"case": "purchase / sales lists carry the general ledger columns", "saved": columns,
              "ok": all(columns[key]["list"] in ([], ["ledger_docnum", "ledger_state"]) for key in ("purchase", "sales"))
              and columns["purchase"]["list"] == ["ledger_docnum", "ledger_state"]}]
