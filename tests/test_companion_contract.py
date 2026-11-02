@@ -757,6 +757,17 @@ class PosPayload(unittest.TestCase):
             self.assertTrue(quoted(path.read_text(encoding="utf-8"), "new_ok"), path)
         self.assertIn("create_new_items", (COMPANION / "dbf_transfer.py").read_text(encoding="utf-8"))
 
+    def test_the_unit_remarks_version_and_key_match(self):
+        """按台号码（ARTRNRM，评估 2026-11-02）：服务端带 `remarks` 时盖的版本 CC 认得；键在 ERP 合同、共用写账规则、CC 三处同名；
+        一条说明的宽度两边同为 50（ARTRNRM.REMARK C(50)）。"""
+        erp = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express"
+        version = _literal(RULES / "common.py", "REMARKS_PAYLOAD_VERSION")
+        self.assertEqual(version, _literal(COMPANION / "payload_contract.py", "REMARKS_PAYLOAD_VERSION"))
+        self.assertIn(version, _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
+        self.assertEqual(_literal(erp / "contracts.py", "REMARK_WIDTH"), _literal(COMPANION / "dbf_remarks.py", "MAX_BYTES"))
+        for path in (erp / "contracts.py", RULES / "common.py", COMPANION / "dbf_remarks.py"):
+            self.assertTrue(quoted(path.read_text(encoding="utf-8"), "remarks"), path)
+
     def test_the_vat_fields_version_and_key_match(self):
         """载荷 9（ERP 收银日汇总混有免税商品，主会话 10-26）：服务端带 `vat_fields` 时盖的版本 CC 认得、键两边同名。"""
         erp = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express"

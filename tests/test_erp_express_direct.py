@@ -121,6 +121,18 @@ class Prepare(Base):
         self.assertNotIn("hold", sales, sales)
         self.assertEqual((sales["payload"]["doctype"], sales["payload"]["customer"]["code"]), ("HS", "C01"))
 
+    def test_unit_numbers_reach_the_payload_line_and_need_a_cc_desktop_that_writes_them(self):
+        """按台号码（评估 2026-11-02）：ERP 行上拼好的说明经共用写账规则原样到载荷那一行，载荷盖 17；没有号码的行不带这一键。"""
+        key, = self.computer([book()])
+        self.masters(key)
+        body = doc()
+        body["items"][0]["remarks"] = ["เลขตัวถัง MP1TFR41JTG032993", "เลขเครื่อง FUK575 สี ELG"]
+        payload = self.prepare(body)["payload"]
+        self.assertEqual([item.get("remarks") for item in payload["items"]],
+                         [["เลขตัวถัง MP1TFR41JTG032993", "เลขเครื่อง FUK575 สี ELG"], None])
+        self.assertEqual(payload["payload_version"], common.REMARKS_PAYLOAD_VERSION)
+        self.assertEqual(self.prepare(doc())["payload"]["payload_version"], 4)
+
     def test_an_exempt_document_keeps_the_vat_rate_on_its_head(self):
         """验收 10-30（express-rules-vat 窗口指出）：整单免税的单原生仍记税率 7（语料 158 本：明细全是免税行的进货 VATRAT 7 的
         4,822 张 / 0 的 256 张，销货 427,970 张 / 48 张），原来按「税额 > 0」给了 0。有免税行就照记税率；不收增值税、也没有
@@ -327,6 +339,36 @@ class ErpSide(unittest.TestCase):
         fields = E.pages(E.checked(body))[0]["fields"]
         self.assertEqual((fields["seller_tax"], fields["payment_status"], fields["items"][0]["posting_kind"]),
                          (OWN, "paid", "stock"))
+
+    def test_unit_numbers_become_line_remarks_express_can_hold(self):
+        """汽车一台两条（标签照的三项连同标签放一条超过 50 字节）；手机电器按 S/N 装满一条再换；空的项不写；再长也折行不截断。"""
+        car = [{"serial_no": "MP1TFR41JTG032993", "secondary_no": "FUK575", "color": "ELG"},
+               {"serial_no": "MP1TFR41JTG032994", "secondary_no": "", "color": ""}]
+        self.assertEqual(E.unit_remarks(car, "vehicle"), ["เลขตัวถัง MP1TFR41JTG032993", "เลขเครื่อง FUK575 สี ELG",
+                                                          "เลขตัวถัง MP1TFR41JTG032994"])
+        phones = [{"serial_no": f"35294809465{n:04d}", "secondary_no": "", "color": ""} for n in range(3)]
+        self.assertEqual(E.unit_remarks(phones, "device"), ["S/N 352948094650000  352948094650001",  # 15 位 IMEI 一条两个
+                                                            "S/N 352948094650002"])
+        serials = [{"serial_no": f"NPB20185066{n}S", "secondary_no": "", "color": ""} for n in range(4)]
+        self.assertEqual(E.unit_remarks(serials, "device"), ["S/N NPB201850660S  NPB201850661S  NPB201850662S",
+                                                             "S/N NPB201850663S"])
+        self.assertEqual(E.unit_remarks([{"serial_no": "A1", "secondary_no": "B2", "color": "ดำ"}], "device"), ["S/N A1/B2 ดำ"])
+        long = E.unit_remarks([{"serial_no": "", "secondary_no": "E" * 40, "color": "C" * 20}], "vehicle")
+        self.assertEqual(("".join(long), [len(text) <= E.REMARK_WIDTH for text in long]),
+                         (f"เลขเครื่อง {'E' * 40} สี {'C' * 20}", [True, True]))
+        self.assertEqual(E.unit_remarks([{"serial_no": " ", "secondary_no": "", "color": ""}], "vehicle"), [])
+
+    def test_unit_remarks_ride_the_document_to_the_page(self):
+        body = E.document(ref="SD-00002", direction="sales", doc_date="2026-11-02", number="SD-00002",
+                          company={"tax_id": OWN, "branch": ""}, party={"code": "C01", "name": "ลูกค้า"},
+                          paid=True, has_vat=False, total="900000.00", vat="0",
+                          lines=[{"name": "UPG20", "code": "UPG20", "qty": 1, "amount": "900000.00", "loccod": "01",
+                                  "stock": True, "remarks": ["เลขตัวถัง MP1TFR41JTG032993"]},
+                                 {"name": "ฟรี", "code": "", "qty": 0, "amount": "0", "stock": False,
+                                  "remarks": ["dropped with its zero line"]}])
+        self.assertEqual([item.get("remarks") for item in body["items"]], [["เลขตัวถัง MP1TFR41JTG032993"]])
+        fields = E.pages(E.checked(body))[0]["fields"]
+        self.assertEqual(fields["items"][0]["remarks"], ["เลขตัวถัง MP1TFR41JTG032993"])
 
     def test_a_stock_line_without_an_express_code_still_names_its_warehouse(self):
         # 出入库第一期（10-25）：随单新建的物料也按这一行的仓写、建 STLOC 行（原来不带仓库码、落主仓，核载荷还拒「无码带仓」）
@@ -979,6 +1021,24 @@ class MixedRatePurchase(PushModule):
         self.assertEqual((Decimal(fields["AMT01"]) * Decimal("0.07")).quantize(Decimal("0.01")), Decimal("6.30"))
         old = Row(calculation_version=1, lines=[Row(line_total=100, vat_rate=7), Row(line_total=50, vat_rate=0)])
         self.assertEqual(self.push._exempt_base(old), Decimal("50"))  # 很早的单：照行金额
+
+
+class UnitRemarks(PushModule):
+    """按台号码（评估 2026-11-02）：单据 ``serials`` 子表按明细行号挂到那一行，按商品的号码种类拼成附加说明；没有台的行不带。"""
+
+    def test_the_units_of_a_line_become_its_remarks(self):
+        products = fake.STATE.db.table("ERP Product")
+        products["P-CAR"] = {"name": "P-CAR", "product_name": "UPG20", "express_code": "UPG20", "express_stock": 1,
+                             "serial_kind": "vehicle"}
+        products["P-PHONE"] = {"name": "P-PHONE", "product_name": "A15", "express_code": "A15", "express_stock": 1,
+                               "serial_kind": "device"}
+        line = lambda product: Row(product=product, warehouse=None, description=product, unit="คัน", qty=1,  # noqa: E731
+                                   line_total=100, vat_rate=7, item_type="goods")
+        doc = Row(has_vat=1, lines=[line("P-PHONE"), line("P-CAR"), line(None)],
+                  serials=[Row(line_no=2, serial_no="MP1TFR41JTG032993", secondary_no="FUK575", color="ELG"),
+                           Row(line_no=1, serial_no="352948094653751", secondary_no="", color="")])
+        self.assertEqual([item.get("remarks") for item in self.push._lines(self.push.SALES, doc)],
+                         [["S/N 352948094653751"], ["เลขตัวถัง MP1TFR41JTG032993", "เลขเครื่อง FUK575 สี ELG"], None])
 
 
 class StockVoid(PushModule):

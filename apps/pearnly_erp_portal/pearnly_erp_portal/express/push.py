@@ -162,12 +162,13 @@ def _lines(doctype, doc):
     # 免税单原生一律价格类型 1 / 2 + 明细 VATCOD '0' + 零税额）。CC 桌面版写价含税的现购时不摊税给它、明细记 VATCOD '0'
     # （验收复核测试包 e2 10-26；同收银日汇总的免税行）。没勾税务发票的整张无税不标（供应商不开税票，原生 FLGVAT 0）
     exempt_rates = doctype == PURCHASE and (bool(getattr(doc, "has_vat", 0)) or any(_rate(line) > 0 for line in doc.lines))
-    for line in doc.lines:
+    units = stock_entry.line_units(doc)
+    for index, line in enumerate(doc.lines, start=1):
         product = products.get(line.product)
         if line.product and product is None:
             product = products[line.product] = frappe.db.get_value(
-                "ERP Product", line.product, ["product_name", "express_code", "express_stock", "base_unit", "unit"],
-                as_dict=True) or {}
+                "ERP Product", line.product, ["product_name", "express_code", "express_stock", "base_unit", "unit",
+                                              "serial_kind"], as_dict=True) or {}
         product = product or {}
         if line.warehouse and line.warehouse not in warehouses:
             warehouses[line.warehouse] = frappe.db.get_value("ERP Warehouse", line.warehouse, "express_code") or ""
@@ -184,8 +185,10 @@ def _lines(doctype, doc):
                     "qty": line.qty, "amount": line.line_total, "stock": stock, "warehouse": line.warehouse or "",
                     "loccod": warehouses.get(line.warehouse, "") if line.warehouse else "",
                     **({"factor": factor} if factor and factor != 1 else {}),
-                    **({"vat_exempt": True} if exempt_rates and not _rate(line) > 0 else {})})
+                    **({"vat_exempt": True} if exempt_rates and not _rate(line) > 0 else {}),
+                    **stock_entry.remarks_of(units.get(index), product)})
     return out
+
 
 
 def _rate(line):

@@ -232,6 +232,8 @@ ROLE_PAYLOAD_VERSION = 5
 # 明细行带来源自己的包装单位换算率 `factor`（CC 桌面版 1.12.4 起按 Express 主档的包装单位照原生记法写，`stock_units`）：
 # 旧版按 1 写，所以带了它的载荷盖 7，旧版诚实拒收（1.12.3 测试包认 6 却没有换算，验收 10-25）。
 FACTOR_PAYLOAD_VERSION = 7
+# 明细行带按台号码 `remarks`（CC 桌面版写进 Express 单据行的附加说明 ARTRNRM）：旧版不认这一键、税票上没有号码，盖 17 让它诚实拒收
+REMARKS_PAYLOAD_VERSION = 17
 _STOCK_MODES = ("stock_item", "stock_sale")
 
 
@@ -248,6 +250,8 @@ def finalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         floor = max(floor, LOCATION_PAYLOAD_VERSION)
     if any(item.get("factor") for item in lines):
         floor = max(floor, FACTOR_PAYLOAD_VERSION)  # 旧版 CC 桌面版按 1 写包装单位：诚实拒收
+    if any(item.get("remarks") for item in lines):
+        floor = max(floor, REMARKS_PAYLOAD_VERSION)  # 旧版不写按台号码：诚实拒收
     # 免税行标记（收银日汇总、混合税率的采购盖 11；整单免税的进货单盖 12）：旧版不认或照无税写，诚实拒收
     floor = max(floor, pos_contract.exempt_payload_version(payload))
     if any(isinstance(line, dict) and line.get("role") for line in payload.get("lines") or []):
@@ -336,6 +340,11 @@ def extract_line_items(
         if it.get("vat_exempt"):
             # 来源标的免税行（ERP 收银日汇总 / 退货单、混合税率采购单的 0 税率行）：CC 桌面版摊各行含税额时不摊税给它
             row["vat_exempt"] = True
+        remarks = [str(text or "").strip() for text in it.get("remarks") or [] if str(text or "").strip()] \
+            if isinstance(it.get("remarks"), list) else []
+        if remarks:
+            # 来源（ERP）拼好的按台号码：CC 桌面版写进 Express 这一行的附加说明 ARTRNRM（载荷 17）；OCR 的票没有这一键
+            row["remarks"] = remarks
         account = str(it.get("account") or "").strip()
         if account:
             # 来源已给出这一行自己的费用科目（ERP 前台：明细认出的 Express 费用类物料，编码就是科目）：照它记；OCR 的票没有这一键

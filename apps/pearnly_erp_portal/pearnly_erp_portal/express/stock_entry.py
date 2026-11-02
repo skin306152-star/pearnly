@@ -26,7 +26,7 @@ import frappe
 
 from pearnly_core.express_rules.push.account_rules import wire_account_set
 from pearnly_core.express_rules.push.choices import NEW, norm_name
-from pearnly_core.express_rules.push.common import FACTOR_PAYLOAD_VERSION
+from pearnly_core.express_rules.push.common import FACTOR_PAYLOAD_VERSION, REMARKS_PAYLOAD_VERSION
 
 from pearnly_erp_portal.express import choices, contracts, facts, target
 
@@ -99,17 +99,33 @@ def base_unit(product_name, product, unit, strict=True):
     return base, contracts.d(factor)
 
 
+def line_units(doc) -> dict:
+    """单据上登记 / 选中的台按明细行号（从 1 起，同 `serials.set_doc_serials`）分好；表单预检的单没有台。"""
+    from pearnly_erp_portal.inventory import serials
+
+    return serials.line_serials(doc) if getattr(doc, "serials", None) else {}
+
+
+def remarks_of(units, product) -> dict:
+    """这一行的台 → 载荷行上的按台号码 ``remarks``（CC 桌面版写进 Express 这一行的附加说明，载荷 17）；没有台不带这一键。
+    进货 / 销售（`push._lines`）与出入库 / 调拨同一处拼。"""
+    remarks = contracts.unit_remarks(units or [], (product or {}).get("serial_kind") or contracts.VEHICLE)
+    return {"remarks": remarks} if remarks else {}
+
+
 def document(name, ref, base=False) -> dict:
     """这张出入库单交给电脑的样子（还没选账套）。``ref``：单据标识（`push.ref`）。行照行上的单位与数量交（另带 ERP 商品单位表的
     换算率 ``factor``），CC 桌面版按 Express 主档的包装单位照原生记法写（`stock_units`）；``base=True`` 换成库存单位（盘点轧差用）。"""
     doc = frappe.get_doc(DOCTYPE, name)
     doctype = kind(doc)
     products, warehouses, lines = {}, {}, []
-    for line in doc.lines:
+    units = line_units(doc) if doctype != COUNT else {}  # 盘点不改台（10-26）
+    for index, line in enumerate(doc.lines, start=1):
         product = products.get(line.product)
         if product is None:
             product = products[line.product] = frappe.db.get_value(
-                "ERP Product", line.product, ["product_name", "express_code", "base_unit", "unit"], as_dict=True) or {}
+                "ERP Product", line.product, ["product_name", "express_code", "base_unit", "unit", "serial_kind"],
+                as_dict=True) or {}
         warehouse = line.warehouse or doc.warehouse
         if warehouse and warehouse not in warehouses:
             warehouses[warehouse] = frappe.db.get_value("ERP Warehouse", warehouse, "express_code") or ""
@@ -127,6 +143,8 @@ def document(name, ref, base=False) -> dict:
             item["factor"] = _plain(factor)
         if qty > 0 and cost > 0:
             item["unit_cost"] = _plain(cost.quantize(contracts.d("0.0001")))
+        if not base:
+            item.update(remarks_of(units.get(index), product))
         lines.append(item)
     if doc.warehouse and doc.warehouse not in warehouses:
         warehouses[doc.warehouse] = frappe.db.get_value("ERP Warehouse", doc.warehouse, "express_code") or ""
@@ -218,7 +236,9 @@ def _items(lines) -> list:
 
 
 def _version(base, lines) -> int:
-    return max(base, NEW_ITEM_PAYLOAD_VERSION) if any(line.get("new_ok") for line in lines) else base
+    if any(line.get("new_ok") for line in lines):
+        base = max(base, NEW_ITEM_PAYLOAD_VERSION)
+    return max(base, REMARKS_PAYLOAD_VERSION) if any(line.get("remarks") for line in lines) else base
 
 
 def _with_group(payload, company, book) -> dict:
@@ -334,8 +354,9 @@ def void_payload(name, company_row) -> dict:
              for seq, line in enumerate(body["lines"], start=1)]
     path = book["path"]
     payload = {
-        # 作废 RL 要认得 RL 的电脑（调拨的版本）；其余照旧 8
-        "payload_version": TRANSFER_PAYLOAD_VERSION if body["doctype"] == TRANSFER else VOID_PAYLOAD_VERSION,
+        # 作废 RL 要认得 RL 的电脑（调拨的版本）；其余照旧 8，带按台号码的单要会删附加说明的电脑（17，RL 原生保留说明不必）
+        "payload_version": TRANSFER_PAYLOAD_VERSION if body["doctype"] == TRANSFER else
+        _version(VOID_PAYLOAD_VERSION, body["lines"]),
         "direction": "stock", "action": "void", "doctype": body["doctype"],
         "docnum": doc.express_docnum, "items": items,
         "account_root": book.get("root") or "", "account_dir": path, "account_company": book.get("company") or "",

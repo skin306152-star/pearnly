@@ -104,6 +104,47 @@ def spread(amounts: list, base: Decimal) -> list:
     return out
 
 
+# 按台号码写进 Express 单据行的附加说明（ARTRNRM.REMARK C(50)，cp874 一字一字节；一行最多 10 条；评估
+# docs/work/2026-11-02-vehicle-artrnrm-评估.md）。标签同 ERP 打印行下印号（`printing/_labels.html` 宏 ``vehicle``），手机电器照 S 盘原生习惯「S/N」
+REMARK_WIDTH = 50
+VEHICLE = "vehicle"
+CHASSIS_LABEL, ENGINE_LABEL, COLOR_LABEL, SERIAL_LABEL = "เลขตัวถัง", "เลขเครื่อง", "สี", "S/N"
+
+
+def _wrapped(text: str) -> list:
+    """一条超过 REMARK_WIDTH 的说明折成几条（号码再长也不截断）。"""
+    text = str(text or "").strip()
+    return [text[start:start + REMARK_WIDTH] for start in range(0, len(text), REMARK_WIDTH)] if text else []
+
+
+def unit_remarks(units: list, kind: str) -> list:
+    """一行上的台（``[{serial_no, secondary_no, color}]``）→ 这一行的附加说明。
+
+    汽车一台两条：「เลขตัวถัง 车架号」「เลขเครื่อง 发动机号 สี 颜色」（标签照的三项连同标签放一条超过 50 字节）；手机电器一台一个号段
+    「S/N[/第二个号][ 颜色]」，两个空格隔开、一条装满再换下一条（S 盘原生「S/N.NPB201850664S  NPB201850665S …」）。空的项不写。"""
+    clean = [{key: " ".join(str(unit.get(key) or "").split()) for key in ("serial_no", "secondary_no", "color")}
+             for unit in units or []]
+    clean = [unit for unit in clean if any(unit.values())]
+    out = []
+    if kind == VEHICLE:
+        for unit in clean:
+            out += _wrapped(f"{CHASSIS_LABEL} {unit['serial_no']}" if unit["serial_no"] else "")
+            rest = " ".join(part for part in (f"{ENGINE_LABEL} {unit['secondary_no']}" if unit["secondary_no"] else "",
+                                              f"{COLOR_LABEL} {unit['color']}" if unit["color"] else "") if part)
+            out += _wrapped(rest)
+        return out
+    note = ""
+    for unit in clean:
+        token = "/".join(part for part in (unit["serial_no"], unit["secondary_no"]) if part)
+        token = " ".join(part for part in (token, unit["color"]) if part)
+        joined = f"{note}  {token}" if note else f"{SERIAL_LABEL} {token}"
+        if note and len(joined) > REMARK_WIDTH:
+            out += _wrapped(note)
+            joined = f"{SERIAL_LABEL} {token}"
+        note = joined
+    return out + _wrapped(note)
+
+
 def document(*, ref: str, direction: str, doc_date: str, number: str, company: dict, party: dict, paid: bool,
              has_vat: bool, total, vat, lines: list, currency: str = "THB") -> dict:
     """一张已提交的 ERP 单 → 交给网关的单据。
@@ -128,6 +169,8 @@ def document(*, ref: str, direction: str, doc_date: str, number: str, company: d
                       **({"factor": str(line["factor"])} if line.get("stock") and d(line.get("factor")) not in (0, 1) else {}),
                       # 免税行（收银日汇总 / 退货单在增值税登记户的单里标）：CC 桌面版不摊税给它、明细记 VATCOD '0'
                       **({"vat_exempt": True} if line.get("vat_exempt") else {}),
+                      # 按台号码（:func:`unit_remarks` 拼好）：CC 桌面版写进 Express 这一行的附加说明（载荷 17）
+                      **({"remarks": list(line["remarks"])} if line.get("remarks") else {}),
                       "stock": bool(line.get("stock"))})
     return {"version": VERSION, "ref": ref, "direction": direction, "date": str(doc_date)[:10],
             "number": str(number or "").strip()[:40],
@@ -269,6 +312,7 @@ def pages(doc: dict) -> list:
                    "unit": item["unit"], "code": item["code"], "loccod": item["loccod"],
                    **({"factor": item["factor"]} if item.get("factor") else {}),
                    **({"vat_exempt": True} if item.get("vat_exempt") else {}),
+                   **({"remarks": list(item["remarks"])} if item.get("remarks") else {}),
                    "posting_kind": "stock" if item["stock"] else "service"}
                   for item in doc["items"]],
     }
@@ -294,4 +338,4 @@ def pages(doc: dict) -> list:
 __all__ = ["CHOICE", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER",
            "OFFLINE", "OPEN_STATES", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
-           "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names"]
+           "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]
