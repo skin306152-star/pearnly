@@ -24,4 +24,8 @@
 
 ## 验证
 
-见提交说明与 PR 回写。
+- 实验栈 `pearnly-wh-lab`（本分支 `58305d80`）：`erp.inventory.by-product`、`erp.products.import`、`erp.warehouses.codes` 各两套数据 × 两种宽度，12/12 通过。
+  手机宽度下按物料那一行读到的格子是 `product_name / code / barcode / unit / qty_on_hand（4）/ unit_cost / value / status（低库存）`，
+  没有 `warehouse_name`、`location`；按位置两行的 `warehouse_name` 是两个仓；导出那一行数量 4、仓库空。
+- 改动只在流程脚本与本记录：`--changed` 按产品文件挑流程，挑不到这三条，所以用 `--flow` 点名跑；不回写 `pearnly/flows` 状态
+  （部署闸看的是 main 上全套，非产品路径改动沿用之前的全套结果）。
