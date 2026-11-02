@@ -32,12 +32,12 @@ from pearnly_erp_portal.express import api, contracts, pending, push
 Kind = namedtuple("Kind", "code prefix doctype date number party amount by_warehouse search")
 KINDS = {
     "purchase": Kind("purchase", "P", push.PURCHASE, "doc_date", "system_no", "supplier_name", "grand_total", False,
-                     ("name", "system_no", "doc_no", "supplier_name", "supplier_tax_id", "express_docnum")),
+                     ("name", "system_no", "doc_no", "supplier_name", "supplier_tax_id", "ledger_docnum")),
     "sales": Kind("sales", "S", push.SALES, "doc_date", "system_no", "buyer_name", "grand_total", False,
-                  ("name", "system_no", "buyer_name", "express_docnum")),
-    "stock": Kind("stock", "M", push.STOCK, "posting_date", "doc_no", "", "", True, ("name", "doc_no", "express_docnum")),
-    "pos_day": Kind("pos_day", "D", push.POS_DAY, "day", "", "", "grand_total", False, ("name", "express_docnum")),
-    "count": Kind("count", "C", push.COUNT, "posted_at", "title", "", "", True, ("name", "title", "express_docnum")),
+                  ("name", "system_no", "buyer_name", "ledger_docnum")),
+    "stock": Kind("stock", "M", push.STOCK, "posting_date", "doc_no", "", "", True, ("name", "doc_no", "ledger_docnum")),
+    "pos_day": Kind("pos_day", "D", push.POS_DAY, "day", "", "", "grand_total", False, ("name", "ledger_docnum")),
+    "count": Kind("count", "C", push.COUNT, "posted_at", "title", "", "", True, ("name", "title", "ledger_docnum")),
 }
 PREFIXES = {kind.prefix: kind for kind in KINDS.values()}
 LIST_MAX = direct_push.LIST_MAX
@@ -124,7 +124,7 @@ def _company_title(company) -> str:
 
 
 def _job(row):
-    return jobs.find_by_name(row.express_job) if row.get("express_job") else None
+    return jobs.find_by_name(row.ledger_job) if row.get("ledger_job") else None
 
 
 def _unknown(job) -> bool:
@@ -142,9 +142,9 @@ def _outcome(kind, name) -> dict:
     """一张单此刻的推送结论（同 Cowork 推送结果的词）：entered / queued / needs_choice / waiting_for_cc / unconfirmed /
     with_operator / failed。"""
     row = api._document(kind.doctype, name)
-    state, reason = row.express_state or "", row.express_reason or ""
+    state, reason = row.ledger_state or "", row.ledger_reason or ""
     if state in (contracts.WRITTEN, contracts.MISMATCH, contracts.HANDLED):
-        out = {"status": direct_push.ENTERED, "docnum": row.express_docnum or ""}
+        out = {"status": direct_push.ENTERED, "docnum": row.ledger_docnum or ""}
         if state == contracts.MISMATCH:
             out["mismatch"] = True  # 写进去了，但电脑读回核对不上
         if state == contracts.HANDLED:
@@ -178,7 +178,7 @@ def _route(kind, name, row) -> str:
     if view.get("can_retry"):
         api.retry(kind.doctype, name)  # 单据上的「再写一次」
         return "sent"
-    if row.express_state in contracts.OPEN_STATES and not row.express_job:
+    if row.ledger_state in contracts.OPEN_STATES and not row.ledger_job:
         push.send(kind.doctype, name)  # 提交时排直写的同一个函数（停在会自己好的原因上时每分钟也是它）
         return "sent"
     return ""
@@ -194,10 +194,10 @@ def _push_one(document, tool_input) -> dict:
     if _other_company(row, tool_input):
         return {"document": document, "status": direct_push.FAILED, "reason_code": OTHER_COMPANY,
                 "company": row.company, "company_title": _company_title(row.company)}
-    state = row.express_state or ""
+    state = row.ledger_state or ""
     if state in (contracts.WRITTEN, contracts.MISMATCH, contracts.HANDLED):
-        return {"document": document, "status": direct_push.ALREADY_SUCCESS, "docnum": row.express_docnum or ""}
-    if state == contracts.QUEUED and row.express_job:
+        return {"document": document, "status": direct_push.ALREADY_SUCCESS, "docnum": row.ledger_docnum or ""}
+    if state == contracts.QUEUED and row.ledger_job:
         return {"document": document, "status": direct_push.ALREADY_PENDING}
     if not push.enabled(row.company):
         return {"document": document, "status": direct_push.FAILED, **_reason(contracts.HELD, contracts.DISCONNECTED)}
@@ -244,21 +244,21 @@ def _settle(results) -> None:
 
 
 def _list_row(kind, row) -> dict:
-    state = row.express_state or ""
+    state = row.ledger_state or ""
     date = row.get(kind.date)
     out = {"name": _doc_id(kind, row.name), "kind": kind.code, "company": row.get("company") or "",
            "invoice_no": (row.get(kind.number) if kind.number else "") or row.name,
            "invoice_date": str(date)[:10] if date else "",
            "total_amount": contracts.money(row.get(kind.amount)) if kind.amount and row.get(kind.amount) not in (None, "")
            else "",
-           "last_push_status": LAST_STATUS.get(state, ""), "last_pushed_at": row.get("express_sent_at")}
+           "last_push_status": LAST_STATUS.get(state, ""), "last_pushed_at": row.get("ledger_sent_at")}
     if kind.party:
         out["seller_name" if kind.code == "purchase" else "buyer_name"] = row.get(kind.party) or ""
-    out.update(_reason(state, row.express_reason))
-    if state == contracts.HELD and row.express_job and _unknown(jobs.find_by_name(row.express_job)):
+    out.update(_reason(state, row.ledger_reason))
+    if state == contracts.HELD and row.ledger_job and _unknown(jobs.find_by_name(row.ledger_job)):
         out["result_unknown"] = True
     if LAST_STATUS.get(state) == "success":
-        out["written"] = direct_push.filled({"docnum": row.express_docnum or "", "mismatch": state == contracts.MISMATCH or None,
+        out["written"] = direct_push.filled({"docnum": row.ledger_docnum or "", "mismatch": state == contracts.MISMATCH or None,
                                              "handled": state == contracts.HANDLED or None})
     return {**direct_push.filled(out), "last_push_status": out["last_push_status"]}
 
@@ -276,7 +276,7 @@ def _filters(kind, companies, tool_input) -> tuple:
         filters = {"company": ["in", list(companies)]}
     filters["status"] = push.ready(kind.doctype)
     state = tool_input.get("push_state")
-    filters["express_state"] = ["in", list(PUSH_STATES[state])] if state in PUSH_STATES else ["is", "set"]
+    filters["ledger_state"] = ["in", list(PUSH_STATES[state])] if state in PUSH_STATES else ["is", "set"]
     filters.update(guard.scope_filters())
     since, until = tool_input.get("date_from"), tool_input.get("date_to")
     if since or until:
@@ -301,8 +301,8 @@ def list_documents(tool_input) -> str:
         filters, or_filters = _filters(kind, companies, tool_input)
         if filters is None:
             continue
-        fields = ["name", kind.date, "express_state", "express_reason", "express_docnum", "express_job",
-                  "express_sent_at", *(f for f in (kind.number, kind.party, kind.amount) if f),
+        fields = ["name", kind.date, "ledger_state", "ledger_reason", "ledger_docnum", "ledger_job",
+                  "ledger_sent_at", *(f for f in (kind.number, kind.party, kind.amount) if f),
                   *(["company"] if not kind.by_warehouse else [])]
         # 每类按页取到「这一页的最后一张」为止，合并后再切（各类都按日期新 → 旧）
         found = frappe.get_all(kind.doctype, filters=filters, or_filters=or_filters, fields=fields,
@@ -361,7 +361,7 @@ def push_choices(tool_input) -> str:
               for item in view.get("needed") or []]
     out = {"document": document, "company": row.company, "company_title": _company_title(row.company),
            "needed": needed, "can_answer": bool(view.get("can_answer")), **_outcome(kind, name)}
-    if row.express_state in (contracts.WRITTEN, contracts.MISMATCH, contracts.HANDLED):
+    if row.ledger_state in (contracts.WRITTEN, contracts.MISMATCH, contracts.HANDLED):
         out["entered_note"] = ENTERED_RESULT
     return direct_push.dumps(out)
 
@@ -403,7 +403,7 @@ def resolve_push_result(tool_input) -> str:
     if _other_company(row, tool_input):
         return direct_push.dumps({**direct_push.not_saved(document, OTHER_COMPANY), "company": row.company,
                                   "company_title": _company_title(row.company)})
-    if row.express_state != contracts.HELD or not _unknown(_job(row)):
+    if row.ledger_state != contracts.HELD or not _unknown(_job(row)):
         return direct_push.dumps(direct_push.not_saved(document, direct_push.NO_PUSH_TO_CONFIRM))
     try:
         api.retry(kind.doctype, name)

@@ -188,7 +188,7 @@ def _company_of(doctype, name):
 
 def _send(doctype, name, operator=None):
     CALLS.append(("send", doctype, name))
-    STATE.db.table(doctype)[name].update(express_state="queued", express_job="J-" + name, express_reason="")
+    STATE.db.table(doctype)[name].update(ledger_state="queued", ledger_job="J-" + name, ledger_reason="")
     JOBS["J-" + name] = {"job": "J-" + name, "status": "queued", "request_key": "erp:x:" + name, "reason": ""}
     return {"status": "sent"}
 
@@ -218,8 +218,8 @@ def _document(doctype, name, write=False):
 
 def _view(doctype, row):
     """同 `express.api._view` 的要点：停下要人选的列 needed（带可选值），转人工的可「再写一次」。"""
-    job = JOBS.get(row.express_job) if row.express_job else None
-    needed = list(row.get("needed") or []) if row.express_state == "held" else []
+    job = JOBS.get(row.ledger_job) if row.ledger_job else None
+    needed = list(row.get("needed") or []) if row.ledger_state == "held" else []
     return {"needed": needed, "can_answer": bool(needed),
             "can_retry": bool(job and job["status"] == "manual" and not needed)}
 
@@ -227,11 +227,11 @@ def _view(doctype, row):
 def _retry(doctype, name):
     CALLS.append(("retry", doctype, name))
     row = _document(doctype, name, write=True)
-    job = JOBS.get(row.express_job)
+    job = JOBS.get(row.ledger_job)
     if not job or job["status"] != "manual":
         raise PermissionError_("Not Permitted")
     job.update(status="queued", reason="")
-    STATE.db.table(doctype)[name].update(express_state="queued", express_reason="")
+    STATE.db.table(doctype)[name].update(ledger_state="queued", ledger_reason="")
 
 
 def _answer(doctype, name, answers):
@@ -242,7 +242,7 @@ def _answer(doctype, name, answers):
         item = asked.get((given["kind"], given["subject"]))
         if not item or given["value"] not in {option["code"] for option in item["options"]}:
             raise ValidationError("Invalid request")
-    STATE.db.table(doctype)[name].update(needed=None, express_reason="")
+    STATE.db.table(doctype)[name].update(needed=None, ledger_reason="")
     _send(doctype, name)
 
 
@@ -272,8 +272,8 @@ tools = importlib.import_module("pearnly_erp_portal.express.cc_tools")
 
 def doc(doctype, name, company="CO-1", state="held", reason="", owner="boss@x", day="2026-10-20", **extra):
     row = {"name": name, "status": "Posted" if doctype == COUNT else "submitted", "owner": owner,
-           "express_state": state, "express_reason": reason, "express_docnum": "", "express_job": None,
-           "express_sent_at": None, **extra}
+           "ledger_state": state, "ledger_reason": reason, "ledger_docnum": "", "ledger_job": None,
+           "ledger_sent_at": None, **extra}
     date_field = {PURCHASE: "doc_date", SALES: "doc_date", STOCK: "posting_date", POS_DAY: "day", COUNT: "posted_at"}[doctype]
     row[date_field] = day
     if doctype in (STOCK, COUNT):
@@ -396,12 +396,12 @@ class ListTests(unittest.TestCase):
         reset()
 
     def test_lists_this_conversation_s_company_paged_on_the_server(self):
-        doc(PURCHASE, "PUR-1", state="written", express_docnum="RR6910-001", day="2026-10-21")
+        doc(PURCHASE, "PUR-1", state="written", ledger_docnum="RR6910-001", day="2026-10-21")
         doc(PURCHASE, "PUR-2", reason="choice_needed:account", day="2026-10-19")
         doc(SALES, "SD-1", state="queued", day="2026-10-22")
         doc(STOCK, "STE-1", state="held", reason=E.NO_BOOK, day="2026-10-20")
         doc(POS_DAY, "PDS-1", state="failed", reason="x", day="2026-10-18")
-        doc(COUNT, "STC-1", state="written", express_docnum="TK6910-001", day="2026-10-17 09:00:00")
+        doc(COUNT, "STC-1", state="written", ledger_docnum="TK6910-001", day="2026-10-17 09:00:00")
         doc(PURCHASE, "PUR-9", company="CO-2", day="2026-10-23")  # 别家：本对话挂的是 CO-1
         doc(PURCHASE, "PUR-0", state=None, day="2026-10-24")  # 不写 Express 的单
         first = call(tools.list_documents, limit=2)
@@ -419,7 +419,7 @@ class ListTests(unittest.TestCase):
         self.assertEqual(rest["documents"][0]["company"], "CO-1")  # 出入库单按仓库的公司
 
     def test_filters_by_push_state_kind_and_search(self):
-        doc(PURCHASE, "PUR-1", state="written", express_docnum="RR6910-001")
+        doc(PURCHASE, "PUR-1", state="written", ledger_docnum="RR6910-001")
         doc(PURCHASE, "PUR-2", reason="choice_needed:account")
         doc(SALES, "SD-1", state="queued")
         self.assertEqual([r["name"] for r in call(tools.list_documents, push_state="waiting")["documents"]], ["P:PUR-2"])
@@ -445,17 +445,17 @@ class PushTests(unittest.TestCase):
         reset()
 
     def test_each_state_goes_the_way_the_document_page_does(self):
-        doc(PURCHASE, "PUR-1", state="written", express_docnum="RR6910-001")
-        doc(PURCHASE, "PUR-2", state="queued", express_job="J2")
+        doc(PURCHASE, "PUR-1", state="written", ledger_docnum="RR6910-001")
+        doc(PURCHASE, "PUR-2", state="queued", ledger_job="J2")
         JOBS["J2"] = {"job": "J2", "status": "leased", "request_key": "erp:purchase:PUR-2", "reason": ""}
         doc(PURCHASE, "PUR-3", reason="choice_needed:account", needed=NEEDED)
-        doc(PURCHASE, "PUR-4", reason="[PERIOD_LOCKED] closed", express_job="J4")
+        doc(PURCHASE, "PUR-4", reason="[PERIOD_LOCKED] closed", ledger_job="J4")
         JOBS["J4"] = {"job": "J4", "status": "manual", "request_key": "erp:purchase:PUR-4", "reason": "[PERIOD_LOCKED]"}
         doc(SALES, "SD-5", reason=E.NO_BOOK)
-        doc(PURCHASE, "PUR-6", reason="", express_job="J6")
+        doc(PURCHASE, "PUR-6", reason="", ledger_job="J6")
         JOBS["J6"] = {"job": "J6", "status": "manual", "request_key": "erp:operator:b:PUR-6", "reason": ""}
         OPERATOR.add("PUR-6")
-        doc(PURCHASE, "PUR-7", reason=LOST, express_job="J7")
+        doc(PURCHASE, "PUR-7", reason=LOST, ledger_job="J7")
         JOBS["J7"] = {"job": "J7", "status": "manual", "request_key": "erp:purchase:PUR-7", "reason": LOST}
         out = call(tools.push_documents, documents=["P:PUR-1", "P:PUR-2", "P:PUR-3", "P:PUR-4", "S:SD-5", "P:PUR-6",
                                                     "P:PUR-7", "P:NOPE"])
@@ -479,7 +479,7 @@ class PushTests(unittest.TestCase):
         def computer_writes():
             reads.append(1)
             if len(reads) == 2:
-                STATE.db.table(SALES)["SD-5"].update(express_state="written", express_docnum="HS6910-001")
+                STATE.db.table(SALES)["SD-5"].update(ledger_state="written", ledger_docnum="HS6910-001")
 
         STATE.db.on_rollback = computer_writes
         tools.time.sleep, saved = (lambda seconds: None), tools.time.sleep
@@ -493,7 +493,7 @@ class PushTests(unittest.TestCase):
     def test_an_offline_computer_is_not_waited_for(self):
         doc(SALES, "SD-5", reason=E.NO_BOOK)
         frappe.local.pearnly_assistant["may_wait"] = True
-        STATE.db.on_rollback = lambda: STATE.db.table(SALES)["SD-5"].update(express_reason=E.OFFLINE)
+        STATE.db.on_rollback = lambda: STATE.db.table(SALES)["SD-5"].update(ledger_reason=E.OFFLINE)
         out = call(tools.push_documents, documents=["S:SD-5"])
         self.assertEqual(out["results"], [{"document": "S:SD-5", "status": "queued", "cc_desktop_online": False}])
         self.assertEqual(STATE.db.rollbacks, 1)
@@ -556,12 +556,12 @@ class ResolveTests(unittest.TestCase):
         reset()
 
     def test_only_an_unknown_result_is_sent_back_to_the_computer_that_wrote_it(self):
-        doc(PURCHASE, "PUR-4", reason="[PERIOD_LOCKED] closed", express_job="J4")
+        doc(PURCHASE, "PUR-4", reason="[PERIOD_LOCKED] closed", ledger_job="J4")
         JOBS["J4"] = {"job": "J4", "status": "manual", "request_key": "erp:purchase:PUR-4", "reason": "[PERIOD_LOCKED]"}
         self.assertEqual(call(tools.resolve_push_result, document="P:PUR-4", entered=False),
                          direct_push.not_saved("P:PUR-4", direct_push.NO_PUSH_TO_CONFIRM))
         self.assertEqual(CALLS, [])
-        doc(PURCHASE, "PUR-7", reason=LOST, express_job="J7")
+        doc(PURCHASE, "PUR-7", reason=LOST, ledger_job="J7")
         JOBS["J7"] = {"job": "J7", "status": "manual", "request_key": "erp:purchase:PUR-7", "reason": LOST}
         out = call(tools.resolve_push_result, document="P:PUR-7", entered=True, docnum="RR6910-007")
         self.assertEqual(out, {"document": "P:PUR-7", "status": "saved", "push": {"status": "queued"}})
@@ -573,7 +573,7 @@ class ResolveTests(unittest.TestCase):
 class TimeTests(unittest.TestCase):
     def test_push_times_are_local(self):
         reset()
-        doc(PURCHASE, "PUR-1", state="queued", express_job="J1", express_sent_at=datetime.datetime(2026, 10, 20, 15, 40, 9))
+        doc(PURCHASE, "PUR-1", state="queued", ledger_job="J1", ledger_sent_at=datetime.datetime(2026, 10, 20, 15, 40, 9))
         row = call(tools.list_documents)["documents"][0]
         self.assertEqual(row["last_pushed_at"], "2026-10-20 15:40")
 
