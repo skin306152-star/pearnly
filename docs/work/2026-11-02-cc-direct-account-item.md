@@ -65,4 +65,8 @@
   3. Express 原生作废 **-002（旧写法、补了商品）→ C、金额 0、没有弹框**；**-003（新写法）→ C**；停在 E 的 **-001 再作废一次也 → C**
      （已卡住的单补了商品后也能作废完）。
   - 收尾：Express 正常退出；TEST 按快照整本还原（13 个文件）、哈希全对、无金额 0 的空单头。
-- 测试机 C 盘 T 账套离线回归：车架号窗口当时占测试机，没跑（待补）。
+- **测试机 C 盘 T 账套离线回归**（`scripts/express-direct-account-regression.py`，源码 6423868c，正式 CC 的 `cdx_reindex_runner`；
+  逐本 copytree 到工作目录写两张直接科目行 HP，原账套只读）：101 本 **98 过、0 失败、3 跳过**——95 本新建编码 = 科目码的商品
+  （3 型、ISACC 联到同一科目）、3 本（T7SANGJT / T8SANGJ / T9SANGJ）复用会计已建的 3 型 `11-04-02-00` 且不动它；第二张都不再建；
+  写入集合以外逐字节不变；10 张表（APBAL APMAS APTRN GLJNL GLJNLIT ISACC ISRUN ISVAT STCRD STMAS）CDX 与 DBF 一致。跳过：
+  T7PROPHA / T8PROPHA 没有现金科目或供应商、thai 没有 ISPRD。没有一本是「同码已是库存品」（真账里少见，单测覆盖）。
