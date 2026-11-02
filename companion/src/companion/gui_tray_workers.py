@@ -161,7 +161,7 @@ class PollWorker(QThread):
         self.status.emit(profile_id, "waiting_lock", str(task.invoice_no or ""))
         if self._ask_busy(lang) == "abort":
             # 这张已放回排队：这台再领到它（或这一批后面的）时按终止回报、计入失败（_abort_task），这里不重复记
-            self._aborted_tasks[str(task.id)] = time.monotonic()
+            self._aborted_tasks[task_journal.key_of(task)] = time.monotonic()
             self._abort_batches.add(profile_id)
             return "error"
         return "waiting_lock"
@@ -171,7 +171,7 @@ class PollWorker(QThread):
         for task_id, chosen in list(self._aborted_tasks.items()):
             if now - chosen > ABORT_MEMORY_SECONDS:
                 self._aborted_tasks.pop(task_id, None)
-        if self._aborted_tasks.pop(str(task.id), None) is not None:
+        if self._aborted_tasks.pop(task_journal.key_of(task), None) is not None:
             return True
         return profile_id in self._abort_batches
 
@@ -196,7 +196,7 @@ class PollWorker(QThread):
         batch = self._stats(profile_id)
         # 这台写过、只是回执没送到的单：不探占用、不放回排队、不按终止回报，直接照上次的回执回报（_handle_dbf_task）。
         # 否则会计正开着 Express 时它会被放回排队，派给没有本机写过记录的电脑再写一遍。
-        written = task_journal.written(task.id) is not None
+        written = task_journal.written(task_journal.key_of(task)) is not None
         if not written and self._is_aborted(profile_id, task):
             self._abort_task(profile_id, queue, task, lang)
             batch["fail"] += 1

@@ -173,7 +173,8 @@ class Queue(Base):
         self.assertEqual(leased[0]["log_id"], job["job"])
         self.assertEqual(leased[0]["payload"]["account_dir"], PATH)  # 位置换成领取这台的写法
         self.assertTrue(leased[0]["attended"])
-        self.assertEqual(self.lease(self.office)["jobs"], [])  # 每台同时一件
+        # 每台同时一件：手上这件没回报又来领，说明这件丢在电脑手里（CC 被结束 / 重启），重发的还是同一件（ADR-021 11-02 修订）
+        self.assertEqual([j["log_id"] for j in self.lease(self.office)["jobs"]], [job["job"]])
         reply = self.ack(self.office, job["job"])
         self.assertEqual(reply, {"ok": True, "status": "success", "express_docnum": "IV691023-001"})
         self.assertEqual((self.changes[-1]["status"], self.changes[-1]["docnum"], self.changes[-1]["verify_state"]),
@@ -243,6 +244,11 @@ class Queue(Base):
         jobs.retry(job["job"])
         self.assertEqual(jobs.find_by_name(job["job"])["status"], "queued")
 
+    def offline(self, context):
+        """这台电脑不再来报到（CC 被结束、关机）：最后报到时间推到在线时限之前。"""
+        fake.STATE.db.table(documents.DEVICE)[context.device]["last_seen_at"] = \
+            devices.now() - timedelta(seconds=contracts.ONLINE_SECONDS + 60)
+
     def test_an_expired_lease_comes_back_only_to_the_same_computer(self):
         other = self.register("staff@x", KEY_B)
         pc2 = self.context(other["device"], "staff@x")
@@ -251,14 +257,50 @@ class Queue(Base):
         self.lease(self.office)
         row = fake.STATE.db.table(documents.JOB)[job["job"]]
         row["lease_expires_at"] = devices.now() - timedelta(seconds=1)
+        self.offline(self.office)
         self.assertEqual(self.lease(pc2)["jobs"], [])  # 收回后钉在原来那台：结果不明，不交给别的电脑
         self.assertEqual(jobs.find_by_name(job["job"])["reason"], jobs.LOST)
         again = self.lease(self.office)["jobs"]
         self.assertEqual(again[0]["log_id"], job["job"])  # 同一个编号：它本机记着写过没有
         # 迟到的回执（收回之后才回报）也照收
         row["lease_expires_at"] = devices.now() - timedelta(seconds=1)
+        self.offline(self.office)
         self.lease(pc2)
         self.assertEqual(self.ack(self.office, job["job"])["status"], "success")
+
+    def test_a_long_job_on_a_computer_still_online_is_not_taken_back(self):
+        """代录一张单暂停超过租约（人在用 Express）：写账线这期间不来报到，但这台电脑的按需请求线程还在报到（在线）——别的电脑
+        领单时续租约，不收回、不计次数（ADR-021 11-02 修订）。"""
+        other = self.register("staff@x", KEY_B)
+        pc2 = self.context(other["device"], "staff@x")
+        self.report(pc2)
+        job = self.enqueue()
+        self.lease(self.office)
+        row = fake.STATE.db.table(documents.JOB)[job["job"]]
+        row["lease_expires_at"] = devices.now() - timedelta(seconds=300)
+        self.assertEqual(self.lease(pc2)["jobs"], [])
+        found = fake.STATE.db.table(documents.JOB)[job["job"]]
+        self.assertEqual((found["status"], found["lease_device"], found.get("attempt") or 0, found.get("reason") or ""),
+                         ("leased", self.office.device, 0, ""))
+        self.assertGreater(found["lease_expires_at"], devices.now())
+        self.assertEqual(self.ack(self.office, job["job"])["status"], "success")
+
+    def test_cc_ended_and_restarted_gets_the_same_job_back_and_writes_it_once(self):
+        """CC 被结束、重启后第一次来领：手上那件还「领取中」，直接重发同一件给它（同一个编号、新 fence、计一次），不等租约到期；
+        它本机记着写过没有（`task_journal`）。丢满 3 次转人工、结果不明，不再重发。"""
+        job = self.enqueue()
+        first = self.lease(self.office)["jobs"][0]
+        fence = fake.STATE.db.table(documents.JOB)[job["job"]]["fence"]
+        again = self.lease(self.office)["jobs"]
+        self.assertEqual([j["log_id"] for j in again], [first["log_id"]])
+        self.assertEqual(again[0]["payload"], first["payload"])
+        found = fake.STATE.db.table(documents.JOB)[job["job"]]
+        self.assertEqual((found["status"], found["fence"], found["attempt"]), ("leased", fence + 1, 1))
+        self.lease(self.office)
+        self.assertEqual(self.lease(self.office)["jobs"], [])  # 第 3 次丢：转人工
+        found = fake.STATE.db.table(documents.JOB)[job["job"]]
+        self.assertEqual((found["status"], found["reason"], found["route_device"]), ("manual", jobs.LOST, self.office.device))
+        self.assertEqual(self.ack(self.office, job["job"])["status"], "success")  # 迟到的回执照收
 
     def test_old_cc_desktop_does_not_take_a_newer_payload(self):
         self.report(self.office, payload_version=2)

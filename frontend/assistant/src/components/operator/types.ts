@@ -142,6 +142,8 @@ export type DocSnapshot = {
   summary?: DocSummary;
   /** 交单时站点就没收（只在这一页知道）：只能跳过。 */
   refused?: boolean;
+  /** 排着的这张被同一份账套里哪张结果不明的单挡着（「单号 · 对方」，站点给的）。 */
+  blocked?: string;
 };
 
 export type BatchSnapshot = {
@@ -198,6 +200,8 @@ export type TaskDocument = {
   reason: string;
   ref: string;
   party: string;
+  /** 排着的被哪张结果不明的单挡着（「单号 · 对方」），没有是空。 */
+  blocked_by: string;
 };
 /** 一个任务（task_list 不带 documents，task_get 带）。时间是站点的日期时间字符串，空 = 没有。 */
 export type TaskRecord = {

@@ -239,6 +239,14 @@ function words(value: unknown): string[] {
   assert.equal(taskMeta({ status: "ready", reason: "", docs: [], total: 1, remote: true }), op.queued);
   assert.equal(taskMeta({ status: "paused", reason: "account_busy", docs: [], total: 1 }), op.queued);
   assert.equal(taskMeta({ status: "ready", reason: "", docs: [], total: 1 }), op.state.preparing);
+  // 被同一份账套里一张结果不明的单挡着（站点给的「单号 · 对方」，ADR-021 11-02 修订）：任务状态与这张单那一行都写出是哪张，
+  // 不只说等电脑空闲；用现有词条（结果不明），不加新文案
+  const waitingDoc = { doc_id: "D-2", doc_type: "", status: "pending", docnum: "", voided: [], placeholders: [], reason: "", reports: [],
+    seconds: 0, blocked: "INV-7 · ABC" } as any;
+  const blockedLine = `INV-7 · ABC · ${co.ledger.code.result_unknown}`;
+  assert.equal(taskMeta({ status: "ready", reason: "", docs: [waitingDoc], total: 1, remote: true }), blockedLine);
+  assert.deepEqual(docRow(waitingDoc), { tone: "waiting", state: op.doc.waiting, detail: blockedLine });
+  assert.equal(taskMeta({ status: "ready", reason: "", docs: [{ ...waitingDoc, blocked: undefined }], total: 1, remote: true }), op.queued);
   // 对话框里的工作状态（同对话的状态行）：在录 = 计时 · 这张单；排队、暂停后等着自己恢复 = 计时 · 等电脑空闲；
   // 停下等人 = 需要您的输入；整个任务因必须人工的原因停了 = 错误框；完成、用户自己停的 = 不显示
   const act = { reason: "", total: 2, current: "", started: 100, created: 90 };
@@ -318,7 +326,7 @@ function words(value: unknown): string[] {
 LIVE = r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { createLiveSource, mergedSnapshot, POLL_MS, SENT_STATES, startedSnapshot, taskOf, taskSnapshot } from "@/components/operator/live-source";
+import { createLiveSource, mergedSnapshot, POLL_MS, SENT_STATES, startedSnapshot, taskOf, taskSnapshot, withBlocked } from "@/components/operator/live-source";
 import { taskMeta } from "@/components/operator/model";
 import { reasonText } from "@/components/operator/model";
 import { modeForKey, modeOf, switchMode, useModePlace } from "@/lib/nav";
@@ -541,6 +549,11 @@ function runner(id: string, status: string, docs: any[], created = 1_800_000_000
   assert.equal(posts.filter(([m]) => m.endsWith(".task_settle")).length, settles);  // SETTLE_S 内不再问
   offTasks();
   assert.equal(taskSnapshot(taskOf({ ...TASK("Q"), documents: [] })).status, "ready");
+  // 站点说排着的单被哪张结果不明的单挡着：只挂在排着的那张上（ADR-021 11-02 修订）
+  const held = taskSnapshot(taskOf({ ...TASK("Q"), documents: [
+    { doc_id: "D-1", state: "queued", blocked_by: "INV-7 · ABC" }, { doc_id: "D-2", state: "saved", docnum: "RR1", blocked_by: "x" }] }));
+  assert.deepEqual(held.docs.map((d) => [d.status, d.blocked]), [["pending", "INV-7 · ABC"], ["saved", undefined]]);
+  assert.deepEqual(withBlocked(held, new Map([["D-2", "y"]])).docs.map((d) => d.blocked), ["INV-7 · ABC", undefined]);
   assert.equal(taskOf({ name: "x", status: "weird" }).status, "preparing");
 
   // ── CC 桌面版窗口（桥支持实操）：Cowork 公司走公司主档；任务来自桥（CC 重启后也在，带 created）─────────────────

@@ -235,7 +235,7 @@ def _handle_dbf_task(
     # 同一个任务上次已经写进去、只是回执没送到（断网 / 关机）：照上次的回执回报，不写第二张。
     # 只认任务号，会计再推一次是新任务、照写（不查重，见 task_journal）。放在找账套之前：写过的就是写过了，
     # 这会儿账套找不到、文件号对不上都不能让它回到排队交给别的电脑再写一遍。
-    done = task_journal.written(task.id)
+    done = task_journal.written(task_journal.key_of(task))
     if done is not None:
         log.info(f"✓ dbf task {task.id} already written → {done.get('docnum')}")
         qc.ack_success(
@@ -343,7 +343,7 @@ def _handle_dbf_task(
     if res.ok:
         log.info(f"✓ dbf task {task.id} → {res.docnum}")
         task_journal.remember(
-            task.id, {"docnum": res.docnum, "line_modes": res.line_modes, "meta": meta}
+            task_journal.key_of(task), {"docnum": res.docnum, "line_modes": res.line_modes, "meta": meta}
         )
         qc.ack_success(
             task.id,
@@ -407,7 +407,7 @@ def _handle_operator_task(cfg, qc, task, st):
     meta = {"operator": {**(result.get("meta") or {}), **({"masters": ready.created} if ready.created else {})}}
     status = result.get("status")
     if status == "saved":
-        task_journal.remember(task.id, {"docnum": result.get("docnum"), "meta": meta})
+        task_journal.remember(task_journal.key_of(task), {"docnum": result.get("docnum"), "meta": meta})
         qc.ack_success(task.id, extracted_invoice_no=result.get("docnum"), meta=meta)
         activity("log_recorded", lang=cfg.ui_lang, inv=result.get("docnum") or str(task.invoice_no or "?"))
         return None

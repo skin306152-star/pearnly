@@ -180,6 +180,9 @@ export function taskTone(s: TaskLike): TaskTone {
 export function taskMeta(s: TaskLike & Pick<BatchSnapshot, "total">): string {
   const tone = taskTone(s);
   if (tone === "preparing" || (s.status === "paused" && levelOf(s.reason) === "auto")) {
+    // 被同一份账套里一张结果不明的单挡着：写出是哪张（它在「需要处理」里核对），不只说等电脑空闲
+    const blocked = s.docs.find((d) => d.status === "pending" && d.blocked)?.blocked;
+    if (blocked) return blockedText(blocked);
     if (s.reason === "account_busy" || s.remote || s.status === "paused") return op.queued;
     return op.state.preparing!;
   }
@@ -236,13 +239,16 @@ export function docRow(doc: DocSnapshot): DocRow {
     case "entering":
       return { tone: "running", state: op.doc.entering!, detail: "" };
     case "pending":
-      return { tone: "waiting", state: op.doc.waiting!, detail: "" };
+      return { tone: "waiting", state: op.doc.waiting!, detail: doc.blocked ? blockedText(doc.blocked) : "" };
     case "skipped":
       return { tone: "skipped", state: op.doc.skipped!, detail: "" };
     default:
       return { tone: "attention", state: op.doc.notDone!, detail: notDoneDetail(doc) };
   }
 }
+
+/** 挡着它的那张：「单号 · 对方 · 结果不明」。 */
+export const blockedText = (blocker: string) => [blocker, co.ledger.code.result_unknown].join(" · ");
 
 /** 未完成的一句：原因 · 已作废 {单号}。 */
 export function notDoneDetail(doc: Pick<DocSnapshot, "reason" | "voided">): string {

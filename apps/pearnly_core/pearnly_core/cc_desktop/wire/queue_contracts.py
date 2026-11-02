@@ -8,6 +8,7 @@ No native attempt secret is encoded in a wire ID. The caller supplies its UUID.
 """
 from __future__ import annotations
 
+import hashlib
 import math
 from uuid import UUID
 
@@ -17,9 +18,9 @@ MAX_JOBS = 50
 _ACK_KEYS = ("log_id", "result", "express_docnum", "error", "agent_id", "line_modes", "outcome", "meta")
 _JOB_KEYS = frozenset(("log_id", "history_id", "invoice_no", "payload"))
 # 领取回复里每件任务的可选键（ADR-021）：``attended`` = 录入人可能就在这台电脑前（不是定时任务、录入人在这台电脑上登录过 CC，
-# 第 55 条，`route_contracts.attended`）。没有这一键的
-# 旧服务端照旧，旧客户端只按键取它认识的。
-JOB_OPTIONAL_KEYS = frozenset(("attended",))
+# 第 55 条，`route_contracts.attended`）；``task_key`` = 同一条推送记录每次领都一样的不透明键（:func:`task_key`，ADR-021
+# 11-02 修订）。没有这些键的旧服务端照旧，旧客户端只按键取它认识的。
+JOB_OPTIONAL_KEYS = frozenset(("attended", "task_key"))
 # 领取请求的可选键（ADR-021）：``index_pending`` = 这台电脑主档索引还没重建的账套文件号（按账套黏住用）。旧服务端忽略。
 LEASE_OPTIONAL_KEYS = frozenset(("index_pending",))
 MAX_INDEX_PENDING = 500
@@ -138,11 +139,13 @@ def ack_request(raw: dict) -> dict:
     return _json_copy(result)
 
 
-def job(log_id: str, native_record: dict, attended: bool | None = None) -> dict:
-    """Project only the four legacy wire fields from native.service.project(), plus optional ``attended``.
+def job(log_id: str, native_record: dict, attended: bool | None = None, task_key: str | None = None) -> dict:
+    """Project only the four legacy wire fields from native.service.project(), plus optional ``attended`` / ``task_key``.
 
     The UUID identifies the caller's opaque mapping, never the native record or
     attempt. Frozen target, actor, fence and attempt token are not projected.
+    ``task_key``（ADR-021 11-02 修订）：同一条推送记录每次领都一样的不透明键（不是记录号本身），CC 桌面版本机按它记「这件写过
+    没有」——丢在电脑手里的单重发时投递号换新，按投递号记就认不出。旧版 CC 桌面版不认这一项，照旧按投递号。
     """
     record = _object(native_record, response=True)
     payload = _object(record.get("frozen_payload"), response=True)
@@ -154,7 +157,20 @@ def job(log_id: str, native_record: dict, attended: bool | None = None) -> dict:
         if type(attended) is not bool:
             _invalid(True)
         result["attended"] = attended
+    if task_key is not None:
+        result["task_key"] = _uuid(task_key, response=True)
     return result
+
+
+# 认得 ``task_key`` 的 CC 桌面版（本机记账按它认写过没有，`companion.task_journal.key_of`）。更旧的按投递号记、认不出重发的同一条
+# 记录：服务端不把丢了的单重发给它（照旧到期转结果不明，ADR-021 11-02 修订兼容一节）
+TASK_KEY_MIN_COMPANION = "1.12.11"
+
+
+def task_key(record_name: str) -> str:
+    """推送记录号 → 不透明的稳定键（UUID 形状；不能反推出记录号，同 ``log_id`` 不暴露账本记录）。"""
+    digest = hashlib.sha256(("pearnly-task:" + str(record_name)).encode("utf-8")).hexdigest()
+    return str(UUID(digest[:32]))
 
 
 def lease_response(jobs: list, refresh: dict | None = None) -> dict:
@@ -167,7 +183,7 @@ def lease_response(jobs: list, refresh: dict | None = None) -> dict:
         if not _JOB_KEYS <= set(row) or set(row) - _JOB_KEYS - JOB_OPTIONAL_KEYS:
             _invalid(True)
         values.append(job(row["log_id"], {"history": row["history_id"],
-            "invoice_no": row["invoice_no"], "frozen_payload": row["payload"]}, row.get("attended")))
+            "invoice_no": row["invoice_no"], "frozen_payload": row["payload"]}, row.get("attended"), row.get("task_key")))
     result = {"ok": True, "lease_seconds": LEASE_SECONDS, "jobs": values}
     if refresh is not None:
         _object(refresh, response=True)

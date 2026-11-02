@@ -359,3 +359,54 @@ def test_left_express_is_only_tidied_after_the_grace_while_nothing_runs(tmp_path
     now[0] += host_module.ORPHAN_GRACE_S
     host.idle()
     assert not sim.alive
+
+
+def shared_factory(sims):
+    """同一个假 Express / 账套跨 CC 重启（账套在电脑上，CC 进程换了它还在）。"""
+    def factory(state, store, settings, root, notify):
+        if not sims:
+            sims.append(FakeExpress(RECIPE.data))
+        sim = sims[0]
+        book = FakeBook(sim)
+        engine = Engine(sim, RECIPE, book, sleep=lambda _s: None)
+
+        class Session:
+            def ensure_open(self):
+                sim.alive = True
+
+            def close(self):
+                sim.alive = False
+
+        return Runner(state, store, engine, Session(), book, lock=no_lock, sleep=lambda _s: None, on_change=notify), {"desk": sim}
+    return factory
+
+
+def test_cc_ended_mid_batch_then_the_same_documents_come_back_and_each_is_entered_once(tmp_path):
+    """CC 被结束后服务端把手上丢了的单重发给这台（ADR-021 11-02 修订，Cowork 与 ERP 两个通道同一口径）：投递号换新、单据号不变。
+    已录成的回上次 Express 单号、不再录；录到一半（批次文件记着「进行中」、账套里没有它）的接着录一次。账套里每张只一张。"""
+    from companion.express_operator import contract as K
+    from companion.express_operator.batch import BatchStore
+
+    sims = []
+    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    first = Host(tmp_path, factory=shared_factory(sims))
+    one = payload("RR", "P001", "501780", "1", "1.00", 1, 3)
+    one["operator"]["batch"]["doc"] = "CWH-1"
+    two = payload("RR", "P002", "501780", "2", "2.00", 2, 3, ref="R2")
+    two["operator"]["batch"]["doc"] = "CWH-2"
+    assert first.handle("delivery-1", one, st)["docnum"] == "RR0000001"   # 录成了，回执没送到
+    store = BatchStore(tmp_path / "batches")
+    state = store.load("b1")
+    state.docs.append(state.docs[0].__class__("CWH-2", "RR", first.runners["b1"].state.docs[0].draft))
+    state.docs[-1].status = K.ENTERING   # 第二张录到一半时 CC 被结束：账套里还没有它
+    state.docs[-1].counts_before = FakeBook(sims[0]).counts()
+    state.docs[-1].draft = {**state.docs[0].draft, "doc_id": "CWH-2", "party_code": "P002", "ref_no": "R2"}
+    store.save(state)
+
+    restarted = Host(tmp_path, factory=shared_factory(sims))   # 新进程
+    again = restarted.handle("delivery-1b", one, st)            # 重发的第一张：新投递号
+    assert (again["status"], again["docnum"]) == ("saved", "RR0000001")
+    resumed = restarted.handle("delivery-2b", two, st)
+    assert resumed["status"] == "saved"
+    heads = [r["DOCNUM"] for r in sims[0].book["APTRN"] if not r.get("_del")]
+    assert heads == ["RR0000001", resumed["docnum"]]             # 每张只一张

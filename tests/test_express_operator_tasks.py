@@ -200,6 +200,18 @@ class TaskTests(unittest.TestCase):
         self.assertTrue(done["finished_at"])
         self.assertEqual(self.tasks.delete(made["name"]), {"deleted": made["name"]})
 
+    def test_a_queued_document_records_which_unknown_one_blocks_it_until_it_moves(self):
+        # 同一份账套里一张结果不明的单持着写者锁、人还没核对：排着的这张记下是哪张（「单号 · 对方」），页面照它写；
+        # 不再被挡、或已定下来，就清掉（ADR-021 11-02 修订）
+        made = self.tasks.create("CO-1", "2026-10")
+        self.tasks.attach(made["name"], [{"doc_id": "h2", "status": "sent"}], {}, "", None)
+        self.statuses = {"h2": {"state": "queued", "blocked_by": {"doc_id": "h1", "ref": "INV-1", "party": "Siam"}}}
+        self.assertEqual(self.tasks.settle(made["name"])["documents"][0]["blocked_by"], "INV-1 · Siam")
+        self.statuses = {"h2": {"state": "queued"}}
+        self.assertEqual(self.tasks.settle(made["name"])["documents"][0]["blocked_by"], "")
+        self.statuses = {"h2": {"state": "saved", "docnum": "RR9", "blocked_by": {"ref": "x"}}}
+        self.assertEqual(self.tasks.settle(made["name"])["documents"][0]["blocked_by"], "")
+
     def test_an_unknown_result_is_asked_again_until_someone_checks_it(self):
         # CC 重启打断、站点定成结果不明的单：人在 Express 核对之前一直「需要处理」，核对后再收尾就按核对的结论（10-29 测试机）
         made = self.tasks.create("CO-1", "2026-10")

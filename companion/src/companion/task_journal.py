@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """本机记下「哪个推送任务已经写进账套」，同一个任务被服务器重发时不再写第二张。
 
-只认推送任务号（服务器的推送记录号），不看发票号、金额或账套里有没有同号的单：会计再推一次是新任务，
+只认推送任务号（服务器给的稳定键，见 :func:`key_of`），不看发票号、金额或账套里有没有同号的单：会计再推一次是新任务，
 照写（用户 2026-09-30、2026-10-08：不查重、不拦）。这里只防一种情况 —— 写完了但回执没送到服务器
-（断网、关机），服务器过一会儿把同一个任务再发下来。
+（断网、关机、CC 被结束），服务器把同一个任务再发下来。
 
 文件在 ``%APPDATA%\\Pearnly\\written_tasks.json``，只留最近 ``KEEP`` 个任务，读写失败就当没记过（照常写）。
 """
@@ -34,6 +34,12 @@ def _load(path: Path) -> dict:
         return value if isinstance(value, dict) else {}
     except (OSError, ValueError):
         return {}
+
+
+def key_of(task) -> str:
+    """按哪个键记这个任务：服务端给了稳定键（``task.key``，同一条推送记录每次领都一样，ADR-021 11-02 修订）就用它——丢在这台
+    电脑手里的单重发时投递号换新；旧服务端不给就用投递号（``task.id``，同以前）。"""
+    return str(getattr(task, "key", None) or task.id)
 
 
 def written(task_id: str, path: Optional[Path] = None) -> Optional[dict]:

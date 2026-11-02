@@ -342,24 +342,35 @@ class Transport(unittest.TestCase):
         self.outcome = {}
         self.registrations = {"s1": {"uid": "vol:1"}, "s2": {"uid": "vol:2"}}
         self.locks_taken = set()
+        # 丢在电脑手里的单（ADR-021 11-02 修订）：这台电脑领过、还「领取中」或过期成结果不明的；过期了的别人的；还在场的电脑
+        self.mine, self.expired, self.present, self.records = [], [], set(), {}
+        self.redeliverable = True
+        self.version = "1.8.0"
         self.queries = []
         self.scopes = []
         frappe = types.ModuleType("frappe")
         frappe._ = lambda text: text
         frappe.PermissionError = _Permission
+        frappe.ValidationError = _Unavailable
         frappe.QueryDeadlockError = type("QueryDeadlockError", (Exception,), {})
         frappe.throw = lambda message, exc=Exception: (_ for _ in ()).throw(exc(message))
         frappe.parse_json = json.loads
         frappe.db = types.SimpleNamespace(savepoint=lambda name: None, rollback=lambda **kw: None, sql=self.sql,
                                           get_value=lambda doctype, name, field, as_dict=False: types.SimpleNamespace(
-                                              device_owner="owner@example.com", companion_version="1.8.0"))
+                                              device_owner="owner@example.com", companion_version=self.version))
         frappe.get_doc = lambda doctype, name, for_update=False: Record(
             name=name, connection="CONN", workspace="WS", client="", branch="legacy", binding_generation=0,
-            actor=ME, history="H-" + name, history_version=1, account_key=self.key_of(name), connection_revision=1)
+            actor=ME, history="H-" + name, history_version=1, account_key=self.key_of(name), connection_revision=1,
+            **self.records.get(name, {}))
         ledger = types.SimpleNamespace(
             RECORD="Cowork Push Record", DispatchRejected=_Rejected, LeaseUnavailable=_Unavailable,
             now_utc=lambda value=None: NOW, lease=self.lease, quarantine_pending=self.quarantine,
             lock_busy=lambda name, context: name in self.locks_taken,
+            UNKNOWN_REASON="ERP_CONFIRMED_PUSH_RESULT_UNKNOWN",
+            redeliverable=lambda row, device: self.redeliverable and row.written_by_device == device,
+            extend=lambda name, *, context, adapter, now=None: self.calls.append(("extend", name)),
+            recover_expired=lambda name, *, context, adapter, now=None, lost=False: self.calls.append(
+                ("recover", name, lost)),
             trusted_adapter_context=lambda connection, owner, generation, **kw: types.SimpleNamespace(
                 connection=connection, owner=owner, **kw))
         credentials = types.SimpleNamespace(
@@ -396,16 +407,21 @@ class Transport(unittest.TestCase):
             "pearnly_cowork.companion.delivery_store": delivery_store,
             "pearnly_cowork.companion.devices": devices,
             "pearnly_cowork.companion.receipt_auth": stub(),
+            "pearnly_cowork.companion.request_service": stub(
+                presence=lambda connection, device: {"seen": device in self.present}),
         }
         self.transport = _load("pearnly_cowork.companion._transport_under_test", APP / "companion/transport.py", modules)
         self.credential = types.SimpleNamespace(connection="CONN", workspace="WS", client="", credential_id="KEY-A",
                                                 token_generation=1, issuer=ME)
 
     def key_of(self, name):
-        return next((row.account_key for row in self.pending if row.name == name), "")
+        return next((row.account_key for row in [*self.pending, *self.mine] if row.name == name), "")
 
     def sql(self, query, values=(), as_dict=False):
         q = " ".join(query.split())
+        if "r.written_by_device=%s AND (r.status='leased'" in q:
+            self.queries.append("mine")
+            return [Record(row) for row in self.mine]
         if "written_by_device=%s" in q:
             return [("CWP-BUSY",)] if self.busy else []
         if "MIN(r2.created_at)" in q:
@@ -422,11 +438,11 @@ class Transport(unittest.TestCase):
         if "payload_json FROM" in q:
             return [Record(name=name, payload_json=json.dumps({"payload_version": 2})) for name in values[0]]
         if "status='leased' AND r.lease_expires_at<=%s" in q:
-            return []
+            return [Record(row) for row in self.expired]
         raise AssertionError("unexpected query: " + q)
 
-    def lease(self, name, *, context, adapter, now=None):
-        self.calls.append(("lease", name, adapter.route, adapter.device))
+    def lease(self, name, *, context, adapter, now=None, redeliver=False):
+        self.calls.append(("lease", name, adapter.route, adapter.device) + (("redeliver",) if redeliver else ()))
         outcome = self.outcome.get(name, "leased")
         if outcome == "waiting":
             return {"leased": False, "reason": "waiting_lock", "record": {}}
@@ -541,6 +557,59 @@ class Transport(unittest.TestCase):
         self.pending = [_row("CWP-1", "s1", version=None)]
         self.assertEqual(self.run_lease()["jobs"], [])  # 冻结载荷要 2，A 只支持 1、他的另一台 B 支持：轮不到 A
         self.assertFalse([call for call in self.calls if call[0] in ("quarantine", "lease")])
+
+    def lost(self, name="CWP-9", key="s1", status="leased"):
+        self.version = "1.12.11"  # 认得 task_key 的版本才重发
+        self.mine = [Record(name=name, account_key=key, owner_id="companion:old")]
+        self.records[name] = {"status": status, "written_by_device": A, "entered_by": ME, "write_route": rc.OWN,
+                              "result_unknown": int(status == "manual"), "reason": ""}
+
+    def test_a_computer_that_comes_back_gets_its_lost_job_first_with_the_same_key(self):
+        """CC 被结束 / 重启后第一次来领：手上那件还「领取中」，先重发给它（锁不放、不看别的排头），带同一条推送记录的稳定键，
+        本机按它认写过没有（ADR-021 11-02 修订）。"""
+        self.lost()
+        self.pending = [_row("CWP-1", "s1")]
+        jobs = self.run_lease()["jobs"]
+        self.assertEqual([call for call in self.calls if call[0] == "lease"], [("lease", "CWP-9", rc.OWN, A, "redeliver")])
+        self.assertEqual(jobs[0]["task_key"], queue_contracts.task_key("CWP-9"))
+        self.assertNotIn("heads", self.queries)
+        self.assertNotIn("CWP-9", jobs[0]["task_key"])  # 不透明：不暴露账本记录号
+        self.assertEqual(queue_contracts.task_key("CWP-9"), queue_contracts.task_key("CWP-9"))
+
+    def test_an_old_cc_desktop_never_gets_a_lost_job_again(self):
+        """认不出重发的同一条记录的旧版（按投递号记账）：不重发，照旧等租约到期转结果不明，不会写第二张。"""
+        self.lost()
+        self.version = "1.12.10"
+        self.pending = [_row("CWP-1", "s1")]
+        self.run_lease()
+        self.assertNotIn("mine", self.queries)
+        self.assertFalse([call for call in self.calls if call[0] == "recover" or call[-1] == "redeliver"])
+
+    def test_a_lost_job_that_cannot_go_back_is_left_to_people_and_the_queue_flows(self):
+        """重发次数满了（或失权、目标变了）：这件转人工 + 结果不明（`recover_expired(lost=True)`，锁仍保留给人核对），
+        这台照常领别的账套。"""
+        self.lost()
+        self.redeliverable = False
+        self.pending = [_row("CWP-2", "s2")]
+        jobs = self.run_lease()["jobs"]
+        self.assertIn(("recover", "CWP-9", True), self.calls)
+        self.assertEqual([j["task_key"] for j in jobs], [queue_contracts.task_key("CWP-2")])
+
+    def test_a_lost_job_on_an_account_set_out_of_reach_waits(self):
+        self.lost(key="s9")
+        self.assertEqual(self.run_lease()["jobs"], [])
+        self.assertFalse([call for call in self.calls if call[0] in ("lease", "recover")])
+
+    def test_an_expired_lease_of_a_computer_still_present_is_extended_never_unknown(self):
+        """代录一张单暂停超过租约：写账线这期间不来，但那台电脑的按需请求线程 90 秒内来过——续租约，不判结果不明；那台电脑
+        真不在了才转结果不明（锁保留）。"""
+        self.expired = [Record(name="CWP-7", owner_id="companion:b", written_by_device=B),
+                        Record(name="CWP-8", owner_id="companion:c", written_by_device="PC-GONE")]
+        self.present = {B}
+        self.run_lease()
+        self.assertIn(("extend", "CWP-7"), self.calls)
+        self.assertIn(("recover", "CWP-8", False), self.calls)
+        self.assertNotIn(("recover", "CWP-7", False), self.calls)
 
     def test_one_lease_per_computer_at_a_time(self):
         self.pending = [_row("CWP-1", "s1")]

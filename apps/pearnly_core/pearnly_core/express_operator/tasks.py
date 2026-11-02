@@ -70,7 +70,7 @@ def view(doc, *, documents: bool = True) -> dict:
         out[key] = str(out[key] or "")
     if documents:
         out["documents"] = [{key: row.get(key) or "" for key in ("doc_id", "doc_group", "state", "docnum", "voided_docnum",
-                                                                  "reason", "ref", "party")}
+                                                                  "reason", "ref", "party", "blocked_by")}
                             for row in doc.get("documents") or []]
     return out
 
@@ -182,6 +182,9 @@ def settle(name) -> dict:
                 row.state = state
                 row.docnum = str(r.get("docnum") or row.docnum or "")
                 row.reason = str(r.get("reason") or "")[:140] if state == "not_done" else row.reason
+                # 排着的被同一份账套里哪张结果不明的单挡着（产品给 {ref, party}）：页面写成「单号 · 对方 · 结果不明」
+                blocker = r.get("blocked_by") if state == "queued" and isinstance(r.get("blocked_by"), dict) else {}
+                row.blocked_by = " · ".join(str(blocker.get(k) or "") for k in ("ref", "party") if blocker.get(k))[:140]
             for key in ("ref", "party", "voided_docnum"):
                 if r.get(key) and not row.get(key):
                     row.set(key, str(r[key])[:140])

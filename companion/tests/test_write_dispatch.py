@@ -279,7 +279,7 @@ def test_unattended_worker_never_asks_and_leaves_a_busy_account_set_to_the_waiti
     # 代录单不问「账套正在使用」（代录本来就开着 Express 录），其余照旧
     assert "if not written and not self._unattended(cfg, task) and not self._stop and not _operator_task(task):" in handle
     # 这台写过的单先于占用探测（写过就照上次回执回报，不放回排队）
-    assert handle.index("task_journal.written(task.id)") < handle.index("account_lock.is_account_busy(")
+    assert handle.index("task_journal.written(task_journal.key_of(task))") < handle.index("account_lock.is_account_busy(")
     # 有人值守、账套被占用：先放掉租约（按「等账套」回报）再问，不拿着租约等人点
     release = source.split("def _release_then_ask(", 1)[1].split("\n    def ", 1)[0]
     assert release.index("queue.ack_failure(") < release.index("self._ask_busy(lang)")

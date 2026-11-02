@@ -252,7 +252,7 @@ export function createMockSource(options: { now?: () => number; local?: boolean 
     return {
       ...record,
       documents: (b?.docs ?? []).map((d) => ({ doc_id: d.doc_id, doc_group: d.summary?.group ?? "", state: state(d), docnum: d.docnum,
-        voided_docnum: d.voided[0] ?? "", reason: d.reason, ref: d.summary?.ref ?? "", party: d.summary?.party ?? "" })),
+        voided_docnum: d.voided[0] ?? "", reason: d.reason, ref: d.summary?.ref ?? "", party: d.summary?.party ?? "", blocked_by: d.blocked ?? "" })),
     };
   }
   const task = (name: string) => {

@@ -608,7 +608,7 @@ class WriteCheck(unittest.TestCase):
         self.assertIn("m['verify'] = dict(res.verify)", meta)
         # task_journal 存的就是整份 meta：重发（duplicate_skipped）照样带回 verify
         handle = method_source_of(COMPANION / "worker.py", "_handle_dbf_task")
-        self.assertIn("task_journal.remember(task.id, {'docnum': res.docnum, 'line_modes': res.line_modes, 'meta': meta})",
+        self.assertIn("task_journal.remember(task_journal.key_of(task), {'docnum': res.docnum, 'line_modes': res.line_modes, 'meta': meta})",
                       handle)
         self.assertIn("meta={**(done.get('meta') or {}), 'written': False, 'duplicate_skipped': True}", handle)
 
@@ -939,7 +939,8 @@ class AccountSetIdentity(unittest.TestCase):
 class WriteDispatch(unittest.TestCase):
     """多台电脑分派写账（ADR-021，方案 2.5、第 5 节第 4–6 条，服务端一侧；客户端一侧在第 5 批补齐）：
 
-    - 领取回复的每件任务：四个旧键照旧必有，可选键只有登记过的 ``attended``；今天的客户端只读四键里的三个，多出的忽略；
+    - 领取回复的每件任务：四个旧键照旧必有，可选键只有登记过的 ``attended`` 与 ``task_key``（ADR-021 11-02 修订：同一条
+      推送记录每次领都一样的不透明键，本机记账按它认）；旧客户端只按键取它认识的，多出的忽略；
     - 领取请求的可选键 ``index_pending``：服务端认它，旧服务端忽略；
     - 写前文件号对不上回 ``waiting_lock`` + ``[ERR_ACCOUNT_UID_MISMATCH]``：服务端据此标 stale；
     - 下发副本里换成领取电脑写法的位置字段，覆盖客户端 `_task_settings` 读的每一个位置键。"""
@@ -958,14 +959,33 @@ class WriteDispatch(unittest.TestCase):
     def test_jobs_keep_the_four_keys_and_register_the_optional_ones(self):
         found = self.constants(self.QUEUE, "_JOB_KEYS", "JOB_OPTIONAL_KEYS", "LEASE_OPTIONAL_KEYS")
         self.assertEqual(set(found["_JOB_KEYS"]), {"log_id", "history_id", "invoice_no", "payload"})
-        self.assertEqual(set(found["JOB_OPTIONAL_KEYS"]), {"attended"})
+        self.assertEqual(set(found["JOB_OPTIONAL_KEYS"]), {"attended", "task_key"})
         self.assertEqual(set(found["LEASE_OPTIONAL_KEYS"]), {"index_pending"})
         poll = method_source(COMPANION / "queue_client.py", "QueueClient", "poll")
         read = set(re.findall(r"""job(?:\.get\(|\[)['"]([a-z_]+)['"]""", poll))
-        # 1.7.0：按键取三个旧键 + 可选的 attended（只认布尔，没有按有人值守）；多出的键不碍事
-        self.assertEqual(read, {"log_id", "invoice_no", "payload", "attended"})
+        # 1.7.0：按键取三个旧键 + 可选的 attended（只认布尔，没有按有人值守）；多出的键不碍事。1.12.11：再取可选的
+        # task_key（只认非空字符串，没有按投递号记，同以前）
+        self.assertEqual(read, {"log_id", "invoice_no", "payload", "attended", "task_key"})
         self.assertTrue(read <= set(found["_JOB_KEYS"]) | set(found["JOB_OPTIONAL_KEYS"]))
         self.assertIn("attended if isinstance(attended, bool) else None", poll)
+        self.assertIn("key=str(key) if isinstance(key, str) and key else None", poll)
+        # 本机记账、「终止」都按 task_journal.key_of 取键：有稳定键用它，旧服务端没有就用投递号
+        key_of = method_source_of(COMPANION / "task_journal.py", "key_of")
+        self.assertIn("getattr(task, 'key', None) or task.id", key_of)
+
+    def test_the_stable_key_is_opaque_and_the_same_for_one_record(self):
+        sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+        from pearnly_core.cc_desktop.wire import queue_contracts
+        key = queue_contracts.task_key("CWP-abc")
+        self.assertEqual(key, queue_contracts.task_key("CWP-abc"))
+        self.assertNotEqual(key, queue_contracts.task_key("CWP-abd"))
+        self.assertNotIn("CWP", key)
+        job = queue_contracts.job("1b4e28ba-2fa1-11d2-883f-0016d3cca427", {"history": "H", "frozen_payload": {}},
+                                  None, key)
+        self.assertEqual(job["task_key"], key)
+        # 旧服务端回的任务没有这一键：今天的客户端照旧按投递号
+        self.assertNotIn("task_key", queue_contracts.job("1b4e28ba-2fa1-11d2-883f-0016d3cca427",
+                                                         {"history": "H", "frozen_payload": {}}))
 
     def test_every_lease_request_carries_index_pending_within_the_server_limit(self):
         poll = method_source(COMPANION / "queue_client.py", "QueueClient", "poll")
@@ -999,12 +1019,12 @@ class WriteDispatch(unittest.TestCase):
         # 第 5 批审查：这台写过（回执没送到）的单先于占用探测、终止与文件号核对认出来，照上次回执回报；否则放回排队会交给
         # 没有本机写过记录的电脑再写一遍（服务端只按任务号去重不了 Express 里已建的单）
         handle = method_source(COMPANION / "gui_tray_workers.py", "PollWorker", "handle_task")
-        written = handle.index("task_journal.written(task.id)")
+        written = handle.index("task_journal.written(task_journal.key_of(task))")
         self.assertLess(written, handle.index("account_lock.is_account_busy("))
         self.assertLess(written, handle.index("self._abort_task("))
         self.assertIn("if not written and (not self._unattended(cfg, task))", handle)
         handler = method_source_of(COMPANION / "worker.py", "_handle_dbf_task")
-        self.assertLess(handler.index("task_journal.written(task.id)"), handler.index("if expected_uid and"))
+        self.assertLess(handler.index("task_journal.written(task_journal.key_of(task))"), handler.index("if expected_uid and"))
 
     def test_the_substituted_location_covers_what_the_helper_reads(self):
         keys = set(ast.literal_eval(next(

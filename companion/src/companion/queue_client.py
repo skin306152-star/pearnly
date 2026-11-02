@@ -73,6 +73,9 @@ class IncomingTask:
     # 没有录入人登录记录的电脑，第 55 条）。
     # False 不弹「账套被占用」，按「等账套」回报；旧服务端不带 → None，按有人值守处理（gui_tray_workers）。
     attended: Optional[bool] = None
+    # 同一条推送记录每次领都一样的键（ADR-021 11-02 修订）：丢在这台电脑手里的单重发时投递号（id）换新，本机记账
+    # （task_journal）按它认「写过没有」。旧服务端不带 → None，按 id 记（同以前）。
+    key: Optional[str] = None
 
 
 class QueueClient:
@@ -203,11 +206,13 @@ class QueueClient:
             return None
         job = jobs[0]
         attended = job.get("attended")
+        key = job.get("task_key")
         return IncomingTask(
             id=str(job["log_id"]),
             invoice_no=job.get("invoice_no"),
             payload=job.get("payload") or {},
             attended=attended if isinstance(attended, bool) else None,
+            key=str(key) if isinstance(key, str) and key else None,
         )
 
     def take_master_refresh(self) -> Optional[dict]:

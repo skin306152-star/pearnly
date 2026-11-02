@@ -28,7 +28,7 @@ from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_core.express_rules.contracts.push import PushContractError, require_external_history
 from pearnly_core.express_rules.push import common
 from pearnly_core.express_rules.push import written_check
-from pearnly_core.cc_desktop.wire.ack_rules import acknowledgement, LEASE_SECONDS
+from pearnly_core.cc_desktop.wire.ack_rules import acknowledgement, LEASE_SECONDS, MAX_ATTEMPTS
 from pearnly_core.express_rules.push.referenced import used_facts
 from pearnly_cowork.push.native.contracts import (
     ACTIVE_STATUSES, LOCK_SCHEME, PushLedgerError, ReservationContext, business_identity, digest, document_identity,
@@ -593,8 +593,32 @@ def activate(name, *, context, adapter):
         return project(row)
 
 
-def lease(name, *, context, adapter, now=None):
-    """Claim one known pending record. Never scans or executes an ERP queue."""
+UNKNOWN_REASON = 'ERP_CONFIRMED_PUSH_RESULT_UNKNOWN'
+# 一张单丢在电脑手里（CC 被结束、重启、看门狗重启写账线）后重发给原电脑的次数上限：同 ERP 通道（`ack_rules.MAX_ATTEMPTS`），
+# 到了就转人工 + 结果不明、不再重发（ADR-021 11-02 修订）
+MAX_REDELIVERIES = MAX_ATTEMPTS
+
+
+def _lost_attempts(row):
+    return frappe.db.count(ATTEMPT, {'push_record': row.name, 'status': 'unknown'})
+
+
+def redeliverable(row, device):
+    """这条记录能不能重发给 ``device``（ADR-021 11-02 修订）：原来领它的就是这台电脑（CC 桌面版的投递；服务端 MR.ERP 执行器
+    没有电脑，不重发），而且它丢在电脑手里——还在「领取中」（这台又来领单，说明手上这件已经丢了），或者过期后转成了结果不明、
+    人还没核对；丢过的次数没到上限。电脑本机记着写没写过（推送记录号，`task_journal`；代录按批次文件读账套），重发不会写第二张。"""
+    if not device or (row.written_by_device or '') != device or _lost_attempts(row) >= MAX_REDELIVERIES:
+        return False
+    if row.status == 'leased':
+        return True
+    return row.status == 'manual' and bool(row.result_unknown) and row.reason == UNKNOWN_REASON
+
+
+def lease(name, *, context, adapter, now=None, redeliver=False):
+    """Claim one known pending record. Never scans or executes an ERP queue.
+
+    ``redeliver``：把丢在原电脑手里的这条重发给它（:func:`redeliverable`）。写者锁一直由这条记录持有、不放（同账套别的单照样
+    等它），上一次领单作废（记结果不明）、换新 fence；已经交出去的判定（自动推的版本核对）不再重核。"""
     with atomic():
         loaded = _dispatch_context(context, adapter)
         raw = frappe.db.get_value(RECORD, name, 'target_json')
@@ -606,14 +630,23 @@ def lease(name, *, context, adapter, now=None):
         locks = _locks(context, target)
         row = _record(name, context)
         _dispatch_record(row, context)
-        if row.status != 'pending' or row.result_unknown:
-            raise LeaseUnavailable()
-        if _automation_stale(target, context, loaded):
-            return _withdraw_automation(row, target, payload, now)
-        if _automation_old_writer(target, adapter):
-            return _withdraw_automation(row, target, payload, now, why='verify_version')
-        if any(lock.holder for lock in locks) or _older_writer(row, target):
-            return {'leased': False, 'reason': 'waiting_lock', 'record': project(row)}
+        if redeliver:
+            if (not redeliverable(row, adapter.device or '') or not row.active_attempt
+                    or any(lock.holder != row.name or int(lock.holder_fence or 0) != int(row.fence) for lock in locks)):
+                raise LeaseUnavailable()
+            previous = _current(ATTEMPT, row.active_attempt)
+            if previous.status == 'leased':
+                previous.status = 'unknown'
+                persist(previous)
+        else:
+            if row.status != 'pending' or row.result_unknown:
+                raise LeaseUnavailable()
+            if _automation_stale(target, context, loaded):
+                return _withdraw_automation(row, target, payload, now)
+            if _automation_old_writer(target, adapter):
+                return _withdraw_automation(row, target, payload, now, why='verify_version')
+            if any(lock.holder for lock in locks) or _older_writer(row, target):
+                return {'leased': False, 'reason': 'waiting_lock', 'record': project(row)}
         timestamp = now_utc(now)
         token = secrets.token_urlsafe(32)
         fence = int(row.fence or 0) + 1
@@ -628,6 +661,7 @@ def lease(name, *, context, adapter, now=None):
             lock.holder, lock.holder_fence, lock.lease_expires_at = row.name, fence, attempt.lease_expires_at
             persist(lock)
         row.status, row.fence, row.active_attempt = 'leased', fence, attempt_name
+        row.result_unknown, row.reason = 0, row.reason if not redeliver else ''
         row.lease_owner, row.lease_expires_at = adapter.owner, attempt.lease_expires_at
         # 由哪台电脑写、按哪一档分派（问责；推送记录的 actor 仍是录入人）。每台同时只领一件按它判（`companion.transport`）
         row.written_by_device, row.write_route = adapter.device or None, adapter.route or None
@@ -909,8 +943,39 @@ def _automation_mismatch(row, target):
     automation_service.mismatch(row.connection, row.account_key, account_row)
 
 
-def recover_expired(name, *, context, adapter, now=None):
-    """Expired leased work is unknown/manual; retain all writer locks, never retry."""
+def extend(name, *, context, adapter, now=None):
+    """领它的电脑还在（CC 桌面版的按需请求线程刚来过，`companion.transport._recover`）：租约到期也不判结果不明，续一个租约。
+    代录一张单可以合法地超过租约（人用 Express 时暂停、开表单 / 保存等得久），写账线这期间不来报到（ADR-021 11-02 修订）。
+    这条记录和它持有的写者锁一起续；别的状态不动。"""
+    with atomic():
+        _receipt_scope(context, adapter)
+        raw = frappe.db.get_value(RECORD, name, 'target_json')
+        if not raw:
+            fail('push.native_record_not_found')
+        locks = _locks(context, json.loads(raw))
+        row = _record(name, context)
+        if row.status != 'leased' or not row.active_attempt:
+            return {**project(row), 'replayed': True}
+        attempt = _current(ATTEMPT, row.active_attempt)
+        if attempt.status != 'leased' or any(
+                lock.holder != row.name or int(lock.holder_fence or 0) != int(row.fence) for lock in locks):
+            fail('push.native_lock_conflict')
+        timestamp = now_utc(now)
+        attempt.lease_expires_at = timestamp + timedelta(seconds=LEASE_SECONDS)
+        persist(attempt)
+        for lock in locks:
+            lock.lease_expires_at = attempt.lease_expires_at
+            persist(lock)
+        row.lease_expires_at = attempt.lease_expires_at
+        _save_record(row, timestamp)
+        return {**project(row), 'replayed': False}
+
+
+def recover_expired(name, *, context, adapter, now=None, lost=False):
+    """Expired leased work is unknown/manual; retain all writer locks, never retry.
+
+    ``lost``：领它的电脑自己又来领单（手上这件已经丢了）、重发次数却已满（:data:`MAX_REDELIVERIES`）：不等租约到期，同样转人工
+    + 结果不明。"""
     with atomic():
         _receipt_scope(context, adapter)
         raw = frappe.db.get_value(RECORD, name, 'target_json')
@@ -919,7 +984,7 @@ def recover_expired(name, *, context, adapter, now=None):
         locks = _locks(context, json.loads(raw))
         row = _record(name, context)
         timestamp = now_utc(now)
-        if row.status != 'leased' or not row.lease_expires_at or row.lease_expires_at > timestamp:
+        if row.status != 'leased' or (not lost and (not row.lease_expires_at or row.lease_expires_at > timestamp)):
             return {**project(row), 'replayed': True}
         attempt = _current(ATTEMPT, row.active_attempt)
         if int(attempt.fence) != int(row.fence) or any(
@@ -927,7 +992,7 @@ def recover_expired(name, *, context, adapter, now=None):
             fail('push.native_lock_conflict')
         attempt.status = 'unknown'
         persist(attempt)
-        row.status, row.result_unknown, row.reason = 'manual', 1, 'ERP_CONFIRMED_PUSH_RESULT_UNKNOWN'
+        row.status, row.result_unknown, row.reason = 'manual', 1, UNKNOWN_REASON
         _save_record(row, timestamp)
         return {**project(row), 'replayed': False}
 

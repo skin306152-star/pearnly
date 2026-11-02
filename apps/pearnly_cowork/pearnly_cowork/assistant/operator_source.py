@@ -257,10 +257,38 @@ def status(company, doc_ids) -> list:
         reason = str(doc.get("last_push_reason") or "") if state == "not_done" else ""
         if lifecycle.result_unknown(pushed, reason):
             reason = RESULT_UNKNOWN  # 推送结果不明：同开始前确认一个原因码，页面给「已入账」「没有入账」（10-29 测试机）
-        out.append({"doc_id": name, "state": state, "docnum": docnum, "reason": reason,
-                    "ref": str(doc.get("invoice_no") or ""),
-                    "party": str(doc.get("buyer_name" if sales else "seller_name") or "")})
+        row = {"doc_id": name, "state": state, "docnum": docnum, "reason": reason,
+               "ref": str(doc.get("invoice_no") or ""),
+               "party": str(doc.get("buyer_name" if sales else "seller_name") or "")}
+        if state == "queued" and doc.get("last_push_record"):
+            blocker = _blocker(doc.get("last_push_record"))
+            if blocker:
+                row["blocked_by"] = blocker
+        out.append(row)
     return out
+
+
+def _blocker(record) -> dict:
+    """排着的这张被同一份账套里哪张「结果不明」的单挡着（写者锁由它持有、人还没核对，ADR-021 11-02 修订）：
+    ``{doc_id, ref, party}``，没有就空。只看同一连接同一账套键（同 `push.native.service._older_writer` 的第一道）；读不到的不说。"""
+    from pearnly_cowork.history import storage
+
+    found = frappe.db.get_value("Cowork Push Record", record, ["connection", "account_key"], as_dict=True)
+    if not found:
+        return {}
+    rows = frappe.db.sql("""SELECT history FROM `tabCowork Push Record` WHERE connection = %s AND account_key = %s
+        AND name <> %s AND status = 'manual' AND result_unknown = 1 ORDER BY created_at, name LIMIT 1""",
+                         (found.connection, found.account_key, record), as_dict=True)
+    if not rows:
+        return {}
+    try:
+        doc = storage.read(rows[0].history)
+    except (frappe.DoesNotExistError, frappe.PermissionError):
+        frappe.clear_messages()
+        return {}
+    sales = str((_primary_fields([doc.name]).get(doc.name) or {}).get("direction") or "") == "sales"
+    return {"doc_id": doc.name, "ref": str(doc.get("invoice_no") or ""),
+            "party": str(doc.get("buyer_name" if sales else "seller_name") or "")}
 
 
 def resolve(company, doc_id, entered, docnum="") -> dict:

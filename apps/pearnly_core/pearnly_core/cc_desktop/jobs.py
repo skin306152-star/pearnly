@@ -146,11 +146,20 @@ def writers(actor, book_key) -> dict:
 # ── 电脑领单 ───────────────────────────────────────────────────────────────────
 
 
-def _recover(moment):
-    """领走后过了租约还没回报的：回到排队、钉在原来那台电脑上（它本机记着写没写过），计一次；到 3 次转人工。"""
+def _recover(moment, device):
+    """领走后过了租约还没回报的：回到排队、钉在原来那台电脑上（它本机记着写没写过），计一次；到 3 次转人工。
+
+    领它的电脑还在线（按需请求线程常来报到，与写账线分开跑）就续租约、不收回：代录一张单可以合法地超过租约（人用 Express 时
+    暂停、开表单 / 保存等得久，ADR-021 11-02 修订）。来领的这台自己手上的在 :func:`_redeliver` 里处理。"""
+    online = None
     for name in frappe.get_all(JOB, filters={"status": "leased", "lease_expires_at": ["<=", moment]}, pluck="name"):
         doc = frappe.get_doc(JOB, name, for_update=True)
-        if doc.status != "leased" or not doc.lease_expires_at or doc.lease_expires_at > moment:
+        if doc.status != "leased" or not doc.lease_expires_at or doc.lease_expires_at > moment or doc.lease_device == device:
+            continue
+        online = devices.peers() if online is None else online
+        if (online.get(doc.lease_device) or route_contracts.Peer()).online:
+            doc.lease_expires_at = moment + timedelta(seconds=ack_rules.LEASE_SECONDS)
+            documents.persist(doc)
             continue
         attempt = int(doc.attempt or 0) + 1
         values = {"lease_device": None, "lease_expires_at": None, "writing_key": None, "attempt": attempt,
@@ -159,6 +168,45 @@ def _recover(moment):
         doc.update(values)
         documents.persist(doc)
         products.job_changed(view(doc.as_dict()))
+
+
+def _redeliver(context, moment):
+    """这台电脑「领取中」的一件它又来领单：写账线单线程、做完才再领，来领就说明手上那件丢了（CC 被结束 / 重启、看门狗重启写账线、
+    回执没送到）。照到期收回同样计一次（到 3 次转人工），不等租约到期，直接重发给它（新 fence、同一个编号，本机记着写没写过）；
+    这份账套这会儿够不到就先不动。"""
+    rows = frappe.get_all(JOB, filters={"status": "leased", "lease_device": context.device}, pluck="name",
+                          order_by="creation asc", limit_page_length=5)
+    if not rows:
+        return []
+    reach = books.writable(context.device)
+    for name in rows:
+        doc = frappe.get_doc(JOB, name, for_update=True)
+        if doc.status != "leased" or doc.lease_device != context.device or doc.book_key not in reach:
+            continue
+        attempt = int(doc.attempt or 0) + 1
+        if attempt >= ack_rules.MAX_ATTEMPTS:
+            doc.update({"status": "manual", "lease_device": None, "lease_expires_at": None, "writing_key": None,
+                        "attempt": attempt, "route_device": context.device, "reason": LOST})
+            documents.persist(doc)
+            products.job_changed(view(doc.as_dict()))
+            continue
+        doc.update({"attempt": attempt, "fence": int(doc.fence or 0) + 1,
+                    "lease_expires_at": moment + timedelta(seconds=ack_rules.LEASE_SECONDS)})
+        documents.persist(doc)
+        products.job_changed(view(doc.as_dict()))
+        peers = devices.peers()
+        return [_job(doc, reach[doc.book_key], route_contracts.Job(doc.name, doc.book_key, doc.actor,
+                                                                    int(doc.payload_version or 1), doc.route_device or ""),
+                     peers.get(context.device))]
+    return []
+
+
+def _job(doc, spelling, job, peer):
+    payload = wire_location.localize(json.loads(doc.payload or "{}"), path=spelling.path, root=spelling.root,
+                                     row=spelling.row, uid=spelling.uid)
+    attended = route_contracts.attended(job, peer)
+    return queue_contracts.job(doc.name, {"history": doc.source_name or "", "invoice_no": doc.label or None,
+                                          "frozen_payload": payload}, attended)
 
 
 def _busy(device, moment):
@@ -235,12 +283,7 @@ def _claim(context, request, moment):
             frappe.db.rollback(save_point=point)
             continue
         products.job_changed(view(doc.as_dict()))
-        spelling = reach[doc.book_key]
-        payload = wire_location.localize(json.loads(doc.payload or "{}"), path=spelling.path, root=spelling.root,
-                                         row=spelling.row, uid=spelling.uid)
-        attended = route_contracts.attended(job, peers.get(context.device))
-        return [queue_contracts.job(doc.name, {"history": doc.source_name or "", "invoice_no": doc.label or None,
-                                               "frozen_payload": payload}, attended)]
+        return [_job(doc, reach[doc.book_key], job, peers.get(context.device))]
     return []
 
 
@@ -249,9 +292,11 @@ def lease(context, body) -> dict:
     del request
     context = devices.revalidate(context)
     moment = _now()
-    _recover(moment)
+    jobs = _redeliver(context, moment)
+    _recover(moment, context.device)
     devices.touch(context)
-    jobs = [] if _busy(context.device, moment) else _claim(context, {}, moment)
+    if not jobs:
+        jobs = [] if _busy(context.device, moment) else _claim(context, {}, moment)
     return queue_contracts.lease_response(jobs, None)
 
 

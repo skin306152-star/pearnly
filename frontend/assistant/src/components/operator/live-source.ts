@@ -23,7 +23,7 @@ import { op } from "@/i18n";
 import { listCompanies } from "@/lib/companies";
 import { type Desktop, desktop, OPERATOR } from "@/lib/desktop";
 import { getMethod, postMethod, uploadMethod } from "@/lib/frappe";
-import { groupOf, isFinal } from "./model";
+import { docTitle, groupOf, isFinal } from "./model";
 import { TASK_STATES } from "./types";
 import type {
   BatchListItem,
@@ -103,6 +103,7 @@ export function taskOf(raw: unknown): TaskRecord {
         reason: String(d.reason ?? ""),
         ref: String(d.ref ?? ""),
         party: String(d.party ?? ""),
+        blocked_by: String(d.blocked_by ?? ""),
       }))
     : undefined;
   return {
@@ -155,6 +156,7 @@ export function taskSnapshot(task: TaskRecord, listed: ReadonlyMap<string, Docum
       docnum: d.docnum,
       voided: d.voided_docnum ? [d.voided_docnum] : [],
       reason: status === "waiting" || status === "skipped" ? d.reason || (d.state === "cancelled" ? "voided" : "") : "",
+      ...(status === "pending" && d.blocked_by ? { blocked: d.blocked_by } : {}),
       summary: {
         ...(doc ? { date: doc.date, total: doc.total } : {}),
         ref: d.ref || doc?.ref,
@@ -262,6 +264,18 @@ export function startedSnapshot(started: Started, listed: ReadonlyMap<string, Do
 }
 
 /** 桥上的进度并上这一页知道的：公司显示名、月份、建的时刻、没收的单（桥上没有）；要点按这一页的资料补。 */
+/** 站点回的一张单（task_settle 的任务单据、status 的单据）；``blocked_by``：任务记录里是「单号 · 对方」，status 里是 {ref, party}。 */
+type SiteDoc = {
+  doc_id: string; state: string; docnum?: string; reason?: string; ref?: string; party?: string;
+  blocked_by?: string | { ref?: string; party?: string };
+};
+
+/** 排着的单挂上「被哪张结果不明的单挡着」（站点给的，见 createLiveSource 的 blocked）。 */
+export function withBlocked(s: BatchSnapshot, blocked: ReadonlyMap<string, string>): BatchSnapshot {
+  if (!blocked.size || !s.docs.some((d) => d.status === "pending" && blocked.has(d.doc_id))) return s;
+  return { ...s, docs: s.docs.map((d) => (d.status === "pending" && blocked.has(d.doc_id) ? { ...d, blocked: blocked.get(d.doc_id) } : d)) };
+}
+
 export function mergedSnapshot(bridge: BatchSnapshot, started: Started | undefined, listed: ReadonlyMap<string, DocumentOption>): BatchSnapshot {
   // 这台电脑没在跑、还没收尾的（CC 重启前留下的）：不显示进行中，按排队显示；站点核过后桥上收尾
   if (bridge.live === false && !isFinal(bridge.status)) bridge = { ...bridge, status: "ready", current: "" };
@@ -315,6 +329,8 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
   const upload: Upload = deps.upload ?? uploadMethod;
   const now = deps.now ?? (() => Math.floor(Date.now() / 1000));
   const listed = new Map<string, DocumentOption>();
+  // 排着的单被同一份账套里哪张结果不明的单挡着（doc_id → 「单号 · 对方」，站点给的，ADR-021 11-02 修订）
+  const blocked = new Map<string, string>();
   const started = new Map<string, Started>();
   const listeners = new Set<(snapshot: BatchSnapshot) => void>();
   const last = new Map<string, string>();
@@ -378,9 +394,33 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
   // CC 重启后留下、这台电脑没在跑的任务：以站点为准收尾（task_settle：站点问产品这几张单现在怎样、写回任务），交回桥上收尾，本机
   // 的缓存跟着结束；没收尾的每 SETTLE_S 再问一次（刚重启时单子常还在队列里，之后站点才定成已入账 / 要人处理）。任务记录出来前建的
   // 旧批次站点不认，照旧按单问（status）；都问不到（断网、站点不认）就照旧按排队显示
+  function noteBlocked(docs: readonly SiteDoc[]) {
+    for (const d of docs) {
+      const by = d.blocked_by;
+      const text = typeof by === "string" ? by : by ? docTitle(by) : "";
+      if (d.state === "queued" && text) blocked.set(String(d.doc_id), text);
+      else blocked.delete(String(d.doc_id));
+    }
+  }
+
+  // 这台电脑上开着、还没开始录（排队）的任务：每 SETTLE_S 问一次站点排着的单有没有被结果不明的单挡着，只记这一项、不收尾
+  const askedBlocked = new Map<string, number>();
+  async function askBlocked(row: BatchSnapshot) {
+    const open = row.docs.filter((d) => d.status === "pending").map((d) => d.doc_id);
+    if (!open.length || now() - (askedBlocked.get(row.id) ?? -Infinity) < SETTLE_S) return;
+    askedBlocked.set(row.id, now());
+    try {
+      const reply = await get<{ documents?: SiteDoc[] }>(API + "status", { company: row.site!, doc_ids: JSON.stringify(open) });
+      noteBlocked(reply?.documents ?? []);
+    } catch (caughtError) { reportCaught(caughtError, "operator-settle");
+      // 断网或站点不认：照旧按排队显示
+    }
+  }
+
   async function settle(found: Desktop, rows: readonly BatchSnapshot[]): Promise<boolean> {
     let changed = false;
     for (const row of rows) {
+      if (row.live !== false && !isFinal(row.status) && row.status !== "running" && row.site) await askBlocked(row);
       if (row.live !== false || isFinal(row.status) || !row.site) continue;
       if (now() - (asked.get(row.id) ?? -Infinity) < SETTLE_S) continue;
       // 录到一半被 CC 重启打断、收拾时作废了的（cc_restarted）也算没定：站点会把它定成结果不明，要按站点的结论收尾（10-29 测试机）
@@ -388,13 +428,14 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
         || (d.status === "waiting" && d.reason === "cc_restarted")).map((d) => d.doc_id);
       if (!open.length) continue;
       try {
-        let docs: { doc_id: string; state: string; docnum?: string; reason?: string; ref?: string; party?: string }[];
+        let docs: SiteDoc[];
         try {
           docs = (await settleTask(row.id))?.documents ?? [];
         } catch (caughtError) { reportCaught(caughtError, "operator-settle");
           const reply = await get<{ documents?: typeof docs }>(API + "status", { company: row.site, doc_ids: JSON.stringify(open) });
           docs = reply?.documents ?? [];
         }
+        noteBlocked(docs);
         for (const d of docs) {
           // 这一页没有资料清单（CC 重启后）：按站点回的单号、对方把单据写成「单号 · 对方」
           if (!listed.has(String(d.doc_id)) && (d.ref || d.party)) listed.set(String(d.doc_id), { id: String(d.doc_id), group: "purchase", ref: d.ref || undefined, party: d.party || undefined });
@@ -412,7 +453,7 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
   async function all(fresh: boolean): Promise<BatchSnapshot[]> {
     const rows = fresh ? await readBridge().catch(withReport(() => bridged, "operator-bridge")) : bridged;
     const byId = new Map<string, BatchSnapshot>();
-    for (const row of rows) byId.set(row.id, mergedSnapshot(row, started.get(row.id), listed));
+    for (const row of rows) byId.set(row.id, withBlocked(mergedSnapshot(row, started.get(row.id), listed), blocked));
     for (const s of started.values()) if (!byId.has(s.id)) byId.set(s.id, startedSnapshot(s, listed));
     return [...byId.values()];
   }
