@@ -6,6 +6,9 @@
 - iOS：只缩可见区（`visualViewport`）、布局不变。`PRELOAD` 在页面脚本之前把 `visualViewport` 换成可控的：`__keyboard(高度)` 缩到
   这个高度并发 resize，`__keyboard(null)` 收起（真可见区的 resize 照样转发）。只用在弹窗上：整页滚动时 iOS 自己会平移可见区
   露出页面最底下的格，这个平移模拟不了，整页类只按安卓跑，iOS 写「没测到」。
+- iOS App 内嵌（LINE 等内置浏览器的 WKWebView，11-01 iPhone LINE 调拨单备注没滚上来）：可见区变矮，`offsetTop` 报几百，
+  元素坐标（`getBoundingClientRect` / `elementFromPoint`）的原点却是可见区顶端——弹窗 CSS `top` 写多少，矩形都从 0 起。
+  `__keyboard(高度, 上沿)` 在 iOS 式之外再把两者按这个上沿换算，模拟这种宿主。同样只用在弹窗上。
 可见高度取 844 的 45%（三星 A14 Chrome 泰文键盘弹出后可见区约剩 45%）。
 
 `KEYBOARD_BASELINE=1` 时在页面脚本前占住 `window.pearnlyKeyboard`，共用模块不生效：同一条流程跑一遍看没有它时会不会被挡（只在对照时用）。
@@ -15,16 +18,20 @@ from __future__ import annotations
 import os
 
 VISIBLE = 380
+EMBEDDED_TOP = 420  # iOS App 内嵌：键盘弹起后 offsetTop 报的上沿（iPhone LINE 实测可见区 351、offsetTop 363，按 844 高等比）
 
 PRELOAD = (
-    "(()=>{const real=window.visualViewport;const fake=new EventTarget();let h=null;"
-    "const full=()=>real?real.height:innerHeight;"
+    "(()=>{const real=window.visualViewport;const fake=new EventTarget();let h=null;let t=0;"
+    "const full=()=>real?real.height:innerHeight;const shift=()=>h==null?0:t;"
     "Object.defineProperties(fake,{height:{get:()=>h==null?full():h},width:{get:()=>real?real.width:innerWidth},"
-    "offsetTop:{get:()=>0},offsetLeft:{get:()=>0},scale:{get:()=>1},pageTop:{get:()=>scrollY},pageLeft:{get:()=>scrollX}});"
+    "offsetTop:{get:shift},offsetLeft:{get:()=>0},scale:{get:()=>1},pageTop:{get:()=>scrollY+shift()},pageLeft:{get:()=>scrollX}});"
+    "const rect=Element.prototype.getBoundingClientRect;Element.prototype.getBoundingClientRect=function(){const r=rect.call(this);"
+    "return shift()?new DOMRect(r.x,r.y-shift(),r.width,r.height):r;};"
+    "const at=Document.prototype.elementFromPoint;Document.prototype.elementFromPoint=function(x,y){return at.call(this,x,y+shift());};"
     "if(real){real.addEventListener('resize',()=>fake.dispatchEvent(new Event('resize')));"
     "real.addEventListener('scroll',()=>fake.dispatchEvent(new Event('scroll')));}"
     "Object.defineProperty(window,'visualViewport',{configurable:true,get:()=>fake});"
-    "window.__keyboard=v=>{h=v;fake.dispatchEvent(new Event('resize'));};})();"
+    "window.__keyboard=(v,top)=>{h=v;t=top||0;fake.dispatchEvent(new Event('resize'));};})();"
     + ("window.pearnlyKeyboard=true;" if os.environ.get("KEYBOARD_BASELINE") else "")
 )
 
@@ -50,19 +57,21 @@ const kbMeasure=async(el)=>{
   }
   return row;
 };
-const kbIos=async(fields,H)=>{const out=[];
-  for(const el of fields){el.focus(); await kbSleep(150); window.__keyboard(H); await kbSleep(500); out.push(await kbMeasure(el));
+const kbIos=async(fields,H,T)=>{const out=[];
+  for(const el of fields){el.focus(); await kbSleep(150); window.__keyboard(H,T); await kbSleep(800); out.push(await kbMeasure(el));
     el.blur(); window.__keyboard(null); await kbSleep(300);}
   return {fields:out};};
 """
 
 
 def probe_steps(name: str, prepare_js: str, ios: bool, close_js: str = "", count: int = 3) -> list[dict]:
-    """一组页面步骤：`prepare_js` 打开页面 / 弹窗并给出 `root`（在哪里找最下面几格）；iOS 式一步量完，安卓式每格聚焦、变矮量、还原三步。"""
+    """一组页面步骤：`prepare_js` 打开页面 / 弹窗并给出 `root`（在哪里找最下面几格）；iOS 式（Safari、App 内嵌各一步）一步量完，
+    安卓式每格聚焦、变矮量、还原三步。"""
     out = [{"name": f"{name}：准备", "js": PROBE + prepare_js +
             f"window.__kbList=kbFields(root,{count}); return {{fields: window.__kbList.map(kbName)}};"}]
     if ios:
-        out.append({"name": f"{name}：iOS", "js": PROBE + f"return kbIos(window.__kbList,{VISIBLE});"})
+        out.append({"name": f"{name}：iOS", "js": PROBE + f"return kbIos(window.__kbList,{VISIBLE},0);"})
+        out.append({"name": f"{name}：iOS 内嵌", "js": PROBE + f"return kbIos(window.__kbList,{VISIBLE},{EMBEDDED_TOP});"})
     for i in range(count):
         out += [
             {"name": f"{name}：安卓 {i} 聚焦", "js": PROBE + f"const el=window.__kbList[{i}]; if(!el) return null; el.focus(); await kbSleep(300); return kbName(el);"},
@@ -85,6 +94,7 @@ def judge_probes(results, names: list[str], ios: bool) -> list[dict]:
         rows = {"安卓": [by.get(f"{name}：安卓 {i}") or {} for i in range(len(prepared))]}
         if ios:
             rows["iOS"] = (by.get(f"{name}：iOS") or {}).get("fields") or []
+            rows["iOS 内嵌"] = (by.get(f"{name}：iOS 内嵌") or {}).get("fields") or []
         for mode, fields in rows.items():
             checks.append({"case": f"{name}（{mode}）：键盘弹起时正在填的格在可见区里、没被盖住", "seen": fields,
                            "ok": len(prepared) > 0 and len(fields) == len(prepared)

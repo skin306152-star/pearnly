@@ -8,8 +8,14 @@
 //    Desk 的 viewport 写在框架 `desk.html` 里，这里运行时补上；LINE 独立页直接写在自己的 meta 里。
 // 2. 键盘弹起期间 `<html>` 带 `pearnly-keyboard-open`，`--pearnly-visible-top / --pearnly-visible-height` 是可见区，
 //    弹窗外框按它摆（`product.css`），弹窗在可见区里照官方方式自己滚；键盘收起即去掉，弹窗回到原样。
+//    可见区在页面坐标里的位置不拿 visualViewport 的数自己推：iOS 上 App 内嵌的网页（LINE、Facebook 等内置浏览器）
+//    元素坐标的原点就是可见区顶端，offsetTop 却仍报几百（11-01 iPhone LINE 调拨单备注没滚上来），Safari 两者又一致。
+//    所以同期放一个看不见的 fixed 探针、与弹窗同一组变量摆放，读它实际落在哪里，弹窗落在哪里可见区就在哪里。
 // 3. 聚焦那一刻、键盘弹起那一下（可见区变化）把这一格摆到「可见区减去贴顶 / 贴底条」的中间（带建议列表 / 日历弹层的
-//    Link、日期格等摆到上部三分之一，下面留给弹层）：滚它所在的滚动容器，容器滚到头还差的再滚整页；在固定弹层里时不滚整页。不监听页面滚动、不锁滚动，人自己滚动不拉回来。
+//    Link、日期格等摆到上部三分之一，下面留给弹层）：滚它所在的滚动容器，容器滚到头还差的再滚整页；在固定弹层里时不滚整页。
+//    键盘停稳后稍晚再核一次（iOS 自己还会再滚一下）。不监听页面滚动、不锁滚动，人自己滚动不拉回来。
+//    Frappe 弹窗一滚就让日期 / 时间格失焦（日历随之关掉，`frappe/ui/dialog.js`）；键盘弹出时浏览器自己也会滚弹窗把格子露出来。
+//    所以弹窗里的这类格从聚焦起先拿掉类型标记，键盘弹完、摆好（或 1.2 秒内没弹键盘、或离开这一格）再放回，并让官方日历按可见区重选上 / 下。
 // 接入（`scripts/check-keyboard-coverage.py` 拦漏接）：Desk 由 `hooks.app_include_js`、网站页（`templates/web.html`）由
 // `hooks.web_include_js` 加载；LINE 手机盘点页等独立页用 Jinja 的 `versioned_asset` 挂同一份；LINE 票据编辑器（Vue，
 // `frontend/src/main.ts`）把这一份打进自己的包。CC 对话页（`frontend/assistant`）有自己的键盘处理，不挂。同一页挂两次只生效一次。
@@ -27,7 +33,10 @@
 		"radio", "range", "reset", "submit", "time", "week"]);
 	let field = null;
 	let timer = 0;
+	let settle = 0;
 	let open = false;
+	let probe = null;
+	let held = null;  // 暂时拿掉类型标记的日期 / 时间格：{el, type}
 	// 键盘只会让可见区变矮：同一宽度下见过的最高就是没键盘时的高度（安卓整页变矮时布局高度也跟着缩，不能拿布局比）；转屏换宽度重新记
 	let tall = view.height;
 	let wide = view.width;
@@ -41,8 +50,8 @@
 	};
 	// 聚焦后在下面弹出列表 / 日历的格：Link（awesomplete）、组合框、datalist、Frappe 日期 / 时间控件（日历弹层）
 	const POPUP_TYPES = new Set(["Date", "Datetime", "Time"]);
-	const suggests = (el) => !!(el.closest && el.closest(".awesomplete")) || el.getAttribute("role") === "combobox"
-		|| !!el.getAttribute("aria-autocomplete") || !!el.getAttribute("list") || POPUP_TYPES.has(el.getAttribute("data-fieldtype"));
+	const suggests = (el, type) => !!(el.closest && el.closest(".awesomplete")) || el.getAttribute("role") === "combobox"
+		|| !!el.getAttribute("aria-autocomplete") || !!el.getAttribute("list") || POPUP_TYPES.has(type);
 	const style = (el) => window.getComputedStyle(el);
 	// 盖在可见区上 / 下边的贴顶 / 贴底条：命中点往上找 fixed / sticky 的祖先；包着这一格的（它所在的弹窗）不算
 	const cover = (el) => {
@@ -53,12 +62,14 @@
 		}
 		return null;
 	};
+	// 可见区在页面坐标里的上下沿：探针与弹窗同一组变量，浏览器把它摆在哪里就是哪里
 	const visible = () => {
-		let top = view.offsetTop;
-		let bottom = view.offsetTop + view.height;
+		const box = probe.getBoundingClientRect();
+		let top = box.top;
+		let bottom = box.bottom;
 		const edges = {top, bottom};
 		for (const share of [0.2, 0.5, 0.8]) {
-			const x = view.offsetLeft + view.width * share;
+			const x = (root.clientWidth || view.width) * share;
 			const below = cover(document.elementFromPoint(x, edges.bottom - 2));
 			if (below) bottom = Math.min(bottom, below.getBoundingClientRect().top);
 			const above = cover(document.elementFromPoint(x, edges.top + 2));
@@ -72,12 +83,12 @@
 		return false;
 	};
 	// 摆一次：要挪就挪、返回挪没挪
-	const shift = () => {
+	const shift = (type) => {
 		const {top, bottom} = visible();
 		const rect = field.getBoundingClientRect();
 		if (!rect.height) return false;
 		let delta;
-		if (suggests(field)) {
+		if (suggests(field, type)) {
 			// 带建议列表 / 日历弹层的格（Link、日期等）：弹层往下展开，格子摆到可见区上部三分之一以内，下面留给弹层
 			if (rect.top >= top + MARGIN && rect.bottom <= top + (bottom - top) / 3) return false;
 			delta = rect.top - top - MARGIN;
@@ -99,10 +110,49 @@
 		return Math.abs(wanted) >= 1;
 	};
 	// sticky 的条（弹窗标题栏、页头）滚动之后才贴到边上：挪完再量一次，被它盖住就再挪一次
+	const typeOf = (el) => (held && held.el === el ? held.type : el.getAttribute("data-fieldtype"));
+	const hold = (el) => {
+		const type = el.getAttribute("data-fieldtype");
+		if (held || !POPUP_TYPES.has(type) || !el.closest(".modal")) return;
+		held = {el, type};
+		el.removeAttribute("data-fieldtype");
+	};
+	// 弹窗停止滚动后放回标记（浏览器的滚动带动画，事件要连着发一百多毫秒：150ms 没有新的滚动才算停，最多等 1 秒）。
+	// 官方日历（air-datepicker）还停在弹键盘之前选的上 / 下，照 Frappe `update_datepicker_position` 的规则按可见区重选一次
+	const release = () => {
+		if (!held) return;
+		const {el, type} = held;
+		held = null;
+		const box = el.closest(".modal");
+		let quiet = 0;
+		const done = () => {
+			window.clearTimeout(quiet);
+			window.clearTimeout(cap);
+			box.removeEventListener("scroll", wait);
+			if (held && held.el === el) return;
+			el.setAttribute("data-fieldtype", type);
+			const picker = open && el === field && window.jQuery && window.jQuery(el).data("datepicker");
+			if (!picker || !picker.visible) return;
+			const {top, bottom} = visible();
+			const rect = el.getBoundingClientRect();
+			const need = picker.$datepicker.outerHeight() + 12;
+			picker.update("position", bottom - rect.bottom < need && rect.top - top > need ? "top left" : "bottom left");
+		};
+		const wait = () => {
+			window.clearTimeout(quiet);
+			quiet = window.setTimeout(done, 150);
+		};
+		const cap = window.setTimeout(done, 1000);
+		box.addEventListener("scroll", wait);
+		wait();
+	};
 	const place = () => {
 		timer = 0;
 		if (!open || !field || !field.isConnected || document.activeElement !== field) return;
-		if (shift()) shift();
+		hold(field);
+		const type = typeOf(field);
+		if (shift(type)) shift(type);
+		release();
 	};
 	const later = (wait) => {
 		if (timer) window.clearTimeout(timer);
@@ -122,7 +172,15 @@
 		if (now === open) return;
 		open = now;
 		root.classList.toggle("pearnly-keyboard-open", open);
-		if (!open) {
+		if (open) {
+			probe = document.createElement("div");
+			probe.setAttribute("aria-hidden", "true");
+			probe.style.cssText = "position:fixed;left:0;width:1px;visibility:hidden;pointer-events:none;"
+				+ "top:var(--pearnly-visible-top,0);height:var(--pearnly-visible-height,100%)";
+			document.body.appendChild(probe);
+		} else {
+			probe.remove();
+			probe = null;
 			root.style.removeProperty("--pearnly-visible-top");
 			root.style.removeProperty("--pearnly-visible-height");
 		}
@@ -130,12 +188,15 @@
 
 	document.addEventListener("focusin", (event) => {
 		field = typing(event.target) ? event.target : null;
+		if (field) hold(field);
+		if (held) window.setTimeout(() => { if (!open || !timer) release(); }, 1200);
 		measure();
 		if (open) later(0);
 	});
 	document.addEventListener("focusout", () => {
 		window.setTimeout(() => {
 			if (document.activeElement === field) return;
+			release();
 			field = null;
 			measure();
 		}, 0);
@@ -143,7 +204,13 @@
 	// 键盘弹出是一段动画，可见区连着变好几次：停下来再摆
 	view.addEventListener("resize", () => {
 		measure();
-		if (open) later(80);
+		if (!open) return;
+		later(80);
+		if (settle) window.clearTimeout(settle);
+		settle = window.setTimeout(() => {
+			settle = 0;
+			if (!timer) place();
+		}, 400);
 	});
 	view.addEventListener("scroll", () => {
 		if (open) measure();

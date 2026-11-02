@@ -821,7 +821,7 @@ covers = [
 # 手机键盘不盖住正在填的格（共用 `desk/keyboard.js`，11-01）：可见区缩到 45% 模拟键盘（`scripts/flows/keyboard_lib.py`），只点不填
 [[flow]]
 id = "erp.keyboard.dialogs"
-title = "ERP 弹窗（物料新建、团队添加用户、入库新建明细）：键盘弹出后最下面几格不被盖住，弹窗缩进可见区、滚得到按钮栏"
+title = "ERP 弹窗（物料新建、团队添加用户、入库新建明细、调拨新建备注）：键盘弹出后最下面几格不被盖住（iOS Safari、iOS App 内嵌、安卓），弹窗缩进可见区、滚得到按钮栏"
 module = "scripts/flows/erp_keyboard_dialogs.py"
 start = "/desk/pearnly-products"
 user = "admin"
