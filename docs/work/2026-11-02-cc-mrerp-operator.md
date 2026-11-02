@@ -3,7 +3,8 @@
 - 评估：[MR.ERP 代录与 ERP 左侧公司](2026-11-02-mrerp-operator-and-erp-company-评估.md) §13 第 2 步（§0 事实 3–6、§4、§5、§8、§9、§14 全部、§12.1 定案）；
   决定见 [ADR-026](../adr/0026-operator-targets.md)；第 1 步分路见 [代录目标分路](2026-11-02-cc-operator-target.md)。
 - 分支 `pearnly/cc-mrerp-operator`，工作树 `.claude/worktrees/cc-mrerp-operator`，基线 `9be471c5`（= origin/main）。
-- **本分支在第 0 步真站点探路通过之前不合入 main**（主会话定）。本步只做不依赖真站点的部分；没连任何真实 MR.ERP。
+- **本分支在第 0 步真站点探路通过之前不合入 main**（主会话定）。
+- **线上测试账号等岳父开，开好后先只读核对表单（打开表单、读格子，不存），再录少量单；测试站 11-02 搭过当天删除，原因与线上不一致，其上结果不作数。**（用户 11-02 定：在那之前线上 mrerp4sme.com 一律不碰，只读也不碰；本分支继续不合入，默认开关不开。）本步只做不依赖真站点的部分；没连任何真实 MR.ERP。
 - 默认行为与 main 完全一致：开关 `PEARNLY_CC_MRERP_OPERATOR` 不设 = 心跳只报 `express`、宿主不装 `mrerp`、派来的 MR.ERP 单回「不支持」、
   不导入 `mrerp_operator`；配方全部「待探路核对」，就算开关打开，没核对过的单种也回「不支持」（第二个开关 `PEARNLY_CC_MRERP_UNVERIFIED`
   只给假站点回放与第 0 步探路）。
@@ -124,6 +125,8 @@ purchase_expense / sales_credit / sales_cash`；五条弹框规则 `dialogs.not_
 （`python3 -c "from companion.mrerp_operator import recipe; print(recipe.load().unverified())"` 列全。）
 
 ## 第 0 步探路要核对的清单（录制机 + TEST2019，只读为主，存一张后由人删）
+
+**线上测试账号等岳父开，开好后先只读核对表单（打开表单、读格子，不存），再录少量单；测试站 11-02 搭过当天删除，原因与线上不一致，其上结果不作数。**（用户 11-02 定：在那之前线上 mrerp4sme.com 一律不碰，只读也不碰；本分支继续不合入，默认开关不开。）
 
 | # | 怎么核 | 核什么 | 预期 |
 |---|---|---|---|
