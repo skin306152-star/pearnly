@@ -6,9 +6,11 @@
         "kinds": ["express_masters"], # 这个站点会请电脑做的按需请求种类
         "books_changed": "<点路径>",  # (device) -> None：可选；一台电脑报来的账套名单有了变化（同一事务里叫，产品排后台任务）
         # MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7 条，可选；两项都声明才算支持，没声明回 unsupported）：
-        "mrerp_login_allowed": "<点路径>",  # (user, connection) -> bool：这个人此刻能不能改这条 MR.ERP 连接的登录
-        "mrerp_login_store": "<点路径>",    # (connection, username, password, *, user, device_label) -> dict：写进连接的
-                                            # Password 字段，回 {connection, system_url, username, device, at}（不含密码）
+        "mrerp_login_scope": "<点路径>",    # (user, connection) -> "site" | "local" | ""：管理员 site（写站点 + 存本机）、
+                                            # 使用成员 local（只存本机）、别人空串（主会话 11-02 定）
+        "mrerp_login_store": "<点路径>",    # (connection, username, password, *, user, device_label, scope) -> dict：
+                                            # site 写进连接的 Password 字段（此刻不是管理员必须拒写）、local 不写；回
+                                            # {connection, system_url, username, device, at, written}（不含密码）
     }
 
 没声明的站点（Cowork、DMS）：登记一律拒绝，机器方法一律 403，什么都不做。一个站点只装一个产品，取最后声明的那一份。
@@ -59,14 +61,18 @@ def kinds() -> list:
 
 def mrerp_login_supported() -> bool:
     """这个站点的产品接了「MR.ERP 登录在 CC 里授权」（ERP 在第 6 步接 MR.ERP 连接之前没有）。"""
-    return bool(_path("mrerp_login_allowed") and _path("mrerp_login_store"))
+    return bool(_path("mrerp_login_scope") and _path("mrerp_login_store"))
 
 
-def mrerp_login_allowed(user, connection) -> bool:
-    path = _path("mrerp_login_allowed")
-    return bool(path and user and user not in ("Guest", "Administrator") and frappe.get_attr(path)(user, connection))
+def mrerp_login_scope(user, connection) -> str:
+    """``user`` 此刻对这条连接的登录能做什么：``site`` / ``local``；不能是空串。"""
+    path = _path("mrerp_login_scope")
+    if not path or not user or user in ("Guest", "Administrator"):
+        return ""
+    scope = frappe.get_attr(path)(user, connection)
+    return scope if scope in ("site", "local") else ""
 
 
-def mrerp_login_store(connection, username, password, *, user, device_label) -> dict:
+def mrerp_login_store(connection, username, password, *, user, device_label, scope) -> dict:
     return frappe.get_attr(_path("mrerp_login_store"))(connection, username, password, user=user,
-                                                         device_label=device_label)
+                                                         device_label=device_label, scope=scope)

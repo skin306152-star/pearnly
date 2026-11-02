@@ -103,35 +103,48 @@ class Store(Framework):
         self.enterContext(patch.object(mrerp_login.access, "require_connection", require))
         self.enterContext(patch.object(mrerp_login.access, "deny", MagicMock(side_effect=frappe.PermissionError)))
 
-    def test_managers_and_listed_members_may_authorize_others_may_not(self):
-        self.assertEqual(mrerp_login.require_authorizer(self.doc, "boss@x"), "boss@x")
-        self.assertEqual(mrerp_login.require_authorizer(self.doc, "staff@x"), "staff@x")
+    def test_managers_write_the_site_members_keep_it_local_others_get_nothing(self):
+        self.assertEqual(mrerp_login.scope_of(self.doc, "boss@x"), "site")
+        self.assertEqual(mrerp_login.scope_of(self.doc, "staff@x"), "local")
         with self.assertRaises(frappe.PermissionError):
-            mrerp_login.require_authorizer(self.doc, "stranger@x")
+            mrerp_login.scope_of(self.doc, "stranger@x")
         with self.assertRaises(frappe.PermissionError):
-            mrerp_login.require_authorizer(connection({}, adapter="express"), "boss@x")
+            mrerp_login.scope_of(connection({}, adapter="express"), "boss@x")
 
     def test_store_writes_only_the_login_and_its_record_and_keeps_the_revision(self):
-        result = mrerp_login.store("CWEC-1", "test01", NEW_PASSWORD, actor="staff@x", device_label="ACC-PC")
+        result = mrerp_login.store("CWEC-1", "test01", NEW_PASSWORD, actor="boss@x", device_label="ACC-PC")
+        self.assertTrue(result["written"])
         self.assertEqual(self.secrets, {"credential_username": "test01", "credential_password": NEW_PASSWORD})
         self.assertEqual(self.doc["record_revision"], 7)
-        self.assertEqual((self.doc["credential_authorized_by"], self.doc["credential_device"]), ("staff@x", "ACC-PC"))
+        self.assertEqual((self.doc["credential_authorized_by"], self.doc["credential_device"]), ("boss@x", "ACC-PC"))
         self.assertEqual((result["connection"], result["system_url"], result["username"]), ("CWEC-1", URL, "test01"))
         self.assertTrue(result["at"].endswith("+00:00"))
         self.assertNotIn(NEW_PASSWORD, repr(result))
 
-    def test_store_rejects_strangers_and_bad_input_without_writing(self):
+    def test_a_member_is_refused_the_site_but_may_keep_it_local(self):
         with self.assertRaises(frappe.PermissionError):
-            mrerp_login.store("CWEC-1", "test01", NEW_PASSWORD, actor="stranger@x", device_label="PC")
+            mrerp_login.store("CWEC-1", "own", NEW_PASSWORD, actor="staff@x", device_label="PC", scope="site")
+        result = mrerp_login.store("CWEC-1", "own", NEW_PASSWORD, actor="staff@x", device_label="PC", scope="local")
+        self.assertFalse(result["written"])
+        self.assertEqual(result["system_url"], URL)
+        self.assertEqual(self.secrets["credential_password"], PASSWORD)
+        self.assertEqual(self.doc.writes, 0)
+        self.assertIsNone(self.doc.get("credential_authorized_by"))
+        self.assertNotIn(NEW_PASSWORD, repr(result))
+
+    def test_store_rejects_strangers_and_bad_input_without_writing(self):
+        for scope in ("site", "local"):
+            with self.assertRaises(frappe.PermissionError):
+                mrerp_login.store("CWEC-1", "test01", NEW_PASSWORD, actor="stranger@x", device_label="PC", scope=scope)
         for username, password in ((" test01", NEW_PASSWORD), ("test01", "*****"), ("test01", ""), ("a\nb", "x")):
             with self.subTest(username=username), self.assertRaises(frappe.ValidationError) as caught:
-                mrerp_login.store("CWEC-1", username, password, actor="staff@x", device_label="PC")
+                mrerp_login.store("CWEC-1", username, password, actor="boss@x", device_label="PC")
             self.assertNotIn(NEW_PASSWORD, str(caught.exception))
         self.assertEqual(self.secrets["credential_password"], PASSWORD)
 
     def test_the_page_view_has_user_computer_and_time_never_the_password(self):
         self.assertEqual(mrerp_login.view(self.doc), {"username": "old-user", "device": "", "at": ""})
-        mrerp_login.store("CWEC-1", "test01", NEW_PASSWORD, actor="staff@x", device_label="ACC-PC")
+        mrerp_login.store("CWEC-1", "test01", NEW_PASSWORD, actor="boss@x", device_label="ACC-PC")
         shown = mrerp_login.view(self.doc)
         self.assertEqual((shown["username"], shown["device"]), ("test01", "ACC-PC"))
         self.assertNotIn(NEW_PASSWORD, repr(shown))
@@ -156,7 +169,7 @@ class MachineMethod(Framework):
         super().setUp()
         self.context = types.SimpleNamespace(site="testcowork.localhost", issuer="boss@x")
         self.claim = {"site": "testcowork.localhost", "channel": "cowork", "connection": "CWEC-1",
-                      "user": "staff@x", "device": "DEV-1"}
+                      "user": "staff@x", "device": "DEV-1", "scope": "site"}
         self.ticket = login_tickets.new_ticket()
         self.stored, self.noted = [], []
         self.enterContext(patch.object(credential_api.credentials, "login_device", lambda context: "DEV-1"))
@@ -172,10 +185,10 @@ class MachineMethod(Framework):
         return dict(self.claim) if ticket == self.ticket and self.redeemed == 1 else None
 
     def call(self, body, store=None):
-        def default(name, username, password, *, actor, device_label):
-            self.stored.append((name, username, password, actor, device_label))
+        def default(name, username, password, *, actor, device_label, scope):
+            self.stored.append((name, username, password, actor, device_label, scope))
             return {"connection": name, "system_url": URL, "username": username, "device": device_label,
-                    "at": "2026-11-02T13:00:00+00:00"}
+                    "at": "2026-11-02T13:00:00+00:00", "written": scope == "site"}
 
         frappe.local.form_dict = frappe._dict(body)
         with patch.object(credential_api.http_auth, "current_request", lambda op: (self.context, dict(body))), \
@@ -190,10 +203,19 @@ class MachineMethod(Framework):
         self.assertTrue(result["ok"])
         self.assertEqual(result["authorized"]["username"], "test01")
         self.assertNotIn(PASSWORD, repr(result))
-        self.assertEqual(self.stored, [("CWEC-1", "test01", PASSWORD, "staff@x", "ACC-PC")])
+        self.assertTrue(result["written"])
+        self.assertEqual(self.stored, [("CWEC-1", "test01", PASSWORD, "staff@x", "ACC-PC", "site")])
         self.assertEqual(self.noted, [("DEV-1", "CWEC-1")])
         self.assertNotIn("password", frappe.local.form_dict)
         self.assertEqual(self.call(self.body()), {"ok": False, "code": "ticket_invalid"})
+
+    def test_a_member_ticket_does_not_write_the_site(self):
+        self.claim["scope"] = "local"
+        result = self.call(self.body())
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["written"])
+        self.assertEqual(self.stored[0][5], "local")
+        self.assertNotIn(PASSWORD, repr(result))
 
     def test_another_computer_cannot_use_the_ticket(self):
         with patch.object(credential_api.credentials, "login_device", lambda context: "DEV-2"):
@@ -394,7 +416,7 @@ class FakeSiteLogin(Framework):
         doc = connection(secrets)
         with patch.object(mrerp_login, "_read", lambda *a, **k: doc), \
                 patch.object(mrerp_login.access, "write", lambda d: d.save_secrets()), \
-                patch.object(mrerp_login, "require_authorizer", lambda doc, user, lock=True: user):
+                patch.object(mrerp_login, "scope_of", lambda doc, user, lock=True: "site"):
             mrerp_login.store("CWEC-1", "test01", NEW_PASSWORD, actor="staff@x", device_label="PC")
         site = FakeMrErp(NEW_PASSWORD)
         self.assertEqual(self.select(site, secrets["credential_password"]), "15")

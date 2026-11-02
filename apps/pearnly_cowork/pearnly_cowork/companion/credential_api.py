@@ -3,8 +3,9 @@
   POST /api/method/pearnly_cowork.companion.credential_api.mrerp_login   {ticket, username, password}
 
 CC 桌面版弹原生小窗收下用户名和密码，带对话页发的一次性票（`api.mrerp_login_ticket`）交来：取出并作废这张票，核同一个
-站点、Cowork 通道、发票时那台电脑就是这把密钥挂着的电脑，再按发票的人**此刻**的权限写进 MR.ERP 连接的 Password 字段
-（`connections.mrerp_login.store`），并把这条连接记进这台电脑已授权的清单。MR.ERP 的只读文件夹密钥也能调（没装 Express 的
+站点、Cowork 通道、发票时那台电脑就是这把密钥挂着的电脑，再按发票的人**此刻**的权限办（`connections.mrerp_login.store`）：
+管理员（票上 ``site``）写进 MR.ERP 连接的 Password 字段；使用名单上的成员（票上 ``local``）不写站点、只回网址给 CC 存本机
+（``written: false``）；票上是 ``site`` 而此刻已不是管理员一律拒写（``denied``）。都把这条连接记进这台电脑已授权的清单。MR.ERP 的只读文件夹密钥也能调（没装 Express 的
 电脑也要能授权）。
 
 回给电脑的只有连接号、MR.ERP 网址与「已授权：用户名 · 电脑 · 时间」，从不回密码；报文、票、权限的问题回 200 +
@@ -25,9 +26,10 @@ def _store(context, found, username, password):
     device = credentials.login_device(context)
     login_tickets.matches(found, site=context.site, channel='cowork', device=device)
     result = logins.store(found['connection'], username, password, actor=found['user'],
-                          device_label=frappe.db.get_value(devices.DOCTYPE, device, 'label') or '')
+                          device_label=frappe.db.get_value(devices.DOCTYPE, device, 'label') or '',
+                          scope=found.get('scope') or logins.SITE)
     devices.note_mrerp_login(device, found['connection'])
-    return {'connection': found['connection'], 'system_url': result['system_url'],
+    return {'connection': found['connection'], 'system_url': result['system_url'], 'written': bool(result['written']),
             'authorized': {key: result[key] for key in ('username', 'device', 'at')}}
 
 

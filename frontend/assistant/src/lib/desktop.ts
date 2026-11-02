@@ -344,7 +344,10 @@ export async function pickFolder(): Promise<PickResult | null> {
 
 /** MR.ERP 登录授权的结果：成功、取消，或失败码（站点的 ticket_invalid / denied / login_invalid / unsupported，
  *  桥的 not_connected，本机的 network / unauthorized / store_failed）。 */
-export type MrErpLoginResult = { ok: true } | { ok: false; cancelled: true } | { ok: false; cancelled?: false; code: string };
+export type MrErpLoginResult =
+  | { ok: true; written: boolean; authorized: { username?: string; device?: string; at?: string } }
+  | { ok: false; cancelled: true }
+  | { ok: false; cancelled?: false; code: string };
 
 /** 这台电脑的设备密钥（站点发票时认电脑用，同登记电脑带的那一个）；浏览器、旧桌面版回空串。 */
 export async function deviceKey(): Promise<string> {
@@ -354,12 +357,14 @@ export async function deviceKey(): Promise<string> {
   return String(state?.device?.key ?? "");
 }
 
-/** 把站点发的一次性票交给桥：桥弹原生小窗收 MR.ERP 用户名和密码，交给站点、再存本机（页面不碰密码）。浏览器里回 null。 */
+/** 把站点发的一次性票交给桥：桥弹原生小窗收 MR.ERP 用户名和密码，交给站点、再存本机（页面不碰密码）。管理员的站点也写，
+ *  使用成员只存本机（written）。浏览器里回 null。 */
 export async function authorizeMrErp(ticket: string): Promise<MrErpLoginResult | null> {
   const api = await desktop();
   if (!api) return null;
   const result = (await api.call("mrerp_authorize", { ticket })) as unknown as Record<string, unknown>;
-  if (result.ok === true) return { ok: true };
+  // written：站点也收下了（管理员）；false = 使用成员，只存了这台电脑（主会话 11-02 定）
+  if (result.ok === true) return { ok: true, written: result.written === true, authorized: (result.authorized as Record<string, string>) ?? {} };
   if (result.cancelled === true) return { ok: false, cancelled: true };
   return { ok: false, code: String(result.code ?? "failed") };
 }

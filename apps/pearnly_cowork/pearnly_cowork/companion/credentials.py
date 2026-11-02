@@ -455,7 +455,8 @@ def _register_device(name, adapter, actor, request_key, device_key, device_name,
 
 
 def login_ticket(connection, device_key):
-    """`api.mrerp_login_ticket`：本人能改这条 MR.ERP 连接的登录、这台电脑认得出（有设备密钥、没退役），发一张一次性票。
+    """`api.mrerp_login_ticket`：本人能授权这条 MR.ERP 连接的登录（管理员 ``site`` 写站点 + 存本机，使用名单上的成员 ``local``
+    只存本机，`connections.mrerp_login.scope_of`）、这台电脑认得出（有设备密钥、没退役），发一张一次性票，票上记着范围。
     电脑不认得（旧版 CC、被移除过）回 ``{ok: false, code: device_unknown}``。只读、不写库。"""
     from pearnly_core.cc_desktop import login_tickets
     from pearnly_cowork.connections import mrerp_login
@@ -467,13 +468,14 @@ def login_ticket(connection, device_key):
         digest = contracts.device_digest(_site(), device_key)
     except CredentialError:
         return {'ok': False, 'code': 'login_invalid'}
-    if not mrerp_login.can_authorize(name, actor):
+    scope = mrerp_login.scope_for(name, actor)
+    if not scope:
         access.deny()
     found = devices.find(digest)
     if not found or devices.retired(found):
         return {'ok': False, 'code': 'device_unknown'}
-    ticket = login_tickets.issue(site=_site(), channel='cowork', connection=name, user=actor, device=found)
-    return {'ok': True, 'ticket': ticket, 'expires_in': login_tickets.TTL_SECONDS}
+    ticket = login_tickets.issue(site=_site(), channel='cowork', connection=name, user=actor, device=found, scope=scope)
+    return {'ok': True, 'ticket': ticket, 'expires_in': login_tickets.TTL_SECONDS, 'scope': scope}
 
 
 def login_device(context):

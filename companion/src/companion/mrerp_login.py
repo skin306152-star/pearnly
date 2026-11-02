@@ -4,8 +4,9 @@
 对话页点「在 CC 桌面版中授权」→ 站点发一张一次性票交给桥（``tomo_bridge`` 的 ``mrerp_authorize``）→ 桥弹原生小窗
 （``login_dialog.ask``）收用户名和密码 → 这里：
 
-1. 经这个站点成员的机器通道（HTTPS、机器令牌、精确 POST、不带会话）把票、用户名、密码交给站点，站点按发票的人当前的权限
-   写进 MR.ERP 连接的 Password 字段，回连接号与「已授权：用户名 · 电脑 · 时间」（不回密码）；
+1. 经这个站点成员的机器通道（HTTPS、机器令牌、精确 POST、不带会话）把票、用户名、密码交给站点，站点按发票的人当前的权限办：
+   管理员写进 MR.ERP 连接的 Password 字段（``written: true``），使用成员不写站点、只核权限（``written: false``）；都回连接号、
+   MR.ERP 网址与「已授权：用户名 · 电脑 · 时间」（不回密码）；
 2. 站点收下了才存进这台电脑的凭据管理器（``credentials.mrerp_target(MR.ERP 网址, 连接号)``，备注写站点，代录填 MR.ERP
    登录页用；网址取站点回的那一个，不信页面）。站点没收下
    本机就不存，两处不会一边有一边没有。
@@ -89,5 +90,6 @@ def authorize(*, site: str, backend_url: str, token: str, ticket: str, username:
         return {"ok": False, "code": "store_failed"}
     shown = reply.get("authorized") if isinstance(reply.get("authorized"), dict) else {}
     log.info("MR.ERP 登录已授权：连接 %s", connection)
-    return {"ok": True, "connection": connection,
+    # written：站点也收下了（管理员）；False = 使用成员，只存了这台电脑（主会话 11-02 定），页面据此显示
+    return {"ok": True, "connection": connection, "written": reply.get("written") is True,
             "authorized": {key: str(shown.get(key) or "") for key in ("username", "device", "at")}}

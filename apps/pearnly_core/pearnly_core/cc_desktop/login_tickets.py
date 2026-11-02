@@ -3,7 +3,8 @@
 授权分两段，密码只走第二段：
 
 1. 对话页（Frappe 会话 + CSRF）点「在 CC 桌面版中授权」：产品按自己的规则核这个人能不能改这条连接，再按对话页交来的本机
-   设备密钥认出是哪台电脑，:func:`issue` 发一张票（只存摘要、5 分钟、只能用一次），绑住「站点 + 通道 + 连接 + 人 + 电脑」；
+   设备密钥认出是哪台电脑，:func:`issue` 发一张票（只存摘要、5 分钟、只能用一次），绑住「站点 + 通道 + 连接 + 人 + 电脑 + 范围」
+   （范围 ``site``：管理员，写站点再存本机；``local``：使用成员，只存本机）；
    票交给 CC 桌面版（桥），页面不碰密码；
 2. CC 桌面版弹原生小窗收用户名和密码，带这张票经机器通道（机器令牌、精确 POST、不带会话）交给站点：:func:`redeem`
    取出并作废这张票，核同一个站点、同一种通道、发票时那台电脑就是令牌认出的这台，产品按当前权限再核一次后写进连接的
@@ -49,12 +50,17 @@ def key_of(ticket: str) -> str:
     return _PREFIX + hashlib.sha256(ticket.encode("ascii")).hexdigest()
 
 
-def claim(*, site: str, channel: str, connection: str, user: str, device: str) -> dict:
+# 票的范围（主会话 11-02 定）：site = 管理员，交给站点写进连接（直写用）再存本机；local = 连接的使用成员，只存自己这台电脑
+SCOPES = ("site", "local")
+
+
+def claim(*, site: str, channel: str, connection: str, user: str, device: str, scope: str = "site") -> dict:
     """票绑住的内容（纯函数，不含秘密）。"""
     values = {"site": site, "channel": channel, "connection": connection, "user": user, "device": device}
-    if channel not in CHANNELS or any(not isinstance(value, str) or not _NAME.fullmatch(value) for value in values.values()):
+    if (channel not in CHANNELS or scope not in SCOPES
+            or any(not isinstance(value, str) or not _NAME.fullmatch(value) for value in values.values())):
         raise TicketError("ticket_scope_invalid")
-    return values
+    return {**values, "scope": scope}
 
 
 def matches(found: dict | None, *, site: str, channel: str, device: str) -> dict:

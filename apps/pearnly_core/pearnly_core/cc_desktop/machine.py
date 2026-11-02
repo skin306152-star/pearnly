@@ -103,12 +103,16 @@ def _mrerp_login(context, found, username, password):
     只有连接号、MR.ERP 网址与「已授权：用户名 · 电脑 · 时间」，从不回密码。撞上 1020 / 1213 整段重来（票不再取）。"""
     context = devices.revalidate(context)
     login_tickets.matches(found, site=context.site, channel="core", device=context.device)
-    if not products.mrerp_login_allowed(found["user"], found["connection"]):
+    scope = found.get("scope") or "site"
+    now = products.mrerp_login_scope(found["user"], found["connection"])
+    # 票上是 site 而此刻已不是管理员：拒写（服务端判，不靠 CC 或页面）；此刻已不能用这条连接：都拒
+    if not now or (scope == "site" and now != "site"):
         return {"ok": False, "code": "denied"}
     result = products.mrerp_login_store(found["connection"], username, password, user=found["user"],
-                                        device_label=devices.label(context.device))
+                                        device_label=devices.label(context.device), scope=scope)
     devices.note_mrerp_login(context, found["connection"])
     return {"connection": found["connection"], "system_url": str(result.get("system_url") or ""),
+            "written": bool(result.get("written")) and scope == "site",
             "authorized": {key: result.get(key) for key in ("username", "device", "at")}}
 
 

@@ -61,6 +61,9 @@ class Tickets(unittest.TestCase):
 
     def test_claim_is_bound_and_matches_only_the_same_site_channel_and_computer(self):
         bound = login_tickets.claim(site=SITE, channel="core", connection="ERPC-1", user="a@x", device="PCC-1")
+        self.assertEqual(bound["scope"], "site")
+        with self.assertRaises(login_tickets.TicketError):
+            login_tickets.claim(site=SITE, channel="core", connection="X", user="a", device="d", scope="all")
         self.assertEqual(login_tickets.matches(bound, site=SITE, channel="core", device="PCC-1"), bound)
         for kwargs in ({"site": "other"}, {"channel": "cowork"}, {"device": "PCC-2"}, {"device": ""}):
             with self.subTest(kwargs=kwargs), self.assertRaises(login_tickets.TicketError):
@@ -100,10 +103,12 @@ class CoreChannel(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         fake.reset(self.tmp.name)
-        fake.STATE.users = {"boss@x": {"enabled": 1}, "staff@x": {"enabled": 1}}
-        self.allowed, self.editors, self.stored = {"boss@x", "staff@x"}, {"boss@x"}, []
+        fake.STATE.users = {"boss@x": {"enabled": 1}, "staff@x": {"enabled": 1}, "other@x": {"enabled": 1}}
+        # 管理员写站点（site），使用成员只存本机（local），别人都不行（主会话 11-02 定）
+        self.allowed, self.editors, self.members, self.stored = {"boss@x", "staff@x", "other@x"}, {"boss@x"}, {"staff@x"}, []
         fake.STATE.attrs.update({"t.allowed": lambda user: user in self.allowed,
-                                 "t.login_allowed": lambda user, connection: user in self.editors,
+                                 "t.login_scope": lambda user, connection: "site" if user in self.editors
+                                 else "local" if user in self.members else "",
                                  "t.login_store": self.store_hook})
         self.hooks(login=True)
         self.store = FakeStore()
@@ -118,13 +123,13 @@ class CoreChannel(unittest.TestCase):
     def hooks(self, *, login):
         values = {"allowed": ["t.allowed"]}
         if login:
-            values.update({"mrerp_login_allowed": ["t.login_allowed"], "mrerp_login_store": ["t.login_store"]})
+            values.update({"mrerp_login_scope": ["t.login_scope"], "mrerp_login_store": ["t.login_store"]})
         fake.STATE.hooks["pearnly_cc_desktop"] = values
 
-    def store_hook(self, connection, username, password, *, user, device_label):
-        self.stored.append((connection, username, password, user, device_label))
+    def store_hook(self, connection, username, password, *, user, device_label, scope):
+        self.stored.append((connection, username, password, user, device_label, scope))
         return {"connection": connection, "system_url": "https://www.mrerp4sme.com", "username": username,
-                "device": device_label, "at": "2026-11-02T13:00:00+00:00"}
+                "device": device_label, "at": "2026-11-02T13:00:00+00:00", "written": scope == "site"}
 
     def machine_call(self, body, context=None):
         frappe.local.form_dict = dict(body)
@@ -144,7 +149,8 @@ class CoreChannel(unittest.TestCase):
 
     def test_only_people_the_product_lets_change_the_connection_get_a_ticket(self):
         with self.assertRaises(frappe.PermissionError):
-            self.ticket(user="staff@x")
+            self.ticket(user="other@x")
+        self.assertEqual(self.ticket(user="staff@x")["scope"], "local")
         self.assertEqual(self.ticket(key="z" * 43), {"ok": False, "code": "device_unknown"})
         self.assertEqual(self.ticket(key="short")["code"], "login_invalid")
         issued = self.ticket()
@@ -158,7 +164,8 @@ class CoreChannel(unittest.TestCase):
         self.assertEqual(result["connection"], "ERPC-1")
         self.assertEqual(result["authorized"]["username"], "test01")
         self.assertNotIn(PASSWORD, repr(result))
-        self.assertEqual(self.stored, [("ERPC-1", "test01", PASSWORD, "boss@x", "ACC-PC")])
+        self.assertTrue(result["written"])
+        self.assertEqual(self.stored, [("ERPC-1", "test01", PASSWORD, "boss@x", "ACC-PC", "site")])
         self.assertNotIn("password", frappe.local.form_dict)
         # 这台电脑已授权的连接记在电脑行上（只有连接号）
         row = fake.STATE.db.table(devices.DEVICE)[self.device]
@@ -179,9 +186,28 @@ class CoreChannel(unittest.TestCase):
 
     def test_permission_is_checked_again_when_the_login_arrives(self):
         ticket = self.ticket()["ticket"]
-        self.editors.clear()
+        self.editors.clear()  # 票是管理员的（site），交来时已不是管理员：拒写，不降成只存本机
         result = self.machine_call({"ticket": ticket, "username": "test01", "password": PASSWORD})
         self.assertEqual(result, {"ok": False, "code": "denied"})
+        self.assertEqual(self.stored, [])
+
+    def test_a_member_keeps_it_on_the_computer_only_and_the_site_is_not_written(self):
+        ticket = self.ticket(user="staff@x")["ticket"]
+        result = self.machine_call({"ticket": ticket, "username": "own", "password": PASSWORD})
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["written"])
+        self.assertEqual(self.stored[0][5], "local")
+        self.assertNotIn(PASSWORD, repr(result))
+        # 成员拿不到 site 范围的票：服务端按人定范围，不看页面要什么
+        self.assertEqual(self.ticket(user="staff@x")["scope"], "local")
+
+    def test_someone_off_the_list_gets_neither(self):
+        ticket = self.ticket(user="staff@x")["ticket"]
+        self.members.clear()
+        result = self.machine_call({"ticket": ticket, "username": "own", "password": PASSWORD})
+        self.assertEqual(result, {"ok": False, "code": "denied"})
+        with self.assertRaises(frappe.PermissionError):
+            self.ticket(user="staff@x")
         self.assertEqual(self.stored, [])
 
     def test_an_unexpected_failure_is_busy_without_the_password(self):

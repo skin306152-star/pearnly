@@ -3,8 +3,12 @@
 网页不再收 MR.ERP 密码：用户本人在 CC 桌面版原生小窗输一次，同一次输入存两处——那台电脑的凭据管理器（代录用）和这里
 （经机器通道交来，写进连接原有的 Password 字段，Frappe 加密存库；直写导入、目录采集、菜单读取照旧从这里取）。
 
-- **谁能授权**（:func:`require_authorizer`，服务端判）：能管理这条连接的人（同 `service.configure`：管理角色 + 主档权益），
-  或在这条连接使用名单上、能用它的人（同 `access.require_connection`）。只有 MR.ERP 连接。
+- **谁能授权**（:func:`scope_of`，服务端判，主会话 11-02 定）：
+  - ``site``：能管理这条连接的人（同 `service.configure`，原来能改连接密码的那条判据：管理角色 + 主档权益）——交给站点、写进
+    Password 字段（直写用、影响整条连接），CC 再存本机；
+  - ``local``：在这条连接使用名单上、能用它的成员（同 `access.require_connection`）——**不写站点**，只核权限、回网址，CC 只存
+    自己这台电脑（给自己代录用）；
+  - 别人：两种都不行。只有 MR.ERP 连接。收下时按此刻的权限再算一次：票上是 ``site`` 而此刻已不是管理员，一律拒写。
 - **写什么**（:func:`store`）：只改 ``credential_username`` / ``credential_password`` 与授权记录三项（谁、哪台电脑、什么时候），
   **不升连接版本**（同 `service.set_members`）：换登录不让账套目录、菜单与默认值、排队的单失效。老连接在网页上存的密码照用、
   不迁移；在 CC 里重新授权就覆盖。
@@ -37,23 +41,27 @@ def _manager(doc, user, lock):
     return True
 
 
-def require_authorizer(doc, user, *, lock=True):
-    """``user`` 此刻能不能改这条 MR.ERP 连接的登录：管理这条连接（停用的也行），或在使用名单上、能用它。不能就按无权拒。"""
+SITE, LOCAL = "site", "local"
+
+
+def scope_of(doc, user, *, lock=True):
+    """``user`` 此刻对这条 MR.ERP 连接的登录能做什么：管理员 ``site``（写站点 + 存本机），使用名单上的成员 ``local``（只存本机）；
+    都不是按无权拒。"""
     if doc.get("adapter") != "mrerp":
         access.deny()
     if _manager(doc, user, lock):
-        return user
-    return access.require_connection(doc, actor=user, lock=lock)
+        return SITE
+    access.require_connection(doc, actor=user, lock=lock)
+    return LOCAL
 
 
-def can_authorize(name, user):
-    """不抛错的判断（发票前、对话页显示按钮用）。不加锁。"""
+def scope_for(name, user):
+    """不抛错的判断（发票用）：``site`` / ``local``；不能授权回空串。不加锁。"""
     try:
-        require_authorizer(_read(CONNECTION, name, lock=False), user, lock=False)
+        return scope_of(_read(CONNECTION, name, lock=False), user, lock=False)
     except (frappe.PermissionError, frappe.ValidationError):
         frappe.clear_messages()
-        return False
-    return True
+        return ""
 
 
 def _username(doc):
@@ -92,19 +100,26 @@ def _clean(username, password, device_label):
     return str(device_label or "").strip()[:MAX_DEVICE]
 
 
-def store(name, username, password, *, actor, device_label):
-    """收下 CC 桌面版交来的登录（机器通道已认过电脑与票）：按 ``actor``（发票的人）此刻的权限再核一次，写进 Password 字段与
-    授权记录，不升版本。回 :func:`view` 加连接号与 MR.ERP 网址；不含密码。"""
+def store(name, username, password, *, actor, device_label, scope=SITE):
+    """收下 CC 桌面版交来的登录（机器通道已认过电脑与票），按 ``actor``（发票的人）此刻的权限再算一次：
+
+    - ``scope="site"``：此刻必须仍是管理员，写进 Password 字段与授权记录，不升版本；不是管理员按无权拒、什么都不写；
+    - ``scope="local"``：此刻仍能用这条连接（成员或管理员）就行，**不写站点**，只回网址给 CC 存本机。
+
+    回 ``{connection, system_url, username, device, at, written}``；不含密码。"""
     from . import model
 
     doc = _read(CONNECTION, name, lock=True)
-    require_authorizer(doc, actor)
+    now = scope_of(doc, actor)
+    if scope not in (SITE, LOCAL) or (scope == SITE and now != SITE):
+        access.deny()
     device = _clean(username, password, device_label)
     moment = _now()
-    doc.set("credential_username", username)
-    doc.set("credential_password", password)
-    doc.update({"credential_authorized_by": actor, "credential_device": device, "credential_authorized_at": moment})
-    access.write(doc)
+    if scope == SITE:
+        doc.set("credential_username", username)
+        doc.set("credential_password", password)
+        doc.update({"credential_authorized_by": actor, "credential_device": device, "credential_authorized_at": moment})
+        access.write(doc)
     config = model.pool_config(doc.adapter, doc.config_json)
     return {"connection": doc.name, "system_url": str(config.get("system_url") or ""),
-            "username": username, "device": device, "at": _when(moment)}
+            "username": username, "device": device, "at": _when(moment), "written": scope == SITE}

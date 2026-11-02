@@ -126,7 +126,8 @@ MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7、8 条，施工记录 [m
 MR.ERP 密码。对话页先要一张一次性票（`pearnly_core.cc_desktop.login_tickets`：只存摘要、5 分钟、用一次，绑站点 / 通道 / 连接 / 人 /
 电脑；Cowork `companion.api.mrerp_login_ticket`，共用通道 `cc_desktop.api.mrerp_login_ticket`），CC 桌面版原生小窗收用户名和密码，
 带票经机器通道精确 POST 交给站点（Cowork `companion.credential_api.mrerp_login`，共用通道 `cc_desktop.machine.mrerp_login`，产品经
-`pearnly_cc_desktop` 的 `mrerp_login_allowed` / `mrerp_login_store` 接，ERP 没接回 unsupported），站点收下了 CC 才存本机凭据管理器。
+`pearnly_cc_desktop` 的 `mrerp_login_scope` / `mrerp_login_store` 接，ERP 没接回 unsupported），站点收下了 CC 才存本机凭据管理器。
+范围服务端按人定：管理员 `site` 写进连接（直写用），使用名单上的成员 `local` 不写站点、只存自己的电脑；收下时按此刻的权限再判。
 Cowork 写进连接原有的 Password 字段（`connections.mrerp_login`，不升连接版本），直写取凭据的入口不变。同账号互斥：代录批次的账号租约
 （`session_lock.lease_account` / `renew_account` / `release_account`）与直写短锁 `account_lock` 是同一个 Redis 键，直写执行前
 `operator_holds` 为真就不领、照旧待发送。

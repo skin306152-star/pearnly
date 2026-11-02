@@ -73,7 +73,7 @@ def _server(reply=None, status=200, fail=None):
         if fail:
             raise fail
         return status, reply if reply is not None else {
-            "ok": True, "connection": "CWEC-1", "system_url": "https://www.mrerp4sme.com",
+            "ok": True, "connection": "CWEC-1", "system_url": "https://www.mrerp4sme.com", "written": True,
             "authorized": {"username": "test01", "device": "ACC-PC", "at": "2026-11-02T13:00:00+00:00"}}
 
     return sent, post
@@ -89,13 +89,23 @@ def test_the_site_gets_it_first_then_this_computer_stores_it(caplog):
     vault = Vault()
     sent, post = _server()
     result = _authorize(post, vault)
-    assert result == {"ok": True, "connection": "CWEC-1",
+    assert result == {"ok": True, "connection": "CWEC-1", "written": True,
                       "authorized": {"username": "test01", "device": "ACC-PC", "at": "2026-11-02T13:00:00+00:00"}}
     assert sent == [("https://" + SITE, "exp_CWEC-1_secret", channel.PATHS["cowork"]["mrerp_login"],
                      {"ticket": TICKET, "username": "test01", "password": PASSWORD})]
     assert vault.items == {credentials.mrerp_target(MRERP, "CWEC-1"): ("test01", PASSWORD, credentials.site_comment(SITE))}
     assert PASSWORD not in json.dumps(result)
     assert PASSWORD not in caplog.text
+
+
+def test_a_member_keeps_it_on_this_computer_only():
+    # 使用成员：站点只核权限、不写（written false），CC 照样存本机（主会话 11-02 定）
+    vault = Vault()
+    _, post = _server(reply={"ok": True, "connection": "CWEC-1", "system_url": MRERP, "written": False,
+                             "authorized": {"username": "own", "device": "ACC-PC", "at": "2026-11-02T13:00:00+00:00"}})
+    result = _authorize(post, vault, username="own")
+    assert result["ok"] is True and result["written"] is False
+    assert vault.items == {credentials.mrerp_target(MRERP, "CWEC-1"): ("own", PASSWORD, credentials.site_comment(SITE))}
 
 
 def test_the_erp_channel_uses_its_own_path():

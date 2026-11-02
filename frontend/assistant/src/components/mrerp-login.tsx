@@ -5,6 +5,8 @@
 //      按产品的通道选），票绑住这个人、这条连接和这台电脑（带本机设备密钥，同登记电脑那一个）；
 //   2. 票交给桥（lib/desktop.ts 的 authorizeMrErp），CC 桌面版弹原生小窗收用户名和密码，经机器通道交给站点，站点收下了再存
 //      这台电脑的凭据管理器。页面从头到尾拿不到密码。
+// 谁能写站点（主会话 11-02 定，服务端判）：管理员的授权写进连接（直写用），上面那行跟着变；连接使用名单上的成员只存自己这台电脑
+// （给自己代录用），站点那行不变，下面多一行同样写法的「已授权：用户名 · 这台电脑 · 时间」。
 // 浏览器、手机里按钮不可用（同文件夹授权「只在 CC 里」）；没有 mrerp_login 能力的旧桌面版提示更新。Cowork 与 ERP 用同一个组件。
 import { useState, type FC } from "react";
 import { LoaderIcon } from "lucide-react";
@@ -37,7 +39,10 @@ export const MrErpLogin: FC<{
   const { app, mrerpLogin } = useDesktopFeatures();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // 使用成员只存了这台电脑：站点那行不变，这里记着本机这次的
+  const [local, setLocal] = useState<MrErpCredential>(null);
   const detail = authorizedDetail(connection?.credential);
+  const localDetail = authorizedDetail(local);
   const authorize = async () => {
     setError("");
     setBusy(true);
@@ -50,6 +55,7 @@ export const MrErpLogin: FC<{
       const result = await authorizeMrErp(issued.ticket);
       if (!result || (!result.ok && result.cancelled)) return;
       if (!result.ok) return setError(st.mrerpAuthorizeFailed);
+      if (!result.written) return setLocal(result.authorized);
       onDone();
     } catch (e) {
       reportCaught(e, "mrerp-login");
@@ -61,6 +67,7 @@ export const MrErpLogin: FC<{
   return (
     <div className="flex flex-col items-start gap-(--cc-space-8)" data-slot="cc-mrerp-login">
       <span className={detail ? "text-body" : "text-ink-3 text-body"}>{detail ? st.mrerpAuthorized(detail) : st.mrerpNotAuthorized}</span>
+      {localDetail && <span className="text-body" data-slot="cc-mrerp-login-local">{st.mrerpAuthorized(localDetail)}</span>}
       {app && !mrerpLogin ? (
         <button type="button" className="cc-btn" onClick={() => openSettings("system")}>
           {co.updateDesktop}

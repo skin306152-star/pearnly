@@ -3,7 +3,8 @@
 只在 `infrastructure/compose/cowork-backend-lab.yml` 的实验站点上跑（复用连接与凭据验证的站点守卫与夹具）；不连 MR.ERP、
 不连外网、不迁移站点。覆盖：
 
-- 会话发票：本人在使用名单上才拿得到票，名单外的人拒绝；票只给认得出的电脑；
+- 会话发票：管理员拿 site 票（写站点）、使用名单上的成员拿 local 票（只存本机）、名单外的人拒绝；票只给认得出的电脑；
+- 写不写站点由收下时服务端判：成员交来的不写站点；管理员发票后被收回管理角色，交来时拒写；
 - 机器方法：只认机器令牌的精确 POST——带人的 API 密钥、GET、错路径都拒绝，密码不落库；
 - 收下之后：连接的 Password 字段变成新密码、连接版本不变、授权记录（谁、哪台电脑、什么时候）写上，这台电脑的已授权清单
   有这条连接号；页面（detail / records）看得到「用户名 · 电脑 · 时间」、看不到密码；同一张票再用回 ticket_invalid；
@@ -113,8 +114,9 @@ class MrErpLogin(unittest.TestCase):
             frappe.destroy()
 
     def ticket(self, user=None, key=DEVICE_KEY):
+        """默认管理员（写站点）；``self.actor`` 是使用名单上的录入员（只存本机）。"""
         from pearnly_cowork.companion import api
-        return self.db(lambda: api.mrerp_login_ticket(self.mrerp['name'], key), user=user or self.actor, commit=True)
+        return self.db(lambda: api.mrerp_login_ticket(self.mrerp['name'], key), user=user or self.manager, commit=True)
 
     def post(self, body, *, headers=None, path=PATH, method='POST'):
         response = self.client.open(path, base_url=self.base, method=method, buffered=True,
@@ -160,7 +162,8 @@ class MrErpLogin(unittest.TestCase):
         after = self.stored()
         self.assertEqual((after['username'], after['password']), ('test01', NEW_PASSWORD))
         self.assertEqual(after['revision'], before['revision'])
-        self.assertEqual((after['by'], after['device']), (self.actor, 'SYN-PC'))
+        self.assertEqual((after['by'], after['device']), (self.manager, 'SYN-PC'))
+        self.assertTrue(message['written'])
         self.assertTrue(after['at'])
         self.assertIn(self.mrerp['name'], after['logins'].split(','))
         self.assertEqual(self.for_push(), {'username': 'test01', 'password': NEW_PASSWORD, 'token': ''})
@@ -175,6 +178,28 @@ class MrErpLogin(unittest.TestCase):
         # 同一张票再用：作废了
         again = self.post({'ticket': ticket['ticket'], 'username': 'test01', 'password': NEW_PASSWORD})
         self.assertEqual(again.json['message'], {'ok': False, 'code': 'ticket_invalid'})
+
+    def test_a_member_keeps_it_local_and_the_site_is_not_written(self):
+        ticket = self.ticket(user=self.actor)
+        self.assertEqual(ticket['scope'], 'local')
+        response = self.post({'ticket': ticket['ticket'], 'username': 'own-user', 'password': NEW_PASSWORD})
+        message = response.json['message']
+        self.assertTrue(message['ok'])
+        self.assertFalse(message['written'])
+        self.assertTrue(message['system_url'])
+        after = self.stored()
+        self.assertEqual((after['username'], after['password'], after['by']), ('old-user', OLD_PASSWORD, None))
+        self.assertIn(self.mrerp['name'], after['logins'].split(','))
+
+    def test_a_manager_ticket_is_refused_once_the_manager_role_is_gone(self):
+        ticket = self.ticket()['ticket']
+        self.db(lambda: frappe.db.delete('Has Role', {'parent': self.manager, 'role': 'Cowork Admin'}), commit=True)
+        try:
+            response = self.post({'ticket': ticket, 'username': 'test01', 'password': NEW_PASSWORD})
+            self.assertEqual(response.json['message'], {'ok': False, 'code': 'denied'})
+            self.assertEqual(self.stored()['password'], OLD_PASSWORD)
+        finally:
+            self.db(lambda: frappe.get_doc('User', self.manager).add_roles('Cowork Admin'), user='Administrator', commit=True)
 
     def test_people_off_the_list_and_unknown_computers_get_no_ticket(self):
         with self.assertRaises(frappe.PermissionError):
