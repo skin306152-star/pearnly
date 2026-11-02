@@ -11,7 +11,8 @@
 不代录时不导入本模块（写账线按需导入），不开线程、不轮询。
 
 执行目标（ADR-026）：按载荷 ``operator.target`` 选装配函数（:data:`ASSEMBLERS`）。``express`` 就是 :func:`express_factory`（原来的
-那段装配原样）；这一版还没有装配的目标（``mrerp`` 网页随第 2 步）不开批次、不碰任何账本，这一张按「不支持」回执。
+那段装配原样）；``mrerp``（网页，:func:`mrerp_factory` → ``mrerp_operator.host.assemble``）只在开关打开时装（与心跳报的能力同一个
+开关，``payload_contract.operator_targets``）；没装的目标不开批次、不碰任何账本，这一张按「不支持」回执。
 """
 from __future__ import annotations
 
@@ -104,8 +105,9 @@ class Host:
                  alive: Callable[[int], bool] = express_alive, assemblers: Optional[Dict[str, Callable]] = None):
         self.root = Path(root or operator_root())
         self.factory = factory or default_factory
-        # 每种执行目标一个装配函数；``factory`` 是 Express 的（测试注入假 Express 用它）
-        self.assemblers: Dict[str, Callable] = {**ASSEMBLERS, K.TARGET_EXPRESS: self.factory, **(assemblers or {})}
+        # 每种执行目标一个装配函数；``factory`` 是 Express 的（测试注入假 Express 用它）；MR.ERP 只在开发开关打开时装（ADR-026）
+        self.assemblers: Dict[str, Callable] = {**enabled_assemblers(), K.TARGET_EXPRESS: self.factory,
+                                                **(assemblers or {})}
         self.notify, self.clock, self.alive = notify, clock, alive
         self.started_at = clock()
         self._orphans_done = False
@@ -133,8 +135,11 @@ class Host:
             return {"status": "human", "reason": "unsupported",
                     "detail": f"operator target {target[:20]!r} is not available in this CC Desktop version",
                     "meta": {"batch": batch_id, "target": target[:20]}}
-        # 单据号用站点上这张单的编号（载荷 operator.batch.doc），页面按它对上是哪一张；旧载荷没有就用写账任务号
-        draft = from_payload(str(info.get("doc") or task_id), payload)
+        # 单据号用站点上这张单的编号（载荷 operator.batch.doc），页面按它对上是哪一张；旧载荷没有就用写账任务号。
+        # 别的目标（MR.ERP）的装配函数自带草稿形状与「设置」（公司、账套、连接都在载荷里，没有本机账套）
+        draft = (getattr(factory, "draft_of", None) or from_payload)(str(info.get("doc") or task_id), payload)
+        if settings is None and callable(getattr(factory, "settings_of", None)):
+            settings = factory.settings_of(payload)
         with self.lock:
             runner = self.runners.get(batch_id) or self._start(batch_id, info, settings, factory, member)
         from .engine import NeedHuman
@@ -460,8 +465,40 @@ def express_factory(state, store, settings, root: Path, notify, member=None):
 
 default_factory = express_factory  # 旧名：收拾上次留下的 Express（``recover_orphans``）与测试仍按它取
 
-# 执行目标 → 装配函数（ADR-026）。与 ``payload_contract.OPERATOR_TARGETS``（心跳报的能力）一致；MR.ERP 随第 2 步加。
+
+def mrerp_factory(state, store, settings, root: Path, notify):
+    """MR.ERP 网页的装配（``mrerp_operator.host.assemble``）：领到 MR.ERP 代录单才导入那个包。"""
+    from ..mrerp_operator.host import assemble
+
+    return assemble(state, store, settings, root, notify)
+
+
+def _mrerp_settings(payload: Dict):
+    from ..mrerp_operator.host import settings_of
+
+    return settings_of(payload)
+
+
+def _mrerp_draft(doc_id: str, payload: Dict):
+    from ..mrerp_operator.host import draft_of
+
+    return draft_of(doc_id, payload)
+
+
+mrerp_factory.settings_of = _mrerp_settings
+mrerp_factory.draft_of = _mrerp_draft
+
+# 执行目标 → 装配函数（ADR-026）。默认与 ``payload_contract.OPERATOR_TARGETS``（心跳报的能力）一致：只有 Express；
+# MR.ERP 只在开发开关打开时才装、才报（``enabled_assemblers`` 与 ``payload_contract.operator_targets`` 同一个开关）。
 ASSEMBLERS: Dict[str, Callable] = {K.TARGET_EXPRESS: express_factory}
+OPTIONAL_ASSEMBLERS: Dict[str, Callable] = {K.TARGET_MRERP: mrerp_factory}
+
+
+def enabled_assemblers() -> Dict[str, Callable]:
+    """这台 CC 现在装哪些目标：与心跳报的 ``payload_contract.operator_targets()`` 一致。"""
+    from ..payload_contract import operator_targets
+
+    return {target: ASSEMBLERS.get(target) or OPTIONAL_ASSEMBLERS[target] for target in operator_targets()}
 
 
 _HOST: Optional[Host] = None

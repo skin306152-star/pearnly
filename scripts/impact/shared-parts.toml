@@ -424,7 +424,7 @@ name = "CC 代录执行目标分路（operator.target、宿主按目标装配、
 paths = ["companion/src/companion/express_operator/contract.py", "companion/src/companion/express_operator/host.py", "companion/src/companion/payload_contract.py"]
 markers = ["express_operator.contract import TARGET", "OPERATOR_TARGETS", "operator_targets"]
 search = ["companion/src/**/*.py"]
-entries = ["cc.desktop.operator", "cc.desktop.write", "cc.desktop.places", "cowork.cc.channel", "erp.cc.connect"]
+entries = ["cc.desktop.operator", "cc.desktop.operator.mrerp", "cc.desktop.write", "cc.desktop.places", "cowork.cc.channel", "erp.cc.connect"]
 
 [[part]]
 id = "execution"
@@ -2526,6 +2526,15 @@ steps = "离线：假 Express 回放四种买卖单、弹窗、放弃作废、�
 expect = "读回逐字段一致；只读借用 express_read 复制读账套，整批持有 PEARNLY.LCK 与直写互斥；建主档只动 APMAS / ARMAS / STMAS / ISACC，失败整笔还原，Express 开着时先退出再建，下一张重开后查得到新码"
 check = "offline"
 files = ["companion/src/companion/express_operator/book.py", "companion/src/companion/express_operator/batch.py", "companion/src/companion/express_operator/host.py", "companion/src/companion/express_operator/masters.py"]
+
+[[entry]]
+id = "cc.desktop.operator.mrerp"
+product = "CC"
+where = "代录 MR.ERP 网页（companion/src/companion/mrerp_operator，ADR-026 目标 mrerp；宿主 express_operator.host 按 operator.target 装配，网页内核在每批一个的 --mrerp-desk 子进程里；开关 PEARNLY_CC_MRERP_OPERATOR 默认关）"
+steps = "离线：假 MR.ERP 站点（companion/tests/_fake_mrerp.py）+ 真网页内核回放四种单、读回不符、被踢不重登、断网续录不重录、浏览器重发两张交人、放弃不留单、认不出的弹框、有人在用暂停、凭据不外泄（tests/test_mrerp_operator_replay.py）；子进程录完退出、不录时不导入（tests/test_mrerp_operator_process.py）；纯逻辑（tests/test_mrerp_operator_parts.py）；与服务端回读同口径（tests/test_mrerp_operator_readback_parity.py）；实机：第 0 步在录制机上探 TEST2019（待授权）"
+expect = "每张读回逐字段一致才记成功；被踢后不自动重登、不退出登录；结果不明的单续录前先在列表里查，查到不重录；放弃不存档；密码只在本机凭据与登录页那一格；录完子进程与渲染进程都退出；开关关着时心跳只报 express、宿主不装 mrerp"
+check = "offline"
+files = ["companion/src/companion/mrerp_operator/engine.py", "companion/src/companion/mrerp_operator/session.py", "companion/src/companion/mrerp_operator/book.py", "companion/src/companion/mrerp_operator/web_desk.py", "companion/src/companion/mrerp_operator/web_driver.py", "companion/src/companion/mrerp_operator/host.py"]
 
 [[entry]]
 id = "cc.operator.page"

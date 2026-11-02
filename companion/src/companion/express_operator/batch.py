@@ -155,8 +155,14 @@ class Runner:
                  evidence_state: Callable[[str], str] = lambda _doc_id: "none",
                  pauses: Callable[[], List[Dict]] = lambda: [],
                  sleep: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.time,
-                 net_wait_s: float = 600, net_poll_s: float = 60):
+                 net_wait_s: float = 600, net_poll_s: float = 60,
+                 draft_type: Callable[..., object] = Draft,
+                 before: Optional[Callable[[object], Dict]] = None,
+                 find_saved: Optional[Callable[[object, Dict], Dict]] = None):
+        """``draft_type`` / ``before`` / ``find_saved``：别的执行目标（ADR-026，MR.ERP）换上自己的草稿形状、开录前记录、
+        续录前查存没存；不传就是 Express 原来的（草稿 ``Draft``、账套各表行数、读之后新增的行）。"""
         self.state, self.store, self.engine, self.session, self.book = state, store, engine, session, book
+        self.draft_type, self.before, self.find_saved = draft_type, before, find_saved
         self.probe, self.lock, self.reachable = probe, lock, reachable
         self.on_change, self.sleep, self.clock = on_change, sleep, clock
         self.housekeeping, self.evidence_state = housekeeping, evidence_state  # 截图到期清理（开始前、结束后各一次）
@@ -540,10 +546,11 @@ class Runner:
 
     def _one(self, d: DocState) -> bool:
         """录一张（含崩溃后的重开续录）。回 False 表示整批要停。"""
-        draft = Draft(**d.draft)
+        draft = self.draft_type(**d.draft)
         while True:
             if d.status == K.ENTERING:
-                found = B.find_saved(draft, self.book.rows_since(d.counts_before))
+                found = (self.find_saved(draft, d.counts_before) if self.find_saved
+                         else B.find_saved(draft, self.book.rows_since(d.counts_before)))
                 if found["docnum"]:
                     d.status, d.docnum = K.SAVED, found["docnum"]
                     d.reports.append({"reason": "express_restarted"})
@@ -557,7 +564,7 @@ class Runner:
                     d.status, d.reason = K.WAITING, "crash_repeated"
                     self._set()
                     return True
-            d.status, d.counts_before = K.ENTERING, self.book.counts()
+            d.status, d.counts_before = K.ENTERING, (self.before(draft) if self.before else self.book.counts())
             self._set(current=d.doc_id)
             try:
                 rec = self.engine.run(draft)

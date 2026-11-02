@@ -2,7 +2,8 @@
 """代录 Express（2026-10-26 立项，评估 docs/work/2026-10-26-express-operator-product-评估.md）。
 
 执行目标不只 Express（ADR-026）：包名照旧，批次、进度、续录、存证共用；宿主（``host``）按载荷 ``operator.target`` 装配
-执行层——``express`` 是下面这一套，``mrerp``（网页）随第 2 步加，之前按「不支持」回执。
+执行层——``express`` 是下面这一套，``mrerp``（网页）是并列的 ``mrerp_operator``（第 2 步；第 0 步真站点探路通过前由开关
+``PEARNLY_CC_MRERP_OPERATOR`` 管，默认关 = 不装、不报，派来按「不支持」回执）。
 
 CC 桌面版在这台电脑上真实打开服务器版 Express、自动登录、像会计一样一张张录单，和「直接写入」（``dbf_*``）是两种执行方式，
 入口分开、互不替代：机器产生的大批量单（ERP / POS / VAN）走直写，代录只用于纸质 / 拍照单据。

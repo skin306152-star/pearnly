@@ -170,15 +170,15 @@ class CompanionConfig:
 
 def polls_queue(cfg) -> bool:
     """这个成员进不进取任务 / 心跳线程（写账线）。Express 成员进；只读文件夹的成员不进，状态由文件夹线程报——只有一种例外：
-    MR.ERP 连接的成员（``kind = folder``、不是 Express 池的 ``pool``），这一版 CC 能代录 MR.ERP（``OPERATOR_TARGETS`` 带
-    ``mrerp``，第 2 步执行层）时也进，经它领派给这台电脑的 MR.ERP 代录单（ADR-026 第 3 步，11-03 选 A：没有 Express 连接的工作空间）。
-    这一版不会代录 MR.ERP：与以前一样只有 Express 成员进。"""
+    MR.ERP 连接的成员（``kind = folder``、不是 Express 池的 ``pool``），这一版 CC 能代录 MR.ERP（``operator_targets()`` 带
+    ``mrerp``，第 2 步执行层、开关打开）时也进，经它领派给这台电脑的 MR.ERP 代录单（ADR-026 第 3 步，11-03 选 A：没有 Express 连接的工作空间）。
+    开关关着（默认）：与以前一样只有 Express 成员进。"""
     if (getattr(cfg, "kind", "express") or "express") != "folder":
         return True
     from .express_operator.contract import TARGET_MRERP
-    from .payload_contract import OPERATOR_TARGETS
+    from .payload_contract import operator_targets
 
-    return TARGET_MRERP in OPERATOR_TARGETS and not bool(getattr(cfg, "pool", False))
+    return TARGET_MRERP in operator_targets() and not bool(getattr(cfg, "pool", False))
 
 
 def member_active(cfg) -> bool:

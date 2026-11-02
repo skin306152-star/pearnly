@@ -59,6 +59,20 @@ ENTRY_OPERATOR = "operator"
 # 这一版 CC 桌面版能代录到哪些目标（心跳 ``operator_targets``，与宿主 ``express_operator.host.ASSEMBLERS`` 一致）。
 # 服务端只把 Express 以外目标的代录单派给报了它的电脑；旧版不报 = 只有 Express。
 OPERATOR_TARGETS = ("express",)
+# MR.ERP 网页代录（第 2 步执行层，mrerp_operator）：第 0 步真站点探路通过前默认不报、不装；只有这个开关打开（开发 / 探路）
+# 才报 ``mrerp``，站点才会把 MR.ERP 代录单派到这台。默认关 = 与第 1 步行为一致。
+MRERP_OPERATOR_ENV = "PEARNLY_CC_MRERP_OPERATOR"
+
+
+def mrerp_operator_enabled() -> bool:
+    import os
+
+    return os.environ.get(MRERP_OPERATOR_ENV, "").strip() == "1"
+
+
+def operator_targets() -> tuple:
+    """心跳报的代录目标：默认只有 Express；开关打开才多报 MR.ERP。"""
+    return OPERATOR_TARGETS + (("mrerp",) if mrerp_operator_enabled() else ())
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

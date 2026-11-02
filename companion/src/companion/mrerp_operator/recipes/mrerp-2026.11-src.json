@@ -1,0 +1,163 @@
+{
+  "_doc": "MR.ERP 网页代录配方（ADR-026、评估 §14.1）。格子 id、按钮、地址、弹框文字按 MR.ERP 源码只读快照（/Users/skin/mrerp-source/src：login/*.php、aptran|artran|arse/allform.php、allview.php、component/showdata.php、component/javascript/allform.js、component/javascript/bshlistbox/bshlistbox.js、component/php/checkuseruse.php、footer.php、saveprocess.php）取。凡是 verified=false 的项一律「待探路核对」：第 0 步在真站点（TEST2019）打开表单读格子、不存，核对后才改成 true。没核对过的单种默认不录（回「不支持」）。",
+  "recipe_version": "2026.11-src",
+  "verified": false,
+  "login": {
+    "_doc": "login/login.php 的表单；checklogin.php 成功后 location=selectdb.php，失败 alert「User หรือ Password ไม่ถูกต้อง」再回 ../index.php；selectdb.php 每个年度账套一条 mainmenu.php?comidyear=N&seldb=1 链接；业务页 footer 写 Company : 全称、Database Name : 简称+年度（component/php/footer.php）。",
+    "verified": false,
+    "page": "login/login.php",
+    "form_action": "checklogin.php",
+    "user_id": "txtusers",
+    "password_id": "txtpasswords",
+    "submit_id": "btnsubmit",
+    "select_page": "login/selectdb.php",
+    "account_link": "a[href*=\"mainmenu.php?comidyear={comidyear}&seldb=\"]",
+    "main_page": "login/mainmenu.php",
+    "logout_page": "login/logout.php",
+    "footer": "#footer",
+    "company_label": "Company :",
+    "database_label": "Database Name :",
+    "login_paths": ["login/login.php", "login/logoutkick.php", "login/checklogin.php", "/index.php"]
+  },
+  "list": {
+    "_doc": "{module}/allview.php?idmenu=N 先把菜单写进会话（component/php/sessionmenu.php）；搜索框 txtsearch + 按钮 btnsearch，结果由 component/showdata.php 追加进 #showdata，每行一个 <p>，前四格：单号、日期（佛历 dd/mm/yyyy）、名称、金额；查看链接 allform.php?id=N&status=vie；查不到是 <p id=\"nodata\">。新增按钮 btnadd（location='allform.php'）。不能用时整页只有「กรุณากำหนดการเชื่อมโยง …」/「กรุณาป้อนข้อมูล …」。",
+    "verified": false,
+    "view": "{module}/allview.php?idmenu={menu}",
+    "search_id": "txtsearch",
+    "search_button": "btnsearch",
+    "rows": "#showdata",
+    "add_id": "btnadd"
+  },
+  "forms": {
+    "purchase": {
+      "_doc": "赊购（货）：aptran（ใบซื้อ）。新单默认勾着「เงินสด」，赊购要取消勾选。选了供应商后页面 AJAX 带出信用天数（component/topcode.php）；选了商品后 AJAX 带出标准成本价覆盖单价（checkcoststd.php），所以单价要等它回来再填。",
+      "module": "aptran",
+      "verified": false,
+      "cash": false,
+      "phase": 1
+    },
+    "purchase_expense": {
+      "_doc": "赊购（费用）：同 aptran 表单、费用菜单（菜单号由站点按公司选定，载荷 menu）。",
+      "module": "aptran",
+      "verified": false,
+      "cash": false,
+      "phase": 1
+    },
+    "sales_credit": {
+      "_doc": "赊销：artran（ใบขาย）。",
+      "module": "artran",
+      "verified": false,
+      "cash": false,
+      "phase": 1
+    },
+    "sales_cash": {
+      "_doc": "现销：arse（ใบขายเงินสด）。收款区：现金 txtcashpay（onchange calccashpay → 合计收款 txttotalrec）；收款科目槽（txtacfile_*）是否必填待探路核对。",
+      "module": "arse",
+      "verified": false,
+      "cash": true,
+      "phase": 1
+    }
+  },
+  "modules": {
+    "aptran": {
+      "verified": false,
+      "form": "aptran/allform.php",
+      "view": "aptran/allform.php?id={id}&status=vie",
+      "docnum": {"prefix_id": "txtdoctype", "number_id": "txtdocnum"},
+      "header": [
+        {"key": "docnum", "id": "txtdocnum", "kind": "text", "when": "editable", "verified": false},
+        {"key": "date", "id": "txtdate", "kind": "date", "verified": false, "_doc": "只读 + 日历（bshcalendar）；直接写值不会跑日历选完后的期间检查（checkothperiod），待探路核对"},
+        {"key": "cash", "id": "chkcash", "kind": "check", "verified": false},
+        {"key": "vat_rate", "id": "txtothvatrate", "kind": "pick", "verified": false},
+        {"key": "party_code", "id": "txtapmas", "kind": "pick", "settle": "txttopcode", "verified": false},
+        {"key": "credit_days", "id": "txttopcode", "kind": "text", "verified": false},
+        {"key": "ref_no", "id": "txtvatnum", "kind": "text", "verified": false},
+        {"key": "ref_date", "id": "txtvatdate", "kind": "date", "verified": false},
+        {"key": "delivery_date", "id": "txtdeliverydate", "kind": "date", "verified": false},
+        {"key": "defaults.branch", "id": "txtothcombrh", "kind": "pick", "verified": false},
+        {"key": "defaults.dept", "id": "txtothdept_h", "kind": "pick", "verified": false},
+        {"key": "defaults.job", "id": "txtothsuborder_h", "kind": "pick", "verified": false},
+        {"key": "defaults.employee", "id": "txtemp", "kind": "pick", "verified": false},
+        {"key": "defaults.party_branch", "id": "txtothcombrhcus", "kind": "pick", "verified": false}
+      ],
+      "lines": {"add_button": "btn-add", "code": "txtcode{n}", "store": "txtstore{n}", "qty": "txtamount{n}",
+                "unit": "txtunit{n}", "price": "txtprice{n}", "total": "txttotal{n}", "price_settle": true, "verified": false},
+      "discount_id": "txtdiscount",
+      "totals": {"before_vat": "txtbeforevat", "vat": "txtvat", "net": "txtnet"},
+      "save_id": "btnsave",
+      "party_id": "txtapmas",
+      "ref_id": "txtvatnum"
+    },
+    "artran": {
+      "verified": false,
+      "form": "artran/allform.php",
+      "view": "artran/allform.php?id={id}&status=vie",
+      "docnum": {"prefix_id": "txtdoctype", "number_id": "txtdocnum"},
+      "header": [
+        {"key": "docnum", "id": "txtdocnum", "kind": "text", "when": "editable", "verified": false},
+        {"key": "date", "id": "txtdate", "kind": "date", "verified": false},
+        {"key": "cash", "id": "chkcash", "kind": "check", "verified": false},
+        {"key": "vat_rate", "id": "txtothvatrate", "kind": "pick", "verified": false},
+        {"key": "party_code", "id": "txtarmas", "kind": "pick", "settle": "txttopcode", "verified": false},
+        {"key": "credit_days", "id": "txttopcode", "kind": "text", "verified": false},
+        {"key": "ref_no", "id": "txtvatnum", "kind": "text", "verified": false},
+        {"key": "ref_date", "id": "txtvatdate", "kind": "date", "verified": false},
+        {"key": "delivery_date", "id": "txtdeliverydate", "kind": "date", "verified": false},
+        {"key": "defaults.branch", "id": "txtothcombrh", "kind": "pick", "verified": false},
+        {"key": "defaults.dept", "id": "txtothdept_h", "kind": "pick", "verified": false},
+        {"key": "defaults.job", "id": "txtothsuborder_h", "kind": "pick", "verified": false},
+        {"key": "defaults.employee", "id": "txtemp", "kind": "pick", "verified": false},
+        {"key": "defaults.party_branch", "id": "txtothcombrhcus", "kind": "pick", "verified": false}
+      ],
+      "lines": {"add_button": "btn-add", "code": "txtcode{n}", "store": "txtstore{n}", "qty": "txtamount{n}",
+                "unit": "txtunit{n}", "price": "txtprice{n}", "total": "txttotal{n}", "price_settle": true, "verified": false},
+      "discount_id": "txtdiscount",
+      "totals": {"before_vat": "txtbeforevat", "vat": "txtvat", "net": "txtnet"},
+      "save_id": "btnsave",
+      "party_id": "txtarmas",
+      "ref_id": "txtvatnum"
+    },
+    "arse": {
+      "verified": false,
+      "form": "arse/allform.php",
+      "view": "arse/allform.php?id={id}&status=vie",
+      "docnum": {"prefix_id": "txtdoctype", "number_id": "txtdocnum"},
+      "header": [
+        {"key": "docnum", "id": "txtdocnum", "kind": "text", "when": "editable", "verified": false},
+        {"key": "date", "id": "txtdate", "kind": "date", "verified": false},
+        {"key": "cash", "id": "chkcash", "kind": "check", "verified": false},
+        {"key": "vat_rate", "id": "txtothvatrate", "kind": "pick", "verified": false},
+        {"key": "party_code", "id": "txtarmas", "kind": "pick", "verified": false},
+        {"key": "ref_no", "id": "txtvatnum", "kind": "text", "verified": false},
+        {"key": "ref_date", "id": "txtvatdate", "kind": "date", "verified": false},
+        {"key": "delivery_date", "id": "txtdeliverydate", "kind": "date", "verified": false},
+        {"key": "defaults.branch", "id": "txtothcombrh", "kind": "pick", "verified": false},
+        {"key": "defaults.dept", "id": "txtothdept_h", "kind": "pick", "verified": false},
+        {"key": "defaults.job", "id": "txtothsuborder_h", "kind": "pick", "verified": false},
+        {"key": "defaults.employee", "id": "txtemp", "kind": "pick", "verified": false},
+        {"key": "defaults.party_branch", "id": "txtothcombrhcus", "kind": "pick", "verified": false}
+      ],
+      "lines": {"add_button": "btn-add", "code": "txtcode{n}", "store": "txtstore{n}", "qty": "txtamount{n}",
+                "unit": "txtunit{n}", "price": "txtprice{n}", "total": "txttotal{n}", "price_settle": true, "verified": false},
+      "discount_id": "txtdiscount",
+      "totals": {"before_vat": "txtbeforevat", "vat": "txtvat", "net": "txtnet"},
+      "receipt": {"cash_id": "txtcashpay", "total_id": "txttotalrec", "verified": false},
+      "save_id": "btnsave",
+      "party_id": "txtarmas",
+      "ref_id": "txtvatnum"
+    }
+  },
+  "dialogs": [
+    {"name": "kicked", "match": "มีผู้ Login ซ้ำ", "outcome": "kicked", "verified": false,
+     "_doc": "component/php/checkuseruse.php：同一账号在别处登录，本会话被踢回 logoutkick.php"},
+    {"name": "not_logged_in", "match": "กรุณา Login เข้าสู่ระบบ", "outcome": "kicked", "verified": false},
+    {"name": "bad_login", "match": "User หรือ Password ไม่ถูกต้อง", "outcome": "login_failed", "verified": false},
+    {"name": "period", "match": "วันที่ไม่อยู่ในรอบบัญชี|ย้อนหลังได้ถึง", "outcome": "blocked", "reason": "period_outside", "verified": false},
+    {"name": "required", "match": "^กรุณาป้อน|^ป้อน.*ให้ครบ|^กรุณาบันทึกรหัสสินค้า|ยอดสุทธิต้องมากกว่าหรือเท่ากับศูนย์", "outcome": "blocked", "reason": "recipe_mismatch", "verified": false,
+     "_doc": "allform.js::checknull 的必填提示：页面拦下、没有提交（存档前不落库）"},
+    {"name": "save_error", "match": "^Error", "outcome": "blocked", "reason": "unknown_screen", "verified": false,
+     "_doc": "allsave.php 写库出错（含 MR.ERP 自己拒收同号）：autocommit 关着、出错即回滚，没存上；第 0 步核对"}
+  ],
+  "saved_mark": "Save Success",
+  "timing": {"settle_s": 3.0, "save_s": 60.0, "list_s": 20.0}
+}

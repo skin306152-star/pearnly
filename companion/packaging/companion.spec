@@ -40,6 +40,11 @@ _hidden += [f"src.companion.express_operator.{name}" for name in (
     "contract", "draft", "recipe", "desk", "win32_desk", "bg_desk", "engine", "helper", "book", "precheck", "session",
     "credentials", "presence", "probe", "batch", "evidence", "host", "login_dialog", "scheduler", "menu")]
 _datas_operator = [("../src/companion/express_operator/recipes/*.json", "src/companion/express_operator/recipes")]
+# 代录 MR.ERP 网页（ADR-026，src/companion/mrerp_operator）：同样按需导入；网页内核只在 --mrerp-desk 子进程里用（已在包里，
+# 不加依赖）；配方是数据文件。
+_hidden += [f"src.companion.mrerp_operator.{name}" for name in (
+    "draft", "recipe", "web_desk", "web_driver", "session", "book", "engine", "presence", "host", "login")]
+_datas_operator += [("../src/companion/mrerp_operator/recipes/*.json", "src/companion/mrerp_operator/recipes")]
 
 a = Analysis(
     ["launcher_companion.py"],

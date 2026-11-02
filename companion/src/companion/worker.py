@@ -854,13 +854,13 @@ def _operator_heartbeat(cfg: CompanionConfig, qc, state: dict, on_update_availab
         return
     state["last_heartbeat"] = now
     try:
-        from .payload_contract import OPERATOR_TARGETS, SUPPORTED_PAYLOAD_VERSIONS
+        from .payload_contract import SUPPORTED_PAYLOAD_VERSIONS, operator_targets
         from .version import VERSION
 
         hb = qc.health(
             companion_version=VERSION,
             max_payload_version=max(SUPPORTED_PAYLOAD_VERSIONS),
-            operator_targets=list(OPERATOR_TARGETS),
+            operator_targets=list(operator_targets()),
             mrerp_logins=_mrerp_logins(cfg),
             mrerp_users=_mrerp_users(cfg),
         )
@@ -907,7 +907,7 @@ def _run_periodic(
         state["last_heartbeat"] = now
         try:
             from . import update_block
-            from .payload_contract import OPERATOR_TARGETS, SUPPORTED_PAYLOAD_VERSIONS
+            from .payload_contract import SUPPORTED_PAYLOAD_VERSIONS, operator_targets
             from .version import VERSION
 
             _adopt_machine_roots(cfg)
@@ -1028,7 +1028,7 @@ def _run_periodic(
                 companion_version=VERSION,
                 max_payload_version=max(SUPPORTED_PAYLOAD_VERSIONS),
                 # 能代录到哪些目标（ADR-026）：服务端只把 Express 以外目标的代录单派给报了它的电脑
-                operator_targets=list(OPERATOR_TARGETS),
+                operator_targets=list(operator_targets()),
                 # 这台电脑上已授权了这个站点哪些 MR.ERP 连接（ADR-026 第 7 条，只有连接号）
                 mrerp_logins=_mrerp_logins(cfg),
                 # 同一批连接的用户名（站点按「网址 + 用户名」给代录批次租账号，ADR-026 第 8 条；不报密码）

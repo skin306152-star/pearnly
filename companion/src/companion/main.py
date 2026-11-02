@@ -191,7 +191,13 @@ def main() -> int:
         help="无托盘 GUI 的 console 直写循环(测试/服务器)",
     )
     parser.add_argument("--window", action="store_true", help=argparse.SUPPRESS)  # CC 窗口进程(托盘拉起)
+    # MR.ERP 代录的网页窗口进程(ADR-026:每批由代录宿主拉起、录完退出;网页内核只在这里,托盘不加载)
+    parser.add_argument("--mrerp-desk", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.mrerp_desk:
+        from .mrerp_operator.web_driver import child_main
+
+        return child_main()
     if args.window:
         # CC 窗口进程(2026-10-18 轻量化):网页内核只在这里;不占单实例锁、不跑取任务,关窗口就退出
         from .window_main import run as run_window
