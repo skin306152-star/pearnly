@@ -212,7 +212,7 @@ name = "CC 桌面版机器通道（cc_desktop）"
 paths = ["apps/pearnly_core/pearnly_core/cc_desktop/**"]
 markers = ["pearnly_core.cc_desktop", "pearnly_core import cc_desktop", "pearnly_cc_desktop"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "companion/src/**/*.py"]
-entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel", "cc.operator.page", "erp.cc.companies"]
+entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel", "cc.operator.page", "erp.cc.companies", "erp.cc.chat-push"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py" = "只在注释里提到 cc_desktop.http_auth 的做法" }
 
 [[part]]
@@ -418,7 +418,7 @@ name = "CC 对话（assistant）"
 paths = ["apps/pearnly_core/pearnly_core/assistant/**"]
 markers = ["pearnly_core.assistant", "pearnly_core import assistant", "pearnly_assistant_tools", "pearnly_assistant_guidance", "pearnly_assistant_step_names", "pearnly_assistant_projects"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["control.assistant", "shared.assistant", "cowork.assistant", "cc.assistant", "cc.operator.thread", "erp.cc.companies"]
+entries = ["control.assistant", "shared.assistant", "cowork.assistant", "cc.assistant", "cc.operator.thread", "erp.cc.companies", "erp.cc.chat-push", "cowork.cc-chat.push"]
 
 [[part]]
 id = "tax-documents"
@@ -1989,6 +1989,15 @@ steps = "ERP 账号（两家公司、员工只见其一）打开 CC：侧栏「�
 expect = "只见本人可见的启用公司；只出 ERP 声明的分区；不调 Cowork 接口；知识库与待处理随事件更新"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_projects.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_companies.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_context.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/company_notes.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/pending.py"]
+
+[[entry]]
+id = "erp.cc.chat-push"
+product = "ERP"
+where = "ERP 版 CC 对话里直写（按公司列单、要选的项、记选择、交直写、推送结果、结果不明核对）"
+steps = "ERP 账号在 CC 对话里：列这家公司的单 / 推送结果、看一张停下的单要选的项、记选择、让 CC 交直写、核对结果不明的单；员工账号、别家公司、只读账号各试一次"
+expect = "只见本人可见公司、本人录入（员工）的单；交直写落到单据页「再写一次」/ 提交时排直写同一函数；代录中的单不接；没有电脑时停在等电脑"
+check = "offline"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "apps/pearnly_core/pearnly_core/assistant/direct_push.py"]
 
 [[entry]]
 id = "cowork.assistant"

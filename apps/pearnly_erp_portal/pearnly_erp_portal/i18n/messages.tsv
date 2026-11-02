@@ -1854,3 +1854,15 @@ Save this to the company's notes?	确定要将此内容记入公司知识库吗�
 Update this company note?	确定要修改此公司说明吗？	แก้ไขบันทึกบริษัทนี้ไหม	この会社メモを更新しますか？
 Remove this company note?	确定要删除此公司说明吗？	ลบบันทึกบริษัทนี้ไหม	この会社メモを削除しますか？
 Company notes	知识库	บันทึก	ノート	erp.company.notes
+Listed documents	查看了单据	ดูรายการเอกสารแล้ว	書類を一覧しました
+Listing documents	正在查看单据	กำลังดูรายการเอกสาร	書類を一覧しています
+Pushed documents	推送了单据	ส่งเอกสารแล้ว	書類を送信しました
+Pushing documents	正在推送单据	กำลังส่งเอกสาร	書類を送信しています
+Checked push choices	查看了推送前要选的项	ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว	送信前の選択項目を確認しました
+Checking push choices	正在查看推送前要选的项	กำลังตรวจสอบสิ่งที่ต้องเลือกก่อนส่ง	送信前の選択項目を確認しています
+Saved push choices	保存了推送选项	บันทึกตัวเลือกการส่งแล้ว	送信の選択を保存しました
+Saving push choices	正在保存推送选项	กำลังบันทึกตัวเลือกการส่ง	送信の選択を保存しています
+Confirmed a push result	确认了推送结果	ยืนยันผลการส่งแล้ว	送信結果を確定しました
+Confirming a push result	正在确认推送结果	กำลังยืนยันผลการส่ง	送信結果を確定しています
+Checked push results	查看了推送结果	ตรวจสอบผลการส่งแล้ว	送信結果を確認しました
+Checking push results	正在查看推送结果	กำลังตรวจสอบผลการส่ง	送信結果を確認しています

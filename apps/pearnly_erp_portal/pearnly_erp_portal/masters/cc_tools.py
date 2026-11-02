@@ -11,7 +11,7 @@ import re
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import projects
+from pearnly_core.assistant import direct_push, projects
 from pearnly_erp_portal.masters import cc_service as service
 from pearnly_erp_portal.masters import company_notes
 
@@ -35,8 +35,8 @@ def _session() -> str:
     return (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or ""
 
 
-def _filed() -> str:
-    """本对话挂的公司（没挂回空串）。"""
+def filed() -> str:
+    """本对话挂的公司（没挂回空串）；对话直写工具（`express.cc_tools`）也按它取缺省公司。"""
     session = _session()
     return projects.of_session(session)[0] if session else ""
 
@@ -70,14 +70,14 @@ def resolve(wanted, filed="", write=False) -> tuple:
 
 
 def _company(tool_input, write=False):
-    wanted, _reason = resolve(tool_input.get("company"), _filed(), write)
+    wanted, _reason = resolve(tool_input.get("company"), filed(), write)
     if not wanted or not service.can_see(wanted):
         return None
     return service.get(wanted)
 
 
 def _no_company(tool_input=None, write=False) -> str:
-    reason = resolve(tool_input.get("company"), _filed(), write)[1] if (tool_input or {}).get("company") else None
+    reason = resolve(tool_input.get("company"), filed(), write)[1] if (tool_input or {}).get("company") else None
     return _json({"status": "failed", "reason": reason or "no company: pass company (an id from erp_companies)"})
 
 
@@ -85,7 +85,7 @@ def company_refusal(tool_input) -> str | None:
     """写知识库的工具出「允许」卡片前：给的 company 认不出、或是别家的税号就不出卡片，直接回失败与原因。"""
     if not tool_input.get("company"):
         return None
-    _wanted, reason = resolve(tool_input.get("company"), _filed(), write=True)
+    _wanted, reason = resolve(tool_input.get("company"), filed(), write=True)
     return _json({"status": "failed", "reason": reason}) if reason else None
 
 
@@ -101,15 +101,16 @@ def profile(tool_input) -> str:
     if not row:
         return _no_company(tool_input)
     period = str(tool_input.get("period") or "")
-    if not period and _filed() == row.name:
+    if not period and filed() == row.name:
         session = _session()
         period = projects.of_session(session)[1] if session else ""
     found = service.detail(row.name, period or None)
     company = found["company"]
-    return _json({"company": {key: company.get(key) for key in ("id", "title", "tax_id", "branch", "created_at")},
-                  "vat_registered": row.vat_registered or "", "express": bool(row.express_enabled),
-                  "account_sets": found["account_sets"], "period": period, "period_set": found["period_set"],
-                  "notes": found["notes"]})
+    # 页面要 UTC（按设备时区显示）；交给 CC 的时间点换成用户当地时间，同对话里别的工具（共用层 `direct_push.local_time`）
+    return direct_push.dumps({"company": {key: company.get(key) for key in ("id", "title", "tax_id", "branch", "created_at")},
+                              "vat_registered": row.vat_registered or "", "express": bool(row.express_enabled),
+                              "account_sets": found["account_sets"], "period": period, "period_set": found["period_set"],
+                              "notes": found["notes"]}, utc=("created_at", "updated_at"))
 
 
 def note_save(tool_input) -> str:
@@ -167,7 +168,7 @@ TOOLS = [
      "description": "Read one company: tax ID, branch, VAT registration, whether its books are kept in Express, its "
                     "Express account sets (newest first, with fiscal period), the account set covering the work month "
                     "(period YYYY-MM) and all team notes (with ids). Without company it reads the company this "
-                    "conversation is filed under. Times are UTC.",
+                    "conversation is filed under. Times are the user's local time.",
      "input_schema": {"type": "object", "properties": {"company": COMPANY_PROP, "period": {"type": "string"}}},
      "handler": "pearnly_erp_portal.masters.cc_tools.profile"},
     {"name": "erp_company_note_save", "label": "Saved a company note",
