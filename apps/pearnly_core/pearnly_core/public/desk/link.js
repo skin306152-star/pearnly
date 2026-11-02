@@ -136,10 +136,13 @@
 	// 也不掺产品逻辑（产品逻辑进产品 App）。
 	p.scan_doctypes = null;
 	p.scan_link = null;
+	// 这一格自己的扫码动作（字段定义上的 `scan(control)`，例如盘点录入框：扫到就按本次盘点认物料、开录入，11-02）：
+	// 按钮照样放，点了走它，不看 `p.scan_doctypes`、不走 `p.scan_link`。
 	p.attach_scan_btn = control => {
+		const own = typeof control.df?.scan === "function";
 		const doctype = control.get_options ? control.get_options() : "";
-		if (!doctype || !Array.isArray(p.scan_doctypes) || !p.scan_doctypes.includes(doctype)) return;
-		if (typeof p.scan_link !== "function" || control.pearnly_scan_btn) return;
+		if (!own && (!doctype || !Array.isArray(p.scan_doctypes) || !p.scan_doctypes.includes(doctype))) return;
+		if ((!own && typeof p.scan_link !== "function") || control.pearnly_scan_btn) return;
 		// 只读的格子（查看一张已提交的单据）没有"扫一个进来"这回事。
 		if (control.df?.read_only) return;
 		// 筛选弹层里那一格不上扫码：那不是"选物料"的动作，格子也太窄。
@@ -157,7 +160,7 @@
 		button.on("click", event => {
 			event.preventDefault();
 			event.stopPropagation();
-			void p.scan_link(control);
+			void (own ? control.df.scan(control) : p.scan_link(control));
 		});
 		control.pearnly_scan_btn = button;
 	};

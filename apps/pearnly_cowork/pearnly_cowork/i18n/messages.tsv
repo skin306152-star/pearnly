@@ -793,14 +793,12 @@ Actual positions and quantities	实际仓位及数量	ตำแหน่งจ�
 Actual warehouse	实际仓库	คลังที่พบจริง	実際の倉庫	cowork.stock.workbench.actualWarehouse
 Add photos	添加照片	เพิ่มรูปภาพ	写真を追加	cowork.stock.workbench.addPhoto
 Book position	账面仓库／仓位	คลัง / ตำแหน่งตามบัญชี	帳簿上の倉庫・棚番	cowork.stock.workbench.bookPosition
-Scan barcode or QR code	扫描条形码或二维码	สแกนบาร์โค้ดหรือคิวอาร์โค้ด	バーコード・QRコードを読む	cowork.stock.workbench.camera
 Barcode, QR code or product code	条形码、二维码或物料编码	บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า	バーコード・QRコード・商品コード	cowork.stock.workbench.code
 Continuous counting	连续盘点	ตรวจนับต่อเนื่อง	連続棚卸	cowork.stock.workbench.continuous
 Finish	完成	เสร็จสิ้น	完了	cowork.stock.workbench.done
 Correct entry	修改记录	แก้ไขรายการ	記録を修正	cowork.stock.workbench.editEntry
 This item is also stocked at:	该物料在以下位置也有库存：	สินค้านี้มีสต็อกอยู่ที่ตำแหน่งต่อไปนี้ด้วย:	この商品は他の場所にも在庫があります:	cowork.stock.workbench.elsewhere
 Quantity counted this time	本次实盘数量	จำนวนที่นับครั้งนี้	今回の実地数量	cowork.stock.workbench.entryQty
-Find product	查找物料	ค้นหาสินค้า	商品を検索	cowork.stock.workbench.find
 Finish this count? {0} counted, {1} uncounted; the task becomes read-only.	确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项，结束后仅可查看和导出。	ต้องการปิดการตรวจนับนี้ใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดแล้วดูและส่งออกได้เท่านั้น	棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件で、終了後は閲覧とエクスポートのみ可能です。	cowork.stock.workbench.finishConfirm
 Position differences	仓位差异	ผลต่างตำแหน่ง	棚番の差異	cowork.stock.workbench.locationDiff
 Product not found. Check the code and try again.	未找到物料，请核对编码后重试。	ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง	商品が見つかりません。コードを確認してください。	cowork.stock.workbench.lookupFailed
@@ -816,7 +814,7 @@ Recount this product	重新盘点该物料	นับสินค้านี้�
 Void all current observations for this product and recount it? Previous records remain in the history.	确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。	ต้องการยกเลิกรายการนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ	この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。	cowork.stock.workbench.recountConfirm
 Remove	移除	ลบ	削除	cowork.stock.workbench.removePhoto
 Review differences	查看差异	ตรวจสอบผลต่าง	差異を確認	cowork.stock.workbench.review
-Save and next	保存并下一项	บันทึกและรายการถัดไป	保存して次へ	cowork.stock.workbench.saveNext
+Continue	继续	ดำเนินการต่อ	続ける	cowork.stock.workbench.saveNext
 Scan, enter the actual position and quantity, then save to continue.	扫码后填写实际位置和数量，保存后自动进入下一项。	สแกนแล้วระบุตำแหน่งจริงและจำนวน เมื่อบันทึกแล้วระบบจะไปยังรายการถัดไปโดยอัตโนมัติ	読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。	cowork.stock.workbench.scanHint
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.	部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。	สินค้าบางรายการมีการเคลื่อนไหวของสต็อกระหว่างการตรวจนับ กรุณาเปิดแถวที่ระบุและตรวจนับสินค้านั้นใหม่ก่อนปิดการตรวจนับ	棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。	cowork.stock.workbench.stockChanged
 Bank Reconciliation	银行对账	กระทบยอดธนาคาร	銀行照合	cowork.nav.reconBank

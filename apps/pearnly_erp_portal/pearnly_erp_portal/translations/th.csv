@@ -314,6 +314,7 @@ Contact Details,ข้อมูลติดต่อ
 Contact Person,ผู้ติดต่อ
 Contact email,อีเมลติดต่อ
 Contact person,ผู้ติดต่อ
+Continue,ดำเนินการต่อ
 Continuous counting,ตรวจนับต่อเนื่อง
 Conversion Factor,ตัวคูณแปลงหน่วย
 Copy card,คัดลอกการ์ด
@@ -2526,7 +2527,7 @@ stock.workbench.recount,ตรวจนับสินค้านี้ให�
 stock.workbench.recountConfirm,ต้องการยกเลิกรายการตรวจนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ
 stock.workbench.removePhoto,นำออก
 stock.workbench.review,ตรวจสอบผลต่าง
-stock.workbench.saveNext,บันทึกและรายการถัดไป
+stock.workbench.saveNext,ดำเนินการต่อ
 stock.workbench.scanHint,สแกน แล้วระบุตำแหน่งจริงและจำนวน จากนั้นบันทึกเพื่อไปยังรายการถัดไป
 stock.workbench.stockChanged,สินค้าบางรายการมีการเคลื่อนไหวของสต็อกระหว่างการตรวจนับ กรุณาตรวจนับสินค้าที่ทำเครื่องหมายไว้ใหม่ก่อนสิ้นสุดการตรวจนับ
 stock.workbench.title,หน้าปฏิบัติงานตรวจนับ

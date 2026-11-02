@@ -426,6 +426,7 @@ Connection or directory record not found.,Connection or directory record not fou
 Contact Email,Contact Email
 Content Hash,Content Hash
 Content Key,Content Key
+Continue,Continue
 Continues the scheduled task «{0}»; only files put in from now on are processed,Continues the scheduled task «{0}»; only files put in from now on are processed
 Continuous counting,Continuous counting
 Conversation,Conversation
@@ -2838,7 +2839,7 @@ cowork.stock.workbench.recount,Recount this product
 cowork.stock.workbench.recountConfirm,Void all current observations for this product and recount it? Previous records remain in the history.
 cowork.stock.workbench.removePhoto,Remove
 cowork.stock.workbench.review,Review differences
-cowork.stock.workbench.saveNext,Save and next
+cowork.stock.workbench.saveNext,Continue
 cowork.stock.workbench.scanHint,"Scan, enter the actual position and quantity, then save to continue."
 cowork.stock.workbench.stockChanged,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
 cowork.stocktake.col.actual_qty,Counted quantity

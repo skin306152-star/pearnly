@@ -314,6 +314,7 @@ Contact Details,联系方式
 Contact Person,联系人
 Contact email,联系邮箱
 Contact person,联系人
+Continue,继续
 Continuous counting,连续盘点
 Conversion Factor,换算系数
 Copy card,复制卡片
@@ -2526,7 +2527,7 @@ stock.workbench.recount,重新盘点该物料
 stock.workbench.recountConfirm,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。
 stock.workbench.removePhoto,移除
 stock.workbench.review,查看差异
-stock.workbench.saveNext,保存并下一项
+stock.workbench.saveNext,继续
 stock.workbench.scanHint,扫码后填写实际仓位和数量，保存后进入下一项。
 stock.workbench.stockChanged,部分物料在盘点期间发生库存变动，请重新盘点已标记的物料后再结束盘点。
 stock.workbench.title,盘点工作台

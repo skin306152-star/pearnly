@@ -378,9 +378,7 @@ Stock count workbench	盘点工作台	หน้าปฏิบัติงาน
 Continuous counting	连续盘点	ตรวจนับต่อเนื่อง	連続棚卸	stock.workbench.continuous
 Barcode, QR code or product code	条形码、二维码或物料编码	บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า	バーコード・QRコード・商品コード	stock.workbench.code
 Scan, enter the actual position and quantity, then save to continue.	扫码后填写实际仓位和数量，保存后进入下一项。	สแกน แล้วระบุตำแหน่งจริงและจำนวน จากนั้นบันทึกเพื่อไปยังรายการถัดไป	読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。	stock.workbench.scanHint
-Find product	查找物料	ค้นหาสินค้า	商品を検索	stock.workbench.find
 This item is also stocked at:	该物料还存放于：	สินค้านี้มีอยู่ที่อื่นด้วย:	この商品は他の場所にも在庫があります:	stock.workbench.elsewhere
-Scan barcode or QR code	扫描条形码或二维码	สแกนบาร์โค้ดหรือคิวอาร์โค้ด	バーコード・QRコードを読む	stock.workbench.camera
 Book position	账面仓库／仓位	คลัง / ตำแหน่งตามบัญชี	帳簿上の倉庫・棚番	stock.workbench.bookPosition
 Actual warehouse	实际仓库	คลังที่พบจริง	実際の倉庫	stock.workbench.actualWarehouse
 Actual position	实际仓位	ตำแหน่งที่พบจริง	実際の棚番	stock.workbench.actualLocation
@@ -388,7 +386,7 @@ Actual positions and quantities	实际仓位及数量	ตำแหน่งจ�
 Quantity counted this time	本次实盘数量	จำนวนที่นับครั้งนี้	今回の実地数量	stock.workbench.entryQty
 Correct entry	修改记录	แก้ไขรายการ	記録を修正	stock.workbench.editEntry
 Record a count	录入盘点	บันทึกการตรวจนับ	棚卸を入力	stock.workbench.record
-Save and next	保存并下一项	บันทึกและรายการถัดไป	保存して次へ	stock.workbench.saveNext
+Continue	继续	ดำเนินการต่อ	続ける	stock.workbench.saveNext
 Review differences	查看差异	ตรวจสอบผลต่าง	差異を確認	stock.workbench.review
 Product not found. Check the code and try again.	未找到物料，请核对编码后重试。	ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง	商品が見つかりません。コードを確認してください。	stock.workbench.lookupFailed
 Saved. Scan the next item.	已保存，请扫描下一项。	บันทึกแล้ว กรุณาสแกนรายการถัดไป	保存しました。次の商品を読み取ってください。	stock.workbench.nextReady

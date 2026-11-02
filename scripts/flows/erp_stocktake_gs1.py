@@ -14,6 +14,8 @@ import json
 import random
 import uuid
 
+from stocktake_lib import HAS_SCAN, SCAN, type_code
+
 TITLE = "ERP 盘点：GS1 Data Matrix 按条码认出、没有的 GTIN 当场新建"
 IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
 CAPTURE = ("window.__dlgs=window.__dlgs||[];if(!frappe.ui.Dialog.prototype.__cap){const o=frappe.ui.Dialog.prototype.show;"
@@ -67,11 +69,11 @@ def _start():
 
 def _look(name, raw):
     return {"name": name, "js": IDLE + "const d=window.__dlgs.find(x=>x.fields_dict.code)||cur_dialog; if(!d||!d.fields_dict.code) return {error:'no stocktake dialog'};"
-            f"d.set_value('code', {json.dumps(raw)}); await new Promise(r=>setTimeout(r,300)); d.fields_dict.find.$input.trigger('click');"
+            + type_code(json.dumps(raw)) +
             "await new Promise(r=>setTimeout(r,500)); await idle();"
             "document.querySelectorAll('.msgprint-dialog .btn-modal-close').forEach(b=>b.click());"
             "const btn=d.fields_dict.new_product; return {entry: d.fields_dict.qty.$wrapper.is(':visible'), product_name: d.get_value('product_name')||'',"
-            " new_button: !!(btn && btn.$wrapper.is(':visible')), message: (d.fields_dict.message.$wrapper.text()||'').trim().slice(0,200)};"}
+            " new_button: !!(btn && btn.$wrapper.is(':visible')), message: (d.fields_dict.message.$wrapper.find('p').text()||'').trim().slice(0,200)};"}
 
 
 def _save(name, qty):
@@ -82,8 +84,8 @@ def _save(name, qty):
 
 def steps(params, camera_code=None):
     if camera_code:
-        return [_start(), {"name": "扫 GS1 Data Matrix", "js": IDLE + "const d=cur_dialog; if(!d||!d.fields_dict.camera) return {error:'no camera'};"
-                           "d.fields_dict.camera.$input.trigger('click');"
+        return [_start(), {"name": "扫 GS1 Data Matrix", "js": IDLE + f"const d=cur_dialog; if(!d||!{HAS_SCAN}) return {{error:'no camera'}};"
+                           + SCAN +
                            "for(let k=0;k<80&&!d.fields_dict.qty.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();"
                            "return {entry: d.fields_dict.qty.$wrapper.is(':visible'), product_name: d.get_value('product_name')||''};"},
                 _save("保存", 4)]

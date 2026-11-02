@@ -111,6 +111,8 @@ jobs:
         run: python3 scripts/check-form-layout.py && python3 tests/test_check_form_layout.py
       - name: ERP and Cowork field descriptions sit in the info icon beside the label, not below the field (exceptions may only shrink)
         run: python3 scripts/check-field-help.py && node --test tests/test-desk-field-help.cjs
+      - name: Shared link boxes send new and advanced search to our pages, and carry the scan button the product or the field asks for
+        run: node tests/test-link-options.cjs
       - name: Endpoints reachable by GET do not write (Frappe does not commit GET requests; the mobile stocktake lookup lost its rows this way)
         run: python3 scripts/check-get-writes.py && python3 tests/test_check_get_writes.py
       - name: A ternary's else branch that uses || or ?? is parenthesised (unit registration lost scanned numbers to this precedence)

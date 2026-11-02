@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 import uuid
 
+from stocktake_lib import SCAN, type_code
+
 TITLE = "ERP 盘点：扫码 / 输码认出商品、出录入框、记数落库"
 
 
@@ -51,7 +53,16 @@ print(json.dumps({{r.name: r.internal_code or r.express_code or r.code or "" for
 """)
     for case in found:
         case["code"] = codes.get(case["product"] or "", "")
-    return {"count": out["count"], "company": company, "warehouse": warehouse, "cases": found}
+    # 打字选物料用的那件：本次盘点里有、别的用例没用到的（免得同一件记两条）；打它名称里的一段
+    typed = lab.python(manifest["site"], f"""
+row = frappe.db.sql("select product, product_name from `tabERP Stock Count Item` where `count`=%s and product not in %s "
+                    "order by product_name limit 1", ({out['count']!r}, {tuple(c['product'] for c in found if c['product']) or ('',)!r}),
+                    as_dict=True)
+print(json.dumps(row[0] if row else {{}}))
+""")
+    return {"count": out["count"], "company": company, "warehouse": warehouse, "cases": found,
+            "typed_product": typed.get("product"), "typed_name": typed.get("product_name") or "",
+            "typed": (typed.get("product_name") or "")[:6]}
 
 
 # 按条件等，不按固定时长（机器忙时请求慢，固定等待会在结果回来前点下一步）：请求都回来（jQuery 在途数连续两次为 0），最多 20 秒
@@ -71,22 +82,45 @@ def steps(params, camera_code=None):
         if camera_code and case["scan"] != camera_code:
             continue
         if camera_code:
-            find = ("d.fields_dict.camera.$input.trigger('click'); "
-                    "for (let k=0;k<80 && !d.fields_dict.qty.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();")
+            # 框内右侧的扫码图标开扫码器（用户 11-02：扫码器平时收起，点图标才开）
+            find = (SCAN + "for (let k=0;k<80 && !d.fields_dict.qty.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();")
         else:
-            find = (f"d.set_value('code', {json.dumps(case['scan'])}); await new Promise(r=>setTimeout(r,300)); "
-                    "d.fields_dict.find.$input.trigger('click'); await new Promise(r=>setTimeout(r,300)); await idle();")
+            # 扫码枪 / 手打的码：框里填上回车
+            find = type_code(json.dumps(case['scan'])) + "await idle();"
         out.append({"name": f"查找 {case['key']}", "js": IDLE + "const d=cur_dialog; if(!d||!d.fields_dict.code) return {error:'no stocktake dialog'}; "
                     + find + (
             "return {entry: d.fields_dict.qty.$wrapper.is(':visible'), product_name: d.get_value('product_name') || '', "
             "product_code: d.get_value('product_code') || '', warehouse: d.get_value('warehouse') || '', "
-            "message: (d.fields_dict.message.$wrapper.text()||'').trim().slice(0,200)};")})
+            "camera_open: d.fields_dict.video.$wrapper.is(':visible'), "
+            "message: (d.fields_dict.message.$wrapper.find('p').text()||'').trim().slice(0,200)};")})
         if case["expect"] == "entry":
             out.append({"name": f"保存 {case['key']}",
                         "js": IDLE + "const d=cur_dialog; if(!d||!d.fields_dict.qty.$wrapper.is(':visible')) return {error:'no entry to save'}; "
                               f"d.set_value('qty', {i + 2}); await new Promise(r=>setTimeout(r,300)); "
                               "d.get_primary_btn().trigger('click'); await new Promise(r=>setTimeout(r,300)); await idle(); "
-                              "return {saved: true, entry_after: d.fields_dict.qty.$wrapper.is(':visible')};"})
+                              "await new Promise(r=>setTimeout(r,800)); "
+                              # 点「继续」后：扫码来的那件自动再开扫码器，打字来的回到框里、不开相机（用户 11-02）
+                              "const camera_after = d.fields_dict.video.$wrapper.is(':visible'); "
+                              "if (camera_after) d.fields_dict.close_camera.$input.trigger('click'); await new Promise(r=>setTimeout(r,300)); "
+                              "return {saved: true, entry_after: d.fields_dict.qty.$wrapper.is(':visible'), camera_after, "
+                              "button: d.get_primary_btn().text().trim(), focus_code: document.activeElement === d.fields_dict.code.input, "
+                              "camera_closed: !d.fields_dict.video.$wrapper.is(':visible')};"})
+    if not camera_code and params.get("typed_product"):
+        # 打字找：框里打物料名称的一段，下拉出本次盘点的物料（服务端按页查），选中直接出这件的字段
+        out.append({"name": "打字选物料", "js": IDLE + "const d=cur_dialog; if(!d||!d.fields_dict.code) return {error:'no stocktake dialog'}; "
+                    "const c=d.fields_dict.code; c.$input.trigger('focus'); "
+                    f"c.$input.val({json.dumps(params['typed'])}); c.input.dispatchEvent(new Event('input', {{bubbles: true}})); "
+                    "for (let k=0;k<40 && !(c.awesomplete && c.awesomplete.ul && c.awesomplete.ul.children.length);k++) await new Promise(r=>setTimeout(r,250)); "
+                    "const items=[...(c.awesomplete?.ul?.children||[])].map(li=>(li.innerText||'').trim()); "
+                    f"const hit=[...(c.awesomplete?.ul?.children||[])].find(li=>(li.innerText||'').includes({json.dumps(params['typed_name'])})); "
+                    "if (hit) { hit.click(); } "
+                    "for (let k=0;k<40 && !d.fields_dict.qty.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle(); "
+                    "const shown={items, entry: d.fields_dict.qty.$wrapper.is(':visible'), product_name: d.get_value('product_name')||'', "
+                    "camera_open: d.fields_dict.video.$wrapper.is(':visible')}; "
+                    "if (shown.entry) { d.set_value('qty', 1); await new Promise(r=>setTimeout(r,300)); d.get_primary_btn().trigger('click'); "
+                    "await new Promise(r=>setTimeout(r,300)); await idle(); await new Promise(r=>setTimeout(r,500)); } "
+                    "return {...shown, camera_after: d.fields_dict.video.$wrapper.is(':visible'), "
+                    "focus_code: document.activeElement === d.fields_dict.code.input};"})
     return out
 
 
@@ -108,6 +142,25 @@ def judge(params, results, camera_code=None):
         else:
             ok = not seen.get("entry") and bool(seen.get("message"))
         checks.append({"case": case["key"], "scan": case["scan"], "expect": case["expect"], "seen": seen, "ok": ok})
+        if case["expect"] == "entry":
+            # 读到物料扫码器就关；点「继续」后：扫码来的自动再开扫码器，打字来的回到框里、不开相机（用户 11-02）
+            saved = (by_name.get(f"保存 {case['key']}") or {}).get("value") or {}
+            checks.append({"case": f"{case['key']}: scanner closed once the product shows", "seen": seen.get("camera_open"),
+                           "ok": seen.get("camera_open") is False})
+            after = {"camera_after": saved.get("camera_after"), "focus_code": saved.get("focus_code"),
+                     "camera_closed": saved.get("camera_closed")}
+            checks.append({"case": f"{case['key']}: continue reopens the scanner after a scan, else back to the box",
+                           "seen": after, "ok": (saved.get("camera_after") is True and saved.get("camera_closed") is True)
+                           if camera_code else (saved.get("camera_after") is False and saved.get("focus_code") is True)})
+    if not camera_code and params.get("typed_product"):
+        seen = (by_name.get("打字选物料") or {}).get("value") or {}
+        checks.append({"case": "typing lists products of this count and picking one opens its entry", "seen": seen,
+                       "ok": any(params["typed_name"] in item for item in seen.get("items") or [])
+                       and seen.get("entry") is True and seen.get("product_name") == params["typed_name"]
+                       and seen.get("camera_open") is False})
+        checks.append({"case": "after a typed item continue goes back to the box without the camera",
+                       "seen": {k: seen.get(k) for k in ("camera_after", "focus_code")},
+                       "ok": seen.get("camera_after") is False and seen.get("focus_code") is True})
     return checks
 
 
@@ -124,6 +177,25 @@ print(json.dumps([dict(r, qty=float(r.qty)) for r in rows]))
             continue
         hit = [r for r in rows if r["product"] == case["product"]]
         checks.append({"case": case["key"], "saved": hit, "ok": len(hit) == 1 and hit[0]["qty"] == float(i + 2)})
-    others = [r for r in rows if r["product"] not in {c["product"] for c in params["cases"] if c["expect"] == "entry"}]
+    typed = params.get("typed_product") if not camera_code else None
+    if typed:
+        hit = [r for r in rows if r["product"] == typed]
+        checks.append({"case": "typed pick saved", "saved": hit, "ok": len(hit) == 1 and hit[0]["qty"] == 1.0})
+    # 录入框的物料查询（服务端按页查）：没有盘点权限的岗位查不到；有权限的只回这一页条数以内
+    guard = lab.python(manifest["site"], f"""
+from pearnly_erp_portal.inventory import api
+out = {{}}
+for user in ("sales@erp.regression", "stock@erp.regression"):
+    frappe.set_user(user)
+    try:
+        out[user] = len(api.api_stock_count_product_search("ERP Product", "", "name", 0, 5, {{"count": {params['count']!r}}}))
+    except frappe.PermissionError:
+        out[user] = "denied"
+print(json.dumps(out))
+""")
+    checks.append({"case": "product search refused without stocktake rights, paged with them", "saved": guard,
+                   "ok": guard.get("sales@erp.regression") == "denied" and isinstance(guard.get("stock@erp.regression"), int)
+                   and 0 < guard["stock@erp.regression"] <= 5})
+    others = [r for r in rows if r["product"] not in {c["product"] for c in params["cases"] if c["expect"] == "entry"} | {typed}]
     checks.append({"case": "no stray entries", "saved": others, "ok": not others})
     return checks

@@ -426,6 +426,7 @@ Connection or directory record not found.,找不到此连接或目录记录。
 Contact Email,联系邮箱
 Content Hash,内容摘要
 Content Key,内容键
+Continue,继续
 Continues the scheduled task «{0}»; only files put in from now on are processed,接续定时任务「{0}」，只处理此后放入的文件
 Continuous counting,连续盘点
 Conversation,对话
@@ -2838,7 +2839,7 @@ cowork.stock.workbench.recount,重新盘点该物料
 cowork.stock.workbench.recountConfirm,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。
 cowork.stock.workbench.removePhoto,移除
 cowork.stock.workbench.review,查看差异
-cowork.stock.workbench.saveNext,保存并下一项
+cowork.stock.workbench.saveNext,继续
 cowork.stock.workbench.scanHint,扫码后填写实际位置和数量，保存后自动进入下一项。
 cowork.stock.workbench.stockChanged,部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。
 cowork.stocktake.col.actual_qty,实盘数量

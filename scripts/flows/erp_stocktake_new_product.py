@@ -15,6 +15,8 @@ from __future__ import annotations
 import json
 import uuid
 
+from stocktake_lib import SCAN, type_code
+
 TITLE = "ERP 盘点：扫到系统没有的码当场新建商品并记数"
 IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
 # 截住页面里打开的对话框（框架没有全局清单可取）
@@ -61,10 +63,7 @@ SEEN = ("const seen=(el)=>{if(!el||!el.offsetParent) return {shown:false};const 
 
 def steps(params, camera_code=None):
     code, name, internal = json.dumps(params["code"]), json.dumps(params["name"]), json.dumps(params["internal"])
-    if camera_code:
-        find = "d.fields_dict.camera.$input.trigger('click');"
-    else:
-        find = (f"d.set_value('code', {code}); await new Promise(r=>setTimeout(r,300)); d.fields_dict.find.$input.trigger('click');")
+    find = SCAN if camera_code else type_code(code)
     return [
         {"name": "开始盘点", "js": IDLE + CAPTURE +
          "const b=[...document.querySelectorAll('.page-head .primary-action, .page-head .btn-primary')].find(e=>e.offsetParent);"
@@ -78,7 +77,7 @@ def steps(params, camera_code=None):
          "await new Promise(r=>setTimeout(r,500)); await idle();"
          "return {new_button: seen(btn.$input[0]), prompt: $('.msgprint-dialog:visible, .modal.show .msgprint').length,"
          " camera_off: !d.fields_dict.video.$wrapper.is(':visible'),"
-         " message: (d.fields_dict.message.$wrapper.text()||'').trim().slice(0,200), entry: d.fields_dict.qty.$wrapper.is(':visible')};"},
+         " message: (d.fields_dict.message.$wrapper.find('p').text()||'').trim().slice(0,200), entry: d.fields_dict.qty.$wrapper.is(':visible')};"},
         {"name": "新建物料", "js": IDLE + SEEN + "const d=cur_dialog&&cur_dialog.fields_dict.code?cur_dialog:window.__dlgs.find(x=>x.fields_dict.code);"
          "const s=seen(d.fields_dict.new_product.$input[0]); if(!s.shown) return {error:'no new product button'};"
          "const n=window.__dlgs.length; document.elementFromPoint(s.cx,s.cy).click();"
@@ -94,7 +93,7 @@ def steps(params, camera_code=None):
          "for(let k=0;k<60&&!d.fields_dict.qty.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();"
          "return {...form, form_closed: !f.$wrapper.is(':visible'), entry: d.fields_dict.qty.$wrapper.is(':visible'),"
          " product_name: d.get_value('product_name')||'',"
-         " product_code: d.get_value('product_code')||'', message: (d.fields_dict.message.$wrapper.text()||'').trim(),"
+         " product_code: d.get_value('product_code')||'', message: (d.fields_dict.message.$wrapper.find('p').text()||'').trim(),"
          " code_label: d.fields_dict.product_code.df.label===__('product.col.internalCode'), category_shown: d.get_value('product_category')||'',"
          " attribute_shown: d.get_value('product_attribute')||'', edit_shown: d.fields_dict.edit_product.$wrapper.is(':visible'),"
          # 录入屏认出物料后的先后（岳父 11-01：条码、名称、分类、特性/颜色，再接编码）

@@ -121,7 +121,7 @@
 			if (params.get("pearnly_liff") === "scan" && request === sequence && active()) {
 				params.set("pearnly_liff", "1");
 				window.history.replaceState(null, "", window.location.pathname + (params.size ? `?${params}` : ""));
-				void entry_form(null, true);
+				void entry_form(null, true, null, true);
 			}
 		}
 		function open_list() {
@@ -330,8 +330,8 @@
 			const row = area_host.find(".dt-body .dt-row")[0]?.getBoundingClientRect().height;
 			if (row) fit(row);
 		}
-		function entry_form(row = null, continuous = false, entry = null) {
-			return p.stockCountEntry({ count, t, row, entry, continuous, on_saved: own_refresh,
+		function entry_form(row = null, continuous = false, entry = null, scan = false) {
+			return p.stockCountEntry({ count, t, row, entry, continuous, scan, on_saved: own_refresh,
 				on_done: () => filter?.set_value("differences") });
 		}
 		async function render_data() {

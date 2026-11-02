@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 import uuid
 
+from stocktake_lib import SCAN, type_code
+
 TITLE = "ERP 盘点：扫到网址码提示不是商品条码"
 URL = "https://appdb.tisi.go.th/Q/i.php?d=PEARNLYFLOW0001"
 PICTURE = "scripts/smoke/codes/qr-tis-url.png"
@@ -35,10 +37,7 @@ print(json.dumps({{"count": doc["name"], "products": frappe.db.count("ERP Produc
 
 
 def steps(params, camera_code=None):
-    if camera_code:
-        find = "d.fields_dict.camera.$input.trigger('click');"
-    else:
-        find = f"d.set_value('code', {json.dumps(URL)}); await new Promise(r=>setTimeout(r,300)); d.fields_dict.find.$input.trigger('click');"
+    find = SCAN if camera_code else type_code(json.dumps(URL))
     return [
         {"name": "开始盘点", "js": IDLE + CAPTURE +
          "const b=[...document.querySelectorAll('.page-head .primary-action, .page-head .btn-primary')].find(e=>e.offsetParent);"
@@ -47,10 +46,11 @@ def steps(params, camera_code=None):
          "await idle(); return b.innerText.trim();"},
         {"name": "扫网址码", "js": IDLE + "const d=cur_dialog; if(!d||!d.fields_dict.code) return {error:'no stocktake dialog'};"
          + find +
+         # 只认弹窗写的那一段提示（`<p>`）：这个 HTML 格里本来就有框架加的隐藏字段名（`tooltip-content`）
          "const box=d.fields_dict.message.$wrapper;"
-         "for(let k=0;k<80&&!(box.text()||'').trim();k++) await new Promise(r=>setTimeout(r,250));"
+         "for(let k=0;k<80&&!(box.find('p').text()||'').trim();k++) await new Promise(r=>setTimeout(r,250));"
          "await new Promise(r=>setTimeout(r,800)); await idle();"
-         "return {message: (box.text()||'').trim(), expected: __('This is not a product barcode'),"
+         "return {message: (box.find('p').text()||'').trim(), expected: __('This is not a product barcode'),"
          " new_button: d.fields_dict.new_product.$wrapper.is(':visible'), entry: d.fields_dict.qty.$wrapper.is(':visible'),"
          " prompt: $('.modal.show .msgprint').length, camera_on: d.fields_dict.video.$wrapper.is(':visible')};"},
     ]

@@ -19,6 +19,24 @@ TASK, ITEM, ENTRY, OPERATION = access.TYPES
 PHOTO_LIMIT = 5
 
 
+def search(task_id, txt="", start=0, page_len=20):
+    """录入框里打字找物料（原生选择框的服务端查询，按页取；用户 11-02）：只列本任务上传的行（Cowork 没有库存），
+    按名称 / 编码 / 条码模糊查。只读、不锁任务。回 `[行号, 名称, 编码 · 条码]`。"""
+    access.require()
+    task = frappe.db.get_value(TASK, service.contract(service.identifier, task_id), ["name", "workspace"], as_dict=True)
+    if not task:
+        service.fail("stocktake.not_found")
+    access.require(task.workspace)
+    text = str(txt or "").strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    rows = frappe.db.sql("""select name, product_name, product_code, barcode from `tabCowork Stocktake Item`
+        where task = %(task)s and workspace = %(workspace)s
+          and (product_name like %(like)s or product_code like %(like)s or barcode like %(like)s)
+        order by product_name, name limit %(start)s, %(page_len)s""",
+        {"task": task.name, "workspace": task.workspace, "like": f"%{text}%",
+         "start": max(0, int(start or 0)), "page_len": min(max(1, int(page_len or 20)), 50)}, as_dict=True)
+    return [[row.name, row.product_name, " · ".join(filter(None, (row.product_code, row.barcode)))] for row in rows]
+
+
 def lookup(task_id, code=None, item_id=None):
     """编码或条码（精确）→ 本任务里的那一行；打开已有行时直接给 item_id。"""
     task = service._task(task_id)

@@ -192,6 +192,14 @@ def api_stock_count_lookup(count, code=None, product=None):
             "stock_token": "", "warehouse_name": found["warehouse"] or ""}
 
 
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def api_stock_count_item_search(doctype, txt, searchfield, start, page_len, filters):
+    """盘点录入框的选择框查询（原生 Link 的 `get_query`，框架按页传 `start` / `page_len`）：本任务上传的行。"""
+    filters = frappe.parse_json(filters) if isinstance(filters, str) else (filters or {})
+    return counting.search(filters.get("count"), txt, start, page_len)
+
+
 def _recorded(entries, items):
     """这件货在本次盘点里**已经记过**的（谁、在哪、多少）：多人分区盘点时扫到别人盘过的货，
     当场看得见，免得同一架货被两个人各数一遍（用户 2026-10-15 多人协作口径）。"""

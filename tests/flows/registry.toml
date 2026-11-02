@@ -956,3 +956,21 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-choices.js",
   "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-folders.js",
 ]
+
+[[flow]]
+id = "cowork.stocktake.entry"
+title = "Cowork 盘点录入：一个框打字 / 输码 / 扫码，扫完自动接下一项（11-02）"
+module = "scripts/flows/cowork_stocktake_entry.py"
+product = "cowork"
+start = "/desk/pearnly-stocktake/{count}"
+user = "stocktake"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = true
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake-entry.js",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake.js",
+  "apps/pearnly_cowork/pearnly_cowork/stocktake/counting.py",
+  "apps/pearnly_cowork/pearnly_cowork/stocktake/desk_api.py",
+  "apps/pearnly_core/pearnly_core/public/desk/link.js",
+]

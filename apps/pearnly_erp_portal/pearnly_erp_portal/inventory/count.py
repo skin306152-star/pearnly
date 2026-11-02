@@ -1116,6 +1116,47 @@ def _record_revision(task, product, token=None):
     return current
 
 
+def _like(text) -> str:
+    """打进来的字原样当字面量查（`%`、`_`、`\\` 不当通配符）。"""
+    return str(text or "").strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def search_count_products(*, count, txt="", start=0, page_len=20) -> list:
+    """盘点录入框里打字找物料（原生选择框的服务端查询，按页取；用户 11-02）：本次盘点的物料，加上本盘点仓在库的物料
+    （盘点没指定仓时为本人能看的仓），按名称 / 编码 / 内部编码 / Express 编码 / 条码 / 二维码内容模糊查。
+    物料按公司分的口径同按码认（`products_of_code`）：只列这家公司 Express 的档和本地档。回 `[编号, 名称, 编码 · 条码]`。"""
+    guard.require("count.read")
+    task = _get(count)
+    company = count_company(count)
+    params = {"count": task.name, "like": f"%{_like(txt)}%",
+              "start": max(0, int(start or 0)), "page_len": min(max(1, int(page_len or 20)), 50)}
+    if task.warehouse:
+        params["warehouse"] = task.warehouse
+        in_stock = "`tabERP Stock Balance`.warehouse = %(warehouse)s"
+    else:
+        in_stock = company_access.warehouse_query("ERP Stock Balance")
+    if company:
+        params["company"] = company
+        owned = "(ifnull(`tabERP Product`.express_company, '') = '' or `tabERP Product`.express_company = %(company)s)"
+    else:
+        owned = company_access.product_query() or "1=1"
+    rows = frappe.db.sql(f"""
+        select `tabERP Product`.name, `tabERP Product`.product_name, `tabERP Product`.code, `tabERP Product`.internal_code,
+               `tabERP Product`.barcode
+        from `tabERP Product`
+        where (`tabERP Product`.name in (select product from `tabERP Stock Count Item` where `count` = %(count)s)
+               or (`tabERP Product`.is_active = 1 and `tabERP Product`.name in (
+                   select product from `tabERP Stock Balance` where qty_on_hand > 0 and {in_stock})))
+          and {owned}
+          and (`tabERP Product`.product_name like %(like)s or `tabERP Product`.code like %(like)s
+               or `tabERP Product`.internal_code like %(like)s or `tabERP Product`.express_code like %(like)s
+               or `tabERP Product`.barcode like %(like)s or `tabERP Product`.qr_payload like %(like)s)
+        order by `tabERP Product`.product_name, `tabERP Product`.name
+        limit %(start)s, %(page_len)s""", params, as_dict=True)
+    return [[row.name, row.product_name, " · ".join(filter(None, (row.internal_code or row.code, row.barcode)))]
+            for row in rows]
+
+
 def lookup_count(*, count, code=None, product=None):
     """查一个码/一个商品，准备录这一条：书上的行 + **别处还有多少**。
 

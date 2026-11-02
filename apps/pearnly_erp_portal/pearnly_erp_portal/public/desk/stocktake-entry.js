@@ -3,10 +3,12 @@
 	const p = frappe.pearnly, api = "pearnly_erp_portal.inventory.api.";
 	// 一条记录最多 5 张照片（服务端 `counts.PHOTO_LIMIT` 同值，它才是权威，这里只是先拦一下）。
 	const PHOTO_MAX = 5;
-	p.stockCountEntry = async ({ count, t, row, entry, continuous = false, on_saved, on_done }) => {
+	// `scan`：一打开就开扫码器（从 LINE 普通内置浏览器转到 LIFF 回来时，接着扫）
+	p.stockCountEntry = async ({ count, t, row, entry, continuous = false, scan = false, on_saved, on_done }) => {
 		let selected, lookup, request_id, scanner, busy = false, closed = false, camera = false;
-		// 查不到的那个码（相机扫到的不在编码栏里，「新建物料」用它）；`rescan`：为新建停了相机，记完下一件再开
-		let missing = "", rescan = false;
+		// 查不到的那个码（相机扫到的不在编码栏里，「新建物料」用它）；`scanned`：这一件是扫码来的，点「继续」后自动再开扫码器，
+		// 打字选的回到框里（用户 11-02）
+		let missing = "", scanned = false, last_code = "";
 		let last_place = null;
 		// `photos` 是本次要随记录提交的（桌面端上传后拿到 file_url，服务端再挂到这条记录上）；
 		// `existing` 是这条记录**已经有**的照片，只做只读预览（旧项目也没有删照片的入口）。
@@ -15,12 +17,16 @@
 		const w = key => t(`stock.workbench.${key}`);
 		const fields = [
 			{ fieldtype: "Section Break", fieldname: "scan_section" },
-			{ fieldtype: "Data", fieldname: "code", label: w("code"), description: w("scanHint") },
-			{ fieldtype: "Button", fieldname: "find", label: w("find"), click: () => match(d.get_value("code")) },
-			{ fieldtype: "Button", fieldname: "camera", label: w("camera"), click: () => start_camera() },
+			// 一个框（用户 11-02）：打字出本次盘点 + 本盘点仓在库的物料（原生选择框，服务端按页查），框内右侧扫码图标开扫码器；
+			// 扫码枪 / 手打编码回车按码认。扫码器平时收起，读到物料就关。
+			{ fieldtype: "Link", fieldname: "code", label: w("code"), description: w("scanHint"), options: "ERP Product",
+				only_select: true, ignore_link_validation: 1,
+				get_query: () => ({ query: api + "api_stock_count_product_search", filters: { count } }),
+				scan: () => void start_camera() },
 			{ fieldtype: "HTML", fieldname: "video", options: p.scan_stage(), hidden: 1 },
 			{ fieldtype: "Check", fieldname: "torch", label: __("product.scan.light"), hidden: 1,
 				change: () => scanner?.torch(Boolean(d.get_value("torch"))) },
+			{ fieldtype: "Button", fieldname: "close_camera", label: __("Close"), hidden: 1, click: () => close_camera() },
 			{ fieldtype: "HTML", fieldname: "message" },
 			// 扫到系统没有的码：当场建商品（有盘点录入权即可，服务端 `count.create_product_here`），建好接着记数
 			{ fieldtype: "Button", fieldname: "new_product", label: __("product.action.new"), hidden: 1,
@@ -93,11 +99,34 @@
 		// "…下一项或者完成"）。单条录入/修改时它仍是"查看差异"。
 		d.set_secondary_action_label(continuous ? w("done") : w("review"));
 		d.onhide = () => { closed = true; scanner?.stop(); };
-		d.fields_dict.code.$input.on("keydown", event => {
-			if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); void match(d.get_value("code")); }
+		const code = d.fields_dict.code;
+		// 框里带着盘点号查，原生下拉会多一行「已应用筛选 …」把盘点号露出来：这一格不要那一行
+		code.get_filter_description = async () => null;
+		// 下拉第二行只留「编码 · 条码」：框架对显示名称的选择框会把内部编号拼在最前面（Cowork 的行号是一串随机号）
+		const merge = code.merge_duplicates.bind(code);
+		code.merge_duplicates = rows => merge(rows).map(row => ({ ...row,
+			description: String(row.description || "").split(", ").filter(part => part !== row.value).join(", ") }));
+		// 回车：扫码枪 / 手打的码按码认（捕获阶段先于原生下拉，免得它把第一项当成选中）；用方向键挑了一项才交给原生选中
+		let navigated = false;
+		code.input.addEventListener("keydown", event => {
+			if (event.key === "ArrowDown" || event.key === "ArrowUp") { navigated = true; return; }
+			if (event.key !== "Enter" || event.isComposing) return;
+			if (navigated && code.awesomplete?.isOpened) return;
+			event.preventDefault(); event.stopImmediatePropagation();
+			code.awesomplete?.close();
+			scanned = false;
+			void match(String(code.$input.val() || "").trim());
+		}, true);
+		code.input.addEventListener("input", () => { navigated = false; });
+		// 从下拉里选了一件：直接开这件的录入
+		code.input.addEventListener("awesomplete-selectcomplete", event => {
+			const value = event.text?.value;
+			if (!value || String(value).endsWith("__link_option")) return;
+			scanned = false;
+			void match(null, value);
 		});
 		// A scanner's Enter finds the product; it must not submit the observation.
-		d.fields_dict.code.$input.off("keypress").on("keypress", event => {
+		code.$input.off("keypress").on("keypress", event => {
 			if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); }
 		});
 		function message(text) { d.fields_dict.message.$wrapper.empty().append($("<p class='text-muted'>").text(text)); }
@@ -271,7 +300,7 @@
 					// 系统里没有这个码（服务端照官方 POS 不弹提示框）：停相机、收起画面，「新建物料」就在查找框下面，
 					// 焦点放上去（岳父 11-01 手机上：提示框挡着、按钮在相机画面下面看不到）。换个码就再点相机或手动查找。
 					lookup = null; missing = code;
-					if (camera) { rescan = true; stop_camera(); }
+					stop_camera();
 					miss(__("No product matches this code"));
 					d.set_df_property("new_product", "hidden", 0);
 					d.fields_dict.new_product.$input.trigger("focus");
@@ -289,6 +318,7 @@
 				}
 				selected = lookup.product;
 				request_id = crypto.randomUUID();
+				stop_camera();  // 认出来了：扫码器关掉，直接出这件的字段
 				d.set_df_property("source_row", "options", lookup.rows.map(r => ({
 					value: r.name, label: `${r.warehouse_name} / ${r.location || t("stock.count.blank")} · ${p.number(r.book_qty)} ${r.unit || ""}`,
 				})));
@@ -353,21 +383,24 @@
 				await show_product(selected);
 			} });
 		}
-		async function start_camera() {
+		// `skip`：先跳过这个码，直到镜头里出现别的码（「继续」重开时镜头往往还对着刚盘的那件，免得马上又记一次）
+		async function start_camera(skip = "") {
 			if (scanner || closed) return;
 			// 安卓 LINE 普通内置浏览器里网页拿不到相机：直接转 LIFF 打开这份盘点并接着扫（LINE 弹原生授权），
 			// 这一页的扫码窗口随即关掉（LIFF 盖在它上面打开，关掉 LIFF 回来不留一个黑着的相机框）。
 			if (p.scan_liff_first(true)) { d.hide(); return; }
 			camera = true;
 			d.set_df_property("video", "hidden", false);
+			d.set_df_property("close_camera", "hidden", false);
 			scanner = p.scan_reader({ host: d.fields_dict.video.$wrapper, kind: "all",
-				on_result: code => match(code),
+				on_result: value => { scanned = true; last_code = value; return match(value); },
 				on_error: error => {
 					scanner?.stop(); scanner = null; camera = false;
 					// 在 LINE 普通内置浏览器里：转 LIFF 打开这份盘点并接着扫（LINE 会弹原生相机授权）。
 					if (p.scan_failure(error) === "in_line" && p.scan_to_liff(true)) { d.hide(); return; }
 					// 打不开就把黑框收起来，只留原因那一句（手动输入编码照常可用）。
 					d.set_df_property("video", "hidden", true); d.set_df_property("torch", "hidden", true);
+					d.set_df_property("close_camera", "hidden", true);
 					p.scan_hint(d.fields_dict.message.$wrapper, error, restart_camera);
 				},
 				// App 内置浏览器里 5 秒还没开相机（请求被挂着）：LINE 里转 LIFF，别的给原因、继续等。
@@ -378,11 +411,19 @@
 				on_started: () => d.fields_dict.message.$wrapper.empty(),
 			});
 			await scanner.start();
+			if (skip) scanner?.resume(skip);
 			d.set_df_property("torch", "hidden", !scanner?.has_torch());
 		}
 		function stop_camera() {
+			if (!camera && !scanner) return;
 			scanner?.stop(); scanner = null; camera = false;
 			d.set_df_property("video", "hidden", true); d.set_df_property("torch", "hidden", true);
+			d.set_df_property("close_camera", "hidden", true);
+		}
+		// 手动关掉扫码器：回到框里
+		function close_camera() {
+			stop_camera();
+			code.$input.trigger("focus");
 		}
 		// 去设置里开了权限再切回来：重开相机（`p.scan_hint` 只在需要去设置时调它）。
 		function restart_camera() {
@@ -398,12 +439,13 @@
 			editor(false); render_photos(); message(w("nextReady"));
 			render_elsewhere();   // 换下一条：别处那份提示也收起来
 			render_recorded();
-			if (camera) scanner?.resume();
-			else if (rescan) { rescan = false; void start_camera(); }
-			else d.fields_dict.code.$input.trigger("focus");
+			// 上一件是扫码来的：接着开扫码器；打字选的：回到框里
+			if (scanned) void start_camera(last_code);
+			else code.$input.trigger("focus");
 		}
 		editor(false);
 		if (row) await match(null, row.product);
-		else if (continuous) await start_camera();
+		else if (scan) await start_camera();
+		else if (window.matchMedia?.("(pointer: fine)").matches) code.$input.trigger("focus");
 	};
 })();

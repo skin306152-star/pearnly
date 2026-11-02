@@ -775,6 +775,14 @@ def api_stock_count_lookup(**kwargs):
     return counts.lookup_count(**_clean(kwargs))
 
 
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def api_stock_count_product_search(doctype, txt, searchfield, start, page_len, filters):
+    """盘点录入框的选择框查询（原生 Link 的 `get_query`，框架按页传 `start` / `page_len`）。"""
+    filters = frappe.parse_json(filters) if isinstance(filters, str) else (filters or {})
+    return counts.search_count_products(count=filters.get("count"), txt=txt, start=start, page_len=page_len)
+
+
 @frappe.whitelist(methods=["POST"])
 def api_stock_count_create_product(**kwargs):
     """盘点里扫到系统没有的码：当场建商品（有盘点录入权即可，`count.create_product_here`）。"""

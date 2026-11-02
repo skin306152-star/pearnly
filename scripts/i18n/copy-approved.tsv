@@ -201,3 +201,5 @@ assistant:OPERATOR.section.files	zh	资料	2026-10-27	docs/work/2026-10-26-expre
 assistant:OPERATOR.section.handle	zh	需要处理	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
 assistant:OPERATOR.stop	zh	停止	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
 assistant:OPERATOR.voidedNo	zh	已作废 {x}	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
+pearnly_cowork:cowork.stock.workbench.saveNext	zh	继续	2026-11-02	docs/work/2026-11-02-stocktake-scan-inline-评估.md
+pearnly_erp_portal:stock.workbench.saveNext	zh	继续	2026-11-02	docs/work/2026-11-02-stocktake-scan-inline-评估.md

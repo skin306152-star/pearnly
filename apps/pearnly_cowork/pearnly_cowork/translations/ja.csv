@@ -426,6 +426,7 @@ Connection or directory record not found.,接続またはディレクトリの�
 Contact Email,連絡先メールアドレス
 Content Hash,内容ハッシュ
 Content Key,内容キー
+Continue,続ける
 Continues the scheduled task «{0}»; only files put in from now on are processed,定期タスク「{0}」を引き継ぎ、今後追加されたファイルのみ処理します
 Continuous counting,連続棚卸
 Conversation,会話
@@ -2838,7 +2839,7 @@ cowork.stock.workbench.recount,この商品を再棚卸
 cowork.stock.workbench.recountConfirm,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
 cowork.stock.workbench.removePhoto,削除
 cowork.stock.workbench.review,差異を確認
-cowork.stock.workbench.saveNext,保存して次へ
+cowork.stock.workbench.saveNext,続ける
 cowork.stock.workbench.scanHint,読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
 cowork.stock.workbench.stockChanged,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
 cowork.stocktake.col.actual_qty,実地数量

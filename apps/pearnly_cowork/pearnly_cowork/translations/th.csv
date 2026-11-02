@@ -426,6 +426,7 @@ Connection or directory record not found.,ไม่พบการเชื่�
 Contact Email,อีเมลติดต่อ
 Content Hash,แฮชเนื้อหา
 Content Key,คีย์เนื้อหา
+Continue,ดำเนินการต่อ
 Continues the scheduled task «{0}»; only files put in from now on are processed,ต่อจากงานตามกำหนดเวลา «{0}» ประมวลผลเฉพาะไฟล์ที่วางหลังจากนี้
 Continuous counting,ตรวจนับต่อเนื่อง
 Conversation,การสนทนา
@@ -2838,7 +2839,7 @@ cowork.stock.workbench.recount,นับสินค้านี้ใหม่
 cowork.stock.workbench.recountConfirm,ต้องการยกเลิกรายการนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ
 cowork.stock.workbench.removePhoto,ลบ
 cowork.stock.workbench.review,ตรวจสอบผลต่าง
-cowork.stock.workbench.saveNext,บันทึกและรายการถัดไป
+cowork.stock.workbench.saveNext,ดำเนินการต่อ
 cowork.stock.workbench.scanHint,สแกนแล้วระบุตำแหน่งจริงและจำนวน เมื่อบันทึกแล้วระบบจะไปยังรายการถัดไปโดยอัตโนมัติ
 cowork.stock.workbench.stockChanged,สินค้าบางรายการมีการเคลื่อนไหวของสต็อกระหว่างการตรวจนับ กรุณาเปิดแถวที่ระบุและตรวจนับสินค้านั้นใหม่ก่อนปิดการตรวจนับ
 cowork.stocktake.col.actual_qty,จำนวนที่นับได้

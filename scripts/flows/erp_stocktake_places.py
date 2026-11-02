@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 import uuid
 
+from stocktake_lib import type_code
+
 TITLE = "ERP 盘点：连续盘点时实际仓位列出该仓的仓位"
 PLACES = ("FLOW-A1", "FLOW-B2")
 IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
@@ -54,8 +56,7 @@ def steps(params, camera_code=None):
             "await idle(); return b.innerText.trim();"}]
     for i, product in enumerate(params["products"]):
         out.append({"name": f"查找 {i + 1}", "js": IDLE + "const d=cur_dialog; if(!d||!d.fields_dict.code) return {error:'no stocktake dialog'};"
-                    f"d.set_value('code', {json.dumps(product['code'])}); await new Promise(r=>setTimeout(r,300));"
-                    "d.fields_dict.find.$input.trigger('click'); await new Promise(r=>setTimeout(r,300)); await idle();"
+                    + type_code(json.dumps(product['code'])) + "await idle();"
                     "for(let k=0;k<40&&!d.fields_dict.qty.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250));"
                     "return {entry: d.fields_dict.qty.$wrapper.is(':visible'), warehouse: d.get_value('warehouse')||''};"})
         # 人点实际仓位：官方 Autocomplete 获得焦点就按 get_query 去取选项；按这格当时的仓去取，报错会弹原生提示框

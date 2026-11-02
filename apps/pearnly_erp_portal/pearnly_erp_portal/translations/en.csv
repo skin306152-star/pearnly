@@ -314,6 +314,7 @@ Contact Details,Contact Details
 Contact Person,Contact Person
 Contact email,Contact email
 Contact person,Contact person
+Continue,Continue
 Continuous counting,Continuous counting
 Conversion Factor,Conversion Factor
 Copy card,Copy card
@@ -2526,7 +2527,7 @@ stock.workbench.recount,Recount this product
 stock.workbench.recountConfirm,Void all current observations for this product and recount it? Previous records remain in the history.
 stock.workbench.removePhoto,Remove
 stock.workbench.review,Review differences
-stock.workbench.saveNext,Save and next
+stock.workbench.saveNext,Continue
 stock.workbench.scanHint,"Scan, enter the actual position and quantity, then save to continue."
 stock.workbench.stockChanged,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
 stock.workbench.title,Stock count workbench

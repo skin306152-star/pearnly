@@ -37,7 +37,7 @@ function boot({ links = LINKS, can_create = true, company = 'CO-00552' } = {}) {
     get_options() { return this.df.options; }
     get_input_value() { return this.input_value || ""; }
     toggle_href() {}
-    make_input() {}
+    make_input() { this.input = { addEventListener() {} }; }
     show_link_and_clear_buttons() {}
     new_doc() { this.native_new_doc = true; return 'native'; }
     open_advanced_search() { this.native_advanced = true; return 'native'; }
@@ -85,7 +85,7 @@ function fakeLinkButton() {
     hide() { this.hidden = true; return this; },
     click() {
       let prevented = false;
-      this.handlers['click.pearnly']?.({preventDefault: () => { prevented = true; }});
+      this.handlers['click.pearnly']?.({preventDefault: () => { prevented = true; }, stopPropagation() {}});
       return prevented;
     },
   };
@@ -261,6 +261,28 @@ function fakeLinkButton() {
   const readonly_host = place(readonly);
   readonly.make_input();
   assert.equal(readonly_host.children.length, 0, '只读的格子（看一张已提交的单）不留扫码');
+
+  // 13) 这一格自己的扫码动作（字段定义上的 `scan`，盘点录入框，11-02）：不看 `p.scan_doctypes`，
+  //     按下走它、不走产品的 `p.scan_link`；Cowork 的盘点行也能挂。
+  const own_env = boot();
+  const own_calls = [];
+  own_env.p.scan_doctypes = ['ERP Product'];
+  own_env.p.scan_link = async control => { own_calls.push(['link', control.df.fieldname]); };
+  const own = new own_env.ControlLink({options: 'ERP Product', fieldname: 'code',
+    scan: control => own_calls.push(['own', control.df.fieldname])});
+  const own_host = place(own);
+  own.make_input();
+  own_host.children[0].click();
+  assert.deepEqual(own_calls, [['own', 'code']], '按下走这一格自己的动作');
+  const cowork_env = boot();   // Cowork：产品没声明 `scan_doctypes`，也没有 `scan_link`
+  const row_calls = [];
+  const row_box = new cowork_env.ControlLink({options: 'Cowork Stocktake Item', fieldname: 'code',
+    scan: () => row_calls.push('own')});
+  const row_host = place(row_box);
+  row_box.make_input();
+  assert.equal(row_host.children.length, 1, '没声明要扫的类也挂上');
+  row_host.children[0].click();
+  assert.deepEqual(row_calls, ['own']);
 
   console.log('test-link-options: 全部通过');
 })();

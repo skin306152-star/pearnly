@@ -314,6 +314,7 @@ Contact Details,連絡先
 Contact Person,担当者
 Contact email,連絡先メール
 Contact person,担当者
+Continue,続ける
 Continuous counting,連続棚卸
 Conversion Factor,換算係数
 Copy card,カードをコピー
@@ -2526,7 +2527,7 @@ stock.workbench.recount,この商品を再棚卸
 stock.workbench.recountConfirm,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
 stock.workbench.removePhoto,削除
 stock.workbench.review,差異を確認
-stock.workbench.saveNext,保存して次へ
+stock.workbench.saveNext,続ける
 stock.workbench.scanHint,読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
 stock.workbench.stockChanged,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
 stock.workbench.title,棚卸作業台
