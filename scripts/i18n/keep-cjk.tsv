@@ -175,15 +175,18 @@ apps/pearnly_core/pearnly_core/mrerp/masters.py	เงินฝาก	数据：�
 apps/pearnly_control/pearnly_control/www/ai.py	ไทย	语言切换里用该语言自己的文字写的语言名，不翻译（智能体入口 ADR-019）
 apps/pearnly_control/pearnly_control/www/ai.py	中文	语言切换里用该语言自己的文字写的语言名，不翻译（智能体入口 ADR-019）
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	CC 桌面版	给模型的正式名字：工具说明告诉模型 Windows 端在中文里叫什么（不进界面，模型照用户的语言说这个名字）
-apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	CC เดสก์ท็อป	给模型的正式名字：同上，泰文叫法
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	ทุกเจ้า	给模型的口径：会计员说「所有公司」的常用泰文说法（也能指所有商家），说明里点明它指所有公司（不进界面）
-apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	ทุกเจ้า, เจ้าอื่น	给模型的口径：会计员说「所有公司 / 别家」的泰文说法，公司对话里据此传 all_companies（不进界面）
-apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	บาท	给模型的口径：金额是泰铢，泰文里说 บาท（测试窗口第 3 轮 CC 说成「元」；不进界面）
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	泰铢	给模型的口径：同上，中文里说泰铢（不进界面）
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	元	给模型的口径：同上，点名不许说「元」（不进界面）
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	ต้องแก้ใน Express โดยตรง	给模型的口径：已入账的单不许说「要在 Express 里直接改」，泰文反例（第 6 轮测试 CC 原话；不进界面、不做输出过滤）
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	ไปแก้ใน Express	给模型的口径：同上，泰文反例「去 Express 改」（不进界面）
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	需要在 Express 里直接改	给模型的口径：同上，中文反例（不进界面）
+apps/pearnly_core/pearnly_core/assistant/direct_push.py	CC 桌面版	给模型的口径（共用层，Cowork 与 ERP 版 CC 同用一份；不进界面）：Windows 端在中文里的正式名字
+apps/pearnly_core/pearnly_core/assistant/direct_push.py	CC เดสก์ท็อป	给模型的口径（共用层，Cowork 与 ERP 版 CC 同用一份；不进界面）：Windows 端在泰文里的正式名字
+apps/pearnly_core/pearnly_core/assistant/direct_push.py	ทุกเจ้า, เจ้าอื่น	给模型的口径（共用层，Cowork 与 ERP 版 CC 同用一份；不进界面）：会计员说「所有公司 / 别家」的泰文说法，公司对话里据此传 all_companies
+apps/pearnly_core/pearnly_core/assistant/direct_push.py	บาท	给模型的口径（共用层，Cowork 与 ERP 版 CC 同用一份；不进界面）：金额是泰铢，泰文里说 บาท
+apps/pearnly_core/pearnly_core/assistant/direct_push.py	泰铢	给模型的口径（共用层，Cowork 与 ERP 版 CC 同用一份；不进界面）：金额是泰铢，中文里说泰铢
+apps/pearnly_core/pearnly_core/assistant/direct_push.py	元	给模型的口径（共用层，Cowork 与 ERP 版 CC 同用一份；不进界面）：点名不许说「元」
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	去 Express 改	给模型的口径：同上，中文反例（不进界面）
 apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py	ทุกเจ้า, เจ้าอื่น	给模型的口径：会计员说「所有公司 / 别家」的泰文说法，公司对话里据此传 all_companies（不进界面）
 apps/pearnly_cowork/pearnly_cowork/push/express/account_suggest.py	*	输入词：票面、会计员的话与 Express 科目名里的泰文费用关键词与泛词，按原字面认，翻了就认不出；不进界面（建议理由给模型，是英文）

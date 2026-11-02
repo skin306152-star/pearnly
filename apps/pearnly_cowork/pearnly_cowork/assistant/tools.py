@@ -12,13 +12,14 @@ import json
 import re
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
 import frappe
 from frappe import _
 
+from pearnly_core.assistant import direct_push
 from pearnly_cowork.access import scope
 from pearnly_cowork.connections import api as connections_api
 from pearnly_core.mrerp import needs as mrerp_needs
@@ -34,8 +35,8 @@ from pearnly_cowork.tax import wht as tax_contracts
 
 HISTORY = "Cowork OCR History"
 CONNECTION = "Cowork ERP Connection"
-PUSH_MAX = 20
-LIST_MAX = 50
+PUSH_MAX = direct_push.PUSH_MAX  # 一次推几张、列单一页几张：与 ERP 版 CC 同一份（共用层 `direct_push`）
+LIST_MAX = direct_push.LIST_MAX
 # 按方向筛、算合计时要看每张的主页面（方向、税前额、税额只在识别结果里）：在库里按页取、取一页丢一页的原文，
 # 最多看最新的这么多张；再多就说「只看了最新的」，请用日期缩小。
 LIST_SCAN_MAX = 2000
@@ -57,47 +58,13 @@ PUSHED_OR_ON_ITS_WAY = ["pending", "success"]
 # 工具结果里的时间点一律是用户当地时间（站点时区，同每次发话附给模型的「现在」`now_note`），写成 YYYY-MM-DD HH:MM
 # （同产品界面 `p.datetime_text`）；只有日期的照旧。2026-10-13 录屏：推送时间存的是 UTC（字段名就叫 Last Pushed At (UTC)），
 # 原样交出去，CC 把曼谷 15:40 推的说成「今天 08:40 推送成功」。
-# 库里两种存法：Frappe 的日期时间（creation、modified 与 now_datetime() 写的）是站点时区的裸时间，`_json` 直接换格式；
+# 换算规则与 ERP 版 CC 同一份（共用层 `direct_push.local_time`）：Frappe 的日期时间是站点时区的裸时间，直接换格式；
 # 推送账本、盘点、看板归档、MR.ERP 读取时刻、回读时刻等存的是 UTC（裸时间或带 Z 的字符串），由各工具在 `_json(utc=…)`
 # 里点名，换算一次，不会两次偏移。
-LOCAL_TIME = "%Y-%m-%d %H:%M"
-
-
-def _local_time(value, utc=False):
-    """一个时间点 → 站点时区的 YYYY-MM-DD HH:MM。带时区的按自己的时区换算；裸时间在 ``utc`` 时当 UTC，否则本来就是站点时区。
-    字符串按 ISO 写法读（T 或空格、可带秒、微秒、Z 或 ±hh:mm）；只有日期的、读不出的原样返回。"""
-    if isinstance(value, str):
-        text = value.strip()
-        if len(text) <= 10:
-            return value
-        try:
-            value = datetime.fromisoformat(text[:-1] + "+00:00" if text.endswith("Z") else text)
-        except ValueError:
-            return value
-    if not isinstance(value, datetime):
-        return value
-    if value.tzinfo is None and utc:
-        value = value.replace(tzinfo=timezone.utc)
-    if value.tzinfo is not None:
-        value = value.astimezone(ZoneInfo(frappe.utils.get_system_timezone())).replace(tzinfo=None)
-    return value.strftime(LOCAL_TIME)
-
-
-def _local_times(value, utc=(), local=(), key=None):
-    """整份结果里的时间点都过 `_local_time`：datetime 一律换（键在 ``utc`` 里的当 UTC）；字符串只换键在 ``utc`` 或
-    ``local`` 里的（别的字符串可能要原样交回，如看板卡片当版本号用的 modified）。"""
-    if isinstance(value, dict):
-        return {field: _local_times(item, utc, local, field) for field, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_local_times(item, utc, local, key) for item in value]
-    if isinstance(value, datetime) or (isinstance(value, str) and (key in utc or key in local)):
-        return _local_time(value, key in utc)
-    return value
-
-
-def _json(value, utc=(), local=()) -> str:
-    """交给模型的 JSON：时间点换成当地时间（见上）；``utc`` 点名存的是 UTC 的字段，``local`` 点名已是站点时区的时间字符串。"""
-    return json.dumps(_local_times(value, tuple(utc), tuple(local)), ensure_ascii=False, default=str)
+LOCAL_TIME = direct_push.LOCAL_TIME
+_local_time = direct_push.local_time
+_local_times = direct_push.local_times
+_json = direct_push.dumps
 
 
 # ---------------- 账套给人看的名字 ----------------
@@ -147,10 +114,7 @@ def _entered_note(status) -> dict:
 # Windows 端的正式名字，给模型说一次（四种语言；中文、泰文两段登记在 scripts/i18n/keep-cjk.tsv）：模型照用户的语言说
 # 这个名字，不自己意译。放在每轮都带的 GUIDANCE 里（第 7 批 B8，2026-10-18 lab：只写在 cowork_companion_status 的说明里时，
 # 排队回复照抄了结果提示里的英文「CC Desktop」），不再放在 cowork_companion_status 的说明里。
-CC_DESKTOP = ("The Windows program on the user's computer that reads their folders and writes into Express is "
-              "CC Desktop. Call it by its name in the user's language: CC Desktop in English, "
-              + "CC 桌面版" + " in Chinese, " + "CC เดสก์ท็อป" + " in Thai and CC デスクトップ in Japanese; "
-              "never by a generic description.")
+CC_DESKTOP = direct_push.cc_desktop("reads their folders and writes into Express")
 
 
 # 10-19 lab：CC 回答里露出「idmenu 68」。菜单编号、主档代码、字段名、账套键只用于后面的调用；对人说菜单名、默认值的名称
@@ -182,12 +146,9 @@ GUIDANCE = [
     "When you talk to the user, name an account set by its company name (the label or account_label in tool "
     "results), never by its folder code, path or key; use keys only in tool calls.",
     # 2026-10-13 录屏：推送时间按 UTC 交出去被说成当地时间；现在工具一律给当地时间（`_local_time`），说清楚别再换算
-    "Times in tool results are already the user's local time, on the same clock as the current time you are given; "
-    "say them as they are.",
+    direct_push.GUIDANCE_TIMES,
     # 2026-10-13 录屏：对话刚谈完 9 月，会计问「这个月还有哪些票卡着」，CC 按 10 月查、答「没有」。会计说的这个月是在做的那期
-    "'This month' in accounting work is the month being filed, not always the calendar month: a month already being "
-    "discussed in this conversation is the one meant; with none, early in a month it is usually last month's filing. "
-    "When unsure, confirm the month in one short question before looking anything up.",
+    direct_push.GUIDANCE_THIS_MONTH,
     # 2026-10-13 录屏：「9 月，所有公司」时 CC 沿用了上文那家公司的筛选，只回了一家（ทุกเจ้า 也能指所有商家，这里点明是所有公司）
     "When the user asks about all companies (" + "ทุกเจ้า" + ", all clients), leave out connection, account_set_key "
     "and search even if the conversation was about one company, pass all_companies true (a conversation filed under "
@@ -195,8 +156,7 @@ GUIDANCE = [
     "those with none.",
     # 2026-10-13 录屏：拍了简易税票说「这张是某公司的，文具费」，CC 只识别，说票上没有这家公司的名字、要推送请告诉公司名
     # 测试窗口第 3 轮：CC 把金额说成「元」。金额都是泰铢
-    "Amounts in tool results are Thai baht. Say the currency in the user's language (" + "บาท" + " in Thai, "
-    + "泰铢" + " in Chinese, THB or baht in English); never call it yuan or " + "元" + ".",
+    direct_push.GUIDANCE_BAHT,
     # 第 5 轮测试 8：推到 Express 后 CC 说「เลขที่เอกสารใน ERP」；入账后又叫人去待处理页检查或修改（已入账的不在待处理里）
     "Call the accounting program by its name, Express or MR.ERP (the one the account set uses); never say 'the ERP' or "
     "'ERP' for it. A document already entered there is done: never suggest checking or changing it on the pending "
@@ -212,11 +172,7 @@ GUIDANCE = [
     "only when the document names a different buyer.",
     # 2026-10-20 教程录制：问「ส่งครบทั้ง 8 ใบหรือยัง」，工具回了 8 张完整的单号与现赊，CC 的表格却多出一行只有「HP690901...」的
     # 残行，还把 RR690903-001（赊购）照自己先前的说法写成 HP690903-001 现购。表格、清单里的每一格都从这一轮工具结果里这张单的那一项抄
-    "When you list documents in a table or a list, build each row from that document's own entry in the latest tool "
-    "result: its number in Express (docnum), cash or credit, amounts and dates exactly as given there, never from "
-    "your earlier messages or from what you expected. Write one complete row per document, in the order you choose "
-    "before you start, and never leave a row unfinished or cut off with '...'. When an entry differs from what you "
-    "said earlier, say so plainly.",
+    direct_push.GUIDANCE_TABLE_ROWS,
     CC_DESKTOP,
     MRERP_GUIDANCE,
 ]
@@ -1023,8 +979,8 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None, ro
 # 只在推送线程里等（`toolrun.may_wait`）：网页请求线程、long 队列进程是全站共用的，那里执行时只读一次就回。
 # 为什么不做「结论到了再回填工具结果」：到点还没结论时要有人回「已排队」，那就得另起定时器（新轮询）或占着一个进程等，
 # 与这里等价却多一套状态；写账回报（ACK）的请求里也不该去调模型厂商的接口。
-PUSH_WAIT_SECONDS = 25
-PUSH_WAIT_STEP = 2
+PUSH_WAIT_SECONDS = direct_push.PUSH_WAIT_SECONDS
+PUSH_WAIT_STEP = direct_push.PUSH_WAIT_STEP
 PUSH_QUEUED_NOTE = ("queued: sent, but Express or MR.ERP has not reported a result yet (for Express, CC Desktop on that "
                     "computer may be offline: it is entered once CC Desktop is back; MR.ERP is written by Pearnly's "
                     "server, which is still importing it and finding it in the list in MR.ERP, with no computer involved). "
@@ -1033,9 +989,7 @@ PUSH_QUEUED_NOTE = ("queued: sent, but Express or MR.ERP has not reported a resu
                     "never say it was entered or recorded into Express or MR.ERP, not even at the start of the reply.")
 
 
-def _may_wait() -> bool:
-    """执行这次工具的地方能不能等（共用层 `toolrun.may_wait` 判定后放在对话信息里）；拿不到就不等。"""
-    return bool((getattr(frappe.local, "pearnly_assistant", None) or {}).get("may_wait"))
+_may_wait = direct_push.may_wait  # 执行这次工具的地方能不能等（与 ERP 版 CC 同一份）
 
 
 def _concluded(item, outcome) -> bool:
@@ -1384,9 +1338,7 @@ def _with_stop_target(out, target, key_field="push_account_set") -> dict:
     return placed
 
 
-def _filled(values: dict) -> dict:
-    """空值不给：模型会把「币种：未识别到」之类的空项当成要说的事。"""
-    return {key: value for key, value in values.items() if value not in (None, "", [], {})}
+_filled = direct_push.filled  # 空值不给（与 ERP 版 CC 同一份）
 
 
 FILES_ADDED_NOTE = ("Added to this conversation: the user opens them in the chat. They were not saved to any folder on "
@@ -2334,7 +2286,7 @@ def resolve_push_result(tool_input) -> str:
         frappe.clear_messages()
         return _json({"document": name, "status": "not_found"})
     if not doc.last_push_record:
-        return _json({"document": name, "status": "not_saved", "reason": "This document has no push to confirm."})
+        return _json(direct_push.not_saved(name, direct_push.NO_PUSH_TO_CONFIRM))
     try:
         result = application_api.resolve_unknown(doc.last_push_record, 1 if tool_input.get("entered") else 0,
                                                  str(tool_input.get("docnum") or "") or None)
@@ -2342,9 +2294,9 @@ def resolve_push_result(tool_input) -> str:
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
-        return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
-    return _json({"document": name, "status": "saved", "push": _filled(
-        {key: result.get(key) for key in ("status", "docnum", "reason")} if isinstance(result, dict) else {})})
+        return _json(direct_push.not_saved(name, str(error)[:300]))
+    return _json(direct_push.resolved(
+        name, {key: result.get(key) for key in ("status", "docnum", "reason")} if isinstance(result, dict) else {}))
 
 
 # ---------------- 删除记录、导出复核工作簿（同录入工作台列表） ----------------
@@ -4060,15 +4012,7 @@ def preview_mrerp_setup(tool_input) -> list:
 
 _OBJ = {"type": "object", "properties": {}}
 # 按公司可筛的读工具（单据列表、推送结果、定时任务）共用的两个参数，见 `company_tools.default_scope`
-SCOPE_PROPS = {
-    "company": {"type": "string", "description": "Company id from cowork_companies: only that company's account sets "
-                                                 "(all its years and branches). Leave out for the company this "
-                                                 "conversation is filed under."},
-    "all_companies": {"type": "boolean", "description": "true only when the user asks about all companies or other "
-                                                        "companies (" + "ทุกเจ้า, เจ้าอื่น" + "). Without it, a "
-                                                        "conversation filed under a company covers only that "
-                                                        "company's account sets."},
-}
+SCOPE_PROPS = direct_push.scope_props("cowork_companies", "account sets (all its years and branches)", "account sets")
 
 # 入账结果里的 written（推送记录冻结的 Express 载荷：现 / 赊、哪层定的、科目及其来源，`pushed.written`）：推送与查推送
 # 结果共用一段说明。验收 F19：CC 只拿到单号，答不出现购还是赊购，两次叫用户去 Express 核对；测试窗口第 2 轮：没报 ERP
@@ -4436,9 +4380,7 @@ TOOLS = [
          "invoice_date_to": {"type": "string", "description": "YYYY-MM-DD"},
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},
          "direction": {"type": "string", "enum": ["purchase", "sales"]},
-         "totals": {"type": "boolean"},
-         "offset": {"type": "integer", "minimum": 0},
-         "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX}, **SCOPE_PROPS}},
+         "totals": {"type": "boolean"}, **direct_push.page_props(LIST_MAX), **SCOPE_PROPS}},
      "handler": "pearnly_cowork.assistant.tools.list_documents"},
     {"name": "cowork_push_documents", "label": "Pushed documents",
      "description": "Push recognized documents to their accounting target (Express through CC Desktop, or MR.ERP), "
@@ -4448,8 +4390,8 @@ TOOLS = [
                     "entered (written into Express or MR.ERP; docnum is its document number there, tell it to the user), queued "
                     "(no result yet, or CC Desktop is offline: it is entered later; check with cowork_push_results "
                     "when the user asks; last_attempt_failed means a try did not go through and it is tried again), "
-                    "failed with a reason, unconfirmed with a reason (Express or MR.ERP may or may not have it: the user checks "
-                    "there, then record it with cowork_resolve_push_result; do not push it again), needs_choice "
+                    "failed with a reason, " + direct_push.unconfirmed_rule("Express or MR.ERP", "cowork_resolve_push_result")
+                    + ", needs_choice "
                     "(get the choices with cowork_push_choices, ask the user, save them and push again; for MR.ERP "
                     "it comes with mrerp_setup, the import menus or default values that account set still needs: "
                     "choose them with cowork_mrerp_setup instead), "
@@ -4468,7 +4410,7 @@ TOOLS = [
                     "each waits (a handling or other choice, a proposal to push, or not pushed yet) and that none of "
                     "them was pushed, as same_group_note says; push them only when the user asks. " + WRITTEN_NOTE,
      "input_schema": {"type": "object", "properties": {
-         "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": PUSH_MAX},
+         "documents": direct_push.documents_prop(PUSH_MAX),
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},
          "posting_kind": {"type": "string", "enum": ["service", "stock"], "description": "Express."}},
          "required": ["documents"]},
@@ -4511,18 +4453,12 @@ TOOLS = [
                     "with cowork_mrerp_setup.",
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
-         "items": {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {
-             "kind": {"type": "string"}, "subject": {"type": "string"}, "value": {"type": "string"},
-             "label": {"type": "string"}}, "required": ["kind", "value"]}}},
+         "items": direct_push.CHOICE_ITEMS},
          "required": ["document", "items"]},
      "handler": "pearnly_cowork.assistant.tools.save_push_choices"},
     {"name": "cowork_resolve_push_result", "label": "Confirmed a push result",
-     "description": "When a push result is unknown (Express or MR.ERP may or may not have it), record what the user "
-                    "found after checking there: entered true (with its document number there if they have it) or "
-                    "false, so it can be pushed again. Only with the user's own answer; never guess.",
-     "input_schema": {"type": "object", "properties": {
-         "document": {"type": "string"}, "entered": {"type": "boolean"}, "docnum": {"type": "string"}},
-         "required": ["document", "entered"]},
+     "description": direct_push.resolve_description("Express or MR.ERP"),
+     "input_schema": direct_push.RESOLVE_SCHEMA,
      "handler": "pearnly_cowork.assistant.tools.resolve_push_result"},
     {"name": "cowork_delete_documents", "label": "Deleted documents",
      "description": "Permanently delete documents from the Intake workbench with their original files, like Delete "
@@ -4924,9 +4860,8 @@ TOOLS = [
                     "it covers only that company's account sets (scope names it) unless all_companies is true. "
                     + WRITTEN_NOTE,
      "input_schema": {"type": "object", "properties": {
-         "push_state": {"type": "string", "enum": ["pending", "success", "failed"]},
-         "offset": {"type": "integer", "minimum": 0},
-         "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX}, **SCOPE_PROPS}, "required": ["push_state"]},
+         "push_state": {"type": "string", "enum": list(direct_push.RESULT_STATES)},
+         **direct_push.page_props(LIST_MAX), **SCOPE_PROPS}, "required": ["push_state"]},
      "handler": "pearnly_cowork.assistant.tools.list_documents"},
     {"name": "cowork_folder_tasks", "label": "Checked scheduled tasks",
      "description": "List the scheduled folder tasks (scan a folder on the user's PC, recognize new files and push them), "
