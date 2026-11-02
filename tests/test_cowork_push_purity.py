@@ -5,7 +5,7 @@ from pathlib import Path
 import unittest
 
 
-PURE_ROOT = {"__init__.py", "export_actions.py", "lifecycle.py", "receipts.py", "retry.py"}
+PURE_ROOT = {"__init__.py", "export_actions.py", "lifecycle.py", "retry.py"}
 # Root modules with explicit framework/IO duties are acknowledged, not scanned
 # for purity. export_facts reads the native ledger through Frappe; choices stores the
 # accountant's per-account-set decisions (the rules are pure: push/express/choices.py).
@@ -48,7 +48,11 @@ class PurePushBoundary(unittest.TestCase):
                     self.assertTrue(name.split(".")[0] in allowed or name.startswith((
                         "pearnly_cowork.contracts", "pearnly_cowork.push.express",
                         "pearnly_cowork.push.lifecycle", "pearnly_cowork.push.retry",
-                        "pearnly_core.express_rules.receipts", "pearnly_cowork.targets",
+                        "pearnly_cowork.targets",
+                        # 共用层的纯函数包（ADR-025：Express 写账规则与回执口径，2026-10-23 由本域搬去；只依赖标准库与
+                        # 票种决策表）与 MR.ERP「单号已存在」的判定（`retry` 从这里取，2026-11-02）。
+                        "pearnly_core.express_rules", "pearnly_core.cc_desktop.wire.ack_rules",
+                        "pearnly_core.mrerp.push.duplicates",
                         # 全平台共用的票种决策表（ADR-0012），本身只依赖标准库（tests/test_tax_documents.py 核对）。
                         "pearnly_core.tax_documents")),
                         f"{path.relative_to(root)}:{node.lineno}: non-pure dependency {name}")

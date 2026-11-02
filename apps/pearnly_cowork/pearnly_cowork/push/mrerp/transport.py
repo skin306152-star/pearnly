@@ -31,6 +31,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pearnly_core.session_lock import account_lock
 from pearnly_core.express_rules.contracts.push import explicit_direction
+from pearnly_core.mrerp.push.duplicates import is_already_pushed_error
 from pearnly_cowork.connections.mrerp_session import MrErpSession, SessionError, lock_key
 from pearnly_cowork.connections.mrerp_master_reader import MasterReader
 from pearnly_cowork.push.mrerp import readback, routing
@@ -49,7 +50,6 @@ from pearnly_cowork.push.mrerp.preview_parse import TAGSTRIP_RE, parse_preview_f
 from pearnly_cowork.push.mrerp.report_parse import parse_master_report
 from pearnly_cowork.push.mrerp.report_parser import parse_import_report
 from pearnly_cowork.push.mrerp.xlsx import generator as _gen
-from pearnly_cowork.push.retry import is_already_pushed_error
 from pearnly_cowork.targets import mrerp_menus
 
 logger = logging.getLogger(__name__)

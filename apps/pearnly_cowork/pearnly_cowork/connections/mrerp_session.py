@@ -17,8 +17,9 @@ import socket
 from urllib.parse import urljoin, urlsplit
 
 import requests
+from pearnly_core.mrerp.urls import validate_url
 
-from . import model, mrerp_catalog
+from . import mrerp_catalog
 
 TIMEOUT_SECONDS = 30
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -44,10 +45,10 @@ class SessionError(Exception):
 def public_host(url):
     """系统地址只许解析到公网（挡内网 / 回环 / 链路本地 / 元数据），返回主机名。"""
     try:
-        model.validate_url(url)
+        validate_url(url)
         host = (urlsplit(url).hostname or "").lower().rstrip(".")
         infos = socket.getaddrinfo(host, None)
-    except (model.ConnectionError, ValueError):
+    except ValueError:
         raise SessionError("ERR_URL_BLOCKED", url) from None
     except OSError as exc:
         raise SessionError("ERR_TECHNICAL", f"resolve {url}: {exc}") from None

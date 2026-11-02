@@ -6,6 +6,8 @@ import json
 from urllib.parse import urlsplit
 from uuid import NAMESPACE_URL, uuid5
 
+from pearnly_core.mrerp.urls import validate_url as _validate_system_url
+
 CONFIG_KEYS = frozenset((
     "system_url", "comidyear", "seldb", "account_set", "account_dir", "express_root",
     "account_company", "account_set_row", "revenue_acc", "ar_acc", "vat_output_acc",
@@ -97,24 +99,13 @@ def pool_config(adapter, config):
 
 
 def validate_url(value):
-    """Storage syntax guard. Outbound adapters must separately pin public DNS."""
+    """Storage syntax guard. Outbound adapters must separately pin public DNS.
+
+    规则在共用层 `pearnly_core.mrerp.urls`（2026-11-02 搬去，MR.ERP 会话与 ERP 共用）；这里照旧抛本域的错误码。"""
     try:
-        parsed = urlsplit(value)
-        host = (parsed.hostname or "").lower().rstrip(".")
-        port = parsed.port
-    except (TypeError, ValueError):
-        raise ConnectionError("connection.url_invalid") from None
-    if (parsed.scheme not in {"http", "https"} or not host or parsed.username or parsed.password
-            or parsed.fragment or host in {"localhost", "metadata", "metadata.google.internal"}
-            or host.endswith((".localhost", ".local", ".internal")) or "." not in host):
-        raise ConnectionError("connection.url_invalid")
-    try:
-        address = ipaddress.ip_address(host)
+        return _validate_system_url(value)
     except ValueError:
-        address = None
-    if address and not address.is_global:
-        raise ConnectionError("connection.url_invalid")
-    return value
+        raise ConnectionError("connection.url_invalid") from None
 
 
 def preparation(value):
