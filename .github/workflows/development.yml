@@ -237,6 +237,8 @@ jobs:
         run: python3 tests/test_assistant_entry.py
       - name: Verify the Cowork assistant tools (declarations, translations, push request keys, filters)
         run: python3 tests/test_cowork_assistant_tools.py
+      - name: The Cowork chat push tools stay byte-identical to their golden sample (declarations, guidance, results)
+        run: python3 tests/test_cowork_push_tools_golden.py
       - name: Verify human pushes retry a writer lock conflict (MariaDB 1020 / 1213) as one whole transaction, then give the formal reason
         run: python3 tests/test_cowork_push_conflicts.py
       - name: Verify CC Desktop's computer-side transactions (register, heartbeat, lease / ack, computers, on-demand requests) retry 1020 / 1213 through the same mechanism
