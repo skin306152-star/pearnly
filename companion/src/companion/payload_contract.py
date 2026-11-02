@@ -42,7 +42,7 @@ from typing import Optional
 # 16：代录 Express（``entry_mode = operator``，评估 docs/work/2026-10-26-express-operator-product-评估.md）：同一份载荷不直写 DBF，
 # 交给代录在 Express 界面里一张张录，带 ``operator.batch``（批次号、第几张 / 共几张、开始时刻）与 ``operator.vat_included``。
 # 旧版会把它当直写写进 DBF（入口分开的口径就破了），所以盖 16，旧版诚实拒收、派单只交给报过支持 16 的电脑。
-# 17：明细行可带按台号码 ``remarks``（来源拼好的说明，每条 ≤ 50 字节、一行 ≤ 10 条）：写进 Express 单据附加说明 ARTRNRM，挂在那一行下面
+# 17：明细行可带按台号码 ``remarks``（来源拼好的说明，每条 ≤ 50 字节）：写进 Express 单据附加说明 ARTRNRM，挂在那一行下面
 # （dbf_remarks，评估 docs/work/2026-11-02-vehicle-artrnrm-评估.md）。旧版不认这个键、税票上没有车号，所以盖 17，旧版诚实拒收。
 SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17})
 OPERATOR_PAYLOAD_VERSION = 16

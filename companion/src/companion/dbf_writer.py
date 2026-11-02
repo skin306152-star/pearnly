@@ -791,7 +791,7 @@ def _located(locations, moves=None) -> dict:
 
 
 def remarks_problem(entry) -> Optional[tuple]:
-    """按台号码(明细行 ``remarks``,载荷 17)写前查:每条 ≤ 50 字节、一行 ≤ 10 条;带号的单必须写得出明细(说明挂在明细行下)。
+    """按台号码(明细行 ``remarks``,载荷 17)写前查:每条 ≤ 50 字节;带号的单必须写得出明细(说明挂在明细行下)。
     采购 / 销售共用,有问题回 ``(错误码, 说明)``。"""
     if dbf_remarks.any_remarks(entry.items) and entry.items_status != "ok":
         return ERR_VALIDATION, f"remarks need detail lines (items_status={entry.items_status})"

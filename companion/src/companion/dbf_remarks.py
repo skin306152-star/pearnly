@@ -7,7 +7,8 @@ S 盘副本 1,040 本、962 万条只读统计，11-02）：
 
 - 一条说明 = 一行：``DOCNUM`` = 单号、``SEQNUM`` C(8) = 明细行号**右对齐 3 位再补空格到 8 位**（「  1     」；「@n」是整单说明，
   这里不写）、``REMARK`` C(50)；同一行的几条按顺序排；只写这张表，单头 / 明细不多任何字段。进货、销售、库存单共用这一张表。
-- 一行最多 10 条（界面上限；962 万条里没有一行超过 10）。
+- 界面一行最多录 10 条（962 万条里没有一行超过 10），但表里多于 10 条 Express 照样打开、打印（明细区满了续到下一页）、编辑保存
+  不重写说明（69EXP\\TEST 实录 HP691102-002 一行 12 条，11-02），所以不设条数上限。
 - 每本账套都有 ``ARTRNRM.CDX``（标签 DOCNUM+SEQNUM）：调用方把 :data:`TABLE` 放进写前备份与重建索引的表。
 - 作废：OU / JU / IV / RR / SR 等把这张单的行说明打删除标记（字段不改），调拨 RL 原生保留（统计 157 留 : 5 删）。
 
@@ -27,10 +28,8 @@ from . import dbf_schema as S
 TABLE = "ARTRNRM"
 KEY = "remarks"
 MAX_BYTES = 50  # REMARK C(50)
-MAX_PER_LINE = 10  # 界面上限，原生从没超过
 
 ERR_TOO_LONG = "FIELD_TOO_LONG"
-ERR_TOO_MANY = "REMARKS_TOO_MANY"
 
 
 class RemarkError(Exception):
@@ -60,12 +59,9 @@ def tables(items: Iterable) -> Tuple[str, ...]:
 
 
 def problem(items: Iterable) -> Optional[Tuple[str, str]]:
-    """写前查：每条 ≤ 50 字节（cp874）、一行 ≤ 10 条。有问题回 ``(错误码, 说明)``，整单不写。"""
+    """写前查：每条 ≤ 50 字节（cp874）。有问题回 ``(错误码, 说明)``，整单不写。"""
     for index, item in enumerate(items or [], start=1):
-        texts = of_item(item)
-        if len(texts) > MAX_PER_LINE:
-            return ERR_TOO_MANY, f"line {index} has {len(texts)} remarks (max {MAX_PER_LINE})"
-        for text in texts:
+        for text in of_item(item):
             if len(text.encode(S.CODEPAGE, "replace")) > MAX_BYTES:
                 return ERR_TOO_LONG, f"line {index} remark exceeds {MAX_BYTES} bytes: {text!r}"
     return None
@@ -170,6 +166,6 @@ def void(account_dir, docnum: str) -> int:
         table.close()
 
 
-__all__ = ["ERR_TOO_LONG", "ERR_TOO_MANY", "KEY", "MAX_BYTES", "MAX_PER_LINE", "RemarkError", "TABLE", "Written",
+__all__ = ["ERR_TOO_LONG", "KEY", "MAX_BYTES", "RemarkError", "TABLE", "Written",
            "any_remarks", "append", "check", "has_line_remarks", "of_item", "planned", "problem", "seqnum_text", "tables", "verify", "void",
            "write"]

@@ -164,7 +164,9 @@ def check(acct: Path) -> dict:
                                       "ref_no": "IS-REMARK", "items": [{"code": code1, "name": name1, "qty": "1", "unit": "",
                                                                         "remarks": PHONE}]},
                                      acct, selected_dir=str(acct), make_backup=False)
-        if not issue.ok:
+        if not issue.ok and issue.error_code in ("ACCOUNT_NOT_POSTABLE", "STOCK_INSUFFICIENT", "STOCK_BOOK_MISSING"):
+            issue = None  # 这本账套的领用单据簿 / 库存不合格（与附加说明无关）：领用这一段跳过
+        elif not issue.ok:
             problems.append(f"issue {issue.error_code}: {issue.error}")
             issue = None
     if issue is not None:

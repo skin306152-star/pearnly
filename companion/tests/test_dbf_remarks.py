@@ -39,11 +39,11 @@ def test_items_without_remarks_touch_nothing():
     assert R.problem(items) is None
 
 
-def test_problem_rejects_long_and_too_many():
+def test_problem_rejects_a_remark_longer_than_the_field_but_not_many_remarks():
     assert R.problem([{"remarks": ["ก" * 50]}]) is None  # 泰文一字一字节（cp874）
     assert R.problem([{"remarks": ["x" * 51]}])[0] == R.ERR_TOO_LONG
-    assert R.problem([{"remarks": [str(n) for n in range(10)]}]) is None
-    assert R.problem([{}, {"remarks": [str(n) for n in range(11)]}])[0] == R.ERR_TOO_MANY
+    # 一行多于 10 条：Express 照样打开、打印续页、编辑保存不重写（69EXP\TEST 实录 11-02），不拦
+    assert R.problem([{}, {"remarks": [str(n) for n in range(12)]}]) is None
 
 
 def test_append_writes_native_bytes_in_order_and_verifies(blank):
@@ -115,12 +115,18 @@ def test_without_remarks_the_book_is_byte_for_byte_what_it_was(acct, tmp_path):
     assert _raw(acct) == []
 
 
-@pytest.mark.parametrize("remarks, code", [(["x" * 51], R.ERR_TOO_LONG), ([str(n) for n in range(11)], R.ERR_TOO_MANY)])
-def test_remarks_that_express_cannot_hold_write_nothing(acct, remarks, code):
+def test_a_remark_express_cannot_hold_writes_nothing(acct):
     before = _state(acct)
-    res = _buy(acct, _purchase([_item("ICE01", 1, 900.0, "stock_item", remarks=remarks)]))
-    assert not res.ok and res.error_code == code
+    res = _buy(acct, _purchase([_item("ICE01", 1, 900.0, "stock_item", remarks=["x" * 51])]))
+    assert not res.ok and res.error_code == R.ERR_TOO_LONG
     assert _state(acct) == before
+
+
+def test_more_than_ten_remarks_on_a_line_are_all_written(acct):
+    remarks = [f"S/N TEST-{n:02d}" for n in range(1, 13)]
+    res = _buy(acct, _purchase([_item("ICE01", 1, 900.0, "stock_item", remarks=remarks)]))
+    assert res.ok, res.error
+    assert [text for _s, text, _d in _remarks(acct, res.docnum)] == remarks
 
 
 def test_a_failed_remark_readback_rolls_the_whole_document_back(acct, monkeypatch):
