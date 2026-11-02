@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 
 from desk_list import ACTION, IDLE
@@ -62,20 +63,24 @@ def steps(params, camera_code=None):
          "return {file_name: d.get_value('file_name')||''};"},
         {"name": "导入", "js": IDLE + "const d=cur_dialog; if(!d||!d.fields_dict.pick) return {error:'no import dialog'}; "
          "d.get_primary_btn().trigger('click'); await new Promise(r=>setTimeout(r,500)); await idle(); await new Promise(r=>setTimeout(r,800)); "
-         "const alerts=[...document.querySelectorAll('.alert-message, .desk-alert, .msgprint, .modal.show .modal-body')].map(e=>e.innerText.trim()).filter(Boolean); "
-         "return {alerts, closed: !d.$wrapper.is(':visible')};"},
+         # 成功提示（右下角浮动）与跳过的说明（原生提示框）分开读：数字只在各自那句里认
+         "const texts=sel=>[...document.querySelectorAll(sel)].map(e=>e.innerText.trim()).filter(Boolean); "
+         "return {notice: texts('.alert-message, .desk-alert'), skipped: texts('.msgprint'), closed: !d.$wrapper.is(':visible')};"},
     ]
 
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
     opened, uploaded, imported = (by.get(k) or {} for k in ("打开 Excel 导入", "选文件上传", "导入"))
-    text = " ".join(imported.get("alerts") or [])
+    notice, skipped = imported.get("notice") or [], imported.get("skipped") or []
+    # 认整数，不在整段文字里找单个数字（编码 IMP-…-1、随机标记里的数字会冒充「3 件」「1 行」）
+    numbers = lambda texts: {int(n) for text in texts for n in re.findall(r"(?<![\dA-Za-z-])\d+(?![\dA-Za-z-])", text.splitlines()[0] if text else "")}  # noqa: E731
     return [
         {"case": "页头（手机在「…」菜单）打开 Excel 导入", "seen": opened, "ok": bool(opened.get("dialog")) and opened.get("how") in ("button", "menu")},
         {"case": "原生上传组件传上文件", "seen": uploaded, "ok": str(uploaded.get("file_name", "")).endswith(".xlsx")},
         {"case": "提示导入 3 件、重复的那行逐行报出", "seen": imported,
-         "ok": bool(imported.get("closed")) and "3" in text and params["duplicate"]["product_name"] not in text and "1" in text},
+         "ok": bool(imported.get("closed")) and 3 in numbers(notice) and 1 in numbers(skipped)
+         and not any(params["duplicate"]["product_name"] in text for text in notice + skipped)},
     ]
 
 

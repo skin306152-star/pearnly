@@ -47,7 +47,9 @@ def steps(params, camera_code=None):
          "const d=window.__dlgs[window.__dlgs.length-1]; if(!d||!d.fields_dict.warehouse_code) return {error:'no warehouse dialog'};"
          "for(let k=0;k<40&&!(d.fields_dict.locations.grid.get_data()||[]).length;k++) await new Promise(r=>setTimeout(r,250)); await idle();"
          "return {code: d.get_value('warehouse_code')||'', code_read_only: !!d.fields_dict.warehouse_code.df.read_only,"
-         " columns: (d.fields_dict.locations.grid.docfields||[]).map(f=>f.fieldname), list_has_code_column: document.body.innerText.includes(__('company.col.warehouseCode'))};"},
+         " columns: (d.fields_dict.locations.grid.docfields||[]).map(f=>f.fieldname),"
+         # 仓库列表有「仓库编号」这一列：按列表格子的字段名认（整页文字里找列名，开着的弹窗自己就有这个标签，判不出列）
+         " list_has_code_column: !!document.querySelector('.result .list-row-container [data-fieldname=\"warehouse_code\"]')};"},
         {"name": "填编号与库位说明保存", "js": IDLE +
          "const d=window.__dlgs[window.__dlgs.length-1]; if(!d) return {error:'no dialog'};"
          f"if(!d.fields_dict.warehouse_code.df.read_only) await d.set_value('warehouse_code', {code});"
