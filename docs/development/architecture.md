@@ -122,6 +122,18 @@ Pearnly ERP 的 `express` 域：采购 / 销售单在唯一提交点（`sales.en
 `connections.mrerp_menu_reader`（排队任务）、白名单方法。ERP 接 MR.ERP（评估第 6 步）直接调这里，不导入 Cowork。导入文件与推送载荷
 搬移前后逐字节相同由 `tests/test_mrerp_rules_golden.py` 锁住（生产镜像里跑，候选检查离线车道）。
 
+### ERP 版 CC 按公司（2026-11-02，ADR-020 的 ERP 一半）
+
+ERP 经 hooks `pearnly_assistant_projects` 声明 provider `masters.cc_projects`（公司 = `ERP Company` 一行，`SCOPE = False`），
+共用层 `projects.listing` 把 provider 的 `API`（公司接口前缀）与 `SECTIONS`（有哪些分区）原样转交页面；CC 前端按声明出分区、
+取接口，不按产品名分支（Cowork 声明它原有的前缀与全部分区）。ERP 的 `masters` 域：`cc_companies`（薄入口，形状同 Cowork
+`companies.api` 的子集，不提供建、改名、删）/ `cc_service`（可见公司 = `company.allowed_companies`，账套按税号 + 分店取
+`cc_desktop.books`，公司变动推 `pearnly.project`）/ `cc_context`（给 CC 的说明，纯函数）/ `company_notes`（私有表
+`ERP Company Note`）/ `cc_tools`（CC 的公司工具）。知识库的纯规则（长度、条数、规整、转义、带给 CC 的字数）在共用层
+`pearnly_core.assistant.team_notes`，Cowork `companies.notes` / `context` 与 ERP 同用一份。「待处理」在 `express.pending`：
+单据账本状态只在 `_ledger_rows` 读；`push._set` 改到状态时，单据进出「待处理」就推 `pearnly.project`（`part = "pending"`）。
+做法与证据见 [任务记录](../work/2026-11-02-erp-cc-companies.md)。
+
 ### ERP 任务管理（2026-10-23）
 
 Pearnly ERP 的 `work` 域是 Cowork `work`（任务管理看板）复制进 ERP 自有 App 的一份：ERP 站点不装 Cowork、ERP 不导入
