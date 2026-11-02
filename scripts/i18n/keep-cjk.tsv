@@ -54,6 +54,7 @@ apps/pearnly_cowork/pearnly_cowork/ocr/validation/sources.py	*	数据：总账/�
 apps/pearnly_core/pearnly_core/express_rules/push/common.py	*	数据：泰国法人前缀与泰文声调符映射，写 Express DBF 前规整，按原字面比对或写入外部系统，不进界面
 apps/pearnly_core/pearnly_core/express_rules/push/doc_sanity.py	*	数据：币种、贷项单、押金、补开的票面关键词，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/push/retry.py	*	数据：MR.ERP/Express 返回的泰文错误原文片段，用于判重复/用户数据错，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/mrerp/push/duplicates.py	*	数据：MR.ERP 导入报告里「单号已存在」的泰文原文片段（由 push/retry.py 搬来），按原字面比对，不进界面
 apps/pearnly_dms/pearnly_dms/contracts/geo_matching.py	*	数据：泰国行政区划前缀词，用于地址匹配，按原字面比对或写入外部系统，不进界面
 apps/pearnly_core/pearnly_core/mrerp/push/xlsx/fmt.py	*	数据：MR.ERP 导入模板的含税/不含税固定值与解析词，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/tabular/summary.py	*	数据：流水页脚合计行关键词，按原字面比对或写入外部系统，不进界面

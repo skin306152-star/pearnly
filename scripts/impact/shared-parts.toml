@@ -1557,7 +1557,7 @@ where = "推送 MR.ERP"
 steps = "MR.ERP 目标推一张；定时 runner.sweep（5 分钟）"
 expect = "写入成功"
 check = "manual"
-files = ["apps/pearnly_core/pearnly_core/mrerp/push/routing.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/runner.py", "apps/pearnly_core/pearnly_core/mrerp/push/transport.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/lookups.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/purchase.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/sales_cash.py", "apps/pearnly_cowork/pearnly_cowork/push/retry.py"]
+files = ["apps/pearnly_core/pearnly_core/mrerp/push/routing.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/runner.py", "apps/pearnly_core/pearnly_core/mrerp/push/transport.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/lookups.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/purchase.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/sales_cash.py", "apps/pearnly_cowork/pearnly_cowork/push/retry.py", "apps/pearnly_cowork/pearnly_cowork/push/application/service.py"]
 
 [[entry]]
 id = "cowork.mrerp.catalog"
@@ -1575,7 +1575,7 @@ where = "CC 对话里 MR.ERP 设置（推之前要选的导入菜单 / 默认值
 steps = "CC 对话页（Cowork）让 CC 推一张 MR.ERP 单 / 改 MR.ERP 设置；待处理页点停在要选菜单的单当场选"
 expect = "只问这张单方向会用到、还没选的；选完照常重推"
 check = "manual"
-files = ["apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py"]
+files = ["apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py", "apps/pearnly_cowork/pearnly_cowork/companies/pending.py"]
 
 [[entry]]
 id = "cowork.companies"
