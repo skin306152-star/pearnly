@@ -118,11 +118,44 @@ purchase_expense / sales_credit / sales_cash`；六条弹框规则 `dialogs.kick
 
 | 检查 | 结果 |
 |---|---|
-| CC 全套 `companion/tests`（上表环境） | 见下方「最终数字」 |
+| CC 全套 `companion/tests`（上表环境，提交 `2413f354`） | 1476 通过、42 跳过、0 失败（第 1 步时 1426 通过、46 跳过；多出的是本步新测试，跳过少了是这个环境装了网页内核） |
+| 之后引擎小修（存档后要人 / 点停止也记「结果不明」、存档后已跳回列表也算存上）复跑受影响的 `test_mrerp_operator_*` + `test_operator_host` + `test_operator_batch` | 90 通过 |
 | 新包测试 replay / process / parts | 13 / 3 / 30 通过 |
 | `tests/test_mrerp_operator_readback_parity.py` | 4 通过 |
+| `tests/test_companion_contract.py` | 86 通过 |
+| `tests/test_express_operator_shared.py` | 11 通过 |
+| 本地全闸门（`~/pearnly-devtools/gate.sh`，照 `development.yml` 全部 run 步骤） | 166 / 166 通过（第一遍 `SKIP_NPM_CI=1` 时 4 步因本工作树没装前端依赖失败：`frontend/assistant` 构建、`test_assistant_ui.py`、`test_cc_operator.py`、`test-dms-editor-snapshot.cjs`；`npm ci` 后这 4 步重跑通过，前端本步没改） |
+| `python3 scripts/check-architecture.py` | PASS（0 违规） |
+| `python3 scripts/flows/coverage.py`（基线 `9be471c5`） | 通过（改到入口文件 0 个） |
+| `python3 scripts/check-copy.py --report` | 新增 1 · 改动 0 · 拦截 0 · 标黄 0，清单见下 |
+| `python3 scripts/check-impact.py` | 登记表完整（55 个共用件、200 个入口）；命中 `cc-dbf-write`、`cc-desktop-bridge`、`cc-operator-target` |
+| `git diff --check` | 通过 |
 
-（闸门、契约测试、CI 的最终数字在下面「最终数字」一节回填。）
+文案清单（`check-copy.py --report`）：
+
+| 来源·键 | 角色 | 中文 | ไทย |
+|---|---|---|---|
+| companion·op_mrerp_login_title | 标题 | MR.ERP 登录 | เข้าสู่ระบบ MR.ERP |
+
+（CC 桌面版托盘文案只有中、泰两语，`companion/src/companion/i18n.py`；用户名、密码两格沿用已有词条。）
+
+### 入口实测（`check-impact.py --files` 本步改动，15 个）
+
+本步对 Express 代录、直写与心跳默认行为零变化；要测试机 / 录制机的实机项本步没有授权去动，按「没测到」如实记，离线覆盖写在原因里。
+
+| 入口 | 方式 | 结果 |
+|---|---|---|
+| `cc.desktop.operator.mrerp` | offline | 通过（replay 13、process 3、parts 30、parity 4）；实机没测到（第 0 步，等 TEST2019 授权） |
+| `cc.desktop.operator` | offline | 通过（CC 全套含 `test_operator_*` 全过；`Runner` 三个注入不传 = 原行为） |
+| `cc.operator.page` | offline | 通过（`tests/test_cc_operator.py`，全闸门内；前端未改） |
+| `cc.desktop.bridge` | manual | 没测到（实机要测试机 CC）；桥只多了 `target=mrerp` 分支，不带照旧 |
+| `cc.settings.connection` | auto | 没测到（冒烟要实验栈 + 测试机）；本步未改设置页 |
+| `cc.desktop.write` | auto | 没测到（写 C 盘 T 账套要测试机）；写账线只改心跳一行（默认值相同，`test_operator_host` 断言 `["express"]`） |
+| `cc.desktop.places` | manual | 没测到（实机）；心跳默认 `operator_targets` 不变 |
+| `cowork.cc.channel` | manual | 没测到（实机）；服务端未改 |
+| `erp.cc.connect` | manual | 没测到（实机）；服务端未改 |
+| `erp.cc.write` / `erp.cc.stock-entry` | auto | 没测到（测试机）；命中只因 `worker.py` 心跳一行，直写路径未改 |
+| `erp.cc.stock-void` / `erp.cc.pos-day` / `erp.cc.pos-refund` / `erp.cc.stock-transfer` | manual | 没测到（实机）；同上，直写路径未改 |
 
 Windows 的 Companion checks（`.github/workflows/companion.yml`，测试机 runner、`QT_QPA_PLATFORM=offscreen`）：回放与子进程测试先在子进程里
 试起一次网页内核，起不来（没有桌面的服务账户可能起不来）就整组跳过，纯逻辑那 30 条照跑。

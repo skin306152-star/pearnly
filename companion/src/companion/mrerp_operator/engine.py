@@ -108,6 +108,8 @@ class Engine:
             self.rec.update(outcome="need_human", reason=error.reason, detail=error.detail[:300])
             self.abandon(draft)
         except NeedHuman as error:
+            if self._saving:  # 存上了却找不回 / 存成两张：本机记下，这张再来先查，不重录
+                self.book.mark_unsure(draft.doc_id)
             self.rec.update(outcome="need_human", reason=error.reason, detail=error.detail[:300])
             self.abandon(draft)
         except PageError as error:
@@ -118,7 +120,9 @@ class Engine:
                 self.rec.update(outcome="need_human", reason="unknown_screen", detail=str(error)[:300])
                 self.abandon(draft)
         except Stopped:
-            if not self._saving:
+            if self._saving:
+                self.book.mark_unsure(draft.doc_id)
+            else:
                 self.abandon(draft)
             raise
         return self._done()
@@ -277,7 +281,9 @@ class Engine:
                 self.form_open = None
                 raise Blocked(rule.get("reason", "unknown_screen"), text[:200])
             raise NetworkDown(f"dialog after save: {text[:120]}")
-        if self.recipe.saved_mark and self.recipe.saved_mark not in body:
+        now = str(page.state().get("url") or "")
+        if self.recipe.saved_mark and self.recipe.saved_mark not in body and "/allview.php" not in now:
+            # 既没看到「Save Success」、也没回到列表（allsave 一秒后自己跳回列表，机器慢时读到的可能已是列表）：结果不明
             raise NetworkDown("save result not shown")
         self._event("saved_page")
         self.form_open = None
