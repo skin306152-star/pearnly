@@ -158,6 +158,14 @@ def record_report(context: Context, *, version=None, payload_version=None, offli
     return bool(doc.full_report_due)
 
 
+def by_device_key(device_key) -> str:
+    """对话页交来的本机设备密钥 → 这台电脑的编号（没移除、令牌有效）；认不出回空串。密钥形状不对抛 ``ChannelError``。
+    MR.ERP 登录授权发票时认电脑用（`api.mrerp_login_ticket`）。只读。"""
+    digest = contracts.device_digest(_site(), contracts.device_key(device_key))
+    found = frappe.db.get_value(DEVICE, {"device_digest": digest}, ["name", "retired_at", "token_digest"], as_dict=True)
+    return found.name if found and not found.retired_at and found.token_digest else ""
+
+
 def note_mrerp_login(context: Context, connection: str):
     """站点收下这台电脑上的 MR.ERP 授权（`machine.mrerp_login`）：把连接号记进它已授权的清单，不等下一次心跳。"""
     doc = frappe.get_doc(DEVICE, context.device, for_update=True)

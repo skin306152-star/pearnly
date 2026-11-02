@@ -132,7 +132,10 @@ class CredentialContracts(unittest.TestCase):
         # installer 只回安装包地址（部署配置），同样是登录用户的 GET、先过 require_actor。
         # register 只收 POST（CC 桌面端登记这台电脑）；管理用的 issue / revoke / status 已下线（ADR-021）。
         # remove_device 只收 POST（第 6 批「电脑」列表的移除，登记人或管理员，在 credentials 里判）。
-        self.assertEqual(exposed, {'online', 'installer', 'register', 'remove_device'})
+        # mrerp_login_ticket 只收 POST（MR.ERP 登录在 CC 里授权的一次性票，ADR-026 第 7 条；本人能改这条连接、电脑认得出才发）。
+        self.assertEqual(exposed, {'online', 'installer', 'register', 'remove_device', 'mrerp_login_ticket'})
+        ticket = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'mrerp_login_ticket')
+        self.assertIn("methods=['POST']", ast.unparse(ticket.decorator_list[0]))
         remove = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'remove_device')
         self.assertIn("methods=['POST']", ast.unparse(remove.decorator_list[0]))
         self.assertIn('_local_transaction(credentials.remove_device', ast.unparse(remove))

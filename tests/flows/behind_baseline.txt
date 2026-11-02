@@ -98,7 +98,6 @@ apps/pearnly_cowork/pearnly_cowork/masters/clients.py
 apps/pearnly_cowork/pearnly_cowork/masters/product_names.py
 apps/pearnly_cowork/pearnly_cowork/masters/product_units.py
 apps/pearnly_cowork/pearnly_cowork/masters/products.py
-apps/pearnly_cowork/pearnly_cowork/masters/workspaces.py
 apps/pearnly_cowork/pearnly_cowork/ocr/engine/__init__.py
 apps/pearnly_cowork/pearnly_cowork/ocr/engine/config.py
 apps/pearnly_cowork/pearnly_cowork/ocr/engine/contracts.py

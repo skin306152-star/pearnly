@@ -606,7 +606,9 @@ class Schema(unittest.TestCase):
         self.assertEqual(set(fields), {"workspace", "device_owner", "signed_in_user", "signed_in_users", "label",
                                        "secret_digest", "companion_version", "max_payload_version", "selection_json",
                                        "host_names", "index_pending", "retired_at", "retired_by", "index_pending_uids",
-                                       "reindex_runner", "operator_targets"})
+                                       "reindex_runner", "operator_targets", "mrerp_logins"})
+        # 这台电脑已授权的 MR.ERP 连接号（ADR-026 第 7 条）：只有连接号，隐藏只读
+        self.assertEqual((fields["mrerp_logins"]["hidden"], fields["mrerp_logins"]["read_only"]), (1, 1))
         self.assertEqual(fields["secret_digest"]["unique"], 1)
         self.assertEqual(fields["secret_digest"].get("reqd", 0), 0)  # 补丁建的旧电脑留空，等认领
         self.assertEqual(doc["field_order"], [f["fieldname"] for f in doc["fields"]])

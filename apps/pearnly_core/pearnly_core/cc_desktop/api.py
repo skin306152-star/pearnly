@@ -10,7 +10,7 @@ Frappe 会话 + CSRF（对话页本来就带）；令牌只在 ``created`` 时�
 """
 import frappe
 
-from pearnly_core.cc_desktop import contracts, devices, login_tickets, products
+from pearnly_core.cc_desktop import devices, login_tickets, products
 from pearnly_core.transaction import conflicts
 
 
@@ -29,19 +29,18 @@ def mrerp_login_ticket(connection=None, device_key=None):
     if not products.mrerp_login_supported():
         return {"ok": False, "code": "unsupported"}
     user = frappe.session.user
-    try:
-        connection = contracts.text(connection, maximum=140)
-        digest = contracts.device_digest(frappe.local.site, contracts.device_key(device_key))
-    except contracts.ChannelError:
+    if not isinstance(connection, str) or not connection.strip() or len(connection) > 140:
         return {"ok": False, "code": "login_invalid"}
-    if not products.mrerp_login_allowed(user, connection):
+    try:
+        device = devices.by_device_key(device_key)
+    except ValueError:  # 设备密钥形状不对（`contracts.ChannelError`）
+        return {"ok": False, "code": "login_invalid"}
+    if not products.mrerp_login_allowed(user, connection.strip()):
         frappe.throw(frappe._("Not Permitted"), frappe.PermissionError)
-    found = frappe.db.get_value(devices.DEVICE, {"device_digest": digest}, ["name", "retired_at", "token_digest"],
-                                as_dict=True)
-    if not found or found.retired_at or not found.token_digest:
+    if not device:
         return {"ok": False, "code": "device_unknown"}
-    ticket = login_tickets.issue(site=frappe.local.site, channel="core", connection=connection, user=user,
-                                 device=found.name)
+    ticket = login_tickets.issue(site=frappe.local.site, channel="core", connection=connection.strip(), user=user,
+                                 device=device)
     return {"ok": True, "ticket": ticket, "expires_in": login_tickets.TTL_SECONDS}
 
 

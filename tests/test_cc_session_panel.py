@@ -819,6 +819,8 @@ class ErpSectionsSourceTests(unittest.TestCase):
             # 月结台账只在声明了 month 的产品（Cowork）的会话栏「本月」卡与公司页「月结」卡里读
             "lib/month.ts": {"pearnly_cowork.companies.api.month"},
             "lib/frappe.ts": {"pearnly_cowork.folder_intake.api"},
+            # MR.ERP 登录授权的共用组件按产品的通道要票：Cowork 走 Cowork 通道，ERP 走共用通道（channelOf(product)），ERP 调不到这一条
+            "components/mrerp-login.tsx": {"pearnly_cowork.companion.api.mrerp_login_ticket"},
         }
         self.assertLessEqual(set(found), set(reasons))
         for path, methods in found.items():
