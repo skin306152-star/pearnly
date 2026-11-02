@@ -223,7 +223,7 @@
 				changes();
 			};
 		} else if (doc.status === "submitted" && state.can_write) {
-			if (doc.express_state)
+			if (doc.ledger_state)
 				page.add_inner_button(__("Express"), () => p.express("ERP Sales Document", doc.name, reload));
 			// 收满之后不再给收款入口（用户 2026-09-23：「已收不可更改」）。
 			if (doc.doc_kind === "receipt" && doc.payment_status !== "paid")

@@ -1871,8 +1871,6 @@ class LedgerFields(unittest.TestCase):
     def test_nothing_reads_the_old_express_columns_any_more(self):
         roots = [ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal", ROOT / "scripts/flows", ROOT / "scripts/smoke"]
         allowed = {"v1_22_express_linked_at.py", "v1_24_ledger_state.py"}  # 迁移补丁：读改列前的旧列
-        # 采购 / 销售单据页：字段说明图标（pearnly/field-help-icon）同时在改这两个文件，等它合入主线、变基后再改（同一提交删掉这一行）
-        allowed |= {"purchase-form.js", "sales-form.js"}
         found = []
         for root in roots:
             for path in sorted(root.rglob("*")):
