@@ -220,7 +220,8 @@
 		async function choose_source() {
 			if (!lookup || !selected) return;
 			const source = lookup.rows.find(r => r.name === d.get_value("source_row"));
-			await d.set_value("warehouse", entry?.warehouse_name || source?.warehouse_name || lookup.warehouse_name);
+			// 实际仓库是官方 Link，值是仓库编号（显示名由框架按标题取）；写成名称时实际仓位按它取选项会报「未找到仓库」（11-02 真机）
+			await d.set_value("warehouse", entry?.warehouse || source?.warehouse || lookup.warehouse);
 			await d.set_value("location", entry?.location ?? source?.location ?? "");
 		}
 		// 物料页同一个新建弹窗（`products.js` 的 `open_quick`，用户 11-01「原地弹出新建物料的弹窗」）：码预填进「条码/二维码」；

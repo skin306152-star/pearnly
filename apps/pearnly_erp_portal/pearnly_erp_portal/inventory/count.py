@@ -1167,7 +1167,7 @@ def lookup_count(*, count, code=None, product=None):
                                              {(r["warehouse"], r["location"] or "") for r in rows}),
             "recorded": recorded_entries(count, [r["name"] for r in rows]),
             "stock_token": count_state.stock_token(found['name']),
-            "warehouse_name": _warehouse_label(task.warehouse),
+            "warehouse": task.warehouse, "warehouse_name": _warehouse_label(task.warehouse),
             "track_serial": per_unit(found, company), "unit": dict(unit) if unit else None,
             "units": units_here(count, found["name"]) if per_unit(found, company) else []}
 
