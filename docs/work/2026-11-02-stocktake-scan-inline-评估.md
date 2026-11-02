@@ -102,3 +102,61 @@
   - ERP：打开不弹键盘 → 点图标 → Chrome 原生相机授权（三步的第②步）→ 读到 EAN 8850002000025 → 扫码器关、出「สินค้าเก่า 2」字段 → 输数量点「继续」→ 扫码器自动重开，屏幕上同一码 7 秒内不重复读；换系统里没有的 EAN 2009876543213 → 扫码器关、「未找到与该编号匹配的物料」+「新建物料」；认证网址二维码 → 浮动提示「这不是商品条码」、不出新建、扫码器继续开着；岳父 Isuzu 标签二维码 → 车架号在实验栈没有这件物料 → 未找到 + 新建，新建弹窗预填完整车架号 `MP1TFR41JTG032993`（没保存）；打字「OLD-00」出下拉、点选出字段；扫码器开着时点「关闭」或再点图标都能关、回到框里。
   - Cowork：同样的授权 → 读到上传那件的条码 → 关扫码器出字段 →「继续」自动重开不重复读 →「关闭」→ 打字「typed」下拉选第二件 → 出字段 →「继续」回到框里、光标在框里、不开相机。
   - ERP 打字那件保存时服务端报「盘点期间库存已变化」：后台同时在跑的出入库 / 调拨流程改了那件物料的库存，是现有防护，与本次无关；流程用例里同一路径通过。
+
+### 共用件连带回归（check-impact 实际命中 `desk-link`；主会话要求另把共用相机 `desk-scan-core`、ERP 扫码弹窗 `erp-scan-dialog` 一并逐个测）
+
+| 共用件 | 入口 | 结果 |
+| --- | --- | --- |
+| `desk-link` | `erp.page.home` pearnly-home | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.products` pearnly-products | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.inventory` pearnly-inventory | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.stock-in` pearnly-stock-in | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.stock-out` pearnly-stock-out | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.stock-transfer` pearnly-stock-transfer | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.stock-card` pearnly-stock-card | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.stock-count` pearnly-stock-count | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.cashier` pearnly-cashier | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.company` pearnly-company | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.warehouses` pearnly-warehouses | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.team` pearnly-team | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.purchase` pearnly-purchase | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.suppliers` pearnly-suppliers | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.sales` pearnly-sales | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.pos-receipts` pearnly-pos-receipts | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.pos-shifts` pearnly-pos-shifts | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.clients` pearnly-clients | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.page.tasks` pearnly-tasks | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `cowork.page.intake` pearnly-intake | 通过（冒烟 auto，本机实验栈） |
+| `desk-link` | `erp.stock-in.item-scan` pearnly-stock-in 新建明细 | 通过（假摄像头探针：入库新建 → 明细物料格扫码图标 → 有画面，读出 8850002000025，物料与名称填上「สินค้าเก่า 2」；流程 erp.stock-entry.scan 相机那遍也过） |
+| `desk-link` | `erp.stock-out.item-scan` pearnly-stock-out 新建明细 | 通过（探针：出库新建 → 明细物料格扫码 → 有画面、填上「สินค้าเก่า 2」） |
+| `desk-link` | `erp.inventory.opening.item-scan` 库存 → 录入期初 | 通过（探针：库存 → 录入期初 → 商品格扫码 → 有画面、填上「สินค้าเก่า 2」） |
+| `desk-scan-core` | `erp.products.new-dialog.scan` pearnly-products 新建弹窗 | 通过（冒烟 auto，本机实验栈） |
+| `desk-scan-core` | `erp.products.new-page.scan` pearnly-products/new 表格 | 通过（探针：/desk/pearnly-products/new 表格上方扫码 → 有画面、加一行编码 2000000000008） |
+| `desk-scan-core` | `erp.products.detail.barcode-scan` 物料详情条码格 | 通过（探针：物料列表点第一行 → 编码格扫码图标 → 有画面、填上 2000000000008；没保存） |
+| `desk-scan-core` | `erp.cashier.camera` pearnly-cashier 搜索框相机 | 通过（探针：开班 → 收银页搜索框右侧相机 → 有画面、读出码、商品进购物车 0→1） |
+| `desk-scan-core` | `erp.cashier.scanner-gun` pearnly-cashier 扫码枪 | 通过（探针：搜索框直接输码 → 同一件数量 1→2） |
+| `desk-scan-core` | `erp.stock-count.entry.camera` pearnly-stock-count 录入弹窗 | 通过（流程 erp.stocktake.scan / gs1 / new-product / web-code 相机那遍；三星真相机对着测试机屏幕：EAN、未知码、网址二维码、Isuzu 二维码） |
+| `desk-scan-core` | `erp.line.stocktake.camera` LINE 手机盘点 /stocktake | 通过（流程 erp.line.stocktake.phone 相机那遍；首轮与真机测试同时跑偶发不过，单独补跑通过。LINE 手机盘点页这次没改） |
+| `desk-scan-core` | `erp.stock-in.item-scan` pearnly-stock-in 新建明细 | 通过（假摄像头探针：入库新建 → 明细物料格扫码图标 → 有画面，读出 8850002000025，物料与名称填上「สินค้าเก่า 2」；流程 erp.stock-entry.scan 相机那遍也过） |
+| `desk-scan-core` | `erp.stock-out.item-scan` pearnly-stock-out 新建明细 | 通过（探针：出库新建 → 明细物料格扫码 → 有画面、填上「สินค้าเก่า 2」） |
+| `desk-scan-core` | `erp.inventory.opening.item-scan` 库存 → 录入期初 | 通过（探针：库存 → 录入期初 → 商品格扫码 → 有画面、填上「สินค้าเก่า 2」） |
+| `desk-scan-core` | `erp.purchase.item-scan` pearnly-purchase 新建明细 | 通过（探针：采购新建 → 手动录入 → 明细物料格扫码 → 有画面、物料格填上「สินค้าเก่า 2」） |
+| `desk-scan-core` | `erp.sales.item-scan` pearnly-sales 新建明细 | 通过（流程 erp.sales.scan 手机宽假摄像头那遍） |
+| `desk-scan-core` | `cowork.stocktake.entry.camera` pearnly-stocktake 录入弹窗 | 通过（新流程 cowork.stocktake.entry 相机那遍；三星真相机对着测试机屏幕） |
+| `desk-scan-core` | `dms.liff.id-scan` LINE → 扫身份证（LIFF #/dms/scan） | 通过（流程 dms.liff.scan-loading；DMS 这次没改） |
+| `desk-scan-core` | `shared.upload.take-photo` 上传框「拍照」（电脑） | 通过（探针：电脑上 frappe.ui.Capture 有画面） |
+| `desk-scan-core` | `erp.line.stocktake.liff-camera` LINE 富菜单「盘点」→ LIFF 打开 pearnly-stock-count | 没测到（要真 LINE 富菜单开 LIFF；上线后按主会话安排走 testerp LINE 入口真机测） |
+| `desk-scan-core` | `cowork.line.stocktake.liff-camera` LINE 富菜单「库存盘点」→ LIFF 打开 pearnly-stocktake | 没测到（同上，走 testcowork LINE 入口） |
+| `erp-scan-dialog` | `erp.products.new-dialog.scan` pearnly-products 新建弹窗 | 通过（冒烟 auto，本机实验栈） |
+| `erp-scan-dialog` | `erp.products.new-page.scan` pearnly-products/new 表格 | 通过（探针：/desk/pearnly-products/new 表格上方扫码 → 有画面、加一行编码 2000000000008） |
+| `erp-scan-dialog` | `erp.products.detail.barcode-scan` 物料详情条码格 | 通过（探针：物料列表点第一行 → 编码格扫码图标 → 有画面、填上 2000000000008；没保存） |
+| `erp-scan-dialog` | `erp.cashier.camera` pearnly-cashier 搜索框相机 | 通过（探针：开班 → 收银页搜索框右侧相机 → 有画面、读出码、商品进购物车 0→1） |
+| `erp-scan-dialog` | `erp.cashier.scanner-gun` pearnly-cashier 扫码枪 | 通过（探针：搜索框直接输码 → 同一件数量 1→2） |
+| `erp-scan-dialog` | `erp.stock-count.entry.camera` pearnly-stock-count 录入弹窗 | 通过（流程 erp.stocktake.scan / gs1 / new-product / web-code 相机那遍；三星真相机对着测试机屏幕：EAN、未知码、网址二维码、Isuzu 二维码） |
+| `erp-scan-dialog` | `erp.line.stocktake.camera` LINE 手机盘点 /stocktake | 通过（流程 erp.line.stocktake.phone 相机那遍；首轮与真机测试同时跑偶发不过，单独补跑通过。LINE 手机盘点页这次没改） |
+| `erp-scan-dialog` | `erp.stock-in.item-scan` pearnly-stock-in 新建明细 | 通过（假摄像头探针：入库新建 → 明细物料格扫码图标 → 有画面，读出 8850002000025，物料与名称填上「สินค้าเก่า 2」；流程 erp.stock-entry.scan 相机那遍也过） |
+| `erp-scan-dialog` | `erp.stock-out.item-scan` pearnly-stock-out 新建明细 | 通过（探针：出库新建 → 明细物料格扫码 → 有画面、填上「สินค้าเก่า 2」） |
+| `erp-scan-dialog` | `erp.inventory.opening.item-scan` 库存 → 录入期初 | 通过（探针：库存 → 录入期初 → 商品格扫码 → 有画面、填上「สินค้าเก่า 2」） |
+| `erp-scan-dialog` | `erp.purchase.item-scan` pearnly-purchase 新建明细 | 通过（探针：采购新建 → 手动录入 → 明细物料格扫码 → 有画面、物料格填上「สินค้าเก่า 2」） |
+| `erp-scan-dialog` | `erp.sales.item-scan` pearnly-sales 新建明细 | 通过（流程 erp.sales.scan 手机宽假摄像头那遍） |
+| `erp-scan-dialog` | `erp.serials.dialog` 按台管理：入库 / 出库 / 调拨 / 进货 / 销售收据 / 收银提交前的「登记车辆 / 选择车辆」弹窗 | 通过（流程 erp.stock-in.units；老数据首轮因启动信息缓存不过，清缓存后 2/2） |
