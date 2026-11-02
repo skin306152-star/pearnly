@@ -19,43 +19,50 @@ from companion.express_operator import credentials
 PASSWORD = "S3cret-pass!"
 TICKET = "mrl_" + "a" * 43
 SITE = "testcowork.pearnly.com"
+MRERP = "https://www.mrerp4sme.com"
 
 
 class Vault:
-    """Windows 凭据管理器的替身：目标名 → (用户名, 密码)。"""
+    """Windows 凭据管理器的替身：目标名 → (用户名, 密码, 备注)。"""
 
     def __init__(self):
         self.items = {}
 
-    def store(self, target, user, password):
-        self.items[target] = (user, password)
+    def store(self, target, user, password, comment="Pearnly CC"):
+        self.items[target] = (user, password, comment)
 
     def listing(self, prefix):
-        return [name for name in self.items if name.startswith(prefix)]
+        return [(name, item[2]) for name, item in self.items.items() if name.startswith(prefix)]
 
     def forget(self, target):
         return self.items.pop(target, None) is not None
 
 
-def test_one_credential_per_connection_named_by_site_and_connection():
-    assert credentials.mrerp_target("TestCowork.pearnly.com", "CWEC-1") == "Pearnly CC/MR.ERP/testcowork.pearnly.com/CWEC-1"
-    for site, connection in (("", "CWEC-1"), (SITE, ""), (SITE, "a/b"), ("a b", "C"), (SITE, "x" * 141)):
+def test_one_credential_per_connection_named_by_mrerp_host_and_connection():
+    # 与第 2 步代录同一个名字：Pearnly CC/MR.ERP/<MR.ERP 主机>/<连接号>
+    assert credentials.mrerp_target("https://www.MRERP4SME.com/", "CWEC-1") == "Pearnly CC/MR.ERP/www.mrerp4sme.com/CWEC-1"
+    assert credentials.mrerp_target("www.mrerp4sme.com", "CWEC-1") == "Pearnly CC/MR.ERP/www.mrerp4sme.com/CWEC-1"
+    for url, connection in (("", "CWEC-1"), (MRERP, ""), (MRERP, "a/b"), ("a b", "C"), (MRERP, "x" * 141)):
         with pytest.raises(ValueError):
-            credentials.mrerp_target(site, connection)
+            credentials.mrerp_target(url, connection)
+    assert credentials.site_comment(SITE) == "Pearnly CC|" + SITE
     # Express 的目标名不受影响
     assert credentials.target("CWEC-9") == "Pearnly CC/Express/CWEC-9"
 
 
 def test_heartbeat_lists_only_this_sites_connection_ids_and_disconnect_forgets_them():
     vault = Vault()
-    vault.store(credentials.mrerp_target(SITE, "CWEC-2"), "u", PASSWORD)
-    vault.store(credentials.mrerp_target(SITE, "CWEC-1"), "u", PASSWORD)
-    vault.store(credentials.mrerp_target("testerp.pearnly.com", "ERPC-1"), "u", PASSWORD)
+    mine = credentials.site_comment(SITE)
+    vault.store(credentials.mrerp_target(MRERP, "CWEC-2"), "u", PASSWORD, mine)
+    vault.store(credentials.mrerp_target(MRERP, "CWEC-1"), "u", PASSWORD, mine)
+    vault.store(credentials.mrerp_target(MRERP, "ERPC-1"), "u", PASSWORD, credentials.site_comment("testerp.pearnly.com"))
+    vault.store(credentials.mrerp_target(MRERP, "OPR-1"), "u", PASSWORD)  # 第 2 步代录自己存的：不算哪个站点
     vault.store(credentials.target("CWEC-9"), "u", PASSWORD)
     assert credentials.mrerp_connections(SITE, listing=vault.listing) == ["CWEC-1", "CWEC-2"]
     assert credentials.mrerp_connections("", listing=vault.listing) == []
     assert credentials.forget_site(SITE, listing=vault.listing, remove=vault.forget) == 2
-    assert sorted(vault.items) == [credentials.target("CWEC-9"), credentials.mrerp_target("testerp.pearnly.com", "ERPC-1")]
+    assert sorted(vault.items) == sorted([credentials.target("CWEC-9"), credentials.mrerp_target(MRERP, "ERPC-1"),
+                                          credentials.mrerp_target(MRERP, "OPR-1")])
 
 
 def _server(reply=None, status=200, fail=None):
@@ -86,7 +93,7 @@ def test_the_site_gets_it_first_then_this_computer_stores_it(caplog):
                       "authorized": {"username": "test01", "device": "ACC-PC", "at": "2026-11-02T13:00:00+00:00"}}
     assert sent == [("https://" + SITE, "exp_CWEC-1_secret", channel.PATHS["cowork"]["mrerp_login"],
                      {"ticket": TICKET, "username": "test01", "password": PASSWORD})]
-    assert vault.items == {credentials.mrerp_target(SITE, "CWEC-1"): ("test01", PASSWORD)}
+    assert vault.items == {credentials.mrerp_target(MRERP, "CWEC-1"): ("test01", PASSWORD, credentials.site_comment(SITE))}
     assert PASSWORD not in json.dumps(result)
     assert PASSWORD not in caplog.text
 
@@ -108,6 +115,7 @@ def test_the_erp_channel_uses_its_own_path():
     (503, {}, None, "network"),
     (200, {}, OSError("connect failed " + PASSWORD), "network"),
     (200, {"ok": True, "connection": "../x"}, None, "failed"),
+    (200, {"ok": True, "connection": "CWEC-1", "system_url": ""}, None, "failed"),
 ])
 def test_nothing_is_stored_when_the_site_does_not_take_it(status, reply, fail, code, caplog):
     caplog.set_level(logging.DEBUG)
@@ -122,7 +130,7 @@ def test_a_store_failure_is_reported_without_the_password(caplog):
     caplog.set_level(logging.DEBUG)
 
     class Broken(Vault):
-        def store(self, target, user, password):
+        def store(self, target, user, password, comment="Pearnly CC"):
             raise OSError("CredWriteW " + password)
 
     _, post = _server()
@@ -228,3 +236,20 @@ def test_bridge_refuses_without_a_ticket_or_on_another_site_and_cancel_sends_not
     assert json.loads(bridge.call("mrerp_authorize", json.dumps({"ticket": TICKET}))) == {"ok": False,
                                                                                           "cancelled": True}
     assert len(asked) == 1
+
+
+def test_operator_login_for_mrerp_goes_to_the_step_two_module_or_says_unsupported(monkeypatch):
+    bridge = _bridge(_Settings())
+    args = json.dumps({"target": "mrerp", "url": MRERP, "connection": "CWEC-1"})
+    # 这一版没有 mrerp_operator 包（第 2 步合入时接上）：诚实回不支持，不弹窗、不碰 Express 的登录
+    for method in ("operator_authorize", "operator_forget"):
+        assert json.loads(bridge.call(method, args)) == {"ok": False, "code": "unsupported"}
+
+    calls = []
+    fake = type("Login", (), {"ask_and_store": staticmethod(lambda url, c, lang: calls.append(("ask", url, c)) or True),
+                              "forget": staticmethod(lambda url, c: calls.append(("forget", url, c)) or True),
+                              "stored": staticmethod(lambda: ["CWEC-1"])})
+    monkeypatch.setattr(type(bridge), "_mrerp_login_module", staticmethod(lambda: fake))
+    assert json.loads(bridge.call("operator_authorize", args)) == {"ok": True}
+    assert json.loads(bridge.call("operator_forget", args)) == {"ok": True}
+    assert calls == [("ask", MRERP, "CWEC-1"), ("forget", MRERP, "CWEC-1")]

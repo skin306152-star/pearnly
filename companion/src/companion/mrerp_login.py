@@ -6,7 +6,8 @@
 
 1. 经这个站点成员的机器通道（HTTPS、机器令牌、精确 POST、不带会话）把票、用户名、密码交给站点，站点按发票的人当前的权限
    写进 MR.ERP 连接的 Password 字段，回连接号与「已授权：用户名 · 电脑 · 时间」（不回密码）；
-2. 站点收下了才存进这台电脑的凭据管理器（``credentials.mrerp_target(站点, 连接号)``，代录填 MR.ERP 登录页用）。站点没收下
+2. 站点收下了才存进这台电脑的凭据管理器（``credentials.mrerp_target(MR.ERP 网址, 连接号)``，备注写站点，代录填 MR.ERP
+   登录页用；网址取站点回的那一个，不信页面）。站点没收下
    本机就不存，两处不会一边有一边没有。
 
 密码不进日志、不进回执、不进报错；出错只回码：``network``（连不上 / 超时 / 5xx）、``unauthorized``（这台电脑的密钥站点不认）、
@@ -77,7 +78,12 @@ def authorize(*, site: str, backend_url: str, token: str, ticket: str, username:
     if not _CONNECTION.fullmatch(connection):
         return {"ok": False, "code": "failed"}
     try:
-        store(credentials.mrerp_target(site, connection), username, password)
+        name = credentials.mrerp_target(str(reply.get("system_url") or ""), connection)
+        comment = credentials.site_comment(site)
+    except ValueError:
+        return {"ok": False, "code": "failed"}
+    try:
+        store(name, username, password, comment)
     except Exception as error:  # noqa: BLE001
         log.warning("MR.ERP 登录存本机失败：%s", type(error).__name__)
         return {"ok": False, "code": "store_failed"}

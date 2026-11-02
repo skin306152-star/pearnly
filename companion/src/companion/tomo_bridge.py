@@ -188,13 +188,20 @@ class TomoBridge(QObject):
     def _operator(self, method: str, args: dict, lang: str) -> dict:
         """代录 Express（入口与直写分开，评估 §10）：批次进度、暂停 / 继续 / 停止 / 跳过、实时画面、授权登录。代录包按需导入，
         托盘不代录时这几个调用只读一份空清单。授权登录弹的是原生小窗，页面拿不到密码，只回成没成。"""
+        if str(args.get("target") or "") == "mrerp" and method in ("operator_authorize", "operator_forget"):
+            return self._mrerp_operator_login(method, args, lang)
         from .express_operator import host as operator_host
 
         current = operator_host.host()
         if method == "operator_state":
             from .express_operator import login_dialog
 
-            return {"ok": True, "batches": current.snapshots(), "login": login_dialog.stored()}
+            state = {"ok": True, "batches": current.snapshots(), "login": login_dialog.stored()}
+            login = self._mrerp_login_module()
+            if login is not None:
+                # 这台电脑存了哪些 MR.ERP 连接的登录（只有连接号，第 2 步 mrerp_operator.login.stored）
+                state["mrerp_logins"] = list(login.stored())
+            return state
         if method == "operator_control":
             results = args.get("results") if isinstance(args.get("results"), dict) else None  # settle：站点对各张单的结论
             ok = current.control(str(args.get("batch") or ""), str(args.get("action") or ""), str(args.get("doc") or ""),
@@ -213,6 +220,26 @@ class TomoBridge(QObject):
 
             return {"ok": login_dialog.forget()}
         return {"ok": False}
+
+    @staticmethod
+    def _mrerp_login_module():
+        """第 2 步代录 MR.ERP 的本机登录（``mrerp_operator.login``）；这一版没有这个包回 None。"""
+        try:
+            from .mrerp_operator import login  # type: ignore[import-not-found]
+        except ImportError:
+            return None
+        return login
+
+    def _mrerp_operator_login(self, method: str, args: dict, lang: str) -> dict:
+        """实操页「MR.ERP 登录」（第 2 步）：``{target: "mrerp", url, connection}`` 交给 ``mrerp_operator.login`` 的
+        ``ask_and_store`` / ``forget``（只存本机，站点那份走 ``mrerp_authorize``）。这一版没有那个包：诚实回不支持。"""
+        login = self._mrerp_login_module()
+        if login is None:
+            return {"ok": False, "code": "unsupported"}
+        url, connection = str(args.get("url") or ""), str(args.get("connection") or "")
+        if method == "operator_authorize":
+            return {"ok": bool(login.ask_and_store(url, connection, normalize(lang)))}
+        return {"ok": bool(login.forget(url, connection))}
 
     def _mrerp_authorize(self, args: dict, lang: str) -> dict:
         """MR.ERP 登录在 CC 里授权（ADR-026 第 7 条）：只收票（args 里的用户名、密码、地址一概不看），对话页必须是这台电脑连着的
