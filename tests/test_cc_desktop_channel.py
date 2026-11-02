@@ -25,7 +25,7 @@ import cc_desktop_fake as fake  # noqa: E402
 frappe = fake.install()
 
 from pearnly_core.cc_desktop import books, contracts, devices, documents, http_auth, jobs, requests  # noqa: E402
-from pearnly_core.cc_desktop.wire import queue_contracts  # noqa: E402
+from pearnly_core.cc_desktop.wire import queue_contracts, route_contracts  # noqa: E402
 
 SITE = "testerp.localhost"
 KEY_A, KEY_B = "a" * 43, "b" * 43
@@ -314,6 +314,78 @@ class Queue(Base):
         self.lease(self.office)
         with self.assertRaises(frappe.AuthenticationError):
             self.ack(self.context(other["device"], "other@x"), job["job"])
+
+
+class OperatorTargets(Base):
+    """代录的执行目标（ADR-026，第 1 步）：心跳报 ``operator_targets`` 存在电脑行上、带进派单的 Peer；Express 以外目标的代录单
+    只派给选定的那台（``route_device``）且它报过这个目标，不看账套可达；Express 的单规则不变。"""
+
+    NOW = devices.now()
+
+    def setUp(self):
+        super().setUp()
+        office = self.register("staff@x", KEY_A)
+        self.office = self.context(office["device"], "staff@x")
+        books.replace(self.office.device, [book_row()], devices.now())
+
+    def test_the_heartbeat_records_the_targets_and_old_versions_keep_express_only(self):
+        devices.record_report(self.office, version="1.12.11", payload_version=17)  # 旧版不报
+        self.assertIsNone(devices.peers()[self.office.device].targets)
+        devices.record_report(self.office, version="1.12.12", payload_version=18, targets=["express"])
+        self.assertEqual(frappe.db.get_value(documents.DEVICE, self.office.device, "operator_targets"), "express")
+        self.assertEqual(devices.peers()[self.office.device].targets, frozenset({"express"}))
+        devices.record_report(self.office, targets=["mrerp", "express", "mrerp", "Bad Name", 3])
+        self.assertEqual(frappe.db.get_value(documents.DEVICE, self.office.device, "operator_targets"), "express,mrerp")
+        for junk in (None, "mrerp", [], ["Bad Name"]):  # 不报 / 认不出：保留上次
+            devices.record_report(self.office, targets=junk)
+        self.assertEqual(devices.peers()[self.office.device].targets, frozenset({"express", "mrerp"}))
+
+    def test_heartbeat_body_reaches_the_device(self):
+        from pearnly_core.cc_desktop import machine
+
+        machine._heartbeat(self.office, {"companion_version": "1.12.12", "max_payload_version": 18,
+                                         "operator_targets": ["express"]})
+        self.assertEqual(frappe.db.get_value(documents.DEVICE, self.office.device, "operator_targets"), "express")
+
+    def decide(self, device, job, reachers=(), peers=None):
+        return route_contracts.decide(device, job, list(reachers), peers or {}, route_contracts.Account(), self.NOW)
+
+    def test_an_mrerp_job_goes_only_to_the_chosen_computer_that_reports_mrerp(self):
+        Peer, Job = route_contracts.Peer, route_contracts.Job
+        able = Peer(users=frozenset({"staff@x"}), payload_version=18, targets=frozenset({"express", "mrerp"}))
+        job = Job("J1", "", "staff@x", 18, route_device="PC-A", target="mrerp")
+        # 选定的那台、报过 mrerp：不看账套可达（没有一台够得到「账套」）也领
+        self.assertEqual(self.decide("PC-A", job, peers={"PC-A": able}), route_contracts.Decision(True, route_contracts.READER))
+        # 别的电脑（哪怕录入人登录过、报过 mrerp）不领；没选定电脑的不派给任何一台
+        self.assertEqual(self.decide("PC-B", job, ["PC-B"], {"PC-B": able}).reason, route_contracts.NOT_MINE)
+        self.assertEqual(self.decide("PC-A", job._replace(route_device=""), ["PC-A"], {"PC-A": able}).reason,
+                         route_contracts.NOT_MINE)
+        # 旧版（不报目标）、这一版（只报 Express）：不派，单子等它（不转人工）
+        for peer in (Peer(users=frozenset({"staff@x"}), payload_version=17),
+                     Peer(users=frozenset({"staff@x"}), payload_version=18, targets=frozenset({"express"}))):
+            self.assertEqual(self.decide("PC-A", job, ["PC-A"], {"PC-A": peer}).reason, route_contracts.NO_TARGET)
+        # 报了 mrerp、载荷版本却更新：需更新
+        newer = job._replace(payload_version=19)
+        self.assertEqual(self.decide("PC-A", newer, peers={"PC-A": able}).reason, route_contracts.NEEDS_UPDATE)
+        self.assertFalse(route_contracts.attended(job, able))  # 选定电脑的代录单不弹「账套被占用」
+
+    def test_express_jobs_ignore_the_targets(self):
+        Peer, Job = route_contracts.Peer, route_contracts.Job
+        job = Job("J1", "book", "staff@x", 16)
+        self.assertEqual(job.target, route_contracts.EXPRESS)
+        for targets in (None, frozenset(), frozenset({"mrerp"}), frozenset({"express"})):
+            peer = Peer(users=frozenset({"staff@x"}), payload_version=18, targets=targets)
+            self.assertTrue(self.decide("PC-A", job, ["PC-A"], {"PC-A": peer}).take, targets)
+            self.assertEqual(self.decide("PC-A", job, [], {"PC-A": peer}).reason, route_contracts.UNREACHABLE)
+        explicit = job._replace(target="express")
+        peer = Peer(users=frozenset({"staff@x"}), payload_version=18)
+        self.assertEqual(self.decide("PC-A", explicit, ["PC-A"], {"PC-A": peer}), self.decide("PC-A", job, ["PC-A"], {"PC-A": peer}))
+
+    def test_an_express_job_still_leases_as_before_with_targets_reported(self):
+        devices.record_report(self.office, version="1.12.12", payload_version=18, targets=["express"], full=True)
+        job = self.enqueue(payload_version=16)
+        got = jobs.lease(self.office, {"max": 1, "agent_id": "c", "index_pending": []})["jobs"]
+        self.assertEqual([item["log_id"] for item in got], [job["job"]])
 
 
 class Requests(Base):

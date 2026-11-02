@@ -132,9 +132,10 @@ def leave(context: Context) -> dict:
     return {"status": "left"}
 
 
-def record_report(context: Context, *, version=None, payload_version=None, offline=False, full=False, runner=None):
-    """心跳报到：版本、最高载荷版本、索引重建程序在不在 / 能不能跑、最近报到时间（报离线就清掉，马上算离线）；
-    收到整份名单就不再要求整份重报。"""
+def record_report(context: Context, *, version=None, payload_version=None, offline=False, full=False, runner=None,
+                  targets=None):
+    """心跳报到：版本、最高载荷版本、索引重建程序在不在 / 能不能跑、能代录到哪些目标（ADR-026；旧版不报，保留上次）、
+    最近报到时间（报离线就清掉，马上算离线）；收到整份名单就不再要求整份重报。"""
     doc = frappe.get_doc(DEVICE, context.device, for_update=True)
     values = {"last_seen_at": None if offline else now()}
     if isinstance(version, str) and version.strip() and len(version.strip()) <= 20:
@@ -143,6 +144,9 @@ def record_report(context: Context, *, version=None, payload_version=None, offli
         values["max_payload_version"] = payload_version
     if runner in contracts.RUNNER_STATES:
         values["reindex_runner"] = runner
+    stored = route_contracts.stored_targets(targets)
+    if stored:
+        values["operator_targets"] = stored
     if full:
         values["full_report_due"] = 0
     doc.update(values)
@@ -166,10 +170,12 @@ def peers() -> dict:
     """``{电脑: route_contracts.Peer}``：站点上没移除的电脑（写账分派的纯规则按它判）。"""
     moment = now()
     rows = frappe.get_all(DEVICE, filters={"retired_at": ["is", "not set"]},
-                          fields=["name", "signed_in_users", "last_seen_at", "max_payload_version", "token_digest"])
+                          fields=["name", "signed_in_users", "last_seen_at", "max_payload_version", "token_digest",
+                                  "operator_targets"])
     return {row.name: route_contracts.Peer(users=frozenset(contracts.users(row.signed_in_users)),
                                            online=bool(row.token_digest) and contracts.online(row.last_seen_at, moment),
-                                           payload_version=row.max_payload_version or None)
+                                           payload_version=row.max_payload_version or None,
+                                           targets=route_contracts.targets_of(row.operator_targets))
             for row in rows}
 
 

@@ -472,6 +472,7 @@ Open in browser,用浏览器打开
 "Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.",打开 iPhone「设置 → LINE」，打开「相机」，然后回到 LINE，会自动重新开始扫码。
 "Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.",打开手机「设置 → 应用程序 → LINE → 权限 → 相机」，选「允许」，然后回到 LINE，会自动重新开始扫码。
 Operator,操作员
+Operator Ledgers,实操账本
 Operator Roster,操作员花名册
 Operator Task,实操任务
 Operator added,操作员已新增

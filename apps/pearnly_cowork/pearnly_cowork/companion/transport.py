@@ -175,7 +175,7 @@ def _peers(connection, device, request, now):
     for name, peer in credentials.pool_peers(connection, now).items():
         peers[name] = route_contracts.Peer(users=frozenset(peer.get('users') or ()), online=bool(peer.get('online')),
                                            payload_version=peer.get('payload_version'),
-                                           index_pending=peer.get('index_pending'))
+                                           index_pending=peer.get('index_pending'), targets=peer.get('targets'))
     mine = peers.get(device) or route_contracts.Peer()
     if 'index_pending' in request:
         mine = mine._replace(index_pending=frozenset(request['index_pending']))

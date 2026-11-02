@@ -16,6 +16,7 @@
   "companion_version",
   "max_payload_version",
   "reindex_runner",
+  "operator_targets",
   "last_seen_at",
   "full_report_due",
   "retired_at",
@@ -99,6 +100,13 @@
    "length": 20
   },
   {
+   "fieldname": "operator_targets",
+   "fieldtype": "Data",
+   "label": "Operator Ledgers",
+   "read_only": 1,
+   "length": 180
+  },
+  {
    "fieldname": "last_seen_at",
    "fieldtype": "Datetime",
    "label": "Last Seen At",
@@ -127,7 +135,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-25 12:00:00.000000",
+ "modified": "2026-11-02 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly CC Device",

@@ -472,6 +472,7 @@ Open in browser,ブラウザで開く
 "Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.",iPhone の「設定 → LINE」で「カメラ」をオンにして LINE に戻ると、自動でスキャンが再開します。
 "Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.",スマートフォンの「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選び、LINE に戻ると自動でスキャンが再開します。
 Operator,ユーザー
+Operator Ledgers,代行入力先の帳簿
 Operator Roster,オペレーター名簿
 Operator Task,代行入力タスク
 Operator added,オペレーターを追加しました

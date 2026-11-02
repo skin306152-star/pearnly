@@ -16,6 +16,7 @@ from pearnly_core.cc_desktop.wire.report_rules import (  # 上报内容的净化
     account_sets as _account_sets, options as _options, sanitize_accounts as _sanitize_accounts,
     sanitize_catalog as _sanitize_catalog, sanitize_fingerprint as _sanitize_fingerprint,
     sanitize_stock_acc_groups as _sanitize_stock_acc_groups)
+from pearnly_core.cc_desktop.wire import route_contracts
 from pearnly_cowork.connections import desktop_update
 from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import MAX_ACCOUNT_SETS
@@ -278,7 +279,7 @@ CACHE_KEYS = frozenset((
     "reported_products", "reported_customers", "reported_suppliers", "reported_departments",
     "catalog_seen_at", "catalog_fingerprint",
     "reported_stock_acc_groups", "stock_acc_groups_seen_at", "max_payload_version",
-    "companion_version", "agent_device_name", "agent_last_seen_at", "reindex_runner",
+    "companion_version", "agent_device_name", "agent_last_seen_at", "reindex_runner", "operator_targets",
     # 自动更新被 Windows 拦下（`desktop_update`，教程问题第 1 条）：只在变了时进补丁，上报记录不为它每拍重写
     desktop_update.KEY,
 ))
@@ -376,6 +377,10 @@ def plan_report(body: Mapping, previous: Mapping, observed_at: datetime) -> Repo
     # 索引重建程序在不在 / 能不能跑（1.12.3 起报；缺了就拒写转人工）：旧版不带，保留上次
     if body.get("reindex_runner") in RUNNER_STATES and previous.get("reindex_runner") != body["reindex_runner"]:
         patch["reindex_runner"] = body["reindex_runner"]
+    # 能代录到哪些目标（ADR-026，载荷 18 起报）：旧版不带、认不出的不记，保留上次；变了才写（存在电脑行上）
+    targets = route_contracts.stored_targets(body.get("operator_targets"))
+    if targets and previous.get("operator_targets") != targets:
+        patch["operator_targets"] = targets
     # 旧版 CC 桌面版不带这个键：保留上次的值；带了（含 null = 没被拦）就以这次为准，变了才写。
     if desktop_update.KEY in body:
         blocked = desktop_update.parse(body.get(desktop_update.KEY))

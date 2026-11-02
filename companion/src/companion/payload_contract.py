@@ -44,10 +44,17 @@ from typing import Optional
 # 旧版会把它当直写写进 DBF（入口分开的口径就破了），所以盖 16，旧版诚实拒收、派单只交给报过支持 16 的电脑。
 # 17：明细行可带按台号码 ``remarks``（来源拼好的说明，每条 ≤ 50 字节）：写进 Express 单据附加说明 ARTRNRM，挂在那一行下面
 # （dbf_remarks，评估 docs/work/2026-11-02-vehicle-artrnrm-评估.md）。旧版不认这个键、税票上没有车号，所以盖 17，旧版诚实拒收。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17})
+# 18：代录到 Express 以外的目标（``operator.target``，ADR-026；评估 docs/work/2026-11-02-mrerp-operator-and-erp-company-评估.md），
+# 第一个是 MR.ERP 网页（``mrerp``）。旧版会把它当代录 Express 去开 Express、找账套，所以盖 18，旧版诚实拒收；派单只交给心跳
+# ``operator_targets`` 报了这个目标的电脑。本版认得这个载荷，宿主按目标装配，还不会录的目标按「不支持」回执、不碰任何账本。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18})
 OPERATOR_PAYLOAD_VERSION = 16
 REMARKS_PAYLOAD_VERSION = 17
+MRERP_OPERATOR_PAYLOAD_VERSION = 18
 ENTRY_OPERATOR = "operator"
+# 这一版 CC 桌面版能代录到哪些目标（心跳 ``operator_targets``，与宿主 ``express_operator.host.ASSEMBLERS`` 一致）。
+# 服务端只把 Express 以外目标的代录单派给报了它的电脑；旧版不报 = 只有 Express。
+OPERATOR_TARGETS = ("express",)
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

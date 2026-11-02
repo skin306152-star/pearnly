@@ -122,6 +122,7 @@ class QueueClient:
         account_sets_unchanged: bool = False,
         update_blocked: object = _NOT_SENT,
         reindex_runner: Optional[str] = None,
+        operator_targets: Optional[list] = None,
     ) -> dict:
         """心跳 · 上报探测到的账套列表 + 科目表 + 录入方式 + **客户所选账套**(供 FE 选/镜像)· 返回连接状态。
 
@@ -133,6 +134,8 @@ class QueueClient:
                  让网页镜像 + 端点 config 锁定一致。唯一键 = account_set(= 账套 PATH·见 pairing)。
         max_payload_version:本机 payload_contract.SUPPORTED_PAYLOAD_VERSIONS 上限 → 云端据此判断
                  能否安全下发新版载荷(见 payload_contract)。
+        operator_targets:这一版能代录到哪些目标(payload_contract.OPERATOR_TARGETS,ADR-026)→ 云端只把
+                 Express 以外目标的代录单派给报了它的电脑;不报 = 只有 Express。
         update_blocked:自动更新被 Windows 拦下 {version, at}(update_block.reported),没被拦是 None;
                  None 也照发(云端据此清掉旧值),只有不传这个参数才不带这个键(云端原样保留)。
         云端旧版忽略请求体仍正常。
@@ -161,6 +164,8 @@ class QueueClient:
             body["update_blocked"] = update_blocked
         if reindex_runner:
             body["reindex_runner"] = reindex_runner  # ok / missing / broken(cdx_reindex.runner_status)
+        if operator_targets is not None:
+            body["operator_targets"] = [str(target) for target in operator_targets]
         if master_refresh_request_id:
             body["master_refresh_request_id"] = str(master_refresh_request_id)
         if master_refresh_scope:

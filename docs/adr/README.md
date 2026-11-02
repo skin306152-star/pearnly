@@ -37,3 +37,4 @@
 - [ADR-020 CC 按公司主档组织对话（全所主档、知识库、按电脑授权文件夹、按月处理）](0020-cc-company-master.md)
 - [ADR-021 事务所多台电脑各用 CC 桌面版（连接是池、电脑是成员；D1 录入角色登记自己的电脑）](0021-cc-desktop-multiple-computers.md)
 - [ADR-025 CC 桌面版直连产品站点（共用机器通道 + 共用 Express 写账规则），ERP 前台不经 Cowork](0025-cc-desktop-direct-product-sites.md)
+- [ADR-026 代录：执行目标与边界（Express 桌面程序 / MR.ERP 网页）](0026-operator-targets.md)

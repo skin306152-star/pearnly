@@ -9,6 +9,9 @@
 - 批次文件与存档截图只在本机（``%APPDATA%\\Pearnly\\operator``），截图满 30 天按批次日期自动删（开始前、结束后、CC 启动时）。
 
 不代录时不导入本模块（写账线按需导入），不开线程、不轮询。
+
+执行目标（ADR-026）：按载荷 ``operator.target`` 选装配函数（:data:`ASSEMBLERS`）。``express`` 就是 :func:`express_factory`（原来的
+那段装配原样）；这一版还没有装配的目标（``mrerp`` 网页随第 2 步）不开批次、不碰任何账本，这一张按「不支持」回执。
 """
 from __future__ import annotations
 
@@ -98,9 +101,11 @@ def operator_root() -> Path:
 class Host:
     def __init__(self, root: Optional[Path] = None, *, factory: Optional[Callable] = None,
                  notify: Callable[[Dict], None] = lambda _s: None, clock: Callable[[], float] = time.time,
-                 alive: Callable[[int], bool] = express_alive):
+                 alive: Callable[[int], bool] = express_alive, assemblers: Optional[Dict[str, Callable]] = None):
         self.root = Path(root or operator_root())
         self.factory = factory or default_factory
+        # 每种执行目标一个装配函数；``factory`` 是 Express 的（测试注入假 Express 用它）
+        self.assemblers: Dict[str, Callable] = {**ASSEMBLERS, K.TARGET_EXPRESS: self.factory, **(assemblers or {})}
         self.notify, self.clock, self.alive = notify, clock, alive
         self.started_at = clock()
         self._orphans_done = False
@@ -114,10 +119,17 @@ class Host:
         """录一张。回 ``{"status": saved / human / stopped / skipped / waiting, "docnum", "reason", "detail", "meta"}``。"""
         info = (payload.get("operator") or {}).get("batch") or {}
         batch_id = str(info.get("id") or f"single-{task_id}")
+        target = K.target_of(payload)
+        factory = self.assemblers.get(target)
+        if factory is None:
+            # 这一版还不会录这个目标（ADR-026）：不开批次、不碰任何账本，这一张转人工（原因沿用「这种单暂不支持」）
+            return {"status": "human", "reason": "unsupported",
+                    "detail": f"operator target {target[:20]!r} is not available in this CC Desktop version",
+                    "meta": {"batch": batch_id, "target": target[:20]}}
         # 单据号用站点上这张单的编号（载荷 operator.batch.doc），页面按它对上是哪一张；旧载荷没有就用写账任务号
         draft = from_payload(str(info.get("doc") or task_id), payload)
         with self.lock:
-            runner = self.runners.get(batch_id) or self._start(batch_id, info, settings)
+            runner = self.runners.get(batch_id) or self._start(batch_id, info, settings, factory)
         from .engine import NeedHuman
 
         try:
@@ -193,7 +205,7 @@ class Host:
                     self.notify(runner.snapshot())
         return done
 
-    def _start(self, batch_id: str, info: Dict, settings):
+    def _start(self, batch_id: str, info: Dict, settings, factory: Optional[Callable] = None):
         from .batch import BatchState, BatchStore
 
         state = BatchState(batch_id, str(getattr(settings, "account_company", "") or ""),
@@ -205,7 +217,7 @@ class Host:
             state.site = state.site or str(info.get("company") or "")
         except (OSError, ValueError, KeyError):
             store.save(state)
-        runner, parts = self.factory(state, store, settings, self.root, self.notify)
+        runner, parts = (factory or self.factory)(state, store, settings, self.root, self.notify)
         self.runners[batch_id], self.parts[batch_id] = runner, parts
         return runner
 
@@ -369,8 +381,8 @@ def front_of(desk) -> Dict:
     return fg
 
 
-def default_factory(state, store, settings, root: Path, notify):
-    """Windows 上的真实组装：后台做法（不碰真键盘鼠标）+ 真账套 + 本机截图。"""
+def express_factory(state, store, settings, root: Path, notify):
+    """Express 的装配（Windows 上的真实组装）：后台做法（不碰真键盘鼠标）+ 真账套 + 本机截图。"""
     from . import credentials
     from . import recipe as R
     from .batch import Runner, no_lock
@@ -417,6 +429,12 @@ def default_factory(state, store, settings, root: Path, notify):
                     pauses=lambda: presence.evidence)
     holder["runner"] = runner
     return runner, {"desk": desk, "presence": presence, "evidence": evidence}
+
+
+default_factory = express_factory  # 旧名：收拾上次留下的 Express（``recover_orphans``）与测试仍按它取
+
+# 执行目标 → 装配函数（ADR-026）。与 ``payload_contract.OPERATOR_TARGETS``（心跳报的能力）一致；MR.ERP 随第 2 步加。
+ASSEMBLERS: Dict[str, Callable] = {K.TARGET_EXPRESS: express_factory}
 
 
 _HOST: Optional[Host] = None

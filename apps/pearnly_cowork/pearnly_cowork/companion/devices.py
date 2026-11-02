@@ -361,7 +361,7 @@ def _row(device):
         return None
     return frappe.db.get_value(DOCTYPE, device, ['name', 'workspace', 'secret_digest', 'label', 'host_names',
                                                  'companion_version', 'max_payload_version', 'selection_json',
-                                                 'retired_at', 'reindex_runner'], as_dict=True)
+                                                 'retired_at', 'reindex_runner', 'operator_targets'], as_dict=True)
 
 
 def _selections(row):
@@ -388,6 +388,8 @@ def state(device, connection):
         result['max_payload_version'] = int(row.max_payload_version)
     if row.reindex_runner:
         result['reindex_runner'] = row.reindex_runner
+    if row.operator_targets:
+        result['operator_targets'] = row.operator_targets
     return result
 
 
@@ -430,6 +432,9 @@ def record_report(device, connection, plan):
         values['max_payload_version'] = int(plan.patch['max_payload_version'])
     if plan.patch.get('reindex_runner') and plan.patch['reindex_runner'] != (row.reindex_runner or ''):
         values['reindex_runner'] = plan.patch['reindex_runner']
+    # 能代录到哪些目标（ADR-026）：每台电脑一份，派 Express 以外目标的代录单时按它
+    if plan.patch.get('operator_targets') and plan.patch['operator_targets'] != (row.operator_targets or ''):
+        values['operator_targets'] = str(plan.patch['operator_targets'])[:180]
     name = str(plan.patch.get('agent_device_name') or '').strip()
     if name and not row.secret_digest and name != (row.label or ''):
         values['label'] = name[:device_contracts.MAX_NAME]  # 新版的电脑名由 device_hello 报

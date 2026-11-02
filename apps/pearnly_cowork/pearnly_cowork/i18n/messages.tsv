@@ -2362,3 +2362,4 @@ keyword	搜索卡片	ค้นหาการ์ด	カードを検索
 member	成员	สมาชิก	メンバー	
 due	到期	ครบกำหนด	期日	
 This account code is already a stock item code in Express	此科目码已是 Express 库存品的编码	รหัสบัญชีนี้เป็นรหัสสินค้าคงคลังใน Express แล้ว	この勘定コードは Express の在庫品コードです	intake.error.ACCOUNT_CODE_IS_STOCK_ITEM
+Operator Ledgers	实操账本	ระบบบัญชีที่บันทึกแทนได้	代行入力先の帳簿

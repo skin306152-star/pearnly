@@ -13,6 +13,7 @@ from uuid import uuid4
 import frappe
 from frappe import _
 
+from pearnly_core.cc_desktop.wire import route_contracts
 from pearnly_cowork.connections import access, pool
 from . import contracts, device_contracts, devices
 from .contracts import AgentContext, CredentialError
@@ -173,14 +174,16 @@ def device_id(credential_id):
 
 def pool_peers(connection, now=None):
     """池里各台电脑此刻的情况（ADR-021：写账分派、`connections.pool.presence`、`pool.state`、按需请求）：
-    ``{设备: {"users", "online", "version", "payload_version", "index_pending", "issuers", "label"}}``。
+    ``{设备: {"users", "online", "version", "payload_version", "index_pending", "targets", "issuers", "label"}}``。
 
     ``users`` 是在这台电脑上登录过 CC 的人（不是登记人；谁的活归这台电脑按它，第 50 条），没挂电脑的旧槽位密钥、没有登录
     记录的电脑是空集；任一把有效密钥 3 分钟内报过到就算在线；``payload_version`` 没报过
-    是 None（旧版，不拿它拦）；``index_pending`` 是它主档索引还没重建的账套文件号，旧版不报是 None。补丁之前旧路径发、
+    是 None（旧版，不拿它拦）；``index_pending`` 是它主档索引还没重建的账套文件号，旧版不报是 None；``targets`` 是它能代录到的
+    目标（ADR-026，`route_contracts.targets_of`），旧版不报是 None（= 只有 Express）。补丁之前旧路径发、
     还没挂电脑的密钥按密钥编号算一台（它上报的可达行也记在这个编号下）。只读。"""
     rows = frappe.db.sql(f'''SELECT k.name, k.device, k.issuer, k.token_generation, k.last_seen_at, k.last_seen_generation,
-        d.signed_in_user, d.signed_in_users, d.companion_version, d.max_payload_version, d.index_pending_uids, d.label
+        d.signed_in_user, d.signed_in_users, d.companion_version, d.max_payload_version, d.index_pending_uids, d.label,
+        d.operator_targets
         FROM `tab{DOCTYPE}` k LEFT JOIN `tab{devices.DOCTYPE}` d ON d.name = k.device
         WHERE k.connection=%s AND k.revoked_at IS NULL AND COALESCE(k.active_key,'')<>''
         AND (k.device IS NULL OR k.device='' OR d.retired_at IS NULL)''', (connection,), as_dict=True)
@@ -191,7 +194,7 @@ def pool_peers(connection, now=None):
             'users': devices.signed_in(row.signed_in_users, row.signed_in_user), 'online': False,
             'version': str(row.companion_version or ''), 'payload_version': payload if payload >= 1 else None,
             'index_pending': devices.index_pending(row.index_pending_uids), 'issuers': set(),
-            'label': str(row.label or '')})
+            'label': str(row.label or ''), 'targets': route_contracts.targets_of(row.operator_targets)})
         peer['online'] = peer['online'] or _fresh(row.last_seen_at, row.last_seen_generation, row.token_generation, now)
         peer['issuers'].add(row.issuer)
     return peers

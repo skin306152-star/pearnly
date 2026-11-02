@@ -8,6 +8,19 @@ from __future__ import annotations
 
 ENTRY_MODE = "operator"  # 载荷 entry_mode：direct = 直写（缺省），operator = 代录
 
+# ── 执行目标（ADR-026）：载荷 ``operator.target`` 写录到哪种账本，没写 = Express（载荷 16 / 17 与以前一样）。
+# 与共用层 ``pearnly_core/express_operator/contracts.py`` 同值（``tests/test_express_operator_shared.py`` 比对）。
+TARGET_EXPRESS = "express"  # Windows 桌面程序（后台消息，``bg_desk``）
+TARGET_MRERP = "mrerp"  # 网页（CC 自带网页内核的独立窗口；执行层随第 2 步，之前按「不支持」回执）
+TARGETS = (TARGET_EXPRESS, TARGET_MRERP)
+
+
+def target_of(payload) -> str:
+    """代录载荷的执行目标：没写 = Express；写了什么就回什么（认不出的由宿主按「不支持」回执）。"""
+    operator = payload.get("operator") if isinstance(payload, dict) else None
+    found = operator.get("target") if isinstance(operator, dict) else None
+    return str(found or TARGET_EXPRESS)
+
 # 载荷版本号：共用件那一步按合入顺序顺延，现在不占号（主会话 10-26）。接线时改成 payload_contract 里的正式常量。
 PAYLOAD_VERSION_PLACEHOLDER = None
 

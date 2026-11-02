@@ -23,6 +23,8 @@ def _load(name, path):
 SERVER = _load("op_server_contracts", ROOT / "apps/pearnly_core/pearnly_core/express_operator/contracts.py")
 CLIENT = _load("op_client_contract", ROOT / "companion/src/companion/express_operator/contract.py")
 REPORT = _load("op_report", ROOT / "apps/pearnly_core/pearnly_core/express_operator/report.py")
+PAYLOAD = _load("op_client_payload_contract", ROOT / "companion/src/companion/payload_contract.py")
+ROUTE = _load("op_route_contracts", ROOT / "apps/pearnly_core/pearnly_core/cc_desktop/wire/route_contracts.py")
 
 
 class SameContract(unittest.TestCase):
@@ -34,6 +36,20 @@ class SameContract(unittest.TestCase):
         for name in ("PENDING", "ENTERING", "SAVED", "VOIDED", "WAITING", "SKIPPED", "BATCH_READY", "BATCH_RUNNING",
                      "BATCH_PAUSED", "BATCH_STOPPED", "BATCH_FINISHED", "AUTO", "AUTO_REPORTED", "HUMAN"):
             self.assertEqual(getattr(SERVER, name), getattr(CLIENT, name), name)
+
+    def test_targets_match_the_desktop_and_the_routing_rule(self):
+        """执行目标（ADR-026）：两端同值；派单纯规则认的 Express 与契约同一个；载荷 18 两端同号、是 CC 认的最高版本。"""
+        self.assertEqual((SERVER.TARGET_EXPRESS, SERVER.TARGET_MRERP), ("express", "mrerp"))
+        self.assertEqual(SERVER.TARGETS, CLIENT.TARGETS)
+        self.assertEqual((SERVER.TARGET_EXPRESS, SERVER.TARGET_MRERP), (CLIENT.TARGET_EXPRESS, CLIENT.TARGET_MRERP))
+        self.assertEqual(ROUTE.EXPRESS, SERVER.TARGET_EXPRESS)
+        self.assertEqual(SERVER.MRERP_OPERATOR_PAYLOAD_VERSION, PAYLOAD.MRERP_OPERATOR_PAYLOAD_VERSION)
+        self.assertEqual(SERVER.MRERP_OPERATOR_PAYLOAD_VERSION, max(PAYLOAD.SUPPORTED_PAYLOAD_VERSIONS))
+        self.assertGreater(SERVER.MRERP_OPERATOR_PAYLOAD_VERSION, PAYLOAD.REMARKS_PAYLOAD_VERSION)
+        # 这一版 CC 只报 Express（MR.ERP 执行层随第 2 步）：心跳的写法过派单规则的净化不变
+        self.assertEqual(ROUTE.stored_targets(list(PAYLOAD.OPERATOR_TARGETS)), "express")
+        for payload in ({}, {"operator": {}}, {"operator": {"target": "mrerp"}}, {"operator": {"target": "x"}}, "x", None):
+            self.assertEqual(SERVER.target_of(payload), CLIENT.target_of(payload), payload)
 
     def test_shared_layer_header(self):
         for path in (ROOT / "apps/pearnly_core/pearnly_core/express_operator").glob("*.py"):
@@ -65,11 +81,116 @@ class OperatorPayload(unittest.TestCase):
         self.assertEqual(client.ENTRY_OPERATOR, SERVER.ENTRY_MODE)
         self.assertIsNone(client.check_payload_version(out))
 
+    # 改动前（a5ea574f 的 for_operator）对同一份输入出的载荷，排序键与不排序键各一份：Express 目标必须逐字节相同
+    GOLDEN_INPUT = {"direction": "purchase", "doctype": "RR", "payload_version": 17, "docdate_be": "691020", "ref_no": "INV-7",
+                    "supplier": {"code": "P001", "name": "บริษัท ทดสอบ"},
+                    "items": [{"code": "501780", "qty": "2", "unit_price": "10.00", "remarks": ["VIN-1"]}],
+                    "account_uid": "vsn:1234/5"}
+    GOLDEN = [
+        ({"id": "b1", "index": 1, "total": 2, "start_at": 0, "doc": "CWH-1", "company": "C-1"}, True, True,
+         '{"account_uid": "vsn:1234/5", "direction": "purchase", "docdate_be": "691020", "doctype": "RR", "entry_mode": "operator", '
+         '"items": [{"code": "501780", "qty": "2", "remarks": ["VIN-1"], "unit_price": "10.00"}], "operator": {"batch": '
+         '{"company": "C-1", "doc": "CWH-1", "id": "b1", "index": 1, "start_at": 0.0, "total": 2}, "vat_included": true}, '
+         '"payload_version": 17, "ref_no": "INV-7", "supplier": {"code": "P001", "name": "บริษัท ทดสอบ"}}'),
+        ({"id": "task9", "index": 2, "total": 2, "start_at": 1762000000.5}, False, True,
+         '{"account_uid": "vsn:1234/5", "direction": "purchase", "docdate_be": "691020", "doctype": "RR", "entry_mode": "operator", '
+         '"items": [{"code": "501780", "qty": "2", "remarks": ["VIN-1"], "unit_price": "10.00"}], "operator": {"batch": '
+         '{"id": "task9", "index": 2, "start_at": 1762000000.5, "total": 2}, "vat_included": false}, "payload_version": 17, '
+         '"ref_no": "INV-7", "supplier": {"code": "P001", "name": "บริษัท ทดสอบ"}}'),
+        ({"id": "b1", "index": 1, "total": 2, "start_at": 0, "doc": "CWH-1", "company": "C-1"}, True, False,
+         '{"direction": "purchase", "doctype": "RR", "payload_version": 17, "docdate_be": "691020", "ref_no": "INV-7", '
+         '"supplier": {"code": "P001", "name": "บริษัท ทดสอบ"}, "items": [{"code": "501780", "qty": "2", "unit_price": "10.00", '
+         '"remarks": ["VIN-1"]}], "account_uid": "vsn:1234/5", "entry_mode": "operator", "operator": {"batch": {"id": "b1", '
+         '"index": 1, "total": 2, "start_at": 0.0, "doc": "CWH-1", "company": "C-1"}, "vat_included": true}}'),
+    ]
+
+    def test_an_express_payload_is_byte_for_byte_what_it_was_before_targets(self):
+        """代录目标分路第 1 步对 Express 零变化：默认、显式 ``target=express``、批次里多带 ``target``（``products.submit`` 加的）
+        三种写法出的载荷与改动前逐字节相同，没有 ``target`` 键、版本照旧。"""
+        for batch, vat, sort, golden in self.GOLDEN:
+            for kwargs, extra in (({}, {}), ({"target": "express"}, {}), ({}, {"target": "express"}),
+                                  ({}, {"target": "mrerp"})):  # 批次里的 target 不影响载荷：目标只认参数
+                out = SERVER.for_operator(dict(self.GOLDEN_INPUT), {**batch, **extra}, vat_included=vat, **kwargs)
+                self.assertEqual(json.dumps(out, ensure_ascii=False, sort_keys=sort), golden, (kwargs, extra))
+        small = SERVER.for_operator({"payload_version": 4, "items": []}, {"id": "x", "index": 1, "total": 1})
+        self.assertEqual(json.dumps(small, sort_keys=True), '{"entry_mode": "operator", "items": [], "operator": {"batch": '
+                         '{"id": "x", "index": 1, "start_at": 0.0, "total": 1}, "vat_included": false}, "payload_version": 16}')
+
+    def test_an_mrerp_payload_carries_its_target_and_version_18(self):
+        """MR.ERP 目标：``operator.target = mrerp``、版本至少 18；这一版 CC 认得（宿主按目标分路），只认到 17 的旧版诚实拒收。"""
+        out = SERVER.for_operator({"doctype": "RR", "payload_version": 4, "items": []},
+                                  {"id": "b1", "index": 1, "total": 1, "doc": "CWH-1"}, target="mrerp")
+        self.assertEqual(out["operator"], {"batch": {"id": "b1", "index": 1, "total": 1, "start_at": 0.0, "doc": "CWH-1"},
+                                           "vat_included": False, "target": "mrerp"})
+        self.assertEqual((out["entry_mode"], out["payload_version"]), ("operator", 18))
+        self.assertTrue(SERVER.is_operator(out))
+        self.assertEqual((SERVER.target_of(out), CLIENT.target_of(out)), ("mrerp", "mrerp"))
+        self.assertIsNone(PAYLOAD.check_payload_version(out))
+        older = frozenset(range(1, 18))  # 1.12.11 及更早
+        self.assertNotIn(out["payload_version"], older)
+        with self.assertRaises(ValueError):
+            SERVER.for_operator({}, {"id": "b1", "index": 1, "total": 1}, target="flowaccount")
+
     def test_bad_batch_refused(self):
         for batch in ({"id": "", "index": 1, "total": 1}, {"id": "b", "index": 0, "total": 1},
                       {"id": "b", "index": 3, "total": 2}):
             with self.assertRaises(ValueError):
                 SERVER.for_operator({}, batch)
+
+
+class ProductTarget(unittest.TestCase):
+    """产品钩子（``products``）：这家公司录到哪种账本由产品声明，没声明 = Express；交单时目标带进批次信息。"""
+
+    def setUp(self):
+        import types
+
+        self.hooks, self.calls = {}, []
+
+        class Invalid(Exception):
+            pass
+
+        frappe = types.ModuleType("frappe")
+        frappe.get_hooks = lambda name: self.hooks if name == "pearnly_express_operator" else {}
+        frappe.get_attr = lambda path: {"t.target": lambda company: {"CO-M": "mrerp", "CO-X": "flowaccount"}.get(company),
+                                         "t.submit": lambda *a: self.calls.append(a) or []}[path]
+        frappe._ = lambda text: text
+
+        def throw(message, exc=None):
+            raise Invalid(message)
+
+        frappe.throw, self.Invalid = throw, Invalid
+        self.saved = {name: sys.modules.get(name) for name in ("frappe", "pearnly_core", "pearnly_core.express_operator",
+                                                               "pearnly_core.express_operator.contracts")}
+        package = types.ModuleType("pearnly_core")
+        package.__path__ = [str(ROOT / "apps/pearnly_core/pearnly_core")]
+        operator = types.ModuleType("pearnly_core.express_operator")
+        operator.__path__ = [str(ROOT / "apps/pearnly_core/pearnly_core/express_operator")]
+        operator.contracts = SERVER
+        sys.modules.update({"frappe": frappe, "pearnly_core": package, "pearnly_core.express_operator": operator,
+                            "pearnly_core.express_operator.contracts": SERVER})
+        self.products = _load("op_products", ROOT / "apps/pearnly_core/pearnly_core/express_operator/products.py")
+
+    def tearDown(self):
+        for name, module in self.saved.items():
+            if module is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = module
+
+    def test_no_declaration_is_express_and_a_declared_target_rides_in_the_batch(self):
+        self.assertEqual(self.products.target_of("CO-1"), "express")
+        self.hooks.update(submit="t.submit")
+        self.products.submit("CO-1", ["h1"], {"id": "b1", "total": 1, "start_at": 0}, "CCD-1", None)
+        self.assertEqual(self.calls[-1][2], {"id": "b1", "total": 1, "start_at": 0, "target": "express"})
+        self.hooks.update(target="t.target")
+        self.assertEqual(self.products.target_of("CO-1"), "express")  # 产品回空 = Express
+        self.assertEqual(self.products.target_of("CO-M"), "mrerp")
+        self.products.submit("CO-M", ["h1"], {"id": "b2", "total": 1, "start_at": 0}, "CCD-1", None)
+        self.assertEqual(self.calls[-1][2]["target"], "mrerp")
+        with self.assertRaises(self.Invalid):
+            self.products.target_of("CO-X")  # 认不出的目标拦下，不悄悄当 Express 录
+        self.hooks.pop("submit")
+        self.assertEqual(self.products.submit("CO-1", ["h1"], {"id": "b3"}, "", None), [])
 
 
 class Comparison(unittest.TestCase):

@@ -472,6 +472,7 @@ Open in browser,เปิดในเบราว์เซอร์
 "Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.",เปิด การตั้งค่า → LINE เปิด กล้อง แล้วกลับมาที่ LINE ระบบจะเริ่มสแกนใหม่เอง
 "Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.",เปิด การตั้งค่า → แอปพลิเคชัน → LINE → การอนุญาต → กล้อง เลือก อนุญาต แล้วกลับมาที่ LINE ระบบจะเริ่มสแกนใหม่เอง
 Operator,พนักงาน
+Operator Ledgers,ระบบบัญชีที่บันทึกแทนได้
 Operator Roster,ทะเบียนพนักงาน
 Operator Task,งานทำใน Express
 Operator added,เพิ่มพนักงานแล้ว

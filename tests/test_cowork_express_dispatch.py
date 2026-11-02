@@ -460,6 +460,15 @@ class Transport(unittest.TestCase):
     def run_lease(self, body=None):
         return self.transport.lease(self.credential, body or {})
 
+    def test_reported_operator_targets_reach_the_routing_peers_and_express_leases_as_before(self):
+        # 代录目标分路（ADR-026 第 1 步）：池里报的 targets 带进派单的 Peer；旧版不报是 None；Express 的单照以前派
+        self.peers[A]["targets"] = frozenset({"express"})
+        peers = self.transport._peers("CONN", A, {}, NOW)
+        self.assertEqual((peers[A].targets, peers[B].targets), (frozenset({"express"}), None))
+        self.pending = [_row("CWP-1", "s1")]
+        self.assertEqual(len(self.run_lease()["jobs"]), 1)
+        self.assertEqual([call[1] for call in self.calls if call[0] == "lease"], ["CWP-1"])
+
     def test_a_colleagues_head_does_not_block_my_work_in_the_same_account_set(self):
         # 用户 10-16：s1 最早的是同事录的、同事的电脑关着；A 只在它能写的单里取排头，照样写 s1 里 A 自己的单
         self.peers[B]["online"] = False

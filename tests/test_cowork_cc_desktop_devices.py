@@ -239,7 +239,8 @@ class FakeDB:
                         last_seen_generation=k.get("last_seen_generation"), signed_in_user=d.get("signed_in_user"),
                         signed_in_users=d.get("signed_in_users"), companion_version=d.get("companion_version"),
                         max_payload_version=d.get("max_payload_version"),
-                        index_pending_uids=d.get("index_pending_uids")) for k, d in found]
+                        index_pending_uids=d.get("index_pending_uids"),
+                        operator_targets=d.get("operator_targets")) for k, d in found]
         if "SELECT d.companion_version" in q:
             devices_ = STORE.get(DEVICE, {})
             return [(devices_[r["device"]].get("companion_version"),) for r in _rows(CREDENTIAL)
@@ -605,7 +606,7 @@ class Schema(unittest.TestCase):
         self.assertEqual(set(fields), {"workspace", "device_owner", "signed_in_user", "signed_in_users", "label",
                                        "secret_digest", "companion_version", "max_payload_version", "selection_json",
                                        "host_names", "index_pending", "retired_at", "retired_by", "index_pending_uids",
-                                       "reindex_runner"})
+                                       "reindex_runner", "operator_targets"})
         self.assertEqual(fields["secret_digest"]["unique"], 1)
         self.assertEqual(fields["secret_digest"].get("reqd", 0), 0)  # 补丁建的旧电脑留空，等认领
         self.assertEqual(doc["field_order"], [f["fieldname"] for f in doc["fields"]])
@@ -1302,6 +1303,14 @@ class HeartbeatComputer(Base):
         self.assertTrue(devices.record_report(made["device"], self.express,
                                               types.SimpleNamespace(offline=False, patch={"reindex_runner": "missing"})))
         self.assertEqual(devices.state(made["device"], self.express)["reindex_runner"], "missing")
+        # 能代录到哪些目标（ADR-026）：记在电脑行上，心跳的 previous 带回去；池里按它给派单（旧版不报 = None = 只有 Express）
+        self.assertIsNone(credentials.pool_peers(self.express)[made["device"]]["targets"])
+        self.assertTrue(devices.record_report(made["device"], self.express,
+                                              types.SimpleNamespace(offline=False, patch={"operator_targets": "express"})))
+        self.assertFalse(devices.record_report(made["device"], self.express,
+                                               types.SimpleNamespace(offline=False, patch={"operator_targets": "express"})))
+        self.assertEqual(devices.state(made["device"], self.express)["operator_targets"], "express")
+        self.assertEqual(credentials.pool_peers(self.express)[made["device"]]["targets"], frozenset({"express"}))
 
     def test_selection_is_kept_per_connection(self):
         """第 2 批审查 7：同一台电脑服务两条 Express 连接（erpcowork）：两条的所选、映射各存各的，不互改。"""

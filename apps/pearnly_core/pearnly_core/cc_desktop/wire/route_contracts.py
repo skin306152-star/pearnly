@@ -9,10 +9,14 @@
 - 资格：这台电脑够得到这份账套（可达行状态正常、可写），它的 CC 桌面版支持这张单的载荷版本；
 - 按账套黏住：一台电脑写过这份账套、主档索引还没重建（它领任务时报的 ``index_pending`` 里有这份账套的文件号；旧版不报，
   按「它最近 :data:`STICKY_SECONDS` 内写过」近似）且它在线 → 这份账套只交给它；黏住的那台不归这张单时只挡、不接；
-- 同一份账套按排队先后：每台电脑只在它能写的单里取各账套的排头（`queue_heads`），A 的电脑关着时 A 的单不挡 B 的单。
+- 同一份账套按排队先后：每台电脑只在它能写的单里取各账套的排头（`queue_heads`），A 的电脑关着时 A 的单不挡 B 的单；
+- 代录到 Express 以外的目标（ADR-026，第一个是 MR.ERP 网页）：不看账套可达、不黏住，只交给发起人选定的那台（``route_device``），
+  它的 CC 桌面版要在心跳 ``operator_targets`` 里报过这个目标、并支持这张单的载荷版本；旧版不报 = 只有 Express。Express 的单不看
+  这一项（与以前一样）。
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
 from typing import Iterable, Mapping, NamedTuple
 
@@ -28,6 +32,13 @@ ROUTES = (OWN, READER, STICKY)
 
 # 不能领的原因（只给日志与测试；不进回复）
 UNREACHABLE, NOT_MINE, STUCK, VERSION, NEEDS_UPDATE = "unreachable", "not_mine", "sticky", "version", "needs_update"
+# 这台的 CC 桌面版不会代录到这个目标（没在心跳 ``operator_targets`` 里报过）：不派，单子等它（ADR-026）
+NO_TARGET = "no_target"
+
+# 代录的执行目标（ADR-026，与共用层 ``express_operator.contracts.TARGET_EXPRESS`` 同值）：Express 照以前的规则派
+EXPRESS = "express"
+# 心跳 ``operator_targets`` 最多记几个、每个多长（只收小写字母数字，认不出的不记）
+MAX_TARGETS, _TARGET = 8, re.compile(r"^[a-z][a-z0-9_]{0,19}$")
 
 
 def serves(users: Iterable[str] | None, actor: str) -> bool:
@@ -47,6 +58,8 @@ class Peer(NamedTuple):
     payload_version: int | None = None
     # 它主档索引还没重建的账套文件号；None = 旧版不报这一项
     index_pending: frozenset | None = None
+    # 它能代录到哪些目标（心跳 ``operator_targets``）；None = 旧版不报 = 只有 Express
+    targets: frozenset | None = None
 
 
 class Job(NamedTuple):
@@ -60,6 +73,8 @@ class Job(NamedTuple):
     route_device: str = ""
     # 无人值守的自动推（冻结了 ``automation``，数字会计员第 3 期第 5 条）：电脑前不会有人等它
     automated: bool = False
+    # 代录的执行目标（ADR-026）；Express（直写也是）照以前的规则派，别的目标只交给 ``route_device``
+    target: str = EXPRESS
 
 
 class Account(NamedTuple):
@@ -81,6 +96,27 @@ def owns(device: str, peer: Peer | None, actor: str, route_device: str = "") -> 
     if route_device:
         return device == route_device
     return serves((peer or Peer()).users, actor)
+
+
+def stored_targets(value) -> str:
+    """心跳报的 ``operator_targets`` → 存进电脑行的写法（排好、逗号分隔）；没报 / 不是列表 / 一个都认不出回空串（不改上次存的）。"""
+    if not isinstance(value, (list, tuple)):
+        return ""
+    found = sorted({item for item in value if isinstance(item, str) and _TARGET.match(item)})
+    return ",".join(found[:MAX_TARGETS])
+
+
+def targets_of(stored) -> frozenset | None:
+    """电脑行上存的写法 → :class:`Peer` 的 ``targets``；没存过（旧版不报）回 None。"""
+    found = frozenset(item for item in str(stored or "").split(",") if _TARGET.match(item))
+    return found or None
+
+
+def operates(peer: Peer | None, target: str) -> bool:
+    """这台电脑能不能代录到 ``target``：Express 不看这一项（与以前一样）；别的目标要它报过，旧版不报 = 只有 Express。"""
+    if not target or target == EXPRESS:
+        return True
+    return target in ((peer or Peer()).targets or frozenset())
 
 
 def supports(peer: Peer | None, version: int) -> bool:
@@ -123,6 +159,8 @@ def decide(device: str, job: Job, reachers: Iterable[str], peers: Mapping[str, P
            now: datetime) -> Decision:
     """``device`` 现在能不能领这份账套的排头 ``job``。``reachers``：够得到它（状态正常、可写）的电脑；``peers``：
     ``{设备: Peer}``，来领的这台本身就在线。"""
+    if job.target and job.target != EXPRESS:
+        return _decide_chosen(device, job, peers.get(device))
     reachers = sorted(set(reachers))
     if device not in reachers:
         return Decision(False, reason=UNREACHABLE)
@@ -138,6 +176,19 @@ def decide(device: str, job: Job, reachers: Iterable[str], peers: Mapping[str, P
     if holder == device:
         return Decision(True, STICKY)
     return Decision(True, READER if job.route_device else OWN)
+
+
+def _decide_chosen(device: str, job: Job, peer: Peer | None) -> Decision:
+    """代录到 Express 以外的目标（ADR-026）：只有发起人选定的那台（``route_device``）能领，不看账套可达、不黏住（网页账本是多用户
+    服务器程序，没有「哪台够得到账套」）。它不会这个目标 → 不领、单子等它（不转人工：它更新 CC 桌面版后就会）；会这个目标、载荷版本
+    不支持 → 「需更新」（只有它能写，同 Express 没有一台支持时的口径）。"""
+    if not job.route_device or device != job.route_device:
+        return Decision(False, reason=NOT_MINE)
+    if not operates(peer, job.target):
+        return Decision(False, reason=NO_TARGET)
+    if not supports(peer, job.payload_version):
+        return Decision(False, reason=NEEDS_UPDATE)
+    return Decision(True, READER)
 
 
 def heads(rows: Iterable[Mapping], limit: int = MAX_HEADS) -> list:
@@ -163,6 +214,6 @@ def attended(job: Job, peer: Peer | None) -> bool:
             and job.actor in (peer or Peer()).users)
 
 
-__all__ = ["Account", "Decision", "Job", "MAX_HEADS", "NEEDS_UPDATE", "NOT_MINE", "OWN", "Peer", "READER", "ROUTES",
-           "STICKY", "STICKY_SECONDS", "STUCK", "UNREACHABLE", "VERSION", "attended", "decide", "heads", "needs_update",
-           "owns", "serves", "sticky_holder", "supports"]
+__all__ = ["Account", "Decision", "EXPRESS", "Job", "MAX_HEADS", "MAX_TARGETS", "NEEDS_UPDATE", "NOT_MINE", "NO_TARGET", "OWN",
+           "Peer", "READER", "ROUTES", "STICKY", "STICKY_SECONDS", "STUCK", "UNREACHABLE", "VERSION", "attended", "decide",
+           "heads", "needs_update", "operates", "owns", "serves", "stored_targets", "sticky_holder", "supports", "targets_of"]

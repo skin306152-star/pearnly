@@ -397,6 +397,14 @@ entries = ["cc.desktop.write", "cc.desktop.operator", "cowork.cc.channel", "erp.
 not_entries = { "companion/src/companion/express_read.py" = "读路径只借用写入的字段常量，入口见 cc-request-worker", "companion/src/companion/express_masters.py" = "读主档只借用库存单单据簿的读法（dbf_stock.book_row，只读），入口见 cc-request-worker" }
 
 [[part]]
+id = "cc-operator-target"
+name = "CC 代录执行目标分路（operator.target、宿主按目标装配、心跳 operator_targets，ADR-026）"
+paths = ["companion/src/companion/express_operator/contract.py", "companion/src/companion/express_operator/host.py", "companion/src/companion/payload_contract.py"]
+markers = ["express_operator.contract import TARGET", "OPERATOR_TARGETS", "operator_targets"]
+search = ["companion/src/**/*.py"]
+entries = ["cc.desktop.operator", "cc.desktop.write", "cc.desktop.places", "cowork.cc.channel", "erp.cc.connect"]
+
+[[part]]
 id = "execution"
 name = "识别队列与后台执行（execution）"
 paths = ["apps/pearnly_core/pearnly_core/execution/**"]
@@ -1536,7 +1544,7 @@ where = "Cowork 成员推送回执 / 按需请求 / 心跳"
 steps = "testcowork 推一张单；目录 / 科目 / 账套读取；心跳版本提示；文件夹录入"
 expect = "与 main 相同；写进 Express 读回一致（Cowork 推送还没有自动冒烟，人工推一张）"
 check = "manual"
-files = ["apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py", "apps/pearnly_cowork/pearnly_cowork/companion/http_auth.py", "apps/pearnly_cowork/pearnly_cowork/companion/pool.py", "apps/pearnly_cowork/pearnly_cowork/companion/queue_api.py", "apps/pearnly_cowork/pearnly_cowork/companion/queue_heads.py", "apps/pearnly_cowork/pearnly_cowork/companion/request_api.py", "apps/pearnly_cowork/pearnly_cowork/companion/request_service.py", "apps/pearnly_cowork/pearnly_cowork/companion/transport.py", "apps/pearnly_cowork/pearnly_cowork/companion/devices.py", "apps/pearnly_cowork/pearnly_cowork/connections/member.py", "apps/pearnly_cowork/pearnly_cowork/connections/pool.py", "apps/pearnly_cowork/pearnly_cowork/connections/reports.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/machine.py", "apps/pearnly_cowork/pearnly_cowork/push/lifecycle.py", "apps/pearnly_cowork/pearnly_cowork/push/native/service.py"]
+files = ["apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py", "apps/pearnly_cowork/pearnly_cowork/companion/http_auth.py", "apps/pearnly_cowork/pearnly_cowork/companion/credentials.py", "apps/pearnly_cowork/pearnly_cowork/companion/pool.py", "apps/pearnly_cowork/pearnly_cowork/companion/queue_api.py", "apps/pearnly_cowork/pearnly_cowork/companion/queue_heads.py", "apps/pearnly_cowork/pearnly_cowork/companion/request_api.py", "apps/pearnly_cowork/pearnly_cowork/companion/request_service.py", "apps/pearnly_cowork/pearnly_cowork/companion/transport.py", "apps/pearnly_cowork/pearnly_cowork/companion/devices.py", "apps/pearnly_cowork/pearnly_cowork/connections/member.py", "apps/pearnly_cowork/pearnly_cowork/connections/pool.py", "apps/pearnly_cowork/pearnly_cowork/connections/reports.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/machine.py", "apps/pearnly_cowork/pearnly_cowork/push/lifecycle.py", "apps/pearnly_cowork/pearnly_cowork/push/native/service.py"]
 
 [[entry]]
 id = "cowork.express.push"

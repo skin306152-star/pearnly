@@ -13,7 +13,10 @@
         "regroup": "<点路径>",   # 可选：(company, doc_id, group) -> {"ok"}：资料区拖到别的组
         "submit": "<点路径>",    # (company, doc_ids, batch, computer, answers) -> [{"doc_id", "status", "reason"}]：先记下预检里
                                  # 人定的（answers = {doc_id: [{kind, subject, value, label}]}），再按产品自己的准备出直写同一份
-                                 # 载荷，经 ``contracts.for_operator`` 加代录标记，交进产品自己的写账队列（选定的电脑写）
+                                 # 载荷，经 ``contracts.for_operator`` 加代录标记，交进产品自己的写账队列（选定的电脑写）。
+                                 # ``batch["target"]`` 是这家公司的执行目标（见 ``target``），产品出载荷时交给 ``for_operator(target=…)``
+        "target": "<点路径>",    # 可选：(company) -> "express" / "mrerp"：这家公司代录录到哪种账本（ADR-026）；没声明 = Express。
+                                 # 产品要先有那个目标的准备与派单才声明（MR.ERP：Cowork 第 3 步、ERP 第 6 步）
         "resolve": "<点路径>",   # 可选：(company, doc_id, entered, docnum) -> {"ok"}：上次推送结果不明的单，人在 Express 里核对后
                                  # 标「已入账（单号）/ 没有入账」（同产品复核页的核对那条路）；没声明的产品回 unsupported
         "status": "<点路径>",    # (company, doc_ids) -> [{"doc_id", "state": saved / queued / not_done / cancelled / unknown,
@@ -25,6 +28,9 @@
 没声明的站点（DMS、控制面）：一律不能发起。一个站点只装一个产品，取最后声明的那一份。批次表与接口随共用件那一步接（评估 §7）。
 """
 import frappe
+from frappe import _
+
+from pearnly_core.express_operator import contracts
 
 HOOK = "pearnly_express_operator"
 
@@ -71,9 +77,24 @@ def regroup(company, doc_id: str, group: str) -> dict:
     return frappe.get_attr(path)(company, doc_id, group) if path else {"ok": False, "reason": "unsupported"}
 
 
+def target_of(company) -> str:
+    """这家公司代录录到哪种账本（ADR-026）：产品没声明 = Express；声明了却回认不出的值按请求无效拦下，不悄悄当 Express 录。"""
+    path = _path("target")
+    if not path:
+        return contracts.TARGET_EXPRESS
+    found = str(frappe.get_attr(path)(company) or contracts.TARGET_EXPRESS)
+    if found not in contracts.TARGETS:
+        frappe.throw(_("Invalid request"))
+    return found
+
+
 def submit(company, doc_ids, batch: dict, computer: str, answers=None) -> list:
+    """交给产品（开始、录到中途作答都走这里）：批次信息带上这家公司的执行目标 ``target``。"""
     path = _path("submit")
-    return list(frappe.get_attr(path)(company, list(doc_ids), batch, computer, answers or {})) if path else []
+    if not path:
+        return []
+    batch = {**batch, "target": target_of(company)}
+    return list(frappe.get_attr(path)(company, list(doc_ids), batch, computer, answers or {}))
 
 
 STATUS_STATES = ("saved", "queued", "not_done", "cancelled", "unknown")

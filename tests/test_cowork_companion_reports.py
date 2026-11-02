@@ -152,6 +152,15 @@ class CompanionReportTests(unittest.TestCase):
         for value, previous in (("ok", {"reindex_runner": "ok"}), ("gone", {}), (None, {"reindex_runner": "ok"})):
             self.assertNotIn("reindex_runner", plan_report({"reindex_runner": value}, previous, NOW).patch)
 
+    def test_operator_targets_are_kept_only_when_they_change(self):
+        # 能代录到哪些目标（ADR-026，载荷 18 起报）：排好存成一行；旧版不带、认不出的保留上次
+        self.assertEqual(plan_report({"operator_targets": ["mrerp", "express"]}, {"operator_targets": "express"}, NOW)
+                         .patch["operator_targets"], "express,mrerp")
+        self.assertEqual(plan_report({"operator_targets": ["express"]}, {}, NOW).patch["operator_targets"], "express")
+        for value, previous in ((["express"], {"operator_targets": "express"}), (None, {"operator_targets": "express"}),
+                                ("express", {}), ([], {}), (["Not A Target"], {})):
+            self.assertNotIn("operator_targets", plan_report({"operator_targets": value}, previous, NOW).patch)
+
     def test_raw_limits_do_not_truncate_projection_input(self):
         plan = plan_report({"account_sets": [{"code": str(i)} for i in range(51)],
                             "accounts": [{"code": str(i)} for i in range(3001)]}, {}, NOW)

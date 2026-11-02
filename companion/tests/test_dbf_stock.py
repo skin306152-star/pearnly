@@ -333,7 +333,7 @@ def test_a_failed_write_also_rolls_back_the_new_item(book):
 
 def test_payload_six_is_supported_and_older_cc_desktops_refuse_it():
     assert payload_contract.check_payload_version({"payload_version": 6}) is None
-    assert payload_contract.check_payload_version({"payload_version": 18}) == payload_contract.ERR_PAYLOAD_VERSION
+    assert payload_contract.check_payload_version({"payload_version": 19}) == payload_contract.ERR_PAYLOAD_VERSION
 
 
 def test_the_worker_hands_a_stock_entry_to_the_stock_writer(monkeypatch, tmp_path):

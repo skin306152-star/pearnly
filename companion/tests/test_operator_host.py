@@ -410,3 +410,100 @@ def test_cc_ended_mid_batch_then_the_same_documents_come_back_and_each_is_entere
     assert resumed["status"] == "saved"
     heads = [r["DOCNUM"] for r in sims[0].book["APTRN"] if not r.get("_del")]
     assert heads == ["RR0000001", resumed["docnum"]]             # 每张只一张
+
+
+# ── 执行目标（ADR-026，代录目标分路第 1 步）──────────────────────────────────────────────────────────
+def mrerp_payload(index=1, total=1, batch="m1"):
+    """共用层 ``for_operator(..., target="mrerp")`` 出的形状（载荷 18，``operator.target``），站点侧由 tests/test_express_operator_shared.py 守。"""
+    return {"direction": "purchase", "doctype": "RR", "ref_no": "INV-9", "items": [{"code": "A", "qty": "1"}],
+            "payload_version": 18, "entry_mode": "operator",
+            "operator": {"batch": {"id": batch, "index": index, "total": total, "start_at": 0.0, "doc": "CWH-9"},
+                         "vat_included": False, "target": "mrerp"}}
+
+
+def test_the_host_routes_by_target_and_answers_unsupported_for_one_it_cannot_enter(tmp_path):
+    """Express 载荷照旧走 Express 装配；MR.ERP 这一版还没有装配：不开批次、不建批次文件、不碰账套，这张按「不支持」回执。"""
+    sims, called = [], []
+
+    def express(*args):
+        called.append("express")
+        return fake_factory(sims)(*args)
+
+    host = Host(tmp_path, factory=express)
+    out = host.handle("t1", mrerp_payload(), None)
+    assert (out["status"], out["reason"]) == ("human", "unsupported")
+    assert out["meta"] == {"batch": "m1", "target": "mrerp"}
+    assert called == [] and host.runners == {} and not (tmp_path / "batches").exists()
+    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    assert host.handle("t2", payload("RR", "P001", "501780", "1", "1.00", 1, 1), st)["status"] == "saved"
+    assert called == ["express"]                                   # Express 载荷（没写目标）照旧
+    # 以后加了目标的装配（第 2 步）就按目标取那一个
+    seen = []
+    host = Host(tmp_path / "x", factory=express, assemblers={"mrerp": lambda *a: seen.append(a) or fake_factory(sims)(*a)})
+    host.handle("t3", {**payload("RR", "P001", "501780", "1", "1.00", 1, 1, batch="m2"),
+                       "operator": {**mrerp_payload()["operator"], "batch": {"id": "m2", "index": 1, "total": 1}}}, st)
+    assert len(seen) == 1 and called == ["express"]
+
+
+def test_the_assemblers_match_the_targets_the_heartbeat_reports():
+    from companion import payload_contract
+    from companion.express_operator import contract as K
+    from companion.express_operator import host as host_module
+
+    assert tuple(host_module.ASSEMBLERS) == payload_contract.OPERATOR_TARGETS == (K.TARGET_EXPRESS,)
+    assert host_module.default_factory is host_module.express_factory
+    assert payload_contract.MRERP_OPERATOR_PAYLOAD_VERSION in payload_contract.SUPPORTED_PAYLOAD_VERSIONS
+    assert payload_contract.MRERP_OPERATOR_PAYLOAD_VERSION == max(payload_contract.SUPPORTED_PAYLOAD_VERSIONS)
+    assert K.target_of({}) == K.target_of({"operator": {"batch": {}}}) == "express"
+    assert K.target_of(mrerp_payload()) == "mrerp"
+
+
+def test_an_mrerp_job_skips_the_account_set_lock_and_masters_and_is_answered_unsupported(monkeypatch, tmp_path):
+    """写账线：MR.ERP 目标不找 Express 账套、不拿 PEARNLY.LCK、不进 Express 建主档，也不要求本机有 Express；交宿主后按「不支持」
+    转人工（代码 OPERATOR_UNSUPPORTED，界面沿用「此类单据暂不支持」），不当成等账套放回（否则同一台反复领）。"""
+    from companion import account_write_lock
+    from companion.express_operator import host as host_module
+    from companion.express_operator import masters
+
+    monkeypatch.setattr(sys, "platform", "darwin")                 # 不是 Windows、没设 Express 程序也一样
+    monkeypatch.setattr(worker, "_task_settings", lambda *_a: (_ for _ in ()).throw(AssertionError("no account set")))
+    monkeypatch.setattr(account_write_lock, "held", lambda *_a: (_ for _ in ()).throw(AssertionError("no lock")))
+    monkeypatch.setattr(masters, "prepare", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("no masters")))
+    monkeypatch.setattr(host_module, "_HOST", Host(tmp_path, factory=lambda *_a: (_ for _ in ()).throw(AssertionError())))
+    monkeypatch.setattr(worker.task_journal, "written", lambda *_a: None)
+    qc = Queue()
+    task = SimpleNamespace(id="t9", payload=mrerp_payload(), invoice_no="", key=None)
+    assert worker._handle_dbf_task(SimpleNamespace(ui_lang="zh", default_depcod=""), qc, task) == "needs_review"
+    assert qc.acks == [("failed", "t9", "OPERATOR_UNSUPPORTED", "needs_review")]
+    qc.acks.clear()
+    assert worker._handle_operator_task(SimpleNamespace(ui_lang="zh"), qc, task, None) == "needs_review"
+    assert qc.acks == [("failed", "t9", "OPERATOR_UNSUPPORTED", "needs_review")]
+
+
+def test_an_express_operator_job_still_needs_windows_and_the_express_program(monkeypatch, tmp_path):
+    """Express 目标一行不改：不是 Windows 照旧 OPERATOR_UNAVAILABLE（写了 ``target = express`` 与没写一样）。"""
+    monkeypatch.setattr(sys, "platform", "darwin")
+    qc = Queue()
+    job = payload("RR", "P001", "A", "1", "1", 1, 1)
+    job["operator"]["target"] = "express"
+    st = SimpleNamespace(account_dir=str(tmp_path), express_exe="", has_selection=lambda: True)
+    task = SimpleNamespace(id="t9", payload=job, invoice_no="")
+    assert worker._handle_operator_task(SimpleNamespace(ui_lang="zh"), qc, task, st) == "needs_review"
+    assert qc.acks == [("failed", "t9", "OPERATOR_UNAVAILABLE", "needs_review")]
+
+
+def test_an_older_cc_desktop_refuses_an_mrerp_job_honestly(monkeypatch):
+    """1.12.11 及更早只认到 17：MR.ERP 载荷（18）按 ERR_PAYLOAD_VERSION 诚实拒收，不读账套、不开代录。"""
+    from companion import payload_contract
+
+    monkeypatch.setattr(payload_contract, "SUPPORTED_PAYLOAD_VERSIONS", frozenset(range(1, 18)))
+    monkeypatch.setattr(worker, "_task_settings", lambda *_a: (_ for _ in ()).throw(AssertionError("no account set")))
+    monkeypatch.setattr(worker, "_handle_operator_task", lambda *_a: (_ for _ in ()).throw(AssertionError("no operator")))
+
+    class QC(Queue):
+        def ack_failure(self, task_id, error, error_code=None, outcome=None, meta=None):
+            self.acks.append((task_id, error_code, meta))
+
+    qc = QC()
+    worker._handle_dbf_task(SimpleNamespace(ui_lang="zh"), qc, SimpleNamespace(id="t9", payload=mrerp_payload()))
+    assert qc.acks == [("t9", "ERR_PAYLOAD_VERSION", {"got": 18, "supported": list(range(1, 18))})]

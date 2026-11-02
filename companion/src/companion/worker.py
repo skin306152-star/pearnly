@@ -245,6 +245,14 @@ def _handle_dbf_task(
             meta={**(done.get("meta") or {}), "written": False, "duplicate_skipped": True},
         )
         return None
+    # 代录到 Express 以外的目标（载荷 18 起 operator.target，ADR-026）：不找 Express 账套，直接交给代录（按目标分路）
+    from .payload_contract import ENTRY_OPERATOR
+
+    if str(payload.get("entry_mode") or "").strip() == ENTRY_OPERATOR:
+        from .express_operator.contract import TARGET_EXPRESS, target_of
+
+        if target_of(payload) != TARGET_EXPRESS:
+            return _handle_operator_task(cfg, qc, task, None)
     expected_uid = str(payload.get("account_uid") or "").strip()
     # 方法无关「读设置」seam:DBF 直写只需所选账套整组(不需登录密码)。
     try:
@@ -372,11 +380,15 @@ ERR_OPERATOR_UNAVAILABLE = "OPERATOR_UNAVAILABLE"
 def _handle_operator_task(cfg, qc, task, st):
     """代录一张（写账线里，与直写同一把账套锁 PEARNLY.LCK、同一条单线程）。代录包只在这里按需导入：不代录时零占用。
 
+    按执行目标分路（载荷 ``operator.target``，ADR-026）：Express 走下面这条（与以前一行不差）；别的目标交 :func:`_handle_operator_target`。
     这台不能代录（不是 Windows、没设服务器版 Express 程序）→ 转人工、写明原因（按「等账套」放回的话同一台会反复领到它）。
     回执：存上 → 成功（Express 单号）；要人 / 停止 / 跳过 → needs_review（原因代码 ``OPERATOR_<原因>``）；服务器连不上 → 等账套。
     ``meta.operator`` 带批次号、作废单号、空单头、自动处理的事、用时。"""
     from .account_write_lock import ERR_WRITER_BUSY, Busy, held
+    from .express_operator.contract import TARGET_EXPRESS, target_of
 
+    if target_of(task.payload or {}) != TARGET_EXPRESS:
+        return _handle_operator_target(cfg, qc, task)
     if sys.platform != "win32" or not str(getattr(st, "express_exe", "") or "").strip():
         qc.ack_failure(task.id, "this computer cannot operate Express", error_code=ERR_OPERATOR_UNAVAILABLE,
                        outcome="needs_review")
@@ -405,6 +417,27 @@ def _handle_operator_task(cfg, qc, task, st):
                        outcome="needs_review")
         return "needs_review"
     meta = {"operator": {**(result.get("meta") or {}), **({"masters": ready.created} if ready.created else {})}}
+    return _ack_operator(cfg, qc, task, result, meta)
+
+
+def _handle_operator_target(cfg, qc, task):
+    """代录到 Express 以外的目标（ADR-026，第一个是 MR.ERP 网页）：网页账本是多用户服务器程序，同一账套几个人同时录本来就正常，
+    所以不拿账套写者锁 PEARNLY.LCK、不进 Express 建主档、不要求本机有 Express；整张交给宿主按目标装配。这一版还不会录的目标由
+    宿主按「不支持」回执（转人工，不碰任何账本）。回执口径与 Express 代录相同。"""
+    from .express_operator import host as operator_host
+
+    try:
+        result = operator_host.host().handle(str(task.id), task.payload or {}, None)
+    except Exception as exc:  # noqa: BLE001 — 同 Express：出了意外交人，不重试（重试可能重录）
+        log.warning(f"✗ operator task {task.id}: {type(exc).__name__}: {exc}")
+        qc.ack_failure(task.id, f"{type(exc).__name__}: {exc}"[:300], error_code="OPERATOR_ERROR",
+                       outcome="needs_review")
+        return "needs_review"
+    return _ack_operator(cfg, qc, task, result, {"operator": dict(result.get("meta") or {})})
+
+
+def _ack_operator(cfg, qc, task, result, meta):
+    """代录一张的结论按写账回执报回（各目标同一口径）。"""
     status = result.get("status")
     if status == "saved":
         task_journal.remember(task_journal.key_of(task), {"docnum": result.get("docnum"), "meta": meta})
@@ -749,7 +782,7 @@ def _run_periodic(
         state["last_heartbeat"] = now
         try:
             from . import update_block
-            from .payload_contract import SUPPORTED_PAYLOAD_VERSIONS
+            from .payload_contract import OPERATOR_TARGETS, SUPPORTED_PAYLOAD_VERSIONS
             from .version import VERSION
 
             _adopt_machine_roots(cfg)
@@ -865,6 +898,8 @@ def _run_periodic(
                 catalog=catalog,
                 companion_version=VERSION,
                 max_payload_version=max(SUPPORTED_PAYLOAD_VERSIONS),
+                # 能代录到哪些目标（ADR-026）：服务端只把 Express 以外目标的代录单派给报了它的电脑
+                operator_targets=list(OPERATOR_TARGETS),
                 # Express 索引重建程序在不在、能不能跑(10-25;缺了写单会拒写转人工,服务端电脑记录里看得到)
                 reindex_runner=cdx_reindex.runner_status(),
                 # 自动更新被 Windows 拦下（版本 + 时刻）；没被拦报 None，云端据此清掉旧值（update_block.py）
