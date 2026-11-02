@@ -10,7 +10,7 @@
 ``state()`` 带 ``features: ["company_folders", "devices"]``（旧版没有，页面据此降级）与 ``legacy_roots``（设置页的旧授权清理行）。
 
 MR.ERP 登录（ADR-026 第 7 条，11-02）：``mrerp_authorize`` 只收站点发给对话页的一次性票，弹原生小窗，经机器通道交给站点、
-站点收下了再存本机凭据管理器（express_operator/mrerp_login.py）；密码不经过页面。
+站点收下了再存本机凭据管理器（mrerp_login.py）；密码不经过页面。
 
 多台电脑（ADR-021，1.7.0）：``state()`` 另带 ``device: {key, name}``（这台电脑的设备密钥与电脑名；取不到是空对象），对话页每次
 打开都带它调 ``companion.api.register``（对话页一侧在第 6 批）；成员带 ``device_state``（``superseded`` / ``claimed_elsewhere``：
@@ -218,7 +218,8 @@ class TomoBridge(QObject):
         """MR.ERP 登录在 CC 里授权（ADR-026 第 7 条）：只收票（args 里的用户名、密码、地址一概不看），对话页必须是这台电脑连着的
         站点；弹原生小窗（界面线程），输好后在后台交给站点、再存本机（``mrerp_login.authorize``）。回 ``{ok}`` 或
         ``{ok: false, code | cancelled}``，从不回密码。"""
-        from .express_operator import login_dialog, mrerp_login
+        from . import mrerp_login
+        from .express_operator import login_dialog
 
         ticket = str(args.get("ticket") or "")
         if not mrerp_login.valid_ticket(ticket):

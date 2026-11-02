@@ -11,16 +11,16 @@
 
 密码不进日志、不进回执、不进报错；出错只回码：``network``（连不上 / 超时 / 5xx）、``unauthorized``（这台电脑的密钥站点不认）、
 站点给的码（``ticket_invalid`` 票过期或用过、``denied`` 没有权限、``login_invalid`` 报文不对、``unsupported`` 站点没接）、
-``store_failed``（站点收下了、本机存不进去）。只在用户点授权时导入。
+``store_failed``（站点收下了、本机存不进去）。只在用户点授权时导入（不放在代录包里：代录包不带网络库，见
+tests/test_operator_parts.py 的轻量检查）。
 """
 from __future__ import annotations
 
 import re
 from typing import Callable, Optional
 
-from .. import channel
-from ..logger import get_logger
-from . import credentials
+from . import channel
+from .logger import get_logger
 
 log = get_logger(__name__)
 
@@ -35,8 +35,8 @@ def valid_ticket(value) -> bool:
 def _post(backend_url: str, token: str, path: str, body: dict, timeout: float) -> tuple[int, dict]:
     import httpx
 
-    from .. import http_tls
-    from ..queue_client import unwrap
+    from . import http_tls
+    from .queue_client import unwrap
 
     with httpx.Client(base_url=backend_url, headers={"Authorization": f"Bearer {token}"},
                       timeout=httpx.Timeout(timeout, connect=min(5.0, timeout)), verify=http_tls.context()) as client:
@@ -49,6 +49,8 @@ def _post(backend_url: str, token: str, path: str, body: dict, timeout: float) -
 def authorize(*, site: str, backend_url: str, token: str, ticket: str, username: str, password: str,
               post: Optional[Callable] = None, store: Optional[Callable] = None, timeout: float = 20.0) -> dict:
     """交给站点、站点收下了再存本机。回 ``{ok: True, connection, authorized}`` 或 ``{ok: False, code}``；从不回密码。"""
+    from .express_operator import credentials
+
     post = post or _post
     store = store or credentials.store
     path = channel.path(token, "mrerp_login") if channel.known(token) else ""

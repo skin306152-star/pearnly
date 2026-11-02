@@ -1,7 +1,7 @@
 """MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7 条，评估 §14.4，2026-11-02）：CC 一侧。
 
 - 本机凭据：一条 MR.ERP 连接一条，目标名带站点与连接号；心跳只报这个站点的连接号；断开站点一并删掉（凭据管理器用替身）；
-- 交给站点（``express_operator.mrerp_login.authorize``）：只走这个成员通道的那条精确路径，报文只有票、用户名、密码；
+- 交给站点（``mrerp_login.authorize``）：只走这个成员通道的那条精确路径，报文只有票、用户名、密码；
   站点收下了才存本机，没收下本机不存；出错只回码，日志里没有密码；
 - 桥（``tomo_bridge`` 的 ``mrerp_authorize``）：只收票，不收页面传来的用户名、密码；对话页不是这台电脑连着的站点不弹窗；
   取消不交；输好后在后台交，结果里没有密码；能力表里有 ``mrerp_login``；
@@ -13,8 +13,8 @@ import time
 
 import pytest
 
-from companion import channel, queue_client
-from companion.express_operator import credentials, mrerp_login
+from companion import channel, mrerp_login, queue_client
+from companion.express_operator import credentials
 
 PASSWORD = "S3cret-pass!"
 TICKET = "mrl_" + "a" * 43
