@@ -235,10 +235,10 @@ DocType JSON 里 ERP 30 条、Cowork 12 条、共用 15 条 description：产品
 | `erp.report.stock-count-variance` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
 | `shared.sidebar-order` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
 | `erp.company-menu` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
-| `erp.detail.sales.draft` | ERP | auto：doc_detail | 通过（流程用例 erp.sales.scan，全套 190/190） | no draft ERP Sales Document |
+| `erp.detail.sales.draft` | ERP | auto：doc_detail | 没测到 | no draft ERP Sales Document |
 | `erp.detail.sales.submitted` | ERP | auto：doc_detail | 通过 |  |
 | `erp.detail.sales.void` | ERP | auto：doc_detail | 通过 |  |
-| `erp.detail.purchase.draft` | ERP | auto：doc_detail | 通过（流程用例 erp.purchase.create，全套 190/190） | no draft Purchase Document |
+| `erp.detail.purchase.draft` | ERP | auto：doc_detail | 没测到 | no draft Purchase Document |
 | `erp.detail.purchase.submitted` | ERP | auto：doc_detail | 通过 |  |
 | `erp.detail.purchase.void` | ERP | auto：doc_detail | 没测到 | no void Purchase Document |
 | `erp.detail.stock-in.submitted` | ERP | auto：doc_detail | 通过 |  |
@@ -278,7 +278,7 @@ DocType JSON 里 ERP 30 条、Cowork 12 条、共用 15 条 description：产品
 | `cowork.execution` | Cowork | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
 | `erp.execution` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
 | `shared.assistant` | 共用 | manual | 通过（流程用例 cc.chat，全套 190/190） | manual：交验收窗口按清单实测 |
-| `cowork.assistant` | Cowork | manual | 通过（流程用例 cowork.operator.unknown、cowork.pending.operator，全套 190/190） | manual：交验收窗口按清单实测 |
+| `cowork.assistant` | Cowork | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
 | `cc.operator.thread` | CC | manual | 通过（流程用例 cc.operator，全套 190/190） | manual：交验收窗口按清单实测 |
 | `erp.provisioning` | ERP | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
 | `shared.browser-text` | 共用 | manual | 没测到 | manual：交验收窗口按清单实测；本次只在 `app_include_js` 加载一个脚本、ERP / Cowork 声明一项，与此入口的业务无关，未单独点 |
