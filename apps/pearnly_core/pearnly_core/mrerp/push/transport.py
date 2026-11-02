@@ -6,7 +6,7 @@ component/importpc（确认）→ component/report（importpc 回纯数字时逐
 非数字体 = 服务器异常，整批诚实置失败）。同一 MR.ERP 账号串行（旧 `mrerp_session_lock`）。
 
 与旧版的差异：
-  · 会话用 `connections.mrerp_session`（与只读目录采集共用；公网地址校验、不许跳出原站点）；
+  · 会话用 `mrerp.session`（与只读目录采集共用；公网地址校验、不许跳出原站点）；
   · 会话锁用 `pearnly_core.session_lock.account_lock`（拿不到锁就报错，不放行）；
   · `import_sent`：importpc 一旦发出就置真——之后任何异常都是**结果不明**（可能已落库），
     调用方不得当失败重推（旧 `confirmed_push_reservation.mark_reserved_push_unknown` 同一判据）；
@@ -15,7 +15,7 @@ component/importpc（确认）→ component/report（importpc 回纯数字时逐
 有意变化（2026-09-28，MR.ERP 推送假成功，旧线上同样有此缺陷）：
   · selmenu 不写死：每次推送读这次打开的导入页选项，只用已关联日记账的；这份账套选过的以选过的为准
     （`mappings['_mrerp_menus']`，准备推送时冻结），失效就这张票停下请人重选，不自动换
-    （规则见 `targets/mrerp_menus.py`）。上传前紧挨着那次必需的 formupload GET 再核一次；
+    （规则见 `mrerp/menus.py`）。上传前紧挨着那次必需的 formupload GET 再核一次；
   · importpc 回 "1" 或 report 行空备注都**不**直接算成功：先 GET `{列表模块}/allview.php?idmenu=所选菜单`
     （写会话、看是否提示未关联日记账），再 POST `component/showdata.php` 按我方单号查，列表里以我方单号结尾的
     那一行才算成功，记下 MR.ERP 实际单号（菜单前缀 + 我方单号）；查不到 = 结果不明（`unknown`，要人工核对）；
@@ -79,7 +79,7 @@ class MrErpImport:
         self.import_sent = False
         # 这次会话读到的导入页选项（导入页 → 选项 | None），调用方存下来给选择入口用。
         self.observed_menus: Dict[str, Optional[List[Dict[str, Any]]]] = {}
-        # 这家公司的导入值（推送时按主档算，见 push/mrerp/defaults.py）；自建主档要的值定不下来时记下原因码。
+        # 这家公司的导入值（推送时按主档算，见 mrerp/push/defaults.py）；自建主档要的值定不下来时记下原因码。
         self.account_defaults: Optional[AccountDefaults] = None
         self.default_reason: Optional[str] = None
 
@@ -169,7 +169,7 @@ class MrErpImport:
             return self._result(original, [], mismatch_failed, t0, 0)
 
         # 这家公司的导入值（分店 / 部门 / 员工 / 收款科目等）：按这次读到的主档、这份账套选过的值与规则算，定不下来就
-        # 不推、不建主档（规则见 targets/mrerp_masters.py）。参考科目、称谓、总店只有网页，会改写会话里的当前菜单，
+        # 不推、不建主档（规则见 mrerp/masters.py）。参考科目、称谓、总店只有网页，会改写会话里的当前菜单，
         # 所以在打开导入页之前读。
         self._prepare(m)
         self.default_reason = None
@@ -278,7 +278,7 @@ class MrErpImport:
 
     def create_customers(self, customers: List[Dict[str, Any]], mappings: Dict[str, Any]) -> Dict[str, bool]:
         """自建客户(idempotent)· 导入 imparmas · 返回 {客户码: 成功}。已存在视为成功。
-        类型 / 应收科目 / 销售员等取这家公司的主档（push/mrerp/defaults.py），定不下来就不建、记下原因码。"""
+        类型 / 应收科目 / 销售员等取这家公司的主档（mrerp/push/defaults.py），定不下来就不建、记下原因码。"""
         try:
             records, shared = self._defaults().customers(customers)
         except Missing as missing:

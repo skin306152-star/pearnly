@@ -43,7 +43,7 @@ SOURCES: Dict[str, Tuple[str, ...]] = {
     "supplier_type": ("txtsuptype",),
     "product_group": ("txtstkgrp",),
     "unit": ("txtunit_usell",),
-    # 客户 / 供应商分店（不是选择项：自建主档时按票面分店号取，见 push/mrerp/defaults.py）
+    # 客户 / 供应商分店（不是选择项：自建主档时按票面分店号取，见 mrerp/push/defaults.py）
     "customer_branch": ("txtothcombrhcus",),
 }
 CHART = "txtacfile"  # 科目表：几个科目字段共用

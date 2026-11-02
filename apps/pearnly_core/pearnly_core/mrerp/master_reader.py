@@ -1,6 +1,6 @@
 """在已登录、已选好账套的 MR.ERP 会话里读这家公司的主档（只读：只 POST 列表接口、GET 两个表单页）。
 
-规则见 `targets/mrerp_masters.py`。后台读取任务（给录入前的选择弹窗）与推送（核对与取值）共用这里。
+规则见 `mrerp/masters.py`。后台读取任务（给录入前的选择弹窗）与推送（核对与取值）共用这里。
 
 - 列表接口 `*/component/bshlistboxdata.php`：POST、不带参数，回 JSON；只要会话里有公司与年度就落到这家公司的库
   （`connectdb/connect.php:15`），不查菜单权限。掉线时仍回 200，内容是弹窗脚本 + `No database selected`

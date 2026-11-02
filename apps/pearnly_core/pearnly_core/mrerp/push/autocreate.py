@@ -209,7 +209,7 @@ def _provision_expense_item(adapter, mappings: Dict[str, Any]) -> None:
     ):
         return
     name = _expense_cfg(mappings, "name", "ค่าใช้จ่าย")
-    # 费用科目与分类按这份账套选的（push/mrerp/defaults.py 放进 mappings）；旧线上写死 TEST2019 的 5230-01
+    # 费用科目与分类按这份账套选的（mrerp/push/defaults.py 放进 mappings）；旧线上写死 TEST2019 的 5230-01
     # （模板里是交通差旅费）与 04-SER，2026-10-08 起不再兜底。
     acc = _expense_cfg(mappings, "acc", "")
     overrides = {

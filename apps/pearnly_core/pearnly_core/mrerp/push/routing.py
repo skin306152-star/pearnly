@@ -130,7 +130,7 @@ def _walkin_to_cash(history: Dict[str, Any], default_doc: str, mappings: Dict[st
 
     仅当 ① 默认端点是销项 ② 开关开(默认 · mappings['_mrerp_walkin_sales_cash']=False 可关)
     ③ 无买方身份(无 client_id 且票面无买方税号)。现金收款写现金栏,MR.ERP 按菜单关联的现金科目 /
-    参考科目「เงินสด」过账(见 xlsx/sales_cash.py 与 push/mrerp/defaults.py)。
+    参考科目「เงินสด」过账(见 xlsx/sales_cash.py 与 mrerp/push/defaults.py)。
     """
     if not default_doc.startswith("sales"):
         return False

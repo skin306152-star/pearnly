@@ -72,7 +72,7 @@ _DATE_COLS_1 = {2, 8, 12}
 # MR.ERP 过账时（`arse/component/arsepc.php` insacglhd）现金栏 `จำนวนเงินสดรับ`（第 16 列）借记这个菜单关联的现金科目、
 # 没配则借记参考科目 2「เงินสด」；「รับอื่นๆ 1」槽借记的是菜单关联的借方 3（配了就不用我们写的科目）。所以现金收款
 # 写进现金栏；转账 / 刷卡收款仍记「รับอื่นๆ 1」，科目用这份账套选的银行科目。三个槽 MR.ERP 都要求填存在的科目码，
-# 不用的槽金额 0、科目沿用同一个（不产生分录）。科目由推送前按主档算好放进 mappings（见 `push/mrerp/defaults.py`）。
+# 不用的槽金额 0、科目沿用同一个（不产生分录）。科目由推送前按主档算好放进 mappings（见 `mrerp/push/defaults.py`）。
 
 
 def _is_cash(history: Dict[str, Any]) -> bool:

@@ -776,7 +776,7 @@ MRERP_SETUP_NOTE = ("This MR.ERP account set needs its import menu or default va
                     "fields as listed), ask the user for all of them in one message, save them together in one "
                     "cowork_mrerp_setup call, wait for its result, then push again.")
 # 10-19 lab：同是文具费用，无买方的简易税票进了「采购（费用）」菜单，写明买方的完整税票进了「采购（货品）」，CC 推前按买的东西
-# 猜成费用。MR.ERP 的采购进哪个菜单按票面定（同推送 `push.mrerp.routing`、Express 的抵不抵进项），不按买了什么
+# 猜成费用。MR.ERP 的采购进哪个菜单按票面定（同推送 `pearnly_core.mrerp.push.routing`、Express 的抵不抵进项），不按买了什么
 MRERP_ENTRY_NOTE = ("For an MR.ERP purchase, mrerp_entry says which import menu it will go into, decided by the document "
                     "as when it is pushed, not by what was bought: a full tax invoice with VAT and the buyer named "
                     "(input VAT claimable) goes in as purchase (the goods purchase menu), anything else (an abbreviated "
@@ -874,7 +874,7 @@ def _mrerp_entry(doc, connection, account_set, direction) -> dict | None:
 
 
 def _mrerp_setup_needed(connection, account_set, direction="") -> dict | None:
-    """MR.ERP 推这张票前这份账套还要人选的 ``{"menus": [...], "defaults": [...]}``（`connections.mrerp_needs.needed`，菜单与主档
+    """MR.ERP 推这张票前这份账套还要人选的 ``{"menus": [...], "defaults": [...]}``（`pearnly_core.mrerp.needs.needed`，菜单与主档
     读到过才判得出）；不用选、还没读过、读不到（没有权限、账套键不对）回 None：照旧推，推送时 MR.ERP 那边再核对。"""
     if not account_set:
         return None

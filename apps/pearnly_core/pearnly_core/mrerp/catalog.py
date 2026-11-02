@@ -104,7 +104,7 @@ def parse_periods(page: str) -> tuple[str, str]:
 
 
 def company_tax(value: Any) -> str:
-    """总店登记的税号（`targets.mrerp_masters.parse_company_tax` 读出的数字）：13 位且校验位对才算，其余是空串。"""
+    """总店登记的税号（`mrerp.masters.parse_company_tax` 读出的数字）：13 位且校验位对才算，其余是空串。"""
     digits = re.sub(r"\D", "", str(value or ""))
     return digits if len(digits) == 13 and valid_tax_id(digits) else ""
 

@@ -53,7 +53,7 @@ _HEADERS = [
 ]
 
 # 类型 / 应收科目 / 销售员 / 区域 / 运输是这家公司自己的主档代码，推送前按主档与这份账套选过的值算好放进
-# mappings（`_mrerp_customer_*`，见 push/mrerp/defaults.py）；称谓与客户分店按每个客户算（`prefix` / `branch`）。
+# mappings（`_mrerp_customer_*`，见 mrerp/push/defaults.py）；称谓与客户分店按每个客户算（`prefix` / `branch`）。
 # 缺了写空串，MR.ERP 会明确拒掉，不再写 TEST2019 的值（旧线上照抄客户 0006，换公司必被拒，2026-10-08）。
 _DEFAULTS = {
     "type": "",

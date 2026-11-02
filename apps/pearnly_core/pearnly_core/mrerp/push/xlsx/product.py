@@ -57,7 +57,7 @@ _HEADERS = [
 
 # 类型、成本法是 MR.ERP 的系统表（各公司相同，模板 stderp2020.sql:3488-3490）；分类 / 单位 / 8 个科目 / 供应商是这家
 # 公司自己的主档，推送前按主档、参考科目与这份账套选过的值算好放进 mappings（`_mrerp_product_*`，见
-# push/mrerp/defaults.py）。缺了写空串，MR.ERP 会明确拒掉，不再写 TEST2019 的值（2026-10-08）。
+# mrerp/push/defaults.py）。缺了写空串，MR.ERP 会明确拒掉，不再写 TEST2019 的值（2026-10-08）。
 _DEFAULTS = {
     # ★import 认的是短标签非 select 值/全名(实测:类型只认 "จัดทำสต๊อค",带 "สินค้า : " 前缀被拒)
     "type": "จัดทำสต๊อค",  # 库存型(Zihao 定:商品建库存型)

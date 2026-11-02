@@ -49,7 +49,7 @@ _HEADERS = [
 ]
 
 # 类型 / 应付科目是这家公司自己的主档代码，推送前按主档与这份账套选过的值算好放进 mappings（`_mrerp_supplier_*`，
-# 见 push/mrerp/defaults.py）；称谓与供应商分店按每个供应商算。缺了写空串，MR.ERP 会明确拒掉（旧线上写死 TEST2019
+# 见 mrerp/push/defaults.py）；称谓与供应商分店按每个供应商算。缺了写空串，MR.ERP 会明确拒掉（旧线上写死 TEST2019
 # 的 2-21 / 2110-01，在 MR.ERP 模板里分别是「其他应付」与「银行透支」，2026-10-08）。
 _DEFAULTS = {
     "type": "",

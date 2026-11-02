@@ -143,7 +143,7 @@ def book_many(row) -> bool:
 
 
 # MR.ERP 推送停在「这份账套的导入菜单 / 默认值要选」（推之前 CC 的核对、或推送时 MR.ERP 那边核对出来的，原因码同
-# `targets.mrerp_menus` / `targets.mrerp_masters`）：待处理与月结台账当场选（action ``mrerp``，2026-10-19），选完照常重推。
+# `pearnly_core.mrerp.menus` / `.masters`）：待处理与月结台账当场选（action ``mrerp``，2026-10-19），选完照常重推。
 MRERP_SETUP_CODES = ("ERR_MRERP_MENU_CHOICE_REQUIRED", "ERR_MRERP_MENU_CHANGED", "ERR_MRERP_DEFAULT_CHOICE_REQUIRED",
                      "ERR_MRERP_DEFAULT_CHANGED")
 

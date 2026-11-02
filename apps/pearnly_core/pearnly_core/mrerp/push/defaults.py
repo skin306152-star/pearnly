@@ -1,6 +1,6 @@
 """推送时这家公司的导入值：按这次读到的主档与这份账套选过的值（准备推送时冻结的 `_mrerp_defaults`）算好放进 mappings。
 
-规则见 `targets/mrerp_masters.py`；读取见 `connections/mrerp_master_reader.py`。生成器只从 mappings 取（见 `xlsx/defaults.py`
+规则见 `mrerp/masters.py`；读取见 `mrerp/master_reader.py`。生成器只从 mappings 取（见 `xlsx/defaults.py`
 与各主档生成器的 `_mrerp_*` 覆盖键），算不出就整批停下、给出原因码请人选，不写任何别家公司的值。
 
 - 表头 / 明细：分店、部门、工作、仓库、员工，销项另有销售区、运输；没选过就跟 MR.ERP 网页新建单据的默认（总店、
@@ -120,7 +120,7 @@ class AccountDefaults:
                 mappings["_mrerp_receipt_account_bank"] = self.value("bank_account")["code"]
         chart = self.chart()
         if chart:
-            # 科目安全阀主动层：用到的科目码都要在这家公司的科目表里（push/mrerp/account_valve.py）
+            # 科目安全阀主动层：用到的科目码都要在这家公司的科目表里（mrerp/push/account_valve.py）
             mappings["_mrerp_accounts"] = chart
 
     def _reference(self, key: str) -> str:
