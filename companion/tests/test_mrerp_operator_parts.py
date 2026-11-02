@@ -51,7 +51,10 @@ def test_the_recipe_loads_and_every_form_waits_for_the_site_probe():
     assert RECIPE.form("sales_cash").module == "arse" and RECIPE.form("sales_cash").cash
     assert "txtcashpay" in RECIPE.form("sales_cash").required_ids()
     pending = RECIPE.unverified()
-    assert "login" in pending and "modules.aptran.header.txtdate" in pending and "dialogs.kicked" in pending
+    assert "login.footer" in pending and "modules.aptran.header.txtdate" in pending and "dialogs.period" in pending
+    # 11-02 真站点实测过的：登录页三格、选账套页与链接、被踢弹框、账套库不存在的页面文字
+    assert not {"login.page", "login.user_id", "login.password_id", "login.submit_id", "login.select_page",
+                "login.account_link", "login.account_set_missing", "dialogs.kicked"} & set(pending)
 
 
 def test_known_dialogs_are_recognised_by_their_mrerp_text():

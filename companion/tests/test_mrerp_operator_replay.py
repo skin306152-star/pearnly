@@ -225,3 +225,44 @@ def test_an_unverified_recipe_is_not_entered_without_the_developer_switch(site, 
     out = _handle(host, "t1", payload(site.url))
     assert out["status"] == "human" and out["reason"] == "unsupported"
     assert site.log == [] and maker.drivers == []  # 没核对过的配方：不开窗口、不登录
+
+
+def test_an_account_set_whose_database_is_missing_stops_the_batch(app, site, tmp_path):
+    site.missing_db = True
+    host = _host(tmp_path, Maker())
+    out = _handle(host, "t1", payload(site.url))
+    assert out["status"] == "human" and out["reason"] == "company_mismatch"
+    assert "unknown database mrerp_12" in out["detail"] and site.saved() == []
+    assert host.snapshots()[0]["status"] == "stopped"
+
+
+def test_an_account_set_link_with_another_name_is_not_entered(app, site, tmp_path):
+    host = _host(tmp_path, Maker())
+    out = _handle(host, "t1", payload(site.url, name="TEST2570"))
+    assert out["status"] == "human" and out["reason"] == "company_mismatch" and "TEST2569" in out["detail"]
+    assert "GET /login/mainmenu.php" not in site.log  # 链接文字对不上：不点进去
+
+
+def test_the_mrerp_window_is_on_screen_without_taking_focus_and_keeps_full_speed_when_hidden(app):
+    """同 Express 代录：真窗口开在屏幕上给人看、不抢焦点；人把它藏起 / 最小化后页面照常按全速跑。"""
+    from PySide6.QtCore import QUrl
+
+    from companion.mrerp_operator.web_driver import Driver
+
+    driver = Driver()
+    try:
+        assert driver.window.isVisible() and not driver.window.isActiveWindow()
+        driver.page.setHtml("<script>window.n=0;setInterval(function(){window.n++},20);</script>", QUrl("http://127.0.0.1/"))
+        pump(1.0)
+        driver.window.hide()
+        driver.handle("state", {}, lambda _r: None)  # 批次每次看页面都会把页面设回「看得见」
+        box = {}
+        driver.page.runJavaScript("JSON.stringify(window.n)", 0, lambda r: box.setdefault("a", int(r)))
+        pump(0.3)
+        pump(2.0)
+        driver.page.runJavaScript("JSON.stringify(window.n)", 0, lambda r: box.setdefault("b", int(r)))
+        pump(0.3)
+        assert box["b"] - box["a"] > 40  # 藏起后两秒多仍走了几十次（降速时约每秒一次）
+    finally:
+        driver.handle("close", {}, lambda _r: None)
+        pump(0.3)

@@ -139,7 +139,9 @@ class Recipe:
         """所有标着「待探路核对」的项（记录 / 汇报用）。"""
         out = []
         if not self.login.get("verified"):
-            out.append("login")
+            checked = set((self.login.get("checked") or {}).get("keys") or [])
+            out += [f"login.{k}" for k in self.login if not k.startswith("_") and k not in checked
+                    and k not in ("verified", "checked")]
         if not self.list.get("verified"):
             out.append("list")
         for name, module in self.modules.items():

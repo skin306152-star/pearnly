@@ -7,9 +7,12 @@
   才从本机凭据（Windows 凭据管理器，目标名带网址与连接号）取出用户名和密码填进去；密码只交给页面那一格（不回读、不进日志、
   不进截图——登录页不截图、不进回执与批次文件）。MR.ERP 说用户名或密码不对 → 必须人工（``login_failed``），不再试（防锁账号）；
   这台电脑还没存登录 → ``login_missing``；
-- **选账套**：在选账套页点这个账套（``mainmenu.php?comidyear=…&seldb=…`` 那条链接，页面原本的方式），再读页面底栏的公司全称与
-  「Database Name」和载荷核对，不符（或这个账号看不到这个账套）→ ``company_mismatch`` 整批停；
-- **被踢**：MR.ERP 一个账号同时只能一处登录（``checkuseruse.php``：会话号对不上就 alert 后跳 ``logoutkick.php``）。录到一半
+- **选账套**：在选账套页找这个账套（``mainmenu.php?comidyear=…&seldb=1`` 那条链接，文字就是账套名，11-02 真站点实测），
+  核链接文字后点进去（页面原本的方式）；主菜单页正文是「Connect Database Server Error : Unknown database …」= 账套库不存在、
+  打不开；再读页面底栏的公司全称与「Database Name」（待探路核对，读得到才核）。不符、这个账号看不到这个账套、账套打不开 →
+  ``company_mismatch`` 整批停（账套打不开暂复用这个原因，细节写明）；
+- **被踢**：MR.ERP 一个账号同时只能一处登录（``checkuseruse.php``：会话号对不上就 alert 后跳 ``logoutkick.php``；11-02 真站点实测
+  旧会话下一次打开页面弹「"User" ดังกล่าวมีผู้ Login ซ้ำ…」后回到 ``login/login.php``，按这段文字加「回到登录页」判定）。录到一半
   被踢回登录页 → 这一批暂停、必须人工（暂用 ``login_failed``，细节写 ``kicked``），**不自动重新登录**（重登会把人踢掉，来回互踢）；
   被踢后关窗时也**不走退出登录**（``logout.php`` 会删掉这个账号的在用记录，把正在用的人也踢掉）；
 - **录完**：正常退出登录（``login/logout.php``），关窗，子进程退出。
@@ -241,6 +244,11 @@ class MrerpSession:
         link = login["account_link"].replace("{comidyear}", str(self.conn.get("comidyear") or ""))
         if not self.conn.get("comidyear") or page.count(link) < 1:
             raise NeedHuman("company_mismatch", "the account set is not offered to this MR.ERP user")
+        # 链接文字就是账套名（11-02 真站点实测，例如 TEST2019）：先核这个，点进去再核底栏
+        name = str(self.conn.get("name") or "")
+        shown = page.text(link, limit=200).strip()
+        if name and not _same(shown, name):
+            raise NeedHuman("company_mismatch", f"account set link reads {shown[:40]!r}")
         before = page.state()["loads"]
         page.click(selector=link)
         main = "/" + login["main_page"].strip("/").lower()
@@ -250,10 +258,19 @@ class MrerpSession:
             raise NeedHuman("company_mismatch", "did not reach the main menu of the account set")
         self.ready = True
         self.inspect(state)
+        body = page.text("", limit=4000)
+        missing = str(login.get("account_set_missing") or "")
+        if missing and missing in body:
+            # 账套库不存在（11-02 真站点实测：主菜单页正文「Connect Database Server Error : Unknown database '<库名>'」）：
+            # 这个账套打不开，整批停。暂用已有的 company_mismatch（整批停、要人看），细节写清楚
+            self.ready = False
+            found = re.search(r"Unknown database '([^']*)'", body)
+            raise NeedHuman("company_mismatch", f"account set cannot be opened: unknown database {found.group(1)[:60] if found else ''}")
         facts = footer_facts(page.text(login["footer"]))
-        name, company = str(self.conn.get("name") or ""), str(self.conn.get("company_name") or "")
-        if not facts["database"] or (name and not _same(facts["database"], name)) \
-                or (company and not _same(facts["company"], company)):
+        company = str(self.conn.get("company_name") or "")
+        # 底栏（待探路核对）：读得到才核；读不到不拦（账套名已按链接文字核过）
+        if facts["database"] and ((name and not _same(facts["database"], name))
+                                  or (company and facts["company"] and not _same(facts["company"], company))):
             self.ready = False
             raise NeedHuman("company_mismatch", f"page shows {facts['database'][:40]!r} / {facts['company'][:60]!r}")
         self.log(f"mrerp account set ready: {facts['database'][:40]}")

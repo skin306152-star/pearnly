@@ -4,8 +4,9 @@
 
 - 每批一个**不落盘**的浏览器资料（``QWebEngineProfile()`` 无名 = off-the-record：Cookie、缓存只在内存，关窗即无），
   不和 CC 窗口、用户自己的浏览器共享登录；
-- 一个 CC 自己的原生窗口放 MR.ERP 页面，**默认不显示**（不抢屏幕），点「查看」才弹出（``show``）；页面设为可见状态，收起也照常跑
-  （Chromium 对看不见的页面会降速，第 0 步实测，待探路核对）；
+- 一个 CC 自己的原生窗口放 MR.ERP 页面，**同 Express 代录开在屏幕上**（人看得到一格一格地填、一张一张地存），但不抢前台、
+  不抢焦点；点「查看」（桥 ``operator_show``）才切到最前面。页面始终按「看得见」跑：人把窗口最小化、藏起、挡住都照常录
+  （网页内核对看不见的页面会把计时器降到约每秒一次，本机实测；锁屏、真 Windows 上被挡住第 0 步实测）；
 - 脚本跑在**隔离脚本环境**（``ApplicationWorld``：页面自己的脚本看不到我们的脚本、我们也不调页面的函数），只经 DOM 填格、
   触发页面自己的 ``input / change / blur`` 事件、点按钮、读格子；
 - 接管 ``alert / confirm / prompt``：不弹出、不卡住，文字记进 ``dialogs`` 交给配方规则；confirm 默认回「取消」（安全），
@@ -75,7 +76,9 @@ class _Inputs(QObject):
         self._driver = driver
 
     def eventFilter(self, _obj, event):  # noqa: N802 — Qt 的名字
-        if event.type() in INPUT_EVENTS:
+        kind = event.type()
+        # 点、键、滚轮都算；只是鼠标移过不算，除非这个窗口在最前面（同 Express：人把它切到前面又在动才算）
+        if kind in INPUT_EVENTS or (kind == QEvent.Type.MouseMove and self._driver.window.isActiveWindow()):
             self._driver._input()
         return False
 
@@ -83,7 +86,7 @@ class _Inputs(QObject):
 class Driver(QObject):
     """界面线程里的 MR.ERP 页面。``handle(op, args, done)`` 是唯一入口（``UiCall`` 调），``done(dict)`` 回结果。"""
 
-    def __init__(self, *, title: str = WINDOW_TITLE, keep_visible: bool = True):
+    def __init__(self, *, title: str = WINDOW_TITLE, keep_visible: bool = True, show: bool = True):
         super().__init__()
         self.profile = QWebEngineProfile(self)  # 无名 = 不落盘
         self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.MemoryHttpCache)
@@ -101,9 +104,13 @@ class Driver(QObject):
         layout.addWidget(self.view)
         self.page = _Page(self.profile, self.view, self)
         self.view.setPage(self.page)
-        if keep_visible:
-            # 窗口收起时页面也按「看得见」跑（计时器、网络不降速）；第 0 步实测收起后是否照跑，待探路核对
-            self.page.setVisible(True)
+        # 页面始终按「看得见」跑：网页内核对看不见的页面把计时器降到约每秒一次（本机实测：窗口藏起时 20 毫秒的计时器只走
+        # 0.9 次/秒，强制可见后 50 次/秒）。建窗口时设不住（页面还没内容），每次加载完、每次查看状态时再设一次
+        self.keep_visible = keep_visible
+        if show:
+            # 同 Express 代录：真窗口开在屏幕上给人看（一格一格地填、一张一张地存），但不抢前台、不抢焦点
+            self.window.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+            self.window.show()
         self.page.loadStarted.connect(self._started)
         self.page.loadFinished.connect(self._finished)
         self.loads = 0  # 完成过几次加载（含失败）：批次线程据此等「点了以后页面换了」
@@ -129,6 +136,11 @@ class Driver(QObject):
         self.loading, self.last_ok = False, bool(ok)
         self.loads += 1
         self._watch(self.view.focusProxy())
+        self._keep_visible()
+
+    def _keep_visible(self) -> None:
+        if self.keep_visible and not self.closed and not self.page.isVisible():
+            self.page.setVisible(True)
 
     def _watch(self, widget) -> None:
         if widget is not None and not any(w is widget for w in self._watched):
@@ -189,6 +201,7 @@ class Driver(QObject):
         self.page.runJavaScript(str(args.get("code") or ""), WORLD, back)
 
     def op_state(self, args: Dict, done) -> None:
+        self._keep_visible()  # 人把窗口最小化 / 藏起后也照常跑
         dialogs = list(self.dialogs)
         if args.get("drain", True):
             self.dialogs.clear()

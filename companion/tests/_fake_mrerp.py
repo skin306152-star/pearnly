@@ -90,7 +90,8 @@ class FakeMrerp:
         self.after_select_ms = 250
         self.tamper = None  # (doc) → None：存进库之前改一下（模拟读回不符）
         self.down_on_save_s = 0.0  # 存档那一下断网这么多秒（请求没到库）
-        self.down_after_commit_s = 0.0  # 写了库、回包前断开以后，再断网这么多秒
+        self.down_after_commit_s = 0.0
+        self.missing_db = False  # 账套库不存在  # 写了库、回包前断开以后，再断网这么多秒
         self.on_request = None  # (path) → None：测试挂钩（比如在打开表单时模拟有人在窗口里动）
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
         self.server.daemon_threads = True
@@ -216,6 +217,8 @@ class FakeMrerp:
             company = next((c for c in COMPANIES if c["comidyear"] == query.get("comidyear")), None)
             if company is None:
                 return _page("Mr.erp", kick + "Error")
+            if self.missing_db:  # 账套库不存在（11-02 真站点实测的页面文字）
+                return _page("Mr.erp", kick + f"Connect Database Server Error : Unknown database 'mrerp_{company['comidyear']}'")
             sess["company"] = company
             links = "".join(f'<li><a href="../{m}/allview.php?idmenu={k}">{k}</a></li>' for k, (m, _p) in MENUS.items())
             return _page("Mr.erp", kick + f'<nav id="mainmenu"><ul>{links}</ul></nav>' + self._footer(sess))
@@ -417,11 +420,12 @@ class _Drop(Exception):
 def _row(n: int, line: Optional[Dict], view: bool) -> str:
     value = (lambda key, default="": html.escape(str(line.get(key, default)))) if line else (lambda key, default="": default)
     ro = " readonly" if view else ""
+    pick = "" if view else 'onfocus="bshlistbox(this);"'
     return (f'<p class="row"><span><input type="text" name="txtno[]" id="txtno{n}" value="{n}" readonly></span>'
-            f'<span><input type="text" name="txtcode[]" id="txtcode{n}" {"" if view else "onfocus=\"bshlistbox(this);\""} readonly'
+            f'<span><input type="text" name="txtcode[]" id="txtcode{n}" {pick} readonly'
             f' value="{value("code")}"><input type="hidden" name="txtcodeval[]" id="txtcodeval{n}"></span>'
             f'<span><input type="text" name="txtname[]" id="txtname{n}" readonly></span>'
-            f'<span><input type="text" name="txtstore[]" id="txtstore{n}" {"" if view else "onfocus=\"bshlistbox(this);\""} readonly value="WH1">'
+            f'<span><input type="text" name="txtstore[]" id="txtstore{n}" {pick} readonly value="WH1">'
             f'<input type="hidden" name="txtstoreval[]" id="txtstoreval{n}" value="1"></span>'
             f'<span><input type="text" name="txtamount[]" id="txtamount{n}" value="{value("qty", "0.00")}" onblur="calcrow(this);"{ro}></span>'
             f'<span><input type="text" name="txtunit[]" id="txtunit{n}" readonly><input type="hidden" name="txtunitval[]" id="txtunitval{n}"></span>'

@@ -5,6 +5,11 @@
   "login": {
     "_doc": "login/login.php 的表单；checklogin.php 成功后 location=selectdb.php，失败 alert「User หรือ Password ไม่ถูกต้อง」再回 ../index.php；selectdb.php 每个年度账套一条 mainmenu.php?comidyear=N&seldb=1 链接；业务页 footer 写 Company : 全称、Database Name : 简称+年度（component/php/footer.php）。",
     "verified": false,
+    "checked": {"_doc": "11-02 真站点实测（mrerp4sme.com，账号 test01）：这几项核对过；其余（表单 action、底栏、退出登录）仍待探路核对",
+                "keys": ["page", "user_id", "password_id", "submit_id", "select_page", "account_link", "account_set_missing"],
+                "login_to_select_s": "0.4–0.5",
+                "account_link_text": "链接文字就是账套名（例如 TEST2019）"},
+    "account_set_missing": "Connect Database Server Error : Unknown database",
     "page": "login/login.php",
     "form_action": "checklogin.php",
     "user_id": "txtusers",
@@ -148,8 +153,8 @@
     }
   },
   "dialogs": [
-    {"name": "kicked", "match": "มีผู้ Login ซ้ำ", "outcome": "kicked", "verified": false,
-     "_doc": "component/php/checkuseruse.php：同一账号在别处登录，本会话被踢回 logoutkick.php"},
+    {"name": "kicked", "match": "มีผู้ Login ซ้ำ", "outcome": "kicked", "verified": true,
+     "_doc": "component/php/checkuseruse.php：同一账号在别处登录，本会话被踢回 logoutkick.php。11-02 真站点实测：第二个会话登录后，旧会话下一次打开页面弹 alert「\"User\" ดังกล่าวมีผู้ Login ซ้ำ จะทำการออกจากระบบโดยอัตโนมัติ」，然后回到 login/login.php；用这段文字加「回到登录页」判定被踢"},
     {"name": "not_logged_in", "match": "กรุณา Login เข้าสู่ระบบ", "outcome": "kicked", "verified": false},
     {"name": "bad_login", "match": "User หรือ Password ไม่ถูกต้อง", "outcome": "login_failed", "verified": false},
     {"name": "period", "match": "วันที่ไม่อยู่ในรอบบัญชี|ย้อนหลังได้ถึง", "outcome": "blocked", "reason": "period_outside", "verified": false},
