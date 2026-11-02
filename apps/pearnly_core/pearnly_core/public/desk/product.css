@@ -484,6 +484,14 @@ body.pearnly-product-desk .pearnly-field-help {
 body.pearnly-product-desk .pearnly-field-help .icon {
 	stroke: currentColor;
 }
+/* 标题是 inline-block：泰文长标题换行时图标会掉到单独一行。带图标的标题按行内排，图标跟在最后一个字后面；
+   标题下的间距（框架 `.control-label` 的 6px）挪到标题这一行上，高度不变。 */
+body.pearnly-product-desk .frappe-control .clearfix:has(> .help .pearnly-field-help) {
+	margin-bottom: 6px;
+}
+body.pearnly-product-desk .frappe-control .clearfix:has(> .help .pearnly-field-help) > .control-label {
+	display: inline;
+}
 body.pearnly-product-desk .pearnly-field-help-slot {
 	display: inline-flex;
 	align-items: center;
