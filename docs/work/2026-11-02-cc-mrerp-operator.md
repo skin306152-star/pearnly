@@ -154,6 +154,7 @@ purchase_expense / sales_credit / sales_cash`；五条弹框规则 `dialogs.not_
 | 新包测试 replay / process / parts | 13 / 3 / 30 通过 |
 | 11-02 补充（真站点实测写进配方与会话、窗口开在屏幕上、还原 `tomo_bridge.py`、Python 3.11 的 f-string 修正）后：CC 全套 | 1479 通过、42 跳过、0 失败 |
 | 同上：新包测试 replay / process / parts | 16 / 3 / 30 通过（49） |
+| 回放改到单独子进程后：CC 全套 | 1464 通过、58 跳过、0 失败（外层 1 条拉起子进程，子进程里 16 条回放全过；外层这 16 条记跳过） |
 | `tests/test_mrerp_operator_readback_parity.py` | 4 通过 |
 | `tests/test_companion_contract.py` | 86 通过 |
 | `tests/test_express_operator_shared.py` | 11 通过 |
@@ -192,6 +193,11 @@ purchase_expense / sales_credit / sales_cash`；五条弹框规则 `dialogs.not_
 
 分支 CI 第一次（提交 `044ed206` / `01727774`）：Development checks 通过；Companion checks 在收集阶段失败——`companion/tests/_fake_mrerp.py`
 一处 f-string 表达式里带反斜杠，Windows 上的 Python 3.11 不认（本机 3.12 认）。已改，并用 Python 3.11 逐个编译了本步新增 / 改动的文件。
+
+分支 CI 第二次（提交 `8b8b3101`）：Development checks 通过；Companion checks 1490 通过、30 跳过、1 失败——Windows 上网页内核回放确实跑起来了
+（没跳过），但同一 pytest 进程里排在后面的 `tests/test_window_process.py::test_the_tray_logs_when_the_open_window_stops_and_starts_painting`
+多收到一条前一个测试留下的「本地管道断开处理失败」日志。网页内核进了进程卸不掉、会改变同进程后面 Qt 测试的事件时序；改成回放整组在
+**单独一个 pytest 子进程**里跑（外层一条测试拉起、看结果），主测试进程不再加载网页内核。没有改 `test_window_process.py`。
 
 Windows 的 Companion checks（`.github/workflows/companion.yml`，测试机 runner、`QT_QPA_PLATFORM=offscreen`）：回放与子进程测试先在子进程里
 试起一次网页内核，起不来（没有桌面的服务账户可能起不来）就整组跳过，纯逻辑那 30 条照跑。

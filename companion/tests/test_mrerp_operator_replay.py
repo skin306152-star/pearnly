@@ -2,19 +2,46 @@
 """MR.ERP 代录离线回放（ADR-026 第 2 步）：假 MR.ERP 站点 + 真网页内核（QtWebEngine，offscreen）+ 代录宿主一整条走。
 
 网页内核在这台机器上起不来（例如没有桌面的 Windows CI 服务）时整个文件跳过，纯逻辑由 ``test_mrerp_operator_parts.py`` 兜住。
+
+这些回放在**单独的一个 pytest 子进程**里跑（同 CC 里网页内核只活在独立进程）：网页内核进了进程就卸不掉，会改变同一进程里
+后面其他 Qt 测试的事件时序（Windows CI 上 ``test_window_process.py`` 因此多收到一条前一个测试留下的管道断开日志）。外层只留
+一条测试拉起子进程、看结果。
 """
 from __future__ import annotations
 
 import json
 import logging
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 from _mrerp_harness import PASSWORD, Maker, factory, payload, pump, qapp, spin, webengine_works
 
-pytest.importorskip("PySide6.QtWebEngineWidgets")
-pytestmark = pytest.mark.skipif(not webengine_works(), reason="QtWebEngine cannot start on this machine")
+CHILD = os.environ.get("PEARNLY_MRERP_REPLAY_CHILD") == "1"
+
+if not CHILD:
+    @pytest.mark.skipif(not webengine_works(), reason="QtWebEngine cannot start on this machine")
+    def test_the_replays_run_in_their_own_process():
+        done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", __file__],
+                              cwd=str(Path(__file__).resolve().parents[1]), capture_output=True, text=True, timeout=1500,
+                              env={**os.environ, "PEARNLY_MRERP_REPLAY_CHILD": "1",
+                                   "QT_QPA_PLATFORM": os.environ.get("QT_QPA_PLATFORM", "offscreen")})
+        tail = "\n".join((done.stdout + done.stderr).splitlines()[-40:])
+        assert done.returncode == 0, tail
+        assert " passed" in tail and " failed" not in tail, tail
+
+
+@pytest.fixture(autouse=True)
+def _only_in_the_child(request):
+    if not CHILD and request.node.name != "test_the_replays_run_in_their_own_process":
+        pytest.skip("runs inside the replay child process")
+
+
+if CHILD:
+    pytest.importorskip("PySide6.QtWebEngineWidgets")
 
 from _fake_mrerp import FakeMrerp  # noqa: E402
 
