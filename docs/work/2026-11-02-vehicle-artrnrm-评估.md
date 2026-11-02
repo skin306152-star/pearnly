@@ -182,4 +182,6 @@
 | CC 单测（本机 macOS，Python 3.11 + 锁定 dbf） | 1,320 通过；8 条 `test_write_dispatch` 本机缺 PySide6 失败，与改动无关（Windows CI 跑全量） |
 | 服务端 | `test_erp_express_direct` 153、`test_companion_contract` 86、Cowork 写账规则 13 个文件全过；`check-architecture` 0 违规；`check-copy` 新增 0 |
 | 共用件影响面 | `check-impact`：express-rules 12 个入口、cc-dbf-write 9 个入口，逐入口结果见下节（施工完补） |
-| 测试机 C 盘 T 账套离线回归 | `scripts/express-remarks-regression.py`（每本副本：带号进货 + 销货两行、带号领用再作废，核字节、删除标记、写入集合外逐字节不变，正式 CC 的 `cdx_reindex_runner` 重建并核 CDX） |
+| 测试机 C 盘 T 账套离线回归 | `scripts/express-remarks-regression.py`（每本副本：带号进货 + 销货两行、带号领用再作废，核字节、删除标记、写入集合外逐字节不变，正式 CC 的 `cdx_reindex_runner` 重建并核 CDX）：源码 `34aa35e0`（去掉条数上限后），赊购赊销 85 / 0 / 16、现购现销 85 / 0 / 16（跳过 = 少于两件库存品或没有 ARTRNRM 表）；共 158 次跑到带号领用 + 作废，12 次因那本账套领用科目不能记账 / 不许负库存而跳过领用段 |
+| 本地 CI 同名闸门 | 163 步：文案闸门首跑拦下 3 个泰文标签 → 登记为写进 Express 的数据后通过；前端两项缺 `node_modules`、扫码真浏览器一项为本机环境，交 CI |
+| 分支 CI | `e6d2cd27`：Development checks、Companion checks 通过 |
