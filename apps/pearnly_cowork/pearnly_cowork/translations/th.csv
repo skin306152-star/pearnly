@@ -1938,6 +1938,7 @@ This PC already has the maximum number of folder rules.,เครื่องน
 This PC already has the maximum number of scheduled tasks.,เครื่องนี้มีจำนวนงานตามกำหนดเวลาถึงขีดจำกัดแล้ว
 This POS export has a status value that is not chosen yet,ไฟล์ส่งออก POS นี้มีค่าสถานะที่ยังไม่ได้กำหนด
 This account cannot send documents,บัญชีนี้ไม่มีสิทธิ์ส่งเอกสาร
+This account code is already a stock item code in Express,รหัสบัญชีนี้เป็นรหัสสินค้าคงคลังใน Express แล้ว
 This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,ชุดบัญชีนี้ไม่มีสมุดรายวันทั่วไปสำหรับใบสำคัญโอน กรุณาตั้งค่าใน Express แล้วส่งใหม่
 This account set is not in the catalog,ไม่พบชุดบัญชีนี้ในรายการ
 This account set is not in the connection's list. Reload the list in New Intake.,ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่
@@ -3367,6 +3368,7 @@ intake.agent.state.noWriter,ไม่มีคอมพิวเตอร์ท�
 intake.agent.state.offline,คอมพิวเตอร์ออฟไลน์
 intake.catalog.reload,อ่านใหม่
 intake.error.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
+intake.error.ACCOUNT_CODE_IS_STOCK_ITEM,รหัสบัญชีนี้เป็นรหัสสินค้าคงคลังใน Express แล้ว
 intake.error.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
 intake.error.ACCOUNT_NOT_POSTABLE,บัญชีรับเงินนี้บันทึกรายการใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น

@@ -1938,6 +1938,7 @@ This PC already has the maximum number of folder rules.,この PC のルール�
 This PC already has the maximum number of scheduled tasks.,この PC の定期タスク数が上限に達しています。
 This POS export has a status value that is not chosen yet,この POS エクスポートにまだ指定していない状態の値があります
 This account cannot send documents,このアカウントは書類を送信できません
+This account code is already a stock item code in Express,この勘定コードは Express の在庫品コードです
 This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,この帳簿には振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください
 This account set is not in the catalog,この帳簿は一覧にありません
 This account set is not in the connection's list. Reload the list in New Intake.,この帳簿は一覧にありません。新規取込で再読み込みしてください。
@@ -3367,6 +3368,7 @@ intake.agent.state.noWriter,書き込めるコンピューターがありませ�
 intake.agent.state.offline,コンピューターがオフライン
 intake.catalog.reload,再読み込み
 intake.error.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
+intake.error.ACCOUNT_CODE_IS_STOCK_ITEM,この勘定コードは Express の在庫品コードです
 intake.error.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
 intake.error.ACCOUNT_NOT_POSTABLE,この入金勘定は Express で記帳できません。別の勘定を選んでください

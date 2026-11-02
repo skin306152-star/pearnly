@@ -1385,6 +1385,7 @@ This Month,今月
 This PDF has more than {0} pages,PDF が {0} ページを超えています
 This Quarter,今四半期
 This account cannot send documents,このアカウントは書類を送信できません
+This account code is already a stock item code in Express,この勘定コードは Express の在庫品コードです
 This account set has no book for this kind of document. Set it up in Express,この帳簿にはこの種類の伝票帳がありません。Express で設定してください
 This barcode already exists,このバーコードは既に存在します
 This board no longer exists,このボードはもう存在しません
@@ -2063,6 +2064,7 @@ express.code.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入
 express.code.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 express.code.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
 express.error.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
+express.error.ACCOUNT_CODE_IS_STOCK_ITEM,この勘定コードは Express の在庫品コードです
 express.error.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
 express.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
 express.error.ACCOUNT_NOT_POSTABLE,選んだ勘定は Express で記帳できません。別の勘定を選んでください

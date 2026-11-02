@@ -1938,6 +1938,7 @@ This PC already has the maximum number of folder rules.,此电脑的规则数量
 This PC already has the maximum number of scheduled tasks.,此电脑的定时任务数量已达上限。
 This POS export has a status value that is not chosen yet,此 POS 导出有尚未确认的状态值
 This account cannot send documents,此账号无权发送单据
+This account code is already a stock item code in Express,此科目码已是 Express 库存品的编码
 This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,此账套没有可用于转账凭证的普通日记账单据簿，请在 Express 中设置后重新提交
 This account set is not in the catalog,账套目录中没有此账套
 This account set is not in the connection's list. Reload the list in New Intake.,此账套不在该连接的账套列表中，请在新建录入中重新读取。
@@ -3367,6 +3368,7 @@ intake.agent.state.noWriter,没有能写的电脑
 intake.agent.state.offline,电脑离线
 intake.catalog.reload,重新读取
 intake.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
+intake.error.ACCOUNT_CODE_IS_STOCK_ITEM,此科目码已是 Express 库存品的编码
 intake.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
 intake.error.ACCOUNT_NOT_POSTABLE,收款科目在 Express 中不能记账，请重新选择

@@ -1842,3 +1842,4 @@ The destination warehouse must differ from the source warehouse	调入仓库不�
 Pick a destination warehouse	请选择调入仓库	กรุณาเลือกคลังปลายทาง	移動先倉庫を選択してください
 Not written to Express (disconnected)	未写入 Express（已断开）	ไม่ได้บันทึก Express (ยกเลิกเชื่อมต่อ)	Express 未書き込み（接続解除済み）	express.state.detached
 Linked to Express At	接上 Express 时刻	เวลาที่เชื่อมต่อ Express	Express 接続日時
+This account code is already a stock item code in Express	此科目码已是 Express 库存品的编码	รหัสบัญชีนี้เป็นรหัสสินค้าคงคลังใน Express แล้ว	この勘定コードは Express の在庫品コードです	express.error.ACCOUNT_CODE_IS_STOCK_ITEM
