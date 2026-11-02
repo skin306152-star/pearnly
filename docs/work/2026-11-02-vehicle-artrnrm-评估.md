@@ -160,3 +160,22 @@
 3. 服务端：进货 / 销售 / 出入库 / 调拨 / 收银日汇总带 `remarks`、共用规则照带、版本 —— 约 1.5 小时，单测与闸门约 0.5 小时。
 4. 离线回归（测试机 C 盘 T 账套）+ 69EXP\TEST 实机看打印 + staging 升级 —— 机器约 1.5 小时。
 依赖：2、3 可并行；4 在 2、3 之后；1 的结论决定第 1 问的实现。
+
+## 14. 施工记录（审定前先做的、不影响不带号的单）
+
+- `77138958`（CC）：新模块 `companion/src/companion/dbf_remarks.py`（拼行、按原生字节写 SEQNUM、≤ 50 字节 / ≤ 10 条写前查、读回、作废打删除标记）；
+  接入进货 `dbf_writer`、销货 `dbf_sales`、退货 `dbf_refund`（行号只数库存行）、库存单 `dbf_stock`、调拨 `dbf_transfer`（一对明细挂一次）、
+  作废 `dbf_void`（OU / JU 删、RL 留）；带号的单才把 ARTRNRM 放进写前备份和重建索引；载荷 17。合成表 `table_specs` 加 ARTRNRM（真表 3 列）。
+- `4cee11c0`（服务端）：`express/contracts.unit_remarks`（4.3 节格式；号码再长折行不截断）；进货 / 销售 `push._lines`、出入库 / 调拨
+  `stock_entry.document` 按明细行号取单据 `serials` 子表拼说明；`contracts.document / pages` 与共用写账规则 `express_rules/push/common.py` 照带；
+  `finalize_payload` 与库存单 `_version` 见到 `remarks` 盖 17；带号的库存单作废也盖 17（旧版不会删说明）。
+- 未做（等第 12 节审定）：收银日汇总 / 退货日汇总带号（第 2 问）、超过 10 条的处理（第 1 问，现在 CC 拒写 `REMARKS_TOO_MANY`）、代录（第 4 问）。
+
+### 检查
+
+| 层 | 结果 |
+| --- | --- |
+| CC 单测（本机 macOS，Python 3.11 + 锁定 dbf） | 1,320 通过；8 条 `test_write_dispatch` 本机缺 PySide6 失败，与改动无关（Windows CI 跑全量） |
+| 服务端 | `test_erp_express_direct` 153、`test_companion_contract` 86、Cowork 写账规则 13 个文件全过；`check-architecture` 0 违规；`check-copy` 新增 0 |
+| 共用件影响面 | `check-impact`：express-rules 12 个入口、cc-dbf-write 9 个入口，逐入口结果见下节（施工完补） |
+| 测试机 C 盘 T 账套离线回归 | `scripts/express-remarks-regression.py`（每本副本：带号进货 + 销货两行、带号领用再作废，核字节、删除标记、写入集合外逐字节不变，正式 CC 的 `cdx_reindex_runner` 重建并核 CDX） |
