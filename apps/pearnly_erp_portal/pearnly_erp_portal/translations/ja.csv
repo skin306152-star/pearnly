@@ -229,6 +229,10 @@ Chassis No,車台番号
 Check sheet,照合表
 Check the opening stock row,この期首明細を確認してください
 Checkbox,チェックボックス
+Checked push choices,送信前の選択項目を確認しました
+Checked push results,送信結果を確認しました
+Checking push choices,送信前の選択項目を確認しています
+Checking push results,送信結果を確認しています
 Checklist,チェックリスト
 Checkout,会計
 Checkout Order / Submit Order / New Order,会計 / 注文確定 / 新規注文
@@ -304,6 +308,8 @@ Confirm,確認
 Confirm and record,確定して記録
 Confirm opening stock,期首在庫を確定
 Confirm the document before recording a payment,支払を記録する前に伝票を提出してください
+Confirmed a push result,送信結果を確定しました
+Confirming a push result,送信結果を確定しています
 Contact Details,連絡先
 Contact Person,担当者
 Contact email,連絡先メール
@@ -709,6 +715,8 @@ List actions,リストの操作
 List archived,リストをアーカイブしました
 List name,リスト名
 Listed companies,会社一覧を表示
+Listed documents,書類を一覧しました
+Listing documents,書類を一覧しています
 Loading...,読み込み中…
 Location,保管場所
 Locations,ロケーション一覧
@@ -996,6 +1004,8 @@ Purchase document not found,購買伝票が見つかりません
 Purchasing,購買
 Purple,紫
 Purpose,用途
+Pushed documents,書類を送信しました
+Pushing documents,書類を送信しています
 QR Payload,QR内容
 QR code content,QRコード内容
 QR content,QR 内容
@@ -1122,8 +1132,10 @@ Save and next,保存して次へ
 Save this to the company's notes?,会社のノートに保存しますか？
 Saved,保存しました
 Saved a company note,会社メモを保存
+Saved push choices,送信の選択を保存しました
 Saved {0},{0} を保存しました
 Saved. Scan the next item.,保存しました。次の商品を読み取ってください。
+Saving push choices,送信の選択を保存しています
 Scan,スキャン
 Scan a code,コードをスキャン
 Scan barcode or QR code,バーコード・QRコードを読む

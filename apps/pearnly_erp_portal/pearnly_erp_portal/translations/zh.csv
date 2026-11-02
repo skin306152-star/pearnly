@@ -229,6 +229,10 @@ Chassis No,车架号
 Check sheet,核对表
 Check the opening stock row,请检查此期初明细
 Checkbox,勾选
+Checked push choices,查看了推送前要选的项
+Checked push results,查看了推送结果
+Checking push choices,正在查看推送前要选的项
+Checking push results,正在查看推送结果
 Checklist,清单
 Checkout,结账
 Checkout Order / Submit Order / New Order,结账 / 提交订单 / 新订单
@@ -304,6 +308,8 @@ Confirm,确认
 Confirm and record,确定入账
 Confirm opening stock,确认入账
 Confirm the document before recording a payment,记录付款前请先提交单据
+Confirmed a push result,确认了推送结果
+Confirming a push result,正在确认推送结果
 Contact Details,联系方式
 Contact Person,联系人
 Contact email,联系邮箱
@@ -709,6 +715,8 @@ List actions,列表操作
 List archived,列表已归档
 List name,列表名称
 Listed companies,列出了公司
+Listed documents,查看了单据
+Listing documents,正在查看单据
 Loading...,加载中…
 Location,地点
 Locations,库位清单
@@ -996,6 +1004,8 @@ Purchase document not found,采购单不存在
 Purchasing,采购
 Purple,紫
 Purpose,用途
+Pushed documents,推送了单据
+Pushing documents,正在推送单据
 QR Payload,QR 内容
 QR code content,二维码内容
 QR content,二维码内容
@@ -1122,8 +1132,10 @@ Save and next,保存并下一项
 Save this to the company's notes?,确定要将此内容记入公司知识库吗？
 Saved,已保存
 Saved a company note,记下了公司说明
+Saved push choices,保存了推送选项
 Saved {0},已保存 {0}
 Saved. Scan the next item.,已保存，请扫描下一项。
+Saving push choices,正在保存推送选项
 Scan,扫码
 Scan a code,扫码
 Scan barcode or QR code,扫描条形码或二维码

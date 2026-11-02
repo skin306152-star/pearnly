@@ -229,6 +229,10 @@ Chassis No,เลขตัวถัง
 Check sheet,ใบตรวจสอบ
 Check the opening stock row,กรุณาตรวจสอบรายการยกมานี้
 Checkbox,ช่องทำเครื่องหมาย
+Checked push choices,ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว
+Checked push results,ตรวจสอบผลการส่งแล้ว
+Checking push choices,กำลังตรวจสอบสิ่งที่ต้องเลือกก่อนส่ง
+Checking push results,กำลังตรวจสอบผลการส่ง
 Checklist,รายการตรวจสอบ
 Checkout,ชำระเงิน
 Checkout Order / Submit Order / New Order,ชำระเงิน / ยืนยันคำสั่งซื้อ / คำสั่งซื้อใหม่
@@ -304,6 +308,8 @@ Confirm,ยืนยัน
 Confirm and record,ยืนยันบันทึก
 Confirm opening stock,ยืนยันบันทึกสต็อกยกมา
 Confirm the document before recording a payment,กรุณายืนยันเอกสารก่อนบันทึกการชำระเงิน
+Confirmed a push result,ยืนยันผลการส่งแล้ว
+Confirming a push result,กำลังยืนยันผลการส่ง
 Contact Details,ข้อมูลติดต่อ
 Contact Person,ผู้ติดต่อ
 Contact email,อีเมลติดต่อ
@@ -709,6 +715,8 @@ List actions,การดำเนินการของรายการ
 List archived,เก็บถาวรรายการแล้ว
 List name,ชื่อรายการ
 Listed companies,แสดงรายชื่อบริษัท
+Listed documents,ดูรายการเอกสารแล้ว
+Listing documents,กำลังดูรายการเอกสาร
 Loading...,กำลังโหลด…
 Location,ที่ตั้ง
 Locations,รายการตำแหน่ง
@@ -996,6 +1004,8 @@ Purchase document not found,ไม่พบเอกสารจัดซื้�
 Purchasing,จัดซื้อ
 Purple,ม่วง
 Purpose,วัตถุประสงค์
+Pushed documents,ส่งเอกสารแล้ว
+Pushing documents,กำลังส่งเอกสาร
 QR Payload,ข้อมูล QR
 QR code content,ข้อมูลคิวอาร์โค้ด
 QR content,ข้อมูล QR
@@ -1122,8 +1132,10 @@ Save and next,บันทึกและรายการถัดไป
 Save this to the company's notes?,บันทึกข้อนี้ลงในบันทึกของบริษัทไหม
 Saved,บันทึกแล้ว
 Saved a company note,บันทึกข้อมูลบริษัท
+Saved push choices,บันทึกตัวเลือกการส่งแล้ว
 Saved {0},บันทึก {0} แล้ว
 Saved. Scan the next item.,บันทึกแล้ว กรุณาสแกนรายการถัดไป
+Saving push choices,กำลังบันทึกตัวเลือกการส่ง
 Scan,สแกน
 Scan a code,สแกนโค้ด
 Scan barcode or QR code,สแกนบาร์โค้ดหรือคิวอาร์โค้ด

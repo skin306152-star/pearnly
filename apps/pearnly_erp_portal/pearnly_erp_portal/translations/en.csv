@@ -229,6 +229,10 @@ Chassis No,Chassis No
 Check sheet,Check sheet
 Check the opening stock row,Check the opening stock row
 Checkbox,Checkbox
+Checked push choices,Checked push choices
+Checked push results,Checked push results
+Checking push choices,Checking push choices
+Checking push results,Checking push results
 Checklist,Checklist
 Checkout,Checkout
 Checkout Order / Submit Order / New Order,Checkout Order / Submit Order / New Order
@@ -304,6 +308,8 @@ Confirm,Confirm
 Confirm and record,Confirm and record
 Confirm opening stock,Confirm opening stock
 Confirm the document before recording a payment,Confirm the document before recording a payment
+Confirmed a push result,Confirmed a push result
+Confirming a push result,Confirming a push result
 Contact Details,Contact Details
 Contact Person,Contact Person
 Contact email,Contact email
@@ -709,6 +715,8 @@ List actions,List actions
 List archived,List archived
 List name,List name
 Listed companies,Listed companies
+Listed documents,Listed documents
+Listing documents,Listing documents
 Loading...,Loading...
 Location,Location
 Locations,Locations
@@ -996,6 +1004,8 @@ Purchase document not found,Purchase document not found
 Purchasing,Purchasing
 Purple,Purple
 Purpose,Purpose
+Pushed documents,Pushed documents
+Pushing documents,Pushing documents
 QR Payload,QR Payload
 QR code content,QR code content
 QR content,QR content
@@ -1122,8 +1132,10 @@ Save and next,Save and next
 Save this to the company's notes?,Save this to the company's notes?
 Saved,Saved
 Saved a company note,Saved a company note
+Saved push choices,Saved push choices
 Saved {0},Saved {0}
 Saved. Scan the next item.,Saved. Scan the next item.
+Saving push choices,Saving push choices
 Scan,Scan
 Scan a code,Scan a code
 Scan barcode or QR code,Scan barcode or QR code
