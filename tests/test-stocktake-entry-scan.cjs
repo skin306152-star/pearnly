@@ -27,16 +27,20 @@ function $(html) {
 function fixture({ lookups, file = ERP }) {
   const source = fs.readFileSync(file, 'utf8');
   const calls = [], sounds = [], errors = [], resumes = [], reports = [], alerts = [], camera = { starts: 0, stops: 0 };
-  let results = [...lookups], reader;
-  const values = {}, fields = {};
+  let results = [...lookups], reader, action;
+  const values = {}, fields = {}, focused = [];
+  // 每一格：框架控件的几样（录入框是原生 Link：输入框事件、下拉、筛选说明）
+  const control = df => { const listeners = {}; const $input = $(); $input.trigger = name => { if (name === 'focus') focused.push(df.fieldname); return $input; };
+    return { df: { ...df }, $wrapper: $(), $input, listeners, input: { addEventListener(type, fn) { (listeners[type] ||= []).push(fn); } },
+      merge_duplicates: rows => rows }; };
   const dialog = {
     fields_dict: fields, $wrapper: $(), onhide: null,
     get_value: name => values[name], async set_value(name, value) { values[name] = value; },
-    set_df_property(name, prop, value) { (fields[name] ||= { df: {}, $wrapper: $(), $input: $() }).df[prop] = value; },
+    set_df_property(name, prop, value) { (fields[name] ||= control({ fieldname: name })).df[prop] = value; },
     get_primary_btn: () => $(), set_secondary_action() {}, set_secondary_action_label() {}, hide() { dialog.onhide?.(); },
   };
   const p = {
-    dialog(title, list) { for (const df of list) fields[df.fieldname] = { df: { ...df }, $wrapper: $(), $input: $() }; return dialog; },
+    dialog(title, list, label, primary) { for (const df of list) fields[df.fieldname] = control(df); action = primary; return dialog; },
     warehouse_query: () => () => ({}), location_query: () => () => ({}), scan_stage: () => '',
     async call(method, args) { calls.push([method, args]); const next = results.shift(); if (next instanceof Error || next?.status) throw next; return next; },
     async pick_product() { return null; }, scan_result_sound: ok => sounds.push(ok), success() {},
@@ -48,10 +52,17 @@ function fixture({ lookups, file = ERP }) {
   vm.runInNewContext(source, { frappe, $, window, __: text => text, crypto: { randomUUID: () => 'id-1' },
     console: { error: error => errors.push(error), log() {} } });
   return {
-    async open(options = {}) { await p.stockCountEntry({ count: 'STC-00011', t: key => key, continuous: true, ...options }); await flush(); },
+    // 打开后点框内扫码图标开扫码器（11-02 起扫码器平时收起）
+    async open(options = {}) { await p.stockCountEntry({ count: 'STC-00011', t: key => key, continuous: true, ...options }); await flush();
+      if (options.camera !== false) { fields.code.df.scan(); await flush(); } },
     scan: async code => { await reader.on_result(code); await flush(); },
-    find: async code => { values.code = code; await fields.find.df.click(); await flush(); },
-    values, fields, calls, sounds, errors, resumes, reports, alerts, camera, p,
+    // 扫码枪 / 手打的码：框里填上回车
+    find: async code => { fields.code.$input.val(code);
+      for (const fn of fields.code.listeners.keydown || []) fn({ key: 'Enter', isComposing: false, preventDefault() {}, stopImmediatePropagation() {} });
+      await flush(); },
+    // 点「继续」（原生主按钮的动作）
+    proceed: async qty => { fields.qty.$input.val(String(qty)); await action({ qty, warehouse: values.warehouse, location: '', note: '' }); await flush(); },
+    values, fields, calls, sounds, errors, resumes, reports, alerts, camera, p, focused,
     message: () => fields.message.$wrapper.text(),
     shown: () => fields.entry_section.df.hidden === false,
   };
@@ -195,6 +206,45 @@ const polymer = (extra = {}) => ({
     assert.equal(f.message(), 'cowork.stock.workbench.lookupError');
     assert.equal(f.errors.length, 1);
     assert.deepEqual(f.resumes, ['TC001167']);
+  }
+  // 读到物料：扫码器关掉、出字段；点「继续」后扫码器自动再开，先跳过刚扫的码（镜头还对着它时不重复记，11-02）
+  {
+    const f = fixture({ lookups: [polymer(), { entry: 'E-1' }] });
+    await f.open();
+    await f.scan('TC001167');
+    assert.equal(f.camera.stops, 1, '读到物料扫码器就关');
+    assert.equal(f.fields.video.df.hidden, true);
+    assert.equal(f.shown(), true);
+    await f.proceed(2);
+    assert.equal(f.calls[1][0], 'pearnly_erp_portal.inventory.api.api_stock_count_add_entry');
+    assert.equal(f.camera.starts, 2, '扫码来的那件：继续后自动再开扫码器');
+    assert.deepEqual(f.resumes, ['TC001167'], '再开时先跳过刚扫的码');
+  }
+  // 打字 / 扫码枪回车来的那件：继续后回到框里、不开相机
+  {
+    const f = fixture({ lookups: [polymer(), { entry: 'E-1' }] });
+    await f.open({ camera: false });
+    await f.find('TC001167');
+    assert.equal(f.camera.starts, 0);
+    assert.equal(f.shown(), true);
+    await f.proceed(1);
+    assert.equal(f.camera.starts, 0, '打字来的那件：继续后不开相机');
+    assert.equal(f.focused.at(-1), 'code', '回到框里');
+  }
+  // 扫码器开着时再点框内图标、或点「关闭」：关掉、回到框里
+  {
+    const f = fixture({ lookups: [] });
+    await f.open();
+    assert.equal(f.camera.starts, 1);
+    f.fields.code.df.scan();
+    await flush();
+    assert.equal(f.camera.stops, 1);
+    assert.equal(f.focused.at(-1), 'code');
+    f.fields.code.df.scan();
+    await flush();
+    f.fields.close_camera.df.click();
+    await flush();
+    assert.equal(f.camera.stops, 2);
   }
   console.log('stocktake entry scan: ok');
 })().catch(error => { console.error(error); process.exit(1); });

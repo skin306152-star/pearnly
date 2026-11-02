@@ -216,7 +216,6 @@
 				if (closed) return;
 				selected = lookup.product;
 				request_id = crypto.randomUUID();
-				stop_camera();  // 认出来了：扫码器关掉，直接出这件的字段
 				d.set_df_property("source_row", "options", lookup.rows.map(r => ({
 					value: r.name, label: `${r.warehouse_name} / ${r.location || t("cowork.stock.count.blank")} · ${p.number(r.book_qty)} ${r.unit || ""}`,
 				})));
@@ -235,6 +234,7 @@
 				await d.set_value("qty", entry ? entry.qty : "");
 				if (!entry) d.fields_dict.qty.$input.val("");
 				await d.set_value("note", entry?.note || "");
+				stop_camera();  // 认出来、字段都填好了：扫码器关掉，直接出这件的字段（中途出错就不关，照常跳过这个码接着扫）
 				editor(true);
 				await load_photos();
 				render_photos();

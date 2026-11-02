@@ -49,7 +49,8 @@ def _modules():
     db = types.SimpleNamespace(get_value=lambda *a, **k: None, count=lambda *a, **k: 0)
     frappe = types.SimpleNamespace(
         _=lambda text: text, throw=_throw,
-        whitelist=lambda *a, **k: (lambda fn: fn), db=db, session=types.SimpleNamespace(user="counter@example.com"),
+        whitelist=lambda *a, **k: (lambda fn: fn), validate_and_sanitize_search_inputs=lambda fn: fn, db=db,
+        session=types.SimpleNamespace(user="counter@example.com"),
         local=types.SimpleNamespace(), conf={}, QueryDeadlockError=Error, DoesNotExistError=Error,
         DuplicateEntryError=Error, PermissionError=Error, ValidationError=Error)
     utils = types.SimpleNamespace(convert_utc_to_system_timezone=_convert_utc_to_system_timezone,
