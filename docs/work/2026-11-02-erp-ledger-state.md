@@ -200,9 +200,9 @@ erp.stock.excel-units、erp.stocktake.gs1、erp.express.service_vat、erp.stock-
 | erp.place.header、erp.entry.choices、erp.records.scope、erp.serials.dialog、erp.purchase.item-scan、erp.stock-count.upload、erp.stock-in.attach、erp.stock-out.attach | manual | 没测到（人工入口，本步没改它们的逻辑，交验收窗口按清单实测） |
 
 
-## 合入前补充（主会话 11-02 要求，head `2978205e`，main `3edc649b`）
+## 合入前补充（主会话 11-02 要求）
 
-### 候选离线检查（生产镜像 `ea24fcb9…`）
+### 候选离线检查（生产镜像 `ea24fcb9…`，在变基到盘点扫码之前的 `2978205e` 上）
 
 - `cand-local.sh offline`（源码只读挂进一次性容器、不联网）：**72 组全过，共 1427 条用例**，exit 0。
 - `scripts/ci-candidate-checks.sh` 的 offline 里有、`cand-local.sh` 没有的项，用同样的挂载方式补跑：**25 组全过**（24 个测试文件：
@@ -213,29 +213,39 @@ erp.stock.excel-units、erp.stocktake.gs1、erp.express.service_vat、erp.stock-
   test_originals_registered、test_originals_store、test_recon_originals、test_stock_count_workbook；外加一组 unittest：
   pearnly_control.account.test_repool、pearnly_core.account.test_names、pearnly_core.account.test_oidc_session_hint）。
 
-### 生产数据副本迁移演练
+### 变基到盘点扫码（`b8bb356d`）之后
+
+- 自动合并、没有冲突：盘点扫码改的是 `inventory/count.py`、`public/desk/stocktake.js` 别的段落；变基后这两个文件与 `b8bb356d` 相比只差本分支那两行
+  （`get_count` 回 `ledger_state` / `ledger_docnum`，盘点页按 `state.task.ledger_state` 出「Express」按钮），盘点扫码的改动原样保留。
+- 全闸门 169 / 169 ok；受影响流程 `run.py --changed --post-status`：19 条、**64 / 64 通过**（2214 秒，状态回写到 `42d3547d`），
+  其中盘点类 erp.stocktake.scan / new-product / places / web-code / gs1、erp.line.stocktake.phone 各 4 格全过；
+  另补跑登记表里其余盘点流程 erp.line.stocktake、erp.stocktake.report、erp.keyboard.line-stocktake、cowork.stocktake.list、
+  cowork.stocktake.entry：**15 / 15 通过**（这几条不回写状态）。
+
+### 生产数据副本迁移演练（变基后的代码 `42d3547d`）
 
 - 备份：异地备份桶最新一份（2026-11-02 的每日备份），本机 gcloud 只读下载各租户库的 dump 与 SHA256SUMS（没有下载文件包、密钥包，
   没有 ssh、没碰生产库），SHA256 全部一致。按表结构认出 5 个 ERP 库（含 `tabPurchase Document` 的），下文记作 ERP-1 … ERP-5。
   下载目录在本机临时目录、权限 700。
-- 起栈：本机一次性实验栈（编排同回归实验室，镜像 = 生产镜像 `ea24fcb9`，挂 origin/main `3edc649b` 源码快照），把 5 个库原样导入、
-  各配一个站点，先用 main 代码 `bench migrate`（5 个站点都没有待跑补丁，说明备份已是 main 的结构），导出迁移前的旧列与规则结论；
+- 起栈：本机一次性实验栈（编排同回归实验室，镜像 = 生产镜像 `ea24fcb9`，挂 origin/main `48a32724` 源码快照），把 5 个库原样导入、
+  各配一个站点，先用 main 代码 `bench migrate`（5 个站点都没有待跑补丁，备份已是 main 的结构），导出迁移前的旧列与规则结论；
   再切到本分支源码 `bench migrate`，导出迁移后的结果比对。核对脚本按 DocType 认列名，改列前后同一份。
-- ② 用的判定：每张单按 `push` 的同一组判定函数（`started_linked`、`_eligible`、排不排、断开时撤不撤、每分钟再试不试、作废排不排、
+- ② 的判定：每张单按 `push` 的同一组判定函数（`started_linked`、`_eligible`、排不排、断开时撤不撤、每分钟再试不试、作废排不排、
   要不要人处理、算不算写进 Express）各算一次，即 `LinkRulesUnchanged` 锁住的那几条规则在真实数据上的结论；加上每家公司的勾选与接上时刻。
 
 | 站点 | 五种单（采购 / 销售 / 出入库 / 盘点 / 日汇总） | 旧列有值的 | ① 迁移前旧值 → 迁移后新列 | ① 迁移后同一行新旧两列 | 记 express | ② 规则结论（项） | ③ migrate 总耗时 | ③ 补丁耗时 |
 |---|---|---|---|---|---|---|---|---|
-| ERP-1 | 1 / 0 / 0 / 2 / 0 | 0 | 0 处不一致 | 0 处不一致 | 0 | 24 项，0 处不同 | 13.1 秒 | 0.06 秒 |
-| ERP-2 | 0 / 0 / 12 / 6 / 0 | 0 | 0 | 0 | 0 | 144 项，0 处不同 | 12.9 秒 | 0.12 秒 |
-| ERP-3 | 0 / 0 / 8 / 1 / 0 | 0 | 0 | 0 | 0 | 72 项，0 处不同 | 12.2 秒 | 0.07 秒 |
-| ERP-4 | 0 / 0 / 0 / 0 / 0 | 0 | 0 | 0 | 0 | 0 项 | 12.2 秒 | 0.06 秒 |
-| ERP-5 | 10 / 3 / 5 / 4 / 0 | 6（采购 3、销售 2、出入库 1） | 0 | 0 | 6（与有值的一一对应） | 176 项，0 处不同；65 家公司（62 家接上）的勾选与接上时刻一致 | 13.0 秒 | 0.07 秒 |
+| ERP-1 | 1 / 0 / 0 / 2 / 0 | 0 | 0 处不一致 | 0 处不一致 | 0 | 24 项，0 处不同 | 10.1 秒 | 0.05 秒 |
+| ERP-2 | 10 / 3 / 5 / 4 / 0 | 6（采购 3、销售 2、出入库 1） | 0 | 0 | 6（与有值的一一对应） | 176 项，0 处不同；65 家公司（62 家接上）的勾选与接上时刻一致 | 9.8 秒 | 0.07 秒 |
+| ERP-3 | 0 / 0 / 12 / 6 / 0 | 0 | 0 | 0 | 0 | 144 项，0 处不同 | 9.7 秒 | 0.06 秒 |
+| ERP-4 | 0 / 0 / 8 / 1 / 0 | 0 | 0 | 0 | 0 | 72 项，0 处不同 | 9.8 秒 | 0.06 秒 |
+| ERP-5 | 0 / 0 / 0 / 0 / 0 | 0 | 0 | 0 | 0 | 0 项 | 9.8 秒 | 0.06 秒 |
 
-- 补丁打印的行数与上表一致；ERP-5 上重跑补丁，导出结果逐字节相同。迁移日志里没有报错。
+- 补丁打印的行数与上表一致；ERP-2 上重跑补丁，导出结果逐字节相同。迁移日志里没有报错。
 - 补丁耗时 = 迁移输出里「Executing …v1_24_ledger_state」到下一行的间隔（逐行打时间戳）；migrate 总耗时含模型同步与 after_migrate。
-- 清理回读：`docker compose … down -v` 后，`docker ps -a`、`docker volume ls`、`docker network ls` 里本演练栈名的条目都是 0；下载目录与
-  main 源码快照目录 `ls` 均为「No such file or directory」。生产数据没有进仓库、记录、截图。
+- 变基前（`2978205e`）同一份备份已演练过一遍，结论相同（0 处不一致、0 处不同，单站 12–13 秒、补丁 0.06–0.12 秒）。
+- 清理回读：`docker compose … down -v` 后，`docker ps -a`、`docker volume ls`、`docker network ls` 里本任务栈名的条目都是 0；下载目录与
+  main 源码快照目录都已不存在。生产数据没有进仓库、记录、截图。
 
 ## 文件重叠与合入顺序
 
