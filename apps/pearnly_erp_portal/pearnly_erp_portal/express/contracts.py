@@ -53,6 +53,18 @@ CHOICE = "choice_needed"
 # 过一会儿自己会好的（电脑开机、主档读完、有人在电脑上登录 CC、退货单的原 HS 写成了）：每分钟再试；要人选的、单据本身不对的
 # 不自动重试
 RETRY_REASONS = (NO_BOOK, NO_WRITER, READING, REFUND_WAITING)
+# 要人处理的单（ERP 版 CC 的「待处理」，2026-11-02）：停下等人（要人选一次、单据本身不对、电脑转了人工…；不含每分钟会自己
+# 再试的 `RETRY_REASONS`）、失败、写进去了但核对不上。只看单据上的状态与原因（`needs_person`）
+ATTENTION_STATES = (HELD, FAILED, MISMATCH)
+
+
+def needs_person(state, reason) -> bool:
+    """这张单此刻要不要人处理（纯判断，`pending` 与页面同一口径）。"""
+    if state in (FAILED, MISMATCH):
+        return True
+    return state == HELD and str(reason or "") not in RETRY_REASONS
+
+
 # 这几种采购单是真进货 / 费用，推进 Express（采购订单 10-28 已删，见 `purchasing.contracts.RETIRED_KINDS`）
 PURCHASE_KINDS = ("purchase_invoice", "expense", "goods", "service")
 SALES_KINDS = ("receipt",)
@@ -335,7 +347,7 @@ def pages(doc: dict) -> list:
     return [page]
 
 
-__all__ = ["CHOICE", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER",
-           "OFFLINE", "OPEN_STATES", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS",
+__all__ = ["ATTENTION_STATES", "CHOICE", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER",
+           "OFFLINE", "OPEN_STATES", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]

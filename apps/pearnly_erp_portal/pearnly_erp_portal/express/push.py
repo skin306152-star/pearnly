@@ -313,7 +313,14 @@ def vat_fields(body, exempt) -> dict:
 
 
 def _set(doctype, name, values):
+    """写单据上的 Express 栏（不改修改时间）。改到状态或原因时，这张单进出 ERP 版 CC 的「待处理」就给能看这家公司的人推一次
+    （`pending.notify`，提交后）。"""
+    from pearnly_erp_portal.express import pending
+
+    before = pending.ledger_of(doctype, name) if {"express_state", "express_reason"} & set(values) else None
     frappe.db.set_value(doctype, name, values, update_modified=False)
+    if before is not None:
+        pending.notify(doctype, name, before)
 
 
 def _prepare_body(doctype, company, body):

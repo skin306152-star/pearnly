@@ -1843,3 +1843,14 @@ Pick a destination warehouse	请选择调入仓库	กรุณาเลือ�
 Not written to Express (disconnected)	未写入 Express（已断开）	ไม่ได้บันทึก Express (ยกเลิกเชื่อมต่อ)	Express 未書き込み（接続解除済み）	express.state.detached
 Linked to Express At	接上 Express 时刻	เวลาที่เชื่อมต่อ Express	Express 接続日時
 This account code is already a stock item code in Express	此科目码已是 Express 库存品的编码	รหัสบัญชีนี้เป็นรหัสสินค้าคงคลังใน Express แล้ว	この勘定コードは Express の在庫品コードです	express.error.ACCOUNT_CODE_IS_STOCK_ITEM
+Notes are full	知识库已满	บันทึกเต็มแล้ว	ノートが上限です
+Note is empty or too long	说明为空或过长	บันทึกว่างหรือยาวเกินไป	ノートが空か長すぎます
+Note not found	未找到该说明	ไม่พบบันทึกนี้	ノートが見つかりません
+Listed companies	列出了公司	แสดงรายชื่อบริษัท	会社一覧を表示
+Read company details	读取了公司资料	อ่านข้อมูลบริษัท	会社情報を確認
+Saved a company note	记下了公司说明	บันทึกข้อมูลบริษัท	会社メモを保存
+Removed a company note	删除了公司说明	ลบบันทึกบริษัท	会社メモを削除
+Save this to the company's notes?	确定要将此内容记入公司知识库吗？	บันทึกข้อนี้ลงในบันทึกของบริษัทไหม	会社のノートに保存しますか？
+Update this company note?	确定要修改此公司说明吗？	แก้ไขบันทึกบริษัทนี้ไหม	この会社メモを更新しますか？
+Remove this company note?	确定要删除此公司说明吗？	ลบบันทึกบริษัทนี้ไหม	この会社メモを削除しますか？
+Company notes	知识库	บันทึก	ノート	erp.company.notes

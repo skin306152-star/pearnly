@@ -1,5 +1,5 @@
 """ERP 版 CC 的公司（ADR-020 同一形状，2026-11-02）：CC 对话页的公司列表、公司页、知识库、待处理的服务端逻辑；网页接口是
-`cc_companies`（薄入口），共用层的 provider 是 `cc_projects`。
+`cc_companies`（薄入口），CC 的工具是 `cc_tools`，共用层的 provider 是 `cc_projects`。
 
 共用层 `projects.listing` 把 provider 声明的前缀（`cc_projects.API`）交给页面，页面只调它声明的分区（`cc_projects.SECTIONS`）。
 这里只出 Cowork 前端已有的形状（`frontend/assistant/src/lib/companies.ts`），字段是子集：
@@ -8,8 +8,9 @@
 - ERP **不提供**建、改名、删：公司在 ERP 里建、改、停用（公司页 `/desk/pearnly-company`）。页面的「添加公司」打开 ERP 新建公司页
   （`desk`，只给能管公司的人），公司页的「在浏览器中打开」去这家的公司页（`detail.company.desk_url`）；
 - 账套：CC 桌面版报来的 Express 账套按「税号 + 分店」对上（共用通道 `books.for_company`，与 ERP 写账选账套同一条）；
-- 读用 GET；权限全在服务端判：读要能看公司（`company.read`）且这家在本人可见公司里。
-- 公司变了（建、改名、停用、启用、删）：提交后给能看这家的人逐个推 ``pearnly.project``（`announce`）。
+- 知识库：`company_notes`；待处理：`express.pending`。
+- 读用 GET、写只收 POST；权限全在服务端判：读要能看公司（`company.read`）且这家在本人可见公司里；写知识库另要有开单权或能管公司。
+- 公司或知识库变了（建、改名、停用、启用、删、记 / 删一条）：提交后给能看这家的人逐个推 ``pearnly.project``（`announce`）。
 """
 from __future__ import annotations
 
@@ -18,13 +19,14 @@ from frappe import _
 
 from pearnly_core.assistant import projects
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.masters import cc_context
+from pearnly_erp_portal.masters import cc_context, company_notes
 from pearnly_erp_portal.masters import company as companies
 
 COMPANY = "ERP Company"
 PAGE_MAX = 50
 COMPANY_MAX = 2000  # 一个租户的公司数上限（按账套自动建公司的大租户几十家）
 HEAD_OFFICE = "00000"
+WRITE_CAPABILITIES = ("purchase.write", "sales.write", "company.manage")
 FIELDS = ["name", "company_name", "short_name", "tax_id", "branch", "vat_registered", "express_enabled", "express_book",
           "express_synced_at", "express_sync_state", "is_active", "owner", "creation"]
 DESK = "/desk/pearnly-company"
@@ -36,6 +38,13 @@ DESK = "/desk/pearnly-company"
 def require_read(user=None) -> str:
     user = user or frappe.session.user
     if not user or user == "Guest" or not guard.has("company.read", user=user):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    return user
+
+
+def require_write(user=None) -> str:
+    user = require_read(user)
+    if not any(guard.has(capability, user=user) for capability in WRITE_CAPABILITIES):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     return user
 
@@ -149,7 +158,7 @@ def listing(search=None, start=0, limit=PAGE_MAX) -> list:
 
 
 def detail(company, period=None) -> dict:
-    """公司页要的：公司、账套（新年度在前）、覆盖这个月的那份；ERP 没有的分区（文件夹、知识库、记住的选择、定时任务、草稿）
+    """公司页要的：公司、账套（新年度在前）、覆盖这个月的那份、知识库；ERP 没有的分区（文件夹、记住的选择、定时任务、草稿）
     给空。`desk_url` 是这家在 ERP 里的公司页。"""
     require_read()
     period = _period(period)
@@ -163,11 +172,13 @@ def detail(company, period=None) -> dict:
         "branches": [],
         "period_set": {"key": cover[0]["key"], "label": cover[0]["label"], "connection": ""} if cover else None,
         "folders": [],
-        "notes": [],
+        "notes": company_notes.listing(row.name),
         "choices": [],
         "tasks": None,
         "drafts": None,
     }
+    for item in found["notes"]:
+        item["updated_at"] = when(item.get("updated_at"))
     return found
 
 
@@ -187,7 +198,27 @@ def context_text(company, period="", user=None) -> str:
         "tax_id": row.tax_id or "", "branch": row.branch or "", "vat": row.vat_registered or "",
         "express": bool(row.express_enabled), "ledger": row.express_book or "", "account_sets": sets,
         "covering": [item["key"] for item in covering(sets, period)], "synced_on": synced,
-        "sync_failed": row.express_sync_state == "failed", "period": period})
+        "sync_failed": row.express_sync_state == "failed", "period": period, "notes": company_notes.listing(row.name)})
+
+
+# ---------------- 知识库 ----------------
+
+
+def note_save(company, text, note=None, *, origin="person", session="") -> dict:
+    require_write()
+    row = get(company)
+    saved = company_notes.save(row.name, text, note or None, origin=origin, session=session)
+    saved["updated_at"] = when(saved.get("updated_at"))
+    announce(row.name, part="notes")
+    return saved
+
+
+def note_delete(company, note) -> dict:
+    require_write()
+    row = get(company)
+    found = company_notes.delete(row.name, note)
+    announce(row.name, part="notes")
+    return found
 
 
 # ---------------- 实时事件 ----------------
@@ -235,6 +266,7 @@ def company_changed(doc, method=None) -> None:
 
 
 def company_removed(doc, method=None) -> None:
-    """（hooks doc_events，ERP Company 删之后）挂在它下面的对话回到「最近」；推 ``delete``。"""
+    """（hooks doc_events，ERP Company 删之后）挂在它下面的对话回到「最近」，知识库一起删；推 ``delete``。"""
     projects.release(doc.name)
+    frappe.db.delete(company_notes.NOTE, {"company": doc.name})
     announce(doc.name, "delete")

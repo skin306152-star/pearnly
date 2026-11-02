@@ -293,6 +293,7 @@ Company,会社
 Company details,会社情報
 Company name,会社名
 Company not found,会社が見つかりません
+Company notes,ノート
 Company type,会社タイプ
 Complete,完了
 Complete Order,会計を確定
@@ -707,6 +708,7 @@ List Price,表示価格
 List actions,リストの操作
 List archived,リストをアーカイブしました
 List name,リスト名
+Listed companies,会社一覧を表示
 Loading...,読み込み中…
 Location,保管場所
 Locations,ロケーション一覧
@@ -811,7 +813,10 @@ Not in the list,一覧にありません
 Not permitted,権限がありません
 Not written to Express (disconnected),Express 未書き込み（接続解除済み）
 Note,備考
+Note is empty or too long,ノートが空か長すぎます
+Note not found,ノートが見つかりません
 Notes,備考
+Notes are full,ノートが上限です
 Nothing counted yet,まだ棚卸記録がありません
 Notifications,通知
 Now sending {0} documents,{0}の書類を送信中
@@ -1012,6 +1017,7 @@ Quotation,見積書
 Rate,単価
 Reactivated,再有効化
 Reactivated by stock count {0},棚卸で再有効化 · {0}
+Read company details,会社情報を確認
 Reading,読み込み中
 Reading the Express account set,Express 帳簿を読み取り中
 Ready to post,登録可能
@@ -1074,6 +1080,8 @@ Remove,削除
 Remove color,色を削除
 Remove mirror,ミラーを削除
 Remove template,テンプレートを解除
+Remove this company note?,この会社メモを削除しますか？
+Removed a company note,会社メモを削除
 Replace the entered rows with the imported file?,入力済みの明細を取込ファイルで置き換えますか？
 Request Hash,リクエストハッシュ
 Request ID already exists,リクエスト ID は既に存在します
@@ -1111,7 +1119,9 @@ Sales returns account,売上返品勘定
 Save,保存
 Save Draft,下書きを保存
 Save and next,保存して次へ
+Save this to the company's notes?,会社のノートに保存しますか？
 Saved,保存しました
+Saved a company note,会社メモを保存
 Saved {0},{0} を保存しました
 Saved. Scan the next item.,保存しました。次の商品を読み取ってください。
 Scan,スキャン
@@ -1520,6 +1530,7 @@ Up to 5 photos per entry; take a photo or choose from the gallery.,1記録につ
 Up to {0} attachments,添付は {0} 件まで
 Update Additional Information,追加情報を更新
 Update Stock,在庫更新
+Update this company note?,この会社メモを更新しますか？
 Updated,更新しました
 Updated {0},{0} を更新しました
 Updated {0} customer(s),顧客 {0}件を更新しました
@@ -1755,6 +1766,7 @@ count,棚卸
 discount applied,割引を適用しました
 draft,下書き
 due,期日
+erp.company.notes,ノート
 erp.detail.amount,金額が無効です
 erp.detail.discount,割引が合計を超えています
 erp.detail.grand_total,合計が無効です

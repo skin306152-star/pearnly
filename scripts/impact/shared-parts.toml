@@ -1984,11 +1984,11 @@ files = ["apps/pearnly_core/pearnly_core/desk/error_detail.py", "apps/pearnly_co
 [[entry]]
 id = "erp.cc.companies"
 product = "ERP"
-where = "ERP 版 CC 按公司（侧栏公司组、公司列表、公司页）"
-steps = "ERP 账号（两家公司、员工只见其一）打开 CC：侧栏「公司」、公司页（在浏览器中打开）、添加公司去 ERP 新建公司页；实操选公司"
-expect = "只见本人可见的启用公司；只出 ERP 声明的分区；不调 Cowork 接口"
+where = "ERP 版 CC 按公司（侧栏公司组、公司列表、公司页、知识库、待处理、CC 公司工具）"
+steps = "ERP 账号（两家公司、员工只见其一）打开 CC：侧栏「公司」「待处理 N」、公司页（在浏览器中打开）、知识库增删与 CC「允许」卡片、待处理点开到单据页、添加公司去 ERP 新建公司页；实操选公司"
+expect = "只见本人可见的启用公司；只出 ERP 声明的分区；不调 Cowork 接口；知识库与待处理随事件更新"
 check = "manual"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_projects.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_companies.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_context.py"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_projects.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_companies.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_context.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/company_notes.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/pending.py"]
 
 [[entry]]
 id = "cowork.assistant"

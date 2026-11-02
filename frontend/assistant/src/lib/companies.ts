@@ -103,6 +103,8 @@ export type PendingItem = {
   // mrerp：MR.ERP 推送停在要选这份账套的导入菜单 / 默认值（2026-10-19），当场选完重推
   action: "choose" | "open" | "account_set" | "push" | "mrerp";
   choice?: PendingChoice | null;
+  /** 这张单在站点里的页面（ERP：点开去单据页处理；Cowork 没有，交给 CC）。 */
+  url?: string;
 };
 
 /** 推送的「要人选的项」（push.application.service.choices_view，复核页、CC 同一套判定）。suggested 是费用科目的建议
@@ -459,8 +461,14 @@ export function useBranches(company: string): Branch[] {
 type Counts = { loaded: boolean; total: number; companies: Record<string, number> };
 export const usePendingCounts = create<Counts>(() => ({ loaded: false, total: 0, companies: {} }));
 
-// 推送状态变了（录入列表同一个事件，history/push_state.py）、定时任务有变化（folder_intake/live.py）：重取一次计数
+// 推送状态变了（录入列表同一个事件，history/push_state.py）、定时任务有变化（folder_intake/live.py）：重取一次计数。
+// 另一路是共用的 pearnly.project（part = pending，ERP 单据的账本状态进出「待处理」时推，express/pending.py）：pendingChanged
 export const PENDING_EVENTS = ["cowork_intake_changed", "cowork_folder_changed"] as const;
+
+/** 订阅「这家的待处理变了」（pearnly.project 的 upsert，part = pending）；返回取消订阅。 */
+export function onPendingChange(handler: () => void): () => void {
+  return onProjectChange((change) => (change.op === "upsert" && change.part === "pending" ? handler() : undefined));
+}
 
 type CountsReply = { total?: number; companies?: Record<string, number>; by_company?: Record<string, number> } | Array<{ company: string | null; count: number }>;
 
@@ -500,6 +508,7 @@ export function watchPendingCounts(): () => void {
     timer = window.setTimeout(() => void refreshPendingCounts(), 1500);
   };
   const offs = PENDING_EVENTS.map((name) => onSiteEvent(name, soon));
+  offs.push(onPendingChange(soon));
   const offConnection = onConnectionChange((connected) => connected && soon());
   const onVisible = () => document.visibilityState === "visible" && soon();
   document.addEventListener("visibilitychange", onVisible);

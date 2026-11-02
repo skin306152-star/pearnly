@@ -785,6 +785,9 @@ class ErpSectionsSourceTests(unittest.TestCase):
         self.assertIn("return desk && url ? () => openSitePage(url) : null;", action)
         self.assertIn("const add = useAddCompanyAction(onPick);", read("components/assistant-ui/projects.tsx"))
         self.assertIn("{add && (", read("components/companies.tsx"))
+        pending = read("components/pending.tsx")
+        self.assertIn("const hand = items.filter((item) => !item.url && ", pending)
+        self.assertIn("useEffect(() => onPendingChange(() => void reload()), [reload]);", pending)
 
     def test_every_hard_coded_cowork_call_is_only_reached_from_cowork_parts(self):
         """前端里所有 pearnly_cowork. 字面量：在哪个文件、为什么 ERP 调不到（评估 §15.4 的检查）。"""
@@ -853,39 +856,60 @@ class ErpSectionsBehaviourTests(unittest.TestCase):
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server.browser";
 import { refreshProjects, resetProjects, useProjects } from "@/lib/managed-agents/projects";
-import { listCompanies, loadDetail, newCompanyUrl } from "@/lib/companies";
+import { deleteNote, listCompanies, loadDetail, loadPending, newCompanyUrl, refreshPendingCounts, saveNote, usePendingCounts } from "@/lib/companies";
 import { declaredCards } from "@/components/session-panel";
+import { PendingItems } from "@/components/pending";
 const g = globalThis as any;
 const ok = (message: any) => ({ ok: true, status: 200, json: async () => ({ message }) });
 const ERP = "pearnly_erp_portal.masters.cc_companies.";
 g.respond = async (method: string) => {
   if (method === "projects") return ok({ kind: "company", period: true, scope: false, api: ERP,
-    sections: ["desk", "bogus", 3], projects: [{ id: "CO-00001", title: "Siam", subtitle: "0105536082808" }] });
+    sections: ["pending", "notes", "desk", "bogus", 3], projects: [{ id: "CO-00001", title: "Siam", subtitle: "0105536082808" }] });
   if (method.includes(ERP + "companies")) return ok([{ id: "CO-00001", title: "Siam", tax_id: "0105536082808" }]);
   if (method.includes(ERP + "desk")) return ok({ url: "/desk/pearnly-company/new" });
+  if (method.includes(ERP + "pending_counts")) return ok({ total: 2, companies: { "CO-00001": 2 }, unassigned: 0 });
+  if (method.includes(ERP + "pending")) return ok({ items: [], count: 0 });
   if (method.includes(ERP + "detail")) return ok({ company: { id: "CO-00001", title: "Siam", desk_url: "/desk/pearnly-company/CO-00001" },
     account_sets: [], branches: [], folders: [], notes: [], choices: [], tasks: null, drafts: null });
+  if (method.includes(ERP + "note_save")) return ok({ id: "n1", text: "x" });
   return ok(null);
 };
 resetProjects();
 assert.equal(await refreshProjects(), "company");
 const state = useProjects.getState();
 assert.equal(state.api, ERP);
-assert.deepEqual(state.sections, ["desk"]);   // 认不出的丢掉
+assert.deepEqual(state.sections, ["pending", "notes", "desk"]);   // 认不出的丢掉
 assert.equal(state.scope, false);
 assert.deepEqual((await listCompanies("si")).map((row) => row.id), ["CO-00001"]);
 assert.equal((await loadDetail("CO-00001", "2026-10")).company.desk_url, "/desk/pearnly-company/CO-00001");
+assert.deepEqual(await loadPending("CO-00001"), []);
+await refreshPendingCounts();
+assert.equal(usePendingCounts.getState().total, 2);
 assert.equal(await newCompanyUrl(), "/desk/pearnly-company/new");
+await saveNote("CO-00001", "x");
+await deleteNote("CO-00001", "n1");
 const methods = g.calls.map((call: any) => call.method).filter((m: string) => m !== "projects");
-assert.ok(methods.length >= 3);
+assert.ok(methods.length >= 7);
 assert.ok(methods.every((m: string) => m.includes(ERP)), methods.join(", "));
 assert.ok(!g.calls.some((call: any) => String(call.method).includes("pearnly_cowork")));
-// 会话栏：ERP 只出公司与输出文件；Cowork 全部照旧
+// 会话栏：ERP 只出公司、待处理、知识库与输出文件；Cowork 全部照旧
 const all: any = { company: "c", month: "m", pending: "p", notes: "n", folders: "f", tasks: "t", choices: "ch", drafts: "d", outputs: "o" };
 const shown = (sections: any) => Object.entries(declaredCards(all, sections)).filter(([, card]) => card).map(([id]) => id);
-assert.deepEqual(shown(state.sections), ["company", "outputs"]);
+assert.deepEqual(shown(state.sections), ["company", "pending", "notes", "outputs"]);
 assert.deepEqual(shown(["pending", "month", "notes", "folders", "tasks", "choices", "drafts", "create", "rename", "delete", "catalog"]),
   Object.keys(all));
+// 待处理：ERP 的单带单据页地址，点开去那里；不进「交给 CC」
+const noop = () => {};
+const erpItem = { document: "PUR-1", company: "CO-00001", reason_code: "failed", reason_label: "Failed", invoice_no: "PUR-1-NO",
+  counterparty: "Thai Steel", amount: "1070.00", date: "2026-10-20", action: "open" as const, url: "/desk/pearnly-purchase/PUR-1" };
+const page = renderToStaticMarkup(createElement(PendingItems, { items: [erpItem], error: "", done: noop, changed: noop, company: "CO-00001" }));
+assert.match(page, /<button[^>]*data-slot="cc-pending-row"/);
+assert.ok(!page.includes('data-slot="cc-hand-to-cc"'));
+// Cowork 的「交给 CC」那一类照旧：没有 url 的不是按钮，组下有「交给 CC」
+const cowork = { ...erpItem, url: undefined, document: "CWH-1" };
+const old = renderToStaticMarkup(createElement(PendingItems, { items: [cowork], error: "", done: noop, changed: noop, company: "C1" }));
+assert.match(old, /<div[^>]*data-slot="cc-pending-row"/);
+assert.ok(old.includes('data-slot="cc-hand-to-cc"'));
 """)
 
     def test_cowork_declaration_keeps_todays_methods(self):

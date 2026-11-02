@@ -293,6 +293,7 @@ Company,公司
 Company details,公司信息
 Company name,公司名称
 Company not found,公司不存在
+Company notes,知识库
 Company type,公司类型
 Complete,完成
 Complete Order,完成订单
@@ -707,6 +708,7 @@ List Price,标价
 List actions,列表操作
 List archived,列表已归档
 List name,列表名称
+Listed companies,列出了公司
 Loading...,加载中…
 Location,地点
 Locations,库位清单
@@ -811,7 +813,10 @@ Not in the list,不在清单
 Not permitted,没有权限
 Not written to Express (disconnected),未写入 Express（已断开）
 Note,备注
+Note is empty or too long,说明为空或过长
+Note not found,未找到该说明
 Notes,备注
+Notes are full,知识库已满
 Nothing counted yet,暂无盘点记录
 Notifications,提醒
 Now sending {0} documents,当前发送{0}单据
@@ -1012,6 +1017,7 @@ Quotation,报价单
 Rate,单价
 Reactivated,停用启用
 Reactivated by stock count {0},盘点启用 · {0}
+Read company details,读取了公司资料
 Reading,读取中
 Reading the Express account set,正在读取 Express 账套
 Ready to post,待入账
@@ -1074,6 +1080,8 @@ Remove,移除
 Remove color,移除颜色
 Remove mirror,移除镜像
 Remove template,取消模板
+Remove this company note?,确定要删除此公司说明吗？
+Removed a company note,删除了公司说明
 Replace the entered rows with the imported file?,确定要用导入文件替换已填写的明细吗？
 Request Hash,请求哈希
 Request ID already exists,请求编号已存在
@@ -1111,7 +1119,9 @@ Sales returns account,销货退回科目
 Save,保存
 Save Draft,保存草稿
 Save and next,保存并下一项
+Save this to the company's notes?,确定要将此内容记入公司知识库吗？
 Saved,已保存
+Saved a company note,记下了公司说明
 Saved {0},已保存 {0}
 Saved. Scan the next item.,已保存，请扫描下一项。
 Scan,扫码
@@ -1520,6 +1530,7 @@ Up to 5 photos per entry; take a photo or choose from the gallery.,每条记录�
 Up to {0} attachments,最多 {0} 个附件
 Update Additional Information,更新附加信息
 Update Stock,更新库存
+Update this company note?,确定要修改此公司说明吗？
 Updated,已更新
 Updated {0},已更新 {0}
 Updated {0} customer(s),已更新 {0} 位客户
@@ -1755,6 +1766,7 @@ count,盘点
 discount applied,已应用折扣
 draft,草稿
 due,到期
+erp.company.notes,知识库
 erp.detail.amount,金额无效
 erp.detail.discount,折扣超过合计
 erp.detail.grand_total,合计无效

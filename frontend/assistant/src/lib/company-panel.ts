@@ -276,7 +276,8 @@ export function usePanelDetail(company: string, period: string) {
   useEffect(
     () =>
       onProjectChange((change) => {
-        if (change.op === "upsert" && change.project.id === company && owner()) void reload();
+        // part pending：这家的待处理变了（ERP 单据的账本状态），详情里没有它，不重取（待处理卡自己重取）
+        if (change.op === "upsert" && change.project.id === company && change.part !== "pending" && owner()) void reload();
         if (change.op === "delete" && change.id === company) forgetPanelDetail(company);
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps

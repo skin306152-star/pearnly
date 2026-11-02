@@ -293,6 +293,7 @@ Company,บริษัท
 Company details,ข้อมูลบริษัท
 Company name,ชื่อบริษัท
 Company not found,ไม่พบบริษัทนี้
+Company notes,บันทึก
 Company type,ประเภทบริษัท
 Complete,เสร็จ
 Complete Order,ปิดการขาย
@@ -707,6 +708,7 @@ List Price,ราคาตั้ง
 List actions,การดำเนินการของรายการ
 List archived,เก็บถาวรรายการแล้ว
 List name,ชื่อรายการ
+Listed companies,แสดงรายชื่อบริษัท
 Loading...,กำลังโหลด…
 Location,ที่ตั้ง
 Locations,รายการตำแหน่ง
@@ -811,7 +813,10 @@ Not in the list,ไม่อยู่ในรายการ
 Not permitted,ไม่ได้รับอนุญาต
 Not written to Express (disconnected),ไม่ได้บันทึก Express (ยกเลิกเชื่อมต่อ)
 Note,หมายเหตุ
+Note is empty or too long,บันทึกว่างหรือยาวเกินไป
+Note not found,ไม่พบบันทึกนี้
 Notes,หมายเหตุ
+Notes are full,บันทึกเต็มแล้ว
 Nothing counted yet,ยังไม่มีการนับ
 Notifications,การแจ้งเตือน
 Now sending {0} documents,กำลังส่งเอกสาร{0}
@@ -1012,6 +1017,7 @@ Quotation,ใบเสนอราคา
 Rate,ราคาต่อหน่วย
 Reactivated,เปิดใช้อีกครั้ง
 Reactivated by stock count {0},เปิดใช้จากการตรวจนับ · {0}
+Read company details,อ่านข้อมูลบริษัท
 Reading,กำลังอ่าน
 Reading the Express account set,กำลังอ่านชุดบัญชี Express
 Ready to post,พร้อมบันทึก
@@ -1074,6 +1080,8 @@ Remove,นำออก
 Remove color,ลบสี
 Remove mirror,ลบมิเรอร์
 Remove template,ยกเลิกเทมเพลต
+Remove this company note?,ลบบันทึกบริษัทนี้ไหม
+Removed a company note,ลบบันทึกบริษัท
 Replace the entered rows with the imported file?,ต้องการแทนที่รายการที่กรอกไว้ด้วยไฟล์นำเข้าใช่หรือไม่
 Request Hash,แฮชของคำขอ
 Request ID already exists,รหัสคำขอมีอยู่แล้ว
@@ -1111,7 +1119,9 @@ Sales returns account,บัญชีรับคืนสินค้า
 Save,บันทึก
 Save Draft,บันทึกฉบับร่าง
 Save and next,บันทึกและรายการถัดไป
+Save this to the company's notes?,บันทึกข้อนี้ลงในบันทึกของบริษัทไหม
 Saved,บันทึกแล้ว
+Saved a company note,บันทึกข้อมูลบริษัท
 Saved {0},บันทึก {0} แล้ว
 Saved. Scan the next item.,บันทึกแล้ว กรุณาสแกนรายการถัดไป
 Scan,สแกน
@@ -1520,6 +1530,7 @@ Up to 5 photos per entry; take a photo or choose from the gallery.,บันท�
 Up to {0} attachments,แนบได้สูงสุด {0} ไฟล์
 Update Additional Information,อัปเดตข้อมูลเพิ่มเติม
 Update Stock,อัปเดตสต็อก
+Update this company note?,แก้ไขบันทึกบริษัทนี้ไหม
 Updated,อัปเดตแล้ว
 Updated {0},อัปเดต {0} แล้ว
 Updated {0} customer(s),อัปเดตลูกค้า {0} รายแล้ว
@@ -1755,6 +1766,7 @@ count,ตรวจนับ
 discount applied,ใช้ส่วนลดแล้ว
 draft,ฉบับร่าง
 due,ครบกำหนด
+erp.company.notes,บันทึก
 erp.detail.amount,จำนวนเงินไม่ถูกต้อง
 erp.detail.discount,ส่วนลดเกินยอดรวม
 erp.detail.grand_total,ยอดรวมไม่ถูกต้อง

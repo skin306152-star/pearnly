@@ -422,7 +422,7 @@ PROJECT_SCOPE = re.compile(r"^[A-Za-z0-9_.:-]{1,40}$")
 # 删 → delete（这一项的对话归回「最近」）
 PROJECT_CHANGE = "pearnly.project"
 PROJECT_OPS = frozenset({"upsert", "delete", "move"})
-PROJECT_PARTS = frozenset({"master", "notes", "folders", "choices"})
+PROJECT_PARTS = frozenset({"master", "notes", "folders", "choices", "pending"})  # pending：这家的待处理变了（ERP，页面重取）
 # 批末系统消息里的那一段说明：带过的哈希记在会话 `project_noted`，说明变了（换组、换月、改了知识库……）才重带
 PROJECT_NOTE_HASH = 32
 PROJECT_UNFILED = "This conversation is no longer filed under a client company."

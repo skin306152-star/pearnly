@@ -10,12 +10,13 @@
 """
 from __future__ import annotations
 
-import html
 from typing import Any, Mapping
+
+from pearnly_core.assistant import team_notes
 
 SETS_MAX = 12
 FOLDERS_MAX = 3
-NOTES_CHARS = 6000
+NOTES_CHARS = team_notes.NOTES_CHARS  # 知识库的转义与字数上限在共用层（ERP 公司同一套）
 TOTAL_CHARS = 9000
 RULES_MAX = 40
 RULE_KINDS = {"party": "party record", "item": "stock item", "account": "expense account", "payment": "payment",
@@ -27,8 +28,7 @@ MONTHS = ("January", "February", "March", "April", "May", "June", "July", "Augus
 HEAD_OFFICE = "00000"
 
 
-def safe(value: Any) -> str:
-    return html.escape(" ".join(str(value or "").split()), quote=True)
+safe = team_notes.safe
 
 
 def month_line(period: str) -> str:
@@ -69,14 +69,7 @@ def _folder_lines(folder: Mapping[str, Any], period: str) -> list:
 
 
 def _notes(notes) -> tuple[list, int]:
-    lines, used = [], 0
-    for index, note in enumerate(notes):
-        line = f"- [{safe(note.get('id'))}] {safe(note.get('text'))}"
-        if used + len(line) > NOTES_CHARS:
-            return lines, len(notes) - index
-        lines.append(line)
-        used += len(line) + 1
-    return lines, 0
+    return team_notes.note_lines(notes, NOTES_CHARS)
 
 
 def _rule_tax(rule: Mapping[str, Any]) -> str:

@@ -6,25 +6,24 @@
 """
 from __future__ import annotations
 
-import re
-
 import frappe
 from frappe import _
 from frappe.utils import now_datetime
 
+from pearnly_core.assistant import team_notes
 from pearnly_cowork.companies.access import NOTE, read, write
 
-NOTES_MAX = 50
-TEXT_MAX = 500
-ORIGINS = ("person", "cc")
+# 长短、条数、规整的纯规则在共用层（`pearnly_core.assistant.team_notes`，ERP 公司同一套）
+NOTES_MAX = team_notes.NOTES_MAX
+TEXT_MAX = team_notes.TEXT_MAX
+ORIGINS = team_notes.ORIGINS
 FIELDS = ["name", "text", "origin", "created_by", "created_at", "updated_by", "updated_at", "creation"]
-_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
 
 
 def clean(value) -> str:
     """规整一条说明；为空或超长抛 `cowork.company.note_invalid`。"""
-    text = " ".join(_CONTROL.sub(" ", str(value or "")).split())
-    if not text or len(text) > TEXT_MAX:
+    text = team_notes.normalize(value)
+    if not team_notes.valid(text):
         frappe.throw(_("cowork.company.note_invalid"))
     return text
 

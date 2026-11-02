@@ -5,9 +5,9 @@
 - `allowed`：能看公司（`company.read`），且这家在本人可见公司里（`company.allowed_companies`，只含启用的）。
 - `view`：侧栏组头的名称与副标题（税号，不是总公司的带分店号）。
 - `context`：给 CC 的公司说明（`cc_service.context_text`），出错记日志、回空串，不挡发话。
-- `API` / `SECTIONS`：给页面的声明（共用层 `projects.listing` 原样转交）：公司接口前缀与 ERP 有的分区——公司在 ERP 里建和改
-  （`desk`）。Cowork 的月结台账、单据文件夹、定时任务、记住的选择、申报草稿、从账套目录添加、改名、删除、刷新账套 ERP 没有，
-  页面就不出。
+- `API` / `SECTIONS`：给页面的声明（共用层 `projects.listing` 原样转交）：公司接口前缀与 ERP 有的分区——待处理、知识库，
+  公司在 ERP 里建和改（`desk`）。Cowork 的月结台账、单据文件夹、定时任务、记住的选择、申报草稿、从账套目录添加、改名、删除、
+  刷新账套 ERP 没有，页面就不出。
 """
 import frappe
 
@@ -17,7 +17,7 @@ KIND = "company"
 PERIOD = True
 SCOPE = False
 API = "pearnly_erp_portal.masters.cc_companies."
-SECTIONS = ("desk",)
+SECTIONS = ("pending", "notes", "desk")
 REFS_MAX = 500
 
 

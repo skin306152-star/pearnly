@@ -293,6 +293,7 @@ Company,Company
 Company details,Company details
 Company name,Company name
 Company not found,Company not found
+Company notes,Company notes
 Company type,Company type
 Complete,Complete
 Complete Order,Complete Order
@@ -707,6 +708,7 @@ List Price,List Price
 List actions,List actions
 List archived,List archived
 List name,List name
+Listed companies,Listed companies
 Loading...,Loading...
 Location,Location
 Locations,Locations
@@ -811,7 +813,10 @@ Not in the list,Not in the list
 Not permitted,Not permitted
 Not written to Express (disconnected),Not written to Express (disconnected)
 Note,Note
+Note is empty or too long,Note is empty or too long
+Note not found,Note not found
 Notes,Notes
+Notes are full,Notes are full
 Nothing counted yet,Nothing counted yet
 Notifications,Notifications
 Now sending {0} documents,Now sending {0} documents
@@ -1012,6 +1017,7 @@ Quotation,Quotation
 Rate,Rate
 Reactivated,Reactivated
 Reactivated by stock count {0},Reactivated by stock count {0}
+Read company details,Read company details
 Reading,Reading
 Reading the Express account set,Reading the Express account set
 Ready to post,Ready to post
@@ -1074,6 +1080,8 @@ Remove,Remove
 Remove color,Remove color
 Remove mirror,Remove mirror
 Remove template,Remove template
+Remove this company note?,Remove this company note?
+Removed a company note,Removed a company note
 Replace the entered rows with the imported file?,Replace the entered rows with the imported file?
 Request Hash,Request Hash
 Request ID already exists,Request ID already exists
@@ -1111,7 +1119,9 @@ Sales returns account,Sales returns account
 Save,Save
 Save Draft,Save Draft
 Save and next,Save and next
+Save this to the company's notes?,Save this to the company's notes?
 Saved,Saved
+Saved a company note,Saved a company note
 Saved {0},Saved {0}
 Saved. Scan the next item.,Saved. Scan the next item.
 Scan,Scan
@@ -1520,6 +1530,7 @@ Up to 5 photos per entry; take a photo or choose from the gallery.,Up to 5 photo
 Up to {0} attachments,Up to {0} attachments
 Update Additional Information,Update Additional Information
 Update Stock,Update Stock
+Update this company note?,Update this company note?
 Updated,Updated
 Updated {0},Updated {0}
 Updated {0} customer(s),Updated {0} customer(s)
@@ -1755,6 +1766,7 @@ count,count
 discount applied,discount applied
 draft,draft
 due,due
+erp.company.notes,Company notes
 erp.detail.amount,The amount is invalid
 erp.detail.discount,The discount exceeds the total
 erp.detail.grand_total,The total is invalid

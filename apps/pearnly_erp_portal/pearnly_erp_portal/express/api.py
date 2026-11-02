@@ -249,9 +249,8 @@ def answer(doctype, name, answers):
         choices.remember(row.company, item["kind"], item["subject"], value, options[value] or item.get("label") or "")
     if blocked:
         jobs.cancel(job["job"], "replaced")  # 拦下的那件没写进去（整笔回滚）：撤掉，按选的对方档重新准备一件
-        frappe.db.set_value(doctype, name, {"express_state": contracts.QUEUED, "express_job": None},
-                            update_modified=False)
-    frappe.db.set_value(doctype, name, {"express_reason": "", "express_needed": None}, update_modified=False)
+        push._set(doctype, name, {"express_state": contracts.QUEUED, "express_job": None})
+    push._set(doctype, name, {"express_reason": "", "express_needed": None})
     frappe.db.commit()
     push.send(doctype, name)
     return _view(doctype, _document(doctype, name))
@@ -291,8 +290,8 @@ def retry(doctype, name):
         frappe.db.commit()
     else:
         jobs.cancel(job["job"], "replaced")
-        frappe.db.set_value(doctype, name, {"express_state": contracts.QUEUED, "express_job": None, "express_reason": "",
-                                            "express_needed": None}, update_modified=False)
+        push._set(doctype, name, {"express_state": contracts.QUEUED, "express_job": None, "express_reason": "",
+                                  "express_needed": None})
         frappe.db.commit()
         push.send(doctype, name)
     return _view(doctype, _document(doctype, name))

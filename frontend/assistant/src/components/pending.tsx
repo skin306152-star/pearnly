@@ -15,6 +15,8 @@
 //   同一条路推（assistant.pending_api.answer 交空的选择，服务端照常重判、算人发起），没有确认步骤。
 //   推送 / 作答回包停在要人选时不报错、直接重取；其余失败显示服务端给人看的话，没有就写通用的「推送失败」，不显示原因码。
 //   其余一组一行「交给 CC」：在这家公司下开新对话（月份取单据月份），输入框预填「处理这几张：…」并带上单据编号，不自动发送。
+//   带 url 的（ERP：写账本没成的采购 / 销售单，服务端 express/pending.py，action 只有 open）：点那一行在新窗口打开单据页，
+//   在那里选一次、再写一次；不进「交给 CC」。这家的待处理变了服务端推 pearnly.project（part pending），同样重取。
 //   处理完实时消失：推送状态的站点事件（cowork_intake_changed）来了重取，回到前台重取（lib/live.ts）。
 //   金额是服务端的十进制字符串，只插千分位。样式只用 globals.css 的 .cc-* 与变量。
 
@@ -39,6 +41,8 @@ import {
   loadMrErpNeeds,
   loadPending,
   loadProposal,
+  onPendingChange,
+  openSitePage,
   PENDING_EVENTS,
   type MrErpNeed,
   type PendingItem,
@@ -214,6 +218,7 @@ export function usePendingItems(company: string, search = "") {
     setItems(null);
   }, [company]);
   useLiveRefresh(reload, { events: PENDING_EVENTS });
+  useEffect(() => onPendingChange(() => void reload()), [reload]);
   const done = useCallback((document: string) => {
     setItems((before) => (before ?? []).filter((i) => i.document !== document));
     void refreshPendingCounts();
@@ -280,7 +285,7 @@ const PendingGroup: FC<{
   company: string; title: string; items: PendingItem[]; onDone: (document: string) => void; onChanged: () => void;
 }> = ({ company, title, items, onDone, onChanged }) => {
   const ask = useAskCC(company, title);
-  const hand = items.filter((item) => !choosable(item) && !accountSetChoosable(item) && !proposal(item) && !mrerpChoosable(item));
+  const hand = items.filter((item) => !item.url && !choosable(item) && !accountSetChoosable(item) && !proposal(item) && !mrerpChoosable(item));
   return (
     <section className="flex flex-col gap-(--cc-space-8)">
       {title && <h2 className="cc-section-label" data-flush="">{title}</h2>}
@@ -326,11 +331,17 @@ const Summary: FC<{ item: PendingItem }> = ({ item }) => (
   </span>
 );
 
-const PendingRow: FC<{ item: PendingItem }> = ({ item }) => (
-  <div className="cc-list-item items-center" data-slot="cc-pending-row">
-    <Summary item={item} />
-  </div>
-);
+const PendingRow: FC<{ item: PendingItem }> = ({ item }) =>
+  item.url ? (
+    <button type="button" className="cc-list-item items-center text-start" data-slot="cc-pending-row" title={t("openInBrowser")}
+      onClick={() => openSitePage(item.url ?? "")}>
+      <Summary item={item} />
+    </button>
+  ) : (
+    <div className="cc-list-item items-center" data-slot="cc-pending-row">
+      <Summary item={item} />
+    </div>
+  );
 
 /** 能当场选的单：点开才取要选的项（每项一个下拉，建议项第一、预选），点「确认」记下并重推。
  *  head：会话栏「本月」卡的一行 26 高（码名 · 单据 · 金额，components/month-ledger.tsx），换掉默认的两行摘要；展开后同一套。 */

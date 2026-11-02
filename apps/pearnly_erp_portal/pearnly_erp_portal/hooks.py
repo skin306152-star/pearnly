@@ -605,7 +605,9 @@ pearnly_express_operator = {
     "status": "pearnly_erp_portal.express.operator.status",
 }
 # 实操任务页底部的对话（对话框甲）：查进度、交代跳过 / 重做的工具在共用层，ERP 列上即用；进行中的说法同一个模块
-pearnly_assistant_tools = ["pearnly_core.express_operator.tools.TOOLS"]
+# ERP 版 CC 按公司组织对话（ADR-020，2026-11-02）：公司工具（列出、读资料、经「允许」记 / 删知识库）与说话规矩
+pearnly_assistant_tools = ["pearnly_core.express_operator.tools.TOOLS", "pearnly_erp_portal.masters.cc_tools.TOOLS"]
+pearnly_assistant_guidance = ["pearnly_erp_portal.masters.cc_tools.GUIDANCE"]
 pearnly_assistant_step_names = ["pearnly_core.express_operator.tools.STEP_NAMES"]
 # 对话按 ERP 公司归组：provider 交给共用层（`pearnly_core.assistant.projects`），公司接口前缀与分区也在它上面声明
 pearnly_assistant_projects = ["pearnly_erp_portal.masters.cc_projects"]
