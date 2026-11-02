@@ -134,6 +134,16 @@ ERP 经 hooks `pearnly_assistant_projects` 声明 provider `masters.cc_projects`
 单据账本状态只在 `_ledger_rows` 读；`push._set` 改到状态时，单据进出「待处理」就推 `pearnly.project`（`part = "pending"`）。
 做法与证据见 [任务记录](../work/2026-11-02-erp-cc-companies.md)。
 
+### 对话直写工具（Cowork 与 ERP 各自声明、共用部分在 Core，2026-11-02）
+
+对话里直写（后台写进账本、看不到界面）的工具由各产品在自己的 `pearnly_assistant_tools` 声明：Cowork
+`pearnly_cowork.assistant.tools`（识别单）、ERP `pearnly_erp_portal.express.cc_tools`（ERP 单据：采购、销售、出入库 / 调拨、收银日汇总、
+盘点）。两边真正相同的放在共用层 `pearnly_core.assistant.direct_push`（文件头写明多产品共用）：给模型的时间（站点时区
+`YYYY-MM-DD HH:MM`）、结果状态码、按公司的范围 / 翻页 / 记选择 / 结果不明核对的参数形状、结果不明的说法与核对结果、说话规矩的通用段、
+推送后能不能等结论；Cowork 搬移前后工具定义与输出逐字节相同由 `tests/test_cowork_push_tools_golden.py` 锁住。ERP 的工具只调 ERP 单据页
+同一组入口（`express.api._document` / `_view` / `retry` / `answer`，`express.push.send`），不另开写账路；按公司账本目标分路的地方是
+`cc_tools._route`（MR.ERP 接进来时只加分支）。做法与证据见 [任务记录](../work/2026-11-02-erp-cc-chat-push.md)。
+
 ### ERP 任务管理（2026-10-23）
 
 Pearnly ERP 的 `work` 域是 Cowork `work`（任务管理看板）复制进 ERP 自有 App 的一份：ERP 站点不装 Cowork、ERP 不导入
