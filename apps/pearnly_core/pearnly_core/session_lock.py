@@ -210,3 +210,77 @@ def dms_booking_key(system_url: str) -> str:
     理由与老产品 `services/erp/session_lock.py:dms_booking_scope_key` 一致。
     """
     return f"booking|{_normalize_base(system_url)}"
+
+
+# ── 同账号互斥：代录批次的账号租约（ADR-026 第 8 条，评估 §14.4，2026-11-02） ─────────────────────────────────────
+#
+# MR.ERP 一个账号同时只能在一处登录。直写导入、目录采集、菜单读取进 MR.ERP 时拿上面的 :func:`account_lock`（短锁，键
+# ``mrerp.session.lock_key`` =「网址 + 用户名」）；CC 桌面版代录一整批时站点替它占**同一把**锁（同一个 Redis 键），值以
+# :data:`OPERATOR_PREFIX` 开头，随电脑领单续期（:func:`renew_account`），电脑不在就按 TTL 过期，不用人清。
+#
+# - 代录占着：直写不进去（执行前用 :func:`operator_holds` 看，占着就不领、记录照旧待发送，等账号）；目录采集等短锁照旧等、等不到
+#   按原来的「忙」处理；
+# - 直写正在导入（短锁占着）：代录租不到（:func:`lease_account` 回 False），批次等账号；
+# - 同一个批次重复租 / 续期都算它自己的，不会把自己挡住。
+
+OPERATOR_PREFIX = "operator:"
+# 代录租约多久不续就过期（秒）：CC 桌面版每几秒领一次单就续一次；电脑关了、CC 被结束，五分钟后直写恢复。
+OPERATOR_LEASE_SEC = 300
+
+
+def _holder_token(holder: str) -> bytes:
+    holder = str(holder or "").strip()
+    if not holder or len(holder) > 200 or any(ch.isspace() for ch in holder):
+        raise ValueError("holder")
+    return (OPERATOR_PREFIX + holder).encode("utf-8")
+
+
+def _account_lock_object(account_key: str, ttl: int):
+    # 与 :func:`account_lock` 同一个入口、同一个键名：两边是同一把锁
+    return pearnly_state.store().lock(_lock_name(account_key), timeout=ttl, thread_local=False)
+
+
+def lease_account(account_key: str, holder: str, ttl: int = OPERATOR_LEASE_SEC) -> bool:
+    """代录批次占这个账号（``holder`` 如「站点:批次号」）：没人占就占上；已是它自己占着就续期；别人占着（直写正在导入、
+    另一个批次）回 False，批次等账号。"""
+    token = _holder_token(holder)
+    lock = _account_lock_object(account_key, ttl)
+    if lock.acquire(blocking=False, token=token):
+        logger.info("[session-lock] 代录占用 %s", _mask(account_key))
+        return True
+    return renew_account(account_key, holder, ttl)
+
+
+def renew_account(account_key: str, holder: str, ttl: int = OPERATOR_LEASE_SEC) -> bool:
+    """续期（电脑领单时）：仍是 ``holder`` 占着才续，回 True；已过期 / 被别人占了回 False（不抢）。"""
+    from redis.exceptions import LockError
+
+    lock = _account_lock_object(account_key, ttl)
+    lock.local.token = _holder_token(holder)
+    try:
+        return bool(lock.extend(ttl, replace_ttl=True))
+    except LockError:
+        return False
+
+
+def release_account(account_key: str, holder: str) -> bool:
+    """批次结束（录完、停止、转人工）：放开这个账号；不是它占着的不动。"""
+    from redis.exceptions import LockError
+
+    lock = _account_lock_object(account_key, OPERATOR_LEASE_SEC)
+    lock.local.token = _holder_token(holder)
+    try:
+        lock.release()
+    except LockError:
+        return False
+    logger.info("[session-lock] 代录放开 %s", _mask(account_key))
+    return True
+
+
+def operator_holds(account_key: str) -> bool:
+    """这个账号此刻被代录批次占着（直写执行前看）。读不到 Redis 照实抛，不当成没占。"""
+    lock = _account_lock_object(account_key, OPERATOR_LEASE_SEC)
+    value = lock.redis.get(lock.name)
+    if isinstance(value, str):
+        value = value.encode("utf-8")
+    return bool(value) and value.startswith(OPERATOR_PREFIX.encode("utf-8"))

@@ -48,6 +48,8 @@ Arguments,Arguments
 Attempt,Attempt
 Attempts,Attempts
 Authoritative push status.,Authoritative push status.
+Authorize in CC Desktop,Authorize in CC Desktop
+Authorized: {0},Authorized: {0}
 Auto Push,Auto Push
 Automatic (by DMS account),Automatic (by DMS account)
 Automatic push is not supported for this connection; confirm manually.,Automatic push is not supported for this connection; confirm manually.
@@ -447,6 +449,7 @@ None deleted: the {0} selected records are being pushed.,None deleted: the {0} s
 "None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice","None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice"
 Not Permitted,Not Permitted
 Not allowed,Not allowed
+Not authorized,Not authorized
 Not connected,Not connected
 Not linked,Not linked
 Not signed in,Not signed in
@@ -943,6 +946,9 @@ connect.master.advisors,Advisors {0}
 connect.master.branches,Branches {0}
 connect.master.carModels,Car models {0}
 connect.master.terms,Titles {0}
+connect.mrerp.authorizeInCC,Authorize in CC Desktop
+connect.mrerp.authorized,Authorized: {0}
+connect.mrerp.notAuthorized,Not authorized
 connect.no,No
 connect.notice.connected,Connected · {0}
 connect.notice.ok,Connection OK · {0}

@@ -15,7 +15,7 @@ SOURCE = Path(__file__).resolve().parents[1] / 'apps/pearnly_cowork/pearnly_cowo
 
 def pure_contract():
     tree = ast.parse(SOURCE.read_text())
-    names = {'METHOD', 'PATH', 'METHODS', 'PATHS', 'FOLDER_METHODS', 'REQUEST_METHODS', 'DEVICE_METHODS', 'MACHINE_METHODS', 'FOLDER_ONLY_ALLOWED',
+    names = {'METHOD', 'PATH', 'METHODS', 'PATHS', 'FOLDER_METHODS', 'REQUEST_METHODS', 'DEVICE_METHODS', 'LOGIN_METHODS', 'MACHINE_METHODS', 'FOLDER_ONLY_ALLOWED',
              'MACHINE_PATHS', '_HEADER'}
     selected = [node for node in tree.body if
         isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in
@@ -127,13 +127,14 @@ class FolderMachineMethods(unittest.TestCase):
         methods, folder = self.contract['METHODS'], self.contract['FOLDER_METHODS']
         requests, devices = self.contract['REQUEST_METHODS'], self.contract['DEVICE_METHODS']
         self.assertEqual(set(methods), {'heartbeat', 'lease', 'ack'})
-        tables = (methods, folder, requests, devices)
-        # 四张表的操作名与方法互不重叠（ADR-021 加了认电脑那张）
+        logins = self.contract['LOGIN_METHODS']
+        tables = (methods, folder, requests, devices, logins)
+        # 五张表的操作名与方法互不重叠（ADR-021 加了认电脑那张，ADR-026 第 7 条加了 MR.ERP 登录授权）
         for index, table in enumerate(tables):
             for other in tables[index + 1:]:
                 self.assertFalse(set(table) & set(other))
                 self.assertFalse(set(table.values()) & set(other.values()))
-        self.assertEqual(self.contract['MACHINE_METHODS'], {**methods, **folder, **requests, **devices})
+        self.assertEqual(self.contract['MACHINE_METHODS'], {**methods, **folder, **requests, **devices, **logins})
         self.assertEqual(set(self.contract['PATHS'].values()) & {'/api/method/' + m for m in folder.values()}, set())
         self.assertEqual(len(set(self.contract['MACHINE_PATHS'].values())), sum(len(table) for table in tables))
 
@@ -209,6 +210,37 @@ class DeviceMachineMethods(unittest.TestCase):
                     self.contract['_envelope'](**{**base, **bad})
 
 
+class LoginMachineMethod(unittest.TestCase):
+    """MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7 条）：第五张表，只收机器令牌的精确 POST，会话调用一律拒绝。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.contract = pure_contract()
+
+    def test_the_table_names_the_credential_api_method(self):
+        self.assertEqual(self.contract['LOGIN_METHODS'],
+                         {'mrerp_login': 'pearnly_cowork.companion.credential_api.mrerp_login'})
+        api = (SOURCE.parent / 'credential_api.py').read_text()
+        self.assertRegex(api, r"@frappe\.whitelist\(methods=\['POST'\]\)\ndef mrerp_login\(\*\*ignored\):")
+        # 密码读完就从请求副本里拿掉，在任何处理之前
+        body = api[api.index('def mrerp_login('):]
+        self.assertLess(body.index("http_auth.drop_secret('password')"), body.index('login_tickets.login_request'))
+
+    def test_session_calls_and_other_http_methods_are_refused(self):
+        path = '/api/method/' + self.contract['LOGIN_METHODS']['mrerp_login']
+        self.assertTrue(self.contract['_machine_candidate'](path, ''))
+        base = dict(path=path, method='POST', header='Bearer exp_CWEC-synthetic_Ab-c_d', cookies={}, query={},
+                    form={}, payload={'ticket': 'mrl_' + 'a' * 43, 'username': 'u', 'password': 'p'},
+                    session_user='Guest')
+        self.assertEqual(self.contract['_envelope'](**base), 'exp_CWEC-synthetic_Ab-c_d')
+        for bad in ({'method': 'GET'}, {'method': 'PUT'}, {'session_user': 'someone@example.com'},
+                    {'cookies': {'sid': 'x'}}, {'header': ''}, {'header': 'token key:secret'},
+                    {'authorization_source': 'Cookie'}, {'path': path + '/'},
+                    {'path': '/api/v2/method/' + self.contract['LOGIN_METHODS']['mrerp_login']}):
+            with self.subTest(bad=bad), self.assertRaises(self.contract['RequestContractError']):
+                self.contract['_envelope'](**{**base, **bad})
+
+
 class FolderOnlyKeys(unittest.TestCase):
     """MR.ERP 的小助手配对码只读文件夹（2026-10-09）：鉴权后、绑定身份前，非文件夹方法一律 403。"""
 
@@ -220,8 +252,9 @@ class FolderOnlyKeys(unittest.TestCase):
         self.assertIn('if operation not in FOLDER_ONLY_ALLOWED and', text[text.rindex('if', 0, guard) - 4:guard])
         contract = pure_contract()
         # 只读文件夹的密钥能调：文件夹、按需请求、认电脑（ADR-021 加上，同一台电脑的两个成员才能合成一台）
+        # 2026-11-02 再加 MR.ERP 登录授权（ADR-026 第 7 条）：没装 Express 的电脑也要能授权
         self.assertEqual(contract['FOLDER_ONLY_ALLOWED'], {**contract['FOLDER_METHODS'], **contract['REQUEST_METHODS'],
-                                                           **contract['DEVICE_METHODS']})
+                                                           **contract['DEVICE_METHODS'], **contract['LOGIN_METHODS']})
         self.assertFalse(set(contract['FOLDER_ONLY_ALLOWED']) & set(contract['METHODS']))
         self.assertLess(text.index('credentials.authenticate(token)'), guard)
         self.assertLess(guard, text.index('frappe.set_user(context.issuer)'))

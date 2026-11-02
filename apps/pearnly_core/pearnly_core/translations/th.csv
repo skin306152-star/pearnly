@@ -48,6 +48,8 @@ Arguments,อาร์กิวเมนต์
 Attempt,จำนวนครั้งที่พยายาม
 Attempts,จำนวนครั้งที่พยายาม
 Authoritative push status.,สถานะการส่งยึดตามค่านี้
+Authorize in CC Desktop,อนุญาตใน CC เดสก์ท็อป
+Authorized: {0},อนุญาตแล้ว: {0}
 Auto Push,ส่งอัตโนมัติ
 Automatic (by DMS account),อัตโนมัติ (ตามบัญชี DMS)
 Automatic push is not supported for this connection; confirm manually.,การเชื่อมต่อนี้ไม่รองรับการส่งอัตโนมัติ ต้องยืนยันด้วยตนเอง
@@ -448,6 +450,7 @@ None deleted: the {0} selected records are being pushed.,ไม่ได้ล�
 "None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",ไม่ได้ลบรายการใด: {0} รายการที่เลือกส่งแล้วทั้งหมด
 Not Permitted,ไม่มีสิทธิ์
 Not allowed,ไม่อนุญาต
+Not authorized,ยังไม่ได้อนุญาต
 Not connected,ยังไม่เชื่อมต่อ
 Not linked,ยังไม่ผูก
 Not signed in,ยังไม่ได้เข้าสู่ระบบ
@@ -945,6 +948,9 @@ connect.master.advisors,ที่ปรึกษา {0}
 connect.master.branches,สาขา {0}
 connect.master.carModels,รุ่นรถ {0}
 connect.master.terms,คำนำหน้า {0}
+connect.mrerp.authorizeInCC,อนุญาตใน CC เดสก์ท็อป
+connect.mrerp.authorized,อนุญาตแล้ว: {0}
+connect.mrerp.notAuthorized,ยังไม่ได้อนุญาต
 connect.no,ไม่
 connect.notice.connected,เชื่อมต่อแล้ว · {0}
 connect.notice.ok,การเชื่อมต่อปกติ · {0}

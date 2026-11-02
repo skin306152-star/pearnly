@@ -273,6 +273,9 @@ export const EXPRESS_PLACES = "express_places";
 /** 代录 Express（10-26，入口与直写分开）：桥的 operator_state / operator_control / operator_frame / operator_authorize /
  *  operator_forget（companion tomo_bridge.py）。没有这一项的桌面版（和网页、手机）上，代录只发起、不在本页看进度。 */
 export const OPERATOR = "operator";
+/** MR.ERP 登录在 CC 里授权（ADR-026 第 7 条，11-02）：桥的 mrerp_authorize 收站点发的一次性票，弹原生小窗收用户名和密码，
+ *  经机器通道交给站点、站点收下了再存本机；页面拿不到密码。没有这一项的桌面版提示更新。 */
+export const MRERP_LOGIN = "mrerp_login";
 
 /** 这个产品的站点在桌面端里是哪种通道：ERP 走共用机器通道（core），其余是 Cowork。 */
 export function channelOf(product: string | undefined): string {
@@ -339,9 +342,31 @@ export async function pickFolder(): Promise<PickResult | null> {
   return (await api.call("pick_folder")) as unknown as PickResult;
 }
 
+/** MR.ERP 登录授权的结果：成功、取消，或失败码（站点的 ticket_invalid / denied / login_invalid / unsupported，
+ *  桥的 not_connected，本机的 network / unauthorized / store_failed）。 */
+export type MrErpLoginResult = { ok: true } | { ok: false; cancelled: true } | { ok: false; cancelled?: false; code: string };
+
+/** 这台电脑的设备密钥（站点发票时认电脑用，同登记电脑带的那一个）；浏览器、旧桌面版回空串。 */
+export async function deviceKey(): Promise<string> {
+  const api = await desktop();
+  if (!api) return "";
+  const state = await api.state().catch(withReport(() => null, "desktop"));
+  return String(state?.device?.key ?? "");
+}
+
+/** 把站点发的一次性票交给桥：桥弹原生小窗收 MR.ERP 用户名和密码，交给站点、再存本机（页面不碰密码）。浏览器里回 null。 */
+export async function authorizeMrErp(ticket: string): Promise<MrErpLoginResult | null> {
+  const api = await desktop();
+  if (!api) return null;
+  const result = (await api.call("mrerp_authorize", { ticket })) as unknown as Record<string, unknown>;
+  if (result.ok === true) return { ok: true };
+  if (result.cancelled === true) return { ok: false, cancelled: true };
+  return { ok: false, code: String(result.code ?? "failed") };
+}
+
 /** 在不在 CC 桌面版里；这个桌面版能不能随公司选文件夹（state().features）；这台电脑的电脑名（1.7.0，同绑定里带的 device，
  *  主档页认「本机这一行」：同一条连接上几台电脑各有一行时，连接相同还要电脑名相同）。 */
-export type DesktopFeatures = { app: boolean; companyFolders: boolean; deviceName?: string; operator?: boolean };
+export type DesktopFeatures = { app: boolean; companyFolders: boolean; deviceName?: string; operator?: boolean; mrerpLogin?: boolean };
 
 let features: DesktopFeatures | null = null;
 let readingFeatures: Promise<DesktopFeatures> | null = null;
@@ -356,6 +381,7 @@ export function loadDesktopFeatures(): Promise<DesktopFeatures> {
       app: true,
       companyFolders: !!state?.features?.includes(COMPANY_FOLDERS),
       ...(state?.features?.includes(OPERATOR) ? { operator: true } : {}),
+      ...(state?.features?.includes(MRERP_LOGIN) ? { mrerpLogin: true } : {}),
       ...(state?.features?.includes(DEVICES) ? { deviceName: String(state.device?.name ?? "") } : {}),
     }))
     .catch(withReport(() => ({ app: true, companyFolders: false }), "desktop"))

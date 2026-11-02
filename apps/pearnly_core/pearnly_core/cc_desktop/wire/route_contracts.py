@@ -106,6 +106,35 @@ def stored_targets(value) -> str:
     return ",".join(found[:MAX_TARGETS])
 
 
+# 心跳 ``mrerp_logins``（ADR-026 第 7 条）：这台电脑上已授权了哪些 MR.ERP 连接，只报连接号、不报账号。最多记几条、每条多长
+MAX_LOGINS, _LOGIN = 50, re.compile(r"^[A-Za-z0-9._:-]{1,140}$")
+_LOGINS_LENGTH = 4000
+
+
+def stored_logins(value) -> str | None:
+    """心跳报的 ``mrerp_logins`` → 存进电脑行的写法（排好、逗号分隔）。没报（旧版）/ 不是列表回 None（不改上次存的）；
+    报了空列表回空串（这台电脑上一条都没有了，照存）。认不出的连接号不记。"""
+    if not isinstance(value, (list, tuple)):
+        return None
+    found, length = [], 0
+    for item in sorted({item for item in value if isinstance(item, str) and _LOGIN.match(item)})[:MAX_LOGINS]:
+        length += len(item) + 1
+        if length > _LOGINS_LENGTH:
+            break
+        found.append(item)
+    return ",".join(found)
+
+
+def logins_of(stored) -> frozenset:
+    """电脑行上存的写法 → 这台电脑已授权的 MR.ERP 连接号。"""
+    return frozenset(item for item in str(stored or "").split(",") if _LOGIN.match(item))
+
+
+def with_login(stored, connection) -> str:
+    """电脑行上已授权的清单再加一条（站点收下授权时记，不等下一次心跳）。"""
+    return stored_logins(sorted(logins_of(stored) | {connection})) or ""
+
+
 def targets_of(stored) -> frozenset | None:
     """电脑行上存的写法 → :class:`Peer` 的 ``targets``；没存过（旧版不报）回 None。"""
     found = frozenset(item for item in str(stored or "").split(",") if _TARGET.match(item))

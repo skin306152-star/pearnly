@@ -14,7 +14,9 @@
     实际单号；「发票号已存在」也要在所选菜单查到才算已推过；受理了却查不到 = 结果不明（保留写者锁、不自动重推，
     同导入确认发出后异常）。菜单定不下来（要人选 / 选过的失效 / 没有已关联日记账的）在导入前停下、转人工；
     这次读到的菜单选项存回连接，给选择入口用；
-  · 不自动重试（旧版 MR.ERP 同样不重试）；银行流水佐证未接（付款判定仍按人工选择 → 票面）。
+  · 不自动重试（旧版 MR.ERP 同样不重试）；银行流水佐证未接（付款判定仍按人工选择 → 票面）；
+  · 同账号互斥（ADR-026 第 8 条，2026-11-02）：账号正被 CC 桌面版代录占着时不领、照旧待发送（`account_busy`），
+    不算失败、不转人工；代录放开账号（或电脑不在、租约过期）后由定时巡检再排。
 """
 from __future__ import annotations
 
@@ -26,7 +28,8 @@ from zoneinfo import ZoneInfo
 
 import frappe
 
-from pearnly_core.session_lock import SessionLockUnavailable
+from pearnly_core.mrerp.session import lock_key
+from pearnly_core.session_lock import SessionLockUnavailable, operator_holds
 from pearnly_cowork.connections import service as connections
 from pearnly_core.express_rules.push import common
 from pearnly_core.mrerp.push.models import MRERPAuthError, MRERPBusinessError, MRERPTechnicalError
@@ -102,6 +105,11 @@ def run(record):
         loaded = connections.read_for_push(row.connection, row.workspace, row.client, actor=row.actor)
         secrets = connections.credentials_for_use(loaded)
         system_url = (loaded.endpoint.get("config") or {}).get("system_url") or ""
+        if account_busy(system_url, secrets.get("username") or ""):
+            # 同账号互斥（ADR-026 第 8 条）：这个 MR.ERP 账号正被代录批次占着 → 不领，记录照旧待发送（同写者锁「等锁」），
+            # 定时巡检 / 代录放开账号后再排；这一次领取整笔撤回
+            frappe.db.rollback()
+            return
     except ledger.LeaseUnavailable:
         frappe.db.rollback()
         return
@@ -129,6 +137,11 @@ def run(record):
                    meta=outcome.get("meta"))
     frappe.db.commit()
     dispatch_next(row.connection)
+
+
+def account_busy(system_url, username):
+    """这个 MR.ERP 账号此刻被 CC 桌面版的代录批次占着（与直写导入的短锁同一把，`session_lock.operator_holds`）。"""
+    return bool(username) and operator_holds(lock_key(system_url, username))
 
 
 def _remember_menus(connection, account_set, menus, masters=None):

@@ -33,7 +33,7 @@ from pearnly_core.express_rules.targets.identity import normalize_express_accoun
 from pearnly_cowork.targets.projection import normalize_projection, normalize_scope
 from pearnly_core.mrerp import masters as master_rules, menus as menu_rules
 from pearnly_core.express_rules.targets import stock_groups
-from . import access, account_masters, model, pool, snapshots, refresh as refresh_leases
+from . import access, account_masters, model, mrerp_login, pool, snapshots, refresh as refresh_leases
 from .preparation import reported_stock_groups
 from .state import read as _read, heads as _heads, scope as _scope
 
@@ -71,7 +71,9 @@ def _dto(doc):
             "config": model.pool_config(doc.adapter, doc.config_json), "users": model.parse(doc.allowed_users, []),
             "all_members": bool(int(doc.get("all_members") or 0)),
             "has_username": bool(doc.get("credential_username")), "has_password": bool(doc.get("credential_password")),
-            "has_token": bool(doc.get("credential_token")), "collector_available": _collector_available(doc)}
+            "has_token": bool(doc.get("credential_token")), "collector_available": _collector_available(doc),
+            # MR.ERP 登录的现状（「已授权：用户名 · 电脑 · 时间」，在 CC 桌面版里授权，ADR-026 第 7 条）；从不含密码
+            "credential": mrerp_login.view(doc)}
 
 
 def configure(workspace, adapter, request_key, label, config, client=None, users=None,

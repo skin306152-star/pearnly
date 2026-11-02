@@ -768,6 +768,20 @@ def _report_digest(account_sets, accounts) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def _mrerp_logins(cfg: CompanionConfig) -> Optional[list]:
+    """这台电脑上授权过的、属于这个成员站点的 MR.ERP 连接号（凭据管理器里只读目标名，不读内容）；读不到回 None（不报）。"""
+    try:
+        from urllib.parse import urlsplit
+
+        from .express_operator import credentials
+
+        site = (urlsplit(str(cfg.backend_url or "")).hostname or "").lower()
+        return credentials.mrerp_connections(site) if site else None
+    except Exception:
+        log.warning("读本机 MR.ERP 登录清单失败（这次心跳不报）", exc_info=True)
+        return None
+
+
 def _run_periodic(
     cfg: CompanionConfig, qc, state: dict, on_update_available=None
 ) -> None:
@@ -900,6 +914,8 @@ def _run_periodic(
                 max_payload_version=max(SUPPORTED_PAYLOAD_VERSIONS),
                 # 能代录到哪些目标（ADR-026）：服务端只把 Express 以外目标的代录单派给报了它的电脑
                 operator_targets=list(OPERATOR_TARGETS),
+                # 这台电脑上已授权了这个站点哪些 MR.ERP 连接（ADR-026 第 7 条，只有连接号）
+                mrerp_logins=_mrerp_logins(cfg),
                 # Express 索引重建程序在不在、能不能跑(10-25;缺了写单会拒写转人工,服务端电脑记录里看得到)
                 reindex_runner=cdx_reindex.runner_status(),
                 # 自动更新被 Windows 拦下（版本 + 时刻）；没被拦报 None，云端据此清掉旧值（update_block.py）

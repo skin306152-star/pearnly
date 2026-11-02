@@ -123,6 +123,7 @@ class QueueClient:
         update_blocked: object = _NOT_SENT,
         reindex_runner: Optional[str] = None,
         operator_targets: Optional[list] = None,
+        mrerp_logins: Optional[list] = None,
     ) -> dict:
         """心跳 · 上报探测到的账套列表 + 科目表 + 录入方式 + **客户所选账套**(供 FE 选/镜像)· 返回连接状态。
 
@@ -136,6 +137,8 @@ class QueueClient:
                  能否安全下发新版载荷(见 payload_contract)。
         operator_targets:这一版能代录到哪些目标(payload_contract.OPERATOR_TARGETS,ADR-026)→ 云端只把
                  Express 以外目标的代录单派给报了它的电脑;不报 = 只有 Express。
+        mrerp_logins:这台电脑上已授权了这个站点哪些 MR.ERP 连接(只有连接号,不报账号,ADR-026 第 7 条);
+                 None = 不带这个键(云端保留上次),空列表照发(一条都没有了)。
         update_blocked:自动更新被 Windows 拦下 {version, at}(update_block.reported),没被拦是 None;
                  None 也照发(云端据此清掉旧值),只有不传这个参数才不带这个键(云端原样保留)。
         云端旧版忽略请求体仍正常。
@@ -166,6 +169,8 @@ class QueueClient:
             body["reindex_runner"] = reindex_runner  # ok / missing / broken(cdx_reindex.runner_status)
         if operator_targets is not None:
             body["operator_targets"] = [str(target) for target in operator_targets]
+        if mrerp_logins is not None:
+            body["mrerp_logins"] = [str(connection) for connection in mrerp_logins]
         if master_refresh_request_id:
             body["master_refresh_request_id"] = str(master_refresh_request_id)
         if master_refresh_scope:

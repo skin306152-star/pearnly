@@ -133,8 +133,9 @@ def leave(context: Context) -> dict:
 
 
 def record_report(context: Context, *, version=None, payload_version=None, offline=False, full=False, runner=None,
-                  targets=None):
+                  targets=None, logins=None):
     """心跳报到：版本、最高载荷版本、索引重建程序在不在 / 能不能跑、能代录到哪些目标（ADR-026；旧版不报，保留上次）、
+    这台电脑上已授权了哪些 MR.ERP 连接（只有连接号，ADR-026 第 7 条；旧版不报，保留上次）、
     最近报到时间（报离线就清掉，马上算离线）；收到整份名单就不再要求整份重报。"""
     doc = frappe.get_doc(DEVICE, context.device, for_update=True)
     values = {"last_seen_at": None if offline else now()}
@@ -147,11 +148,23 @@ def record_report(context: Context, *, version=None, payload_version=None, offli
     stored = route_contracts.stored_targets(targets)
     if stored:
         values["operator_targets"] = stored
+    logged_in = route_contracts.stored_logins(logins)
+    if logged_in is not None and not offline:
+        values["mrerp_logins"] = logged_in
     if full:
         values["full_report_due"] = 0
     doc.update(values)
     documents.persist(doc)
     return bool(doc.full_report_due)
+
+
+def note_mrerp_login(context: Context, connection: str):
+    """站点收下这台电脑上的 MR.ERP 授权（`machine.mrerp_login`）：把连接号记进它已授权的清单，不等下一次心跳。"""
+    doc = frappe.get_doc(DEVICE, context.device, for_update=True)
+    value = route_contracts.with_login(doc.get("mrerp_logins"), connection)
+    if value != (doc.get("mrerp_logins") or ""):
+        doc.mrerp_logins = value
+        documents.persist(doc)
 
 
 def touch(context: Context):

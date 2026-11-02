@@ -37,6 +37,9 @@ def _receive(context, body):
     credentials.record_seen(context.credential_id, context.token_generation, offline=plan.offline)
     # 电脑行在加锁顺序的最后（Connection → Credential → 池里各行 → Device）
     devices.record_report(device, doc.name, plan)
+    # 这台电脑上已授权了哪些 MR.ERP 连接（ADR-026 第 7 条，只有连接号）：旧版不报不动
+    if not plan.offline:
+        devices.record_mrerp_logins(device, body.get('mrerp_logins'))
     # 告诉小助手：账套名单没变时可以只报「没变」（`plan_report` 的 `account_sets_unchanged`）。
     # 旧服务端不回这一项，小助手就照旧每次整份上传 —— 两边谁先上线都不会把网页上的账套目录清掉。
     reply = {**result, 'account_sets_unchanged_ok': True}

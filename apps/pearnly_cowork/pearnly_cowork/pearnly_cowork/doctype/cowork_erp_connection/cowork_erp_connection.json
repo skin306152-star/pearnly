@@ -11,7 +11,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-22 00:00:00.000000",
- "modified": "2026-10-27 15:00:00.000000",
+ "modified": "2026-11-02 20:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -30,6 +30,9 @@
   "credential_username",
   "credential_password",
   "credential_token",
+  "credential_authorized_by",
+  "credential_device",
+  "credential_authorized_at",
   "binding_generation",
   "bound_account_set",
   "bound_profile_key",
@@ -153,6 +156,29 @@
    "fieldtype": "Password",
    "read_only": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "credential_authorized_by",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Login Authorized By",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "credential_device",
+   "fieldtype": "Data",
+   "length": 140,
+   "label": "Login Authorized on Computer",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "credential_authorized_at",
+   "fieldtype": "Datetime",
+   "label": "Login Authorized At (UTC)",
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "binding_generation",

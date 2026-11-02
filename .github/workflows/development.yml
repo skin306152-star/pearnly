@@ -57,6 +57,8 @@ jobs:
         run: python3 tests/test_erp_stock_attachments.py
       - name: CC Desktop shared machine channel (register, routing, writer lock, receipts, on-demand requests)
         run: python3 tests/test_cc_desktop_channel.py
+      - name: MR.ERP logins are authorized in CC Desktop (one-time tickets, exact machine POST, no password back, logins on the computer row)
+        run: python3 tests/test_mrerp_cc_login.py
       - name: Express operator shared rules match CC Desktop, and the trial comparison report puts the three methods side by side
         run: python3 tests/test_express_operator_shared.py
       - name: Express operator tasks are visible only to their creator, settle from product receipts and list server-side

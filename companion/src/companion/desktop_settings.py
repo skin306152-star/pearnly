@@ -389,12 +389,43 @@ class DesktopSettings:
 
     def disconnect(self, profile_id: str) -> dict:
         """（后台线程）设置里「断开连接」：先吊销本机这把密钥（device_leave），再删本机成员（方案 2.8）。
-        由桥回到界面线程重启各线程（profiles_changed）。"""
+        由桥回到界面线程重启各线程（profiles_changed）。这台电脑上不再有这个站点的成员时，本机存的这个站点的 MR.ERP 登录
+        一并删掉（ADR-026 第 7 条；站点上那份随连接删除）。"""
         store = self._store()
+        record = next((r for r in store.profiles if r.profile_id == profile_id), None)
+        site = member_site(record) if record is not None else ""
         left = self._leave_member(store, profile_id)
         self._keep_roots(store, profile_id)
         self._store().remove_profile(profile_id)
+        if site and not any(member_site(r) == site for r in self._store().profiles):
+            self._forget_logins(site)
         return {"ok": True, "left": left, "profiles_changed": True}
+
+    @staticmethod
+    def _forget_logins(site: str) -> None:
+        try:
+            from .express_operator import credentials
+
+            removed = credentials.forget_site(site)
+            if removed:
+                log.info("断开站点 %s，删掉本机的 MR.ERP 登录 %d 条", site, removed)
+        except Exception:
+            log.exception("删本机的 MR.ERP 登录失败（只删成员）")
+
+    def member_for(self, page_host: str) -> Optional[tuple]:
+        """对话页所在站点在这台电脑上的成员（MR.ERP 登录授权经它的机器通道交给站点，ADR-026 第 7 条）：
+        ``(站点, 地址, 密钥)``；这台电脑没连这个站点、成员停着或密钥已不能再用回 None。"""
+        host = str(page_host or "").lower()
+        if not host:
+            return None
+        store = self._store()
+        for record in store.profiles:
+            if member_site(record) != host or record.paused or getattr(record, "device_state", ""):
+                continue
+            backend_url, token = self._credentials(store, record.profile_id)
+            if backend_url and token:
+                return host, backend_url, token
+        return None
 
     def set_autostart(self, enabled: bool) -> dict:
         autostart.enable() if enabled else autostart.disable()

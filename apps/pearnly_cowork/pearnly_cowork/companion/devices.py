@@ -447,6 +447,39 @@ def record_report(device, connection, plan):
     return True
 
 
+def note_mrerp_login(device, connection):
+    """这台电脑上授权了这条 MR.ERP 连接的登录（`credential_api.mrerp_login`，ADR-026 第 7 条）：记进它已授权的清单，
+    不等下一次心跳。只有连接号，不记账号。电脑行在加锁顺序的最后。"""
+    from pearnly_core.cc_desktop.wire import route_contracts
+
+    if not device:
+        return False
+    current = frappe.db.get_value(DOCTYPE, device, 'mrerp_logins') or ''
+    value = route_contracts.with_login(current, connection)
+    if value == current:
+        return False
+    doc = read(device)
+    doc.mrerp_logins = value
+    persist(doc)
+    return True
+
+
+def record_mrerp_logins(device, reported):
+    """心跳报的 ``mrerp_logins``（这台电脑上已授权了哪些 MR.ERP 连接，只有连接号）：旧版不报（None）不动；变了才写。"""
+    from pearnly_core.cc_desktop.wire import route_contracts
+
+    value = route_contracts.stored_logins(reported)
+    if value is None or not device:
+        return False
+    row = _row(device)
+    if not row or row.retired_at or value == (frappe.db.get_value(DOCTYPE, device, 'mrerp_logins') or ''):
+        return False
+    doc = read(device)
+    doc.mrerp_logins = value
+    persist(doc)
+    return True
+
+
 def reporter_label(connection):
     """这条连接上最近报到的那台电脑的名字（网页「连接」里显示，第 4 批改成每台电脑一行）；没有回空串。连接行上的
     「上报凭据」第 3 批起不再随上报改（两台轮流上报不来回重写连接行），按各把密钥自己的报到时间取。"""

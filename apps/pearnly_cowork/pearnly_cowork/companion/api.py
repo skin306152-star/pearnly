@@ -71,6 +71,15 @@ def register(request_key, express=False, replace=False, expected_generation=None
 
 
 @frappe.whitelist(methods=['POST'])
+def mrerp_login_ticket(connection, device_key):
+    """MR.ERP 登录在 CC 桌面版里授权的一次性票（ADR-026 第 7 条，`pearnly_core.cc_desktop.login_tickets`）：本人能改这条
+    MR.ERP 连接的登录（`connections.mrerp_login.require_authorizer`），对话页交来的本机设备密钥认得出这台电脑（没退役），
+    才发票。票交给 CC 桌面版（桥），由它弹原生小窗收密码、经机器通道交来（`credential_api.mrerp_login`）；页面不碰密码。"""
+    frappe.local.cowork_private_response = True
+    return _local_transaction(credentials.login_ticket, connection, device_key)
+
+
+@frappe.whitelist(methods=['POST'])
 def remove_device(device):
     """「电脑」列表的「···」移除一台电脑（ADR-021 第 6 批）：登记人或管理员；吊销它的各把密钥并让它退役。"""
     return _local_transaction(credentials.remove_device, device)

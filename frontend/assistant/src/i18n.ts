@@ -419,6 +419,8 @@ const SETTINGS = {
       ready: "v{ver} downloaded", installing: "Installing v{ver}…", failed: "Download of v{ver} failed",
       blocked: "Windows blocked the automatic update to v{ver}" },
     failed: "Could not update. Try again.",
+    mrerpAuthorized: (detail: string) => `Authorized: ${detail}`, mrerpNotAuthorized: "Not authorized",
+    mrerpAuthorize: "Authorize in CC Desktop", mrerpAuthorizeFailed: "Authorization failed",
   },
   zh: {
     settings: "设置", general: "常规", thisComputer: "此电脑", connections: "连接", system: "系统",
@@ -447,6 +449,8 @@ const SETTINGS = {
       ready: "v{ver} 已下载", installing: "正在安装 v{ver}…", failed: "v{ver} 下载失败",
       blocked: "Windows 拦截了 v{ver} 的自动更新" },
     failed: "无法更新，请重试。",
+    mrerpAuthorized: (detail: string) => `已授权：${detail}`, mrerpNotAuthorized: "未授权",
+    mrerpAuthorize: "在 CC 桌面版中授权", mrerpAuthorizeFailed: "授权失败",
   },
   th: {
     settings: "การตั้งค่า", general: "ทั่วไป", thisComputer: "คอมพิวเตอร์เครื่องนี้", connections: "การเชื่อมต่อ", system: "ระบบ",
@@ -475,6 +479,8 @@ const SETTINGS = {
       ready: "ดาวน์โหลด v{ver} แล้ว", installing: "กำลังติดตั้ง v{ver}…", failed: "ดาวน์โหลด v{ver} ไม่สำเร็จ",
       blocked: "Windows บล็อกการอัปเดตอัตโนมัติเป็น v{ver}" },
     failed: "ไม่สามารถอัปเดตได้ กรุณาลองใหม่",
+    mrerpAuthorized: (detail: string) => `อนุญาตแล้ว: ${detail}`, mrerpNotAuthorized: "ยังไม่ได้อนุญาต",
+    mrerpAuthorize: "อนุญาตใน CC เดสก์ท็อป", mrerpAuthorizeFailed: "อนุญาตไม่สำเร็จ",
   },
 };
 

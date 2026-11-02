@@ -48,6 +48,8 @@ Arguments,引数
 Attempt,試行回数
 Attempts,試行回数
 Authoritative push status.,送信ステータスの正本です。
+Authorize in CC Desktop,CC デスクトップで承認
+Authorized: {0},承認済み：{0}
 Auto Push,自動送信
 Automatic (by DMS account),自動照合（DMSアカウント基準）
 Automatic push is not supported for this connection; confirm manually.,この接続は自動送信に対応していません。手動で確認してください。
@@ -448,6 +450,7 @@ None deleted: the {0} selected records are being pushed.,削除していませ�
 "None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",削除していません: 選んだ {0} 件はすべて送信済みです。送信済みの記録は、どの請求書を送ったか追えるよう残します
 Not Permitted,権限がありません
 Not allowed,不許可
+Not authorized,未承認
 Not connected,未接続
 Not linked,未連携
 Not signed in,未ログイン
@@ -945,6 +948,9 @@ connect.master.advisors,担当者 {0}
 connect.master.branches,支店 {0}
 connect.master.carModels,車種 {0}
 connect.master.terms,敬称 {0}
+connect.mrerp.authorizeInCC,CC デスクトップで承認
+connect.mrerp.authorized,承認済み：{0}
+connect.mrerp.notAuthorized,未承認
 connect.no,いいえ
 connect.notice.connected,接続しました · {0}
 connect.notice.ok,接続正常 · {0}

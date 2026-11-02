@@ -39,11 +39,15 @@ REQUEST_METHODS = {'request_next': 'pearnly_cowork.companion.request_api.next_re
 # 同一套信封与配对码身份；MR.ERP 的只读文件夹密钥也放行。上面三张表逐字不变。
 DEVICE_METHODS = {'device_hello': 'pearnly_cowork.companion.device_api.hello',
                   'device_leave': 'pearnly_cowork.companion.device_api.leave'}
-MACHINE_METHODS = {**METHODS, **FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS}
+# MR.ERP 登录在 CC 桌面版里授权（companion/credential_api.py，ADR-026 第 7 条，2026-11-02）：带对话页发的一次性票交用户名
+# 和密码。第五张表，同一套信封与配对码身份；MR.ERP 的只读文件夹密钥也放行（没装 Express 的电脑也要能授权）。上面四张表逐字不变。
+LOGIN_METHODS = {'mrerp_login': 'pearnly_cowork.companion.credential_api.mrerp_login'}
+MACHINE_METHODS = {**METHODS, **FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS, **LOGIN_METHODS}
 MACHINE_PATHS = {operation: '/api/method/' + method for operation, method in MACHINE_METHODS.items()}
-# MR.ERP 的只读文件夹密钥能调的：文件夹、按需请求、认电脑（心跳 / 领任务 / 回执不行）。
-FOLDER_ONLY_ALLOWED = {**FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS}
+# MR.ERP 的只读文件夹密钥能调的：文件夹、按需请求、认电脑、授权 MR.ERP 登录（心跳 / 领任务 / 回执不行）。
+FOLDER_ONLY_ALLOWED = {**FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS, **LOGIN_METHODS}
 if (len(MACHINE_METHODS) != len(METHODS) + len(FOLDER_METHODS) + len(REQUEST_METHODS) + len(DEVICE_METHODS)
+        + len(LOGIN_METHODS)
         or len(set(MACHINE_PATHS.values())) != len(MACHINE_PATHS)):
     raise RuntimeError('companion machine methods must not overlap')
 _AUTHORITY = object()
@@ -315,6 +319,16 @@ def current_request(operation='heartbeat'):
             or any(key in request.args or key in request.form for key in ('cmd', 'sid'))):
         _deny()
     return bound.context, deepcopy(bound.payload)
+
+
+def drop_secret(field='password'):
+    """读完就从本请求留着的副本里拿掉（``form_dict``、绑定的请求体）：之后出什么错，Frappe 的错误记录、Recorder 都拿不到它。"""
+    form = getattr(frappe.local, 'form_dict', None)
+    if isinstance(form, dict):
+        form.pop(field, None)
+    bound = getattr(frappe.local, 'cowork_companion_http_context', None)
+    if isinstance(bound, _BoundRequest) and isinstance(bound.payload, dict):
+        bound.payload.pop(field, None)
 
 
 def _clear_cookies():

@@ -48,6 +48,8 @@ Arguments,参数
 Attempt,尝试次数
 Attempts,尝试次数
 Authoritative push status.,推送状态以此为准。
+Authorize in CC Desktop,在 CC 桌面版中授权
+Authorized: {0},已授权：{0}
 Auto Push,自动推送
 Automatic (by DMS account),自动匹配（按 DMS 账号）
 Automatic push is not supported for this connection; confirm manually.,该连接不支持自动推送，须手动确认。
@@ -448,6 +450,7 @@ None deleted: the {0} selected records are being pushed.,未删除任何记录�
 "None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",未删除任何记录：选中的 {0} 条记录均已推送。
 Not Permitted,没有权限
 Not allowed,不允许
+Not authorized,未授权
 Not connected,未连接
 Not linked,未绑定
 Not signed in,未登录
@@ -945,6 +948,9 @@ connect.master.advisors,顾问 {0}
 connect.master.branches,分店 {0}
 connect.master.carModels,车型 {0}
 connect.master.terms,称谓 {0}
+connect.mrerp.authorizeInCC,在 CC 桌面版中授权
+connect.mrerp.authorized,已授权：{0}
+connect.mrerp.notAuthorized,未授权
 connect.no,否
 connect.notice.connected,已连接 · {0}
 connect.notice.ok,连接正常 · {0}

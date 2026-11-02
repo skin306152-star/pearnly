@@ -24,7 +24,9 @@ from pearnly_core.cc_desktop import contracts, devices, products
 _PREFIX = "pearnly_core.cc_desktop.machine."
 METHODS = {"heartbeat": _PREFIX + "heartbeat", "lease": _PREFIX + "lease", "ack": _PREFIX + "acknowledge",
            "request_next": _PREFIX + "next_request", "request_complete": _PREFIX + "complete_request",
-           "leave": _PREFIX + "leave"}
+           "leave": _PREFIX + "leave",
+           # MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7 条）：带对话页发的一次性票交用户名和密码（`machine.mrerp_login`）
+           "mrerp_login": _PREFIX + "mrerp_login"}
 PATHS = {operation: "/api/method/" + method for operation, method in METHODS.items()}
 _HEADER = re.compile(r"(?i:Bearer) (pcc_[A-Za-z0-9._-]+)")
 _AUTHORITY = object()
@@ -215,6 +217,16 @@ def current_request(operation):
             or any(key in request.args or key in request.form for key in ("cmd", "sid"))):
         _deny()
     return bound.context, deepcopy(bound.payload)
+
+
+def drop_secret(field="password"):
+    """读完就从本请求留着的副本里拿掉（``form_dict``、绑定的请求体）：之后出什么错，Frappe 的错误记录、Recorder 都拿不到它。"""
+    form = getattr(frappe.local, "form_dict", None)
+    if isinstance(form, dict):
+        form.pop(field, None)
+    bound = getattr(frappe.local, "cc_desktop_http_context", None)
+    if isinstance(bound, _Bound) and isinstance(bound.payload, dict):
+        bound.payload.pop(field, None)
 
 
 def _clear_cookies():

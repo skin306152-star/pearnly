@@ -6,13 +6,15 @@
   POST /api/method/pearnly_core.cc_desktop.machine.next_request       领一件按需请求（同 Cowork request_api.next_request）
   POST /api/method/pearnly_core.cc_desktop.machine.complete_request   交按需请求的结果
   POST /api/method/pearnly_core.cc_desktop.machine.leave              电脑自己断开（作废这把令牌）
+  POST /api/method/pearnly_core.cc_desktop.machine.mrerp_login        MR.ERP 登录在 CC 里授权：{ticket, username, password}
+                                                                      （ADR-026 第 7 条；产品没接回 ``{ok: false, code: "unsupported"}``）
 
 请求体与回复的形状与 Cowork 那几条逐字段相同，CC 桌面版只按成员的通道换方法路径。本地事务撞上 1020 / 1213 整笔回滚、退避后
 重来（共用的 `transaction.conflicts`），用尽回「忙」（503），CC 桌面版下一轮再来。
 """
 import frappe
 
-from pearnly_core.cc_desktop import books, devices, http_auth, jobs, release, requests
+from pearnly_core.cc_desktop import books, devices, http_auth, jobs, login_tickets, products, release, requests
 from pearnly_core.cc_desktop.wire import queue_contracts, request_contracts
 from pearnly_core.transaction import conflicts
 
@@ -37,7 +39,7 @@ def _heartbeat(context, body):
     due = devices.record_report(context, version=version if isinstance(version, str) else None,
                                 payload_version=payload_version if type(payload_version) is int else None,
                                 offline=offline, full=full, runner=body.get("reindex_runner"),
-                                targets=body.get("operator_targets"))
+                                targets=body.get("operator_targets"), logins=body.get("mrerp_logins"))
     # 给托盘显示「连的是谁」（CC 桌面版 `_sync_connection_identity`）：电脑编号、站点、令牌的签发人
     reply = {"ok": True, "connection": {"endpoint_id": context.device, "endpoint_name": frappe.local.site,
                                         "pearnly_account": context.issuer}}
@@ -95,6 +97,58 @@ def _guarded(operation, service):
     return {"ok": True, "protocol": PROTOCOL, **result}
 
 
+def _mrerp_login(context, found, username, password):
+    """MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7 条）：票已取出作废（:func:`_login`），这里核发票时那台电脑就是令牌认出的
+    这台、产品按发票的人**此刻**的权限再核一次，写进连接的 Password 字段，并把这条连接记进这台电脑已授权的清单。回给电脑的
+    只有连接号、MR.ERP 网址与「已授权：用户名 · 电脑 · 时间」，从不回密码。撞上 1020 / 1213 整段重来（票不再取）。"""
+    context = devices.revalidate(context)
+    login_tickets.matches(found, site=context.site, channel="core", device=context.device)
+    if not products.mrerp_login_allowed(found["user"], found["connection"]):
+        return {"ok": False, "code": "denied"}
+    result = products.mrerp_login_store(found["connection"], username, password, user=found["user"],
+                                        device_label=devices.label(context.device))
+    devices.note_mrerp_login(context, found["connection"])
+    return {"connection": found["connection"], "system_url": str(result.get("system_url") or ""),
+            "authorized": {key: result.get(key) for key in ("username", "device", "at")}}
+
+
+def _login(operation):
+    """授权这一条：报文与票的问题回 200 + ``{ok: false, code}``；产品没接回 ``unsupported``。密码读完就从请求副本里拿掉，
+    任何出错都不带内部信息与堆栈。票只取一次（取出即作废）：之后的本地事务重来不再取。"""
+    context, body = http_auth.current_request(operation)
+    http_auth.drop_secret("password")
+    try:
+        ticket, username, password = login_tickets.login_request(body)
+        body = None
+        if not products.mrerp_login_supported():
+            return {"ok": False, "code": "unsupported"}
+        found = login_tickets.redeem(ticket)
+        result = conflicts.retried(_mrerp_login, context, found, username, password)
+    except (conflicts.Exhausted, conflicts.RollbackFailed) as error:
+        http_auth.raise_busy(error, stage=operation)
+    except frappe.AuthenticationError:
+        raise
+    except login_tickets.TicketError as error:
+        frappe.db.rollback()
+        http_auth.clear_private_messages()
+        return {"ok": False, "code": error.code}
+    except frappe.PermissionError:
+        frappe.db.rollback()
+        http_auth.clear_private_messages()
+        return {"ok": False, "code": "denied"}
+    except Exception as error:  # noqa: BLE001 — 只回「忙」，不带内部信息（报文里有密码）
+        http_auth.raise_busy(error, stage=operation)
+    finally:
+        password = body = None
+    if result.get("ok") is False:
+        frappe.db.rollback()
+        http_auth.clear_private_messages()
+        return result
+    _commit(operation)
+    http_auth.clear_private_messages()
+    return {"ok": True, "protocol": PROTOCOL, **result}
+
+
 @frappe.whitelist(methods=["POST"])
 def heartbeat(**ignored):
     return _run("heartbeat", _heartbeat)
@@ -125,4 +179,9 @@ def leave(**ignored):
     return _guarded("leave", lambda context, body: devices.leave(devices.revalidate(context)))
 
 
-__all__ = ["acknowledge", "complete_request", "heartbeat", "lease", "leave", "next_request"]
+@frappe.whitelist(methods=["POST"])
+def mrerp_login(**ignored):
+    return _login("mrerp_login")
+
+
+__all__ = ["acknowledge", "complete_request", "heartbeat", "lease", "leave", "mrerp_login", "next_request"]

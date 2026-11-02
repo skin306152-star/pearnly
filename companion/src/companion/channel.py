@@ -6,7 +6,7 @@
   对话页登记这台电脑后交来的配对码就是这一种。
 
 两种通道的请求体与回复逐字段相同（服务端共用 ``cc_desktop.wire`` 的线上约定），这里只换方法路径；文件夹自动录入、认电脑
-（``device_api.hello``）只有 Cowork 有。同一台电脑可以同时有一个 Cowork 成员和一个 ERP 成员，写账仍在同一条线程里一件一件写。
+（``device_api.hello``）只有 Cowork 有。MR.ERP 登录在 CC 里授权（``mrerp_login``，ADR-026 第 7 条）两种通道都有。同一台电脑可以同时有一个 Cowork 成员和一个 ERP 成员，写账仍在同一条线程里一件一件写。
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ PATHS = {
         "request_complete": _COWORK + "request_api.complete_request",
         "hello": _COWORK + "device_api.hello",
         "leave": _COWORK + "device_api.leave",
+        "mrerp_login": _COWORK + "credential_api.mrerp_login",
     },
     CORE: {
         "heartbeat": _CORE + "heartbeat",
@@ -34,6 +35,7 @@ PATHS = {
         "request_next": _CORE + "next_request",
         "request_complete": _CORE + "complete_request",
         "leave": _CORE + "leave",
+        "mrerp_login": _CORE + "mrerp_login",
     },
 }
 

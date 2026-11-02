@@ -44,6 +44,7 @@ _M = {
     "op_login_title": ("Express 登录", "เข้าสู่ระบบ Express"),
     "op_login_user": ("用户名", "ชื่อผู้ใช้"),
     "op_login_password": ("密码", "รหัสผ่าน"),
+    "mrerp_login_title": ("MR.ERP 登录", "เข้าสู่ระบบ MR.ERP"),
     "browse_title": (
         "请选择 Express 数据所在文件夹",
         "กรุณาเลือกโฟลเดอร์ข้อมูล Express",

@@ -9,6 +9,9 @@
 服务端。另要求对话页的站点就是这台电脑连着的那家公司（``page_url``），否则回 ``other_site``。
 ``state()`` 带 ``features: ["company_folders", "devices"]``（旧版没有，页面据此降级）与 ``legacy_roots``（设置页的旧授权清理行）。
 
+MR.ERP 登录（ADR-026 第 7 条，11-02）：``mrerp_authorize`` 只收站点发给对话页的一次性票，弹原生小窗，经机器通道交给站点、
+站点收下了再存本机凭据管理器（express_operator/mrerp_login.py）；密码不经过页面。
+
 多台电脑（ADR-021，1.7.0）：``state()`` 另带 ``device: {key, name}``（这台电脑的设备密钥与电脑名；取不到是空对象），对话页每次
 打开都带它调 ``companion.api.register``（对话页一侧在第 6 批）；成员带 ``device_state``（``superseded`` / ``claimed_elsewhere``：
 这把密钥不再用，对话页重新登记，前者带 ``rekey``）。设备密钥只交给本站自己的对话页（``allowed``），不进任何地址栏参数。
@@ -46,7 +49,9 @@ REFUSED = json.dumps({"ok": False, "refused": True})
 # sites = 每个成员带自己的站点与通道（1.11.0，ADR-025）：同一台电脑可以同时连一个 Cowork 站点和一个 ERP 站点，ERP 站点的
 # 对话页据此登记这台电脑（配对码 ``pcc_…``）。
 # operator = 代录 Express（10-26，入口与直写分开）：operator_state / operator_control / operator_frame / operator_authorize。
-FEATURES = ("company_folders", "devices", "sites", "express_places", "operator")
+# mrerp_login = MR.ERP 登录在 CC 里授权（ADR-026 第 7 条，11-02）：mrerp_authorize 收对话页发的一次性票，弹原生小窗收用户名和
+# 密码，经这台电脑连着这个站点的成员的机器通道交给站点，站点收下了再存本机凭据管理器；页面拿不到密码，只回成没成。
+FEATURES = ("company_folders", "devices", "sites", "express_places", "operator", "mrerp_login")
 
 
 class TomoBridge(QObject):
@@ -172,6 +177,8 @@ class TomoBridge(QObject):
             return s.open_logs()
         if method.startswith("operator_"):
             return self._operator(method, args, lang)
+        if method == "mrerp_authorize":
+            return self._mrerp_authorize(args, lang)
         if method == "window":
             # 对话页画的标题栏（同 Claude 桌面端）：最小化 / 最大化 / 关闭 / 拖动 / 缩放（gui_tomo.TomoWindow.window_action）
             window = self._window()
@@ -206,6 +213,27 @@ class TomoBridge(QObject):
 
             return {"ok": login_dialog.forget()}
         return {"ok": False}
+
+    def _mrerp_authorize(self, args: dict, lang: str) -> dict:
+        """MR.ERP 登录在 CC 里授权（ADR-026 第 7 条）：只收票（args 里的用户名、密码、地址一概不看），对话页必须是这台电脑连着的
+        站点；弹原生小窗（界面线程），输好后在后台交给站点、再存本机（``mrerp_login.authorize``）。回 ``{ok}`` 或
+        ``{ok: false, code | cancelled}``，从不回密码。"""
+        from .express_operator import login_dialog, mrerp_login
+
+        ticket = str(args.get("ticket") or "")
+        if not mrerp_login.valid_ticket(ticket):
+            return {"ok": False, "code": "login_invalid"}
+        member = self._settings.member_for(self._page_host())
+        if member is None:
+            return {"ok": False, "code": "not_connected"}
+        found = login_dialog.ask(normalize(lang), title_key="mrerp_login_title")
+        if found is None:
+            return {"ok": False, "cancelled": True}
+        site, backend_url, token = member
+        username, password = found
+        found = None
+        return self._job(lambda: mrerp_login.authorize(site=site, backend_url=backend_url, token=token, ticket=ticket,
+                                                       username=username, password=password))
 
     @staticmethod
     def _start(current: list) -> str:

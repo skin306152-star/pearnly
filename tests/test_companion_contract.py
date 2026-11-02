@@ -120,7 +120,15 @@ class DeviceMethods(unittest.TestCase):
         others = {**server["METHODS"], **server["FOLDER_METHODS"], **server["REQUEST_METHODS"]}
         self.assertFalse(set(devices) & set(others))
         self.assertFalse(set(devices.values()) & set(others.values()))
-        self.assertEqual(server["MACHINE_METHODS"], {**others, **devices})
+        # 第五张表：MR.ERP 登录在 CC 里授权（ADR-026 第 7 条，`credential_api.mrerp_login`），也是只收 POST 的白名单方法
+        logins = server["LOGIN_METHODS"]
+        self.assertEqual(set(logins), {"mrerp_login"})
+        self.assertFalse(set(logins.values()) & (set(others.values()) | set(devices.values())))
+        self.assertEqual(server["MACHINE_METHODS"], {**others, **devices, **logins})
+        for method in logins.values():
+            module, function = method.rsplit(".", 1)
+            self.assertTrue(whitelisted_post(ROOT / "apps" / "pearnly_cowork" / Path(*module.split(".")).with_suffix(".py"),
+                                             function), method)
         for method in devices.values():
             module, function = method.rsplit(".", 1)
             self.assertTrue(whitelisted_post(ROOT / "apps" / "pearnly_cowork" / Path(*module.split(".")).with_suffix(".py"),
@@ -474,7 +482,7 @@ class OnDemandRequests(unittest.TestCase):
     def test_folder_only_keys_may_take_requests_and_the_server_filters_by_erp(self):
         auth = (SERVER / "http_auth.py").read_text(encoding="utf-8")
         self.assertIn("if operation not in FOLDER_ONLY_ALLOWED and", auth)
-        self.assertIn("FOLDER_ONLY_ALLOWED = {**FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS}", auth)
+        self.assertIn("FOLDER_ONLY_ALLOWED = {**FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS, **LOGIN_METHODS}", auth)
         server = number_constants(WIRE / "request_contracts.py", ("ADAPTER_KINDS", "FOLDER_KINDS", "KINDS"))
         self.assertEqual(server["ADAPTER_KINDS"], {"express": server["KINDS"], "mrerp": server["FOLDER_KINDS"]})
         self.assertNotIn("express_read", server["FOLDER_KINDS"])
@@ -1236,7 +1244,7 @@ class CompanyFolders(unittest.TestCase):
 
     def test_the_page_uses_the_company_folder_bridge(self):
         # 由前端包（frontend/assistant）接上：pick_folder、features 里的 company_folders、legacy_roots
-        self.assertIn('FEATURES = ("company_folders", "devices", "sites", "express_places", "operator")', self.bridge)
+        self.assertIn('FEATURES = ("company_folders", "devices", "sites", "express_places", "operator", "mrerp_login")', self.bridge)
         self.assertIn('"legacy_roots"', (COMPANION / "desktop_settings.py").read_text(encoding="utf-8"))
         for name in ("pick_folder", "company_folders", "legacy_roots"):
             self.assertTrue(quoted(self.page, name) or re.search(r"\b%s\b" % name, self.page), name)

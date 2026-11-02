@@ -454,6 +454,34 @@ def _register_device(name, adapter, actor, request_key, device_key, device_name,
                 'token': token}
 
 
+def login_ticket(connection, device_key):
+    """`api.mrerp_login_ticket`：本人能改这条 MR.ERP 连接的登录、这台电脑认得出（有设备密钥、没退役），发一张一次性票。
+    电脑不认得（旧版 CC、被移除过）回 ``{ok: false, code: device_unknown}``。只读、不写库。"""
+    from pearnly_core.cc_desktop import login_tickets
+    from pearnly_cowork.connections import mrerp_login
+
+    _site()
+    actor = access.require_actor(lock=False)
+    name = _value(contracts.text, connection)
+    try:
+        digest = contracts.device_digest(_site(), device_key)
+    except CredentialError:
+        return {'ok': False, 'code': 'login_invalid'}
+    if not mrerp_login.can_authorize(name, actor):
+        access.deny()
+    found = devices.find(digest)
+    if not found or devices.retired(found):
+        return {'ok': False, 'code': 'device_unknown'}
+    ticket = login_tickets.issue(site=_site(), channel='cowork', connection=name, user=actor, device=found)
+    return {'ok': True, 'ticket': ticket, 'expires_in': login_tickets.TTL_SECONDS}
+
+
+def login_device(context):
+    """机器侧授权（`credential_api.mrerp_login`）：令牌认出的这把密钥挂在哪台电脑上（重核密钥仍有效，锁 Connection →
+    Credential）。没挂电脑的旧槽位密钥回空串（票绑的是电脑，对不上）。"""
+    return machine_key(context).get('device') or ''
+
+
 def manages(actor):
     """这个人是不是管理员（不抛错）：「电脑」列表据此给 ``can_remove``（登记人或管理员才能移除一台电脑）。"""
     return _manager(actor)
