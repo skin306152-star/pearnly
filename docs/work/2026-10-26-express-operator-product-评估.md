@@ -1494,6 +1494,10 @@
 - **测试**：tests/test_cc_desktop_channel.py 24（含在线续租约、被结束后领回同一件、满 3 次转人工）、tests/test_cowork_express_dispatch.py 68
   （重发优先、带稳定键、旧版不重发、拿不回的转人工、够不到先不动、在场续期 / 不在场转结果不明）、tests/test_companion_contract.py 84、
   tests/test_express_operator_tasks.py 12、tests/test_cc_operator.py 14、CC 全套 1393 过（companion/tests/test_task_key.py、
-  test_operator_host 新增「被结束后重发每张只录一次」）；scripts/cowork-push-native-lab-verify.py 加 3 项真实 Site 事务（重发只给原电脑且锁
-  不放、满 3 次留给人、续期连锁一起续），在专用后端实验室跑（结果见下）。
+  test_operator_host 新增「被结束后重发每张只录一次」）；真实站点事务：新脚本 scripts/cowork-push-reclaim-lab-verify.py（本机回归实验室
+  pearnly-operator-lab 的 cowork-new，产品函数造数据、跑完清掉）4 个场景全过、无残留——重发只给原电脑且锁不放（别的电脑领不到、丢了那次
+  的回执不算、重发后记成功放锁、下一张才领到）、结果不明重发满 3 次留给人、电脑在场续租约连锁一起续（到期前回收不动它、丢满转人工、迟到
+  回执照收）、代录 status 报出挡着它的单。它抓到一个缺陷：续期原来也改写入尝试的到期时间，那是账本的不可改身份字段——改为只续记录与锁。
+  原想把这几项加进 scripts/cowork-push-native-lab-verify.py，但那套在专用后端实验室里 28 项 26 项倒在造数据上（今天的准备要电脑在线读
+  科目表，脚本 10-09 后没人跑过），与本次无关，已撤回、单列待办。
 - **剩余风险**（单列待办，两站点今天都有）：DBF 已写、本机记账还没落盘那一瞬间进程被结束，重发会再写一张；要堵得重发时按账套内容核这张单。

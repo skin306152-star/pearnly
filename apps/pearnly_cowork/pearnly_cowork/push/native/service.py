@@ -946,7 +946,7 @@ def _automation_mismatch(row, target):
 def extend(name, *, context, adapter, now=None):
     """领它的电脑还在（CC 桌面版的按需请求线程刚来过，`companion.transport._recover`）：租约到期也不判结果不明，续一个租约。
     代录一张单可以合法地超过租约（人用 Express 时暂停、开表单 / 保存等得久），写账线这期间不来报到（ADR-021 11-02 修订）。
-    这条记录和它持有的写者锁一起续；别的状态不动。"""
+    这条记录和它持有的写者锁一起续；写入尝试记的是领单当时给的租约（身份字段，`documents._IDENTITY`），不改。别的状态不动。"""
     with atomic():
         _receipt_scope(context, adapter)
         raw = frappe.db.get_value(RECORD, name, 'target_json')
@@ -961,12 +961,11 @@ def extend(name, *, context, adapter, now=None):
                 lock.holder != row.name or int(lock.holder_fence or 0) != int(row.fence) for lock in locks):
             fail('push.native_lock_conflict')
         timestamp = now_utc(now)
-        attempt.lease_expires_at = timestamp + timedelta(seconds=LEASE_SECONDS)
-        persist(attempt)
+        expires = timestamp + timedelta(seconds=LEASE_SECONDS)
         for lock in locks:
-            lock.lease_expires_at = attempt.lease_expires_at
+            lock.lease_expires_at = expires
             persist(lock)
-        row.lease_expires_at = attempt.lease_expires_at
+        row.lease_expires_at = expires
         _save_record(row, timestamp)
         return {**project(row), 'replayed': False}
 
