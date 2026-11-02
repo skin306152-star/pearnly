@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from pearnly_cowork.connections.mrerp_master_reader import MasterReader
-from pearnly_cowork.targets import mrerp_masters as rules
+from pearnly_core.mrerp.master_reader import MasterReader
+from pearnly_core.mrerp import masters as rules
 
 # 字段 → 从哪些接口读（先用这次会话里已经读过的，都没读过就读第一个）。
 _MODULES = {
@@ -112,7 +112,7 @@ class AccountDefaults:
             mappings["_mrerp_customer_header"] = rules.customer_defaults(self.reader.lists.get("artran"))
         mappings["_mrerp_header"] = head
         if cash_sale:
-            from pearnly_cowork.push.mrerp.xlsx.sales_cash import _is_cash
+            from pearnly_core.mrerp.push.xlsx.sales_cash import _is_cash
 
             if any(_is_cash(h) for h in histories):
                 mappings["_mrerp_receipt_account_cash"] = self._reference("cash")

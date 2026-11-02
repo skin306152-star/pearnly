@@ -29,9 +29,9 @@ from pearnly_core.express_rules.contracts.push import clean_tax_id, resolve_acco
 from pearnly_core.express_rules.push.doc_sanity import check_document
 from pearnly_core.express_rules.push.field_rules import item_verdict
 from pearnly_core.express_rules.push.payment import payment_verdict_for
-from pearnly_cowork.push.mrerp.models import FailedRow, ImportResult
-from pearnly_cowork.push.mrerp.modules import get_module
-from pearnly_cowork.push.mrerp.xlsx import generator as _gen
+from pearnly_core.mrerp.push.models import FailedRow, ImportResult
+from pearnly_core.mrerp.push.modules import get_module
+from pearnly_core.mrerp.push.xlsx import generator as _gen
 
 logger = logging.getLogger("mr-pilot")
 

@@ -7,7 +7,7 @@ Remark / Database name，一行一家公司，最后一格是这家公司的各�
 from datetime import datetime, timezone
 import unittest
 
-from pearnly_cowork.connections import mrerp_catalog as catalog
+from pearnly_core.mrerp import catalog
 from pearnly_cowork.targets.choices import account_choices_for_endpoint
 from pearnly_cowork.targets.projection import normalize_projection
 

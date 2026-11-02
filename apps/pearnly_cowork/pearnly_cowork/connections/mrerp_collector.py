@@ -25,9 +25,10 @@ import frappe
 from frappe.utils.password import get_decrypted_password
 from pearnly_core.session_lock import SessionLockUnavailable, account_lock
 from pearnly_cowork.targets.projection import ProjectionContractError, normalize_projection
-from . import access, model, mrerp_catalog, refresh, snapshots, state
-from .mrerp_session import MrErpSession, lock_key, public_host  # noqa: F401 —— public_host 仍是本模块对外名
-from .mrerp_session import SessionError as CollectError
+from pearnly_core.mrerp import catalog as mrerp_catalog
+from . import access, model, refresh, snapshots, state
+from pearnly_core.mrerp.session import MrErpSession, lock_key, public_host  # noqa: F401 —— public_host 仍是本模块对外名
+from pearnly_core.mrerp.session import SessionError as CollectError
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +152,7 @@ def _read_details(session, rows, *, current=None):
     年度库里读一次总店税号（`MasterReader.company_tax`，同 T2 推送时的读法），有效的写进这家公司各年度行的 ``tax_id``。
     只读，只在刷新账套时做（不在推送路上）；每个年度库多切一次库（两次请求）、读一页（税号每家公司多三次请求）。哪个年度
     读不到就留空、接着读下一个，不让整次刷新失败；超过 ``DETAILS_SECONDS`` 就停（旧的年度在后）。耗时记日志。"""
-    from .mrerp_master_reader import MasterReader
+    from pearnly_core.mrerp.master_reader import MasterReader
 
     started = time.monotonic()
     taxes, read, budget_hit = {}, 0, False

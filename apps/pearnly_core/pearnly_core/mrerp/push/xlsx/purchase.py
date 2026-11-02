@@ -19,19 +19,19 @@ import zipfile
 from collections import OrderedDict
 from typing import Any, Dict, List
 
-from pearnly_cowork.push.mrerp.xlsx import defaults as account_values, generator as _gen
-from pearnly_cowork.push.mrerp.xlsx.fmt import (
+from pearnly_core.mrerp.push.xlsx import defaults as account_values, generator as _gen
+from pearnly_core.mrerp.push.xlsx.fmt import (
     fmt_date,
     fmt_number,
     history_number,
     supplier_code_from_name,
 )
-from pearnly_cowork.push.mrerp.xlsx.lookups import (
+from pearnly_core.mrerp.push.xlsx.lookups import (
     MRERP_CASH_CUSTOMER,
     _build_product_lookup,
     _resolve_product_code,
 )
-from pearnly_cowork.push.mrerp.xlsx.sales_credit import _format_num
+from pearnly_core.mrerp.push.xlsx.sales_credit import _format_num
 from pearnly_core.express_rules.contracts.push import clean_tax_id
 
 _TEMPLATE_NAME = "test_data_mrerp_sample_purchase.xlsx"

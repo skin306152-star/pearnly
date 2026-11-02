@@ -31,8 +31,9 @@ from unittest.mock import patch
 try:
     import requests  # noqa: F401
     from test_cowork_mrerp_push import BASE, CHOSEN, OWN, PUBLIC, SUPPLIER, FakeMrErp, flat, purchase, sales
-    from pearnly_cowork.push.mrerp import routing, runner, transport
-    from pearnly_cowork.push.mrerp.xlsx import generator
+    from pearnly_core.mrerp.push import routing, transport
+    from pearnly_core.mrerp.push.xlsx import generator
+    from pearnly_cowork.push.mrerp import runner
 except (ImportError, unittest.SkipTest) as exc:  # 需要 Frappe 环境（bench 的 Python）
     raise unittest.SkipTest(f"needs the Frappe bench environment: {exc}")
 

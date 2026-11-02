@@ -19,8 +19,9 @@ from unittest.mock import patch
 try:
     import requests
     from openpyxl import Workbook, load_workbook
-    from pearnly_cowork.push.mrerp import routing, runner, transport
-    from pearnly_cowork.push.mrerp.models import MRERPBusinessError
+    from pearnly_core.mrerp.push import routing, transport
+    from pearnly_core.mrerp.push.models import MRERPBusinessError
+    from pearnly_cowork.push.mrerp import runner
 except ImportError as exc:  # 需要 Frappe 环境（bench 的 Python）
     raise unittest.SkipTest(f"needs the Frappe bench environment: {exc}")
 
@@ -268,7 +269,7 @@ class Customer(unittest.TestCase):
     """销项客户（用户 2026-09-26「按票面买方」）：关联客户映射 > 票面买方税号 > 现金客户。"""
 
     def test_customer_comes_from_the_invoice_buyer_without_a_linked_client(self):
-        from pearnly_cowork.push.mrerp.xlsx.lookups import MRERP_CASH_CUSTOMER, resolve_customer_code
+        from pearnly_core.mrerp.push.xlsx.lookups import MRERP_CASH_CUSTOMER, resolve_customer_code
 
         self.assertEqual(resolve_customer_code(sales(), {}), CUSTOMER)
         walk_in = flat("w1", "sales", seller_tax=OWN)
@@ -278,7 +279,7 @@ class Customer(unittest.TestCase):
         self.assertEqual(resolve_customer_code(linked, mapping), "C0009")
 
     def test_invoice_buyer_is_created_in_mrerp_with_its_tax_id_as_code(self):
-        from pearnly_cowork.push.mrerp import autocreate
+        from pearnly_core.mrerp.push import autocreate
 
         created = []
 
@@ -522,13 +523,13 @@ class Menu(unittest.TestCase):
         return importer
 
     def test_several_linked_menus_without_a_choice_ask_first(self):
-        from pearnly_cowork.targets import mrerp_menus
+        from pearnly_core.mrerp import menus as mrerp_menus
         site = FakeMrErp(menus={"impaptran": [("68", "ซื้อ", True), ("454", "ซื้อ-ค่าใช้จ่าย", True)]})
         self.assert_stopped(site, [purchase()], mrerp_menus.CHOICE_REQUIRED)
         self.assertEqual(site.uploads, [])  # 供应商也没建
 
     def test_chosen_menu_that_is_gone_or_unlinked_stops_instead_of_switching(self):
-        from pearnly_cowork.targets import mrerp_menus
+        from pearnly_core.mrerp import menus as mrerp_menus
         for menus in ([("68", "ซื้อ", True)], [("68", "ซื้อ", True), ("454", "ซื้อ-ค่าใช้จ่าย", False)]):
             with self.subTest(menus=menus):
                 site = FakeMrErp(menus={"impaptran": menus})
@@ -537,20 +538,20 @@ class Menu(unittest.TestCase):
                 self.assertEqual(site.uploads, [])
 
     def test_no_linked_menu_or_unreadable_page(self):
-        from pearnly_cowork.targets import mrerp_menus
+        from pearnly_core.mrerp import menus as mrerp_menus
         self.assert_stopped(FakeMrErp(menus={"impaptran": [("67", "ซื้อ", False)]}), [purchase()],
                             mrerp_menus.NOT_LINKED)
         self.assert_stopped(FakeMrErp(menus={"impaptran": None}), [purchase()], mrerp_menus.UNREADABLE)
 
     def test_menu_unlinked_while_masters_were_created_stops_before_upload(self):
-        from pearnly_cowork.targets import mrerp_menus
+        from pearnly_core.mrerp import menus as mrerp_menus
         # 选账套抓 idus、核对菜单各打开一次导入页；第三次（主档自建之后、上传之前）时 68 已被取消关联。
         site = FakeMrErp(change_menus_after=(2, {"impaptran": [("68", "ซื้อ", False)]}))
         self.assert_stopped(site, [purchase()], mrerp_menus.CHANGED)
         self.assertNotIn("impaptran", [module for module, _ in site.uploads])
 
     def test_menu_failure_reaches_the_ledger_as_the_bare_code(self):
-        from pearnly_cowork.targets import mrerp_menus
+        from pearnly_core.mrerp import menus as mrerp_menus
         site = FakeMrErp(menus={"impaptran": [("68", "ซื้อ", True), ("454", "ซื้อ-ค่าใช้จ่าย", True)]})
         site.password_used = "test01"
         out = execute(site, [purchase()])

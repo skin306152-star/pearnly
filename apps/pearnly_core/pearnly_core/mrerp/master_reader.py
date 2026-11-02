@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from typing import Callable, Dict, Optional
 
-from pearnly_cowork.targets import mrerp_masters as rules
+from pearnly_core.mrerp import masters as rules
 
 # 模块 → 列表接口。小主档最轻的读法（MR.ERP 源码核对，2026-10-08）：
 #   fabillrev：部门 / 工作 / 本公司分店 / 员工，不带大表；armas：销售区 / 运输 / 客户类型 / 科目表（带全部客户的码与名）；

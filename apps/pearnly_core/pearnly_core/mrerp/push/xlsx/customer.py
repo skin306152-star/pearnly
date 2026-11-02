@@ -15,7 +15,7 @@ import zipfile
 from collections import OrderedDict
 from typing import Any, Dict, List
 
-from pearnly_cowork.push.mrerp.xlsx.fmt import fmt_number
+from pearnly_core.mrerp.push.xlsx.fmt import fmt_number
 
 _TEMPLATE_NAME = "test_data_mrerp_sample_customer.xlsx"
 

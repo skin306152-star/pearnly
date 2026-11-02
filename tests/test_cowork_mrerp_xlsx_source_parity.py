@@ -80,7 +80,7 @@ class XlsxSourceParity(unittest.TestCase):
     def setUpClass(cls):
         sys.path.insert(0, LEGACY)
         from services.erp import mrerp_xlsx_generator as legacy
-        from pearnly_cowork.push.mrerp.xlsx import generator as native
+        from pearnly_core.mrerp.push.xlsx import generator as native
         cls.legacy, cls.native = legacy, native
 
     def test_every_push_sheet_matches_member_for_member(self):

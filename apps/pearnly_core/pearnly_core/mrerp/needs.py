@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional, Tuple
 
-from pearnly_cowork.targets import mrerp_masters as master_rules, mrerp_menus as menu_rules
+from pearnly_core.mrerp import masters as master_rules, menus as menu_rules
 
 
 def used(direction: Optional[str] = None) -> Tuple[Tuple[str, ...], Tuple[str, ...]]:

@@ -9,7 +9,7 @@ import re
 from typing import Any, Dict, Optional
 
 from pearnly_core.express_rules.contracts.push import clean_tax_id
-from pearnly_cowork.push.mrerp.xlsx.fmt import fmt_str
+from pearnly_core.mrerp.push.xlsx.fmt import fmt_str
 
 # ============================================================
 # v27.8.1.17 · 商品名归一化 + 映射查表(给 detail 行写真 product_code 用)

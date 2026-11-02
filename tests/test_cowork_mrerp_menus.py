@@ -14,8 +14,8 @@ root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / "apps" / "pearnly_cowork"))
 sys.path.insert(0, str(root / "apps" / "pearnly_core"))
 
-from pearnly_cowork.targets import mrerp_menus as menus  # noqa: E402
-from pearnly_cowork.push.mrerp import readback  # noqa: E402
+from pearnly_core.mrerp import menus  # noqa: E402
+from pearnly_core.mrerp.push import readback  # noqa: E402
 
 FIXTURES = root / "tests" / "fixtures" / "mrerp"
 ACCOUNT = "6:1"

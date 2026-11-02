@@ -3985,9 +3985,9 @@ class GuardTests(unittest.TestCase):
 
 
 def _mrerp_needs():
-    """连接层按方向挑 MR.ERP 要选项的纯规则（`connections.mrerp_needs`），按文件载入（连接包在这里是替身）。"""
-    spec = importlib.util.spec_from_file_location("pearnly_cowork.connections.mrerp_needs",
-                                                  ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/mrerp_needs.py")
+    """按方向挑 MR.ERP 要选项的纯规则（共用层 `pearnly_core.mrerp.needs`），按文件载入（连接包在这里是替身）。"""
+    spec = importlib.util.spec_from_file_location("pearnly_core.mrerp.needs",
+                                                  ROOT / "apps/pearnly_core/pearnly_core/mrerp/needs.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -4023,8 +4023,7 @@ class MrErpCompanyTests(unittest.TestCase):
             return json.loads(json.dumps(views[key]))
 
         patches = [mock.patch.object(connections, "mrerp_menu", mrerp_menu, create=True),
-                   mock.patch.dict(sys.modules, {"pearnly_cowork.connections.mrerp_needs": needs}),
-                   mock.patch.object(sys.modules["pearnly_cowork.connections"], "mrerp_needs", needs, create=True)]
+                   mock.patch.dict(sys.modules, {"pearnly_core.mrerp.needs": needs})]
         for patch in patches:
             patch.start()
             self.addCleanup(patch.stop)
@@ -4171,8 +4170,7 @@ class MrErpPendingAnswerTests(PendingAnswerTests):
                    mock.patch.object(connections, "choose_mrerp_menu", lambda *a: calls.append(("menu",) + a), create=True),
                    mock.patch.object(connections, "choose_mrerp_default", lambda *a: calls.append(("default",) + a),
                                      create=True),
-                   mock.patch.dict(sys.modules, {"pearnly_cowork.connections.mrerp_needs": needs}),
-                   mock.patch.object(sys.modules["pearnly_cowork.connections"], "mrerp_needs", needs, create=True)]
+                   mock.patch.dict(sys.modules, {"pearnly_core.mrerp.needs": needs})]
         for patcher in patches:
             patcher.start()
             self.addCleanup(patcher.stop)

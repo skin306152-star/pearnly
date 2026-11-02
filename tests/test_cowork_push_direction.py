@@ -381,7 +381,7 @@ class FrozenTarget(unittest.TestCase):
         self.assertEqual(reserved["frozen_payload"], {"doctype": "RR"})
 
 
-# MR.ERP 的分流与匹配闸（`push/mrerp/routing.py`）：方向判定与匹配闸是真规则，货 / 费判据、付款判据、单据防呆换成替身
+# MR.ERP 的分流与匹配闸（共用层 `pearnly_core.mrerp.push.routing`）：方向判定与匹配闸是真规则，货 / 费判据、付款判据、单据防呆换成替身
 # （这里只核方向）。货 / 费替身：复核屏点过「费用」才是费用。
 _ROUTING_STUBS = {
     **CORE,
@@ -391,11 +391,12 @@ _ROUTING_STUBS = {
         item_verdict=lambda fields, today: (fields.get("posting_item_type_manual") == "expense", "stub")),
     "pearnly_core.express_rules.push.payment": types.SimpleNamespace(
         payment_verdict_for=lambda flat, fields, mappings, direction: (False, None)),
-    "pearnly_cowork.push.mrerp.models": types.SimpleNamespace(FailedRow=object, ImportResult=object),
-    "pearnly_cowork.push.mrerp.modules": types.SimpleNamespace(get_module=lambda doc_type: None),
-    "pearnly_cowork.push.mrerp.xlsx": types.SimpleNamespace(generator=types.SimpleNamespace()),
+    "pearnly_core.mrerp.push.models": types.SimpleNamespace(FailedRow=object, ImportResult=object),
+    "pearnly_core.mrerp.push.modules": types.SimpleNamespace(get_module=lambda doc_type: None),
+    "pearnly_core.mrerp.push.xlsx": types.SimpleNamespace(generator=types.SimpleNamespace()),
 }
-routing = _load("mrerp_routing_direction", APP / "push/mrerp/routing.py", _ROUTING_STUBS)
+routing = _load("mrerp_routing_direction", APP.parents[1] / "pearnly_core/pearnly_core/mrerp/push/routing.py",
+                _ROUTING_STUBS)
 
 
 def mrerp_flat(direction=None, **fields):

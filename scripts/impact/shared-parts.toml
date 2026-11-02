@@ -1549,7 +1549,7 @@ where = "推送 MR.ERP"
 steps = "MR.ERP 目标推一张；定时 runner.sweep（5 分钟）"
 expect = "写入成功"
 check = "manual"
-files = ["apps/pearnly_cowork/pearnly_cowork/push/mrerp/routing.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/runner.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/transport.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/xlsx/lookups.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/xlsx/purchase.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/xlsx/sales_cash.py"]
+files = ["apps/pearnly_core/pearnly_core/mrerp/push/routing.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/runner.py", "apps/pearnly_core/pearnly_core/mrerp/push/transport.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/lookups.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/purchase.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/sales_cash.py"]
 
 [[entry]]
 id = "cowork.companies"
@@ -1990,7 +1990,7 @@ where = "Cowork 识别、推送、报税草稿"
 steps = "录入识别；推送；报税（P.N.D.3 / 53）草稿"
 expect = "照常"
 check = "manual"
-files = ["apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/companies/identity.py", "apps/pearnly_cowork/pearnly_cowork/connections/mrerp_catalog.py", "apps/pearnly_cowork/pearnly_cowork/contracts/document_policy.py", "apps/pearnly_cowork/pearnly_cowork/contracts/recognized_names.py", "apps/pearnly_cowork/pearnly_cowork/history/review.py", "apps/pearnly_cowork/pearnly_cowork/line/cards.py", "apps/pearnly_cowork/pearnly_cowork/masters/field_clean.py", "apps/pearnly_cowork/pearnly_cowork/ocr/execution/claude.py", "apps/pearnly_cowork/pearnly_cowork/ocr/pages.py", "apps/pearnly_cowork/pearnly_cowork/ocr/schema/invoice.py", "apps/pearnly_cowork/pearnly_cowork/ocr/validation/accounting.py", "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js", "apps/pearnly_cowork/pearnly_cowork/push/express/automation.py", "apps/pearnly_cowork/pearnly_cowork/push/express/goods_posting.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/routing.py", "apps/pearnly_cowork/pearnly_cowork/recon_center/invoice_ocr.py", "apps/pearnly_cowork/pearnly_cowork/tax/input_vat.py", "apps/pearnly_cowork/pearnly_cowork/tax/wht.py"]
+files = ["apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/companies/identity.py", "apps/pearnly_core/pearnly_core/mrerp/catalog.py", "apps/pearnly_cowork/pearnly_cowork/contracts/document_policy.py", "apps/pearnly_cowork/pearnly_cowork/contracts/recognized_names.py", "apps/pearnly_cowork/pearnly_cowork/history/review.py", "apps/pearnly_cowork/pearnly_cowork/line/cards.py", "apps/pearnly_cowork/pearnly_cowork/masters/field_clean.py", "apps/pearnly_cowork/pearnly_cowork/ocr/execution/claude.py", "apps/pearnly_cowork/pearnly_cowork/ocr/pages.py", "apps/pearnly_cowork/pearnly_cowork/ocr/schema/invoice.py", "apps/pearnly_cowork/pearnly_cowork/ocr/validation/accounting.py", "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js", "apps/pearnly_cowork/pearnly_cowork/push/express/automation.py", "apps/pearnly_cowork/pearnly_cowork/push/express/goods_posting.py", "apps/pearnly_core/pearnly_core/mrerp/push/routing.py", "apps/pearnly_cowork/pearnly_cowork/recon_center/invoice_ocr.py", "apps/pearnly_cowork/pearnly_cowork/tax/input_vat.py", "apps/pearnly_cowork/pearnly_cowork/tax/wht.py"]
 
 [[entry]]
 id = "erp.tax-documents"

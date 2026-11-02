@@ -19,7 +19,7 @@ from urllib.parse import urljoin, urlsplit
 import requests
 from pearnly_core.mrerp.urls import validate_url
 
-from . import mrerp_catalog
+from pearnly_core.mrerp import catalog as mrerp_catalog
 
 TIMEOUT_SECONDS = 30
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

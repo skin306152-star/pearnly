@@ -233,7 +233,7 @@ MRERP_SETS_SHOWN = 5
 def _mrerp_settings(sets) -> list:
     """MR.ERP 公司各份账套（新年度在前，最多 ``MRERP_SETS_SHOWN`` 份）选过的导入菜单与默认值、推之前还要选的；读不到的
     （没有这条连接的使用授权）不列。只读，改用 cowork_mrerp_setup。"""
-    from pearnly_cowork.connections import mrerp_needs
+    from pearnly_core.mrerp import needs as mrerp_needs
     from pearnly_cowork.connections import service as connections
 
     out = []

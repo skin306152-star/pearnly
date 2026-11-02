@@ -32,12 +32,12 @@ from typing import Any, Dict, List, Optional, Tuple
 from pearnly_core.session_lock import account_lock
 from pearnly_core.express_rules.contracts.push import explicit_direction
 from pearnly_core.mrerp.push.duplicates import is_already_pushed_error
-from pearnly_cowork.connections.mrerp_session import MrErpSession, SessionError, lock_key
-from pearnly_cowork.connections.mrerp_master_reader import MasterReader
-from pearnly_cowork.push.mrerp import readback, routing
-from pearnly_cowork.push.mrerp.defaults import AccountDefaults, Missing, tag_default_changed
-from pearnly_cowork.push.mrerp.account_valve import ACCOUNT_REVIEW_CODE, account_gate, tag_account_review
-from pearnly_cowork.push.mrerp.models import (
+from pearnly_core.mrerp.session import MrErpSession, SessionError, lock_key
+from pearnly_core.mrerp.master_reader import MasterReader
+from pearnly_core.mrerp.push import readback, routing
+from pearnly_core.mrerp.push.defaults import AccountDefaults, Missing, tag_default_changed
+from pearnly_core.mrerp.push.account_valve import ACCOUNT_REVIEW_CODE, account_gate, tag_account_review
+from pearnly_core.mrerp.push.models import (
     FailedRow,
     ImportResult,
     MRERPAuthError,
@@ -45,12 +45,12 @@ from pearnly_cowork.push.mrerp.models import (
     MRERPTechnicalError,
     SuccessRow,
 )
-from pearnly_cowork.push.mrerp.modules import MrErpModule, get_module
-from pearnly_cowork.push.mrerp.preview_parse import TAGSTRIP_RE, parse_preview_form, preview_hints
-from pearnly_cowork.push.mrerp.report_parse import parse_master_report
-from pearnly_cowork.push.mrerp.report_parser import parse_import_report
-from pearnly_cowork.push.mrerp.xlsx import generator as _gen
-from pearnly_cowork.targets import mrerp_menus
+from pearnly_core.mrerp.push.modules import MrErpModule, get_module
+from pearnly_core.mrerp.push.preview_parse import TAGSTRIP_RE, parse_preview_form, preview_hints
+from pearnly_core.mrerp.push.report_parse import parse_master_report
+from pearnly_core.mrerp.push.report_parser import parse_import_report
+from pearnly_core.mrerp.push.xlsx import generator as _gen
+from pearnly_core.mrerp import menus as mrerp_menus
 
 logger = logging.getLogger(__name__)
 
@@ -202,11 +202,11 @@ class MrErpImport:
 
         # 缺对手方主数据则自建并注入码(须在 preflight 前)· 销项建买方客户 / 采购建卖方供应商。
         if m.doc_type.startswith("sales"):
-            from pearnly_cowork.push.mrerp.autocreate import provision_customers
+            from pearnly_core.mrerp.push.autocreate import provision_customers
 
             provision_customers(self, histories, mappings)
         elif m.sheet_kind == "purchase":  # purchase + purchase_expense 共用 impaptran 供应商自建
-            from pearnly_cowork.push.mrerp.autocreate import provision_suppliers
+            from pearnly_core.mrerp.push.autocreate import provision_suppliers
 
             provision_suppliers(self, histories, mappings)
 
@@ -220,7 +220,7 @@ class MrErpImport:
 
         # 销/采:明细行对不上已有商品则自建并注入码(在生成 xlsx 前)
         if m.doc_type.startswith("sales") or m.sheet_kind == "purchase":
-            from pearnly_cowork.push.mrerp.autocreate import provision_products
+            from pearnly_core.mrerp.push.autocreate import provision_products
 
             provision_products(self, valid, mappings)
             if self.default_reason:
@@ -497,9 +497,9 @@ class MrErpImport:
         # 校验器按模块细分(sheet_kind 只管模板族):费用档(453)不跑 vat_rate_anomaly
         # ——นอกระบบ 不抵扣,票面税率异常无会计后果(2026-07-09 拍板)。
         if self.module.expense:
-            from pearnly_cowork.push.mrerp.xlsx.purchase import validate_expense_history as _validate
+            from pearnly_core.mrerp.push.xlsx.purchase import validate_expense_history as _validate
         elif self.module.sheet_kind == "purchase":
-            from pearnly_cowork.push.mrerp.xlsx.purchase import validate_purchase_history as _validate
+            from pearnly_core.mrerp.push.xlsx.purchase import validate_purchase_history as _validate
         else:
             _validate = _gen.validate_history_for_sales_credit
         for h in histories:

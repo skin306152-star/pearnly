@@ -17,9 +17,9 @@ from collections import OrderedDict
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Dict, List
 
-from pearnly_cowork.push.mrerp.xlsx import defaults as account_values, generator as _gen
-from pearnly_cowork.push.mrerp.xlsx.fmt import history_number, mrerp_sales_tax_label
-from pearnly_cowork.push.mrerp.xlsx.sales_credit import (
+from pearnly_core.mrerp.push.xlsx import defaults as account_values, generator as _gen
+from pearnly_core.mrerp.push.xlsx.fmt import history_number, mrerp_sales_tax_label
+from pearnly_core.mrerp.push.xlsx.sales_credit import (
     build_sales_credit_detail_rows,
     build_sales_credit_row,
     _format_num,

@@ -126,7 +126,7 @@ class Details(unittest.TestCase):
         self.assertEqual(years, {"6": ("2019-01-01", "2019-12-31", "0105536082808"),
                                  "15": ("2020-04-01", "2021-03-31", "0105536082808")})
         # 进了目录（`account_sets` 照 Express 放进属性），无效税号不放
-        from pearnly_cowork.connections import mrerp_catalog
+        from pearnly_core.mrerp import catalog as mrerp_catalog
         attributes = mrerp_catalog.account_sets(result["rows"])[0]["attributes"]
         self.assertEqual((attributes["period_start"], attributes["tax_id"]), ("2019-01-01", "0105536082808"))
         self.assertEqual(mrerp_catalog.company_tax("8888888888888"), "")

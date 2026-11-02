@@ -142,7 +142,7 @@ def mrerp_needs(document):
     ``{"document", "known", "items": [{"key", "label", "options": [{"value", "label"}]}]}``。``key`` 是 ``menu:单据类型`` /
     ``default:字段``；名称按用户语言（同网页弹窗的词条）。菜单与主档还没从 MR.ERP 读到过（``known`` 为假）时 ``items`` 为空，
     页面交给 CC（它能请服务器去读）。不是这种单回空的 ``items``。"""
-    from pearnly_cowork.connections import mrerp_needs as needs
+    from pearnly_core.mrerp import needs
     from pearnly_cowork.connections import service as connections
 
     scope.require("intake")

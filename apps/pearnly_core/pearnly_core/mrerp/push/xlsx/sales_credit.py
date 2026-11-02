@@ -12,14 +12,14 @@ import,勿在 facade 之前直接 import(否则循环 import 半初始化)。
 import io
 from typing import Any, Dict, List
 
-from pearnly_cowork.push.mrerp.xlsx import defaults as account_values, generator as _gen
-from pearnly_cowork.push.mrerp.xlsx.fmt import (
+from pearnly_core.mrerp.push.xlsx import defaults as account_values, generator as _gen
+from pearnly_core.mrerp.push.xlsx.fmt import (
     fmt_date,
     fmt_number,
     history_number,
     mrerp_sales_tax_label,
 )
-from pearnly_cowork.push.mrerp.xlsx.lookups import (
+from pearnly_core.mrerp.push.xlsx.lookups import (
     resolve_customer_code,
     _build_product_lookup,
     _resolve_product_code,

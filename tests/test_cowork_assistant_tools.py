@@ -184,10 +184,10 @@ def _install():
     sys.modules[spec.name] = sys.modules["pearnly_cowork.push.application"].conflicts = conflicts
     spec.loader.exec_module(conflicts)
     # MR.ERP 推之前要选的（菜单、默认值）按方向挑的纯规则也用真的：工具与网页推送前那一步同一份判据
-    sys.modules["pearnly_cowork.targets"] = types.ModuleType("pearnly_cowork.targets")
-    for name, path in (("pearnly_cowork.targets.mrerp_menus", COWORK / "targets/mrerp_menus.py"),
-                       ("pearnly_cowork.targets.mrerp_masters", COWORK / "targets/mrerp_masters.py"),
-                       ("pearnly_cowork.connections.mrerp_needs", COWORK / "connections/mrerp_needs.py")):
+    sys.modules["pearnly_core.mrerp"] = types.ModuleType("pearnly_core.mrerp")
+    for name, path in (("pearnly_core.mrerp.menus", CORE / "mrerp/menus.py"),
+                       ("pearnly_core.mrerp.masters", CORE / "mrerp/masters.py"),
+                       ("pearnly_core.mrerp.needs", CORE / "mrerp/needs.py")):
         spec = importlib.util.spec_from_file_location(name, path)
         module = importlib.util.module_from_spec(spec)
         sys.modules[name] = module

@@ -50,7 +50,7 @@ except ImportError:
     Workbook = None  # type: ignore
 
 # 字段格式工具 + 校验上限常量 · derive_mrerp_invoice_no 用 fmt_date · 余为 re-export 契约
-from pearnly_cowork.push.mrerp.xlsx.fmt import (  # noqa: F401  facade public re-export
+from pearnly_core.mrerp.push.xlsx.fmt import (  # noqa: F401  facade public re-export
     MAX_AMOUNT,
     MRERP_INVOICE_NO_MAX,
     MRERP_BILL_NO_MAX,
@@ -68,7 +68,7 @@ from pearnly_cowork.push.mrerp.xlsx.fmt import (  # noqa: F401  facade public re
 )
 
 # 商品/客户/科目/税种查表 + tax_kind 推断 · masterdata adapter 经 _gen.X 调 · re-export 契约
-from pearnly_cowork.push.mrerp.xlsx.lookups import (  # noqa: F401  facade public re-export
+from pearnly_core.mrerp.push.xlsx.lookups import (  # noqa: F401  facade public re-export
     _PRODUCT_NAME_NORM_RE,
     _norm_product_name,
     _build_product_lookup,
@@ -81,7 +81,7 @@ from pearnly_cowork.push.mrerp.xlsx.lookups import (  # noqa: F401  facade publi
 )
 
 # sheet schema 数据 + sheet 收集/命名 · generate_xlsx/make_filename 用 · 余为 re-export 契约
-from pearnly_cowork.push.mrerp.xlsx.schemas import (  # noqa: F401  facade public re-export
+from pearnly_core.mrerp.push.xlsx.schemas import (  # noqa: F401  facade public re-export
     MRERP_SHEET_SCHEMAS,
     MRERP_ERROR_FRIENDLY,
     get_error_friendly,
@@ -90,11 +90,11 @@ from pearnly_cowork.push.mrerp.xlsx.schemas import (  # noqa: F401  facade publi
 )
 
 # PhpSpreadsheet 兼容后处理(非 sales_credit 路径)· generate_xlsx 用
-from pearnly_cowork.push.mrerp.xlsx import defaults as account_values
-from pearnly_cowork.push.mrerp.xlsx.sharedstrings import _convert_inline_to_shared_strings
+from pearnly_core.mrerp.push.xlsx import defaults as account_values
+from pearnly_core.mrerp.push.xlsx.sharedstrings import _convert_inline_to_shared_strings
 
 # sales_credit 装配/Korn 克隆 · 必在上方 leaf import 之后(sales_credit 反向 import 本模块)
-from pearnly_cowork.push.mrerp.xlsx.sales_credit import (  # noqa: F401  facade public re-export
+from pearnly_core.mrerp.push.xlsx.sales_credit import (  # noqa: F401  facade public re-export
     build_sales_credit_row,
     build_sales_credit_detail_rows,
     build_sales_credit_tail_row,
@@ -302,31 +302,31 @@ def generate_xlsx(
 
     # sales_cash 走官方模板克隆(同 sales_credit 思路 · 绕过 stub schema)· 见 mrerp_xlsx_sales_cash
     if sheet_kind == "sales_cash":
-        from pearnly_cowork.push.mrerp.xlsx.sales_cash import generate_xlsx_sales_cash
+        from pearnly_core.mrerp.push.xlsx.sales_cash import generate_xlsx_sales_cash
 
         return generate_xlsx_sales_cash(histories, mappings)
 
     # master_customer 自建客户(imparmas)· 官方模板克隆 · 见 mrerp_xlsx_customer
     if sheet_kind == "customer_master":
-        from pearnly_cowork.push.mrerp.xlsx.customer import generate_xlsx_customer
+        from pearnly_core.mrerp.push.xlsx.customer import generate_xlsx_customer
 
         return generate_xlsx_customer(histories, mappings)
 
     # master_product 自建商品(impstkmas)· 官方模板克隆 · 见 mrerp_xlsx_product
     if sheet_kind == "product_master":
-        from pearnly_cowork.push.mrerp.xlsx.product import generate_xlsx_product
+        from pearnly_core.mrerp.push.xlsx.product import generate_xlsx_product
 
         return generate_xlsx_product(histories, mappings)
 
     # purchase 采购(impaptran)· 3-sheet 官方模板克隆 · 见 mrerp_xlsx_purchase
     if sheet_kind == "purchase":
-        from pearnly_cowork.push.mrerp.xlsx.purchase import generate_xlsx_purchase
+        from pearnly_core.mrerp.push.xlsx.purchase import generate_xlsx_purchase
 
         return generate_xlsx_purchase(histories, mappings, expense=expense)
 
     # master_supplier 自建供应商(impapmas)· 官方模板克隆 · 见 mrerp_xlsx_supplier
     if sheet_kind == "supplier_master":
-        from pearnly_cowork.push.mrerp.xlsx.supplier import generate_xlsx_supplier
+        from pearnly_core.mrerp.push.xlsx.supplier import generate_xlsx_supplier
 
         return generate_xlsx_supplier(histories, mappings)
 

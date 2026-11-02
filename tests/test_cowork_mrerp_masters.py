@@ -10,7 +10,7 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location(
-    "mrerp_masters", ROOT / "apps/pearnly_cowork/pearnly_cowork/targets/mrerp_masters.py")
+    "mrerp_masters", ROOT / "apps/pearnly_core/pearnly_core/mrerp/masters.py")
 rules = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(rules)
 

@@ -15,9 +15,10 @@ import logging
 import frappe
 from frappe.utils.password import get_decrypted_password
 from pearnly_core.session_lock import SessionLockUnavailable, account_lock
-from pearnly_cowork.targets import mrerp_menus
-from . import access, model, mrerp_master_reader, service, state
-from .mrerp_session import MrErpSession, SessionError, lock_key
+from pearnly_core.mrerp import menus as mrerp_menus
+from pearnly_core.mrerp import master_reader as mrerp_master_reader
+from . import access, model, service, state
+from pearnly_core.mrerp.session import MrErpSession, SessionError, lock_key
 
 logger = logging.getLogger(__name__)
 

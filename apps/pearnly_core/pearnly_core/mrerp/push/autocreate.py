@@ -10,15 +10,15 @@ import hashlib
 import re
 from typing import Any, Dict, Iterable, List
 
-from pearnly_cowork.push.mrerp.xlsx import fmt
-from pearnly_cowork.push.mrerp.xlsx.lookups import (
+from pearnly_core.mrerp.push.xlsx import fmt
+from pearnly_core.mrerp.push.xlsx.lookups import (
     MRERP_CASH_CUSTOMER,
     _build_product_lookup,
     _resolve_product_code,
     invoice_buyer_code,
     lookup_customer_code,
 )
-from pearnly_cowork.push.mrerp.xlsx.purchase import EXPENSE_ITEM_CODE_DEFAULT, expense_cfg
+from pearnly_core.mrerp.push.xlsx.purchase import EXPENSE_ITEM_CODE_DEFAULT, expense_cfg
 
 
 def _buyer_from_history(h: Dict[str, Any]) -> Dict[str, str]:

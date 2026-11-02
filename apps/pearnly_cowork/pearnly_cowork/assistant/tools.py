@@ -21,7 +21,7 @@ from frappe import _
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.connections import api as connections_api
-from pearnly_cowork.connections import mrerp_needs
+from pearnly_core.mrerp import needs as mrerp_needs
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.folder_intake import destinations, rules
 from pearnly_cowork.folder_intake import contracts as folder_contracts
