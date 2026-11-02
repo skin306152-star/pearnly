@@ -5,7 +5,9 @@
 参数（登记表入口的 args）：user = 测试机 CC 上登录的员工；company_tax = 公司税号、branch = 分店号（或 company = 公司编号；显式给，
 不改员工的当前公司）；party = 对方的 Express 编码、item = 物料的 Express 编码（不给就取这家公司按 Express 编码排第一个的启用档）；
 loccod = 仓库码；kind = purchase | sales | stock_out | stock_in（出入库单，写成 Express 领用 OU / 调整 JU，出入库第一期 B 段）；
-wait = 最多等几秒（默认 240）。
+wait = 最多等几秒（默认 240）；units = 这一行的台 ``[{serial_no, secondary_no, color}]``（按台号码写进 Express 附加说明 ARTRNRM，
+评估 2026-11-02）：建单后、提交前直接挂到单据的台子表第 1 行下（冒烟只核写账链路，不走按台管理的登记 / 选台），回执里带写出的单号，
+调用方到测试机 T 账套读 ARTRNRM 核对。
 写入只到测试机 C:\\PearnlyExpress 的 T 账套（这家公司对应的账套由 CC 报来）；不碰 S 盘 / accserver。只给测试租户用。
 防护（同 Cowork 版 `cowork_express_flow.py`，验收 10-25 建议）：写到哪份账套由 CC 给这家公司报的账套决定，测试机白天连上 accserver 时
 会把 S 盘同税号的真账也报上来。所以选公司时只留报上来的账套**全部**是 C:\\PearnlyExpress\\ 下以 T 开头的那家（同税号几家分店、
@@ -114,6 +116,11 @@ try:
         if not party:
             raise SystemExit(f"test data missing: party {params.get('party') or '(first)'} in {company}")
         posted = entry.post(payload, request_id=f"smoke-{secrets.token_hex(6)}")
+    for index, unit in enumerate(params.get("units") or [], start=1):
+        # 提交前挂上：写账件在提交之后才排（enqueue_after_commit），读到的单据已带台
+        frappe.get_doc({"doctype": "ERP Line Serial", "parent": posted["name"], "parenttype": doctype, "parentfield": "serials",
+                        "idx": index, "line_no": 1, "product": product, "serial_no": unit.get("serial_no") or "",
+                        "secondary_no": unit.get("secondary_no") or "", "color": unit.get("color") or ""}).db_insert()
     frappe.db.commit()
     result["doc"] = posted.get("name")
     from pearnly_erp_portal.express import push
