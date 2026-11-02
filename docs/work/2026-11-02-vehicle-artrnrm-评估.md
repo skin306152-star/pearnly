@@ -185,3 +185,23 @@
 | 测试机 C 盘 T 账套离线回归 | `scripts/express-remarks-regression.py`（每本副本：带号进货 + 销货两行、带号领用再作废，核字节、删除标记、写入集合外逐字节不变，正式 CC 的 `cdx_reindex_runner` 重建并核 CDX）：源码 `34aa35e0`（去掉条数上限后），赊购赊销 85 / 0 / 16、现购现销 85 / 0 / 16（跳过 = 少于两件库存品或没有 ARTRNRM 表）；共 158 次跑到带号领用 + 作废，12 次因那本账套领用科目不能记账 / 不许负库存而跳过领用段 |
 | 本地 CI 同名闸门 | 163 步：文案闸门首跑拦下 3 个泰文标签 → 登记为写进 Express 的数据后通过；前端两项缺 `node_modules`、扫码真浏览器一项为本机环境，交 CI |
 | 分支 CI | `e6d2cd27`：Development checks、Companion checks 通过 |
+
+### 共用件连带回归（`check-impact`：express-rules 12 个入口、cc-dbf-write 9 个入口）
+
+实验栈 erp（11-02 13:09–13:19，镜像 = 线上 ERP digest `06903daf…`，挂本分支 `e6d2cd27` 工作树），测试机 skin3 的 CC 装测试包 1.12.11.901
+（临时分支 `pearnly/vehicle-artrnrm-cctest` = 本分支 + 只测试用的版本号，companion-build 运行 41393093239），写 C 盘 `T9NIEX12`；收尾装回 1.12.10。
+
+| 入口 | 结果 | 证据 |
+| --- | --- | --- |
+| `cc.desktop.write` | 通过 | 自动冒烟 PUR-2026-158390 → HP691102-001，CC 读回 ok；Cowork 推一张见下 |
+| `erp.cc.write` | 通过 | 自动冒烟 PUR-2026-158392 → HP691102-002（不带号）；带两台车号：PUR-2026-158400 → HP691102-003、SD-158402 → HS691102-001，CC 读回 ok，ARTRNRM 各 4 条「  1     」行说明（车架号 / 发动机号 + 颜色） |
+| `erp.cc.stock-entry` | 通过 | 登记表的自动冒烟取了第一件物料 42-06-00-00（Express 里是科目码）停在 STOCK_ITEM_NOT_FOUND，属冒烟取数；指定库存品 CAD 后：不带号 JU691102-001 / OU691102-001，带号 JU691102-002 / OU691102-002，ARTRNRM 各 4 条 |
+| `erp.cc.stock-void` | 通过 | ERP 作废 STE-2026-158406 → CC 原生作废 OU691102-002，4 条说明打删除标记 |
+| `erp.cc.stock-transfer` | 通过 | 带一台车号的调拨 STE-2026-158409 → RL691102-001（01 → 02），2 条说明只挂一次；ERP 作废后 RL 作废、说明保留（同原生） |
+| `erp.cc.pos-day` / `erp.cc.pos-refund` | 没实机测到 | 要造收银小票并跑夜间汇总，这个窗口没做；`PosDaySummaries` 用例（当天卖出去掉同日退回、退货日汇总挂退回的台）+ CC 退货单写说明用例 + 离线回归覆盖 |
+| `cowork.cc.channel` / `cowork.express.push` | 通过（服务类一张） | 线上 testcowork 冒烟 SMOKE-1793600169 → T9NIEXCP HP691102-001，测试机新 CC 读回 ok；Cowork 识别的单没有 `remarks`，共用规则只多照带一键，其余类型没实机测，`test_cowork_express_*` 13 个文件通过 |
+| `cowork.mrerp.push` / `cowork.companies` / `cowork.connections` / `cowork.history` / `cowork.cc-chat.push` | 没实机测到 | 共用写账规则只在规整明细时多照带 `remarks`，这些入口不经过带号的单；Cowork 写账规则单测通过 |
+| `erp.cc.pos-day`（不带号） | 没实机测到 | 同上，单测覆盖 |
+| `cc.desktop.operator` / `cc.operator.page` | 没实机测到 | 代录不改；带台号的单不列给代录（`operator.sources`，单测）；代录录说明另立一步 |
+
+收尾：lab-stop erp、容器 0；三域名公网与测试机本机都回 107.155.65.74、线上 200；线上 testerp 定时任务恢复；skin3 的 CC 装回 1.12.10（8de5c811…）并重启，心跳正常。
