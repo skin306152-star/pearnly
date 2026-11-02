@@ -1849,6 +1849,23 @@ class LedgerFields(unittest.TestCase):
         self.assertEqual(found, [])
 
 
+class PendingKinds(PushModule):
+    def test_pending_covers_every_document_that_writes_a_ledger_with_the_same_permissions(self):
+        """ERP 版 CC 的待处理补齐收银日汇总、出入库、盘点：种类 = 写账本的单据（`push.DIRECTIONS`），「可以写了」的状态同
+        `push.ready`，读权限同单据上 Express 弹窗（`api.CAPABILITIES`）。"""
+        utils = sys.modules["frappe.utils"]
+        for name, value in (("now", lambda: "2026-10-24 00:00:00"), ("flt", lambda v, *a: float(v or 0)),
+                            ("cint", lambda v: int(v or 0)), ("getdate", lambda v=None: v), ("add_days", lambda d, n: d)):
+            setattr(utils, name, getattr(utils, name, value))
+        from pearnly_erp_portal.express import api, pending
+        push = self.push
+        self.assertEqual(set(pending.KINDS), set(push.DIRECTIONS))
+        for doctype, kind in pending.KINDS.items():
+            self.assertEqual((kind.ready, kind.capability), (push.ready(doctype), api.CAPABILITIES[doctype][0]), doctype)
+            self.assertEqual(kind.by_warehouse, doctype in (push.STOCK, push.COUNT), doctype)
+        self.assertEqual(set(pending.STOCK_ROUTES), {"in", "out", "transfer"})
+
+
 class LinkedAtBackfill(unittest.TestCase):
     """补丁 v1_22：已接上（勾着、落过库）的公司按第一次同步的证据回填接上时刻 —— 收银起始日 00:00 与已排进 / 写进 Express 的单
     最早的建单时刻取早的（已写过、正在排队的单都不早于它，行为不变）；都查不到记补丁时刻；只填空值。"""

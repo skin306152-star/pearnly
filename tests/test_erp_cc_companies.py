@@ -603,6 +603,98 @@ class PendingTests(unittest.TestCase):
         self.assertIn("pending.notify(doctype, name, before)", setter)
 
 
+class PendingLedgerKinds(unittest.TestCase):
+    """待处理补齐同样写账本的单据（第 6 步账本列改通用时，主会话 11-02 同意）：收银日汇总、出入库（入库 / 出库 / 调拨）、过账后
+    的盘点。形状同采购 / 销售（`PendingItem`），`action` 一律 open 到各自的单据页；权限同单据上的 Express 弹窗（出入库另要方向
+    权限），出入库与盘点按仓库归公司；不是「可以写了」的（作废、盘点没过账）、会自己再试的不算。"""
+
+    STOCK, COUNT, POS = "ERP Stock Entry", "ERP Stock Count", "ERP POS Day Summary"
+
+    def setUp(self):
+        reset()
+        caps = {"keeper@x": {"company.read", "stock.read", "stock.in", "stock.transfer", "count.read", "cashier.read"},
+                "clerk@x": {"company.read", "stock.read", "stock.in", "count.read"}}
+        patcher = mock.patch.dict(CAPS, caps)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        patcher = mock.patch.object(guard, "scope_filters", lambda user=None: {"owner": user or frappe.session.user}
+                                    if (user or frappe.session.user) in STAFF | {"clerk@x"} else {})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        db = STATE.db
+        db.table("ERP Warehouse").update({"W-A": Row(name="W-A", company="CO-00001"),
+                                          "W-B": Row(name="W-B", company="CO-00002"),
+                                          "W-OLD": Row(name="W-OLD", company="CO-00003")})
+
+        def put(doctype, name, state, reason="", status="submitted", owner="keeper@x", modified="2026-11-01 10:00:00",
+                **values):
+            db.table(doctype)[name] = Row(name=name, status=status, ledger_state=state, ledger_reason=reason,
+                                          owner=owner, modified=modified, **values)
+
+        put(self.POS, "PDS-1", E.HELD, "express.pos_net_negative", company="CO-00001", day="2026-10-24",
+            grand_total="-50", owner="Administrator", modified="2026-11-01 12:00:00")
+        put(self.POS, "PDS-2", E.HELD, E.REFUND_WAITING, company="CO-00001", day="2026-10-25")      # 会自己再试：不算
+        put(self.STOCK, "STE-1", E.FAILED, "[PERIOD_LOCKED] closed", direction="in", warehouse="W-A",
+            doc_no="IS2569-000001", posting_date="2026-10-20", modified="2026-11-01 11:00:00", owner="clerk@x")
+        put(self.STOCK, "STE-2", E.HELD, "choice_needed:account", direction="out", warehouse="W-A",
+            doc_no="OS2569-000001", posting_date="2026-10-21")                                     # 没有出库权：不算
+        put(self.STOCK, "STE-3", E.MISMATCH, "", direction="transfer", warehouse="W-B", doc_no="", posting_date="2026-10-22",
+            modified="2026-11-01 09:00:00")
+        put(self.STOCK, "STE-4", E.HELD, "choice_needed:account", direction="in", warehouse="W-A", status="void",
+            doc_no="IS2569-000002", posting_date="2026-10-22")                                     # 作废了：不算
+        put(self.STOCK, "STE-5", E.FAILED, "x", direction="in", warehouse="W-OLD", doc_no="IS-OLD",
+            posting_date="2026-10-22")                                                              # 停用公司的仓：不算
+        put(self.COUNT, "STC-1", E.HELD, E.ITEM_UNMAPPED, status="Posted", warehouse="W-B", title="Oct count A",
+            posted_at="2026-10-31 18:00:00", modified="2026-11-01 08:00:00")
+        put(self.COUNT, "STC-2", E.HELD, E.ITEM_UNMAPPED, status="Closed", warehouse="W-B", title="Not posted",
+            posted_at=None)                                                                         # 没过账：不算
+
+    def test_each_ledger_document_opens_its_own_page(self):
+        frappe.session.user = "keeper@x"
+        found = cc_companies.pending()
+        self.assertEqual([item["document"] for item in found["items"]], ["PDS-1", "STE-1", "STE-3", "STC-1"])
+        by = {item["document"]: item for item in found["items"]}
+        self.assertEqual(by["PDS-1"], {"document": "PDS-1", "company": "CO-00001", "doctype": self.POS,
+                                       "reason_code": "manual", "reason_label": "express.reason.posNetNegative",
+                                       "invoice_no": "PDS-1", "counterparty": "", "amount": "-50.00",
+                                       "date": "2026-10-24", "filename": "", "month": "2026-10", "action": "open",
+                                       "url": "/desk/pearnly-pos-receipts/PDS-1"})
+        self.assertEqual((by["STE-1"]["url"], by["STE-1"]["invoice_no"], by["STE-1"]["amount"], by["STE-1"]["company"],
+                          by["STE-1"]["reason_label"]),
+                         ("/desk/pearnly-stock-in/STE-1", "IS2569-000001", "", "CO-00001", "express.reason.periodLocked"))
+        self.assertEqual((by["STE-3"]["url"], by["STE-3"]["invoice_no"], by["STE-3"]["company"], by["STE-3"]["reason_label"]),
+                         ("/desk/pearnly-stock-transfer/STE-3", "STE-3", "CO-00002", "Mismatch"))
+        self.assertEqual((by["STC-1"]["url"], by["STC-1"]["invoice_no"], by["STC-1"]["date"], by["STC-1"]["company"]),
+                         ("/desk/pearnly-stock-count/STC-1", "Oct count A", "2026-10-31", "CO-00002"))
+        self.assertEqual(cc_companies.pending_counts(), {"total": 4, "companies": {"CO-00001": 2, "CO-00002": 2},
+                                                         "unassigned": 0})
+        self.assertEqual([item["document"] for item in cc_companies.pending(company="CO-00002")["items"]],
+                         ["STE-3", "STC-1"])
+        self.assertEqual([item["document"] for item in cc_companies.pending(search="is2569")["items"]], ["STE-1"])
+
+    def test_readers_see_only_their_kinds_directions_companies_and_own_documents(self):
+        frappe.session.user = "boss@x"       # 采购 / 销售的权限，没有库存、收银的：这几类一张都不出
+        self.assertEqual(cc_companies.pending()["items"], [])
+        frappe.session.user = "clerk@x"      # 员工：只有入库与盘点的读权，只看本人录入的；日汇总（系统合的）看不到
+        self.assertEqual([item["document"] for item in cc_companies.pending()["items"]], ["STE-1"])
+        NARROWED["keeper@x"] = ["CO-00002"]  # 只分到一家：另一家仓里的单不出
+        frappe.session.user = "keeper@x"
+        self.assertEqual([item["document"] for item in cc_companies.pending()["items"]], ["STE-3", "STC-1"])
+
+    def test_a_stock_entry_moving_in_or_out_of_pending_is_announced_to_its_warehouse_company(self):
+        before = pending.ledger_of(self.STOCK, "STE-2")
+        self.assertEqual((before["company"], before["ready"], pending.needs_person(before)), ("CO-00001", True, True))
+        STATE.db.table(self.STOCK)["STE-2"].update(ledger_state=E.WRITTEN, ledger_reason="")
+        pending.notify(self.STOCK, "STE-2", before)
+        self.assertEqual(len(projects.announced), 1)
+        before = pending.ledger_of(self.COUNT, "STC-2")
+        self.assertFalse(pending.needs_person(before))                      # 没过账：不在待处理里
+        STATE.db.table(self.COUNT)["STC-2"].update(status="Posted")
+        pending.notify(self.COUNT, "STC-2", before)                          # 过账后停着：进了待处理
+        self.assertEqual(len(projects.announced), 2)
+        self.assertIsNone(pending.ledger_of("ERP Sale", "x"))
+
+
 class ToolTests(unittest.TestCase):
     def setUp(self):
         reset()

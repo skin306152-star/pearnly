@@ -371,11 +371,20 @@
 
 		// ── 路由 ────────────────────────────────────────────────────────────────
 
+		// 带单号打开（ERP 版 CC「待处理」的出入库单，`express/pending.py`）：回到列表并打开这张单的查看弹窗
+		let open_after = null;
 		async function render(rest, current) {
 			p.clear_page(page);
 			list = null; form = null; lines = null; head = null; page_files = null;
-			if (!rest.length) { open_list(); return; }
-			if (rest[0] !== SECOND || !canWrite) { p.redirect_up(root); return; }
+			if (!rest.length) {
+				open_list();
+				const name = open_after;
+				open_after = null;
+				if (name && current()) await editor(name);
+				return;
+			}
+			if (rest[0] !== SECOND) { open_after = rest.length === 1 ? rest[0] : null; p.redirect_up(root); return; }
+			if (!canWrite) { p.redirect_up(root); return; }
 			await open_new(current);
 		}
 

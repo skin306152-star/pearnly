@@ -1,6 +1,7 @@
 """流程用例：ERP 版 CC 按公司（ADR-020 的 ERP 一半，2026-11-02）——侧栏「公司」「待处理 N」、公司列表只见本人可见的公司、
 公司页只出 ERP 声明的分区（公司、待处理、知识库；没有月结、文件夹、定时任务、记住的选择、草稿）、知识库新增落库、
-待处理点开到 ERP 单据页（不交给 CC）、页面不调 Cowork 接口。
+待处理点开到 ERP 单据页（不交给 CC）、页面不调 Cowork 接口。待处理也列同样写账本的出入库单、收银日汇总（第 6 步账本列改通用时
+补齐）：点开到入库 / 出库页带单号、收银记录页带日汇总单号。
 
 准备：旧数据集（两家公司）里把 A 公司那张已提交的采购单标成「停下等人选」（同电脑回报的状态），给采购员只分 A 公司；
 落库检查后还原单据状态、删掉这次记的知识库、撤掉分公司。只在实验室站点上改，不碰外部系统，不调模型。
@@ -8,7 +9,12 @@
 from __future__ import annotations
 
 import json
+import sys
 import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from erp_lib import ensure_documents  # noqa: E402
 
 TITLE = "ERP 版 CC 按公司：侧栏公司与待处理、公司页只出 ERP 分区、知识库落库、待处理点开到单据页"
 READY = "document.readyState === 'complete' && !!document.querySelector('[data-slot=\"cc-company-rows\"]')"
@@ -22,8 +28,19 @@ WAIT = ("const until=async(f,n=120)=>{for(let k=0;k<n;k++){try{if(f())return tru
 
 def prepare(lab, manifest):
     a, b = manifest["companies"][:2]
+    ensure_documents(lab, manifest)  # A 公司各类单据各有一张（出入库单从这里取）
     return lab.python(manifest["site"], f"""
 frappe.db.set_value("User", "admin@erp.regression", "language", "zh")
+# 同样写账本的单据：A 公司一张出入库单标成「停下等人选」、建一张停住的收银日汇总（同电脑回报 / 每晚汇总停住的状态），落库检查后还原 / 删掉
+entry = frappe.get_all("ERP Stock Entry", filters={{"status": "submitted", "direction": ["in", ["in", "out"]],
+                       "warehouse": ["in", frappe.get_all("ERP Warehouse", filters={{"company": {a!r}}}, pluck="name") or [""]]}},
+                       fields=["name", "direction", "doc_no", "ledger_state", "ledger_reason"], order_by="creation asc",
+                       limit_page_length=1)[0]
+frappe.db.set_value("ERP Stock Entry", entry.name, {{"ledger_state": "held", "ledger_reason": "choice_needed:account"}},
+                    update_modified=False)
+day = frappe.get_doc({{"doctype": "ERP POS Day Summary", "company": {a!r}, "day": "2026-10-24", "seq": 99, "status": "submitted",
+                      "doc_kind": "sale", "grand_total": 1, "ledger_state": "held", "ledger_reason": "express.pos_net_negative",
+                      "ledger_target": "express"}}).insert(ignore_permissions=True)
 row = frappe.get_all("Purchase Document", filters={{"company": {a!r}, "status": "submitted"}},
                      fields=["name", "system_no", "ledger_state", "ledger_reason"], order_by="creation asc", limit_page_length=1)[0]
 frappe.db.set_value("Purchase Document", row.name, {{"ledger_state": "held", "ledger_reason": "choice_needed:party"}},
@@ -34,7 +51,9 @@ if not frappe.db.exists("User Permission", {{"user": "purchase@erp.regression", 
 titles = {{name: frappe.db.get_value("ERP Company", name, "company_name") for name in ({a!r}, {b!r})}}
 frappe.db.commit()
 print(json.dumps({{"a": {a!r}, "b": {b!r}, "titles": titles, "document": row.name, "number": row.system_no, "before": [row.ledger_state or "",
-                  row.ledger_reason or ""], "note": "flow note " + {uuid.uuid4().hex[:6]!r}, "cases": []}}))
+                  row.ledger_reason or ""], "note": "flow note " + {uuid.uuid4().hex[:6]!r}, "cases": [],
+                  "entry": entry.name, "entry_no": entry.doc_no or entry.name, "entry_direction": entry.direction,
+                  "entry_before": [entry.ledger_state or "", entry.ledger_reason or ""], "day": day.name}}))
 """)
 
 
@@ -66,8 +85,10 @@ def steps(params, camera_code=None):
          "await until(()=>document.querySelector('.cc-page-title')?.innerText.trim()==='待处理'&&!document.querySelector('[data-slot=\"cc-company-page\"]'),80); "
          "await until(()=>document.querySelector('[data-slot=\"cc-pending-row\"]'),80); "
          "const rows=[...document.querySelectorAll('[data-slot=\"cc-pending-row\"]')]; let opened=''; window.open=(u)=>{opened=String(u); return null;}; "
+         "const openOf=(text)=>{opened=''; const row=rows.find(r=>r.innerText.includes(text)); if(row) row.click(); return opened;}; "
+         f"const entry=openOf({json.dumps(params['entry_no'])}); const day=openOf({json.dumps(params['day'])}); "
          f"(rows.find(r=>r.innerText.includes({json.dumps(params['number'])}))||rows[0])?.click(); "
-         "return {rows: rows.map(r=>[r.tagName, r.innerText.trim().slice(0,120)]), opened, "
+         "return {rows: rows.map(r=>[r.tagName, r.innerText.trim().slice(0,120)]), opened, entry, day, "
          "hand: !!document.querySelector('[data-slot=\"cc-hand-to-cc\"]'), "
          "cowork: calls().filter(n=>n.includes('pearnly_cowork')).slice(0,5), "
          "erp: calls().filter(n=>n.includes('pearnly_erp_portal.masters.cc_companies')).length};"},
@@ -90,6 +111,9 @@ def judge(params, results, camera_code=None):
         {"case": "待处理点开到 ERP 单据页、不交给 CC", "seen": pending,
          "ok": pending.get("opened") == f"/desk/pearnly-purchase/{params['document']}" and not pending.get("hand")
          and all(tag == "BUTTON" for tag, _text in pending.get("rows") or [["x", ""]])},
+        {"case": "待处理也列出入库单与收银日汇总，点开到各自的页面", "seen": pending,
+         "ok": pending.get("entry") == f"/desk/pearnly-stock-{params['entry_direction']}/{params['entry']}"
+         and pending.get("day") == f"/desk/pearnly-pos-receipts/{params['day']}"},
         {"case": "页面不调 Cowork 接口、公司接口走 ERP 声明的前缀", "seen": pending,
          "ok": not pending.get("cowork") and (pending.get("erp") or 0) >= 3},
     ]
@@ -110,6 +134,9 @@ frappe.db.delete("ERP Company Note", {{"company": {params['a']!r}, "text": {para
 frappe.db.set_value("Purchase Document", {params['document']!r}, {{"ledger_state": {params['before'][0]!r} or None,
                     "ledger_reason": {params['before'][1]!r}}}, update_modified=False)
 frappe.db.delete("User Permission", {{"user": "purchase@erp.regression", "allow": "ERP Company", "for_value": {params['a']!r}}})
+frappe.db.set_value("ERP Stock Entry", {params['entry']!r}, {{"ledger_state": {params['entry_before'][0]!r} or None,
+                    "ledger_reason": {params['entry_before'][1]!r}}}, update_modified=False)
+frappe.db.delete("ERP POS Day Summary", {params['day']!r})
 frappe.db.commit()
 print(json.dumps({{"notes": notes, "seen": seen}}, default=str))
 """)

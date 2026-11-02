@@ -142,5 +142,12 @@
 			],
 		});
 		await list.ready;
+		// 带日汇总单号打开（ERP 版 CC「待处理」里停住的收银日汇总 / 退货单，`express/pending.py`）：回到本页并打开那张日汇总的
+		// Express 弹窗（同小票里的「Express」按钮）
+		const [root, summary] = frappe.get_route();
+		if (root === "pearnly-pos-receipts" && summary) {
+			frappe.set_route("pearnly-pos-receipts");
+			await p.express("ERP POS Day Summary", summary, () => list?.reload());
+		}
 	};
 })();

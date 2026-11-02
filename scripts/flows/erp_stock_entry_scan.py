@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from erp_lib import JS, codes, company, js_value, stock_of, warehouses  # noqa: E402
+from erp_lib import JS, codes, company, js_value, ledger_case, stock_of, warehouses  # noqa: E402
 
 TITLE = "ERP 入库 / 出库：按码认商品、过账、打印"
 
@@ -83,6 +83,17 @@ def steps(params, camera_code=None):
             label = "入库" if route == "pearnly-stock-in" else "出库"
             out.append({"name": f"{label}填单 {case['key']}", "js": _fill(route, params["warehouse"], case, qty, bool(camera_code))})
             out.append({"name": f"{label}提交 {case['key']}", "js": _submit(route)})
+    # 带单号打开（ERP 版 CC「待处理」里的出入库单开到这里，评估 2026-11-02 §12 第 6 条）：回到列表、弹出这张单
+    out.append({"name": "带单号打开", "js": JS + """
+const rows=await call('pearnly_erp_portal.inventory.api.api_list_stock_entries', {direction:'in', status:'submitted', start:0, limit:1}, 'GET');
+const row=(rows||[])[0]; if(!row) return {error:'no entry'};
+frappe.set_route('pearnly-stock-in', row.name);
+const shown=await until(()=>window.cur_dialog&&cur_dialog.$wrapper.is(':visible')&&frappe.get_route().length===1, 20000); await idle();
+const text=shown?(cur_dialog.$body.text()||''):'';
+const value=shown&&cur_dialog.fields_dict.doc_no?cur_dialog.get_value('doc_no'):'';
+if(shown) cur_dialog.hide();
+return {name: row.name, doc_no: row.doc_no, shown: !!shown, value, route: frappe.get_route(), express: text.includes('Express')};
+"""})
     return out
 
 
@@ -96,6 +107,10 @@ def judge(params, results, camera_code=None):
             filled, sent = by.get(f"{label}填单 {case['key']}", {}), by.get(f"{label}提交 {case['key']}", {})
             checks.append({"case": f"{label} {case['key']}", "seen": {**filled, **sent},
                            "ok": filled.get("description") == case["name"] and bool(sent.get("submitted"))})
+    opened = by.get("带单号打开", {})
+    checks.append({"case": "带单号打开：回到列表并弹出这张单", "seen": opened,
+                   "ok": bool(opened.get("shown")) and opened.get("value") == opened.get("doc_no")
+                   and opened.get("route") == ["pearnly-stock-in"]})
     return checks
 
 
@@ -118,4 +133,7 @@ print(json.dumps(out))
 """)
         checks.append({"case": f"打印 {case['key']}", "seen": printed,
                        "ok": all(v["entry"] and v["has_name"] for v in printed.values())})
+        # 账本栏是通用列：接了 Express 的公司，这两张单排进账本（ledger_target = express）；没接的不排
+        checks.append(ledger_case(lab, manifest["site"], "ERP Stock Entry",
+                                  [v["entry"] for v in printed.values() if v["entry"]], bool(manifest.get("express_linked"))))
     return checks
