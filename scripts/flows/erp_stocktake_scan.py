@@ -79,7 +79,7 @@ def steps(params, camera_code=None):
         out.append({"name": f"查找 {case['key']}", "js": IDLE + "const d=cur_dialog; if(!d||!d.fields_dict.code) return {error:'no stocktake dialog'}; "
                     + find + (
             "return {entry: d.fields_dict.qty.$wrapper.is(':visible'), product_name: d.get_value('product_name') || '', "
-            "product_code: d.get_value('product_code') || '', "
+            "product_code: d.get_value('product_code') || '', warehouse: d.get_value('warehouse') || '', "
             "message: (d.fields_dict.message.$wrapper.text()||'').trim().slice(0,200)};")})
         if case["expect"] == "entry":
             out.append({"name": f"保存 {case['key']}",
@@ -99,7 +99,9 @@ def judge(params, results, camera_code=None):
             continue
         seen = (by_name.get(f"查找 {case['key']}") or {}).get("value") or {}
         if case["expect"] == "entry":
-            ok = bool(seen.get("entry")) and bool(seen.get("product_name")) and seen.get("product_code") == case["code"]
+            # 实际仓库那格是仓库编号（账面行的仓）：写成仓库名称时实际仓位按它取选项会报「未找到仓库」（11-02 真机）
+            ok = (bool(seen.get("entry")) and bool(seen.get("product_name")) and seen.get("product_code") == case["code"]
+                  and seen.get("warehouse") == params["warehouse"])
             names[case["product"]] = seen.get("product_name")
         elif case["expect"] == "unit_refused":
             ok = not seen.get("entry") and bool(seen.get("message"))
