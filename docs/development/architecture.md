@@ -122,6 +122,15 @@ Pearnly ERP 的 `express` 域：采购 / 销售单在唯一提交点（`sales.en
 `connections.mrerp_menu_reader`（排队任务）、白名单方法。ERP 接 MR.ERP（评估第 6 步）直接调这里，不导入 Cowork。导入文件与推送载荷
 搬移前后逐字节相同由 `tests/test_mrerp_rules_golden.py` 锁住（生产镜像里跑，候选检查离线车道）。
 
+MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7、8 条，施工记录 [mrerp-cc-credentials](../work/2026-11-02-mrerp-cc-credentials.md)）：网页不收
+MR.ERP 密码。对话页先要一张一次性票（`pearnly_core.cc_desktop.login_tickets`：只存摘要、5 分钟、用一次，绑站点 / 通道 / 连接 / 人 /
+电脑；Cowork `companion.api.mrerp_login_ticket`，共用通道 `cc_desktop.api.mrerp_login_ticket`），CC 桌面版原生小窗收用户名和密码，
+带票经机器通道精确 POST 交给站点（Cowork `companion.credential_api.mrerp_login`，共用通道 `cc_desktop.machine.mrerp_login`，产品经
+`pearnly_cc_desktop` 的 `mrerp_login_allowed` / `mrerp_login_store` 接，ERP 没接回 unsupported），站点收下了 CC 才存本机凭据管理器。
+Cowork 写进连接原有的 Password 字段（`connections.mrerp_login`，不升连接版本），直写取凭据的入口不变。同账号互斥：代录批次的账号租约
+（`session_lock.lease_account` / `renew_account` / `release_account`）与直写短锁 `account_lock` 是同一个 Redis 键，直写执行前
+`operator_holds` 为真就不领、照旧待发送。
+
 ### ERP 版 CC 按公司（2026-11-02，ADR-020 的 ERP 一半）
 
 ERP 经 hooks `pearnly_assistant_projects` 声明 provider `masters.cc_projects`（公司 = `ERP Company` 一行，`SCOPE = False`），

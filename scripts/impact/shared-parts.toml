@@ -212,7 +212,7 @@ name = "CC 桌面版机器通道（cc_desktop）"
 paths = ["apps/pearnly_core/pearnly_core/cc_desktop/**"]
 markers = ["pearnly_core.cc_desktop", "pearnly_core import cc_desktop", "pearnly_cc_desktop"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "companion/src/**/*.py"]
-entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel", "cc.operator.page", "erp.cc.companies", "erp.cc.chat-push"]
+entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel", "cc.operator.page", "erp.cc.companies", "erp.cc.chat-push", "cc.mrerp-login"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py" = "只在注释里提到 cc_desktop.http_auth 的做法" }
 
 [[part]]
@@ -321,7 +321,7 @@ name = "CC 对话页设置页"
 paths = ["frontend/assistant/src/components/settings.tsx"]
 markers = ["from \"@/components/settings\"", "openSettings("]
 search = ["frontend/assistant/src/**"]
-entries = ["cc.settings.connection", "cc.desktop.bridge"]
+entries = ["cc.settings.connection", "cc.desktop.bridge", "cc.mrerp-login"]
 
 [[part]]
 id = "cc-desktop-bridge"
@@ -329,7 +329,7 @@ name = "CC 对话页与桌面版的桥"
 paths = ["frontend/assistant/src/lib/desktop.ts", "companion/src/companion/tomo_bridge.py"]
 markers = ["from \"@/lib/desktop\"", "tomo_bridge"]
 search = ["frontend/assistant/src/**", "companion/src/**"]
-entries = ["cc.desktop.bridge", "cc.settings.connection", "cc.operator.page", "cc.desktop.operator"]
+entries = ["cc.desktop.bridge", "cc.settings.connection", "cc.operator.page", "cc.desktop.operator", "cc.mrerp-login"]
 
 [[part]]
 id = "cc-sidebar-list"
@@ -410,7 +410,7 @@ name = "识别队列与后台执行（execution）"
 paths = ["apps/pearnly_core/pearnly_core/execution/**"]
 markers = ["pearnly_core.execution", "pearnly_core import execution", "pearnly_ocr_handlers", "pearnly_ocr_failure_handlers", "pearnly_ocr_finished_handlers", "pearnly_ocr_resume_unknown"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["control.execution", "shared.execution", "cowork.execution", "dms.execution", "erp.execution", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "cowork.express.push", "erp.stock-count.upload"]
+entries = ["control.execution", "shared.execution", "cowork.execution", "dms.execution", "erp.execution", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "cowork.express.push", "erp.stock-count.upload", "cc.mrerp-login"]
 
 [[part]]
 id = "assistant"
@@ -434,7 +434,7 @@ name = "事务冲突重试（transaction）"
 paths = ["apps/pearnly_core/pearnly_core/transaction/**"]
 markers = ["pearnly_core.transaction", "pearnly_core import transaction"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["shared.transaction", "cowork.transaction"]
+entries = ["shared.transaction", "cowork.transaction", "cc.mrerp-login"]
 
 [[part]]
 id = "provisioning"
@@ -2459,3 +2459,12 @@ steps = "离线：假数据源、假站点 + 假桥下三语走新建任务（�
 expect = "两个产品同一套切换与流程；侧栏与对话侧栏一个样子与交互，行上没有状态字、彩色点；改名、置顶、列表跨设备一致；还不能开始时点「开始」说明还差哪一项并打开那一分区；没收的单在「需要处理」带原因、只能跳过；网页与手机只有交单结果、没有停止；Express 登录设置只在支持实操的桌面窗口；界面不露原因代码；切换不影响对话侧栏（对话的手排顺序里没有任务号）"
 check = "offline"
 files = ["frontend/assistant/src/components/operator/workspace.tsx", "frontend/assistant/src/components/operator/live-source.ts", "frontend/assistant/src/components/operator/operator-sidebar.tsx", "frontend/assistant/src/components/operator/panel.tsx", "frontend/assistant/src/components/operator/controller.tsx", "frontend/assistant/src/components/operator/store.ts", "frontend/assistant/src/components/operator/tasks.ts", "frontend/assistant/src/components/operator/prefs.ts", "frontend/assistant/src/components/operator/model.ts", "frontend/assistant/src/components/operator/mock-source.ts", "frontend/assistant/src/components/operator/task-thread.tsx", "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py", "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py"]
+
+[[entry]]
+id = "cc.mrerp-login"
+product = "CC"
+where = "MR.ERP 连接的登录在 CC 桌面版里授权（ADR-026 第 7 条）：CC 对话页定时任务「连接 MR.ERP」、Cowork Desk 录入 / 定时任务的「连接 MR.ERP」弹窗、CC 桌面版原生小窗、两条机器通道的 mrerp_login"
+steps = "CC 窗口里打开定时任务 → 连接 MR.ERP → 在 CC 桌面版中授权 → 原生小窗输假站点账号密码；浏览器里打开同一弹窗看按钮不可用；Cowork Desk 录入 → 连接 MR.ERP 弹窗只剩网址与授权状态；授权后 MR.ERP 直写 / 目录采集照常登录"
+expect = "网页上没有密码框；授权后显示「已授权：用户名 · 电脑 · 时间」；站点 Password 字段被覆盖、连接版本不变；本机凭据管理器多一条；直写与目录采集用新密码；ERP 站点回不支持"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/companion/api.py", "apps/pearnly_cowork/pearnly_cowork/companion/credential_api.py", "apps/pearnly_core/pearnly_core/cc_desktop/login_tickets.py", "frontend/assistant/src/components/mrerp-login.tsx", "companion/src/companion/mrerp_login.py"]
