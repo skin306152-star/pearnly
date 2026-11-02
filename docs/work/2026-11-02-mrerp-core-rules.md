@@ -112,7 +112,7 @@ Cowork 原先 `push → connections`（transport 用会话）这条跨域依赖�
 | 全闸门复跑（`SKIP_NPM_CI=1`，依赖第一遍已装） | 164 步全部通过，退出码 0 |
 | 候选检查离线车道（`WT=… IMAGE=fd60caffccbb bash ~/pearnly-devtools/cand-local.sh offline`） | 通过（退出码 0，72 组全部 OK）；本机副本是旧清单，本批加进 `scripts/ci-candidate-checks.sh` 的 MR.ERP 测试另在同一镜像里跑过（上面的对比） |
 | `scripts/check-unbounded-queries.py`、`check-architecture.py`、`check-impact.py` | 都在全闸门里通过（影响清单见下节） |
-| 分支 Development checks | CIRESULT |
+| 分支 Development checks | `62e36d55` 上通过（run 41425776372，7 分 42 秒）；本行所在的记录提交只改文档 |
 
 ## 入口实测（`scripts/check-impact.py`）
 
