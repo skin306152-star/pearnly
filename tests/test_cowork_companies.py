@@ -1835,12 +1835,24 @@ class OperatorSourceTests(unittest.TestCase):
             return real_read(name)
 
         storage.read = read
-        with mock.patch.object(frappe.db, "get_value", lambda *a, **k: "HS0000014", create=True):
+
+        def value(doctype, name, field, *args, **kwargs):
+            # 推送记录：单号；排着的那张查它的连接与账套键（找同账套里挡着它的结果不明的单）
+            return types.SimpleNamespace(connection="C1", account_key="k1") if isinstance(field, list) else "HS0000014"
+
+        unknown = []   # 同一份账套里结果不明、持着写者锁的那张（ADR-021 11-02 修订）
+        with mock.patch.object(frappe.db, "get_value", value, create=True), \
+                mock.patch.object(frappe.db, "sql", lambda q, v=(), as_dict=False: list(unknown), create=True):
             out = module.status("CO1", ["h1", "h2", "h3", "h4", "h5", "gone"])
+            unknown.append(types.SimpleNamespace(history="h5"))
+            held = module.status("CO1", ["h2"])[0]
         self.assertEqual([(r["state"], r["docnum"], r["reason"]) for r in out],
                          [("saved", "HS0000014", ""), ("queued", "", ""), ("not_done", "", "[OPERATOR_PARTY_MISSING]"),
                           ("cancelled", "", ""), ("not_done", "", "push.result_unknown"), ("unknown", "", "")])
         self.assertIn("ref", out[0])  # 单号、对方随状态回给页面（CC 重启后靠它写「单号 · 对方」）
+        self.assertNotIn("blocked_by", out[1])
+        # 排着的 h2 被同账套里结果不明的 h5 挡着：报出 h5（页面写「单号 · 对方 · 结果不明」）
+        self.assertEqual((held["state"], held["blocked_by"]["doc_id"]), ("queued", "h5"))
 
     def test_a_document_whose_last_push_is_unknown_is_resolved_through_the_review_pages_path(self):
         docs = {"h1": {"last_push_status": "manual", "last_push_reason": "ERP_CONFIRMED_PUSH_RESULT_UNKNOWN",
