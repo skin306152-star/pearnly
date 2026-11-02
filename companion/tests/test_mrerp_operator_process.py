@@ -50,7 +50,8 @@ CHILD = ("import sys; sys.path.insert(0, {src!r}); from companion.mrerp_operator
 
 
 def _children(pid: int) -> list:
-    if shutil.which("pgrep") is None:
+    """子进程的直接子进程（只在有 pgrep 的系统上看；Windows 上只核子进程本身退出——那里 os.kill(pid, 0) 是发 Ctrl+C，不能拿来探活）。"""
+    if sys.platform == "win32" or shutil.which("pgrep") is None:
         return []
     done = subprocess.run(["pgrep", "-P", str(pid)], capture_output=True, text=True)
     return [int(x) for x in done.stdout.split()]
