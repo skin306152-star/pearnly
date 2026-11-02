@@ -43,9 +43,10 @@
 		const changed = name => () => on_change(name);
 		const fields = [
 			{fieldtype: "HTML", fieldname: "target"},
-			{fieldtype: "Select", fieldname: "company", label: __("Company"), options: [], onchange: changed("company")},
+			// 公司 / 年度下方是读取中、读取失败、「CC 桌面版需更新」这类状态，留在下方（不是说明图标）
+			{fieldtype: "Select", fieldname: "company", label: __("Company"), options: [], description_inline: 1, onchange: changed("company")},
 			// 一个 Express 年度文件夹里可能有上百份账套，下拉不能只列前 99 个（官方默认）。
-			{fieldtype: "Select", fieldname: "year", label: __("intake.target.year"), options: [], max_items: 1000,
+			{fieldtype: "Select", fieldname: "year", label: __("intake.target.year"), options: [], max_items: 1000, description_inline: 1,
 				onchange: changed("year")},
 			// 按钮一开始是隐藏的，Frappe 这时还没建按钮元素：点击要写在字段定义上，不能事后绑。
 			{fieldtype: "Button", fieldname: "catalog_reload", label: __("intake.catalog.reload"), hidden: 1,

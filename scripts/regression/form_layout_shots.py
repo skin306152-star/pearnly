@@ -64,7 +64,11 @@ for (const [a, b] of [['first_name','last_name'],['username','password']]) {
   if (ea && eb) pairs.push({pair: `${a}|${b}`, dy: Math.round(Math.abs(ea.getBoundingClientRect().top - eb.getBoundingClientRect().top))});
 }
 const title = modals.length ? (modals[modals.length-1].querySelector('.modal-title')?.innerText || '') : (document.querySelector('.page-head .title-text')?.innerText || '');
-return {route: frappe.get_route_str(), title: title.trim(), modal: !!modals.length, sections, pairs};
+// 字段说明（11-02）：标题旁的说明图标（字段名 → 说明）与还写在字段下方的（登记的例外带 inline 标记）
+const help = {icons: [...root.querySelectorAll('.pearnly-field-help')].filter(vis).map(e => `${e.closest('.frappe-control')?.dataset.fieldname || '?'}: ${e.getAttribute('aria-label')}`),
+  below: [...root.querySelectorAll('.frappe-control .help-box, .grid-description, .form-section-description')].filter(e => vis(e) && e.innerText.trim())
+    .map(e => `${e.closest('.frappe-control')?.dataset.fieldname || '?'}${e.closest('[data-pearnly-description="inline"]') ? ' (inline)' : ''}: ${e.innerText.trim().slice(0, 80)}`)};
+return {route: frappe.get_route_str(), title: title.trim(), modal: !!modals.length, sections, pairs, help};
 """
 CLOSE = IDLE + "if (window.cur_dialog) cur_dialog.hide(); document.querySelectorAll('.modal.show').forEach(m => $(m).modal('hide'));" \
     "if (window.__home && frappe.get_route_str() !== window.__home) { frappe.set_route(window.__home); } await idle(); return true;"

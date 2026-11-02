@@ -184,10 +184,11 @@
 			{fieldtype: "Data", fieldname: "title", label: ft("cowork.folder.field.title"), reqd: 1, default: rule?.title || ""},
 			{fieldtype: "HTML", fieldname: "target"},
 			row(),
-			{fieldtype: "Select", fieldname: "year", label: __("Company"), options: [], onchange: () => void on_group()},
+			// 年度 / 账套 / 默认科目下方是读取中、读取失败、「CC 桌面版需更新」这类状态，留在下方（不是说明图标）
+			{fieldtype: "Select", fieldname: "year", label: __("Company"), options: [], description_inline: 1, onchange: () => void on_group()},
 			{fieldtype: "Column Break"},
 			{fieldtype: "Select", fieldname: "account_set_key", label: __("intake.target.year"), reqd: 1, options: [],
-				max_items: 1000, onchange: () => void on_account()},
+				max_items: 1000, description_inline: 1, onchange: () => void on_account()},
 			row(),
 			{fieldtype: "Select", fieldname: "direction", label: t("intake.field.direction"), reqd: 1,
 				options: [{value: "purchase", label: t("intake.dir.purchase")}, {value: "sales", label: t("intake.dir.sales")}],
@@ -225,7 +226,8 @@
 			{fieldtype: "Select", fieldname: "d_item", label: ft("cowork.folder.default.item"),
 				options: [{value: "__new__", label: ft("cowork.folder.item.new")}, {value: "ask", label: ft("cowork.folder.item.ask")}]},
 			{fieldtype: "Column Break"},
-			{fieldtype: "Select", fieldname: "d_account", label: ft("cowork.folder.default.account"), options: [], max_items: 2000},
+			{fieldtype: "Select", fieldname: "d_account", label: ft("cowork.folder.default.account"), options: [], max_items: 2000,
+				description_inline: 1},
 			{fieldtype: "Select", fieldname: "d_department", label: ft("cowork.folder.default.department"), options: []},
 		];
 		const d = p.dialog(rule ? rule.title : ft("cowork.folder.new"), fields, __("Save"), async values => {
@@ -393,6 +395,8 @@
 		};
 		const paint_folder_hint = () => {
 			const found = folder_files();
+			// 文件数是实时的数，留在下方；没有文件数时是说明，收进标题旁的说明图标
+			d.set_df_property("folder", "description_inline", found?.files ? 1 : 0);
 			d.set_df_property("folder", "description", found?.files
 				? (found.pending ? pending_hint : files_hint)(found.files, found.partial)
 				: ft(state.folder_hint || "cowork.folder.folderHint"));

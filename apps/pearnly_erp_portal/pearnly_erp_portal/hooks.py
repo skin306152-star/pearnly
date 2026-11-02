@@ -375,6 +375,8 @@ boot_session = "pearnly_erp_portal.masters.boot.boot_session"
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 pearnly_navigation = [{'product': 'erp',
   'app': 'pearnly_erp_portal',
+  # 字段说明收进标题旁的说明图标（共用层 `pearnly_core/public/desk/field-help.js`，用户 11-02）
+  'field_help': 'icon',
   "profile_label": "My Profile",
   "permission_groups": [("General", ["pearnly-home", "pearnly-tasks"]),
                         ("User Settings", ["user", "pearnly-team", "pearnly-company", "pearnly-warehouses"])],

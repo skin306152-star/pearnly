@@ -434,7 +434,8 @@
 			function line_fields(line) {
 				return [
 					{ fieldtype: "Link", options: "ERP Product", fieldname: "product", label: t("trade.product"),
-						reqd: 1, get_query: () => ({filters: {is_active: 1}}),
+						// 下方一行是选中物料的「分类 · 特性」（岳父 11-01 要一眼看见），不收进说明图标
+						reqd: 1, description_inline: 1, get_query: () => ({filters: {is_active: 1}}),
 						async onchange() {
 							const selected = line.form.get_value("product");
 							if (!selected || !line.ready) return;

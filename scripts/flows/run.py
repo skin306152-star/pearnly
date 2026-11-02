@@ -255,7 +255,7 @@ def run_flow(lab, flow, dataset, viewport):
         params_camera = module.prepare(lab, manifest)
         # 相机那一遍读的是它自己那份准备里的码（每次准备都换新码的流程，例如盘点当场新建物料）
         runs.append((params_camera, next(c for c in params_camera["cases"] if c["key"] == "by_barcode")["scan"]))
-    checks, page_errors = [], []
+    checks, page_errors, below = [], [], set()
     for run_params, code in runs:
         run_params = run_params or params
         sid = lab.session(site, user)
@@ -269,11 +269,14 @@ def run_flow(lab, flow, dataset, viewport):
         # 页面报错、步骤本身出错、步骤自己判出的错（返回 {error}）都算
         page_errors += [e for r in results for e in (r.get("page_errors") or []) + ([r["error"]] if r.get("error") else [])
                         + ([f"{r.get('step')}: {r['value']['error']}"] if isinstance(r.get("value"), dict) and r["value"].get("error") else [])]
+        below |= {item for r in results for item in r.get("field_help") or []}
         label = "camera" if code else "typed"
         checks += [dict(c, run=label) for c in module.judge(run_params, results, code)]
         checks += [dict(c, run=label, saved_check=True) for c in module.verify(lab, manifest, run_params, code)]
     after = lab.client_errors(site)
     checks.append({"case": "page errors", "seen": page_errors, "ok": not page_errors})
+    # ERP / Cowork 字段说明要在标题旁的说明图标里（11-02），还写在字段下方的就是漏了（登记的例外不算，见 `ui_steps.mjs`）
+    checks.append({"case": "field descriptions below fields", "seen": sorted(below), "ok": not below})
     checks.append({"case": "client errors in Error Log", "seen": after - before, "ok": after == before})
     return {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": all(c["ok"] for c in checks),
             "seconds": round(time.monotonic() - started, 1), "checks": checks}

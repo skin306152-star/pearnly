@@ -250,7 +250,7 @@
 		const f = u.field;
 		p.dialog(__("Collection"), [
 			f("amount", "Received Amount", "Currency", {reqd: 1, default: doc.grand_total,
-				description: `${__("Grand Total")} ${p.money(doc.grand_total)}`}),
+				description: `${__("Grand Total")} ${p.money(doc.grand_total)}`, description_inline: 1}),  // 对照的数，留在下方
 			f("method", "Collection Method", "Select", {options: u.options(["cash", "transfer", "promptpay", "other"]),
 				default: doc.payment_method || "cash"}),
 			f("date", "Collection Date", "Date", {default: doc.payment_date || frappe.datetime.get_today(), reqd: 1}),

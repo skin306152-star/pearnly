@@ -112,8 +112,16 @@ try {
       }
       if (shot?.data) writeFileSync(join(job.shots, step.file ? `${step.file}.png` : `${index + 1}-${step.name.replace(/[^\w.-]+/g, "_").slice(0, 60)}.png`), Buffer.from(shot.data, "base64"));
     }
+    // ERP / Cowork 的字段说明收在标题旁的说明图标里（`pearnly_core/public/desk/field-help.js`）：每一步后看还有没有写在字段下方的，
+    // 登记的例外（`data-pearnly-description="inline"`）与密码强度提示不算
+    const below = await send("Runtime.evaluate", { expression: `(() => { if (!(window.frappe && frappe.boot && frappe.boot.pearnly_field_help === "icon")) return [];
+      return [...document.querySelectorAll(".frappe-control .help-box, .grid-description, .form-section-description")]
+        .filter((e) => e.getClientRects().length && (e.innerText || "").trim() && !e.closest('[data-pearnly-description="inline"], [data-fieldtype="Password"]'))
+        .map((e) => { const c = e.closest(".frappe-control"); return ((c && c.dataset.fieldname) || "?") + ": " + (e.innerText || "").trim().slice(0, 80); }); })()`,
+      returnByValue: true }, sessionId).catch(() => ({}));
     console.log(JSON.stringify({ step: step.name, value: result.result?.value ?? null,
-      error: result.exceptionDetails?.exception?.description?.slice(0, 300) || null, page_errors: [...logs] }));
+      error: result.exceptionDetails?.exception?.description?.slice(0, 300) || null, page_errors: [...logs],
+      field_help: below?.result?.value || [] }));
   }
 } catch (error) {
   console.log(JSON.stringify({ error: `driver: ${error.message}` }));

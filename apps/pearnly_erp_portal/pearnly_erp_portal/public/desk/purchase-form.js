@@ -282,7 +282,7 @@
 		const f = u.field, due = Number(doc.net_payable) - Number(doc.paid_amount), request_id = frappe.utils.get_random(32);
 		p.dialog(__("Payment"), [
 			f("amount", "Paid Amount", "Currency", {reqd: 1, default: due,
-				description: `${__("Outstanding Amount")} ${p.money(due, doc.currency)}`}),
+				description: `${__("Outstanding Amount")} ${p.money(due, doc.currency)}`, description_inline: 1}),  // 对照的数，留在下方
 			f("method", "Mode of Payment", "Select", {options: u.options(["cash", "transfer", "promptpay", "bank", "cheque", "other"]), default: "cash"}),
 			f("date", "Posting Date", "Date", {default: frappe.datetime.get_today(), reqd: 1}), f("note", "Remarks", "Small Text"),
 		], __("Submit"), async (values, dialog) => {

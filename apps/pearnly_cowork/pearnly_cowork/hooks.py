@@ -514,6 +514,8 @@ cowork_remote_progress = {"cowork.invoice": "pearnly_cowork.ocr.execution.workfl
 # 显示名 2026-09-27 改为「任务管理」，图标 square-kanban，与 LINE 菜单格子同一个图标。
 pearnly_navigation = [{'product': 'cowork',
   'app': 'pearnly_cowork',
+  # 字段说明收进标题旁的说明图标（共用层 `pearnly_core/public/desk/field-help.js`，用户 11-02）
+  'field_help': 'icon',
   'profile_label': 'My Profile',
   # 团队管理勾选框的分组：业务功能一组，个人信息 + LINE 一组（与 ERP「用户菜单」同一口径）。
   'permission_groups': [('General', ['pearnly-intake', 'pearnly-recon-bank', 'pearnly-recon-income', 'pearnly-recon-vat',

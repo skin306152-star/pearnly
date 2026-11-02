@@ -319,6 +319,8 @@ def extend_boot(boot):
     if product not in _declarations():
         return
     boot.pearnly_product = product
+    # 字段说明怎么显示：产品声明 `field_help: "icon"` 就收进标题旁的说明图标（`desk/field-help.js`），没声明照原生写在下方
+    boot.pearnly_field_help = (_declarations().get(product) or {}).get("field_help")
     # Existing sites already retain the company name as their provisioned workspace.
     boot.pearnly_company_name = str(frappe.conf.get("pearnly_company_name")
                                    or frappe.conf.get("pearnly_workspace") or "").strip()

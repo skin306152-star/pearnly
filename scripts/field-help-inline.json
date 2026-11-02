@@ -1,0 +1,7 @@
+{
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-choices.js": {"count": 2, "reason": "新建录入的公司 / 年度：读取中、读取失败、没有可选的公司和年度、「CC 桌面版需更新」，是运行时状态（主会话 11-02 定留在下方）"},
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-folders.js": {"count": 4, "reason": "定时任务的年度 / 账套 / 默认科目：读取中、读取失败、「CC 桌面版需更新」、科目表读取中；文件夹有文件时的待处理份数（没有文件时的说明照常进图标）。都是运行时状态与数值（主会话 11-02 定留在下方）"},
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js": {"count": 1, "reason": "付款弹窗金额下方的「未付金额 ฿x」，填金额时对照的数（主会话 11-02 定留在下方）"},
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-form.js": {"count": 1, "reason": "收款弹窗金额下方的「应收合计 ฿x」，填金额时对照的数（主会话 11-02 定留在下方）"},
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js": {"count": 1, "reason": "单据明细物料下方的「分类 · 特性」（岳父 11-01 要同名不同色 / 尺寸一眼分得开），选中物料后运行时写（主会话 11-02 定留在下方）"}
+}

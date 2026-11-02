@@ -471,3 +471,28 @@ body.pearnly-product-desk .dt-cell--header {
 body.pearnly-product-desk .pearnly-stock-areas .datatable .dt-scrollable {
 	height: var(--pearnly-areas-height, auto) !important;
 }
+
+/* 字段说明图标（`desk/field-help.js`，ERP / Cowork）：图标、提示框都用框架自带的，这里只定颜色、光标与对齐；
+   触屏上把点按范围放大到图标四周，不改占位。 */
+body.pearnly-product-desk .pearnly-field-help {
+	display: inline-flex;
+	align-items: center;
+	color: var(--text-muted);
+	cursor: pointer;
+	vertical-align: middle;
+}
+body.pearnly-product-desk .pearnly-field-help .icon {
+	stroke: currentColor;
+}
+body.pearnly-product-desk .pearnly-field-help-slot {
+	display: inline-flex;
+	align-items: center;
+	margin-left: var(--margin-sm);
+	vertical-align: middle;
+}
+@media (pointer: coarse) {
+	body.pearnly-product-desk .pearnly-field-help {
+		padding: var(--padding-xs);
+		margin: calc(-1 * var(--padding-xs));
+	}
+}
