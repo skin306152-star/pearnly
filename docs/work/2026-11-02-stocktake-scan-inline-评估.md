@@ -1,6 +1,6 @@
 # 需求影响评估：连续盘点改成框内扫码图标，扫完自动接下一项
 
-基线：`cf9b3faf6`（= origin/main，含 11-02 字段说明图标）；分支 `pearnly/stocktake-scan-inline`。状态：评估待主会话审定，未施工。
+基线：`cf9b3faf6`（= origin/main，含 11-02 字段说明图标）；分支 `pearnly/stocktake-scan-inline`。状态：主会话 11-02 审定通过（LINE `/stocktake` 不改；Cowork 只列本任务上传的物料；单条录入 / 修改同一个框；扫码器在弹窗里展开），已施工，验证见文末。
 
 ## 0. 需求原文与理解
 
@@ -77,3 +77,28 @@
 ## 13. 工作量与排期（机器耗时）
 
 写代码约 1.5 小时；本机流程与假摄像头逐入口约 1 小时；真机（含测试机显示码图）约 40 分钟；CI 与合入约 30 分钟。
+
+## 施工与验证（11-02）
+
+### 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| `pearnly_core/public/desk/link.js` | 字段可带自己的扫码动作 `df.scan(control)`：照样放框内扫码图标，点了走它，不看 `p.scan_doctypes`、不走 `p.scan_link` |
+| ERP / Cowork `public/desk/stocktake-entry.js` | 「查找物料」「扫描条形码或二维码」两颗按钮删掉；`code` 改原生 Link（ERP `ERP Product`、Cowork `Cowork Stocktake Item`，`only_select`、`ignore_link_validation`，`get_query` 走服务端分页查询）；框内图标开扫码器（开着时再点是关）、「关闭」在画面上方；读到物料扫码器就关、出字段；`scanned` 记这一件是不是扫码来的：「继续」后扫码来的自动再开扫码器并跳过刚扫的码（镜头还对着它时不重复记），打字 / 输码回车 / 下拉选的回到框里；触屏打开弹窗不自动聚焦（`no_focus`，不弹键盘挡扫码）；下拉第二行去掉内部编号、不出「已应用筛选」那一行；回车在捕获阶段先按码认（用方向键挑了一项才交给原生选中） |
+| ERP / Cowork `public/desk/stocktake.js` | 从 LINE 转 LIFF 回来（`pearnly_liff=scan`）时传 `scan: true` 一打开就开扫码器 |
+| `pearnly_erp_portal/inventory/count.py`、`inventory/api.py` | `search_count_products` / `api_stock_count_product_search`：本次盘点的物料 + 本盘点仓在库的物料（没指定仓时为本人能看的仓），按公司分（同按码认），名称 / 编码 / 内部编码 / Express 编码 / 条码 / 二维码内容模糊查，每页最多 50；`count.read` 判权 |
+| `pearnly_cowork/stocktake/counting.py`、`desk_api.py` | `search` / `api_stock_count_item_search`：本任务上传的行，名称 / 编码 / 条码模糊查，只读不锁任务，每页最多 50；`access.require` 判权 |
+| `Cowork Stocktake Item` DocType | `title_field = product_name`、`show_title_field_in_link = 1`（选择框显示物料名，不显示行号；只改元数据） |
+| 术语表 / 翻译包 | `saveNext`「保存并下一项 → 继续」（ดำเนินการต่อ / Continue / 続ける），登记 `copy-approved.tsv`；删 `find`、`camera` 两条 |
+| 流程用例 | 5 条 ERP 盘点流程改成「框里输码回车 / 点框内扫码图标」（公共片段 `scripts/flows/stocktake_lib.py`）；`erp.stocktake.scan` 加断言：扫码读到后扫码器关、「继续」后扫码的自动重开 / 打字的回到框里、打字下拉选中、查询接口的权限与分页；新增 `cowork.stocktake.entry`；提示框只认 `<p>`（HTML 格里本来就有框架的隐藏字段名，旧写法会把它当成提示） |
+| `tests/test-link-options.cjs` | 9-23 起没进 CI、已跑不通：补桩恢复，加「单格自己的扫码动作」两条，接进 development.yml |
+
+### 验证（实验栈 `pearnly-fieldhelp-lab`，源码 = 本工作树）
+
+- 盘点流程 6 条 24/24 通过（ERP 5 条 + Cowork 1 条，两套数据 × 两种宽度，手机宽另跑假摄像头）。
+- 截图（无头 Chrome，电脑 1280 / 手机 375）：打开（一个框 + 框内图标 + 说明图标）→ 打字下拉（名称 + 编码 · 条码）→ 扫码器开着带「关闭」→ 读到后出字段、按钮「完成 / 继续」→「继续」后扫码器重开且不重复读。
+- 三星 SM-A146P 真机（adb 反连本机实验栈，真相机对着测试机屏幕全屏显示的码，截图在共享笔记 `盘点框内扫码-真机-11-02/`）：
+  - ERP：打开不弹键盘 → 点图标 → Chrome 原生相机授权（三步的第②步）→ 读到 EAN 8850002000025 → 扫码器关、出「สินค้าเก่า 2」字段 → 输数量点「继续」→ 扫码器自动重开，屏幕上同一码 7 秒内不重复读；换系统里没有的 EAN 2009876543213 → 扫码器关、「未找到与该编号匹配的物料」+「新建物料」；认证网址二维码 → 浮动提示「这不是商品条码」、不出新建、扫码器继续开着；岳父 Isuzu 标签二维码 → 车架号在实验栈没有这件物料 → 未找到 + 新建，新建弹窗预填完整车架号 `MP1TFR41JTG032993`（没保存）；打字「OLD-00」出下拉、点选出字段；扫码器开着时点「关闭」或再点图标都能关、回到框里。
+  - Cowork：同样的授权 → 读到上传那件的条码 → 关扫码器出字段 →「继续」自动重开不重复读 →「关闭」→ 打字「typed」下拉选第二件 → 出字段 →「继续」回到框里、光标在框里、不开相机。
+  - ERP 打字那件保存时服务端报「盘点期间库存已变化」：后台同时在跑的出入库 / 调拨流程改了那件物料的库存，是现有防护，与本次无关；流程用例里同一路径通过。

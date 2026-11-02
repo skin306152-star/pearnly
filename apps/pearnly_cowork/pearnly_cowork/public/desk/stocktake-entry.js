@@ -27,11 +27,13 @@
 			{ fieldtype: "Link", fieldname: "code", label: w("code"), description: w("scanHint"), options: "Cowork Stocktake Item",
 				only_select: true, ignore_link_validation: 1,
 				get_query: () => ({ query: api + "api_stock_count_item_search", filters: { count } }),
-				scan: () => void start_camera() },
+				// 扫码器开着时再点一下图标就是关掉
+				scan: () => void (camera ? close_camera() : start_camera()) },
+			// 「关闭」在画面上面：手机上画面很高，放下面会落到底栏后面看不到
+			{ fieldtype: "Button", fieldname: "close_camera", label: __("Close"), hidden: 1, click: () => close_camera() },
 			{ fieldtype: "HTML", fieldname: "video", options: p.scan_stage(), hidden: 1 },
 			{ fieldtype: "Check", fieldname: "torch", label: __("cowork.stock.scan.light"), hidden: 1,
 				change: () => scanner?.torch(Boolean(d.get_value("torch"))) },
-			{ fieldtype: "Button", fieldname: "close_camera", label: __("Close"), hidden: 1, click: () => close_camera() },
 			{ fieldtype: "HTML", fieldname: "message" },
 			{ fieldtype: "Section Break", fieldname: "entry_section", hidden: 1 },
 			{ fieldtype: "Data", fieldname: "product_name", label: t("cowork.stock.col.name"), read_only: 1 },
@@ -79,6 +81,8 @@
 				} finally { busy = false; }
 			});
 		d.$wrapper.find(".modal-dialog").addClass("modal-lg");
+		// 触屏上打开不自动聚焦框（框架默认聚焦第一格：键盘弹起、下拉展开，挡住扫码），要打字时点框；电脑照框架默认
+		if (!window.matchMedia?.("(pointer: fine)").matches) d.no_focus = true;
 		d.set_secondary_action(() => { d.hide(); on_done?.(); });
 		// 连续盘点时第二颗是"完成"：收工离开扫码，落到差异那一屏（用户 2026-09-22 口径：
 		// "…下一项或者完成"）。单条录入/修改时它仍是"查看差异"。
@@ -318,6 +322,5 @@
 		editor(false);
 		if (row) await match(null, row.product);
 		else if (scan) await start_camera();
-		else if (window.matchMedia?.("(pointer: fine)").matches) code.$input.trigger("focus");
 	};
 })();
