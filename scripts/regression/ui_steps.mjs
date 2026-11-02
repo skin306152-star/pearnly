@@ -113,15 +113,18 @@ try {
       if (shot?.data) writeFileSync(join(job.shots, step.file ? `${step.file}.png` : `${index + 1}-${step.name.replace(/[^\w.-]+/g, "_").slice(0, 60)}.png`), Buffer.from(shot.data, "base64"));
     }
     // ERP / Cowork 的字段说明收在标题旁的说明图标里（`pearnly_core/public/desk/field-help.js`）：每一步后看还有没有写在字段下方的，
-    // 登记的例外（`data-pearnly-description="inline"`）与密码强度提示不算
-    const below = await send("Runtime.evaluate", { expression: `(() => { if (!(window.frappe && frappe.boot && frappe.boot.pearnly_field_help === "icon")) return [];
-      return [...document.querySelectorAll(".frappe-control .help-box, .grid-description, .form-section-description")]
-        .filter((e) => e.getClientRects().length && (e.innerText || "").trim() && !e.closest('[data-pearnly-description="inline"], [data-fieldtype="Password"]'))
-        .map((e) => { const c = e.closest(".frappe-control"); return ((c && c.dataset.fieldname) || "?") + ": " + (e.innerText || "").trim().slice(0, 80); }); })()`,
+    // 登记的例外（`data-pearnly-description="inline"`）与密码强度提示不算；顺带记下已在图标里的（运行时清单）
+    const help = await send("Runtime.evaluate", { expression: `(() => { if (!(window.frappe && frappe.boot && frappe.boot.pearnly_field_help === "icon")) return {};
+      const seen = (e) => e.getClientRects().length > 0;
+      const name = (e) => { const c = e.closest(".frappe-control"); return (c && c.dataset.fieldname) || "?"; };
+      return {below: [...document.querySelectorAll(".frappe-control .help-box, .grid-description, .form-section-description")]
+          .filter((e) => seen(e) && (e.innerText || "").trim() && !e.closest('[data-pearnly-description="inline"], [data-fieldtype="Password"]'))
+          .map((e) => name(e) + ": " + (e.innerText || "").trim().slice(0, 80)),
+        icons: [...document.querySelectorAll(".pearnly-field-help")].filter(seen).map((e) => name(e) + ": " + (e.getAttribute("aria-label") || ""))}; })()`,
       returnByValue: true }, sessionId).catch(() => ({}));
     console.log(JSON.stringify({ step: step.name, value: result.result?.value ?? null,
       error: result.exceptionDetails?.exception?.description?.slice(0, 300) || null, page_errors: [...logs],
-      field_help: below?.result?.value || [] }));
+      field_help: help?.result?.value?.below || [], field_icons: help?.result?.value?.icons || [] }));
   }
 } catch (error) {
   console.log(JSON.stringify({ error: `driver: ${error.message}` }));
