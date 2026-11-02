@@ -1664,22 +1664,27 @@ class LedgerColumnsPatch(unittest.TestCase):
                                                    for name in names] + ["ledger_target TEXT"]
             self.conn.execute(f"CREATE TABLE `tab{doctype}` ({', '.join(columns)})")
         self.conn.execute("CREATE TABLE `tabPatch Log` (patch TEXT)")
+        self.conn.execute("CREATE TABLE `__UserSettings` (user TEXT, doctype TEXT, data TEXT)")
+        self.cache = {}
         self.conn.execute("INSERT INTO `tabPatch Log` VALUES ('pearnly_erp_portal.patches.v1_24_ledger_state')")
         self.renamed = []
         db = types.SimpleNamespace(
             table_exists=lambda doctype, **kw: bool(self.conn.execute(
                 "SELECT 1 FROM sqlite_master WHERE name = ?", (f"tab{doctype}",)).fetchone()),
+            get_tables=lambda **kw: [row[0] for row in self.conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")],
             has_column=lambda doctype, column: column in [row[1] for row in self.conn.execute(
                 f"PRAGMA table_info(`tab{doctype}`)")],
-            sql=lambda query, values=(): self.conn.execute(query.replace("%s", "?"), tuple(values)).fetchall(),
+            sql=self.sql,
             delete=lambda doctype, filters: self.conn.execute(f"DELETE FROM `tab{doctype}` WHERE patch = ?",
                                                               (filters["patch"],)),
             commit=lambda: None)
         helpers = types.ModuleType("frappe.model.utils.rename_field")
-        for name in ("update_reports", "update_users_report_view_settings", "update_property_setters",
-                     "update_user_settings"):
+        for name in ("update_reports", "update_users_report_view_settings", "update_property_setters"):
             setattr(helpers, name, lambda doctype, old, new, name=name: self.renamed.append((name, doctype, old, new)))
-        for patcher in (mock.patch.object(frappe, "db", db),
+        cache = types.SimpleNamespace(hgetall=lambda name: dict(self.cache),
+                                      hdel=lambda name, key: self.cache.pop(key, None))
+        for patcher in (mock.patch.object(frappe, "db", db), mock.patch.object(frappe, "cache", cache, create=True),
+                        mock.patch.object(frappe, "safe_decode", lambda value: value, create=True),
                         mock.patch.dict(sys.modules, {"frappe.model": types.ModuleType("frappe.model"),
                                                       "frappe.model.utils": types.ModuleType("frappe.model.utils"),
                                                       "frappe.model.utils.rename_field": helpers})):
@@ -1688,6 +1693,14 @@ class LedgerColumnsPatch(unittest.TestCase):
         sys.modules.pop("pearnly_erp_portal.patches.v1_24_ledger_state", None)
         from pearnly_erp_portal.patches import v1_24_ledger_state as patch
         self.patch = patch
+
+    def sql(self, query, values=(), as_dict=False):
+        cursor = self.conn.execute(query.replace("%s", "?"), tuple(values))
+        rows = cursor.fetchall()
+        if not as_dict:
+            return rows
+        names = [column[0] for column in cursor.description]
+        return [types.SimpleNamespace(**dict(zip(names, row))) for row in rows]
 
     def put(self, doctype, name, **values):
         columns = ["name", *values]
@@ -1733,10 +1746,32 @@ class LedgerColumnsPatch(unittest.TestCase):
             self.assertEqual((self.row(doctype, name)["ledger_state"], self.row(doctype, name)["ledger_target"]),
                              (state, "express"))
         # 存着的视图：每种单每一列 + 栏名都照 Frappe rename_field 的四个函数改
-        self.assertIn(("update_user_settings", "Purchase Document", "express_state", "ledger_state"), self.renamed)
         self.assertIn(("update_reports", "ERP Stock Entry", "express_void_state", "ledger_void_state"), self.renamed)
         self.assertIn(("update_property_setters", "ERP Stock Count", "express_section", "ledger_section"), self.renamed)
         self.assertNotIn(("update_reports", "Purchase Document", "express_void_state", "ledger_void_state"), self.renamed)
+
+    SETTINGS = ('{"Report": {"fields": [["express_state", "Purchase Document"], ["express_docnum", "Purchase Document"], '
+                '["name", "Purchase Document"]], "order_by": "`tabPurchase Document`.`express_sent_at` desc"}, '
+                '"List": {"filters": [["Purchase Document", "express_state", "=", "held", false]]}}')
+
+    def test_saved_personal_views_follow_the_new_column_names_in_one_go(self):
+        """个人列表 / 报表视图（筛选、报表列、排序）里的旧列名一次换掉；别的单据、别的键不动。Frappe 的 `update_user_settings`
+        连着调会把整份设置清空（实验栈实测），所以补丁自己换。缓存里还没落库的这种单的设置先清掉（空值不写回库）。"""
+        self.conn.execute("INSERT INTO `__UserSettings` VALUES ('a@x', 'Purchase Document', ?)", (self.SETTINGS,))
+        self.conn.execute("INSERT INTO `__UserSettings` VALUES ('a@x', 'ERP Customer', '{\"List\": {\"express_state\": 1}}')")
+        self.cache.update({"Purchase Document::a@x": None, "ERP Customer::a@x": "{}"})
+        self.patch.execute()
+        rows = dict(self.conn.execute("SELECT doctype, data FROM `__UserSettings`").fetchall())
+        self.assertEqual(json.loads(rows["Purchase Document"]),
+                         {"Report": {"fields": [["ledger_state", "Purchase Document"], ["ledger_docnum", "Purchase Document"],
+                                                ["name", "Purchase Document"]],
+                                     "order_by": "`tabPurchase Document`.`ledger_sent_at` desc"},
+                          "List": {"filters": [["Purchase Document", "ledger_state", "=", "held", False]]}})
+        self.assertEqual(rows["ERP Customer"], '{"List": {"express_state": 1}}')
+        self.assertEqual(self.cache, {"ERP Customer::a@x": "{}"})
+        self.patch.rollback()
+        rows = dict(self.conn.execute("SELECT doctype, data FROM `__UserSettings`").fetchall())
+        self.assertEqual(json.loads(rows["Purchase Document"]), json.loads(self.SETTINGS))
 
     def test_rerunning_never_overwrites_newer_ledger_values(self):
         self.fixture()
@@ -1772,7 +1807,7 @@ class LedgerColumnsPatch(unittest.TestCase):
         count = self.row("ERP Stock Count", "STC-1")
         self.assertEqual((count["express_state"], count["express_docnum"], count["ledger_target"]), ("written", "TK-1", None))
         self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM `tabPatch Log`").fetchone()[0], 0)
-        self.assertIn(("update_user_settings", "Purchase Document", "ledger_state", "express_state"), self.renamed)
+        self.assertIn(("update_reports", "Purchase Document", "ledger_state", "express_state"), self.renamed)
         # 旧镜像上又往前走了一步，再升级时补丁重跑、重新抄
         self.conn.execute("UPDATE `tabPurchase Document` SET express_state = 'written', express_docnum = 'RR-2' WHERE name = 'PUR-H'")
         self.patch.execute()
