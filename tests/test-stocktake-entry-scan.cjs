@@ -59,7 +59,7 @@ function fixture({ lookups, file = ERP }) {
 
 const polymer = (extra = {}) => ({
   product: { name: 'PRD-00010', product_name: 'HLY-002/W Oak 2.8m', base_unit: 'เส้น', unit: 'เส้น', serial_kind: 'vehicle', code: 'P-000002' },
-  rows: [], elsewhere: [], recorded: [], stock_token: 't', warehouse_name: '1000', track_serial: false, unit: null, units: [], ...extra });
+  rows: [], elsewhere: [], recorded: [], stock_token: 't', warehouse: 'WH-00001', warehouse_name: '1000', track_serial: false, unit: null, units: [], ...extra });
 
 (async () => {
   // 扫码命中、这个仓账上没有（rows 空）、连续盘点：录入框出来，商品名、单位、实际仓库带对，只查一次
@@ -72,7 +72,8 @@ const polymer = (extra = {}) => ({
     assert.equal(f.shown(), true, '录入框要出来');
     assert.equal(f.values.product_name, 'HLY-002/W Oak 2.8m');
     assert.equal(f.values.unit, 'เส้น');
-    assert.equal(f.values.warehouse, '1000');
+    // 实际仓库是官方 Link：放仓库编号，不放名称（名称会让实际仓位取选项报「未找到仓库」，11-02 真机）
+    assert.equal(f.values.warehouse, 'WH-00001');
     assert.deepEqual(f.sounds, [true]);
     assert.deepEqual(f.errors, []);
   }
