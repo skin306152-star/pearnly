@@ -1150,6 +1150,9 @@ class LinkStates(PushModule):
 
     def setUp(self):
         super().setUp()
+        self.link_fixture()
+
+    def link_fixture(self):
         import datetime as dt
         utils = sys.modules["frappe.utils"]
         utils.get_datetime = lambda value: value if isinstance(value, dt.datetime) else dt.datetime.fromisoformat(str(value))
@@ -1429,6 +1432,217 @@ class LinkStates(PushModule):
         source = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/printing/context.py").read_text(encoding="utf-8")
         self.assertIn('express_contracts.in_express(doc.get("express_state"))', source)
         self.assertNotIn("push.linked(doc.company)", source)
+
+
+def ledger_columns():
+    """单据上账本栏的实际列名：改列后是通用的 ``ledger_*``（评估 2026-11-02 §12 第 6 条），改列前是 ``express_*``（DocType 里
+    还有旧列就是改列前）。下面「链接状态四条规则」那组用例在改列前后同一份用例跑，结论比对同一张表。"""
+    meta = json.loads((ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/purchase_document/"
+                       "purchase_document.json").read_text(encoding="utf-8"))
+    prefix = "express_" if any(field["fieldname"] == "express_state" for field in meta["fields"]) else "ledger_"
+    return {key: prefix + key for key in ("state", "docnum", "reason", "job", "book", "needed", "void_state",
+                                          "void_reason", "void_job")}
+
+
+# 改列前（main 9be471c5，express_*）跑出的结论；改列后同一组输入必须得到同一张表（链接状态四条规则语义不变）
+LINK_RULES_GOLDEN = {'amended|PUR-A2': None,
+ 'amended|PUR-N1': 'queued',
+ 'detached|poll': ['detached', 'express.disconnected'],
+ 'detach|PUR-H': ['detached', 'express.disconnected', None],
+ 'detach|SE-H': ['detached', 'express.disconnected', None],
+ 'detach|SE-L': ['queued', 'x', None],
+ 'detach|SE-M': ['detached', 'express.disconnected', None],
+ 'detach|SE-OTHER': ['queued', None, None],
+ 'detach|SE-Q': ['detached', 'express.disconnected', None],
+ 'detach|SE-W': ['written', 'x', None],
+ 'detach|cancelled': [['J1', 'disconnected'], ['J2', 'disconnected']],
+ 'detach|count': 4,
+ 'detach|leased_manual': ['detached', 'express.disconnected', 'J3'],
+ 'detach|leased_success': ['written', 'OU-9', ''],
+ 'no_book|poll': ['held', 'express.account_set_missing', 'J1', 'BK'],
+ 'no_book|send': ['held', 'express.account_set_missing', None],
+ 'queue|0|False|after|ERP POS Day Summary': None,
+ 'queue|0|False|after|ERP Sales Document': None,
+ 'queue|0|False|after|ERP Stock Count': None,
+ 'queue|0|False|after|ERP Stock Entry': None,
+ 'queue|0|False|after|Purchase Document': None,
+ 'queue|0|False|before|ERP POS Day Summary': None,
+ 'queue|0|False|before|ERP Sales Document': None,
+ 'queue|0|False|before|ERP Stock Count': None,
+ 'queue|0|False|before|ERP Stock Entry': None,
+ 'queue|0|False|before|Purchase Document': None,
+ 'queue|0|True|after|ERP POS Day Summary': None,
+ 'queue|0|True|after|ERP Sales Document': None,
+ 'queue|0|True|after|ERP Stock Count': None,
+ 'queue|0|True|after|ERP Stock Entry': None,
+ 'queue|0|True|after|Purchase Document': None,
+ 'queue|0|True|before|ERP POS Day Summary': None,
+ 'queue|0|True|before|ERP Sales Document': None,
+ 'queue|0|True|before|ERP Stock Count': None,
+ 'queue|0|True|before|ERP Stock Entry': None,
+ 'queue|0|True|before|Purchase Document': None,
+ 'queue|1|False|after|ERP POS Day Summary': None,
+ 'queue|1|False|after|ERP Sales Document': None,
+ 'queue|1|False|after|ERP Stock Count': None,
+ 'queue|1|False|after|ERP Stock Entry': None,
+ 'queue|1|False|after|Purchase Document': None,
+ 'queue|1|False|before|ERP POS Day Summary': None,
+ 'queue|1|False|before|ERP Sales Document': None,
+ 'queue|1|False|before|ERP Stock Count': None,
+ 'queue|1|False|before|ERP Stock Entry': None,
+ 'queue|1|False|before|Purchase Document': None,
+ 'queue|1|True|after|ERP POS Day Summary': 'queued',
+ 'queue|1|True|after|ERP Sales Document': 'queued',
+ 'queue|1|True|after|ERP Stock Count': 'queued',
+ 'queue|1|True|after|ERP Stock Entry': 'queued',
+ 'queue|1|True|after|Purchase Document': 'queued',
+ 'queue|1|True|before|ERP POS Day Summary': None,
+ 'queue|1|True|before|ERP Sales Document': None,
+ 'queue|1|True|before|ERP Stock Count': None,
+ 'queue|1|True|before|ERP Stock Entry': None,
+ 'queue|1|True|before|Purchase Document': None,
+ 'void|held': [0, None, None, None],
+ 'void|queued': [0, None, None, None],
+ 'void|written': [1, 'written', 'queued', 'J9']}
+
+
+class LinkRulesUnchanged(PushModule):
+    """账本栏改成通用列（评估 2026-11-02 §12.1 #6）不改「接 Express」四条规则：①② 不排、③ 排且不看此刻电脑、④a 开始早于
+    接上时刻不排不补（采购「修改」沿原单）、④b 断开优先（撤下标已断开，正在写的看结果）、④c 没报账套停下等、④d 断开后作废
+    已写的照排。同一组输入在改列前后各跑一遍，把结论收成一张与列名无关的表比对（`LINK_RULES_GOLDEN`）。"""
+
+    LINKED, BEFORE, AFTER = LinkStates.LINKED, LinkStates.BEFORE, LinkStates.AFTER
+
+    def setUp(self):
+        super().setUp()
+        LinkStates.link_fixture(self)  # 同一套替身（同 LinkStates）
+
+    company = LinkStates.company
+    documents = LinkStates.documents
+
+    def outcome(self):
+        F = ledger_columns()
+        out = {}
+        # ①②③④a：四种公司状态 × 开始早于 / 晚于接上 × 五种单
+        for enabled, linked_at in ((0, self.LINKED), (0, None), (1, None), (1, self.LINKED)):
+            for label, created in (("before", self.BEFORE), ("after", self.AFTER)):
+                fake.reset(self.tmp.name)
+                self.setUp_tables()
+                self.company(enabled, linked_at)
+                for doctype, name in self.documents(created).items():
+                    self.push.queue(doctype, name)
+                    out[f"queue|{enabled}|{bool(linked_at)}|{label}|{doctype}"] = \
+                        fake.STATE.db.table(doctype)[name].get(F["state"])
+        # 采购「修改」沿原单的开始时刻
+        fake.reset(self.tmp.name)
+        self.setUp_tables()
+        self.company()
+        table = fake.STATE.db.table("Purchase Document")
+        for name, created, corrected in (("PUR-OLD", self.BEFORE, None), ("PUR-A1", self.AFTER, "PUR-OLD"),
+                                         ("PUR-A2", self.AFTER, "PUR-A1"), ("PUR-NEW", self.AFTER, None),
+                                         ("PUR-N1", "2026-10-22 09:00:00", "PUR-NEW")):
+            table[name] = {"name": name, "status": "submitted", "doc_kind": "goods", "company": "CO-1",
+                           "creation": created, "corrected_from": corrected}
+        for name in ("PUR-A2", "PUR-N1"):
+            self.push.queue("Purchase Document", name)
+            out[f"amended|{name}"] = table[name].get(F["state"])
+        # ④c：没报账套 → 停在没有账套，每分钟再试，电脑回来交进写账队列
+        fake.reset(self.tmp.name)
+        self.setUp_tables()
+        self.company()
+        self.documents(self.AFTER)
+        self.push.queue("Purchase Document", "PUR-1")
+        row = fake.STATE.db.table("Purchase Document")["PUR-1"]
+        results = iter([{"hold": E.NO_BOOK}, {"payload": {"payload_version": 4}, "book": {"key": "BK"}}])
+        with mock.patch.object(self.push, "document", lambda doctype, name: {"ref": "PUR-1@x", "number": "IV-1"}), \
+                mock.patch.object(self.push, "_company", lambda name: COMPANY), \
+                mock.patch.object(self.push.prepare, "prepare", lambda *a, **k: next(results)), \
+                mock.patch.object(self.push, "actor_of", lambda *a: "a@x"), \
+                mock.patch.object(self.push.jobs, "of_source", lambda *a: []), \
+                mock.patch.object(self.push.jobs, "enqueue", lambda **kw: {"job": "J1"}):
+            self.push.send("Purchase Document", "PUR-1")
+            out["no_book|send"] = [row.get(F["state"]), row.get(F["reason"]), row.get(F["job"])]
+            self.push.poll()
+            out["no_book|poll"] = [row.get(F["state"]), row.get(F["reason"]), row.get(F["job"]), row.get(F["book"])]
+        # ④b：断开优先
+        fake.reset(self.tmp.name)
+        self.setUp_tables()
+        self.company()
+        db = fake.STATE.db
+        for name, (state, job) in {"SE-Q": ("queued", "J1"), "SE-H": ("held", None), "SE-M": ("held", "J2"),
+                                   "SE-L": ("queued", "J3"), "SE-W": ("written", "J4")}.items():
+            db.table("ERP Stock Entry")[name] = {"name": name, "status": "submitted", "warehouse": "W1",
+                                                 "creation": self.AFTER, F["state"]: state, F["job"]: job,
+                                                 F["reason"]: "x", F["docnum"]: "OU-1" if state == "written" else ""}
+        db.table("ERP Stock Entry")["SE-OTHER"] = {"name": "SE-OTHER", "status": "submitted", "warehouse": "W9",
+                                                   "creation": self.AFTER, F["state"]: "queued", F["job"]: None}
+        db.table("Purchase Document")["PUR-H"] = {"name": "PUR-H", "status": "submitted", "company": "CO-1",
+                                                  "creation": self.AFTER, F["state"]: "held", F["job"]: None}
+        statuses = {"J1": "queued", "J2": "manual", "J3": "leased", "J4": "done"}
+        cancelled = []
+        with mock.patch.object(self.push.jobs, "find_by_name", lambda name: {"job": name, "status": statuses[name]}), \
+                mock.patch.object(self.push.jobs, "cancel", lambda name, reason: cancelled.append([name, reason])):
+            self.company(enabled=0, linked_at=None)
+            out["detach|count"] = self.push.detach("CO-1")
+        out["detach|cancelled"] = sorted(cancelled)
+        for doctype, name in (("ERP Stock Entry", "SE-Q"), ("ERP Stock Entry", "SE-H"), ("ERP Stock Entry", "SE-M"),
+                              ("ERP Stock Entry", "SE-L"), ("ERP Stock Entry", "SE-W"), ("ERP Stock Entry", "SE-OTHER"),
+                              ("Purchase Document", "PUR-H")):
+            got = db.table(doctype)[name]
+            out[f"detach|{name}"] = [got.get(F["state"]), got.get(F["reason"]), got.get(F["needed"])]
+        with mock.patch.object(self.push, "link_party", lambda *a: None), \
+                mock.patch.object(self.push, "link_products", lambda *a: None):
+            self.push.job_changed({"source_doctype": "ERP Stock Entry", "source_name": "SE-L", "status": "manual",
+                                   "job": "J3", "request_key": "erp:stock:SE-L@x", "reason": "[PERIOD_LOCKED] x"})
+            got = db.table("ERP Stock Entry")["SE-L"]
+            out["detach|leased_manual"] = [got.get(F["state"]), got.get(F["reason"]), got.get(F["job"])]
+            got[F["state"]] = "queued"
+            self.push.job_changed({"source_doctype": "ERP Stock Entry", "source_name": "SE-L", "status": "success",
+                                   "job": "J3", "request_key": "erp:stock:SE-L@x", "docnum": "OU-9"})
+            out["detach|leased_success"] = [got.get(F["state"]), got.get(F["docnum"]), got.get(F["reason"])]
+        # 断开后每分钟那一轮不写，照实标已断开
+        fake.reset(self.tmp.name)
+        self.setUp_tables()
+        self.company(enabled=0, linked_at=None)
+        fake.STATE.db.table("Purchase Document")["PUR-1"] = {"name": "PUR-1", "status": "submitted", "company": "CO-1",
+                                                             "creation": self.AFTER, F["state"]: "queued", F["job"]: None,
+                                                  F["reason"]: ""}
+        with mock.patch.object(self.push.prepare, "prepare", side_effect=AssertionError("must not prepare")):
+            self.push.poll()
+        got = fake.STATE.db.table("Purchase Document")["PUR-1"]
+        out["detached|poll"] = [got.get(F["state"]), got.get(F["reason"])]
+        # ④d：断开后作废已写的出入库单照排 Express 作废；没写成的只在 ERP 作废
+        for state, docnum in (("written", "OU691025-001"), ("held", ""), ("queued", "")):
+            fake.reset(self.tmp.name)
+            self.setUp_tables()
+            self.company(enabled=0, linked_at=None)
+            fake.STATE.db.table("ERP Stock Entry")["SE-1"] = {
+                "name": "SE-1", "creation": "2026-10-25 10:00:00", "owner": "a@x", "warehouse": "W1",
+                F["state"]: state, F["docnum"]: docnum, F["void_job"]: None, F["job"]: None}
+            made = []
+            with mock.patch.object(self.push, "_company", lambda name: COMPANY), \
+                    mock.patch.object(self.push.stock_entry, "void_payload",
+                                      lambda name, company: {"payload": {"payload_version": 8}, "book": {"key": "BK"}}), \
+                    mock.patch.object(self.push.jobs, "enqueue", lambda **kw: made.append(kw) or {"job": "J9"}):
+                self.push.void("ERP Stock Entry", "SE-1")
+            got = fake.STATE.db.table("ERP Stock Entry")["SE-1"]
+            out[f"void|{state}"] = [len(made), got.get(F["state"]), got.get(F["void_state"]), got.get(F["void_job"])]
+        return out
+
+    def setUp_tables(self):
+        fake.STATE.db.table("ERP Company")["CO-1"] = {"name": "CO-1", "express_enabled": 1,
+                                                      "express_linked_at": "2026-10-01 00:00:00"}
+        fake.STATE.db.table("ERP Company")["CO-9"] = {"name": "CO-9", "express_enabled": 1,
+                                                      "express_linked_at": self.LINKED}
+        fake.STATE.db.table("ERP Warehouse").update({"W1": {"name": "W1", "company": "CO-1"},
+                                                     "W9": {"name": "W9", "company": "CO-9"}})
+
+    def test_the_four_link_rules_reach_the_same_conclusions_before_and_after_the_columns_change(self):
+        got = json.loads(json.dumps(self.outcome(), default=str))
+        if LINK_RULES_GOLDEN is None:
+            print(json.dumps(got, ensure_ascii=False, sort_keys=True))
+            self.skipTest("golden not recorded")
+        self.assertEqual(got, LINK_RULES_GOLDEN)
 
 
 class LinkedAtBackfill(unittest.TestCase):
