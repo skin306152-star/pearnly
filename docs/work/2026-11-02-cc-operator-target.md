@@ -80,6 +80,10 @@
 | pearnly_core·Operator Ledgers | 标签 | 实操账本 | Operator Ledgers | ระบบบัญชีที่บันทึกแทนได้ | 代行入力先の帳簿 |
 | pearnly_cowork·Operator Ledgers | 标签 | 实操账本 | Operator Ledgers | ระบบบัญชีที่บันทึกแทนได้ | 代行入力先の帳簿 |
 
+流程用例：本机自建实验栈 `pearnly-optarget-lab`（端口 18871–18873，挂本工作树），`scripts/flows/run.py --changed --base origin/main --post-status`：
+命中 1 条 `cc.operator`（覆盖 `express_operator/products.py`），new / old 两套数据 2 / 2 通过（268 秒），状态已回写提交 `3389aba8`；
+跑完 `docker compose down -v` 删掉栈与数据卷，无残留容器。
+
 ## 入口实测（`check-impact.py` 清单，15 个）
 
 本步对 Express 代录与直写零行为变化；需要测试机 / 录制机的实机项本步没有授权去动（任务书不碰测试机），按「没测到」如实记，离线覆盖写在原因里。
@@ -105,5 +109,5 @@
 ## 剩余项
 
 - 上面「没测到」的实机入口：等主会话安排测试机 / 录制机（CC 测试包验证心跳多报 `operator_targets`、Express 代录与直写照旧）。
-- 流程用例：见下节。
+- 流程用例：已跑，见下行。
 - 第 2 步起：CC 端 MR.ERP 执行层，加 `ASSEMBLERS["mrerp"]` 与 `OPERATOR_TARGETS`；第 3 步把 MR.ERP 代录单接进 Cowork 领单查询。
