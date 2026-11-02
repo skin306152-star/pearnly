@@ -225,6 +225,14 @@ entries = ["erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day", "erp.cc.pos-r
 not_entries = { "apps/pearnly_core/pearnly_core/cc_desktop/books.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/contracts.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/report_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_20_express_account_sets.py" = "一次性迁移", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_2_backfill_history_parties.py" = "一次性迁移" }
 
 [[part]]
+id = "mrerp-rules"
+name = "MR.ERP 规则（会话、目录、主档、菜单、方向、导入文件生成与解析）"
+paths = ["apps/pearnly_core/pearnly_core/mrerp/**"]
+markers = ["pearnly_core.mrerp", "pearnly_core import mrerp"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
+entries = ["cowork.mrerp.push", "cowork.mrerp.catalog", "cowork.cc.mrerp-setup"]
+
+[[part]]
 id = "exports"
 name = "下载与导出（文件名、后台导出）"
 paths = ["apps/pearnly_core/pearnly_core/exports/**"]
@@ -1549,7 +1557,25 @@ where = "推送 MR.ERP"
 steps = "MR.ERP 目标推一张；定时 runner.sweep（5 分钟）"
 expect = "写入成功"
 check = "manual"
-files = ["apps/pearnly_core/pearnly_core/mrerp/push/routing.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/runner.py", "apps/pearnly_core/pearnly_core/mrerp/push/transport.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/lookups.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/purchase.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/sales_cash.py"]
+files = ["apps/pearnly_core/pearnly_core/mrerp/push/routing.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/runner.py", "apps/pearnly_core/pearnly_core/mrerp/push/transport.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/lookups.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/purchase.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/sales_cash.py", "apps/pearnly_cowork/pearnly_cowork/push/retry.py"]
+
+[[entry]]
+id = "cowork.mrerp.catalog"
+product = "Cowork"
+where = "MR.ERP 连接与账套目录刷新、导入菜单 / 主档读取"
+steps = "设置 → 连接（MR.ERP）保存并刷新账套目录；推送前选导入菜单 / 默认值的弹窗读菜单与主档"
+expect = "公司与年度两级目录正确；菜单与主档选项读得出"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/connections/model.py", "apps/pearnly_cowork/pearnly_cowork/connections/mrerp_collector.py", "apps/pearnly_cowork/pearnly_cowork/connections/mrerp_menu_reader.py", "apps/pearnly_cowork/pearnly_cowork/connections/service.py"]
+
+[[entry]]
+id = "cowork.cc.mrerp-setup"
+product = "Cowork"
+where = "CC 对话里 MR.ERP 设置（推之前要选的导入菜单 / 默认值、MR.ERP 设置工具、待处理当场选）"
+steps = "CC 对话页（Cowork）让 CC 推一张 MR.ERP 单 / 改 MR.ERP 设置；待处理页点停在要选菜单的单当场选"
+expect = "只问这张单方向会用到、还没选的；选完照常重推"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py"]
 
 [[entry]]
 id = "cowork.companies"

@@ -110,6 +110,18 @@ Pearnly ERP 的 `express` 域：采购 / 销售单在唯一提交点（`sales.en
 - 登记的债：Cowork 仍用自己的 `companion` 通道，迁到共用通道的条件见 ADR-025「后果与验证」。
 - `pearnly_core.transaction.conflicts`（本地事务撞 1020 / 1213 整笔重来）同批由 Cowork 搬来，两边共用。
 
+### MR.ERP 规则（共用层，2026-11-02）
+
+`pearnly_core.mrerp`（文件头写明多产品共用；评估 [2026-11-02](../work/2026-11-02-mrerp-operator-and-erp-company-评估.md) §14.6，
+施工记录 [mrerp-core-rules](../work/2026-11-02-mrerp-core-rules.md)）由 Cowork 原样搬来，只改导入路径：登录会话（`session`，一个账号一把锁
+`lock_key`）、地址校验（`urls`）、账套目录（`catalog`）、主档读取（`master_reader`）、导入菜单与主档默认值的规则（`menus` / `masters`）、
+推之前要人选的项（`needs`）、导入直写（`push`：方向判定 `routing`、模块表、导入表生成与模板 `push.xlsx`、预览 / 报告 / 回读解析、
+对方与商品自建、导入 5 步 `transport`、「单号已存在」`duplicates`）。不导入 Frappe 与任何产品，连网只在 `session` 与 `push.transport`
+（`tests/test_mrerp_core_boundary.py`）；连接、凭据、推送记录、排队、要人选的记忆留在产品里，只经参数交进来。Cowork 留下与自己记录
+绑定的：排队执行 `push.mrerp.runner`（hooks 的定时巡检与 worker 预载按点路径引用）、目录采集 `connections.mrerp_collector` 与菜单读取
+`connections.mrerp_menu_reader`（排队任务）、白名单方法。ERP 接 MR.ERP（评估第 6 步）直接调这里，不导入 Cowork。导入文件与推送载荷
+搬移前后逐字节相同由 `tests/test_mrerp_rules_golden.py` 锁住（生产镜像里跑，候选检查离线车道）。
+
 ### ERP 任务管理（2026-10-23）
 
 Pearnly ERP 的 `work` 域是 Cowork `work`（任务管理看板）复制进 ERP 自有 App 的一份：ERP 站点不装 Cowork、ERP 不导入
