@@ -396,11 +396,28 @@ def test_detail_writes_stcrd_and_nxtseq(datat):
 
 
 def test_detail_no_cost_no_inventory_signature(datat):
-    # 证明"没动成本/库存":每行 XUNITPR/XTRNVAL=0(无 COGS 签名)。
+    # 证明"没动成本/库存":直接记科目的行引用编码 = 科目码的非库存商品(照 Express 原生,11-02 起;只写科目码时 Express
+    # 原生作废报 2101),按原生非库存商品行写——不动库存余额(PHYBAL / LOT 全 0),GL 无 COGS(见下一条)。
     res = WS.write_sale(_sale_items(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
-    for r in _rows(datat, "STCRD", DOCNUM=res.docnum):
-        assert float(r.XUNITPR) == 0.0
-        assert float(r.XTRNVAL) == 0.0
+    lines = _rows(datat, "STCRD", DOCNUM=res.docnum)
+    assert lines
+    for r in lines:
+        assert float(r.PHYBAL) == 0.0 and float(r.LOTBAL) == 0.0
+        item = _rows(datat, "STMAS", STKCOD=(r.STKCOD or "").strip())
+        assert item and (item[0].STKTYP or "").strip() == "3"
+
+
+def test_a_stock_item_with_the_revenue_account_code_stops_the_sale_for_a_person(datat):
+    # 直接记科目要的「编码 = 科目码」的商品已是库存品:不能拿它记收入(会动库存),整单回滚、交人(1.12.11)
+    t = dbf.Table(str(datat / "STMAS.DBF"), codepage=S.CODEPAGE)
+    t.open(dbf.READ_WRITE)
+    try:
+        t.append({"STKCOD": "41-01-00-00", "STKDES": "สินค้า", "STKTYP": "0"})
+    finally:
+        t.close()
+    res = WS.write_sale(_sale_items(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=True)
+    assert not res.ok and res.error_code == "ACCOUNT_CODE_IS_STOCK_ITEM"
+    assert _rows(datat, "ARTRN") == [] and _rows(datat, "STCRD") == []
 
 
 def test_detail_gl_unchanged_three_lines(datat):
@@ -495,9 +512,29 @@ def test_nonstock_fallback_to_direct_with_reason(datat, monkeypatch):
     assert res.ok, res.error  # 主档建失败不阻断整单
     row = _rows(datat, "STCRD", DOCNUM=res.docnum)[0]
     assert (row.STKCOD or "").strip() == "41-01-00-00"  # 回落直接科目行(STKCOD=账码)
-    assert float(row.XTRNVAL) == 0  # 直接科目行 X=0
+    # 回落的直接科目行照原生也引用编码 = 科目码的非库存商品(11-02:只写科目码时 Express 原生作废报 2101)
+    assert _rows(datat, "STMAS", STKCOD="41-01-00-00")
     assert res.line_modes[0]["mode"] == "direct_account"
     assert "ensure_item_failed" in res.line_modes[0]["reason"]  # 诚实记因·不静默
+
+
+def test_direct_line_writes_the_bare_account_only_when_its_item_cannot_be_made(datat, monkeypatch):
+    """编码 = 科目码的商品也建不出来(最后一道):照旧只写科目码(X=0),不阻断整单,原因随回执带回。"""
+    from companion import product_master
+
+    def _boom(*a, **k):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(product_master, "ensure_item", _boom)
+    monkeypatch.setattr(product_master, "ensure_account_item", _boom)
+    res = WS.write_sale(
+        _sale_nonstock(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False
+    )
+    assert res.ok, res.error
+    row = _rows(datat, "STCRD", DOCNUM=res.docnum)[0]
+    assert (row.STKCOD or "").strip() == "41-01-00-00" and float(row.XTRNVAL) == 0
+    assert not _rows(datat, "STMAS", STKCOD="41-01-00-00")
+    assert "account_item_failed" in res.line_modes[0]["reason"]
 
 
 # ── 方向路由不串表族 ────────────────────────────────────────

@@ -367,6 +367,192 @@ def ensure_item(
     return stkcod
 
 
+# ─── 直接记科目的明细行要的主档商品(编码 = 科目码) ────────────────────────────
+# Express 原生「直接记科目」:会计先建一件编码就是科目码的非库存商品(ACCCOD 经 ISACC 联到这个科目),单据行引用它。
+# S 盘副本 1037 本只读扫(11-02):2,597 万行原生明细除 1,174 行外商品码都在 STMAS;编码 = 科目码的商品 20,318 件
+# (STKTYP 3 有 10,809、5 有 9,158、0 有 322、4 有 29)。只写科目码、主档里没有这件商品的行,Express 原生作废按码查商品
+# 报 Message#. 2101「找不到商品编码」,单子停在 E(作废不完整,11-02 69EXP\TEST 车架号窗口实录)。
+ERR_ACCOUNT_ITEM_STOCK = "ACCOUNT_CODE_IS_STOCK_ITEM"
+
+
+class AccountItemIsStock(ValueError):
+    """编码 = 这个科目码的已是一件库存品:不能拿它记科目(会动库存),也不能再建同码的服务品。交人处理(整单回滚)。"""
+
+    code = ERR_ACCOUNT_ITEM_STOCK
+
+    def __init__(self, account: str):
+        super().__init__(f"the item with code {account} is a stock item, it cannot carry a direct account line")
+
+
+def _account_name(account_dir: Path, account: str) -> str:
+    """科目码 → 科目名(泰文 ACCNAM 优先,空则英文 ACCNAM2);读不到回空。"""
+    t = _open(account_dir, "GLACC", dbf.READ_ONLY)
+    try:
+        for r in S.live_rows(t):
+            if (_gv(r, "ACCNUM") or "") == account:
+                return _gv(r, "ACCNAM") or _gv(r, "ACCNAM2") or ""
+        return ""
+    finally:
+        t.close()
+
+
+def account_item_type(account_dir: Path, account: str) -> Optional[str]:
+    """编码 = ``account`` 的活商品的 STKTYP;没有回 None。只读。"""
+    t = _open(account_dir, "STMAS", dbf.READ_ONLY)
+    try:
+        for r in S.live_rows(t):
+            if (_gv(r, "STKCOD") or "") == account:
+                return str(_gv(r, "STKTYP"))
+        return None
+    finally:
+        t.close()
+
+
+def ensure_account_item(
+    account_dir: Path,
+    account: str,
+    *,
+    created_date: _dt.date,
+    userid: str = S.PEARNLY_USERID,
+    unit: str = "",
+    name: str = "",
+) -> Tuple[str, bool]:
+    """直接记科目的明细行前,保证主档里有编码 = ``account`` 的非库存商品(照 Express 原生)。回 ``(编码, 是否本次新建)``。
+
+    已有就复用(3 / 4 / 5 型都算,人家建的不动);同码的是库存品抛 :class:`AccountItemIsStock`;没有就照 :func:`ensure_item`
+    的建法建:结构从同账套非库存品克隆、缺的按原生服务品形状补,STKTYP 3(商品列表看得见),品名取科目名(取不到用行上的品名),
+    ACCCOD 经 ISACC 联到同一科目。已在写前备份-回滚事务内调用;建完重建 STMAS 索引并读回。"""
+    code = (account or "").strip()
+    if not code:
+        raise ValueError("ensure_account_item: 空科目码")
+    kind = account_item_type(account_dir, code)
+    if kind is not None:
+        if kind not in _NONSTOCK_TYPES:
+            raise AccountItemIsStock(code)
+        return code, False
+    desc = _account_name(account_dir, code) or (name or "").strip() or code
+    tpl = _pick_template(account_dir)
+    acccod = _ensure_acccod(account_dir, code, desc, created_date, userid)
+    row = {f: tpl[f] for f in _CLONE_FIELDS if tpl.get(f) not in ("", None)} if tpl else {}
+    row.update(_fill_shape(account_dir, row, unit))
+    row.update({
+        "STKCOD": code,
+        "STKDES": stock_lookup.storage_des(account_dir, desc),
+        "STKDES2": stock_lookup.storage_des(account_dir, desc),
+        "ACCCOD": acccod,
+        "USERID": userid,
+        "CREBY": userid,
+        "CREDAT": created_date,
+        "CHGDAT": created_date,
+        "STATUS": "",  # 同 ensure_item:商品 STATUS 写 'A' 会被 Express 商品列表滤掉
+    })
+    _apply_unit(account_dir, row, unit)
+    row["STKTYP"] = _VISIBLE_NONSTOCK_TYPE
+    t = _open(account_dir, "STMAS", dbf.READ_WRITE)
+    try:
+        t.append(row)
+    finally:
+        t.close()
+    _reindex(account_dir, "STMAS")
+    err = verify_item_row(account_dir, code)
+    if err:
+        raise ValueError(err)
+    return code, True
+
+
+# 存量补建:1.12.11 以前 CC 写的直接科目行只写了科目码。每本账套第一次写带明细的单时,在同一张单的写前备份里把 CC 写过
+# (单头 USERID = PEARNLY)的这种行要的商品补建上(Express 作废时现查主档,补上后旧单就能原生作废);这张单提交成功才记
+# 「这本账套补过了」,回滚了下次再补。只看 CC 写的单,会计自己录的、商品后来被删了的旧单不碰。
+BACKFILL_FILE: Optional[Path] = None  # 本机记哪些账套补过(测试改到临时目录);None = %APPDATA%\Pearnly\account_items.json
+_BACKFILL_VERSION = 1
+_backfill_pending: set = set()
+
+
+def _backfill_file() -> Path:
+    if BACKFILL_FILE is not None:
+        return BACKFILL_FILE
+    from .config import APPDATA_DIR
+
+    return APPDATA_DIR / "account_items.json"
+
+
+def _backfill_key(account_dir) -> str:
+    return str(Path(account_dir)).rstrip("\\/").lower()
+
+
+def _backfill_done() -> Dict:
+    import json
+
+    try:
+        found = json.loads(_backfill_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return found if isinstance(found, dict) else {}
+
+
+def backfill_due(account_dir) -> bool:
+    return int(_backfill_done().get(_backfill_key(account_dir)) or 0) < _BACKFILL_VERSION
+
+
+def backfill_account_items(account_dir: Path, *, created_date: _dt.date, userid: str = S.PEARNLY_USERID) -> List[str]:
+    """把 CC 写过的直接科目行(STKCOD 是科目表里的科目码、主档里没有这件商品)要的商品补建上,回补建的编码。
+    同码已是库存品的跳过(不动人家的库存品,那几张旧单要人处理)。已在写前备份-回滚事务内调用;只读扫单头与明细。"""
+    account_dir = Path(account_dir)
+    _backfill_pending.add(_backfill_key(account_dir))
+
+    def live(name, *fields):
+        if not (account_dir / f"{name}.DBF").exists():
+            return []
+        t = _open(account_dir, name, dbf.READ_ONLY)
+        try:
+            return [{f: (_gv(r, f) or "") for f in fields} for r in S.live_rows(t)]
+        finally:
+            t.close()
+
+    ours = {r["DOCNUM"] for name in ("APTRN", "ARTRN") for r in live(name, "DOCNUM", "USERID")
+            if r["USERID"].upper() == userid.upper()}
+    if not ours:
+        return []
+    accounts = {r["ACCNUM"] for r in live("GLACC", "ACCNUM") if r["ACCNUM"]}
+    items = {r["STKCOD"] for r in live("STMAS", "STKCOD")}
+    wanted: Dict[str, Dict] = {}
+    for r in live("STCRD", "DOCNUM", "STKCOD", "STKDES", "TQUCOD"):
+        code = r["STKCOD"]
+        if r["DOCNUM"] in ours and code in accounts and code not in items and code not in wanted:
+            wanted[code] = r
+    made = []
+    for code, r in sorted(wanted.items()):
+        try:
+            _code, created = ensure_account_item(account_dir, code, created_date=created_date, userid=userid,
+                                                 name=r["STKDES"])
+        except AccountItemIsStock:
+            log.warning("存量补建跳过 %s:同码已是库存品", code)
+            continue
+        if created:
+            made.append(code)
+    return made
+
+
+def backfill_committed(account_dir) -> None:
+    """这张单提交成功(写前备份已丢弃):这本账套补过了,记下;没在这张单里补过的什么都不做。读写失败只记日志。"""
+    import json
+
+    key = _backfill_key(account_dir)
+    if key not in _backfill_pending:
+        return
+    _backfill_pending.discard(key)
+    done = _backfill_done()
+    done[key] = _BACKFILL_VERSION
+    path = _backfill_file()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".part")
+        tmp.write_text(json.dumps(done, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(path)
+    except OSError as e:
+        log.warning("记不下账套补建标记 %s: %s", key, e)
+
+
 # ─── 真库存商品建档(STKTYP=0)· 「选库存」但账里无此品时用 ────────────────────
 _STOCK_TYPE = stock_lookup.STOCK_TYPE
 # 建全新库存目录档要照搬的结构字段(禁硬编码·全取自同账套真库存品模板)。含 ACCCOD——库存/

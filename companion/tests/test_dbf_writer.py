@@ -146,7 +146,13 @@ def test_purchase_detail_writes_stcrd_and_nxtseq(datat):
     assert (st[0].STKCOD or "").strip() == "11-04-02-00"  # 挂采购科目
     assert (st[0].PEOPLE or "").strip() == "S001"  # 供应商码
     assert (st[0].STKDES or "").strip() == "น้ำมันดีเซล"
-    assert float(st[0].XUNITPR) == 0.0 and float(st[0].XTRNVAL) == 0.0  # 无成本签名
+    # 直接记科目照 Express 原生:主档里有编码 = 科目码的非库存商品(3 型,ACCCOD 联到这个科目),行按非库存商品行写
+    # (X 记净额、不动库存)。只写科目码、主档里没有这件商品时 Express 原生作废报 2101(11-02)
+    assert float(st[0].XTRNVAL) == float(st[0].NETVAL) != 0.0
+    item = _rows(datat, "STMAS", STKCOD="11-04-02-00")
+    assert len(item) == 1 and (item[0].STKTYP or "").strip() == "3"
+    link = _rows(datat, "ISACC", ACCCOD=(item[0].ACCCOD or "").strip())
+    assert link and (link[0].ACCNUM01 or "").strip() == "11-04-02-00"
 
 
 def test_purchase_defers_master_index_to_batch(datat):

@@ -26,6 +26,7 @@ import dbf
 
 from . import cdx_reindex
 from . import dbf_detail
+from . import product_master
 from . import account_rules
 from . import dbf_schema as S
 from . import fiscal_period
@@ -462,6 +463,7 @@ def write_purchase(
             tax_id=entry.supplier_tax_id, branch=entry.supplier_branch, has_vat=records_vat))
         clock.lap("write_check")
         _discard_backup(backup_dir)  # 校验通过(已提交)→ 删快照,磁盘恒定
+        product_master.backfill_committed(account_dir)  # 这本账套的直接科目行商品补过了（只在这张单里补过时记）
         clock.lap("cleanup")
         clock.log(docnum, "ok")
         return DbfWriteResult(
@@ -512,6 +514,8 @@ def _error_code(e: Exception) -> str:
         # 入库路新建库存品挂的存货科目组不合格:单独给码,产品端让人选一次组(见 stock_template.ERR_STOCK_GROUP)
         return (stock_template.ERR_STOCK_GROUP if isinstance(e.__cause__, stock_template.InventoryAccountUnfit)
                 else ERR_STOCK_IN)
+    if isinstance(e, product_master.AccountItemIsStock):
+        return e.code  # 直接记科目要的商品码已是库存品:交人(1.12.11)
     if isinstance(e, _WriteError) and len(e.args) > 1:
         return e.args[1]
     return ERR_WRITE

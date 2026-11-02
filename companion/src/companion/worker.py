@@ -452,7 +452,7 @@ def places_scope(cfg, rows: list) -> list:
 
 def _outcome_for(error_code: Optional[str]) -> Optional[str]:
     """DBF 写错误码 → 云端 V3 outcome(细粒度状态)。未映射 → None(走默认 failed)。"""
-    from . import stock_template
+    from . import product_master, stock_template
     from .dbf_writer import ERR_INDEX, ERR_WAITING_LOCK
     from .dbf_sales import ERR_CUSTOMER_AMBIGUOUS, ERR_CUSTOMER_DUP
     from .dbf_writer import (
@@ -475,6 +475,8 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         ERR_LOCATION: "needs_review",
         # 新建库存品的存货科目组不合格 / 没配:要人选一次组(1.11.0)
         stock_template.ERR_STOCK_GROUP: "needs_review",
+        # 直接记科目的行要的「编码 = 科目码」的商品已是一件库存品:重试结论一样,要人处理(1.12.11)
+        product_master.ERR_ACCOUNT_ITEM_STOCK: "needs_review",
         # ERP 的单写进已关账的会计期:重试结论一样(1.12.0)
         "PERIOD_LOCKED": "needs_review",
         # 账套不允许负库存、库存不够(出入库第一期,stock_guard):重试结论一样,要人补货或改单

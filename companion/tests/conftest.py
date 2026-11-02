@@ -138,3 +138,17 @@ def _device_identity_fresh(monkeypatch):
         except ImportError:
             pass
     yield
+
+
+@pytest.fixture(autouse=True)
+def _account_items_marker_in_tmp(tmp_path, monkeypatch):
+    """本机记「哪些账套补建过直接科目行商品」(product_master.BACKFILL_FILE):测试里放进本次的临时目录,不串到别的用例。"""
+    import importlib
+
+    for name in ("companion.product_master", "src.companion.product_master"):
+        try:
+            module = importlib.import_module(name)
+        except ImportError:
+            continue
+        monkeypatch.setattr(module, "BACKFILL_FILE", tmp_path / "account_items.json")
+        monkeypatch.setattr(module, "_backfill_pending", set())

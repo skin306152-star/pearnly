@@ -4,7 +4,9 @@
 销项/采购唯一差异是 PEOPLE(客户码 vs 供应商码),由 party_code 参数传入。
 item_mode 分发:
 - non_stock_item:product_master.ensure_item 拿非库存主档码 → 写非库存行(X=净额·不动库存)。
-- direct_account:STKCOD=收入/费用账码 → 直接科目行(X=0)。ensure_item 失败回落亦走此并记因。
+- direct_account:直接记科目 —— 照 Express 原生先保证主档里有编码 = 这个收入 / 费用科目码的非库存商品
+  (product_master.ensure_account_item,有就复用、没有就建),这一行引用它、按非库存商品行写(11-02:只写科目码
+  的行 Express 原生作废报 2101)。ensure_item 失败回落亦走此并记因;建这件商品也失败才只写科目码(X=0)。
 - stock_item:不归本模块 —— 走到这里即路由漏了,显性报错(见 StockLineMisrouted)。
 
 账务正确性由调用方显式写的 GLJNLIT 保证,不依赖主档;故建/配主档失败回落 direct_account
@@ -110,10 +112,12 @@ def _open(account_dir, name: str, mode):
 def resolve_line(
     account_dir, mode: str, name: str, account: str, unit: str, docdat, userid: str
 ):
-    """决定该行 STKCOD + 最终 mode。non_stock_item 调 ensure_item;失败回落 direct_account
-    (STKCOD=账码)并记原因。返回 (stkcod, eff_mode, reason, created)。
+    """决定该行 STKCOD + 最终 mode。non_stock_item 调 ensure_item;失败回落 direct_account 并记原因。
+    direct_account 的 STKCOD = 科目码,主档里编码 = 科目码的非库存商品由 :func:`_account_line` 保证。
+    返回 (stkcod, eff_mode, reason, created)。
 
-    created:True=本次新建主档 · False=复用既有 · None=直接科目行(无主档概念)。供导出标"新建/复用"。
+    created:True=本次新建主档 · False=复用既有 · None=建主档失败、只写科目码的旧写法。供导出标"新建/复用",也定这一行
+    按非库存商品行写(有主档)还是只写科目码的直接科目行。
     """
     if mode == ITEM_MODE_STOCK:
         raise StockLineMisrouted(f"库存品行未被路由到入库路:{name!r}(item_mode={mode})")
@@ -133,8 +137,24 @@ def resolve_line(
             return stkcod, "non_stock_item", "", (pre_existing is None)
         except Exception as e:  # 主档建/配失败 → 回落(账务仍对·GL 显式写),不阻断整单
             log.warning("ensure_item 回落 direct_account: %s (%s)", name, e)
-            return account, "direct_account", f"ensure_item_failed: {e}", None
-    return account, "direct_account", "", None
+            return _account_line(account_dir, account, unit, docdat, userid, name, f"ensure_item_failed: {e}")
+    return _account_line(account_dir, account, unit, docdat, userid, name)
+
+
+def _account_line(account_dir, account: str, unit: str, docdat, userid: str, name: str, reason: str = ""):
+    """直接记科目的行:照 Express 原生,先保证主档里有编码 = 科目码的非库存商品(`product_master.ensure_account_item`),
+    这一行引用它、按非库存商品行写——只写科目码、主档里没有这件商品时,Express 原生作废报 2101「找不到商品编码」,单子停在
+    「作废不完整」(11-02)。同码的是库存品就抛 ``AccountItemIsStock``(整单回滚、交人)。建这件商品本身失败时最后才退回只写
+    科目码的旧写法,原因随回执带回(``created`` 为 None)。"""
+    try:
+        code, created = product_master.ensure_account_item(
+            account_dir, account, created_date=docdat, userid=userid, unit=unit, name=name)
+    except product_master.AccountItemIsStock:
+        raise
+    except Exception as e:  # noqa: BLE001 — 账务仍对(GL 显式写),不阻断整单
+        log.warning("ensure_account_item 失败,只写科目码: %s (%s)", account, e)
+        return account, "direct_account", "; ".join(x for x in (reason, f"account_item_failed: {e}") if x), None
+    return code, "direct_account", reason, created
 
 
 def write_stcrd_detail(
@@ -158,6 +178,12 @@ def write_stcrd_detail(
     `ref_no` 只有采购侧传(真账镜像:采购行带 REFNUM 98%+,销项行 0/14834 带)。"""
     line_modes: List[dict] = []
     location = account_rules.main_location(account_dir)
+    if product_master.backfill_due(account_dir):
+        # 1.12.11 以前写的只写科目码的直接科目行:同一张单的写前备份里把它们要的商品补建上(提交成功才记补过,见
+        # `product_master.backfill_committed`)
+        made = product_master.backfill_account_items(Path(account_dir), created_date=docdat, userid=userid)
+        if made:
+            log.info("补建直接科目行要的商品 %s: %s", account_dir, ",".join(made))
     t = _open(account_dir, "STCRD", dbf.READ_WRITE)
     fields = {name.upper() for name in t.field_names}
     try:
@@ -172,11 +198,9 @@ def write_stcrd_detail(
             stkcod, eff_mode, reason, created = resolve_line(
                 account_dir, mode, name, account, unit, docdat, userid
             )
-            builder = (
-                S.stcrd_nonstock_row
-                if eff_mode == "non_stock_item"
-                else S.stcrd_detail_row
-            )
+            # 引用主档商品的行(非库存品、编码 = 科目码的直接科目行)按原生非库存商品行写;只有建主档失败的直接科目行
+            # (created 为 None)才是只写科目码的旧写法
+            builder = S.stcrd_nonstock_row if created is not None else S.stcrd_detail_row
             S.append_stcrd(t, dbf_fields.priced_line(
                 account_rules.localize_stcrd(account_dir, builder(
                     docnum,

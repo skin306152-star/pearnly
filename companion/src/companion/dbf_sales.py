@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import dbf
 
 from . import dbf_detail
+from . import product_master
 from . import account_rules
 from . import dbf_schema as S
 from . import fiscal_period
@@ -386,6 +387,7 @@ def write_sale(
             extra=pos_differ)
         clock.lap("write_check")
         _discard_backup(backup_dir)  # 校验通过(已提交)→ 删快照,磁盘恒定
+        product_master.backfill_committed(account_dir)  # 这本账套的直接科目行商品补过了（只在这张单里补过时记）
         clock.lap("cleanup")
         clock.log(docnum, "ok")
         return DbfWriteResult(
@@ -412,6 +414,8 @@ def write_sale(
             if isinstance(e, stock_sale.StockItemNotFound)
             else stock_template.ERR_STOCK_GROUP
             if isinstance(e, stock_template.InventoryAccountUnfit)
+            else e.code  # 直接记科目要的商品码已是库存品:交人(1.12.11)
+            if isinstance(e, product_master.AccountItemIsStock)
             else (
                 e.args[1]
                 if (isinstance(e, _WriteError) and len(e.args) > 1)
