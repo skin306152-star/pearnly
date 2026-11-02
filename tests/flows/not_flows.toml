@@ -30,3 +30,7 @@ reason = "同 company-cards.tsx：公司卡的数据类型定义，只在有 Cow
 [[file]]
 file = "apps/pearnly_dms/pearnly_dms/query/records.py"
 reason = "DMS 推送记录列表：记录来自真推送到外部 DMS 的日志，回归实验室的 DMS 数据没有推送记录。操作员名（花名册名优先、没有用账号姓名）由 tests/test_dms_recording_fixes.py 守住"
+
+[[file]]
+file = "apps/pearnly_core/pearnly_core/cc_desktop/machine.py"
+reason = "CC 桌面版机器通道：只收 pcc_ 令牌的精确 POST（心跳、领单、回执、按需请求），没有页面、不经浏览器；回归实验室没有 CC 桌面版。离线由 tests/test_cc_desktop_channel.py（心跳落库、领单、回执）守住，实机由入口 erp.cc.connect / cc.desktop.write 在测试机验"

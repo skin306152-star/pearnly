@@ -84,6 +84,10 @@
 命中 1 条 `cc.operator`（覆盖 `express_operator/products.py`），new / old 两套数据 2 / 2 通过（268 秒），状态已回写提交 `3389aba8`；
 跑完 `docker compose down -v` 删掉栈与数据卷，无残留容器。
 
+分支 CI 第一次（运行 41424310408）Development checks 在流程覆盖闸失败：`cc_desktop/machine.py` 是产品入口文件、没有流程登记。本地全闸门当时没拦，
+是因为改动还没提交（覆盖闸只看已提交的差异）。机器通道没有页面、实验室没有 CC 桌面版，登记进 `tests/flows/not_flows.toml` 并写明离线守护
+（`tests/test_cc_desktop_channel.py`）与实机入口；本地 `FLOWS_BASE=origin/main python3 scripts/flows/coverage.py` 复核通过。Companion checks 第一次就通过（10 分 17 秒）。
+
 ## 入口实测（`check-impact.py` 清单，15 个）
 
 本步对 Express 代录与直写零行为变化；需要测试机 / 录制机的实机项本步没有授权去动（任务书不碰测试机），按「没测到」如实记，离线覆盖写在原因里。
