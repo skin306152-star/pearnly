@@ -187,6 +187,7 @@ DocType JSON 里 ERP 30 条、Cowork 12 条、共用 15 条 description：产品
 | 项目 | 结果 |
 | --- | --- |
 | 流程全套（57 条流程 × 两套数据 × 两种宽度） | 190/190 通过（dms.booking.editor new/desktop 首轮负载超时，单独补跑 51.6 秒通过，同共享笔记已知偶发）；新判定「field descriptions below fields」全部通过 |
+| 新流程 `erp.field-help` / `cowork.field-help`（`scripts/flows/field_help.py`：图标在、悬停 / 点按显示与收起、下方无说明、例外留在下方带标记） | 8/8 通过（erp new/desktop 首轮整格卡到 900 秒超时，补跑 14.6 秒通过） |
 | 键盘流程（改样式后重跑：erp.keyboard.dialogs、cowork.keyboard.intake、erp.keyboard.line-stocktake、dms.keyboard.editor） | 4/4 通过 |
 | 排版巡检（ERP / Cowork / DMS 全部页，电脑 1280 + 手机 375 截图） | 66 屏无报错；截图在 scratchpad `shots-all/`（本机，不进仓库） |
 | 静态闸门 | check-field-help、check-architecture、check-form-layout（48 张表单）、check-keyboard-coverage、check-copy（新增 0 改动 0）、check-unbounded-queries、flows/coverage、test_flows_run、test-desk-field-help.cjs（8 条） |

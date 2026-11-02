@@ -927,3 +927,32 @@ viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py",
 ]
+
+[[flow]]
+id = "erp.field-help"
+title = "ERP 字段说明：标题旁的说明图标，悬停 / 点按显示（11-02）"
+module = "scripts/flows/field_help.py"
+start = "/desk/pearnly-products"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/public/desk/field-help.js",
+  "apps/pearnly_core/pearnly_core/desk/navigation.py",
+]
+
+[[flow]]
+id = "cowork.field-help"
+title = "Cowork 字段说明：标题旁的说明图标，运行时状态留在下方（11-02）"
+module = "scripts/flows/field_help.py"
+product = "cowork"
+start = "/desk/pearnly-intake"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/public/desk/field-help.js",
+  "apps/pearnly_core/pearnly_core/desk/navigation.py",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-choices.js",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-folders.js",
+]
