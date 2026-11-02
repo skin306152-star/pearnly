@@ -1461,7 +1461,7 @@ check = "auto"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/facts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/choices.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/contracts.py"]
 smoke = "express"
 site = "erp"
-args = { "company_tax" = "0105545112901", "party" = "ก-002", "item" = "1 -    -", "loccod" = "01", "kind" = "purchase" }
+args = { "company_tax" = "0105549038811", "branch" = "00012", "loccod" = "01", "kind" = "purchase" }
 
 [[entry]]
 id = "erp.cc.pos-day"
@@ -1509,7 +1509,8 @@ check = "auto"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/stock_entry.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py", "companion/src/companion/dbf_stock.py"]
 smoke = "express"
 site = "erp"
-args = { "company_tax" = "0105545112901", "item" = "1 -    -", "loccod" = "01", "kind" = "stock_out" }
+# 冒烟用入库（JU）：反复跑只加库存，NEGALLOW=N 的 C 盘账套不会因出库扣成负数被拦
+args = { "company_tax" = "0105549038811", "branch" = "00012", "loccod" = "01", "kind" = "stock_in" }
 
 [[entry]]
 id = "erp.cc.masters"
@@ -1827,7 +1828,7 @@ check = "auto"
 files = ["companion/src/companion/worker.py", "companion/src/companion/gui_tray_workers.py", "companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py", "companion/src/companion/express_operator/masters.py"]
 smoke = "express"
 site = "erp"
-args = { "company_tax" = "0105545112901", "party" = "ก-002", "item" = "1 -    -", "loccod" = "01", "kind" = "purchase" }
+args = { "company_tax" = "0105549038811", "branch" = "00012", "loccod" = "01", "kind" = "purchase" }
 
 [[entry]]
 id = "erp.line.stocktake.liff-camera"
