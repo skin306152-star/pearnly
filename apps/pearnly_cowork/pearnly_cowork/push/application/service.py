@@ -103,7 +103,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
             account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
             *, confirm_duplicate=False, fixed=None, route_device="", automation=None, operator=None):
     """``operator``：代录 Express 的批次信息（``{"id", "index", "total", "start_at"}``，共用层 ``express_operator``）：载荷加代录
-    标记（载荷 15），交给那台电脑的 CC 桌面版在 Express 界面里录，不直写。
+    标记（载荷 16），交给那台电脑的 CC 桌面版在 Express 界面里录，不直写。
     ``route_device``：定时任务读文件夹的那台电脑，冻结在 Express 推送记录上、只有它写（ADR-021 第 51 条）；
     网页、手机、LINE、CC 发起的不给，由录入人自己的电脑写。
 

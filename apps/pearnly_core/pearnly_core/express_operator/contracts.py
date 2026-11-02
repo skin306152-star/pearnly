@@ -54,8 +54,8 @@ def level(reason: str) -> str:
     return REASONS.get(reason, HUMAN)
 
 
-# ── 载荷：直写同一份载荷 + 代录标记（载荷 15，CC 桌面版 payload_contract 同号）───────────────────
-OPERATOR_PAYLOAD_VERSION = 15
+# ── 载荷：直写同一份载荷 + 代录标记（载荷 16，CC 桌面版 payload_contract 同号）───────────────────
+OPERATOR_PAYLOAD_VERSION = 16
 
 
 def for_operator(payload: dict, batch: dict, *, vat_included: bool = False) -> dict:

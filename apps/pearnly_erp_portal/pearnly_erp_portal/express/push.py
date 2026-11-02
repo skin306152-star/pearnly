@@ -364,7 +364,7 @@ def send(doctype, name, operator=None):
     """准备并交进写账队列（后台任务；停下的单每分钟由 :func:`poll` 再叫）。已经交进去的不再交。
 
     ``operator``：代录 Express 的批次信息（共用层 ``pearnly_core.express_operator``，CC「代录」里交的）：同一份载荷加代录标记
-    （载荷 15），由 CC 桌面版在 Express 界面里录、不直写；回执照直写同一条（`job_changed`）。回这次的结论（代录交单用）。"""
+    （载荷 16），由 CC 桌面版在 Express 界面里录、不直写；回执照直写同一条（`job_changed`）。回这次的结论（代录交单用）。"""
     if doctype not in DIRECTIONS:
         return
     if not operator and operator_owned(doctype, name):

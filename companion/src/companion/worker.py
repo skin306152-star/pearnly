@@ -286,7 +286,7 @@ def _handle_dbf_task(
             error_code="NO_ACCOUNT_SELECTION",
         )
         return "failed"
-    # 代录 Express（载荷 15，入口与直写分开）：同一份载荷交给代录在 Express 界面里录，不直写 DBF
+    # 代录 Express（载荷 16，入口与直写分开）：同一份载荷交给代录在 Express 界面里录，不直写 DBF
     from .payload_contract import ENTRY_OPERATOR
 
     if str(payload.get("entry_mode") or "").strip() == ENTRY_OPERATOR:

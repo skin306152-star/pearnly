@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""代录宿主与写账线：载荷 15 的单交给代录、一件一件录、批次最后一张录完退出 Express；
+"""代录宿主与写账线：载荷 16 的单交给代录、一件一件录、批次最后一张录完退出 Express；
 不能代录的电脑转人工（不反复领）；代录包只在领到代录单时导入。"""
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ SRC = Path(__file__).resolve().parents[1] / "src" / "companion"
 def payload(doc_type, party, code, qty, price, index, total, batch="b1", ref="R1"):
     side = "supplier" if doc_type in ("RR", "HP") else "customer"
     return {"doctype": doc_type, "docdate_be": "691020", "ref_no": ref, side: {"code": party},
-            "items": [{"code": code, "qty": qty, "unit_price": price}], "payload_version": 15,
+            "items": [{"code": code, "qty": qty, "unit_price": price}], "payload_version": 16,
             "entry_mode": "operator", "operator": {"batch": {"id": batch, "index": index, "total": total}}}
 
 

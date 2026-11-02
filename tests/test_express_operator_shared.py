@@ -48,11 +48,11 @@ class OperatorPayload(unittest.TestCase):
         for other in ({"payload_version": 9}, "{}", "", None, "not json", '["operator"]'):
             self.assertFalse(SERVER.is_operator(other))
 
-    def test_direct_payload_plus_operator_marker_and_version_15(self):
+    def test_direct_payload_plus_operator_marker_and_version_16(self):
         payload = {"doctype": "RR", "payload_version": 4, "items": [{"code": "A"}]}
         out = SERVER.for_operator(payload, {"id": "b1", "index": 2, "total": 3, "start_at": 0}, vat_included=True)
         self.assertEqual(out["entry_mode"], "operator")
-        self.assertEqual(out["payload_version"], 15)
+        self.assertEqual(out["payload_version"], 16)
         self.assertEqual(out["operator"], {"batch": {"id": "b1", "index": 2, "total": 3, "start_at": 0.0},
                                            "vat_included": True})
         self.assertEqual(out["items"], payload["items"])

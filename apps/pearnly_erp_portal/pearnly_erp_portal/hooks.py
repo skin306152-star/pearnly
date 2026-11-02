@@ -596,7 +596,7 @@ permission_query_conditions.update({
 })
 
 # 代录 Express（共用层 pearnly_core.express_operator，评估 docs/work/2026-10-26-express-operator-product-评估.md）：CC 里「代录」
-# 列这家公司还没交进写账队列的采购 / 销售单，交单走 ERP 推送同一条路、载荷加代录标记（载荷 15）。
+# 列这家公司还没交进写账队列的采购 / 销售单，交单走 ERP 推送同一条路、载荷加代录标记（载荷 16）。
 pearnly_express_operator = {
     "allowed": "pearnly_erp_portal.express.operator.allowed",
     "sources": "pearnly_erp_portal.express.operator.sources",

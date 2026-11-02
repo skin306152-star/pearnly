@@ -18,7 +18,7 @@ def test_missing_version_defaults_to_v1_supported():
 
 
 def test_future_version_rejected():
-    assert check_payload_version({"payload_version": 16}) == ERR_PAYLOAD_VERSION
+    assert check_payload_version({"payload_version": 17}) == ERR_PAYLOAD_VERSION
 
 
 def test_supported_set_is_v1_to_v12_today():
