@@ -86,9 +86,10 @@ class Remote:
         container = self.container(product)
         # 参数一律 base64（JSON 里的引号、泰文不经 shell 转义）；容器里的脚本见到 b64: 前缀就解开
         quoted = " ".join("b64:" + base64.b64encode(a.encode("utf-8")).decode() for a in args)
+        # docker cp 进去的文件属 root，容器默认用户 frappe 删不掉：删除用 root
         inner = (f"docker cp /tmp/{name} {container}:/tmp/{name} >/dev/null && "
                  f"docker exec {container} bash -c \"cd /home/frappe/frappe-bench/sites && ../env/bin/python /tmp/{name} {quoted}\" </dev/null 2>&1; "
-                 f"docker exec {container} rm -f /tmp/{name} </dev/null; rm -f /tmp/{name}")
+                 f"docker exec -u root {container} rm -f /tmp/{name} </dev/null; rm -f /tmp/{name}")
         if self.target == "local":
             subprocess.run(["docker", "cp", str(script), f"{container}:/tmp/{name}"], check=True, capture_output=True, timeout=120)
             try:
