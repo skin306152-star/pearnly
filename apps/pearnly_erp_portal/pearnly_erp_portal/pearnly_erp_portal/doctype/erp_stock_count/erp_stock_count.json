@@ -19,14 +19,7 @@
   "closed_by",
   "posted_at",
   "posted_by",
-  "express_section",
-  "express_state",
-  "express_docnum",
-  "express_reason",
-  "express_sent_at",
-  "express_job",
-  "express_book",
-  "express_needed",
+  "ledger_section",
   "ledger_state",
   "ledger_docnum",
   "ledger_reason",
@@ -117,68 +110,10 @@
    "read_only": 1
   },
   {
-   "fieldname": "express_section",
+   "fieldname": "ledger_section",
    "fieldtype": "Section Break",
    "label": "Express",
    "collapsible": 1
-  },
-  {
-   "fieldname": "express_state",
-   "fieldtype": "Select",
-   "label": "Express Status",
-   "options": "\nqueued\nwritten\nmismatch\nheld\nfailed\ndetached",
-   "read_only": 1,
-   "no_copy": 1,
-   "in_standard_filter": 1
-  },
-  {
-   "fieldname": "express_docnum",
-   "fieldtype": "Data",
-   "label": "Express No.",
-   "read_only": 1,
-   "no_copy": 1,
-   "search_index": 1
-  },
-  {
-   "fieldname": "express_reason",
-   "fieldtype": "Small Text",
-   "label": "Express Note",
-   "read_only": 1,
-   "hidden": 1,
-   "no_copy": 1
-  },
-  {
-   "fieldname": "express_sent_at",
-   "fieldtype": "Datetime",
-   "label": "Express Sent At",
-   "read_only": 1,
-   "hidden": 1,
-   "no_copy": 1
-  },
-  {
-   "fieldname": "express_job",
-   "fieldtype": "Data",
-   "label": "Express Job",
-   "read_only": 1,
-   "hidden": 1,
-   "no_copy": 1,
-   "search_index": 1
-  },
-  {
-   "fieldname": "express_book",
-   "fieldtype": "Data",
-   "label": "Express Account Set",
-   "read_only": 1,
-   "hidden": 1,
-   "no_copy": 1
-  },
-  {
-   "fieldname": "express_needed",
-   "fieldtype": "Long Text",
-   "label": "Express Choices Needed",
-   "read_only": 1,
-   "hidden": 1,
-   "no_copy": 1
   },
   {
    "fieldname": "ledger_state",

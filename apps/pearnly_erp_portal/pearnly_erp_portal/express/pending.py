@@ -6,7 +6,8 @@
   选一次、再写一次、标记已处理都在单据页上）。归哪家公司就是单据上的公司。
 - 权限：公司在本人可见公司里（`masters.company.allowed_companies`），有这类单据的读权限，员工只看本人录入的（`guard.scope_filters`），
   同单据列表。
-- **读账本状态的地方只有 `_ledger_rows` 一个函数**（后面「账本状态」改成通用字段时只改它）。
+- **读账本状态的地方只有 `_ledger_rows` 一个函数**（单据上的通用账本栏 ``ledger_state`` / ``ledger_reason``，评估 2026-11-02
+  §12 第 6 条）。
 - 状态变了（共用写账通道交回 `push.job_changed`）：这张单进出「待处理」时，经共用层 `projects.announce` 给能看这家公司的人推
   ``pearnly.project``（``upsert``，``part = "pending"``），页面重取计数与列表（`notify`）。
 """
@@ -108,8 +109,7 @@ def visible(user=None) -> list:
 
 
 def _ledger_rows(doctype, *, companies=None, names=None, attention=True, user=None) -> list:
-    """**账本状态只在这里读**（``express_state`` / ``express_reason``；后面改成通用「账本状态」时只改这里），回的行统一成
-    ``ledger_state`` / ``ledger_reason``。
+    """**账本状态只在这里读**（单据上的通用账本栏 ``ledger_state`` / ``ledger_reason``），回的行统一成同名的键。
 
     - ``attention``（默认）：这几家公司（``companies``）里「写账本没成、要人处理」的单，已提交的、员工只看本人录入的，
       新 → 旧，最多 `PENDING_MAX` 张；
@@ -119,23 +119,23 @@ def _ledger_rows(doctype, *, companies=None, names=None, attention=True, user=No
         if not companies:
             return []
         filters = {"company": ["in", list(companies)], "status": "submitted",
-                   "express_state": ["in", list(contracts.ATTENTION_STATES)], **guard.scope_filters(user)}
+                   "ledger_state": ["in", list(contracts.ATTENTION_STATES)], **guard.scope_filters(user)}
     else:
         if not names:
             return []
         filters = {"name": ["in", list(names)]}
     rows = frappe.get_all(doctype, filters=filters,
                           fields=["name", "company", "status", "doc_date", "system_no", party, "grand_total",
-                                  "express_state", "express_reason", "modified"],
+                                  "ledger_state", "ledger_reason", "modified"],
                           order_by="modified desc, name desc", limit_page_length=PENDING_MAX)
     out = []
     for row in rows:
-        if attention and not contracts.needs_person(row.express_state, row.express_reason):
+        if attention and not contracts.needs_person(row.ledger_state, row.ledger_reason):
             continue
         out.append({"doctype": doctype, "name": row.name, "company": row.company, "status": row.status,
                     "date": str(row.doc_date or ""), "number": row.system_no or "", "party": row.get(party) or "",
-                    "total": row.grand_total, "ledger_state": row.express_state or "",
-                    "ledger_reason": row.express_reason or "", "modified": str(row.modified or "")})
+                    "total": row.grand_total, "ledger_state": row.ledger_state or "",
+                    "ledger_reason": row.ledger_reason or "", "modified": str(row.modified or "")})
     return out
 
 

@@ -36,10 +36,10 @@ period = frappe.utils.add_months(frappe.utils.today(), -1)[:7]
 first, last = operator._month(period)
 # 这家这个月已提交、还没交进写账队列的一张采购单：临时标成「电脑离线、停下」（真实的停下状态之一），它就该出现在资料里；verify 还原
 marked = frappe.get_all(push.PURCHASE, filters={{"company": {company!r}, "status": "submitted", "doc_date": ["between", [first, last]],
-                                                 "express_state": ["in", ["", None]], "express_job": ["is", "not set"]}},
+                                                 "ledger_state": ["in", ["", None]], "ledger_job": ["is", "not set"]}},
                         pluck="name", order_by="name asc", limit_page_length=1)
 for name in marked:
-    frappe.db.set_value(push.PURCHASE, name, {{"express_state": contracts.HELD, "express_reason": contracts.OFFLINE}}, update_modified=False)
+    frappe.db.set_value(push.PURCHASE, name, {{"ledger_state": contracts.HELD, "ledger_reason": contracts.OFFLINE}}, update_modified=False)
 frappe.db.commit()
 docs = operator.sources({company!r}, period, 0, 200)["documents"]
 print(json.dumps({{"title": frappe.db.get_value("ERP Company", {company!r}, "company_name") or {company!r}, "period": period,
@@ -110,7 +110,7 @@ def verify(lab, manifest, params, camera_code=None):
 from pearnly_core.express_operator import tasks
 from pearnly_erp_portal.express import push
 for name in {params["marked"]!r}:
-    frappe.db.set_value(push.PURCHASE, name, {{"express_state": "", "express_reason": ""}}, update_modified=False)
+    frappe.db.set_value(push.PURCHASE, name, {{"ledger_state": "", "ledger_reason": ""}}, update_modified=False)
 frappe.db.commit()
 print(json.dumps({{"tasks": frappe.db.count(tasks.DOCTYPE, {{"owner": "admin@erp.regression"}}),
                   "sessions": frappe.db.count("Pearnly Assistant Session", {{"user": "admin@erp.regression"}}),

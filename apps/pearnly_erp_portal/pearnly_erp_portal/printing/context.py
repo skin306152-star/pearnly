@@ -289,12 +289,12 @@ def _sales(doc) -> dict:
     from pearnly_erp_portal.express import contracts as express_contracts
 
     quotation = doc.doc_kind == contracts.QUOTATION
-    linked = (not quotation) and express_contracts.in_express(doc.get("express_state"))
+    linked = (not quotation) and express_contracts.in_express(doc.get("ledger_state"))
     rows = _trade_rows(doc, units=not quotation)
     ctx = _base(doc.doc_kind, doc, doc.company, doc.system_no, doc.doc_date, doc.note, doc.status == "void")
     # 信息框：值是付款方式时标 `method`，模板按付款方式标签表印
     info = [("valid_until", ""), ("payment_terms", "")] if quotation else [
-        ("express_no", doc.express_docnum or "") if linked else None,
+        ("express_no", doc.ledger_docnum or "") if linked else None,
         ("payment", {"method": doc.payment_method} if doc.payment_method else ""),
         ("paid_date", contracts.day(doc.payment_date)),
         ("paid_amount", contracts.money(doc.paid_amount) if contracts.d(doc.paid_amount) else "")]

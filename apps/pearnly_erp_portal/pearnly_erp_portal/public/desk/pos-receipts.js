@@ -133,10 +133,10 @@
 					format: value => p.money(value) },
 				{ fieldname: "shift", width: 140, min_width: 96, label: t("trade.shiftNo") },
 				// 接了 Express：所在现销日汇总的 Express 单号，没写进去显示状态（同采购 / 销售列表）
-				...(p.express_used() ? [{ fieldname: "express_docnum", width: 170, min_width: 120,
-					label: __("Express"), format: (value, row) => (value || (row.express_state ? __({ queued: "Queued",
+				...(p.express_used() ? [{ fieldname: "ledger_docnum", width: 170, min_width: 120,
+					label: __("Express"), format: (value, row) => (value || (row.ledger_state ? __({ queued: "Queued",
 						written: "express.state.written", mismatch: "Mismatch", held: "Pending", failed: "Failed",
-						handled: "express.state.handled", detached: "express.state.detached" }[row.express_state] || row.express_state)
+						handled: "express.state.handled", detached: "express.state.detached" }[row.ledger_state] || row.ledger_state)
 						: row.express_pending_refund ? __("express.state.refundPending") : ""))
 						+ (row.express_extra ? ` · ${__("express.summary.extra")}` : "") }] : []),
 			],

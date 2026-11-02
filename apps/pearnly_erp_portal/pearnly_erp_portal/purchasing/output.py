@@ -32,9 +32,11 @@ def _cell(record, key):
 
 
 def _columns(doctype):
+    # 单据记的账本（`ledger_target`，评估 2026-11-02 §12 第 6 条）是内部标记，不进导出：导出的列与改列前相同
     return [("name", "ID"), *[(field.fieldname, field.label) for field in frappe.get_meta(doctype).fields
         if field.fieldtype not in ("Section Break", "Column Break", "Tab Break", "HTML", "Button", "Table")
-        and field.fieldname not in ("request_id", "request_hash", "dedupe_key", "dedupe_ref", "calculation_version")]]
+        and field.fieldname not in ("request_id", "request_hash", "dedupe_key", "dedupe_ref", "calculation_version",
+                                    "ledger_target")]]
 
 
 def _value(value):

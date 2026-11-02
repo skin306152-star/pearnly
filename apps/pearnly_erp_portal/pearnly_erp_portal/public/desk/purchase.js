@@ -65,8 +65,8 @@
 						cell_class: value => value === "paid" ? "" : "pearnly-payment-due"},
 					{fieldname: "status", width: 72, min_width: 52, label: __("Status"), format: u.label},
 					// 接了事务所 Express 账本的站点：写进去了显示 Express 单号，否则显示状态
-					...(p.express_used() ? [{fieldname: "express_docnum", width: 110, min_width: 76, label: __("Express"),
-						format: (value, row) => value || (row.express_state ? u.label("express_" + row.express_state) : "")}] : []),
+					...(p.express_used() ? [{fieldname: "ledger_docnum", width: 110, min_width: 76, label: __("Express"),
+						format: (value, row) => value || (row.ledger_state ? u.label("express_" + row.ledger_state) : "")}] : []),
 				],
 				// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
 				sort_fields: ["system_no", "doc_date", "supplier_name", "grand_total",

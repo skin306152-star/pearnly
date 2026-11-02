@@ -10,6 +10,7 @@
 from decimal import Decimal
 import json
 import pathlib
+import re
 import sys
 import tempfile
 import types
@@ -1053,8 +1054,8 @@ class StockVoid(PushModule):
         frappe.utils.get_datetime = lambda value: dt.datetime.fromisoformat(str(value))
 
     def written(self, **extra):
-        self.docs["SE-1"] = {"name": "SE-1", "creation": "2026-10-25 10:00:00", "owner": "a@x", "express_state": "written",
-                             "express_docnum": "OU691025-001", "express_void_job": None, **extra}
+        self.docs["SE-1"] = {"name": "SE-1", "creation": "2026-10-25 10:00:00", "owner": "a@x", "ledger_state": "written",
+                             "ledger_docnum": "OU691025-001", "ledger_void_job": None, **extra}
 
     def test_a_written_entry_queues_a_void_and_the_receipt_marks_it_cancelled(self):
         from unittest import mock
@@ -1069,45 +1070,45 @@ class StockVoid(PushModule):
             self.push.void("ERP Stock Entry", "SE-1")  # 已排过：不再排
         self.assertEqual(len(self.enqueued), 1)
         self.assertTrue(self.enqueued[0]["request_key"].startswith(stock_entry.VOID_REQUEST))
-        self.assertEqual((self.docs["SE-1"]["express_void_state"], self.docs["SE-1"]["express_void_job"]), ("queued", "J9"))
+        self.assertEqual((self.docs["SE-1"]["ledger_void_state"], self.docs["SE-1"]["ledger_void_job"]), ("queued", "J9"))
         self.push.job_changed({"source_doctype": "ERP Stock Entry", "source_name": "SE-1", "status": "success", "job": "J9",
                                "request_key": self.enqueued[0]["request_key"], "docnum": "OU691025-001"})
-        self.assertEqual(self.docs["SE-1"]["express_void_state"], "voided")
-        self.assertEqual((self.docs["SE-1"]["express_state"], self.docs["SE-1"]["express_docnum"]), ("written", "OU691025-001"))
+        self.assertEqual(self.docs["SE-1"]["ledger_void_state"], "voided")
+        self.assertEqual((self.docs["SE-1"]["ledger_state"], self.docs["SE-1"]["ledger_docnum"]), ("written", "OU691025-001"))
         self.push.job_changed({"source_doctype": "ERP Stock Entry", "source_name": "SE-1", "status": "manual", "job": "J9",
                                "request_key": self.enqueued[0]["request_key"], "reason": "[VOID_DOCUMENT_CHANGED] x"})
-        self.assertEqual((self.docs["SE-1"]["express_void_state"], self.docs["SE-1"]["express_void_reason"]),
+        self.assertEqual((self.docs["SE-1"]["ledger_void_state"], self.docs["SE-1"]["ledger_void_reason"]),
                          ("held", "[VOID_DOCUMENT_CHANGED] x"))
 
     def test_voiding_before_the_computer_wrote_it_cancels_the_queued_job(self):
         from unittest import mock
-        self.written(express_state="queued", express_docnum="", express_job="J1")
+        self.written(ledger_state="queued", ledger_docnum="", ledger_job="J1")
         cancelled = []
         with mock.patch.object(self.push.jobs, "find_by_name", lambda name: {"job": name, "status": "queued"}), \
                 mock.patch.object(self.push.jobs, "cancel", lambda name, reason: cancelled.append((name, reason))):
             self.push.void("ERP Stock Entry", "SE-1")
         self.assertEqual(cancelled, [("J1", "voided")])
-        self.assertEqual((self.docs["SE-1"]["express_state"], self.docs["SE-1"]["express_job"]), (None, None))
+        self.assertEqual((self.docs["SE-1"]["ledger_state"], self.docs["SE-1"]["ledger_job"]), (None, None))
 
     def test_a_write_that_lands_after_the_void_is_voided_at_once(self):
         """电脑正在写（领走了撤不了）时 ERP 作废：写完的回执一到就排作废原单。"""
         from unittest import mock
-        self.written(express_state="queued", express_docnum="", express_job="J1", status="void")
+        self.written(ledger_state="queued", ledger_docnum="", ledger_job="J1", status="void")
         calls = []
         with mock.patch.object(self.push, "void", lambda doctype, name: calls.append(name)), \
                 mock.patch.object(self.push, "company_of", lambda doctype, name: None):
             self.push.job_changed({"source_doctype": "ERP Stock Entry", "source_name": "SE-1", "status": "success",
                                    "job": "J1", "request_key": "erp:stock:SE-1@x", "docnum": "OU691025-002"})
         self.assertEqual(calls, ["SE-1"])
-        self.assertEqual(self.docs["SE-1"]["express_docnum"], "OU691025-002")
+        self.assertEqual(self.docs["SE-1"]["ledger_docnum"], "OU691025-002")
 
     def test_an_entry_never_written_is_only_voided_in_erp(self):
         from unittest import mock
-        self.written(express_state="held", express_docnum="")
+        self.written(ledger_state="held", ledger_docnum="")
         with mock.patch.object(self.push.jobs, "enqueue", lambda **kw: self.enqueued.append(kw) or {"job": "J9"}):
             self.push.void("ERP Stock Entry", "SE-1")
         self.assertEqual(self.enqueued, [])
-        self.assertFalse(self.docs["SE-1"].get("express_void_state"))
+        self.assertFalse(self.docs["SE-1"].get("ledger_void_state"))
 
     def test_an_entry_from_a_count_sent_to_express_cannot_be_voided_on_its_own(self):
         """盘点整份轧差写一张 TK，它生成的单不逐张写：盘点进了写 Express 就不让单独作废（验收 10-25），没进的照常作废。"""
@@ -1201,7 +1202,7 @@ class LinkStates(PushModule):
         out = {}
         for doctype, name in self.documents(created).items():
             self.push.queue(doctype, name)
-            out[doctype] = fake.STATE.db.table(doctype)[name].get("express_state")
+            out[doctype] = fake.STATE.db.table(doctype)[name].get("ledger_state")
         return out
 
     def test_unchecked_or_never_linked_companies_write_nothing(self):
@@ -1236,7 +1237,7 @@ class LinkStates(PushModule):
         fake.STATE.db.table("ERP Stock Entry")["SE-1"]["ref_type"] = "count"  # 盘点生成的单：整份盘点写一张 TK
         for doctype, name in (("ERP Sales Document", "SD-1"), ("ERP Stock Entry", "SE-1")):
             self.push.queue(doctype, name)
-            self.assertIsNone(fake.STATE.db.table(doctype)[name].get("express_state"))
+            self.assertIsNone(fake.STATE.db.table(doctype)[name].get("ledger_state"))
 
     def test_an_amended_purchase_keeps_the_start_of_the_first_document(self):
         """采购「修改」= 作废原单 + 提交新单：新单沿 ``corrected_from`` 取最早那张的开始时刻。接上前的旧单改了也不推（原单会计可能
@@ -1251,7 +1252,7 @@ class LinkStates(PushModule):
         self.assertEqual(str(self.push.started("Purchase Document", "PUR-A2")), self.BEFORE)
         for name, state in (("PUR-A2", None), ("PUR-N1", "queued")):
             self.push.queue("Purchase Document", name)
-            self.assertEqual(table[name].get("express_state"), state, name)
+            self.assertEqual(table[name].get("ledger_state"), state, name)
         table["PUR-LOOP"] = {"name": "PUR-LOOP", "creation": self.AFTER, "corrected_from": "PUR-LOOP"}  # 坏数据成环：不死循环
         self.assertEqual(str(self.push.started("Purchase Document", "PUR-LOOP")), self.AFTER)
 
@@ -1277,7 +1278,7 @@ class LinkStates(PushModule):
         self.documents(self.AFTER)
         self.push.queue("Purchase Document", "PUR-1")
         row = fake.STATE.db.table("Purchase Document")["PUR-1"]
-        self.assertEqual(row["express_state"], "queued")
+        self.assertEqual(row["ledger_state"], "queued")
         results = iter([{"hold": E.NO_BOOK}, {"payload": {"payload_version": 4}, "book": {"key": "BK"}}])
         made = []
         with mock.patch.object(self.push, "document", lambda doctype, name: {"ref": "PUR-1@x", "number": "IV-1"}), \
@@ -1287,10 +1288,10 @@ class LinkStates(PushModule):
                 mock.patch.object(self.push.jobs, "of_source", lambda *a: []), \
                 mock.patch.object(self.push.jobs, "enqueue", lambda **kw: made.append(kw) or {"job": "J1"}):
             self.push.send("Purchase Document", "PUR-1")
-            self.assertEqual((row["express_state"], row["express_reason"]), ("held", E.NO_BOOK))
+            self.assertEqual((row["ledger_state"], row["ledger_reason"]), ("held", E.NO_BOOK))
             self.assertIn(E.NO_BOOK, E.RETRY_REASONS)
             self.push.poll()
-        self.assertEqual((len(made), row["express_job"]), (1, "J1"))
+        self.assertEqual((len(made), row["ledger_job"]), (1, "J1"))
 
     def detach_fixture(self):
         db = fake.STATE.db
@@ -1298,12 +1299,12 @@ class LinkStates(PushModule):
                 "SE-W": ("written", "J4")}
         for name, (state, job) in rows.items():
             db.table("ERP Stock Entry")[name] = {"name": name, "status": "submitted", "warehouse": "W1",
-                                                 "creation": self.AFTER, "express_state": state, "express_job": job,
-                                                 "express_reason": "x", "express_docnum": "OU-1" if state == "written" else ""}
+                                                 "creation": self.AFTER, "ledger_state": state, "ledger_job": job,
+                                                 "ledger_reason": "x", "ledger_docnum": "OU-1" if state == "written" else ""}
         db.table("ERP Stock Entry")["SE-OTHER"] = {"name": "SE-OTHER", "status": "submitted", "warehouse": "W9",
-                                                   "creation": self.AFTER, "express_state": "queued", "express_job": None}
+                                                   "creation": self.AFTER, "ledger_state": "queued", "ledger_job": None}
         db.table("Purchase Document")["PUR-H"] = {"name": "PUR-H", "status": "submitted", "company": "CO-1",
-                                                  "creation": self.AFTER, "express_state": "held", "express_job": None}
+                                                  "creation": self.AFTER, "ledger_state": "held", "ledger_job": None}
         return {"J1": "queued", "J2": "manual", "J3": "leased", "J4": "done"}
 
     def test_disconnecting_withdraws_what_is_not_written_and_marks_it_detached(self):
@@ -1318,44 +1319,44 @@ class LinkStates(PushModule):
             self.assertEqual(self.push.detach("CO-1"), 4)
         self.assertEqual(sorted(cancelled), [("J1", "disconnected"), ("J2", "disconnected")])
         table = fake.STATE.db.table("ERP Stock Entry")
-        state = lambda doctype, name: (fake.STATE.db.table(doctype)[name]["express_state"],  # noqa: E731
-                                       fake.STATE.db.table(doctype)[name].get("express_reason"))
+        state = lambda doctype, name: (fake.STATE.db.table(doctype)[name]["ledger_state"],  # noqa: E731
+                                       fake.STATE.db.table(doctype)[name].get("ledger_reason"))
         for name in ("SE-Q", "SE-H", "SE-M"):
             self.assertEqual(state("ERP Stock Entry", name), (E.DETACHED, E.DISCONNECTED), name)
         self.assertEqual(state("Purchase Document", "PUR-H"), (E.DETACHED, E.DISCONNECTED))
-        self.assertEqual(table["SE-L"]["express_state"], "queued")  # 电脑正在写：等结果
-        self.assertEqual(table["SE-W"]["express_state"], "written")
-        self.assertEqual(table["SE-OTHER"]["express_state"], "queued")
+        self.assertEqual(table["SE-L"]["ledger_state"], "queued")  # 电脑正在写：等结果
+        self.assertEqual(table["SE-W"]["ledger_state"], "written")
+        self.assertEqual(table["SE-OTHER"]["ledger_state"], "queued")
         with mock.patch.object(self.push, "link_party", lambda *a: None), \
                 mock.patch.object(self.push, "link_products", lambda *a: None):
             self.push.job_changed({"source_doctype": "ERP Stock Entry", "source_name": "SE-L", "status": "manual",
                                    "job": "J3", "request_key": "erp:stock:SE-L@x", "reason": "[PERIOD_LOCKED] x"})
         self.assertEqual(state("ERP Stock Entry", "SE-L"), (E.DETACHED, E.DISCONNECTED))
-        table["SE-L"]["express_state"] = "queued"
+        table["SE-L"]["ledger_state"] = "queued"
         with mock.patch.object(self.push, "link_party", lambda *a: None), \
                 mock.patch.object(self.push, "link_products", lambda *a: None):
             self.push.job_changed({"source_doctype": "ERP Stock Entry", "source_name": "SE-L", "status": "success",
                                    "job": "J3", "request_key": "erp:stock:SE-L@x", "docnum": "OU-9"})
-        self.assertEqual((table["SE-L"]["express_state"], table["SE-L"]["express_docnum"]), ("written", "OU-9"))
+        self.assertEqual((table["SE-L"]["ledger_state"], table["SE-L"]["ledger_docnum"]), ("written", "OU-9"))
 
     def test_after_disconnecting_send_poll_answer_retry_and_mark_handled_write_nothing(self):
         """断开后 send / poll / answer / retry / mark_handled 都复核勾选：不再准备、不再交进写账队列（原来照写，评估 4.a 反证 4）。"""
         self.company(enabled=0, linked_at=None)
         table = fake.STATE.db.table("Purchase Document")
         table["PUR-1"] = {"name": "PUR-1", "status": "submitted", "company": "CO-1", "creation": self.AFTER,
-                          "express_state": "queued", "express_job": None, "express_reason": ""}
+                          "ledger_state": "queued", "ledger_job": None, "ledger_reason": ""}
         with mock.patch.object(self.push.prepare, "prepare", side_effect=AssertionError("must not prepare")), \
                 mock.patch.object(self.push.jobs, "enqueue", side_effect=AssertionError("must not queue")):
             self.push.poll()
-        self.assertEqual((table["PUR-1"]["express_state"], table["PUR-1"]["express_reason"]), (E.DETACHED, E.DISCONNECTED))
+        self.assertEqual((table["PUR-1"]["ledger_state"], table["PUR-1"]["ledger_reason"]), (E.DETACHED, E.DISCONNECTED))
         utils = sys.modules["frappe.utils"]
         for name, value in (("now", lambda: "2026-10-24 00:00:00"), ("flt", lambda v, *a: float(v or 0)),
                             ("cint", lambda v: int(v or 0)), ("getdate", lambda v=None: v), ("add_days", lambda d, n: d)):
             setattr(utils, name, getattr(utils, name, value))
         from pearnly_erp_portal.express import api
-        row = types.SimpleNamespace(name="PDS-1", company="CO-1", express_state="held", express_job=None,
-                                    express_void_state=None, express_book=None, express_docnum="", express_reason="x",
-                                    express_needed=None, get=lambda key: None)
+        row = types.SimpleNamespace(name="PDS-1", company="CO-1", ledger_state="held", ledger_job=None,
+                                    ledger_void_state=None, ledger_book=None, ledger_docnum="", ledger_reason="x",
+                                    ledger_needed=None, get=lambda key: None)
         with mock.patch.object(api, "_document", lambda doctype, name, write=False: row), \
                 mock.patch.object(api.push, "send", side_effect=AssertionError("must not send")):
             for call in (lambda: api.answer("ERP POS Day Summary", "PDS-1", "[]"),
@@ -1371,15 +1372,15 @@ class LinkStates(PushModule):
         """④d：已写进 Express 的出入库单断开后在 ERP 作废，照样排 Express 作废原单（那张单确实在 Express 里）。"""
         self.company(enabled=0, linked_at=None)
         fake.STATE.db.table("ERP Stock Entry")["SE-1"] = {"name": "SE-1", "creation": "2026-10-25 10:00:00", "owner": "a@x",
-                                                          "warehouse": "W1", "express_state": "written",
-                                                          "express_docnum": "OU691025-001", "express_void_job": None}
+                                                          "warehouse": "W1", "ledger_state": "written",
+                                                          "ledger_docnum": "OU691025-001", "ledger_void_job": None}
         made = []
         with mock.patch.object(self.push, "_company", lambda name: COMPANY), \
                 mock.patch.object(self.push.stock_entry, "void_payload",
                                   lambda name, company: {"payload": {"payload_version": 8}, "book": {"key": "BK"}}), \
                 mock.patch.object(self.push.jobs, "enqueue", lambda **kw: made.append(kw) or {"job": "J9"}):
             self.push.void("ERP Stock Entry", "SE-1")
-        self.assertEqual((len(made), fake.STATE.db.table("ERP Stock Entry")["SE-1"]["express_void_state"]), (1, "queued"))
+        self.assertEqual((len(made), fake.STATE.db.table("ERP Stock Entry")["SE-1"]["ledger_void_state"]), (1, "queued"))
 
     def test_disconnect_clears_the_link_time_and_relinking_starts_from_the_next_landing(self):
         """公司页「断开」、没连上时直接取消勾选：清接上时刻、撤单；重新勾上（已连上）排一次同步，落库那一刻重记接上时刻
@@ -1430,7 +1431,7 @@ class LinkStates(PushModule):
         self.assertEqual([E.in_express(state) for state in (None, "", "queued", "held", "written", "detached")],
                          [False, False, True, True, True, False])
         source = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/printing/context.py").read_text(encoding="utf-8")
-        self.assertIn('express_contracts.in_express(doc.get("express_state"))', source)
+        self.assertIn('express_contracts.in_express(doc.get("ledger_state"))', source)
         self.assertNotIn("push.linked(doc.company)", source)
 
 
@@ -1783,6 +1784,71 @@ class LedgerColumnsPatch(unittest.TestCase):
         self.assertGreater(text.index("pearnly_erp_portal.patches.v1_24_ledger_state"), text.index("[post_model_sync]"))
 
 
+class LedgerFields(unittest.TestCase):
+    """单据上的账本栏是通用列（评估 2026-11-02 §12 第 6 条）：五种单 ``ledger_*`` 与原来的 ``express_*`` 同类型、同选项、同标签
+    （界面上列名、筛选名、导出表头不变），另有不进导出的 ``ledger_target``；ERP 代码、流程、冒烟里不再读写旧列（只剩迁移补丁）。"""
+
+    DOCTYPES = {"purchase_document": False, "erp_sales_document": False, "erp_stock_entry": True,
+                "erp_stock_count": False, "erp_pos_day_summary": False}
+    LABELS = {"ledger_section": "Express", "ledger_state": "Express Status", "ledger_docnum": "Express No.",
+              "ledger_reason": "Express Note", "ledger_sent_at": "Express Sent At", "ledger_job": "Express Job",
+              "ledger_book": "Express Account Set", "ledger_needed": "Express Choices Needed"}
+    VOID_LABELS = {"ledger_void_state": "Express Void", "ledger_void_reason": "Express Void Reason",
+                   "ledger_void_job": "Express Void Job"}
+    OLD = re.compile(r"\bexpress_(state|docnum|reason|sent_at|job|needed|void_state|void_reason|void_job)\b")
+
+    def meta(self, slug):
+        return json.loads((ROOT / f"apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/{slug}/{slug}.json")
+                          .read_text(encoding="utf-8"))
+
+    def test_each_document_has_the_general_columns_with_the_old_labels(self):
+        for slug, voids in self.DOCTYPES.items():
+            meta = self.meta(slug)
+            fields = {field["fieldname"]: field for field in meta["fields"]}
+            expected = {**self.LABELS, **(self.VOID_LABELS if voids else {})}
+            self.assertEqual({name: fields[name]["label"] for name in expected if name in fields}, expected, slug)
+            self.assertEqual([name for name in fields if self.OLD.match(name) or name in ("express_book", "express_section")],
+                             [], slug)
+            self.assertEqual([name for name in meta["field_order"] if "express" in name], [], slug)
+            state = fields["ledger_state"]
+            self.assertEqual((state["fieldtype"], state.get("in_standard_filter"), state.get("read_only")), ("Select", 1, 1))
+            self.assertIn("\ndetached", state["options"])
+            self.assertEqual((fields["ledger_docnum"].get("search_index"), fields["ledger_job"].get("search_index")), (1, 1))
+            target = fields["ledger_target"]
+            self.assertEqual((target["fieldtype"], target["options"], target.get("hidden"), target.get("no_copy")),
+                             ("Select", "\nexpress\nmrerp", 1, 1), slug)
+            order = meta["field_order"]
+            self.assertEqual(order.index("ledger_target"), max(order.index(name) for name in expected) + 1, slug)
+        self.assertIn("\nhandled", {f["fieldname"]: f for f in self.meta("erp_pos_day_summary")["fields"]}["ledger_state"]
+                      ["options"])
+
+    def test_exports_leave_out_the_ledger_target(self):
+        for path in ("purchasing/output.py", "sales/output.py"):
+            source = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal" / path).read_text(encoding="utf-8")
+            self.assertIn('"ledger_target")]]', source, path)
+
+    def test_queueing_records_the_express_ledger(self):
+        source = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py").read_text(encoding="utf-8")
+        queue = source.split("\ndef queue(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn('"ledger_target": contracts.LEDGER_EXPRESS', queue)
+        self.assertEqual(E.LEDGER_EXPRESS, "express")
+
+    def test_nothing_reads_the_old_express_columns_any_more(self):
+        roots = [ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal", ROOT / "scripts/flows", ROOT / "scripts/smoke"]
+        allowed = {"v1_22_express_linked_at.py", "v1_24_ledger_state.py"}  # 迁移补丁：读改列前的旧列
+        # 采购 / 销售单据页：字段说明图标（pearnly/field-help-icon）同时在改这两个文件，等它合入主线、变基后再改（同一提交删掉这一行）
+        allowed |= {"purchase-form.js", "sales-form.js"}
+        found = []
+        for root in roots:
+            for path in sorted(root.rglob("*")):
+                if path.suffix not in (".py", ".js") or path.name in allowed:
+                    continue
+                for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+                    if self.OLD.search(line):
+                        found.append(f"{path.relative_to(ROOT)}:{number}")
+        self.assertEqual(found, [])
+
+
 class LinkedAtBackfill(unittest.TestCase):
     """补丁 v1_22：已接上（勾着、落过库）的公司按第一次同步的证据回填接上时刻 —— 收银起始日 00:00 与已排进 / 写进 Express 的单
     最早的建单时刻取早的（已写过、正在排队的单都不早于它，行为不变）；都查不到记补丁时刻；只填空值。"""
@@ -1827,19 +1893,19 @@ class PosDaySend(PushModule):
         for body, state, reason in (({"ref": "x", "items": [], "empty": True}, None, ""),
                                     ({"ref": "x", "items": [], "net_negative": True}, "held", "express.pos_net_negative")):
             docs["PDS-1"] = {"name": "PDS-1", "creation": "2026-10-25 01:20:00", "status": "submitted", "owner": "a@x",
-                             "express_state": "queued", "express_job": None, "express_reason": ""}
+                             "ledger_state": "queued", "ledger_job": None, "ledger_reason": ""}
             with mock.patch.object(self.push, "document", lambda doctype, name, body=body: body), \
                     mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
                     mock.patch.object(self.push.prepare, "prepare", side_effect=AssertionError("must not prepare")), \
                     mock.patch.object(frappe.db, "commit", lambda: None, create=True):
                 self.push.send("ERP POS Day Summary", "PDS-1")
-            self.assertEqual((docs["PDS-1"]["express_state"], docs["PDS-1"]["express_reason"]), (state, reason))
+            self.assertEqual((docs["PDS-1"]["ledger_state"], docs["PDS-1"]["ledger_reason"]), (state, reason))
 
     def test_vat_fields_ride_on_the_payload_with_version_nine(self):
         from unittest import mock
         docs = fake.STATE.db.table("ERP POS Day Summary")
         docs["PDS-1"] = {"name": "PDS-1", "creation": "2026-10-25 01:20:00", "status": "submitted", "owner": "a@x",
-                         "express_state": "queued", "express_job": None, "express_reason": ""}
+                         "ledger_state": "queued", "ledger_job": None, "ledger_reason": ""}
         body = {"ref": "PDS-1@x", "number": "SI-1-3", "items": [{"code": "A"}], "vat_fields": {"AMT01": "100.00"}}
         seen, queued = [], []
 
@@ -1871,7 +1937,7 @@ class UnmappedWarehouse(PushModule):
         for prepared, state, reason in (({"hold": E.READING, "book": {"key": "BK"}}, "held", E.READING),
                                         ({"payload": {"payload_version": 4}, "book": {"key": "BK"}}, "held", E.WAREHOUSE_UNMAPPED)):
             docs["PDS-1"] = {"name": "PDS-1", "creation": "2026-10-25 01:20:00", "status": "submitted", "owner": "a@x",
-                             "express_state": "queued", "express_job": None, "express_reason": ""}
+                             "ledger_state": "queued", "ledger_job": None, "ledger_reason": ""}
             seen = []
             with mock.patch.object(self.push, "document", lambda doctype, name: dict(body)), \
                     mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
@@ -1882,7 +1948,7 @@ class UnmappedWarehouse(PushModule):
                     mock.patch.object(frappe.db, "commit", lambda: None, create=True):
                 self.push.send("ERP POS Day Summary", "PDS-1")
             self.assertNotIn("unmapped_warehouses", seen[0])  # 不交给共用写账规则
-            self.assertEqual((docs["PDS-1"]["express_state"], docs["PDS-1"]["express_reason"]), (state, reason))
+            self.assertEqual((docs["PDS-1"]["ledger_state"], docs["PDS-1"]["ledger_reason"]), (state, reason))
 
     def test_unmapped_documents_go_back_to_the_queue_when_the_company_is_synced(self):
         """验收复核 P0 / P1（多仓闭环 P1）：主档同步之后（可能刚认领了新仓库码），这家公司停在 warehouse_unmapped 的单重新排队，
@@ -1892,21 +1958,21 @@ class UnmappedWarehouse(PushModule):
         docs = fake.STATE.db.table("ERP POS Day Summary")
         for index in range(130):  # 别家更早停着的一大批
             docs[f"OTHER-{index}"] = {"name": f"OTHER-{index}", "company": "CO-2", "status": "submitted", "modified": f"2026-10-01 {index:05d}",
-                                      "express_state": "held", "express_reason": E.WAREHOUSE_UNMAPPED}
+                                      "ledger_state": "held", "ledger_reason": E.WAREHOUSE_UNMAPPED}
         for index in range(105):  # 这家超过一批
             docs[f"MINE-{index}"] = {"name": f"MINE-{index}", "company": "CO-1", "status": "submitted", "modified": f"2026-10-20 {index:05d}",
-                                     "express_state": "held", "express_reason": E.WAREHOUSE_UNMAPPED}
-        docs["READING"] = {"name": "READING", "company": "CO-1", "status": "submitted", "express_state": "held", "express_reason": E.READING}
-        docs["VOID"] = {"name": "VOID", "company": "CO-1", "status": "void", "express_state": "held", "express_reason": E.WAREHOUSE_UNMAPPED}
+                                     "ledger_state": "held", "ledger_reason": E.WAREHOUSE_UNMAPPED}
+        docs["READING"] = {"name": "READING", "company": "CO-1", "status": "submitted", "ledger_state": "held", "ledger_reason": E.READING}
+        docs["VOID"] = {"name": "VOID", "company": "CO-1", "status": "void", "ledger_state": "held", "ledger_reason": E.WAREHOUSE_UNMAPPED}
         entries = fake.STATE.db.table("ERP Stock Entry")
-        entries["STE-1"] = {"name": "STE-1", "warehouse": "WH-1", "status": "submitted", "express_state": "held",
-                            "express_reason": E.WAREHOUSE_UNMAPPED}
-        entries["STE-2"] = {"name": "STE-2", "warehouse": "WH-9", "status": "submitted", "express_state": "held",
-                            "express_reason": E.WAREHOUSE_UNMAPPED}
+        entries["STE-1"] = {"name": "STE-1", "warehouse": "WH-1", "status": "submitted", "ledger_state": "held",
+                            "ledger_reason": E.WAREHOUSE_UNMAPPED}
+        entries["STE-2"] = {"name": "STE-2", "warehouse": "WH-9", "status": "submitted", "ledger_state": "held",
+                            "ledger_reason": E.WAREHOUSE_UNMAPPED}
         from pearnly_erp_portal.inventory import warehouses
         with mock.patch.object(warehouses, "names_of", lambda company=None, include_inactive=True: ["WH-1"] if company == "CO-1" else ["WH-9"]):
             self.assertEqual(self.push.requeue_unmapped("CO-1"), 106)
-        state = lambda table, name: (table[name]["express_state"], table[name]["express_reason"])
+        state = lambda table, name: (table[name]["ledger_state"], table[name]["ledger_reason"])
         self.assertTrue(all(state(docs, f"MINE-{index}") == ("queued", "") for index in range(105)))
         self.assertTrue(all(state(docs, f"OTHER-{index}") == ("held", E.WAREHOUSE_UNMAPPED) for index in range(130)))
         self.assertEqual([state(docs, "READING"), state(docs, "VOID"), state(entries, "STE-1"), state(entries, "STE-2")],
@@ -1917,7 +1983,7 @@ class UnmappedWarehouse(PushModule):
         from unittest import mock
         docs = fake.STATE.db.table(self.push.PURCHASE)
         docs["PI-1"] = {"name": "PI-1", "creation": "2026-10-25 01:20:00", "status": self.push.ready(self.push.PURCHASE),
-                        "owner": "a@x", "express_state": "queued", "express_job": None, "express_reason": ""}
+                        "owner": "a@x", "ledger_state": "queued", "ledger_job": None, "ledger_reason": ""}
         body = {"ref": "PI-1@x", "number": "PI-1", "items": [{"code": "A"}], "unmapped_warehouses": ["WH-2"]}
         with mock.patch.object(self.push, "document", lambda doctype, name: dict(body)), \
                 mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
@@ -1928,7 +1994,7 @@ class UnmappedWarehouse(PushModule):
                 mock.patch.object(frappe.db, "commit", lambda: None, create=True):
             result = self.push.send(self.push.PURCHASE, "PI-1", operator={"id": "b1", "index": 1, "total": 1})
         self.assertEqual(result, {"status": "held", "reason": E.WAREHOUSE_UNMAPPED})
-        self.assertEqual((docs["PI-1"]["express_state"], docs["PI-1"]["express_reason"]), ("held", E.WAREHOUSE_UNMAPPED))
+        self.assertEqual((docs["PI-1"]["ledger_state"], docs["PI-1"]["ledger_reason"]), ("held", E.WAREHOUSE_UNMAPPED))
 
 
 class OperatorExclusion(PushModule):
@@ -1955,16 +2021,16 @@ class OperatorExclusion(PushModule):
     def test_the_operator_takes_back_a_held_operator_document_before_sending_it_again(self):
         from unittest import mock
         docs = fake.STATE.db.table(self.push.PURCHASE)
-        docs["PI-1"] = {"name": "PI-1", "express_state": "failed", "express_job": "J1", "express_reason": "x"}
+        docs["PI-1"] = {"name": "PI-1", "ledger_state": "failed", "ledger_job": "J1", "ledger_reason": "x"}
         held = {"job": "J1", "request_key": "erp:operator:b1:PI-1@x", "status": "manual"}
         cancelled = []
         with mock.patch.object(self.push.jobs, "find_by_name", lambda name: dict(held)), \
                 mock.patch.object(self.push.jobs, "cancel", lambda name, reason: cancelled.append((name, reason))):
             self.assertTrue(self.push.release_operator(self.push.PURCHASE, "PI-1"))
         self.assertEqual(cancelled, [("J1", "replaced")])
-        self.assertEqual((docs["PI-1"]["express_state"], docs["PI-1"]["express_job"]), ("queued", None))
+        self.assertEqual((docs["PI-1"]["ledger_state"], docs["PI-1"]["ledger_job"]), ("queued", None))
         for other in ({**held, "request_key": "erp:purchase:PI-1@x"}, {**held, "status": "leased"}):
-            docs["PI-1"].update(express_state="failed", express_job="J1")
+            docs["PI-1"].update(ledger_state="failed", ledger_job="J1")
             with mock.patch.object(self.push.jobs, "find_by_name", lambda name, job=other: dict(job)), \
                     mock.patch.object(self.push.jobs, "cancel", side_effect=AssertionError("must not cancel")):
                 self.assertFalse(self.push.release_operator(self.push.PURCHASE, "PI-1"))
@@ -1995,7 +2061,7 @@ class OperatorPrecheck(PushModule):
 
         docs = fake.STATE.db.table(self.push.PURCHASE)
         for name in results:
-            docs[name] = {"name": name, "express_job": job}
+            docs[name] = {"name": name, "ledger_job": job}
         with mock.patch.object(self.operator.guard, "has", lambda capability, user=None: True), \
                 mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
                 mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
@@ -2023,9 +2089,9 @@ class OperatorPrecheck(PushModule):
         from unittest import mock
         seen = []
         rows = [Row(name="PI-1", doc_date="2026-10-20", grand_total=1070, system_no="PE-1", supplier_name="S",
-                    express_reason="choice_needed:account", express_job=None),
+                    ledger_reason="choice_needed:account", ledger_job=None),
                 Row(name="PI-2", doc_date="2026-10-21", grand_total=900000, system_no="PE-2", supplier_name="ISUZU",
-                    express_reason="choice_needed:account", express_job=None)]
+                    ledger_reason="choice_needed:account", ledger_job=None)]
         # 带按台号码的单不交代录（主会话 11-02）：照直写
         with mock.patch.object(frappe.db, "sql_list", lambda query, values: ["PI-2"] if "ERP Line Serial" in query else [],
                                create=True), \
@@ -2113,11 +2179,11 @@ class OperatorPrecheck(PushModule):
 
     def test_after_a_restart_the_site_says_where_each_document_stands(self):
         # CC 重启后恢复出来的任务以站点为准收尾：已写入 / 排着写账件 / 停住 / 没排或撤回 / 别家的单
-        rows = {"PI-1": {"express_state": "written", "express_docnum": "RR0000005", "express_reason": "", "express_job": "J1"},
-                "PI-2": {"express_state": "queued", "express_docnum": "", "express_reason": "", "express_job": "J2"},
-                "PI-3": {"express_state": "held", "express_docnum": "", "express_reason": "express.warehouse_unmapped",
-                         "express_job": None},
-                "PI-4": {"express_state": None, "express_docnum": "", "express_reason": "", "express_job": None}}
+        rows = {"PI-1": {"ledger_state": "written", "ledger_docnum": "RR0000005", "ledger_reason": "", "ledger_job": "J1"},
+                "PI-2": {"ledger_state": "queued", "ledger_docnum": "", "ledger_reason": "", "ledger_job": "J2"},
+                "PI-3": {"ledger_state": "held", "ledger_docnum": "", "ledger_reason": "express.warehouse_unmapped",
+                         "ledger_job": None},
+                "PI-4": {"ledger_state": None, "ledger_docnum": "", "ledger_reason": "", "ledger_job": None}}
         with mock.patch.object(self.operator.guard, "has", lambda capability, user=None: True), \
                 mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
                 mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-2" if name == "PI-5" else "CO-1"), \
@@ -2155,7 +2221,7 @@ class PosDayExits(PushModule):
         from pearnly_erp_portal.express import api
         writes, cancelled, sent, comments = {}, [], [], []
         self.comments = comments
-        doc = types.SimpleNamespace(name="PDS-1", company="CO-1", express_job="J1" if job else None, express_void_state=None,
+        doc = types.SimpleNamespace(name="PDS-1", company="CO-1", ledger_job="J1" if job else None, ledger_void_state=None,
                                     get=lambda key: None, **row)
         with mock.patch.object(api, "_document", lambda doctype, name, write=False: doc), \
                 mock.patch.object(api, "_view", lambda doctype, row: "view"), \
@@ -2171,22 +2237,22 @@ class PosDayExits(PushModule):
         return writes, cancelled, sent
 
     def test_a_held_summary_can_be_retried_or_marked_handled(self):
-        writes, cancelled, sent = self.run_exit("retry", {"express_state": "held"})
-        self.assertEqual((writes["express_state"], sent), ("queued", ["PDS-1"]))  # 按此刻内容重新准备
-        writes, cancelled, sent = self.run_exit("mark_handled", {"express_state": "held"})
-        self.assertEqual((writes["express_state"], writes["express_job"], cancelled, sent), ("handled", None, [], []))
+        writes, cancelled, sent = self.run_exit("retry", {"ledger_state": "held"})
+        self.assertEqual((writes["ledger_state"], sent), ("queued", ["PDS-1"]))  # 按此刻内容重新准备
+        writes, cancelled, sent = self.run_exit("mark_handled", {"ledger_state": "held"})
+        self.assertEqual((writes["ledger_state"], writes["ledger_job"], cancelled, sent), ("handled", None, [], []))
         self.assertEqual(self.comments, [("Comment", "express.state.handled: ปิดใน Express แล้ว")])  # 时间线留一条：谁、何时、原因
         with self.assertRaises(Exception):
-            self.run_exit("mark_handled", {"express_state": "held"}, reason="  ")  # 不写原因不能标
+            self.run_exit("mark_handled", {"ledger_state": "held"}, reason="  ")  # 不写原因不能标
         cancelled_job = {"job": "J0", "status": "cancelled", "reason": "replaced"}
-        writes, _cancelled, sent = self.run_exit("retry", {"express_state": "failed"}, cancelled_job)
-        self.assertEqual((writes["express_state"], sent), ("queued", ["PDS-1"]))  # 写账件已撤销的失败单也能再写一次
+        writes, _cancelled, sent = self.run_exit("retry", {"ledger_state": "failed"}, cancelled_job)
+        self.assertEqual((writes["ledger_state"], sent), ("queued", ["PDS-1"]))  # 写账件已撤销的失败单也能再写一次
         job = {"job": "J1", "status": "manual", "reason": "x"}
-        writes, cancelled, _sent = self.run_exit("mark_handled", {"express_state": "queued"}, job)  # 电脑转了人工
-        self.assertEqual((writes["express_state"], cancelled), ("handled", [("J1", "replaced")]))
+        writes, cancelled, _sent = self.run_exit("mark_handled", {"ledger_state": "queued"}, job)  # 电脑转了人工
+        self.assertEqual((writes["ledger_state"], cancelled), ("handled", [("J1", "replaced")]))
 
     def test_a_summary_that_is_not_stuck_gets_no_exit(self):
-        for row, job in (({"express_state": "written"}, None), ({"express_state": "queued"}, {"job": "J1", "status": "leased"})):
+        for row, job in (({"ledger_state": "written"}, None), ({"ledger_state": "queued"}, {"job": "J1", "status": "leased"})):
             with self.assertRaises(Exception):
                 self.run_exit("mark_handled", row, job)
 
@@ -2434,7 +2500,7 @@ class StockAlignment(MasterSync):
                 return [entry for count in filters["ref_id"][1] for entry in count_entries[count]]
             names = []
             for name, state, void_state in docs[doctype]:
-                row = {"name": name, "express_state": state or "", "express_void_state": void_state or "",
+                row = {"name": name, "ledger_state": state or "", "ledger_void_state": void_state or "",
                        "company": "CO-1", "warehouse": "W1"}
                 if all(matches(row[field], value) for field, value in filters.items()):
                     names.append(name)
@@ -2770,8 +2836,8 @@ class StockEntries(Base):
         lines = [types.SimpleNamespace(product="P1", qty=2, unit="ถุง", unit_cost=0, warehouse=None)]
         Doc = type("Doc", (dict,), {"__getattr__": dict.get, "__setattr__": dict.__setitem__})
         doc = Doc(direction="out", ref_type=None, lines=lines, warehouse="W1", posting_date="2026-10-20",
-                  doc_no="IS2569-000001", name="SE-1", reason="", express_docnum="OU691020-001", express_book=key,
-                  express_job="J1")
+                  doc_no="IS2569-000001", name="SE-1", reason="", ledger_docnum="OU691020-001", ledger_book=key,
+                  ledger_job="J1")
         values = {("ERP Product", "P1"): {"product_name": "น้ำแข็ง", "express_code": "", "base_unit": "ถุง"},
                   ("ERP Warehouse", "W1"): "01"}
         with mock.patch.object(frappe, "get_doc", lambda doctype, name: doc, create=True), \
@@ -2779,7 +2845,7 @@ class StockEntries(Base):
                                   values.get((doctype, name))), \
                 mock.patch.object(jobs, "find_by_name", lambda name: {"line_codes": [{"seq": 1, "code": "ICE-01"}]}):
             result = self.stock.void_payload("SE-1", COMPANY)
-            doc.express_book = "another-book"
+            doc.ledger_book = "another-book"
             moved = self.stock.void_payload("SE-1", COMPANY)
         payload = result["payload"]
         self.assertEqual((payload["payload_version"], payload["action"], payload["doctype"], payload["docnum"]),
@@ -2975,7 +3041,7 @@ class PosDaySummaries(Base):
         def get_value(doctype, name, fields=None, as_dict=False):
             if doctype == self.pos_day.DOCTYPE and name == "PDS-0":
                 state, docnum, grand = against
-                return types.SimpleNamespace(express_state=state, express_docnum=docnum, grand_total=D(grand), day="2026-10-24")
+                return types.SimpleNamespace(ledger_state=state, ledger_docnum=docnum, grand_total=D(grand), day="2026-10-24")
             if doctype == self.pos_day.DOCTYPE:
                 return summary
             if doctype == "ERP Company":

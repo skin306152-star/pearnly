@@ -45,17 +45,17 @@ doc = entry.post({{"company": {company!r}, "supplier": supplier, "doc_date": "20
                  request_id="flow-service-vat-" + {uuid.uuid4().hex!r})
 frappe.db.commit()
 name = doc["name"]
-row = frappe.db.get_value("Purchase Document", name, ["express_job", "express_book", "creation", "owner"], as_dict=True)
-book = row.express_book or frappe.get_all("Pearnly CC Book", pluck="name", limit_page_length=1)[0]
-job = row.express_job
+row = frappe.db.get_value("Purchase Document", name, ["ledger_job", "ledger_book", "creation", "owner"], as_dict=True)
+book = row.ledger_book or frappe.get_all("Pearnly CC Book", pluck="name", limit_page_length=1)[0]
+job = row.ledger_job
 if not job:
     job = jobs.enqueue(source_doctype="Purchase Document", source_name=name, request_key="flow-srv:" + name,
                        actor=row.owner, book_key=book, payload={{"direction": "purchase", "doctype": "RR"}}, label=name)["job"]
 # 照电脑拦下的样子：任务转人工、原因带码，单据停下（`jobs.acknowledge` 收到要人处理的码就是这样落的）
 frappe.db.set_value("Pearnly CC Job", job, {{"status": "manual", "stage": "needs_review",
                     "reason": "[{CODE}] service input VAT basis of supplier not decided"}}, update_modified=False)
-frappe.db.set_value("Purchase Document", name, {{"express_state": contracts.HELD, "express_job": job, "express_book": book,
-                    "express_reason": "[{CODE}] service input VAT basis of supplier not decided"}}, update_modified=False)
+frappe.db.set_value("Purchase Document", name, {{"ledger_state": contracts.HELD, "ledger_job": job, "ledger_book": book,
+                    "ledger_reason": "[{CODE}] service input VAT basis of supplier not decided"}}, update_modified=False)
 frappe.db.commit()
 print(json.dumps({{"name": name, "job": job, "company": {company!r}}}, default=str))
 """)
@@ -93,11 +93,11 @@ def verify(lab, manifest, params, camera_code=None):
 choice = frappe.get_all("ERP Express Choice", filters={{"company": {params['company']!r}, "kind": "service_vat"}},
                         fields=["subject", "value"], order_by="modified desc", limit_page_length=1)
 job = frappe.db.get_value("Pearnly CC Job", {params['job']!r}, "status")
-doc = frappe.db.get_value("Purchase Document", {params['doc']!r}, ["express_state", "express_job"], as_dict=True)
+doc = frappe.db.get_value("Purchase Document", {params['doc']!r}, ["ledger_state", "ledger_job"], as_dict=True)
 print(json.dumps({{"choice": choice[0] if choice else None, "old_job": job, "doc": doc}}, default=str))
 """)
     choice = row.get("choice") or {}
     return [{"case": "the choice is remembered by book and supplier", "saved": choice,
              "ok": choice.get("value") == "cash_basis" and "|purchase|" in str(choice.get("subject") or "")},
             {"case": "the refused job is withdrawn and the document is prepared again", "saved": row,
-             "ok": row.get("old_job") == "cancelled" and (row.get("doc") or {}).get("express_job") != params["job"]}]
+             "ok": row.get("old_job") == "cancelled" and (row.get("doc") or {}).get("ledger_job") != params["job"]}]

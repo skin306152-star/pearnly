@@ -26,11 +26,14 @@ HANDLED = "handled"  # 人标记「已在 Express 手工处理」（收银日汇
 # 断开 Express 时还没写进去的单（排队中、停下的）：撤掉写账件、不再写，单据上照实标「未写入 Express（已断开）」（主会话 11-01）
 DETACHED = "detached"
 STATES = (QUEUED, WRITTEN, MISMATCH, HELD, FAILED, DETACHED)
+# 单据上的账本栏是通用列（``ledger_state`` / ``ledger_docnum`` / …，评估 2026-11-02 §12 第 6 条）：一张单只会有一个账本，
+# ``ledger_target`` 记是哪一个，排上时记。现在只有 Express；以后 ERP 接 MR.ERP 记 ``mrerp``
+LEDGER_EXPRESS = "express"
 # 还没写进 Express 的状态（每分钟再看一次停下的；断开时撤掉）
 OPEN_STATES = (QUEUED, HELD)
 # 接上之后开始、还没写成的单（库存对齐把这些单的变动加回去）：排队中、停下的、失败的
 PENDING_STATES = (QUEUED, HELD, FAILED)
-# 停下的原因码（`express_reason`，页面按码出文案）
+# 停下的原因码（`ledger_reason`，页面按码出文案）
 NO_TAX = "express.company_tax_missing"
 NO_BOOK = "express.account_set_missing"
 NO_STOCK_BOOK = "express.stock_book_missing"  # 账套 ISRUN 没有这个库存单别（OU / JU / TK）

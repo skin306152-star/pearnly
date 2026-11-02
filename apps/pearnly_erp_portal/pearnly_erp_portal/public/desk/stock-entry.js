@@ -264,8 +264,8 @@
 					{ fieldname: "reason", width: 210, min_width: 150, label: t("trade.note"),
 						format: (value, row) => [purpose_label(row?.purpose), value].filter(Boolean).join(" · ") },
 					// 接了事务所 Express 账本的站点：写进去了显示 Express 单号，否则显示状态（同采购 / 销售列表）
-					...(p.express_used() ? [{ fieldname: "express_docnum", width: 110, min_width: 76,
-						label: __("Express"), format: (value, row) => value || express_label(row?.express_state) }] : []),
+					...(p.express_used() ? [{ fieldname: "ledger_docnum", width: 110, min_width: 76,
+						label: __("Express"), format: (value, row) => value || express_label(row?.ledger_state) }] : []),
 				],
 			});
 			restore_new();
@@ -285,7 +285,7 @@
 			const fields = [...entry_fields({ doc, doc_no, editable }), ...attachment_fields(can_attach)];
 			// 写进 Express 的情况（状态、单号、原因、再写一次）：采购 / 销售同一个弹窗
 			// 已写进 Express 后又作废的：同一个弹窗里看 Express 作废原单的结果（转人工的能重试）
-			if ((doc.status === "submitted" || doc.express_void_state) && doc.express_state) fields.push({
+			if ((doc.status === "submitted" || doc.ledger_void_state) && doc.ledger_state) fields.push({
 				fieldtype: "Button", fieldname: "express", label: __("Express"),
 				click: () => p.express("ERP Stock Entry", name, () => list?.reload()) });
 			// 已提交 / 已作废的单能打印：出库 → 领料单、入库 → 收货单（作废单带「已作废」水印）

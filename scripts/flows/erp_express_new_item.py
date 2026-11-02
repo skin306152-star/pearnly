@@ -75,10 +75,10 @@ else:
         frappe.db.commit()
         name = entry["name"]
         push.send("ERP Stock Entry", name)
-        row = frappe.db.get_value("ERP Stock Entry", name, ["express_state", "express_job", "express_reason"], as_dict=True)
-        job = row.express_job
+        row = frappe.db.get_value("ERP Stock Entry", name, ["ledger_state", "ledger_job", "ledger_reason"], as_dict=True)
+        job = row.ledger_job
         sent = json.loads(frappe.db.get_value("Pearnly CC Job", job, "payload") or "{{}}") if job else {{}}
-        out["entry"] = {{"state": row.express_state, "reason": row.express_reason, "version": sent.get("payload_version"),
+        out["entry"] = {{"state": row.ledger_state, "reason": row.ledger_reason, "version": sent.get("payload_version"),
                         "items": sent.get("items")}}
         # 照电脑写好的样子回执：逐行回报实际用的码（第 1 行是建出来的，第 2 行按同名认到的）
         push.job_changed({{"source_doctype": "ERP Stock Entry", "source_name": name, "status": "success", "job": job,

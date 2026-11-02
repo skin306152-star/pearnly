@@ -131,17 +131,17 @@ try:
     state = {}
     while time.monotonic() < deadline:
         frappe.db.rollback()  # 读别的进程（回执）提交的新状态
-        state = frappe.db.get_value(doctype, posted["name"], ["express_state", "express_docnum", "express_reason", "express_job"], as_dict=True) or {}
-        if state.get("express_state") in ("written", "mismatch", "held", "failed"):
+        state = frappe.db.get_value(doctype, posted["name"], ["ledger_state", "ledger_docnum", "ledger_reason", "ledger_job"], as_dict=True) or {}
+        if state.get("ledger_state") in ("written", "mismatch", "held", "failed"):
             break
         time.sleep(5)
-    job = frappe.db.get_value("Pearnly CC Job", state.get("express_job"), ["status", "verify_state", "reason"], as_dict=True) if state.get("express_job") else None
-    book_key = frappe.db.get_value(doctype, posted["name"], "express_book")
+    job = frappe.db.get_value("Pearnly CC Job", state.get("ledger_job"), ["status", "verify_state", "reason"], as_dict=True) if state.get("ledger_job") else None
+    book_key = frappe.db.get_value(doctype, posted["name"], "ledger_book")
     written = [row.path for row in frappe.get_all(books.BOOK, filters={"book_key": book_key}, fields=["path"])] if book_key else []
     result["book_paths"] = written
     result.update(state=state, job=job)
-    result["summary"] = f"{posted['name']} → {state.get('express_docnum') or state.get('express_state')}（CC 读回 {(job or {}).get('verify_state') or '-'}）"
-    result["ok"] = (state.get("express_state") == "written" and bool(state.get("express_docnum"))
+    result["summary"] = f"{posted['name']} → {state.get('ledger_docnum') or state.get('ledger_state')}（CC 读回 {(job or {}).get('verify_state') or '-'}）"
+    result["ok"] = (state.get("ledger_state") == "written" and bool(state.get("ledger_docnum"))
                     and (job or {}).get("verify_state") in ("ok", "") and bool(written) and all(map(c_drive_t_book, written)))
 except SystemExit as stop:
     result["why"] = str(stop)

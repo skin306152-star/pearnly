@@ -42,19 +42,19 @@ frappe.db.commit()
 import time
 for _ in range(60):
     frappe.db.rollback()
-    if frappe.db.get_value("Purchase Document", doc["name"], "express_state") != "queued":
+    if frappe.db.get_value("Purchase Document", doc["name"], "ledger_state") != "queued":
         break
     time.sleep(1)
-row = frappe.db.get_value("Purchase Document", doc["name"], ["name", "express_state", "express_job"], as_dict=True)
+row = frappe.db.get_value("Purchase Document", doc["name"], ["name", "ledger_state", "ledger_job"], as_dict=True)
 print(json.dumps(row, default=str))
 """)
     else:
         out = lab.python(manifest["site"], """
-row = frappe.get_all("Purchase Document", filters={"status": "submitted"}, fields=["name", "express_state", "express_job"],
+row = frappe.get_all("Purchase Document", filters={"status": "submitted"}, fields=["name", "ledger_state", "ledger_job"],
                      order_by="creation asc", limit_page_length=1)[0]
 print(json.dumps(row, default=str))
 """)
-    return {"doc": out["name"], "linked": linked, "state": out.get("express_state") or "", "job": out.get("express_job") or ""}
+    return {"doc": out["name"], "linked": linked, "state": out.get("ledger_state") or "", "job": out.get("ledger_job") or ""}
 
 
 def steps(params, camera_code=None):
@@ -83,7 +83,7 @@ def judge(params, results, camera_code=None):
 
 def verify(lab, manifest, params, camera_code=None):
     row = lab.python(manifest["site"], f"""
-print(json.dumps(frappe.db.get_value("Purchase Document", {params['doc']!r}, ["express_state", "express_job"], as_dict=True), default=str))
+print(json.dumps(frappe.db.get_value("Purchase Document", {params['doc']!r}, ["ledger_state", "ledger_job"], as_dict=True), default=str))
 """)
     return [{"case": "looking does not change the Express state", "saved": row,
-             "ok": (row.get("express_state") or "") == params["state"] and (row.get("express_job") or "") == params["job"]}]
+             "ok": (row.get("ledger_state") or "") == params["state"] and (row.get("ledger_job") or "") == params["job"]}]

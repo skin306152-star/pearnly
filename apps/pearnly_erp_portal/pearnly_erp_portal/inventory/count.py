@@ -585,7 +585,7 @@ def get_count(name: str) -> dict:
         "notes": doc.notes, "item_total": doc.item_total, "counted_total": doc.counted_total,
         "difference_total": doc.difference_total, "closed_at": doc.closed_at,
         "closed_by": doc.closed_by, "posted_at": doc.posted_at, "posted_by": doc.posted_by,
-        "express_state": doc.express_state, "express_docnum": doc.express_docnum,
+        "ledger_state": doc.ledger_state, "ledger_docnum": doc.ledger_docnum,
     }
 
 

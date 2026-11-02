@@ -5,7 +5,7 @@ ERP 的单在提交时就排进直写（机器产生的单固定走直写，主�
 
 - 谁能发起：这家公司在本人可见公司里，且有这类单据的开单权（与 ERP 推送、单据上「再写一次」同一判据）；
 - 交单：逐张走 ERP 推送同一条路（``push.send``：要人选的照旧停在单据上），载荷加代录标记；回执照直写同一条回到单据上
-  （express_state / express_docnum / express_reason）。写账电脑照 ERP 原来的口径（开单的人登录过 CC 的电脑）。
+  （ledger_state / ledger_docnum / ledger_reason）。写账电脑照 ERP 原来的口径（开单的人登录过 CC 的电脑）。
 """
 import calendar
 
@@ -49,9 +49,9 @@ def sources(company, period, offset, limit) -> dict:
         # 还没交进写账队列的；加上代录交过、停在要人处理的（上一件是代录的、转人工了：代录可以再录，`push.release_operator`）
         found = frappe.get_all(doctype, filters={"company": company, "doc_date": ["between", [first, last]],
                                                  "status": push.ready(doctype),
-                                                 "express_state": ["in", [*contracts.OPEN_STATES, contracts.FAILED]], **scope},
-                               fields=["name", "doc_date", "grand_total", "system_no", party, "express_reason",
-                                       "express_job"],
+                                                 "ledger_state": ["in", [*contracts.OPEN_STATES, contracts.FAILED]], **scope},
+                               fields=["name", "doc_date", "grand_total", "system_no", party, "ledger_reason",
+                                       "ledger_job"],
                                order_by="doc_date asc, name asc", limit_start=0, limit_page_length=offset + limit)
         # 带按台号码的单不交代录（代录还不会在 Express 里点 Note 录行说明，主会话 11-02）：照直写，号码写进附加说明
         units = set(frappe.db.sql_list("""SELECT DISTINCT parent FROM `tabERP Line Serial`
@@ -60,8 +60,8 @@ def sources(company, period, offset, limit) -> dict:
         rows += [{"doc_id": f"{prefix}:{row.name}", "kind": "sales" if prefix == "S" else "purchase",
                   "group": "sales" if prefix == "S" else "purchase",
                   "date": str(row.doc_date or ""), "party": row.get(party) or "", "ref": row.system_no or row.name,
-                  "total": str(row.grand_total or ""), "stopped": row.express_reason or ""} for row in found
-                 if not row.express_job or _operator_held(row.express_job)]
+                  "total": str(row.grand_total or ""), "stopped": row.ledger_reason or ""} for row in found
+                 if not row.ledger_job or _operator_held(row.ledger_job)]
     rows.sort(key=lambda r: (r["date"], r["doc_id"]))
     page = rows[offset:offset + limit]
     return {"documents": page, "next_offset": offset + limit if len(rows) > offset + limit else None}
@@ -93,7 +93,7 @@ def precheck(company, doc_ids) -> dict:
             documents.append({"doc_id": doc_id, "state": "blocked", "reason": "not_permitted", "message": _("Not Permitted")})
             continue
         doctype, name = target
-        current = frappe.db.get_value(doctype, name, "express_job")
+        current = frappe.db.get_value(doctype, name, "ledger_job")
         if current and not _operator_held(current):
             documents.append({"doc_id": doc_id, "state": "blocked", "reason": "already_queued"})
             continue
@@ -166,19 +166,19 @@ def status(company, doc_ids) -> list:
     out = []
     for doc_id in doc_ids:
         target = _target(company, doc_id)
-        row = frappe.db.get_value(target[0], target[1], ["express_state", "express_docnum", "express_reason", "express_job"],
+        row = frappe.db.get_value(target[0], target[1], ["ledger_state", "ledger_docnum", "ledger_reason", "ledger_job"],
                                   as_dict=True) if target else None
         if not row:
             out.append({"doc_id": doc_id, "state": "unknown", "docnum": "", "reason": ""})
             continue
-        if row.express_state == contracts.WRITTEN:
+        if row.ledger_state == contracts.WRITTEN:
             state = "saved"
-        elif row.express_state == contracts.QUEUED and row.express_job:
+        elif row.ledger_state == contracts.QUEUED and row.ledger_job:
             state = "queued"
-        elif row.express_state in (contracts.HELD, contracts.FAILED, contracts.MISMATCH):
+        elif row.ledger_state in (contracts.HELD, contracts.FAILED, contracts.MISMATCH):
             state = "not_done"
         else:
             state = "cancelled"
-        out.append({"doc_id": doc_id, "state": state, "docnum": (row.express_docnum or "") if state == "saved" else "",
-                    "reason": (row.express_reason or "") if state == "not_done" else ""})
+        out.append({"doc_id": doc_id, "state": state, "docnum": (row.ledger_docnum or "") if state == "saved" else "",
+                    "reason": (row.ledger_reason or "") if state == "not_done" else ""})
     return out

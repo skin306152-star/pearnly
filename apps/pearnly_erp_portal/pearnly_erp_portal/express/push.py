@@ -121,17 +121,17 @@ def queue(doctype, name):
     什么都不做。提交时 CC 桌面版正好没报账套也排上，停在「没有账套」等它回来（原来那一刻判没接上，这张单就永远不写）。"""
     if doctype not in DIRECTIONS:
         return
-    fields = ["name", "status", "ref_type", "direction", "express_state"] if doctype == STOCK else \
-        ["name", "status", "express_state"] if doctype == COUNT else \
-        ["name", "status", "company", "express_state"] if doctype == POS_DAY else \
-        ["name", "status", "doc_kind", "company", "express_state"]
+    fields = ["name", "status", "ref_type", "direction", "ledger_state"] if doctype == STOCK else \
+        ["name", "status", "ledger_state"] if doctype == COUNT else \
+        ["name", "status", "company", "ledger_state"] if doctype == POS_DAY else \
+        ["name", "status", "doc_kind", "company", "ledger_state"]
     doc = frappe.db.get_value(doctype, name, fields, as_dict=True)
     if doc and doctype in (STOCK, COUNT):
         doc.company = stock_entry.company_of(name, doctype)
-    if not doc or doc.express_state or not _eligible(doctype, doc):
+    if not doc or doc.ledger_state or not _eligible(doctype, doc):
         return
-    frappe.db.set_value(doctype, name, {"express_state": contracts.QUEUED, "express_reason": ""},
-                        update_modified=False)
+    frappe.db.set_value(doctype, name, {"ledger_state": contracts.QUEUED, "ledger_reason": "",
+                                        "ledger_target": contracts.LEDGER_EXPRESS}, update_modified=False)
     frappe.enqueue("pearnly_erp_portal.express.push.send", queue="short", enqueue_after_commit=True,
                    doctype=doctype, name=name)
 
@@ -313,11 +313,11 @@ def vat_fields(body, exempt) -> dict:
 
 
 def _set(doctype, name, values):
-    """写单据上的 Express 栏（不改修改时间）。改到状态或原因时，这张单进出 ERP 版 CC 的「待处理」就给能看这家公司的人推一次
+    """写单据上的账本栏（通用列 ``ledger_*``，现在账本只有 Express；不改修改时间）。改到状态或原因时，这张单进出 ERP 版 CC 的「待处理」就给能看这家公司的人推一次
     （`pending.notify`，提交后）。"""
     from pearnly_erp_portal.express import pending
 
-    before = pending.ledger_of(doctype, name) if {"express_state", "express_reason"} & set(values) else None
+    before = pending.ledger_of(doctype, name) if {"ledger_state", "ledger_reason"} & set(values) else None
     frappe.db.set_value(doctype, name, values, update_modified=False)
     if before is not None:
         pending.notify(doctype, name, before)
@@ -361,12 +361,12 @@ def operator_owned(doctype, name) -> bool:
 def release_operator(doctype, name) -> bool:
     """代录再录一次前：这张单上一件是代录交的、转人工了（停在要人处理），撤掉它、单据回到排队，好让代录重新交（同「再写一次」
     撤旧件的做法，只是之后仍交代录）。不是代录的件、或件还在排队 / 在写，什么都不做。"""
-    current = frappe.db.get_value(doctype, name, "express_job")
+    current = frappe.db.get_value(doctype, name, "ledger_job")
     job = jobs.find_by_name(current) if current else None
     if not job or job.get("status") != "manual" or not str(job.get("request_key") or "").startswith(OPERATOR_KEY):
         return False
     jobs.cancel(job["job"], "replaced")
-    _set(doctype, name, {"express_state": contracts.QUEUED, "express_job": None, "express_reason": "", "express_needed": None})
+    _set(doctype, name, {"ledger_state": contracts.QUEUED, "ledger_job": None, "ledger_reason": "", "ledger_needed": None})
     return True
 
 
@@ -379,47 +379,47 @@ def send(doctype, name, operator=None):
         return
     if not operator and operator_owned(doctype, name):
         return {"status": "held", "reason": contracts.OPERATOR_OWNED}
-    row = frappe.db.get_value(doctype, name, ["name", "creation", "status", "owner", "express_state",
-                                              "express_job", "express_reason"], as_dict=True)
-    if not row or row.status != ready(doctype) or row.express_job or row.express_state not in contracts.OPEN_STATES:
-        return {"status": "already_queued" if row and row.express_job else "not_ready"}
+    row = frappe.db.get_value(doctype, name, ["name", "creation", "status", "owner", "ledger_state",
+                                              "ledger_job", "ledger_reason"], as_dict=True)
+    if not row or row.status != ready(doctype) or row.ledger_job or row.ledger_state not in contracts.OPEN_STATES:
+        return {"status": "already_queued" if row and row.ledger_job else "not_ready"}
     company = company_of(doctype, name)
     if not enabled(company):
         # 排上之后这家公司断开了（断开时撤单与这一件同时发生）：不写，照实标已断开
-        _set(doctype, name, {"express_state": contracts.DETACHED, "express_reason": contracts.DISCONNECTED,
-                             "express_needed": None})
+        _set(doctype, name, {"ledger_state": contracts.DETACHED, "ledger_reason": contracts.DISCONNECTED,
+                             "ledger_needed": None})
         frappe.db.commit()
         return {"status": "held", "reason": contracts.DISCONNECTED}
     body = document(doctype, name)
     if doctype == POS_DAY and body.get("net_negative"):
         # 同一天的退货冲减后是负数（共用约定 `net_day`）：不硬写，停下交人
-        _set(doctype, name, {"express_state": contracts.HELD, "express_reason": pos_day.NET_NEGATIVE, "express_needed": None})
+        _set(doctype, name, {"ledger_state": contracts.HELD, "ledger_reason": pos_day.NET_NEGATIVE, "ledger_needed": None})
         frappe.db.commit()
         return {"status": "held", "reason": pos_day.NET_NEGATIVE}
     if (doctype == COUNT and not body["lines"]) or (doctype == POS_DAY and body.get("empty")):
         # 整份盘点轧差后没有要调的（只有库位之间挪动）、收银日一天全退（冲减后全部为 0）：Express 里什么都不用写
-        _set(doctype, name, {"express_state": None, "express_reason": "", "express_needed": None})
+        _set(doctype, name, {"ledger_state": None, "ledger_reason": "", "ledger_needed": None})
         frappe.db.commit()
         return {"status": "nothing_to_write"}
     result, vat_fields, unmapped = _prepare_body(doctype, company, body)
     book = result.get("book") or {}
     if "failed" in result:
-        _set(doctype, name, {"express_state": contracts.FAILED, "express_reason": result["failed"][:500],
-                             "express_needed": None})
+        _set(doctype, name, {"ledger_state": contracts.FAILED, "ledger_reason": result["failed"][:500],
+                             "ledger_needed": None})
     elif "hold" in result:
-        _set(doctype, name, {"express_state": contracts.HELD, "express_reason": result["hold"][:500],
-                             "express_book": book.get("key") or None,
-                             "express_needed": json.dumps(result.get("needed") or [], ensure_ascii=False) or None})
-        if result["hold"].startswith(contracts.CHOICE) and result["hold"] != (row.express_reason or ""):
+        _set(doctype, name, {"ledger_state": contracts.HELD, "ledger_reason": result["hold"][:500],
+                             "ledger_book": book.get("key") or None,
+                             "ledger_needed": json.dumps(result.get("needed") or [], ensure_ascii=False) or None})
+        if result["hold"].startswith(contracts.CHOICE) and result["hold"] != (row.ledger_reason or ""):
             # 提交时还问不了（主档那时还没读到），读到后才发现要人选：同样主动弹出，只在要问的变了时推一次
             frappe.publish_realtime(NEEDED_EVENT, {"doctype": doctype, "name": name}, user=row.owner, after_commit=True)
     elif unmapped:
         # 单上的仓在 Express 里没有对应的仓库（主档同步已读过、仍没有码）：不写进 Express 主仓，停下交人（G15）；
         # 在 Express 建好同名仓库、主档同步认领后「再写一次」，或在 Express 里手工处理后标记已处理
-        _set(doctype, name, {"express_state": contracts.HELD, "express_reason": contracts.WAREHOUSE_UNMAPPED,
-                             "express_book": book.get("key") or None, "express_needed": None})
+        _set(doctype, name, {"ledger_state": contracts.HELD, "ledger_reason": contracts.WAREHOUSE_UNMAPPED,
+                             "ledger_book": book.get("key") or None, "ledger_needed": None})
     else:
-        _set(doctype, name, {"express_book": book["key"], "express_needed": None, "express_sent_at": now_datetime()})
+        _set(doctype, name, {"ledger_book": book["key"], "ledger_needed": None, "ledger_sent_at": now_datetime()})
         payload = result["payload"]
         if operator:
             from pearnly_core.express_operator import contracts as operator_contracts
@@ -436,7 +436,7 @@ def send(doctype, name, operator=None):
         job = jobs.enqueue(source_doctype=doctype, source_name=name, request_key=key,
                            actor=actor_of(doctype, row, book["key"]), book_key=book["key"], payload=payload, payload_version=int(payload.get("payload_version") or 1),
                            label=body["number"])
-        _set(doctype, name, {"express_job": job["job"]})
+        _set(doctype, name, {"ledger_job": job["job"]})
     frappe.db.commit()
     if "failed" in result:
         return {"status": "failed", "reason": result["failed"][:300]}
@@ -457,21 +457,21 @@ def detach(company) -> int:
     for doctype in DIRECTIONS:
         mine = ({"warehouse": ["in", warehouses.names_of(company) or [""]]} if doctype in (STOCK, COUNT)
                 else {"company": company})
-        filters = {"express_state": ["in", contracts.OPEN_STATES], **mine}
+        filters = {"ledger_state": ["in", contracts.OPEN_STATES], **mine}
         skipped = []
         while True:
             names = frappe.get_all(doctype, filters={**filters, "name": ["not in", skipped or [""]]},  # bounded: 一批 POLL_MAX，改完不再命中
                                    pluck="name", order_by="modified asc", limit_page_length=POLL_MAX)
             for name in names:
-                job_name = frappe.db.get_value(doctype, name, "express_job")
+                job_name = frappe.db.get_value(doctype, name, "ledger_job")
                 job = jobs.find_by_name(job_name) if job_name else None
                 if job and job["status"] in ("queued", "manual"):
                     jobs.cancel(job["job"], "disconnected")  # 回执记回单据（`job_changed`），随后改成已断开
                 elif job and job["status"] not in ("cancelled", "done"):
                     skipped.append(name)  # 电脑正在写：等结果
                     continue
-                _set(doctype, name, {"express_state": contracts.DETACHED, "express_reason": contracts.DISCONNECTED,
-                                     "express_needed": None})
+                _set(doctype, name, {"ledger_state": contracts.DETACHED, "ledger_reason": contracts.DISCONNECTED,
+                                     "ledger_needed": None})
                 count += 1
             if len(names) < POLL_MAX:
                 break
@@ -486,38 +486,38 @@ def void(doctype, name):
     没写进去的单只在 ERP 作废，什么都不做；准备不了（账套不在了）记在作废栏上，人看到后处理。"""
     if doctype != STOCK:
         return
-    row = frappe.db.get_value(doctype, name, ["name", "creation", "owner", "express_state", "express_docnum",
-                                              "express_job", "express_void_job"], as_dict=True)
-    if not row or row.express_void_job:
+    row = frappe.db.get_value(doctype, name, ["name", "creation", "owner", "ledger_state", "ledger_docnum",
+                                              "ledger_job", "ledger_void_job"], as_dict=True)
+    if not row or row.ledger_void_job:
         return
-    if row.express_state in contracts.OPEN_STATES:
+    if row.ledger_state in contracts.OPEN_STATES:
         # 还没写进去：排队中的写账撤掉（电脑正在写的撤不了，写完回执到了再作废，见 `job_changed`；验收 10-25）
-        job = jobs.find_by_name(row.express_job) if row.express_job else None
+        job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
         if job and job["status"] in ("queued", "manual"):
             jobs.cancel(job["job"], "voided")
         if not job or job["status"] in ("queued", "manual"):
-            _set(doctype, name, {"express_state": None, "express_job": None, "express_reason": "", "express_needed": None})
+            _set(doctype, name, {"ledger_state": None, "ledger_job": None, "ledger_reason": "", "ledger_needed": None})
         return
-    if row.express_state not in (contracts.WRITTEN, contracts.MISMATCH) or not row.express_docnum:
+    if row.ledger_state not in (contracts.WRITTEN, contracts.MISMATCH) or not row.ledger_docnum:
         return
     company = company_of(doctype, name)
     result = stock_entry.void_payload(name, _company(company)) if company else {"hold": contracts.NO_BOOK}
     if "hold" in result:
-        _set(doctype, name, {"express_void_state": contracts.HELD, "express_void_reason": result["hold"][:500]})
+        _set(doctype, name, {"ledger_void_state": contracts.HELD, "ledger_void_reason": result["hold"][:500]})
         return
     payload = result["payload"]
     job = jobs.enqueue(source_doctype=doctype, source_name=name, request_key=stock_entry.VOID_REQUEST + ref(name, row.creation),
                        actor=frappe.session.user or row.owner, book_key=result["book"]["key"], payload=payload,
-                       payload_version=int(payload["payload_version"]), label=row.express_docnum)
-    _set(doctype, name, {"express_void_state": contracts.QUEUED, "express_void_job": job["job"], "express_void_reason": ""})
+                       payload_version=int(payload["payload_version"]), label=row.ledger_docnum)
+    _set(doctype, name, {"ledger_void_state": contracts.QUEUED, "ledger_void_job": job["job"], "ledger_void_reason": ""})
 
 
 def _void_changed(view):
     doctype, name = view.get("source_doctype"), view.get("source_name")
     status = view.get("status")
     state = VOIDED if status == "success" else contracts.QUEUED if status in ("queued", "leased") else contracts.HELD
-    _set(doctype, name, {"express_void_state": state, "express_void_job": view.get("job"),
-                         "express_void_reason": "" if state != contracts.HELD else str(view.get("reason") or "")[:500]})
+    _set(doctype, name, {"ledger_void_state": state, "ledger_void_job": view.get("job"),
+                         "ledger_void_reason": "" if state != contracts.HELD else str(view.get("reason") or "")[:500]})
 
 
 def _state(view):
@@ -539,22 +539,22 @@ def job_changed(view):
     if str(view.get("request_key") or "").startswith(stock_entry.VOID_REQUEST):
         _void_changed(view)  # 作废那一件：记在作废栏上，写入时的单号与状态不动
         return
-    before = frappe.db.get_value(doctype, name, ["express_state", "express_docnum"], as_dict=True)
+    before = frappe.db.get_value(doctype, name, ["ledger_state", "ledger_docnum"], as_dict=True)
     before.company = company_of(doctype, name)
     state = _state(view)
-    values = {"express_state": state, "express_job": view.get("job"), "express_docnum": view.get("docnum") or "",
-              "express_reason": "" if state in (contracts.WRITTEN, contracts.QUEUED) else str(view.get("reason") or "")[:500]}
+    values = {"ledger_state": state, "ledger_job": view.get("job"), "ledger_docnum": view.get("docnum") or "",
+              "ledger_reason": "" if state in (contracts.WRITTEN, contracts.QUEUED) else str(view.get("reason") or "")[:500]}
     _set(doctype, name, values)
     if state not in (contracts.WRITTEN, contracts.MISMATCH) and before.company and not enabled(before.company):
         # 断开时电脑正在写、结果没写成（或撤掉的那件）：不再写，标已断开（:func:`detach`）
-        _set(doctype, name, {"express_state": contracts.DETACHED, "express_reason": contracts.DISCONNECTED,
-                             "express_needed": None})
+        _set(doctype, name, {"ledger_state": contracts.DETACHED, "ledger_reason": contracts.DISCONNECTED,
+                             "ledger_needed": None})
         return
     if doctype == STOCK and state in (contracts.WRITTEN, contracts.MISMATCH) and \
             frappe.db.get_value(doctype, name, "status") == "void":
         void(doctype, name)  # 电脑写的时候 ERP 这边已作废：写完立刻照 Express 原生作废原单
-    if state in (contracts.WRITTEN, contracts.MISMATCH) and (before.express_state, before.express_docnum or "") != (
-            state, values["express_docnum"]) and before.company:
+    if state in (contracts.WRITTEN, contracts.MISMATCH) and (before.ledger_state, before.ledger_docnum or "") != (
+            state, values["ledger_docnum"]) and before.company:
         from pearnly_erp_portal.express import masters
 
         link_party(doctype, name, before.company, view.get("party_code"))
@@ -702,7 +702,7 @@ def actor_of(doctype, row, book_key):
 def _queued_note(doctype, row):
     """排队中的单此刻为什么还没写（页面写原因，不改状态）：这件作业归的人一台登录过 CC 的电脑都没有 →「CC 桌面版未连接」；
     他能写的电脑都关着 → 离线；他的电脑都够不到这份账套 → 没有电脑能写。"""
-    found = jobs.writers(actor_of(doctype, row, row.express_book), row.express_book) if row.express_book else {"state": "ok"}
+    found = jobs.writers(actor_of(doctype, row, row.ledger_book), row.ledger_book) if row.ledger_book else {"state": "ok"}
     return {"missing": contracts.NOT_CONNECTED, "offline": contracts.OFFLINE,
             "unreachable": contracts.NO_WRITER}.get(found["state"], "")
 
@@ -718,13 +718,13 @@ def requeue_unmapped(company) -> int:
         # 只重排还能写的单（作废的停单不改成排队中）；一批改完就不再命中，取到空为止
         mine = ({"warehouse": ["in", warehouses.names_of(company) or [""]]} if doctype in (STOCK, COUNT)
                 else {"company": company})
-        filters = {"express_state": contracts.HELD, "express_reason": contracts.WAREHOUSE_UNMAPPED,
+        filters = {"ledger_state": contracts.HELD, "ledger_reason": contracts.WAREHOUSE_UNMAPPED,
                    "status": ready(doctype), **mine}
         while True:
             names = frappe.get_all(doctype, filters=filters, pluck="name",  # bounded: 一批 POLL_MAX，改完不再命中
                                    order_by="modified asc", limit_page_length=POLL_MAX)
             for name in names:
-                _set(doctype, name, {"express_state": contracts.QUEUED, "express_reason": ""})
+                _set(doctype, name, {"ledger_state": contracts.QUEUED, "ledger_reason": ""})
             count += len(names)
             if len(names) < POLL_MAX:
                 break
@@ -735,15 +735,15 @@ def poll():
     """每分钟：停下的单里会自己好的再准备一次；排队中还没交进队列的交一次；排队中的记下此刻为什么还没写。没有要看的就只是
     一条带索引的查询。"""
     for doctype in DIRECTIONS:
-        rows = frappe.get_all(doctype, filters={"express_state": ["in", contracts.OPEN_STATES], "status": ready(doctype)},
-                              fields=["name", "owner", "express_state", "express_reason", "express_job", "express_book"],
+        rows = frappe.get_all(doctype, filters={"ledger_state": ["in", contracts.OPEN_STATES], "status": ready(doctype)},
+                              fields=["name", "owner", "ledger_state", "ledger_reason", "ledger_job", "ledger_book"],
                               order_by="modified asc", limit_page_length=POLL_MAX)
         for row in rows:
-            if not row.express_job and (row.express_state == contracts.QUEUED
-                                        or (row.express_reason or "") in contracts.RETRY_REASONS):
+            if not row.ledger_job and (row.ledger_state == contracts.QUEUED
+                                        or (row.ledger_reason or "") in contracts.RETRY_REASONS):
                 send(doctype, row.name)
-            elif row.express_job and row.express_state == contracts.QUEUED:
+            elif row.ledger_job and row.ledger_state == contracts.QUEUED:
                 note = _queued_note(doctype, row)
-                if note != (row.express_reason or ""):
-                    _set(doctype, row.name, {"express_reason": note})
+                if note != (row.ledger_reason or ""):
+                    _set(doctype, row.name, {"ledger_reason": note})
         frappe.db.commit()

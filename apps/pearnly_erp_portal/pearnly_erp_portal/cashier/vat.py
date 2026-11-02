@@ -106,7 +106,7 @@ def refresh_company(company) -> int:
     names = frappe.db.sql_list("""SELECT s.name FROM `tabERP Sale` s JOIN `tabERP Warehouse` w ON w.name = s.warehouse
         LEFT JOIN `tabERP POS Day Summary` d ON d.name = s.express_summary
         WHERE w.company = %s AND s.status = 'completed'
-        AND (COALESCE(s.express_summary, '') = '' OR COALESCE(d.express_state, '') NOT IN %s)""",
+        AND (COALESCE(s.express_summary, '') = '' OR COALESCE(d.ledger_state, '') NOT IN %s)""",
                                (company, WRITTEN_STATES))
     return refresh(names) if names else 0
 

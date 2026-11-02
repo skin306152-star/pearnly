@@ -129,7 +129,7 @@ def pending_refunds(company) -> int:
     退货单（没汇总、退货单在排队 / 等原日汇总 / 停下）。原小票在收银写 Express 起始日之前的不算（那些不写）。"""
     return frappe.db.sql(f"""SELECT COUNT(*) {_REFUNDS.replace("AND COALESCE(s.express_summary, '') = ''", "")}
         AND COALESCE(s.express_summary, '') != o.express_summary
-        AND NOT EXISTS (SELECT 1 FROM `tab{DOCTYPE}` d WHERE d.name = s.express_summary AND d.express_state IN %(written)s)""",
+        AND NOT EXISTS (SELECT 1 FROM `tab{DOCTYPE}` d WHERE d.name = s.express_summary AND d.ledger_state IN %(written)s)""",
                          {"company": company, "written": WRITTEN_STATES})[0][0]
 
 
@@ -207,11 +207,11 @@ def document(name, ref) -> dict:
     against = None
     if refund:
         # 退货单挂原 HS：原 HS 写进 Express 了才写（要它的 Express 单号；还在排队、停下、转人工的先等，`push.poll` 每分钟再看）
-        against = frappe.db.get_value(DOCTYPE, summary.against, ["express_state", "express_docnum", "grand_total", "day"],
+        against = frappe.db.get_value(DOCTYPE, summary.against, ["ledger_state", "ledger_docnum", "grand_total", "day"],
                                       as_dict=True) if summary.against else None
-        if against and against.express_state == contracts.HANDLED:
+        if against and against.ledger_state == contracts.HANDLED:
             return {"ref": ref, "hold": contracts.REFUND_ORIGINAL_MANUAL}
-        if not against or against.express_state not in WRITTEN_STATES or not against.express_docnum:
+        if not against or against.ledger_state not in WRITTEN_STATES or not against.ledger_docnum:
             return {"ref": ref, "hold": REFUND_WAITING}
         # 原 HS 在上一年度的账套（年度账套分开）：照 Express 原生写进退货那天的账套，挂原单号与原单合计、明细「AVGPR」按平均成本回冲
         # （B3b 实录点 ②，S 盘 4,079 张原生 SR 如此；主会话 10-26 定不再停人工）
@@ -338,7 +338,7 @@ def document(name, ref) -> dict:
                    "payments": [[label, contracts.money(amount)] for label, amount in payments]}
     if refund:
         # 挂原 HS：Express 单号（SONUM）与原单含税合计（IVCAMT），写账规则据此出退货单 SR（退现金、货回仓）
-        body["refund"] = {"against": against.express_docnum, "against_total": contracts.money(against.grand_total),
+        body["refund"] = {"against": against.ledger_docnum, "against_total": contracts.money(against.grand_total),
                           **({"cross_year": True, "against_book": against_book} if cross_year else {})}
     return body
 

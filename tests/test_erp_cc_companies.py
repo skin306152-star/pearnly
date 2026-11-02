@@ -288,8 +288,8 @@ def document(doctype, name, company, state, reason="", owner="boss@x", status="s
              **extra):
     party = "supplier_name" if doctype == PURCHASE else "buyer_name"
     STATE.db.table(doctype)[name] = Row(name=name, company=company, status=status, doc_date="2026-10-20",
-                                        system_no=f"{name}-NO", grand_total="1070.00", express_state=state,
-                                        express_reason=reason, owner=owner, modified=modified,
+                                        system_no=f"{name}-NO", grand_total="1070.00", ledger_state=state,
+                                        ledger_reason=reason, owner=owner, modified=modified,
                                         **{party: "Thai Steel"}, **extra)
 
 
@@ -575,17 +575,17 @@ class PendingTests(unittest.TestCase):
 
     def test_a_state_change_announces_only_when_the_document_enters_or_leaves_pending(self):
         before = pending.ledger_of(PURCHASE, "PUR-2")             # 等电脑，不算待处理
-        STATE.db.table(PURCHASE)["PUR-2"].update(express_state=E.HELD, express_reason="choice_needed:party")
+        STATE.db.table(PURCHASE)["PUR-2"].update(ledger_state=E.HELD, ledger_reason="choice_needed:party")
         pending.notify(PURCHASE, "PUR-2", before)
         self.assertEqual(projects.announced[-1], (["boss@x", "staff@x"], "upsert", {
             "project": {"id": "CO-00001", "title": "Siam Trading", "subtitle": TAX_A}, "part": "pending"}))
         projects.announced.clear()
         before = pending.ledger_of(PURCHASE, "PUR-2")
-        STATE.db.table(PURCHASE)["PUR-2"].update(express_state=E.FAILED, express_reason="x")
+        STATE.db.table(PURCHASE)["PUR-2"].update(ledger_state=E.FAILED, ledger_reason="x")
         pending.notify(PURCHASE, "PUR-2", before)                 # 还在待处理里：不推
         self.assertEqual(projects.announced, [])
         before = pending.ledger_of(PURCHASE, "PUR-2")
-        STATE.db.table(PURCHASE)["PUR-2"].update(express_state=E.WRITTEN, express_reason="")
+        STATE.db.table(PURCHASE)["PUR-2"].update(ledger_state=E.WRITTEN, ledger_reason="")
         pending.notify(PURCHASE, "PUR-2", before)                 # 处理好了：推
         self.assertEqual(len(projects.announced), 1)
         self.assertIsNone(pending.ledger_of("ERP POS Day Summary", "x"))
@@ -593,8 +593,9 @@ class PendingTests(unittest.TestCase):
     def test_the_ledger_state_is_read_in_one_function(self):
         source = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/pending.py").read_text(encoding="utf-8")
         tree = ast.parse(source)
+        # 账本栏改成通用列后（ledger_state / ledger_reason，评估 2026-11-02 §12 第 6 条）列名与统一后的键同名：按「谁查库」判
         readers = [node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
-                   and "express_state" in ast.get_source_segment(source, node)]
+                   and any(call in ast.get_source_segment(source, node) for call in ("frappe.get_all(", "frappe.db."))]
         self.assertEqual(readers, ["_ledger_rows"])
         push = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py").read_text(encoding="utf-8")
         setter = push.split("def _set(doctype, name, values):", 1)[1].split("\ndef ", 1)[0]

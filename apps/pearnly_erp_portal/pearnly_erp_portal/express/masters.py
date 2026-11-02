@@ -713,7 +713,7 @@ def _pending(company, products, warehouses):
     - 采购单、销售记录、出入库单、盘点调整：排队中 / 停下 / 失败的（只有接上之后开始的单才会排上，`push.started_linked`）；
     - 收银小票：接上之后卖的、还没进写成的日汇总 / 退货单；
     - 作废冲销：原单算的照算（正好抵消）；原单写进去之后在 ERP 作废的是 ERP 独有的变动，也算 —— 出入库单在 Express 也作废完
-      （``express_void_state`` = voided）的除外；
+      （``ledger_void_state`` = voided）的除外；
     - 其余来源（手工调整等，从不写进 Express）：接上之后的照算；同步调整本身、期初不算。
     没接上（没有接上时刻）的公司不叠加。原来出入库 / 盘点 / 小票接上前的单也永久叠加、采购 / 销售 / 期初却被覆盖，口径不一。"""
     since = push.linked_at(company)
@@ -744,12 +744,12 @@ def _pending(company, products, warehouses):
             STOCK_ENTRY: {"warehouse": ["in", list(loc_of)]}, STOCK_COUNT: {"warehouse": ["in", list(loc_of)]}}
     counted, written = set(), set()
     for ref_type, doctype in WRITTEN_SOURCES.items():
-        open_docs = frappe.get_all(doctype, filters={**mine[doctype], "express_state": ["in", contracts.PENDING_STATES]},
+        open_docs = frappe.get_all(doctype, filters={**mine[doctype], "ledger_state": ["in", contracts.PENDING_STATES]},
                                    pluck="name", limit_page_length=0)  # bounded: 接上之后开始、还没写成的单
         counted.update(open_docs)
         add(moved(ref_type, open_docs))
     # 盘点生成的出入库单不逐张写，整份盘点轧差写一张 TK：盘点还没写成，它生成的单就都算（验收 10-25）
-    counts = frappe.get_all(STOCK_COUNT, filters={**mine[STOCK_COUNT], "express_state": ["in", contracts.PENDING_STATES]},
+    counts = frappe.get_all(STOCK_COUNT, filters={**mine[STOCK_COUNT], "ledger_state": ["in", contracts.PENDING_STATES]},
                             pluck="name", limit_page_length=0)  # bounded: 还没写成的盘点
     entries = frappe.get_all(STOCK_ENTRY, filters={"ref_type": COUNT_REF, "ref_id": ["in", counts]},  # bounded: 这些盘点的单
                              pluck="name", limit_page_length=0) if counts else []
@@ -759,7 +759,7 @@ def _pending(company, products, warehouses):
     receipts = frappe.db.sql(f"""SELECT m.ref_id, m.product, m.warehouse, SUM(m.qty_base) AS qty FROM `tab{stock.MOVEMENT}` m
             JOIN `tabERP Sale` s ON s.name = m.ref_id LEFT JOIN `tabERP POS Day Summary` d ON d.name = s.express_summary
             WHERE m.ref_type IN %(sales)s AND s.sold_at >= %(since)s AND m.creation >= %(since)s
-            AND COALESCE(d.express_state, '') NOT IN %(written)s
+            AND COALESCE(d.ledger_state, '') NOT IN %(written)s
             AND m.warehouse IN %(warehouses)s AND m.product IN %(products)s GROUP BY m.ref_id, m.product, m.warehouse""",
                              {"sales": SALE_REFS, "since": since, "written": WRITTEN_STATES, "warehouses": tuple(loc_of),
                               "products": tuple(code_of)}, as_dict=True)
@@ -772,9 +772,9 @@ def _pending(company, products, warehouses):
     originals = sorted({row.ref_id for row in voids if row.ref_id and row.ref_id not in counted})
     if originals:
         for doctype in WRITTEN_SOURCES.values():
-            filters = {"name": ["in", originals], "express_state": ["in", WRITTEN_STATES]}
+            filters = {"name": ["in", originals], "ledger_state": ["in", WRITTEN_STATES]}
             if doctype == STOCK_ENTRY:
-                filters["express_void_state"] = ["!=", push.VOIDED]
+                filters["ledger_void_state"] = ["!=", push.VOIDED]
             written.update(frappe.get_all(doctype, filters=filters, pluck="name", limit_page_length=0))  # bounded: 这些原单
     add([row for row in voids if row.ref_id in counted or row.ref_id in written])
     # 从不写进 Express 的其余来源（手工调整、没有来源的）：接上之后的照算

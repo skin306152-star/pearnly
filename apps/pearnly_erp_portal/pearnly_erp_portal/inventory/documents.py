@@ -22,8 +22,8 @@ TRANSFER = "transfer"  # 调拨：出入库单第三个方向（多仓闭环 P2�
 DIRECTIONS = ("in", "out", TRANSFER)
 
 LIST_FIELDS = ("name", "direction", "posting_date", "warehouse", "to_warehouse", "supplier", "doc_no",
-               "status", "purpose", "reason", "ref_type", "ref_id", "submitted_at", "express_state", "express_docnum",
-               "express_void_state")
+               "status", "purpose", "reason", "ref_type", "ref_id", "submitted_at", "ledger_state", "ledger_docnum",
+               "ledger_void_state")
 
 # 用途（录制问题 #14：以前只有自由填写的备注）：入库是退库，出库是内部领用 / 报损；都可选「其他」或不填。
 PURPOSES = {"in": ("return", "other"), "out": ("internal_use", "damage", "other")}
@@ -374,7 +374,7 @@ def void_entry(name):
     guard.require("stock." + doc.direction)
     if doc.status != "submitted":
         frappe.throw(_(BAD_TRANSITION))
-    if doc.ref_type == "count" and frappe.db.get_value("ERP Stock Count", doc.ref_id, "express_state"):
+    if doc.ref_type == "count" and frappe.db.get_value("ERP Stock Count", doc.ref_id, "ledger_state"):
         # 盘点进了写 Express（整份盘点轧差写一张 TK，它生成的单不逐张写）：单独作废这张，Express 的 TK 不会跟着动（验收 10-25）
         frappe.throw(_("stock.countEntryVoid"))
     stock.reverse_movements(ref_type=doc.ref_type or "stock_entry", ref_id=doc.name,

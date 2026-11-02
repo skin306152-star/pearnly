@@ -25,16 +25,16 @@ def prepare(lab, manifest):
     return lab.python(manifest["site"], f"""
 frappe.db.set_value("User", "admin@erp.regression", "language", "zh")
 row = frappe.get_all("Purchase Document", filters={{"company": {a!r}, "status": "submitted"}},
-                     fields=["name", "system_no", "express_state", "express_reason"], order_by="creation asc", limit_page_length=1)[0]
-frappe.db.set_value("Purchase Document", row.name, {{"express_state": "held", "express_reason": "choice_needed:party"}},
+                     fields=["name", "system_no", "ledger_state", "ledger_reason"], order_by="creation asc", limit_page_length=1)[0]
+frappe.db.set_value("Purchase Document", row.name, {{"ledger_state": "held", "ledger_reason": "choice_needed:party"}},
                     update_modified=False)
 if not frappe.db.exists("User Permission", {{"user": "purchase@erp.regression", "allow": "ERP Company", "for_value": {a!r}}}):
     frappe.get_doc({{"doctype": "User Permission", "user": "purchase@erp.regression", "allow": "ERP Company",
                     "for_value": {a!r}, "apply_to_all_doctypes": 1}}).insert(ignore_permissions=True)
 titles = {{name: frappe.db.get_value("ERP Company", name, "company_name") for name in ({a!r}, {b!r})}}
 frappe.db.commit()
-print(json.dumps({{"a": {a!r}, "b": {b!r}, "titles": titles, "document": row.name, "number": row.system_no, "before": [row.express_state or "",
-                  row.express_reason or ""], "note": "flow note " + {uuid.uuid4().hex[:6]!r}, "cases": []}}))
+print(json.dumps({{"a": {a!r}, "b": {b!r}, "titles": titles, "document": row.name, "number": row.system_no, "before": [row.ledger_state or "",
+                  row.ledger_reason or ""], "note": "flow note " + {uuid.uuid4().hex[:6]!r}, "cases": []}}))
 """)
 
 
@@ -107,8 +107,8 @@ for user in ("admin@erp.regression", "purchase@erp.regression"):
                   "listed": [row["id"] for row in cc_service.listing()]}}
 frappe.set_user("Administrator")
 frappe.db.delete("ERP Company Note", {{"company": {params['a']!r}, "text": {params['note']!r}}})
-frappe.db.set_value("Purchase Document", {params['document']!r}, {{"express_state": {params['before'][0]!r} or None,
-                    "express_reason": {params['before'][1]!r}}}, update_modified=False)
+frappe.db.set_value("Purchase Document", {params['document']!r}, {{"ledger_state": {params['before'][0]!r} or None,
+                    "ledger_reason": {params['before'][1]!r}}}, update_modified=False)
 frappe.db.delete("User Permission", {{"user": "purchase@erp.regression", "allow": "ERP Company", "for_value": {params['a']!r}}})
 frappe.db.commit()
 print(json.dumps({{"notes": notes, "seen": seen}}, default=str))

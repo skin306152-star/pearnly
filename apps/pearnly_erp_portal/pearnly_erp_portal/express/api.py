@@ -36,10 +36,10 @@ def _document(doctype, name, write=False):
     if doctype not in CAPABILITIES or not isinstance(name, str):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     guard.require(CAPABILITIES[doctype][1 if write else 0])
-    fields = ["name", "status", "express_state", "express_docnum", "express_reason", "express_needed", "express_job",
-              "express_book"]
+    fields = ["name", "status", "ledger_state", "ledger_docnum", "ledger_reason", "ledger_needed", "ledger_job",
+              "ledger_book"]
     if doctype == push.STOCK:
-        fields += ["express_void_state", "express_void_reason", "express_void_job"]  # 作废原单（B 段 ①，先只开出入库单）
+        fields += ["ledger_void_state", "ledger_void_reason", "ledger_void_job"]  # 作废原单（B 段 ①，先只开出入库单）
     if doctype == push.POS_DAY:
         fields += ["vat_whole_document"]  # 按账套设置整张计税（主会话 10-26）：Express 弹窗标明
     row = frappe.db.get_value(doctype, name, fields, as_dict=True)
@@ -58,7 +58,7 @@ def _require_enabled(row):
 
 def _needed(row):
     try:
-        needed = json.loads(row.express_needed or "[]")
+        needed = json.loads(row.ledger_needed or "[]")
     except ValueError:
         needed = []
     return [item for item in needed if isinstance(item, dict) and item.get("kind") and item.get("subject")]
@@ -113,22 +113,22 @@ def _party_blocked(doctype, row, job):
 def _view(doctype, row):
     if not push.enabled(row.company):
         # 断开了：只看状态、Express 单号与原因（已断开的照实写），不再给选、再写一次
-        return {"state": row.express_state or "", "docnum": row.express_docnum or "", "reason": row.express_reason or "",
-                "void": row.get("express_void_state") or "", "needed": [], "can_answer": False, "can_retry": False,
+        return {"state": row.ledger_state or "", "docnum": row.ledger_docnum or "", "reason": row.ledger_reason or "",
+                "void": row.get("ledger_void_state") or "", "needed": [], "can_answer": False, "can_retry": False,
                 "can_mark_handled": False, "vat_whole": bool(row.get("vat_whole_document"))}
-    data = facts.load(row.express_book) if row.express_book else None
-    job = jobs.find_by_name(row.express_job) if row.express_job else None
+    data = facts.load(row.ledger_book) if row.ledger_book else None
+    job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
     blocked = _party_blocked(doctype, row, job)
     needed = [{**item, "options": _options(item, data)} for item in (blocked or _needed(row))] \
-        if row.express_state == contracts.HELD else []
-    if row.get("express_void_state"):
+        if row.ledger_state == contracts.HELD else []
+    if row.get("ledger_void_state"):
         # 已写进 Express、又在 ERP 作废的：看作废那一件（转人工的能重试，电脑重核原单再作废）
-        void_job = jobs.find_by_name(row.express_void_job) if row.express_void_job else None
-        return {"state": row.express_state or "", "docnum": row.express_docnum or "", "reason": row.express_void_reason or "",
-                "void": row.express_void_state, "needed": [], "can_answer": False,
+        void_job = jobs.find_by_name(row.ledger_void_job) if row.ledger_void_job else None
+        return {"state": row.ledger_state or "", "docnum": row.ledger_docnum or "", "reason": row.ledger_void_reason or "",
+                "void": row.ledger_void_state, "needed": [], "can_answer": False,
                 "can_retry": bool(void_job and void_job["status"] == "manual") and guard.has(CAPABILITIES[doctype][1])}
     stuck = _pos_stuck(doctype, row, job)
-    return {"state": row.express_state or "", "docnum": row.express_docnum or "", "reason": row.express_reason or "",
+    return {"state": row.ledger_state or "", "docnum": row.ledger_docnum or "", "reason": row.ledger_reason or "",
             "needed": needed, "can_answer": bool(needed) and guard.has(CAPABILITIES[doctype][1]),
             "can_retry": bool((job and job["status"] == "manual" and not blocked)
                               or (stuck and not needed and (not job or job["status"] in ("manual", "cancelled"))))
@@ -142,7 +142,7 @@ def _pos_stuck(doctype, row, job) -> bool:
     """收银日汇总 / 退货单是不是停住了（停下、失败，或电脑转了人工）：给「再写一次」「已在 Express 手工处理」两个出口。"""
     if doctype != push.POS_DAY:
         return False
-    return row.express_state in (contracts.HELD, contracts.FAILED) or bool(job and job["status"] == "manual")
+    return row.ledger_state in (contracts.HELD, contracts.FAILED) or bool(job and job["status"] == "manual")
 
 
 @frappe.whitelist(methods=["POST"])
@@ -154,13 +154,13 @@ def mark_handled(doctype, name, reason=None):
     reason = " ".join(str(reason or "").split())[:500]
     if not reason:
         frappe.throw(_("Reason"), frappe.MandatoryError)
-    job = jobs.find_by_name(row.express_job) if row.express_job else None
+    job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
     if not _pos_stuck(doctype, row, job):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     if job and job["status"] not in ("done",):
         jobs.cancel(job["job"], "replaced")
-    frappe.db.set_value(doctype, name, {"express_state": contracts.HANDLED, "express_reason": "", "express_needed": None,
-                                        "express_job": None}, update_modified=False)
+    frappe.db.set_value(doctype, name, {"ledger_state": contracts.HANDLED, "ledger_reason": "", "ledger_needed": None,
+                                        "ledger_job": None}, update_modified=False)
     # 审计：谁、什么时候标的、原因（单据时间线里原生的一条评论，带标记人和时间；标错了在 Express 里核对后照实处理，不另做撤销）
     frappe.get_doc(doctype, name).add_comment("Comment", f"{_('express.state.handled')}: {reason}")
     frappe.db.commit()
@@ -226,14 +226,14 @@ def answer(doctype, name, answers):
     """在单据上选要人拿主意的项：``answers`` = ``[{kind, subject, value}]``。只认这一项能选的值；记在这家公司名下后再准备一次。"""
     row = _document(doctype, name, write=True)
     _require_enabled(row)
-    job = jobs.find_by_name(row.express_job) if row.express_job else None
+    job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
     blocked = _party_blocked(doctype, row, job)
-    if row.express_state != contracts.HELD or (row.express_job and not blocked):
+    if row.ledger_state != contracts.HELD or (row.ledger_job and not blocked):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
     if not isinstance(answers, list) or not answers:
         frappe.throw(_("Invalid request"))
-    data = facts.load(row.express_book) if row.express_book else None
+    data = facts.load(row.ledger_book) if row.ledger_book else None
     needed = {(item["kind"], item["subject"]): item for item in (blocked or _needed(row))}
     for given in answers:
         if not isinstance(given, dict):
@@ -249,8 +249,8 @@ def answer(doctype, name, answers):
         choices.remember(row.company, item["kind"], item["subject"], value, options[value] or item.get("label") or "")
     if blocked:
         jobs.cancel(job["job"], "replaced")  # 拦下的那件没写进去（整笔回滚）：撤掉，按选的对方档重新准备一件
-        push._set(doctype, name, {"express_state": contracts.QUEUED, "express_job": None})
-    push._set(doctype, name, {"express_reason": "", "express_needed": None})
+        push._set(doctype, name, {"ledger_state": contracts.QUEUED, "ledger_job": None})
+    push._set(doctype, name, {"ledger_reason": "", "ledger_needed": None})
     frappe.db.commit()
     push.send(doctype, name)
     return _view(doctype, _document(doctype, name))
@@ -263,20 +263,20 @@ def retry(doctype, name):
     那台电脑上，由它按单据号查重。"""
     row = _document(doctype, name, write=True)
     _require_enabled(row)
-    if row.get("express_void_state"):
-        void_job = jobs.find_by_name(row.express_void_job) if row.express_void_job else None
+    if row.get("ledger_void_state"):
+        void_job = jobs.find_by_name(row.ledger_void_job) if row.ledger_void_job else None
         if not void_job or void_job["status"] != "manual":
             frappe.throw(_("Not Permitted"), frappe.PermissionError)
         jobs.retry(void_job["job"])  # 作废载荷不随单据变：原样再排，电脑先核原单再作废
-        frappe.db.set_value(doctype, name, {"express_void_state": contracts.QUEUED, "express_void_reason": ""},
+        frappe.db.set_value(doctype, name, {"ledger_void_state": contracts.QUEUED, "ledger_void_reason": ""},
                             update_modified=False)
         frappe.db.commit()
         return _view(doctype, _document(doctype, name))
-    job = jobs.find_by_name(row.express_job) if row.express_job else None
-    if doctype == push.POS_DAY and row.express_state in (contracts.HELD, contracts.FAILED) and \
+    job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
+    if doctype == push.POS_DAY and row.ledger_state in (contracts.HELD, contracts.FAILED) and \
             (not job or job["status"] == "cancelled"):
         # 收银日汇总 / 退货单停下了（没交进队列）：按此刻的内容重新准备一次
-        frappe.db.set_value(doctype, name, {"express_state": contracts.QUEUED, "express_reason": "", "express_needed": None},
+        frappe.db.set_value(doctype, name, {"ledger_state": contracts.QUEUED, "ledger_reason": "", "ledger_needed": None},
                             update_modified=False)
         frappe.db.commit()
         push.send(doctype, name)
@@ -290,8 +290,8 @@ def retry(doctype, name):
         frappe.db.commit()
     else:
         jobs.cancel(job["job"], "replaced")
-        push._set(doctype, name, {"express_state": contracts.QUEUED, "express_job": None, "express_reason": "",
-                                  "express_needed": None})
+        push._set(doctype, name, {"ledger_state": contracts.QUEUED, "ledger_job": None, "ledger_reason": "",
+                                  "ledger_needed": None})
         frappe.db.commit()
         push.send(doctype, name)
     return _view(doctype, _document(doctype, name))
