@@ -52,6 +52,7 @@ def test_the_recipe_loads_and_every_form_waits_for_the_site_probe():
     assert "txtcashpay" in RECIPE.form("sales_cash").required_ids()
     pending = RECIPE.unverified()
     assert "login.footer" in pending and "modules.aptran.header.txtdate" in pending and "dialogs.period" in pending
+    assert "save" in pending and RECIPE.save["no_connection_reuse"] is True  # 存档不许被网页内核自动重发（默认禁用长连接复用）
     # 11-02 真站点实测过的：登录页三格、选账套页与链接、被踢弹框、账套库不存在的页面文字
     assert not {"login.page", "login.user_id", "login.password_id", "login.submit_id", "login.select_page",
                 "login.account_link", "login.account_set_missing", "dialogs.kicked"} & set(pending)

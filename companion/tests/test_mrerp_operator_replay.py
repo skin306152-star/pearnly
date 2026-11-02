@@ -155,17 +155,37 @@ def test_a_network_break_after_the_save_resumes_and_finds_the_document_instead_o
     assert len(site.saved()) == 1 and site.logins == 2  # 网络恢复后重新登录、在列表里找到，没重录
 
 
-def test_a_save_the_browser_sent_twice_is_reported_not_hidden(app, site, tmp_path):
-    # 写了库、回包前断开、网络马上又通：浏览器内核会在新连接上自动重发一次存档请求，MR.ERP 写了两张（第 0 步要核对真站点会不会）
+def test_a_save_cut_off_after_the_write_is_not_sent_again_by_the_browser(app, site, tmp_path):
+    # 写了库、回包前断开、网络马上又通。网页内核会在复用的长连接断开后自动重发同一个 POST（下一条测试复现），
+    # 所以默认每个请求都开新连接（Connection: close）：只发一次、只存一张，续录时在列表里找到这一张
     site.drop_after_commit = True
     host = _host(tmp_path, Maker())
     out = _handle(host, "t1", payload(site.url, docnum="T-0001"))
-    saved = site.saved()
-    if len(saved) == 1:
-        assert out["status"] == "saved"  # 这个内核版本没重发：照常
-        return
+    saves = [x for x in site.sockets if x["path"].endswith("/allsave.php")]
+    assert len(saves) == 1 and saves[0]["nth"] == 1 and saves[0]["connection"] == "close"
+    assert all(x["nth"] == 1 for x in site.sockets)  # 没有一个请求走复用的长连接
+    assert len(site.saved()) == 1 and out["status"] == "saved" and out["docnum"] == "PNT-0001"
+
+
+def test_with_connection_reuse_the_browser_sends_the_save_twice_and_it_is_reported_not_hidden(app, site, tmp_path,
+                                                                                              monkeypatch):
+    from companion.mrerp_operator import recipe as R
+
+    real = R.load
+
+    def reusing(*args, **kwargs):
+        loaded = real(*args, **kwargs)
+        loaded.save["no_connection_reuse"] = False  # 配方关掉这一项（例如真站点上嫌慢）时的退路
+        return loaded
+
+    monkeypatch.setattr(R, "load", reusing)
+    site.drop_after_commit = True
+    host = _host(tmp_path, Maker())
+    out = _handle(host, "t1", payload(site.url, docnum="T-0002"))
+    saves = [x for x in site.sockets if x["path"].endswith("/allsave.php")]
+    assert len(saves) == 2 and saves[0]["nth"] > 1 and saves[1]["nth"] == 1  # 复用的连接断了，新连接上重发
+    assert len(site.saved()) == 2
     assert out["status"] == "human" and out["reason"] == "readback_mismatch" and "more than once" in out["detail"]
-    assert len(saved) == 2  # 不删不改，交人
 
 
 def test_a_network_outage_at_save_waits_then_enters_the_document_once(app, site, tmp_path):
@@ -173,7 +193,8 @@ def test_a_network_outage_at_save_waits_then_enters_the_document_once(app, site,
     host = _host(tmp_path, Maker())
     out = _handle(host, "t1", payload(site.url, docnum="W-0001"))
     assert out["status"] == "saved" and len(site.saved()) == 1
-    assert any("network_wait" == e for e in [host.snapshots()[0].get("reason"), "network_wait"])
+    # 第一次存档没到库；恢复后先查（没存上）再录一次：前后两次存档请求，只存上一张
+    assert len([x for x in site.sockets if x["path"].endswith("/allsave.php")]) == 2
 
 
 def test_a_save_refused_by_mrerp_writes_nothing_and_goes_to_a_person(app, site, tmp_path):

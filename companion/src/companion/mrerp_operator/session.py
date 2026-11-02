@@ -183,6 +183,12 @@ class MrerpSession:
             desk.start()
         except DeskGone as error:
             raise NeedHuman("unknown_screen", f"MR.ERP window did not start: {error}") from None
+        # 存档请求不许被网页内核自动重发（配方 save.no_connection_reuse，默认禁用长连接复用）
+        reuse = not bool((self.recipe.save or {}).get("no_connection_reuse", True))
+        try:
+            desk.call("connections", timeout=10, reuse=reuse)
+        except DeskGone as error:
+            raise NeedHuman("unknown_screen", f"MR.ERP window did not start: {error}") from None
         kwargs = {"load_s": self.load_s} if self.load_s else {}
         return WebPage(desk, presence=self.presence, **kwargs)
 

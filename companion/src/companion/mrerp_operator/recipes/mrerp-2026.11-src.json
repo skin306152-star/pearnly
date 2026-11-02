@@ -164,5 +164,10 @@
      "_doc": "allsave.php 写库出错（含 MR.ERP 自己拒收同号）：autocommit 关着、出错即回滚，没存上；第 0 步核对"}
   ],
   "saved_mark": "Save Success",
+  "save": {
+    "_doc": "存档那一步的注意事项。① 点「Save」：页面自己的 checknull 先查，拦下 = alert、不提交、什么都没写。② 提交后 allsave.php 写库、显示「Save Success」、约一秒后自己回列表。③ 被踢不会拦住存档：checkuseruse.php 打出踢人脚本后不停，allsave.php 照样写库（源码），所以点了存档以后被踢 = 结果不明，续录前先在列表里查。④ 网页内核会在断开的复用长连接上自动重发同一个 POST（11-02 假站点复现：存档写了库、回包前断开，在新连接上又发一次，存出两张）；它只在复用的连接上重发，所以 no_connection_reuse=true 时每个请求带 Connection: close、每次开新连接，断开后不会重发（假站点验证：只发一次、只存一张）。关掉这一项（性能不够时）就退回：找回时不止一张交人、不删不改。⑤ 真站点若走 HTTP/2，Connection 头不起作用，第 0 步核协议与是否会重发。",
+    "verified": false,
+    "no_connection_reuse": true
+  },
   "timing": {"settle_s": 3.0, "save_s": 60.0, "list_s": 20.0}
 }

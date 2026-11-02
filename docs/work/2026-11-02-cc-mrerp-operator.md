@@ -94,9 +94,26 @@
 1. **被踢时 MR.ERP 照样写库**：`component/php/checkuseruse.php` 发现会话号对不上只打出 `alert + location=logoutkick.php` 的脚本，
    **没有 `exit`**，`allsave.php` 接着往下 `INSERT` 并提交。所以「点了存档才发现被踢」= 结果不明（可能已存），按崩了留「正在录」、
    本机记下，续录前先查；「存档前被踢」（打开新增页就被踢）= 什么都没写。
-2. **浏览器内核会自动重发断在半路的 POST**：假站点「写了库、回包前断开」时，网页内核在新连接上把 `allsave.php` 又发了一次
-   （本机日志两次 `POST /aptran/allsave.php`），假站点写了两张。真站点若在写库后断开也可能落两张。处理：找回时同日同额、核对得上的
-   新单不止一张 → 不删不改，列出两个单号交人（`readback_mismatch`）。
+2. **浏览器内核会自动重发断在半路的 POST**：假站点「写了库、回包前断开」时，网页内核在新连接上把 `allsave.php` 又发了一次，
+   假站点写了两张。**已从源头关掉**（主会话 11-02 要求先试源头），做法与证据见下一节；关掉的开关在配方里，关不掉 / 关掉后嫌慢时的退路
+   仍在：找回时同日同额、核对得上的新单不止一张 → 不删不改，列出单号交人（`readback_mismatch`）。
+
+### 存档请求不被自动重发：做法与证据
+
+- **原因**（Chromium 网络层 `HttpNetworkTransaction` 的重发规则）：请求走的是**复用的长连接**、连接在收到回包头之前断了，就在新连接上
+  再发一次，不分 GET / POST。新开的连接上断了不重发。
+- **复现**（假站点给每个请求记「在它那条连接上是第几个请求」和请求头 `Connection`，`_fake_mrerp.py::sockets`）：不加处理时，存档
+  POST 走的是一条已用过 18 次的长连接，回包前断开后，网页内核在一条新连接（第 1 个请求）上又发了一次，假站点两张。
+- **做法**：MR.ERP 窗口的浏览器资料挂一个请求拦截器（`QWebEngineUrlRequestInterceptor`，`web_driver._NoReuse`），每个请求带
+  `Connection: close`：服务器回完就关连接，连接池里没有可复用的长连接，所以存档 POST 永远走新连接，断了也不会被重发。点「Save」的方式
+  不变（还是页面自己的按钮、页面自己的提交）。开关在配方 `save.no_connection_reuse`（默认 `true`），会话开窗后按配方告诉子进程。
+- **证据**（`test_mrerp_operator_replay.py`）：
+  - `test_a_save_cut_off_after_the_write_is_not_sent_again_by_the_browser`：默认做法下同样「写了库、回包前断开」，存档 POST 只有一次、
+    在它那条连接上是第 1 个请求、请求头 `Connection: close`，全程没有一个请求走复用的连接；假站点一张，续录在列表里找到它，结果「已存」；
+  - `test_with_connection_reuse_the_browser_sends_the_save_twice_and_it_is_reported_not_hidden`：配方关掉这一项时照旧复现两次 POST
+    （第一次在复用的连接上、第二次在新连接上）、两张，结果交人、两个单号都列出——退路仍有效。
+- **代价与限制**（第 0 步核）：每个请求多一次建连，HTTPS 还多一次 TLS 握手，真站点每张多几百毫秒级（假站点在本机看不出差别）；
+  真站点若走 HTTP/2，`Connection` 头不起作用（HTTP/2 多路复用，重发规则另算），要核协议；嫌慢可把配方这一项关掉，退回「不止一张交人」。
 
 ## 配方里「待探路核对」的项（11-02 真站点实测后剩下的）
 
@@ -125,7 +142,8 @@ purchase_expense / sales_credit / sales_cash`；五条弹框规则 `dialogs.not_
 | 13 | 窗口开在屏幕上录一张；再最小化、被别的窗口完全挡住、锁屏各录一张 | 开窗是否抢前台 / 焦点；计时器、网络、焦点事件是否照常；`operator_frame` 截图是否有画面 | 不抢前台；照常（不照常改放屏幕外而不是最小化）；有画面 |
 | 14 | `alert / confirm` | 是否都被截获、不弹出 | 都截获 |
 | 15 | 实测资源 | 子进程 + 渲染进程（+ Windows 上可能有的 GPU 进程）内存、CPU；关窗后进程 | 记真数；关窗后全退 |
-| 16 | 断网（拔网线）在存档那一下 | 浏览器内核是否自动重发 POST、真站点是否落两张 | 记结果（找回逻辑已按会落两张处理） |
+| 16 | 被踢后点存档：用同一账号在别处登录后，回到 CC 这边的新增页填好一张点「Save」 | 列表里有没有这张（源码看 `checkuseruse.php` 打出踢人脚本后不停） | 照样落库；CC 这边结果不明、整批停、不重登，换人处理后再派来先查到、不重录 |
+| 17 | 存档半路断网：点「Save」的同时断网（拔网线 / 关 Wi-Fi 几秒），先在配方 `save.no_connection_reuse=false` 下做一次，再在默认 `true` 下做一次 | 网页内核会不会重发存档 POST、真站点落几张；站点是 HTTP/1.1 还是 HTTP/2；默认做法下每张多花多少时间 | `false` 时可能落两张（交人）；`true` 时不重发、最多一张（HTTP/2 则另议）；耗时可接受就保持 `true` |
 
 ## 离线测试与闸门（本机实跑，11-02）
 
@@ -154,6 +172,7 @@ purchase_expense / sales_credit / sales_cash`；五条弹框规则 `dialogs.not_
 | 新包测试 replay / process / parts | 13 / 3 / 30 通过 |
 | 11-02 补充（真站点实测写进配方与会话、窗口开在屏幕上、还原 `tomo_bridge.py`、Python 3.11 的 f-string 修正）后：CC 全套 | 1479 通过、42 跳过、0 失败 |
 | 同上：新包测试 replay / process / parts | 16 / 3 / 30 通过（49） |
+| 11-02 再补：存档请求不被自动重发（拦截器 + 配方开关）后：新包测试 replay / process / parts | 17 / 3 / 30 通过；CC 全套 1464 通过、59 跳过（外层这 17 条回放记跳过、子进程里全过）；本地全闸门 166 / 166（含 `npm ci`） |
 | 回放改到单独子进程后：CC 全套 | 1464 通过、58 跳过、0 失败（外层 1 条拉起子进程，子进程里 16 条回放全过；外层这 16 条记跳过） |
 | `tests/test_mrerp_operator_readback_parity.py` | 4 通过 |
 | `tests/test_companion_contract.py` | 86 通过 |

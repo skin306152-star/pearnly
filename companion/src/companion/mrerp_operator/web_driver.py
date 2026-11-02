@@ -12,6 +12,7 @@
 - 接管 ``alert / confirm / prompt``：不弹出、不卡住，文字记进 ``dialogs`` 交给配方规则；confirm 默认回「取消」（安全），
   批次线程可预先说下一次回什么（``confirm``）；
 - 只许在本站（第一次 ``open`` 的网址的协议 + 主机 + 端口）里跳转，不开新窗口；
+- 每个请求带 ``Connection: close``、不复用长连接：网页内核不会在断开的长连接上自动重发存档 POST（存出两张），见 ``_NoReuse``；
 - 人在这个窗口里点、打字、滚轮（发到本窗口部件的 Qt 输入事件；我们自己只跑脚本、不发 Qt 输入事件）计数，交给 ``presence``；
 - 所有网页内核调用在界面线程执行：批次线程经 ``UiCall`` 排进界面线程、等结果回来（小转交层，不新增常驻线程）；
 - 页面控制台输出、填进去的值一律不记日志（登录页的密码只经管道交过来，用完不留）。
@@ -27,7 +28,8 @@ import time
 from typing import Callable, Dict, Optional
 
 from PySide6.QtCore import QBuffer, QByteArray, QEvent, QIODevice, QObject, Qt, QTimer, QUrl, Signal, Slot
-from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineScript, QWebEngineSettings
+from PySide6.QtWebEngineCore import (QWebEnginePage, QWebEngineProfile, QWebEngineScript, QWebEngineSettings,
+                                     QWebEngineUrlRequestInterceptor)
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
@@ -68,6 +70,23 @@ class _Page(QWebEnginePage):
         return None
 
 
+class _NoReuse(QWebEngineUrlRequestInterceptor):
+    """每个请求都带 ``Connection: close``：服务器回完就关连接，连接池里没有可复用的长连接。
+
+    为什么（本机假站点复现，11-02）：网页内核发请求用的若是复用的长连接，连接在收到回包前断了，它会在新连接上**自动重发**
+    同一个请求——POST 也重发（Chromium ``HttpNetworkTransaction`` 只要「连接是复用的、还没收到回包头」就重发）。存档那一下
+    写了库、回包前断开，就会存出两张。只在复用的连接上才重发，所以每个请求都开新连接，就不会重发。代价是每个请求多一次
+    建连（TLS 站点还多一次握手），第 0 步在真站点量；真站点若走 HTTP/2，这个请求头不起作用，也要第 0 步核。"""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.enabled = True
+
+    def interceptRequest(self, info):  # noqa: N802 — Qt 的名字
+        if self.enabled:
+            info.setHttpHeader(b"Connection", b"close")
+
+
 class _Inputs(QObject):
     """挂在 MR.ERP 窗口部件上的事件过滤：点、打字、滚轮都算有人在这个窗口里动（我们自己只跑脚本，不发 Qt 输入事件）。"""
 
@@ -91,6 +110,8 @@ class Driver(QObject):
         self.profile = QWebEngineProfile(self)  # 无名 = 不落盘
         self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.MemoryHttpCache)
         self.profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.NoPersistentCookies)
+        self._no_reuse = _NoReuse(self)  # 默认开：不让网页内核在断开的长连接上自动重发存档请求（见 _NoReuse）
+        self.profile.setUrlRequestInterceptor(self._no_reuse)
         settings = self.profile.settings()
         for attribute in (QWebEngineSettings.WebAttribute.PluginsEnabled, QWebEngineSettings.WebAttribute.PdfViewerEnabled,
                           QWebEngineSettings.WebAttribute.JavascriptCanOpenWindows):
@@ -210,6 +231,11 @@ class Driver(QObject):
               "loading": self.loading, "last_ok": self.last_ok, "dialogs": dialogs, "human": self.human,
               "human_idle_ms": None if idle is None else int(idle), "shown": self.window.isVisible()})
 
+    def op_connections(self, args: Dict, done) -> None:
+        """配方说要不要禁用长连接复用（``save.no_connection_reuse``，默认要）。"""
+        self._no_reuse.enabled = not bool(args.get("reuse"))
+        done({"ok": True, "reuse": not self._no_reuse.enabled})
+
     def op_confirm(self, args: Dict, done) -> None:
         self._confirm = bool(args.get("answer"))
         done({"ok": True})
@@ -249,6 +275,7 @@ class Driver(QObject):
                 except RuntimeError:  # 部件已经没了
                     pass
             self._watched.clear()
+            self.profile.setUrlRequestInterceptor(None)
             self.view.setPage(None)
             self.page.deleteLater()
             self.window.hide()

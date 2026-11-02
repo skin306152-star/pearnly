@@ -87,6 +87,7 @@ class Recipe:
         self.dialogs = [dict(rule, rx=re.compile(rule["match"])) for rule in data["dialogs"]]
         self.forms = {t: Form(t, spec, self.modules.get(spec.get("module"), {})) for t, spec in data["forms"].items()}
         self.saved_mark = str(data.get("saved_mark") or "")
+        self.save: Dict = dict(data.get("save") or {})
         timing = data.get("timing") or {}
         self.settle_s = float(timing.get("settle_s", 3.0))
         self.save_s = float(timing.get("save_s", 60.0))
@@ -154,6 +155,8 @@ class Recipe:
                 out.append(f"modules.{name}.receipt")
         out += [f"forms.{t}" for t, form in self.forms.items() if not form.spec.get("verified")]
         out += [f"dialogs.{r['name']}" for r in self.dialogs if not r.get("verified")]
+        if self.save and not self.save.get("verified"):
+            out.append("save")
         return out
 
 

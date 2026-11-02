@@ -77,6 +77,7 @@ class FakeMrerp:
         self.next_id = 100
         self.autono: Dict[str, int] = {}  # 菜单号 → 下一个自动编号（没有 = 手填单号）
         self.log: List[str] = []  # 路径（不带参数值）
+        self.sockets: List[Dict] = []  # 每个请求：路径、方法、在它那条连接上是第几个、请求头 Connection
         self.logins = 0
         self.logouts = 0
         self.lock = threading.Lock()
@@ -138,8 +139,11 @@ class FakeMrerp:
     def _serve(self, req: BaseHTTPRequestHandler, method: str) -> None:
         parts = urlsplit(req.path)
         path = parts.path
+        req.served = getattr(req, "served", 0) + 1  # 同一条连接上的第几个请求（> 1 = 复用的长连接）
         with self.lock:
             self.log.append(f"{method} {path}")
+            self.sockets.append({"path": path, "method": method, "nth": req.served,
+                                 "connection": str(req.headers.get("Connection") or "")})
         if self.down:
             req.close_connection = True
             return  # 一律断开、不回包：浏览器那边是加载失败
