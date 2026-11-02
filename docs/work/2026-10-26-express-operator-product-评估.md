@@ -1515,3 +1515,15 @@
   人的 Express（15456）全程没被接管，CC 自己开的 Express 录完正常退出。昨天第 5 张「数量为 0」这次没复现（5 行的单都录对）。
 - 收尾：录制机装回 1.12.10 正式版（SHA256 与 latest.json 一致）、两成员暂停、入口变量已撤、不听调试口；lab-stop、三域名公网与测试机本机
   都回 107.155.65.74、线上 testcowork 定时任务恢复；占用表已释放。
+
+### 待办（11-02 主会话定）
+
+- [ ] **重发前按账套内容核一次**（ADR-021 11-02 修订的剩余风险，Cowork 与 ERP 两个站点、直写线都有）：DBF 已经写进账套、本机记账
+  （`task_journal.remember`）还没落盘的那一瞬间 CC 被结束，原电脑领回重发时按本机记录认不出写过，会再写一张。退款单（按内容认）与代录
+  （按批次文件读账套 `find_saved`）不受影响。修法方向：直写线重发（服务端标了是重发的那一次）时先按对方 + 日期 + 对方单号 + 合计在账套里
+  找一次，找到就照它回执、不写。
+- [ ] scripts/cowork-push-native-lab-verify.py 跟上今天的准备（要电脑在线读科目表），28 项里 26 项倒在造数据上，10-09 后没人跑过。
+- [ ] 部署：服务端随下一批部署；部署后走 staging 在测试机从 1.12.10 实机升级到 1.12.11，通过后问主会话再发正式版（服务端先于 CC）。
+- [ ] 合入后清理：录制机 C:\XpPilot\cov（脚本、测试包、源码副本）与 aksar 用户 Python 的 py-spy；测试机 PearnlyOpPar 计划任务与
+  C:\PearnlyStress\_op_lab；本机实验栈 pearnly-operator-lab、pearnly-op-backend-lab；备份分支 pearnly/express-operator-pre-squash-040c78b4、
+  pearnly/express-operator-pre-rebase-1102；本工作树与任务分支。
