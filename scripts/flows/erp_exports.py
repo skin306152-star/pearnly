@@ -88,7 +88,31 @@ def judge(params, results, camera_code=None):
     return checks
 
 
+# 采购 / 销售导出里账本那几列（评估 2026-11-02 §12 第 6 条：列名改成通用的 ledger_*，表头标签与改列前相同，账本标记不导出）
+LEDGER_COLUMNS = [["ledger_state", "Express Status"], ["ledger_docnum", "Express No."], ["ledger_reason", "Express Note"],
+                  ["ledger_sent_at", "Express Sent At"], ["ledger_job", "Express Job"], ["ledger_book", "Express Account Set"],
+                  ["ledger_needed", "Express Choices Needed"]]
+
+
 def verify(lab, manifest, params, camera_code=None):
     jobs = lab.python(manifest["site"], 'print(json.dumps({"jobs": frappe.db.count("Pearnly Export")}))')["jobs"]
+    columns = lab.python(manifest["site"], """
+from pearnly_erp_portal.purchasing import output as purchase_output, records as purchase_records
+from pearnly_erp_portal.sales import output as sales_output, records as sales_records
+frappe.set_user("admin@erp.regression")
+out = {}
+for key, output, records, doctype in (("purchase", purchase_output, purchase_records, "Purchase Document"),
+                                      ("sales", sales_output, sales_records, "ERP Sales Document")):
+    found = output._columns(doctype)
+    rows = records.rows({}, limit=1) if key == "purchase" else records.rows({}, start=0, limit=1)
+    out[key] = {"ledger": [[f, l] for f, l in found if f.startswith(("ledger_", "express_"))],
+                "list": sorted(k for k in (rows[0] if rows else {}) if k.startswith(("ledger_", "express_")))}
+print(json.dumps(out))
+""")
     # 实验室的数据都很小：当场给文件，不建导出任务
-    return [{"case": "small exports are served at once", "saved": jobs, "ok": jobs == params["jobs"]}]
+    return [{"case": "small exports are served at once", "saved": jobs, "ok": jobs == params["jobs"]},
+            {"case": "purchase / sales exports keep the Express column labels on the general ledger columns", "saved": columns,
+             "ok": all(columns[key]["ledger"] == LEDGER_COLUMNS for key in ("purchase", "sales"))},
+            {"case": "purchase / sales lists carry the general ledger columns", "saved": columns,
+             "ok": all(columns[key]["list"] in ([], ["ledger_docnum", "ledger_state"]) for key in ("purchase", "sales"))
+             and columns["purchase"]["list"] == ["ledger_docnum", "ledger_state"]}]

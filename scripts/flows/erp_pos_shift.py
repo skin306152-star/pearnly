@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from erp_lib import JS, codes, company, js_value, stock_of  # noqa: E402
+from erp_lib import JS, as_user, codes, company, js_value, stock_of  # noqa: E402
 
 TITLE = "ERP 收银整班：查码、开班、卖、退、交班"
 API = "pearnly_erp_portal.cashier.api."
@@ -94,4 +94,21 @@ print(json.dumps(frappe.db.get_value("ERP Shift", {shift!r}, ["status", "counted
 """) if shift else {}
     after = stock_of(lab, manifest["site"], params["first"], params["warehouse"])
     return [{"case": "班次已交、实点 700", "seen": row, "ok": row.get("status") == "closed" and float(row.get("counted_cash") or 0) == 700},
-            {"case": "收银台仓账面卖 2 退 1", "seen": {"before": params["before"], "after": after}, "ok": after == params["before"] - 1}]
+            {"case": "收银台仓账面卖 2 退 1", "seen": {"before": params["before"], "after": after}, "ok": after == params["before"] - 1},
+            _receipt_ledger_keys(lab, manifest)]
+
+
+def _receipt_ledger_keys(lab, manifest):
+    """收银记录列表的「Express」一栏取日汇总的通用账本栏（评估 2026-11-02 §12 第 6 条）：行上是 ledger_state / ledger_docnum，
+    没有旧的 Express 状态 / 单号键（小票自己的日汇总、补单、待写退货三个键照旧）；日汇总 DocType 里也没有旧栏。"""
+    got = as_user(lab, manifest["site"], "cashier@erp.regression", """
+from pearnly_erp_portal.cashier import api
+rows = api.api_list_sales(start=0, limit=5)
+keys = sorted(set().union(*[set(row) for row in rows])) if rows else []
+old = [f.fieldname for f in frappe.get_meta("ERP POS Day Summary").fields if f.fieldname.startswith("express_")]
+print(json.dumps({"rows": len(rows), "ledger": [k for k in keys if k.startswith("ledger_")],
+                  "old": [k for k in keys if k.startswith("express_")
+                          and k not in ("express_summary", "express_extra", "express_pending_refund")] + old}))
+""")
+    return {"case": "收银记录行带通用账本栏", "seen": got,
+            "ok": got["rows"] > 0 and got["ledger"] == ["ledger_docnum", "ledger_state"] and not got["old"]}

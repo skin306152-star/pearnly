@@ -12,7 +12,7 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from erp_lib import JS, codes, company, js_value, stock_of, warehouses  # noqa: E402
+from erp_lib import JS, codes, company, js_value, ledger_case, stock_of, warehouses  # noqa: E402
 
 TITLE = "ERP 销售单：手动录入、组合框按码认商品、提交出库"
 
@@ -90,4 +90,6 @@ print(json.dumps({{"status": doc.get("status"), "customer": cust, "lines": [dict
     after = stock_of(lab, manifest["site"], params["product"], params["warehouse"])
     return [{"case": "销售单已提交、客户与明细", "seen": row, "ok": row["status"] == "submitted" and row["customer"] == params["customer_name"]
              and [r["product"] for r in row["lines"]] == [params["product"]]},
-            {"case": "账面少 1", "seen": {"before": params["before"], "after": after}, "ok": after == params["before"] - 1}]
+            {"case": "账面少 1", "seen": {"before": params["before"], "after": after}, "ok": after == params["before"] - 1},
+            # 账本栏是通用列：排进账本的记了 express，没排的都空（这张单排不排看单据种类与公司接没接）
+            ledger_case(lab, manifest["site"], "ERP Sales Document", [params.get("sales_doc")], None)]

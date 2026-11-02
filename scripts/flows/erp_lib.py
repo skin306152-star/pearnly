@@ -62,6 +62,25 @@ print(json.dumps({{"qty": float(qty)}}))
 """)["qty"]
 
 
+def ledger_case(lab, site, doctype, names, queued) -> dict:
+    """单据上的账本栏是通用列（评估 2026-11-02 §12 第 6 条，主会话要求流程里断言）：DocType 里没有旧的 ``express_*`` 栏；
+    每张单 ``ledger_state`` 有值就记了账本 ``ledger_target = express``，没值就没有账本；``queued`` 给了真 / 假时，排没排进账本
+    也要对上（接了 Express 的公司、单据接上后开始 → 排进；没接、关了「接 Express」→ 不排）。"""
+    got = lab.python(site, f"""
+rows = frappe.get_all({doctype!r}, filters={{"name": ["in", {list(names)!r}]}}, fields=["name", "ledger_state", "ledger_target"],
+                      limit_page_length={len(names) or 1})
+old = [f.fieldname for f in frappe.get_meta({doctype!r}).fields if f.fieldname.startswith("express_")
+       and f.fieldname not in ("express_summary",)]
+print(json.dumps({{"rows": rows, "old": old}}, default=str))
+""")
+    rows = got["rows"]
+    ok = bool(rows) and len(rows) == len(set(names)) and not got["old"] \
+        and all(bool(row.get("ledger_state")) == (row.get("ledger_target") == "express") for row in rows)
+    if queued is not None:
+        ok = ok and all(bool(row.get("ledger_state")) == bool(queued) for row in rows)
+    return {"case": f"{doctype} 账本栏是通用列（排进 {queued}）", "saved": got, "ok": ok}
+
+
 def js_value(value) -> str:
     return json.dumps(value, ensure_ascii=False)
 

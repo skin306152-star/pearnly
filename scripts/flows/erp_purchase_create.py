@@ -7,7 +7,12 @@
 from __future__ import annotations
 
 import json
+import sys
 import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from erp_lib import ledger_case  # noqa: E402
 
 TITLE = "ERP 采购：新建采购单（无批号 / 失效日期）入库"
 IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
@@ -96,4 +101,6 @@ print(json.dumps({{"doc": doc, "lines": [dict(r, qty=float(r.qty)) for r in line
          "ok": got["doc"].get("status") == "submitted" and line.get("product") == params["product"] and line.get("qty") == 2.0
          and got.get("batch_columns") == []},
         {"case": "stock went up by 2", "saved": [params["before"], got["after"]], "ok": got["after"] == params["before"] + 2},
+        # 账本栏是通用列；这一遍关了「接 Express」，单子不排进账本
+        ledger_case(lab, manifest["site"], "Purchase Document", [got["doc"].get("name")], False),
     ]

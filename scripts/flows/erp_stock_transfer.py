@@ -8,7 +8,12 @@
 from __future__ import annotations
 
 import json
+import sys
 import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from erp_lib import ledger_case  # noqa: E402
 
 TITLE = "ERP 调拨：两仓之间调货、作废冲回、按台换仓"
 IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
@@ -169,4 +174,6 @@ print(json.dumps({{"entry": entry, "moves": [dict(m, qty_base=float(m.qty_base),
         {"case": "a unit moves to B and comes back on void; same warehouse refused", "saved": [got["same"], got["at_b"], got["at_a"]],
          "ok": bool(got["same"]) and (got["at_b"] or {}).get("warehouse") == got["b_name"] and (got["at_b"] or {}).get("status") == "in_stock"
          and (got["at_a"] or {}).get("warehouse") == params["a"] and (got["at_a"] or {}).get("status") == "in_stock"},
+        # 账本栏是通用列；这一遍关了「接 Express」，调拨单不排进账本
+        ledger_case(lab, manifest["site"], "ERP Stock Entry", [entry.get("name")], False),
     ]
