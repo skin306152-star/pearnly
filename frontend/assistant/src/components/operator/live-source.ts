@@ -10,7 +10,8 @@
 //     task_running(name) — 桥上看到这台电脑开始录了，转「进行中」（每个任务一次）
 //     task_settle(name) — 以站点为准收尾：这台电脑上没在跑、还没收尾的任务（换设备看、CC 重启后），以及这台电脑上跑完的
 //     resolve(company, doc_id, entered, docnum) — 开始前确认里「结果不明」的单标已入账 / 没有入账（同产品复核页）
-//   公司：Cowork 用公司主档的 listCompanies；ERP 用 Frappe 原生 search_link（ERP Company，按页取：多取到 start + limit 再切）
+//   公司：两个产品同一个来源——产品声明的公司接口（共用层 projects() 的 api + companies，同侧栏「公司」：Cowork 公司主档、ERP
+//         本人可见的启用公司），服务端分页、按名称 / 税号搜
 //   桥（CC 桌面版窗口，state().features 含 operator 时）
 //     operator_state — 本机最近的任务（CC 重启后也在，带 created）与 Express 登录设置了没有
 //     operator_control — stop / resume / skip / retry / delete；operator_authorize — 原生小窗设置 Express 登录
@@ -20,7 +21,7 @@
 // 没有推送信号：只在有人订阅（实操工作区开着）、页面看得见、桥支持实操时每 POLL_MS 读一次桥；页面切到后台就停，回到前台先读一次。
 
 import { op } from "@/i18n";
-import { listCompanies } from "@/lib/companies";
+import { type CompanyRow, companiesApi } from "@/lib/companies";
 import { type Desktop, desktop, OPERATOR } from "@/lib/desktop";
 import { getMethod, postMethod, uploadMethod } from "@/lib/frappe";
 import { docTitle, groupOf, isFinal } from "./model";
@@ -51,15 +52,12 @@ export const CONTROLS_S = 6;
 /** 本机没在跑的任务隔多久再向站点核一次（秒）。 */
 export const SETTLE_S = 60;
 export const SENT_STATES: ReadonlySet<string> = new Set(["sent", "queued"]);
-/** ERP 公司（search_link 的 doctype）。 */
-export const ERP_COMPANY = "ERP Company";
-
 type Get = <T>(method: string, args?: Record<string, string | number | undefined>) => Promise<T>;
 type Post = <T>(method: string, args?: Record<string, unknown>) => Promise<T>;
 type Upload = <T>(method: string, args: Record<string, string>, file: File) => Promise<T>;
 
 export type LiveDeps = {
-  /** 当前产品（useProfile().product）：erp 走 search_link，其余走公司主档。 */
+  /** 当前产品（useProfile().product）。 */
   product: string;
   bridge?: () => Promise<Desktop | null>;
   get?: Get;
@@ -74,7 +72,6 @@ type DocumentsReply = {
   next_offset?: number | null;
   total?: number;
 };
-type LinkRow = { value: string; label?: string; description?: string };
 
 /** 这一页建的任务：建的时刻、公司显示名、月份与 start 的回包。 */
 type Started = {
@@ -598,16 +595,8 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
     },
 
     async companies(search, start, limit) {
-      if (deps.product === "erp") {
-        const rows = await get<LinkRow[]>("frappe.desk.search.search_link", {
-          doctype: ERP_COMPANY,
-          txt: search,
-          page_length: start + limit,
-        });
-        return (rows ?? []).slice(start, start + limit).map((row) => ({ id: row.value, title: row.label || row.value }));
-      }
-      const rows = await listCompanies(search, start, limit);
-      return rows.map((row): CompanyOption => ({ id: row.id, title: row.title, tax_id: row.tax_id }));
+      const rows = await get<CompanyRow[]>((await companiesApi()) + "companies", { search: search || undefined, start, limit });
+      return (rows ?? []).map((row): CompanyOption => ({ id: row.id, title: row.title, tax_id: row.tax_id }));
     },
     async documents(company, period, start, limit) {
       const reply = await get<DocumentsReply>(API + "documents", { company, period, offset: start, limit });

@@ -1,4 +1,6 @@
-// 公司列表（侧栏「公司」，深链接 ?view=companies；只在 Cowork）：全所公司主档，一页 50 条，滚到底接着加载。
+// 公司列表（侧栏「公司」，深链接 ?view=companies；有公司分组的产品：Cowork 全所公司主档、ERP 本人可见的公司），一页 50 条，
+// 滚到底接着加载。「＋ 添加公司」按产品声明：create = 从账套目录添加（components/add-company.tsx），desk = 打开站点的新建公司页
+// （ERP 先在 ERP 里建公司；没有权限时服务端给空、不出按钮）。
 // 列表页样式照 Claude Code 的项目列表（设计文档 3.14 / 4.5）：内容宽 960 居中；标题 24/500；右上「排序方式 当前值 ⌄」与
 // 「＋ 添加公司」主按钮（components/add-company.tsx）；搜索框 36 高；卡片网格：公司名、税号 · 分店 · 年度、这家的待处理数、
 // 我在这家的最近活动。点一张卡打开公司页。
@@ -8,7 +10,7 @@
 
 import { CheckIcon, ChevronDownIcon, Building2Icon, InboxIcon, LoaderIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { openAddCompany } from "@/components/add-company";
+import { useAddCompanyAction } from "@/components/add-company";
 import { useOpenCompany } from "@/components/assistant-ui/projects";
 import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { co, lang, t } from "@/i18n";
@@ -119,11 +121,10 @@ export const Companies: FC = () => {
 
   const shown = useMemo(() => (rows ? sortCompanies(rows, sort) : null), [rows, sort]);
 
-  const add = () =>
-    openAddCompany((id) => {
-      forgetAnyCompany();
-      openCompany(id);
-    });
+  const add = useAddCompanyAction((id) => {
+    forgetAnyCompany();
+    openCompany(id);
+  });
 
   return (
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
@@ -131,10 +132,12 @@ export const Companies: FC = () => {
         <div className="cc-page-head">
           <h1 className="cc-page-title"><Marquee className="cc-page-title-text">{co.companies}</Marquee></h1>
           {!!rows?.length && <SortMenu value={sort} onChange={setSort} />}
-          <button type="button" className="cc-btn-sm" data-primary="" onClick={add}>
-            <PlusIcon />
-            {co.addCompany}
-          </button>
+          {add && (
+            <button type="button" className="cc-btn-sm" data-primary="" onClick={add}>
+              <PlusIcon />
+              {co.addCompany}
+            </button>
+          )}
         </div>
         {(search || !!rows?.length) && (
           <label className="cc-page-search">
@@ -156,10 +159,12 @@ export const Companies: FC = () => {
         ) : !shown.length && !search ? (
           <div className="cc-empty cc-enter">
             <Building2Icon />
-            <button type="button" className="cc-btn" data-primary="" onClick={add}>
-              <PlusIcon />
-              {co.addCompany}
-            </button>
+            {add && (
+              <button type="button" className="cc-btn" data-primary="" onClick={add}>
+                <PlusIcon />
+                {co.addCompany}
+              </button>
+            )}
           </div>
         ) : !shown.length ? (
           <div className="cc-empty-line">{t("noResults")}</div>

@@ -327,6 +327,7 @@ LIVE = r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
 import { createLiveSource, mergedSnapshot, POLL_MS, SENT_STATES, startedSnapshot, taskOf, taskSnapshot, withBlocked } from "@/components/operator/live-source";
+import { useProjects } from "@/lib/managed-agents/projects";
 import { taskMeta } from "@/components/operator/model";
 import { reasonText } from "@/components/operator/model";
 import { modeForKey, modeOf, switchMode, useModePlace } from "@/lib/nav";
@@ -343,9 +344,12 @@ const DOCS = [
 ];
 const get = async (method: string, args: any) => {
   gets.push([method, args]);
-  if (method === "frappe.desk.search.search_link") {
-    return [{ value: "CO-00001", label: "Siam Trading" }, { value: "CO-00002", label: "" }, { value: "CO-00003", label: "Korat" }];
+  if (method === "pearnly_erp_portal.masters.cc_companies.companies") {
+    const rows = [{ id: "CO-00001", title: "Siam Trading", tax_id: "0105536082808" }, { id: "CO-00002", title: "CO-00002" },
+      { id: "CO-00003", title: "Korat" }];
+    return rows.slice(args.start, args.start + args.limit);
   }
+  if (method === "pearnly_cowork.companies.api.companies") return [{ id: "C-1", title: "Siam", tax_id: "0105" }];
   if (method.endsWith("express_operator.api.status")) {
     if (args.company === "OFF") throw new Error("offline");   // 断网重启：问不到站点
     return { documents: JSON.parse(args.doc_ids).map((id: string) => ({ doc_id: id, state: id === "z2" ? "cancelled" : "saved", docnum: "RR0" + id, ref: "INV-" + id, party: "ร้าน " + id })) };
@@ -451,11 +455,13 @@ function runner(id: string, status: string, docs: any[], created = 1_800_000_000
 }
 
 (async () => {
-  // ── 网页 / 手机（没有桥）：ERP 公司走 search_link，资料、开始前确认、改分组、放资料走站点接口 ─────────────────
+  // ── 网页 / 手机（没有桥）：公司走产品声明的公司接口（ERP 声明 masters.cc_companies，同侧栏「公司」，服务端分页、搜），
+  //    资料、开始前确认、改分组、放资料走站点接口 ─────────────────
+  useProjects.setState({ loaded: true, kind: "company", api: "pearnly_erp_portal.masters.cc_companies.", sections: ["pending", "notes", "desk"] });
   const web = createLiveSource({ product: "erp", bridge: async () => null, get, post, upload, now: () => 1_800_000_100 });
   const companies = await web.companies("si", 1, 2);
-  assert.deepEqual(companies, [{ id: "CO-00002", title: "CO-00002" }, { id: "CO-00003", title: "Korat" }]);
-  assert.deepEqual(gets[0], ["frappe.desk.search.search_link", { doctype: "ERP Company", txt: "si", page_length: 3 }]);
+  assert.deepEqual(companies, [{ id: "CO-00002", title: "CO-00002", tax_id: undefined }, { id: "CO-00003", title: "Korat", tax_id: undefined }]);
+  assert.deepEqual(gets[0], ["pearnly_erp_portal.masters.cc_companies.companies", { search: "si", start: 1, limit: 2 }]);
   const first = await web.documents("CO-00001", "2026-10", 0, 2);
   assert.deepEqual(gets[1], ["pearnly_core.express_operator.api.documents", { company: "CO-00001", period: "2026-10", offset: 0, limit: 2 }]);
   assert.equal(first.next, 2);
@@ -556,11 +562,12 @@ function runner(id: string, status: string, docs: any[], created = 1_800_000_000
   assert.deepEqual(withBlocked(held, new Map([["D-2", "y"]])).docs.map((d) => d.blocked), ["INV-7 · ABC", undefined]);
   assert.equal(taskOf({ name: "x", status: "weird" }).status, "preparing");
 
-  // ── CC 桌面版窗口（桥支持实操）：Cowork 公司走公司主档；任务来自桥（CC 重启后也在，带 created）─────────────────
-  g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: [{ id: "C-1", title: "Siam", tax_id: "0105" }] }) });
+  // ── CC 桌面版窗口（桥支持实操）：Cowork 公司走 Cowork 声明的公司主档接口（同一条路）；任务来自桥（CC 重启后也在，带 created）──
+  useProjects.setState({ loaded: true, kind: "company", api: "pearnly_cowork.companies.api.", sections: ["pending", "create"] });
   const fake = fakeBridge(["devices", "operator"]);
   const desk = createLiveSource({ product: "cowork", bridge: async () => fake.api as any, get, post, upload, now: () => 1_800_000_100 });
   assert.deepEqual(await desk.companies("", 0, 50), [{ id: "C-1", title: "Siam", tax_id: "0105" }]);
+  assert.deepEqual(gets.at(-1), ["pearnly_cowork.companies.api.companies", { search: undefined, start: 0, limit: 50 }]);
   assert.deepEqual((await desk.computers("C-1")).map((pc) => [pc.login, pc.local]), [[false, true]]);
   assert.deepEqual(await desk.authorizeLogin({ computer: "" }), { ok: true });
   assert.equal((await desk.computers("C-1"))[0]!.login, true);

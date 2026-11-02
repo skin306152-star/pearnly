@@ -4366,6 +4366,36 @@ class ProjectTests(unittest.TestCase):
         self.hooks = {}
         self.assertEqual(self.projects.listing(), {"kind": None, "period": False, "scope": False, "projects": []})
 
+    def test_projects_pass_on_the_declared_api_and_sections_and_nothing_else_changes(self):
+        """产品声明的公司接口前缀与分区（Cowork / ERP 的 provider `API` / `SECTIONS`）原样转交；没声明就不回这两个键，
+        其余各键逐字段与没声明时一样（2026-11-02 ERP 版 CC 按公司）。"""
+        plain = self.projects.listing()
+        self.assertNotIn("api", plain)
+        self.assertNotIn("sections", plain)
+        self.provider.API = "pearnly_cowork.companies.api."
+        self.provider.SECTIONS = ("pending", "month", "notes", "folders", "tasks", "choices", "drafts", "create", "rename",
+                                  "delete", "catalog")
+        try:
+            declared = self.projects.listing()
+        finally:
+            del self.provider.API, self.provider.SECTIONS
+        self.assertEqual(declared["api"], "pearnly_cowork.companies.api.")
+        self.assertEqual(declared["sections"], ["pending", "month", "notes", "folders", "tasks", "choices", "drafts",
+                                                "create", "rename", "delete", "catalog"])
+        self.assertEqual({key: value for key, value in declared.items() if key not in ("api", "sections")}, plain)
+        # 形状不对的声明不回（空前缀、不是字符串的分区）
+        self.provider.API, self.provider.SECTIONS = "", ("pending", 3, "")
+        try:
+            odd = self.projects.listing()
+        finally:
+            del self.provider.API, self.provider.SECTIONS
+        self.assertNotIn("api", odd)
+        self.assertEqual(odd["sections"], ["pending"])
+        # 共用层不认识产品：本模块里没有产品的前缀或分区名
+        source = (CORE / "assistant/projects.py").read_text(encoding="utf-8")
+        self.assertNotIn("companies.api", source)
+        self.assertNotIn('"pending"', source)
+
     def _create(self, **kwargs):
         api = types.SimpleNamespace(open=lambda handle, metadata: ("sesn_new001", "idle"))
         inserted = []

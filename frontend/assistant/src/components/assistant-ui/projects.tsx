@@ -1,4 +1,4 @@
-// 按公司分组的界面零件（lib/managed-agents/projects.ts；只在产品有公司分组时出现，ERP / DMS 一律不出现）：
+// 按公司分组的界面零件（lib/managed-agents/projects.ts；只在产品有公司分组时出现（Cowork、ERP），DMS 不出现）：
 //
 //   ProjectHeader       — 一家公司的组头（sidebar-group.tsx 的 GroupHeader，设计文档 3.4）：最左公司图标、公司名（同会话行标题
 //                         字号字色），整行折叠 / 展开，下面这家的对话行缩进到公司名起点；右侧这家的待处理数（淡色数字，点了只看
@@ -19,7 +19,7 @@ import { useAui, useAuiState } from "@assistant-ui/react";
 import { Building2Icon, CalendarIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon, StoreIcon, XIcon } from "lucide-react";
 import { DropdownMenu, menuOffset, SubMenu } from "@/components/ui/menu";
 import { type FC, type HTMLAttributes, memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { openAddCompany } from "@/components/add-company";
+import { useAddCompanyAction } from "@/components/add-company";
 import { BranchChip, BranchChoices, PeriodChip, PeriodChoices } from "@/components/period-chip";
 import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/components/assistant-ui/sidebar-group";
 import type { DragHandle } from "@/components/ui/drag";
@@ -275,6 +275,7 @@ const CompanyChoices: FC<{ current: string; onPick: (id: string) => void }> = ({
     };
   }, [search]);
   const rows: Array<{ id: string; title: string }> = found ?? projects.slice(0, 10);
+  const add = useAddCompanyAction(onPick);
   const choice = (id: string, label: ReactNode) => (
     <DropdownMenu.Item
       key={id || "recents"}
@@ -307,10 +308,12 @@ const CompanyChoices: FC<{ current: string; onPick: (id: string) => void }> = ({
       {rows.map((p) => choice(p.id, p.title))}
       {found !== null && !found.length && <div className="cc-menu-label">{t("noResults")}</div>}
       <DropdownMenu.Separator className="cc-menu-sep" />
-      <DropdownMenu.Item className="cc-menu-item" onSelect={() => openAddCompany(onPick)}>
-        <PlusIcon />
-        {co.addCompany}
-      </DropdownMenu.Item>
+      {add && (
+        <DropdownMenu.Item className="cc-menu-item" onSelect={add}>
+          <PlusIcon />
+          {co.addCompany}
+        </DropdownMenu.Item>
+      )}
       {choice("", t("recents"))}
     </>
   );
@@ -336,7 +339,7 @@ function useCompanyTitle(id: string): string {
   return fromSidebar ?? title;
 }
 
-/** 输入框下巴：ERP / DMS（没有公司分组）不出现；新对话「公司 ▾」+ 月份 + 分店（草稿）；已有对话「公司」+ 月份 + 分店（改了就 move）。
+/** 输入框下巴：DMS（没有公司分组）不出现；新对话「公司 ▾」+ 月份 + 分店（草稿）；已有对话「公司」+ 月份 + 分店（改了就 move）。
  *  手机没有下巴（用户 10-17：基础信息放上面，同线上旧版）：新对话放在问候下面（WelcomeFiling），已有对话在右上「…」里
  *  （公司名、处理月份、分店）。 */
 export const ComposerChin: FC = () => {

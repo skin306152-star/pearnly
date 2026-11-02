@@ -1,7 +1,11 @@
-// 公司主档（Cowork companies 域，ADR-020）在对话页这边用到的全部：接口、当前看的是哪家、月份与分店的显示、待处理。
+// 公司（ADR-020：Cowork 公司主档、ERP 公司）在对话页这边用到的全部：接口、当前看的是哪家、月份与分店的显示、待处理。
 //
-//   接口      — pearnly_cowork.companies.api.*（读用 GET、写只收 POST，权限都在服务端判）；名称、税号一律由服务端从账套目录算，
-//               页面只交「哪条连接的哪份账套」与幂等的 request_key
+//   接口      — 产品声明的前缀（共用层 projects() 的 api：Cowork pearnly_cowork.companies.api.、ERP
+//               pearnly_erp_portal.masters.cc_companies.），读用 GET、写只收 POST，权限都在服务端判；两边同一套形状，ERP 只出
+//               子集（没有建、改名、删）。页面只调声明了的分区（projects() 的 sections），不按产品名分支。
+//               Cowork 的名称、税号一律由服务端从账套目录算，页面只交「哪条连接的哪份账套」与幂等的 request_key。
+//               下面写死 pearnly_cowork. 的几处（推送选择、提议、换账套、MR.ERP 菜单、刷新账套）只在 Cowork 声明的分区与
+//               Cowork 服务端给的 action 里调到（ERP 的待处理只给 action open），tests/test_assistant_ui.py 列出并核对
 //   当前公司  — 公司页 / 主档页 / 定时任务页 / 待处理页看的是哪家（useCompanyNav；深链接 ?company=、?view=tasks&company=）
 //   月份分店  — 处理月份 YYYY-MM（公历存，泰文按佛历显示）；分店号 5 位，00000 是总公司（显示走翻译）
 //   待处理    — 侧栏「待处理 N」与公司组头的数（pending_counts，一次 GROUP 查询），推送状态的站点事件来了重取，回到前台重取
@@ -12,10 +16,18 @@ import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { co, lang } from "@/i18n";
 import { getMethod, postMethod } from "@/lib/frappe";
+import { projectsReady, useProjects } from "@/lib/managed-agents/projects";
 import { onConnectionChange, onProjectChange, onSiteEvent } from "@/lib/managed-agents/realtime";
 import { withReport } from "./caught";
 
-const API = "pearnly_cowork.companies.api.";
+/** 本站声明的公司接口前缀（共用层 projects() 的 api）：还没读过就先读一次；没有声明（这个产品没有公司）时拒绝。 */
+export async function companiesApi(): Promise<string> {
+  if (!useProjects.getState().loaded) await projectsReady();
+  const api = useProjects.getState().api;
+  if (!api) throw new Error("companies not declared");
+  return api;
+}
+const call = async (method: string) => (await companiesApi()) + method;
 
 // ---------------------------------------------------------------- 形状（规格 §4.2 与补充甲、乙、丙）
 
@@ -65,6 +77,8 @@ export type Detail = {
   company: {
     id: string; title: string; legal_name?: string; tax_id?: string; branch?: string; adapter?: string;
     created_by?: string; created_at?: string; combined_vat?: boolean | number;
+    /** 这家在站点里的公司页（ERP：公司在那里建、改；Cowork 没有）。 */
+    desk_url?: string;
   };
   account_sets: AccountSet[];
   branches?: Branch[];
@@ -113,45 +127,63 @@ export const answered = (result: Pick<AnswerResult, "status">) => result.status 
 export const requestKey = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-export function listCompanies(search = "", start = 0, limit = 50): Promise<CompanyRow[]> {
-  return getMethod<CompanyRow[]>(API + "companies", { search: search || undefined, start, limit }).then((rows) => rows ?? []);
+export async function listCompanies(search = "", start = 0, limit = 50): Promise<CompanyRow[]> {
+  return getMethod<CompanyRow[]>(await call("companies"), { search: search || undefined, start, limit }).then((rows) => rows ?? []);
 }
 
-export function listCandidates(search = ""): Promise<Candidate[]> {
-  return getMethod<Candidate[]>(API + "candidates", { search: search || undefined }).then((rows) => rows ?? []);
+export async function listCandidates(search = ""): Promise<Candidate[]> {
+  return getMethod<Candidate[]>(await call("candidates"), { search: search || undefined }).then((rows) => rows ?? []);
 }
 
 /** 从账套目录建公司：只交连接与账套键，名称、税号由服务端读目录算；已有就回现有的那家。 */
-export function createCompany(candidate: Pick<Candidate, "connection" | "account_set_key">, key = requestKey()): Promise<{ id: string; title?: string }> {
-  return postMethod(API + "create", { connection: candidate.connection, account_set_key: candidate.account_set_key, request_key: key });
+export async function createCompany(candidate: Pick<Candidate, "connection" | "account_set_key">, key = requestKey()): Promise<{ id: string; title?: string }> {
+  return postMethod(await call("create"), { connection: candidate.connection, account_set_key: candidate.account_set_key, request_key: key });
 }
 
-export function loadDetail(company: string, period = ""): Promise<Detail> {
-  return getMethod<Detail>(API + "detail", { company, period: period || undefined });
+export async function loadDetail(company: string, period = ""): Promise<Detail> {
+  return getMethod<Detail>(await call("detail"), { company, period: period || undefined });
 }
 
-export const renameCompany = (company: string, title: string) => postMethod(API + "rename", { company, title });
-export const deleteCompany = (company: string) => postMethod(API + "delete", { company });
+/** 「添加公司」去站点哪一页（声明了 desk 的产品：公司在站点自己的页面建；没有权限时为空，不出这个按钮）。 */
+let deskNew: Promise<string> | null = null;
+export function newCompanyUrl(): Promise<string> {
+  deskNew ??= call("desk")
+    .then((method) => getMethod<{ url?: string }>(method))
+    .then((out) => out?.url ?? "")
+    .catch(withReport(() => {
+      deskNew = null; // 取不到（断网）：下次再问
+      return "";
+    }, "companies"));
+  return deskNew;
+}
+
+/** 在新窗口打开站点里的一页（ERP 的公司页、单据页；同站点会话）。 */
+export function openSitePage(url: string) {
+  if (url) window.open(url, "_blank", "noopener,noreferrer");
+}
+
+export const renameCompany = async (company: string, title: string) => postMethod(await call("rename"), { company, title });
+export const deleteCompany = async (company: string) => postMethod(await call("delete"), { company });
 /** 知识库一条：不给 note 是新增，给了是修改。 */
-export const saveNote = (company: string, text: string, note?: string) =>
-  postMethod<Note>(API + "note_save", { company, text, ...(note ? { note } : {}) });
-export const deleteNote = (company: string, note: string) => postMethod(API + "note_delete", { company, note });
+export const saveNote = async (company: string, text: string, note?: string) =>
+  postMethod<Note>(await call("note_save"), { company, text, ...(note ? { note } : {}) });
+export const deleteNote = async (company: string, note: string) => postMethod(await call("note_delete"), { company, note });
 /** CC 桌面版 pick_folder 给的 binding 原样交给服务端（页面不拼路径）。 */
-export const bindFolder = (company: string, binding: unknown) => postMethod(API + "folder_bind", { company, binding: JSON.stringify(binding) });
-export const unbindFolder = (company: string, reader: string) => postMethod(API + "folder_unbind", { company, reader });
-export const forgetChoice = (company: string, key: string) => postMethod(API + "choice_forget", { company, key });
+export const bindFolder = async (company: string, binding: unknown) => postMethod(await call("folder_bind"), { company, binding: JSON.stringify(binding) });
+export const unbindFolder = async (company: string, reader: string) => postMethod(await call("folder_unbind"), { company, reader });
+export const forgetChoice = async (company: string, key: string) => postMethod(await call("choice_forget"), { company, key });
 /** 改付款方式 / 抵不抵进项：period 是页面当前的处理月份（服务端写进记过它的每份账套与覆盖这个月的各分店账套）。 */
-export const setChoice = (company: string, key: string, value: string, period = "") =>
-  postMethod(API + "choice_set", { company, key, value, ...(period ? { period } : {}) });
+export const setChoice = async (company: string, key: string, value: string, period = "") =>
+  postMethod(await call("choice_set"), { company, key, value, ...(period ? { period } : {}) });
 
 /** 「设为全公司」（第 2 期公司规则）：账套行、Express 历史行提升成这家公司的规则；period 是页面当前的处理月份（按覆盖这个月的
  *  账套核值）。服务端同一事务删掉各账套同键的记忆。 */
-export const promoteChoice = (company: string, key: string, period = "") =>
-  postMethod(API + "choice_promote", { company, key, ...(period ? { period } : {}) });
+export const promoteChoice = async (company: string, key: string, period = "") =>
+  postMethod(await call("choice_promote"), { company, key, ...(period ? { period } : {}) });
 
 /** 待处理的单（company 不给 = 全部有权看的）；search 交给服务端在全部待处理里找（不是只在已取回的前 200 张里找）。 */
-export function loadPending(company = "", limit = 200, search = ""): Promise<PendingItem[]> {
-  return getMethod<PendingItem[] | { items?: PendingItem[] }>(API + "pending", {
+export async function loadPending(company = "", limit = 200, search = ""): Promise<PendingItem[]> {
+  return getMethod<PendingItem[] | { items?: PendingItem[] }>(await call("pending"), {
     company: company || undefined,
     limit,
     search: search.trim() || undefined,
@@ -449,7 +481,8 @@ export function parseCounts(out: CountsReply | null | undefined): { total: numbe
 
 let counting: Promise<void> | null = null;
 export function refreshPendingCounts(): Promise<void> {
-  counting ??= getMethod<CountsReply>(API + "pending_counts")
+  counting ??= call("pending_counts")
+    .then((method) => getMethod<CountsReply>(method))
     .then((out) => usePendingCounts.setState({ loaded: true, ...parseCounts(out) }))
     .catch(withReport(() => undefined, "companies"))
     .finally(() => {
@@ -494,7 +527,8 @@ export const TASK_EVENTS = ["cowork_folder_changed"] as const;
 
 let overviewing: Promise<void> | null = null;
 export function refreshTaskOverview(): Promise<void> {
-  overviewing ??= getMethod<Omit<TaskOverview, "loaded">>(API + "task_overview")
+  overviewing ??= call("task_overview")
+    .then((method) => getMethod<Omit<TaskOverview, "loaded">>(method))
     .then((out) => useTaskOverview.setState({ loaded: true, companies: out?.companies ?? {}, tasks: out?.tasks ?? {}, titles: out?.titles ?? {} }))
     // 取不到（没权限、断网）：当作取过了，「只看这家」不一直转圈；已有的数据留着
     .catch(withReport(() => useTaskOverview.setState({ loaded: true }), "companies"))

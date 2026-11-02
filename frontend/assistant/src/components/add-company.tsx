@@ -8,13 +8,16 @@
 //
 // 打开方式：openAddCompany(then, title?)；then 收到公司编号（默认打开主档页）。title：定时任务总览「＋」先选公司时
 // 叫「选择公司」（选已添加的或新加一家都行）。对话框在 assistant.tsx 里挂一次。
+// 公司列表与新对话公司条的「添加公司」按产品声明走（useAddCompanyAction）：create = 这个对话框；desk = 在新窗口打开站点的新建
+// 公司页（ERP：先在 ERP 里建公司，建好推 pearnly.project 回来）；都没声明不出这一项。
 
 import { LoaderIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive, Tabs } from "radix-ui";
 import { type FC, useEffect, useRef, useState } from "react";
 import { co, t } from "@/i18n";
 import { create } from "zustand";
-import { branchShort, type Candidate, createCompany, listCandidates, refreshCatalogs, requestKey } from "@/lib/companies";
+import { branchShort, type Candidate, createCompany, listCandidates, newCompanyUrl, openSitePage, refreshCatalogs, requestKey } from "@/lib/companies";
+import { useSection } from "@/lib/managed-agents/projects";
 import { shownError } from "@/lib/frappe";
 import { Marquee } from "@/components/ui/marquee";
 import { reportCaught } from "../lib/caught";
@@ -28,6 +31,24 @@ export function openAddCompany(then: (id: string) => void, title = "") {
 }
 
 const close = () => useAddCompany.setState({ open: false, then: null, title: "" });
+
+/** 「添加公司」做什么（按产品声明）：create = 账套目录里挑（then 收到公司编号）；desk = 新窗口打开站点的新建公司页（地址由服务端
+ *  给，没有权限给空）；都没有回 null（不出这一项）。 */
+export function useAddCompanyAction(then: (id: string) => void): (() => void) | null {
+  const fromCatalog = useSection("create");
+  const desk = useSection("desk");
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    if (!desk) return;
+    let alive = true;
+    void newCompanyUrl().then((found) => alive && setUrl(found));
+    return () => {
+      alive = false;
+    };
+  }, [desk]);
+  if (fromCatalog) return () => openAddCompany(then);
+  return desk && url ? () => openSitePage(url) : null;
+}
 
 // 标签顺序同定时任务表单的目标卡片；产品名不翻译
 const ERPS = [{ adapter: "mrerp", label: "MR.ERP" }, { adapter: "express", label: "Express" }];

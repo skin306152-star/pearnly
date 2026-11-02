@@ -212,7 +212,7 @@ name = "CC 桌面版机器通道（cc_desktop）"
 paths = ["apps/pearnly_core/pearnly_core/cc_desktop/**"]
 markers = ["pearnly_core.cc_desktop", "pearnly_core import cc_desktop", "pearnly_cc_desktop"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "companion/src/**/*.py"]
-entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel", "cc.operator.page"]
+entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel", "cc.operator.page", "erp.cc.companies"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py" = "只在注释里提到 cc_desktop.http_auth 的做法" }
 
 [[part]]
@@ -418,7 +418,7 @@ name = "CC 对话（assistant）"
 paths = ["apps/pearnly_core/pearnly_core/assistant/**"]
 markers = ["pearnly_core.assistant", "pearnly_core import assistant", "pearnly_assistant_tools", "pearnly_assistant_guidance", "pearnly_assistant_step_names", "pearnly_assistant_projects"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["control.assistant", "shared.assistant", "cowork.assistant", "cc.assistant", "cc.operator.thread"]
+entries = ["control.assistant", "shared.assistant", "cowork.assistant", "cc.assistant", "cc.operator.thread", "erp.cc.companies"]
 
 [[part]]
 id = "tax-documents"
@@ -1982,13 +1982,22 @@ check = "manual"
 files = ["apps/pearnly_core/pearnly_core/desk/error_detail.py", "apps/pearnly_core/pearnly_core/hooks.py", "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_assistant_notice/pearnly_assistant_notice.py", "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_assistant_push_key/pearnly_assistant_push_key.py", "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_assistant_push_subscription/pearnly_assistant_push_subscription.py", "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_assistant_session/pearnly_assistant_session.py", "apps/pearnly_core/pearnly_core/shell.py", "infrastructure/production/site-step.py"]
 
 [[entry]]
+id = "erp.cc.companies"
+product = "ERP"
+where = "ERP 版 CC 按公司（侧栏公司组、公司列表、公司页）"
+steps = "ERP 账号（两家公司、员工只见其一）打开 CC：侧栏「公司」、公司页（在浏览器中打开）、添加公司去 ERP 新建公司页；实操选公司"
+expect = "只见本人可见的启用公司；只出 ERP 声明的分区；不调 Cowork 接口"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_projects.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_companies.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_context.py"]
+
+[[entry]]
 id = "cowork.assistant"
 product = "Cowork"
 where = "Cowork 的 CC 工具与公司页"
 steps = "CC 对话里让 CC 推送 / 查待处理 / 改记住的选择；公司页"
 expect = "工具结果正确、说的与做的一致"
 check = "manual"
-files = ["apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/step_names.py", "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/companies/pending.py", "apps/pearnly_cowork/pearnly_cowork/companies/provider.py", "apps/pearnly_cowork/pearnly_cowork/companies/service.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/notify.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/rules.py", "apps/pearnly_cowork/pearnly_cowork/hooks.py"]
+files = ["apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/step_names.py", "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/companies/pending.py", "apps/pearnly_cowork/pearnly_cowork/companies/provider.py", "apps/pearnly_cowork/pearnly_cowork/companies/service.py", "apps/pearnly_cowork/pearnly_cowork/companies/context.py", "apps/pearnly_cowork/pearnly_cowork/companies/notes.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/notify.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/rules.py", "apps/pearnly_cowork/pearnly_cowork/hooks.py"]
 
 [[entry]]
 id = "cc.assistant"

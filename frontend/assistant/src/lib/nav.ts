@@ -6,7 +6,7 @@
 //   /assistant?view=tasks  → 定时任务页（带 &company=<公司> 只看这家公司的任务）
 //   /assistant?view=companies → 公司页；/assistant?company=<公司> → 这家公司的主档页
 //   /assistant?view=pending → 待处理（带 &company=<公司> 只看这家）
-//   公司、待处理只在有定时任务的产品（Cowork）里有；别的产品同「找不到」处理
+//   公司只在有公司分组的产品（共用层 projects() 的 kind，Cowork、ERP）里有，待处理还要产品声明了 pending；别的产品同「找不到」处理
 // 来源三处：打开页面时的地址参数（处理完 replaceState 回 /assistant，刷新不再重开，桌面端记住的地址也是干净的）、
 // 后台脚本点通知发来的 pearnly-open（pearnly_core/assistant/service_worker.js）、桌面端的 tomo-open（window.tomo.open）。
 //
@@ -20,6 +20,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { create } from "zustand";
 import { useCompanyNav } from "@/lib/companies";
 import { getSession } from "@/lib/managed-agents/api";
+import { hasSection, projectsReady } from "@/lib/managed-agents/projects";
 import { reportCaught, withReport } from "./caught";
 
 export type View = "chat" | "tasks" | "companies" | "company" | "pending" | "operator";
@@ -176,10 +177,10 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
         return;
       }
       if (target.view === "companies" || target.view === "pending" || company) {
-        // 公司、待处理只在 Cowork（有定时任务的产品）
-        const cowork = await latest.current.hasTasks().catch(withReport(() => false, "nav"));
+        // 公司只在有公司分组的产品，待处理还要声明了 pending（共用层 projects()）
+        const kind = await projectsReady().catch(withReport(() => null, "nav"));
         if (!alive) return;
-        if (!cowork) {
+        if (!kind || (target.view === "pending" && !hasSection("pending"))) {
           latest.current.setView("chat");
           void aui.threads().switchToNewThread();
           return;

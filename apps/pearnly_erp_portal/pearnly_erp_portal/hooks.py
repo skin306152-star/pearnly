@@ -607,3 +607,8 @@ pearnly_express_operator = {
 # 实操任务页底部的对话（对话框甲）：查进度、交代跳过 / 重做的工具在共用层，ERP 列上即用；进行中的说法同一个模块
 pearnly_assistant_tools = ["pearnly_core.express_operator.tools.TOOLS"]
 pearnly_assistant_step_names = ["pearnly_core.express_operator.tools.STEP_NAMES"]
+# 对话按 ERP 公司归组：provider 交给共用层（`pearnly_core.assistant.projects`），公司接口前缀与分区也在它上面声明
+pearnly_assistant_projects = ["pearnly_erp_portal.masters.cc_projects"]
+# 公司建、改名、停用、启用、删：推给能看这家的人，CC 侧栏即时更新（`masters.cc_service`）
+doc_events["ERP Company"] = {"on_update": "pearnly_erp_portal.masters.cc_service.company_changed",
+                             "on_trash": "pearnly_erp_portal.masters.cc_service.company_removed"}

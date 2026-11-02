@@ -1,7 +1,8 @@
 // 侧栏按公司分组（ADR-020，同 Claude Code 按项目分组；CC 按公司主档）。公司主档全所共用（Cowork companies 域），
 // 侧栏只列「我有对话的公司」（共用层 projects()）；全所公司在公司页（components/companies.tsx）里找。
 //
-//   projects()   → kind 为空 = 这个产品没有公司分组（ERP、DMS），侧栏与今天一样；period / scope：服务端收不收月份、分店
+//   projects()   → kind 为空 = 这个产品没有公司分组（DMS），侧栏与今天一样；period / scope：服务端收不收月份、分店；
+//                  api / sections：产品声明的公司接口前缀与有哪些分区（Cowork、ERP 各声明一份，页面只出声明了的，不按产品名分支）
 //   filings      → 对话编号 → {公司, 处理月份, 分店}（公司 "" = 最近）。不放进组件库的 custom：updateCustom 会整份替换
 //                  custom，组件库遇到已认得的编号也不更新（重拉列表的那一页另记，见 session-list-adapter 的 absorb）
 //   draft        → 待建的新对话挂在哪（组头 ＋、主档页输入框、输入框上方的公司条设好；顶部「新建」、Ctrl+N、托盘、快捷提问清掉）
@@ -21,6 +22,10 @@ export type { Filing } from "./api";
 /** 侧栏里的一家公司（共用层 projects()：provider 给的名称与副标题，加上我在这家的对话数与最近活动）。 */
 export type ProjectRow = { id: string; title: string; subtitle?: string; last_active?: string | null; count?: number };
 export type ProjectKind = "company" | null;
+/** 产品声明的分区（服务端 provider 的 SECTIONS）：待处理、月结台账、知识库、单据文件夹、定时任务、记住的选择、申报草稿；
+ *  从账套目录添加公司（create）、改名、删除、刷新账套（catalog）；公司在站点自己的页面建和改（desk）。 */
+export type Section = "pending" | "month" | "notes" | "folders" | "tasks" | "choices" | "drafts" | "create" | "rename" | "delete"
+  | "catalog" | "desk";
 
 /** 服务端推来的公司变化（同侧栏同步的信封，type = pearnly.project）。 */
 export type ProjectChange =
@@ -42,6 +47,9 @@ type State = {
   /** 服务端收月份（provider PERIOD）、收分店（provider SCOPE）。 */
   period: boolean;
   scope: boolean;
+  /** 公司接口的方法前缀（provider API；"" = 没有声明）与声明的分区。 */
+  api: string;
+  sections: readonly Section[];
   projects: ProjectRow[];
   filings: Record<string, Filing>;
   draft: Filing;
@@ -59,6 +67,8 @@ export const useProjects = create<State>(() => ({
   kind: null,
   period: false,
   scope: false,
+  api: "",
+  sections: [],
   projects: [],
   filings: {},
   draft: NO_FILING,
@@ -78,7 +88,13 @@ let readAt = -Infinity;
 /** 最近读完的一次公司列表的请求发出的时刻（还没读过是 -Infinity）。 */
 export const projectsSeen = () => readAt;
 
-type ProjectsReply = { kind?: string | null; period?: boolean; scope?: boolean; projects?: ProjectRow[] };
+type ProjectsReply = { kind?: string | null; period?: boolean; scope?: boolean; projects?: ProjectRow[]; api?: string; sections?: unknown[] };
+
+/** 回包里声明的分区（认不出的丢掉）。 */
+export function sectionsOf(value: unknown): Section[] {
+  const known: readonly string[] = ["pending", "month", "notes", "folders", "tasks", "choices", "drafts", "create", "rename", "delete", "catalog", "desk"];
+  return Array.isArray(value) ? [...new Set(value.filter((item): item is Section => typeof item === "string" && known.includes(item)))] : [];
+}
 
 /** 重取我有对话的公司（页面打开、重连、回到前台、对话移进还不在侧栏的公司）。读不到（旧服务端没有这个接口、断网）时
  *  保留已有的，第一次就按没有公司分组。 */
@@ -102,6 +118,8 @@ export function refreshProjects(): Promise<ProjectKind> {
         kind,
         period: !!kind && !!out?.period,
         scope: !!kind && !!out?.scope,
+        api: kind && typeof out?.api === "string" ? out.api : "",
+        sections: kind ? sectionsOf(out?.sections) : [],
         projects: sortRows([...kept, ...rows]),
       });
       readAt = seen;
@@ -112,6 +130,15 @@ export function refreshProjects(): Promise<ProjectKind> {
       return store.getState().kind;
     }, "projects"));
   return loading;
+}
+
+/** 这个产品声明了这个分区没有（页面按它出侧栏行、会话栏卡片、公司页各段，不按产品名分支）。 */
+export function useSection(name: Section): boolean {
+  return useProjects((s) => s.sections.includes(name));
+}
+
+export function hasSection(name: Section): boolean {
+  return store.getState().sections.includes(name);
 }
 
 /** 侧栏第一页之前：公司读好了没有（没读过就读一次）。 */
@@ -408,7 +435,7 @@ export function resetProjects() {
   provisional.clear();
   holds.clear();
   store.setState({
-    loaded: false, kind: null, period: false, scope: false, projects: [], filings: {}, draft: NO_FILING, shown: {},
+    loaded: false, kind: null, period: false, scope: false, api: "", sections: [], projects: [], filings: {}, draft: NO_FILING, shown: {},
     requestedGroup: null, more: EMPTY_CURSOR, error: "",
   });
 }

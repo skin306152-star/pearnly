@@ -18,7 +18,8 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-from test_assistant_ui import ESBUILD, NODE, SOCKET_STUB, block, keys, read, run_ts  # noqa: E402
+from test_assistant_ui import ESBUILD, MA_SETUP, NODE, SOCKET_STUB, SRC as SRC_ROOT, block, keys, read, run_ts  # noqa: E402
+import re  # noqa: E402
 
 STUBS = {"socket.io-client": SOCKET_STUB,
          "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
@@ -721,7 +722,7 @@ class CompanyPageSkeletonTests(unittest.TestCase):
 
     def test_the_company_page_panel_holds_the_company_cards(self):
         panel = read("components/session-panel.tsx")
-        page = panel.split("const cards: Record<CardId, ReactNode> = page", 1)[1].split("    : {", 1)[0]
+        page = panel.split("const all: Record<CardId, ReactNode> = page", 1)[1].split("    : {", 1)[0]
         for line in ("company: detail ? <CompanyPageCard detail={detail} period={period} /> : null,",
                      "month: <MonthSection company={company} period={period} onPeriod={setPagePeriod} />,",
                      "pending: <PendingCard company={company} />,",
@@ -737,6 +738,184 @@ class CompanyPageSkeletonTests(unittest.TestCase):
         self.assertIn("summary={sets.length ? co.card.sets(sets.length) : undefined}", card)
         # 公司页的「月结」卡：月份胶囊一直显示（不是悬停才出的操作）
         self.assertIn('extra={<PeriodChip value={period} onChange={onPeriod} allowNone={false} look="cc-chin-btn" />}', read("components/month-ledger.tsx"))
+
+class ErpSectionsSourceTests(unittest.TestCase):
+    """ERP 版 CC 按公司（2026-11-02，评估 §15）：页面只出产品声明的分区，不按产品名分支；Cowork 写死的接口只在 Cowork 的分区里。"""
+
+    def test_the_companies_api_comes_from_the_declaration(self):
+        companies = read("lib/companies.ts")
+        self.assertNotIn("const API =", companies)
+        self.assertIn("const api = useProjects.getState().api;", companies)
+        self.assertNotIn("pearnly_cowork.companies.api", companies.split("\n\n", 1)[1])   # 只在开头注释里提到
+        projects = read("lib/managed-agents/projects.ts")
+        self.assertIn('api: kind && typeof out?.api === "string" ? out.api : "",', projects)
+        self.assertIn("sections: kind ? sectionsOf(out?.sections) : [],", projects)
+        live = read("components/operator/live-source.ts")
+        self.assertNotIn("search_link", live)
+        self.assertNotIn("deps.product ===", live)
+        self.assertIn('get<CompanyRow[]>((await companiesApi()) + "companies", { search: search || undefined, start, limit })', live)
+
+    def test_no_branch_on_the_product_name_for_company_parts(self):
+        for path in ("lib/companies.ts", "lib/company-panel.ts", "components/companies.tsx", "components/company-page.tsx",
+                     "components/session-panel.tsx", "components/pending.tsx", "components/add-company.tsx",
+                     "components/company-cards.tsx", "components/month-ledger.tsx", "components/assistant-ui/projects.tsx"):
+            text = read(path)
+            self.assertNotRegex(text, r'product\s*===\s*"(erp|cowork)"', path)
+        app = read("assistant.tsx")
+        self.assertIn('const kind = useSection("pending");', app.split("function PendingNav(", 1)[1].split("\nfunction ", 1)[0])
+        self.assertIn('useEffect(() => (pending ? watchPendingCounts() : undefined), [pending]);', app)
+        nav = read("lib/nav.ts")
+        self.assertIn('if (!kind || (target.view === "pending" && !hasSection("pending"))) {', nav)
+
+    def test_every_card_and_menu_item_follows_a_declared_section(self):
+        panel = read("components/session-panel.tsx")
+        self.assertIn('month: "month", pending: "pending", notes: "notes", folders: "folders", tasks: "tasks", choices: "choices", drafts: "drafts",',
+                      panel)
+        self.assertIn("const cards = declaredCards(all, sections);", panel)
+        page = read("components/company-page.tsx")
+        header = page.split("const Header: FC", 1)[1].split("\n};", 1)[0]
+        for line in ('const canRename = useSection("rename");', 'const canRefresh = useSection("catalog");',
+                     'const canDelete = useSection("delete");', 'const desk = useSection("desk") && c.desk_url ? c.desk_url : "";',
+                     "{hasMenu && (", "{canRename && (", "{canRefresh && (", "{desk && (", "{canDelete && ("):
+            self.assertIn(line, header)
+        add = read("components/add-company.tsx")
+        action = add.split("export function useAddCompanyAction(", 1)[1].split("\n}", 1)[0]
+        self.assertIn('const fromCatalog = useSection("create");', action)
+        self.assertIn('const desk = useSection("desk");', action)
+        self.assertIn("return desk && url ? () => openSitePage(url) : null;", action)
+        self.assertIn("const add = useAddCompanyAction(onPick);", read("components/assistant-ui/projects.tsx"))
+        self.assertIn("{add && (", read("components/companies.tsx"))
+
+    def test_every_hard_coded_cowork_call_is_only_reached_from_cowork_parts(self):
+        """前端里所有 pearnly_cowork. 字面量：在哪个文件、为什么 ERP 调不到（评估 §15.4 的检查）。"""
+        found = {}
+        for path in sorted(SRC_ROOT.rglob("*.ts*")):
+            for line in path.read_text(encoding="utf-8").splitlines():
+                for method in re.findall(r"pearnly_cowork\.[\w.]+", line):
+                    found.setdefault(path.relative_to(SRC_ROOT).as_posix(), set()).add(method.rstrip("."))
+        reasons = {
+            # 待处理里 Cowork 服务端才给的 action（choose / push / account_set / mrerp），ERP 的待处理只给 open；记住的选择卡（choices）
+            # 里改 MR.ERP 菜单；添加公司（create）与公司页「刷新账套」（catalog）的刷新账套；文件头注释
+            "lib/companies.ts": {"pearnly_cowork.companies.api", "pearnly_cowork.push.application.api.choices",
+                                 "pearnly_cowork.assistant.pending_api.answer", "pearnly_cowork.assistant.pending_api.proposal_detail",
+                                 "pearnly_cowork.assistant.pending_api.account_sets",
+                                 "pearnly_cowork.assistant.pending_api.choose_account_set",
+                                 "pearnly_cowork.assistant.pending_api.mrerp_needs",
+                                 "pearnly_cowork.assistant.pending_api.mrerp_answer", "pearnly_cowork.connections.api.mrerp_menu",
+                                 "pearnly_cowork.connections.api.records", "pearnly_cowork.connections.api.request_refresh"},
+            # 设置页的「电脑与连接」只在 Cowork（web = !api && product === "cowork"；桌面窗口里按通道）
+            "components/settings.tsx": {"pearnly_cowork.folder_intake.api.computers", "pearnly_cowork.connections.api.member_choices",
+                                        "pearnly_cowork.companion.api.remove_device", "pearnly_cowork.companion.api.installer",
+                                        "pearnly_cowork.connections.api.records", "pearnly_cowork.connections.api.set_members"},
+            # 定时任务页只在 Cowork（hasScheduledTasks）
+            "components/scheduled-tasks.tsx": {"pearnly_cowork.folder_intake.api", "pearnly_cowork.connections.api",
+                                               "pearnly_cowork.companion.api"},
+            # 桌面端用登录的账号连 Cowork 通道（只在 Cowork 站点上做）；装桌面版取安装包；注释
+            "lib/desktop.ts": {"pearnly_cowork.companion.api.register"},
+            "lib/install.ts": {"pearnly_cowork.companion.api.installer"},
+            # 月结台账只在声明了 month 的产品（Cowork）的会话栏「本月」卡与公司页「月结」卡里读
+            "lib/month.ts": {"pearnly_cowork.companies.api.month"},
+            "lib/frappe.ts": {"pearnly_cowork.folder_intake.api"},
+        }
+        self.assertLessEqual(set(found), set(reasons))
+        for path, methods in found.items():
+            for method in methods:
+                self.assertTrue(any(method == r or method.startswith(r + ".") for r in reasons[path]), f"{path}: {method}")
+        # lib/companies.ts 里这几个函数只从 Cowork 的分区或 Cowork 才有的 action 调到
+        callers = {"loadChoices": "components/pending.tsx", "answerChoices": "components/pending.tsx",
+                   "pushProposal": "components/pending.tsx", "loadProposal": "components/pending.tsx",
+                   "loadAccountSets": "components/pending.tsx", "chooseAccountSet": "components/pending.tsx",
+                   "loadMrErpNeeds": "components/pending.tsx", "answerMrErp": "components/pending.tsx",
+                   "loadMrErpOptions": "components/company-cards.tsx", "refreshCatalogs": "components/add-company.tsx"}
+        for name, home in callers.items():
+            users = [p.relative_to(SRC_ROOT).as_posix() for p in SRC_ROOT.rglob("*.ts*")
+                     if p.name != "companies.ts" and re.search(rf"\b{name}\(", p.read_text(encoding="utf-8"))]
+            self.assertIn(home, users, name)
+            self.assertLessEqual(set(users), {home, "components/company-page.tsx", "components/month-ledger.tsx"}, name)
+        pending = read("components/pending.tsx")
+        for kind in ("choose", "push", "mrerp", "account_set"):
+            self.assertIn(f'item.action === "{kind}"', pending)
+        page = read("components/company-page.tsx")
+        self.assertIn("await refreshCatalogs();", page.split("const refreshSets = async", 1)[1].split("};", 1)[0])
+        self.assertIn("{canRefresh && (", page)
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class ErpSectionsBehaviourTests(unittest.TestCase):
+    STUBS = {**STUBS, "cc-ma-setup": MA_SETUP}
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\nimport assert from "node:assert/strict";\n' + body
+               + "\n(globalThis as any).done();\n", stubs=self.STUBS)
+
+    def test_erp_declaration_calls_only_erp_methods_and_keeps_only_its_cards(self):
+        self.run_page(r"""
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { refreshProjects, resetProjects, useProjects } from "@/lib/managed-agents/projects";
+import { listCompanies, loadDetail, newCompanyUrl } from "@/lib/companies";
+import { declaredCards } from "@/components/session-panel";
+const g = globalThis as any;
+const ok = (message: any) => ({ ok: true, status: 200, json: async () => ({ message }) });
+const ERP = "pearnly_erp_portal.masters.cc_companies.";
+g.respond = async (method: string) => {
+  if (method === "projects") return ok({ kind: "company", period: true, scope: false, api: ERP,
+    sections: ["desk", "bogus", 3], projects: [{ id: "CO-00001", title: "Siam", subtitle: "0105536082808" }] });
+  if (method.includes(ERP + "companies")) return ok([{ id: "CO-00001", title: "Siam", tax_id: "0105536082808" }]);
+  if (method.includes(ERP + "desk")) return ok({ url: "/desk/pearnly-company/new" });
+  if (method.includes(ERP + "detail")) return ok({ company: { id: "CO-00001", title: "Siam", desk_url: "/desk/pearnly-company/CO-00001" },
+    account_sets: [], branches: [], folders: [], notes: [], choices: [], tasks: null, drafts: null });
+  return ok(null);
+};
+resetProjects();
+assert.equal(await refreshProjects(), "company");
+const state = useProjects.getState();
+assert.equal(state.api, ERP);
+assert.deepEqual(state.sections, ["desk"]);   // 认不出的丢掉
+assert.equal(state.scope, false);
+assert.deepEqual((await listCompanies("si")).map((row) => row.id), ["CO-00001"]);
+assert.equal((await loadDetail("CO-00001", "2026-10")).company.desk_url, "/desk/pearnly-company/CO-00001");
+assert.equal(await newCompanyUrl(), "/desk/pearnly-company/new");
+const methods = g.calls.map((call: any) => call.method).filter((m: string) => m !== "projects");
+assert.ok(methods.length >= 3);
+assert.ok(methods.every((m: string) => m.includes(ERP)), methods.join(", "));
+assert.ok(!g.calls.some((call: any) => String(call.method).includes("pearnly_cowork")));
+// 会话栏：ERP 只出公司与输出文件；Cowork 全部照旧
+const all: any = { company: "c", month: "m", pending: "p", notes: "n", folders: "f", tasks: "t", choices: "ch", drafts: "d", outputs: "o" };
+const shown = (sections: any) => Object.entries(declaredCards(all, sections)).filter(([, card]) => card).map(([id]) => id);
+assert.deepEqual(shown(state.sections), ["company", "outputs"]);
+assert.deepEqual(shown(["pending", "month", "notes", "folders", "tasks", "choices", "drafts", "create", "rename", "delete", "catalog"]),
+  Object.keys(all));
+""")
+
+    def test_cowork_declaration_keeps_todays_methods(self):
+        self.run_page(r"""
+import { refreshProjects, resetProjects, useProjects } from "@/lib/managed-agents/projects";
+import { listCompanies, loadDetail, renameCompany } from "@/lib/companies";
+const g = globalThis as any;
+const ok = (message: any) => ({ ok: true, status: 200, json: async () => ({ message }) });
+g.respond = async (method: string) => method === "projects"
+  ? ok({ kind: "company", period: true, scope: true, api: "pearnly_cowork.companies.api.",
+         sections: ["pending", "month", "notes", "folders", "tasks", "choices", "drafts", "create", "rename", "delete", "catalog"], projects: [] })
+  : ok([]);
+resetProjects();
+await refreshProjects();
+assert.equal(useProjects.getState().sections.length, 11);
+await listCompanies();
+await loadDetail("C1");
+await renameCompany("C1", "New");
+const methods = g.calls.map((call: any) => String(call.method)).filter((m: string) => m !== "projects");
+assert.ok(methods[0].includes("/api/method/pearnly_cowork.companies.api.companies"), methods[0]);
+assert.ok(methods[1].includes("/api/method/pearnly_cowork.companies.api.detail"), methods[1]);
+assert.ok(methods[2].includes("/api/method/pearnly_cowork.companies.api.rename"), methods[2]);
+// 没有公司分组的产品（DMS）：不声明，公司接口不调
+g.respond = async (method: string) => ok(method === "projects" ? { kind: null, period: false, scope: false, projects: [] } : null);
+resetProjects();
+await refreshProjects();
+assert.deepEqual([useProjects.getState().api, useProjects.getState().sections], ["", []]);
+await assert.rejects(listCompanies(), /companies not declared/);
+""")
+
 
 if __name__ == "__main__":
     unittest.main()

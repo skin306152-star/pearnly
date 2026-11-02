@@ -1,4 +1,6 @@
-// 右侧会话栏（设计文档 3.13 / 4.4；Cowork 挂了公司的对话与公司页里，ERP / DMS 与没挂公司的对话没有它，ADR-020）。
+// 右侧会话栏（设计文档 3.13 / 4.4；有公司分组的产品挂了公司的对话与公司页里，DMS 与没挂公司的对话没有它，ADR-020）。
+// 公司卡与输出文件各产品都有；其余卡片只在产品声明了那个分区时出（sections：month / pending / notes / folders / tasks / choices /
+// drafts；ERP 只有待处理与知识库），不按产品名分支。
 //
 //   版式   宽 280；卡片纵向、间距统一一个变量（--cc-panel-gap）。宽屏与页面并排停靠；放不下「对话最窄 + 会话栏」时浮在页面
 //          上方（Esc、× 关）；手机盖满屏（对话页从胶囊菜单里的公司名、公司页从标题旁的按钮打开），返回键关。
@@ -38,7 +40,7 @@ import { FileTypeIcon, useResults } from "@/components/results-panel";
 import { co, t } from "@/i18n";
 import { branchesOf, branchShort, type Detail, monthLabel, setsForScope } from "@/lib/companies";
 import { moveCard, type PanelCard as CardId, setCardOrder, setPagePeriod, toggleCard, usePanel, usePanelDetail } from "@/lib/company-panel";
-import { type Filing, NO_FILING, useProjects } from "@/lib/managed-agents/projects";
+import { type Filing, NO_FILING, type Section, useProjects } from "@/lib/managed-agents/projects";
 import { OPEN_LAYERS } from "@/lib/back-stack";
 import { opener, returnFocusAfterClose } from "@/lib/focus-return";
 import { isDragEscape } from "@/lib/layers";
@@ -47,7 +49,7 @@ import { Marquee } from "@/components/ui/marquee";
 
 export type PanelMode = "docked" | "floating" | "phone";
 
-/** 当前对话挂在哪家公司、哪个月、哪个分店（产品有公司分组时才有；ERP / DMS、没挂公司的对话 project 为空）。 */
+/** 当前对话挂在哪家公司、哪个月、哪个分店（产品有公司分组时才有；DMS、没挂公司的对话 project 为空）。 */
 export function useFiledCompany(): Filing {
   const remoteId = useAuiState((s) => s.threadListItem.remoteId);
   const localId = useAuiState((s) => s.threadListItem.id);
@@ -133,6 +135,18 @@ export const SortableCards: FC<{ cards: Partial<Record<CardId, ReactNode>>; scop
   );
 };
 
+/** 产品没声明的分区，那张卡不出（公司、输出文件各产品都有）。 */
+export const CARD_SECTIONS: Partial<Record<CardId, Section>> = {
+  month: "month", pending: "pending", notes: "notes", folders: "folders", tasks: "tasks", choices: "choices", drafts: "drafts",
+};
+
+export function declaredCards(cards: Record<CardId, ReactNode>, sections: readonly Section[]): Record<CardId, ReactNode> {
+  return Object.fromEntries(Object.entries(cards).map(([id, card]) => {
+    const section = CARD_SECTIONS[id as CardId];
+    return [id, section && !sections.includes(section) ? null : card];
+  })) as Record<CardId, ReactNode>;
+}
+
 // 会话栏开关（顶栏右侧，assistant.tsx）：关掉浮着的会话栏后焦点的去处
 const PANEL_TOGGLE = '[data-slot="cc-panel-toggle"]';
 
@@ -182,7 +196,8 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
 
   const branches = detail ? branchesOf(detail) : [];
   const multi = branches.length > 1 ? branches : [];
-  const cards: Record<CardId, ReactNode> = page
+  const sections = useProjects((s) => s.sections);
+  const all: Record<CardId, ReactNode> = page
     ? {
         company: detail ? <CompanyPageCard detail={detail} period={period} /> : null,
         month: <MonthSection company={company} period={period} onPeriod={setPagePeriod} />,
@@ -209,6 +224,7 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
         ) : null,
         outputs: <OutputsCard />,
       };
+  const cards = declaredCards(all, sections);
   return (
     <aside
       ref={box}

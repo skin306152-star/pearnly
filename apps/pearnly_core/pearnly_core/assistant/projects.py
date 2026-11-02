@@ -3,9 +3,11 @@
 - 会话表 `project`（产品给的不透明编号，空 = 「最近」）、`period`（`YYYY-MM`，空 = 不指定）、`project_scope`（产品自定的
   范围，Cowork 是分店号；空 = 不指定）。`sessions.create(project, period, scope)` / `sessions.move` 写，`release` 清。
 - 这些编号是什么、谁能用、给 CC 的说明写什么，由产品在 hooks 声明的 provider 决定（`pearnly_assistant_projects`，
-  ADR-009；Cowork：`pearnly_cowork.companies.provider`）。共用层只调它的 `KIND / PERIOD / SCOPE / allowed / view /
-  context`，不解析产品数据、不建表。没有声明的产品（ERP、DMS）`kind` 为 None：侧栏与接口都与以前一样，`project`
-  一律当空。`view` / `context` 出错记日志、当作没有：不挡侧栏、不挡发话。
+  ADR-009；Cowork：`pearnly_cowork.companies.provider`；ERP：`pearnly_erp_portal.masters.cc_projects`）。共用层只调它的
+  `KIND / PERIOD / SCOPE / allowed / view / context`，不解析产品数据、不建表。没有声明的产品（DMS）`kind` 为 None：侧栏与
+  接口都与以前一样，`project` 一律当空。`view` / `context` 出错记日志、当作没有：不挡侧栏、不挡发话。
+- 页面要的两项声明（`listing` 原样转交，没声明就不回）：`API`（这个产品公司接口的方法前缀，页面的公司列表、公司页、
+  知识库、待处理都调它）与 `SECTIONS`（这个产品有哪些分区，页面只出声明了的；前端不按产品名分支）。
 - 实时事件 `pearnly.project` 经 `sidebar.project` 在提交后逐人推（`announce`）：对话改月份、分店（`move`，用户 10-17 起不能
   换公司）、删公司时回到「最近」只推会话主人；产品那一项建、改、删由产品挑要推的人。
 - 依赖方向：`sessions` → `projects` → `sidebar`；本模块不导入 `sessions`、`relay`。
@@ -111,15 +113,28 @@ def mine(user, refs=None) -> dict:
     return {row.project: {"last_active": str(row.last or ""), "count": int(row.count or 0)} for row in found}
 
 
+def declared(found) -> dict:
+    """产品给页面的声明：`api`（公司接口的方法前缀）、`sections`（有哪些分区）；没声明的那项不回。"""
+    out = {}
+    api = getattr(found, "API", None) if found else None
+    if isinstance(api, str) and api:
+        out["api"] = api
+    sections = getattr(found, "SECTIONS", None) if found else None
+    if isinstance(sections, (list, tuple)):
+        out["sections"] = [str(item) for item in sections if isinstance(item, str) and item]
+    return out
+
+
 def listing() -> dict:
-    """侧栏要的：`kind`（None = 产品没有声明，侧栏照旧）、收不收月份 / 范围，与本人有对话的各项（按最近活动排）。
-    产品不认的编号不列出，那些对话显示在「最近」。"""
+    """侧栏要的：`kind`（None = 产品没有声明，侧栏照旧）、收不收月份 / 范围，与本人有对话的各项（按最近活动排）；产品声明了
+    `API` / `SECTIONS` 时另带 `api` / `sections`（`declared`）。产品不认的编号不列出，那些对话显示在「最近」。"""
     user = _user()
     found = provider()
     out = {"kind": getattr(found, "KIND", None) if found else None, "period": takes_period(found),
            "scope": takes_scope(found), "projects": []}
     if not found:
         return out
+    out.update(declared(found))
     stats = mine(user)
     views = _view(stats, user)
     rows = []

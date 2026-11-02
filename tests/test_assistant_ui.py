@@ -2601,7 +2601,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertIn("{app && companyFolders && !hasMine && (", folders)
         self.assertIn("{app && !companyFolders && (", folders)  # 旧桌面版：请更新
         self.assertIn("await bindFolder(company, picked.binding);", folders)  # 桥给的 binding 原样交给服务端
-        self.assertIn('bindFolder = (company: string, binding: unknown) => postMethod(API + "folder_bind", { company, binding: JSON.stringify(binding) });',
+        self.assertIn('bindFolder = async (company: string, binding: unknown) => postMethod(await call("folder_bind"), { company, binding: JSON.stringify(binding) });',
                       read("lib/companies.ts"))
         # 页面里没有别处调桥选文件夹、也不拼路径
         for name, text in ((p, read(p)) for p in COMPANY_SOURCES):
@@ -3811,8 +3811,12 @@ import { renderToStaticMarkup } from "react-dom/server.browser";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ChoiceRow, FolderSection, SetsSection } from "@/components/company-page";
 import { loadDesktopFeatures } from "@/lib/desktop";
+import { useProjects } from "@/lib/managed-agents/projects";
 
 const g = globalThis as any;
+// Cowork 的声明（服务端 companies/provider.py 的 API / SECTIONS，共用层 projects() 原样转交）：公司接口前缀与全部分区
+export const COWORK_SECTIONS = ["pending", "month", "notes", "folders", "tasks", "choices", "drafts", "create", "rename", "delete", "catalog"];
+useProjects.setState({ loaded: true, kind: "company", period: true, scope: true, api: "pearnly_cowork.companies.api.", sections: COWORK_SECTIONS as any });
 const html = (type: any, props: any = null) => renderToStaticMarkup(createElement(SidebarProvider, null, createElement(type, props)));
 const text = (markup: string) =>
   markup.replace(/<[^>]+>/g, "\n").replace(/&#x27;/g, "'").replace(/&amp;/g, "&").split("\n").map((s) => s.trim()).filter(Boolean);

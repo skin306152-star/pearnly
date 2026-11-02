@@ -154,7 +154,8 @@ class NotesSourceTests(unittest.TestCase):
         # 第 5 轮测试 3：「··· → 重命名」后菜单关上时不把焦点还给「···」，改名框直接能输入。第 5 轮复测焦点仍在 body：
         # 选中那一下就挂上改名框，自动聚焦被菜单的焦点陷阱拉回菜单项。改为菜单关完（onCloseAutoFocus）才挂改名框
         self.assertIn("const renameFromMenu = useRef(false);", header)
-        select = header.split("<DropdownMenu.Item\n              className=\"cc-menu-item\"\n              onSelect={() => {", 1)[1].split("}}", 1)[0]
+        # 「重命名」只在产品声明了 rename 时出（ERP 版 CC 按公司，2026-11-02），菜单项多缩进一层
+        select = header.split("<DropdownMenu.Item\n                className=\"cc-menu-item\"\n                onSelect={() => {", 1)[1].split("}}", 1)[0]
         self.assertIn("if (isMobile) return rename();", select)
         self.assertIn("renameFromMenu.current = true;", select)
         self.assertNotIn("startRename()", select)                              # 菜单开着时不挂改名框
@@ -258,8 +259,11 @@ import "cc-test-setup";
 import assert from "node:assert/strict";
 import { commitNote, putNote, removeNote, setChoiceShown } from "@/components/company-page";
 import { shownError } from "@/lib/frappe";
+import { useProjects } from "@/lib/managed-agents/projects";
 
 const g = globalThis as any;
+// 公司接口前缀取产品声明（共用层 projects() 的 api；这里是 Cowork 的）
+useProjects.setState({ loaded: true, kind: "company", api: "pearnly_cowork.companies.api.", sections: ["notes"] });
 const ok = (message: any) => ({ ok: true, status: 200, json: async () => ({ message }) });
 const refused = (text: string) => ({ ok: false, status: 417, json: async () => ({ _server_messages: JSON.stringify([JSON.stringify({ message: text })]) }) });
 const before = [{ id: "N1", text: "old" }];

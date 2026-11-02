@@ -1,4 +1,6 @@
-// 公司页（?company=<编号>；公司列表、侧栏组「···」「打开公司」、会话栏公司卡点进来）。一家客户一份，全所共用（Cowork companies 域）。
+// 公司页（?company=<编号>；公司列表、侧栏组「···」「打开公司」、会话栏公司卡点进来）。Cowork：一家客户一份，全所共用（companies 域）；
+// ERP：ERP 公司（masters.cc_companies）。「···」里的项按产品声明的分区出（rename / catalog / delete；desk = 在浏览器中打开站点的公司页），
+// 没有一项就不出「···」；标题点了就地改名也只在声明了 rename 时。
 // 设计文档 4.5（用户 10-16 定「中间应该是对话框，信息放右侧」，同 claude.ai 的项目页）：版式同对话页——
 //
 //   中间一栏（宽 768，同对话）  标题 = 公司名（点了就地改名，手机用输入框）；「···」：改名、刷新账套、删除公司（不确认）
@@ -14,7 +16,7 @@
 // 别处改了这家（pearnly.project upsert）重取，删了（delete）回到公司列表。文案走 i18n.ts 的 co；样式只用 globals.css 的 .cc-* 与变量。
 
 import { useAui } from "@assistant-ui/react";
-import { ArrowUpIcon, Building2Icon, LoaderIcon, MoreHorizontalIcon, PanelRightIcon, PencilIcon, PlusIcon, RefreshCwIcon, TrashIcon } from "lucide-react";
+import { ArrowUpIcon, Building2Icon, ExternalLinkIcon, LoaderIcon, MoreHorizontalIcon, PanelRightIcon, PencilIcon, PlusIcon, RefreshCwIcon, TrashIcon } from "lucide-react";
 import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { type FC, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
@@ -30,6 +32,7 @@ import {
   dropCachedDetail,
   forgetAnyCompany,
   monthShort,
+  openSitePage,
   refreshCatalogs,
   renameCompany,
   useCompanyNav,
@@ -50,7 +53,7 @@ import {
 import { noteRun, runningSessions, useActivities } from "@/lib/managed-agents/activity";
 import { type ListedSession, listGrouped } from "@/lib/managed-agents/api";
 import type { RunStatus } from "@/lib/managed-agents/events";
-import { forgetProject, renameProjectLocally, useProjects } from "@/lib/managed-agents/projects";
+import { forgetProject, renameProjectLocally, useProjects, useSection } from "@/lib/managed-agents/projects";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { useView } from "@/lib/nav";
 import { shownError } from "@/lib/frappe";
@@ -127,6 +130,11 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
   const { isMobile } = useSidebar();
   const { setView } = useView();
   const c = detail.company;
+  const canRename = useSection("rename");
+  const canRefresh = useSection("catalog");
+  const canDelete = useSection("delete");
+  const desk = useSection("desk") && c.desk_url ? c.desk_url : "";
+  const hasMenu = canRename || canRefresh || canDelete || !!desk;
   // 改名成功就显示新名字（服务端回的那份），不等整页重取；重取到了以服务端为准
   const [title, setTitle] = useState(c.title);
   useEffect(() => setTitle(c.title), [c.title]);
@@ -189,6 +197,9 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
       <div className="min-w-0 flex-1">
         {renaming ? (
           <TitleRename value={value} onChange={setValue} onDone={(saveIt) => (saveIt ? void save(value) : setRenaming(false))} />
+        ) : !canRename ? (
+          // 产品没声明改名（ERP：公司在 ERP 里改）：标题只是文字
+          <h1 className="cc-page-title"><Marquee className="cc-page-title-text">{title}</Marquee></h1>
         ) : (
           // 按钮里面放滚动的文字（不是按钮自己滚）：滚动时的渐隐遮罩只盖文字，不把按钮的焦点环裁掉
           <h1 className="cc-page-title" data-editable="">
@@ -205,6 +216,7 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
           <PanelRightIcon />
         </button>
       )}
+      {hasMenu && (
       <DropdownMenu.Root>
         <DropdownMenu.Trigger className="cc-icon-btn" aria-label={t("more")}>
           <MoreHorizontalIcon />
@@ -221,29 +233,44 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
               startRename();
             }}
           >
-            <DropdownMenu.Item
-              className="cc-menu-item"
-              onSelect={() => {
-                // 电脑：菜单关完再出改名框（见 renameFromMenu）；手机：系统输入框，照旧当场弹
-                if (isMobile) return rename();
-                renameFromMenu.current = true;
-              }}
-            >
-              <PencilIcon />
-              {t("rename")}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item className="cc-menu-item" onSelect={() => void refreshSets()}>
-              <RefreshCwIcon />
-              {co.refreshSets}
-            </DropdownMenu.Item>
-            <DropdownMenu.Separator className="cc-menu-sep" />
-            <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void remove()}>
-              <TrashIcon />
-              {co.deleteCompany}
-            </DropdownMenu.Item>
+            {canRename && (
+              <DropdownMenu.Item
+                className="cc-menu-item"
+                onSelect={() => {
+                  // 电脑：菜单关完再出改名框（见 renameFromMenu）；手机：系统输入框，照旧当场弹
+                  if (isMobile) return rename();
+                  renameFromMenu.current = true;
+                }}
+              >
+                <PencilIcon />
+                {t("rename")}
+              </DropdownMenu.Item>
+            )}
+            {canRefresh && (
+              <DropdownMenu.Item className="cc-menu-item" onSelect={() => void refreshSets()}>
+                <RefreshCwIcon />
+                {co.refreshSets}
+              </DropdownMenu.Item>
+            )}
+            {desk && (
+              <DropdownMenu.Item className="cc-menu-item" data-slot="cc-company-desk" onSelect={() => openSitePage(desk)}>
+                <ExternalLinkIcon />
+                {t("openInBrowser")}
+              </DropdownMenu.Item>
+            )}
+            {canDelete && (
+              <>
+                <DropdownMenu.Separator className="cc-menu-sep" />
+                <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void remove()}>
+                  <TrashIcon />
+                  {co.deleteCompany}
+                </DropdownMenu.Item>
+              </>
+            )}
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
+      )}
     </div>
   );
 };

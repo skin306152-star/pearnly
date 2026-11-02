@@ -5,9 +5,9 @@
 //   手机         — 左上角圆形菜单按钮；抽屉里大号「CC」、搜索、定时任务、最近对话，底部头像与「新建会话」
 //
 // 颜色、尺寸、动效只引用 globals.css 的变量与 .cc-* 样式类，这里不写数值。「定时任务」只在有这个功能的产品（Cowork）出现。
-// 公司主档（ADR-020，只在 Cowork：共用层 projects() 的 kind 为 company 时）：侧栏「公司」「待处理 N」两行、按公司分组，
+// 公司（ADR-020，共用层 projects() 的 kind 为 company 时：Cowork 公司主档、ERP 公司）：侧栏「公司」「待处理 N」两行、按公司分组，
 // 视图多「公司列表」「公司页」「待处理」；对话顶栏「公司名 ›」与右侧会话栏（components/session-panel.tsx）；输入框下巴的
-// 公司、月份、分店（ComposerChin）。ERP / DMS 与今天一样。
+// 公司、月份、分店（ComposerChin）。哪些分区出现只看产品声明的 sections（useSection），不按产品名分支。DMS 与今天一样。
 // 实操（CC 在 Express 窗口里逐张填写，Cowork 与 ERP 都有；设计稿 https://claude.ai/artifact/SgtxECheQE4e6gtF1G4WKW）：侧栏最上面那一行
 // （☰、侧栏开关、←、→）右端两个图标切换「直写 / 实操」，侧栏收起时跟着那一行留在顶栏；手机在抽屉顶部；Ctrl / ⌘ + Shift + 1 / 2。
 // 实操模式侧栏换成任务列表，顶栏是任务标题与开始 / 停止，中间是新建任务或任务记录，右边是实操自己的右侧栏
@@ -99,7 +99,7 @@ import { useSidebarKeys } from "@/lib/sidebar-keys";
 import { APP_NAME, assistantLogo, assistantMascot, loadProfile, useProfile, type Profile } from "@/lib/profile";
 import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
-import { setDraft, useProjects } from "@/lib/managed-agents/projects";
+import { setDraft, useProjects, useSection } from "@/lib/managed-agents/projects";
 import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
 import { dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePageMonth, usePanel } from "@/lib/company-panel";
 import { cssPx } from "@/lib/css-var";
@@ -518,10 +518,10 @@ function SidebarNav() {
   );
 }
 
-/** 侧栏「待处理 N」（只在有公司分组的产品；N 为 0 时不显示）：紧跟「新建」，在「定时任务」上面（设计文档 4.2）。
+/** 侧栏「待处理 N」（只在声明了待处理的产品；N 为 0 时不显示）：紧跟「新建」，在「定时任务」上面（设计文档 4.2）。
  *  onPick：手机上点了收起抽屉。 */
 function PendingNav({ onPick }: { onPick?: () => void }) {
-  const kind = useProjects((s) => s.kind);
+  const kind = useSection("pending");
   const total = usePendingCounts((s) => s.total);
   const pendingCompany = useCompanyNav((s) => s.pendingCompany);
   const { view, setView } = useView();
@@ -978,9 +978,9 @@ function DesktopBridge() {
   // 一打开就接上实时通道：侧栏才看得到后台对话在跑、跑完（lib/managed-agents/activity.ts）
   useEffect(() => listen(), []);
   useEffect(() => void syncPush(), []);
-  // 侧栏「待处理 N」与公司组头的数：只在有公司分组的产品读（推送状态的站点事件来了、回到前台再读）
-  const companyKind = useProjects((s) => s.kind);
-  useEffect(() => (companyKind ? watchPendingCounts() : undefined), [companyKind]);
+  // 侧栏「待处理 N」与公司组头的数：只在声明了待处理的产品读（推送状态的站点事件来了、回到前台再读）
+  const pending = useSection("pending");
+  useEffect(() => (pending ? watchPendingCounts() : undefined), [pending]);
   useEffect(() => setActiveSession(snapshot.sessionId), [snapshot.sessionId]);
   // 在定时任务页时当前对话不算「正看着」：推来的提醒留圆点、不报看过；回到对话页才算
   useEffect(() => setChatView(view === "chat"), [view]);

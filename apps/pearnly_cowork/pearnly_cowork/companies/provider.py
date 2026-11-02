@@ -7,6 +7,8 @@
 - `SCOPE = True`：对话可以再指定一个分店（5 位分店号，空 = 不指定，补充 甲.2）。
 - `work_branch`：推送前核对分店用（hooks `cowork_push_work_branch`，补充 甲.3）：CC 对话里推送、对话挂的公司包含这份
   账套时，对话指定的分店。
+- `API` / `SECTIONS`：给页面的声明（共用层 `projects.listing` 原样转交）：公司接口的方法前缀，与 Cowork 有的全部分区
+  （页面只出声明了的；ERP 声明自己的一份，见 `pearnly_erp_portal.masters.cc_projects`）。
 """
 import frappe
 
@@ -17,6 +19,9 @@ from pearnly_cowork.companies.access import COMPANY
 KIND = "company"
 PERIOD = True
 SCOPE = True
+API = "pearnly_cowork.companies.api."
+# 待处理、月结台账、知识库、单据文件夹、定时任务、记住的选择、申报草稿；从账套目录添加公司、改名、删除、刷新账套
+SECTIONS = ("pending", "month", "notes", "folders", "tasks", "choices", "drafts", "create", "rename", "delete", "catalog")
 
 
 def allowed(ref, user) -> bool:
