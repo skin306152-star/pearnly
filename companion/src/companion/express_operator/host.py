@@ -116,7 +116,10 @@ class Host:
 
     # ── 写账线 ────────────────────────────────────────────────────────────
     def handle(self, task_id: str, payload: Dict, settings) -> Dict:
-        """录一张。回 ``{"status": saved / human / stopped / skipped / waiting, "docnum", "reason", "detail", "meta"}``。"""
+        """录一张。回 ``{"status": saved / human / stopped / skipped / waiting, "docnum", "reason", "detail", "meta"}``。
+
+        ``task_id``：写账件号（写账线给 ``task_journal.key_of``：同一件写账每次派都一样，投递号会换）。同一件再派来照上次的结果；
+        换了号是站点按原批次号交来的新指令，已停的这一批重新打开（``batch.Runner.add``）。"""
         info = (payload.get("operator") or {}).get("batch") or {}
         batch_id = str(info.get("id") or f"single-{task_id}")
         target = K.target_of(payload)
@@ -133,11 +136,12 @@ class Host:
         from .engine import NeedHuman
 
         try:
-            runner.add(draft)
+            runner.add(draft, task_id)
             doc = runner.run_one(draft.doc_id)
         except NeedHuman as error:
             runner.state.status, runner.state.reason = K.BATCH_STOPPED, error.reason
             runner.state.detail = error.detail[:300]  # 整批停在哪一步、看到了什么（没截图时也查得到）
+            runner.park(draft.doc_id)  # 停在半路的这张记等人（原因同整批），再交来时先读账套判断存没存
             self._finish(batch_id)
             return {"status": "waiting" if error.reason in ("network_down",) else "human", "reason": error.reason,
                     "detail": error.detail[:300], "meta": {"batch": batch_id}}

@@ -7,6 +7,8 @@
 - 暂停：录完当前这张再停；停止：当前这张存完或放弃（放弃即作废）后停；跳过：还没开始的单直接标跳过；
 - 服务器连不上（-70）：什么都不点，每分钟只读探一次账套文件夹，10 分钟内恢复就重开 Express 续录，否则整批停；
 - 必须人工的单挂起，其余照录；整批停的原因见 ``contract.BATCH_STOPPERS``；
+- 停下以后站点按原批次号交来的新写账件（人在任务里作答、点重试、整批继续）是新指令：已停的这一批重新打开，这张重录（已存的
+  回原单号、不重录；停下时正在录的先读账套判断存没存）；同一个写账件再派来（租约过期后派回这台）不是新指令，照上次的结果；
 - 批次文件只存在本机（``%APPDATA%\\Pearnly\\operator``），删批次连同存档截图一起真删。
 """
 from __future__ import annotations
@@ -46,6 +48,10 @@ class DocState:
     crashes: int = 0
     seconds: float = 0.0
     readback_ok: Optional[bool] = None
+    # 最后交来这一张的写账件号（``task_journal.key_of``：同一件写账每次派都一样）。旧批次文件没有这一项，按空读
+    task: str = ""
+    # 停下时这张正在录、结果不明：再交来时先读账套判断存没存（同续录），不当新单重录。旧批次文件没有这一项，按否读
+    recheck: bool = False
 
 
 @dataclass
@@ -267,19 +273,59 @@ class Runner:
         return s
 
     # ── 一件一件来（写账队列每次交一张，代录宿主 ``host`` 用）─────────────────────
-    def add(self, draft: Draft) -> DocState:
+    def add(self, draft: Draft, task: str = "") -> DocState:
+        """把交来的这一张放进批次。``task``：交来它的写账件号（同一件写账每次派都一样）。
+
+        - 同一个写账件再派来（租约过期、CC 重启后派回这台）：不是新指令，原样不动，照上次的结果回执；
+        - 换了写账件号（站点按原批次号交来的新指令：人在任务里作答、点重试、整批继续，10-30 实机）：已存的不重录、回原单号；
+          等人 / 跳过的换上新草稿重录（作废过的单号留着进汇报；没写成的才会是这两种，重录不会重复入账）；停下时正在录的
+          （结果不明）先读账套判断存没存；这一批已经停了就重新打开（第一张照常重开 Express、核登录与公司）。"""
         d = self.state.doc(draft.doc_id)
         if d is None:
-            d = DocState(draft.doc_id, draft.doc_type, asdict(draft))
+            d = DocState(draft.doc_id, draft.doc_type, asdict(draft), task=task)
             self.state.docs.append(d)
             self._set()
-        elif d.status == K.WAITING:
-            # 站点把「等人」的这张按原批次号再交回来（人在任务里选了、或点了重试，10-30 实机）：换上新草稿重录，不回上次的结果。
-            # 作废过的单号留着进汇报；没写成的才会是「等人」，重录不会重复入账
-            d.draft, d.doc_type, d.status, d.reason, d.detail = asdict(draft), draft.doc_type, K.PENDING, "", ""
-            d.counts_before, d.issues, d.readback_ok = {}, [], None
+            return d
+        if task and task == d.task:
+            return d
+        d.task = task
+        if d.status == K.SAVED:
             self._set()
+            return d
+        if d.status in (K.WAITING, K.SKIPPED, K.VOIDED):
+            d.draft, d.doc_type, d.reason, d.detail = asdict(draft), draft.doc_type, "", ""
+            if d.recheck:
+                d.status, d.recheck = K.ENTERING, False  # 开录前行数留着：续录先读这之后新增的行
+            else:
+                d.status = K.PENDING
+                d.counts_before, d.issues, d.readback_ok = {}, [], None
+        self._skip.discard(d.doc_id)
+        self._reopen_batch()
+        self._set()
         return d
+
+    def _reopen_batch(self) -> None:
+        """已停的这一批重新打开：清停止 / 暂停、原因与画面文字，下一张先开 Express、核登录与公司。"""
+        s = self.state
+        if s.status != K.BATCH_STOPPED:
+            return
+        self._stop.clear()
+        self._pause.clear()
+        self._reopen = self._reopen or bool(s.started)
+        s.status, s.reason, s.detail, s.current, s.finished = K.BATCH_READY, "", "", "", 0.0
+
+    def park(self, doc_id: str) -> None:
+        """整批停下时正在录的这张（结果不明，还是「正在录」）：人点的停止记停止跳过，整批停的原因记等人；都标上「再交来时先读账套
+        判断存没存」。不是正在录的不动。"""
+        s, d = self.state, self.state.doc(doc_id)
+        if d is None or d.status != K.ENTERING:
+            return
+        if s.reason:
+            d.status, d.reason = K.WAITING, s.reason
+        else:
+            d.status, d.reason = K.SKIPPED, "stopped"
+        d.recheck = True
+        self._set(current="")
 
     def run_one(self, doc_id: str) -> DocState:
         """录批次里的一张（写账线里调；锁由写账线拿着）。第一次先开 Express、核公司；每种单第一次先探路。
@@ -288,7 +334,10 @@ class Runner:
         if d.status in K.DONE_STATES or d.status == K.WAITING:
             return d
         if self._stop.is_set() or s.status == K.BATCH_STOPPED:
-            d.status, d.reason = K.SKIPPED, "stopped"  # 人点了停止：剩下的单不录，按「没写、退回」回执
+            if d.status == K.ENTERING:  # 停下时正在录的那张（同一件再派来）：结果不明，不当跳过
+                self.park(doc_id)
+            else:
+                d.status, d.reason = K.SKIPPED, "stopped"  # 人点了停止：剩下的单不录，按「没写、退回」回执
             self._set(status=K.BATCH_STOPPED, current="")
             return d
         if doc_id in self._skip and d.status == K.PENDING:
@@ -317,9 +366,10 @@ class Runner:
                 d.status, d.reason, d.detail = K.WAITING, "recipe_mismatch", ",".join(result.get("missing", []))
                 self._set()
                 return d
-        if not self._one(d):
-            if d.status == K.ENTERING and s.reason in K.BATCH_STOPPERS:
-                raise NeedHuman(s.reason, "")
+        if not self._one(d) and d.status == K.ENTERING:
+            if s.reason in K.BATCH_STOPPERS:
+                raise NeedHuman(s.reason, "")  # 宿主记下原因与画面文字后同样 park
+            self.park(doc_id)  # 停在半路（人点了停止、重开时要人选公司）：再交来时先读账套判断存没存
         return d
 
     def close_express(self) -> None:
@@ -372,6 +422,9 @@ class Runner:
             self.session.close()
         except Exception:  # noqa: BLE001 — 退不掉不掩盖批次结果；Express 留着，下次开录前会核对公司
             pass
+        # 退出过 Express：这一批再有单来（作答、重试、整批继续）先重开、核公司，单据窗口也从菜单重开
+        self._reopen = bool(self.state.started)
+        self.engine.form_open = None
 
     def _probe(self) -> None:
         if not self.probe:

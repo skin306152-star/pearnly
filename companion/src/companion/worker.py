@@ -406,7 +406,8 @@ def _handle_operator_task(cfg, qc, task, st):
                 log.warning(f"✗ operator task {task.id} masters: {ready.error_code} · {ready.error}")
                 qc.ack_failure(task.id, ready.error, error_code=ready.error_code, outcome=ready.outcome)
                 return ready.outcome
-            result = operator_host.host().handle(str(task.id), ready.payload, st)
+            # 写账件号用同一件每次派都一样的键（投递号重派时换新）：宿主据此分辨「同一件再派来」与站点交来的新指令
+            result = operator_host.host().handle(task_journal.key_of(task), ready.payload, st)
     except Busy:
         qc.ack_failure(task.id, "another computer is writing this account set", error_code=ERR_WRITER_BUSY,
                        outcome="waiting_lock")
@@ -427,7 +428,7 @@ def _handle_operator_target(cfg, qc, task):
     from .express_operator import host as operator_host
 
     try:
-        result = operator_host.host().handle(str(task.id), task.payload or {}, None)
+        result = operator_host.host().handle(task_journal.key_of(task), task.payload or {}, None)
     except Exception as exc:  # noqa: BLE001 — 同 Express：出了意外交人，不重试（重试可能重录）
         log.warning(f"✗ operator task {task.id}: {type(exc).__name__}: {exc}")
         qc.ack_failure(task.id, f"{type(exc).__name__}: {exc}"[:300], error_code="OPERATOR_ERROR",
