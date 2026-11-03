@@ -136,11 +136,15 @@ class MrErpImport:
         照旧只按工作空间税号。都有明确方向时不读（方向与匹配闸都用不到）。"""
         if self._sess is None:
             raise RuntimeError("MrErpImport used outside `with` block")
+        self.note_account_tax(histories, mappings)
+        return routing.route_and_upload(self, histories, mappings, today=today)
+
+    def note_account_tax(self, histories: List[Dict[str, Any]], mappings: Dict[str, Any]) -> None:
+        """有票没有明确方向时读这家公司在 MR.ERP 登记的税号放进 ``mappings['_account_tax_id']``（直写与代录准备同一步）。"""
         if isinstance(mappings, dict) and any(not explicit_direction(h, h) for h in histories):
             tax = routing.account_tax(self._reader(mappings).company_tax())
             if tax:
                 mappings["_account_tax_id"] = tax
-        return routing.route_and_upload(self, histories, mappings, today=today)
 
     def _reader(self, mappings: Dict[str, Any]) -> MasterReader:
         """登录选好账套后的主档读取（同一次会话共用一次，`upload_invoice_batch` 接着用）。"""
@@ -156,77 +160,13 @@ class MrErpImport:
             return ImportResult(total=0)
         if self._sess is None:
             raise RuntimeError("MrErpImport used outside `with` block")
-        m = self.module
-        if not m.verified or m.doc_type not in mrerp_menus.PAGE_OF:
-            raise MRERPBusinessError(f"doc_type={m.doc_type} direct-write not ready")
         t0 = time.time()
         original = histories
-
-        # ★匹配闸:票面买卖方须符合套账主体(own_tax_id 由调用方从套账解析后放 mappings)。
-        # MR.ERP 导入不带卖方身份(默认=登录公司)→ 防"推错套账"只能靠这里的税号锚点。
-        histories, mismatch_failed = self._filter_by_account_set(histories, mappings)
-        if not histories:
-            return self._result(original, [], mismatch_failed, t0, 0)
-
-        # 这家公司的导入值（分店 / 部门 / 员工 / 收款科目等）：按这次读到的主档、这份账套选过的值与规则算，定不下来就
-        # 不推、不建主档（规则见 mrerp/masters.py）。参考科目、称谓、总店只有网页，会改写会话里的当前菜单，
-        # 所以在打开导入页之前读。
-        self._prepare(m)
-        self.default_reason = None
-        self._reader(mappings)  # 同一次会话里几组单据（赊销 / 现金）共用一次读取
-        try:
-            self.account_defaults.reader.reference()
-            self.account_defaults.reader.prefixes()
-            self.account_defaults.reader.head_branch()
-            self.account_defaults.header(mappings, histories, sales=m.doc_type.startswith("sales"),
-                                         cash_sale=m.doc_type == "sales_cash")
-        except Missing as missing:
-            return self._result(original, [], mismatch_failed + [self._fail_row(h, [missing.reason])
-                                                                 for h in histories], t0, 0)
-
-        # 科目安全阀(主动层):这家公司的科目表(上面读到的)里没有要用的科目码 → 全挡下退回用户配置(不硬建)。
-        review = account_gate(mappings)
-        if review:
-            reasons = [ACCOUNT_REVIEW_CODE, ", ".join(review)]
-            fr = [self._fail_row(h, reasons) for h in histories]
-            return self._result(original, [], mismatch_failed + fr, t0, 0)
-
-        # 菜单：这次打开的导入页里，这份账套选过的（或唯一一个）已关联日记账的菜单；定不下来就不推、不建主档。
-        chosen = ((mappings or {}).get("_mrerp_menus") or {}).get(m.doc_type)
-        menu, reason = mrerp_menus.resolve(self._read_menus(m), chosen)
-        if reason:
-            return self._result(original, [], mismatch_failed + [self._fail_row(h, [reason]) for h in histories],
-                                t0, 0)
-        selmenu = menu["idmenu"]
-        self._menu_label = str(menu.get("label") or "")
-
-        # 缺对手方主数据则自建并注入码(须在 preflight 前)· 销项建买方客户 / 采购建卖方供应商。
-        if m.doc_type.startswith("sales"):
-            from pearnly_core.mrerp.push.autocreate import provision_customers
-
-            provision_customers(self, histories, mappings)
-        elif m.sheet_kind == "purchase":  # purchase + purchase_expense 共用 impaptran 供应商自建
-            from pearnly_core.mrerp.push.autocreate import provision_suppliers
-
-            provision_suppliers(self, histories, mappings)
-
-        if self.default_reason:  # 自建主档要的值定不下来（要人选 / 选过的没了）：这批不推
-            return self._result(original, [], mismatch_failed + [self._fail_row(h, [self.default_reason])
-                                                                 for h in histories], t0, 0)
-
-        valid, preflight_failed = self._preflight(histories, mappings)
+        valid, failed, selmenu = self.ready_rows(histories, mappings)
         if not valid:
-            return self._result(original, [], mismatch_failed + preflight_failed, t0, 0)
-
-        # 销/采:明细行对不上已有商品则自建并注入码(在生成 xlsx 前)
-        if m.doc_type.startswith("sales") or m.sheet_kind == "purchase":
-            from pearnly_core.mrerp.push.autocreate import provision_products
-
-            provision_products(self, valid, mappings)
-            if self.default_reason:
-                return self._result(original, [], mismatch_failed + preflight_failed
-                                    + [self._fail_row(h, [self.default_reason]) for h in valid], t0, 0)
-
+            return self._result(original, [], failed, t0, 0)
+        m = self.module
+        mismatch_failed, preflight_failed = failed, []
         xlsx_bytes = _gen.generate_xlsx(valid, mappings, sheet_kind=m.sheet_kind, expense=m.expense)
         expected = [_gen.derive_mrerp_invoice_no(h) for h in valid]
 
@@ -251,6 +191,80 @@ class MrErpImport:
                            t0, len(xlsx_bytes))
         res.unknown = unknown_rows
         return res
+
+    def ready_rows(self, histories: List[Dict[str, Any]], mappings: Dict[str, Any]
+                   ) -> Tuple[List[Dict[str, Any]], List[FailedRow], Optional[str]]:
+        """这一组（当前模块）到「可以写进 MR.ERP」为止的准备：匹配闸、导入值（分店 / 部门…）、科目安全阀、菜单、自建对方、
+        preflight、自建商品 → (能写的票, 挡下的行, 所选菜单号)。直写（生成导入表、上传）与代录准备（出网页表单要填的值，
+        `push.operator_draft`）都从这里接着走，同一套判断、同一次建档。定不下来时能写的票为空、菜单号为 None。"""
+        if self._sess is None:
+            raise RuntimeError("MrErpImport used outside `with` block")
+        m = self.module
+        if not m.verified or m.doc_type not in mrerp_menus.PAGE_OF:
+            raise MRERPBusinessError(f"doc_type={m.doc_type} direct-write not ready")
+
+        # ★匹配闸:票面买卖方须符合套账主体(own_tax_id 由调用方从套账解析后放 mappings)。
+        # MR.ERP 导入不带卖方身份(默认=登录公司)→ 防"推错套账"只能靠这里的税号锚点。
+        histories, mismatch_failed = self._filter_by_account_set(histories, mappings)
+        if not histories:
+            return [], mismatch_failed, None
+
+        # 这家公司的导入值（分店 / 部门 / 员工 / 收款科目等）：按这次读到的主档、这份账套选过的值与规则算，定不下来就
+        # 不推、不建主档（规则见 mrerp/masters.py）。参考科目、称谓、总店只有网页，会改写会话里的当前菜单，
+        # 所以在打开导入页之前读。
+        self._prepare(m)
+        self.default_reason = None
+        self._reader(mappings)  # 同一次会话里几组单据（赊销 / 现金）共用一次读取
+        try:
+            self.account_defaults.reader.reference()
+            self.account_defaults.reader.prefixes()
+            self.account_defaults.reader.head_branch()
+            self.account_defaults.header(mappings, histories, sales=m.doc_type.startswith("sales"),
+                                         cash_sale=m.doc_type == "sales_cash")
+        except Missing as missing:
+            return [], mismatch_failed + [self._fail_row(h, [missing.reason]) for h in histories], None
+
+        # 科目安全阀(主动层):这家公司的科目表(上面读到的)里没有要用的科目码 → 全挡下退回用户配置(不硬建)。
+        review = account_gate(mappings)
+        if review:
+            reasons = [ACCOUNT_REVIEW_CODE, ", ".join(review)]
+            return [], mismatch_failed + [self._fail_row(h, reasons) for h in histories], None
+
+        # 菜单：这次打开的导入页里，这份账套选过的（或唯一一个）已关联日记账的菜单；定不下来就不推、不建主档。
+        chosen = ((mappings or {}).get("_mrerp_menus") or {}).get(m.doc_type)
+        menu, reason = mrerp_menus.resolve(self._read_menus(m), chosen)
+        if reason:
+            return [], mismatch_failed + [self._fail_row(h, [reason]) for h in histories], None
+        selmenu = menu["idmenu"]
+        self._menu_label = str(menu.get("label") or "")
+
+        # 缺对手方主数据则自建并注入码(须在 preflight 前)· 销项建买方客户 / 采购建卖方供应商。
+        if m.doc_type.startswith("sales"):
+            from pearnly_core.mrerp.push.autocreate import provision_customers
+
+            provision_customers(self, histories, mappings)
+        elif m.sheet_kind == "purchase":  # purchase + purchase_expense 共用 impaptran 供应商自建
+            from pearnly_core.mrerp.push.autocreate import provision_suppliers
+
+            provision_suppliers(self, histories, mappings)
+
+        if self.default_reason:  # 自建主档要的值定不下来（要人选 / 选过的没了）：这批不推
+            return [], mismatch_failed + [self._fail_row(h, [self.default_reason]) for h in histories], None
+
+        valid, preflight_failed = self._preflight(histories, mappings)
+        if not valid:
+            return [], mismatch_failed + preflight_failed, None
+
+        # 销/采:明细行对不上已有商品则自建并注入码(在生成 xlsx 前)
+        if m.doc_type.startswith("sales") or m.sheet_kind == "purchase":
+            from pearnly_core.mrerp.push.autocreate import provision_products
+
+            provision_products(self, valid, mappings)
+            if self.default_reason:
+                return [], mismatch_failed + preflight_failed + [self._fail_row(h, [self.default_reason])
+                                                                 for h in valid], None
+
+        return valid, mismatch_failed + preflight_failed, selmenu
 
     def _fail_row(self, h: Dict[str, Any], reasons: List[str]) -> FailedRow:
         return FailedRow(invoice_no=_gen.derive_mrerp_invoice_no(h), reasons=reasons, original=h)

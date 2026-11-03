@@ -152,37 +152,8 @@ def route_and_upload(adapter, histories: List[Dict[str, Any]], mappings: Dict[st
     if not histories:
         return ImportResult(total=0)
     total = len(histories)
-    own = mappings.get("_own_tax_id") if isinstance(mappings, dict) else None
-    account = mappings.get("_account_tax_id") if isinstance(mappings, dict) else None
     default_doc = adapter.module.doc_type
-    sanity_failed: List[FailedRow] = []
-    groups: Dict[str, List[Dict[str, Any]]] = {}  # dict 保序 → 无需单独 order 列表
-    for h in histories:
-        chosen = choose_doc_type(h, h, own_tax_id=own, account_tax_id=account, mappings=mappings, today=today)
-        if chosen in _PURCHASE_DOC_TYPES or chosen == "sales_cash":
-            # 采购(货品)、采购费用、现金销售分别切到各自模块(菜单在导入时按账套所选定)。
-            # 有意差异：旧版这里只切采购，销项一律默认赊销（除散客）——用户在入口选的「现金」
-            # (posting_payment_manual)算出了 sales_cash 却被丢掉；新平台按用户选择推（用户 2026-09-26）。
-            dt = chosen
-        elif _walkin_to_cash(h, default_doc, mappings):
-            dt = "sales_cash"  # 散客现金销售 → ขายเงินสด(账正)
-        else:
-            dt = default_doc  # 销项/判不出 → 默认(sales_credit)· 零倒退
-        reason = _doc_sanity_reason(h, dt, today=today)
-        if reason:
-            sanity_failed.append(_sanity_fail_row(h, reason))
-            continue
-        groups.setdefault(dt, []).append(h)
-
-    # 方向可排查:push 日志 request_body 不记 doc_type,出问题只能反证(真机排查踩过)。
-    logger.info(
-        "[mrerp-route] groups=%s sanity_failed=%d",
-        {
-            k: [str(h.get("invoice_number") or h.get("id") or "?")[:24] for h in v]
-            for k, v in groups.items()
-        },
-        len(sanity_failed),
-    )
+    groups, sanity_failed = group_by_doc_type(histories, mappings, default_doc, today=today)
     if not groups:  # 全被防呆挡下
         res = ImportResult(total=total)
         res.failed = sanity_failed
@@ -219,6 +190,42 @@ def route_and_upload(adapter, histories: List[Dict[str, Any]], mappings: Dict[st
         adapter.module = saved
     merged.failed.extend(sanity_failed)
     return merged
+
+
+def group_by_doc_type(histories: List[Dict[str, Any]], mappings: Dict[str, Any], default_doc: str, *,
+                      today: date) -> "tuple[Dict[str, List[Dict[str, Any]]], List[FailedRow]]":
+    """每张票分到哪个导入模块（直写与代录准备同一套分流）+ 单据防呆挡下的行。``groups`` 按第一次出现的先后。"""
+    own = mappings.get("_own_tax_id") if isinstance(mappings, dict) else None
+    account = mappings.get("_account_tax_id") if isinstance(mappings, dict) else None
+    sanity_failed: List[FailedRow] = []
+    groups: Dict[str, List[Dict[str, Any]]] = {}  # dict 保序 → 无需单独 order 列表
+    for h in histories:
+        chosen = choose_doc_type(h, h, own_tax_id=own, account_tax_id=account, mappings=mappings, today=today)
+        if chosen in _PURCHASE_DOC_TYPES or chosen == "sales_cash":
+            # 采购(货品)、采购费用、现金销售分别切到各自模块(菜单在导入时按账套所选定)。
+            # 有意差异：旧版这里只切采购，销项一律默认赊销（除散客）——用户在入口选的「现金」
+            # (posting_payment_manual)算出了 sales_cash 却被丢掉；新平台按用户选择推（用户 2026-09-26）。
+            dt = chosen
+        elif _walkin_to_cash(h, default_doc, mappings):
+            dt = "sales_cash"  # 散客现金销售 → ขายเงินสด(账正)
+        else:
+            dt = default_doc  # 销项/判不出 → 默认(sales_credit)· 零倒退
+        reason = _doc_sanity_reason(h, dt, today=today)
+        if reason:
+            sanity_failed.append(_sanity_fail_row(h, reason))
+            continue
+        groups.setdefault(dt, []).append(h)
+
+    # 方向可排查:push 日志 request_body 不记 doc_type,出问题只能反证(真机排查踩过)。
+    logger.info(
+        "[mrerp-route] groups=%s sanity_failed=%d",
+        {
+            k: [str(h.get("invoice_number") or h.get("id") or "?")[:24] for h in v]
+            for k, v in groups.items()
+        },
+        len(sanity_failed),
+    )
+    return groups, sanity_failed
 
 
 # 匹配闸失败码。
