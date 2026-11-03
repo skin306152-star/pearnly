@@ -481,7 +481,10 @@ class OnDemandRequests(unittest.TestCase):
 
     def test_folder_only_keys_may_take_requests_and_the_server_filters_by_erp(self):
         auth = (SERVER / "http_auth.py").read_text(encoding="utf-8")
-        self.assertIn("if operation not in FOLDER_ONLY_ALLOWED and", auth)
+        # MR.ERP 代录开着时 MR.ERP 密钥也放行心跳 / 领单 / 回执（ADR-026 第 3 步，11-03 选 A）；关着只放行下面这张表
+        self.assertIn("if not folder_only_allows(operation) and", auth)
+        self.assertIn("return operation in FOLDER_ONLY_ALLOWED or (operator_contracts.MRERP_OPERATOR_ENABLED and operation in METHODS)",
+                      auth)
         self.assertIn("FOLDER_ONLY_ALLOWED = {**FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS, **LOGIN_METHODS}", auth)
         server = number_constants(WIRE / "request_contracts.py", ("ADAPTER_KINDS", "FOLDER_KINDS", "KINDS"))
         self.assertEqual(server["ADAPTER_KINDS"], {"express": server["KINDS"], "mrerp": server["FOLDER_KINDS"]})
