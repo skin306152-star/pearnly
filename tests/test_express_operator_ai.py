@@ -77,3 +77,34 @@ class Forward(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OlderCcDesktop(unittest.TestCase):
+    """1.12.13 及更早的 CC 桌面版不调 AI 转发：服务端代录的派单、领取、回执一字不变。AI 转发只从两条新的机器方法进来，
+    代录的任务、领取、回执、产品接入都不引用它；原有机器方法的表不变（新方法只加在新表 / 新键上）。"""
+
+    def test_only_the_two_new_machine_methods_reach_the_ai_forwarding(self):
+        import ast
+        callers = []
+        for path in sorted((ROOT / "apps").rglob("*.py")):
+            if "/tests/" in str(path) or path.name.startswith("test_"):
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                names = [node.module] if isinstance(node, ast.ImportFrom) and node.module else []
+                names += [f"{node.module}.{a.name}" for a in getattr(node, "names", [])
+                          if isinstance(node, ast.ImportFrom) and node.module]
+                if any(name == "pearnly_core.express_operator.ai" for name in names):
+                    callers.append(str(path.relative_to(ROOT)))
+        self.assertEqual(sorted(set(callers)), ["apps/pearnly_core/pearnly_core/cc_desktop/machine.py",
+                                                "apps/pearnly_cowork/pearnly_cowork/companion/operator_api.py"])
+
+    def test_the_existing_machine_methods_are_unchanged(self):
+        source = (ROOT / "apps/pearnly_core/pearnly_core/cc_desktop/http_auth.py").read_text(encoding="utf-8")
+        for operation, method in (("heartbeat", "heartbeat"), ("lease", "lease"), ("ack", "acknowledge"),
+                                  ("request_next", "next_request"), ("request_complete", "complete_request"),
+                                  ("leave", "leave"), ("mrerp_login", "mrerp_login")):
+            self.assertIn(f'"{operation}": _PREFIX + "{method}"', source)
+        cowork = (ROOT / "apps/pearnly_cowork/pearnly_cowork/companion/http_auth.py").read_text(encoding="utf-8")
+        self.assertIn("METHODS = {'heartbeat': METHOD, 'lease': 'pearnly_cowork.companion.queue_api.lease',", cowork)
+        self.assertIn("FOLDER_ONLY_ALLOWED = {**FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS, **LOGIN_METHODS}", cowork)
