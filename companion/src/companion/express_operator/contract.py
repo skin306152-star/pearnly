@@ -59,6 +59,8 @@ REASONS = {
     "license": HUMAN,  # Express 授权名额满 / 打不开单据（-330）
     "company_mismatch": HUMAN,  # 打开的公司 / 账套和批次对不上（整批停）
     "company_pick": HUMAN,  # 停在 Express 公司列表、要人选这家（配方没核过或登记表里找不到）
+    "account_in_use": HUMAN,  # MR.ERP：这个账号在别处登录，本批被踢下线（不自动重登，整批停）
+    "account_set_unavailable": HUMAN,  # MR.ERP：账套打不开（库不存在等，整批停）
     "recipe_mismatch": HUMAN,  # 探路后画面仍和配方对不上（这种单暂不能录）
     "unsupported": HUMAN,  # 这种单还没有配方
     "readback_mismatch": HUMAN,  # 存进去的和草稿不符（不自动改已存的单）
@@ -82,7 +84,8 @@ REASONS = {
 }
 
 # 遇到就整批停（不是只挂起这一张）
-BATCH_STOPPERS = frozenset({"company_mismatch", "login_failed", "login_missing", "license", "network_down", "budget"})
+BATCH_STOPPERS = frozenset({"company_mismatch", "login_failed", "login_missing", "license", "network_down", "budget",
+                            "account_in_use", "account_set_unavailable"})
 
 
 def level(reason: str) -> str:

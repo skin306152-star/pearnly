@@ -38,6 +38,8 @@ export const REASONS = {
   license: "human",
   company_mismatch: "human",
   company_pick: "human",
+  account_in_use: "human",
+  account_set_unavailable: "human",
   recipe_mismatch: "human",
   unsupported: "human",
   readback_mismatch: "human",
@@ -69,6 +71,8 @@ export const BATCH_STOPPERS: ReadonlySet<string> = new Set<ReasonCode>([
   "license",
   "network_down",
   "budget",
+  "account_in_use",
+  "account_set_unavailable",
 ]);
 
 /** 原因的级别；不认识的按必须人工（同 contract.level）。 */
