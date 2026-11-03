@@ -257,6 +257,7 @@
    "options": "currency"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "printed_total",
    "fieldtype": "Currency",
    "label": "Printed Total",

@@ -858,6 +858,7 @@ Open that product,เปิดสินค้ารายการนี้
 "Open this page from LINE, or sign in to the site first",กรุณาเปิดหน้านี้จาก LINE หรือเข้าสู่ระบบก่อน
 Opened At,เวลาเปิดกะ
 Opened at {0},เปิดกะเมื่อ {0}
+Opened the original,เปิดต้นฉบับแล้ว
 Opening,ยอดยกมา
 Opening Amount,ยอดยกมา
 Opening Balance,ยอดคงเหลือต้นงวด
@@ -880,6 +881,7 @@ Opening stock items,รายการสต็อกยกมา
 Opening stock must use the product base unit,สต็อกยกมาต้องใช้หน่วยฐานของสินค้า
 Opening stock review,ตรวจสอบสต็อกยกมา
 Opening stock review is not configured,ไม่พบการตั้งค่าการตรวจสอบสต็อกยกมา กรุณาติดต่อผู้ดูแลระบบ
+Opening the original,กำลังเปิดต้นฉบับ
 Opening unit cost,ต้นทุนต่อหน่วยยกมา
 Opening value,มูลค่ายกมา
 Options (one per line),ตัวเลือก (บรรทัดละหนึ่งรายการ)
@@ -1196,6 +1198,8 @@ Service or stock item?,กรุณาเลือก บริการ หร�
 Set as current,ตั้งเป็นปัจจุบัน
 Set due date,ตั้งวันครบกำหนดเป็นอีก N วัน
 Set reminder,ตั้งการแจ้งเตือน
+Set the printed total,แก้ยอดรวมตามเอกสารแล้ว
+Setting the printed total,กำลังแก้ยอดรวมตามเอกสาร
 Setup Auto Email,ตั้งค่าอีเมลอัตโนมัติ
 Several Express customers have this tax ID. Choose the customer and submit again,มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
 Several Express suppliers have this tax ID. Choose the supplier and submit again,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
@@ -1588,6 +1592,8 @@ Value Change,มูลค่าที่เปลี่ยนแปลง
 Vehicle,รถยนต์
 Vehicles,รถยนต์
 View,มุมมอง
+Viewed a document,ดูเอกสารแล้ว
+Viewing a document,กำลังดูเอกสาร
 Visibility,การมองเห็น
 Void Reason,เหตุผลการยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ต้องการยกเลิกรายการตรวจนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ

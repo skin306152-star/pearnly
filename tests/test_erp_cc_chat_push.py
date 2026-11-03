@@ -332,7 +332,8 @@ class DeclarationTests(unittest.TestCase):
         self.assertEqual(sorted(names), sorted(tools.STEP_NAMES))
         self.assertEqual(set(names), {"erp_list_documents", "erp_push_documents", "erp_push_choices",
                                       "erp_save_push_choices", "erp_resolve_push_result", "erp_push_results",
-                                      "erp_pending"})
+                                      "erp_pending", "erp_document_detail", "erp_document_original",
+                                      "erp_set_printed_total"})
         for tool in tools.TOOLS:
             module, _sep, func = tool["handler"].rpartition(".")
             self.assertEqual(module, "pearnly_erp_portal.express.cc_tools")
@@ -351,6 +352,8 @@ class DeclarationTests(unittest.TestCase):
         source = "\n".join((COWORK / path).read_text(encoding="utf-8")
                             for path in ("assistant/tools.py", "assistant/company_tools.py"))
         for tool in tools.TOOLS:
+            if tool["name"] == "erp_set_printed_total":
+                continue  # 只有 ERP 有（Cowork 改票面用 cowork_edit_document）
             twin = "cowork_" + tool["name"][len("erp_"):]
             start = source.index(f'{{"name": "{twin}", "label": "{tool["label"]}"')  # 同名工具、同一个步骤名
             end = source.find('{"name": "cowork_', start + 10)
@@ -427,6 +430,61 @@ class PendingToolTests(unittest.TestCase):
         self.assertEqual(out["count"], pending.pending("CO-1")["count"])
         everything = call(tools.pending_items, all_companies=True)
         self.assertEqual(sorted(row["document"] for row in everything["items"]), ["P:PUR-7", "P:PUR-9"])
+
+
+class PrintedTotalToolTests(unittest.TestCase):
+    """CC 补票面合计（只这一栏，已提交的单也能改）：必须带依据；原生版本记录 + 依据记录；停在票面合计上的单当场重新写账，
+    写进账本的不能改；单据详情的 checks 说清为什么停下。"""
+
+    def setUp(self):
+        reset()
+        from unittest import mock
+        self.made = []
+        STATE.db.set_value = lambda doctype, name, field, value=None, update_modified=True: \
+            STATE.db.table(doctype)[name].update(field if isinstance(field, dict) else {field: value})
+        self.addCleanup(lambda: delattr(STATE.db, "set_value"))
+        for name, value in (("get_doc", lambda values: types.SimpleNamespace(
+                insert=lambda ignore_permissions=False: self.made.append(values))),
+                            ("as_json", lambda value: json.dumps(value, default=str)),
+                            ("parse_json", json.loads)):
+            patcher = mock.patch.object(frappe, name, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_cc_sets_the_printed_total_with_a_basis_and_the_held_document_is_written(self):
+        row = doc(PURCHASE, "PUR-7", reason=E.PRINTED_TOTAL_MISSING, ocr_review='{"codes":["total_missing"],"total":null}',
+                  printed_total=0)
+        refused = call(tools.set_printed_total, document="P:PUR-7", value="1070.00")
+        self.assertEqual(refused["status"], "not_saved")  # 没有依据不改
+        self.assertEqual(row["printed_total"], 0)
+        out = call(tools.set_printed_total, document="P:PUR-7", value="1,070.00", basis="page 2 of the original")
+        self.assertEqual((out["status"], out["printed_total"], out["released"]), ("saved", 1070.0, True))
+        self.assertIn(("send", PURCHASE, "PUR-7"), [call_[:3] for call_ in CALLS])  # 当场重新写账
+        version, = [made for made in self.made if made["doctype"] == "Version"]
+        self.assertEqual(json.loads(version["data"]), {"changed": [["printed_total", 0.0, 1070.0]]})
+        basis, = [made for made in self.made if made["doctype"] == "Comment"]
+        self.assertEqual(json.loads(basis["content"])["basis"], "page 2 of the original")
+
+    def test_detail_says_why_a_recognized_document_is_held(self):
+        from unittest import mock
+        row = doc(PURCHASE, "PUR-7", reason=E.PRINTED_TOTAL_MISSING, ocr_review='{"codes":["total_missing"],"total":null}',
+                  printed_total=0, net_payable="1070.00", subtotal="1000.00", vat_amount="70.00", doc_no="IV-7",
+                  lines=[Row(description="Soap", qty=1, unit_price=1000, line_total=1000)],
+                  attachments=[Row(file="F1", kind="bill"), Row(file="F2", kind="bill", generated=1)])
+        with mock.patch.object(frappe, "get_doc", lambda doctype, name: Row(STATE.db.table(doctype)[name]), create=True):
+            out = call(tools.document_detail, document="P:PUR-7")
+        self.assertEqual((out["document"], out["total"], out["printed_total"], out["pages"]), ("P:PUR-7", "1070.00", 0, 1))
+        self.assertEqual(out["checks"], {"recognition": ["total_missing"], "printed_hold": E.PRINTED_TOTAL_MISSING,
+                                         "push": E.PRINTED_TOTAL_MISSING})
+        self.assertEqual(out["lines"][0]["amount"], 1000)
+        self.assertTrue(out["url"].endswith("/PUR-7"))
+        self.assertEqual(row["ledger_state"], "held")
+
+    def test_a_written_document_is_not_changed(self):
+        doc(PURCHASE, "PUR-8", state="written", ocr_review="{}", printed_total=100)
+        out = call(tools.set_printed_total, document="P:PUR-8", value="1070", basis="x")
+        self.assertEqual(out["status"], "not_saved")
+        self.assertEqual(STATE.db.table(PURCHASE)["PUR-8"]["printed_total"], 100)
 
 
 class ListTests(unittest.TestCase):

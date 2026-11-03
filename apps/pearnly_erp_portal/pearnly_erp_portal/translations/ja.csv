@@ -858,6 +858,7 @@ Open that product,その商品を開く
 "Open this page from LINE, or sign in to the site first",このページは LINE から開くか、先にサイトへログインしてください
 Opened At,開始時刻
 Opened at {0},開始 {0}
+Opened the original,原本を開きました
 Opening,期首
 Opening Amount,開始金額
 Opening Balance,開始残高
@@ -880,6 +881,7 @@ Opening stock items,期首在庫明細
 Opening stock must use the product base unit,期首在庫は商品の基準単位で入力してください
 Opening stock review,期首在庫の確認
 Opening stock review is not configured,期首確認の設定がありません。管理者に連絡してください
+Opening the original,原本を開いています
 Opening unit cost,期首在庫単価
 Opening value,期首金額
 Options (one per line),選択肢（1行に1つ）
@@ -1196,6 +1198,8 @@ Service or stock item?,サービスですか、在庫品ですか？
 Set as current,現在の会社にする
 Set due date,期日を N 日後に設定
 Set reminder,リマインダー
+Set the printed total,伝票の合計を設定しました
+Setting the printed total,伝票の合計を設定しています
 Setup Auto Email,自動メールを設定
 Several Express customers have this tax ID. Choose the customer and submit again,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
@@ -1588,6 +1592,8 @@ Value Change,金額変動
 Vehicle,車両
 Vehicles,自動車
 View,表示
+Viewed a document,書類を確認しました
+Viewing a document,書類を確認しています
 Visibility,公開範囲
 Void Reason,取消理由
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。

@@ -858,6 +858,7 @@ Open that product,Open that product
 "Open this page from LINE, or sign in to the site first","Open this page from LINE, or sign in to the site first"
 Opened At,Opened At
 Opened at {0},Opened at {0}
+Opened the original,Opened the original
 Opening,Opening
 Opening Amount,Opening Amount
 Opening Balance,Opening Balance
@@ -880,6 +881,7 @@ Opening stock items,Opening stock items
 Opening stock must use the product base unit,Opening stock must use the product base unit
 Opening stock review,Opening stock review
 Opening stock review is not configured,Opening stock review is not configured
+Opening the original,Opening the original
 Opening unit cost,Opening unit cost
 Opening value,Opening value
 Options (one per line),Options (one per line)
@@ -1196,6 +1198,8 @@ Service or stock item?,Service or stock item?
 Set as current,Set as current
 Set due date,Set due date
 Set reminder,Set reminder
+Set the printed total,Set the printed total
+Setting the printed total,Setting the printed total
 Setup Auto Email,Setup Auto Email
 Several Express customers have this tax ID. Choose the customer and submit again,Several Express customers have this tax ID. Choose the customer and submit again
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Several Express suppliers have this tax ID. Choose the supplier and submit again
@@ -1588,6 +1592,8 @@ Value Change,Value Change
 Vehicle,Vehicle
 Vehicles,Vehicles
 View,View
+Viewed a document,Viewed a document
+Viewing a document,Viewing a document
 Visibility,Visibility
 Void Reason,Void Reason
 Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.

@@ -146,6 +146,16 @@ def _pos_stuck(doctype, row, job) -> bool:
 
 
 @frappe.whitelist(methods=["POST"])
+def set_printed_total(doctype, name, value):
+    """单据页改「票面合计」（已提交的单也能改，只这一栏）：开单权同「再写一次」；停在票面合计上的单当场重新写账。"""
+    from pearnly_erp_portal.express import printed
+
+    _document(doctype, name, write=True)
+    printed.set_total(doctype, name, value)
+    return _view(doctype, _document(doctype, name))
+
+
+@frappe.whitelist(methods=["POST"])
 def mark_handled(doctype, name, reason=None):
     """人在 Express 里手工处理好了这张收银日汇总 / 退货单：标「已在 Express 手工处理」，不再写；撤掉还挂着的写账件。库存对齐把它
     当作已写进 Express（`masters.WRITTEN_STATES`）。"""

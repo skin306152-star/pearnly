@@ -858,6 +858,7 @@ Open that product,打开该物料
 "Open this page from LINE, or sign in to the site first",请从 LINE 打开本页，或先登录站点
 Opened At,开班时间
 Opened at {0},开班时间 {0}
+Opened the original,查看了原件
 Opening,期初
 Opening Amount,期初金额
 Opening Balance,期初余额
@@ -880,6 +881,7 @@ Opening stock items,期初库存明细
 Opening stock must use the product base unit,期初库存必须使用物料的库存单位
 Opening stock review,期初库存核对
 Opening stock review is not configured,期初核对配置缺失，请联系管理员
+Opening the original,正在打开原件
 Opening unit cost,期初成本单价
 Opening value,期初金额
 Options (one per line),选项（每行一个）
@@ -1196,6 +1198,8 @@ Service or stock item?,请选择服务或库存商品
 Set as current,设为当前
 Set due date,到期日设为 N 天后
 Set reminder,设置提醒
+Set the printed total,改了票面合计
+Setting the printed total,正在改票面合计
 Setup Auto Email,设置自动邮件
 Several Express customers have this tax ID. Choose the customer and submit again,Express 中有多个客户使用此税号，请选择客户后重新提交
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express 中有多个供应商使用此税号，请选择供应商后重新提交
@@ -1588,6 +1592,8 @@ Value Change,金额变动
 Vehicle,车
 Vehicles,汽车
 View,显示方式
+Viewed a document,查看了单据详情
+Viewing a document,正在查看单据详情
 Visibility,可见范围
 Void Reason,撤销原因
 Void all current observations for this product and recount it? Previous records remain in the history.,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。

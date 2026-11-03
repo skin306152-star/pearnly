@@ -1868,3 +1868,9 @@ The printed total is missing	没有票面合计	ไม่มียอดรว�
 The total does not match the printed total	合计与票面合计不一致	ยอดรวมไม่ตรงกับยอดรวมตามเอกสาร	合計が伝票の合計と一致しません	express.reason.printedTotalMismatch
 Checked pending items	查看了待处理	ตรวจสอบรายการรอดำเนินการแล้ว	処理待ちの項目を確認しました
 Checking pending items	正在查看待处理	กำลังตรวจสอบรายการรอดำเนินการ	処理待ちの項目を確認しています
+Viewed a document	查看了单据详情	ดูเอกสารแล้ว	書類を確認しました
+Opened the original	查看了原件	เปิดต้นฉบับแล้ว	原本を開きました
+Viewing a document	正在查看单据详情	กำลังดูเอกสาร	書類を確認しています
+Opening the original	正在打开原件	กำลังเปิดต้นฉบับ	原本を開いています
+Set the printed total	改了票面合计	แก้ยอดรวมตามเอกสารแล้ว	伝票の合計を設定しました
+Setting the printed total	正在改票面合计	กำลังแก้ยอดรวมตามเอกสาร	伝票の合計を設定しています

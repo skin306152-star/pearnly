@@ -356,6 +356,122 @@ def push_results(tool_input) -> str:
 
 PENDING_MAX = 50
 BY_DOCTYPE = {kind.doctype: kind for kind in KINDS.values()}
+LINES_SHOWN = 40
+ORIGINAL_PAGES_MAX = 3
+FILES_NOTE = ("Added to this conversation: the user opens them in the chat. They were not saved to any folder on the "
+              "user's computer.")
+
+
+def _review(raw) -> dict:
+    try:
+        found = json.loads(raw) if raw else {}
+    except ValueError:
+        found = {}
+    return found if isinstance(found, dict) else {}
+
+
+def _readable(tool_input, write=False, load=True):
+    """CC 查 / 改的这张采购或销售单：(Kind, 单号, 文档；``load`` 为假时不取文档) 或 (None, None, 失败结果)。"""
+    kind, name = _parse(tool_input.get("document"))
+    if not kind or kind.doctype not in (push.PURCHASE, push.SALES):
+        return None, None, {"status": direct_push.FAILED, "reason": "not_found: pass a P: or S: document from erp_pending "
+                                                                    "or erp_list_documents"}
+    row = _row(kind, name, write=write)
+    if row is None or row == NOT_PERMITTED:
+        return None, None, {"document": tool_input.get("document"), "status": direct_push.FAILED,
+                            "reason": NOT_PERMITTED if row == NOT_PERMITTED else "not_found"}
+    return kind, name, frappe.get_doc(kind.doctype, name) if load else None
+
+
+def document_detail(tool_input) -> str:
+    """ERP 单据详情（2026-11-03「CC 通用疑难处理」）：表头、金额、票面合计、明细、写账状态与原因；``checks`` 给识别复核码、
+    识别读到的合计、写账前核对的结论（`contracts.printed_hold`）；``edits`` 改动依据。CC 据此去看原件、问人。"""
+    kind, name, doc = _readable(tool_input)
+    if not kind:
+        return direct_push.dumps(doc)
+    review = _review(doc.get("ocr_review"))
+    party = doc.get("supplier_name") if kind.doctype == push.PURCHASE else doc.get("buyer_name")
+    out = {"document": _doc_id(kind, name), "status": doc.status, "kind": doc.get("doc_kind"),
+           "number": doc.get(kind.number) or name, "document_number": doc.get("doc_no") or "",
+           "date": str(doc.get("doc_date") or ""), "counterparty": party or "",
+           "subtotal": doc.get("subtotal"), "discount": doc.get("discount_total"), "vat": doc.get("vat_amount"),
+           "total": doc.get("grand_total"), "printed_total": doc.get("printed_total") if doc.get("ocr_review") else None,
+           "lines": [{"description": line.description, "qty": line.qty, "unit_price": line.unit_price,
+                      "amount": line.get("line_total") if line.get("line_total") is not None else line.get("amount")}
+                     for line in (doc.get("lines") or [])[:LINES_SHOWN]],
+           "lines_total": len(doc.get("lines") or []), "pages": len(_originals(doc)),
+           "push_state": doc.get("ledger_state") or "", "push_reason": doc.get("ledger_reason") or "",
+           "docnum": doc.get("ledger_docnum") or "", "url": pending._url({"doctype": kind.doctype, "name": name,
+                                                                          "direction": ""})}
+    if doc.get("ocr_review"):
+        hold = contracts.printed_hold(True, doc.get("printed_total"), doc.get("grand_total"), doc.get("net_payable"))
+        out["checks"] = {key: value for key, value in {
+            "recognition": review.get("codes") or [], "read_total": review.get("total"), "printed_hold": hold or "",
+            "push": doc.get("ledger_reason") or ""}.items() if value not in (None, "", [])}
+    from pearnly_erp_portal.express import printed
+
+    edits = printed.edits(kind.doctype, name)
+    if edits:
+        out["edits"] = edits
+    return direct_push.dumps(out)
+
+
+def _originals(doc) -> list:
+    """单据附的原件（票据在前，付款凭证在后；系统生成的不算）：File 名单。"""
+    rows = [row for row in doc.get("attachments") or [] if row.get("file") and not row.get("generated")]
+    return [row.file for row in sorted(rows, key=lambda row: 0 if (row.get("kind") or "bill") == "bill" else 1)]
+
+
+def document_original(tool_input) -> str:
+    """原件页图放进对话（同 Cowork `cowork_document_original`）：几份附件按顺序连起来编页码，默认前 3 页。"""
+    from pearnly_core.assistant import files as chat_files
+    from pearnly_core.originals import checks as originals, registered
+
+    kind, name, doc = _readable(tool_input)
+    if not kind:
+        return direct_push.dumps(doc)
+    pages = []  # (File, 类型, 这份里的第几页)
+    for file in _originals(doc):
+        content = registered.content(file)
+        filename = frappe.db.get_value("File", file, "file_name") or file
+        try:
+            facts = originals.inspect(filename, content)
+        except originals.Rejected:
+            continue
+        pages += [(file, facts["kind"], number, content) for number in range(1, (facts["page_count"] or 1) + 1)]
+    wanted = [int(tool_input["page"])] if tool_input.get("page") else list(range(1, min(len(pages), ORIGINAL_PAGES_MAX) + 1))
+    shown = []
+    for number in wanted:
+        if not 1 <= number <= len(pages):
+            continue
+        _file, file_kind, index, content = pages[number - 1]
+        picture = originals.render_page(file_kind, content, index)
+        mime = originals.preview_type(picture)
+        shown.append(chat_files.add_to_conversation(f"{name}-p{number}.{'jpg' if mime == 'image/jpeg' else 'png'}",
+                                                    picture, mime))
+    frappe.db.commit()
+    out = {"document": _doc_id(kind, name), "pages_total": len(pages), "files": shown}
+    return direct_push.dumps({**out, "files_added_to_chat": True, "files_note": FILES_NOTE} if shown else out)
+
+
+def set_printed_total(tool_input) -> str:
+    """补 / 改票面合计（已提交的单也能改，只这一栏）：必须带依据；停在票面合计上的单当场重新写账（`printed.set_total`）。"""
+    from pearnly_erp_portal.express import printed
+
+    basis = str(tool_input.get("basis") or "").strip()
+    if not basis:
+        return direct_push.dumps({"status": "not_saved", "reason": "Pass basis: what the printed total is based on (the "
+                                                                   "original's page, the user's words)."})
+    kind, name, failed = _readable(tool_input, write=True, load=False)
+    if not kind:
+        return direct_push.dumps(failed)
+    try:
+        result = printed.set_total(kind.doctype, name, tool_input.get("value"), basis=basis, by="cc")
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return direct_push.dumps({"document": _doc_id(kind, name), "status": "not_saved", "reason": str(error)[:300]})
+    return direct_push.dumps({"document": _doc_id(kind, name), "status": "saved", **result})
 
 
 def pending_items(tool_input) -> str:
@@ -586,12 +702,43 @@ TOOLS = [
                     "before they can be written into Express, with the reason. For a recognized purchase or sales "
                     "document, checks has the recognition review codes, the printed total on the document (a field the "
                     "user can edit; read_total is what recognition read) and the document total; a document is held "
-                    "when the printed total is missing or differs from the document total. A submitted document is "
-                    "changed with Amend on its page (url), which makes a corrected copy that is written instead; CC "
-                    "does not change it itself. In a conversation filed under a company it covers only that company "
+                    "when the printed total is missing or differs from the document total: look at it with "
+                    "erp_document_detail and erp_document_original, and set the printed total with "
+                    "erp_set_printed_total when the original shows it. Items are corrected with Amend on the "
+                    "document's page (url), which makes a corrected copy. In a conversation filed under a company it covers only that company "
                     "unless all_companies is true.",
      "input_schema": {"type": "object", "properties": {"search": {"type": "string"}, **SCOPE_PROPS}},
      "handler": "pearnly_erp_portal.express.cc_tools.pending_items"},
+    {"name": "erp_document_detail", "label": "Viewed a document",
+     "description": "One purchase or sales document (P: or S: from erp_pending or erp_list_documents): header, amounts, "
+                    "items, how many original pages it has, its push state and reason, and url (its page). For a "
+                    "recognized document, printed_total is the total printed on the original (a field the user and you "
+                    "can set) and checks has the recognition review codes, read_total (what recognition read) and "
+                    "printed_hold (why it is held before Express: the printed total is missing or differs from the "
+                    "document total). edits lists the changes made with their basis. Look at the original with "
+                    "erp_document_original to find the cause.",
+     "input_schema": {"type": "object", "properties": {"document": {"type": "string"}}, "required": ["document"]},
+     "handler": "pearnly_erp_portal.express.cc_tools.document_detail"},
+    {"name": "erp_document_original", "label": "Opened the original",
+     "description": "Put the original page image(s) of a purchase or sales document into this conversation: its "
+                    "attached originals in order, pages numbered across them. The first 3 pages unless page is given. "
+                    "Look at them to find why a document is held (a missing page, a misread number).",
+     "input_schema": {"type": "object", "properties": {"document": {"type": "string"},
+                                                        "page": {"type": "integer", "minimum": 1}},
+                      "required": ["document"]},
+     "handler": "pearnly_erp_portal.express.cc_tools.document_original"},
+    {"name": "erp_set_printed_total", "label": "Set the printed total",
+     "description": "Set the printed total of a recognized purchase or sales document, also when it is submitted (only "
+                    "this field; it is kept in the document's history). Only with a basis: the total as printed on the "
+                    "original page you looked at, or the user's words. A document held for its printed total is written "
+                    "into Express right after (the result has its push state). It does not change items or amounts: "
+                    "when the items are wrong or missing, the user corrects them with Amend on the document's page (url), "
+                    "which makes a corrected copy; give them the link.",
+     "input_schema": {"type": "object", "properties": {
+         "document": {"type": "string"}, "value": {"type": ["string", "number"]},
+         "basis": {"type": "string", "description": "What the value is based on, in a few words."}},
+         "required": ["document", "value", "basis"]},
+     "handler": "pearnly_erp_portal.express.cc_tools.set_printed_total"},
     {"name": "erp_push_results", "label": "Checked push results",
      "description": "Show recent push results of ERP documents: those that failed or stopped (with the reason), are "
                     "pending (on their way to Express), or succeeded (entered, with the Express number). In a "
@@ -607,6 +754,9 @@ TOOLS = [
 STEP_NAMES = {
     "erp_list_documents": "Listing documents",
     "erp_pending": "Checking pending items",
+    "erp_document_detail": "Viewing a document",
+    "erp_document_original": "Opening the original",
+    "erp_set_printed_total": "Setting the printed total",
     "erp_push_documents": "Pushing documents",
     "erp_push_choices": "Checking push choices",
     "erp_save_push_choices": "Saving push choices",

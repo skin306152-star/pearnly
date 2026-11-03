@@ -107,12 +107,14 @@
 			...[["discount_total", "Discount Total"], ["vat_amount", "VAT"],
 				["grand_total", "Grand Total"]].map(([key, label]) => f(key, label, "Currency", {read_only: 1})),
 			// 识别来的单才有（写账前与合计核对，`express.contracts.printed_hold`）；识别后显示
-			f("printed_total", "Printed Total", "Currency", {hidden: !(state.doc.ocr_review || state.intake)}),
+			f("printed_total", "Printed Total", "Currency", {hidden: !(state.doc.ocr_review || state.intake), onchange: () => !state.editable && state.ready
+				&& p.save_printed_total("ERP Sales Document", state.doc, state.form?.get_value("printed_total"))}),
 			u.section(""), f("note", "Remarks", "Small Text"),
 			...(doc.void_reason ? [f("void_reason", "Reason for Cancellation", "Small Text", {read_only: 1})] : []),
 		].map(field => ({...field,
 			read_only: ["Button", "HTML", "Tab Break", "Section Break", "Column Break"].includes(field.fieldtype)
-				|| field.fieldname === "attachment_kind" ? field.read_only : !editable || field.read_only,
+				|| field.fieldname === "attachment_kind" ? field.read_only
+				: field.fieldname === "printed_total" ? !p.printed_editable(state.doc, state.editable) : !editable || field.read_only,
 			onchange: async function() { await field.onchange?.call(this); if (editable && !field.read_only) change(); },
 			...(field.fieldtype === "Currency" ? {options: "currency", formatter: value => p.money(value)} : {})}));
 	};

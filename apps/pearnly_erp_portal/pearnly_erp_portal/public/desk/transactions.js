@@ -106,6 +106,16 @@
 	const UNIT_KINDS = { vehicle: "vehicle", device: "device" };
 	p.unit_kind = () => UNIT_KINDS[(frappe.boot.pearnly_companies || []).find(row => row.is_current)?.company_type] || "";
 	p.unit_tracking = () => Boolean(p.unit_kind());
+	// 识别来的单的「票面合计」（写账前与合计核对）：草稿随表单改；已提交、还没写进账本的单也能单独改这一栏（服务端
+	// `express.api.set_printed_total` 留版本记录，停在票面合计上的单当场重新写账）
+	p.printed_editable = (doc, editable) => editable || (doc.status === "submitted" && Boolean(doc.ocr_review)
+		&& !["written", "mismatch"].includes(doc.ledger_state));
+	p.save_printed_total = async (doctype, doc, value) => {
+		if (!value || flt(value) === flt(doc.printed_total)) return;
+		await p.call("pearnly_erp_portal.express.api.set_printed_total", {doctype, name: doc.name, value}, "POST");
+		doc.printed_total = value;
+		p.success(__("Saved"));
+	};
 	p.terminal_query = () => ({
 		filters: {company: frappe.boot.pearnly_company || "", is_active: 1},
 	});
