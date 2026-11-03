@@ -23,6 +23,8 @@ from pearnly_core.express_rules.contracts import pos as pos_contract
 
 from pearnly_erp_portal.express import contracts, pos_day, prepare, stock_entry
 from pearnly_erp_portal.masters import company as companies
+from pearnly_erp_portal import mrerp
+from pearnly_erp_portal.mrerp import contracts as mrerp_contracts, push as mrerp_push
 
 SALES = "ERP Sales Document"
 PURCHASE = "Purchase Document"
@@ -128,6 +130,10 @@ def queue(doctype, name):
     doc = frappe.db.get_value(doctype, name, fields, as_dict=True)
     if doc and doctype in (STOCK, COUNT):
         doc.company = stock_entry.company_of(name, doctype)
+    if doc and mrerp_push.handles(doc.company):
+        # 这家公司的账本是 MR.ERP（`pearnly_erp_portal.mrerp`，功能开着才有）：交给 MR.ERP 导入直写，不排 Express
+        mrerp_push.queue(doctype, doc)
+        return
     if not doc or doc.ledger_state or not _eligible(doctype, doc):
         return
     frappe.db.set_value(doctype, name, {"ledger_state": contracts.QUEUED, "ledger_reason": "",
@@ -380,7 +386,9 @@ def send(doctype, name, operator=None):
     if not operator and operator_owned(doctype, name):
         return {"status": "held", "reason": contracts.OPERATOR_OWNED}
     row = frappe.db.get_value(doctype, name, ["name", "creation", "status", "owner", "ledger_state",
-                                              "ledger_job", "ledger_reason"], as_dict=True)
+                                              "ledger_job", "ledger_reason", "ledger_target"], as_dict=True)
+    if row and row.ledger_target == mrerp_contracts.LEDGER_MRERP and mrerp.enabled():
+        return mrerp_push.send(doctype, name)  # 账本是 MR.ERP 的单（「再写一次」、对话直写）：走 MR.ERP 导入直写
     if not row or row.status != ready(doctype) or row.ledger_job or row.ledger_state not in contracts.OPEN_STATES:
         return {"status": "already_queued" if row and row.ledger_job else "not_ready"}
     company = company_of(doctype, name)
@@ -445,6 +453,11 @@ def send(doctype, name, operator=None):
     if unmapped:
         return {"status": "held", "reason": contracts.WAREHOUSE_UNMAPPED}
     return {"status": "sent"}
+
+
+def mrerp_run(doctype, name):
+    """（后台任务）账本是 MR.ERP 的单导入一次（`mrerp.push.run`）：建单据仍用本模块的 :func:`document`（交给写账规则的同一形状）。"""
+    return mrerp_push.run(doctype, name, document)
 
 
 def detach(company) -> int:
@@ -736,9 +749,12 @@ def poll():
     一条带索引的查询。"""
     for doctype in DIRECTIONS:
         rows = frappe.get_all(doctype, filters={"ledger_state": ["in", contracts.OPEN_STATES], "status": ready(doctype)},
-                              fields=["name", "owner", "ledger_state", "ledger_reason", "ledger_job", "ledger_book"],
+                              fields=["name", "owner", "ledger_state", "ledger_reason", "ledger_job", "ledger_book",
+                                      "ledger_target"],
                               order_by="modified asc", limit_page_length=POLL_MAX)
         for row in rows:
+            if row.ledger_target == mrerp_contracts.LEDGER_MRERP:
+                continue  # MR.ERP 的单由 `mrerp.push.poll` 看
             if not row.ledger_job and (row.ledger_state == contracts.QUEUED
                                         or (row.ledger_reason or "") in contracts.RETRY_REASONS):
                 send(doctype, row.name)
@@ -747,3 +763,4 @@ def poll():
                 if note != (row.ledger_reason or ""):
                     _set(doctype, row.name, {"ledger_reason": note})
         frappe.db.commit()
+    mrerp_push.poll()  # 功能关着时直接返回

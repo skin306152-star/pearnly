@@ -28,6 +28,8 @@ from pearnly_core.assistant import direct_push
 from pearnly_core.cc_desktop import jobs
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.express import api, contracts, pending, push
+from pearnly_erp_portal import mrerp
+from pearnly_erp_portal.mrerp import contracts as mrerp_contracts, push as mrerp_push
 
 Kind = namedtuple("Kind", "code prefix doctype date number party amount by_warehouse search")
 KINDS = {
@@ -155,6 +157,13 @@ def _outcome(kind, name) -> dict:
         if reason in OFFLINE:
             out["cc_desktop_online"] = False
         return out
+    if state == contracts.HELD and mrerp_push.handles(row.company):
+        # 账本是 MR.ERP（功能开着才有）：结果不明不再推、要人选先选，其余如实写原因
+        if reason.startswith(mrerp_contracts.UNKNOWN):
+            return {"status": direct_push.UNCONFIRMED, **_reason(state, reason)}
+        if reason == mrerp_contracts.CHOICE:
+            return {"status": direct_push.NEEDS_CHOICE, **_reason(state, reason)}
+        return {"status": direct_push.FAILED, **_reason(state, reason)}
     job = _job(row)
     if state == contracts.HELD:
         if push.operator_owned(kind.doctype, name):
@@ -171,7 +180,12 @@ def _outcome(kind, name) -> dict:
 
 
 def _route(kind, name, row) -> str:
-    """按这家公司的账本目标交直写（现在只有 Express；MR.ERP 接进来后在这里加分支）。回 ``sent`` 或交不了的结论码。"""
+    """按这家公司的账本目标交直写：MR.ERP（`mrerp.push`，功能开着、公司选了 MR.ERP 账套）走导入直写，其余 Express。
+    回 ``sent`` 或交不了的结论码。"""
+    if mrerp_push.handles(row.company):
+        if row.ledger_state == contracts.HELD and row.ledger_reason == mrerp_contracts.CHOICE:
+            return ""  # 要人选一次：先选（erp_save_push_choices 选完当场再交）
+        return "sent" if mrerp_push.send(kind.doctype, name).get("status") == "sent" else ""
     view = api._view(kind.doctype, row)
     if view.get("needed"):
         return ""  # 要人选一次：先选（erp_save_push_choices 选完当场再交）
@@ -182,6 +196,14 @@ def _route(kind, name, row) -> str:
         push.send(kind.doctype, name)  # 提交时排直写的同一个函数（停在会自己好的原因上时每分钟也是它）
         return "sent"
     return ""
+
+
+def _mrerp_view(kind, row) -> dict:
+    """账本是 MR.ERP 的单要人选的项（停在单据上的 ``ledger_needed``，`mrerp.push`）与能不能选（开单权）。"""
+    needed = []
+    if row.ledger_state == contracts.HELD and row.ledger_reason == mrerp_contracts.CHOICE:
+        needed = api._needed(row)
+    return {"needed": needed, "can_answer": bool(needed) and guard.has(api.CAPABILITIES[kind.doctype][1])}
 
 
 def _push_one(document, tool_input) -> dict:
@@ -199,7 +221,7 @@ def _push_one(document, tool_input) -> dict:
         return {"document": document, "status": direct_push.ALREADY_SUCCESS, "docnum": row.ledger_docnum or ""}
     if state == contracts.QUEUED and row.ledger_job:
         return {"document": document, "status": direct_push.ALREADY_PENDING}
-    if not push.enabled(row.company):
+    if not push.enabled(row.company) and not mrerp_push.handles(row.company):
         return {"document": document, "status": direct_push.FAILED, **_reason(contracts.HELD, contracts.DISCONNECTED)}
     if push.operator_owned(kind.doctype, name):
         return {"document": document, "status": WITH_OPERATOR, **_reason(contracts.HELD, contracts.OPERATOR_OWNED)}
@@ -355,7 +377,7 @@ def push_choices(tool_input) -> str:
     row = _row(kind, name) if kind else None
     if row is None:
         return direct_push.dumps(direct_push.not_found(document))
-    view = api._view(kind.doctype, row)
+    view = _mrerp_view(kind, row) if mrerp_push.handles(row.company) else api._view(kind.doctype, row)
     search = str(tool_input.get("search") or "").strip().casefold()
     needed = [{**{key: value for key, value in item.items() if key != "options"}, "options": _options(item, search)}
               for item in view.get("needed") or []]
@@ -379,8 +401,14 @@ def save_push_choices(tool_input) -> str:
                                   "company_title": _company_title(row.company)})
     answers = [{"kind": str(item.get("kind") or ""), "subject": str(item.get("subject") or ""),
                 "value": str(item.get("value") or "")} for item in tool_input.get("items") or [] if isinstance(item, dict)]
+    if mrerp_push.handles(row.company):
+        if not mrerp_push.answer(kind.doctype, name, answers):  # MR.ERP 的菜单 / 默认值：记在公司上，再排导入
+            frappe.db.rollback()
+            return direct_push.dumps(direct_push.not_saved(document, _("Invalid request")))
+        answers = None
     try:
-        api.answer(kind.doctype, name, answers)  # 单据上的「选一次」：记在这家公司名下，当场再准备、交直写
+        if answers is not None:
+            api.answer(kind.doctype, name, answers)  # 单据上的「选一次」：记在这家公司名下，当场再准备、交直写
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
@@ -419,7 +447,8 @@ def resolve_push_result(tool_input) -> str:
 
 # ---------------- 声明 ----------------
 
-PROGRAM = "Express"  # 账本程序的叫法（MR.ERP 接进来后改成 "Express or MR.ERP"，同 Cowork）
+# 账本程序的叫法：MR.ERP 账本开着时 "Express or MR.ERP"（同 Cowork），关着时照旧
+PROGRAM = "Express or MR.ERP" if mrerp.MRERP_LEDGER_ENABLED else "Express"
 QUEUED_NOTE = ("queued: sent, but Express has not reported a result yet (CC Desktop on the computer that writes it may "
                "be offline: it is entered once CC Desktop is back). Tell the user it is queued; check later with "
                "erp_push_results when they ask. Do not wait or sleep. A queued document is not entered yet: never say "

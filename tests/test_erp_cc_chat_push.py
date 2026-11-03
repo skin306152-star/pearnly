@@ -131,8 +131,14 @@ frappe.PermissionError = PermissionError_
 frappe.DoesNotExistError = DoesNotExistError
 frappe.ValidationError = ValidationError
 frappe.clear_messages = lambda: None
-frappe.utils = types.SimpleNamespace(get_system_timezone=lambda: "Asia/Bangkok")
-sys.modules["frappe"] = frappe
+frappe.utils = types.ModuleType("frappe.utils")
+frappe.utils.get_system_timezone = lambda: "Asia/Bangkok"
+frappe.utils.now_datetime = datetime.datetime.now
+frappe.utils.get_datetime = lambda value: value
+frappe.utils.password = types.ModuleType("frappe.utils.password")
+frappe.utils.password.get_decrypted_password = lambda *args, **kwargs: ""
+frappe.__path__ = []  # 当包：MR.ERP 账本（`mrerp`）的模块从 frappe.utils 导入
+sys.modules.update({"frappe": frappe, "frappe.utils": frappe.utils, "frappe.utils.password": frappe.utils.password})
 
 
 def _module(name, **attrs):

@@ -368,6 +368,12 @@ pearnly_cc_desktop = {
     "books_changed": "pearnly_erp_portal.express.companies.books_changed",
     "kinds": ["express_masters", "express_marks"],
 }
+# MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7 条）：ERP 接 MR.ERP 当账本（`mrerp`）开着才声明；关着时与以前一样回 unsupported
+from pearnly_erp_portal import mrerp as _mrerp  # noqa: E402
+
+if _mrerp.MRERP_LEDGER_ENABLED:
+    pearnly_cc_desktop.update(mrerp_login_scope="pearnly_erp_portal.mrerp.connection.login_scope",
+                              mrerp_login_store="pearnly_erp_portal.mrerp.connection.login_store")
 
 # 产品自己的启动数据（多公司：能切哪几家、当前是哪家）。官方扩展点，见 boot.py。
 boot_session = "pearnly_erp_portal.masters.boot.boot_session"
