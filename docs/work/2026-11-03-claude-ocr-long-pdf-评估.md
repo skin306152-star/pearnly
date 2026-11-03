@@ -118,3 +118,57 @@
 3. 甲骨文零费用回放 539 份 + 付费录 11 份：约 30–40 分钟。
 4. 推分支等 Development checks、候选离线检查、合入 main：约 30–45 分钟。
 5. 甲骨文 claude-ocr 部署步骤写给主会话（先部署甲骨文、再部署生产；回退说明）。
+
+## 15. 审定（主会话 11-03）
+
+同意自适应分段，评估通过。三个条件，均有测试锁住（`tests/test_claude_ocr_segments.py`、`tests/test_claude_ocr_products.py` 的 `LongFiles`）：
+
+1. 一定读完：每段至少往后推进一页；本段的单都从本段第一页开始时，下一段从本段末页的下一页开始，续页按单号并入。段数上限 `segments.MAX_SEGMENTS = 16`：到上限还没读完时，最后一段之后的页记进 `pages_unread`，Cowork 标「读不出」，ERP 整份拒收（沿用已有文案「This PDF has more than {0} pages」，不扣费），不静默丢页。
+2. 不重复：段界那张单前一段读过、后一段又从它的起始页重读时，只留后一段那份（完整的）。
+3. 兼容：不超过 8 页的文件，请求与检查点键与原来逐字节相同；甲骨文是旧版（回复里没有 `page_total`，或页范围对不上）时站点抛「稍后重试」，不记账。
+
+## 16. 实现
+
+- `claude_ocr/segments.py`（新）：分段计划 `read_all`、下一段起点 `next_first`、合并 `merge`（页码换算、丢弃重读的单、续页并入、`documents[i]` 改写、费用与阶段拼接）。
+- `claude_ocr/engine.py`：`MAX_PAGES` 改名 `PAGES_PER_CALL`（每次调用的页数，不再是每份文件的上限）。
+- `claude_ocr/pages.py`：`prepare` / `jpeg` 按页范围只渲染需要的页；新增 `count` / `total`。
+- `claude_ocr/client.py`：`read`、`read_original`（整份）、`read_originals` 都走 `segments.read_all`，每段一个检查点；原件路第一段请求不带页范围（同原来），后面的段带 `page_range`、检查点键加 `:p首-末`；部署前存的、不知道总页数的检查点重读这一段。对账逐页读（`page=`）不变。
+- `claude_ocr/server.py`：认 `page_range`（校验：整数、1 ≤ 首 ≤ 末 ≤ 总页数、不超过一段），只渲染这几页，回复加 `page_total`、`page_range`。不带页范围时同原来读前 8 页。
+- Cowork `ocr/execution/claude.py`：去掉「第 9 页起读不出」，只按 `pages_unread` 标红。
+- ERP `recognition/claude.py`：有 `pages_unread` 时整份拒收。
+- `scripts/claude-ocr/gate.py`：回放 / 录制用每次调用页数，与生产同一分段。
+
+## 17. 甲骨文 claude-ocr 部署步骤（由主会话执行）
+
+**顺序：先甲骨文，后生产。** 新甲骨文 + 旧生产：旧生产不带页范围，新甲骨文照原来读前 8 页，只是回复多两个字段，旧生产不看——安全。旧甲骨文 + 新生产：原件路的回复没有 `page_total`，新生产一律「稍后重试」，原件识别会卡住排队——所以不能先上生产。
+
+1. 合入 main 后，在 main 的长期主目录确认 `git log -1` 是本任务合入的提交。
+2. 甲骨文现有镜像打备份标签（1 分钟回退用）：
+   `ssh -i ~/.ssh/oracle_free ubuntu@213.35.126.34 'sudo docker tag pearnly-claude-ocr pearnly-claude-ocr:before-long-pdf-20261103'`
+3. 从 main 部署：`bash scripts/claude-ocr/deploy.sh`（不带 `--secrets`，令牌、证书、密钥都不变；生产 runtime.env 不用动）。
+4. 回读：`docker ps` 里 `pearnly-claude-ocr` 是 Up；在甲骨文上核对新代码生效：
+   `ssh … 'sudo docker exec pearnly-claude-ocr grep -c page_range /app/pearnly_core/claude_ocr/server.py'` 应大于 0（镜像里代码在 `/app`）。
+5. 甲骨文确认后，再按生产部署步骤（`scripts/production/deploy.sh`，先 `--dry-run`）部署包含本提交的生产镜像。
+6. 上线后验收（付费小样本，由主会话安排）：Cowork 与 ERP 各传一份 9 页以上的 PDF（BJC 那份即可），看整份读完、跨页单合成一张、Cowork 没有标红的「读不出」页。
+
+**回退**：先回退生产（旧生产对新甲骨文兼容），再视需要回退甲骨文：
+`ssh … 'sudo docker rm -f pearnly-claude-ocr'` 后用 `pearnly-claude-ocr:before-long-pdf-20261103` 按 deploy.sh 里同样的 `docker run` 参数起。只回退甲骨文而生产还是新版时，原件路识别会一直「稍后重试」。
+
+## 18. 验证结果（分支提交 `27bc9bac0`，11-03）
+
+| 层 | 结果 |
+| --- | --- |
+| 本地单元 | `test_claude_ocr_segments.py` 14 条、`test_claude_ocr_rules.py` 23 条、`test_claude_ocr_products.py` 30 条（含 `LongFiles` 8 条）、`test_cowork_originals_edge.py` 7 条通过 |
+| 本地闸门 | 架构 0 违规；文案 新增 0 / 改动 0；大数据量闸门通过；`check-impact` 命中共用件 ocr（入口见下） |
+| 生产镜像候选离线检查 | `ci-candidate-checks.sh offline`（最新生产镜像 + 本分支 apps 挂载）100 步全部通过，`test_recon_originals.py` 9 条、`test_originals_registered.py` 15 条在内 |
+| 回放（零费用） | 549 份基准：main 代码与本分支逐份比对，**≤ 8 页的全部完全一致**（Cowork 542 行、ERP 539 行，除耗时外每个字段相同）；不同的只有 10 份真实 > 8 页的（新代码要后面的段） |
+| 10 份 > 8 页历史样本（付费录后面的段） | 4 份一页一票（18–27 页，Express 能对上 91 张）：旧代码漏 60 张，新代码 **0 张漏读**，93 页全部读出；字段 旧 0/232 错、新 1/666 错（0.15%）。这 1 格在新读出的第 14/15 页（两张同日同额 802.50 的单，Express 号 IV6906028 被匹配到我们读的 IV69/06-027；Haiku 与 Opus 读法相同），前 8 页读法与旧代码逐字相同。6 份税报清单（9–20 页）：旧代码因第 9 页起「读不出」整份落「待复核」，新代码判为非票据、不录（与它们 ≤ 8 页时的口径一致）。|
+| BJC 12 页（本机实读） | 2 段（1–8、8–12），**11 张**；第 9–10 页合成一张（第 9 页，15 行明细）；第 1 页 211067100410、第 7 页 221067100014 合计留空，进复核原因（`documents[0].total missing`、`documents[6].total missing`），没有编数；Cowork 11 张、ERP 11 张 |
+
+花费（6QAA 评测密钥，硬上限 8 美元）：BJC 0.51 + 10 份长样本录音 2.23 = **2.74 美元**，已记 `~/pearnly-devtools/test-window/round12/ocr-spend.md`。
+
+耗时：BJC 两段顺序读共约 200 秒（第一段 8 页明细密，Haiku 输出到 16000 上限读不出、整段升 Opus，这是原来 8 页文件就有的情况，本次未改）；27 页约 170 秒。
+
+连带回归（`check-impact`）：`cowork.ocr`、`erp.ocr`、`shared.ocr.pipeline` 由上面的产品代码路径回放 + 付费小样本覆盖（Cowork `recognize` → 存档前一步、ERP 采购 `read_all` → `_structured`）；`dms.ocr.id-card`、对账逐页读不经过分段（单图 / 带 `page=`），单元测试覆盖、行为不变；`shared.originals.download`、盘点 / 出入库附件不调用识别读法，不受影响。真实站点入口（上传 → 识别 → 存档 → 推送）**没测到**：要等甲骨文先部署新版（原件路依赖 `page_range`），由主会话按第 17 节顺序部署后在生产测试租户补测。
+
+另报一项观察（不在本次范围）：8 页一段对明细很密的单，Haiku 会输出超限读不出、整段改走 Opus（BJC 第一段 0.31 美元）。
