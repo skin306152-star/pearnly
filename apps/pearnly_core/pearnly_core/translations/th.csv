@@ -760,6 +760,7 @@ This identity is already bound to account {0} (record {1}),ตัวตนนี
 This identity is already bound to {0},ตัวตนนี้ผูกกับ {0} แล้ว
 This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up),ตัวตนนี้ยังไม่ได้ลงทะเบียนในเว็บไซต์นี้ กรุณาติดต่อผู้ดูแลระบบเพื่อขอคำเชิญแล้วลองใหม่ (เว็บไซต์นี้ไม่เปิดให้สมัครใช้งานด้วยตนเอง)
 This invoice has already been recorded: {0},ใบกำกับภาษีนี้บันทึกไว้แล้ว: {0}
+This is not a product barcode,นี่ไม่ใช่บาร์โค้ดสินค้า
 This month,เดือนนี้
 This operator's DMS account,บัญชี DMS ของพนักงานรายนี้
 This operator's DMS password,รหัสผ่าน DMS ของพนักงานรายนี้

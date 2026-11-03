@@ -12,7 +12,11 @@ def type_code(code_js: str) -> str:
             "await new Promise(r=>setTimeout(r,300));")
 
 
-# 点框内右侧的扫码图标开扫码器
-SCAN = "d.fields_dict.code.$wrapper.find('.pearnly-link-scan').trigger('click');"
+# 数页面要了几次相机（`getUserMedia`）：「继续」在同一路相机上恢复，不再要（LINE 每次要都会再问权限，11-03）
+COUNT_CAMERA = ("if(!window.__pearnly_asks){window.__pearnly_asks=0;const md=navigator.mediaDevices;const o=md.getUserMedia.bind(md);"
+                "md.getUserMedia=(...a)=>{window.__pearnly_asks++;return o(...a);};}")
+CAMERA_ASKS = "window.__pearnly_asks||0"
+# 点框内右侧的扫码图标开扫码器（先装上计数）
+SCAN = COUNT_CAMERA + "d.fields_dict.code.$wrapper.find('.pearnly-link-scan').trigger('click');"
 # 弹窗里有没有那颗扫码图标
 HAS_SCAN = "d.fields_dict.code.$wrapper.find('.pearnly-link-scan').length"

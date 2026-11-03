@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import uuid
 
-from stocktake_lib import SCAN, type_code
+from stocktake_lib import CAMERA_ASKS, SCAN, type_code
 
 TITLE = "ERP 盘点：扫码 / 输码认出商品、出录入框、记数落库"
 
@@ -104,7 +104,7 @@ def steps(params, camera_code=None):
                               "if (camera_after) d.fields_dict.close_camera.$input.trigger('click'); await new Promise(r=>setTimeout(r,300)); "
                               "return {saved: true, entry_after: d.fields_dict.qty.$wrapper.is(':visible'), camera_after, "
                               "button: d.get_primary_btn().text().trim(), focus_code: document.activeElement === d.fields_dict.code.input, "
-                              "camera_closed: !d.fields_dict.video.$wrapper.is(':visible')};"})
+                              "camera_closed: !d.fields_dict.video.$wrapper.is(':visible'), camera_asks: " + CAMERA_ASKS + "};"})
     if not camera_code and params.get("typed_product"):
         # 打字找：框里打物料名称的一段，下拉出本次盘点的物料（服务端按页查），选中直接出这件的字段
         out.append({"name": "打字选物料", "js": IDLE + "const d=cur_dialog; if(!d||!d.fields_dict.code) return {error:'no stocktake dialog'}; "
@@ -152,6 +152,9 @@ def judge(params, results, camera_code=None):
             checks.append({"case": f"{case['key']}: continue reopens the scanner after a scan, else back to the box",
                            "seen": after, "ok": (saved.get("camera_after") is True and saved.get("camera_closed") is True)
                            if camera_code else (saved.get("camera_after") is False and saved.get("focus_code") is True)})
+            if camera_code:
+                checks.append({"case": f"{case['key']}: continue reuses the camera, it is not asked for again",
+                               "seen": saved.get("camera_asks"), "ok": saved.get("camera_asks") == 1})
     if not camera_code and params.get("typed_product"):
         seen = (by_name.get("打字选物料") or {}).get("value") or {}
         checks.append({"case": "typing lists products of this count and picking one opens its entry", "seen": seen,

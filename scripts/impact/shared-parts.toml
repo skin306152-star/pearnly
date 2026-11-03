@@ -461,6 +461,23 @@ markers = ["pearnly_core.billing_client", "pearnly_core import billing_client", 
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
 entries = ["control.billing", "shared.billing", "cowork.billing", "dms.billing", "erp.billing", "cc.assistant"]
 
+[[part]]
+id = "scan-codes"
+name = "扫到的码是不是商品码（网址码判断，scan_codes；ERP 与 Cowork 共用）"
+paths = ["apps/pearnly_core/pearnly_core/desk/scan_codes.py"]
+markers = ["scan_codes"]
+search = ["apps/**/*.py"]
+entries = ["shared.scan-codes.web-address", "erp.stock-count.code", "erp.line.stocktake", "erp.stock-count.entry.camera", "cowork.stocktake.entry.camera", "erp.scan.pick-product"]
+
+[[entry]]
+id = "shared.scan-codes.web-address"
+product = "共用"
+where = "扫到认证网址二维码（TIS 码等）"
+steps = "ERP 盘点录入弹窗、LINE 手机盘点、物料码（认码、建码、导入）、Cowork 盘点录入弹窗：扫到 / 输入 https:// 开头的码"
+expect = "提示「这不是商品条码」，不查、不出新建；扫码器继续开着、先跳过这个码；普通条码照常认"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/products/codes.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py", "apps/pearnly_cowork/pearnly_cowork/stocktake/counting.py"]
+
 [[entry]]
 id = "erp.page.home"
 product = "ERP"

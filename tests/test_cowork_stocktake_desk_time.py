@@ -5,6 +5,7 @@ Cowork 盘点库里的 *_at（`service.now()`）是 UTC 裸时间；页面是 ER
 原生接口与导出表照旧是 UTC（导出表头写着 UTC）。只加载真实模块、不连库：Frappe 与权限用最小替身。
 """
 import importlib
+import importlib.util
 import re
 import sys
 import types
@@ -66,6 +67,8 @@ def _modules():
         "frappe.core.doctype.access_log": types.SimpleNamespace(),
         "frappe.core.doctype.access_log.access_log": access_log,
         "pearnly_core": types.ModuleType("pearnly_core"),
+        # 共用层的网址码判断（纯函数，11-03）：用真的那份
+        "pearnly_core.desk": types.SimpleNamespace(scan_codes=_scan_codes()),
         "pearnly_core.shell": types.SimpleNamespace(entitlements=lambda: ["stocktake"]),
         "pearnly_cowork": package, "pearnly_cowork.access": types.SimpleNamespace(scope=scope),
     }
@@ -75,6 +78,14 @@ def _modules():
         styles = types.SimpleNamespace(**{name: object for name in ("Alignment", "Border", "Font", "PatternFill", "Side")})
         modules.update({"openpyxl": types.SimpleNamespace(Workbook=object), "openpyxl.styles": styles})
     return frappe, modules
+
+
+def _scan_codes():
+    spec = importlib.util.spec_from_file_location("pearnly_core.desk.scan_codes",
+                                                  ROOT / "apps/pearnly_core/pearnly_core/desk/scan_codes.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _load():

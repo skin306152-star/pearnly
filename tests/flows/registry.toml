@@ -166,6 +166,7 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/products/codes.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/products/contracts.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
+  "apps/pearnly_core/pearnly_core/desk/scan_codes.py",
 ]
 
 [[flow]]
@@ -955,6 +956,23 @@ covers = [
   "apps/pearnly_core/pearnly_core/desk/navigation.py",
   "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-choices.js",
   "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-folders.js",
+]
+
+[[flow]]
+id = "cowork.stocktake.web-code"
+title = "Cowork 盘点：扫到网址码（TIS 认证码）提示不是商品条码，扫码器接着扫（11-03，同 ERP）"
+module = "scripts/flows/cowork_stocktake_web_code.py"
+product = "cowork"
+start = "/desk/pearnly-stocktake/{count}"
+user = "stocktake"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = true
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake-entry.js",
+  "apps/pearnly_cowork/pearnly_cowork/stocktake/counting.py",
+  "apps/pearnly_cowork/pearnly_cowork/stocktake/desk_api.py",
+  "apps/pearnly_core/pearnly_core/desk/scan_codes.py",
 ]
 
 [[flow]]

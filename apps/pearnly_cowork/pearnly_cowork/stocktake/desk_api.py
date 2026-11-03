@@ -183,7 +183,10 @@ def api_stock_count_export(name):
 
 @frappe.whitelist()
 def api_stock_count_lookup(count, code=None, product=None):
-    found = _transaction(counting.lookup, count, code, product)["item"]
+    looked = _transaction(counting.lookup, count, code, product)
+    if looked.get("not_product_code"):
+        return looked
+    found = looked["item"]
     review = _review(count)
     row = next(r for r in review["items"] if r["name"] == found["id"])
     return {"product": {"name": found["id"], "product_name": found["product_name"], "code": found["product_code"],

@@ -758,6 +758,7 @@ This identity is already bound to account {0} (record {1}),This identity is alre
 This identity is already bound to {0},This identity is already bound to {0}
 This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up),This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up)
 This invoice has already been recorded: {0},This invoice has already been recorded: {0}
+This is not a product barcode,This is not a product barcode
 This month,This month
 This operator's DMS account,This operator's DMS account
 This operator's DMS password,This operator's DMS password

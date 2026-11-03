@@ -760,6 +760,7 @@ This identity is already bound to account {0} (record {1}),该身份已绑定到
 This identity is already bound to {0},该身份已绑定到 {0}
 This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up),该身份未在本站点登记，请联系管理员邀请后重试（本站不接受自助注册）
 This invoice has already been recorded: {0},该发票已录入：{0}
+This is not a product barcode,这不是商品条码
 This month,本月
 This operator's DMS account,该操作员的 DMS 账号
 This operator's DMS password,该操作员的 DMS 密码

@@ -12,7 +12,7 @@ import json
 import random
 import uuid
 
-from stocktake_lib import SCAN, type_code
+from stocktake_lib import CAMERA_ASKS, SCAN, type_code
 
 TITLE = "Cowork 盘点：一个框打字 / 输码 / 扫码，扫完自动接下一项"
 
@@ -58,7 +58,8 @@ SAVE = ("d.set_value('qty', QTY); await new Promise(r=>setTimeout(r,300)); d.get
         "const camera_after=d.fields_dict.video.$wrapper.is(':visible'); "
         "if (camera_after) d.fields_dict.close_camera.$input.trigger('click'); await new Promise(r=>setTimeout(r,300)); "
         "return {...seen, saved: true, camera_after, focus_code: document.activeElement === d.fields_dict.code.input, "
-        "camera_closed: !d.fields_dict.video.$wrapper.is(':visible'), button: d.get_primary_btn().text().trim()};")
+        "camera_closed: !d.fields_dict.video.$wrapper.is(':visible'), button: d.get_primary_btn().text().trim(), "
+        "camera_asks: " + CAMERA_ASKS + "};")
 
 
 def steps(params, camera_code=None):
@@ -96,7 +97,9 @@ def judge(params, results, camera_code=None):
         checks += [{"case": "a scanned product shows its fields and the scanner closes", "seen": seen,
                     "ok": seen.get("entry") is True and seen.get("product_name") == params["first"]["name"] and seen.get("camera_open") is False},
                    {"case": "continue reopens the scanner and it can be closed", "seen": seen,
-                    "ok": seen.get("camera_after") is True and seen.get("camera_closed") is True}]
+                    "ok": seen.get("camera_after") is True and seen.get("camera_closed") is True},
+                   {"case": "continue reuses the camera, it is not asked for again", "seen": seen.get("camera_asks"),
+                    "ok": seen.get("camera_asks") == 1}]
         return checks
     for step, name in (("输码", params["first"]["name"]), ("打字选物料", params["second"]["name"])):
         seen = by.get(step) or {}

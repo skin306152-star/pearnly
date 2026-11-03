@@ -13,6 +13,7 @@ from uuid import NAMESPACE_URL, uuid5
 import frappe
 from frappe import _
 
+from pearnly_core.desk import scan_codes
 from pearnly_cowork.stocktake import access, service
 
 TASK, ITEM, ENTRY, OPERATION = access.TYPES
@@ -38,9 +39,12 @@ def search(task_id, txt="", start=0, page_len=20):
 
 
 def lookup(task_id, code=None, item_id=None):
-    """编码或条码（精确）→ 本任务里的那一行；打开已有行时直接给 item_id。"""
+    """编码或条码（精确）→ 本任务里的那一行；打开已有行时直接给 item_id。
+    扫到 / 输入的是网址（TIS 认证码等）：不查，回 ``{"not_product_code": 译文}``，录入弹窗提示一句、扫码器接着开（同 ERP，判断在共用层）。"""
     task = service._task(task_id)
     code = str(code or "").strip()
+    if code and not item_id and scan_codes.web_address(code):
+        return {"not_product_code": _(scan_codes.NOT_PRODUCT_CODE)}
     if item_id:
         row = service._linked(ITEM, service.contract(service.identifier, item_id), task)
     elif code:

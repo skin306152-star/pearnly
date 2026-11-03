@@ -897,7 +897,6 @@ This warehouse already exists	该仓库已存在	คลังสินค้า�
 This category already exists	该分类已存在	มีหมวดหมู่นี้แล้ว	このカテゴリは既に存在します
 A category needs a name	请填写分类名称	กรุณากรอกชื่อหมวดหมู่	カテゴリ名を入力してください
 Category not found	未找到分类	ไม่พบหมวดหมู่	カテゴリが見つかりません
-This is not a product barcode	这不是商品条码	นี่ไม่ใช่บาร์โค้ดสินค้า	これは商品バーコードではありません
 No company is available for this account	此账号无可用公司	บัญชีนี้ไม่มีบริษัทที่ใช้งานได้	このアカウントで使える会社がありません
 The fiscal year start month must be between 1 and 12	会计年度的起始月份必须在 1 到 12 之间	เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12	会計年度の開始月は1〜12の範囲で指定してください
 A confirmed draft must point at the record it created	已确认的草稿必须关联其生成的记录	ฉบับร่างที่ยืนยันแล้วต้องเชื่อมโยงกับรายการที่สร้างจากฉบับร่างนั้น	確定した下書きは、それが作成した伝票を指している必要があります

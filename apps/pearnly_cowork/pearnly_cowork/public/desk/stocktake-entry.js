@@ -15,6 +15,9 @@
 		// `scanned`：这一件是扫码来的，点「继续」后自动再开扫码器，打字选的回到框里（用户 11-02）
 		let scanned = false, last_code = "";
 		let last_place = null;
+		// 扫码器收起后多久真关相机（手机状态栏的相机指示一直亮着）
+		const PARK_MS = 3 * 60 * 1000;
+		let park_timer;
 		// `photos` 是本次要随记录提交的（桌面端上传后拿到 file_url，服务端再挂到这条记录上）；
 		// `existing` 是这条记录**已经有**的照片，只做只读预览（旧项目也没有删照片的入口）。
 		const photos = [];
@@ -25,7 +28,8 @@
 			// 一个框（用户 11-02）：打字出本次任务上传的物料（原生选择框，服务端按页查），框内右侧扫码图标开扫码器；
 			// 扫码枪 / 手打编码回车按码认。扫码器平时收起，读到物料就关。
 			{ fieldtype: "Link", fieldname: "code", label: w("code"), description: w("scanHint"), options: "Cowork Stocktake Item",
-				only_select: true, ignore_link_validation: 1,
+				// 下拉里不给「新建物料」：新建只在扫到 / 输入系统没有的码时给（用户 11-03）
+				only_select: true, ignore_link_validation: 1, pearnly_no_create: 1,
 				get_query: () => ({ query: api + "api_stock_count_item_search", filters: { count } }),
 				// 扫码器开着时再点一下图标就是关掉
 				scan: () => void (camera ? close_camera() : start_camera()) },
@@ -87,7 +91,7 @@
 		// 连续盘点时第二颗是"完成"：收工离开扫码，落到差异那一屏（用户 2026-09-22 口径：
 		// "…下一项或者完成"）。单条录入/修改时它仍是"查看差异"。
 		d.set_secondary_action_label(continuous ? w("done") : w("review"));
-		d.onhide = () => { closed = true; scanner?.stop(); };
+		d.onhide = () => { closed = true; stop_camera(); };  // 关掉弹窗才真关相机（收起着的那一路也放掉）
 		const code = d.fields_dict.code;
 		// 框里带着盘点号查，原生下拉会多一行「已应用筛选 …」把盘点号露出来：这一格不要那一行
 		code.get_filter_description = async () => null;
@@ -157,6 +161,7 @@
 		// 原生上传器（`frappe.ui.FileUploader`）：多选、可选拍照，默认存成私有文件；
 		// 这里只收集 `file_url`，提交时由服务端把 File 挂到这条记录上（`counts._save_photos`）。
 		function pick_photos() {
+			stop_camera();  // 拍照要用手机自己的相机：收着的那一路先放掉
 			const left = PHOTO_MAX - existing.length - photos.length;
 			if (left <= 0) { frappe.msgprint(w("photoLimit")); return; }
 			new frappe.ui.FileUploader({
@@ -214,6 +219,15 @@
 			try {
 				lookup = await p.call(api + "api_stock_count_lookup", { count, code: code || undefined, product });
 				if (closed) return;
+				if (lookup.not_product_code) {
+					// 扫到的是网址（TIS 认证码等）：不是商品码，说一句，扫码器接着开、先跳过这个码（同 ERP，判断在共用层 `scan_codes`）
+					message(lookup.not_product_code);
+					frappe.show_alert({ message: lookup.not_product_code, indicator: "orange" });
+					lookup = null;
+					rescan(code);
+					if (code) p.scan_result_sound(false);
+					return;
+				}
 				selected = lookup.product;
 				request_id = crypto.randomUUID();
 				d.set_df_property("source_row", "options", lookup.rows.map(r => ({
@@ -234,7 +248,7 @@
 				await d.set_value("qty", entry ? entry.qty : "");
 				if (!entry) d.fields_dict.qty.$input.val("");
 				await d.set_value("note", entry?.note || "");
-				stop_camera();  // 认出来、字段都填好了：扫码器关掉，直接出这件的字段（中途出错就不关，照常跳过这个码接着扫）
+				park_camera();  // 认出来、字段都填好了：扫码器收起，直接出这件的字段（中途出错就不收，照常跳过这个码接着扫）
 				editor(true);
 				await load_photos();
 				render_photos();
@@ -255,13 +269,15 @@
 				// 这页自己的脚本错交给统一的前端报错（服务端的错服务端自己记）。
 				if (!refused) console.error(error);
 				if (!error?.status) window.pearnlyReportError?.(error, "stocktake-lookup");
-				scanner?.resume(code);
+				rescan(code);
 				if (code) p.scan_result_sound(false);
 			} finally { busy = false; }
 		}
-		// `skip`：先跳过这个码，直到镜头里出现别的码（「继续」重开时镜头往往还对着刚盘的那件，免得马上又记一次）
+		// `skip`：先跳过这个码，直到镜头里出现别的码（「继续」重开时镜头往往还对着刚盘的那件，免得马上又记一次）。
+		// 收起着（`park_camera`）就在同一路相机上恢复，不重新要相机。
 		async function start_camera(skip = "") {
-			if (scanner || closed) return;
+			if (closed) return;
+			if (scanner) { if (!camera) unpark_camera(skip); return; }
 			// 安卓 LINE 普通内置浏览器里网页拿不到相机：直接转 LIFF 打开这份盘点并接着扫（LINE 弹原生授权），
 			// 这一页的扫码窗口随即关掉（LIFF 盖在它上面打开，关掉 LIFF 回来不留一个黑着的相机框）。
 			if (p.scan_liff_first(true)) { d.hide(); return; }
@@ -290,7 +306,39 @@
 			if (skip) scanner?.resume(skip);
 			d.set_df_property("torch", "hidden", !scanner?.has_torch());
 		}
+		// 扫码器开着时只在这里换画面显隐：`set_df_property("video", …)` 会重画这一格、换掉 <video>，相机流就接在被换掉的那个上（10-23 黑屏）
+		function show_stage(show) { d.fields_dict.video.$wrapper.toggleClass("hide-control", !show); }
+		// 读到物料 / 手动关：只收起画面、停读码，相机流留着，「继续」或再点图标时接着用（LINE 的相机授权只有「仅允许本次」，
+		// 重新要相机每次都会再问，用户 11-03）。关掉弹窗、去拍照、收起超过 PARK_MS 才真关。
+		function park_camera() {
+			if (!scanner) return stop_camera();
+			scanner.pause(); camera = false;
+			if (d.get_value("torch")) { void scanner.torch(false).catch(window.pearnlyReported(null, "scan")); void d.set_value("torch", 0); }
+			show_stage(false);
+			d.set_df_property("torch", "hidden", true); d.set_df_property("close_camera", "hidden", true);
+			window.clearTimeout(park_timer);
+			park_timer = window.setTimeout(stop_camera, PARK_MS);
+		}
+		function unpark_camera(skip) {
+			const video = d.fields_dict.video.$wrapper.find("video").get(0);
+			// 收起期间相机被别的应用占走、流断了：照新开（会再要一次相机）
+			if (!video?.srcObject?.getVideoTracks?.().some(track => track.readyState === "live")) {
+				stop_camera(); void start_camera(skip); return;
+			}
+			window.clearTimeout(park_timer);
+			camera = true;
+			show_stage(true);
+			d.set_df_property("close_camera", "hidden", false);
+			d.set_df_property("torch", "hidden", !scanner.has_torch());
+			// iPhone 上收起的 <video> 会被暂停：再播；被拦了就等人点一下画面（同读码器的 `on_play_blocked`）
+			const play = () => video.play();
+			play().catch(() => $(video).closest(".pearnly-scan-stage").one("click", () => void play().catch(window.pearnlyReported(null, "scan"))));
+			scanner.resume(skip);
+		}
+		// 认码没成、要接着扫：只有扫码器开着才接着读（收起着时打字查的码不该让藏着的相机开始读）
+		function rescan(value) { if (camera) scanner?.resume(value); }
 		function stop_camera() {
+			window.clearTimeout(park_timer);
 			if (!camera && !scanner) return;
 			scanner?.stop(); scanner = null; camera = false;
 			d.set_df_property("video", "hidden", true); d.set_df_property("torch", "hidden", true);
@@ -298,7 +346,7 @@
 		}
 		// 手动关掉扫码器：回到框里
 		function close_camera() {
-			stop_camera();
+			park_camera();
 			code.$input.trigger("focus");
 		}
 		// 去设置里开了权限再切回来：重开相机（`p.scan_hint` 只在需要去设置时调它）。

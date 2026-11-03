@@ -14,9 +14,10 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 APP = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal"
-sys.path[:0] = [str(ROOT / "apps/pearnly_erp_portal")]
+sys.path[:0] = [str(ROOT / "apps/pearnly_core"), str(ROOT / "apps/pearnly_erp_portal")]
 
 from pearnly_erp_portal.inventory import opening_workbook as O, workbook as CW  # noqa: E402
+from pearnly_core.desk import scan_codes  # noqa: E402
 from pearnly_erp_portal.products import contracts as C, workbook as W  # noqa: E402
 
 
@@ -89,9 +90,18 @@ class StockSheets(unittest.TestCase):
 class WebAddress(unittest.TestCase):
     def test_web_addresses_are_not_product_codes(self):
         for value in ("https://appdb.tisi.go.th/Q/i.php?d=abc", "HTTP://x.test", "  https://x.test  "):
-            self.assertTrue(C.web_address(value), value)
+            self.assertTrue(scan_codes.web_address(value), value)
         for value in ("8850001000019", "P-000001", "httpx", "VIN-https://", "", None):
-            self.assertFalse(C.web_address(value), value)
+            self.assertFalse(scan_codes.web_address(value), value)
+
+    def test_both_products_use_the_shared_check(self):
+        # 判断只在共用层一份（11-03）：ERP 认码、盘点、LINE 手机盘点页与 Cowork 盘点查码都走它，产品里不各写一份
+        self.assertNotIn("def web_address", (APP / "products/contracts.py").read_text())
+        cowork = ROOT / "apps/pearnly_cowork/pearnly_cowork/stocktake"
+        for path in (APP / "products/codes.py", APP / "inventory/count.py", APP / "inventory/line_mobile.py",
+                     cowork / "counting.py"):
+            self.assertIn("scan_codes.web_address(", path.read_text(), path)
+        self.assertIn('if looked.get("not_product_code")', (cowork / "desk_api.py").read_text())
 
 
 class Copy(unittest.TestCase):
@@ -99,7 +109,8 @@ class Copy(unittest.TestCase):
         rows = {line.split("\t")[-1]: line.split("\t") for line in (APP / "i18n/messages.tsv").read_text().splitlines()}
         for key in ("product.field.attribute", "product.col.attribute"):
             self.assertEqual(rows[key][:4], ["Attribute / Color", "特性/颜色", "คุณลักษณะ / สี", "特性 / 色"])
-        english = {line.split("\t")[0]: line.split("\t") for line in (APP / "i18n/messages.tsv").read_text().splitlines()}
+        core = ROOT / "apps/pearnly_core/pearnly_core/i18n/messages.tsv"  # 共用层的词条（Cowork 站点也要用，11-03 挪过去）
+        english = {line.split("\t")[0]: line.split("\t") for line in core.read_text().splitlines()}
         self.assertEqual(english["This is not a product barcode"][1], "这不是商品条码")
 
 

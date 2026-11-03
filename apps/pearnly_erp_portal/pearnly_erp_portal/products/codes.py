@@ -12,6 +12,7 @@
 """
 import frappe
 from frappe import _
+from pearnly_core.desk import scan_codes
 
 PRODUCT = "ERP Product"
 UNIT = "ERP Product Unit"
@@ -24,7 +25,6 @@ KIND_LABELS = {"code": "product.codeKind.code", "internal_code": "product.codeKi
                "express_code": "product.codeKind.expressCode", "barcode": "product.codeKind.barcode",
                "qr_payload": "product.codeKind.qrPayload", UNIT_BARCODE: "product.codeKind.unitBarcode"}
 CLASH = "This code is already used by {0} ({1})"
-NOT_PRODUCT_CODE = "This is not a product barcode"
 
 
 class NotProductCode(frappe.ValidationError):
@@ -32,11 +32,10 @@ class NotProductCode(frappe.ValidationError):
 
 
 def refuse_web_address(value) -> None:
-    """网址不是商品码（岳父 11-01：TIS 认证码是网址）：认码、建码都在这里一处拒，各入口不各写一遍。"""
-    from pearnly_erp_portal.products import contracts
-
-    if contracts.web_address(value):
-        frappe.throw(_(NOT_PRODUCT_CODE), NotProductCode)
+    """网址不是商品码（岳父 11-01：TIS 认证码是网址；判断在共用层 `pearnly_core.desk.scan_codes`，Cowork 同一份）：
+    认码、建码都在这里一处拒，各入口不各写一遍。"""
+    if scan_codes.web_address(value):
+        frappe.throw(_(scan_codes.NOT_PRODUCT_CODE), NotProductCode)
 TAKEN = "This code is already in use"
 AMBIGUOUS = "Several matches found for {0}. Please select a record."
 
@@ -171,5 +170,5 @@ def clashes(company=None, limit=500) -> list:
     return out
 
 
-__all__ = ["AMBIGUOUS", "FIELDS", "KIND_LABELS", "NOT_PRODUCT_CODE", "NotProductCode", "UNIT_BARCODE", "assert_free", "candidates",
+__all__ = ["AMBIGUOUS", "FIELDS", "KIND_LABELS", "NotProductCode", "UNIT_BARCODE", "assert_free", "candidates",
            "clashes", "holders", "refuse_web_address"]

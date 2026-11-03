@@ -23,7 +23,7 @@ from frappe import _
 from frappe.utils import flt, now
 
 from pearnly_core.account import names as person_names
-from pearnly_core.desk import list_filters
+from pearnly_core.desk import list_filters, scan_codes
 from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.masters import access as company_access
 from pearnly_erp_portal.masters import company as companies
@@ -97,7 +97,7 @@ def products_of_code(code: str, company: str | None = None) -> list:
     售卖单位条码都认。给了 ``company``（这份盘点仓库所属的公司）就只认这家公司 Express 的档和本地档。"""
     from pearnly_erp_portal.products import codes
 
-    if product_contracts.web_address(code):
+    if scan_codes.web_address(code):
         return []  # 网址不是商品码：查码的入口自己先说「这不是商品条码」（`lookup_count`、LINE 页、导入）
     found = codes.candidates(code, company)
     if found:
@@ -234,7 +234,7 @@ def apply_import(*, count, rows) -> dict:
             applied += 1
             counted += outcome == "counted"
             continue
-        if any(product_contracts.web_address(row.get(key)) for key in ("barcode", "product_code", "internal_code")):
+        if any(scan_codes.web_address(row.get(key)) for key in ("barcode", "product_code", "internal_code")):
             problems.append({"row": number, "reason": "not_product_code"})  # 表里抄进来的认证码网址：不认、不建
             continue
         product = _product_of_row(row, company)
@@ -1168,11 +1168,9 @@ def lookup_count(*, count, code=None, product=None):
     task = _get(count)
     company = count_company(count)
     unit = None
-    if code and not product and product_contracts.web_address(code):
-        # 扫到的是网址（TIS 认证码等）：不查、不出「新建物料」，录入弹窗提示一句、相机接着扫（不弹提示框，同查不到）
-        from pearnly_erp_portal.products import codes
-
-        return {"not_product_code": _(codes.NOT_PRODUCT_CODE)}
+    if code and not product and scan_codes.web_address(code):
+        # 扫到的是网址（TIS 认证码等）：不查、不出「新建物料」，录入弹窗提示一句、相机接着扫（不弹提示框，同查不到；Cowork 同形状）
+        return {"not_product_code": _(scan_codes.NOT_PRODUCT_CODE)}
     if code and not product:
         matches = products_of_code(code, company)
         if len(matches) > 1:

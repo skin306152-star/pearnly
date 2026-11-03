@@ -2882,6 +2882,8 @@ def stocktake_count(tool_input) -> str:
     found = _call(desk_api.api_stock_count_lookup, count, str(tool_input.get("code") or ""))
     if found.get("status") == "not_saved":
         return _json(found)
+    if found.get("not_product_code"):
+        return _json({"status": "not_saved", "reason": found["not_product_code"]})
     item = found["product"]["name"]
     # 仓库必填（同页面录入框「实际仓库」）：没说就用这一项账面上的仓库、库位（页面也是默认带出账面位置）
     book = (found.get("rows") or [{}])[0]

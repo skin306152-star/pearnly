@@ -10,6 +10,9 @@ const ERP = 'apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-en
 const COWORK = 'apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake-entry.js';
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+// 扫码画面里的 <video>：相机流（轨道是否还活着）与再播次数
+const video = { live: true, plays: 0, srcObject: { getVideoTracks: () => [{ readyState: video.live ? 'live' : 'ended' }] },
+  play: async () => { video.plays += 1; } };
 // 极简 jQuery：只够这一页用（文本、显隐、事件）。
 function $(html) {
   const node = { html: String(html || ''), _text: '', children: [], handlers: {} };
@@ -18,7 +21,8 @@ function $(html) {
     empty() { node.children = []; node._text = ''; return api; }, append(child) { node.children.push(child); return api; },
     appendTo(parent) { parent?.append?.(api); return api; }, addClass() { return api; }, attr() { return api; },
     on(name, fn) { node.handlers[name] = fn; return api; }, off() { return api; }, one() { return api; },
-    find() { return api; }, get() { return {}; }, toggle(show) { node.visible = show; return api; },
+    find() { return api; }, get() { return video; }, toggle(show) { node.visible = show; return api; },
+    toggleClass(name, on) { (node.classes ||= {})[name] = on; return api; }, closest() { return api; },
     val(value) { if (value === undefined) return node.value ?? ''; node.value = value; return api; }, trigger() { return api; },
   };
   return api;
@@ -26,7 +30,8 @@ function $(html) {
 
 function fixture({ lookups, file = ERP }) {
   const source = fs.readFileSync(file, 'utf8');
-  const calls = [], sounds = [], errors = [], resumes = [], reports = [], alerts = [], camera = { starts: 0, stops: 0 };
+  const calls = [], sounds = [], errors = [], resumes = [], reports = [], alerts = [], timers = [], camera = { starts: 0, stops: 0, pauses: 0 };
+  video.live = true; video.plays = 0;
   let results = [...lookups], reader, action;
   const values = {}, fields = {}, focused = [];
   // 每一格：框架控件的几样（录入框是原生 Link：输入框事件、下拉、筛选说明）
@@ -45,10 +50,11 @@ function fixture({ lookups, file = ERP }) {
     async call(method, args) { calls.push([method, args]); const next = results.shift(); if (next instanceof Error || next?.status) throw next; return next; },
     async pick_product() { return null; }, scan_result_sound: ok => sounds.push(ok), success() {},
     scan_liff_first: () => false, number: value => String(value),
-    scan_reader({ on_result }) { camera.starts += 1; reader = { on_result, start: async () => {}, pause() {}, resume: code => resumes.push(code ?? ''), stop() { camera.stops += 1; }, has_torch: () => false, torch() {} }; return reader; },
+    scan_reader({ on_result }) { camera.starts += 1; reader = { on_result, start: async () => {}, pause() { camera.pauses += 1; }, resume: code => resumes.push(code ?? ''), stop() { camera.stops += 1; }, has_torch: () => false, torch() {} }; return reader; },
   };
   const frappe = { pearnly: p, msgprint() {}, show_alert: options => alerts.push(options.message), DataTable: class {} };
-  const window = { pearnlyReportError: (error, kind) => reports.push([error, kind]) };
+  const window = { pearnlyReportError: (error, kind) => reports.push([error, kind]),
+    setTimeout: (fn, ms) => timers.push({ fn, ms, cleared: false }), clearTimeout: id => { if (timers[id - 1]) timers[id - 1].cleared = true; } };
   vm.runInNewContext(source, { frappe, $, window, __: text => text, crypto: { randomUUID: () => 'id-1' },
     console: { error: error => errors.push(error), log() {} } });
   return {
@@ -62,7 +68,9 @@ function fixture({ lookups, file = ERP }) {
       await flush(); },
     // 点「继续」（原生主按钮的动作）
     proceed: async qty => { fields.qty.$input.val(String(qty)); await action({ qty, warehouse: values.warehouse, location: '', note: '' }); await flush(); },
-    values, fields, calls, sounds, errors, resumes, reports, alerts, camera, p, focused,
+    values, fields, calls, sounds, errors, resumes, reports, alerts, camera, p, focused, timers, video, dialog,
+    // 扫码画面露没露出来（扫码器开着时只换外层的显隐类，不重画那一格）
+    stage: () => !fields.video.$wrapper.node.classes?.['hide-control'],
     message: () => fields.message.$wrapper.text(),
     shown: () => fields.entry_section.df.hidden === false,
   };
@@ -94,12 +102,12 @@ const polymer = (extra = {}) => ({
     const f = fixture({ lookups: [{ not_found: true }, polymer(), { name: 'E-1' }] });
     await f.open();
     await f.scan('8859NEW');
-    assert.equal(f.camera.stops, 1, '查不到要停相机');
-    assert.equal(f.fields.video.df.hidden, true, '相机画面收起');
+    assert.equal(f.camera.stops, 0, '查不到只收起扫码器，相机流留着（LINE 里再开不重问权限，11-03）');
+    assert.equal(f.stage(), false, '相机画面收起');
     assert.equal(f.fields.new_product.df.hidden, 0, '新建物料要出来');
     assert.equal(f.message(), 'No product matches this code');
     assert.deepEqual(f.alerts, ['No product matches this code']);
-    assert.deepEqual(f.resumes, [], '相机已停，不再跳过续扫');
+    assert.deepEqual(f.resumes, [], '扫码器收起，不再跳过续扫');
     assert.deepEqual(f.sounds, [false]);
     // 点了原地弹物料页同一个新建弹窗（`link_editors["ERP Product"]`，用户 11-01）：扫到的码预填；编码预览与保存走盘点录入权的接口
     let editor;
@@ -207,18 +215,70 @@ const polymer = (extra = {}) => ({
     assert.equal(f.errors.length, 1);
     assert.deepEqual(f.resumes, ['TC001167']);
   }
-  // 读到物料：扫码器关掉、出字段；点「继续」后扫码器自动再开，先跳过刚扫的码（镜头还对着它时不重复记，11-02）
+  // 读到物料：扫码器收起（停读码、相机流留着）、出字段；点「继续」在同一路相机上恢复、不重新要相机（LINE 只给「仅允许本次」，11-03），
+  // 先跳过刚扫的码（镜头还对着它时不重复记，11-02）；iPhone 收起的画面会被暂停，恢复时再播
+  for (const file of [ERP, COWORK]) {
+    const f = fixture({ file, lookups: [polymer(), { entry: 'E-1' }, polymer(), { entry: 'E-2' }] });
+    await f.open();
+    await f.scan('TC001167');
+    assert.equal(f.camera.stops, 0, '读到物料不关相机流');
+    assert.equal(f.stage(), false, '画面收起');
+    assert.equal(f.fields.video.df.hidden, false, '不用 set_df_property 收：那会重画这一格、换掉 <video>');
+    assert.equal(f.shown(), true);
+    await f.proceed(2);
+    assert.match(f.calls[1][0], /api_stock_count_add_entry$/);
+    assert.equal(f.camera.starts, 1, '继续后不重新要相机');
+    assert.equal(f.stage(), true, '画面重新露出来');
+    assert.equal(f.video.plays, 1, '恢复时再播');
+    assert.deepEqual(f.resumes, ['TC001167'], '恢复时先跳过刚扫的码');
+    // 收起超过上限才真关：计时到了就放掉相机
+    await f.scan('TC001168');
+    const timer = f.timers.at(-1);
+    assert.equal(timer.ms, 3 * 60 * 1000);
+    timer.fn();
+    assert.equal(f.camera.stops, 1, '收起太久真关相机');
+    await f.proceed(1);
+    assert.equal(f.camera.starts, 2, '真关之后再继续就重新开');
+    // 关掉弹窗才放掉相机
+    f.dialog.hide();
+    assert.equal(f.camera.stops, 2, '关掉弹窗放掉相机');
+  }
+  // 收起期间相机流断了（拍照、别的应用占走）：继续时照新开
   {
     const f = fixture({ lookups: [polymer(), { entry: 'E-1' }] });
     await f.open();
     await f.scan('TC001167');
-    assert.equal(f.camera.stops, 1, '读到物料扫码器就关');
-    assert.equal(f.fields.video.df.hidden, true);
-    assert.equal(f.shown(), true);
+    f.video.live = false;
     await f.proceed(2);
-    assert.equal(f.calls[1][0], 'pearnly_erp_portal.inventory.api.api_stock_count_add_entry');
-    assert.equal(f.camera.starts, 2, '扫码来的那件：继续后自动再开扫码器');
-    assert.deepEqual(f.resumes, ['TC001167'], '再开时先跳过刚扫的码');
+    assert.equal(f.camera.stops, 1);
+    assert.equal(f.camera.starts, 2, '流断了就重新要相机');
+  }
+  // 收起着时打字查的码没认出来：不让藏着的相机开始读
+  {
+    const f = fixture({ lookups: [{ status: 417 }] });
+    await f.open();
+    f.fields.close_camera.df.click();
+    await flush();
+    await f.find('NOPE-1');
+    assert.deepEqual(f.resumes, [], '收起着不续扫');
+  }
+  // 扫到认证网址二维码（TIS 码）：两个产品都只说「这不是商品条码」、不出新建，扫码器继续开、先跳过这个码（11-03）
+  for (const file of [ERP, COWORK]) {
+    const f = fixture({ file, lookups: [{ not_product_code: '这不是商品条码' }] });
+    await f.open();
+    await f.scan('https://appdb.tisi.go.th/Q/i.php?d=x');
+    assert.equal(f.message(), '这不是商品条码');
+    assert.deepEqual(f.alerts, ['这不是商品条码']);
+    assert.deepEqual(f.resumes, ['https://appdb.tisi.go.th/Q/i.php?d=x']);
+    assert.equal(f.stage(), true, '扫码器继续开着');
+    assert.equal(f.shown(), false);
+    assert.deepEqual(f.sounds, [false]);
+  }
+  // 打字下拉不给「新建物料」：新建只在扫到系统没有的码时给（11-03）
+  for (const file of [ERP, COWORK]) {
+    const f = fixture({ file, lookups: [] });
+    await f.open({ camera: false });
+    assert.equal(f.fields.code.df.pearnly_no_create, 1);
   }
   // 打字 / 扫码枪回车来的那件：继续后回到框里、不开相机
   {
@@ -231,20 +291,24 @@ const polymer = (extra = {}) => ({
     assert.equal(f.camera.starts, 0, '打字来的那件：继续后不开相机');
     assert.equal(f.focused.at(-1), 'code', '回到框里');
   }
-  // 扫码器开着时再点框内图标、或点「关闭」：关掉、回到框里
+  // 扫码器开着时再点框内图标、或点「关闭」：收起、回到框里；再点图标在同一路相机上恢复
   {
     const f = fixture({ lookups: [] });
     await f.open();
     assert.equal(f.camera.starts, 1);
     f.fields.code.df.scan();
     await flush();
-    assert.equal(f.camera.stops, 1);
+    assert.equal(f.stage(), false);
+    assert.equal(f.camera.stops, 0);
     assert.equal(f.focused.at(-1), 'code');
     f.fields.code.df.scan();
     await flush();
+    assert.equal(f.stage(), true);
+    assert.equal(f.camera.starts, 1, '再点图标不重新要相机');
     f.fields.close_camera.df.click();
     await flush();
-    assert.equal(f.camera.stops, 2);
+    assert.equal(f.stage(), false);
+    assert.equal(f.camera.stops, 0);
   }
   console.log('stocktake entry scan: ok');
 })().catch(error => { console.error(error); process.exit(1); });
