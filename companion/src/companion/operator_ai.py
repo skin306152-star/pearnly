@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
-"""AI 接手的模型调用经产品站点（2026-11-03）：把 Messages API 请求体交到成员通道的 ``operator_ai`` 机器方法
+"""AI 接手的模型调用经产品站点（2026-11-03；放在根包，代录包 `express_operator` 不引用联网库，`test_operator_parts`）：把 Messages API 请求体交到成员通道的 ``operator_ai`` 机器方法
 （Cowork ``companion.operator_api.operator_ai`` / 共用机器通道 ``cc_desktop.machine.operator_ai``），站点用自己的密钥转发、
 按批次把费用上限关（到了回 ``{"error": "budget"}``，``helper.ComputerUseHelper`` 认它）。这台电脑不存 Claude 密钥。"""
 from __future__ import annotations
 
 from typing import Callable, Dict, Optional
 
-import httpx
-
-from .. import channel, http_tls
+from . import channel
 
 TIMEOUT_S = 180.0  # 一轮电脑操作（Opus、带截图）几十秒
 
@@ -22,6 +20,10 @@ def transport_for(settings, batch_id: str) -> Optional[Callable[[str, Dict], Dic
         return None
 
     def transport(kind: str, request: Dict) -> Dict:
+        import httpx  # 用到时才加载：代录真碰到认不出的画面才连站点
+
+        from . import http_tls
+
         try:
             with httpx.Client(base_url=base, headers={"Authorization": f"Bearer {token}"}, verify=http_tls.context(),
                               timeout=httpx.Timeout(TIMEOUT_S, connect=10.0)) as client:
