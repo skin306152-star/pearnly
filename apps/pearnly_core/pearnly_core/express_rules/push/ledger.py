@@ -23,8 +23,9 @@ def _pick(flat, *keys):
 
 
 def reasons(flat) -> list:
-    """展平的 history → 护栏原因码（空 = 可以写账）。总额先看顶层、再看票面字段（同 ``common.amounts``）。"""
-    return ledger_guard.check(document_type=_pick(flat, "document_type"), number=_pick(flat, "invoice_number", "invoice_no"),
+    """展平的 history → 护栏原因码（空 = 可以写账）。总额先看顶层、再看票面字段（同 ``common.amounts``）。
+    ``doc_kind``（模型判的单据种类）票面字段里还没有带：在带上之前「完整税票只读到总额」这一条不生效。"""
+    return ledger_guard.check(document_type=_pick(flat, "document_type"), title=_pick(flat, "doc_kind"), number=_pick(flat, "invoice_number", "invoice_no"),
                               date=_pick(flat, "invoice_date", "date"), subtotal=_pick(flat, "subtotal"),
                               discount=_pick(flat, "discount"), vat=_pick(flat, "vat"), total=_pick(flat, "total_amount", "total"))
 

@@ -7,7 +7,8 @@
 底线（判据与容差复用 :func:`amounts.printed_issues`，不另写一套）：
 - ``total_missing``：没有总额（或不是正数）；
 - ``amounts_not_closed``：票面印了小计 / 税额，却与总额对不上（含折扣、含税价、预扣税实付额这几种合法对法）；
-- ``tax_invoice_total_only``：完整税票只读到总额、没有小计和税额（简式税票、含税收据只印总额是正常的，照账套规则反推）；
+- ``tax_invoice_total_only``：模型判为税票（``title`` 是 ``tax_invoice`` / ``receipt_tax_invoice``）却只读到总额、没有小计和税额
+  （简式税票、含税收据、没有税票抬头的发票 ``bill_invoice`` 只印总额是正常的，照账套规则反推；用户 11-03 定）；
 - ``number_missing``：完整税票没有单号（收据、简式税票没印单号不算缺）；
 - ``date_missing``：没有日期。
 
@@ -21,10 +22,13 @@ TAX_INVOICE_TOTAL_ONLY = "tax_invoice_total_only"
 NUMBER_MISSING = "number_missing"
 DATE_MISSING = "date_missing"
 CODES = (TOTAL_MISSING, AMOUNTS_NOT_CLOSED, TAX_INVOICE_TOTAL_ONLY, NUMBER_MISSING, DATE_MISSING)
+# 模型（Claude 识别的 ``doc_kind``）判为完整税票的两种；平台码 ``tax_invoice`` 还包括 bill_invoice、utility 等，不能用来判。
+TAX_INVOICE_TITLES = ("tax_invoice", "receipt_tax_invoice")
 
 
-def check(*, document_type=None, number=None, date=None, subtotal=None, discount=None, vat=None, total=None) -> list:
-    """一张单能不能写账：返回原因码（空 = 可以写）。金额按票面印的（字符串或数字都行）。"""
+def check(*, document_type=None, title=None, number=None, date=None, subtotal=None, discount=None, vat=None, total=None) -> list:
+    """一张单能不能写账：返回原因码（空 = 可以写）。金额按票面印的（字符串或数字都行）。
+    ``document_type``：平台票种码；``title``：模型判的单据种类（``doc_kind``），没有时「只读到总额」这一条不判。"""
     found = []
     printed = {"subtotal": subtotal, "discount": discount, "vat": vat, "total": total}
     issues = amounts.printed_issues(printed, [])
@@ -33,7 +37,7 @@ def check(*, document_type=None, number=None, date=None, subtotal=None, discount
         found.append(TOTAL_MISSING)
     elif "printed_math" in issues:
         found.append(AMOUNTS_NOT_CLOSED)
-    elif document_type == codes.TAX_INVOICE and amounts.money(subtotal) is None and amounts.money(vat) is None:
+    elif title in TAX_INVOICE_TITLES and amounts.money(subtotal) is None and amounts.money(vat) is None:
         found.append(TAX_INVOICE_TOTAL_ONLY)
     if document_type == codes.TAX_INVOICE and not str(number or "").strip():
         found.append(NUMBER_MISSING)

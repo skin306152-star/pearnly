@@ -20,7 +20,8 @@ BJC_PAGE7 = {"document_type": "tax_invoice", "invoice_number": "221067100014", "
 
 class Guard(unittest.TestCase):
     def check(self, **fields):
-        return ledger_guard.check(document_type=fields.get("document_type"), number=fields.get("invoice_number"),
+        return ledger_guard.check(document_type=fields.get("document_type"), title=fields.get("doc_kind"),
+                                  number=fields.get("invoice_number"),
                                   date=fields.get("date"), subtotal=fields.get("subtotal"), discount=fields.get("discount"),
                                   vat=fields.get("vat"), total=fields.get("total"))
 
@@ -45,12 +46,16 @@ class Guard(unittest.TestCase):
                 self.assertEqual(self.check(**base, **amounts), [])
 
     def test_total_only(self):
-        """只印总额：简式税票、含税收据正常（照账套规则反推）；完整税票只读到总额要人看（用户 11-03 定）。"""
-        for kind in ("simplified_tax_invoice", "receipt", None):
-            with self.subTest(kind=kind):
-                self.assertEqual(self.check(document_type=kind, date="2026-10-01", total="107.00"), [])
-        self.assertEqual(self.check(document_type="tax_invoice", invoice_number="A1", date="2026-10-01", total="107.00"),
-                         [ledger_guard.TAX_INVOICE_TOTAL_ONLY])
+        """只印总额：简式税票、含税收据、没有税票抬头的发票正常（照账套规则反推）；模型判为税票却只读到总额要人看（用户 11-03 定）。"""
+        for kind, title in (("simplified_tax_invoice", None), ("receipt", None), (None, None),
+                            ("tax_invoice", "bill_invoice"), ("tax_invoice", None)):
+            with self.subTest(kind=kind, title=title):
+                self.assertEqual(self.check(document_type=kind, doc_kind=title, invoice_number="A1", date="2026-10-01",
+                                            total="107.00"), [])
+        for title in ledger_guard.TAX_INVOICE_TITLES:
+            with self.subTest(title=title):
+                self.assertEqual(self.check(document_type="tax_invoice", doc_kind=title, invoice_number="A1",
+                                            date="2026-10-01", total="107.00"), [ledger_guard.TAX_INVOICE_TOTAL_ONLY])
 
     def test_required_fields(self):
         self.assertEqual(self.check(document_type="tax_invoice", date="2026-10-01", subtotal="100", vat="7", total="107"),
@@ -88,15 +93,18 @@ class ExpressDirect(unittest.TestCase):
 
     def test_full_tax_invoice_read_with_total_only_is_held(self):
         """旧写法：只有总额就按 7% 反推照写。"""
-        result = self.preflight({"document_type": "tax_invoice", "invoice_number": "A1", "date": "2026-10-01"}, "107.00")
+        fields = {"document_type": "tax_invoice", "doc_kind": "tax_invoice", "invoice_number": "A1", "date": "2026-10-01"}
+        result = self.preflight(fields, "107.00")
         self.assertFalse(result.ready)
         self.assertEqual((result.reason, [c.key for c in result.checks if c.status == "blocked"]),
                          ("amounts_not_consistent", ["document"]))
 
-    def test_simplified_invoice_with_total_only_is_still_written(self):
-        result = self.preflight({"document_type": "simplified_tax_invoice", "invoice_number": "R1", "date": "2026-10-01"},
-                                "107.00")
-        self.assertTrue(result.ready, result.reason)
+    def test_simplified_invoice_and_bill_with_total_only_are_still_written(self):
+        for fields in ({"document_type": "simplified_tax_invoice", "invoice_number": "R1", "date": "2026-10-01"},
+                       {"document_type": "tax_invoice", "doc_kind": "bill_invoice", "invoice_number": "B1", "date": "2026-10-01"}):
+            with self.subTest(fields=fields):
+                result = self.preflight(fields, "107.00")
+                self.assertTrue(result.ready, result.reason)
 
     def test_lines_that_do_not_add_up_still_write_the_closed_header(self):
         """表头金额闭合、明细对不上：钱没错，照现有口径只写表头（用户 11-03 定）。"""

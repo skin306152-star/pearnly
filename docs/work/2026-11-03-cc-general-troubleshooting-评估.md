@@ -241,3 +241,9 @@ ERP 同样能力：
   - 用户照纸上总额填，或补齐明细让两边对上，就自动放行；
   - CC 通过 edit_document 改时必须带 basis。
 - 只拦**新识别的单**（有识别标记的）：手工录入的单、上线前的老单（字段为空）照旧放行。迁移用原生 patch，老单留空。
+
+### 9.7 「完整税票只读到总额」口径（主会话 11-03 定）
+
+- 只对模型判为 `tax_invoice` / `receipt_tax_invoice` 的单生效；`bill_invoice` 等照账套规则走。护栏 `check` 加了 `title`（模型的 `doc_kind`）参数。
+- 回放统计上会拦 5 张（约 1%），名单见 9.3。
+- **现在还不生效**：Cowork 单据字段里没有带 `doc_kind`（`ThaiInvoice` 没有这一栏），推送时取不到。下一窗口在 Cowork 的 Claude 转换（`ocr/execution/claude.invoice`）带上它，ERP 同样，带上之后这一条自动生效。没带上之前不会误拦。
