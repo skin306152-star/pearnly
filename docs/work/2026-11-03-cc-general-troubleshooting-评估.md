@@ -176,3 +176,55 @@ ERP 同样能力：
 3. 代录：接上 AI 接手，转人工带原因与截图进待处理。CC 桌面版要发新版（合入 main 后直接发正式版）。约 2 小时，另加测试机实测。
 4. 验收：第 7 节样本，真模型，记录对话。约 2–3 小时，加上等测试机的时间。
 5. 每步过本地闸门、候选离线检查，合入 main；部署由主会话安排。
+
+## 9. 审定（主会话 11-03）与施工进度
+
+审定：
+- 5 点按第 6 节建议定：只印总额的简式税票 / 含税收据不算不闭合，照账套规则反推；明细对不上的单，表头闭合时照写表头（CC 在 checks 里能报出）；改走代录放第二期；补传重读照常扣费；测试机由主会话排时段。
+- 重复单按「推送不查重不拦」：护栏不拦，CC 只在被问到时指出。
+
+### 9.1 ERP 复核码核实（施工第一步）
+
+- 识别时算出的 review 码（`total_missing`、`printed_math`、`computed_total` 等）只写进复核提示词，不给用户看（`recognition/checks.py:30`，用户 10-02「录入侧不出识别后的错误提示」）。
+- 网页 `purchase-form.js:217-229` 只填字段和明细；LINE 卡片显示的是按明细算出的合计。
+- 提交和 ERP→Express 的 `checked()` 只核对单据自己算出的数；ERP 单据上没存票面印的金额。
+- 结论：缺页单在 ERP 会按已有明细算出自洽但不完整的合计，照写进账。ERP 侧判据（存票面合计 → 写账前比对）已报主会话，**等回复再施工**。
+
+### 9.2 已完成：共用护栏 + Cowork 两条直写路（提交 `960ed8055`）
+
+- `tax_documents/ledger_guard.py`：五个底线码，判据复用 `amounts.printed_issues`。
+- `express_rules/push/ledger.py`：从展平 history 取值，换成两边已有的拦截原因。Express 用 `amounts_not_consistent` / `low_confidence:invoice_no_missing` / `bad_or_missing_date`，沿用已有文案；MR.ERP 用 `ERR_NO_TOTAL_AMOUNT` / `ERR_NO_INVOICE_NO` / `ERR_NO_INVOICE_DATE`，加一个新码 `ERR_AMOUNTS_NOT_CLOSED`，列入不自动重试的用户数据错。
+- 接入点：
+  - Express 直写：`preflight.py` 单据一步；
+  - Cowork 的 Express 代录：交单逐张走同一个推送预检（`operator_source.submit` → `tools._push_one`），自动覆盖；
+  - MR.ERP 直写：`transport._preflight`，赊销、采购、费用三种模块都先过护栏。Cowork 和 ERP 推 MR.ERP 共用这一处。
+- 反例（`tests/test_ledger_guard.py` 13 条）：把护栏换回旧写法，4 条拦截测试失败：
+  - Express「完整税票只读到总额按 7% 反推照写」；
+  - MR.ERP 采购、费用「缺总额用小计 + 税额顶上照写」（BJC 第 7 页按 41589.83 写进账）；
+  - MR.ERP「金额不闭合照写」。
+- 本地闸门：架构 0 违规、文案无新增、现有 Express 预检 24 条通过；`check-impact` 命中 express-rules（12 入口）、mrerp-rules（4）、tax-documents（6），逐入口回归放在候选检查与验收。
+
+### 9.3 统计（549 份回放的新代码读法，514 张录入类单据）
+
+| 原因 | 张数 | 现在 Express 直写 | 现在 MR.ERP 直写 |
+| --- | --- | --- | --- |
+| 缺总额 | 19 | 已拦 | 有小计 + 税额的照写（护栏新拦） |
+| 金额不闭合 | 9 | 已拦 | 照写（护栏新拦） |
+| 完整税票只读到总额 | 11 | 照写（护栏新拦） | 照写（护栏新拦） |
+| 缺日期 | 6 | 已拦 | 已拦 |
+| 缺单号（完整税票） | 0 | — | — |
+
+- 「完整税票只读到总额」的 11 张里：5 张模型判为 `bill_invoice`（没有税票抬头的发票，8000 / 54000 / 15000 这类整数，多半是未登记增值税的卖方，本来就只印总额），平台码把它们也映射成 `tax_invoice`。另有 1 张 debit_note，2 张 tax_invoice，3 张 receipt_tax_invoice。**已报主会话定口径**（见 9.4）。
+- 明细合计对不上 10 张：其中 6 张表头闭合（照写表头，钱没错），4 张表头也不闭合（护栏已拦）。
+
+### 9.4 待主会话定
+
+- 「完整税票只读到总额」是否排除模型判为 `bill_invoice` 的单（只对 `tax_invoice` / `receipt_tax_invoice` 生效，回放上会拦 5 张，约 1%）。
+- ERP 侧判据（9.1）。
+
+### 9.5 接下来（按顺序）
+
+1. ERP 侧护栏（等 9.1 回复）：存票面合计 → ERP→Express / ERP→MR.ERP 写账前比对；ERP 代录同一处。
+2. CC 工具：`pending`、`detail.checks`、`edit_document.basis` 加改动记录、`recognize_attachments.into_document`；ERP 对应；GUIDANCE 原则段。
+3. 代录 AI 接手接线（`host.py:419`）。
+4. 真模型验收（第 7 节）。
