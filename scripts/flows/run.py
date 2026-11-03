@@ -209,9 +209,14 @@ def load_module(path):
     return module
 
 
-def drive(site, sid, start, steps, mobile, video, ready=None, preload=None):
+# 设了就把流程步骤里标了 shot 的截图存到这里（每格一个子目录：流程-数据集-宽度），人工核对截图用；不设不截
+SHOTS = os.environ.get("PEARNLY_FLOWS_SHOTS", "")
+
+
+def drive(site, sid, start, steps, mobile, video, ready=None, preload=None, shots=""):
     job = {"base": f"http://{site}:{PORT}", "cookie_domain": site, "sid": sid, "start": start, "mobile": mobile,
-           "video": video or "", "steps": steps, **({"ready": ready} if ready else {}), **({"preload": preload} if preload else {})}
+           "video": video or "", "steps": steps, **({"ready": ready} if ready else {}), **({"preload": preload} if preload else {}),
+           **({"shots": shots} if shots else {})}
     env = dict(os.environ, SMOKE_CHROME_RULES=f"MAP {site} 127.0.0.1")
     # 自成进程组：超时连同它拉起的无头 Chrome 一起结束，不留残留进程
     proc = subprocess.Popen(["node", str(ROOT / "scripts/regression/ui_steps.mjs"), json.dumps(job)], stdout=subprocess.PIPE,
@@ -261,9 +266,13 @@ def run_flow(lab, flow, dataset, viewport):
         sid = lab.session(site, user)
         try:
             start = flow["start"].format(**run_params)
+            shots = ""
+            if SHOTS:
+                shots = os.path.join(SHOTS, f"{flow['id']}-{dataset}-{viewport}")
+                os.makedirs(shots, exist_ok=True)
             results = drive(site, sid, start, module.steps(run_params, code), viewport == "mobile",
                             barcode_video(code) if code else None, getattr(module, "READY", None),
-                            getattr(module, "PRELOAD", None))
+                            getattr(module, "PRELOAD", None), shots)
         finally:
             lab.drop(site, user, sid)
         # 页面报错、步骤本身出错、步骤自己判出的错（返回 {error}）都算

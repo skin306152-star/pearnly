@@ -1010,3 +1010,51 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/connections/mrerp_login.py",
   "apps/pearnly_core/pearnly_core/cc_desktop/login_tickets.py",
 ]
+
+[[flow]]
+id = "cc.sidebar-modes"
+title = "CC 侧栏两种模式同一个框架（ERP）：共有入口不挪、代录下点公司 / 待处理不切模式、待处理数含代录任务并按单据去重、点任务打开"
+module = "scripts/flows/cc_sidebar_modes.py"
+start = "/assistant"
+user = "admin"
+datasets = ["old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "frontend/assistant/src/assistant.tsx",
+  "frontend/assistant/src/lib/nav.ts",
+  "frontend/assistant/src/lib/profile.ts",
+  "frontend/assistant/src/components/pending.tsx",
+  "frontend/assistant/src/components/operator/attention.ts",
+  "frontend/assistant/src/components/operator/attention-store.ts",
+  "frontend/assistant/src/components/operator/pending-tasks.tsx",
+  "frontend/assistant/src/components/operator/operator-sidebar.tsx",
+  "apps/pearnly_core/pearnly_core/express_operator/tasks.py",
+  "apps/pearnly_core/pearnly_core/express_operator/products.py",
+  "apps/pearnly_core/pearnly_core/shell.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+]
+
+[[flow]]
+id = "cowork.cc.sidebar-modes"
+title = "CC 侧栏两种模式同一个框架（Cowork）：共有入口不挪、定时任务只在对话模式、代录下点公司 / 待处理不切模式、待处理数含代录任务并按单据去重"
+module = "scripts/flows/cc_sidebar_modes.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "frontend/assistant/src/assistant.tsx",
+  "frontend/assistant/src/lib/nav.ts",
+  "frontend/assistant/src/lib/profile.ts",
+  "frontend/assistant/src/components/pending.tsx",
+  "frontend/assistant/src/components/operator/attention.ts",
+  "frontend/assistant/src/components/operator/attention-store.ts",
+  "frontend/assistant/src/components/operator/pending-tasks.tsx",
+  "frontend/assistant/src/components/operator/operator-sidebar.tsx",
+  "apps/pearnly_core/pearnly_core/express_operator/tasks.py",
+  "apps/pearnly_core/pearnly_core/express_operator/products.py",
+  "apps/pearnly_core/pearnly_core/shell.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py",
+  "apps/pearnly_cowork/pearnly_cowork/companies/pending.py",
+]
