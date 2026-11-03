@@ -35,7 +35,14 @@
   "express_sync_state",
   "express_sync_note",
   "express_mark",
-  "express_stock_diffs"
+  "express_stock_diffs",
+  "mrerp_section",
+  "mrerp_enabled",
+  "mrerp_connection",
+  "mrerp_account_set",
+  "mrerp_linked_at",
+  "mrerp_menus",
+  "mrerp_defaults"
  ],
  "fields": [
   {
@@ -245,11 +252,55 @@
    "fieldtype": "Check",
    "label": "Express",
    "default": "0"
+  },
+  {
+   "fieldname": "mrerp_section",
+   "fieldtype": "Section Break",
+   "hidden": 1
+  },
+  {
+   "fieldname": "mrerp_enabled",
+   "fieldtype": "Check",
+   "default": "0",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "mrerp_connection",
+   "fieldtype": "Link",
+   "options": "ERP MRERP Connection",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "mrerp_account_set",
+   "fieldtype": "Data",
+   "length": 40,
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "mrerp_linked_at",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "mrerp_menus",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "mrerp_defaults",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-01 21:00:00.000000",
+ "modified": "2026-11-03 00:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Company",
  "show_title_field_in_link": 1,

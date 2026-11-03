@@ -1,0 +1,108 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-11-03 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "system_url",
+  "enabled",
+  "credential_username",
+  "credential_password",
+  "credential_authorized_by",
+  "credential_device",
+  "credential_authorized_at",
+  "catalog_json",
+  "catalog_at",
+  "catalog_error",
+  "menu_options",
+  "master_options"
+ ],
+ "fields": [
+  {
+   "fieldname": "system_url",
+   "fieldtype": "Data",
+   "length": 255,
+   "read_only": 1
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "default": "1",
+   "read_only": 1
+  },
+  {
+   "fieldname": "credential_username",
+   "fieldtype": "Data",
+   "length": 140,
+   "read_only": 1
+  },
+  {
+   "fieldname": "credential_password",
+   "fieldtype": "Password",
+   "length": 255,
+   "read_only": 1
+  },
+  {
+   "fieldname": "credential_authorized_by",
+   "fieldtype": "Data",
+   "length": 140,
+   "read_only": 1
+  },
+  {
+   "fieldname": "credential_device",
+   "fieldtype": "Data",
+   "length": 140,
+   "read_only": 1
+  },
+  {
+   "fieldname": "credential_authorized_at",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "catalog_json",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "catalog_at",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "catalog_error",
+   "fieldtype": "Data",
+   "length": 140,
+   "read_only": 1
+  },
+  {
+   "fieldname": "menu_options",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "master_options",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-03 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP MRERP Connection",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}
