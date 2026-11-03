@@ -56,4 +56,35 @@ Cowork 账号在该站没有代录任务；对话侧栏的公司组来自「我�
 没有新增、改动词条（「任务」「需要你处理」「新建任务」都是已有的）。`check-copy --report`：新增 0 · 改动 0。
 
 ## 验证
-（施工中，见下次更新）
+
+- 单测（离线）：`test_express_operator_tasks`（attention 按单据去重、只给本人本站产品；每次变化提交后推给本人）、`test_assistant`
+  （describe 带声明的分区）、`test_erp_cc_companies` / `test_cowork_companies`（去重用的单据集合就是页面列着的）、`test_cc_operator`
+  （模式与视图拆开、共用导航顺序、定时任务按声明且只对话模式、Ctrl+N 在外壳）、`test_assistant_ui`、`test_cc_session_panel`。
+- 本地全闸门（同 development.yml）：175 / 175 通过。另 `check-architecture`、`check-unbounded-queries`（tasks.py 子表那一处写了 bounded）、
+  `check-get-writes`、`check-copy --report`（新增 0 · 改动 0）、流程覆盖闸通过。
+- 候选离线（生产镜像 `sha256:ea24fcb9…`，`cand-local.sh offline`）：72 个测试文件全部 OK。
+- 实验栈 `pearnly-sidebar-lab`（挂本分支）：新流程 `cc.sidebar-modes`（ERP）、`cowork.cc.sidebar-modes`（Cowork）电脑 + 手机 4 格通过，
+  每步截图在共享笔记 `CC侧栏两种模式-截图/`（对话 / 代录 × Cowork / ERP × 电脑 / 手机，外加代录下公司页、待处理页、打开任务、切回对话）。
+  ERP 那格用真数据跑了去重：一张单标成写账失败进了待处理，两条「需要你处理」的任务里单据已在待处理的那条不算，侧栏 2 = 1 张单 + 1 个任务，
+  页面「任务」一组 1 行。Cowork 回归数据里没有识别单据（待处理为空），去重只由单测守。
+  `--changed --base origin/main`：8 条流程 21 / 21 格通过（cc.chat、cc.companies、cc.operator、cc.person-names、erp.stocktake.scan、
+  cowork.operator.unknown 与两条新流程）。
+- Cowork / ERP 代录显示不同的原因（实验栈复核）：两站 admin 在流程准备任务前都是 0 个任务、0 段对话，旧代码下两边都会是「暂无任务」；
+  用户截图里 ERP 那个账号本来就有任务。代码没有按产品分支，差别来自数据。
+
+### 入口实测（`check-impact`，相对 origin/main）
+
+| 入口 | 结果 |
+|---|---|
+| `cc.operator.page`、`cc.operator.thread` | 通过：`test_cc_operator`、`test_express_operator_tasks` + 流程 `cc.operator`、两条新流程 |
+| `cc.assistant`、`shared.assistant`、`cowork.assistant` | 通过：流程 `cc.chat`、`cc.person-names`、两条新流程（对话侧栏、新建、待处理页） |
+| `cowork.companies`、`erp.cc.companies` | 通过：流程 `cc.companies`；Cowork 公司页这次没改（只多声明一个 `pending` 钩子与 `pending.documents`） |
+| `cc.settings.connection` | 通过：设置没改；流程 `cc.chat` 里打开对话页正常 |
+| `erp.cc.chat-push`、`cowork.cc.mrerp-setup` | 没测到：命中只因 ERP / Cowork 的 `hooks.py` 多了一行 `pending` 声明，这两条路径的代码没改 |
+| `shared.login`、`control.issue-and-entry`、`shared.shell-gate`、`shared.team.members`、`shared.line.login` | 没测到：命中只因 `shell.describe` 多回一个 `sections` 键（只读、无写），登录与开通闸逻辑没改；流程里各站登录、打开对话页正常 |
+| `erp.line.chat`、`cowork.line.chat`、`erp.cc.connect`、`cc.desktop.bridge`、`cowork.execution`、`erp.execution`、`erp.provisioning`、`erp.masters.scope`、`shared.navigation` | 没测到：命中只因改了 `hooks.py`（各加一行声明）与 `shell.py`；这些入口的代码路径没改 |
+
+## 剩余项
+- 真机：测试机 CC 桌面版窗口（电脑宽、Ctrl+N、Ctrl+Shift+1/2）和手机 LINE 入口没点；实验栈网页同一套前端。
+- 别的设备上任务变化的实时推送：单测守住了推送（提交后推给本人），没有用两台设备实测。
+- 任务「需要你处理」在收尾（有页面开着时）才定；CC 录完时没有页面开着，服务端仍是「进行中」，数字晚到下次打开收尾时（现状，未改）。
