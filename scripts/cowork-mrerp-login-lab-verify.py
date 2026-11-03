@@ -34,6 +34,7 @@ connect = FIXTURE['connect']
 METHOD = 'pearnly_cowork.companion.credential_api.mrerp_login'
 PATH = '/api/method/' + METHOD
 CORE_PATH = '/api/method/pearnly_core.cc_desktop.machine.mrerp_login'
+CONFIGURE_PATH = '/api/method/pearnly_cowork.connections.api.configure'
 OLD_PASSWORD = 'old-synthetic-' + uuid4().hex[:8]
 NEW_PASSWORD = 'new-synthetic-' + uuid4().hex[:8]
 DEVICE_KEY = 'K' * 43
@@ -137,7 +138,9 @@ class MrErpLogin(unittest.TestCase):
         text = response.get_data(as_text=True)
         self.assertNotIn(NEW_PASSWORD, text)
         self.assertNotIn(OLD_PASSWORD, text)
-        self.assertEqual(response.headers.getlist('Set-Cookie'), [])
+        if path != CONFIGURE_PATH:
+            # 机器入口不发会话 Cookie；网页接口（人的 API 令牌）照 Frappe 原样回 Guest 会话 Cookie，不在此列
+            self.assertEqual(response.headers.getlist('Set-Cookie'), [])
         return response
 
     def stored(self):
@@ -238,11 +241,12 @@ class MrErpLogin(unittest.TestCase):
         body = {'workspace': self.workspace, 'adapter': 'mrerp', 'label': 'Synthetic MR.ERP', 'config': '{}',
                 'users': json.dumps([self.manager, self.actor]), 'name': self.mrerp['name'],
                 'expected_revision': before['revision']}
-        path = '/api/method/pearnly_cowork.connections.api.configure'
+        path = CONFIGURE_PATH
         for credentials in ({'username': 'web-user', 'password': NEW_PASSWORD}, {'password': NEW_PASSWORD}):
             refused = self.post({**body, 'request_key': uuid4().hex, 'credentials': json.dumps(credentials)},
                                 headers=self.human_headers, path=path)
-            self.assertNotEqual(refused.status_code, 200)
+            # 按配置无效拒（Frappe 的 ValidationError → 417），不是认证失败
+            self.assertEqual((refused.status_code, refused.json.get('exc_type')), (417, 'ValidationError'))
             self.assertEqual(self.stored(), before)
         plain = self.post({**body, 'request_key': uuid4().hex}, headers=self.human_headers, path=path)
         self.assertEqual(plain.status_code, 200)
