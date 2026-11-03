@@ -18,7 +18,8 @@ PAGES = {
 
 
 def prepare(lab, manifest):
-    closed = next((row["name"] for row in manifest["stock_counts"] if row.get("status") == "closed"), "")
+    # 本套固定数据自己的那份已结束盘点（不取实验栈里别的流程累积的盘点）
+    closed = next((row["name"] for row in manifest["dataset_counts"] if row.get("status") == "closed"), "")
     found = lab.python(manifest["site"], f"""
 codes = frappe.get_all("Cowork Stocktake Item", filters={{"task": {closed!r}}}, pluck="product_code", limit_page_length=5) if {closed!r} else []
 print(json.dumps({{"stock_count": codes, "jobs": frappe.db.count("Pearnly Export")}}))

@@ -18,6 +18,24 @@ READ_LIST = (
     " empty:[...document.querySelectorAll('.no-result')].some(e=>e.offsetParent)};")
 
 
+# 在列表里按标题逐个找行（不截前 N 个字）：标题格里有一个元素的文字与标题完全相同才算，记下那一行的单号；
+# 没找齐就点列表自带的「加载更多」（`.btn-more`，服务端下一页）接着找，直到找齐或没有下一页。
+# 用法：`await find_rows(titles)` → {found: {标题: 单号}, pages: 读了几页}。要在 READ_LIST 之后用（第一页的行数先读完）
+FIND_ROWS = (
+    "const find_rows=async(titles)=>{const found={};let pages=1;"
+    "const rows=()=>[...document.querySelectorAll('.result .list-row-container')].filter(e=>!e.querySelector('.list-row-head'));"
+    "const scan=()=>{for(const row of rows()){const cells=[...row.querySelectorAll('.list-subject *')];"
+    " for(const t of titles){if(!(t in found)&&cells.some(e=>e.textContent.trim()===t))"
+    "  found[t]=row.querySelector('.list-row-checkbox')?.dataset.name||row.querySelector('[data-name]')?.dataset.name||'';}}};"
+    "scan();"
+    "for(let k=0;k<500&&titles.some(t=>!(t in found));k++){"
+    " const more=[...document.querySelectorAll('.list-paging-area .btn-more')].find(e=>e.offsetParent); if(!more) break;"
+    " const before=rows().length; more.click();"
+    " for(let j=0;j<80&&rows().length===before;j++) await new Promise(r=>setTimeout(r,250)); await idle();"
+    " if(rows().length===before) break; pages++; scan();}"
+    "return {found, pages};};")
+
+
 # 点页面上的一个动作（`page.add_inner_button`）：电脑宽度是页头按钮；手机宽度框架把它收进页头的「…」菜单
 # （frappe `ui/page.js`「Add actions as menu item in Mobile View」），先展开菜单再点那一项。回 'button' / 'menu'，找不到回 ''
 ACTION = (

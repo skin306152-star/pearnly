@@ -37,6 +37,8 @@ COWORK_SITES = {"new": "cowork-new.regression.localhost", "old": "cowork-old.reg
 # Cowork 老站点的盘点（上传导入，走正式的导入函数）：(标题, [(编码, 名称, 单位, 账面, 实盘)])
 COWORK_COUNTS = [("ตรวจนับเก่า มีจำนวน", [("CW-001", "สินค้าเก่า ก", "ชิ้น", 10, 9), ("CW-002", "สินค้าเก่า ข", "กล่อง", 4, 4)]),
                  ("ตรวจนับเก่า ยังไม่นับ", [("CW-003", "สินค้าเก่า ค", "ชิ้น", 7, None)])]
+# 这两份盘点的单号（上传导入时的请求号）：清单按它认出本套自己的盘点，不跟着实验栈里别的流程累积的盘点走
+COWORK_COUNT_IDS = [str(uuid.uuid5(uuid.NAMESPACE_URL, f"regression-cowork-count-{index}")) for index in range(len(COWORK_COUNTS))]
 # Cowork 老站点的对账任务：照对账页解析好的两边内容走正式的建任务函数（`create_from_parsed`，不识别、不排后台），
 # 数据同 `scripts/cowork-*-recon-lab-verify.py` 的合成样例
 COWORK_INCOME = {"title": "รายได้เก่า มิ.ย. 2569", "gl_filename": "GL June.xlsx", "vat_filename": "VAT June.xlsx",
@@ -251,7 +253,10 @@ def cowork_state(site, dataset):
                             (("bank", "Cowork Bank Reconciliation"), ("income", "Cowork Income Reconciliation"), ("vat", "Cowork VAT Check"))},
             "presets": {kind: frappe.db.count("Cowork Recon Preset", {"workspace": workspace, "recon_kind": kind})
                         for kind in ("bank", "income")},
-            "stock_counts": counts}
+            "stock_counts": counts,
+            # 本套固定数据自己的盘点（老站点上传导入的两份；新开户没有）
+            "dataset_counts": frappe.get_all("Cowork Stocktake Task", filters={"workspace": workspace, "name": ["in", COWORK_COUNT_IDS]},
+                                             fields=["name", "title", "status"], order_by="creation asc")}
 
 
 def build_cowork_new():
@@ -270,8 +275,7 @@ def build_cowork_old():
     frappe.set_user(ADMIN.format("cowork.regression"))
     workspace = scope.default_workspace()
     commit()
-    for index, (title, rows) in enumerate(COWORK_COUNTS):
-        request_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"regression-cowork-count-{index}"))
+    for request_id, (title, rows) in zip(COWORK_COUNT_IDS, COWORK_COUNTS):
         if frappe.db.exists("Cowork Stocktake Task", request_id):
             continue
         book = load_workbook(io.BytesIO(upload.template()))
@@ -282,7 +286,7 @@ def build_cowork_old():
         book.save(output)
         commit(upload.create(title, request_id, output.getvalue()))
     # 第一份（全都数过）结束掉：结束的盘点才有「导出」（`stocktake.js`），导出流程用它
-    first = str(uuid.uuid5(uuid.NAMESPACE_URL, "regression-cowork-count-0"))
+    first = COWORK_COUNT_IDS[0]
     if frappe.db.get_value("Cowork Stocktake Task", first, "status") == "active":
         from pearnly_cowork.stocktake import service as stocktake
 
