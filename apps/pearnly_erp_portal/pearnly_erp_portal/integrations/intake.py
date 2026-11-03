@@ -22,7 +22,6 @@ from pearnly_core import line, line_binding
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.integrations import line_cards, line_flow
-from pearnly_erp_portal.recognition import checks
 
 DOCTYPE = "ERP LINE Intake"
 QUEUED, READY, FAILED, CONFIRMED = "queued", "ready", "failed", "confirmed"
@@ -269,7 +268,7 @@ def build_payload(doc, result=None) -> dict:
         payload.update(company=doc.company, lines=lines, is_paid=doc.is_paid,
                        payment_method=doc.payment_method or "cash", update_stock=int(goods),
                        auto_create_product=int(goods), source="line", attachments=attachments,
-                       **checks.marks(result))  # 票面合计与识别标记（写账前核对，`express.contracts.printed_hold`）
+                       **_recogniser(doc.direction).marks(result))  # 票面合计与识别标记（写账前核对，`express.contracts.printed_hold`）
         if party:
             payload["supplier"] = party
         elif fallback:
@@ -292,7 +291,7 @@ def build_payload(doc, result=None) -> dict:
         lines.append(row)
     payload.update(company=doc.company, lines=lines, is_paid=doc.is_paid,
                    payment_method=doc.payment_method or None, source="line", attachments=attachments,
-                   **checks.marks(result))
+                   **_recogniser(doc.direction).marks(result))
     if not doc.is_paid:
         payload["paid_amount"] = 0
     elif payload.get("doc_date"):
@@ -394,7 +393,7 @@ def submit(name, payload) -> dict:
     payload["company"] = doc.company
     payload["source"] = "line"
     # 识别标记按这张卡的识别结果补上（页面不带）；票面合计用页面上的（人可以改）
-    payload["ocr_review"] = checks.marks(json.loads(doc.result or "{}"))["ocr_review"]
+    payload["ocr_review"] = _recogniser(doc.direction).marks(json.loads(doc.result or "{}"))["ocr_review"]
     source = {"file": _file_name(doc), "kind": "bill"}
     others = [row for row in payload.get("attachments") or [] if row.get("file") != source["file"]]
     payload["attachments"] = [source, *others]

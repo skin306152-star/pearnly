@@ -427,3 +427,8 @@ def review(result):
                                      computed["net_payable"]) if computed else (
         ["computed_total"] if checks.money(printed.get("total")) is not None else [])
     return issues + checks.date_issues(result.get("doc_date")) + list(result.get("tax_review") or [])
+
+
+def marks(result) -> dict:
+    """识别结果落到单据上的票面合计与识别标记（`recognition.checks.marks`）：LINE 卡片建单、编辑页提交时用（`integrations.intake`）。"""
+    return checks.marks(result)

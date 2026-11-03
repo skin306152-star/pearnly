@@ -134,11 +134,11 @@
 			u.section("Taxes and Charges"),
 			f("has_vat", "Tax Invoice", "Check", {hidden: !editable}),
 			f("subtotal", "Net Total", "Currency", {read_only: 1}),
-			f("discount_total", "Discount Amount", "Currency"), f("rounding", "Rounding Adjustment", "Currency"), col(),
+			f("discount_total", "Discount Amount", "Currency"), f("rounding", "Rounding Adjustment", "Currency"),
+			// 识别来的单才有（写账前与合计核对，`express.contracts.printed_hold`）；识别后显示
+			f("printed_total", "Printed Total", "Currency", {hidden: !(doc.ocr_review || state.intake)}), col(),
 			...[["vat_amount", "VAT"], ["wht_amount", "Withholding Tax"], ["grand_total", "Grand Total"],
 				["net_payable", "Amount Payable"]].map(([key, label]) => f(key, label, "Currency", {read_only: 1})),
-			// 识别来的单才有（写账前与合计核对，`express.contracts.printed_hold`）；识别后显示
-			f("printed_total", "Printed Total", "Currency", {hidden: !(doc.ocr_review || state.intake)}),
 			u.section("Invoice Amount", {collapsible: 1, collapsed: 1, hidden: !editable && !doc.amount_override}),
 			f("amount_override", "Manually Set Amounts", "Check", {hidden: !editable, onchange: async () => {
 				if (state.ready && state.form.get_value("amount_override")) await state.form.set_values({

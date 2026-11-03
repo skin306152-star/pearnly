@@ -306,6 +306,7 @@ Checked a reconciliation's progress,查看了对账进度
 Checked in the ERP,已在 ERP 核对
 Checked in the ERP: not entered. It can be sent again,已在 ERP 核对：未入账，可重新推送
 Checked intake choices,查看了录入口径
+Checked pending items,查看了待处理
 Checked push choices,查看了推送前要选的项
 Checked push results,查看了推送结果
 Checked recognition results,查看了识别结果
@@ -320,6 +321,7 @@ Checking MR.ERP import settings,正在查看 MR.ERP 导入设置
 Checking a readback,正在查看回读结果
 Checking a reconciliation's progress,正在查看对账进度
 Checking intake choices,正在查看录入口径
+Checking pending items,正在查看待处理
 Checking push choices,正在查看推送前要选的项
 Checking push results,正在查看推送结果
 Checking recognition results,正在查看识别结果

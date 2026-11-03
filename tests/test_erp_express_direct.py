@@ -3438,8 +3438,8 @@ class PrintedTotalRecognition(unittest.TestCase):
         self.assertIn("result.update(checks.marks(result))", read("purchasing/recognition.py"))
         self.assertIn("**checks.marks(result)}", read("sales/recognition.py"))
         intake = read("integrations/intake.py")
-        self.assertEqual(intake.count("**checks.marks(result))"), 2)  # LINE 卡片建单：采购、销售
-        self.assertIn('payload["ocr_review"] = checks.marks(', intake)  # 页面提交：服务端补标记
+        self.assertEqual(intake.count("**_recogniser(doc.direction).marks(result))"), 2)  # LINE 卡片建单：采购、销售
+        self.assertIn('payload["ocr_review"] = _recogniser(doc.direction).marks(', intake)  # 页面提交：服务端补标记
         for path in ("purchasing/entry.py", "sales/entry.py"):
             head = read(path).split("HEAD_FIELDS = (", 1)[1].split(")", 1)[0]
             self.assertIn('"printed_total"', head, path)

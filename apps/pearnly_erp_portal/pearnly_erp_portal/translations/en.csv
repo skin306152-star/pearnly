@@ -229,8 +229,10 @@ Chassis No,Chassis No
 Check sheet,Check sheet
 Check the opening stock row,Check the opening stock row
 Checkbox,Checkbox
+Checked pending items,Checked pending items
 Checked push choices,Checked push choices
 Checked push results,Checked push results
+Checking pending items,Checking pending items
 Checking push choices,Checking push choices
 Checking push results,Checking push results
 Checklist,Checklist
@@ -976,6 +978,7 @@ Price is not set for the item.,Price is not set for the item.
 Prices Include Tax,Prices Include Tax
 Print,Print
 Print Receipt,Print Receipt
+Printed Total,Printed Total
 Private,Private
 Product,Product
 Product / position / counted by / time,Product / position / counted by / time
@@ -1375,6 +1378,7 @@ The password must be at least {0} characters,The password must be at least {0} c
 The payment details are invalid,The payment details are invalid
 The payment is more than the net payable,The payment is more than the net payable
 The payment method is invalid,The payment method is invalid
+The printed total is missing,The printed total is missing
 The product code cannot be changed,The product code cannot be changed
 The product identifiers refer to different products,The product identifiers refer to different products
 The quantity is not a valid number,The quantity is not a valid number
@@ -1391,6 +1395,7 @@ The start date is after the due date,The start date is after the due date
 The stock count changed. Review the differences again.,The stock count changed. Review the differences again.
 "The stock lines could not be posted. Check the items, quantities and prices","The stock lines could not be posted. Check the items, quantities and prices"
 The supplier is missing. Add it and submit again.,The supplier is missing. Add it and submit again.
+The total does not match the printed total,The total does not match the printed total
 The total is invalid,The total is invalid
 The total is zero,The total is zero
 The units must match the stock of each warehouse,The units must match the stock of each warehouse
@@ -2156,6 +2161,8 @@ express.reason.offline,Computer offline
 express.reason.operatorOwned,This document is in an Express operator entry
 express.reason.periodLocked,The accounting period is closed in Express
 express.reason.posNetNegative,Refunds exceed sales for this day after netting
+express.reason.printedTotalMismatch,The total does not match the printed total
+express.reason.printedTotalMissing,The printed total is missing
 express.reason.reading,Reading the Express account set
 express.reason.refundCrossYear,Original and refund are in different account set years
 express.reason.refundItems,Each returned line must be an Express stock item

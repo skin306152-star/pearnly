@@ -229,8 +229,10 @@ Chassis No,เลขตัวถัง
 Check sheet,ใบตรวจสอบ
 Check the opening stock row,กรุณาตรวจสอบรายการยกมานี้
 Checkbox,ช่องทำเครื่องหมาย
+Checked pending items,ตรวจสอบรายการรอดำเนินการแล้ว
 Checked push choices,ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว
 Checked push results,ตรวจสอบผลการส่งแล้ว
+Checking pending items,กำลังตรวจสอบรายการรอดำเนินการ
 Checking push choices,กำลังตรวจสอบสิ่งที่ต้องเลือกก่อนส่ง
 Checking push results,กำลังตรวจสอบผลการส่ง
 Checklist,รายการตรวจสอบ
@@ -976,6 +978,7 @@ Price is not set for the item.,สินค้านี้ยังไม่ไ�
 Prices Include Tax,ราคารวมภาษี
 Print,พิมพ์
 Print Receipt,พิมพ์ใบเสร็จ
+Printed Total,ยอดรวมตามเอกสาร
 Private,ส่วนตัว
 Product,สินค้า
 Product / position / counted by / time,สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา
@@ -1375,6 +1378,7 @@ The password must be at least {0} characters,รหัสผ่านต้อ�
 The payment details are invalid,ข้อมูลการชำระเงินไม่ถูกต้อง
 The payment is more than the net payable,ยอดชำระเกินยอดที่ต้องชำระ
 The payment method is invalid,วิธีชำระเงินไม่ถูกต้อง
+The printed total is missing,ไม่มียอดรวมตามเอกสาร
 The product code cannot be changed,ไม่สามารถแก้ไขรหัสสินค้าได้
 The product identifiers refer to different products,รหัสในแถวนี้อ้างถึงสินค้าคนละรายการ
 The quantity is not a valid number,จำนวนไม่ถูกต้อง
@@ -1391,6 +1395,7 @@ The start date is after the due date,วันเริ่มต้นต้อ�
 The stock count changed. Review the differences again.,ข้อมูลตรวจนับเปลี่ยนแปลงแล้ว กรุณาตรวจสอบผลต่างอีกครั้ง
 "The stock lines could not be posted. Check the items, quantities and prices",ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
 The supplier is missing. Add it and submit again.,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
+The total does not match the printed total,ยอดรวมไม่ตรงกับยอดรวมตามเอกสาร
 The total is invalid,ยอดรวมไม่ถูกต้อง
 The total is zero,ยอดรวมเป็นศูนย์
 The units must match the stock of each warehouse,จำนวนรายชิ้นต้องเท่ากับยอดคงคลังของแต่ละคลัง
@@ -2156,6 +2161,8 @@ express.reason.offline,เครื่องออฟไลน์
 express.reason.operatorOwned,เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express
 express.reason.periodLocked,งวดบัญชีนี้ปิดแล้วใน Express
 express.reason.posNetNegative,ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ
+express.reason.printedTotalMismatch,ยอดรวมไม่ตรงกับยอดรวมตามเอกสาร
+express.reason.printedTotalMissing,ไม่มียอดรวมตามเอกสาร
 express.reason.reading,กำลังอ่านชุดบัญชี Express
 express.reason.refundCrossYear,ใบต้นฉบับและการคืนอยู่ในชุดบัญชีคนละปี
 express.reason.refundItems,รายการรับคืนต้องเป็นสินค้าคงคลังใน Express

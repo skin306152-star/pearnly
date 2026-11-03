@@ -149,3 +149,8 @@ def review(result):
     issues += checks.computed_issues(printed, computed["grand_total"], computed["vat_amount"]) if computed else (
         ["computed_total"] if checks.money(printed.get("total")) is not None else [])
     return issues + checks.date_issues(result.get("doc_date"))
+
+
+def marks(result) -> dict:
+    """识别结果落到单据上的票面合计与识别标记（`recognition.checks.marks`）：LINE 卡片建单、编辑页提交时用（`integrations.intake`）。"""
+    return checks.marks(result)

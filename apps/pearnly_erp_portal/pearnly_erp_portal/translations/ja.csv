@@ -229,8 +229,10 @@ Chassis No,車台番号
 Check sheet,照合表
 Check the opening stock row,この期首明細を確認してください
 Checkbox,チェックボックス
+Checked pending items,処理待ちの項目を確認しました
 Checked push choices,送信前の選択項目を確認しました
 Checked push results,送信結果を確認しました
+Checking pending items,処理待ちの項目を確認しています
 Checking push choices,送信前の選択項目を確認しています
 Checking push results,送信結果を確認しています
 Checklist,チェックリスト
@@ -976,6 +978,7 @@ Price is not set for the item.,この商品には価格が設定されていま�
 Prices Include Tax,税込価格
 Print,印刷
 Print Receipt,レシート印刷
+Printed Total,伝票の合計
 Private,非公開
 Product,製品
 Product / position / counted by / time,商品・位置・担当者・日時
@@ -1375,6 +1378,7 @@ The password must be at least {0} characters,パスワードは{0}文字以上�
 The payment details are invalid,支払情報が無効です
 The payment is more than the net payable,支払金額が支払残高を超えています
 The payment method is invalid,支払方法が無効です
+The printed total is missing,伝票の合計がありません
 The product code cannot be changed,商品コードは変更できません
 The product identifiers refer to different products,この行の商品ID・コード・バーコードは別の商品を指しています
 The quantity is not a valid number,数量が正しい数値ではありません
@@ -1391,6 +1395,7 @@ The start date is after the due date,開始日が期日より後です
 The stock count changed. Review the differences again.,棚卸内容が変更されました。差異を再確認してください。
 "The stock lines could not be posted. Check the items, quantities and prices",在庫明細を記帳できません。品名・数量・単価を確認してください
 The supplier is missing. Add it and submit again.,仕入先がありません。追加して再送信してください
+The total does not match the printed total,合計が伝票の合計と一致しません
 The total is invalid,合計が無効です
 The total is zero,合計がゼロです
 The units must match the stock of each warehouse,個体数は各倉庫の帳簿数と一致する必要があります
@@ -2156,6 +2161,8 @@ express.reason.offline,端末オフライン
 express.reason.operatorOwned,この書類は Express の代行入力中です
 express.reason.periodLocked,会計期間は Express で締め済みです
 express.reason.posNetNegative,この日は返品が売上を上回っています
+express.reason.printedTotalMismatch,合計が伝票の合計と一致しません
+express.reason.printedTotalMissing,伝票の合計がありません
 express.reason.reading,Express 帳簿を読み取り中
 express.reason.refundCrossYear,元伝票と返品が別年度の帳簿にあります
 express.reason.refundItems,返品明細は Express の在庫品である必要があります

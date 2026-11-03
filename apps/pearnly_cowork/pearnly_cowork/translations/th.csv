@@ -306,6 +306,7 @@ Checked a reconciliation's progress,ตรวจสอบความคืบ�
 Checked in the ERP,ตรวจใน ERP แล้ว
 Checked in the ERP: not entered. It can be sent again,ตรวจสอบใน ERP แล้ว: ยังไม่ลงบัญชี สามารถส่งใหม่ได้
 Checked intake choices,ตรวจสอบตัวเลือกการบันทึกแล้ว
+Checked pending items,ตรวจสอบรายการรอดำเนินการแล้ว
 Checked push choices,ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว
 Checked push results,ตรวจสอบผลการส่งแล้ว
 Checked recognition results,ตรวจสอบผลการอ่านเอกสารแล้ว
@@ -320,6 +321,7 @@ Checking MR.ERP import settings,กำลังตรวจสอบการต
 Checking a readback,กำลังตรวจสอบผลการอ่านข้อมูลกลับ
 Checking a reconciliation's progress,กำลังตรวจสอบความคืบหน้าการกระทบยอด
 Checking intake choices,กำลังตรวจสอบตัวเลือกการบันทึก
+Checking pending items,กำลังตรวจสอบรายการรอดำเนินการ
 Checking push choices,กำลังตรวจสอบสิ่งที่ต้องเลือกก่อนส่ง
 Checking push results,กำลังตรวจสอบผลการส่ง
 Checking recognition results,กำลังตรวจสอบผลการอ่านเอกสาร
