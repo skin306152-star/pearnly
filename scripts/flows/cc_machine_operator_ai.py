@@ -25,7 +25,7 @@ HAIKU = "claude-haiku-5-5"
 
 
 def prepare(lab, manifest):
-    tag = uuid.uuid4().hex[:8]
+    tag = uuid.uuid4().hex  # 电脑键 32–128 位（`cc_desktop.contracts.device_key`）
     return lab.python(manifest["site"], f"""
 import os
 from pearnly_core.cc_desktop import devices, http_auth
