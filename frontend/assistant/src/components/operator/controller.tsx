@@ -6,14 +6,14 @@
 //   准备中：资料（站点分页取）、开始前确认（预检，要人定的一次问完；上次推送结果不明的单标已入账 / 没有入账）、电脑；公司、月份还能改。
 //         「开始」一直能点：还不能开始时点了说明还差什么（startBlocker），并打开对应的分区。
 //   已开始：进度（这台电脑上在跑的来自桥，别处的按站点任务记录里的交单结论；先取一次，之后跟着订阅）；停止 / 开始、跳过 / 重试、
-//         删除都交给数据源，完了按数据源推来的进度刷新。
+//         整批停下后继续、删除都交给数据源，完了按数据源推来的进度刷新。登录类停下的先授权，授权好了接着继续。
 // 出错显示在主栏顶上（shownError：本站拒收照原文，别的只说通用的一句）。
 
 import { createContext, type FC, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { op } from "@/i18n";
 import { shownError } from "@/lib/frappe";
 import { useModePlace } from "@/lib/nav";
-import { allAnswered, answersFor, docsToStart, groupOf, questionsOf, unknownDocs, type Question } from "./model";
+import { allAnswered, answersFor, batchNeedsHuman, docsToStart, groupOf, questionsOf, unknownDocs, type Question } from "./model";
 import { type Draft, EMPTY_PREP, forgetPrep, setFold, setPrep, useOperatorStore } from "./store";
 import { dropTask, loadTasks, upsertTask, useTasks } from "./tasks";
 import type { BatchSnapshot, CreateBatchInput, DocGroup, DocumentOption, OperatorComputer, OperatorSource, PrecheckDoc, TaskRecord } from "./types";
@@ -21,6 +21,8 @@ import { siteSeconds } from "./live-source";
 import { reportCaught, withReport } from "@/lib/caught";
 
 export const PAGE = 50;
+/** 整批停在 Express 登录上的原因：先在 CC 授权（「设置」），授权好了接着继续。 */
+export const LOGIN_REASONS: ReadonlySet<string> = new Set(["login_failed", "login_missing"]);
 
 /** 开始的条件：有要交的单、确认都答了（结果不明的单都标过了）、电脑在线、Express 登录不是「未设置」（这一页不知道的不拦）。 */
 export function canStart(input: { docs: number; questions: readonly Question[]; answers: Record<string, string>; unknown?: number; computer?: OperatorComputer }) {
@@ -112,6 +114,8 @@ export type Operator = {
   stop(): void;
   skip(docId: string): void;
   retry(docId: string): void;
+  /** 整批停下以后继续（因整批停没录成的单交回去重录）。 */
+  resume(): void;
   authorize(): void;
   remove(id: string): Promise<void>;
 };
@@ -374,11 +378,16 @@ export const OperatorProvider: FC<{ source: OperatorSource; active?: boolean; ch
       }
       if (snapshot) void act(() => source.retry(snapshot.id, docId));
     },
+    resume() {
+      if (snapshot) void act(() => source.resume(snapshot.id));
+    },
     authorize() {
       void act(async () => {
         const target = snapshot ? { batch: snapshot.id } : { computer: computer?.id ?? "" };
         const { ok } = await source.authorizeLogin(target);
         if (ok && !snapshot) setData((d) => ({ ...d, computers: (d.computers ?? []).map((pc) => (pc.id === computer?.id ? { ...pc, login: true } : pc)) }));
+        // 整批因登录停下：授权好了接着继续
+        if (ok && snapshot && batchNeedsHuman(snapshot) && LOGIN_REASONS.has(snapshot.reason)) await source.resume(snapshot.id);
       });
     },
     async remove(taskId) {

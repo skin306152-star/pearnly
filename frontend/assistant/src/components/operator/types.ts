@@ -285,7 +285,10 @@ export interface OperatorSource {
   start(batchId: string): Promise<void>;
   stop(batchId: string): Promise<void>;
   skip(batchId: string, docId: string): Promise<void>;
+  /** 单张重试：站点把这张按原批次号交回执行的电脑（同作答，没有答案）。 */
   retry(batchId: string, docId: string): Promise<void>;
+  /** 整批停下以后继续：站点把因整批停没录成的单（卡住的那张 + 因停止跳过的）按原批次号交回执行的电脑。 */
+  resume(batchId: string): Promise<void>;
   /** 删除任务（服务端记录与桥上的进度；只删记录、不动账套）；交出去还没收尾的不能删。 */
   remove(batchId: string): Promise<void>;
   /** 「结果不明」的单（开始前确认里，或交出去后 CC 重启打断的）：在 Express 里核对后标已入账 / 没有入账（走产品复核页同一条路）；

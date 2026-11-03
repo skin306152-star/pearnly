@@ -10,11 +10,14 @@
 //     task_running(name) — 桥上看到这台电脑开始录了，转「进行中」（每个任务一次）
 //     task_settle(name) — 以站点为准收尾：这台电脑上没在跑、还没收尾的任务（换设备看、CC 重启后），以及这台电脑上跑完的
 //     resolve(company, doc_id, entered, docnum) — 开始前确认里「结果不明」的单标已入账 / 没有入账（同产品复核页）
+//     task_answer(name, doc_id, answers) — 停下等人的那张按原批次号交回执行的电脑（作答；单张重试 answers 为空）
+//     task_resume(name) — 整批停下以后继续：因整批停没录成的单按原批次号交回执行的电脑
 //   公司：两个产品同一个来源——产品声明的公司接口（共用层 projects() 的 api + companies，同侧栏「公司」：Cowork 公司主档、ERP
 //         本人可见的启用公司），服务端分页、按名称 / 税号搜
 //   桥（CC 桌面版窗口，state().features 含 operator 时）
 //     operator_state — 本机最近的任务（CC 重启后也在，带 created）与 Express 登录设置了没有
-//     operator_control — stop / resume / skip / retry / delete；operator_authorize — 原生小窗设置 Express 登录
+//     operator_control — stop / resume（暂停后）/ skip / delete；operator_authorize — 原生小窗设置 Express 登录
+//     （重试、整批停下后继续走站点：CC 本机重录不了已经回执给站点的单）
 //
 // 建任务后先按 start 的回包拼一份「准备中」的进度（没收的单停在需要处理、原因按回包）；桥上有了这个任务就换成桥上的进度，没收的单
 // 照旧并在后面。网页、手机（没有桥）、别的电脑上的任务按站点任务记录里的交单结论拼（remote），进度在执行的电脑上看。
@@ -498,7 +501,8 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
       try {
         const reply = await post<{ controls?: Array<{ action?: string; doc_id?: string }> }>(API + "task_controls", { name: s.id });
         for (const c of reply?.controls ?? []) {
-          if ((c.action === "skip" || c.action === "retry") && c.doc_id) await control(s.id, c.action, String(c.doc_id)).catch(withReport(undefined, "operator-controls"));
+          if (c.action === "skip" && c.doc_id) await control(s.id, c.action, String(c.doc_id)).catch(withReport(undefined, "operator-controls"));
+          if (c.action === "retry" && c.doc_id) await source.retry(s.id, String(c.doc_id)).catch(withReport(undefined, "operator-controls"));
         }
       } catch (caughtError) { reportCaught(caughtError, "operator-controls");
         // 断网、不是站点上的任务：下一次再取
@@ -682,7 +686,12 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
       }
       await control(batchId, "skip", docId);
     },
-    retry: (batchId, docId) => control(batchId, "retry", docId),
+    async retry(batchId, docId) {
+      await source.answerTask(batchId, docId, []);
+    },
+    async resume(batchId) {
+      noteTask(taskOf(await post(API + "task_resume", { name: batchId })));
+    },
     async remove(batchId) {
       // 先删站点的任务记录（交出去还没收尾的站点不让删）；桥上有的交给桥删本机的进度（录单中的桥回 ok:false：站点已删时本机的
       // 进度留到 CC 收尾）。任务记录出来前建的旧批次站点不认，桥删得掉就算删了

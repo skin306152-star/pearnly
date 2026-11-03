@@ -424,6 +424,18 @@ export function createMockSource(options: { now?: () => number; local?: boolean 
       if (b.status !== "running") begin(b);
       emit(b);
     },
+    async resume(batchId) {
+      calls.push(["task_resume", batchId]);
+      const b = get(batchId);
+      // 因整批停没录成的（卡住的那张 + 因停止跳过的）交回去重录；别的不动
+      for (const doc of b.docs) {
+        if ((doc.status === "skipped" && doc.reason === "stopped") || (doc.status === "waiting" && doc.reason === b.reason)) {
+          Object.assign(doc, { status: "pending", reason: "" });
+        }
+      }
+      begin(b);
+      emit(b);
+    },
     async remove(batchId) {
       calls.push(["delete", batchId]);
       const b = batches.get(batchId);

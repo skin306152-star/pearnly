@@ -20,7 +20,7 @@ import { Marquee } from "@/components/ui/marquee";
 import { co, op, t } from "@/i18n";
 import { formatAmount } from "@/lib/companies";
 import { ACCEPT } from "@/lib/managed-agents/attachments";
-import { useOperator } from "./controller";
+import { LOGIN_REASONS, useOperator } from "./controller";
 import {
   allAnswered,
   batchNeedsHuman,
@@ -355,8 +355,8 @@ export function useHandleItems(): HandleItem[] {
   if (!s) return [];
   const items: HandleItem[] = [];
   if (batchNeedsHuman(s) && !s.remote) {
-    const login = s.reason === "login_failed" || s.reason === "login_missing";
-    items.push({ key: "batch", title: reasonText(s.reason), detail: "", retry: login ? o.authorize : o.start, retryLabel: login ? op.setUp : undefined });
+    const login = LOGIN_REASONS.has(s.reason);
+    items.push({ key: "batch", title: reasonText(s.reason), detail: "", retry: login ? o.authorize : o.resume, retryLabel: login ? op.setUp : undefined });
   }
   for (const doc of s.docs.filter(needsYou)) {
     const local = !s.remote || doc.refused;
@@ -371,8 +371,8 @@ export function useHandleItems(): HandleItem[] {
       key: doc.doc_id,
       title: docTitle(doc.summary ?? {}, doc.doc_id),
       detail: notDoneDetail(doc),
-      // 这台电脑上已不在跑的任务（CC 重启后恢复出来的）桥上没有录单线，重试只会报错：不给
-      retry: !s.remote && !doc.refused && s.live !== false ? () => o.retry(doc.doc_id) : undefined,
+      // 重试交给站点按原批次号交回执行的电脑（网页、手机、CC 重启后恢复出来的任务都一样）；交单时就没收的只在这一页，只能跳过
+      retry: !doc.refused ? () => o.retry(doc.doc_id) : undefined,
       skip: local ? () => o.skip(doc.doc_id) : undefined,
     });
   }
