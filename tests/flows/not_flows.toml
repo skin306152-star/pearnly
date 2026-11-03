@@ -47,3 +47,19 @@ reason = "Cowork 机器通道的 MR.ERP 登录授权：只收 exp_ 机器令牌�
 file = "apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py"
 reason = "Cowork 机器通道的心跳：只收 exp_ 机器令牌的精确 POST（CC 桌面版每分钟报账套与能力），没有页面、不经浏览器；回归实验室没有 CC 桌面版。真实站点 WSGI 由 scripts/cowork-companion-heartbeat-lab-verify.py 验，实机由入口 cowork.cc.channel 在测试机验"
 
+
+[[file]]
+file = "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/api.py"
+reason = "ERP 接 MR.ERP 的管理员接口：总开关 pearnly_erp_portal.mrerp.MRERP_LEDGER_ENABLED 是 False，入口不对用户开放、没有页面，关着时全部 403；要连真 MR.ERP（等岳父测试账号）。离线由 tests/test_erp_mrerp_direct.py 与生产镜像里的 tests/test_erp_mrerp_golden.py 守住；对用户开放时补流程"
+
+[[file]]
+file = "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py"
+reason = "ERP 接 MR.ERP 的服务（经 mrerp/api.py 的管理员接口）：总开关 MRERP_LEDGER_ENABLED 是 False，入口不对用户开放、关着时全部 403，要连真 MR.ERP；离线由 tests/test_erp_mrerp_direct.py 守住，对用户开放时补流程"
+
+[[file]]
+file = "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py"
+reason = "ERP 接 MR.ERP 的服务（经 mrerp/api.py 的管理员接口）：总开关 MRERP_LEDGER_ENABLED 是 False，入口不对用户开放、关着时全部 403，要连真 MR.ERP；离线由 tests/test_erp_mrerp_direct.py 守住，对用户开放时补流程"
+
+[[file]]
+file = "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/connection.py"
+reason = "ERP 接 MR.ERP 的服务（经 mrerp/api.py 的管理员接口）：总开关 MRERP_LEDGER_ENABLED 是 False，入口不对用户开放、关着时全部 403，要连真 MR.ERP；离线由 tests/test_erp_mrerp_direct.py 守住，对用户开放时补流程"
