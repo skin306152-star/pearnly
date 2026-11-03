@@ -221,7 +221,7 @@ name = "Express 写账规则（express_rules）"
 paths = ["apps/pearnly_core/pearnly_core/express_rules/**"]
 markers = ["pearnly_core.express_rules", "pearnly_core import express_rules"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day", "erp.cc.pos-refund", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push", "cc.operator.page"]
+entries = ["erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day", "erp.cc.pos-refund", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push", "cc.operator.page", "cowork.cc.troubleshooting"]
 not_entries = { "apps/pearnly_core/pearnly_core/cc_desktop/books.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/contracts.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/report_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_20_express_account_sets.py" = "一次性迁移", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_2_backfill_history_parties.py" = "一次性迁移" }
 
 [[part]]
@@ -304,7 +304,7 @@ name = "识别（ocr / claude_ocr / 原件）"
 paths = ["apps/pearnly_core/pearnly_core/ocr.py", "apps/pearnly_core/pearnly_core/ocr_models/**", "apps/pearnly_core/pearnly_core/ocr_record.py", "apps/pearnly_core/pearnly_core/claude_ocr/**", "apps/pearnly_core/pearnly_core/originals/**"]
 markers = ["pearnly_core.ocr", "pearnly_core import ocr", "import billing_client, ocr", "pearnly_core.claude_ocr", "pearnly_core import claude_ocr", "pearnly_core.originals", "pearnly_core import originals"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.ocr", "cowork.ocr", "dms.ocr.id-card", "shared.originals.download", "shared.ocr.pipeline", "erp.stock-count.upload", "erp.stock-in.attach", "erp.stock-out.attach"]
+entries = ["erp.ocr", "cowork.ocr", "dms.ocr.id-card", "shared.originals.download", "shared.ocr.pipeline", "erp.stock-count.upload", "erp.stock-in.attach", "erp.stock-out.attach", "erp.cc.troubleshooting"]
 
 [[part]]
 id = "login-session"
@@ -418,7 +418,7 @@ name = "CC 对话（assistant）"
 paths = ["apps/pearnly_core/pearnly_core/assistant/**"]
 markers = ["pearnly_core.assistant", "pearnly_core import assistant", "pearnly_assistant_tools", "pearnly_assistant_guidance", "pearnly_assistant_step_names", "pearnly_assistant_projects"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["control.assistant", "shared.assistant", "cowork.assistant", "cc.assistant", "cc.operator.thread", "erp.cc.companies", "erp.cc.chat-push", "cowork.cc-chat.push"]
+entries = ["control.assistant", "shared.assistant", "cowork.assistant", "cc.assistant", "cc.operator.thread", "erp.cc.companies", "erp.cc.chat-push", "cowork.cc-chat.push", "cowork.cc.troubleshooting"]
 
 [[part]]
 id = "tax-documents"
@@ -426,7 +426,7 @@ name = "税务单据共用规则（tax_documents）"
 paths = ["apps/pearnly_core/pearnly_core/tax_documents/**"]
 markers = ["pearnly_core.tax_documents", "pearnly_core import tax_documents"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["shared.tax-documents", "cowork.tax-documents", "erp.tax-documents", "erp.cc.write", "cowork.express.push", "shared.claude-ocr.self-check"]
+entries = ["shared.tax-documents", "cowork.tax-documents", "erp.tax-documents", "erp.cc.write", "cowork.express.push", "shared.claude-ocr.self-check", "erp.cc.troubleshooting"]
 
 [[part]]
 id = "transaction"
@@ -2494,3 +2494,21 @@ steps = "CC 窗口里打开定时任务 → 连接 MR.ERP → 在 CC 桌面版�
 expect = "网页上没有密码框；授权后显示「已授权：用户名 · 电脑 · 时间」；站点 Password 字段被覆盖、连接版本不变；本机凭据管理器多一条；直写与目录采集用新密码；ERP 站点回不支持"
 check = "manual"
 files = ["apps/pearnly_cowork/pearnly_cowork/companion/api.py", "apps/pearnly_cowork/pearnly_cowork/companion/credential_api.py", "apps/pearnly_core/pearnly_core/cc_desktop/login_tickets.py", "frontend/assistant/src/components/mrerp-login.tsx", "companion/src/companion/mrerp_login.py"]
+
+[[entry]]
+id = "cowork.cc.troubleshooting"
+product = "Cowork"
+where = "Cowork CC 对话：待处理、单据详情自检、改字段带依据、补传文件进原单重读"
+steps = "公司对话里问「有什么要处理的」→ cowork_pending；点一张缺页单 → cowork_document_detail 看 checks、cowork_document_original 看原件；补传第 2 页 → cowork_recognize_attachments into_document；改金额带依据 → cowork_edit_document"
+expect = "待处理与侧栏同一份；checks 列出护栏原因；补传后原单被覆盖、不多出新单、照常扣费；改动记录带依据；不带依据改金额被拒"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/assistant/document_checks.py", "apps/pearnly_cowork/pearnly_cowork/assistant/into_document.py"]
+
+[[entry]]
+id = "erp.cc.troubleshooting"
+product = "ERP"
+where = "ERP 版 CC 对话与单据页：待处理、单据详情、看原件、补票面合计"
+steps = "识别一张缺页的采购单并提交 → 停在「没有票面合计」进待处理；CC erp_pending / erp_document_detail / erp_document_original；erp_set_printed_total 带依据补上，或在单据页直接改票面合计"
+expect = "补对后当场重新写进 Express（C 盘 T 账套读回一致）；版本记录与依据可查；已写进账本的单不能改"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/printed.py"]

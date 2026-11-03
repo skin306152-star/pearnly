@@ -114,7 +114,7 @@
 		if (!value || flt(value) === flt(doc.printed_total)) return;
 		await p.call("pearnly_erp_portal.express.api.set_printed_total", {doctype, name: doc.name, value}, "POST");
 		doc.printed_total = value;
-		p.success(__("Saved"));
+		p.success(__("Saved"), "click");
 	};
 	p.terminal_query = () => ({
 		filters: {company: frappe.boot.pearnly_company || "", is_active: 1},
