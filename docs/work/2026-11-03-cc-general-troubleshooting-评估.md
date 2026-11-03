@@ -274,7 +274,10 @@ ERP 同样能力：
 - `cowork_recognize_attachments` 加 `into_document`（提交 `661b08954`，`assistant/into_document.py`）：原单这几页的原件 + 补传文件拼成一个 PDF，按普通识别交（照常扣费；请求号按「原单 + 附件」固定，再调不重复扣费）；只读出一张单 → 覆盖原单（按原单版本号）、原单改指向拼好的原件并换掉原件上绑定的单据名（推送前核对要认它）、留来源记录、删掉临时那张，不新建单；读出多张或已推送的不合并。测试 `tests/test_cowork_into_document.py`（已登记 CI 与候选检查）。
 
 没做（接手继续）：
-- ERP 没有单据详情 / 改字段工具：已提交的单只能「修改」重开，`erp_pending` 的说明里写了让 CC 给链接；要不要给 ERP 加查原件 / 改草稿的工具，待主会话定。
+- ERP（主会话 11-03 定，提交 `e8a2adf0f`）：
+  - 查：`erp_document_detail`（表头、金额、票面合计、明细、写账状态；`checks` = 复核码、识别读到的合计、`printed_hold`、推送原因；`edits` 改动依据）、`erp_document_original`（附件原件按顺序编页码，页图放进对话；渲染与放进对话用共用层 `originals.checks.render_page`、`assistant.files.add_to_conversation`）；
+  - 做（只做管钱那一格）：「票面合计」`allow_on_submit`，已提交、还没写进账本的单也能改：页面直接改（`express.api.set_printed_total`），CC 用 `erp_set_printed_total`（必须带 basis）；`express/printed.set_total` 写原生 Version + 依据记录，停在票面合计上的单当场重新写账（MR.ERP 账本同一路转过去）；已写进账本的不能改；
+  - 明细要改的照原生「修改」，CC 给单据链接；第一期不做改草稿工具。
 
 ### 10.3 (c)(d) 未开始
 
