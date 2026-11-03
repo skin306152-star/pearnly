@@ -76,8 +76,10 @@ def _adapter(connection, owner, **accountability):
 
 def _row_context(row, credential, device):
     """这把密钥手上的一条记录 → 推送上下文：Express 记录与密钥同一条连接（原样）；MR.ERP 代录单在同一工作空间的 MR.ERP 连接上
-    （`mrerp_jobs.context`，ADR-026 第 3 步）。"""
-    if row.connection == credential.connection:
+    （`mrerp_jobs.context`，ADR-026 第 3 步）——经 MR.ERP 连接自己的密钥领的（11-03 选 A）也按它核：派给这台、是代录单。
+    常量关着不看载荷，与以前一字不差。"""
+    if row.connection == credential.connection and not (
+            operator_target.MRERP_OPERATOR_ENABLED and mrerp_jobs.is_job(row)):
         return _context(row, credential)
     return mrerp_jobs.context(row, credential, device)
 
@@ -92,13 +94,14 @@ def _recover(credential, now, device):
         INNER JOIN `tabCowork Companion Delivery` d ON d.push_attempt=r.active_attempt
         WHERE d.connection=%s AND r.status='leased' AND r.lease_expires_at<=%s
         ORDER BY r.created_at,r.name''', (credential.connection, ledger.now_utc(now)), as_dict=True)
+    own = _operator_channel(credential)
     for item in rows:
         writer = item.written_by_device or ''
         if writer == device:
             continue
         row = frappe.get_doc(ledger.RECORD, item.name)
         adapter = _adapter(row.connection, item.owner_id)
-        mrerp = row.connection != credential.connection
+        mrerp = row.connection != credential.connection or own
         try:
             reservation = _row_context(row, credential, writer)
         except frappe.PermissionError:
@@ -132,10 +135,11 @@ def _redeliver(credential, device, request, now):
           AND (r.status='leased' OR (r.status='manual' AND r.result_unknown=1 AND r.reason=%s))
         ORDER BY r.status='leased' DESC, r.created_at, r.name''',
         (credential.connection, device, ledger.UNKNOWN_REASON), as_dict=True)
+    own = _operator_channel(credential)
     for item in rows:
         row = frappe.get_doc(ledger.RECORD, item.name)
         lost = _adapter(row.connection, item.owner_id)
-        mrerp = row.connection != credential.connection
+        mrerp = row.connection != credential.connection or own
         key = normalize_express_account_key(row.account_key)
         if not mrerp and key not in reach:
             continue  # 这会儿够不到这份账套（网络盘没连上）：先不动，连上后再重发；这台也不领别的（`_busy`）
@@ -168,6 +172,13 @@ def _redeliver(credential, device, request, now):
         uid = _account(account_pool.registrations_of(credential.connection, [key]).get(key)).uid
         return [_deliver(credential, claim, reach[key], uid, job, peer)]
     return []
+
+
+def _operator_channel(credential):
+    """来领的这把密钥是不是 MR.ERP 连接上的（ADR-026 第 3 步，11-03 选 A：没有 Express 连接的工作空间，CC 经 MR.ERP 连接领自己的
+    MR.ERP 代录单）。常量关着时这种密钥到不了这里（`http_auth.folder_only_allows`），Express 密钥一律 False、行为不变。"""
+    return (operator_target.MRERP_OPERATOR_ENABLED
+            and frappe.db.get_value('Cowork ERP Connection', credential.connection, 'adapter') == 'mrerp')
 
 
 def _dispatch_adapter(credential, device, route, *, connection=None):
@@ -286,7 +297,7 @@ def _claim_mrerp(credential, device, request, now):
     领前按「网址 + 用户名」租这个 MR.ERP 账号（`mrerp_jobs.take`），租不到不发、照旧排着。"""
     if not operator_target.MRERP_OPERATOR_ENABLED:
         return []
-    heads = mrerp_jobs.heads(credential, device)
+    heads = mrerp_jobs.heads(credential, device, own=_operator_channel(credential))
     if not heads:
         return []
     peers = _peers(credential.connection, device, request, now)
@@ -336,14 +347,18 @@ def lease(context, body):
         device = credentials.device_of(credential.credential_id) or credential.credential_id
         jobs = _redeliver(credential, device, request, now)
         _recover(credential, now, device)
+        own = _operator_channel(credential)
         if not jobs:
-            jobs = [] if _busy(device, now) else (_claim(credential, device, request, now)
-                                                  or _claim_mrerp(credential, device, request, now))
+            # MR.ERP 连接的密钥（选 A）只领这条连接上派给这台的 MR.ERP 代录单：没有账套可写，不进 Express 的排头
+            jobs = [] if _busy(device, now) else (
+                _claim_mrerp(credential, device, request, now) if own
+                else (_claim(credential, device, request, now) or _claim_mrerp(credential, device, request, now)))
         doc = frappe.get_doc('Cowork ERP Connection', credential.connection, for_update=True)
         # 没有心跳的所选：按这台电脑上次报的（ADR-021，每台各自一份）
         member = devices.member(device, doc.workspace, connection=doc.name, pool_hosts=False)
-        requested_refresh = refresh.lease(doc, member, member.selected, credential.credential_id,
-                                          credential.token_generation, ledger.now_utc(now))
+        # 主档重新读取只有 Express 账套才有（`refresh.lease` 只派 Express 的读）：MR.ERP 连接的密钥不领
+        requested_refresh = None if own else refresh.lease(doc, member, member.selected, credential.credential_id,
+                                                           credential.token_generation, ledger.now_utc(now))
         # 电脑行在加锁顺序的最后：这次报的「主档索引还没重建的账套」
         devices.note_index_pending(device if device != credential.credential_id else None,
                                    request.get('index_pending'))
@@ -375,8 +390,9 @@ def _after_ack(row, delivery, request, result):
     - 写前核文件号对不上（1.7.0 回 ``waiting_lock`` + ``[ERR_ACCOUNT_UID_MISMATCH]``）：这台电脑对这份账套的可达行标
       stale、要它整份重报，单子已回到排队，下次交给别的电脑。"""
     device = credentials.device_of(delivery.credential_id) or delivery.credential_id
-    if row.connection != getattr(delivery, 'connection', row.connection) and mrerp_jobs.is_job(row):
-        # MR.ERP 代录单：这批再没有排着 / 领着的单就放开账号（ADR-026 第 8 条）；没有 Express 账套登记要记
+    if mrerp_jobs.is_job(row):
+        # MR.ERP 代录单（不论经 Express 密钥还是它自己那条 MR.ERP 连接的密钥领的）：这批再没有排着 / 领着的单就放开账号
+        # （ADR-026 第 8 条）；没有 Express 账套登记要记。Express 记录从来不是 MR.ERP 代录单，走下面原来那条
         if result.get('status') != 'leased':
             mrerp_jobs.release_if_done(row, device)
         return

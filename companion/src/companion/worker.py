@@ -798,10 +798,39 @@ def _mrerp_users(cfg: CompanionConfig) -> Optional[dict]:
         return None
 
 
+def _operator_heartbeat(cfg: CompanionConfig, qc, state: dict, on_update_available=None) -> None:
+    """MR.ERP 连接的成员（只读文件夹成员里会代录 MR.ERP 的，`config.polls_queue`）到点报到：只报这台电脑的版本、能代录的目标、
+    本机授权的 MR.ERP 连接与用户名（服务端 `heartbeat._receive_operator` 只收这几项）；不扫 Express、不报账套与科目。绝不抛。"""
+    now = time.time()
+    if now - state.get("last_heartbeat", 0.0) < max(10, cfg.heartbeat_interval_s):
+        return
+    state["last_heartbeat"] = now
+    try:
+        from .payload_contract import OPERATOR_TARGETS, SUPPORTED_PAYLOAD_VERSIONS
+        from .version import VERSION
+
+        hb = qc.health(
+            companion_version=VERSION,
+            max_payload_version=max(SUPPORTED_PAYLOAD_VERSIONS),
+            operator_targets=list(OPERATOR_TARGETS),
+            mrerp_logins=_mrerp_logins(cfg),
+            mrerp_users=_mrerp_users(cfg),
+        )
+        _offer_update(hb, on_update_available)
+        log.info("[heartbeat] MR.ERP 成员报到")
+        device_link.REJECTIONS.ok(cfg)
+    except Exception as e:
+        log.warning("[heartbeat] 上报失败(忽略): %s", e)
+        if getattr(getattr(e, "response", None), "status_code", None) == 401:
+            device_link.REJECTIONS.rejected(cfg)
+
+
 def _run_periodic(
     cfg: CompanionConfig, qc, state: dict, on_update_available=None
 ) -> None:
     """循环每拍调:到点则上报账套心跳(回复里带着最新发布版本,见 _offer_update)。绝不抛(隔离·不拖垮直写)。"""
+    if getattr(cfg, "kind", "express") == "folder":
+        return _operator_heartbeat(cfg, qc, state, on_update_available)
     now = time.time()
     refresh_request_id, refresh_scope, refresh_account_set = projection_refresh.command(
         state

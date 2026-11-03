@@ -275,9 +275,12 @@ class TrayApp(QObject):
 
     def _spawn_worker(self) -> PollWorker:
         """建 poll worker、接好信号并启动(首次启动与自愈重启共用,避免两处接线漂移)。"""
-        # MR.ERP 的小助手成员只读文件夹：不进取任务 / 心跳线程，状态由文件夹线程报（`folder_status`）。
+        # MR.ERP 的小助手成员只读文件夹：不进取任务 / 心跳线程，状态由文件夹线程报（`folder_status`）；这一版会代录 MR.ERP 时
+        # MR.ERP 连接的成员也进（`config.polls_queue`，ADR-026 第 3 步）。
+        from .config import polls_queue
+
         announcer = getattr(self, "_announcer", None)
-        w = PollWorker([cfg for cfg in self.configs if getattr(cfg, "kind", "express") != "folder"],
+        w = PollWorker([cfg for cfg in self.configs if polls_queue(cfg)],
                        announce=announcer.announce if announcer is not None else None)
         w.status.connect(self._on_status)
         w.update_available.connect(self._on_update_available)

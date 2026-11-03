@@ -1,6 +1,8 @@
 """Cowork 通道上的 MR.ERP 代录单（ADR-026 第 5、8 条；评估 §5、§14.3、§14.4；第 3 步）。
 
-CC 桌面版的通道密钥绑在 Express 连接上（`companion.credentials`），MR.ERP 代录单冻结在 MR.ERP 连接的推送记录上。这里把两者接起来：
+CC 桌面版的通道密钥按连接发（`companion.credentials`），MR.ERP 代录单冻结在 MR.ERP 连接的推送记录上。这里把两者接起来：
+同一工作空间里 Express 连接的密钥能领（第 3 步原样）；没有 Express 连接时 CC 经 MR.ERP 连接自己的密钥领（11-03 选 A，
+``heads(own=True)``，常量开着才放行，`http_auth.folder_only_allows`）。
 
 - **找单**：同一工作空间 / 客户、``route_device`` 是这台电脑、排队中、载荷带代录标记且目标是 ``mrerp`` 的记录，按建立先后；
   派不派由第 1 步纯规则 `route_contracts.decide`（``Job.target = mrerp`` → 只给选定的那台、它报过 ``mrerp``、载荷版本够）定，
@@ -62,14 +64,17 @@ def context(row, credential, device):
                               binding_generation=int(row.binding_generation), connection_revision=int(row.connection_revision))
 
 
-def heads(credential, device) -> list:
-    """这台电脑这个工作空间里排着的 MR.ERP 代录单（不含来领的这把密钥自己的连接：那是 Express），按建立先后。只读、不加锁。"""
+def heads(credential, device, *, own=False) -> list:
+    """这台电脑这个工作空间里排着的 MR.ERP 代录单，按建立先后。只读、不加锁。
+
+    - Express 密钥来领（``own`` 假）：同一工作空间别的连接上的（不含来领的这把密钥自己的连接：那是 Express）；
+    - MR.ERP 连接的密钥来领（``own`` 真，11-03 选 A，`transport._operator_channel`）：只看它自己这条连接上的。"""
     if not device or device == credential.credential_id:
         return []
-    rows = frappe.db.sql("""SELECT r.name, r.payload_json, r.payload_version, r.actor, r.entered_by, r.route_device,
+    rows = frappe.db.sql(f"""SELECT r.name, r.payload_json, r.payload_version, r.actor, r.entered_by, r.route_device,
             r.account_key, r.connection FROM `tabCowork Push Record` r
         INNER JOIN `tabCowork ERP Connection` c ON c.name=r.connection
-        WHERE r.workspace=%s AND COALESCE(r.client,'')=%s AND r.route_device=%s AND r.connection<>%s
+        WHERE r.workspace=%s AND COALESCE(r.client,'')=%s AND r.route_device=%s AND r.connection{'=' if own else '<>'}%s
           AND c.adapter='mrerp' AND r.branch='legacy' AND r.binding_generation=0 AND r.status='pending'
           AND COALESCE(r.result_unknown,0)=0
         ORDER BY r.created_at, r.name LIMIT %s""",

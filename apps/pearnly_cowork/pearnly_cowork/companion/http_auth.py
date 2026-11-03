@@ -16,6 +16,7 @@ from frappe.recorder import do_not_record
 from pearnly_core.transaction import conflicts
 
 from pearnly_core.cc_desktop.wire import queue_contracts
+from pearnly_core.express_operator import contracts as operator_contracts
 
 from . import credentials, receipt_auth
 from .contracts import AgentContext, parse_token
@@ -46,6 +47,13 @@ MACHINE_METHODS = {**METHODS, **FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METH
 MACHINE_PATHS = {operation: '/api/method/' + method for operation, method in MACHINE_METHODS.items()}
 # MR.ERP 的只读文件夹密钥能调的：文件夹、按需请求、认电脑、授权 MR.ERP 登录（心跳 / 领任务 / 回执不行）。
 FOLDER_ONLY_ALLOWED = {**FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS, **LOGIN_METHODS}
+
+
+def folder_only_allows(operation):
+    """MR.ERP 连接的密钥能不能调这个机器方法。MR.ERP 代录（ADR-026 第 3 步，11-03 主会话选 A）开着时，MR.ERP 连接也是 CC 的
+    写账通道：心跳、领任务、回执放行（只会领到这条连接上派给这台电脑的 MR.ERP 代录单，`transport.lease`）。全局常量
+    ``MRERP_OPERATOR_ENABLED`` 关着时与以前一字不差：只放行文件夹、按需请求、认电脑、授权登录。"""
+    return operation in FOLDER_ONLY_ALLOWED or (operator_contracts.MRERP_OPERATOR_ENABLED and operation in METHODS)
 if (len(MACHINE_METHODS) != len(METHODS) + len(FOLDER_METHODS) + len(REQUEST_METHODS) + len(DEVICE_METHODS)
         + len(LOGIN_METHODS)
         or len(set(MACHINE_PATHS.values())) != len(MACHINE_PATHS)):
@@ -292,8 +300,9 @@ def _authenticate_request(request):
         # original token frames.
         raise_busy(error, stage='authenticate')
     # MR.ERP 的小助手只读文件夹：它的配对码只能调用文件夹的机器方法、按需请求（只会领到文件夹的那几种，
-    # `request_service.lease_next` 按连接的 ERP 筛）与认电脑，心跳 / 领任务 / 回执拒绝（403）。
-    if operation not in FOLDER_ONLY_ALLOWED and frappe.db.get_value(
+    # `request_service.lease_next` 按连接的 ERP 筛）与认电脑，心跳 / 领任务 / 回执拒绝（403）；MR.ERP 代录开着时这三个也放行
+    # （`folder_only_allows`）。
+    if not folder_only_allows(operation) and frappe.db.get_value(
             'Cowork ERP Connection', context.connection, 'adapter') in credentials.FOLDER_ONLY_ADAPTERS:
         _deny_permission()
     body = deepcopy(payload)

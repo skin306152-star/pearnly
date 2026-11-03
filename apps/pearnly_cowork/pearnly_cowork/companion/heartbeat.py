@@ -10,11 +10,32 @@ from pearnly_cowork.connections.reports import ReportError, plan_report
 from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.targets.projection import ProjectionContractError
 from pearnly_core.cc_desktop import release
+from pearnly_core.express_operator import contracts as operator_contracts
 from pearnly_core.transaction import conflicts
 from . import credentials, devices, http_auth
 
 # 每台电脑各自的（ADR-021）：上次报的所选账套、科目映射与版本取它自己的电脑行，不取连接配置 / 上报记录
 _PER_COMPUTER = frozenset(('companion_version', 'max_payload_version'))
+# MR.ERP 连接的心跳只收这台电脑自己的几项（ADR-026 第 3 步）：没有 Express 账套、科目、目录、所选可报
+_OPERATOR_KEYS = ('offline', 'device', 'companion_version', 'max_payload_version', 'operator_targets')
+
+
+def _receive_operator(context, doc, body):
+    """MR.ERP 连接的密钥报到（MR.ERP 代录开着才走到，`http_auth.folder_only_allows`）：只记报到时间、电脑行上的版本与能代录的
+    目标、本机授权的 MR.ERP 连接与用户名；不进账套采集（`collector.ingest`），不写连接的上报记录，回复不带账套与「没变」许可。"""
+    device = credentials.device_of(context.credential_id) or context.credential_id
+    known = devices.state(device, doc.name)
+    plan = plan_report({key: body[key] for key in _OPERATOR_KEYS if key in body}, known, datetime.now(timezone.utc))
+    credentials.record_seen(context.credential_id, context.token_generation, offline=plan.offline)
+    devices.record_report(device, doc.name, plan)
+    if not plan.offline:
+        devices.record_mrerp_logins(device, body.get('mrerp_logins'))
+        devices.record_mrerp_users(device, body.get('mrerp_users'))
+    reply = {'connected': bool(plan.response.get('connected'))}
+    latest = release.latest()
+    if latest:
+        reply['companion_latest'] = latest
+    return reply
 
 
 def _receive(context, body):
@@ -22,6 +43,10 @@ def _receive(context, body):
     # issuer/scope/grants and global switch inside each local write transaction.
     context = credentials.revalidate(context)
     doc = frappe.get_doc('Cowork ERP Connection', context.connection, for_update=True)
+    if doc.adapter in credentials.FOLDER_ONLY_ADAPTERS:
+        if not operator_contracts.MRERP_OPERATOR_ENABLED:
+            http_auth._deny_permission()
+        return _receive_operator(context, doc, body)
     device = credentials.device_of(context.credential_id) or context.credential_id
     known = devices.state(device, doc.name)
     shared = {key: value for key, value in model.parse(doc.get('report_json'), {}).items() if key not in _PER_COMPUTER}

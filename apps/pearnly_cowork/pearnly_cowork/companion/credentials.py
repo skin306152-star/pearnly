@@ -14,6 +14,7 @@ import frappe
 from frappe import _
 
 from pearnly_core.cc_desktop.wire import route_contracts
+from pearnly_core.express_operator import contracts as operator_contracts
 from pearnly_cowork.connections import access, pool
 from . import contracts, device_contracts, devices
 from .contracts import AgentContext, CredentialError
@@ -368,6 +369,11 @@ def register(request_key, express=False, replace=False, expected_generation=None
         frappe.db.get_value('Cowork Workspace', access.default_workspace(), 'name', for_update=True)
         name = _device_connection(express, current=True)
     created = False
+    if operator_contracts.MRERP_OPERATOR_ENABLED and name is None and express and not _manager(actor):
+        # 只有 MR.ERP、没有 Express 连接的工作空间（ADR-026 第 3 步，11-03 选 A）：装了 Express 的电脑、不是管理员（建不了 Express
+        # 连接），连到 MR.ERP 主连接，经它领自己的 MR.ERP 代录单。有 Express 连接时上面已取到它，与以前一字不差；常量关着照旧回
+        # `no_connection`；管理员照旧新建 Express 连接（下面）。
+        name = _device_connection(False)
     if name is None:
         if not express or not _manager(actor):
             return {'status': 'no_connection'}
