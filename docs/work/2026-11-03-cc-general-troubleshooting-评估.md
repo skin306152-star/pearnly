@@ -247,3 +247,35 @@ ERP 同样能力：
 - 只对模型判为 `tax_invoice` / `receipt_tax_invoice` 的单生效；`bill_invoice` 等照账套规则走。护栏 `check` 加了 `title`（模型的 `doc_kind`）参数。
 - 回放统计上会拦 5 张（约 1%），名单见 9.3。
 - **现在还不生效**：Cowork 单据字段里没有带 `doc_kind`（`ThaiInvoice` 没有这一栏），推送时取不到。下一窗口在 Cowork 的 Claude 转换（`ocr/execution/claude.invoice`）带上它，ERP 同样，带上之后这一条自动生效。没带上之前不会误拦。
+
+## 10. 剩余四块施工进度（11-03 晚，接手窗口；分支 `pearnly/cc-troubleshooting-rest`，基线 `25001bbed`）
+
+### 10.1 (a) ERP 侧护栏（提交 `3cbd75c7f`）
+
+- 采购单、销售单各加两栏（原生字段，表结构随 migrate 同步，老单留空，不回填）：
+  - `printed_total`「票面合计」：Currency，人可以改；识别来的单才在页面上显示（`purchase-fields.js` / `sales-fields.js`，识别后显示）；两张表原来就开着 `track_changes`，谁何时改的查版本记录；
+  - `ocr_review`：隐藏只读，识别标记 = 这次识别的复核码 + 识别读到的合计（JSON，`recognition.checks.marks`），与人改过的票面合计分得清来源。
+- 写入：网页识别（`purchasing/recognition.py`、`sales/recognition.py` 结果带上两栏，表单原样提交）；LINE 卡片建单（`integrations/intake.build_payload`）；LINE 编辑页提交时服务端按卡片补识别标记（`intake.submit`，页面不带复核码，维持 10-02 口径）。
+- 判据 `express/contracts.printed_hold`（纯函数，容差与预扣税实付额对法同识别核对 `amounts.computed_issues`）；读单据 `express/printed.hold`。接在：Express 直写与代录交单 `push.send`、代录预检 `push.prepare_only`、MR.ERP 导入 `mrerp/push.prepare`。原因码 `express.printed_total_missing` / `express.printed_total_mismatch`，不在自动重试表里 → 进 ERP 待处理；文案「没有票面合计」「合计与票面合计不一致」。
+- 解除：已提交的单在单据页「修改」（原生作废重开），填对票面合计或补齐明细，新单照常写。没有识别标记的单（手工录、上线前老单）不核对。
+- 反例：把 `printed.hold` 换回「一律放行」，Express 直写、代录交单、代录预检、MR.ERP 四条测试失败（`tests/test_erp_express_direct.py::PrintedTotal`、`tests/test_erp_mrerp_direct.py`）。
+- 候选离线检查（生产镜像 `ab3adbb1d56f`，`~/pearnly-devtools/cand-ccrest-a.log`）：`LANE EXIT 0`。
+
+### 10.2 (b) CC 工具（提交 `020cea68a`，部分）
+
+已做：
+- `cowork_pending`（`assistant/company_tools.py`）、`erp_pending`（`express/cc_tools.py`）：直接调两边侧栏「待处理」的后端；ERP 的识别单另带 checks（复核码、票面合计、识别读到的合计、单据合计）。
+- `cowork_document_detail` 加 `checks`（识别复核原因、护栏原因码、明细对账、推送原因）和 `edits`（改动记录）：`assistant/document_checks.py`。
+- `cowork_edit_document` 加 `basis`：动金额 / 税号 / 单号 / 日期 / 票种 / 币种 / 明细时必填；改动记录存为原生 Comment（subject `pearnly.document_edit`，谁、何时、改前改后、依据），删单据时一起删（`history/removal.py`）。
+- Cowork 识别带上 Claude 的 `doc_kind`（`ThaiInvoice.doc_kind`，`ocr/execution/claude.invoice`）：护栏「模型判为税票却只读到总额」从此生效；读法、提示词不动；转换在本机代码，不用重部署甲骨文。
+- GUIDANCE：共用层 `direct_push.guidance_troubleshooting(<待处理工具名>)` 一段原则，Cowork、ERP 都挂上（含「推送不查重不拦，可提醒不可拦删」「公司对话第一句时查一次待处理」）。
+- 反例：去掉 basis 检查 → `EditDocumentTests` 失败；去掉 doc_kind → `test_claude_ocr_products::Cowork.test_the_model_kind_reaches_the_ledger_guard` 失败。
+
+没做（接手继续）：
+- `cowork_recognize_attachments` 加 `into_document`（补传文件接在原单原件后面整份重读、覆盖字段、旧值进改动记录、照常扣费）。
+- ERP 没有单据详情 / 改字段工具：已提交的单只能「修改」重开，`erp_pending` 的说明里写了让 CC 给链接；要不要给 ERP 加查原件 / 改草稿的工具，待主会话定。
+
+### 10.3 (c)(d) 未开始
+
+- (c) 代录 AI 接手：CC 桌面版的 `ComputerUseHelper` 需要一个经服务端转发模型请求的接口（密钥不在电脑上、按任务费用上限），服务端目前没有，要新建；失败单也要截图并随原因进待处理。
+- (d) 真模型验收：见第 7 节矩阵。
