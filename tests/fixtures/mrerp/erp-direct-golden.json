@@ -1,0 +1,2195 @@
+{
+ "canonical": {
+  "purchase_expense_credit": {
+   "histories": [
+    {
+     "direction": "purchase",
+     "fields": {
+      "buyer_name": "บริษัท เรา จำกัด",
+      "buyer_tax": "0105559000001",
+      "date": "2026-09-12",
+      "direction": "purchase",
+      "invoice_number": "IV6909-0013",
+      "items": [
+       {
+        "amount": "1000.00",
+        "name": "กระดาษ A4",
+        "qty": "2",
+        "unit_price": "500.0000"
+       },
+       {
+        "amount": "500.00",
+        "name": "หมึกพิมพ์",
+        "qty": "1",
+        "unit_price": "500.0000"
+       }
+      ],
+      "posting_item_type_manual": "expense",
+      "posting_payment_manual": "credit",
+      "seller_name": "บริษัท ผู้ขาย จำกัด",
+      "seller_tax": "0105561012345",
+      "subtotal": "1500.00",
+      "total_amount": "1605.00",
+      "vat": "105.00"
+     },
+     "id": "ERP-28696cc0f4beb5e22bc93f3c",
+     "invoice_date": "2026-09-12",
+     "invoice_no": "IV6909-0013",
+     "total_amount": "1605.00"
+    }
+   ],
+   "mappings": {
+    "_mrerp_defaults": {
+     "ap_account": "2120-01",
+     "ar_account": "1130-01",
+     "bank_account": "1112-01",
+     "expense_account": "5300-01"
+    },
+    "_mrerp_menus": {
+     "purchase_expense": "454"
+    },
+    "_own_tax_id": "0105559000001",
+    "accounts": [],
+    "clients": []
+   }
+  },
+  "purchase_goods_credit": {
+   "histories": [
+    {
+     "direction": "purchase",
+     "fields": {
+      "buyer_name": "บริษัท เรา จำกัด",
+      "buyer_tax": "0105559000001",
+      "date": "2026-09-12",
+      "direction": "purchase",
+      "invoice_number": "IV6909-0012",
+      "items": [
+       {
+        "amount": "1000.00",
+        "name": "กระดาษ A4",
+        "qty": "2",
+        "unit_price": "500.0000"
+       },
+       {
+        "amount": "500.00",
+        "name": "หมึกพิมพ์",
+        "qty": "1",
+        "unit_price": "500.0000"
+       }
+      ],
+      "posting_item_type_manual": "goods",
+      "posting_payment_manual": "credit",
+      "seller_name": "บริษัท ผู้ขาย จำกัด",
+      "seller_tax": "0105561012345",
+      "subtotal": "1500.00",
+      "total_amount": "1605.00",
+      "vat": "105.00"
+     },
+     "id": "ERP-3ac04395a12693871027e949",
+     "invoice_date": "2026-09-12",
+     "invoice_no": "IV6909-0012",
+     "total_amount": "1605.00"
+    }
+   ],
+   "mappings": {
+    "_mrerp_defaults": {
+     "ap_account": "2120-01",
+     "ar_account": "1130-01",
+     "bank_account": "1112-01",
+     "expense_account": "5300-01"
+    },
+    "_mrerp_menus": {
+     "purchase": "68"
+    },
+    "_own_tax_id": "0105559000001",
+    "accounts": [],
+    "clients": []
+   }
+  },
+  "sales_cash": {
+   "histories": [
+    {
+     "direction": "sales",
+     "fields": {
+      "buyer_name": "บริษัท ลูกค้า จำกัด",
+      "buyer_tax": "0105562055501",
+      "date": "2026-09-12",
+      "direction": "sales",
+      "invoice_number": "SAL-2026-00008",
+      "items": [
+       {
+        "amount": "1000.00",
+        "name": "กระดาษ A4",
+        "qty": "2",
+        "unit_price": "500.0000"
+       },
+       {
+        "amount": "500.00",
+        "name": "หมึกพิมพ์",
+        "qty": "1",
+        "unit_price": "500.0000"
+       }
+      ],
+      "posting_payment_manual": "cash",
+      "seller_name": "บริษัท เรา จำกัด",
+      "seller_tax": "0105559000001",
+      "subtotal": "1500.00",
+      "total_amount": "1605.00",
+      "vat": "105.00"
+     },
+     "id": "ERP-7488a779a2d351d1f30d92fb",
+     "invoice_date": "2026-09-12",
+     "invoice_no": "SAL-2026-00008",
+     "total_amount": "1605.00"
+    }
+   ],
+   "mappings": {
+    "_mrerp_defaults": {
+     "ap_account": "2120-01",
+     "ar_account": "1130-01",
+     "bank_account": "1112-01",
+     "expense_account": "5300-01"
+    },
+    "_mrerp_menus": {},
+    "_own_tax_id": "0105559000001",
+    "accounts": [],
+    "clients": []
+   }
+  },
+  "sales_credit": {
+   "histories": [
+    {
+     "direction": "sales",
+     "fields": {
+      "buyer_name": "บริษัท ลูกค้า จำกัด",
+      "buyer_tax": "0105562055501",
+      "date": "2026-09-12",
+      "direction": "sales",
+      "invoice_number": "SAL-2026-00007",
+      "items": [
+       {
+        "amount": "1000.00",
+        "name": "กระดาษ A4",
+        "qty": "2",
+        "unit_price": "500.0000"
+       },
+       {
+        "amount": "500.00",
+        "name": "หมึกพิมพ์",
+        "qty": "1",
+        "unit_price": "500.0000"
+       }
+      ],
+      "posting_payment_manual": "credit",
+      "seller_name": "บริษัท เรา จำกัด",
+      "seller_tax": "0105559000001",
+      "subtotal": "1500.00",
+      "total_amount": "1605.00",
+      "vat": "105.00"
+     },
+     "id": "ERP-f42a376344288b41b93f3b06",
+     "invoice_date": "2026-09-12",
+     "invoice_no": "SAL-2026-00007",
+     "total_amount": "1605.00"
+    }
+   ],
+   "mappings": {
+    "_mrerp_defaults": {
+     "ap_account": "2120-01",
+     "ar_account": "1130-01",
+     "bank_account": "1112-01",
+     "expense_account": "5300-01"
+    },
+    "_mrerp_menus": {},
+    "_own_tax_id": "0105559000001",
+    "accounts": [],
+    "clients": []
+   }
+  }
+ },
+ "push": {
+  "purchase_expense_credit": {
+   "outcome": {
+    "docnum": "PN690912-609947",
+    "masters": {
+     "branch": [
+      {
+       "code": "00000",
+       "name": "สำนักงานใหญ่"
+      }
+     ],
+     "chart": [
+      {
+       "code": "1111-01",
+       "name": "เงินสด"
+      },
+      {
+       "code": "1112-01",
+       "name": "เงินฝากธนาคาร"
+      },
+      {
+       "code": "1130-01",
+       "name": "ลูกหนี้การค้า"
+      },
+      {
+       "code": "2120-01",
+       "name": "เจ้าหนี้การค้า"
+      },
+      {
+       "code": "5300-01",
+       "name": "ค่าใช้จ่ายเบ็ดเตล็ด"
+      },
+      {
+       "code": "4110-01",
+       "name": "รายได้"
+      },
+      {
+       "code": "1150-30",
+       "name": "สินค้าคงเหลือ"
+      },
+      {
+       "code": "5100-01",
+       "name": "ต้นทุนขาย"
+      }
+     ],
+     "customer_branch": [
+      {
+       "code": "00000",
+       "name": "สำนักงานใหญ่"
+      }
+     ],
+     "dept": [
+      {
+       "code": "D001",
+       "name": "บัญชี"
+      }
+     ],
+     "employee": [
+      {
+       "code": "E01",
+       "name": "สมชาย ใจดี"
+      }
+     ],
+     "job": [
+      {
+       "code": "00001",
+       "name": "ทั่วไป"
+      }
+     ],
+     "product_group": [
+      {
+       "code": "01",
+       "name": "สินค้า"
+      }
+     ],
+     "store": [
+      {
+       "code": "0001",
+       "name": "คลังหลัก"
+      }
+     ],
+     "supplier_type": [
+      {
+       "code": "2-11",
+       "name": "เจ้าหนี้การค้า"
+      }
+     ],
+     "unit": [
+      {
+       "code": "PCS",
+       "name": "ชิ้น"
+      }
+     ]
+    },
+    "menus": {
+     "impaptran": [
+      {
+       "idmenu": "68",
+       "label": "ซื้อ",
+       "linked": true
+      },
+      {
+       "idmenu": "454",
+       "label": "ซื้อ-ค่าใช้จ่าย",
+       "linked": true
+      }
+     ]
+    },
+    "meta": {
+     "doc_type": "purchase_expense",
+     "mrerp_menu": "ซื้อ-ค่าใช้จ่าย",
+     "xlsx_size_bytes": 11098
+    },
+    "reason": "",
+    "status": "success"
+   },
+   "requests": [
+    {
+     "method": "GET",
+     "url": "/"
+    },
+    {
+     "method": "GET",
+     "url": "/login/login.php"
+    },
+    {
+     "data": {
+      "btnsubmit": "Submit",
+      "txtpasswords": "test01",
+      "txtusers": "test01"
+     },
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/"
+     },
+     "method": "POST",
+     "url": "/login/checklogin.php"
+    },
+    {
+     "method": "GET",
+     "url": "/login/selectdb.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/selectdb.php"
+     },
+     "method": "GET",
+     "params": {
+      "comidyear": "15",
+      "seldb": "1"
+     },
+     "url": "/login/mainmenu.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impaptran/formupload.php?idmenu=363"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/acreffile/acreffileform.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/armas/allform.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/artran/allform.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/fabillrev/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/stktraniss/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/armas/component/bshlistboxdata.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impaptran/formupload.php?idmenu=363"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/apmas/component/bshlistboxdata.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impapmas/formupload.php?idmenu=359"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "files": [
+      [
+       "uploadfile",
+       [
+        "import.xlsx",
+        {
+         "bytes": "b47658d85255e075c109fe1cd23f509069a28c9cc45a0e326b4cdebb38f0f1f5",
+         "members": "1509822772ff7d9862cc599590c99d51b3461f0d3dc9a028f94f41e196c4b4a9",
+         "size": 8607
+        },
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impapmas/formupload.php?idmenu=359",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impapmas/component/uploadexcel.php"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "headers": {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impapmas/formupload.php?idmenu=359"
+     },
+     "method": "POST",
+     "url": "/impapmas/formrdpc.php"
+    },
+    {
+     "files": [
+      [
+       "idus1",
+       [
+        null,
+        "15"
+       ]
+      ],
+      [
+       "cbimport[1]",
+       [
+        null,
+        "1"
+       ]
+      ],
+      [
+       "cballfrmimport1",
+       [
+        null,
+        "on"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impapmas/formrdpc.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impapmas/component/importpc.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/stkmas/component/bshlistboxdata.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impstkmas/formupload.php?idmenu=353"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "files": [
+      [
+       "uploadfile",
+       [
+        "import.xlsx",
+        {
+         "bytes": "dbd148fb030155717e9bbf3568e5fc61f4f50a8fe83e4468331dfd11c9955adf",
+         "members": "25a1b951bb22cd19146253df39db41bc9fd73b9770fa810e4fcd73dd6425ed04",
+         "size": 8462
+        },
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impstkmas/formupload.php?idmenu=353",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impstkmas/component/uploadexcel.php"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "headers": {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impstkmas/formupload.php?idmenu=353"
+     },
+     "method": "POST",
+     "url": "/impstkmas/formrdpc.php"
+    },
+    {
+     "files": [
+      [
+       "idus1",
+       [
+        null,
+        "15"
+       ]
+      ],
+      [
+       "cbimport[1]",
+       [
+        null,
+        "1"
+       ]
+      ],
+      [
+       "cballfrmimport1",
+       [
+        null,
+        "on"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impstkmas/formrdpc.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impstkmas/component/importpc.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impaptran/formupload.php?idmenu=363"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": "454"
+     },
+     "files": [
+      [
+       "uploadfile",
+       [
+        "import.xlsx",
+        {
+         "bytes": "90aa12e578d94de66c6710ae9a96dc47d3b0f2462b6f2ded42540330e0b06b3d",
+         "members": "f1837b518fc352390d662317c0e3ee4f40d4b2df1881a14f94e91896028bc7d6",
+         "size": 11098
+        },
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impaptran/formupload.php?idmenu=363",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impaptran/component/uploadexcel.php"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": "454"
+     },
+     "headers": {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impaptran/formupload.php?idmenu=363"
+     },
+     "method": "POST",
+     "url": "/impaptran/formrdpc.php"
+    },
+    {
+     "files": [
+      [
+       "idus1",
+       [
+        null,
+        "15"
+       ]
+      ],
+      [
+       "cbimport[1]",
+       [
+        null,
+        "1"
+       ]
+      ],
+      [
+       "cballfrmimport1",
+       [
+        null,
+        "on"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impaptran/formrdpc.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impaptran/component/importpc.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/aptran/allview.php?idmenu=454"
+    },
+    {
+     "data": {
+      "searchdataval": "690912-609947",
+      "showdata_numrows": "30",
+      "showdata_pages": "1"
+     },
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/aptran/allview.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/aptran/component/showdata.php"
+    }
+   ]
+  },
+  "purchase_goods_credit": {
+   "outcome": {
+    "docnum": "PG690912-051353",
+    "masters": {
+     "branch": [
+      {
+       "code": "00000",
+       "name": "สำนักงานใหญ่"
+      }
+     ],
+     "chart": [
+      {
+       "code": "1111-01",
+       "name": "เงินสด"
+      },
+      {
+       "code": "1112-01",
+       "name": "เงินฝากธนาคาร"
+      },
+      {
+       "code": "1130-01",
+       "name": "ลูกหนี้การค้า"
+      },
+      {
+       "code": "2120-01",
+       "name": "เจ้าหนี้การค้า"
+      },
+      {
+       "code": "5300-01",
+       "name": "ค่าใช้จ่ายเบ็ดเตล็ด"
+      },
+      {
+       "code": "4110-01",
+       "name": "รายได้"
+      },
+      {
+       "code": "1150-30",
+       "name": "สินค้าคงเหลือ"
+      },
+      {
+       "code": "5100-01",
+       "name": "ต้นทุนขาย"
+      }
+     ],
+     "customer_branch": [
+      {
+       "code": "00000",
+       "name": "สำนักงานใหญ่"
+      }
+     ],
+     "dept": [
+      {
+       "code": "D001",
+       "name": "บัญชี"
+      }
+     ],
+     "employee": [
+      {
+       "code": "E01",
+       "name": "สมชาย ใจดี"
+      }
+     ],
+     "job": [
+      {
+       "code": "00001",
+       "name": "ทั่วไป"
+      }
+     ],
+     "product_group": [
+      {
+       "code": "01",
+       "name": "สินค้า"
+      }
+     ],
+     "store": [
+      {
+       "code": "0001",
+       "name": "คลังหลัก"
+      }
+     ],
+     "supplier_type": [
+      {
+       "code": "2-11",
+       "name": "เจ้าหนี้การค้า"
+      }
+     ],
+     "unit": [
+      {
+       "code": "PCS",
+       "name": "ชิ้น"
+      }
+     ]
+    },
+    "menus": {
+     "impaptran": [
+      {
+       "idmenu": "68",
+       "label": "ซื้อ",
+       "linked": true
+      },
+      {
+       "idmenu": "454",
+       "label": "ซื้อ-ค่าใช้จ่าย",
+       "linked": true
+      }
+     ]
+    },
+    "meta": {
+     "doc_type": "purchase",
+     "mrerp_menu": "ซื้อ",
+     "xlsx_size_bytes": 11126
+    },
+    "reason": "",
+    "status": "success"
+   },
+   "requests": [
+    {
+     "method": "GET",
+     "url": "/"
+    },
+    {
+     "method": "GET",
+     "url": "/login/login.php"
+    },
+    {
+     "data": {
+      "btnsubmit": "Submit",
+      "txtpasswords": "test01",
+      "txtusers": "test01"
+     },
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/"
+     },
+     "method": "POST",
+     "url": "/login/checklogin.php"
+    },
+    {
+     "method": "GET",
+     "url": "/login/selectdb.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/selectdb.php"
+     },
+     "method": "GET",
+     "params": {
+      "comidyear": "15",
+      "seldb": "1"
+     },
+     "url": "/login/mainmenu.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impaptran/formupload.php?idmenu=363"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/acreffile/acreffileform.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/armas/allform.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/artran/allform.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/fabillrev/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/stktraniss/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/armas/component/bshlistboxdata.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impaptran/formupload.php?idmenu=363"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/apmas/component/bshlistboxdata.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impapmas/formupload.php?idmenu=359"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "files": [
+      [
+       "uploadfile",
+       [
+        "import.xlsx",
+        {
+         "bytes": "b47658d85255e075c109fe1cd23f509069a28c9cc45a0e326b4cdebb38f0f1f5",
+         "members": "1509822772ff7d9862cc599590c99d51b3461f0d3dc9a028f94f41e196c4b4a9",
+         "size": 8607
+        },
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impapmas/formupload.php?idmenu=359",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impapmas/component/uploadexcel.php"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "headers": {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impapmas/formupload.php?idmenu=359"
+     },
+     "method": "POST",
+     "url": "/impapmas/formrdpc.php"
+    },
+    {
+     "files": [
+      [
+       "idus1",
+       [
+        null,
+        "15"
+       ]
+      ],
+      [
+       "cbimport[1]",
+       [
+        null,
+        "1"
+       ]
+      ],
+      [
+       "cballfrmimport1",
+       [
+        null,
+        "on"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impapmas/formrdpc.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impapmas/component/importpc.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/stkmas/component/bshlistboxdata.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impstkmas/formupload.php?idmenu=353"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "files": [
+      [
+       "uploadfile",
+       [
+        "import.xlsx",
+        {
+         "bytes": "eb953097d41ad3e0168ef7a60080fe8652e518de5379352344eb54bd9e60be2a",
+         "members": "131bb731e2224fcc9a299bcc043ef636e6df5f6b25375240517b5362e9be340b",
+         "size": 8622
+        },
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impstkmas/formupload.php?idmenu=353",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impstkmas/component/uploadexcel.php"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "headers": {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impstkmas/formupload.php?idmenu=353"
+     },
+     "method": "POST",
+     "url": "/impstkmas/formrdpc.php"
+    },
+    {
+     "files": [
+      [
+       "idus1",
+       [
+        null,
+        "15"
+       ]
+      ],
+      [
+       "cbimport[1]",
+       [
+        null,
+        "1"
+       ]
+      ],
+      [
+       "cballfrmimport1",
+       [
+        null,
+        "on"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impstkmas/formrdpc.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impstkmas/component/importpc.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impaptran/formupload.php?idmenu=363"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": "68"
+     },
+     "files": [
+      [
+       "uploadfile",
+       [
+        "import.xlsx",
+        {
+         "bytes": "b97756c06c0e269127090b50c339c422ef4945d3716df7e40deb86697866a3fb",
+         "members": "2a07c1a0a60b2b7fe053859ae2975d71211128c0da876d1957ad9be9980538b0",
+         "size": 11126
+        },
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impaptran/formupload.php?idmenu=363",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impaptran/component/uploadexcel.php"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": "68"
+     },
+     "headers": {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impaptran/formupload.php?idmenu=363"
+     },
+     "method": "POST",
+     "url": "/impaptran/formrdpc.php"
+    },
+    {
+     "files": [
+      [
+       "idus1",
+       [
+        null,
+        "15"
+       ]
+      ],
+      [
+       "cbimport[1]",
+       [
+        null,
+        "1"
+       ]
+      ],
+      [
+       "cballfrmimport1",
+       [
+        null,
+        "on"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impaptran/formrdpc.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impaptran/component/importpc.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/aptran/allview.php?idmenu=68"
+    },
+    {
+     "data": {
+      "searchdataval": "690912-051353",
+      "showdata_numrows": "30",
+      "showdata_pages": "1"
+     },
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/aptran/allview.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/aptran/component/showdata.php"
+    }
+   ]
+  },
+  "sales_cash": {
+   "outcome": {
+    "docnum": "SE690912-757161",
+    "masters": {
+     "area": [
+      {
+       "code": "000001",
+       "name": "กรุงเทพ"
+      }
+     ],
+     "branch": [
+      {
+       "code": "00000",
+       "name": "สำนักงานใหญ่"
+      }
+     ],
+     "chart": [
+      {
+       "code": "1111-01",
+       "name": "เงินสด"
+      },
+      {
+       "code": "1112-01",
+       "name": "เงินฝากธนาคาร"
+      },
+      {
+       "code": "1130-01",
+       "name": "ลูกหนี้การค้า"
+      },
+      {
+       "code": "2120-01",
+       "name": "เจ้าหนี้การค้า"
+      },
+      {
+       "code": "5300-01",
+       "name": "ค่าใช้จ่ายเบ็ดเตล็ด"
+      },
+      {
+       "code": "4110-01",
+       "name": "รายได้"
+      },
+      {
+       "code": "1150-30",
+       "name": "สินค้าคงเหลือ"
+      },
+      {
+       "code": "5100-01",
+       "name": "ต้นทุนขาย"
+      }
+     ],
+     "customer_branch": [
+      {
+       "code": "00000",
+       "name": "สำนักงานใหญ่"
+      }
+     ],
+     "customer_type": [
+      {
+       "code": "C-01",
+       "name": "ลูกหนี้การค้า"
+      }
+     ],
+     "delivery": [
+      {
+       "code": "000001",
+       "name": "ส่งเอง"
+      }
+     ],
+     "dept": [
+      {
+       "code": "D001",
+       "name": "บัญชี"
+      }
+     ],
+     "employee": [
+      {
+       "code": "E01",
+       "name": "สมชาย ใจดี"
+      }
+     ],
+     "job": [
+      {
+       "code": "00001",
+       "name": "ทั่วไป"
+      }
+     ],
+     "product_group": [
+      {
+       "code": "01",
+       "name": "สินค้า"
+      }
+     ],
+     "store": [
+      {
+       "code": "0001",
+       "name": "คลังหลัก"
+      }
+     ],
+     "unit": [
+      {
+       "code": "PCS",
+       "name": "ชิ้น"
+      }
+     ]
+    },
+    "menus": {
+     "imparse": [
+      {
+       "idmenu": "126",
+       "label": "ใบขายเงินสด",
+       "linked": true
+      }
+     ]
+    },
+    "meta": {
+     "doc_type": "sales_cash",
+     "mrerp_menu": "ใบขายเงินสด",
+     "xlsx_size_bytes": 11803
+    },
+    "reason": "",
+    "status": "success"
+   },
+   "requests": [
+    {
+     "method": "GET",
+     "url": "/"
+    },
+    {
+     "method": "GET",
+     "url": "/login/login.php"
+    },
+    {
+     "data": {
+      "btnsubmit": "Submit",
+      "txtpasswords": "test01",
+      "txtusers": "test01"
+     },
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/"
+     },
+     "method": "POST",
+     "url": "/login/checklogin.php"
+    },
+    {
+     "method": "GET",
+     "url": "/login/selectdb.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/selectdb.php"
+     },
+     "method": "GET",
+     "params": {
+      "comidyear": "15",
+      "seldb": "1"
+     },
+     "url": "/login/mainmenu.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/imparse/formupload.php?idmenu=371"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/acreffile/acreffileform.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/armas/allform.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/artran/allform.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/artran/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/armas/component/bshlistboxdata.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/imparse/formupload.php?idmenu=371"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/imparmas/formupload.php?idmenu=367"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "files": [
+      [
+       "uploadfile",
+       [
+        "import.xlsx",
+        {
+         "bytes": "c08c5bd76439b026b3d0971455df2cc51db47b030bd39c7ce6757aa9db0ca0ff",
+         "members": "7d07db629a30a89e00a538b8d0eef66f56610c09dfbe8f5101c3f4f0fa046421",
+         "size": 8693
+        },
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/imparmas/formupload.php?idmenu=367",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/imparmas/component/uploadexcel.php"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "headers": {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/imparmas/formupload.php?idmenu=367"
+     },
+     "method": "POST",
+     "url": "/imparmas/formrdpc.php"
+    },
+    {
+     "files": [
+      [
+       "idus1",
+       [
+        null,
+        "15"
+       ]
+      ],
+      [
+       "cbimport[1]",
+       [
+        null,
+        "1"
+       ]
+      ],
+      [
+       "cballfrmimport1",
+       [
+        null,
+        "on"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/imparmas/formrdpc.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/imparmas/component/importpc.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/stkmas/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/apmas/component/bshlistboxdata.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impstkmas/formupload.php?idmenu=353"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "files": [
+      [
+       "uploadfile",
+       [
+        "import.xlsx",
+        {
+         "bytes": "eb953097d41ad3e0168ef7a60080fe8652e518de5379352344eb54bd9e60be2a",
+         "members": "131bb731e2224fcc9a299bcc043ef636e6df5f6b25375240517b5362e9be340b",
+         "size": 8622
+        },
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impstkmas/formupload.php?idmenu=353",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impstkmas/component/uploadexcel.php"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "headers": {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impstkmas/formupload.php?idmenu=353"
+     },
+     "method": "POST",
+     "url": "/impstkmas/formrdpc.php"
+    },
+    {
+     "files": [
+      [
+       "idus1",
+       [
+        null,
+        "15"
+       ]
+      ],
+      [
+       "cbimport[1]",
+       [
+        null,
+        "1"
+       ]
+      ],
+      [
+       "cballfrmimport1",
+       [
+        null,
+        "on"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impstkmas/formrdpc.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impstkmas/component/importpc.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/imparse/formupload.php?idmenu=371"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": "126"
+     },
+     "files": [
+      [
+       "uploadfile",
+       [
+        "import.xlsx",
+        {
+         "bytes": "2d2124167225484dc7f9fa1ddd3d0fb5649d4aa55de889554f07180598215566",
+         "members": "13961de66f7c81df40fb3eaa8ac49a18df645c5db50ace6f05c72aa9e4e05103",
+         "size": 11803
+        },
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/imparse/formupload.php?idmenu=371",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/imparse/component/uploadexcel.php"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": "126"
+     },
+     "headers": {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/imparse/formupload.php?idmenu=371"
+     },
+     "method": "POST",
+     "url": "/imparse/formrdpc.php"
+    },
+    {
+     "files": [
+      [
+       "idus1",
+       [
+        null,
+        "15"
+       ]
+      ],
+      [
+       "cbimport[1]",
+       [
+        null,
+        "1"
+       ]
+      ],
+      [
+       "cballfrmimport1",
+       [
+        null,
+        "on"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/imparse/formrdpc.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/imparse/component/importpc.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/arse/allview.php?idmenu=126"
+    },
+    {
+     "data": {
+      "searchdataval": "690912-757161",
+      "showdata_numrows": "30",
+      "showdata_pages": "1"
+     },
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/arse/allview.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/arse/component/showdata.php"
+    }
+   ]
+  },
+  "sales_credit": {
+   "outcome": {
+    "docnum": "SI690912-931946",
+    "masters": {
+     "area": [
+      {
+       "code": "000001",
+       "name": "กรุงเทพ"
+      }
+     ],
+     "branch": [
+      {
+       "code": "00000",
+       "name": "สำนักงานใหญ่"
+      }
+     ],
+     "chart": [
+      {
+       "code": "1111-01",
+       "name": "เงินสด"
+      },
+      {
+       "code": "1112-01",
+       "name": "เงินฝากธนาคาร"
+      },
+      {
+       "code": "1130-01",
+       "name": "ลูกหนี้การค้า"
+      },
+      {
+       "code": "2120-01",
+       "name": "เจ้าหนี้การค้า"
+      },
+      {
+       "code": "5300-01",
+       "name": "ค่าใช้จ่ายเบ็ดเตล็ด"
+      },
+      {
+       "code": "4110-01",
+       "name": "รายได้"
+      },
+      {
+       "code": "1150-30",
+       "name": "สินค้าคงเหลือ"
+      },
+      {
+       "code": "5100-01",
+       "name": "ต้นทุนขาย"
+      }
+     ],
+     "customer_branch": [
+      {
+       "code": "00000",
+       "name": "สำนักงานใหญ่"
+      }
+     ],
+     "customer_type": [
+      {
+       "code": "C-01",
+       "name": "ลูกหนี้การค้า"
+      }
+     ],
+     "delivery": [
+      {
+       "code": "000001",
+       "name": "ส่งเอง"
+      }
+     ],
+     "dept": [
+      {
+       "code": "D001",
+       "name": "บัญชี"
+      }
+     ],
+     "employee": [
+      {
+       "code": "E01",
+       "name": "สมชาย ใจดี"
+      }
+     ],
+     "job": [
+      {
+       "code": "00001",
+       "name": "ทั่วไป"
+      }
+     ],
+     "product_group": [
+      {
+       "code": "01",
+       "name": "สินค้า"
+      }
+     ],
+     "store": [
+      {
+       "code": "0001",
+       "name": "คลังหลัก"
+      }
+     ],
+     "unit": [
+      {
+       "code": "PCS",
+       "name": "ชิ้น"
+      }
+     ]
+    },
+    "menus": {
+     "impartran": [
+      {
+       "idmenu": "119",
+       "label": "ขายเชื่อ",
+       "linked": true
+      }
+     ]
+    },
+    "meta": {
+     "doc_type": "sales_credit",
+     "mrerp_menu": "ขายเชื่อ",
+     "xlsx_size_bytes": 8641
+    },
+    "reason": "",
+    "status": "success"
+   },
+   "requests": [
+    {
+     "method": "GET",
+     "url": "/"
+    },
+    {
+     "method": "GET",
+     "url": "/login/login.php"
+    },
+    {
+     "data": {
+      "btnsubmit": "Submit",
+      "txtpasswords": "test01",
+      "txtusers": "test01"
+     },
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/"
+     },
+     "method": "POST",
+     "url": "/login/checklogin.php"
+    },
+    {
+     "method": "GET",
+     "url": "/login/selectdb.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/selectdb.php"
+     },
+     "method": "GET",
+     "params": {
+      "comidyear": "15",
+      "seldb": "1"
+     },
+     "url": "/login/mainmenu.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impartran/formupload.php?idmenu=370"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/acreffile/acreffileform.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/armas/allform.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/artran/allform.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/artran/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/armas/component/bshlistboxdata.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impartran/formupload.php?idmenu=370"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/imparmas/formupload.php?idmenu=367"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "files": [
+      [
+       "uploadfile",
+       [
+        "import.xlsx",
+        {
+         "bytes": "c08c5bd76439b026b3d0971455df2cc51db47b030bd39c7ce6757aa9db0ca0ff",
+         "members": "7d07db629a30a89e00a538b8d0eef66f56610c09dfbe8f5101c3f4f0fa046421",
+         "size": 8693
+        },
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/imparmas/formupload.php?idmenu=367",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/imparmas/component/uploadexcel.php"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "headers": {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/imparmas/formupload.php?idmenu=367"
+     },
+     "method": "POST",
+     "url": "/imparmas/formrdpc.php"
+    },
+    {
+     "files": [
+      [
+       "idus1",
+       [
+        null,
+        "15"
+       ]
+      ],
+      [
+       "cbimport[1]",
+       [
+        null,
+        "1"
+       ]
+      ],
+      [
+       "cballfrmimport1",
+       [
+        null,
+        "on"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/imparmas/formrdpc.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/imparmas/component/importpc.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/stkmas/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/apmas/component/bshlistboxdata.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impstkmas/formupload.php?idmenu=353"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "files": [
+      [
+       "uploadfile",
+       [
+        "import.xlsx",
+        {
+         "bytes": "eb953097d41ad3e0168ef7a60080fe8652e518de5379352344eb54bd9e60be2a",
+         "members": "131bb731e2224fcc9a299bcc043ef636e6df5f6b25375240517b5362e9be340b",
+         "size": 8622
+        },
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impstkmas/formupload.php?idmenu=353",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impstkmas/component/uploadexcel.php"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": ""
+     },
+     "headers": {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impstkmas/formupload.php?idmenu=353"
+     },
+     "method": "POST",
+     "url": "/impstkmas/formrdpc.php"
+    },
+    {
+     "files": [
+      [
+       "idus1",
+       [
+        null,
+        "15"
+       ]
+      ],
+      [
+       "cbimport[1]",
+       [
+        null,
+        "1"
+       ]
+      ],
+      [
+       "cballfrmimport1",
+       [
+        null,
+        "on"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impstkmas/formrdpc.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impstkmas/component/importpc.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/impartran/formupload.php?idmenu=370"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": "119"
+     },
+     "files": [
+      [
+       "uploadfile",
+       [
+        "import.xlsx",
+        {
+         "bytes": "0b35d02c1e95988432cc47072137c911bfa74e90f5253267608e2e0548b72153",
+         "members": "22d25355a51758cb8bfaeef05989b62bd7db7dccfb3ae8ab50b6687e98662892",
+         "size": 8641
+        },
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impartran/formupload.php?idmenu=370",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impartran/component/uploadexcel.php"
+    },
+    {
+     "data": {
+      "idus": "15",
+      "selmenu": "119"
+     },
+     "headers": {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impartran/formupload.php?idmenu=370"
+     },
+     "method": "POST",
+     "url": "/impartran/formrdpc.php"
+    },
+    {
+     "files": [
+      [
+       "idus1",
+       [
+        null,
+        "15"
+       ]
+      ],
+      [
+       "cbimport[1]",
+       [
+        null,
+        "1"
+       ]
+      ],
+      [
+       "cballfrmimport1",
+       [
+        null,
+        "on"
+       ]
+      ]
+     ],
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/impartran/formrdpc.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/impartran/component/importpc.php"
+    },
+    {
+     "headers": {
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php"
+     },
+     "method": "GET",
+     "url": "/artran/allview.php?idmenu=119"
+    },
+    {
+     "data": {
+      "searchdataval": "690912-931946",
+      "showdata_numrows": "30",
+      "showdata_pages": "1"
+     },
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/artran/allview.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
+     "url": "/artran/component/showdata.php"
+    }
+   ]
+  }
+ },
+ "zlib": "1.2.13"
+}

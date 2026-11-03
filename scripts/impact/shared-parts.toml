@@ -230,7 +230,7 @@ name = "MR.ERP 规则（会话、目录、主档、菜单、方向、导入文�
 paths = ["apps/pearnly_core/pearnly_core/mrerp/**"]
 markers = ["pearnly_core.mrerp", "pearnly_core import mrerp"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["cowork.mrerp.push", "cowork.mrerp.catalog", "cowork.cc.mrerp-setup"]
+entries = ["cowork.mrerp.push", "cowork.mrerp.catalog", "cowork.cc.mrerp-setup", "erp.mrerp.direct"]
 
 [[part]]
 id = "exports"
@@ -2006,6 +2006,15 @@ steps = "ERP 账号（两家公司、员工只见其一）打开 CC：侧栏「�
 expect = "只见本人可见的启用公司；只出 ERP 声明的分区；不调 Cowork 接口；知识库与待处理随事件更新"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_projects.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_companies.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_context.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/company_notes.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/pending.py"]
+
+[[entry]]
+id = "erp.mrerp.direct"
+product = "ERP"
+where = "ERP 接 MR.ERP 导入直写（总开关 MRERP_LEDGER_ENABLED 关着，入口不对用户开放）"
+steps = "开关关着：ERP 采购 / 销售提交、对话直写、待处理照旧只走 Express；开关在测试里打开：账本是 MR.ERP 的公司提交采购 / 销售单，导入假 MR.ERP"
+expect = "关着时 MR.ERP 入口全挡、Express 输出不变；开着时单据记 MR.ERP 单号，现购停下，要选的停在单据上，账号被代录占着时排队"
+check = "offline"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/__init__.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/connection.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/contracts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py"]
 
 [[entry]]
 id = "erp.cc.chat-push"
