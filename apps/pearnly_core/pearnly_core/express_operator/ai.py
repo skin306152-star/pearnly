@@ -6,7 +6,7 @@ CC 桌面版代录 Express 时碰到规则表认不出的画面，交给 AI 接�
 Anthropic，原样回响应。
 
 把关（这里写死，不靠电脑）：
-- 只认两种调用（``check`` 看图判断、``turn`` 电脑操作一轮）、两个模型、请求体字段白名单、``max_tokens`` 上限；
+- 只认两种调用（``check`` 看图判断、``turn`` 电脑操作一轮）、两个模型、请求体字段白名单（多一项整件拒收）、``max_tokens`` 上限；
 - 每个代录批次的费用上限 :data:`BATCH_BUDGET_USD`（按 :data:`PRICE` 估算累计），到了回 ``{"error": "budget"}``，
   CC 桌面版收到就停下 AI 接手、这张单转人工。
 """
@@ -46,7 +46,9 @@ def request_of(body) -> tuple[str, str, dict]:
         raise Invalid("request")
     if request.get("model") not in MODELS or not isinstance(request.get("messages"), list):
         raise Invalid("model")
-    cleaned = {key: request[key] for key in FIELDS if key in request}
+    if set(request) - set(FIELDS):
+        raise Invalid("field")  # 白名单之外的字段整件拒收（不悄悄去掉）：CC 桌面版只发这几项
+    cleaned = dict(request)
     try:
         cleaned["max_tokens"] = max(1, min(int(cleaned.get("max_tokens") or MAX_TOKENS), MAX_TOKENS))
     except (TypeError, ValueError):

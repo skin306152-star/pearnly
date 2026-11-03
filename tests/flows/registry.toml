@@ -1058,3 +1058,17 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py",
   "apps/pearnly_cowork/pearnly_cowork/companies/pending.py",
 ]
+
+[[flow]]
+id = "cc.machine.operator-ai"
+title = "CC 机器通道的代录 AI 转发：没配密钥回 not_configured、白名单外拒收、假 / 吊销密钥被拒、旧方法不变（不花钱）"
+module = "scripts/flows/cc_machine_operator_ai.py"
+start = "/desk"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+camera = false
+covers = [
+  "apps/pearnly_core/pearnly_core/cc_desktop/machine.py",
+  "apps/pearnly_core/pearnly_core/express_operator/ai.py",
+]

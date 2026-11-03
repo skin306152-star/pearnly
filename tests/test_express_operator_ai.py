@@ -56,9 +56,10 @@ class Forward(unittest.TestCase):
                     body(model="claude-other")):
             self.assertTrue(ai.forward(bad, post=self.post)["error"].startswith("invalid_"))
         self.assertEqual(self.sent, [])
-        ai.forward(body(max_tokens=99999, metadata={"x": 1}, tools=[{"type": "computer_toolset_20260801"}]), post=self.post)
+        self.assertEqual(ai.forward(body(metadata={"x": 1}), post=self.post), {"error": "invalid_field"})  # 多一项整件拒收
+        self.assertEqual(self.sent, [])
+        ai.forward(body(max_tokens=99999, tools=[{"type": "computer_toolset_20260801"}]), post=self.post)
         self.assertEqual(self.sent[0]["max_tokens"], ai.MAX_TOKENS)
-        self.assertNotIn("metadata", self.sent[0])
         self.assertEqual(self.sent[0]["tools"], [{"type": "computer_toolset_20260801"}])
 
     def test_the_batch_budget_stops_further_calls(self):
