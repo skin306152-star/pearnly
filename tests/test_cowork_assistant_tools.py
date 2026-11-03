@@ -93,6 +93,20 @@ class _Frappe(types.ModuleType):
     def clear_messages(self):
         pass
 
+    # CC 改单据的来源记录（`assistant.document_checks`，Frappe 原生 Comment）：插入的记在 `comments`，按单据读回
+    comments = []
+
+    def get_doc(self, values):
+        comments = self.comments
+        return types.SimpleNamespace(insert=lambda ignore_permissions=False: comments.append(dict(values)))
+
+    def get_all(self, doctype, filters=None, fields=None, order_by=None, limit_page_length=None):
+        if doctype != "Comment":
+            return []
+        rows = [row for row in self.comments if all(row.get(key) == value for key, value in (filters or {}).items())]
+        return [types.SimpleNamespace(owner="a@example.com", creation=f"2026-11-03 10:00:{index:02d}",
+                                      content=row["content"]) for index, row in enumerate(rows)][::-1]
+
     def throw(self, message, exc=None):
         raise (exc or self.ValidationError)(message)
 
@@ -115,7 +129,8 @@ def _install():
     frappe = _Frappe()
     sys.modules["frappe"] = frappe
     _stub_person_names()
-    names = ["pearnly_cowork", "pearnly_cowork.access", "pearnly_cowork.connections", "pearnly_cowork.folder_intake",
+    names = ["pearnly_cowork", "pearnly_cowork.access", "pearnly_cowork.assistant", "pearnly_cowork.connections",
+             "pearnly_cowork.folder_intake",
              "pearnly_cowork.history", "pearnly_cowork.push", "pearnly_cowork.push.application"]
     for name in names:
         sys.modules[name] = types.ModuleType(name)
@@ -161,6 +176,7 @@ def _install():
         sys.modules[name] = _core_stub() if name == "pearnly_core" else types.ModuleType(name)
     for name, path in (("pearnly_core.tax_documents.codes", CORE / "tax_documents/codes.py"),
                        ("pearnly_core.tax_documents.amounts", CORE / "tax_documents/amounts.py"),
+                       ("pearnly_core.tax_documents.ledger_guard", CORE / "tax_documents/ledger_guard.py"),
                        ("pearnly_core.tax_documents.rules", CORE / "tax_documents/rules.py"),
                        ("pearnly_cowork.contracts.document_policy", COWORK / "contracts/document_policy.py"),
                        ("pearnly_cowork.tax.periods", COWORK / "tax/periods.py"),
@@ -194,6 +210,12 @@ def _install():
         spec.loader.exec_module(module)
         parent, _, child = name.rpartition(".")
         setattr(sys.modules[parent], child, module)
+    # 单据自检与改动记录（`assistant.document_checks`）用真的
+    spec = importlib.util.spec_from_file_location("pearnly_cowork.assistant.document_checks",
+                                                  COWORK / "assistant/document_checks.py")
+    checks = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = sys.modules["pearnly_cowork.assistant"].document_checks = checks
+    spec.loader.exec_module(checks)
     spec = importlib.util.spec_from_file_location("cowork_assistant_tools", COWORK / "assistant/tools.py")
     tools = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tools)
@@ -690,7 +712,7 @@ class EditDocumentTests(unittest.TestCase):
         return {**self.doc, "pages": pages, "record_version": 5}
 
     def test_only_the_primary_page_changes_and_the_version_is_passed(self):
-        out = json.loads(tools.edit_document({"document": "H1", "version": 4, "changes": {
+        out = json.loads(tools.edit_document({"document": "H1", "version": 4, "basis": "the user read it off page 2", "changes": {
             "total_amount": "1,070.00", "date": "29/09/69", "seller_tax": "0107-5420-00011"}}))
         name, pages, version = self.saved[0]
         self.assertEqual((name, version), ("H1", "4"))
@@ -709,6 +731,37 @@ class EditDocumentTests(unittest.TestCase):
         out = json.loads(tools.edit_document({"document": "H1", "changes": {"notes": "x"}}))
         self.assertEqual(out["status"], "not_saved")
         self.assertEqual(self.saved, [])
+
+    def test_money_and_identity_changes_need_a_basis_that_is_kept_with_the_change(self):
+        """2026-11-03「CC 通用疑难处理」：CC 改金额、税号、单号、日期、明细必须说依据，没依据不改；改了留一条记录（谁、何时、
+        改前改后、依据），单据详情的 edits 读得到。备注之类不用依据。"""
+        frappe.comments.clear()
+        for changes, items in (({"total_amount": "1070"}, None), ({"invoice_number": "IV9"}, None), ({}, [{"name": "B"}])):
+            out = json.loads(tools.edit_document({"document": "H1", "version": 4, "changes": changes, "items": items}))
+            self.assertEqual(out["status"], "not_saved", changes)
+            self.assertIn("basis", out["reason"])
+        self.assertEqual((self.saved, frappe.comments), ([], []))
+        self.assertEqual(json.loads(tools.edit_document({"document": "H1", "version": 4,
+                                                         "changes": {"notes": "x"}}))["status"], "saved")
+        out = json.loads(tools.edit_document({"document": "H1", "version": 4, "changes": {"total_amount": "41589.83"},
+                                              "basis": "38,869.00 + VAT 2,720.83 printed on page 1"}))
+        self.assertEqual(out["status"], "saved")
+        record = json.loads(frappe.comments[-1]["content"])
+        self.assertEqual((frappe.comments[-1]["reference_name"], frappe.comments[-1]["subject"]),
+                         ("H1", "pearnly.document_edit"))
+        self.assertEqual(record, {"by": "cc", "basis": "38,869.00 + VAT 2,720.83 printed on page 1",
+                                  "changes": {"total_amount": [90, "41589.83"]}})
+        self.assertEqual(out["edits"][0]["basis"], "38,869.00 + VAT 2,720.83 printed on page 1")
+
+    def test_detail_reports_the_checks_cc_starts_from(self):
+        """单据详情的 checks：写账前护栏的原因（与推送同一判据）、识别时的复核原因、推送停下的原因；CC 从这里去看原件找根因。"""
+        self.doc = {"name": "H2", "record_version": 1, "last_push_reason": "amounts_not_consistent",
+                    "review_reasons": [{"code": "amount_math"}],
+                    "pages": [{"fields": {"subtotal": "38869.00", "vat": "2720.83", "invoice_number": "IV7",
+                                          "date": "2026-10-01", "document_type": "tax_invoice"}}]}
+        out = json.loads(tools.document_detail({"document": "H2"}))
+        self.assertEqual(out["checks"], {"recognition": ["amount_math"], "ledger": ["total_missing"],
+                                         "push": "amounts_not_consistent"})
 
     def test_someone_elses_newer_edit_is_reported_not_overwritten(self):
         def stale(name, pages, version):

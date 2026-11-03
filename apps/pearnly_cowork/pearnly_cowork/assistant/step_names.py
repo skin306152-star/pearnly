@@ -66,6 +66,7 @@ STEP_NAMES = {
     "cowork_work_comment": "Commenting on a task",
     "cowork_work_search": "Searching tasks",
     "cowork_push_results": "Checking push results",
+    "cowork_pending": "Checking pending items",
     "cowork_folder_tasks": "Checking scheduled tasks",
     "cowork_run_folder_task": "Starting a scheduled task",
     "cowork_folder_task_runs": "Checking scheduled task runs",

@@ -18,6 +18,7 @@ save_push_choices / push_documents / push_results / resolve_push_result），两
 
 单据编号给模型的是 ``<类>:<单号>``（``P`` 采购、``S`` 销售、``M`` 出入库、``D`` 收银日汇总、``C`` 盘点），同代录的 ``doc_id``。
 """
+import json
 import time
 from collections import namedtuple
 
@@ -353,6 +354,42 @@ def push_results(tool_input) -> str:
     return list_documents(tool_input)
 
 
+PENDING_MAX = 50
+BY_DOCTYPE = {kind.doctype: kind for kind in KINDS.values()}
+
+
+def pending_items(tool_input) -> str:
+    """ERP 版 CC 的「待处理」（同侧栏待处理一个后端 `express.pending`）：要人处理的单与原因。识别来的采购 / 销售单另带 ``checks``：
+    识别时的复核码、票面合计与单据合计（写账前核对，`contracts.printed_hold`），CC 据此去看单据、问人。"""
+    companies, scope, reason = _companies(tool_input)
+    if reason:
+        return direct_push.dumps({"status": direct_push.FAILED, "reason": reason})
+    found = {"items": [], "count": 0}
+    for company in companies:
+        part = pending.pending(company, PENDING_MAX, tool_input.get("search"))
+        found["items"] += part["items"]
+        found["count"] += part["count"]
+    items = []
+    for item in found["items"][:PENDING_MAX]:
+        kind = BY_DOCTYPE.get(item["doctype"])
+        row = {"document": _doc_id(kind, item["document"]) if kind else item["document"], "company": item["company"],
+               "reason": item["reason_label"], "number": item["invoice_no"], "counterparty": item["counterparty"],
+               "amount": item["amount"], "date": item["date"], "url": item["url"]}
+        if item["doctype"] in (push.PURCHASE, push.SALES):
+            saved = frappe.db.get_value(item["doctype"], item["document"],
+                                        ["ocr_review", "printed_total", "grand_total", "ledger_reason"], as_dict=True) or {}
+            row["reason_code"] = saved.get("ledger_reason") or ""
+            if saved.get("ocr_review"):
+                try:
+                    review = json.loads(saved["ocr_review"])
+                except ValueError:
+                    review = {}
+                row["checks"] = {"recognition": review.get("codes") or [], "printed_total": saved.get("printed_total"),
+                                 "read_total": review.get("total"), "document_total": saved.get("grand_total")}
+        items.append(row)
+    return direct_push.dumps({"scope": scope, "count": found["count"], "items": items})
+
+
 def push_documents(tool_input) -> str:
     names = [str(n) for n in (tool_input.get("documents") or [])][:PUSH_MAX]
     if not names:
@@ -479,6 +516,7 @@ GUIDANCE = [
     "change it (its account, cash or credit, amounts or anything else); say so plainly with its number in Express "
     "(docnum), and never suggest changing or checking it in Express or anywhere else, not even as a condition or a "
     "closing sentence, in any language.",
+    direct_push.guidance_troubleshooting("erp_pending"),
 ]
 
 TOOLS = [
@@ -543,6 +581,17 @@ TOOLS = [
      "input_schema": {**direct_push.RESOLVE_SCHEMA, "properties": {**direct_push.RESOLVE_SCHEMA["properties"],
                                                                    "company": COMPANY_PROP}},
      "handler": "pearnly_erp_portal.express.cc_tools.resolve_push_result"},
+    {"name": "erp_pending", "label": "Checked pending items",
+     "description": "The pending items (the same list as Pending in the sidebar): ERP documents that need a person "
+                    "before they can be written into Express, with the reason. For a recognized purchase or sales "
+                    "document, checks has the recognition review codes, the printed total on the document (a field the "
+                    "user can edit; read_total is what recognition read) and the document total; a document is held "
+                    "when the printed total is missing or differs from the document total. A submitted document is "
+                    "changed with Amend on its page (url), which makes a corrected copy that is written instead; CC "
+                    "does not change it itself. In a conversation filed under a company it covers only that company "
+                    "unless all_companies is true.",
+     "input_schema": {"type": "object", "properties": {"search": {"type": "string"}, **SCOPE_PROPS}},
+     "handler": "pearnly_erp_portal.express.cc_tools.pending_items"},
     {"name": "erp_push_results", "label": "Checked push results",
      "description": "Show recent push results of ERP documents: those that failed or stopped (with the reason), are "
                     "pending (on their way to Express), or succeeded (entered, with the Express number). In a "
@@ -557,6 +606,7 @@ TOOLS = [
 # 进行中的说法（同 Cowork 的用词；译文在本 App 术语表）
 STEP_NAMES = {
     "erp_list_documents": "Listing documents",
+    "erp_pending": "Checking pending items",
     "erp_push_documents": "Pushing documents",
     "erp_push_choices": "Checking push choices",
     "erp_save_push_choices": "Saving push choices",

@@ -331,7 +331,8 @@ class DeclarationTests(unittest.TestCase):
         names = [tool["name"] for tool in tools.TOOLS]
         self.assertEqual(sorted(names), sorted(tools.STEP_NAMES))
         self.assertEqual(set(names), {"erp_list_documents", "erp_push_documents", "erp_push_choices",
-                                      "erp_save_push_choices", "erp_resolve_push_result", "erp_push_results"})
+                                      "erp_save_push_choices", "erp_resolve_push_result", "erp_push_results",
+                                      "erp_pending"})
         for tool in tools.TOOLS:
             module, _sep, func = tool["handler"].rpartition(".")
             self.assertEqual(module, "pearnly_erp_portal.express.cc_tools")
@@ -346,7 +347,9 @@ class DeclarationTests(unittest.TestCase):
             cowork[cells[0]] = cells[1:4]
         erp = {line.split("\t")[0]: line.split("\t")[1:4]
                for line in (ERP / "i18n/messages.tsv").read_text(encoding="utf-8").splitlines()[1:]}
-        source = (COWORK / "assistant/tools.py").read_text(encoding="utf-8")
+        # 「待处理」在 Cowork 的公司工具里（`company_tools.cowork_pending`），其余在 `tools`
+        source = "\n".join((COWORK / path).read_text(encoding="utf-8")
+                            for path in ("assistant/tools.py", "assistant/company_tools.py"))
         for tool in tools.TOOLS:
             twin = "cowork_" + tool["name"][len("erp_"):]
             start = source.index(f'{{"name": "{twin}", "label": "{tool["label"]}"')  # 同名工具、同一个步骤名
@@ -395,6 +398,35 @@ class DeclarationTests(unittest.TestCase):
         for forbidden in ("jobs.enqueue", "jobs.cancel", "jobs.retry", "frappe.db.set_value", "frappe.db.sql", ".insert(",
                           ".save(", "ignore_permissions", "prepare.prepare", "choices.remember"):
             self.assertNotIn(forbidden, source)
+
+
+class PendingToolTests(unittest.TestCase):
+    """2026-11-03「CC 通用疑难处理」：erp_pending 与侧栏「待处理」同一个后端（`express.pending`）；识别来的单带 checks（复核码、
+    票面合计、识别读到的合计、单据合计），CC 据此找根因，不另起一套判断。"""
+
+    def setUp(self):
+        reset()
+        from unittest import mock
+        companies = types.ModuleType("pearnly_erp_portal.masters.company")
+        companies.allowed_companies = lambda user: list(ALLOWED.get(user, []))
+        patcher = mock.patch.dict(sys.modules, {"pearnly_erp_portal.masters.company": companies})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_pending_items_come_from_the_sidebar_backend_with_the_printed_total_checks(self):
+        doc(PURCHASE, "PUR-7", reason=E.PRINTED_TOTAL_MISSING, ocr_review='{"codes":["total_missing"],"total":null}',
+            printed_total=0)
+        doc(PURCHASE, "PUR-8", state="written")  # 写进去了：不在待处理
+        doc(PURCHASE, "PUR-9", company="CO-2", reason=E.PRINTED_TOTAL_MISMATCH)  # 别家：本对话挂的是 CO-1
+        out = call(tools.pending_items)
+        self.assertEqual((out["scope"], out["count"]), ("CO-1", 1))
+        item = out["items"][0]
+        self.assertEqual((item["document"], item["reason_code"]), ("P:PUR-7", E.PRINTED_TOTAL_MISSING))
+        self.assertEqual(item["checks"], {"recognition": ["total_missing"], "printed_total": 0, "read_total": None,
+                                          "document_total": "1070.00"})
+        self.assertEqual(out["count"], pending.pending("CO-1")["count"])
+        everything = call(tools.pending_items, all_companies=True)
+        self.assertEqual(sorted(row["document"] for row in everything["items"]), ["P:PUR-7", "P:PUR-9"])
 
 
 class ListTests(unittest.TestCase):

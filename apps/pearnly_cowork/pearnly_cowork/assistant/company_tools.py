@@ -262,6 +262,23 @@ def _mrerp_settings(sets) -> list:
     return out
 
 
+PENDING_MAX = 50
+
+
+def pending_items(tool_input) -> str:
+    """待处理（同侧栏「待处理」一个后端 `companies.pending`）：要人处理的单与原因。给了公司或对话挂在公司下只看这家，否则看全部。"""
+    from pearnly_cowork.companies import pending
+
+    row = _company(tool_input) if tool_input.get("company") or _filed()[0] else None
+    if tool_input.get("company") and not row:
+        return _no_company(tool_input)
+    found = pending.pending(row.name if row else None, PENDING_MAX, tool_input.get("search"))
+    items = [{key: item.get(key) for key in ("document", "company", "code", "reason_label", "invoice_no", "counterparty",
+                                             "amount", "date", "filename") if item.get(key) not in (None, "")}
+             for item in found["items"]]
+    return _json({"company": row.name if row else None, "count": found["count"], "items": items})
+
+
 def note_save(tool_input) -> str:
     service.require_write()
     row = _company(tool_input, write=True)
@@ -572,6 +589,14 @@ COMPANY_PROP = {"type": "string", "description": "Company id from cowork_compani
                                                  "conversation is filed under."}
 
 TOOLS = [
+    {"name": "cowork_pending", "label": "Checked pending items",
+     "description": "The pending items (the same list as Pending in the sidebar): documents that need a person before "
+                    "they can be entered into Express or MR.ERP, newest first, with the reason (code and reason_label) "
+                    "and the invoice number, counterparty, amount and date. Look a document up with "
+                    "cowork_document_detail (its checks and push reason) and cowork_document_original to find the "
+                    "cause. Without company it covers the company this conversation is filed under, or all companies.",
+     "input_schema": {"type": "object", "properties": {"company": COMPANY_PROP, "search": {"type": "string"}}},
+     "handler": "pearnly_cowork.assistant.company_tools.pending_items"},
     {"name": "cowork_companies", "label": "Listed companies",
      "description": "List the firm's client companies (the company masters shared by the whole firm): id, title, "
                     "legal name, tax ID, branches and account set years, up to 20; search matches the name or tax ID. "

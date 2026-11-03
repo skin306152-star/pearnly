@@ -27,6 +27,7 @@ from pearnly_cowork.connections import service as connections
 from pearnly_cowork.folder_intake import destinations, rules
 from pearnly_cowork.folder_intake import contracts as folder_contracts
 from pearnly_cowork.folder_intake import readers as folder_readers
+from pearnly_cowork.assistant import document_checks
 from pearnly_cowork.history import push_state, storage
 from pearnly_cowork.push.application import api as application_api
 from pearnly_cowork.push.application import conflicts
@@ -175,6 +176,7 @@ GUIDANCE = [
     direct_push.GUIDANCE_TABLE_ROWS,
     CC_DESKTOP,
     MRERP_GUIDANCE,
+    direct_push.guidance_troubleshooting("cowork_pending"),
 ]
 
 
@@ -1984,6 +1986,12 @@ def _detail(doc) -> dict:
     automation = _automation_of(doc.get("name"))
     if automation:
         out["automation"] = automation
+    found = document_checks.checks(doc, fields)
+    if found:
+        out["checks"] = found
+    edits = document_checks.recent(doc.get("name")) if doc.get("name") else []
+    if edits:
+        out["edits"] = edits
     return _filled(out)
 
 
@@ -2053,6 +2061,12 @@ def edit_document(tool_input) -> str:
     unknown = [key for key in changes if key not in EDITABLE]
     if unknown:
         return _json({"status": "not_saved", "reason": f"Not editable: {', '.join(unknown)}", "editable": EDITABLE})
+    basis = str(tool_input.get("basis") or "").strip()
+    if document_checks.needs_basis(changes, items) and not basis:
+        # 动金额 / 税号 / 单号 / 日期 / 明细要说明依据（2026-11-03）：存进改动记录，谁按什么改的查得到
+        return _json({"document": name, "status": "not_saved",
+                      "reason": "Pass basis: what this change is based on (the user's words, the original's page, "
+                                "how a number was worked out)."})
     try:
         cleaned = {key: (None if value in (None, "") else _clean(key, value)) for key, value in changes.items()}
         rows = None if items is None else [
@@ -2068,7 +2082,8 @@ def edit_document(tool_input) -> str:
     if not pages:
         return _json({"document": name, "status": "not_saved", "reason": "This document has no recognized page."})
     index = _primary(pages)
-    fields = dict(pages[index].get("fields") or {})
+    before = dict(pages[index].get("fields") or {})
+    fields = dict(before)
     for key, value in cleaned.items():
         target = "date_raw" if key == "date" else key
         if value is None:
@@ -2082,6 +2097,8 @@ def edit_document(tool_input) -> str:
     pages[index] = {**pages[index], "fields": fields}
     try:
         saved = storage.update_pages(name, pages, str(tool_input["version"]))
+        document_checks.record(name, before, fields, [("date_raw" if key == "date" else key) for key in cleaned] +
+                               (["date"] if "date" in cleaned else []), items_changed=rows is not None, basis=basis)
         frappe.db.commit()
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
@@ -4277,7 +4294,11 @@ TOOLS = [
                      "additionalProperties": False},
          "items": {"type": "array", "items": {"type": "object", "properties": {
              "name": {"type": "string"}, "qty": {"type": ["string", "number"]},
-             "price": {"type": ["string", "number"]}, "subtotal": {"type": ["string", "number"]}}}}},
+             "price": {"type": ["string", "number"]}, "subtotal": {"type": ["string", "number"]}}}},
+         "basis": {"type": "string", "description": "What the change is based on, in a few words: the user's words, "
+                                                   "the original's page, or how a number was worked out. Required to "
+                                                   "change amounts, tax IDs, the invoice number, date, type, currency "
+                                                   "or items; it is kept with the change."}},
          "required": ["document", "version"]},
      "handler": "pearnly_cowork.assistant.tools.edit_document"},
     {"name": "cowork_choose_document_policy", "label": "Document handling set",

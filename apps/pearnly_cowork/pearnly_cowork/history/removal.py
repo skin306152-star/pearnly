@@ -41,6 +41,9 @@ def _drop_related(name):
         frappe.db.delete(RECORD, {"name": ["in", records]})
     frappe.db.delete("Cowork Push Notification", {"history": name})
     frappe.db.delete("Cowork OCR Correction", {"source_history": name})
+    # CC 改单据的来源记录（`assistant.document_checks`）随单据一起删
+    frappe.db.delete("Comment", {"reference_doctype": "Cowork OCR History", "reference_name": name,
+                                 "subject": "pearnly.document_edit"})
 
 
 def delete(records):

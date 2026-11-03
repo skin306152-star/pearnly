@@ -2562,12 +2562,31 @@ class ProviderAndToolTests(unittest.TestCase):
     def _tools(self):
         return importlib.import_module("pearnly_cowork.assistant.company_tools")
 
+    def test_the_pending_tool_reads_the_sidebar_list_for_this_conversation_s_company(self):
+        """2026-11-03：cowork_pending 与侧栏「待处理」同一个后端（`companies.pending.pending`），对话挂在公司下只看这家。"""
+        from unittest import mock
+        tools = self._tools()
+        seen = []
+        found = {"items": [{"document": "H1", "company": "C1", "code": "manual", "reason_label": "Amounts do not add up",
+                            "invoice_no": "IV7", "counterparty": "BJC", "amount": "41,589.83", "date": "2026-10-01",
+                            "action": "open", "month": "2026-10"}], "count": 1}
+        pending = importlib.import_module("pearnly_cowork.companies.pending")
+        with mock.patch.object(pending, "pending", lambda company, limit, search: seen.append((company, limit, search))
+                               or found), \
+                mock.patch.object(tools, "_filed", lambda: ("C1", "", "")), \
+                mock.patch.object(tools, "_company", lambda tool_input, write=False: types.SimpleNamespace(name="C1")):
+            out = json.loads(tools.pending_items({}))
+        self.assertEqual(seen, [("C1", tools.PENDING_MAX, None)])
+        self.assertEqual((out["company"], out["count"], out["items"][0]["document"]), ("C1", 1, "H1"))
+        self.assertNotIn("action", out["items"][0])  # 页面按钮的事，CC 不需要
+
     def test_writing_notes_needs_allow_and_shows_before_and_after(self):
         tools = self._tools()
         declared = {tool["name"]: tool for tool in tools.TOOLS}
         self.assertEqual(set(declared), {"cowork_companies", "cowork_company_profile", "cowork_company_note_save",
                                          "cowork_company_note_remove", "cowork_company_choice_save",
-                                         "cowork_company_choice_remove"})
+                                         "cowork_company_choice_remove", "cowork_pending"})
+        self.assertNotIn("approval", declared["cowork_pending"])  # 只读
         for name in ("cowork_company_note_save", "cowork_company_note_remove"):
             self.assertIs(declared[name]["approval"], True)
         for name in ("cowork_companies", "cowork_company_profile"):

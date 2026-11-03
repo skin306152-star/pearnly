@@ -1866,3 +1866,5 @@ Checking push results	正在查看推送结果	กำลังตรวจสอ
 Printed Total	票面合计	ยอดรวมตามเอกสาร	伝票の合計
 The printed total is missing	没有票面合计	ไม่มียอดรวมตามเอกสาร	伝票の合計がありません	express.reason.printedTotalMissing
 The total does not match the printed total	合计与票面合计不一致	ยอดรวมไม่ตรงกับยอดรวมตามเอกสาร	合計が伝票の合計と一致しません	express.reason.printedTotalMismatch
+Checked pending items	查看了待处理	ตรวจสอบรายการรอดำเนินการแล้ว	処理待ちの項目を確認しました
+Checking pending items	正在查看待处理	กำลังตรวจสอบรายการรอดำเนินการ	処理待ちの項目を確認しています

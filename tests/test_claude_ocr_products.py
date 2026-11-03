@@ -371,6 +371,17 @@ class Cowork(unittest.TestCase):
         self.assertEqual(claude.evidence(outcome(voucher(doc()), ("claude-haiku-5-5", "claude-opus-5-5")))[1]["stage"],
                          "claude_review")
 
+    def test_the_model_kind_reaches_the_ledger_guard(self):
+        """2026-11-03：Claude 判的单据种类带到票面（``doc_kind``），写账前的护栏「模型判为税票却只读到总额」才生效；
+        没有税票抬头的发票（bill_invoice，卖方多半没登记增值税）只印总额照账套规则走。去掉这一栏，护栏永远判不出。"""
+        from pearnly_core.express_rules.push import ledger
+        from pearnly_core.tax_documents import ledger_guard
+        only_total = dict(subtotal=None, vat=None, total="1070.00")
+        for kind, expected in (("tax_invoice", [ledger_guard.TAX_INVOICE_TOTAL_ONLY]), ("bill_invoice", [])):
+            invoice = self.pipeline(voucher(doc(**only_total), kind=kind), 1).pages[0].invoice
+            self.assertEqual(invoice.doc_kind, kind)
+            self.assertEqual(ledger.reasons({"fields": invoice.model_dump()}), expected, kind)
+
     def test_policy_kinds_reach_the_document_policy(self):
         slip = self.pipeline(voucher(doc(invoice_number="REF1", seller_tax=None), kind="transfer_slip", entry="not_invoice"), 1)
         self.assertEqual(slip.pages[0].invoice.document_type, "payment_evidence")

@@ -188,6 +188,20 @@ GUIDANCE_TABLE_ROWS = ("When you list documents in a table or a list, build each
                        "per document, in the order you choose before you start, and never leave a row unfinished or cut "
                        "off with '...'. When an entry differs from what you said earlier, say so plainly.")
 
+# 2026-11-03「CC 通用疑难处理」（用户：不按情况加规则，CC 能查、能问、能答、能做）：只写原则，Cowork 与 ERP 共用。
+# 代码只守管钱的底线（护栏拦下的单进待处理、不写账），找根因、想办法补交给 CC。``pending_tool``：本产品的待处理工具名
+def guidance_troubleshooting(pending_tool: str) -> str:
+    return ("When a document is stuck, or the user asks what needs attention, find the root cause before anything else: "
+            f"look at the pending items ({pending_tool}), the document's checks and push reason, and its original pages, "
+            "then say the cause in a sentence or two. If the original or the user's words settle it, fix it and say what "
+            "the fix is based on; if not, ask the user for the missing page or file, or for their decision. Never guess "
+            "which document a file belongs to (ask when unsure), never make up a number, and say how any number you "
+            "worked out was calculated. Every change to an amount, tax ID, invoice number, date or items carries its "
+            "basis. Once the user decides, carry it through: fix, push again and report the result. Pushing does not "
+            "check for duplicates: you may point out two documents that look the same, but never hold back or delete "
+            "one unless the user asks. In a conversation filed under a company, on the user's first message check its "
+            f"pending items once with {pending_tool} and, if there are any, mention them briefly.")
+
 
 def cc_desktop(does: str) -> str:
     """Windows 端的正式名字，给模型说一次（四种语言；中文、泰文两段登记在 scripts/i18n/keep-cjk.tsv）：模型照用户的语言说

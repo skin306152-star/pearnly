@@ -40,6 +40,7 @@ def invoice(read, doc, copy):
     return {
         "document_type": claude_kinds.document_type(kind, doc), "is_not_invoice": read.get("entry") != "enter" and kind not in POLICY_KINDS,
         "is_copy_or_duplicate": copy, "document_flag": "withholding_certificate" if kind == "withholding_certificate" else "",
+        "doc_kind": _s(kind),
         "invoice_number": doc.get("invoice_number"), "date": doc.get("date"), "date_raw": _s(doc.get("date_raw")),
         "seller_name": _s(doc.get("seller_name")), "seller_tax": _s(doc.get("seller_tax")), "seller_addr": _s(doc.get("seller_address")),
         "seller_branch": _s(doc.get("seller_branch")), "buyer_name": _s(doc.get("buyer_name")), "buyer_tax": _s(doc.get("buyer_tax")),

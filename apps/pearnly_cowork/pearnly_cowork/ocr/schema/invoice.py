@@ -153,6 +153,9 @@ class ThaiInvoice(BaseModel):
     # 录不录由租户选的类别（`contracts.document_policy`，用户 2026-10-07）：原文标题认出的预扣税凭证；普通票据为空。
     # 取值清单在本模块（`DOCUMENT_FLAGS`）：识别代码在 Cloud Run 镜像里只带识别目录，不能引用 contracts。
     document_flag: str = Field(default="", description="withholding_certificate, empty for an ordinary document")
+    # Claude 识别判的单据种类（``doc_kind``，如 tax_invoice / receipt_tax_invoice / bill_invoice），原样带到票面上：写账前的护栏
+    # 「模型判为税票却只读到总额」按它判（`tax_documents.ledger_guard`，2026-11-03）。谷歌路线没有，为空。
+    doc_kind: str = Field(default="", description="the document kind as Claude read it; empty on other routes")
 
     invoice_number: Optional[str] = Field(default=None)
     date: Optional[str] = Field(
