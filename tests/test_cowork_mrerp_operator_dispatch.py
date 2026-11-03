@@ -11,6 +11,8 @@
   - 丢在电脑手里的 MR.ERP 代录单按记录自己的连接重发回原电脑，重发前重新租账号、租不到先不发；
   - 别的电脑过期的：那台在场就续领取与账号，不在就转结果不明；
   - 回执后这批再没有排着 / 领着的单就放开账号（回到排队的这一张自己也算还有单，11-03 修）；Express 的账套登记不碰；
+  - 没有 Express 连接的工作空间（11-03 选 A，`MrErpOwnChannel`）：MR.ERP 连接自己的密钥领这条连接上派给这台的代录单、不进 Express
+    排头、不领主档读取；重发 / 回收 / 回执都跟着它自己的投递走；
   - Express 的全部领单测试在常量开着时照旧通过（`ExpressUnchangedWithMrErpOn` 重跑 `test_cowork_express_dispatch.Transport`）。
 - `companion.mrerp_jobs` 本身：归属核对、用户名先后（电脑报的 → 站点连接上存的 → 都没有不拦）、租 / 续 / 放 / 过期（假的锁仓库按
   ``OPERATOR_LEASE_SEC`` 过期；真 Redis 上同一把锁的语义见 `scripts/test-session-lock.py` 与第 10 步记录）。
@@ -49,8 +51,8 @@ class FakeJobs:
     def __init__(self, test):
         self.test = test
 
-    def heads(self, credential, device):
-        self.test.calls.append(("mrerp_heads", device))
+    def heads(self, credential, device, own=False):
+        self.test.calls.append(("mrerp_heads", device) + (("own",) if own else ()))
         return [Record(row) for row in self.test.mrerp]
 
     def context(self, row, credential, device):
@@ -323,6 +325,102 @@ class MrErpLease(Harness):
         self.assertIn(("release", "CWP-M1", A), self.calls)
 
 
+class MrErpOwnChannel(MrErpLease):
+    """只有 MR.ERP、没有 Express 连接的工作空间（11-03 选 A）：CC 经 MR.ERP 连接自己的密钥来领。"""
+
+    def setUp(self):
+        MrErpLease.setUp(self)
+        self.credential.connection = MRERP_CONN
+        self.refreshes = []
+        self.transport.refresh = types.SimpleNamespace(lease=lambda *a, **k: self.refreshes.append(a) or None)
+        values = self.transport.frappe.db.get_value
+
+        def get_value(doctype, name, field, as_dict=False):
+            if doctype == "Cowork ERP Connection" and field == "adapter":
+                return {MRERP_CONN: "mrerp", "CONN": "express"}.get(name)
+            return values(doctype, name, field, as_dict=as_dict)
+
+        self.transport.frappe.db.get_value = get_value
+
+    def test_only_with_the_constant_on_is_an_mrerp_key_an_operator_channel(self):
+        self.assertTrue(self.transport._operator_channel(self.credential))
+        with mock.patch.object(contracts, "MRERP_OPERATOR_ENABLED", False):
+            self.assertFalse(self.transport._operator_channel(self.credential))
+        express = types.SimpleNamespace(**{**vars(self.credential), "connection": "CONN"})
+        self.assertFalse(self.transport._operator_channel(express))
+
+    def test_express_work_goes_first(self):  # 盖掉继承的：MR.ERP 连接的密钥没有 Express 可领，只领自己的
+        self.job()
+        self.pending = [base._row("CWP-1", "s1")]
+        self.run_lease()
+        self.assertEqual(self.leases(), ["CWP-M1"])
+
+    def test_its_own_key_takes_its_job_and_never_looks_at_express_heads_or_reads(self):
+        self.job()
+        self.pending = [base._row("CWP-1", "s1")]  # 就算有一张 Express 排头也不看
+        jobs = self.run_lease()["jobs"]
+        self.assertEqual(self.leases(), ["CWP-M1"])
+        self.assertIn(("mrerp_heads", A, "own"), self.calls)
+        self.assertNotIn("heads", self.queries)
+        self.assertEqual(self.leased_on, [("CWP-M1", MRERP_CONN, MRERP_CONN)])
+        self.assertEqual(self.deliveries, [MRERP_CONN])
+        self.assertEqual(jobs[0]["payload"], operator_payload())
+        self.assertEqual(self.refreshes, [])
+
+    def test_routing_rules_still_hold_on_its_own_key(self):
+        self.job(device=B)
+        self.assertEqual(self.run_lease()["jobs"], [])
+        self.peers[A]["targets"] = frozenset({"express"})
+        self.mrerp.clear()
+        self.job()
+        self.assertEqual(self.run_lease()["jobs"], [])
+        self.assertFalse([call for call in self.calls if call[0] in ("lease", "take", "quarantine")])
+
+    def test_an_account_held_elsewhere_sends_nothing_on_its_own_key(self):
+        self.job()
+        self.account_free = False
+        self.assertEqual(self.run_lease()["jobs"], [])
+        self.assertIn(("rollback", "mrerp"), self.calls)
+        self.assertEqual(self.deliveries, [])
+
+    def test_a_lost_job_goes_back_on_its_own_key(self):
+        self.lost_mrerp()
+        jobs = self.run_lease()["jobs"]
+        self.assertEqual([call for call in self.calls if call[0] == "lease"],
+                         [("lease", "CWP-M9", rc.READER, A, "redeliver")])
+        self.assertIn(("take", "CWP-M9", A), self.calls)
+        self.assertEqual(jobs[0]["payload"], operator_payload())
+        self.assertEqual(self.deliveries, [MRERP_CONN])
+        self.calls.clear()
+        self.account_free = False
+        self.assertEqual(self.run_lease()["jobs"], [])
+        self.assertFalse([call for call in self.calls if call[0] in ("lease", "recover")])
+
+    def test_an_expired_job_of_another_present_computer_is_extended_on_its_own_key(self):
+        self.expired = [Record(name="CWP-M7", owner_id="companion:b", written_by_device=B),
+                        Record(name="CWP-M8", owner_id="companion:c", written_by_device="PC-GONE")]
+        self.records["CWP-M7"] = {"connection": MRERP_CONN, "route_device": B}
+        self.records["CWP-M8"] = {"connection": MRERP_CONN, "route_device": "PC-GONE"}
+        self.present = {B}
+        self.run_lease()
+        self.assertIn(("extend", "CWP-M7"), self.calls)
+        self.assertIn(("take", "CWP-M7", B), self.calls)
+        self.assertIn(("recover", "CWP-M8", False), self.calls)
+
+    def test_its_receipt_releases_the_batch_and_never_touches_an_express_register(self):
+        written = []
+        self.transport.account_pool = types.SimpleNamespace(
+            mark_stale=lambda *a: written.append("stale"), note_written=lambda *a: written.append("written"))
+        self.transport.credentials = types.SimpleNamespace(device_of=lambda name: A, request_full_report=lambda name: None)
+        row = Record(name="CWP-M1", connection=MRERP_CONN, account_key="")
+        for status in ("success", "pending", "manual"):
+            self.calls.clear()
+            self.transport._after_ack(row, Record(credential_id="KEY-M", connection=MRERP_CONN), {"error": None},
+                                      {"status": status})
+            self.assertEqual(self.calls, [("release", "CWP-M1", A)])
+        self.assertEqual(written, [])
+
+
 # ── `companion.mrerp_jobs` 本身 ─────────────────────────────────────────────────────────────
 
 
@@ -446,6 +544,13 @@ class Jobs(unittest.TestCase):
         self.assertEqual(self.jobs.heads(self.credential, "KEY-A"), [])  # 没挂电脑的旧密钥：不是任何人选定的电脑
         self.assertEqual(self.jobs.heads(self.credential, ""), [])
         self.assertEqual(self.queries, [])
+
+    def test_an_mrerp_key_looks_only_at_its_own_connection(self):
+        self.credential.connection = MRERP_CONN
+        self.open_rows = [self.row("CWP-M1")]
+        self.assertEqual([row.name for row in self.jobs.heads(self.credential, A, own=True)], ["CWP-M1"])
+        self.assertIn("r.connection=%s", self.queries[-1])
+        self.assertNotIn("r.connection<>%s", self.queries[-1])
 
     def test_a_job_sent_back_to_the_queue_keeps_its_batchs_account(self):
         # 11-03 修（记录 §8 第 6 条）：这一张回执后回到排队（pending），这批就还有单，账号不放——放了直写可能趁空档登录同一账号、

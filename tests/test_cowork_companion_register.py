@@ -87,6 +87,53 @@ class Register(unittest.TestCase):
         result, issue, _ = self.run_register(issued={"status": "update_needed", "replayed": False}, express=True)
         self.assertEqual(result, {"status": "update_needed", "connection": "C-E", "adapter": "express"})
 
+    def run_mrerp_only(self, *, enabled, manager):
+        """只有 MR.ERP、没有 Express 连接的工作空间，装了 Express 的电脑来登记（ADR-026 第 3 步，11-03 选 A）。"""
+        from pearnly_core.express_operator import contracts as operator_contracts
+
+        picked = []
+
+        def device_connection(express, current=False):
+            picked.append(express)
+            return None if express else "C-M"
+
+        db = SimpleNamespace(get_value=mock.Mock(side_effect=lambda doctype, name, field, **kw:
+                                                 "mrerp" if name == "C-M" else "express"))
+        issue = mock.Mock(return_value={"token": "exp_C-M_secret", "generation": 1})
+        configure = mock.Mock(return_value={"name": "C-NEW"})
+        with mock.patch.object(operator_contracts, "MRERP_OPERATOR_ENABLED", enabled), \
+                mock.patch.object(credentials.frappe, "db", db), \
+                mock.patch.object(credentials, "_enabled"), \
+                mock.patch.object(credentials.access, "require_actor", return_value=ACTOR), \
+                mock.patch.object(credentials.access, "default_workspace", return_value="WS"), \
+                mock.patch.object(credentials, "_manager", return_value=manager), \
+                mock.patch.object(credentials, "_device_connection", side_effect=device_connection), \
+                mock.patch.object(credentials, "issue", issue), \
+                mock.patch("pearnly_cowork.connections.service.configure", configure):
+            result = credentials.register("rk", express=True)
+        return result, picked, issue, configure
+
+    def test_mrerp_only_workspace_with_the_constant_off_is_unchanged(self):
+        result, picked, issue, configure = self.run_mrerp_only(enabled=False, manager=False)
+        self.assertEqual(result, {"status": "no_connection"})
+        self.assertEqual(picked, [True])
+        issue.assert_not_called()
+        configure.assert_not_called()
+
+    def test_mrerp_only_workspace_connects_a_non_manager_to_the_mrerp_connection_with_the_constant_on(self):
+        result, picked, issue, configure = self.run_mrerp_only(enabled=True, manager=False)
+        self.assertEqual(result, {"status": "created", "connection": "C-M", "adapter": "mrerp", "token": "exp_C-M_secret"})
+        self.assertEqual(picked, [True, False])
+        issue.assert_called_once_with("C-M", "rk", False, None)
+        configure.assert_not_called()
+
+    def test_a_manager_still_creates_the_express_connection_with_the_constant_on(self):
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled):
+                result, picked, issue, configure = self.run_mrerp_only(enabled=enabled, manager=True)
+                configure.assert_called_once_with(None, "express", "rk", "Express", {})
+                self.assertNotIn(False, picked)
+
     def test_replace_moves_the_connection_to_this_computer(self):
         _, issue, _ = self.run_register(express=True, replace="true", expected_generation=3)
         issue.assert_called_once_with("C-E", "rk", True, 3)

@@ -70,7 +70,7 @@ offline() {
                 tests/test_cowork_readback_workbooks.py tests/test_cowork_tax_workbook.py tests/test_cowork_pos_xlsx.py \
                 tests/test_cowork_mrerp_push.py tests/test_cowork_mrerp_collector.py tests/test_cowork_mrerp_catalog.py \
                 tests/test_cowork_mrerp_menus.py tests/test_mrerp_rules_golden.py tests/test_cowork_mrerp_cc_login.py \
-                tests/test_erp_mrerp_golden.py tests/test_cowork_mrerp_operator.py; do
+                tests/test_erp_mrerp_golden.py tests/test_cowork_mrerp_operator.py tests/test_cowork_mrerp_operator_channel.py; do
     offline_py -v "$PWD:/candidate:ro" "$IMAGE" "/candidate/$script"
   done
 }

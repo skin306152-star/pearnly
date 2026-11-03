@@ -249,7 +249,7 @@ class FolderOnlyKeys(unittest.TestCase):
         body = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == '_authenticate_request')
         text = ast.unparse(body)
         guard = text.index('credentials.FOLDER_ONLY_ADAPTERS')
-        self.assertIn('if operation not in FOLDER_ONLY_ALLOWED and', text[text.rindex('if', 0, guard) - 4:guard])
+        self.assertIn('if not folder_only_allows(operation) and', text[text.rindex('if', 0, guard) - 4:guard])
         contract = pure_contract()
         # 只读文件夹的密钥能调：文件夹、按需请求、认电脑（ADR-021 加上，同一台电脑的两个成员才能合成一台）
         # 2026-11-02 再加 MR.ERP 登录授权（ADR-026 第 7 条）：没装 Express 的电脑也要能授权
@@ -259,6 +259,25 @@ class FolderOnlyKeys(unittest.TestCase):
         self.assertLess(text.index('credentials.authenticate(token)'), guard)
         self.assertLess(guard, text.index('frappe.set_user(context.issuer)'))
         self.assertIn('_deny_permission()', text[guard:text.index('frappe.set_user(context.issuer)')])
+
+    def test_mrerp_keys_get_heartbeat_lease_and_ack_only_with_the_operator_constant_on(self):
+        # ADR-026 第 3 步（11-03 主会话选 A）：没有 Express 连接的工作空间，CC 经 MR.ERP 连接的密钥报到、领代录单、回执。
+        # 全局常量关着时与以前一字不差：只放行文件夹、按需请求、认电脑、授权登录。
+        tree = ast.parse(SOURCE.read_text())
+        selected = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'folder_only_allows']
+        contract = pure_contract()
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled):
+                env = {'FOLDER_ONLY_ALLOWED': contract['FOLDER_ONLY_ALLOWED'], 'METHODS': contract['METHODS'],
+                       'operator_contracts': type('C', (), {'MRERP_OPERATOR_ENABLED': enabled})}
+                exec(compile(ast.Module(body=selected, type_ignores=[]), str(SOURCE), 'exec'), env)
+                allows = env['folder_only_allows']
+                for operation in contract['FOLDER_ONLY_ALLOWED']:
+                    self.assertTrue(allows(operation))
+                for operation in contract['METHODS']:
+                    self.assertEqual(allows(operation), enabled)
+                self.assertFalse(allows('unknown'))
+        self.assertIn('from pearnly_core.express_operator import contracts as operator_contracts', SOURCE.read_text())
 
     def test_only_mrerp_is_folder_only_and_both_can_hold_a_key(self):
         source = (SOURCE.parent / 'credentials.py').read_text()
