@@ -69,8 +69,13 @@ cleanup()
 frappe.set_user({USER!r})
 others = frappe.db.count("Cowork ERP Connection", {{"adapter": "mrerp"}})
 ws = scope.existing_workspace()
-conn = connections.configure(ws, "mrerp", uuid4().hex, {LABEL!r}, {{}}, users=[{USER!r}],
-                             credentials={{"username": {OLD_USER!r}, "password": {OLD_PASSWORD!r}}})
+conn = connections.configure(ws, "mrerp", uuid4().hex, {LABEL!r}, {{}}, users=[{USER!r}])
+# 老连接：第 10 步以前网页存下的账号密码。网页接口已不收 MR.ERP 密码（ADR-026 第 7 条），实验栈专用的路：站点里直接写这两格
+from pearnly_cowork.connections import access as connection_access
+old = frappe.get_doc("Cowork ERP Connection", conn["name"])
+old.set("credential_username", {OLD_USER!r})
+old.set("credential_password", {OLD_PASSWORD!r})
+connection_access.write(old)
 refresh = connections.request_refresh(conn["name"], uuid4().hex)
 observation = {{"adapter": "mrerp", "observed_at": "2026-10-01T00:00:00Z", "collector": {{"kind": "synthetic_lab"}},
     "account_sets": [{{"source_id": "88:1", "label": "FLOW2026", "attributes": {{"company": "FLOWCO", "company_name": "Flow MR.ERP Co",

@@ -278,6 +278,28 @@ class ConnectionReadLocks(unittest.TestCase):
         api = (ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/api.py").read_text(encoding="utf-8")
         self.assertIn("credentials, all_members)", api)  # 网页接口照传
 
+    def test_configure_refuses_an_mrerp_login_from_the_page(self):
+        """ADR-026 第 7 条：MR.ERP 的账号密码只在 CC 桌面版里授权（`mrerp_login.store`），网页交来的 `credentials`
+        建连接、改连接都按配置无效拒、什么都不写；不带凭据照常改。"""
+        DB.docs[CONNECTION] = {"MR": connection("MR", adapter="mrerp", config_json=model.dumps({"system_url": "x"})),
+                               "CONN": connection("CONN")}
+        with mock.patch.object(access, "require_assignee", lambda *args, **kwargs: None, create=True):
+            for given in ({"username": "u", "password": "p"}, {"password": "p"}, {"username": "u"},
+                          '{"password": "p"}'):
+                with self.assertRaises(ValidationError):
+                    service.configure("W", "mrerp", "k-new", "MR.ERP", {"system_url": "https://mrerp.example"}, users=[USER],
+                                      credentials=given)
+                with self.assertRaises(ValidationError):
+                    service.configure("W", "mrerp", "k-edit", "MR", {"system_url": "https://mrerp.example"}, users=[USER], name="MR",
+                                      expected_revision=1, credentials=given)
+            self.assertEqual(sorted(DB.docs[CONNECTION]), ["CONN", "MR"])
+            self.assertNotIn("credential_password", DB.docs[CONNECTION]["MR"])
+            renamed = service.configure("W", "mrerp", "k-plain", "MR", {"system_url": "https://mrerp.example"}, users=[USER], name="MR",
+                                        expected_revision=1, credentials={})
+            self.assertEqual(renamed["revision"], 2)
+        source = (ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/service.py").read_text(encoding="utf-8")
+        self.assertIn('(adapter == "mrerp" and credentials)', source)  # 只拦 MR.ERP，Express 连接的凭据照旧
+
     def test_set_members_changes_only_who_may_use_the_pool(self):
         """第 6 批：设置里「全所可用」开关与名单（`service.set_members`）只改这两个字段，不升版本、不动配置（改谁能用不该让
         目录、刷新、主档的证据失效）；勾掉全所可用时名单不能空；只核新加进名单的人；MR.ERP 没有这个开关；只限管理员。"""

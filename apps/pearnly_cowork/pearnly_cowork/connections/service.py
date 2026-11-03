@@ -96,7 +96,9 @@ def configure(workspace, adapter, request_key, label, config, client=None, users
             or any(not isinstance(u, str) or not u or len(u) > 140 for u in users)
             or len(users) != len(set(users)) or not isinstance(credentials, dict)
             or set(credentials) - {"username", "password", "token"}
-            or any(not isinstance(v, str) or len(v) > 8192 or "***" in v for v in credentials.values())):
+            or any(not isinstance(v, str) or len(v) > 8192 or "***" in v for v in credentials.values())
+            # MR.ERP 的账号密码只在 CC 桌面版里授权（ADR-026 第 7 条，`mrerp_login.store`）；网页交来的一律不收
+            or (adapter == "mrerp" and credentials)):
         _error("connection.config_invalid")
     for user in users:
         access.require_assignee(user, workspace, client)

@@ -40,6 +40,17 @@ DEVICE_KEY = 'K' * 43
 FEATURES = ['intake', 'master_data', 'push_log']
 
 
+
+def seed_old_login(name, username, password):
+    """实验栈专用：模拟第 10 步以前网页存在连接上的 MR.ERP 账号密码（没有授权记录）。产品里没有这条路——网页接口
+    `connections.configure` 对 MR.ERP 的 `credentials` 一律拒收，只有 CC 桌面版授权（`mrerp_login.store`）写这两格。"""
+    from pearnly_cowork.connections import access
+
+    doc = frappe.get_doc('Cowork ERP Connection', name)
+    doc.set('credential_username', username)
+    doc.set('credential_password', password)
+    access.write(doc)
+
 class MrErpLogin(unittest.TestCase):
     setUpClass = classmethod(BASE.setUpClass.__func__)
     tearDownClass = classmethod(BASE.tearDownClass.__func__)
@@ -61,10 +72,11 @@ class MrErpLogin(unittest.TestCase):
         clear_site_config_cache()
         self.enable()
         frappe.set_user(self.manager)
-        # 老连接：网页上（configure）存的账号密码；名单上有录入员 actor
+        # 老连接：第 10 步以前网页上存下的账号密码；名单上有录入员 actor。网页接口已不收 MR.ERP 密码（ADR-026 第 7 条），
+        # 这里是实验栈专用的路：建好连接后在站点里直接写 Password 字段（同老版本 configure 写的那两格）
         self.mrerp = service.configure(self.workspace, 'mrerp', uuid4().hex, 'Synthetic MR.ERP', {},
-                                       users=[self.manager, self.actor],
-                                       credentials={'username': 'old-user', 'password': OLD_PASSWORD})
+                                       users=[self.manager, self.actor])
+        seed_old_login(self.mrerp['name'], 'old-user', OLD_PASSWORD)
         express = service.configure(self.workspace, 'express', uuid4().hex, 'Synthetic Express', {},
                                     users=[self.manager, self.actor])
         frappe.set_user(self.actor)
@@ -218,6 +230,23 @@ class MrErpLogin(unittest.TestCase):
         self.assertEqual(self.stored()['password'], OLD_PASSWORD)
         # 票没被这些请求用掉：正当的那一次照样成
         self.assertTrue(self.post(body).json['message']['ok'])
+
+    def test_the_web_configure_refuses_an_mrerp_password(self):
+        """网页接口 `connections.api.configure`（管理员本人的令牌、真 WSGI）交 MR.ERP 的账号密码：拒收，连接上的老密码不变；
+        不带凭据的同一请求照常改（只升版本）。"""
+        before = self.stored()
+        body = {'workspace': self.workspace, 'adapter': 'mrerp', 'label': 'Synthetic MR.ERP', 'config': '{}',
+                'users': json.dumps([self.manager, self.actor]), 'name': self.mrerp['name'],
+                'expected_revision': before['revision']}
+        path = '/api/method/pearnly_cowork.connections.api.configure'
+        for credentials in ({'username': 'web-user', 'password': NEW_PASSWORD}, {'password': NEW_PASSWORD}):
+            refused = self.post({**body, 'request_key': uuid4().hex, 'credentials': json.dumps(credentials)},
+                                headers=self.human_headers, path=path)
+            self.assertNotEqual(refused.status_code, 200)
+            self.assertEqual(self.stored(), before)
+        plain = self.post({**body, 'request_key': uuid4().hex}, headers=self.human_headers, path=path)
+        self.assertEqual(plain.status_code, 200)
+        self.assertEqual(self.stored()['password'], OLD_PASSWORD)
 
     def test_bad_bodies_answer_a_code_without_echoing_anything(self):
         ticket = self.ticket()['ticket']
