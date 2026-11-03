@@ -9,11 +9,13 @@ CC 本机只缓存执行中的进度（任务号即 CC 的批次号）。
 """
 from __future__ import annotations
 
+import re
+
 import frappe
 from frappe import _
 from frappe.utils import now_datetime
 
-from pearnly_core.express_operator import products
+from pearnly_core.express_operator import contracts, products
 
 DOCTYPE = "Pearnly Express Operator Task"
 STATUSES = ("preparing", "queued", "running", "attention", "finished", "stopped")
@@ -168,26 +170,30 @@ def mark_running(name) -> dict:
     return view(doc)
 
 
-def settle(name) -> dict:
-    """以站点为准收尾（主会话 10-27）：没定下来的单问产品（``status`` 钩子）现在怎样，写回子表；都有结论了推出任务状态。"""
-    doc = _own(name, for_update=True)
-    open_rows = [row for row in doc.get("documents") or []
-                 if row.state in OPEN_STATES or (row.state == "not_done" and row.reason == RESULT_UNKNOWN)]
-    if open_rows:
-        found = {str(r.get("doc_id")): r for r in products.status(doc.company, [row.doc_id for row in open_rows])}
-        for row in open_rows:
-            r = found.get(row.doc_id) or {}
-            state = r.get("state")
-            if state in ("saved", "not_done", "cancelled", "queued"):
-                row.state = state
-                row.docnum = str(r.get("docnum") or row.docnum or "")
-                row.reason = str(r.get("reason") or "")[:140] if state == "not_done" else row.reason
-                # 排着的被同一份账套里哪张结果不明的单挡着（产品给 {ref, party}）：页面写成「单号 · 对方 · 结果不明」
-                blocker = r.get("blocked_by") if state == "queued" and isinstance(r.get("blocked_by"), dict) else {}
-                row.blocked_by = " · ".join(str(blocker.get(k) or "") for k in ("ref", "party") if blocker.get(k))[:140]
-            for key in ("ref", "party", "voided_docnum"):
-                if r.get(key) and not row.get(key):
-                    row.set(key, str(r[key])[:140])
+def _refresh(doc, rows) -> None:
+    """这几行问产品现在怎样（``status`` 钩子），写回子表。"""
+    if not rows:
+        return
+    found = {str(r.get("doc_id")): r for r in products.status(doc.company, [row.doc_id for row in rows])}
+    for row in rows:
+        r = found.get(row.doc_id) or {}
+        state = r.get("state")
+        if state in ("saved", "not_done", "cancelled", "queued"):
+            row.state = state
+            row.docnum = str(r.get("docnum") or row.docnum or "")
+            row.reason = str(r.get("reason") or "")[:140] if state == "not_done" else row.reason
+            # 排着的被同一份账套里哪张结果不明的单挡着（产品给 {ref, party}）：页面写成「单号 · 对方 · 结果不明」
+            blocker = r.get("blocked_by") if state == "queued" and isinstance(r.get("blocked_by"), dict) else {}
+            row.blocked_by = " · ".join(str(blocker.get(k) or "") for k in ("ref", "party") if blocker.get(k))[:140]
+        for key in ("ref", "party", "voided_docnum"):
+            if r.get(key) and not row.get(key):
+                row.set(key, str(r[key])[:140])
+
+
+def _conclude(doc) -> None:
+    """没定下来的单问产品，写回子表；都有结论了推出任务状态。"""
+    _refresh(doc, [row for row in doc.get("documents") or []
+                   if row.state in OPEN_STATES or (row.state == "not_done" and row.reason == RESULT_UNKNOWN)])
     rows = doc.get("documents") or []
     if rows and all(row.state not in OPEN_STATES for row in rows) and doc.status not in FINAL + ("preparing",):
         if any(row.state == "not_done" for row in rows):
@@ -197,6 +203,12 @@ def settle(name) -> dict:
         else:
             doc.status = "finished"
         doc.finished_at = doc.finished_at or now_datetime()
+
+
+def settle(name) -> dict:
+    """以站点为准收尾（主会话 10-27）：没定下来的单问产品（``status`` 钩子）现在怎样，写回子表；都有结论了推出任务状态。"""
+    doc = _own(name, for_update=True)
+    _conclude(doc)
     _save(doc)
     return view(doc)
 
@@ -240,8 +252,8 @@ def thread_note(name) -> str:
 
 
 def push_control(name, action: str, doc_ids) -> dict:
-    """对话里交代的跳过 / 重做：记在任务上，等执行的那台电脑的 CC 页面取走照桥上控制做（``take_controls``）；
-    只认这个任务里的单。回记下的这几条与电脑。"""
+    """对话里交代的跳过 / 重做：记在任务上，等执行的那台电脑的 CC 页面取走去做（``take_controls``：跳过照桥上控制，重做同单张
+    「重试」交回站点 ``answer``）；只认这个任务里的单。回记下的这几条与电脑。"""
     if action not in CONTROL_ACTIONS:
         frappe.throw(_("Invalid request"))
     doc = _own(name, for_update=True)
@@ -267,26 +279,62 @@ def take_controls(name) -> list:
     return pending
 
 
+def _resubmit(doc, rows, answers=None) -> None:
+    """把这几张按原批次号（任务号）交回产品、派给原来那台电脑；交上的转「排队」、任务回「等电脑空闲」，没交上的记原因。"""
+    batch = {"id": doc.name, "total": len(rows), "start_at": 0}
+    results = {str(r.get("doc_id")): r for r in products.submit(doc.company, [row.doc_id for row in rows], batch,
+                                                                doc.computer or "", answers or {})}
+    for row in rows:
+        result = results.get(row.doc_id) or {}
+        if str(result.get("status") or "") in ("sent", "queued"):
+            row.state, row.reason = "queued", ""
+        else:
+            row.reason = str(result.get("reason") or result.get("status") or "")[:140]
+    if any(row.state == "queued" for row in rows) and doc.status in ("attention", "finished", "stopped"):
+        doc.status, doc.finished_at = "queued", None
+
+
 def answer(name, doc_id, answers) -> dict:
     """录到中途停下等人选的那一张：人在任务里点了选项，产品先记下（同开始前确认），再把这一张交回同一个任务（批次号不变，
-    排在这一批最后）。只认这个任务里「未完成」的单。"""
+    排在这一批最后）。单张「重试」走同一条路，``answers`` 为空（CC 本机重录不了已经回执给站点的单）。只认这个任务里「未完成」的
+    单（还记着排队的先问产品一次：CC 回执了、任务还没收尾）；推送结果不明的不重交（要人先在 Express 核对）。"""
     doc = _own(name, for_update=True)
     _require_company(doc.company)  # 交单要过产品的权限（这个人现在还能不能对这家公司代录），同开始
     row = next((r for r in doc.get("documents") or [] if r.doc_id == str(doc_id or "")), None)
-    if row is None or row.state != "not_done" or doc.status == "preparing":
+    if row is not None and row.state in OPEN_STATES:
+        _refresh(doc, [row])
+    if row is None or row.state != "not_done" or row.reason == RESULT_UNKNOWN or doc.status == "preparing":
         frappe.throw(_("Invalid request"))
-    batch = {"id": doc.name, "total": 1, "start_at": 0}
-    result = next(iter(products.submit(doc.company, [row.doc_id], batch, doc.computer or "",
-                                       {row.doc_id: list(answers or [])})), {})
-    if str(result.get("status") or "") in ("sent", "queued"):
-        row.state, row.reason = "queued", ""
-        if doc.status in ("attention", "finished", "stopped"):
-            doc.status, doc.finished_at = "queued", None
-    else:
-        row.reason = str(result.get("reason") or result.get("status") or "")[:140]
+    _resubmit(doc, [row], {row.doc_id: list(answers or [])})
     _save(doc)
     return view(doc)
 
 
-__all__ = ["CONTROL_ACTIONS", "DOCTYPE", "STATUSES", "answer", "attach", "create", "delete", "listing", "mark_running",
-           "push_control", "read", "settle", "site_product", "take_controls", "thread", "thread_note", "update", "view"]
+# CC 回执的原因写在单据上是 ``[OPERATOR_<原因>] 原文``（CC 桌面版 ``worker._ack_operator``，产品照抄到推送记录 / 单据上）
+_ACK_REASON = re.compile(r"^\[OPERATOR_([A-Z0-9_]+)\]")
+# 因整批停而没录成：卡住的那张（整批停的原因）+ 因停止被跳过的
+RESUMABLE = frozenset(contracts.BATCH_STOPPERS | {"stopped"})
+
+
+def _batch_stopped(reason) -> bool:
+    found = _ACK_REASON.match(str(reason or "").strip())
+    return bool(found) and found.group(1).lower() in RESUMABLE
+
+
+def resume(name) -> dict:
+    """整批停下以后的「继续」（登录类先在 CC 授权）：先以站点为准收尾一次，再把这个任务里因整批停而没录成的单（卡住的那张 + 因停止
+    被跳过的）按原批次号交回原来那台电脑；别的未完成的单不动。只给本人、任务在「需要你处理 / 已停止」。"""
+    doc = _own(name, for_update=True)
+    _require_company(doc.company)
+    _conclude(doc)
+    rows = [row for row in doc.get("documents") or [] if row.state == "not_done" and _batch_stopped(row.reason)]
+    if doc.status not in ("attention", "stopped") or not rows:
+        frappe.throw(_("Invalid request"))
+    _resubmit(doc, rows)
+    _save(doc)
+    return view(doc)
+
+
+__all__ = ["CONTROL_ACTIONS", "DOCTYPE", "RESUMABLE", "STATUSES", "answer", "attach", "create", "delete", "listing",
+           "mark_running", "push_control", "read", "resume", "settle", "site_product", "take_controls", "thread", "thread_note",
+           "update", "view"]
