@@ -161,7 +161,7 @@
 
 ## 8. 遗留问题与要主会话定的事
 
-1. 只有 MR.ERP、没有 Express 连接的工作空间：CC 没有 Cowork 通道密钥（密钥绑在 Express 连接上），领不到 MR.ERP 代录单。要不要给 MR.ERP 连接也发通道密钥。**主会话 11-03 已定：要做（选 A，MR.ERP 连接也能登记 CC 通道），待做，留给下一个子任务。**
+1. 只有 MR.ERP、没有 Express 连接的工作空间：CC 没有 Cowork 通道密钥（密钥绑在 Express 连接上），领不到 MR.ERP 代录单。要不要给 MR.ERP 连接也发通道密钥。**主会话 11-03 已定：要做（选 A，MR.ERP 连接也能登记 CC 通道），待做，留给下一个子任务。** **11-03 已做（常量关着），见 §9.1。**
 2. 开录前准备在网页请求里同步做（每张一次 MR.ERP 登录，同直写执行器每条一次）；`_submit_one` 撞写者锁整笔重来时会重新准备一次（自建幂等）。
 3. 同批次录到中途作答的单：账号被本批占着时不登录准备，要等本批放开账号再交。
 4. 批次停 / 任务撤回：本步靠 CC 对剩下的单回执（最后一张回执放账号）与 TTL 过期；没有新增服务端撤回入口。
@@ -170,3 +170,95 @@
    若这张回执后回到排队（`pending`，例如 CC 回 `waiting_lock` 类结果），本批其实还有这张没录，账号却会被放开，直写可能在 CC 再领到它之前
    登录同一账号、踢掉 CC 网页窗口的会话。下次领单时 `take` 会重新租（租不到就不发），不会写错，但可能多一次被踢。是否改成「这张回到排队时
    不放」由施工方与第 2 步一起定（离线测试 `test_after_the_receipt_the_batch_releases_its_account...` 现锁的是现状：success / pending / manual 都放）。
+   **11-03 已修，见 §9.2。**
+
+## 9. 选 A：MR.ERP 连接也登记 CC 通道 + 回执放账号修复（11-03，第三段子代理）
+
+基线 `38899e12`。同挂全局常量 `MRERP_OPERATOR_ENABLED`（仍是 False），关着时生产零变化。
+
+### 9.1 任务一：MR.ERP 连接也是 CC 的写账通道（选 A）
+
+原状：MR.ERP 连接本来就能给电脑发密钥（`HELPER_ADAPTERS`），但只读文件夹——认证后心跳 / 领单 / 回执一律 403
+（`http_auth` 的 `FOLDER_ONLY_ADAPTERS`）；CC 端 MR.ERP 成员（`kind = folder`）不进写账线；装了 Express 的电脑在没有 Express 连接的
+工作空间，非管理员登记回 `no_connection`。所以只有 MR.ERP 的工作空间 CC 领不到 MR.ERP 代录单。
+
+| 层 | 文件 | 改动（常量开着才生效） |
+|---|---|---|
+| 认证 | `companion/http_auth.py` | `folder_only_allows(operation)`：常量开着时 MR.ERP 密钥也放行 `heartbeat / lease / ack`；关着与原来的 `FOLDER_ONLY_ALLOWED` 一字不差 |
+| 心跳 | `companion/heartbeat.py::_receive_operator` | MR.ERP 连接的报到只收 `offline / device / companion_version / max_payload_version / operator_targets` 进 `plan_report`，记报到时间、电脑行（版本、目标）、`mrerp_logins` / `mrerp_users`；**不进** `collector.ingest`（账套采集）、不写连接上报记录；回复只有 `connected` 与 `companion_latest`。常量关着走到这里也 403（双保险） |
+| 领单 | `companion/transport.py` | `_operator_channel(credential)`（常量开着且密钥连接是 MR.ERP）：只领 `_claim_mrerp`（`mrerp_jobs.heads(own=True)` 只看这条连接），不进 Express 排头、不领主档读取；`_redeliver` / `_recover` 把这种密钥手上的记录按 MR.ERP 代录单处理；`_row_context` 对 MR.ERP 代录单一律按 `mrerp_jobs.context` 核（派给这台、是代录单），常量关着不看载荷 |
+| 回执 | `transport._after_ack` | 判据改成 `mrerp_jobs.is_job(row)`（原来还要求记录连接 ≠ 投递连接，经 MR.ERP 密钥领的会误走 Express 账套登记）；Express 记录从来不是 MR.ERP 代录单，走原来那条 |
+| 登记 | `companion/credentials.register` | 常量开着、没有 Express 连接、装了 Express、**非管理员**：连 MR.ERP 主连接（原来 `no_connection`）；管理员照旧新建 Express 连接；有 Express 连接时取到的仍是它 |
+| CC 端 | `companion/config.polls_queue`、`gui_tray._spawn_worker`、`worker._operator_heartbeat` | MR.ERP 连接的成员（`kind = folder` 且不是 Express 池 `pool`）只在这一版会代录 MR.ERP（`OPERATOR_TARGETS` 带 `mrerp`，第 2 步）时进写账线；进了之后心跳只报版本、目标、本机授权的 MR.ERP 连接与用户名，不扫 Express。**这一版 `OPERATOR_TARGETS = ("express",)`：CC 行为不变** |
+
+同机两条连接（写进 [ADR-026](../adr/0026-operator-targets.md) 第 5 条补充，2026-11-03 主会话审定）：**各一套密钥**，不合成一套。理由：
+登记只换「这条连接上这台电脑」那一把，两把互不吊销；电脑行上报的是同一台电脑的同一份（版本、目标、用户名），不来回改；推送记录领取锁
+只让一把领到同一张，`_busy` 按整台电脑查保证每台同时一件，账号租约持有者是批次，哪把领都续同一份；投递 / 重发 / 回收 / 回执跟着投递挂的
+那把走。共用一套要么改 Express 工作空间的登记（违背约束 1），要么让一把密钥跨连接认证、动认证与吊销根基。
+
+已有 Express 连接的工作空间一个字节不变的证据：常量关着时认证、心跳、登记、领单、回执的分支全部短路在常量上（`folder_only_allows`、
+`_operator_channel`、`register` 的新分支都先看常量；`_row_context` 常量关着不读载荷）；`test_cowork_express_dispatch` 69 条照过、
+`ExpressUnchangedWithMrErpOn` 常量开着重跑 Express 领单 23 条照过；Express 密钥的心跳两种状态都进账套采集
+（`test_cowork_mrerp_operator_channel.test_express_keys_keep_the_original_report_in_both_states`）；登记原有 7 条照过。
+
+### 9.2 任务二：回到排队的这一张也算这批还有单
+
+`mrerp_jobs.release_if_done` 去掉 `AND name<>%s`：在回执写好新状态之后按同一事务读，这一张回到 `pending` 就算本批还有单、账号不放；
+存上 / 转人工 / 撤回（都不在 `pending / leased`）且本批别无他单才放。原来锁现状的测试改名为「回执落定后交 `release_if_done` 判」，
+替身查询改成照查询条件回（不在替身里代判排不排掉自己）；新加反例 `test_a_job_sent_back_to_the_queue_keeps_its_batchs_account`。
+**临时把 `AND name<>%s` 加回去核过：新反例与改过的 `test_the_last_receipt...` 两条失败，还原后全过。**
+
+### 9.3 ERP 一侧核对（ADR-025）
+
+- **不存在同样的阻塞**：共用通道 `pearnly_core.cc_desktop.devices.register` 用 ERP 账号按「站点 + 电脑」发密钥，不挂在任何 Express
+  连接上；心跳（`machine.heartbeat` → `devices.record_report`）照记版本、`operator_targets`、`mrerp_logins` / `mrerp_users`，不要求 Express。
+  所以没有在共用通道一侧改代码。
+- ERP 做 MR.ERP 代录时要接的（随 ERP 第 6 步，本任务不做）：
+  1. 领单：`cc_desktop/jobs.py::_claim` / `_redeliver` 只按 `books.writable(device)`（Express 账套可达）取排头、`_job` 按 Express 账套写法
+     换载荷、`writing_key = book_key` 当账套写者锁——MR.ERP 代录单要另走一条「只派选定电脑、不看可达、不换写法、不占账套锁、租账号」
+     的领取（同 Cowork `_claim_mrerp`）。
+  2. CC 端：没有 Express 数据根的电脑配对 ERP 站点（`pcc_` 码）时，`pairing_flow.run` 走 `pair_folder(pool=True)`，它只认 `exp_` 码，
+     回 `pair_err_token_format`——没装 Express 的电脑现在加不进 ERP 站点。要一个不带 Express 账套的 ERP 成员（并让 `folder_worker`
+     跳过共用通道成员，ERP 没有文件夹同步），再经 `polls_queue` 进写账线。
+  装了 Express 的电脑连 ERP 站点今天就能登记、心跳（Express 成员），缺的只是第 1 项。
+
+### 9.4 测试与闸门（代码与测试在 `7d446f9f`，本段只读写离线 / 生产镜像，没起实验栈）
+
+| 项 | 结果 |
+|---|---|
+| `tests/test_cowork_mrerp_operator_dispatch.py`（CI 原步骤） | 46 → **73** 通过：新 `MrErpOwnChannel`（MR.ERP 密钥只领自己的、不进 Express 排头与主档读取、派单规则照旧、租不到不发、丢了的按自己的密钥重发、别的电脑过期的续 / 转结果不明、回执放账号不碰 Express 登记，另继承 `MrErpLease` 全部用例）；`Jobs` 加 `heads(own=True)` 只看本连接、回到排队的这一张不放账号 |
+| `tests/test_cowork_mrerp_operator_channel.py`（新，生产镜像，进 `ci-candidate-checks.sh` offline） | 4 通过：常量关着 MR.ERP 密钥报到 403、什么都不记；开着只记报到 / 电脑行 / 登录清单 / 用户名、不进账套采集、补丁里没有账套科目所选；下线只记下线；Express 报到两种状态都走原路 |
+| `tests/test_cowork_companion_register.py`（生产镜像，原在 offline 列表） | 10 → **13** 通过：只有 MR.ERP 的工作空间常量关着照旧 `no_connection`；开着非管理员连 MR.ERP 主连接；管理员两种状态都照旧新建 Express 连接 |
+| `tests/test_cowork_companion_http_auth.py`（CI） | 加 `folder_only_allows` 两态：关着心跳 / 领单 / 回执一律不放、开着放；文件夹等四张表两态都放 |
+| `tests/test_companion_contract.py` | 断言改读 `folder_only_allows`（第一次全闸门因旧字面断言失败 1 条，改后过） |
+| `test_cowork_express_dispatch` | 69 通过（未改） |
+| CC 全套 `companion/tests`（ccvenv，offscreen） | **1464 通过、46 跳过、0 失败**（新 `test_mrerp_member_channel.py` 6 条：这一版只读成员不进写账线；会代录 MR.ERP 的版本让 MR.ERP 成员进、Express 池成员不进；托盘按 `polls_queue` 建；MR.ERP 成员心跳只报 5 项、不扫 Express、到点才报、不抛；Express 成员走原心跳） |
+| 反例核验（任务二） | 临时加回 `AND name<>%s`：2 条失败；还原后 73 全过 |
+| 全闸门 `gate.sh`（`7d446f9f`） | **174 步全过**（exit 0）；此前一次在 `172ed7ed` 上失败 2 步：`test_companion_contract` 旧断言、本记录文末多一空行，均已改 |
+| 候选离线 `cand-local.sh offline`（生产镜像 `sha256:ea24fcb9…`，代码 `172ed7ed`，之后只改了测试与文档） | exit 0，72 个测试脚本全 OK |
+| `ci-candidate-checks.sh` 比 `cand-local.sh` 多出的（同法补跑） | 28 个文件全过（含新 `test_cowork_mrerp_operator_channel` 4、`test_cowork_mrerp_operator` 14、MR.ERP 直写一组、ERP 一组）+ 3 个模块 22 条全过 |
+| `python3 scripts/check-architecture.py` | PASS（0 违规） |
+| `python3 scripts/check-copy.py --report`（基线 `790dc639`） | 新增 2、改动 0、删除 0、拦截 0、标黄 2，与上一段相同（都是基线分支的）；**本段没有新文案** |
+| `python3 scripts/check-impact.py` | exit 0，登记表完整；命中 `cc-desktop`（10 个入口）、`mrerp-rules`（4）、`cc-operator-target`（5），清单 34 个入口 |
+
+入口实测（常量关着合入时生产上这条路不可达；「通过」只指离线 / 生产镜像测试，不是业务验收）：
+
+| 入口 | 结果 |
+|---|---|
+| `cowork.cc.channel` | **通过（离线 + 生产镜像）**：上表派单 73、报到 4、登记 13、认证；**真站点没测到**（原因：没起实验栈，任务书定之后统一做；要真 MariaDB 跑 `heads(own=True)` 的 SQL、MR.ERP 密钥经真 Frappe 钩子报到 / 领单 / 回执） |
+| `cowork.transaction` | **没测到**（原因：并发要实验栈；新分支都在原有保存点与 `conflicts.retried` 里，没有新的锁顺序：报到仍是 连接 → 密钥 → 电脑行） |
+| `cc.desktop.write`、`cc.desktop.places`、`cc.desktop.bridge`、`cc.desktop.requests` | **通过（离线）**：CC 全套 1464；**实机没测到**（原因：这一版 `OPERATOR_TARGETS` 不带 `mrerp`，CC 行为不变；要测试机） |
+| `cowork.mrerp.push`、`cowork.mrerp.catalog`、`cowork.cc.mrerp-setup`、`cowork.connections`、`cc.mrerp-login` | **通过（生产镜像）**：MR.ERP 直写一组与 `cc_login` 15 全过；真实 MR.ERP **没测到**（原因：不连任何真实 MR.ERP） |
+| `cowork.express.push`、`cowork.cc-chat.push`、`cowork.assistant` | **通过（离线）**：`test_cowork_express_dispatch` 69、常量开着 Express 重跑 23；**实机没测到**（原因：要测试机 CC 与 Express） |
+| `erp.*`（`cc.connect / write / masters / stock-void / companies / stock-transfer / line.chat / masters.scope / entry.choices / execution / provisioning`）、`shared.transaction` | **没测到**（原因：本段没改 ERP 与共用通道代码，ERP 一组离线测试在候选补跑里全过） |
+| `cowork.line.chat`、`cowork.ocr`、`cowork.execution`、`cowork.tax-documents`、`shared.navigation`、`shared.shell-gate`、`shared.team.members`、`cc.operator.thread` | **没测到**（原因：本段改的函数不在这些入口的路径上；同一调用方文件命中） |
+
+### 9.5 遗留
+
+1. 实验栈真站点验证（并入 §6 第 2 条一起做）：真 MariaDB 上 `heads(own=True)`；MR.ERP 密钥经真 Frappe 机器钩子报到、领单、回执（常量打补丁开着）；
+   同一台电脑两把密钥同时够得到同一张时只一把领到。
+2. CC 托盘：MR.ERP 成员进写账线后，它的状态会由写账线与文件夹线程两边报（`_on_status` / `folder_status`），托盘显示谁为准随第 2 步
+   打开 `mrerp` 目标时一起核。
+3. Express 密钥领走的 MR.ERP 代录单，若这台电脑后来删掉了 Express 成员，那张的投递挂在 Express 连接上、只有那条连接上来领的密钥会回收
+   （同 Express 记录现有口径），账号租约按 TTL 过期不受影响。
+4. ERP 第 6 步要补的两件见 §9.3。
