@@ -2059,7 +2059,7 @@ where = "共用"
 steps = "识别"
 expect = "照常"
 check = "manual"
-files = ["apps/pearnly_core/pearnly_core/express_rules/contracts/push.py", "apps/pearnly_core/pearnly_core/express_rules/push/field_rules.py", "apps/pearnly_core/pearnly_core/express_rules/targets/account_match.py"]
+files = ["apps/pearnly_core/pearnly_core/express_rules/contracts/push.py", "apps/pearnly_core/pearnly_core/express_rules/push/field_rules.py", "apps/pearnly_core/pearnly_core/express_rules/targets/account_match.py", "apps/pearnly_core/pearnly_core/express_rules/push/ledger.py"]
 
 [[entry]]
 id = "cowork.tax-documents"
