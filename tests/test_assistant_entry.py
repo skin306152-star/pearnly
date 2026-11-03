@@ -12,7 +12,7 @@ import sys
 import types
 import unittest
 from unittest import mock
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, quote, urlsplit
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CONTROL = ROOT / "apps/pearnly_control/pearnly_control"
@@ -126,6 +126,36 @@ class GoTests(unittest.TestCase):
         self.assertEqual(self.go(), {"redirect_to": "/assistant", "locale": "zh", "picked": "1"})
         self.assertEqual(self.deleted, ["pearnly_locale_picked"])
 
+
+
+class RememberedIssuerTests(unittest.TestCase):
+    """记住上次的账号池（2026-11-03）：Frappe 16.33.0 写 Cookie 时 URL 编码（frappe/auth.py flush_cookies 的
+    quote(value.encode("utf-8"))），读回要先 unquote 才过得了 contracts.issuer；以前直接读原值，fatcc.com 的
+    「先静默确认登录」从 10-10 起没生效过。"""
+
+    setUp = GoTests.setUp
+
+    def test_a_cookie_written_the_frappe_way_reads_back_and_passes_the_issuer_check(self):
+        written = quote(ISSUER.encode("utf-8"))          # 与 Frappe CookieManager.flush_cookies 同一写法
+        self.assertEqual(written, "https%3A//auth.pearnly.com/realms/pearnly-business")
+        with self.assertRaises(contracts.ContractError):
+            contracts.issuer(written)                    # 原值本身过不了校验（缺陷的样子）
+        self.cookies[self.entry.ISSUER_COOKIE] = written
+        self.assertEqual(self.entry._remembered(self.entry.ISSUER_COOKIE), ISSUER)
+        self.assertTrue(contracts.issuer(self.entry._remembered(self.entry.ISSUER_COOKIE)) == ISSUER)
+        calls = []
+        self.entry._authorize = lambda issuer, **kw: calls.append((issuer, kw)) or "https://auth/silent"
+        self.assertEqual(self.entry.resume_url(), "https://auth/silent")
+        self.assertEqual(calls, [(ISSUER, {"silent": True})])
+
+    def test_an_unencoded_value_and_no_cookie_still_behave(self):
+        self.entry._authorize = lambda issuer, **kw: "https://auth/silent"
+        self.cookies[self.entry.ISSUER_COOKIE] = ISSUER   # 未编码的值解码后不变
+        self.assertEqual(self.entry.resume_url(), "https://auth/silent")
+        self.cookies.clear()
+        self.assertEqual(self.entry.resume_url(), "")     # 不记得：显示登录页
+        self.cookies[self.entry.ISSUER_COOKIE] = quote("https://evil.com/x".encode("utf-8"))
+        self.assertEqual(self.entry.resume_url(), "")
 
 class _Frappe(types.ModuleType):
     class ValidationError(Exception):

@@ -10,6 +10,7 @@
 """
 import secrets
 import time
+from urllib.parse import unquote
 
 import frappe
 import jwt
@@ -126,8 +127,11 @@ def _take(key: str) -> dict:
 
 
 def _remembered(name: str) -> str:
+    # Frappe 写 Cookie 时把值 URL 编码（frappe/auth.py CookieManager.flush_cookies 的 quote：账号池地址成了
+    # https%3A//auth.pearnly.com/...），自己读时再 unquote（同文件 delete_cookie 前的比对）；这里照它先解码再用，
+    # 否则上次的账号池过不了 contracts.issuer，「记住上次、先静默确认登录」就不生效。浏览器里已有的旧 Cookie 解码后即原值。
     request = getattr(frappe.local, "request", None)
-    return (request.cookies.get(name) or "") if request else ""
+    return unquote(request.cookies.get(name) or "") if request else ""
 
 
 def _remember(name: str, value: str) -> None:
