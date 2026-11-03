@@ -50,9 +50,10 @@ class PurePushBoundary(unittest.TestCase):
                         "pearnly_cowork.push.lifecycle", "pearnly_cowork.push.retry",
                         "pearnly_cowork.targets",
                         # 共用层的纯函数包（ADR-025：Express 写账规则与回执口径，2026-10-23 由本域搬去；只依赖标准库与
-                        # 票种决策表）与 MR.ERP「单号已存在」的判定（`retry` 从这里取，2026-11-02）。
+                        # 票种决策表）与 MR.ERP「单号已存在」的判定（`retry` 从这里取，2026-11-02）、「用户数据错」的判定
+                        # （同样只用标准库，2026-11-03）。
                         "pearnly_core.express_rules", "pearnly_core.cc_desktop.wire.ack_rules",
-                        "pearnly_core.mrerp.push.duplicates",
+                        "pearnly_core.mrerp.push.duplicates", "pearnly_core.mrerp.push.user_data",
                         # 全平台共用的票种决策表（ADR-0012），本身只依赖标准库（tests/test_tax_documents.py 核对）。
                         "pearnly_core.tax_documents")),
                         f"{path.relative_to(root)}:{node.lineno}: non-pure dependency {name}")

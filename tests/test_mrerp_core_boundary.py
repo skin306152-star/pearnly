@@ -19,10 +19,15 @@ STDLIB = {"__future__", "collections", "copy", "dataclasses", "datetime", "decim
 EXTRA = {
     "session.py": {"requests", "socket"},
     "push/transport.py": {"time", "pearnly_core.session_lock"},
+    # 2026-11-03 由 Cowork 下沉的执行与读取（纯网络，凭据由调用方交进来）：只经会话 / 导入连网，各拿账号锁
+    "push/execute.py": {"pearnly_core.session_lock"},
+    "menu_read.py": {"pearnly_core.session_lock"},
+    "collect.py": {"time", "pearnly_core.session_lock"},
     "push/report_parser.py": {"openpyxl"},
     "push/xlsx/generator.py": {"openpyxl", "openpyxl.styles"},
 }
-PURE_RULES = {"menus.py", "masters.py", "needs.py", "catalog.py", "urls.py", "push/duplicates.py"}
+PURE_RULES = {"menus.py", "masters.py", "needs.py", "catalog.py", "urls.py", "push/duplicates.py",
+              "push/user_data.py"}
 PURE_STDLIB = {"__future__", "copy", "datetime", "html", "ipaddress", "json", "re", "typing", "urllib.parse"}
 
 

@@ -14,15 +14,12 @@ import logging
 
 import frappe
 from frappe.utils.password import get_decrypted_password
-from pearnly_core.session_lock import SessionLockUnavailable, account_lock
-from pearnly_core.mrerp import menus as mrerp_menus
-from pearnly_core.mrerp import master_reader as mrerp_master_reader
 from . import access, model, service, state
-from pearnly_core.mrerp.session import MrErpSession, SessionError, lock_key
+# 读取本身（纯网络）在共用层（2026-11-03 搬去，ERP 接 MR.ERP 同用一份）；本模块对外名 `read` 照旧。
+from pearnly_core.mrerp.menu_read import read  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
-LOCK_WAIT_SECONDS = 120
 JOB_TIMEOUT_SECONDS = 240
 _DEFAULT_URL = "https://www.mrerp4sme.com"
 
@@ -57,33 +54,3 @@ def run(connection, account_set_key, actor):
     service.observe_mrerp_menus(connection, account_set_key, pages, error=error)
     service.observe_mrerp_masters(connection, account_set_key, fields, error=error or master_error)
     frappe.db.commit()
-
-
-def read(lease, account_set_key):
-    """→ ({导入页: 选项 | None}, {字段: 可用值}, 错误码, 主档错误码)；登录 / 选账套失败时前两项是 None。"""
-    comidyear, _, seldb = str(account_set_key or "").partition(":")
-    if not lease.get("username") or not lease.get("password"):
-        return None, None, "ERR_NO_CREDS", None
-    try:
-        with account_lock(lock_key(lease["system_url"], lease["username"]), timeout_sec=LOCK_WAIT_SECONDS):
-            session = MrErpSession(lease["system_url"], lease["username"], lease["password"])
-            try:
-                first = next(iter(mrerp_menus.PAGES.items()))
-                session.select(comidyear, seldb, probe=f"{first[0]}/formupload.php?idmenu={first[1]}")
-                pages = {}
-                for path, idmenu in mrerp_menus.PAGES.items():
-                    page = session.request("GET", f"{path}/formupload.php?idmenu={idmenu}",
-                                           headers={"Referer": f"{session.base}/login/mainmenu.php"})
-                    pages[path] = mrerp_menus.parse_options(page.text or "")
-                fields, master_error = mrerp_master_reader.read_for_choices(session.request, session.base)
-                return pages, fields, None, master_error
-            finally:
-                session.close()
-    except SessionLockUnavailable:
-        return None, None, "ERR_TECHNICAL", None
-    except SessionError as exc:
-        logger.info("MR.ERP menu read failed: %s", exc)
-        return None, None, exc.code, None
-    except Exception:  # noqa: BLE001 — 契约：读取失败只落错误码
-        logger.exception("MR.ERP menu read raised")
-        return None, None, "ERR_UNEXPECTED", None

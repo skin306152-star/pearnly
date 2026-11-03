@@ -12,6 +12,7 @@ from unittest.mock import patch
 try:
     import requests
     from pearnly_cowork.connections import mrerp_collector as collector
+    from pearnly_core.mrerp import collect as collecting  # 网络那一半 2026-11-03 搬到共用层
 except ImportError as exc:  # 需要 Frappe 环境（bench 的 Python）
     raise unittest.SkipTest(f"needs the Frappe bench environment: {exc}")
 
@@ -70,9 +71,9 @@ def run(site, lease=None):
     # 账号锁走 Redis（站点环境）；这里只测对外读取，锁换成立即拿到。
     with patch.object(requests.Session, "request", autospec=True, side_effect=send), \
             patch.object(socket, "getaddrinfo", return_value=PUBLIC), \
-            patch.object(collector.time, "sleep"), \
-            patch.object(collector, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
-        return collector.collect(lease)
+            patch.object(collecting.time, "sleep"), \
+            patch.object(collecting, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
+        return collecting.collect(lease)
 
 
 def period_page(*spans):
@@ -142,8 +143,8 @@ class Details(unittest.TestCase):
 
     def test_details_stop_at_the_time_budget_newest_first(self):
         site = DetailSite({"6": [("01/01/2562", "31/12/2562")], "15": [("01/01/2563", "31/12/2563")]})
-        clock = iter([0, 0, collector.DETAILS_SECONDS + 1, collector.DETAILS_SECONDS + 1])
-        with patch.object(collector.time, "monotonic", lambda: next(clock, collector.DETAILS_SECONDS + 1)):
+        clock = iter([0, 0, collecting.DETAILS_SECONDS + 1, collecting.DETAILS_SECONDS + 1])
+        with patch.object(collecting.time, "monotonic", lambda: next(clock, collecting.DETAILS_SECONDS + 1)):
             result = run(site)
         years = {r["comidyear"]: r.get("period_start", "") for r in result["rows"]}
         self.assertEqual(years, {"6": "2019-01-01", "15": ""})  # 已在里面的先读，超时后不再切库
@@ -158,9 +159,9 @@ class Collect(unittest.TestCase):
             taken.append(key)
             yield True
 
-        with patch.object(collector, "account_lock", lock), patch.object(collector, "_collect_locked",
+        with patch.object(collecting, "account_lock", lock), patch.object(collecting, "_collect_locked",
                                                                          return_value={"rows": []}):
-            collector._collect_once({"system_url": BASE + "/", "username": "test01", "password": "x"})
+            collecting._collect_once({"system_url": BASE + "/", "username": "test01", "password": "x"})
         self.assertEqual(taken, ["mrerp|https://www.mrerp4sme.com|test01"])
 
     def test_busy_account_is_a_retryable_technical_error(self):
@@ -171,8 +172,8 @@ class Collect(unittest.TestCase):
             raise SessionLockUnavailable("busy")
             yield
 
-        with patch.object(collector, "account_lock", busy):
-            self.assertEqual(collector._collect_once({"system_url": BASE, "username": "u", "password": "p"}),
+        with patch.object(collecting, "account_lock", busy):
+            self.assertEqual(collecting._collect_once({"system_url": BASE, "username": "u", "password": "p"}),
                              {"error_code": "ERR_TECHNICAL"})
 
     def test_login_lists_company_years_and_verifies_by_entering_the_first(self):
@@ -235,14 +236,14 @@ class PublicHost(unittest.TestCase):
         for address in ("10.0.0.5", "127.0.0.1", "169.254.169.254", "192.168.1.1"):
             private = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (address, 0))]
             with patch.object(socket, "getaddrinfo", return_value=private):
-                with self.assertRaises(collector.CollectError) as caught:
+                with self.assertRaises(collecting.CollectError) as caught:
                     collector.public_host(BASE)
                 self.assertEqual(caught.exception.code, "ERR_URL_BLOCKED")
 
     def test_syntax_guard_runs_before_resolution(self):
         with patch.object(socket, "getaddrinfo") as resolve:
             for url in ("http://localhost:8000", "http://10.1.2.3", "ftp://www.mrerp4sme.com", "http://metadata"):
-                with self.assertRaises(collector.CollectError):
+                with self.assertRaises(collecting.CollectError):
                     collector.public_host(url)
             resolve.assert_not_called()
 
