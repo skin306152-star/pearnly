@@ -1546,8 +1546,8 @@ class StocktakeAndWorkTests(unittest.TestCase):
             "items": [{"code": "A", "product_name": "Apple", "book_qty": 5.0, "counted": 1, "counted_qty": 5.0, "difference": 0.0},
                       {"code": "B", "product_name": "Bean", "book_qty": 5.0, "counted": 1, "counted_qty": 3.0, "difference": -2.0},
                       {"code": "C", "product_name": "Corn", "book_qty": 1.0, "counted": 0, "counted_qty": None, "difference": None}]}
-        desk.api_stock_count_lookup = lambda count, code: {"product": {"name": "ITEM-" + code},
-                                                           "rows": [{"warehouse": "WH1", "location": "A-02"}]}
+        desk.api_stock_count_lookup = lambda count, code: {"not_product_code": "这不是商品条码"} if code.startswith("https://") else {
+            "product": {"name": "ITEM-" + code}, "rows": [{"warehouse": "WH1", "location": "A-02"}]}
         desk.api_stock_count_recount = lambda count, product: self.calls.append(("recount", product)) or {"cleared": 1}
         desk.api_stock_count_add_entry = lambda count, qty, **kw: self.calls.append(
             ("add", qty, kw["item"], kw["warehouse"], kw["location"])) or {"entry": "E1"}
@@ -1609,6 +1609,12 @@ class StocktakeAndWorkTests(unittest.TestCase):
         tools.stocktake_count({"count": "S1", "code": "P002", "qty": 9})
         tools.stocktake_count({"count": "S1", "code": "P004", "qty": 38, "warehouse": "WH2", "location": "C-03"})
         self.assertEqual(self.calls, [("add", 9, "ITEM-P002", "WH1", "A-02"), ("add", 38, "ITEM-P004", "WH2", "C-03")])
+
+    def test_a_web_address_code_is_not_counted(self):
+        """扫到 / 说的是认证网址码（11-03，同页面）：回未保存与原因，不记数。"""
+        out = json.loads(tools.stocktake_count({"count": "S1", "code": "https://appdb.tisi.go.th/Q/i.php?d=x", "qty": 1}))
+        self.assertEqual(out, {"status": "not_saved", "reason": "这不是商品条码"})
+        self.assertEqual(self.calls, [])
 
     def test_delete_reports_each_count_and_refusals_do_not_raise(self):
         out = json.loads(tools.stocktake_delete({"counts": ["S1", "closed"]}))

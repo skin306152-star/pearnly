@@ -37,4 +37,61 @@
 
 ## 验证
 
-（施工后补：本地闸门、实验栈流程、共用件连带回归、三星真机。）
+### 本地与候选
+
+- 离线用例：`tests/test-stocktake-entry-scan.cjs`、`test-link-options.cjs`、`test-stocktake-scanner.cjs`、`test-line-stocktake.cjs`、
+  `test_erp_product_attribute.py`、`test_cowork_stocktake_desk_time.py`（补共用层模块桩）通过。
+- 本地全闸门（照 `development.yml` 全部 run 步骤）：首轮两处不过——吞错闸门（新写的 `.catch(() => {})`，改成回传 / 等点画面）、
+  `test_cowork_stocktake_desk_time.py`（模块桩缺 `pearnly_core.desk`）；修后两项单独重跑通过。`check-architecture`、`check-copy`、`check-impact`、`check-i18n` 通过。
+- 候选离线检查（改到共用层）：当前生产镜像 `ab3adbb1…` 挂本工作树五个 App，`ci-candidate-checks.sh offline` 97 步全过（退出码 0）。
+  注：第一次用 zsh 拼挂载参数，`$a:ro` 被 zsh 当成修饰符、挂载没生效，那一轮作废重跑。
+
+### 流程（实验栈 `pearnly-stfollow-lab`，源码 = 本工作树 33ee772d1）
+
+`run.py --changed` 选中的 13 条（新增 `cowork.stocktake.web-code`；`erp.stocktake.scan`、`cowork.stocktake.entry` 相机那遍新断言
+「继续」后整页只要过一次相机）：**45/45 通过**（2547 秒）。首轮 41/45，四格补跑（`--rerun-failed`）通过：
+- `erp.stocktake.web-code` old/mobile 900 秒超时、`erp.stocktake.gs1` old/mobile 假摄像头没读到 Data Matrix：与真机测试、候选检查同时跑、本机满载，
+  已知问题笔记 10-31 / 11-01 同类，补跑 30 / 35 秒通过；
+- `cowork.stocktake.list` old 两格：清单是开跑时现读的（2 份盘点），我中途在同一实验栈为真机测试建了一份，列表变 3 份；补跑重新取清单通过。
+
+### 共用件连带回归（`check-impact`：`erp-count-code`、新登记的 `scan-codes`；没改 `scan.js` / `reader.js` / `link.js`）
+
+| 入口 | 结果 |
+| --- | --- |
+| `shared.scan-codes.web-address` | 通过（流程 `erp.stocktake.web-code`、`cowork.stocktake.web-code` 各 4 格，`erp.line.stocktake` 输网址码一步；三星 ERP / Cowork 网址二维码） |
+| `erp.stock-count.code` | 通过（流程 `erp.stocktake.scan / places / gs1 / new-product`、`erp.stock.excel-units`；三星 EAN） |
+| `erp.stock-count.entry.camera` | 通过（上面盘点流程相机那遍；三星真相机） |
+| `cowork.stocktake.entry.camera` | 通过（流程 `cowork.stocktake.entry` 相机那遍；三星真相机） |
+| `erp.line.stocktake` | 通过（流程 `erp.line.stocktake`、`erp.line.stocktake.phone`） |
+| `erp.line.stocktake.new-product` | 通过（流程 `erp.line.stocktake`：输未知码就地新建、选库位记数） |
+| `erp.stock-count.new-product` | 通过（流程 `erp.stocktake.new-product` 4 格） |
+| `erp.scan.pick-product` | 通过（流程 `erp.products.clash` 4 格） |
+| `erp.page.stock-count` | 通过（自动冒烟 page，本机实验栈） |
+| `cowork.page.stocktake` | 通过（自动冒烟 page，本机实验栈） |
+| `erp.stock-count.upload` | 通过（流程 `erp.stock.excel-units` 盘点 Excel；三星：扫码后点「添加照片」，收着的相机先放掉（轨道 `live → ended`）、原生上传框弹出） |
+| `cowork.stocktake.upload` | 上传导入通过（流程 `cowork.stocktake.entry` / `web-code` 都先上传一份表建盘点）；拍照凭证没在 Cowork 真机点（「拍照前放掉相机」与 ERP 同一行，ERP 真机已测） |
+| `cowork.exports` | 通过（流程 `cowork.exports` 4 格） |
+| `erp.records.scope` | 通过（盘点相关流程在 old 两家公司数据上按盘点仓所属公司认码；收银、出入库本次未改） |
+| `cowork.assistant` | 通过（离线 `test_cowork_assistant_tools.py`，新增「网址码不记数、回未保存与原因」） |
+| `cowork.express.push` | 没测到（自动冒烟要在测试机切 testcowork 写 Express，任务规定不 lab-start、不切域名；只因 `assistant/tools.py` 在它的文件清单里被带上，改动只在 `stocktake_count` 的网址码分支，推送路径没动） |
+| `cowork.cc-chat.push`、`cowork.cc.mrerp-setup`、`cowork.ocr`、`cowork.execution`、`cowork.tax-documents` | 没测到（同上：同一文件里别的工具，改动只在盘点工具一个分支；`test_cowork_assistant_tools.py` 全过） |
+| `erp.line.stocktake.liff-camera`、`cowork.line.stocktake.liff-camera` | 没测到（要真 LINE 富菜单开 LIFF，部署后走 testerp / testcowork LINE 入口测，含「继续」不再弹授权） |
+
+### 三星真机（SM-A146P，adb 反连本机实验栈，真相机对着测试机屏幕全屏码图；截图在共享笔记 `盘点扫码后续-真机-11-03/`）
+
+页面里给 `getUserMedia` 装了计数，读的是页面自己要了几次相机：
+
+| 产品 | 步骤 | 结果 |
+| --- | --- | --- |
+| ERP | 点图标开扫码器 → 读 EAN 8850002000025 | 出「สินค้าเก่า 2」字段、扫码器收起，相机轨道仍 `live`，要相机 1 次 |
+| ERP | 填数量点「继续」 | 已保存；画面直接恢复（没重新要相机，仍 1 次），同一码没被重复读 |
+| ERP | 认证网址二维码 | 「这不是商品条码」，不出新建、不出字段，扫码器开着 |
+| ERP | 「关闭」→ 再点图标 | 收起、再恢复，仍 1 次 |
+| ERP | 关掉弹窗 | 相机轨道 `ended`（真关） |
+| ERP | 管理员 `admin@erp.regression`（有建物料权）打字「OLD」 | 下拉 5 件物料，没有「新建物料」 |
+| Cowork | 读上传件条码 2005633084951 → 「继续」 | 出字段、收起；继续后恢复，要相机 1 次 |
+| Cowork | 认证网址二维码 | 弹窗与浮动提示都是「这不是商品条码」，扫码器开着 |
+| Cowork | 关掉弹窗 | 相机轨道 `ended` |
+
+Chrome 里本来就记住授权，所以这一轮证明的是「页面不再重新要相机」；LINE 只给「仅允许本次」，要部署后从 testerp / testcowork
+LINE 富菜单进 LIFF 再测一遍「继续」不弹授权（主会话安排部署后做）。
