@@ -11,6 +11,7 @@ USER_DATA_ERROR_CODES = {
     "ERR_NO_INVOICE_NO",
     "ERR_NO_INVOICE_DATE",
     "ERR_NO_TOTAL_AMOUNT",
+    "ERR_AMOUNTS_NOT_CLOSED",  # 写账前通用护栏（`tax_documents.ledger_guard`）：票面金额对不上
     "ERR_NEGATIVE_AMOUNT",
     "ERR_TAX_ID_INVALID",
     "ERR_DATE_FUTURE",

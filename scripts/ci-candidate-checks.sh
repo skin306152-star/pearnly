@@ -68,7 +68,7 @@ offline() {
                 tests/test_cowork_report_writes.py tests/test_cowork_companion_liveness.py tests/test_cowork_companion_reports.py tests/test_cowork_companion_register.py tests/test_cowork_folder_computers.py \
                 tests/test_cowork_roundtrip_language.py tests/test_cowork_bank_net_settlement.py tests/test_assistant_push.py tests/test_cowork_push_account.py \
                 tests/test_cowork_readback_workbooks.py tests/test_cowork_tax_workbook.py tests/test_cowork_pos_xlsx.py \
-                tests/test_cowork_mrerp_push.py tests/test_cowork_mrerp_collector.py tests/test_cowork_mrerp_catalog.py \
+                tests/test_cowork_mrerp_push.py tests/test_ledger_guard.py tests/test_cowork_mrerp_collector.py tests/test_cowork_mrerp_catalog.py \
                 tests/test_cowork_mrerp_menus.py tests/test_mrerp_rules_golden.py tests/test_cowork_mrerp_cc_login.py \
                 tests/test_erp_mrerp_golden.py tests/test_cowork_mrerp_operator.py tests/test_cowork_mrerp_operator_channel.py; do
     offline_py -v "$PWD:/candidate:ro" "$IMAGE" "/candidate/$script"

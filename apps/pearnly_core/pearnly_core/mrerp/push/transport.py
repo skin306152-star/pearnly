@@ -516,8 +516,12 @@ class MrErpImport:
             from pearnly_core.mrerp.push.xlsx.purchase import validate_purchase_history as _validate
         else:
             _validate = _gen.validate_history_for_sales_credit
+        from pearnly_core.express_rules.push import ledger
+
         for h in histories:
-            ok, err_code, _warnings = _validate(h, mappings)
+            # 写账前的通用护栏（`tax_documents.ledger_guard`）先于各模块的预检：缺总额不再用「小计 + 税额」顶上照写
+            guard = ledger.mrerp_reason(h)
+            ok, err_code, _warnings = (False, guard, []) if guard else _validate(h, mappings)
             if ok:
                 valid.append(h)
             else:

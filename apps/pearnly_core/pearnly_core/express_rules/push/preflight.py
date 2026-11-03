@@ -15,7 +15,7 @@ from pearnly_core.express_rules.push.doc_sanity import check_document
 from pearnly_core.express_rules.push.mapper import build_express_payload
 from pearnly_core.express_rules.push.sales_mapper import build_express_sales_payload
 from pearnly_core.express_rules.push.history import flatten_history_for_mrerp
-from pearnly_core.express_rules.push import confidence
+from pearnly_core.express_rules.push import confidence, ledger
 
 @dataclass(frozen=True)
 class ExpressContext:
@@ -260,6 +260,8 @@ def preflight_express(
 
         # 单据防呆(确定性):外币/贷项/押金/未来日期/坏税号等"不该当普通票直推"的单据 → 转人工。
         doc_reason = check_document(flat.get("fields") or {}, flat, direction, today=context.today)
+        # 写账前的通用护栏（`tax_documents.ledger_guard`）：缺总额、金额不闭合、完整税票只读到总额、缺单号 / 日期 → 转人工
+        doc_reason = doc_reason or ledger.express_reason(flat)
         if doc_reason:
             return _block(
                 pf,
