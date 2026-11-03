@@ -213,6 +213,17 @@ class Engine:
             self.act([{"do": "dialog_button", "text": rule["button"]}, {"do": "wait", "ms": 600}])
         raise Unexpected("dialog does not close")
 
+    def _need_human_shot(self, doc_id: str) -> None:
+        """转人工的单留一张当时的截图（本机证据目录，同存成的单；不上传），路径附在说明后面，随任务回到待处理。截不到不影响转人工。"""
+        if not self.evidence:
+            return
+        try:
+            path = self.evidence(f"{doc_id}-need-human", self.screenshot("need_human"))
+        except Exception:  # noqa: BLE001 — 画面状态不明时截图也可能失败
+            return
+        self.rec["evidence"] = str(path)
+        self.rec["detail"] = f"{path} · {self.rec.get('detail') or ''}"[:300]  # 站点任务行的说明最多 300 字：路径放前面
+
     def screenshot(self, purpose: str) -> str:
         res = self.act([{"do": "screenshot", "size": [1280, 720]}], windows=False)["results"][0]
         screen = res.get("screen") or [1920, 1080]
@@ -742,6 +753,7 @@ class Engine:
                 docnum = ""
         except NeedHuman as e:
             self.rec.update(outcome="need_human", reason=e.reason, detail=e.detail[:300])
+            self._need_human_shot(draft.doc_id)  # 作废前截下转人工那一刻的画面（2026-11-03：原来只截存成的单）
             self.rec["voided"] = self.abandon()
         except Blocked as e:
             self.rec.update(outcome="blocked", reason=e.reason, detail=e.detail[:300])

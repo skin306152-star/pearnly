@@ -124,8 +124,12 @@ class DeviceMethods(unittest.TestCase):
         logins = server["LOGIN_METHODS"]
         self.assertEqual(set(logins), {"mrerp_login"})
         self.assertFalse(set(logins.values()) & (set(others.values()) | set(devices.values())))
-        self.assertEqual(server["MACHINE_METHODS"], {**others, **devices, **logins})
-        for method in logins.values():
+        # 第六张表：代录 AI 接手的模型请求（`operator_api.operator_ai`，2026-11-03），只收 POST，只读文件夹密钥不放行
+        operators = server["OPERATOR_METHODS"]
+        self.assertEqual(set(operators), {"operator_ai"})
+        self.assertFalse(set(operators) & set(server["FOLDER_ONLY_ALLOWED"]))
+        self.assertEqual(server["MACHINE_METHODS"], {**others, **devices, **logins, **operators})
+        for method in {**logins, **operators}.values():
             module, function = method.rsplit(".", 1)
             self.assertTrue(whitelisted_post(ROOT / "apps" / "pearnly_cowork" / Path(*module.split(".")).with_suffix(".py"),
                                              function), method)

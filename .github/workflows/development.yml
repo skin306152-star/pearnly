@@ -99,6 +99,8 @@ jobs:
         run: PYTHONPATH=apps/pearnly_cowork:apps/pearnly_core python3 tests/test_ledger_guard.py
       - name: Verify a file added to a document is read again with its original and replaces it without a new document
         run: python3 tests/test_cowork_into_document.py
+      - name: Verify the operator AI takeover forwards only whitelisted model calls within a batch budget
+        run: python3 tests/test_express_operator_ai.py
       - name: Verify the Claude self-check consistency table and its recorded real misses
         run: python3 tests/test_claude_ocr_consistency.py
       - name: Verify the Oracle claude-ocr bundle ships every shared package the engine imports

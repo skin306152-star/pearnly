@@ -416,7 +416,13 @@ def express_factory(state, store, settings, root: Path, notify):
                         on_pause=lambda r: holder["runner"].presence_paused(r),
                         on_resume=lambda: holder["runner"].presence_resumed(),
                         background=True, foreground=lambda: front_of(desk))
-    engine = Engine(desk, recipe, book, presence=presence, evidence=evidence.save)
+    # AI 接手（规则表认不出的画面）：模型调用经产品站点（`site_ai`，密钥只在服务端）；连不上站点的成员照旧判断不了就交人
+    from .helper import ComputerUseHelper
+    from .site_ai import transport_for
+
+    transport = transport_for(settings, state.id)
+    engine = Engine(desk, recipe, book, presence=presence, evidence=evidence.save,
+                    helper=ComputerUseHelper(transport) if transport else None)
     probes = ProbeStore(root / "probe.json")
     account_key = str(settings.account_dir).lower()
 

@@ -1,0 +1,103 @@
+"""代录 AI 接手的模型请求转发（多产品共用，2026-11-03「CC 通用疑难处理」第 3 块）。
+
+CC 桌面版代录 Express 时碰到规则表认不出的画面，交给 AI 接手（`companion/express_operator/helper.py`：先 Haiku 5.5，
+再 Opus 5.5，都处理不了转人工）。Claude 密钥只在服务端：电脑把 Messages API 请求体交到机器通道（Cowork 的
+``companion.operator_api.operator_ai``、共用机器通道的 ``cc_desktop.machine.operator_ai``，都先认电脑密钥），这里转给
+Anthropic，原样回响应。
+
+把关（这里写死，不靠电脑）：
+- 只认两种调用（``check`` 看图判断、``turn`` 电脑操作一轮）、两个模型、请求体字段白名单、``max_tokens`` 上限；
+- 每个代录批次的费用上限 :data:`BATCH_BUDGET_USD`（按 `claude_ocr.engine.PRICE` 估算累计），到了回 ``{"error": "budget"}``，
+  CC 桌面版收到就停下 AI 接手、这张单转人工。
+"""
+from __future__ import annotations
+
+import os
+from types import SimpleNamespace
+
+import frappe
+
+from pearnly_core.claude_ocr import engine as claude_engine
+
+KINDS = ("check", "turn")
+MODELS = (claude_engine.HAIKU, claude_engine.OPUS)
+FIELDS = ("model", "max_tokens", "system", "messages", "tools", "thinking", "output_config", "context_management",
+          "cache_control")
+MAX_TOKENS = 8000
+# 一批代录的 AI 接手费用上限（美元）：设计估算每次接手约 0.05–0.5 美元，一批最多接手 20 次（`helper.ComputerUseHelper`）
+BATCH_BUDGET_USD = 3.0
+URL = "https://api.anthropic.com/v1/messages"
+VERSION = "2023-06-01"
+TIMEOUT = 120
+SPENT = "pearnly:operator_ai_usd:"
+SPENT_TTL = 3 * 86400
+
+
+class Invalid(ValueError):
+    pass
+
+
+def request_of(body) -> tuple[str, str, dict]:
+    """电脑交来的 ``{batch, kind, request}`` → (批次, 调用, 只留白名单字段的请求体)；不合规抛 :class:`Invalid`。"""
+    if not isinstance(body, dict):
+        raise Invalid("body")
+    batch, kind, request = str(body.get("batch") or "").strip(), body.get("kind"), body.get("request")
+    if not batch or len(batch) > 140 or kind not in KINDS or not isinstance(request, dict):
+        raise Invalid("request")
+    if request.get("model") not in MODELS or not isinstance(request.get("messages"), list):
+        raise Invalid("model")
+    cleaned = {key: request[key] for key in FIELDS if key in request}
+    try:
+        cleaned["max_tokens"] = max(1, min(int(cleaned.get("max_tokens") or MAX_TOKENS), MAX_TOKENS))
+    except (TypeError, ValueError):
+        raise Invalid("max_tokens") from None
+    return batch, kind, cleaned
+
+
+def spent(batch) -> float:
+    try:
+        return float(frappe.cache.get_value(SPENT + batch) or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def usd(model, usage) -> float:
+    usage = usage if isinstance(usage, dict) else {}
+    return claude_engine.cost(model, SimpleNamespace(
+        input_tokens=int(usage.get("input_tokens") or 0), output_tokens=int(usage.get("output_tokens") or 0),
+        cache_creation_input_tokens=int(usage.get("cache_creation_input_tokens") or 0),
+        cache_read_input_tokens=int(usage.get("cache_read_input_tokens") or 0)))
+
+
+def _post(key, body) -> dict:
+    import requests
+
+    response = requests.post(URL, json=body, timeout=TIMEOUT,
+                             headers={"x-api-key": key, "anthropic-version": VERSION, "content-type": "application/json"})
+    if response.status_code != 200:
+        return {"error": f"anthropic_{response.status_code}"}
+    return response.json()
+
+
+def forward(body, *, post=_post) -> dict:
+    """转一次：回 Anthropic 的响应原样（不合规、没配密钥、超上限、对方出错回 ``{"error": 码}``）。"""
+    try:
+        batch, kind, request = request_of(body)
+    except Invalid as error:
+        return {"error": f"invalid_{error}"}
+    already = spent(batch)
+    if already >= BATCH_BUDGET_USD:
+        return {"error": "budget"}
+    key = os.environ.get("PEARNLY_ANTHROPIC_API_KEY", "").strip()
+    if not key:
+        return {"error": "not_configured"}
+    try:
+        response = post(key, request)
+    except Exception as error:  # noqa: BLE001 — 网络 / 对方出错：回码，电脑把这张单转人工
+        frappe.logger("pearnly.operator").warning("operator AI call failed: %s", type(error).__name__)
+        return {"error": "unavailable"}
+    if not response.get("error"):
+        cost = usd(request["model"], response.get("usage"))
+        frappe.cache.set_value(SPENT + batch, already + cost, expires_in_sec=SPENT_TTL)
+        frappe.logger("pearnly.operator").info("operator AI %s %s batch %s usd %.4f", kind, request["model"], batch, cost)
+    return response

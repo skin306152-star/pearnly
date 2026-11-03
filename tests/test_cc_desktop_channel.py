@@ -432,7 +432,7 @@ class Machine(unittest.TestCase):
         exec(compile(tree, "channel.py", "exec"), namespace)
         core = namespace["PATHS"]["core"]
         self.assertEqual({core[op] for op in ("heartbeat", "lease", "ack", "request_next", "request_complete",
-                                               "leave", "mrerp_login")}, set(http_auth.PATHS.values()))
+                                               "leave", "mrerp_login", "operator_ai")}, set(http_auth.PATHS.values()))
         machine = ast.parse((ROOT / "apps/pearnly_core/pearnly_core/cc_desktop/machine.py").read_text(encoding="utf-8"))
         posted = {node.name for node in machine.body if isinstance(node, ast.FunctionDef)
                   and any("frappe.whitelist" in ast.unparse(d) and "'POST'" in ast.unparse(d)

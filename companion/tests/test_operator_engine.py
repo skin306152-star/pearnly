@@ -293,3 +293,17 @@ def test_a_late_unit_dialog_is_waited_for_so_the_price_does_not_land_in_it():
     d = samples()[1]
     recs, sim, _, _ = run_docs([d], with_ai=False, inject={"late_unit": 6})
     assert recs[0]["outcome"] == "saved" and recs[0]["readback"]["ok"] and not recs[0]["voided"]
+
+
+def test_a_document_handed_to_a_person_keeps_a_screenshot_of_that_moment():
+    """2026-11-03：转人工的单在作废前截下当时的画面（原来只截存成的单），本机路径放在说明最前面，随任务回到待处理。"""
+    d = samples()[1]
+    sim = FakeExpress(RECIPE.data, inject={"typo_price:P002": "9"})
+    saved = []
+    engine = Engine(sim, RECIPE, FakeBook(sim), helper=None, sleep=lambda _s: None,
+                    evidence=lambda doc_id, png: saved.append(doc_id) or f"C:/evidence/{doc_id}.png")
+    rec = engine.run(d)
+    assert rec["outcome"] == "need_human"
+    assert saved == [f"{d.doc_id}-need-human"]
+    assert rec["evidence"] == f"C:/evidence/{d.doc_id}-need-human.png"
+    assert rec["detail"].startswith(rec["evidence"] + " · ")

@@ -8,6 +8,8 @@
   POST /api/method/pearnly_core.cc_desktop.machine.leave              电脑自己断开（作废这把令牌）
   POST /api/method/pearnly_core.cc_desktop.machine.mrerp_login        MR.ERP 登录在 CC 里授权：{ticket, username, password}
                                                                       （ADR-026 第 7 条；产品没接回 ``{ok: false, code: "unsupported"}``）
+  POST /api/method/pearnly_core.cc_desktop.machine.operator_ai        代录 AI 接手的模型请求：{batch, kind, request}
+                                                                      （`express_operator.ai`；回 ``{ok, response}``）
 
 请求体与回复的形状与 Cowork 那几条逐字段相同，CC 桌面版只按成员的通道换方法路径。本地事务撞上 1020 / 1213 整笔回滚、退避后
 重来（共用的 `transaction.conflicts`），用尽回「忙」（503），CC 桌面版下一轮再来。
@@ -190,3 +192,16 @@ def mrerp_login(**ignored):
 
 
 __all__ = ["acknowledge", "complete_request", "heartbeat", "lease", "leave", "mrerp_login", "next_request"]
+
+
+@frappe.whitelist(methods=["POST"])
+def operator_ai(**ignored):
+    """代录 AI 接手（`express_operator.ai.forward`）：认过电脑密钥后先提交、放掉鉴权时的行锁，再转发模型请求（几十秒，
+    不占数据库事务；不走整笔重来，免得同一轮付两次费）。业务上的「不行」在 ``response.error`` 里。"""
+    from pearnly_core.express_operator import ai
+
+    _context, body = http_auth.current_request("operator_ai")
+    _commit("operator_ai")
+    response = ai.forward(body)
+    http_auth.clear_private_messages()
+    return {"ok": True, "protocol": PROTOCOL, "response": response}

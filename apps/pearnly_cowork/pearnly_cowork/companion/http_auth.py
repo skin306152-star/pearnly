@@ -43,7 +43,10 @@ DEVICE_METHODS = {'device_hello': 'pearnly_cowork.companion.device_api.hello',
 # MR.ERP 登录在 CC 桌面版里授权（companion/credential_api.py，ADR-026 第 7 条，2026-11-02）：带对话页发的一次性票交用户名
 # 和密码。第五张表，同一套信封与配对码身份；MR.ERP 的只读文件夹密钥也放行（没装 Express 的电脑也要能授权）。上面四张表逐字不变。
 LOGIN_METHODS = {'mrerp_login': 'pearnly_cowork.companion.credential_api.mrerp_login'}
-MACHINE_METHODS = {**METHODS, **FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS, **LOGIN_METHODS}
+# 代录 AI 接手的模型请求（companion/operator_api.py，2026-11-03）：电脑交 Messages API 请求体，服务端用自己的密钥转发
+# （`pearnly_core.express_operator.ai`）。第六张表，同一套信封与配对码身份；只读文件夹密钥不放行。上面五张表逐字不变。
+OPERATOR_METHODS = {'operator_ai': 'pearnly_cowork.companion.operator_api.operator_ai'}
+MACHINE_METHODS = {**METHODS, **FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS, **LOGIN_METHODS, **OPERATOR_METHODS}
 MACHINE_PATHS = {operation: '/api/method/' + method for operation, method in MACHINE_METHODS.items()}
 # MR.ERP 的只读文件夹密钥能调的：文件夹、按需请求、认电脑、授权 MR.ERP 登录（心跳 / 领任务 / 回执不行）。
 FOLDER_ONLY_ALLOWED = {**FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS, **LOGIN_METHODS}
@@ -55,7 +58,7 @@ def folder_only_allows(operation):
     ``MRERP_OPERATOR_ENABLED`` 关着时与以前一字不差：只放行文件夹、按需请求、认电脑、授权登录。"""
     return operation in FOLDER_ONLY_ALLOWED or (operator_contracts.MRERP_OPERATOR_ENABLED and operation in METHODS)
 if (len(MACHINE_METHODS) != len(METHODS) + len(FOLDER_METHODS) + len(REQUEST_METHODS) + len(DEVICE_METHODS)
-        + len(LOGIN_METHODS)
+        + len(LOGIN_METHODS) + len(OPERATOR_METHODS)
         or len(set(MACHINE_PATHS.values())) != len(MACHINE_PATHS)):
     raise RuntimeError('companion machine methods must not overlap')
 _AUTHORITY = object()

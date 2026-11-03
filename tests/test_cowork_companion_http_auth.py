@@ -15,7 +15,7 @@ SOURCE = Path(__file__).resolve().parents[1] / 'apps/pearnly_cowork/pearnly_cowo
 
 def pure_contract():
     tree = ast.parse(SOURCE.read_text())
-    names = {'METHOD', 'PATH', 'METHODS', 'PATHS', 'FOLDER_METHODS', 'REQUEST_METHODS', 'DEVICE_METHODS', 'LOGIN_METHODS', 'MACHINE_METHODS', 'FOLDER_ONLY_ALLOWED',
+    names = {'METHOD', 'PATH', 'METHODS', 'PATHS', 'FOLDER_METHODS', 'REQUEST_METHODS', 'DEVICE_METHODS', 'LOGIN_METHODS', 'OPERATOR_METHODS', 'MACHINE_METHODS', 'FOLDER_ONLY_ALLOWED',
              'MACHINE_PATHS', '_HEADER'}
     selected = [node for node in tree.body if
         isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in
@@ -128,13 +128,15 @@ class FolderMachineMethods(unittest.TestCase):
         requests, devices = self.contract['REQUEST_METHODS'], self.contract['DEVICE_METHODS']
         self.assertEqual(set(methods), {'heartbeat', 'lease', 'ack'})
         logins = self.contract['LOGIN_METHODS']
-        tables = (methods, folder, requests, devices, logins)
+        tables = (methods, folder, requests, devices, logins, self.contract['OPERATOR_METHODS'])
         # 五张表的操作名与方法互不重叠（ADR-021 加了认电脑那张，ADR-026 第 7 条加了 MR.ERP 登录授权）
         for index, table in enumerate(tables):
             for other in tables[index + 1:]:
                 self.assertFalse(set(table) & set(other))
                 self.assertFalse(set(table.values()) & set(other.values()))
-        self.assertEqual(self.contract['MACHINE_METHODS'], {**methods, **folder, **requests, **devices, **logins})
+        self.assertEqual(self.contract['OPERATOR_METHODS'], {'operator_ai': 'pearnly_cowork.companion.operator_api.operator_ai'})
+        self.assertEqual(self.contract['MACHINE_METHODS'], {**methods, **folder, **requests, **devices, **logins,
+                                                           **self.contract['OPERATOR_METHODS']})
         self.assertEqual(set(self.contract['PATHS'].values()) & {'/api/method/' + m for m in folder.values()}, set())
         self.assertEqual(len(set(self.contract['MACHINE_PATHS'].values())), sum(len(table) for table in tables))
 

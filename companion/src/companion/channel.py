@@ -27,6 +27,7 @@ PATHS = {
         "hello": _COWORK + "device_api.hello",
         "leave": _COWORK + "device_api.leave",
         "mrerp_login": _COWORK + "credential_api.mrerp_login",
+        "operator_ai": _COWORK + "operator_api.operator_ai",
     },
     CORE: {
         "heartbeat": _CORE + "heartbeat",
@@ -36,6 +37,7 @@ PATHS = {
         "request_complete": _CORE + "complete_request",
         "leave": _CORE + "leave",
         "mrerp_login": _CORE + "mrerp_login",
+        "operator_ai": _CORE + "operator_ai",
     },
 }
 

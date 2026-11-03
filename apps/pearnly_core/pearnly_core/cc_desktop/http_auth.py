@@ -26,7 +26,9 @@ METHODS = {"heartbeat": _PREFIX + "heartbeat", "lease": _PREFIX + "lease", "ack"
            "request_next": _PREFIX + "next_request", "request_complete": _PREFIX + "complete_request",
            "leave": _PREFIX + "leave",
            # MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7 条）：带对话页发的一次性票交用户名和密码（`machine.mrerp_login`）
-           "mrerp_login": _PREFIX + "mrerp_login"}
+           "mrerp_login": _PREFIX + "mrerp_login",
+           # 代录 AI 接手的模型请求（`express_operator.ai`，2026-11-03）：电脑交 Messages API 请求体，服务端用自己的密钥转发
+           "operator_ai": _PREFIX + "operator_ai"}
 PATHS = {operation: "/api/method/" + method for operation, method in METHODS.items()}
 _HEADER = re.compile(r"(?i:Bearer) (pcc_[A-Za-z0-9._-]+)")
 _AUTHORITY = object()
