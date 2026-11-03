@@ -43,10 +43,8 @@ apps/pearnly_cowork/pearnly_cowork/companies/ledger.py
 apps/pearnly_cowork/pearnly_cowork/companies/months.py
 apps/pearnly_cowork/pearnly_cowork/companies/notes.py
 apps/pearnly_cowork/pearnly_cowork/companies/rules.py
-apps/pearnly_cowork/pearnly_cowork/companion/__init__.py
 apps/pearnly_cowork/pearnly_cowork/companion/credentials.py
 apps/pearnly_cowork/pearnly_cowork/companion/devices.py
-apps/pearnly_cowork/pearnly_cowork/companion/http_auth.py
 apps/pearnly_cowork/pearnly_cowork/companion/request_access.py
 apps/pearnly_cowork/pearnly_cowork/companion/request_service.py
 apps/pearnly_cowork/pearnly_cowork/companion/request_store.py
