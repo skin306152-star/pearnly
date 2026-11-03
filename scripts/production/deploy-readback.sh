@@ -8,6 +8,8 @@
 #     进维护那一分钟定时任务被拒的「Scheduled jobs can't run in maintenance mode」单独列出、不算问题（10-25 人工回读同样判定）；
 #     每个租户另列页面报错回传（Error Log「Browser error」）：部署后的条数（算在 Error Log 里、非 0 即问题）和部署前 24 小时的条数（对照）；
 #   - mrerp / erpcowork / ris 的 /api/method/ping 200，fatcc.com 首页 200（它的 ping 本来就 403；刚换完基础层会 502 十几秒，每个域名最多重试 6 次）；
+#   - 配了 LIFF 的每个站点（站点配置 pearnly_line_liff_id）：LIFF 落地地址是规定的（ERP / Cowork 站点根，DMS /liff/dms-booking），
+#     ERP / Cowork 从 LINE 打开的入口不登录走一遍不出 404（check-liff-endpoints.py，只读、不要密钥；11-03 子路径落地 404 事故）；
 #   - mariadb 内存只用 docker stats 看，不 exec 进数据库容器。
 # 这一批特有的表、字段、补丁检查不在这里，按发布记录另做。退出码：0 全部通过，1 有问题（逐项打印）。
 set -u
@@ -41,14 +43,17 @@ list_sites='import json, os
 for s in sorted(os.listdir("sites")):
     path = os.path.join("sites", s, "site_config.json")
     if os.path.isfile(path):
-        print(s, json.load(open(path)).get("maintenance_mode", 0))'
+        conf = json.load(open(path))
+        print(s, conf.get("maintenance_mode", 0), str(conf.get("pearnly_line_liff_id") or "").strip() or "-")'
 maintenance_reject="Scheduled jobs can''t run in maintenance mode"
+liff_rows=""
 for product in erp cowork dms; do
   web=pearnly-production-$product-web-1
   sites=$(docker exec -w /home/frappe/frappe-bench "$web" python3 -c "$list_sites" </dev/null) || { problem "$web: cannot list sites"; continue; }
   [[ -n "$sites" ]] || problem "$web: no sites"
-  while read -r site maintenance; do
+  while read -r site maintenance liff; do
     [[ -n "$site" ]] || continue
+    [[ -n "$liff" && "$liff" != - ]] && liff_rows+="$product $site $liff"$'\n'
     [[ "$maintenance" == 0 ]] || problem "$site maintenance_mode=$maintenance"
     zone=$(docker exec -w /home/frappe/frappe-bench "$web" bench --site "$site" mariadb -N -e \
       "select defvalue from tabDefaultValue where parent='__default' and defkey='time_zone'" </dev/null 2>/dev/null | tail -1)
@@ -84,6 +89,14 @@ for url in https://mrerp.pearnly.com/api/method/ping https://erpcowork.pearnly.c
   echo "  $url $code"
   [[ "$code" == 200 ]] || problem "$url answered $code"
 done
+
+echo "-- LINE: LIFF endpoints and entries"
+if [[ -z "$liff_rows" ]]; then
+  problem "no site has pearnly_line_liff_id"
+else
+  printf '%s' "$liff_rows" | python3 "$ROOT/scripts/production/check-liff-endpoints.py" --stdin \
+    || problem "LIFF endpoint or LINE entry check failed (lines above)"
+fi
 
 echo "-- mariadb memory (docker stats)"
 docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' | grep -i mariadb | sed 's/^/  /'

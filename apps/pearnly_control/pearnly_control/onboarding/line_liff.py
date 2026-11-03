@@ -6,15 +6,21 @@
 「配 LINE 渠道」都按它对齐一次；站点上的 `check_liff`（infrastructure/production/site-step.py）再读回核对同一口径。
 
 规定：
-- Size Full；Endpoint：DMS 是 `/liff/dms-booking`（改单编辑器直接打开它），ERP / Cowork 是站点根
-  （`liff.init` 要求页面在落地地址之下，盘点页 `/stocktake`、Cowork 页面都在根下）；
+- Size Full；Endpoint：DMS 是 `/liff/dms-booking`（改单编辑器直接打开它），ERP / Cowork 必须是站点根
+  `https://<站点>/`，子路径一律算用不了（见下面 11-03 事故）；
 - Scope：openid（页面只用 `liff.getIDToken()` 证明是谁，代码里没有读 profile）；DMS 再加 chat_message.write
   （扫身份证的结果走免费回复）；
 - 加好友提示关，扫码关。
 
-只改"用不了"的：已有 LIFF 多勾的权限、ERP / Cowork 落在站点下某个子路径（10-05 生产 erpcowork 是
-`/desk/pearnly-intake`、mrerp 是 `/stocktake`）都照旧，和站点上 `check_liff` 的认定一致；缺必需权限、地址不在本站、
-尺寸不是 Full、开了加好友提示才整条改回规定。
+只改"用不了"的：已有 LIFF 多勾的权限照旧；缺必需权限、地址不是规定的落地地址（ERP / Cowork 不是站点根，
+DMS 不是 `/liff/dms-booking`）、尺寸不是 Full、开了加好友提示才整条改回规定。和站点上 `check_liff`、
+部署回读 `scripts/production/check-liff-endpoints.py` 同一口径。
+
+2026-11-03 事故（为什么子路径不行）：以前 ERP / Cowork 落在本站任何子路径都算能用，10-05 生产 mrerp 的
+`/stocktake`、erpcowork 的 `/desk/pearnly-intake` 就这样被保留下来。10-23 起所有 LINE 链接先经本站 LIFF 再打开
+（`pearnly_core/account/line_login.py` 的 `liff_hop`，`https://liff.line.me/<id>/api/method/…`），LINE 把这段路径
+接在落地地址后面，拼成 `/stocktake/api/method/…` 这类地址，两个正式租户在 LINE 里点卡片「แก้ไข」全是 404。
+落地地址是站点根，拼出来的才是本站真实地址。
 
 哪个算"这个部署的 LIFF"：渠道上已记的 LIFF ID 优先（10-05 之前手建的租户），其次按落地地址找，都没有才新建。
 一个 LINE Login 频道最多 30 个 LIFF（LINE 的硬限制），满了如实报错，不删别人的。
@@ -67,10 +73,9 @@ def _same_url(a, b) -> bool:
 
 
 def _usable_url(url, site: str, product: str) -> bool:
-    """与站点开户步骤 `check_liff` 同一口径：DMS 一字不差，ERP / Cowork 在本站下面即可。"""
-    if product == "dms":
-        return _same_url(url, endpoint(site, product))
-    return (str(url or "").rstrip("/") + "/").startswith(f"https://{site}/")
+    """与站点开户步骤 `check_liff` 同一口径：只认规定的落地地址（ERP / Cowork 站点根，DMS 改单编辑器），
+    末尾斜杠可有可无；子路径、查询串都算用不了（11-03 事故，见文件头）。"""
+    return _same_url(url, endpoint(site, product))
 
 
 def _drifted(app: dict, site: str, product: str, want: dict) -> bool:

@@ -136,20 +136,25 @@ class CheckLiff(unittest.TestCase):
             step.check_liff(site, group, liff, secret)
         return line
 
-    def test_erp_and_cowork_endpoints_must_be_under_the_site(self):
-        for url in ("https://acme-cowork.pearnly.com/", "https://acme-cowork.pearnly.com",
-                    "https://acme-cowork.pearnly.com/stocktake"):
-            line = self.check("cowork", url)
-        self.assertEqual(line.calls[-1][2], "Bearer short-lived")
-        for url in ("https://acme-cowork.pearnly/liff/dms-booking", "https://other.pearnly.com/",
-                    "https://acme-cowork.pearnly.com.evil.test/", ""):
-            with self.assertRaisesRegex(step.StepHint, "Endpoint URL"):
-                self.check("cowork", url)
+    def test_erp_and_cowork_endpoints_must_be_the_site_root(self):
+        for group in ("erp", "cowork"):
+            for url in ("https://acme-cowork.pearnly.com/", "https://acme-cowork.pearnly.com"):
+                line = self.check(group, url)
+            self.assertEqual(line.calls[-1][2], "Bearer short-lived")
+            # 2026-11-03：子路径落地时 LINE 拼出 /stocktake/api/method/… 404，子路径同样要报。
+            for url in ("https://acme-cowork.pearnly.com/stocktake", "https://acme-cowork.pearnly.com/desk/pearnly-intake",
+                        "https://acme-cowork.pearnly.com/?x=1", "https://acme-cowork.pearnly.com/liff/dms-booking",
+                        "https://acme-cowork.pearnly/liff/dms-booking", "https://other.pearnly.com/",
+                        "https://acme-cowork.pearnly.com.evil.test/", ""):
+                with self.subTest(group=group, url=url):
+                    with self.assertRaisesRegex(step.StepHint, "应为 https://acme-cowork.pearnly.com/"):
+                        self.check(group, url)
 
     def test_dms_endpoint_must_be_the_booking_editor(self):
         self.check("dms", "https://acme-cowork.pearnly.com/liff/dms-booking")
-        with self.assertRaisesRegex(step.StepHint, "/liff/dms-booking"):
-            self.check("dms", "https://acme-cowork.pearnly.com/")
+        for url in ("https://acme-cowork.pearnly.com/", "https://acme-cowork.pearnly.com/liff/dms-booking/edit"):
+            with self.assertRaisesRegex(step.StepHint, "/liff/dms-booking"):
+                self.check("dms", url)
 
     def test_liff_outside_the_login_channel_is_reported(self):
         with self.assertRaisesRegex(step.StepHint, "LIFF ID"):

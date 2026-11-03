@@ -148,7 +148,7 @@ class RunnerSelfCheck(unittest.TestCase):
 
 class Readback(unittest.TestCase):
     def run_readback(self, containers=None, maintenance=0, errors=0, codes=None, record=IMAGE, rejected='NULL', browser='NULL',
-                     browser_before=0):
+                     browser_before=0, liff='2010411313-aaaa1111', liff_exit=0, liff_seen=None):
         containers = containers or {
             'pearnly-production-erp-web-1': IMAGE, 'pearnly-production-erp-ocr-worker-1': IMAGE,
             'pearnly-production-mariadb-1': 'mariadb:11', 'pearnly-production-billing-web-1': IMAGE}
@@ -157,6 +157,11 @@ class Readback(unittest.TestCase):
             root = Path(folder)
             bin_dir, deploy = root / 'bin', root / 'deploy'
             bin_dir.mkdir(); deploy.mkdir()
+            # LIFF 检查本身另有离线测试（test-check-liff-endpoints.py）；这里换成假的，只看回读交给它什么、认不认它的结果。
+            (deploy / 'scripts/production').mkdir(parents=True)
+            (deploy / 'scripts/production/check-liff-endpoints.py').write_text(
+                f'import sys\nopen("{root}/liff-stdin", "w").write(sys.stdin.read() + " ".join(sys.argv[1:]))\n'
+                f'print("  fake liff check")\nsys.exit({liff_exit})\n')
             for product in ('erp', 'cowork', 'dms'):
                 (deploy / f'active-image-{product}.json').write_text(json.dumps([record]) + '\n')
             (root / 'containers.json').write_text(json.dumps(containers))
@@ -171,7 +176,8 @@ elif args[0] == "inspect" and "Config.Image" in args[2]:
 elif args[0] == "inspect":
     print("PATH=/usr/bin\\nFRAPPE_BACKGROUND_WORKERS_NOFORK=1")
 elif args[0] == "exec" and "python3" in args:
-    print("site-a.pearnly.com {maintenance}\\nsite-b.pearnly.com 0")
+    product = args[3].split("-")[2]
+    print(f"site-a-{{product}}.pearnly.com {maintenance} {liff}\\nsite-b-{{product}}.pearnly.com 0 -")
 elif args[0] == "exec" and "time_zone" in args[-1]:
     print("Asia/Bangkok")
 elif args[0] == "exec" and "sum(error" in args[-1]:
@@ -187,8 +193,12 @@ case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*) pri
 ''')
             env = dict(os.environ, PATH=f'{bin_dir}{os.pathsep}{os.environ["PATH"]}', PEARNLY_DEPLOY_ROOT=str(deploy),
                        PEARNLY_DEPLOY_PING_WAIT_SECONDS='0')
-            return subprocess.run(['bash', str(READBACK), IMAGE, '1761600000'], env=env, text=True,
-                                  capture_output=True, timeout=60)
+            result = subprocess.run(['bash', str(READBACK), IMAGE, '1761600000'], env=env, text=True,
+                                    capture_output=True, timeout=60)
+            if liff_seen is not None:
+                seen = root / 'liff-stdin'
+                liff_seen.append(seen.read_text() if seen.exists() else None)
+            return result
 
     def test_clean_readback_passes(self):
         result = self.run_readback()
@@ -208,7 +218,16 @@ case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*) pri
         self.assertIn('browser_errors_since=2 browser_errors_24h_before=5', result.stdout)
         clean = self.run_readback(browser_before=5)
         self.assertEqual(clean.returncode, 0, clean.stdout)
-        self.assertIn('site-a.pearnly.com maintenance=0 errors_since=0 maintenance_rejected_jobs=0 browser_errors_since=0', clean.stdout)
+        self.assertIn('site-a-erp.pearnly.com maintenance=0 errors_since=0 maintenance_rejected_jobs=0 browser_errors_since=0', clean.stdout)
+
+    def test_liff_check_gets_every_site_with_a_liff_and_its_product(self):
+        seen = []
+        result = self.run_readback(liff_seen=seen)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('-- LINE: LIFF endpoints and entries', result.stdout)
+        self.assertEqual(seen, ['erp site-a-erp.pearnly.com 2010411313-aaaa1111\n'
+                                'cowork site-a-cowork.pearnly.com 2010411313-aaaa1111\n'
+                                'dms site-a-dms.pearnly.com 2010411313-aaaa1111\n--stdin'])
 
     def test_each_problem_is_flagged(self):
         cases = {
@@ -217,6 +236,8 @@ case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*) pri
             'maintenance': dict(maintenance=1),
             'errors': dict(errors=3),
             'ping': dict(codes={'https://fatcc.com/': 502}),
+            'liff endpoint or entry': dict(liff_exit=1),
+            'no site has a liff': dict(liff='-'),
         }
         for name, kwargs in cases.items():
             with self.subTest(case=name):

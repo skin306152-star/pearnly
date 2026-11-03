@@ -109,9 +109,9 @@ class Ensure(unittest.TestCase):
         self.assertEqual(line.writes(), [("PUT", f"{CHANNEL}-old", liff.desired(SITE, "erp"))])
 
     def test_working_hand_made_liffs_are_left_as_they_are(self):
-        # 10-05 生产现状：mrerp 落在 /stocktake 多勾了 profile；erpcowork 落在 /desk/pearnly-intake；DMS 两站正确。
-        cases = (("erp", {"type": "full", "url": "https://acme-erp.pearnly.com/stocktake"}, ["openid", "profile"]),
-                 ("cowork", {"type": "full", "url": "https://acme-erp.pearnly.com/desk/pearnly-intake"}, ["openid"]),
+        # 多勾的权限不算用不了：mrerp 手建时多勾了 profile；落地地址末尾斜杠可有可无。
+        cases = (("erp", {"type": "full", "url": "https://acme-erp.pearnly.com/"}, ["openid", "profile"]),
+                 ("cowork", {"type": "full", "url": "https://acme-erp.pearnly.com"}, ["openid"]),
                  ("dms", {"type": "full", "url": "https://acme-erp.pearnly.com/liff/dms-booking"},
                   ["chat_message.write", "openid"]))
         for product, view, scope in cases:
@@ -119,6 +119,27 @@ class Ensure(unittest.TestCase):
                 line = FakeLine([{"liffId": f"{CHANNEL}-old", "view": view, "scope": scope, "botPrompt": "none"}])
                 self.assertEqual(self.ensure(line, product=product, liff_id=f"{CHANNEL}-old"), f"{CHANNEL}-old")
                 self.assertEqual(line.writes(), [])
+
+    def test_erp_and_cowork_liffs_on_a_sub_path_are_moved_back_to_the_site_root(self):
+        # 2026-11-03 事故：mrerp 落在 /stocktake、erpcowork 落在 /desk/pearnly-intake，LINE 把 LIFF 深链的路径
+        # 接在后面拼出 /stocktake/api/method/… 全是 404。子路径一律改回站点根。
+        for product, path in (("erp", "/stocktake"), ("cowork", "/desk/pearnly-intake"), ("erp", "/?x=1"),
+                              ("cowork", "/desk"), ("erp", "/liff/dms-booking")):
+            with self.subTest(product=product, path=path):
+                line = FakeLine([{"liffId": f"{CHANNEL}-old", "scope": ["openid", "profile"], "botPrompt": "none",
+                                  "view": {"type": "full", "url": f"https://{SITE}{path}"}}])
+                self.assertEqual(self.ensure(line, product=product, liff_id=f"{CHANNEL}-old"), f"{CHANNEL}-old")
+                self.assertEqual(line.writes(), [("PUT", f"{CHANNEL}-old", liff.desired(SITE, product))])
+                self.assertEqual(line.apps[0]["view"]["url"], f"https://{SITE}/")
+
+    def test_dms_liff_off_the_booking_editor_is_corrected(self):
+        for path in ("/", "/liff", "/liff/dms-booking/edit"):
+            with self.subTest(path=path):
+                line = FakeLine([{"liffId": f"{CHANNEL}-old", "scope": ["openid", "chat_message.write"],
+                                  "botPrompt": "none", "view": {"type": "full", "url": f"https://{SITE}{path}"}}])
+                self.ensure(line, product="dms", liff_id=f"{CHANNEL}-old")
+                self.assertEqual(line.writes(), [("PUT", f"{CHANNEL}-old", liff.desired(SITE, "dms"))])
+                self.assertEqual(line.apps[0]["view"]["url"], f"https://{SITE}/liff/dms-booking")
 
     def test_dms_liff_missing_the_free_reply_scope_is_corrected(self):
         line = FakeLine([{"liffId": f"{CHANNEL}-old", "view": {"type": "full", "url": "https://acme-erp.pearnly.com/liff/dms-booking"},

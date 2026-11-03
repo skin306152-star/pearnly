@@ -1390,9 +1390,9 @@ id = "control.line.channel"
 product = "控制面"
 where = "LINE 频道保存 / 开户 / 接入指引页"
 steps = "后台保存 LINE 频道；开户；pearnly-line-guide；部署 site-step"
-expect = "webhook = https://<域名>/api/method/pearnly_core.line.webhook"
+expect = "webhook = https://<域名>/api/method/pearnly_core.line.webhook；LIFF 落地地址 ERP / Cowork 是站点根、DMS 是 /liff/dms-booking"
 check = "offline"
-files = ["apps/pearnly_control/pearnly_control/provisioning.py", "apps/pearnly_control/pearnly_control/pearnly_control/doctype/pearnly_line_channel/pearnly_line_channel.py", "apps/pearnly_control/pearnly_control/pearnly_control/page/pearnly_line_guide/pearnly_line_guide.js", "infrastructure/production/site-step.py", "apps/pearnly_control/pearnly_control/onboarding/line_ids.py"]
+files = ["apps/pearnly_control/pearnly_control/provisioning.py", "apps/pearnly_control/pearnly_control/pearnly_control/doctype/pearnly_line_channel/pearnly_line_channel.py", "apps/pearnly_control/pearnly_control/pearnly_control/page/pearnly_line_guide/pearnly_line_guide.js", "infrastructure/production/site-step.py", "apps/pearnly_control/pearnly_control/onboarding/line_ids.py", "apps/pearnly_control/pearnly_control/onboarding/line_liff.py"]
 
 [[entry]]
 id = "erp.line.webhook-sim"

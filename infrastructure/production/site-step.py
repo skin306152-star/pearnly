@@ -17,7 +17,9 @@ import urllib.request
 LINE_WEBHOOK_API = "https://api.line.me/v2/bot/channel/webhook/"
 # 开户单上要让人看得懂的失败原因：执行器只把这一行带回控制面，其余输出留在服务器受限日志。
 STEP_HINT = "PEARNLY_STEP_HINT "
-# DMS 改单编辑器直接打开 LIFF 落地地址，必须一字不差；ERP / Cowork 只要在本站下面（填站点根）。
+# LIFF 落地地址只认这一个（末尾斜杠可有可无）：DMS 改单编辑器直接打开它；ERP / Cowork 是站点根（"/"），
+# 子路径不行——LINE 把 LIFF 深链的路径接在落地地址后面，2026-11-03 mrerp 的 `/stocktake` 拼出
+# `/stocktake/api/method/…` 全是 404。与 `pearnly_control.onboarding.line_liff` 同一口径。
 LIFF_PATHS = {"dms": "/liff/dms-booking"}
 
 
@@ -160,8 +162,9 @@ def channel_token(p):
 
 
 def check_liff(site, group, liff_id, secret):
-    """LIFF 落地地址必须指向本站。LIFF 由控制面开户时建好（`pearnly_control.onboarding.line_liff`），
-    这里在站点上再读回核对一次（2026-10-04 手建时查到 testcowork 少了 `.com`、testerp 填成了 DMS 的地址）。
+    """LIFF 落地地址必须是规定的那一个（ERP / Cowork 站点根，DMS 改单编辑器，见 `LIFF_PATHS`）。LIFF 由控制面
+    开户时建好（`pearnly_control.onboarding.line_liff`），这里在站点上再读回核对一次（2026-10-04 手建时查到
+    testcowork 少了 `.com`、testerp 填成了 DMS 的地址；2026-11-03 子路径落地拼出 404）。
     用 LINE Login 频道的临时令牌只读。"""
     from pearnly_core.account.line_login_contract import login_channel_of
 
@@ -176,12 +179,8 @@ def check_liff(site, group, liff_id, secret):
     if not app:
         raise StepHint(f"LIFF {liff_id} 不在 LINE Login 频道 {channel} 下：开户单上的 LIFF ID 填错了")
     url = str((app.get("view") or {}).get("url") or "")
-    root = "https://" + site + "/"
-    if group in LIFF_PATHS:
-        expected, ok = "https://" + site + LIFF_PATHS[group], url == "https://" + site + LIFF_PATHS[group]
-    else:
-        expected, ok = root, (url.rstrip("/") + "/").startswith(root)
-    if not ok:
+    expected = "https://" + site + LIFF_PATHS.get(group, "/")
+    if url.rstrip("/") != expected.rstrip("/"):
         raise StepHint(f"LIFF {liff_id} 的 Endpoint URL 是 {url or '空'}，应为 {expected}：LINE Developers → "
                        f"LINE Login 频道 {channel} → LIFF 里改好后重试这一步")
 
