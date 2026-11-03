@@ -1,13 +1,15 @@
-// 「实操」的侧栏：同对话侧栏一套（components/assistant-ui/thread-list.tsx 的 SidebarGroups、RowShell、RowMenu、BulkMenu、InlineRename、
-// ListMore，projects.tsx 的 CompanyHeaderView），只是数据换成任务（站点的任务记录，tasks.ts）：
-//   顶部「新建任务」（Ctrl / ⌘ + N）；下面按公司分组：已置顶 → 各公司（组头 ＋ = 在这家新建任务，月份默认上个月）；
+// 「实操」侧栏的列表：同对话侧栏一套（components/assistant-ui/thread-list.tsx 的 SidebarGroups、RowShell、RowMenu、BulkMenu、InlineRename、
+// ListMore，projects.tsx 的 CompanyHeaderView），只是数据换成任务（站点的任务记录，tasks.ts）。上面的「新建任务」（Ctrl / ⌘ + N）、
+// 待处理、公司是两种模式共用的导航（assistant.tsx 的 SidebarNav）。
+//   按公司分组：已置顶 → 各公司（组头 ＋ = 在这家新建任务，月份默认上个月）。公司组同对话侧栏（主会话 11-03）：对话侧栏列着的公司
+//   （我有对话的）没有任务也出组头（「显示 → 空分组」关掉时不出，同对话），加上有任务的公司；
 //   拖动（共用拖动）只在本公司组里排先后或拖进已置顶；置顶 P、重命名 R、删除 D（右键 / 行尾「···」/ 手机长按，多选整批）；
 //   就地改名；删除先问一次「删除任务？」；搜索（标题或公司名）；键盘同对话侧栏（sidebar-keys.ts 按同样的 data-slot / data-roving 找行）。
 // 一行同对话行：只有标题，行尾只有对话行那两种标记（在跑脉冲点、没看过的蓝点）；进度、要你处理的只在主栏与右侧栏。
 // 手排顺序、组的折叠是实操自己的一份（prefs.ts，同步进服务端偏好的 operator 份），任务号不进对话的手排顺序。
 
 import { type ComponentPropsWithoutRef, createContext, type FC, forwardRef, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { CompanyHeaderView, focusComposer, SidebarErrorLine } from "@/components/assistant-ui/projects";
+import { CompanyHeaderView, SidebarErrorLine } from "@/components/assistant-ui/projects";
 import { GroupNew } from "@/components/assistant-ui/sidebar-group";
 import {
   ActivityMark,
@@ -17,7 +19,6 @@ import {
   InlineRename,
   type ItemsProps,
   ListMore,
-  NavNewLabel,
   type PinScope,
   type RowDrag,
   RowMenu,
@@ -31,31 +32,34 @@ import { askDelete } from "@/components/delete-chats";
 import { Marquee } from "@/components/ui/marquee";
 import { useLongPressMenu } from "@/hooks/use-long-press";
 import { op, t } from "@/i18n";
-import { lastMonth, monthLabel } from "@/lib/companies";
+import { lastMonth } from "@/lib/companies";
 import { shownError } from "@/lib/frappe";
 import { type Activity, groupActivity } from "@/lib/managed-agents/activity";
-import { FIRST_SHOWN, type ProjectRow, SHOW_MORE_STEP } from "@/lib/managed-agents/projects";
+import { FIRST_SHOWN, type ProjectRow, SHOW_MORE_STEP, useProjects } from "@/lib/managed-agents/projects";
 import { companySections, groupStamp, type SidebarRow } from "@/lib/managed-agents/sidebar-groups";
 import type { LiftSpot, StarItem } from "@/lib/managed-agents/sidebar-order";
-import { useModePlace } from "@/lib/nav";
+import { useSidebarView } from "@/lib/managed-agents/sidebar-view";
+import { openOperator, useModePlace, useView } from "@/lib/nav";
 import { useProfile } from "@/lib/profile";
 import { clearSelection, rowOrder, runInOrder, useSidebarSelection } from "@/lib/sidebar-keys";
 import { type Operator, useOperator } from "./controller";
 import { siteSeconds } from "./live-source";
 import { bindOperatorUser, taskFold, taskOrder } from "./prefs";
 import { effectiveStatus, loadTasks, markSeen, noteLive, overrideStar, setTasksError, taskActivity, upsertTask, useSeen, useTasks } from "./tasks";
+import { titleOf } from "./task-title";
 import type { OperatorSource, TaskRecord } from "./types";
 import { withReport } from "@/lib/caught";
 
-/** 标题：公司 · 月份（没有月份只写公司）。 */
-export const taskTitle = (company: string, period?: string) => [company, period ? monthLabel(period) : ""].filter(Boolean).join(" · ");
+export { taskTitle, titleOf } from "./task-title";
 
-/** 任务显示的名字：改过名的用名字，否则「公司 · 月份」。 */
-export const titleOf = (task: Pick<TaskRecord, "title" | "company" | "company_title" | "period">) =>
-  task.title.trim() || taskTitle(task.company_title || task.company, task.period);
-
-/** 侧栏的行（同对话侧栏的 SidebarRow：index 是列表里的位置，group 是公司，key 是任务号）与公司组（任务里出现过的公司）。 */
-export function taskSidebar(tasks: readonly TaskRecord[], stars: Readonly<Record<string, boolean>> = {}, pinning: ReadonlySet<string> = new Set()) {
+/** 侧栏的行（同对话侧栏的 SidebarRow：index 是列表里的位置，group 是公司，key 是任务号）与公司组：对话侧栏的公司（known，没有任务
+ *  也出组头）在前，加上任务里出现过、对话侧栏没有的公司。 */
+export function taskSidebar(
+  tasks: readonly TaskRecord[],
+  stars: Readonly<Record<string, boolean>> = {},
+  pinning: ReadonlySet<string> = new Set(),
+  known: readonly ProjectRow[] = [],
+) {
   const rows: SidebarRow[] = tasks.map((task, index) => ({
     index,
     title: titleOf(task),
@@ -66,7 +70,7 @@ export function taskSidebar(tasks: readonly TaskRecord[], stars: Readonly<Record
     created: siteSeconds(task.creation) * 1000 || undefined,
     key: task.name,
   }));
-  const projects: ProjectRow[] = [];
+  const projects: ProjectRow[] = known.map((project) => ({ id: project.id, title: project.title, subtitle: project.subtitle, last_active: project.last_active }));
   for (const task of tasks) {
     if (task.company && !projects.some((p) => p.id === task.company)) projects.push({ id: task.company, title: task.company_title || task.company });
   }
@@ -133,6 +137,9 @@ export const OperatorSidebar: FC<{ search?: string; onPick?: () => void }> = ({ 
   const collapsed = taskFold.useSidebarFold((s) => s.collapsed);
   const [pinning, setPinning] = useState<ReadonlySet<string>>(() => new Set());
   const [shown, setShown] = useState<Record<string, number>>({});
+  const known = useProjects((s) => s.projects);
+  const empty = useSidebarView().empty;
+  const { view, setView } = useView();
   const query = search.trim();
 
   // 这台电脑上在跑的进度（桥）：行尾在跑的标记
@@ -166,26 +173,27 @@ export const OperatorSidebar: FC<{ search?: string; onPick?: () => void }> = ({ 
   }, [loaded, tasks, order.pinned, order.groups, pinning]);
   useEffect(() => {
     if (!loaded || next !== null) return;
-    const known = new Set(tasks.map((task) => task.company));
-    const gone = Object.keys(order.groups).filter((group) => group && !known.has(group));
+    const listed = new Set([...tasks.map((task) => task.company), ...known.map((project) => project.id)]);
+    const gone = Object.keys(order.groups).filter((group) => group && !listed.has(group));
     if (gone.length) taskOrder.forgetGroups(gone);
-  }, [loaded, next, tasks, order.groups]);
+  }, [loaded, next, tasks, known, order.groups]);
   const liftTick = taskOrder.useLifts((s) => s.tick);
   const spotRef = useRef<(key: string) => LiftSpot>(() => null);
   useEffect(() => taskOrder.applyLifts(spotRef.current), [liftTick, tasks, order.groups, pinning, stars]);
 
   const ids = useMemo(() => tasks.map((task) => task.name), [tasks]);
   const { rows, sections } = useMemo(() => {
-    const { rows, projects } = taskSidebar(tasks, stars, pinning);
+    const { rows, projects } = taskSidebar(tasks, stars, pinning, known);
     const sections = companySections(rows, projects, {
       query,
       shown,
+      empty,
       companyOrder: order.companies,
       pinnedOrder: order.pinned,
       groupOrders: order.groups,
     });
     return { rows, sections };
-  }, [tasks, stars, pinning, query, shown, order]);
+  }, [tasks, stars, pinning, known, empty, query, shown, order]);
   spotRef.current = (key) => {
     const row = rows.find((entry) => entry.key === key);
     if (!row) return null;
@@ -208,15 +216,17 @@ export const OperatorSidebar: FC<{ search?: string; onPick?: () => void }> = ({ 
   }, [tasks, stars, pinning, live, seen, o.id]);
 
   // 动作：一份（行、组头、菜单都是记住的，拿最新的 Operator 做）
-  const latest = useRef<{ o: Operator; data: ReadonlyMap<string, RowData>; onPick?: () => void }>({ o, data, onPick });
-  latest.current = { o, data, onPick };
+  // 看着公司、待处理页（两种模式共有）时点了任务行、组头 ＋：主栏回到任务页
+  const latest = useRef<{ o: Operator; data: ReadonlyMap<string, RowData>; onPick?: () => void; view: typeof view; setView: typeof setView }>({ o, data, onPick, view, setView });
+  latest.current = { o, data, onPick, view, setView };
   const actions = useMemo<Actions>(
     () => ({
       open(name) {
-        latest.current.o.select(name);
+        openOperator(name, latest.current.view, latest.current.setView);
         latest.current.onPick?.();
       },
       newIn(project) {
+        if (latest.current.view !== "operator") latest.current.setView("operator");
         latest.current.o.create({ company: project.id, company_title: project.title, period: lastMonth() });
         latest.current.onPick?.();
       },
@@ -262,20 +272,6 @@ export const OperatorSidebar: FC<{ search?: string; onPick?: () => void }> = ({ 
 
   return (
     <nav className="flex min-w-0 flex-col gap-(--cc-row-gap)" aria-label={op.tasks} data-slot="cc-operator-sidebar">
-      <button
-        type="button"
-        className="cc-nav-item"
-        data-slot="cc-operator-new"
-        data-roving=""
-        title={op.newTask}
-        data-active={!o.id || undefined}
-        onClick={() => {
-          actions.open("");
-          focusComposer();
-        }}
-      >
-        <NavNewLabel label={op.newTask} />
-      </button>
       <div data-slot="aui_thread-list-root" className="flex flex-col gap-(--cc-space-2)">
         <div data-slot="aui_thread-list-items" className="flex flex-col gap-(--cc-space-2)">
           <ActionsContext.Provider value={actions}>
@@ -308,7 +304,8 @@ export const OperatorSidebar: FC<{ search?: string; onPick?: () => void }> = ({ 
               />
             </RowsContext.Provider>
           </ActionsContext.Provider>
-          {loaded && !tasks.length && !error && !query && <div className="cc-empty-line">{op.tasksEmpty}</div>}
+          {/* 没有任务、也没有公司组可出（对话侧栏也没有公司）时才写「暂无任务」 */}
+          {loaded && !tasks.length && !sections?.length && !error && !query && <div className="cc-empty-line">{op.tasksEmpty}</div>}
           <ListMore hasMore={next !== null} loading={loading && loaded} searching={!!query} onMore={more} />
         </div>
       </div>

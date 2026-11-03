@@ -336,7 +336,7 @@ import { createLiveSource, mergedSnapshot, POLL_MS, SENT_STATES, startedSnapshot
 import { useProjects } from "@/lib/managed-agents/projects";
 import { taskMeta } from "@/components/operator/model";
 import { reasonText } from "@/components/operator/model";
-import { modeForKey, modeOf, switchMode, useModePlace } from "@/lib/nav";
+import { modeForKey, noteViewMode, openOperator, ownMode, switchMode, useModePlace } from "@/lib/nav";
 import { op } from "@/i18n";
 
 const g = globalThis as any;
@@ -679,16 +679,36 @@ function runner(id: string, status: string, docs: any[], created = 1_800_000_000
   assert.equal(modeForKey(key("Digit2", { ctrlKey: false, metaKey: true })), "operator");
   assert.equal(modeForKey(key("Digit2", { shiftKey: false })), null);
   assert.equal(modeForKey(key("Digit3")), null);
-  assert.equal(modeOf("pending"), "chat");
+  // 模式自己的视图定模式；公司、待处理两种模式共有，不换模式（主会话 11-03）
+  assert.equal(ownMode("chat"), "chat");
+  assert.equal(ownMode("tasks"), "chat");
+  assert.equal(ownMode("operator"), "operator");
+  for (const shared of ["pending", "companies", "company"] as const) assert.equal(ownMode(shared), null);
   let view: any = "pending";
-  const setView = (v: any) => (view = v);
+  const setView = (v: any) => { noteViewMode(v); view = v; };
+  assert.equal(useModePlace.getState().mode, "chat");
   switchMode("operator", view, setView);
   assert.equal(view, "operator");
+  assert.equal(useModePlace.getState().mode, "operator");
   useModePlace.setState({ batch: "b1" });
+  // 代录模式下点侧栏共有的「公司」：留在代录模式
+  setView("companies");
+  assert.equal(useModePlace.getState().mode, "operator");
   switchMode("chat", view, setView);
   assert.equal(view, "pending");
+  assert.equal(useModePlace.getState().mode, "chat");
+  // 回到代录：回到它最后看的那一页（公司页），批次还记着
   switchMode("operator", view, setView);
+  assert.equal(view, "companies");
   assert.equal(useModePlace.getState().batch, "b1");
+  // 待处理页的「任务」一组从对话模式打开任务：记下对话视图，切到代录的那个任务
+  switchMode("chat", view, setView);
+  setView("pending");
+  openOperator("b2", view, setView);
+  assert.equal(view, "operator");
+  assert.equal(useModePlace.getState().mode, "operator");
+  assert.equal(useModePlace.getState().batch, "b2");
+  assert.equal(useModePlace.getState().chatView, "pending");
   g.done();
 })().catch((e) => { console.error(e); process.exit(1); });
 """
@@ -922,15 +942,14 @@ const button = (html: string, slot: string) => html.match(new RegExp(`<button[^>
   assert.match(fresh.match(/<button[^>]*aui-composer-send[^>]*>/)![0], /disabled=""/);
   assert.doesNotMatch(fresh, /cc-chin-computer/);
 
-  // ── 侧栏：同对话侧栏（新建任务 + 按公司分组的行），行只有标题，没有第二行和状态点 ────────────────────────────────
+  // ── 侧栏的列表：同对话侧栏（按公司分组的行；「新建任务」在两种模式共用的导航里），行只有标题，没有第二行和状态点 ──────────────
   const tasks = (await src.listTasks(0, 50)).tasks;
   // 静态渲染读的是各仓的初始值（zustand 的 getServerSnapshot）：把任务列表、正开着的任务放进初始值
   Object.assign(useTasks.getInitialState(), { rows: tasks, loaded: true, next: null });
   Object.assign(useModePlace.getInitialState(), { batch: made.name });
   setPrep(made.name, { prompt: "" });
   const side = render(value({ id: made.name, task: made }), h(OperatorSidebar));
-  assert.match(side, /data-slot="cc-operator-new"/);
-  assert.ok(side.includes(`>${op.newTask}<`));
+  assert.doesNotMatch(side, /data-slot="cc-operator-new"/);
   assert.match(side, /data-slot="aui_thread-list-root"/);
   const rowsHtml = [...side.matchAll(/<div[^>]*data-slot="aui_thread-list-item"[^>]*>.*?<\/button><button[^>]*aui_thread-list-item-more/g)];
   assert.ok(rowsHtml.length >= 3, side);
@@ -1063,7 +1082,7 @@ class SharedWithChatRules(unittest.TestCase):
     def test_sidebar_uses_the_chat_sidebar_layer(self):
         side = (SRC / "components/operator/operator-sidebar.tsx").read_text(encoding="utf-8")
         for name in ("SidebarGroups", "RowShell", "RowMenu", "BulkMenu", "InlineRename", "ListMore", "usePinRowDrag", "useGroupRowDrag",
-                     "ActivityMark", "NavNewLabel", "RowScopeContext"):
+                     "ActivityMark", "RowScopeContext"):
             self.assertIn(name, side.split('} from "@/components/assistant-ui/thread-list";', 1)[0], name)
         self.assertIn("CompanyHeaderView", side)
         self.assertIn('askDelete(ids, () => runInOrder(ids, (name) => latest.current.o.remove(name), report).then(clearSelection), {', side)
@@ -1087,7 +1106,25 @@ class SharedWithChatRules(unittest.TestCase):
         shell = (SRC / "assistant.tsx").read_text(encoding="utf-8")
         self.assertIn("<OperatorNav search={search} />", shell)
         self.assertIn("<OperatorNav search={search} onPick={close} />", shell)
-        self.assertIn('if (view === "operator") return;', shell.split("function useBackToChatOnPick(", 1)[1].split("\n}\n", 1)[0])
+        self.assertIn('if (mode === "operator") return;', shell.split("function useBackToChatOnPick(", 1)[1].split("\n}\n", 1)[0])
+        # 两种模式共用一个导航框架（主会话 11-03）：电脑侧栏、手机抽屉都先出 SidebarNav，下面才按模式换列表
+        self.assertIn("<SidebarNav />\n        {operator ? <OperatorNav search={search} /> : <ThreadList search={search} />}", shell)
+        self.assertIn("<SidebarNav mobile onPick={close} />\n        {operator ? <OperatorNav search={search} onPick={close} /> : <ThreadList search={search} />}", shell)
+        nav = shell.split("function SidebarNav(", 1)[1].split("\n}\n", 1)[0]
+        # 共有的在上（新建 → 待处理 → 公司），模式自己的（定时任务）在最下面：切模式时上面几行一格不挪
+        order = [nav.index(name) for name in ("<NewNav />", "<PendingNav ", "<CompanyNav ", "<ScheduledNav ")]
+        self.assertEqual(order, sorted(order))
+        scheduled = shell.split("function ScheduledNav(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn('if (!hasScheduledTasks(profile) || mode !== "chat") return null;', scheduled)
+        self.assertIn('return !!profile?.sections?.includes("tasks");', shell)   # 定时任务按产品声明，不按产品名
+        self.assertNotIn('profile?.product === "cowork"', shell.split("function hasScheduledTasks(", 1)[1].split("\n}\n", 1)[0])
+        pending = shell.split("function PendingNav(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn("usePendingCounts((s) => s.total) + useAttention((s) => s.total)", pending)
+        # 新建按模式；代录模式的 Ctrl / ⌘ + N 在外壳里接（看着公司、待处理页时也在），主栏里不再各接一份
+        self.assertIn('data-slot="cc-operator-new"', shell.split("function NewTaskNav(", 1)[1].split("\n}\n", 1)[0])
+        self.assertIn('openOperator("", view, setView);', shell.split("function useModeKeys(", 1)[1].split("\n}\n", 1)[0])
+        work = (SRC / "components/operator/workspace.tsx").read_text(encoding="utf-8")
+        self.assertNotIn('e.code !== "KeyN"', work)
         self.assertIn("{operator ? op.newTask : t(\"newChatPill\")}", shell)
         self.assertNotIn("{searching && !operator && (", shell)
 

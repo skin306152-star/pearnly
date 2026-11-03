@@ -5434,6 +5434,16 @@ class SetupSignalTests(unittest.TestCase):
                 mock.patch.object(config, "_", lambda text: "th:" + text):
             return shell.describe()
 
+    def test_describe_carries_the_declared_sections_for_the_first_screen(self):
+        # 主会话 11-03：侧栏首屏就要的入口（定时任务 tasks）按产品声明出，声明随外壳启动数据一起回，不等公司列表那次请求
+        _configure()
+        from pearnly_core.assistant import projects
+
+        with mock.patch.object(projects, "provider", lambda: types.SimpleNamespace(SECTIONS=("pending", "tasks"))):
+            self.assertEqual(self._describe()["sections"], ["pending", "tasks"])
+        with mock.patch.object(projects, "provider", lambda: None):
+            self.assertEqual(self._describe()["sections"], [])   # 没有公司分组的产品（DMS）
+
     def test_describe_says_why_cc_cannot_start_here(self):
         _configure()
         self.assertEqual(self._describe()["assistant_unavailable"], "")

@@ -22,6 +22,8 @@
         "status": "<点路径>",    # (company, doc_ids) -> [{"doc_id", "state": saved / queued / not_done / cancelled / unknown,
                                  # "docnum", "reason", "ref", "party"}]：这些单在站点上现在怎样（CC 重启后恢复出来的任务以它为准
                                  # 收尾；单号、对方给页面把单据写成「单号 · 对方」）
+        "pending": "<点路径>",   # 可选：() -> [doc_id]：本人此刻在产品自己的「待处理」里列着的单（代录的单据编号写法）。CC「待处理」
+                                 # 的代录一组按单据去重用（``tasks.attention``）：任务里没录成的单都已在那里列着的，任务不另算一条
     }
 回执照产品原来的写账回执走（Cowork 推送记录、ERP 单据的 express_state），``meta.operator`` 带作废单号、空单头、自动处理的事。
 
@@ -107,6 +109,12 @@ def status(company, doc_ids) -> list:
         return [{"doc_id": d, "state": "unknown", "docnum": "", "reason": ""} for d in doc_ids]
     rows = list(frappe.get_attr(path)(company, list(doc_ids)))
     return [{**row, "state": row.get("state") if row.get("state") in STATUS_STATES else "unknown"} for row in rows]
+
+
+def pending_documents() -> set:
+    """本人此刻在产品自己的「待处理」里列着的单（代录的单据编号写法）；产品没声明 = 空集（不去重）。"""
+    path = _path("pending")
+    return {str(doc_id) for doc_id in frappe.get_attr(path)() or ()} if path else set()
 
 
 def resolve(company, doc_id: str, entered: bool, docnum: str = "") -> dict:

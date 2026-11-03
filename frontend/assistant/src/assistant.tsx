@@ -50,12 +50,13 @@ import {
 import { Marquee } from "@/components/ui/marquee";
 import { DropdownMenu, SubMenu, menuOffset } from "@/components/ui/menu";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
-import { createLiveSource, ModeSwitch, OperatorMain, OperatorDock, OperatorProvider, OperatorSidebar, OperatorTitle, OperatorTools, useDockOpen, type OperatorSource } from "@/components/operator";
+import { createLiveSource, ModeSwitch, OperatorMain, OperatorDock, OperatorProvider, OperatorSidebar, OperatorTitle, OperatorTools, useAttention, useDockOpen, useOperator, watchAttention, type OperatorSource } from "@/components/operator";
 import { Thread } from "@/components/assistant-ui/thread";
-import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch, toggleStar } from "@/components/assistant-ui/thread-list";
+import { NavNewLabel, ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch, toggleStar } from "@/components/assistant-ui/thread-list";
 import {
   ComposerChin,
   ConversationCompany,
+  focusComposer,
   MobileCompanyItem,
   MobileChatTitle,
   MobileFilingItems,
@@ -92,7 +93,7 @@ import type { SessionFile } from "@/lib/managed-agents/api";
 import { onNotice, setActiveSession, setChatView } from "@/lib/managed-agents/activity";
 import { noticeReloader } from "@/lib/managed-agents/notice-reload";
 import { listen } from "@/lib/managed-agents/realtime";
-import { modeForKey, modeOf, switchMode, useDeepLinks, useModePlace, useNavHistory, useView, ViewContext, type Mode, type View } from "@/lib/nav";
+import { modeForKey, noteViewMode, openOperator, switchMode, useCurrentMode, useDeepLinks, useNavHistory, useView, ViewContext, type Mode, type View } from "@/lib/nav";
 import { OPEN_LAYERS } from "@/lib/layers";
 import { useBackLayer } from "@/lib/back-stack";
 import { useSidebarKeys } from "@/lib/sidebar-keys";
@@ -117,9 +118,9 @@ function firstName(profile: Profile | null): string {
   return (profile?.full_name || "").trim().split(/\s+/)[0] ?? "";
 }
 
-/** 有定时任务这个功能的产品（同 Pearnly 那边：目前只有 Cowork）。 */
+/** 有定时任务这个功能的产品（产品声明的分区 tasks，首屏 describe 就带回来，同 Pearnly 那边：目前只有 Cowork）。 */
 function hasScheduledTasks(profile: Profile | null): boolean {
-  return profile?.product === "cowork";
+  return !!profile?.sections?.includes("tasks");
 }
 
 /** 有代录 Express 的产品（站点声明了 pearnly_express_operator：Cowork 与 ERP）。 */
@@ -134,8 +135,9 @@ const OperatorContext = createContext<OperatorSource | null>(null);
 
 function useMode() {
   const { view, setView } = useView();
-  const change = useCallback((mode: Mode) => switchMode(mode, view, setView), [view, setView]);
-  return { mode: modeOf(view), change };
+  const mode = useCurrentMode();
+  const change = useCallback((next: Mode) => switchMode(next, view, setView), [view, setView]);
+  return { mode, change };
 }
 
 /** 左上角「直写 | 实操」两个图标（没有实操的产品不显示）。 */
@@ -146,23 +148,32 @@ function Modes({ className }: { className?: string }) {
   return <ModeSwitch value={mode} onChange={change} className={className} />;
 }
 
-/** Ctrl / ⌘ + Shift + 1 / 2 切模式（弹窗、菜单开着时不切）。 */
+/** Ctrl / ⌘ + Shift + 1 / 2 切模式；代录模式下 Ctrl / ⌘ + N 新建任务（看着公司、待处理页时也是）。弹窗、菜单开着时不管。 */
 function useModeKeys(enabled: boolean) {
-  const { change } = useMode();
+  const { mode: current, change } = useMode();
+  const { view, setView } = useView();
   useEffect(() => {
     if (!enabled) return;
     const onKey = (event: KeyboardEvent) => {
+      if (event.repeat || document.querySelector(OPEN_LAYERS)) return;
       const mode = modeForKey(event);
-      if (!mode || event.repeat || document.querySelector(OPEN_LAYERS)) return;
-      event.preventDefault();
-      change(mode);
+      if (mode) {
+        event.preventDefault();
+        change(mode);
+        return;
+      }
+      if (current === "operator" && (event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && event.code === "KeyN") {
+        event.preventDefault();
+        openOperator("", view, setView);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [enabled, change]);
+  }, [enabled, change, current, view, setView]);
 }
 
-/** 实操模式的侧栏：新建任务 + 任务列表（同对话侧栏一套：按公司分组、拖动、置顶、改名、删除、搜索、键盘）。onPick：手机上点了收起抽屉。 */
+/** 实操模式侧栏的列表：任务（同对话侧栏一套：按公司分组、拖动、置顶、改名、删除、搜索、键盘）；上面的导航两种模式共用（SidebarNav）。
+ *  onPick：手机上点了收起抽屉。 */
 function OperatorNav({ search, onPick }: { search: string; onPick?: () => void }) {
   const source = useContext(OperatorContext);
   if (!source) return null;
@@ -172,10 +183,12 @@ function OperatorNav({ search, onPick }: { search: string; onPick?: () => void }
 /** 实操的状态与动作（components/operator/controller.tsx）：侧栏、顶栏、主栏、右侧栏共用一份。 */
 function OperatorScope({ children }: { children: ReactNode }) {
   const source = useContext(OperatorContext);
-  const { view } = useView();
+  const mode = useCurrentMode();
+  // 「待处理」里的代录一组与它的数：两种模式都要（侧栏「待处理 N」）
+  useEffect(() => (source ? watchAttention() : undefined), [source]);
   if (!source) return <>{children}</>;
   return (
-    <OperatorProvider source={source} active={view === "operator"}>
+    <OperatorProvider source={source} active={mode === "operator"}>
       {children}
     </OperatorProvider>
   );
@@ -184,8 +197,8 @@ function OperatorScope({ children }: { children: ReactNode }) {
 /** 菜单「新建」：实操模式下是新建任务。 */
 function useNewInMode() {
   const source = useContext(OperatorContext);
-  const { view } = useView();
-  return source && view === "operator";
+  const mode = useCurrentMode();
+  return !!source && mode === "operator";
 }
 
 
@@ -354,7 +367,7 @@ function UserFooter() {
 // 菜单「☰」：同 Claude 桌面端的应用菜单，只放 CC 已有的动作
 function AppMenu() {
   const aui = useAui();
-  const { setView } = useView();
+  const { view, setView } = useView();
   const operator = !!useContext(OperatorContext);
   const inOperator = useNewInMode();
   const { change } = useMode();
@@ -371,7 +384,7 @@ function AppMenu() {
             className="cc-menu-item"
             data-slot={inOperator ? "cc-op-new-menu" : undefined}
             onSelect={() => {
-              if (inOperator) return useModePlace.setState({ batch: "" });
+              if (inOperator) return openOperator("", view, setView);
               setView("chat"); setDraft({}); aui.threads().switchToNewThread();
             }}
           >
@@ -487,50 +500,92 @@ function WindowButtons({ maximized, toggle }: { maximized: boolean; toggle: () =
 
 // ── 侧栏 ───────────────────────────────────────────────────────────────────────────────────────
 
-// 顶部导航（设计文档 3.3、4.2）：新建、待处理 N（有才出现）、定时任务、公司。只有当前页选中：只看某家的定时任务、待处理
-// （从公司组、主档页进去的）与主档页都不算，顶部那一行不选中。键盘上与组标题、对话行是同一组 roving 焦点（data-roving）
-function SidebarNav() {
-  const profile = useProfile();
+// 顶部导航（设计文档 3.3、4.2）：两种模式共用一个框架（主会话 11-03，照 Claude 桌面版）——先是两边共有的：新建（按模式：新对话 /
+// 新建任务）、待处理 N（有才出现，两种模式同一个数）、公司；再是模式自己的：定时任务（只对话模式）。共有的在上，切模式时一格都
+// 不挪。只有当前页选中：只看某家的定时任务、待处理（从公司组、主档页进去的）与主档页都不算，顶部那一行不选中。键盘上与组标题、
+// 对话行是同一组 roving 焦点（data-roving）。手机抽屉没有「新建」这一行（底部胶囊），其余同一顺序。onPick：手机上点了收起抽屉
+function SidebarNav({ mobile = false, onPick }: { mobile?: boolean; onPick?: () => void }) {
+  const items = (
+    <>
+      {!mobile && <NewNav />}
+      <PendingNav onPick={onPick} />
+      <CompanyNav onPick={onPick} />
+      <ScheduledNav onPick={onPick} />
+    </>
+  );
+  return mobile ? items : <div className="flex flex-col gap-(--cc-row-gap)">{items}</div>;
+}
+
+/** 「新建」：对话模式开新对话（最近），代录模式开新建任务页（同一个位置、同一个加号圆，只换字）。 */
+function NewNav() {
+  const { setView } = useView();
+  if (useNewInMode()) return <NewTaskNav />;
+  return <ThreadListNew onClick={() => setView("chat")} />;
+}
+
+function NewTaskNav() {
+  const o = useOperator();
   const { view, setView } = useView();
-  const taskCompany = useCompanyNav((s) => s.taskCompany);
   return (
-    <div className="flex flex-col gap-(--cc-row-gap)">
-      <ThreadListNew onClick={() => setView("chat")} />
-      <PendingNav />
-      {hasScheduledTasks(profile) && (
-        <button
-          type="button"
-          data-roving=""
-          className="cc-nav-item"
-          title={t("scheduledTasks")}
-          data-active={(view === "tasks" && !taskCompany) || undefined}
-          onClick={() => {
-            useCompanyNav.setState({ taskCompany: "", taskFocus: "" });
-            setView("tasks");
-          }}
-        >
-          <span className="cc-nav-icon"><ClockIcon /></span>
-          <span className="cc-nav-label">{t("scheduledTasks")}</span>
-        </button>
-      )}
-      <CompanyNav />
-    </div>
+    <button
+      type="button"
+      className="cc-nav-item"
+      data-slot="cc-operator-new"
+      data-roving=""
+      title={op.newTask}
+      data-active={(view === "operator" && !o.id) || undefined}
+      onClick={() => {
+        openOperator("", view, setView);
+        focusComposer();
+      }}
+    >
+      <NavNewLabel label={op.newTask} />
+    </button>
   );
 }
 
-/** 侧栏「待处理 N」（只在声明了待处理的产品；N 为 0 时不显示）：紧跟「新建」，在「定时任务」上面（设计文档 4.2）。
- *  onPick：手机上点了收起抽屉。 */
-function PendingNav({ onPick }: { onPick?: () => void }) {
-  const kind = useSection("pending");
-  const total = usePendingCounts((s) => s.total);
-  const pendingCompany = useCompanyNav((s) => s.pendingCompany);
+/** 侧栏「定时任务」（只对话模式、只在声明了 tasks 的产品）：在共有入口下面，代录模式下不出现也不挤动上面几行。 */
+function ScheduledNav({ onPick }: { onPick?: () => void }) {
+  const profile = useProfile();
+  const mode = useCurrentMode();
   const { view, setView } = useView();
-  if (!kind || total <= 0) return null;
+  const taskCompany = useCompanyNav((s) => s.taskCompany);
+  if (!hasScheduledTasks(profile) || mode !== "chat") return null;
   return (
     <button
       type="button"
       data-roving=""
       className="cc-nav-item"
+      data-slot="cc-nav-tasks"
+      title={t("scheduledTasks")}
+      data-active={(view === "tasks" && !taskCompany) || undefined}
+      onClick={() => {
+        useCompanyNav.setState({ taskCompany: "", taskFocus: "" });
+        setView("tasks");
+        onPick?.();
+      }}
+    >
+      <span className="cc-nav-icon"><ClockIcon /></span>
+      <span className="cc-nav-label">{t("scheduledTasks")}</span>
+    </button>
+  );
+}
+
+/** 侧栏「待处理 N」（声明了待处理或有代录的产品；N 为 0 时不显示）：紧跟「新建」。N = 产品的待处理 + 代录「需要你处理」的任务
+ *  （服务端按单据去重，components/operator/attention.ts），两种模式同一个数，与待处理页列出的条数一致。onPick：手机上点了收起抽屉。 */
+function PendingNav({ onPick }: { onPick?: () => void }) {
+  const kind = useSection("pending");
+  const operator = !!useContext(OperatorContext);
+  const total = usePendingCounts((s) => s.total) + useAttention((s) => s.total);
+  const pendingCompany = useCompanyNav((s) => s.pendingCompany);
+  const { view, setView } = useView();
+  if ((!kind && !operator) || total <= 0) return null;
+  return (
+    <button
+      type="button"
+      data-roving=""
+      className="cc-nav-item"
+      data-slot="cc-nav-pending"
       title={co.pending}
       data-active={(view === "pending" && !pendingCompany) || undefined}
       onClick={() => {
@@ -546,7 +601,7 @@ function PendingNav({ onPick }: { onPick?: () => void }) {
   );
 }
 
-/** 侧栏「公司」（只在有公司分组的产品），在「定时任务」下面。onPick：手机上点了收起抽屉。 */
+/** 侧栏「公司」（只在有公司分组的产品）。onPick：手机上点了收起抽屉。 */
 function CompanyNav({ onPick }: { onPick?: () => void }) {
   const kind = useProjects((s) => s.kind);
   const { view, setView } = useView();
@@ -556,6 +611,7 @@ function CompanyNav({ onPick }: { onPick?: () => void }) {
       type="button"
       data-roving=""
       className="cc-nav-item"
+      data-slot="cc-nav-companies"
       title={co.companies}
       data-active={view === "companies" || undefined}
       onClick={() => {
@@ -572,12 +628,13 @@ function CompanyNav({ onPick }: { onPick?: () => void }) {
 /** 点了某个对话：回到对话视图（从「定时任务」切回来）。电脑上 Cowork 带 Shift / ⌘ / Ctrl 是多选（不打开，thread-list.tsx）；
  *  ERP / DMS、手机没有多选，组件库照样切换对话，视图也跟着回到对话。 */
 function useBackToChatOnPick(onNavigate?: () => void) {
-  const { view, setView } = useView();
+  const { setView } = useView();
+  const mode = useCurrentMode();
   const { isMobile } = useSidebar();
   const multi = !!useProjects((s) => s.kind) && !isMobile;
   return (e: React.MouseEvent) => {
     // 实操的任务行同一个外壳（同样的 data-slot）：点任务留在实操里（任务侧栏自己切）
-    if (view === "operator") return;
+    if (mode === "operator") return;
     if (multi && (e.shiftKey || e.metaKey || e.ctrlKey)) return;
     if ((e.target as HTMLElement).closest('[data-slot="aui_thread-list-item-trigger"]')) {
       setView("chat");
@@ -590,7 +647,7 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
   const [search, setSearch] = useState("");
   const pick = useBackToChatOnPick();
   const companies = !!useProjects((s) => s.kind);
-  const operator = useView().view === "operator";
+  const operator = useCurrentMode() === "operator";
   // 实操的任务侧栏总是按公司分组：多选、⌘ / Ctrl + 数字跳转同 Cowork 的对话侧栏
   const keys = useSidebarKeys(companies || operator);
   const { toggleSidebar } = useSidebar();
@@ -627,14 +684,8 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
         <ThreadListSearch value={search} onValueChange={setSearch} />
       </SidebarHeader>
       <SidebarContent ref={keys} className="px-(--cc-sidebar-pad)" onClickCapture={pick} data-cc-view={useView().view}>
-        {operator ? (
-          <OperatorNav search={search} />
-        ) : (
-          <>
-            <SidebarNav />
-            <ThreadList search={search} />
-          </>
-        )}
+        <SidebarNav />
+        {operator ? <OperatorNav search={search} /> : <ThreadList search={search} />}
       </SidebarContent>
       <SidebarFooter className="h-(--cc-sidebar-foot-h) flex-row items-center gap-(--cc-space-4) border-t border-line py-0">
         <UserFooter />
@@ -644,13 +695,14 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
   );
 }
 
-// 手机抽屉（同 Claude 手机端）：大号「CC」+ 圆形搜索、定时任务、最近对话；底部头像与「新建会话」胶囊
+// 手机抽屉（同 Claude 手机端）：大号「CC」+ 圆形搜索；待处理、公司、定时任务（只对话模式）；对话 / 任务列表；底部头像与「新建」胶囊
+// （按模式：新建会话 / 新建任务）
 function MobileDrawer() {
   const { setOpenMobile } = useSidebar();
   const aui = useAui();
   const profile = useProfile();
   const { view, setView } = useView();
-  const operator = view === "operator";
+  const operator = useCurrentMode() === "operator";
   const [searching, setSearching] = useState(false);
   const [search, setSearch] = useState("");
   // 在抽屉里打字（改名、搜索）时键盘弹起：底部头像与「新建会话」那一条收起，不挡住正在改的那几行
@@ -677,31 +729,10 @@ function MobileDrawer() {
           <ThreadListSearch value={search} onValueChange={setSearch} autoFocus />
         </div>
       )}
-      {operator ? (
-        <div className="cc-drawer flex-1 overflow-y-auto px-(--cc-mdrawer-list-px) pb-(--cc-mdrawer-tail)">
-          <OperatorNav search={search} onPick={close} />
-        </div>
-      ) : (
       <div className="cc-drawer flex-1 overflow-y-auto px-(--cc-mdrawer-list-px) pb-(--cc-mdrawer-tail)" onClickCapture={pick}>
-        <PendingNav onPick={close} />
-        {hasScheduledTasks(profile) && (
-          <button
-            type="button"
-            className="cc-nav-item"
-            onClick={() => {
-              useCompanyNav.setState({ taskCompany: "", taskFocus: "" });
-              setView("tasks");
-              close();
-            }}
-          >
-            <span className="cc-nav-icon"><ClockIcon /></span>
-            {t("scheduledTasks")}
-          </button>
-        )}
-        <CompanyNav onPick={close} />
-        <ThreadList search={search} />
+        <SidebarNav mobile onPick={close} />
+        {operator ? <OperatorNav search={search} onPick={close} /> : <ThreadList search={search} />}
       </div>
-      )}
       <div
         data-slot="cc-drawer-foot"
         hidden={typing}
@@ -719,7 +750,7 @@ function MobileDrawer() {
           data-slot={operator ? "cc-op-new-pill" : undefined}
           onClick={() => {
             if (operator) {
-              useModePlace.setState({ batch: "" });
+              openOperator("", view, setView);
               return close();
             }
             setView("chat");
@@ -1231,8 +1262,13 @@ function Workspace() {
     }),
     [results.sessionId, results.outputs, results.uploads, results.openFile, results.openUpload],
   );
-  const [view, setView] = useState<View>("chat");
-  const viewContext = useMemo(() => ({ view, setView }), [view]);
+  const [view, setViewState] = useState<View>("chat");
+  // 进了模式自己的视图就是那个模式（lib/nav.ts 的 noteViewMode）；公司、待处理两种模式共有，不换模式
+  const setView = useCallback((next: View) => {
+    noteViewMode(next);
+    setViewState(next);
+  }, []);
+  const viewContext = useMemo(() => ({ view, setView }), [view, setView]);
   const profile = useProfile();
   const product = hasOperator(profile) ? (profile?.product ?? "") : "";
   const operatorSource = useMemo(() => (product ? createLiveSource({ product }) : null), [product]);

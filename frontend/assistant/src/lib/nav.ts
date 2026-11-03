@@ -11,9 +11,10 @@
 // 后台脚本点通知发来的 pearnly-open（pearnly_core/assistant/service_worker.js）、桌面端的 tomo-open（window.tomo.open）。
 //
 // 两种模式（评估 docs/work/2026-10-26-express-operator-product-评估.md §10 ①，左上角「对话 | 代录」，Ctrl / ⌘ + Shift + 1 / 2）：
-//   对话 — 视图 chat / tasks / companies / company / pending；代录 — 视图 operator。两种模式各记各的最后位置：
-//   切到代录时记下当时的对话视图（对话本身组件库记着），切回来回到它；代录记着看的是哪一批（空 = 新建批次）。
-//   后退 / 前进也记代录看的是哪一批。
+//   对话自己的视图 chat / tasks；代录自己的视图 operator；两种模式共有的 companies / company / pending（侧栏共有的「公司」
+//   「待处理」，主会话 11-03：代录模式下点了留在代录，主栏换成那一页）。模式单独记（useModePlace.mode）：进了模式自己的视图
+//   就是那个模式，进共有的视图不换模式。两种模式各记各的最后位置：切到代录时记下当时的对话视图（对话本身组件库记着），切回来回到它；
+//   代录记着最后的视图（任务页或共有的那几页）与看的是哪一批（空 = 新建批次）。后退 / 前进也记模式与代录看的是哪一批。
 
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
@@ -24,22 +25,49 @@ import { hasSection, projectsReady } from "@/lib/managed-agents/projects";
 import { reportCaught, withReport } from "./caught";
 
 export type View = "chat" | "tasks" | "companies" | "company" | "pending" | "operator";
-type Entry = { view: View; thread: string; company: string; batch: string };
+type Entry = { view: View; mode: Mode; thread: string; company: string; batch: string };
 
 export type Mode = "chat" | "operator";
-export const modeOf = (view: View): Mode => (view === "operator" ? "operator" : "chat");
 
-/** 两种模式各自的最后位置：对话模式最后看的视图、代录模式看的批次（空 = 新建批次）。 */
-export const useModePlace = create<{ chatView: View; batch: string }>(() => ({ chatView: "chat", batch: "" }));
+/** 模式自己的视图属于哪个模式；共有的视图（公司、待处理）为 null。 */
+export const ownMode = (view: View): Mode | null => (view === "operator" ? "operator" : view === "chat" || view === "tasks" ? "chat" : null);
 
-/** 切模式：去代录前记下对话视图；回对话时回到它。 */
-export function switchMode(mode: Mode, view: View, setView: (v: View) => void) {
-  if (mode === modeOf(view)) return;
-  if (mode === "operator") {
-    useModePlace.setState({ chatView: view });
-    setView("operator");
-  } else setView(useModePlace.getState().chatView);
+/** 当前模式与两种模式各自的最后位置：对话模式最后看的视图、代录模式最后看的视图与批次（空 = 新建批次）。 */
+export const useModePlace = create<{ mode: Mode; chatView: View; operatorView: View; batch: string }>(() => ({
+  mode: "chat",
+  chatView: "chat",
+  operatorView: "operator",
+  batch: "",
+}));
+
+/** 换视图时跟着定模式：模式自己的视图就是那个模式，共有的不换（ViewContext 的 setView 都经这里）。 */
+export function noteViewMode(view: View) {
+  const mode = ownMode(view);
+  if (mode && mode !== useModePlace.getState().mode) useModePlace.setState({ mode });
 }
+
+/** 切模式：记下这个模式此刻的视图，回到另一个模式上次的视图。 */
+export function switchMode(mode: Mode, view: View, setView: (v: View) => void) {
+  const place = useModePlace.getState();
+  if (mode === place.mode) return;
+  if (mode === "operator") {
+    useModePlace.setState({ chatView: view, mode });
+    setView(place.operatorView);
+  } else {
+    useModePlace.setState({ operatorView: view, mode });
+    setView(place.chatView);
+  }
+}
+
+/** 打开代录的任务页（batch：任务号，空 = 新建任务）：从对话模式来的（待处理页的「任务」一组）先记下对话视图。 */
+export function openOperator(batch: string, view: View, setView: (v: View) => void) {
+  const place = useModePlace.getState();
+  useModePlace.setState(place.mode === "operator" ? { batch } : { batch, chatView: view });
+  setView("operator");
+}
+
+/** 当前模式。 */
+export const useCurrentMode = () => useModePlace((s) => s.mode);
 
 /** Ctrl / ⌘ + Shift + 1 / 2 对应的模式（event.code：Shift 按住时 event.key 是符号，按键位认）。 */
 export function modeForKey(event: Pick<KeyboardEvent, "code" | "ctrlKey" | "metaKey" | "shiftKey" | "altKey">): Mode | null {
@@ -55,8 +83,9 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
   const thread = useAuiState((s) => s.threads.mainThreadId) ?? "";
   // 主档页看的是哪家也记进去：在两家公司之间来回也能后退
   const company = useCompanyNav((s) => (view === "company" ? s.company : ""));
-  // 代录看的是哪一批也记进去：在两批之间来回也能后退
+  // 代录看的是哪一批也记进去：在两批之间来回也能后退；模式也记（共有的公司、待处理页两种模式都能看）
   const batch = useModePlace((s) => (view === "operator" ? s.batch : ""));
+  const mode = useCurrentMode();
   const stack = useRef<Entry[]>([]);
   const index = useRef(-1);
   const replaying = useRef(false);
@@ -68,11 +97,11 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
       replaying.current = false;
       return;
     }
-    if (current && current.view === view && current.thread === thread && current.company === company && current.batch === batch) return;
-    stack.current = [...stack.current.slice(0, index.current + 1), { view, thread, company, batch }].slice(-50);
+    if (current && current.view === view && current.mode === mode && current.thread === thread && current.company === company && current.batch === batch) return;
+    stack.current = [...stack.current.slice(0, index.current + 1), { view, mode, thread, company, batch }].slice(-50);
     index.current = stack.current.length - 1;
     bump((n) => n + 1);
-  }, [view, thread, company, batch]);
+  }, [view, mode, thread, company, batch]);
 
   const go = useCallback(
     (step: number) => {
@@ -81,8 +110,10 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
       index.current += step;
       replaying.current = true;
       if (target.company) useCompanyNav.setState({ company: target.company });
-      // 退回 / 前进到代录：回到那一批；从对话退进代录时也记下对话视图（切回对话回到这里）
-      if (target.view === "operator") useModePlace.setState(view === "operator" ? { batch: target.batch } : { batch: target.batch, chatView: view });
+      // 退回 / 前进换了模式：记下离开的那个模式此刻的视图（切回来回到这里）；退回到代录的任务页：回到那一批
+      const place = useModePlace.getState();
+      if (target.mode !== place.mode) useModePlace.setState(target.mode === "operator" ? { chatView: view, mode: target.mode } : { operatorView: view, mode: target.mode });
+      if (target.view === "operator") useModePlace.setState({ batch: target.batch });
       setView(target.view);
       if (target.thread && target.thread !== thread) void aui.threads().switchToThread(target.thread);
       bump((n) => n + 1);

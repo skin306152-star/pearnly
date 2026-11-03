@@ -545,6 +545,24 @@ class PendingTests(unittest.TestCase):
         self.assertEqual([item["document"] for item in cc_companies.pending(search="pur-1")["items"]], ["PUR-1"])
         self.assertEqual(len(cc_companies.pending(limit=1)["items"]), 1)
 
+    def test_operator_dedupe_reads_the_same_documents_the_page_lists(self):
+        # CC「待处理」的代录一组按单据去重（主会话 11-03）：代录的单据编号写法（P: / S:）的、页面列着的那些单
+        # 写账通道与推送不在这里（只读声明的 doctype 名）：桩上，单独装一份 operator
+        push = types.ModuleType("pearnly_erp_portal.express.push")
+        push.PURCHASE, push.SALES = PURCHASE, SALES
+        jobs = types.ModuleType("pearnly_core.cc_desktop.jobs")
+        desktop = types.ModuleType("pearnly_core.cc_desktop")
+        desktop.jobs = jobs
+        with mock.patch.dict(sys.modules, {"pearnly_erp_portal.express.push": push, "pearnly_core.cc_desktop": desktop,
+                                           "pearnly_core.cc_desktop.jobs": jobs}):
+            spec = importlib.util.spec_from_file_location(
+                "erp_operator_test", ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py")
+            operator = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(operator)
+        self.assertEqual(sorted(operator.pending_documents()), ["P:PUR-1", "P:PUR-3", "S:SAL-1", "S:SAL-2"])
+        frappe.session.user = "staff@x"
+        self.assertEqual(operator.pending_documents(), ["P:PUR-3"])
+
     def test_only_visible_companies_own_documents_and_readable_kinds(self):
         frappe.session.user = "staff@x"   # 只分到 CO-00001、只有采购读权、员工只看本人录入的
         self.assertEqual([item["document"] for item in cc_companies.pending()["items"]], ["PUR-3"])

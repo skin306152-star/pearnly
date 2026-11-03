@@ -303,6 +303,14 @@ def _blocker(record) -> dict:
             "party": str(doc.get("buyer_name" if sales else "seller_name") or "")}
 
 
+def pending_documents() -> list:
+    """本人此刻在 Cowork「待处理」里列着的单（识别单据号，与 ``companies.pending`` 同一口径）：共用层「待处理」的代录一组按单据
+    去重用。"""
+    from pearnly_cowork.companies import pending
+
+    return pending.documents()
+
+
 def resolve(company, doc_id, entered, docnum="") -> dict:
     """开始前确认里「结果不明」的单，人在 Express 核对后标已入账 / 没入账：只认这张单自己的最近一次推送记录，走复核页「核对」
     同一条路（``push.application.service.resolve_unknown``，权限、状态校验都在那里）。"""

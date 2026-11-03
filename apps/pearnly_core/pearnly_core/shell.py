@@ -71,7 +71,15 @@ def describe() -> dict:
         "native_account": bool(frappe.conf.get("pearnly_native_account")),
         # CC 对话页：本站还开不了对话的原因（没配 CC 等，已翻译），打开新对话就先显示；能开是空串
         "assistant_unavailable": _assistant_unavailable(),
+        # CC 侧栏首屏就要的产品声明（共用层 projects 的 SECTIONS，如定时任务 tasks）：不等公司列表那次请求，入口不晚出
+        "sections": _assistant_sections(),
     }
+
+
+def _assistant_sections() -> list:
+    from pearnly_core.assistant import projects
+
+    return projects.declared(projects.provider()).get("sections", [])
 
 
 def _assistant_unavailable() -> str:

@@ -208,7 +208,7 @@ class PanelStylesSourceTests(unittest.TestCase):
         panel = read("components/session-panel.tsx")
         self.assertIn("pending: <PendingCard company={company} period={period} />,", panel)
         self.assertIn("pending: <PendingCard company={company} />,", panel)
-        self.assertIn('<PendingList company={company} search={search} />', read("components/pending.tsx"))
+        self.assertIn('<PendingList company={company} search={search} others={tasks} />', read("components/pending.tsx"))
         cards = read("components/company-cards.tsx")
         card = cards.split("const OtherMonthsPending: FC", 1)[1].split("\n};", 1)[0]
         self.assertIn("otherMonths(state.items, period)", card)

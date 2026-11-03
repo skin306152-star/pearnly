@@ -49,7 +49,7 @@ def _fake_frappe(state):
     frappe._ = lambda text: text
 
     def match(row, filters):
-        return all(row.get(k) == v for k, v in filters.items())
+        return all(row.get(k) in v[1] if isinstance(v, list) and v[0] == "in" else row.get(k) == v for k, v in filters.items())
 
     class Doc(_Row):
         def __init__(self, data):
@@ -89,6 +89,11 @@ def _fake_frappe(state):
         next(row for row in state["sessions"] if row["name"] == name).update(values)
 
     def get_all(doctype, filters=None, fields=None, order_by="", limit_start=0, limit_page_length=20):
+        if doctype == "Pearnly Express Operator Task Document":  # 子表：每行带 parent / parenttype
+            rows = [_Row(parent=row["name"], parenttype="Pearnly Express Operator Task", **doc)
+                    for row in state["rows"] for doc in row.get("documents") or []]
+            return [_Row({f: row.get(f) for f in fields}) for row in rows if match(row, filters or {})]
+        limit_page_length = limit_page_length or len(state["rows"])
         found = sorted((row for row in state["rows"] if match(row, filters or {})), key=lambda r: r["modified"],
                        reverse="desc" in order_by)
         return [_Row({f: row.get(f) for f in fields}) for row in found[limit_start:limit_start + limit_page_length]]
@@ -98,6 +103,8 @@ def _fake_frappe(state):
         state["rows"][:] = [row for row in state["rows"] if row["name"] != name]
 
     frappe.get_doc, frappe.get_all, frappe.delete_doc = get_doc, get_all, delete_doc
+    frappe.publish_realtime = lambda event, message, user=None, after_commit=False: state["pushed"].append(
+        (event, message, user, after_commit))
     frappe.db = types.SimpleNamespace(get_value=get_value, exists=exists, set_value=set_value)
     frappe.parse_json = lambda text: __import__("json").loads(text) if isinstance(text, str) else text
     frappe.as_json = lambda value: __import__("json").dumps(value, default=str)
@@ -109,13 +116,15 @@ def _fake_frappe(state):
 
 class TaskTests(unittest.TestCase):
     def setUp(self):
-        self.state = {"rows": [], "sessions": [], "seq": 0, "now": datetime.datetime(2026, 10, 27, 20, 0)}
+        self.state = {"rows": [], "sessions": [], "seq": 0, "now": datetime.datetime(2026, 10, 27, 20, 0), "pushed": []}
+        self.listed = set()  # 产品自己的待处理里此刻列着的单（products.pending_documents）
         self.submitted = []
         self.allowed = {"CO-1"}
         self.statuses = {}
         frappe, utils = _fake_frappe(self.state)
         products = types.ModuleType("pearnly_core.express_operator.products")
         products.allowed = lambda user, company: company in self.allowed
+        products.pending_documents = lambda: set(self.listed)
         products.status = lambda company, ids: [{"doc_id": i, **self.statuses.get(i, {"state": "queued"})} for i in ids]
         products.submit = lambda company, ids, batch, computer, answers: self.submitted.append(
             (company, list(ids), batch, computer, answers)) or [{"doc_id": i, "status": "sent"} for i in ids]
@@ -385,6 +394,39 @@ class TaskTests(unittest.TestCase):
         with self.assertRaises(_Throw):
             tools.control({"task": name, "action": "retry", "documents": ["9"]})
         self.assertEqual({t["name"] for t in tools.TOOLS}, set(tools.STEP_NAMES))
+
+    def test_attention_lists_tasks_that_need_you_counting_each_document_once(self):
+        # 主会话 11-03：「待处理」里的代录一组只算「需要你处理」的任务；任务里没录成的单都已在产品自己的待处理里列着的不另算
+        first = self.tasks.create("CO-1", "2026-10")
+        self.tasks.attach(first["name"], [{"doc_id": "h1", "status": "needs_choice"}], {}, "", None)
+        second = self.tasks.create("CO-1", "2026-09")
+        self.tasks.attach(second["name"], [{"doc_id": "h2", "status": "needs_choice"}, {"doc_id": "h3", "status": "sent"}], {}, "", None)
+        self.tasks.create("CO-1", "2026-08")                                           # 准备中：不算
+        out = self.tasks.attention()
+        self.assertEqual(out["total"], 1)                                              # second 还有排着的：等电脑空闲，不算
+        self.assertEqual(([t["name"] for t in out["tasks"]], out["companies"]), ([first["name"]], {"CO-1": 1}))
+        self.assertNotIn("documents", out["tasks"][0])
+        self.listed = {"h1"}                                                           # h1 已在产品的待处理里：同一张单只算一次
+        self.assertEqual(self.tasks.attention(), {"total": 0, "companies": {}, "tasks": []})
+        self.frappe.session.user = "b@example.com"
+        self.listed = set()
+        self.assertEqual(self.tasks.attention()["total"], 0)                           # 只给本人
+        self.frappe.session.user = "a@example.com"
+        self.frappe.conf["pearnly_product"] = "erp"
+        self.assertEqual(self.tasks.attention()["total"], 0)                           # 只在本站产品
+
+    def test_every_change_is_announced_to_the_owner_after_commit(self):
+        made = self.tasks.create("CO-1", "2026-10")
+        self.tasks.update(made["name"], title="进项")
+        self.tasks.attach(made["name"], [{"doc_id": "h1", "status": "needs_choice"}], {}, "", None)
+        self.tasks.delete(made["name"])
+        pushed = self.state["pushed"]
+        self.assertEqual({(event, user, after) for event, _m, user, after in pushed},
+                         {(self.tasks.EVENT, "a@example.com", True)})
+        self.assertEqual([m["op"] for _e, m, _u, _a in pushed], ["upsert", "upsert", "upsert", "delete"])
+        self.assertEqual([m["task"]["status"] for _e, m, _u, _a in pushed[:3]], ["preparing", "preparing", "attention"])
+        self.assertNotIn("documents", pushed[2][1]["task"])
+        self.assertEqual(pushed[3][1], {"op": "delete", "name": made["name"]})
 
     def test_deleting_a_task_deletes_its_conversation(self):
         name = self._started()

@@ -611,6 +611,7 @@ pearnly_express_operator = {
     "precheck": "pearnly_erp_portal.express.operator.precheck",
     "submit": "pearnly_erp_portal.express.operator.submit",
     "status": "pearnly_erp_portal.express.operator.status",
+    "pending": "pearnly_erp_portal.express.operator.pending_documents",
 }
 # 实操任务页底部的对话（对话框甲）：查进度、交代跳过 / 重做的工具在共用层，ERP 列上即用；进行中的说法同一个模块
 # ERP 版 CC 按公司组织对话（ADR-020，2026-11-02）：公司工具（列出、读资料、经「允许」记 / 删知识库）与说话规矩

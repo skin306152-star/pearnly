@@ -23,6 +23,7 @@
 import { ChevronDownIcon, InboxIcon, LoaderIcon, SearchIcon, XIcon } from "lucide-react";
 import { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
+import { PendingTasks, usePendingTaskCount } from "@/components/operator/pending-tasks";
 import { co, t } from "@/i18n";
 import {
   answerChoices,
@@ -233,12 +234,13 @@ export function usePendingItems(company: string, search = "") {
 type PendingState = ReturnType<typeof usePendingItems>;
 
 /** 待处理列表；company 给了只列这家（会话栏、公司页的卡片，没有待处理时整块不出现）；search：待处理页的搜索。 */
-export const PendingList: FC<{ company?: string; embedded?: boolean; search?: string }> = ({ company = "", embedded = false, search = "" }) => (
-  <PendingItems company={company} embedded={embedded} search={search} {...usePendingItems(company, search)} />
+/** others：同一页上另一组列着的条数（待处理页的代录「任务」一组）：有的话这里空着时不出空状态。 */
+export const PendingList: FC<{ company?: string; embedded?: boolean; search?: string; others?: number }> = ({ company = "", embedded = false, search = "", others = 0 }) => (
+  <PendingItems company={company} embedded={embedded} search={search} others={others} {...usePendingItems(company, search)} />
 );
 
 /** 列表本身（数据由 usePendingItems 给；会话栏卡先按月份筛过再交进来）。 */
-export const PendingItems: FC<PendingState & { company: string; embedded?: boolean; search?: string }> = ({
+export const PendingItems: FC<PendingState & { company: string; embedded?: boolean; search?: string; others?: number }> = ({
   items,
   error,
   done,
@@ -246,6 +248,7 @@ export const PendingItems: FC<PendingState & { company: string; embedded?: boole
   company,
   embedded = false,
   search = "",
+  others = 0,
 }) => {
   const groups = useMemo(() => {
     const map = new Map<string, PendingItem[]>();
@@ -259,6 +262,8 @@ export const PendingItems: FC<PendingState & { company: string; embedded?: boole
   const titles = useTitles(groups.map(([id]) => id).filter(Boolean));
 
   if (embedded && (!items || !items.length) && !error) return null;
+  // 同一页另一组有东西：这里没有可列的就整块不出（不出空状态，也不多占一个间距）
+  if (others && items && !groups.length && !error) return null;
   return (
     <div className="flex flex-col gap-(--cc-space-16)" data-slot="cc-pending">
       {error && <div role="alert" className="cc-alert">{error}</div>}
@@ -758,6 +763,8 @@ export const PendingView: FC = () => {
   const company = useCompanyNav((s) => s.pendingCompany);
   const title = useTitles(company ? [company] : [])[company] ?? "";
   const [search, setSearch] = useState("");
+  const taskCount = usePendingTaskCount(search);
+  const tasks = company ? 0 : taskCount;
   return (
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="cc-page">
@@ -778,7 +785,11 @@ export const PendingView: FC = () => {
             </span>
           </div>
         )}
-        <PendingList company={company} search={search} />
+        {/* 代录「需要你处理」的任务接在下面（只在不按公司筛时，同侧栏「待处理 N」的数），与各公司组同一个间距 */}
+        <div className="flex flex-col gap-(--cc-space-16)">
+          <PendingList company={company} search={search} others={tasks} />
+          {!company && <PendingTasks search={search} />}
+        </div>
       </div>
     </div>
   );

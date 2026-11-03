@@ -210,18 +210,7 @@ const OperatorComposer: FC<{ chin?: FC }> = ({ chin }) => <Composer placeholder=
 export const OperatorMain: FC = () => {
   const o = useOperator();
   const panel = usePanelPlace();
-  // Ctrl / ⌘ + N：在这个工作区新建任务（弹窗、菜单开着时不管）
-  const { select } = o;
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.code !== "KeyN" || e.repeat) return;
-      if (document.querySelector('[role="dialog"], [role="menu"]')) return;
-      e.preventDefault();
-      select("");
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [select]);
+  // Ctrl / ⌘ + N 新建任务在外壳里按模式接（assistant.tsx 的 useModeKeys：看着公司、待处理页时也要能新建）
   // 新建页：选了公司才发得出（一选就建任务、换到任务页）；任务页：一直能发
   const target = useRef<ComposerTarget>({ send: () => undefined, canSend: false });
   const thread = useTaskThread(o.source, o.id ? o.task : null);

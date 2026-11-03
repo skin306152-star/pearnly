@@ -2403,6 +2403,11 @@ class PendingContractTests(unittest.TestCase):
         swap = {"COMPANY": abc, "OTHER": xyz}
         expected = {**self.FIXTURE["counts"], "companies": {swap[k]: v for k, v in self.FIXTURE["counts"]["companies"].items()}}
         self.assertEqual(pending.pending_counts(), expected)
+        # CC「待处理」的代录一组按单据去重用的那一份（主会话 11-03）：就是页面列着的那些单
+        fresh_request()
+        listed = sorted(row["document"] for row in pending.pending()["items"])
+        fresh_request()
+        self.assertEqual(sorted(pending.documents()), listed)
 
     def test_task_overview_is_what_the_sidebar_reads(self):
         reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69")])

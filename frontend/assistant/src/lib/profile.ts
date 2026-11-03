@@ -14,6 +14,8 @@ export type Profile = {
   user: string;
   /** 本站此刻开不了 CC 对话的原因（服务端已翻译，同建会话被拒时那一句）；能开是空串 */
   assistant_unavailable?: string;
+  /** 产品声明的分区（共用层 projects 的 SECTIONS，同公司列表回包里的那份）：侧栏首屏就要的入口（定时任务 tasks）不等公司列表 */
+  sections?: string[];
 };
 
 let cached: Promise<Profile> | null = null;

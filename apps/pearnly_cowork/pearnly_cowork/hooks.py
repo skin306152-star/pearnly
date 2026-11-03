@@ -689,4 +689,5 @@ pearnly_express_operator = {
     "target": "pearnly_cowork.assistant.operator_source.target",
     "status": "pearnly_cowork.assistant.operator_source.status",
     "resolve": "pearnly_cowork.assistant.operator_source.resolve",
+    "pending": "pearnly_cowork.assistant.operator_source.pending_documents",
 }

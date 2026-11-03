@@ -3,7 +3,7 @@
 - ``documents``：这家公司这个月能代录的单据（服务端分页，产品各自的来源）；
 - ``precheck``：开录前逐张按产品的写账准备判一遍，要人选的项一次列出（不排写账件）；
 - ``intake`` / ``regroup``：资料区上传一张、把一张拖到别的组（产品可选声明）；
-- ``task_*``：实操任务的服务端记录（列表、读取、新建、改名 / 置顶、删除、收尾、作答 / 单张重试、整批继续），只给本人看、改
+- ``task_*``：实操任务的服务端记录（列表、「待处理」里需要你处理的一组、读取、新建、改名 / 置顶、删除、收尾、作答 / 单张重试、整批继续），只给本人看、改
   （``tasks``）；
 - ``start``：建一批：权限由产品判（``products.allowed``，各用自己的角色），批次号在这里发，单据逐张交给产品按直写同一份载荷
   准备、加代录标记、交进产品自己的写账队列，派给选定的那台电脑。准备不了的（要人选、主档没有……）照产品原来的口径停在单据上，
@@ -115,6 +115,12 @@ def start(company, doc_ids, computer="", start_at=0, answers=None, task="", grou
 @frappe.whitelist()
 def task_list(start=0, limit=50):
     return tasks.listing(int(start or 0), int(limit or 50))
+
+
+@frappe.whitelist()
+def task_attention():
+    """CC「待处理」里的代录一组与它的数（``tasks.attention``：按单据去重）。"""
+    return tasks.attention()
 
 
 @frappe.whitelist()

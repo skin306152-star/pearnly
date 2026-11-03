@@ -67,6 +67,16 @@ def sources(company, period, offset, limit) -> dict:
     return {"documents": page, "next_offset": offset + limit if len(rows) > offset + limit else None}
 
 
+def pending_documents() -> list:
+    """本人此刻在 ERP 版 CC「待处理」里列着的采购 / 销售单（``P:<名>`` / ``S:<名>``，与 ``express.pending`` 同一口径）：共用层
+    「待处理」的代录一组按单据去重用。"""
+    from pearnly_erp_portal.express import pending
+
+    prefix = {doctype: key for key, (doctype, _capability) in KINDS.items()}
+    return [f"{prefix[item['doctype']]}:{item['document']}" for item in pending._items(pending.visible())
+            if item["doctype"] in prefix]
+
+
 def _target(company, doc_id):
     """``P:<名>`` / ``S:<名>`` → ``(doctype, 名)``；不是这家公司的、本人没有这类单据开单权的回 None。"""
     prefix, _sep, name = str(doc_id).partition(":")

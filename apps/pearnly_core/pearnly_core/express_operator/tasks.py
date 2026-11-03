@@ -6,6 +6,8 @@ CC 本机只缓存执行中的进度（任务号即 CC 的批次号）。
 - 状态：准备中（选公司、月份、资料、开始前确认）→ 交单后等电脑空闲 → 进行中（CC 回报）→ 收尾时按产品的回执推出：
   有要人处理的 → 需要你处理；有撤回 / 停止的 → 已停止；其余 → 已完成（``settle``，CC 重启后、换设备查看都以它为准）；
 - 排列（手排顺序、分组视图、右栏分区开合）不在这里，在用户偏好 ``pearnly_cc_layout`` 的 ``operator`` 一项（同对话）。
+- 变了（建、改、收尾、删）提交后给本人推一条站点事件 ``EVENT``（Frappe 原生 realtime，只进本人的房间）：别的设备上的侧栏与
+  「待处理」里的代录一组跟着更新。
 """
 from __future__ import annotations
 
@@ -18,6 +20,8 @@ from frappe.utils import now_datetime
 from pearnly_core.express_operator import contracts, products
 
 DOCTYPE = "Pearnly Express Operator Task"
+DOCUMENT = "Pearnly Express Operator Task Document"
+EVENT = "pearnly_operator_task"
 STATUSES = ("preparing", "queued", "running", "attention", "finished", "stopped")
 OPEN_STATES = ("pending", "queued")
 # 推送结果不明（产品回的原因码，同开始前确认）：人在 Express 核对后会变成已入账 / 没有入账，收尾时照样再问（10-29 测试机）
@@ -87,13 +91,40 @@ def listing(start: int = 0, limit: int = 50) -> dict:
             "next": int(start or 0) + limit if more else None}
 
 
+def attention() -> dict:
+    """CC「待处理」里的代录一组：本人在本站产品里「需要你处理」的任务，按改动时间新到旧（不带单据明细）、``total`` 与按公司的数。
+    按单据去重（主会话 11-03）：任务里没录成的单都已在产品自己的待处理里列着（``products.pending_documents``）的，不另算这个任务——
+    同一张单只算一次，侧栏的数与待处理页列出的条数一致。"""
+    rows = frappe.get_all(DOCTYPE, filters={"owner": _user(), "product": site_product(), "status": "attention"}, fields=FIELDS,
+                          order_by="modified desc", limit_page_length=LIST_MAX)
+    if rows:
+        open_docs = {}
+        names = [row.name for row in rows]
+        filters = {"parenttype": DOCTYPE, "parent": ["in", names], "state": "not_done"}
+        for row in frappe.get_all(DOCUMENT, filters=filters, fields=["parent", "doc_id"], limit_page_length=0):  # bounded: ≤ LIST_MAX 个任务的明细
+            open_docs.setdefault(row.parent, set()).add(str(row.doc_id or ""))
+        listed = products.pending_documents()
+        rows = [row for row in rows if open_docs.get(row.name, set()) - listed]
+    companies = {}
+    for row in rows:
+        companies[row.company] = companies.get(row.company, 0) + 1
+    return {"total": len(rows), "companies": companies, "tasks": [view(frappe._dict(row), documents=False) for row in rows]}
+
+
 def read(name) -> dict:
     return view(_own(name))
+
+
+def _announce(doc, op: str = "upsert") -> None:
+    """提交后给本人推一条（``EVENT``）：``upsert`` 带任务记录（不带单据明细），``delete`` 只带任务号。"""
+    payload = {"op": op, "task": view(doc, documents=False)} if op == "upsert" else {"op": op, "name": doc.name}
+    frappe.publish_realtime(EVENT, payload, user=doc.owner, after_commit=True)
 
 
 def _save(doc) -> None:
     doc.flags.ignore_permissions = True  # 原生权限一律不给，这里已按本人 + 公司核过
     doc.save()
+    _announce(doc)
 
 
 def create(company, period, company_title: str = "") -> dict:
@@ -104,6 +135,7 @@ def create(company, period, company_title: str = "") -> dict:
                           "status": "preparing"})
     doc.flags.ignore_permissions = True
     doc.insert()
+    _announce(doc)
     return view(doc)
 
 
@@ -139,6 +171,7 @@ def delete(name) -> dict:
         if frappe.db.exists(sessions.SESSION, {"session_id": doc.session_id, "user": _user()}):
             sessions.delete(doc.session_id)
     frappe.delete_doc(DOCTYPE, doc.name, ignore_permissions=True, force=True)
+    _announce(doc, "delete")
     return {"deleted": doc.name}
 
 
@@ -335,6 +368,6 @@ def resume(name) -> dict:
     return view(doc)
 
 
-__all__ = ["CONTROL_ACTIONS", "DOCTYPE", "RESUMABLE", "STATUSES", "answer", "attach", "create", "delete", "listing",
+__all__ = ["CONTROL_ACTIONS", "DOCTYPE", "EVENT", "RESUMABLE", "STATUSES", "answer", "attach", "attention", "create", "delete", "listing",
            "mark_running", "push_control", "read", "resume", "settle", "site_product", "take_controls", "thread", "thread_note",
            "update", "view"]

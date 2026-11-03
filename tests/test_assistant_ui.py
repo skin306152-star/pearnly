@@ -3254,20 +3254,23 @@ assert.deepEqual(calls("create").at(-1).body, {});
 class SidebarShellSourceTests(unittest.TestCase):
     def test_only_the_current_page_is_selected_in_the_nav(self):
         app = read("assistant.tsx")
-        nav = app.split("function SidebarNav()", 1)[1].split("\nfunction ", 1)[0]
-        self.assertIn('data-active={(view === "tasks" && !taskCompany) || undefined}', nav)
+        nav = app.split("function SidebarNav(", 1)[1].split("\nfunction ", 1)[0]
+        scheduled = app.split("function ScheduledNav(", 1)[1].split("\nfunction ", 1)[0]
+        self.assertIn('data-active={(view === "tasks" && !taskCompany) || undefined}', scheduled)
         pending = app.split("function PendingNav(", 1)[1].split("\nfunction ", 1)[0]
         self.assertIn('data-active={(view === "pending" && !pendingCompany) || undefined}', pending)
-        self.assertIn("if (!kind || total <= 0) return null;", pending)
+        self.assertIn("if ((!kind && !operator) || total <= 0) return null;", pending)
         company = app.split("function CompanyNav(", 1)[1].split("\nfunction ", 1)[0]
         self.assertIn('data-active={view === "companies" || undefined}', company)   # 主档页不再把「公司」选中
         self.assertNotIn('view === "company" ||', company)
-        # 顺序（设计文档 4.2）：新建、待处理 N、定时任务、公司；手机抽屉同序
-        order = [nav.index(x) for x in ("<ThreadListNew ", "<PendingNav />", "hasScheduledTasks(profile)", "<CompanyNav />")]
+        # 顺序（主会话 11-03 改，两种模式共用）：新建、待处理 N、公司，模式自己的定时任务在最下面；手机抽屉同一个导航（没有新建这一行）
+        order = [nav.index(x) for x in ("<NewNav />", "<PendingNav ", "<CompanyNav ", "<ScheduledNav ")]
         self.assertEqual(order, sorted(order))
+        self.assertIn("{!mobile && <NewNav />}", nav)
+        new = app.split("function NewNav(", 1)[1].split("\nfunction ", 1)[0]
+        self.assertIn("<ThreadListNew ", new)
         drawer = app.split('<div className="cc-drawer ', 1)[1].split("<ThreadList ", 1)[0]
-        order = [drawer.index(x) for x in ("<PendingNav onPick={close} />", "hasScheduledTasks(profile)", "<CompanyNav onPick={close} />")]
-        self.assertEqual(order, sorted(order))
+        self.assertIn("<SidebarNav mobile onPick={close} />", drawer)
         # 带修饰键点对话是多选（只有电脑上的 Cowork）：不切回对话页；ERP / DMS、手机照常切回
         self.assertIn("const multi = !!useProjects((s) => s.kind) && !isMobile;", app.split("function useBackToChatOnPick(", 1)[1].split("\n}\n", 1)[0])
         self.assertIn("if (multi && (e.shiftKey || e.metaKey || e.ctrlKey)) return;", app.split("function useBackToChatOnPick(", 1)[1].split("\n}\n", 1)[0])

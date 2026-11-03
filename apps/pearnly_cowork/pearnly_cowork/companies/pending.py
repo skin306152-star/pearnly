@@ -601,6 +601,15 @@ def pending_counts() -> dict:
     return counts(_items(_candidates(), by_set, by_tax, tax_ids))
 
 
+def documents() -> list:
+    """本人此刻在「待处理」里列着的单据号（同 `pending_counts` 的判据）：CC「待处理」的代录一组按单据去重用
+    （`assistant.operator_source.pending_documents`）。没有读权限的回空（同页面上看不到）。"""
+    if not scope.allowed_any(scope.READ_FEATURES):
+        return []
+    by_set, by_tax, tax_ids = _attribution()
+    return [item["document"] for item in _items(_candidates(), by_set, by_tax, tax_ids)]
+
+
 # ---------------- 早上汇总 ----------------
 
 

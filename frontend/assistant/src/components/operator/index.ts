@@ -6,6 +6,7 @@ export { ModeSwitch, MODES, type OperatorMode } from "./mode-switch";
 export { createLiveSource, type LiveOperatorSource } from "./live-source";
 export { OperatorProvider, useOperator } from "./controller";
 export { OperatorSidebar } from "./operator-sidebar";
+export { useAttention, watchAttention } from "./attention";
 export { OperatorDock, OperatorMain, OperatorTitle, OperatorTools, useDockOpen } from "./workspace";
 export type * from "./types";
 export { REASONS, BATCH_STOPPERS, levelOf } from "./types";
