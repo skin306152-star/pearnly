@@ -235,6 +235,12 @@ function words(value: unknown): string[] {
   const stopped = (await src.listBatches()).find((b) => b.reason === "login_missing")!;
   assert.equal(batchNeedsHuman(stopped), true);
   assert.equal(taskTone(stopped), "attention");
+  // 授权好了整批继续：没录成的交回去接着录
+  const elsewhere = createMockSource({ now: () => 1_800_000_000 });
+  const resumed = (await elsewhere.listBatches()).find((b) => b.reason === "login_missing")!;
+  await elsewhere.resume(resumed.id);
+  assert.deepEqual(elsewhere.calls.at(-1), ["task_resume", resumed.id]);
+  assert.equal((await elsewhere.snapshot(resumed.id)).status, "running");
   // 排队：交出去了、电脑还没开始，或账套正被别的电脑写
   assert.equal(taskMeta({ status: "ready", reason: "", docs: [], total: 1, remote: true }), op.queued);
   assert.equal(taskMeta({ status: "paused", reason: "account_busy", docs: [], total: 1 }), op.queued);
@@ -399,6 +405,7 @@ const post = async (method: string, args: any) => {
       : { doc_id: id, state: "ready" }) };
   }
   if (method.endsWith(".regroup")) return { ok: true };
+  if (method.endsWith(".task_answer") || method.endsWith(".task_resume")) return TASK(args.name, "queued");
   return { batch: "b1", results: [
     { doc_id: "P:PO-1", status: "sent", reason: "" },
     { doc_id: "P:PO-2", status: "queued", reason: "" },
@@ -510,9 +517,12 @@ function runner(id: string, status: string, docs: any[], created = 1_800_000_000
   await web.skip("b1", "S:SO-1");
   s = await web.snapshot("b1");
   assert.equal(s.docs[2]!.status, "skipped");
-  // 网页上：停止 / 重试没有对象（进度在执行的电脑上）
+  // 网页上：停止没有对象（进度在执行的电脑上）；单张重试、整批继续交给站点按原批次号交回执行的电脑（同作答，没有答案）
   await assert.rejects(web.stop("b1"));
-  await assert.rejects(web.retry("b1", "P:PO-1"));
+  await web.retry("b1", "P:PO-1");
+  assert.deepEqual(posts.at(-1), ["pearnly_core.express_operator.api.task_answer", { name: "b1", doc_id: "P:PO-1", answers: "[]" }]);
+  await web.resume("b1");
+  assert.deepEqual(posts.at(-1), ["pearnly_core.express_operator.api.task_resume", { name: "b1" }]);
   const later = startedSnapshot({ id: "b2", company: "C", company_title: "", period: "", created: 1, start_at: 9, results: [{ doc_id: "x", status: "sent", reason: "" }], skipped: new Set() }, new Map());
   assert.equal(later.reason, "waiting_start");
   const none = startedSnapshot({ id: "b3", company: "C", company_title: "", period: "", created: 1, start_at: 0, results: [{ doc_id: "x", status: "not_permitted", reason: "" }], skipped: new Set() }, new Map());
@@ -595,14 +605,18 @@ function runner(id: string, status: string, docs: any[], created = 1_800_000_000
   assert.equal(s.period, "2026-10");
   assert.equal(s.docs[0]!.summary!.ref, "SN-1");          // 要点按这一页的资料补
   assert.deepEqual(s.docs.map((d) => d.status), ["saved", "entering", "waiting"]);
-  // 控制：停止、开始、跳过、重试、删除都交给桥（operator_control）；页面不再调 operator_show（按钮去掉了），也不取实时画面
+  // 控制：停止、开始（暂停后）、跳过、删除交给桥（operator_control）；重试、整批停下后继续交给站点（CC 本机重录不了已经回执给
+  // 站点的单），不经桥。页面不再调 operator_show（按钮去掉了），也不取实时画面
   const before = fake.calls.length;
   await desk.stop("b1");
   await desk.start("b1");
   await desk.skip("b1", "P:PO-2");
   await desk.retry("b1", "P:PO-2");
+  await desk.resume("b1");
   assert.deepEqual(fake.calls.slice(before).filter(([m]) => m === "operator_control").map(([, a]) => [a.batch, a.action, a.doc]),
-    [["b1", "stop", ""], ["b1", "resume", ""], ["b1", "skip", "P:PO-2"], ["b1", "retry", "P:PO-2"]]);
+    [["b1", "stop", ""], ["b1", "resume", ""], ["b1", "skip", "P:PO-2"]]);
+  assert.deepEqual(posts.slice(-2), [["pearnly_core.express_operator.api.task_answer", { name: "b1", doc_id: "P:PO-2", answers: "[]" }],
+    ["pearnly_core.express_operator.api.task_resume", { name: "b1" }]]);
   assert.ok(!fake.calls.some(([m]) => m === "operator_show"));
   assert.ok(!fake.calls.some(([m]) => m === "operator_frame"));
   // 桥上看到这台电脑开始录了：站点上转「进行中」，每个任务只一次
@@ -708,7 +722,7 @@ function value(patch: Partial<Operator>): Operator {
     notice: "", computer: undefined, select: noop, create: noop, retarget: noop, say: noop, answer: noop, chooseComputer: noop, regroup: noop,
     intake: noop, loadMore: noop, resolve: (id, entered) => calls.push(`resolve:${id}:${entered}`),
     start: () => calls.push("start"), stop: () => calls.push("stop"), skip: (id) => calls.push(`skip:${id}`), retry: (id) => calls.push(`retry:${id}`),
-    authorize: () => calls.push("authorize"), remove: async () => {},
+    resume: () => calls.push("resume"), authorize: () => calls.push("authorize"), remove: async () => {},
     ...patch,
   };
 }
@@ -874,6 +888,20 @@ const button = (html: string, slot: string) => html.match(new RegExp(`<button[^>
   assert.equal(items[0].retryLabel, op.setUp);
   items[0].retry();
   assert.equal(calls.at(-1), "authorize");
+  // 整个任务因别的整批停原因停了（授权名额、服务器……）：「重试」是整批继续（站点把没录成的交回去），不是桥上的开始
+  render(value({ id: login.id, snapshot: { ...(await src.snapshot(login.id)), reason: "license" } }), h(Probe));
+  assert.equal(items[0].key, "batch");
+  assert.equal(items[0].retryLabel, undefined);
+  items[0].retry();
+  assert.equal(calls.at(-1), "resume");
+  // 网页、手机上看的任务（remote）与 CC 重启后恢复出来的任务：停下等人的单照样能重试（交给站点）
+  const held = { ...(await src.snapshot(login.id)), status: "finished" as const, reason: "", remote: true,
+    docs: [{ doc_id: "R-1", doc_type: "RR", status: "waiting" as const, reason: "negative_stock", docnum: "", voided: [], placeholders: [],
+      reports: [], issues: [], seconds: 0, evidence: "none" as const }] };
+  render(value({ id: login.id, snapshot: held }), h(Probe));
+  assert.deepEqual(items.map((i) => [i.key, !!i.retry, !!i.skip]), [["R-1", true, false]]);
+  render(value({ id: login.id, snapshot: { ...held, remote: false, live: false } }), h(Probe));
+  assert.deepEqual(items.map((i) => [i.key, !!i.retry, !!i.skip]), [["R-1", true, true]]);
 
   // ── 窄屏：右侧栏从右边滑出（遮罩 + 关闭），手机盖满屏；都没有分隔条 ─────────────────────────────────────────
   const narrow = render(running, h(OperatorPanel, { mode: "floating", title: "T", onClose: noop }));

@@ -121,6 +121,10 @@ class TaskTests(unittest.TestCase):
             (company, list(ids), batch, computer, answers)) or [{"doc_id": i, "status": "sent"} for i in ids]
         package = types.ModuleType("pearnly_core.express_operator")
         package.products = products
+        contracts_spec = importlib.util.spec_from_file_location(
+            "op_contracts", ROOT / "apps/pearnly_core/pearnly_core/express_operator/contracts.py")
+        package.contracts = importlib.util.module_from_spec(contracts_spec)
+        contracts_spec.loader.exec_module(package.contracts)  # 纯规则，无框架
         sessions = types.ModuleType("pearnly_core.assistant.sessions")
         sessions.SESSION = "Pearnly Assistant Session"
 
@@ -135,16 +139,19 @@ class TaskTests(unittest.TestCase):
         assistant = types.ModuleType("pearnly_core.assistant")
         assistant.sessions = sessions
         self.saved = {k: sys.modules.get(k) for k in ("frappe", "frappe.utils", "pearnly_core", "pearnly_core.express_operator",
-                                                       "pearnly_core.express_operator.products", "pearnly_core.assistant",
+                                                       "pearnly_core.express_operator.products",
+                                                       "pearnly_core.express_operator.contracts", "pearnly_core.assistant",
                                                        "pearnly_core.assistant.sessions", "pearnly_core.express_operator.tasks")}
         sys.modules.update({"frappe": frappe, "frappe.utils": utils, "pearnly_core": types.ModuleType("pearnly_core"),
                             "pearnly_core.express_operator": package, "pearnly_core.express_operator.products": products,
+                            "pearnly_core.express_operator.contracts": package.contracts,
                             "pearnly_core.assistant": assistant, "pearnly_core.assistant.sessions": sessions})
         spec = importlib.util.spec_from_file_location(
             "op_tasks", ROOT / "apps/pearnly_core/pearnly_core/express_operator/tasks.py")
         self.tasks = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.tasks)
         self.frappe = frappe
+        self.package = package
 
     def tearDown(self):
         for key, value in self.saved.items():
@@ -294,6 +301,70 @@ class TaskTests(unittest.TestCase):
         out = self.tasks.answer(name, "h3", choice)
         self.assertEqual(self.submitted, [("CO-1", ["h3"], {"id": name, "total": 1, "start_at": 0}, "CCD-1", {"h3": choice})])
         self.assertEqual((out["status"], out["documents"][2]["state"], out["finished_at"]), ("queued", "queued", ""))
+
+    def test_a_retry_resubmits_a_document_the_computer_skipped_or_held_with_no_answers(self):
+        # 单张「重试」走作答同一条路（answers 空）：CC 停止跳过的单在站点上是「未完成」（原因 [OPERATOR_STOPPED]）；任务还记着
+        # 排队的先问产品一次（CC 回执了、任务还没收尾）；结果不明的不重交（要人先在 Express 核对）
+        name = self._started()
+        self.statuses = {"h1": {"state": "not_done", "reason": "[OPERATOR_STOPPED] stopped"}}
+        out = self.tasks.answer(name, "h1", [])
+        self.assertEqual(self.submitted, [("CO-1", ["h1"], {"id": name, "total": 1, "start_at": 0}, "CCD-1", {"h1": []})])
+        self.assertEqual(out["documents"][0]["state"], "queued")
+        self.statuses = {"h2": {"state": "not_done", "reason": "push.result_unknown"}}
+        with self.assertRaises(_Throw):
+            self.tasks.answer(name, "h2", [])
+        self.statuses = {"h2": {"state": "saved", "docnum": "RR2"}}
+        with self.assertRaises(_Throw):
+            self.tasks.answer(name, "h2", [])                     # 已入账的不再交
+        self.assertEqual(len(self.submitted), 1)
+
+    def _stopped_batch(self):
+        """CC 登录失败整批停：h1 卡住（登录失败）、h2 停止跳过、h3 交单时就要人选（与整批停无关）。"""
+        name = self._started()
+        self.statuses = {"h1": {"state": "not_done", "reason": "[OPERATOR_LOGIN_FAILED] login window"},
+                         "h2": {"state": "not_done", "reason": "[OPERATOR_STOPPED] stopped"}}
+        return name
+
+    def test_resume_hands_back_only_the_documents_the_batch_stop_left_undone(self):
+        name = self._stopped_batch()
+        out = self.tasks.resume(name)                              # 没收尾也先以站点为准收尾一次
+        self.assertEqual(self.submitted, [("CO-1", ["h1", "h2"], {"id": name, "total": 2, "start_at": 0}, "CCD-1", {})])
+        self.assertEqual([(d["doc_id"], d["state"]) for d in out["documents"]],
+                         [("h1", "queued"), ("h2", "queued"), ("h3", "not_done")])
+        self.assertEqual((out["status"], out["finished_at"]), ("queued", ""))
+        self.statuses = {}
+        with self.assertRaises(_Throw):
+            self.tasks.resume(name)                                # 已交回、还在队列：不再交
+
+    def test_resume_is_only_for_the_owner_of_a_stopped_task_with_something_to_hand_back(self):
+        # 测试替身不回滚：每种拒绝各用一个新任务（真站点 frappe.throw 整个请求回滚）
+        name = self._stopped_batch()
+        self.statuses["h2"] = {"state": "queued"}
+        with self.assertRaises(_Throw):
+            self.tasks.resume(name)                                # 还有单在路上：任务没停下
+        name = self._stopped_batch()
+        self.statuses["h1"] = {"state": "saved", "docnum": "RR1"}
+        self.statuses["h2"] = {"state": "not_done", "reason": "[OPERATOR_PARTY_MISSING] x"}
+        with self.assertRaises(_Throw):
+            self.tasks.resume(name)                                # 没有因整批停没录成的单（要人处理的单走单张重试）
+        name = self._stopped_batch()
+        self.frappe.session.user = "b@example.com"
+        with self.assertRaises(DoesNotExistError_):
+            self.tasks.resume(name)                                # 别人的任务
+        self.frappe.session.user = "a@example.com"
+        self.allowed.clear()
+        with self.assertRaises(PermissionError_):
+            self.tasks.resume(name)                                # 公司权限收回
+        self.allowed.add("CO-1")
+        draft = self.tasks.create("CO-1", "2026-11")
+        with self.assertRaises(_Throw):
+            self.tasks.resume(draft["name"])                       # 准备中没有可继续的
+        self.assertEqual(self.submitted, [])
+        self.statuses = {"h1": {"state": "not_done", "reason": "[OPERATOR_NETWORK_DOWN] x"},
+                         "h2": {"state": "not_done", "reason": "[OPERATOR_PARTY_MISSING] x"}}
+        self.assertEqual(self.tasks.resume(name)["documents"][0]["state"], "queued")
+        self.assertEqual(self.submitted[-1][1], ["h1"])            # 只交整批停留下的那张
+        self.assertEqual(self.tasks.RESUMABLE, self.package.contracts.BATCH_STOPPERS | {"stopped"})
 
     def test_the_tools_number_documents_in_task_order_and_refuse_ones_outside_it(self):
         import json
