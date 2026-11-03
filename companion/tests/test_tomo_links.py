@@ -21,16 +21,51 @@ def test_only_pearnly_https_pages_open_in_the_window():
     assert links.route("javascript:alert(1)") == "block"
 
 
-def test_resume_returns_to_the_last_chat_page_of_the_same_side():
-    assert links.resume_url("", {}) == "https://fatcc.com"
-    assert links.resume_url("https://acme.pearnly.com/assistant", {}) == "https://acme.pearnly.com/assistant"
-    assert links.resume_url("https://acme.pearnly.com/app/home", {}) == "https://fatcc.com"
-    assert links.resume_url("https://example.com/assistant", {}) == "https://fatcc.com"
-    test = {"PEARNLY_TOMO_ENTRY": "https://testai.pearnly.com/"}
-    assert links.resume_url("https://acme.pearnly.com/assistant", test) == "https://testai.pearnly.com"
-    assert links.resume_url("https://testcowork.pearnly.com/assistant", test) == "https://testcowork.pearnly.com/assistant"
-    assert links.resume_url("https://testcowork.pearnly.com/assistant", {}) == "https://fatcc.com"
+def test_resume_returns_to_the_last_chat_page_of_the_same_entry():
+    prod, test = {}, {"PEARNLY_TOMO_ENTRY": "https://testai.pearnly.com/"}
+    assert links.resume_url("", None, prod) == "https://fatcc.com"
+    assert links.resume_url("https://acme.pearnly.com/assistant", "https://fatcc.com", prod) == \
+        "https://acme.pearnly.com/assistant"
+    assert links.resume_url("https://acme.pearnly.com/app/home", "https://fatcc.com", prod) == "https://fatcc.com"
+    assert links.resume_url("https://example.com/assistant", "https://fatcc.com", prod) == "https://fatcc.com"
+    assert links.resume_url("https://testcowork.pearnly.com/assistant", "https://testai.pearnly.com", test) == \
+        "https://testcowork.pearnly.com/assistant"
     assert links.entry_url({"PEARNLY_TOMO_ENTRY": "https://evil.example"}) == "https://fatcc.com"
+
+
+def test_test_tenants_reached_through_the_official_entry_come_back_to_their_last_page():
+    # 2026-11-03：正式入口 fatcc.com 下 test 开头的租户（testerp 等）以前一律不回上次的对话页，每次从托盘打开都改走
+    # fatcc.com 重新登录（1.4.0 起按域名前缀猜测试环境）；现在只看存下它时用的入口
+    for site in ("https://testerp.pearnly.com/assistant", "https://testcowork.pearnly.com/assistant?c=s-123"):
+        assert links.resume_url(site, "https://fatcc.com", {}) == site
+        assert links.resume_url(site, "https://FATCC.com/", {}) == site      # 大小写、末尾 / 不算不同
+
+
+def test_a_page_saved_under_another_entry_is_not_reused():
+    test = {"PEARNLY_TOMO_ENTRY": "https://testai.pearnly.com"}
+    assert links.resume_url("https://acme.pearnly.com/assistant", "https://fatcc.com", test) == "https://testai.pearnly.com"
+    assert links.resume_url("https://testerp.pearnly.com/assistant", "https://testai.pearnly.com", {}) == "https://fatcc.com"
+
+
+def test_old_registry_without_an_entry_record_goes_back_to_the_last_page():
+    # 旧版只存 last_url：没有入口记录按「入口相同」处理，回上次的对话页，会话失效由站点送去 CC 入口
+    # （pearnly_core/login_redirect.py）；不是对话页照旧从入口进
+    for missing in (None, "", "  "):
+        assert links.resume_url("https://testerp.pearnly.com/assistant", missing, {}) == \
+            "https://testerp.pearnly.com/assistant"
+        assert links.resume_url("https://acme.pearnly.com/assistant", missing, {}) == "https://acme.pearnly.com/assistant"
+        assert links.resume_url("https://acme.pearnly.com/app/home", missing, {}) == "https://fatcc.com"
+        assert links.resume_url("", missing, {}) == "https://fatcc.com"
+
+
+def test_the_window_saves_the_entry_with_the_last_page_and_passes_it_back():
+    source = (Path(links.__file__).with_name("gui_tomo.py")).read_text(encoding="utf-8")
+    remember = source.split("def _remember(self, url: QUrl)", 1)[1].split("def closeEvent", 1)[0]
+    assert 'self._settings.setValue("last_url", value)' in remember
+    assert 'self._settings.setValue("last_entry", tomo_links.entry_url())' in remember
+    assert 'tomo_links.resume_url(str(self._settings.value("last_url", "") or ""),\n' \
+           '                                                    self._settings.value("last_entry", None))' in source
+    assert "startswith(\"test\")" not in Path(links.__file__).read_text(encoding="utf-8")
 
 
 def test_web_page_language_follows_the_windows_display_languages():

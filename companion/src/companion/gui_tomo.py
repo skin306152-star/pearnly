@@ -265,7 +265,8 @@ class TomoWindow(QMainWindow):
 
         if not self.restoreGeometry(self._settings.value("geometry", b"")):
             self.resize(1180, 800)
-        self.page.setUrl(QUrl(tomo_links.resume_url(str(self._settings.value("last_url", "") or ""))))
+        self.page.setUrl(QUrl(tomo_links.resume_url(str(self._settings.value("last_url", "") or ""),
+                                                    self._settings.value("last_entry", None))))
 
     def _shortcuts(self) -> None:
         for keys, action in (("Ctrl+N", lambda: self.ask("")), ("Ctrl+,", lambda: self.open_settings("")),
@@ -389,7 +390,9 @@ class TomoWindow(QMainWindow):
     def _remember(self, url: QUrl) -> None:
         value = url.toString()
         if tomo_links.is_chat(value):
+            # 连同当时的入口一起记：下次入口相同才回这一页（tomo_links.resume_url）
             self._settings.setValue("last_url", value)
+            self._settings.setValue("last_entry", tomo_links.entry_url())
 
     def closeEvent(self, event) -> None:
         """关窗口：先藏起来（托盘进程里的 Express 推送照常），再交给 window_main 决定窗口进程何时退出；第一次关时提示一次

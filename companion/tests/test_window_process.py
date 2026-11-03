@@ -562,7 +562,7 @@ from PySide6.QtGui import QIcon
 from src.companion import gui_tomo
 gui_tomo.APPDATA_DIR = tmp
 gui_tomo.QSettings = lambda *args: QSettings(str(tmp / "tomo.ini"), QSettings.Format.IniFormat)
-gui_tomo.tomo_links.resume_url = lambda saved, env=None: "about:blank"
+gui_tomo.tomo_links.resume_url = lambda saved, saved_entry=None, env=None: "about:blank"
 notes, closed = [], []
 window = gui_tomo.TomoWindow(lang="zh", icon=QIcon(), notify=lambda *a, **k: notes.append(a), bridge=None,
                              on_close=lambda: closed.append(window.isVisible()))
@@ -640,7 +640,7 @@ server = HTTPServer(("127.0.0.1", 0), Slow)
 threading.Thread(target=server.serve_forever, daemon=True).start()
 gui_tomo.APPDATA_DIR = tmp
 gui_tomo.QSettings = lambda *args: QSettings(str(tmp / "tomo.ini"), QSettings.Format.IniFormat)
-gui_tomo.tomo_links.resume_url = lambda saved, env=None: "http://127.0.0.1:%d/" % server.server_port
+gui_tomo.tomo_links.resume_url = lambda saved, saved_entry=None, env=None: "http://127.0.0.1:%d/" % server.server_port
 gui_tomo.tomo_links.route = lambda url: "load"   # 测试页不是 Pearnly 的地址
 
 

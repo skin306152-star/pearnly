@@ -628,7 +628,7 @@ from PySide6.QtWidgets import QWidget
 from companion import gui_tomo, visibility_watch as vw
 gui_tomo.APPDATA_DIR = tmp
 gui_tomo.QSettings = lambda *args: QSettings(str(tmp / "tomo.ini"), QSettings.Format.IniFormat)
-gui_tomo.tomo_links.resume_url = lambda saved, env=None: "about:blank"
+gui_tomo.tomo_links.resume_url = lambda saved, saved_entry=None, env=None: "about:blank"
 gui_tomo.tomo_links.route = lambda url: "load"   # 这页测试内容不是 Pearnly 的地址
 vw.OCCLUDED_GRACE_MS, vw.CHECK_DELAY_MS, vw.POLL_OCCLUDED_MS, vw.POLL_VISIBLE_MS = 300, 20, 80, 120
 class System:

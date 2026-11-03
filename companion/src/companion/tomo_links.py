@@ -3,7 +3,8 @@
 
 - 窗口里只开自己的 https 页面（fatcc.com 入口、auth.pearnly.com 登录、各公司 <租户>.pearnly.com）；
   别的网址交给系统浏览器，本地文件、data: 等一律不在窗口里打开。
-- 下次打开回到上次停留的对话页（/assistant），没有就从入口 fatcc.com 进。
+- 下次打开回到上次停留的对话页（/assistant），没有就从入口 fatcc.com 进；入口换了（测试 / 正式）就从新入口进。
+  上次页面与当时的入口一起记（注册表 HKCU/Software/Pearnly/Tomo 的 last_url / last_entry），不按域名猜测试环境。
 - 测试时用环境变量 PEARNLY_TOMO_ENTRY 换入口（例如 https://testai.pearnly.com），同样只认 Pearnly 的 https 地址。
 - 托盘的对话提醒点开那段对话：``https://<公司站点>/assistant?c=<对话>``；没有对话按提醒的 ``view``：``company:<编号>`` 是
   这家公司的主档页 ``?company=<编号>``（1.9.1 起），``pending`` 是待处理 ``?view=pending``，其余定时任务页 ``?view=tasks``
@@ -54,14 +55,23 @@ def entry_url(env=None) -> str:
     return value if is_own(value) else ENTRY
 
 
-def resume_url(saved: str, env=None) -> str:
-    """上次停留的对话页；入口换了（测试 / 正式）就不沿用另一边的公司。"""
+def same_entry(a: str, b: str) -> bool:
+    """两个入口地址是不是同一个（大小写、末尾 / 不算）。"""
+    return str(a or "").strip().rstrip("/").lower() == str(b or "").strip().rstrip("/").lower()
+
+
+def resume_url(saved: str, saved_entry=None, env=None) -> str:
+    """上次停留的对话页；``saved_entry`` 是存下它时用的入口，与现在的入口不同（测试 / 正式换了）就不沿用另一边的公司。
+
+    不按域名猜测试环境（以前 test 开头的站点算测试，正式入口下 testerp 等租户的对话页一律不回，每次都改走入口重新登录）。
+    1.4.0–当前的旧版只存了 last_url、没存入口：没有记录按「入口相同」处理，照回上次的对话页——会话还在就直接进，
+    失效了站点自己会把 /assistant 的访客送去 CC 入口（pearnly_core/login_redirect.py），CC 不用自己判断。"""
     entry = entry_url(env)
     if not is_chat(saved):
         return entry
-    testing = urlsplit(entry).hostname != urlsplit(ENTRY).hostname
-    saved_testing = (urlsplit(saved).hostname or "").startswith("test")
-    return saved if testing == saved_testing else entry
+    if not str(saved_entry or "").strip():
+        return saved
+    return saved if same_entry(saved_entry, entry) else entry
 
 
 def accept_language(ui_languages) -> str:
