@@ -686,6 +686,7 @@ pearnly_express_operator = {
     "intake": "pearnly_cowork.assistant.operator_source.intake",
     "regroup": "pearnly_cowork.assistant.operator_source.regroup",
     "submit": "pearnly_cowork.assistant.operator_source.submit",
+    "target": "pearnly_cowork.assistant.operator_source.target",
     "status": "pearnly_cowork.assistant.operator_source.status",
     "resolve": "pearnly_cowork.assistant.operator_source.resolve",
 }

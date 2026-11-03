@@ -15,6 +15,7 @@
     同导入确认发出后异常）。菜单定不下来（要人选 / 选过的失效 / 没有已关联日记账的）在导入前停下、转人工；
     这次读到的菜单选项存回连接，给选择入口用；
   · 不自动重试（旧版 MR.ERP 同样不重试）；银行流水佐证未接（付款判定仍按人工选择 → 票面）；
+  · 交给代录的记录（``entry_mode=operator``，ADR-026 第 1 条，2026-11-03）不领、不排：由选定电脑的 CC 桌面版在网页里录；
   · 同账号互斥（ADR-026 第 8 条，2026-11-02）：账号正被 CC 桌面版代录占着时不领、照旧待发送（`account_busy`），
     不算失败、不转人工；代录放开账号（或电脑不在、租约过期）后由定时巡检再排。
 """
@@ -27,6 +28,7 @@ from zoneinfo import ZoneInfo
 
 import frappe
 
+from pearnly_core.express_operator.contracts import is_operator
 from pearnly_core.mrerp.session import lock_key
 from pearnly_core.session_lock import operator_holds
 from pearnly_cowork.connections import service as connections
@@ -52,11 +54,13 @@ def dispatch(record):
 
 def dispatch_next(connection):
     """同一连接串行：一条结束后接着排最早一条待发送的 MR.ERP 记录。"""
-    rows = frappe.db.sql("""SELECT name, target_json FROM `tabCowork Push Record`
-        WHERE connection=%s AND status='pending' AND COALESCE(result_unknown,0)=0
+    # 代录记录（`entry_mode=operator`，ADR-026）由选定电脑的 CC 桌面版领，不在这里排；它们都带 ``route_device``，直写的 MR.ERP
+    # 记录没有（`assistant.tools._submit_one` 只给 Express 与 MR.ERP 代录传），先在查询里排掉，再逐条按载荷核一次
+    rows = frappe.db.sql("""SELECT name, target_json, payload_json FROM `tabCowork Push Record`
+        WHERE connection=%s AND status='pending' AND COALESCE(result_unknown,0)=0 AND COALESCE(route_device,'')=''
         ORDER BY created_at, name LIMIT 20""", (connection,), as_dict=True)
     for row in rows:
-        if (json.loads(row.target_json or "{}").get("adapter")) == "mrerp":
+        if (json.loads(row.target_json or "{}").get("adapter")) == "mrerp" and not is_operator(row.payload_json):
             dispatch(row.name)
             return
 
@@ -92,6 +96,8 @@ def run(record):
     target = json.loads(row.target_json or "{}")
     if target.get("adapter") != "mrerp":
         return
+    if is_operator(frappe.db.get_value(RECORD, record, "payload_json")):
+        return  # 交给代录的单（ADR-026 第 1 条）：由选定电脑的 CC 桌面版在 MR.ERP 网页里录，直写一律不接
     # 以准备这张票的人执行：读凭据、核权限都按他当前的授权（撤了权就领不到）。
     frappe.set_user(row.actor)
     context, adapter = _context(row), ledger.trusted_adapter_context(row.connection, OWNER, 0)

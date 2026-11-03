@@ -859,6 +859,17 @@ def _mrerp_setup_of(name) -> dict | None:
     return {"connection": connection, "account_set_key": account_set, **setup} if setup else None
 
 
+def _operator_target(operator) -> str:
+    """代录批次信息里这家公司的执行目标（共用层 ``products.submit`` 带进来，ADR-026 第 6 条）。MR.ERP 只在全平台常量
+    ``MRERP_OPERATOR_ENABLED`` 开着时才认，关着一律当 Express（与没有 MR.ERP 代录时一样，MR.ERP 的单按 ``operator_express_only`` 拦下）。"""
+    from pearnly_core.express_operator import contracts as operator_contracts
+
+    found = str((operator or {}).get("target") or operator_contracts.TARGET_EXPRESS)
+    if found == operator_contracts.TARGET_MRERP and operator_contracts.MRERP_OPERATOR_ENABLED:
+        return found
+    return operator_contracts.TARGET_EXPRESS
+
+
 def _submit_one(name, connection, account_set_key, posting_kind, route_device, operator=None) -> dict:
     """:func:`_push_one` 的准备那一步：停下 / 推不成回给页面的结论；交出去准备好了的回 ``{"submitted": (adapter, 连接, 请求号,
     准备结果)}``。重来时从头读票（撞上冲突的那次整笔回滚了）。"""
@@ -919,10 +930,26 @@ def _submit_one(name, connection, account_set_key, posting_kind, route_device, o
                     "mrerp_setup": {"connection": target, "account_set_key": going["account_set"], **setup},
                     "note": MRERP_SETUP_NOTE}
     key = _key(name, doc.record_version, doc.last_push_record or doc.last_push_reason)
-    if operator and adapter != "express":
+    mrerp_operator = bool(operator) and adapter == "mrerp" and _operator_target(operator) == "mrerp"
+    if operator and adapter != "express" and not mrerp_operator:
         return {"document": name, "status": "failed", "reason": "operator_express_only"}  # 代录只录 Express
+    if operator and adapter == "express" and _operator_target(operator) != "express":
+        return {"document": name, "status": "failed", "reason": "operator_express_only"}  # 公司账本与这张单的连接不符
+    if mrerp_operator:
+        # MR.ERP 代录（ADR-026，第 3 步）：开录前服务端按直写同一套准备出网页表单要填的值、自建对方 / 商品（对外请求，不持锁）
+        from pearnly_cowork.push.mrerp import operator as mrerp_staging
+
+        frappe.db.commit()
+        staged = mrerp_staging.stage(name, target, going["account_set"])
+        if "block" not in staged:
+            if staged.get("status") == "failed":
+                application.submission_failed(name, staged["reason"])
+                frappe.db.commit()
+            return {"document": name, **staged}
+        operator = {**operator, application.MRERP_OPERATOR_STAGE: staged["block"]}
     result = application.submit(name, target, key, doc.record_version, revision, account_set, None, None, posting_kind,
-                                route_device=route_device if adapter == "express" else "", operator=operator)
+                                route_device=route_device if adapter == "express" or mrerp_operator else "",
+                                operator=operator)
     frappe.db.commit()
     if result.get("status") in ("failed", "cancelled", "manual"):
         return {"document": name, "status": result.get("status"), "reason": str(result.get("reason") or "")[:300]}

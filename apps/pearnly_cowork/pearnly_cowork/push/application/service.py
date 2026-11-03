@@ -153,7 +153,8 @@ def prepare(history, connection, request_key, expected_history_version, expected
         frappe.throw(pos_contract.EXPRESS_ONLY)
     if adapter == "mrerp":
         return _view(_prepare_mrerp(doc, loaded, request_key, intent, account_set_key,
-                                    catalog_request_id, catalog_revision))
+                                    catalog_request_id, catalog_revision, operator=operator,
+                                    route_device=route_device))
     try:
         target = freeze_target(loaded.endpoint, access=loaded.access, evidence=loaded.evidence,
             account_set_key=account_set_key, request_id=catalog_request_id, revision=catalog_revision)
@@ -842,11 +843,12 @@ def _express_context(doc, loaded, account_set_key):
             "invoice_date": invoice_date}
 
 
-def _prepare_mrerp(doc, loaded, request_key, intent, account_set_key, catalog_request_id, catalog_revision):
-    """MR.ERP：冻结目标账套 + 整理后的票面 + 已配置映射 + 本方税号，交服务端执行（`push.mrerp.runner`）。
+def mrerp_basis(doc, loaded, account_set_key, catalog_request_id=None, catalog_revision=None, *, lock=True):
+    """MR.ERP 直写与代录同一份准备：冻结目标账套 + 整理后的票面 + 已配置映射 + 本方税号 → (目标, 冻结的目标信息, 载荷)。
 
     推什么由票面决定（旧 `push_mrerp_history` 同一组输入）：用户在入口选的进 / 销项与付款方式、
     复核改过的字段都已写在票面里（`direction` / `posting_payment_manual`），分流与建档在执行时按旧规则做。
+    ``lock=False``：代录开录前的服务端准备（`push.mrerp.operator.stage`）只读、不加锁，紧接着要对外请求。
     """
     # MR.ERP 没有打通现金采购（只有应付的采购 / 费用模块）：进项 + 现金在服务端挡下，不悄悄改成赊购
     # （旧线上 `mrerp_purchase_cash_unverified`；此前只靠入口不给这个选项）。
@@ -858,7 +860,7 @@ def _prepare_mrerp(doc, loaded, request_key, intent, account_set_key, catalog_re
             account_set_key=account_set_key, request_id=catalog_request_id, revision=catalog_revision)
     except TargetSelectionError as error:
         frappe.throw(_(error.code), frappe.PermissionError if error.status_code == 403 else frappe.ValidationError)
-    own_tax = frappe.db.get_value("Cowork Workspace", doc.workspace, "tax_id", for_update=True) or ""
+    own_tax = frappe.db.get_value("Cowork Workspace", doc.workspace, "tax_id", for_update=lock) or ""
     history_value = storage.project(doc)
     history_value.update(id=doc.name, client_id=doc.client or None,
         tenant_id=loaded.access.tenant_id, workspace_client_id=doc.workspace)
@@ -874,13 +876,39 @@ def _prepare_mrerp(doc, loaded, request_key, intent, account_set_key, catalog_re
     mappings["_mrerp_defaults"] = connections.mrerp_chosen_defaults(loaded, target.account_set)
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
     frozen = asdict(target)
-    frozen.update(request_intent=intent, connection_revision=loaded.revision, original_history=prior,
+    frozen.update(request_intent=None, connection_revision=loaded.revision, original_history=prior,
         preparation_date=today.isoformat(), own_tax_id=own_tax)
     # 冻结进账本须是纯 JSON：库里读出的日期 / 时间 / Decimal 转成字符串（生成器按字符串解析日期）。
     payload = json.loads(json.dumps({"histories": [flatten_history_for_mrerp(history_value)], "mappings": mappings},
                                     ensure_ascii=False, default=str))
+    return target, frozen, payload
+
+
+MRERP_OPERATOR_STAGE = "mrerp"  # 代录批次信息里开录前服务端准备好的 ``mrerp`` 块（`push.mrerp.operator.stage`）
+
+
+def _prepare_mrerp(doc, loaded, request_key, intent, account_set_key, catalog_request_id, catalog_revision, *,
+                   operator=None, route_device=""):
+    """MR.ERP：冻结后交服务端执行（`push.mrerp.runner`）。
+
+    ``operator``（ADR-026 第 2 条，MR.ERP 代录，``contracts.MRERP_OPERATOR_ENABLED`` 开着才走到）：同一份载荷加代录标记、
+    ``operator.target = mrerp``（载荷 18）与开录前服务端准备好的 ``mrerp`` 块（网页表单要填的值），冻结在推送记录上、
+    派给 ``route_device`` 那台电脑的 CC 桌面版在 MR.ERP 网页里录；不交服务端执行器（`runner.run` 跳过代录记录）。"""
+    target, frozen, payload = mrerp_basis(doc, loaded, account_set_key, catalog_request_id, catalog_revision)
+    frozen["request_intent"] = intent
+    if operator:
+        from pearnly_core.express_operator import contracts as operator_contracts
+
+        staged = operator.get(MRERP_OPERATOR_STAGE)
+        if (not operator_contracts.MRERP_OPERATOR_ENABLED or not isinstance(staged, dict)
+                or not route_device or staged.get("connection") != loaded.doc.name):
+            frappe.throw(_("Invalid request"))
+        batch = {key: value for key, value in operator.items() if key != MRERP_OPERATOR_STAGE}
+        payload = operator_contracts.for_operator({**payload, "mrerp": staged}, batch,
+                                                  target=operator_contracts.TARGET_MRERP)
     return ledger.reserve(context=_context(doc, loaded, target.account_set), request_key=request_key,
-        frozen_target=frozen, frozen_payload=payload, disposition="prepared")
+        frozen_target=frozen, frozen_payload=payload, disposition="prepared",
+        route_device=route_device if operator else "")
 
 
 def detail(name):
@@ -972,7 +1000,11 @@ def submit(history, connection, request_key, expected_history_version, expected_
         if result.get("status") == "disabled":
             return submission_failed(history, _("push.disabled"))
         if result.get("status") == "prepared" and connections.adapter_of(connection) == "mrerp":
-            result = confirm_server(result["name"], result["revision"], "confirm:" + str(request_key))
+            if operator:
+                # MR.ERP 代录：确认后排着等选定的那台电脑来领（`companion.transport`），不排服务端执行任务
+                result = confirm(result["name"], result["revision"], "confirm:" + str(request_key))
+            else:
+                result = confirm_server(result["name"], result["revision"], "confirm:" + str(request_key))
         return result
     except (frappe.ValidationError, frappe.PermissionError) as error:
         return submission_failed(history, str(error))

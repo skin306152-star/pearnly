@@ -35,7 +35,8 @@ from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.push.native.contracts import ReservationContext
 from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 from pearnly_core.cc_desktop.wire import queue_contracts, request_contracts, route_contracts
-from . import credentials, delivery_store, devices, queue_heads, receipt_auth, request_service
+from pearnly_core.express_operator import contracts as operator_target
+from . import credentials, delivery_store, devices, mrerp_jobs, queue_heads, receipt_auth, request_service
 
 @contextmanager
 def _atomic():
@@ -73,25 +74,43 @@ def _adapter(connection, owner, **accountability):
     return ledger.trusted_adapter_context(connection, owner, 0, **accountability)
 
 
+def _row_context(row, credential, device):
+    """这把密钥手上的一条记录 → 推送上下文：Express 记录与密钥同一条连接（原样）；MR.ERP 代录单在同一工作空间的 MR.ERP 连接上
+    （`mrerp_jobs.context`，ADR-026 第 3 步）。"""
+    if row.connection == credential.connection:
+        return _context(row, credential)
+    return mrerp_jobs.context(row, credential, device)
+
+
 def _recover(credential, now, device):
     # Only this adapter's persisted deliveries. A reset credential may observe
     # an old attempt's expiry but cannot acknowledge it or release its locks.
     # 领它的电脑还在（按需请求线程 90 秒内来过，`request_service.presence`；那条线程与写账线分开跑）就续租约，不判结果不明：
     # 代录一张单可以合法地超过租约（ADR-021 11-02 修订）。来领的这台自己手上的已在 `_redeliver` 里处理。
+    # 按投递记录挂的连接（来领的密钥那条）找：Express 记录就是这条连接；MR.ERP 代录单在别的连接上、投递仍挂在这里（第 3 步）
     rows = frappe.db.sql('''SELECT r.name, d.owner_id, r.written_by_device FROM `tabCowork Push Record` r
         INNER JOIN `tabCowork Companion Delivery` d ON d.push_attempt=r.active_attempt
-        WHERE r.connection=%s AND r.status='leased' AND r.lease_expires_at<=%s
+        WHERE d.connection=%s AND r.status='leased' AND r.lease_expires_at<=%s
         ORDER BY r.created_at,r.name''', (credential.connection, ledger.now_utc(now)), as_dict=True)
     for item in rows:
         writer = item.written_by_device or ''
         if writer == device:
             continue
         row = frappe.get_doc(ledger.RECORD, item.name)
-        adapter = _adapter(credential.connection, item.owner_id)
+        adapter = _adapter(row.connection, item.owner_id)
+        mrerp = row.connection != credential.connection
+        try:
+            reservation = _row_context(row, credential, writer)
+        except frappe.PermissionError:
+            if not mrerp:
+                raise
+            continue  # 已不归这台电脑的 MR.ERP 代录单（不该发生）：不动，由它自己的密钥收拾
         if writer and request_service.presence(credential.connection, writer)['seen']:
-            ledger.extend(row.name, context=_context(row, credential), adapter=adapter, now=now)
+            ledger.extend(row.name, context=reservation, adapter=adapter, now=now)
+            if mrerp:
+                mrerp_jobs.take(row, writer)  # 电脑在场：账号租约随领单续期
         else:
-            ledger.recover_expired(row.name, context=_context(row, credential), adapter=adapter, now=now)
+            ledger.recover_expired(row.name, context=reservation, adapter=adapter, now=now)
 
 
 def _redeliver(credential, device, request, now):
@@ -109,50 +128,66 @@ def _redeliver(credential, device, request, now):
     reach = account_pool.writable_reach(credential.connection, device)
     rows = frappe.db.sql('''SELECT r.name, r.account_key, d.owner_id FROM `tabCowork Push Record` r
         INNER JOIN `tabCowork Companion Delivery` d ON d.push_attempt=r.active_attempt
-        WHERE r.connection=%s AND r.written_by_device=%s
+        WHERE d.connection=%s AND r.written_by_device=%s
           AND (r.status='leased' OR (r.status='manual' AND r.result_unknown=1 AND r.reason=%s))
         ORDER BY r.status='leased' DESC, r.created_at, r.name''',
         (credential.connection, device, ledger.UNKNOWN_REASON), as_dict=True)
     for item in rows:
         row = frappe.get_doc(ledger.RECORD, item.name)
-        lost = _adapter(credential.connection, item.owner_id)
+        lost = _adapter(row.connection, item.owner_id)
+        mrerp = row.connection != credential.connection
         key = normalize_express_account_key(row.account_key)
-        if key not in reach:
+        if not mrerp and key not in reach:
             continue  # 这会儿够不到这份账套（网络盘没连上）：先不动，连上后再重发；这台也不领别的（`_busy`）
+        if mrerp and not mrerp_jobs.take(row, device):
+            continue  # MR.ERP 代录单：账号租约过期后被直写 / 别的批次占了，先不重发，放开后再发（ADR-026 第 8 条）
         claim = None
+        try:
+            reservation = _row_context(row, credential, device)
+        except frappe.PermissionError:
+            if not mrerp:
+                raise
+            continue
         if ledger.redeliverable(row, device):
             try:
-                claim = ledger.lease(row.name, context=_context(row, credential),
-                                     adapter=_dispatch_adapter(credential, device, row.write_route or ''),
+                claim = ledger.lease(row.name, context=reservation,
+                                     adapter=_dispatch_adapter(credential, device, row.write_route or '',
+                                                               connection=row.connection),
                                      now=now, redeliver=True)
             except (frappe.ValidationError, frappe.PermissionError):
                 claim = None  # 不能再交给它（失权、目标变了、锁对不上）：下面按丢了处理
         if claim is None:
             if row.status == 'leased':
-                ledger.recover_expired(row.name, context=_context(row, credential), adapter=lost, now=now, lost=True)
+                ledger.recover_expired(row.name, context=reservation, adapter=lost, now=now, lost=True)
             continue
         job = route_contracts.Job(row.name, key, row.entered_by or row.actor, 1, row.route_device or '')
+        peer = _peers(credential.connection, device, request, now).get(device)
+        if mrerp:
+            return [_deliver(credential, claim, None, '', job._replace(target=operator_target.TARGET_MRERP), peer,
+                             connection=row.connection)]
         uid = _account(account_pool.registrations_of(credential.connection, [key]).get(key)).uid
-        return [_deliver(credential, claim, reach[key], uid, job,
-                         _peers(credential.connection, device, request, now).get(device))]
+        return [_deliver(credential, claim, reach[key], uid, job, peer)]
     return []
 
 
-def _dispatch_adapter(credential, device, route):
+def _dispatch_adapter(credential, device, route, *, connection=None):
     found = frappe.db.get_value(devices.DOCTYPE, device, ['device_owner', 'companion_version'], as_dict=True) \
         if device != credential.credential_id else None
     owner, version = (found.device_owner or '', found.companion_version or '') if found else ('', '')
-    return _adapter(credential.connection, delivery_store.owner(credential), device=device, device_owner=owner,
-                    route=route, version=version)
+    return _adapter(connection or credential.connection, delivery_store.owner(credential), device=device,
+                    device_owner=owner, route=route, version=version)
 
 
-def _deliver(credential, claim, spelling, uid, job, peer):
+def _deliver(credential, claim, spelling, uid, job, peer, *, connection=None):
     """领到的一件交给这台电脑：载荷换成它对这份账套的写法（与这份账套登记的文件号 ``uid``）、建投递记录、带上稳定键（ADR-021
-    11-02 修订）与录入人可能在不在这台电脑前。"""
-    record = {**claim['record'], 'frozen_payload': wire_location.localize(
-        claim['record']['frozen_payload'], path=spelling.path, root=spelling.root, row=spelling.registry_row,
-        uid=uid)}
-    delivery = delivery_store.create(credential=credential, claim=claim)
+    11-02 修订）与录入人可能在不在这台电脑前。MR.ERP 代录单（``connection`` 是它的 MR.ERP 连接）没有账套位置，载荷原样交。"""
+    if spelling is None:
+        record = dict(claim['record'])
+    else:
+        record = {**claim['record'], 'frozen_payload': wire_location.localize(
+            claim['record']['frozen_payload'], path=spelling.path, root=spelling.root, row=spelling.registry_row,
+            uid=uid)}
+    delivery = delivery_store.create(credential=credential, claim=claim, **({'connection': connection} if connection else {}))
     # 自动推不弹「账套被占用」（第 3 期第 5 条）
     automated = isinstance((claim.get('target') or {}).get('automation'), dict)
     attended = route_contracts.attended(job._replace(automated=automated), peer)
@@ -245,6 +280,53 @@ def _claim(credential, device, request, now):
     return []
 
 
+def _claim_mrerp(credential, device, request, now):
+    """这台电脑这个工作空间里派给它的 MR.ERP 代录单（ADR-026 第 5 条，第 3 步）：只派给发起人选定的这台、它报过 ``mrerp``、载荷版本够
+    （`route_contracts.decide` 的目标分支）；不会这个目标的不领、单子等它；报了目标版本不够转人工（同 Express「没有一台支持」的口径）。
+    领前按「网址 + 用户名」租这个 MR.ERP 账号（`mrerp_jobs.take`），租不到不发、照旧排着。"""
+    if not operator_target.MRERP_OPERATOR_ENABLED:
+        return []
+    heads = mrerp_jobs.heads(credential, device)
+    if not heads:
+        return []
+    peers = _peers(credential.connection, device, request, now)
+    clock = ledger.now_utc(now)
+    for head in heads:
+        job = route_contracts.Job(head.name, head.account_key, head.entered_by or head.actor,
+                                  max(1, int(head.payload_version or 1)), head.route_device or '',
+                                  target=operator_target.TARGET_MRERP)
+        decision = route_contracts.decide(device, job, [], peers, route_contracts.Account(), clock)
+        if not decision.take and decision.reason != route_contracts.NEEDS_UPDATE:
+            continue  # 不是这台的 / 这台还不会代录 MR.ERP：等它
+        row = frappe.get_doc(ledger.RECORD, head.name)
+        reservation = mrerp_jobs.context(row, credential, device)
+        adapter = _dispatch_adapter(credential, device, decision.route, connection=row.connection)
+        if not decision.take:
+            ledger.quarantine_pending(row.name, context=reservation, adapter=adapter, reason='payload_version_outdated')
+            continue
+        if ledger.lock_busy(row.name, context=reservation):
+            continue
+        point = 'cowork_mrerp_claim_' + uuid4().hex
+        frappe.db.savepoint(point)
+        try:
+            claim = ledger.lease(row.name, context=reservation, adapter=adapter, now=now)
+        except ledger.LeaseUnavailable:
+            frappe.db.rollback(save_point=point)
+            continue
+        except (ledger.DispatchRejected, frappe.PermissionError) as error:
+            frappe.db.rollback(save_point=point)
+            reason = error.code if isinstance(error, ledger.DispatchRejected) else 'companion.queue_access_revoked'
+            ledger.quarantine_pending(row.name, context=reservation, adapter=adapter, reason=reason)
+            continue
+        if not claim['leased']:
+            continue
+        if not mrerp_jobs.take(row, device):
+            frappe.db.rollback(save_point=point)  # 账号被直写 / 别的批次占着：这张不发，照旧排着（ADR-026 第 8 条）
+            continue
+        return [_deliver(credential, claim, None, '', job, peers.get(device), connection=row.connection)]
+    return []
+
+
 def lease(context, body):
     """Claim at most one job for the polling computer (lease v2, ADR-021)."""
     request = _value(queue_contracts.lease_request, body)
@@ -255,7 +337,8 @@ def lease(context, body):
         jobs = _redeliver(credential, device, request, now)
         _recover(credential, now, device)
         if not jobs:
-            jobs = [] if _busy(device, now) else _claim(credential, device, request, now)
+            jobs = [] if _busy(device, now) else (_claim(credential, device, request, now)
+                                                  or _claim_mrerp(credential, device, request, now))
         doc = frappe.get_doc('Cowork ERP Connection', credential.connection, for_update=True)
         # 没有心跳的所选：按这台电脑上次报的（ADR-021，每台各自一份）
         member = devices.member(device, doc.workspace, connection=doc.name, pool_hosts=False)
@@ -274,8 +357,9 @@ def acknowledge(context, body):
         if request['log_id'] != delivery.name:
             frappe.throw(_('companion.unauthorized'), frappe.AuthenticationError)
         row = frappe.get_doc(ledger.RECORD, delivery.push_record)
-        result = ledger.ack(row.name, context=_context(row, context),
-            adapter=_adapter(context.connection, delivery.owner_id), fence=int(delivery.fence),
+        device = credentials.device_of(delivery.credential_id) or delivery.credential_id
+        result = ledger.ack(row.name, context=_row_context(row, context, device),
+            adapter=_adapter(row.connection, delivery.owner_id), fence=int(delivery.fence),
             attempt_token=delivery_store.secret(delivery), success=request['result'] == 'success',
             outcome=request['outcome'], express_docnum=request['express_docnum'], error=request['error'],
             line_modes=request['line_modes'], meta=request['meta'])
@@ -291,6 +375,11 @@ def _after_ack(row, delivery, request, result):
     - 写前核文件号对不上（1.7.0 回 ``waiting_lock`` + ``[ERR_ACCOUNT_UID_MISMATCH]``）：这台电脑对这份账套的可达行标
       stale、要它整份重报，单子已回到排队，下次交给别的电脑。"""
     device = credentials.device_of(delivery.credential_id) or delivery.credential_id
+    if row.connection != getattr(delivery, 'connection', row.connection) and mrerp_jobs.is_job(row):
+        # MR.ERP 代录单：这批再没有排着 / 领着的单就放开账号（ADR-026 第 8 条）；没有 Express 账套登记要记
+        if result.get('status') != 'leased':
+            mrerp_jobs.release_if_done(row, device)
+        return
     key = normalize_express_account_key(row.account_key)
     if result.get('status') == 'success':
         account_pool.note_written(row.connection, key, device, ledger.now_utc())

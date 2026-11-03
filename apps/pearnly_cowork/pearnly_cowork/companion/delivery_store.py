@@ -72,10 +72,13 @@ def secret(doc):
     return get_decrypted_password(DOCTYPE, row.name, 'attempt_secret', raise_exception=True)
 
 
-def create(*, credential, claim):
+def create(*, credential, claim, connection=None):
     # Revalidate the real private AgentContext, not merely the dataclass shape.
     # The transport already holds Connection/Credential before native.lease;
     # these are reentrant locks in that same caller-owned transaction.
+    # ``connection``: an MR.ERP operator record lives on its own MR.ERP connection in the
+    # credential's workspace (ADR-026 step 3, `transport._claim_mrerp` checked it); the
+    # delivery itself stays on the credential's connection so the ACK authenticates as before.
     credential = credentials.revalidate(credential)
     if (not isinstance(claim, dict) or claim.get('leased') is not True
             or not isinstance(claim.get('record'), dict)
@@ -87,7 +90,7 @@ def create(*, credential, claim):
     if (not isinstance(password, str) or not 1 <= len(password) <= 256
             or '\x00' in password or not record.get('name')):
         _error()
-    expected_scope = (credential.workspace, credential.client or '', credential.connection)
+    expected_scope = (credential.workspace, credential.client or '', connection or credential.connection)
     if (record.get('workspace'), record.get('client') or '', record.get('connection')) != expected_scope:
         _error()
     current = frappe.get_doc('Cowork Push Record', record['name'], for_update=True)

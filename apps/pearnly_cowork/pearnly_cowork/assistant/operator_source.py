@@ -18,6 +18,18 @@ def allowed(user, company) -> bool:
     return bool(company) and scope.allowed("intake", user)
 
 
+def target(company) -> str:
+    """这家公司代录录到哪种账本（ADR-026 第 6 条，共用层 ``products.target_of``）：账本是 MR.ERP 的公司在 MR.ERP 代录开了
+    （全平台常量 ``contracts.MRERP_OPERATOR_ENABLED``，不按站点开）时回 ``mrerp``；其余（含常量关着时的 MR.ERP 公司）回 Express，
+    与没有这个声明时一样，MR.ERP 公司的单在交单那一步照旧按 ``operator_express_only`` 拦下。"""
+    from pearnly_core.express_operator import contracts
+
+    if contracts.MRERP_OPERATOR_ENABLED and company \
+            and frappe.db.get_value("Cowork Company", company, "adapter") == contracts.TARGET_MRERP:
+        return contracts.TARGET_MRERP
+    return contracts.TARGET_EXPRESS
+
+
 def _month(period: str):
     year, month = (int(part) for part in str(period).split("-")[:2])
     return f"{year:04d}-{month:02d}-01", f"{year:04d}-{month:02d}-{calendar.monthrange(year, month)[1]:02d}"
