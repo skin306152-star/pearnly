@@ -106,7 +106,9 @@
 |---|---|
 | 全闸门第一遍（`f9faa024` + 登记补正 `8f400113`，含 `npm ci`） | 194 步通过、1 步不通过：`tests/test_erp_express_direct.py`（它的 Frappe 替身里 `frappe.utils` 不是包，`express.push` 现在导入 `mrerp`，连带导入了密码模块） |
 | 修正 `8b09750a` | `mrerp.connection` 只在解密的后台任务里导入密码模块；`test_erp_express_direct` 166 项、`test_erp_mrerp_direct` 20 项、`test_erp_cc_chat_push` 17 项通过 |
-| 全闸门复跑（`SKIP_NPM_CI=1`，本记录提交之后） | 见下一行 |
+| 全闸门第二遍（`SKIP_NPM_CI=1`，`03c195b8`） | 171 步通过、1 步不通过：流程覆盖闸（新的管理员接口 `mrerp/api.py` 与它背后的三个服务没有流程） |
+| 修正 `7b244d1b` | 四个文件登记进 `tests/flows/not_flows.toml`（原因：总开关关着、入口不开放、要真 MR.ERP；对用户开放时补流程）；`behind_baseline.txt` 不动 |
+| 全闸门第三遍（`SKIP_NPM_CI=1`，`7b244d1b`） | **172 步全部通过，exit 0** |
 | 候选离线检查 `cand-local.sh offline`（生产镜像 `ea24fcb9`） | 通过（exit 0，72 组）；本机清单旧，`ci-candidate-checks.sh` 里多出的 MR.ERP 9 个测试在同一镜像另跑：push 41、collector 15、catalog 8、menus 17、黄金样本 3 3、cc_login 15、**ERP 黄金样本 5**、边界 3、purity 2，全过 |
 | 流程 `run.py --changed` | 改动命中的只有 `erp.express.new-item-stock`（覆盖 `express/push.py`）。**没测到**（原因：本机正有别的窗口的两套实验栈 `pearnly-regression-lab`、`pearnly-stfollow-lab` 在跑，规矩是一次只跑一套、不接管共享实验室）；开关关着时 `express.push` 只多一次不查库的判断，`test_erp_express_direct` 166 项锁住 |
 
