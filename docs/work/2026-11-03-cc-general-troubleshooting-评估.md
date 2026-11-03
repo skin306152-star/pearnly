@@ -259,9 +259,9 @@ ERP 同样能力：
 - 判据 `express/contracts.printed_hold`（纯函数，容差与预扣税实付额对法同识别核对 `amounts.computed_issues`）；读单据 `express/printed.hold`。接在：Express 直写与代录交单 `push.send`、代录预检 `push.prepare_only`、MR.ERP 导入 `mrerp/push.prepare`。原因码 `express.printed_total_missing` / `express.printed_total_mismatch`，不在自动重试表里 → 进 ERP 待处理；文案「没有票面合计」「合计与票面合计不一致」。
 - 解除：已提交的单在单据页「修改」（原生作废重开），填对票面合计或补齐明细，新单照常写。没有识别标记的单（手工录、上线前老单）不核对。
 - 反例：把 `printed.hold` 换回「一律放行」，Express 直写、代录交单、代录预检、MR.ERP 四条测试失败（`tests/test_erp_express_direct.py::PrintedTotal`、`tests/test_erp_mrerp_direct.py`）。
-- 候选离线检查（生产镜像 `ab3adbb1d56f`，`~/pearnly-devtools/cand-ccrest-a.log`）：`LANE EXIT 0`。
+- 候选离线检查（生产镜像 `ab3adbb1d56f`）：a 段 `cand-ccrest-a.log`、b 段 `cand-ccrest-b.log` 都是 `LANE EXIT 0`。
 
-### 10.2 (b) CC 工具（提交 `020cea68a`，部分）
+### 10.2 (b) CC 工具（提交 `020cea68a`、`661b08954`）
 
 已做：
 - `cowork_pending`（`assistant/company_tools.py`）、`erp_pending`（`express/cc_tools.py`）：直接调两边侧栏「待处理」的后端；ERP 的识别单另带 checks（复核码、票面合计、识别读到的合计、单据合计）。
@@ -271,8 +271,9 @@ ERP 同样能力：
 - GUIDANCE：共用层 `direct_push.guidance_troubleshooting(<待处理工具名>)` 一段原则，Cowork、ERP 都挂上（含「推送不查重不拦，可提醒不可拦删」「公司对话第一句时查一次待处理」）。
 - 反例：去掉 basis 检查 → `EditDocumentTests` 失败；去掉 doc_kind → `test_claude_ocr_products::Cowork.test_the_model_kind_reaches_the_ledger_guard` 失败。
 
+- `cowork_recognize_attachments` 加 `into_document`（提交 `661b08954`，`assistant/into_document.py`）：原单这几页的原件 + 补传文件拼成一个 PDF，按普通识别交（照常扣费；请求号按「原单 + 附件」固定，再调不重复扣费）；只读出一张单 → 覆盖原单（按原单版本号）、原单改指向拼好的原件并换掉原件上绑定的单据名（推送前核对要认它）、留来源记录、删掉临时那张，不新建单；读出多张或已推送的不合并。测试 `tests/test_cowork_into_document.py`（已登记 CI 与候选检查）。
+
 没做（接手继续）：
-- `cowork_recognize_attachments` 加 `into_document`（补传文件接在原单原件后面整份重读、覆盖字段、旧值进改动记录、照常扣费）。
 - ERP 没有单据详情 / 改字段工具：已提交的单只能「修改」重开，`erp_pending` 的说明里写了让 CC 给链接；要不要给 ERP 加查原件 / 改草稿的工具，待主会话定。
 
 ### 10.3 (c)(d) 未开始
