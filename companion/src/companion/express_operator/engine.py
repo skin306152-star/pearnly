@@ -238,7 +238,11 @@ class Engine:
             self._event("check", where=where, problem="", after_pause=True)  # 人碰过 Express：等人停手后重读就对了
             return True
         png = self.screenshot(where)
-        answer = self.helper.check(png, f"期望：{expect_text}\n草稿单：\n{self._describe()}")
+        try:
+            answer = self.helper.check(png, f"期望：{expect_text}\n草稿单：\n{self._describe()}")
+        except RuntimeError as error:  # 站点没接上 / 出错（预算用完是 BudgetStop，照旧往上抛）：当作判断不了
+            self._event("ai_unavailable", where=where, note=str(error)[:200])
+            answer = None
         self.rec["checkpoints"] += 1
         self._layer("vision")
         problem = f"no helper; {self._screen_note()}" if answer is None else self._judge(answer, expect)
@@ -277,7 +281,10 @@ class Engine:
         goal = (f"固定流程在「{where}」这一步出了意外：{problem}\n你的目标：处理掉意外，让画面达到「{expect_text}」。\n"
                 + ("这一步本来就是保存：确认保存成功即可，不要重复保存。\n" if expect.get("saved") else "不要保存。\n")
                 + f"草稿单：\n{self._describe()}\n做完调用 finish。")
-        status, note = self.helper.take_over(goal, self)
+        try:
+            status, note = self.helper.take_over(goal, self)
+        except RuntimeError as error:  # 站点没接上 / 出错：交给人（预算用完是 BudgetStop，照旧往上抛）
+            status, note = "need_human", f"ai unavailable: {error}"
         self._event("takeover", where=where, status=status, note=note[:200])
         if status == "resolved":
             ok = reverify() if reverify else None

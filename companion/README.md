@@ -118,6 +118,10 @@
     （服务端 `SHARED_KINDS`），服务端按 `KIND_MIN_COMPANION` 只交给 1.10.0 起的电脑；
   - 载荷 4（`stock_location.py`）：明细行 / 表头带 `loccod` 的单，库存行写进那个仓并照 Express 的记法维护 STLOC（LOCBAL、
     QTY / VAL 期桶、最后进货 / 销货 / 变动日），仓库码不在 ISTAB 21 里整单不写、回 `ERR_LOCATION`；不带 `loccod` 的单逐字节同 1.9.2。
+- 1.12.13（CC 通用疑难处理 (c)，`docs/work/2026-11-03-cc-general-troubleshooting-评估.md` 第 10 节；**先部署服务端再发**：
+  旧服务端没有 `operator_ai`，新版照样能用，认不出的画面照旧转人工）：
+  - 代录认不出的画面交 AI 接手（Haiku 5.5 → Opus 5.5），模型调用经成员通道的 `operator_ai`（密钥只在服务端，每批费用上限 3 美元）；
+  - 转人工的单在作废前留一张当时的截图（本机证据目录），路径放在任务说明最前面。
 
 ## 本机测试
 

@@ -307,3 +307,14 @@ def test_a_document_handed_to_a_person_keeps_a_screenshot_of_that_moment():
     assert saved == [f"{d.doc_id}-need-human"]
     assert rec["evidence"] == f"C:/evidence/{d.doc_id}-need-human.png"
     assert rec["detail"].startswith(rec["evidence"] + " · ")
+
+
+def test_a_site_without_the_ai_method_hands_the_document_to_a_person_instead_of_crashing():
+    """新版 CC 桌面版先于服务端上线、或站点出错：AI 接手调不通就当判断不了，这张单转人工（原来会当崩溃）。"""
+    d = samples()[1]
+    sim = FakeExpress(RECIPE.data, inject={"typo_price:P002": "9"})
+    engine = Engine(sim, RECIPE, FakeBook(sim), helper=ComputerUseHelper(lambda kind, request: {"error": "http_404"}),
+                    evidence=lambda doc_id, png: f"C:/evidence/{doc_id}.png", sleep=lambda _s: None)
+    rec = engine.run(d)
+    assert rec["outcome"] == "need_human" and rec["reason"] == "unknown_screen"
+    assert sim.esc_pressed == 0
