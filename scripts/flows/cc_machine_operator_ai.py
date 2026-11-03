@@ -37,25 +37,19 @@ NEW = {"core": CORE + "operator_ai", "cowork": COWORK + "operator_api.operator_a
 def prepare(lab, manifest):
     tag = uuid.uuid4().hex  # 电脑键 32–128 位（`cc_desktop.contracts.device_key`）
     if "cowork" in manifest["site"]:
-        # Cowork 通道（``exp_`` 密钥）：新版 CC 桌面版带电脑键登记；「电脑」列表移除那台 = 吊销它的密钥
+        # Cowork 通道（``exp_`` 密钥）：新版 CC 桌面版带电脑键登记；「电脑」列表移除那台 = 吊销它的密钥。电脑通道总闸由实验室
+        # 建站时打开（`scripts/regression/lab_init.py`，同线上），这里只核对
         return lab.python(manifest["site"], f"""
 import os
-from pathlib import Path
 from pearnly_cowork.companion import credentials, http_auth
 
-# 电脑通道总闸（站点配置）实验站点默认关着：临时打开，跑完由 verify 还原原值（同 cowork-companion-credentials-lab-verify）
-config_path = Path(frappe.get_site_path("site_config.json"))
-config = json.loads(config_path.read_text())
-was = config.get("pearnly_cowork_erp_push_enabled")
-config["pearnly_cowork_erp_push_enabled"] = True
-config_path.write_text(json.dumps(config, indent=1))
-frappe.conf.pearnly_cowork_erp_push_enabled = True
 frappe.set_user("admin@cowork.regression")
 live = credentials.register("flow-ai-live-{tag}", express=True, device_key="live{tag}", device_name="flow live")
 gone = credentials.register("flow-ai-gone-{tag}", express=True, device_key="gone{tag}", device_name="flow gone")
 credentials.remove_device(gone["device"])
 frappe.db.commit()
-print(json.dumps({{"site": {manifest["site"]!r}, "channel": "cowork", "switch_was": was, "live": live["token"], "gone": gone["token"],
+print(json.dumps({{"site": {manifest["site"]!r}, "channel": "cowork",
+                  "switch_on": bool(frappe.conf.get("pearnly_cowork_erp_push_enabled")), "live": live["token"], "gone": gone["token"],
                   "key_configured": bool(os.environ.get("PEARNLY_ANTHROPIC_API_KEY", "").strip()),
                   "paths": http_auth.MACHINE_PATHS}}))
 """)
@@ -97,22 +91,9 @@ def _post(site, path, token, body):
 
 
 def verify(lab, manifest, params, camera_code=None):
-    try:
-        return _verify(params)
-    finally:
-        if params.get("channel") == "cowork":  # 还原电脑通道总闸
-            lab.python(manifest["site"], f"""
-from pathlib import Path
-config_path = Path(frappe.get_site_path("site_config.json"))
-config = json.loads(config_path.read_text())
-was = {params.get("switch_was")!r}
-if was is None:
-    config.pop("pearnly_cowork_erp_push_enabled", None)
-else:
-    config["pearnly_cowork_erp_push_enabled"] = was
-config_path.write_text(json.dumps(config, indent=1))
-print(json.dumps({{"restored": True}}))
-""")
+    if params.get("channel") == "cowork" and not params.get("switch_on"):
+        return [{"case": "the lab Cowork site has its computer channel switched on (lab_init)", "seen": False, "ok": False}]
+    return _verify(params)
 
 
 def _verify(params):
