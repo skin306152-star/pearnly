@@ -1,10 +1,17 @@
 """产品站点登录保持 30 天（`pearnly_core.account.session_length`，用户 2026-10-15「30天吧」）：只改空值或框架默认值，
-管理员改过的保留，控制面不动；挂在 after_migrate。不连库、不依赖 Frappe（最小替身）。"""
+管理员改过的保留，控制面不动；挂在 after_migrate。不连库、不依赖 Frappe（最小替身）。
+
+Keycloak 这边（用户 2026-11-03）：产品 realm 勾「记住我」的会话也保持 30 天（`infrastructure/production/bootstrap-auth.py`
+的 REMEMBER_ME），不勾的普通会话不动。用假 Keycloak 跑脚本本身，不连真服务。"""
 import importlib.util
+import io
+import json
 import pathlib
 import sys
 import types
 import unittest
+from unittest import mock
+from urllib.parse import urlsplit
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CORE = ROOT / "apps/pearnly_core/pearnly_core"
@@ -47,6 +54,85 @@ class SessionLengthTests(unittest.TestCase):
         after = hooks.split("after_migrate = [", 1)[1].split("]", 1)[0]
         self.assertIn('"pearnly_core.account.session_length.ensure_session_expiry"', after)
 
+
+
+BOOTSTRAP = ROOT / "infrastructure/production/bootstrap-auth.py"
+THIRTY_DAYS = 30 * 86400
+REMEMBER_ME_KEYS = ("ssoSessionIdleTimeoutRememberMe", "ssoSessionMaxLifespanRememberMe")
+
+
+class _FakeKeycloak:
+    """管理接口的最小替身：记下每个请求；realm 的 PUT 照 Keycloak 只改带来的字段。"""
+
+    def __init__(self, realm):
+        # Keycloak 默认：普通会话空闲 30 分钟、最长 10 小时；记住我两项 0（= 跟普通会话一样）
+        self.realm = {"realm": realm, "rememberMe": True, "ssoSessionIdleTimeout": 1800,
+                      "ssoSessionMaxLifespan": 36000, REMEMBER_ME_KEYS[0]: 0, REMEMBER_ME_KEYS[1]: 0}
+        self.calls = []
+
+    def __call__(self, request, timeout=None):
+        method, path = request.get_method(), urlsplit(request.full_url).path
+        body = json.loads(request.data) if request.data and "json" in request.get_header("Content-type") else None
+        self.calls.append((method, path, body))
+        if path.endswith("/openid-connect/token"):
+            answer = {"access_token": "t"}
+        elif path == "/admin/realms/" + self.realm["realm"] and method == "PUT":
+            self.realm.update(body)
+            answer = None
+        elif path == "/admin/realms/" + self.realm["realm"]:
+            answer = dict(self.realm)
+        else:
+            raise AssertionError(f"unexpected {method} {path}")
+        return mock.MagicMock(**{"__enter__.return_value.read.return_value":
+                                 json.dumps(answer).encode() if answer is not None else b""})
+
+
+def _run_bootstrap(argv, keycloak):
+    code = compile(BOOTSTRAP.read_text(encoding="utf-8"), str(BOOTSTRAP), "exec")
+    with mock.patch("urllib.request.urlopen", keycloak), \
+            mock.patch.object(pathlib.Path, "read_text", lambda self, *a, **k: "KEYCLOAK_ADMIN_PASSWORD=x\n"), \
+            mock.patch.object(sys, "argv", ["bootstrap-auth.py", *argv]), \
+            mock.patch("sys.stdout", io.StringIO()) as out:
+        with unittest.TestCase().assertRaises(SystemExit) as stop:
+            exec(code, {"__name__": "__main__"})
+    return stop.exception.code, out.getvalue()
+
+
+class KeycloakRememberMeTests(unittest.TestCase):
+    def test_remember_me_only_sets_the_two_fields_to_thirty_days(self):
+        for realm in ("pearnly-business", "pearnly-cowork"):
+            keycloak = _FakeKeycloak(realm)
+            argv = ["--remember-me"] + (["--realm", realm] if realm != "pearnly-business" else [])
+            code, out = _run_bootstrap(argv, keycloak)
+            self.assertIn(code, (0, None), out)
+            puts = [body for method, _, body in keycloak.calls if method == "PUT"]
+            self.assertEqual(puts, [{"realm": realm, REMEMBER_ME_KEYS[0]: THIRTY_DAYS,
+                                     REMEMBER_ME_KEYS[1]: THIRTY_DAYS}])
+            self.assertEqual((keycloak.realm["ssoSessionIdleTimeout"], keycloak.realm["ssoSessionMaxLifespan"]),
+                             (1800, 36000))                      # 不勾记住我的普通会话不变
+            self.assertEqual([method for method, _, _ in keycloak.calls], ["POST", "GET", "PUT", "GET"])
+
+    def test_remember_me_refuses_a_realm_without_the_checkbox(self):
+        keycloak = _FakeKeycloak("pearnly-business")
+        keycloak.realm["rememberMe"] = False
+        code, _ = _run_bootstrap(["--remember-me"], keycloak)
+        self.assertIn("Remember me is off", str(code))
+        self.assertFalse([call for call in keycloak.calls if call[0] == "PUT"])
+
+    def test_full_bootstrap_and_the_sample_copy_carry_the_same_fields(self):
+        source = BOOTSTRAP.read_text(encoding="utf-8")
+        self.assertIn('REMEMBER_ME = {"ssoSessionIdleTimeoutRememberMe": 2592000, '
+                      '"ssoSessionMaxLifespanRememberMe": 2592000}', source)
+        settings = source.split("settings = {", 1)[1].split("\n}", 1)[0]
+        self.assertIn("**REMEMBER_ME", settings)
+        self.assertNotIn('"ssoSessionIdleTimeout"', settings)     # 普通会话不在完整初始化里设
+        self.assertNotIn('"ssoSessionMaxLifespan"', settings)
+        readback = source.split("readback = request(", 1)[1].split("# The only external", 1)[0]
+        self.assertIn("*REMEMBER_ME", readback)
+        sample = (ROOT / "scripts/sample-cowork-realm.py").read_text(encoding="utf-8")
+        copy = sample.split("COPY = (", 1)[1].split(")", 1)[0]
+        for key in REMEMBER_ME_KEYS:
+            self.assertIn(f'"{key}"', copy)
 
 if __name__ == "__main__":
     unittest.main()

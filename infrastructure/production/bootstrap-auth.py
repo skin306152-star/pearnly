@@ -7,6 +7,10 @@ All admin API calls stay on loopback; production credentials stay mode 0600.
 `--realm pearnly-cowork` configures Cowork's own account pool (split from ERP / DMS on 2026-09-26)
 with the same settings; its control credentials go to control-identity-cowork.json.
 Without the flag it is the business realm (ERP / DMS), exactly as before.
+
+`--remember-me` only sets the two "remember me" session lengths (REMEMBER_ME) on an existing realm and
+reads them back: no SMTP, profile, client or secret-file changes. Run it once per realm to apply them to a
+realm created before 2026-11-03; a full bootstrap sets them too. Nothing runs this script during deploys.
 """
 import json
 import os
@@ -23,6 +27,12 @@ REALMS = {"pearnly-business": "control-identity.json", "pearnly-cowork": "contro
 REALM = sys.argv[sys.argv.index("--realm") + 1] if "--realm" in sys.argv else "pearnly-business"
 if REALM not in REALMS:
     raise SystemExit("Unknown realm")
+# "Remember me" keeps the sign-in for 30 days (user, 2026-11-03). Keycloak 26.7.4 native realm fields: a session
+# signed in with "remember me" ticked uses max(regular, these) for idle and max lifespan (server-spi-private
+# org.keycloak.models.utils.RealmExpiration.fromRealm). The regular session (ssoSessionIdleTimeout /
+# ssoSessionMaxLifespan) is not set here and keeps its current value.
+REMEMBER_ME = {"ssoSessionIdleTimeoutRememberMe": 2592000, "ssoSessionMaxLifespanRememberMe": 2592000}
+REGULAR_SESSION = ("ssoSessionIdleTimeout", "ssoSessionMaxLifespan")
 
 
 def request(path, method="GET", data=None, token=None, form=False):
@@ -43,6 +53,17 @@ token = request("/realms/master/protocol/openid-connect/token", "POST", {
     "grant_type": "password", "client_id": "admin-cli", "username": "pearnly-bootstrap",
     "password": config["KEYCLOAK_ADMIN_PASSWORD"],
 }, form=True)["access_token"]
+if "--remember-me" in sys.argv:
+    realm_path = f"/admin/realms/{REALM}"
+    before = request(realm_path, token=token)
+    if not before.get("rememberMe"):
+        raise SystemExit("Remember me is off on this realm; run the full bootstrap first")
+    request(realm_path, "PUT", {"realm": REALM, **REMEMBER_ME}, token)
+    after = request(realm_path, token=token)
+    assert all(after.get(key) == value for key, value in REMEMBER_ME.items())
+    assert all(after.get(key) == before.get(key) for key in REGULAR_SESSION + ("rememberMe",))
+    print(f"Remember-me sessions set to 30 days on {REALM}; regular session lengths unchanged")
+    sys.exit(0)
 settings = {
     "realm": REALM, "enabled": True, "displayName": "Pearnly",
     "sslRequired": "external", "registrationAllowed": False,
@@ -52,6 +73,7 @@ settings = {
     "supportedLocales": ["th", "zh-CN", "en", "ja"], "defaultLocale": "th",
     "bruteForceProtected": True, "permanentLockout": False,
     "failureFactor": 10, "waitIncrementSeconds": 60, "maxFailureWaitSeconds": 900,
+    **REMEMBER_ME,
 }
 if "--smtp" in sys.argv:
     settings["smtpServer"] = json.load(sys.stdin)
@@ -110,7 +132,7 @@ with os.fdopen(fd, "w") as handle:
 readback = request(f"/admin/realms/{REALM}", token=token)
 assert all(readback.get(key) == settings[key] for key in (
     "sslRequired", "registrationAllowed", "loginWithEmailAllowed", "loginTheme",
-    "defaultLocale", "bruteForceProtected", "resetPasswordAllowed", "editUsernameAllowed"))
+    "defaultLocale", "bruteForceProtected", "resetPasswordAllowed", "editUsernameAllowed", *REMEMBER_ME))
 # The only external sign-in allowed is Pearnly's per-site LINE entry: hidden, and its first
 # login flow denies (never creates or links accounts). See scripts/production/configure-line-login.py.
 assert all(idp["alias"].startswith("line-") and idp.get("hideOnLogin")

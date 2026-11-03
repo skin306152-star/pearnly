@@ -28,7 +28,8 @@ SOURCE, REALM = "pearnly-business", "pearnly-cowork"
 COPY = ("displayName", "loginWithEmailAllowed", "duplicateEmailsAllowed", "editUsernameAllowed", "rememberMe",
         "resetPasswordAllowed", "registrationAllowed", "loginTheme", "emailTheme", "internationalizationEnabled",
         "supportedLocales", "defaultLocale", "bruteForceProtected", "permanentLockout", "failureFactor",
-        "waitIncrementSeconds", "maxFailureWaitSeconds", "passwordPolicy", "sslRequired")
+        "waitIncrementSeconds", "maxFailureWaitSeconds", "passwordPolicy", "sslRequired",
+        "ssoSessionIdleTimeoutRememberMe", "ssoSessionMaxLifespanRememberMe")
 SECRETS = Path.home() / ".config/pearnly/cowork-realm.env"
 
 
