@@ -783,6 +783,21 @@ def _mrerp_logins(cfg: CompanionConfig) -> Optional[list]:
         return None
 
 
+def _mrerp_users(cfg: CompanionConfig) -> Optional[dict]:
+    """这台电脑上为这个成员站点授权的「MR.ERP 连接号 → 用户名」（凭据枚举里的用户名，不读密码；ADR-026 第 8 条，站点给代录
+    批次租账号用）；读不到回 None（不报）。"""
+    try:
+        from urllib.parse import urlsplit
+
+        from .express_operator import credentials
+
+        site = (urlsplit(str(cfg.backend_url or "")).hostname or "").lower()
+        return credentials.mrerp_users(site) if site else None
+    except Exception:
+        log.warning("读本机 MR.ERP 用户名失败（这次心跳不报）", exc_info=True)
+        return None
+
+
 def _run_periodic(
     cfg: CompanionConfig, qc, state: dict, on_update_available=None
 ) -> None:
@@ -917,6 +932,8 @@ def _run_periodic(
                 operator_targets=list(OPERATOR_TARGETS),
                 # 这台电脑上已授权了这个站点哪些 MR.ERP 连接（ADR-026 第 7 条，只有连接号）
                 mrerp_logins=_mrerp_logins(cfg),
+                # 同一批连接的用户名（站点按「网址 + 用户名」给代录批次租账号，ADR-026 第 8 条；不报密码）
+                mrerp_users=_mrerp_users(cfg),
                 # Express 索引重建程序在不在、能不能跑(10-25;缺了写单会拒写转人工,服务端电脑记录里看得到)
                 reindex_runner=cdx_reindex.runner_status(),
                 # 自动更新被 Windows 拦下（版本 + 时刻）；没被拦报 None，云端据此清掉旧值（update_block.py）

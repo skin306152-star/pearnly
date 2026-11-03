@@ -480,6 +480,23 @@ def record_mrerp_logins(device, reported):
     return True
 
 
+def record_mrerp_users(device, reported):
+    """心跳报的 ``mrerp_users``（这台电脑本机授权的「连接号 → MR.ERP 用户名」，ADR-026 第 8 条；账号租约用，不报密码）：
+    旧版不报（None）不动；变了才写。"""
+    from pearnly_core.cc_desktop.wire import route_contracts
+
+    value = route_contracts.stored_users(reported)
+    if value is None or not device:
+        return False
+    row = _row(device)
+    if not row or row.retired_at or value == (frappe.db.get_value(DOCTYPE, device, 'mrerp_users') or ''):
+        return False
+    doc = read(device)
+    doc.mrerp_users = value
+    persist(doc)
+    return True
+
+
 def reporter_label(connection):
     """这条连接上最近报到的那台电脑的名字（网页「连接」里显示，第 4 批改成每台电脑一行）；没有回空串。连接行上的
     「上报凭据」第 3 批起不再随上报改（两台轮流上报不来回重写连接行），按各把密钥自己的报到时间取。"""

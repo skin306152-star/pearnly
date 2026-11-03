@@ -11,7 +11,8 @@
 MR.ERP（ADR-026 第 7 条，2026-11-02）：同样由用户本人在 CC 原生小窗输一次（``login_dialog.ask``），一条 MR.ERP 连接一条，
 目标名带 MR.ERP 主机与连接号（``mrerp_target(网址, 连接号)``，与第 2 步代录同一个名字），备注写授权的 Pearnly 站点
 （``site_comment``）。同一次输入另经机器通道交给站点（``mrerp_login``）；本机这条只给代录的会话填 MR.ERP 登录页。心跳只报
-这个站点授权过的连接号（``mrerp_connections``，按备注认），不报账号。断开某个站点时 ``forget_site`` 一并删掉。
+这个站点授权过的连接号（``mrerp_connections``，按备注认）与「连接号 → 用户名」（``mrerp_users``，第 3 步账号租约用；用户名
+不是秘密，不报密码）。断开某个站点时 ``forget_site`` 一并删掉。
 """
 from __future__ import annotations
 
@@ -117,6 +118,38 @@ def targets(prefix: str) -> list:
         return [(str(found[i].contents.TargetName or ""), str(found[i].contents.Comment or "")) for i in range(count.value)]
     finally:
         advapi32.CredFree(found)
+
+
+def entries(prefix: str) -> list:
+    """凭据管理器里以 ``prefix`` 开头的 ``(目标名, 备注, 用户名)``（枚举时一并给出的明文三项，不读、不解密密码）。
+    不是 Windows / 读不到回空表。"""
+    if sys.platform != "win32":
+        return []
+    count, found = W.DWORD(0), ctypes.POINTER(ctypes.POINTER(CREDENTIAL))()
+    if not advapi32.CredEnumerateW(prefix + "*", 0, ctypes.byref(count), ctypes.byref(found)):
+        return []
+    try:
+        return [(str(found[i].contents.TargetName or ""), str(found[i].contents.Comment or ""),
+                 str(found[i].contents.UserName or "")) for i in range(count.value)]
+    finally:
+        advapi32.CredFree(found)
+
+
+def mrerp_users(site: str, *, listing=entries) -> dict:
+    """这台电脑上为这个站点授权过的 ``{连接号: MR.ERP 用户名}``（心跳 ``mrerp_users``，ADR-026 第 8 条：站点按「网址 + 用户名」
+    给代录批次租账号）。只读枚举里的用户名，不碰密码；按备注认站点，与 :func:`mrerp_connections` 同一批。"""
+    try:
+        comment = site_comment(site)
+    except ValueError:
+        return {}
+    found = {}
+    for name, note, user in listing(MRERP_PREFIX):
+        if note != comment or not name.startswith(MRERP_PREFIX) or name[len(MRERP_PREFIX):].count("/") != 1:
+            continue
+        connection = name.rsplit("/", 1)[1]
+        if connection and user:
+            found[connection] = user
+    return dict(sorted(found.items()))
 
 
 def _site_targets(site: str, listing) -> list:

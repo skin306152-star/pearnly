@@ -130,6 +130,45 @@ def logins_of(stored) -> frozenset:
     return frozenset(item for item in str(stored or "").split(",") if _LOGIN.match(item))
 
 
+# 心跳 ``mrerp_users``（ADR-026 第 8 条，第 3 步）：这台电脑本机授权的「连接号 → MR.ERP 用户名」。用户名不是秘密（页面本来就显示
+# 「已授权：用户名 · 电脑 · 时间」），不报密码。站点按「网址 + 用户名」给代录批次租账号时用它；没报的连接用站点连接上存的用户名。
+_USER = re.compile(r"^[^\x00-\x1f\x7f]{1,140}$")
+_USERS_LENGTH = 8000
+
+
+def stored_users(value) -> str | None:
+    """心跳报的 ``mrerp_users`` → 存进电脑行的写法（排好键的 JSON）。没报（旧版）/ 不是对象回 None（不改上次存的）；报了空对象回
+    ``"{}"``（照存）。连接号认不出、用户名为空或带控制字符的不记；最多 ``MAX_LOGINS`` 条。"""
+    import json
+
+    if not isinstance(value, Mapping):
+        return None
+    found = {}
+    for connection in sorted(item for item in value if isinstance(item, str) and _LOGIN.match(item))[:MAX_LOGINS]:
+        user = value.get(connection)
+        if isinstance(user, str) and _USER.match(user.strip()):
+            found[connection] = user.strip()
+    text = json.dumps(found, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    while len(text) > _USERS_LENGTH and found:
+        found.pop(sorted(found)[-1])
+        text = json.dumps(found, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return text
+
+
+def users_of(stored) -> dict:
+    """电脑行上存的写法 → ``{连接号: 用户名}``；没存 / 认不出回空。"""
+    import json
+
+    try:
+        found = json.loads(stored) if isinstance(stored, str) and stored else {}
+    except ValueError:
+        return {}
+    if not isinstance(found, dict):
+        return {}
+    return {key: value for key, value in found.items()
+            if isinstance(key, str) and _LOGIN.match(key) and isinstance(value, str) and _USER.match(value)}
+
+
 def with_login(stored, connection) -> str:
     """电脑行上已授权的清单再加一条（站点收下授权时记，不等下一次心跳）。"""
     return stored_logins(sorted(logins_of(stored) | {connection})) or ""

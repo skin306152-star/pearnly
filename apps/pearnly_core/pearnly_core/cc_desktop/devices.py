@@ -133,7 +133,7 @@ def leave(context: Context) -> dict:
 
 
 def record_report(context: Context, *, version=None, payload_version=None, offline=False, full=False, runner=None,
-                  targets=None, logins=None):
+                  targets=None, logins=None, users=None):
     """心跳报到：版本、最高载荷版本、索引重建程序在不在 / 能不能跑、能代录到哪些目标（ADR-026；旧版不报，保留上次）、
     这台电脑上已授权了哪些 MR.ERP 连接（只有连接号，ADR-026 第 7 条；旧版不报，保留上次）、
     最近报到时间（报离线就清掉，马上算离线）；收到整份名单就不再要求整份重报。"""
@@ -151,6 +151,10 @@ def record_report(context: Context, *, version=None, payload_version=None, offli
     logged_in = route_contracts.stored_logins(logins)
     if logged_in is not None and not offline:
         values["mrerp_logins"] = logged_in
+    # 本机授权的「连接号 → MR.ERP 用户名」（ADR-026 第 8 条，账号租约用；不报密码）：旧版不报，保留上次
+    named = route_contracts.stored_users(users)
+    if named is not None and not offline:
+        values["mrerp_users"] = named
     if full:
         values["full_report_due"] = 0
     doc.update(values)

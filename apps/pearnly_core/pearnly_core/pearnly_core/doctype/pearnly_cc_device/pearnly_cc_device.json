@@ -18,6 +18,7 @@
   "reindex_runner",
   "operator_targets",
   "mrerp_logins",
+  "mrerp_users",
   "last_seen_at",
   "full_report_due",
   "retired_at",
@@ -115,6 +116,13 @@
    "hidden": 1
   },
   {
+   "fieldname": "mrerp_users",
+   "fieldtype": "Small Text",
+   "label": "MR.ERP Users on This Computer",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
    "fieldname": "last_seen_at",
    "fieldtype": "Datetime",
    "label": "Last Seen At",
@@ -143,7 +151,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-02 20:00:00.000000",
+ "modified": "2026-11-03 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly CC Device",

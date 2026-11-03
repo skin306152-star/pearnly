@@ -140,6 +140,19 @@ class CoreChannel(unittest.TestCase):
         frappe.session.user = user
         return api.mrerp_login_ticket(connection=connection, device_key=key)
 
+    def test_the_heartbeat_keeps_this_computers_mrerp_usernames_and_an_old_cc_keeps_the_last_value(self):
+        # ADR-026 第 8 条（第 3 步）：本机授权的「连接号 → 用户名」存在电脑行上（账号租约用，不存密码）
+        devices.record_report(self.context, users={"ERPC-2": "acc02", "ERPC-1": "test01", "bad id": "x"})
+        row = fake.STATE.db.table(devices.DEVICE)[self.device]
+        self.assertEqual(route_contracts.users_of(row["mrerp_users"]), {"ERPC-1": "test01", "ERPC-2": "acc02"})
+        self.assertNotIn(PASSWORD, row["mrerp_users"])
+        devices.record_report(self.context)  # 旧版不报：不动
+        devices.record_report(self.context, users={"ERPC-1": "other"}, offline=True)  # 报离线：不动
+        self.assertEqual(route_contracts.users_of(fake.STATE.db.table(devices.DEVICE)[self.device]["mrerp_users"]),
+                         {"ERPC-1": "test01", "ERPC-2": "acc02"})
+        devices.record_report(self.context, users={})  # 报空照存
+        self.assertEqual(fake.STATE.db.table(devices.DEVICE)[self.device]["mrerp_users"], "{}")
+
     def test_without_the_product_hook_both_halves_answer_unsupported(self):
         self.hooks(login=False)
         self.assertEqual(self.ticket(), {"ok": False, "code": "unsupported"})
@@ -271,6 +284,23 @@ class HeartbeatLogins(unittest.TestCase):
         self.assertEqual(route_contracts.with_login("CWEC-2", "CWEC-1"), "CWEC-1,CWEC-2")
         many = ["C" + str(i) for i in range(200)]
         self.assertEqual(len(route_contracts.stored_logins(many).split(",")), route_contracts.MAX_LOGINS)
+
+
+class HeartbeatUsers(unittest.TestCase):
+    def test_only_valid_connection_ids_with_a_plain_username_are_kept(self):
+        self.assertIsNone(route_contracts.stored_users(None))
+        self.assertIsNone(route_contracts.stored_users(["CWEC-1"]))
+        self.assertEqual(route_contracts.stored_users({}), "{}")
+        stored = route_contracts.stored_users({"CWEC-2": " acc02 ", "CWEC-1": "test01", "bad id": "x", "CWEC-3": "",
+                                               "CWEC-4": "a\nb", "CWEC-5": 7})
+        self.assertEqual(stored, '{"CWEC-1":"test01","CWEC-2":"acc02"}')
+        self.assertEqual(route_contracts.users_of(stored), {"CWEC-1": "test01", "CWEC-2": "acc02"})
+        for bad in (None, "", "x", "[]", '{"bad id": "u"}'):
+            self.assertEqual(route_contracts.users_of(bad), {})
+        many = {"C" + str(i): "u" * 140 for i in range(200)}
+        kept = route_contracts.users_of(route_contracts.stored_users(many))
+        self.assertLessEqual(len(kept), route_contracts.MAX_LOGINS)
+        self.assertLessEqual(len(route_contracts.stored_users(many)), 8000)
 
 
 if __name__ == "__main__":
