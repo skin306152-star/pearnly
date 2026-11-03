@@ -1,6 +1,7 @@
 # 施工记录：Cowork 的 MR.ERP 代录服务端接线 + 账号租约（ADR-026 第 3 步，Cowork 部分）
 
-- 分支 `pearnly/cowork-mrerp-operator-wiring`，工作树 `.claude/worktrees/agent-ab04b9b27e17c4632`，基线 `8efa897a`
+- 分支 `pearnly/cowork-mrerp-operator-wiring`，工作树 `.claude/worktrees/agent-ab04b9b27e17c4632`，基线 `8efa897a`；11-03 按主会话要求
+  `git rebase --onto ddc9edb63 8efa897a` 变基到集成分支 `pearnly/mrerp-operator-server` 的 `ddc9edb63`（含 ERP 直写下沉 `2c733edd`）
   （`pearnly/mrerp-operator-server`：新原因 `account_in_use` / `account_set_unavailable`、服务端拒收网页 MR.ERP 密码）。
 - 依据：[ADR-026](../adr/0026-operator-targets.md) 第 2、5、6、8 条；[评估](2026-11-02-mrerp-operator-and-erp-company-评估.md) §4、§5、§13 第 3 步、
   §14.1、§14.3–§14.5；[第 1 步](2026-11-02-cc-operator-target.md)；[第 10 步](2026-11-02-mrerp-cc-credentials.md)；
@@ -97,14 +98,27 @@
 | **提交 `cb1c93ec` 机械抽取的逐字节证明**：生产镜像里 `tests/test_mrerp_rules_golden.py`（导入表成员级 + 整份文件字节摘要、推送全程每个请求与上传文件；镜像 zlib 1.2.13 与样本记录的相同，整份字节照比） | 3 通过 → 导入文件与推送请求逐字节相同 |
 | MR.ERP 直写全链路回归（生产镜像，同第 10 步 §10 那一组）：推送 `test_cowork_mrerp_push` 41、采集 `collector` 15、目录 `catalog` 8、菜单 `menus` 17、黄金样本 3、主档 `masters` 12、文件夹任务 `folder_tasks_mrerp` 8、导入表源码一致 `xlsx_source_parity`（2 跳过，同第 10 步）、共用层边界 `core_boundary` 3、`test_cowork_mrerp_cc_login` 15、`scripts/test-session-lock.py` 5 | 全过 |
 | 新测试在生产镜像（Python 3.14）：`test_mrerp_operator_draft` 10、`test_cowork_mrerp_operator_dispatch` 46、`test_cowork_mrerp_operator` 14 | 全过 |
-| 全闸门 `gate.sh` | GATE_RESULT |
-| 候选离线检查 `cand-local.sh offline`（生产镜像） | CAND_RESULT |
-| `ci-candidate-checks.sh` 比 `cand-local.sh` 多出的离线测试 | EXTRA_RESULT |
+| 全闸门 `gate.sh`（变基前，`5d03a0f2`） | 172 步通过、1 步失败：`check-i18n --strict` 拦下 `operator_draft.py` 的税率泰文（4 处）；登记进 `keep-cjk.tsv` 后 exit 0（变基后复跑见 5.2b） |
+| 候选离线检查 `cand-local.sh offline`（生产镜像，变基前） | exit 0，72 个测试脚本全 OK |
+| `ci-candidate-checks.sh` 比 `cand-local.sh` 多出的离线测试（同法补跑） | MR.ERP 6 个已在上行；其余 19 个文件 140 条 + 3 个模块 22 条全过 |
 | `python3 scripts/check-architecture.py` | PASS（0 违规） |
 | `python3 scripts/check-copy.py --report`（基线 790dc639） | 新增 2（基线分支的 `account_in_use` / `account_set_unavailable` 三语，见服务端记录 §2）、改动 0、删除 0、拦截 0、标黄 2（两个电脑表隐藏字段的 DocType 标签「MR.ERP Users on This Computer」，隐藏字段只标黄）；本段没有新文案 |
 | `python3 scripts/check-impact.py` | 起初失败 3 处：`companion/mrerp_jobs.py`（调 `cc-desktop`、`mrerp-rules`）与 `push/mrerp/operator.py`（调 `mrerp-rules`）没登记。已登记进 `scripts/impact/shared-parts.toml`：`mrerp_jobs.py` 进入口 `cowork.cc.channel` 与 `cowork.mrerp.push` 的 files，`push/mrerp/operator.py`、`pearnly_core/mrerp/push/operator_draft.py` 进 `cowork.mrerp.push`；之后登记表完整（55 个共用件、201 个入口），exit 0 |
 | CC 全套 | 本段没改 CC 代码，不重跑（第一段 1450 通过） |
 | 本机 cowork-backend 实验栈真实站点验证 | **没测到**（原因：本段上下文到线，按任务书第 7 条先停；要做的见 §6 第 2 条） |
+
+### 5.2b 变基到 `ddc9edb63` 之后复跑（HEAD 见回报）
+
+- 冲突只有 `scripts/ci-candidate-checks.sh` 的 offline 列表末行（ERP 加 `tests/test_erp_mrerp_golden.py`、本任务加 `tests/test_cowork_mrerp_operator.py`），
+  两条都留。`1bc9b09e`（原 `cb1c93ec` 抽取直写准备段）落在 `pearnly_core/mrerp/push/transport.py`、`routing.py`，与 ERP 下沉的
+  `execute.py` / `menu_read.py` / `collect.py` / `user_data.py` 不重叠，自动合并；`8db46b1c`（原 `fa6d7a8d`）与原提交只差 `runner.py` 的导入上下文，逻辑不变。
+- 生产镜像（同一 digest，五个 App 都挂工作树源码）：推送 41、采集 15、目录 8、菜单 17、`test_mrerp_rules_golden` 3、**`test_erp_mrerp_golden` 5**、
+  主档 12、文件夹任务 8、导入表源码一致（2 跳过）、共用层边界 3、`cc_login` 15、`test-session-lock.py` 5、本任务新测试 10 / 46 / 14 —— 全过；
+  `ci-candidate-checks.sh` 比 `cand-local.sh` 多出的 19 个文件与 3 个模块（22 条）全过。
+- 本机离线：`test_mrerp_operator_draft` 10、`test_cowork_mrerp_operator_dispatch` 46、`test_cowork_assistant_tools` 236、`test_cowork_express_dispatch` 69、
+  `test_mrerp_cc_login` 17、`test_express_operator_shared` 11 全过；`check-architecture` PASS（0 违规）；`check-impact` 登记表完整 exit 0；
+  `check-i18n --strict` exit 0（`operator_draft.py` 的税率泰文登记进 `scripts/i18n/keep-cjk.tsv`，属写给外部系统的数据）；`check-copy` 新增 2、拦截 0、标黄 2。
+- 全闸门 `gate.sh`：174 步全过（exit 0）；候选离线 `cand-local.sh offline`（生产镜像）：exit 0，72 个测试脚本全 OK。
 
 ### 5.3 入口实测表（`check-impact.py`，命中 `cc-desktop`、`mrerp-rules`、`cc-operator-target`，要实测 29 个）
 
@@ -147,7 +161,7 @@
 
 ## 8. 遗留问题与要主会话定的事
 
-1. 只有 MR.ERP、没有 Express 连接的工作空间：CC 没有 Cowork 通道密钥（密钥绑在 Express 连接上），领不到 MR.ERP 代录单。要不要给 MR.ERP 连接也发通道密钥。**待定（主会话在定，本任务不做）。**
+1. 只有 MR.ERP、没有 Express 连接的工作空间：CC 没有 Cowork 通道密钥（密钥绑在 Express 连接上），领不到 MR.ERP 代录单。要不要给 MR.ERP 连接也发通道密钥。**主会话 11-03 已定：要做（选 A，MR.ERP 连接也能登记 CC 通道），待做，留给下一个子任务。**
 2. 开录前准备在网页请求里同步做（每张一次 MR.ERP 登录，同直写执行器每条一次）；`_submit_one` 撞写者锁整笔重来时会重新准备一次（自建幂等）。
 3. 同批次录到中途作答的单：账号被本批占着时不登录准备，要等本批放开账号再交。
 4. 批次停 / 任务撤回：本步靠 CC 对剩下的单回执（最后一张回执放账号）与 TTL 过期；没有新增服务端撤回入口。
