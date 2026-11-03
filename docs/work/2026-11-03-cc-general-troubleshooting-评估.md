@@ -279,7 +279,12 @@ ERP 同样能力：
   - 做（只做管钱那一格）：「票面合计」`allow_on_submit`，已提交、还没写进账本的单也能改：页面直接改（`express.api.set_printed_total`），CC 用 `erp_set_printed_total`（必须带 basis）；`express/printed.set_total` 写原生 Version + 依据记录，停在票面合计上的单当场重新写账（MR.ERP 账本同一路转过去）；已写进账本的不能改；
   - 明细要改的照原生「修改」，CC 给单据链接；第一期不做改草稿工具。
 
-### 10.3 (c)(d) 未开始
+### 10.3 (c) 代录 AI 接手（提交 `5a72a4c55` 起，变基后见分支）
 
-- (c) 代录 AI 接手：CC 桌面版的 `ComputerUseHelper` 需要一个经服务端转发模型请求的接口（密钥不在电脑上、按任务费用上限），服务端目前没有，要新建；失败单也要截图并随原因进待处理。
-- (d) 真模型验收：见第 7 节矩阵。
+- 服务端（共用）`pearnly_core/express_operator/ai.py`：只认 check / turn、Haiku 5.5 / Opus 5.5、请求体字段白名单、`max_tokens` ≤ 8000；密钥用 `PEARNLY_ANTHROPIC_API_KEY`；每个代录批次费用上限 3 美元（按 `claude_ocr.engine.PRICE` 估算，`frappe.cache` 累计），到了回 `{"error":"budget"}`。
+- 两种通道各加一条机器方法：共用机器通道 `cc_desktop.machine.operator_ai`（`http_auth.METHODS`）、Cowork `companion.operator_api.operator_ai`（`http_auth.OPERATOR_METHODS`，只读文件夹密钥不放行）；认过电脑后先提交再转发，不走整笔重来（免得同一轮付两次费）。契约测试三份已更新。
+- CC 桌面版 1.12.13：`express_operator/site_ai.py` 按成员通道交请求；`host.py` 构造 `Engine` 时接上 `ComputerUseHelper`；站点没接上 / 出错按判断不了转人工（不当崩溃）；转人工的单作废前截一张图存本机证据目录，路径放在任务说明最前面（站点任务行说明 300 字）。**先部署服务端再发 CC 桌面版**。
+- 测试：`tests/test_express_operator_ai.py`（白名单、预算、没密钥）、`companion/tests/test_operator_site_ai.py`、`test_operator_engine.py` 两条（截图、站点不通不崩溃，反例已验）。
+- 侧栏统一合入后，代录「需要你」的任务已在待处理页按单据去重显示；`cowork_pending` / `erp_pending` 只回单据待处理，代录任务由 CC 的代录状态工具查。
+
+### 10.4 (d) 真模型验收：未开始，见第 7 节矩阵。
