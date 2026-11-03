@@ -118,7 +118,8 @@ class ExpressDirect(unittest.TestCase):
 import importlib.util  # noqa: E402
 
 
-@unittest.skipUnless(importlib.util.find_spec("requests"), "MR.ERP 传输模块要 requests：在生产镜像的候选离线检查里跑")
+@unittest.skipUnless(all(importlib.util.find_spec(name) for name in ("requests", "openpyxl")),
+                     "MR.ERP 传输模块要 requests 与 openpyxl：在生产镜像的候选离线检查里跑")
 class MrErpDirect(unittest.TestCase):
     """Cowork / ERP → MR.ERP 直写：护栏接在 ``MrErpImport._preflight``，赊销、采购、费用三种模块都先过它。"""
 
