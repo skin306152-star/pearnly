@@ -14,6 +14,7 @@
 直接给出合计（09-26 真机：20% 折扣被丢、只有金额没有单价，这两次都该在这里被拦下）。
 """
 from datetime import date, timedelta
+import json
 
 from pearnly_core.tax_documents import rules as tax_rules
 # 票面核对的纯规则 2026-09-27 起在共用层（Cowork 同用）；这里只留 ERP 的提示语、重读策略与提示词片段。
@@ -96,3 +97,14 @@ def issued_by(result, own_tax, own_branch=None) -> bool:
     if len(own_tax or "") != 13 or digits(result.get("supplier_tax_id")) != own_tax:
         return False
     return digits(result.get("buyer_tax_id")) != own_tax
+
+
+def marks(result) -> dict:
+    """识别结果落到单据上的两栏（2026-11-03「CC 通用疑难处理」）：``printed_total`` 票面印的合计（人可以改），``ocr_review``
+    识别标记——这次识别的复核码与识别读到的合计（JSON，不给页面看）。有标记的单写账前核对票面合计（`express.contracts.printed_hold`），
+    识别读到的合计留在标记里，与人改过的值分得清。"""
+    total = money((result.get("printed") or {}).get("total"))
+    printed = float(total) if total is not None else None
+    review = [str(code) for code in result.get("review") or []]
+    return {"printed_total": printed,
+            "ocr_review": json.dumps({"codes": review, "total": printed}, ensure_ascii=False, separators=(",", ":"))}

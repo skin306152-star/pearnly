@@ -64,8 +64,9 @@
 				if (!row) {line.section.collapse(false); layout.navigate("items"); return null;}
 				lines.push(row);
 			}
-			return {...Object.fromEntries(["source", "requester", "requester_user", "external_ref", "image_sha256"]
+			return {...Object.fromEntries(["source", "requester", "requester_user", "external_ref", "image_sha256", "ocr_review"]
 				.filter(key => doc[key] !== undefined).map(key => [key, doc[key]])),
+				...(state.ocr_review ? {ocr_review: state.ocr_review} : {}),
 				auto_create_product: doc.auto_create_product ?? 1, update_stock: doc.update_stock ?? 1, source: state.source || doc.source || "web", ...values, lines};
 		};
 		const label_lines = () => state.lines.forEach((line, i) => {
@@ -223,6 +224,8 @@
 					await state.party_choice.show();
 					state.source = result.source;
 					state.ocr_hash = result.image_sha256;
+					state.ocr_review = result.ocr_review; // 识别标记随提交带上；票面合计（上面已填）此后显示
+					form.set_df_property("printed_total", "hidden", 0);
 					if (result.lines) await state.set_lines(result.lines);
 					state.ocr_complete = true;
 					// 同一文件里还有别的单据：网页一次只填第一张，照实告诉用户（LINE 那边会各出一张卡）。

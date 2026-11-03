@@ -3339,5 +3339,118 @@ class PosDaySummaries(Base):
         self.assertNotIn("_extraction_audit", page)
 
 
+
+class PrintedTotal(PushModule):
+    """2026-11-03「CC 通用疑难处理」ERP 侧护栏：识别来的采购 / 销售单（单上有识别标记 ``ocr_review``）票面合计没有、或与单据
+    合计对不上，Express 直写、代录交单、代录预检都停下进待处理，不准备、不排写账件（缺页的单明细不全，单据合计自洽却不完整，
+    原来照写进 Express）。手工录的单、上线前的老单没有标记，照旧；票面合计印的是扣了预扣税的实付额也算对上。"""
+
+    MARK = '{"codes":["total_missing"],"total":null}'
+
+    def document(self, doctype=None, **extra):
+        doctype = doctype or self.push.PURCHASE
+        docs = fake.STATE.db.table(doctype)
+        docs["PI-1"] = {"name": "PI-1", "creation": "2026-11-03 09:00:00", "status": self.push.ready(doctype),
+                        "owner": "a@x", "company": "CO-1", "ledger_state": "queued", "ledger_job": None,
+                        "ledger_reason": "", "grand_total": 41589.83, "net_payable": 41589.83, **extra}
+        return docs["PI-1"]
+
+    def send(self, doctype=None, operator=None):
+        from unittest import mock
+        with mock.patch.object(self.push, "document", side_effect=AssertionError("must not build")), \
+                mock.patch.object(self.push.prepare, "prepare", side_effect=AssertionError("must not prepare")), \
+                mock.patch.object(self.push.jobs, "enqueue", side_effect=AssertionError("must not queue")), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+            return self.push.send(doctype or self.push.PURCHASE, "PI-1", operator=operator)
+
+    def test_the_pure_rule(self):
+        hold = E.printed_hold
+        self.assertIsNone(hold(False, None, 100))                      # 手工单 / 老单：不核对
+        self.assertEqual(hold(True, None, 100), E.PRINTED_TOTAL_MISSING)
+        self.assertEqual(hold(True, 0, 100), E.PRINTED_TOTAL_MISSING)  # 金额栏空着存成 0
+        self.assertEqual(hold(True, "44372.47", "41589.83"), E.PRINTED_TOTAL_MISMATCH)
+        self.assertIsNone(hold(True, "107.00", Decimal("107.005")))     # 容差同识别核对
+        self.assertIsNone(hold(True, 104, 107, net_payable=104))       # 票面印的是扣预扣税后的实付额
+        self.assertEqual(hold(True, 105, 107, net_payable=104), E.PRINTED_TOTAL_MISMATCH)
+
+    def test_a_recognized_document_without_its_printed_total_is_held_before_express(self):
+        """BJC 第 7 页那张（缺第 2 页）：票面合计没读到，ERP 按已有明细算出 41,589.83，原来照写进 Express。"""
+        row = self.document(ocr_review=self.MARK, printed_total=0)
+        self.assertEqual(self.send(), {"status": "held", "reason": E.PRINTED_TOTAL_MISSING})
+        self.assertEqual((row["ledger_state"], row["ledger_reason"]), ("held", E.PRINTED_TOTAL_MISSING))
+        self.assertTrue(E.needs_person(row["ledger_state"], row["ledger_reason"]))  # 进待处理，不每分钟自己再试
+
+    def test_a_printed_total_that_differs_from_the_document_is_held_for_direct_and_operator_writes(self):
+        for doctype in (self.push.PURCHASE, self.push.SALES):
+            for operator in (None, {"id": "b1", "index": 1, "total": 1}):
+                row = self.document(doctype, ocr_review=self.MARK, printed_total=44372.47)
+                self.assertEqual(self.send(doctype, operator), {"status": "held", "reason": E.PRINTED_TOTAL_MISMATCH})
+                self.assertEqual(row["ledger_reason"], E.PRINTED_TOTAL_MISMATCH, (doctype, operator))
+
+    def test_operator_precheck_reports_the_hold_without_preparing(self):
+        from unittest import mock
+        self.document(ocr_review=self.MARK, printed_total=44372.47)
+        with mock.patch.object(self.push, "_prepare_body", side_effect=AssertionError("must not prepare")):
+            self.assertEqual(self.push.prepare_only(self.push.PURCHASE, "PI-1"), {"hold": E.PRINTED_TOTAL_MISMATCH})
+
+    def test_matching_totals_and_unmarked_documents_still_write(self):
+        from unittest import mock
+        for extra in ({"ocr_review": self.MARK, "printed_total": 41589.83}, {"printed_total": 0},
+                      {"ocr_review": None, "printed_total": 99}):
+            self.document(**extra)
+            made = []
+            with mock.patch.object(self.push, "document", lambda doctype, name: {"ref": "PI-1@x", "number": "PI-1"}), \
+                    mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                    mock.patch.object(self.push, "_prepare_body", lambda doctype, company, body:
+                                      ({"payload": {"payload_version": 4}, "book": {"key": "BK"}}, None, None)), \
+                    mock.patch.object(self.push, "actor_of", lambda *a: "a@x"), \
+                    mock.patch.object(self.push.jobs, "of_source", lambda *a: []), \
+                    mock.patch.object(self.push.jobs, "enqueue", lambda **kw: made.append(kw) or {"job": "J1"}), \
+                    mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+                self.assertEqual(self.push.send(self.push.PURCHASE, "PI-1"), {"status": "sent"}, extra)
+            self.assertEqual(len(made), 1, extra)
+
+    def test_the_hold_reasons_have_words_on_the_document_and_in_pending(self):
+        from pearnly_erp_portal.express import pending
+        js = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js").read_text(encoding="utf-8")
+        words = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv").read_text(encoding="utf-8")
+        for code in (E.PRINTED_TOTAL_MISSING, E.PRINTED_TOTAL_MISMATCH):
+            key = pending.REASONS[code]
+            self.assertIn(f'"{code}": "{key}"', js)
+            self.assertIn(f"\t{key}\n", words)
+
+
+class PrintedTotalRecognition(unittest.TestCase):
+    """识别结果落到单据上的两栏（`recognition.checks.marks`）：网页识别、LINE 卡片建单、LINE 页面提交都带上；采购 / 销售入账接收。"""
+
+    def test_marks_keep_the_read_total_and_review_codes(self):
+        from pearnly_erp_portal.recognition import checks
+        marks = checks.marks({"printed": {"subtotal": "38869.00", "vat": "2720.83", "total": None},
+                              "review": ["total_missing"]})
+        self.assertEqual(marks["printed_total"], None)
+        self.assertEqual(json.loads(marks["ocr_review"]), {"codes": ["total_missing"], "total": None})
+        self.assertEqual(checks.marks({"printed": {"total": "1,070.00"}})["printed_total"], 1070.0)
+
+    def test_every_recognition_path_carries_the_marks_and_entry_accepts_them(self):
+        base = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal"
+        read = lambda path: (base / path).read_text(encoding="utf-8")
+        self.assertIn("result.update(checks.marks(result))", read("purchasing/recognition.py"))
+        self.assertIn("**checks.marks(result)}", read("sales/recognition.py"))
+        intake = read("integrations/intake.py")
+        self.assertEqual(intake.count("**checks.marks(result))"), 2)  # LINE 卡片建单：采购、销售
+        self.assertIn('payload["ocr_review"] = checks.marks(', intake)  # 页面提交：服务端补标记
+        for path in ("purchasing/entry.py", "sales/entry.py"):
+            head = read(path).split("HEAD_FIELDS = (", 1)[1].split(")", 1)[0]
+            self.assertIn('"printed_total"', head, path)
+            self.assertIn('"ocr_review"', head, path)
+        for slug in ("purchase_document", "erp_sales_document"):
+            meta = json.loads(read(f"pearnly_erp_portal/doctype/{slug}/{slug}.json"))
+            fields = {field["fieldname"]: field for field in meta["fields"]}
+            self.assertEqual((fields["printed_total"]["fieldtype"], fields["printed_total"].get("read_only")), ("Currency", None))
+            self.assertEqual((fields["ocr_review"].get("hidden"), fields["ocr_review"].get("read_only")), (1, 1))
+            self.assertEqual(meta.get("track_changes"), 1, slug)  # 谁、何时改了票面合计查版本记录
+
+
 if __name__ == "__main__":
     unittest.main()

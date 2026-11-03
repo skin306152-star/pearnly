@@ -190,6 +190,7 @@ def recognise(attachments, document_name=None, billing_reference=None, company=N
     category_memory.fill(category_memory.matched_supplier(result), result.get("lines"))
     result.update(source="ocr", image_sha256=files.combined_hash(hashes), review=issues,
                   ocr_model=model, additional=extras)
+    result.update(checks.marks(result))
     return result
 
 

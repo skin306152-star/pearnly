@@ -26,6 +26,8 @@
   "discount_total",
   "vat_amount",
   "grand_total",
+  "printed_total",
+  "ocr_review",
   "column_break_payment",
   "paid_amount",
   "payment_status",
@@ -204,6 +206,18 @@
    "label": "Grand Total",
    "read_only": 1,
    "in_list_view": 1
+  },
+  {
+   "fieldname": "printed_total",
+   "fieldtype": "Currency",
+   "label": "Printed Total"
+  },
+  {
+   "fieldname": "ocr_review",
+   "fieldtype": "Long Text",
+   "label": "Recognition Review",
+   "hidden": 1,
+   "read_only": 1
   },
   {
    "fieldname": "column_break_payment",
@@ -408,7 +422,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-02 19:00:00.000000",
+ "modified": "2026-11-03 18:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Sales Document",
  "owner": "Administrator",

@@ -1268,6 +1268,7 @@ class Web(Base):
         opened = intake.open_for_edit("LI-1")
         self.assertNotIn("review", opened)
         self.assertNotIn("review", opened["doc"])
+        self.assertNotIn("ocr_review", opened["doc"])  # 识别标记提交时服务端补（11-03），页面只有票面合计
 
     def test_open_switches_to_the_company_chosen_in_line(self):
         self.active.return_value = "CO-2"
@@ -1294,6 +1295,8 @@ class Web(Base):
         self.assertEqual((seen["payload"]["company"], seen["payload"]["source"], seen["payload"]["doc_no"]),
                          ("CO-1", "line", "INV-9"))
         self.assertEqual([row["file"] for row in seen["payload"]["attachments"]], ["FILE-1", "EXTRA"])
+        # 识别标记按这张卡的识别结果补上（写账前核对票面合计，`express.contracts.printed_hold`）
+        self.assertEqual(json.loads(seen["payload"]["ocr_review"])["codes"], json.loads(self.doc.result).get("review") or [])
         args = frappe.db.set_value.call_args.args
         self.assertEqual((args[1], args[2]["purchase"], args[2]["status"]), ("LI-1", "PD-1", "confirmed"))
         self.assertEqual(self.replies, [])

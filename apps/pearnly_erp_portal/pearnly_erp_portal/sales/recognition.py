@@ -77,8 +77,9 @@ def recognise(attachments, document_name=None, billing_reference=None, progress=
     # 同一文件里的其余单据（多页 / 一张图几张票）：LINE 各出一张卡；网页一次只填第一张。
     extras = [{**doc, "review": codes, "ocr_model": used}
               for doc, codes, used in documents[1:]]
-    return {**result, "customer": _customer(result, company), "source": contracts.SOURCE_OCR,
-            "image_sha256": files.combined_hash(hashes), "review": issues, "ocr_model": model, "additional": extras}
+    result = {**result, "customer": _customer(result, company), "source": contracts.SOURCE_OCR,
+              "image_sha256": files.combined_hash(hashes), "review": issues, "ocr_model": model, "additional": extras}
+    return {**result, **checks.marks(result)}
 
 
 def _customer(result, company):

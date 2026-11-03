@@ -121,6 +121,8 @@
 		"express.warehouse_unmapped": "express.reason.warehouseUnmapped",
 		"express.item_unmapped": "express.reason.itemUnmapped",
 		"express.operator_owned": "express.reason.operatorOwned",
+		"express.printed_total_missing": "express.reason.printedTotalMissing",
+		"express.printed_total_mismatch": "express.reason.printedTotalMismatch",
 		"express.cc_desktop_not_connected": "CC Desktop not connected", "express.cc_desktop_offline": "express.reason.offline",
 	};
 	const EXPRESS_KINDS = {

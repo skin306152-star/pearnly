@@ -19,7 +19,7 @@ KINDS = {"purchase_invoice", "expense", "goods", "service"}
 METHODS = {"cash", "transfer", "promptpay", "bank", "cheque", "other"}
 HEAD_FIELDS = ("doc_no", "due_date", "currency", "fx_rate", "supplier_tax_id", "supplier_branch_type",
                "supplier_branch_no", "supplier_branch_name", "supplier_address", "requester",
-               "requester_user", "notes", "source", "external_ref", "image_sha256")
+               "requester_user", "notes", "source", "external_ref", "image_sha256", "printed_total", "ocr_review")
 LINE_FIELDS = ("item_type", "product", "product_ref", "description", "code", "barcode", "qty", "unit",
                "unit_price", "discount", "vat_rate", "wht_rate", "category", "subcategory",
                "warehouse", "location")

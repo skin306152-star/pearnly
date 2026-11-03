@@ -47,8 +47,9 @@
 				lines.push(row);
 			}
 			// 内部来源与留底字段留在契约里，不作为商家可见的开关。
-			return {...Object.fromEntries(["source", "source_file", "image_sha256"]
+			return {...Object.fromEntries(["source", "source_file", "image_sha256", "ocr_review"]
 				.filter(key => doc[key] !== undefined).map(key => [key, doc[key]])),
+				...(state.ocr_review ? {ocr_review: state.ocr_review} : {}),
 				source: state.source || doc.source || "web", ...state.ocr_buyer, ...values, lines};
 		};
 		const label_lines = () => state.lines.forEach((line, i) => {
@@ -198,6 +199,8 @@
 					state.ocr_buyer = {buyer_tax_id: result.buyer_tax_id || "", buyer_branch_no: result.buyer_branch_no || ""};
 					state.source = result.source;
 					state.ocr_hash = result.image_sha256;
+					state.ocr_review = result.ocr_review; // 识别标记随提交带上；票面合计（上面已填）此后显示
+					form.set_df_property("printed_total", "hidden", 0);
 					if (result.lines) await state.set_lines(result.lines);
 					state.ocr_complete = true;
 					// 同一文件里还有别的单据：网页一次只填第一张，照实告诉用户（LINE 那边会各出一张卡）。

@@ -22,6 +22,7 @@ from pearnly_core import line, line_binding
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.integrations import line_cards, line_flow
+from pearnly_erp_portal.recognition import checks
 
 DOCTYPE = "ERP LINE Intake"
 QUEUED, READY, FAILED, CONFIRMED = "queued", "ready", "failed", "confirmed"
@@ -267,7 +268,8 @@ def build_payload(doc, result=None) -> dict:
             lines.append(row)
         payload.update(company=doc.company, lines=lines, is_paid=doc.is_paid,
                        payment_method=doc.payment_method or "cash", update_stock=int(goods),
-                       auto_create_product=int(goods), source="line", attachments=attachments)
+                       auto_create_product=int(goods), source="line", attachments=attachments,
+                       **checks.marks(result))  # 票面合计与识别标记（写账前核对，`express.contracts.printed_hold`）
         if party:
             payload["supplier"] = party
         elif fallback:
@@ -289,7 +291,8 @@ def build_payload(doc, result=None) -> dict:
             row["warehouse"] = doc.warehouse
         lines.append(row)
     payload.update(company=doc.company, lines=lines, is_paid=doc.is_paid,
-                   payment_method=doc.payment_method or None, source="line", attachments=attachments)
+                   payment_method=doc.payment_method or None, source="line", attachments=attachments,
+                   **checks.marks(result))
     if not doc.is_paid:
         payload["paid_amount"] = 0
     elif payload.get("doc_date"):
@@ -374,6 +377,7 @@ def open_for_edit(name) -> dict:
     if doc.direction == "sales" and form.get("customer"):
         form["buyer_name"] = frappe.db.get_value("ERP Customer", form["customer"], "customer_name")
     form.pop("company", None)
+    form.pop("ocr_review", None)  # 识别标记提交时由服务端按这张卡补上（:func:`submit`）
     # 识别检查没过的原因不给页面（用户 2026-10-02：录入侧不出识别后的错误提示，只靠识别质量）。
     return {"direction": doc.direction, "intake": doc.name, "switched_company": switched, "doc": form}
 
@@ -389,6 +393,8 @@ def submit(name, payload) -> dict:
     payload = dict(payload or {})
     payload["company"] = doc.company
     payload["source"] = "line"
+    # 识别标记按这张卡的识别结果补上（页面不带）；票面合计用页面上的（人可以改）
+    payload["ocr_review"] = checks.marks(json.loads(doc.result or "{}"))["ocr_review"]
     source = {"file": _file_name(doc), "kind": "bill"}
     others = [row for row in payload.get("attachments") or [] if row.get("file") != source["file"]]
     payload["attachments"] = [source, *others]

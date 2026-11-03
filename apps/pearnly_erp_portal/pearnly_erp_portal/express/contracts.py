@@ -48,6 +48,11 @@ REFUND_CROSS_YEAR = "express.pos_refund_cross_year"  # 原 HS 与退货在不同
 WAREHOUSE_UNMAPPED = "express.warehouse_unmapped"
 # 盘点调整里有还没有 Express 编码的商品（盘点当场新建的）：本批写 TK 前停下交人，CC 在 TK 里建档另排（用户 10-29 批复 #7）
 ITEM_UNMAPPED = "express.item_unmapped"
+# 识别来的单（单上有识别标记 ``ocr_review``）：票面印的合计（``printed_total``，人可以改）没有、或与单据合计对不上 → 不写账，
+# 停下进待处理（2026-11-03「CC 通用疑难处理」，管钱的底线：缺页的单明细不全，单据合计自洽却不完整）。人把票面合计填对，
+# 或「修改」补齐明细两边对上，新单照常写。手工录的单、上线前的老单没有识别标记，照旧
+PRINTED_TOTAL_MISSING = "express.printed_total_missing"
+PRINTED_TOTAL_MISMATCH = "express.printed_total_mismatch"
 # 交给代录、还没录成的单（最近一件写账是代录交的）：直写、「再写一次」都不接，由代录去录（主会话 10-27）
 OPERATOR_OWNED = "express.operator_owned"
 REFUND_ORIGINAL_MANUAL = "express.pos_refund_original_manual"  # 原 HS 是人手工处理的：Express 单号不知道，退货单也要手工处理
@@ -59,6 +64,21 @@ RETRY_REASONS = (NO_BOOK, NO_WRITER, READING, REFUND_WAITING)
 # 要人处理的单（ERP 版 CC 的「待处理」，2026-11-02）：停下等人（要人选一次、单据本身不对、电脑转了人工…；不含每分钟会自己
 # 再试的 `RETRY_REASONS`）、失败、写进去了但核对不上。只看单据上的状态与原因（`needs_person`）
 ATTENTION_STATES = (HELD, FAILED, MISMATCH)
+
+
+def printed_hold(recognized, printed_total, grand_total, net_payable=None):
+    """识别来的单能不能写账（纯判断）：回停下的原因码，``None`` = 照常写。``recognized``：单上有识别标记；
+    ``net_payable``：采购单扣了预扣税后的实付额（票面合计印的可能是它，同识别时的核对 `amounts.computed_issues`，容差同）。"""
+    if not recognized:
+        return None
+    from pearnly_core.tax_documents import amounts
+
+    printed = amounts.money(printed_total)
+    if printed is None or printed <= 0:  # 金额栏空着存成 0
+        return PRINTED_TOTAL_MISSING
+    if amounts.computed_issues({"total": printed}, grand_total, None, net_payable):
+        return PRINTED_TOTAL_MISMATCH
+    return None
 
 
 def needs_person(state, reason) -> bool:
@@ -351,6 +371,6 @@ def pages(doc: dict) -> list:
 
 
 __all__ = ["ATTENTION_STATES", "CHOICE", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER",
-           "OFFLINE", "OPEN_STATES", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
+           "OFFLINE", "OPEN_STATES", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]

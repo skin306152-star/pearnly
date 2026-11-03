@@ -106,6 +106,8 @@
 			f("header_discount", "Discount Amount", "Currency", {default: 0}), col(),
 			...[["discount_total", "Discount Total"], ["vat_amount", "VAT"],
 				["grand_total", "Grand Total"]].map(([key, label]) => f(key, label, "Currency", {read_only: 1})),
+			// 识别来的单才有（写账前与合计核对，`express.contracts.printed_hold`）；识别后显示
+			f("printed_total", "Printed Total", "Currency", {hidden: !(state.doc.ocr_review || state.intake)}),
 			u.section(""), f("note", "Remarks", "Small Text"),
 			...(doc.void_reason ? [f("void_reason", "Reason for Cancellation", "Small Text", {read_only: 1})] : []),
 		].map(field => ({...field,

@@ -23,7 +23,7 @@ from frappe.utils import now_datetime
 
 
 from pearnly_erp_portal import mrerp
-from pearnly_erp_portal.express import contracts as express_contracts, pending
+from pearnly_erp_portal.express import contracts as express_contracts, pending, printed
 from pearnly_erp_portal.mrerp import choices, connection as connections, contracts
 
 SALES = "ERP Sales Document"
@@ -80,6 +80,9 @@ def prepare(doctype, name, document) -> dict:
     row = choices.company_row(company)
     if not row or not row.mrerp_enabled or not row.mrerp_connection or not row.mrerp_account_set:
         return {"failed": contracts.NOT_CONFIGURED}
+    held = printed.hold(doctype, name)  # 识别来的单票面合计没有 / 对不上：同 Express 直写停下
+    if held:
+        return {"hold": held}
     body = document(doctype, name)
     stop = contracts.blocked(body)
     if stop:

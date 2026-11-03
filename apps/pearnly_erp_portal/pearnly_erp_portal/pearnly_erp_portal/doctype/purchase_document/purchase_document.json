@@ -31,6 +31,8 @@
   "rounding",
   "grand_total",
   "net_payable",
+  "printed_total",
+  "ocr_review",
   "section_lines",
   "lines",
   "serials",
@@ -253,6 +255,19 @@
    "label": "Amount Payable",
    "read_only": 1,
    "options": "currency"
+  },
+  {
+   "fieldname": "printed_total",
+   "fieldtype": "Currency",
+   "label": "Printed Total",
+   "options": "currency"
+  },
+  {
+   "fieldname": "ocr_review",
+   "fieldtype": "Long Text",
+   "label": "Recognition Review",
+   "hidden": 1,
+   "read_only": 1
   },
   {
    "fieldname": "section_lines",
@@ -572,7 +587,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-02 19:00:00.000000",
+ "modified": "2026-11-03 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly ERP Portal",
  "name": "Purchase Document",

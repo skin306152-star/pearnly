@@ -23,7 +23,7 @@ DOCTYPE = "ERP Sales Document"
 LINE_DOCTYPE = "ERP Sales Document Line"
 
 HEAD_FIELDS = ("customer", "party_type", "address", "source", "source_file", "note",
-               "image_sha256")
+               "image_sha256", "printed_total", "ocr_review")
 LINE_FIELDS = ("product", "description", "qty", "unit", "unit_price", "discount",
                "discount_pct", "vat_applicable", "warehouse", "location")
 

@@ -63,6 +63,8 @@ REASONS = {
     "express.warehouse_unmapped": "express.reason.warehouseUnmapped",
     "express.item_unmapped": "express.reason.itemUnmapped",
     "express.operator_owned": "express.reason.operatorOwned",
+    "express.printed_total_missing": "express.reason.printedTotalMissing",
+    "express.printed_total_mismatch": "express.reason.printedTotalMismatch",
     "express.cc_desktop_not_connected": "CC Desktop not connected", "express.cc_desktop_offline": "express.reason.offline",
 }
 # 电脑回报的「[错误码] 原文」里认得的码（同单据页 EXPRESS_CODES）；其余码用 `express.error.<码>`，没有译文的原样

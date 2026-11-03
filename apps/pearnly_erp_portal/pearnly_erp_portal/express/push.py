@@ -21,7 +21,7 @@ from frappe.utils import now_datetime
 from pearnly_core.cc_desktop import books, devices, jobs
 from pearnly_core.express_rules.contracts import pos as pos_contract
 
-from pearnly_erp_portal.express import contracts, pos_day, prepare, stock_entry
+from pearnly_erp_portal.express import contracts, pos_day, prepare, printed, stock_entry
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal import mrerp
 from pearnly_erp_portal.mrerp import contracts as mrerp_contracts, push as mrerp_push
@@ -347,6 +347,9 @@ def _prepare_body(doctype, company, body):
 def prepare_only(doctype, name) -> dict:
     """``send`` 的准备那一半：不写单据、不排写账件（代录预检用，主会话 10-27「预检必须走产品的准备、新商品 / 要人选的项预检里
     就报」）。回准备的结论；准备好了但单上的仓没有 Express 码时回 ``{"hold": WAREHOUSE_UNMAPPED}``（与 `send` 同一条规则）。"""
+    stop = printed.hold(doctype, name)
+    if stop:
+        return {"hold": stop}
     result, _vat_fields, unmapped = _prepare_body(doctype, company_of(doctype, name), document(doctype, name))
     if unmapped and "failed" not in result and "hold" not in result:
         return {"hold": contracts.WAREHOUSE_UNMAPPED, "book": result.get("book") or {}}
@@ -398,6 +401,11 @@ def send(doctype, name, operator=None):
                              "ledger_needed": None})
         frappe.db.commit()
         return {"status": "held", "reason": contracts.DISCONNECTED}
+    stop = printed.hold(doctype, name)
+    if stop:
+        _set(doctype, name, {"ledger_state": contracts.HELD, "ledger_reason": stop, "ledger_needed": None})
+        frappe.db.commit()
+        return {"status": "held", "reason": stop}
     body = document(doctype, name)
     if doctype == POS_DAY and body.get("net_negative"):
         # 同一天的退货冲减后是负数（共用约定 `net_day`）：不硬写，停下交人

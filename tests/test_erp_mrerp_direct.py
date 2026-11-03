@@ -284,6 +284,28 @@ class SwitchedOn(unittest.TestCase):
         self.assertEqual((saved["ledger_state"], saved["ledger_reason"]), ("failed", contracts.PURCHASE_CASH))
         self.assertEqual(CALLS, [])
 
+    def test_a_recognized_document_whose_printed_total_does_not_match_is_held_before_mrerp(self):
+        """2026-11-03「CC 通用疑难处理」：识别来的单票面合计没有 / 对不上，同 Express 直写停下进待处理，不导入 MR.ERP；
+        对上了、或没有识别标记（手工单、老单）照常导入。"""
+        from pearnly_erp_portal.express import contracts as E
+
+        mark = '{"codes":[],"total":150.0}'
+        for extra, reason in (({"ocr_review": mark, "printed_total": 150, "grand_total": 107}, E.PRINTED_TOTAL_MISMATCH),
+                              ({"ocr_review": mark, "printed_total": 0, "grand_total": 107}, E.PRINTED_TOTAL_MISSING)):
+            reset()
+            doc(ledger_state="queued", ledger_target="mrerp", net_payable=107, **extra)
+            with _Module({"status": "success", "docnum": "PG1"}):
+                push.run(PURCHASE, "PUR-1", document)
+            saved = DB.table(PURCHASE)["PUR-1"]
+            self.assertEqual((saved["ledger_state"], saved["ledger_reason"]), ("held", reason))
+            self.assertEqual(CALLS, [])
+        for extra in ({"ocr_review": mark, "printed_total": 107, "grand_total": 107}, {"printed_total": 0, "grand_total": 107}):
+            reset()
+            doc(ledger_state="queued", ledger_target="mrerp", net_payable=107, **extra)
+            with _Module({"status": "success", "docnum": "PG1", "menus": {}, "masters": {}}):
+                push.run(PURCHASE, "PUR-1", document)
+            self.assertEqual(DB.table(PURCHASE)["PUR-1"]["ledger_state"], "written", extra)
+
     def test_a_busy_account_waits_in_the_queue(self):
         doc(ledger_state="queued", ledger_target="mrerp")
         OPERATOR["held"] = True
