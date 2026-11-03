@@ -57,7 +57,29 @@ MR.ERP 两条连接时选一种不会互相顶掉的做法（共用一套通道�
 
 ## 5. 检查
 
-（合入前补。）
+本机真实站点层（11-03，代码 `a2b79422` 之上只加了验证脚本）：生产镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:ea24fcb9ce7238414bf166bbe439339a06b9f601cd46b8a64dfdd0f4d7c1803d`
+挂本工作树源码；真 MariaDB / Redis / WSGI；不连任何 MR.ERP，直写导入一律换成假的。本任务自己的栈（`pearnly-mrerpop-backend-lab`、
+`pearnly-mrerpop-flows-lab`），跑完连卷拆掉；别的窗口的栈没动。全局常量 `MRERP_OPERATOR_ENABLED`、ERP 的 `MRERP_LEDGER_ENABLED` 在产品
+代码里仍是 False，「开着」只在验证进程里打补丁。
+
+| 项 | 结果 |
+|---|---|
+| `scripts/cowork-mrerp-login-lab-verify.py`（cowork-backend 实验栈） | **7 通过**。第一次 6 过 1 不过：新加的 `test_the_web_configure_refuses_an_mrerp_password` 走的是人的 API 令牌调网页接口，Frappe 照常回 Guest 会话 Cookie，而脚本的通用 `post` 按机器入口断言「不发 Cookie」——脚本问题，不是产品缺陷。改为只对机器入口断言 Cookie，并把「拒收」收紧成 417 ValidationError（核过回的是配置无效，不是认证失败）。改走 `seed_old_login` 的老连接用例通过 |
+| `scripts/cowork-mrerp-operator-lab-verify.py`（新，同一实验栈） | **8 通过**，连跑 3 遍都过：①开录：`application.submit` 带批次与 `mrerp` 块、选定电脑 → `_prepare_mrerp` → `ledger.reserve` → `ledger.confirm`（`ledger.confirm` 对带 `route_device` 的 MR.ERP 记录没有 Express 才有的判据，走得通），不排服务端执行任务；直写同连接照旧排任务、不带选定电脑；`mrerp_jobs.heads` 真 SQL：`own=True` 只取本连接派给这台的、Express 密钥（`own=False`）取得到同一张、方向反了取不到、别的电脑的排掉 ②MR.ERP 连接自己的密钥经真机器认证：心跳记电脑行（目标含 `mrerp`、`mrerp_users`、`mrerp_logins`）→ 领单拿到 MR.ERP 代录载荷并租上账号 → 手上有件又来领 = 重发同一件（同 `task_key`）→ 回执记 `external_docnum`、这批最后一张放开账号 ③Express 密钥领同一张（投递挂 Express 连接）并回执 ④同一台电脑两把密钥同时领：两轮、线程先后对调，赢家在领取事务里多停 1 秒，输家确实同时走到账本领取、被挡下（MariaDB 判死锁 → 共用的整笔重来，重来时这台已忙 → 不领），只一条投递，输家那把交不了回执 ⑤真 Redis 账号互斥：一批两张，第一张回执后账号不放；这期间直写不导入、照旧排队；Redis 剩余时间缩到 1 秒等同过期后直写恢复导入；电脑回来领第二张时重新租上、回执后放开 ⑥直写短锁占着时代录领不到、单子照旧排着、没有投递，放开后领到 ⑦电脑没报用户名时按站点存的用户名租 ⑧常量关着：MR.ERP 密钥心跳 / 领单 403、电脑行不变；开录前准备拒收、不建记录；开着时排上的单关了之后 Express 密钥领不到、MR.ERP 密钥 403；开着时领走的一张关了之后回执 403、记录还在电脑手上 |
+| ERP：`scripts/erp-mrerp-direct-lab-verify.py`（新，回归实验室的 `erp.regression.localhost`） | **2 通过**：关着时管理员经 WSGI 调 `configure` / `choose_ledger` / `read_choices` 一律 403，公司就算标了 MR.ERP 账本提交的单也不进 MR.ERP；打补丁开着时经 WSGI 建连接、选账套当账本，销售单（现销）提交即排上（`ledger_target = mrerp`、排队中），代录占着这个账号（真 Redis）时不导、`mrerp.account_busy` 照旧排队，放开后后台任务导入一张（假 MR.ERP）→ 账本栏 `written` + MR.ERP 单号，再排不再导入 |
+| 流程 `run.py --changed --base origin/main`（分叉点 `790dc639`，本机专用回归实验室，生产镜像） | 命中 4 条，**10/10 格通过**：`cc.chat` 4/4、`cc.operator` 2/2、`erp.express.new-item-stock` 2/2、`cowork.operator.unknown` 2/2 |
+| 流程 `run.py --flow cowork.mrerp-login`（`--changed` 没选中，单独跑） | **2/2 格通过** |
+| 全闸门 `gate.sh`（`SKIP_NPM_CI=1`，`1b6bbfd8`：三份验证脚本都已提交） | **174 步全过**（exit 0） |
+
+没测到的与原因：
+
+- `cc.operator` 流程里「续录改了页面的重试 / 继续」：**没测到**。这条流程在网页上跑，没有 CC 桌面版的桥、不开录，流程里不会出现停下的批次，
+  页面上的「重试」「继续」按钮点不到；离线由 `tests/test_cc_operator.py`（全闸门内）与续录记录里的测试锁住。要实测得补一条能在站点上
+  造出停下批次的流程，或在测试机上用 CC 桌面版实录。
+- 真实 MR.ERP 登录、导入、网页代录：没测到（不连任何真实 MR.ERP，等岳父线上测试账号）。
+- CC 桌面版端（托盘、写账线）与 Windows 测试机：没测到（本任务不动测试机）。
+- 观察（不是缺陷）：同一台电脑两把密钥同时领单时，输家在 MariaDB 里撞死锁、由共用的整笔重来消化（`transaction.conflicts`，最多 4 次带退避），
+  结果正确；两把密钥的领单在同一工作空间里本就会互相等锁。
 
 ## 6. 要主会话定的事
 
