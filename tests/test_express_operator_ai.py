@@ -31,7 +31,7 @@ sys.modules["frappe"].logger = frappe.logger
 
 from pearnly_core.express_operator import ai  # noqa: E402
 
-HAIKU, OPUS = ai.claude_engine.HAIKU, ai.claude_engine.OPUS
+HAIKU, OPUS = ai.HAIKU, ai.OPUS
 
 
 def body(**request):
@@ -77,6 +77,19 @@ class Forward(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Prices(unittest.TestCase):
+    def test_the_price_table_is_the_recognition_engine_s(self):
+        import ast
+        source = (ROOT / "apps/pearnly_core/pearnly_core/claude_ocr/engine.py").read_text(encoding="utf-8")
+        found = {}
+        for node in ast.parse(source).body:
+            if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") in ("PRICE", "HAIKU", "OPUS") \
+                    or isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Tuple):
+                exec(compile(ast.Module([node], []), "engine", "exec"), {}, found)  # noqa: S102 — 只取常量
+        self.assertEqual((found["HAIKU"], found["OPUS"]), (ai.HAIKU, ai.OPUS))
+        self.assertEqual(found["PRICE"], ai.PRICE)
 
 
 class OlderCcDesktop(unittest.TestCase):

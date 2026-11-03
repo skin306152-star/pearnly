@@ -7,20 +7,20 @@ Anthropic，原样回响应。
 
 把关（这里写死，不靠电脑）：
 - 只认两种调用（``check`` 看图判断、``turn`` 电脑操作一轮）、两个模型、请求体字段白名单、``max_tokens`` 上限；
-- 每个代录批次的费用上限 :data:`BATCH_BUDGET_USD`（按 `claude_ocr.engine.PRICE` 估算累计），到了回 ``{"error": "budget"}``，
+- 每个代录批次的费用上限 :data:`BATCH_BUDGET_USD`（按 :data:`PRICE` 估算累计），到了回 ``{"error": "budget"}``，
   CC 桌面版收到就停下 AI 接手、这张单转人工。
 """
 from __future__ import annotations
 
 import os
-from types import SimpleNamespace
-
 import frappe
 
-from pearnly_core.claude_ocr import engine as claude_engine
-
 KINDS = ("check", "turn")
-MODELS = (claude_engine.HAIKU, claude_engine.OPUS)
+HAIKU, OPUS = "claude-haiku-5-5", "claude-opus-5-5"
+MODELS = (HAIKU, OPUS)
+# 美元 / 百万 token：输入、输出、写缓存、读缓存（只估算费用上限用；与识别引擎 `claude_ocr.engine.PRICE` 同一份数，测试比对，
+# 机器通道不为两行价目引用整个识别引擎）
+PRICE = {HAIKU: (0.10, 0.50, 0.125, 0.01), OPUS: (4.0, 20.0, 5.0, 0.20)}
 FIELDS = ("model", "max_tokens", "system", "messages", "tools", "thinking", "output_config", "context_management",
           "cache_control")
 MAX_TOKENS = 8000
@@ -63,10 +63,10 @@ def spent(batch) -> float:
 
 def usd(model, usage) -> float:
     usage = usage if isinstance(usage, dict) else {}
-    return claude_engine.cost(model, SimpleNamespace(
-        input_tokens=int(usage.get("input_tokens") or 0), output_tokens=int(usage.get("output_tokens") or 0),
-        cache_creation_input_tokens=int(usage.get("cache_creation_input_tokens") or 0),
-        cache_read_input_tokens=int(usage.get("cache_read_input_tokens") or 0)))
+    pin, pout, pw, pr = PRICE[model]
+    return (int(usage.get("input_tokens") or 0) * pin + int(usage.get("output_tokens") or 0) * pout
+            + int(usage.get("cache_creation_input_tokens") or 0) * pw
+            + int(usage.get("cache_read_input_tokens") or 0) * pr) / 1e6
 
 
 def _post(key, body) -> dict:
