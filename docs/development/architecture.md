@@ -121,6 +121,17 @@ Pearnly ERP 的 `express` 域：采购 / 销售单在唯一提交点（`sales.en
 绑定的：排队执行 `push.mrerp.runner`（hooks 的定时巡检与 worker 预载按点路径引用）、目录采集 `connections.mrerp_collector` 与菜单读取
 `connections.mrerp_menu_reader`（排队任务）、白名单方法。ERP 接 MR.ERP（评估第 6 步）直接调这里，不导入 Cowork。导入文件与推送载荷
 搬移前后逐字节相同由 `tests/test_mrerp_rules_golden.py` 锁住（生产镜像里跑，候选检查离线车道）。
+2026-11-03 再下沉四段纯网络 / 纯规则（ERP 导入直写要用）：一次导入的执行 `push.execute`（原 `runner.execute`）、「用户数据错」
+`push.user_data`（原 `push.retry`）、菜单与主档读取 `menu_read`（原 `mrerp_menu_reader.read`）、账套目录采集 `collect`（原
+`mrerp_collector.collect` 一半）；Cowork 原模块从共用层导入、对外名照旧。
+
+ERP 的 `mrerp` 域（评估第 6 步导入直写，[任务记录](../work/2026-11-03-erp-mrerp-direct.md)）：连接 `ERP MRERP Connection`（网址由管理员设，
+登录只经 CC 桌面版授权写入，ERP 经 `pearnly_cc_desktop` 的两个登录钩子接）、账套目录与公司选账本（`ERP Company.mrerp_*` 隐藏字段）、
+菜单 / 默认值按公司选一次、ERP 单据 → Cowork 同形状的规范载荷（`contracts`，纯函数）、导入直写与通用账本栏（`push`，`ledger_target = mrerp`）。
+`express.push.queue` / `send` / `poll` 与 `express.cc_tools._route` 先问 `mrerp.push.handles` 分路；`mrerp` 不导入 `express.push`（任务入口
+`express.push.mrerp_run` 把建单据的函数交进去）、不导入 Cowork。**总开关是代码常量** `pearnly_erp_portal.mrerp.MRERP_LEDGER_ENABLED`
+（现为 False，入口先不对用户开放；不按站点开），关着时所有入口 403、Express 行为不变（`tests/test_erp_mrerp_direct.py`）；导入表与
+Cowork 逐字节相同由 `tests/test_erp_mrerp_golden.py` 锁住（候选检查离线车道）。
 
 MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7、8 条，施工记录 [mrerp-cc-credentials](../work/2026-11-02-mrerp-cc-credentials.md)）：网页不收
 MR.ERP 密码。对话页先要一张一次性票（`pearnly_core.cc_desktop.login_tickets`：只存摘要、5 分钟、用一次，绑站点 / 通道 / 连接 / 人 /
