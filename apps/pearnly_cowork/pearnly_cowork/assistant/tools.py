@@ -10,6 +10,7 @@
 import hashlib
 import json
 import re
+import sys
 import time
 import uuid
 from datetime import datetime
@@ -1459,6 +1460,18 @@ def recognize_attachments(tool_input) -> str:
     file_ids = [str(f) for f in (tool_input.get("files") or [])][:RECOGNIZE_MAX]
     if not file_ids:
         frappe.throw(_("No attachments were given."))
+    if tool_input.get("into_document"):
+        # 补传的文件接到这张单后面整份重读、覆盖这张单，不新建单（`assistant.into_document`，2026-11-03）
+        from pearnly_cowork.assistant import into_document
+
+        if len(file_ids) != 1:
+            return _json({"status": "not_started", "reason": "Add one file at a time to a document."})
+        try:
+            return _json(into_document.run(str(tool_input["into_document"]), file_ids[0], sys.modules[__name__]))
+        except (frappe.DoesNotExistError, frappe.PermissionError):
+            frappe.db.rollback()
+            frappe.clear_messages()
+            return _json({"document": tool_input["into_document"], "status": "not_found"})
     choices = _choices(tool_input)
     if choices.get("account_set_key") and not _selectable(choices):
         return _json({"results": [{"file": f, "status": "not_started", "reason": "account_set_unavailable: this account "
@@ -4218,7 +4231,13 @@ TOOLS = [
          "connection": {"type": "string"},
          "account_set_key": {"type": "string"},
          "posting_kind": {"type": "string", "enum": ["service", "stock"], "description": "Express only."},
-         "payment": {"type": "string", "enum": ["cash", "credit"], "description": "MR.ERP only."}},
+         "payment": {"type": "string", "enum": ["cash", "credit"], "description": "MR.ERP only."},
+         "into_document": {"type": "string", "description": (
+             "A document's name: add the one attached file (for example a missing page) after that document's "
+             "original and recognize the whole file again, replacing that document's recognized fields instead of "
+             "making a new document. Charged by pages like any recognition. Only when you know which document the file "
+             "belongs to; ask the user when unsure. not_merged means it was not changed (say why); recognizing means "
+             "call again with the same document and file later.")}},
          "required": ["files"]},
      "handler": "pearnly_cowork.assistant.tools.recognize_attachments"},
     {"name": "cowork_intake_options", "label": "Checked intake choices",
