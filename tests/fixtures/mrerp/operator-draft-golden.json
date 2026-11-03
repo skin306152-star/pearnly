@@ -1,0 +1,555 @@
+{
+ "about": "operator_draft.block 黄金样本（tests/test_mrerp_operator_draft.py --write）；输入全是合成值",
+ "cases": [
+  {
+   "name": "purchase_goods",
+   "doc_type": "purchase",
+   "menu": "68",
+   "url": "https://www.mrerp4sme.com/",
+   "connection": "CWEC-MRERP-1",
+   "account_set": {
+    "comidyear": "12",
+    "seldb": "1",
+    "name": "TEST2026",
+    "company_name": "บริษัท เรา จำกัด"
+   },
+   "history": {
+    "id": "CWH-0000a1b2c3d4",
+    "invoice_no": "INV-a1b2c3d4",
+    "invoice_date": "2026-09-12",
+    "total_amount": "2648.25",
+    "direction": "purchase",
+    "fields": {
+     "invoice_number": "INV-a1b2c3d4",
+     "date": "2026-09-12",
+     "subtotal": "2475.00",
+     "vat": "173.25",
+     "total_amount": "2648.25",
+     "direction": "purchase",
+     "items": [
+      {
+       "name": "กระดาษ A4 80 แกรม",
+       "qty": "5",
+       "unit_price": "115.00",
+       "amount": "575.00"
+      },
+      {
+       "name": "หมึกพิมพ์ HP 85A",
+       "qty": "2",
+       "unit_price": "950.00",
+       "amount": "1900.00"
+      }
+     ],
+     "seller_name": "บริษัท ผู้ขาย จำกัด",
+     "seller_tax": "0105561012345",
+     "buyer_name": "บริษัท เรา จำกัด",
+     "buyer_tax": "0105559000001",
+     "posting_item_type_manual": "goods"
+    }
+   },
+   "mappings": {
+    "_own_tax_id": "0105559000001",
+    "_mrerp_header": {
+     "branch": "00000",
+     "dept": "D001",
+     "job": "00001",
+     "store": "0001",
+     "employee": "สมชาย ใจดี",
+     "area": "กรุงเทพ",
+     "delivery": "ส่งเอง"
+    },
+    "_mrerp_customer_header": {
+     "C0001": {
+      "employee": "สมหญิง ขายดี",
+      "area": "เชียงใหม่",
+      "delivery": ""
+     }
+    },
+    "suppliers": [
+     {
+      "erp_code": "S-0001",
+      "seller_tax": "0105561012345"
+     }
+    ],
+    "clients": [
+     {
+      "erp_type": "mrerp",
+      "client_id": "CL-7",
+      "erp_code": "C0001"
+     }
+    ],
+    "products": [
+     {
+      "item_name": "กระดาษ A4 80 แกรม",
+      "erp_code": "P-A4"
+     },
+     {
+      "item_name": "หมึกพิมพ์ HP 85A",
+      "erp_code": "P-HP"
+     }
+    ],
+    "_mrerp_expense_item_code": "EXP-01"
+   },
+   "block": {
+    "url": "https://www.mrerp4sme.com",
+    "connection": "CWEC-MRERP-1",
+    "account_set": {
+     "comidyear": "12",
+     "seldb": "1",
+     "name": "TEST2026",
+     "company_name": "บริษัท เรา จำกัด"
+    },
+    "doc_type": "purchase",
+    "menu": "68",
+    "docnum": "690912-850029",
+    "date": "2026-09-12",
+    "party_code": "S-0001",
+    "ref_no": "INV-a1b2c3d4",
+    "ref_date": "2026-09-12",
+    "credit_days": "",
+    "vat_rate": "7 (แยก)",
+    "vat_included": false,
+    "discount": "0",
+    "defaults": {
+     "dept": "D001",
+     "job": "00001",
+     "employee": "สมชาย ใจดี",
+     "branch": "00000",
+     "store": "0001"
+    },
+    "lines": [
+     {
+      "code": "P-A4",
+      "qty": "5",
+      "price": "115",
+      "unit": "",
+      "store": "0001",
+      "desc": ""
+     },
+     {
+      "code": "P-HP",
+      "qty": "2",
+      "price": "950",
+      "unit": "",
+      "store": "0001",
+      "desc": ""
+     }
+    ],
+    "totals": {
+     "before_vat": "2475.00",
+     "vat": "173.25",
+     "net": "2648.25"
+    }
+   }
+  },
+  {
+   "name": "purchase_expense",
+   "doc_type": "purchase_expense",
+   "menu": "453",
+   "url": "https://www.mrerp4sme.com/",
+   "connection": "CWEC-MRERP-1",
+   "account_set": {
+    "comidyear": "12",
+    "seldb": "1",
+    "name": "TEST2026",
+    "company_name": "บริษัท เรา จำกัด"
+   },
+   "history": {
+    "id": "CWH-0000b2c3d4e5",
+    "invoice_no": "INV-b2c3d4e5",
+    "invoice_date": "2026-09-12",
+    "total_amount": "535.00",
+    "direction": "purchase",
+    "fields": {
+     "invoice_number": "INV-b2c3d4e5",
+     "date": "2026-09-12",
+     "subtotal": "500.00",
+     "vat": "35.00",
+     "total_amount": "535.00",
+     "direction": "purchase",
+     "items": [
+      {
+       "name": "ค่าบริการขนส่ง",
+       "qty": "1",
+       "unit_price": "500.00",
+       "amount": "500.00"
+      }
+     ],
+     "seller_name": "บริษัท ผู้ขาย จำกัด",
+     "seller_tax": "0105561012345",
+     "buyer_name": "บริษัท เรา จำกัด",
+     "buyer_tax": "0105559000001",
+     "posting_item_type_manual": "expense"
+    }
+   },
+   "mappings": {
+    "_own_tax_id": "0105559000001",
+    "_mrerp_header": {
+     "branch": "00000",
+     "dept": "D001",
+     "job": "00001",
+     "store": "0001",
+     "employee": "สมชาย ใจดี",
+     "area": "กรุงเทพ",
+     "delivery": "ส่งเอง"
+    },
+    "_mrerp_customer_header": {
+     "C0001": {
+      "employee": "สมหญิง ขายดี",
+      "area": "เชียงใหม่",
+      "delivery": ""
+     }
+    },
+    "suppliers": [
+     {
+      "erp_code": "S-0001",
+      "seller_tax": "0105561012345"
+     }
+    ],
+    "clients": [
+     {
+      "erp_type": "mrerp",
+      "client_id": "CL-7",
+      "erp_code": "C0001"
+     }
+    ],
+    "products": [
+     {
+      "item_name": "กระดาษ A4 80 แกรม",
+      "erp_code": "P-A4"
+     },
+     {
+      "item_name": "หมึกพิมพ์ HP 85A",
+      "erp_code": "P-HP"
+     }
+    ],
+    "_mrerp_expense_item_code": "EXP-01"
+   },
+   "block": {
+    "url": "https://www.mrerp4sme.com",
+    "connection": "CWEC-MRERP-1",
+    "account_set": {
+     "comidyear": "12",
+     "seldb": "1",
+     "name": "TEST2026",
+     "company_name": "บริษัท เรา จำกัด"
+    },
+    "doc_type": "purchase_expense",
+    "menu": "453",
+    "docnum": "690912-181469",
+    "date": "2026-09-12",
+    "party_code": "S-0001",
+    "ref_no": "INV-b2c3d4e5",
+    "ref_date": "2026-09-12",
+    "credit_days": "",
+    "vat_rate": "นอกระบบ",
+    "vat_included": false,
+    "discount": "0",
+    "defaults": {
+     "dept": "D001",
+     "job": "00001",
+     "employee": "สมชาย ใจดี",
+     "branch": "00000",
+     "store": "0001"
+    },
+    "lines": [
+     {
+      "code": "EXP-01",
+      "qty": "1",
+      "price": "535",
+      "unit": "",
+      "store": "0001",
+      "desc": "ค่าบริการขนส่ง"
+     }
+    ],
+    "totals": {
+     "before_vat": "535.00",
+     "vat": "0.00",
+     "net": "535.00"
+    }
+   }
+  },
+  {
+   "name": "sales_credit_included",
+   "doc_type": "sales_credit",
+   "menu": "70",
+   "url": "https://www.mrerp4sme.com/",
+   "connection": "CWEC-MRERP-1",
+   "account_set": {
+    "comidyear": "12",
+    "seldb": "1",
+    "name": "TEST2026",
+    "company_name": "บริษัท เรา จำกัด"
+   },
+   "history": {
+    "id": "CWH-0000c3d4e5f6",
+    "invoice_no": "INV-c3d4e5f6",
+    "invoice_date": "2026-09-12",
+    "total_amount": "2475.00",
+    "direction": "sales",
+    "fields": {
+     "invoice_number": "INV-c3d4e5f6",
+     "date": "2026-09-12",
+     "subtotal": "2313.08",
+     "vat": "161.92",
+     "total_amount": "2475.00",
+     "direction": "sales",
+     "items": [
+      {
+       "name": "กระดาษ A4 80 แกรม",
+       "qty": "5",
+       "unit_price": "115.00",
+       "amount": "575.00"
+      },
+      {
+       "name": "หมึกพิมพ์ HP 85A",
+       "qty": "2",
+       "unit_price": "950.00",
+       "amount": "1900.00"
+      }
+     ],
+     "seller_name": "บริษัท เรา จำกัด",
+     "seller_tax": "0105559000001",
+     "buyer_name": "บริษัท ลูกค้า จำกัด",
+     "buyer_tax": "0105562055501",
+     "vat_included": true
+    },
+    "client_id": "CL-7"
+   },
+   "mappings": {
+    "_own_tax_id": "0105559000001",
+    "_mrerp_header": {
+     "branch": "00000",
+     "dept": "D001",
+     "job": "00001",
+     "store": "0001",
+     "employee": "สมชาย ใจดี",
+     "area": "กรุงเทพ",
+     "delivery": "ส่งเอง"
+    },
+    "_mrerp_customer_header": {
+     "C0001": {
+      "employee": "สมหญิง ขายดี",
+      "area": "เชียงใหม่",
+      "delivery": ""
+     }
+    },
+    "suppliers": [
+     {
+      "erp_code": "S-0001",
+      "seller_tax": "0105561012345"
+     }
+    ],
+    "clients": [
+     {
+      "erp_type": "mrerp",
+      "client_id": "CL-7",
+      "erp_code": "C0001"
+     }
+    ],
+    "products": [
+     {
+      "item_name": "กระดาษ A4 80 แกรม",
+      "erp_code": "P-A4"
+     },
+     {
+      "item_name": "หมึกพิมพ์ HP 85A",
+      "erp_code": "P-HP"
+     }
+    ],
+    "_mrerp_expense_item_code": "EXP-01"
+   },
+   "block": {
+    "url": "https://www.mrerp4sme.com",
+    "connection": "CWEC-MRERP-1",
+    "account_set": {
+     "comidyear": "12",
+     "seldb": "1",
+     "name": "TEST2026",
+     "company_name": "บริษัท เรา จำกัด"
+    },
+    "doc_type": "sales_credit",
+    "menu": "70",
+    "docnum": "690912-512908",
+    "date": "2026-09-12",
+    "party_code": "C0001",
+    "ref_no": "SI690912-512908",
+    "ref_date": "2026-09-12",
+    "credit_days": "",
+    "vat_rate": "7 (รวม)",
+    "vat_included": true,
+    "discount": "0",
+    "defaults": {
+     "dept": "D001",
+     "job": "00001",
+     "employee": "สมหญิง ขายดี",
+     "branch": "00000",
+     "store": "0001"
+    },
+    "lines": [
+     {
+      "code": "P-A4",
+      "qty": "5",
+      "price": "115",
+      "unit": "",
+      "store": "0001",
+      "desc": "กระดาษ A4 80 แกรม"
+     },
+     {
+      "code": "P-HP",
+      "qty": "2",
+      "price": "950",
+      "unit": "",
+      "store": "0001",
+      "desc": "หมึกพิมพ์ HP 85A"
+     }
+    ],
+    "totals": {
+     "before_vat": "2313.08",
+     "vat": "161.92",
+     "net": "2475.00"
+    }
+   }
+  },
+  {
+   "name": "sales_cash_walkin_discount",
+   "doc_type": "sales_cash",
+   "menu": "71",
+   "url": "https://www.mrerp4sme.com/",
+   "connection": "CWEC-MRERP-1",
+   "account_set": {
+    "comidyear": "12",
+    "seldb": "1",
+    "name": "TEST2026",
+    "company_name": "บริษัท เรา จำกัด"
+   },
+   "history": {
+    "id": "CWH-0000d4e5f6a7",
+    "invoice_no": "INV-d4e5f6a7",
+    "invoice_date": "2026-09-12",
+    "total_amount": "2568.00",
+    "direction": "sales",
+    "fields": {
+     "invoice_number": "INV-d4e5f6a7",
+     "date": "2026-09-12",
+     "subtotal": "2400.00",
+     "vat": "168.00",
+     "total_amount": "2568.00",
+     "direction": "sales",
+     "items": [
+      {
+       "name": "กระดาษ A4 80 แกรม",
+       "qty": "5",
+       "unit_price": "115.00",
+       "amount": "575.00"
+      },
+      {
+       "name": "หมึกพิมพ์ HP 85A",
+       "qty": "2",
+       "unit_price": "950.00",
+       "amount": "1900.00"
+      }
+     ],
+     "seller_name": "บริษัท เรา จำกัด",
+     "seller_tax": "0105559000001",
+     "discount": "75.00",
+     "posting_payment_manual": "cash"
+    }
+   },
+   "mappings": {
+    "_own_tax_id": "0105559000001",
+    "_mrerp_header": {
+     "branch": "00000",
+     "dept": "D001",
+     "job": "00001",
+     "store": "0001",
+     "employee": "สมชาย ใจดี",
+     "area": "กรุงเทพ",
+     "delivery": "ส่งเอง"
+    },
+    "_mrerp_customer_header": {
+     "C0001": {
+      "employee": "สมหญิง ขายดี",
+      "area": "เชียงใหม่",
+      "delivery": ""
+     }
+    },
+    "suppliers": [
+     {
+      "erp_code": "S-0001",
+      "seller_tax": "0105561012345"
+     }
+    ],
+    "clients": [
+     {
+      "erp_type": "mrerp",
+      "client_id": "CL-7",
+      "erp_code": "C0001"
+     }
+    ],
+    "products": [
+     {
+      "item_name": "กระดาษ A4 80 แกรม",
+      "erp_code": "P-A4"
+     },
+     {
+      "item_name": "หมึกพิมพ์ HP 85A",
+      "erp_code": "P-HP"
+     }
+    ],
+    "_mrerp_expense_item_code": "EXP-01"
+   },
+   "block": {
+    "url": "https://www.mrerp4sme.com",
+    "connection": "CWEC-MRERP-1",
+    "account_set": {
+     "comidyear": "12",
+     "seldb": "1",
+     "name": "TEST2026",
+     "company_name": "บริษัท เรา จำกัด"
+    },
+    "doc_type": "sales_cash",
+    "menu": "71",
+    "docnum": "690912-844251",
+    "date": "2026-09-12",
+    "party_code": "เงินสด",
+    "ref_no": "SI690912-844251",
+    "ref_date": "2026-09-12",
+    "credit_days": "",
+    "vat_rate": "7 (แยก)",
+    "vat_included": false,
+    "discount": "75",
+    "defaults": {
+     "dept": "D001",
+     "job": "00001",
+     "employee": "สมชาย ใจดี",
+     "branch": "00000",
+     "store": "0001"
+    },
+    "lines": [
+     {
+      "code": "P-A4",
+      "qty": "5",
+      "price": "115",
+      "unit": "",
+      "store": "0001",
+      "desc": "กระดาษ A4 80 แกรม"
+     },
+     {
+      "code": "P-HP",
+      "qty": "2",
+      "price": "950",
+      "unit": "",
+      "store": "0001",
+      "desc": "หมึกพิมพ์ HP 85A"
+     }
+    ],
+    "totals": {
+     "before_vat": "2400.00",
+     "vat": "168.00",
+     "net": "2568.00"
+    }
+   }
+  }
+ ]
+}

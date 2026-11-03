@@ -4768,5 +4768,104 @@ class MrErpTests(unittest.TestCase):
         self.assertIn("this is all an MR.ERP account set asks for", by_name["cowork_mrerp_setup"])
 
 
+class MrErpOperatorSubmitTests(unittest.TestCase):
+    """MR.ERP 代录交单（ADR-026 第 3 步，`_submit_one`）。开关是共用层全局常量 ``MRERP_OPERATOR_ENABLED``（默认关）：
+
+    - 关着：与改动前一字不差——MR.ERP 的单交代录照旧 ``operator_express_only``、不做准备、不交；批次信息里写了 ``mrerp`` 也当 Express；
+    - 开着（打补丁）：先提交（放锁）再做开录前服务端准备（`push.mrerp.operator.stage`），带 ``mrerp`` 块与选定电脑交 `application.submit`；
+      准备失败记在票上、不交；账号被代录占着回「等账号」、不记失败、不交；公司账本与这张单的连接对不上一律拦；直写不受影响。"""
+
+    _real_rules = MrErpTests._real_rules
+
+    def setUp(self):
+        MrErpTests.setUp(self)
+        from pearnly_core.express_operator import contracts as operator_contracts
+
+        self.contracts = operator_contracts
+        self.view = _mrerp_view()
+        self.adapter, self.staged, self.stages, self.calls, self.marked = "mrerp", {"block": {"connection": "MR1"}}, [], [], []
+        staging = types.ModuleType("pearnly_cowork.push.mrerp.operator")
+        staging.stage = lambda name, connection, account_set: self.stages.append((name, connection, account_set)) or \
+            dict(self.staged)
+        package = types.ModuleType("pearnly_cowork.push.mrerp")
+        package.operator = staging
+        commits = []
+        self.commits = commits
+        for patch in (mock.patch.dict(sys.modules, {"pearnly_cowork.push.mrerp": package,
+                                                    "pearnly_cowork.push.mrerp.operator": staging}),
+                      mock.patch.object(frappe.db, "get_value", lambda doctype, name, field, *a, **k:
+                                        (self.adapter, 3) if isinstance(field, list) else self.adapter),
+                      mock.patch.object(frappe.db, "commit", lambda: commits.append(len(self.stages)), create=True),
+                      mock.patch.object(tools.application, "MRERP_OPERATOR_STAGE", "mrerp", create=True),
+                      mock.patch.object(tools.application, "submission_failed",
+                                        lambda name, reason: self.marked.append((name, reason)), create=True),
+                      mock.patch.object(tools.application, "submit", self._submit, create=True)):
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def _submit(self, *args, **kwargs):
+        self.calls.append((args, kwargs))
+        return {"status": "queued", "name": "CWP-1"}
+
+    def operator(self, target="mrerp"):
+        batch = {"id": "OPB-1", "index": 1, "total": 1, "start_at": 0}
+        return {"batch": batch, **({"target": target} if target else {})}
+
+    def submit(self, operator=None, route_device="CCD-A"):
+        return tools._submit_one("H1", None, None, None, route_device, operator=operator)
+
+    def test_with_the_constant_off_an_mrerp_operator_job_stops_as_before(self):
+        self.assertFalse(self.contracts.MRERP_OPERATOR_ENABLED)  # 合入 main 时关着
+        for operator in (self.operator(), self.operator(target=None)):
+            with self.subTest(operator=operator):
+                self.assertEqual(self.submit(operator), {"document": "H1", "status": "failed",
+                                                         "reason": "operator_express_only"})
+        self.assertEqual((self.stages, self.calls, self.marked), ([], [], []))
+        self.assertEqual(tools._operator_target(self.operator()), "express")
+
+    def test_with_the_constant_on_the_job_is_staged_then_submitted_with_its_block_and_computer(self):
+        with mock.patch.object(self.contracts, "MRERP_OPERATOR_ENABLED", True):
+            self.assertEqual(tools._operator_target(self.operator()), "mrerp")
+            out = self.submit(self.operator())
+        self.assertEqual(self.stages, [("H1", "MR1", "12:3")])
+        self.assertEqual(self.commits[0], 0)  # 准备前先提交（放开连接 / 票的行锁，之后才对外请求）
+        (args, kwargs), = self.calls
+        self.assertEqual(args[:2], ("H1", "MR1"))
+        self.assertEqual(kwargs["route_device"], "CCD-A")
+        self.assertEqual(kwargs["operator"], {**self.operator(), "mrerp": {"connection": "MR1"}})
+        self.assertEqual(out["submitted"][:2], ("mrerp", "MR1"))
+
+    def test_a_failed_preparation_is_marked_on_the_document_and_never_submitted(self):
+        self.staged = {"status": "failed", "reason": "ERR_AUTH"}
+        with mock.patch.object(self.contracts, "MRERP_OPERATOR_ENABLED", True):
+            self.assertEqual(self.submit(self.operator()), {"document": "H1", "status": "failed", "reason": "ERR_AUTH"})
+        self.assertEqual((self.marked, self.calls), ([("H1", "ERR_AUTH")], []))
+
+    def test_an_account_held_by_a_batch_waits_without_a_failure(self):
+        self.staged = {"status": "waiting", "reason": "account_busy"}
+        with mock.patch.object(self.contracts, "MRERP_OPERATOR_ENABLED", True):
+            self.assertEqual(self.submit(self.operator()),
+                             {"document": "H1", "status": "waiting", "reason": "account_busy"})
+        self.assertEqual((self.marked, self.calls), ([], []))
+
+    def test_a_company_book_that_does_not_match_the_documents_connection_is_refused(self):
+        with mock.patch.object(self.contracts, "MRERP_OPERATOR_ENABLED", True):
+            # 公司账本按 Express 交（批次信息没写 mrerp）、单子在 MR.ERP 连接上
+            self.assertEqual(self.submit(self.operator(target="express"))["reason"], "operator_express_only")
+            # 公司账本是 MR.ERP、单子在 Express 连接上
+            self.adapter = "express"
+            self.assertEqual(self.submit(self.operator())["reason"], "operator_express_only")
+        self.assertEqual((self.stages, self.calls), ([], []))
+
+    def test_direct_writes_are_untouched_either_way(self):
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled), mock.patch.object(self.contracts, "MRERP_OPERATOR_ENABLED", enabled):
+                self.calls.clear()
+                self.submit(None)
+                (args, kwargs), = self.calls
+                self.assertEqual((kwargs["route_device"], kwargs["operator"]), ("", None))
+        self.assertEqual(self.stages, [])
+
+
 if __name__ == "__main__":
     unittest.main()

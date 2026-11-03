@@ -15,3 +15,8 @@
 `golden-rules.json`：MR.ERP 规则下沉共用层（2026-11-02，评估 §13 第 5 步）**搬移前**的代码在生产镜像里生成的黄金样本
 （`python tests/test_mrerp_rules_golden.py --write`），给 `tests/test_mrerp_rules_golden.py` 比对：导入表的成员级与整份字节摘要、
 推送全程发出的请求与回执。输入全是合成值（假 MR.ERP 站点、合成税号与公司名），不含任何真实数据。
+
+`operator-draft-golden.json`：MR.ERP 代录要填的值（`pearnly_core.mrerp.push.operator_draft.block`，ADR-026 第 3 步）的黄金样本，
+四种单（赊购货品、赊购费用、赊销价内、现销散客带折扣）各一份：固定输入（票面与 `ready_rows` 之后的 mappings）与固定输出的 `mrerp` 块，
+由 `python3 tests/test_mrerp_operator_draft.py --write` 生成，`tests/test_mrerp_operator_draft.py` 逐字符比对（含键的先后）。CC 第 2 步
+（`mrerp_operator/draft.py`）那一侧的契约测试读同一份样本的 `block`。输入全是合成值，不含任何真实数据或密码。
