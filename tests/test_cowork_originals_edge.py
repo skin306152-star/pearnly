@@ -151,8 +151,9 @@ class ClaudeByReference(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root, patch.dict(os.environ, {"ORIGINALS_ROOT": root}):
             Path(root, NAME).parent.mkdir(parents=True)
             Path(root, NAME).write_bytes(content)
-            pages = server.stored_pages({"object": NAME, "sha256": hashlib.sha256(content).hexdigest()})
+            pages, total, page_range = server.stored_pages({"object": NAME, "sha256": hashlib.sha256(content).hexdigest()})
             self.assertEqual([m for m, _d in pages], ["image/jpeg"])
+            self.assertEqual((total, page_range), (1, [1, 1]))
             with self.assertRaises(ValueError):
                 server.stored_pages({"object": NAME, "sha256": "0" * 64})
             with self.assertRaises(ValueError):

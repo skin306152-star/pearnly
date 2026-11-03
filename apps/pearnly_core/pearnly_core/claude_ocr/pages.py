@@ -1,11 +1,9 @@
 """原件 → 交给 Claude 的页（ADR-022，纯计算）：站点侧客户端与甲骨文服务（按原件地址自己读时）同一份。
 
 每页先转正（与谷歌路线同一个 ``ocr_models.orient``：EXIF + 本地方向模型，免费、约 15 毫秒；转不了就原样送，绝不挡识别），
-再缩到长边 2000、JPEG（评测同一口径）；PDF 每页按 170 DPI 渲染，最多 ``engine.MAX_PAGES`` 页。
+再缩到长边 2000、JPEG（评测同一口径）；PDF 每页按 170 DPI 渲染。长文件按段读（``segments``），每段只渲染这一段的页。
 """
 import io
-
-from pearnly_core.claude_ocr import engine
 
 LONG_EDGE = 2000
 PDF_DPI = 170
@@ -26,8 +24,18 @@ def _save(img):
     return ("image/jpeg", buffer.getvalue())
 
 
-def jpeg(data, media_type, skipped=None):
-    """一个文件 → 按页的 ``[(media_type, bytes)]``。"""
+def count(data, media_type):
+    """一个文件有几页：PDF 按页数，图片算一页。"""
+    if media_type != "application/pdf":
+        return 1
+    import pymupdf
+
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        return len(document)
+
+
+def jpeg(data, media_type, skipped=None, first=1, last=None):
+    """一个文件 → 按页的 ``[(media_type, bytes)]``；``first`` / ``last``：只出这几页（从 1 数，含两头，``last`` 为 None 到末页）。"""
     from PIL import Image, ImageOps
 
     out = []
@@ -35,20 +43,33 @@ def jpeg(data, media_type, skipped=None):
         import pymupdf
 
         with pymupdf.open(stream=data, filetype="pdf") as document:
-            for page in list(document)[:engine.MAX_PAGES]:
+            for page in list(document)[first - 1:last]:
                 png, _mime = upright(page.get_pixmap(dpi=PDF_DPI).tobytes("png"), "image/png", skipped)
                 out.append(_save(Image.open(io.BytesIO(png)).convert("RGB")))
+        return out
+    if first > 1 or last == 0:
         return out
     data, media_type = upright(data, media_type, skipped)
     return [_save(ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB"))]
 
 
-def prepare(files, skipped=None):
-    """files：[(bytes, media_type), ...]（产品原有的「字节 + 类型」次序）→ 按页的 JPEG，最多 ``engine.MAX_PAGES`` 页。"""
-    pages = []
+def total(files):
+    """files：[(bytes, media_type), ...] → 几份合起来一共几页。"""
+    return sum(count(data, media_type) for data, media_type in files)
+
+
+def prepare(files, skipped=None, first=1, last=None):
+    """files：[(bytes, media_type), ...]（产品原有的「字节 + 类型」次序）→ 按页的 JPEG；``first`` / ``last``：几份按次序接起来后的
+    第几页到第几页（从 1 数，含两头，``last`` 为 None 到末页），只渲染这几页。"""
+    pages, offset = [], 0
     for data, media_type in files:
-        pages.extend(jpeg(data, media_type, skipped))
-    return pages[:engine.MAX_PAGES]
+        if last is not None and offset >= last:
+            break
+        size = count(data, media_type)
+        if offset + size >= first:
+            pages.extend(jpeg(data, media_type, skipped, max(1, first - offset), None if last is None else last - offset))
+        offset += size
+    return pages
 
 
 # 对账文档逐页（与 Cowork ``ocr.inputs_runtime.PageSource.frame`` 同一做法，那边是生产逐页渲染、闸门用的那一份）

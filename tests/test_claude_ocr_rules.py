@@ -132,7 +132,7 @@ class Engine(unittest.TestCase):
         client = FakeClient(reading(entry="not_invoice"))
         engine.run(client, "voucher", [("image/jpeg", b"x")] * 12)
         images = [b for b in client.calls[0]["messages"][0]["content"] if b["type"] == "image"]
-        self.assertEqual(len(images), engine.MAX_PAGES)
+        self.assertEqual(len(images), engine.PAGES_PER_CALL)
 
 
 def row(date, deposit="", withdrawal="", balance=""):

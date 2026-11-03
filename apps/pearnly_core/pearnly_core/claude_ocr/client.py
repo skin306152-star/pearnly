@@ -9,7 +9,7 @@ import os
 
 import frappe
 
-from pearnly_core.claude_ocr import engine as claude_engine, pages as page_prep
+from pearnly_core.claude_ocr import engine as claude_engine, pages as page_prep, segments
 
 ENGINES = ("google", "claude")
 SEND_TIMEOUT = (5, 240)
@@ -28,9 +28,10 @@ def uses_claude():
     return engine() == "claude"
 
 
-def prepare(files):
-    """files：[(bytes, media_type), ...] → 按页的 JPEG（每页转正、缩图，见 ``claude_ocr.pages``）。"""
-    return page_prep.prepare(files, skipped=lambda: frappe.logger("pearnly.ocr").info("orient skipped", exc_info=True))
+def prepare(files, first=1, last=None):
+    """files：[(bytes, media_type), ...] → 第 ``first`` 到 ``last`` 页的 JPEG（每页转正、缩图，见 ``claude_ocr.pages``）。"""
+    return page_prep.prepare(files, skipped=lambda: frappe.logger("pearnly.ocr").info("orient skipped", exc_info=True),
+                             first=first, last=last)
 
 
 class GoogleRefused(RuntimeError):
@@ -135,60 +136,84 @@ def _local(kind, pages, own_tax, text=None):
     return result
 
 
-def read(kind, files, own_tax=None, text=None):
-    """读一份单据（一个文件的所有页；对账文档一次一页）。``text``：表格文件导出的文字，代替 ``files``。
-    返回 claude_ocr.engine.run 的结果加 ``where``；read 为 None 表示读不出。
-    在识别工作单里时按内容存断点：同一份重跑直接用上次读到的，不重复付费（与谷歌路线的检查点同一张表）。"""
-    import hashlib
-
+def _checkpointed(key, call):
+    """同一个检查点的结果直接用（不重复付费）；没有就调 ``call()``，读出来了存下。"""
     from pearnly_core.execution import work
 
-    pages = prepare(files)
-    if not pages and not text:
-        return {"read": None, "stages": [], "escalated": False, "why": ["no_pages"], "usd": 0, "seconds": 0, "where": "none"}
-    digest = hashlib.sha256(b"".join(data for _media, data in pages) + (text or "").encode()
-                            + (own_tax or "").encode()).hexdigest()
-    key = f"claude:{kind}:{digest}"
     done = work.checkpoint(key)
     if done and done.get("state") == "done" and done.get("body"):
         return dict(done["body"], where="checkpoint")
-    result = _remote(kind, pages, own_tax, text) or _local(kind, pages, own_tax, text)
+    result = call()
     if result.get("read") is not None:
         work.checkpoint(key, "done", result)
     return result
+
+
+def read(kind, files, own_tax=None, text=None):
+    """读一份单据（一个文件的所有页；对账文档一次一页）。``text``：表格文件导出的文字，代替 ``files``。
+    返回 claude_ocr.engine.run 的结果加 ``where``；read 为 None 表示读不出。超过一次调用页数的文件按段读完再合并
+    （``segments``，每段一次调用、一个检查点）；不超过的与原来一次调用完全相同。
+    在识别工作单里时每段按内容存断点：同一份重跑直接用上次读到的，不重复付费（与谷歌路线的检查点同一张表）。"""
+    import hashlib
+
+    total = page_prep.total(files) if files else 0
+    if not total and not text:
+        return {"read": None, "stages": [], "escalated": False, "why": ["no_pages"], "usd": 0, "seconds": 0, "where": "none"}
+
+    def part(first, last):
+        pages = prepare(files, first, last) if total else []
+        digest = hashlib.sha256(b"".join(data for _media, data in pages) + (text or "").encode()
+                                + (own_tax or "").encode()).hexdigest()
+        return _checkpointed(f"claude:{kind}:{digest}",
+                             lambda: _remote(kind, pages, own_tax, text) or _local(kind, pages, own_tax, text))
+
+    return segments.read_all(max(total, 1), part)
+
+
+def _edge_part(key, body):
+    """原件在甲骨文的一段：第一段请求与检查点同原来一次读整份的（不带页范围），后面的段带 ``page_range``、检查点键加页范围。
+    甲骨文回的页范围对不上（还是旧版，不认页范围）抛 ``Deferred``，稍后重试，不把前几页当成后面的段记账。"""
+    from pearnly_core.execution import work
+    from pearnly_core.execution.errors import Deferred
+
+    def part(first, last):
+        ranged = first > 1
+        here = key + (f":p{first}-{last}" if ranged else "")
+
+        def call():
+            return dict(internal("/v1/read", body | ({"page_range": [first, last]} if ranged else {}), timeout=SEND_TIMEOUT),
+                        where="oracle")
+
+        result = _checkpointed(here, call)
+        if "page_total" not in result and result.get("where") == "checkpoint":
+            result = call()  # 部署前存的检查点不知道一共几页：这一段重读
+            if result.get("read") is not None:
+                work.checkpoint(here, "done", result)
+        if "page_total" not in result or (ranged and result.get("page_range") != [first, last]):
+            raise Deferred("oracle_outdated", 60)
+        return result
+    return part
 
 
 def read_originals(kind, originals, own_tax=None):
     """一张单据的几份原件都存在甲骨文（ERP 一次识别带几个附件）：交 ``[(对象名, sha256), …]``，甲骨文按次序读、每份先转正
-    （同 ERP 在生产上先 ``ocr.orient`` 再交 :func:`read`）、再渲染，原件字节不经过生产。检查点同 :func:`read`。"""
-    from pearnly_core.execution import work
-
+    （同 ERP 在生产上先 ``ocr.orient`` 再交 :func:`read`）、再渲染，原件字节不经过生产。几份接起来超过一次调用的页数时按段读
+    （同 :func:`read`）。检查点同 :func:`read`。"""
     key = f"claude:{kind}:originals:{','.join(sha for _name, sha in originals)}:{own_tax or ''}"
-    done = work.checkpoint(key)
-    if done and done.get("state") == "done" and done.get("body"):
-        return dict(done["body"], where="checkpoint")
-    result = internal("/v1/read", {"kind": kind, "own_tax": own_tax, "orient": True,
-                                   "originals": [{"object": name, "sha256": sha} for name, sha in originals]},
-                      timeout=SEND_TIMEOUT)
-    result["where"] = "oracle"
-    if result.get("read") is not None:
-        work.checkpoint(key, "done", result)
-    return result
+    body = {"kind": kind, "own_tax": own_tax, "orient": True,
+            "originals": [{"object": name, "sha256": sha} for name, sha in originals]}
+    return segments.read_all(None, _edge_part(key, body))
 
 
 def read_original(kind, object_name, sha256, own_tax=None, page=None):
     """读一份存在甲骨文上的原件（原件层 ``pearnly_core.originals``）：只交对象名与 sha256，甲骨文自己读文件、
     转正、渲染、交 Claude —— 原件字节不经过生产。只走甲骨文：连不上抛 ``Deferred``，工作单稍后重试（原件本来就在那台上）。
-    ``page``：对账文档一次读一页（同 :func:`read` 逐页交）。检查点同 :func:`read`，同一份重跑不重复付费。"""
-    from pearnly_core.execution import work
-
-    key = f"claude:{kind}:original:{sha256}:{own_tax or ''}" + (f":p{int(page)}" if page is not None else "")
-    done = work.checkpoint(key)
-    if done and done.get("state") == "done" and done.get("body"):
-        return dict(done["body"], where="checkpoint")
-    original = {"object": object_name, "sha256": sha256} | ({"page": int(page)} if page is not None else {})
-    result = internal("/v1/read", {"kind": kind, "own_tax": own_tax, "original": original}, timeout=SEND_TIMEOUT)
-    result["where"] = "oracle"
-    if result.get("read") is not None:
-        work.checkpoint(key, "done", result)
-    return result
+    ``page``：对账文档一次读一页（同 :func:`read` 逐页交）；不给时整份读，超过一次调用的页数按段读（同 :func:`read`）。
+    检查点同 :func:`read`，同一份重跑不重复付费。"""
+    key = f"claude:{kind}:original:{sha256}:{own_tax or ''}"
+    original = {"object": object_name, "sha256": sha256}
+    if page is not None:
+        return _checkpointed(key + f":p{int(page)}", lambda: dict(
+            internal("/v1/read", {"kind": kind, "own_tax": own_tax, "original": original | {"page": int(page)}},
+                     timeout=SEND_TIMEOUT), where="oracle"))
+    return segments.read_all(None, _edge_part(key, {"kind": kind, "own_tax": own_tax, "original": original}))

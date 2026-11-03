@@ -196,11 +196,16 @@ class OraclePages(unittest.TestCase):
             with open(os.path.join(root, OBJECT), "wb") as handle:
                 handle.write(content)
             with mock.patch.dict(os.environ, {"ORIGINALS_ROOT": root}):
-                one = server.stored_pages({"object": OBJECT, "sha256": sha, "page": 2})
-                every = server.stored_pages({"object": OBJECT, "sha256": sha})
+                one, _total, _range = server.stored_pages({"object": OBJECT, "sha256": sha, "page": 2})
+                every, total, page_range = server.stored_pages({"object": OBJECT, "sha256": sha})
+                tail, _total, tail_range = server.stored_pages({"object": OBJECT, "sha256": sha}, [2, 3])
+                for bad in ([0, 2], [2, 4], [3, 2], "2-3", [1, 9]):
+                    with self.assertRaises(ValueError):
+                        server.stored_pages({"object": OBJECT, "sha256": sha}, bad)
         self.assertEqual(one, pages.prepare([pages.frame(content, "application/pdf", 2)]))
         self.assertEqual(len(one), 1)
-        self.assertEqual(len(every), 3)  # 不带页号：整份（发票）照旧
+        self.assertEqual((len(every), total, page_range), (3, 3, [1, 3]))  # 不带页号：整份（发票）照旧
+        self.assertEqual((tail, tail_range), (every[1:], [2, 3]))  # 长文件按段读：只出这一段的页
 
     def test_the_site_asks_for_one_page_and_keeps_a_checkpoint_per_page(self):
         sent, saved = [], {}

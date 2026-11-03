@@ -66,20 +66,24 @@ class Handler(BaseHTTPRequestHandler):
         try:
             text = body.get("text") or None
             if body.get("original") or body.get("originals"):
-                images = (stored_pages(body["original"]) if body.get("original")
-                          else stored_set(body["originals"], orient=bool(body.get("orient"))))
-                if images is None:
+                found = (stored_pages(body["original"], body.get("page_range")) if body.get("original")
+                         else stored_set(body["originals"], orient=bool(body.get("orient")), page_range=body.get("page_range")))
+                if found is None:
                     return self._send(404, {"error": "original_missing"})
+                images, total, page_range = found
             else:
                 images = [(i["media_type"], base64.b64decode(i["data"])) for i in body.get("images") or []]
                 if not (images or isinstance(text, str)) or any(m not in MEDIA for m, _ in images):
                     return self._send(400, {"error": "bad_images"})
+                total = len(images)
+                page_range = [1, min(total, engine.PAGES_PER_CALL)]
             result = engine.run(self.client, body["kind"], images, body.get("own_tax"), text)
         except (KeyError, ValueError) as error:
             return self._send(400, {"error": type(error).__name__})
         except Exception as error:  # noqa: BLE001  Anthropic 出错：交给生产按工作单重试
             return self._send(502, {"error": type(error).__name__, "detail": str(error)[:300]})
-        self._send(200, result)
+        # 一共几页、这次读的是哪几页：站点据此按段读完长文件（``segments``），并核对这台认得页范围
+        self._send(200, result | {"page_total": total, "page_range": page_range})
 
 
 # 存在这台上的原件（原件层，``pearnly_core.originals``）：``<站点>/originals/<原件名><扩展名>``，原件目录由 ORIGINALS_ROOT 给。
@@ -109,9 +113,19 @@ def _stored(original):
     return data, media_type
 
 
-def stored_set(originals, orient=False):
+def _range(page_range, total):
+    """站点要读的页范围 ``[首页, 末页]`` → 校验过的 ``(首页, 末页)``；不给时读第一段（同原来一次读整份：前几页）。"""
+    if page_range is None:
+        return 1, min(total, engine.PAGES_PER_CALL)
+    if (not isinstance(page_range, list) or len(page_range) != 2 or any(type(n) is not int for n in page_range)
+            or not 1 <= page_range[0] <= page_range[1] <= total or page_range[1] - page_range[0] >= engine.PAGES_PER_CALL):
+        raise ValueError("bad page range")
+    return tuple(page_range)
+
+
+def stored_set(originals, orient=False, page_range=None):
     """一张单据的几份原件（ERP 一次带几个附件）按次序读；``orient``：每份先转正再出页（同 ERP 在生产上先转正再交识别）。
-    有一份不在了回 ``None``。"""
+    几份按次序接起来算页，只出 ``page_range`` 这几页 → ``(页, 一共几页, [首页, 末页])``；有一份不在了回 ``None``。"""
     if not isinstance(originals, list) or not 1 <= len(originals) <= 20:
         raise ValueError("bad originals")
     files = []
@@ -120,18 +134,23 @@ def stored_set(originals, orient=False):
         if found is None:
             return None
         files.append(pages.upright(*found) if orient else found)
-    return pages.prepare(files)
+    total = pages.total(files)
+    first, last = _range(page_range, total)
+    return pages.prepare(files, first=first, last=last), total, [first, last]
 
 
-def stored_pages(original):
-    """按原件地址读：读文件、核对 sha256、转正渲染成交给 Claude 的页；不在了回 ``None``，内容不对抛 ``ValueError``。
-    带 ``page``（对账文档逐页读）时只出这一页，做法同生产逐页渲染（``pages.frame``）。"""
+def stored_pages(original, page_range=None):
+    """按原件地址读：读文件、核对 sha256、转正渲染成交给 Claude 的页 → ``(页, 一共几页, [首页, 末页])``；不在了回 ``None``，
+    内容不对抛 ``ValueError``。带 ``page``（对账文档逐页读）时只出这一页，做法同生产逐页渲染（``pages.frame``）；
+    否则只出 ``page_range`` 这几页（长文件按段读）。"""
     found = _stored(original)
     if found is None:
         return None
     if "page" in original:
-        return pages.prepare([pages.frame(*found, original["page"])])
-    return pages.prepare([found])
+        return pages.prepare([pages.frame(*found, original["page"])]), 1, [1, 1]
+    total = pages.total([found])
+    first, last = _range(page_range, total)
+    return pages.prepare([found], first=first, last=last), total, [first, last]
 
 
 def main(handler=Handler):

@@ -9,7 +9,8 @@ from pearnly_core.claude_ocr import consistency, rules, spec
 HAIKU, OPUS = "claude-haiku-5-5", "claude-opus-5-5"
 # 美元 / 百万 token：输入、输出、写缓存、读缓存（只用于估算我们自己的成本，不参与扣费）。
 PRICE = {HAIKU: (0.10, 0.50, 0.125, 0.01), OPUS: (4.0, 20.0, 5.0, 0.20)}
-MAX_PAGES = 8
+# 一次调用最多交几页（10-17 评测口径）：更长的文件由 ``segments`` 按段读完再合并，不截掉后面的页。
+PAGES_PER_CALL = 8
 
 
 def cost(model, usage):
@@ -65,7 +66,7 @@ def run(client, kind, images, own_tax=None, text=None):
     读不出（两次都没结果）时 read 为 None。"""
     if kind not in spec.SPECS:
         raise ValueError(f"unknown kind {kind}")
-    images = list(images)[:MAX_PAGES]
+    images = list(images)[:PAGES_PER_CALL]
     stages = []
     read, stage = _call(client, HAIKU, kind, images, "", text)
     stages.append(stage)

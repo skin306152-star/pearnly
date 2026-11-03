@@ -124,7 +124,8 @@ class Client(unittest.TestCase):
         import requests
         env = {"PEARNLY_CLAUDE_OCR_URL": "https://203.0.113.1:8443", "PEARNLY_CLAUDE_OCR_TOKEN": "t",
                "PEARNLY_CLAUDE_OCR_CERT_SHA256": "ab" * 32, "PEARNLY_ANTHROPIC_API_KEY": "k"}
-        answer = types.SimpleNamespace(status_code=200, json=lambda: outcome(voucher(doc())))
+        answer = types.SimpleNamespace(status_code=200, json=lambda: outcome(voucher(doc())) | {"page_total": 1,
+                                                                                               "page_range": [1, 1]})
         with patch.dict("os.environ", env), patch("requests.Session.post", autospec=True, return_value=answer) as post:
             got = client.read_original("voucher", "s/originals/CWS-x.jpg", "f" * 64)
             again = client.read_original("voucher", "s/originals/CWS-x.jpg", "f" * 64)
@@ -159,6 +160,112 @@ class Client(unittest.TestCase):
     def test_not_configured_defers_never_google(self):
         with patch.dict("os.environ", {}, clear=True), self.assertRaises(Deferred):
             client.read("voucher", [(jpeg(), "image/jpeg")])
+
+
+def pdf(pages):
+    import pymupdf
+    document = pymupdf.open()
+    for number in range(pages):
+        document.new_page().insert_text((72, 72), f"page {number + 1}")
+    return document.tobytes()
+
+
+class LongFiles(unittest.TestCase):
+    """长文件按段读（2026-11-03，``claude_ocr.segments``）：多少页读多少页；不超过一段的请求与检查点和原来逐字节相同。"""
+    ENV = {"PEARNLY_CLAUDE_OCR_URL": "https://203.0.113.1:8443", "PEARNLY_CLAUDE_OCR_TOKEN": "t",
+           "PEARNLY_CLAUDE_OCR_CERT_SHA256": "ab" * 32}
+
+    def setUp(self):
+        CHECKPOINTS.clear()
+
+    def read_bytes(self, content):
+        sent = []
+
+        def remote(kind, pages, own_tax, text=None):
+            sent.append(pages)
+            return outcome(voucher(*[doc(page=n + 1, invoice_number=f"N{len(sent)}-{n}") for n in range(len(pages))]))
+        with patch.object(client, "_remote", side_effect=remote), \
+                patch("pearnly_core.ocr_models.orient.orient", side_effect=lambda data, mime, **k: (data, mime)):
+            return client.read("voucher", [(content, "application/pdf")], "0105"), sent
+
+    def test_twelve_page_pdf_is_read_whole_in_two_calls(self):
+        import hashlib
+        content = pdf(12)
+        got, sent = self.read_bytes(content)
+        self.assertEqual([len(pages) for pages in sent], [8, 5])  # 第 1–8 页、第 8–12 页
+        self.assertEqual([d["page"] for d in got["read"]["documents"]], list(range(1, 13)))
+        self.assertEqual(got["page_total"], 12)
+        # 第一段的检查点键与原来「前 8 页」那一次相同：部署前存下的结果直接用作第一段，不重复付费
+        with patch("pearnly_core.ocr_models.orient.orient", side_effect=lambda data, mime, **k: (data, mime)):
+            old = client.page_prep.prepare([(content, "application/pdf")])[:8]
+        digest = hashlib.sha256(b"".join(data for _m, data in old) + b"" + b"0105").hexdigest()
+        self.assertIn(f"claude:voucher:{digest}", CHECKPOINTS)
+        self.assertEqual(len(CHECKPOINTS), 2)
+        again, sent_again = self.read_bytes(content)
+        self.assertEqual((sent_again, again["where"]), ([], "checkpoint"))  # 续跑：两段都从断点取
+
+    def test_eight_pages_or_fewer_are_one_unchanged_call(self):
+        content = pdf(8)
+        got, sent = self.read_bytes(content)
+        self.assertEqual([len(pages) for pages in sent], [8])
+        self.assertNotIn("page_total", got)
+        self.assertEqual(got["where"], "oracle")
+
+    def answers(self, total, ranges=True):
+        sent = []
+
+        def post(path, body, timeout):
+            sent.append(body)
+            first, last = body.get("page_range") or [1, min(total, 8)]
+            answer = outcome(voucher(*[doc(page=n - first + 1, invoice_number=f"N{n}") for n in range(first, last + 1)]))
+            return answer | ({"page_total": total, "page_range": [first, last]} if ranges else {})
+        return sent, post
+
+    def test_stored_original_is_read_in_segments_on_oracle(self):
+        sent, post = self.answers(20)
+        with patch.object(client, "internal", side_effect=post):
+            got = client.read_original("voucher", "s/originals/CWS-x.pdf", "f" * 64)
+            again = client.read_original("voucher", "s/originals/CWS-x.pdf", "f" * 64)
+        self.assertEqual([body.get("page_range") for body in sent], [None, [8, 15], [15, 20]])  # 第一段同原来的请求
+        self.assertEqual([d["page"] for d in got["read"]["documents"]], list(range(1, 21)))
+        self.assertEqual(sorted(CHECKPOINTS), sorted([f"claude:voucher:original:{'f' * 64}:",
+                                                      f"claude:voucher:original:{'f' * 64}::p8-15",
+                                                      f"claude:voucher:original:{'f' * 64}::p15-20"]))
+        self.assertEqual((len(sent), again["where"]), (3, "checkpoint"))
+
+    def test_erp_attachments_are_counted_as_one_page_sequence(self):
+        sent, post = self.answers(11)
+        with patch.object(client, "internal", side_effect=post):
+            got = client.read_originals("voucher", [("a.pdf", "a" * 64), ("b.jpg", "b" * 64)], "0105")
+        self.assertEqual([body.get("page_range") for body in sent], [None, [8, 11]])
+        self.assertTrue(all(body["orient"] and len(body["originals"]) == 2 for body in sent))
+        self.assertEqual(len(got["read"]["documents"]), 11)
+
+    def test_an_outdated_oracle_is_retried_later_never_counted_twice(self):
+        sent, post = self.answers(12, ranges=False)
+        with patch.object(client, "internal", side_effect=post), self.assertRaises(Deferred):
+            client.read_original("voucher", "s/originals/CWS-x.pdf", "f" * 64)
+
+        def wrong(path, body, timeout):  # 认得总页数、却不按页范围读（回的还是前 8 页）
+            return outcome(voucher(doc())) | {"page_total": 12, "page_range": [1, 8]}
+        CHECKPOINTS.clear()
+        with patch.object(client, "internal", side_effect=wrong), self.assertRaises(Deferred):
+            client.read_original("voucher", "s/originals/CWS-x.pdf", "f" * 64)
+
+    def test_checkpoint_saved_before_the_upgrade_is_read_again(self):
+        CHECKPOINTS[f"claude:voucher:original:{'f' * 64}:"] = {"state": "done", "body": outcome(voucher(doc()))}
+        sent, post = self.answers(12)
+        with patch.object(client, "internal", side_effect=post):
+            got = client.read_original("voucher", "s/originals/CWS-x.pdf", "f" * 64)
+        self.assertEqual([body.get("page_range") for body in sent], [None, [8, 12]])
+        self.assertEqual(len(got["read"]["documents"]), 12)
+
+    def test_recon_pages_are_still_one_page_a_call(self):
+        sent, post = self.answers(1)
+        with patch.object(client, "internal", side_effect=post):
+            client.read_original("bank", "s/originals/CWS-x.pdf", "f" * 64, page=3)
+        self.assertEqual(sent[0]["original"], {"object": "s/originals/CWS-x.pdf", "sha256": "f" * 64, "page": 3})
+        self.assertNotIn("page_range", sent[0])
 
 
 class Upright(unittest.TestCase):
@@ -211,6 +318,21 @@ class Erp(unittest.TestCase):
             [(result, _c, _m)] = claude.read_all([(b"x", "image/jpeg")], structured=dict, review=lambda r: [], label="sales")
         self.assertTrue(result["not_document"])
 
+    def test_unread_pages_refuse_the_whole_file(self):
+        """长文件读到段数上限还有页没读：整份拒收（不扣费），不把读到的几张当成全部。"""
+        from pearnly_erp_portal.recognition import claude
+
+        class Refused(Exception):
+            pass
+
+        def throw(message, *a, **k):
+            raise Refused(message)
+        cut = outcome(voucher(doc())) | {"pages_unread": [24, 25]}
+        with patch.object(claude.client, "read", return_value=cut), patch.object(frappe, "throw", throw, create=True), \
+                self.assertRaises(Refused) as refused:
+            claude.read_all([(b"x", "application/pdf")], structured=dict, review=lambda r: [], label="purchase")
+        self.assertIn("23", str(refused.exception))
+
 
 class Cowork(unittest.TestCase):
     def pipeline(self, read, pages):
@@ -238,11 +360,14 @@ class Cowork(unittest.TestCase):
         self.assertEqual(receipt.pages[0].invoice.subtotal, "100.00")  # Cowork 的 subtotal 是税前
         self.assertEqual(receipt.pages[0].invoice.currency, "")  # 泰铢不填
 
-    def test_pages_beyond_the_cap_are_flagged_unread(self):
+    def test_every_page_of_a_long_file_is_read(self):
         from pearnly_cowork.ocr.execution import claude
-        result = self.pipeline(voucher(doc()), 10)
-        self.assertIn("PAGE_UNREAD", result.pages[9].layer_chain)
+        result = self.pipeline(voucher(doc(), doc(page=10, invoice_number="IV010")), 10)
         self.assertEqual(len(result.pages), 10)
+        self.assertFalse(any("PAGE_UNREAD" in page.layer_chain for page in result.pages))  # 第 9 页起不再标红
+        self.assertEqual(result.pages[9].invoice.invoice_number, "IV010")
+        limited = claude.to_pipeline(outcome(voucher(doc())) | {"pages_unread": [9, 10]}, 10, 2026)
+        self.assertEqual([page.page_number for page in limited.pages if "PAGE_UNREAD" in page.layer_chain], [9, 10])
         self.assertEqual(claude.evidence(outcome(voucher(doc()), ("claude-haiku-5-5", "claude-opus-5-5")))[1]["stage"],
                          "claude_review")
 

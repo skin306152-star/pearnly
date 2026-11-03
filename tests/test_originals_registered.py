@@ -258,10 +258,12 @@ class OracleReadsLikeErp(unittest.TestCase):
                     handle.write(data)
                 refs.append({"object": name, "sha256": hashlib.sha256(data).hexdigest()})
             with mock.patch.dict(os.environ, {"ORIGINALS_ROOT": root}):
-                there = server.stored_set(refs, orient=True)
+                there, total, page_range = server.stored_set(refs, orient=True)
+                tail, _total, _range = server.stored_set(refs, orient=True, page_range=[2, 3])
         here = pages.prepare([orient.orient(data, mime) for data, mime, _suffix in files])
         self.assertEqual(there, here)
-        self.assertEqual(len(there), 3)
+        self.assertEqual((len(there), total, page_range), (3, 3, [1, 3]))
+        self.assertEqual(tail, here[1:])  # 几份按次序接起来算页：第 2 页是第一份 PDF 的第 2 页
 
     def test_the_site_sends_references_and_keeps_one_checkpoint(self):
         sent, saved = [], {}
@@ -271,7 +273,8 @@ class OracleReadsLikeErp(unittest.TestCase):
                 saved[key] = {"state": state, "body": body}
             return saved.get(key)
 
-        with mock.patch.object(client, "internal", side_effect=lambda path, body, timeout: sent.append(body) or {"read": {}}), \
+        with mock.patch.object(client, "internal", side_effect=lambda path, body, timeout: sent.append(body) or {"read": {}, "page_total": 3,
+                                                                                         "page_range": [1, 3]}), \
                 mock.patch("pearnly_core.execution.work.checkpoint", checkpoint):
             client.read_originals("voucher", [(OBJECT, SHA), (OBJECT, "d" * 64)], "0105")
             client.read_originals("voucher", [(OBJECT, SHA), (OBJECT, "d" * 64)], "0105")  # 续跑不再付费

@@ -75,6 +75,12 @@ def read_all(images, *, structured, review, label, finish=None, progress=None, o
                else client.read("voucher", images, own_tax))
     if progress:
         progress(1, 1)
+    if outcome.get("pages_unread"):
+        # 长文件按段读到上限还有页没读（``claude_ocr.segments``）：整份拒收、不扣费，不把读到的几张当成全部
+        import frappe
+        from frappe import _
+
+        frappe.throw(_("This PDF has more than {0} pages").format(outcome["pages_unread"][0] - 1))
     read = outcome.get("read")
     if not read:
         return []

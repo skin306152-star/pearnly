@@ -1,6 +1,7 @@
 """Cowork 的 Claude 识别路线（ADR-022）：本站点选了 Claude 时，图片 / PDF 整份（表格文件按逻辑页的文字）交共用层 ``pearnly_core.claude_ocr``
 （Haiku→Opus，不调谷歌），把标准格式转成 ``PipelineResult``（每个实体页一条：该页第一张单放页上、其余进
-``additional_invoices``；续页按「非发票」留作证据；第 9 页起读不了的页按「读不出」标红），之后存档、推送、扣费照旧。"""
+``additional_invoices``；续页按「非发票」留作证据；长文件由共用层按段读完，段数到上限还没读到的页按「读不出」标红），
+之后存档、推送、扣费照旧。"""
 import hashlib
 import json
 import mimetypes
@@ -57,17 +58,17 @@ def to_pipeline(outcome, page_count, anchor_year):
     """标准格式 → PipelineResult（每个实体页一条）。"""
     read = outcome.get("read") or {}
     copy = read.get("copy_marking") == "copy"
-    read_pages = min(page_count, client.claude_engine.MAX_PAGES)
+    unread = set(outcome.get("pages_unread") or ())
     models = [s["model"] for s in outcome.get("stages") or []]
     chain = ["CLAUDE", *[m.upper() for m in models]]
     by_page = {}
     for doc in read.get("documents") or []:
-        page = doc.get("page") if isinstance(doc.get("page"), int) and 1 <= doc["page"] <= read_pages else 1
+        page = doc.get("page") if isinstance(doc.get("page"), int) and 1 <= doc["page"] <= page_count else 1
         by_page.setdefault(page, []).append(invoice(read, doc, copy))
     pages = []
     for number in range(1, page_count + 1):
         found = by_page.get(number) or []
-        if number > read_pages:
+        if number in unread:
             body = invoice(read, {}, copy) | {"is_not_invoice": False}
             pages.append({"page_number": number, "invoice": body, "layer_chain": [*chain, UNREAD_STAGE],
                           "needs_manual_review": True, "confidence_band": "needs_review"})

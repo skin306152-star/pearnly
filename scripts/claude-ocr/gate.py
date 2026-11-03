@@ -169,7 +169,7 @@ def _choose(rec, policy, own_tax):
 def _replay_run(api, kind, images, own_tax=None, text=None):
     if kind != "voucher":
         return _real_run(api, kind, images, own_tax, text)
-    images = list(images)[:claude_engine.MAX_PAGES]
+    images = list(images)[:claude_engine.PAGES_PER_CALL]
     count = getattr(_local, "calls", 0)
     _local.calls = count + 1
     path = Path(REPLAY["dir"]) / f"{getattr(_local, 'key', 'unknown')}#{count}.json"
