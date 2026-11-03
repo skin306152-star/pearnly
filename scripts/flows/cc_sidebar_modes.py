@@ -3,8 +3,10 @@
 代录模式下点「公司」「待处理」留在代录（主栏换成那一页，侧栏仍是任务）；「待处理 N」= 产品的待处理 + 需要你处理的代录任务（按单据
 去重：任务里没录成的单都已在产品待处理里列着的不另算），待处理页的「任务」一组点了切到代录、打开那个任务。
 
-准备两条「需要你处理」的任务：一条没录成的单不在产品待处理里（算），一条没录成的单就是产品待处理里列着的一张（不另算；那个产品此刻
-没有待处理的单时只建第一条）。verify 删掉这两条。设了 `PEARNLY_FLOWS_SHOTS` 时每一步截图（`run.py`）。
+准备两条「需要你处理」的任务：一条没录成的单不在产品待处理里（算），一条没录成的单就是产品待处理里列着的一张（不另算）。ERP 那张
+是临时把一张已提交的采购单标成「写账失败」放进待处理的（verify 还原）；Cowork 的回归数据里没有识别单据、待处理是空的，只建第一条
+（Cowork 的去重由 `tests/test_cowork_companies.py` 与 `tests/test_express_operator_tasks.py` 守）。verify 删掉准备的任务。
+设了 `PEARNLY_FLOWS_SHOTS` 时每一步截图（`run.py`）。
 """
 from __future__ import annotations
 
@@ -20,8 +22,8 @@ WAIT = ("const until=async(f,n=120)=>{for(let k=0;k<n;k++){try{if(f())return tru
         "const root=()=>phone()?q('.cc-mdrawer .cc-drawer'):q('[data-slot=\"sidebar\"]');"
         "const openDrawer=async()=>{if(phone()&&q('.cc-mshell')?.dataset.open!=='true'){q('[data-slot=\"cc-nav-toggle\"]').click();"
         "await until(()=>q('.cc-mshell')?.dataset.open==='true'); await sleep(600);}};"
-        "const nav=()=>{const r=root(); return r?[...r.querySelectorAll('[data-slot=\"aui_thread-list-new\"],[data-slot=\"cc-operator-new\"],"
-        "[data-slot=\"cc-nav-pending\"],[data-slot=\"cc-nav-companies\"],[data-slot=\"cc-nav-tasks\"]')].map(e=>{const b=e.getBoundingClientRect();"
+        "const nav=()=>{const r=root(); return r?[...r.querySelectorAll('.cc-nav-item:is([data-slot=\"aui_thread-list-new\"],[data-slot=\"cc-operator-new\"],"
+        "[data-slot=\"cc-nav-pending\"],[data-slot=\"cc-nav-companies\"],[data-slot=\"cc-nav-tasks\"])')].map(e=>{const b=e.getBoundingClientRect();"
         "return {slot:e.dataset.slot, text:e.innerText.trim().replace(/\\s+/g,' '), top:Math.round(b.top), left:Math.round(b.left)};}):[];};"
         "const mode=()=>q('[data-slot=\"cc-mode-switch\"] [aria-checked=\"true\"]')?.dataset.mode;"
         "const api=async(m,args)=>{const r=await fetch('/api/method/'+m+'?'+new URLSearchParams(args||{}),"
@@ -40,9 +42,17 @@ def prepare(lab, manifest):
 from pearnly_core.assistant import projects
 from pearnly_core.express_operator import products, tasks
 frappe.set_user({user!r})
+marked = []
 if {product!r} == "erp":
+    from pearnly_erp_portal.express import contracts, push
     company = {(manifest.get("company") or (manifest.get("companies") or [""])[0])!r}
     title = frappe.db.get_value("ERP Company", company, "company_name") or company
+    if not products.pending_documents():
+        marked = frappe.get_all(push.PURCHASE, filters={{"company": company, "status": "submitted"}}, pluck="name",
+                                order_by="name asc", limit_page_length=1)
+        for name in marked:
+            frappe.db.set_value(push.PURCHASE, name, {{"ledger_state": contracts.FAILED, "ledger_reason": "flow"}}, update_modified=False)
+        frappe.db.commit()
     counts = __import__("pearnly_erp_portal.masters.cc_companies", fromlist=["x"]).pending_counts()
 else:
     row = (frappe.get_all("Cowork Company", fields=["name", "title"], order_by="creation asc", limit_page_length=1) or [None])[0]
@@ -63,7 +73,7 @@ if listed:
     task(listed[0], {tag!r} + " 已在待处理")
 frappe.db.commit()
 after = tasks.attention()
-print(json.dumps({{"product": {product!r}, "company": company, "title": title, "made": made, "listed": len(listed),
+print(json.dumps({{"product": {product!r}, "company": company, "marked": marked, "title": title, "made": made, "listed": len(listed),
                   "pending": counts["total"], "before": before, "attention": after["total"],
                   "counted": [t["name"] for t in after["tasks"]], "kind": projects.kind(),
                   "sections": projects.declared(projects.provider()).get("sections", []),
@@ -127,7 +137,8 @@ def judge(params, results, camera_code=None):
         {"case": "定时任务只在对话模式、只在声明了的产品，且在共有入口下面", "seen": {"chat": slots(chat), "operator": slots(operator), "sections": params["sections"]},
          "ok": ("cc-nav-tasks" in slots(chat)) == scheduled and "cc-nav-tasks" not in slots(operator)
          and (not scheduled or slots(chat)[-1] == "cc-nav-tasks")},
-        {"case": "代录侧栏的公司组同对话侧栏：有对话或有任务的公司都出组头，不写「暂无任务」", "seen": {k: operator.get(k) for k in ("groups", "empty")},
+        {"case": "代录侧栏的公司组同对话侧栏：有对话或有任务的公司都出组头，不写「暂无任务」",
+         "seen": {**{k: operator.get(k) for k in ("groups", "empty")}, "own_tasks": params["own_tasks"], "chats": params["chats"]},
          "ok": operator.get("groups", 0) >= 1 and not operator.get("empty")},
         {"case": "代录模式下点「公司」：主栏换成公司页，仍在代录（侧栏仍是任务）", "seen": companies,
          "ok": bool(companies.get("page")) and companies.get("mode") == "operator" and bool(companies.get("tasks")) and bool(companies.get("active"))},
@@ -147,6 +158,10 @@ def verify(lab, manifest, params, camera_code=None):
     product = params["product"]
     out = lab.python(manifest["site"], f"""
 from pearnly_core.express_operator import tasks
+if {product!r} == "erp":
+    from pearnly_erp_portal.express import push
+    for name in {params["marked"]!r}:
+        frappe.db.set_value(push.PURCHASE, name, {{"ledger_state": "", "ledger_reason": ""}}, update_modified=False)
 for name in {params["made"]!r}:
     frappe.delete_doc(tasks.DOCTYPE, name, ignore_permissions=True, force=True)
 frappe.db.commit()
