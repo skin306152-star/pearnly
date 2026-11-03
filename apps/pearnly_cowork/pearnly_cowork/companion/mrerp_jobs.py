@@ -117,13 +117,16 @@ def take(row, device) -> bool:
 
 
 def release_if_done(row, device) -> bool:
-    """这批在这条连接上再没有排着 / 领着的单（最后一张回执、其余撤回）：放开账号。"""
+    """这批在这条连接上再没有排着 / 领着的单（全部已存、撤回或转人工）：放开账号。
+
+    回执后的这一张自己也算：它回到排队（``pending``，例如 CC 回「等账套」）就是这批还有单没录，账号不放——放了直写可能趁 CC 再领到它
+    之前登录同一账号、把 CC 的网页窗口踢下线（11-03 修，原来排掉了这一张自己）。调用方在回执写好状态之后调，读的是同一事务里的新状态。"""
     key = account_key(row, device)
     batch = batch_of(row)
     if not key or not batch:
         return False
     rows = frappe.db.sql("""SELECT name, payload_json FROM `tabCowork Push Record` WHERE connection=%s AND route_device=%s
-        AND status IN %s AND name<>%s LIMIT 200""", (row.connection, row.route_device or "", OPEN, row.name), as_dict=True)
+        AND status IN %s LIMIT 200""", (row.connection, row.route_device or "", OPEN), as_dict=True)
     if any(batch_of(item) == batch for item in rows):
         return False
     from pearnly_core.session_lock import release_account

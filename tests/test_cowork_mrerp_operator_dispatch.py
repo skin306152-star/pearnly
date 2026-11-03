@@ -10,7 +10,7 @@
   - 领前租账号（「网址 + 用户名」），租不到回滚这次领取、不发；载荷原样交（不做账套位置替换）、投递挂在来领的密钥的连接上；
   - 丢在电脑手里的 MR.ERP 代录单按记录自己的连接重发回原电脑，重发前重新租账号、租不到先不发；
   - 别的电脑过期的：那台在场就续领取与账号，不在就转结果不明；
-  - 回执后这批再没有排着 / 领着的单就放开账号；Express 的账套登记不碰；
+  - 回执后这批再没有排着 / 领着的单就放开账号（回到排队的这一张自己也算还有单，11-03 修）；Express 的账套登记不碰；
   - Express 的全部领单测试在常量开着时照旧通过（`ExpressUnchangedWithMrErpOn` 重跑 `test_cowork_express_dispatch.Transport`）。
 - `companion.mrerp_jobs` 本身：归属核对、用户名先后（电脑报的 → 站点连接上存的 → 都没有不拦）、租 / 续 / 放 / 过期（假的锁仓库按
   ``OPERATOR_LEASE_SEC`` 过期；真 Redis 上同一把锁的语义见 `scripts/test-session-lock.py` 与第 10 步记录）。
@@ -293,7 +293,9 @@ class MrErpLease(Harness):
                                   {"status": status})
         return written
 
-    def test_after_the_receipt_the_batch_releases_its_account_and_the_express_register_is_untouched(self):
+    def test_after_the_receipt_the_batch_is_asked_to_release_and_the_express_register_is_untouched(self):
+        # 回执落定后（存上 / 回到排队 / 转人工）都交 `release_if_done` 判这批还有没有单；回到排队的这一张自己算还有单，
+        # 由它按回执后的新状态判（`Jobs.test_a_job_sent_back_to_the_queue_keeps_its_batchs_account`）
         for status in ("success", "pending", "manual"):
             with self.subTest(status=status):
                 self.calls.clear()
@@ -402,8 +404,11 @@ class Jobs(unittest.TestCase):
         self.queries.append(q)
         if "INNER JOIN `tabCowork ERP Connection`" in q:
             return [Record(row) for row in self.open_rows]
-        if "status IN %s" in q:
-            return [Record(row) for row in self.open_rows if row["name"] != values[3]]
+        if "status IN %s" in q:  # 照查询本身的条件回（排不排掉这一张自己由查询决定，不在替身里代判）
+            found = [row for row in self.open_rows if row.get("status", "pending") in values[2]]
+            if "name<>%s" in q:
+                found = [row for row in found if row["name"] != values[3]]
+            return [Record(row) for row in found]
         raise AssertionError(q)
 
     def row(self, name="CWP-M1", batch=BATCH, **values):
@@ -441,6 +446,21 @@ class Jobs(unittest.TestCase):
         self.assertEqual(self.jobs.heads(self.credential, "KEY-A"), [])  # 没挂电脑的旧密钥：不是任何人选定的电脑
         self.assertEqual(self.jobs.heads(self.credential, ""), [])
         self.assertEqual(self.queries, [])
+
+    def test_a_job_sent_back_to_the_queue_keeps_its_batchs_account(self):
+        # 11-03 修（记录 §8 第 6 条）：这一张回执后回到排队（pending），这批就还有单，账号不放——放了直写可能趁空档登录同一账号、
+        # 把 CC 的网页窗口踢下线。存上 / 转人工 / 撤回（都不在排着 / 领着里）且这批别无他单才放。
+        self.assertTrue(self.jobs.take(self.row(), A))
+        self.open_rows = [self.row("CWP-M1", status="pending")]  # 就是回执的这一张自己
+        self.assertFalse(self.jobs.release_if_done(self.row(), A))
+        self.assertIn(self.key, self.locks.held)
+        self.assertFalse(self.locks.direct(self.key))  # 直写照旧等账号
+        for done in ("success", "manual", "cancelled"):
+            with self.subTest(done=done):
+                self.open_rows = [self.row("CWP-M1", status=done)]
+                self.assertTrue(self.jobs.release_if_done(self.row(), A))
+                self.assertNotIn(self.key, self.locks.held)
+                self.assertTrue(self.jobs.take(self.row(), A))
 
     def test_the_account_is_the_computers_own_login_then_the_sites_then_none(self):
         self.assertEqual(self.jobs.account_key(self.row(), A), self.key)
@@ -480,7 +500,8 @@ class Jobs(unittest.TestCase):
         self.assertFalse(self.jobs.release_if_done(self.row(), A))  # 本批还有一张排着
         self.assertIn(self.key, self.locks.held)
         query = self.queries[-1]
-        self.assertIn("connection=%s AND route_device=%s AND status IN %s AND name<>%s", query)
+        self.assertIn("connection=%s AND route_device=%s AND status IN %s LIMIT 200", query)
+        self.assertNotIn("name<>", query)
         self.open_rows = [self.row("CWP-N1", batch="OPB-2")]
         self.assertTrue(self.jobs.release_if_done(self.row(), A))
         self.assertTrue(self.locks.direct(self.key))
