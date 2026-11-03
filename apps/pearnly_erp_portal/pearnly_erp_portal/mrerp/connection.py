@@ -9,7 +9,6 @@
 import frappe
 from frappe import _
 from frappe.utils import now_datetime
-from frappe.utils.password import get_decrypted_password
 
 from pearnly_core.mrerp.urls import validate_url
 
@@ -99,6 +98,9 @@ def login_store(connection, username, password, *, user, device_label, scope) ->
 
 def lease(name) -> dict:
     """导入 / 读取任务用：``{system_url, username, password}``；连接停用或没有回空字典。只给本域的后台任务，不是 RPC。"""
+    # 解密只在后台任务里用到：Express 入口（`express.push`）导入本域时不连带载入密码模块（离线检查的 Frappe 替身没有它）
+    from frappe.utils.password import get_decrypted_password
+
     row = frappe.db.get_value(CONNECTION, name, ["name", "system_url", "enabled", "credential_username"], as_dict=True) \
         if name else None
     if not row or not row.enabled:
