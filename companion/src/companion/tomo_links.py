@@ -2,7 +2,8 @@
 """Tomo 窗口的地址规则（纯函数，不碰 Qt，单测直接测）。
 
 - 窗口里只开自己的 https 页面（fatcc.com 入口、auth.pearnly.com 登录、各公司 <租户>.pearnly.com）；
-  别的网址交给系统浏览器，本地文件、data: 等一律不在窗口里打开。
+  别的网址交给系统浏览器，本地文件、data: 等一律不在窗口里打开。页面开新窗口（window.open / target=_blank）时，与对话页同一站点的
+  在 CC 自己的子窗口里开（同一份登录），别的交给系统浏览器（`popup_route`）。
 - 下次打开回到上次停留的对话页（/assistant），没有就从入口 fatcc.com 进；入口换了（测试 / 正式）就从新入口进。
   上次页面与当时的入口一起记（注册表 HKCU/Software/Pearnly/Tomo 的 last_url / last_entry），不按域名猜测试环境。
 - 测试时用环境变量 PEARNLY_TOMO_ENTRY 换入口（例如 https://testai.pearnly.com），同样只认 Pearnly 的 https 地址。
@@ -96,6 +97,15 @@ def route(url: str) -> str:
     if urlsplit(str(url or "")).scheme in ("http", "https", "mailto"):
         return "external"
     return "block"
+
+
+def popup_route(url: str, opener: str) -> str:
+    """页面里 window.open / target=_blank 去哪：'window' 在 CC 自己的子窗口里开（与打开它的页面同一站点的 https 页面，同一份登录：
+    ERP 公司页「在浏览器中打开」、ERP 待处理的单据页、Cowork 定时任务「查看需要处理的」，2026-11-04——以前一律交给系统浏览器，
+    那边没有站点会话、要重新登录）；'external' 交给系统浏览器（别的站点、外部网址、关于 / 隐私 / 条款等公开页）；'block' 不开。"""
+    if is_own(url) and same_site(url, opener):
+        return "window"
+    return "external" if route(url) == "load" else route(url)
 
 
 def ask_script(text: str) -> str:

@@ -2,7 +2,8 @@
 """Tomo 桌面窗口（同 Claude 桌面端）：自己的窗口里打开 Tomo 对话页，外加快捷输入条。
 
 - 窗口里是网页版同一个对话页（入口 fatcc.com → 登录 → 公司自己的 /assistant），登录状态存在本机，
-  下次打开直接回到上次的对话页；只开 Pearnly 自己的 https 页面，别的链接交给系统浏览器（tomo_links.py）。
+  下次打开直接回到上次的对话页；只开 Pearnly 自己的 https 页面，别的链接交给系统浏览器（tomo_links.py）。页面开的新窗口与对话页
+  同一站点时在 CC 自己的子窗口里开（_SiteWindow，同一份登录，2026-11-04），别的交给系统浏览器。
 - 窗口在自己的进程里（``companion.exe --window``，window_main.py，2026-10-18 轻量化）：托盘打开窗口时才拉起，关窗口这个进程就
   退出、网页内核随之释放（正在回复时先藏起来等回复完）；Express 推送、文件夹录入在托盘进程里照常。回复完成时对话页发网页
   通知，这里交给托盘弹系统通知，点一下回到窗口。
@@ -71,10 +72,19 @@ def _channel_script() -> QWebEngineScript:
 
 
 class _Popup(QWebEnginePage):
-    """target=_blank / window.open：交给系统浏览器，不在 Tomo 里开新窗口。"""
+    """target=_blank / window.open：与打开它的页面同一站点的在 CC 子窗口里开（同一份登录，`_SiteWindow`），别的交给系统浏览器
+    （`tomo_links.popup_route`）。新窗口要去哪，第一次导航时才知道，所以先接住再分。"""
+
+    def __init__(self, profile, opener) -> None:
+        super().__init__(profile, opener)
+        self._opener = opener
 
     def acceptNavigationRequest(self, url, _type, _main):
-        if tomo_links.route(url.toString()) != "block":
+        where = tomo_links.popup_route(url.toString(), self._opener.url().toString())
+        if where == "window":
+            view = QWebEngineView.forPage(self._opener)
+            _SiteWindow(self.profile(), url, view.window() if view is not None else None)
+        elif where == "external":
             QDesktopServices.openUrl(url)
         self.deleteLater()
         return False
@@ -94,13 +104,43 @@ class TomoPage(QWebEnginePage):
         return target == "load"
 
     def createWindow(self, _type):
-        return _Popup(self.profile(), self)
+        return _Popup(self.profile(), self)   # 打开它的就是这一页：同站点的在 CC 子窗口里开
 
     def _permission(self, permission) -> None:
         if permission.permissionType() in GRANTED and tomo_links.is_own(permission.origin().toString()):
             permission.grant()
         else:
             permission.deny()
+
+
+class _SiteWindow(QMainWindow):
+    """站点页的子窗口（ERP 公司页、单据页、Cowork 录入页等，2026-11-04）：同一个网页配置，所以是同一份登录，不用再登录。
+    用系统标题栏（最小化 / 最大化 / 关闭、拉伸都是系统的），标题跟页面；关了就释放网页内核（不常驻）。窗口里的链接、再开的新窗口
+    照主窗口的规则（`TomoPage`）。主窗口所在的进程退出时一起关。"""
+
+    def __init__(self, profile, url, parent=None) -> None:
+        super().__init__(parent, Qt.WindowType.Window)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        self.setWindowTitle("CC")
+        if parent is not None:
+            self.setWindowIcon(parent.windowIcon())
+        self.view = QWebEngineView(self)
+        self.page = TomoPage(profile, self.view)
+        self.page.setBackgroundColor(QColor(APP_BG[_scheme()]))
+        self.view.setPage(self.page)
+        self.page.titleChanged.connect(lambda title: self.setWindowTitle(title or "CC"))
+        self.page.windowCloseRequested.connect(self.close)
+        self.setCentralWidget(self.view)
+        self.resize(1100, 760)
+        self.page.setUrl(url)
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
+    def closeEvent(self, event) -> None:
+        self.view.setPage(None)
+        self.page.deleteLater()
+        super().closeEvent(event)
 
 
 RESIZE_MARGIN = 4    # 无边框窗口四周留给系统拉伸的宽度（像素，最大化时为 0）

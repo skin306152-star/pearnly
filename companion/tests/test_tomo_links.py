@@ -136,3 +136,37 @@ def test_downloads_never_overwrite_and_clean_names(tmp_path: Path):
     assert links.unique_path(tmp_path, "report.xlsx").name == "report (1).xlsx"
     assert links.unique_path(tmp_path, 'a/b:c*?.xlsx').name == "a_b_c__.xlsx"
     assert links.unique_path(tmp_path, "").name == "download"
+
+
+def test_new_windows_from_a_company_page_stay_signed_in_inside_cc():
+    # 2026-11-04：ERP 公司页「在浏览器中打开」、ERP 待处理的单据、Cowork 定时任务「查看需要处理的」都是 window.open / target=_blank，
+    # 以前一律交给系统浏览器，那边没有站点会话、落到登录页。同一站点的改在 CC 子窗口里开（同一份登录），别的照旧给系统浏览器。
+    chat = "https://testerp.pearnly.com/assistant?c=s-1"
+    assert links.popup_route("https://testerp.pearnly.com/desk/pearnly-company/CO-00001", chat) == "window"
+    assert links.popup_route("https://testerp.pearnly.com/desk/pearnly-purchase/PUR-1", chat) == "window"
+    assert links.popup_route("https://testcowork.pearnly.com/desk/pearnly-intake?push_state=failed",
+                             "https://testcowork.pearnly.com/assistant") == "window"
+    # 别的公司站点、入口、公开页：交给系统浏览器（不在 CC 里把另一家的登录带过去）
+    assert links.popup_route("https://testcowork.pearnly.com/desk/x", chat) == "external"
+    assert links.popup_route("https://pearnly.com/privacy/", chat) == "external"
+    assert links.popup_route("https://fatcc.com/", chat) == "external"
+    assert links.popup_route("https://line.me/R/ti/p/@pearnly", chat) == "external"
+    # 同主机但不是 https、端口不同、本地文件：不当同一站点
+    assert links.popup_route("http://testerp.pearnly.com/desk/x", chat) == "external"
+    assert links.popup_route("https://testerp.pearnly.com:8443/desk/x", chat) == "external"
+    assert links.popup_route("file:///C:/x.xlsx", chat) == "block"
+    assert links.popup_route("data:text/html,hi", chat) == "block"
+    # 打开它的页面不是 Pearnly 的（还在空白页）：一律不当同站
+    assert links.popup_route("https://testerp.pearnly.com/desk/x", "") == "external"
+
+
+def test_the_window_sends_same_site_new_windows_to_its_own_child_window():
+    source = (Path(__file__).resolve().parents[1] / "src/companion/gui_tomo.py").read_text(encoding="utf-8")
+    popup = source.split("class _Popup(QWebEnginePage):", 1)[1].split("\nclass ", 1)[0]
+    assert "tomo_links.popup_route(url.toString(), self._opener.url().toString())" in popup
+    assert '_SiteWindow(self.profile(), url' in popup        # 同一个网页配置 = 同一份登录
+    assert "QDesktopServices.openUrl(url)" in popup
+    child = source.split("class _SiteWindow(QMainWindow):", 1)[1].split("\nclass ", 1)[0]
+    assert "TomoPage(profile, self.view)" in child          # 子窗口里的链接、再开的新窗口照主窗口的规则
+    assert "WA_DeleteOnClose" in child and "self.view.setPage(None)" in child   # 关了就释放，不常驻
+    assert "return _Popup(self.profile(), self)" in source
