@@ -327,3 +327,179 @@
 | Q12 | 做；等用户在场授权电脑控制时做。块 2 先按评估与已有研究文档做，块 0 截图后再校样式 |
 
 施工分工：W1 = 块 1 → 块 5；W2 = 块 2；W3 = 块 3 → 块 4（等 W2 组件接口）。块 6 由最后一个写者做。每个写者独立分支与工作树，只改自己名下文件。
+
+## 14. 统一对话框架（方案，主会话 11-04 追加，待审定，未施工）
+
+用户 11-04：「对话框状态其实直写和代录应该都共用的吧，这东西应该有个标准框架的，做 Harness 的不应该都是一套框架吗」。
+
+用户 11-04 补充：「这些都是现成的，代录没必要重新这一套」，指直写现成的新建页、公司 / 月份 / 分店胶囊、侧栏公司分组和对话列表、新建会话。
+
+目标：只留一套框架。代录任务就是一段会话，进直写同一个会话列表接口、同一个侧栏按公司分组，执行中 / 结束标识走同一套活动状态；两种模式唯一的区别是这段会话的消息由谁执行（直写：CC 交写账队列；代录：代录引擎）。页面只认统一对话事件（Managed Agents 格式加 `pearnly.*` 扩展），代录的状态由服务端的**代录事件源**翻译过去。对话页的 thread、runtime、活动状态、停止键、侧栏标记两种模式共用，`components/operator/*` 里自成一套的状态模型删掉。
+
+### 14.0 现状与关键约束（代码已核对）
+
+| 项 | 现状 | 对方案的影响 |
+|---|---|---|
+| 统一对话事件 | `assistant/engines/base.py`：`user.message` / `agent.message` / `agent.tool_use` / `agent.tool_result` / `agent.custom_tool_use` / `user.tool_confirmation` / `user.interrupt` / `session.status_*`。站点自己的事件 `pearnly.notice`、`pearnly.answer`、`pearnly.tool_run` 不进引擎，由 `sessions.events` 用 `contracts.merge_by_time` 并进引擎事件，实时都走同一个通道 `contracts.REALTIME_EVENT`（`{session_id, event}`，只推会话主人） | 有现成的「站点事件并进对话」做法（提醒、执行记录），代录照这条路，不另开通道 |
+| 代录的 AI 部分 | 已经是一段真的 Managed Agents 会话：`tasks.thread` 建、`Pearnly Assistant Session.operator_task` 指回任务，不进对话侧栏 | 代录会话 = 这一段会话。它的引擎事件照旧来自 Managed Agents，代录事件是并进去的另一路 |
+| 每张单的结论 | CC 桌面版录完一张按写账回执报回站点（`worker._ack_operator`），产品写到推送记录（Cowork）/ 单据 `ledger_*`（ERP）；任务子表要等页面调 `task_settle` 才写回。产品回执写回时已有站点钩子：Cowork `cowork_push_state_changed`（`history/push_state._announce`，提交后调用）、ERP `express.pending.notify` | 服务端**知道**每张「录成 / 没录成 + 原因」；接上这两个钩子就能当场出事件，不必等页面收尾。「这一张开始录」（写账件被领走）在写账通道 `cc_desktop` 里，本方案不碰它，见 E8 |
+| 每张单的细步与暂停 | 「正在填第几栏」、暂停原因（锁屏、有人在用、等网络）只在执行那台电脑的 CC 本机（桥 `operator_state`，页面 3 秒读一次） | 服务端**不知道**。CC 桌面版本批不改（评估第 0 节），所以这部分只能由执行电脑上的页面经桥补上，见 14.1 的 E10 与 14.6 风险 R1 |
+| 行动 | `start` / `task_answer` / `task_resume` / `resolve` / `regroup` / `intake` / `task_delete` 都是站点白名单接口；停止只在执行电脑的桥上 | 行动接口一律不改，卡片上的按钮照旧调它们；新事件只管「显示」 |
+
+所以「代录引擎适配器」落成**站点上的代录事件源**（和提醒、执行记录同一层），而不是在 `engines.ENGINES` 里再加一家引擎：一个站点只配一家引擎，代录会话里打字问 CC 仍要走 Managed Agents；代录事件源只做翻译，把任务记录投影成统一事件，并进同一段会话。
+
+### 14.1 逐项映射：代录状态与动作 → 标准事件
+
+事件编号一律由记录推出、固定不变（同一状态重放得到同一编号，页面按编号去重，跨设备、刷新一致）：`pop_<任务号>_<对象>_<状态>`。工具名是站点内部的显示用名，不交给模型、不进工具表。
+
+| # | 代录的状态 / 动作（现在在哪） | 标准事件 | 页面怎么画（已有组件） |
+|---|---|---|---|
+| E1 | 新建（现在是代录自己的新建页 + `task_create`） | 用直写的新建页、公司 / 月份 / 分店胶囊和 `sessions.create(project, period, scope)`，多带 `mode=operator`；服务端在同一事务里建任务记录并互相指上（见 14.8） | 直写的新建页，代录专用的新建页删掉 |
+| E2 | 你说的话、附件（准备中打字，Q6 已批交给 CC） | `user.message`（引擎原生），附件照对话附件 | 气泡、附件卡片 |
+| E3 | 上传一份资料：上传中 → 排队 → 识别中 n/m → 已识别 N 张 / 失败（B1/B2，已合入） | 每份一对 `agent.tool_use`（`operator_upload`，input：文件名、大小）+ `agent.tool_result`（已识别：单号列表、几张不在本月；失败：`is_error` + 失败码）；进行中的页数用**新扩展** `pearnly.progress`（见下） | 步骤折叠行 `steps.tsx`：「识别了 3 份（1 个失败）›」，点开每份一行；进行中行尾「识别中 3/12」 |
+| E4 | 资料清单（`documents`，按组） | 一条 `agent.tool_use`（`operator_sources`）+ `tool_result`（按组的张数、每张一行）；改分组仍调 `regroup`，之后重出一条结果（编号带资料版本） | 步骤行「资料 22 张 · 采购 20 · 费用 2 ›」，展开后的分组列表与拖动沿用 W3 的组件 |
+| E5 | 开始前确认（`precheck`：要人选的项、结果不明的单、写入目标 B4） | `agent.custom_tool_use`（`operator_start`，input：写入目标、按类的要选项、结果不明的单）+ `pearnly.tool_run`（`awaiting_approval`）；会话状态 `session.status_idle`（`stop_reason: requires_action`，停着等这张卡）→ 侧栏「等你处理」 | 同对话「允许」卡片的位置与状态；卡片里的下拉、两个按钮和「开始」是**新的工具卡片渲染**（tool-uis 按工具名注册），点「开始」照旧调 `start`（带 answers），然后补一条 `user.tool_confirmation`（allow） |
+| E6 | 交单结果、没收的单（`start` 回包、`attach`） | `operator_start` 的 `agent.tool_result`（交了几张、没收几张及原因）；`pearnly.tool_run` → `done` | 卡片变成点完的样子（同允许卡片） |
+| E7 | 等电脑空闲（`queued`） | `session.status_running` + 状态行文字用**新扩展** `pearnly.progress`（`label: waiting_computer`） | 状态行「计时 · 等电脑空闲」 |
+| E8 | 每张交进队列、开始录 | 交单时每张出一条 `agent.tool_use`（`operator_document`，input：单号、对方、金额；时间 = `queued_at`），之后没有结果的就是「还在录 / 排着」。「正在录的是哪一张」只有执行电脑的桥知道，由 E10 补 | 步骤行里没有结果的几张显示进行中 |
+| E9 | 每张录成 / 没录成 / 跳过 / 作废（产品回执、`settle`） | 同一张的 `agent.tool_result`：录成带 Express 单号；没录成 `is_error` + 原因码（页面按代码出文案）；结果不明的单另带 `result_unknown` | 步骤行「录好 18 张 · 没录成 2 张（2 个失败）›」，展开每张一行、失败红字（评估 S2） |
+| E10 | 进行中的细节与暂停（桥：锁屏、有人在用、等网络、第 n/N 张） | `pearnly.progress`（`done`、`total`、`label`：暂停原因码）。**只有执行电脑上的页面**能从桥读到，由页面本地合成同形状的事件喂进同一个 reducer，不落库、不推送 | 状态行「计时 · 第 7/22 张 · 锁屏暂停」 |
+| E11 | 中途停下等人选的那张（`waiting`，现在的 `TaskChoices`） | `agent.custom_tool_use`（`operator_choose`，input：这张单、要选的项与可选值）+ `pearnly.tool_run` `awaiting_approval`；`session.status_idle` `requires_action` | 结束框位置的问题卡片；点了照旧调 `task_answer`，再补 `user.tool_confirmation` |
+| E12 | 整批停（登录、选公司、授权……，`attention` + `BATCH_STOPPERS`） | `agent.message`（一句事实：停在哪张、原因码对应文案）+ `agent.custom_tool_use`（`operator_resume`）卡片；`requires_action` | 结束框：「Express 登录未设置」〔设置〕〔继续〕；继续照旧调 `task_resume` |
+| E13 | 你点停止（S7） | `user.interrupt`（页面照对话发）→ 代录事件源翻译成：执行电脑上 = 桥 `operator_control stop`；别的设备 = **新增**一种任务控制 `stop`（同现有的 `skip` / `retry` 记在任务上，执行电脑的页面取走去停，`tasks.push_control` 的白名单多一项） | 输入框 ■ 与 `Esc`，同对话 |
+| E14 | 已停止 / 已完成（`stopped` / `finished`） | `agent.message`（「已停止 · 录好 N 张」或完成回顾）+ `session.status_idle`（`end_turn`）；`stopped` 且还能继续时加 `operator_resume` 卡片 | 结束框、回顾行 |
+| E15 | 报告 CSV（右栏 ⑤，现在在浏览器里由 `model.reportCsv` 生成） | 收尾那条 `agent.message` 带一个会话文件（`kind: output`），服务端按任务记录现生成，列与现在的 `reportCsv` 一致（搬到服务端，同一份列定义） | 回复下面的文件卡片 `MessageFiles`，同直写输出文件 |
+| E16 | 任务里问 CC（对话框甲，`task_thread`） | 引擎原生事件，不用翻译 | 同一条流里，不再单独「画在任务记录下面」 |
+| E17 | 侧栏行状态（运行中 / 等你处理 / 未读 / 完成） | 从上面的 `session.status_*` 自动得出，同对话行；`sessions.run_state` 对代录会话改读任务状态（`queued` / `running` → running，`attention` 或停着的卡片 → requires_action） | 同一个 `ActivityMark` |
+
+**要新加的扩展事件**（只在站点与页面之间，不进引擎，同 `pearnly.notice`）：
+
+| 事件 | 字段 | 用在 |
+|---|---|---|
+| `pearnly.progress` | `id`、`processed_at`、`tool_use_id`（对哪一步，可空 = 整个会话）、`done`、`total`、`label`（代码：`reading_pages` / `waiting_computer` / `entering` / 暂停原因码） | E3 识别页数、E7 等电脑、E10 第 n/N 张与暂停。同一步只留最新一条（编号带 `done`，页面只认最大的） |
+
+不新增别的扩展：卡片复用 `agent.custom_tool_use` + `pearnly.tool_run`，结果复用 `agent.tool_result`，文件复用会话文件。
+
+### 14.2 会话怎么存、怎么回放和推送
+
+- **一一对应**：会话是主体，任务记录是挂在会话上的代录业务记录（单据、上传、控制、批次号）。新建代录会话时同一事务建任务记录，`Pearnly Assistant Session.operator_task` ↔ `Pearnly Express Operator Task.session_id`（两个字段都已存在，不加列）。旧任务没有会话的，由一个原生补丁一次补建并指上（不调模型，只建会话行；远端会话在第一次打开时再开，同现在的懒建）。会话**进**直写同一个会话列表（14.8），代录自己的任务列表不再给侧栏用。
+- **代录事件不另存一张事件表**：每次读都由任务记录投影出来（任务状态、`documents` 子表、`uploads` 子表、预检结果），编号固定，所以跨设备、刷新回放得到同一串事件。要补的只有时间：`documents` 子表加 `queued_at`、`done_at` 两列（Datetime，产品回执写回子表时一并记；这是唯一的新列），事件按它排序；`uploads` 已有 `uploaded_at`。
+- **读**：`sessions.events` 对 `operator_task` 不空的会话，在已有的 `merge_by_time(引擎事件, 提醒)` 里再并一路 `operator_feed.events(task)`；增量补拉按锚点时间取，同提醒的 `since` 做法。
+- **推**：三个时刻，代录事件源算出新增的那几条，经 `contracts.REALTIME_EVENT` 推给会话主人，形状同 `notices`：任务记录保存后（`tasks._announce` 那一处）；产品回执写回后（在 Cowork `cowork_push_state_changed`、ERP `express.pending.notify` 旁各登记一个只读入口：这张单属于哪个在跑的任务，就对那个任务做一次 `settle` 同样的只读刷新并推事件；只读产品状态、写任务子表，不碰推送记录）；上传状态变了（识别队列已推 `pearnly_ocr_work`，B5，页面收到即补拉）。推不出去不影响业务，页面下一次补拉照样拿到（投影是确定的）。
+- **运行状态**：`sessions.run_state` 对代录会话：引擎在跑 → running（CC 在回话）；否则看任务：`queued` / `running` → running，有 `awaiting_approval` 的卡片或 `attention` → requires_action，其余 idle。侧栏「等你处理」因此和对话完全同一条路（评估 1.3 不用再分两种行）。
+- **删除**：删任务照旧连会话一起删（`tasks.delete` 已经这么做）。
+
+### 14.3 管钱底线、代录业务逻辑不动：哪些文件不碰
+
+事件源只**读**任务记录与产品回执、只**转调**现有接口；不新增任何写账、推送、扣费、判单的路径。
+
+| 不碰 | 内容 |
+|---|---|
+| `apps/pearnly_cowork/pearnly_cowork/push/**`、`targets/**`、`connections/**`、`companies/rules.py` | Cowork 推送准备、预检规则、账套选择、写者锁、结果不明核对 |
+| `apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py` 的 `precheck / submit / status / resolve / regroup / intake` | Cowork 代录钩子（B2 加的只读 `uploads` 已合入） |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/express/` 下的 `push.py`、`prepare.py`、`choices.py`、`target.py`、`facts.py`、`contracts.py`、`operator.py`（整个文件） | ERP 写账准备、账套选择、代录交单与回执（`pending.py` 只在 `notify` 末尾加一行调用共用层的只读入口） |
+| `apps/pearnly_core/pearnly_core/express_operator/contracts.py`、`products.py`、`api.py` 的行动接口、`tasks.py` 的 `attach / answer / resume / _resubmit / _conclude / settle` | 共用层状态机与交单 |
+| `apps/pearnly_core/pearnly_core/cc_desktop/**`、`companion/**` | 写账通道、CC 桌面版（不发版） |
+| 识别与扣费：`ocr/**`、`execution/**`、`billing*` | — |
+
+会改的只有：新文件 `express_operator/feed.py`（投影与推送，纯读）；`assistant/sessions.py`（`events` / `run_state` 认代录会话）；`assistant/contracts.py`（`pearnly.progress` 形状）；`tasks.py` 的 `create`（建任务即建会话）、`push_control` 的白名单加 `stop`、`attach` / `_refresh` 写子表时顺带记 `queued_at` / `done_at`（只加时间，不改判断）；`documents` 子表加两列；两个产品的 `hooks.py` 各登记一个回执后的只读入口（Cowork 挂在已有的 `cowork_push_state_changed` 列表里，ERP 在 `express.pending.notify` 末尾调用共用层同一个入口）。证明办法：施工提交里 `git diff --stat` 只出现上面这几个文件；加一条离线测试，对「一个任务从建到收尾」前后比对 `products.submit / status` 的调用次数与参数和改造前逐字相同。
+
+### 14.4 前端能删什么，还剩什么
+
+| 文件（行数） | 去留 |
+|---|---|
+| `live-source.ts`（706）、`mock-source.ts`（466）、`model.ts`（290）、`types.ts`（302 的大部分） | **删**：进度拼装、桥与站点合并、批次快照模型都由事件取代。原因码 → 级别表 `REASONS`、`BATCH_STOPPERS` 移到出文案的那一处（或直接用服务端给的代码） |
+| `controller.tsx`（399）、`workspace.tsx`（446）、`store.ts`（98）、`context.ts`（19） | **删**：代录工作区换成对话页同一个 thread / runtime，打开代录会话就是打开一段会话 |
+| `task-thread.tsx`（168） | **删**：任务里的对话就是这段会话本身 |
+| `panel.tsx`（534）、`pending-tasks.tsx`（46）、`attention*.ts`（72） | **删**（评估 8.1 本来就删；跨模式小点 Q7 改读会话的 requires_action） |
+| `operator-sidebar.tsx`（440）、`tasks.ts`（161）、`prefs.ts`（43）、`task-title.ts`（11） | **删**：侧栏、列表分页、改名、置顶、手排顺序、搜索、多选都用直写那一套（`thread-list.tsx`、`sidebar-order.ts`、`session-list-adapter.ts`），见 14.8 |
+| 代录的新建任务页（`workspace.tsx` 里那一段） | **删**：用直写的新建页与胶囊 |
+| `mode-switch.tsx`（66）、`index.ts`（12） | **留**：左上角切换（Q1 定 A），切换只改侧栏的模式筛选与新建时带的 `mode` |
+| **新增** `tool-uis/operator-*.tsx` | 4 张工具卡片：`operator_start`（开始前）、`operator_choose`（中途选）、`operator_resume`（继续 / 设置登录）、上传与单据的步骤行展开内容；另有执行电脑上把桥的进度合成 `pearnly.progress` 的一个小钩子（约 60 行） |
+
+估计 `components/operator/` 从约 4300 行降到约 400 行（模式切换、4 张卡片和桥钩子）。
+
+### 14.5 和 W3 正在做的「代录对话化」怎么衔接
+
+W3 现在做的块 3、块 4 是在现有 `operator/*` 模型上把右栏挪进会话流。改成统一框架后：
+
+| W3 的产出 | 去留 |
+|---|---|
+| W2 已合入的 `components/run/*`（上传状态卡片 `upload-card`、`upload-state`、输入框 `ComposerStop`、`thread.tsx` 的 `Tail` 与每条消息的 `before` 钩子） | **保留**。上传卡片就是 E3 那一步展开后的样子；`ComposerStop` 在统一后可以不用（停止走对话自己的 `user.interrupt`），留着不碍事；`Tail` / `before` 钩子在统一后不再需要往对话流里另插代录内容，审定后可删 |
+| 删右栏、抽屉、拖宽、分区折叠（评估 8.1） | **保留**，两种方案都要删 |
+| 停止挪进输入框、`Esc` | **保留**；只是 ■ 发的从「代录停止」变成 `user.interrupt`，由服务端翻译 |
+| 「开始前」框、「需要处理」框、报告卡片、资料分组列表的界面 | **保留界面**，改成按工具名注册的工具卡片，数据从事件的 input / result 来，不再从 `controller` 的状态来 |
+| 输入框下面那一行的电脑钮、账套钮 | **保留**（账套来自 E5 卡片里的写入目标，也就是 B4） |
+| 会话流里自己拼的单据行、状态行（照 `TaskLog` 改的） | **不保留**：换成对话页的步骤行和状态行（W2 的块 2），这正是要统一的部分 |
+| 代录侧栏（`operator-sidebar.tsx`）、代录新建任务页上的改动（如行尾「等你处理」标记） | **不保留**：侧栏和新建页都换成直写那一套（14.8），标记由同一个 `ActivityMark` 出 |
+| 块 4（待处理并进对话、占位行、深链接） | **保留**；占位行、「等你处理」都在直写侧栏里做，代录会话进了同一个列表后自然一起显示 |
+
+建议：W3 现在**停在块 3 里与状态模型相关的部分**（会话流拼装、进度显示），先做与本方案不冲突的删除、输入框、卡片界面和块 4；本方案审定后由一个写者接着把卡片接到事件上。W2 的会话组件（任务清单、结束框、状态行、侧栏标记）原样复用，不受影响。
+
+### 14.6 工作量（按机器耗时）与风险
+
+| 块 | 内容 | 写代码 | 机器跑 |
+|---|---|---|---|
+| U1 服务端 | `feed.py` 投影 E1–E17、编号、时间排序；`sessions.events` / `run_state` 接上；推送；`documents` 两列；`stop` 控制；`sessions.listing` 的 `mode`、`create(mode=operator)` 连建任务、改名置顶删除转到任务；旧任务补建会话、手排顺序换编号两个补丁；离线测试（每种状态的事件、重放一致、增量、权限、业务调用不变、列表按模式筛、补丁幂等） | 7 h | 候选离线检查 0.7 h |
+| U2 前端 | 代录会话改用对话 thread / runtime、直写的新建页与侧栏（多一个 `mode` 筛选）；4 张工具卡片；桥 → `pearnly.progress` 小钩子；删 14.4 的文件；单测改写（`test_cc_operator.py` 约 19 处、侧栏两模式的测试） | 7 h | `npm run build` 两处 0.2 h |
+| U3 流程 | 改 `cc.operator`、`cowork.pending.operator`、`cowork.operator.unknown`、`cc.sidebar-modes` 两条，新增「代录会话回放一致」（换设备、刷新事件逐条相同） | 3 h | 受影响流程约 1 h，全套 0.5 h |
+| 合并与闸门 | — | 0.5 h | 全闸门 0.5 h、CI 15 分钟以上查一次 |
+
+合计写代码约 17.5 小时，机器约 3.5 小时；和 W3 当前块 3 的剩余部分有重叠，实际增量约少 4 小时（14.5 不保留的那两项不用再写）。
+
+| 风险 | 说明 | 处置 |
+|---|---|---|
+| R1 细步和暂停只在执行电脑 | CC 桌面版不改的前提下，网页、手机、别的电脑上只看得到「第几张开始 / 录完」，看不到「锁屏暂停」 | 执行电脑上页面经桥补（E10）；别的设备状态行写「进行中 · 第 n/N 张」（n 来自 E8/E9）。要全设备都看到暂停原因，需要 CC 桌面版心跳带上批次状态，属于发版改动，另批 |
+| R2 两路事件合并的顺序 | 引擎事件时间来自 Anthropic，代录事件来自站点，钟差几秒 | 沿用提醒的 `merge_by_time` 与 5 分钟前推的增量窗口（`notices.FEED_SLACK`）；编号去重 |
+| R3 投影要和旧状态一一对应 | 漏一种状态，页面就少一张卡 | 测试按 `TASK_STATES × 单据状态 × 原因级别` 全排列出事件，对照 14.1 断言 |
+| R4 推送量 | 一批 200 张，每张两条事件 | 只推会话主人；页面合并同一步的进度事件；量级同对话的工具步骤 |
+| R5 旧任务 | 没有会话、子表没有时间 | 打开时补建会话；没有时间的按 `started_at` 加序号排，显示不受影响 |
+| R7 侧栏数据迁移 | 旧任务补建会话、手排顺序从任务号换成会话编号，漏了就有任务在侧栏里「消失」或顺序乱 | 两个补丁都是原生 patch、幂等；测试比对补丁前后「任务数 = 代录会话数」「手排先后不变」 |
+| R6 和 B1–B5 的关系 | 已合入的接口照用：上传记录（B1/B2）是 E3 的数据来源，`months`（B3）给侧栏，写入目标（B4）进 E5 卡片，识别推送（B5）触发 E3 的增量 | 不用回滚 |
+
+### 14.8 同一个会话列表、同一个侧栏
+
+用户 11-04：直写现成的新建页、胶囊、侧栏公司分组、对话列表、新建会话，代录不再另做一套。
+
+| 项 | 做法 |
+|---|---|
+| 会话列表接口 | 只有 `sessions.listing`（分页、星标、按公司分组 `grouped` / `group`、`check` 运行状态校正、未读）。现在它用 `operator_task: not set` 把代录会话排除在外；改成带 `mode` 参数：`chat` = `operator_task` 为空，`operator` = 不为空，不带 = 全部。`_grouped_first` / `_page` / `_starred` / `_filed_counts` 都只是多一个筛选条件，组头的数与「更多」游标按同一筛选算 |
+| 模式从哪来 | 不加列：`operator_task` 不为空就是代录会话。新建时 `sessions.create(..., mode="operator")` 在同一事务里调 `tasks.create(project, period, ...)` 并写回 `operator_task`；产品不允许代录（`products.allowed`）就拒，不悄悄建成直写 |
+| 新建页与胶囊 | 直写的新建页原样用：公司、月份、分店胶囊，`Ctrl/⌘+N`。代录要求有公司和月份（任务必填），没选时「发送」照直写现有的「先选公司」口径挡住。分店照记在会话的 `project_scope` 上；代录的资料来源现在不按分店筛，本方案不改 |
+| 侧栏分组、排序、搜索、多选、改名、置顶、归档、删除 | 全用直写那一套。改名、置顶走 `sessions.rename / star`，同时写回任务标题、星标（任务记录只是镜像，读以会话为准）；删除走 `sessions.delete`，它对代录会话转调 `tasks.delete`（交出去还没收尾的照旧不能删） |
+| 手排顺序 | 只留直写那一份（偏好 `pearnly_cc_layout.order`，按会话编号）。代录那一份（`operator` 项，按任务号）由一次性补丁按 `任务号 → 会话编号` 换过去并入 `order`，再删 `operator` 项；推翻 11-03「任务号不进对话的手排顺序」——现在进的是会话编号，不再是任务号 |
+| 活动状态 | 同一个 `ActivityMark`，数据都来自 `sessions.listing` 的 `check` / `runs` 与实时事件，代录会话的运行状态按 14.2 的 `run_state` 规则算 |
+| 深链接 | 统一成 `?c=<会话>`；旧的代录任务链接（`?view=tasks` 带任务号）按任务号查会话后跳转，兼容入口不删 |
+
+**两种模式下侧栏怎么区分**：
+
+| 做法 | 说明 | 利弊 |
+|---|---|---|
+| 甲：同一个列表，按模式筛（建议） | 左上角切到直写，侧栏只列直写会话；切到代录，只列代录会话。两边是同一个接口、同一个组件，只差 `mode` 参数 | 和 Q1 审定的 A（保留左上角切换）一致；公司组里不会混着两种行，代录的「等你处理」不会被一堆对话淹没；跨模式提醒照 Q7 用切换钮上的未读点（数据也是同一个列表接口按 `mode=operator` 取 requires_action 的数）。代价：在直写里看不到代录会话，要切一下 |
+| 乙：一起显示 | 一个列表混排，行首图标分直写 / 代录，新建时在输入框下面选模式 | 最像 Code（模式只是会话的属性）；但这就是第 3 节的方案 B，Q1 已定不做；左上角切换会变得多余 |
+
+建议甲。界面上两种模式完全同一套，只有侧栏多一个筛选；以后要改成乙，只是前端不再传 `mode`，服务端不用再改。
+
+### 14.7 要主会话定的
+
+| # | 问题 | 建议 |
+|---|---|---|
+| U-Q1 | 采用本方案（代录事件源并进同一段会话，而不是新加一家引擎） | 采用。理由见 14.0 末段 |
+| U-Q2 | W3 的块 3 先停在状态模型相关部分，等本方案审定 | 停，见 14.5 |
+| U-Q3 | 别的设备上停止：新增任务控制 `stop`（执行电脑的页面取走去停） | 加。这是「停止」在两种模式一样的前提，不碰交单与回执 |
+| U-Q4 | 暂停原因全设备可见要等 CC 桌面版改心跳 | 本批不做（R1），记入下一批 |
+| U-Q5 | 两种模式在侧栏：同一个列表按模式筛（甲），还是一起显示（乙） | 甲，见 14.8 |
+| U-Q6 | 手排顺序合成一份（代录的按任务号换成会话编号），推翻 11-03「任务号不进对话的手排顺序」 | 合。进的是会话编号，不是任务号 |
+
+### 14.9 主会话审定（11-04）
+
+| # | 审定 |
+|---|---|
+| U-Q1 | 采用：代录事件源并进同一段会话，不新加引擎 |
+| U-Q2 | 已停 |
+| U-Q3 | 加任务控制 `stop` |
+| U-Q4 | 本批不做（不发 CC 桌面版），记入下一批 |
+| U-Q5 | 甲：同一个列表按 `mode` 筛 |
+| U-Q6 | 合成一份，按会话编号 |
+| 补充 1 | 用户更正后**没有**单独的任务清单、结束框、侧栏新标记、模式切换小点（Q2、Q7 撤销）。E11、E12、E14 里写的「结束框位置」一律改为：对话流里的 `agent.message` 加工具卡片，样子同直写现有的「允许」卡片；侧栏只用现有的 `ActivityMark` |
+| 补充 2 | W3 分支 `pearnly/cc-code-operator`（724a24013，工作树 `.claude/worktrees/agent-a453b5b8da64d959c`）里已做的删右栏、块 4、新建页与侧栏复用直写，是 U2 的起点 |
