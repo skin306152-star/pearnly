@@ -485,3 +485,18 @@ reason = "安装提示里「下载桌面版」：安装引导，同定时任务�
 anchor = 'ccnav:lib/install.ts:location.href = url.toString();'
 kind = "internal"
 reason = "安装提示里「在外部浏览器打开」（LINE 内置浏览器加 openExternalBrowser=1）：安装引导，不是产品功能入口"
+# 11-04 收紧带引号短名的识别后露出来：原先被别处同名的 "records" / "detail" / "entries" 误认成调用方
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.stocktake.api.records"
+kind = "internal"
+reason = "Cowork 盘点的原生 RPC（给程序调），产品页面走 stocktake/desk_api.py，不调它；tests/flows/not_flows.toml 同一说明"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.stocktake.api.detail"
+kind = "internal"
+reason = "同上：Cowork 盘点原生 RPC，产品页面不调"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.stocktake.api.entries"
+kind = "internal"
+reason = "同上：Cowork 盘点原生 RPC，产品页面不调"

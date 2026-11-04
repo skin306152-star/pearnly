@@ -299,6 +299,7 @@ def _tool_names(repo: Repo, path: str, variable: str) -> list[str]:
 CORE_TOOLS = ("apps/pearnly_core/pearnly_core/assistant/tools.py", "CORE_TOOLS")
 CC_VIEWS = "frontend/assistant/src/lib/nav.ts"
 CC_SHELL = "frontend/assistant/src/assistant.tsx"
+CC_OPERATOR = "frontend/assistant/src/components/operator/"
 
 
 def discover_cc(repo: Repo) -> list[Found]:
@@ -322,10 +323,13 @@ def discover_cc(repo: Repo) -> list[Found]:
                                [path] if path else [f"apps/{app}/{app}/hooks.py"], f"代录 {key}"))
         if CC_VIEWS in repo.present:
             match = re.search(r"export type View\s*=\s*([^;]+);", repo.text(CC_VIEWS))
+            operator_files = sorted(p for p in repo.files if p.startswith(CC_OPERATOR) and p.endswith((".ts", ".tsx"))
+                                    and ".test." not in p)
             for view in re.findall(r'"(\w+)"', match.group(1) if match else ""):
                 channel = "cc-operator" if view == "operator" else "cc-chat"
-                found.append(Found(f"ccview:{code}:{view}", "cc-view", product, channel, list(ENDS),
-                                   [CC_SHELL, CC_VIEWS], f"CC 视图 {view}"))
+                # 代录视图的页面在 components/operator/ 里（调共用层 express_operator 接口的就是它们）
+                files = [CC_SHELL, CC_VIEWS] + (operator_files if view == "operator" else [])
+                found.append(Found(f"ccview:{code}:{view}", "cc-view", product, channel, list(ENDS), files, f"CC 视图 {view}"))
     return found
 
 
@@ -727,7 +731,12 @@ def discover_endpoints(repo: Repo | None = None) -> dict[str, Endpoint]:
             # 前端把前缀和方法名分在两个文件（`u.api = "x.purchasing.api."` 与 `u.call("api_post_purchase")`）：同一个 App 的
             # 前端（共用层的接口看全部前端）里带引号写出这个方法名也算；宁可多认一个调用方，不把在用的接口当成没人调
             app = module.split(".")[0]
-            callers |= {p for p in quoted.get(name, ()) if app == "pearnly_core" or p.startswith(f"apps/{app}/")}
+            # 带引号的方法名只在「同一目录里有文件写了这个接口的完整模块路径」时算：前缀常量和调用分在同目录两个文件
+            # （ERP `u.api = "x.purchasing.api."` + `u.call("api_post_purchase")`、CC 代录 live-source.ts 的 API + "intake"）。
+            # `status`、`intake` 这类通用短名在别处带引号出现不算（11-04 误判：product.js 的 EXPORT_API + "status"、
+            # purchase-form.js 的 "intake" 被当成代录接口的调用方，挡了不相干的合入）
+            dirs = {p.rsplit("/", 1)[0] for p in index.get(module, ())}
+            callers |= {p for p in quoted.get(name, ()) if p.rsplit("/", 1)[0] in dirs}
             if name.startswith("api_"):
                 # ERP 的 `api_` 名字够独特：同一 App 前端里作为单词出现（模板串 `${u.api}api_sales_export`）就算
                 callers |= {p for p in words.get(name, ()) if app == "pearnly_core" or p.startswith(f"apps/{app}/")}

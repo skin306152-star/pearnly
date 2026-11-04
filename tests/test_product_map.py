@@ -129,6 +129,15 @@ class Discovery(unittest.TestCase):
             f"{app}/public/desk/upload.js": 'const M = "pearnly_erp_portal.sales.upload.api_doc_upload";\n'
                                             'post(`${M}_begin`); post(M + "_finish");',
             f"{app}/public/desk/list.js": 'p.export_file(`${u.api}api_sales_export`)',
+            "apps/pearnly_core/pearnly_core/express_operator/api.py": "import frappe\n@frappe.whitelist()\ndef status(): pass\n"
+                                                                     "@frappe.whitelist()\ndef intake(): pass\n",
+            # 11-04 误判：别处带引号写了同名短名（导出前缀 + "status"、单据页的 "intake"），不是代录接口的调用方
+            "apps/pearnly_core/pearnly_core/public/desk/product.js": 'const EXPORT_API = "pearnly_core.exports."; call(EXPORT_API + "status");',
+            f"{app}/public/desk/purchase-form.js": 'u.entry = "intake";',
+            # 真调用方：同目录里一个文件写了完整模块路径做前缀，别的文件用它拼名
+            "frontend/assistant/src/components/operator/live-source.ts": 'export const API = "pearnly_core.express_operator.api.";\n'
+                                                                          'get(API + "intake");',
+            "frontend/assistant/src/components/operator/tasks.ts": 'import { API } from "./live-source"; get(API + "status");',
             "tests/test_sales.py": "from pearnly_erp_portal.sales.api import api_only_tests\n",
             "scripts/flows/sales.py": '"pearnly_erp_portal.sales.api.api_nobody"',
         })
@@ -144,6 +153,9 @@ class Discovery(unittest.TestCase):
         self.assertEqual(callers["api_doc_upload_finish"], [f"{app}/public/desk/upload.js"])
         self.assertEqual(callers["api_doc_upload_cancel"], [])
         self.assertEqual(callers["api_sales_export"], [f"{app}/public/desk/list.js"])
+        # 通用短名：只认同目录写了模块路径的那些文件（CC 代录），别处带引号的同名不算
+        self.assertEqual(callers["status"], ["frontend/assistant/src/components/operator/tasks.ts"])
+        self.assertEqual(callers["intake"], ["frontend/assistant/src/components/operator/live-source.ts"])
         # 测试、流程用例不算调用方
         self.assertEqual(callers["api_nobody"], [])
         self.assertEqual(callers["api_only_tests"], [])
