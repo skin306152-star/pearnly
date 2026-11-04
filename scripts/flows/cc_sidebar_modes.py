@@ -6,7 +6,8 @@
 
 准备两条「需要你处理」的任务：一条没录成的单不在产品待处理里（算），一条没录成的单就是产品待处理里列着的一张（不另算）。ERP 那张
 是临时把一张已提交的采购单标成「写账失败」放进待处理的（verify 还原）；Cowork 的回归数据里没有识别单据、待处理是空的，只建第一条
-（Cowork 的去重由 `tests/test_cowork_companies.py` 与 `tests/test_express_operator_tasks.py` 守）。verify 删掉准备的任务。
+（Cowork 的去重由 `tests/test_cowork_companies.py` 与 `tests/test_express_operator_tasks.py` 守）；旧数据集没有 Cowork 公司时临时
+建一家给公司列表选。verify 删掉准备的任务与临时公司。
 设了 `PEARNLY_FLOWS_SHOTS` 时每一步截图（`run.py`）。
 """
 from __future__ import annotations
@@ -44,6 +45,7 @@ from pearnly_core.assistant import projects
 from pearnly_core.express_operator import products, tasks
 frappe.set_user({user!r})
 marked = []
+seeded = []
 if {product!r} == "erp":
     from pearnly_erp_portal.express import contracts, push
     company = {(manifest.get("company") or (manifest.get("companies") or [""])[0])!r}
@@ -57,7 +59,17 @@ if {product!r} == "erp":
     counts = __import__("pearnly_erp_portal.masters.cc_companies", fromlist=["x"]).pending_counts()
 else:
     row = (frappe.get_all("Cowork Company", fields=["name", "title"], order_by="creation asc", limit_page_length=1) or [None])[0]
-    company, title = (row.name, row.title or row.name) if row else ("CO-FLOW", "Flow Co")
+    if not row:
+        # 旧数据集没有 Cowork 公司：临时建一家，公司列表里才有可选的（verify 删掉）
+        from pearnly_cowork.access import scope
+        from pearnly_cowork.companies.access import COMPANY, write
+        doc = frappe.new_doc(COMPANY)
+        doc.update({{"workspace": scope.default_workspace(), "identity": "name:" + {tag!r}, "adapter": "express",
+                    "title": "Flow Co " + {tag!r}, "created_by": {user!r}}})
+        write(doc)
+        seeded.append(doc.name)
+        row = frappe._dict(name=doc.name, title=doc.title)
+    company, title = row.name, row.title or row.name
     counts = __import__("pearnly_cowork.companies.pending", fromlist=["x"]).pending_counts()
 listed = sorted(products.pending_documents())
 before = tasks.attention()["total"]
@@ -74,7 +86,7 @@ if listed:
     task(listed[0], {tag!r} + " 已在待处理")
 frappe.db.commit()
 after = tasks.attention()
-print(json.dumps({{"product": {product!r}, "company": company, "marked": marked, "title": title, "made": made, "listed": len(listed),
+print(json.dumps({{"product": {product!r}, "company": company, "marked": marked, "seeded": seeded, "title": title, "made": made, "listed": len(listed),
                   "pending": counts["total"], "before": before, "attention": after["total"],
                   "counted": [t["name"] for t in after["tasks"]], "kind": projects.kind(),
                   "sections": projects.declared(projects.provider()).get("sections", []),
@@ -189,6 +201,8 @@ picked = frappe.get_all(tasks.DOCTYPE, filters={{"owner": {params["user"]!r}, "c
                         fields=["name", "period", "status"], limit_page_length=50)
 for name in {params["made"]!r} + [row.name for row in picked]:
     frappe.delete_doc(tasks.DOCTYPE, name, ignore_permissions=True, force=True)
+for name in {params["seeded"]!r}:
+    frappe.db.delete("Cowork Company", {{"name": name}})
 frappe.db.commit()
 frappe.set_user("admin@{product}.regression")
 print(json.dumps({{"attention": tasks.attention()["total"], "picked": [dict(row) for row in picked],

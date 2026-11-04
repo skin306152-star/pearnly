@@ -65,13 +65,14 @@ if not frappe.db.exists("User Permission", {{"user": "purchase@erp.regression", 
 titles = {{name: frappe.db.get_value("ERP Company", name, "company_name") for name in ({a!r}, {b!r})}}
 # 「添加公司」的候选：一台在用的电脑（CC 桌面版 1.12 起只报人选的数据根）报 A 公司的账套与一家还没有公司的账套
 a_row = frappe.db.get_value("ERP Company", {a!r}, ["tax_id", "branch"], as_dict=True)
-device = frappe.get_doc({{"doctype": "Pearnly CC Device", "device_label": "flow-pc", "token_digest": "flow", "companion_version": "1.12.12"}})
-device.insert(ignore_permissions=True)
+from pearnly_core.cc_desktop import documents
+device = documents.new(documents.DEVICE, "PCD-flow" + {tag!r}, {{"device_label": "flow-pc", "token_digest": "flow",
+                                                               "companion_version": "1.12.12"}})
 new_tax = "0105570" + {tag!r}[:6]
 for key, company, tax, branch in (("flow-a", titles[{a!r}], a_row.tax_id, a_row.branch), ("flow-new", "Flow New " + {tag!r}, new_tax, "00000")):
-    frappe.get_doc({{"doctype": "Pearnly CC Book", "device": device.name, "book_key": key + {tag!r}, "label": company, "company": company,
-                    "tax_id": tax, "branch": branch, "period_start": "2026-01-01", "period_end": "2026-12-31", "writable": 1}}
-                   ).insert(ignore_permissions=True)
+    documents.new(documents.BOOK, frappe.generate_hash(length=20), {{"device": device.name, "book_key": key + {tag!r}, "label": company,
+                  "company": company, "tax_id": tax, "branch": branch, "period_start": "2026-01-01", "period_end": "2026-12-31",
+                  "writable": 1}})
 tasks_before = frappe.get_all("Pearnly Express Operator Task", filters={{"owner": "admin@erp.regression"}}, pluck="name", limit_page_length=500) \
     if frappe.db.exists("DocType", "Pearnly Express Operator Task") else []
 frappe.db.commit()
