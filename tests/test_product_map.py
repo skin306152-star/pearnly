@@ -37,7 +37,7 @@ class Discovery(unittest.TestCase):
                              ("liff:erp:/stocktake", "liff-page"),
                              ("tool:erp:erp_push_documents", "cc-tool"), ("tool:cowork:cowork_pending", "cc-tool"),
                              ("tool:erp:pearnly_whoami", "cc-tool"), ("operator:cowork:submit", "cc-operator-hook"),
-                             ("ccview:erp:pending", "cc-view"), ("ccaction:erp:switch-account", "cc-action"),
+                             ("ccview:erp:operator", "cc-view"), ("ccaction:erp:switch-account", "cc-action"),
                              ("ccaction:cowork:mrerp-auth", "cc-action"), ("scan:erp.stock-count.entry.camera", "scan"),
                              ("scan:shared.upload.take-photo", "scan")):
             self.assertIn(anchor, found)

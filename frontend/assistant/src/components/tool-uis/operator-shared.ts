@@ -11,6 +11,7 @@ import { getMethod, postMethod, uploadMethod } from "@/lib/frappe";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import type { ToolResultPayload } from "@/lib/managed-agents/reducer";
 import type { CardPart } from "@/lib/approval-card";
+import { reportCaught, withReport } from "@/lib/caught";
 
 export const API = "pearnly_core.express_operator.api.";
 
@@ -246,11 +247,14 @@ export function questionsOf(prechecks: readonly PrecheckDoc[], groupOfDoc: (id: 
 export function resultOf<T extends object>(result: unknown): (Partial<T> & { code?: string }) | null {
   if (result === undefined || result === null) return null;
   const text = typeof result === "object" && "text" in (result as object) ? (result as ToolResultPayload).text : String(result);
-  try {
-    const parsed: unknown = JSON.parse(text);
-    if (parsed && typeof parsed === "object") return parsed as Partial<T>;
-  } catch {
-    // 纯文字（失败码）
+  // 纯文字（失败码）不解析；像 JSON 的读不出才算出错（报一次，按纯文字显示）
+  if (/^\s*[{[]/.test(text)) {
+    try {
+      const parsed: unknown = JSON.parse(text);
+      if (parsed && typeof parsed === "object") return parsed as Partial<T>;
+    } catch (caughtError) {
+      reportCaught(caughtError, "operator-result");
+    }
   }
   return { code: text.trim() } as Partial<T> & { code?: string };
 }
@@ -336,7 +340,7 @@ export const operatorActions = {
 
 /** 本页所在的电脑能设置 Express 登录（CC 桌面版窗口、支持实操）：原生小窗设置。不能回 false。 */
 export async function authorizeHere(): Promise<boolean> {
-  const found = await desktop().catch(() => null);
+  const found = await desktop().catch(withReport(null, "operator-bridge"));
   if (!found || !(await found.state()).features?.includes(OPERATOR)) return false;
   const reply = await found.call("operator_authorize");
   return !!reply?.ok;
@@ -344,7 +348,7 @@ export async function authorizeHere(): Promise<boolean> {
 
 /** 本页在支持实操的 CC 桌面版窗口里，Express 登录设置了没有（operator_state 的 login）；不在回 null。 */
 export async function loginHere(): Promise<boolean | null> {
-  const found = await desktop().catch(() => null);
+  const found = await desktop().catch(withReport(null, "operator-bridge"));
   if (!found || !(await found.state()).features?.includes(OPERATOR)) return null;
   const reply = (await found.call("operator_state")) as unknown as { ok?: boolean; login?: boolean };
   return reply?.ok ? !!reply.login : null;
