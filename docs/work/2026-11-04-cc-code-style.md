@@ -547,12 +547,12 @@ W3 现在做的块 3、块 4 是在现有 `operator/*` 模型上把右栏挪进�
 
 **会话列表与新建（14.8）**：`listing(..., mode="chat" | "operator")`（不带 = 全部），`grouped` / `group` / 星标 / `check` 都按同一筛选；`create(project, period, scope, mode="operator")` 同一事务建任务并互相指上（产品不允许代录时报「没有权限」，不悄悄建成直写；没有公司或月份报请求无效）。改名、星标走 `rename` / `star`，同时写回任务；`delete` 转调任务删除（交出去还没收尾的照旧不能删）。旧链接 `?view=tasks` 带任务号：`task_get(name).session_id` 就是会话编号。
 
-### 14.11 U1 施工记录（分支 `pearnly/cc-unified-feed`，基线 `3d46f2ae0` = 本地 `pearnly/cc-code-backend`，B1～B5 已在其上）
+### 14.11 U1 施工记录（分支 `pearnly/cc-unified-feed`，基线 `e0a720a11` = `origin/pearnly/cc-code-backend`，B1～B5 已在其上，还没进 main）
 
 | 项 | 落点 |
 |---|---|
 | 代录事件源 | 新文件 `express_operator/feed.py`：`project`（纯函数，E1～E17 → 事件，编号见 14.10）、`since`（增量）、`run_state`、`stamp`（单据子表时间）、`publish`（保存后推新出现的事件）、`receipt` / `refresh`（产品回执后的只读入口，提交后以任务主人身份 `settle`）、`report`（E15 CSV） |
-| 会话 | `assistant/sessions.py`：`listing(mode)`（`_page` / `_starred` / `_grouped_first` / `_filed_counts` 同一筛选）、`create(mode="operator")`（`_create_operator` → `tasks.create`）、`open_operator`（本站先建 `op_<任务号>`）、`_remote_ready`（第一次发话才开远端）、`events` 并进事件源（`_operator_events`）、`run_state` 认任务（`_operator_run`）、`get` / `rename` / `star` / `move` / `delete` 转到任务、`confirm` 丢掉 `pop_` 编号、`interrupt` 记任务控制 stop、`run_tool` 拒 `pop_`；`assistant/api.py` 的 `listing` / `create` 多 `mode` 参数（14.3 没列这个文件，接口参数只能从这里进） |
+| 会话 | `assistant/sessions.py`：`listing(mode)`（`_page` / `_starred` / `_grouped_first` / `_filed_counts` 同一筛选）、`create(mode="operator")`（`_create_operator` → `tasks.create`）、`open_operator`（本站先建 `op_<任务号>`）、`_remote_ready`（第一次发话才开远端）、`events` 并进事件源（`_operator_events`）、`run_state` 认任务（`_operator_run`）、`get` / `rename` / `star` / `move` / `delete` 转到任务、`confirm` 丢掉 `pop_` 编号、`interrupt` 记任务控制 stop、`run_tool` 拒 `pop_`；`mode` 由 `sessions.requested_mode` 从同一个请求的参数取（`api.listing` / `api.create` 照旧原样转交，**接口模块 `assistant/api.py` 不改**：改它会让产品地图把所有调它别的接口的页面都算作被改到） |
 | 契约 | `assistant/contracts.py`：`PROGRESS_EVENT` / `progress_event` |
 | 任务 | `express_operator/tasks.py`：`create` 同一事务建会话并指上；`push_control` 认 `STOP`（不进给模型的 `CONTROL_ACTIONS`，工具表不变）；`_save` 保存前 `feed.stamp`（只记时间，`attach` / `_refresh` / `_resubmit` 本身一行没改）；`_announce` 末尾 `feed.publish` |
 | 表结构 | `Pearnly Express Operator Task Document` 加 `queued_at`、`done_at`（Datetime，只读），`doc_id` 加索引（回执入口按单据找任务）；原生 DocType 改动，`bench migrate` 落库 |
@@ -574,6 +574,8 @@ W3 现在做的块 3、块 4 是在现有 `operator/*` 模型上把右栏挪进�
 
 **剩余项**
 
+- 页面调用方式：`sessions.listing` / `sessions.create` 照旧调 `pearnly_core.assistant.api.listing` / `.create`，请求里多带 `mode=chat|operator`。
+- `feed.report` 暂登记在 `scripts/impact/product-map/not_entries.toml`（还没有页面调用方），U2 画报告文件卡片的同一提交删掉那一条。
 - 前端（U2）没接之前**不能单独合入**：`listing` 不带 `mode` 时现在列全部，旧代录界面的任务列表与新会话列表会重复。由主会话安排与 U2 一起合。
 - `prefs.PARTS` 里的 `operator` 项留着（旧页面还在写）；U2 合入后可删。
 - 暂停原因全设备可见（U-Q4）本批不做。

@@ -16,6 +16,11 @@ kind = "internal"
 reason = "Code 版 CC 块 1（W1）先合入的只读接口：代录会话里上传卡片的状态；页面调用随块 3（W3，frontend/assistant/components/operator）接上，接上的同一提交删掉本条（11-04 调用方识别收紧后，components/run/ 里的注释与类型不算调用方）"
 
 [[anchor]]
+anchor = "endpoint:pearnly_core.express_operator.feed.report"
+kind = "internal"
+reason = "统一对话框架 U1（服务端先做）：代录会话收尾消息里的报告文件（operator.report.url 带出这个地址），页面画文件卡片随 U2 接上，接上的同一提交删掉本条"
+
+[[anchor]]
 anchor = "endpoint:pearnly_core.manifest.describe"
 kind = "delete"
 reason = "产品里没有调用方，只有测试 scripts/flows/cc_person_names.py 在调（待删候选）"
