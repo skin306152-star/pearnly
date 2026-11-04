@@ -221,8 +221,8 @@ export type ResumeInput = { task: string; company: string; reason: string; doc_i
 /** 站点 precheck 一张单的结论（开始前、中途选都用）。 */
 export type PrecheckNeed = { kind: string; subject: string; label: string; options: ChoiceOption[] };
 export type PrecheckDoc = { doc_id: string; state: "ready" | "choose" | "waiting" | "blocked"; reason?: string; message?: string; needed?: PrecheckNeed[] };
-/** 这次写进哪儿（B4，precheck 回包的 target，取值同 start 实际用的那一份）。 */
-export type WriteTarget = { account_set?: string; account_set_title?: string; connection_title?: string; computer?: string };
+/** 这次写进哪儿（B4，precheck 回包的 target / targets，取值同 start 实际用的那一份）。count：几张单写进这份（targets 里才有）。 */
+export type WriteTarget = { account_set?: string; account_set_title?: string; connection_title?: string; computer?: string; count?: number };
 
 /** precheck 的结论 → 一问一项（同一类、同一对象在几张单上只问一次），groupOfDoc：单据的组（供应商 / 客户按方向写）。 */
 export function questionsOf(prechecks: readonly PrecheckDoc[], groupOfDoc: (id: string) => DocGroup = () => "purchase"): Question[] {
@@ -308,11 +308,14 @@ export const operatorActions = {
     return { documents, next: typeof reply?.next_offset === "number" ? reply.next_offset : null, total: reply?.total };
   },
   precheck: async (company: string, docIds: readonly string[]) => {
-    if (!docIds.length) return { documents: [] as PrecheckDoc[], target: null as WriteTarget | null };
-    const reply = await site.post<{ documents?: PrecheckDoc[]; target?: WriteTarget | null }>(API + "precheck", { company, doc_ids: JSON.stringify(docIds) });
-    return { documents: (reply?.documents ?? []).map((d) => ({ ...d, doc_id: String(d.doc_id) })), target: reply?.target ?? null };
+    if (!docIds.length) return { documents: [] as PrecheckDoc[], targets: [] as WriteTarget[] };
+    // 一批写进几份账套时服务端 target 为空、targets 列出每一份（张数多的在前，api.precheck）；旧服务端只给 target
+    const reply = await site.post<{ documents?: PrecheckDoc[]; target?: WriteTarget | null; targets?: WriteTarget[] }>(API + "precheck", { company, doc_ids: JSON.stringify(docIds) });
+    const targets = reply?.targets?.length ? reply.targets : reply?.target ? [reply.target] : [];
+    return { documents: (reply?.documents ?? []).map((d) => ({ ...d, doc_id: String(d.doc_id) })), targets };
   },
-  start: (input: StartInput, docIds: readonly string[], answers: Answers) =>
+  /** groups：交出的每张单的资料分组（{doc_id: purchase / sales / …}，服务端记进任务的单据行，资料那一步的按组张数与报告用它）。 */
+  start: (input: StartInput, docIds: readonly string[], answers: Answers, groups: Readonly<Record<string, DocGroup>> = {}) =>
     site.post(API + "start", {
       company: input.company,
       doc_ids: JSON.stringify(docIds),
@@ -320,6 +323,7 @@ export const operatorActions = {
       start_at: 0,
       answers: JSON.stringify(answers),
       task: input.task,
+      groups: JSON.stringify(groups),
     }),
   answer: (task: string, docId: string, answers: Answers) =>
     site.post(API + "task_answer", { name: task, doc_id: docId, answers: JSON.stringify(answers[docId] ?? []) }),

@@ -84,7 +84,7 @@ g.done();
 FEED = r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { isBusy, project } from "@/lib/managed-agents/reducer";
+import { applyRunStatus, isBusy, project } from "@/lib/managed-agents/reducer";
 import { isLocalEvent, isOperatorTool } from "@/lib/managed-agents/events";
 import { liveProgress, operatorEndText, progressText, stepProgress } from "@/lib/managed-agents/progress";
 import { cardPhase } from "@/components/tool-uis/operator-shared";
@@ -112,6 +112,12 @@ assert.deepEqual(state.pendingCustomTools, []);
 assert.deepEqual(state.pendingApprovals, []);
 assert.equal(isBusy(state), false);
 assert.ok(isOperatorTool("operator_start") && !isOperatorTool("save_rule"));
+// 整段重放带回的服务端运行状态（events?status=1 的 run：requires_action，parked / awaiting_approval = 卡片编号）同样不向服务端要
+// 执行（run_tool 拒 pop_ 编号，回「未找到该操作」，实验室 cc.operator 11-04 在 Error Log 里记下过）、不算在跑
+const ran = applyRunStatus(state, { status: "requires_action", parked: [`pop_${T}_start`], awaiting_approval: [`pop_${T}_start`], executing: [], as_of: at(2) } as any);
+assert.deepEqual(ran.pendingCustomTools, []);
+assert.deepEqual(ran.pendingApprovals, []);
+assert.equal(isBusy(ran), false);
 // 交单：卡片结果（user.custom_tool_result）+ done；答完不算引擎接着跑，运行状态等事件源投影的状态
 state = project([
   { type: "user.custom_tool_result", id: `pop_${T}_start_r`, processed_at: at(3), custom_tool_use_id: `pop_${T}_start`, content: text({ sent: 2, not_sent: [], computer: "", start_at: 0 }), is_error: false },
@@ -184,7 +190,7 @@ import "cc-test-setup";
 import "cc-dom-setup";
 import assert from "node:assert/strict";
 import { answersFor, operatorActions, questionsOf, setOperatorSite } from "@/components/tool-uis/operator-shared";
-import { docsToStart, writeLine } from "@/components/tool-uis/operator-start";
+import { docsToStart, groupsToStart, writeLine } from "@/components/tool-uis/operator-start";
 import { resumeQuestion } from "@/components/tool-uis/operator-resume";
 import { createBridgeWatch, progressOf } from "@/components/operator/bridge";
 import { createSession, listGrouped, listSessions } from "@/lib/managed-agents/api";
@@ -216,11 +222,27 @@ const g = globalThis as any;
   const answers = answersFor(questions, { "party\nS1": "__new__" });
   assert.deepEqual(Object.keys(answers), ["A", "B"]);
   assert.deepEqual(docsToStart([{ doc_id: "A" }, { doc_id: "B", group: "skip" }, { doc_id: "C" }] as any, prechecks), ["A"]);
-  assert.equal(writeLine({ company: "CO-1", company_title: "Acme" }, { account_set: "S1", account_set_title: "Acme 2026" }), op.writeTo("Acme · Acme 2026"));
-  // 卡片按钮照旧调代录接口，不调对话的 confirm / run_tool
+  assert.equal(writeLine({ company: "CO-1", company_title: "Acme" }, [{ account_set: "S1", account_set_title: "Acme 2026" }]), op.writeTo("Acme · Acme 2026"));
+  // 一批写进几份账套（U1 api.precheck：target 为空、targets 列出每一份，张数多的在前）：问话列出每一份，不只写公司
+  const several = writeLine({ company: "CO-1", company_title: "Acme" }, [{ account_set: "S2", account_set_title: "Acme B", count: 2 }, { account_set: "S1", account_set_title: "Acme A", count: 1 }]);
+  assert.ok(several.includes("Acme B") && several.includes("Acme A") && several.indexOf("Acme B") < several.indexOf("Acme A"), several);
+  assert.equal(writeLine({ company: "CO-1", company_title: "Acme" }, []), op.writeTo("Acme"));
+  g.setTargets = (reply: any) => setOperatorSite({ post: async () => reply, get: async () => ({}) as any });
+  g.setTargets({ documents: [{ doc_id: 1, state: "ready" }], target: null, targets: [{ account_set: "S2", count: 2 }, { account_set: "S1", count: 1 }] });
+  assert.deepEqual((await operatorActions.precheck("CO-1", ["1"])).targets.map((t: any) => t.account_set), ["S2", "S1"]);
+  g.setTargets({ documents: [{ doc_id: 1, state: "ready" }], target: { account_set: "S1" } });          // 旧服务端只给 target
+  assert.deepEqual((await operatorActions.precheck("CO-1", ["1"])).targets.map((t: any) => t.account_set), ["S1"]);
+  setOperatorSite({
+    post: async (method: string, args: any) => (posts.push([method, args]), { ok: true }) as any,
+    get: async (method: string, args: any) => (gets.push([method, args]), { documents: [{ doc_id: 1, ref: "INV-1", group: "purchase" }], next_offset: null }) as any,
+  });
+  // 卡片按钮照旧调代录接口，不调对话的 confirm / run_tool；开始时带上交出的每张单的分组（U1 tasks.attach 记进单据行）
   const input = { task: "OPT-1", company: "CO-1", company_title: "Acme", period: "2026-10" };
-  await operatorActions.start(input, ["A"], answers);
-  assert.deepEqual(posts.at(-1), [API + "start", { company: "CO-1", doc_ids: '["A"]', computer: "", start_at: 0, answers: JSON.stringify(answers), task: "OPT-1" }]);
+  const groups = groupsToStart([{ doc_id: "A", group: "sales" }, { doc_id: "B", group: "skip" }, { doc_id: "D" }] as any, ["A", "D"]);
+  assert.deepEqual(groups, { A: "sales", D: "purchase" });
+  await operatorActions.start(input, ["A", "D"], answers, groups);
+  assert.deepEqual(posts.at(-1), [API + "start", { company: "CO-1", doc_ids: '["A","D"]', computer: "", start_at: 0, answers: JSON.stringify(answers), task: "OPT-1",
+    groups: JSON.stringify({ A: "sales", D: "purchase" }) }]);
   await operatorActions.answer("OPT-1", "A", answers);
   assert.deepEqual(posts.at(-1), [API + "task_answer", { name: "OPT-1", doc_id: "A", answers: JSON.stringify(answers.A) }]);
   await operatorActions.answer("OPT-1", "Z", {});

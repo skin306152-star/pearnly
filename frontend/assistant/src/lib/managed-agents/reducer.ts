@@ -1150,6 +1150,9 @@ export function applyRunStatus(state: Projection, run: RunStatus): Projection {
       working = true; // 已答过正在交回，或本站正在执行
       continue;
     }
+    // 代录的卡片（开始前、中途选、继续）：同 status_idle 那一处，卡片自己在对话里等点，不向服务端要执行（run_tool 拒 pop_ 编号），
+    // 也不算在跑
+    if (isCustom(id) && isOperatorTool(state.toolUses.get(id)?.name)) continue;
     if (isCustom(id)) {
       // 等「允许」且卡片已有问句的照旧显示；结果还欠着、或等「允许」但卡片还没拿到问句与改动的，由页面提醒服务端一次
       // （等「允许」的回问句与改动，见 gateCustomTool）

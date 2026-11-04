@@ -8,7 +8,7 @@
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { type FC, type ReactNode, useCallback, useEffect, useState } from "react";
 import { Marquee } from "@/components/ui/marquee";
-import { co, op } from "@/i18n";
+import { co, lang, op } from "@/i18n";
 import type { CardPart } from "@/lib/approval-card";
 import { reportCaught } from "@/lib/caught";
 import { OperatorCard, useCardAction } from "./operator-card";
@@ -16,6 +16,7 @@ import {
   answersFor,
   authorizeHere,
   cardPhase,
+  type DocGroup,
   type DocRef,
   docTitle,
   groupOf,
@@ -35,9 +36,17 @@ import {
   type WriteTarget,
 } from "./operator-shared";
 
-/** 问话：写入 {公司} · {账套} 的 Express（不知道的那一项不写）。 */
-export function writeLine(input: Pick<StartInput, "company" | "company_title">, target: WriteTarget | null): string {
-  return op.writeTo([input.company_title || input.company, target?.account_set_title || target?.account_set].filter(Boolean).join(" · "));
+/** 问话：写入 {公司} · {账套} 的 Express（不知道的那一项不写）；一批写进几份账套时列出每一份（服务端 targets，张数多的在前）。 */
+export function writeLine(input: Pick<StartInput, "company" | "company_title">, targets: readonly WriteTarget[]): string {
+  const sets = targets.map((t) => t.account_set_title || t.account_set || "").filter(Boolean);
+  const named = sets.length > 1 ? new Intl.ListFormat(lang, { type: "conjunction" }).format(sets) : sets[0];
+  return op.writeTo([input.company_title || input.company, named].filter(Boolean).join(" · "));
+}
+
+/** 交给 start 的分组：交出的每张单此刻在哪一组（拖动改过的以站点记住的为准，documents 已带回）。 */
+export function groupsToStart(docs: readonly DocRef[], docIds: readonly string[]): Record<string, DocGroup> {
+  const wanted = new Set(docIds);
+  return Object.fromEntries(docs.filter((d) => wanted.has(d.doc_id)).map((d) => [d.doc_id, groupOf(d)]));
 }
 
 /** 交给 start 的单：不入账的不交，结果不明还没标的不交。 */
@@ -55,7 +64,7 @@ const DocLine: FC<{ title: string; detail?: string; slot: string; children?: Rea
   </div>
 );
 
-type Prep = { docs: DocRef[]; next: number | null; prechecks: PrecheckDoc[]; target: WriteTarget | null; login: boolean | null };
+type Prep = { docs: DocRef[]; next: number | null; prechecks: PrecheckDoc[]; targets: WriteTarget[]; login: boolean | null };
 
 /** 准备中的资料与预检（只在卡片能点时取）。 */
 function usePrep(input: StartInput, on: boolean) {
@@ -64,7 +73,7 @@ function usePrep(input: StartInput, on: boolean) {
     const page = await operatorActions.documents(input.company, input.period, offset);
     const docs = [...(before?.docs ?? []), ...page.documents];
     const [checked, login] = await Promise.all([operatorActions.precheck(input.company, docs.map((d) => d.doc_id)), loginHere()]);
-    setPrep({ docs, next: page.next, prechecks: checked.documents, target: checked.target, login });
+    setPrep({ docs, next: page.next, prechecks: checked.documents, targets: checked.targets, login });
   }, [input.company, input.period]);
   useEffect(() => {
     if (!on || !input.company) return;
@@ -95,7 +104,7 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
     const missing = !docIds.length ? op.noDocs : left > 0 ? op.confirmLeft(left) : "";
     setNotice(missing);
     if (missing) return;
-    void action.run(() => operatorActions.start(input, docIds, answersFor(questions, picked)));
+    void action.run(() => operatorActions.start(input, docIds, answersFor(questions, picked), groupsToStart(prep?.docs ?? [], docIds)));
   };
   const resolve = (docId: string, entered: boolean) =>
     void action.run(async () => {
@@ -173,7 +182,7 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
     <OperatorCard
       part={part}
       slot="cc-op-before"
-      question={<span data-slot="cc-op-target">{writeLine(input, prep?.target ?? null)}</span>}
+      question={<span data-slot="cc-op-target">{writeLine(input, prep?.targets ?? [])}</span>}
       answer={op.start}
       body={body}
       after={after}
