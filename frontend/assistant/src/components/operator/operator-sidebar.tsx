@@ -32,7 +32,6 @@ import { askDelete } from "@/components/delete-chats";
 import { Marquee } from "@/components/ui/marquee";
 import { useLongPressMenu } from "@/hooks/use-long-press";
 import { op, t } from "@/i18n";
-import { lastMonth } from "@/lib/companies";
 import { shownError } from "@/lib/frappe";
 import { type Activity, groupActivity } from "@/lib/managed-agents/activity";
 import { FIRST_SHOWN, type ProjectRow, SHOW_MORE_STEP, useProjects } from "@/lib/managed-agents/projects";
@@ -42,7 +41,7 @@ import { useSidebarView } from "@/lib/managed-agents/sidebar-view";
 import { openOperator, useModePlace, useView } from "@/lib/nav";
 import { useProfile } from "@/lib/profile";
 import { clearSelection, rowOrder, runInOrder, useSidebarSelection } from "@/lib/sidebar-keys";
-import { type Operator, useOperator } from "./controller";
+import { newTaskIn, type Operator, useOperator } from "./controller";
 import { siteSeconds } from "./live-source";
 import { bindOperatorUser, taskFold, taskOrder } from "./prefs";
 import { effectiveStatus, loadTasks, markSeen, noteLive, overrideStar, setTasksError, taskActivity, upsertTask, useSeen, useTasks } from "./tasks";
@@ -226,8 +225,7 @@ export const OperatorSidebar: FC<{ search?: string; onPick?: () => void }> = ({ 
         latest.current.onPick?.();
       },
       newIn(project) {
-        if (latest.current.view !== "operator") latest.current.setView("operator");
-        latest.current.o.create({ company: project.id, company_title: project.title, period: lastMonth() });
+        newTaskIn(latest.current.o, project, latest.current.view, latest.current.setView);
         latest.current.onPick?.();
       },
       pin(names, starred) {

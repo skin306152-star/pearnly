@@ -227,6 +227,9 @@ class DeepLinkTests(unittest.TestCase):
         self.assertIn('latest.current.setView("tasks")', nav)
         self.assertIn("switchToNewThread()", nav)
         self.assertIn("/^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$/", nav)  # 同服务端 OPAQUE_ID
+        # 公司主档页的提醒（?company=）在代录模式下点开：先回对话模式（代录模式下进公司是新建任务页，用户 11-03）
+        self.assertIn('if (useModePlace.getState().mode === "operator") useModePlace.setState({ mode: "chat", operatorView: "operator" });\n'
+                      '          useCompanyNav.setState({ company });\n          latest.current.setView("company");', nav)
         page = read("assistant.tsx")
         self.assertIn("useDeepLinks(setView, () => loadProfile().then(hasScheduledTasks));", page)
         self.assertIn("<DeepLinks />", page)
@@ -3366,8 +3369,8 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn('onNewRecent={() => newChatIn("")}\n      sortMenu\n', others)
         self.assertNotIn("<GroupSortMenu />", others)
         # 公司页仍有路：会话栏公司卡的名称（顶栏「公司名 ›」、手机胶囊菜单打开会话栏），公司列表页的卡片
-        self.assertIn("onClick={() => openCompany(c.id)}", read("components/session-panel.tsx"))
-        self.assertIn("onClick={() => openCompany(row.id)}", read("components/companies.tsx"))
+        self.assertIn("onClick={() => openCompany(c.id, c.title)}", read("components/session-panel.tsx"))
+        self.assertIn("onClick={() => openCompany(row.id, row.title)}", read("components/companies.tsx"))
 
     def test_truncated_single_lines_scroll_on_hover(self):
         # 悬停滚动（用户 2026-10-15 夜，参考 DeepSeek 桌面端录屏）：一个共用钩子 + 组件，参数在 globals.css

@@ -9,10 +9,11 @@
 //         整批停下后继续、删除都交给数据源，完了按数据源推来的进度刷新。登录类停下的先授权，授权好了接着继续。
 // 出错显示在主栏顶上（shownError：本站拒收照原文，别的只说通用的一句）。
 
-import { createContext, type FC, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { type FC, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { op } from "@/i18n";
 import { shownError } from "@/lib/frappe";
 import { useModePlace } from "@/lib/nav";
+import { newTaskIn, OperatorContext, useOperatorOrNull } from "./context";
 import { allAnswered, answersFor, batchNeedsHuman, docsToStart, groupOf, questionsOf, unknownDocs, type Question } from "./model";
 import { type Draft, EMPTY_PREP, forgetPrep, setFold, setPrep, useOperatorStore } from "./store";
 import { dropTask, loadTasks, upsertTask, useTasks } from "./tasks";
@@ -120,12 +121,9 @@ export type Operator = {
   remove(id: string): Promise<void>;
 };
 
-const OperatorContext = createContext<Operator | null>(null);
 /** 直接给一份状态（预览与测试用）。 */
 export const OperatorValue = OperatorContext.Provider;
-
-/** 不在实操里（没有实操的产品、外壳别处）回 null。 */
-export const useOperatorOrNull = (): Operator | null => useContext(OperatorContext);
+export { newTaskIn, useOperatorOrNull };
 
 export function useOperator(): Operator {
   const found = useContext(OperatorContext);

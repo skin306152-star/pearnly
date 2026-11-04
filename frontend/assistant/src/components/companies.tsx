@@ -3,7 +3,7 @@
 // （ERP 先在 ERP 里建公司；没有权限时服务端给空、不出按钮）。
 // 列表页样式照 Claude Code 的项目列表（设计文档 3.14 / 4.5）：内容宽 960 居中；标题 24/500；右上「排序方式 当前值 ⌄」与
 // 「＋ 添加公司」主按钮（components/add-company.tsx）；搜索框 36 高；卡片网格：公司名、税号 · 分店 · 年度、这家的待处理数、
-// 我在这家的最近活动。点一张卡打开公司页。
+// 我在这家的最近活动。点一张卡打开公司页；代录模式下是这家的新建任务页（同代录侧栏组头「＋」，用户 11-03）。
 //
 //   排序：最近活动（服务端的顺序：我有对话的按我最近的活动在前，其余按名称）/ 名称（已加载的按名称排）。空状态只有「＋ 添加公司」。
 //   别处改名、删公司（pearnly.project 的 upsert / delete）时重取。样式只用 globals.css 的 .cc-* 与变量。
@@ -121,9 +121,9 @@ export const Companies: FC = () => {
 
   const shown = useMemo(() => (rows ? sortCompanies(rows, sort) : null), [rows, sort]);
 
-  const add = useAddCompanyAction((id) => {
+  const add = useAddCompanyAction((id, title) => {
     forgetAnyCompany();
-    openCompany(id);
+    openCompany(id, title);
   });
 
   return (
@@ -172,7 +172,7 @@ export const Companies: FC = () => {
           <>
             <div className="cc-card-grid" data-slot="cc-company-rows">
               {shown.map((row) => (
-                <button key={row.id} type="button" className="cc-grid-card cc-enter" onClick={() => openCompany(row.id)}>
+                <button key={row.id} type="button" className="cc-grid-card cc-enter" onClick={() => openCompany(row.id, row.title)}>
                   <Marquee className="cc-grid-card-title">{row.title}</Marquee>
                   <Marquee className="truncate text-ink-3">{companyLine(row)}</Marquee>
                   <span className="cc-grid-card-foot">

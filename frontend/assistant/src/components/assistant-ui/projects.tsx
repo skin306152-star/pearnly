@@ -51,7 +51,8 @@ import {
   setError,
   useProjects,
 } from "@/lib/managed-agents/projects";
-import { useView } from "@/lib/nav";
+import { useModePlace, useView } from "@/lib/nav";
+import { newTaskIn, useOperatorOrNull } from "@/components/operator/context";
 import { cn } from "@/lib/utils";
 import { shownError } from "@/lib/frappe";
 import { withReport } from "../../lib/caught";
@@ -105,9 +106,16 @@ export function useNewChatIn() {
 }
 
 /** 打开一家公司的主档页。 */
+/** 打开一家公司：对话模式进公司页；代录模式进这家的新建任务页（同代录侧栏组头「＋」）。title：公司显示名（代录任务记它）。 */
 export function useOpenCompany() {
-  const { setView } = useView();
-  return (company: string) => {
+  const { view, setView } = useView();
+  const operator = useOperatorOrNull();
+  return (company: string, title = "") => {
+    if (useModePlace.getState().mode === "operator" && operator) {
+      const known = title || useProjects.getState().projects.find((row) => row.id === company)?.title || company;
+      newTaskIn(operator, { id: company, title: known }, view, setView);
+      return;
+    }
     useCompanyNav.setState({ company });
     setView("company");
   };

@@ -269,7 +269,7 @@ const CompanyCard: FC<{ detail: Detail; period: string; scope: string }> = ({ de
   const line = companyLine(c);
   return (
     <PanelCard id="company" title={co.company} summary={sets.length ? co.card.sets(sets.length) : undefined} slot="cc-panel-company">
-      <button type="button" className="cc-panel-row" data-strong="" title={co.openCompany} onClick={() => openCompany(c.id)}>
+      <button type="button" className="cc-panel-row" data-strong="" title={co.openCompany} onClick={() => openCompany(c.id, c.title)}>
         <Building2Icon />
         <Marquee className="min-w-0 flex-1 truncate">{c.title}</Marquee>
         <ChevronRightIcon />

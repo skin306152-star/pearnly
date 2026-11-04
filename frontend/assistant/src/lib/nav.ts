@@ -221,6 +221,9 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
           latest.current.setView("pending");
         } else if (target.view === "companies" || !company) latest.current.setView("companies");
         else {
+          // 公司主档页只在对话模式（代录模式下进公司是新建任务页，用户 11-03）：提醒点开时在代录就先回对话模式，
+          // 代录停在任务页，切回来还是那一批
+          if (useModePlace.getState().mode === "operator") useModePlace.setState({ mode: "chat", operatorView: "operator" });
           useCompanyNav.setState({ company });
           latest.current.setView("company");
         }

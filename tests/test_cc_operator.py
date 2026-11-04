@@ -1180,6 +1180,73 @@ class SharedWithChatRules(unittest.TestCase):
         self.assertRegex(css, r"--cc-op-panel-min-w: \d+px;")
         self.assertRegex(css, r"--cc-op-panel-max-w: \d+px;")
 
+OPEN_COMPANY = r"""
+import "cc-test-setup";
+import "cc-dom-setup";
+import assert from "node:assert/strict";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { createElement as h } from "react";
+import { type Operator, OperatorValue } from "@/components/operator/controller";
+import { useOpenCompany } from "@/components/assistant-ui/projects";
+import { lastMonth, useCompanyNav } from "@/lib/companies";
+import { useProjects } from "@/lib/managed-agents/projects";
+import { useModePlace, type View, ViewContext } from "@/lib/nav";
+
+// 用户 11-03：代录模式下不管从组头「＋」还是「公司」选一家进，都进这家的新建任务页（同组头「＋」：建一个准备中的任务，月份上个月）；
+// 对话模式照旧进公司页。公司列表页、添加公司之后、右侧栏公司卡都经 useOpenCompany。
+const made: Array<Record<string, string>> = [];
+const views: View[] = [];
+const operator = { create: (input: Record<string, string>) => made.push(input) } as unknown as Operator;
+let open: ReturnType<typeof useOpenCompany> = () => {};
+const Probe = () => {
+  open = useOpenCompany();
+  return null;
+};
+const mount = (view: View, withOperator = true) => {
+  const probe = h(ViewContext.Provider, { value: { view, setView: (v: View) => views.push(v) } }, h(Probe));
+  renderToStaticMarkup(withOperator ? h(OperatorValue, { value: operator }, probe) : probe);
+};
+
+(async () => {
+  // 代录模式、在公司列表页：建任务、主栏换到任务页，不进公司页
+  useModePlace.setState({ mode: "operator" });
+  useCompanyNav.setState({ company: "" });
+  mount("companies");
+  open("CO-1", "Acme");
+  assert.deepEqual(made, [{ company: "CO-1", company_title: "Acme", period: lastMonth() }]);
+  assert.deepEqual(views, ["operator"]);
+  assert.equal(useCompanyNav.getState().company, "", "no company page in hands-on mode");
+  // 没给显示名（深处调用方）：取侧栏公司组的名字
+  useProjects.setState({ projects: [{ id: "CO-2", title: "Beta" } as never] });
+  open("CO-2");
+  assert.equal(made[1].company_title, "Beta");
+  // 已在任务页：不重复换视图
+  views.length = 0;
+  mount("operator");
+  open("CO-1", "Acme");
+  assert.deepEqual(views, []);
+  assert.equal(made.length, 3);
+  // 对话模式：公司页，不建任务
+  useModePlace.setState({ mode: "chat" });
+  mount("companies");
+  open("CO-1", "Acme");
+  assert.equal(made.length, 3);
+  assert.deepEqual(views, ["company"]);
+  assert.equal(useCompanyNav.getState().company, "CO-1");
+  // 没有代录的产品（外壳不挂代录）：照公司页
+  useModePlace.setState({ mode: "operator" });
+  views.length = 0;
+  mount("companies", false);
+  open("CO-1", "Acme");
+  assert.deepEqual(views, ["company"]);
+  assert.equal(made.length, 3);
+  (globalThis as any).done();
+})().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
+"""
+
 
 class OperatorTests(unittest.TestCase):
     def test_logic_and_mock_source(self):
@@ -1189,6 +1256,9 @@ class OperatorTests(unittest.TestCase):
     def test_components_render(self):
         for lang in ("zh", "th", "en"):
             run_ts(RENDER, stubs=STUBS, lang=lang)
+
+    def test_hands_on_mode_opens_a_company_as_a_new_task(self):
+        run_ts(OPEN_COMPANY, stubs=STUBS, lang="zh")
 
     def test_live_source_and_mode_switch(self):
         for lang in ("en", "zh", "th"):

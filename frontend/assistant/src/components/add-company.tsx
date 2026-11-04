@@ -22,11 +22,11 @@ import { shownError } from "@/lib/frappe";
 import { Marquee } from "@/components/ui/marquee";
 import { reportCaught } from "../lib/caught";
 
-type AddState = { open: boolean; then: ((id: string) => void) | null; title: string };
+type AddState = { open: boolean; then: ((id: string, title: string) => void) | null; title: string };
 export const useAddCompany = create<AddState>(() => ({ open: false, then: null, title: "" }));
 
-/** 打开「添加公司」；then：建好（或点了已添加的）之后拿公司编号做什么；title：换个标题（默认「添加公司」）。 */
-export function openAddCompany(then: (id: string) => void, title = "") {
+/** 打开「添加公司」；then：建好（或点了已添加的）之后拿公司编号（与显示名）做什么；title：换个标题（默认「添加公司」）。 */
+export function openAddCompany(then: (id: string, title: string) => void, title = "") {
   useAddCompany.setState({ open: true, then, title });
 }
 
@@ -34,7 +34,7 @@ const close = () => useAddCompany.setState({ open: false, then: null, title: "" 
 
 /** 「添加公司」做什么（按产品声明）：create = 账套目录里挑（then 收到公司编号）；desk = 新窗口打开站点的新建公司页（地址由服务端
  *  给，没有权限给空）；都没有回 null（不出这一项）。 */
-export function useAddCompanyAction(then: (id: string) => void): (() => void) | null {
+export function useAddCompanyAction(then: (id: string, title: string) => void): (() => void) | null {
   const fromCatalog = useSection("create");
   const desk = useSection("desk");
   const [url, setUrl] = useState("");
@@ -113,13 +113,13 @@ const Candidates: FC = () => {
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  const finish = (id: string) => {
+  const finish = (id: string, title: string) => {
     const then = useAddCompany.getState().then;
     close();
-    then?.(id);
+    then?.(id, title);
   };
   const pick = async (row: Candidate) => {
-    if (row.company) return finish(row.company);
+    if (row.company) return finish(row.company, row.title);
     if (busy) return;
     setBusy(row.identity);
     setError("");
@@ -127,7 +127,7 @@ const Candidates: FC = () => {
       const key = keys.current.get(row.identity) ?? requestKey();
       keys.current.set(row.identity, key);
       const made = await createCompany(row, key);
-      finish(made.id);
+      finish(made.id, made.title || row.title);
     } catch (e) { reportCaught(e, "add-company");
       setError(shownError(e));
     } finally {
