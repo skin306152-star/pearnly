@@ -55,6 +55,19 @@ def keys(language_block):
     return set(re.findall(r"(?:^|[\s,{])(\w+):\s*[\"'(`{]", language_block))
 
 
+class SignOutTests(unittest.TestCase):
+    def test_cc_logout_goes_straight_out(self):
+        # 退出（10-20 用户：点了直接退出、跳回，不出 Keycloak 的确认页）：先忘掉这台设备的推送（不挡退出），再走本站统一登出，
+        # 跳到服务端给的地址；菜单里点了就退，没有确认步骤
+        app = read("assistant.tsx")
+        body = app.split("async function signOut() {", 1)[1].split("\n}\n", 1)[0]
+        self.assertLess(body.index("await forgetDevice()"), body.index('siteFetch("/api/method/pearnly_core.identity.sign_out?to=assistant"'))
+        self.assertIn('method: "POST",', body)
+        self.assertIn('location.href = body?.message?.redirect_url || "/";', body)
+        self.assertNotIn("confirm(", body)
+        self.assertIn("onSelect={() => void signOut()}", app)
+
+
 class FeedTests(unittest.TestCase):
     def test_local_events_are_never_the_poll_anchor(self):
         # 本站提醒不在引擎事件记录里：拿它当锚点，服务端每轮都找不到、退回整段重放

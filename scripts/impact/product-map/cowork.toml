@@ -884,7 +884,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-view"
 anchor = "ccview:cowork:operator"
 where = "CC 代录（任务会话）"
-tests = ["flow:cowork.operator.unknown"]
+tests = ["flow:cowork.operator.unknown", "unit:tests/test_cc_operator.py::test_events_fold_into_the_same_conversation", "unit:tests/test_cc_operator.py::test_cards_bridge_and_sidebar_modes"]
 group = "cc.view.operator"
 
 [[row]]
@@ -1698,6 +1698,7 @@ kind = "cc-action"
 anchor = "ccaction:cowork:logout"
 where = "CC 退出（直接退出、跳回，不出确认页）"
 parts = ["login-session"]
+tests = ["unit:tests/test_assistant_ui.py::test_cc_logout_goes_straight_out"]
 group = "cc.action.logout"
 tests = ["unit:tests/test_assistant_entry.py::test_logout_confirmation_submits_itself_without_a_card"]
 

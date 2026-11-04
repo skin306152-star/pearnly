@@ -77,7 +77,6 @@ cowork.cc.view.chat@desktop
 cowork.cc.view.chat@mobile
 cowork.cc.view.company@desktop
 cowork.cc.view.company@mobile
-cowork.cc.view.operator@mobile
 cowork.cc.view.tasks@mobile
 cowork.desk.all.action.selection@desktop
 cowork.desk.all.action.selection@mobile
@@ -207,7 +206,6 @@ erp.cc.tool.express_operator_control@mobile
 erp.cc.tool.express_operator_status@desktop
 erp.cc.tool.express_operator_status@mobile
 erp.cc.view.company@mobile
-erp.cc.view.operator@mobile
 erp.cc.view.tasks@desktop
 erp.cc.view.tasks@mobile
 erp.desk.all.action.selection@desktop
