@@ -42,6 +42,8 @@
 | `cc.assistant`（手动） | 没测到：回归实验室被主会话占用，本块不动它。改动只加可选参数，不传时 DOM 与行为不变；`tests/test_assistant_ui.py`、`tests/test_cc_run_indicator.py`（停止键与 Esc）、`tests/test_cc_run_ui.py`（`ThreadMessages` 真渲染、不传 `before` 时同以前）离线通过。W3 接上后在块 6 一起实测 |
 | `shared.team.members`（手动） | 没测到：本块没改团队页，命中来自 `cc-composer` 登记表里的入口；块 6 一起实测 |
 
+登记：`upload-card.tsx` 进 `cc.operator.page` 的 files（它只给代录会话用）；`tests/flows/registry.toml` 的 `cc.operator` 流程 covers 加 `components/run/*`（块 3 接进代录会话；专门的上传流程 `cowork.cc.operator.upload` 由块 5 补）。改动涉及流程 `cc.chat`、`cc.operator`：回归实验室被主会话占用，本块没跑，块 6 一起跑。
+
 ## 测试
 
 `tests/test_cc_run_ui.py`：三语假数据渲染每种上传状态（字、在动的点、失败与重试、同一份两张卡片）、B2 一行到状态的换算、`ThreadMessages` 的 `before`、`Tail` 与 `stop` 的接法、没有第二套运行界面。`tests/test_cc_idle_motion.py` 登记上传卡片的在动的点只在上传 / 排队 / 识别时挂。

@@ -369,6 +369,9 @@ viewports = ["desktop"]
 covers = [
   "frontend/assistant/src/components/operator/*.ts",
   "frontend/assistant/src/components/operator/*.tsx",
+  # 代录会话里的上传状态卡片（Code 版 CC 块 2；块 3 接进代录会话，专门的上传流程 cowork.cc.operator.upload 由块 5 补）
+  "frontend/assistant/src/components/run/*.ts",
+  "frontend/assistant/src/components/run/*.tsx",
   "frontend/assistant/src/components/assistant-ui/projects.tsx",
   "frontend/assistant/src/components/assistant-ui/sidebar-group.tsx",
   "frontend/assistant/src/components/delete-chats.tsx",

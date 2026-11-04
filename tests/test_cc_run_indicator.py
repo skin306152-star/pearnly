@@ -460,7 +460,7 @@ assert.equal(Object.values(listeners).every((l) => l.length === 0), true);
         self.assertIn("const dropKeyboard = TOUCH || phone;", composer)
         self.assertIn("if (dropKeyboard && !emptyNow.current) input.current?.blur();", composer)
         self.assertIn('onSubmit={sent}', composer)
-        self.assertIn("<ComposerAction onSend={sent} />", composer)
+        self.assertIn("<ComposerAction onSend={sent} stop={stop} />", composer)  # stop：代录交自己的停止（components/run/types.ts）
         self.assertIn("onClick={onSend}", composer)
         self.assertIn("ref={input}", composer)
         self.assertIn("unstable_focusOnRunStart={!dropKeyboard", composer)
