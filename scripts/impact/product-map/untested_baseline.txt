@@ -383,7 +383,6 @@ erp.desk.query-report-erp stock count variance.action.Export@mobile
 erp.line.card-edit@mobile
 erp.line.event.unfollow@mobile
 erp.scan.cashier.camera@mobile
-erp.scan.inventory.opening.item-scan@mobile
 erp.scan.products.detail.barcode-scan@mobile
 erp.scan.products.new-page.scan@mobile
 erp.scan.serials.dialog@mobile

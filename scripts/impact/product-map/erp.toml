@@ -1655,7 +1655,7 @@ kind = "scan"
 anchor = "scan:erp.inventory.opening.item-scan"
 where = "库存 → 录入期初：库存 → 录入期初 → 明细商品格扫码"
 parts = ["desk-scan-core", "erp-scan-dialog"]
-tests = ["impact:erp.inventory.opening.item-scan"]
+tests = ["flow:erp.stock-opening.scan@mobile", "impact:erp.inventory.opening.item-scan"]
 
 [[row]]
 id = "erp.scan.purchase.item-scan"
