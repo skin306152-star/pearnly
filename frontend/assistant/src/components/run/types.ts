@@ -1,70 +1,22 @@
-// 「Code 版 CC」会话组件的接口（评估 docs/work/2026-11-04-cc-code-style.md 第 1、4、5、13 节，施工块 2）。
-// 对话（直写）与代录两种模式共用同一套组件：消息下的任务清单、结束框、侧栏行的「等你处理」标记、上传状态卡片、
-// 出错 / 停止 / 被打断。这里只有类型：不碰 React、不读接口，块 3（代录对话化）照这份并行开工。
+// 「Code 版 CC」对话里的上传状态卡片接口（评估 docs/work/2026-11-04-cc-code-style.md 第 5 节，施工块 2；11-04 用户更正后的范围）。
 //
-// 服务端回包（TaskUpload*、PlanToolInput、NextStepToolInput）按评估第 4 节 B2、B8 的形状写；块 1 的接口做出来有出入时在这里对齐，
-// 组件只吃下面的 *Props。
+// 用户更正：任务清单、结束框、侧栏「等你处理」新标记、另一套出错显示都**不做**——Code 左侧只有对话简要，执行中、结束、出错、停止
+// 都在对话框里，直写现有的那套就是标准，代录照着用：
+//   - 执行中：thread.tsx 的 RunLine（工作状态行）；
+//   - 出错：.cc-alert 出错框（thread.tsx 的 SendFailure / MessageError 同一个样子）；
+//   - 停止：输入框里的 ■（thread.tsx 的 Composer，代录经 `stop` 传自己的在跑状态与停止动作，见下面 ComposerStop）；
+//   - 侧栏：thread-list.tsx 的 ActivityMark（在跑脉冲点、跑完没看蓝点），不加新标记。
+// 这里只剩上传状态卡片（根治「看不到状态 → 重复上传、重复扣费」）：同一份再传照常识别、照常扣费，不加「已传过」之类的提示。
+// 样子用直写已有的附件卡片（attachment.tsx 的 AttachmentCard）加一行步骤行的字拼，不新造风格。
+//
+// TaskUpload* 按评估第 4 节 B1、B2 写；块 1 的接口做出来有出入时在这里对齐，组件只吃 UploadCardProps。
 
-// ── 任务清单（S3：消息下面，照 Code 的 update_plan；三种状态，同时只一项进行中） ────────────────────────────────
-
-export type PlanStatus = "pending" | "in_progress" | "completed";
-
-export type PlanItem = {
-  id: string;
-  text: string;
-  status: PlanStatus;
-  /** 完成了但没做成（代录「没录成」）：行尾危险色「失败」 */
-  failed?: boolean;
-  /** 行尾淡色补充（单号、对方、没录成的原因） */
-  note?: string;
-};
-
-export type RunPlanProps = {
-  items: readonly PlanItem[];
-  /** 摘要行的字；不给就是「已完成 n/m」。代录给「第 n/N 张」 */
-  summary?: string;
-  /** 一开始展开没有；不给：电脑展开、手机收起，全部完成的收起 */
-  defaultOpen?: boolean;
-};
-
-// ── 结束框（S4：一轮做完最后一个框，照 Code 的 wrap_up） ───────────────────────────────────────────────────
-
-/** 结束框的按钮：1～2 个，第一个是推荐项（主按钮）。 */
-export type NextStepAction = { id: string; label: string };
-
-/** ask 等人点；sending 点了还没送到；answered 送到了；failed 没做成；cancelled 没答就没了（这一轮被新消息盖过、停了）。 */
-export type NextStepPhase = "ask" | "sending" | "answered" | "failed" | "cancelled";
-
-export type NextStepProps = {
-  /** 回顾：2～3 句；回顾的第一句也是侧栏这一行的状态（由调用方取） */
-  recap: string;
-  /** 要人定的一件事（≤100 字）；没有就只留回顾，不画框 */
-  ask?: string;
-  actions?: readonly NextStepAction[];
-  /** 不给 = ask */
-  phase?: NextStepPhase;
-  /** 点过的那一项（NextStepAction.id）：sending / answered / failed 时显示它的字 */
-  chosen?: string;
-  /** 没送到的原因：ask 阶段写在按钮上方一行 */
-  error?: string;
-  onAction?: (id: string) => void;
-  /** inline：对话流里；sheet：手机上贴在输入框上方（同 approval-sheet，由调用方放进输入框那一块） */
-  placement?: "inline" | "sheet";
-};
-
-// ── 侧栏行状态（S5、评估 1.3；Q2：加「等你处理」） ────────────────────────────────────────────────────────
-
-/** running 在跑；waiting 等你处理（新）；unread 跑完没看；notice 有没看过的提醒。完成不标。 */
-export type RunMarkState = "running" | "waiting" | "unread" | "notice";
-
-export type RunMarkProps = { state: RunMarkState };
-
-// ── 上传状态卡片（第 5 节；同一份再传照常识别、照常扣费，不加「已传过」之类的提示） ──────────────────────────────
-
+/** 一份上传此刻的状态。 */
 export type UploadState =
   /** 按已传字节，0～100 */
   | { kind: "uploading"; percent: number }
   | { kind: "queued" }
+  /** pageCount 还不知道时为 0 */
   | { kind: "reading"; pagesDone: number; pageCount: number }
   /** documents：识别出几张；outside：其中几张不在任务月份（month 是给人看的月份，如「10 月」） */
   | { kind: "done"; documents: number; outside: number; month?: string }
@@ -117,21 +69,6 @@ export type TaskUpload = {
   error_code?: string | null;
 };
 
-// ── 出错、停止、被打断（S6、S7：两种模式同一种呈现） ─────────────────────────────────────────────────────────
-
-/** error：这一轮 / 这一批出错；stopped：你按了停止；interrupted：被别的打断（Code 的样子不知道，沿用「已停止」）。 */
-export type RunEndKind = "error" | "stopped" | "interrupted";
-
-export type RunEndProps = {
-  kind: RunEndKind;
-  /** error：原因（必给）；stopped / interrupted：接在「已停止」后面的补充（「录好 18 张」），可不给 */
-  text?: string;
-  /** 落在 data-slot 上（流程断言用），不给就是 cc-run-end */
-  slot?: string;
-};
-
-// ── B8：对话模式里 CC 自己输出的两个工具（Q5 已批；工具定义归块 1，这里只写前端认的入参） ──────────────────────────
-
-export type PlanToolInput = { items: Array<{ content: string; status: PlanStatus }> };
-
-export type NextStepToolInput = { recap: string; ask?: string; actions?: Array<{ label: string }> };
+/** 输入框（thread.tsx 的 Composer）的 `stop`：不在对话运行时里的调用方（代录）交自己的在跑状态与停止动作，
+ *  发送键在跑时换成直写同一个 ■，Esc 同效。不给就是对话自己的（这一轮在跑时停这一轮）。 */
+export type ComposerStop = { running: boolean; onStop: () => void };
