@@ -202,3 +202,4 @@ assistant:OPERATOR.stop	zh	停止	2026-10-27	docs/work/2026-10-26-express-operat
 assistant:OPERATOR.voidedNo	zh	已作废 {x}	2026-10-27	docs/work/2026-10-26-express-operator-product-评估.md
 pearnly_cowork:cowork.stock.workbench.saveNext	zh	继续	2026-11-02	docs/work/2026-11-02-stocktake-scan-inline-评估.md
 pearnly_erp_portal:stock.workbench.saveNext	zh	继续	2026-11-02	docs/work/2026-11-02-stocktake-scan-inline-评估.md
+assistant:COMPANY.ledger.code.result_unknown	zh	结果不明	2026-11-04	docs/work/2026-11-04-cc-code-style.md

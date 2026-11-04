@@ -659,7 +659,15 @@ W3 现在做的块 3、块 4 是在现有 `operator/*` 模型上把右栏挪进�
 
 共用帮手放 `scripts/flows/cc_lib.py`（切模式、下巴选公司（菜单先列侧栏里的，找不到在菜单的搜索框里搜）、说一句、按模式列会话、展开步骤组）。
 
-**改了已有文案口径的地方（交主会话）**：「开始前」卡片里结果不明的那张，旧页面写站点那一句（`intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN`），U2 的卡片按代码写「结果不明」。本批没改，流程按新口径断言。
+**改已有文案（用户 11-04 同意，主会话转达原话「2同意」）**
+
+| 位置 | 改前（中文） | 改后（中文） |
+|---|---|---|
+| 代录「开始前」卡片里推送结果不明的那张，单号下面那一行 | 站点那一句 `pearnly_cowork:intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN`：结果未确认，请先在 Express 中核对，再决定是否重新推送 | 按代码出的 `assistant:COMPANY.ledger.code.result_unknown`：结果不明 |
+
+两个词条本身都没改（文案闸门「改动 0」，`--approve` 没有可登记的），换的是卡片显示哪一条；按 `copy-approved.tsv` 的手写格式登记了改后的那一条（2026-11-04，出处本记录）。流程 `cowork.operator.unknown` 按改后口径断言。
+
+**样式**：单据步骤里没录成的原因、资料那一步展开的分组列表原来套着步骤明细的代码样式（`.cc-step-detail`：等宽字体、小一号），那是命令与输出用的；改成 `.cc-step-detail.cc-step-text`（正文字体、字号行高同步骤行），背景与分隔线照旧。
 
 **验证（本机，回归实验室 `pearnly-regression-lab` 挂本工作树）**
 
