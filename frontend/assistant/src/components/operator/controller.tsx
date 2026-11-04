@@ -1,13 +1,13 @@
 // 「实操」工作区的状态与动作（侧栏、顶栏、主栏、右侧栏共用一份；外壳 assistant.tsx 在实操视图里把它包在侧栏与主区外面）。
 //
 //   看的是哪个任务：useModePlace.batch（空 = 新建任务，其余是站点的任务号）。任务本身是站点的任务记录（tasks.ts，跨设备）。
-//   新建：选了公司（月份默认上个月）就建一个准备中的任务（task_create），右侧栏随即出资料、上传框、开始前确认与「开始」；在输入框
-//         里说一句是另一种方式，不是必须的（那句话记在这台设备上，作主栏顶上的气泡）。
-//   准备中：资料（站点分页取）、开始前确认（预检，要人定的一次问完；上次推送结果不明的单标已入账 / 没有入账）、电脑；公司、月份还能改。
-//         「开始」一直能点：还不能开始时点了说明还差什么（startBlocker），并打开对应的分区。
+//   新建：选了公司（月份默认上个月）就建一个准备中的任务（task_create），会话里随即出资料步骤行与「开始前」框（conversation.tsx）；
+//         在输入框里说的话交给这个任务的对话（task-thread.tsx），放的资料一份一张上传卡片（uploads.ts）。
+//   准备中：资料（站点分页取）、开始前确认（预检，要人定的一次问完；上次推送结果不明的单标已入账 / 没有入账；预检回包带这次写入的
+//         账套）、电脑；公司、月份还能改。「开始」一直能点：还不能开始时点了在它上面说还差什么（startBlocker）。
 //   已开始：进度（这台电脑上在跑的来自桥，别处的按站点任务记录里的交单结论；先取一次，之后跟着订阅）；停止 / 开始、跳过 / 重试、
 //         整批停下后继续、删除都交给数据源，完了按数据源推来的进度刷新。登录类停下的先授权，授权好了接着继续。
-// 出错显示在主栏顶上（shownError：本站拒收照原文，别的只说通用的一句）。
+// 出错显示在会话里（同对话的出错框 .cc-alert；shownError：本站拒收照原文，别的只说通用的一句）。
 
 import { type FC, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { op } from "@/i18n";
@@ -15,9 +15,10 @@ import { shownError } from "@/lib/frappe";
 import { useModePlace } from "@/lib/nav";
 import { newTaskIn, OperatorContext, useOperatorOrNull } from "./context";
 import { allAnswered, answersFor, batchNeedsHuman, docsToStart, groupOf, questionsOf, unknownDocs, type Question } from "./model";
-import { type Draft, EMPTY_PREP, forgetPrep, setFold, setPrep, useOperatorStore } from "./store";
+import { type Draft, EMPTY_PREP, forgetPrep, setPrep, useOperatorStore } from "./store";
 import { dropTask, loadTasks, upsertTask, useTasks } from "./tasks";
-import type { BatchSnapshot, CreateBatchInput, DocGroup, DocumentOption, OperatorComputer, OperatorSource, PrecheckDoc, TaskRecord } from "./types";
+import type { BatchSnapshot, CreateBatchInput, DocGroup, DocumentOption, OperatorComputer, OperatorSource, PrecheckDoc, TaskRecord, WriteTarget } from "./types";
+import { sendUploads } from "./uploads";
 import { siteSeconds } from "./live-source";
 import { reportCaught, withReport } from "@/lib/caught";
 
@@ -30,20 +31,20 @@ export function canStart(input: { docs: number; questions: readonly Question[]; 
   return !startBlocker(input);
 }
 
-/** 还不能开始时差的那一项（给人看的一句 + 要打开的分区）；能开始回 null。 */
+/** 还不能开始时差的那一项（给人看的一句，写在「开始」上面）；能开始回 null。 */
 export function startBlocker(input: {
   docs: number;
   questions: readonly Question[];
   answers: Record<string, string>;
   unknown?: number;
   computer?: OperatorComputer;
-}): { text: string; section: "files" | "confirm" | "computer" } | null {
-  if (input.docs <= 0) return { text: op.noDocs, section: "files" };
+}): string | null {
+  if (input.docs <= 0) return op.noDocs;
   const left = input.questions.filter((q) => !input.answers[q.key]).length + (input.unknown ?? 0);
-  if (left > 0) return { text: op.confirmLeft(left), section: "confirm" };
+  if (left > 0) return op.confirmLeft(left);
   const pc = input.computer;
-  if (!pc || !pc.online) return { text: [pc?.name || op.computer, op.offline].join(" · "), section: "computer" };
-  if (pc.login === false) return { text: op.reason.login_missing!, section: "computer" };
+  if (!pc || !pc.online) return [pc?.name || op.computer, op.offline].join(" · ");
+  if (pc.login === false) return op.reason.login_missing!;
   return null;
 }
 
@@ -78,9 +79,11 @@ export type DraftData = {
   next: number | null;
   prechecks: PrecheckDoc[] | null;
   computers: OperatorComputer[] | null;
+  /** 这次写进哪份账套（站点预检回包；不知道为 null）。 */
+  target: WriteTarget | null;
 };
 
-const EMPTY: DraftData = { docs: null, next: null, prechecks: null, computers: null };
+const EMPTY: DraftData = { docs: null, next: null, prechecks: null, computers: null, target: null };
 
 export type Operator = {
   source: OperatorSource;
@@ -97,17 +100,20 @@ export type Operator = {
   /** 点了「开始」还不能开始：差的那一项（能开始了就空）。 */
   notice: string;
   computer: OperatorComputer | undefined;
+  /** 这次写进哪份账套（准备中按预检；开始以后看 snapshot.account_set）。 */
+  target: WriteTarget | null;
   select(id: string): void;
   /** 新建一个准备中的任务（选了公司就建）；prompt：输入框里说的那句话（可空）。 */
   create(input: { company: string; company_title: string; period: string; prompt?: string; computer?: string }): void;
   /** 准备中改公司、月份。 */
   retarget(patch: { company?: string; company_title?: string; period?: string }): void;
-  /** 准备中在输入框里说的那句话（主栏顶上的气泡）。 */
-  say(text: string): void;
   answer(key: string, value: string): void;
   chooseComputer(id: string): void;
   regroup(docId: string, group: DocGroup): void;
+  /** 放资料进来：一份一张上传卡片（uploads.ts），准备中、开始以后都进这家这个月。 */
   intake(files: readonly File[]): void;
+  /** 有一份刚识别完：准备中重取资料与预检。 */
+  refresh(): void;
   loadMore(): void;
   /** 结果不明的单：标已入账 / 没有入账，再预检一次。 */
   resolve(docId: string, entered: boolean): void;
@@ -226,21 +232,24 @@ export const OperatorProvider: FC<{ source: OperatorSource; active?: boolean; ch
   const precheck = useCallback(
     async (docs: readonly DocumentOption[], merge = false) => {
       const ids = docs.filter((doc) => groupOf(doc) !== "skip").map((doc) => doc.id);
-      const found = ids.length ? await source.precheck(company, ids) : [];
+      const reply = ids.length ? await source.precheck(company, ids) : { documents: [], target: null };
+      const found = reply.documents;
       setData((before) => {
-        if (!merge) return { ...before, prechecks: found };
+        const target = reply.target ?? before.target;
+        if (!merge) return { ...before, prechecks: found, target };
         const fresh = new Set(found.map((row) => row.doc_id));
-        return { ...before, prechecks: [...(before.prechecks ?? []).filter((row) => !fresh.has(row.doc_id)), ...found] };
+        return { ...before, prechecks: [...(before.prechecks ?? []).filter((row) => !fresh.has(row.doc_id)), ...found], target };
       });
     },
     [source, company],
   );
-  const reload = useCallback(async () => {
+  // clear：换了任务、公司或月份时先清空；有一份刚识别完时就地换上（框不闪）
+  const reload = useCallback(async (clear = true) => {
     const ticket = ++loading.current;
-    setData(EMPTY);
+    if (clear) setData(EMPTY);
     const [page, computers] = await Promise.all([source.documents(company, period, 0, PAGE), source.computers(company)]);
     if (ticket !== loading.current) return;
-    setData({ docs: page.documents, next: page.next, prechecks: null, computers });
+    setData((before) => ({ docs: page.documents, next: page.next, prechecks: clear ? null : before.prechecks, computers, target: clear ? null : before.target }));
     await precheck(page.documents);
   }, [source, company, period, precheck]);
   useEffect(() => {
@@ -249,7 +258,7 @@ export const OperatorProvider: FC<{ source: OperatorSource; active?: boolean; ch
       setData(EMPTY);
       return;
     }
-    void act(reload);
+    void act(() => reload());
   }, [company, reload, act]);
   useEffect(() => {
     setError("");
@@ -277,8 +286,9 @@ export const OperatorProvider: FC<{ source: OperatorSource; active?: boolean; ch
     snapshot,
     busy,
     error: error || loadError,
-    notice: asked && blocker ? blocker.text : "",
+    notice: asked && blocker ? blocker : "",
     computer,
+    target: data.target,
     select,
     create(input) {
       void act(async () => {
@@ -291,9 +301,6 @@ export const OperatorProvider: FC<{ source: OperatorSource; active?: boolean; ch
     retarget(patch) {
       if (!draft) return;
       void act(async () => upsertTask(await source.updateTask(draft.id, patch)));
-    },
-    say(text) {
-      if (draft && text.trim()) setPrep(draft.id, { prompt: text.trim() });
     },
     answer(key, choice) {
       if (draft) setPrep(draft.id, { answers: { ...draft.answers, [key]: choice } });
@@ -314,11 +321,12 @@ export const OperatorProvider: FC<{ source: OperatorSource; active?: boolean; ch
       });
     },
     intake(files) {
-      if (!draft || !files.length) return;
-      void act(async () => {
-        await source.intake(company, period, files);
-        await reload();
-      });
+      const at = draft ?? task;
+      if (!at || !files.length) return;
+      void sendUploads(source, { task: id, company: at.company, period: at.period }, files);
+    },
+    refresh() {
+      if (draft && company) void act(() => reload(false));
     },
     loadMore() {
       if (!draft || data.next === null) return;
@@ -345,9 +353,8 @@ export const OperatorProvider: FC<{ source: OperatorSource; active?: boolean; ch
       if (draft) {
         if (!loaded) return;
         if (blocker) {
-          // 一直能点：还差什么就说什么，并打开那一个分区
+          // 一直能点：还差什么就在「开始」上面说
           setAsked(true);
-          setFold(`${draft.id}:${blocker.section}`, true);
           return;
         }
         void act(async () => {

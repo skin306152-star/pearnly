@@ -1,13 +1,11 @@
-// 「实操」侧栏与右栏的个人排列（同对话侧，按人存在服务端、跨设备同步，lib/prefs-sync.ts）：存在服务端偏好的 operator 份里，
-// 与对话的 order / view / cards 分开——任务号不进对话的手排顺序：
+// 「实操」侧栏的个人排列（同对话侧，按人存在服务端、跨设备同步，lib/prefs-sync.ts）：存在服务端偏好的 operator 份里，
+// 与对话的 order / view 分开——任务号不进对话的手排顺序：
 //   order/… — 侧栏手排的公司组、置顶与组里任务的顺序（sidebar-order.ts 的另一份实例，本机缓存键 cc.operator.sidebar.order:<用户>）
-//   cards/folds — 右栏各分区手动开合（store.ts 的 folds）
 // 侧栏各组的折叠仍按设备记（sidebar-fold.ts 的另一份实例，键 cc.operator.sidebar.collapsed:<用户>），同对话。
+// 旧版本在这一份里存过右栏分区开合（cards/folds）：右栏已删，服务端偏好里留着的认不出就不读，不迁移。
 
 import { createSidebarFold } from "@/lib/managed-agents/sidebar-fold";
 import { createSidebarOrder } from "@/lib/managed-agents/sidebar-order";
-import { registerPref } from "@/lib/prefs-sync";
-import { parseFolds, useOperatorStore } from "./store";
 import { bindSeenUser, useTasks } from "./tasks";
 
 export const OPERATOR_PREF = "operator";
@@ -20,19 +18,6 @@ export const taskOrder = createSidebarOrder({
 });
 
 export const taskFold = createSidebarFold("cc.operator.sidebar.collapsed");
-
-registerPref(
-  OPERATOR_PREF,
-  {
-    read: () => ({ folds: useOperatorStore.getState().folds }),
-    changed: () => Object.keys(useOperatorStore.getState().folds).length > 0,
-    apply: (value) => {
-      const folds = (value as { folds?: unknown } | null)?.folds;
-      if (folds !== undefined) useOperatorStore.setState({ folds: parseFolds(folds) });
-    },
-  },
-  "cards/",
-);
 
 /** 知道是谁了：手排顺序、组的折叠、看过没有换成这个人的。 */
 export function bindOperatorUser(user: string) {

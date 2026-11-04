@@ -1,5 +1,5 @@
-// 实操任务里的对话（对话框甲，主会话 10-29 审定）：任务页底部那个输入框打的字交给 CC（同对话页那一套：会话控制器收发、回放、
-// 实时跟），回复画在任务记录下面；不是主角，右侧栏照旧是主看板。
+// 实操任务里的对话（对话框甲，主会话 10-29 审定；11-04 右栏删了以后任务的一切都在这一条会话里）：输入框打的字交给 CC（同对话页
+// 那一套：会话控制器收发、回放、实时跟；准备中说的也交，评估 Q6），回复与上传卡片按时间排在会话里（workspace.tsx）。
 //   - 一个任务一段对话（站点 task_thread：第一次打字时建，不进对话侧栏），智能体用实操工具查进度、交代跳过 / 重做
 //     （pearnly_core/express_operator/tools.py；跳过、重做由执行的那台电脑取走照桥上控制做，live-source 的 takeControls）。
 //   - 录到中途停下等人选的单（任务里「未完成」、预检判成要选的）：选项卡片出在任务记录里，人点选项、点确定 → 记下并交回这个任务
@@ -80,7 +80,7 @@ export const TaskChoices: FC<{ waiting: readonly string[] }> = ({ waiting }) => 
     if (!task || !key) return setPrechecks(null);
     let alive = true;
     void o.source.precheck(task.company, key.split(",")).then(
-      (rows) => alive && setPrechecks(rows),
+      (reply) => alive && setPrechecks(reply.documents),
       () => alive && setPrechecks([]),
     );
     return () => {

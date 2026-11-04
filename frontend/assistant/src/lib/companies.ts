@@ -8,7 +8,8 @@
 //               Cowork 服务端给的 action 里调到（ERP 的待处理只给 action open），tests/test_assistant_ui.py 列出并核对
 //   当前公司  — 公司页 / 主档页 / 定时任务页 / 待处理页看的是哪家（useCompanyNav；深链接 ?company=、?view=tasks&company=）
 //   月份分店  — 处理月份 YYYY-MM（公历存，泰文按佛历显示）；分店号 5 位，00000 是总公司（显示走翻译）
-//   待处理    — 侧栏「待处理 N」与公司组头的数（pending_counts，一次 GROUP 查询），推送状态的站点事件来了重取，回到前台重取
+//   待处理    — 按公司、按「公司 · 月份」的计数（pending_counts，GROUP 查询）：公司列表上的数、侧栏的占位行、对话末尾「需要处理」框
+//               落在哪段对话；推送状态的站点事件来了重取，回到前台重取
 //
 // 金额是服务端给的十进制字符串（Decimal），页面只插千分位、不转成浮点。
 
@@ -297,9 +298,8 @@ type CompanyNav = {
   taskCompany: string; // 定时任务页只看这家（""= 全部）
   taskFocus: string; // 定时任务页定位到哪个任务
   taskSeed: TaskSeed | null; // 打开定时任务页时接着开新建表单并预填
-  pendingCompany: string; // 待处理只看这家
 };
-export const useCompanyNav = create<CompanyNav>(() => ({ company: "", taskCompany: "", taskFocus: "", taskSeed: null, pendingCompany: "" }));
+export const useCompanyNav = create<CompanyNav>(() => ({ company: "", taskCompany: "", taskFocus: "", taskSeed: null }));
 
 // ---------------------------------------------------------------- 月份与分店
 const MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
@@ -446,8 +446,12 @@ export function useBranches(company: string): Branch[] {
 }
 
 // ---------------------------------------------------------------- 待处理计数
-type Counts = { loaded: boolean; total: number; companies: Record<string, number> };
-export const usePendingCounts = create<Counts>(() => ({ loaded: false, total: 0, companies: {} }));
+/** 待处理按「公司 · 月份」（服务端 pending_counts 的 months）：conversation 是本人这家这个月最近更新、没归档的那段对话，没有为空；
+ *  company 为空 = 归不上公司（只有 Cowork）。待处理并进对话（用户 11-04）：有对话的落在那段对话末尾的「需要处理」框，没有的侧栏放
+ *  一行占位，点了才建对话。 */
+export type PendingMonth = { company: string; month: string; count: number; conversation: string };
+type Counts = { loaded: boolean; total: number; companies: Record<string, number>; months: PendingMonth[] | null };
+export const usePendingCounts = create<Counts>(() => ({ loaded: false, total: 0, companies: {}, months: null }));
 
 // 推送状态变了（录入列表同一个事件，history/push_state.py）、定时任务有变化（folder_intake/live.py）：重取一次计数。
 // 另一路是共用的 pearnly.project（part = pending，ERP 单据的账本状态进出「待处理」时推，express/pending.py）：pendingChanged
@@ -458,9 +462,13 @@ export function onPendingChange(handler: () => void): () => void {
   return onProjectChange((change) => (change.op === "upsert" && change.part === "pending" ? handler() : undefined));
 }
 
-type CountsReply = { total?: number; companies?: Record<string, number>; by_company?: Record<string, number> } | Array<{ company: string | null; count: number }>;
+type MonthReply = { company?: string | null; month?: string | null; count?: number | string; conversation?: string | null };
+type CountsReply =
+  | { total?: number; companies?: Record<string, number>; by_company?: Record<string, number>; months?: MonthReply[] | null }
+  | Array<{ company: string | null; count: number }>;
 
-export function parseCounts(out: CountsReply | null | undefined): { total: number; companies: Record<string, number> } {
+/** 服务端的计数。months：旧服务端没给时为 null（页面不出占位行，「需要处理」框在这家这个月的任一段对话里出）。 */
+export function parseCounts(out: CountsReply | null | undefined): { total: number; companies: Record<string, number>; months: PendingMonth[] | null } {
   if (Array.isArray(out)) {
     const companies: Record<string, number> = {};
     let total = 0;
@@ -468,11 +476,16 @@ export function parseCounts(out: CountsReply | null | undefined): { total: numbe
       total += Number(row.count) || 0;
       if (row.company) companies[row.company] = (companies[row.company] ?? 0) + (Number(row.count) || 0);
     }
-    return { total, companies };
+    return { total, companies, months: null };
   }
   const companies = { ...(out?.companies ?? out?.by_company ?? {}) };
   const total = Number(out?.total) || Object.values(companies).reduce((a, b) => a + (Number(b) || 0), 0);
-  return { total, companies };
+  const months = Array.isArray(out?.months)
+    ? out.months
+        .map((row) => ({ company: String(row.company ?? ""), month: String(row.month ?? ""), count: Number(row.count) || 0, conversation: String(row.conversation ?? "") }))
+        .filter((row) => row.count > 0 && (isPeriod(row.month) || !row.company))
+    : null;
+  return { total, companies, months };
 }
 
 let counting: Promise<void> | null = null;

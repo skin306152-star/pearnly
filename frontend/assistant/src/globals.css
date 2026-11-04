@@ -965,11 +965,7 @@
   --cc-status-dot: 8px;           /* 现有值·CC 自定：状态点、侧栏未读点 */
   --cc-op-seg-btn: 30px;          /* 现有值·CC 自定：左上「直写 / 实操」图标按钮的点按区（照 Claude 分段，图标 18 用 --cc-icon-md） */
   --cc-op-seg-stroke: 2;          /* 现有值·CC 自定：「直写 / 实操」两个图标的线宽（24 网格） */
-  --cc-op-narrow: 900px;          /* 现有值·CC 自定：实操右侧栏窄于它改成从右边滑出的抽屉（设计稿 Narrow） */
-  --cc-op-panel-w: 360px;         /* 现有值·CC 自定：实操右侧栏宽（设计稿 Main；并排时拖左边的分隔条改，记在本机） */
-  --cc-op-panel-min-w: 300px;     /* 现有值·CC 自定：实操右侧栏拖到最窄 */
-  --cc-op-panel-max-w: 720px;     /* 现有值·CC 自定：实操右侧栏拖到最宽（主栏另不窄于 --cc-chat-min-w） */
-  --cc-op-select-w: 150px;        /* 现有值·CC 自定：实操「开始前确认」每项下拉的宽（设计稿 BeforeEntry） */
+  --cc-op-select-w: 150px;        /* 现有值·CC 自定：实操「开始前」框每项下拉的宽（设计稿 BeforeEntry） */
   --cc-title-max-w: 28rem;        /* 现有值·CC 自定：电脑顶栏对话名最宽 */
   --cc-title-edit-w: 18rem;       /* 现有值·CC 自定：顶栏就地改名框宽 */
   --cc-title-company-max-w: 14rem;   /* 现有值·CC 自定：顶栏「公司名 ›」最宽 */
@@ -2151,7 +2147,7 @@
   .cc-op-seg-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-op-seg-btn svg { width: var(--cc-icon-md); height: var(--cc-icon-md); stroke-width: var(--cc-op-seg-stroke); }
 
-  /* 实操工作区：主栏（记录 + 底部输入框，同对话的内容宽）与右侧栏并排 */
+  /* 实操工作区：一条任务会话（记录 + 底部输入框，同对话的内容宽），没有右侧栏 */
   .cc-op-work { position: relative; display: flex; flex: 1; min-width: 0; min-height: 0; }
   .cc-op-main { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
   .cc-op-new {
@@ -2164,92 +2160,42 @@
     padding: var(--cc-space-16) var(--cc-space-16) var(--cc-space-24); color: var(--cc-ink); font-size: var(--cc-body-size); line-height: var(--cc-body-lh);
   }
   .cc-op-you { display: flex; justify-content: flex-end; }
+  /* 上传卡片：你放进来的资料，同你发的消息里的附件靠右 */
+  .cc-op-uploads { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--cc-space-8); }
   .cc-op-meta { color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
-  /* 每张单一行：图标 | 单号 · 对方（下面一行 Express 单号或原因）| 状态 */
-  .cc-op-row { display: grid; grid-template-columns: var(--cc-icon-sm) minmax(0, 1fr) auto; align-items: center; gap: var(--cc-space-12); padding-block: var(--cc-space-4); }
+  .cc-op-count { flex-shrink: 0; color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); font-variant-numeric: tabular-nums; }
+  /* 每张单一行：图标 | 单号 · 对方（下面一行 Express 单号或原因）| 状态；要人处理的行下一行按钮 */
+  .cc-op-row { display: grid; grid-template-columns: var(--cc-icon-sm) minmax(0, 1fr) auto; align-items: center; gap: var(--cc-space-4) var(--cc-space-12); padding-block: var(--cc-space-4); }
   .cc-op-row-icon { width: var(--cc-icon-sm); height: var(--cc-icon-sm); color: var(--cc-ink-3); }
   .cc-op-row-state { color: var(--cc-ink-3); font-size: var(--cc-panel-font); line-height: var(--cc-panel-lh); white-space: nowrap; }
+  .cc-op-row-actions { grid-column: 2 / -1; }
   .cc-op-row[data-tone="done"] :is(.cc-op-row-icon, .cc-op-row-state) { color: var(--cc-status-online); }
   .cc-op-row[data-tone="running"] :is(.cc-op-row-icon, .cc-op-row-state) { color: var(--cc-status-processing); }
   .cc-op-row[data-tone="running"] .cc-op-row-icon { fill: currentColor; }
   .cc-op-row[data-tone="attention"] :is(.cc-op-row-icon, .cc-op-row-state) { color: var(--cc-status-attention); }
   .cc-op-finish { padding-block-start: var(--cc-space-8); border-block-start: var(--cc-ring-w) solid var(--cc-line); }
-  .cc-op-attention {
-    display: flex; align-items: center; gap: var(--cc-space-8); min-height: var(--cc-control); padding-inline: var(--cc-space-12);
-    border-radius: var(--cc-radius-md); background: var(--cc-bg-subtle); color: var(--cc-status-attention); text-align: start; outline: none;
-  }
-  .cc-op-attention:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-op-foot { width: 100%; max-width: var(--cc-thread-w); margin-inline: auto; padding: var(--cc-space-8) var(--cc-space-16) var(--cc-space-16); }
   .cc-op-title { min-width: 0; max-width: var(--cc-title-max-w); overflow: hidden; color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: var(--cc-weight-medium); }
 
-  /* 实操的右侧栏（与对话页会话栏 .cc-panel 分开）：整张贴右边、左边 1px 线、分区之间 1px 线；窄屏从右边整高滑出盖在主栏上
-     （点外面关），手机盖满屏 */
-  .cc-op-panel {
-    position: relative; display: flex; flex-direction: column; flex-shrink: 0; width: var(--cc-op-panel-w); min-height: 0;
-    border-inline-start: var(--cc-ring-w) solid var(--cc-line); background: var(--cc-bg-app);
-  }
-  .cc-op-panel[data-mode="floating"] {
-    position: absolute; inset-block: 0; inset-inline-end: 0; z-index: var(--cc-z-scrim); max-width: 100%; box-shadow: var(--cc-shadow-float);
-    animation: cc-op-slide-in var(--cc-dur) var(--cc-ease) both;
-  }
-  .cc-op-panel[data-mode="phone"] {
-    position: fixed; inset: 0; z-index: var(--cc-z-sheet); width: 100%; border-inline-start-width: 0;
-    padding: env(safe-area-inset-top) 0 max(var(--cc-space-16), env(safe-area-inset-bottom));
-  }
-  .cc-op-scrim { position: absolute; inset: 0; z-index: var(--cc-z-scrim); background: var(--cc-bg-overlay); animation: cc-fade-in var(--cc-dur) var(--cc-ease) both; }
-  .cc-op-panel-top {
-    display: flex; flex-shrink: 0; align-items: center; gap: var(--cc-space-8); min-height: var(--cc-control); padding-inline: var(--cc-space-16) var(--cc-space-8);
-    border-block-end: var(--cc-ring-w) solid var(--cc-line); color: var(--cc-ink); font-weight: var(--cc-weight-medium);
-  }
-  /* 并排时右侧栏最上面一行（与主栏顶栏同高）：右上角的右侧栏开关，桌面窗口里还有窗口按钮；滚动时贴在顶上 */
-  .cc-op-panel-bar { position: sticky; top: 0; z-index: var(--cc-z-raise); flex-shrink: 0; justify-content: flex-end; background: var(--cc-bg-app); }
-  /* 滚动在里面这一层：左边的分隔条（.cc-split）贴着整列，不跟着内容滚走 */
-  .cc-op-panel-scroll { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow-y: auto; }
-  /* 「开始」：报告下面靠右（同报告里「导出报告」那一行的右边），还差什么写在它上面 */
-  .cc-op-start {
-    display: flex; flex-shrink: 0; flex-direction: column; align-items: flex-end; gap: var(--cc-space-8);
-    padding: var(--cc-space-12) calc(var(--cc-space-8) + var(--cc-space-6)) var(--cc-space-16);
-  }
-  .cc-op-start > .cc-alert { align-self: stretch; }
-  .cc-op-section { display: flex; flex-shrink: 0; flex-direction: column; padding: var(--cc-space-4) var(--cc-space-8); border-block-end: var(--cc-ring-w) solid var(--cc-line); }
-  .cc-op-section-toggle {
-    display: flex; align-items: center; gap: var(--cc-space-6); height: var(--cc-panel-head); padding-inline: var(--cc-space-6); border-radius: var(--cc-radius-row-ctl);
-    color: var(--cc-ink-2); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); font-weight: var(--cc-weight-medium); outline: none;
-    transition: color var(--cc-dur-fast) var(--cc-ease);
-  }
-  .cc-op-section-toggle:hover { color: var(--cc-ink); }
-  .cc-op-section-toggle:focus-visible { box-shadow: var(--cc-shadow-focus); }
-  .cc-op-section-chevron { flex-shrink: 0; width: var(--cc-group-chevron); height: var(--cc-group-chevron); color: var(--cc-ink-3); transition: transform var(--cc-dur-fast) var(--cc-ease); }
-  .cc-op-section-toggle[aria-expanded="true"] .cc-op-section-chevron { transform: rotate(90deg); }
-  .cc-op-section-summary { flex-shrink: 0; color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); font-weight: var(--cc-weight-regular); font-variant-numeric: tabular-nums; }
-  .cc-op-section-check { flex-shrink: 0; width: var(--cc-icon-xs); height: var(--cc-icon-xs); color: var(--cc-status-online); }
-  .cc-op-section-body {
-    display: flex; flex-direction: column; gap: var(--cc-space-8); padding: var(--cc-space-4) var(--cc-space-6) var(--cc-space-12);
+  /* 资料步骤行点开的列表（在 .cc-steps-card 里）：按组，准备中能拖到别的组 */
+  .cc-op-group { display: flex; flex-direction: column; gap: var(--cc-space-2); padding: var(--cc-space-4); transition: background-color var(--cc-dur-fast) var(--cc-ease); }
+  .cc-op-group[data-drop-target] { background: var(--cc-row-selected); }
+  .cc-op-group-head { display: flex; align-items: center; gap: var(--cc-space-8); min-height: var(--cc-panel-row); padding-inline: var(--cc-space-4); color: var(--cc-ink); font-size: var(--cc-panel-font); font-weight: var(--cc-weight-medium); }
+  .cc-op-doc { border-radius: var(--cc-radius-row-ctl); background: var(--cc-bg-subtle); }
+  .cc-op-doc-handle { display: flex; align-items: center; gap: var(--cc-space-8); min-height: var(--cc-panel-row); padding-inline: var(--cc-space-8); border-radius: var(--cc-radius-row-ctl); color: var(--cc-ink-2); font-size: var(--cc-panel-font); outline: none; }
+  .cc-op-doc-handle:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  /* 「开始前」框（同允许卡的一层框 .cc-steps-card.cc-ask）：第一行写入目标，中间要定的、停下的单，底部「开始」靠右 */
+  .cc-op-before-body {
+    display: flex; flex-direction: column; gap: var(--cc-space-8); padding: 0 var(--cc-space-12) var(--cc-space-8);
     color: var(--cc-ink-2); font-size: var(--cc-panel-font); line-height: var(--cc-panel-lh);
   }
-  .cc-op-drop {
-    display: flex; flex-direction: column; gap: var(--cc-space-8); padding: var(--cc-space-8); border: var(--cc-hairline) dashed var(--cc-line-strong);
-    border-radius: var(--cc-radius-md); background: var(--cc-bg-subtle); transition: border-color var(--cc-dur-fast) var(--cc-ease), background-color var(--cc-dur-fast) var(--cc-ease);
-  }
-  .cc-op-drop[data-over] { border-color: var(--cc-ink-3); background: var(--cc-bg-hover); }
-  .cc-op-drop-pick {
-    display: flex; flex-direction: column; align-items: center; gap: var(--cc-space-2); padding-block: var(--cc-space-16); border-radius: var(--cc-radius-row-ctl);
-    color: var(--cc-ink-2); outline: none;
-  }
-  .cc-op-drop-pick:focus-visible { box-shadow: var(--cc-shadow-focus); }
-  :root:not([data-cc-touch]) .cc-op-camera { display: none; }
-  .cc-op-group { display: flex; flex-direction: column; gap: var(--cc-space-2); padding: var(--cc-space-2); border-radius: var(--cc-radius-md); transition: background-color var(--cc-dur-fast) var(--cc-ease); }
-  .cc-op-group[data-drop-target] { background: var(--cc-row-selected); }
-  .cc-op-group-head { display: flex; align-items: center; gap: var(--cc-space-8); min-height: var(--cc-panel-row); padding-inline: var(--cc-space-4); color: var(--cc-ink); font-weight: var(--cc-weight-medium); }
-  .cc-op-doc { border-radius: var(--cc-radius-row-ctl); background: var(--cc-bg-subtle); }
-  .cc-op-doc-handle { display: flex; align-items: center; gap: var(--cc-space-8); min-height: var(--cc-panel-row); padding-inline: var(--cc-space-8); border-radius: var(--cc-radius-row-ctl); outline: none; }
-  .cc-op-doc-handle:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-op-before-body:empty { display: none; }
   .cc-op-ask-group { display: flex; flex-direction: column; gap: var(--cc-space-6); }
   .cc-op-ask-kind { color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
   .cc-op-ask, .cc-op-line { display: flex; align-items: center; gap: var(--cc-space-8); min-height: var(--cc-panel-row); color: var(--cc-ink); }
   .cc-op-ask-select { flex-shrink: 0; width: var(--cc-op-select-w); max-width: 50%; }
   .cc-op-handle { display: flex; flex-direction: column; gap: var(--cc-space-4); }
-  :root[data-cc-touch] :is(.cc-op-section-toggle, .cc-op-doc-handle, .cc-op-ask, .cc-op-line) { min-height: var(--cc-tap); }
+  :root[data-cc-touch] :is(.cc-op-doc-handle, .cc-op-ask, .cc-op-line) { min-height: var(--cc-tap); }
 
   /* 右侧会话栏（设计文档 3.13 / 4.4）：宽 280；卡片纵向、间距 10；宽屏与对话并排，对话区放不下时浮在对话上，手机盖满屏 */
   .cc-panel {
@@ -2712,13 +2658,12 @@ html[data-cc-mshell], html[data-cc-mshell] body { height: 100%; overflow: hidden
 @keyframes cc-fade-out { to { opacity: 0; } }
 @keyframes cc-spin { to { transform: rotate(360deg); } }
 @keyframes cc-drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
-@keyframes cc-op-slide-in { from { transform: translateX(100%); } to { transform: none; } }
 @keyframes cc-bob { from { transform: translateY(0); } to { transform: translateY(-6px); } }
 @keyframes cc-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 @keyframes cc-results-in { from { opacity: 0; transform: translateX(1.5rem); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   .cc-bubble-user, .cc-bubble-user::before, .cc-reply, .cc-enter, .cc-menu, .cc-drawer-in, .cc-results, .cc-dropzone, .cc-loading .pearnly-mascot-host,
-  .cc-activity::before, .cc-overlay, .cc-pop, .cc-toast, .animate-cc-pulse, .cc-op-panel, .cc-op-scrim { animation: none !important; }
+  .cc-activity::before, .cc-overlay, .cc-pop, .cc-toast, .animate-cc-pulse { animation: none !important; }
 }
 
 /* 产品形象小单：与宣传页同一套规则（website/static/style.css「卡片角上的手绘小单」与 .hm 眨眼），照搬不改 */

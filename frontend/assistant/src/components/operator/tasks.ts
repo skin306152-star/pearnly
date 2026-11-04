@@ -4,13 +4,15 @@
 //   - 置顶 / 取消置顶请求还没回时按点的样子摆（stars），回来换成站点的；
 //   - 看过没有（seen，本机按人记）：任务结束（已完成、需要你处理、已停止）以后这台设备还没打开看过，行尾标未读蓝点（同对话）；
 //     第一次在这台设备上用时之前结束的不算（base）。
-// 行尾只有对话行那两种标记（在跑脉冲点、未读蓝点）；进度与要你处理的在主栏、右侧栏。
+//   - 别的设备上的变化：站点事件 pearnly_operator_task（共用层 express_operator/tasks.py 提交后推给本人）就地换上或拿掉（watchTasks）。
+// 行尾只有对话行那两种标记（在跑脉冲点、未读蓝点；有资料在传也算在跑）；进度与要你处理的都在任务会话里。
 
 import { create } from "zustand";
 import { shownError } from "@/lib/frappe";
 import type { Activity } from "@/lib/managed-agents/activity";
+import { onSiteEvent } from "@/lib/managed-agents/realtime";
 import { clock } from "@/lib/prefs-sync";
-import { siteSeconds } from "./live-source";
+import { siteSeconds, taskOf } from "./live-source";
 import type { BatchSnapshot, BatchStatus, OperatorSource, TaskRecord, TaskStatus } from "./types";
 import { reportCaught } from "@/lib/caught";
 
@@ -158,4 +160,18 @@ export function taskActivity(
   if (!ENDED.has(status) || seen.seen[task.name] === status) return undefined;
   const ended = siteSeconds(task.finished_at) || siteSeconds(task.modified);
   return seen.seen[task.name] !== undefined || ended > seen.base ? "unread" : undefined;
+}
+
+// ---------------------------------------------------------------- 别的设备上的变化
+/** 站点事件（共用层 express_operator/tasks.py 的 EVENT）。 */
+export const TASK_EVENT = "pearnly_operator_task";
+
+/** 有代录的产品挂一次（assistant.tsx）：任务记录变了就地换上、删了拿掉（列表还没取过时不管）；返回取消订阅。 */
+export function watchTasks(): () => void {
+  return onSiteEvent(TASK_EVENT, (data) => {
+    const change = (data && typeof data === "object" ? data : {}) as { op?: string; task?: unknown; name?: string };
+    if (!useTasks.getState().loaded) return;
+    if (change.op === "delete" && change.name) dropTask(String(change.name));
+    else if (change.op === "upsert" && change.task) upsertTask(taskOf(change.task));
+  });
 }

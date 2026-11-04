@@ -1,11 +1,12 @@
 // 「实操」侧栏的列表：同对话侧栏一套（components/assistant-ui/thread-list.tsx 的 SidebarGroups、RowShell、RowMenu、BulkMenu、InlineRename、
 // ListMore，projects.tsx 的 CompanyHeaderView），只是数据换成任务（站点的任务记录，tasks.ts）。上面的「新建任务」（Ctrl / ⌘ + N）、
-// 待处理、公司是两种模式共用的导航（assistant.tsx 的 SidebarNav）。
+// 公司是两种模式共用的导航（assistant.tsx 的 SidebarNav）。
 //   按公司分组：已置顶 → 各公司（组头 ＋ = 在这家新建任务，月份默认上个月）。公司组同对话侧栏（主会话 11-03）：对话侧栏列着的公司
 //   （我有对话的）没有任务也出组头（「显示 → 空分组」关掉时不出，同对话），加上有任务的公司；
 //   拖动（共用拖动）只在本公司组里排先后或拖进已置顶；置顶 P、重命名 R、删除 D（右键 / 行尾「···」/ 手机长按，多选整批）；
 //   就地改名；删除先问一次「删除任务？」；搜索（标题或公司名）；键盘同对话侧栏（sidebar-keys.ts 按同样的 data-slot / data-roving 找行）。
-// 一行同对话行：只有标题，行尾只有对话行那两种标记（在跑脉冲点、没看过的蓝点）；进度、要你处理的只在主栏与右侧栏。
+// 一行同对话行：只有标题，行尾只有对话行那两种标记（在跑脉冲点——有资料在这一页传着也算、没看过的蓝点）；进度、要你处理的都在
+// 任务会话里（用户 11-04：Code 左侧只有简要，不加别的标记）。
 // 手排顺序、组的折叠是实操自己的一份（prefs.ts，同步进服务端偏好的 operator 份），任务号不进对话的手排顺序。
 
 import { type ComponentPropsWithoutRef, createContext, type FC, forwardRef, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -47,6 +48,7 @@ import { bindOperatorUser, taskFold, taskOrder } from "./prefs";
 import { effectiveStatus, loadTasks, markSeen, noteLive, overrideStar, setTasksError, taskActivity, upsertTask, useSeen, useTasks } from "./tasks";
 import { titleOf } from "./task-title";
 import type { OperatorSource, TaskRecord } from "./types";
+import { useLocalUploads } from "./uploads";
 import { withReport } from "@/lib/caught";
 
 export { taskTitle, titleOf } from "./task-title";
@@ -132,6 +134,8 @@ export const OperatorSidebar: FC<{ search?: string; onPick?: () => void }> = ({ 
   const live = useTasks((s) => s.live);
   const seenAt = useTasks((s) => s.seenAt);
   const seen = useSeen();
+  // 这一页有资料在传的任务：行尾算在跑
+  const sending = useLocalUploads((s) => s.rows.filter((row) => row.phase === "uploading").map((row) => row.task).join("\n"));
   const order = taskOrder.useSidebarOrder();
   const collapsed = taskFold.useSidebarFold((s) => s.collapsed);
   const [pinning, setPinning] = useState<ReadonlySet<string>>(() => new Set());
@@ -207,15 +211,15 @@ export const OperatorSidebar: FC<{ search?: string; onPick?: () => void }> = ({ 
         task,
         title: titleOf(task),
         starred,
-        activity: taskActivity(task, live[task.name], seen, task.name === o.id),
+        activity: task.name !== o.id && sending.split("\n").includes(task.name) ? "running" : taskActivity(task, live[task.name], seen, task.name === o.id),
         deletable: canDelete(task, live[task.name]),
       });
     }
     return map;
-  }, [tasks, stars, pinning, live, seen, o.id]);
+  }, [tasks, stars, pinning, live, seen, o.id, sending]);
 
   // 动作：一份（行、组头、菜单都是记住的，拿最新的 Operator 做）
-  // 看着公司、待处理页（两种模式共有）时点了任务行、组头 ＋：主栏回到任务页
+  // 看着公司页（两种模式共有）时点了任务行、组头 ＋：主栏回到任务页
   const latest = useRef<{ o: Operator; data: ReadonlyMap<string, RowData>; onPick?: () => void; view: typeof view; setView: typeof setView }>({ o, data, onPick, view, setView });
   latest.current = { o, data, onPick, view, setView };
   const actions = useMemo<Actions>(
