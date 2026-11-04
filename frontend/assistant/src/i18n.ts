@@ -989,3 +989,27 @@ const OPERATOR = {
 };
 
 export const op = (OPERATOR as Record<string, (typeof OPERATOR)["en"]>)[lang] ?? OPERATOR.en;
+
+// 对话里的上传状态卡片（components/run/upload-card.tsx）：上传中、排队中、识别中 n/m 页、已识别 N 张、失败
+const RUN = {
+  en: {
+    queued: "Queued", reading: "Reading",
+    readingPages: (n: number, m: number) => `Reading ${n}/${m} pages`,
+    read: (n: number) => `Read ${n} ${n === 1 ? "document" : "documents"}`,
+    outside: (n: number, month: string) => `${n} not in ${month}`,
+  },
+  zh: {
+    queued: "排队中", reading: "识别中",
+    readingPages: (n: number, m: number) => `识别中 ${n}/${m} 页`,
+    read: (n: number) => `已识别 ${n} 张`,
+    outside: (n: number, month: string) => `${n} 张不在 ${month}`,
+  },
+  th: {
+    queued: "อยู่ในคิว", reading: "กำลังอ่าน",
+    readingPages: (n: number, m: number) => `กำลังอ่าน ${n}/${m} หน้า`,
+    read: (n: number) => `อ่านแล้ว ${n} ใบ`,
+    outside: (n: number, month: string) => `${n} ใบไม่อยู่ใน ${month}`,
+  },
+};
+
+export const run = (RUN as Record<string, (typeof RUN)["en"]>)[lang] ?? RUN.en;

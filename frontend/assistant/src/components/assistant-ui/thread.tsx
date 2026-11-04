@@ -59,8 +59,10 @@ import {
   type FC,
   type KeyboardEvent,
   type PropsWithChildren,
+  type ReactNode,
 } from "react";
 import { Marquee } from "@/components/ui/marquee";
+import type { ComposerStop } from "@/components/run/types";
 
 // 触屏设备（手机、平板，lib/touch.ts）：打开页面不自动聚焦输入框
 const TOUCH = touchOnly();
@@ -82,6 +84,8 @@ export type ThreadComponents = {
   ToolFallback?: ToolCallMessagePartComponent | undefined;
   /** 输入框下面的「下巴」（设计文档 3.12）：产品自己的按钮（Cowork 的公司、月份、分店）；不给或给了但没内容时不占位 */
   Chin?: ComponentType | undefined;
+  /** 对话最后（消息与发送中的气泡之后）调用方自己的内容，新对话（显示问候时）也画；代录的「需要处理」框用它。不给不占位 */
+  Tail?: ComponentType | undefined;
 };
 
 export type ThreadProps = {
@@ -113,7 +117,7 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
 };
 
 const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isLoading }) => {
-  const { Welcome, Loading } = useContext(ThreadComponentsContext);
+  const { Welcome, Loading, Tail } = useContext(ThreadComponentsContext);
   const settle = useSettleOnOpen();
 
   return (
@@ -154,6 +158,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
               {() => <ThreadMessage />}
             </ThreadPrimitive.Messages>
             <PendingSendBubble />
+            {Tail && <Tail />}
           </div>
 
           <ThreadPrimitive.ViewportFooter
@@ -259,10 +264,21 @@ const ThreadMessage: FC = () => {
 };
 
 /** 只画消息（同对话里那样一条条）：实操任务页的对话用（components/operator/task-thread.tsx），套在实操自己的运行时里，
- *  滚动、输入框由任务页管。 */
-export const ThreadMessages: FC = () => (
+ *  滚动、输入框由任务页管。before：每条消息前先画调用方给的内容（代录按时间把上传状态卡片插进对话）；不给不占位。 */
+export const ThreadMessages: FC<{ before?: (message: { id: string; createdAt?: Date }) => ReactNode }> = ({ before }) => (
   <div data-slot="aui_message-group" className="flex flex-col gap-y-(--cc-turn-gap) empty:hidden">
-    <ThreadPrimitive.Messages>{() => <ThreadMessage />}</ThreadPrimitive.Messages>
+    <ThreadPrimitive.Messages>
+      {({ message }) =>
+        before ? (
+          <>
+            {before({ id: message.id, createdAt: message.createdAt })}
+            <ThreadMessage />
+          </>
+        ) : (
+          <ThreadMessage />
+        )
+      }
+    </ThreadPrimitive.Messages>
   </div>
 );
 
@@ -340,8 +356,10 @@ const ThreadScrollToBottom: FC = () => {
 };
 
 /** 输入框。实操的主栏用的也是它（components/operator/workspace.tsx，套在实操自己的运行时里）：placeholder 换成实操的问句；
- *  draft 关掉——实操发出的字不写进对话的发送草稿（DraftWatcher）；chin 是实操自己的下巴（公司、月份）。 */
-export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: ComponentType }> = ({ placeholder: fixed, draft = true, chin }) => {
+ *  draft 关掉——实操发出的字不写进对话的发送草稿（DraftWatcher）；chin 是实操自己的下巴（公司、月份）；
+ *  stop 是实操自己的在跑状态与停止动作（components/run/types.ts 的 ComposerStop）：批次在录时发送键换成同一个 ■，Esc 同效；
+ *  不给就是对话自己的（这一轮在跑时停这一轮）。 */
+export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: ComponentType; stop?: ComposerStop }> = ({ placeholder: fixed, draft = true, chin, stop }) => {
   const { Chin: threadChin } = useContext(ThreadComponentsContext);
   const Chin = chin ?? threadChin;
   // 新对话问「今天能帮你做什么」，对话里就是「回复…」（同 Claude）；打开已有对话、消息还在加载时也已经是「回复…」
@@ -371,12 +389,14 @@ export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: Compon
   };
   // 在跑时输入框里按 Esc 停止（同停止键，stop-run.ts）；选字中的 Esc 归输入法
   const thread = useAuiState((s) => s.threadListItem.id);
-  const running = useAuiState((s) => s.thread.isRunning);
+  const threadRunning = useAuiState((s) => s.thread.isRunning);
+  const running = stop ? stop.running : threadRunning;
   const keyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     holdImeEnter(event); // Safari 选字结束的回车（keyCode 229）不发送，lib/ime.ts
     if (event.key !== "Escape" || !running || event.nativeEvent.isComposing || event.defaultPrevented) return;
     event.preventDefault();
-    void stopRun(thread);
+    if (stop) stop.onStop();
+    else void stopRun(thread);
   };
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col" onSubmit={sent}>
@@ -402,7 +422,7 @@ export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: Compon
             onBlur={() => setTyping(false)}
             aria-label={placeholder}
           />
-          <ComposerAction onSend={sent} />
+          <ComposerAction onSend={sent} stop={stop} />
         </div>
       </ComposerPrimitive.AttachmentDropzone>
       {Chin && (
@@ -415,33 +435,48 @@ export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: Compon
 };
 
 // map: attach
-const ComposerAction: FC<{ onSend: () => void }> = ({ onSend }) => {
+const ComposerAction: FC<{ onSend: () => void; stop?: ComposerStop | undefined }> = ({ onSend, stop }) => {
+  const send = (
+    <ComposerPrimitive.Send asChild>
+      <button type="button" className="aui-composer-send cc-send" aria-label={t("send")} title={t("send")} onClick={onSend}>
+        <ArrowUpIcon className="aui-composer-send-icon" />
+      </button>
+    </ComposerPrimitive.Send>
+  );
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
       <AuiIf condition={(s) => s.thread.capabilities.attachments}>
         <ComposerAddAttachment />
       </AuiIf>
       <div className="aui-composer-send-slot ms-auto flex items-center gap-(--cc-space-6)">
-        <AuiIf condition={(s) => !s.thread.isRunning}>
-          <ComposerPrimitive.Send asChild>
-            <button type="button" className="aui-composer-send cc-send" aria-label={t("send")} title={t("send")} onClick={onSend}>
-              <ArrowUpIcon className="aui-composer-send-icon" />
-            </button>
-          </ComposerPrimitive.Send>
-        </AuiIf>
-        <AuiIf condition={(s) => s.thread.isRunning}>
-          <StopButton />
-        </AuiIf>
+        {/* 调用方给了自己的在跑状态（实操的批次）：按它换，停止交给它；对话自己的按这一轮 */}
+        {stop ? (
+          stop.running ? <StopButton onStop={stop.onStop} /> : send
+        ) : (
+          <>
+            <AuiIf condition={(s) => !s.thread.isRunning}>{send}</AuiIf>
+            <AuiIf condition={(s) => s.thread.isRunning}>
+              <StopButton />
+            </AuiIf>
+          </>
+        )}
       </div>
     </div>
   );
 };
 
-/** 停止键：真正的打断，消息留在对话里、字不放回输入框（不经组件库的 cancelRun，stop-run.ts）。 */
-const StopButton: FC = () => {
+/** 停止键：真正的打断，消息留在对话里、字不放回输入框（不经组件库的 cancelRun，stop-run.ts）。onStop：调用方自己的停止（实操停这一批）。 */
+const StopButton: FC<{ onStop?: () => void }> = ({ onStop }) => {
   const thread = useAuiState((s) => s.threadListItem.id);
   return (
-    <button type="button" className="aui-composer-cancel cc-send" data-stop="" aria-label={t("stop")} title={t("stop")} onClick={() => void stopRun(thread)}>
+    <button
+      type="button"
+      className="aui-composer-cancel cc-send"
+      data-stop=""
+      aria-label={t("stop")}
+      title={t("stop")}
+      onClick={() => (onStop ? onStop() : void stopRun(thread))}
+    >
       <SquareIcon className="aui-composer-cancel-icon fill-current" />
     </button>
   );
