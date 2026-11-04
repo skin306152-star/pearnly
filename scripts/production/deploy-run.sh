@@ -6,6 +6,8 @@
 # 步骤、顺序与 10-16 之后的人工模板（deploy-template.sh）相同，不改激活脚本本身：
 #   - 镜像 revision 标签必须等于要部署的 SHA；
 #   - 激活前从镜像同步 /opt/pearnly/deploy，check-deploy-image.py 必须通过；本脚本也必须与镜像里那份一致；
+#   - 激活前租户配置对比（check-tenant-config.py，按这一版产品地图的配置分类）：正式租户「应一致」的键与测试租户不同、
+#     或「形状规则」不满足就停下，生产服务不动；没有绕过开关；
 #   - 产品逐个激活、不并行；每个产品和基础层开始前等整机可用内存回到 8 GB 以上（每 10 秒看一次，最多 10 分钟）；
 #   - 全程每 10 秒记一次内存到 mem-<短SHA>.log；
 #   - 激活脚本自带的维护模式、迁移前备份、失败边界都照旧；任何一步失败立刻停下，不自动回滚。
@@ -74,6 +76,11 @@ docker cp pearnly-deploy-sync:/opt/pearnly/deploy-src/. "$ROOT/" || { docker rm 
 docker rm pearnly-deploy-sync >/dev/null
 python3 "$ROOT/scripts/production/check-deploy-image.py" "$image" "$ROOT" || fail "deploy tooling does not match this image"
 cmp -s "$self" "$ROOT/scripts/production/deploy-run.sh" || fail "this runner is not the copy inside the image"
+
+step=config; set_status "running $step"
+log "tenant config: formal tenants against the test tenant (product map classes)"
+python3 "$ROOT/scripts/production/check-tenant-config.py" --map "$ROOT/scripts/production/product-map.json" \
+  || fail "tenant config check found differences that block the deployment (BLOCK lines above)"
 
 wait_mem() {
   local i avail

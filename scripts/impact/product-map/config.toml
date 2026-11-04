@@ -1,5 +1,5 @@
 # site_config 键分类（scripts/check-product-map.py 规则 1、部署前配置对比；主会话 11-04 审定）。
-# class：same = 同产品正式租户与测试租户应一致，差异拦部署；shape = 每个租户各自满足形状规则（rule）；
+# class：same = 同产品正式租户与测试租户应一致，差异拦部署；shape = 每个租户各自满足形状规则（rule 人话、pattern 正则），不满足拦部署；
 #        presence = 只核有没有（secret = true 的不比值、不打印）；varies = 各租户本来不同，不比；infra = 平台与部署层，不在租户之间比。
 # 代码新读一个 pearnly_* 键要在这里分类；代码不再读的要删掉。
 
@@ -16,6 +16,7 @@ class = "same"
 [key.pearnly_assistant_entry_url]
 class = "shape"
 rule = "CC 入口统一走 https://fatcc.com（智能体入口口径 10-10）"
+pattern = "^https://fatcc\\.com/?$"
 
 [key.pearnly_assistant_model]
 class = "same"

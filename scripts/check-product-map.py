@@ -14,12 +14,16 @@
     python3 scripts/check-product-map.py --markdown --out F   # 清单按 Markdown 写进 F（CI 摘要）
     python3 scripts/check-product-map.py --files a.py b.js    # 按给定文件算影响（演练、审查用）
     python3 scripts/check-product-map.py --suggest            # 打印没登记的入口的起草行（自动推断测试），人工核过再贴进地图
+    python3 scripts/check-product-map.py --export F.json      # 部署用的导出（镜像构建时生成，随部署工具同步到生产机）：
+                                                              # 配置分类、上线必验行与探针、只能真机的行；只读地图文件，不扫代码
+    python3 scripts/check-product-map.py --batch --files …    # 本批（上次放上生产到这次）命中的上线必验行与真机单，给 deploy.sh 打印
 
 退出码：0 = 地图与代码一致；1 = 有问题（逐条打印）。
 """
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -185,6 +189,31 @@ def suggest(product_map, found) -> str:
     return "\n".join(out) or "没有没登记的入口。"
 
 
+EXPORT_VERSION = 1
+
+
+def export(product_map: pm.Map) -> dict:
+    """部署脚本读的那一份（scripts/production/check-tenant-config.py、check-tenant-entries.py）：只放生产机要用的。"""
+    rows = [{"id": row.id, "product": row.product, "products": row.products, "channel": row.channel, "where": row.where,
+             "config": row.config, "must_verify": row.must_verify, "probe": row.probe, "device_only": row.device_only,
+             "device": row.device}
+            for row in product_map.rows.values() if row.must_verify or row.device_only]
+    return {"version": EXPORT_VERSION, "config": product_map.config, "rows": sorted(rows, key=lambda row: row["id"])}
+
+
+def batch(product_map, hits) -> str:
+    """本批命中的上线必验行与真机单（deploy.sh 在回读之后打印）。"""
+    rows = [product_map.rows[row_id] for row_id in sorted(hits)]
+    must = [row for row in rows if row.must_verify]
+    device = [row for row in rows if row.device_only]
+    lines = [f"本批改到地图入口 {len(rows)} 个；上线必验 {len(must)} 个（回读已逐个正式租户走过探针），真机单 {len(device)} 项"]
+    lines += [f"  上线必验 {row.id}：{row.where}" for row in must]
+    lines += [f"  真机 {row.id}：{row.device}（只能真机：{row.device_only}）" for row in device]
+    if not device:
+        lines.append("  真机单：本批没有只能真机的入口")
+    return "\n".join(lines)
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--base", default="auto", help="影响清单的基线（默认 PRODUCT_MAP_BASE 或 origin/main 的分叉点）")
@@ -192,8 +221,18 @@ def main(argv=None) -> int:
     parser.add_argument("--markdown", action="store_true")
     parser.add_argument("--out", help="清单写到这个文件（GITHUB_STEP_SUMMARY 追加）")
     parser.add_argument("--suggest", action="store_true", help="打印没登记的入口的起草行")
+    parser.add_argument("--export", metavar="FILE", help="写部署用的导出（只读地图文件，不扫代码、不判闸门）")
+    parser.add_argument("--batch", action="store_true", help="只打印 --files 命中的上线必验行与真机单，不判闸门")
     args = parser.parse_args(argv)
     started = time.monotonic()
+    if args.export:
+        product_map = pm.load()
+        if product_map.errors:
+            for error in product_map.errors:
+                print("  - " + error, file=sys.stderr)
+            return 1
+        Path(args.export).write_text(json.dumps(export(product_map), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        return 0
     repo = pm.Repo(ROOT)
     product_map = pm.load()
     found = pm.discover(repo)
@@ -202,9 +241,12 @@ def main(argv=None) -> int:
     if args.suggest:
         print(suggest(product_map, found))
         return 0
-    errors = check(product_map, repo, found, keys, families, flows, impact, parts)
     changes = args.files if args.files is not None else changed(args.base)
     hits, _ = impact_rows(product_map, found, keys, changes)
+    if args.batch:
+        print(batch(product_map, hits))
+        return 0
+    errors = check(product_map, repo, found, keys, families, flows, impact, parts)
     report = render(product_map, hits, flows, impact, args.markdown)
     print(report)
     if args.out:

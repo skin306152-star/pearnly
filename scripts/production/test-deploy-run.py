@@ -9,6 +9,7 @@ guidance when a step fails. deploy-readback.sh must flag every readback item tha
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -31,7 +32,7 @@ def stub(path, body):
 
 
 class Runner(unittest.TestCase):
-    def run_runner(self, revision=SHA, fail_product='', memory=(30000,), lock_pid=None):
+    def run_runner(self, revision=SHA, fail_product='', memory=(30000,), lock_pid=None, config_exit=0):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             state, deploy, bin_dir = root / 'state', root / 'deploy', root / 'bin'
@@ -48,6 +49,11 @@ class Runner(unittest.TestCase):
                     f'echo "done {name}"\n')
             (deploy / 'scripts/production/check-deploy-image.py').write_text(
                 f'import sys\nopen("{trace}", "a").write("check-deploy-image " + " ".join(sys.argv[1:]) + "\\n")\n')
+            # 租户配置对比本身另有离线测试（test-check-tenant-config.py）；这里只看它在激活前跑、交给它镜像里的地图导出
+            (deploy / 'scripts/production/check-tenant-config.py').write_text(
+                f'import sys\nopen("{trace}", "a").write("check-tenant-config " + " ".join(sys.argv[1:]) + "\\n")\n'
+                f'print("  BLOCK erp mrerp.pearnly.com pearnly_x" if {config_exit} else "  tenant config check passed")\n'
+                f'sys.exit({config_exit})\n')
             stub(bin_dir / 'docker', f'echo "docker $*" >> "{trace}"\n'
                  f'if [ "$1 $2" = "image inspect" ]; then echo {revision}; fi\n')
             readings = root / 'memory'
@@ -75,13 +81,24 @@ class Runner(unittest.TestCase):
         self.assertEqual(status, 'ok')
         steps = [line.split()[0] if not line.startswith('docker') else ' '.join(line.split()[:2]) for line in trace]
         self.assertEqual([s for s in steps if s != 'docker rm'], [
-            'docker ps', 'docker image', 'docker create', 'docker cp', 'check-deploy-image',
+            'docker ps', 'docker image', 'docker create', 'docker cp', 'check-deploy-image', 'check-tenant-config',
             'activate-product.sh', 'activate-product.sh', 'activate-product.sh',
             'activate-foundation.sh', 'deploy-readback.sh'])
         products = [line.split()[2] for line in trace if line.startswith('activate-product.sh')]
         self.assertEqual(products, ['erp', 'cowork', 'dms'])
         self.assertIn('DEPLOY DONE', log)
         self.assertFalse(locked, 'lock is released after the run')
+
+    def test_tenant_config_is_checked_with_the_image_map_before_activation(self):
+        result, trace, status, log, _ = self.run_runner()
+        check = next(line for line in trace if line.startswith('check-tenant-config'))
+        self.assertTrue(check.endswith('/scripts/production/product-map.json'), check)
+        result, trace, status, log, locked = self.run_runner(config_exit=1)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(status, 'failed config')
+        self.assertIn('BLOCK erp mrerp.pearnly.com', log)
+        self.assertFalse([l for l in trace if l.startswith('activate')])
+        self.assertFalse(locked)
 
     def test_wrong_revision_stops_before_anything_changes(self):
         result, trace, status, log, _ = self.run_runner(revision='0' * 40)
@@ -148,7 +165,8 @@ class RunnerSelfCheck(unittest.TestCase):
 
 class Readback(unittest.TestCase):
     def run_readback(self, containers=None, maintenance=0, errors=0, codes=None, record=IMAGE, rejected='NULL', browser='NULL',
-                     browser_before=0, liff='2010411313-aaaa1111', liff_exit=0, liff_seen=None):
+                     browser_before=0, liff='2010411313-aaaa1111', liff_exit=0, liff_seen=None, entries_exit=0,
+                     export=True):
         containers = containers or {
             'pearnly-production-erp-web-1': IMAGE, 'pearnly-production-erp-ocr-worker-1': IMAGE,
             'pearnly-production-mariadb-1': 'mariadb:11', 'pearnly-production-billing-web-1': IMAGE}
@@ -162,6 +180,11 @@ class Readback(unittest.TestCase):
             (deploy / 'scripts/production/check-liff-endpoints.py').write_text(
                 f'import sys\nopen("{root}/liff-stdin", "w").write(sys.stdin.read() + " ".join(sys.argv[1:]))\n'
                 f'print("  fake liff check")\nsys.exit({liff_exit})\n')
+            # 逐租户入口检查另有离线测试（test-check-tenant-entries.py）；这里看回读交给它地图导出、认不认它的结果
+            (deploy / 'scripts/production/check-tenant-entries.py').write_text(
+                f'import sys\nprint("  fake entries check " + " ".join(sys.argv[1:]))\nsys.exit({entries_exit})\n')
+            if export:
+                (deploy / 'scripts/production/product-map.json').write_text('{"version": 1, "config": {}, "rows": []}\n')
             for product in ('erp', 'cowork', 'dms'):
                 (deploy / f'active-image-{product}.json').write_text(json.dumps([record]) + '\n')
             (root / 'containers.json').write_text(json.dumps(containers))
@@ -220,6 +243,13 @@ case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*) pri
         self.assertEqual(clean.returncode, 0, clean.stdout)
         self.assertIn('site-a-erp.pearnly.com maintenance=0 errors_since=0 maintenance_rejected_jobs=0 browser_errors_since=0', clean.stdout)
 
+    def test_must_verify_entries_run_after_the_liff_check_with_the_image_map(self):
+        result = self.run_readback()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('-- product map: must-verify entries on every formal tenant', result.stdout)
+        self.assertRegex(result.stdout, r'fake entries check --map \S+/scripts/production/product-map.json')
+        self.assertLess(result.stdout.index('fake liff check'), result.stdout.index('fake entries check'))
+
     def test_liff_check_gets_every_site_with_a_liff_and_its_product(self):
         seen = []
         result = self.run_readback(liff_seen=seen)
@@ -238,6 +268,8 @@ case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*) pri
             'ping': dict(codes={'https://fatcc.com/': 502}),
             'liff endpoint or entry': dict(liff_exit=1),
             'no site has a liff': dict(liff='-'),
+            'must-verify entry failed': dict(entries_exit=1),
+            'no product map export': dict(export=False),
         }
         for name, kwargs in cases.items():
             with self.subTest(case=name):
@@ -250,7 +282,8 @@ class Driver(unittest.TestCase):
     """deploy.sh with fake git / gh / ssh: the order of calls and where it stops."""
 
     def run_driver(self, *args, build='success', stage='success', remote_status='ok', candidate='success',
-                   busy_server=False, attach_failures=0, flows=FLOWS_OK, base_flows='', changed='', on_main=True):
+                   busy_server=False, attach_failures=0, flows=FLOWS_OK, base_flows='', changed='', on_main=True,
+                   with_map=False, config_rc=0):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             repo, bin_dir = root / 'repo', root / 'bin'
@@ -258,6 +291,10 @@ class Driver(unittest.TestCase):
             bin_dir.mkdir()
             for f in (DRIVER, RUNNER, READBACK, HERE / 'target.py', HERE / 'flows_inherit.py'):
                 (repo / 'scripts/production' / f.name).write_text(f.read_text())
+            if with_map:  # 这个提交带产品地图：部署前配置对比要跑（git archive 交出地图与对比脚本）
+                shutil.copytree(HERE.parent / 'impact', repo / 'scripts/impact')
+                shutil.copy(HERE.parent / 'check-product-map.py', repo / 'scripts/check-product-map.py')
+                shutil.copy(HERE / 'check-tenant-config.py', repo / 'scripts/production/check-tenant-config.py')
             (repo / 'scripts/flows').mkdir(parents=True)
             (repo / 'scripts/flows/coverage.py').write_text(
                 'import sys\nif "--deploy-note" in sys.argv: print("本批改到的存量模块（还没有流程兜底）1 个：")\n')
@@ -275,6 +312,7 @@ case "$*" in
   *rev-list*) {f'echo {BASE}' if base_flows else ':'} ;;
   *"diff --name-only"*) printf '%s\n' {changed!r} ;;
   *show*deploy-run.sh) cat "{repo}/scripts/production/deploy-run.sh" ;;
+  *" archive "*) {f'tar -c -C "{repo}" scripts/impact scripts/check-product-map.py scripts/production/check-tenant-config.py' if with_map else 'exit 128'} ;;
 esac
 ''')
             stub(bin_dir / 'gh', f'''echo "gh $*" >> "{trace}"
@@ -300,6 +338,7 @@ esac
 ''')
             stub(bin_dir / 'fake-ssh', f'''printf 'ssh %s\\n' "$(printf '%s' "$*" | tr '\\n' ' ')" >> "{trace}"
 case "$*" in
+  *"--map-b64"*) cat > "{root}/config-script"; echo "  tenants read: erp 2"; {'echo "  BLOCK erp mrerp.pearnly.com pearnly_x"; exit 1' if config_rc else 'echo "  tenant config check passed"'} ;;
   *"nohup bash"*) cat > /dev/null; {'echo "BUSY abc"' if busy_server else 'echo "STARTED 4242"'} ;;
   *"tail -n"*)
     n=$(cat "{root}/attach-count" 2>/dev/null || echo 0); echo $((n + 1)) > "{root}/attach-count"
@@ -323,6 +362,8 @@ esac
                 out.append('dispatch ' + c.split()[3])
             elif c.startswith('ssh') and 'nohup bash' in c:
                 out.append('ssh start')
+            elif c.startswith('ssh') and '--map-b64' in c:
+                out.append('ssh config')
             elif c.startswith('ssh'):
                 out.append('ssh attach')
         return out
@@ -424,6 +465,34 @@ esac
                 result, calls = self.run_driver(*args)
                 self.assertEqual(result.returncode, 2)
                 self.assertEqual(calls, [])
+
+    def test_tenant_config_is_compared_once_before_the_build_and_in_the_dry_run(self):
+        result, calls = self.run_driver(with_map=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.kinds(calls), ['ssh config', 'dispatch build-production.yml', 'dispatch stage-production.yml',
+                                             'ssh start', 'ssh attach'])
+        self.assertIn('租户配置对比通过', result.stdout)
+        result, calls = self.run_driver('--dry-run', with_map=True)   # 假 gh 给不出放镜像日志，演练停在取 digest，配置对比已跑过
+        self.assertEqual(self.kinds(calls), ['ssh config'])
+        self.assertIn('│   tenant config check passed', result.stdout)
+        for args in ((), ('--dry-run',)):
+            with self.subTest(args=args):
+                result, calls = self.run_driver(*args, with_map=True, config_rc=1)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(self.kinds(calls), ['ssh config'])
+                self.assertIn('BLOCK erp mrerp.pearnly.com', result.stdout)
+                self.assertIn('正式租户的配置与测试租户对不上', result.stderr)
+                self.assertIn('没有绕过开关', result.stderr)
+        # 提交里还没有产品地图（更早的标记）：跳过，不连生产
+        result, calls = self.run_driver('--dry-run')
+        self.assertIn('还没有产品地图，跳过', result.stdout)
+        self.assertEqual(self.kinds(calls), [])
+
+    def test_failed_config_on_the_server_leaves_services_alone(self):
+        result, calls = self.run_driver('--tag', TAG, '--digest', DIGEST, '--skip-stage', remote_status='failed config')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('激活前的租户配置对比没过', result.stderr)
+        self.assertIn('生产服务没动', result.stderr)
 
     def test_dry_run_makes_no_tag(self):
         result, calls = self.run_driver('--dry-run')

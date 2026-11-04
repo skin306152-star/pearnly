@@ -99,5 +99,28 @@ class Rules(unittest.TestCase):
         self.assertEqual(gate.render(product_map, {}, FLOWS, IMPACT, markdown=True), "没有改到地图里的入口。")
 
 
+    def test_export_carries_config_classes_and_only_must_verify_or_device_rows(self):
+        rows = [row("nav:erp:a"), row("nav:erp:b", must_verify=True, probe={"type": "liff", "path": "/desk/x"}),
+                row("nav:erp:c", tests=[], device_only="要真 LINE App", device="点卡片 → 打开编辑页")]
+        product_map = pm.Map({r.id: r for r in rows}, {}, {"pearnly_x": {"class": "same"}}, [], [])
+        exported = gate.export(product_map)
+        self.assertEqual(exported["version"], gate.EXPORT_VERSION)
+        self.assertEqual(exported["config"], {"pearnly_x": {"class": "same"}})
+        self.assertEqual([r["id"] for r in exported["rows"]], ["erp.b", "erp.c"])
+        self.assertEqual(exported["rows"][0]["probe"], {"type": "liff", "path": "/desk/x"})
+        report = gate.batch(product_map, {"erp.b": ["改到入口文件"], "erp.c": ["改到入口文件"]})
+        self.assertIn("上线必验 1 个", report)
+        self.assertIn("真机 erp.c：点卡片 → 打开编辑页（只能真机：要真 LINE App）", report)
+        self.assertIn("真机单：本批没有只能真机的入口", gate.batch(product_map, {"erp.b": ["x"]}))
+
+    def test_the_real_export_has_a_probe_on_every_must_verify_row(self):
+        exported = gate.export(pm.load())
+        must = [r for r in exported["rows"] if r["must_verify"]]
+        self.assertTrue(must)
+        self.assertTrue(all(r["probe"].get("type") in pm.PROBES for r in must))
+        shape = [rule for rule in exported["config"].values() if rule.get("class") == "shape"]
+        self.assertTrue(shape and all(rule.get("pattern") for rule in shape))
+
+
 if __name__ == "__main__":
     unittest.main()

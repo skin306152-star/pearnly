@@ -165,7 +165,8 @@ class Rows(unittest.TestCase):
             colour = "red"
         '''), encoding="utf-8")
         (directory / "not_entries.toml").write_text('[[anchor]]\nanchor = "tool:erp:x"\nreason = ""\n', encoding="utf-8")
-        (directory / "config.toml").write_text('[key.pearnly_x]\nclass = "maybe"\n[family.pearnly_line_]\nclass = "presence"\n',
+        (directory / "config.toml").write_text('[key.pearnly_x]\nclass = "maybe"\n[key.pearnly_y]\nclass = "shape"\n[key.pearnly_z]\nclass = "shape"\npattern = "("\n'
+                                               '[family.pearnly_line_]\nclass = "presence"\n',
                                                encoding="utf-8")
         (directory / "untested_baseline.txt").write_text("# 注释\nerp.a@desktop\n", encoding="utf-8")
         loaded = pm.load(directory)
@@ -173,6 +174,8 @@ class Rows(unittest.TestCase):
         self.assertIn("不认识的字段 ['colour']", errors)
         self.assertIn("没写原因", errors)
         self.assertIn("pearnly_x 的 class 只能是", errors)
+        self.assertIn("pearnly_y 是 shape，要写 pattern", errors)
+        self.assertIn("pearnly_z 的 pattern 不是正则", errors)
         self.assertEqual(list(loaded.rows), ["a"])
         self.assertIn("pearnly_line_*", loaded.config)
         self.assertEqual(loaded.baseline, ["erp.a@desktop"])

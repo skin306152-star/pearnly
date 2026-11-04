@@ -5,7 +5,8 @@
 #                                                （要有部署授权，按「攒批部署」规矩来）
 #   scripts/production/deploy.sh --tag <标记>    部署已有的发布标记（重跑、或部署 main 上更早的提交）；标记所指提交必须在 main 上
 #   scripts/production/deploy.sh --dry-run [--tag <标记>]
-#                                                演练：不打标记、不构建、不放镜像、不连生产，用最近一次已放上生产的镜像走到放镜像前一步
+#                                                演练：不打标记、不构建、不放镜像，用最近一次已放上生产的镜像走到放镜像前一步；
+#                                                只读连生产一次，做部署前租户配置对比
 #   scripts/production/deploy.sh --tag <标记> --digest sha256:<64位> [--skip-stage]
 #                                                这个标记已经构建过：跳过构建（--skip-stage 再跳过放镜像）
 #   scripts/production/deploy.sh --attach [--tag <标记>]
@@ -15,6 +16,9 @@
 # main 照常往前合，不为部署冻结。
 #
 # 每一步做什么（和 production-deploy-steps 的人工步骤一一对应，检查一项不少）：
+#   0'. 部署前租户配置对比（演练和正式部署都做，正式部署在构建前）：用这个提交的产品地图导出，经一次 SSH 在生产机
+#      各产品 web 容器里读站点配置（check-tenant-config.py，只读，不进数据库容器）；「应一致」的键正式租户与测试租户不同、
+#      或「形状规则」不满足就停下，没有绕过开关。服务器激活前会用镜像里那份再核一次（deploy-run.sh 的 config 步骤）。
 #   0. 流程用例闸：这个提交的 GitHub 状态 pearnly/flows 必须是全套通过（本机回归实验室 scripts/flows/run.py --all --post-status
 #      回写）；没过就停下。没有全套时沿用首父链上最近一次全套，前提是之后只改了非产品路径（flows_inherit.py）；
 #      不能沿用就停下、打印补跑命令，不构建、不动生产。
@@ -148,6 +152,42 @@ flows_gate() {
   fi
 }
 
+# 部署前租户配置对比：这个提交的产品地图导出交给生产机上的 check-tenant-config.py（一次 SSH、只读）
+config_gate() {
+  local tmp out rc=0 b64
+  tmp=$(mktemp -d)
+  if ! git -C "$REPO" archive "$sha" scripts/impact scripts/check-product-map.py scripts/production/check-tenant-config.py 2>/dev/null \
+      | tar -x -C "$tmp" 2>/dev/null || [[ ! -f "$tmp/scripts/production/check-tenant-config.py" ]]; then
+    rm -rf "$tmp"
+    say "租户配置对比：提交 $short 还没有产品地图，跳过"
+    return 0
+  fi
+  python3 "$tmp/scripts/check-product-map.py" --export "$tmp/product-map.json" ||
+    { rm -rf "$tmp"; stop "提交 $short 的产品地图导不出来" "生产没动" "python3 scripts/check-product-map.py 看地图错在哪"; }
+  b64=$(base64 < "$tmp/product-map.json" | tr -d '\n')
+  out=$(ssh_production "python3 - --map-b64 $b64" < "$tmp/scripts/production/check-tenant-config.py") || rc=$?
+  rm -rf "$tmp"
+  printf '%s\n' "$out" | sed 's/^/  │ /'
+  case $rc in
+    0) say "租户配置对比通过" ;;
+    1) stop "正式租户的配置与测试租户对不上（上面 BLOCK 行）" "生产没动" \
+         "逐项核对：改租户配置，或在 scripts/impact/product-map/config.toml 改分类（走评审）后重跑；没有绕过开关" ;;
+    *) stop "租户配置对比没跑成（退出码 $rc）" "生产没动" "网络或生产机问题；恢复后重跑" ;;
+  esac
+}
+
+# 本批真机单：上次放上生产到这次改到的地图入口里，上线必验的与只能真机的（只打印，不拦）
+batch_note() {
+  local last files
+  last=$(cd "$REPO" && gh run list --workflow stage-production.yml --status success --limit 1 --json headSha --jq '.[0].headSha // ""' 2>/dev/null) || last=
+  [[ "$last" =~ ^[0-9a-f]{40}$ && "$last" != "$sha" ]] || return 0
+  files=$(git -C "$REPO" diff --name-only "$last" "$sha" 2>/dev/null) || return 0
+  [[ -n "$files" ]] || return 0
+  printf '\n本批（%s..%s）真机单与上线必验：\n' "${last:0:8}" "$short"
+  # shellcheck disable=SC2086  # 文件名逐个作参数
+  (cd "$REPO" && python3 scripts/check-product-map.py --batch --files $files 2>/dev/null) | sed 's/^/  /' || true
+}
+
 # ---------- 发布标记 ----------
 git -C "$REPO" fetch -q --tags origin main
 main_sha=$(git -C "$REPO" rev-parse origin/main)
@@ -178,8 +218,9 @@ if [[ $mode == attach ]]; then
   :
 elif [[ $mode == dry-run ]]; then
   t0=$(date +%s)
-  say "演练：不触发构建、不放镜像、不连生产"
+  say "演练：不触发构建、不放镜像；只读连生产一次做租户配置对比"
   flows_gate
+  config_gate
   stage_run=$(gh run list --workflow stage-production.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
   [[ -n "$stage_run" ]] || stop "找不到成功的放镜像运行" "gh auth status 看登录"
   digest=$(gh run view "$stage_run" --log | grep -m1 -oE 'DIGEST: sha256:[0-9a-f]{64}' | cut -d' ' -f2 || true)
@@ -204,6 +245,7 @@ elif [[ $mode == dry-run ]]; then
   [[ -f "$HOME/.config/pearnly-production/operator" ]] || stop "缺生产 SSH 密钥 ~/.config/pearnly-production/operator"
   host=$(python3 "$REPO/scripts/production/target.py")
   say "服务器端脚本取自${source_note}，语法检查通过；生产机 ${host}，密钥在"
+  batch_note
   printf '\n真实部署时接下来会执行（演练到此为止）：\n'
   printf '  gh workflow run stage-production.yml --ref %s -f digest=%s\n' "${tag:-<新打的发布标记>}" "$digest"
   printf '  git show <提交>:scripts/production/deploy-run.sh | ssh root@%s  → nohup bash %s/deploy-run-<短SHA>.sh %s@%s <提交>\n' "$host" "$REMOTE_STATE" "$IMAGE_REPO" "$digest"
@@ -214,6 +256,7 @@ else
     --jq '[.[] | select(.status != "completed")] | length')
   [[ "$busy" == 0 ]] || stop "已有一次生产镜像构建在跑" "等它结束，或确认那是谁的部署再决定"
   flows_gate
+  config_gate
   t_start=$(date +%s)
   t_build=0 t_stage=0
   if [[ -z "$digest" ]]; then
@@ -305,6 +348,8 @@ echo \"__STATUS \$(cat \$T 2>/dev/null)\"" </dev/null; echo "__SSHRC $?")
   sleep "$RECONNECT"
 done
 
+[[ $mode != deploy ]] || batch_note
+
 case "$status" in
   ok)
     say "部署完成：ERP / Cowork / DMS / 基础层已激活，回读通过"
@@ -320,6 +365,9 @@ case "$status" in
     stop "激活全部完成，回读有问题（见上面 PROBLEM 行）" "不自动回滚；逐项看：维护模式没关、Error Log 有新报错、域名不通还是容器没换" \
       "处理后可单独重跑回读：ssh 到生产机 bash /opt/pearnly/deploy/scripts/production/deploy-readback.sh <镜像> \$(cat $REMOTE_STATE/deploy-$short.since)"
     ;;
+  "failed config")
+    stop "激活前的租户配置对比没过（上面 BLOCK 行）" "生产服务没动（镜像已放上生产机）" \
+      "改租户配置或改地图分类后：scripts/production/deploy.sh --tag $tag --digest $digest --skip-stage" ;;
   "failed revision"|"failed sync-tooling"|"failed start")
     stop "激活前的核对没过（${status}）" "生产服务没动；看上面日志的 FAILED 行" ;;
   "failed erp"|"failed cowork"|"failed dms"|"failed foundation")

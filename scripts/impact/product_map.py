@@ -460,6 +460,13 @@ def load(directory=MAP_DIR) -> Map:
         for name, spec in {**data.get("key", {}), **{k + "*": v for k, v in data.get("family", {}).items()}}.items():
             if spec.get("class") not in CONFIG_CLASSES:
                 errors.append(f"config.toml：{name} 的 class 只能是 {sorted(CONFIG_CLASSES)}")
+            if spec.get("class") == "shape":
+                try:
+                    re.compile(spec.get("pattern") or "")
+                except re.error as error:
+                    errors.append(f"config.toml：{name} 的 pattern 不是正则：{error}")
+                if not spec.get("pattern"):
+                    errors.append(f"config.toml：{name} 是 shape，要写 pattern（部署前对比按它判）")
             config[name] = spec
     baseline = []
     if (directory / "untested_baseline.txt").exists():

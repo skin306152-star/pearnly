@@ -130,3 +130,12 @@ RUN cd /home/frappe/frappe-bench && \
 COPY --chown=frappe:frappe infrastructure/production      /opt/pearnly/deploy-src/infrastructure/production
 COPY --chown=frappe:frappe infrastructure/keycloak/themes /opt/pearnly/deploy-src/infrastructure/keycloak/themes
 COPY --chown=frappe:frappe scripts/production             /opt/pearnly/deploy-src/scripts/production
+# 产品地图导出（上线必验行、探针、配置分类）：部署前配置对比与回读的逐租户入口检查读它（docs/work/2026-11-04-product-map.md）。
+# 只读地图文件、不扫代码；生成在部署工具的拷贝里，激活时与服务器上那份一起比对。
+COPY --chown=frappe:frappe scripts/impact                 /tmp/pearnly-map/scripts/impact
+COPY --chown=frappe:frappe scripts/check-product-map.py   /tmp/pearnly-map/scripts/check-product-map.py
+USER root
+RUN /home/frappe/frappe-bench/env/bin/python /tmp/pearnly-map/scripts/check-product-map.py \
+      --export /opt/pearnly/deploy-src/scripts/production/product-map.json && \
+    chown frappe:frappe /opt/pearnly/deploy-src/scripts/production/product-map.json && rm -rf /tmp/pearnly-map
+USER frappe

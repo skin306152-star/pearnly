@@ -10,6 +10,8 @@
 #   - mrerp / erpcowork / ris 的 /api/method/ping 200，fatcc.com 首页 200（它的 ping 本来就 403；刚换完基础层会 502 十几秒，每个域名最多重试 6 次）；
 #   - 配了 LIFF 的每个站点（站点配置 pearnly_line_liff_id）：LIFF 落地地址是规定的（ERP / Cowork 站点根，DMS /liff/dms-booking），
 #     ERP / Cowork 从 LINE 打开的入口不登录走一遍不出 404（check-liff-endpoints.py，只读、不要密钥；11-03 子路径落地 404 事故）；
+#   - 产品地图里标了上线必验的入口：每个正式租户 × 每一行的探针走一遍（check-tenant-entries.py，只读、不登录；
+#     导出 product-map.json 在镜像构建时生成、随部署工具同步过来；11-04 产品地图 E 块）；
 #   - mariadb 内存只用 docker stats 看，不 exec 进数据库容器。
 # 这一批特有的表、字段、补丁检查不在这里，按发布记录另做。退出码：0 全部通过，1 有问题（逐项打印）。
 set -u
@@ -96,6 +98,15 @@ if [[ -z "$liff_rows" ]]; then
 else
   printf '%s' "$liff_rows" | python3 "$ROOT/scripts/production/check-liff-endpoints.py" --stdin \
     || problem "LIFF endpoint or LINE entry check failed (lines above)"
+fi
+
+echo "-- product map: must-verify entries on every formal tenant"
+map_export="$ROOT/scripts/production/product-map.json"
+if [[ ! -f "$map_export" ]]; then
+  problem "no product map export $map_export (the image should carry it)"
+else
+  python3 "$ROOT/scripts/production/check-tenant-entries.py" --map "$map_export" \
+    || problem "a must-verify entry failed on a formal tenant (lines above)"
 fi
 
 echo "-- mariadb memory (docker stats)"

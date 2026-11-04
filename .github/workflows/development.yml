@@ -157,6 +157,10 @@ jobs:
         run: python3 scripts/production/test-deploy-run.py
       - name: Verify the deploy readback reports a LIFF endpoint off the site root and a LINE entry that ends in 404
         run: python3 scripts/production/test-check-liff-endpoints.py
+      - name: Verify the pre-deploy tenant config check blocks same and shape differences, only reports presence, and keeps secrets inside the container
+        run: python3 scripts/production/test-check-tenant-config.py
+      - name: Verify the post-deploy entry check walks each formal tenant's must-verify entries (LIFF, plain address, CC entry)
+        run: python3 scripts/production/test-check-tenant-entries.py
       - name: Verify migrations stop when DocTypes disappear
         run: python3 scripts/production/test-doctype-guard.py
       - name: Verify the deploy gate inherits a full flow suite only across non-product changes
