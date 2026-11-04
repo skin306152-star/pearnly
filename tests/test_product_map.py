@@ -38,7 +38,8 @@ class Discovery(unittest.TestCase):
                              ("tool:erp:erp_push_documents", "cc-tool"), ("tool:cowork:cowork_pending", "cc-tool"),
                              ("tool:erp:pearnly_whoami", "cc-tool"), ("operator:cowork:submit", "cc-operator-hook"),
                              ("ccview:erp:pending", "cc-view"), ("ccaction:erp:switch-account", "cc-action"),
-                             ("ccaction:cowork:mrerp-auth", "cc-action")):
+                             ("ccaction:cowork:mrerp-auth", "cc-action"), ("scan:erp.stock-count.entry.camera", "scan"),
+                             ("scan:shared.upload.take-photo", "scan")):
             self.assertIn(anchor, found)
             self.assertEqual(found[anchor].kind, kind, anchor)
             self.assertTrue(found[anchor].files, f"{anchor} 推不出文件")

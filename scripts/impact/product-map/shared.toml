@@ -1,0 +1,15 @@
+# 产品地图（共用）：ERP 与 Cowork 都有、由共用层实现的入口（字段见 erp.toml 文件头）。
+
+# 相机 / 扫码入口逐个成行（11-04 事故回放待补项 E）：锚点来自共用件登记表扫码两个共用件的入口（scan:<入口 id>）。
+
+[[row]]
+id = "shared.scan.upload.take-photo"
+product = "共用"
+products = ["ERP", "Cowork"]
+channel = "desk"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:shared.upload.take-photo"
+where = "上传框「拍照」（电脑）：任一上传框（物料图片、充值凭证、盘点凭证）→ 拍照"
+parts = ["desk-scan-core"]
+tests = ["impact:shared.upload.take-photo"]

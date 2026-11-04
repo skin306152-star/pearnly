@@ -1543,3 +1543,163 @@ kind = "cc-action"
 anchor = "ccaction:erp:delete-chats"
 where = "CC 删除对话（先确认一次）"
 group = "cc.action.delete-chats"
+
+# 相机 / 扫码入口逐个成行（11-04 事故回放待补项 E）：锚点来自共用件登记表扫码两个共用件的入口（scan:<入口 id>）。
+
+[[row]]
+id = "erp.scan.products.new-dialog.scan"
+product = "ERP"
+channel = "desk"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:erp.products.new-dialog.scan"
+where = "pearnly-products 新建弹窗：物料 → 新建 → 编码格扫码图标（相机）；扫码枪在编码格回车"
+parts = ["desk-scan-core", "erp-scan-dialog"]
+tests = ["impact:erp.products.new-dialog.scan"]
+
+[[row]]
+id = "erp.scan.products.new-page.scan"
+product = "ERP"
+channel = "desk"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:erp.products.new-page.scan"
+where = "pearnly-products/new 表格：`/desk/pearnly-products/new` → 表格上方扫码按钮；表内扫码枪回车"
+parts = ["desk-scan-core", "erp-scan-dialog"]
+tests = ["impact:erp.products.new-page.scan"]
+
+[[row]]
+id = "erp.scan.products.detail.barcode-scan"
+product = "ERP"
+channel = "desk"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:erp.products.detail.barcode-scan"
+where = "物料详情条码格：物料列表点本地商品 → 条码格扫码图标"
+parts = ["desk-scan-core", "erp-scan-dialog"]
+tests = ["impact:erp.products.detail.barcode-scan"]
+
+[[row]]
+id = "erp.scan.cashier.camera"
+product = "ERP"
+channel = "desk"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:erp.cashier.camera"
+where = "pearnly-cashier 搜索框相机：收银台 → 搜索框右侧相机"
+parts = ["desk-scan-core", "erp-scan-dialog"]
+tests = ["impact:erp.cashier.camera"]
+
+[[row]]
+id = "erp.scan.cashier.scanner-gun"
+product = "ERP"
+channel = "desk"
+ends = ["desktop"]
+kind = "scan"
+anchor = "scan:erp.cashier.scanner-gun"
+where = "pearnly-cashier 扫码枪：收银台直接用扫码枪扫"
+parts = ["desk-scan-core", "erp-scan-dialog"]
+tests = ["flow:erp.pos.shift@desktop"]
+
+[[row]]
+id = "erp.scan.stock-count.entry.camera"
+product = "ERP"
+channel = "desk"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:erp.stock-count.entry.camera"
+where = "pearnly-stock-count 录入弹窗：库存盘点 → 打开一份 → 录入 → 相机（安卓 LINE 内转 LIFF）"
+parts = ["desk-scan-core", "erp-scan-dialog"]
+tests = ["flow:erp.stocktake.scan@mobile"]
+group = "scan.stocktake-entry"
+
+[[row]]
+id = "erp.scan.line.stocktake.camera"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:erp.line.stocktake.camera"
+where = "LINE 手机盘点 /stocktake：LINE → 盘点 → 扫码（真手机 LIFF）"
+parts = ["desk-scan-core", "erp-scan-dialog"]
+tests = ["flow:erp.line.stocktake.phone@mobile"]
+
+[[row]]
+id = "erp.scan.stock-in.item-scan"
+product = "ERP"
+channel = "desk"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:erp.stock-in.item-scan"
+where = "pearnly-stock-in 新建明细：入库 → 新建 → 明细物料格扫码图标；扫码枪回车"
+parts = ["desk-scan-core", "erp-scan-dialog"]
+tests = ["flow:erp.stock-entry.scan@mobile"]
+
+[[row]]
+id = "erp.scan.stock-out.item-scan"
+product = "ERP"
+channel = "desk"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:erp.stock-out.item-scan"
+where = "pearnly-stock-out 新建明细：出库 → 新建 → 明细物料格扫码图标；扫码枪回车"
+parts = ["desk-scan-core", "erp-scan-dialog"]
+tests = ["flow:erp.stock-entry.scan@mobile"]
+
+[[row]]
+id = "erp.scan.inventory.opening.item-scan"
+product = "ERP"
+channel = "desk"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:erp.inventory.opening.item-scan"
+where = "库存 → 录入期初：库存 → 录入期初 → 明细商品格扫码"
+parts = ["desk-scan-core", "erp-scan-dialog"]
+tests = ["impact:erp.inventory.opening.item-scan"]
+
+[[row]]
+id = "erp.scan.purchase.item-scan"
+product = "ERP"
+channel = "desk"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:erp.purchase.item-scan"
+where = "pearnly-purchase 新建明细：采购 → 新建 → 明细物料格扫码；扫码枪回车"
+parts = ["desk-scan-core", "erp-scan-dialog"]
+tests = ["impact:erp.purchase.item-scan"]
+
+[[row]]
+id = "erp.scan.sales.item-scan"
+product = "ERP"
+channel = "desk"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:erp.sales.item-scan"
+where = "pearnly-sales 新建明细：销售 → 新建 → 明细物料格扫码；扫码枪回车"
+parts = ["desk-scan-core", "erp-scan-dialog"]
+tests = ["flow:erp.sales.scan@mobile"]
+
+[[row]]
+id = "erp.scan.line.stocktake.liff-camera"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:erp.line.stocktake.liff-camera"
+where = "LINE 富菜单「盘点」→ LIFF 打开 pearnly-stock-count：ERP-TEST 富菜单「盘点」（安卓 LINE 普通内置浏览器会转 LIFF 并带 pearnly_liff=scan）→ 打开一份 → 开始盘点 → 相机"
+parts = ["desk-scan-core"]
+tests = ["impact:erp.line.stocktake.liff-camera"]
+device_only = "富菜单进 LIFF 后由 LINE App 弹原生相机授权，浏览器与假摄像头都没有这一步"
+device = "三星 LINE：点 ERP 富菜单「盘点」→ 经 LIFF 打开盘点页 → 点扫码弹 LINE 的相机授权 → 对着测试机屏幕扫测试码 → 认出商品"
+group = "scan.line-stocktake-liff"
+
+[[row]]
+id = "erp.scan.serials.dialog"
+product = "ERP"
+channel = "desk"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:erp.serials.dialog"
+where = "按台管理：入库 / 出库 / 调拨 / 进货 / 销售收据 / 收银提交前的「登记车辆 / 选择车辆」弹窗：商品开按台 → 入库「其他」提交 → 逐行登记车架号（扫码填号）；出库、调拨、销售收据、收银完成订单 → 选在库的台（下拉搜索、扫码认台）；入库「退货」→ 选已售的台；取消弹窗；同一台车放在同仓另一个库位再选"
+parts = ["desk-scan-core", "erp-scan-dialog"]
+tests = ["impact:erp.serials.dialog"]

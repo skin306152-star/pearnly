@@ -29,7 +29,7 @@ PRODUCTS = {"ERP", "Cowork", "DMS", "控制面", "共用"}
 CHANNELS = {"desk", "line", "cc-chat", "cc-operator", "cc-desktop"}
 ENDS = ("desktop", "mobile")
 KINDS = {"nav-page", "page-action", "page", "report", "line-menu", "line-postback", "line-link", "line-event",
-         "line-message", "liff-page", "cc-tool", "cc-operator-hook", "cc-view", "cc-action", "cc-nav"}
+         "line-message", "liff-page", "cc-tool", "cc-operator-hook", "cc-view", "cc-action", "cc-nav", "scan"}
 # 还没有可扫声明的类型（F 块 11-04 给 CC 外壳动作加了 `// map:` 注释，现在没有了）
 UNSCANNED_KINDS: set = set()
 PROBES = {"liff", "http", "assistant-gate"}
@@ -364,10 +364,34 @@ def discover_cc_actions(repo: Repo) -> list[Found]:
     return list(found.values())
 
 
+SCAN_PARTS = ("desk-scan-core", "erp-scan-dialog")
+SCAN_PRODUCTS = {"ERP", "Cowork", "共用"}   # DMS 第二期
+
+
+def discover_scan(repo: Repo) -> list[Found]:
+    """相机 / 扫码入口逐个成行（11-04 事故回放待补项 E）：取共用件登记表里扫码两个共用件的入口——那张表的调用方由
+    check-impact.py 按代码核，新加扫码入口不登记就过不了那道闸。扫码枪是电脑，其余是手机相机。"""
+    if "scripts/impact/shared-parts.toml" not in repo.present:
+        return []
+    data = tomllib.loads(repo.text("scripts/impact/shared-parts.toml"))
+    entries = {entry["id"]: entry for entry in data.get("entry", [])}
+    wanted = [entry_id for part in data.get("part", []) if part["id"] in SCAN_PARTS for entry_id in part["entries"]]
+    found = []
+    for entry_id in dict.fromkeys(wanted):
+        entry = entries.get(entry_id)
+        if not entry or entry["product"] not in SCAN_PRODUCTS:
+            continue
+        ends = ["desktop"] if "scanner-gun" in entry_id else ["mobile"]
+        channel = "line" if ".line." in entry_id else "desk"
+        found.append(Found(f"scan:{entry_id}", "scan", entry["product"], channel, ends, list(entry["files"]),
+                           f"{entry['where']}：{entry['steps']}"))
+    return found
+
+
 def discover(repo: Repo | None = None) -> dict[str, Found]:
     repo = repo or Repo()
     result = {}
-    for item in discover_desk(repo) + discover_line(repo) + discover_cc(repo) + discover_cc_actions(repo):
+    for item in discover_desk(repo) + discover_line(repo) + discover_cc(repo) + discover_cc_actions(repo) + discover_scan(repo):
         result.setdefault(item.anchor, item)
     return result
 

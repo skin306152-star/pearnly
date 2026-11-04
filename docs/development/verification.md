@@ -158,6 +158,7 @@ App 下虽然有 `.pre-commit-config.yaml`，但它们不是根级统一检查�
    `untested_baseline.txt`（还没有测试的「行 id@端」，只许减少）。
 2. 锚点由 `scripts/impact/product_map.py` 从代码发现：`pearnly_navigation` 的页面与页头动作、不在导航的页与报表、LINE 富菜单格 / postback 动作 /
    LIFF 链接 / 事件 / 消息类型 / www 页、`pearnly_assistant_tools` 的 CC 工具、`pearnly_express_operator` 的代录钩子、CC 视图、站点配置键。
+   相机 / 扫码入口逐个成行：锚点取共用件登记表里 `desk-scan-core`、`erp-scan-dialog` 两个共用件的入口（`scan:<入口 id>`，DMS 第二期），带 `parts`，所以改到扫码共用件时规则 6 要求红 / 黄的入口补测试。
    CC 外壳动作（切换站点、添加公司……）从代码里的 `// map: <动作>[@产品]` 注释读出；CC 前端每一处页面跳转（`window.open`、`location.assign / replace / href =`）
    都要带 `// map:`，不是产品入口的在 `not_entries.toml` 登记 `ccnav:<文件>:<那一行>` 并写原因（11-04 F 块）。
 3. `python3 scripts/check-product-map.py`（CI 同名步骤）四条规则：**未登记**（发现到的入口或配置键不在地图）、**已过期**（行的锚点、引用的流程 / 入口 /

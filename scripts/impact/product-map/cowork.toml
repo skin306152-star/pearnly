@@ -1742,3 +1742,31 @@ where = "CC 定时任务里 MR.ERP 连接「在 CC 桌面版中授权」"
 tests = ["flow:cowork.mrerp-login"]
 group = "cc.action.mrerp-auth"
 na = { ERP = "ERP 没有 MR.ERP 连接（MR.ERP 代录在 Cowork）" }
+
+# 相机 / 扫码入口逐个成行（11-04 事故回放待补项 E）：锚点来自共用件登记表扫码两个共用件的入口（scan:<入口 id>）。
+
+[[row]]
+id = "cowork.scan.stocktake.entry.camera"
+product = "Cowork"
+channel = "desk"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:cowork.stocktake.entry.camera"
+where = "pearnly-stocktake 录入弹窗：库存盘点 → 打开一份 → 录入 → 相机"
+parts = ["desk-scan-core"]
+tests = ["flow:cowork.stocktake.entry@mobile"]
+group = "scan.stocktake-entry"
+
+[[row]]
+id = "cowork.scan.line.stocktake.liff-camera"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "scan"
+anchor = "scan:cowork.line.stocktake.liff-camera"
+where = "LINE 富菜单「库存盘点」→ LIFF 打开 pearnly-stocktake：Cowork-test 富菜单「库存盘点」→ 打开一份 → 开始盘点 → 相机（安卓 LINE 内置浏览器转 LIFF 带 pearnly_liff=scan 自动开相机）"
+parts = ["desk-scan-core"]
+tests = ["impact:cowork.line.stocktake.liff-camera"]
+device_only = "同 ERP：LINE App 的原生相机授权只能真机"
+device = "三星 LINE：点 Cowork 富菜单「库存盘点」→ 经 LIFF 打开盘点页 → 扫码弹 LINE 相机授权 → 扫测试码 → 认出商品"
+group = "scan.line-stocktake-liff"
