@@ -3,6 +3,8 @@
 公司设成「汽车」类型。入库页新建一张入库单：单头选仓，明细按码填按台商品（扫码枪回车那条路，认出后带出内部编码一格），数量 1，
 提交 → 弹「登记车辆」：先留空保存要提示台数不符、不提交；填车架号再保存 → 入库成功。库里：这台车登记在这个仓、在库，
 入库单已提交。跑完公司类型还原成普通。老数据没有按台商品，先建一件本地的按台商品（没有库存，直接开按台）。
+手机宽度另用假摄像头跑一遍：「登记车辆」弹窗里不手填，点弹窗的「扫码」由相机读出号码填进第一格空行（产品地图 erp.scan.serials.dialog，11-05）。
+号码用合法的 EAN-13 数字码（假摄像头画面只画得出 EAN-13；号码格不限字符）。
 """
 from __future__ import annotations
 
@@ -14,6 +16,15 @@ IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promi
 CAPTURE = ("window.__dlgs=window.__dlgs||[];if(!frappe.ui.Dialog.prototype.__cap){const o=frappe.ui.Dialog.prototype.show;"
            "frappe.ui.Dialog.prototype.show=function(){window.__dlgs.push(this);return o.apply(this,arguments)};frappe.ui.Dialog.prototype.__cap=1;}"
            "window.__msgs=window.__msgs||[];if(!frappe.__msgcap){const m=frappe.msgprint;frappe.msgprint=function(x){window.__msgs.push(typeof x==='string'?x:(x&&x.message)||'');return m.apply(this,arguments)};frappe.__msgcap=1;}")
+
+
+# 手机宽度两遍（手填、相机）在开跑之前各准备一次：公司类型由最后一遍核完才还原成普通，不然相机那遍不弹登记框
+_SEQ = {}
+
+
+def _ean13() -> str:
+    first12 = "8856" + str(uuid.uuid4().int)[:8]
+    return first12 + str((10 - sum(int(d) * (3 if i % 2 else 1) for i, d in enumerate(first12)) % 10) % 10)
 
 
 def prepare(lab, manifest):
@@ -39,7 +50,9 @@ wh = frappe.get_all("ERP Warehouse", filters={{"company": {company!r}, "is_activ
 frappe.db.commit()
 print(json.dumps({{"product": product, "code": code, "warehouse": wh}}))
 """)
-    return {**out, "company": company, "vin": "MR0FLOW" + uuid.uuid4().hex[:10].upper(), "cases": []}
+    _SEQ[manifest["site"]] = _SEQ.get(manifest["site"], 0) + 1
+    vin = _ean13()
+    return {**out, "company": company, "vin": vin, "seq": _SEQ[manifest["site"]], "cases": [{"key": "by_barcode", "scan": vin}]}
 
 
 def steps(params, camera_code=None):
@@ -66,11 +79,18 @@ def steps(params, camera_code=None):
         {"name": "填车架号保存", "js": IDLE +
          "const u=window.__dlgs.find(x=>x.fields_dict&&x.fields_dict.units&&x.$wrapper.is(':visible')); if(!u) return {error:'unit dialog closed'};"
          "document.querySelectorAll('.msgprint-dialog .btn-modal-close').forEach(b=>b.click());"
-         f"const row=(u.fields_dict.units.grid.get_data()||[])[0]; row.serial_no={vin}; u.fields_dict.units.grid.refresh();"
-         "await new Promise(r=>setTimeout(r,300)); u.get_primary_btn().trigger('click');"
+         + (
+         # 相机那一遍：点弹窗的「扫码」（secondary），由假摄像头读出号码填进第一格空行
+         "const scan=u.$wrapper.find('.modal-footer .btn-secondary:visible')[0]; if(!scan) return {error:'no scan button on the unit dialog'}; scan.click();"
+         f"for(let k=0;k<100&&((u.fields_dict.units.grid.get_data()||[])[0]||{{}}).serial_no!=={vin};k++) await new Promise(r=>setTimeout(r,250));"
+         "if(window.cur_dialog&&cur_dialog!==u&&cur_dialog.$wrapper.is(':visible')) cur_dialog.hide();"
+         if camera_code else
+         f"const row=(u.fields_dict.units.grid.get_data()||[])[0]; row.serial_no={vin}; u.fields_dict.units.grid.refresh();") +
+         "await new Promise(r=>setTimeout(r,300)); const filled=((u.fields_dict.units.grid.get_data()||[])[0]||{}).serial_no||'';"
+         " u.get_primary_btn().trigger('click');"
          "const d=window.__dlgs.find(x=>x.fields_dict&&x.fields_dict.warehouse&&x.fields_dict.lines);"
          "for(let k=0;k<60&&d.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();"
-         "return {submitted: !d.$wrapper.is(':visible')};"},
+         "return {submitted: !d.$wrapper.is(':visible'), filled};"},
     ]
 
 
@@ -80,14 +100,16 @@ def judge(params, results, camera_code=None):
         {"case": "product filled by code", "seen": by.get("新建入库单"), "ok": bool((by.get("新建入库单") or {}).get("line"))},
         {"case": "unit dialog refuses a blank row", "seen": by.get("提交弹出登记车辆"),
          "ok": (by.get("提交弹出登记车辆") or {}).get("rows") == 1 and (by.get("提交弹出登记车辆") or {}).get("blank_refused") is True},
-        {"case": "submitted after the number is filled", "seen": by.get("填车架号保存"), "ok": (by.get("填车架号保存") or {}).get("submitted") is True},
+        {"case": "submitted after the number is filled" + (" (scanned by camera)" if camera_code else ""), "seen": by.get("填车架号保存"),
+         "ok": (by.get("填车架号保存") or {}).get("submitted") is True and (by.get("填车架号保存") or {}).get("filled") == params["vin"]},
     ]
 
 
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 unit = frappe.db.get_value("ERP Serial No", {{"serial_no": {params['vin']!r}}}, ["product", "warehouse", "status"], as_dict=True) or {{}}
-frappe.db.set_value("ERP Company", {params['company']!r}, "company_type", "general", update_modified=False)  # 还原
+if {params.get('seq') == _SEQ.get(manifest['site'])}:
+    frappe.db.set_value("ERP Company", {params['company']!r}, "company_type", "general", update_modified=False)  # 最后一遍核完才还原
 frappe.db.commit()
 print(json.dumps(unit))
 """)

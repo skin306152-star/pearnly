@@ -193,7 +193,7 @@ start = "/desk/pearnly-stock-in"
 user = "admin"
 datasets = ["new", "old"]
 viewports = ["desktop", "mobile"]
-camera = false
+camera = true
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/serials.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js",
