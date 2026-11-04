@@ -99,7 +99,7 @@ export const OperatorDocumentStep: ToolCallMessagePartComponent = (props) => {
         {row.tone === "skipped" && <span className="cc-step-target">{row.detail}</span>}
         {row.tone === "failed" && <span className="cc-step-failed">{steps.failed}</span>}
       </div>
-      {row.tone === "failed" && row.detail && <div className="cc-step-detail px-(--cc-space-8) text-danger">{row.detail}</div>}
+      {row.tone === "failed" && row.detail && <div className="cc-step-detail cc-step-text px-(--cc-space-8) text-danger">{row.detail}</div>}
     </div>
   );
 };
@@ -173,7 +173,7 @@ export const OperatorSourcesStep: ToolCallMessagePartComponent = ({ args, result
         {!done && <ChevronRightIcon aria-hidden />}
       </button>
       {open && !done && listed && listed.docs.length > 0 && (
-        <div className="cc-step-detail" data-slot="cc-op-sources-list">
+        <div className="cc-step-detail cc-step-text" data-slot="cc-op-sources-list">
           <DragArea
             texts={texts}
             accepts={(active, target) =>

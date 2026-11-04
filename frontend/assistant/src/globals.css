@@ -1369,6 +1369,8 @@
     border-top: var(--cc-ring-w) solid var(--cc-line); background: var(--cc-bg-subtle); color: var(--cc-ink-2);
     font-family: var(--cc-font-mono); font-size: var(--cc-text-xs); line-height: var(--cc-step-detail-lh);
   }
+  /* 步骤展开后是站点的业务内容（代录的资料分组、没录成的原因），不是命令与输出：用正文字体，同步骤行 */
+  .cc-step-detail.cc-step-text { font-family: var(--cc-font-sans); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); }
 
   /* 弹窗（标准化记录 2.3、V14）：弹层底、整窗圆角 16（外壳实测，设置弹窗已用）、弹出阴影；居中定位用 .cc-modal，层级在调用处给
      （普通弹窗 --cc-z-sheet，删除确认 --cc-z-confirm）。宽三档 data-size；头部 = 标题 + 关闭，主体滚动，脚部按钮靠右、上边一条线。
