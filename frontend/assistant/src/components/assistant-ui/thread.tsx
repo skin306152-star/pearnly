@@ -36,6 +36,7 @@ import {
   CheckIcon,
   CopyIcon,
   DownloadIcon,
+  FileSpreadsheetIcon,
   SquareIcon,
 } from "lucide-react";
 import { fileUrl } from "@/lib/managed-agents/api";
@@ -589,6 +590,7 @@ const AssistantMessage: FC = () => {
         )}
         <MessageError />
         <MessageFiles />
+        <OperatorReport />
       </div>
       {/* 工作状态行挂在这一轮的回复里（还没有回复时是组件库补的占位）：组件库把这一轮推到顶上时在回复后面留空白，
           放在回复外面就被挤到屏幕最下面去了 */}
@@ -678,6 +680,29 @@ export function useClock(running: boolean): number {
   }, [running]);
   return running ? now : Date.now();
 }
+
+/** 代录收尾那条回复下面的报告（方案 14.10 E15：reducer 记在消息上的 report，服务端按任务记录现生成 CSV）：同输出文件卡片，点了下载。 */
+const OperatorReport: FC = () => {
+  const report = useAuiState((s) => (s.message.metadata?.custom as { report?: { filename: string; url: string } } | undefined)?.report);
+  if (!report?.url.startsWith("/api/method/")) return null;
+  return (
+    <a
+      href={report.url}
+      download={report.filename || undefined}
+      className="cc-file-card cc-card-hover mt-(--cc-space-8) items-center gap-(--cc-space-12) px-(--cc-space-12) py-(--cc-file-card-py) text-start"
+      data-slot="cc-op-export"
+      title={t("download")}
+    >
+      <span className="cc-file-card-icon">
+        <FileSpreadsheetIcon />
+      </span>
+      <span className="min-w-0">
+        <Marquee className="block truncate font-medium text-ink text-body">{report.filename || "CSV"}</Marquee>
+        <span className="block text-ink-3 text-caption">CSV</span>
+      </span>
+    </a>
+  );
+};
 
 /** 这条回复期间产出的文件：显示成卡片，点一下在右侧打开（同 claude.ai）。按文件时间落在本条与下一条消息之间判定；
  *  「下一条」跳过提醒卡片（它可能排在一轮回复后面，但时间更早）。 */

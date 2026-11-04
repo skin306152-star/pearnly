@@ -5,7 +5,7 @@
 //   /assistant?c=<对话>    → 打开那段对话；不是本人的、不存在或已删 → 有定时任务的产品开定时任务页，否则新对话
 //   /assistant?view=tasks  → 定时任务页（带 &company=<公司> 只看这家公司的任务）
 //   /assistant?view=companies → 公司页；/assistant?company=<公司> → 这家公司的主档页
-//   /assistant?task=<代录任务号>（旧的代录任务链接，兼容入口；?view=tasks&task=… 同）→ 按任务号查到它那段会话（task_thread），切到代录模式打开；
+//   /assistant?task=<代录任务号>（旧的代录任务链接，兼容入口；?view=tasks&task=… 同）→ 按任务号查到它那段会话（task_get 的 session_id），切到代录模式打开；
 //                             代录任务 11-04 起就是一段会话，统一用 ?c=<会话>
 //   /assistant?view=pending → 兼容入口（早上的待处理汇总提醒、CC 桌面版托盘通知还在发；待处理 11-04 起并进对话，不再是视图）：
 //                             带 &company=<公司> 打开这家待处理最多那个月的对话（服务端指定的那段；还没有就在这家这个月开新对话，
@@ -26,7 +26,7 @@ import { create } from "zustand";
 import { type PendingMonth, refreshPendingCounts, useCompanyNav, usePendingCounts } from "@/lib/companies";
 import { getSession } from "@/lib/managed-agents/api";
 import { useListMode } from "@/lib/managed-agents/list-mode";
-import { postMethod } from "@/lib/frappe";
+import { getMethod } from "@/lib/frappe";
 import { hasSection, projectsReady, setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { reportCaught, withReport } from "./caught";
 
@@ -167,10 +167,10 @@ export function targetOf(url: string): Target | null {
   return { c, view, ...(company ? { company } : {}), ...(task ? { task } : {}) };
 }
 
-/** 旧的代录任务链接：任务号 → 它那段会话（站点 task_thread，只认本人的任务）；查不到回空。 */
+/** 旧的代录任务链接：任务号 → 它那段会话（站点 task_get 的 session_id，只认本人的任务）；查不到回空。 */
 export async function taskConversation(task: string): Promise<string> {
   try {
-    const reply = await postMethod<{ session_id?: string }>("pearnly_core.express_operator.api.task_thread", { name: task });
+    const reply = await getMethod<{ session_id?: string }>("pearnly_core.express_operator.api.task_get", { name: task });
     return String(reply?.session_id ?? "");
   } catch (caughtError) { reportCaught(caughtError, "nav");
     return "";
