@@ -212,4 +212,8 @@ LINE 没有单独的推送入口：LINE 上传的票由扫描自动推（`sweep`
   - 第一遍 `test_cowork_push_account` 报错：它还按旧签名调 `_require_matching_account`，并断言「本方税号是别家就拦」。已改成「别家照推、期间外照拦」，第二遍整条通过。
   - 不在 CI 里、但和这次有关的单测，也在同一镜像里补跑并通过：`test_cowork_targets`、`test_cowork_review_reasons`、`test_cowork_express_doc_sanity`、`test_cowork_push_direction`、`test_cowork_da_automation`、`test_cowork_companies`。其中前三个本来不在任何 CI 步骤里，这是存量缺口，这次没有把它们加进 CI。
 - `check-architecture.py` 通过；`check-copy.py`：新增 0、改动 0、删除 8；`i18n-build.py --check` 通过；`check-product-map.py` 退出码 0。
+- 合入前再变基到 `origin/main` = `35f66e29b`：
+  - `push/application/service.py` 与新进来的「代录开始前说清写进哪份账套」（`_operator_target`）有冲突，合并时两边都保留（目标信息照新代码给，账套核对用新签名）。
+  - 代录预检单测改成断言 ready 并写进所选账套。
+  - 之后本地全闸门 184 步全过；生产镜像候选离线检查和补跑的 6 个单测全过。
 - 实机：没测（不碰测试机、实验室、生产）。
