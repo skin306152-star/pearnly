@@ -5,8 +5,9 @@
 这里只出 Cowork 前端已有的形状（`frontend/assistant/src/lib/companies.ts`），字段是子集：
 
 - 公司 = `ERP Company` 的一行（编号 = 文档名），只回本人可见（`company.allowed_companies`，已只含启用的）的；
-- ERP **不提供**建、改名、删：公司在 ERP 里建、改、停用（公司页 `/desk/pearnly-company`）。页面的「添加公司」打开 ERP 新建公司页
-  （`desk`，只给能管公司的人），公司页的「在浏览器中打开」去这家的公司页（`detail.company.desk_url`）；
+- 改名、删、停用在 ERP 公司页（`/desk/pearnly-company`）；「添加公司」同 Cowork 从账套建（`candidates` / `create`，只给能管公司的人，
+  2026-11-04：以前打开 ERP 新建公司页，CC 桌面版里会交给系统浏览器、要重新登录），不接账本的纯 ERP 公司在 ERP 公司页建；
+  公司页的「在浏览器中打开」去这家的公司页（`detail.company.desk_url`）；
 - 账套：CC 桌面版报来的 Express 账套按「税号 + 分店」对上（共用通道 `books.for_company`，与 ERP 写账选账套同一条）；
 - 知识库：`company_notes`；待处理：`express.pending`。
 - 读用 GET、写只收 POST；权限全在服务端判：读要能看公司（`company.read`）且这家在本人可见公司里；写知识库另要有开单权或能管公司。
@@ -30,6 +31,8 @@ WRITE_CAPABILITIES = ("purchase.write", "sales.write", "company.manage")
 FIELDS = ["name", "company_name", "short_name", "tax_id", "branch", "vat_registered", "express_enabled", "express_book",
           "express_synced_at", "express_sync_state", "is_active", "owner", "creation"]
 DESK = "/desk/pearnly-company"
+CANDIDATES_MAX = 200  # 同 Cowork 添加公司的候选上限
+CONNECTIONS_MAX = 50
 
 
 # ---------------- 权限 ----------------
@@ -182,10 +185,145 @@ def detail(company, period=None) -> dict:
     return found
 
 
-def desk() -> dict:
-    """「添加公司」去哪：ERP 的新建公司页（只给能管公司的人，其余回空，页面不出这个按钮）。"""
-    require_read()
-    return {"url": f"{DESK}/new" if guard.has("company.manage") else ""}
+# ---------------- 添加公司（从账套建，同 Cowork 的弹窗） ----------------
+
+
+def require_manage(user=None) -> str:
+    user = require_read(user)
+    if not guard.has("company.manage", user=user):
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    return user
+
+
+def _mrerp_on() -> bool:
+    from pearnly_erp_portal import mrerp
+    from pearnly_erp_portal.mrerp import connection as connections
+
+    return mrerp.enabled() and connections.is_admin()
+
+
+def _mrerp_sets() -> list:
+    """MR.ERP 各连接目录里的账套（只在 MR.ERP 账本开着、本人是管理员时；同 ERP 公司页选账本的那份目录）。"""
+    if not _mrerp_on():
+        return []
+    from pearnly_erp_portal.mrerp import catalog
+    from pearnly_erp_portal.mrerp import connection as connections
+
+    out = []
+    for name in frappe.get_all(connections.CONNECTION, pluck="name", order_by="name asc", limit_page_length=CONNECTIONS_MAX):
+        out += [(name, row) for row in catalog.account_sets(name, 0, catalog.PAGE_MAX)["rows"]]
+    return out
+
+
+def candidates(search=None) -> list:
+    """「添加公司」的候选（形状同 Cowork `companies.service.candidates`，页面用同一个弹窗）：Express = 在用电脑报的账套按
+    「税号 + 分店」合并（`express.companies.catalog`，后台本来就会照它补建，这里多半是「已添加」）；MR.ERP = 各连接目录里的
+    账套，一份一行（一家公司只接一份账本）。``company`` 是已有的那家（停用的不列，人停的不在这里重开）。只给能管公司的人。
+    不调电脑、不扣费；纯 ERP 公司（不接账本）在 ERP 公司页建。"""
+    require_manage()
+    from pearnly_erp_portal.express import companies as express_companies
+    from pearnly_erp_portal.express import contracts
+
+    rows = _companies()
+    by_tax = _by_tax(rows)
+    by_set = {(row.mrerp_connection, row.mrerp_account_set): row for row in rows if row.mrerp_connection}
+    out = []
+    for (tax, branch), item in express_companies.catalog().items():
+        found = by_tax.get((tax, branch))
+        if found and not found.is_active:
+            continue
+        out.append({"identity": f"express:{tax}:{branch}", "title": item["name"], "legal_name": item["name"], "tax_id": tax,
+                    "branch": branch, "branches": [branch], "adapter": "express", "years": item["years"], "connection": "",
+                    "account_set_key": f"{tax}:{branch}", "company": found.name if found else None})
+    for connection, row in _mrerp_sets():
+        found = by_set.get((connection, row["key"]))
+        if found and not found.is_active:
+            continue
+        name = str(row.get("company") or row["label"])
+        out.append({"identity": f"mrerp:{connection}:{row['key']}", "title": name, "legal_name": name,
+                    "tax_id": row.get("tax_id") or "", "branch": HEAD_OFFICE if row.get("tax_id") else "", "branches": [],
+                    "adapter": "mrerp", "years": [str(row.get("period_start") or "")[:4]] if row.get("period_start") else [],
+                    "connection": connection, "account_set_key": row["key"], "company": found.name if found else None})
+    needle = " ".join(str(search or "").split()).casefold()
+    if needle:
+        out = [item for item in out if needle in " ".join([item["title"], item["tax_id"], *item["years"]]).casefold()]
+    out.sort(key=lambda item: (item["company"] is not None, item["title"].casefold()))
+    return out[:CANDIDATES_MAX]
+
+
+def _companies() -> list:
+    return frappe.get_all(COMPANY, fields=["name", "is_active", "tax_id", "branch", "mrerp_connection", "mrerp_account_set"],
+                          limit_page_length=COMPANY_MAX)
+
+
+def _by_tax(rows) -> dict:
+    """现有公司按「税号 + 分店」（同 `express.companies.missing` 的写法规整，含停用的）。"""
+    from pearnly_erp_portal.express import contracts
+
+    return {(contracts.tax13(row.tax_id), contracts.branch5(row.branch)): row for row in rows if contracts.tax13(row.tax_id)}
+
+
+def _not_in_catalog():
+    frappe.throw(_("Invalid request"))
+
+
+def create(connection, account_set_key, request_key=None) -> dict:
+    """从候选里的一份账套建公司：服务端自己读目录算名称、税号，前端给的一律不收；已有就回现有的那家（同一组账套、同一份 MR.ERP
+    账套只有一家，重复点、两人同时点都一样：同站点串行，建好在锁里提交）。``request_key`` 收下不用（形状同 Cowork）。"""
+    require_manage()
+    from pearnly_core.execution import state as pearnly_state
+    from pearnly_erp_portal.express import companies as express_companies
+    from pearnly_erp_portal.express import contracts, masters
+
+    connection, key = str(connection or "").strip(), str(account_set_key or "").strip()
+    store = pearnly_state.store()
+    with store.lock(store.make_key("erp-cc-company-create"), timeout=60, blocking_timeout=20):
+        if not connection:
+            tax, _sep, branch = key.partition(":")
+            item = express_companies.catalog().get((contracts.tax13(tax), contracts.branch5(branch))) if contracts.tax13(tax) else None
+            if not item:
+                _not_in_catalog()
+            tax, branch = contracts.tax13(tax), contracts.branch5(branch)
+            found = _by_tax(_companies()).get((tax, branch))
+            if found and not found.is_active:
+                _not_in_catalog()
+            if found:
+                return {**_made(found.name), "created": False}
+            name = express_companies.build(tax, branch, item["name"])
+            masters.queue(name)
+        else:
+            found_set = next((row for conn, row in _mrerp_sets() if conn == connection and row["key"] == key), None)
+            if not found_set:
+                _not_in_catalog()
+            found = frappe.db.get_value(COMPANY, {"mrerp_connection": connection, "mrerp_account_set": key},
+                                        ["name", "is_active"], as_dict=True)
+            if found and not found.is_active:
+                _not_in_catalog()
+            if found:
+                return {**_made(found.name), "created": False}
+            name = _build_mrerp(connection, found_set)
+        frappe.db.commit()
+    return {**_made(name), "created": True}
+
+
+def _build_mrerp(connection, row) -> str:
+    """MR.ERP 账套建一家公司并接上这份账本（同 ERP 公司页选账本 `mrerp.catalog.choose`）。"""
+    from pearnly_erp_portal.inventory import warehouses
+    from pearnly_erp_portal.mrerp import catalog
+
+    tax = str(row.get("tax_id") or "")
+    doc = frappe.get_doc({"doctype": COMPANY, "company_name": str(row.get("company") or row["label"])[:200], "tax_id": tax,
+                          "branch": HEAD_OFFICE if tax else "", "is_active": 1, "pos_enabled": 0, "express_enabled": 0,
+                          "company_type": "general"})
+    doc.insert(ignore_permissions=True)
+    warehouses.ensure_for_company(doc.name, "Main")
+    catalog.choose(doc.name, connection, row["key"])
+    return doc.name
+
+
+def _made(name) -> dict:
+    row = frappe.db.get_value(COMPANY, name, ["name", "company_name"], as_dict=True)
+    return {"id": row.name, "title": row.company_name or row.name}
 
 
 def context_text(company, period="", user=None) -> str:

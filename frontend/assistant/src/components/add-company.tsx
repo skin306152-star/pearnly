@@ -1,22 +1,24 @@
 // 添加公司（公司页「＋ 添加公司」、新对话公司条里的「添加公司…」）：原生对话框，搜索 + 账套目录里的候选。
 //
 //   候选来自服务端读的账套目录（companies.api.candidates，按公司身份合并；不调电脑、不扣费）。页面只交「哪条连接的哪份账套」，
-//   名称、税号由服务端从目录算；已添加的行尾「已添加」，点了直接打开那家。目录还没读到（没有候选）时只给「刷新账套」。
+//   名称、税号由服务端从目录算；已添加的行尾「已添加」，点了直接打开那家。目录还没读到（没有候选）时只给「刷新账套」（产品声明了
+//   catalog 才有：ERP 的 Express 账套由 CC 桌面版心跳报来、MR.ERP 目录在 ERP 连接页刷新，空列表只说没有结果）。
 //   账套里没有的公司这一批不能建，也不做一次加多家。
 //   按 ERP 分标签（用户 10-20：添加公司没有按 ERP 分类）：候选里有两种以上 ERP 时搜索框下摆 MR.ERP / Express 标签，只列选中的那种；
 //   只有一种时不摆。标签只筛这次打开里看的，不记住。
 //
 // 打开方式：openAddCompany(then, title?)；then 收到公司编号（默认打开主档页）。title：定时任务总览「＋」先选公司时
 // 叫「选择公司」（选已添加的或新加一家都行）。对话框在 assistant.tsx 里挂一次。
-// 公司列表与新对话公司条的「添加公司」按产品声明走（useAddCompanyAction）：create = 这个对话框；desk = 在新窗口打开站点的新建
-// 公司页（ERP：先在 ERP 里建公司，建好推 pearnly.project 回来）；都没声明不出这一项。
+// 公司列表与新对话公司条的「添加公司」按产品声明走（useAddCompanyAction）：声明了 create 就是这个对话框，没声明不出这一项。
+// ERP 也是这个对话框（服务端 masters.cc_companies 的 candidates / create，只给能管公司的人；2026-11-04：以前在新窗口开 ERP 新建
+// 公司页，CC 桌面版里交给系统浏览器、要重新登录）。不接账本的纯 ERP 公司在 ERP 公司页建。
 
 import { LoaderIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive, Tabs } from "radix-ui";
 import { type FC, useEffect, useRef, useState } from "react";
 import { co, t } from "@/i18n";
 import { create } from "zustand";
-import { branchShort, type Candidate, createCompany, listCandidates, newCompanyUrl, openSitePage, refreshCatalogs, requestKey } from "@/lib/companies";
+import { branchShort, type Candidate, createCompany, listCandidates, refreshCatalogs, requestKey } from "@/lib/companies";
 import { useSection } from "@/lib/managed-agents/projects";
 import { shownError } from "@/lib/frappe";
 import { Marquee } from "@/components/ui/marquee";
@@ -32,22 +34,10 @@ export function openAddCompany(then: (id: string, title: string) => void, title 
 
 const close = () => useAddCompany.setState({ open: false, then: null, title: "" });
 
-/** 「添加公司」做什么（按产品声明）：create = 账套目录里挑（then 收到公司编号）；desk = 新窗口打开站点的新建公司页（地址由服务端
- *  给，没有权限给空）；都没有回 null（不出这一项）。 */
+/** 「添加公司」做什么（按产品声明）：声明了 create = 账套目录里挑（then 收到公司编号与显示名）；没有回 null（不出这一项）。 */
 export function useAddCompanyAction(then: (id: string, title: string) => void): (() => void) | null {
   const fromCatalog = useSection("create");
-  const desk = useSection("desk");
-  const [url, setUrl] = useState("");
-  useEffect(() => {
-    if (!desk) return;
-    let alive = true;
-    void newCompanyUrl().then((found) => alive && setUrl(found));
-    return () => {
-      alive = false;
-    };
-  }, [desk]);
-  if (fromCatalog) return () => openAddCompany(then);
-  return desk && url ? () => openSitePage(url) : null;
+  return fromCatalog ? () => openAddCompany(then) : null;
 }
 
 // 标签顺序同定时任务表单的目标卡片；产品名不翻译
@@ -97,6 +87,7 @@ const Candidates: FC = () => {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const canRefresh = useSection("catalog");
   const [erp, setErp] = useState("");
   const keys = useRef(new Map<string, string>()); // 同一行重点不重复建（同一个 request_key）
   const asked = useRef(0);
@@ -203,7 +194,7 @@ const Candidates: FC = () => {
               ) : null}
             </button>
           ))
-        ) : !search.trim() ? (
+        ) : !search.trim() && canRefresh ? (
           <div className="flex justify-center py-(--cc-space-24)">
             <button type="button" className="cc-btn" disabled={refreshing} onClick={() => void refresh()}>
               {refreshing ? <LoaderIcon className="cc-spinner" /> : <RefreshCwIcon />}

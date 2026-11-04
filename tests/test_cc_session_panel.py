@@ -781,8 +781,13 @@ class ErpSectionsSourceTests(unittest.TestCase):
         add = read("components/add-company.tsx")
         action = add.split("export function useAddCompanyAction(", 1)[1].split("\n}", 1)[0]
         self.assertIn('const fromCatalog = useSection("create");', action)
-        self.assertIn('const desk = useSection("desk");', action)
-        self.assertIn("return desk && url ? () => openSitePage(url) : null;", action)
+        # 添加公司只有账套目录这一种（2026-11-04：ERP 以前在新窗口开 ERP 新建公司页，CC 桌面版里交给系统浏览器、要重新登录）
+        self.assertIn("return fromCatalog ? () => openAddCompany(then) : null;", action)
+        self.assertNotIn("openSitePage", add)
+        self.assertNotIn("newCompanyUrl", read("lib/companies.ts"))
+        # 「刷新账套」只在声明了 catalog 的产品（ERP 的站点上没有 Cowork 的连接接口）
+        self.assertIn('const canRefresh = useSection("catalog");', add)
+        self.assertIn(") : !search.trim() && canRefresh ? (", add)
         self.assertIn("const add = useAddCompanyAction(onPick);", read("components/assistant-ui/projects.tsx"))
         self.assertIn("{add && (", read("components/companies.tsx"))
         pending = read("components/pending.tsx")
@@ -858,7 +863,7 @@ class ErpSectionsBehaviourTests(unittest.TestCase):
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server.browser";
 import { refreshProjects, resetProjects, useProjects } from "@/lib/managed-agents/projects";
-import { deleteNote, listCompanies, loadDetail, loadPending, newCompanyUrl, refreshPendingCounts, saveNote, usePendingCounts } from "@/lib/companies";
+import { createCompany, deleteNote, listCandidates, listCompanies, loadDetail, loadPending, refreshPendingCounts, saveNote, usePendingCounts } from "@/lib/companies";
 import { declaredCards } from "@/components/session-panel";
 import { PendingItems } from "@/components/pending";
 const g = globalThis as any;
@@ -866,9 +871,11 @@ const ok = (message: any) => ({ ok: true, status: 200, json: async () => ({ mess
 const ERP = "pearnly_erp_portal.masters.cc_companies.";
 g.respond = async (method: string) => {
   if (method === "projects") return ok({ kind: "company", period: true, scope: false, api: ERP,
-    sections: ["pending", "notes", "desk", "bogus", 3], projects: [{ id: "CO-00001", title: "Siam", subtitle: "0105536082808" }] });
+    sections: ["pending", "notes", "create", "desk", "bogus", 3], projects: [{ id: "CO-00001", title: "Siam", subtitle: "0105536082808" }] });
   if (method.includes(ERP + "companies")) return ok([{ id: "CO-00001", title: "Siam", tax_id: "0105536082808" }]);
-  if (method.includes(ERP + "desk")) return ok({ url: "/desk/pearnly-company/new" });
+  if (method.includes(ERP + "candidates")) return ok([{ identity: "express:0105536082808:00000", title: "Siam", company: "CO-00001",
+    connection: "", account_set_key: "0105536082808:00000", adapter: "express" }]);
+  if (method.includes(ERP + "create")) return ok({ id: "CO-00009", title: "Korat", created: true });
   if (method.includes(ERP + "pending_counts")) return ok({ total: 2, companies: { "CO-00001": 2 }, unassigned: 0 });
   if (method.includes(ERP + "pending")) return ok({ items: [], count: 0 });
   if (method.includes(ERP + "detail")) return ok({ company: { id: "CO-00001", title: "Siam", desk_url: "/desk/pearnly-company/CO-00001" },
@@ -880,14 +887,16 @@ resetProjects();
 assert.equal(await refreshProjects(), "company");
 const state = useProjects.getState();
 assert.equal(state.api, ERP);
-assert.deepEqual(state.sections, ["pending", "notes", "desk"]);   // 认不出的丢掉
+assert.deepEqual(state.sections, ["pending", "notes", "create", "desk"]);   // 认不出的丢掉
 assert.equal(state.scope, false);
 assert.deepEqual((await listCompanies("si")).map((row) => row.id), ["CO-00001"]);
 assert.equal((await loadDetail("CO-00001", "2026-10")).company.desk_url, "/desk/pearnly-company/CO-00001");
 assert.deepEqual(await loadPending("CO-00001"), []);
 await refreshPendingCounts();
 assert.equal(usePendingCounts.getState().total, 2);
-assert.equal(await newCompanyUrl(), "/desk/pearnly-company/new");
+// 添加公司：同 Cowork 的弹窗，候选与建公司走 ERP 自己的接口
+assert.equal((await listCandidates("si"))[0].company, "CO-00001");
+assert.equal((await createCompany({ connection: "", account_set_key: "0105536082808:00001" })).id, "CO-00009");
 await saveNote("CO-00001", "x");
 await deleteNote("CO-00001", "n1");
 const methods = g.calls.map((call: any) => call.method).filter((m: string) => m !== "projects");

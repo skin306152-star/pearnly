@@ -23,6 +23,8 @@ BOOK = "Pearnly CC Book"
 DEVICE = "Pearnly CC Device"
 SCOPED_FROM = "1.12.0"  # 起这一版 CC 桌面版的 ERP 成员只报人选的数据根里的账套（`worker.erp_scope`）
 COMMIT_EVERY = 20
+DEVICES_MAX = 500    # 一个租户连着的电脑（候选只看在用的几台）
+BOOKS_MAX = 5000     # 这些电脑报的账套行（一台几十份）
 
 
 def books_changed(device):
@@ -55,6 +57,36 @@ def scoped(devices) -> list:
             and request_contracts.supports(row.get("companion_version"), SCOPED_FROM)]
 
 
+def build(tax, branch, name) -> str:
+    """按一组账套建一家公司（后台补建与 CC「添加公司」同一个做法）：回公司编号。新建的由调用方排主档同步。"""
+    # 按账套建的公司就是接了 Express 的（用户 10-29：已连 Express 的公司设为「接 Express」，类型默认普通）
+    doc = frappe.get_doc({"doctype": COMPANY, "company_name": name[:200], "tax_id": tax, "branch": branch,
+                          "is_active": 1, "pos_enabled": 0, "express_enabled": 1, "company_type": "general"})
+    doc.insert(ignore_permissions=True)
+    # 先给一个仓（同开户建公司）：首次同步前就能开单；同步时这个仓按 Express 的主仓码认领（`masters._warehouses`）
+    warehouses.ensure_for_company(doc.name, "Main")
+    return doc.name
+
+
+def catalog() -> dict:
+    """在用电脑报的账套按「税号 + 分店」分组（同 :func:`ensure` 的口径）：``{(税号, 分店): {"name": 公司名, "years": [年度]}}``，
+    年度新的在前。CC 里「添加公司」的候选从这里来。"""
+    devices = scoped(frappe.get_all(DEVICE, fields=["name", "token_digest", "retired_at", "companion_version"],
+                                    limit_page_length=DEVICES_MAX))
+    if not devices:
+        return {}
+    rows = frappe.get_all(BOOK, filters={"device": ["in", devices]},
+                          fields=["company", "label", "tax_id", "branch", "period_start", "period_end"],
+                          limit_page_length=BOOKS_MAX)
+    years = {}
+    for row in rows:
+        tax = contracts.tax13(row.get("tax_id"))
+        year = str(row.get("period_start") or "")[:4]
+        if tax and year:
+            years.setdefault((tax, contracts.branch5(row.get("branch"))), set()).add(year)
+    return {key: {"name": name, "years": sorted(years.get(key, ()), reverse=True)} for key, name in groups(rows).items()}
+
+
 def ensure():
     """（后台任务）按这些电脑报的账套补建公司，新建的排主档同步。回新建的公司。"""
     devices = scoped(frappe.get_all(DEVICE, fields=["name", "token_digest", "retired_at", "companion_version"],
@@ -66,13 +98,7 @@ def ensure():
     companies = frappe.get_all(COMPANY, fields=["name", "tax_id", "branch"], limit_page_length=0)
     made = []
     for tax, branch, name in missing(groups(rows), companies):
-        # 按账套建的公司就是接了 Express 的（用户 10-29：已连 Express 的公司设为「接 Express」，类型默认普通）
-        doc = frappe.get_doc({"doctype": COMPANY, "company_name": name[:200], "tax_id": tax, "branch": branch,
-                              "is_active": 1, "pos_enabled": 0, "express_enabled": 1, "company_type": "general"})
-        doc.insert(ignore_permissions=True)
-        # 先给一个仓（同开户建公司）：首次同步前就能开单；同步时这个仓按 Express 的主仓码认领（`masters._warehouses`）
-        warehouses.ensure_for_company(doc.name, "Main")
-        made.append(doc.name)
+        made.append(build(tax, branch, name))
         if len(made) % COMMIT_EVERY == 0:
             frappe.db.commit()
     frappe.db.commit()

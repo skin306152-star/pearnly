@@ -4396,6 +4396,13 @@ class ProjectTests(unittest.TestCase):
             del self.provider.API, self.provider.SECTIONS
         self.assertNotIn("api", odd)
         self.assertEqual(odd["sections"], ["pending"])
+        # 产品给了 sections()（按当前用户收窄，ERP 只给能管公司的人「添加公司」，2026-11-04）：用它，不用 SECTIONS
+        self.provider.SECTIONS, self.provider.sections = ("pending", "create"), lambda: ("pending",)
+        try:
+            narrowed = self.projects.listing()
+        finally:
+            del self.provider.SECTIONS, self.provider.sections
+        self.assertEqual(narrowed["sections"], ["pending"])
         # 共用层不认识产品：本模块里没有产品的前缀或分区名
         source = (CORE / "assistant/projects.py").read_text(encoding="utf-8")
         self.assertNotIn("companies.api", source)

@@ -384,7 +384,7 @@ covers = [
 
 [[flow]]
 id = "cc.companies"
-title = "ERP 版 CC 按公司：侧栏公司与待处理、公司页只出 ERP 分区、知识库落库、待处理点开到单据页、员工只见分到的公司"
+title = "ERP 版 CC 按公司：侧栏公司与待处理、添加公司在 CC 里弹窗（对话 / 代录两种模式）、公司页只出 ERP 分区、知识库落库、待处理点开到单据页、员工只见分到的公司"
 module = "scripts/flows/cc_companies.py"
 start = "/assistant?view=companies"
 user = "admin"
@@ -406,6 +406,7 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_context.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/company_notes.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/pending.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/companies.py",
 ]
 
 [[flow]]

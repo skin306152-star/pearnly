@@ -464,7 +464,7 @@ function runner(id: string, status: string, docs: any[], created = 1_800_000_000
 (async () => {
   // ── 网页 / 手机（没有桥）：公司走产品声明的公司接口（ERP 声明 masters.cc_companies，同侧栏「公司」，服务端分页、搜），
   //    资料、开始前确认、改分组、放资料走站点接口 ─────────────────
-  useProjects.setState({ loaded: true, kind: "company", api: "pearnly_erp_portal.masters.cc_companies.", sections: ["pending", "notes", "desk"] });
+  useProjects.setState({ loaded: true, kind: "company", api: "pearnly_erp_portal.masters.cc_companies.", sections: ["pending", "notes", "create", "desk"] });
   const web = createLiveSource({ product: "erp", bridge: async () => null, get, post, upload, now: () => 1_800_000_100 });
   const companies = await web.companies("si", 1, 2);
   assert.deepEqual(companies, [{ id: "CO-00002", title: "CO-00002", tax_id: undefined }, { id: "CO-00003", title: "Korat", tax_id: undefined }]);

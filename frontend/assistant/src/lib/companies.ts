@@ -146,19 +146,6 @@ export async function loadDetail(company: string, period = ""): Promise<Detail> 
   return getMethod<Detail>(await call("detail"), { company, period: period || undefined });
 }
 
-/** 「添加公司」去站点哪一页（声明了 desk 的产品：公司在站点自己的页面建；没有权限时为空，不出这个按钮）。 */
-let deskNew: Promise<string> | null = null;
-export function newCompanyUrl(): Promise<string> {
-  deskNew ??= call("desk")
-    .then((method) => getMethod<{ url?: string }>(method))
-    .then((out) => out?.url ?? "")
-    .catch(withReport(() => {
-      deskNew = null; // 取不到（断网）：下次再问
-      return "";
-    }, "companies"));
-  return deskNew;
-}
-
 /** 在新窗口打开站点里的一页（ERP 的公司页、单据页；同站点会话）。 */
 export function openSitePage(url: string) {
   if (url) window.open(url, "_blank", "noopener,noreferrer");

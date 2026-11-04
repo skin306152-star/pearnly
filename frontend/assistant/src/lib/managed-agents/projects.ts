@@ -23,7 +23,7 @@ export type { Filing } from "./api";
 export type ProjectRow = { id: string; title: string; subtitle?: string; last_active?: string | null; count?: number };
 export type ProjectKind = "company" | null;
 /** 产品声明的分区（服务端 provider 的 SECTIONS）：待处理、月结台账、知识库、单据文件夹、定时任务、记住的选择、申报草稿；
- *  从账套目录添加公司（create）、改名、删除、刷新账套（catalog）；公司在站点自己的页面建和改（desk）。 */
+ *  从账套目录添加公司（create）、改名、删除、刷新账套（catalog）；公司在站点自己的页面改（desk：公司页「在浏览器中打开」）。 */
 export type Section = "pending" | "month" | "notes" | "folders" | "tasks" | "choices" | "drafts" | "create" | "rename" | "delete"
   | "catalog" | "desk";
 

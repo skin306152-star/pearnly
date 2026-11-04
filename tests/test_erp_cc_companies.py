@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import ast
+import contextlib
 import datetime
 import importlib
 import json
@@ -300,11 +301,16 @@ class ProviderTests(unittest.TestCase):
     def test_declares_kind_period_no_scope_the_api_and_its_sections(self):
         self.assertEqual((cc_projects.KIND, cc_projects.PERIOD, cc_projects.SCOPE), ("company", True, False))
         self.assertEqual(cc_projects.API, "pearnly_erp_portal.masters.cc_companies.")
-        self.assertEqual(cc_projects.SECTIONS, ("pending", "notes", "desk"))
-        # 前缀指向的模块真有页面要调的那几个方法，没有 Cowork 才有的建、改名、删
-        for method in ("companies", "detail", "desk", "note_save", "note_delete", "pending", "pending_counts"):
+        self.assertEqual(cc_projects.SECTIONS, ("pending", "notes", "create", "desk"))
+        # 「添加公司」只给能管公司的人（共用层 projects.declared 用产品的 sections()）
+        self.assertEqual(cc_projects.sections(), ("pending", "notes", "create", "desk"))
+        frappe.session.user = "staff@x"
+        self.assertEqual(cc_projects.sections(), ("pending", "notes", "desk"))
+        frappe.session.user = "boss@x"
+        # 前缀指向的模块真有页面要调的那几个方法，没有 Cowork 才有的改名、删；新建公司页的地址（desk）已删
+        for method in ("companies", "detail", "candidates", "create", "note_save", "note_delete", "pending", "pending_counts"):
             self.assertTrue(callable(getattr(cc_companies, method)), method)
-        for method in ("create", "rename", "delete", "candidates", "month", "task_overview", "folder_bind"):
+        for method in ("desk", "rename", "delete", "month", "task_overview", "folder_bind"):
             self.assertFalse(hasattr(cc_companies, method), method)
         hooks = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")
         self.assertIn('pearnly_assistant_projects = ["pearnly_erp_portal.masters.cc_projects"]', hooks)
@@ -413,11 +419,6 @@ class CompanyApiTests(unittest.TestCase):
         with self.assertRaises(DoesNotExistError):
             cc_companies.detail("CO-00003")       # 停用的
 
-    def test_add_company_opens_the_erp_page_only_for_company_managers(self):
-        self.assertEqual(cc_companies.desk(), {"url": "/desk/pearnly-company/new"})
-        frappe.session.user = "staff@x"
-        self.assertEqual(cc_companies.desk(), {"url": ""})
-
     def test_company_changes_reach_the_people_who_can_see_it(self):
         self.assertEqual(cc_service.viewers("CO-00001"), ["boss@x", "staff@x"])
         self.assertEqual(cc_service.viewers("CO-00002"), ["boss@x"])   # 员工被收窄到另一家；停用的人、网站用户不推
@@ -444,6 +445,153 @@ class CompanyApiTests(unittest.TestCase):
         cc_service.company_removed(Row(name="CO-00001"))
         self.assertEqual(projects.released, ["CO-00001"])
         self.assertEqual(STATE.db.table(company_notes.NOTE), {})
+
+
+class AddCompanyTests(unittest.TestCase):
+    """CC 里「添加公司」（2026-11-04，用户：ERP 两种模式点了都跳 Pearnly 登录页，要和 Cowork 一样在 CC 里弹窗）：以前在新窗口开
+    ERP 新建公司页，CC 桌面版把新窗口交给系统浏览器、那里没有会话。现在同 Cowork 从账套建：候选 = 在用电脑报的 Express 账套按
+    「税号 + 分店」合并（后台本来就照它补建，多半已添加）+ MR.ERP 目录（账本开着、管理员）；建公司由服务端读目录算名称、税号。"""
+
+    def setUp(self):
+        reset()
+        self.queued, self.chosen, self.locks = [], [], []
+        warehouses = types.ModuleType("pearnly_erp_portal.inventory.warehouses")
+        warehouses.ensure_for_company = lambda company, name=None: STATE.db.table("ERP Warehouse").setdefault(
+            company, Row(name=f"WH-{company}", company=company)) and f"WH-{company}"
+        masters = types.ModuleType("pearnly_erp_portal.express.masters")
+        masters.queue = self.queued.append
+        test = self
+
+        class Store:
+            def make_key(self, key):
+                return "site|" + key
+
+            def lock(self, key, **kw):
+                test.locks.append(key)
+                return contextlib.nullcontext()
+
+        state = types.ModuleType("pearnly_core.execution.state")
+        state.store = Store
+        self.mrerp_on = False
+        mrerp = types.ModuleType("pearnly_erp_portal.mrerp")
+        mrerp.enabled = lambda: self.mrerp_on
+        connection = types.ModuleType("pearnly_erp_portal.mrerp.connection")
+        connection.CONNECTION = "ERP MRERP Connection"
+        connection.is_admin = lambda user=None: (user or frappe.session.user) == "boss@x"
+        catalog = types.ModuleType("pearnly_erp_portal.mrerp.catalog")
+        catalog.PAGE_MAX = 100
+        self.sets = {"MR-1": [{"key": "c69:db1", "label": "2569", "company": "Nakhon Foods", "tax_id": "0105560000001",
+                               "period_start": "2026-01-01", "period_end": "2026-12-31"}]}
+        catalog.account_sets = lambda name, start=0, page_length=20, search=None: {"rows": self.sets.get(name, []), "total": 1}
+
+        def choose(company, conn, key):
+            self.chosen.append((company, conn, key))
+            STATE.db.table("ERP Company")[company].update(mrerp_enabled=1, mrerp_connection=conn, mrerp_account_set=key)
+        catalog.choose = choose
+        mrerp.catalog, mrerp.connection = catalog, connection
+        modules = {"pearnly_erp_portal.inventory.warehouses": warehouses, "pearnly_erp_portal.express.masters": masters,
+                   "pearnly_core.execution.state": state, "pearnly_erp_portal.mrerp": mrerp,
+                   "pearnly_erp_portal.mrerp.connection": connection, "pearnly_erp_portal.mrerp.catalog": catalog}
+        patcher = mock.patch.dict(sys.modules, modules)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        sys.modules.pop("pearnly_erp_portal.express.companies", None)
+        self.addCleanup(sys.modules.pop, "pearnly_erp_portal.express.companies", None)
+        import pearnly_erp_portal as erp
+        import pearnly_core.execution as core_execution
+        for parent, name, module in ((erp, "mrerp", mrerp), (erp.express, "masters", masters),
+                                     (core_execution, "state", state)):
+            patch = mock.patch.object(parent, name, module, create=True)
+            patch.start()
+            self.addCleanup(patch.stop)
+        get_doc = lambda values, name=None, **kw: Doc(values["doctype"], {k: v for k, v in values.items() if k != "doctype"}) \
+            if isinstance(values, dict) else Doc(values, STATE.db.table(values)[name])
+        for name, value in (("get_doc", get_doc), ("get_roles", lambda user=None: [])):
+            patch = mock.patch.object(frappe, name, value, create=True)
+            patch.start()
+            self.addCleanup(patch.stop)
+        # 两台电脑：PC1 在用、报了 Siam（已有 CO-00001）与 Chiang Mai（还没有公司）；PC-OLD 是旧版、报的不算
+        devices = STATE.db.table("Pearnly CC Device")
+        devices["PC1"] = Row(name="PC1", token_digest="t", retired_at=None, companion_version="1.12.12")
+        devices["PC-OLD"] = Row(name="PC-OLD", token_digest="t", retired_at=None, companion_version="1.11.0")
+        books_table = STATE.db.table("Pearnly CC Book")
+        for name, device, company, tax, branch, start in (
+                ("b1", "PC1", "Siam Trading", TAX_A, "00000", "2025-01-01"), ("b2", "PC1", "Siam Trading", TAX_A, "00000", "2026-01-01"),
+                ("b3", "PC1", "Chiang Mai Rice", "0105570000009", "0", "2026-01-01"),
+                ("b4", "PC1", "No Tax Shop", "", "", "2026-01-01"),
+                ("b5", "PC-OLD", "Someone Else", "0105580000007", "00000", "2026-01-01")):
+            books_table[name] = Row(name=name, device=device, company=company, label=company, tax_id=tax, branch=branch,
+                                    period_start=start, period_end=start[:4] + "-12-31")
+
+    def test_candidates_merge_reported_books_by_tax_id_and_branch_and_mark_the_added_ones(self):
+        rows = cc_companies.candidates()
+        self.assertEqual([(row["title"], row["company"], row["years"]) for row in rows],
+                         [("Chiang Mai Rice", None, ["2026"]), ("Siam Trading", "CO-00001", ["2026", "2025"])])
+        self.assertEqual(rows[0] | {}, {**rows[0], "identity": "express:0105570000009:00000", "adapter": "express", "connection": "",
+                                       "account_set_key": "0105570000009:00000", "tax_id": "0105570000009", "branch": "00000"})
+        self.assertEqual([row["title"] for row in cc_companies.candidates("siam")], ["Siam Trading"])   # 服务端搜
+        # 人停用的公司不出（不在这里重开）
+        STATE.db.table("ERP Company")["CO-00001"]["is_active"] = 0
+        self.assertEqual([row["title"] for row in cc_companies.candidates()], ["Chiang Mai Rice"])
+
+    def test_only_company_managers_list_or_create(self):
+        for user in ("staff@x", "viewer@x", "nobody@x"):
+            frappe.session.user = user
+            with self.assertRaises(PermissionError_):
+                cc_companies.candidates()
+            with self.assertRaises(PermissionError_):
+                cc_companies.create("", "0105570000009:00000")
+        self.assertEqual(len(STATE.db.table("ERP Company")), 3)
+
+    def test_create_from_express_books_builds_the_company_the_background_job_would(self):
+        made = cc_companies.create("", "0105570000009:00000", "k-1")
+        self.assertEqual((made["title"], made["created"]), ("Chiang Mai Rice", True))
+        row = STATE.db.table("ERP Company")[made["id"]]
+        self.assertEqual({k: row[k] for k in ("company_name", "tax_id", "branch", "express_enabled", "pos_enabled", "is_active")},
+                         {"company_name": "Chiang Mai Rice", "tax_id": "0105570000009", "branch": "00000", "express_enabled": 1,
+                          "pos_enabled": 0, "is_active": 1})
+        self.assertIn(made["id"], STATE.db.table("ERP Warehouse"))
+        self.assertEqual(self.queued, [made["id"]])
+        self.assertEqual(self.locks, ["site|erp-cc-company-create"])
+        # 再点一次、或别人已建：回同一家，不重建
+        again = cc_companies.create("", "0105570000009:00000", "k-2")
+        self.assertEqual((again["id"], again["created"]), (made["id"], False))
+        self.assertEqual(cc_companies.create("", f"{TAX_A}:00000")["id"], "CO-00001")
+        self.assertEqual(len(STATE.db.table("ERP Company")), 4)
+
+    def test_create_takes_nothing_from_the_page_but_the_book_key(self):
+        for key in ("", "0105580000007:00000", "1234:00000", "0105570000009:00099", "No Tax Shop"):
+            with self.assertRaises(ValidationError, msg=key):
+                cc_companies.create("", key)    # 旧版电脑报的、没税号的、不在名单上的都建不了
+        STATE.db.table("ERP Company")["CO-00001"]["is_active"] = 0
+        with self.assertRaises(ValidationError):
+            cc_companies.create("", f"{TAX_A}:00000")      # 停用的不在这里重开
+        self.assertEqual(len(STATE.db.table("ERP Company")), 3)
+        self.assertEqual(self.queued, [])
+
+    def test_mrerp_sets_only_when_the_ledger_is_on_and_for_admins(self):
+        self.assertFalse(any(row["adapter"] == "mrerp" for row in cc_companies.candidates()))
+        self.mrerp_on = True
+        STATE.db.table("ERP MRERP Connection")["MR-1"] = Row(name="MR-1")
+        found = [row for row in cc_companies.candidates() if row["adapter"] == "mrerp"]
+        self.assertEqual([(row["title"], row["connection"], row["account_set_key"], row["years"], row["company"]) for row in found],
+                         [("Nakhon Foods", "MR-1", "c69:db1", ["2026"], None)])
+        made = cc_companies.create("MR-1", "c69:db1")
+        row = STATE.db.table("ERP Company")[made["id"]]
+        self.assertEqual((row["company_name"], row["tax_id"], row["branch"], row["express_enabled"]),
+                         ("Nakhon Foods", "0105560000001", "00000", 0))
+        self.assertEqual(self.chosen, [(made["id"], "MR-1", "c69:db1")])
+        self.assertEqual(cc_companies.create("MR-1", "c69:db1")["created"], False)
+        self.assertEqual([row["company"] for row in cc_companies.candidates() if row["adapter"] == "mrerp"], [made["id"]])
+        with self.assertRaises(ValidationError):
+            cc_companies.create("MR-1", "other:db")
+        # 不是 MR.ERP 管理员：候选里没有 MR.ERP，建也建不了
+        CAPS["manager@x"] = {"company.read", "company.manage"}
+        frappe.session.user = "manager@x"
+        self.addCleanup(CAPS.pop, "manager@x", None)
+        self.assertFalse(any(row["adapter"] == "mrerp" for row in cc_companies.candidates()))
+        with self.assertRaises(ValidationError):
+            cc_companies.create("MR-1", "c69:db1")
 
 
 class NoteTests(unittest.TestCase):

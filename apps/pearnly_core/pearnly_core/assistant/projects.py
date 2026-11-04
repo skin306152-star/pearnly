@@ -114,12 +114,14 @@ def mine(user, refs=None) -> dict:
 
 
 def declared(found) -> dict:
-    """产品给页面的声明：`api`（公司接口的方法前缀）、`sections`（有哪些分区）；没声明的那项不回。"""
+    """产品给页面的声明：`api`（公司接口的方法前缀）、`sections`（有哪些分区）；没声明的那项不回。产品另有 `sections()` 时用它
+    （按当前用户收窄，例如 ERP 只给能管公司的人「添加公司」），没有就是 `SECTIONS`。"""
     out = {}
     api = getattr(found, "API", None) if found else None
     if isinstance(api, str) and api:
         out["api"] = api
-    sections = getattr(found, "SECTIONS", None) if found else None
+    narrowed = getattr(found, "sections", None) if found else None
+    sections = narrowed() if callable(narrowed) else getattr(found, "SECTIONS", None) if found else None
     if isinstance(sections, (list, tuple)):
         out["sections"] = [str(item) for item in sections if isinstance(item, str) and item]
     return out
