@@ -119,23 +119,27 @@ class Rules(unittest.TestCase):
         hits, _ = gate.impact_rows(product_map, found("nav:erp:a", "nav:erp:b"), {}, ["apps/x/api.py"], endpoints=endpoints)
         self.assertEqual(hits, {"erp.a": ["改到它调用的接口"]})
 
-    def test_html_board_shows_colours_matrix_hits_and_endpoint_triage_without_outside_resources(self):
-        import product_map_html
-        rows = [row("nav:erp:a", group="g.x"), row("nav:erp:b", tests=["flow:f.desk"], group="g.x")]
-        cowork = row("nav:cowork:a", id="cowork.a", product="Cowork", tests=[], group="g.y", na={"ERP": "ERP 没有这一项"})
-        product_map = pm.Map({r.id: r for r in rows + [cowork]}, {"endpoint:pearnly_x.api.f": "拼名"}, {}, ["erp.b@mobile"], [],
-                             {"endpoint:pearnly_x.api.f": "dynamic"})
-        endpoints = {"pearnly_x.api.f": pm.Endpoint("pearnly_x.api.f", "apps/x/api.py", [])}
-        page = product_map_html.render(product_map, FLOWS, IMPACT, endpoints, commit="abc1234", hits={"erp.a": ["改到入口文件"]})
-        self.assertIn("提交 abc1234", page)
-        self.assertIn("本次改动命中的入口（1 个）", page)
-        # erp.a 两端绿、erp.b 手机红：这一组 ERP 的格取最差；Cowork 没登记也没写 na → 缺
-        self.assertIn('<span class="chip">g.x</span></td><td><span class="g">绿</span></td><td><span class="r">红</span></td>'
-                      '<td class="muted" title="">缺</td>', page)
-        self.assertIn("不适用", page)                       # g.y 组 ERP 写了 na
-        self.assertIn("拼名调用（在用，待核实）", page)
-        self.assertNotIn("http://", page.replace("http://www.w3.org", ""))
-        self.assertNotIn("https://", page)
+    def test_rule_5_siblings_missing_or_weaker_and_their_baseline(self):
+        rows = [row("nav:erp:a", group="g"), row("nav:cowork:a", id="cowork.a", product="Cowork", tests=["flow:f.desk"], group="g"),
+                row("nav:erp:x", id="erp.x", group="lonely")]
+        product_map = pm.Map({r.id: r for r in rows}, {}, {}, [], [])
+        gaps = gate.sibling_gaps(product_map, FLOWS, IMPACT)
+        self.assertEqual(sorted(gaps), ["cowork.a@mobile", "lonely@Cowork"])
+        self.assertIn("比兄弟 erp.a 弱", gaps["cowork.a@mobile"])
+        rows[2].na = {"Cowork": "Cowork 没有这一项"}
+        self.assertEqual(sorted(gate.sibling_gaps(product_map, FLOWS, IMPACT)), ["cowork.a@mobile"])
+        errors = gate.check_siblings(gaps, ["cowork.a@mobile", "gone@ERP", "gone@ERP"])
+        self.assertTrue(any("lonely@Cowork" in e and "na" in e for e in errors))
+        self.assertTrue(any("基线该删" in e and "gone@ERP" in e for e in errors))
+        self.assertTrue(any("重复" in e for e in errors))
+        self.assertEqual(gate.check_siblings(gaps, sorted(gaps)), [])
+
+    def test_rule_4_lists_the_siblings_of_a_changed_row(self):
+        rows = [row("nav:erp:a", group="g"), row("nav:cowork:a", id="cowork.a", product="Cowork", tests=["flow:f.desk"], group="g")]
+        product_map = pm.Map({r.id: r for r in rows}, {}, {}, [], [])
+        report = gate.render(product_map, {"erp.a": ["改到入口文件"]}, FLOWS, IMPACT, markdown=True)
+        self.assertIn("同组兄弟入口", report)
+        self.assertIn("`erp.a` 的兄弟 `cowork.a`（Cowork，侧栏）：电脑绿 手机红", report)
 
     def test_export_carries_config_classes_and_only_must_verify_or_device_rows(self):
         rows = [row("nav:erp:a"), row("nav:erp:b", must_verify=True, probe={"type": "liff", "path": "/desk/x"}),

@@ -400,15 +400,7 @@ jobs:
       - name: Product map gate (every entry registered, still in the code and tested on each end; untested baseline only shrinks) and the entries this change touches
         env:
           PRODUCT_MAP_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || (github.ref == 'refs/heads/main' && github.event.before) || '' }}
-        run: python3 tests/test_check_product_map.py && python3 scripts/check-product-map.py --markdown --out "${GITHUB_STEP_SUMMARY:-/dev/null}" --html "${RUNNER_TEMP:-/tmp}/product-map.html"
-      # 看板雏形（11-04 G 块）：只在 free-arm-2 的 runner 上落到本机 ~/product-map/（留最近 30 张），按需 ssh -L 看；不常驻服务、不传 GitHub
-      - name: Keep the product map board on the self-hosted runner (latest 30, viewed on demand over ssh)
-        if: vars.DEV_RUNS_ON == 'pearnly-arm'
-        run: |
-          mkdir -p "$HOME/product-map"
-          cp "${RUNNER_TEMP:-/tmp}/product-map.html" "$HOME/product-map/$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::8}.html"
-          cp "${RUNNER_TEMP:-/tmp}/product-map.html" "$HOME/product-map/latest.html"
-          ls -1t "$HOME"/product-map/2*.html | tail -n +31 | xargs -r rm -f
+        run: python3 tests/test_check_product_map.py && python3 scripts/check-product-map.py --markdown --out "${GITHUB_STEP_SUMMARY:-/dev/null}"
       - name: Verify the shared scanner shows the camera picture and reads a test barcode in a real browser
         env:
           SMOKE_CHROME: /usr/bin/google-chrome

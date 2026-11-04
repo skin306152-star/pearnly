@@ -168,9 +168,10 @@ App 下虽然有 `.pre-commit-config.yaml`，但它们不是根级统一检查�
 6. 白名单接口（11-04 D 块）：一期范围的 `@frappe.whitelist` 接口找不到调用方（前端、Python、CC 桌面版、站外配置、`scripts/production/`；
    测试与流程用例不算）就失败——删掉，或在 `not_entries.toml` 登记 `endpoint:<点分名>`、`kind`（dynamic 拼名调用 / compat 兼容保留 / internal / delete 待删）与原因。
    改到接口所在模块时，调用它的入口行也进影响清单。
-7. 看板雏形（11-04 G 块）：`check-product-map.py --html <文件>` 出一张不连外网的静态页（按产品 × 渠道的红黄绿、本次影响清单、对照组矩阵、全部入口可筛选、接口分诊）。
-   Development checks 在 free-arm-2 的 runner 上把它落到 runner 用户的 `~/product-map/`（`latest.html` 与最近 30 张），不常驻服务、不传 GitHub；
-   要看时 `ssh -L` 到 free-arm-2 临时起静态服务，或拷回本机打开。
+7. 对照组（11-04 G 块，用户：「我看不懂，我也用不上……一定要达到目的」，所以不做给人看的看板，做成机器检查）：
+   同一功能在 ERP / Cowork（以及对话 / 代录、电脑 / 手机）的几行用同一个 `group`（同名页面、同码页头动作、同名 CC 工具与代录钩子自动成组，
+   同功能不同名的手写）。规则 5：一组里 ERP / Cowork 缺一边又没写 `na`，或同一端某行的测试比组里最强的兄弟弱 → 失败，
+   除非在 `sibling_baseline.txt`（只许减少）。改到组里一行时，影响清单列出同组兄弟入口与各自的测试强弱。
 8. 部署接线（11-04 E 块）：
    - 镜像构建时 `check-product-map.py --export` 生成 `scripts/production/product-map.json`（配置分类、上线必验行与探针、只能真机的行），随部署工具同步到生产机。
    - **部署前租户配置对比**（`scripts/production/check-tenant-config.py`）：`deploy.sh --dry-run` 与正式部署构建前各经一次 SSH 跑一次，

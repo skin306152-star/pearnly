@@ -9,7 +9,9 @@
    除非「行 id@端」在 untested_baseline.txt。基线只许减少：新加的条目、已经有测试或已不存在的条目都失败。
    「上线必验」的行每端都要有测试，或者有探针。
 4. 影响清单：相对 merge-base 的改动命中的行（入口文件、共用件、读到的配置键）：要跑的流程、要点的入口、真机单、
-   部署后要逐租户核的上线必验行、对照组缺格。只出清单，不判失败。
+   部署后要逐租户核的上线必验行、同组兄弟入口与各自的测试强弱。只出清单，不判失败。
+5. 对照组：同一 group 里 ERP / Cowork 缺一边又没写 na，或同一端某行的测试比兄弟弱 → 失败，
+   除非在 sibling_baseline.txt（只许减少）。
 
     python3 scripts/check-product-map.py                      # 闸门 + 影响清单（相对 origin/main 的分叉点，含未提交）
     python3 scripts/check-product-map.py --markdown --out F   # 清单按 Markdown 写进 F（CI 摘要）
@@ -17,7 +19,6 @@
     python3 scripts/check-product-map.py --suggest            # 打印没登记的入口的起草行（自动推断测试），人工核过再贴进地图
     python3 scripts/check-product-map.py --export F.json      # 部署用的导出（镜像构建时生成，随部署工具同步到生产机）：
                                                               # 配置分类、上线必验行与探针、只能真机的行；只读地图文件，不扫代码
-    python3 scripts/check-product-map.py --html F.html        # 另写看板静态页（不连外网；CI 在 free-arm-2 上落盘，按需 ssh -L 看）
     python3 scripts/check-product-map.py --batch --files …    # 本批（上次放上生产到这次）命中的上线必验行与真机单，给 deploy.sh 打印
 
 退出码：0 = 地图与代码一致；1 = 有问题（逐条打印）。
@@ -105,6 +106,55 @@ def check(product_map: pm.Map, repo: pm.Repo, found: dict, keys: dict, families:
     return errors
 
 
+SIBLING_BASELINE = ROOT / "scripts" / "impact" / "product-map" / "sibling_baseline.txt"
+GROUP_PRODUCTS = ("ERP", "Cowork")
+RANK = {pm.RED: 0, pm.YELLOW: 1, pm.DEVICE: 2, pm.GREEN: 2}   # 绿与真机都算有测试，强弱相同
+
+
+def sibling_gaps(product_map: pm.Map, flows, impact) -> dict:
+    """对照组（group）里的缺口：{键: 说明}。
+    - `<组>@<产品>`：这一组 ERP / Cowork 有一边没有入口，也没有任何一行写 na 说明为什么不适用；
+    - `<行 id>@<端>`：同一组里同一端，这一行的测试比组里最强的兄弟弱（红 / 黄 对 绿 / 真机，红 对 黄）。"""
+    groups = {}
+    for row in product_map.rows.values():
+        if row.group:
+            groups.setdefault(row.group, []).append(row)
+    gaps = {}
+    for group, rows in sorted(groups.items()):
+        products = {row.product for row in rows}
+        na = {key for row in rows for key in row.na}
+        for product in GROUP_PRODUCTS:
+            if product not in products and product not in na:
+                gaps[f"{group}@{product}"] = f"对照组 {group} 没有 {product} 的入口，也没写 na"
+        levels = {row.id: pm.status(row, flows, impact) for row in rows}
+        for end in pm.ENDS:
+            best = max((RANK[levels[row.id][end]] for row in rows if end in levels[row.id]), default=None)
+            for row in rows:
+                level = levels[row.id].get(end)
+                if level and best is not None and RANK[level] < best:
+                    strongest = next(r.id for r in rows if RANK.get(levels[r.id].get(end, pm.RED), -1) == best)
+                    gaps[f"{row.id}@{end}"] = (f"对照组 {group}：{row.id}（{END_NAMES[end]}{level}）比兄弟 {strongest} 弱")
+    return gaps
+
+
+def sibling_baseline(path=SIBLING_BASELINE) -> list:
+    if not Path(path).exists():
+        return []
+    return [line.strip() for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip() and not line.startswith("#")]
+
+
+def check_siblings(gaps: dict, baseline: list) -> list[str]:
+    errors = []
+    known = set(baseline)
+    if len(known) != len(baseline):
+        errors.append("sibling_baseline.txt 有重复条目")
+    for key in sorted(set(gaps) - known):
+        errors.append(f"对照组：{gaps[key]}（{key}）—— 补上那一边的入口或测试；确实不适用的在组里一行写 na")
+    for key in sorted(known - set(gaps)):
+        errors.append(f"基线该删：sibling_baseline.txt 里的 {key} 已经补齐或不在了，删掉这一条（基线只许减少）")
+    return errors
+
+
 def changed(base: str, root=ROOT) -> list[str]:
     def git(*args):
         return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True).stdout
@@ -182,6 +232,19 @@ def render(product_map, hits, flows, impact, markdown: bool) -> str:
             lines.append("要跑的流程：" + " ".join(flow_ids))
         if must:
             lines.append("部署后逐个正式租户核：" + " ".join(row.id for row in must))
+    siblings = []
+    for row in rows:
+        for other in product_map.rows.values():
+            if row.group and other.group == row.group and other.id != row.id and other.id not in hits:
+                levels = pm.status(other, flows, impact)
+                siblings.append((row.id, other, levels))
+    if siblings:
+        lines.append("")
+        lines.append("同组兄弟入口（改了一边，另一边要不要一起改、测试是否一样强）：")
+        for row_id, other, levels in siblings:
+            shown = " ".join(f"{END_NAMES[e]}{v}" for e, v in levels.items())
+            lines.append(f"- {'`' + row_id + '`' if markdown else row_id} 的兄弟 {'`' + other.id + '`' if markdown else other.id}"
+                         f"（{other.product}，{other.where}）：{shown}")
     groups = {}
     for row in rows:
         if row.group:
@@ -243,7 +306,6 @@ def main(argv=None) -> int:
     parser.add_argument("--suggest", action="store_true", help="打印没登记的入口的起草行")
     parser.add_argument("--export", metavar="FILE", help="写部署用的导出（只读地图文件，不扫代码、不判闸门）")
     parser.add_argument("--batch", action="store_true", help="只打印 --files 命中的上线必验行与真机单，不判闸门")
-    parser.add_argument("--html", metavar="FILE", help="另写一张看板静态页（全量红黄绿、影响清单、对照矩阵、接口分诊）")
     args = parser.parse_args(argv)
     started = time.monotonic()
     if args.export:
@@ -269,12 +331,8 @@ def main(argv=None) -> int:
         print(batch(product_map, hits))
         return 0
     errors = check(product_map, repo, found, keys, families, flows, impact, parts, endpoints)
+    errors += check_siblings(sibling_gaps(product_map, flows, impact), sibling_baseline())
     report = render(product_map, hits, flows, impact, args.markdown)
-    if args.html:
-        import product_map_html
-        commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
-        Path(args.html).write_text(product_map_html.render(product_map, flows, impact, endpoints, commit=commit, hits=hits),
-                                   encoding="utf-8")
     print(report)
     if args.out:
         mode = "a" if args.out == os.environ.get("GITHUB_STEP_SUMMARY") else "w"

@@ -10,6 +10,7 @@ channel = "cc-operator"
 ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:cowork:allowed"
+group = "cc.operator.allowed"
 where = "代录 allowed"
 tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
 
@@ -30,6 +31,7 @@ channel = "cc-operator"
 ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:cowork:pending"
+group = "cc.operator.pending"
 where = "代录 pending"
 tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
 
@@ -40,6 +42,7 @@ channel = "cc-operator"
 ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:cowork:precheck"
+group = "cc.operator.precheck"
 where = "代录 precheck"
 tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
 
@@ -70,6 +73,7 @@ channel = "cc-operator"
 ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:cowork:sources"
+group = "cc.operator.sources"
 where = "代录 sources"
 tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
 
@@ -80,6 +84,7 @@ channel = "cc-operator"
 ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:cowork:status"
+group = "cc.operator.status"
 where = "代录 status"
 tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
 
@@ -90,6 +95,7 @@ channel = "cc-operator"
 ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:cowork:submit"
+group = "cc.operator.submit"
 where = "代录 submit"
 tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
 
@@ -120,6 +126,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_companies"
+group = "cc.tool.companies"
 where = "CC 工具 cowork_companies"
 tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_companies", "unit:tests/test_cowork_companies.py::cowork_companies"]
 
@@ -160,6 +167,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_company_note_remove"
+group = "cc.tool.company_note_remove"
 where = "CC 工具 cowork_company_note_remove"
 tests = ["unit:tests/test_cowork_companies.py::cowork_company_note_remove"]
 
@@ -170,6 +178,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_company_note_save"
+group = "cc.tool.company_note_save"
 where = "CC 工具 cowork_company_note_save"
 tests = ["unit:tests/test_assistant_ui.py::cowork_company_note_save", "unit:tests/test_cowork_companies.py::cowork_company_note_save"]
 
@@ -180,6 +189,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_company_profile"
+group = "cc.tool.company_profile"
 where = "CC 工具 cowork_company_profile"
 tests = ["unit:tests/test_cowork_companies.py::cowork_company_profile"]
 
@@ -208,6 +218,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_document_detail"
+group = "cc.tool.document_detail"
 where = "CC 工具 cowork_document_detail"
 tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_document_detail", "unit:tests/test_cowork_da_verify.py::cowork_document_detail"]
 
@@ -218,6 +229,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_document_original"
+group = "cc.tool.document_original"
 where = "CC 工具 cowork_document_original"
 
 [[row]]
@@ -335,6 +347,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_list_documents"
+group = "cc.tool.list_documents"
 where = "CC 工具 cowork_list_documents"
 tests = ["unit:tests/test_assistant_ui.py::cowork_list_documents", "unit:tests/test_cowork_assistant_tools.py::cowork_list_documents"]
 
@@ -355,6 +368,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_pending"
+group = "cc.tool.pending"
 where = "CC 工具 cowork_pending"
 tests = ["unit:tests/test_cowork_companies.py::cowork_pending", "unit:tests/test_erp_cc_chat_push.py::cowork_pending"]
 
@@ -383,6 +397,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_push_choices"
+group = "cc.tool.push_choices"
 where = "CC 工具 cowork_push_choices"
 tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_push_choices"]
 
@@ -393,6 +408,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_push_documents"
+group = "cc.tool.push_documents"
 where = "CC 工具 cowork_push_documents"
 tests = ["unit:tests/test_assistant.py::cowork_push_documents", "unit:tests/test_cc_run_indicator.py::cowork_push_documents"]
 
@@ -403,6 +419,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_push_results"
+group = "cc.tool.push_results"
 where = "CC 工具 cowork_push_results"
 tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_push_results"]
 
@@ -517,6 +534,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_resolve_push_result"
+group = "cc.tool.resolve_push_result"
 where = "CC 工具 cowork_resolve_push_result"
 tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_resolve_push_result"]
 
@@ -556,6 +574,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_save_push_choices"
+group = "cc.tool.save_push_choices"
 where = "CC 工具 cowork_save_push_choices"
 tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_save_push_choices"]
 
@@ -781,6 +800,7 @@ channel = "cc-operator"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:express_operator_control"
+group = "cc.tool.express_operator_control"
 where = "CC 工具 express_operator_control"
 
 [[row]]
@@ -790,6 +810,7 @@ channel = "cc-operator"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:express_operator_status"
+group = "cc.tool.express_operator_status"
 where = "CC 工具 express_operator_status"
 
 [[row]]
@@ -799,6 +820,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:pearnly_tax_id_lookup"
+group = "cc.tool.pearnly_tax_id_lookup"
 where = "CC 工具 pearnly_tax_id_lookup"
 tests = ["unit:tests/test_assistant.py::pearnly_tax_id_lookup"]
 
@@ -809,6 +831,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:pearnly_whoami"
+group = "cc.tool.pearnly_whoami"
 where = "CC 工具 pearnly_whoami"
 tests = ["unit:tests/test_assistant.py::pearnly_whoami", "unit:tests/test_product_map.py::pearnly_whoami"]
 
@@ -1034,6 +1057,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:cowork:pearnly-home"
+group = "desk.pearnly-home"
 where = "侧栏「pearnly-home」"
 tests = ["flow:cowork.exports", "impact:cowork.page.home"]
 
@@ -1084,6 +1108,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:cowork:pearnly-stocktake"
+group = "desk.pearnly-stocktake"
 where = "侧栏「pearnly-stocktake」"
 tests = ["flow:cowork.stocktake.list", "flow:cowork.stocktake.web-code", "flow:cowork.stocktake.entry", "impact:cowork.page.stocktake"]
 
@@ -1094,6 +1119,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:cowork:pearnly-team"
+group = "desk.pearnly-team"
 where = "侧栏「pearnly-team」"
 tests = ["flow:cowork.team.full-name", "flow:cowork.team.bulk-disable", "impact:cowork.page.team"]
 
@@ -1104,6 +1130,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:cowork:pearnly-work"
+group = "desk.pearnly-work"
 where = "侧栏「pearnly-work」"
 tests = ["flow:cowork.work.board", "impact:cowork.page.work"]
 
@@ -1114,6 +1141,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:*:selection"
+group = "desk.*.selection"
 where = "* 页头「selection」"
 
 [[row]]
@@ -1123,6 +1151,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:Form/User:Save"
+group = "desk.Form/User.Save"
 where = "Form/User 页头「Save」"
 
 [[row]]
@@ -1132,6 +1161,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-home:Delete"
+group = "desk.pearnly-home.Delete"
 where = "pearnly-home 页头「Delete」"
 
 [[row]]
@@ -1141,6 +1171,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-home:home.billing"
+group = "desk.pearnly-home.home.billing"
 where = "pearnly-home 页头「home.billing」"
 
 [[row]]
@@ -1150,6 +1181,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-home:home.ledger.export"
+group = "desk.pearnly-home.home.ledger.export"
 where = "pearnly-home 页头「home.ledger.export」"
 
 [[row]]
@@ -1159,6 +1191,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-home:home.plans.title"
+group = "desk.pearnly-home.home.plans.title"
 where = "pearnly-home 页头「home.plans.title」"
 
 [[row]]
@@ -1168,6 +1201,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-home:home.topup"
+group = "desk.pearnly-home.home.topup"
 where = "pearnly-home 页头「home.topup」"
 
 [[row]]
@@ -1501,6 +1535,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-team:Cancel"
+group = "desk.pearnly-team.Cancel"
 where = "pearnly-team 页头「Cancel」"
 
 [[row]]
@@ -1510,6 +1545,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-team:Save"
+group = "desk.pearnly-team.Save"
 where = "pearnly-team 页头「Save」"
 
 [[row]]

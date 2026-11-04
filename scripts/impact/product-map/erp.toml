@@ -10,6 +10,7 @@ channel = "cc-operator"
 ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:erp:allowed"
+group = "cc.operator.allowed"
 where = "代录 allowed"
 tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
 
@@ -20,6 +21,7 @@ channel = "cc-operator"
 ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:erp:pending"
+group = "cc.operator.pending"
 where = "代录 pending"
 tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
 
@@ -30,6 +32,7 @@ channel = "cc-operator"
 ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:erp:precheck"
+group = "cc.operator.precheck"
 where = "代录 precheck"
 tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
 
@@ -40,6 +43,7 @@ channel = "cc-operator"
 ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:erp:sources"
+group = "cc.operator.sources"
 where = "代录 sources"
 tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
 
@@ -50,6 +54,7 @@ channel = "cc-operator"
 ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:erp:status"
+group = "cc.operator.status"
 where = "代录 status"
 tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
 
@@ -60,6 +65,7 @@ channel = "cc-operator"
 ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:erp:submit"
+group = "cc.operator.submit"
 where = "代录 submit"
 tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
 
@@ -70,6 +76,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_companies"
+group = "cc.tool.companies"
 where = "CC 工具 erp_companies"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_companies", "unit:tests/test_erp_cc_companies.py::erp_companies"]
 
@@ -80,6 +87,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_company_note_remove"
+group = "cc.tool.company_note_remove"
 where = "CC 工具 erp_company_note_remove"
 tests = ["unit:tests/test_erp_cc_companies.py::erp_company_note_remove"]
 
@@ -90,6 +98,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_company_note_save"
+group = "cc.tool.company_note_save"
 where = "CC 工具 erp_company_note_save"
 tests = ["unit:tests/test_erp_cc_companies.py::erp_company_note_save"]
 
@@ -100,6 +109,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_company_profile"
+group = "cc.tool.company_profile"
 where = "CC 工具 erp_company_profile"
 tests = ["unit:tests/test_erp_cc_companies.py::erp_company_profile"]
 
@@ -110,6 +120,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_document_detail"
+group = "cc.tool.document_detail"
 where = "CC 工具 erp_document_detail"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_document_detail"]
 
@@ -120,6 +131,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_document_original"
+group = "cc.tool.document_original"
 where = "CC 工具 erp_document_original"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_document_original"]
 
@@ -130,6 +142,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_list_documents"
+group = "cc.tool.list_documents"
 where = "CC 工具 erp_list_documents"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_list_documents"]
 
@@ -140,6 +153,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_pending"
+group = "cc.tool.pending"
 where = "CC 工具 erp_pending"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_pending"]
 
@@ -150,6 +164,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_push_choices"
+group = "cc.tool.push_choices"
 where = "CC 工具 erp_push_choices"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_push_choices"]
 
@@ -160,6 +175,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_push_documents"
+group = "cc.tool.push_documents"
 where = "CC 工具 erp_push_documents"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_push_documents", "unit:tests/test_product_map.py::erp_push_documents"]
 
@@ -170,6 +186,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_push_results"
+group = "cc.tool.push_results"
 where = "CC 工具 erp_push_results"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_push_results"]
 
@@ -180,6 +197,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_resolve_push_result"
+group = "cc.tool.resolve_push_result"
 where = "CC 工具 erp_resolve_push_result"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_resolve_push_result"]
 
@@ -190,6 +208,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_save_push_choices"
+group = "cc.tool.save_push_choices"
 where = "CC 工具 erp_save_push_choices"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_save_push_choices"]
 
@@ -210,6 +229,7 @@ channel = "cc-operator"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:express_operator_control"
+group = "cc.tool.express_operator_control"
 where = "CC 工具 express_operator_control"
 
 [[row]]
@@ -219,6 +239,7 @@ channel = "cc-operator"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:express_operator_status"
+group = "cc.tool.express_operator_status"
 where = "CC 工具 express_operator_status"
 
 [[row]]
@@ -228,6 +249,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:pearnly_tax_id_lookup"
+group = "cc.tool.pearnly_tax_id_lookup"
 where = "CC 工具 pearnly_tax_id_lookup"
 tests = ["unit:tests/test_assistant.py::pearnly_tax_id_lookup"]
 
@@ -238,6 +260,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:pearnly_whoami"
+group = "cc.tool.pearnly_whoami"
 where = "CC 工具 pearnly_whoami"
 tests = ["unit:tests/test_assistant.py::pearnly_whoami", "unit:tests/test_product_map.py::pearnly_whoami"]
 
@@ -508,6 +531,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:erp:pearnly-home"
+group = "desk.pearnly-home"
 where = "侧栏「pearnly-home」"
 tests = ["flow:erp.exports", "flow:erp.print.all", "impact:erp.page.home"]
 
@@ -588,6 +612,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:erp:pearnly-stock-count"
+group = "desk.pearnly-stocktake"
 where = "侧栏「pearnly-stock-count」"
 tests = ["flow:erp.stocktake.scan", "flow:erp.stocktake.new-product", "flow:erp.stocktake.places", "flow:erp.stocktake.web-code", "flow:erp.stocktake.report", "flow:erp.stock.excel-units", "flow:erp.stocktake.gs1", "impact:erp.page.stock-count", "impact:erp.stock-count.switch.posted-to-active", "impact:erp.stock-count.switch.active-to-posted"]
 
@@ -638,6 +663,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:erp:pearnly-tasks"
+group = "desk.pearnly-work"
 where = "侧栏「pearnly-tasks」"
 tests = ["flow:erp.work.board", "impact:erp.page.tasks"]
 
@@ -648,6 +674,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:erp:pearnly-team"
+group = "desk.pearnly-team"
 where = "侧栏「pearnly-team」"
 tests = ["flow:erp.team.add-member", "flow:erp.team.full-name", "flow:erp.team.bulk-disable", "impact:erp.page.team"]
 
@@ -708,6 +735,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:*:selection"
+group = "desk.*.selection"
 where = "* 页头「selection」"
 
 [[row]]
@@ -717,6 +745,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:Form/User:Save"
+group = "desk.Form/User.Save"
 where = "Form/User 页头「Save」"
 
 [[row]]
@@ -816,6 +845,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-home:Delete"
+group = "desk.pearnly-home.Delete"
 where = "pearnly-home 页头「Delete」"
 
 [[row]]
@@ -825,6 +855,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-home:home.billing"
+group = "desk.pearnly-home.home.billing"
 where = "pearnly-home 页头「home.billing」"
 
 [[row]]
@@ -834,6 +865,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-home:home.ledger.export"
+group = "desk.pearnly-home.home.ledger.export"
 where = "pearnly-home 页头「home.ledger.export」"
 
 [[row]]
@@ -843,6 +875,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-home:home.plans.title"
+group = "desk.pearnly-home.home.plans.title"
 where = "pearnly-home 页头「home.plans.title」"
 
 [[row]]
@@ -852,6 +885,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-home:home.topup"
+group = "desk.pearnly-home.home.topup"
 where = "pearnly-home 页头「home.topup」"
 
 [[row]]
@@ -1357,6 +1391,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-team:Cancel"
+group = "desk.pearnly-team.Cancel"
 where = "pearnly-team 页头「Cancel」"
 
 [[row]]
@@ -1366,6 +1401,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-team:Save"
+group = "desk.pearnly-team.Save"
 where = "pearnly-team 页头「Save」"
 
 [[row]]
