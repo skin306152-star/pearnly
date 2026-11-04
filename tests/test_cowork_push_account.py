@@ -50,24 +50,26 @@ class MrerpPurchaseCashTest(unittest.TestCase):
 
 
 class ExpressAccountMismatchTest(unittest.TestCase):
-    """用户选的 Express 账套：本方税号不同或日期不在会计期间里就不推；判断不了按用户的选择。"""
+    """用户选的 Express 账套：日期不在会计期间里就不推（Express 自己也拒）；本方税号是别家照推（用户 2026-11-04）；
+    判断不了按用户的选择。"""
 
     def check(self, fields, invoice_date, rows=(BOOK,)):
         loaded = mock.Mock(evidence=mock.Mock(snapshot={"account_sets": json.dumps(list(rows))}))
         target = mock.Mock(account_set=r"S:\2569\EXP69\69ACME")
         with mock.patch.object(service, "_", side_effect=lambda text, *a, **k: text), \
                 mock.patch.object(frappe, "throw", side_effect=_throw):
-            service._require_matching_account(loaded, target, "purchase", fields, invoice_date)
+            service._require_matching_account(loaded, target, fields, invoice_date)
 
     def test_matching_book_passes(self):
         self.check({"buyer_tax": OWN}, dt.date(2026, 3, 1))
         self.check({"buyer_tax": OWN}, None)
 
-    def test_other_company_or_year_is_refused(self):
-        with self.assertRaisesRegex(frappe.ValidationError, "own tax ID"):
-            self.check({"buyer_tax": OTHER}, dt.date(2026, 3, 1))
+    def test_another_company_passes_and_another_year_is_refused(self):
+        self.check({"buyer_tax": OTHER}, dt.date(2026, 3, 1))
         with self.assertRaisesRegex(frappe.ValidationError, "fiscal period"):
             self.check({"buyer_tax": OWN}, dt.date(2024, 3, 1))
+        with self.assertRaisesRegex(frappe.ValidationError, "fiscal period"):
+            self.check({"buyer_tax": OTHER}, dt.date(2024, 3, 1))
 
     def test_book_missing_from_directory_is_left_to_the_other_checks(self):
         self.check({"buyer_tax": OTHER}, dt.date(2024, 3, 1), rows=())
