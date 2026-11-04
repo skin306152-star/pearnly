@@ -203,3 +203,13 @@ LINE 没有单独的推送入口：LINE 上传的票由扫描自动推（`sweep`
 1. 第 16 条未来日期：等测试机实测 Express 收不收期间内的未来日期，再定要不要取消。
 2. 自动推里其余几个只决定「自动推还是交给人」的档位信号（`party_tax` 对方税号校验、`text_*` 原文核对、`void`、`day_month` 等）这次没动。按「不留交给人这一档」的口径要不要也放开，请主会话定。
 3. 第 4 节的 Express 实测要不要做。
+
+## 7. 检查结果
+
+- 基线：变基到 `origin/main` = `26c6834cf`（开工时是 `013f4ac55`，中间新进来的两个提交只动 ERP 扫码流程测试，与本任务无关）。
+- 本地全闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh`：变基前 183 步全过；变基后（`26c6834cf` 之上）再跑一遍，183 步全过。
+- 候选离线检查：在生产镜像 `sha256:29ae8ca6…`（revision c9057f6f4）里，挂本工作树五个 app，跑仓库当前的 `ci-candidate-checks.sh offline`，**通过**。
+  - 第一遍 `test_cowork_push_account` 报错：它还按旧签名调 `_require_matching_account`，并断言「本方税号是别家就拦」。已改成「别家照推、期间外照拦」，第二遍整条通过。
+  - 不在 CI 里、但和这次有关的单测，也在同一镜像里补跑并通过：`test_cowork_targets`、`test_cowork_review_reasons`、`test_cowork_express_doc_sanity`、`test_cowork_push_direction`、`test_cowork_da_automation`、`test_cowork_companies`。其中前三个本来不在任何 CI 步骤里，这是存量缺口，这次没有把它们加进 CI。
+- `check-architecture.py` 通过；`check-copy.py`：新增 0、改动 0、删除 8；`i18n-build.py --check` 通过；`check-product-map.py` 退出码 0。
+- 实机：没测（不碰测试机、实验室、生产）。
