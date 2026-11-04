@@ -1,7 +1,11 @@
 # 取消「本方税号与所选账套不一致」拦截：调查记录（2026-11-04）
 
 - 分支 `pearnly/drop-own-taxid-block`，基线 `origin/main` = `013f4ac55`。
-- 本次只做调查，没有改产品代码，没有跑闸门，也没有推送（主会话 11-04 转用户指示「先查清楚」）。改不改由主会话和用户看过后定。
+- 第 1–2 节是调查结果（调查时的代码行号以基线为准）；第 3、5 节记最终处理。用户 11-04 先后三次定了口径：
+  1. 「都取消，exp 不拦我们也不要拦，直写，代录 cowork erp，line 网页端，全部同步」：本方税号、分店不符、自动推的 `own_tax` 核对都取消。
+  2. MR.ERP 的「匹配闸」实际只管方向判不出：保留，改名「方向闸」，不改行为（主会话转用户定）。
+  3. 「只要 exp 不拦，mr.erp 不拦，我们就不要拦」：第 3 节另外 6 条「只有我们拦」的规则逐条核对 Express 和 MR.ERP，两边都不拦的取消。
+- 没合入 main，等主会话看过 diff 再合。
 - 起因：11-04 BJC 代录实测（报告 `side-session-notes/.../BJC代录实测-11-04/报告-BJC代录实测-11-04.md` 第一节）。
   11 张 BJC 开出的税票买方都是 บริษัท นิวเบสท์ (ปทุมธานี) จำกัด（0135556012961），推往的账套是 มานะชัยบริการ（0735527000289，
   按日期选中 C 盘 T.9）。代录开始前检查 22 张全部报「单据上的本方税号与所选账套不一致」，一张都开不了工。
@@ -64,81 +68,138 @@ LINE 没有单独的推送入口：LINE 上传的票由扫描自动推（`sweep`
 | `pearnly_core/mrerp/push/transport.py:206-208,272-289` + `mrerp/push/routing.py:235-275` | **MR.ERP** 的匹配闸 `confirmed_account_set_mismatch`：方向相反，或票面税号都不是套账主体，这一行就不导入（`ACCOUNT_SET_MISMATCH_CODE`） | 拦，但只拦 MR.ERP，不是 Express |
 | ERP 产品写 Express（`pearnly_erp_portal/express/prepare.py`、`target.py`、`operator.py`） | 按 ERP 公司自己的税号、分店和日期选账套；单据是 ERP 自己的采购 / 销售单，不比票面本方税号 | 没有这条闸，ERP 直写和代录都不受影响 |
 
-## 3. 预检路径上所有会拦单的规则
+## 3. 预检路径上所有会拦单的规则（含最终处理）
 
-范围是 Cowork Express 的直写（`prepare`）、代录开始前检查（`operator_check` 加上桌面端 `companion/express_operator/precheck.py`）和代录交单（还是 `prepare`）。权限、并发版本号、幂等这类保护不算业务规则，没有列进表里（`scope.require`、`request_conflict`、`storage.conflict`、`TargetSelectionError`）。
+范围：
+- Cowork 写 Express：直写（`prepare`）、代录开始前检查（`operator_check` 加上桌面端 `companion/express_operator/precheck.py`）、代录交单（同样走 `prepare`）、自动推判定（`assess`）。
+- ERP 写 Express：走同一份 `preflight_express`。
+- MR.ERP：走 `mrerp/push/routing.py` + `transport.py`，单据防呆用的是同一份 `doc_sanity`。
 
-「Express 也拒吗」一列的依据：
-(a) 代录配方 `companion/src/companion/express_operator/recipes/express-1.0.1.94.json`，记的是服务器版 Express 1.0.1.94 实录过的弹框（10-26 / 10-29 实机）；
-(b) Express 表结构 `companion/src/companion/table_specs.py`；
-(c) 没有依据的写「不知道」。
+权限、并发版本号、幂等不算业务规则，表里不列（`scope.require`、`request_conflict`、`storage.conflict`、`TargetSelectionError`）。
 
-| # | 规则（原因码） | 位置 | Express 也拒吗 | 建议 |
+依据：
+- (a) 代录配方 `companion/src/companion/express_operator/recipes/express-1.0.1.94.json`：服务器版 Express 1.0.1.94 实录过的弹框（10-26 / 10-29 实机）。
+- (b) Express 表结构 `companion/src/companion/table_specs.py`。
+- (c) Express 会计期间窗 `companion/src/companion/fiscal_period.py`：本年（CY）加次年（NY）两段，共 24 期。
+- (d) MR.ERP 只有我们自己的代码可看：导入表生成 `mrerp/push/xlsx/generator.py`（注释说校验顺序照 MR.ERP 服务端）、建档 `mrerp/push/autocreate.py`、已知拒绝清单 `mrerp/push/user_data.py`。MR.ERP 没有实机拒绝记录的，表里写「没有拒绝记录」。
+- (e) 没有依据的写「不知道」。
+
+| # | 规则（原因码） | Express 也拒吗 | MR.ERP 也拒吗 | 最终处理 |
 |---|---|---|---|---|
-| 1 | **本方税号不符** `account_tax_mismatch` | `account_match` 经 `_require_matching_account`、`assess` | **不拒，只有我们拦**。依据 (b)：单头 APTRN / ARTRN、进项税 ISVAT 只记对方（SUPCOD / CUSCOD、对方 TAXID）；本方税号只在账套的公司资料 ISINFO 里，每份账套一条。依据 (a)：RR 表头实录的格是 แผนก、เลขที่ใบรับสินค้า、วันที่、ผู้จำหน่าย、Bill be、สาขา#、อ้างถึงใบสั่งซื้อ、เลขที่บิล、ลวท.、หมายเหตุ、เครดิต、ครบกำหนด、ขนส่งโดย、ประเภทราคา，没有买方 / 本方税号格。实录的弹框里也没有这类提示 | **本次要取消的就是这条**（待批）。见第 4 节风险 |
-| 2 | 分店不符 `account_branch_mismatch` | `account_match.wrong_branch` | **不拒，只有我们拦**。依据 (b)：单据上的 ORGNUM 是对方分店（`dbf_writer.py:591` 取供应商主档 `party_orgnum`），单据上没有本方分店。选哪个分店的账套，就等于选了哪个分店 | 和第 1 条同一类（拿「所选账套」去比票面本方）。按用户的口径建议一起取消，请主会话定 |
-| 3 | 日期不在会计期间 `account_period_mismatch`（期间外） | `account_match` | **也拒**。依据 (a)：`period_outside` 弹框「Message#. 70 / วันที่ไม่อยู่ในงวด」，outcome=blocked。桌面端代录预检也查（`period_outside / period_locked`） | 保留：提前拦，省得到 Express 里才失败 |
-| 4 | 次年段但新年度账套已建 `account_period_mismatch` | `account_match.newer_book_covers` | **不拒**。旧账套的次年段 Express 能录（推断：次年段在期间窗内，Message 70 不触发；没有专门实测） | 这是「该推往新账套」的去向规则，不属于「Express 会拒」的一类。代录按日期自动选账套，正常不会撞上。建议保留，请主会话定 |
-| 5 | 单据口径没选 / 选了不录 | `service._document_block` → `policy_rules.push_block` | 不拒，只有我们拦 | 保留：转账凭条、预扣税凭证录不录，是用户按公司选的口径（memory「录不录不写死」） |
-| 6 | 归代录的单直写不接 `push.operator_owned`；上次结果不明 `push.result_unknown` | `service.prepare` :148、`operator_check` :604 | 不涉及（流程锁） | 保留：防同一张单重复入账 |
-| 7 | 改单缺原单号 `push.prior_document_number_missing` | `service.prepare` :176 | 不涉及 | 保留 |
-| 8 | 账套白名单 `account_set_not_allowed` | `preflight.py` | 不涉及（安全） | 保留 |
-| 9 | 方向判不出 `direction_unknown` | `preflight.py` | 不涉及：不知道方向，就不知道该开 RR 还是销售单 | 保留。注意：取消第 1 条以后，没写明方向、票面两边税号都对不上工作空间和账套的单，还是会停在这里（这是「要问进项还是销项」，不是税号闸）。代录按分组把方向写到单上（`operator_source._settle`），不受影响 |
-| 10 | 方向没开 `direction_not_enabled` | `preflight.py` | 不涉及（连接配置） | 保留 |
-| 11 | 外币 `currency_not_thb` | `doc_sanity.py` | 不知道 | 保留：会把外币金额当泰铢记 |
-| 12 | 买卖方同税号 `seller_buyer_same_tax` | `doc_sanity.py` | 不拒，只有我们拦 | 保留：必有一方读错，方向也判不出 |
-| 13 | 贷项 / 退货单 `credit_note` | `doc_sanity.py` | Express 有自己的减债 / 退货单；我们会当正向采购写，所以拦 | 保留，等支持减债单以后再改 |
-| 14 | 押金 / 定金 `deposit_receipt` | `doc_sanity.py` | 不拒（Express 会当普通单录） | 只有我们拦。会计上押金不是费用。建议保留，请主会话定 |
-| 15 | 古董日期 `date_implausible`（2000 年前） | `doc_sanity.py` | 也拒（落不进任何账套期间，Message 70） | 保留，与第 3 条重叠，没有坏处 |
-| 16 | 未来日期 `date_future` | `doc_sanity.py` | 不知道（期间内的未来日期 Express 收不收，没有实录） | 只有我们拦的可能性大。常见原因是佛历年读错，建议保留，请主会话定 |
-| 17 | 补开 / 倒签 `date_reissued`（ใบแทน 等关键词） | `doc_sanity.py` | 不拒，只有我们拦 | ใบแทน 是合法的替代税票，可以入账；风险是原票已经录过时重复。按用户口径属于可以放开的一类，请主会话定 |
-| 18 | 对方税号不是 13 位 `tax_id_invalid` | `doc_sanity.py` | 不拒：TAXID 是 C(15) 自由文本 | 只有我们拦。按用户口径属于可以放开的一类；放开后进项税报表上会出现错的对方税号，主档建档也按税号认。请主会话定 |
-| 19 | 金额不闭合、缺总额、完整税票只读到总额 `amounts_not_consistent` | `push/ledger.py` + `tax_documents/ledger_guard`（11-03 新护栏） | 不拒（Express 按明细自己算） | 保留：防写错金额 |
-| 20 | 缺单号 `low_confidence:invoice_no_missing` | `push/ledger.py`、`confidence.py` | 不知道（เลขที่บิล 能不能空着保存，没有实录） | 保留，请主会话定 |
-| 21 | 缺日期 `bad_or_missing_date` | `push/ledger.py`、`mapper.py` | 也拒（日期必填） | 保留 |
-| 22 | 金额缺失或为 0 `amount_missing`、正式票缺卖方 `vendor_missing` | `confidence.py` | 卖方：Express 必须有对方档才能保存（(a) 主档找不到会弹查找框 `master_missing`）。金额：不知道 | 保留 |
-| 23 | 缺科目配置 `no_account_set / no_purchase_account / no_ap_account / no_input_vat_account`、分录不平 `entry_not_balanced` | `mapper.py` | 分录不平也拒（总账要平）；缺科目就是生成不了单据 | 保留 |
-| 24 | 科目不在科目表 `account_not_in_chart` | `preflight.py` | 同类的码 Express 界面会弹查找框（(a) 实录的是对方、商品；科目码没有单独实录） | 保留 |
-| 25 | 要人选（`choice_needed:*`）、科目表没读到（`masters_wait`）、入账类型要选 `posting_kind_needed` | `service.prepare`、`mapper.py` | 不涉及（缺信息） | 不是拦，是问一次。保留 |
-| 26 | 桌面端代录预检：`unsupported`、`party_missing`、`item_missing` | `companion/.../express_operator/precheck.py` | `party_missing`、`item_missing` 也拒（(a) 查找框 → blocked）；`unsupported` 是配方还没覆盖这类单 | 保留（已经是「直写建档 / 选已有 / 跳过」让人定） |
-| 27 | 桌面端：主档税率是 0、票面有税 `tax_setting_mismatch` | 同上 | 不拒（会按主档 0% 录，进项税会丢） | 只有我们问。保留为要人定 |
-| 28 | 桌面端：疑似重复 `duplicate_ref` | 同上 | 不拒（(a) 1029 弹框自动按 ตกลง 继续） | 已经只提示不拦（推送不查重不拦），不动 |
-| 29 | 负库存 `negative_stock`、授权 `license` | 只在代录执行时 | 也拒（(a) 4224 / 4091、-330） | 是 Express 自己拦的，不是我们的规则 |
-
-小结：只有我们拦、而且 Express 收的有第 1、2、4、12、14、17、18 条（第 16 条可能也是）。其中第 1、2 条都是拿「所选账套」去比票面本方，和用户说的「打开这家公司的这份账套就做账」直接冲突。其余几条是防写错金额、防重复、防读错的数据护栏，建议主会话逐条定。
+| 1 | **本方税号不符** `account_tax_mismatch` | **不拒**。(b) 单头 APTRN / ARTRN 和进项税 ISVAT 只记对方，本方税号只在 ISINFO。(a) RR 表头实录的格里没有买方 / 本方税号，实录弹框里也没有这类提示 | 不涉及（这条只核 Express） | **已取消**：直写、代录预检、代录交单、自动推判定全部取消。码、两句文案及翻译、月结异常码、CC 前端标签一起删 |
+| 2 | 分店不符 `account_branch_mismatch` | **不拒**。(b) 单据上的 ORGNUM 是对方分店（`dbf_writer.py:591`），单据上没有本方分店 | 不涉及 | **已取消**，做法同第 1 条。对话分店钩子 `cowork_push_work_branch` 和 `companies.provider.work_branch` 一起删 |
+| 3 | 日期在会计期间外 `account_period_mismatch` | **也拒**。(a) Message#. 70「วันที่ไม่อยู่ในงวด」 | 不涉及 | 保留 |
+| 4 | 次年段，但新年度账套已建 `account_period_mismatch` | **不拒**。(c) Express 的期间窗含次年段，Message 70 不触发 | 不涉及 | **已取消**：删了硬闸里的 `newer_book_covers`。按日期选账套（`for_day`，用于定时任务、代录、自动推）照旧先选新年度账套；只是人手选了旧账套去推次年段的单，不再拦 |
+| 5 | 单据口径没选 / 选了不录 | 不拒 | 不拒 | 保留：转账凭条、预扣税凭证录不录，是用户按公司选一次的口径（缺必要信息，问一次） |
+| 6 | 归代录的单直写不接 `push.operator_owned`；上次结果不明 `push.result_unknown` | 不涉及（流程锁） | 不涉及 | 保留：流程锁，防重复入账 |
+| 7 | 改单缺原单号 `push.prior_document_number_missing` | 不涉及 | 不涉及 | 保留 |
+| 8 | 账套白名单 `account_set_not_allowed` | 不涉及（安全） | 不涉及 | 保留：安全 |
+| 9 | 方向判不出 `direction_unknown` | 不涉及：不知道方向，就不知道开哪种单 | MR.ERP 同样要先定导入模块 | 保留（缺必要信息，问一次）。MR.ERP 原「匹配闸」改名「方向闸」`direction_unsettled`，原因码 `ERR_ACCOUNT_SET_MISMATCH` 改为 `ERR_DIRECTION_UNKNOWN`。方向明确的别家票照常写 |
+| 10 | 方向没开 `direction_not_enabled` | 不涉及（连接配置） | 不涉及 | 保留 |
+| 11 | 外币 `currency_not_thb` | 不知道 | 不知道 | 保留：不在这次 6 条里；管钱底线，否则会把外币金额当泰铢记 |
+| 12 | 买卖方同税号 `seller_buyer_same_tax` | **不拒**：(b) 单据上没有买方税号可比 | **没有拒绝记录**：(d) 生成代码和已知拒绝清单里都没有 | **已取消**。没写明方向时，Express 照旧停在第 9 条（两边同税号判不出方向）。MR.ERP 方向闸第 ② 种情况补上「两边同一个税号」，照样停下问方向；以前这种单靠这条防呆拦住，否则会落进默认的赊销模块 |
+| 13 | 贷项 / 退货单 `credit_note` | Express 有自己的减债 / 退货单，我们会当正向单写 | 同左 | 保留：不在这次 6 条里 |
+| 14 | 押金 / 定金 `deposit_receipt` | **不拒**（Express 当普通单录） | **没有拒绝记录** | **已取消** |
+| 15 | 古董日期 `date_implausible`（2000 年前） | **也拒**（落不进任何期间，Message 70） | — | 保留 |
+| 16 | 未来日期 `date_future` | **不知道**：(a) 配方里没有这类弹框，(c) 期间窗也看不出期间内的未来日期收不收，没有实录 | (d) 我们的导入表生成对晚于今天 30 天以上的单报 `ERR_DATE_FUTURE`，注释说照 MR.ERP 服务端顺序，但没有实机拒绝记录 | **保留，标「待测试机实测」**（测法见第 4 节第 2 条）。自动推的 `date_future` 核对跟着保留 |
+| 17 | 补开 / 倒签 `date_reissued`（ใบแทน 等） | **不拒** | **没有拒绝记录** | **已取消** |
+| 18 | 对方税号不是 13 位 `tax_id_invalid` | **不拒**：(b) TAXID 是 C(15) 自由文本。超过 15 位时，CC 桌面版写账自己的长度检查会拒（`dbf_writer.py:81-90`，对应 Express 列宽），这条照旧 | **没有拒绝记录**：(d) 建档按原数字写，最多 20 位 | **已取消**。自动推的 `party_tax` 核对（正式税票对方税号要 13 位且校验位对，才算 A / B）只是档位信号，不拦人推，这次没动，见第 6 节 |
+| 19 | 金额不闭合、缺总额、完整税票只读到总额 `amounts_not_consistent` | 不拒（Express 按明细自己算） | — | 保留：管钱底线，金额护栏 |
+| 20 | 缺单号 `low_confidence:invoice_no_missing` | 不知道 | (d) `ERR_NO_INVOICE_NO` | 保留：不在这次 6 条里 |
+| 21 | 缺日期 `bad_or_missing_date` | 也拒（日期必填） | 也拒 | 保留 |
+| 22 | 金额缺失或为 0、正式票缺卖方 | 卖方：也拒（(a) 主档里找不到会弹查找框）；金额：不知道 | (d) `ERR_NO_TOTAL_AMOUNT` | 保留 |
+| 23 | 缺科目配置、分录不平 `entry_not_balanced` | 分录不平也拒 | — | 保留：管钱底线 |
+| 24 | 科目不在科目表 `account_not_in_chart` | 同类的码 Express 会弹查找框 | — | 保留 |
+| 25 | 要人选（`choice_needed:*`）、科目表没读到、入账类型要选 | 不涉及（缺信息） | 同左 | 保留：问一次 |
+| 26 | 桌面端代录预检 `unsupported`、`party_missing`、`item_missing` | `party_missing`、`item_missing` 也拒（(a) 查找框） | — | 保留 |
+| 27 | 桌面端：主档税率是 0、票面有税 `tax_setting_mismatch` | 不拒（会按 0% 录，进项税就丢了） | — | 保留，作为要人定的一项：不在这次 6 条里 |
+| 28 | 桌面端：疑似重复 `duplicate_ref` | 不拒（1029 弹框按 ตกลง 继续） | — | 本来就只提示不拦 |
+| 29 | 负库存、授权 | 也拒（(a) 4224 / 4091、-330） | — | 是 Express 自己拦的，不是我们的规则 |
 
 ## 4. Express 本身怎么处理「单据本方税号 ≠ 账套公司税号」
 
-- **代码和实录依据（有）**：Express 的单据和进项税记录里没有本方税号的位置（第 3 节第 1 条依据 (a)(b)）。录单时也没有地方输入或核对买方税号。所以 Express **从结构上不会**按单据上的本方税号拦单。打开哪家公司的账套，单就记在哪家公司，进项税也进这家公司的进项税报表。
-- **专门实测（没有）**：没有在测试机上专门录过「买方是别家」的单。照上面的结构，结论基本确定，但如果要实测，做法如下（测试机 C 盘 Express 可以自由写；动测试机前先问主会话并登记占用）：
-  1. 测试机打开 C 盘 Express（`C:\PearnlyExpress`）里一份 T 账套，记下它 ISINFO 的公司名和税号。
-  2. 拿一张买方是另一家公司的税票（例如这次 BJC 那批，买方 0135556012961），在「RR - ซื้อเงินเชื่อ」里照常录：选对方、填 เลขที่บิล、日期（期间内）、一行明细，保存。
-  3. 看三件事，每一步截图：① 表头有没有本方 / 买方税号格；② 保存时有没有弹框；③ 当月「รายงานภาษีซื้อ」里这张是否列在本账套公司名下。
-  4. 录完按 Express 原生流程作废这张（或直接用一次性 T 账套），不留测试数据。
-- **风险（请主会话和用户知悉）**：Express 不拦，不等于这样做账是对的。BJC 那批确实是别家公司的票，取消规则以后会照常录进 มานะชัยบริการ，进项税也会算到它头上。
-  泰国税法一般不允许用抬头不是本公司的税票抵扣进项税（ภาษีซื้อต้องห้าม）。具体条文我没有核，需要会计确认。
-  用户已经定了「CC 在对话里凭判断提醒，规则层不拦」。建议保留 2.4 里自动推的 `own_tax` 核对：无人值守的自动推（定时任务、扫描）遇到这种单交给人，不自己写进去；人推和代录照用户口径放行。
+- **代码和实录依据（有）**：Express 的单据和进项税记录里没有本方税号的位置（见第 3 节第 1 条，依据 (a)(b)），录单时也没有地方输入或核对买方税号。所以从结构上，Express **不会**按单据上的本方税号拦单：打开哪家公司的账套，单就记在哪家，进项税也进这家公司的进项税报表。
+- **专门实测（没有）**。要实测的话，做法如下（测试机 C 盘的 Express 可以自由写；动测试机前先问主会话，并登记占用）：
+  1. 在测试机打开 C 盘 Express（`C:\PearnlyExpress`）里的一份 T 账套，记下它 ISINFO 里的公司名和税号。
+  2. 在「RR - ซื้อเงินเชื่อ」录一张买方是别家的税票（例如 BJC 那批，买方 0135556012961）：选对方、填 เลขที่บิล、日期（在期间内）、一行明细，保存。**同一次顺带测第 16 条**：再录一张日期晚于工作日期、但仍在期间内的单，看会不会弹框。
+  3. 每一步截图，看三件事：① 表头有没有本方 / 买方税号格；② 保存时有没有弹框；③ 当月「รายงานภาษีซื้อ」里这张是不是列在本账套公司名下。
+  4. 录完按 Express 原生流程作废这张（或者直接用一次性的 T 账套），不留测试数据。
+- **风险（主会话和用户已知悉）**：Express 不拦，不等于这样做账一定对。BJC 那批确实是别家公司的票，现在会照常录进 มานะชัยบริการ，进项税也算到它头上。泰国税法一般不允许用抬头不是本公司的税票抵扣进项税（ภาษีซื้อต้องห้าม），具体条文没有核。用户定的口径是：CC 在对话里凭判断提醒，规则层不拦；自动推也照推。
 
-## 5. 如果批准取消，改动范围（预案，还没做）
+## 5. 实际改动（分支 `pearnly/drop-own-taxid-block`）
 
-- `account_match.py`：删 `TAX_MISMATCH`、它的文案、`_other_company`，以及 `conflict()` 里的那一判；改文件头说明。如果第 2 条也批了，同样删 `BRANCH_MISMATCH` 一套。
-- `companies/exceptions.py`：从 `CODES`、`CONFLICTS` 删这个码。
-- 文案：删 `messages.tsv:1112` 和四个 `translations/*.csv:1856`（只删，不改别的文案）。
-- `frontend/assistant/src/i18n.ts` 三行标签：**在 `pearnly/cc-unified-ui` 的范围里**，要先和主会话协调：等那个分支合入后再删，或者由那个分支顺手删。
-- 文档字符串：`service.py`、`history/review.py`、`pending_api.py`、`folder_intake/follow.py`、`automation.py` 里提到「税号硬闸」的地方。
-- 不动：方向判定、公司归属、识别纠错、ERP 采购识别（2.3）；2.4 的自动推核对等主会话定。
-- 不碰 `express_operator/feed.py`、`sessions.py`（`pearnly/cc-unified-feed` 的范围），这次改动也用不到它们。
-- 单测：把第 2.2 节列的断言改成「税号不一致照常放行」，直写（`prepare` / `_require_matching_account`）和代录（`operator_check`）各一条正向断言；分店、期间的断言保持不变。
-- 影响清单（`python3 scripts/check-impact.py --files` 只读预演，按上面会改的文件算）：命中共用件 `express-rules`，要实测 15 个入口（`erp.cc.write`、`erp.cc.stock-entry`、`erp.cc.pos-day`、`erp.cc.pos-refund`、`cowork.cc.channel`、`cowork.express.push`、`cowork.mrerp.push`、`cowork.companies`、`cowork.connections`、`cowork.history`、`cowork.cc-chat.push`、`cc.operator.page`、`cowork.cc.troubleshooting`、`shared.tax-documents`、`cowork.tax-documents`）。
-  产品地图（`check-product-map.py --files`）显示「没有改到地图里的入口」，所以规则 6 没有命中，不需要补地图测试。
-- 改了 `pearnly_core`，合入前要在生产镜像里跑候选离线检查（memory「共用层改动要跑候选离线检查」）。
+- **共用层 Express 规则** `express_rules/targets/account_match.py`
+  - `conflict(adapter, account, *, fields)` 只剩一条：日期不在整个会计期间（本年 + 次年）里。
+  - 删掉 `TAX_MISMATCH`、`BRANCH_MISMATCH` 和两句文案，以及 `_other_company`、`_valid`、`company_branches`、`wrong_branch`、`newer_book_covers`、`_same_company`、`_row_span`。
+  - `for_day`、`for_month`、`fiscal_part`、`printed_branch` 不变。
+- **共用层单据防呆** `express_rules/push/doc_sanity.py`
+  - 删掉 `seller_buyer_same_tax`、`deposit_receipt`、`date_reissued`、`tax_id_invalid` 四条。
+  - `check_document` 去掉不再用的 `direction` 参数，调用方 `preflight.py` 和 MR.ERP 的 `routing._doc_sanity_reason` 同步改。
+- **MR.ERP** `mrerp/push/routing.py`、`transport.py`
+  - 匹配闸改名为方向闸：`direction_unsettled`、`DIRECTION_UNKNOWN_CODE = "ERR_DIRECTION_UNKNOWN"`、`_hold_unsettled`。
+  - 方向明确的别家票照常写。
+  - 第 ② 种情况补上「两边同一个税号」（原来由第 12 条防呆拦）。
+- **Cowork 推送** `push/application/service.py`
+  - `_require_matching_account(loaded, target, fields, invoice_date)` 只核期间；删掉 `_work_branch`。
+  - 代录开始前检查 `operator_check` 用的是同一处，一起生效。
+  - `assess.py` 同步新签名。
+- **自动推** `push/express/automation.py`
+  - 删掉 `own_tax`、`branch` 两条核对，删掉 `_own`、`_own_mismatch`、`_wrong_branch`。
+  - 档位里的「本方」`own` 项删掉。以前票面没印本方的收据最高只到 B，现在不再因此降档。
+  - `Facts.catalog` 不再有人用，删掉；`assess.py`、`scripts/da-replay.py` 同步改。
+- **复核原因** `history/review.py`
+  - 删掉 `own_tax` 原因和对应参数；`history/storage.py` 不再取工作空间税号。
+  - 旧票上已存的 `own_tax` 复核原因，下次写票时会重算掉。
+- **钩子与异常码表**
+  - `hooks.py` 删掉 `cowork_push_work_branch`；`companies/provider.py` 删掉 `work_branch`。
+  - `companies/exceptions.py` 的 `CODES` / `CONFLICTS` 只留 `account_period_mismatch`。
+- **文案**
+  - 删掉两句拦截文案（本方税号、分店）。
+  - 删掉 `intake.error.tax_id_invalid`、`seller_buyer_same_tax`、`deposit_receipt`、`date_reissued` 四条：`messages.tsv` 和四个 `translations/*.csv` 都删，含英文原文行。
+  - 删掉 `copy-approved.tsv` 里分店文案的登记行。
+  - `check-copy.py` 结果：新增 0、改动 0、删除 8。
+- **CC 前端**（主会话同意）
+  - 拣入 U2 的 `3c1a07d15`，删三处「税号不符」标签。
+  - 本分支再删三处「分店不符」标签（`frontend/assistant/src/i18n.ts`，英 / 中 / 泰各一处）。前端别处没动。
+- **契约** `tests/fixtures/cc-month-contract.json`：用 `MonthLedgerTests` 同一段取数，按服务端真实输出重新生成。例子里的停单从本方税号换成了期间不符。
+- **回放脚本** `scripts/da-replay.py`：删掉「本方税号」原因那一行；识别闸不再需要本方税号清单，`--manifest` 参数删掉。
+- **保留、不受影响**
+  - 判进项还是销项仍用本方税号（`contracts.push.resolve_account_direction`）。
+  - 待处理里按本方税号判单据归哪家公司（`companies/pending.py`）。
+  - 识别纠错 `claude_ocr.rules.fix_own_tax`。
+  - ERP 采购识别时剔除本公司自己开出的票（`recognition/checks.issued_by`）。
+  - CC 桌面版写账前的一致性闸（目录 ISINFO 公司名 == 所选账套）：防写错目录，不看票面。
+- **历史数据**：旧票上记着的旧原因原句（本方税号 / 分店），在月结台账里归为 `push_manual` / `push_failed`（单测有断言），再推一次就会通过。
 
-## 6. 待主会话定
+### 单测（断言改为放行，没有删断言凑通过）
 
-1. 第 1 条（本方税号）取消：确认后施工。
-2. 第 2 条（分店不符）是否一起取消。
-3. 2.4 自动推的 `own_tax` 核对和复核原因 `own_tax`：建议保留，让无人值守的自动推遇到这种单交人。
-4. MR.ERP 匹配闸是否也按同一口径处理（MR.ERP 本身拒不拒不知道；从注释看，导入不带卖方身份，默认是登录公司）。
-5. 第 3 节里其余「只有我们拦」的几条（4、12、14、16、17、18、20）逐条定，这次都不动。
-6. 是否在测试机上做第 4 节的 Express 实测。
-7. CC 前端三行标签的删除时机（和 `pearnly/cc-unified-ui` 协调）。
+| 路径 | 断言 |
+|---|---|
+| 直写 | `test_cowork_push_direction.PrepareDirection.test_a_document_naming_another_buyer_goes_into_the_chosen_set`：进项、销项的别家票都照常准备推送；没写方向的交给方向判定。`BranchNotChecked`：别的分店照推，不再取对话分店。另有 `test_cowork_targets.AccountConflictTests`、`test_cowork_assistant_tools` 的规则用例 |
+| 代录 | `test_cowork_push_direction.test_the_operator_precheck_lets_another_buyer_through`：别家买方的单，`operator_check` 回 ready；同一条路上期间外的单照旧 blocked |
+| 自动推 | `test_cowork_da_automation.test_own_tax_is_not_checked`、`test_branch_is_not_checked`：本方税号是别家、分店不同，都是 A 类、没有原因 |
+| MR.ERP | `test_cowork_push_direction.MrErpDirection.test_another_companys_document_with_a_known_direction_goes_in`、`test_an_undecidable_direction_still_stops_to_ask`；`test_cowork_mrerp_push.test_another_companys_invoice_with_a_declared_direction_is_imported`（在假 MR.ERP 站点里真导入成功）、`test_only_an_undecidable_direction_stops` |
+| 防呆 4 条 | `test_cowork_express_doc_sanity`：同税号、押金、倒签、短税号都返回 None；外币、贷项、未来日期、古董日期照旧拦 |
+| 次年段 | `test_cowork_push_direction.NextYearPeriod.test_the_hard_gate_only_stops_dates_outside_the_whole_fiscal_window` |
+| 月结 / 复核 | `test_cowork_companies`（异常码表、旧原句归类、契约）、`test_cc_month_ledger`（码数 22，例子换成期间不符）、`test_cowork_review_reasons` |
+
+### 影响清单与入口验证
+
+- `python3 scripts/check-impact.py`：命中共用件 `express-rules`、`mrerp-rules`，要实测 23 个入口。
+- `check-product-map.py` 退出码 0：规则 6（命中的上线必验行、带共用件的行、出过事的行有红 / 黄）没有失败项，不需要补地图测试。
+- 这次不碰测试机、回归实验室和生产（任务书规矩），所以下表所有入口都**没有实机测**。
+
+| 入口 | 结果 |
+|---|---|
+| `cowork.express.push`、`cowork.cc-chat.push`、`cc.operator.page`（代录预检）、`cowork.companies`、`cowork.history` | 离线单测通过（见上表）；实机没测 |
+| `cowork.mrerp.push`、`erp.mrerp.direct`、`cowork.mrerp.catalog`、`cowork.cc.mrerp-setup` | 离线：`test_cowork_mrerp_push`（假 MR.ERP 站点）在候选离线检查里跑；实机没测 |
+| `erp.cc.write`、`erp.cc.stock-entry`、`erp.cc.pos-day`、`erp.cc.pos-refund` | 离线：`test_erp_express_direct` 通过（ERP 本来没有本方税号闸，只受防呆 4 条取消的影响）；实机没测 |
+| `cowork.cc.channel`、`cowork.connections`、`cowork.line.chat`、`cowork.execution`、`cowork.assistant`、`cowork.cc.troubleshooting`、`shared.navigation`、`shared.team.members`、`shared.tax-documents`、`cowork.tax-documents` | 只经 `hooks.py` 或共用件间接命中，这次没改它们的行为；靠全闸门和候选离线检查覆盖；实机没测 |
+
+本地闸门、候选离线检查和 CI 的结果见第 7 节。
+
+## 6. 剩下要定的
+
+1. 第 16 条未来日期：等测试机实测 Express 收不收期间内的未来日期，再定要不要取消。
+2. 自动推里其余几个只决定「自动推还是交给人」的档位信号（`party_tax` 对方税号校验、`text_*` 原文核对、`void`、`day_month` 等）这次没动。按「不留交给人这一档」的口径要不要也放开，请主会话定。
+3. 第 4 节的 Express 实测要不要做。
