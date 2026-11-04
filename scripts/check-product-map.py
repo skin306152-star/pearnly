@@ -12,7 +12,7 @@
    部署后要逐租户核的上线必验行、同组兄弟入口与各自的测试强弱。只出清单，不判失败。
 5. 对照组：同一 group 里 ERP / Cowork 缺一边又没写 na，或同一端某行的测试比兄弟弱 → 失败，
    除非在 sibling_baseline.txt（只许减少）。
-6. 命中要补测试（主会话 11-04）：这次改动命中的「上线必验」行或带共用件（parts）的行，某端是红 / 黄 → 失败，
+6. 命中要补测试（主会话 11-04）：这次改动命中的「上线必验」行、带共用件（parts）的行或出过事（incidents）的行，某端是红 / 黄 → 失败，
    同一提交补绿测试；只能真机的行要同一提交在 docs/work/ 附真机记录（行 id、日期、SHA）。存量不追溯，只管命中的。
 
     python3 scripts/check-product-map.py                      # 闸门 + 影响清单（相对 origin/main 的分叉点，含未提交）
@@ -177,18 +177,18 @@ RECORD_DATE = re.compile(r"\b20\d\d-\d\d-\d\d\b")
 
 
 def enforce_hits(product_map: pm.Map, hits: dict, flows, impact, changes: list, root=ROOT) -> list[str]:
-    """规则 6（主会话 11-04）：这次改动命中的「上线必验」行或带共用件的行，某端是红 / 黄就失败——同一提交补上该端的绿测试。
+    """规则 6（主会话 11-04）：这次改动命中的「上线必验」行、带共用件（parts）的行或出过事（incidents）的行，某端是红 / 黄就失败——同一提交补上该端的绿测试。
     只能真机的行（device_only）要同一提交附真机记录：docs/work/ 下改到的 .md 里写着这一行的 id、日期和 SHA。存量不追溯，只管命中的。"""
     records = [path for path in changes if path.startswith("docs/work/") and path.endswith(".md") and (root / path).is_file()]
     texts = {path: (root / path).read_text(encoding="utf-8", errors="ignore") for path in records}
     errors = []
     for row_id in sorted(hits):
         row = product_map.rows[row_id]
-        if not (row.must_verify or row.parts):
+        if not (row.must_verify or row.parts or row.incidents):
             continue
         levels = pm.status(row, flows, impact)
         gaps = [END_NAMES[end] + level for end, level in levels.items() if not pm.tested(level)]
-        why = "上线必验" if row.must_verify else "共用件 " + "、".join(row.parts)
+        why = "上线必验" if row.must_verify else "出过事" if row.incidents else "共用件 " + "、".join(row.parts)
         if gaps:
             errors.append(f"命中要补测试：{row_id}（{why}；{row.where}）这次被改到（{'；'.join(hits[row_id])}），"
                           f"{'、'.join(gaps)} —— 同一提交给这一端补绿测试（流程 / 单测 / 业务冒烟）；确实只能真机的写 device_only 与 device")

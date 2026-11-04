@@ -134,7 +134,8 @@ class Rules(unittest.TestCase):
         import tempfile
         rows = [row("nav:erp:a", must_verify=True, probe={"type": "liff"}, tests=["flow:f.desk"]),
                 row("nav:erp:b", parts=["line"], tests=["impact:e.manual"]),
-                row("nav:erp:c", tests=[]),                                   # 不是上线必验、没有共用件：不管
+                row("nav:erp:c", tests=[]),                                   # 不是上线必验、没有共用件、没出过事：不管
+                row("nav:erp:e", tests=[], incidents=["2026-11-03 事故"]),       # 出过事的一律管
                 row("nav:erp:d", parts=["line"], tests=[], device_only="要真 LINE App", device="点卡片")]
         product_map = pm.Map({r.id: r for r in rows}, {}, {}, [], [])
         hits = {r.id: ["改到入口文件"] for r in rows}
@@ -146,6 +147,7 @@ class Rules(unittest.TestCase):
         self.assertIn("命中要补测试：erp.b（共用件 line", errors)
         self.assertIn("电脑黄", errors)
         self.assertNotIn("erp.c", errors)
+        self.assertIn("命中要补测试：erp.e（出过事", errors)
         self.assertIn("命中要附真机记录：erp.d", errors)
         (root / "docs/work/device.md").write_text("erp.d 2026-11-04 4ffe8aea6 三星 LINE 点卡片 → 通过\n", encoding="utf-8")
         errors = "\n".join(gate.enforce_hits(product_map, hits, FLOWS, IMPACT, ["docs/work/device.md"], root))
