@@ -215,3 +215,37 @@ desk 调用方核查（全仓 grep，排除构建产物）：`newCompanyUrl` / `
 是代录的桌面模拟器，与此无关；flows 里没有调用。`desk` 分区本身保留（公司页「在浏览器中打开」还用它，方案 B 修那一入口）。
 
 文案：没有新增或改动界面文案（建公司失败沿用已有的「Invalid request」）。
+
+## 10. 验证（基线 c9057f6f → 变基到 6d750c8f）
+
+| 层 | 结果 |
+|---|---|
+| 单测 | `test_assistant_entry`（新 5 条，旧代码上 3 失败 1 报错）、`test_assistant`（声明收窄 + 访客送入口带 site）、`test_cc_operator`（代录模式开公司 = 建任务，旧代码上失败）、`test_assistant_ui`、`test_cc_session_panel`、`test_erp_cc_companies`（新 5 条）全过 |
+| 本地全闸门 | 照 development.yml 179 步通过（「DMS 编辑器快照」第一次因本工作树没装 `frontend/` 依赖失败，`npm ci --prefix frontend` 后重跑通过，与本次改动无关）；变基后补跑 product_map、flows coverage、check-impact、check-architecture 通过 |
+| 文案 | `check-copy --report`：新增 0、改动 0 |
+| 候选离线检查 | 生产镜像 `sha256:29ae8ca6…`（revision c9057f6f4）挂本工作树跑仓库当前 `ci-candidate-checks.sh offline`：通过 |
+| 实验栈 `pearnly-regression-lab` | `--changed` 选出 5 条 11 格：cc.chat ×4、cc.operator ×2、cc.sidebar-modes（ERP）×2 首轮通过；cc.companies、cowork.cc.sidebar-modes ×2 首轮因流程准备数据写法不对失败（电脑与账套要经共用层写、Cowork 旧数据集没有公司），修流程后重跑通过 |
+
+共用件入口（check-impact）逐项：
+
+| 入口 | 结果 |
+|---|---|
+| `cc.assistant` | 通过（流程 cc.chat 4 格） |
+| `cc.operator.page` | 通过（test_cc_operator + 流程 cc.operator 2 格 + sidebar-modes 代录选公司） |
+| `erp.cc.companies` | 通过（流程 cc.companies：对话 / 代录两种模式添加公司在 CC 弹窗里、建好进公司页 / 新建任务页；单测） |
+| `control.issue-and-entry`、`control.assistant` | 单测通过；fatcc.com 真实跳转没测到（实验栈没有 Keycloak，部署后真机） |
+| `shared.login` | 没测到（同上，部署后真机切站点） |
+| `shared.shell-gate`、`shared.team.members`、`shared.line.login` | 没测到（只因同文件连带列出，本次没改这些路径）；相关单测通过 |
+| `shared.assistant`、`cowork.assistant`、`cc.operator.thread`、`erp.cc.chat-push`、`cowork.cc-chat.push`、`cowork.cc.troubleshooting` | 共用层只改了 `projects.declared`（产品可给 `sections()`，没给的照旧 `SECTIONS`）；cc.chat / sidebar-modes 流程与单测通过，CC 工具本身没测到（未改动） |
+| `erp.cc.connect` | 没测到（真机 CC 桌面版连 ERP）；`express.companies` 只抽出 `build` / 加 `catalog`，后台补建逻辑不变，单测通过 |
+| `control.execution` | 单测通过；没测到真机 |
+| MR.ERP 添加公司 | 没测到（线上无账号；账本开关关着，离线单测覆盖） |
+
+真机步骤（第 1 项上线后，主会话在 testerp、testcowork 与正式租户逐个验）：
+1. 测试机 CC 同时连 testerp 和 testcowork，系统浏览器不登录这两个站点；在 CC 里只登录 testerp。
+2. 左下角头像菜单最上面的站点列表点 testcowork：**第一次**就到 fatcc.com 的 CC 登录页（不回 testerp、不出 Pearnly Keycloak 登录页）。
+3. 在 CC 登录页输 testcowork 的账号 → 密码页 → 进 testcowork 的对话页。
+4. 再切回 testerp：testerp 会话还在，直接进。
+5. 退出登录：照旧回 CC 登录页。
+6. 关掉 CC 窗口等 testerp 会话过期（或清站点 Cookie）后重开：静默回上次那家（不带 site 的老路径不变）。
+7. 正式租户：同一账号能进的两家之间切换，直接进，不出登录页。
