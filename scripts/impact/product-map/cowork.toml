@@ -1710,6 +1710,7 @@ anchor = "ccaction:cowork:logout"
 where = "CC 退出（直接退出、跳回，不出确认页）"
 parts = ["login-session"]
 group = "cc.action.logout"
+tests = ["unit:tests/test_assistant_entry.py::test_logout_confirmation_submits_itself_without_a_card"]
 
 [[row]]
 id = "cowork.cc.action.deep-link"

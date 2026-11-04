@@ -8,8 +8,6 @@ cowork.cc.action.deep-link@desktop
 cowork.cc.action.deep-link@mobile
 cowork.cc.action.delete-chats@desktop
 cowork.cc.action.delete-chats@mobile
-cowork.cc.action.logout@desktop
-cowork.cc.action.logout@mobile
 cowork.cc.action.mrerp-auth@mobile
 cowork.cc.action.settings@desktop
 cowork.cc.action.settings@mobile
@@ -204,8 +202,6 @@ erp.cc.action.deep-link@desktop
 erp.cc.action.deep-link@mobile
 erp.cc.action.delete-chats@desktop
 erp.cc.action.delete-chats@mobile
-erp.cc.action.logout@desktop
-erp.cc.action.logout@mobile
 erp.cc.tool.express_operator_control@desktop
 erp.cc.tool.express_operator_control@mobile
 erp.cc.tool.express_operator_status@desktop
