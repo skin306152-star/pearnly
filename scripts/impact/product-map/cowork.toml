@@ -883,20 +883,9 @@ channel = "cc-operator"
 ends = ["desktop", "mobile"]
 kind = "cc-view"
 anchor = "ccview:cowork:operator"
-where = "CC 代录（实操任务页）"
+where = "CC 代录（任务会话）"
 tests = ["flow:cowork.operator.unknown"]
 group = "cc.view.operator"
-
-[[row]]
-id = "cowork.cc.view.pending"
-product = "Cowork"
-channel = "cc-chat"
-ends = ["desktop", "mobile"]
-kind = "cc-view"
-anchor = "ccview:cowork:pending"
-where = "CC 侧栏「待处理」"
-tests = ["flow:cowork.pending.operator", "flow:cowork.cc.sidebar-modes"]
-group = "cc.view.pending"
 
 [[row]]
 id = "cowork.cc.view.tasks"
@@ -1711,6 +1700,18 @@ where = "CC 退出（直接退出、跳回，不出确认页）"
 parts = ["login-session"]
 group = "cc.action.logout"
 tests = ["unit:tests/test_assistant_entry.py::test_logout_confirmation_submits_itself_without_a_card"]
+
+[[row]]
+id = "cowork.cc.action.pending-in-chat"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:pending-in-chat"
+where = "CC 待处理并进对话（「公司 · 月份」对话末尾的「需要处理」框、侧栏还没有对话的月份占位行、「未归属公司」）"
+parts = ["cc-sidebar-list"]
+tests = ["unit:tests/test_assistant_ui.py::test_pending_folds_into_the_conversation"]
+group = "cc.action.pending-in-chat"
 
 [[row]]
 id = "cowork.cc.action.deep-link"

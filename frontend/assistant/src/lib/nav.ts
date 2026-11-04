@@ -5,31 +5,33 @@
 //   /assistant?c=<对话>    → 打开那段对话；不是本人的、不存在或已删 → 有定时任务的产品开定时任务页，否则新对话
 //   /assistant?view=tasks  → 定时任务页（带 &company=<公司> 只看这家公司的任务）
 //   /assistant?view=companies → 公司页；/assistant?company=<公司> → 这家公司的主档页
-//   /assistant?view=pending → 待处理（带 &company=<公司> 只看这家）
+//   /assistant?view=pending → 兼容入口（早上的待处理汇总提醒、CC 桌面版托盘通知还在发；待处理 11-04 起并进对话，不再是视图）：
+//                             带 &company=<公司> 打开这家待处理最多那个月的对话（服务端指定的那段；还没有就在这家这个月开新对话，
+//                             末尾是「需要处理」框）；不带时只有一家有待处理就开那家，多家开公司页（列表上有数）
 //   公司只在有公司分组的产品（共用层 projects() 的 kind，Cowork、ERP）里有，待处理还要产品声明了 pending；别的产品同「找不到」处理
 // 来源三处：打开页面时的地址参数（处理完 replaceState 回 /assistant，刷新不再重开，桌面端记住的地址也是干净的）、
 // 后台脚本点通知发来的 pearnly-open（pearnly_core/assistant/service_worker.js）、桌面端的 tomo-open（window.tomo.open）。
 //
 // 两种模式（评估 docs/work/2026-10-26-express-operator-product-评估.md §10 ①，左上角「对话 | 代录」，Ctrl / ⌘ + Shift + 1 / 2）：
-//   对话自己的视图 chat / tasks；代录自己的视图 operator；两种模式共有的 companies / company / pending（侧栏共有的「公司」
-//   「待处理」，主会话 11-03：代录模式下点了留在代录，主栏换成那一页）。模式单独记（useModePlace.mode）：进了模式自己的视图
+//   对话自己的视图 chat / tasks；代录自己的视图 operator；两种模式共有的 companies / company（侧栏共有的「公司」，主会话 11-03：
+//   代录模式下点了留在代录，主栏换成那一页）。模式单独记（useModePlace.mode）：进了模式自己的视图
 //   就是那个模式，进共有的视图不换模式。两种模式各记各的最后位置：切到代录时记下当时的对话视图（对话本身组件库记着），切回来回到它；
 //   代录记着最后的视图（任务页或共有的那几页）与看的是哪一批（空 = 新建批次）。后退 / 前进也记模式与代录看的是哪一批。
 
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { create } from "zustand";
-import { useCompanyNav } from "@/lib/companies";
+import { type PendingMonth, refreshPendingCounts, useCompanyNav, usePendingCounts } from "@/lib/companies";
 import { getSession } from "@/lib/managed-agents/api";
-import { hasSection, projectsReady } from "@/lib/managed-agents/projects";
+import { hasSection, projectsReady, setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { reportCaught, withReport } from "./caught";
 
-export type View = "chat" | "tasks" | "companies" | "company" | "pending" | "operator";
+export type View = "chat" | "tasks" | "companies" | "company" | "operator";
 type Entry = { view: View; mode: Mode; thread: string; company: string; batch: string };
 
 export type Mode = "chat" | "operator";
 
-/** 模式自己的视图属于哪个模式；共有的视图（公司、待处理）为 null。 */
+/** 模式自己的视图属于哪个模式；共有的视图（公司列表、公司页）为 null。 */
 export const ownMode = (view: View): Mode | null => (view === "operator" ? "operator" : view === "chat" || view === "tasks" ? "chat" : null);
 
 /** 当前模式与两种模式各自的最后位置：对话模式最后看的视图、代录模式最后看的视图与批次（空 = 新建批次）。 */
@@ -60,7 +62,7 @@ export function switchMode(mode: Mode, view: View, setView: (v: View) => void) {
   }
 }
 
-/** 打开代录的任务页（batch：任务号，空 = 新建任务）：从对话模式来的（待处理页的「任务」一组）先记下对话视图。 */
+/** 打开代录的任务页（batch：任务号，空 = 新建任务）：从对话模式来的先记下对话视图。 */
 export function openOperator(batch: string, view: View, setView: (v: View) => void) {
   const place = useModePlace.getState();
   useModePlace.setState(place.mode === "operator" ? { batch } : { batch, chatView: view });
@@ -84,7 +86,7 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
   const thread = useAuiState((s) => s.threads.mainThreadId) ?? "";
   // 主档页看的是哪家也记进去：在两家公司之间来回也能后退
   const company = useCompanyNav((s) => (view === "company" ? s.company : ""));
-  // 代录看的是哪一批也记进去：在两批之间来回也能后退；模式也记（共有的公司、待处理页两种模式都能看）
+  // 代录看的是哪一批也记进去：在两批之间来回也能后退；模式也记（共有的公司页两种模式都能看）
   const batch = useModePlace((s) => (view === "operator" ? s.batch : ""));
   const mode = useCurrentMode();
   const stack = useRef<Entry[]>([]);
@@ -132,7 +134,7 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
 
 // ── 深链接 ──────────────────────────────────────────────────────────────────────────────────────
 
-/** 要打开的东西：c 是对话编号；view 是 tasks / companies / pending 时开那一页；company：主档页或只看这家。 */
+/** 要打开的东西：c 是对话编号；view 是 tasks / companies 时开那一页，pending 是兼容入口；company：主档页或只看这家。 */
 export type Target = { c: string; view: string; company?: string };
 
 // 同服务端 assistant/contracts.py 的 OPAQUE_ID（公司编号也是这个形状）
@@ -157,6 +159,25 @@ export function targetOf(url: string): Target | null {
 }
 
 type Aui = ReturnType<typeof useAui>;
+
+/** ?view=pending 落到哪：company 给了就是这家，没给时只有一家有待处理就是那家；那家待处理最多的月份与服务端指定的对话。
+ *  多家（或一家都没有）回空公司（开公司页）；旧服务端没给按月份的数时只回公司（开公司页）。 */
+export async function pendingSpot(company: string): Promise<{ company: string; month: string; conversation: string }> {
+  await refreshPendingCounts();
+  return spotOf(usePendingCounts.getState(), company);
+}
+
+/** pendingSpot 的取法（按已取到的计数）。 */
+export function spotOf(
+  { months, companies }: { months: readonly PendingMonth[] | null; companies: Readonly<Record<string, number>> },
+  company: string,
+): { company: string; month: string; conversation: string } {
+  const having = Object.entries(companies).filter(([, n]) => n > 0).map(([id]) => id);
+  const pick = company || (having.length === 1 ? having[0]! : "");
+  if (!pick) return { company: "", month: "", conversation: "" };
+  const row = (months ?? []).filter((m) => m.company === pick).sort((a, b) => b.count - a.count || b.month.localeCompare(a.month))[0];
+  return { company: pick, month: row?.month ?? "", conversation: row?.conversation ?? "" };
+}
 
 /** 切到这段对话；不是本人的、不存在、已删或已归档都回 false。 */
 async function openConversation(aui: Aui, id: string): Promise<boolean> {
@@ -219,8 +240,23 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
           return;
         }
         if (target.view === "pending") {
-          useCompanyNav.setState({ pendingCompany: company });
-          latest.current.setView("pending");
+          const spot = await pendingSpot(company);
+          if (!alive) return;
+          // 待处理在对话里：提醒点开时在代录就先回对话模式（代录停在任务页，切回来还是那一批）
+          if (useModePlace.getState().mode === "operator") useModePlace.setState({ mode: "chat", operatorView: "operator" });
+          if (spot.conversation && (await openConversation(aui, spot.conversation))) {
+            latest.current.setView("chat");
+            return;
+          }
+          if (spot.company && spot.month) {
+            // 还没有这家这个月的对话：开新对话（不在后台建），末尾就是「需要处理」框
+            setDraft({ project: spot.company, period: useProjects.getState().period ? spot.month : "", scope: "" });
+            latest.current.setView("chat");
+            void aui.threads().switchToNewThread();
+          } else if (spot.company) {
+            useCompanyNav.setState({ company: spot.company });
+            latest.current.setView("company");
+          } else latest.current.setView("companies");
         } else if (target.view === "companies" || !company) latest.current.setView("companies");
         else {
           // 公司主档页只在对话模式（代录模式下进公司是新建任务页，用户 11-03）：提醒点开时在代录就先回对话模式，

@@ -2650,7 +2650,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         # 内容由 assistant.tsx 接线的 ComposerChin 给；问候里不再有公司条；ERP / DMS（没有公司分组）不出现
         page = read("assistant.tsx")
         self.assertNotIn("ComposerCompany", page)
-        self.assertIn("<Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback, Chin: ComposerChin }} />",
+        self.assertIn("<Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback, Chin: ComposerChin, Tail: PendingInChat }} />",
                       page)
         self.assertNotIn("ComposerChin", block(page, "function Welcome()"))
         thread = read("components/assistant-ui/thread.tsx")
@@ -2754,8 +2754,13 @@ class CompanyMasterSourceTests(unittest.TestCase):
 
     def test_deep_links_for_companies_tasks_and_pending(self):
         nav = read("lib/nav.ts")
-        # operator：代录模式（评估 2026-10-26-express-operator-product-评估.md §10，左上角「对话 | 代录」）
-        self.assertIn('export type View = "chat" | "tasks" | "companies" | "company" | "pending" | "operator";', nav)
+        # operator：代录模式（评估 2026-10-26-express-operator-product-评估.md §10，左上角「对话 | 代录」）；pending 11-04 起不再是视图
+        self.assertIn('export type View = "chat" | "tasks" | "companies" | "company" | "operator";', nav)
+        # ?view=pending 是兼容入口（早上汇总提醒、CC 桌面版托盘还在发）：落到这家待处理最多那个月的对话，没有就开新对话，多家开公司页
+        self.assertIn("const spot = await pendingSpot(company);", nav)
+        self.assertIn("if (spot.conversation && (await openConversation(aui, spot.conversation))) {", nav)
+        self.assertIn('setDraft({ project: spot.company, period: useProjects.getState().period ? spot.month : "", scope: "" });', nav)
+        self.assertNotIn('setView("pending")', nav)
         self.assertIn('url.searchParams.delete("company");', nav)
         self.assertIn("useCompanyNav.setState({ taskCompany: company });", nav)
 
@@ -2767,6 +2772,59 @@ class CompanyHelpersBehaviourTests(unittest.TestCase):
     def run_page(self, body, lang="en"):
         run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body + "\n(globalThis as any).done();\n",
                stubs=self.STUBS, lang=lang)
+
+    def test_pending_folds_into_the_conversation(self):
+        # 用户 11-04：左侧待处理不要，并进对话。有对话的落在服务端指定的那段对话末尾（「需要处理」框），没有对话的侧栏一行占位，
+        # 归不上公司的「未归属公司」；?view=pending 兼容入口按同一份计数落到那段对话或那家这个月
+        self.run_page(r"""
+import { placeholderMonths } from "@/components/assistant-ui/projects";
+import { spotOf } from "@/lib/nav";
+import { co } from "@/i18n";
+const months = [
+  { company: "A", month: "2026-10", count: 3, conversation: "sesn_a10" },
+  { company: "A", month: "2026-09", count: 5, conversation: "" },
+  { company: "B", month: "2026-10", count: 1, conversation: "" },
+  { company: "", month: "", count: 2, conversation: "" },
+];
+// 占位行：只列还没有对话的月份；公司空 = 未归属公司
+assert.deepEqual(placeholderMonths(months, "A").map((m) => m.month), ["2026-09"]);
+assert.deepEqual(placeholderMonths(months, "B").map((m) => m.month), ["2026-10"]);
+assert.deepEqual(placeholderMonths(months, "").map((m) => m.count), [2]);
+assert.deepEqual(placeholderMonths(null, "A"), []);
+// 兼容入口：给了公司落到待处理最多那个月（有对话带上对话）；没给公司时只有一家有待处理就是那家，多家落公司页（空公司）
+assert.deepEqual(spotOf({ months, companies: { A: 8, B: 1 } }, "A"), { company: "A", month: "2026-09", conversation: "" });
+assert.deepEqual(spotOf({ months: months.slice(0, 1), companies: { A: 3 } }, ""), { company: "A", month: "2026-10", conversation: "sesn_a10" });
+assert.deepEqual(spotOf({ months, companies: { A: 8, B: 1 } }, ""), { company: "", month: "", conversation: "" });
+// 旧服务端没给按月份的数：只落到公司（开公司页）
+assert.deepEqual(spotOf({ months: null, companies: { B: 1 } }, ""), { company: "B", month: "", conversation: "" });
+assert.equal(co.pendingDocs(2), "2 documents need you");
+assert.equal(co.unassigned, "No company");
+""")
+        self.run_page(r"""
+import { co } from "@/i18n";
+assert.equal(co.pendingDocs(3), "3 张单要处理");
+assert.equal(co.unassigned, "未归属公司");
+""", lang="zh")
+        pending = read("components/pending.tsx")
+        # 框是页面现画的（不写进会话、不开模型轮），只在服务端指定的那段对话或占位行点开的新对话里出；「交给 CC」在这段对话里预填
+        chat = pending.split("function useChatPending(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn("if (row.conversation) return row.conversation === remoteId ? { company, month } : null;", chat)
+        self.assertIn("return fresh ? { company, month } : null;", chat)
+        box = pending.split("const ChatPendingBox: FC", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn("pendingMonth(item) === month", box)
+        self.assertIn("aui.thread().composer().setText(handText(rows));", box)
+        self.assertIn('data-slot="cc-pending-in-chat"', box)
+        self.assertNotIn("sendMessage", box)
+        app = read("assistant.tsx")
+        self.assertIn("Tail: PendingInChat }} />", app)
+        # 直写右侧的待处理卡照旧（只列对话月份以外的）
+        self.assertIn("otherMonths", read("components/company-cards.tsx"))
+        projects = read("components/assistant-ui/projects.tsx")
+        # 占位行同对话行的样子，行尾是已有的提醒圆点（不新造标记）；点了只在这家这个月开新对话，不在后台建
+        row = projects.split("const PendingPlaceholder: FC", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn('className="cc-activity" data-activity="notice"', row)
+        self.assertIn('start(row.company ? { project: row.company, period: withPeriod ? row.month : "" } : NO_FILING);', row)
+        self.assertIn("<LoosePlaceholders />", projects.split("export const SidebarError: FC", 1)[1].split("\n};\n", 1)[0])
 
     def test_months_branches_and_amounts(self):
         self.run_page(r"""
@@ -2792,8 +2850,23 @@ assert.equal(formatAmount("-1000"), "-1,000.00");
 assert.equal(formatAmount("0.105"), "0.105");
 assert.equal(formatAmount(null), "");
 // 待处理计数的几种形状
-assert.deepEqual(parseCounts({ total: 8, companies: { comp_a: 3, comp_b: 5 } }), { total: 8, companies: { comp_a: 3, comp_b: 5 } });
-assert.deepEqual(parseCounts([{ company: "comp_a", count: 2 }, { company: null, count: 1 }]), { total: 3, companies: { comp_a: 2 } });
+assert.deepEqual(parseCounts({ total: 8, companies: { comp_a: 3, comp_b: 5 } }), { total: 8, companies: { comp_a: 3, comp_b: 5 }, months: null });
+assert.deepEqual(parseCounts([{ company: "comp_a", count: 2 }, { company: null, count: 1 }]), { total: 3, companies: { comp_a: 2 }, months: null });
+// 按「公司 · 月份」（待处理并进对话）：conversation 空 = 还没有对话（侧栏占位行）；归不上公司的 company 为空；数为 0、月份不对的不要
+assert.deepEqual(
+  parseCounts({ total: 4, companies: { comp_a: 3 }, months: [
+    { company: "comp_a", month: "2026-10", count: 2, conversation: "sesn_1" },
+    { company: "comp_a", month: "2026-09", count: 1, conversation: null },
+    { company: null, month: "", count: 1 },
+    { company: "comp_b", month: "2026-13", count: 1 },
+    { company: "comp_c", month: "2026-10", count: 0 },
+  ] }).months,
+  [
+    { company: "comp_a", month: "2026-10", count: 2, conversation: "sesn_1" },
+    { company: "comp_a", month: "2026-09", count: 1, conversation: "" },
+    { company: "", month: "", count: 1, conversation: "" },
+  ],
+);
 // 分店：服务端给了就用；旧服务端按账套上的分店号现分（一套账服务几个分店、每个分店一套账都如实列）
 const sets = [{ connection: "c", key: "69EXP", label: "69", branch: "00000" }, { connection: "c", key: "69B1", label: "69 B1", branch: "00001" },
   { connection: "c", key: "68EXP", label: "68", branch: "00000" }];
@@ -3260,14 +3333,15 @@ class SidebarShellSourceTests(unittest.TestCase):
         nav = app.split("function SidebarNav(", 1)[1].split("\nfunction ", 1)[0]
         scheduled = app.split("function ScheduledNav(", 1)[1].split("\nfunction ", 1)[0]
         self.assertIn('data-active={(view === "tasks" && !taskCompany) || undefined}', scheduled)
-        pending = app.split("function PendingNav(", 1)[1].split("\nfunction ", 1)[0]
-        self.assertIn('data-active={(view === "pending" && !pendingCompany) || undefined}', pending)
-        self.assertIn("if ((!kind && !operator) || total <= 0) return null;", pending)
+        # 左侧「待处理」入口与页面没有了（用户 11-04：并进对话）：两种模式都不出
+        self.assertNotIn("function PendingNav(", app)
+        self.assertNotIn("cc-nav-pending", app)
+        self.assertNotIn("PendingView", app)
         company = app.split("function CompanyNav(", 1)[1].split("\nfunction ", 1)[0]
         self.assertIn('data-active={view === "companies" || undefined}', company)   # 主档页不再把「公司」选中
         self.assertNotIn('view === "company" ||', company)
-        # 顺序（主会话 11-03 改，两种模式共用）：新建、待处理 N、公司，模式自己的定时任务在最下面；手机抽屉同一个导航（没有新建这一行）
-        order = [nav.index(x) for x in ("<NewNav />", "<PendingNav ", "<CompanyNav ", "<ScheduledNav ")]
+        # 顺序（主会话 11-03 改，两种模式共用）：新建、公司，模式自己的定时任务在最下面；手机抽屉同一个导航（没有新建这一行）
+        order = [nav.index(x) for x in ("<NewNav />", "<CompanyNav ", "<ScheduledNav ")]
         self.assertEqual(order, sorted(order))
         self.assertIn("{!mobile && <NewNav />}", nav)
         new = app.split("function NewNav(", 1)[1].split("\nfunction ", 1)[0]
@@ -3289,9 +3363,12 @@ class SidebarShellSourceTests(unittest.TestCase):
         projects = read("components/assistant-ui/projects.tsx")
         head = projects.split("export const ProjectHeader = memo(function ProjectHeader(", 1)[1].split("\n});\n", 1)[0] + \
             projects.split("export function CompanyHeaderView(", 1)[1].split("\n}\n", 1)[0]   # 组头的样子在共用的 CompanyHeaderView
-        self.assertIn("onClick={() => go(() => openPending(project.id))}", head)   # 待处理数：只看这家
-        # 右侧：待处理数、···（分组和排序）、新建（新建在最右，悬停才出）
-        order = [head.index(x) for x in ('className="cc-group-count"', "<GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} />", "<GroupNew ")]
+        # 组头没有待处理数了（用户 11-04：Code 的组头没有数，待处理并进对话；还没有对话的月份在组里一行占位）
+        self.assertNotIn("cc-group-count", head)
+        self.assertNotIn("openPending", projects)
+        self.assertIn("{open && <PendingPlaceholders company={project.id} />}", head)
+        # 右侧：···（分组和排序）、新建（新建在最右，悬停才出）
+        order = [head.index(x) for x in ("<GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} />", "<GroupNew ")]
         self.assertEqual(order, sorted(order))
         css = read("globals.css")
         self.assertIn(".cc-group-more, .cc-group-new { display: none; }", css)
@@ -4279,7 +4356,7 @@ assert.equal(answered(result), true);
 assert.equal(answered({ status: "needs_choice" }), false);
 assert.equal(answered({ status: "already_success" }), true);
 // 计数：服务端的 {total, companies, unassigned}
-assert.deepEqual(parseCounts(fixture.counts), { total: 4, companies: { COMPANY: 2, OTHER: 1 } });
+assert.deepEqual(parseCounts(fixture.counts), { total: 4, companies: { COMPANY: 2, OTHER: 1 }, months: null });
 // 待处理按公司取（不给公司 = 全部）；服务端回 {items, count}
 g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { items: [item], count: 1 } }) });
 assert.equal((await loadPending("comp_abc")).length, 1);
@@ -6697,7 +6774,7 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
         self.assertNotIn("text-overflow: ellipsis", css)
         # 原来还在用 truncate / 省略号的单行：卡头摘要、列表页标题、对话框标题、菜单项、设置里的 Express 路径、工作状态行、表格格子
         self.assertIn('<Marquee id={summaryId} className="cc-panel-card-summary">', read("components/company-cards.tsx"))
-        for rel, title in (("components/companies.tsx", "{co.companies}"), ("components/pending.tsx", "{co.pending}"),
+        for rel, title in (("components/companies.tsx", "{co.companies}"),
                            ("components/scheduled-tasks.tsx", '{tr("cowork.folder.title")}')):
             self.assertIn(f'<h1 className="cc-page-title"><Marquee className="cc-page-title-text">{title}</Marquee></h1>', read(rel), rel)
         for rel in ("components/add-company.tsx", "components/scheduled-tasks.tsx"):
@@ -6751,10 +6828,10 @@ class Round5SmallFixesTests(unittest.TestCase):
                       "    box-shadow: var(--cc-shadow-focus);", base)
         # 兜底同时去掉浏览器自带的 outline:auto：原来靠它显示焦点的按钮（待处理组头、任务行、输入框「＋」）不再是两道
         self.assertNotIn("0 0 0 3px", base)
-        # 点名的几处：组头待处理数、记住的选择的行（.cc-choice-row）、文件夹「更换… / 移除」（.cc-link-btn）、定时任务卡的任务行（.cc-list-row）、显示更多、
+        # 点名的几处（组头待处理数 11-04 随左侧待处理一起删了）：记住的选择的行（.cc-choice-row）、文件夹「更换… / 移除」（.cc-link-btn）、定时任务卡的任务行（.cc-list-row）、显示更多、
         # 行按钮（侧栏出错 × 第 11 轮起改用 .cc-row-btn，.cc-group-btn 已删）、知识库一条、胶囊、标题栏公司名
-        for rule in (".cc-group-count:focus-visible { box-shadow: var(--cc-shadow-focus); }",
-                     ".cc-link-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
+        self.assertNotIn(".cc-group-count", css)
+        for rule in (".cc-link-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-choice-row:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      "button.cc-list-row:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-show-more:focus-visible { box-shadow: var(--cc-shadow-focus); }",
@@ -8850,7 +8927,8 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         # H21 / H24：筛选 ×、「默认值」折叠标题
         self.assertEqual(tasks.count('className="cc-chip-x"'), 1)
         self.assertIn('<summary className="cc-disclosure">', tasks)
-        self.assertIn('className="cc-chip-x"', read("components/pending.tsx"))
+        # 待处理页（连同它按公司筛的 ×）11-04 删了：待处理并进对话
+        self.assertNotIn('className="cc-chip-x"', read("components/pending.tsx"))
         # L10 / H2：知识库编辑与待处理的按钮是卡片按钮
         self.assertIn('<button type="button" className="cc-card-btn" data-primary="" disabled={!canSave}', read("components/company-cards.tsx"))
         # 当场选三颗 + 列表底部的「交给 CC」（第 11 轮 D32：电脑也是 24 的卡片按钮）+ 多电脑分支待选账套行（AccountSetRow）的「确认」「交给 CC」两颗

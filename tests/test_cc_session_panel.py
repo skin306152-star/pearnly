@@ -147,7 +147,9 @@ class PanelStylesSourceTests(unittest.TestCase):
         search = css.split(".cc-page-search {", 1)[1].split("}", 1)[0]
         self.assertIn("height: var(--cc-list-search-h);", search)
         self.assertIn("border-radius: var(--cc-radius-list-search);", search)
-        for page in ("components/companies.tsx", "components/pending.tsx", "components/scheduled-tasks.tsx"):
+        # 待处理页 11-04 删了（并进对话末尾的框），列表页只剩公司、定时任务
+        self.assertNotIn("cc-page-title", read("components/pending.tsx"))
+        for page in ("components/companies.tsx", "components/scheduled-tasks.tsx"):
             text = read(page)
             self.assertIn('<h1 className="cc-page-title">', text, page)
             self.assertIn('className="cc-page-search"', text, page)
@@ -208,7 +210,8 @@ class PanelStylesSourceTests(unittest.TestCase):
         panel = read("components/session-panel.tsx")
         self.assertIn("pending: <PendingCard company={company} period={period} />,", panel)
         self.assertIn("pending: <PendingCard company={company} />,", panel)
-        self.assertIn('<PendingList company={company} search={search} others={tasks} />', read("components/pending.tsx"))
+        # 对话那个月的落在对话末尾的「需要处理」框（11-04 待处理并进对话），两处正好不重复
+        self.assertIn("pendingMonth(item) === month", read("components/pending.tsx").split("const ChatPendingBox: FC", 1)[1])
         cards = read("components/company-cards.tsx")
         card = cards.split("const OtherMonthsPending: FC", 1)[1].split("\n};", 1)[0]
         self.assertIn("otherMonths(state.items, period)", card)
@@ -413,15 +416,10 @@ assert.deepEqual(otherMonths(items, "").map((i) => i.document), ["a", "b", "c", 
 """)
 
     def test_list_page_search_and_sort(self):
+        # 待处理页（连同它的搜索）11-04 删了：待处理并进对话末尾的框，按这段对话的公司、月份列，不再搜
+        self.assertNotIn("matchesPending", read("components/pending.tsx"))
         self.run_page(r"""
-import { matchesPending } from "@/components/pending";
 import { sortCompanies } from "@/components/companies";
-const item: any = { document: "h1", invoice_no: "INV-001", counterparty: "ACME Co", reason_label: "Pick account", amount: "1200.00", date: "2026-09-30" };
-assert.equal(matchesPending(item, ""), true);
-assert.equal(matchesPending(item, "acme"), true);
-assert.equal(matchesPending(item, " inv-0 "), true);
-assert.equal(matchesPending(item, "2026-09"), true);
-assert.equal(matchesPending(item, "zzz"), false);
 const rows = [{ title: "beta" }, { title: "Alpha" }, { title: "gamma 10" }, { title: "gamma 9" }];
 assert.deepEqual(sortCompanies(rows, "recent").map((r) => r.title), ["beta", "Alpha", "gamma 10", "gamma 9"]);  // 服务端的顺序
 assert.deepEqual(sortCompanies(rows, "name").map((r) => r.title), ["Alpha", "beta", "gamma 9", "gamma 10"]);
@@ -762,7 +760,8 @@ class ErpSectionsSourceTests(unittest.TestCase):
             text = read(path)
             self.assertNotRegex(text, r'product\s*===\s*"(erp|cowork)"', path)
         app = read("assistant.tsx")
-        self.assertIn('const kind = useSection("pending");', app.split("function PendingNav(", 1)[1].split("\nfunction ", 1)[0])
+        # 待处理并进对话（11-04）：对话末尾的框、侧栏占位行同样只看产品声明的 pending，不按产品名分支
+        self.assertIn('const kind = useSection("pending");', read("components/pending.tsx").split("function useChatPending(", 1)[1].split("\n}\n", 1)[0])
         self.assertIn('useEffect(() => (pending ? watchPendingCounts() : undefined), [pending]);', app)
         nav = read("lib/nav.ts")
         self.assertIn('if (!kind || (target.view === "pending" && !hasSection("pending"))) {', nav)

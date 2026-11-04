@@ -1,5 +1,9 @@
-// 待处理（补充乙）：要人处理的单统一一个入口——侧栏「待处理 N」打开的视图（?view=pending，可带 &company=），
-// 右侧会话栏与公司页的「待处理」卡也是同一个组件（只列这家；会话栏的只列对话月份以外的，otherMonths）。
+// 待处理（补充乙）：要人处理的单。用户 11-04：左侧「待处理」入口和页面不要了，并进对话——
+//   - 能归到公司和月份的单落在「这家公司 · 这个月」的对话末尾一个「需要处理」框（PendingInChat，thread.tsx 的 Tail 插槽）：
+//     框是页面按服务端的待处理列表现画的，不写进会话（写进去会开一轮、要花钱）；服务端 pending_counts 的 months 指定了哪段对话
+//     （本人这家这个月最近更新、没归档的那段）就只在那段出，还没有对话的侧栏有一行占位（projects.tsx），点了开新对话、框在新对话里；
+//     旧服务端没给 months 时在这家这个月的任一段对话里出。「交给 CC」在这段对话的输入框里预填，不另开对话、不自动发送。
+//   - 右侧会话栏与公司页的「待处理」卡照旧（直写右侧不动）：同一个列表组件，会话栏的只列对话月份以外的（otherMonths）。
 //
 //   数据：companies.api.pending（服务端从推送记录与录入状态现算，不新增存储）。按公司分组；归不上公司的放最后。
 //   能当场选的（action choose：推送停在「要人选一次」，服务端只给推送去向与类别）：点开那一行才取要选的项与可选值
@@ -20,10 +24,10 @@
 //   处理完实时消失：推送状态的站点事件（cowork_intake_changed）来了重取，回到前台重取（lib/live.ts）。
 //   金额是服务端的十进制字符串，只插千分位。样式只用 globals.css 的 .cc-* 与变量。
 
-import { ChevronDownIcon, InboxIcon, LoaderIcon, SearchIcon, XIcon } from "lucide-react";
+import { useAui, useAuiState } from "@assistant-ui/react";
+import { ChevronDownIcon, InboxIcon, LoaderIcon } from "lucide-react";
 import { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { useStartIn } from "@/components/assistant-ui/projects";
-import { PendingTasks, usePendingTaskCount } from "@/components/operator/pending-tasks";
+import { focusComposer, useStartIn } from "@/components/assistant-ui/projects";
 import { co, t } from "@/i18n";
 import {
   answerChoices,
@@ -51,10 +55,10 @@ import {
   pushOutcome,
   pushProposal,
   refreshPendingCounts,
-  useCompanyNav,
+  usePendingCounts,
 } from "@/lib/companies";
 import { useLiveRefresh } from "@/lib/live";
-import { hintTitle, useProjects } from "@/lib/managed-agents/projects";
+import { filingOf, hintTitle, useProjects, useSection } from "@/lib/managed-agents/projects";
 import { shownError } from "@/lib/frappe";
 import { Marquee } from "@/components/ui/marquee";
 import { reportCaught, withReport } from "../lib/caught";
@@ -152,17 +156,6 @@ export function otherMonths(items: readonly PendingItem[], period: string): Pend
   return isPeriod(period) ? items.filter((item) => pendingMonth(item) !== period) : [...items];
 }
 
-/** 待处理页的搜索：单号、对方、单据编号、原因、金额、日期里有这几个字（不分大小写）。 */
-export function matchesPending(item: PendingItem, search: string): boolean {
-  const needle = search.trim().toLowerCase();
-  if (!needle) return true;
-  return [item.invoice_no, item.counterparty, item.document, item.reason_label, item.amount, item.date]
-    .map((part) => String(part ?? ""))
-    .join(" ")
-    .toLowerCase()
-    .includes(needle);
-}
-
 /** 公司编号 → 名称：侧栏里有的直接用，其余取全所公司第一页，再没有的逐家读一次。 */
 function useTitles(ids: readonly string[]): Record<string, string> {
   const projects = useProjects((s) => s.projects);
@@ -192,26 +185,19 @@ function useTitles(ids: readonly string[]): Record<string, string> {
   return { ...found, ...Object.fromEntries(projects.map((p) => [p.id, p.title])) };
 }
 
-/** 待处理单的列表状态（列表与会话栏卡共用）：读取，站点事件来了、回到前台重取，作答成功的当场拿掉。
- *  search（待处理页的搜索框）交给服务端找，停止输入 300 毫秒后再取；已取回的照旧当场按它筛（PendingItems）。 */
-export function usePendingItems(company: string, search = "") {
+/** 待处理单的列表状态（会话栏卡、公司页卡、对话末尾的框共用）：读取，站点事件来了、回到前台重取，作答成功的当场拿掉。 */
+export function usePendingItems(company: string) {
   const [items, setItems] = useState<PendingItem[] | null>(null);
   const [error, setError] = useState("");
-  const [query, setQuery] = useState(search.trim());
-  useEffect(() => {
-    const next = search.trim();
-    const timer = window.setTimeout(() => setQuery(next), 300);
-    return () => window.clearTimeout(timer);
-  }, [search]);
   const reload = useCallback(async () => {
     try {
-      setItems(await loadPending(company, 200, query));
+      setItems(await loadPending(company, 200));
       setError("");
     } catch (e) { reportCaught(e, "pending");
       setItems((before) => before ?? []);
       setError(shownError(e));
     }
-  }, [company, query]);
+  }, [company]);
   useEffect(() => {
     void reload();
   }, [reload]);
@@ -233,37 +219,34 @@ export function usePendingItems(company: string, search = "") {
 
 type PendingState = ReturnType<typeof usePendingItems>;
 
-/** 待处理列表；company 给了只列这家（会话栏、公司页的卡片，没有待处理时整块不出现）；search：待处理页的搜索。 */
-/** others：同一页上另一组列着的条数（待处理页的代录「任务」一组）：有的话这里空着时不出空状态。 */
-export const PendingList: FC<{ company?: string; embedded?: boolean; search?: string; others?: number }> = ({ company = "", embedded = false, search = "", others = 0 }) => (
-  <PendingItems company={company} embedded={embedded} search={search} others={others} {...usePendingItems(company, search)} />
+/** 待处理列表；company 给了只列这家（会话栏、公司页的卡片，没有待处理时整块不出现）。 */
+export const PendingList: FC<{ company?: string; embedded?: boolean }> = ({ company = "", embedded = false }) => (
+  <PendingItems company={company} embedded={embedded} {...usePendingItems(company)} />
 );
 
-/** 列表本身（数据由 usePendingItems 给；会话栏卡先按月份筛过再交进来）。 */
-export const PendingItems: FC<PendingState & { company: string; embedded?: boolean; search?: string; others?: number }> = ({
+/** 列表本身（数据由 usePendingItems 给；会话栏卡、对话末尾的框先按月份筛过再交进来）。ask：「交给 CC」换成调用方的做法
+ *  （对话末尾的框：在这段对话的输入框里预填）。 */
+export const PendingItems: FC<PendingState & { company: string; embedded?: boolean; ask?: (items: readonly PendingItem[]) => void }> = ({
   items,
   error,
   done,
   changed,
   company,
   embedded = false,
-  search = "",
-  others = 0,
+  ask,
 }) => {
   const groups = useMemo(() => {
     const map = new Map<string, PendingItem[]>();
-    for (const item of (items ?? []).filter((row) => matchesPending(row, search))) {
+    for (const item of items ?? []) {
       const id = company || item.company || "";
       map.set(id, [...(map.get(id) ?? []), item]);
     }
     // 归不上公司的放最后
     return [...map.entries()].sort((a, b) => Number(!a[0]) - Number(!b[0]));
-  }, [items, company, search]);
+  }, [items, company]);
   const titles = useTitles(groups.map(([id]) => id).filter(Boolean));
 
   if (embedded && (!items || !items.length) && !error) return null;
-  // 同一页另一组有东西：这里没有可列的就整块不出（不出空状态，也不多占一个间距）
-  if (others && items && !groups.length && !error) return null;
   return (
     <div className="flex flex-col gap-(--cc-space-16)" data-slot="cc-pending">
       {error && <div role="alert" className="cc-alert">{error}</div>}
@@ -279,7 +262,7 @@ export const PendingItems: FC<PendingState & { company: string; embedded?: boole
         <div className="cc-empty-line">{t("noResults")}</div>
       ) : (
         groups.map(([id, rows]) => (
-          <PendingGroup key={id || "none"} company={id} title={company ? "" : id ? (titles[id] ?? "") : co.other} items={rows} onDone={done} onChanged={changed} />
+          <PendingGroup key={id || "none"} company={id} title={company ? "" : id ? (titles[id] ?? "") : co.other} items={rows} onDone={done} onChanged={changed} ask={ask} />
         ))
       )}
     </div>
@@ -288,8 +271,10 @@ export const PendingItems: FC<PendingState & { company: string; embedded?: boole
 
 const PendingGroup: FC<{
   company: string; title: string; items: PendingItem[]; onDone: (document: string) => void; onChanged: () => void;
-}> = ({ company, title, items, onDone, onChanged }) => {
-  const ask = useAskCC(company, title);
+  ask?: (items: readonly PendingItem[]) => void;
+}> = ({ company, title, items, onDone, onChanged, ask: askHere }) => {
+  const askNew = useAskCC(company, title);
+  const ask = askHere ?? askNew;
   const hand = items.filter((item) => !item.url && !choosable(item) && !accountSetChoosable(item) && !proposal(item) && !mrerpChoosable(item));
   return (
     <section className="flex flex-col gap-(--cc-space-8)">
@@ -758,39 +743,55 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
   );
 };
 
-/** 待处理视图（?view=pending）：列表页样式（设计文档 3.14 / 4.5：标题、搜索、行同侧栏行）；从公司组头或公司页来的只看这家。 */
-export const PendingView: FC = () => {
-  const company = useCompanyNav((s) => s.pendingCompany);
-  const title = useTitles(company ? [company] : [])[company] ?? "";
-  const [search, setSearch] = useState("");
-  const taskCount = usePendingTaskCount(search);
-  const tasks = company ? 0 : taskCount;
+// ---------------------------------------------------------------- 对话末尾的「需要处理」框
+/** 这段对话该不该出框、出哪家哪个月（文件头）：新对话按草稿的公司、月份，已有对话按它挂的公司、月份。 */
+function useChatPending(): { company: string; month: string } | null {
+  const kind = useSection("pending");
+  const fresh = useAuiState((s) => s.threadListItem.status === "new");
+  const remoteId = useAuiState((s) => s.threadListItem.remoteId) ?? "";
+  const localId = useAuiState((s) => s.threadListItem.id);
+  const draft = useProjects((s) => s.draft);
+  useProjects((s) => s.filings);
+  const months = usePendingCounts((s) => s.months);
+  const counts = usePendingCounts((s) => s.companies);
+  if (!kind) return null;
+  const filing = fresh ? draft : filingOf(remoteId, localId);
+  const company = filing.project;
+  const month = filing.period;
+  if (!company || !isPeriod(month)) return null;
+  if (months === null) return counts[company] ? { company, month } : null;
+  const row = months.find((m) => m.company === company && m.month === month);
+  if (!row) return null;
+  // 服务端指定了那段对话：只在那段出（新对话、别的对话不出）；还没有对话：新对话里出（侧栏占位行点进来的）
+  if (row.conversation) return row.conversation === remoteId ? { company, month } : null;
+  return fresh ? { company, month } : null;
+}
+
+// map: pending-in-chat
+/** 「需要处理」框（同允许卡的一层框）：标题「N 张单要处理」，下面每张一行（当场选、推送、选账套、MR.ERP、打开单据页照旧），
+ *  处理完的当场消失，都处理完整个框不出。放在对话消息最后（thread.tsx 的 Tail）。 */
+export const PendingInChat: FC = () => {
+  const target = useChatPending();
+  if (!target) return null;
+  return <ChatPendingBox key={`${target.company}:${target.month}`} company={target.company} month={target.month} />;
+};
+
+const ChatPendingBox: FC<{ company: string; month: string }> = ({ company, month }) => {
+  const aui = useAui();
+  const state = usePendingItems(company);
+  const items = useMemo(() => (state.items === null ? null : state.items.filter((item) => pendingMonth(item) === month)), [state.items, month]);
+  if (!items || !items.length) return null;
+  // 「交给 CC」：在这段对话的输入框里预填，不另开对话、不自动发送
+  const ask = (rows: readonly PendingItem[]) => {
+    aui.thread().composer().setText(handText(rows));
+    focusComposer();
+  };
   return (
-    <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-      <div className="cc-page">
-        <div className="cc-page-head">
-          <h1 className="cc-page-title"><Marquee className="cc-page-title-text">{co.pending}</Marquee></h1>
-        </div>
-        <label className="cc-page-search">
-          <SearchIcon />
-          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} aria-label={t("search")} placeholder={t("search")} />
-        </label>
-        {company && (
-          <div className="mb-(--cc-space-16)">
-            <span className="cc-chip">
-              {title}
-              <button type="button" className="cc-chip-x" aria-label={t("close")} onClick={() => useCompanyNav.setState({ pendingCompany: "" })}>
-                <XIcon />
-              </button>
-            </span>
-          </div>
-        )}
-        {/* 代录「需要你处理」的任务接在下面（只在不按公司筛时，同侧栏「待处理 N」的数），与各公司组同一个间距 */}
-        <div className="flex flex-col gap-(--cc-space-16)">
-          <PendingList company={company} search={search} others={tasks} />
-          {!company && <PendingTasks search={search} />}
-        </div>
+    <section className="cc-steps-card cc-ask" data-phase="ask" data-slot="cc-pending-in-chat" aria-label={co.pendingDocs(items.length)}>
+      <div className="cc-ask-q">{co.pendingDocs(items.length)}</div>
+      <div className="cc-pending-in-chat">
+        <PendingItems {...state} items={items} company={company} embedded ask={ask} />
       </div>
-    </div>
+    </section>
   );
 };

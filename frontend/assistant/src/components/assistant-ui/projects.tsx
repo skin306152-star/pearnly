@@ -1,10 +1,14 @@
 // 按公司分组的界面零件（lib/managed-agents/projects.ts；只在产品有公司分组时出现（Cowork、ERP），DMS 不出现）：
 //
 //   ProjectHeader       — 一家公司的组头（sidebar-group.tsx 的 GroupHeader，设计文档 3.4）：最左公司图标、公司名（同会话行标题
-//                         字号字色），整行折叠 / 展开，下面这家的对话行缩进到公司名起点；右侧这家的待处理数（淡色数字，点了只看
-//                         这家的待处理）、「···」（分组和排序，用户 2026-10-15 夜：打开公司、在这家新建对话不要了）、「＋」（在这家
-//                         开新对话，月份 = 上个月）；手机上长按组头、键盘菜单键出「···」菜单；收起时组里有在跑或没看过的，名字后一个点。
-//                         组头开关同时是拖动把手（thread-list.tsx 的公司组排序，共用拖动）
+//                         字号字色），整行折叠 / 展开，下面这家的对话行缩进到公司名起点；右侧「···」（分组和排序，用户 2026-10-15
+//                         夜：打开公司、在这家新建对话不要了）、「＋」（在这家开新对话，月份 = 上个月）；手机上长按组头、键盘菜单键出
+//                         「···」菜单；收起时组里有在跑或没看过的，名字后一个点。组头开关同时是拖动把手（thread-list.tsx 的公司组排序，
+//                         共用拖动）。组头不再有待处理数（用户 11-04：左侧待处理不要，并进对话）
+//   PendingPlaceholder  — 待处理并进对话（用户 11-04）：这家这个月有要处理的单、本人还没有这个月的对话时，组里一行「{月份}」，
+//                         行尾一个提醒点（同对话行的提醒圆点，不新造标记）；点了在这家这个月开新对话（不在后台建、不开模型轮），
+//                         对话末尾就是「需要处理」框（pending.tsx 的 PendingInChat）。侧栏还没有这家的组、归不上公司的（「未归属
+//                         公司」）放在列表最上面（SidebarError 那一块）
 //   ComposerChin        — 输入框下巴（thread.tsx 的 Chin 插槽，设计文档 3.12）：公司、月份、分店三个幽灵按钮。新对话里「公司 ▾」选这段
 //                         对话挂哪家（我最近的公司 + 搜索 + 添加公司… + 最近；至少有一家公司时才显示）；已有对话里点公司名打开右侧
 //                         会话栏的公司卡（同顶栏，lib/company-panel 的 openCompanyCard），月份、分店改了就 move。已有对话不能换公司
@@ -34,6 +38,8 @@ import {
   hasAnyCompany,
   lastMonth,
   listCompanies,
+  monthLabel,
+  type PendingMonth,
   useBranches,
   useCompanyNav,
   usePendingCounts,
@@ -143,19 +149,13 @@ export const ProjectHeader = memo(function ProjectHeader({
   const { open: menuOpen, setOpen: setMenuOpen, modal: menuModal, press } = useLongPressMenu();
   const { isMobile } = useSidebar();
   const activity = useGroupActivity(sessions);
-  const pending = usePendingCounts((s) => s.companies[project.id] ?? 0);
   const newChatIn = useNewChatIn();
   // 「新建」给一个稳定的回调：组头随拖动重画时它不跟着重画（GroupNew 是 memo）
   const newChat = useRef(newChatIn);
   newChat.current = newChatIn;
   const onNew = useCallback(() => newChat.current(project.id), [project.id]);
-  const { setView } = useView();
-  const go = useCloseDrawer();
-  const openPending = (company: string) => {
-    useCompanyNav.setState({ pendingCompany: company });
-    setView("pending");
-  };
   return (
+    <>
     <CompanyHeaderView
       {...(isMobile ? press : {})}
       project={project}
@@ -168,24 +168,86 @@ export const ProjectHeader = memo(function ProjectHeader({
       onMenuKey={() => setMenuOpen(true)}
       onContextMenu={isMobile ? (e) => e.preventDefault() : undefined}
     >
-      {pending > 0 && (
-        // 这家的待处理数：点了打开只看这家的待处理
-        <button
-          type="button"
-          tabIndex={-1}
-          className="cc-group-count"
-          aria-label={`${co.pending} ${pending}`}
-          title={co.pending}
-          onClick={() => go(() => openPending(project.id))}
-        >
-          {pending}
-        </button>
-      )}
       <GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} />
       <GroupNew onClick={onNew} />
     </CompanyHeaderView>
+    {open && <PendingPlaceholders company={project.id} />}
+    </>
   );
 });
+
+// ---------------------------------------------------------------- 待处理的占位行
+/** 还没有对话的「公司 · 月份」（company 空 = 归不上公司）。 */
+export function placeholderMonths(months: readonly PendingMonth[] | null, company: string): PendingMonth[] {
+  return (months ?? []).filter((row) => row.company === company && !row.conversation);
+}
+
+// map: pending-in-chat
+/** 一行占位（同对话行的样子：标题、行尾提醒点）：点了在这家这个月开新对话，末尾是「需要处理」框。 */
+const PendingPlaceholder: FC<{ row: PendingMonth; title: string }> = ({ row, title }) => {
+  const start = useStartIn();
+  const go = useCloseDrawer();
+  const withPeriod = useProjects((s) => s.period);
+  const open = () =>
+    go(() => {
+      if (row.company) hintTitle(row.company, title);
+      start(row.company ? { project: row.company, period: withPeriod ? row.month : "" } : NO_FILING);
+    });
+  return (
+    <div className="cc-thread-row group/item" data-slot="cc-pending-placeholder" data-company={row.company || undefined} data-month={row.month || undefined}>
+      <button
+        type="button"
+        data-roving=""
+        onClick={open}
+        className="cc-row-trigger focus-visible:shadow-focus flex min-h-(--cc-row-h) min-w-0 flex-1 items-center self-stretch rounded-md text-start outline-none"
+      >
+        <span className="cc-row-text">
+          <Marquee className="cc-row-title">{title}</Marquee>
+        </span>
+        <span className="cc-row-end">
+          <span className="cc-activity" data-activity="notice" role="img" aria-label={co.pendingDocs(row.count)} />
+        </span>
+      </button>
+    </div>
+  );
+};
+
+/** 公司组里（组展开时、组头下面）这家还没有对话的月份。 */
+const PendingPlaceholders: FC<{ company: string }> = ({ company }) => {
+  const months = usePendingCounts((s) => s.months);
+  const rows = placeholderMonths(months, company);
+  if (!rows.length) return null;
+  return (
+    <div className="cc-group-items" data-slot="cc-pending-placeholders">
+      {rows.map((row) => (
+        <PendingPlaceholder key={row.month} row={row} title={monthLabel(row.month)} />
+      ))}
+    </div>
+  );
+};
+
+/** 侧栏里还没有这家组的（标题「公司 · 月份」）与归不上公司的（「未归属公司」）：放在列表最上面。 */
+const LoosePlaceholders: FC = () => {
+  const months = usePendingCounts((s) => s.months);
+  const listed = useProjects((s) => s.projects);
+  const kind = useProjects((s) => s.kind);
+  if (!kind || !months) return null;
+  const rows = months.filter((row) => !row.conversation && (!row.company || !listed.some((p) => p.id === row.company)));
+  if (!rows.length) return null;
+  return (
+    <div className="cc-group-items" data-slot="cc-pending-placeholders">
+      {rows.map((row) => (
+        <LoosePlaceholder key={`${row.company}:${row.month}`} row={row} />
+      ))}
+    </div>
+  );
+};
+
+const LoosePlaceholder: FC<{ row: PendingMonth }> = ({ row }) => {
+  const title = useCompanyTitle(row.company);
+  const name = row.company ? [title || co.companies, row.month ? monthLabel(row.month) : ""].filter(Boolean).join(" · ") : co.unassigned;
+  return <PendingPlaceholder row={row} title={name} />;
+};
 
 /** 公司组头的样子（对话侧 ProjectHeader、实操侧任务的组头同一份，components/operator/operator-sidebar.tsx）：最左公司图标、公司名
  *  （同会话行标题的字号字色），整行折叠 / 展开；收起时组里有在跑或没看过的，名字后一个点；右侧操作（待处理数、···、＋）由调用方给。
@@ -241,10 +303,15 @@ export function CompanyHeaderView({
   );
 }
 
-/** 侧栏公司下的一行出错提示（服务端给的原文），可关掉。 */
+/** 侧栏列表最上面：出错提示（服务端给的原文，可关掉）；还没有组可放的待处理占位行（LoosePlaceholders）。 */
 export const SidebarError: FC = () => {
   const error = useProjects((s) => s.error);
-  return <SidebarErrorLine error={error} onClose={() => setError("")} />;
+  return (
+    <>
+      <SidebarErrorLine error={error} onClose={() => setError("")} />
+      <LoosePlaceholders />
+    </>
+  );
 };
 
 /** 侧栏出错行的样子（对话侧栏、实操的任务侧栏同一个）：原文 + 关掉。 */

@@ -1206,13 +1206,6 @@
   .cc-group-row:is(:hover, :focus-within, [data-open], :has(.cc-group-more[data-state="open"])) :is(.cc-group-more, .cc-group-new),
   .cc-group-more[data-state="open"] { display: inline-flex; }
   :root[data-cc-variant="phone"] :is(.cc-group-more, .cc-group-new) { display: inline-flex; }
-  .cc-group-count {
-    min-width: var(--cc-row-ctl); height: var(--cc-row-ctl); padding-inline: var(--cc-space-4); border-radius: var(--cc-radius-row-ctl); color: var(--cc-ink-3);
-    font-size: var(--cc-text-caption); font-variant-numeric: tabular-nums; outline: none;
-    transition: background-color var(--cc-dur-fast) var(--cc-ease), color var(--cc-dur-fast) var(--cc-ease);
-  }
-  .cc-group-count:hover, .cc-group-count:focus-visible { background: var(--cc-bg-hover); color: var(--cc-ink); }
-  .cc-group-count:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-group-items { display: flex; flex-direction: column; gap: var(--cc-row-gap); }
   /* 一组（组标题 + 这组的行）包成一块：公司组整块拖动排序、对话拖进来时整块高亮（共用拖动）；组上间距放在这一块上 */
   .cc-group-section { display: flex; flex-direction: column; gap: var(--cc-row-gap); margin-top: var(--cc-group-top); border-radius: var(--cc-radius-row); }
@@ -2066,7 +2059,6 @@
   .cc-grid-card-foot svg { width: var(--cc-icon-xs); height: var(--cc-icon-xs); }
   /* 待处理展开开关的箭头：同组标题箭头 12（按钮排查 H19） */
   .cc-project-chevron { width: var(--cc-group-chevron); height: var(--cc-group-chevron); transition: transform var(--cc-dur-fast) var(--cc-ease); }
-  .cc-count { flex-shrink: 0; padding-inline: var(--cc-space-4); color: var(--cc-ink-3); font-size: var(--cc-text-caption); font-variant-numeric: tabular-nums; }
   /* 待处理里能当场选的那张：点开才取可选项 */
   .cc-pending-toggle[aria-expanded="false"] .cc-project-chevron { transform: rotate(-90deg); }
   /* 「显示更多」（侧栏公司组、公司页、月结卡）：高同所在的行——侧栏 / 公司页跟行高（网页 32、桌面窗口 30、手机 44），会话栏里跟卡内行
@@ -2196,6 +2188,8 @@
   .cc-op-ask-select { flex-shrink: 0; width: var(--cc-op-select-w); max-width: 50%; }
   .cc-op-handle { display: flex; flex-direction: column; gap: var(--cc-space-4); }
   :root[data-cc-touch] :is(.cc-op-doc-handle, .cc-op-ask, .cc-op-line) { min-height: var(--cc-tap); }
+  /* 对话末尾的「需要处理」框（components/pending.tsx 的 PendingInChat，同允许卡的一层框）：标题一行，下面是待处理的单行 */
+  .cc-pending-in-chat { padding: 0 var(--cc-space-12) var(--cc-space-12); }
 
   /* 右侧会话栏（设计文档 3.13 / 4.4）：宽 280；卡片纵向、间距 10；宽屏与对话并排，对话区放不下时浮在对话上，手机盖满屏 */
   .cc-panel {
@@ -2534,7 +2528,7 @@
 .cc-drawer [data-slot="cc-project-items"] .cc-show-more { padding-inline-start: calc(var(--cc-space-12) + var(--cc-row-indent, 0px)); }
 .cc-drawer .cc-section-label { display: flex; align-items: center; min-height: var(--cc-group-h); margin-top: var(--cc-group-top); padding: 0 var(--cc-space-12); }
 .cc-drawer .cc-nav-item { height: var(--cc-row-h); padding-inline: var(--cc-space-12); gap: var(--cc-drawer-nav-gap); color: var(--cc-ink); }
-/* 手机抽屉里的公司组头：带高同对话行，名字与行首对齐；操作按钮与待处理数 44、彼此不留缝（按钮排查 G6：原来 32、间距 2，
+/* 手机抽屉里的公司组头：带高同对话行，名字与行首对齐；操作按钮 44、彼此不留缝（按钮排查 G6：原来 32、间距 2，
    点偏会折叠整组），长按组头出菜单 */
 /* 组开关占满 44 的带（整条都能点） */
 .cc-drawer .cc-group-toggle { height: 100%; padding-inline: var(--cc-space-12); }
@@ -2542,7 +2536,6 @@
 .cc-drawer .cc-project-row .cc-group-toggle { color: var(--cc-ink); }
 .cc-drawer .cc-group-actions { gap: 0; padding-inline-end: 0; }
 .cc-drawer .cc-group-actions .cc-row-btn { width: var(--cc-tap); height: var(--cc-tap); }
-.cc-drawer .cc-group-count { min-width: var(--cc-tap); height: var(--cc-tap); }
 /* 对话行尾「···」只在能悬停时接收点按（按钮排查 H7 / G13）：手机、触屏照 Claude 靠长按出菜单，透明的「···」不再盖在未读点、
    运行点上抢点按（长按的菜单仍以它为锚点）；电脑悬停这一行、键盘聚焦、菜单开着时照常可点 */
 [data-slot="aui_thread-list-item-more"]:not([data-state="open"], :focus-visible) { pointer-events: none; }

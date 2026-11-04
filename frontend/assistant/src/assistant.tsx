@@ -5,12 +5,14 @@
 //   手机         — 左上角圆形菜单按钮；抽屉里大号「CC」、搜索、定时任务、最近对话，底部头像与「新建会话」
 //
 // 颜色、尺寸、动效只引用 globals.css 的变量与 .cc-* 样式类，这里不写数值。「定时任务」只在有这个功能的产品（Cowork）出现。
-// 公司（ADR-020，共用层 projects() 的 kind 为 company 时：Cowork 公司主档、ERP 公司）：侧栏「公司」「待处理 N」两行、按公司分组，
-// 视图多「公司列表」「公司页」「待处理」；对话顶栏「公司名 ›」与右侧会话栏（components/session-panel.tsx）；输入框下巴的
-// 公司、月份、分店（ComposerChin）。哪些分区出现只看产品声明的 sections（useSection），不按产品名分支。DMS 与今天一样。
+// 公司（ADR-020，共用层 projects() 的 kind 为 company 时：Cowork 公司主档、ERP 公司）：侧栏「公司」一行、按公司分组，
+// 视图多「公司列表」「公司页」；对话顶栏「公司名 ›」与右侧会话栏（components/session-panel.tsx）；输入框下巴的
+// 公司、月份、分店（ComposerChin）。待处理（用户 11-04：左侧不要，并进对话）落在「公司 · 本月」对话末尾的「需要处理」框
+// （thread.tsx 的 Tail 插槽，components/pending.tsx 的 PendingInChat），还没有对话的侧栏一行占位（projects.tsx）。
+// 哪些分区出现只看产品声明的 sections（useSection），不按产品名分支。DMS 与今天一样。
 // 实操（CC 在 Express 窗口里逐张填写，Cowork 与 ERP 都有；设计稿 https://claude.ai/artifact/SgtxECheQE4e6gtF1G4WKW）：侧栏最上面那一行
 // （☰、侧栏开关、←、→）右端两个图标切换「直写 / 实操」，侧栏收起时跟着那一行留在顶栏；手机在抽屉顶部；Ctrl / ⌘ + Shift + 1 / 2。
-// 实操模式侧栏换成任务列表，顶栏是任务标题与开始 / 停止，中间是新建任务或任务记录，右边是实操自己的右侧栏
+// 实操模式侧栏换成任务列表，顶栏是任务标题，中间是新建任务或任务会话，没有右侧栏（用户 11-04：代录右侧不要）
 // （components/operator/，数据源 live-source.ts）。两种模式各记各的最后位置（lib/nav.ts）。
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
@@ -50,7 +52,7 @@ import {
 import { Marquee } from "@/components/ui/marquee";
 import { DropdownMenu, SubMenu, menuOffset } from "@/components/ui/menu";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
-import { createLiveSource, ModeSwitch, OperatorMain, OperatorDock, OperatorProvider, OperatorSidebar, OperatorTitle, OperatorTools, useAttention, useDockOpen, useOperator, watchAttention, type OperatorSource } from "@/components/operator";
+import { createLiveSource, ModeSwitch, OperatorMain, OperatorProvider, OperatorSidebar, OperatorTitle, useOperator, watchTasks, type OperatorSource } from "@/components/operator";
 import { Thread } from "@/components/assistant-ui/thread";
 import { NavNewLabel, ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch, toggleStar } from "@/components/assistant-ui/thread-list";
 import {
@@ -65,7 +67,7 @@ import {
 import { AddCompanyDialog } from "@/components/add-company";
 import { Companies } from "@/components/companies";
 import { CompanyPage } from "@/components/company-page";
-import { PendingView } from "@/components/pending";
+import { PendingInChat } from "@/components/pending";
 import { Settings } from "@/components/settings";
 import { ResultsContext, ResultsPanel, useResultFiles } from "@/components/results-panel";
 import { type PanelMode, SessionPanel, useFiledCompany } from "@/components/session-panel";
@@ -184,8 +186,8 @@ function OperatorNav({ search, onPick }: { search: string; onPick?: () => void }
 function OperatorScope({ children }: { children: ReactNode }) {
   const source = useContext(OperatorContext);
   const mode = useCurrentMode();
-  // 「待处理」里的代录一组与它的数：两种模式都要（侧栏「待处理 N」）
-  useEffect(() => (source ? watchAttention() : undefined), [source]);
+  // 别的设备上任务记录的变化（站点事件）：两种模式都接，切到代录时侧栏已是新的
+  useEffect(() => (source ? watchTasks() : undefined), [source]);
   if (!source) return <>{children}</>;
   return (
     <OperatorProvider source={source} active={mode === "operator"}>
@@ -502,14 +504,13 @@ function WindowButtons({ maximized, toggle }: { maximized: boolean; toggle: () =
 // ── 侧栏 ───────────────────────────────────────────────────────────────────────────────────────
 
 // 顶部导航（设计文档 3.3、4.2）：两种模式共用一个框架（主会话 11-03，照 Claude 桌面版）——先是两边共有的：新建（按模式：新对话 /
-// 新建任务）、待处理 N（有才出现，两种模式同一个数）、公司；再是模式自己的：定时任务（只对话模式）。共有的在上，切模式时一格都
-// 不挪。只有当前页选中：只看某家的定时任务、待处理（从公司组、主档页进去的）与主档页都不算，顶部那一行不选中。键盘上与组标题、
+// 新建任务）、公司；再是模式自己的：定时任务（只对话模式）。共有的在上，切模式时一格都不挪。没有「待处理」（用户 11-04：并进对话）。
+// 只有当前页选中：只看某家的定时任务与主档页都不算，顶部那一行不选中。键盘上与组标题、
 // 对话行是同一组 roving 焦点（data-roving）。手机抽屉没有「新建」这一行（底部胶囊），其余同一顺序。onPick：手机上点了收起抽屉
 function SidebarNav({ mobile = false, onPick }: { mobile?: boolean; onPick?: () => void }) {
   const items = (
     <>
       {!mobile && <NewNav />}
-      <PendingNav onPick={onPick} />
       <CompanyNav onPick={onPick} />
       <ScheduledNav onPick={onPick} />
     </>
@@ -568,36 +569,6 @@ function ScheduledNav({ onPick }: { onPick?: () => void }) {
     >
       <span className="cc-nav-icon"><ClockIcon /></span>
       <span className="cc-nav-label">{t("scheduledTasks")}</span>
-    </button>
-  );
-}
-
-/** 侧栏「待处理 N」（声明了待处理或有代录的产品；N 为 0 时不显示）：紧跟「新建」。N = 产品的待处理 + 代录「需要你处理」的任务
- *  （服务端按单据去重，components/operator/attention.ts），两种模式同一个数，与待处理页列出的条数一致。onPick：手机上点了收起抽屉。 */
-function PendingNav({ onPick }: { onPick?: () => void }) {
-  const kind = useSection("pending");
-  const operator = !!useContext(OperatorContext);
-  const total = usePendingCounts((s) => s.total) + useAttention((s) => s.total);
-  const pendingCompany = useCompanyNav((s) => s.pendingCompany);
-  const { view, setView } = useView();
-  if ((!kind && !operator) || total <= 0) return null;
-  return (
-    <button
-      type="button"
-      data-roving=""
-      className="cc-nav-item"
-      data-slot="cc-nav-pending"
-      title={co.pending}
-      data-active={(view === "pending" && !pendingCompany) || undefined}
-      onClick={() => {
-        useCompanyNav.setState({ pendingCompany: "" });
-        setView("pending");
-        onPick?.();
-      }}
-    >
-      <span className="cc-nav-icon"><InboxIcon /></span>
-      <span className="cc-nav-label flex-1">{co.pending}</span>
-      <span className="cc-count">{total}</span>
     </button>
   );
 }
@@ -796,17 +767,15 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const inChat = view === "chat" && hasMessages;
   const operator = view === "operator";
-  // 实操的右侧栏并排开着：它从窗口顶到底一整列，窗口按钮挪到它右上角（Layout 的 OperatorDock）
-  const docked = useDockOpen();
   if (isMobile && operator) {
-    // 实操（设计稿 Phone）：左边菜单、中间任务标题、右边开始 / 停止与右侧栏开关
+    // 实操（设计稿 Phone）：左边菜单、中间任务标题（停止在输入框里，同对话）
     return (
       <div className="cc-mtopbar">
         <button type="button" className="cc-round-btn" data-slot="cc-nav-toggle" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
           <DrawerIcon />
         </button>
         <span className="flex min-w-0 justify-center"><OperatorTitle /></span>
-        <span className="flex items-center gap-(--cc-topbar-gap)"><OperatorTools /></span>
+        <span className="cc-mtopbar-slot" />
       </div>
     );
   }
@@ -834,7 +803,7 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
         </div>
         <div className="flex items-center gap-(--cc-topbar-gap)">
           {tools}
-          {!(operator && docked) && <WindowButtons maximized={win.maximized} toggle={win.toggle} />}
+          <WindowButtons maximized={win.maximized} toggle={win.toggle} />
         </div>
       </div>
     );
@@ -1010,7 +979,8 @@ function DesktopBridge() {
   // 一打开就接上实时通道：侧栏才看得到后台对话在跑、跑完（lib/managed-agents/activity.ts）
   useEffect(() => listen(), []);
   useEffect(() => void syncPush(), []);
-  // 侧栏「待处理 N」与公司组头的数：只在声明了待处理的产品读（推送状态的站点事件来了、回到前台再读）
+  // 待处理按公司、按「公司 · 月份」的数（公司列表上的数、侧栏的占位行、对话末尾的「需要处理」框）：只在声明了待处理的产品读
+  // （推送状态的站点事件来了、回到前台再读）
   const pending = useSection("pending");
   useEffect(() => (pending ? watchPendingCounts() : undefined), [pending]);
   useEffect(() => setActiveSession(snapshot.sessionId), [snapshot.sessionId]);
@@ -1140,36 +1110,19 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
       <PanelRightIcon />
     </button>
   ) : null;
-  const tools = isMobile ? null : view === "operator" ? (
-    <OperatorTools />
-  ) : filesButton || panelButton ? (
+  const tools = isMobile || view === "operator" ? null : filesButton || panelButton ? (
     <>
       {filesButton}
       {panelButton}
     </>
   ) : null;
-  // 实操（照 Claude）：主栏一列（顶栏止于右侧栏的分隔线）+ 右侧栏从窗口顶到底一整列，分隔线不断；右侧栏开关在它右上角，
-  // 桌面窗口的窗口按钮跟着在那里。对话页的会话栏照旧（下面那一份）
+  // 实操（照 Claude Code）：一列会话，没有右侧栏（用户 11-04）。对话页的会话栏照旧（下面那一份）
   const main = view === "operator" ? (
-    <div className="relative flex min-h-0 min-w-0 flex-1 flex-row" data-slot="cc-op-frame">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <MainTopBar nav={nav} window={win} chrome={chrome} tools={tools} />
-        <div className="relative flex min-h-0 flex-1 flex-row">
-          <OperatorMain />
-        </div>
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col" data-slot="cc-op-frame">
+      <MainTopBar nav={nav} window={win} chrome={chrome} tools={tools} />
+      <div className="relative flex min-h-0 flex-1 flex-row">
+        <OperatorMain />
       </div>
-      <OperatorDock
-        top={
-          chrome
-            ? (toggle) => (
-                <div className="cc-titlebar cc-op-panel-bar justify-end pe-0" {...dragHandlers(win.toggle)}>
-                  {toggle}
-                  <WindowButtons maximized={win.maximized} toggle={win.toggle} />
-                </div>
-              )
-            : undefined
-        }
-      />
     </div>
   ) : (
     <>
@@ -1181,13 +1134,12 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
           <Companies />
         ) : view === "company" ? (
           <CompanyPage />
-        ) : view === "pending" ? (
-          <PendingView />
         ) : (
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <SessionStatusBar />
             <div className="cc-thread-slot min-h-0 flex-1">
-              <Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback, Chin: ComposerChin }} />
+              {/* 对话末尾的「需要处理」框（Tail）：待处理并进对话（用户 11-04） */}
+              <Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback, Chin: ComposerChin, Tail: PendingInChat }} />
             </div>
           </div>
         )}
