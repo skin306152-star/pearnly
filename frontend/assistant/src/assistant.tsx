@@ -259,6 +259,7 @@ async function signOut() {
     headers: { "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
   });
   const body = (await res.json().catch(() => null)) as { message?: { redirect_url?: string } } | null;
+  // map: logout
   location.href = body?.message?.redirect_url || "/";
 }
 

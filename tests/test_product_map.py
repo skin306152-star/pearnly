@@ -37,7 +37,8 @@ class Discovery(unittest.TestCase):
                              ("liff:erp:/stocktake", "liff-page"),
                              ("tool:erp:erp_push_documents", "cc-tool"), ("tool:cowork:cowork_pending", "cc-tool"),
                              ("tool:erp:pearnly_whoami", "cc-tool"), ("operator:cowork:submit", "cc-operator-hook"),
-                             ("ccview:erp:pending", "cc-view")):
+                             ("ccview:erp:pending", "cc-view"), ("ccaction:erp:switch-account", "cc-action"),
+                             ("ccaction:cowork:mrerp-auth", "cc-action")):
             self.assertIn(anchor, found)
             self.assertEqual(found[anchor].kind, kind, anchor)
             self.assertTrue(found[anchor].files, f"{anchor} 推不出文件")
@@ -68,6 +69,20 @@ class Discovery(unittest.TestCase):
         self.assertEqual(anchors, {"line:erp:postback:mode", "line:erp:postback:erp", "line:erp:link:/desk/pearnly-x",
                                    "line:erp:link:/desk/{doc}/edit", "line:erp:event:follow",
                                    "line:erp:message:image", "line:erp:message:file"})
+
+    def test_cc_actions_from_map_notes_and_unannotated_navigation(self):
+        repo = fake_repo({
+            "frontend/assistant/src/lib/site.ts": "// map: switch-account\nexport function go(s) { location.assign(s); }\n",
+            "frontend/assistant/src/lib/login.tsx": "export const L = () => null;\n// map: mrerp-auth@cowork logout\n",
+            "frontend/assistant/src/lib/other.ts": "if (u) window.open(u);\nlocation.href = '/x';\n// location.href = '/commented';\n",
+        })
+        found = {item.anchor: item for item in pm.discover_cc_actions(repo)}
+        self.assertEqual(sorted(found), [
+            "ccaction:cowork:logout", "ccaction:cowork:mrerp-auth", "ccaction:cowork:switch-account",
+            "ccaction:erp:logout", "ccaction:erp:switch-account",
+            "ccnav:lib/other.ts:if (u) window.open(u);", "ccnav:lib/other.ts:location.href = '/x';"])
+        self.assertEqual(found["ccaction:erp:switch-account"].files, ["frontend/assistant/src/lib/site.ts"])
+        self.assertEqual(found["ccnav:lib/other.ts:if (u) window.open(u);"].kind, "cc-nav")
 
     def test_config_keys_constants_and_prefix_families(self):
         repo = fake_repo({

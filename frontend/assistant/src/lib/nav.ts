@@ -33,6 +33,7 @@ export type Mode = "chat" | "operator";
 export const ownMode = (view: View): Mode | null => (view === "operator" ? "operator" : view === "chat" || view === "tasks" ? "chat" : null);
 
 /** 当前模式与两种模式各自的最后位置：对话模式最后看的视图、代录模式最后看的视图与批次（空 = 新建批次）。 */
+// map: sidebar-modes
 export const useModePlace = create<{ mode: Mode; chatView: View; operatorView: View; batch: string }>(() => ({
   mode: "chat",
   chatView: "chat",
@@ -138,6 +139,7 @@ export type Target = { c: string; view: string; company?: string };
 const SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$/;
 
 /** 从地址里读 ?c= / ?view=（只认本站 /assistant 下的地址）。 */
+// map: deep-link
 export function targetOf(url: string): Target | null {
   let parsed: URL;
   try {

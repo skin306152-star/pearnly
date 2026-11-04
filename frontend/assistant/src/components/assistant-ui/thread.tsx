@@ -414,6 +414,7 @@ export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: Compon
   );
 };
 
+// map: attach
 const ComposerAction: FC<{ onSend: () => void }> = ({ onSend }) => {
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">

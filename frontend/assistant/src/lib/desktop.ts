@@ -309,6 +309,7 @@ export function useConnectedSites(): string[] {
 }
 
 /** 切到这台电脑连着的另一个站点的对话页（那边登录过就直接进，会话各站点各自保存在窗口里）。 */
+// map: switch-account
 export function openSite(site: string) {
   if (site && site !== location.host) location.assign(`https://${site}/assistant`);
 }

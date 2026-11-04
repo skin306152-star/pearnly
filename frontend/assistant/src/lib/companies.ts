@@ -147,6 +147,7 @@ export async function loadDetail(company: string, period = ""): Promise<Detail> 
 }
 
 /** 在新窗口打开站点里的一页（ERP 的公司页、单据页；同站点会话）。 */
+// map: company-open-in-product
 export function openSitePage(url: string) {
   if (url) window.open(url, "_blank", "noopener,noreferrer");
 }

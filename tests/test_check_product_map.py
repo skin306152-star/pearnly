@@ -53,8 +53,9 @@ class Rules(unittest.TestCase):
         self.assertIn("配置依赖 site:pearnly_gone 不在 config.toml", errors)
         self.assertIn("not_entries.toml 里的 tool:erp:old", errors)
         self.assertIn("config.toml 里的 pearnly_unread", errors)
-        # 还没有可扫声明的类型（CC 外壳动作）先不核锚点
-        self.assertEqual(run([row("ccaction:erp:switch", kind="cc-action", channel="cc-chat")], {}), [])
+        # CC 外壳动作从 F 块起也按 `// map:` 注释核锚点：注释删了，行就过期
+        self.assertIn("已过期：行 erp.switch 的锚点 ccaction:erp:switch",
+                      "\n".join(run([row("ccaction:erp:switch", kind="cc-action", channel="cc-chat")], {})))
         # 前缀族覆盖的键不算过期
         self.assertEqual(run([row("nav:erp:a", config=["site:pearnly_line_channel_secret"])], found("nav:erp:a"),
                              config={"pearnly_line_*": {"class": "presence"}}, families={"pearnly_line_": ["l.py"]}), [])

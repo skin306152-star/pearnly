@@ -28,6 +28,7 @@ type AddState = { open: boolean; then: ((id: string, title: string) => void) | n
 export const useAddCompany = create<AddState>(() => ({ open: false, then: null, title: "" }));
 
 /** 打开「添加公司」；then：建好（或点了已添加的）之后拿公司编号（与显示名）做什么；title：换个标题（默认「添加公司」）。 */
+// map: add-company
 export function openAddCompany(then: (id: string, title: string) => void, title = "") {
   useAddCompany.setState({ open: true, then, title });
 }

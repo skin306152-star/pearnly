@@ -29,9 +29,9 @@ PRODUCTS = {"ERP", "Cowork", "DMS", "控制面", "共用"}
 CHANNELS = {"desk", "line", "cc-chat", "cc-operator", "cc-desktop"}
 ENDS = ("desktop", "mobile")
 KINDS = {"nav-page", "page-action", "page", "report", "line-menu", "line-postback", "line-link", "line-event",
-         "line-message", "liff-page", "cc-tool", "cc-operator-hook", "cc-view", "cc-action"}
-# 还没有可扫声明的类型：行照登记、锚点暂不核（F 块在 frontend/assistant 加 `// map:` 注释后去掉）
-UNSCANNED_KINDS = {"cc-action"}
+         "line-message", "liff-page", "cc-tool", "cc-operator-hook", "cc-view", "cc-action", "cc-nav"}
+# 还没有可扫声明的类型（F 块 11-04 给 CC 外壳动作加了 `// map:` 注释，现在没有了）
+UNSCANNED_KINDS: set = set()
 PROBES = {"liff", "http", "assistant-gate"}
 ENDPOINT_KINDS = {"dynamic", "compat", "internal", "delete"}
 CONFIG_CLASSES = {"same", "shape", "presence", "varies", "infra"}
@@ -329,10 +329,43 @@ def discover_cc(repo: Repo) -> list[Found]:
     return found
 
 
+CC_SOURCE = "frontend/assistant/src/"
+MAP_NOTE = re.compile(r"//\s*map:\s*(.+?)\s*$")
+NAVIGATION = re.compile(r"window\.open\(|location\.(?:assign|replace)\(|location\.href\s*=(?!=)")
+
+
+def discover_cc_actions(repo: Repo) -> list[Found]:
+    """CC 外壳动作：代码里 `// map: <动作>[@<产品>] …` 注释（同一份前端两个产品都用，`@cowork` 表示只有 Cowork）。
+    另外每一处页面跳转（window.open / location.assign / replace / href =）都要在同一行或上两行带 `// map:`；
+    没带的生成 `ccnav:<文件>:<那一行>` 锚点，要么加注释，要么在 not_entries.toml 写为什么不是入口（安装引导、会话过期回跳等）。"""
+    found = {}
+    for path in repo.files:
+        if not path.startswith(CC_SOURCE) or not path.endswith((".ts", ".tsx")) or ".test." in path:
+            continue
+        lines = repo.text(path).splitlines()
+        for number, line in enumerate(lines):
+            note = MAP_NOTE.search(line)
+            if note:
+                for token in note.group(1).split():
+                    name, _, only = token.partition("@")
+                    for product, code in CODE.items():
+                        if only and only != code:
+                            continue
+                        anchor = f"ccaction:{code}:{name}"
+                        item = found.setdefault(anchor, Found(anchor, "cc-action", product, "cc-chat", list(ENDS), [], f"CC 外壳动作 {name}"))
+                        if path not in item.files:
+                            item.files.append(path)
+            if NAVIGATION.search(line) and not line.lstrip().startswith("//") \
+                    and not any(MAP_NOTE.search(lines[i]) for i in range(max(0, number - 2), number + 1)):
+                anchor = f"ccnav:{path[len(CC_SOURCE):]}:{line.strip()[:100]}"
+                found.setdefault(anchor, Found(anchor, "cc-nav", "共用", "cc-chat", list(ENDS), [path], f"CC 页面跳转（{path[len(CC_SOURCE):]}）"))
+    return list(found.values())
+
+
 def discover(repo: Repo | None = None) -> dict[str, Found]:
     repo = repo or Repo()
     result = {}
-    for item in discover_desk(repo) + discover_line(repo) + discover_cc(repo):
+    for item in discover_desk(repo) + discover_line(repo) + discover_cc(repo) + discover_cc_actions(repo):
         result.setdefault(item.anchor, item)
     return result
 

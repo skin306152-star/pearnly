@@ -55,6 +55,7 @@ type Section = "general" | "connections" | "system";
 const SETTINGS_BACK = ['[data-slot="cc-settings-button"]', '[data-slot="cc-user-menu"]'] as const;
 
 
+// map: settings
 export function Settings() {
   const [open, setOpen] = useState(false);
   const [section, setSection] = useState<Section>("general");

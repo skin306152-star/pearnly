@@ -66,6 +66,7 @@ export function backTarget(active: Element | null = document.activeElement): Bac
 }
 
 /** 先问一次再删：`ids` 是要删的对话（本页编号），点「删除」才执行 `run`。 */
+// map: delete-chats
 export function askDelete(ids: readonly string[], run: () => unknown, options: AskOptions = {}): void {
   // 点菜单项这一刻记下触发处：弹窗下一帧才开，那时菜单已关，焦点已不在菜单里
   const back = backTarget();

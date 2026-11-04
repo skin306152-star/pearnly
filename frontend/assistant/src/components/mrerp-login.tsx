@@ -29,6 +29,7 @@ export function authorizedDetail(credential: MrErpCredential | undefined): strin
   return [credential.username, credential.device, formatWhen(credential.at)].filter(Boolean).join(" · ");
 }
 
+// map: mrerp-auth@cowork
 export const MrErpLogin: FC<{
   product?: string;
   connection: { name: string; credential?: MrErpCredential } | null;
