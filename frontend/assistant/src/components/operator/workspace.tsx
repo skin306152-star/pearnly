@@ -1,6 +1,6 @@
 // 「实操」工作区的主栏与顶栏（照 Claude Code 会话；用户 11-04：「代录右侧不要」，原右栏五块并进这一条会话，conversation.tsx）：
-//   新建    大输入框居中（占位「这次要处理哪些单据？」），下面选公司、月份（同对话页的下巴）。选了公司就建一个准备中的任务
-//           （月份默认上个月）；不必先说一句话。
+//   新建    就是直写的新建页（用户 11-04：同一个组件——问候、形象、公司与月份、输入框位置与占位字都一样，OperatorNew 只换运行时）：
+//           公司、月份照直写的方式选，选了公司才发得出；发出去建一个准备中的任务（月份没选按上个月）。
 //   任务    一条会话，从上到下：新建时带的那句话（气泡）→ 这个任务的对话（对话框甲，task-thread.tsx），上传卡片按上传那一刻插在
 //           消息之间（uploads.ts，W2 的 UploadCard）→ 准备中：资料步骤行、「开始前」框；开始以后：一行概况、每张单一行（要人处理的
 //           行下就地有按钮）、完成行、要中途选的单的选项卡片、报告卡片 → 工作状态行（同对话的 RunLine）、出错框（同对话的 .cc-alert）。
@@ -18,27 +18,30 @@ import {
   type PendingAttachment,
   type ThreadMessageLike,
   useAui,
+  useAuiState,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
 import { createContext, type DragEvent, type FC, type ReactNode, useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { NewThreadOverride } from "@/components/assistant-ui/projects";
 import { Composer, ThreadMessages } from "@/components/assistant-ui/thread";
-import { PeriodChip } from "@/components/period-chip";
 import { UploadCard } from "@/components/run/upload-card";
 import { Marquee } from "@/components/ui/marquee";
 import { dayLabel, lang, op, t } from "@/i18n";
-import { lastMonth } from "@/lib/companies";
+import { cachedDetail, isPeriod, lastMonth } from "@/lib/companies";
 import { ACCEPT } from "@/lib/managed-agents/attachments";
+import { useProjects } from "@/lib/managed-agents/projects";
+import { attemptSend, type ComposerLike } from "@/lib/managed-agents/send-failure";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { SessionIdOverride } from "@/lib/managed-agents/runtime-provider";
 import { withReport } from "@/lib/caught";
 import { type Operator, useOperator } from "./controller";
-import { BeforeBox, CompanyChip, SourcesStep, TaskChin, TaskDocs } from "./conversation";
+import { BeforeBox, SourcesStep, TaskChin, TaskDocs } from "./conversation";
 import { groupOf } from "./model";
-import { titleOf } from "./operator-sidebar";
+import { titleOf } from "./task-title";
 import { useOperatorStore } from "./store";
 import { TaskChoices, TaskRunIndicator, type TaskThread, useTaskThread } from "./task-thread";
-import type { CompanyOption } from "./types";
-import { retryUpload, type UploadItem, useTaskUploads } from "./uploads";
+import { upsertTask } from "./tasks";
+import { retryUpload, sendUploads, type UploadItem, useTaskUploads } from "./uploads";
 
 /** 任务标题：改过的名字，否则公司 · 月份。 */
 export function useTaskTitle(): string {
@@ -138,18 +141,21 @@ const DropArea: FC<{ className: string; children: ReactNode }> = ({ className, c
 };
 
 // ── 主栏 ────────────────────────────────────────────────────────────────────
-export const OperatorMain: FC = () => {
+/** page：直写的对话页本身（assistant.tsx 给的 Thread）。没打开任务时：新对话就是新建页（OperatorNew 换运行时，发出去建任务），
+ *  侧栏点开的已有对话照直写的样子显示（代录任务 = 会话，统一框架方案定后由它接上代录执行）。 */
+export const OperatorMain: FC<{ page: ReactNode }> = ({ page }) => {
   const o = useOperator();
+  const fresh = useAuiState((s) => s.threadListItem.status === "new");
   // Ctrl / ⌘ + N 新建任务在外壳里按模式接（assistant.tsx 的 useModeKeys：看着公司页时也要能新建）
-  // 新建页：选了公司才发得出（一选就建任务、换到任务页）；任务页：一直能发
   const target = useRef<ComposerTarget>({ send: () => undefined, canSend: false });
   const thread = useTaskThread(o.source, o.id ? o.task : null);
   target.current = { send: sender(o, thread), canSend: !!o.id };
+  if (!o.id) return fresh ? <OperatorNew>{page}</OperatorNew> : page;
   return (
     <ComposerTargetContext.Provider value={target}>
-      <OperatorComposerScope canSend={!!o.id} thread={thread}>
+      <OperatorComposerScope canSend thread={thread}>
         <DropArea className="cc-op-work">
-          <div className="cc-op-main">{o.id ? <TaskLog thread={thread} /> : <NewTask />}</div>
+          <div className="cc-op-main"><TaskLog thread={thread} /></div>
         </DropArea>
       </OperatorComposerScope>
     </ComposerTargetContext.Provider>
@@ -164,39 +170,73 @@ function sender(o: Operator, thread: TaskThread): Send {
   };
 }
 
-/** 新建页的下巴：选公司、月份（先选月份也行，默认上个月）。 */
-const NewTaskContext = createContext<{ period: string; setPeriod: (period: string) => void; pick: (company: CompanyOption) => void }>({
-  period: "",
-  setPeriod: () => undefined,
-  pick: () => undefined,
-});
+// ── 新建页：就是直写的新建页（用户 11-04：「做成和直写一样」，同一个组件）──────────────────────────────────────────
+const NO_MESSAGES: readonly ThreadMessageLike[] = [];
 
-const NewChin: FC = () => {
-  const { period, setPeriod, pick } = useContext(NewTaskContext);
-  return (
-    <>
-      <CompanyChip value={null} onChange={pick} />
-      <PeriodChip look="cc-chin-btn" side="bottom" value={period} onChange={setPeriod} allowNone={false} />
-    </>
-  );
+/** 输入框所在这段（组件库给的编号）：发送没成功的原因、放回的字按它记（send-failure.ts）。 */
+const ThreadIdProbe: FC<{ into: { current: string } }> = ({ into }) => {
+  into.current = useAuiState((s) => s.threadListItem.id);
+  return null;
 };
 
-/** 新建：大输入框居中，下面选公司、月份。选了公司就建一个准备中的任务；输入框里打的字、放的资料留着，到了任务页再发。 */
-const NewTask: FC = () => {
+/** 代录的新建页：children 是直写的新建页本身（assistant.tsx 给：同一个 Thread、问候、形象、下巴、占位字、输入框位置），这里只换
+ *  运行时——公司、月份照直写的方式在下巴（手机在问候下面）选，选了公司才发得出；发出去建一个准备中的任务（这家、这个月，没选月份
+ *  按上个月），打的字交给这个任务的对话，放的资料一份一张上传卡片，然后打开这个任务。 */
+export const OperatorNew: FC<{ children: ReactNode }> = ({ children }) => {
   const o = useOperator();
-  const [period, setPeriod] = useState(lastMonth());
-  const create = o.create;
-  const chin = useMemo(
-    () => ({ period, setPeriod, pick: (company: CompanyOption) => create({ company: company.id, company_title: company.title, period }) }),
-    [period, create],
-  );
+  const company = useProjects((s) => s.draft.project);
+  const [creating, setCreating] = useState(false);
+  const files = useMemo(() => new Map<string, File>(), []);
+  const adapter = useMemo(() => localAttachments(files), [files]);
+  const threadId = useRef("");
+  const composer = useRef<ComposerLike | null>(null);
+  const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+    messages: NO_MESSAGES,
+    convertMessage: (m) => m,
+    isRunning: creating,
+    isSendDisabled: !company || creating,
+    onNew: async (message: AppendMessage) => {
+      const text = message.content.map((part) => (part.type === "text" ? part.text : "")).join("\n").trim();
+      const picked = (message.attachments ?? []).flatMap((a) => {
+        const file = files.get(a.id) ?? a.file;
+        files.delete(a.id);
+        return file ? [file] : [];
+      });
+      const draft = useProjects.getState().draft;
+      if (!draft.project) return;
+      const period = isPeriod(draft.period) ? draft.period : lastMonth();
+      setCreating(true);
+      try {
+        await attemptSend(threadId.current, { composer: composer.current, text, attachments: message.attachments }, async (sent) => {
+          const title = useProjects.getState().projects.find((p) => p.id === draft.project)?.title
+            || (await cachedDetail(draft.project))?.company.title || draft.project;
+          let made = await o.source.createTask({ company: draft.project, company_title: title, period });
+          sent();
+          if (text) {
+            const session = await o.source.taskThread(made.name);
+            made = { ...made, session_id: session };
+            await getSessionController(session).sendMessage(text, []);
+          }
+          upsertTask(made);
+          if (picked.length) void sendUploads(o.source, { task: made.name, company: draft.project, period }, picked);
+          o.select(made.name);
+        });
+      } finally {
+        setCreating(false);
+      }
+    },
+    adapters: { attachments: adapter },
+  });
+  composer.current = runtime.thread.composer;
   return (
-    <div className="cc-op-new" data-slot="cc-op-new">
-      {o.error && <div role="alert" className="cc-alert">{o.error}</div>}
-      <NewTaskContext.Provider value={chin}>
-        <OperatorComposer chin={NewChin} />
-      </NewTaskContext.Provider>
-    </div>
+    <AssistantRuntimeProvider runtime={runtime}>
+      <SessionIdOverride.Provider value="">
+        <NewThreadOverride.Provider value>
+          <ThreadIdProbe into={threadId} />
+          {children}
+        </NewThreadOverride.Provider>
+      </SessionIdOverride.Provider>
+    </AssistantRuntimeProvider>
   );
 };
 

@@ -22,7 +22,7 @@
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { Building2Icon, CalendarIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon, StoreIcon, XIcon } from "lucide-react";
 import { DropdownMenu, menuOffset, SubMenu } from "@/components/ui/menu";
-import { type FC, type HTMLAttributes, memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { createContext, type FC, type HTMLAttributes, memo, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useAddCompanyAction } from "@/components/add-company";
 import { BranchChip, BranchChoices, PeriodChip, PeriodChoices } from "@/components/period-chip";
 import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/components/assistant-ui/sidebar-group";
@@ -58,7 +58,6 @@ import {
   useProjects,
 } from "@/lib/managed-agents/projects";
 import { useModePlace, useView } from "@/lib/nav";
-import { newTaskIn, useOperatorOrNull } from "@/components/operator/context";
 import { cn } from "@/lib/utils";
 import { shownError } from "@/lib/frappe";
 import { withReport } from "../../lib/caught";
@@ -75,14 +74,18 @@ export function focusComposer(now = true) {
   requestAnimationFrame(() => requestAnimationFrame(focus));
 }
 
-/** 在某家公司（NO_FILING = 最近）开新对话：回到对话页、切到新对话，光标进输入框；text 预填进输入框，send 才发出（交给 CC、草稿不发）。 */
+/** 在某家公司（NO_FILING = 最近）开新对话：回到对话页、切到新对话，光标进输入框；text 预填进输入框，send 才发出（交给 CC、草稿不发）。
+ *  代录模式下留在代录（新建页就是直写的新建页，用户 11-04），不切回对话模式。 */
 export function useStartIn() {
   const aui = useAui();
   const { setView } = useView();
   return (filing: Partial<Filing>, text = "", send = false, files: readonly File[] = []) => {
     setError("");
     setDraft(filing);
-    setView("chat");
+    if (useModePlace.getState().mode === "operator") {
+      useModePlace.setState({ batch: "" });
+      setView("operator");
+    } else setView("chat");
     void aui.threads().switchToNewThread();
     if (!text && !files.length) {
       if (!send) focusComposer();
@@ -111,15 +114,14 @@ export function useNewChatIn() {
   };
 }
 
-/** 打开一家公司的主档页。 */
-/** 打开一家公司：对话模式进公司页；代录模式进这家的新建任务页（同代录侧栏组头「＋」）。title：公司显示名（代录任务记它）。 */
+/** 打开一家公司：对话模式进公司页；代录模式进这家的新建页（同组头「＋」：直写的新建页、公司选好、月份上个月）。title：公司显示名。 */
 export function useOpenCompany() {
-  const { view, setView } = useView();
-  const operator = useOperatorOrNull();
+  const { setView } = useView();
+  const start = useStartIn();
   return (company: string, title = "") => {
-    if (useModePlace.getState().mode === "operator" && operator) {
-      const known = title || useProjects.getState().projects.find((row) => row.id === company)?.title || company;
-      newTaskIn(operator, { id: company, title: known }, view, setView);
+    if (useModePlace.getState().mode === "operator") {
+      if (title) hintTitle(company, title);
+      start({ project: company, period: useProjects.getState().period ? lastMonth() : "" });
       return;
     }
     useCompanyNav.setState({ company });
@@ -249,7 +251,7 @@ const LoosePlaceholder: FC<{ row: PendingMonth }> = ({ row }) => {
   return <PendingPlaceholder row={row} title={name} />;
 };
 
-/** 公司组头的样子（对话侧 ProjectHeader、实操侧任务的组头同一份，components/operator/operator-sidebar.tsx）：最左公司图标、公司名
+/** 公司组头的样子（对话侧栏 ProjectHeader；代录模式用的也是这一个侧栏）：最左公司图标、公司名
  *  （同会话行标题的字号字色），整行折叠 / 展开；收起时组里有在跑或没看过的，名字后一个点；右侧操作（待处理数、···、＋）由调用方给。
  *  菜单开着时 data-open 让「＋」照样露着。 */
 export function CompanyHeaderView({
@@ -414,12 +416,22 @@ function useCompanyTitle(id: string): string {
   return fromSidebar ?? title;
 }
 
+/** 外面告诉下巴、问候这是一段还没建的新对话（代录的新建页：同一个直写新建页，套在代录自己的运行时里，组件库那边没有「新」这个状态，
+ *  operator/workspace.tsx 的 OperatorNew）。 */
+export const NewThreadOverride = createContext(false);
+
+/** 这段对话还没建（新对话，或代录的新建页）。 */
+function useFreshThread(): boolean {
+  const fresh = useAuiState((s) => s.threadListItem.status === "new");
+  return useContext(NewThreadOverride) || fresh;
+}
+
 /** 输入框下巴：DMS（没有公司分组）不出现；新对话「公司 ▾」+ 月份 + 分店（草稿）；已有对话「公司」+ 月份 + 分店（改了就 move）。
  *  手机没有下巴（用户 10-17：基础信息放上面，同线上旧版）：新对话放在问候下面（WelcomeFiling），已有对话在右上「…」里
  *  （公司名、处理月份、分店）。 */
 export const ComposerChin: FC = () => {
   const kind = useProjects((s) => s.kind);
-  const fresh = useAuiState((s) => s.threadListItem.status === "new");
+  const fresh = useFreshThread();
   const { isMobile } = useSidebar();
   if (!kind || isMobile) return null;
   return fresh ? <DraftChin /> : <SessionChin />;
@@ -428,7 +440,7 @@ export const ComposerChin: FC = () => {
 /** 手机新对话：问候下面一行「公司 ▾」+ 月份 + 分店（同线上旧版的公司条），菜单向下开；电脑在下巴里。 */
 export const WelcomeFiling: FC = () => {
   const kind = useProjects((s) => s.kind);
-  const fresh = useAuiState((s) => s.threadListItem.status === "new");
+  const fresh = useFreshThread();
   const { isMobile } = useSidebar();
   if (!kind || !fresh || !isMobile) return null;
   return (

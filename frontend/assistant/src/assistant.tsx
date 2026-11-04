@@ -12,8 +12,8 @@
 // 哪些分区出现只看产品声明的 sections（useSection），不按产品名分支。DMS 与今天一样。
 // 实操（CC 在 Express 窗口里逐张填写，Cowork 与 ERP 都有；设计稿 https://claude.ai/artifact/SgtxECheQE4e6gtF1G4WKW）：侧栏最上面那一行
 // （☰、侧栏开关、←、→）右端两个图标切换「直写 / 实操」，侧栏收起时跟着那一行留在顶栏；手机在抽屉顶部；Ctrl / ⌘ + Shift + 1 / 2。
-// 实操模式侧栏换成任务列表，顶栏是任务标题，中间是新建任务或任务会话，没有右侧栏（用户 11-04：代录右侧不要）
-// （components/operator/，数据源 live-source.ts）。两种模式各记各的最后位置（lib/nav.ts）。
+// 实操模式的侧栏、新建页就是直写的那一套（用户 11-04：「这些都是现成的，代录没必要重新这一套」），中间是新建页或任务会话，
+// 没有右侧栏（用户 11-04：代录右侧不要）（components/operator/，数据源 live-source.ts）。两种模式各记各的最后位置（lib/nav.ts）。
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
 import { AuiProvider, Tools, useAui, useAuiState } from "@assistant-ui/react";
@@ -29,7 +29,6 @@ import {
   FileUpIcon,
   FilesIcon,
   GlobeIcon,
-  InboxIcon,
   InfoIcon,
   LoaderIcon,
   LogOutIcon,
@@ -52,13 +51,12 @@ import {
 import { Marquee } from "@/components/ui/marquee";
 import { DropdownMenu, SubMenu, menuOffset } from "@/components/ui/menu";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
-import { createLiveSource, ModeSwitch, OperatorMain, OperatorProvider, OperatorSidebar, OperatorTitle, useOperator, watchTasks, type OperatorSource } from "@/components/operator";
+import { createLiveSource, ModeSwitch, OperatorMain, OperatorProvider, OperatorTitle, watchTasks, type OperatorSource } from "@/components/operator";
 import { Thread } from "@/components/assistant-ui/thread";
-import { NavNewLabel, ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch, toggleStar } from "@/components/assistant-ui/thread-list";
+import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch, toggleStar } from "@/components/assistant-ui/thread-list";
 import {
   ComposerChin,
   ConversationCompany,
-  focusComposer,
   MobileCompanyItem,
   MobileChatTitle,
   MobileFilingItems,
@@ -95,7 +93,7 @@ import type { SessionFile } from "@/lib/managed-agents/api";
 import { onNotice, setActiveSession, setChatView } from "@/lib/managed-agents/activity";
 import { noticeReloader } from "@/lib/managed-agents/notice-reload";
 import { listen } from "@/lib/managed-agents/realtime";
-import { modeForKey, noteViewMode, openOperator, switchMode, useCurrentMode, useDeepLinks, useNavHistory, useView, ViewContext, type Mode, type View } from "@/lib/nav";
+import { modeForKey, noteViewMode, openOperator, switchMode, useCurrentMode, useDeepLinks, useModePlace, useNavHistory, useView, ViewContext, type Mode, type View } from "@/lib/nav";
 import { OPEN_LAYERS } from "@/lib/layers";
 import { useBackLayer } from "@/lib/back-stack";
 import { useSidebarKeys } from "@/lib/sidebar-keys";
@@ -103,7 +101,7 @@ import { APP_NAME, assistantLogo, assistantMascot, loadProfile, useProfile, type
 import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
 import { setDraft, useProjects, useSection } from "@/lib/managed-agents/projects";
-import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
+import { useCompanyNav, watchPendingCounts } from "@/lib/companies";
 import { dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePageMonth, usePanel } from "@/lib/company-panel";
 import { cssPx } from "@/lib/css-var";
 import { syncPrefs } from "@/lib/prefs-sync";
@@ -152,6 +150,7 @@ function Modes({ className }: { className?: string }) {
 
 /** Ctrl / ⌘ + Shift + 1 / 2 切模式；代录模式下 Ctrl / ⌘ + N 新建任务（看着公司、待处理页时也是）。弹窗、菜单开着时不管。 */
 function useModeKeys(enabled: boolean) {
+  const aui = useAui();
   const { mode: current, change } = useMode();
   const { view, setView } = useView();
   useEffect(() => {
@@ -166,20 +165,12 @@ function useModeKeys(enabled: boolean) {
       }
       if (current === "operator" && (event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && event.code === "KeyN") {
         event.preventDefault();
-        openOperator("", view, setView);
+        newInOperator(aui, view, setView);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [enabled, change, current, view, setView]);
-}
-
-/** 实操模式侧栏的列表：任务（同对话侧栏一套：按公司分组、拖动、置顶、改名、删除、搜索、键盘）；上面的导航两种模式共用（SidebarNav）。
- *  onPick：手机上点了收起抽屉。 */
-function OperatorNav({ search, onPick }: { search: string; onPick?: () => void }) {
-  const source = useContext(OperatorContext);
-  if (!source) return null;
-  return <OperatorSidebar search={search} onPick={onPick} />;
+  }, [aui, enabled, change, current, view, setView]);
 }
 
 /** 实操的状态与动作（components/operator/controller.tsx）：侧栏、顶栏、主栏、右侧栏共用一份。 */
@@ -196,11 +187,11 @@ function OperatorScope({ children }: { children: ReactNode }) {
   );
 }
 
-/** 菜单「新建」：实操模式下是新建任务。 */
-function useNewInMode() {
-  const source = useContext(OperatorContext);
-  const mode = useCurrentMode();
-  return !!source && mode === "operator";
+/** 代录模式下「新建」：同直写开一段新对话（新建页就是直写的新建页），主栏留在代录。 */
+function newInOperator(aui: ReturnType<typeof useAui>, view: View, setView: (v: View) => void) {
+  openOperator("", view, setView);
+  setDraft({});
+  void aui.threads().switchToNewThread();
 }
 
 
@@ -372,8 +363,7 @@ function AppMenu() {
   const aui = useAui();
   const { view, setView } = useView();
   const operator = !!useContext(OperatorContext);
-  const inOperator = useNewInMode();
-  const { change } = useMode();
+  const { mode, change } = useMode();
   const zoom = (step: number) => void windowAction("zoom", { step });
   return (
     <DropdownMenu.Root>
@@ -382,16 +372,15 @@ function AppMenu() {
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="start" sideOffset={menuOffset()} className="cc-menu">
-          {/* 实操模式下「新建」是新建任务 */}
+          {/* 两种模式同一个「新建会话」（代录模式下主栏留在代录） */}
           <DropdownMenu.Item
             className="cc-menu-item"
-            data-slot={inOperator ? "cc-op-new-menu" : undefined}
             onSelect={() => {
-              if (inOperator) return openOperator("", view, setView);
+              if (mode === "operator") return newInOperator(aui, view, setView);
               setView("chat"); setDraft({}); aui.threads().switchToNewThread();
             }}
           >
-            <span className="flex-1">{inOperator ? op.newTask : t("newChatPill")}</span>
+            <span className="flex-1">{t("newChatPill")}</span>
             <Shortcut keys="Ctrl N" />
           </DropdownMenu.Item>
           {operator && (
@@ -518,32 +507,11 @@ function SidebarNav({ mobile = false, onPick }: { mobile?: boolean; onPick?: () 
   return mobile ? items : <div className="flex flex-col gap-(--cc-row-gap)">{items}</div>;
 }
 
-/** 「新建」：对话模式开新对话（最近），代录模式开新建任务页（同一个位置、同一个加号圆，只换字）。 */
+/** 「新建」：两种模式同一个（直写的新对话）；代录模式下主栏留在代录，新建页就是直写的新建页。 */
 function NewNav() {
-  const { setView } = useView();
-  if (useNewInMode()) return <NewTaskNav />;
-  return <ThreadListNew onClick={() => setView("chat")} />;
-}
-
-function NewTaskNav() {
-  const o = useOperator();
   const { view, setView } = useView();
-  return (
-    <button
-      type="button"
-      className="cc-nav-item"
-      data-slot="cc-operator-new"
-      data-roving=""
-      title={op.newTask}
-      data-active={(view === "operator" && !o.id) || undefined}
-      onClick={() => {
-        openOperator("", view, setView);
-        focusComposer();
-      }}
-    >
-      <NavNewLabel label={op.newTask} />
-    </button>
-  );
+  const mode = useCurrentMode();
+  return <ThreadListNew onClick={() => (mode === "operator" ? openOperator("", view, setView) : setView("chat"))} />;
 }
 
 /** 侧栏「定时任务」（只对话模式、只在声明了 tasks 的产品）：在共有入口下面，代录模式下不出现也不挤动上面几行。 */
@@ -605,11 +573,11 @@ function useBackToChatOnPick(onNavigate?: () => void) {
   const { isMobile } = useSidebar();
   const multi = !!useProjects((s) => s.kind) && !isMobile;
   return (e: React.MouseEvent) => {
-    // 实操的任务行同一个外壳（同样的 data-slot）：点任务留在实操里（任务侧栏自己切）
-    if (mode === "operator") return;
     if (multi && (e.shiftKey || e.metaKey || e.ctrlKey)) return;
     if ((e.target as HTMLElement).closest('[data-slot="aui_thread-list-item-trigger"]')) {
-      setView("chat");
+      // 代录模式同一个侧栏：点了留在代录（代录任务 = 会话，统一框架方案定后由它接上代录执行）
+      if (mode === "operator") useModePlace.setState({ batch: "" });
+      setView(mode === "operator" ? "operator" : "chat");
       onNavigate?.();
     }
   };
@@ -619,9 +587,7 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
   const [search, setSearch] = useState("");
   const pick = useBackToChatOnPick();
   const companies = !!useProjects((s) => s.kind);
-  const operator = useCurrentMode() === "operator";
-  // 实操的任务侧栏总是按公司分组：多选、⌘ / Ctrl + 数字跳转同 Cowork 的对话侧栏
-  const keys = useSidebarKeys(companies || operator);
+  const keys = useSidebarKeys(companies);
   const { toggleSidebar } = useSidebar();
   const logo = assistantLogo();
   return (
@@ -657,7 +623,7 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
       </SidebarHeader>
       <SidebarContent ref={keys} className="px-(--cc-sidebar-pad)" onClickCapture={pick} data-cc-view={useView().view}>
         <SidebarNav />
-        {operator ? <OperatorNav search={search} /> : <ThreadList search={search} />}
+        <ThreadList search={search} />
       </SidebarContent>
       <SidebarFooter className="h-(--cc-sidebar-foot-h) flex-row items-center gap-(--cc-space-4) border-t border-line py-0">
         <UserFooter />
@@ -703,7 +669,7 @@ function MobileDrawer() {
       )}
       <div className="cc-drawer flex-1 overflow-y-auto px-(--cc-mdrawer-list-px) pb-(--cc-mdrawer-tail)" onClickCapture={pick}>
         <SidebarNav mobile onPick={close} />
-        {operator ? <OperatorNav search={search} onPick={close} /> : <ThreadList search={search} />}
+        <ThreadList search={search} />
       </div>
       <div
         data-slot="cc-drawer-foot"
@@ -719,20 +685,18 @@ function MobileDrawer() {
         <button
           type="button"
           className="cc-pill pointer-events-auto"
-          data-slot={operator ? "cc-op-new-pill" : undefined}
           onClick={() => {
-            if (operator) {
-              openOperator("", view, setView);
-              return close();
+            if (operator) newInOperator(aui, view, setView);
+            else {
+              setView("chat");
+              setDraft({});
+              aui.threads().switchToNewThread();
             }
-            setView("chat");
-            setDraft({});
-            aui.threads().switchToNewThread();
             close();
           }}
         >
           <PlusIcon />
-          {operator ? op.newTask : t("newChatPill")}
+          {t("newChatPill")}
         </button>
       </div>
     </div>
@@ -765,8 +729,10 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
   const { view, setView } = useView();
   const aui = useAui();
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
-  const inChat = view === "chat" && hasMessages;
-  const operator = view === "operator";
+  // 代录模式没打开任务时主栏就是对话页（新建页、侧栏点开的对话），顶栏同对话页
+  const task = useModePlace((s) => !!s.batch);
+  const inChat = (view === "chat" || (view === "operator" && !task)) && hasMessages;
+  const operator = view === "operator" && task;
   if (isMobile && operator) {
     // 实操（设计稿 Phone）：左边菜单、中间任务标题（停止在输入框里，同对话）
     return (
@@ -1116,12 +1082,22 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
       {panelButton}
     </>
   ) : null;
+  // 对话页本身（两种模式同一个：代录模式的新建页、侧栏点开的对话就是它，用户 11-04）
+  const chatPage = (
+    <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <SessionStatusBar />
+      <div className="cc-thread-slot min-h-0 flex-1">
+        {/* 对话末尾的「需要处理」框（Tail）：待处理并进对话（用户 11-04） */}
+        <Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback, Chin: ComposerChin, Tail: PendingInChat }} />
+      </div>
+    </div>
+  );
   // 实操（照 Claude Code）：一列会话，没有右侧栏（用户 11-04）。对话页的会话栏照旧（下面那一份）
   const main = view === "operator" ? (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col" data-slot="cc-op-frame">
       <MainTopBar nav={nav} window={win} chrome={chrome} tools={tools} />
       <div className="relative flex min-h-0 flex-1 flex-row">
-        <OperatorMain />
+        <OperatorMain page={chatPage} />
       </div>
     </div>
   ) : (
@@ -1135,13 +1111,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
         ) : view === "company" ? (
           <CompanyPage />
         ) : (
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            <SessionStatusBar />
-            <div className="cc-thread-slot min-h-0 flex-1">
-              {/* 对话末尾的「需要处理」框（Tail）：待处理并进对话（用户 11-04） */}
-              <Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback, Chin: ComposerChin, Tail: PendingInChat }} />
-            </div>
-          </div>
+          chatPage
         )}
         {view === "chat" && results.open && results.sessionId && (
           <ResultsPanel
