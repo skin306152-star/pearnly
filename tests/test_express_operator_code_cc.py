@@ -134,6 +134,7 @@ def fake_frappe(state):
     frappe.get_attr = lambda path: state["attrs"][path]
     utils = types.ModuleType("frappe.utils")
     utils.now_datetime = lambda: state["now"]
+    utils.get_system_timezone = lambda: "Asia/Bangkok"
     frappe.utils = utils
     return frappe, utils
 
@@ -214,7 +215,8 @@ class UploadRecordTests(Base):
         out = upload("CO-1", "k1", task)
         self.assertEqual(self.product.intakes, [("CO-1", "bill.pdf", 12, "k1")])
         self.assertEqual(out["upload"], {"request_key": "k1", "source": "SRC-k1", "filename": "bill.pdf", "size": 12,
-                                         "batch": "B-k1", "uploaded_at": "2026-11-04 16:00:00", "state": "queued",
+                                         # 上传时刻给页面的是 RFC3339 UTC（库里是曼谷时间 16:00）
+                                         "batch": "B-k1", "uploaded_at": "2026-11-04T09:00:00Z", "state": "queued",
                                          "pages_done": 0, "page_count": 12, "code": "", "documents": []})
         doc = frappe.get_doc("Pearnly Express Operator Task", task)
         self.assertEqual([(row.request_key, row.batch, row.size) for row in doc.uploads], [("k1", "B-k1", 12)])

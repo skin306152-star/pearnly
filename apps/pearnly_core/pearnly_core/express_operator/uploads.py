@@ -17,6 +17,17 @@ from pearnly_core.express_operator import products, shapes, tasks
 
 UPLOAD = "Pearnly Express Operator Task Upload"
 KEY_MAX = 128
+ROW_FIELDS = ("request_key", "source", "filename", "size", "batch")
+
+
+def _row(row) -> dict:
+    """子表一行给页面：上传时刻换成 RFC3339 UTC（同对话列表 `sessions._when`；库里是站点时区的裸时间，页面按浏览器时区显示）。"""
+    from pearnly_core.assistant import contracts
+
+    when = row.get("uploaded_at")
+    stamp = contracts.utc_iso(contracts.site_time(when).replace(microsecond=0), frappe.utils.get_system_timezone()) \
+        if when else ""
+    return {**{key: row.get(key) for key in ROW_FIELDS}, "uploaded_at": stamp}
 
 
 def check(name, company, request_key) -> None:
@@ -43,7 +54,7 @@ def record(name, request_key, filename, size, result) -> dict:
     else:
         row.update(values)
     tasks._save(doc)
-    return shapes.upload_view(row, {"state": "queued", "page_count": result.get("page_count")}, doc.period or "")
+    return shapes.upload_view(_row(row), {"state": "queued", "page_count": result.get("page_count")}, doc.period or "")
 
 
 def read(name, batches=None) -> dict:
@@ -57,9 +68,9 @@ def read(name, batches=None) -> dict:
     out = []
     for row in rows:
         if wanted is not None and row.batch not in wanted:
-            out.append({**shapes.upload_view(row, {"state": "queued"}, doc.period or ""), "state": ""})
+            out.append({**shapes.upload_view(_row(row), {"state": "queued"}, doc.period or ""), "state": ""})
             continue
-        out.append(shapes.upload_view(row, found.get(row.batch) if row.batch else None, doc.period or ""))
+        out.append(shapes.upload_view(_row(row), found.get(row.batch) if row.batch else None, doc.period or ""))
     return {"task": doc.name, "period": doc.period or "", "uploads": out}
 
 
