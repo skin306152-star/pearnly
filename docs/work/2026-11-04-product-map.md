@@ -22,8 +22,10 @@
 | A 发现器 + 行校验 | 6d750c8f9 | 已合入（11-04） | CI 上那步约 1 秒 | 308 个锚点、52 个配置键 + 1 个前缀族；本地全闸门 180 步通过 |
 | B 地图数据 | 8199d5547 | 已合入（11-04） | — | 327 行（ERP 153、Cowork 174）；基线 390 条「行@端」（200 行），页头动作 131 行占 262 条 |
 | C 闸门 | 268702bfe | 已合入（11-04） | CI 上那步约 5 秒（含自测） | 本地全闸门 181 步通过；之后去掉重复核真实地图的自测，自测 0.05 秒，闸门本机 0.67 秒 |
-| E 部署接线 | 见本块提交 | 待合入 | 两个新测试步本机共约 0.2 秒（不跑站点） | 导出随镜像；部署前配置对比（演练、构建前、激活前）；回读逐租户上线必验探针；本批真机单 |
-| D 接口分诊 / G 看板 | — | 本窗口接着做 | — | — |
+| E 部署接线 | 5fe8fa287 | 已合入（11-04） | 两个新测试步本机共约 0.2 秒（不跑站点） | 导出随镜像；部署前配置对比（演练、构建前、激活前）；回读逐租户上线必验探针；本批真机单 |
+| E 合入 | 5fe8fa287 | 已合入（11-04） | CI 上两步各约 1 秒 | — |
+| D 接口分诊 | 见本块提交 | 待合入 | 闸门本机 0.67 → 1.2 秒 | 见下方「D 块」 |
+| G 看板 | — | 本窗口接着做 | — | — |
 | F CC 前端注释 | — | 等主会话通知 | — | cc-entry-fixes 合入后 |
 
 > 基线：`c9057f6f4`（= 远端 main = 生产 release-20261103-1328）。分支 `pearnly/product-map-885dc7`，工作树 `.claude/worktrees/product-map-885dc7`。
@@ -270,3 +272,43 @@ scripts/check-product-map.py   # 闸门
 - **存储与成本**：地图文件几百 KB；CI 多几秒；不加 runner、不加定时任务、不加固定月费。
 - **删除 / 作废**：删入口要同时删行（规则 2 强制）；「待删接口」只列清单，不在本期删。
 - **文案**：不涉及界面文案；脚本输出是给开发看的中文，不进产品词典。
+
+## D 块：白名单接口分诊（11-04）
+
+闸门新规则：一期范围（共用层、ERP、Cowork）602 个白名单接口里，找不到调用方的（前端、Python、CC 桌面版、站外配置、部署脚本都没调；测试和流程用例不算）
+要么删掉，要么登记进 `not_entries.toml` 并写原因；有了调用方闸门会报「该删」。影响清单也会把「改到入口调用的接口」算进命中。
+
+找不到调用方的 99 个（评估粗数 95，口径改成按调用方实际引用后的真实数）：
+
+| 分类 | 个数 | 说明 |
+|---|---|---|
+| dynamic | 51 | 前端引用了模块前缀，方法名按拼接调用（上传 begin / finish、导出等），扫描器认不出——在用，待逐个核实 |
+| compat | 24 | 产品里没有调用方，文档提到（保留的兼容入口或旧功能）——待核实保留期限 |
+| delete | 24 | 待删候选：产品里没有调用方，只有测试在调或全仓都没有 |
+
+待删候选清单（交主会话；删除另走批次，删的同一提交删掉对应条目）：
+
+- `pearnly_core.manifest.describe`：产品里没有调用方，只有测试 scripts/flows/cc_person_names.py 在调（待删候选）
+- `pearnly_core.ocr.api_selftest`：全仓没有调用方，测试与文档也没提到（待删候选）
+- `pearnly_core.sessions.logout_here`：产品里没有调用方，只有测试 tests/baseline/unguarded_endpoints.toml 在调（待删候选）
+- `pearnly_core.sessions.my_sessions`：产品里没有调用方，只有测试 tests/baseline/unguarded_endpoints.toml 在调（待删候选）
+- `pearnly_cowork.files.guard.optimize_file`：全仓没有调用方，测试与文档也没提到（待删候选）
+- `pearnly_cowork.masters.api.clients`：产品里没有调用方，只有测试 apps/pearnly_control/pearnly_control/account/test_identity_pools.py 在调（待删候选）
+- `pearnly_cowork.masters.api.create_client`：产品里没有调用方，只有测试 tests/test_cowork_client_records_source_parity.py 在调（待删候选）
+- `pearnly_cowork.masters.api.products`：产品里没有调用方，只有测试 apps/pearnly_core/pearnly_core/account/test_line_login.py 在调（待删候选）
+- `pearnly_cowork.masters.api.roster`：产品里没有调用方，只有测试 apps/pearnly_dms/pearnly_dms/operators/test_line_account.py 在调（待删候选）
+- `pearnly_cowork.masters.api.supplier_profiles`：产品里没有调用方，只有测试 scripts/flows/cowork_operator_lib.py 在调（待删候选）
+- `pearnly_cowork.masters.api.workspaces`：产品里没有调用方，只有测试 scripts/flows/cowork_recon_presets.py 在调（待删候选）
+- `pearnly_cowork.stocktake.api.add_entry`：产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_permissions.py 在调（待删候选）
+- `pearnly_cowork.stocktake.api.close`：产品里没有调用方，只有测试 apps/pearnly_core/pearnly_core/execution/test_pool.py 在调（待删候选）
+- `pearnly_cowork.stocktake.api.create`：产品里没有调用方，只有测试 apps/pearnly_control/pearnly_control/account/test_member_service.py 在调（待删候选）
+- `pearnly_cowork.stocktake.api.edit_entry`：产品里没有调用方，只有测试 tests/test_erp_stocktake_photos.py 在调（待删候选）
+- `pearnly_cowork.stocktake.api.export`：产品里没有调用方，只有测试 scripts/flows/cowork_exports.py 在调（待删候选）
+- `pearnly_cowork.stocktake.api.report`：产品里没有调用方，只有测试 apps/pearnly_control/pearnly_control/account/test_repool.py 在调（待删候选）
+- `pearnly_erp_portal.mrerp.api.account_sets`：产品里没有调用方，只有测试 scripts/flows/cowork_mrerp_login.py 在调（待删候选）
+- `pearnly_erp_portal.mrerp.api.choose`：产品里没有调用方，只有测试 scripts/flows/cowork_pending_operator.py 在调（待删候选）
+- `pearnly_erp_portal.mrerp.api.company_choices`：产品里没有调用方，只有测试 tests/flows/behind_baseline.txt 在调（待删候选）
+- `pearnly_erp_portal.mrerp.api.configure`：产品里没有调用方，只有测试 scripts/flows/cowork_mrerp_login.py 在调（待删候选）
+- `pearnly_erp_portal.mrerp.api.connection_view`：全仓没有调用方，测试与文档也没提到（待删候选）
+- `pearnly_erp_portal.mrerp.api.detach`：产品里没有调用方，只有测试 tests/test-desk-place-and-switch.cjs 在调（待删候选）
+- `pearnly_erp_portal.mrerp.api.refresh_catalog`：全仓没有调用方，测试与文档也没提到（待删候选）

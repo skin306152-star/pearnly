@@ -165,7 +165,10 @@ App 下虽然有 `.pre-commit-config.yaml`，但它们不是根级统一检查�
 4. 「有测试」只认绿：流程用例、单测、离线入口、读码 / 消息等业务冒烟；只有打开冒烟、页面快照、人工清单的是黄，不算（主会话 11-04）。
    人工 / 真机清单只对写了 `device_only`（不能自动化的理由）与 `device`（步骤与预期）的行有效，这类行进本批真机单。
 5. 出事回填：线上事故或用户发现的问题，在对应行补一条测试并写 `incidents`。
-6. 部署接线（11-04 E 块）：
+6. 白名单接口（11-04 D 块）：一期范围的 `@frappe.whitelist` 接口找不到调用方（前端、Python、CC 桌面版、站外配置、`scripts/production/`；
+   测试与流程用例不算）就失败——删掉，或在 `not_entries.toml` 登记 `endpoint:<点分名>`、`kind`（dynamic 拼名调用 / compat 兼容保留 / internal / delete 待删）与原因。
+   改到接口所在模块时，调用它的入口行也进影响清单。
+7. 部署接线（11-04 E 块）：
    - 镜像构建时 `check-product-map.py --export` 生成 `scripts/production/product-map.json`（配置分类、上线必验行与探针、只能真机的行），随部署工具同步到生产机。
    - **部署前租户配置对比**（`scripts/production/check-tenant-config.py`）：`deploy.sh --dry-run` 与正式部署构建前各经一次 SSH 跑一次，
      服务器激活前（`deploy-run.sh` 的 config 步骤）用镜像里那份再跑一次。在各产品 web 容器里读站点配置（不进数据库容器），

@@ -2,7 +2,8 @@
 """产品地图闸门（评估与审定 docs/work/2026-11-04-product-map.md；地图 scripts/impact/product-map/）。
 
 四条规则（离线、只读）：
-1. 未登记：代码里发现的入口（锚点）不在任何地图行、也不在 not_entries.toml → 失败；site_config 键没在 config.toml 分类 → 失败。
+1. 未登记：代码里发现的入口（锚点）不在任何地图行、也不在 not_entries.toml → 失败；site_config 键没在 config.toml 分类 → 失败；
+   白名单接口找不到调用方（前端、Python、CC 桌面版、站外配置、部署脚本都没调它）又没在 not_entries.toml 登记 → 失败。
 2. 已过期：地图行的锚点在代码里找不到、引用的流程 / 入口 / 共用件 / 单测不存在 → 失败；not_entries 里的锚点已不在代码里也失败。
 3. 没有测试：某行某端不是绿（流程 / 单测 / 离线入口 / 业务探针）也不是真机（标了只能真机、写了理由与清单）→ 失败，
    除非「行 id@端」在 untested_baseline.txt。基线只许减少：新加的条目、已经有测试或已不存在的条目都失败。
@@ -38,7 +39,8 @@ import product_map as pm  # noqa: E402
 END_NAMES = {"desktop": "电脑", "mobile": "手机"}
 
 
-def check(product_map: pm.Map, repo: pm.Repo, found: dict, keys: dict, families: dict, flows, impact, parts) -> list[str]:
+def check(product_map: pm.Map, repo: pm.Repo, found: dict, keys: dict, families: dict, flows, impact, parts,
+          endpoints: dict | None = None) -> list[str]:
     errors = list(product_map.errors)
     errors += pm.validate(product_map, repo, flows, impact, parts)
     anchors = {row.anchor: row for row in product_map.rows.values()}
@@ -62,8 +64,19 @@ def check(product_map: pm.Map, repo: pm.Repo, found: dict, keys: dict, families:
             if kind == "site" and name not in product_map.config and not any(
                     name.startswith(spec[:-1]) for spec in product_map.config if spec.endswith("*")):
                 errors.append(f"已过期：行 {row.id} 的配置依赖 {ref} 不在 config.toml")
+    endpoints = endpoints or {}
+    for dotted, endpoint in sorted(endpoints.items()):
+        if not endpoint.callers and f"endpoint:{dotted}" not in product_map.not_entries:
+            errors.append(f"未登记：白名单接口 {dotted}（{endpoint.file}）找不到调用方 —— 用不到就删掉；"
+                          "在用但扫描器认不出（拼名、站外调用）或只给内部用，写进 not_entries.toml 的 endpoint:{dotted} 并说明原因")
     for anchor in sorted(product_map.not_entries):
-        if anchor not in found:
+        if anchor.startswith("endpoint:"):
+            endpoint = endpoints.get(anchor[len("endpoint:"):])
+            if endpoint is None:
+                errors.append(f"已过期：not_entries.toml 里的 {anchor} 接口已经不在了，删掉这一条")
+            elif endpoint.callers:
+                errors.append(f"已过期：not_entries.toml 里的 {anchor} 现在有调用方（{endpoint.callers[0]}），删掉这一条")
+        elif anchor not in found:
             errors.append(f"已过期：not_entries.toml 里的 {anchor} 在代码里找不到，删掉这一条")
     for name in sorted(product_map.config):
         base = name[:-1] if name.endswith("*") else name
@@ -104,8 +117,12 @@ def changed(base: str, root=ROOT) -> list[str]:
     return sorted(name for name in names if name)
 
 
-def impact_rows(product_map, found, keys, changes, root=ROOT):
-    """改动 → 命中的行与原因。"""
+def impact_rows(product_map, found, keys, changes, root=ROOT, endpoints=None):
+    """改动 → 命中的行与原因（入口文件、它调用的接口所在的模块、共用件、读到的配置键）。"""
+    called = {}
+    for endpoint in (endpoints or {}).values():
+        for caller in endpoint.callers:
+            called.setdefault(caller, set()).add(endpoint.file)
     shared = tomllib.loads((root / "scripts/impact/shared-parts.toml").read_text(encoding="utf-8"))
     part_paths = {p["id"]: p["paths"] for p in shared["part"]}
     hit_parts = {pid for pid, paths in part_paths.items() if any(pm._match(c, p) for c in changes for p in paths)}
@@ -116,6 +133,8 @@ def impact_rows(product_map, found, keys, changes, root=ROOT):
         files = found[row.anchor].files if row.anchor in found else []
         if set(files) & set(changes):
             why.append("改到入口文件")
+        elif {module for path in files for module in called.get(path, ())} & set(changes):
+            why.append("改到它调用的接口")
         if hit_parts & set(row.parts):
             why.append("改到共用件 " + "、".join(sorted(hit_parts & set(row.parts))))
         if read_keys & {ref.partition(":")[2] for ref in row.config if ref.startswith("site:")}:
@@ -237,16 +256,17 @@ def main(argv=None) -> int:
     product_map = pm.load()
     found = pm.discover(repo)
     keys, families = pm.discover_config(repo)
+    endpoints = pm.discover_endpoints(repo)
     flows, impact, parts = pm.test_sources(ROOT)
     if args.suggest:
         print(suggest(product_map, found))
         return 0
     changes = args.files if args.files is not None else changed(args.base)
-    hits, _ = impact_rows(product_map, found, keys, changes)
+    hits, _ = impact_rows(product_map, found, keys, changes, endpoints=endpoints)
     if args.batch:
         print(batch(product_map, hits))
         return 0
-    errors = check(product_map, repo, found, keys, families, flows, impact, parts)
+    errors = check(product_map, repo, found, keys, families, flows, impact, parts, endpoints)
     report = render(product_map, hits, flows, impact, args.markdown)
     print(report)
     if args.out:

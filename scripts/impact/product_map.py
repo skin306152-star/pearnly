@@ -33,6 +33,7 @@ KINDS = {"nav-page", "page-action", "page", "report", "line-menu", "line-postbac
 # 还没有可扫声明的类型：行照登记、锚点暂不核（F 块在 frontend/assistant 加 `// map:` 注释后去掉）
 UNSCANNED_KINDS = {"cc-action"}
 PROBES = {"liff", "http", "assistant-gate"}
+ENDPOINT_KINDS = {"dynamic", "compat", "internal", "delete"}
 CONFIG_CLASSES = {"same", "shape", "presence", "varies", "infra"}
 ROW_FIELDS = {"id", "product", "products", "channel", "ends", "kind", "anchor", "where", "parts", "config", "tests",
               "device", "device_only", "must_verify", "probe", "group", "na", "incidents", "note"}
@@ -454,6 +455,8 @@ def load(directory=MAP_DIR) -> Map:
         for raw in tomllib.loads((directory / "not_entries.toml").read_text(encoding="utf-8")).get("anchor", []):
             if not str(raw.get("reason") or "").strip():
                 errors.append(f"not_entries.toml：{raw.get('anchor')} 没写原因")
+            if str(raw.get("anchor", "")).startswith("endpoint:") and raw.get("kind") not in ENDPOINT_KINDS:
+                errors.append(f"not_entries.toml：{raw.get('anchor')} 的 kind 只能是 {sorted(ENDPOINT_KINDS)}")
             not_entries[raw.get("anchor")] = raw.get("reason", "")
     if (directory / "config.toml").exists():
         data = tomllib.loads((directory / "config.toml").read_text(encoding="utf-8"))
@@ -577,3 +580,87 @@ def status(row: Row, flows: dict, impact: dict) -> dict:
 
 def tested(level: str) -> bool:
     return level in (GREEN, DEVICE)
+
+
+# ---------------------------------------------------------------- 白名单接口（D 块）
+
+ENDPOINT_APPS = ("pearnly_core", "pearnly_erp_portal", "pearnly_cowork")
+WHITELIST = re.compile(r"^[ \t]*@frappe\.whitelist\b[^\n]*\n(?:[ \t]*@[^\n]*\n)*[ \t]*(?:async[ \t]+)?def[ \t]+(\w+)", re.M)
+DOTTED = re.compile(r"\bpearnly_[a-z_]+(?:\.[A-Za-z_][A-Za-z0-9_]*)+")
+FROM_IMPORT = re.compile(r"^[ \t]*from[ \t]+(pearnly_[\w.]+)[ \t]+import[ \t]+\(?([\w ,\t\n]+)\)?", re.M)
+CALLER_SUFFIXES = (".py", ".js", ".html", ".ts", ".tsx", ".vue", ".json", ".sh", ".ftl", ".conf", ".yml", ".yaml")
+# 调用方可能在：产品代码、前端单页、CC 桌面版、站外配置（Keycloak 主题、nginx）、开户与部署脚本。
+# 流程用例、冒烟、回归与 sample 验证脚本是测试，不算调用方
+CALLER_ROOTS = ("apps/", "frontend/", "companion/src/", "infrastructure/", "scripts/production/")
+QUOTED = re.compile(r"[\"'`]([A-Za-z_][A-Za-z0-9_]*)[\"'`]")
+CALLER_SKIP = ("/node_modules/", "/public/assistant/", "/public/pearnly-app/", "/vendor/", "/dist/", ".min.js")
+
+
+@dataclass
+class Endpoint:
+    dotted: str
+    file: str
+    callers: list = field(default_factory=list)
+
+
+def module_of(path: str) -> str:
+    """`apps/pearnly_x/pearnly_x/a/b.py` → `pearnly_x.a.b`。"""
+    return path[len("apps/"):].split("/", 1)[1][:-3].replace("/", ".").removesuffix(".__init__")
+
+
+def caller_index(repo: Repo) -> tuple[dict, list]:
+    """一次扫完：{点分名（含它的每一级前缀）: {提到它的文件…}}，以及参与的文件。测试、补丁、构建产物不算调用方。"""
+    index, files = {}, []
+    for path in repo.files:
+        if not path.endswith(CALLER_SUFFIXES) or is_test(path) or any(s in path for s in CALLER_SKIP):
+            continue
+        if not path.startswith(CALLER_ROOTS):
+            continue
+        text = repo.text(path)
+        files.append(path)   # 前端文件都要：方法名可能单独写在一个不带前缀的文件里
+        if "pearnly_" not in text:
+            continue
+        names = set(DOTTED.findall(text))
+        for module, imported in FROM_IMPORT.findall(text):
+            names.update(f"{module}.{name.strip()}" for name in re.split(r"[,\s]+", imported) if name.strip())
+        for name in names:
+            parts = name.split(".")
+            for size in range(2, len(parts) + 1):
+                index.setdefault(".".join(parts[:size]), set()).add(path)
+    return index, files
+
+
+def discover_endpoints(repo: Repo | None = None) -> dict[str, Endpoint]:
+    """一期范围（共用层、ERP、Cowork）的白名单接口与它们的调用方（前端、Python、CC 桌面版；接口自己的文件不算）。"""
+    repo = repo or Repo()
+    index, files = caller_index(repo)
+    quoted, scripts_in = {}, {}
+    for p in files:
+        if p.endswith((".js", ".html", ".ts", ".tsx", ".vue")):
+            for found in QUOTED.findall(repo.text(p)):
+                quoted.setdefault(found, set()).add(p)
+    for p in repo.files:
+        if p.endswith(".js") and p.startswith("apps/"):
+            scripts_in.setdefault(p.rsplit("/", 1)[0], []).append(p)
+    endpoints = {}
+    for path in repo.files:
+        if not (path.endswith(".py") and path.startswith(tuple(f"apps/{a}/" for a in ENDPOINT_APPS))) or is_test(path):
+            continue
+        text = repo.text(path)
+        if "frappe.whitelist" not in text:
+            continue
+        module = module_of(path)
+        for name in WHITELIST.findall(text):
+            dotted = f"{module}.{name}"
+            word = re.compile(r"\b" + re.escape(name) + r"\b")
+            callers = {p for p in index.get(dotted, set()) | index.get(module, set())
+                       if p != path and (dotted in repo.text(p) or word.search(repo.text(p)))}
+            # DocType 表单脚本 `frm.call("方法名")` 不带模块路径：同目录的 .js 提到这个名字也算
+            callers |= {p for p in scripts_in.get(path.rsplit("/", 1)[0], ()) if word.search(repo.text(p))}
+            # 前端把前缀和方法名分在两个文件（`u.api = "x.purchasing.api."` 与 `u.call("api_post_purchase")`）：同一个 App 的
+            # 前端（共用层的接口看全部前端）里带引号写出这个方法名也算；宁可多认一个调用方，不把在用的接口当成没人调
+            app = module.split(".")[0]
+            callers |= {p for p in quoted.get(name, ()) if app == "pearnly_core" or p.startswith(f"apps/{app}/")}
+            callers = sorted(callers)
+            endpoints[dotted] = Endpoint(dotted, path, callers)
+    return endpoints

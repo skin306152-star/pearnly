@@ -29,9 +29,9 @@ def row(anchor, **overrides):
     return pm.Row(**base)
 
 
-def run(rows, discovered, *, baseline=(), not_entries=None, config=None, keys=None, families=None):
+def run(rows, discovered, *, baseline=(), not_entries=None, config=None, keys=None, families=None, endpoints=None):
     product_map = pm.Map({r.id: r for r in rows}, not_entries or {}, config or {}, list(baseline), [])
-    return gate.check(product_map, REPO, discovered, keys or {}, families or {}, FLOWS, IMPACT, set())
+    return gate.check(product_map, REPO, discovered, keys or {}, families or {}, FLOWS, IMPACT, set(), endpoints or {})
 
 
 class Rules(unittest.TestCase):
@@ -98,6 +98,26 @@ class Rules(unittest.TestCase):
         self.assertIn("部署后逐个正式租户核（上线必验）：`erp.c`", report)
         self.assertEqual(gate.render(product_map, {}, FLOWS, IMPACT, markdown=True), "没有改到地图里的入口。")
 
+
+    def test_rule_1_and_2_endpoints_without_callers(self):
+        endpoints = {"pearnly_x.api.dead": pm.Endpoint("pearnly_x.api.dead", "apps/x/api.py", []),
+                     "pearnly_x.api.live": pm.Endpoint("pearnly_x.api.live", "apps/x/api.py", ["apps/x/a.js"])}
+        errors = "\n".join(run([], {}, endpoints=endpoints))
+        self.assertIn("未登记：白名单接口 pearnly_x.api.dead", errors)
+        self.assertNotIn("live", errors)
+        self.assertEqual(run([], {}, endpoints=endpoints, not_entries={"endpoint:pearnly_x.api.dead": "拼名调用"}), [])
+        errors = "\n".join(run([], {}, endpoints=endpoints, not_entries={"endpoint:pearnly_x.api.live": "x",
+                                                                         "endpoint:pearnly_x.api.gone": "x",
+                                                                         "endpoint:pearnly_x.api.dead": "x"}))
+        self.assertIn("endpoint:pearnly_x.api.live 现在有调用方", errors)
+        self.assertIn("endpoint:pearnly_x.api.gone 接口已经不在了", errors)
+
+    def test_rule_4_changing_an_endpoint_hits_the_rows_that_call_it(self):
+        rows = [row("nav:erp:a"), row("nav:erp:b")]
+        product_map = pm.Map({r.id: r for r in rows}, {}, {}, [], [])
+        endpoints = {"pearnly_x.api.f": pm.Endpoint("pearnly_x.api.f", "apps/x/api.py", ["apps/x/a.js"])}
+        hits, _ = gate.impact_rows(product_map, found("nav:erp:a", "nav:erp:b"), {}, ["apps/x/api.py"], endpoints=endpoints)
+        self.assertEqual(hits, {"erp.a": ["改到它调用的接口"]})
 
     def test_export_carries_config_classes_and_only_must_verify_or_device_rows(self):
         rows = [row("nav:erp:a"), row("nav:erp:b", must_verify=True, probe={"type": "liff", "path": "/desk/x"}),

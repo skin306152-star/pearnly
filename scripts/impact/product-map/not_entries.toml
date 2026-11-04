@@ -1,4 +1,501 @@
 # 发现到但不算入口的锚点（scripts/check-product-map.py 规则 1）：逐条写原因，只许按条登记。
-# [[anchor]]
-# anchor = "<锚点>"
-# reason = "<为什么不算入口>"
+# endpoint:<点分名> = 找不到调用方的白名单接口（D 块分诊，主会话 11-04：一期只分诊，待删的列清单另走批次）。kind：
+#   dynamic = 前端按「模块.」前缀拼方法名调用，扫描器认不出名字（在用，待核实）；
+#   compat  = 文档里提到（保留的兼容入口或旧功能，待核实保留期限）；
+#   delete  = 待删候选：产品里没有调用方（只有测试在调，或全仓都没有）。
+# 删接口时同一提交删掉这一条；有了调用方闸门会报「该删」。
+
+[[anchor]]
+anchor = "endpoint:pearnly_core.assistant.api.tool_labels"
+kind = "dynamic"
+reason = "前端引用了「pearnly_core.assistant.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_core.manifest.describe"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 scripts/flows/cc_person_names.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_core.ocr.api_selftest"
+kind = "delete"
+reason = "全仓没有调用方，测试与文档也没提到（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_core.sessions.logout_here"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 tests/baseline/unguarded_endpoints.toml 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_core.sessions.my_sessions"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 tests/baseline/unguarded_endpoints.toml 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.connections.api.mrerp_remembered"
+kind = "dynamic"
+reason = "前端引用了「pearnly_cowork.connections.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.files.api.metadata"
+kind = "dynamic"
+reason = "前端引用了「pearnly_cowork.files.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.files.guard.optimize_file"
+kind = "delete"
+reason = "全仓没有调用方，测试与文档也没提到（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.history.api.duplicate_setting"
+kind = "dynamic"
+reason = "前端引用了「pearnly_cowork.history.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.history.api.save_duplicate_setting"
+kind = "dynamic"
+reason = "前端引用了「pearnly_cowork.history.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.history.category_api.category_tree"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/cowork-backend/backend-api.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.history.category_api.disable_category"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/cowork-backend/backend-api.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.history.category_api.initialize_categories"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/cowork-backend/backend-api.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.history.category_api.save_category"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/cowork-backend/backend-api.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.history.category_api.set_category_enabled"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/cowork-backend/backend-api.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.client_detail"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.clients"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 apps/pearnly_control/pearnly_control/account/test_identity_pools.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.commit_client_import"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.create_client"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 tests/test_cowork_client_records_source_parity.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.create_workspace"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/cowork-backend/backend-api.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.delete_client"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.delete_product"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/cowork-backend/masters-product-store.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.delete_supplier_profile"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/cowork-backend/masters-supplier-posting.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.preview_client_import"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.product_detail"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/cowork-backend/masters-product-store.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.products"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 apps/pearnly_core/pearnly_core/account/test_line_login.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.resolve_buyer"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.roster"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 apps/pearnly_dms/pearnly_dms/operators/test_line_account.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.save_client"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.save_erp_mapping"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/cowork-backend/thirteenth-source-review.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.save_product"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.save_supplier_profile"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/cowork-backend/masters-supplier-posting.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.supplier_profiles"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 scripts/flows/cowork_operator_lib.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.api.workspaces"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 scripts/flows/cowork_recon_presets.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.workspace_api.commit_workspace_import"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.workspace_api.parse_workspace_import"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.masters.workspace_api.preview_workspace_import"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.ocr.api.retry_billing"
+kind = "dynamic"
+reason = "前端引用了「pearnly_cowork.ocr.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation.create_from_sources"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.reconciliation.bank_recon_api.check_review"
+kind = "dynamic"
+reason = "前端引用了「pearnly_cowork.reconciliation.bank_recon_api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.reconciliation.bank_recon_api.confirm_review"
+kind = "dynamic"
+reason = "前端引用了「pearnly_cowork.reconciliation.bank_recon_api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.reconciliation.bank_recon_api.create"
+kind = "dynamic"
+reason = "前端引用了「pearnly_cowork.reconciliation.bank_recon_api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.reconciliation.bank_recon_api.create_from_parsed"
+kind = "dynamic"
+reason = "前端引用了「pearnly_cowork.reconciliation.bank_recon_api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.reconciliation.bank_recon_api.delete_many"
+kind = "dynamic"
+reason = "前端引用了「pearnly_cowork.reconciliation.bank_recon_api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.reconciliation.income_recon_api.create"
+kind = "dynamic"
+reason = "前端引用了「pearnly_cowork.reconciliation.income_recon_api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.reconciliation.income_recon_api.create_from_parsed"
+kind = "dynamic"
+reason = "前端引用了「pearnly_cowork.reconciliation.income_recon_api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.reconciliation.income_recon_api.delete_many"
+kind = "dynamic"
+reason = "前端引用了「pearnly_cowork.reconciliation.income_recon_api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.stocktake.api.add_entry"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_permissions.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.stocktake.api.close"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 apps/pearnly_core/pearnly_core/execution/test_pool.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.stocktake.api.create"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 apps/pearnly_control/pearnly_control/account/test_member_service.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.stocktake.api.edit_entry"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 tests/test_erp_stocktake_photos.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.stocktake.api.export"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 scripts/flows/cowork_exports.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_cowork.stocktake.api.report"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 apps/pearnly_control/pearnly_control/account/test_repool.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.cashier.api.api_counter_lookup"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.cashier.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.cashier.api.api_create_terminal"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.cashier.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.cashier.api.api_update_terminal"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.cashier.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.integrations.api.api_line_bot"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.integrations.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_adjust"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_count"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_issue"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_list_openings"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_list_warehouses"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_rebuild_balance"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_receive"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_count_entries"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_count_entry_total"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_count_import"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_count_item_total"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_count_items"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_count_post"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_summary"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_upload_begin"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_upload_finish"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_submit_stock_entry"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.api.api_upsert_opening"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.inventory.serials.api_unit_history"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.inventory.serials.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.masters.api.api_company_terminals"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.masters.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.masters.api.api_create_company_terminal"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.masters.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.masters.api.api_set_customer_active"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.masters.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.masters.api.api_update_company_terminal"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.masters.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.mrerp.api.account_sets"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 scripts/flows/cowork_mrerp_login.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.mrerp.api.choose"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 scripts/flows/cowork_pending_operator.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.mrerp.api.choose_ledger"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/2026-11-03-mrerp-operator-server.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.mrerp.api.company_choices"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 tests/flows/behind_baseline.txt 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.mrerp.api.configure"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 scripts/flows/cowork_mrerp_login.py 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.mrerp.api.connection_view"
+kind = "delete"
+reason = "全仓没有调用方，测试与文档也没提到（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.mrerp.api.detach"
+kind = "delete"
+reason = "产品里没有调用方，只有测试 tests/test-desk-place-and-switch.cjs 在调（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.mrerp.api.read_choices"
+kind = "compat"
+reason = "产品里没有调用方；文档 docs/work/2026-11-03-mrerp-operator-server.md 提到（兼容保留候选，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.mrerp.api.refresh_catalog"
+kind = "delete"
+reason = "全仓没有调用方，测试与文档也没提到（待删候选）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.products.service.api_add_unit"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.products.service.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.purchasing.api.api_purchase_category"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.purchasing.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.purchasing.api.api_purchase_export"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.purchasing.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.purchasing.api.api_purchase_upload_begin"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.purchasing.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.purchasing.api.api_purchase_upload_finish"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.purchasing.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.sales.api.api_sale_upload_begin"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.sales.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.sales.api.api_sale_upload_finish"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.sales.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.sales.api.api_sales_export"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.sales.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.team.api.api_set_member_companies"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.team.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.work.api.boards_list"
+kind = "dynamic"
+reason = "前端引用了「pearnly_erp_portal.work.api.」前缀，方法名按拼接调用，扫描器认不出（在用，待核实）"

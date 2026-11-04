@@ -84,6 +84,43 @@ class Discovery(unittest.TestCase):
         self.assertEqual(sorted(keys), ["pearnly_engine", "pearnly_flag", "pearnly_issuer", "pearnly_menu", "pearnly_written"])
         self.assertEqual(list(families), ["pearnly_line_"])
 
+    def test_endpoint_callers_by_full_name_split_prefix_form_script_and_other_roots(self):
+        app = "apps/pearnly_erp_portal/pearnly_erp_portal"
+        repo = fake_repo({
+            f"{app}/sales/api.py": """
+                import frappe
+                @frappe.whitelist()
+                def api_full(): pass
+                @frappe.whitelist(methods=["POST"])
+                def api_split(): pass
+                @frappe.whitelist()
+                def api_python(): pass
+                @frappe.whitelist()
+                def api_nobody(): pass
+                @frappe.whitelist()
+                def api_only_tests(): pass
+            """,
+            f"{app}/public/desk/a.js": 'frappe.call("pearnly_erp_portal.sales.api.api_full"); u.api = "pearnly_erp_portal.sales.api.";',
+            f"{app}/public/desk/b.js": 'u.call("api_split")',
+            f"{app}/cc/tools.py": "from pearnly_erp_portal.sales.api import api_python\n",
+            f"{app}/pearnly_erp_portal/doctype/erp_x/erp_x.py": "import frappe\nclass X:\n    @frappe.whitelist()\n    def form_action(self): pass\n",
+            f"{app}/pearnly_erp_portal/doctype/erp_x/erp_x.js": 'frm.call("form_action")',
+            "infrastructure/keycloak/themes/x/login.ftl": "/api/method/pearnly_core.account.api.from_theme",
+            "apps/pearnly_core/pearnly_core/account/api.py": "import frappe\n@frappe.whitelist(allow_guest=True)\ndef from_theme(): pass\n",
+            "tests/test_sales.py": "from pearnly_erp_portal.sales.api import api_only_tests\n",
+            "scripts/flows/sales.py": '"pearnly_erp_portal.sales.api.api_nobody"',
+        })
+        endpoints = pm.discover_endpoints(repo)
+        callers = {name.rsplit(".", 1)[1]: e.callers for name, e in endpoints.items()}
+        self.assertEqual(callers["api_full"], [f"{app}/public/desk/a.js"])
+        self.assertEqual(callers["api_split"], [f"{app}/public/desk/b.js"])
+        self.assertEqual(callers["api_python"], [f"{app}/cc/tools.py"])
+        self.assertEqual(callers["form_action"], [f"{app}/pearnly_erp_portal/doctype/erp_x/erp_x.js"])
+        self.assertEqual(callers["from_theme"], ["infrastructure/keycloak/themes/x/login.ftl"])
+        # 测试、流程用例不算调用方
+        self.assertEqual(callers["api_nobody"], [])
+        self.assertEqual(callers["api_only_tests"], [])
+
 
 def row(**overrides):
     base = dict(id="erp.line.card-edit", product="ERP", channel="line", ends=["mobile"], kind="line-link",
