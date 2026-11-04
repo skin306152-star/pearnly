@@ -1,7 +1,5 @@
 # 产品地图里还没有测试的入口（行 id@端），scripts/check-product-map.py 第 3 条：只许减少——补上测试后删掉对应条目，不许新加。
 # 「有测试」只认绿（流程 / 单测 / 离线入口 / 业务探针）与真机（标了只能真机并写了理由与清单）；只有打开冒烟、页面快照、人工清单的不算（主会话 11-04）。
-cowork.cc.action.add-company@desktop
-cowork.cc.action.add-company@mobile
 cowork.cc.action.attach@desktop
 cowork.cc.action.attach@mobile
 cowork.cc.action.company-open-in-product@desktop
@@ -15,8 +13,6 @@ cowork.cc.action.logout@mobile
 cowork.cc.action.mrerp-auth@mobile
 cowork.cc.action.settings@desktop
 cowork.cc.action.settings@mobile
-cowork.cc.action.switch-account@desktop
-cowork.cc.action.switch-account@mobile
 cowork.cc.tool.cowork_delete_documents@desktop
 cowork.cc.tool.cowork_delete_documents@mobile
 cowork.cc.tool.cowork_delete_folder_tasks@desktop
@@ -200,8 +196,6 @@ cowork.desk.pearnly-work.action.cowork.work.rules.manage@desktop
 cowork.desk.pearnly-work.action.cowork.work.rules.manage@mobile
 cowork.line.event.follow@mobile
 cowork.line.event.unfollow@mobile
-erp.cc.action.add-company@desktop
-erp.cc.action.add-company@mobile
 erp.cc.action.attach@desktop
 erp.cc.action.attach@mobile
 erp.cc.action.company-open-in-product@desktop
@@ -212,8 +206,6 @@ erp.cc.action.delete-chats@desktop
 erp.cc.action.delete-chats@mobile
 erp.cc.action.logout@desktop
 erp.cc.action.logout@mobile
-erp.cc.action.switch-account@desktop
-erp.cc.action.switch-account@mobile
 erp.cc.tool.express_operator_control@desktop
 erp.cc.tool.express_operator_control@mobile
 erp.cc.tool.express_operator_status@desktop

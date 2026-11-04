@@ -1039,7 +1039,7 @@ covers = [
 
 [[flow]]
 id = "cowork.cc.sidebar-modes"
-title = "CC 侧栏两种模式同一个框架（Cowork）：共有入口不挪、定时任务只在对话模式、代录下点公司 / 待处理不切模式、代录下选公司进新建任务页、待处理数含代录任务并按单据去重"
+title = "CC 侧栏两种模式同一个框架（Cowork）：共有入口不挪、定时任务只在对话模式、代录下点公司 / 待处理不切模式、代录下选公司进新建任务页、添加公司弹窗点已添加的打开它、待处理数含代录任务并按单据去重"
 module = "scripts/flows/cc_sidebar_modes.py"
 product = "cowork"
 start = "/assistant"
@@ -1062,6 +1062,8 @@ covers = [
   "apps/pearnly_core/pearnly_core/shell.py",
   "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py",
   "apps/pearnly_cowork/pearnly_cowork/companies/pending.py",
+  "frontend/assistant/src/components/add-company.tsx",
+  "scripts/flows/cowork_operator_lib.py",
 ]
 
 [[flow]]

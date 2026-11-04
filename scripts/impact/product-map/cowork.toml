@@ -1601,6 +1601,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:cowork:switch-account"
 where = "CC 左下角站点列表，点另一个站点（切换账号）"
+tests = ["unit:tests/test_assistant_entry.py::SiteSwitchTests"]
 parts = ["login-session"]
 config = ["ext:fatcc.com", "kc:pearnly-business:remember-me", "kc:pearnly-cowork:remember-me"]
 must_verify = true
@@ -1616,6 +1617,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:cowork:add-company"
 where = "CC 侧栏「公司」→ 添加公司"
+tests = ["flow:cowork.cc.sidebar-modes"]
 group = "cc.action.add-company"
 incidents = ["2026-11-03 ERP 版 CC 添加公司跳系统浏览器、要重新登录"]
 

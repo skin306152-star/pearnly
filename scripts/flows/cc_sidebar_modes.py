@@ -6,14 +6,20 @@
 
 准备两条「需要你处理」的任务：一条没录成的单不在产品待处理里（算），一条没录成的单就是产品待处理里列着的一张（不另算）。ERP 那张
 是临时把一张已提交的采购单标成「写账失败」放进待处理的（verify 还原）；Cowork 的回归数据里没有识别单据、待处理是空的，只建第一条
-（Cowork 的去重由 `tests/test_cowork_companies.py` 与 `tests/test_express_operator_tasks.py` 守）；旧数据集没有 Cowork 公司时临时
-建一家给公司列表选。verify 删掉准备的任务与临时公司。
+（Cowork 的去重由 `tests/test_cowork_companies.py` 与 `tests/test_express_operator_tasks.py` 守）。Cowork 的旧数据集没有公司：用代录
+流程的造数据（`cowork_operator_lib`）建一条合成账套目录的连接、从目录建一家，Cowork 另走一步「添加公司」：弹窗候选里这家是
+「已添加」，点了打开它的公司页（ERP 的添加公司在 `cc_companies.py`）。verify 删掉准备的任务、按连接清掉造的数据。
 设了 `PEARNLY_FLOWS_SHOTS` 时每一步截图（`run.py`）。
 """
 from __future__ import annotations
 
 import json
+import sys
 import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cowork_operator_lib as operator_lib  # noqa: E402
 
 TITLE = "CC 侧栏两种模式同一个框架：共有入口不挪、定时任务只对话模式、代录下点公司 / 待处理不切模式、代录下选公司进新建任务页、待处理数含代录任务并按单据去重"
 READY = "document.readyState === 'complete' && !!document.querySelector('[data-mode=\"operator\"]')"
@@ -40,12 +46,15 @@ def prepare(lab, manifest):
     user = f"admin@{product}.regression"
     lab.python(manifest["site"], f'frappe.db.set_value("User", {user!r}, "language", "zh")\nfrappe.db.commit()\nprint("{{}}")')
     tag = "flow" + uuid.uuid4().hex[:6]
+    # Cowork：用代录流程的造数据建一条 Express 连接（合成账套目录）并从目录建一家公司（旧数据集没有 Cowork 公司），公司列表与
+    # 「添加公司」弹窗里才有这家（弹窗里是「已添加」）；verify 按连接清掉
+    seed = (operator_lib.CLEANUP + operator_lib.BASE + "\nseeded = company\n") if product == "cowork" else ""
     out = lab.python(manifest["site"], f"""
 from pearnly_core.assistant import projects
 from pearnly_core.express_operator import products, tasks
 frappe.set_user({user!r})
 marked = []
-seeded = []
+{seed}
 if {product!r} == "erp":
     from pearnly_erp_portal.express import contracts, push
     company = {(manifest.get("company") or (manifest.get("companies") or [""])[0])!r}
@@ -58,18 +67,7 @@ if {product!r} == "erp":
         frappe.db.commit()
     counts = __import__("pearnly_erp_portal.masters.cc_companies", fromlist=["x"]).pending_counts()
 else:
-    row = (frappe.get_all("Cowork Company", fields=["name", "title"], order_by="creation asc", limit_page_length=1) or [None])[0]
-    if not row:
-        # 旧数据集没有 Cowork 公司：临时建一家，公司列表里才有可选的（verify 删掉）
-        from pearnly_cowork.access import scope
-        from pearnly_cowork.companies.access import COMPANY, write
-        doc = frappe.new_doc(COMPANY)
-        doc.update({{"workspace": scope.default_workspace(), "identity": "name:" + {tag!r}, "adapter": "express",
-                    "title": "Flow Co " + {tag!r}, "created_by": {user!r}}})
-        write(doc)
-        seeded.append(doc.name)
-        row = frappe._dict(name=doc.name, title=doc.title)
-    company, title = row.name, row.title or row.name
+    company, title = seeded["id"], seeded["title"]
     counts = __import__("pearnly_cowork.companies.pending", fromlist=["x"]).pending_counts()
 listed = sorted(products.pending_documents())
 before = tasks.attention()["total"]
@@ -86,7 +84,7 @@ if listed:
     task(listed[0], {tag!r} + " 已在待处理")
 frappe.db.commit()
 after = tasks.attention()
-print(json.dumps({{"product": {product!r}, "company": company, "marked": marked, "seeded": seeded, "title": title, "made": made, "listed": len(listed),
+print(json.dumps({{"product": {product!r}, "company": company, "marked": marked, "title": title, "made": made, "listed": len(listed),
                   "pending": counts["total"], "before": before, "attention": after["total"],
                   "counted": [t["name"] for t in after["tasks"]], "kind": projects.kind(),
                   "sections": projects.declared(projects.provider()).get("sections", []),
@@ -139,7 +137,17 @@ def steps(params, camera_code=None):
          "await openDrawer(); q('[data-slot=\"cc-nav-companies\"]').click(); if(!await until(card)) return {error:'company card missing'}; card().click(); "
          "const ok=await until(()=>q('[data-slot=\"cc-company-page\"]')); await sleep(600); "
          "return {ok, mode: mode(), work: !!q('[data-slot=\"cc-op-work\"]')};"},
-    ]
+    ] + ([] if params["product"] != "cowork" else [
+        {"name": "添加公司", **_shot(params, "8-添加公司"), "js": WAIT + f"const TITLE={json.dumps(params['title'])}; " + PICK +
+         "let opened=''; window.open=(u)=>{opened=String(u); return null;}; await openDrawer(); q('[data-slot=\"cc-nav-companies\"]').click(); "
+         "if(!await until(()=>qa('button').some(b=>b.innerText.trim()==='添加公司'))) return {error:'no add button'}; "
+         "qa('button').find(b=>b.innerText.trim()==='添加公司').click(); "
+         "if(!await until(()=>q('[data-slot=\"cc-candidates\"] .cc-list-row'))) return {error:'candidates missing'}; "
+         "const all=qa('[data-slot=\"cc-candidates\"] .cc-list-row'); const rows=all.map(r=>r.innerText.trim()); "
+         "const row=all.find(r=>r.innerText.split('\\n')[0].trim()===TITLE); if(!row) return {rows, error:'company row missing'}; row.click(); "
+         "const ok=await until(()=>q('[data-slot=\"cc-company-page\"]')&&q('.cc-page-title')?.innerText.trim()===TITLE); "
+         "return {ok, rows, opened, dialog: !!q('[data-slot=\"cc-add-company\"]'), mode: mode()};"},
+    ])
 
 
 def _shared(nav):
@@ -154,7 +162,7 @@ def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
     chat, operator, companies, pending, opened, back = (by.get(k) or {} for k in ("对话模式", "切到代录", "代录下点公司", "待处理", "打开任务",
                                                                                "切回对话"))
-    picked, chat_pick = by.get("代录下选公司") or {}, by.get("对话下选公司") or {}
+    picked, chat_pick, added = by.get("代录下选公司") or {}, by.get("对话下选公司") or {}, by.get("添加公司") or {}
     scheduled = "tasks" in params["sections"]
     slots = lambda step: [item["slot"] for item in step.get("nav") or []]
     want = params["pending"] + params["attention"]
@@ -183,6 +191,10 @@ def judge(params, results, camera_code=None):
          "ok": bool(opened.get("ok")) and opened.get("mode") == "operator" and params["tag"] in (opened.get("title") or "")},
         {"case": "对话模式下从「公司」选一家：照旧进公司页", "seen": chat_pick,
          "ok": bool(chat_pick.get("ok")) and chat_pick.get("mode") == "chat" and not chat_pick.get("work")},
+        *([] if params["product"] != "cowork" else [
+            {"case": "Cowork「添加公司」弹窗：候选里这家标「已添加」，点了打开它的公司页（不开新窗口）", "seen": {**added, "want": params["title"]},
+             "ok": bool(added.get("ok")) and not added.get("opened") and not added.get("dialog")
+             and any(r.startswith(params["title"]) and "已添加" in r for r in added.get("rows") or [])}]),
         {"case": "切回对话：回到对话的侧栏，共有入口还在原位", "seen": {"mode": back.get("mode"), "nav": _shared(back.get("nav"))},
          "ok": back.get("mode") == "chat" and _shared(back.get("nav")) == _shared(chat.get("nav"))},
     ]
@@ -201,8 +213,7 @@ picked = frappe.get_all(tasks.DOCTYPE, filters={{"owner": {params["user"]!r}, "c
                         fields=["name", "period", "status"], limit_page_length=50)
 for name in {params["made"]!r} + [row.name for row in picked]:
     frappe.delete_doc(tasks.DOCTYPE, name, ignore_permissions=True, force=True)
-for name in {params["seeded"]!r}:
-    frappe.db.delete("Cowork Company", {{"name": name}})
+{operator_lib.CLEANUP + "cleanup()" if product == "cowork" else ""}
 frappe.db.commit()
 frappe.set_user("admin@{product}.regression")
 print(json.dumps({{"attention": tasks.attention()["total"], "picked": [dict(row) for row in picked],
