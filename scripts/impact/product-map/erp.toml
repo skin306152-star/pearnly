@@ -1566,7 +1566,7 @@ kind = "scan"
 anchor = "scan:erp.products.new-page.scan"
 where = "pearnly-products/new 表格：`/desk/pearnly-products/new` → 表格上方扫码按钮；表内扫码枪回车"
 parts = ["desk-scan-core", "erp-scan-dialog"]
-tests = ["impact:erp.products.new-page.scan"]
+tests = ["flow:erp.products.new-page.scan@mobile", "impact:erp.products.new-page.scan"]
 
 [[row]]
 id = "erp.scan.products.detail.barcode-scan"
@@ -1577,7 +1577,7 @@ kind = "scan"
 anchor = "scan:erp.products.detail.barcode-scan"
 where = "物料详情条码格：物料列表点本地商品 → 条码格扫码图标"
 parts = ["desk-scan-core", "erp-scan-dialog"]
-tests = ["impact:erp.products.detail.barcode-scan"]
+tests = ["flow:erp.products.detail.scan@mobile", "impact:erp.products.detail.barcode-scan"]
 
 [[row]]
 id = "erp.scan.cashier.camera"

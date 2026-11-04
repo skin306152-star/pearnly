@@ -517,6 +517,32 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.products.new-page.scan"
+title = "ERP 物料新建整页：表上方扫码新加一行、填品名单位、保存出新物料（手机宽度假摄像头扫码；产品地图 11-04 扫码入口逐个成行）"
+module = "scripts/flows/erp_products_new_scan.py"
+start = "/desk/pearnly-products"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = true
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js",
+]
+
+[[flow]]
+id = "erp.products.detail.scan"
+title = "ERP 物料详情弹窗：本地物料条码格扫码填码、保存（手机宽度假摄像头点扫码图标；产品地图 11-04 扫码入口逐个成行）"
+module = "scripts/flows/erp_products_detail_scan.py"
+start = "/desk/pearnly-products"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = true
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js",
+]
+
+[[flow]]
 id = "erp.sales.scan"
 title = "ERP 销售单：手动录入、单头选客户与仓、明细组合框按码认商品（手机宽度扫条码）、提交出库（fcb65cca 逐入口实测）"
 module = "scripts/flows/erp_sales_scan.py"
