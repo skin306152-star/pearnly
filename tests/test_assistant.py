@@ -2442,6 +2442,10 @@ class BrandAndLoginTests(unittest.TestCase):
                     sys.modules[name] = module
         # 第一次：去 CC 入口并留记号；记号还在又回来（本站没登上）：走本站登录口，不来回跳。
         self.assertEqual(gate.assistant_gate({}, "https://testai.pearnly.com/"), ("https://testai.pearnly.com/", True))
+        # 带上本站（2026-11-04 CC 里切换站点）：入口静默确认后这个身份进不了本站就回入口登录页，不送回上次那家
+        self.assertEqual(gate.assistant_gate({}, "https://fatcc.com", "testcowork.pearnly.com"),
+                         ("https://fatcc.com/?site=testcowork.pearnly.com", True))
+        self.assertEqual(gate.assistant_gate({gate.CC_ENTRY_MARK: "1"}, "https://fatcc.com", "testcowork.pearnly.com")[1], False)
         self.assertEqual(gate.assistant_gate({gate.CC_ENTRY_MARK: "1"}, "https://fatcc.com"),
                          ("/api/method/pearnly_core.identity.begin_login?redirect_to=/assistant", False))
         cookies = {}
@@ -2462,7 +2466,8 @@ class BrandAndLoginTests(unittest.TestCase):
         hooks = (CORE / "hooks.py").read_text(encoding="utf-8")
         self.assertLess(hooks.index("login_redirect.follow_liff_state"), hooks.index("login_redirect.redirect_guests_to_identity"))
         page = (CORE / "www/assistant.py").read_text(encoding="utf-8")
-        self.assertIn("login_redirect.assistant_gate(", page)
+        self.assertIn("login_redirect.assistant_gate(frappe.request.cookies, assistant_entry_url(), frappe.local.site)", page)
+        self.assertIn("assistant_gate(frappe.request.cookies, assistant_entry_url(), frappe.local.site)", source)
         self.assertNotIn("begin_login", page)
         identity = (CORE / "identity.py").read_text(encoding="utf-8")
         self.assertIn('back = assistant_entry_url() + "/?fresh=1"', identity)

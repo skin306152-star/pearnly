@@ -82,11 +82,12 @@ def set_entry_mark(set_cookie) -> None:
                secure=True, httponly=True, samesite="Lax")
 
 
-def assistant_gate(cookies, entry_url: str) -> tuple[str, bool]:
-    """访客打开对话页去哪：CC 入口（并留记号）；记号还在就是刚从入口回来仍没登上，改走本站登录口。"""
+def assistant_gate(cookies, entry_url: str, site: str = "") -> tuple[str, bool]:
+    """访客打开对话页去哪：CC 入口（并留记号），带上本站 ``?site=``（入口静默确认后，这个身份进不了本站就回入口登录页换账号，
+    不送回上次那家）；记号还在就是刚从入口回来仍没登上，改走本站登录口。"""
     if (cookies or {}).get(CC_ENTRY_MARK):
         return BEGIN_LOGIN + quote("/assistant"), False
-    return entry_url.rstrip("/") + "/", True
+    return entry_url.rstrip("/") + "/" + (f"?site={quote(site)}" if site else ""), True
 
 
 def is_business_site() -> bool:
@@ -149,7 +150,7 @@ def redirect_guests_to_identity() -> None:
     if normalized == "/assistant":
         from pearnly_core.identity import assistant_entry_url
 
-        location, mark = assistant_gate(frappe.request.cookies, assistant_entry_url())
+        location, mark = assistant_gate(frappe.request.cookies, assistant_entry_url(), frappe.local.site)
         raise _Redirect(location, 302, mark=mark)
 
     # 把访客**本来要去的那个入口**带过去，登录成功后由首页规则决定最终落点

@@ -146,7 +146,7 @@ class RememberedIssuerTests(unittest.TestCase):
         calls = []
         self.entry._authorize = lambda issuer, **kw: calls.append((issuer, kw)) or "https://auth/silent"
         self.assertEqual(self.entry.resume_url(), "https://auth/silent")
-        self.assertEqual(calls, [(ISSUER, {"silent": True})])
+        self.assertEqual(calls, [(ISSUER, {"silent": True, "site": ""})])
 
     def test_an_unencoded_value_and_no_cookie_still_behave(self):
         self.entry._authorize = lambda issuer, **kw: "https://auth/silent"
@@ -156,6 +156,61 @@ class RememberedIssuerTests(unittest.TestCase):
         self.assertEqual(self.entry.resume_url(), "")     # 不记得：显示登录页
         self.cookies[self.entry.ISSUER_COOKIE] = quote("https://evil.com/x".encode("utf-8"))
         self.assertEqual(self.entry.resume_url(), "")
+
+class SiteSwitchTests(unittest.TestCase):
+    """CC 里切换站点（2026-11-04）：A 站的 ERP 账号登着，打开 B 站对话页 → B 送来入口并带 ``?site=B`` → 静默确认通过
+    （记住的是 A 的账号池）。以前回调按身份 `go(A)`，用户看起来点了没反应，120 秒内再点就落到 B 自己的 Keycloak 登录页；
+    现在身份进不了 B 就回入口登录页换账号，进得了直接进 B。不带 site 的行为不变。"""
+
+    setUp = GoTests.setUp
+
+    def run_callback(self, saved, sites, last=""):
+        self.cookies.pop(self.entry.SITE_COOKIE, None)
+        if last:
+            self.cookies[self.entry.SITE_COOKIE] = last
+        self.entry._take = lambda key: dict(saved)
+        self.entry._verify = lambda code, state: {"sub": "u1", "preferred_username": "somchai"}
+        self.entry._billing = lambda action, **kw: {"sites": [{"site": name} for name in sites]}
+        self.entry._remember = lambda *a: None
+        self.entry._store = lambda: types.SimpleNamespace(set_value=lambda *a, **kw: None)
+        self.native.conf["pearnly_assistant_entry"] = 1
+        self.native.conf["pearnly_assistant_entry_url"] = "https://fatcc.com"
+        self.entry.callback(code="c", state="s")
+        return self.native.local.response["location"]
+
+    def silent(self, site=""):
+        return {"issuer": ISSUER, "verifier": "v", "nonce": "n", "silent": True, "site": site}
+
+    def test_the_wanted_site_is_entered_when_the_identity_may(self):
+        location = self.run_callback(self.silent("b.pearnly.com"), ["a.pearnly.com", "b.pearnly.com"], last="a.pearnly.com")
+        self.assertTrue(location.startswith("https://b.pearnly.com/api/method/pearnly_core.identity.begin_login"), location)
+
+    def test_a_site_the_identity_cannot_enter_goes_back_to_the_entry_sign_in(self):
+        # 旧代码在这里是 go(a.pearnly.com)：送回原站
+        self.assertEqual(self.run_callback(self.silent("b.pearnly.com"), ["a.pearnly.com"]), "https://fatcc.com/?fresh=1#")
+        self.assertEqual(self.run_callback(self.silent("b.pearnly.com"), []), "https://fatcc.com/?fresh=1#")
+
+    def test_without_a_site_nothing_changes(self):
+        self.assertTrue(self.run_callback(self.silent(), ["a.pearnly.com"]).startswith("https://a.pearnly.com/"))
+        self.assertTrue(self.run_callback(self.silent(), ["a.pearnly.com", "b.pearnly.com"], last="b.pearnly.com")
+                        .startswith("https://b.pearnly.com/"))
+        self.assertTrue(self.run_callback(self.silent(), ["a.pearnly.com", "b.pearnly.com"]).startswith("https://fatcc.com/?pick="))
+        self.assertEqual(self.run_callback(self.silent(), []), "https://fatcc.com/?none=1#")
+
+    def test_the_site_is_checked_before_it_is_kept(self):
+        calls = []
+        self.entry._authorize = lambda issuer, **kw: calls.append(kw) or "https://auth/silent"
+        self.cookies[self.entry.ISSUER_COOKIE] = ISSUER
+        self.entry.resume_url("B.pearnly.com")
+        self.entry.resume_url("evil.com/x?y")
+        self.entry.resume_url()
+        self.assertEqual(calls, [{"silent": True, "site": "b.pearnly.com"}, {"silent": True, "site": ""},
+                                 {"silent": True, "site": ""}])
+
+    def test_the_entry_page_passes_the_site_along(self):
+        page = (CONTROL / "www/ai.py").read_text(encoding="utf-8")
+        self.assertIn('entry.resume_url(args.get("site") or "")', page)
+
 
 class _Frappe(types.ModuleType):
     class ValidationError(Exception):

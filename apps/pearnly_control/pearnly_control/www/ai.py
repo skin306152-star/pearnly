@@ -22,7 +22,7 @@ def get_context(context):
     frappe.local.lang = lang
     args = frappe.form_dict
     if not (args.get("fresh") or args.get("pick") or args.get("none")):
-        url = entry.resume_url()
+        url = entry.resume_url(args.get("site") or "")
         if url:
             frappe.local.flags.redirect_location = url
             raise frappe.Redirect

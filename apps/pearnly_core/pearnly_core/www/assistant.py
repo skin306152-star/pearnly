@@ -15,7 +15,7 @@ no_cache = 1
 
 def get_context(context):
     if frappe.session.user == "Guest":
-        location, mark = login_redirect.assistant_gate(frappe.request.cookies, assistant_entry_url())
+        location, mark = login_redirect.assistant_gate(frappe.request.cookies, assistant_entry_url(), frappe.local.site)
         if mark:
             login_redirect.set_entry_mark(frappe.local.cookie_manager.set_cookie)
         frappe.local.flags.redirect_location = location

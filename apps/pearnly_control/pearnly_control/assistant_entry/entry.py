@@ -106,13 +106,13 @@ def _store():
     return pearnly_state.store()
 
 
-def _authorize(issuer: str, *, login_hint="", silent=False) -> str:
+def _authorize(issuer: str, *, login_hint="", silent=False, site="") -> str:
     from pearnly_core.identity import _pkce_pair
 
     verifier, challenge = _pkce_pair()
     state, nonce = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
     _store().set_value(f"pearnly_ai_state:{state}", {"issuer": issuer, "verifier": verifier, "nonce": nonce,
-                                                    "silent": silent}, expires_in_sec=STATE_TTL)
+                                                    "silent": silent, "site": site}, expires_in_sec=STATE_TTL)
     return contracts.authorize_url(issuer, redirect_uri=redirect_uri(), state=state, nonce=nonce, challenge=challenge,
                                    login_hint=login_hint, locale=lang(), silent=silent)
 
@@ -155,10 +155,17 @@ def start(login: str) -> str:
     return _authorize(issuer, login_hint=login)
 
 
-def resume_url() -> str:
-    """打开入口时：记得上次的账号池就先静默确认登录状态；不记得返回空串（显示登录页）。"""
+def resume_url(site="") -> str:
+    """打开入口时：记得上次的账号池就先静默确认登录状态；不记得返回空串（显示登录页）。
+
+    `site`：是哪家公司站点的对话页把访客送来的（`login_redirect.assistant_gate` 带的 ``?site=``，CC 里切换站点就是这样来的）。
+    静默确认只说明这个账号池里谁登着，能不能进这家以回调里已验证身份能进的站点为准（`callback`）；不合形状的当没给。"""
     try:
-        return _authorize(contracts.issuer(_remembered(ISSUER_COOKIE)), silent=True)
+        want = contracts.site(site) if site else ""
+    except contracts.ContractError:
+        want = ""
+    try:
+        return _authorize(contracts.issuer(_remembered(ISSUER_COOKIE)), silent=True, site=want)
     except contracts.ContractError:
         return ""
 
@@ -192,6 +199,11 @@ def callback(code=None, state=None, error=None) -> None:
     sites = _billing("sites", issuer=saved["issuer"], subject=claims["sub"],
                      username=claims.get("preferred_username") or "").get("sites") or []
     _remember(ISSUER_COOKIE, saved["issuer"])
+    want = saved.get("site") or ""
+    if want:
+        # 某家站点送来的：这个身份进得了就进那家；进不了（上次是另一个产品的账号，2026-11-03 CC 里切换站点先被送回原站、
+        # 再点落到那家自己的登录页）就回入口登录页换账号
+        return go(want) if want in {s["site"] for s in sites} else _redirect(base_url() + "/?fresh=1")
     if not sites:
         return _redirect(base_url() + "/?none=1")
     if len(sites) == 1:
