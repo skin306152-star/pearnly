@@ -9,6 +9,9 @@
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
 import frappe
 from frappe import _
 from frappe.utils import now_datetime
@@ -20,14 +23,18 @@ KEY_MAX = 128
 ROW_FIELDS = ("request_key", "source", "filename", "size", "batch")
 
 
-def _row(row) -> dict:
-    """子表一行给页面：上传时刻换成 RFC3339 UTC（同对话列表 `sessions._when`；库里是站点时区的裸时间，页面按浏览器时区显示）。"""
-    from pearnly_core.assistant import contracts
+def _utc(value) -> str:
+    """库里的时间（站点时区的裸时间）→ RFC3339 UTC，精确到秒（同对话列表 `sessions._when` 的写法）：页面按浏览器时区显示。"""
+    if not value:
+        return ""
+    moment = value if isinstance(value, datetime) else datetime.fromisoformat(str(value).strip())
+    moment = moment.replace(microsecond=0, tzinfo=ZoneInfo(frappe.utils.get_system_timezone())).astimezone(timezone.utc)
+    return moment.isoformat().replace("+00:00", "Z")
 
-    when = row.get("uploaded_at")
-    stamp = contracts.utc_iso(contracts.site_time(when).replace(microsecond=0), frappe.utils.get_system_timezone()) \
-        if when else ""
-    return {**{key: row.get(key) for key in ROW_FIELDS}, "uploaded_at": stamp}
+
+def _row(row) -> dict:
+    """子表一行给页面：上传时刻换成 RFC3339 UTC。"""
+    return {**{key: row.get(key) for key in ROW_FIELDS}, "uploaded_at": _utc(row.get("uploaded_at"))}
 
 
 def check(name, company, request_key) -> None:
