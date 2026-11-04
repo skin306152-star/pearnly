@@ -147,7 +147,9 @@ class PrepareDirection(unittest.TestCase):
             service.choices_view = lambda *a, **k: {}
             return service.operator_check("CWH-9151")
 
-        self.assertEqual(check(), {"state": "ready"})
+        ready = check()
+        self.assertEqual(ready["state"], "ready")
+        self.assertEqual(ready["target"]["account_set"], BOOK)  # 写进的就是所选账套
         # 同一条路上的期间核对照旧在（Express 自己也拒）：日期晚于账套次年段的停下
         stopped = check(date="2028-01-02")
         self.assertEqual(stopped["state"], "blocked")
