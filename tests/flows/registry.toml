@@ -383,6 +383,8 @@ covers = [
   "apps/pearnly_core/pearnly_core/express_operator/api.py",
   "apps/pearnly_core/pearnly_core/express_operator/products.py",
   "apps/pearnly_core/pearnly_core/express_operator/tasks.py",
+  # 代录事件源（统一对话框架 U1）：代录会话的事件、运行状态、报告；流程断言由 U3 改成走统一对话
+  "apps/pearnly_core/pearnly_core/express_operator/feed.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
 ]
 

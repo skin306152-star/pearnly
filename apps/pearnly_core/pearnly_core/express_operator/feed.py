@@ -431,8 +431,8 @@ def receipt(doc_ids, *_args, **_kwargs) -> None:
         ids = [item for item in ids if item]
         if not ids:
             return
-        parents = frappe.get_all(tasks.DOCUMENT, filters={"parenttype": tasks.DOCTYPE, "doc_id": ["in", ids]},
-                                 pluck="parent", distinct=True, limit_page_length=50)
+        parents = list(dict.fromkeys(frappe.get_all(tasks.DOCUMENT, filters={"parenttype": tasks.DOCTYPE, "doc_id": ["in", ids]},
+                                                    pluck="parent", limit_page_length=50)))
         if not parents:
             return
         names = frappe.get_all(tasks.DOCTYPE, filters={"name": ["in", parents], "status": ["in", list(RECEIPT_STATES)]},
