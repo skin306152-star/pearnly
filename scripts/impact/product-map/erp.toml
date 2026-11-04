@@ -1666,7 +1666,7 @@ kind = "scan"
 anchor = "scan:erp.purchase.item-scan"
 where = "pearnly-purchase 新建明细：采购 → 新建 → 明细物料格扫码；扫码枪回车"
 parts = ["desk-scan-core", "erp-scan-dialog"]
-tests = ["impact:erp.purchase.item-scan"]
+tests = ["flow:erp.purchase.create@mobile", "impact:erp.purchase.item-scan"]
 
 [[row]]
 id = "erp.scan.sales.item-scan"

@@ -249,14 +249,15 @@ covers = [
 
 [[flow]]
 id = "erp.purchase.create"
-title = "ERP 采购：新建采购单（无批号 / 失效日期）入库（盘点菜单做完整 S1）"
+title = "ERP 采购：新建采购单（无批号 / 失效日期）入库；手机宽度另用假摄像头在明细物料格扫码认商品（盘点菜单做完整 S1、产品地图 11-04）"
 module = "scripts/flows/erp_purchase_create.py"
 start = "/desk/pearnly-purchase"
 user = "purchase"
 datasets = ["new", "old"]
 viewports = ["desktop", "mobile"]
-camera = false
+camera = true
 covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/entry-choice.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-fields.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/selection.py",

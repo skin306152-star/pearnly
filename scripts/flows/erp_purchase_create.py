@@ -1,4 +1,5 @@
 """流程用例：ERP 新建采购单（盘点菜单做完整 S1：明细不再有批号 / 失效日期；按码认商品走单据物料选择）。
+手机宽度另用假摄像头跑一遍：明细物料格不输条码，点格子右边的扫码按钮，由相机读出条码认商品（产品地图 erp.scan.purchase.item-scan，11-04）。
 
 打开采购新建页、切到「手动录入」：明细里没有批号、失效日期两格；单头填供应商名、单头仓、付清（现金），明细物料格输条码回车（单据物料选择按码认出商品）、
 数量 2、单价 10，提交。库里：采购单已提交、明细是这件商品、批号 / 失效日期为空，单头仓 +2。
@@ -12,7 +13,7 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from erp_lib import ledger_case  # noqa: E402
+from erp_lib import codes, ledger_case  # noqa: E402
 
 TITLE = "ERP 采购：新建采购单（无批号 / 失效日期）入库"
 IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
@@ -20,12 +21,15 @@ CAPTURE = ("window.__fgs=window.__fgs||[];if(!frappe.ui.FieldGroup.prototype.__c
            "frappe.ui.FieldGroup.prototype.make=function(){window.__fgs.push(this);return o.apply(this,arguments)};frappe.ui.FieldGroup.prototype.__cap=1;}")
 
 
+# 手机宽度两遍（手输、假摄像头）在开跑之前各准备一次：「接 Express」第一遍准备时关掉、记下原值，最后一遍核对完才还原
+_PENDING, _SEQ = {}, {}
+
+
 def prepare(lab, manifest):
     company = manifest.get("company") or manifest["companies"][0]
-    if manifest["dataset"] == "new":
-        product = manifest["products"]["by_barcode"]["product"]
-    else:
-        product = manifest["products"][0]["name"]
+    # 带条码的那件（两套数据同一个取法，假摄像头读的就是它的条码）
+    item = codes(manifest)["by_barcode"]
+    product = item["product"]
     out = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.masters import company as companies
 frappe.set_user("purchase@erp.regression")
@@ -39,7 +43,12 @@ frappe.db.commit()
 print(json.dumps({{"product": p.name, "product_name": p.product_name, "scan": p.barcode or p.code, "warehouse": wh, "before": float(qty),
                   "express": int(express or 0)}}))
 """)
-    return {**out, "company": company, "supplier": "flow supplier " + uuid.uuid4().hex[:5], "cases": []}
+    site = manifest["site"]
+    _PENDING.setdefault(site, out["express"])
+    _SEQ[site] = _SEQ.get(site, 0) + 1
+    out["express"], out["seq"] = _PENDING[site], _SEQ[site]
+    return {**out, "company": company, "supplier": "flow supplier " + uuid.uuid4().hex[:5],
+            "cases": [{"key": "by_barcode", "scan": item["scan"]}]}
 
 
 def steps(params, camera_code=None):
@@ -60,10 +69,14 @@ def steps(params, camera_code=None):
          "const entry=window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.entry_manual).pop(); if(entry){await entry.set_value('entry_manual',1); await idle();}"
          f"await head.set_values({{supplier_name:{sup}, doc_no:{sup}, doc_kind:'purchase_invoice', is_paid:1, payment_method:'cash'}});"
          f"if(head.fields_dict.warehouse) await head.set_value('warehouse', {wh});"
+         + (
+         # 假摄像头那一遍：点明细物料格右边的扫码按钮，相机读出条码 → 单据物料选择按码认出
+         "const btn=line.fields_dict.entry_choice.$wrapper.find('.pearnly-link-scan')[0]; if(!btn) return {error:'no scan button on the item cell'}; btn.click();"
+         if camera_code else
          # 明细物料格当扫码枪用：输条码回车 → 单据物料选择按码认出（`masters.selection.api_choices`）
          f"const inp=line.fields_dict.entry_choice.input; inp.focus(); inp.value={scan}; inp.dispatchEvent(new Event('input',{{bubbles:true}}));"
-         "inp.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));"
-         f"for(let k=0;k<60&&line.get_value('product')!=={product};k++) await new Promise(r=>setTimeout(r,250)); await idle();"
+         "inp.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));") +
+         f"for(let k=0;k<100&&line.get_value('product')!=={product};k++) await new Promise(r=>setTimeout(r,250)); await idle();"
          "if(!line.get_value('product')) return {error:'product not chosen by code'};"
          f"await line.set_values({{qty:2, unit_price:10, warehouse:{wh}}}); await idle();"
          "const b=[...document.querySelectorAll('.page-head .primary-action, .page-head .btn-primary')].find(e=>e.offsetParent);"
@@ -85,22 +98,28 @@ def judge(params, results, camera_code=None):
 
 
 def verify(lab, manifest, params, camera_code=None):
+    last = params.get("seq") == _SEQ.get(manifest["site"])
     got = lab.python(manifest["site"], f"""
 doc = frappe.db.get_value("Purchase Document", {{"supplier_name": {params['supplier']!r}}}, ["name", "status"], as_dict=True) or {{}}
 lines = frappe.get_all("Purchase Line", filters={{"parent": doc.get("name")}}, fields=["product", "qty"]) if doc else []
 # 批次 / 有效期 10-30 彻底删除：库里的列也没有了
 gone = [c for c in ("batch_no", "expiry_date") if frappe.db.has_column("Purchase Line", c)]
-qty = frappe.db.get_value("ERP Stock Balance", {{"product": {params['product']!r}, "warehouse": {params['warehouse']!r}, "location": ""}}, "qty_on_hand") or 0
-frappe.db.set_value("ERP Company", {params['company']!r}, "express_enabled", {params['express']}, update_modified=False)  # 还原
+# 这张单自己的库存流水（两遍各开一张单，账面先后都在变，按单核入库数）
+moved = sum(r.qty_base or 0 for r in frappe.get_all("ERP Stock Movement", filters={{"ref_id": doc.get("name"), "product": {params['product']!r},
+            "warehouse": {params['warehouse']!r}}}, fields=["qty_base"])) if doc else 0
+if {last}:
+    frappe.db.set_value("ERP Company", {params['company']!r}, "express_enabled", {params['express']}, update_modified=False)  # 还原
 frappe.db.commit()
-print(json.dumps({{"doc": doc, "lines": [dict(r, qty=float(r.qty)) for r in lines], "after": float(qty), "batch_columns": gone}}, default=str))
+print(json.dumps({{"doc": doc, "lines": [dict(r, qty=float(r.qty)) for r in lines], "moved": float(moved), "batch_columns": gone}}, default=str))
 """)
+    if last:
+        _PENDING.pop(manifest["site"], None)
     line = (got["lines"] or [{}])[0]
     return [
         {"case": "purchase submitted without batch or expiry", "saved": got,
          "ok": got["doc"].get("status") == "submitted" and line.get("product") == params["product"] and line.get("qty") == 2.0
          and got.get("batch_columns") == []},
-        {"case": "stock went up by 2", "saved": [params["before"], got["after"]], "ok": got["after"] == params["before"] + 2},
+        {"case": "stock went up by 2", "saved": got["moved"], "ok": got["moved"] == 2.0},
         # 账本栏是通用列；这一遍关了「接 Express」，单子不排进账本
         ledger_case(lab, manifest["site"], "Purchase Document", [got["doc"].get("name")], False),
     ]
