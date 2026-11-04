@@ -1,0 +1,1706 @@
+# 产品地图（Cowork）：用户能碰到的入口，一行一个（字段与规则见 scripts/impact/product_map.py、scripts/check-product-map.py，
+# 评估与审定 docs/work/2026-11-04-product-map.md）。锚点由发现器从代码读出；新入口同一提交里登记并写测试，
+# `python3 scripts/check-product-map.py --suggest` 出草稿。tests 只写引用：flow:<流程 id>[@desktop|@mobile]、
+# impact:<shared-parts 入口 id>、unit:<测试文件>[::<名字>]。只有打开冒烟、页面快照、人工清单的不算有测试。
+
+[[row]]
+id = "cowork.cc.operator.allowed"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:cowork:allowed"
+where = "代录 allowed"
+tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
+
+[[row]]
+id = "cowork.cc.operator.intake"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:cowork:intake"
+where = "代录 intake"
+tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
+
+[[row]]
+id = "cowork.cc.operator.pending"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:cowork:pending"
+where = "代录 pending"
+tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
+
+[[row]]
+id = "cowork.cc.operator.precheck"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:cowork:precheck"
+where = "代录 precheck"
+tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
+
+[[row]]
+id = "cowork.cc.operator.regroup"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:cowork:regroup"
+where = "代录 regroup"
+tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
+
+[[row]]
+id = "cowork.cc.operator.resolve"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:cowork:resolve"
+where = "代录 resolve"
+tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
+
+[[row]]
+id = "cowork.cc.operator.sources"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:cowork:sources"
+where = "代录 sources"
+tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
+
+[[row]]
+id = "cowork.cc.operator.status"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:cowork:status"
+where = "代录 status"
+tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
+
+[[row]]
+id = "cowork.cc.operator.submit"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:cowork:submit"
+where = "代录 submit"
+tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
+
+[[row]]
+id = "cowork.cc.operator.target"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:cowork:target"
+where = "代录 target"
+tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_choose_document_policy"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_choose_document_policy"
+where = "CC 工具 cowork_choose_document_policy"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_choose_document_policy"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_companies"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_companies"
+where = "CC 工具 cowork_companies"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_companies", "unit:tests/test_cowork_companies.py::cowork_companies"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_companion_status"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_companion_status"
+where = "CC 工具 cowork_companion_status"
+tests = ["unit:tests/test_cc_desktop_name.py::cowork_companion_status", "unit:tests/test_cowork_assistant_tools.py::cowork_companion_status"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_company_choice_remove"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_company_choice_remove"
+where = "CC 工具 cowork_company_choice_remove"
+tests = ["unit:tests/test_cowork_companies.py::cowork_company_choice_remove"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_company_choice_save"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_company_choice_save"
+where = "CC 工具 cowork_company_choice_save"
+tests = ["unit:tests/test_assistant_ui.py::cowork_company_choice_save", "unit:tests/test_cc_ccs.py::cowork_company_choice_save"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_company_note_remove"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_company_note_remove"
+where = "CC 工具 cowork_company_note_remove"
+tests = ["unit:tests/test_cowork_companies.py::cowork_company_note_remove"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_company_note_save"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_company_note_save"
+where = "CC 工具 cowork_company_note_save"
+tests = ["unit:tests/test_assistant_ui.py::cowork_company_note_save", "unit:tests/test_cowork_companies.py::cowork_company_note_save"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_company_profile"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_company_profile"
+where = "CC 工具 cowork_company_profile"
+tests = ["unit:tests/test_cowork_companies.py::cowork_company_profile"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_delete_documents"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_delete_documents"
+where = "CC 工具 cowork_delete_documents"
+
+[[row]]
+id = "cowork.cc.tool.cowork_delete_folder_tasks"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_delete_folder_tasks"
+where = "CC 工具 cowork_delete_folder_tasks"
+
+[[row]]
+id = "cowork.cc.tool.cowork_document_detail"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_document_detail"
+where = "CC 工具 cowork_document_detail"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_document_detail", "unit:tests/test_cowork_da_verify.py::cowork_document_detail"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_document_original"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_document_original"
+where = "CC 工具 cowork_document_original"
+
+[[row]]
+id = "cowork.cc.tool.cowork_edit_document"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_edit_document"
+where = "CC 工具 cowork_edit_document"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_edit_document", "unit:tests/test_erp_cc_chat_push.py::cowork_edit_document"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_export_review_workbook"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_export_review_workbook"
+where = "CC 工具 cowork_export_review_workbook"
+
+[[row]]
+id = "cowork.cc.tool.cowork_express_readback"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_express_readback"
+where = "CC 工具 cowork_express_readback"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_express_readback"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_express_readback_delete"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_express_readback_delete"
+where = "CC 工具 cowork_express_readback_delete"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_express_readback_delete"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_express_readback_status"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_express_readback_status"
+where = "CC 工具 cowork_express_readback_status"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_express_readback_status"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_folder_fetch"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_folder_fetch"
+where = "CC 工具 cowork_folder_fetch"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_folder_fetch"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_folder_files"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_folder_files"
+where = "CC 工具 cowork_folder_files"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_folder_files", "unit:tests/test_cowork_companies.py::cowork_folder_files"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_folder_task_options"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_folder_task_options"
+where = "CC 工具 cowork_folder_task_options"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_folder_task_options"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_folder_task_runs"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_folder_task_runs"
+where = "CC 工具 cowork_folder_task_runs"
+
+[[row]]
+id = "cowork.cc.tool.cowork_folder_tasks"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_folder_tasks"
+where = "CC 工具 cowork_folder_tasks"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_folder_tasks"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_intake_options"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_intake_options"
+where = "CC 工具 cowork_intake_options"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_intake_options"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_list_documents"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_list_documents"
+where = "CC 工具 cowork_list_documents"
+tests = ["unit:tests/test_assistant_ui.py::cowork_list_documents", "unit:tests/test_cowork_assistant_tools.py::cowork_list_documents"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_mrerp_setup"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_mrerp_setup"
+where = "CC 工具 cowork_mrerp_setup"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_mrerp_setup"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_pending"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_pending"
+where = "CC 工具 cowork_pending"
+tests = ["unit:tests/test_cowork_companies.py::cowork_pending", "unit:tests/test_erp_cc_chat_push.py::cowork_pending"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_pos_import"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_pos_import"
+where = "CC 工具 cowork_pos_import"
+
+[[row]]
+id = "cowork.cc.tool.cowork_pos_layout"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_pos_layout"
+where = "CC 工具 cowork_pos_layout"
+
+[[row]]
+id = "cowork.cc.tool.cowork_push_choices"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_push_choices"
+where = "CC 工具 cowork_push_choices"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_push_choices"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_push_documents"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_push_documents"
+where = "CC 工具 cowork_push_documents"
+tests = ["unit:tests/test_assistant.py::cowork_push_documents", "unit:tests/test_cc_run_indicator.py::cowork_push_documents"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_push_results"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_push_results"
+where = "CC 工具 cowork_push_results"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_push_results"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_recognition_results"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_recognition_results"
+where = "CC 工具 cowork_recognition_results"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_recognition_results"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_recognize_attachments"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_recognize_attachments"
+where = "CC 工具 cowork_recognize_attachments"
+tests = ["unit:tests/test_cc_run_indicator.py::cowork_recognize_attachments", "unit:tests/test_cowork_assistant_tools.py::cowork_recognize_attachments"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_recon_answer"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_recon_answer"
+where = "CC 工具 cowork_recon_answer"
+
+[[row]]
+id = "cowork.cc.tool.cowork_recon_delete"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_recon_delete"
+where = "CC 工具 cowork_recon_delete"
+
+[[row]]
+id = "cowork.cc.tool.cowork_recon_export"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_recon_export"
+where = "CC 工具 cowork_recon_export"
+
+[[row]]
+id = "cowork.cc.tool.cowork_recon_list"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_recon_list"
+where = "CC 工具 cowork_recon_list"
+
+[[row]]
+id = "cowork.cc.tool.cowork_recon_presets"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_recon_presets"
+where = "CC 工具 cowork_recon_presets"
+
+[[row]]
+id = "cowork.cc.tool.cowork_recon_result"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_recon_result"
+where = "CC 工具 cowork_recon_result"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_recon_result"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_recon_start"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_recon_start"
+where = "CC 工具 cowork_recon_start"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_recon_start"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_recon_status"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_recon_status"
+where = "CC 工具 cowork_recon_status"
+
+[[row]]
+id = "cowork.cc.tool.cowork_refresh_account_sets"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_refresh_account_sets"
+where = "CC 工具 cowork_refresh_account_sets"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_refresh_account_sets"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_resolve_push_result"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_resolve_push_result"
+where = "CC 工具 cowork_resolve_push_result"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_resolve_push_result"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_run_folder_task"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_run_folder_task"
+where = "CC 工具 cowork_run_folder_task"
+
+[[row]]
+id = "cowork.cc.tool.cowork_save_folder_task"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_save_folder_task"
+where = "CC 工具 cowork_save_folder_task"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_save_folder_task"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_save_folder_tasks"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_save_folder_tasks"
+where = "CC 工具 cowork_save_folder_tasks"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_save_folder_tasks"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_save_push_choices"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_save_push_choices"
+where = "CC 工具 cowork_save_push_choices"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_save_push_choices"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_set_folder_task_enabled"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_set_folder_task_enabled"
+where = "CC 工具 cowork_set_folder_task_enabled"
+tests = ["unit:tests/test_assistant.py::cowork_set_folder_task_enabled", "unit:tests/test_assistant_ui.py::cowork_set_folder_task_enabled"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_set_folder_tasks_enabled"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_set_folder_tasks_enabled"
+where = "CC 工具 cowork_set_folder_tasks_enabled"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_set_folder_tasks_enabled"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_stock_group"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_stock_group"
+where = "CC 工具 cowork_stock_group"
+tests = ["unit:tests/test_assistant_ui.py::cowork_stock_group"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_stocktake_close"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_stocktake_close"
+where = "CC 工具 cowork_stocktake_close"
+
+[[row]]
+id = "cowork.cc.tool.cowork_stocktake_count"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_stocktake_count"
+where = "CC 工具 cowork_stocktake_count"
+
+[[row]]
+id = "cowork.cc.tool.cowork_stocktake_create"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_stocktake_create"
+where = "CC 工具 cowork_stocktake_create"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_stocktake_create"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_stocktake_delete"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_stocktake_delete"
+where = "CC 工具 cowork_stocktake_delete"
+
+[[row]]
+id = "cowork.cc.tool.cowork_stocktake_export"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_stocktake_export"
+where = "CC 工具 cowork_stocktake_export"
+
+[[row]]
+id = "cowork.cc.tool.cowork_stocktake_list"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_stocktake_list"
+where = "CC 工具 cowork_stocktake_list"
+
+[[row]]
+id = "cowork.cc.tool.cowork_stocktake_report"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_stocktake_report"
+where = "CC 工具 cowork_stocktake_report"
+
+[[row]]
+id = "cowork.cc.tool.cowork_stocktake_template"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_stocktake_template"
+where = "CC 工具 cowork_stocktake_template"
+
+[[row]]
+id = "cowork.cc.tool.cowork_tax_draft_delete"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_tax_draft_delete"
+where = "CC 工具 cowork_tax_draft_delete"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_tax_draft_delete"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_vat_draft"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_vat_draft"
+where = "CC 工具 cowork_vat_draft"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_vat_draft"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_wht_answer"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_wht_answer"
+where = "CC 工具 cowork_wht_answer"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_wht_answer"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_wht_draft"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_wht_draft"
+where = "CC 工具 cowork_wht_draft"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_wht_draft"]
+
+[[row]]
+id = "cowork.cc.tool.cowork_work_board"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_work_board"
+where = "CC 工具 cowork_work_board"
+
+[[row]]
+id = "cowork.cc.tool.cowork_work_boards"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_work_boards"
+where = "CC 工具 cowork_work_boards"
+
+[[row]]
+id = "cowork.cc.tool.cowork_work_card"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_work_card"
+where = "CC 工具 cowork_work_card"
+
+[[row]]
+id = "cowork.cc.tool.cowork_work_comment"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_work_comment"
+where = "CC 工具 cowork_work_comment"
+
+[[row]]
+id = "cowork.cc.tool.cowork_work_create_card"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_work_create_card"
+where = "CC 工具 cowork_work_create_card"
+
+[[row]]
+id = "cowork.cc.tool.cowork_work_move_card"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_work_move_card"
+where = "CC 工具 cowork_work_move_card"
+
+[[row]]
+id = "cowork.cc.tool.cowork_work_search"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_work_search"
+where = "CC 工具 cowork_work_search"
+
+[[row]]
+id = "cowork.cc.tool.cowork_work_update_card"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_work_update_card"
+where = "CC 工具 cowork_work_update_card"
+
+[[row]]
+id = "cowork.cc.tool.express_operator_control"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:express_operator_control"
+where = "CC 工具 express_operator_control"
+
+[[row]]
+id = "cowork.cc.tool.express_operator_status"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:express_operator_status"
+where = "CC 工具 express_operator_status"
+
+[[row]]
+id = "cowork.cc.tool.pearnly_tax_id_lookup"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:pearnly_tax_id_lookup"
+where = "CC 工具 pearnly_tax_id_lookup"
+tests = ["unit:tests/test_assistant.py::pearnly_tax_id_lookup"]
+
+[[row]]
+id = "cowork.cc.tool.pearnly_whoami"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:pearnly_whoami"
+where = "CC 工具 pearnly_whoami"
+tests = ["unit:tests/test_assistant.py::pearnly_whoami", "unit:tests/test_product_map.py::pearnly_whoami"]
+
+[[row]]
+id = "cowork.cc.view.chat"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-view"
+anchor = "ccview:cowork:chat"
+where = "CC 对话（新建、收发、侧栏找回）"
+group = "cc.view.chat"
+
+[[row]]
+id = "cowork.cc.view.companies"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-view"
+anchor = "ccview:cowork:companies"
+where = "CC 侧栏「公司」列表"
+tests = ["flow:cowork.cc.sidebar-modes"]
+group = "cc.view.companies"
+
+[[row]]
+id = "cowork.cc.view.company"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-view"
+anchor = "ccview:cowork:company"
+where = "CC 公司主档页"
+group = "cc.view.company"
+
+[[row]]
+id = "cowork.cc.view.operator"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop", "mobile"]
+kind = "cc-view"
+anchor = "ccview:cowork:operator"
+where = "CC 代录（实操任务页）"
+tests = ["flow:cowork.operator.unknown"]
+group = "cc.view.operator"
+
+[[row]]
+id = "cowork.cc.view.pending"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-view"
+anchor = "ccview:cowork:pending"
+where = "CC 侧栏「待处理」"
+tests = ["flow:cowork.pending.operator", "flow:cowork.cc.sidebar-modes"]
+group = "cc.view.pending"
+
+[[row]]
+id = "cowork.cc.view.tasks"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-view"
+anchor = "ccview:cowork:tasks"
+where = "CC 定时任务页"
+tests = ["flow:cowork.mrerp-login"]
+group = "cc.view.tasks"
+
+[[row]]
+id = "cowork.line.event.follow"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-event"
+anchor = "line:cowork:event:follow"
+where = "加 Cowork 官方号好友"
+parts = ["line", "line-binding"]
+group = "line.follow"
+
+[[row]]
+id = "cowork.line.event.unfollow"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-event"
+anchor = "line:cowork:event:unfollow"
+where = "删除 / 屏蔽 Cowork 官方号"
+parts = ["line", "line-binding"]
+group = "line.unfollow"
+
+[[row]]
+id = "cowork.line.card-edit"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-link"
+anchor = "line:cowork:link:/desk/pearnly-intake/new/{x}"
+where = "LINE 识别后的卡片，点「แก้ไข」→ 经 LIFF 打开录入编辑页"
+parts = ["line", "line-session"]
+config = ["site:pearnly_line_liff_id", "liff:endpoint"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_purchase_card"]
+must_verify = true
+probe = { type = "liff", path = "/desk/pearnly-intake/new/{doc}" }
+group = "line.card-edit"
+incidents = ["2026-11-03 erpcowork LIFF 落在 /desk/pearnly-intake，卡片 แก้ไข 404"]
+
+[[row]]
+id = "cowork.line.menu.intake"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-menu"
+anchor = "line:cowork:menu:intake"
+where = "LINE 富菜单「ส่งเอกสารเข้า ERP」"
+parts = ["line"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_menu_tap_starts_flow", "unit:tests/test_cowork_line_intake.py::test_menu_tap_needs_binding"]
+group = "line.menu.purchase"
+
+[[row]]
+id = "cowork.line.menu.stocktake"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-menu"
+anchor = "line:cowork:menu:stocktake"
+where = "LINE 富菜单「库存盘点」→ 经 LIFF 打开 /desk/pearnly-stocktake"
+parts = ["line", "line-session"]
+config = ["site:pearnly_line_liff_id", "liff:endpoint"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_menu_web_pages_open_through_the_line_sign_in_entry", "impact:cowork.line.stocktake.liff-camera"]
+must_verify = true
+probe = { type = "liff", path = "/desk/pearnly-stocktake" }
+group = "line.menu.stocktake"
+incidents = ["2026-11-03 LIFF 落地带子路径，LINE 打开网页 404"]
+
+[[row]]
+id = "cowork.line.menu.work"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-menu"
+anchor = "line:cowork:menu:work"
+where = "LINE 富菜单「任务」→ 经 LIFF 打开 /desk/pearnly-work"
+parts = ["line", "line-session"]
+config = ["site:pearnly_line_liff_id", "liff:endpoint"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_menu_web_pages_open_through_the_line_sign_in_entry"]
+must_verify = true
+probe = { type = "liff", path = "/desk/pearnly-work" }
+group = "line.menu.work"
+na = { ERP = "ERP 官方号富菜单只有采购、销售、盘点三格，任务管理只在网页侧栏" }
+
+[[row]]
+id = "cowork.line.message.file"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-message"
+anchor = "line:cowork:message:file"
+where = "LINE 里给 Cowork 发 PDF 文件"
+parts = ["line", "ocr"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_document_after_choices_is_queued_as_the_bound_user"]
+group = "line.message.file"
+
+[[row]]
+id = "cowork.line.message.image"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-message"
+anchor = "line:cowork:message:image"
+where = "LINE 里给 Cowork 发票据照片"
+parts = ["line", "ocr"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_document_after_choices_is_queued_as_the_bound_user", "unit:tests/test_cowork_line_intake.py::test_document_before_choices_asks_for_the_menu"]
+group = "line.message.image"
+
+[[row]]
+id = "cowork.line.message.text"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-message"
+anchor = "line:cowork:message:text"
+where = "LINE 里给 Cowork 打字（「เมนู」等）"
+parts = ["line"]
+tests = ["impact:cowork.line.webhook-sim", "unit:tests/test_cowork_line_intake.py::test_words_typed_while_choosing_the_account_set_go_to_the_search"]
+group = "line.message.text"
+
+[[row]]
+id = "cowork.line.postback.cowork"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:cowork:postback:cowork"
+where = "LINE 录入流程里的选项按钮与取消（a=cowork&s=…）"
+parts = ["line"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_cancel_clears_the_session", "unit:tests/test_cowork_line_intake.py::test_old_button_is_rejected"]
+
+[[row]]
+id = "cowork.line.postback.cowork_erp_start"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:cowork:postback:cowork_erp_start"
+where = "LINE 富菜单「ส่งเอกสารเข้า ERP」的按钮（action=cowork_erp_start，新旧菜单同一个）"
+parts = ["line"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_menu_tap_starts_flow", "unit:tests/test_cowork_line_intake.py::test_postback_data_parsing"]
+
+[[row]]
+id = "cowork.line.postback.work"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:cowork:postback:work"
+where = "LINE 任务提醒卡片上的按钮（a=work…）"
+parts = ["line"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_postback_data_parsing"]
+
+[[row]]
+id = "cowork.desk.pearnly-home"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:cowork:pearnly-home"
+where = "侧栏「pearnly-home」"
+tests = ["flow:cowork.exports", "impact:cowork.page.home"]
+
+[[row]]
+id = "cowork.desk.pearnly-intake"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:cowork:pearnly-intake"
+where = "侧栏「pearnly-intake」"
+tests = ["flow:cowork.intake.review", "flow:cowork.keyboard.intake", "flow:cowork.field-help", "impact:cowork.page.intake"]
+
+[[row]]
+id = "cowork.desk.pearnly-recon-bank"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:cowork:pearnly-recon-bank"
+where = "侧栏「pearnly-recon-bank」"
+tests = ["flow:cowork.recon.tasks", "flow:cowork.recon.presets", "flow:cowork.recon.exports", "impact:cowork.page.recon-bank"]
+
+[[row]]
+id = "cowork.desk.pearnly-recon-income"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:cowork:pearnly-recon-income"
+where = "侧栏「pearnly-recon-income」"
+tests = ["impact:cowork.page.recon-income"]
+
+[[row]]
+id = "cowork.desk.pearnly-recon-vat"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:cowork:pearnly-recon-vat"
+where = "侧栏「pearnly-recon-vat」"
+tests = ["impact:cowork.page.recon-vat"]
+
+[[row]]
+id = "cowork.desk.pearnly-stocktake"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:cowork:pearnly-stocktake"
+where = "侧栏「pearnly-stocktake」"
+tests = ["flow:cowork.stocktake.list", "flow:cowork.stocktake.web-code", "flow:cowork.stocktake.entry", "impact:cowork.page.stocktake"]
+
+[[row]]
+id = "cowork.desk.pearnly-team"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:cowork:pearnly-team"
+where = "侧栏「pearnly-team」"
+tests = ["flow:cowork.team.full-name", "flow:cowork.team.bulk-disable", "impact:cowork.page.team"]
+
+[[row]]
+id = "cowork.desk.pearnly-work"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:cowork:pearnly-work"
+where = "侧栏「pearnly-work」"
+tests = ["flow:cowork.work.board", "impact:cowork.page.work"]
+
+[[row]]
+id = "cowork.desk.all.action.selection"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:*:selection"
+where = "* 页头「selection」"
+
+[[row]]
+id = "cowork.desk.form-user.action.Save"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:Form/User:Save"
+where = "Form/User 页头「Save」"
+
+[[row]]
+id = "cowork.desk.pearnly-home.action.Delete"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-home:Delete"
+where = "pearnly-home 页头「Delete」"
+
+[[row]]
+id = "cowork.desk.pearnly-home.action.home.billing"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-home:home.billing"
+where = "pearnly-home 页头「home.billing」"
+
+[[row]]
+id = "cowork.desk.pearnly-home.action.home.ledger.export"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-home:home.ledger.export"
+where = "pearnly-home 页头「home.ledger.export」"
+
+[[row]]
+id = "cowork.desk.pearnly-home.action.home.plans.title"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-home:home.plans.title"
+where = "pearnly-home 页头「home.plans.title」"
+
+[[row]]
+id = "cowork.desk.pearnly-home.action.home.topup"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-home:home.topup"
+where = "pearnly-home 页头「home.topup」"
+
+[[row]]
+id = "cowork.desk.pearnly-intake.action.Export"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-intake:Export"
+where = "pearnly-intake 页头「Export」"
+
+[[row]]
+id = "cowork.desk.pearnly-intake.action.Save"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-intake:Save"
+where = "pearnly-intake 页头「Save」"
+
+[[row]]
+id = "cowork.desk.pearnly-intake.action.Submit"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-intake:Submit"
+where = "pearnly-intake 页头「Submit」"
+
+[[row]]
+id = "cowork.desk.pearnly-intake.action.cowork.folder.new"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-intake:cowork.folder.new"
+where = "pearnly-intake 页头「cowork.folder.new」"
+
+[[row]]
+id = "cowork.desk.pearnly-intake.action.intake.action.new"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-intake:intake.action.new"
+where = "pearnly-intake 页头「intake.action.new」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-bank.action.Cancel"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-bank:Cancel"
+where = "pearnly-recon-bank 页头「Cancel」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-bank.action.Save"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-bank:Save"
+where = "pearnly-recon-bank 页头「Save」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-bank.action.cowork.recon.export"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-bank:cowork.recon.export"
+where = "pearnly-recon-bank 页头「cowork.recon.export」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-bank.action.cowork.recon.live.back"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-bank:cowork.recon.live.back"
+where = "pearnly-recon-bank 页头「cowork.recon.live.back」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-bank.action.cowork.recon.new"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-bank:cowork.recon.new"
+where = "pearnly-recon-bank 页头「cowork.recon.new」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-bank.action.cowork.recon.presets"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-bank:cowork.recon.presets"
+where = "pearnly-recon-bank 页头「cowork.recon.presets」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-bank.action.cowork.recon.questions"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-bank:cowork.recon.questions"
+where = "pearnly-recon-bank 页头「cowork.recon.questions」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-bank.action.cowork.recon.running"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-bank:cowork.recon.running"
+where = "pearnly-recon-bank 页头「cowork.recon.running」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-bank.action.cowork.recon.start"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-bank:cowork.recon.start"
+where = "pearnly-recon-bank 页头「cowork.recon.start」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-income.action.Cancel"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-income:Cancel"
+where = "pearnly-recon-income 页头「Cancel」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-income.action.Save"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-income:Save"
+where = "pearnly-recon-income 页头「Save」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-income.action.cowork.recon.export"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-income:cowork.recon.export"
+where = "pearnly-recon-income 页头「cowork.recon.export」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-income.action.cowork.recon.live.back"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-income:cowork.recon.live.back"
+where = "pearnly-recon-income 页头「cowork.recon.live.back」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-income.action.cowork.recon.new"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-income:cowork.recon.new"
+where = "pearnly-recon-income 页头「cowork.recon.new」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-income.action.cowork.recon.presets"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-income:cowork.recon.presets"
+where = "pearnly-recon-income 页头「cowork.recon.presets」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-income.action.cowork.recon.questions"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-income:cowork.recon.questions"
+where = "pearnly-recon-income 页头「cowork.recon.questions」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-income.action.cowork.recon.running"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-income:cowork.recon.running"
+where = "pearnly-recon-income 页头「cowork.recon.running」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-income.action.cowork.recon.start"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-income:cowork.recon.start"
+where = "pearnly-recon-income 页头「cowork.recon.start」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-vat.action.Cancel"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-vat:Cancel"
+where = "pearnly-recon-vat 页头「Cancel」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-vat.action.Save"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-vat:Save"
+where = "pearnly-recon-vat 页头「Save」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.export"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-vat:cowork.recon.export"
+where = "pearnly-recon-vat 页头「cowork.recon.export」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.live.back"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-vat:cowork.recon.live.back"
+where = "pearnly-recon-vat 页头「cowork.recon.live.back」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.new"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-vat:cowork.recon.new"
+where = "pearnly-recon-vat 页头「cowork.recon.new」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.presets"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-vat:cowork.recon.presets"
+where = "pearnly-recon-vat 页头「cowork.recon.presets」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.questions"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-vat:cowork.recon.questions"
+where = "pearnly-recon-vat 页头「cowork.recon.questions」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.running"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-vat:cowork.recon.running"
+where = "pearnly-recon-vat 页头「cowork.recon.running」"
+
+[[row]]
+id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.start"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-recon-vat:cowork.recon.start"
+where = "pearnly-recon-vat 页头「cowork.recon.start」"
+
+[[row]]
+id = "cowork.desk.pearnly-stocktake.action.cowork.stock.action.export"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-stocktake:cowork.stock.action.export"
+where = "pearnly-stocktake 页头「cowork.stock.action.export」"
+
+[[row]]
+id = "cowork.desk.pearnly-stocktake.action.cowork.stock.count.close"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-stocktake:cowork.stock.count.close"
+where = "pearnly-stocktake 页头「cowork.stock.count.close」"
+
+[[row]]
+id = "cowork.desk.pearnly-stocktake.action.cowork.stock.count.new"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-stocktake:cowork.stock.count.new"
+where = "pearnly-stocktake 页头「cowork.stock.count.new」"
+
+[[row]]
+id = "cowork.desk.pearnly-stocktake.action.cowork.stock.count.start"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-stocktake:cowork.stock.count.start"
+where = "pearnly-stocktake 页头「cowork.stock.count.start」"
+
+[[row]]
+id = "cowork.desk.pearnly-team.action.Cancel"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-team:Cancel"
+where = "pearnly-team 页头「Cancel」"
+
+[[row]]
+id = "cowork.desk.pearnly-team.action.Save"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-team:Save"
+where = "pearnly-team 页头「Save」"
+
+[[row]]
+id = "cowork.desk.pearnly-team.action.cowork.team.new"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-team:cowork.team.new"
+where = "pearnly-team 页头「cowork.team.new」"
+
+[[row]]
+id = "cowork.desk.pearnly-work.action.cowork.work.archived.title"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-work:cowork.work.archived.title"
+where = "pearnly-work 页头「cowork.work.archived.title」"
+
+[[row]]
+id = "cowork.desk.pearnly-work.action.cowork.work.board.create"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-work:cowork.work.board.create"
+where = "pearnly-work 页头「cowork.work.board.create」"
+
+[[row]]
+id = "cowork.desk.pearnly-work.action.cowork.work.board.members"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-work:cowork.work.board.members"
+where = "pearnly-work 页头「cowork.work.board.members」"
+
+[[row]]
+id = "cowork.desk.pearnly-work.action.cowork.work.board.settings"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-work:cowork.work.board.settings"
+where = "pearnly-work 页头「cowork.work.board.settings」"
+
+[[row]]
+id = "cowork.desk.pearnly-work.action.cowork.work.fields.manage"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-work:cowork.work.fields.manage"
+where = "pearnly-work 页头「cowork.work.fields.manage」"
+
+[[row]]
+id = "cowork.desk.pearnly-work.action.cowork.work.labels.manage"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-work:cowork.work.labels.manage"
+where = "pearnly-work 页头「cowork.work.labels.manage」"
+
+[[row]]
+id = "cowork.desk.pearnly-work.action.cowork.work.notify.title"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-work:cowork.work.notify.title"
+where = "pearnly-work 页头「cowork.work.notify.title」"
+
+[[row]]
+id = "cowork.desk.pearnly-work.action.cowork.work.rules.manage"
+product = "Cowork"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:cowork:pearnly-work:cowork.work.rules.manage"
+where = "pearnly-work 页头「cowork.work.rules.manage」"
+
+[[row]]
+id = "cowork.cc.action.switch-account"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:switch-account"
+where = "CC 左下角站点列表，点另一个站点（切换账号）"
+parts = ["login-session"]
+config = ["ext:fatcc.com", "kc:pearnly-business:remember-me", "kc:pearnly-cowork:remember-me"]
+must_verify = true
+probe = { type = "assistant-gate" }
+group = "cc.action.switch-account"
+incidents = ["2026-11-03 切换账号第一次落到 Keycloak 登录页"]
+
+[[row]]
+id = "cowork.cc.action.add-company"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:add-company"
+where = "CC 侧栏「公司」→ 添加公司"
+group = "cc.action.add-company"
+incidents = ["2026-11-03 ERP 版 CC 添加公司跳系统浏览器、要重新登录"]
+
+[[row]]
+id = "cowork.cc.action.company-open-in-product"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:company-open-in-product"
+where = "CC 公司页「在产品里打开」（ERP：在 ERP 打开）"
+group = "cc.action.company-open-in-product"
+
+[[row]]
+id = "cowork.cc.action.settings"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:settings"
+where = "CC 设置（主题、语言；电脑齿轮 / 手机头像菜单）"
+parts = ["cc-assistant-settings"]
+group = "cc.action.settings"
+
+[[row]]
+id = "cowork.cc.action.sidebar-modes"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:sidebar-modes"
+where = "CC 左上角「对话 | 代录」两种模式与侧栏共有入口"
+parts = ["cc-sidebar-list"]
+tests = ["flow:cowork.cc.sidebar-modes"]
+group = "cc.action.sidebar-modes"
+
+[[row]]
+id = "cowork.cc.action.logout"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:logout"
+where = "CC 退出（直接退出、跳回，不出确认页）"
+parts = ["login-session"]
+group = "cc.action.logout"
+
+[[row]]
+id = "cowork.cc.action.deep-link"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:deep-link"
+where = "CC 深链接（?c= 打开对话、?view= / ?company= 打开页面；推送通知、托盘点开）"
+group = "cc.action.deep-link"
+
+[[row]]
+id = "cowork.cc.action.attach"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:attach"
+where = "CC 对话里上传附件"
+group = "cc.action.attach"
+
+[[row]]
+id = "cowork.cc.action.delete-chats"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:delete-chats"
+where = "CC 删除对话（先确认一次）"
+group = "cc.action.delete-chats"
+
+[[row]]
+id = "cowork.cc.action.mrerp-auth"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:mrerp-auth"
+where = "CC 定时任务里 MR.ERP 连接「在 CC 桌面版中授权」"
+tests = ["flow:cowork.mrerp-login"]
+group = "cc.action.mrerp-auth"
+na = { ERP = "ERP 没有 MR.ERP 连接（MR.ERP 代录在 Cowork）" }

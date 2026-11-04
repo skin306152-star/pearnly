@@ -1,0 +1,4 @@
+# 发现到但不算入口的锚点（scripts/check-product-map.py 规则 1）：逐条写原因，只许按条登记。
+# [[anchor]]
+# anchor = "<锚点>"
+# reason = "<为什么不算入口>"

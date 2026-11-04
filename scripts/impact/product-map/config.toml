@@ -1,0 +1,174 @@
+# site_config 键分类（scripts/check-product-map.py 规则 1、部署前配置对比；主会话 11-04 审定）。
+# class：same = 同产品正式租户与测试租户应一致，差异拦部署；shape = 每个租户各自满足形状规则（rule）；
+#        presence = 只核有没有（secret = true 的不比值、不打印）；varies = 各租户本来不同，不比；infra = 平台与部署层，不在租户之间比。
+# 代码新读一个 pearnly_* 键要在这里分类；代码不再读的要删掉。
+
+[key.host_name]
+class = "varies"
+
+[key.pearnly_assistant_api_key]
+class = "presence"
+secret = true
+
+[key.pearnly_assistant_engine]
+class = "same"
+
+[key.pearnly_assistant_entry_url]
+class = "shape"
+rule = "CC 入口统一走 https://fatcc.com（智能体入口口径 10-10）"
+
+[key.pearnly_assistant_model]
+class = "same"
+
+[key.pearnly_assistant_webhook_secret]
+class = "presence"
+secret = true
+
+[key.pearnly_billing_api]
+class = "same"
+
+[key.pearnly_billing_host_header]
+class = "varies"
+
+[key.pearnly_billing_token]
+class = "presence"
+secret = true
+
+[key.pearnly_company_name]
+class = "varies"
+
+[key.pearnly_cowork_agent_installer]
+class = "same"
+
+[key.pearnly_cowork_agent_version]
+class = "same"
+
+[key.pearnly_cowork_erp_push_enabled]
+class = "same"
+
+[key.pearnly_cowork_line_menus]
+class = "presence"
+
+[key.pearnly_cowork_ocr_environment]
+class = "same"
+
+[key.pearnly_cowork_ocr_policy]
+class = "same"
+
+[key.pearnly_cowork_ocr_tasks]
+class = "same"
+
+[key.pearnly_default_language]
+class = "varies"
+
+[key.pearnly_default_timezone]
+class = "varies"
+
+[key.pearnly_document_ai_regions]
+class = "same"
+
+[key.pearnly_erp_line_menus]
+class = "presence"
+
+[key.pearnly_erp_ocr_escalation]
+class = "same"
+
+[key.pearnly_export_sync_rows]
+class = "same"
+
+[key.pearnly_features]
+class = "varies"
+
+[key.pearnly_line_liff_id]
+class = "presence"
+
+[key.pearnly_line_login_idp]
+class = "varies"
+
+[key.pearnly_native_account]
+class = "same"
+
+[key.pearnly_ocr_api_key]
+class = "presence"
+secret = true
+
+[key.pearnly_ocr_backend]
+class = "same"
+
+[key.pearnly_ocr_budget]
+class = "same"
+
+[key.pearnly_ocr_budget_redis]
+class = "infra"
+
+[key.pearnly_ocr_credentials]
+class = "presence"
+secret = true
+
+[key.pearnly_ocr_endpoint]
+class = "same"
+
+[key.pearnly_ocr_engine]
+class = "same"
+
+[key.pearnly_ocr_location]
+class = "same"
+
+[key.pearnly_ocr_mode]
+class = "same"
+
+[key.pearnly_ocr_paused]
+class = "same"
+
+[key.pearnly_ocr_project]
+class = "same"
+
+[key.pearnly_ocr_vertex_overflow]
+class = "same"
+
+[key.pearnly_oidc_admin_client_id]
+class = "presence"
+
+[key.pearnly_oidc_admin_client_secret]
+class = "presence"
+secret = true
+
+[key.pearnly_oidc_client_id]
+class = "presence"
+
+[key.pearnly_oidc_client_secret]
+class = "presence"
+secret = true
+
+[key.pearnly_oidc_issuer]
+class = "same"
+
+[key.pearnly_oidc_password_check_client_id]
+class = "presence"
+
+[key.pearnly_oidc_password_check_client_secret]
+class = "presence"
+secret = true
+
+[key.pearnly_product]
+class = "same"
+
+[key.pearnly_recon_max_running]
+class = "same"
+
+[key.pearnly_state_redis]
+class = "infra"
+
+[key.pearnly_target_api_urls]
+class = "infra"
+
+[key.pearnly_tenant]
+class = "varies"
+
+[key.pearnly_workspace]
+class = "varies"
+
+[family.pearnly_line_]
+class = "presence"
+secret = true
+note = "LINE 频道号、密钥、长期令牌（pearnly_core.line._conf 按前缀拼出来读）"

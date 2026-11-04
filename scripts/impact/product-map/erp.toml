@@ -1,0 +1,1507 @@
+# 产品地图（ERP）：用户能碰到的入口，一行一个（字段与规则见 scripts/impact/product_map.py、scripts/check-product-map.py，
+# 评估与审定 docs/work/2026-11-04-product-map.md）。锚点由发现器从代码读出；新入口同一提交里登记并写测试，
+# `python3 scripts/check-product-map.py --suggest` 出草稿。tests 只写引用：flow:<流程 id>[@desktop|@mobile]、
+# impact:<shared-parts 入口 id>、unit:<测试文件>[::<名字>]。只有打开冒烟、页面快照、人工清单的不算有测试。
+
+[[row]]
+id = "erp.cc.operator.allowed"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:erp:allowed"
+where = "代录 allowed"
+tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
+
+[[row]]
+id = "erp.cc.operator.pending"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:erp:pending"
+where = "代录 pending"
+tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
+
+[[row]]
+id = "erp.cc.operator.precheck"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:erp:precheck"
+where = "代录 precheck"
+tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
+
+[[row]]
+id = "erp.cc.operator.sources"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:erp:sources"
+where = "代录 sources"
+tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
+
+[[row]]
+id = "erp.cc.operator.status"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:erp:status"
+where = "代录 status"
+tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
+
+[[row]]
+id = "erp.cc.operator.submit"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:erp:submit"
+where = "代录 submit"
+tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
+
+[[row]]
+id = "erp.cc.tool.erp_companies"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_companies"
+where = "CC 工具 erp_companies"
+tests = ["unit:tests/test_erp_cc_chat_push.py::erp_companies", "unit:tests/test_erp_cc_companies.py::erp_companies"]
+
+[[row]]
+id = "erp.cc.tool.erp_company_note_remove"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_company_note_remove"
+where = "CC 工具 erp_company_note_remove"
+tests = ["unit:tests/test_erp_cc_companies.py::erp_company_note_remove"]
+
+[[row]]
+id = "erp.cc.tool.erp_company_note_save"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_company_note_save"
+where = "CC 工具 erp_company_note_save"
+tests = ["unit:tests/test_erp_cc_companies.py::erp_company_note_save"]
+
+[[row]]
+id = "erp.cc.tool.erp_company_profile"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_company_profile"
+where = "CC 工具 erp_company_profile"
+tests = ["unit:tests/test_erp_cc_companies.py::erp_company_profile"]
+
+[[row]]
+id = "erp.cc.tool.erp_document_detail"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_document_detail"
+where = "CC 工具 erp_document_detail"
+tests = ["unit:tests/test_erp_cc_chat_push.py::erp_document_detail"]
+
+[[row]]
+id = "erp.cc.tool.erp_document_original"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_document_original"
+where = "CC 工具 erp_document_original"
+tests = ["unit:tests/test_erp_cc_chat_push.py::erp_document_original"]
+
+[[row]]
+id = "erp.cc.tool.erp_list_documents"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_list_documents"
+where = "CC 工具 erp_list_documents"
+tests = ["unit:tests/test_erp_cc_chat_push.py::erp_list_documents"]
+
+[[row]]
+id = "erp.cc.tool.erp_pending"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_pending"
+where = "CC 工具 erp_pending"
+tests = ["unit:tests/test_erp_cc_chat_push.py::erp_pending"]
+
+[[row]]
+id = "erp.cc.tool.erp_push_choices"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_push_choices"
+where = "CC 工具 erp_push_choices"
+tests = ["unit:tests/test_erp_cc_chat_push.py::erp_push_choices"]
+
+[[row]]
+id = "erp.cc.tool.erp_push_documents"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_push_documents"
+where = "CC 工具 erp_push_documents"
+tests = ["unit:tests/test_erp_cc_chat_push.py::erp_push_documents", "unit:tests/test_product_map.py::erp_push_documents"]
+
+[[row]]
+id = "erp.cc.tool.erp_push_results"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_push_results"
+where = "CC 工具 erp_push_results"
+tests = ["unit:tests/test_erp_cc_chat_push.py::erp_push_results"]
+
+[[row]]
+id = "erp.cc.tool.erp_resolve_push_result"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_resolve_push_result"
+where = "CC 工具 erp_resolve_push_result"
+tests = ["unit:tests/test_erp_cc_chat_push.py::erp_resolve_push_result"]
+
+[[row]]
+id = "erp.cc.tool.erp_save_push_choices"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_save_push_choices"
+where = "CC 工具 erp_save_push_choices"
+tests = ["unit:tests/test_erp_cc_chat_push.py::erp_save_push_choices"]
+
+[[row]]
+id = "erp.cc.tool.erp_set_printed_total"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_set_printed_total"
+where = "CC 工具 erp_set_printed_total"
+tests = ["unit:tests/test_erp_cc_chat_push.py::erp_set_printed_total"]
+
+[[row]]
+id = "erp.cc.tool.express_operator_control"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:express_operator_control"
+where = "CC 工具 express_operator_control"
+
+[[row]]
+id = "erp.cc.tool.express_operator_status"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:express_operator_status"
+where = "CC 工具 express_operator_status"
+
+[[row]]
+id = "erp.cc.tool.pearnly_tax_id_lookup"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:pearnly_tax_id_lookup"
+where = "CC 工具 pearnly_tax_id_lookup"
+tests = ["unit:tests/test_assistant.py::pearnly_tax_id_lookup"]
+
+[[row]]
+id = "erp.cc.tool.pearnly_whoami"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:pearnly_whoami"
+where = "CC 工具 pearnly_whoami"
+tests = ["unit:tests/test_assistant.py::pearnly_whoami", "unit:tests/test_product_map.py::pearnly_whoami"]
+
+[[row]]
+id = "erp.cc.view.chat"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-view"
+anchor = "ccview:erp:chat"
+where = "CC 对话（新建、收发、侧栏找回）"
+tests = ["flow:cc.chat"]
+group = "cc.view.chat"
+
+[[row]]
+id = "erp.cc.view.companies"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-view"
+anchor = "ccview:erp:companies"
+where = "CC 侧栏「公司」列表"
+tests = ["flow:cc.companies", "flow:cc.sidebar-modes"]
+group = "cc.view.companies"
+
+[[row]]
+id = "erp.cc.view.company"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-view"
+anchor = "ccview:erp:company"
+where = "CC 公司主档页"
+tests = ["flow:cc.companies"]
+group = "cc.view.company"
+
+[[row]]
+id = "erp.cc.view.operator"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop", "mobile"]
+kind = "cc-view"
+anchor = "ccview:erp:operator"
+where = "CC 代录（实操任务页）"
+tests = ["flow:cc.operator"]
+group = "cc.view.operator"
+
+[[row]]
+id = "erp.cc.view.pending"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-view"
+anchor = "ccview:erp:pending"
+where = "CC 侧栏「待处理」"
+tests = ["flow:cc.companies", "flow:cc.sidebar-modes"]
+group = "cc.view.pending"
+
+[[row]]
+id = "erp.cc.view.tasks"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-view"
+anchor = "ccview:erp:tasks"
+where = "CC 定时任务页"
+group = "cc.view.tasks"
+
+[[row]]
+id = "erp.line.page.stocktake"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "liff-page"
+anchor = "liff:erp:/stocktake"
+where = "LINE 手机盘点页 /stocktake"
+parts = ["line", "line-session"]
+tests = ["flow:erp.line.stocktake", "flow:erp.line.stocktake.phone"]
+group = "line.stocktake-page"
+na = { Cowork = "Cowork 的 LINE 盘点经 LIFF 打开网页端盘点页，没有单独的 /stocktake 页" }
+
+[[row]]
+id = "erp.line.event.follow"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-event"
+anchor = "line:erp:event:follow"
+where = "加 ERP 官方号好友"
+parts = ["line", "line-binding"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_role_and_binding_are_checked_before_any_step"]
+group = "line.follow"
+
+[[row]]
+id = "erp.line.event.unfollow"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-event"
+anchor = "line:erp:event:unfollow"
+where = "删除 / 屏蔽 ERP 官方号"
+parts = ["line", "line-binding"]
+group = "line.unfollow"
+
+[[row]]
+id = "erp.line.card-edit"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-link"
+anchor = "line:erp:link:/desk/{root}/line/{x}"
+where = "LINE 识别后的采购 / 销售卡片，点「แก้ไข」→ 经 LIFF 打开这张单的编辑页"
+parts = ["line", "line-session"]
+config = ["site:pearnly_line_liff_id", "liff:endpoint"]
+tests = ["impact:erp.line.intake.submit"]
+must_verify = true
+probe = { type = "liff", path = "/desk/pearnly-purchase/line/{doc}" }
+group = "line.card-edit"
+incidents = ["2026-11-03 mrerp 卡片 แก้ไข 404（LIFF 落地带子路径）"]
+
+[[row]]
+id = "erp.line.manual-entry"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-link"
+anchor = "line:erp:link:/desk/{root}/new?entry=manual"
+where = "LINE 录入流程里「手工录入」→ 经 LIFF 打开空白单据页"
+parts = ["line", "line-session"]
+config = ["site:pearnly_line_liff_id", "liff:endpoint"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_manual_entry_is_a_link_to_the_blank_native_page"]
+must_verify = true
+probe = { type = "liff", path = "/desk/pearnly-purchase/new?entry=manual" }
+
+[[row]]
+id = "erp.line.menu.purchase"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-menu"
+anchor = "line:erp:menu:purchase"
+where = "LINE 富菜单左上「采购」"
+parts = ["line"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_tiles_follow_permissions_and_stocktake_opens_the_native_page", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_steps_run_in_order_and_skip_single_company_and_default_warehouse"]
+group = "line.menu.purchase"
+
+[[row]]
+id = "erp.line.menu.sales"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-menu"
+anchor = "line:erp:menu:sales"
+where = "LINE 富菜单中上「销售」"
+parts = ["line"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_tiles_follow_permissions_and_stocktake_opens_the_native_page"]
+group = "line.menu.sales"
+na = { Cowork = "Cowork 富菜单一个「ส่งเอกสารเข้า ERP」格，进去再选采购 / 销售" }
+
+[[row]]
+id = "erp.line.menu.stocktake"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-menu"
+anchor = "line:erp:menu:stocktake"
+where = "LINE 富菜单右上「盘点」→ 经 LIFF 打开 /desk/pearnly-stock-count"
+parts = ["line", "line-session"]
+config = ["site:pearnly_line_liff_id", "liff:endpoint"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_tiles_follow_permissions_and_stocktake_opens_the_native_page", "impact:erp.line.stocktake.liff-camera"]
+must_verify = true
+probe = { type = "liff", path = "/desk/pearnly-stock-count" }
+group = "line.menu.stocktake"
+incidents = ["2026-11-03 LIFF 落地带子路径，LINE 打开网页 404"]
+
+[[row]]
+id = "erp.line.message.file"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-message"
+anchor = "line:erp:message:file"
+where = "LINE 里给 ERP 发 PDF 文件"
+parts = ["line", "ocr"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_each_document_in_a_file_gets_its_own_record_and_card"]
+group = "line.message.file"
+
+[[row]]
+id = "erp.line.message.image"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-message"
+anchor = "line:erp:message:image"
+where = "LINE 里给 ERP 发票据照片"
+parts = ["line", "ocr"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_ready_document_is_received_as_the_bound_user_and_guest_restored", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_the_recognition_job_fetches_the_document_once"]
+group = "line.message.image"
+
+[[row]]
+id = "erp.line.message.text"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-message"
+anchor = "line:erp:message:text"
+where = "LINE 里给 ERP 打字（「เมนู」「ซื้อ」「ยกเลิก」等）"
+parts = ["line"]
+tests = ["impact:erp.line.webhook-sim"]
+group = "line.message.text"
+
+[[row]]
+id = "erp.line.postback.erp"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:erp:postback:erp"
+where = "LINE 采购 / 销售录入流程里的选项按钮与取消（a=erp&s=…）"
+parts = ["line"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_cancel_clears_the_choices", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_stale_or_forged_answers_do_not_advance"]
+
+[[row]]
+id = "erp.line.postback.mode"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:erp:postback:mode"
+where = "LINE 选采购 / 销售（富菜单与「เมนู」回的按钮，a=mode:…）"
+parts = ["line"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_steps_run_in_order_and_skip_single_company_and_default_warehouse"]
+
+[[row]]
+id = "erp.desk.pearnly-cashier"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-cashier"
+where = "侧栏「pearnly-cashier」"
+tests = ["flow:erp.cashier.first-sale", "flow:erp.pos.shift", "impact:erp.page.cashier"]
+
+[[row]]
+id = "erp.desk.pearnly-clients"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-clients"
+where = "侧栏「pearnly-clients」"
+tests = ["impact:erp.page.clients"]
+
+[[row]]
+id = "erp.desk.pearnly-company"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-company"
+where = "侧栏「pearnly-company」"
+tests = ["flow:erp.company.settings", "flow:erp.company.create", "impact:erp.page.company"]
+
+[[row]]
+id = "erp.desk.pearnly-home"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-home"
+where = "侧栏「pearnly-home」"
+tests = ["flow:erp.exports", "flow:erp.print.all", "impact:erp.page.home"]
+
+[[row]]
+id = "erp.desk.pearnly-inventory"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-inventory"
+where = "侧栏「pearnly-inventory」"
+tests = ["flow:erp.inventory.by-product", "impact:erp.page.inventory"]
+
+[[row]]
+id = "erp.desk.pearnly-pos-receipts"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-pos-receipts"
+where = "侧栏「pearnly-pos-receipts」"
+tests = ["impact:erp.page.pos-receipts"]
+
+[[row]]
+id = "erp.desk.pearnly-pos-shifts"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-pos-shifts"
+where = "侧栏「pearnly-pos-shifts」"
+tests = ["impact:erp.page.pos-shifts"]
+
+[[row]]
+id = "erp.desk.pearnly-products"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-products"
+where = "侧栏「pearnly-products」"
+tests = ["flow:erp.products.create", "flow:erp.products.clash", "flow:erp.products.opening", "flow:erp.products.import", "flow:erp.keyboard.dialogs", "flow:erp.field-help", "impact:erp.page.products", "impact:erp.products.new-dialog.scan", "impact:erp.products.find-by-code"]
+
+[[row]]
+id = "erp.desk.pearnly-purchase"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-purchase"
+where = "侧栏「pearnly-purchase」"
+tests = ["flow:erp.document.express", "flow:erp.purchase.create", "flow:erp.express.service_vat", "impact:erp.page.purchase", "impact:erp.detail.purchase.draft", "impact:erp.detail.purchase.submitted", "impact:erp.detail.purchase.void", "impact:erp.purchase.detail.not-permitted"]
+
+[[row]]
+id = "erp.desk.pearnly-sales"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-sales"
+where = "侧栏「pearnly-sales」"
+tests = ["flow:erp.sales.scan", "impact:erp.page.sales", "impact:erp.detail.sales.draft", "impact:erp.detail.sales.submitted", "impact:erp.detail.sales.void", "impact:erp.sales.detail.not-permitted"]
+
+[[row]]
+id = "erp.desk.pearnly-stock-card"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-stock-card"
+where = "侧栏「pearnly-stock-card」"
+tests = ["flow:erp.stock-card", "impact:erp.page.stock-card"]
+
+[[row]]
+id = "erp.desk.pearnly-stock-count"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-stock-count"
+where = "侧栏「pearnly-stock-count」"
+tests = ["flow:erp.stocktake.scan", "flow:erp.stocktake.new-product", "flow:erp.stocktake.places", "flow:erp.stocktake.web-code", "flow:erp.stocktake.report", "flow:erp.stock.excel-units", "flow:erp.stocktake.gs1", "impact:erp.page.stock-count", "impact:erp.stock-count.switch.posted-to-active", "impact:erp.stock-count.switch.active-to-posted"]
+
+[[row]]
+id = "erp.desk.pearnly-stock-in"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-stock-in"
+where = "侧栏「pearnly-stock-in」"
+tests = ["flow:erp.stock-in.units", "flow:erp.stock-entry.scan", "flow:erp.express.new-item-stock", "impact:erp.page.stock-in", "impact:erp.detail.stock-in.submitted"]
+
+[[row]]
+id = "erp.desk.pearnly-stock-out"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-stock-out"
+where = "侧栏「pearnly-stock-out」"
+tests = ["impact:erp.page.stock-out", "impact:erp.detail.stock-out.void"]
+
+[[row]]
+id = "erp.desk.pearnly-stock-transfer"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-stock-transfer"
+where = "侧栏「pearnly-stock-transfer」"
+tests = ["flow:erp.stock-transfer", "impact:erp.page.stock-transfer"]
+
+[[row]]
+id = "erp.desk.pearnly-suppliers"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-suppliers"
+where = "侧栏「pearnly-suppliers」"
+tests = ["flow:erp.party.dialogs", "impact:erp.page.suppliers"]
+
+[[row]]
+id = "erp.desk.pearnly-tasks"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-tasks"
+where = "侧栏「pearnly-tasks」"
+tests = ["flow:erp.work.board", "impact:erp.page.tasks"]
+
+[[row]]
+id = "erp.desk.pearnly-team"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-team"
+where = "侧栏「pearnly-team」"
+tests = ["flow:erp.team.add-member", "flow:erp.team.full-name", "flow:erp.team.bulk-disable", "impact:erp.page.team"]
+
+[[row]]
+id = "erp.desk.pearnly-warehouses"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-warehouses"
+where = "侧栏「pearnly-warehouses」"
+tests = ["flow:erp.warehouses.codes", "flow:erp.warehouses.rules", "impact:erp.page.warehouses"]
+
+[[row]]
+id = "erp.desk.pearnly-guide"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page"
+anchor = "page:erp:pearnly-guide"
+where = "页面 /desk/pearnly-guide（不在侧栏）"
+tests = ["impact:erp.page.never.guide"]
+
+[[row]]
+id = "erp.desk.pearnly-history"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page"
+anchor = "page:erp:pearnly-history"
+where = "页面 /desk/pearnly-history（不在侧栏）"
+tests = ["impact:erp.page.never.history"]
+
+[[row]]
+id = "erp.desk.pearnly-push-logs"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page"
+anchor = "page:erp:pearnly-push-logs"
+where = "页面 /desk/pearnly-push-logs（不在侧栏）"
+tests = ["impact:erp.page.never.push-logs"]
+
+[[row]]
+id = "erp.desk.pearnly-reconcile"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page"
+anchor = "page:erp:pearnly-reconcile"
+where = "页面 /desk/pearnly-reconcile（不在侧栏）"
+tests = ["impact:erp.page.never.reconcile"]
+
+[[row]]
+id = "erp.desk.all.action.selection"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:*:selection"
+where = "* 页头「selection」"
+
+[[row]]
+id = "erp.desk.form-user.action.Save"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:Form/User:Save"
+where = "Form/User 页头「Save」"
+
+[[row]]
+id = "erp.desk.pearnly-cashier.action.trade.closeShift"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-cashier:trade.closeShift"
+where = "pearnly-cashier 页头「trade.closeShift」"
+
+[[row]]
+id = "erp.desk.pearnly-cashier.action.trade.newInvoice"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-cashier:trade.newInvoice"
+where = "pearnly-cashier 页头「trade.newInvoice」"
+
+[[row]]
+id = "erp.desk.pearnly-cashier.action.trade.openShift"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-cashier:trade.openShift"
+where = "pearnly-cashier 页头「trade.openShift」"
+
+[[row]]
+id = "erp.desk.pearnly-cashier.action.trade.recentOrders"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-cashier:trade.recentOrders"
+where = "pearnly-cashier 页头「trade.recentOrders」"
+
+[[row]]
+id = "erp.desk.pearnly-clients.action.client.new"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-clients:client.new"
+where = "pearnly-clients 页头「client.new」"
+
+[[row]]
+id = "erp.desk.pearnly-company.action.Cancel"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-company:Cancel"
+where = "pearnly-company 页头「Cancel」"
+
+[[row]]
+id = "erp.desk.pearnly-company.action.company.new"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-company:company.new"
+where = "pearnly-company 页头「company.new」"
+
+[[row]]
+id = "erp.desk.pearnly-company.action.company.save"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-company:company.save"
+where = "pearnly-company 页头「company.save」"
+
+[[row]]
+id = "erp.desk.pearnly-company.action.company.setCurrent"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-company:company.setCurrent"
+where = "pearnly-company 页头「company.setCurrent」"
+
+[[row]]
+id = "erp.desk.pearnly-company.action.company.syncExpress"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-company:company.syncExpress"
+where = "pearnly-company 页头「company.syncExpress」"
+
+[[row]]
+id = "erp.desk.pearnly-home.action.Delete"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-home:Delete"
+where = "pearnly-home 页头「Delete」"
+
+[[row]]
+id = "erp.desk.pearnly-home.action.home.billing"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-home:home.billing"
+where = "pearnly-home 页头「home.billing」"
+
+[[row]]
+id = "erp.desk.pearnly-home.action.home.ledger.export"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-home:home.ledger.export"
+where = "pearnly-home 页头「home.ledger.export」"
+
+[[row]]
+id = "erp.desk.pearnly-home.action.home.plans.title"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-home:home.plans.title"
+where = "pearnly-home 页头「home.plans.title」"
+
+[[row]]
+id = "erp.desk.pearnly-home.action.home.topup"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-home:home.topup"
+where = "pearnly-home 页头「home.topup」"
+
+[[row]]
+id = "erp.desk.pearnly-inventory.action.Cancel"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-inventory:Cancel"
+where = "pearnly-inventory 页头「Cancel」"
+
+[[row]]
+id = "erp.desk.pearnly-inventory.action.Edit"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-inventory:Edit"
+where = "pearnly-inventory 页头「Edit」"
+
+[[row]]
+id = "erp.desk.pearnly-inventory.action.preview"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-inventory:preview"
+where = "pearnly-inventory 页头「preview」"
+
+[[row]]
+id = "erp.desk.pearnly-inventory.action.stock.action.export"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-inventory:stock.action.export"
+where = "pearnly-inventory 页头「stock.action.export」"
+
+[[row]]
+id = "erp.desk.pearnly-inventory.action.stock.opening.title"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-inventory:stock.opening.title"
+where = "pearnly-inventory 页头「stock.opening.title」"
+
+[[row]]
+id = "erp.desk.pearnly-inventory.action.submit"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-inventory:submit"
+where = "pearnly-inventory 页头「submit」"
+
+[[row]]
+id = "erp.desk.pearnly-products.action.product.action.import"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-products:product.action.import"
+where = "pearnly-products 页头「product.action.import」"
+
+[[row]]
+id = "erp.desk.pearnly-products.action.product.action.new"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-products:product.action.new"
+where = "pearnly-products 页头「product.action.new」"
+
+[[row]]
+id = "erp.desk.pearnly-products.action.product.action.submit"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-products:product.action.submit"
+where = "pearnly-products 页头「product.action.submit」"
+
+[[row]]
+id = "erp.desk.pearnly-purchase.action.Amend"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-purchase:Amend"
+where = "pearnly-purchase 页头「Amend」"
+
+[[row]]
+id = "erp.desk.pearnly-purchase.action.Cancel"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-purchase:Cancel"
+where = "pearnly-purchase 页头「Cancel」"
+
+[[row]]
+id = "erp.desk.pearnly-purchase.action.Delete"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-purchase:Delete"
+where = "pearnly-purchase 页头「Delete」"
+
+[[row]]
+id = "erp.desk.pearnly-purchase.action.Export"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-purchase:Export"
+where = "pearnly-purchase 页头「Export」"
+
+[[row]]
+id = "erp.desk.pearnly-purchase.action.Express"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-purchase:Express"
+where = "pearnly-purchase 页头「Express」"
+tests = ["flow:erp.document.express", "flow:erp.express.service_vat"]
+
+[[row]]
+id = "erp.desk.pearnly-purchase.action.New"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-purchase:New"
+where = "pearnly-purchase 页头「New」"
+
+[[row]]
+id = "erp.desk.pearnly-purchase.action.Payment"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-purchase:Payment"
+where = "pearnly-purchase 页头「Payment」"
+
+[[row]]
+id = "erp.desk.pearnly-purchase.action.Print"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-purchase:Print"
+where = "pearnly-purchase 页头「Print」"
+
+[[row]]
+id = "erp.desk.pearnly-purchase.action.Submit"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-purchase:Submit"
+where = "pearnly-purchase 页头「Submit」"
+
+[[row]]
+id = "erp.desk.pearnly-purchase.action.substitute_receipt"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-purchase:substitute_receipt"
+where = "pearnly-purchase 页头「substitute_receipt」"
+
+[[row]]
+id = "erp.desk.pearnly-purchase.action.wht_cert"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-purchase:wht_cert"
+where = "pearnly-purchase 页头「wht_cert」"
+
+[[row]]
+id = "erp.desk.pearnly-sales.action.Cancel"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-sales:Cancel"
+where = "pearnly-sales 页头「Cancel」"
+
+[[row]]
+id = "erp.desk.pearnly-sales.action.Collection"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-sales:Collection"
+where = "pearnly-sales 页头「Collection」"
+
+[[row]]
+id = "erp.desk.pearnly-sales.action.Delete"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-sales:Delete"
+where = "pearnly-sales 页头「Delete」"
+
+[[row]]
+id = "erp.desk.pearnly-sales.action.Export"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-sales:Export"
+where = "pearnly-sales 页头「Export」"
+
+[[row]]
+id = "erp.desk.pearnly-sales.action.Express"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-sales:Express"
+where = "pearnly-sales 页头「Express」"
+
+[[row]]
+id = "erp.desk.pearnly-sales.action.New"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-sales:New"
+where = "pearnly-sales 页头「New」"
+
+[[row]]
+id = "erp.desk.pearnly-sales.action.Print"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-sales:Print"
+where = "pearnly-sales 页头「Print」"
+
+[[row]]
+id = "erp.desk.pearnly-sales.action.Submit"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-sales:Submit"
+where = "pearnly-sales 页头「Submit」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-count.action.Express"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-count:Express"
+where = "pearnly-stock-count 页头「Express」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-count.action.Print"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-count:Print"
+where = "pearnly-stock-count 页头「Print」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-count.action.stock.action.export"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-count:stock.action.export"
+where = "pearnly-stock-count 页头「stock.action.export」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-count.action.stock.count.close"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-count:stock.count.close"
+where = "pearnly-stock-count 页头「stock.count.close」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-count.action.stock.count.new"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-count:stock.count.new"
+where = "pearnly-stock-count 页头「stock.count.new」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-count.action.stock.count.start"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-count:stock.count.start"
+where = "pearnly-stock-count 页头「stock.count.start」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-in.action.trade.action.submit"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-in:trade.action.submit"
+where = "pearnly-stock-in 页头「trade.action.submit」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-in.action.trade.newIn"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-in:trade.newIn"
+where = "pearnly-stock-in 页头「trade.newIn」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-in.action.trade.newOut"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-in:trade.newOut"
+where = "pearnly-stock-in 页头「trade.newOut」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-in.action.trade.newTransfer"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-in:trade.newTransfer"
+where = "pearnly-stock-in 页头「trade.newTransfer」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-out.action.trade.action.submit"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-out:trade.action.submit"
+where = "pearnly-stock-out 页头「trade.action.submit」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-out.action.trade.newIn"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-out:trade.newIn"
+where = "pearnly-stock-out 页头「trade.newIn」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-out.action.trade.newOut"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-out:trade.newOut"
+where = "pearnly-stock-out 页头「trade.newOut」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-out.action.trade.newTransfer"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-out:trade.newTransfer"
+where = "pearnly-stock-out 页头「trade.newTransfer」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-transfer.action.trade.action.submit"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-transfer:trade.action.submit"
+where = "pearnly-stock-transfer 页头「trade.action.submit」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-transfer.action.trade.newIn"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-transfer:trade.newIn"
+where = "pearnly-stock-transfer 页头「trade.newIn」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-transfer.action.trade.newOut"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-transfer:trade.newOut"
+where = "pearnly-stock-transfer 页头「trade.newOut」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-transfer.action.trade.newTransfer"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-transfer:trade.newTransfer"
+where = "pearnly-stock-transfer 页头「trade.newTransfer」"
+
+[[row]]
+id = "erp.desk.pearnly-suppliers.action.supplier.new"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-suppliers:supplier.new"
+where = "pearnly-suppliers 页头「supplier.new」"
+
+[[row]]
+id = "erp.desk.pearnly-tasks.action.erp.work.archived.title"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-tasks:erp.work.archived.title"
+where = "pearnly-tasks 页头「erp.work.archived.title」"
+
+[[row]]
+id = "erp.desk.pearnly-tasks.action.erp.work.board.create"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-tasks:erp.work.board.create"
+where = "pearnly-tasks 页头「erp.work.board.create」"
+
+[[row]]
+id = "erp.desk.pearnly-tasks.action.erp.work.board.members"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-tasks:erp.work.board.members"
+where = "pearnly-tasks 页头「erp.work.board.members」"
+
+[[row]]
+id = "erp.desk.pearnly-tasks.action.erp.work.board.settings"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-tasks:erp.work.board.settings"
+where = "pearnly-tasks 页头「erp.work.board.settings」"
+
+[[row]]
+id = "erp.desk.pearnly-tasks.action.erp.work.fields.manage"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-tasks:erp.work.fields.manage"
+where = "pearnly-tasks 页头「erp.work.fields.manage」"
+
+[[row]]
+id = "erp.desk.pearnly-tasks.action.erp.work.labels.manage"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-tasks:erp.work.labels.manage"
+where = "pearnly-tasks 页头「erp.work.labels.manage」"
+
+[[row]]
+id = "erp.desk.pearnly-tasks.action.erp.work.notify.title"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-tasks:erp.work.notify.title"
+where = "pearnly-tasks 页头「erp.work.notify.title」"
+
+[[row]]
+id = "erp.desk.pearnly-tasks.action.erp.work.rules.manage"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-tasks:erp.work.rules.manage"
+where = "pearnly-tasks 页头「erp.work.rules.manage」"
+
+[[row]]
+id = "erp.desk.pearnly-team.action.Cancel"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-team:Cancel"
+where = "pearnly-team 页头「Cancel」"
+
+[[row]]
+id = "erp.desk.pearnly-team.action.Save"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-team:Save"
+where = "pearnly-team 页头「Save」"
+
+[[row]]
+id = "erp.desk.pearnly-team.action.team.new"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-team:team.new"
+where = "pearnly-team 页头「team.new」"
+
+[[row]]
+id = "erp.desk.pearnly-warehouses.action.company.newWarehouse"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-warehouses:company.newWarehouse"
+where = "pearnly-warehouses 页头「company.newWarehouse」"
+
+[[row]]
+id = "erp.desk.query-report-erp stock count variance.action.Export"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:query-report/ERP Stock Count Variance:Export"
+where = "query-report/ERP Stock Count Variance 页头「Export」"
+
+[[row]]
+id = "erp.desk.report.erp_stock_count_variance"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "report"
+anchor = "report:erp:erp_stock_count_variance"
+where = "报表 erp_stock_count_variance"
+tests = ["flow:erp.stocktake.report"]
+
+[[row]]
+id = "erp.cc.action.switch-account"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:erp:switch-account"
+where = "CC 左下角站点列表，点另一个站点（切换账号）"
+parts = ["login-session"]
+config = ["ext:fatcc.com", "kc:pearnly-business:remember-me", "kc:pearnly-cowork:remember-me"]
+must_verify = true
+probe = { type = "assistant-gate" }
+group = "cc.action.switch-account"
+incidents = ["2026-11-03 切换账号第一次落到 Keycloak 登录页"]
+
+[[row]]
+id = "erp.cc.action.add-company"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:erp:add-company"
+where = "CC 侧栏「公司」→ 添加公司"
+group = "cc.action.add-company"
+incidents = ["2026-11-03 ERP 版 CC 添加公司跳系统浏览器、要重新登录"]
+
+[[row]]
+id = "erp.cc.action.company-open-in-product"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:erp:company-open-in-product"
+where = "CC 公司页「在产品里打开」（ERP：在 ERP 打开）"
+group = "cc.action.company-open-in-product"
+
+[[row]]
+id = "erp.cc.action.settings"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:erp:settings"
+where = "CC 设置（主题、语言；电脑齿轮 / 手机头像菜单）"
+parts = ["cc-assistant-settings"]
+tests = ["flow:cc.settings"]
+group = "cc.action.settings"
+
+[[row]]
+id = "erp.cc.action.sidebar-modes"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:erp:sidebar-modes"
+where = "CC 左上角「对话 | 代录」两种模式与侧栏共有入口"
+parts = ["cc-sidebar-list"]
+tests = ["flow:cc.sidebar-modes"]
+group = "cc.action.sidebar-modes"
+
+[[row]]
+id = "erp.cc.action.logout"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:erp:logout"
+where = "CC 退出（直接退出、跳回，不出确认页）"
+parts = ["login-session"]
+group = "cc.action.logout"
+
+[[row]]
+id = "erp.cc.action.deep-link"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:erp:deep-link"
+where = "CC 深链接（?c= 打开对话、?view= / ?company= 打开页面；推送通知、托盘点开）"
+group = "cc.action.deep-link"
+
+[[row]]
+id = "erp.cc.action.attach"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:erp:attach"
+where = "CC 对话里上传附件"
+group = "cc.action.attach"
+
+[[row]]
+id = "erp.cc.action.delete-chats"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:erp:delete-chats"
+where = "CC 删除对话（先确认一次）"
+group = "cc.action.delete-chats"
