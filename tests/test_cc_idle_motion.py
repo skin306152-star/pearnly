@@ -83,6 +83,7 @@ BUSY_SITES = [
     ("components/company-cards.tsx", "cc-spinner", "if (!options) return", 0),  # MR.ERP 记住的选择展开、可选值还没取回（10-19）
     ("components/mrerp-login.tsx", "cc-spinner", "{busy &&", 0),  # MR.ERP 登录授权：要票、等 CC 桌面版交给站点时（11-02）
     ("components/run/upload-card.tsx", "<TypingDots", "{busy &&", 0),  # 上传状态卡片：上传中、排队中、识别中才有（11-04）
+    ("components/tool-uis/operator-steps.tsx", "<TypingDots", 'row.tone === "running" &&', 0),  # 代录单据行：还没结论、也没排着的那张才有（11-04 统一对话框架）
 ]
 # 这几个占位组件本身由谁、在什么条件下挂（上面登记的是组件内部）
 BUSY_MOUNTS = [
@@ -92,9 +93,9 @@ BUSY_MOUNTS = [
     ("components/session-panel.tsx", "{!detail && !error && <PanelSkeleton />}"),
     ("components/month-ledger.tsx", "{loading && <PanelSkeleton />}"),
     ("components/assistant-ui/thread.tsx", "if (!pending) return null;"),
-    # 工作状态行（RunLine）：对话这一轮在跑时、实操任务在录或排队时才挂
-    ("components/assistant-ui/thread.tsx", "  if (!visible) return null;\n  const step = activity.kind === \"tool\""),
-    ("components/operator/task-thread.tsx", "if (chatBusy || activity.kind === \"hidden\") return null;"),
+    # 工作状态行（RunLine）：对话这一轮在跑时才挂；代录会话是同一段对话，同一个状态行（进度由 pearnly.progress 说，11-04）
+    ("components/assistant-ui/thread.tsx", "  if (!visible) return null;\n  // 进行到哪"),
+    ("components/assistant-ui/thread.tsx", "const live = activity.kind === \"reconnecting\" ? null : liveProgress(snapshot);"),
 ]
 
 # setInterval：(文件, 所在函数或条件——在调用往上 window 行内出现的原文, 什么时候在跑, window)
@@ -105,7 +106,7 @@ INTERVAL_SITES = [
     ("components/ui/drag.tsx", "if (step && (step < 0 ? d.intent.up : d.intent.down))", "拖动中指针贴着滚动区边缘时自动滚，离开边缘 / 放下即停", 8),
     ("components/assistant-ui/thread.tsx", "if (!running) return;", "工作状态行显示时每秒走一次计时（回合结束即卸下）", 3),
     ("lib/company-panel.ts", "export function useMinuteClock()", "公司页开着时每分钟刷新相对时间", 4),
-    ("components/operator/live-source.ts", "async function startPolling()", "代录视图开着（有订阅）、页面看得见、桥支持代录时每 3 秒读一次桥上进度；退订、切到后台即停", 4),
+    ("components/operator/bridge.ts", "const start = () => {", "有代录的产品、页面看得见时每 3 秒读一次桥（只有支持实操的 CC 桌面版才真读）；切到后台即停", 4),
 ]
 # 自己反复排 requestAnimationFrame 的循环：(文件, 函数名, 停下的条件——函数体里的原文)
 RAF_LOOPS = [

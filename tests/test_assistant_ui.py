@@ -60,10 +60,12 @@ class FeedTests(unittest.TestCase):
         # 本站提醒不在引擎事件记录里：拿它当锚点，服务端每轮都找不到、退回整段重放
         events = read("lib/managed-agents/events.ts")
         self.assertIn('type: "pearnly.notice";', events)
-        self.assertIn('return String(event.type).startsWith("pearnly.");', events)
+        self.assertIn('if (String(event.type).startsWith("pearnly.")) return true;', events)
+        # 代录事件源投影的（pop_ 开头）与执行电脑上本页合成的（local- 开头）也不当锚点（统一对话框架 14.10）
+        self.assertIn('return typeof id === "string" && (id.startsWith("pop_") || id.startsWith("local-"));', events)
         # 卡片的回答（pearnly.answer，第 11 轮 C22）同样是本站事件：只走推送，不当锚点
         # 执行记录（pearnly.tool_run，第 11 轮 A 段）也是：推来、并在读事件那页最后，都不当锚点
-        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent;", events)
+        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent | ProgressEvent;", events)
         self.assertIn('type: "pearnly.answer";', events)
         self.assertIn('type: "pearnly.tool_run";', events)
         poll = read("lib/managed-agents/poll-source.ts")
@@ -120,7 +122,8 @@ class FeedTests(unittest.TestCase):
         self.assertIn("else if (s.unread === false) clearUnread(s.id, asked);", adapter)
         self.assertLess(adapter.index("const asked = Date.now();"), adapter.index("await listSessions("))
         page = read("assistant.tsx")
-        self.assertIn('useEffect(() => setChatView(view === "chat"), [view]);', page)
+        # 代录会话也是对话页（统一对话框架）：看着它同看着对话
+        self.assertIn('useEffect(() => setChatView(view === "chat" || view === "operator"), [view]);', page)
         # 提醒挂到没加载到的对话：不再每条都整表重拉（审查 frontend-4）
         self.assertIn("noticeReloader(() => aui.threads(), NOTICE_RELOAD_MS)", page)
         self.assertNotIn("if (!listed) void aui.threads().reload();", page)
@@ -1693,7 +1696,10 @@ assert.equal(firstPendingApproval(msgs as any)?.toolCallId, "b");
 g.done();
 """, stubs=self.STUBS, lang="zh")
         thread = read("components/assistant-ui/thread.tsx")
-        self.assertIn('part.type === "tool-call" && approvalCard(part as unknown as CardPart, labels) ? [] : groupByBase(part, context)', thread)
+        # 允许卡与代录的卡片（开始前、中途选、继续）不进折叠的步骤组
+        self.assertIn('part.type === "tool-call" && (OPERATOR_CARDS.has(part.toolName) || approvalCard(part as unknown as CardPart, labels)) ? [] : groupByBase(part, context)', thread)
+        self.assertIn('export const OPERATOR_CARDS: ReadonlySet<string> = new Set(["operator_start", "operator_choose", "operator_resume"]);',
+                      read("components/tool-uis/index.tsx"))
         # 步骤组里那一行（出卡片前就核出要拒绝的）写问话 + 失败，不写做完的说法
         steps_src = read("components/tool-uis/steps.tsx")
         plain = steps_src[steps_src.index("const PlainStep: FC"):steps_src.index("export function askText")]
@@ -2593,7 +2599,8 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertIn("setDraft({});\n            props.onClick?.(e);", read("components/assistant-ui/thread-list.tsx"))
         app = read("assistant.tsx")
         self.assertEqual(app.count("setDraft({}); aui.threads().switchToNewThread();"), 2)  # 应用菜单、手机胶囊
-        self.assertIn("setDraft({});\n            aui.threads().switchToNewThread();\n            close();", app)  # 抽屉底部
+        self.assertIn("setDraft({});\n              aui.threads().switchToNewThread();\n            }\n            close();", app)  # 抽屉底部（直写）
+        self.assertIn("  openOperator(view, setView);\n  setDraft({});\n  void aui.threads().switchToNewThread();", app)  # 代录模式的新建同样清掉
 
     def test_only_the_desktop_window_picks_a_folder(self):
         desktop = read("lib/desktop.ts")
@@ -3564,8 +3571,9 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("if (isMobile || !companies || (event.target as HTMLElement).closest(", rows)
         self.assertIn("const bulk = companies && selection.length > 1 && selection.includes(localId);", rows)
         self.assertIn("selectRange(rowOrder(event.currentTarget), localId, currentRow(event.currentTarget));", rows)
-        # 实操的任务侧栏总是按公司分组：多选、⌘ / Ctrl + 数字同 Cowork 的对话侧栏
-        self.assertIn("const keys = useSidebarKeys(companies || operator);", read("assistant.tsx"))
+        # 代录会话就在同一个侧栏（统一对话框架，按模式筛）：多选、⌘ / Ctrl + 数字同对话侧栏，不另有一份任务侧栏
+        self.assertIn("const keys = useSidebarKeys(companies);", read("assistant.tsx"))
+        self.assertFalse((SRC / "components/operator/operator-sidebar.tsx").exists())
         # ERP / DMS 的日期组开关也在 roving 那一组里（↑ ↓ 不跳过、Tab 不单独停）：电脑上同 Cowork 的组标题（GroupHeader 的开关带
         # data-roving，第 11 轮按钮排查 M6）
         day = rows.split("const DayGroups: FC", 1)[1].split("\n};\n", 1)[0]
@@ -4411,7 +4419,7 @@ assert.equal(useTaskOverview.getState().loaded, true);
 import { listGrouped } from "@/lib/managed-agents/api";
 g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { sessions: [], nextCursor: null } }) });
 await listGrouped({ group: "comp_abc", after: "x|y" });
-assert.deepEqual(g.calls.at(-1).args, { grouped: "1", group: "comp_abc", after: "x|y" });
+assert.deepEqual(g.calls.at(-1).args, { grouped: "1", group: "comp_abc", after: "x|y", mode: "chat" });
 """)
 
     def test_new_tasks_start_from_a_company(self):

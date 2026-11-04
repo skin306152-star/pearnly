@@ -1057,7 +1057,7 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn('return <div className="cc-steps-card">{children}</div>;', steps)
         # 允许 / 拒绝卡不进组（等回答的要看得见，点完的照 Claude 留在原处），也放进同样带环的卡片
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
-        self.assertIn('part.type === "tool-call" && approvalCard(part as unknown as CardPart, labels) ? [] : groupByBase(part, context)', thread)
+        self.assertIn('part.type === "tool-call" && (OPERATOR_CARDS.has(part.toolName) || approvalCard(part as unknown as CardPart, labels)) ? [] : groupByBase(part, context)', thread)
         self.assertIn('<LoneStep part={part as unknown as CardPart}>\n                        <ToolFallbackComponent {...part} />', thread)
         self.assertNotIn('<div className="cc-steps-card">', thread)
         self.assertNotIn("steps.steps(", steps)

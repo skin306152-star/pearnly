@@ -748,10 +748,14 @@ class ErpSectionsSourceTests(unittest.TestCase):
         projects = read("lib/managed-agents/projects.ts")
         self.assertIn('api: kind && typeof out?.api === "string" ? out.api : "",', projects)
         self.assertIn("sections: kind ? sectionsOf(out?.sections) : [],", projects)
-        live = read("components/operator/live-source.ts")
-        self.assertNotIn("search_link", live)
-        self.assertNotIn("deps.product ===", live)
-        self.assertIn('get<CompanyRow[]>((await companiesApi()) + "companies", { search: search || undefined, start, limit })', live)
+        # 代录不再自己取公司（11-04 统一对话框架）：新建页的公司就是直写下巴那一个（声明的接口）；代录的卡片、桥不取公司、不按产品名分支
+        for rel in ("components/tool-uis/operator-shared.ts", "components/tool-uis/operator-start.tsx", "components/operator/bridge.ts"):
+            text = read(rel)
+            self.assertNotIn("search_link", text)
+            self.assertNotIn('"companies"', text)
+            self.assertNotIn("product ===", text)
+        self.assertIn("<Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback, Chin: ComposerChin, Tail: PendingInChat }} />",
+                      read("assistant.tsx"))
 
     def test_no_branch_on_the_product_name_for_company_parts(self):
         for path in ("lib/companies.ts", "lib/company-panel.ts", "components/companies.tsx", "components/company-page.tsx",
