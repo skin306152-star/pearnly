@@ -25,6 +25,7 @@
 | E 部署接线 | 5fe8fa287 | 已合入（11-04） | 两个新测试步本机共约 0.2 秒（不跑站点） | 导出随镜像；部署前配置对比（演练、构建前、激活前）；回读逐租户上线必验探针；本批真机单 |
 | E 合入 | 5fe8fa287 | 已合入（11-04） | CI 上两步各约 1 秒 | — |
 | D 接口分诊 | d863f8d31 | 已合入（11-04） | 闸门本机 0.67 → 1.2 秒；CI 上那步约 4 秒 | 见下方「D 块」 |
+| D 核实拼名调用 | 见本块提交 | 待合入 | 闸门本机约 1.5 秒 | 51 个里 8 个真拼名（补识别规则），43 个归兼容 / 待删 |
 | G 看板雏形 | dccb5a8f3 | 已合入，11-04 按用户口径撤掉 | — | 用户：「我看不懂，我也用不上，我的产品100%全是ai做的，所以我的要求是一定要达到目的」 |
 | G 改：对照组机器检查 | 见本块提交 | 待合入 | 闸门本机 1.35 秒 | 36 组（自动成组 + 手写）；规则 5 缺格 / 比兄弟弱进 sibling_baseline.txt，现存 11 条；影响清单列同组兄弟 |
 | F CC 前端注释 | — | 等主会话通知 | — | cc-entry-fixes 合入后 |
@@ -276,16 +277,16 @@ scripts/check-product-map.py   # 闸门
 
 ## D 块：白名单接口分诊（11-04）
 
-闸门新规则：一期范围（共用层、ERP、Cowork）602 个白名单接口里，找不到调用方的（前端、Python、CC 桌面版、站外配置、部署脚本都没调；测试和流程用例不算）
+闸门规则：一期范围（共用层、ERP、Cowork）602 个白名单接口里，找不到调用方的（前端、Python、CC 桌面版、站外配置、部署脚本都没调；测试和流程用例不算）
 要么删掉，要么登记进 `not_entries.toml` 并写原因；有了调用方闸门会报「该删」。影响清单也会把「改到入口调用的接口」算进命中。
 
-找不到调用方的 99 个（评估粗数 95，口径改成按调用方实际引用后的真实数）：
+11-04 晚核实了原先归为「拼名调用」的 51 个：8 个确实是拼名调用（上传的 `${method}_begin` / `_finish` 6 个、导出模板串 `${u.api}api_…_export` 2 个），
+补了两条识别规则后自动认出、已从登记里删掉；其余 43 个前端并没有拼名调用，按证据归进兼容保留或待删。现在登记 91 个：
 
 | 分类 | 个数 | 说明 |
 |---|---|---|
-| dynamic | 51 | 前端引用了模块前缀，方法名按拼接调用（上传 begin / finish、导出等），扫描器认不出——在用，待逐个核实 |
-| compat | 24 | 产品里没有调用方，文档提到（保留的兼容入口或旧功能）——待核实保留期限 |
-| delete | 24 | 待删候选：产品里没有调用方，只有测试在调或全仓都没有 |
+| compat | 47 | 产品里没有调用方，文档提到（保留的兼容入口或旧功能）——待核实保留期限 |
+| delete | 44 | 待删候选：产品里没有调用方，只有测试在调或全仓都没有 |
 
 待删候选清单（交主会话；删除另走批次，删的同一提交删掉对应条目）：
 
@@ -306,6 +307,23 @@ scripts/check-product-map.py   # 闸门
 - `pearnly_cowork.stocktake.api.edit_entry`：产品里没有调用方，只有测试 tests/test_erp_stocktake_photos.py 在调（待删候选）
 - `pearnly_cowork.stocktake.api.export`：产品里没有调用方，只有测试 scripts/flows/cowork_exports.py 在调（待删候选）
 - `pearnly_cowork.stocktake.api.report`：产品里没有调用方，只有测试 apps/pearnly_control/pearnly_control/account/test_repool.py 在调（待删候选）
+- `pearnly_erp_portal.integrations.api.api_line_bot`：11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）
+- `pearnly_erp_portal.inventory.api.api_count`：11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_permissions.py 在调（待删候选）
+- `pearnly_erp_portal.inventory.api.api_list_openings`：11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）
+- `pearnly_erp_portal.inventory.api.api_list_warehouses`：11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）
+- `pearnly_erp_portal.inventory.api.api_rebuild_balance`：11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）
+- `pearnly_erp_portal.inventory.api.api_stock_count_entries`：11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）
+- `pearnly_erp_portal.inventory.api.api_stock_count_entry_total`：11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）
+- `pearnly_erp_portal.inventory.api.api_stock_count_import`：11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）
+- `pearnly_erp_portal.inventory.api.api_stock_count_item_total`：11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）
+- `pearnly_erp_portal.inventory.api.api_stock_count_items`：11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）
+- `pearnly_erp_portal.inventory.api.api_stock_count_post`：11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）
+- `pearnly_erp_portal.inventory.api.api_upsert_opening`：11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）
+- `pearnly_erp_portal.inventory.serials.api_unit_history`：11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）
+- `pearnly_erp_portal.masters.api.api_company_terminals`：11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）
+- `pearnly_erp_portal.masters.api.api_create_company_terminal`：11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）
+- `pearnly_erp_portal.masters.api.api_set_customer_active`：11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）
+- `pearnly_erp_portal.masters.api.api_update_company_terminal`：11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）
 - `pearnly_erp_portal.mrerp.api.account_sets`：产品里没有调用方，只有测试 scripts/flows/cowork_mrerp_login.py 在调（待删候选）
 - `pearnly_erp_portal.mrerp.api.choose`：产品里没有调用方，只有测试 scripts/flows/cowork_pending_operator.py 在调（待删候选）
 - `pearnly_erp_portal.mrerp.api.company_choices`：产品里没有调用方，只有测试 tests/flows/behind_baseline.txt 在调（待删候选）
@@ -313,6 +331,9 @@ scripts/check-product-map.py   # 闸门
 - `pearnly_erp_portal.mrerp.api.connection_view`：全仓没有调用方，测试与文档也没提到（待删候选）
 - `pearnly_erp_portal.mrerp.api.detach`：产品里没有调用方，只有测试 tests/test-desk-place-and-switch.cjs 在调（待删候选）
 - `pearnly_erp_portal.mrerp.api.refresh_catalog`：全仓没有调用方，测试与文档也没提到（待删候选）
+- `pearnly_erp_portal.products.service.api_add_unit`：11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）
+- `pearnly_erp_portal.purchasing.api.api_purchase_category`：11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）
+- `pearnly_erp_portal.team.api.api_set_member_companies`：11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）
 
 ## 证明达到目的：事故回放（11-04，主会话要求）
 

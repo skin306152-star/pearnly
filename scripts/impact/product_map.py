@@ -595,6 +595,7 @@ CALLER_SUFFIXES = (".py", ".js", ".html", ".ts", ".tsx", ".vue", ".json", ".sh",
 # 调用方可能在：产品代码、前端单页、CC 桌面版、站外配置（Keycloak 主题、nginx）、开户与部署脚本。
 # 流程用例、冒烟、回归与 sample 验证脚本是测试，不算调用方
 CALLER_ROOTS = ("apps/", "frontend/", "companion/src/", "infrastructure/", "scripts/production/")
+API_WORD = re.compile(r"\bapi_[A-Za-z0-9_]+")
 QUOTED = re.compile(r"[\"'`]([A-Za-z_][A-Za-z0-9_]*)[\"'`]")
 CALLER_SKIP = ("/node_modules/", "/public/assistant/", "/public/pearnly-app/", "/vendor/", "/dist/", ".min.js")
 
@@ -637,11 +638,15 @@ def discover_endpoints(repo: Repo | None = None) -> dict[str, Endpoint]:
     """一期范围（共用层、ERP、Cowork）的白名单接口与它们的调用方（前端、Python、CC 桌面版；接口自己的文件不算）。"""
     repo = repo or Repo()
     index, files = caller_index(repo)
+    front = [p for p in files if p.endswith((".js", ".html", ".ts", ".tsx", ".vue"))]
     quoted, scripts_in = {}, {}
-    for p in files:
-        if p.endswith((".js", ".html", ".ts", ".tsx", ".vue")):
-            for found in QUOTED.findall(repo.text(p)):
-                quoted.setdefault(found, set()).add(p)
+    words = {}
+    for p in front:
+        text = repo.text(p)
+        for found in QUOTED.findall(text):
+            quoted.setdefault(found, set()).add(p)
+        for found in set(API_WORD.findall(text)):
+            words.setdefault(found, set()).add(p)
     for p in repo.files:
         if p.endswith(".js") and p.startswith("apps/"):
             scripts_in.setdefault(p.rsplit("/", 1)[0], []).append(p)
@@ -664,6 +669,14 @@ def discover_endpoints(repo: Repo | None = None) -> dict[str, Endpoint]:
             # 前端（共用层的接口看全部前端）里带引号写出这个方法名也算；宁可多认一个调用方，不把在用的接口当成没人调
             app = module.split(".")[0]
             callers |= {p for p in quoted.get(name, ()) if app == "pearnly_core" or p.startswith(f"apps/{app}/")}
+            if name.startswith("api_"):
+                # ERP 的 `api_` 名字够独特：同一 App 前端里作为单词出现（模板串 `${u.api}api_sales_export`）就算
+                callers |= {p for p in words.get(name, ()) if app == "pearnly_core" or p.startswith(f"apps/{app}/")}
+            stem, _, suffix = name.rpartition("_")
+            if stem and suffix:
+                # 前缀常量加后缀拼名：`STOCK = "x.inventory.api.api_stock_upload"` 与 `${method}_begin`
+                joined = re.compile(r"(?:\}|[\"'`])_" + re.escape(suffix) + r"\b")
+                callers |= {p for p in index.get(f"{module}.{stem}", ()) if p != path and joined.search(repo.text(p))}
             callers = sorted(callers)
             endpoints[dotted] = Endpoint(dotted, path, callers)
     return endpoints

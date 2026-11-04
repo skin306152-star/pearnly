@@ -107,6 +107,12 @@ class Discovery(unittest.TestCase):
             f"{app}/pearnly_erp_portal/doctype/erp_x/erp_x.js": 'frm.call("form_action")',
             "infrastructure/keycloak/themes/x/login.ftl": "/api/method/pearnly_core.account.api.from_theme",
             "apps/pearnly_core/pearnly_core/account/api.py": "import frappe\n@frappe.whitelist(allow_guest=True)\ndef from_theme(): pass\n",
+            f"{app}/sales/upload.py": "import frappe\n@frappe.whitelist()\ndef api_doc_upload_begin(): pass\n"
+                                      "@frappe.whitelist()\ndef api_doc_upload_finish(): pass\n@frappe.whitelist()\ndef api_doc_upload_cancel(): pass\n"
+                                      "@frappe.whitelist()\ndef api_sales_export(): pass\n",
+            f"{app}/public/desk/upload.js": 'const M = "pearnly_erp_portal.sales.upload.api_doc_upload";\n'
+                                            'post(`${M}_begin`); post(M + "_finish");',
+            f"{app}/public/desk/list.js": 'p.export_file(`${u.api}api_sales_export`)',
             "tests/test_sales.py": "from pearnly_erp_portal.sales.api import api_only_tests\n",
             "scripts/flows/sales.py": '"pearnly_erp_portal.sales.api.api_nobody"',
         })
@@ -117,6 +123,11 @@ class Discovery(unittest.TestCase):
         self.assertEqual(callers["api_python"], [f"{app}/cc/tools.py"])
         self.assertEqual(callers["form_action"], [f"{app}/pearnly_erp_portal/doctype/erp_x/erp_x.js"])
         self.assertEqual(callers["from_theme"], ["infrastructure/keycloak/themes/x/login.ftl"])
+        # 前缀常量加后缀拼名（`${M}_begin` / M + "_finish"）、模板串里的 api_ 名字都算；没拼过的后缀不算
+        self.assertEqual(callers["api_doc_upload_begin"], [f"{app}/public/desk/upload.js"])
+        self.assertEqual(callers["api_doc_upload_finish"], [f"{app}/public/desk/upload.js"])
+        self.assertEqual(callers["api_doc_upload_cancel"], [])
+        self.assertEqual(callers["api_sales_export"], [f"{app}/public/desk/list.js"])
         # 测试、流程用例不算调用方
         self.assertEqual(callers["api_nobody"], [])
         self.assertEqual(callers["api_only_tests"], [])
