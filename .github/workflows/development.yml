@@ -69,6 +69,8 @@ jobs:
         run: python3 tests/test_express_operator_tasks.py
       - name: Code-style CC backend, task upload records and their recognition states, pending counts per company and month, and the account set each precheck writes to
         run: python3 tests/test_express_operator_code_cc.py
+      - name: Hands-on tasks as one conversation, the event source projects every task, document and reason state, replays the same, pushes only to the owner, and leaves product submit and status calls unchanged
+        run: python3 tests/test_express_operator_feed.py
       - name: ERP master records synced from Express keep their identity fields
         run: python3 tests/test_erp_express_locks.py
       - name: ERP product internal code (typed for local products, the Express code for synced ones; scans, stocktake and the product template read it)

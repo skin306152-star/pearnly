@@ -471,6 +471,11 @@ def move(session_id, project, period=None, scope=None) -> dict:
     target, period, scope = _guard(projects.placement, wanted, period, scope, user)
     if wanted and not target:
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    if row.get("operator_task") and period != (row.get("period") or ""):
+        from pearnly_core.express_operator import tasks
+
+        # 代录会话的月份就是任务的月份：交给任务改（只在准备中能改，交单后拒），会话跟着记
+        tasks.update(row.operator_task, period=period)
     frappe.db.set_value(SESSION, row.name, {"project": target, "period": period, "project_scope": scope},
                         update_modified=False)
     sidebar.project(user, "move", session=row.session_id, project=target, period=period, scope=scope)

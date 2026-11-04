@@ -4632,7 +4632,7 @@ class OperatorSessionTests(unittest.TestCase):
                                   "title": "op", "project": "co_abc1", "period": "2026-10", "operator_task": "task0001",
                                   "remote_ids": "[]"}))
         frappe.session.user = self.OWNER
-        self.fed, self.stops, self.deleted, self.made = [], [], [], []
+        self.fed, self.stops, self.deleted, self.made, self.moved = [], [], [], [], []
         self.task_status = "queued"
         operator_events = [
             {"type": "agent.tool_use", "id": "pop_task0001_sources", "name": "operator_sources", "input": {},
@@ -4646,6 +4646,7 @@ class OperatorSessionTests(unittest.TestCase):
         tasks.DOCTYPE, tasks.STOP = "Pearnly Express Operator Task", "stop"
         tasks.push_control = lambda name, action, ids: self.stops.append((name, action, list(ids)))
         tasks.delete = lambda name: self.deleted.append(name) or self.sessions.delete("op_task0001")
+        tasks.update = lambda name, period=None: self.moved.append((name, period))
         tasks.create = lambda company, period, title, scope="": self.made.append((company, period, title, scope)) or {
             "name": "task0001", "session_id": "op_task0001"}
         products = types.ModuleType("pearnly_core.express_operator.products")
@@ -4714,6 +4715,12 @@ class OperatorSessionTests(unittest.TestCase):
         self.assertEqual(json.loads(row.remote_ids), ["sesn_remote01"])
         self.assertEqual(self.sessions.segments(row), ["sesn_remote01"])
         self.assertEqual(self.api.open.call_args[0][1]["pearnly_conversation"], "op_task0001")
+
+    def test_a_new_month_goes_through_the_task(self):
+        self.provider.periods = True
+        self.sessions.move("op_task0001", "co_abc1", period="2026-11")
+        self.sessions.move("op_task0001", "co_abc1", period="2026-11")
+        self.assertEqual(self.moved[:1], [("task0001", "2026-11")])
 
     def test_delete_goes_through_the_task_and_create_builds_one(self):
         self.task_status = "finished"
