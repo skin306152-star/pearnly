@@ -198,6 +198,13 @@ export function spotOf(
   return { company: pick, month: row?.month ?? "", conversation: row?.conversation ?? "" };
 }
 
+/** 这段会话是哪种（listing / get 每行的 mode：chat / operator）；不是本人的、不存在时回空（随后 openConversation 按找不到处理）。 */
+async function conversationMode(id: string): Promise<string> {
+  if (!SESSION_ID.test(id)) return "";
+  const session = await getSession(id).catch(withReport(() => null, "nav"));
+  return String((session as { mode?: string } | null)?.mode ?? "");
+}
+
 /** 切到这段对话；不是本人的、不存在、已删或已归档都回 false。 */
 async function openConversation(aui: Aui, id: string): Promise<boolean> {
   if (!SESSION_ID.test(id)) return false;
@@ -250,7 +257,14 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
         return;
       }
       if (target.c) {
-        latest.current.setView("chat");
+        // 代录任务就是一段会话（统一对话框架）：代录会话的链接切到代录模式打开（侧栏列代录会话，同旧的 ?task= 链接），
+        // 直写的在代录模式下打开先回对话模式
+        const operator = (await conversationMode(target.c)) === "operator";
+        if (!alive) return;
+        const now = useModePlace.getState().mode;
+        if (operator && now !== "operator") useModePlace.setState({ mode: "operator", chatView: "chat" });
+        if (!operator && now === "operator") useModePlace.setState({ mode: "chat", operatorView: "operator" });
+        latest.current.setView(operator ? "operator" : "chat");
         if (await openConversation(aui, target.c)) return;
         if (alive) await fallback();
         return;
