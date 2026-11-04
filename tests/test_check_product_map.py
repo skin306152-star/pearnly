@@ -60,6 +60,16 @@ class Rules(unittest.TestCase):
         self.assertEqual(run([row("nav:erp:a", config=["site:pearnly_line_channel_secret"])], found("nav:erp:a"),
                              config={"pearnly_line_*": {"class": "presence"}}, families={"pearnly_line_": ["l.py"]}), [])
 
+    def test_cc_front_end_errors_say_how_to_fix_them(self):
+        action = {"ccaction:erp:new": pm.Found("ccaction:erp:new", "cc-action", "ERP", "cc-chat", ["desktop"], ["frontend/assistant/src/a.ts"]),
+                  "ccnav:a.ts:location.href = x": pm.Found("ccnav:a.ts:location.href = x", "cc-nav", "共用", "cc-chat", ["desktop"],
+                                                           ["frontend/assistant/src/a.ts"])}
+        errors = "\n".join(run([row("ccaction:erp:gone", kind="cc-action", channel="cc-chat")], action))
+        self.assertIn("erp.toml / cowork.toml 各加一行", errors)
+        self.assertIn('not_entries.toml 按原文登记 anchor，kind = "internal"', errors)
+        self.assertIn("两个产品各一行", errors)
+        self.assertIn("sibling_baseline.txt", errors)
+
     def test_rule_3_every_end_needs_a_test_and_the_baseline_only_shrinks(self):
         desk_only = row("nav:erp:a", tests=["flow:f.desk"])
         errors = "\n".join(run([desk_only], found("nav:erp:a")))

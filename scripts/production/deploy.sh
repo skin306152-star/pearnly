@@ -19,6 +19,7 @@
 #   0'. 部署前租户配置对比（演练和正式部署都做，正式部署在构建前）：用这个提交的产品地图导出，经一次 SSH 在生产机
 #      各产品 web 容器里读站点配置（check-tenant-config.py，只读，不进数据库容器）；「应一致」的键正式租户与测试租户不同、
 #      或「形状规则」不满足就停下，没有绕过开关。服务器激活前会用镜像里那份再核一次（deploy-run.sh 的 config 步骤）。
+#      接着在本机核每个配了 LIFF 的站点的落地地址（check-liff-endpoints.py，只读 HTTP），不对也停下（11-03 事故待补项 A）。
 #   0. 流程用例闸：这个提交的 GitHub 状态 pearnly/flows 必须是全套通过（本机回归实验室 scripts/flows/run.py --all --post-status
 #      回写）；没过就停下。没有全套时沿用首父链上最近一次全套，前提是之后只改了非产品路径（flows_inherit.py）；
 #      不能沿用就停下、打印补跑命令，不构建、不动生产。
@@ -156,7 +157,8 @@ flows_gate() {
 config_gate() {
   local tmp out rc=0 b64
   tmp=$(mktemp -d)
-  if ! git -C "$REPO" archive "$sha" scripts/impact scripts/check-product-map.py scripts/production/check-tenant-config.py 2>/dev/null \
+  if ! git -C "$REPO" archive "$sha" scripts/impact scripts/check-product-map.py scripts/production/check-tenant-config.py \
+      scripts/production/check-liff-endpoints.py 2>/dev/null \
       | tar -x -C "$tmp" 2>/dev/null || [[ ! -f "$tmp/scripts/production/check-tenant-config.py" ]]; then
     rm -rf "$tmp"
     say "租户配置对比：提交 $short 还没有产品地图，跳过"
@@ -165,15 +167,40 @@ config_gate() {
   python3 "$tmp/scripts/check-product-map.py" --export "$tmp/product-map.json" ||
     { rm -rf "$tmp"; stop "提交 $short 的产品地图导不出来" "生产没动" "python3 scripts/check-product-map.py 看地图错在哪"; }
   b64=$(base64 < "$tmp/product-map.json" | tr -d '\n')
-  out=$(ssh_production "python3 - --map-b64 $b64" < "$tmp/scripts/production/check-tenant-config.py") || rc=$?
-  rm -rf "$tmp"
+  # 读到的站点配置（已去敏）经 stderr 回到本机，接着用来核 LIFF 落地地址；生产机上不落文件
+  out=$(ssh_production "python3 - --map-b64 $b64 --dump /dev/stderr" < "$tmp/scripts/production/check-tenant-config.py" \
+    2> "$tmp/sites.json") || rc=$?
   printf '%s\n' "$out" | sed 's/^/  │ /'
   case $rc in
     0) say "租户配置对比通过" ;;
-    1) stop "正式租户的配置与测试租户对不上（上面 BLOCK 行）" "生产没动" \
+    1) rm -rf "$tmp"; stop "正式租户的配置与测试租户对不上（上面 BLOCK 行）" "生产没动" \
          "逐项核对：改租户配置，或在 scripts/impact/product-map/config.toml 改分类（走评审）后重跑；没有绕过开关" ;;
-    *) stop "租户配置对比没跑成（退出码 $rc）" "生产没动" "网络或生产机问题；恢复后重跑" ;;
+    *) rm -rf "$tmp"; stop "租户配置对比没跑成（退出码 $rc）" "生产没动" "网络或生产机问题；恢复后重跑" ;;
   esac
+  liff_gate "$tmp"
+  rm -rf "$tmp"
+}
+
+# 部署前也核 LIFF 落地地址（11-03 事故的待补项 A）：每个配了 LIFF 的站点，落地地址必须是规定的那一个、从 LINE 进网页不出 404。
+# 本机只读 HTTP，不要密钥；不对就拦部署，没有绕过开关（LIFF 设置改在控制面 / LINE 那边，改好再部署）。
+liff_gate() {
+  local tmp=$1 rows rc=0 out
+  if [[ ! -f "$tmp/scripts/production/check-liff-endpoints.py" ]]; then say "LIFF 落地地址：提交 $short 还没有检查脚本，跳过"; return 0; fi
+  rows=$(python3 -c '
+import json, sys
+dumps = json.load(open(sys.argv[1]))
+for product, sites in sorted(dumps.items()):
+    for row in sites if isinstance(sites, list) else []:
+        liff = (row.get("keys") or {}).get("pearnly_line_liff_id")
+        if liff:
+            print(product, row["site"], liff)' "$tmp/sites.json" 2>/dev/null) ||
+    stop "读不到生产机回传的站点配置，LIFF 落地地址没法核" "生产没动" "重跑一次；还不行先看 $REMOTE_STATE 与网络"
+  [[ -n "$rows" ]] || stop "没有一个站点配了 LIFF，LIFF 落地地址没法核" "生产没动" "核对生产站点配置里的 pearnly_line_liff_id"
+  out=$(printf '%s\n' "$rows" | python3 "$tmp/scripts/production/check-liff-endpoints.py" --stdin 2>&1) || rc=$?
+  printf '%s\n' "$out" | sed 's/^/  │ /'
+  [[ $rc == 0 ]] || stop "LIFF 落地地址或从 LINE 进网页的入口不对（上面 PROBLEM 行）" "生产没动" \
+    "ERP / Cowork 的 LIFF 落地地址必须是站点根、DMS 是 /liff/dms-booking：在控制面改好（pearnly_control.onboarding.line_liff）再部署；没有绕过开关"
+  say "LIFF 落地地址通过"
 }
 
 # 本批真机单：上次放上生产到这次改到的地图入口里，上线必验的与只能真机的（只打印，不拦）

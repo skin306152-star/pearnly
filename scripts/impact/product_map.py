@@ -336,6 +336,8 @@ NAVIGATION = re.compile(r"window\.open\(|location\.(?:assign|replace)\(|location
 
 def discover_cc_actions(repo: Repo) -> list[Found]:
     """CC 外壳动作：代码里 `// map: <动作>[@<产品>] …` 注释（同一份前端两个产品都用，`@cowork` 表示只有 Cowork）。
+    格式：注释写在实现这个动作的函数 / 组件上一行，一行可写几个动作（空格分开）；动作名用小写加连字符，对应地图行
+    `ccaction:<erp|cowork>:<动作名>`。改界面时同一提交维护：删界面 → 删注释、删两个产品的行与基线条目；改名 → 改注释与行的 anchor。
     另外每一处页面跳转（window.open / location.assign / replace / href =）都要在同一行或上两行带 `// map:`；
     没带的生成 `ccnav:<文件>:<那一行>` 锚点，要么加注释，要么在 not_entries.toml 写为什么不是入口（安装引导、会话过期回跳等）。"""
     found = {}

@@ -41,6 +41,19 @@ import product_map as pm  # noqa: E402
 END_NAMES = {"desktop": "电脑", "mobile": "手机"}
 
 
+# 按入口类型说清楚怎么改（CC 前端会大改：删一块界面就同一提交删注释、删行、删基线条目）
+HOW_NEW = {
+    "cc-action": "CC 前端新加了 `// map: <动作>` 注释：在 erp.toml / cowork.toml 各加一行（kind = \"cc-action\"，anchor 照这里，"
+                 "只有一个产品的注释写成 `<动作>@cowork`），写测试；注释是误加的就删掉",
+    "cc-nav": "CC 前端这一处页面跳转没带注释：是产品入口就在它上面加 `// map: <动作>` 并登记行；不是入口（安装引导、被动回跳）就在 "
+              "not_entries.toml 按原文登记 anchor，kind = \"internal\"，写原因",
+}
+HOW_STALE = {
+    "cc-action": "CC 前端删了或改名了这条 `// map:` 注释：界面删了就同一提交删掉 erp.toml / cowork.toml 里这一行（两个产品各一行），"
+                 "并删掉 untested_baseline.txt、sibling_baseline.txt 里带这个行 id 的条目；改名就把行的 anchor（和 id）改成新名字",
+}
+
+
 def check(product_map: pm.Map, repo: pm.Repo, found: dict, keys: dict, families: dict, flows, impact, parts,
           endpoints: dict | None = None) -> list[str]:
     errors = list(product_map.errors)
@@ -49,8 +62,8 @@ def check(product_map: pm.Map, repo: pm.Repo, found: dict, keys: dict, families:
     # 1. 未登记
     for anchor, item in sorted(found.items()):
         if anchor not in anchors and anchor not in product_map.not_entries:
-            errors.append(f"未登记：{item.product} {item.kind} {anchor}（{item.where}；{', '.join(item.files[:2])}）"
-                          " —— 在 scripts/impact/product-map/ 加一行并写测试（--suggest 出草稿），或写进 not_entries.toml 并说明原因")
+            how = HOW_NEW.get(item.kind, "在 scripts/impact/product-map/ 加一行并写测试（--suggest 出草稿），或写进 not_entries.toml 并说明原因")
+            errors.append(f"未登记：{item.product} {item.kind} {anchor}（{item.where}；{', '.join(item.files[:2])}）—— {how}")
     for key in sorted(keys):
         if key not in product_map.config:
             errors.append(f"未登记：site_config 键 {key}（{', '.join(keys[key][:2])}）—— 在 config.toml 的 [key.{key}] 写 class")
@@ -60,7 +73,8 @@ def check(product_map: pm.Map, repo: pm.Repo, found: dict, keys: dict, families:
     # 2. 已过期
     for row in product_map.rows.values():
         if row.kind not in pm.UNSCANNED_KINDS and row.anchor not in found:
-            errors.append(f"已过期：行 {row.id} 的锚点 {row.anchor} 在代码里找不到 —— 入口删了就删这一行，改了就改锚点")
+            how = HOW_STALE.get(row.kind, "入口删了就删这一行（连同两个基线文件里带这个行 id 的条目），改了就改锚点")
+            errors.append(f"已过期：行 {row.id} 的锚点 {row.anchor} 在代码里找不到 —— {how}")
         for ref in row.config:
             kind, _, name = ref.partition(":")
             if kind == "site" and name not in product_map.config and not any(

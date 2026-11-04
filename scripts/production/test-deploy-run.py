@@ -283,7 +283,7 @@ class Driver(unittest.TestCase):
 
     def run_driver(self, *args, build='success', stage='success', remote_status='ok', candidate='success',
                    busy_server=False, attach_failures=0, flows=FLOWS_OK, base_flows='', changed='', on_main=True,
-                   with_map=False, config_rc=0):
+                   with_map=False, config_rc=0, liff_rc=0, dump=True):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             repo, bin_dir = root / 'repo', root / 'bin'
@@ -295,6 +295,10 @@ class Driver(unittest.TestCase):
                 shutil.copytree(HERE.parent / 'impact', repo / 'scripts/impact')
                 shutil.copy(HERE.parent / 'check-product-map.py', repo / 'scripts/check-product-map.py')
                 shutil.copy(HERE / 'check-tenant-config.py', repo / 'scripts/production/check-tenant-config.py')
+                # LIFF 检查本身另有离线测试；这里换成假的（不连外网），只看交给它哪些站点、认不认它的结果
+                (repo / 'scripts/production/check-liff-endpoints.py').write_text(
+                    f'import sys\nopen("{root}/liff-rows", "w").write(sys.stdin.read())\n'
+                    f'print("  PROBLEM mrerp.pearnly.com: LIFF endpoint is /stocktake" if {liff_rc} else "  liff ok")\nsys.exit({liff_rc})\n')
             (repo / 'scripts/flows').mkdir(parents=True)
             (repo / 'scripts/flows/coverage.py').write_text(
                 'import sys\nif "--deploy-note" in sys.argv: print("本批改到的存量模块（还没有流程兜底）1 个：")\n')
@@ -312,7 +316,7 @@ case "$*" in
   *rev-list*) {f'echo {BASE}' if base_flows else ':'} ;;
   *"diff --name-only"*) printf '%s\n' {changed!r} ;;
   *show*deploy-run.sh) cat "{repo}/scripts/production/deploy-run.sh" ;;
-  *" archive "*) {f'tar -c -C "{repo}" scripts/impact scripts/check-product-map.py scripts/production/check-tenant-config.py' if with_map else 'exit 128'} ;;
+  *" archive "*) {f'tar -c -C "{repo}" scripts/impact scripts/check-product-map.py scripts/production/check-tenant-config.py scripts/production/check-liff-endpoints.py' if with_map else 'exit 128'} ;;
 esac
 ''')
             stub(bin_dir / 'gh', f'''echo "gh $*" >> "{trace}"
@@ -338,7 +342,7 @@ esac
 ''')
             stub(bin_dir / 'fake-ssh', f'''printf 'ssh %s\\n' "$(printf '%s' "$*" | tr '\\n' ' ')" >> "{trace}"
 case "$*" in
-  *"--map-b64"*) cat > "{root}/config-script"; echo "  tenants read: erp 2"; {'echo "  BLOCK erp mrerp.pearnly.com pearnly_x"; exit 1' if config_rc else 'echo "  tenant config check passed"'} ;;
+  *"--map-b64"*) cat > "{root}/config-script"; echo "  tenants read: erp 2"; {('echo ' + repr(json.dumps({"erp": [{"site": "mrerp.pearnly.com", "keys": {"pearnly_line_liff_id": "1-a"}}, {"site": "gize.pearnly.com", "keys": {"pearnly_line_liff_id": None}}], "dms": {"error": "x"}})) + ' >&2;') if dump else ''} {'echo "  BLOCK erp mrerp.pearnly.com pearnly_x"; exit 1' if config_rc else 'echo "  tenant config check passed"'} ;;
   *"nohup bash"*) cat > /dev/null; {'echo "BUSY abc"' if busy_server else 'echo "STARTED 4242"'} ;;
   *"tail -n"*)
     n=$(cat "{root}/attach-count" 2>/dev/null || echo 0); echo $((n + 1)) > "{root}/attach-count"
@@ -487,6 +491,21 @@ esac
         result, calls = self.run_driver('--dry-run')
         self.assertIn('还没有产品地图，跳过', result.stdout)
         self.assertEqual(self.kinds(calls), [])
+
+    def test_liff_endpoints_are_checked_before_the_build_from_the_dumped_site_config(self):
+        result, calls = self.run_driver(with_map=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('LIFF 落地地址通过', result.stdout)
+        self.assertEqual(self.kinds(calls)[:2], ['ssh config', 'dispatch build-production.yml'])
+        result, calls = self.run_driver(with_map=True, liff_rc=1)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(self.kinds(calls), ['ssh config'])
+        self.assertIn('PROBLEM mrerp.pearnly.com: LIFF endpoint is /stocktake', result.stdout)
+        self.assertIn('LIFF 落地地址或从 LINE 进网页的入口不对', result.stderr)
+        self.assertIn('没有绕过开关', result.stderr)
+        result, calls = self.run_driver('--dry-run', with_map=True, dump=False)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('读不到生产机回传的站点配置', result.stderr)
 
     def test_failed_config_on_the_server_leaves_services_alone(self):
         result, calls = self.run_driver('--tag', TAG, '--digest', DIGEST, '--skip-stage', remote_status='failed config')
