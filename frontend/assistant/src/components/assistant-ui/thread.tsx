@@ -681,10 +681,13 @@ export function useClock(running: boolean): number {
   return running ? now : Date.now();
 }
 
+/** 代录任务报告 CSV 的接口（服务端 feed.report，只给任务主人）；收尾事件带来的地址只认它，别的地址不画成下载卡片。 */
+const OPERATOR_REPORT = "/api/method/pearnly_core.express_operator.feed.report?name=";
+
 /** 代录收尾那条回复下面的报告（方案 14.10 E15：reducer 记在消息上的 report，服务端按任务记录现生成 CSV）：同输出文件卡片，点了下载。 */
 const OperatorReport: FC = () => {
   const report = useAuiState((s) => (s.message.metadata?.custom as { report?: { filename: string; url: string } } | undefined)?.report);
-  if (!report?.url.startsWith("/api/method/")) return null;
+  if (!report?.url.startsWith(OPERATOR_REPORT)) return null;
   return (
     <a
       href={report.url}

@@ -598,7 +598,7 @@ W3 现在做的块 3、块 4 是在现有 `operator/*` 模型上把右栏挪进�
 - i18n 的 `op.section` 暂时保留没删：删掉以后，文案闸门会把新增的 beforeStart、sources、writeTo 当成「改已有文案」拦下。重做时一起处理。
 - 共用层接口 `express_operator.api.task_attention` 已经没有前端调用方，登记在 not_entries，留给 W1 删。
 
-## 15. U2 施工记录（统一对话框架的前端，分支 `pearnly/cc-unified-ui`，起点 W3 的 `724a24013` 变基到 `origin/main` `1a09e0e73`）
+## 16. U2 施工记录（统一对话框架的前端，分支 `pearnly/cc-unified-ui`，起点 W3 的 `724a24013` 变基到 `origin/main` `1a09e0e73`）
 
 方案见主会话的统一框架方案（14.1–14.9）与 U1 交来的事件清单（U1 分支 `pearnly/cc-unified-feed` `139695b6d` 的 14.10，字段以它为准）。
 本节编号与 U1 的 14.10 不冲突；合并文档时 W3 那一节已经叫「W3 施工记录」。

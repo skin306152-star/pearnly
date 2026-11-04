@@ -1501,9 +1501,8 @@ kind = "cc-action"
 anchor = "ccaction:erp:logout"
 where = "CC 退出（直接退出、跳回，不出确认页）"
 parts = ["login-session"]
-tests = ["unit:tests/test_assistant_ui.py::test_cc_logout_goes_straight_out"]
+tests = ["unit:tests/test_assistant_ui.py::test_cc_logout_goes_straight_out", "unit:tests/test_assistant_entry.py::test_logout_confirmation_submits_itself_without_a_card"]
 group = "cc.action.logout"
-tests = ["unit:tests/test_assistant_entry.py::test_logout_confirmation_submits_itself_without_a_card"]
 
 [[row]]
 id = "erp.cc.action.pending-in-chat"
