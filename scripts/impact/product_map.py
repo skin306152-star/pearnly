@@ -424,6 +424,7 @@ class Map:
     config: dict                # 键或前缀族 → {class, note, ...}
     baseline: list              # "<行 id>@<端>"
     errors: list
+    kinds: dict = field(default_factory=dict)   # not_entries 里接口的分诊（dynamic / compat / internal / delete）
 
 
 def load(directory=MAP_DIR) -> Map:
@@ -450,7 +451,7 @@ def load(directory=MAP_DIR) -> Map:
                 errors.append(f"锚点重复：{row.anchor}（行 {anchors[row.anchor]}、{row.id}）")
             rows[row.id] = row
             anchors[row.anchor] = row.id
-    not_entries, config = {}, {}
+    not_entries, config, kinds = {}, {}, {}
     if (directory / "not_entries.toml").exists():
         for raw in tomllib.loads((directory / "not_entries.toml").read_text(encoding="utf-8")).get("anchor", []):
             if not str(raw.get("reason") or "").strip():
@@ -458,6 +459,8 @@ def load(directory=MAP_DIR) -> Map:
             if str(raw.get("anchor", "")).startswith("endpoint:") and raw.get("kind") not in ENDPOINT_KINDS:
                 errors.append(f"not_entries.toml：{raw.get('anchor')} 的 kind 只能是 {sorted(ENDPOINT_KINDS)}")
             not_entries[raw.get("anchor")] = raw.get("reason", "")
+            if raw.get("kind"):
+                kinds[raw.get("anchor")] = raw["kind"]
     if (directory / "config.toml").exists():
         data = tomllib.loads((directory / "config.toml").read_text(encoding="utf-8"))
         for name, spec in {**data.get("key", {}), **{k + "*": v for k, v in data.get("family", {}).items()}}.items():
@@ -475,7 +478,7 @@ def load(directory=MAP_DIR) -> Map:
     if (directory / "untested_baseline.txt").exists():
         baseline = [line.strip() for line in (directory / "untested_baseline.txt").read_text(encoding="utf-8").splitlines()
                     if line.strip() and not line.startswith("#")]
-    return Map(rows, not_entries, config, baseline, errors)
+    return Map(rows, not_entries, config, baseline, errors, kinds)
 
 
 def test_sources(root=ROOT):

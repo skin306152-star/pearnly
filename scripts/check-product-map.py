@@ -17,6 +17,7 @@
     python3 scripts/check-product-map.py --suggest            # 打印没登记的入口的起草行（自动推断测试），人工核过再贴进地图
     python3 scripts/check-product-map.py --export F.json      # 部署用的导出（镜像构建时生成，随部署工具同步到生产机）：
                                                               # 配置分类、上线必验行与探针、只能真机的行；只读地图文件，不扫代码
+    python3 scripts/check-product-map.py --html F.html        # 另写看板静态页（不连外网；CI 在 free-arm-2 上落盘，按需 ssh -L 看）
     python3 scripts/check-product-map.py --batch --files …    # 本批（上次放上生产到这次）命中的上线必验行与真机单，给 deploy.sh 打印
 
 退出码：0 = 地图与代码一致；1 = 有问题（逐条打印）。
@@ -242,6 +243,7 @@ def main(argv=None) -> int:
     parser.add_argument("--suggest", action="store_true", help="打印没登记的入口的起草行")
     parser.add_argument("--export", metavar="FILE", help="写部署用的导出（只读地图文件，不扫代码、不判闸门）")
     parser.add_argument("--batch", action="store_true", help="只打印 --files 命中的上线必验行与真机单，不判闸门")
+    parser.add_argument("--html", metavar="FILE", help="另写一张看板静态页（全量红黄绿、影响清单、对照矩阵、接口分诊）")
     args = parser.parse_args(argv)
     started = time.monotonic()
     if args.export:
@@ -268,6 +270,11 @@ def main(argv=None) -> int:
         return 0
     errors = check(product_map, repo, found, keys, families, flows, impact, parts, endpoints)
     report = render(product_map, hits, flows, impact, args.markdown)
+    if args.html:
+        import product_map_html
+        commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+        Path(args.html).write_text(product_map_html.render(product_map, flows, impact, endpoints, commit=commit, hits=hits),
+                                   encoding="utf-8")
     print(report)
     if args.out:
         mode = "a" if args.out == os.environ.get("GITHUB_STEP_SUMMARY") else "w"
