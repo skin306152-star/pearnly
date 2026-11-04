@@ -2440,14 +2440,25 @@ class BrandAndLoginTests(unittest.TestCase):
                     sys.modules.pop(name, None)
                 else:
                     sys.modules[name] = module
-        # 第一次：去 CC 入口并留记号；记号还在又回来（本站没登上）：走本站登录口，不来回跳。
+        # 第一次：去 CC 入口并留记号；记号还在又回来：仍去 CC 入口，带 fresh=1（入口只显示登录页、不静默送回本站），不来回跳。
         self.assertEqual(gate.assistant_gate({}, "https://testai.pearnly.com/"), ("https://testai.pearnly.com/", True))
         # 带上本站（2026-11-04 CC 里切换站点）：入口静默确认后这个身份进不了本站就回入口登录页，不送回上次那家
         self.assertEqual(gate.assistant_gate({}, "https://fatcc.com", "testcowork.pearnly.com"),
                          ("https://fatcc.com/?site=testcowork.pearnly.com", True))
-        self.assertEqual(gate.assistant_gate({gate.CC_ENTRY_MARK: "1"}, "https://fatcc.com", "testcowork.pearnly.com")[1], False)
-        self.assertEqual(gate.assistant_gate({gate.CC_ENTRY_MARK: "1"}, "https://fatcc.com"),
-                         ("/api/method/pearnly_core.identity.begin_login?redirect_to=/assistant", False))
+        # 记号在（用户 2026-11-04：没登录连点几次，第二次起落到 Pearnly 的登录页）：去入口登录页，不走本站 begin_login
+        marked = gate.assistant_gate({gate.CC_ENTRY_MARK: "1"}, "https://fatcc.com", "testcowork.pearnly.com")
+        self.assertEqual(marked, ("https://fatcc.com/?site=testcowork.pearnly.com&fresh=1", False))
+        self.assertNotIn("begin_login", marked[0])
+        self.assertEqual(gate.assistant_gate({gate.CC_ENTRY_MARK: "1"}, "https://fatcc.com"), ("https://fatcc.com/?fresh=1", False))
+        # 访客连开三次（记号按回来的结果种在 cookie 里）：三次都落 CC 入口，第二次起带 fresh=1
+        jar, landed = {}, []
+        for _ in range(3):
+            location, mark = gate.assistant_gate(jar, "https://fatcc.com/", "testcowork.pearnly.com")
+            if mark:
+                gate.set_entry_mark(lambda key, value, **kw: jar.update({key: value}))
+            landed.append(location)
+        self.assertEqual(landed, ["https://fatcc.com/?site=testcowork.pearnly.com"]
+                         + ["https://fatcc.com/?site=testcowork.pearnly.com&fresh=1"] * 2)
         cookies = {}
         gate.set_entry_mark(lambda key, value, **kw: cookies.update({key: (value, kw)}))
         self.assertEqual(cookies[gate.CC_ENTRY_MARK][1]["max_age"], 120)

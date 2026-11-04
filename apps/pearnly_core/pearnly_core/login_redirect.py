@@ -43,7 +43,8 @@ SKIP_PREFIXES = (
 BEGIN_LOGIN = "/api/method/pearnly_core.identity.begin_login?redirect_to="
 
 # 对话页 `/assistant` 的访客送去 CC 入口（ADR-019），登录页是 CC 的样子；入口登录后经本站登录口回到对话页。
-# 送去时留一个两分钟的记号：记号还在又以访客身份回来（本站没登上），改走本站登录口，不在两边来回跳。
+# 送去时留一个两分钟的记号：记号还在又以访客身份回来（入口刚把人送回来本站仍没登上，或只是又点了一次），
+# 仍送 CC 入口但带 fresh=1：入口直接显示登录页、不做静默确认，这一跳不会自动回到本站，两边不来回跳。
 CC_ENTRY_MARK = "pearnly_cc_entry"
 CC_ENTRY_MARK_SECONDS = 120
 
@@ -83,11 +84,14 @@ def set_entry_mark(set_cookie) -> None:
 
 
 def assistant_gate(cookies, entry_url: str, site: str = "") -> tuple[str, bool]:
-    """访客打开对话页去哪：CC 入口（并留记号），带上本站 ``?site=``（入口静默确认后，这个身份进不了本站就回入口登录页换账号，
-    不送回上次那家）；记号还在就是刚从入口回来仍没登上，改走本站登录口。"""
+    """访客打开对话页一律去 CC 入口，带上本站 ``?site=``（入口静默确认后，这个身份进不了本站就回入口登录页换账号，
+    不送回上次那家），第一次留记号。记号还在再加 ``fresh=1``：入口只显示登录页，不静默确认、不自动送回本站。
+    不再改走本站登录口（用户 2026-11-04：没登录连点几次，第二次起落到了 Pearnly 的登录页）。"""
+    query = f"site={quote(site)}" if site else ""
     if (cookies or {}).get(CC_ENTRY_MARK):
-        return BEGIN_LOGIN + quote("/assistant"), False
-    return entry_url.rstrip("/") + "/" + (f"?site={quote(site)}" if site else ""), True
+        query = "&".join(part for part in (query, "fresh=1") if part)
+        return entry_url.rstrip("/") + "/?" + query, False
+    return entry_url.rstrip("/") + "/" + (f"?{query}" if query else ""), True
 
 
 def is_business_site() -> bool:
