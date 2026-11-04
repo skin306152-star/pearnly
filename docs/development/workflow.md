@@ -79,6 +79,14 @@ PR 使用 [模板](../../.github/PULL_REQUEST_TEMPLATE.md)。只改文档时允�
 
 生产统一部署用 `scripts/production/deploy.sh` 一条命令串起构建、放镜像、逐个产品激活与通用回读（先 `--dry-run`；做法见 [一条命令部署](../work/2026-10-28-one-command-deploy.md)）。按**发布标记**部署（10-31）：不带参数时从远端 main 当前提交打 `release-<UTC 年月日-时分>` 并推上去，`--tag <标记>` 部署已有标记（重跑、或 main 上更早的提交）；构建、放镜像、服务器核对镜像 revision 都针对标记所指的提交，部署不冻结 main。激活时每个站点迁移前后各数一次 DocType，变少就停在维护里、不放开流量、后面的站点不迁移，并打印少了哪些（`scripts/production/doctype_guard.py`；有意删的登记在 `doctype-removals.txt`），实验室 `run.py` 迁移同样逐站这样核。构建前它核对标记所指提交在 GitHub 上的 `pearnly/flows` 是全套通过（本机回归实验室跑 `scripts/flows/run.py --all --post-status` 回写），没有或没过就停下并打印补跑命令，没有绕过开关；本机睡眠或实验室没起来时照样拦；本机最多三套实验栈并行、收尾清残留，补跑见 [流程用例](../../tests/flows/README.md)。
 
+**手工动过生产**（11-04 产品地图事故回放待补项 F；10-22 手工重建 web 漏挂 frontend 致全站 502、10-03 剖析脚本顶掉真实操作员 LINE 绑定）：
+- 不经过 `deploy.sh` 动了生产（重建 / 重启容器、改 site_config、拷脚本进容器跑）的，动完当场在生产机单独跑一次
+  `bash /opt/pearnly/deploy/scripts/production/deploy-readback.sh <当前镜像> <动手前的 Unix 秒>`，回读通过才算做完。
+  回读通过会记下时间（`/opt/pearnly/state/last-readback-ok`）；下一次 `deploy.sh`（含 `--dry-run`）部署前那次只读 SSH
+  会列出「上次回读通过之后被重启 / 重建过的生产容器」，就是手工动过、没回读的痕迹。
+- 生产上跑的临时脚本只许用测试账号与测试租户（testerp / testcowork / testdms 及其测试操作员），不碰真实操作员与客户数据；
+  脚本放容器 `/tmp`，跑完删掉并确认没有残留文件与进程。
+
 发布后回读运行身份、受影响入口、队列和必要业务结果；真机或外部系统尚未验的部分单独保留。含 schema/data 迁移的恢复需要配套数据库、文件、配置和原镜像，不能假设降级镜像即可恢复。使用 [发布记录模板](templates/release.md)，不从此规范推导任何生产写入授权。
 
 每次收工都核对以下完成标准；本地实现完成、Git 集成完成、部署和用户验收分别报告。本地或交接任务按原授权交付，不为了清理而强制合并、推送或部署，也不重跑没有变化的全套检查。

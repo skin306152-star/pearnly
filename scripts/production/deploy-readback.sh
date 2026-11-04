@@ -119,4 +119,6 @@ if [[ $problems -ne 0 ]]; then
   printf 'Readback found %s problem(s).\n' "$problems"
   exit 1
 fi
+# 回读通过的时间：deploy.sh 部署前那次只读 SSH 用它列出之后被手工重启 / 重建过的容器（workflow.md「手工动过生产」）
+printf '%s\n' "$(date +%s)" > "${PEARNLY_STATE_DIR:-/opt/pearnly/state}/last-readback-ok" 2>/dev/null || true
 printf 'Readback passed.\n'

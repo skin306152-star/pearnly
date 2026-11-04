@@ -214,10 +214,14 @@ EOF
             stub(bin_dir / 'curl', f'''url="${{@: -1}}"
 case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*) printf 200 ;; esac
 ''')
+            state = root / 'state'
+            state.mkdir()
             env = dict(os.environ, PATH=f'{bin_dir}{os.pathsep}{os.environ["PATH"]}', PEARNLY_DEPLOY_ROOT=str(deploy),
-                       PEARNLY_DEPLOY_PING_WAIT_SECONDS='0')
+                       PEARNLY_DEPLOY_PING_WAIT_SECONDS='0', PEARNLY_STATE_DIR=str(state))
             result = subprocess.run(['bash', str(READBACK), IMAGE, '1761600000'], env=env, text=True,
                                     capture_output=True, timeout=60)
+            marker = state / 'last-readback-ok'
+            result.readback_ok = marker.read_text().strip() if marker.exists() else ''
             if liff_seen is not None:
                 seen = root / 'liff-stdin'
                 liff_seen.append(seen.read_text() if seen.exists() else None)
@@ -226,6 +230,8 @@ case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*) pri
     def test_clean_readback_passes(self):
         result = self.run_readback()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertRegex(result.readback_ok, r'^\d{10}$')   # 回读通过记下时间（部署前列出之后手工动过的容器）
+        self.assertEqual(self.run_readback(errors=3).readback_ok, '')
         self.assertIn('Readback passed.', result.stdout)
         self.assertIn('873MiB', result.stdout)
         self.assertIn('pearnly-maintenance-erp', result.stdout)
@@ -283,7 +289,7 @@ class Driver(unittest.TestCase):
 
     def run_driver(self, *args, build='success', stage='success', remote_status='ok', candidate='success',
                    busy_server=False, attach_failures=0, flows=FLOWS_OK, base_flows='', changed='', on_main=True,
-                   with_map=False, config_rc=0, liff_rc=0, dump=True):
+                   with_map=False, config_rc=0, liff_rc=0, dump=True, manual=''):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             repo, bin_dir = root / 'repo', root / 'bin'
@@ -342,7 +348,7 @@ esac
 ''')
             stub(bin_dir / 'fake-ssh', f'''printf 'ssh %s\\n' "$(printf '%s' "$*" | tr '\\n' ' ')" >> "{trace}"
 case "$*" in
-  *"--map-b64"*) cat > "{root}/config-script"; echo "  tenants read: erp 2"; {('echo ' + repr(json.dumps({"erp": [{"site": "mrerp.pearnly.com", "keys": {"pearnly_line_liff_id": "1-a"}}, {"site": "gize.pearnly.com", "keys": {"pearnly_line_liff_id": None}}], "dms": {"error": "x"}})) + ' >&2;') if dump else ''} {'echo "  BLOCK erp mrerp.pearnly.com pearnly_x"; exit 1' if config_rc else 'echo "  tenant config check passed"'} ;;
+  *"--map-b64"*) cat > "{root}/config-script"; echo "  tenants read: erp 2"; {('echo "__MANUAL ' + manual + '";') if manual else ''} {('echo ' + repr(json.dumps({"erp": [{"site": "mrerp.pearnly.com", "keys": {"pearnly_line_liff_id": "1-a"}}, {"site": "gize.pearnly.com", "keys": {"pearnly_line_liff_id": None}}], "dms": {"error": "x"}})) + ' >&2;') if dump else ''} {'echo "  BLOCK erp mrerp.pearnly.com pearnly_x"; exit 1' if config_rc else 'echo "  tenant config check passed"'} ;;
   *"nohup bash"*) cat > /dev/null; {'echo "BUSY abc"' if busy_server else 'echo "STARTED 4242"'} ;;
   *"tail -n"*)
     n=$(cat "{root}/attach-count" 2>/dev/null || echo 0); echo $((n + 1)) > "{root}/attach-count"
@@ -506,6 +512,17 @@ esac
         result, calls = self.run_driver('--dry-run', with_map=True, dump=False)
         self.assertEqual(result.returncode, 1)
         self.assertIn('读不到生产机回传的站点配置', result.stderr)
+
+    def test_containers_restarted_after_the_last_readback_are_listed_not_blocking(self):
+        result, calls = self.run_driver(with_map=True, manual='pearnly-production-erp-web-1 2026-11-04T10:00:00Z')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('上次回读通过之后被重启 / 重建过的生产容器', result.stdout)
+        self.assertIn('pearnly-production-erp-web-1 2026-11-04T10:00:00Z', result.stdout)
+        self.assertNotIn('__MANUAL', result.stdout)
+        result, calls = self.run_driver(with_map=True, manual='unknown')
+        self.assertIn('还没有回读通过的时间记录', result.stdout)
+        config = next(c for c in calls if '--map-b64' in c)
+        self.assertIn('last-readback-ok', config)
 
     def test_failed_config_on_the_server_leaves_services_alone(self):
         result, calls = self.run_driver('--tag', TAG, '--digest', DIGEST, '--skip-stage', remote_status='failed config')

@@ -168,9 +168,22 @@ config_gate() {
     { rm -rf "$tmp"; stop "提交 $short 的产品地图导不出来" "生产没动" "python3 scripts/check-product-map.py 看地图错在哪"; }
   b64=$(base64 < "$tmp/product-map.json" | tr -d '\n')
   # 读到的站点配置（已去敏）经 stderr 回到本机，接着用来核 LIFF 落地地址；生产机上不落文件
-  out=$(ssh_production "python3 - --map-b64 $b64 --dump /dev/stderr" < "$tmp/scripts/production/check-tenant-config.py" \
-    2> "$tmp/sites.json") || rc=$?
-  printf '%s\n' "$out" | sed 's/^/  │ /'
+  # 同一次 SSH 顺带列出上次回读通过之后被重启 / 重建过的生产容器（手工动过生产的痕迹，只报告；workflow.md「手工动过生产」）
+  out=$(ssh_production "python3 - --map-b64 $b64 --dump /dev/stderr; rc=\$?
+last=\$(cat $REMOTE_STATE/last-readback-ok 2>/dev/null || echo)
+if [ -z \"\$last\" ]; then echo '__MANUAL unknown'; else
+for c in \$(docker ps --format '{{.Names}}' | grep '^pearnly-production-'); do
+  at=\$(docker inspect -f '{{.State.StartedAt}}' \$c); [ \"\$(date -d \"\$at\" +%s)\" -gt \"\$last\" ] && echo \"__MANUAL \$c \$at\"
+done; fi
+exit \$rc" < "$tmp/scripts/production/check-tenant-config.py" 2> "$tmp/sites.json") || rc=$?
+  printf '%s\n' "$out" | grep -v '^__MANUAL' | sed 's/^/  │ /'
+  manual=$(printf '%s\n' "$out" | sed -n 's/^__MANUAL //p')
+  if [[ "$manual" == unknown ]]; then
+    say "  ⚠ 生产机上还没有回读通过的时间记录（这一版之后的第一次部署会记下）"
+  elif [[ -n "$manual" ]]; then
+    printf '  ⚠ 上次回读通过之后被重启 / 重建过的生产容器（手工动过生产就应当场跑过回读）：\n'
+    printf '%s\n' "$manual" | sed 's/^/      /'
+  fi
   case $rc in
     0) say "租户配置对比通过" ;;
     1) rm -rf "$tmp"; stop "正式租户的配置与测试租户对不上（上面 BLOCK 行）" "生产没动" \
