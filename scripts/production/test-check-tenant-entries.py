@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """部署后逐租户入口检查（check-tenant-entries.py）：三种探针在假 HTTP 应答上判对判错；只走正式租户、按产品取行。离线。"""
+import contextlib
 import importlib.util
+import io
 import json
 import subprocess
 import sys
@@ -82,8 +84,21 @@ class Probes(unittest.TestCase):
         self.assertTrue(problems)
         self.assertIn("/stocktake/api/method/", problems[0])
         self.assertIn("answered 404", problems[0])
-        self.assertEqual(entries.probe_liff("x.pearnly.com", {}, MAP["rows"][0]["probe"], web),
-                         ["no pearnly_line_liff_id: LINE links on this site cannot open through LIFF"])
+        # 有 LINE 频道却没有 LIFF ID：问题
+        self.assertEqual(entries.probe_liff("x.pearnly.com", {"pearnly_line_*": ["pearnly_line_channel_id"]},
+                                            MAP["rows"][0]["probe"], web),
+                         ["no pearnly_line_liff_id: the tenant has a LINE channel but LINE links cannot open through LIFF"])
+
+    def test_tenants_without_any_line_key_skip_the_liff_rows_with_a_note(self):
+        dumps = {"cowork": [{"site": "ccdemo.pearnly.com", "keys": {"pearnly_line_liff_id": None, "pearnly_line_*": []}}]}
+        rows = {"version": 1, "config": {}, "rows": [
+            {"id": "cowork.line.card-edit", "product": "Cowork", "must_verify": True, "probe": {"type": "liff", "path": "/x"}}]}
+        web = FakeWeb("ccdemo.pearnly.com")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(entries.check(rows, dumps, web), [])
+        self.assertIn("ccdemo.pearnly.com cowork.line.card-edit (liff) NOTE skipped: no LINE channel on this tenant", out.getvalue())
+        self.assertEqual(web.calls, [])
 
     def test_assistant_gate_needs_the_entry_and_this_site(self):
         probe = MAP["rows"][1]["probe"]

@@ -93,6 +93,12 @@ def is_test(site: str) -> bool:
     return site.startswith(TEST_PREFIX)
 
 
+def reference_of(product: str, tests: list):
+    """同产品拿来对照的测试租户：优先同产品名的那个（testerp / testcowork / testdms），没有才退回排序第一个（11-04 ERP 曾取成 test01）。"""
+    named = [row for row in tests if row["site"].startswith(f"{TEST_PREFIX}{product}.")]
+    return (named or tests or [None])[0]
+
+
 def _show(value, rule) -> str:
     if value is None:
         return "（没配）"
@@ -121,7 +127,7 @@ def compare(product_map: dict, dumps: dict) -> tuple[list, list]:
         formal = [row for row in rows if not is_test(row["site"])]
         if not tests:
             note.append(f"{product}：没有测试租户，正式租户之间不比")
-        reference = tests[0] if tests else None
+        reference = reference_of(product, tests)
         for name, rule in sorted(config.items()):
             kind = rule.get("class")
             if kind == "same" and reference:

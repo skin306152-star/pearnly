@@ -5,7 +5,7 @@
 （scripts/impact/product-map/，审定见 docs/work/2026-11-04-product-map.md）里标了上线必验的行带着探针，
 本脚本对每个正式租户 × 它那个产品的每个上线必验行跑一遍：
 - liff：照 LINE 打开这个入口的走法——本站入口 `line_login.enter?to=<路径>` 用 LINE 普通内置浏览器的标识请求，
-  必须转到本站配置的 LIFF；再把 LINE 会打开的两种地址（LIFF 落地地址接路径、落地地址带 liff.state）各走一遍，
+  必须转到本站配置的 LIFF（一个 pearnly_line_* 都没有的租户算没开 LINE，跳过并记 NOTE；有频道却没有 LIFF ID 才算问题）；再把 LINE 会打开的两种地址（LIFF 落地地址接路径、落地地址带 liff.state）各走一遍，
   本站内每一跳都不能是 4xx / 5xx（check-liff-endpoints.py 的同一套读法，那边核落地地址本身）；路径里的 `{doc}` 换成不存在的单号；
 - http：直接请求本站一个地址（agent = line / plain），本站内每一跳都不能是 4xx / 5xx；
 - assistant-gate：不登录打开 /assistant，必须转到这家配置的 CC 入口（默认 https://fatcc.com）并带上 `?site=<本站>`，
@@ -76,10 +76,17 @@ def _walk(url: str, site: str, agent: str, get) -> str:
     raise liff.CheckError(f"more than {liff.MAX_HOPS} redirects from {url}")
 
 
+class Skip(Exception):
+    """这一行在这个租户上不适用：跳过，记一条 NOTE，不算问题。"""
+
+
 def probe_liff(site: str, keys: dict, probe: dict, get) -> list:
     liff_id = keys.get("pearnly_line_liff_id")
+    if not liff_id and not keys.get("pearnly_line_*"):
+        # 一个 pearnly_line_* 都没有 = 这家没开 LINE（如录教程的演示租户）：LINE 入口不存在，跳过（主会话 11-04）
+        raise Skip("no LINE channel on this tenant")
     if not liff_id:
-        return ["no pearnly_line_liff_id: LINE links on this site cannot open through LIFF"]
+        return ["no pearnly_line_liff_id: the tenant has a LINE channel but LINE links cannot open through LIFF"]
     entry = f"https://{site}{liff.ENTER}?" + urllib.parse.urlencode({"to": _path(probe["path"])})
     status, location, _ = get(entry, liff.LINE_BROWSER_UA)
     prefix = f"https://liff.line.me/{urllib.parse.quote(str(liff_id), safe='')}/"
@@ -147,6 +154,9 @@ def check(product_map: dict, dumps: dict, get=None) -> list:
                     continue
                 try:
                     found = runner(tenant["site"], tenant["keys"], row["probe"], get)
+                except Skip as exc:
+                    print(f"  {tenant['site']} {row['id']} ({row['probe']['type']}) NOTE skipped: {exc}")
+                    continue
                 except liff.CheckError as exc:
                     found = [str(exc)]
                 status = "ok" if not found else "PROBLEM"

@@ -46,6 +46,15 @@ class Compare(unittest.TestCase):
         # 密钥只说有没有：不出现 True / 值
         self.assertTrue(any("pearnly_key：（没配），测试租户 testerp.pearnly.com （有）" in line for line in note), note)
 
+    def test_the_reference_is_the_test_tenant_named_after_the_product(self):
+        # test01 排在 testerp 前面：基准仍取 testerp（11-04 生产核对时取成了 test01）
+        dumps = {"erp": [site("test01.pearnly.com", pearnly_engine="google"), site("testerp.pearnly.com"),
+                         site("mrerp.pearnly.com")]}
+        self.assertEqual(cfg.compare(MAP, dumps), ([], []))
+        self.assertEqual(cfg.reference_of("erp", [site("test01.pearnly.com"), site("testzz.pearnly.com")])["site"],
+                         "test01.pearnly.com")   # 没有同产品名的才退回排序第一个
+        self.assertIsNone(cfg.reference_of("erp", []))
+
     def test_identical_tenants_pass_and_varies_is_not_read(self):
         dumps = {"cowork": [site("testcowork.pearnly.com"), site("erpcowork.pearnly.com", pearnly_entry="https://fatcc.com")]}
         self.assertEqual(cfg.compare(MAP, dumps), ([], []))

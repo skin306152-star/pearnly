@@ -175,11 +175,11 @@ App 下虽然有 `.pre-commit-config.yaml`，但它们不是根级统一检查�
    - 镜像构建时 `check-product-map.py --export` 生成 `scripts/production/product-map.json`（配置分类、上线必验行与探针、只能真机的行），随部署工具同步到生产机。
    - **部署前租户配置对比**（`scripts/production/check-tenant-config.py`）：`deploy.sh --dry-run` 与正式部署构建前各经一次 SSH 跑一次，
      服务器激活前（`deploy-run.sh` 的 config 步骤）用镜像里那份再跑一次。在各产品 web 容器里读站点配置（不进数据库容器），
-     按 `config.toml` 分类：`same` 正式租户与测试租户（test 开头）不同、`shape` 不满足 `pattern` → 拦部署，没有绕过开关；
+     按 `config.toml` 分类：`same` 正式租户与测试租户（test 开头，优先同产品名的 test<产品>）不同、`shape` 不满足 `pattern` → 拦部署，没有绕过开关；
      `presence` 只报告；密钥类在容器里就换成「有」，不比值、不打印。要放行就改租户配置，或在地图里改分类（走评审）。
    - **部署后逐租户入口检查**（`scripts/production/check-tenant-entries.py`，接在 `deploy-readback.sh` 的 LIFF 检查后面）：
      每个正式租户 × 它那个产品的每个上线必验行跑探针——`liff`（照 LINE 的走法：本站入口转本站 LIFF，再走 LIFF 落地地址接路径、
-     带 `liff.state` 两种地址，站内每一跳不许 4xx / 5xx）、`http`、`assistant-gate`（不登录开 `/assistant` 要转到 CC 入口并带 `?site=`）。只读、不登录、不写。
+     带 `liff.state` 两种地址，站内每一跳不许 4xx / 5xx；一个 `pearnly_line_*` 都没有的租户算没开 LINE，跳过并记 NOTE，有频道却没 LIFF ID 才算问题）、`http`、`assistant-gate`（不登录开 `/assistant` 要转到 CC 入口并带 `?site=`）。只读、不登录、不写。
    - **本批真机单**：`deploy.sh` 在回读之后（演练在末尾）按上次放上生产到这次的改动打印命中的上线必验行与只能真机的行（`check-product-map.py --batch`）。
 
 ## 四类副作用
