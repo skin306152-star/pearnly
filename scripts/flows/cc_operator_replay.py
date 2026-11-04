@@ -57,6 +57,8 @@ doc.append("documents", {{"doc_id": docs[1].name, "ref": docs[1].system_no or do
                           "done_at": now - timedelta(minutes=3)}})
 doc.flags.ignore_permissions = True
 doc.save()
+# 任务早于交单建好（同真的：先建、准备、再交单），资料与开始前排在单据步骤前面
+frappe.db.set_value(tasks.DOCTYPE, doc.name, "creation", now - timedelta(minutes=15), update_modified=False)
 frappe.db.commit()
 # 服务端以会话主人身份读到的整段（「另一个读者」）：页面三次读到、画出的都要与它一致
 read = sessions.events(made["id"])

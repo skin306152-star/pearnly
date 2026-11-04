@@ -621,3 +621,52 @@ W3 现在做的块 3、块 4 是在现有 `operator/*` 模型上把右栏挪进�
 待对齐 / 剩余：
 - 代录会话的「开始前」卡片只交第一页起已取到的资料（同旧页面，服务端分页 + 显示更多）。
 - 两套运行状态都以服务端 `run` 为准；本页只在点完卡片时先定下卡片样子。
+
+## 17. U3 施工记录（合并、流程改写与验证，分支 `pearnly/cc-unified`）
+
+起点：`origin/pearnly/cc-code-backend`（B1～B5，`53af26efd`）上拣入 U1（`pearnly/cc-unified-feed` 的 10 个提交，`722e9a00d`～`87968db9f`）与 U2（`pearnly/cc-unified-ui` 的 11 个提交，`3819758f6`～`30e30f2a4`；U2 本地删「税号不符」的 `3c1a07d15` 不带），再变基到 `origin/main`（B1～B5 已进 main，`35f66e29b`；变基时同内容的提交自动去掉，树与验证时逐字相同）。
+
+**合并冲突与解决**
+
+| 位置 | 两边 | 解决 |
+|---|---|---|
+| 本文档节号 | U1 追加第 14 节（14.0～14.11），W3 / U2 各自追加「14. W3 施工记录」「15. U2 施工记录」 | 按时间排：14 = 统一框架方案与 U1，15 = W3，16 = U2，17 = 本节 |
+| `scripts/impact/shared-parts.toml` 的 `cc.operator.thread` | U1 加 `feed.py` 与两个补丁，U2 删 `task-thread.tsx`、加 `runtime-provider.tsx` | 两边合起来，去掉已删的 `task-thread.tsx` |
+| 产品地图两处 `cc.action.logout` | 后端与 U2 各加了一个 `tests` 键（TOML 重复键，地图读不进来） | 并成一个列表，两个测试都留 |
+| `not_entries.toml` 的 `feed.report` | U1 登记「等页面接上」 | 报告文件卡片只认 `feed.report` 的地址（`thread.tsx` 的 `OPERATOR_REPORT`，别的地址不画成下载卡片），地图认出调用方，删掉这一条 |
+
+页面调列表、新建：照旧调 `pearnly_core.assistant.api.listing` / `.create`，请求里多带 `mode`（`lib/managed-agents/api.ts`），与 U1 14.11 一致。
+
+**合并后修的（U1 与 U2 对不上的地方，均配单测）**
+
+| 问题 | 修法 | 测试 |
+|---|---|---|
+| 整段重放带回的服务端运行状态（`run`：requires_action，parked = 代录卡片）走 `applyRunStatus`，那一处没排除代录卡片，页面对 `pop_` 编号调 `run_tool`，服务端回「未找到该操作」记进 Error Log（实验室 `cc.operator` 查出） | `reducer.ts` 的 `applyRunStatus` 同 `status_idle` 那一处：代录卡片不进 `pendingCustomTools`、不算在跑 | `tests/test_cc_operator.py`（改前失败、改后通过） |
+| 开始时没传 `groups`（主会话转达的评估） | `operatorActions.start` 带 `groups`（`groupsToStart`：交出的每张单此刻的分组），U1 `tasks.attach` 记进单据行 | 同上 |
+| 一批写进几份账套时只读顶层 `target`（那时为空）（主会话转达的评估） | `precheck` 读 `targets`（张数多的在前；旧服务端只给 `target` 时退回它），「开始前」问话列出每一份（`Intl.ListFormat` 按界面语言连接，不新增文案） | 同上 |
+| `?c=` 链接打开代录会话时停在对话模式（侧栏列的是直写对话，输入框的资料不交给任务）（新流程 `cc.operator.replay` 查出） | `lib/nav.ts`：先按 `get` 的 `mode` 切模式再打开（同旧的 `?task=`）；直写会话在代录模式下打开先回对话模式 | `cc.operator.replay` 断言三次都在代录模式 |
+
+**流程改写（`scripts/flows/`，断言业务结果，没有删断言凑通过）**
+
+| 流程 | 旧断言 | 新断言 |
+|---|---|---|
+| `cc.operator` | 代录新建页、任务标题、右栏资料、任务对话 | 新建页就是直写新建页，没选公司发不出；选公司说一句 = 建代录会话与任务（`listing?mode=operator` 新出一段、挂任务、这家这个月，`mode=chat` 里没有）；回复与状态行；「开始前」卡片写入这家的 Express；资料那一步点开与站点 `sources` 张数、单号一致；侧栏删除连任务 |
+| `cowork.operator.unknown` | 右栏「开始前确认」 | 代录新建页选公司说一句建会话；「开始前」卡片列出结果不明的那张（单号 · 对方、「结果不明」、两个按钮）；点「没有入账」后卡片重新预检不再列出；落库同旧（manual / confirmed_not_entered、锁放掉） |
+| `cowork.pending.operator` | 待处理页 | 提醒入口 `?view=pending&company=` 打开这家这个月的对话，末尾「需要处理」框里当场选；侧栏没有「待处理」；落库同旧 |
+| `cc.sidebar-modes`、`cowork.cc.sidebar-modes` | 代录侧栏、新建任务、待处理 N 与去重 | 共有入口不挪；两种模式都没有「待处理」；同一个列表接口按模式筛（准备的直写对话只在 chat、代录会话只在 operator），侧栏跟着换；代录下点公司 / 选公司（新建页、下巴选好、不建任务）；点「要你处理」的代录会话出那张单的卡片（单号、原因） |
+| `cc.companies` | 侧栏「待处理 N」、待处理页、代录选公司建任务 | 侧栏有公司、没有待处理；代录选已添加的公司进新建页、不建任务；公司页「待处理」卡点开到单据页 |
+| 新增 `cc.operator.replay` | — | 同一段代录会话第一次打开（`?c=`）、刷新后（侧栏点开）、换设备（另一个页面实例）：事件编号逐条相同且与服务端以会话主人身份读到的相同，画出来相同，内容是这段会话的（要处理的那张、报告地址），三次都在代录模式；读事件不改记录 |
+
+共用帮手放 `scripts/flows/cc_lib.py`（切模式、下巴选公司（菜单先列侧栏里的，找不到在菜单的搜索框里搜）、说一句、按模式列会话、展开步骤组）。
+
+**改了已有文案口径的地方（交主会话）**：「开始前」卡片里结果不明的那张，旧页面写站点那一句（`intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN`），U2 的卡片按代码写「结果不明」。本批没改，流程按新口径断言。
+
+**验证（本机，回归实验室 `pearnly-regression-lab` 挂本工作树）**
+
+| 层 | 结果 |
+|---|---|
+| 单测 | `tests/test_cc_operator.py` 9 个通过（新加的运行状态那条改前失败） |
+| 受影响流程 | `run.py --changed --base origin/main --migrate`：9 条流程 25/25 格通过（`cc.chat`、`cc.companies`、`cc.operator`、`cc.operator.replay`、`cc.person-names`、`cc.sidebar-modes`、`cowork.cc.sidebar-modes`、`cowork.operator.unknown`、`cowork.pending.operator`），之后 `cc.operator.replay` 改了造数据的建任务时间再跑 4/4 |
+| 候选离线检查 | 没重跑：合并后 `apps/` 与 U1 分支逐字相同（U1 已过） |
+| 截图 | 两种模式的新建页、侧栏、一段会话，电脑 / 手机各一组，存主会话笔记目录「统一对话框-截图-11-04」 |
+| 没测到 | 共用件影响清单里的人工 / 真机入口（`check-impact.py`：CC 对话页、fatcc.com、Cowork 推送、LINE、MR.ERP、登录等）；网页无桥，点「开始」后的真录单、执行电脑的桥与停止只有单测 |
