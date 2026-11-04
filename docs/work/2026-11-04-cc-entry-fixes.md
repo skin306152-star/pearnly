@@ -2,7 +2,7 @@
 
 - 窗口：cc-entry-fixes（主会话 local_3d36d798 派），分支 `pearnly/cc-entry-fixes-124a82`，基线 `c9057f6f4`（= 远端 main = 生产）。
 - 来源：用户 11-03 实测；根因见共享笔记「交接-切换账号与添加公司-11-03.md」「CC侧栏两种模式统一-清单-11-03.md」。
-- 状态：**评估待主会话审定，还没改代码。**
+- 状态：主会话 11-04 审定通过（四条见 §8），第 1、2A、3 项已施工；方案 B 合入后另开分支做。
 - 旧空分支 `pearnly/cc-site-switch-login`（停在 c9057f6f、无提交、无远端、工作树干净）已非强制删除工作树和本地分支。
 
 ## 0. 需求与范围
@@ -191,3 +191,27 @@ A 的做法（只读已有数据，不调电脑、不扣费）：
 - 第 3 项：写码 + 单测 + 两条流程加步骤约 40 分钟。
 - 第 2 项方案 A：服务端两个接口 + 抽共用建公司 + 单测约 1 小时；流程改写约 20 分钟。
 - 全闸门约 15 分钟、实验栈流程约 30–40 分钟、CI 约 15 分钟。合计约 3–3.5 小时（不含等审定）。
+
+## 8. 主会话审定（11-04）
+
+1. 接受：CC 里「添加公司」两个产品统一从账套建，纯 ERP 公司在 ERP 网页里建。删 desk 分支前全仓查调用方（含 companion/、tests/、flows）。
+   MR.ERP 部分只有离线测试，交付写「没测到（线上无账号）」。
+2. 方案 B 由本窗口做：第 1、2A、3 项先过全闸门和流程、合入 main，再另开分支做 B；B 合入后不发版（随 CC 1.12.14 由主会话排）。
+   完成标准：tomo_links 判定单测、全闸门、合入 main、测试机真机清单。
+3. 同意：托盘深链接 `?company=` 先切回对话模式再开公司页。
+4. 同意：代录模式选公司照组头「＋」现状建准备中任务，不去重。
+5. 另：改了 `pearnly_core`（login_redirect、assistant/projects），合入前在生产镜像跑候选离线检查。
+
+## 9. 施工记录
+
+| 项 | 提交 | 改动 |
+|---|---|---|
+| 1 | `e4f7958a` | `login_redirect.assistant_gate` 带 `?site=`（两个调用方）；fatcc `ai.py` 转给 `entry.resume_url(site)`；回调里身份进不了那家回 `/?fresh=1` |
+| 3 | `3712b57a` | `useOpenCompany` 按模式：代录模式走 `newTaskIn`（与组头「＋」同一个函数，放在轻量的 `operator/context.ts`，不把数据源带进侧栏）；公司列表、添加公司之后、右侧栏公司卡都传显示名；深链接 `?company=` 在代录模式先回对话 |
+| 2A | `648a77f6` | ERP `cc_service.candidates / create`（Express 账套按税号 + 分店合并、MR.ERP 目录只在账本开着且管理员时；建公司在锁里提交，同一组账套只有一家）；`express.companies.build / catalog` 与后台补建共用；ERP 声明 `create`，按用户收窄（共用层 `projects.declared` 认产品的 `sections()`，员工没有「添加公司」）；删 ERP `desk()` 接口、前端 `newCompanyUrl` 与 desk 分支；弹窗「刷新账套」只在声明了 `catalog` 的产品出 |
+
+desk 调用方核查（全仓 grep，排除构建产物）：`newCompanyUrl` / `cc_companies.desk` / `useAddCompanyAction` 的 desk 分支只在
+`frontend/assistant/src`、`tests/test_erp_cc_companies.py`、`tests/test_cc_session_panel.py`，已一起改；companion/ 里的 `desk`
+是代录的桌面模拟器，与此无关；flows 里没有调用。`desk` 分区本身保留（公司页「在浏览器中打开」还用它，方案 B 修那一入口）。
+
+文案：没有新增或改动界面文案（建公司失败沿用已有的「Invalid request」）。
