@@ -378,4 +378,3 @@ erp.line.card-edit@mobile
 erp.line.event.unfollow@mobile
 erp.scan.cashier.camera@mobile
 erp.scan.serials.dialog@mobile
-shared.scan.upload.take-photo@mobile

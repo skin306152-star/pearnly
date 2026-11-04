@@ -409,6 +409,8 @@ jobs:
         env:
           SMOKE_CHROME: /usr/bin/google-chrome
         run: python3 scripts/smoke/selftest.py && python3 tests/test_smoke_flow_fields.py
+      - name: The scanner reports only real errors; a refused camera, a camera missing or busy and LINE or app browsers only show their hint
+        run: node tests/test-scan-report.cjs
       - name: Smoke runs leave no headless Chrome or temporary profile behind, even when the driver times out or is interrupted
         run: python3 tests/test_smoke_chrome_cleanup.py
       - name: Verify browser errors on product pages reach the site's error log

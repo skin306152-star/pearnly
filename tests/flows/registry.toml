@@ -580,6 +580,19 @@ covers = [
 ]
 
 [[flow]]
+id = "shared.upload.take-photo"
+title = "上传框「拍照」（电脑）：相机打不开时给相机权限第 ③ 步提示，不进 Error Log（11-05 相机被拒只提示不上报；产品地图扫码入口逐个成行）"
+module = "scripts/flows/upload_take_photo_desktop.py"
+start = "/desk/pearnly-products"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/public/desk/scan.js",
+  "apps/pearnly_core/pearnly_core/public/scan/reader.js",
+]
+
+[[flow]]
 id = "erp.sales.scan"
 title = "ERP 销售单：手动录入、单头选客户与仓、明细组合框按码认商品（手机宽度扫条码）、提交出库（fcb65cca 逐入口实测）"
 module = "scripts/flows/erp_sales_scan.py"

@@ -101,7 +101,7 @@
 			wasm().then(Reader => {
 				const detector = new Reader({ formats: wanted });
 				pass.detect = video => detector.detect(scale < 1 ? half(video) : video);
-			}).catch((caughtError) => globalThis.pearnlyCaught?.(caughtError, "reader"));
+			}).catch((caughtError) => report(caughtError, "reader"));
 			passes.push(pass);
 		}
 		if (!passes.length) throw new Error("decoder_unavailable");
@@ -118,6 +118,14 @@
 		if (name === "NotFoundError" || name === "DevicesNotFoundError" || name === "OverconstrainedError") return "missing";
 		if (name === "NotReadableError" || name === "TrackStartError" || name === "AbortError") return "busy";
 		return "failed";
+	}
+
+	// 上报只给真正的异常（11-05 主会话按类定）：权限被拒、LINE / App 里打不开、没有相机、相机被占用、浏览器不支持，
+	// 都是使用环境的正常情况，页面已按原因给提示，不进站点 Error Log；读码器加载失败与没归类的异常照常上报。
+	const EXPECTED = new Set(["denied", "in_line", "in_app", "missing", "busy", "unsupported"]);
+	function report(error, kind) {
+		if (EXPECTED.has(reason(error))) return;
+		globalThis.pearnlyCaught?.(error, kind);
 	}
 
 	// 画面要清楚：只要「后置镜头」时很多手机给 640×480（2026-10-23 双摄 iPhone 离远了条码只剩几十个像素读不出，
@@ -215,7 +223,7 @@
 				await Promise.resolve();
 				if (stopped) return;
 				const reading = decoder(kind).catch(error => { throw failure("decoder", error); });
-				reading.catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "reader"); return (() => {})(caughtError); });
+				reading.catch((caughtError) => report(caughtError, "reader"));
 				// LIFF 里请求会弹原生授权（网页的、再到系统给 LINE 的），人还在看授权窗时不能抢先提示，所以不计时。
 				const slow = in_app() && !/\bLIFF\b/.test(agent()) ? window.setTimeout(() => {
 					if (!stopped && !stream) on_waiting?.(in_line() ? "in_line" : "in_app");
@@ -230,7 +238,7 @@
 					passes = await reading;
 					if (stopped) return;
 					void tick();
-				} catch (error) { globalThis.pearnlyCaught?.(error, "reader"); window.clearTimeout(slow); stop(); on_error?.(error); }
+				} catch (error) { report(error, "reader"); window.clearTimeout(slow); stop(); on_error?.(error); }
 			},
 			pause() { paused = true; },
 			resume(skip_code = "") { candidate = ""; candidate_format = ""; hits = 0; focus = null; skip = String(skip_code || "").trim(); paused = false; },
@@ -269,6 +277,6 @@
 		if (reason === "denied") return where === "desktop" ? "denied" : `denied_${where}`;
 		return reason;
 	};
-	window.PearnlyScan = { formats: WANTED, kind: kind_of, reason, reader, in_line, plain_line, to_liff, text_key,
+	window.PearnlyScan = { formats: WANTED, kind: kind_of, reason, report, reader, in_line, plain_line, to_liff, text_key,
 		needs_settings: reason => SETTINGS.has(reason) };
 })();

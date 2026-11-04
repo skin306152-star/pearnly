@@ -67,7 +67,7 @@ frappe.provide("frappe.pearnly");
 	if (frappe.ui?.Capture?.prototype?.show_for_desktop) {
 		frappe.ui.Capture.prototype.show_for_desktop = function () {
 			return this.render_stream().then(() => this.dialog.show())
-				.catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "scan"); return (error => frappe.msgprint({ message: p.scan_failure_text(error), indicator: "orange" }))(caughtError); });
+				.catch((caughtError) => { scan().report(caughtError, "scan"); frappe.msgprint({ message: p.scan_failure_text(caughtError), indicator: "orange" }); });
 		};
 	}
 	p.scan_reader = ({ host, kind = "all", on_result, on_error, on_waiting, on_started }) => {

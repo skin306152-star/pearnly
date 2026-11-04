@@ -385,7 +385,8 @@ def discover_scan(repo: Repo) -> list[Found]:
         entry = entries.get(entry_id)
         if not entry or entry["product"] not in SCAN_PRODUCTS:
             continue
-        ends = ["desktop"] if "scanner-gun" in entry_id else ["mobile"]
+        # 扫码枪与上传框「拍照」是电脑（手机上「拍照」调手机自己的相机应用），其余是手机相机
+        ends = ["desktop"] if "scanner-gun" in entry_id or entry_id == "shared.upload.take-photo" else ["mobile"]
         channel = "line" if ".line." in entry_id else "desk"
         found.append(Found(f"scan:{entry_id}", "scan", entry["product"], channel, ends, list(entry["files"]),
                            f"{entry['where']}：{entry['steps']}"))
