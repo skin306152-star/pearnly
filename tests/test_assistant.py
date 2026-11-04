@@ -4190,6 +4190,10 @@ class _ProjectDb:
                 and row.project]
         if "starred = 0" in query:
             base = [row for row in base if not row.starred]
+        if "IFNULL(operator_task, '') != ''" in query:
+            base = [row for row in base if row.operator_task]
+        elif "IFNULL(operator_task, '') = ''" in query:
+            base = [row for row in base if not row.operator_task]
         if "refs" in values:
             base = [row for row in base if row.project in values["refs"]]
         groups = {}
@@ -4315,6 +4319,27 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual((abc["project"], abc["period"], abc["scope"]), ("co_abc1", "2026-09", "00012"))
         recent = next(row for row in out["sessions"] if row["id"] == "sesn_rec001")
         self.assertEqual((recent["project"], recent["period"], recent["scope"]), ("", "", ""))
+
+    def test_the_list_filters_by_mode_with_the_same_groups_and_counts(self):
+        # 统一对话框架 14.8：代录会话进同一个会话列表，mode 筛（chat / operator / 不带 = 全部），分组、组里的数按同一筛选
+        m = datetime.datetime
+        self.db.rows.append(_Row({"name": "r6", "session_id": "op_task0001", "user": self.OWNER, "engine_code": CLAUDE,
+                                  "archived": 0, "starred": 0, "modified": m(2026, 10, 15, 8, 30), "creation": START,
+                                  "title": "op", "project": "co_abc1", "period": "2026-10", "operator_task": "task0001"}))
+        ids = lambda out: [row["id"] for row in out["sessions"]]  # noqa: E731
+        self.assertEqual(ids(self.sessions.listing(mode="operator")), ["op_task0001"])
+        self.assertNotIn("op_task0001", ids(self.sessions.listing(mode="chat")))
+        self.assertIn("op_task0001", ids(self.sessions.listing()))
+        row = next(r for r in self.sessions.listing()["sessions"] if r["id"] == "op_task0001")
+        self.assertEqual((row["mode"], row["task"]), ("operator", "task0001"))
+        with mock.patch.object(self.sessions, "GROUP_FIRST", 1):
+            chat = self.sessions.listing(grouped=True, mode="chat")
+            operator = self.sessions.listing(grouped=True, mode="operator")
+        self.assertEqual(ids(chat), ["sesn_xyz001", "sesn_rec001", "sesn_abc001"])
+        self.assertEqual(chat["groups"], {"co_abc1": "2026-10-15 08:00:00|r2"})  # 组里的数不算代录会话
+        self.assertEqual((ids(operator), operator.get("groups")), (["op_task0001"], {}))
+        with self.assertRaises(frappe.ValidationError):
+            self.sessions.listing(mode="other")
 
     def test_the_grouped_list_gives_recent_a_few_per_group_and_cursors(self):
         with mock.patch.object(self.sessions, "GROUP_FIRST", 1):
@@ -4585,12 +4610,120 @@ class ProjectTests(unittest.TestCase):
                          {"project": 140, "period": 7, "project_scope": 40, "project_noted": 64})
         self.assertEqual(fields["project"].get("search_index"), 1)
         api_source = (CORE / "assistant/api.py").read_text(encoding="utf-8")
-        for snippet in ('def create(project=None, period=None, scope=None):', 'def move(session_id, project="", '
+        for snippet in ('def create(project=None, period=None, scope=None, mode=None):', 'def move(session_id, project="", '
                         'period=None, scope=None):', "def projects():"):
             self.assertIn(snippet, api_source)
         imports = " ".join(re.findall(r"(?m)^from pearnly_core\.assistant import (.+)$",
                                       (CORE / "assistant/projects.py").read_text(encoding="utf-8")))
         self.assertNotRegex(imports, r"\b(sessions|relay)\b")
+
+
+class OperatorSessionTests(unittest.TestCase):
+    """统一对话框架（评估 2026-11-04 第 14 节）：代录任务就是一段会话（`operator_task` 不为空）。补建 / 新建的 `op_<任务号>`
+    远端会话第一次发话时才开；读事件并进代录事件源；运行状态按任务；卡片不经引擎；停止记任务控制；删除转给任务。"""
+
+    OWNER = ProjectTests.OWNER
+
+    def setUp(self):
+        ProjectTests.setUp(self)
+        m = datetime.datetime
+        self.db.rows.append(_Row({"name": "r7", "session_id": "op_task0001", "user": self.OWNER, "engine_code": CLAUDE,
+                                  "archived": 0, "starred": 0, "modified": m(2026, 10, 15, 8, 30), "creation": START,
+                                  "title": "op", "project": "co_abc1", "period": "2026-10", "operator_task": "task0001",
+                                  "remote_ids": "[]"}))
+        frappe.session.user = self.OWNER
+        self.fed, self.stops, self.deleted, self.made = [], [], [], []
+        self.task_status = "queued"
+        operator_events = [
+            {"type": "agent.tool_use", "id": "pop_task0001_sources", "name": "operator_sources", "input": {},
+             "processed_at": "2026-10-15T01:00:00.000000Z"},
+            {"type": "session.status_running", "id": "pop_task0001_st_run_1", "processed_at": "2026-10-15T01:00:00.000005Z"}]
+        feed = types.ModuleType("pearnly_core.express_operator.feed")
+        feed.events = lambda row, moment=None: self.fed.append((row.session_id, moment)) or list(operator_events)
+        feed.run_state = lambda events, as_of=None: {"status": "running" if events else "idle", "parked": [],
+                                                     "awaiting_approval": [], "executing": [], "as_of": as_of}
+        tasks = types.ModuleType("pearnly_core.express_operator.tasks")
+        tasks.DOCTYPE, tasks.STOP = "Pearnly Express Operator Task", "stop"
+        tasks.push_control = lambda name, action, ids: self.stops.append((name, action, list(ids)))
+        tasks.delete = lambda name: self.deleted.append(name) or self.sessions.delete("op_task0001")
+        tasks.create = lambda company, period, title, scope="": self.made.append((company, period, title, scope)) or {
+            "name": "task0001", "session_id": "op_task0001"}
+        products = types.ModuleType("pearnly_core.express_operator.products")
+        products.enabled = lambda: True
+        products.allowed = lambda user, company: company == "co_abc1"
+        package = types.ModuleType("pearnly_core.express_operator")
+        package.feed, package.tasks, package.products = feed, tasks, products
+        for name, module in (("pearnly_core.express_operator", package), ("pearnly_core.express_operator.feed", feed),
+                             ("pearnly_core.express_operator.tasks", tasks),
+                             ("pearnly_core.express_operator.products", products)):
+            patcher = mock.patch.dict(sys.modules, {name: module})
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        real_get_value, real_exists = self.db.get_value, getattr(self.db, "exists", None)
+        self.db.get_value = lambda doctype, filters, fields, as_dict=False: (
+            self.task_status if doctype == tasks.DOCTYPE else real_get_value(doctype, filters, fields, as_dict))
+        self.db.exists = lambda doctype, filters: (doctype == tasks.DOCTYPE and self.task_status is not None) or (
+            doctype != tasks.DOCTYPE and any(r.name == filters for r in self.db.rows))
+        files = sys.modules["pearnly_core.assistant.files"]
+        for target, name, value in ((frappe, "delete_doc", lambda doctype, name, ignore_permissions=False:
+                                     self.db.rows.__setitem__(slice(None), [r for r in self.db.rows if r.name != name])),
+                                    (files, "forget", lambda name: None),
+                                    (frappe, "DoesNotExistError", type("DoesNotExistError", (Exception,), {})),
+                                    (self.sessions.notices, "feed", lambda *a, **kw: []),
+                                    (self.sessions.notices, "detach", lambda sid, user: None)):
+            patcher = mock.patch.object(target, name, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.api = mock.Mock()
+        patcher = mock.patch.object(self.sessions.engine, "adapter", lambda: self.api)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_reading_a_conversation_without_a_remote_session_never_touches_the_engine(self):
+        page = self.sessions.events("op_task0001", status=True)
+        self.assertTrue(page["full"])
+        self.assertEqual([e["id"] for e in page["events"]], ["pop_task0001_sources", "pop_task0001_st_run_1"])
+        self.assertEqual(page["run"]["status"], "running")
+        self.assertEqual(self.api.method_calls, [])
+        self.assertEqual(self.sessions.get("op_task0001")["status"], "running")
+        self.assertEqual(self.api.method_calls, [])
+
+    def test_operator_cards_are_not_confirmed_through_the_engine(self):
+        out = self.sessions.confirm("op_task0001", [{"tool_use_id": "pop_task0001_start", "result": "allow"}])
+        self.assertEqual(out, {"confirmed": 0, "runs": {}})
+        self.assertEqual(self.api.method_calls, [])
+        with self.assertRaises(frappe.DoesNotExistError):
+            self.sessions.run_tool("op_task0001", "pop_task0001_start")
+
+    def test_stop_records_a_task_control_while_queued_or_running(self):
+        self.sessions.interrupt("op_task0001")
+        self.assertEqual(self.stops, [("task0001", "stop", [])])
+        self.assertEqual(self.api.method_calls, [])  # 没开过远端会话：不打断引擎
+        self.task_status = "finished"
+        self.sessions.interrupt("op_task0001")
+        self.assertEqual(len(self.stops), 1)
+
+    def test_the_first_message_opens_the_remote_session_and_keeps_the_local_id(self):
+        self.api.open.return_value = ("sesn_remote01", "idle")
+        row = self.sessions.owned("op_task0001")
+        with mock.patch.object(self.sessions.engine, "prepared", lambda api: {}), \
+                mock.patch.object(self.sessions.engine, "tools_current", lambda sid: None), \
+                mock.patch.object(self.sessions.engine, "keep_tools_current", lambda api, sid: None), \
+                mock.patch.object(self.sessions, "_route", lambda sid: None):
+            self.assertEqual(self.sessions.segment_for_turn(row, self.api), "sesn_remote01")
+        self.assertEqual(json.loads(row.remote_ids), ["sesn_remote01"])
+        self.assertEqual(self.sessions.segments(row), ["sesn_remote01"])
+        self.assertEqual(self.api.open.call_args[0][1]["pearnly_conversation"], "op_task0001")
+
+    def test_delete_goes_through_the_task_and_create_builds_one(self):
+        self.task_status = "finished"
+        self.sessions.delete("op_task0001")
+        self.assertEqual(self.deleted, ["task0001"])
+        self.assertFalse(any(r.session_id == "op_task0001" for r in self.db.rows))
+        with self.assertRaises(frappe.PermissionError):
+            self.sessions.create(project="co_xyz1", period="2026-10", mode="operator")
+        with self.assertRaises(frappe.ValidationError):
+            self.sessions.create(project="co_abc1", mode="operator")
 
 
 class ToolRunRecordTests(unittest.TestCase):

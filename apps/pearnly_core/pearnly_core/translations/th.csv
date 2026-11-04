@@ -19,6 +19,9 @@ Account balance,ยอดคงเหลือในบัญชี
 Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,บัญชีที่สร้างให้พนักงานรายนี้บนเว็บไซต์นี้ ใช้เฉพาะกับ LINE ไม่ใช้เข้าสู่ระบบผ่านเว็บและไม่ต้องใช้รหัสผ่าน
 Account name,ชื่อบัญชี
 Account number,เลขที่บัญชี
+Account set in use,ชุดบัญชีกำลังถูกใช้งาน
+Account set unavailable,เปิดชุดบัญชีไม่ได้
+Account signed in elsewhere,บัญชีเข้าสู่ระบบที่อื่นอยู่
 Account that owns this connection. Leave empty for a site-wide shared connection.,บัญชีเจ้าของการเชื่อมต่อ เว้นว่างสำหรับการเชื่อมต่อที่ใช้ร่วมกันทั้งเว็บไซต์
 Account with admin rights,บัญชีที่มีสิทธิ์ผู้ดูแลระบบ
 Action not found,ไม่พบการดำเนินการ
@@ -40,6 +43,8 @@ Allow DMS queries from LINE,อนุญาตให้ใช้ฟังก์�
 Allow LINE to use the camera,อนุญาตให้ LINE ใช้กล้อง
 Allowed,อนุญาต
 Amount,จำนวนเงิน
+Amount and VAT differ,ยอดเงินและภาษีไม่ตรงกัน
+Amount and VAT match,ยอดเงินและภาษีตรงกัน
 An admin session was requested but no admin credentials are configured,มีการขอเซสชัน admin แต่ยังไม่ได้ตั้งค่าข้อมูลรับรอง admin
 Approval,การอนุมัติ
 Approved amounts are credited to your balance.,ยอดที่อนุมัติจะเพิ่มในยอดคงเหลือ
@@ -68,6 +73,7 @@ Bind LINE,ผูก LINE
 Bind code,รหัสผูก
 Binding needs a LINE user and a local account,การผูกต้องมีผู้ใช้ LINE และบัญชีภายในระบบ
 Birth Date,วันเกิด
+Blank document left to void,มีเอกสารว่างรอยกเลิก
 Body,เนื้อหา
 Book Key,คีย์ชุดบัญชี
 Booking Defaults,ค่าเริ่มต้นการสร้างใบจอง
@@ -87,6 +93,7 @@ CC Desktop authentication failed.,การยืนยันตัวตน CC 
 CC Desktop not connected,CC เดสก์ท็อปยังไม่เชื่อมต่อ
 CC is not set up for this site yet.,ไซต์นี้ยังไม่ได้ตั้งค่า CC
 CC is only available on product sites.,CC ใช้ได้เฉพาะในไซต์ของผลิตภัณฑ์
+CC restarted,CC รีสตาร์ตแล้ว
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",การเข้าถึงกล้องถูกปิดกั้น กรุณาอนุญาตกล้องสำหรับเว็บไซต์นี้ในการตั้งค่าเบราว์เซอร์และการตั้งค่าโทรศัพท์ แล้วลองอีกครั้ง
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.",การเข้าถึงกล้องถูกปิดอยู่ กรุณาคลิกไอคอนทางซ้ายของแถบที่อยู่ เปลี่ยนกล้องเป็น อนุญาต แล้วลองอีกครั้ง
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.",การเข้าถึงกล้องถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → Safari → กล้อง แล้วเลือก อนุญาต หรือแตะการตั้งค่าเว็บไซต์ในแถบที่อยู่ → กล้อง กลับมาที่หน้านี้เพื่อลองใหม่
@@ -113,6 +120,7 @@ Checking your account,กำลังตรวจสอบข้อมูลบ�
 Checkpoint Key,คีย์จุดตรวจสอบ
 Checkpoints,จุดตรวจสอบ
 Choose a plan,เลือกแพ็กเกจ
+Choose the company in Express,เลือกบริษัทใน Express
 Claiming a push job requires a connection,การรับงานส่งต้องระบุการเชื่อมต่อ
 Click to sort by {0},คลิกเพื่อเรียงตาม {0}
 Client ID is required,ต้องระบุ Client ID
@@ -125,6 +133,9 @@ Company Master,ข้อมูลหลักบริษัท
 Company Profile,ข้อมูลบริษัท
 Company Tax ID,เลขประจำตัวผู้เสียภาษีของบริษัท
 Company Title,ชื่อบริษัท
+Company does not match the task,บริษัทไม่ตรงกับงาน
+Computer in use,มีผู้ใช้คอมพิวเตอร์อยู่
+Computer locked,คอมพิวเตอร์ล็อกหน้าจอ
 Configuration is complete. The connection was not tested.,ตั้งค่าครบถ้วน ยังไม่ได้ทดสอบการเชื่อมต่อจริง
 Confirm,ยืนยัน
 Confirm new password,ยืนยันรหัสผ่านใหม่
@@ -217,6 +228,7 @@ DMS username,ชื่อผู้ใช้ DMS
 Data,ข้อมูล
 Date,วันที่
 Date as printed,วันที่ตามใบกำกับภาษี
+Date outside the account set period,วันที่อยู่นอกงวดของชุดบัญชี
 Dedup Key,คีย์กันซ้ำ
 Dedupe Key,คีย์กันซ้ำ
 Default Connection,การเชื่อมต่อเริ่มต้น
@@ -253,11 +265,14 @@ Doc No,เลขที่เอกสาร
 Document Type,ประเภทเอกสาร
 Document date,วันที่เอกสาร
 Document no.,เลขที่เอกสาร
+Document type not supported yet,ยังไม่รองรับเอกสารประเภทนี้
 Documents,จำนวนเอกสาร
+Done At,เวลาที่เสร็จ
 Done · {0} ok · {1} failed,เสร็จสิ้น · สำเร็จ {0} · ล้มเหลว {1}
 Download CC Desktop,ดาวน์โหลด CC เดสก์ท็อป
 Draft,ฉบับร่าง
 Due Date,วันครบกำหนด
+Duplicate party reference,เลขที่อ้างอิงซ้ำ
 Duplicate skipped,ข้ามรายการซ้ำแล้ว
 ERP Admin,ผู้ดูแลระบบ ERP
 ERP Purchase,จัดซื้อ ERP
@@ -287,6 +302,12 @@ Express Document Number,เลขที่เอกสาร Express
 Express Index Tool,โปรแกรมดัชนี Express
 Express Number,เลขที่ Express
 Express Push Guide,คู่มือการส่งเข้า Express
+Express closed twice,Express ปิดตัวซ้ำ
+Express license limit reached,สิทธิ์ใช้งาน Express เต็ม
+Express no.,เลขที่ใน Express
+Express reopened,เปิด Express ใหม่แล้ว
+Express sign-in failed,เข้าสู่ระบบ Express ไม่สำเร็จ
+Express sign-in not set,ยังไม่ได้ตั้งค่าการเข้าสู่ระบบ Express
 External Doc No,เลขเอกสารภายนอก
 External ERP Push,ส่งข้อมูลเข้า ERP ภายนอก
 External IDs & Dedupe,รหัสภายนอกและการป้องกันรายการซ้ำ
@@ -350,6 +371,7 @@ Issue bind code,สร้างรหัสผูก
 Issuer,ผู้ออก
 Item / Description,ชื่อสินค้า/คำอธิบาย
 Item / description,ชื่อสินค้า / คำอธิบาย
+Item not in Express,ไม่มีสินค้านี้ใน Express
 "JPG, PNG or PDF, up to 10 MB","JPG, PNG หรือ PDF ขนาดไม่เกิน 10 MB"
 "Kept as evidence, not a business field",ใช้เป็นหลักฐานเท่านั้น ไม่ใช่ฟิลด์ธุรกิจ
 "Kept as evidence, not a business field; only the confirmed fields are.",ใช้เป็นหลักฐานเท่านั้น ไม่ใช่ฟิลด์ธุรกิจ ให้ยึดตามฟิลด์ที่ยืนยันแล้ว
@@ -415,6 +437,7 @@ Missing code or state,ขาด code หรือ state
 My Profile,ข้อมูลส่วนตัว
 Name,ชื่อ
 Namespace is not allowed: {0},เนมสเปซที่ไม่อนุญาต: {0}
+Needs handling,ต้องดำเนินการ
 Net Amount,ยอดก่อนภาษี
 Net Payable,ยอดสุทธิที่ต้องชำระ
 Net amount,ยอดก่อนภาษี
@@ -452,6 +475,8 @@ Not Permitted,ไม่มีสิทธิ์
 Not allowed,ไม่อนุญาต
 Not authorized,ยังไม่ได้อนุญาต
 Not connected,ยังไม่เชื่อมต่อ
+Not done,ยังไม่เสร็จ
+Not enough stock,สต็อกไม่พอ
 Not linked,ยังไม่ผูก
 Not signed in,ยังไม่ได้เข้าสู่ระบบ
 Not subscribed,ยังไม่สมัคร
@@ -495,6 +520,9 @@ Page {0}/{1},หน้า {0}/{1}
 Pages,จำนวนหน้า
 Paid Amount,ยอดชำระแล้ว
 Pairing code,รหัสจับคู่
+Party,คู่ค้า
+Party VAT setting differs from the invoice,การตั้งค่าภาษีของคู่ค้าไม่ตรงกับใบกำกับ
+Party not in Express,ไม่มีคู่ค้านี้ใน Express
 Password,รหัสผ่าน
 Password updated. Use the new password next time you sign in.,อัปเดตรหัสผ่านแล้ว กรุณาใช้รหัสผ่านใหม่ในการเข้าสู่ระบบครั้งถัดไป
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,คิดค่าบริการตามการใช้งาน: {0} หน้าแรกของแต่ละเดือนปฏิทิน {1}/หน้า ส่วนที่เกิน {2}/หน้า
@@ -512,6 +540,7 @@ Pending Controls,การดำเนินการที่รออยู่
 Pending review,รอตรวจสอบ
 Period End,สิ้นงวด
 Period Start,ต้นงวด
+Period closed,งวดปิดบัญชีแล้ว
 Personal data: not shown in lists and never written to logs,ข้อมูลส่วนบุคคล: ไม่แสดงในรายการ และไม่เขียนลงล็อก
 Pinned Computer,เครื่องที่กำหนด
 Plan,แพ็กเกจ
@@ -521,6 +550,7 @@ Please confirm,กรุณายืนยัน
 Please sign in,กรุณาเข้าสู่ระบบ
 Please sign in again before changing your language.,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนภาษา
 Please try again later,กรุณาลองใหม่ภายหลัง
+Posted,บันทึกบัญชีแล้ว
 Preparing the file,กำลังเตรียมไฟล์
 Private Key,คีย์ส่วนตัว
 Processing…,กำลังดำเนินการ…
@@ -553,10 +583,12 @@ Pushed,ส่งแล้ว
 Qty,จำนวน
 Query access,สิทธิ์ค้นหา
 Queued,รอคิว
+Queued At,เวลาเข้าคิว
 Queued to push,รอส่ง
 "Read the ID card, match it against the DMS customer base, then confirm",อ่านบัตรประชาชน เทียบกับฐานลูกค้า DMS แล้วยืนยันข้อมูล
 Reading companies and years from {0}…,กำลังอ่านบริษัทและปีบัญชีจาก {0}…
 Reading companies and years took too long. Please try again.,อ่านข้อมูลบริษัทและปีบัญชีหมดเวลา กรุณาลองใหม่
+Reason,สาเหตุ
 Receipt Meta,ข้อมูลผลตอบกลับ
 Received,จำนวนเงินที่ได้รับจริง
 Recognition Raw,ผลลัพธ์ดิบจากการอ่านเอกสาร
@@ -601,6 +633,7 @@ Requested By,ผู้ขอ
 Response Body,เนื้อหาการตอบกลับ
 Result,ผลลัพธ์
 Result details,รายละเอียดผลลัพธ์
+Result unknown,ไม่ทราบผล
 Retry & Lease,การลองใหม่และการจองงาน
 Retry Count,จำนวนครั้งที่ลองใหม่
 Retrying,กำลังลองใหม่
@@ -631,6 +664,7 @@ Saved as a draft; confirm it before it can be pushed,บันทึกเป็
 Seen At,เวลารายงาน
 Seller,ผู้ขาย
 Seller Tax ID,เลขประจำตัวผู้เสียภาษีของผู้ขาย
+Server unreachable,เชื่อมต่อเซิร์ฟเวอร์ไม่ได้
 Session,เซสชัน
 Session ID,รหัสเซสชัน
 Session Payload,เพย์โหลดเซสชัน
@@ -645,6 +679,7 @@ Signed In Via,เข้าสู่ระบบผ่าน
 Site finalization failed,ตั้งค่าเว็บไซต์ขั้นสุดท้ายไม่สำเร็จ
 Site is missing setting: {0},เว็บไซต์ขาดการตั้งค่า: {0}
 Size And Permission Check,การตรวจขนาดและสิทธิ์
+Skipped,ข้ามแล้ว
 Source,ที่มา
 Source Attachment,ไฟล์แนบต้นฉบับ
 Stage,ขั้นตอน
@@ -685,6 +720,7 @@ System URL,ที่อยู่ระบบ
 System URL is not filled in,ต้องระบุที่อยู่ระบบ
 System URL is required,ต้องระบุที่อยู่ระบบ
 Target ERP,ERP ปลายทาง
+Task cost limit reached,ถึงวงเงินค่าใช้จ่ายของงานแล้ว
 Tax Return Drafts,ร่างแบบยื่นภาษี
 Team,จัดการทีมงาน
 Tenant boot data,ข้อมูลเริ่มต้นของเว็บไซต์นี้
@@ -805,10 +841,12 @@ Unable to verify this company’s LINE official account. Please try again.,ไ�
 Unbind LINE,ยกเลิกการผูก LINE
 Unbound At,ยกเลิกการผูกเมื่อ
 Unconfirmed documents cannot be pushed,ไม่สามารถส่งเอกสารที่ยังไม่ได้ยืนยันได้
+Unexpected screen handled,จัดการหน้าจอที่ไม่คาดคิดแล้ว
 Unit,หน่วย
 Unit Price,ราคาต่อหน่วย
 Unit price,ราคาต่อหน่วย
 Unknown product: {0},ผลิตภัณฑ์ที่ไม่รู้จัก: {0}
+Unrecognized Express screen,ไม่รู้จักหน้าจอ Express
 Updated the hands-on task,อัปเดตงานทำใน Express แล้ว
 Updating the hands-on task,กำลังอัปเดตงานทำใน Express
 Upload,อัปโหลด
@@ -836,9 +874,14 @@ VAT Rate %,อัตราภาษี %
 VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,ร่างแบบ ภ.พ.30 และ ภ.ง.ด.3 / ภ.ง.ด.53 พร้อมตรวจภาษีซื้อ
 Valid for {0},เหลืออายุ {0}
 Verify State,ผลการตรวจสอบ
+Voided,ยกเลิกแล้ว
 Voided Number,เลขที่ที่ยกเลิก
+Voided {0},ยกเลิก {0} แล้ว
 WHT deducted,ภาษีหัก ณ ที่จ่าย
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},รอ {0} วินาทีแล้วยังไม่สามารถขอล็อกของบัญชีเดียวกันได้ ({1}) ไม่สามารถเข้าสู่ระบบบัญชีเดียวกันพร้อมกันได้ {2}
+Waiting,รอคิว
+Waiting for start time,รอเวลาเริ่ม
+Waiting for the server,กำลังรอเซิร์ฟเวอร์
 Warehouses,คลังสินค้า
 "Warehouses, stock-in and stock-out documents",คลังสินค้า เอกสารรับเข้าและจ่ายออก
 What Was Pushed,เอกสารที่ส่ง
@@ -1199,6 +1242,53 @@ nav.suppliers,ผู้จำหน่าย
 nav.team,จัดการทีมงาน
 nav.warehouses,คลังสินค้า
 nav.work,ทำงานร่วมกัน
+operator.report.column.number,เลขที่ใน Express
+operator.report.column.party,คู่ค้า
+operator.report.column.reason,สาเหตุ
+operator.report.column.ref,เลขที่
+operator.report.column.status,สถานะ
+operator.report.column.time,ใช้เวลา
+operator.report.column.total,ยอดเงิน
+operator.report.match,ยอดเงินและภาษีตรงกัน
+operator.report.mismatch,ยอดเงินและภาษีไม่ตรงกัน
+operator.report.reason.account_busy,ชุดบัญชีกำลังถูกใช้งาน
+operator.report.reason.account_in_use,บัญชีเข้าสู่ระบบที่อื่นอยู่
+operator.report.reason.account_set_unavailable,เปิดชุดบัญชีไม่ได้
+operator.report.reason.ai_resolved,จัดการหน้าจอที่ไม่คาดคิดแล้ว
+operator.report.reason.budget,ถึงวงเงินค่าใช้จ่ายของงานแล้ว
+operator.report.reason.cc_restarted,CC รีสตาร์ตแล้ว
+operator.report.reason.company_mismatch,บริษัทไม่ตรงกับงาน
+operator.report.reason.company_pick,เลือกบริษัทใน Express
+operator.report.reason.crash_repeated,Express ปิดตัวซ้ำ
+operator.report.reason.duplicate_ref,เลขที่อ้างอิงซ้ำ
+operator.report.reason.express_restarted,เปิด Express ใหม่แล้ว
+operator.report.reason.item_missing,ไม่มีสินค้านี้ใน Express
+operator.report.reason.license,สิทธิ์ใช้งาน Express เต็ม
+operator.report.reason.login_failed,เข้าสู่ระบบ Express ไม่สำเร็จ
+operator.report.reason.login_missing,ยังไม่ได้ตั้งค่าการเข้าสู่ระบบ Express
+operator.report.reason.negative_stock,สต็อกไม่พอ
+operator.report.reason.network_down,เชื่อมต่อเซิร์ฟเวอร์ไม่ได้
+operator.report.reason.network_wait,กำลังรอเซิร์ฟเวอร์
+operator.report.reason.party_missing,ไม่มีคู่ค้านี้ใน Express
+operator.report.reason.period_locked,งวดปิดบัญชีแล้ว
+operator.report.reason.period_outside,วันที่อยู่นอกงวดของชุดบัญชี
+operator.report.reason.placeholder_left,มีเอกสารว่างรอยกเลิก
+operator.report.reason.readback_mismatch,ยอดเงินและภาษีไม่ตรงกัน
+operator.report.reason.recipe_mismatch,ยังไม่รองรับเอกสารประเภทนี้
+operator.report.reason.result_unknown,ไม่ทราบผล
+operator.report.reason.screen_locked,คอมพิวเตอร์ล็อกหน้าจอ
+operator.report.reason.tax_setting_mismatch,การตั้งค่าภาษีของคู่ค้าไม่ตรงกับใบกำกับ
+operator.report.reason.unknown,ต้องดำเนินการ
+operator.report.reason.unknown_screen,ไม่รู้จักหน้าจอ Express
+operator.report.reason.unsupported,ยังไม่รองรับเอกสารประเภทนี้
+operator.report.reason.user_active,มีผู้ใช้คอมพิวเตอร์อยู่
+operator.report.reason.voided,ยกเลิกแล้ว
+operator.report.reason.waiting_start,รอเวลาเริ่ม
+operator.report.state.notDone,ยังไม่เสร็จ
+operator.report.state.saved,บันทึกบัญชีแล้ว
+operator.report.state.skipped,ข้ามแล้ว
+operator.report.state.waiting,รอคิว
+operator.report.voided,ยกเลิก {0} แล้ว
 purchase.action.addLine,เพิ่มรายการ
 purchase.action.new,สร้างเอกสารซื้อใหม่
 purchase.action.removeLine,ลบ

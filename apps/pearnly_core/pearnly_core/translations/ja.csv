@@ -19,6 +19,9 @@ Account balance,口座残高
 Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,このサイトでこのオペレーター用に作成したアカウント。LINE専用で、Webログインには使わず、パスワード不要です。
 Account name,口座名義
 Account number,口座番号
+Account set in use,帳簿は使用中です
+Account set unavailable,帳簿を開けません
+Account signed in elsewhere,アカウントは別の場所でログイン中です
 Account that owns this connection. Leave empty for a site-wide shared connection.,この接続の所有アカウント。空欄はサイト共有の接続です。
 Account with admin rights,権限アカウント
 Action not found,操作が見つかりません
@@ -40,6 +43,8 @@ Allow DMS queries from LINE,LINEでの照会機能を許可
 Allow LINE to use the camera,LINE にカメラを許可
 Allowed,許可
 Amount,金額
+Amount and VAT differ,金額と税が不一致
+Amount and VAT match,金額と税が一致
 An admin session was requested but no admin credentials are configured,adminセッションが要求されましたが、admin資格情報が未設定です
 Approval,承認
 Approved amounts are credited to your balance.,承認後、残高に反映されます。
@@ -68,6 +73,7 @@ Bind LINE,LINEを連携
 Bind code,連携コード
 Binding needs a LINE user and a local account,連携にはLINEユーザーとローカルアカウントが必要です
 Birth Date,生年月日
+Blank document left to void,取消待ちの空伝票があります
 Body,本文
 Book Key,帳簿キー
 Booking Defaults,起票の既定値
@@ -87,6 +93,7 @@ CC Desktop authentication failed.,CC デスクトップの認証に失敗しま�
 CC Desktop not connected,CC デスクトップ未接続
 CC is not set up for this site yet.,このサイトではまだ CC が設定されていません。
 CC is only available on product sites.,CC は製品サイトでのみ利用できます。
+CC restarted,CC デスクトップが再起動しました
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",カメラへのアクセスがブロックされています。ブラウザのサイト設定とスマートフォンの設定でカメラを許可してから、もう一度お試しください。
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.",カメラへのアクセスがオフになっています。アドレスバー左のアイコンからカメラを「許可」にして、もう一度お試しください。
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.",カメラへのアクセスがオフになっています。iPhone の「設定 → Safari → カメラ」で「許可」を選ぶか、アドレスバーの Web サイト設定 → カメラ から許可してください。戻ると自動で再試行します。
@@ -113,6 +120,7 @@ Checking your account,アカウント情報を確認しています
 Checkpoint Key,チェックポイントキー
 Checkpoints,チェックポイント
 Choose a plan,プランを選ぶ
+Choose the company in Express,Express で会社を選択してください
 Claiming a push job requires a connection,送信ジョブの取得には接続の指定が必要です
 Click to sort by {0},{0} で並べ替え
 Client ID is required,クライアントIDは必須です
@@ -125,6 +133,9 @@ Company Master,会社マスタ
 Company Profile,会社情報
 Company Tax ID,自社の税番号
 Company Title,会社名
+Company does not match the task,会社がタスクと一致しません
+Computer in use,コンピューターは使用中です
+Computer locked,コンピューターはロック中です
 Configuration is complete. The connection was not tested.,設定は揃っています。接続はテストしていません。
 Confirm,確認
 Confirm new password,新しいパスワード（確認）
@@ -217,6 +228,7 @@ DMS username,DMSユーザー名
 Data,データ
 Date,日付
 Date as printed,伝票の日付
+Date outside the account set period,日付が帳簿の期間外です
 Dedup Key,重複防止キー
 Dedupe Key,重複防止キー
 Default Connection,既定の接続
@@ -253,11 +265,14 @@ Doc No,伝票番号
 Document Type,伝票種別
 Document date,伝票日付
 Document no.,伝票番号
+Document type not supported yet,この種類の伝票はまだ対応していません
 Documents,伝票数
+Done At,完了日時
 Done · {0} ok · {1} failed,完了 · 成功 {0} · 失敗 {1}
 Download CC Desktop,CC デスクトップをダウンロード
 Draft,下書き
 Due Date,支払期日
+Duplicate party reference,取引先の番号が重複しています
 Duplicate skipped,重複のためスキップ
 ERP Admin,ERP 管理者
 ERP Purchase,ERP 購買
@@ -287,6 +302,12 @@ Express Document Number,Express 伝票番号
 Express Index Tool,Express インデックスツール
 Express Number,Express 番号
 Express Push Guide,Express プッシュガイド
+Express closed twice,Express が続けて終了しました
+Express license limit reached,Express のライセンス数の上限です
+Express no.,Express 番号
+Express reopened,Express を再度開きました
+Express sign-in failed,Express のログインに失敗しました
+Express sign-in not set,Express のログインが未設定です
 External Doc No,外部伝票番号
 External ERP Push,外部ERP連携
 External IDs & Dedupe,外部IDと重複排除
@@ -350,6 +371,7 @@ Issue bind code,連携コードを発行
 Issuer,発行者
 Item / Description,品名・説明
 Item / description,品名・摘要
+Item not in Express,Express に商品がありません
 "JPG, PNG or PDF, up to 10 MB",JPG・PNG・PDF、10 MB まで
 "Kept as evidence, not a business field",証跡用で業務フィールドではありません
 "Kept as evidence, not a business field; only the confirmed fields are.",証跡用で業務フィールドではありません。確定後の項目だけが業務値です。
@@ -415,6 +437,7 @@ Missing code or state,code または state がありません
 My Profile,個人プロフィール
 Name,名称
 Namespace is not allowed: {0},名前空間は許可されていません: {0}
+Needs handling,対応が必要
 Net Amount,税抜金額
 Net Payable,支払純額
 Net amount,税抜金額
@@ -452,6 +475,8 @@ Not Permitted,権限がありません
 Not allowed,不許可
 Not authorized,未承認
 Not connected,未接続
+Not done,未完了
+Not enough stock,在庫が足りません
 Not linked,未連携
 Not signed in,未ログイン
 Not subscribed,未登録
@@ -495,6 +520,9 @@ Page {0}/{1},{0}/{1} ページ目
 Pages,枚数
 Paid Amount,支払済金額
 Pairing code,ペアリングコード
+Party,取引先
+Party VAT setting differs from the invoice,取引先の税設定が請求書と異なります
+Party not in Express,Express に取引先がありません
 Password,パスワード
 Password updated. Use the new password next time you sign in.,パスワードを更新しました。次回は新しいパスワードでログインしてください。
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,従量課金：毎月最初の{0}ページは{1}/ページ、超過分は{2}/ページ。
@@ -512,6 +540,7 @@ Pending Controls,保留中の操作
 Pending review,審査待ち
 Period End,期末
 Period Start,期首
+Period closed,期間は締め済みです
 Personal data: not shown in lists and never written to logs,個人情報のため一覧に表示せず、ログにも書きません
 Pinned Computer,指定端末
 Plan,プラン
@@ -521,6 +550,7 @@ Please confirm,確認してください
 Please sign in,ログインしてください
 Please sign in again before changing your language.,言語を変更する前に再ログインしてください。
 Please try again later,しばらくしてから再試行してください
+Posted,記帳済み
 Preparing the file,ファイルを準備しています
 Private Key,秘密鍵
 Processing…,処理中…
@@ -553,10 +583,12 @@ Pushed,送信済み
 Qty,数量
 Query access,照会権限
 Queued,順番待ち
+Queued At,キュー投入日時
 Queued to push,送信待ち
 "Read the ID card, match it against the DMS customer base, then confirm",身分証を読み取り、DMS顧客と照合して確定
 Reading companies and years from {0}…,{0} から会社と年度を読み込み中…
 Reading companies and years took too long. Please try again.,会社と年度の読み込みに時間がかかりすぎました。もう一度お試しください。
+Reason,理由
 Receipt Meta,受領メタ
 Received,受領額
 Recognition Raw,認識の生データ
@@ -601,6 +633,7 @@ Requested By,申請者
 Response Body,レスポンス内容
 Result,結果
 Result details,結果の詳細
+Result unknown,結果不明
 Retry & Lease,再試行とリース
 Retry Count,再試行回数
 Retrying,再試行中
@@ -631,6 +664,7 @@ Saved as a draft; confirm it before it can be pushed,保存すると下書きに
 Seen At,報告日時
 Seller,売り手
 Seller Tax ID,売り手税番号
+Server unreachable,サーバーに接続できません
 Session,セッション
 Session ID,セッションID
 Session Payload,セッションのペイロード
@@ -645,6 +679,7 @@ Signed In Via,ログイン方法
 Site finalization failed,サイトの仕上げに失敗しました
 Site is missing setting: {0},サイトに設定項目がありません：{0}
 Size And Permission Check,サイズと権限の確認
+Skipped,スキップ
 Source,ソース
 Source Attachment,元の添付ファイル
 Stage,段階
@@ -685,6 +720,7 @@ System URL,システムURL
 System URL is not filled in,システムURLが未入力です
 System URL is required,システムURLは必須です
 Target ERP,連携先 ERP
+Task cost limit reached,このタスクの費用上限に達しました
 Tax Return Drafts,税務申告の下書き
 Team,チーム
 Tenant boot data,このサイトの起動データ
@@ -805,10 +841,12 @@ Unable to verify this company’s LINE official account. Please try again.,会�
 Unbind LINE,LINE連携を解除
 Unbound At,連携解除日時
 Unconfirmed documents cannot be pushed,未確定の伝票は送信できません
+Unexpected screen handled,想定外の画面を処理しました
 Unit,単位
 Unit Price,単価
 Unit price,単価
 Unknown product: {0},不明な製品: {0}
+Unrecognized Express screen,認識できない Express 画面
 Updated the hands-on task,代行入力タスクを更新しました
 Updating the hands-on task,代行入力タスクを更新しています
 Upload,アップロード
@@ -836,9 +874,14 @@ VAT Rate %,税率%
 VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,付加価値税申告（ภ.พ.30）と源泉徴収税申告（ภ.ง.ด.3 / ภ.ง.ด.53）の下書きと仕入税チェック
 Valid for {0},残り有効時間 {0}
 Verify State,照合結果
+Voided,取消済み
 Voided Number,取消番号
+Voided {0},取消済み {0}
 WHT deducted,源泉徴収税額
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},{0} 秒待っても同一アカウントのロックを取得できません（{1}）。同一アカウントへの同時ログインは禁止です。{2}
+Waiting,待機中
+Waiting for start time,開始時刻を待っています
+Waiting for the server,サーバーを待っています
 Warehouses,倉庫
 "Warehouses, stock-in and stock-out documents",倉庫、入庫・出庫伝票
 What Was Pushed,何を送ったか
@@ -1199,6 +1242,53 @@ nav.suppliers,仕入先
 nav.team,チーム
 nav.warehouses,倉庫
 nav.work,コラボレーション
+operator.report.column.number,Express 番号
+operator.report.column.party,取引先
+operator.report.column.reason,理由
+operator.report.column.ref,番号
+operator.report.column.status,状態
+operator.report.column.time,所要時間
+operator.report.column.total,金額
+operator.report.match,金額と税が一致
+operator.report.mismatch,金額と税が不一致
+operator.report.reason.account_busy,帳簿は使用中です
+operator.report.reason.account_in_use,アカウントは別の場所でログイン中です
+operator.report.reason.account_set_unavailable,帳簿を開けません
+operator.report.reason.ai_resolved,想定外の画面を処理しました
+operator.report.reason.budget,このタスクの費用上限に達しました
+operator.report.reason.cc_restarted,CC デスクトップが再起動しました
+operator.report.reason.company_mismatch,会社がタスクと一致しません
+operator.report.reason.company_pick,Express で会社を選択してください
+operator.report.reason.crash_repeated,Express が続けて終了しました
+operator.report.reason.duplicate_ref,取引先の番号が重複しています
+operator.report.reason.express_restarted,Express を再度開きました
+operator.report.reason.item_missing,Express に商品がありません
+operator.report.reason.license,Express のライセンス数の上限です
+operator.report.reason.login_failed,Express のログインに失敗しました
+operator.report.reason.login_missing,Express のログインが未設定です
+operator.report.reason.negative_stock,在庫が足りません
+operator.report.reason.network_down,サーバーに接続できません
+operator.report.reason.network_wait,サーバーを待っています
+operator.report.reason.party_missing,Express に取引先がありません
+operator.report.reason.period_locked,期間は締め済みです
+operator.report.reason.period_outside,日付が帳簿の期間外です
+operator.report.reason.placeholder_left,取消待ちの空伝票があります
+operator.report.reason.readback_mismatch,金額と税が不一致
+operator.report.reason.recipe_mismatch,この種類の伝票はまだ対応していません
+operator.report.reason.result_unknown,結果不明
+operator.report.reason.screen_locked,コンピューターはロック中です
+operator.report.reason.tax_setting_mismatch,取引先の税設定が請求書と異なります
+operator.report.reason.unknown,対応が必要
+operator.report.reason.unknown_screen,認識できない Express 画面
+operator.report.reason.unsupported,この種類の伝票はまだ対応していません
+operator.report.reason.user_active,コンピューターは使用中です
+operator.report.reason.voided,取消済み
+operator.report.reason.waiting_start,開始時刻を待っています
+operator.report.state.notDone,未完了
+operator.report.state.saved,記帳済み
+operator.report.state.skipped,スキップ
+operator.report.state.waiting,待機中
+operator.report.voided,取消済み {0}
 purchase.action.addLine,明細を追加
 purchase.action.new,仕入伝票を作成
 purchase.action.removeLine,削除

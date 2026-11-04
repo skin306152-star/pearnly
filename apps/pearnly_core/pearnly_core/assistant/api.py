@@ -25,15 +25,15 @@ def no_traceback():
 
 
 @frappe.whitelist(methods=["GET"])
-def listing(archived=0, after=None, check=None, grouped=0, group=None):
-    # group：不传是 None；传空串是「最近」这一组
+def listing(archived=0, after=None, check=None, grouped=0, group=None, mode=None):
+    # group：不传是 None；传空串是「最近」这一组；mode：chat / operator，不传 = 全部（统一对话框架 14.8）
     return sessions.listing(archived=frappe.utils.cint(archived) == 1, after=after or None, check=check or None,
-                            grouped=frappe.utils.cint(grouped) == 1, group=group)
+                            grouped=frappe.utils.cint(grouped) == 1, group=group, mode=mode or None)
 
 
 @frappe.whitelist(methods=["POST"])
-def create(project=None, period=None, scope=None):
-    return sessions.create(project=project or None, period=period or None, scope=scope or None)
+def create(project=None, period=None, scope=None, mode=None):
+    return sessions.create(project=project or None, period=period or None, scope=scope or None, mode=mode or None)
 
 
 # 改对话的处理月份、分店；project 是它现在的公司（不能换公司，见 `sessions.move`）

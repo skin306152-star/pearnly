@@ -119,22 +119,36 @@ def _announce(doc, op: str = "upsert") -> None:
     """提交后给本人推一条（``EVENT``）：``upsert`` 带任务记录（不带单据明细），``delete`` 只带任务号。"""
     payload = {"op": op, "task": view(doc, documents=False)} if op == "upsert" else {"op": op, "name": doc.name}
     frappe.publish_realtime(EVENT, payload, user=doc.owner, after_commit=True)
+    if op == "upsert":
+        from pearnly_core.express_operator import feed
+
+        feed.publish(doc)  # 代录会话里这次新出现的统一对话事件（评估 14.2）
 
 
 def _save(doc) -> None:
+    from pearnly_core.express_operator import feed
+
     doc.flags.ignore_permissions = True  # 原生权限一律不给，这里已按本人 + 公司核过
+    feed.stamp(doc, feed.stored_rows(doc.name), now_datetime())  # 只记单据交进队列 / 有结论的时刻，不改判断
     doc.save()
     _announce(doc)
 
 
-def create(company, period, company_title: str = "") -> dict:
-    """新建一个准备中的任务（电脑、网页、手机都能建；选好公司、月份就建，不必先发一句话）。"""
+def create(company, period, company_title: str = "", scope: str = "") -> dict:
+    """新建一个准备中的任务（电脑、网页、手机都能建；选好公司、月份就建，不必先发一句话）。同一事务里建它的会话（统一对话框架
+    14.2：代录任务就是一段会话，``op_<任务号>``，远端会话第一次发话时才开），互相指上；``scope`` 是会话的分店（只记在会话上）。"""
     _require_company(company)
     doc = frappe.get_doc({"doctype": DOCTYPE, "product": site_product(), "company": str(company),
                           "company_title": str(company_title or "")[:TITLE_MAX], "period": _period(period),
                           "status": "preparing"})
     doc.flags.ignore_permissions = True
     doc.insert()
+    from pearnly_core.assistant import sessions
+
+    session = sessions.open_operator(doc, scope=scope)
+    if session:
+        doc.session_id = session
+        frappe.db.set_value(DOCTYPE, doc.name, "session_id", session, update_modified=False)
     _announce(doc)
     return view(doc)
 
@@ -248,6 +262,7 @@ def settle(name) -> dict:
 
 # ── 任务里的对话（对话框甲，主会话 10-29 审定）：一个任务一段对话，挂在对话会话表上（``operator_task``），不进对话侧栏 ─────
 CONTROL_ACTIONS = ("skip", "retry")
+STOP = "stop"  # 停止整个任务（统一对话框架 U-Q3）：别的设备上点了停止，执行的那台电脑的 CC 页面取走后经桥停下；不针对哪张单
 CONTROLS_MAX = 50
 
 
@@ -287,14 +302,20 @@ def thread_note(name) -> str:
 def push_control(name, action: str, doc_ids) -> dict:
     """对话里交代的跳过 / 重做：记在任务上，等执行的那台电脑的 CC 页面取走去做（``take_controls``：跳过照桥上控制，重做同单张
     「重试」交回站点 ``answer``）；只认这个任务里的单。回记下的这几条与电脑。"""
-    if action not in CONTROL_ACTIONS:
+    if action not in CONTROL_ACTIONS + (STOP,):
         frappe.throw(_("Invalid request"))
     doc = _own(name, for_update=True)
     _require_company(doc.company)
-    known = {row.doc_id for row in doc.get("documents") or []}
-    wanted = [str(d) for d in doc_ids or [] if str(d) in known]
-    if not wanted or doc.status == "preparing":
-        frappe.throw(_("Invalid request"))
+    if action == STOP:
+        # 只有交出去还在排、在录的任务能停（停止不针对单据，记一条空单号的）
+        if doc.status not in ("queued", "running"):
+            frappe.throw(_("Invalid request"))
+        wanted = [""]
+    else:
+        known = {row.doc_id for row in doc.get("documents") or []}
+        wanted = [str(d) for d in doc_ids or [] if str(d) in known]
+        if not wanted or doc.status == "preparing":
+            frappe.throw(_("Invalid request"))
     pending = frappe.parse_json(doc.controls or "[]") or []
     added = [{"action": action, "doc_id": d, "at": str(now_datetime())} for d in wanted]
     doc.controls = frappe.as_json((pending + added)[-CONTROLS_MAX:])
@@ -368,6 +389,6 @@ def resume(name) -> dict:
     return view(doc)
 
 
-__all__ = ["CONTROL_ACTIONS", "DOCTYPE", "EVENT", "RESUMABLE", "STATUSES", "answer", "attach", "attention", "create", "delete", "listing",
+__all__ = ["CONTROL_ACTIONS", "DOCTYPE", "STOP", "EVENT", "RESUMABLE", "STATUSES", "answer", "attach", "attention", "create", "delete", "listing",
            "mark_running", "push_control", "read", "resume", "settle", "site_product", "take_controls", "thread", "thread_note",
            "update", "view"]

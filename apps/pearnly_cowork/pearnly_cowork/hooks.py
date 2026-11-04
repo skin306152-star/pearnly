@@ -493,7 +493,8 @@ cowork_push_task_histories = ["pearnly_cowork.folder_intake.push.task_histories"
 cowork_push_account_history = ["pearnly_cowork.readback.history.for_push"]
 # 票的推送状态 / 原因变了（history/push_state.py 投影推送账本时）：定时任务的票在提交后马上刷新那份文件的结果与结果表格，
 # 不等每 10 分钟的跟进（2026-10-13）。
-cowork_push_state_changed = ["pearnly_cowork.folder_intake.events.pushed"]
+# 代录事件源（共用层，统一对话框架 14.2）：这张票属于哪个还在跑的代录任务，就提交后以任务主人身份收尾一次并推事件（只读产品）
+cowork_push_state_changed = ["pearnly_cowork.folder_intake.events.pushed", "pearnly_core.express_operator.feed.receipt"]
 pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.ocr_failed"}
 # 续跑时遇到上一个进程留下的「结果不明」调用，由对账的识别任务自己处理：账单 / 总账 / 税报按有限次重发，发票当成这一页
 # 读不出交引擎按页兜底；不整份作废（2026-09-30 压测第 18 轮）。

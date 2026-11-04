@@ -85,8 +85,10 @@ def _fake_frappe(state):
     def exists(doctype, filters):
         return any(match(row, filters) for row in state["sessions"])
 
-    def set_value(doctype, name, values, update_modified=True):
-        next(row for row in state["sessions"] if row["name"] == name).update(values)
+    def set_value(doctype, name, values, value=None, update_modified=True):
+        values = {values: value} if isinstance(values, str) else values
+        rows = state["sessions"] if doctype == "Pearnly Assistant Session" else state["rows"]
+        next(row for row in rows if row["name"] == name).update(values)
 
     def get_all(doctype, filters=None, fields=None, order_by="", limit_start=0, limit_page_length=20):
         if doctype == "Pearnly Express Operator Task Document":  # 子表：每行带 parent / parenttype
@@ -116,7 +118,8 @@ def _fake_frappe(state):
 
 class TaskTests(unittest.TestCase):
     def setUp(self):
-        self.state = {"rows": [], "sessions": [], "seq": 0, "now": datetime.datetime(2026, 10, 27, 20, 0), "pushed": []}
+        self.state = {"rows": [], "sessions": [], "seq": 0, "now": datetime.datetime(2026, 10, 27, 20, 0), "pushed": [],
+                      "fed": []}
         self.listed = set()  # 产品自己的待处理里此刻列着的单（products.pending_documents）
         self.submitted = []
         self.allowed = {"CO-1"}
@@ -143,6 +146,20 @@ class TaskTests(unittest.TestCase):
             return {"id": sid}
 
         sessions.create = create_session
+
+        def open_operator(task, scope=""):
+            # 统一对话框架：建任务即建会话（op_<任务号>，同 sessions.open_operator）
+            sid = f"op_{task['name']}"
+            self.state["sessions"].append(_Row(name=f"s{sid}", session_id=sid, user=task["owner"], operator_task=task["name"],
+                                              title=task.get("title") or task.get("company_title") or task.get("company")))
+            return sid
+
+        sessions.open_operator = open_operator
+        feed = types.ModuleType("pearnly_core.express_operator.feed")
+        feed.stamp = lambda doc, before, now: None
+        feed.stored_rows = lambda name: {}
+        feed.publish = lambda doc: self.state["fed"].append((doc["name"], doc.get("session_id")))
+        package.feed = feed
         sessions.delete = lambda sid: self.state["sessions"].__setitem__(
             slice(None), [row for row in self.state["sessions"] if row["session_id"] != sid])
         assistant = types.ModuleType("pearnly_core.assistant")
@@ -150,10 +167,12 @@ class TaskTests(unittest.TestCase):
         self.saved = {k: sys.modules.get(k) for k in ("frappe", "frappe.utils", "pearnly_core", "pearnly_core.express_operator",
                                                        "pearnly_core.express_operator.products",
                                                        "pearnly_core.express_operator.contracts", "pearnly_core.assistant",
+                                                       "pearnly_core.express_operator.feed",
                                                        "pearnly_core.assistant.sessions", "pearnly_core.express_operator.tasks")}
         sys.modules.update({"frappe": frappe, "frappe.utils": utils, "pearnly_core": types.ModuleType("pearnly_core"),
                             "pearnly_core.express_operator": package, "pearnly_core.express_operator.products": products,
                             "pearnly_core.express_operator.contracts": package.contracts,
+                            "pearnly_core.express_operator.feed": feed,
                             "pearnly_core.assistant": assistant, "pearnly_core.assistant.sessions": sessions})
         spec = importlib.util.spec_from_file_location(
             "op_tasks", ROOT / "apps/pearnly_core/pearnly_core/express_operator/tasks.py")
@@ -427,6 +446,8 @@ class TaskTests(unittest.TestCase):
         self.assertEqual([m["task"]["status"] for _e, m, _u, _a in pushed[:3]], ["preparing", "preparing", "attention"])
         self.assertNotIn("documents", pushed[2][1]["task"])
         self.assertEqual(pushed[3][1], {"op": "delete", "name": made["name"]})
+        # 每次保存（不含删除）同时把代录会话里新出现的事件推给会话主人（feed.publish，统一对话框架 14.2）
+        self.assertEqual(self.state["fed"], [(made["name"], f"op_{made['name']}")] * 3)
 
     def test_deleting_a_task_deletes_its_conversation(self):
         name = self._started()

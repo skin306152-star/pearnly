@@ -412,6 +412,25 @@ def tool_use_ids(events) -> list[str]:
     return found
 
 
+# 一步的进度（统一对话框架，评估 2026-11-04 第 14 节）：识别读到第几页、代录等电脑空闲 / 录到第几张、执行电脑上的暂停原因。
+# 只在站点与对话页之间，不进引擎（同 `pearnly.notice`）。`tool_use_id` 为空串 = 整个会话的状态行；同一步只认 processed_at
+# 最新的一条（同一时刻认 done 大的），步骤的结果比它新时以结果为准。`label` 是代码，页面按代码出文案。
+PROGRESS_EVENT = "pearnly.progress"
+PROGRESS_LABEL = re.compile(r"^[a-z][a-z0-9_.]{1,39}$")
+PROGRESS_DETAIL_MAX = 140
+
+
+def progress_event(event, processed_at, tool_use_id, done, total, label, detail="") -> dict:
+    """一条进度：`event` 是事件编号，`done / total` 是非负整数（不知道总数时 total 为 0）。"""
+    label = str(label or "")
+    if not PROGRESS_LABEL.match(label):
+        raise ContractError("invalid progress label")
+    use_id = event_id(tool_use_id) if tool_use_id else ""
+    done, total = max(0, int(done or 0)), max(0, int(total or 0))
+    return {"type": PROGRESS_EVENT, "id": event_id(event), "processed_at": processed_at, "tool_use_id": use_id,
+            "done": done, "total": total, "label": label, "detail": str(detail or "")[:PROGRESS_DETAIL_MAX]}
+
+
 # ---- 对话归在哪家（`projects`，ADR-020：Cowork 按公司主档）----
 # 共用层只记对话挂在哪一项（`project`，产品给的不透明编号；空 = 「最近」）、处理哪个月（`period`，`YYYY-MM`，空 = 不指定）、
 # 产品自定的范围（`project_scope`，Cowork 存分店号；空 = 不指定）。哪些编号有效、说明写什么由产品的 provider 决定。

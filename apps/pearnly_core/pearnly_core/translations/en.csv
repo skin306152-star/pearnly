@@ -19,6 +19,9 @@ Account balance,Account balance
 Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.
 Account name,Account name
 Account number,Account number
+Account set in use,Account set in use
+Account set unavailable,Account set unavailable
+Account signed in elsewhere,Account signed in elsewhere
 Account that owns this connection. Leave empty for a site-wide shared connection.,Account that owns this connection. Leave empty for a site-wide shared connection.
 Account with admin rights,Account with admin rights
 Action not found,Action not found
@@ -40,6 +43,8 @@ Allow DMS queries from LINE,Allow DMS queries from LINE
 Allow LINE to use the camera,Allow LINE to use the camera
 Allowed,Allowed
 Amount,Amount
+Amount and VAT differ,Amount and VAT differ
+Amount and VAT match,Amount and VAT match
 An admin session was requested but no admin credentials are configured,An admin session was requested but no admin credentials are configured
 Approval,Approval
 Approved amounts are credited to your balance.,Approved amounts are credited to your balance.
@@ -68,6 +73,7 @@ Bind LINE,Bind LINE
 Bind code,Bind code
 Binding needs a LINE user and a local account,Binding needs a LINE user and a local account
 Birth Date,Birth Date
+Blank document left to void,Blank document left to void
 Body,Body
 Book Key,Book Key
 Booking Defaults,Booking Defaults
@@ -87,6 +93,7 @@ CC Desktop authentication failed.,CC Desktop authentication failed.
 CC Desktop not connected,CC Desktop not connected
 CC is not set up for this site yet.,CC is not set up for this site yet.
 CC is only available on product sites.,CC is only available on product sites.
+CC restarted,CC restarted
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.","Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again."
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.","Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again."
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.","Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return."
@@ -113,6 +120,7 @@ Checking your account,Checking your account
 Checkpoint Key,Checkpoint Key
 Checkpoints,Checkpoints
 Choose a plan,Choose a plan
+Choose the company in Express,Choose the company in Express
 Claiming a push job requires a connection,Claiming a push job requires a connection
 Click to sort by {0},Click to sort by {0}
 Client ID is required,Client ID is required
@@ -125,6 +133,9 @@ Company Master,Company Master
 Company Profile,Company Profile
 Company Tax ID,Company Tax ID
 Company Title,Company Title
+Company does not match the task,Company does not match the task
+Computer in use,Computer in use
+Computer locked,Computer locked
 Configuration is complete. The connection was not tested.,Configuration is complete. The connection was not tested.
 Confirm,Confirm
 Confirm new password,Confirm new password
@@ -217,6 +228,7 @@ DMS username,DMS username
 Data,Data
 Date,Date
 Date as printed,Date as printed
+Date outside the account set period,Date outside the account set period
 Dedup Key,Dedup Key
 Dedupe Key,Dedupe Key
 Default Connection,Default Connection
@@ -253,11 +265,14 @@ Doc No,Doc No
 Document Type,Document Type
 Document date,Document date
 Document no.,Document no.
+Document type not supported yet,Document type not supported yet
 Documents,Documents
+Done At,Done At
 Done · {0} ok · {1} failed,Done · {0} ok · {1} failed
 Download CC Desktop,Download CC Desktop
 Draft,Draft
 Due Date,Due Date
+Duplicate party reference,Duplicate party reference
 Duplicate skipped,Duplicate skipped
 ERP Admin,ERP Admin
 ERP Purchase,ERP Purchase
@@ -287,6 +302,12 @@ Express Document Number,Express Document Number
 Express Index Tool,Express Index Tool
 Express Number,Express Number
 Express Push Guide,Express Push Guide
+Express closed twice,Express closed twice
+Express license limit reached,Express license limit reached
+Express no.,Express no.
+Express reopened,Express reopened
+Express sign-in failed,Express sign-in failed
+Express sign-in not set,Express sign-in not set
 External Doc No,External Doc No
 External ERP Push,External ERP Push
 External IDs & Dedupe,External IDs & Dedupe
@@ -349,6 +370,7 @@ Issue bind code,Issue bind code
 Issuer,Issuer
 Item / Description,Item / Description
 Item / description,Item / description
+Item not in Express,Item not in Express
 "JPG, PNG or PDF, up to 10 MB","JPG, PNG or PDF, up to 10 MB"
 "Kept as evidence, not a business field","Kept as evidence, not a business field"
 "Kept as evidence, not a business field; only the confirmed fields are.","Kept as evidence, not a business field; only the confirmed fields are."
@@ -414,6 +436,7 @@ Missing code or state,Missing code or state
 My Profile,My Profile
 Name,Name
 Namespace is not allowed: {0},Namespace is not allowed: {0}
+Needs handling,Needs handling
 Net Amount,Net Amount
 Net Payable,Net Payable
 Net amount,Net amount
@@ -451,6 +474,8 @@ Not Permitted,Not Permitted
 Not allowed,Not allowed
 Not authorized,Not authorized
 Not connected,Not connected
+Not done,Not done
+Not enough stock,Not enough stock
 Not linked,Not linked
 Not signed in,Not signed in
 Not subscribed,Not subscribed
@@ -493,6 +518,9 @@ Page {0}/{1},Page {0}/{1}
 Pages,Pages
 Paid Amount,Paid Amount
 Pairing code,Pairing code
+Party,Party
+Party VAT setting differs from the invoice,Party VAT setting differs from the invoice
+Party not in Express,Party not in Express
 Password,Password
 Password updated. Use the new password next time you sign in.,Password updated. Use the new password next time you sign in.
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.
@@ -510,6 +538,7 @@ Pending Controls,Pending Controls
 Pending review,Pending review
 Period End,Period End
 Period Start,Period Start
+Period closed,Period closed
 Personal data: not shown in lists and never written to logs,Personal data: not shown in lists and never written to logs
 Pinned Computer,Pinned Computer
 Plan,Plan
@@ -519,6 +548,7 @@ Please confirm,Please confirm
 Please sign in,Please sign in
 Please sign in again before changing your language.,Please sign in again before changing your language.
 Please try again later,Please try again later
+Posted,Posted
 Preparing the file,Preparing the file
 Private Key,Private Key
 Processing…,Processing…
@@ -551,10 +581,12 @@ Pushed,Pushed
 Qty,Qty
 Query access,Query access
 Queued,Queued
+Queued At,Queued At
 Queued to push,Queued to push
 "Read the ID card, match it against the DMS customer base, then confirm","Read the ID card, match it against the DMS customer base, then confirm"
 Reading companies and years from {0}…,Reading companies and years from {0}…
 Reading companies and years took too long. Please try again.,Reading companies and years took too long. Please try again.
+Reason,Reason
 Receipt Meta,Receipt Meta
 Received,Received
 Recognition Raw,Recognition Raw
@@ -599,6 +631,7 @@ Requested By,Requested By
 Response Body,Response Body
 Result,Result
 Result details,Result details
+Result unknown,Result unknown
 Retry & Lease,Retry & Lease
 Retry Count,Retry Count
 Retrying,Retrying
@@ -629,6 +662,7 @@ Saved as a draft; confirm it before it can be pushed,Saved as a draft; confirm i
 Seen At,Seen At
 Seller,Seller
 Seller Tax ID,Seller Tax ID
+Server unreachable,Server unreachable
 Session,Session
 Session ID,Session ID
 Session Payload,Session Payload
@@ -643,6 +677,7 @@ Signed In Via,Signed In Via
 Site finalization failed,Site finalization failed
 Site is missing setting: {0},Site is missing setting: {0}
 Size And Permission Check,Size And Permission Check
+Skipped,Skipped
 Source,Source
 Source Attachment,Source Attachment
 Stage,Stage
@@ -683,6 +718,7 @@ System URL,System URL
 System URL is not filled in,System URL is not filled in
 System URL is required,System URL is required
 Target ERP,Target ERP
+Task cost limit reached,Task cost limit reached
 Tax Return Drafts,Tax Return Drafts
 Team,Team
 Tenant boot data,Tenant boot data
@@ -803,10 +839,12 @@ Unable to verify this company’s LINE official account. Please try again.,Unabl
 Unbind LINE,Unbind LINE
 Unbound At,Unbound At
 Unconfirmed documents cannot be pushed,Unconfirmed documents cannot be pushed
+Unexpected screen handled,Unexpected screen handled
 Unit,Unit
 Unit Price,Unit Price
 Unit price,Unit price
 Unknown product: {0},Unknown product: {0}
+Unrecognized Express screen,Unrecognized Express screen
 Updated the hands-on task,Updated the hands-on task
 Updating the hands-on task,Updating the hands-on task
 Upload,Upload
@@ -834,9 +872,14 @@ VAT Rate %,VAT Rate %
 VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks
 Valid for {0},Valid for {0}
 Verify State,Verify State
+Voided,Voided
 Voided Number,Voided Number
+Voided {0},Voided {0}
 WHT deducted,WHT deducted
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}
+Waiting,Waiting
+Waiting for start time,Waiting for start time
+Waiting for the server,Waiting for the server
 Warehouses,Warehouses
 "Warehouses, stock-in and stock-out documents","Warehouses, stock-in and stock-out documents"
 What Was Pushed,What Was Pushed
@@ -1197,6 +1240,53 @@ nav.suppliers,Suppliers
 nav.team,Team
 nav.warehouses,Warehouses
 nav.work,Work together
+operator.report.column.number,Express no.
+operator.report.column.party,Party
+operator.report.column.reason,Reason
+operator.report.column.ref,No.
+operator.report.column.status,Status
+operator.report.column.time,Time
+operator.report.column.total,Amount
+operator.report.match,Amount and VAT match
+operator.report.mismatch,Amount and VAT differ
+operator.report.reason.account_busy,Account set in use
+operator.report.reason.account_in_use,Account signed in elsewhere
+operator.report.reason.account_set_unavailable,Account set unavailable
+operator.report.reason.ai_resolved,Unexpected screen handled
+operator.report.reason.budget,Task cost limit reached
+operator.report.reason.cc_restarted,CC restarted
+operator.report.reason.company_mismatch,Company does not match the task
+operator.report.reason.company_pick,Choose the company in Express
+operator.report.reason.crash_repeated,Express closed twice
+operator.report.reason.duplicate_ref,Duplicate party reference
+operator.report.reason.express_restarted,Express reopened
+operator.report.reason.item_missing,Item not in Express
+operator.report.reason.license,Express license limit reached
+operator.report.reason.login_failed,Express sign-in failed
+operator.report.reason.login_missing,Express sign-in not set
+operator.report.reason.negative_stock,Not enough stock
+operator.report.reason.network_down,Server unreachable
+operator.report.reason.network_wait,Waiting for the server
+operator.report.reason.party_missing,Party not in Express
+operator.report.reason.period_locked,Period closed
+operator.report.reason.period_outside,Date outside the account set period
+operator.report.reason.placeholder_left,Blank document left to void
+operator.report.reason.readback_mismatch,Amount and VAT differ
+operator.report.reason.recipe_mismatch,Document type not supported yet
+operator.report.reason.result_unknown,Result unknown
+operator.report.reason.screen_locked,Computer locked
+operator.report.reason.tax_setting_mismatch,Party VAT setting differs from the invoice
+operator.report.reason.unknown,Needs handling
+operator.report.reason.unknown_screen,Unrecognized Express screen
+operator.report.reason.unsupported,Document type not supported yet
+operator.report.reason.user_active,Computer in use
+operator.report.reason.voided,Voided
+operator.report.reason.waiting_start,Waiting for start time
+operator.report.state.notDone,Not done
+operator.report.state.saved,Posted
+operator.report.state.skipped,Skipped
+operator.report.state.waiting,Waiting
+operator.report.voided,Voided {0}
 purchase.action.addLine,Add row
 purchase.action.new,New purchase order
 purchase.action.removeLine,Delete

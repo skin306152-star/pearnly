@@ -19,6 +19,9 @@ Account balance,账户余额
 Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,本站点为该操作员创建的账号。仅用于 LINE，不用于网页登录，无需密码。
 Account name,收款户名
 Account number,收款账号
+Account set in use,账套正在使用
+Account set unavailable,账套无法打开
+Account signed in elsewhere,账号已在别处登录
 Account that owns this connection. Leave empty for a site-wide shared connection.,连接所属账号。留空为本站点共享连接。
 Account with admin rights,具有管理权限的账号
 Action not found,未找到该操作
@@ -40,6 +43,8 @@ Allow DMS queries from LINE,允许在 LINE 使用查询功能
 Allow LINE to use the camera,允许 LINE 使用相机
 Allowed,允许
 Amount,金额
+Amount and VAT differ,金额和税不一致
+Amount and VAT match,金额和税一致
 An admin session was requested but no admin credentials are configured,已请求 admin 会话，但未配置 admin 凭据
 Approval,审批
 Approved amounts are credited to your balance.,审核通过后计入账户余额。
@@ -68,6 +73,7 @@ Bind LINE,绑定 LINE
 Bind code,绑定码
 Binding needs a LINE user and a local account,绑定需要 LINE 用户与本地账号
 Birth Date,出生日期
+Blank document left to void,Express 留有空单待作废
 Body,内容
 Book Key,账套键
 Booking Defaults,建单默认值
@@ -87,6 +93,7 @@ CC Desktop authentication failed.,CC 桌面版认证失败。
 CC Desktop not connected,CC 桌面版未连接
 CC is not set up for this site yet.,本站点尚未设置 CC。
 CC is only available on product sites.,CC 仅在产品站点可用。
+CC restarted,CC 桌面版已重启
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",相机权限被拒绝。请在浏览器的网站设置和手机设置里允许相机，然后重试。
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.",相机权限已关闭。请点击地址栏左侧的图标，将相机设为「允许」，然后重试。
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.",相机权限已关闭。请前往 iPhone「设置 → Safari 浏览器 → 相机」选择「允许」，或点击地址栏中的网站设置 → 相机。返回本页后将自动重试。
@@ -113,6 +120,7 @@ Checking your account,正在查看账号信息
 Checkpoint Key,检查点键
 Checkpoints,检查点
 Choose a plan,选择套餐
+Choose the company in Express,请在 Express 中选择公司
 Claiming a push job requires a connection,领取推送任务时必须指定连接
 Click to sort by {0},点击按 {0} 排序
 Client ID is required,客户端 ID 不能为空
@@ -125,6 +133,9 @@ Company Master,公司主档
 Company Profile,公司资料
 Company Tax ID,本方税号
 Company Title,公司名称
+Company does not match the task,公司与任务不符
+Computer in use,电脑正在使用
+Computer locked,电脑已锁屏
 Configuration is complete. The connection was not tested.,配置完整，未测试实际连接。
 Confirm,确认
 Confirm new password,确认新密码
@@ -217,6 +228,7 @@ DMS username,DMS 用户名
 Data,数据
 Date,日期
 Date as printed,票面日期
+Date outside the account set period,日期不在账套期间内
 Dedup Key,去重键
 Dedupe Key,去重键
 Default Connection,默认连接
@@ -253,11 +265,14 @@ Doc No,单据号
 Document Type,单据类型
 Document date,单据日期
 Document no.,单据号
+Document type not supported yet,此类单据暂不支持
 Documents,单据数
+Done At,完成时间
 Done · {0} ok · {1} failed,完成 · 成功 {0} · 失败 {1}
 Download CC Desktop,下载 CC 桌面版
 Draft,草稿
 Due Date,到期日
+Duplicate party reference,对方单号重复
 Duplicate skipped,重复已跳过
 ERP Admin,ERP 管理员
 ERP Purchase,ERP 采购
@@ -287,6 +302,12 @@ Express Document Number,Express 单号
 Express Index Tool,Express 索引程序
 Express Number,Express 单号
 Express Push Guide,Express 推送手册
+Express closed twice,Express 连续关闭
+Express license limit reached,Express 授权名额已满
+Express no.,Express 单号
+Express reopened,Express 已重新打开
+Express sign-in failed,Express 登录失败
+Express sign-in not set,Express 登录未设置
 External Doc No,外部单据号
 External ERP Push,对外 ERP 推送
 External IDs & Dedupe,外部标识与去重
@@ -350,6 +371,7 @@ Issue bind code,生成绑定码
 Issuer,签发方
 Item / Description,品名/说明
 Item / description,品名 / 说明
+Item not in Express,Express 中没有此商品
 "JPG, PNG or PDF, up to 10 MB",JPG、PNG 或 PDF，最大 10 MB
 "Kept as evidence, not a business field",仅作留证，非业务字段
 "Kept as evidence, not a business field; only the confirmed fields are.",仅作留证，非业务字段；以确认后的字段为准
@@ -415,6 +437,7 @@ Missing code or state,缺少 code 或 state
 My Profile,个人信息
 Name,名称
 Namespace is not allowed: {0},不允许的命名空间：{0}
+Needs handling,需要处理
 Net Amount,不含税金额
 Net Payable,应付净额
 Net amount,未税金额
@@ -452,6 +475,8 @@ Not Permitted,没有权限
 Not allowed,不允许
 Not authorized,未授权
 Not connected,未连接
+Not done,未完成
+Not enough stock,库存不够
 Not linked,未绑定
 Not signed in,未登录
 Not subscribed,未订阅
@@ -495,6 +520,9 @@ Page {0}/{1},第 {0}/{1} 页
 Pages,页数
 Paid Amount,已付金额
 Pairing code,配对码
+Party,对方
+Party VAT setting differs from the invoice,对方税务设置与票面不符
+Party not in Express,Express 中没有此对方
 Password,密码
 Password updated. Use the new password next time you sign in.,密码已更新。下次登录请用新密码。
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,按量计费：每个自然月前 {0} 页 {1}/页，超出部分 {2}/页。
@@ -512,6 +540,7 @@ Pending Controls,待执行的操作
 Pending review,待审核
 Period End,期末
 Period Start,期初
+Period closed,期间已关账
 Personal data: not shown in lists and never written to logs,个人敏感信息：不在列表显示，不写日志
 Pinned Computer,指定的电脑
 Plan,套餐
@@ -521,6 +550,7 @@ Please confirm,请确认
 Please sign in,请先登录
 Please sign in again before changing your language.,请重新登录后再切换语言。
 Please try again later,请稍后重试
+Posted,已入账
 Preparing the file,正在准备文件
 Private Key,私钥
 Processing…,处理中…
@@ -553,10 +583,12 @@ Pushed,已推送
 Qty,数量
 Query access,查询权限
 Queued,排队中
+Queued At,排队时间
 Queued to push,待推送
 "Read the ID card, match it against the DMS customer base, then confirm",读取身份证，与 DMS 客户库比对后确认资料
 Reading companies and years from {0}…,正在从 {0} 读取公司和年度…
 Reading companies and years took too long. Please try again.,读取公司和年度超时，请重试。
+Reason,原因
 Receipt Meta,回执信息
 Received,实收金额
 Recognition Raw,识别原始输出
@@ -601,6 +633,7 @@ Requested By,申请人
 Response Body,响应内容
 Result,结果
 Result details,结果说明
+Result unknown,结果不明
 Retry & Lease,重试与租约
 Retry Count,已重试次数
 Retrying,重试中
@@ -631,6 +664,7 @@ Saved as a draft; confirm it before it can be pushed,保存为草稿，确认后
 Seen At,上报时间
 Seller,卖方
 Seller Tax ID,卖方税号
+Server unreachable,服务器无法连接
 Session,会话
 Session ID,会话 ID
 Session Payload,会话载荷
@@ -645,6 +679,7 @@ Signed In Via,登录方式
 Site finalization failed,站点收尾失败
 Site is missing setting: {0},站点缺少配置项：{0}
 Size And Permission Check,大小与权限检查
+Skipped,已跳过
 Source,来源
 Source Attachment,原始附件
 Stage,阶段
@@ -685,6 +720,7 @@ System URL,系统地址
 System URL is not filled in,系统地址不能为空
 System URL is required,系统地址为必填项
 Target ERP,目标 ERP
+Task cost limit reached,已达本任务费用上限
 Tax Return Drafts,报税草稿
 Team,团队管理
 Tenant boot data,本站点启动数据
@@ -805,10 +841,12 @@ Unable to verify this company’s LINE official account. Please try again.,无�
 Unbind LINE,解绑 LINE
 Unbound At,解绑时间
 Unconfirmed documents cannot be pushed,未确认的单据无法推送
+Unexpected screen handled,已处理意外画面
 Unit,单位
 Unit Price,单价
 Unit price,单价
 Unknown product: {0},未知产品：{0}
+Unrecognized Express screen,无法识别的 Express 画面
 Updated the hands-on task,更新了实操任务
 Updating the hands-on task,正在更新实操任务
 Upload,上传
@@ -836,9 +874,14 @@ VAT Rate %,税率%
 VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,增值税申报（ภ.พ.30）与预扣税申报（ภ.ง.ด.3 / ภ.ง.ด.53）草稿及进项核查
 Valid for {0},剩余有效期 {0}
 Verify State,核对结果
+Voided,已作废
 Voided Number,作废单号
+Voided {0},已作废 {0}
 WHT deducted,预扣税额
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},等待 {0} 秒后仍未获取同一账号的锁（{1}）。同一账号不可并发登录。{2}
+Waiting,等待
+Waiting for start time,等待开始时刻
+Waiting for the server,正在等待服务器
 Warehouses,仓库
 "Warehouses, stock-in and stock-out documents",仓库、入库与出库单据
 What Was Pushed,推送单据
@@ -1199,6 +1242,53 @@ nav.suppliers,供应商
 nav.team,团队管理
 nav.warehouses,仓库
 nav.work,工作协作
+operator.report.column.number,Express 单号
+operator.report.column.party,对方
+operator.report.column.reason,原因
+operator.report.column.ref,单号
+operator.report.column.status,状态
+operator.report.column.time,用时
+operator.report.column.total,金额
+operator.report.match,金额和税一致
+operator.report.mismatch,金额和税不一致
+operator.report.reason.account_busy,账套正在使用
+operator.report.reason.account_in_use,账号已在别处登录
+operator.report.reason.account_set_unavailable,账套无法打开
+operator.report.reason.ai_resolved,已处理意外画面
+operator.report.reason.budget,已达本任务费用上限
+operator.report.reason.cc_restarted,CC 桌面版已重启
+operator.report.reason.company_mismatch,公司与任务不符
+operator.report.reason.company_pick,请在 Express 中选择公司
+operator.report.reason.crash_repeated,Express 连续关闭
+operator.report.reason.duplicate_ref,对方单号重复
+operator.report.reason.express_restarted,Express 已重新打开
+operator.report.reason.item_missing,Express 中没有此商品
+operator.report.reason.license,Express 授权名额已满
+operator.report.reason.login_failed,Express 登录失败
+operator.report.reason.login_missing,Express 登录未设置
+operator.report.reason.negative_stock,库存不够
+operator.report.reason.network_down,服务器无法连接
+operator.report.reason.network_wait,正在等待服务器
+operator.report.reason.party_missing,Express 中没有此对方
+operator.report.reason.period_locked,期间已关账
+operator.report.reason.period_outside,日期不在账套期间内
+operator.report.reason.placeholder_left,Express 留有空单待作废
+operator.report.reason.readback_mismatch,金额和税不一致
+operator.report.reason.recipe_mismatch,此类单据暂不支持
+operator.report.reason.result_unknown,结果不明
+operator.report.reason.screen_locked,电脑已锁屏
+operator.report.reason.tax_setting_mismatch,对方税务设置与票面不符
+operator.report.reason.unknown,需要处理
+operator.report.reason.unknown_screen,无法识别的 Express 画面
+operator.report.reason.unsupported,此类单据暂不支持
+operator.report.reason.user_active,电脑正在使用
+operator.report.reason.voided,已作废
+operator.report.reason.waiting_start,等待开始时刻
+operator.report.state.notDone,未完成
+operator.report.state.saved,已入账
+operator.report.state.skipped,已跳过
+operator.report.state.waiting,等待
+operator.report.voided,已作废 {0}
 purchase.action.addLine,添加明细
 purchase.action.new,新建采购单
 purchase.action.removeLine,删除

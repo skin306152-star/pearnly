@@ -275,6 +275,21 @@ def notify(doctype, name, before) -> None:
         cc_service.announce(after["company"], part="pending")
     except Exception:
         frappe.log_error(title="ERP pending announce failed")
+    finally:
+        _operator_receipt(doctype, name)
+
+
+def _operator_receipt(doctype, name) -> None:
+    """代录事件源的只读入口（共用层，统一对话框架 14.2）：代录的单据编号是 ``P:<名>`` / ``S:<名>``（``operator.KINDS``）。"""
+    try:
+        from pearnly_core.express_operator import feed
+        from pearnly_erp_portal.express import operator
+
+        prefix = next((key for key, value in operator.KINDS.items() if value[0] == doctype), "")
+        if prefix:
+            feed.receipt([f"{prefix}:{name}"])
+    except Exception:
+        frappe.log_error(title="ERP operator receipt failed")
 
 
 __all__ = ["KINDS", "REASONS", "STOCK_ROUTES", "counts", "ledger_of", "matches", "needs_person", "notify", "pending", "pending_counts",

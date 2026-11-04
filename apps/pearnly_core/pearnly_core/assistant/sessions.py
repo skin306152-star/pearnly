@@ -49,8 +49,12 @@ FIELDS = ["name", "session_id", "title", "title_source", "starred", "archived", 
           "remote_ids", "context_tokens", "pending_carry", "project", "period", "project_scope", "project_noted",
           "operator_task"]
 LIST_FIELDS = ["name", "session_id", "title", "starred", "archived", "creation", "modified", "project", "period",
-               "project_scope"]
+               "project_scope", "operator_task"]
 UNFILED = ["is", "not set"]  # 「最近」：project 为空（新加的字段，旧行是 NULL）
+FILED = ["is", "set"]
+# 两种模式（统一对话框架 14.8）：代录会话 = operator_task 不为空；列表按 mode 筛（chat / operator，不带 = 全部）
+MODES = ("chat", "operator")
+LOCAL_PREFIX = "op_"  # 代录会话在本站先建、远端会话第一次发话时才开（`_remote_ready`）：编号 op_<任务号>
 SEGMENT_READERS = 4  # 整段重放时同时读几段远端会话的事件（`_segment_events`）
 
 
@@ -78,8 +82,29 @@ def owned(session_id, allow_archived=False) -> dict:
 
 
 def segments(row) -> list[str]:
-    """组成这个对话的各段远端会话，旧 → 新；最后一段是当前在用的。"""
-    return json.loads(row.get("remote_ids") or "[]") or [row.session_id]
+    """组成这个对话的各段远端会话，旧 → 新；最后一段是当前在用的。代录会话（`op_` 开头）还没开远端时是空列表。"""
+    found = json.loads(row.get("remote_ids") or "[]")
+    if found:
+        return found
+    return [] if local(row) else [row.session_id]
+
+
+def local(row) -> bool:
+    """本站先建、编号不是远端会话编号的代录会话（远端会话记在 remote_ids 里）。"""
+    return bool(row.get("operator_task")) and str(row.get("session_id") or "").startswith(LOCAL_PREFIX)
+
+
+def _remote_ready(row, api) -> None:
+    """代录会话第一次要用引擎（发话、传附件）时才开远端会话，记进 remote_ids（浏览器始终只认本站的编号）。"""
+    if segments(row):
+        return
+    fresh, _status = api.open(engine.prepared(api), {**_metadata(_user(), config.product()),
+                                                     "pearnly_conversation": row.session_id})
+    engine.tools_current(fresh)
+    _route(fresh)
+    remote_ids = json.dumps([fresh])
+    frappe.db.set_value(SESSION, row.name, {"remote_ids": remote_ids, "context_tokens": 0}, update_modified=False)
+    row.update({"remote_ids": remote_ids, "context_tokens": 0})
 
 
 def current(row) -> str:
@@ -99,7 +124,8 @@ def _summary(row, status=None, unread=False) -> dict:
             "created_at": _when(row.creation), "updated_at": _when(row.modified),
             "archived_at": _when(row.modified) if row.archived else None, "unread": bool(unread),
             "project": row.get("project") or "", "period": row.get("period") or "",
-            "scope": row.get("project_scope") or ""}
+            "scope": row.get("project_scope") or "", "mode": "operator" if row.get("operator_task") else "chat",
+            "task": row.get("operator_task") or ""}
 
 
 def _tool_runs(row, ids) -> dict:
@@ -140,10 +166,14 @@ def _with_tool_runs(events, row, since=None) -> list:
         return events
 
 
-def run_state(row, api, latest, as_of=None):
+def run_state(row, api, latest, as_of=None, operator=None):
     """这段对话此刻的运行状态（`contracts.run_state`）：读一次引擎的会话状态；引擎空闲时由 `latest()` 给出最新一条会话
     状态事件（调用方已读过事件就从读过的里取，不再读一遍）分出「等待处理」，再看停着的调用在本站是等「允许」还是正在
-    执行。读不到回 None：对话页这次不改，下一个时刻再读。"""
+    执行。读不到回 None：对话页这次不改，下一个时刻再读。
+    代录会话（14.2）：引擎在回话 → running；否则按任务（`feed.run_state`：在排在录 → running，等着人点的卡片 →
+    requires_action）。`operator` 是已投影的代录事件（调用方读过就给，不再投影一遍）。"""
+    if row.get("operator_task"):
+        return _operator_run(row, api, latest, as_of, operator)
     try:
         status = api.status(current(row))
         event = latest() if status == "idle" else None
@@ -151,6 +181,30 @@ def run_state(row, api, latest, as_of=None):
         frappe.log_error(title="Assistant status read failed")
         return None
     return contracts.run_state(status, event, _tool_runs(row, contracts.parked_ids(event)), as_of)
+
+
+def _operator_run(row, api, latest, as_of, operator):
+    from pearnly_core.express_operator import feed
+
+    if segments(row):
+        try:
+            status = api.status(current(row))
+        except Exception:
+            frappe.log_error(title="Assistant status read failed")
+            status = None
+        if status in ("running", "rescheduling"):
+            return contracts.run_state(status, None, None, as_of)
+        if status == "idle":
+            event = latest()
+            engine_run = contracts.run_state(status, event, _tool_runs(row, contracts.parked_ids(event)), as_of)
+            if engine_run and engine_run["status"] == "requires_action":
+                return engine_run
+    try:
+        found = operator if operator is not None else feed.events(row)
+    except Exception:
+        frappe.log_error(title="Operator run state read failed")
+        return None
+    return feed.run_state(found, as_of)
 
 
 def _check(user, check) -> dict:
@@ -193,9 +247,13 @@ def _starred(base) -> list:
 
 def _filed_counts(base) -> dict:
     """各组没加星标的对话数（一条 GROUP BY），判断第一页之后这组还有没有。"""
+    mode = base.get("operator_task")
+    only = "" if mode is None else (" AND IFNULL(operator_task, '') != ''" if mode == FILED
+                                    else " AND IFNULL(operator_task, '') = ''")
     found = frappe.db.sql(f"""SELECT project, COUNT(*) AS count FROM `tab{SESSION}`
         WHERE user = %(user)s AND engine_code = %(engine_code)s AND archived = %(archived)s AND starred = 0
-        AND IFNULL(project, '') != '' GROUP BY project""", base, as_dict=True)
+        AND IFNULL(project, '') != ''{only} GROUP BY project""",
+        {key: base[key] for key in ("user", "engine_code", "archived")}, as_dict=True)
     return {row.project: int(row.count) for row in found}
 
 
@@ -241,7 +299,15 @@ def _grouped_first(base) -> tuple[list, str | None, dict, list]:
     return recent + first + extra, cursor, groups, [row.session_id for row in extra]
 
 
-def listing(archived=False, after=None, check=None, grouped=False, group=None) -> dict:
+def _mode_filter(mode) -> dict:
+    if mode in (None, ""):
+        return {}
+    if mode not in MODES:
+        frappe.throw(_("Invalid request"))
+    return {"operator_task": FILED if mode == "operator" else UNFILED}
+
+
+def listing(archived=False, after=None, check=None, grouped=False, group=None, mode=None) -> dict:
     """侧栏列表，按最后活动时间从新到旧一页一页给（同 Claude：先显示一页，滚到底再加载）。
     加星标的全部在第一页（侧栏顶上的「已置顶」一组要齐）；之后的页只翻其余的。有没看过的提醒的标 `unread`。
     `check`：侧栏以为还在回复的对话编号（逗号分隔）；给了就各读一次此刻的运行状态放进 `runs`（侧栏按它改，不按漏没漏事件猜）。
@@ -249,10 +315,10 @@ def listing(archived=False, after=None, check=None, grouped=False, group=None) -
     `grouped`（侧栏按公司显示，ADR-020）：第一页 = 全部加星标的 + 「最近」一页（`nextCursor`）+ 各组最新几条（`groups`：
     还有更多的组 → 游标）+ 组里手排过的（`ordered`：它们的编号）；带 `group`（"" = 「最近」，或组编号）就只翻那一组
     （`after` 是那一组的游标）。
-    不带 `grouped` 时与以前一样（全部对话一起翻，不分组）。"""
+    不带 `grouped` 时与以前一样（全部对话一起翻，不分组）。
+    `mode`（统一对话框架 14.8）：`chat` 只列直写的对话，`operator` 只列代录会话，不带 = 全部；分组、翻页、星标、各组的数都按同一筛选。"""
     user = _user()
-    # 实操任务里的对话（`operator_task`，对话框甲）在任务页里看，不进对话侧栏
-    base = {"user": user, "engine_code": config.engine_code(), "archived": 1 if archived else 0, "operator_task": UNFILED}
+    base = {"user": user, "engine_code": config.engine_code(), "archived": 1 if archived else 0, **_mode_filter(mode)}
     starred, groups, ordered = [], None, None
     if grouped and (group is not None or after):
         project = _guard(contracts.project_ref, group)
@@ -295,9 +361,15 @@ def _route(remote: str) -> None:
         frappe.log_error(title="Assistant route not recorded")
 
 
-def create(project=None, period=None, scope=None) -> dict:
+def create(project=None, period=None, scope=None, mode=None) -> dict:
     """新对话；`project` / `period` / `scope`：建在哪家、处理哪个月、哪个范围（产品不认这家或这个人不能用，照常建在
-    「最近」；产品不收月份、范围的丢掉）。"""
+    「最近」；产品不收月份、范围的丢掉）。
+    `mode="operator"`（统一对话框架 14.8）：同一事务里建代录任务并互相指上（`tasks.create`）；要有公司和月份，产品不允许这个人
+    对这家代录就拒（不悄悄建成直写）。"""
+    if mode not in (None, "", *MODES):
+        frappe.throw(_("Invalid request"))
+    if mode == "operator":
+        return _create_operator(project, period, scope)
     user, product = _user(), config.product()
     project, period, scope = _guard(projects.placement, project, period, scope, user)
     api = engine.adapter()
@@ -311,8 +383,58 @@ def create(project=None, period=None, scope=None) -> dict:
     return _summary(doc, status)
 
 
+def _create_operator(project, period, scope) -> dict:
+    from pearnly_core.express_operator import products, tasks
+
+    user = _user()
+    ref = str(project or "").strip()
+    if not ref or not period:
+        frappe.throw(_("Invalid request"))
+    if not products.enabled() or not products.allowed(user, ref):
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    title = (projects._view([ref], user).get(ref) or {}).get("title") or ""
+    made = tasks.create(ref, period, title, scope=scope or "")
+    row = frappe.db.get_value(SESSION, {"session_id": made.get("session_id") or "", "user": user}, FIELDS, as_dict=True)
+    if not row:
+        frappe.throw(_("Invalid request"))
+    return _summary(row, None)
+
+
+def open_operator(task, scope="") -> str:
+    """代录任务的会话（`tasks.create` 与旧任务补建的补丁共用）：本站先建一行（编号 `op_<任务号>`，挂在任务的公司、月份上，
+    标题是任务名或公司名），远端会话第一次发话时才开。没配引擎的站点不建，回空串。"""
+    code = config.engine_code()
+    if not code:
+        return ""
+    sid = LOCAL_PREFIX + task.name
+    if frappe.db.exists(SESSION, {"session_id": sid}):
+        return sid
+    try:
+        scope = contracts.project_scope(scope) if scope else ""
+    except contracts.ContractError:
+        scope = ""
+    title = contracts.title_from(task.get("title") or task.get("company_title") or task.get("company") or "")
+    frappe.get_doc({"doctype": SESSION, "session_id": sid, "user": task.owner, "product": config.product(),
+                    "engine_code": code, "title": title, "starred": 1 if task.get("starred") else 0,
+                    "project": task.company, "period": task.period, "project_scope": scope,
+                    "operator_task": task.name, "remote_ids": "[]"}).insert(ignore_permissions=True)
+    sidebar.changed(task.owner, "created", sid)
+    return sid
+
+
+def _task_mirror(row, values) -> None:
+    """代录会话改名、星标：任务记录跟着记（只是镜像，读以会话为准）；不改任务的最后改动时间。"""
+    if row.get("operator_task"):
+        from pearnly_core.express_operator import tasks
+
+        frappe.db.set_value(tasks.DOCTYPE, {"name": row.operator_task, "owner": _user()}, values, update_modified=False)
+
+
 def get(session_id) -> dict:
     row = owned(session_id, allow_archived=True)
+    if row.get("operator_task"):
+        run = run_state(row, engine.adapter(), lambda: None)
+        return _summary(row, run["status"] if run else None)
     return _summary(row, engine.adapter().status(current(row)))
 
 
@@ -322,7 +444,9 @@ def rename(session_id, title) -> None:
     title = contracts.title_from(title)
     # 改名不算活动：不改最后活动时间（侧栏「上次更新」按它排，`context.active`）
     frappe.db.set_value(SESSION, row.name, {"title": title, "title_source": titles.BY_USER}, update_modified=False)
-    engine.adapter().rename(current(row), title)
+    _task_mirror(row, {"title": title})
+    if segments(row):
+        engine.adapter().rename(current(row), title)
     sidebar.changed(_user(), "titled", row.session_id, title=title)
 
 
@@ -330,6 +454,7 @@ def star(session_id, starred) -> None:
     """加星标 / 取消：只是本站的整理标记，不动引擎那边的会话。"""
     row = owned(session_id)
     frappe.db.set_value(SESSION, row.name, "starred", 1 if starred else 0, update_modified=False)
+    _task_mirror(row, {"starred": 1 if starred else 0})
     sidebar.changed(_user(), "starred", row.session_id, starred=bool(starred))
 
 
@@ -362,7 +487,19 @@ def archive(session_id) -> None:
 
 
 def delete(session_id) -> None:
+    """删对话。代录会话（14.8）转给任务删除（`tasks.delete`：交出去还没收尾的不能删；它再回来删这段会话）。"""
     row = owned(session_id, allow_archived=True)
+    if row.get("operator_task") and getattr(frappe.local, "pearnly_operator_deleting", None) != row.operator_task:
+        from pearnly_core.express_operator import tasks
+
+        if frappe.db.exists(tasks.DOCTYPE, {"name": row.operator_task, "owner": _user()}):
+            frappe.local.pearnly_operator_deleting = row.operator_task
+            try:
+                tasks.delete(row.operator_task)
+            finally:
+                frappe.local.pearnly_operator_deleting = None
+            if not frappe.db.exists(SESSION, row.name):
+                return
     api = engine.adapter()
     for remote in segments(row):
         api.delete(remote)
@@ -410,6 +547,7 @@ def _worked_on(row) -> tuple[str, str]:
 
 def segment_for_turn(row, api) -> str:
     """新一轮（发消息、传附件）用哪段远端会话：输入量到了所选模型的计价界线就接续到新的一段。"""
+    _remote_ready(row, api)
     s = config.settings()
     limit = engines.context_limit(s.engine.code, s.model)
     remote = current(row)
@@ -438,6 +576,8 @@ def events(session_id, after=None, status=False) -> dict:
     row = owned(session_id, allow_archived=True)
     user = _user()
     api = engine.adapter()
+    if row.get("operator_task"):
+        return _operator_events(row, user, api, after, status)
     if after:
         anchor = _guard(contracts.event_id, after)
         try:
@@ -469,6 +609,46 @@ def events(session_id, after=None, status=False) -> dict:
                      part[-1].get("processed_at") if part else None)
 
 
+def _operator_events(row, user, api, after, status) -> dict:
+    """代录会话（统一对话框架 14.2）：引擎事件（开过远端才有）照旧，代录事件源（`feed`）与提醒按时间并进来；增量时带锚点时间
+    之后的。锚点找不到（含代录事件的编号）退回整段。"""
+    from pearnly_core.express_operator import feed
+
+    remotes = segments(row)
+    if after and remotes:
+        anchor = _guard(contracts.event_id, after)
+        try:
+            tap = contracts.StatusTap(api.events(current(row), newest_first=True))
+            found = contracts.since(tap, anchor)
+        except Exception:
+            frappe.log_error(title="Assistant events fetch failed")
+            return {"events": notices.feed(row.session_id, user, recent=True), "full": False, "partial": True}
+        if found is not None:
+            newer = found[1:]
+            _remember_context(row, newer)
+            since = contracts.instant(found[0].get("processed_at"))
+            extra = notices.feed(row.session_id, user, since=since, recent=since is None)
+            operator = feed.events(row, since) if since is not None else feed.events(row)
+            page = {"events": _with_tool_runs(newer, row, since) + extra + operator, "full": False}
+            if status:
+                page = _with_run(page, row, api, tap.latest, found[-1].get("processed_at"),
+                                 operator=feed.events(row) if since is not None else operator)
+            return page
+    parts = _segment_events(api, remotes) if remotes else []
+    history = [event for part in parts for event in part]
+    part = parts[-1] if parts else []
+    if parts:
+        _remember_context(row, part)
+    operator = feed.events(row)
+    history = _with_tool_runs(contracts.merge_by_time(history, notices.feed(row.session_id, user) + operator), row)
+    page = {"events": history, "full": True, "session": {"id": row.session_id, "title": row.title or "",
+                                                         "archived_at": _when(row.modified) if row.archived else None}}
+    if not status:
+        return page
+    as_of = history[-1].get("processed_at") if history else None
+    return _with_run(page, row, api, lambda: contracts.latest_status(reversed(part)), as_of, operator=operator)
+
+
 def _segment_events(api, remotes) -> list[list]:
     """各段远端会话的全部事件（旧 → 新），与 `remotes` 同序。接续过的长对话由几段组成，各段互不依赖：同时读（每段里仍按页
     顺序读），整段重放的等待从各段相加变成最慢的那一段（2026-10-15 验收：2040 条事件的对话打开约 7 秒，都在这里）。
@@ -482,8 +662,8 @@ def _segment_events(api, remotes) -> list[list]:
         return list(pool.map(lambda remote: list(api.events(remote)), remotes))
 
 
-def _with_run(page, row, api, latest, as_of) -> dict:
-    run = run_state(row, api, latest, as_of)
+def _with_run(page, row, api, latest, as_of, operator=None) -> dict:
+    run = run_state(row, api, latest, as_of, operator)
     if run:
         page["run"] = run
         _follow(row, run)
@@ -494,6 +674,8 @@ def _follow(row, run) -> None:
     """读到运行状态的时刻（打开对话、回到前台、重连）顺带补两件事，都不多读引擎：
     - 这段对话在跑（例如在别的设备上发的）而本站没有推送线程（进程重启、过了时限）：接上，这台设备也实时跟上；
     - 已经停下、还挂着临时标题（推送线程没看到这一轮结束）：排概括（`titles`）。"""
+    if not segments(row):
+        return
     if run["status"] == "running" or run["executing"]:
         relay.ensure(row.session_id, current(row), _user())
     elif run["status"] in ("idle", "terminated") and titles.due(row):
@@ -578,7 +760,11 @@ def confirm(session_id, confirmations) -> dict:
     把此刻的状态回给页面，页面照它当场定下卡片（第 11 轮 A4：以前转给引擎被拒，报 500）。其余照旧交给引擎。
     返回 `{"confirmed": 条数, "runs": {调用编号: 本站状态}}`。"""
     row = owned(session_id)
-    batch = _guard(contracts.confirmations, confirmations)
+    # 代录卡片（`pop_` 开头）不经引擎、不经本站执行记录：卡片自己调代录接口，结论由代录事件源投影出来
+    batch = [item for item in _guard(contracts.confirmations, confirmations)
+             if not str(item["tool_use_id"]).startswith("pop_")]
+    if not batch:
+        return {"confirmed": 0, "runs": {}}
     remote = current(row)
     relay.ensure(row.session_id, remote, frappe.session.user)
     runs = _tool_runs(row, [item["tool_use_id"] for item in batch])
@@ -596,7 +782,13 @@ def confirm(session_id, confirmations) -> dict:
 
 
 def interrupt(session_id) -> None:
+    """停止。代录会话（E13）：远端会话开过就照旧打断引擎（CC 在回话）；任务交出去还在排、在录时记一条任务控制 stop，执行的
+    那台电脑的 CC 页面取走后经桥停下。"""
     row = owned(session_id)
+    if row.get("operator_task"):
+        _operator_stop(row)
+        if not segments(row):
+            return
     engine.adapter().post(current(row), [{"type": "user.interrupt"}])
     # 停在等「允许」时点了停止：这一轮结束，那张卡片作废（推送线程可能已到时限不在了，这里当场标，`toolrun.cancel_waiting`）。
     # 打断已经交给引擎，这一轮就是停了：作废只是附带的，出错回滚、只记日志，不回 500（第 11 轮重测 A 段：点「允许」后立刻
@@ -609,10 +801,20 @@ def interrupt(session_id) -> None:
         frappe.log_error(title="Assistant cancel waiting failed")
 
 
+def _operator_stop(row) -> None:
+    from pearnly_core.express_operator import tasks
+
+    found = frappe.db.get_value(tasks.DOCTYPE, {"name": row.operator_task, "owner": _user()}, "status")
+    if found in ("queued", "running"):
+        tasks.push_control(row.operator_task, tasks.STOP, [])
+
+
 def run_tool(session_id, tool_use_id) -> dict:
     """兜底：页面提醒执行一次自定义工具调用（通常推送线程已先执行）。调用内容从引擎读回，不信浏览器给的工具名或参数。"""
     row = owned(session_id)
     use_id = _guard(contracts.event_id, tool_use_id)
+    if not segments(row) or use_id.startswith("pop_"):
+        frappe.throw(_("Action not found"), frappe.DoesNotExistError)
     remote = current(row)
     recent = contracts.since(engine.adapter().events(remote, newest_first=True), use_id) or []
     call = recent[0] if recent and recent[0].get("type") == "agent.custom_tool_use" else None
