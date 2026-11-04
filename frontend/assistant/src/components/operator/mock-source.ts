@@ -21,6 +21,7 @@ import type {
   TaskStatus,
 } from "./types";
 import { NEW_CODE } from "./types";
+import type { TaskUpload } from "@/components/run/types";
 
 type MockBatch = {
   id: string;
@@ -134,6 +135,7 @@ export function createMockSource(options: { now?: () => number; local?: boolean 
   const threads = new Map<string, string>();
   const taskListeners = new Set<(task: TaskRecord) => void>();
   let serial = 0;
+  const uploads: Record<string, TaskUpload[]> = {};
   let docnum = 61;
 
   const find = (id: string) => Object.values(documents).flat().find((d) => d.id === id);
@@ -346,18 +348,26 @@ export function createMockSource(options: { now?: () => number; local?: boolean 
     },
     async precheck(company, docIds) {
       calls.push(["precheck", company, [...docIds]]);
-      return docIds.map((id) => clone({ doc_id: id, ...((!resolved.has(id) && PRECHECK[id]) || { state: "ready" as const }) }));
+      const documents = docIds.map((id) => clone({ doc_id: id, ...((!resolved.has(id) && PRECHECK[id]) || { state: "ready" as const }) }));
+      const title = COMPANIES.find((c) => c.id === company)?.title ?? company;
+      return { documents, target: { account_set: `${company}-2026`, account_set_title: `${title} 2026`, connection_title: "Express", computer: "" } };
     },
     async regroup(company, docId, group: DocGroup) {
       calls.push(["regroup", company, docId, group]);
       const doc = (documents[company] ?? []).find((d) => d.id === docId);
       if (doc) doc.group = group;
     },
-    async intake(company, period, files) {
-      calls.push(["intake", company, period, files.map((f) => f.name)]);
-      for (const file of files) {
-        (documents[company] ??= []).push({ id: `U-${++serial}`, kind: "purchase", group: "purchase", date: `${period}-15`, ref: file.name });
-      }
+    async intake({ company, period, task, file, onProgress }) {
+      calls.push(["intake", company, period, file.name]);
+      onProgress?.(100);
+      (documents[company] ??= []).push({ id: `U-${++serial}`, kind: "purchase", group: "purchase", date: `${period}-15`, ref: file.name });
+      (uploads[task] ??= []).push({
+        original: `O-${serial}`, filename: file.name, size: file.size, job: `J-${serial}`, uploaded_at: new Date(now() * 1000).toISOString(),
+        status: "done", pages_done: 1, page_count: 1, documents: [{ name: `U-${serial}`, date: `${period}-15`, in_period: true, in_sources: true }],
+      });
+    },
+    async taskUploads(name) {
+      return clone(uploads[name] ?? []);
     },
     async computers() {
       return clone(computers);

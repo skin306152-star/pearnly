@@ -11,6 +11,8 @@
 // 时间一律是秒（Unix 秒，同 Python time.time()）；金额是十进制字符串，只插千分位显示。界面上的词一律按代码取（i18n.ts 的 op），
 // 原因代码、内部状态名不直接显示。
 
+import type { TaskUpload } from "@/components/run/types";
+
 // ── 一张单的状态（contract.py）──────────────────────────────────────────────
 export const DOC_STATES = ["pending", "entering", "saved", "voided", "waiting", "skipped"] as const;
 export type DocStatus = (typeof DOC_STATES)[number];
@@ -106,6 +108,9 @@ export type PrecheckOption = { code: string; name: string };
 export type PrecheckNeed = { kind: string; subject: string; label: string; options: PrecheckOption[] };
 export type PrecheckState = "ready" | "choose" | "waiting" | "blocked";
 export type PrecheckDoc = { doc_id: string; state: PrecheckState; reason?: string; message?: string; needed?: PrecheckNeed[] };
+/** 这次写进哪份账套（站点 precheck 回包的 target，取值同 start 实际用的那一份）：「开始前」框第一行、输入框下面那一行的账套。 */
+export type WriteTarget = { account_set: string; account_set_title: string; connection_title: string; computer: string };
+export type PrecheckReply = { documents: PrecheckDoc[]; target: WriteTarget | null };
 /** 交给 start 的回答：{单据: [{kind, subject, value, label}]}。 */
 export type Answer = { kind: string; subject: string; value: string; label: string };
 export type Answers = Record<string, Answer[]>;
@@ -252,6 +257,9 @@ export type CreateBatchInput = {
   groups?: Record<string, DocGroup>;
 };
 
+/** 放一份资料进来：file 一份一个请求（上传失败可单独重传）。 */
+export type IntakeInput = { company: string; period: string; task: string; file: File; onProgress?: (percent: number) => void };
+
 /** Express 登录弹的是 CC 桌面版的原生小窗，页面拿不到密码，只知道成没成。 */
 export type AuthorizeTarget = { computer: string } | { batch: string };
 
@@ -273,11 +281,14 @@ export interface OperatorSource {
   // 准备
   companies(search: string, start: number, limit: number): Promise<CompanyOption[]>;
   documents(company: string, period: string, start: number, limit: number): Promise<DocumentPage>;
-  precheck(company: string, docIds: readonly string[]): Promise<PrecheckDoc[]>;
+  /** 开始前确认（每张单）与这次写入的账套。 */
+  precheck(company: string, docIds: readonly string[]): Promise<PrecheckReply>;
   /** 资料改分组（按公司记住由站点负责）。 */
   regroup(company: string, docId: string, group: DocGroup): Promise<void>;
-  /** 放资料进来（拖放、选文件、拍照）。 */
-  intake(company: string, period: string, files: readonly File[]): Promise<void>;
+  /** 放资料进来（输入框「＋」、拖进对话、拍照）：一份一个请求，onProgress 报已传字节的百分比；task 让站点把这份记进任务的上传记录。 */
+  intake(input: IntakeInput): Promise<void>;
+  /** 任务的上传记录与每份的识别读数（站点 task_uploads）；站点还没有这个接口时回 null。 */
+  taskUploads(name: string): Promise<TaskUpload[] | null>;
   computers(company: string): Promise<OperatorComputer[]>;
   authorizeLogin(target: AuthorizeTarget): Promise<{ ok: boolean }>;
   createBatch(input: CreateBatchInput): Promise<{ id: string }>;

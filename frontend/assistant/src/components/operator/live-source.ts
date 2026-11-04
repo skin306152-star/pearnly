@@ -23,10 +23,10 @@
 // 照旧并在后面。网页、手机（没有桥）、别的电脑上的任务按站点任务记录里的交单结论拼（remote），进度在执行的电脑上看。
 // 没有推送信号：只在有人订阅（实操工作区开着）、页面看得见、桥支持实操时每 POLL_MS 读一次桥；页面切到后台就停，回到前台先读一次。
 
-import { op } from "@/i18n";
+import { lang, op } from "@/i18n";
 import { type CompanyRow, companiesApi } from "@/lib/companies";
 import { type Desktop, desktop, OPERATOR } from "@/lib/desktop";
-import { getMethod, postMethod, uploadMethod } from "@/lib/frappe";
+import { getMethod, LANG_HEADER, postMethod, RequestError, SiteError } from "@/lib/frappe";
 import { docTitle, groupOf, isFinal } from "./model";
 import { TASK_STATES } from "./types";
 import type {
@@ -41,10 +41,12 @@ import type {
   OperatorSource,
   PrecheckDoc,
   TaskDocument,
+  WriteTarget,
   TaskRecord,
   TaskStatus,
 } from "./types";
 import { reportCaught, withReport } from "@/lib/caught";
+import type { TaskUpload } from "@/components/run/types";
 
 export const API = "pearnly_core.express_operator.api.";
 /** 桥上进度多久读一次（毫秒）：只在实操工作区开着、页面看得见时。 */
@@ -57,7 +59,7 @@ export const SETTLE_S = 60;
 export const SENT_STATES: ReadonlySet<string> = new Set(["sent", "queued"]);
 type Get = <T>(method: string, args?: Record<string, string | number | undefined>) => Promise<T>;
 type Post = <T>(method: string, args?: Record<string, unknown>) => Promise<T>;
-type Upload = <T>(method: string, args: Record<string, string>, file: File) => Promise<T>;
+type Upload = <T>(method: string, args: Record<string, string>, file: File, onProgress?: (percent: number) => void) => Promise<T>;
 
 export type LiveDeps = {
   /** 当前产品（useProfile().product）。 */
@@ -326,7 +328,7 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
   const bridge = deps.bridge ?? desktop;
   const get: Get = deps.get ?? getMethod;
   const post: Post = deps.post ?? postMethod;
-  const upload: Upload = deps.upload ?? uploadMethod;
+  const upload: Upload = deps.upload ?? uploadWithProgress;
   const now = deps.now ?? (() => Math.floor(Date.now() / 1000));
   const listed = new Map<string, DocumentOption>();
   // 排着的单被同一份账套里哪张结果不明的单挡着（doc_id → 「单号 · 对方」，站点给的，ADR-021 11-02 修订）
@@ -622,8 +624,9 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
       return { documents, next, total: reply?.total };
     },
     async precheck(company, docIds) {
-      const reply = await post<{ documents?: PrecheckDoc[] }>(API + "precheck", { company, doc_ids: JSON.stringify(docIds) });
-      return (reply?.documents ?? []).map((row) => ({ ...row, doc_id: String(row.doc_id) }));
+      const reply = await post<{ documents?: PrecheckDoc[]; target?: Partial<WriteTarget> | null }>(API + "precheck", { company, doc_ids: JSON.stringify(docIds) });
+      const documents = (reply?.documents ?? []).map((row) => ({ ...row, doc_id: String(row.doc_id) }));
+      return { documents, target: targetOf(reply?.target) };
     },
     async regroup(company, docId, group: DocGroup) {
       const reply = await post<{ ok?: boolean }>(API + "regroup", { company, doc_id: docId, group });
@@ -631,9 +634,19 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
       const doc = listed.get(docId);
       if (doc) listed.set(docId, { ...doc, group });
     },
-    async intake(company, _period, files) {
-      // 每次上传一个新请求号：同一份文件再放一次照常存、照常识别（重复上传也照常扣费）
-      for (const file of files) await upload(API + "intake", { company, request_key: crypto.randomUUID() }, file);
+    async intake({ company, task, file, onProgress }) {
+      // 每次上传一个新请求号：同一份文件再放一次照常存、照常识别（重复上传也照常扣费）；task 让站点记进任务的上传记录
+      await upload(API + "intake", { company, task, request_key: crypto.randomUUID() }, file, onProgress);
+    },
+    async taskUploads(name) {
+      // 站点还没有这个接口（旧版本）：回 null，页面只显示这一页自己传的
+      try {
+        const reply = await get<{ uploads?: TaskUpload[] } | TaskUpload[]>(API + "task_uploads", { name });
+        return Array.isArray(reply) ? reply : (reply?.uploads ?? []);
+      } catch (error) {
+        if (error instanceof RequestError && (error.status === 404 || error.status === 417)) return null;
+        throw error;
+      }
     },
     async computers() {
       // 交给「本人自己的电脑」（computer 空串）；Express 登录设置了没有只在桥上知道
@@ -703,4 +716,62 @@ export function createLiveSource(deps: LiveDeps): LiveOperatorSource {
     },
   };
   return source;
+}
+
+/** 站点 precheck 回包里的写入目标（字段缺的补空；没给回 null）。 */
+export function targetOf(raw: Partial<WriteTarget> | null | undefined): WriteTarget | null {
+  if (!raw || typeof raw !== "object" || !raw.account_set) return null;
+  const text = (value: unknown) => (value === null || value === undefined ? "" : String(value));
+  return {
+    account_set: text(raw.account_set),
+    account_set_title: text(raw.account_set_title),
+    connection_title: text(raw.connection_title),
+    computer: text(raw.computer),
+  };
+}
+
+/** 上传一份（multipart，同附件上传那条路的 CSRF 与语言头）：用 XMLHttpRequest 才拿得到已传字节（fetch 拿不到上传进度）。
+ *  错误同 lib/frappe.ts：本站拒收的原文是 SiteError，别的是带状态的 RequestError。 */
+export function uploadWithProgress<T>(method: string, args: Record<string, string>, file: File, onProgress?: (percent: number) => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(args)) form.set(k, v);
+    form.set("file", file, file.name);
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `/api/method/${method}`);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader("X-Frappe-CSRF-Token", window.csrf_token ?? "");
+    xhr.setRequestHeader(LANG_HEADER, lang);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) onProgress?.(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+    };
+    xhr.onerror = () => reject(new RequestError("upload failed", 0));
+    xhr.onload = () => {
+      let body: { message?: T; _server_messages?: string; exception?: string } | null = null;
+      try {
+        body = JSON.parse(xhr.responseText || "null");
+      } catch (caughtError) { reportCaught(caughtError, "operator-upload");
+        body = null;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100);
+        resolve(body?.message as T);
+        return;
+      }
+      const told = serverText(body?._server_messages);
+      reject(told ? new SiteError(told) : new RequestError(`upload failed (${xhr.status})`, xhr.status));
+    };
+    xhr.send(form);
+  });
+}
+
+/** 本站拒收时给人看的那一句（frappe 的 _server_messages，已按用户语言翻译）。 */
+function serverText(raw: string | undefined): string {
+  if (!raw) return "";
+  try {
+    const first = JSON.parse(JSON.parse(raw)[0]) as { message?: string };
+    return first.message ? first.message.replace(/<[^>]+>/g, "") : "";
+  } catch (caughtError) { reportCaught(caughtError, "operator-upload");
+    return "";
+  }
 }
