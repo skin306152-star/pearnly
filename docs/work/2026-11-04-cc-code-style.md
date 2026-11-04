@@ -503,3 +503,46 @@ W3 现在做的块 3、块 4 是在现有 `operator/*` 模型上把右栏挪进�
 | U-Q6 | 合成一份，按会话编号 |
 | 补充 1 | 用户更正后**没有**单独的任务清单、结束框、侧栏新标记、模式切换小点（Q2、Q7 撤销）。E11、E12、E14 里写的「结束框位置」一律改为：对话流里的 `agent.message` 加工具卡片，样子同直写现有的「允许」卡片；侧栏只用现有的 `ActivityMark` |
 | 补充 2 | W3 分支 `pearnly/cc-code-operator`（724a24013，工作树 `.claude/worktrees/agent-a453b5b8da64d959c`）里已做的删右栏、块 4、新建页与侧栏复用直写，是 U2 的起点 |
+
+### 14.10 U1 交给 U2 的事件清单（U1 施工中定稿，字段以本节为准）
+
+服务端 `pearnly_core.express_operator.feed` 把任务记录投影成下面这些事件，`sessions.events` 按时间并进同一段会话（整段、增量同一套），
+`contracts.REALTIME_EVENT`（`{session_id, event}`，只推会话主人）实时推。投影是确定的：同一份任务记录两次投影逐条相同，编号由记录推出。
+
+**通用**
+
+| 项 | 约定 |
+|---|---|
+| 编号 | 代录事件一律以 `pop_<任务号>_` 开头。**页面把 `pop_` 开头的当本站事件**：不拿它当补拉锚点（同 `pearnly.*`，`isLocalEvent` 加这个前缀）；`operator_*` 卡片**不走**自动答复 / `run_tool` / `confirm`（服务端 `confirm` 也会把 `pop_` 的编号原样丢掉） |
+| 时间 | `processed_at` 为 RFC3339 UTC（微秒）。同一步的事件先后：调用 < 进度 < 结果 |
+| 一步的状态 | 同一个 `tool_use_id` 下，**`processed_at` 最新的那条**（`agent.tool_result` / `user.custom_tool_result` 或 `pearnly.progress`）说了算：重交的单先出一条更新的 `pearnly.progress`（排队），之后再出新的结果。整段重放只有当前一轮，增量的设备上旧结果会被更新的进度盖过 |
+| 卡片能不能点 | 卡片（`agent.custom_tool_use`）能点 = 有 `pearnly.tool_run` `awaiting_approval`、还没有 `user.custom_tool_result`。不靠 `pendingCustomTools`（用户在代录会话里和 CC 说话后，引擎的 `status_idle(end_turn)` 会清掉它） |
+| 运行状态 | 投影里带 `session.status_*`（编号 `pop_<任务号>_st_<…>`）；以服务端 `run`（`events?status=1`、`listing?check=`）为准：引擎在回话 → running；否则按任务：`queued` / `running` → running；准备中、有等着的卡片 → requires_action（`parked` / `awaiting_approval` = 卡片编号）；其余 idle |
+| 会话 | 代录会话 = `Pearnly Assistant Session.operator_task` 不为空。补丁补建的和新建的代录会话编号是 `op_<任务号>`，远端会话第一次发话时才开（之前读事件不碰引擎）。`listing` / `get` / `create` 回的每行多 `mode`（`chat` / `operator`）与 `task`（任务号，直写为空） |
+
+**工具名与形状**（`agent.tool_use` = 步骤行；`agent.custom_tool_use` = 卡片）
+
+| 工具名 | 事件 | 编号 | `input` | 结果 / 进度 |
+|---|---|---|---|---|
+| `operator_sources` | `agent.tool_use`，时间 = 任务创建 | `pop_<T>_sources` | `{task, company, company_title, period}` | 交单后 `agent.tool_result`（`pop_<T>_sources_r`）：`{"total": n, "groups": {"purchase": n, "sales": n, "expense": n, "payment": n, "skip": n, "": 未分组}}`。准备中没有结果，展开时页面照旧调 `documents(company, period, offset, limit)`（服务端分页） |
+| `operator_upload` | `agent.tool_use`，每份一条，时间 = `uploaded_at` | `pop_<T>_u<子表行名>` | `{task, request_key, filename, size, batch, source}` | 排队 / 识别中：`pearnly.progress`（`label` = `queued` / `reading_pages`，`done` / `total` = 页）；已识别：`agent.tool_result` `{"state": "done", "page_count", "documents": [{doc_id, ref, date, party, in_period, listed}]}`；失败：同上 `is_error: true`，`{"state": "failed", "code"}`（`unavailable` = 读不到）。结果编号 `…_rdone` / `…_rfailed`。**只有读事件时带识别状态**（实时推送只推调用本身），收到 `pearnly_ocr_work` 就补拉一次 |
+| `operator_start` | `agent.custom_tool_use`，时间 = 任务创建；准备中带 `pearnly.tool_run` `awaiting_approval` | `pop_<T>_start` | `{task, company, company_title, period}` | 卡片自己调现有接口：`precheck`、`resolve`、`regroup`、`intake(task=…)`，点「开始」调 `start(company, doc_ids, computer, start_at, answers, task, groups)`；**不调 confirm**。交单后出 `user.custom_tool_result`（`pop_<T>_start_r`）：`{"sent": n, "not_sent": [{doc_id, ref, party, reason}], "computer", "start_at"}` + `pearnly.tool_run` `done` |
+| `operator_document` | `agent.tool_use`，每张一条（交单后），时间 = 这张交进队列的时刻 `queued_at` | `pop_<T>_d<子表行名>` | `{task, n, doc_id, ref, party, group}`（`n` 从 1 数，同 `express_operator_status`） | 排着：`pearnly.progress`（`label` = `queued`，被结果不明的单挡着时 `blocked`，`detail` = 「单号 · 对方」）；有结论：`agent.tool_result`（编号 `…_r<state>_<毫秒>`）`{"state": saved / not_done / cancelled / skipped, "docnum", "voided_docnum", "reason", "level", "result_unknown", "ref", "party"}`，`not_done` 时 `is_error: true`。`reason` 是代码：CC 回执的 `[OPERATOR_X] …` 已拆成 `x`，`level` 按 `contracts.REASONS`（认不出 = human），结果不明 = `push.result_unknown` 且 `result_unknown: true`；页面按代码出文案 |
+| `operator_choose` | `agent.custom_tool_use`，每张没录成、要人处理的单一张（整批停的不在这里），时间 = 这张出结论的时刻；带 `awaiting_approval` | `pop_<T>_c<子表行名>_<毫秒>` | `{task, company, doc_id, ref, party, reason, level, result_unknown}` | 卡片照旧调：选项 `precheck(company, [doc_id])`，点了 `task_answer(name, doc_id, answers)`（单张重试 = 空列表）；结果不明 `resolve(company, doc_id, entered, docnum)` 后 `task_settle(name)`。这张交回队列后出 `user.custom_tool_result`（`…_r`）`{"answered": true}` + `done` |
+| `operator_resume` | `agent.custom_tool_use`，任务因整批停（`contracts.BATCH_STOPPERS` 或停止）停下时一张；带 `awaiting_approval` | `pop_<T>_resume_<毫秒>` | `{task, company, reason, doc_id, ref, party, doc_ids}`（`reason` = 卡住那张的原因代码，只因停止跳过的是 `stopped`；`doc_ids` = 会被继续的几张） | 点「继续」调 `task_resume(name)`；「设置」照旧开 CC 的 Express 登录。交回后出 `user.custom_tool_result`（`…_r`）`{"resumed": true}` + `done` |
+
+**收尾消息（E14 / E15）**：任务到 `finished` / `stopped` / `attention` 且没有在排的单时，出一条 `agent.message`（`pop_<T>_end_<状态>_<毫秒>`），`content` 是一个空文字块，另带 `operator` 字段：
+`{"kind": "finished" | "stopped" | "attention", "task", "counts": {"saved", "not_done", "cancelled", "skipped"}, "report": {"filename", "url"}}`。页面按 `operator` 画「已停止 · 录好 N 张」或完成回顾，`report.url`（`GET /api/method/pearnly_core.express_operator.feed.report?name=<T>`，只给任务主人，CSV 列同原来的 `reportCsv`）画成回复下面的文件卡片。
+
+**扩展事件 `pearnly.progress`**（形状在 `assistant/contracts.py` 的 `progress_event`，只在站点与页面之间）：
+
+```json
+{"type": "pearnly.progress", "id": "pop_<T>_…", "processed_at": "2026-11-04T08:00:00.000000Z",
+ "tool_use_id": "pop_<T>_u<行>" , "done": 3, "total": 12, "label": "reading_pages", "detail": ""}
+```
+
+`tool_use_id` 为空串 = 整个会话的状态行。`label`：`queued`、`reading_pages`、`blocked`（单据步骤），`waiting_computer`（任务等电脑空闲，`done/total` = 已有结论 / 交出张数）、`entering`（CC 已开始录，同上）；执行电脑上页面从桥合成的同形状事件（E10，不落库不推送）用暂停原因码（`screen_locked`、`user_active`、`network_wait`、`account_busy`、`waiting_start`）或 `entering`，编号用 `local-` 开头。同一步只认 `processed_at` 最新的一条，相同时刻认 `done` 大的。
+
+**停止（E13）**：代录会话里点 ■ 照对话发 `interrupt`。服务端：远端会话在回话就照旧打断引擎；任务在 `queued` / `running` 时记一条任务控制 `{"action": "stop", "doc_id": "", "at"}`（`push_control` 白名单多了 `stop`）。执行电脑上的页面照旧取 `task_controls(name)`，取到 `stop` 就走桥 `operator_control stop`（执行电脑本机点停止也可以直接走桥，两条路都安全）。
+
+**会话列表与新建（14.8）**：`listing(..., mode="chat" | "operator")`（不带 = 全部），`grouped` / `group` / 星标 / `check` 都按同一筛选；`create(project, period, scope, mode="operator")` 同一事务建任务并互相指上（产品不允许代录时报「没有权限」，不悄悄建成直写；没有公司或月份报请求无效）。改名、星标走 `rename` / `star`，同时写回任务；`delete` 转调任务删除（交出去还没收尾的照旧不能删）。旧链接 `?view=tasks` 带任务号：`task_get(name).session_id` 就是会话编号。
