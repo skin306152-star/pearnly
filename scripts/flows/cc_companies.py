@@ -90,20 +90,21 @@ def steps(params, camera_code=None):
         {"name": "公司列表", "js": WAIT + "await until(()=>document.querySelectorAll('.cc-grid-card-title').length>=2,80); "
          "const titles=[...document.querySelectorAll('.cc-grid-card-title')].map(e=>e.innerText.trim()); "
          "const add=[...document.querySelectorAll('button')].some(b=>b.innerText.trim()==='添加公司'); "
-         "await until(()=>navText().some(t=>t.startsWith('待处理')),40); "
          "return {titles, add, nav: navText()};"},
         {"name": "添加公司", "js": WAIT + f"const NEW={json.dumps(params['new_title'])}; " + ADD +
          "const rows=pick(NEW); if(!rows) return {error:'candidates missing'}; "
          "const page=await until(()=>document.querySelector('[data-slot=\"cc-company-page\"]')&&document.querySelector('.cc-page-title')?.innerText.trim()===NEW,80); "
          "return {rows, page, opened, dialog: !!document.querySelector('[data-slot=\"cc-add-company\"]')};"},
         {"name": "代录添加公司", "js": WAIT + f"const A={json.dumps(a_title)}; "
-         "document.querySelector('[data-mode=\"operator\"]').click(); await until(()=>document.querySelector('[data-slot=\"cc-operator-sidebar\"]'),80); "
+         "const mode=()=>document.querySelector('[data-slot=\"cc-mode-switch\"] [aria-checked=\"true\"]')?.dataset.mode; "
+         "document.querySelector('[data-mode=\"operator\"]').click(); await until(()=>mode()==='operator',80); "
          "document.querySelector('[data-slot=\"cc-nav-companies\"]').click(); await until(()=>document.querySelector('[data-slot=\"cc-company-rows\"]'),80); " + ADD +
          "const rows=pick(A); if(!rows) return {error:'candidates missing'}; "
-         "const work=await until(()=>document.querySelector('[data-slot=\"cc-op-work\"]')&&document.querySelector('[data-slot=\"cc-op-title\"]')?.innerText.includes(A),80); "
-         "const title=document.querySelector('[data-slot=\"cc-op-title\"]')?.innerText.trim(); const page=!!document.querySelector('[data-slot=\"cc-company-page\"]'); "
-         "document.querySelector('[data-mode=\"chat\"]').click(); await until(()=>!document.querySelector('[data-slot=\"cc-operator-sidebar\"]'),80); "
-         "return {rows, work, title, page, opened};"},
+         # 代录模式下选已添加的 A = 直写的新建页、下巴选好 A（统一对话框架：没说话不建任务）
+         "const work=await until(()=>document.querySelector('.aui-thread-welcome-root')&&(document.querySelector('[data-slot=\"cc-chin-company\"]')?.innerText||'').includes(A),80); "
+         "const title=document.querySelector('[data-slot=\"cc-chin-company\"]')?.innerText.trim(); const page=!!document.querySelector('[data-slot=\"cc-company-page\"]'); "
+         "const inMode=mode(); document.querySelector('[data-mode=\"chat\"]').click(); await until(()=>mode()==='chat',80); "
+         "return {rows, work, title, page, opened, mode: inMode};"},
         {"name": "公司页", "js": WAIT + "document.querySelector('[data-slot=\"cc-nav-companies\"]').click(); "
          "await until(()=>document.querySelectorAll('.cc-grid-card-title').length>=2,80); " + f"const card=[...document.querySelectorAll('.cc-grid-card')].find(e=>e.innerText.includes({json.dumps(a_title)})); "
          "if(!card) return {error:'company card not found'}; card.click(); "
@@ -119,12 +120,11 @@ def steps(params, camera_code=None):
          "[...document.querySelectorAll('[data-slot=\"cc-note-editor\"] button')].find(b=>b.innerText.trim()==='保存').click(); "
          f"const got=await until(()=>document.querySelector('[data-card=\"notes\"]').innerText.includes({json.dumps(params['note'])})&&!document.querySelector('[data-slot=\"cc-note-editor\"]'),80); "
          "return {got, text: document.querySelector('[data-card=\"notes\"]').innerText.slice(0,300)};"},
-        {"name": "待处理", "js": WAIT + "const nav=[...document.querySelectorAll('.cc-nav-item')].find(e=>e.innerText.trim().startsWith('待处理')); "
-         "if(!nav) return {error:'no pending nav', nav: navText()}; nav.click(); "
-         # 公司页会话栏里本来就有「待处理」卡（同一种行）：先等换成待处理页，再等它的行
-         "await until(()=>document.querySelector('.cc-page-title')?.innerText.trim()==='待处理'&&!document.querySelector('[data-slot=\"cc-company-page\"]'),80); "
-         "await until(()=>document.querySelector('[data-slot=\"cc-pending-row\"]'),80); "
-         "const rows=[...document.querySelectorAll('[data-slot=\"cc-pending-row\"]')]; let opened=''; window.open=(u)=>{opened=String(u); return null;}; "
+        # 待处理 11-04 起没有单独的入口和页面（并进对话）：公司页的「待处理」卡照旧列这家要人处理的单
+        {"name": "待处理", "js": WAIT + "const card=()=>document.querySelector('[data-card=\"pending\"]'); "
+         "if(!await until(card,80)) return {error:'no pending card', nav: navText()}; "
+         "await until(()=>card().querySelector('[data-slot=\"cc-pending-row\"]'),80); "
+         "const rows=[...card().querySelectorAll('[data-slot=\"cc-pending-row\"]')]; let opened=''; window.open=(u)=>{opened=String(u); return null;}; "
          "const openOf=(text)=>{opened=''; const row=rows.find(r=>r.innerText.includes(text)); if(row) row.click(); return opened;}; "
          f"const entry=openOf({json.dumps(params['entry_no'])}); const day=openOf({json.dumps(params['day'])}); "
          f"(rows.find(r=>r.innerText.includes({json.dumps(params['number'])}))||rows[0])?.click(); "
@@ -149,15 +149,16 @@ def judge(params, results, camera_code=None):
          "ok": not added.get("opened") and bool(added.get("page")) and not added.get("dialog")
          and any(r.startswith(a_title) and "已添加" in r for r in added.get("rows") or [])
          and any(r.startswith(params["new_title"]) and "已添加" not in r for r in added.get("rows") or [])},
-        {"case": "代录模式「添加公司」点已添加的 A：进 A 的新建任务页，不是对话公司页", "seen": hands_on,
-         "ok": not hands_on.get("opened") and bool(hands_on.get("work")) and not hands_on.get("page") and a_title in (hands_on.get("title") or "")},
-        {"case": "侧栏有「公司」与「待处理 N」", "seen": listing.get("nav"),
-         "ok": "公司" in (listing.get("nav") or []) and any(t.startswith("待处理") for t in listing.get("nav") or [])},
+        {"case": "代录模式「添加公司」点已添加的 A：进新建页、下巴选好 A（仍在代录），不是对话公司页", "seen": hands_on,
+         "ok": not hands_on.get("opened") and bool(hands_on.get("work")) and not hands_on.get("page") and a_title in (hands_on.get("title") or "")
+         and hands_on.get("mode") == "operator"},
+        {"case": "侧栏有「公司」，没有「待处理」入口（11-04 并进对话）", "seen": listing.get("nav"),
+         "ok": "公司" in (listing.get("nav") or []) and not any(t.startswith("待处理") for t in listing.get("nav") or [])},
         {"case": "公司页只出 ERP 的分区（公司、知识库、待处理），有「···」", "seen": page,
          "ok": page.get("title") == params["titles"][params["a"]] and "notes" in (page.get("cards") or [])
          and not {"month", "folders", "tasks", "choices", "drafts"} & set(page.get("cards") or []) and bool(page.get("menu"))},
         {"case": "知识库新增一条", "seen": note, "ok": bool(note.get("got"))},
-        {"case": "待处理点开到 ERP 单据页、不交给 CC", "seen": pending,
+        {"case": "公司页「待处理」卡点开到 ERP 单据页、不交给 CC", "seen": pending,
          "ok": pending.get("opened") == f"/desk/pearnly-purchase/{params['document']}" and not pending.get("hand")
          and all(tag == "BUTTON" for tag, _text in pending.get("rows") or [["x", ""]])},
         {"case": "待处理也列出入库单与收银日汇总，点开到各自的页面", "seen": pending,
@@ -209,8 +210,8 @@ print(json.dumps({{"notes": notes, "seen": seen, "made": made, "warehouses": war
         {"case": "添加公司按账套建了一家接 Express 的公司（不做收银、带一个仓），流程后删掉", "saved": {"made": out["made"], "warehouses": out["warehouses"]},
          "ok": len(out["made"]) == 1 and out["made"][0]["company_name"] == params["new_title"] and out["made"][0]["express_enabled"] == 1
          and out["made"][0]["pos_enabled"] == 0 and out["made"][0]["branch"] == "00000" and len(out["warehouses"]) >= 1},
-        {"case": "代录模式选 A 在站点建了 A 的一条任务（流程后删掉）", "saved": out["picked"],
-         "ok": [row["company"] for row in out["picked"]] == [a]},
+        {"case": "代录模式选 A 只进新建页、没说话：站点没建任务（任务随第一句话与会话一起建）", "saved": out["picked"],
+         "ok": out["picked"] == []},
         {"case": "知识库落库一条（人记的，记了谁）", "saved": out["notes"],
          "ok": len(out["notes"]) == 1 and out["notes"][0]["origin"] == "person" and out["notes"][0]["created_by"] == "admin@erp.regression"},
         {"case": "员工只分到一家：只认、只列那一家；管理员两家都在", "saved": out["seen"],

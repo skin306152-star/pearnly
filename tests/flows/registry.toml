@@ -361,7 +361,7 @@ covers = [
 
 [[flow]]
 id = "cc.operator"
-title = "CC 实操（代录 Express）：选公司建任务、右栏资料与站点一致、任务对话一轮与对话框状态行、侧栏删除任务（假智能体后端，网页无桥不开录）"
+title = "CC 代录（统一对话框架）：新建页没选公司发不出、选公司说一句建代录会话与任务、侧栏按模式列、开始前卡片与资料与站点一致、对话一轮与状态行、侧栏删除（假智能体后端，网页无桥不开录）"
 module = "scripts/flows/cc_operator.py"
 start = "/assistant"
 user = "admin"
@@ -370,7 +370,7 @@ viewports = ["desktop"]
 covers = [
   "frontend/assistant/src/components/operator/*.ts",
   "frontend/assistant/src/components/operator/*.tsx",
-  # 统一对话框架（11-04 U2）：代录会话里的卡片与步骤、工具登记、代录步骤名（断言随 U3 改写）
+  # 统一对话框架（11-04 U2）：代录会话里的卡片与步骤、工具登记、代录步骤名
   "frontend/assistant/src/components/tool-uis/operator-*.ts",
   "frontend/assistant/src/components/tool-uis/operator-*.tsx",
   "frontend/assistant/src/components/tool-uis/index.tsx",
@@ -388,14 +388,44 @@ covers = [
   "apps/pearnly_core/pearnly_core/express_operator/api.py",
   "apps/pearnly_core/pearnly_core/express_operator/products.py",
   "apps/pearnly_core/pearnly_core/express_operator/tasks.py",
-  # 代录事件源（统一对话框架 U1）：代录会话的事件、运行状态、报告；流程断言由 U3 改成走统一对话
+  # 代录事件源（统一对话框架 U1）：代录会话的事件、运行状态、报告
   "apps/pearnly_core/pearnly_core/express_operator/feed.py",
+  # 代录会话 = 一段标准会话：列表按模式筛、新建带 mode=operator、运行状态（统一对话框架 U1 / U2）
+  "apps/pearnly_core/pearnly_core/assistant/sessions.py",
+  "frontend/assistant/src/lib/managed-agents/list-mode.ts",
+  "frontend/assistant/src/lib/managed-agents/api.ts",
+  "frontend/assistant/src/lib/managed-agents/runtime-provider.tsx",
+  "frontend/assistant/src/lib/managed-agents/reducer.ts",
+  "scripts/flows/cc_lib.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
 ]
 
 [[flow]]
+id = "cc.operator.replay"
+title = "CC 代录会话回放一致（统一对话框架）：第一次打开、刷新、换设备，事件逐条相同、画出来相同，且与服务端以会话主人身份读到的一致（不碰引擎）"
+module = "scripts/flows/cc_operator_replay.py"
+start = "/assistant?c={session}"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/express_operator/feed.py",
+  "apps/pearnly_core/pearnly_core/assistant/sessions.py",
+  "apps/pearnly_core/pearnly_core/assistant/contracts.py",
+  "frontend/assistant/src/lib/managed-agents/reducer.ts",
+  "frontend/assistant/src/lib/managed-agents/events.ts",
+  "frontend/assistant/src/lib/managed-agents/progress.ts",
+  "frontend/assistant/src/lib/managed-agents/session-controller.ts",
+  "frontend/assistant/src/components/tool-uis/operator-*.ts",
+  "frontend/assistant/src/components/tool-uis/operator-*.tsx",
+  "frontend/assistant/src/components/assistant-ui/thread.tsx",
+  "frontend/assistant/src/lib/nav.ts",
+  "scripts/flows/cc_lib.py",
+]
+
+[[flow]]
 id = "cc.companies"
-title = "ERP 版 CC 按公司：侧栏公司与待处理、添加公司在 CC 里弹窗（对话 / 代录两种模式）、公司页只出 ERP 分区、知识库落库、待处理点开到单据页、员工只见分到的公司"
+title = "ERP 版 CC 按公司：侧栏公司（没有待处理入口）、添加公司在 CC 里弹窗（对话 / 代录两种模式，代录进新建页不建任务）、公司页只出 ERP 分区、知识库落库、公司页待处理点开到单据页、员工只见分到的公司"
 module = "scripts/flows/cc_companies.py"
 start = "/assistant?view=companies"
 user = "admin"
@@ -955,7 +985,7 @@ covers = [
 
 [[flow]]
 id = "cowork.operator.unknown"
-title = "Cowork CC 实操（代录 Express）：开始前确认列出推送结果不明的单、点「没有入账」照复核页核对放开（产品账本 + 合成写入端，网页无桥不开录）"
+title = "Cowork CC 代录（统一对话框架）：代录新建页选公司说一句建会话，开始前卡片列出推送结果不明的单、点「没有入账」照复核页核对放开（产品账本 + 合成写入端，网页无桥不开录）"
 module = "scripts/flows/cowork_operator_unknown.py"
 product = "cowork"
 start = "/assistant"
@@ -964,21 +994,25 @@ datasets = ["new", "old"]
 viewports = ["desktop"]
 covers = [
   "frontend/assistant/src/components/tool-uis/operator-start.tsx",
+  "frontend/assistant/src/components/tool-uis/operator-shared.ts",
+  "apps/pearnly_core/pearnly_core/express_operator/feed.py",
+  "scripts/flows/cc_lib.py",
   "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py",
   "apps/pearnly_cowork/pearnly_cowork/push/lifecycle.py",
 ]
 
 [[flow]]
 id = "cowork.pending.operator"
-title = "Cowork CC 待处理：归代录的单当场选「确认」只记下选择、不按直写重推，页面写单据在代录中（产品账本 + 合成写入端）"
+title = "Cowork CC 对话里的「需要处理」（待处理并进对话，提醒入口 ?view=pending 打开这家这个月的对话）：归代录的单当场选「确认」只记下选择、不按直写重推，页面写单据在代录中（产品账本 + 合成写入端）"
 module = "scripts/flows/cowork_pending_operator.py"
 product = "cowork"
-start = "/assistant?view=pending"
+start = "/assistant?view=pending&company={company}"
 user = "admin"
 datasets = ["new", "old"]
 viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py",
+  "frontend/assistant/src/components/pending.tsx",
 ]
 
 [[flow]]
@@ -1065,7 +1099,7 @@ covers = [
 
 [[flow]]
 id = "cc.sidebar-modes"
-title = "CC 侧栏两种模式同一个框架（ERP）：共有入口不挪、代录下点公司 / 待处理不切模式、代录下选公司进新建任务页、待处理数含代录任务并按单据去重、点任务打开"
+title = "CC 侧栏两种模式同一个框架（ERP）：共有入口不挪、没有待处理入口、侧栏同一个接口按模式列会话、代录下点公司不切模式、代录下选公司进新建页、点代录会话打开它的卡片"
 module = "scripts/flows/cc_sidebar_modes.py"
 start = "/assistant"
 user = "admin"
@@ -1083,11 +1117,14 @@ covers = [
   "apps/pearnly_core/pearnly_core/express_operator/products.py",
   "apps/pearnly_core/pearnly_core/shell.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  "apps/pearnly_core/pearnly_core/assistant/sessions.py",
+  "frontend/assistant/src/components/assistant-ui/thread-list.tsx",
+  "scripts/flows/cc_lib.py",
 ]
 
 [[flow]]
 id = "cowork.cc.sidebar-modes"
-title = "CC 侧栏两种模式同一个框架（Cowork）：共有入口不挪、定时任务只在对话模式、代录下点公司 / 待处理不切模式、代录下选公司进新建任务页、添加公司弹窗点已添加的打开它、待处理数含代录任务并按单据去重"
+title = "CC 侧栏两种模式同一个框架（Cowork）：共有入口不挪、定时任务只在对话模式、没有待处理入口、侧栏同一个接口按模式列会话、代录下选公司进新建页、点代录会话打开它的卡片、添加公司弹窗点已添加的打开它"
 module = "scripts/flows/cc_sidebar_modes.py"
 product = "cowork"
 start = "/assistant"
@@ -1109,6 +1146,9 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/companies/pending.py",
   "frontend/assistant/src/components/add-company.tsx",
   "scripts/flows/cowork_operator_lib.py",
+  "apps/pearnly_core/pearnly_core/assistant/sessions.py",
+  "frontend/assistant/src/components/assistant-ui/thread-list.tsx",
+  "scripts/flows/cc_lib.py",
 ]
 
 [[flow]]

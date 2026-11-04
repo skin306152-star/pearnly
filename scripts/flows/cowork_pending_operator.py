@@ -1,4 +1,5 @@
-"""流程用例：Cowork 的 CC「待处理」里一张归代录的单（交给代录、电脑在 Express 里没录成停下了），当场选付款方式「确认」——
+"""流程用例：Cowork 的 CC 待处理（11-04 起并进对话：「这家公司 · 这个月」对话末尾的「需要处理」框，`?view=pending&company=`
+兼容入口打开它）里一张归代录的单（交给代录、电脑在 Express 里没录成停下了），当场选付款方式「确认」——
 选择照复核页记进账套记忆，但不按直写重推（主会话 10-27：由代录去录），页面显示「单据在代录中」，库里不多推送记录、不多领单。
 
 单据怎么到这一步（都是产品自己的函数，`cowork_operator_lib.py`）：代录批次准备（载荷带 ``entry_mode=operator``）→ 交出去 →
@@ -15,8 +16,8 @@ import uuid
 
 from cowork_operator_lib import BASE, CLEANUP, SUBJECT
 
-TITLE = "Cowork CC 待处理：归代录的单当场选「确认」只记下选择、不按直写重推，页面显示单据在代录中（产品账本，不连 Express）"
-READY = "document.readyState === 'complete' && !!document.querySelector('[data-slot=\"cc-pending\"]')"
+TITLE = "Cowork CC 对话里的「需要处理」：归代录的单当场选「确认」只记下选择、不按直写重推，页面显示单据在代录中（产品账本，不连 Express）"
+READY = "document.readyState === 'complete' && !!document.querySelector('[data-slot=\"cc-mode-switch\"]')"
 
 WAIT = ("const until=async(f,n=120)=>{for(let k=0;k<n;k++){try{if(f())return true;}catch(e){} await new Promise(r=>setTimeout(r,250));} return false;};"
         "const qa=s=>[...document.querySelectorAll(s)];")
@@ -44,7 +45,7 @@ pushed = tools._push_one(name)
 frappe.db.commit()
 doc = frappe.db.get_value("Cowork OCR History", name, ["last_push_status", "last_push_reason", "last_push_record"], as_dict=True)
 frappe.local.lang = "zh"
-print(json.dumps({{"company": company["id"], "doc": name, "record": record, "pushed": pushed, "doc_state": dict(doc),
+print(json.dumps({{"company": company["id"], "title": company["title"], "period": period, "doc": name, "record": record, "pushed": pushed, "doc_state": dict(doc),
                   "owned": application.operator_owned(storage.read(name)),
                   "records": frappe.db.count("Cowork Push Record", {{"history": name}}),
                   "attempts": frappe.db.count("Cowork Push Attempt", {{"push_record": record}}),
@@ -57,10 +58,14 @@ print(json.dumps({{"company": company["id"], "doc": name, "record": record, "pus
 
 def steps(params, camera_code=None):
     ref = params["ref"]
-    row = f"qa('[data-slot=\"cc-pending-choose\"]').find(e=>e.innerText.includes({json.dumps(ref)}))"
+    row = f"qa('[data-slot=\"cc-pending-in-chat\"] [data-slot=\"cc-pending-choose\"]').find(e=>e.innerText.includes({json.dumps(ref)}))"
     return [
         {"name": "待处理列出这张", "js": WAIT + f"const seen=await until(()=>{row},160); const r={row}; "
-         "return {seen, text: r?.innerText.trim()||'', choose: qa('[data-slot=\"cc-pending-choose\"]').length};"},
+         "const chin=document.querySelector('[data-slot=\"cc-chin-company\"]')?.innerText.trim()||''; "
+         "const mode=document.querySelector('[data-slot=\"cc-mode-switch\"] [aria-checked=\"true\"]')?.dataset.mode; "
+         "return {seen, text: r?.innerText.trim()||'', choose: qa('[data-slot=\"cc-pending-in-chat\"] [data-slot=\"cc-pending-choose\"]').length, "
+         "chin, mode, period: document.querySelector('[data-slot=\"cc-period-chip\"]')?.innerText.trim()||'', "
+         "nav: !!document.querySelector('[data-slot=\"cc-nav-pending\"]')};"},
         {"name": "展开选付款方式", "js": WAIT + f"const r={row}; if(!r) return {{error:'row missing'}}; "
          "r.querySelector('.cc-pending-toggle').click(); "
          f"const ok=await until(()=>{row}?.querySelector('select'),120); const s={row}?.querySelector('select'); "
@@ -81,8 +86,10 @@ def judge(params, results, camera_code=None):
     listed, opened, answered = (by.get(k) or {} for k in ("待处理列出这张", "展开选付款方式", "确认"))
     values = [o.get("value") for o in opened.get("options") or [] if not o.get("disabled")]
     return [
-        {"case": "待处理把这张列成能当场选的一行（单号、对方）", "seen": listed,
-         "ok": bool(listed.get("seen")) and params["ref"] in (listed.get("text") or "") and "Flow seller" in (listed.get("text") or "")},
+        {"case": "提醒入口打开这家这个月的对话（对话模式、下巴是这家），末尾「需要处理」框把这张列成能当场选的一行（单号、对方）；侧栏没有「待处理」",
+         "seen": {**listed, "want": params["title"]},
+         "ok": bool(listed.get("seen")) and params["ref"] in (listed.get("text") or "") and "Flow seller" in (listed.get("text") or "")
+         and listed.get("mode") == "chat" and params["title"] in (listed.get("chin") or "") and not listed.get("nav")},
         {"case": "展开只问付款方式：现金 / 赊账两项、不预选，选了才能确认", "seen": opened,
          "ok": bool(opened.get("ok")) and sorted(values) == ["cash", "credit"] and opened.get("before") == ""
          and opened.get("after") == "cash" and bool(opened.get("enabled"))},

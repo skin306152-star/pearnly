@@ -1,14 +1,15 @@
-"""流程用例：CC 对话页 `/assistant` 左侧栏两种模式共用一个框架（主会话 11-03 审定，ERP、Cowork 同一个模块，电脑与手机宽度）——
-对话模式与代录模式里共有的入口（新建、待处理 N、公司）位置、顺序一样，切模式时一格不挪；定时任务只在对话模式（只 Cowork 声明了）；
-代录模式下点「公司」「待处理」留在代录（主栏换成那一页，侧栏仍是任务）；「待处理 N」= 产品的待处理 + 需要你处理的代录任务（按单据
-去重：任务里没录成的单都已在产品待处理里列着的不另算），待处理页的「任务」一组点了切到代录、打开那个任务；代录模式下在公司列表
-选一家进这家的新建任务页（同组头「＋」，用户 11-03），对话模式下照旧进公司页（verify 删掉选公司建的那条任务）。
+"""流程用例：CC 对话页 `/assistant` 左侧栏两种模式共用一个框架（主会话 11-03 审定；11-04 统一对话框架：代录任务就是一段会话，
+同一个侧栏按模式筛，ERP、Cowork 同一个模块，电脑与手机宽度）——
+对话模式与代录模式里共有的入口（新建、公司）位置、顺序一样，切模式时一格不挪；定时任务只在对话模式（只 Cowork 声明了）；没有
+「待处理」入口（11-04 并进对话）；侧栏同一个接口按模式列：对话模式只列直写的对话、代录模式只列代录会话（准备的两段各只在自己的
+模式出现）；代录模式下点「公司」留在代录（主栏换成公司页），在公司列表选一家 = 直写的新建页、下巴选好这家（同组头「＋」，用户
+11-03），没说话不建任务；侧栏点那段「要你处理」的代录会话：在代录打开它，代录事件源出那张没录成的单的卡片（单号、原因）；
+对话模式下选公司照旧进公司页。
 
-准备两条「需要你处理」的任务：一条没录成的单不在产品待处理里（算），一条没录成的单就是产品待处理里列着的一张（不另算）。ERP 那张
-是临时把一张已提交的采购单标成「写账失败」放进待处理的（verify 还原）；Cowork 的回归数据里没有识别单据、待处理是空的，只建第一条
-（Cowork 的去重由 `tests/test_cowork_companies.py` 与 `tests/test_express_operator_tasks.py` 守）。Cowork 的旧数据集没有公司：用代录
+准备（都在站点里用产品自己的函数）：一段这家这个月的直写对话（`sessions.create`，假智能体后端）、一段代录会话（`sessions.create`
+带 mode=operator，同一事务建任务），把任务记成一张没录成、要人选公司的单（需要你处理）。Cowork 的旧数据集没有公司：用代录
 流程的造数据（`cowork_operator_lib`）建一条合成账套目录的连接、从目录建一家，Cowork 另走一步「添加公司」：弹窗候选里这家是
-「已添加」，点了打开它的公司页（ERP 的添加公司在 `cc_companies.py`）。verify 删掉准备的任务、按连接清掉造的数据。
+「已添加」，点了打开它的公司页（ERP 的添加公司在 `cc_companies.py`）。verify 删掉准备的会话与任务、按连接清掉造的数据。
 设了 `PEARNLY_FLOWS_SHOTS` 时每一步截图（`run.py`）。
 """
 from __future__ import annotations
@@ -20,25 +21,28 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cowork_operator_lib as operator_lib  # noqa: E402
+from cc_lib import JS  # noqa: E402
 
-TITLE = "CC 侧栏两种模式同一个框架：共有入口不挪、定时任务只对话模式、代录下点公司 / 待处理不切模式、代录下选公司进新建任务页、待处理数含代录任务并按单据去重"
+TITLE = "CC 侧栏两种模式同一个框架：共有入口不挪、定时任务只对话模式、没有待处理入口、侧栏按模式列会话、代录下选公司进新建页、点代录会话打开它的卡片"
 READY = "document.readyState === 'complete' && !!document.querySelector('[data-mode=\"operator\"]')"
 
-WAIT = ("const until=async(f,n=120)=>{for(let k=0;k<n;k++){try{if(f())return true;}catch(e){} await new Promise(r=>setTimeout(r,250));} return false;};"
-        "const sleep=ms=>new Promise(r=>setTimeout(r,ms)); const q=s=>document.querySelector(s); const qa=s=>[...document.querySelectorAll(s)];"
-        "const phone=()=>innerWidth<768;"
-        "const root=()=>phone()?q('.cc-mdrawer .cc-drawer'):q('[data-slot=\"sidebar\"]');"
-        "const openDrawer=async()=>{if(phone()&&q('.cc-mshell')?.dataset.open!=='true'){q('[data-slot=\"cc-nav-toggle\"]').click();"
-        "await until(()=>q('.cc-mshell')?.dataset.open==='true'); await sleep(600);}};"
-        "const nav=()=>{const r=root(); return r?[...r.querySelectorAll('.cc-nav-item:is([data-slot=\"aui_thread-list-new\"],[data-slot=\"cc-operator-new\"],"
-        "[data-slot=\"cc-nav-pending\"],[data-slot=\"cc-nav-companies\"],[data-slot=\"cc-nav-tasks\"])')].map(e=>{const b=e.getBoundingClientRect();"
-        "return {slot:e.dataset.slot, text:e.innerText.trim().replace(/\\s+/g,' '), top:Math.round(b.top), left:Math.round(b.left)};}):[];};"
-        "const mode=()=>q('[data-slot=\"cc-mode-switch\"] [aria-checked=\"true\"]')?.dataset.mode;"
-        "const api=async(m,args)=>{const r=await fetch('/api/method/'+m+'?'+new URLSearchParams(args||{}),"
-        "{headers:{'X-Frappe-CSRF-Token':window.csrf_token||''}}); return (await r.json()).message;};")
+WAIT = JS + (
+    "const phone=()=>innerWidth<768;"
+    "const root=()=>phone()?q('.cc-mdrawer .cc-drawer'):q('[data-slot=\"sidebar\"]');"
+    "const openDrawer=async()=>{if(phone()&&q('.cc-mshell')?.dataset.open!=='true'){q('[data-slot=\"cc-nav-toggle\"]').click();"
+    "await until(()=>q('.cc-mshell')?.dataset.open==='true'); await sleep(600);}};"
+    "const nav=()=>{const r=root(); return r?[...r.querySelectorAll('.cc-nav-item:is([data-slot=\"aui_thread-list-new\"],"
+    "[data-slot=\"cc-nav-pending\"],[data-slot=\"cc-nav-companies\"],[data-slot=\"cc-nav-tasks\"])')].map(e=>{const b=e.getBoundingClientRect();"
+    "return {slot:e.dataset.slot, text:e.innerText.trim().replace(/\\s+/g,' '), top:Math.round(b.top), left:Math.round(b.left)};}):[];};"
+    # 侧栏里带这个标签的、看得见的对话行（标题）
+    "const shownRows=tag=>{const r=root(); return r?[...r.querySelectorAll('[data-slot=\"aui_thread-list-item\"]')].filter(seen)"
+    ".map(e=>e.innerText.trim().split('\\n')[0]).filter(t=>t.includes(tag)):[];};"
+    "const switchTo=async m=>{await openDrawer(); const b=(root()?.closest('.cc-mdrawer, [data-slot=\"sidebar\"]')||document)"
+    ".querySelector(`[data-mode=\"${m}\"]`)||q(`[data-mode=\"${m}\"]`); b?.click(); return await until(()=>mode()===m,40);};")
 
-# 共有入口（两种模式都有的）在侧栏里的样子：位置、顺序（新建的字按模式换）
-SHARED = ("cc-nav-pending", "cc-nav-companies")
+# 共有入口（两种模式都有的）在侧栏里的样子：位置、顺序
+SHARED = ("aui_thread-list-new", "cc-nav-companies")
+REASON = "[OPERATOR_COMPANY_PICK] flow"
 
 
 def prepare(lab, manifest):
@@ -49,49 +53,39 @@ def prepare(lab, manifest):
     # Cowork：用代录流程的造数据建一条 Express 连接（合成账套目录）并从目录建一家公司（旧数据集没有 Cowork 公司），公司列表与
     # 「添加公司」弹窗里才有这家（弹窗里是「已添加」）；verify 按连接清掉
     seed = (operator_lib.CLEANUP + operator_lib.BASE + "\nseeded = company\n") if product == "cowork" else ""
+    erp_company = manifest.get("company") or (manifest.get("companies") or [""])[0]
     out = lab.python(manifest["site"], f"""
-from pearnly_core.assistant import projects
-from pearnly_core.express_operator import products, tasks
+from pearnly_core.assistant import projects, sessions
+from pearnly_core.express_operator import tasks
 frappe.set_user({user!r})
-marked = []
 {seed}
+# 没录成的那张用产品里真有的单据（卡片点开要按它预检）：ERP 取这家一张已提交的采购单（只读），Cowork 用造数据建一张识别单
 if {product!r} == "erp":
-    from pearnly_erp_portal.express import contracts, push
-    company = {(manifest.get("company") or (manifest.get("companies") or [""])[0])!r}
+    from pearnly_erp_portal.express import push
+    company = {erp_company!r}
     title = frappe.db.get_value("ERP Company", company, "company_name") or company
-    if not products.pending_documents():
-        marked = frappe.get_all(push.PURCHASE, filters={{"company": company, "status": "submitted"}}, pluck="name",
-                                order_by="name asc", limit_page_length=1)
-        for name in marked:
-            frappe.db.set_value(push.PURCHASE, name, {{"ledger_state": contracts.FAILED, "ledger_reason": "flow"}}, update_modified=False)
-        frappe.db.commit()
-    counts = __import__("pearnly_erp_portal.masters.cc_companies", fromlist=["x"]).pending_counts()
+    doc_id = (frappe.get_all(push.PURCHASE, filters={{"company": company, "status": "submitted"}}, pluck="name",
+                             order_by="name asc", limit_page_length=1) or [{tag!r} + "-doc"])[0]
 else:
     company, title = seeded["id"], seeded["title"]
-    counts = __import__("pearnly_cowork.companies.pending", fromlist=["x"]).pending_counts()
-listed = sorted(products.pending_documents())
-before = tasks.attention()["total"]
-made = []
-def task(doc_id, label):
-    doc = frappe.get_doc({{"doctype": tasks.DOCTYPE, "product": tasks.site_product(), "company": company, "company_title": title,
-                          "period": frappe.utils.add_months(frappe.utils.today(), -1)[:7], "title": label, "status": "attention",
-                          "documents": [{{"doc_id": doc_id, "state": "not_done", "reason": "flow"}}]}})
-    doc.flags.ignore_permissions = True
-    doc.insert()
-    made.append(doc.name)
-task({tag!r} + "-doc", {tag!r} + " 要你处理")
-if listed:
-    task(listed[0], {tag!r} + " 已在待处理")
+    doc_id = recognized({tag!r} + "-REF")
+period = frappe.utils.add_months(frappe.utils.today(), -1)[:7]
+tasks_before = frappe.get_all(tasks.DOCTYPE, filters={{"owner": {user!r}}}, pluck="name", limit_page_length=1000)
+chat = sessions.create(project=company, period=period)
+frappe.db.set_value("Pearnly Assistant Session", {{"session_id": chat["id"]}}, "title", {tag!r} + " 对话")
+made = sessions.create(project=company, period=period, mode="operator")
+frappe.db.set_value("Pearnly Assistant Session", {{"session_id": made["id"]}}, "title", {tag!r} + " 要你处理")
+doc = frappe.get_doc(tasks.DOCTYPE, made["task"])
+doc.title = {tag!r} + " 要你处理"
+doc.status = "attention"
+doc.append("documents", {{"doc_id": doc_id, "ref": {tag!r} + "-REF", "party": "Flow party", "state": "not_done",
+                          "reason": {REASON!r}}})
+doc.flags.ignore_permissions = True
+doc.save()
 frappe.db.commit()
-after = tasks.attention()
-print(json.dumps({{"product": {product!r}, "company": company, "marked": marked, "title": title, "made": made, "listed": len(listed),
-                  "pending": counts["total"], "before": before, "attention": after["total"],
-                  "counted": [t["name"] for t in after["tasks"]], "kind": projects.kind(),
-                  "sections": projects.declared(projects.provider()).get("sections", []),
-                  "own_tasks": frappe.db.count(tasks.DOCTYPE, {{"owner": {user!r}, "product": tasks.site_product()}}),
-                  "company_tasks": frappe.get_all(tasks.DOCTYPE, filters={{"owner": {user!r}, "company": company}}, pluck="name",
-                                                  limit_page_length=500),
-                  "chats": len(projects.mine({user!r}))}}))
+print(json.dumps({{"product": {product!r}, "company": company, "title": title, "period": period, "chat": chat["id"],
+                  "operator": made["id"], "task": made["task"], "tasks_before": tasks_before,
+                  "sections": projects.declared(projects.provider()).get("sections", [])}}))
 """)
     return {**out, "tag": tag, "shot": out["product"], "user": user}
 
@@ -108,89 +102,92 @@ def steps(params, camera_code=None):
     tag = json.dumps(params["tag"])
     return [
         {"name": "对话模式", **_shot(params, "1-对话模式"), "js": WAIT + "await until(()=>mode()==='chat'); await openDrawer(); "
-         "await until(()=>root()&&q('[data-slot=\"cc-nav-companies\"]')); await sleep(800); return {mode: mode(), nav: nav()};"},
-        {"name": "切到代录", **_shot(params, "2-代录模式"), "js": WAIT + "await openDrawer(); root().closest('.cc-mdrawer, [data-slot=\"sidebar\"]')"
-         "?.querySelector('[data-mode=\"operator\"]')?.click() || q('[data-mode=\"operator\"]').click(); "
-         "await until(()=>mode()==='operator'&&q('[data-slot=\"cc-operator-sidebar\"]')); await sleep(1200); "
-         "const groups=qa('[data-slot=\"cc-operator-sidebar\"] [data-slot=\"cc-project\"]').length; "
-         "return {mode: mode(), nav: nav(), groups, empty: !!q('[data-slot=\"cc-operator-sidebar\"] .cc-empty-line')};"},
+         f"await until(()=>root()&&q('[data-slot=\"cc-nav-companies\"]')); await until(()=>shownRows({tag}).length>0,60); await sleep(800); "
+         f"return {{mode: mode(), nav: nav(), rows: shownRows({tag}), "
+         "listed: {chat: (await listed('chat')).map(s=>s.id), operator: (await listed('operator')).map(s=>s.id)}};"},
+        {"name": "切到代录", **_shot(params, "2-代录模式"), "js": WAIT + "await switchTo('operator'); await openDrawer(); "
+         f"await until(()=>shownRows({tag}).some(t=>t.includes('要你处理')),60); await sleep(800); "
+         f"return {{mode: mode(), nav: nav(), rows: shownRows({tag}), "
+         "groups: (root()?.querySelectorAll('[data-slot=\"cc-project\"]')||[]).length};"},
         {"name": "代录下点公司", **_shot(params, "3-代录下公司页"), "js": WAIT + "await openDrawer(); q('[data-slot=\"cc-nav-companies\"]').click(); "
-         "const page=await until(()=>q('.cc-page')&&!q('[data-slot=\"cc-op-work\"]')); await sleep(800); await openDrawer(); await sleep(300); "
-         "return {page, mode: mode(), tasks: !!q('[data-slot=\"cc-operator-sidebar\"]'), active: q('[data-slot=\"cc-nav-companies\"]')?.hasAttribute('data-active'), nav: nav()};"},
-        # 用户 11-03：代录模式下从「公司」选一家进 = 这家的新建任务页（同组头「＋」：顶上「公司 · 月份」，月份上个月），不是对话公司页
+         "const page=await until(()=>q('.cc-page')&&q('[data-slot=\"cc-company-rows\"]')); await sleep(800); await openDrawer(); await sleep(300); "
+         f"return {{page, mode: mode(), active: q('[data-slot=\"cc-nav-companies\"]')?.hasAttribute('data-active'), nav: nav(), rows: shownRows({tag})}};"},
+        # 用户 11-03 / 11-04：代录模式下从「公司」选一家 = 直写的新建页、下巴选好这家（月份上个月），不是对话公司页；没说话不建任务
         {"name": "代录下选公司", **_shot(params, "3b-代录下选公司"), "js": WAIT + f"const TITLE={json.dumps(params['title'])}; " + PICK +
          "if(!await until(card)) return {error:'company card missing'}; card().click(); "
-         "const ok=await until(()=>q('[data-slot=\"cc-op-work\"]')&&q('[data-slot=\"cc-op-title\"]')); await sleep(800); "
-         "return {ok, mode: mode(), title: q('[data-slot=\"cc-op-title\"]')?.innerText.trim(), page: !!q('[data-slot=\"cc-company-page\"]')};"},
-        {"name": "待处理", **_shot(params, "4-待处理页"), "js": WAIT + "await openDrawer(); const item=q('[data-slot=\"cc-nav-pending\"]'); "
-         "if(!item) return {error:'no pending nav', nav: nav()}; const count=Number(item.querySelector('.cc-count')?.innerText||0); item.click(); "
-         "await until(()=>q('[data-slot=\"cc-pending-tasks\"]'),80); await sleep(800); "
-         "const rows=qa('[data-slot=\"cc-pending-task\"]').map(e=>e.innerText.trim().split('\\n')[0]); "
-         "return {mode: mode(), count, rows, tasks: !!q('[data-slot=\"cc-operator-sidebar\"]')};"},
-        {"name": "打开任务", **_shot(params, "5-打开任务"), "js": WAIT +
-         f"const row=qa('[data-slot=\"cc-pending-task\"]').find(e=>e.innerText.includes({tag})); if(!row) return {{error:'task row missing'}}; row.click(); "
-         "const ok=await until(()=>q('[data-slot=\"cc-op-title\"]')); await sleep(600); return {ok, mode: mode(), title: q('[data-slot=\"cc-op-title\"]')?.innerText.trim()};"},
-        {"name": "切回对话", **_shot(params, "6-切回对话"), "js": WAIT + "await openDrawer(); q('.cc-mdrawer [data-mode=\"chat\"]')?.click() || "
-         "q('[data-slot=\"sidebar\"] [data-mode=\"chat\"]')?.click() || q('[data-mode=\"chat\"]').click(); "
-         "await until(()=>mode()==='chat'&&!q('[data-slot=\"cc-operator-sidebar\"]')); await sleep(800); return {mode: mode(), nav: nav()};"},
+         "const ok=await until(()=>(q('[data-slot=\"cc-chin-company\"]')?.innerText||'').includes(TITLE)&&q('.aui-thread-welcome-root')); await sleep(800); "
+         "return {ok, mode: mode(), chin: q('[data-slot=\"cc-chin-company\"]')?.innerText.trim()||'', "
+         "period: q('[data-slot=\"cc-period-chip\"]')?.innerText.trim()||'', page: !!q('[data-slot=\"cc-company-page\"]')};"},
+        {"name": "打开代录会话", **_shot(params, "5-打开代录会话"), "js": WAIT + "await openDrawer(); "
+         f"const row=(root()?[...root().querySelectorAll('[data-slot=\"aui_thread-list-item\"]')]:[]).find(e=>e.innerText.includes({tag})&&e.innerText.includes('要你处理')); "
+         "if(!row) return {error:'operator row missing'}; (row.querySelector('[data-slot=\"aui_thread-list-item-trigger\"]')||row).click(); "
+         "const ok=await until(()=>q('[data-slot=\"cc-op-choose\"]'),120); await sleep(600); const c=q('[data-slot=\"cc-op-choose\"]'); "
+         "return {ok, mode: mode(), card: c?.innerText.trim().slice(0,300)||'', reason: c?.querySelector('[data-slot=\"cc-op-reason\"]')?.innerText.trim()||'', "
+         "text: qa('[data-role=\"assistant\"]').map(e=>e.innerText.trim()).join('\\n').slice(0,600)};"},
+        {"name": "切回对话", **_shot(params, "6-切回对话"), "js": WAIT + "await switchTo('chat'); await openDrawer(); "
+         f"await until(()=>shownRows({tag}).some(t=>t.includes('对话')),60); await sleep(800); "
+         f"return {{mode: mode(), nav: nav(), rows: shownRows({tag})}};"},
         {"name": "对话下选公司", **_shot(params, "7-对话下选公司"), "js": WAIT + f"const TITLE={json.dumps(params['title'])}; " + PICK +
          "await openDrawer(); q('[data-slot=\"cc-nav-companies\"]').click(); if(!await until(card)) return {error:'company card missing'}; card().click(); "
          "const ok=await until(()=>q('[data-slot=\"cc-company-page\"]')); await sleep(600); "
-         "return {ok, mode: mode(), work: !!q('[data-slot=\"cc-op-work\"]')};"},
+         "return {ok, mode: mode()};"},
     ] + ([] if params["product"] != "cowork" else [
         {"name": "添加公司", **_shot(params, "8-添加公司"), "js": WAIT + f"const TITLE={json.dumps(params['title'])}; " + PICK +
          "let opened=''; window.open=(u)=>{opened=String(u); return null;}; await openDrawer(); q('[data-slot=\"cc-nav-companies\"]').click(); "
          "if(!await until(()=>qa('button').some(b=>b.innerText.trim()==='添加公司'))) return {error:'no add button'}; "
          "qa('button').find(b=>b.innerText.trim()==='添加公司').click(); "
          "if(!await until(()=>q('[data-slot=\"cc-candidates\"] .cc-list-row'))) return {error:'candidates missing'}; "
-         "const all=qa('[data-slot=\"cc-candidates\"] .cc-list-row'); const rows=all.map(r=>r.innerText.trim()); "
-         "const row=all.find(r=>r.innerText.split('\\n')[0].trim()===TITLE); if(!row) return {rows, error:'company row missing'}; row.click(); "
+         "const all=qa('[data-slot=\"cc-candidates\"] .cc-list-row'); const cands=all.map(r=>r.innerText.trim()); "
+         "const row=all.find(r=>r.innerText.split('\\n')[0].trim()===TITLE); if(!row) return {rows: cands, error:'company row missing'}; row.click(); "
          "const ok=await until(()=>q('[data-slot=\"cc-company-page\"]')&&q('.cc-page-title')?.innerText.trim()===TITLE); "
-         "return {ok, rows, opened, dialog: !!q('[data-slot=\"cc-add-company\"]'), mode: mode()};"},
+         "return {ok, rows: cands, opened, dialog: !!q('[data-slot=\"cc-add-company\"]'), mode: mode()};"},
     ])
 
 
 def _shared(nav):
-    return [(item["slot"], item["text"], item["top"], item["left"]) for item in nav or [] if item["slot"] in SHARED]
-
-
-def _new(nav):
-    return next(((item["top"], item["left"]) for item in nav or [] if item["slot"] in ("aui_thread-list-new", "cc-operator-new")), None)
+    return [(item["slot"], item["top"], item["left"]) for item in nav or [] if item["slot"] in SHARED]
 
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
-    chat, operator, companies, pending, opened, back = (by.get(k) or {} for k in ("对话模式", "切到代录", "代录下点公司", "待处理", "打开任务",
-                                                                               "切回对话"))
-    picked, chat_pick, added = by.get("代录下选公司") or {}, by.get("对话下选公司") or {}, by.get("添加公司") or {}
+    chat, operator, companies, picked, opened, back = (by.get(k) or {} for k in ("对话模式", "切到代录", "代录下点公司", "代录下选公司",
+                                                                              "打开代录会话", "切回对话"))
+    chat_pick, added = by.get("对话下选公司") or {}, by.get("添加公司") or {}
     scheduled = "tasks" in params["sections"]
     slots = lambda step: [item["slot"] for item in step.get("nav") or []]
-    want = params["pending"] + params["attention"]
+    tag = params["tag"]
+    has = lambda step, word: any(word in row for row in step.get("rows") or [])
+    listed = chat.get("listed") or {}
+    in_chat, in_operator = listed.get("chat") or [], listed.get("operator") or []
     return [
-        {"case": "共有入口（待处理、公司）切到代录时位置、顺序、文字一样", "seen": {"chat": _shared(chat.get("nav")), "operator": _shared(operator.get("nav"))},
+        {"case": "共有入口（新建、公司）切到代录时位置、顺序一样（手机抽屉里没有新建那一行，只比公司）",
+         "seen": {"chat": _shared(chat.get("nav")), "operator": _shared(operator.get("nav"))},
          "ok": bool(_shared(chat.get("nav"))) and _shared(chat.get("nav")) == _shared(operator.get("nav"))},
-        {"case": "新建在同一个位置（电脑：对话「新建」/ 代录「新建任务」；手机在底部胶囊）", "seen": {"chat": _new(chat.get("nav")), "operator": _new(operator.get("nav"))},
-         "ok": _new(chat.get("nav")) == _new(operator.get("nav"))},
+        {"case": "没有「待处理」入口（11-04 并进对话），两种模式都没有", "seen": {"chat": slots(chat), "operator": slots(operator)},
+         "ok": "cc-nav-pending" not in slots(chat) + slots(operator)},
         {"case": "定时任务只在对话模式、只在声明了的产品，且在共有入口下面", "seen": {"chat": slots(chat), "operator": slots(operator), "sections": params["sections"]},
          "ok": ("cc-nav-tasks" in slots(chat)) == scheduled and "cc-nav-tasks" not in slots(operator)
          and (not scheduled or slots(chat)[-1] == "cc-nav-tasks")},
-        {"case": "代录侧栏的公司组同对话侧栏：有对话或有任务的公司都出组头，不写「暂无任务」",
-         "seen": {**{k: operator.get(k) for k in ("groups", "empty")}, "own_tasks": params["own_tasks"], "chats": params["chats"]},
-         "ok": operator.get("groups", 0) >= 1 and not operator.get("empty")},
-        {"case": "代录模式下点「公司」：主栏换成公司页，仍在代录（侧栏仍是任务）", "seen": companies,
-         "ok": bool(companies.get("page")) and companies.get("mode") == "operator" and bool(companies.get("tasks")) and bool(companies.get("active"))},
-        {"case": "代录模式下从「公司」选一家：进这家的新建任务页（标题是这家），不出对话公司页，仍在代录", "seen": {**picked, "want": params["title"]},
+        {"case": "同一个列表接口按模式筛：直写的那段只在 mode=chat、代录那段只在 mode=operator",
+         "seen": {"chat": params["chat"], "operator": params["operator"], "mode_chat": [params[k] in in_chat for k in ("chat", "operator")],
+                  "mode_operator": [params[k] in in_operator for k in ("chat", "operator")]},
+         "ok": params["chat"] in in_chat and params["operator"] not in in_chat
+         and params["operator"] in in_operator and params["chat"] not in in_operator},
+        {"case": "侧栏跟着模式换：对话模式只见直写的那段，代录模式只见代录那段（同一个侧栏、公司分组）",
+         "seen": {"chat": chat.get("rows"), "operator": operator.get("rows"), "back": back.get("rows"), "groups": operator.get("groups")},
+         "ok": has(chat, "对话") and not has(chat, "要你处理") and has(operator, "要你处理") and not has(operator, f"{tag} 对话")
+         and has(back, "对话") and not has(back, "要你处理") and (operator.get("groups") or 0) >= 1},
+        {"case": "代录模式下点「公司」：主栏换成公司页，仍在代录（侧栏仍只列代录会话）", "seen": companies,
+         "ok": bool(companies.get("page")) and companies.get("mode") == "operator" and bool(companies.get("active"))
+         and not has(companies, f"{tag} 对话")},
+        {"case": "代录模式下从「公司」选一家：直写的新建页、下巴选好这家，不出对话公司页，仍在代录", "seen": {**picked, "want": params["title"]},
          "ok": bool(picked.get("ok")) and picked.get("mode") == "operator" and not picked.get("page")
-         and params["title"] in (picked.get("title") or "")},
-        {"case": "待处理 N = 产品待处理 + 需要你处理的代录任务（按单据去重），页面「任务」一组条数与之对上", "seen": {**pending, "want": want,
-         "pending": params["pending"], "attention": params["attention"], "made": params["made"], "counted": params["counted"]},
-         "ok": pending.get("count") == want and len(pending.get("rows") or []) == params["attention"]
-         and params["made"][0] in params["counted"] and (len(params["made"]) < 2 or params["made"][1] not in params["counted"])
-         and pending.get("mode") == "operator" and bool(pending.get("tasks"))},
-        {"case": "待处理页点任务：打开那个任务的代录页", "seen": opened,
-         "ok": bool(opened.get("ok")) and opened.get("mode") == "operator" and params["tag"] in (opened.get("title") or "")},
+         and params["title"] in (picked.get("chin") or "")},
+        {"case": "侧栏点「要你处理」的代录会话：在代录打开，出那张没录成的单的卡片（单号、要人选公司的原因）", "seen": opened,
+         "ok": bool(opened.get("ok")) and opened.get("mode") == "operator" and f"{tag}-REF" in (opened.get("card") or "")
+         and bool(opened.get("reason"))},
         {"case": "对话模式下从「公司」选一家：照旧进公司页", "seen": chat_pick,
-         "ok": bool(chat_pick.get("ok")) and chat_pick.get("mode") == "chat" and not chat_pick.get("work")},
+         "ok": bool(chat_pick.get("ok")) and chat_pick.get("mode") == "chat"},
         *([] if params["product"] != "cowork" else [
             {"case": "Cowork「添加公司」弹窗：候选里这家标「已添加」，点了打开它的公司页（不开新窗口）", "seen": {**added, "want": params["title"]},
              "ok": bool(added.get("ok")) and not added.get("opened") and not added.get("dialog")
@@ -202,24 +199,23 @@ def judge(params, results, camera_code=None):
 
 def verify(lab, manifest, params, camera_code=None):
     product = params["product"]
+    keep = params["tasks_before"] + [params["task"], ""]
     out = lab.python(manifest["site"], f"""
+from pearnly_core.assistant import sessions
 from pearnly_core.express_operator import tasks
-if {product!r} == "erp":
-    from pearnly_erp_portal.express import push
-    for name in {params["marked"]!r}:
-        frappe.db.set_value(push.PURCHASE, name, {{"ledger_state": "", "ledger_reason": ""}}, update_modified=False)
-picked = frappe.get_all(tasks.DOCTYPE, filters={{"owner": {params["user"]!r}, "company": {params["company"]!r},
-                                                  "name": ["not in", {params["company_tasks"] + params["made"] + [""]!r}]}},
-                        fields=["name", "period", "status"], limit_page_length=50)
-for name in {params["made"]!r} + [row.name for row in picked]:
-    frappe.delete_doc(tasks.DOCTYPE, name, ignore_permissions=True, force=True)
+frappe.set_user({params["user"]!r})
+extra = frappe.get_all(tasks.DOCTYPE, filters={{"owner": {params["user"]!r}, "name": ["not in", {keep!r}]}},
+                       fields=["name", "company", "status"], limit_page_length=50)
+for sid in ({params["chat"]!r}, {params["operator"]!r}):
+    if frappe.db.exists("Pearnly Assistant Session", {{"session_id": sid}}):
+        sessions.delete(sid)
+for row in extra:
+    frappe.delete_doc(tasks.DOCTYPE, row.name, ignore_permissions=True, force=True)
 {operator_lib.CLEANUP + "cleanup()" if product == "cowork" else ""}
 frappe.db.commit()
-frappe.set_user("admin@{product}.regression")
-print(json.dumps({{"attention": tasks.attention()["total"], "picked": [dict(row) for row in picked],
-                  "month": frappe.utils.add_months(frappe.utils.today(), -1)[:7]}}))
+print(json.dumps({{"extra": [dict(row) for row in extra], "task": frappe.db.exists(tasks.DOCTYPE, {params["task"]!r}) or "",
+                  "sessions": frappe.db.count("Pearnly Assistant Session", {{"session_id": ["in", [{params["chat"]!r}, {params["operator"]!r}]]}})}}))
 """)
-    return [{"case": "代录下选公司在站点建了这家的一条任务，月份是上个月（流程后删掉）", "saved": out["picked"],
-             "ok": len(out["picked"]) == 1 and out["picked"][0]["period"] == out["month"]},
-            {"case": "删掉准备的任务后「需要你处理」回到流程前", "saved": {"before": params["before"], "after": out["attention"]},
-             "ok": out["attention"] == params["before"]}]
+    return [{"case": "代录下选公司没说话：站点没多建任务（任务随说第一句建）", "saved": out["extra"], "ok": out["extra"] == []},
+            {"case": "删掉准备的两段会话，代录那段连任务一起删", "saved": {"task": out["task"], "sessions": out["sessions"]},
+             "ok": not out["task"] and out["sessions"] == 0}]
