@@ -64,7 +64,7 @@ def _facts(**over):
                         "reported_accounts": [{"code": "5310-01"}]},
                 today=dt.date(2026, 10, 25), ready=True, blocked="",
                 pages=[{"_layer_chain": ["text", "L2"], "fields": fields, "_needs_manual_review": False}],
-                review_reasons=[], text=TEXT, account=ACCOUNT, catalog=[ACCOUNT], day_books=[BOOK],
+                review_reasons=[], text=TEXT, account=ACCOUNT, day_books=[BOOK],
                 uploaded=dt.date(2026, 10, 22), source_total=1, prior_pushes=[],
                 # 账套记忆定的科目要最近连续 5 张有证据的同科目（R3，10-18；现 / 赊、对方档仍 3 张）
                 account_recent=["5310-01"] * 5)
@@ -79,8 +79,7 @@ class Baseline(unittest.TestCase):
     def test_a_clean_text_pdf_decided_by_rules_is_a(self):
         verdict = auto.classify(_facts())
         self.assertEqual((verdict.cls, verdict.reasons), ("A", ()))
-        self.assertEqual(verdict.items, {"party": "A", "account": "A", "payment": "A", "vat": "A", "department": "A",
-                                         "own": "A"})
+        self.assertEqual(verdict.items, {"party": "A", "account": "A", "payment": "A", "vat": "A", "department": "A"})
 
 
 class ItemTiers(unittest.TestCase):
@@ -111,7 +110,7 @@ class ItemTiers(unittest.TestCase):
                                         account_source="config_default", doctype_src="doc_type"),
                        config={"reported_customers": [{"code": "C1", "tax_id": SELLER, "branch": "00000"}]})
         # 默认收入科目、按票种判赊都是兜底 / 推断：B（审查处理 10-16，第 15 条回放）
-        self.assertEqual(auto.tiers(facts), {"party": "A", "account": "B", "payment": "B", "department": "A", "own": "A"})
+        self.assertEqual(auto.tiers(facts), {"party": "A", "account": "B", "payment": "B", "department": "A"})
 
     def test_purchase_account_sources(self):
         for source, tier in (("task_default", "A"), ("remembered", "A"), ("chosen", "A"), ("company_rule", "A"),
@@ -703,24 +702,20 @@ class Checks(unittest.TestCase):
         self.assertTrue(auto.tax_in_text(SELLER, "TAX ID " + SELLER))
         self.assertFalse(auto.tax_in_text("123", "123"))
 
-    def test_own_tax_must_be_the_account_sets(self):
-        # 本方税号读错一位（校验位不过）、印的是别家、正式税票没印：自动推不放行（人推照旧按 account_match）
-        self.assertIn("own_tax", self.reasons(fields=_fields(buyer_tax="0994000333448")))
-        self.assertIn("own_tax", self.reasons(fields=_fields(buyer_tax=OTHER)))
-        self.assertIn("own_tax", self.reasons(fields=_fields(buyer_tax="")))
-        # 收据 / 简式税票不印本方：本方这一项算 CC 判断（B）
+    def test_own_tax_is_not_checked(self):
+        """自动推（用户 2026-11-04：Express 不按单据本方税号拦，直写、代录、自动推同步）：本方税号读错一位、印的是别家、
+        正式税票没印，都不是核对原因，也不另列「本方」一项的档；别家的票照常按其余各项定类。"""
+        for buyer in ("0994000333448", OTHER, ""):
+            with self.subTest(buyer=buyer):
+                self.assertEqual(self.reasons(fields=_fields(buyer_tax=buyer)), [])
+                verdict = auto.classify(_facts(fields=_fields(buyer_tax=buyer)))
+                self.assertEqual((verdict.cls, verdict.reasons), ("A", ()))
+                self.assertNotIn("own", verdict.items)
         receipt = _fields(buyer_tax="", document_type="receipt")
-        self.assertNotIn("own_tax", self.reasons(fields=receipt))
-        self.assertEqual(auto.tiers(_facts(fields=receipt))["own"], "B")
-        verdict = auto.classify(_facts(fields=receipt))
-        self.assertEqual((verdict.cls, verdict.reasons), ("B", ("judged:own",)))
-        # 销项看卖方（本方）；账套没有 13 位税号核不了，不列
+        self.assertEqual(auto.classify(_facts(fields=receipt)).reasons, ())
         sales = _fields(direction="sales", seller_tax=OTHER, buyer_tax=SELLER)
-        self.assertIn("own_tax", self.reasons(direction="sales", fields=sales,
-                                              payload=_payload(direction="sales", doctype="HS")))
-        no_tax = {"source_id": BOOK, "attributes": {**ACCOUNT["attributes"], "tax_id": ""}}
-        self.assertNotIn("own_tax", self.reasons(fields=_fields(buyer_tax=OTHER), account=no_tax, catalog=[no_tax]))
-        self.assertNotIn("own", auto.tiers(_facts(account=no_tax, catalog=[no_tax])))
+        self.assertNotIn("own_tax", self.reasons(direction="sales", fields=sales,
+                                                 payload=_payload(direction="sales", doctype="HS")))
 
     def test_the_text_layer_must_show_the_total_and_the_date(self):
         self.assertIn("text_missing", self.reasons(text=None))
@@ -785,7 +780,7 @@ class Checks(unittest.TestCase):
         self.assertIn("period", self.reasons(fields=_fields(date="2028-01-05"), text=text("05/01/2571"),
                                              today=dt.date(2028, 1, 10), uploaded=dt.date(2028, 1, 8)))
         no_next = {"source_id": BOOK, "attributes": {k: v for k, v in ACCOUNT["attributes"].items() if k != "next_end"}}
-        self.assertIn("period", self.reasons(account=no_next, catalog=[no_next], **next_year))
+        self.assertIn("period", self.reasons(account=no_next, **next_year))
         self.assertIn("period_unknown", self.reasons(account={"source_id": BOOK, "attributes": {"tax_id": OWN}}))
         # 推往的账套须正好是按这张单日期选出的那份；选不出、选出多份、选出另一份分开记（10-17 拆码，结果都是 C）
         for day_books, code in ((None, "book_none"), ([], "book_none"), ([BOOK, BOOK_OLD], "book_many"),
@@ -811,16 +806,12 @@ class Checks(unittest.TestCase):
         # 日 = 月、日 > 12：不两可
         self.assertNotIn("day_month", reasons("2026-10-10", "10/10/2569", dt.date(2026, 10, 12), dt.date(2026, 10, 11)))
 
-    def test_branch_must_be_printed_when_the_company_has_several(self):
-        branch1 = {"source_id": r"C:\PearnlyExpress\69ACME1", "attributes": {
-            "tax_id": OWN, "branch": "00001", "period_start": "2026-01-01", "period_end": "2026-12-31"}}
-        catalog = [ACCOUNT, branch1]
-        self.assertEqual(self.reasons(catalog=catalog), [])
-        self.assertIn("branch", self.reasons(catalog=catalog, fields=_fields(buyer_branch="")))
-        self.assertIn("branch", self.reasons(catalog=catalog, fields=_fields(buyer_branch="00001")))
-        self.assertEqual(self.reasons(catalog=catalog, fields=_fields(buyer_branch="สำนักงานใหญ่")), [])
-        # 只有一个分店的公司不按分店拦
-        self.assertEqual(self.reasons(fields=_fields(buyer_branch="")), [])
+    def test_branch_is_not_checked(self):
+        """分店不符取消（用户 2026-11-04）：票面本方分店没印、印的是别的分店，自动推都不另列原因。"""
+        for branch in ("", "00001", "สำนักงานใหญ่", "00000"):
+            with self.subTest(branch=branch):
+                self.assertEqual(self.reasons(fields=_fields(buyer_branch=branch)), [])
+                self.assertEqual(auto.classify(_facts(fields=_fields(buyer_branch=branch))).cls, auto.A)
 
     def test_void_split_and_evidence(self):
         self.assertIn("void", self.reasons(text=TEXT + " ยกเลิก"))

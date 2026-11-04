@@ -185,7 +185,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
     invoice_date = parse_invoice_date(flat.get('invoice_date') or (flat.get('fields') or {}).get('date'))
     account_tax = _account_tax(_account_row(loaded, target))
     direction = resolve_account_direction(flat, history_value, own_tax_id=own_tax, account_tax_id=account_tax)
-    _require_matching_account(loaded, target, direction, fields, invoice_date)
+    _require_matching_account(loaded, target, fields, invoice_date)
     if direction and not explicit_direction(flat, history_value):
         # 按税号判出的方向交给预检当明确方向（预检与这里同一套判定，账套税号也给它）
         history_value["direction"] = direction
@@ -366,32 +366,14 @@ def _account_tax(account):
     return clean_tax_id(attributes.get("tax_id")) if isinstance(attributes, dict) else ""
 
 
-def _require_matching_account(loaded, target, direction, fields, invoice_date):
-    """用户选的账套与票面确定对不上就不推（规则见 `targets/account_match.py`）：本方税号不同、分店不同（同一法人有几个
-    分店的账套时）、日期不在会计期间里。"""
+def _require_matching_account(loaded, target, fields, invoice_date):
+    """单据日期不在用户选的账套的会计期间里就不推（Express 自己也拒，规则见 `targets/account_match.py`）。票面本方税号、
+    本方分店与账套不同、次年段而新年度账套已建都不拦（用户 2026-11-04：Express 不拦，直写与代录同步）。"""
     account = _account_row(loaded, target)
     facts = {**fields, "date": invoice_date.isoformat() if invoice_date else fields.get("date")}
-    rows = (loaded.evidence.snapshot or {}).get("account_sets") or []
-    if isinstance(rows, str):
-        rows = json.loads(rows)
-    reason = account_match.conflict("express", account, direction=direction, fields=facts, catalog=rows,
-                                    work_branch=lambda: _work_branch(loaded.doc.name, target.account_set))
+    reason = account_match.conflict("express", account, fields=facts)
     if reason:
         frappe.throw(_(_ACCOUNT_CONFLICTS[reason]))
-
-
-def _work_branch(connection, account_set):
-    """票面没有本方分店时用的分店：CC 对话指定的（钩子 ``cowork_push_work_branch``，只在推往那家公司的账套时给）；
-    push 域不导入 companies。取不到回空串、不挡推送。"""
-    for path in frappe.get_hooks("cowork_push_work_branch") or []:
-        try:
-            found = str(frappe.get_attr(path)(connection, account_set) or "")
-        except Exception:
-            frappe.log_error(title="Cowork push work branch failed")
-            continue
-        if found:
-            return found
-    return ""
 
 
 def _fixed(history, connection, account_set, fixed):
@@ -594,7 +576,7 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
 
 def operator_check(history, posting_kind=None) -> dict:
     """代录开录前预检一张（主会话 10-27：预检走产品的准备，要人选的一次问完，显示此刻的结果、不读单上旧原因）：与推送准备
-    同一套挡单判断（单据口径、原件引用、账套与票面对不对得上）加同一套「要人选的项」（`choices_view`），不建推送记录、不改单据。
+    同一套挡单判断（单据口径、原件引用、单据日期在不在账套期间里）加同一套「要人选的项」（`choices_view`），不建推送记录、不改单据。
     回 ``{"state": ready / choose / waiting / blocked, "reason"?, "message"?, "needed"?}``；``needed`` 每项带可选值，
     商品、对方可选「在 Express 新建」（``NEW``，按直写现有建档、带查重）。``posting_kind``：交单时明传的入账类型（代录资料区的分组）。"""
     from pearnly_core.express_rules.push.choices import NEW
@@ -618,7 +600,7 @@ def operator_check(history, posting_kind=None) -> dict:
             frappe.throw(_("push.adapter_not_connected"))
         found = _express_context(doc, loaded, doc.push_account_set or None)
         target = _operator_target(doc, loaded, found)
-        _require_matching_account(loaded, found["target"], found["direction"], found["fields"], found["invoice_date"])
+        _require_matching_account(loaded, found["target"], found["fields"], found["invoice_date"])
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         return {"state": "blocked", "message": str(error)[:300], **({"target": target} if target else {})}
@@ -880,9 +862,9 @@ def mrerp_basis(doc, loaded, account_set_key, catalog_request_id=None, catalog_r
     prior = original_history(doc)
     mappings = deepcopy(connections.mrerp_mappings(loaded))
     if own_tax:
-        mappings["_own_tax_id"] = own_tax  # 匹配闸锚点：确认是别家的票就挡下，不推错账套
+        mappings["_own_tax_id"] = own_tax  # 方向锚点：判进项 / 销项（`mrerp.push.routing`），不拿它挡别家的票
     # 推往的这家公司自己的税号目录里没有（MR.ERP 选公司页不带税号）：执行时在 MR.ERP 会话里读它登记的税号，
-    # 作第二个锚点判方向、过匹配闸（`pearnly_core.mrerp.push.transport.upload_routed_batch`，同 Express 按账套税号判）。
+    # 作第二个锚点判方向（`pearnly_core.mrerp.push.transport.upload_routed_batch`，同 Express 按账套税号判）。
     # 这份账套各类单据选过的 MR.ERP 菜单（选一次记住，用户 2026-09-28）；推送时按导入页核对，失效就停下。
     mappings["_mrerp_menus"] = connections.mrerp_chosen_menus(loaded, target.account_set)
     # 主档默认值（部门 / 员工 / 科目等，选一次记住，用户 2026-10-08）；推送时按这次读到的主档核对，失效就停下。

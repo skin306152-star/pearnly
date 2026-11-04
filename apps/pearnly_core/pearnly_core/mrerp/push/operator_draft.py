@@ -4,7 +4,7 @@
 由 CC 在 MR.ERP 自己的页面里一格一格填、存档、读回。两条路共用：
 
 - 分流（`routing.group_by_doc_type`：方向、付款、货 / 费、单据防呆）；
-- 到「可以写进 MR.ERP」为止的准备（`transport.MrErpImport.ready_rows`：匹配闸、导入值、科目安全阀、菜单、自建对方、preflight、
+- 到「可以写进 MR.ERP」为止的准备（`transport.MrErpImport.ready_rows`：方向闸、导入值、科目安全阀、菜单、自建对方、preflight、
   自建商品）——开录前对方 / 商品在 MR.ERP 里没有的，服务端照直写自建（定不下来 / 建不成的这张转人工，不交 CC）；
 - 每格的值与导入表同源（供应商码、客户码、商品码、单号、表头的分店 / 部门 / 工作 / 员工 / 仓库、税率选项）。
 

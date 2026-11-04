@@ -81,7 +81,7 @@ class ReasonText(unittest.TestCase):
         reason_code = _load("export_facts_codes", APP / "push/export_facts.py", "en", modules)[0].reason_code
         for reason, code in (("[ENTRY_NOT_BALANCED] dr != cr", "entry_not_balanced"),
                              ("EXPRESS_MANUAL: party_missing", "party_missing"),
-                             ("choice_needed:party,vat", "choice_needed"), ("account_tax_mismatch", "account_tax_mismatch"),
+                             ("choice_needed:party,vat", "choice_needed"), ("account_period_mismatch", "account_period_mismatch"),
                              ("push.companion_account_unreported", "push.companion_account_unreported"),
                              ("The document date is outside the fiscal period.", ""), ("", ""), (None, "")):
             self.assertEqual(reason_code(reason), code, reason)

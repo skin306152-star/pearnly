@@ -5,7 +5,7 @@
 存进记录的 `review_reasons`，列表与复核页都读它。
 
 两类原因：
-- **按当前票面重算的**（改对了自然消失）：税号位数 / 校验位、本方税号与所选账套不符、金额算不平、明细合计对不上、
+- **按当前票面重算的**（改对了自然消失）：税号位数 / 校验位、金额算不平、明细合计对不上、
   进项单号像会计盖的 Express 凭证号、单号写法与这个对方以前的票不同；
 - **识别时留下的**（人看过才算数）：单号两种读法、可能漏识别、这一页没读出、识别不确定、疑似重复。
   复核页上点选（单号选哪一种）或点掉之后记进票面 `review_resolved`，推送成功后也不再算。
@@ -132,10 +132,10 @@ def _pattern_reason(fields, party_numbers):
     return {"code": "number_pattern", "field": "invoice_number", "usual": usual} if count >= 2 else None
 
 
-def reasons(pages, *, direction=None, own_tax=None, party_numbers=(), duplicate=False, edited=False) -> list[dict]:
+def reasons(pages, *, direction=None, party_numbers=(), duplicate=False, edited=False) -> list[dict]:
     """→ 原因清单 `[{code, field?, ...}]`，没有就是空列表。
 
-    `direction`：进项 / 销项（票面没写时用记录的）；`own_tax`：所选账套（或公司资料）的本方税号，没有就不比；
+    `direction`：进项 / 销项（票面没写时用记录的）。票面本方税号与公司 / 账套不同不算原因（用户 2026-11-04：不拦，自动推照推）；
     `party_numbers`：同一开票方（卖方）以前人核过的票号；`duplicate`：识别入库时查到疑似重复；`edited`：人改过票面。
     """
     pages = pages if isinstance(pages, list) else []
@@ -172,9 +172,6 @@ def reasons(pages, *, direction=None, own_tax=None, party_numbers=(), duplicate=
         reason = _tax_reason(field, fields.get(field))
         if reason:
             found.append(reason)
-    own_digits, book = _digits(fields.get(f"{own}_tax")), _digits(own_tax)
-    if len(own_digits) == 13 and valid_tax_id(own_digits) and len(book) == 13 and own_digits != book:
-        found.append({"code": "own_tax", "field": f"{own}_tax"})
     for reason in (_amount_reason(fields), _voucher_reason(fields, direction),
                    _pattern_reason(fields, party_numbers)):
         if reason:

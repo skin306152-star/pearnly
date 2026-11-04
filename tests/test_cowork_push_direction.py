@@ -2,8 +2,8 @@
 
 事务所替客户记账：工作空间税号不是客户账套的税号。快递公司开给 ซินเซียร์ไอซ์ 的无买方简易税票（卖方 0105599220248，
 285.00 / VAT 18.64）推往 T.9 账套：方向判不出，账套核对按卖方比账套，报「本方税号与所选账套不符」。
-现在工作空间税号判不出时按账套税号判（`contracts.push.resolve_account_direction`），判出的方向交给 Express 预检；
-没有方向时账套核对不拿卖方当本方（`targets.account_match`）。买方是别家的票照旧拦。
+现在工作空间税号判不出时按账套税号判（`contracts.push.resolve_account_direction`），判出的方向交给 Express 预检。
+票面本方税号、本方分店与所选账套不同不再拦（用户 2026-11-04：Express 不按它们拦，直写与代录同步）。
 """
 from pathlib import Path
 import copy
@@ -41,16 +41,15 @@ def courier(**fields):
             **fields}
 
 
-def wired(fields, *, book_tax=BOOK_TAX, own_tax=FIRM, direction=None, branches=None, work_branch=""):
+def wired(fields, *, book_tax=BOOK_TAX, own_tax=FIRM, direction=None, branches=None):
     """推送服务按真实导入加载（`test_cowork_push_fixed._service`），方向与账套核对用真的纯规则，其余换成替身。
-    ``branches``：同一税号各分店的账套 ``{账套键: 分店号}``（推往 BOOK）；``work_branch``：CC 对话指定的分店（钩子替身）。"""
+    ``branches``：同一税号各分店的账套 ``{账套键: 分店号}``（推往 BOOK）。``seen["hooks"]``：推送问过的钩子名。"""
     service, frappe, _calls = _service()
     seen = {}
     frappe.conf = {"pearnly_cowork_erp_push_enabled": True}
     frappe.db.get_value = lambda *a, **k: own_tax
-    asked = seen.setdefault("work_branch_asked", [])
-    frappe.get_hooks = lambda name: ["p.branch"] if name == "cowork_push_work_branch" else []
-    frappe.get_attr = lambda path: lambda connection, account_set: asked.append((connection, account_set)) or work_branch
+    hooks = seen.setdefault("hooks", [])
+    frappe.get_hooks = lambda name: hooks.append(name) or []
     doc = types.SimpleNamespace(name="CWH-9151", workspace="W1", client="", record_version=3, pages="[]")
     period = {"period_start": "2025-11-01", "period_end": "2026-10-31", "next_end": "2027-10-31"}
     snapshot = {"account_sets": [{"source_id": key, "attributes": {"tax_id": book_tax, "branch": branch, **period}}
@@ -122,11 +121,37 @@ class PrepareDirection(unittest.TestCase):
         seen = self.prepare(courier(seller_name="ซินเซียร์ไอซ์", seller_tax=BOOK_TAX))
         self.assertEqual((seen["direction"], seen["history"]["direction"], seen["seller_tax"]), ("sales", "sales", ""))
 
-    def test_a_document_naming_another_buyer_is_still_refused(self):
-        with self.assertRaisesRegex(Translated, "own tax ID"):
-            self.prepare(courier(buyer_name="Other Co", buyer_tax=OTHER))
-        with self.assertRaisesRegex(Translated, "own tax ID"):
-            self.prepare(courier(buyer_name="Other Co", buyer_tax=OTHER), direction="purchase")
+    def test_a_document_naming_another_buyer_goes_into_the_chosen_set(self):
+        """直写（用户 2026-11-04）：票面买方是别家（本方税号与所选账套不同）照常准备推往所选账套，不拦。"""
+        seen = self.prepare(courier(buyer_name="Other Co", buyer_tax=OTHER), direction="purchase")
+        self.assertEqual((seen["direction"], seen["history"]["direction"]), ("purchase", "purchase"))
+        self.assertEqual(seen["context"]["account_tax_id"], BOOK_TAX)
+        self.assertEqual(seen["seller_tax"], COURIER)
+        # 销项：票面卖方是别家，同样照推
+        seen = self.prepare(courier(seller_tax=OTHER, buyer_tax=BOOK_TAX), direction="sales")
+        self.assertEqual(seen["direction"], "sales")
+        # 没写明方向、两边税号都对不上：不拦，方向判不出照旧交给预检停下问进项还是销项（同 Express 自己要选单种）
+        seen = self.prepare(courier(buyer_name="Other Co", buyer_tax=OTHER))
+        self.assertIsNone(seen["direction"])
+        self.assertNotIn("direction", seen["history"])
+
+    def test_the_operator_precheck_lets_another_buyer_through(self):
+        """代录开始前检查（`operator_check`，用户 2026-11-04 BJC 实测 22 张全被拦）：买方是别家照常放行。"""
+        def check(**fields):
+            service, _seen, (doc, _loaded) = wired(courier(buyer_name="Other Co", buyer_tax=OTHER, **fields),
+                                                   direction="purchase")
+            doc.push_connection, doc.push_account_set = "C1", BOOK
+            doc.last_push_status = doc.last_push_reason = doc.last_push_record = ""
+            service.lifecycle.result_unknown = lambda *a: False
+            service.frappe.db.rollback = lambda: None
+            service.choices_view = lambda *a, **k: {}
+            return service.operator_check("CWH-9151")
+
+        self.assertEqual(check(), {"state": "ready"})
+        # 同一条路上的期间核对照旧在（Express 自己也拒）：日期晚于账套次年段的停下
+        stopped = check(date="2028-01-02")
+        self.assertEqual(stopped["state"], "blocked")
+        self.assertIn("fiscal period", stopped["message"])
 
     def test_an_explicit_direction_is_kept_as_it_is(self):
         seen = self.prepare(courier(seller_tax=BOOK_TAX), direction="expense")
@@ -163,9 +188,9 @@ class PrepareDirection(unittest.TestCase):
         self.assertEqual(service._express_facts(doc, loaded, BOOK)[3], "purchase")
 
 
-class BranchRouting(unittest.TestCase):
-    """补充 甲.3（用户 2026-10-15）：同一法人有几个分店的账套时，进项票票面的买方分店只认这个分店的账套；票面没有分店
-    用 CC 对话的分店；与所选账套分店不符就拦（照现有账套核对的硬闸），不静默改。只有一个分店的不按分店拦。"""
+class BranchNotChecked(unittest.TestCase):
+    """补充 甲.3 的分店硬闸已取消（用户 2026-11-04：Express 单据上没有本方分店可比，不拦；直写与代录同步）：同一法人有几个
+    分店的账套时，票面本方分店与所选账套不同也照推；CC 对话指定的分店不再取（钩子 ``cowork_push_work_branch`` 已删）。"""
     TWO = {BOOK: "00000", r"c:\pearnlyexpress\70exp\t9b12": "00012"}
 
     def prepare(self, fields, **kwargs):
@@ -176,78 +201,36 @@ class BranchRouting(unittest.TestCase):
     def bought(self, **fields):
         return courier(buyer_name="ซินเซียร์ไอซ์", buyer_tax=BOOK_TAX, **fields)
 
-    def test_the_buyer_branch_printed_on_the_document_must_be_the_chosen_sets_branch(self):
-        with self.assertRaisesRegex(Translated, "another branch"):
-            self.prepare(self.bought(buyer_branch="00012"), branches=self.TWO)
-        with self.assertRaisesRegex(Translated, "another branch"):
-            self.prepare(self.bought(buyer_branch="สาขาที่ 12"), branches=self.TWO)
-        self.assertEqual(self.prepare(self.bought(buyer_branch="00000"), branches=self.TWO)["direction"], "purchase")
-        self.assertEqual(self.prepare(self.bought(buyer_branch="สำนักงานใหญ่"), branches=self.TWO)["direction"],
-                         "purchase")
+    def test_another_branch_printed_on_the_document_is_pushed_to_the_chosen_set(self):
+        for branch in ("00012", "สาขาที่ 12", "00000", "สำนักงานใหญ่", ""):
+            with self.subTest(branch=branch):
+                seen = self.prepare(self.bought(buyer_branch=branch), branches=self.TWO)
+                self.assertEqual(seen["direction"], "purchase")
+                self.assertNotIn("cowork_push_work_branch", seen["hooks"])
 
-    def test_without_a_printed_branch_the_conversation_branch_decides(self):
-        with self.assertRaisesRegex(Translated, "another branch"):
-            self.prepare(self.bought(), branches=self.TWO, work_branch="00012")
-        seen = self.prepare(self.bought(), branches=self.TWO, work_branch="00000")
-        self.assertEqual(seen["work_branch_asked"], [("C1", BOOK)])
-        # 对话没定分店：不拦（CC 按说明问一次）
-        self.assertEqual(self.prepare(self.bought(), branches=self.TWO)["direction"], "purchase")
-        # 票面印了分店就按票面，不看对话
-        self.assertEqual(self.prepare(self.bought(buyer_branch="00000"), branches=self.TWO, work_branch="00012")
-                         ["direction"], "purchase")
-
-    def test_the_conversation_branch_is_only_asked_for_when_it_matters(self):
-        # 只有票面没印分店、这家又有几个分店时才去取对话指定的分店（钩子）；普通推送不调钩子
-        seen = self.prepare(self.bought(), branches={BOOK: "00000"}, work_branch="00012")
-        self.assertEqual(seen["work_branch_asked"], [])
-        seen = self.prepare(self.bought(buyer_branch="00000"), branches=self.TWO, work_branch="00012")
-        self.assertEqual(seen["work_branch_asked"], [])
-
-    def test_a_single_branch_company_is_not_checked_by_branch(self):
-        self.assertEqual(self.prepare(self.bought(buyer_branch="00012"), branches={BOOK: "00000"})["direction"],
-                         "purchase")
-        self.assertEqual(self.prepare(self.bought(buyer_branch="00012"))["direction"], "purchase")
-
-    def test_the_rule_itself(self):
-        rows = [{"source_id": key, "attributes": {"tax_id": BOOK_TAX, "branch": branch}} for key, branch in self.TWO.items()]
-        head = rows[0]
+    def test_the_rule_itself_no_longer_looks_at_branches(self):
+        head = {"source_id": BOOK, "attributes": {"tax_id": BOOK_TAX, "branch": "00000"}}
         conflict = account_match.conflict
-        self.assertEqual(conflict("express", head, direction="sales", fields={"seller_tax": BOOK_TAX,
-                                                                               "seller_branch": "12"}, catalog=rows),
-                         account_match.BRANCH_MISMATCH)  # 销项看卖方分店
-        self.assertEqual(conflict("express", head, direction="", fields={"buyer_branch": "00012"}, catalog=rows), "")
-        self.assertEqual(conflict("mrerp", head, direction="purchase", fields={"buyer_branch": "00012"}, catalog=rows), "")
-        self.assertEqual(account_match.company_branches(rows + [{"attributes": {"tax_id": OTHER, "branch": "00099"}}],
-                                                        BOOK_TAX), {"00000", "00012"})
+        self.assertEqual(conflict("express", head, fields={"seller_tax": BOOK_TAX, "seller_branch": "12"}), "")
+        self.assertEqual(conflict("express", head, fields={"buyer_tax": BOOK_TAX, "buyer_branch": "00012"}), "")
+        self.assertFalse(hasattr(account_match, "BRANCH_MISMATCH"))
+        self.assertFalse(hasattr(account_match, "TAX_MISMATCH"))
 
-    def test_branches_are_counted_within_the_same_period(self):
-        """验收 F16：39 份账套都是分店 00001、只有 2014 年一份旧账套是 00000——当期只有一个分店，总公司票不按分店拦。"""
-        def book(key, branch, start, end):
-            return {"source_id": key, "attributes": {"tax_id": BOOK_TAX, "branch": branch, "period_start": start,
-                                                     "period_end": end}}
-        old = book("old", "00000", "2014-01-01", "2014-12-31")
-        current = book("t9asc", "00001", "2026-01-01", "2026-12-31")
-        head_office = {"buyer_tax": BOOK_TAX, "buyer_branch": "สำนักงานใหญ่", "date": "2026-09-30"}
+    def test_another_own_tax_id_is_not_a_conflict(self):
+        """本方税号（进项看买方、销项看卖方）是别家的有效税号：账套核对不再回原因码，期间核对照旧。"""
+        book = {"source_id": BOOK, "attributes": {"tax_id": BOOK_TAX, "period_start": "2026-01-01",
+                                                  "period_end": "2026-12-31"}}
         conflict = account_match.conflict
-        self.assertEqual(conflict("express", current, direction="purchase", fields=head_office, catalog=[old, current]), "")
-        # 没有日期：数与所选账套期间重叠的
-        undated = {key: value for key, value in head_office.items() if key != "date"}
-        self.assertEqual(conflict("express", current, direction="purchase", fields=undated, catalog=[old, current]), "")
-        # 同一期间真有两个分店：照拦
-        other = book("t9asc-hq", "00000", "2026-01-01", "2026-12-31")
-        self.assertEqual(conflict("express", current, direction="purchase", fields=head_office,
-                                  catalog=[old, current, other]), account_match.BRANCH_MISMATCH)
-        self.assertEqual(account_match.company_branches([old, current, other], BOOK_TAX,
-                                                        day=account_match._day("2014-06-01")), {"00000"})
-        # 没报期间的账套照数（判不出就不排除）
-        bare = {"source_id": "bare", "attributes": {"tax_id": BOOK_TAX, "branch": "00000"}}
-        self.assertEqual(account_match.company_branches([current, bare], BOOK_TAX, day=account_match._day("2026-09-30")),
-                         {"00000", "00001"})
+        self.assertEqual(conflict("express", book, fields={"buyer_tax": OTHER, "date": "2026-03-01"}), "")
+        self.assertEqual(conflict("express", book, fields={"seller_tax": OTHER, "buyer_tax": COURIER,
+                                                          "date": "2026-03-01"}), "")
+        self.assertEqual(conflict("express", book, fields={"buyer_tax": OTHER, "date": "2027-03-01"}),
+                         account_match.PERIOD_MISMATCH)
 
 
 class NextYearPeriod(unittest.TestCase):
-    """新年度账套还没建时，下一年的单记进旧账套的次年段（认 ``next_end``）；新年度账套一建好就推往新账套（用户 2026-10-16）。
-    按日期选账套（T1、自动推）与推送的期间硬闸共用 `account_match.for_day` / `newer_book_covers`。"""
+    """新年度账套还没建时，下一年的单记进旧账套的次年段（认 ``next_end``）；按日期选账套（T1、自动推，`account_match.for_day`）
+    新年度账套一建好就选新账套（用户 2026-10-16）。人选了旧账套推次年段的单不拦（用户 2026-11-04：Express 的期间窗含次年段，照收）。"""
 
     @staticmethod
     def book(key, start, end, next_end="", tax=BOOK_TAX, branch="00000", company="ACME"):
@@ -299,30 +282,24 @@ class NextYearPeriod(unittest.TestCase):
         self.assertEqual(month([old, self.book("y26", "", "", "")], "2026-01-01", "2026-01-31", span), [])
         self.assertEqual(month([old], "", "2026-01-31", span), [])
 
-    def test_the_hard_gate_sends_next_year_documents_to_the_new_book_once_it_exists(self):
+    def test_the_hard_gate_only_stops_dates_outside_the_whole_fiscal_window(self):
         conflict = account_match.conflict
         old = self.book("t8", "2025-01-01", "2025-12-31", "2026-12-31")
-        new = self.book("y26", "2026-01-01", "2026-12-31", "2027-12-31")
         fields = {"buyer_tax": BOOK_TAX, "date": "2026-03-01"}
-        self.assertEqual(conflict("express", old, direction="purchase", fields=fields, catalog=[old]), "")
-        self.assertEqual(conflict("express", old, direction="purchase", fields=fields, catalog=[old, new]),
-                         account_match.PERIOD_MISMATCH)
-        self.assertEqual(conflict("express", new, direction="purchase", fields=fields, catalog=[old, new]), "")
-        # 别家、别的分店建了新年度账套不算；没有税号的按目录公司名认同一家
-        self.assertEqual(conflict("express", old, direction="purchase", fields=fields,
-                                  catalog=[old, self.book("y26-other", "2026-01-01", "2026-12-31", tax=OTHER)]), "")
-        self.assertEqual(conflict("express", old, direction="purchase", fields=fields,
-                                  catalog=[old, self.book("y26-b1", "2026-01-01", "2026-12-31", branch="00001")]), "")
-        bare_old = self.book("n8", "2025-01-01", "2025-12-31", "2026-12-31", tax="")
-        bare_new = self.book("n26", "2026-01-01", "2026-12-31", tax="")
-        self.assertEqual(conflict("express", bare_old, direction="purchase", fields={"date": "2026-03-01"},
-                                  catalog=[bare_old, bare_new]), account_match.PERIOD_MISMATCH)
-        self.assertEqual(conflict("express", bare_old, direction="purchase", fields={"date": "2026-03-01"},
-                                  catalog=[bare_old, self.book("n26", "2026-01-01", "2026-12-31", tax="",
-                                                               company="OTHER")]), "")
-        # 晚于次年段：照旧拦
-        self.assertEqual(conflict("express", old, direction="purchase", fields={**fields, "date": "2027-01-02"},
-                                  catalog=[old]), account_match.PERIOD_MISMATCH)
+        # 次年段：新年度账套建没建都照推（Express 的期间窗含次年段）
+        self.assertEqual(conflict("express", old, fields=fields), "")
+        self.assertFalse(hasattr(account_match, "newer_book_covers"))
+        self.assertEqual(conflict("express", old, fields={"date": "2025-06-01"}), "")
+        # 晚于次年段、早于本年：照旧拦（Express Message#. 70）
+        self.assertEqual(conflict("express", old, fields={**fields, "date": "2027-01-02"}), account_match.PERIOD_MISMATCH)
+        self.assertEqual(conflict("express", old, fields={**fields, "date": "2024-12-31"}), account_match.PERIOD_MISMATCH)
+        # 没报次年段：只认本年
+        bare = self.book("n8", "2025-01-01", "2025-12-31")
+        self.assertEqual(conflict("express", bare, fields={"date": "2026-03-01"}), account_match.PERIOD_MISMATCH)
+        # 读不出日期、账套没报期间：不拦
+        self.assertEqual(conflict("express", old, fields={"buyer_tax": BOOK_TAX}), "")
+        self.assertEqual(conflict("express", self.book("x", "", ""), fields=fields), "")
+        self.assertEqual(conflict("mrerp", old, fields={**fields, "date": "2030-01-01"}), "")
 
 
 class FrozenTarget(unittest.TestCase):
@@ -381,7 +358,7 @@ class FrozenTarget(unittest.TestCase):
         self.assertEqual(reserved["frozen_payload"], {"doctype": "RR"})
 
 
-# MR.ERP 的分流与匹配闸（共用层 `pearnly_core.mrerp.push.routing`）：方向判定与匹配闸是真规则，货 / 费判据、付款判据、单据防呆换成替身
+# MR.ERP 的分流与方向闸（共用层 `pearnly_core.mrerp.push.routing`）：方向判定与方向闸是真规则，货 / 费判据、付款判据、单据防呆换成替身
 # （这里只核方向）。货 / 费替身：复核屏点过「费用」才是费用。
 _ROUTING_STUBS = {
     **CORE,
@@ -408,15 +385,15 @@ class MrErpDirection(unittest.TestCase):
     """MR.ERP 按推往的这家公司在 MR.ERP 登记的税号判进 / 销项（T2，2026-10-19，同 Express 2b825a00）。
 
     事务所替客户记账：工作空间税号（FIRM）不是票上的买卖方；推往的公司（BOOK_TAX）才是。以前只按工作空间税号判，
-    判不出就按默认赊销、匹配闸看两边税号都不是工作空间的，拦成 ERR_ACCOUNT_SET_MISMATCH。"""
+    判不出就按默认赊销、方向闸（原「匹配闸」，11-04 改名）停下。方向闸只管「进项还是销项判不出」，不看票是不是这家公司的。"""
 
     def route(self, flat, account=BOOK_TAX, own=FIRM):
         return routing.choose_doc_type(flat, flat, own_tax_id=own, account_tax_id=account, mappings={},
                                        today=None)
 
     def gate(self, flat, expected, account=BOOK_TAX, own=FIRM):
-        return routing.confirmed_account_set_mismatch(flat, flat, own_tax_id=own, expected_direction=expected,
-                                                      account_tax_id=account)
+        return routing.direction_unsettled(flat, flat, own_tax_id=own, expected_direction=expected,
+                                           account_tax_id=account)
 
     def test_the_company_as_buyer_is_a_purchase(self):
         flat = mrerp_flat(seller_tax=OTHER, buyer_name="ซินเซียร์ไอซ์", buyer_tax=BOOK_TAX)
@@ -470,12 +447,29 @@ class MrErpDirection(unittest.TestCase):
         self.assertEqual(self.route(flat), "sales_credit")
         self.assertFalse(self.gate(flat, "sales"))
 
-    def test_another_companys_document_is_still_refused(self):
+    def test_another_companys_document_with_a_known_direction_goes_in(self):
+        """用户 2026-11-04（Express 不拦、MR.ERP 不拦，我们就不拦）：买卖方都不是这家公司的票，写明了进项 / 销项就照常写。"""
+        purchase = mrerp_flat("purchase", seller_tax=OTHER, buyer_name="บริษัทอื่น", buyer_tax=COURIER)
+        self.assertEqual(self.route(purchase), "purchase")
+        self.assertFalse(self.gate(purchase, "purchase"))
+        sale = mrerp_flat("sales", seller_tax=COURIER, buyer_name="บริษัทอื่น", buyer_tax=OTHER)
+        self.assertEqual(self.route(sale), "sales_credit")
+        self.assertFalse(self.gate(sale, "sales"))
+
+    def test_an_undecidable_direction_still_stops_to_ask(self):
+        # 没写方向、两边税号都不是这家：判不出进项还是销项，停下问一次（不落进默认赊销模块）
         flat = mrerp_flat(seller_tax=OTHER, buyer_name="บริษัทอื่น", buyer_tax=COURIER)
         self.assertIsNone(self.route(flat))
         self.assertTrue(self.gate(flat, "sales"))
         self.assertTrue(self.gate(flat, "purchase"))
-        # 方向判出来了、却被推进相反的模块：照旧拦
+        # 买卖方同一个税号（原单据防呆 seller_buyer_same_tax，11-04 取消）：方向判不出，同样停下
+        same = mrerp_flat(seller_tax=BOOK_TAX, buyer_tax=BOOK_TAX)
+        self.assertIsNone(self.route(same))
+        self.assertTrue(self.gate(same, "sales"))
+        self.assertFalse(self.gate(mrerp_flat("purchase", seller_tax=BOOK_TAX, buyer_tax=BOOK_TAX), "purchase"))
+        # 零售小票一个税号都没读到：照旧走默认模块
+        self.assertFalse(self.gate(mrerp_flat(seller_name="ร้าน"), "sales"))
+        # 方向判出来了、却被推进相反的模块：照旧停
         self.assertTrue(self.gate(mrerp_flat(seller_tax=OTHER, buyer_tax=BOOK_TAX), "sales"))
 
 

@@ -147,8 +147,7 @@ def review_reasons(doc, pages):
     if doc.last_push_status == "success":
         return []
     numbers = party_numbers(doc.workspace, doc.name, pages)
-    own_tax = frappe.db.get_value("Cowork Workspace", doc.workspace, "tax_id") if doc.workspace else None
-    return review.reasons(pages, own_tax=own_tax, party_numbers=numbers,
+    return review.reasons(pages, party_numbers=numbers,
                           duplicate=doc.duplicate_check_status == "matched", edited=int(doc.edit_count or 0) > 0)
 
 

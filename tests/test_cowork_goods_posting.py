@@ -139,7 +139,7 @@ class ServiceUnderAStockChoice(unittest.TestCase):
         text = "ใบกำกับภาษี 0107561000013 0994000333447 R-1 10/10/2026 32,100.00 " * 10
         facts = automation.Facts(direction="purchase", fields=fields, decision=decision, payload=payload, config=cfg,
                                  today=TODAY, ready=payload is not None, posting_from=source, text=text,
-                                 page_texts=[text], pages=[{"fields": fields}], account=row(), catalog=[row()],
+                                 page_texts=[text], pages=[{"fields": fields}], account=row(),
                                  day_books=[row()["source_id"].lower()], uploaded=TODAY)
         return decision, payload, automation.classify(facts)
 
@@ -188,7 +188,7 @@ class History(unittest.TestCase):
         facts = automation.Facts(direction="purchase", fields=fields, decision=decision, payload=payload, config=cfg,
                                  today=TODAY, ready=payload is not None, posting_from=source, posting_kind=kind,
                                  posting_history=history, text=text, page_texts=[text], pages=[{"fields": fields}],
-                                 account=row(), catalog=[row()], day_books=[row()["source_id"].lower()], uploaded=TODAY)
+                                 account=row(), day_books=[row()["source_id"].lower()], uploaded=TODAY)
         return automation.posting_by_history(facts), automation.classify(facts)
 
     def test_stock_history_agrees_with_a_stock_choice_only_when_stock_lines_are_written(self):

@@ -39,7 +39,7 @@ def server_codes():
 class LedgerSourceTests(unittest.TestCase):
     def test_every_code_stage_state_and_severity_has_words_in_every_language(self):
         codes, reserved = server_codes()
-        self.assertEqual(len(codes), 24)  # 第 3 期加 cc_proposal、cc_judged、written_mismatch
+        self.assertEqual(len(codes), 22)  # 第 3 期加 cc_proposal、cc_judged、written_mismatch；11-04 删本方税号、分店不符
         self.assertEqual(reserved, {"missing_document", "rule_conflict", "month_reopened"})
         company = block(read("i18n.ts"), "const COMPANY = {")
         sets = {}
@@ -254,7 +254,7 @@ assert.deepEqual([...html(limited).matchAll(/data-stage="(\w+)"/g)].map((m) => m
 const page = html(month);
 // 分组：要处理 → 看一眼 → 知悉，组内服务端顺序
 assert.deepEqual(groupExceptions(month.exceptions.items).map(([s, list]) => [s, list.map((i: any) => i.code)]), [
-  ["action", ["task_folder_missing", "intake_file_failed", "choice_needed", "account_tax_mismatch", "not_pushed", "push_failed", "tax_issue"]],
+  ["action", ["task_folder_missing", "intake_file_failed", "choice_needed", "account_period_mismatch", "not_pushed", "push_failed", "tax_issue"]],
   ["warn", ["express_missing", "tax_draft_stale"]],
   ["info", ["duplicate_number", "not_invoice", "express_changed"]],
 ]);
@@ -284,7 +284,7 @@ const items = [...page.matchAll(/<button type="button" class="cc-panel-row" data
 // 行尾去处读屏也读得到（sr-only，同 title）；汇总的件数写「N 张」，不和金额混成一列裸数字
 assert.deepEqual(items[0], ["task_folder_missing", "action", "Open task", "Folder not found · Buy · Open task"]);
 assert.deepEqual(items[1], ["intake_file_failed", "action", "Open task", "File failed · Buy · 2 documents · Open task"]);
-assert.deepEqual(items[2], ["account_tax_mismatch", "action", "Ask CC", "Tax ID mismatch · INV-h2 · Makro · 1,070.50 · Ask CC"]);
+assert.deepEqual(items[2], ["account_period_mismatch", "action", "Ask CC", "Period mismatch · INV-h2 · Makro · 1,070.50 · Ask CC"]);
 assert.deepEqual(items.find((i) => i[0] === "express_missing"), ["express_missing", "warn", "Ask CC", "Not found in Express · ABC 69 · 1 document · Ask CC"]);
 assert.deepEqual(items.find((i) => i[0] === "tax_draft_stale"), ["tax_draft_stale", "warn", "Ask CC", "Draft out of date · Head office · Ask CC"]);
 assert.deepEqual(items.find((i) => i[0] === "tax_issue"), ["tax_issue", "action", "Ask CC", "Draft issue · Past the 6-month claim period · Head office · 1 issue · Ask CC"]);
@@ -600,9 +600,9 @@ assert.deepEqual(pushOutcome({ document: "p1", status: "sent" }, failed), { kind
 assert.deepEqual(pushOutcome({ document: "p1", status: "already_success" }, failed), { kind: "done" });
 assert.deepEqual(pushOutcome({ document: "p1", status: "needs_choice", reason: "choice_needed:account", reason_label: "Choose the expense account" }, failed), { kind: "choose" });
 assert.deepEqual(pushOutcome({ document: "p1", status: "manual", reason: "choice_needed:party,account" }, failed), { kind: "choose" });
-assert.deepEqual(pushOutcome({ document: "p1", status: "failed", reason: "account_match:branch", reason_label: "Branch mismatch" }, failed),
-  { kind: "error", text: "Branch mismatch" });
-assert.deepEqual(pushOutcome({ document: "p1", status: "failed", reason: "account_match:branch" }, failed), { kind: "error", text: "Push failed" });
+assert.deepEqual(pushOutcome({ document: "p1", status: "failed", reason: "account_match:period", reason_label: "Period mismatch" }, failed),
+  { kind: "error", text: "Period mismatch" });
+assert.deepEqual(pushOutcome({ document: "p1", status: "failed", reason: "account_match:period" }, failed), { kind: "error", text: "Push failed" });
 assert.deepEqual(pushOutcome({ document: "p1", status: "failed", reason: "update_needed", reason_label: "update_needed" }, failed),
   { kind: "error", text: "Push failed" });  // 服务端翻不了的原因，给人看的话就是码本身
 assert.deepEqual(pushOutcome({ document: "p1", status: "waiting_for_cc", reason: "reading", reason_label: "Reading the account set" }, failed),

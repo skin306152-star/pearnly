@@ -1156,7 +1156,7 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
             "preparation": {"mappings": {}, "supplier_profiles": {}, "bank_index": ()},
             "selected": {"config": config}, "history_value": {"pages": pages}, "own_tax": OWN,
             "account_row": account, "invoice_date": dt.date.fromisoformat(fields["date"])},
-        _document_block=lambda doc: None, _work_branch=lambda *a: "", _fixed=lambda *a: None,
+        _document_block=lambda doc: None, _fixed=lambda *a: None,
         _company_rules=lambda *a: (None, True), _same_company=lambda *a: [], _apply_stock_group=lambda *a: None,
         _account_tax=lambda row: OWN, _loads=json.loads,
         _posting_decision=lambda doc, connection, row, kind, flat, direction, config, today, decide: (

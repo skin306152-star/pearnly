@@ -414,14 +414,14 @@ class JudgementLayer(unittest.TestCase):
         old_only = replay.shaped_books(m, [self.book])
         self.assertEqual(replay.day_books(m, old_only, self.book, doc["date"]),
                          [m["identity"].book("express", "replay", replay.account_row(self.book))["key"]])
-        found = replay.judge_document(m, doc, self.book, replay.Memory(), {}, [replay.account_row(self.book)],
+        found = replay.judge_document(m, doc, self.book, replay.Memory(), {},
                                       {}, replay.CompanyChoice(), old_only)
         self.assertEqual(found["outside"], "next_year")
         self.assertFalse({"period", "book"} & set(found["reasons"]), found["reasons"])
         newer = dict(self.book, key="C:\\PearnlyExpress\\T9ACME", period=(dt.date(2026, 1, 1), dt.date(2026, 12, 31)),
                      next_end=dt.date(2027, 12, 31), docs=[])
         both = replay.shaped_books(m, [self.book, newer])
-        found = replay.judge_document(m, doc, self.book, replay.Memory(), {}, [replay.account_row(self.book)],
+        found = replay.judge_document(m, doc, self.book, replay.Memory(), {},
                                       {}, replay.CompanyChoice(), both)
         self.assertIn("book", found["reasons"])
         # 10-17：按 book_pick 拆，新年度账套已建归 book_other_newer（原 next_year）
@@ -430,7 +430,7 @@ class JudgementLayer(unittest.TestCase):
         self.assertFalse(cause("next_year")(found))
         # 晚于次年段：照旧不在期间里
         late = dict(doc, date=dt.date(2027, 2, 3), entered=dt.date(2027, 2, 5))
-        found = replay.judge_document(m, late, self.book, replay.Memory(), {}, [replay.account_row(self.book)],
+        found = replay.judge_document(m, late, self.book, replay.Memory(), {},
                                       {}, replay.CompanyChoice(), old_only)
         self.assertEqual(found["outside"], "after")
         self.assertIn("period", found["reasons"])
@@ -469,7 +469,7 @@ class JudgementLayer(unittest.TestCase):
         def judge(number):
             memory = replay.Memory()
             memory.kinds["payment"][subject] = "credit"
-            return replay.judge_document(m, docs[number], self.book, memory, {}, [replay.account_row(self.book)],
+            return replay.judge_document(m, docs[number], self.book, memory, {},
                                          purchases)
 
         third = judge("RR680102-001")  # 之前只录了 2 张：不够「已定」，照常要人选
@@ -1003,7 +1003,7 @@ class Periods(unittest.TestCase):
         self.assertTrue(all(replay.primary_cause(dict(row, needed=[])) == "period_unknown" for row in mine))
         # 旧账套的单本年里照选；推到次年段要核新年度账套，同组那份期间没报：选不出
         later = replay.judge_document(m, dict(old["docs"][0], date=dt.date(2026, 3, 3), entered=dt.date(2026, 3, 5)),
-                                      old, replay.Memory(), {}, [replay.account_row(old)], {}, replay.CompanyChoice(),
+                                      old, replay.Memory(), {}, {}, replay.CompanyChoice(),
                                       replay.shaped_books(m, [old, new]))
         self.assertEqual((later["book_pick"], later["none_unknown"], later["outside"]), ("none", True, "next_year"))
         self.assertIn("book_none", later["reasons"])
@@ -1039,7 +1039,7 @@ class Periods(unittest.TestCase):
         self.assertEqual(pick([newer, old], newer, day), {"book_pick": "other", "other_newer": False})
         self.assertEqual(pick([old], old, dt.date(2028, 1, 1)), {"book_pick": "none", "none_unknown": False})
         # 回放行带上这些字段、期间来源、入账日那一段与跨年标记
-        row = replay.judge_document(m, old["docs"][0], old, replay.Memory(), {}, [replay.account_row(old)], {},
+        row = replay.judge_document(m, old["docs"][0], old, replay.Memory(), {}, {},
                                     replay.CompanyChoice(), replay.shaped_books(m, [old, new]))
         self.assertEqual((row["book_pick"], row["period_origin"], row["posted_part"], row["crossyear"]),
                          ("many", "answer", "", False))
@@ -1502,21 +1502,21 @@ class GateLayer(unittest.TestCase):
                   "subtotal": "1000.00", "vat": "70.00", "total_amount": "1070.00"}
         text = [f"ใบกำกับภาษี {SELLER} IV-0012 วันที่ 04/03/2568 รวมทั้งสิ้น 1,070.00 " + "x" * 200]
         invoice = {"page": 1, "fields": fields, "review": False, "warnings": []}
-        self.assertEqual(replay.gate_invoice(m, invoice, direction="purchase", own_tax=OWN, texts=text,
+        self.assertEqual(replay.gate_invoice(m, invoice, direction="purchase", texts=text,
                                              source_total=1), [])
-        self.assertEqual(replay.gate_invoice(m, invoice, direction="purchase", own_tax=OWN, texts=None,
+        self.assertEqual(replay.gate_invoice(m, invoice, direction="purchase", texts=None,
                                              source_total=1), ["image"])
         flagged = {**invoice, "review": True}
-        self.assertIn("review_flag", replay.gate_invoice(m, flagged, direction="purchase", own_tax=OWN, texts=text,
+        self.assertIn("review_flag", replay.gate_invoice(m, flagged, direction="purchase", texts=text,
                                                          source_total=1))
         self.assertIn("text_total", replay.gate_invoice(m, {**invoice, "fields": {**fields, "total_amount": "1170.00",
                                                                                    "subtotal": "1100.00"}},
-                                                        direction="purchase", own_tax=OWN, texts=text, source_total=1))
+                                                        direction="purchase", texts=text, source_total=1))
         # 跨页的票按原件页数逐页判文字层（审查处理 10-16）：第二页没有文字层就是图片单
         two = {**invoice, "pages": 2}
-        self.assertIn("image", replay.gate_invoice(m, two, direction="purchase", own_tax=OWN, texts=text + [""],
+        self.assertIn("image", replay.gate_invoice(m, two, direction="purchase", texts=text + [""],
                                                    source_total=1))
-        self.assertEqual(replay.gate_invoice(m, two, direction="purchase", own_tax=OWN, texts=text + ["y" * 220],
+        self.assertEqual(replay.gate_invoice(m, two, direction="purchase", texts=text + ["y" * 220],
                                              source_total=1), [])
 
     def test_passed_but_unpaired_counts_as_wrong(self):
@@ -1527,9 +1527,10 @@ class GateLayer(unittest.TestCase):
         self.assertEqual((found["text_pdf"]["n"], found["text_pdf"]["ok"], found["text_pdf"]["unpaired_passed"]),
                          (2, 1, 1))
 
-    def test_the_gate_needs_the_manifest_and_writes_are_refused_on_the_lan(self):
+    def test_the_gate_needs_the_gold_set_and_writes_are_refused_on_the_lan(self):
+        # 本方税号清单（--manifest）随复核原因「本方税号」一起取消（用户 2026-11-04）
         with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
-            replay.main(["gate", "--gold", "/tmp/g", "--originals", "/tmp/o", "--out", "/tmp/x"])
+            replay.main(["gate", "--originals", "/tmp/o", "--out", "/tmp/x"])
         with self.assertRaises(SystemExit):
             replay.main(["report", "--out", "/mnt/s/EXP69/out"])
         with self.assertRaises(SystemExit):

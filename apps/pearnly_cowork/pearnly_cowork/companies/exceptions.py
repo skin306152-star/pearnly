@@ -8,8 +8,9 @@
 - 自动推送（第 3 期第 11 条）：``cc_proposal`` 提议（A / B 类在 L0 / L1 冻结了 CC 准备好的做法，人点「推送」）、
   ``cc_judged`` 整月档自动推的 B 类（CC 按数据判断的项，只列，随第 6 期签字了结）、``written_mismatch`` 推后核对写入与预期
   不符（不回滚、不重推，交给 CC 看）。
-- 单据层的码在待处理的粗分（`pending.classify` 的 `REASONS`，即 ``group``）里再细分：推送拦下的分店 / 税号 / 期间不符按
-  `targets.account_match.CONFLICT_MESSAGES` 认回码，其余停下 / 失败是 push_manual / push_failed。
+- 单据层的码在待处理的粗分（`pending.classify` 的 `REASONS`，即 ``group``）里再细分：推送拦下的期间不符按
+  `targets.account_match.CONFLICT_MESSAGES` 认回码，其余停下 / 失败是 push_manual / push_failed（本方税号、分店不再拦，
+  用户 2026-11-04）。
 - 重复单号只列（info）：推送照写不拦（用户定「推送不查重不拦」）。
 - 保留不实现：`RESERVED`（本月缺单第 5 期、规则冲突第 4 期、重开月份第 6 期）。
 """
@@ -26,9 +27,7 @@ SEVERITIES = (ACTION, WARN, INFO)
 CODES = {
     "choice_needed": ("entry", ACTION, "choose"),
     "result_unknown": ("entry", ACTION, "open"),
-    account_match.TAX_MISMATCH: ("entry", ACTION, "open"),
     account_match.PERIOD_MISMATCH: ("entry", ACTION, "open"),
-    account_match.BRANCH_MISMATCH: ("entry", ACTION, "open"),
     "push_manual": ("entry", ACTION, "open"),
     "push_failed": ("entry", ACTION, "open"),
     "not_pushed": ("entry", ACTION, "open"),
@@ -50,7 +49,7 @@ CODES = {
     "tax_draft_stale": ("tax", WARN, "draft"),
 }
 RESERVED = ("missing_document", "rule_conflict", "month_reopened")
-CONFLICTS = (account_match.TAX_MISMATCH, account_match.PERIOD_MISMATCH, account_match.BRANCH_MISMATCH)
+CONFLICTS = (account_match.PERIOD_MISMATCH,)
 _CONFLICT_TEXTS = {text: code for code, text in account_match.CONFLICT_MESSAGES.items()}
 TAX_LEVELS = {"error": ACTION, "warn": WARN, "info": INFO}
 EXPRESS_CHANGES = ("changed", "deleted", "voided", "missing", "direct")

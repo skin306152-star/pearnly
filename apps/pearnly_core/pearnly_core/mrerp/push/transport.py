@@ -132,8 +132,8 @@ class MrErpImport:
         """按每张票的方向 / 付款 / 货费分流到对应导入模块后推送（见 routing.route_and_upload）。
 
         有票没有明确方向时，先读这家公司在 MR.ERP 登记的税号放进 ``mappings['_account_tax_id']``：工作空间税号判不出
-        方向时按它判，匹配闸也认它（事务所替客户记账，2026-10-19，同 Express 按账套税号判）。读不到 / 不是有效税号就不放，
-        照旧只按工作空间税号。都有明确方向时不读（方向与匹配闸都用不到）。"""
+        方向时按它判，方向闸也认它（事务所替客户记账，2026-10-19，同 Express 按账套税号判）。读不到 / 不是有效税号就不放，
+        照旧只按工作空间税号。都有明确方向时不读（方向与方向闸都用不到）。"""
         if self._sess is None:
             raise RuntimeError("MrErpImport used outside `with` block")
         self.note_account_tax(histories, mappings)
@@ -166,14 +166,14 @@ class MrErpImport:
         if not valid:
             return self._result(original, [], failed, t0, 0)
         m = self.module
-        mismatch_failed, preflight_failed = failed, []
+        unsettled_failed, preflight_failed = failed, []
         xlsx_bytes = _gen.generate_xlsx(valid, mappings, sheet_kind=m.sheet_kind, expense=m.expense)
         expected = [_gen.derive_mrerp_invoice_no(h) for h in valid]
 
         # 主档自建换掉了会话里的导入上下文：上传前必需的那次 formupload GET 顺便再核一次菜单（期间被改就停）。
         _, reason = mrerp_menus.resolve(self._read_menus(m), selmenu)
         if reason:
-            return self._result(original, [], mismatch_failed + preflight_failed
+            return self._result(original, [], unsettled_failed + preflight_failed
                                 + [self._fail_row(h, [reason]) for h in valid], t0, 0)
         self._upload_xlsx(xlsx_bytes, selmenu=selmenu, opened=True)
         form_fields, row_ids, idus_form = self._fetch_preview(selmenu=selmenu)
@@ -187,14 +187,14 @@ class MrErpImport:
         raw = self._confirm_import(form_fields, row_ids)
 
         success_rows, failed_rows, unknown_rows = self._classify(valid, expected, raw, idus_form, selmenu)
-        res = self._result(original, success_rows, mismatch_failed + preflight_failed + failed_rows,
+        res = self._result(original, success_rows, unsettled_failed + preflight_failed + failed_rows,
                            t0, len(xlsx_bytes))
         res.unknown = unknown_rows
         return res
 
     def ready_rows(self, histories: List[Dict[str, Any]], mappings: Dict[str, Any]
                    ) -> Tuple[List[Dict[str, Any]], List[FailedRow], Optional[str]]:
-        """这一组（当前模块）到「可以写进 MR.ERP」为止的准备：匹配闸、导入值（分店 / 部门…）、科目安全阀、菜单、自建对方、
+        """这一组（当前模块）到「可以写进 MR.ERP」为止的准备：方向闸、导入值（分店 / 部门…）、科目安全阀、菜单、自建对方、
         preflight、自建商品 → (能写的票, 挡下的行, 所选菜单号)。直写（生成导入表、上传）与代录准备（出网页表单要填的值，
         `push.operator_draft`）都从这里接着走，同一套判断、同一次建档。定不下来时能写的票为空、菜单号为 None。"""
         if self._sess is None:
@@ -203,11 +203,10 @@ class MrErpImport:
         if not m.verified or m.doc_type not in mrerp_menus.PAGE_OF:
             raise MRERPBusinessError(f"doc_type={m.doc_type} direct-write not ready")
 
-        # ★匹配闸:票面买卖方须符合套账主体(own_tax_id 由调用方从套账解析后放 mappings)。
-        # MR.ERP 导入不带卖方身份(默认=登录公司)→ 防"推错套账"只能靠这里的税号锚点。
-        histories, mismatch_failed = self._filter_by_account_set(histories, mappings)
+        # 方向闸:进项还是销项判不出的单停下问一次(routing.direction_unsettled);方向明确的别家票照常写。
+        histories, unsettled_failed = self._hold_unsettled(histories, mappings)
         if not histories:
-            return [], mismatch_failed, None
+            return [], unsettled_failed, None
 
         # 这家公司的导入值（分店 / 部门 / 员工 / 收款科目等）：按这次读到的主档、这份账套选过的值与规则算，定不下来就
         # 不推、不建主档（规则见 mrerp/masters.py）。参考科目、称谓、总店只有网页，会改写会话里的当前菜单，
@@ -222,19 +221,19 @@ class MrErpImport:
             self.account_defaults.header(mappings, histories, sales=m.doc_type.startswith("sales"),
                                          cash_sale=m.doc_type == "sales_cash")
         except Missing as missing:
-            return [], mismatch_failed + [self._fail_row(h, [missing.reason]) for h in histories], None
+            return [], unsettled_failed + [self._fail_row(h, [missing.reason]) for h in histories], None
 
         # 科目安全阀(主动层):这家公司的科目表(上面读到的)里没有要用的科目码 → 全挡下退回用户配置(不硬建)。
         review = account_gate(mappings)
         if review:
             reasons = [ACCOUNT_REVIEW_CODE, ", ".join(review)]
-            return [], mismatch_failed + [self._fail_row(h, reasons) for h in histories], None
+            return [], unsettled_failed + [self._fail_row(h, reasons) for h in histories], None
 
         # 菜单：这次打开的导入页里，这份账套选过的（或唯一一个）已关联日记账的菜单；定不下来就不推、不建主档。
         chosen = ((mappings or {}).get("_mrerp_menus") or {}).get(m.doc_type)
         menu, reason = mrerp_menus.resolve(self._read_menus(m), chosen)
         if reason:
-            return [], mismatch_failed + [self._fail_row(h, [reason]) for h in histories], None
+            return [], unsettled_failed + [self._fail_row(h, [reason]) for h in histories], None
         selmenu = menu["idmenu"]
         self._menu_label = str(menu.get("label") or "")
 
@@ -249,11 +248,11 @@ class MrErpImport:
             provision_suppliers(self, histories, mappings)
 
         if self.default_reason:  # 自建主档要的值定不下来（要人选 / 选过的没了）：这批不推
-            return [], mismatch_failed + [self._fail_row(h, [self.default_reason]) for h in histories], None
+            return [], unsettled_failed + [self._fail_row(h, [self.default_reason]) for h in histories], None
 
         valid, preflight_failed = self._preflight(histories, mappings)
         if not valid:
-            return [], mismatch_failed + preflight_failed, None
+            return [], unsettled_failed + preflight_failed, None
 
         # 销/采:明细行对不上已有商品则自建并注入码(在生成 xlsx 前)
         if m.doc_type.startswith("sales") or m.sheet_kind == "purchase":
@@ -261,18 +260,18 @@ class MrErpImport:
 
             provision_products(self, valid, mappings)
             if self.default_reason:
-                return [], mismatch_failed + preflight_failed + [self._fail_row(h, [self.default_reason])
+                return [], unsettled_failed + preflight_failed + [self._fail_row(h, [self.default_reason])
                                                                  for h in valid], None
 
-        return valid, mismatch_failed + preflight_failed, selmenu
+        return valid, unsettled_failed + preflight_failed, selmenu
 
     def _fail_row(self, h: Dict[str, Any], reasons: List[str]) -> FailedRow:
         return FailedRow(invoice_no=_gen.derive_mrerp_invoice_no(h), reasons=reasons, original=h)
 
-    def _filter_by_account_set(self, histories: List[Dict[str, Any]], mappings: Dict[str, Any]
-                               ) -> Tuple[List[Dict[str, Any]], List[FailedRow]]:
-        """匹配闸:只挡能确认是别家的票(读不到税号→放行不误挡)· _own_tax_id(工作空间税号)或
-        _account_tax_id(这家公司在 MR.ERP 登记的税号)有一个才启用(否则全放行)。"""
+    def _hold_unsettled(self, histories: List[Dict[str, Any]], mappings: Dict[str, Any]
+                        ) -> Tuple[List[Dict[str, Any]], List[FailedRow]]:
+        """方向闸(`routing.direction_unsettled`):_own_tax_id(工作空间税号)或 _account_tax_id(这家公司在 MR.ERP
+        登记的税号)有一个才启用(否则全放行)。"""
         own = mappings.get("_own_tax_id") if isinstance(mappings, dict) else None
         account = mappings.get("_account_tax_id") if isinstance(mappings, dict) else None
         if not own and not account:
@@ -281,9 +280,8 @@ class MrErpImport:
         kept: List[Dict[str, Any]] = []
         failed: List[FailedRow] = []
         for h in histories:
-            if routing.confirmed_account_set_mismatch(h, h, own_tax_id=own, expected_direction=expected,
-                                                      account_tax_id=account):
-                failed.append(self._fail_row(h, [routing.ACCOUNT_SET_MISMATCH_CODE]))
+            if routing.direction_unsettled(h, h, own_tax_id=own, expected_direction=expected, account_tax_id=account):
+                failed.append(self._fail_row(h, [routing.DIRECTION_UNKNOWN_CODE]))
             else:
                 kept.append(h)
         return kept, failed

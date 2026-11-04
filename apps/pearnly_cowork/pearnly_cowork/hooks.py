@@ -618,9 +618,6 @@ cowork_company_history_forget = ["pearnly_cowork.readback.history.company_forget
 # 月结台账「核对」一段：这家公司各本 Express 账套这个月最近的回读（能用这条连接的人都看得到，逐条连接核）。
 # companies 不导入 readback（同上）。
 cowork_company_month_readback = ["pearnly_cowork.readback.service.month_status"]
-# 推送前核对分店（补充 甲.3）：票面没有本方分店时，CC 对话指定的分店（`project_scope`，只在推往这家公司的账套时算）。
-# push 域不导入 companies（companies 依赖 push）。
-cowork_push_work_branch = ["pearnly_cowork.companies.provider.work_branch"]
 # 推送准备的公司规则（第 2 期统一客户规则）：这份账套所属公司的规则垫在账套记忆之下（`push/application/service.py` 的
 # `_decisions`）；按目录这一行的身份直接查公司、不缓存。push 域不导入 companies（companies 依赖 push）。
 cowork_push_company_choices = ["pearnly_cowork.companies.rules.for_push"]

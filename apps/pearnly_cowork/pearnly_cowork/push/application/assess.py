@@ -88,8 +88,7 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
     day = invoice_date.isoformat() if invoice_date else ""
     dated = {**fields, "date": day or fields.get("date")}
     blocked = service._document_block(doc) or ""
-    conflict = account_match.conflict("express", account_row, direction=direction, fields=dated, catalog=catalog,
-                                      work_branch=lambda: service._work_branch(connection, account_set))
+    conflict = account_match.conflict("express", account_row, fields=dated)
     if original_history(doc) != doc.name:
         blocked = blocked or "replacement"  # 改单 / 回导的票推往原单：交给人
     fixed = service._fixed(doc.name, connection, account_set, fixed)
@@ -127,7 +126,7 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
     facts = automation.Facts(
         direction=direction, fields=dated, decision=decision, payload=payload, config=config, today=today,
         ready=ready, blocked=blocked or conflict or reason, pages=pages, review_reasons=_list(doc.review_reasons),
-        text=text_layer.text(doc, page_texts), page_texts=page_texts, account=account_row, catalog=catalog,
+        text=text_layer.text(doc, page_texts), page_texts=page_texts, account=account_row,
         day_books=automation_service.day_books(connection, account_row, day, catalog),
         uploaded=simulated or _day(doc.creation), now=datetime.now(BANGKOK).date() if simulated else None,
         history_read=_read_day((decision.get("history") or {}).get("read")),

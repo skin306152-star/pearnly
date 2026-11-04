@@ -141,7 +141,7 @@ class Facts:
     ``ready`` / ``blocked``：硬闸（`account_match`、`doc_sanity`、`preflight_express`、录不录口径）全过 / 拦下的原因；
     ``pages`` / ``review_reasons``：票上的识别页与复核原因；``text``：原件的 PDF 文字层（全部页连起来，没有为 None）；
     ``page_texts``：原件这几页各自的文字层（`history.text_layer.pages`，隐形识别文字层的页为空串；没给时 ``text`` 只当一页）；
-    ``account`` / ``catalog``：推往账套在连接目录里的那一行 / 整个目录；``day_books``：按这张单日期选出的账套键
+    ``account``：推往账套在连接目录里的那一行；``day_books``：按这张单日期选出的账套键
     （定时任务跟随公司当年账套 T1 同一判据，判不出为 None）；``uploaded``：上传日；``source_total``：同一原件拆出几张票；
     ``prior_pushes``：这份账套里成功推送或还在途中（准备好、排队、在写、结果不明）的单（`prior_entry` 的形状）；``layers`` / ``history_read``：各层对同一项给的值
     （`layers`）与 Express 历史读到的日子；``posting_from``：商品单的入账类型哪来的（`goods_posting.resolve`：``declared`` /
@@ -172,7 +172,6 @@ class Facts:
     review_reasons: Sequence[Any] = ()
     text: Optional[str] = None
     account: Optional[Mapping[str, Any]] = None
-    catalog: Sequence[Mapping[str, Any]] = ()
     day_books: Optional[Sequence[str]] = None
     uploaded: Optional[dt.date] = None
     source_total: int = 1
@@ -393,20 +392,6 @@ def _swapped(day: dt.date) -> Optional[dt.date]:
         return None
 
 
-def _wrong_branch(facts: Facts, day: Optional[dt.date]) -> bool:
-    """同一法人有 2 份以上分店账套时，票面须印本方分店号且与这份账套的分店一致（人推照旧按 `account_match`，
-    票面没印分店时放行；自动推不放行）。"""
-    attributes = _attributes(facts.account)
-    tax = _digits(attributes.get("tax_id"))
-    if len(tax) != 13 or not _digits(attributes.get("branch")):
-        return False
-    branches = account_match.company_branches(facts.catalog, tax, day=day, period=_period(facts.account))
-    if len(branches) < 2:
-        return False
-    printed = account_match.printed_branch(facts.fields.get(f"{_own_side(facts.direction)}_branch"))
-    return not printed or printed != _branch5(attributes.get("branch"))
-
-
 def number_in_text(number: Any, text: Optional[str]) -> bool:
     """单号在文字层里作为一个完整的号出现：逐字相同（不分大小写，字之间可夹一个空白），前后不连着字母或数字。字母数字不到
     `NUMBER_MIN` 个的号不认（太短，随便一页都撞得上）。"""
@@ -512,26 +497,11 @@ def _same_push(facts: Facts) -> bool:
     return False
 
 
-def _own(facts: Facts) -> Tuple[str, str]:
-    """(推往账套的 13 位税号或空串, 票面印的本方税号数字)。"""
-    account = _digits(_attributes(facts.account).get("tax_id"))
-    return (account if len(account) == 13 else ""), _digits(facts.fields.get(f"{_own_side(facts.direction)}_tax"))
-
-
-def _own_mismatch(facts: Facts, tax_invoice: bool) -> bool:
-    account, printed = _own(facts)
-    if not account:
-        return False
-    if printed:
-        return printed != account
-    return tax_invoice
-
-
 def checks(facts: Facts) -> List[str]:
     """第 2 条：自动推前的核对 → 不过的原因码（全过回空表）。全部确定性、零费用、只作内部信号。"""
     found: List[str] = []
     fields, payload = facts.fields, _payload(facts)
-    # 硬闸照旧：account_match、doc_sanity、preflight_express 全部 ready；有要人选的项
+    # 硬闸照旧：account_match（期间）、doc_sanity、preflight_express 全部 ready；有要人选的项
     if facts.blocked:
         found.append("blocked")
     if not facts.ready or not payload:
@@ -571,10 +541,7 @@ def checks(facts: Facts) -> List[str]:
     party_tax = _digits(fields.get(f"{_party_side(facts.direction)}_tax"))
     if tax_invoice and not (len(party_tax) == 13 and valid_tax_id(party_tax)):
         found.append("party_tax")
-    # 本方：推往账套有 13 位税号时，票面印的本方税号要正好是它；正式税票必须印（`account_match` 只在本方读得出且校验位对时才拦，
-    # 读错一位、没印都放行 —— 人推照旧，自动推不放行，审查处理 10-16）
-    if _own_mismatch(facts, tax_invoice):
-        found.append("own_tax")
+    # 票面本方税号、本方分店与推往账套不同不核（用户 2026-11-04：Express 不按它们拦，人推、代录、自动推同步照推）
     # 日期：在推往账套的会计期间内（含次年段）、正是按日期选出的那份（新年度账套已建就是新的那份）、不晚于今天、
     # 不早于上传前 60 天、日月对调不会两可
     if day is None:
@@ -604,8 +571,6 @@ def checks(facts: Facts) -> List[str]:
         swapped = _swapped(day)
         if swapped and start and end and start <= swapped <= end and earliest <= swapped <= facts.today:
             found.append("day_month")
-    if _wrong_branch(facts, day):
-        found.append("branch")
     # 作废 / 退货、一拆多、挂证据页
     if any(word in text for word in VOID_WORDS) or _VOID_LATIN.search(text):
         found.append("void")
@@ -1031,7 +996,7 @@ def _vat_applies(payload: Mapping[str, Any]) -> bool:
 
 def tiers(facts: Facts) -> Dict[str, str]:
     """第 1 条每一项的档 ``{类: A|B|C}``：party 对方档、item 存货、account 费用 / 收入科目、payment 现 / 赊、vat 抵不抵进项、
-    department 部门、receipt POS 收款科目、own 本方（票面印的本方税号对上推往账套）、posting 商品单入账方式（这家公司选过的：
+    department 部门、receipt POS 收款科目、posting 商品单入账方式（这家公司选过的：
     这家供应商的 Express 历史一致 A、相反 C、其余 B，`posting_by_history`）。
     用不上的项不列。没出载荷时只列对方档。"""
     payload, decided = _payload(facts), dict((facts.decision or {}).get("decided_by") or {})
@@ -1079,11 +1044,6 @@ def tiers(facts: Facts) -> Dict[str, str]:
         out["posting"] = _posting_tier(facts)
         keyed["posting"] = "express_history"
     out["department"] = A  # 记过的照用，没记过取单据簿默认部门或不记（不再问，用户 10-08）
-    # 本方：票面印的本方税号正是推往账套的（A）；票面没印本方的收据 / 简式税票（B，去向是上传时选的，不是票面说的）。
-    # 印了却对不上、正式税票没印由第 2 条 ``own_tax`` 归 C；账套没有 13 位税号核不了，不列
-    account, printed = _own(facts)
-    if account and (printed == account or not printed):
-        out["own"] = A if printed else B
     # 按名字作键的来源最高算 B：对方没有 13 位税号时，账套记忆、公司规则、Express 历史都以名字为键
     if len(_digits(facts.fields.get(f"{_party_side(facts.direction)}_tax"))) != 13:
         for kind, source in keyed.items():

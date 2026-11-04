@@ -1,4 +1,5 @@
 """需复核原因（`history/review.py`）：纯规则，用 2026-09-28 Express 压测里出现过的几类错误做例子。"""
+import inspect
 import unittest
 
 from pearnly_core.express_rules.contracts.line_items import review_status
@@ -21,7 +22,7 @@ def codes(pages, **context):
 
 class ReviewReasons(unittest.TestCase):
     def test_a_clean_invoice_has_no_reason(self):
-        self.assertEqual(codes([page()], own_tax=OWN), [])
+        self.assertEqual(codes([page()]), [])
 
     def test_tax_ids_are_checked_by_length_and_check_digit(self):
         found = review.reasons([page(seller_tax="0105536080113")])
@@ -36,9 +37,11 @@ class ReviewReasons(unittest.TestCase):
         self.assertEqual(review.history_tax(OWN), OWN)
         self.assertEqual((review.history_tax("105546015063"), review.history_tax("12345")), ("", ""))
 
-    def test_the_own_tax_id_must_be_the_chosen_company(self):
-        self.assertEqual(codes([page()], own_tax="0105553045044"), ["own_tax"])
-        self.assertEqual(codes([page()], own_tax=None), [])
+    def test_another_company_as_the_own_side_is_not_a_reason(self):
+        # 用户 2026-11-04：票面本方税号与公司 / 账套不同不拦，也不当复核原因（自动推照推）
+        self.assertEqual(codes([page(buyer_tax=SUPPLIER, seller_tax=OWN)]), [])
+        self.assertEqual(codes([page(direction="sales", seller_tax=SUPPLIER, buyer_tax=OWN)]), [])
+        self.assertNotIn("own_tax", inspect.signature(review.reasons).parameters)
 
     def test_amounts_and_line_items_must_add_up(self):
         self.assertEqual(codes([page(total_amount="140.00")]), ["amount_math"])

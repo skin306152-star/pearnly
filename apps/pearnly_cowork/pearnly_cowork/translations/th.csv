@@ -594,7 +594,6 @@ Delivery type,ประเภทขนส่ง
 Department,แผนก
 Department for this rule,แผนก
 Deposit,ฝาก
-Deposit receipts need a person to decide how to post them in Express,ใบรับเงินมัดจำต้องให้คนตัดสินว่าจะบันทึกใน Express อย่างไร
 Description,คำอธิบาย
 Detail,รายละเอียด
 Details,รายละเอียด
@@ -1853,7 +1852,6 @@ The original file reference has changed.,การเชื่อมโยงไ
 The original invoice manifest is incomplete.,รายการเชื่อมโยงใบกำกับภาษีของไฟล์ต้นฉบับไม่ครบถ้วน
 The original invoice reference is invalid or unavailable.,การอ้างอิงเอกสารต้นฉบับไม่ถูกต้องหรือเข้าถึงไม่ได้
 The outdated unsent preparation was replaced.,แทนที่การเตรียมส่งที่ล้าสมัยและยังไม่ได้ส่งแล้ว
-The own tax ID on this document does not match the chosen account set. Check the account set and send it again.,เลขประจำตัวผู้เสียภาษีของกิจการบนเอกสารไม่ตรงกับชุดบัญชีที่เลือก กรุณาตรวจสอบชุดบัญชีแล้วส่งใหม่
 The payment methods do not add up to the day's total. Import the POS export again,ยอดตามวิธีชำระเงินรวมกันไม่เท่ากับยอดรวมของวัน กรุณานำเข้าไฟล์ส่งออก POS ใหม่
 The preview is temporarily unavailable. Please try again.,ไม่สามารถแสดงตัวอย่างได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง
 The printed invoice date cannot be read. Check the date shown on the document.,ไม่สามารถอ่านวันที่บนใบกำกับภาษีได้ กรุณาตรวจสอบวันที่บนเอกสาร
@@ -1899,7 +1897,6 @@ The review worksheet name contains extra spaces. Restore the original name.,ช�
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
 The rule owner can no longer enter documents with this connection.,ผู้รับผิดชอบกฎไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
 The scheduled task is incomplete or invalid.,ข้อมูลงานตามกำหนดเวลาไม่ครบถ้วนหรือไม่ถูกต้อง
-The seller and buyer have the same tax ID. Correct it and submit again,ผู้ขายและผู้ซื้อมีเลขประจำตัวผู้เสียภาษีเดียวกัน กรุณาแก้ไขแล้วส่งใหม่
 The source page number must be a positive integer.,หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก
 The start date is after the due date,วันเริ่มต้นต้องไม่อยู่หลังวันครบกำหนด
 The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.,รายการเดินบัญชีไม่มีรายการเคลื่อนไหวแต่ละรายการ (มีเฉพาะหน้าปกหรือหน้าสรุป) กรุณาอัปโหลดหน้าที่มีรายละเอียดรายการเคลื่อนไหว
@@ -1912,7 +1909,6 @@ The stocktake export snapshot is incomplete. Reload and try again.,ข้อม�
 The supplier is missing. Add it and submit again.,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
 The system is busy and the reconciliation was not finished. Please try again shortly.,ระบบไม่ว่าง การกระทบยอดยังไม่เสร็จสมบูรณ์ กรุณาลองใหม่อีกครั้งภายหลัง
 The task owner can no longer enter documents with this connection.,ผู้รับผิดชอบงานตามกำหนดเวลาไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
-The tax ID is not valid. Correct it and submit again,เลขประจำตัวผู้เสียภาษีไม่ถูกต้อง กรุณาแก้แล้วส่งใหม่
 The tax month is not valid.,เดือนภาษีไม่ถูกต้อง
 The unsent preparation was cancelled.,ยกเลิกการเตรียมส่งที่ยังไม่ได้ส่งแล้ว
 The uploaded file does not match the file on the PC.,ไฟล์ที่อัปโหลดไม่ตรงกับไฟล์ในเครื่อง
@@ -1962,7 +1958,6 @@ This connection is disabled.,การเชื่อมต่อนี้ปิ
 This count entry has changed. Refresh it and try again.,รายการตรวจนับนี้เปลี่ยนแปลงแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง
 This customer is not in Express and could not be created. Check the customer name and tax ID,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
 This delivery conflicts with the current task state.,ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน
-This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,เอกสารนี้เป็นของสาขาอื่น ไม่ตรงกับสาขาของชุดบัญชีที่เลือก กรุณาเลือกชุดบัญชีของสาขานั้นแล้วส่งใหม่
 This document does not need this choice,เอกสารนี้ไม่ต้องเลือกว่าจะบันทึกหรือไม่
 This document format is not supported.,ไม่รองรับรูปแบบเอกสารนี้
 This document is in an Express operator entry,เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express
@@ -1983,7 +1978,6 @@ This import request ID has already been used for different content.,รหัส
 This inventory account group cannot be chosen for this account set.,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงเหลือนี้สำหรับชุดบัญชีนี้ได้
 This invoice has no lines. Add them and submit again.,เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่
 This invoice was already sent successfully,เอกสารนี้ส่งสำเร็จแล้ว
-This is a reissued or backdated document. Check it and submit again,เป็นเอกสารออกใบแทนหรือย้อนวันที่ กรุณาตรวจสอบแล้วส่งใหม่
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",ไฟล์นี้เป็นรายงานการขาย ไม่ใช่รายงานภาษีขาย กรุณาอัปโหลดรายงานภาษีขาย
 This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice,เอกสารนี้เป็นสลิปโอนเงิน เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,ไฟล์นี้เป็นงบทดลองซึ่งมีเฉพาะยอดรวมของแต่ละบัญชี กรุณาอัปโหลดบัญชีแยกประเภทที่มีรายการตามใบสำคัญแต่ละใบ
@@ -3450,8 +3444,6 @@ intake.error.credit_note,ใบลดหนี้ต้องบันทึก�
 intake.error.currency_not_thb,ส่งเข้า Express ได้เฉพาะเอกสารสกุลเงินบาท
 intake.error.date_future,วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่
 intake.error.date_implausible,วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่
-intake.error.date_reissued,เป็นเอกสารออกใบแทนหรือย้อนวันที่ กรุณาตรวจสอบแล้วส่งใหม่
-intake.error.deposit_receipt,ใบรับเงินมัดจำต้องให้คนตัดสินว่าจะบันทึกใน Express อย่างไร
 intake.error.direction_unknown,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
 intake.error.document_policy_needed_payment_evidence,เอกสารนี้เป็นสลิปโอนเงิน เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้
 intake.error.document_policy_needed_withholding_certificate,เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้
@@ -3477,8 +3469,6 @@ intake.error.pos_refund_account_missing,กรุณาเลือกบัญ�
 intake.error.pos_refund_items_invalid,รายการรับคืนต้องเป็นสินค้าคงคลังใน Express
 intake.error.posting_kind_needed,กรุณาเลือกว่าเอกสารนี้เป็นบริการหรือสินค้าคงเหลือ แล้วส่งใหม่
 intake.error.posting_needs_review,บริษัทนี้บันทึกเอกสารประเภทนี้เข้าสินค้าคงเหลือหรือเป็นค่าใช้จ่าย
-intake.error.seller_buyer_same_tax,ผู้ขายและผู้ซื้อมีเลขประจำตัวผู้เสียภาษีเดียวกัน กรุณาแก้ไขแล้วส่งใหม่
-intake.error.tax_id_invalid,เลขประจำตัวผู้เสียภาษีไม่ถูกต้อง กรุณาแก้แล้วส่งใหม่
 intake.mrerpDefault.ap_account,บัญชีเจ้าหนี้
 intake.mrerpDefault.ar_account,บัญชีลูกหนี้
 intake.mrerpDefault.area,พื้นที่การขาย

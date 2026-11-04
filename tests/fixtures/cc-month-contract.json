@@ -133,7 +133,7 @@
      }
     },
     {
-     "code": "account_tax_mismatch",
+     "code": "account_period_mismatch",
      "stage": "entry",
      "severity": "action",
      "action": "open",
@@ -144,7 +144,7 @@
      "amount": "1070.50",
      "date": "2026-09-20",
      "filename": "",
-     "reason_label": "text:The own tax ID on this document does not match the chosen account set. Check the account set and send it again.",
+     "reason_label": "text:The document date is outside the fiscal period of the chosen account set. Check the year and send it again.",
      "detail": ""
     },
     {
@@ -279,7 +279,7 @@
     "task_folder_missing": 1,
     "intake_file_failed": 2,
     "choice_needed": 1,
-    "account_tax_mismatch": 1,
+    "account_period_mismatch": 1,
     "not_pushed": 1,
     "push_failed": 1,
     "tax_issue": 1,

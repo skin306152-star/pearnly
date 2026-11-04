@@ -435,57 +435,33 @@ def book(path, name, root_label, *, tax=OWN_TAX, start=None, end=None, next_end=
 
 
 class AccountConflictTests(unittest.TestCase):
-    """用户 2026-09-27：账套由用户选，系统只拦确定错了的（本方税号不同、日期不在会计期间里）。"""
+    """用户 2026-09-27：账套由用户选，系统只拦确定错了的。2026-11-04 起只拦 Express 自己也拒的：日期不在账套整个会计期间里；
+    票面本方税号（进项看买方、销项看卖方）是别家也照推（Express 打开这家公司的账套就记在这家，我们也不拦）。"""
 
-    def check(self, fields, account=None, direction="purchase"):
+    def check(self, fields, account=None):
         account = account or book(r"S:\2569\EXP69\69ACME", "69ACME", "69EXP",
                                   start="2025-11-01", end="2026-10-31", next_end="2027-10-31")
-        return account_match.conflict("express", account, direction=direction, fields=fields)
+        return account_match.conflict("express", account, fields=fields)
 
     def test_matching_tax_and_date_pass(self):
         self.assertEqual(self.check({"buyer_tax": "0-1055-51234-56-7", "date": "2026-03-01"}), "")
         # 次年期间里也算（未结账前可以往下一年记）。
         self.assertEqual(self.check({"buyer_tax": OWN_TAX, "date": "2027-03-01"}), "")
 
-    def test_another_company_or_year_is_refused(self):
-        self.assertEqual(self.check({"buyer_tax": OTHER_TAX, "date": "2026-03-01"}), account_match.TAX_MISMATCH)
-        self.assertEqual(self.check({"seller_tax": OTHER_TAX, "buyer_tax": OWN_TAX}, direction="sales"),
-                         account_match.TAX_MISMATCH)
+    def test_another_company_passes_and_another_year_is_refused(self):
+        self.assertEqual(self.check({"buyer_tax": OTHER_TAX, "date": "2026-03-01"}), "")
+        self.assertEqual(self.check({"seller_tax": OTHER_TAX, "buyer_tax": OWN_TAX}), "")
+        self.assertEqual(self.check({"seller_tax": "0105599220248", "buyer_tax": OTHER_TAX}), "")
         self.assertEqual(self.check({"buyer_tax": OWN_TAX, "date": "2025-06-01"}), account_match.PERIOD_MISMATCH)
-
-    def test_without_a_direction_the_seller_is_not_taken_as_the_own_company(self):
-        """2026-10-15 testcowork：快递公司开的无买方简易税票方向判不出，原先按卖方比账套，报「本方税号不符」。"""
-        courier = "0105599220248"
-        for direction in (None, ""):
-            with self.subTest(direction=direction):
-                self.assertEqual(self.check({"seller_tax": courier, "buyer_tax": "", "date": "2026-10-14"},
-                                            direction=direction), "")
-                self.assertEqual(self.check({"seller_tax": OWN_TAX, "date": "2026-10-14"}, direction=direction), "")
-                self.assertEqual(self.check({"seller_tax": courier, "buyer_tax": OWN_TAX}, direction=direction), "")
-                # 卖方是这份账套、买方是别家：这家的销项，不冲突
-                self.assertEqual(self.check({"seller_tax": OWN_TAX, "buyer_tax": OTHER_TAX}, direction=direction), "")
-                # 买方是别家的有效税号、卖方也不是这份账套：确定不是这家的票，照旧拦
-                self.assertEqual(self.check({"seller_tax": courier, "buyer_tax": OTHER_TAX}, direction=direction),
-                                 account_match.TAX_MISMATCH)
-                self.assertEqual(self.check({"buyer_tax": OTHER_TAX}, direction=direction), account_match.TAX_MISMATCH)
-                # 买方税号读错一位（校验位不对）：判断不了，不拦
-                self.assertEqual(self.check({"seller_tax": courier, "buyer_tax": "0105559999997"}, direction=direction),
-                                 "")
-
-    def test_a_directed_document_still_checks_its_own_side(self):
-        self.assertEqual(self.check({"seller_tax": "0105599220248", "buyer_tax": ""}, direction="purchase"), "")
-        self.assertEqual(self.check({"seller_tax": OWN_TAX, "buyer_tax": OTHER_TAX}, direction="sales"), "")
-        self.assertEqual(self.check({"seller_tax": OTHER_TAX}, direction="sales"), account_match.TAX_MISMATCH)
+        self.assertEqual(self.check({"buyer_tax": OTHER_TAX, "date": "2027-11-01"}), account_match.PERIOD_MISMATCH)
 
     def test_unreadable_or_unreported_facts_never_block(self):
-        # 读错一位（校验位不对）、读不全、账套没报税号 / 期间、MR.ERP：都按用户的选择。
-        self.assertEqual(self.check({"buyer_tax": "0105559999997", "date": "2026-03-01"}), "")
+        # 读不全、账套没报期间、MR.ERP：都按用户的选择。
         self.assertEqual(self.check({"buyer_tax": "01055", "date": "not a date"}), "")
         bare = book(r"S:\OLD", "OLD", "59EXP", tax="")
         self.assertEqual(self.check({"buyer_tax": OTHER_TAX, "date": "2001-01-01"}, account=bare), "")
-        self.assertEqual(account_match.conflict("mrerp", bare, direction="purchase", fields={"buyer_tax": OTHER_TAX}), "")
-        self.assertEqual(account_match.conflict("express", None, direction="purchase", fields={"buyer_tax": OTHER_TAX}), "")
-
+        self.assertEqual(account_match.conflict("mrerp", bare, fields={"buyer_tax": OTHER_TAX}), "")
+        self.assertEqual(account_match.conflict("express", None, fields={"buyer_tax": OTHER_TAX}), "")
 
 
 class AccountSearchTests(unittest.TestCase):

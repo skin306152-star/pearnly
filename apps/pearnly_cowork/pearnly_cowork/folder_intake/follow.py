@@ -14,7 +14,7 @@
 `account_set_key`。MR.ERP 任务 2026-10-19 起同样跟随（按连接 + 公司代码认公司，服务器直接写、不看电脑）。
 
 公司与账套由 companies 现算，本域不导入它（companies 依赖 folder_intake）：经 hooks ``cowork_task_company`` /
-``cowork_task_books``（`companies.tasks`）。推送照旧过 `account_match` 的期间、税号与分店硬闸。
+``cowork_task_books``（`companies.tasks`）。推送照旧过 `account_match` 的期间硬闸。
 """
 import frappe
 

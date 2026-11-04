@@ -4195,19 +4195,17 @@ class CompanyNamedForADocumentTests(unittest.TestCase):
             "tax_id": self.OWN_TAX, "period_start": "2025-11-01", "period_end": "2026-10-31", "next_end": "2027-10-31"}}
         abb = {"document_type": "simplified_tax_invoice", "seller_name": "บริษัท ศรีกรุง เครื่องเขียน จำกัด",
                "seller_tax": "0105599220311", "date": "2026-10-13", "total_amount": "642.00"}
-        self.assertEqual(rule.conflict("express", account, direction="purchase", fields=abb), "")
-        # 有买方的照旧核：票面买方税号是别家就拦（推送回「本方税号与所选账套不符」），是这家就过
-        self.assertEqual(rule.conflict("express", account, direction="purchase",
-                                       fields={**abb, "buyer_tax": self.OTHER_TAX}), rule.TAX_MISMATCH)
-        self.assertEqual(rule.conflict("express", account, direction="purchase",
-                                       fields={**abb, "buyer_tax": self.OWN_TAX}), "")
-        # 2026-10-15 testcowork：方向没判出（工作空间税号不是这家账套的）时，不拿卖方（快递公司）的税号当本方去比
+        self.assertEqual(rule.conflict("express", account, fields=abb), "")
+        # 有买方的也照推（用户 2026-11-04：Express 不按单据本方税号拦）：买方是别家、是这家都过
+        self.assertEqual(rule.conflict("express", account, fields={**abb, "buyer_tax": self.OTHER_TAX}), "")
+        self.assertEqual(rule.conflict("express", account, fields={**abb, "buyer_tax": self.OWN_TAX}), "")
         courier = {"document_type": "simplified_tax_invoice", "seller_name": "บริษัท ด่วนจี่ เอ็กซ์เพรส",
                    "seller_tax": "0105599220248", "buyer_name": "", "buyer_tax": "", "date": "2026-10-14",
                    "total_amount": "285.00", "vat": "18.64"}
-        self.assertEqual(rule.conflict("express", account, direction=None, fields=courier), "")
-        self.assertEqual(rule.conflict("express", account, direction=None,
-                                       fields={**courier, "buyer_tax": self.OTHER_TAX}), rule.TAX_MISMATCH)
+        self.assertEqual(rule.conflict("express", account, fields=courier), "")
+        self.assertEqual(rule.conflict("express", account, fields={**courier, "buyer_tax": self.OTHER_TAX}), "")
+        # 只拦日期落在账套整个会计期间（含次年段）之外的
+        self.assertEqual(rule.conflict("express", account, fields={**abb, "date": "2027-11-01"}), rule.PERIOD_MISMATCH)
 
     def test_cc_is_told_the_users_word_names_the_company(self):
         line = next(line for line in tools.GUIDANCE if line.startswith("When the user says which company"))

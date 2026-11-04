@@ -258,8 +258,8 @@ def preflight_express(
             )
         pf.checks.append(Check("direction_enabled", OK))
 
-        # 单据防呆(确定性):外币/贷项/押金/未来日期/坏税号等"不该当普通票直推"的单据 → 转人工。
-        doc_reason = check_document(flat.get("fields") or {}, flat, direction, today=context.today)
+        # 单据防呆(确定性):外币/贷项/未来日期等"不该当普通票直推"的单据 → 转人工。
+        doc_reason = check_document(flat.get("fields") or {}, flat, today=context.today)
         # 写账前的通用护栏（`tax_documents.ledger_guard`）：缺总额、金额不闭合、完整税票只读到总额、缺单号 / 日期 → 转人工
         doc_reason = doc_reason or ledger.express_reason(flat)
         if doc_reason:

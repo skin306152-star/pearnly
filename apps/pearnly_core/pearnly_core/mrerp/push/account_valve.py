@@ -4,7 +4,7 @@
 两层:
 ① 反应层(工作即生效):MR.ERP 导入 report 报科目未匹配/不存在(泰文)时,把该失败**单独归为
    ERR_ACCOUNT_NEEDS_REVIEW**——提示用户"为该套账配置科目码",而非当普通失败或硬建科目。
-② 主动层(调用方提供该套账科目表 mappings['_mrerp_accounts'] 时启用,像 own_tax 闸):推前校验
+② 主动层(调用方提供该套账科目表 mappings['_mrerp_accounts'] 时启用,像方向闸):推前校验
    将用到的科目码都在表内,不在→挡下退回。未提供科目表 → 主动层休眠(无从判断,不误挡)。
 
 科目表拉取协议(bshlistboxdata.php)尚未打通 → 主动层现休眠,靠反应层兜底(见 known-facts §17)。

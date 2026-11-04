@@ -2539,12 +2539,13 @@ class TaskOverviewTests(unittest.TestCase):
         hooks = (APP / "hooks.py").read_text(encoding="utf-8")
         for name, path in (("cowork_company_history_choices", "pearnly_cowork.readback.history.company_choices"),
                            ("cowork_company_history_forget", "pearnly_cowork.readback.history.company_forget"),
-                           ("cowork_push_work_branch", "pearnly_cowork.companies.provider.work_branch"),
                            ("cowork_rules_company", "pearnly_cowork.companies.service.company_of_rules")):
             self.assertIn(f'{name} = ["{path}"]', hooks)
             module, _, attr = path.rpartition(".")
             tree = ast.parse((APP / (module.split(".", 1)[1].replace(".", "/") + ".py")).read_text(encoding="utf-8"))
             self.assertIn(attr, {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}, path)
+        # 推送前核对分店取消（用户 2026-11-04）：对话分店的钩子与提供方一起删了
+        self.assertNotIn("cowork_push_work_branch", hooks)
         self.assertEqual(choices.HISTORY_HOOK, "cowork_company_history_choices")
         self.assertEqual(choices.HISTORY_FORGET_HOOK, "cowork_company_history_forget")
 
@@ -2572,19 +2573,10 @@ class ProviderAndToolTests(unittest.TestCase):
         self.assertFalse(provider.allowed(self.abc, "a@example.com"))
         self.assertEqual(provider.view([self.abc], "a@example.com"), {})
 
-    def test_the_conversation_branch_is_given_only_for_this_companys_sets(self):
-        frappe.local.pearnly_assistant = {"session_id": "sesn_1"}
-        self.addCleanup(lambda: setattr(frappe.local, "pearnly_assistant", None))
-        projects.sessions["sesn_1"] = (self.abc, "2026-09", "00012")
-        self.assertEqual(provider.work_branch("C1", "s:/69exp/abc/"), "00012")
-        self.assertEqual(provider.work_branch("C1", "S:\\69EXP\\OTHER"), "")  # 不是这家的账套
-        self.assertEqual(provider.work_branch("C2", "S:\\69EXP\\ABC"), "")
-        projects.sessions["sesn_1"] = (self.abc, "2026-09", "")
-        self.assertEqual(provider.work_branch("C1", "S:\\69EXP\\ABC"), "")  # 对话没定分店
-        projects.sessions["sesn_1"] = ("gone", "", "00012")
-        self.assertEqual(provider.work_branch("C1", "S:\\69EXP\\ABC"), "")
-        frappe.local.pearnly_assistant = None
-        self.assertEqual(provider.work_branch("C1", "S:\\69EXP\\ABC"), "")  # 不在 CC 里（网页复核页、定时任务）
+    def test_the_conversation_branch_no_longer_feeds_a_push_check(self):
+        # 分店不符不再拦（用户 2026-11-04）：推送不再向对话要分店；对话分店照旧进公司说明
+        self.assertFalse(hasattr(provider, "work_branch"))
+        self.assertIn("Work branch: 00012", provider.context(self.abc, "2026-09", "00012", "a@example.com"))
 
     def _tools(self):
         return importlib.import_module("pearnly_cowork.assistant.company_tools")
@@ -2799,6 +2791,13 @@ class ProviderAndToolTests(unittest.TestCase):
 account_match = sys.modules["pearnly_core.express_rules.targets.account_match"]
 
 
+# 11-04 取消的两条拦截以前记在票上的原句（推送记原因时存英文原文）
+OLD_TAX_TEXT = ("The own tax ID on this document does not match the chosen account set. "
+                "Check the account set and send it again.")
+OLD_BRANCH_TEXT = ("This document belongs to another branch than the chosen account set. "
+                   "Choose that branch's account set and send it again.")
+
+
 class ExceptionCodeTests(unittest.TestCase):
     CUTOFF = datetime(2026, 10, 15, 8, 45)
 
@@ -2813,13 +2812,12 @@ class ExceptionCodeTests(unittest.TestCase):
             (history("b", last_push_reason="choice_needed:vat"), "choice_needed"),
             (history("c", last_push_status="manual", last_push_reason="ERP_CONFIRMED_PUSH_RESULT_UNKNOWN"),
              "result_unknown"),
-            (history("d", last_push_status="manual", last_push_reason=messages["account_tax_mismatch"]),
-             "account_tax_mismatch"),
+            # 本方税号、分店不符 11-04 取消：以前记在票上的原句 / 原因码不再认回专门的码，按停下 / 失败归类（再推就过）
+            (history("d", last_push_status="manual", last_push_reason=OLD_TAX_TEXT), "push_manual"),
             (history("e", last_push_reason=messages["account_period_mismatch"]), "account_period_mismatch"),
-            (history("f", last_push_status="failed", last_push_reason=messages["account_branch_mismatch"]),
-             "account_branch_mismatch"),
-            (history("g", last_push_status="manual", last_push_reason="account_tax_mismatch"), "account_tax_mismatch"),
-            (history("h", last_push_reason="[ACCOUNT_BRANCH_MISMATCH] other branch"), "account_branch_mismatch"),
+            (history("f", last_push_status="failed", last_push_reason=OLD_BRANCH_TEXT), "push_failed"),
+            (history("g", last_push_status="manual", last_push_reason="account_tax_mismatch"), "push_manual"),
+            (history("h", last_push_reason="[ACCOUNT_BRANCH_MISMATCH] other branch"), "push_failed"),
             (history("i", last_push_status="manual", last_push_reason="EXPRESS_MANUAL: party_missing"), "push_manual"),
             (history("j", last_push_reason="push.companion_account_unreported"), "push_failed"),
             (history("k"), "not_pushed"),
@@ -2830,7 +2828,7 @@ class ExceptionCodeTests(unittest.TestCase):
         self.assertEqual(self.code(history("l", last_push_status="manual", last_push_record="PR1"), frozenset({"PR1"})),
                          "result_unknown")
         # 粗分照旧（待处理页与早上汇总用）
-        self.assertEqual(exceptions.document_code(cases[3][0], self.CUTOFF), ("account_tax_mismatch", "manual"))
+        self.assertEqual(exceptions.document_code(cases[3][0], self.CUTOFF), ("push_manual", "manual"))
         self.assertEqual(exceptions.document_code(cases[4][0], self.CUTOFF), ("account_period_mismatch", "failed"))
         for row in (history("m", last_push_status="success"), history("n", last_push_status="pending"),
                     history("o", intake_target="none"), history("p", creation=datetime(2026, 10, 15, 8, 50))):
@@ -2838,8 +2836,7 @@ class ExceptionCodeTests(unittest.TestCase):
 
     def test_conflict_messages_are_one_table_shared_with_push(self):
         self.assertEqual(set(account_match.CONFLICT_MESSAGES), set(exceptions.CONFLICTS))
-        self.assertEqual(set(exceptions.CONFLICTS), {"account_tax_mismatch", "account_period_mismatch",
-                                                     "account_branch_mismatch"})
+        self.assertEqual(set(exceptions.CONFLICTS), {"account_period_mismatch"})
         push = (APP / "push/application/service.py").read_text(encoding="utf-8")
         self.assertIn("_ACCOUNT_CONFLICTS = account_match.CONFLICT_MESSAGES\n", push)
         self.assertNotIn("does not match the chosen account set", push)  # 文案只在 account_match 写一份
@@ -2849,6 +2846,9 @@ class ExceptionCodeTests(unittest.TestCase):
             self.assertIn(text, english)  # 推送拦下时照旧按词条翻译
             self.assertEqual(exceptions.conflict_code(f"  {text} "), exceptions.conflict_code(text))
         self.assertEqual(exceptions.conflict_code("Something else"), "")
+        for text in (OLD_TAX_TEXT, OLD_BRANCH_TEXT, "account_tax_mismatch", "account_branch_mismatch"):
+            self.assertEqual(exceptions.conflict_code(text), "")
+            self.assertNotIn(text, english)
 
     def test_the_code_table_is_complete_and_reserved_codes_stay_out(self):
         for code, (stage, severity, action) in exceptions.CODES.items():
@@ -2856,8 +2856,7 @@ class ExceptionCodeTests(unittest.TestCase):
             self.assertIn(severity, exceptions.SEVERITIES, code)
             self.assertIn(action, ("choose", "push", "open", "task", "readback", "draft"), code)
         self.assertEqual(set(exceptions.CODES), {
-            "choice_needed", "result_unknown", "account_tax_mismatch", "account_period_mismatch",
-            "account_branch_mismatch", "push_manual", "push_failed", "not_pushed", "duplicate_number",
+            "choice_needed", "result_unknown", "account_period_mismatch", "push_manual", "push_failed", "not_pushed", "duplicate_number",
             "task_folder_missing", "intake_file_failed", "pos_layout_needed", "not_invoice", "express_changed",
             "express_deleted", "express_voided", "express_missing", "express_direct", "tax_issue", "tax_draft_stale",
             "readback_needed", "cc_proposal", "cc_judged", "written_mismatch"})
@@ -2940,11 +2939,11 @@ class ExceptionCodeTests(unittest.TestCase):
         make()
         frappe.db.tables["Cowork OCR History"] = {row.name: row for row in (
             history("h1", last_push_status="manual",
-                    last_push_reason=account_match.CONFLICT_MESSAGES["account_branch_mismatch"]),
+                    last_push_reason=account_match.CONFLICT_MESSAGES["account_period_mismatch"]),
             history("h2", last_push_reason="push.failed"))}
         fresh_request()
         items = {item["document"]: item for item in pending.pending()["items"]}
-        self.assertEqual((items["h1"]["reason_code"], items["h1"]["code"]), ("manual", "account_branch_mismatch"))
+        self.assertEqual((items["h1"]["reason_code"], items["h1"]["code"]), ("manual", "account_period_mismatch"))
         self.assertEqual((items["h2"]["reason_code"], items["h2"]["code"]), ("failed", "push_failed"))
 
 
@@ -2987,7 +2986,7 @@ class MonthLedgerTests(unittest.TestCase):
         messages = account_match.CONFLICT_MESSAGES
         frappe.db.tables["Cowork OCR History"] = {row.name: row for row in (
             history("h1", last_push_status="manual", last_push_reason="choice_needed:party"),
-            history("h2", last_push_status="manual", last_push_reason=messages["account_tax_mismatch"]),
+            history("h2", last_push_status="manual", last_push_reason=messages["account_period_mismatch"]),
             history("h3", invoice_no="INV-7", last_push_status="success"),
             history("h4", last_push_status="pending"),
             history("h5"),  # 选了去向、没推，早就传了
@@ -3036,7 +3035,7 @@ class MonthLedgerTests(unittest.TestCase):
                                                  "tax_total": "70.00", "issues": 1, "stale": True}])
         self.assertEqual(stages["tax"]["state"], "attention")
         counts = found["exceptions"]["counts"]
-        self.assertEqual(counts, {"choice_needed": 1, "account_tax_mismatch": 1, "push_failed": 1, "not_pushed": 1,
+        self.assertEqual(counts, {"choice_needed": 1, "account_period_mismatch": 1, "push_failed": 1, "not_pushed": 1,
                                   "duplicate_number": 2, "task_folder_missing": 1, "intake_file_failed": 2,
                                   "not_invoice": 1, "express_changed": 1, "express_missing": 1, "tax_issue": 1,
                                   "tax_draft_stale": 1})

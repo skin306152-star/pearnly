@@ -1109,9 +1109,7 @@ Found {0}. Tap the number to choose:	找到 {0} 个账套，请点击序号选�
 Too many matches; type a few more letters to narrow it down	匹配结果过多，请输入更多关键字缩小范围	ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์	候補が多すぎます。もう少し入力して絞り込んでください
 Type a word from the inventory account group name to find it	输入存货科目组名称关键字查找	พิมพ์คำในชื่อกลุ่มบัญชีสินค้าคงเหลือเพื่อค้นหา	在庫勘定グループ名の一部を入力して検索
 No match for “{0}”	没有找到「{0}」	ไม่พบ “{0}”	「{0}」は見つかりません
-The own tax ID on this document does not match the chosen account set. Check the account set and send it again.	单据上的本方税号与所选账套不一致，请核对账套后重新发送。	เลขประจำตัวผู้เสียภาษีของกิจการบนเอกสารไม่ตรงกับชุดบัญชีที่เลือก กรุณาตรวจสอบชุดบัญชีแล้วส่งใหม่	書類上の自社の税番号が選択した会計データと一致しません。会計データを確認して再送してください。
 The document date is outside the fiscal period of the chosen account set. Check the year and send it again.	单据日期不在所选账套的会计期间内，请核对年度后重新发送。	วันที่เอกสารอยู่นอกงวดบัญชีของชุดบัญชีที่เลือก กรุณาตรวจสอบปีบัญชีแล้วส่งใหม่	書類の日付が選択した会計データの会計期間外です。年度を確認して再送してください。
-This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.	此单据属于其他分店，与所选账套不符。请选择该分店的账套后重新发送。	เอกสารนี้เป็นของสาขาอื่น ไม่ตรงกับสาขาของชุดบัญชีที่เลือก กรุณาเลือกชุดบัญชีของสาขานั้นแล้วส่งใหม่	この書類は選択した会計データとは別の支店のものです。その支店の会計データを選んで再送してください。
 Choose the year and account set first.	请先选择年度和账套。	กรุณาเลือกปีบัญชีและชุดบัญชีก่อน	先に年度と会計データを選択してください。
 Account set	账套	ชุดบัญชี	会計データ	intake.target.accountSet
 Read again	重新读取	อ่านใหม่	再読み込み	intake.catalog.reload
@@ -1504,12 +1502,8 @@ The result is not confirmed. Check in Express before sending again	结果未确�
 The result is not confirmed. Check in Express before sending again	结果未确认，请先在 Express 中核对，再决定是否重新推送	ยังไม่ยืนยันผลการส่ง กรุณาตรวจสอบใน Express ก่อนตัดสินใจส่งใหม่	結果が確認できません。Express で確認してから再送信してください	intake.error.confirmed_push_unacked
 Some fields are uncertain. Check them against the original and submit again	部分字段无法确认，请对照原件核对后重新提交	ข้อมูลบางช่องยังยืนยันไม่ได้ กรุณาตรวจสอบกับต้นฉบับแล้วส่งใหม่	不確かな項目があります。原本と照合して再送信してください	intake.error.low_confidence
 Only invoices in Thai baht can be sent to Express	仅泰铢发票可推送至 Express	ส่งเข้า Express ได้เฉพาะเอกสารสกุลเงินบาท	Express に送れるのはタイバーツの伝票だけです	intake.error.currency_not_thb
-The tax ID is not valid. Correct it and submit again	税号无效，请更正后重新提交	เลขประจำตัวผู้เสียภาษีไม่ถูกต้อง กรุณาแก้แล้วส่งใหม่	納税者番号が正しくありません。直して再送信してください	intake.error.tax_id_invalid
-The seller and buyer have the same tax ID. Correct it and submit again	卖方和买方税号相同，请更正后重新提交	ผู้ขายและผู้ซื้อมีเลขประจำตัวผู้เสียภาษีเดียวกัน กรุณาแก้ไขแล้วส่งใหม่	売手と買手の納税者番号が同じです。直して再送信してください	intake.error.seller_buyer_same_tax
 The invoice date is in the future. Correct it and submit again	票面日期晚于当前日期，请更正后重新提交	วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่	伝票日付が未来です。直して再送信してください	intake.error.date_future
 The invoice date looks wrong. Correct it and submit again	票面日期可能有误，请核对后重新提交	วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่	伝票日付がおかしいようです。確認して再送信してください	intake.error.date_implausible
-Deposit receipts need a person to decide how to post them in Express	押金或定金收据需人工决定如何在 Express 入账	ใบรับเงินมัดจำต้องให้คนตัดสินว่าจะบันทึกใน Express อย่างไร	預り金・手付金の領収書は Express での処理方法を手動で決めてください	intake.error.deposit_receipt
-This is a reissued or backdated document. Check it and submit again	这是补开或倒签的单据，请核对后重新提交	เป็นเอกสารออกใบแทนหรือย้อนวันที่ กรุณาตรวจสอบแล้วส่งใหม่	再発行・遡及日付の伝票です。確認して再送信してください	intake.error.date_reissued
 The invoice date is missing or unreadable. Fill it in and submit again	票面日期缺失或无法识别，请补填后重新提交	ไม่มีวันที่เอกสารหรืออ่านไม่ได้ กรุณากรอกแล้วส่งใหม่	伝票日付がないか読み取れません。入力して再送信してください	intake.error.bad_or_missing_date
 The amounts do not add up. Correct them and submit again	金额合计不一致，请更正后重新提交	ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่	金額が合いません。直して再送信してください	intake.error.amounts_not_consistent
 Credit notes need a person to post them in Express	贷项通知单需在 Express 中人工处理	ใบลดหนี้ต้องบันทึกใน Express ด้วยตนเอง	返品・値引伝票は Express で手動で処理してください	intake.error.credit_note

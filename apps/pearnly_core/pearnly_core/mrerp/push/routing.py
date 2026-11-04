@@ -6,7 +6,8 @@
 复用 Express 侧确定性方向判定(services/erp/express_push/direction · 税号锚点 · 不靠 LLM):
 套账主体税号 == 卖方 → 销项;== 买方 → 采购;两边都对不上/都命中 → ambiguous(None,留人工)。
 有意变化(2026-10-19,同 Express 2b825a00):工作空间税号判不出时再按推往的这家 MR.ERP 公司自己登记的税号判
-(`contracts.push.resolve_account_direction`;事务所替客户记账时工作空间税号不是票上的买卖方),匹配闸两个税号都认。
+(`contracts.push.resolve_account_direction`;事务所替客户记账时工作空间税号不是票上的买卖方),方向闸两个税号都认。
+不看票是不是这家公司的(用户 2026-11-04:Express 不按单据本方税号拦,我们也不拦):方向明确的别家票照常写。
 方向再按付款状态细分成具体导入模块(见 modules.MODULES):
   销项:已付/现金 → sales_cash;否则 → sales_credit
   采购:judge_direction(services/purchase/intake · 与 Pearnly 自身单据同口径)判 expense →
@@ -42,7 +43,7 @@ def _fields(flat: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def account_tax(raw: Any) -> str:
-    """这家公司在 MR.ERP 登记的税号 → 能当方向与匹配闸锚点的 13 位有效税号;读不到、不是有效税号
+    """这家公司在 MR.ERP 登记的税号 → 能当方向锚点的 13 位有效税号;读不到、不是有效税号
     (MR.ERP 样板库填的 8-888-888-88888-8、分店填的 1)→ 空串,只按工作空间税号判。"""
     tax = clean_tax_id(raw)
     return tax if tax and valid_tax_id(tax) else ""
@@ -87,7 +88,7 @@ def choose_doc_type(
     # judge_direction=expense 且买方身份完全缺失 = 本子里记的是费用支出 → ERP 同向
     # 落采购费用档。此前掉端点默认销项 → 销项闸要求挂客户 → 恒 ERR_NO_CLIENT(真机语料
     # SISTER MAKEUP 2026-07-02)。票面读到了买方税号(即便是别家的)不走此兜底,
-    # 仍留 None ——那是匹配闸(confirmed_account_set_mismatch)的辖区,不赌方向。
+    # 仍留 None ——由方向闸(direction_unsettled)停下问一次进项还是销项,不赌方向。
     buyer = clean_tax_id(fields.get("buyer_tax") or fields.get("buyer_tax_id"))
     if is_expense and not buyer:
         logger.info("[mrerp-route] doc=purchase_expense reason=fallback+%s", item_src)
@@ -98,11 +99,10 @@ def choose_doc_type(
 _PURCHASE_DOC_TYPES = ("purchase", "purchase_expense")
 
 
-def _doc_sanity_reason(history: Dict[str, Any], doc_type: str, *, today: date) -> Optional[str]:
-    """单据防呆(外币/贷项/押金/未来日期/坏税号)· 复用 Express doc_sanity · 命中返 reason。"""
+def _doc_sanity_reason(history: Dict[str, Any], *, today: date) -> Optional[str]:
+    """单据防呆(外币/贷项/未来日期)· 复用 Express doc_sanity · 命中返 reason。"""
     fields = history.get("fields") if isinstance(history.get("fields"), dict) else {}
-    direction = "purchase" if doc_type in _PURCHASE_DOC_TYPES else "sales"
-    return check_document(fields, history, direction, today=today)
+    return check_document(fields, history, today=today)
 
 
 def _sanity_fail_row(history: Dict[str, Any], reason: str) -> FailedRow:
@@ -145,9 +145,9 @@ def _walkin_to_cash(history: Dict[str, Any], default_doc: str, mappings: Dict[st
 def route_and_upload(adapter, histories: List[Dict[str, Any]], mappings: Dict[str, Any], *, today: date):
     """按每张单据的方向路由 doc_type 再推送 · 合并为一个 ImportResult(同一会话内复用登录)。
 
-    推送前先跑**单据防呆**(外币/贷项/押金/未来日期/坏税号 → 转人工·复用 Express doc_sanity),
+    推送前先跑**单据防呆**(外币/贷项/未来日期 → 转人工·复用 Express doc_sanity),
     命中即落 failed 不推不建。其余**只把【确认为采购】的票切到采购/费用模块**——销项 / 判不出方向
-    一律保持默认 doc_type(sales_credit),零倒退;别家的票由匹配闸(_filter_by_account_set)另挡。
+    一律保持默认 doc_type(sales_credit),零倒退;方向判不出、票面却读到税号的由方向闸(_hold_unsettled)停下。
     """
     if not histories:
         return ImportResult(total=0)
@@ -210,7 +210,7 @@ def group_by_doc_type(histories: List[Dict[str, Any]], mappings: Dict[str, Any],
             dt = "sales_cash"  # 散客现金销售 → ขายเงินสด(账正)
         else:
             dt = default_doc  # 销项/判不出 → 默认(sales_credit)· 零倒退
-        reason = _doc_sanity_reason(h, dt, today=today)
+        reason = _doc_sanity_reason(h, today=today)
         if reason:
             sanity_failed.append(_sanity_fail_row(h, reason))
             continue
@@ -228,37 +228,32 @@ def group_by_doc_type(histories: List[Dict[str, Any]], mappings: Dict[str, Any],
     return groups, sanity_failed
 
 
-# 匹配闸失败码。
-ACCOUNT_SET_MISMATCH_CODE = "ERR_ACCOUNT_SET_MISMATCH"
+# 方向闸失败码:进项还是销项判不出,停下问一次(同 Express 推送的 direction_unknown)。
+DIRECTION_UNKNOWN_CODE = "ERR_DIRECTION_UNKNOWN"
 
 
-def confirmed_account_set_mismatch(
+def direction_unsettled(
     flat: Dict[str, Any], history: Dict[str, Any], *, own_tax_id: Any, expected_direction: str,
     account_tax_id: Any = None,
 ) -> bool:
-    """能【确认】这张票不属于本套账吗?防"把别家的票推错套账"的安全闸。
+    """这张票要不要停下问一次进项还是销项(同 Express 推送的 direction_unknown;用户 2026-11-04 定方向闸保留)。
 
-    只在【确认不符】时返 True(挡下),读不到税号=无法确认→False(不挡·交上游已判的方向)。
-    确认不符 = ① 方向刚好相反(如采购票走销项)· 或 ② 票面读到了买卖方税号但都不是套账主体。
-    套账主体认两个税号:工作空间税号 own_tax_id、这家公司在 MR.ERP 登记的税号 account_tax_id(方向判定同
-    `choose_doc_type`;事务所替客户记账时票上是客户公司的税号)。两个都空 → 无锚点无法判 → False(不挡)。
+    不看票是不是这家公司的:方向明确(写明的,或按工作空间税号 own_tax_id、这家公司在 MR.ERP 登记的税号 account_tax_id
+    判出的,同 `choose_doc_type`)且与这一组的导入模块一致就放行,别家公司的票照常写。只在两种情况停下:
+    ① 判出的方向与这一组的导入模块相反(分流按方向分组,正常走不到;兜底不把进项写成销项);
+    ② 方向判不出、票面却读到了买卖方税号(都不是这两个税号,或买卖方同一个税号)—— 这种单分流时落到默认的赊销模块,
+       不停下就会被当成卖给买方的销售单写进去。买卖方同税号以前由单据防呆 `seller_buyer_same_tax` 拦(11-04 取消),
+       方向判不出照旧停在这里。
+    票面一个税号都没读到(零售小票)照旧走默认模块;两个税号都没有时判不了方向,也照旧。
     """
     anchors = [t for t in (clean_tax_id(own_tax_id), clean_tax_id(account_tax_id)) if t]
     if not anchors:
         return False
     direction = resolve_account_direction(flat, history, own_tax_id=own_tax_id, account_tax_id=account_tax_id)
     if direction == expected_direction:
-        return False  # 确认属于本套账
+        return False
     if direction:
-        return True  # 方向相反(采购票走销项等)→ 确认不符
-    # direction=None(ambiguous):仅当票面确实读到买卖方税号、却都不是套账主体,才算确认别家的票
+        return True  # ① 方向与导入模块相反
+    # ② 方向判不出、票面读到了买卖方税号(读到了却判不出方向:都不是这两个税号,或两边同一个税号)
     fields = _fields(flat)
-    read = [
-        t
-        for t in (
-            clean_tax_id(fields.get("seller_tax") or fields.get("seller_tax_id")),
-            clean_tax_id(fields.get("buyer_tax") or fields.get("buyer_tax_id")),
-        )
-        if t
-    ]
-    return bool(read) and not any(anchor in read for anchor in anchors)
+    return any(clean_tax_id(fields.get(f"{side}_tax") or fields.get(f"{side}_tax_id")) for side in ("seller", "buyer"))

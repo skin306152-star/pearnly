@@ -30,7 +30,7 @@
         [--lines none|answer] [--line-names stkdes|opaque] [--company-choice prior|full] \
         [--review-classes B,Cn,Cr|none] [--review-lag 1]
     PYTHONPATH=<含 pypdf 与 pymupdf 的目录> python3 da-replay.py gate --gold ... --originals /mnt/c/PearnlyStress/语料 \
-        --manifest /mnt/c/PearnlyStress/语料/06-录入推送/清单.tsv --out OUT
+        --out OUT
     python3 da-replay.py report --out OUT
 
 会计期间（10-17）：与 CC 桌面版同口径读 ISPRD（`isprd_window`），来源依次是答案自带、``--isprd`` 只读导出、70EXP 测试账套；
@@ -1365,7 +1365,7 @@ def history_index(docs: Sequence[Mapping[str, Any]], norm) -> Dict[str, List[Map
     return index
 
 
-def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str, Any]]], catalog, history_entries,
+def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str, Any]]], history_entries,
                    company: Optional[CompanyChoice] = None, shaped: Optional[Sequence[Mapping[str, Any]]] = None,
                    pushed: Optional[Dict[str, List[Dict[str, Any]]]] = None, lines: str = "none",
                    names: str = "stkdes", recent_max: int = RECENT_MAX, readback_scope: str = "record",
@@ -1509,7 +1509,7 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
         direction=direction, fields=fields, decision=decision, payload=payload, config=config, today=entered,
         ready=ready, blocked=reason, pages=pages, review_reasons=(), text=synthetic_text(fields),
         page_texts=[synthetic_text(fields)],
-        account=account_row(book), catalog=catalog,
+        account=account_row(book),
         day_books=picked, uploaded=entered,
         source_total=1, posting_from=posting_from, account_recent=recent["account"],
         payment_recent=recent["payment"], party_recent=recent["party"],
@@ -1741,7 +1741,6 @@ def judge_company(m, books: Sequence[Mapping[str, Any]], registered: Optional[Ma
     `pushed_record`。``review``：模拟的人复核时改值（`Review`，一家一个，各份账套各记各的改值）；不给按默认（`REVIEW_CLASSES`、
     `REVIEW_LAG`），给 ``Review(())`` 不模拟。"""
     listed = [book for book in books if is_registered(book, registered)]
-    catalog = [account_row(book) for book in listed]
     out, skipped = [], collections.Counter()
     queue = []
     owner = owners(books, registered)
@@ -1784,7 +1783,7 @@ def judge_company(m, books: Sequence[Mapping[str, Any]], registered: Optional[Ma
     auto: set = set()  # 判成 A / B 的单（``id``）：存货历史「不含 CC 推的」下界口径从历史里剔掉（`judge_document`）
     review = review if review is not None else Review()
     for entered, _day, _number, book, doc in queue:
-        row = judge_document(m, doc, book, memories[book["key"]], priors[book["key"]], catalog,
+        row = judge_document(m, doc, book, memories[book["key"]], priors[book["key"]],
                              purchases[book["key"]], company, shaped, pushed[book["key"]], lines=lines, names=names,
                              recent_max=recent_max, readback_scope=readback_scope, auto=auto,
                              recent_periods=recent_periods, review=review)
@@ -2144,7 +2143,7 @@ def _review_module():
     return review
 
 
-def gate_invoice(m, invoice: Mapping[str, Any], *, direction: str, own_tax: str, texts: Optional[List[str]],
+def gate_invoice(m, invoice: Mapping[str, Any], *, direction: str, texts: Optional[List[str]],
                  source_total: int) -> List[str]:
     """一张识别出的票过第 2 条识别侧与原文核对（`automation.checks` 原样调用，只取识别侧的原因码）。"""
     review = _review_module()
@@ -2156,7 +2155,7 @@ def gate_invoice(m, invoice: Mapping[str, Any], *, direction: str, own_tax: str,
     count = max(1, int(invoice.get("pages") or 1))
     # 跨页的票按原件页数造同样多的页（生产按原件这几页逐页判文字层，审查处理 10-16），后几页只占位
     pages = [page, *({"fields": {}, "_layer_chain": ["direct"]} for _ in range(count - 1))]
-    reasons = review.reasons(pages[:1], direction=direction, own_tax=own_tax or None)
+    reasons = review.reasons(pages[:1], direction=direction)
     number = int(invoice.get("page") or 1)
     text, page_texts = None, None
     if texts:
@@ -2442,11 +2441,6 @@ def cmd_gate(args) -> int:
     gold_dir, out = refuse_lan(args.gold), refuse_lan(args.out)
     gold, sample = _gold(gold_dir)
     corpus_root = refuse_lan(args.originals)
-    taxes = {}
-    # 本方税号（复核原因要比本方）：必填，否则复核原因比生产少、复跑出不来存档结果（审查处理 10-16）
-    for row in _read_tsv(Path(args.manifest)):
-        if row.get("税号"):
-            taxes.setdefault(row.get("公司"), row["税号"])
     flags = {}
     for line in open(refuse_lan(gold_dir / "金标" / args.flags), encoding="utf-8"):
         record = json.loads(line)
@@ -2466,7 +2460,7 @@ def cmd_gate(args) -> int:
             flagged = flags.get((number, invoice.get("page"))) or {}
             merged = {**invoice, "review": flagged.get("review", record.get("review")),
                       "warnings": flagged.get("warnings") or []}
-            reasons = gate_invoice(m, merged, direction=direction, own_tax=taxes.get(row.get("公司"), ""), texts=texts,
+            reasons = gate_invoice(m, merged, direction=direction, texts=texts,
                                    source_total=len(invoices))
             index = pair_gold(invoice, golds) if truth.get("entry") == "enter" else None
             source = str(truth.get("gold_source") or "")
@@ -2487,8 +2481,7 @@ def cmd_gate(args) -> int:
                          "result": result, "uncertain": uncertain, "gold_source": source or "independent",
                          "vat_claim": claim, "text_fallback": list(fallen),
                          "wrong": [key for key, value in result.items() if value == "wrong"]})
-    _write_json(out / "gate.json", {"rows": rows, "records": args.records, "flags": args.flags,
-                                    "manifest": str(args.manifest)})
+    _write_json(out / "gate.json", {"rows": rows, "records": args.records, "flags": args.flags})
     print(f"gate rows {len(rows)}", flush=True)
     return 0
 
@@ -2537,7 +2530,6 @@ CAUSES = (
     ("number", "答案没有对方单号", lambda row: "invoice_no_missing" in str(row.get("prepare") or "")),
     ("party", "对方档定不下（无 13 位税号 / 同税号多档 / 分店不符）", lambda row: "item:party" in row["reasons"]),
     ("party_tax", "对方税号校验位不对", lambda row: "party_tax" in row["reasons"]),
-    ("own_tax", "本方税号对不上推往账套", lambda row: "own_tax" in row["reasons"]),
     ("day_month", "日、月都 ≤12 读法两可", lambda row: "day_month" in row["reasons"]),
     ("duplicate", "同账套已推过同对方同单号同金额", lambda row: "duplicate_number" in row["reasons"]),
     ("preflight", "推送预检不过（其他）", lambda row: "not_ready" in row["reasons"] or "blocked" in row["reasons"]),
@@ -3227,7 +3219,6 @@ def main(argv=None) -> int:
     gate = sub.add_parser("gate")
     gate.add_argument("--gold", required=True)
     gate.add_argument("--originals", required=True, help="样本.tsv 里「路径」的根（语料目录）")
-    gate.add_argument("--manifest", required=True, help="06-录入推送/清单.tsv（公司 → 本方税号）")
     gate.add_argument("--records", default="gold-gemini-code.jsonl", help="当前生产代码的识别结果（按记录）")
     gate.add_argument("--flags", default="gold-gemini-rec.jsonl", help="同一轮带复核标记与校验提示的记录")
     gate.add_argument("--out", required=True)
