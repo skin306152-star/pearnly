@@ -370,6 +370,11 @@ viewports = ["desktop"]
 covers = [
   "frontend/assistant/src/components/operator/*.ts",
   "frontend/assistant/src/components/operator/*.tsx",
+  # 统一对话框架（11-04 U2）：代录会话里的卡片与步骤、工具登记、代录步骤名（断言随 U3 改写）
+  "frontend/assistant/src/components/tool-uis/operator-*.ts",
+  "frontend/assistant/src/components/tool-uis/operator-*.tsx",
+  "frontend/assistant/src/components/tool-uis/index.tsx",
+  "frontend/assistant/src/lib/tool-labels.ts",
   # 代录会话里的上传状态卡片（Code 版 CC 块 2；块 3 接进代录会话，专门的上传流程 cowork.cc.operator.upload 由块 5 补）
   "frontend/assistant/src/components/run/*.ts",
   "frontend/assistant/src/components/run/*.tsx",
@@ -958,6 +963,7 @@ user = "admin"
 datasets = ["new", "old"]
 viewports = ["desktop"]
 covers = [
+  "frontend/assistant/src/components/tool-uis/operator-start.tsx",
   "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py",
   "apps/pearnly_cowork/pearnly_cowork/push/lifecycle.py",
 ]
