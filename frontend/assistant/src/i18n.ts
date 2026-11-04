@@ -537,7 +537,7 @@ const COMPANY = {
       state: { empty: "Nothing yet", open: "In progress", attention: "Needs attention", clear: "Done" } as Record<string, string>,
       severity: { action: "To do", warn: "Check", info: "Info" } as Record<string, string>,
       code: {
-        choice_needed: "Needs a choice", result_unknown: "Result unknown", account_tax_mismatch: "Tax ID mismatch",
+        choice_needed: "Needs a choice", result_unknown: "Result unknown",
         account_period_mismatch: "Period mismatch", account_branch_mismatch: "Branch mismatch", push_manual: "Stopped",
         push_failed: "Push failed", not_pushed: "Not pushed", duplicate_number: "Duplicate number",
         task_folder_missing: "Folder not found", intake_file_failed: "File failed", pos_layout_needed: "POS layout needed",
@@ -624,7 +624,7 @@ const COMPANY = {
       state: { empty: "暂无", open: "进行中", attention: "有待办", clear: "已完成" } as Record<string, string>,
       severity: { action: "需处理", warn: "需留意", info: "知悉" } as Record<string, string>,
       code: {
-        choice_needed: "待选择", result_unknown: "结果不明", account_tax_mismatch: "税号不符",
+        choice_needed: "待选择", result_unknown: "结果不明",
         account_period_mismatch: "期间不符", account_branch_mismatch: "分店不符", push_manual: "已停下",
         push_failed: "推送失败", not_pushed: "未推送", duplicate_number: "单号重复",
         task_folder_missing: "找不到文件夹", intake_file_failed: "文件读取失败", pos_layout_needed: "需定 POS 版式",
@@ -710,7 +710,7 @@ const COMPANY = {
       state: { empty: "ยังไม่มี", open: "กำลังดำเนินการ", attention: "ต้องจัดการ", clear: "เรียบร้อย" } as Record<string, string>,
       severity: { action: "ต้องทำ", warn: "ควรดู", info: "แจ้งเพื่อทราบ" } as Record<string, string>,
       code: {
-        choice_needed: "ต้องเลือก", result_unknown: "ไม่ทราบผล", account_tax_mismatch: "เลขภาษีไม่ตรง",
+        choice_needed: "ต้องเลือก", result_unknown: "ไม่ทราบผล",
         account_period_mismatch: "งวดไม่ตรง", account_branch_mismatch: "สาขาไม่ตรง", push_manual: "หยุดไว้",
         push_failed: "ส่งไม่สำเร็จ", not_pushed: "ยังไม่ได้ส่ง", duplicate_number: "เลขที่ซ้ำ",
         task_folder_missing: "ไม่พบโฟลเดอร์", intake_file_failed: "อ่านไฟล์ไม่สำเร็จ", pos_layout_needed: "ต้องกำหนดรูปแบบ POS",
