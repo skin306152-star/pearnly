@@ -1590,7 +1590,7 @@ kind = "scan"
 anchor = "scan:erp.cashier.camera"
 where = "pearnly-cashier 搜索框相机：收银台 → 搜索框右侧相机"
 parts = ["desk-scan-core", "erp-scan-dialog"]
-tests = ["impact:erp.cashier.camera"]
+tests = ["flow:erp.cashier.camera@mobile", "impact:erp.cashier.camera"]
 
 [[row]]
 id = "erp.scan.cashier.scanner-gun"

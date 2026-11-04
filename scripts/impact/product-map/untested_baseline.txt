@@ -376,5 +376,4 @@ erp.desk.query-report-erp stock count variance.action.Export@desktop
 erp.desk.query-report-erp stock count variance.action.Export@mobile
 erp.line.card-edit@mobile
 erp.line.event.unfollow@mobile
-erp.scan.cashier.camera@mobile
 erp.scan.serials.dialog@mobile

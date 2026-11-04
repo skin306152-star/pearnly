@@ -593,6 +593,19 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.cashier.camera"
+title = "ERP 收银台：商品区搜索框按码进购物车（手机宽度假摄像头点扫码按钮）、成交出库（产品地图 11-04 扫码入口逐个成行）"
+module = "scripts/flows/erp_cashier_camera_scan.py"
+start = "/desk/pearnly-cashier"
+user = "cashier"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = true
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-adapter.js",
+]
+
+[[flow]]
 id = "erp.sales.scan"
 title = "ERP 销售单：手动录入、单头选客户与仓、明细组合框按码认商品（手机宽度扫条码）、提交出库（fcb65cca 逐入口实测）"
 module = "scripts/flows/erp_sales_scan.py"
