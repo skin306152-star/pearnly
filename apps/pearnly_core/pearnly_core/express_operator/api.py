@@ -2,7 +2,8 @@
 
 - ``documents``：这家公司这个月能代录的单据（服务端分页，产品各自的来源）；
 - ``precheck``：开录前逐张按产品的写账准备判一遍，要人选的项一次列出（不排写账件）；
-- ``intake`` / ``regroup``：资料区上传一张、把一张拖到别的组（产品可选声明）；
+- ``intake`` / ``regroup``：资料区上传一张、把一张拖到别的组（产品可选声明）；``task_uploads``：任务里传过的每一份此刻识别到哪
+  （``uploads``）；
 - ``task_*``：实操任务的服务端记录（列表、「待处理」里需要你处理的一组、读取、新建、改名 / 置顶、删除、收尾、作答 / 单张重试、整批继续），只给本人看、改
   （``tasks``）；
 - ``start``：建一批：权限由产品判（``products.allowed``，各用自己的角色），批次号在这里发，单据逐张交给产品按直写同一份载荷
@@ -16,7 +17,7 @@ from datetime import datetime
 import frappe
 from frappe import _
 
-from pearnly_core.express_operator import products, tasks
+from pearnly_core.express_operator import products, shapes, tasks, uploads
 
 PAGE_MAX = 100
 BATCH_MAX = 200
@@ -44,9 +45,17 @@ def _ids(doc_ids) -> list:
 
 @frappe.whitelist(methods=["POST"])
 def precheck(company, doc_ids):
-    """开录前预检（主会话 10-27）：产品按自己的写账准备逐张判，要人选的项连同可选值一次列出；不排写账件。"""
+    """开录前预检（主会话 10-27）：产品按自己的写账准备逐张判，要人选的项连同可选值一次列出；不排写账件。
+    写进哪份账套（Code 版 CC B4）：产品在判得出的单上带 ``target``（与交单同一条准备算出的），这里合成 ``targets``（几份账套、
+    各几张）；只有一份时 ``target`` 就是它，没有或不止一份时为 None。"""
     _require(company)
-    return products.precheck(company, _ids(doc_ids))
+    found = products.precheck(company, _ids(doc_ids))
+    documents = []
+    for doc in found.get("documents") or []:
+        target = shapes.target_view(doc.get("target")) if isinstance(doc, dict) else None
+        documents.append({**doc, "target": target} if isinstance(doc, dict) and "target" in doc else doc)
+    targets = shapes.precheck_targets(documents)
+    return {**found, "documents": documents, "targets": targets, "target": targets[0] if len(targets) == 1 else None}
 
 
 @frappe.whitelist()
@@ -68,16 +77,32 @@ GROUPS = ("purchase", "sales", "expense", "payment", "skip")
 
 
 @frappe.whitelist(methods=["POST"])
-def intake(company, request_key):
-    """资料区上传一张（multipart 的 file）：产品存成原件并交识别，归到这家公司；产品不收上传时回 unsupported。"""
+def intake(company, request_key, task=""):
+    """资料区上传一张（multipart 的 file）：产品存成原件并交识别，归到这家公司；产品不收上传时回 unsupported。
+    ``task``：在哪个实操任务里传的（Code 版 CC，B1）：先核对是本人这家公司的任务再交识别，收下后在任务上记一行，回包多带
+    ``upload``（同 ``task_uploads`` 里的一项），刷新、换设备都看得到这一份。"""
     _require(company)
+    if task:
+        uploads.check(task, company, request_key)
     incoming = frappe.request.files.get("file") if frappe.request else None
     if not incoming:
         frappe.throw(_("Select a file to upload."))
     content = incoming.stream.read(UPLOAD_MAX + 1)
     if len(content) > UPLOAD_MAX:
         frappe.throw(_("Invalid request"))
-    return products.intake(company, incoming.filename, content, str(request_key or ""))
+    result = products.intake(company, incoming.filename, content, str(request_key or ""))
+    if task and result.get("accepted"):
+        result = {**result, "upload": uploads.record(task, request_key, incoming.filename, len(content), result)}
+    return result
+
+
+@frappe.whitelist()
+def task_uploads(name, batches=None):
+    """任务里上传过的每一份与此刻的识别状态（只读，B2；形状见 ``shapes.upload_view``）。``batches``：只现读这几份（JSON 列表）。"""
+    batches = frappe.parse_json(batches) if isinstance(batches, str) and batches else batches
+    if batches is not None and not isinstance(batches, list):
+        frappe.throw(_("Invalid request"))
+    return uploads.read(name, [str(item) for item in batches] if batches else None)
 
 
 @frappe.whitelist(methods=["POST"])

@@ -561,6 +561,7 @@ Receipt Meta,受領メタ
 Received,受領額
 Recognition Raw,認識の生データ
 Recognition Records,認識記録
+Recognition Task,認識タスク
 Recognition failed. Please try again.,読み取りに失敗しました。もう一度お試しください。
 Recognition records,認識記録
 Recognition result,読み取り結果
@@ -592,6 +593,7 @@ Removed from Product History By,製品履歴から削除した人
 Reorder sidebar,サイドバーの並べ替え
 Request & Response,リクエストと応答
 Request Body,リクエスト内容
+Request Key,リクエストキー
 Request failed (HTTP {0}),リクエスト失敗（HTTP {0}）
 Request refused,リクエストが拒否されました
 Requested,申請額
@@ -814,6 +816,7 @@ Upload a transfer slip before submitting,送信前に振込明細をアップロ
 Upload a transfer slip up to 10 MB,10 MB 以下の振込明細をアップロードしてください
 "Upload receipts and sheets, extract fields, review each item, then push",領収書と表をアップロードし、項目を抽出、1件ずつ確認して連携
 Upload transfer slip,振込明細をアップロード
+Uploaded At,アップロード日時
 Uploading,アップロード中
 Usage,利用状況
 "Use a JPG, PNG or PDF transfer slip",振込明細は JPG・PNG・PDF を使用してください

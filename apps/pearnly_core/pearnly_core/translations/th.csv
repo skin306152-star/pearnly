@@ -561,6 +561,7 @@ Receipt Meta,ข้อมูลผลตอบกลับ
 Received,จำนวนเงินที่ได้รับจริง
 Recognition Raw,ผลลัพธ์ดิบจากการอ่านเอกสาร
 Recognition Records,บันทึกการอ่านเอกสาร
+Recognition Task,งานอ่านเอกสาร
 Recognition failed. Please try again.,การอ่านไม่สำเร็จ กรุณาลองใหม่
 Recognition records,บันทึกการอ่านเอกสาร
 Recognition result,ผลการอ่าน
@@ -592,6 +593,7 @@ Removed from Product History By,ผู้ลบออกจากประวั
 Reorder sidebar,จัดลำดับแถบด้านข้าง
 Request & Response,คำขอและการตอบกลับ
 Request Body,เนื้อหาคำขอ
+Request Key,คีย์คำขอ
 Request failed (HTTP {0}),คำขอไม่สำเร็จ (HTTP {0})
 Request refused,คำขอถูกปฏิเสธ
 Requested,จำนวนเงินที่ขอ
@@ -814,6 +816,7 @@ Upload a transfer slip before submitting,กรุณาอัปโหลดห
 Upload a transfer slip up to 10 MB,กรุณาอัปโหลดหลักฐานการโอนขนาดไม่เกิน 10 MB
 "Upload receipts and sheets, extract fields, review each item, then push",อัปโหลดเอกสารและตาราง อ่านฟิลด์ ตรวจทานทีละรายการ แล้วส่งข้อมูล
 Upload transfer slip,อัปโหลดหลักฐานการโอน
+Uploaded At,เวลาอัปโหลด
 Uploading,กำลังอัปโหลด
 Usage,การใช้งาน
 "Use a JPG, PNG or PDF transfer slip","หลักฐานการโอนต้องเป็นไฟล์ JPG, PNG หรือ PDF"

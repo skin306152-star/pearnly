@@ -200,6 +200,62 @@ def intake(company, filename, content, request_key) -> dict:
     return {"accepted": True, "source": source["name"], **{k: v for k, v in (result or {}).items() if k != "accepted"}}
 
 
+_DONE_PHASES = ("saved", "not_invoice")
+_FAILED_WORK = ("failed", "uncertain", "cancelled")
+
+
+def upload_state(project) -> dict:
+    """一份识别任务（`ocr.execution.service.detail` 的回包）→ 代录上传卡片的状态（共用层 ``shapes.UPLOAD_STATES``）：存好了 /
+    不是单据 → 已识别；共用队列落定失败 / 结果不确定 / 取消 → 失败（带失败码）；其余按录入工作台等候页同一个判据分排队中、识别中
+    （``reading``：已离开队列）。纯函数。"""
+    state = str(project.get("state") or "")
+    page_count = int(project.get("page_count") or 0)
+    if state in _DONE_PHASES:
+        return {"state": "done", "pages_done": page_count, "page_count": page_count, "code": ""}
+    if state in _FAILED_WORK:
+        return {"state": "failed", "pages_done": int(project.get("pages_done") or 0), "page_count": page_count,
+                "code": str(project.get("last_code") or state)}
+    return {"state": "reading" if project.get("reading") else "queued", "pages_done": int(project.get("pages_done") or 0),
+            "page_count": page_count, "code": str(project.get("last_code") or "")}
+
+
+def uploads(company, period, batches) -> dict:
+    """代录任务里上传的那几份此刻识别到哪了（共用层 ``uploads`` 钩子，只读）：逐份读识别任务（同录入工作台等候页，权限在
+    `ocr.execution.access.require_batch`），已识别的带出识别出的单（单号、日期、对方、还在不在等着录入，同 ``sources`` 的口径）。
+    读不到的（删了、没权限了）不回，页面显示读不到。"""
+    from pearnly_cowork.assistant import tools
+    from pearnly_cowork.ocr.execution import service as ocr
+
+    out, records = {}, {}
+    for batch in dict.fromkeys(str(item) for item in batches or () if item):
+        try:
+            project = ocr.detail(batch)
+        except (frappe.DoesNotExistError, frappe.PermissionError):
+            frappe.clear_messages()
+            continue
+        out[batch] = upload_state(project)
+        if out[batch]["state"] == "done":
+            records[batch] = [str(name) for name in project.get("history_records") or [] if name]
+    names = [name for found in records.values() for name in found]
+    rows = {row.name: row for row in frappe.db.get_all(
+        "Cowork OCR History", filters={"name": ["in", names]},
+        fields=["name", "invoice_no", "invoice_date", "seller_name", "buyer_name", "last_push_status"],
+        limit_page_length=len(names))} if names else {}
+    pages = _primary_fields(names)
+    for batch, found in records.items():
+        documents = []
+        for name in found:
+            row = rows.get(name)
+            if not row:
+                continue
+            sales = str((pages.get(name) or {}).get("direction") or "") == "sales"
+            documents.append({"doc_id": name, "ref": row.invoice_no or "", "date": str(row.invoice_date or ""),
+                              "party": (row.buyer_name if sales else row.seller_name) or "",
+                              "waiting": str(row.last_push_status or "") not in tools.PUSHED_OR_ON_ITS_WAY})
+        out[batch]["documents"] = documents
+    return out
+
+
 def regroup(company, doc_id, group) -> dict:
     """资料区拖到别的组：采购 / 费用 / 销售之间改这张单的方向与入账类型（同复核页），并按公司记住（公司规则「分组」，
     键是拖之前这张单的对方），这家以后同一对方的单照这次分。收付款、不入账的改法随第 1 期，这里回不支持。"""

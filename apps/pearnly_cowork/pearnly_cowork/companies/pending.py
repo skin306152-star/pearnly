@@ -595,10 +595,14 @@ def pending(company=None, limit=None, search=None) -> dict:
 
 
 def pending_counts() -> dict:
-    """侧栏用：按公司计数与总数（`counts`）。同 `pending` 的判据：库里一次粗筛（最多 500 张），按主档分好。"""
+    """侧栏用：按公司计数与总数（`counts`）。同 `pending` 的判据：库里一次粗筛（最多 500 张），按主档分好。
+    `months`（Code 版 CC B3）：按「公司 · 月份」的数与本人这家这个月的对话（共用层 `sessions.pending_months`，只读）。"""
+    from pearnly_core.assistant import sessions
+
     scope.require_read()
     by_set, by_tax, tax_ids = _attribution()
-    return counts(_items(_candidates(), by_set, by_tax, tax_ids))
+    items = _items(_candidates(), by_set, by_tax, tax_ids)
+    return {**counts(items), "months": sessions.pending_months(items)}
 
 
 def documents() -> list:

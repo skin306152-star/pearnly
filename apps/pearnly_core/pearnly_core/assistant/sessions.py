@@ -374,6 +374,28 @@ def delete(session_id) -> None:
     sidebar.changed(_user(), "deleted", row.session_id)
 
 
+MONTH_SCAN = 1000  # 「公司 · 月份」找对话时一次最多看这么多段（新到旧）
+
+
+def pending_months(items) -> list:
+    """产品待处理的 `pending_counts` 加的 `months`（Code 版 CC B3）：按「公司 · 月份」计数（`contracts.pending_months`），
+    每项带 `conversation`：本人这家这个月最近更新、没归档、当前引擎、不属于实操任务的那段对话（侧栏亮「等你处理」的那一行），
+    没有是空串（页面出占位行，点了才建）。只读；没登录、没配引擎时一律空串。"""
+    months = contracts.pending_months(items)
+    user, code = frappe.session.user, config.engine_code()
+    if not months or not user or user == "Guest" or not code:
+        return [{**item, "conversation": ""} for item in months]
+    rows = frappe.get_all(SESSION, filters={"user": user, "engine_code": code, "archived": 0, "operator_task": UNFILED,
+                                            "project": ["in", sorted({item["company"] for item in months})],
+                                            "period": ["in", sorted({item["month"] for item in months})]},
+                          fields=["session_id", "project", "period"], order_by="modified desc, name desc",
+                          limit_page_length=MONTH_SCAN)
+    latest = {}
+    for row in rows:
+        latest.setdefault((row.project, row.period), row.session_id)
+    return [{**item, "conversation": latest.get((item["company"], item["month"]), "")} for item in months]
+
+
 def _worked_on(row) -> tuple[str, str]:
     """接续时除了最近的文字还带上的：本对话的工作清单与留存的文件（都从本站读，不多调模型、不重传文件）。
     只是附带的：读不出来就不带，不挡这一轮。"""

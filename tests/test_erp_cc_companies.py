@@ -198,6 +198,26 @@ sys.modules["pearnly_core.assistant.projects"] = projects
 import pearnly_core.assistant as core_assistant  # noqa: E402
 
 core_assistant.projects = projects
+core_contracts = importlib.import_module("pearnly_core.assistant.contracts")  # 纯规则，照用
+
+
+class Sessions(types.ModuleType):
+    """共用层 `pearnly_core.assistant.sessions` 的替身：「公司 · 月份」计数照用共用纯规则，对话按 `conversations` 给
+    （共用层本身的查询在 tests/test_express_operator_code_cc.py 里测）。"""
+
+    def __init__(self):
+        super().__init__("pearnly_core.assistant.sessions")
+        self.conversations, self.calls = {}, []
+
+    def pending_months(self, items):
+        self.calls.append(list(items))
+        return [{**item, "conversation": self.conversations.get((item["company"], item["month"]), "")}
+                for item in core_contracts.pending_months(items)]
+
+
+sessions_stub = Sessions()
+sys.modules["pearnly_core.assistant.sessions"] = sessions_stub
+core_assistant.sessions = sessions_stub
 
 # ERP 权限：哪个人有哪些能力、员工按本人录入收窄
 CAPS = {"boss@x": {"company.read", "company.manage", "purchase.read", "purchase.write", "sales.read", "sales.write"},
@@ -260,6 +280,8 @@ def reset():
     projects.released.clear()
     projects.stats.clear()
     projects.sessions.clear()
+    sessions_stub.conversations.clear()
+    sessions_stub.calls.clear()
     frappe.session.user = "boss@x"
     frappe.local = types.SimpleNamespace()
     companies = STATE.db.table("ERP Company")
@@ -686,8 +708,13 @@ class PendingTests(unittest.TestCase):
         self.assertEqual(by["SAL-2"]["reason_label"], "express.reason.warehouseUnmapped")
         self.assertEqual(by["SAL-2"]["url"], "/desk/pearnly-sales/SAL-2")
         self.assertTrue(all(item["action"] == "open" for item in found["items"]))
+        sessions_stub.conversations[("CO-00001", "2026-10")] = "sesn_oct"
         self.assertEqual(cc_companies.pending_counts(), {"total": 4, "companies": {"CO-00001": 2, "CO-00002": 2},
-                                                         "unassigned": 0})
+                                                         "unassigned": 0, "months": [
+            {"company": "CO-00001", "month": "2026-10", "count": 2, "conversation": "sesn_oct"},
+            {"company": "CO-00002", "month": "2026-10", "count": 2, "conversation": ""}]})
+        # 「公司 · 月份」按同一批条目算（与数同一口径），不另查一遍
+        self.assertEqual([item["document"] for item in sessions_stub.calls[-1]], ["PUR-3", "PUR-1", "SAL-1", "SAL-2"])
         self.assertEqual([item["document"] for item in cc_companies.pending(company="CO-00002")["items"]],
                          ["SAL-1", "SAL-2"])
         self.assertEqual([item["document"] for item in cc_companies.pending(search="pur-1")["items"]], ["PUR-1"])
@@ -715,7 +742,9 @@ class PendingTests(unittest.TestCase):
         frappe.session.user = "staff@x"   # 只分到 CO-00001、只有采购读权、员工只看本人录入的
         self.assertEqual([item["document"] for item in cc_companies.pending()["items"]], ["PUR-3"])
         self.assertEqual(cc_companies.pending(company="CO-00002"), {"items": [], "count": 0})
-        self.assertEqual(cc_companies.pending_counts(), {"total": 1, "companies": {"CO-00001": 1}, "unassigned": 0})
+        self.assertEqual(cc_companies.pending_counts(), {"total": 1, "companies": {"CO-00001": 1}, "unassigned": 0,
+                                                         "months": [{"company": "CO-00001", "month": "2026-10",
+                                                                     "count": 1, "conversation": ""}]})
         frappe.session.user = "nobody@x"
         with self.assertRaises(PermissionError_):
             cc_companies.pending()
@@ -832,8 +861,12 @@ class PendingLedgerKinds(unittest.TestCase):
                          ("/desk/pearnly-stock-transfer/STE-3", "STE-3", "CO-00002", "Mismatch"))
         self.assertEqual((by["STC-1"]["url"], by["STC-1"]["invoice_no"], by["STC-1"]["date"], by["STC-1"]["company"]),
                          ("/desk/pearnly-stock-count/STC-1", "Oct count A", "2026-10-31", "CO-00002"))
-        self.assertEqual(cc_companies.pending_counts(), {"total": 4, "companies": {"CO-00001": 2, "CO-00002": 2},
-                                                         "unassigned": 0})
+        counted = cc_companies.pending_counts()
+        self.assertEqual({key: counted[key] for key in ("total", "companies", "unassigned")},
+                         {"total": 4, "companies": {"CO-00001": 2, "CO-00002": 2}, "unassigned": 0})
+        # 出入库、收银、盘点单同样按单据月份落到「公司 · 月份」，数加起来与总数一致
+        self.assertEqual(sum(item["count"] for item in counted["months"]), 4)
+        self.assertEqual({item["company"] for item in counted["months"]}, {"CO-00001", "CO-00002"})
         self.assertEqual([item["document"] for item in cc_companies.pending(company="CO-00002")["items"]],
                          ["STE-3", "STC-1"])
         self.assertEqual([item["document"] for item in cc_companies.pending(search="is2569")["items"]], ["STE-1"])

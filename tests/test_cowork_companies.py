@@ -342,6 +342,24 @@ class Projects(types.ModuleType):
 projects = Projects()
 
 
+class Sessions(types.ModuleType):
+    """共用层 `pearnly_core.assistant.sessions` 的替身（只用到 `pending_months`）：「公司 · 月份」计数照用共用纯规则，对话按
+    `conversations` 给（共用层本身的查询在 tests/test_express_operator_code_cc.py 里测）。真的 sessions 一导入就把 notices 等
+    挂到包上，早上汇总的替身就换不进去，所以这里用替身。"""
+
+    def __init__(self):
+        super().__init__("pearnly_core.assistant.sessions")
+        self.conversations = {}
+
+    def pending_months(self, items):
+        rules = importlib.import_module("pearnly_core.assistant.contracts")  # 纯规则，照用
+        return [{**item, "conversation": self.conversations.get((item["company"], item["month"]), "")}
+                for item in rules.pending_months(items)]
+
+
+sessions_stub = Sessions()
+
+
 class Folders(types.ModuleType):
     def __init__(self):
         super().__init__("pearnly_cowork.folder_intake.company_folders")
@@ -422,6 +440,7 @@ STUBS = {
     "pearnly_cowork.connections.service": connections,
     "pearnly_cowork.connections.access": connection_access,
     "pearnly_core.assistant.projects": projects,
+    "pearnly_core.assistant.sessions": sessions_stub,
     "pearnly_cowork.folder_intake.company_folders": folders,
     "pearnly_cowork.folder_intake.agent": agent,
     "pearnly_cowork.folder_intake.readers": readers,
@@ -500,6 +519,7 @@ def reset(**catalogs):
         connections.adapters[name] = "mrerp" if name.startswith("M") else "express"
     projects.announced[:], projects.released[:] = [], []
     projects.mine_stats, projects.sessions = {}, {}
+    sessions_stub.conversations = {}
     folders.bound, folders.forgotten = {}, []
     express_choices.rows, express_choices.recorded, express_choices.replaced = [], [], []
     preparation.reported, preparation.asked = None, []
@@ -1446,8 +1466,12 @@ class PendingTests(unittest.TestCase):
             history("h4", push_account_set="S:\\OTHER", buyer_tax="0000000000000", seller_tax=""),
             history("h5", last_push_status="success"))}
         fresh_request()
+        sessions_stub.conversations[(abc, "2026-09")] = "sesn_abc"
         counted = pending.pending_counts()
-        self.assertEqual(counted, {"total": 4, "companies": {abc: 2, xyz: 1}, "unassigned": 1})
+        # months（Code 版 CC B3）：按「公司 · 月份」，归不上公司的（h4）只算在 unassigned；本人这家这个月的对话带上
+        self.assertEqual(counted, {"total": 4, "companies": {abc: 2, xyz: 1}, "unassigned": 1, "months": [
+            {"company": abc, "month": "2026-09", "count": 2, "conversation": "sesn_abc"},
+            {"company": xyz, "month": "2026-09", "count": 1, "conversation": ""}]})
         fresh_request()
         items = {item["document"]: item for item in pending.pending()["items"]}
         self.assertEqual(set(items), {"h1", "h2", "h3", "h4"})
@@ -2402,7 +2426,10 @@ class PendingContractTests(unittest.TestCase):
         fresh_request()
         swap = {"COMPANY": abc, "OTHER": xyz}
         expected = {**self.FIXTURE["counts"], "companies": {swap[k]: v for k, v in self.FIXTURE["counts"]["companies"].items()}}
-        self.assertEqual(pending.pending_counts(), expected)
+        counted = pending.pending_counts()
+        # 夹具是页面读的旧形状；Code 版 CC 加的 months 另核（只多不改，旧页面照读）
+        self.assertEqual({key: value for key, value in counted.items() if key != "months"}, expected)
+        self.assertEqual(sum(item["count"] for item in counted["months"]) + counted["unassigned"], counted["total"])
         # CC「待处理」的代录一组按单据去重用的那一份（主会话 11-03）：就是页面列着的那些单
         fresh_request()
         listed = sorted(row["document"] for row in pending.pending()["items"])

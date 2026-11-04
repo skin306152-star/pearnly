@@ -454,6 +454,21 @@ def period(value) -> str:
 _period = period  # `project_change` 的参数也叫 period
 
 
+def pending_months(items) -> list:
+    """待处理按「公司 · 月份」计数（Code 版 CC B3：侧栏这家这个月的对话亮「等你处理」，没有对话出占位行）：
+    `items` 是产品待处理的条目（带 `company`、`month`），归不上公司或月份不成形的不算（另有 `unassigned`）。
+    回 `[{"company", "month", "count"}]`，按公司、月份新到旧排。"""
+    found = {}
+    for item in items or ():
+        company, month = str(item.get("company") or "").strip(), str(item.get("month") or "").strip()
+        if not company or not PERIOD.match(month):
+            continue
+        found[(company, month)] = found.get((company, month), 0) + 1
+    ordered = sorted(found.items(), key=lambda pair: pair[0][1], reverse=True)
+    ordered.sort(key=lambda pair: pair[0][0])
+    return [{"company": company, "month": month, "count": count} for (company, month), count in ordered]
+
+
 def project_scope(value) -> str:
     """产品自定的范围（不透明，Cowork 是分店号）；空 = 不指定。"""
     text = str(value or "").strip()

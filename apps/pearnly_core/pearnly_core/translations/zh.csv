@@ -561,6 +561,7 @@ Receipt Meta,回执信息
 Received,实收金额
 Recognition Raw,识别原始输出
 Recognition Records,识别记录
+Recognition Task,识别任务
 Recognition failed. Please try again.,识别失败，请重试。
 Recognition records,识别记录
 Recognition result,识别结果
@@ -592,6 +593,7 @@ Removed from Product History By,从产品历史移除人
 Reorder sidebar,侧栏排序
 Request & Response,请求与响应
 Request Body,请求内容
+Request Key,请求键
 Request failed (HTTP {0}),请求失败（HTTP {0}）
 Request refused,请求被拒绝
 Requested,申请金额
@@ -814,6 +816,7 @@ Upload a transfer slip before submitting,请先上传转账凭证再提交
 Upload a transfer slip up to 10 MB,请上传不超过 10 MB 的转账凭证
 "Upload receipts and sheets, extract fields, review each item, then push",上传票据与表格、识别字段、逐项核对与推送
 Upload transfer slip,上传转账凭证
+Uploaded At,上传时间
 Uploading,上传中
 Usage,使用情况
 "Use a JPG, PNG or PDF transfer slip",转账凭证须为 JPG、PNG 或 PDF

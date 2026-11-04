@@ -605,6 +605,7 @@ def operator_check(history, posting_kind=None) -> dict:
         # 上次领单途中断了、结果不明：先在 Express 里核对（同复核页「核对」），开工前就说，不等交单时才被拒（10-27 实测）
         return {"state": "blocked", "reason": RESULT_UNKNOWN, "record": doc.last_push_record or "",
                 "message": _("intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN")}
+    target = None  # 这张单交了会写进哪份账套（Code 版 CC B4）：与推送准备同一个 `_express_context` 冻结出的那份，判得出就带上
     try:
         if not doc.push_connection:
             frappe.throw(_("cowork.company.pending.no_target"))
@@ -616,16 +617,18 @@ def operator_check(history, posting_kind=None) -> dict:
         if loaded.endpoint.get("adapter") != "express":
             frappe.throw(_("push.adapter_not_connected"))
         found = _express_context(doc, loaded, doc.push_account_set or None)
+        target = _operator_target(doc, loaded, found)
         _require_matching_account(loaded, found["target"], found["direction"], found["fields"], found["invoice_date"])
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
-        return {"state": "blocked", "message": str(error)[:300]}
+        return {"state": "blocked", "message": str(error)[:300], **({"target": target} if target else {})}
     frappe.db.rollback()  # 只是看
     view = choices_view(history, doc.push_connection, doc.push_account_set or None, posting_kind or None)
     if view.get("wait"):
-        return {"state": "waiting", "reason": view["wait"].get("state") or "", "message": view["wait"].get("message") or ""}
+        return {"state": "waiting", "reason": view["wait"].get("state") or "", "message": view["wait"].get("message") or "",
+                "target": target}
     if not view.get("needed"):
-        return {"state": "ready"}
+        return {"state": "ready", "target": target}
     shared = view.get("options") or {}
     needed = []
     for item in view["needed"]:
@@ -637,7 +640,17 @@ def operator_check(history, posting_kind=None) -> dict:
         if kind in ("item", "party"):
             rows.insert(0, {"code": NEW, "name": ""})  # 在 Express 新建（第 3 期前按直写现有建档、带查重，主会话 10-27）
         needed.append({**item, "options": rows})
-    return {"state": "choose", "needed": needed}
+    return {"state": "choose", "needed": needed, "target": target}
+
+
+def _operator_target(doc, loaded, found) -> dict:
+    """代录开始前说清写进哪份账套：冻结出的账套键，目录里那一行的账套名与位置，连接名（只读，不另判）。"""
+    row = found.get("account_row") or {}
+    attributes = row.get("attributes") if isinstance(row.get("attributes"), dict) else {}
+    account_set = str(getattr(found["target"], "account_set", "") or "")
+    return {"account_set": account_set, "account_set_title": str(row.get("label") or "") or account_set,
+            "account_set_path": str(attributes.get("path") or ""), "connection": doc.push_connection or "",
+            "connection_title": str(getattr(loaded.doc, "label", "") or "")}
 
 
 def _planned(doc, loaded, found, posting_kind, decision, today):

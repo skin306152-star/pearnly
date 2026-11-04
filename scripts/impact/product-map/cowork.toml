@@ -25,6 +25,16 @@ where = "代录 intake"
 tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
 
 [[row]]
+id = "cowork.cc.operator.uploads"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:cowork:uploads"
+where = "代录 uploads（任务里上传的每一份此刻识别到哪：排队中 / 识别中 n/m / 已识别 / 失败，Code 版 CC B2）"
+tests = ["unit:tests/test_express_operator_code_cc.py::test_uploads_reads_each_batch_and_the_recognized_documents"]
+
+[[row]]
 id = "cowork.cc.operator.pending"
 product = "Cowork"
 channel = "cc-operator"

@@ -10,6 +10,9 @@
                                  # （与直写同一条路，不排写账件），要人选的一次问完
         "intake": "<点路径>",    # 可选：(company, filename, content, request_key) -> {"accepted", ...}：资料区上传一张，交识别并归到这家
                                  # 公司（Cowork）；没声明的产品（ERP：单据在 ERP 里开好）资料区不给上传
+        "uploads": "<点路径>",   # 声明了 intake 就要声明：(company, period, batches) -> {batch: {"state": queued / reading / done /
+                                 # failed, "pages_done", "page_count", "code", "documents": [{"doc_id", "ref", "date", "party",
+                                 # "waiting"}]}}：任务里上传的那几份此刻识别到哪了（只读，照产品原来的识别记录现读；读不到的不回）
         "regroup": "<点路径>",   # 可选：(company, doc_id, group) -> {"ok"}：资料区拖到别的组
         "submit": "<点路径>",    # (company, doc_ids, batch, computer, answers) -> [{"doc_id", "status", "reason"}]：先记下预检里
                                  # 人定的（answers = {doc_id: [{kind, subject, value, label}]}），再按产品自己的准备出直写同一份
@@ -72,6 +75,15 @@ def intake(company, filename: str, content: bytes, request_key: str) -> dict:
     if not path:
         return {"accepted": False, "code": "unsupported"}
     return frappe.get_attr(path)(company, filename, content, request_key)
+
+
+def uploads(company, period: str, batches) -> dict:
+    """任务里上传的那几份此刻的识别状态（``{识别任务号: {...}}``）；产品没声明 = 都读不到（页面显示失败 · 读不到）。"""
+    path = _path("uploads")
+    if not path:
+        return {}
+    found = frappe.get_attr(path)(company, period, list(batches))
+    return found if isinstance(found, dict) else {}
 
 
 def regroup(company, doc_id: str, group: str) -> dict:

@@ -109,21 +109,32 @@ def precheck(company, doc_ids) -> dict:
             continue
         result = push.prepare_only(doctype, name)
         hold = str(result.get("hold") or "")
+        target = book_target(result.get("book"))
         if "failed" in result:
-            documents.append({"doc_id": doc_id, "state": "blocked", "reason": result["failed"],
-                              "message": _(result["failed"])})
+            row = {"doc_id": doc_id, "state": "blocked", "reason": result["failed"], "message": _(result["failed"])}
         elif hold.startswith(contracts.CHOICE):
             book = result.get("book") or {}
             data = facts.load(book["key"]) if book.get("key") else None
-            documents.append({"doc_id": doc_id, "state": "choose", "reason": hold,
-                              "needed": [{**item, "options": api._options(item, data)} for item in result.get("needed") or []]})
+            row = {"doc_id": doc_id, "state": "choose", "reason": hold,
+                   "needed": [{**item, "options": api._options(item, data)} for item in result.get("needed") or []]}
         elif hold == contracts.READING:
-            documents.append({"doc_id": doc_id, "state": "waiting", "reason": hold, "message": _(hold)})
+            row = {"doc_id": doc_id, "state": "waiting", "reason": hold, "message": _(hold)}
         elif hold:
-            documents.append({"doc_id": doc_id, "state": "blocked", "reason": hold, "message": _(hold)})
+            row = {"doc_id": doc_id, "state": "blocked", "reason": hold, "message": _(hold)}
         else:
-            documents.append({"doc_id": doc_id, "state": "ready"})
+            row = {"doc_id": doc_id, "state": "ready"}
+        documents.append({**row, "target": target} if target else row)
     return {"documents": documents}
+
+
+def book_target(book) -> dict | None:
+    """这张单交了会写进哪份账套（Code 版 CC B4）：准备那一步按税号、分店、单据日期选出的那份（`express.target.pick`，与交单
+    同一条准备）；``writers`` 是报过能写它的电脑。没选出（没有账套、同期几份没选）回 None。纯函数。"""
+    if not isinstance(book, dict) or not book.get("key"):
+        return None
+    return {"account_set": str(book["key"]), "account_set_title": str(book.get("label") or book["key"]),
+            "account_set_path": str(book.get("path") or ""), "connection": "", "connection_title": "",
+            "writers": list(book.get("writers") or [])}
 
 
 def _operator_held(job_name) -> bool:

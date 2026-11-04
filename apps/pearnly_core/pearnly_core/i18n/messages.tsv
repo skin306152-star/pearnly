@@ -953,4 +953,7 @@ Checking the hands-on task	正在查看实操任务	กำลังตรวจ�
 Updating the hands-on task	正在更新实操任务	กำลังอัปเดตงานทำใน Express	代行入力タスクを更新しています
 Operator Task	实操任务	งานทำใน Express	代行入力タスク
 Pending Controls	待执行的操作	การดำเนินการที่รออยู่	保留中の操作
+Request Key	请求键	คีย์คำขอ	リクエストキー
+Recognition Task	识别任务	งานอ่านเอกสาร	認識タスク
+Uploaded At	上传时间	เวลาอัปโหลด	アップロード日時
 Operator Ledgers	实操账本	ระบบบัญชีที่บันทึกแทนได้	代行入力先の帳簿

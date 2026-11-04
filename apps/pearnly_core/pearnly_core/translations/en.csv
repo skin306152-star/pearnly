@@ -559,6 +559,7 @@ Receipt Meta,Receipt Meta
 Received,Received
 Recognition Raw,Recognition Raw
 Recognition Records,Recognition Records
+Recognition Task,Recognition Task
 Recognition failed. Please try again.,Recognition failed. Please try again.
 Recognition records,Recognition records
 Recognition result,Recognition result
@@ -590,6 +591,7 @@ Removed from Product History By,Removed from Product History By
 Reorder sidebar,Reorder sidebar
 Request & Response,Request & Response
 Request Body,Request Body
+Request Key,Request Key
 Request failed (HTTP {0}),Request failed (HTTP {0})
 Request refused,Request refused
 Requested,Requested
@@ -812,6 +814,7 @@ Upload a transfer slip before submitting,Upload a transfer slip before submittin
 Upload a transfer slip up to 10 MB,Upload a transfer slip up to 10 MB
 "Upload receipts and sheets, extract fields, review each item, then push","Upload receipts and sheets, extract fields, review each item, then push"
 Upload transfer slip,Upload transfer slip
+Uploaded At,Uploaded At
 Uploading,Uploading
 Usage,Usage
 "Use a JPG, PNG or PDF transfer slip","Use a JPG, PNG or PDF transfer slip"

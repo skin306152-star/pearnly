@@ -250,8 +250,12 @@ def pending(company=None, limit=None, search=None) -> dict:
 
 
 def pending_counts() -> dict:
-    """侧栏用：按公司计数与总数（`counts`）。"""
-    return counts(_items(visible()))
+    """侧栏用：按公司计数与总数（`counts`）。`months`（Code 版 CC B3）：按「公司 · 月份」的数与本人这家这个月的对话
+    （共用层 `sessions.pending_months`，同 Cowork，只读）。"""
+    from pearnly_core.assistant import sessions
+
+    items = _items(visible())
+    return {**counts(items), "months": sessions.pending_months(items)}
 
 
 # ---------------- 状态变了 ----------------

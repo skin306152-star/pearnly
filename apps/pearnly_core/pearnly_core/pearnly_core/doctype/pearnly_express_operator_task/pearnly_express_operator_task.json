@@ -19,7 +19,8 @@
   "finished_at",
   "session_id",
   "controls",
-  "documents"
+  "documents",
+  "uploads"
  ],
  "fields": [
   {
@@ -105,11 +106,17 @@
    "fieldtype": "Table",
    "label": "Documents",
    "options": "Pearnly Express Operator Task Document"
+  },
+  {
+   "fieldname": "uploads",
+   "fieldtype": "Table",
+   "label": "Upload",
+   "options": "Pearnly Express Operator Task Upload"
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-30 14:00:00.000000",
+ "modified": "2026-11-04 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Express Operator Task",
