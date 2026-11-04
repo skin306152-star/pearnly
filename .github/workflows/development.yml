@@ -116,7 +116,7 @@ jobs:
       - name: Enforce architecture boundaries
         run: python3 scripts/check-architecture.py
       - name: Every catch in product front-end code rethrows or goes to the shared error report; expected ones are registered with a reason
-        run: python3 scripts/check-swallowed-errors.py
+        run: python3 scripts/check-swallowed-errors.py && python3 tests/test_check_swallowed_errors.py
       - name: Changed product entry files must be covered by a registered flow case (the flows themselves run in the local regression lab)
         env:
           FLOWS_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || 'origin/main' }}

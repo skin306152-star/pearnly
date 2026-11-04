@@ -9,6 +9,10 @@
   `.catch(window.pearnlyReported(原来的处理, "哪里"))`（`pearnly_core/public/desk/errors.js`）；两个前端（`frontend/src`、
   `frontend/assistant/src`）用各自 `lib/caught.ts` 的 `reportCaught` / `withReport`。请求被站点拒收、网络失败那里自己跳过（服务端已记），
   其余前端异常记进 Error Log。
+- 扫码（`pearnly_core/public/scan/reader.js`、`public/desk/scan.js`）调 `window.PearnlyScan.report(error, "哪里")`：权限被拒、没有相机等
+  使用环境的预期原因只提示不上报，其余交 `pearnlyCaught`。只认这一个名字，而且闸门核对它的定义原样是
+  「`if (EXPECTED.has(reason(error))) return;` 再 `globalThis.pearnlyCaught?.(error, kind);`」并以 `report` 导出到 `window.PearnlyScan`；
+  定义被改成不上报或换了写法，这个名字就不算上报，闸门失败（主会话 11-04，不是谁都能套的豁免）。
 
 只 `console.error`、只弹提示、空 catch、换成默认值都算吞错，失败。确属预期的（例如探测浏览器能力、用户取消、解析用户自己贴的文本），
 逐条登记到 `tests/baseline/swallowed_errors.toml`：文件、所在函数或那一行的特征文字、原因。登记表只许减少；登记了却找不到的条目也算失败（删掉）。
@@ -30,6 +34,11 @@ PATTERNS = ("apps/*/*/public/**/*.js", "apps/*/*/**/doctype/**/*.js", "apps/*/*/
 SKIP = ("/dist/", "node_modules", "official-pos", "/vendor/", "/pearnly_control/", "/public/assistant/", "/public/pearnly-app/", ".d.ts", "/test", ".test.", ".spec.")
 REPORT = re.compile(r"\bpearnly(ReportError|Caught|Reported)\b|\breportCaught\s*\(|\bwithReport\s*\(")
 RETHROW = re.compile(r"\bthrow\b|\breject\s*\(")
+# 扫码过滤后上报：只认 `PearnlyScan.report(`，前提是 scan_report_ok() 核对过它的定义
+SCAN_READER = "apps/pearnly_core/pearnly_core/public/scan/reader.js"
+SCAN_REPORT = re.compile(r"\bPearnlyScan\.report\s*\(")
+SCAN_REPORT_BODY = re.compile(r"if\s*\(\s*EXPECTED\.has\(\s*reason\(\s*error\s*\)\s*\)\s*\)\s*return\s*;\s*"
+                              r"globalThis\.pearnlyCaught\?\.\(\s*error\s*,\s*kind\s*\)\s*;?")
 
 
 def files():
@@ -120,11 +129,30 @@ def catches(text: str):
             yield line, "try/catch", handler, try_body(code, text, m.start()) + " " + text.splitlines()[line - 1] + " " + handler
 
 
-def classify(handler: str) -> str:
+def scan_report_ok() -> bool:
+    """`PearnlyScan.report` 的定义仍是「预期原因跳过、其余交 pearnlyCaught」，且原名导出到 `window.PearnlyScan`。"""
+    path = ROOT / SCAN_READER
+    if not path.is_file():
+        return False
+    code = mask(path.read_text(encoding="utf-8", errors="replace"))
+    found = list(re.finditer(r"\bfunction\s+report\s*\(\s*error\s*,\s*kind\s*\)\s*\{", code))
+    if len(found) != 1 or re.search(r"\breport\s*=", code):
+        return False
+    start = found[0].end() - 1
+    if not SCAN_REPORT_BODY.fullmatch(code[start + 1:match_close(code, start, "{", "}")].strip()):
+        return False
+    exported = re.search(r"window\.PearnlyScan\s*=\s*\{", code)
+    if not exported:
+        return False
+    names = code[exported.end():match_close(code, exported.end() - 1, "{", "}")]
+    return re.search(r"(^|,)\s*report\s*(,|$)", names) is not None
+
+
+def classify(handler: str, scan_ok: bool = False) -> str:
     body = handler.strip()
     if RETHROW.search(mask(handler)):
         return "rethrow"
-    if REPORT.search(handler):
+    if REPORT.search(handler) or (scan_ok and SCAN_REPORT.search(mask(handler))):
         return "report"
     if not body or re.fullmatch(r"(\(\s*\)|_|\w+)\s*=>\s*(\{\s*\}|null|undefined|void 0|false|true|\[\]|\{\}|\(\s*\)|\"\"|''|0)", body) \
             or re.fullmatch(r"(\(\s*\)|_|\w+)\s*=>\s*\{\s*\}", body):
@@ -139,10 +167,11 @@ def classify(handler: str) -> str:
 
 
 def scan():
+    scan_ok = scan_report_ok()
     for rel, text in files():
         lines = text.splitlines()
         for line, form, handler, context in catches(text):
-            yield {"file": rel, "line": line, "form": form, "kind": classify(handler),
+            yield {"file": rel, "line": line, "form": form, "kind": classify(handler, scan_ok),
                    "text": lines[line - 1].strip()[:140], "handler": " ".join(handler.split())[:160],
                    "context": " ".join(context.split())}
 
@@ -178,6 +207,11 @@ def main(argv) -> int:
     # 一条登记只许对上一个 catch：写成「} catch {」这种会把同文件里以后新加的吞错也放过去
     loose = [e for e in allow if len(hits(e, items)) > 1]
     missing = [e for e in allow if not str(e.get("reason", "")).strip()]
+    # 用了扫码上报却核对不上它的定义：单独说清楚（那几处同时按吞错列出）
+    broken = [] if scan_report_ok() else [i for i in items if SCAN_REPORT.search(mask(i["handler"]))]
+    if broken:
+        print(f'{SCAN_READER}: PearnlyScan.report 的定义不再是「预期原因跳过、其余交 globalThis.pearnlyCaught」或没以 report 导出，'
+              f'{len(broken)} 处扫码 catch 不算上报')
     for item in bad:
         print(f'{item["file"]}:{item["line"]}: {item["form"]} 吞了错误（{item["kind"]}）：重抛，或调 window.pearnlyCaught / '
               f'pearnlyReported（前端用 reportCaught / withReport）；确属预期的登记到 {REGISTRY.relative_to(ROOT)}')
@@ -188,7 +222,7 @@ def main(argv) -> int:
     for entry in missing:
         print(f'{REGISTRY.relative_to(ROOT)}: {entry["file"]} 「{entry["match"]}」没写原因')
     total = len(items)
-    if bad or unused or missing or loose:
+    if bad or unused or missing or loose or broken:
         print(f"吞错闸门：不通过（{len(bad)} 处吞错，{len(unused)} 条失效登记，{len(loose)} 条登记不唯一，{len(missing)} 条缺原因；共 {total} 个 catch）")
         return 1
     print(f"吞错闸门：通过（{total} 个 catch，{len(allow)} 条登记的预期吞错）")
