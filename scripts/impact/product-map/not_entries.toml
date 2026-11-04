@@ -11,11 +11,6 @@ kind = "compat"
 reason = "11-04 核实：前端没有拼名调用，产品里没有调用方；文档 docs/work/2026-10-10-assistant-foundation.md 提到（兼容保留候选，待核实）"
 
 [[anchor]]
-anchor = "endpoint:pearnly_core.express_operator.api.task_uploads"
-kind = "internal"
-reason = "Code 版 CC 块 1（W1）先合入的只读接口：代录会话里上传卡片的状态；页面调用随块 3（W3，frontend/assistant/components/operator）接上，接上的同一提交删掉本条"
-
-[[anchor]]
 anchor = "endpoint:pearnly_core.manifest.describe"
 kind = "delete"
 reason = "产品里没有调用方，只有测试 scripts/flows/cc_person_names.py 在调（待删候选）"
