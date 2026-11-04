@@ -139,6 +139,8 @@ jobs:
         run: python3 tests/test_cowork_mrerp_masters.py
       - name: MR.ERP rules shared in pearnly_core import no product and reach the network only from the session and the import; Cowork push preparation stays pure
         run: python3 tests/test_mrerp_core_boundary.py && python3 tests/test_cowork_push_purity.py
+      - name: Write precheck rules shared in pearnly_core (card groups, one question per item across documents, decided, proposed and open, answers per document, preselect rules) import no framework or product
+        run: python3 tests/test_write_precheck.py
       - name: Exercise audited offline DMS contracts
         run: python3 scripts/check-dms-offline.py
       - name: Verify forced SSH provisioning entry and contracts

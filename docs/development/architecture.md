@@ -133,6 +133,14 @@ ERP 的 `mrerp` 域（评估第 6 步导入直写，[任务记录](../work/2026-
 （现为 False，入口先不对用户开放；不按站点开），关着时所有入口 403、Express 行为不变（`tests/test_erp_mrerp_direct.py`）；导入表与
 Cowork 逐字节相同由 `tests/test_erp_mrerp_golden.py` 锁住（候选检查离线车道）。
 
+### 写账前置判定（共用层，2026-11-04）
+
+`pearnly_core.write_precheck`（文件头写明多产品共用；评估与主会话审定 [2026-11-04](../work/2026-11-04-precheck-card.md)）：一批单写进
+Express / MR.ERP 之前要人定的前置条件合成一张「开始前确认」卡片。`contracts` 管卡片形状、按业务分组（账套与单据、采购、销售、库存、
+服务、付款）、按「类 + 归类键」跨单去重、已定 / 预选 / 未定三种状态、答案展开到每张单、因未定项留下的单；`preselect` 是没有记忆时的
+预选规则（只取 `express_rules` 的常量、分店归一与付款判定）。纯函数，不导入 Frappe 与任何产品（`tests/test_write_precheck.py`）。
+各类要人选的项怎么判仍是 `express_rules.push.choices.resolve`；记在哪、谁能选、怎么写入留在产品里，经钩子交进来（W2 起接入）。
+
 MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7、8 条，施工记录 [mrerp-cc-credentials](../work/2026-11-02-mrerp-cc-credentials.md)）：网页不收
 MR.ERP 密码。对话页先要一张一次性票（`pearnly_core.cc_desktop.login_tickets`：只存摘要、5 分钟、用一次，绑站点 / 通道 / 连接 / 人 /
 电脑；Cowork `companion.api.mrerp_login_ticket`，共用通道 `cc_desktop.api.mrerp_login_ticket`），CC 桌面版原生小窗收用户名和密码，

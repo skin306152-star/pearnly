@@ -81,6 +81,7 @@ apps/pearnly_core/pearnly_core/express_rules/push/mapper.py	*	数据：写进 Ex
 apps/pearnly_core/pearnly_core/tax_documents/amounts.py	*	数据：票据折扣行正则与金额符号清洗，按原字面比对或写入外部系统，不进界面
 apps/pearnly_dms/pearnly_dms/booking/attachments.py	*	数据：写进 DMS 的附件名（也用于比对缺失附件），按原字面比对或写入外部系统，不进界面
 apps/pearnly_core/pearnly_core/express_rules/push/payment.py	*	数据：付款状态识别关键词，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/write_precheck/preselect.py	*	数据：科目名称与付款方式的泰文关键词（退货、存款 / 银行、刷卡、转账 / QR），用于按原字面比对给预选，不进界面
 apps/pearnly_dms/pearnly_dms/adapter/account_probe.py	*	数据：DMS 使用记录的模块名，按原字面比对或写入外部系统，不进界面
 apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa.py	*	数据：LINE 对话中现金付款的匹配词，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/roundtrip/export_mapping.py	*	数据：金额解析去货币符号，按原字面比对或写入外部系统，不进界面
