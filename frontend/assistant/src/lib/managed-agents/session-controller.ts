@@ -143,6 +143,13 @@ export class SessionController {
   };
   getSnapshot = (): ControllerSnapshot => this.state;
 
+  /** 本页合成的本站事件，只并进本页（不落库、不推送、不当补拉锚点）：执行电脑上按桥的进度合成的 pearnly.progress
+   *  （components/operator/bridge.ts），点完代录卡片后本页先定下的 user.tool_confirmation（编号 optimistic- 开头，回声到了以它为准）。 */
+  applyLocal = (event: FeedEvent) => {
+    if (event.type !== "pearnly.progress" && !(event.type === "user.tool_confirmation" && event.id.startsWith("optimistic-"))) return;
+    this.fold(event);
+  };
+
   private set(patch: Partial<ControllerSnapshot>) {
     this.state = { ...this.state, ...patch };
     for (const l of this.listeners) l();

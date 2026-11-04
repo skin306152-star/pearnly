@@ -8,6 +8,8 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { FileTypeIcon, fileTypeLabel, useResults } from "@/components/results-panel";
 import { LoneStep, runningStepLabel, StepRow, StepsGroup } from "@/components/tool-uis/steps";
+import { OPERATOR_CARDS } from "@/components/tool-uis";
+import { liveProgress, progressText } from "@/lib/managed-agents/progress";
 import { ApprovalSheet } from "@/components/tool-uis/approval-sheet";
 import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -520,7 +522,7 @@ function useGroupByWithVisibleGates(): typeof groupByBase {
   const labels = useToolLabels();
   return useMemo<typeof groupByBase>(
     () => (part, context) =>
-      part.type === "tool-call" && approvalCard(part as unknown as CardPart, labels) ? [] : groupByBase(part, context),
+      part.type === "tool-call" && (OPERATOR_CARDS.has(part.toolName) || approvalCard(part as unknown as CardPart, labels)) ? [] : groupByBase(part, context),
     [labels],
   );
 }
@@ -636,10 +638,13 @@ const RunIndicator: FC<{ className?: string }> = ({ className }) => {
   const thought = thinking.note(waiting ? "hidden" : activity.kind, start, Date.now());
   if (waiting) return phone ? null : <RunLine kind="input" className={className} />;
   if (!visible) return null;
-  const step = activity.kind === "tool" ? runningStepLabel(activity.toolName, activity.args, labels) : "";
-  const text = statusText(activity, Math.floor((now - start) / 1000), thought, step);
+  // 进行到哪（pearnly.progress：识别中 n/m 页、等电脑空闲、第 n/N 张 · 暂停原因）：有就说它，断线时照旧说重连
+  const live = activity.kind === "reconnecting" ? null : liveProgress(snapshot);
+  const shown = live ? progressText(live) : "";
+  const step = shown || (activity.kind === "tool" ? runningStepLabel(activity.toolName, activity.args, labels) : "");
+  const text = statusText(shown ? { kind: "tool", toolName: "", args: {} } : activity, Math.floor((now - start) / 1000), thought, step);
   // 读屏只报在做什么，不每秒报一次计时
-  const label = activity.kind === "tool" ? step : activity.kind === "reconnecting" ? text : steps.thinking;
+  const label = shown || activity.kind === "tool" ? step : activity.kind === "reconnecting" ? text : steps.thinking;
   return <RunLine kind={activity.kind} text={text} label={label} className={className} />;
 };
 

@@ -45,6 +45,7 @@ import {
   starSession,
 } from "./api";
 import { clearUnread, noteRun, runningSessions, seedUnread } from "./activity";
+import { listMode, noteSessionTasks } from "./list-mode";
 import { type SessionSummary, splitAttachmentNote } from "./events";
 import {
   decodeCursor,
@@ -87,6 +88,7 @@ export function absorb(page: SessionPage, asked: number) {
     noteCreated(s.id, s.created_at);
   }
   for (const [id, run] of Object.entries(page.runs ?? {})) noteRun(id, run);
+  noteSessionTasks(page.sessions);
   // 归属：每一页都按服务端的覆盖（已认得的编号也覆盖）；请求发出后本页自己移动或新建过的不盖
   const filings: Record<string, Filing> = {};
   for (const s of page.sessions) {
@@ -214,12 +216,13 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
     const local = draft ? fileLocally({ [threadId]: draft }) : undefined;
     let session: ListedSession;
     try {
-      session = await createSession(draft);
+      session = await createSession(draft, listMode());
     } catch (error) {
       local?.undo({ [threadId]: NO_FILING });
       throw error;
     }
     touch(session.id);
+    noteSessionTasks([session]);
     const filing = filingFrom(session) ?? draft;
     const entries = filing ? { [threadId]: filing, [session.id]: filing } : {};
     if (local) local.done(entries);
@@ -266,7 +269,9 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
   },
 
   async fetch(threadId) {
-    return toThreadMetadata(await getSession(threadId));
+    const session = await getSession(threadId);
+    noteSessionTasks([session as ListedSession]);
+    return toThreadMetadata(session);
   },
 
   async generateTitle(remoteId, messages) {

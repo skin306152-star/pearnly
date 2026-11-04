@@ -30,6 +30,9 @@
 //   session.error                       → an error message + retry chip
 //   pearnly.notice                      → a notice card (本站提醒，记在 notices，不进 messages；
 //                                          页面经 withNotices 并进对话，见文件末尾)
+//   pearnly.progress                    → 一步（或整段对话）进行到哪（记在 progress，按步只留最新一条；工作状态行读它，lib/managed-agents/progress.ts）
+//   代录的工具（operator_*，events.ts 的 isOperatorTool）→ 同别的工具一样是步骤或卡片；它的 agent.tool_result 是站点交来的结果（不当中断结果），
+//                                          停着等它时不进 pendingCustomTools（不向服务端要执行、不算在跑：输入框照常能打字）
 //
 // 运行状态（在回复 / 等允许 / 已结束）按服务端时间定，不按到达先后：推送与补拉交错时，晚到的旧状态事件不再盖过已采用的
 // 新状态（statusAt）。服务端读回的此刻状态（RunStatus，applyRunStatus）在重放、重进、回到前台、重连时校正它。
@@ -38,8 +41,9 @@
 // 还没重新开跑的那段空档，同服务端读回的状态一样算在跑（2026-10-13 iPhone：两段工具之间约 10 秒显示成已结束、出现复制按钮、
 // 发送键变回空闲）。
 
-import type { FeedEvent, NoticeEvent, RunStatus, ToolRunStatus, ToolUseEvent } from "./events";
-import { isPersisted, splitAttachmentNote } from "./events";
+import type { FeedEvent, NoticeEvent, OperatorEnd, ProgressEvent, RunStatus, ToolRunStatus, ToolUseEvent } from "./events";
+import { operatorEndText } from "./progress";
+import { isOperatorTool, isPersisted, splitAttachmentNote } from "./events";
 import { stepDenied } from "@/lib/step-summary";
 
 // ---------------------------------------------------------------------------
@@ -91,6 +95,8 @@ export type ToolPart = {
   interrupted?: boolean;
   /** 本站执行记录的状态（pearnly.tool_run）：本站拦下的卡片最后的样子以它为准。 */
   run?: ToolRunStatus;
+  /** 结果的服务端时间（代录的步骤：比它新的 pearnly.progress 说这一步又排上了，方案 14.10）。 */
+  resultAt?: string;
 };
 export type ContentPart = TextPart | ReasoningPart | ToolPart;
 
@@ -186,6 +192,8 @@ export type Projection = {
   statusAt: number;
   /** 本站执行记录的状态，按调用编号（pearnly.tool_run 先于调用本身到时，建这一步时补上）。 */
   toolRuns: ReadonlyMap<string, ToolRunStatus>;
+  /** 进行到哪（pearnly.progress），按调用编号（"" = 整段对话），每步只留最新一条。 */
+  progress: ReadonlyMap<string, ProgressEvent>;
 };
 
 export const initialProjection = (): Projection => ({
@@ -206,6 +214,7 @@ export const initialProjection = (): Projection => ({
   notices: [],
   statusAt: 0,
   toolRuns: new Map(),
+  progress: new Map(),
 });
 
 // ---------------------------------------------------------------------------
@@ -489,6 +498,17 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
     case "pearnly.notice":
       return { ...state, notices: insertNotice(state.notices, event) };
 
+    case "pearnly.progress": {
+      // 同一步只认 processed_at 最新的一条；相同时刻认 done 大的
+      const key = event.tool_use_id ?? "";
+      const known = state.progress.get(key);
+      const at = serverTime(event.processed_at) ?? Infinity;
+      const was = known ? (serverTime(known.processed_at) ?? -Infinity) : -Infinity;
+      const newer = !known || at > was || (at === was && event.done >= known.done);
+      if (!newer) return state;
+      return { ...state, progress: new Map(state.progress).set(key, event) };
+    }
+
     // ---------------------------------------------------------------- turns
     case "user.message": {
       const messages = draft(state.messages);
@@ -599,6 +619,8 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
           working = true;
           continue;
         }
+        // 代录的卡片（开始前、中途选、继续）：卡片自己在对话里等点，不向服务端要执行，也不算在跑
+        if (toolUse.type === "agent.custom_tool_use" && isOperatorTool(toolUse.name)) continue;
         if (toolUse.type === "agent.custom_tool_use") {
           pendingCustomTools.push(id);
           continue;
@@ -718,6 +740,18 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       // of it, reconcile in place (a preview is always a verbatim prefix);
       // otherwise append it whole (no streaming gate, or a missed start).
       const messages = draft(state.messages);
+      // 代录收尾那条（方案 14.10）：正文是空的，按 operator 字段写一句，报告记在消息上（thread.tsx 画成文件卡片）
+      const end = (event as { operator?: OperatorEnd }).operator;
+      if (end && typeof end === "object") {
+        const mi = currentAssistantIndex(messages, event.processed_at);
+        const msg = messages[mi]!;
+        const report = end.report?.url ? { report: { filename: end.report.filename ?? "", url: end.report.url } } : {};
+        messages[mi] = {
+          ...withContent(msg, [...msg.content, { type: "text", text: operatorEndText(end) }]),
+          metadata: { custom: { ...(msg.metadata?.custom ?? {}), ...report } },
+        };
+        return { ...state, messages };
+      }
       const text = textOfBlocks(event.content);
       const preview = state.previews.get(event.id);
       const previews = new Map(state.previews);
@@ -789,13 +823,14 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       if (!found) return state;
       const result = toToolResult(event.content, !!event.is_error);
       const target = state.messages[found.mi]!.content[found.pi]!;
-      if (event.type === "agent.tool_result" && target.type === "tool-call" && target.toolKind === "custom") {
+      if (event.type === "agent.tool_result" && target.type === "tool-call" && target.toolKind === "custom" && !isOperatorTool(target.toolName)) {
         return interruptedCustomTool(state, toolCallId, result);
       }
       const messages = draft(state.messages);
       updatePart(messages, found.mi, found.pi, updateTool((p) => ({
         result,
         isError: result.isError,
+        ...(event.processed_at ? { resultAt: event.processed_at } : {}),
         // A result arriving proves the gate was allowed, even if the echoed
         // confirmation raced past us. 已答的只去掉「发送中」（自带工具被拒时没有结果）。
         approval: p.approval && p.approval.approved === undefined ? settleApproval(p.approval, true)
@@ -818,6 +853,7 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
         // 本页已点过的也以结果为准（approvalFromResult）
         updatePart(next, found.mi, found.pi, updateTool((p) => ({
           result,
+          ...(event.processed_at && !event.id.startsWith("optimistic-") ? { resultAt: event.processed_at } : {}),
           // 本站的结果取代平台代发的中断结果
           ...(p.interrupted ? { isError: result.isError, interrupted: false } : {}),
           ...(p.approval && !runSettled(p.run) ? { approval: approvalFromResult(p.approval, result) } : {}),
@@ -1025,6 +1061,8 @@ function resumes(
   pendingApprovals: readonly string[],
   pendingCustomTools: readonly string[],
 ): boolean {
+  // 代录的卡片答完不算引擎接着跑（运行状态以代录事件源投影的状态为准）
+  if (isOperatorTool(state.toolUses.get(id)?.name)) return false;
   return state.parkedIds.includes(id) && pendingApprovals.length === 0 && pendingCustomTools.length === 0;
 }
 

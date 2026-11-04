@@ -58,17 +58,49 @@ export type ToolRunEvent = {
   status: ToolRunStatus;
 };
 
+/** 一步（或整段对话）进行到哪（方案 14.10，服务端 assistant/contracts.py 的 progress_event，只在站点与页面之间）：
+ *  tool_use_id 空串 = 整段对话的状态行。label 是代码：单据步骤 queued / reading_pages / blocked（detail = 挡着它的「单号 · 对方」），
+ *  整段对话 waiting_computer / entering（done / total = 已有结论 / 交出张数）；执行电脑上的页面按桥合成同一种（components/operator/bridge.ts，
+ *  不落库、不推送，编号 local- 开头），暂停时 label 是暂停原因码。同一步（同一个 tool_use_id）只认 processed_at 最新的一条（结果或进度），
+ *  相同时刻认 done 大的。 */
+export type ProgressEvent = {
+  type: "pearnly.progress";
+  id: string;
+  processed_at: string | null;
+  tool_use_id?: string | null;
+  done: number;
+  total: number;
+  label: string;
+  detail?: string;
+};
+
+/** 代录收尾那条 agent.message 带的（方案 14.10 E14 / E15）：content 是一个空文字块，页面按它画「已停止 · …」或完成回顾，报告画成文件卡片。 */
+export type OperatorEnd = {
+  kind: "finished" | "stopped" | "attention";
+  task: string;
+  counts?: { saved?: number; not_done?: number; cancelled?: number; skipped?: number };
+  report?: { filename?: string; url?: string };
+};
+
 /** 对话页收到的全部事件：引擎事件 + 本站事件（类型以 pearnly. 开头）。 */
-export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent;
+export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent | ProgressEvent;
+
+/** 代录的工具（方案 14.10：站点内部的显示用名，不交给模型、不进工具表）：由代录事件源投影进同一段对话。卡片（operator_start /
+ *  operator_choose / operator_resume）的结果由站点以 user.custom_tool_result 交来；停着等它们时页面不走自动答复、run_tool、confirm
+ *  （卡片自己调代录接口），也不算在跑，输入框照常能打字。 */
+export const isOperatorTool = (name: string | undefined): boolean => String(name ?? "").startsWith("operator_");
 
 /** 一条执行记录事件（服务端 contracts.tool_run_event 的同一种写法；confirm 回的状态在页面这边照它合成）。 */
 export function toolRunEvent(toolUseId: string, status: ToolRunStatus, processedAt: string | null = null): ToolRunEvent {
   return { type: "pearnly.tool_run", id: `ptoolrun_${toolUseId}_${status}`, processed_at: processedAt, tool_use_id: toolUseId, status };
 }
 
-/** 本站事件不在引擎的事件记录里：补拉不能拿它的编号当锚点（服务端找不到，会退回整段重放）。 */
+/** 本站事件不在引擎的事件记录里：补拉不能拿它的编号当锚点（服务端找不到，会退回整段重放）。代录事件源投影的（编号 pop_ 开头，
+ *  方案 14.10）与执行电脑上本页合成的（local- 开头）也是。 */
 export function isLocalEvent(event: FeedEvent): boolean {
-  return String(event.type).startsWith("pearnly.");
+  if (String(event.type).startsWith("pearnly.")) return true;
+  const id = (event as { id?: unknown }).id;
+  return typeof id === "string" && (id.startsWith("pop_") || id.startsWith("local-"));
 }
 
 export function isNotice(event: FeedEvent): event is NoticeEvent {

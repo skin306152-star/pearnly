@@ -5,6 +5,8 @@
 //   /assistant?c=<对话>    → 打开那段对话；不是本人的、不存在或已删 → 有定时任务的产品开定时任务页，否则新对话
 //   /assistant?view=tasks  → 定时任务页（带 &company=<公司> 只看这家公司的任务）
 //   /assistant?view=companies → 公司页；/assistant?company=<公司> → 这家公司的主档页
+//   /assistant?task=<代录任务号>（旧的代录任务链接，兼容入口；?view=tasks&task=… 同）→ 按任务号查到它那段会话（task_thread），切到代录模式打开；
+//                             代录任务 11-04 起就是一段会话，统一用 ?c=<会话>
 //   /assistant?view=pending → 兼容入口（早上的待处理汇总提醒、CC 桌面版托盘通知还在发；待处理 11-04 起并进对话，不再是视图）：
 //                             带 &company=<公司> 打开这家待处理最多那个月的对话（服务端指定的那段；还没有就在这家这个月开新对话，
 //                             末尾是「需要处理」框）；不带时只有一家有待处理就开那家，多家开公司页（列表上有数）
@@ -13,35 +15,41 @@
 // 后台脚本点通知发来的 pearnly-open（pearnly_core/assistant/service_worker.js）、桌面端的 tomo-open（window.tomo.open）。
 //
 // 两种模式（评估 docs/work/2026-10-26-express-operator-product-评估.md §10 ①，左上角「对话 | 代录」，Ctrl / ⌘ + Shift + 1 / 2）：
-//   对话自己的视图 chat / tasks；代录自己的视图 operator；两种模式共有的 companies / company（侧栏共有的「公司」，主会话 11-03：
-//   代录模式下点了留在代录，主栏换成那一页）。模式单独记（useModePlace.mode）：进了模式自己的视图
-//   就是那个模式，进共有的视图不换模式。两种模式各记各的最后位置：切到代录时记下当时的对话视图（对话本身组件库记着），切回来回到它；
-//   代录记着最后的视图（任务页或共有的那几页）与看的是哪一批（空 = 新建批次）。后退 / 前进也记模式与代录看的是哪一批。
+//   对话自己的视图 chat / tasks；代录自己的视图 operator（就是对话页：代录任务是一段会话，同一个 thread / runtime，方案 cc-unified-plan 14）；
+//   两种模式共有的 companies / company。模式单独记（useModePlace.mode）：进了模式自己的视图就是那个模式，进共有的视图不换模式；
+//   侧栏按模式筛（lib/managed-agents/list-mode.ts，跟着这里改）。两种模式各记各的最后位置：切到代录时记下当时的对话视图，切回来回到它。
+//   后退 / 前进也记模式。
 
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { create } from "zustand";
 import { type PendingMonth, refreshPendingCounts, useCompanyNav, usePendingCounts } from "@/lib/companies";
 import { getSession } from "@/lib/managed-agents/api";
+import { useListMode } from "@/lib/managed-agents/list-mode";
+import { postMethod } from "@/lib/frappe";
 import { hasSection, projectsReady, setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { reportCaught, withReport } from "./caught";
 
 export type View = "chat" | "tasks" | "companies" | "company" | "operator";
-type Entry = { view: View; mode: Mode; thread: string; company: string; batch: string };
+type Entry = { view: View; mode: Mode; thread: string; company: string };
 
 export type Mode = "chat" | "operator";
 
 /** 模式自己的视图属于哪个模式；共有的视图（公司列表、公司页）为 null。 */
 export const ownMode = (view: View): Mode | null => (view === "operator" ? "operator" : view === "chat" || view === "tasks" ? "chat" : null);
 
-/** 当前模式与两种模式各自的最后位置：对话模式最后看的视图、代录模式最后看的视图与批次（空 = 新建批次）。 */
+/** 当前模式与两种模式各自的最后位置：对话模式最后看的视图、代录模式最后看的视图。 */
 // map: sidebar-modes
-export const useModePlace = create<{ mode: Mode; chatView: View; operatorView: View; batch: string }>(() => ({
+export const useModePlace = create<{ mode: Mode; chatView: View; operatorView: View }>(() => ({
   mode: "chat",
   chatView: "chat",
   operatorView: "operator",
-  batch: "",
 }));
+
+// 侧栏按模式筛、新建时带的 mode 跟着当前模式（list-mode.ts，接口层单放的那一份）
+useModePlace.subscribe((now) => {
+  if (useListMode.getState().mode !== now.mode) useListMode.setState({ mode: now.mode });
+});
 
 /** 换视图时跟着定模式：模式自己的视图就是那个模式，共有的不换（ViewContext 的 setView 都经这里）。 */
 export function noteViewMode(view: View) {
@@ -62,10 +70,10 @@ export function switchMode(mode: Mode, view: View, setView: (v: View) => void) {
   }
 }
 
-/** 打开代录的任务页（batch：任务号，空 = 新建任务）：从对话模式来的先记下对话视图。 */
-export function openOperator(batch: string, view: View, setView: (v: View) => void) {
+/** 打开代录（对话页本身，侧栏只列代录会话）：从对话模式来的先记下对话视图。 */
+export function openOperator(view: View, setView: (v: View) => void) {
   const place = useModePlace.getState();
-  useModePlace.setState(place.mode === "operator" ? { batch } : { batch, chatView: view });
+  if (place.mode !== "operator") useModePlace.setState({ chatView: view });
   setView("operator");
 }
 
@@ -86,8 +94,7 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
   const thread = useAuiState((s) => s.threads.mainThreadId) ?? "";
   // 主档页看的是哪家也记进去：在两家公司之间来回也能后退
   const company = useCompanyNav((s) => (view === "company" ? s.company : ""));
-  // 代录看的是哪一批也记进去：在两批之间来回也能后退；模式也记（共有的公司页两种模式都能看）
-  const batch = useModePlace((s) => (view === "operator" ? s.batch : ""));
+  // 模式也记（共有的公司页两种模式都能看）
   const mode = useCurrentMode();
   const stack = useRef<Entry[]>([]);
   const index = useRef(-1);
@@ -100,11 +107,11 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
       replaying.current = false;
       return;
     }
-    if (current && current.view === view && current.mode === mode && current.thread === thread && current.company === company && current.batch === batch) return;
-    stack.current = [...stack.current.slice(0, index.current + 1), { view, mode, thread, company, batch }].slice(-50);
+    if (current && current.view === view && current.mode === mode && current.thread === thread && current.company === company) return;
+    stack.current = [...stack.current.slice(0, index.current + 1), { view, mode, thread, company }].slice(-50);
     index.current = stack.current.length - 1;
     bump((n) => n + 1);
-  }, [view, mode, thread, company, batch]);
+  }, [view, mode, thread, company]);
 
   const go = useCallback(
     (step: number) => {
@@ -113,10 +120,9 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
       index.current += step;
       replaying.current = true;
       if (target.company) useCompanyNav.setState({ company: target.company });
-      // 退回 / 前进换了模式：记下离开的那个模式此刻的视图（切回来回到这里）；退回到代录的任务页：回到那一批
+      // 退回 / 前进换了模式：记下离开的那个模式此刻的视图（切回来回到这里）
       const place = useModePlace.getState();
       if (target.mode !== place.mode) useModePlace.setState(target.mode === "operator" ? { chatView: view, mode: target.mode } : { operatorView: view, mode: target.mode });
-      if (target.view === "operator") useModePlace.setState({ batch: target.batch });
       setView(target.view);
       if (target.thread && target.thread !== thread) void aui.threads().switchToThread(target.thread);
       bump((n) => n + 1);
@@ -134,8 +140,9 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
 
 // ── 深链接 ──────────────────────────────────────────────────────────────────────────────────────
 
-/** 要打开的东西：c 是对话编号；view 是 tasks / companies 时开那一页，pending 是兼容入口；company：主档页或只看这家。 */
-export type Target = { c: string; view: string; company?: string };
+/** 要打开的东西：c 是对话编号；view 是 tasks / companies 时开那一页，pending 是兼容入口；company：主档页或只看这家；
+ *  task：旧的代录任务链接（兼容入口，按任务号查到会话）。 */
+export type Target = { c: string; view: string; company?: string; task?: string };
 
 // 同服务端 assistant/contracts.py 的 OPAQUE_ID（公司编号也是这个形状）
 const SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$/;
@@ -154,8 +161,20 @@ export function targetOf(url: string): Target | null {
   const view = parsed.searchParams.get("view") ?? "";
   const raw = parsed.searchParams.get("company") ?? "";
   const company = SESSION_ID.test(raw) ? raw : "";
-  if (!c && !view && !company) return null;
-  return company ? { c, view, company } : { c, view };
+  const rawTask = parsed.searchParams.get("task") ?? "";
+  const task = SESSION_ID.test(rawTask) ? rawTask : "";
+  if (!c && !view && !company && !task) return null;
+  return { c, view, ...(company ? { company } : {}), ...(task ? { task } : {}) };
+}
+
+/** 旧的代录任务链接：任务号 → 它那段会话（站点 task_thread，只认本人的任务）；查不到回空。 */
+export async function taskConversation(task: string): Promise<string> {
+  try {
+    const reply = await postMethod<{ session_id?: string }>("pearnly_core.express_operator.api.task_thread", { name: task });
+    return String(reply?.session_id ?? "");
+  } catch (caughtError) { reportCaught(caughtError, "nav");
+    return "";
+  }
 }
 
 type Aui = ReturnType<typeof useAui>;
@@ -218,6 +237,18 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
       }
     };
     const open = async (target: Target) => {
+      if (target.task && !target.c) {
+        // 旧的代录任务链接：查到会话就在代录模式打开（侧栏列代录会话），查不到同「找不到」
+        const session = await taskConversation(target.task);
+        if (!alive) return;
+        if (session) {
+          if (useModePlace.getState().mode !== "operator") useModePlace.setState({ mode: "operator", chatView: "chat" });
+          latest.current.setView("operator");
+          if (await openConversation(aui, session)) return;
+        }
+        if (alive) await fallback();
+        return;
+      }
       if (target.c) {
         latest.current.setView("chat");
         if (await openConversation(aui, target.c)) return;
@@ -242,7 +273,7 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
         if (target.view === "pending") {
           const spot = await pendingSpot(company);
           if (!alive) return;
-          // 待处理在对话里：提醒点开时在代录就先回对话模式（代录停在任务页，切回来还是那一批）
+          // 待处理在对话里：提醒点开时在代录就先回对话模式
           if (useModePlace.getState().mode === "operator") useModePlace.setState({ mode: "chat", operatorView: "operator" });
           if (spot.conversation && (await openConversation(aui, spot.conversation))) {
             latest.current.setView("chat");
@@ -259,8 +290,7 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
           } else latest.current.setView("companies");
         } else if (target.view === "companies" || !company) latest.current.setView("companies");
         else {
-          // 公司主档页只在对话模式（代录模式下进公司是新建任务页，用户 11-03）：提醒点开时在代录就先回对话模式，
-          // 代录停在任务页，切回来还是那一批
+          // 公司主档页只在对话模式（代录模式下进公司是新建页，用户 11-03）：提醒点开时在代录就先回对话模式
           if (useModePlace.getState().mode === "operator") useModePlace.setState({ mode: "chat", operatorView: "operator" });
           useCompanyNav.setState({ company });
           latest.current.setView("company");
@@ -275,6 +305,7 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
       url.searchParams.delete("c");
       url.searchParams.delete("view");
       url.searchParams.delete("company");
+      url.searchParams.delete("task");
       history.replaceState(history.state, "", url.pathname + url.search + url.hash);
       void open(initial);
     }

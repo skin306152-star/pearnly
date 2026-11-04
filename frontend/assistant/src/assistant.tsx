@@ -12,8 +12,9 @@
 // 哪些分区出现只看产品声明的 sections（useSection），不按产品名分支。DMS 与今天一样。
 // 实操（CC 在 Express 窗口里逐张填写，Cowork 与 ERP 都有；设计稿 https://claude.ai/artifact/SgtxECheQE4e6gtF1G4WKW）：侧栏最上面那一行
 // （☰、侧栏开关、←、→）右端两个图标切换「直写 / 实操」，侧栏收起时跟着那一行留在顶栏；手机在抽屉顶部；Ctrl / ⌘ + Shift + 1 / 2。
-// 实操模式的侧栏、新建页就是直写的那一套（用户 11-04：「这些都是现成的，代录没必要重新这一套」），中间是新建页或任务会话，
-// 没有右侧栏（用户 11-04：代录右侧不要）（components/operator/，数据源 live-source.ts）。两种模式各记各的最后位置（lib/nav.ts）。
+// 只有一套对话框架（方案 cc-unified-plan 14）：代录任务就是一段会话，同一个 thread、runtime、新建页、侧栏（按模式筛，lib/managed-agents/
+// list-mode.ts）、活动状态与停止键；代录的状态由服务端的代录事件源翻成统一对话事件，卡片与步骤在 components/tool-uis/operator-*。
+// 代录模式没有右侧栏（用户 11-04：代录右侧不要）。执行电脑上读桥（components/operator/bridge.ts）。两种模式各记各的最后位置（lib/nav.ts）。
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
 import { AuiProvider, Tools, useAui, useAuiState } from "@assistant-ui/react";
@@ -51,7 +52,7 @@ import {
 import { Marquee } from "@/components/ui/marquee";
 import { DropdownMenu, SubMenu, menuOffset } from "@/components/ui/menu";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
-import { createLiveSource, ModeSwitch, OperatorMain, OperatorProvider, OperatorTitle, watchTasks, type OperatorSource } from "@/components/operator";
+import { ModeSwitch, useOperatorBridge } from "@/components/operator";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch, toggleStar } from "@/components/assistant-ui/thread-list";
 import {
@@ -93,7 +94,7 @@ import type { SessionFile } from "@/lib/managed-agents/api";
 import { onNotice, setActiveSession, setChatView } from "@/lib/managed-agents/activity";
 import { noticeReloader } from "@/lib/managed-agents/notice-reload";
 import { listen } from "@/lib/managed-agents/realtime";
-import { modeForKey, noteViewMode, openOperator, switchMode, useCurrentMode, useDeepLinks, useModePlace, useNavHistory, useView, ViewContext, type Mode, type View } from "@/lib/nav";
+import { modeForKey, noteViewMode, openOperator, switchMode, useCurrentMode, useDeepLinks, useNavHistory, useView, ViewContext, type Mode, type View } from "@/lib/nav";
 import { OPEN_LAYERS } from "@/lib/layers";
 import { useBackLayer } from "@/lib/back-stack";
 import { useSidebarKeys } from "@/lib/sidebar-keys";
@@ -130,8 +131,8 @@ function hasOperator(profile: Profile | null): boolean {
 
 // ── 代录（两种模式）─────────────────────────────────────────────────────────────────────────────────
 
-/** 代录的数据源（按产品建一次；没有代录的产品为 null）。 */
-const OperatorContext = createContext<OperatorSource | null>(null);
+/** 这个产品有代录（左上角切换、执行电脑上读桥）。 */
+const OperatorContext = createContext(false);
 
 function useMode() {
   const { view, setView } = useView();
@@ -142,9 +143,9 @@ function useMode() {
 
 /** 左上角「直写 | 实操」两个图标（没有实操的产品不显示）。 */
 function Modes({ className }: { className?: string }) {
-  const source = useContext(OperatorContext);
+  const operator = useContext(OperatorContext);
   const { mode, change } = useMode();
-  if (!source) return null;
+  if (!operator) return null;
   return <ModeSwitch value={mode} onChange={change} className={className} />;
 }
 
@@ -173,23 +174,9 @@ function useModeKeys(enabled: boolean) {
   }, [aui, enabled, change, current, view, setView]);
 }
 
-/** 实操的状态与动作（components/operator/controller.tsx）：侧栏、顶栏、主栏、右侧栏共用一份。 */
-function OperatorScope({ children }: { children: ReactNode }) {
-  const source = useContext(OperatorContext);
-  const mode = useCurrentMode();
-  // 别的设备上任务记录的变化（站点事件）：两种模式都接，切到代录时侧栏已是新的
-  useEffect(() => (source ? watchTasks() : undefined), [source]);
-  if (!source) return <>{children}</>;
-  return (
-    <OperatorProvider source={source} active={mode === "operator"}>
-      {children}
-    </OperatorProvider>
-  );
-}
-
-/** 代录模式下「新建」：同直写开一段新对话（新建页就是直写的新建页），主栏留在代录。 */
+/** 代录模式下「新建」：同直写开一段新对话（新建页就是直写的新建页，发出去建的是代录会话），主栏留在代录。 */
 function newInOperator(aui: ReturnType<typeof useAui>, view: View, setView: (v: View) => void) {
-  openOperator("", view, setView);
+  openOperator(view, setView);
   setDraft({});
   void aui.threads().switchToNewThread();
 }
@@ -511,7 +498,7 @@ function SidebarNav({ mobile = false, onPick }: { mobile?: boolean; onPick?: () 
 function NewNav() {
   const { view, setView } = useView();
   const mode = useCurrentMode();
-  return <ThreadListNew onClick={() => (mode === "operator" ? openOperator("", view, setView) : setView("chat"))} />;
+  return <ThreadListNew onClick={() => (mode === "operator" ? openOperator(view, setView) : setView("chat"))} />;
 }
 
 /** 侧栏「定时任务」（只对话模式、只在声明了 tasks 的产品）：在共有入口下面，代录模式下不出现也不挤动上面几行。 */
@@ -575,8 +562,7 @@ function useBackToChatOnPick(onNavigate?: () => void) {
   return (e: React.MouseEvent) => {
     if (multi && (e.shiftKey || e.metaKey || e.ctrlKey)) return;
     if ((e.target as HTMLElement).closest('[data-slot="aui_thread-list-item-trigger"]')) {
-      // 代录模式同一个侧栏：点了留在代录（代录任务 = 会话，统一框架方案定后由它接上代录执行）
-      if (mode === "operator") useModePlace.setState({ batch: "" });
+      // 代录模式同一个侧栏（只列代录会话）：点了留在代录
       setView(mode === "operator" ? "operator" : "chat");
       onNavigate?.();
     }
@@ -729,22 +715,8 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
   const { view, setView } = useView();
   const aui = useAui();
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
-  // 代录模式没打开任务时主栏就是对话页（新建页、侧栏点开的对话），顶栏同对话页
-  const task = useModePlace((s) => !!s.batch);
-  const inChat = (view === "chat" || (view === "operator" && !task)) && hasMessages;
-  const operator = view === "operator" && task;
-  if (isMobile && operator) {
-    // 实操（设计稿 Phone）：左边菜单、中间任务标题（停止在输入框里，同对话）
-    return (
-      <div className="cc-mtopbar">
-        <button type="button" className="cc-round-btn" data-slot="cc-nav-toggle" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
-          <DrawerIcon />
-        </button>
-        <span className="flex min-w-0 justify-center"><OperatorTitle /></span>
-        <span className="cc-mtopbar-slot" />
-      </div>
-    );
-  }
+  // 代录模式的主栏就是对话页（代录任务是一段会话），顶栏同对话页
+  const inChat = (view === "chat" || view === "operator") && hasMessages;
   if (isMobile) {
     // 同 Claude 手机端的对话页：没有横条，按钮浮在内容上，顶上一层上实下透的渐变；对话里中间是两行标题（不可点）；抽屉打开时照样在
     // （随页面推开、被压淡）
@@ -765,7 +737,7 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
           {!open && <TitleBarLeft nav={nav} navToggle />}
           {/* 侧栏收起：直写 / 实操跟着那一行留在顶栏 */}
           {!open && <Modes />}
-          {operator ? <OperatorTitle /> : inChat && <ConversationTitle />}
+          {inChat && <ConversationTitle />}
         </div>
         <div className="flex items-center gap-(--cc-topbar-gap)">
           {tools}
@@ -774,7 +746,7 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
       </div>
     );
   }
-  if (open && !inChat && !tools && !operator) return null;
+  if (open && !inChat && !tools) return null;
   return (
     <div className="cc-topbar">
       {!open && (
@@ -783,7 +755,7 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
         </button>
       )}
       {!open && <Modes />}
-      {operator ? <OperatorTitle /> : inChat && <ConversationTitle />}
+      {inChat && <ConversationTitle />}
       <div className="ms-auto flex items-center gap-(--cc-topbar-gap)">{tools}</div>
     </div>
   );
@@ -951,7 +923,7 @@ function DesktopBridge() {
   useEffect(() => (pending ? watchPendingCounts() : undefined), [pending]);
   useEffect(() => setActiveSession(snapshot.sessionId), [snapshot.sessionId]);
   // 在定时任务页时当前对话不算「正看着」：推来的提醒留圆点、不报看过；回到对话页才算
-  useEffect(() => setChatView(view === "chat"), [view]);
+  useEffect(() => setChatView(view === "chat" || view === "operator"), [view]);
   useNoticeReload();
   // 浏览器标签页标题跟着对话名（同 Claude）
   useEffect(() => {
@@ -1003,7 +975,9 @@ function useDockFits(el: HTMLDivElement | null) {
 function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useResultsPanel>; onSidebarResize: (width: number | null) => void }) {
   const { view, setView } = useView();
   const nav = useNavHistory(view, setView);
-  useModeKeys(!!useContext(OperatorContext));
+  const operator = useContext(OperatorContext);
+  useModeKeys(operator);
+  useOperatorBridge(operator);
   const chrome = useFramelessWindow();
   const win = useMaximized(chrome);
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
@@ -1082,7 +1056,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
       {panelButton}
     </>
   ) : null;
-  // 对话页本身（两种模式同一个：代录模式的新建页、侧栏点开的对话就是它，用户 11-04）
+  // 对话页本身（两种模式同一个：代录任务就是一段会话，方案 cc-unified-plan 14）
   const chatPage = (
     <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       <SessionStatusBar />
@@ -1092,15 +1066,8 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
       </div>
     </div>
   );
-  // 实操（照 Claude Code）：一列会话，没有右侧栏（用户 11-04）。对话页的会话栏照旧（下面那一份）
-  const main = view === "operator" ? (
-    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col" data-slot="cc-op-frame">
-      <MainTopBar nav={nav} window={win} chrome={chrome} tools={tools} />
-      <div className="relative flex min-h-0 flex-1 flex-row">
-        <OperatorMain page={chatPage} />
-      </div>
-    </div>
-  ) : (
+  // 代录（view = operator）是同一个对话页、没有右侧栏（用户 11-04：代录右侧不要；右侧栏只跟着 view = chat）
+  const main = (
     <>
       <MainTopBar nav={nav} window={win} chrome={chrome} tools={tools} />
       <div ref={setArea} className="relative flex min-h-0 flex-1 flex-row">
@@ -1193,14 +1160,13 @@ function Workspace() {
   }, []);
   const viewContext = useMemo(() => ({ view, setView }), [view, setView]);
   const profile = useProfile();
-  const product = hasOperator(profile) ? (profile?.product ?? "") : "";
-  const operatorSource = useMemo(() => (product ? createLiveSource({ product }) : null), [product]);
+  const operator = hasOperator(profile);
   const sidebarWidth = useStoredSize(sidebarSize.key, sidebarSize.cssVar, sidebarSize.unit);
   const [sidebarOpen, setSidebarOpen] = useSidebarOpen();
   return (
     <AuiProvider value={aui}>
       <ViewContext.Provider value={viewContext}>
-        <OperatorContext.Provider value={operatorSource}>
+        <OperatorContext.Provider value={operator}>
         <ResultsContext.Provider value={context}>
           <DesktopBridge />
           <DeepLinks />
@@ -1209,9 +1175,7 @@ function Workspace() {
             <Settings />
             <AddCompanyDialog />
             <SidebarProvider style={sidebarWidth.style} open={sidebarOpen} onOpenChange={setSidebarOpen}>
-              <OperatorScope>
-                <Layout results={results} onSidebarResize={sidebarWidth.update} />
-              </OperatorScope>
+              <Layout results={results} onSidebarResize={sidebarWidth.update} />
             </SidebarProvider>
           </InstallProvider>
         </ResultsContext.Provider>

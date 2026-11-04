@@ -2,6 +2,7 @@
 
 import { get, post, upload } from "@/lib/frappe";
 import type { FeedEvent, RunStatus, SessionSummary, ToolRunStatus } from "./events";
+import { listMode, type ListMode } from "./list-mode";
 
 /** 引擎事件，整段回放与增量补拉都按时间并入本站的提醒（pearnly.notice）。要了状态（status）才带 run（读不到也没有）。 */
 /** partial：服务端这次没读到引擎（增量补拉时「列出事件」出错，sessions.events），这页只有本站提醒——不是「没有新事件」。 */
@@ -9,7 +10,7 @@ export type EventsPage = { events: FeedEvent[]; full: boolean; partial?: boolean
 
 /** 侧栏一行。产品有公司分组（Cowork，ADR-020）时多三项：project 所属公司（"" = 最近）、period 处理月份（YYYY-MM，"" = 不指定）、
  *  scope 分店号（5 位，"" = 不指定）；旧服务端、没有公司分组的产品没有这三项。 */
-export type ListedSession = SessionSummary & { project?: string; period?: string; scope?: string };
+export type ListedSession = SessionSummary & { project?: string; period?: string; scope?: string; mode?: ListMode; task?: string };
 
 /** groups：按公司分组的第一页才有，还有更多的公司 → 它的游标（"" = 这家从头翻）。ordered：同在第一页，组里手排过、按手排一并
  *  给的对话编号（不是各组最新的那几条，list-sync.ts 核对时不按它们算各组翻到哪儿）。 */
@@ -24,7 +25,7 @@ export type SessionPage = {
 /** 侧栏一页（服务端 sessions.listing）：after 是上一页给的 nextCursor，空表示第一页（含全部置顶的）。
  *  check：侧栏以为还在回复的对话，服务端各读一次此刻的运行状态放进 runs（不给就不读）。 */
 export function listSessions(after?: string, check: readonly string[] = []): Promise<SessionPage> {
-  return get("listing", { after, check: check.length ? check.join(",") : undefined });
+  return get("listing", { after, check: check.length ? check.join(",") : undefined, mode: listMode() });
 }
 
 /** 按公司分组的侧栏（grouped=1）。不给 group：第一页（全部置顶 + 最近一页 + 每家公司最新几条，groups 给还有更多的公司）；
@@ -36,19 +37,23 @@ export function listGrouped(page: { group?: string; after?: string; check?: read
     group: page.group,
     after: page.group === undefined ? undefined : (page.after ?? ""),
     check: check.length ? check.join(",") : undefined,
+    mode: listMode(),
   });
 }
 
 /** 一段对话挂在哪：公司、处理月份、分店（都可以是 ""）。 */
 export type Filing = { project: string; period: string; scope: string };
 
-/** 新对话；filing：开在哪家公司、处理哪个月、哪个分店（公司已被删时服务端照常建在最近，月份分店随之丢弃）。 */
-export function createSession(filing?: Partial<Filing>): Promise<ListedSession> {
-  if (!filing?.project) return post("create");
+/** 新对话；filing：开在哪家公司、处理哪个月、哪个分店（公司已被删时服务端照常建在最近，月份分店随之丢弃）。
+ *  mode = operator：代录会话（服务端在同一事务里建代录任务并互相指上；产品不允许代录就拒，不悄悄建成直写）。 */
+export function createSession(filing?: Partial<Filing>, mode: ListMode = "chat"): Promise<ListedSession> {
+  const operator = mode === "operator" ? { mode } : {};
+  if (!filing?.project) return post("create", operator);
   return post("create", {
     project: filing.project,
     ...(filing.period ? { period: filing.period } : {}),
     ...(filing.scope ? { scope: filing.scope } : {}),
+    ...operator,
   });
 }
 

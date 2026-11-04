@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { get } from "@/lib/frappe";
+import { op } from "@/i18n";
 import { withReport } from "./caught";
 
 export type ToolLabels = {
@@ -22,13 +23,18 @@ const EMPTY: ToolLabels = { done: {}, running: {}, ask: {}, ask_when: {}, gate: 
 let cached: Promise<ToolLabels> | null = null;
 let loaded: ToolLabels | null = null;
 
+/** 代录的步骤（站点内部的显示用名，不进工具表，方案 14.1）：站点没声明时用页面自己的说法（0 进行时、1 做完）。 */
+function operatorLabels(form: 0 | 1): Record<string, string> {
+  return Object.fromEntries(Object.entries(op.steps).map(([name, forms]) => [name, forms[form]]));
+}
+
 /** 取一次（同一页共用）；取失败交回空的（ready），并忘掉这次，下次再取。 */
 export function loadToolLabels(): Promise<ToolLabels> {
   cached ??= get<Partial<ToolLabels>>("tool_steps")
     .then((steps) => {
       loaded = {
-        done: steps?.done ?? {},
-        running: steps?.running ?? {},
+        done: { ...operatorLabels(1), ...(steps?.done ?? {}) },
+        running: { ...operatorLabels(0), ...(steps?.running ?? {}) },
         ask: steps?.ask ?? {},
         ask_when: steps?.ask_when ?? {},
         gate: steps?.gate ?? {},

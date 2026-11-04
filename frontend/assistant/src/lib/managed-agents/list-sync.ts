@@ -30,6 +30,7 @@ import { onConnectionChange, onProjectChange, onSessionChange, type SessionChang
 import { absorb, allStarsIn, firstPage, quietly, touchedSince } from "./session-list-adapter";
 import { noteListRead, noteUnpinned, starPending } from "./sidebar-order";
 import { useSidebarView } from "./sidebar-view";
+import { useListMode } from "./list-mode";
 import { reportCaught, withReport } from "../caught";
 
 // 推来的几条合成一次重拉
@@ -184,6 +185,10 @@ export function watchList(threads: () => ListThreads): () => void {
     const grouped = (by: string) => by === "company";
     if (useProjects.getState().kind && grouped(now.by) !== grouped(before.by)) void threads().reload().catch(withReport(() => undefined, "list-sync"));
   });
+  // 左上角换了模式（直写 / 代录）：侧栏按新模式整表重拉（同一个列表、同一个接口，只差 mode，方案 14.8 甲）
+  const offMode = useListMode.subscribe((now, before) => {
+    if (now.mode !== before.mode) void threads().reload().catch(withReport(() => undefined, "list-sync"));
+  });
   let checking = false;
   let again = false;
   const check = async () => {
@@ -231,6 +236,7 @@ export function watchList(threads: () => ListThreads): () => void {
     offProject();
     offKind();
     offView();
+    offMode();
     offConnection();
     reloader.stop();
     document.removeEventListener("visibilitychange", onVisible);

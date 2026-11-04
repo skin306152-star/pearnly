@@ -22,7 +22,7 @@
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { Building2Icon, CalendarIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon, StoreIcon, XIcon } from "lucide-react";
 import { DropdownMenu, menuOffset, SubMenu } from "@/components/ui/menu";
-import { createContext, type FC, type HTMLAttributes, memo, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { type FC, type HTMLAttributes, memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useAddCompanyAction } from "@/components/add-company";
 import { BranchChip, BranchChoices, PeriodChip, PeriodChoices } from "@/components/period-chip";
 import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/components/assistant-ui/sidebar-group";
@@ -82,10 +82,7 @@ export function useStartIn() {
   return (filing: Partial<Filing>, text = "", send = false, files: readonly File[] = []) => {
     setError("");
     setDraft(filing);
-    if (useModePlace.getState().mode === "operator") {
-      useModePlace.setState({ batch: "" });
-      setView("operator");
-    } else setView("chat");
+    setView(useModePlace.getState().mode === "operator" ? "operator" : "chat");
     void aui.threads().switchToNewThread();
     if (!text && !files.length) {
       if (!send) focusComposer();
@@ -416,14 +413,9 @@ function useCompanyTitle(id: string): string {
   return fromSidebar ?? title;
 }
 
-/** 外面告诉下巴、问候这是一段还没建的新对话（代录的新建页：同一个直写新建页，套在代录自己的运行时里，组件库那边没有「新」这个状态，
- *  operator/workspace.tsx 的 OperatorNew）。 */
-export const NewThreadOverride = createContext(false);
-
-/** 这段对话还没建（新对话，或代录的新建页）。 */
+/** 这段对话还没建（新对话；代录模式的新建页也是它）。 */
 function useFreshThread(): boolean {
-  const fresh = useAuiState((s) => s.threadListItem.status === "new");
-  return useContext(NewThreadOverride) || fresh;
+  return useAuiState((s) => s.threadListItem.status === "new");
 }
 
 /** 输入框下巴：DMS（没有公司分组）不出现；新对话「公司 ▾」+ 月份 + 分店（草稿）；已有对话「公司」+ 月份 + 分店（改了就 move）。
