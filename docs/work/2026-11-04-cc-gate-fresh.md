@@ -34,3 +34,9 @@
 测试机集成环境外部读回结果、本地全闸门、生产镜像候选离线检查、分支 CI 结果补在下面。
 
 ## 验证记录
+
+- 本地全闸门：按 `.github/workflows/development.yml` 的 184 步全跑，0 失败（提交 052505f0f）。
+- 生产镜像候选离线检查：`scripts/ci-candidate-checks.sh offline`，镜像 `frappe@sha256:29ae8ca65e5cb183694da3ee53631be690507bbd942f5158c463b728cda07bf0`（生产 c9057f6f），候选代码只读挂进五个自有 App 目录，本机 colima 跑，LANE EXIT 0。
+- 测试机集成环境（testcowork 切到测试机，集成提交 dc5a562f4 = 590626e98 + scan-expected-no-report + cc-unified 5c28d1900 + 本分支，`testenv.sh live cowork`），2026-11-04 从外部用同一个 cookie 罐连开三次 `https://testcowork.pearnly.com/assistant`：
+  第 1 次 302 → `https://fatcc.com/?site=testcowork.pearnly.com`；第 2、3 次 302 → `https://fatcc.com/?site=testcowork.pearnly.com&fresh=1`。
+- 用户在测试机环境上亲手试：待主会话通知。
