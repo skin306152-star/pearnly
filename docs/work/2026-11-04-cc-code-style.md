@@ -546,3 +546,34 @@ W3 现在做的块 3、块 4 是在现有 `operator/*` 模型上把右栏挪进�
 **停止（E13）**：代录会话里点 ■ 照对话发 `interrupt`。服务端：远端会话在回话就照旧打断引擎；任务在 `queued` / `running` 时记一条任务控制 `{"action": "stop", "doc_id": "", "at"}`（`push_control` 白名单多了 `stop`）。执行电脑上的页面照旧取 `task_controls(name)`，取到 `stop` 就走桥 `operator_control stop`（执行电脑本机点停止也可以直接走桥，两条路都安全）。
 
 **会话列表与新建（14.8）**：`listing(..., mode="chat" | "operator")`（不带 = 全部），`grouped` / `group` / 星标 / `check` 都按同一筛选；`create(project, period, scope, mode="operator")` 同一事务建任务并互相指上（产品不允许代录时报「没有权限」，不悄悄建成直写；没有公司或月份报请求无效）。改名、星标走 `rename` / `star`，同时写回任务；`delete` 转调任务删除（交出去还没收尾的照旧不能删）。旧链接 `?view=tasks` 带任务号：`task_get(name).session_id` 就是会话编号。
+
+### 14.11 U1 施工记录（分支 `pearnly/cc-unified-feed`，基线 `3d46f2ae0` = 本地 `pearnly/cc-code-backend`，B1～B5 已在其上）
+
+| 项 | 落点 |
+|---|---|
+| 代录事件源 | 新文件 `express_operator/feed.py`：`project`（纯函数，E1～E17 → 事件，编号见 14.10）、`since`（增量）、`run_state`、`stamp`（单据子表时间）、`publish`（保存后推新出现的事件）、`receipt` / `refresh`（产品回执后的只读入口，提交后以任务主人身份 `settle`）、`report`（E15 CSV） |
+| 会话 | `assistant/sessions.py`：`listing(mode)`（`_page` / `_starred` / `_grouped_first` / `_filed_counts` 同一筛选）、`create(mode="operator")`（`_create_operator` → `tasks.create`）、`open_operator`（本站先建 `op_<任务号>`）、`_remote_ready`（第一次发话才开远端）、`events` 并进事件源（`_operator_events`）、`run_state` 认任务（`_operator_run`）、`get` / `rename` / `star` / `move` / `delete` 转到任务、`confirm` 丢掉 `pop_` 编号、`interrupt` 记任务控制 stop、`run_tool` 拒 `pop_`；`assistant/api.py` 的 `listing` / `create` 多 `mode` 参数（14.3 没列这个文件，接口参数只能从这里进） |
+| 契约 | `assistant/contracts.py`：`PROGRESS_EVENT` / `progress_event` |
+| 任务 | `express_operator/tasks.py`：`create` 同一事务建会话并指上；`push_control` 认 `STOP`（不进给模型的 `CONTROL_ACTIONS`，工具表不变）；`_save` 保存前 `feed.stamp`（只记时间，`attach` / `_refresh` / `_resubmit` 本身一行没改）；`_announce` 末尾 `feed.publish` |
+| 表结构 | `Pearnly Express Operator Task Document` 加 `queued_at`、`done_at`（Datetime，只读），`doc_id` 加索引（回执入口按单据找任务）；原生 DocType 改动，`bench migrate` 落库 |
+| 补丁 | `v0_0_9_operator_task_sessions`（旧任务补建会话，幂等）、`v0_0_10_operator_order_into_sessions`（`operator` 的手排顺序按会话编号并进 `order`，删 `operator` 项，幂等） |
+| 产品回执入口 | Cowork `hooks.py` 的 `cowork_push_state_changed` 加 `pearnly_core.express_operator.feed.receipt`；ERP `express/pending.py` 的 `notify` 末尾（`finally`，原逻辑提前返回时也走）调 `_operator_receipt` |
+| 文案 | 术语表 `pearnly_core/i18n/messages.tsv` 加报告用的 47 条键式词条（中英泰照搬 CC 网页原有的 `reportCsv` 文案，日文新译）与两个字段标签；`scripts/i18n-build.py` 重生成翻译包 |
+| 测试 | 新 `tests/test_express_operator_feed.py`（R3 全排列、重放一致、增量、上传、重交收口、旧任务无时间、记时间、业务调用逐字对照改造前、推送只给主人、停止、回执入口、报告、权限、两个补丁幂等）；`tests/test_assistant.py` 加列表按 mode 筛、代录会话（无远端不碰引擎、卡片不经引擎、停止、第一次发话开远端、删除与新建、改月份转任务）；`tests/test_express_operator_tasks.py` 接上新的会话与事件源桩；Development checks 登记新测试 |
+
+**不碰的文件**：14.3 列的一个都没改（`products.py`、`express_operator/contracts.py`、`express_operator/api.py`、`push/**`、`cc_desktop/**`、`companion/**`、`operator_source.py`、ERP `operator.py` 等）。业务调用逐字不变由 `LifecycleTests.test_a_task_from_start_to_finish_calls_the_product_exactly_as_before` 守住（对照值是用 `3d46f2ae0` 的 `tasks.py` 跑同一过程记下的）。
+
+**和 14.1 的差别（施工时定的）**
+
+- E5 `operator_start` 的 `input` 只放任务、公司、月份；写入目标、要人选的项、结果不明的单由卡片照旧调 `precheck` 现取（预检要按产品的写账准备逐张判，每次读事件都跑太重，结果也会随人作答变化，放进投影就不再「同一记录投影相同」）。
+- E8 的「金额」与报告里的「金额」「用时」：任务记录里没有（只在执行电脑上），服务端不估不补，留空。
+- E11 每张要人处理的单一张卡（`operator_choose`），不是整批一张：编号才能由记录推出、作答一张收口一张。
+- E12 / E14 的一句话不在服务端写文字：`agent.message` 带 `operator` 字段，页面按代码出文案（服务端写字要四种语言，且和页面口径会分叉）。
+- 卡片的结果用 `user.custom_tool_result`：页面 reducer 把自定义工具收到的 `agent.tool_result` 当成「停止时引擎代发的中断」。
+- 整批停的「继续」卡片只在任务「需要你处理 / 已停止」时投影；别的单重交、任务回到等电脑空闲期间它不在投影里，录完回来同一个编号会再推一次（页面按编号去重）。
+
+**剩余项**
+
+- 前端（U2）没接之前**不能单独合入**：`listing` 不带 `mode` 时现在列全部，旧代录界面的任务列表与新会话列表会重复。由主会话安排与 U2 一起合。
+- `prefs.PARTS` 里的 `operator` 项留着（旧页面还在写）；U2 合入后可删。
+- 暂停原因全设备可见（U-Q4）本批不做。
