@@ -1,4 +1,5 @@
-"""产品地图闸门 scripts/check-product-map.py 的四条规则（评估与审定 docs/work/2026-11-04-product-map.md）。纯离线。"""
+"""产品地图闸门 scripts/check-product-map.py 的四条规则（评估与审定 docs/work/2026-11-04-product-map.md）。纯离线。
+真实地图与代码是否一致不在这里核：同一 CI 步骤紧接着跑闸门本身。"""
 import importlib.util
 import sys
 import unittest
@@ -96,13 +97,6 @@ class Rules(unittest.TestCase):
         self.assertIn("--flow f.both", report)
         self.assertIn("部署后逐个正式租户核（上线必验）：`erp.c`", report)
         self.assertEqual(gate.render(product_map, {}, FLOWS, IMPACT, markdown=True), "没有改到地图里的入口。")
-
-    def test_the_real_map_matches_the_code(self):
-        repo = pm.Repo(ROOT)
-        product_map = pm.load()
-        keys, families = pm.discover_config(repo)
-        flows, impact, parts = pm.test_sources(ROOT)
-        self.assertEqual(gate.check(product_map, repo, pm.discover(repo), keys, families, flows, impact, parts), [])
 
 
 if __name__ == "__main__":
