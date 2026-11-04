@@ -597,3 +597,28 @@ W3 现在做的块 3、块 4 是在现有 `operator/*` 模型上把右栏挪进�
 - 截图需要实验栈，没有拍。
 - i18n 的 `op.section` 暂时保留没删：删掉以后，文案闸门会把新增的 beforeStart、sources、writeTo 当成「改已有文案」拦下。重做时一起处理。
 - 共用层接口 `express_operator.api.task_attention` 已经没有前端调用方，登记在 not_entries，留给 W1 删。
+
+## 15. U2 施工记录（统一对话框架的前端，分支 `pearnly/cc-unified-ui`，起点 W3 的 `724a24013` 变基到 `origin/main` `1a09e0e73`）
+
+方案见主会话的统一框架方案（14.1–14.9）与 U1 交来的事件清单（U1 分支 `pearnly/cc-unified-feed` `139695b6d` 的 14.10，字段以它为准）。
+本节编号与 U1 的 14.10 不冲突；合并文档时 W3 那一节已经叫「W3 施工记录」。
+
+| 项 | 做法 | 位置 |
+|---|---|---|
+| 打开代录会话 = 打开一段会话 | 代录模式的主栏就是对话页（同一个 Thread、runtime、停止键、Esc），`OperatorMain` / `OperatorNew` / 任务标题全删 | `assistant.tsx` |
+| 侧栏按模式筛（U-Q5 甲） | `listing` 带 `mode`（跟着左上角切换），换模式整表重拉；`create` 在代录模式带 `mode=operator`；每行的 `task` 记下 | `lib/managed-agents/list-mode.ts`、`api.ts`、`list-sync.ts`、`session-list-adapter.ts`、`lib/nav.ts` |
+| 新建挡住 | 代录模式的新对话没选公司（有月份的产品还要月份）发送键不可用，同直写的下巴选法 | `runtime-provider.tsx` 的 `isSendDisabled` |
+| 资料 | 代录会话里放的资料留在本页，发送时交给任务（站点 `intake`，之后由事件源出上传那一步），说的话交给这段会话的 CC | `runtime-provider.tsx` |
+| 4 张工具卡片 | `operator_start`（开始前：自己调 documents / precheck / resolve / start）、`operator_choose`（中途：precheck + task_answer，或 resolve + task_settle）、`operator_resume`（task_resume，「设置」开 CC 的 Express 登录）、步骤行展开（`operator_upload` 用 W2 的 UploadCard、`operator_document`、`operator_sources` 分组与拖动）。卡片样子同「允许」卡片，不进步骤组；能点 = `pearnly.tool_run` `awaiting_approval` 且还没有结果；不走 confirm / run_tool | `components/tool-uis/operator-*.tsx` |
+| 事件 | `pearnly.progress`（同一步认 `processed_at` 最新的，比结果新时这一步又在排）；`pop_` / `local-` 开头的当本站事件（不当补拉锚点）；代录卡片停着不进 `pendingCustomTools`、答完不算引擎接着跑；收尾 `agent.message` 的 `operator` 字段写一句、报告画成文件卡片 | `lib/managed-agents/events.ts`、`reducer.ts`、`progress.ts`、`thread.tsx` |
+| 执行电脑的桥（E10 / E13） | 页面看得见时 3 秒读一次 `operator_state`：合成 `pearnly.progress`（`local-` 编号、暂停原因码）只并进本页；`task_running`、做完与 CC 重启后的 `task_settle` + 桥 `settle`；取 `task_controls`（stop / skip / retry）照桥做 | `components/operator/bridge.ts` |
+| 停止 | ■ / Esc 同对话发 `interrupt`，服务端记任务控制 `stop`，执行电脑取走去停 | 不另写 |
+| 深链接 | `?c=<会话>`；旧链接 `?task=<任务号>`（或 `?view=tasks&task=`）按 `task_thread` 查到会话，在代录模式打开 | `lib/nav.ts` |
+| 删除 | `components/operator/` 只留 `mode-switch.tsx`、`bridge.ts`、`index.ts`；`live-source`、`mock-source`、`model`、`types`、`controller`、`workspace`、`store`、`context`、`task-thread`、`tasks`、`task-title`、W3 的 `conversation`、`uploads` 删除；原因表 `REASONS` / `BATCH_STOPPERS` 移到 `tool-uis/operator-shared.ts`；W3 两个 wip 提交里的会话流拼装不保留（方案 14.5） | — |
+
+新增文案（官方简短）：`op.nth`（第 n/N 张）、`op.resume`（继续）、`op.stopped`（已停止）、`op.end.*`（完成 N 张 / 已停止 · 已入账 N 张 / N 张需要处理）、`op.steps`（代录步骤名，站点没声明时用）。
+
+待对齐 / 剩余：
+- 旧链接查会话用 `task_thread`（会补建会话）；U1 说 `task_get(name).session_id` 即会话编号，二选一以 U1 合入后的为准。
+- 代录会话的「开始前」卡片只交第一页起已取到的资料（同旧页面，服务端分页 + 显示更多）。
+- 两套运行状态都以服务端 `run` 为准；本页只在点完卡片时先定下卡片样子。
