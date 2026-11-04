@@ -2463,10 +2463,10 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html"]
 id = "cc.operator.thread"
 product = "CC"
 where = "实操任务页底部的对话（对话框甲：任务里一段对话，工具查进度、交代跳过 / 重做，中途要人选的单在任务记录里点选项）"
-steps = "离线：tests/test_express_operator_tasks.py（对话只建一次、说明转义、控制只认本任务的单、作答只交未完成的单、删任务连对话、工具编号）+ tests/test_cc_operator.py；实机：实验栈挂本分支，Cowork、ERP 各开一个实操任务，打字问「今天录了多少」「第 1 张为什么没录」、说「跳过第 2 张」，一张停在要选的单点选项接着录"
+steps = "离线：tests/test_express_operator_feed.py（统一对话框架：代录事件源全排列、重放一致、增量、只推主人、业务调用不变、两个补丁幂等）+ tests/test_express_operator_tasks.py（对话只建一次、说明转义、控制只认本任务的单、作答只交未完成的单、删任务连对话、工具编号）+ tests/test_cc_operator.py；实机：实验栈挂本分支，Cowork、ERP 各开一个实操任务，打字问「今天录了多少」「第 1 张为什么没录」、说「跳过第 2 张」，一张停在要选的单点选项接着录"
 expect = "回答按任务真实进度；跳过 / 重做由执行的电脑照做；点选项后这张交回同一个任务录成；对话侧栏里看不到任务的对话；Cowork、ERP 的其他对话工具照常"
 check = "manual"
-files = ["apps/pearnly_core/pearnly_core/express_operator/tasks.py", "apps/pearnly_core/pearnly_core/express_operator/tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "frontend/assistant/src/components/operator/task-thread.tsx"]
+files = ["apps/pearnly_core/pearnly_core/express_operator/tasks.py", "apps/pearnly_core/pearnly_core/express_operator/tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "frontend/assistant/src/components/operator/task-thread.tsx", "apps/pearnly_core/pearnly_core/express_operator/feed.py", "apps/pearnly_core/pearnly_core/patches/v0_0_9_operator_task_sessions.py", "apps/pearnly_core/pearnly_core/patches/v0_0_10_operator_order_into_sessions.py"]
 
 [[entry]]
 id = "cc.desktop.operator"
