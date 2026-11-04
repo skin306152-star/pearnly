@@ -4340,6 +4340,9 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual((ids(operator), operator.get("groups")), (["op_task0001"], {}))
         with self.assertRaises(frappe.ValidationError):
             self.sessions.listing(mode="other")
+        # 页面经 api.listing 照旧调，mode 随同一个请求带来（接口模块不改签名）
+        with mock.patch.object(frappe, "form_dict", {"mode": "operator"}, create=True):
+            self.assertEqual(ids(self.sessions.listing()), ["op_task0001"])
 
     def test_the_grouped_list_gives_recent_a_few_per_group_and_cursors(self):
         with mock.patch.object(self.sessions, "GROUP_FIRST", 1):
@@ -4610,7 +4613,7 @@ class ProjectTests(unittest.TestCase):
                          {"project": 140, "period": 7, "project_scope": 40, "project_noted": 64})
         self.assertEqual(fields["project"].get("search_index"), 1)
         api_source = (CORE / "assistant/api.py").read_text(encoding="utf-8")
-        for snippet in ('def create(project=None, period=None, scope=None, mode=None):', 'def move(session_id, project="", '
+        for snippet in ('def create(project=None, period=None, scope=None):', 'def move(session_id, project="", '
                         'period=None, scope=None):', "def projects():"):
             self.assertIn(snippet, api_source)
         imports = " ".join(re.findall(r"(?m)^from pearnly_core\.assistant import (.+)$",

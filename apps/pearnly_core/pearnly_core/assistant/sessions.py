@@ -299,6 +299,15 @@ def _grouped_first(base) -> tuple[list, str | None, dict, list]:
     return recent + first + extra, cursor, groups, [row.session_id for row in extra]
 
 
+def requested_mode(mode=None):
+    """两种模式（14.8）：调用方没给就取这次请求的 `mode` 参数（`api.listing` / `api.create` 照旧原样转交，页面在同一个请求里
+    多带一个 `mode`；不另开接口，也不改接口模块的签名）。"""
+    if mode not in (None, ""):
+        return mode
+    form = getattr(frappe, "form_dict", None) or {}
+    return form.get("mode") or None
+
+
 def _mode_filter(mode) -> dict:
     if mode in (None, ""):
         return {}
@@ -318,6 +327,7 @@ def listing(archived=False, after=None, check=None, grouped=False, group=None, m
     不带 `grouped` 时与以前一样（全部对话一起翻，不分组）。
     `mode`（统一对话框架 14.8）：`chat` 只列直写的对话，`operator` 只列代录会话，不带 = 全部；分组、翻页、星标、各组的数都按同一筛选。"""
     user = _user()
+    mode = requested_mode(mode)
     base = {"user": user, "engine_code": config.engine_code(), "archived": 1 if archived else 0, **_mode_filter(mode)}
     starred, groups, ordered = [], None, None
     if grouped and (group is not None or after):
@@ -366,6 +376,7 @@ def create(project=None, period=None, scope=None, mode=None) -> dict:
     「最近」；产品不收月份、范围的丢掉）。
     `mode="operator"`（统一对话框架 14.8）：同一事务里建代录任务并互相指上（`tasks.create`）；要有公司和月份，产品不允许这个人
     对这家代录就拒（不悄悄建成直写）。"""
+    mode = requested_mode(mode)
     if mode not in (None, "", *MODES):
         frappe.throw(_("Invalid request"))
     if mode == "operator":
