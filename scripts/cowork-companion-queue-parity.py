@@ -174,6 +174,8 @@ def run(root=None, source_texts=None):
                     raw = {"log_id": ID, "result": result, "outcome": outcome, "agent_id": " A ",
                            "express_docnum": "RR-๑", "error": "failure" * 200,
                            "line_modes": [{"mode": "direct_account", "reason": "unmapped", "stkcod": "P1"}],
+                           # 有意差异（11-05 修法 D）：新平台的回执净化另放行代录的 meta.operator.doc_type / menu_options
+                           # （`common.clean_operator_meta`，可选键）；旧系统没有代录，这里的回执不带它，比对照旧逐字相同
                            "meta": {"written": True, "tables_written": ["APTRN"], "extra": "not persisted"}}
                     expected = asyncio.run(old.route.erp_agent_ack(old.route.AckRequest(**raw), None))
                     assert not old.fixture.errors, old.fixture.errors

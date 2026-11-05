@@ -6,9 +6,9 @@
 
 - :func:`pay_route`：单据的付款文字（可多段）→ ``cash`` / ``transfer`` / ``""``。现金类、转账类（含 พร้อมเพย์ / QR、泰国各家银行
   泰文名与缩写）各认一类；两类都有或都没有回空（不猜，让 CC 停下问人）。
-- :func:`parse_reason`：单据上记的回执原因 ``[OPERATOR_MENU_CHOICE] HP: 甲 | 乙`` → ``("HP", ["甲", "乙"])``。写法由 CC 桌面版
-  ``engine.MenuChoice`` 定（原因原文 = ``单种: 候选 | 候选``），产品照抄到推送记录与单据上；回执 ``meta.operator.menu_options``
-  过不了共用回执净化（``express_rules.push.common.sanitize_push_meta`` 只留白名单），所以站点从原因原文读。
+- :func:`stopped_at`：推送记录存下的回执（``response_json``）→ 这张单停在哪种单的子菜单、候选是哪几项。CC 桌面版在原因
+  ``menu_choice`` 时回执 ``meta.operator`` 带 ``doc_type`` 与 ``menu_options``，共用回执净化
+  （``express_rules.push.common.clean_operator_meta``）只放行这两项、限条数限长，站点只从这里读（不从原因原文拼）。
 - :func:`option_code`：候选文字 → 作答与记住用的值（选择记忆的值上限 :data:`CHOICE_MAX` 字；更长的截断，CC 按「互相包含且唯一」
   仍认得出是哪一项）。
 """
@@ -23,7 +23,7 @@ REASON = "menu_choice"     # CC 桌面版回执的原因码（``contracts.REASON
 CASH, TRANSFER = "cash", "transfer"
 PAY_ROUTES = (CASH, TRANSFER)
 CHOICE_MAX = 60            # 同 Cowork 选择记忆的值上限（`push/choices.record`）
-OPTIONS_MAX = 20           # 一个子菜单最多认几项（CC 回执原文本身限 300 字）
+OPTIONS_MAX = 10           # 一个子菜单最多认几项（同回执净化的上限）
 DOC_TYPE_MAX = 10
 
 # 现金类：泰文按包含比（「ชำระเงินสด」「จ่ายเงินสด」都含 เงินสด），英文按整词比
@@ -77,23 +77,16 @@ def pay_route(*texts) -> str:
     return found.pop() if len(found) == 1 else ""
 
 
-_REASON = re.compile(r"^\s*\[OPERATOR_MENU_CHOICE\]\s*(?P<doc_type>[A-Za-z0-9]{1,%d})\s*:\s*(?P<options>.*)$" % DOC_TYPE_MAX,
-                     re.S)
-
-
-def parse_reason(raw) -> Tuple[str, List[str]]:
-    """单据上记的回执原因 → (单据种类（大写）, 候选菜单文字)；不是 ``menu_choice`` 或读不出候选回 ``("", [])``。
-    候选去空、去重（保持原顺序），最多 :data:`OPTIONS_MAX` 项。"""
-    found = _REASON.match(str(raw or ""))
-    if not found:
+def stopped_at(response) -> Tuple[str, List[str]]:
+    """推送记录存下的回执 → (单据种类（大写）, 候选的值（:func:`option_code`，去重保序）)；回执里没有候选回 ``("", [])``。"""
+    meta = response.get("meta") if isinstance(response, dict) else None
+    operator = meta.get("operator") if isinstance(meta, dict) else None
+    if not isinstance(operator, dict):
         return "", []
-    options: List[str] = []
-    for part in found.group("options").split(" | "):
-        part = " ".join(part.split())
-        if part and part not in options:
-            options.append(part)
-    options = options[:OPTIONS_MAX]
-    return (found.group("doc_type").upper(), options) if options else ("", [])
+    doc_type = str(operator.get("doc_type") or "").strip().upper()[:DOC_TYPE_MAX]
+    options = operator.get("menu_options") if isinstance(operator.get("menu_options"), list) else []
+    codes = list(dict.fromkeys(code for code in (option_code(item) for item in options if isinstance(item, str)) if code))
+    return (doc_type, codes[:OPTIONS_MAX]) if doc_type and codes else ("", [])
 
 
 def option_code(label) -> str:
@@ -102,4 +95,4 @@ def option_code(label) -> str:
 
 
 __all__ = ["CASH", "CHOICE_MAX", "KIND", "OPTIONS_MAX", "PAY_ROUTES", "REASON", "TRANSFER", "option_code",
-           "parse_reason", "pay_route"]
+           "pay_route", "stopped_at"]

@@ -463,6 +463,30 @@ _META_MAX_LIST = 40
 # POS 日汇总票同一次写入的付款方式转账凭证号(小助手回执 ``notes.pos_vouchers``,载荷 3):留在 meta 顶层,
 # Express 回读据此认出这几张凭证是 Pearnly 写的、并按 `pos.transfers` 比分录(2026-10 CC 闭环)。
 POS_VOUCHERS = "pos_vouchers"
+# 代录（CC 桌面版 1.12.15 起，``worker._ack_operator`` 把宿主 ``host._result`` 的 meta 放进 ``meta.operator``）：停在定制菜单的
+# 子菜单（原因 menu_choice）时带这张单的单据种类与子菜单里的候选命令文字，站点据此问一次走哪个、记住（评估 2026-11-05 修法 D）。
+# 只放行这两项，其余 operator 键照旧丢掉；可选：不带时净化结果与以前逐字节相同，超长 / 超条数截掉不报错。
+OPERATOR_META = "operator"
+OPERATOR_DOC_TYPE_MAX = 10
+OPERATOR_OPTIONS_MAX = 10
+OPERATOR_OPTION_LEN = 120
+
+
+def clean_operator_meta(raw: Any) -> Dict[str, Any]:
+    """``meta.operator`` → 只留 ``doc_type``（短字符串）与 ``menu_options``（字符串列表，空白归一、去空），认不出的回空。"""
+    if not isinstance(raw, dict):
+        return {}
+    out: Dict[str, Any] = {}
+    doc_type = raw.get("doc_type")
+    if isinstance(doc_type, str) and doc_type.strip():
+        out["doc_type"] = doc_type.strip()[:OPERATOR_DOC_TYPE_MAX]
+    options = raw.get("menu_options")
+    if isinstance(options, list):
+        kept = [" ".join(item.split())[:OPERATOR_OPTION_LEN].strip() for item in options[:_META_MAX_LIST] if isinstance(item, str)]
+        kept = [item for item in kept if item][:OPERATOR_OPTIONS_MAX]
+        if kept:
+            out["menu_options"] = kept
+    return out
 
 
 def sanitize_push_meta(raw: Any) -> Dict[str, Any]:
@@ -491,6 +515,9 @@ def sanitize_push_meta(raw: Any) -> Dict[str, Any]:
         kept = [str(x).strip()[:60] for x in vouchers[:_META_MAX_LIST] if str(x).strip()]
         if kept:
             out[POS_VOUCHERS] = kept
+    operator = clean_operator_meta(raw.get(OPERATOR_META))
+    if operator:
+        out[OPERATOR_META] = operator
     return out
 
 
