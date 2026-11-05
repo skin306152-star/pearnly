@@ -514,6 +514,35 @@ class MenuChoice(unittest.TestCase):
                                             "label": "", "remember": True}]})
         self.assertEqual([c for c in calls if c[0] == "record"], [])
 
+    def test_two_documents_stopped_at_different_doc_types_each_keep_their_own(self):
+        """W3 审看：一批两张分别停在 RR、HS，旧前端把同一份答案（RR、HS 两项）带给每一张：单种不是这张的跳过、不拒，两张各记一次；
+        单种对上、值不在候选里照旧拒。"""
+        rr = document(name="h1", last_push_status="manual", last_push_record="PR-RR")
+        hs = document(name="h2", last_push_status="manual", last_push_record="PR-HS")
+        module, calls, patcher = load(rr, menu=MENU)
+        self.addCleanup(patcher.stop)
+        docs = {"h1": rr, "h2": hs}
+        sys.modules["pearnly_cowork.history.storage"].read = lambda name: docs[name]
+
+        def record(doc_type):
+            meta = {"stage": "needs_review", "operator": {"doc_type": doc_type, "menu_options": MENU_OPTIONS}}
+            return {"connection": "C9", "account_key": "K9", "response_json": json.dumps({"ok": False, "meta": meta})}
+
+        records = {"PR-RR": record("RR"), "PR-HS": record("HS")}
+        db = sys.modules["frappe"].db
+        db.get_value = lambda doctype, name=None, *a, **k: records.get(name) if doctype == "Cowork Push Record" else "ABC Co"
+        answers = [{"kind": "operator_form", "subject": "RR", "value": MENU_OPTIONS[0], "label": "RR", "remember": True},
+                   {"kind": "operator_form", "subject": "HS", "value": MENU_OPTIONS[1], "label": "HS", "remember": True}]
+        out = module.remember("CO1", {"h1": answers, "h2": answers})
+        self.assertEqual([c for c in calls if c[0] == "record"],
+                         [("record", "C9", "K9", "operator_form", "RR", MENU_OPTIONS[0], "RR"),
+                          ("record", "C9", "K9", "operator_form", "HS", MENU_OPTIONS[1], "HS")])
+        self.assertEqual(out["saved"], 2)
+        del calls[:]
+        with self.assertRaises(Stop):  # 单种对上、值不在候选里
+            module.remember("CO1", {"h1": [{**answers[0], "value": "ซื้อเงินเชื่อ"}, answers[1]]})
+        self.assertEqual([c for c in calls if c[0] == "record"], [])
+
     def test_a_value_that_was_not_offered_is_refused(self):
         for doc, value in ((menu_stop(), "ซื้อเงินเชื่อ"), (document(), MENU_OPTIONS[0])):
             module, calls, patcher = load(doc, menu=MENU)

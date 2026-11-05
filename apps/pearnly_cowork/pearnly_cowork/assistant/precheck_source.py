@@ -476,6 +476,8 @@ def remember(company, answers) -> dict:
                 continue
             if kind == OPERATOR_FORM:
                 stop = _menu_stop(doc)
+                if stop and str(row.get("subject") or "").strip().upper() != stop["doc_type"]:
+                    continue  # 批里别的单停下的单种（旧前端把同一份答案带给每一张）：不是这张的，跳过、不拒、不占「记过」
                 key = (*once, stop.get("connection"), stop.get("account_set"))
                 if key not in done:
                     done.add(key)

@@ -184,7 +184,9 @@ CC 桌面版的 A/B/C 与 D 的 CC 部分（读 `form_choice` / `pay_route`、�
 - 记住：`precheck.save_answers`（卡片 `remember` 钩子与代录交单前的 `operator._remember` 同一条）：`operator_form` 单开一支，值须是这张单
   停下时的候选、单种对上，否则整批拒（先核完再记，其它项也不记）；`remember: false` 不记；其余项照原来 `save` 收齐后核。
   W3 审看后改：这张单没停在子菜单（读不到停点）时，它带的子菜单答案跳过、不拒——旧前端把同一份答案带给批里每一张（10-30 实机同类），
-  一张停、别的没停不能整批「请求无效」；两张一起交只记一次、都交出（有测试）。停点仍直接读写账件 `meta_json`：`cc_desktop.jobs`
+  一张停、别的没停不能整批「请求无效」；两张一起交只记一次、都交出（有测试）。答案的单种不是这张停下的那种（批里别的单停在 RR / HS
+  各一张、同一份答案带两项）同样跳过；只有单种对上、值不在候选里才拒。Cowork `precheck_source.remember` 按同口径改了单种对不上那条
+  （跳过且不占「记过」）；Cowork 里没停在子菜单的单带子菜单答案仍拒，待主会话定是否同 ERP。停点仍直接读写账件 `meta_json`：`cc_desktop.jobs`
   没有读回执 meta 的现成函数（`view` 只给 party_code / line_codes）。
 - 公司页：ERP 没有「记住的选择」显示 / 修改入口（`ERP Express Choice` 只在写账准备里读），本次不新造；要看要改时另评估。无新文案。
 - 写账准备不受影响：测试证明库里多两条 `operator_form` 时 `remembered`、准备结论与载荷、预检收齐的项逐字相同。ERP 没有自动推指纹。

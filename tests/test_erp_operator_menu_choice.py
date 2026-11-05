@@ -259,9 +259,12 @@ class Remember(Case):
         self.assertEqual(len(fake.STATE.db.table(choices.CHOICE)), 1)
         self.assertEqual(choices.operator_form("CO-1", "BK-1", "HP"), CASH_MENU)
 
-    def test_a_value_that_is_not_an_option_or_a_wrong_doc_type_is_refused(self):
+    def test_a_value_that_is_not_an_option_is_refused_and_another_doc_type_is_skipped(self):
         self.stopped()
-        for bad in (self.answer(value="ซื้อเงินเชื่อ"), self.answer(subject="RR"), self.answer(value="")):
+        for bad in (self.answer(value="ซื้อเงินเชื่อ"), self.answer(value=""), self.answer(subject="RR", value="x")):
+            if bad["subject"] == "RR":  # 单种不是这张停下的那种（批里别的单的）：跳过、不拒
+                self.assertEqual(self.precheck.remember("CO-1", {"P:PI-1": [bad]}), {"saved": 0})
+                continue
             with self.assertRaises(frappe.ValidationError):
                 self.precheck.remember("CO-1", {"P:PI-1": [bad]})
         self.assertEqual(fake.STATE.db.table(choices.CHOICE), {})
@@ -313,6 +316,46 @@ class Remember(Case):
         self.assertEqual(sent, ["PI-1", "PI-2"])
         self.assertEqual(kept, [("CO-1", "operator_form", "BK-1|HP", TMB_MENU, "HP")])
         self.assertEqual(len(fake.STATE.db.table(choices.CHOICE)), 1)
+
+
+class SeveralDocTypes(Case):
+    """W3 审看：一批两张分别停在 RR、HS，旧前端把同一份答案（RR、HS 两项）带给每一张。"""
+
+    def two(self):
+        self.stopped()
+        jobs = fake.STATE.db.table(documents.JOB)
+        for job, doc, doc_type in (("J1", "PI-1", "RR"), ("J2", "PI-2", "HS")):
+            meta = {"operator": {"doc_type": doc_type, "menu_options": [CASH_MENU, TMB_MENU]}}
+            jobs[job] = {"name": job, "status": "manual", "request_key": f"erp:operator:b1:{doc}@x", "book_key": "BK-1",
+                         "meta_json": json.dumps(meta, ensure_ascii=False)}
+        self.docs["PI-2"] = {**self.docs["PI-1"], "name": "PI-2", "system_no": "PE-2", "ledger_job": "J2"}
+        return [{"kind": "operator_form", "subject": "RR", "value": CASH_MENU, "label": "RR"},
+                {"kind": "operator_form", "subject": "HS", "value": TMB_MENU, "label": "HS"}]
+
+    def test_each_keeps_its_own_doc_type_and_both_are_sent(self):
+        from pearnly_erp_portal.express import operator
+
+        answers = self.two()
+        sent = []
+        with mock.patch.object(self.push, "release_operator", lambda doctype, name: True), \
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: sent.append(name) or {"status": "sent"}), \
+                mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+            out = operator.submit("CO-1", ["P:PI-1", "P:PI-2"], {"id": "b1", "total": 2}, "PC-1",
+                                  {"P:PI-1": answers, "P:PI-2": answers})
+        self.assertEqual([row["status"] for row in out], ["sent", "sent"])
+        self.assertEqual(sent, ["PI-1", "PI-2"])
+        self.assertEqual((choices.operator_form("CO-1", "BK-1", "RR"), choices.operator_form("CO-1", "BK-1", "HS")),
+                         (CASH_MENU, TMB_MENU))
+        self.assertEqual(len(fake.STATE.db.table(choices.CHOICE)), 2)
+
+    def test_a_matching_doc_type_with_a_value_not_offered_is_still_refused(self):
+        answers = self.two()
+        with self.assertRaises(frappe.ValidationError):
+            self.precheck.remember("CO-1", {"P:PI-1": [{**answers[0], "value": "ซื้อเงินเชื่อ"}, answers[1]]})
+        self.assertEqual(fake.STATE.db.table(choices.CHOICE), {})
+        # 单种不是这张的那一项单独来：跳过、不拒、不记
+        self.assertEqual(self.precheck.remember("CO-1", {"P:PI-1": [answers[1]]}), {"saved": 0})
+        self.assertEqual(fake.STATE.db.table(choices.CHOICE), {})
 
 
 class WriteRulesUnchanged(pre.Precheck):
