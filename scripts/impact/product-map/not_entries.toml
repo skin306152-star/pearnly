@@ -6,6 +6,11 @@
 # 删接口时同一提交删掉这一条；有了调用方闸门会报「该删」。
 
 [[anchor]]
+anchor = "endpoint:pearnly_cowork.assistant.pending_api.mrerp_answer"
+kind = "delete"
+reason = "11-05 CC 待处理里 MR.ERP 要选导入菜单 / 默认值的单改成提问卡（PendingAsk），走共用写账前置判定 write_precheck.check / answer（W4）；后端接口归 W2，随前置判定上线后删"
+
+[[anchor]]
 anchor = "endpoint:pearnly_core.express_operator.api.task_attention"
 kind = "delete"
 reason = "11-04 左侧「待处理」入口删了（待处理并进对话），前端不再取代录「需要你处理」的任务数；接口归共用层（W1），待统一框架方案定后删"

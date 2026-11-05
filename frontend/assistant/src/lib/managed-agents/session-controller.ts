@@ -116,7 +116,7 @@ export class SessionController {
 
   // Confirmation batching: clicks within a short window ride one request,
   // because racing two sends can be rejected mid-resume by the API.
-  private confirmQueue: Array<{ tool_use_id: string; result: "allow" | "deny"; deny_message?: string }> = [];
+  private confirmQueue: Array<{ tool_use_id: string; result: "allow" | "deny"; deny_message?: string; answers?: unknown }> = [];
   private confirmTimer: ReturnType<typeof setTimeout> | null = null;
 
   // 在跑还是断了（见文件头）：最近一次收到服务端消息的时刻（本页时钟）与看门的定时器（只在这一轮在跑时有，不发请求）
@@ -570,8 +570,9 @@ export class SessionController {
     this.mergeProjection(evictOptimisticMessage(this.state, optimisticId));
   }
 
-  /** The Allow/Deny click. Optimistically settles the gate, then batches. */
-  respondToApproval(toolUseId: string, approved: boolean, reason?: string) {
+  /** The Allow/Deny click. Optimistically settles the gate, then batches.
+   *  answers：通用提问卡片 ask_user 的作答（随「允许」交给服务端，服务端记下并以 user.custom_tool_result 交回模型）。 */
+  respondToApproval(toolUseId: string, approved: boolean, reason?: string, answers?: unknown) {
     // Already queued for this batch: a double-click must not send the
     // same confirmation twice.
     if (this.confirmQueue.some((c) => c.tool_use_id === toolUseId)) return;
@@ -594,6 +595,7 @@ export class SessionController {
       tool_use_id: toolUseId,
       result: approved ? "allow" : "deny",
       ...(!approved && reason ? { deny_message: reason } : {}),
+      ...(approved && answers !== undefined ? { answers } : {}),
     });
     if (this.confirmTimer) clearTimeout(this.confirmTimer);
     this.confirmTimer = setTimeout(() => void this.flushConfirmations(), 250);

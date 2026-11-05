@@ -130,7 +130,8 @@ class NotesSourceTests(unittest.TestCase):
         self.assertIn("{keepEmpty && !list.length && !adding && (", section)
         self.assertIn("co.draftNotesText, false);", section)
         pending = read("components/pending.tsx")
-        self.assertIn("{open && view && settledView(view) && (", pending)
+        # 公司规则定下了、判定出来没有要问的：提问卡那里只一行「推送」（11-05 起当场选是一张提问卡）
+        self.assertIn(") : !questions.length ? (", pending)
         self.assertIn("{co.pushNow}", pending)
         i18n = read("i18n.ts")
         messages = block(i18n, "const MESSAGES = {")

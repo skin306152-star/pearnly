@@ -5,15 +5,17 @@
 //     task_settle / regroup / intake，行动接口不改；不走对话的 confirm / run_tool），点完先在本页定下卡片（结果到了以它为准）。
 // 不碰 React 组件；字走 i18n（原码不外露，认不出的写「需要处理」）。
 
-import { op, co } from "@/i18n";
+import { op } from "@/i18n";
 import { desktop, OPERATOR } from "@/lib/desktop";
 import { getMethod, postMethod, uploadMethod } from "@/lib/frappe";
-import { getSessionController } from "@/lib/managed-agents/session-controller";
 import type { ToolResultPayload } from "@/lib/managed-agents/reducer";
-import type { CardPart } from "@/lib/approval-card";
 import { reportCaught, withReport } from "@/lib/caught";
 
 export const API = "pearnly_core.express_operator.api.";
+
+export { type ChoiceOption, docTitle, isRawCode, NEW_CODE, optionLabel, reasonText, RESULT_UNKNOWN } from "./operator-words";
+import type { ChoiceOption } from "./operator-words";
+export { cardFailed, type CardPhase, cardPhase, settleCard } from "./card-phase";
 
 // ── 原因（contract.py）───────────────────────────────────────────────────────
 export type Level = "auto" | "auto_reported" | "human";
@@ -76,28 +78,6 @@ export function levelOf(reason: string): Level {
   return (REASONS as Record<string, Level>)[reason] ?? "human";
 }
 
-/** 上次推送结果不明（站点给的原因代码）。 */
-export const RESULT_UNKNOWN = "push.result_unknown";
-
-/** 看着像内部代码的（[OPERATOR_X]、choice_needed:…、reading、HTTP 原文）：不给人看。 */
-export function isRawCode(text: string): boolean {
-  const value = text.trim();
-  if (!value) return true;
-  return (
-    /\[[A-Z0-9_]+\]/.test(value) || /^[A-Z0-9]+_[A-Z0-9_]+/.test(value) || /^[a-z0-9_.-]+(:|$)/i.test(value) || /Traceback|Exception\b/.test(value)
-  );
-}
-
-/** 原因代码 → 给人看的一句：实操原因、交单时没收的状态、结果不明，站点给的已翻译原文；都不是写「需要处理」。 */
-export function reasonText(code: string | undefined, message?: string): string {
-  const key = String(code ?? "").trim();
-  const known = key === RESULT_UNKNOWN ? co.ledger.code.result_unknown
-    : op.reason[key] ?? op.refused[key] ?? (key.startsWith("already_") ? op.refused.already : undefined);
-  if (known) return known;
-  if (message && !isRawCode(message)) return message.trim();
-  return op.unknownReason;
-}
-
 // ── 单据、分组、选项 ─────────────────────────────────────────────────────────
 /** 资料的组：采购、销售、费用、收付款、不入账。 */
 export const DOC_GROUPS = ["purchase", "sales", "expense", "payment", "skip"] as const;
@@ -111,14 +91,6 @@ export function groupOf(doc: { group?: string; kind?: string }): DocGroup {
   if (isGroup(doc.kind)) return doc.kind;
   return doc.kind === "sales" ? "sales" : "purchase";
 }
-
-/** 一张单的标题：单号 · 对方（没有的不写；都没有写 fallback）。 */
-export function docTitle(doc: { ref?: string | undefined; party?: string | undefined }, fallback = ""): string {
-  return [doc.ref, doc.party].filter(Boolean).join(" · ") || fallback;
-}
-
-export const NEW_CODE = "__new__";
-export type ChoiceOption = { code: string; name: string };
 
 /** 一问：同一类、同一对象在几张单上只问一次（站点按类合好）；groups：这几张单的组（供应商 / 客户按方向写）。 */
 export type Question = { kind: string; subject: string; label: string; options: ChoiceOption[]; doc_ids: string[]; groups?: DocGroup[] };
@@ -144,22 +116,6 @@ export function kindTitle(kind: string, groups: readonly DocGroup[] = []): strin
     if (groups.every((g) => g !== "sales")) return op.kind.supplier!;
   }
   return op.kind[kind] ?? op.kind.other!;
-}
-
-/** 代码就是选项的几项：现购 / 赊购、抵进项 / 记费用。 */
-const CODED: Record<string, () => string> = {
-  cash: () => co.payCash,
-  credit: () => co.payCredit,
-  claim: () => co.vatClaim,
-  expense: () => co.vatExpense,
-};
-
-/** 一个选项的说法：新建（商品写「库存（新建）」）、现购 / 赊购、抵进项 / 记费用；已有的写编码与名称。 */
-export function optionLabel(kind: string, option: ChoiceOption): string {
-  if (option.code === NEW_CODE) return kind === "item" ? op.option.newItem! : op.option.new!;
-  const name = (option.name ?? "").trim();
-  if (!name && CODED[option.code]) return CODED[option.code]!();
-  return [option.code, name].filter(Boolean).join(" ") || op.unknownReason;
 }
 
 /** 选了的 → 交给 start / task_answer 的回答：{单据: [{kind, subject, value, label}]}。 */
@@ -259,21 +215,6 @@ export function resultOf<T extends object>(result: unknown): (Partial<T> & { cod
   return { code: text.trim() } as Partial<T> & { code?: string };
 }
 
-// ── 卡片此刻的样子 ───────────────────────────────────────────────────────────
-export type CardPhase = "ask" | "answered" | "cancelled";
-
-/** 方案 14.10：能点 = 有 pearnly.tool_run awaiting_approval、还没有结果（user.custom_tool_result）。有结果、执行记录往前走了、本页刚点完
- *  → 点完；作废、或没在等也没结果（任务已往前走）→ 已取消（同「允许」卡片没答就没了）。 */
-export function cardPhase(part: CardPart): CardPhase {
-  if (part.result !== undefined || part.approval?.approved !== undefined) return "answered";
-  if (part.run === "awaiting_approval") return "ask";
-  if (part.run && part.run !== "cancelled") return "answered";
-  return "cancelled";
-}
-
-/** 结果写明没做成。 */
-export const cardFailed = (part: CardPart) => part.run === "error" || (part.result !== undefined && !!part.isError);
-
 // ── 行动（行动接口不改，卡片照旧调它们；不调对话的 confirm / run_tool）──────────────────
 type Get = <T>(method: string, args?: Record<string, string | number | undefined>) => Promise<T>;
 type Post = <T>(method: string, args?: Record<string, unknown>) => Promise<T>;
@@ -283,18 +224,6 @@ let site: { get: Get; post: Post; upload: Upload } = { get: getMethod, post: pos
 export const setOperatorSite = (next: Partial<typeof site>) => {
   site = { ...site, ...next };
 };
-
-/** 点完卡片：本页先定下（只在本页，结果到了以它为准；不发给服务端）。 */
-export function settleCard(sessionId: string | null | undefined, toolUseId: string) {
-  if (!sessionId) return;
-  getSessionController(sessionId).applyLocal({
-    type: "user.tool_confirmation",
-    id: `optimistic-confirm-${toolUseId}`,
-    tool_use_id: toolUseId,
-    result: "allow",
-    processed_at: new Date().toISOString(),
-  } as never);
-}
 
 /** 资料一页的大小（服务端分页，「显示更多」再取下一页）。 */
 export const PAGE = 50;
@@ -308,11 +237,12 @@ export const operatorActions = {
     return { documents, next: typeof reply?.next_offset === "number" ? reply.next_offset : null, total: reply?.total };
   },
   precheck: async (company: string, docIds: readonly string[]) => {
-    if (!docIds.length) return { documents: [] as PrecheckDoc[], targets: [] as WriteTarget[] };
-    // 一批写进几份账套时服务端 target 为空、targets 列出每一份（张数多的在前，api.precheck）；旧服务端只给 target
-    const reply = await site.post<{ documents?: PrecheckDoc[]; target?: WriteTarget | null; targets?: WriteTarget[] }>(API + "precheck", { company, doc_ids: JSON.stringify(docIds) });
+    if (!docIds.length) return { documents: [] as PrecheckDoc[], targets: [] as WriteTarget[], card: undefined as unknown };
+    // 一批写进几份账套时服务端 target 为空、targets 列出每一份（张数多的在前，api.precheck）；旧服务端只给 target。
+    // card：共用写账前置判定合成的「开始前确认」卡片（write_precheck，形状见 precheck-shared.ts）；旧服务端没有，页面按 documents 合成
+    const reply = await site.post<{ documents?: PrecheckDoc[]; target?: WriteTarget | null; targets?: WriteTarget[]; card?: unknown }>(API + "precheck", { company, doc_ids: JSON.stringify(docIds) });
     const targets = reply?.targets?.length ? reply.targets : reply?.target ? [reply.target] : [];
-    return { documents: (reply?.documents ?? []).map((d) => ({ ...d, doc_id: String(d.doc_id) })), targets };
+    return { documents: (reply?.documents ?? []).map((d) => ({ ...d, doc_id: String(d.doc_id) })), targets, card: reply?.card };
   },
   /** groups：交出的每张单的资料分组（{doc_id: purchase / sales / …}，服务端记进任务的单据行，资料那一步的按组张数与报告用它）。 */
   start: (input: StartInput, docIds: readonly string[], answers: Answers, groups: Readonly<Record<string, DocGroup>> = {}) =>

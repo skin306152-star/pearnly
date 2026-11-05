@@ -8,7 +8,7 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { FileTypeIcon, fileTypeLabel, useResults } from "@/components/results-panel";
 import { LoneStep, runningStepLabel, StepRow, StepsGroup } from "@/components/tool-uis/steps";
-import { OPERATOR_CARDS } from "@/components/tool-uis";
+import { CARD_TOOLS } from "@/components/tool-uis";
 import { liveProgress, progressText } from "@/lib/managed-agents/progress";
 import { ApprovalSheet } from "@/components/tool-uis/approval-sheet";
 import { TypingDots } from "@/components/typing-dots";
@@ -523,7 +523,7 @@ function useGroupByWithVisibleGates(): typeof groupByBase {
   const labels = useToolLabels();
   return useMemo<typeof groupByBase>(
     () => (part, context) =>
-      part.type === "tool-call" && (OPERATOR_CARDS.has(part.toolName) || approvalCard(part as unknown as CardPart, labels)) ? [] : groupByBase(part, context),
+      part.type === "tool-call" && (CARD_TOOLS.has(part.toolName) || approvalCard(part as unknown as CardPart, labels)) ? [] : groupByBase(part, context),
     [labels],
   );
 }

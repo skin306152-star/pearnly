@@ -402,7 +402,9 @@ class ShortcutTests(unittest.TestCase):
         # 对话 / 代录用 Ctrl + Shift + 1 / 2（2026-10-27 主会话定）：Ctrl / ⌘ + 1–9 在桌面窗口已是「打开第 n 条对话」
         # （lib/sidebar-keys.ts，要求没按 Shift），浏览器里 Ctrl + 数字是切标签页
         self.assertEqual(sorted(hints), sorted(["Ctrl ,", "Ctrl N", "Ctrl Shift 1", "Ctrl Shift 2", "Ctrl ,", "Ctrl R", "Ctrl =",
-                                                "Ctrl -", "Ctrl 0", "Ctrl + Alt + Space"]))
+                                                "Ctrl -", "Ctrl 0", "Ctrl + Alt + Space",
+                                                # 通用提问卡片 ask_user 的「下一步 / 提交」（照 Claude Code 写 ⌘↵，tests/test_cc_ask.py）
+                                                "Ctrl↵"]))
 
     def test_one_touch_detection_for_the_whole_page(self):
         # 三种触屏判定各管各的（标准化记录 3.4）：lib/touch.ts 的 touchOnly()（hover: none）管「没有悬停」时的行为；
@@ -1710,9 +1712,11 @@ g.done();
 """, stubs=self.STUBS, lang="zh")
         thread = read("components/assistant-ui/thread.tsx")
         # 允许卡与代录的卡片（开始前、中途选、继续）不进折叠的步骤组
-        self.assertIn('part.type === "tool-call" && (OPERATOR_CARDS.has(part.toolName) || approvalCard(part as unknown as CardPart, labels)) ? [] : groupByBase(part, context)', thread)
+        self.assertIn('part.type === "tool-call" && (CARD_TOOLS.has(part.toolName) || approvalCard(part as unknown as CardPart, labels)) ? [] : groupByBase(part, context)', thread)
         self.assertIn('export const OPERATOR_CARDS: ReadonlySet<string> = new Set(["operator_start", "operator_choose", "operator_resume"]);',
                       read("components/tool-uis/index.tsx"))
+        # 通用提问卡片 ask_user 同样单独一张（tests/test_cc_ask.py）
+        self.assertIn('export const CARD_TOOLS: ReadonlySet<string> = new Set([...OPERATOR_CARDS, "ask_user"]);', read("components/tool-uis/index.tsx"))
         # 步骤组里那一行（出卡片前就核出要拒绝的）写问话 + 失败，不写做完的说法
         steps_src = read("components/tool-uis/steps.tsx")
         plain = steps_src[steps_src.index("const PlainStep: FC"):steps_src.index("export function askText")]
@@ -2787,7 +2791,9 @@ class CompanyMasterSourceTests(unittest.TestCase):
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
 class CompanyHelpersBehaviourTests(unittest.TestCase):
-    STUBS = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }"}
+    # 待处理引了提问卡（快捷键提示经 shortcut → lib/desktop → lib/profile，profile 用 Vite 的 import.meta.glob）：同别的页面测试桩掉 profile
+    STUBS = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
+             "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
 
     def run_page(self, body, lang="en"):
         run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body + "\n(globalThis as any).done();\n",
@@ -4122,7 +4128,8 @@ class CompanyPageBehaviourTests(unittest.TestCase):
         # 用户 10-17 改版：收起时一条一行（对方名 + 右侧的值），按钮、说明都在点开以后
         self.run_page(r"""
 import { promoteChoice } from "@/lib/companies";
-import { choiceLine, settledView } from "@/components/pending";
+import { asksFirst } from "@/components/pending";
+import { itemsOfCheck } from "@/components/tool-uis/ask-shared";
 const row = (choice: any, promote = true, open = true) => renderToStaticMarkup(createElement(ChoiceRow, { choice, open, onSet() {}, onForget() {},
   ...(promote ? { onPromote() {} } : {}) }));
 const rule = row({ key: "r1", source: "rule", kind: "payment", subject_label: "ACME", value: "cash", editable: true, branch: "", set_by: "a", set_by_name: "a" });
@@ -4146,16 +4153,18 @@ g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: 
 await promoteChoice("comp_abc", "k2", "2026-09");
 assert.equal(g.calls.at(-1).method, "/api/method/pearnly_cowork.companies.api.choice_promote");
 assert.deepEqual(g.calls.at(-1).body, { company: "comp_abc", key: "k2", period: "2026-09" });
-// 当场选：公司规则定下了要选的（needed 为空）→ 直接推送；科目表在读时照旧交给 CC
-assert.equal(settledView({ needed: [] } as any), true);
-assert.equal(settledView({ needed: [], wait: { state: "reading", message: "" } } as any), false);
-assert.equal(settledView({ needed: [{ kind: "account", subject: "s" }] } as any), false);
-// 第 5 轮测试 7：行上的说明按展开后读到的要选项写；规则定下了、没有要选的（按钮是「推送」）不再写「付款方式 · 费用科目」
+// 当场选、待选账套、MR.ERP 要选的（带推送去向）都进同一张提问卡（用户 11-05，PendingAsk）；提议、打开单据页的不进
 const stuck: any = { document: "D1", action: "choose", choice: { connection: "C1", kinds: ["payment", "account"] } };
-assert.equal(choiceLine(stuck, null), "Payment · Expense account");
-assert.equal(choiceLine(stuck, { needed: [] } as any), "");
-assert.equal(choiceLine(stuck, { needed: [{ kind: "account", subject: "s" }, { kind: "account", subject: "t" }] } as any), "Expense account");
-assert.equal(choiceLine(stuck, { needed: [], wait: { state: "reading", message: "" } } as any), "Payment · Expense account");
+assert.equal(asksFirst(stuck), true);
+assert.equal(asksFirst({ ...stuck, action: "account_set" }), true);
+assert.equal(asksFirst({ ...stuck, action: "mrerp" }), true);
+assert.equal(asksFirst({ ...stuck, action: "push" }), false);
+assert.equal(asksFirst({ ...stuck, action: "open" }), false);
+assert.equal(asksFirst({ ...stuck, choice: null }), false);
+// 公司规则定下了（判定回包里全是已定）→ 没有要问的，卡上只一行「推送」；预选、未定的才出题
+assert.deepEqual(itemsOfCheck({ groups: [{ group: "payment", items: [{ key: "k", kind: "payment", subject: "s", state: "decided", value: "cash", docs: ["D1"] }] }] }), []);
+assert.deepEqual(itemsOfCheck({ groups: [{ group: "payment", items: [{ key: "k", kind: "payment", subject: "s", state: "proposed", value: "cash", docs: ["D1"] }] }] })
+  .map((i) => [i.key, i.value]), [["k", "cash"]]);
 """)
 
     def test_saved_choices_are_one_line_each_and_open_one_at_a_time(self):
@@ -4346,34 +4355,36 @@ assert.deepEqual(buttons(page), ["Documents folder", "Update CC Desktop"]);   //
         fixture = (ROOT / "tests/fixtures/cc-pending-contract.json").read_text(encoding="utf-8")
         self.run_page(r"""
 import fixture from "cc-pending-fixture";
-import { answerChoices, answered, loadChoices, loadPending, parseCounts, setChoice } from "@/lib/companies";
-import { choosable, choosableView, optionsOf } from "@/components/pending";
+import { answered, loadPending, parseCounts, setChoice } from "@/lib/companies";
+import { choosable } from "@/components/pending";
+import { askActions, itemQuestion, itemsOfCheck, keyAnswers } from "@/components/tool-uis/ask-shared";
 const item: any = { ...fixture.item, company: "comp_abc" };
 assert.equal(choosable(item), true);
 assert.equal(choosable({ ...item, action: "open" }), false);
-// 展开：按 choice 取要选的项（GET，同复核页）
-g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: fixture.choices }) });
-const view = await loadChoices(item);
+// 用户 11-05：停在要选的单一起交给共用写账前置判定（write_precheck check，POST，按公司与单号），没定下的每项一题（提问卡）
+const reply = { groups: [{ group: "payment", items: [{ key: "kp", kind: "payment", subject: "ACME", label: "ACME", state: "proposed", value: "cash",
+  options: [{ code: "cash", name: "" }, { code: "credit", name: "" }], docs: ["h1"] }] },
+  { group: "service", items: [{ key: "ka", kind: "account", subject: "ACME|fuel", label: "Fuel", state: "open", value: "", search: "accounts", docs: ["h1"] }] }] };
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: reply }) });
+const items = itemsOfCheck(await askActions.check("comp_abc", ["h1"]));
 const asked = g.calls.at(-1);
-assert.equal(asked.method, "/api/method/pearnly_cowork.push.application.api.choices");
-assert.deepEqual(asked.args, { history: "h1", connection: "C1", account_set_key: "S:\\69EXP\\ABC" });
-assert.equal(choosableView(view), true);
-// 建议（服务端 suggested 的顺序）排第一、预选；付款用项自带的可选值
-const [payment, account] = view.needed;
-assert.deepEqual(optionsOf(view, payment).map((o) => o.label), ["Cash", "Credit"]);
-assert.deepEqual(optionsOf(view, account).slice(0, 2).map((o) => o.value), ["5390-99", "5320-01"]);
-assert.equal(optionsOf(view, account).length, view.options.accounts.length);   // 不重复
-// 科目表还没读到（wait）或没有可选值：当场选不了，交给 CC
-assert.equal(choosableView({ ...view, wait: { state: "reading", message: "…" } }), false);
-assert.equal(choosableView({ ...view, options: { accounts: [] } }), false);
-// 作答：只交选了的项，回的结果形状同服务端
-g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: fixture.answer }) });
-const result = await answerChoices(item, view, { [`account\n${account.subject}`]: "5390-99" });
+assert.equal(asked.method, "/api/method/pearnly_core.write_precheck.api.check");
+assert.deepEqual(asked.body, { company: "comp_abc", doc_ids: '["h1"]', mode: "pending" });
+const questions = items.map((i) => itemQuestion(i, "comp_abc"));
+// 预选（现购）排第一、带「(推荐)」；科目没有预选，「其他」去服务端搜这份账套的科目表
+assert.equal(questions[0]!.options[0]!.label, "Cash (Recommended)");
+assert.deepEqual(questions[1]!.search, { company: "comp_abc", doc_id: "h1", kind: "accounts" });
+// 提交：每项的值交回判定接口记下（服务端把这几张重新排队写入）；跳过的不交
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: reply }) });
+const answers = keyAnswers(items, questions, { answers: [{ header: "", question: "", labels: [questions[0]!.options[0]!.label] },
+  { header: "", question: "", labels: [], other: "5390-99" }] });
+await askActions.remember("comp_abc", ["h1"], answers);
 const sent = g.calls.at(-1);
-assert.equal(sent.method, "/api/method/pearnly_cowork.assistant.pending_api.answer");
-assert.deepEqual({ ...sent.body, items: JSON.parse(sent.body.items) }, { document: "h1",
-  items: [{ kind: "account", subject: account.subject, value: "5390-99", label: account.label }] });
-assert.equal(answered(result), true);
+assert.equal(sent.method, "/api/method/pearnly_core.write_precheck.api.answer");
+assert.deepEqual({ ...sent.body, answers: JSON.parse(sent.body.answers) }, { company: "comp_abc", doc_ids: '["h1"]',
+  answers: [{ key: "kp", value: "cash" }, { key: "ka", value: "5390-99" }] });
+// 推送提议的回包照旧（ProposalRow）
+assert.equal(answered(fixture.answer), true);
 assert.equal(answered({ status: "needs_choice" }), false);
 assert.equal(answered({ status: "already_success" }), true);
 // 计数：服务端的 {total, companies, unassigned}
@@ -4610,29 +4621,31 @@ class PendingChoiceDefaultTests(unittest.TestCase):
     """待处理「当场选」不拿列表第一项充数（验收 F18：没有建议时预选了科目表第一项「11-01-01-00 เงินสด」，直接确认会记错科目）。"""
 
     def test_the_confirm_needs_every_choice_made(self):
+        # 用户 11-05 起当场选是一张提问卡（PendingAsk → tool-uis/ask-card.tsx）：没选（也没在「其他」里填）不能点「下一步 / 提交」；
+        # 不拿列表第一项充数：只有预选值（服务端判出的已记住 / 建议）排第一带「(推荐)」才默认选中
         page = read("components/pending.tsx")
-        self.assertNotIn("optionsOf(next, need)[0]", page)
-        self.assertIn("initialChoice(next, need)", page)
-        self.assertIn('<option value="" disabled>—</option>', page)
-        self.assertIn("view.needed.some((need) => !values[choiceKey(need)])", page)
+        self.assertIn("<AskCard", page)
+        self.assertIn("itemsOfCheck(reply)", page)
+        card = read("components/tool-uis/ask-card.tsx")
+        self.assertIn('disabled={busy || !answered(state)} onClick={primary}>', card)
+        shared = read("components/tool-uis/ask-shared.ts")
+        self.assertIn("isRecommended(q.options[0]) ? [q.options[0]!.label] : []", shared)
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
     def test_only_a_decided_or_suggested_value_is_filled_in(self):
         run_ts(r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { initialChoice } from "@/components/pending";
+import { initialStates, itemQuestion } from "@/components/tool-uis/ask-shared";
 
-const view = { options: { accounts: [
-  { code: "11-01-01-00", name: "เงินสด" }, { code: "53-05-02-00", name: "ค่าทำความสะอาด" }, { code: "53-05-28-00", name: "ค่าใช้จ่ายเบ็ดเตล็ด" },
-] } } as any;
-const need = (extra: any) => ({ kind: "account", subject: "S", ...extra }) as any;
-assert.equal(initialChoice(view, need({})), "");                                        // 没有建议：空着，必须人选
-assert.equal(initialChoice(view, need({ suggested: [{ code: "53-05-28-00" }] })), "53-05-28-00");
-assert.equal(initialChoice(view, need({ suggested: [{ code: "99-99-99-99" }] })), "");   // 建议不在可选值里：不填
-assert.equal(initialChoice(view, need({ current: "53-05-02-00", suggested: [{ code: "53-05-28-00" }] })), "53-05-02-00");
-const payment = { kind: "payment", subject: "S", options: [{ code: "cash" }, { code: "credit" }] } as any;
-assert.equal(initialChoice({ options: {} } as any, payment), "");                       // 付款方式同样不默认现购
+const options = [{ code: "11-01-01-00", name: "เงินสด" }, { code: "53-05-02-00", name: "ค่าทำความสะอาด" }, { code: "53-05-28-00", name: "ค่าใช้จ่ายเบ็ดเตล็ด" }];
+const item = (extra: any) => ({ key: "k", kind: "account", subject: "S", label: "Fuel", docs: ["D1"], options, ...extra }) as any;
+const picked = (extra: any) => initialStates([itemQuestion(item(extra), "C1")])[0]!.labels;
+assert.deepEqual(picked({}), []);                                                         // 没有预选：空着，必须人选
+assert.deepEqual(picked({ value: "53-05-28-00" }), ["53-05-28-00 ค่าใช้จ่ายเบ็ดเตล็ด (Recommended)"]);   // 预选排第一、默认选中
+assert.equal(itemQuestion(item({ value: "53-05-28-00" }), "C1").options[0]!.label, "53-05-28-00 ค่าใช้จ่ายเบ็ดเตล็ด (Recommended)");
+const payment = { key: "p", kind: "payment", subject: "S", label: "S", docs: ["D1"], options: [{ code: "cash", name: "" }, { code: "credit", name: "" }] } as any;
+assert.deepEqual(initialStates([itemQuestion(payment, "C1")])[0]!.labels, []);            // 付款方式同样不默认现购
 (globalThis as any).done();
 """, stubs={"socket.io-client": SOCKET_STUB,
             "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'})
@@ -8952,9 +8965,9 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertNotIn('className="cc-chip-x"', read("components/pending.tsx"))
         # L10 / H2：知识库编辑与待处理的按钮是卡片按钮
         self.assertIn('<button type="button" className="cc-card-btn" data-primary="" disabled={!canSave}', read("components/company-cards.tsx"))
-        # 当场选三颗 + 列表底部的「交给 CC」（第 11 轮 D32：电脑也是 24 的卡片按钮）+ 多电脑分支待选账套行（AccountSetRow）的「确认」「交给 CC」两颗
-        # 第 3 期提议行展开后的「推送」；MR.ERP 当场选那一行（10-19）的「确认」「推送」「交给 CC」三颗
-        self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 10)
+        # 列表底部的「交给 CC」（第 11 轮 D32：电脑也是 24 的卡片按钮）；第 3 期提议行展开后的「推送」；
+        # 当场选、待选账套、MR.ERP 要选的 11-05 起是一张提问卡（PendingAsk，按钮在卡里），卡外只剩判定失败时的「交给 CC」与没有要问时的「推送」
+        self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 4)
         # 设置「电脑」列表每台电脑行尾「···」：电脑 24（.cc-row-btn，标准化 V22；原来手写 28），手机点按区 44（.cc-tap）
         self.assertIn('className="cc-row-btn cc-tap"', read("components/settings.tsx"))
         self.assertIn('<button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc"', read("components/pending.tsx"))

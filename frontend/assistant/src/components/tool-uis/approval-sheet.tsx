@@ -2,7 +2,7 @@
 // 右上圆形「×」＝拒绝，改动照常列（多了「还有 N 项」），右下大号胶囊「允许」。对话流里那一步只列问话与改动、不再画按钮
 // （steps.tsx 的 AskStep）。多张待答一次只浮最早的一张，答完浮下一张；答完浮层消失，对话流里是点完的卡片。
 // 放在对话底部输入框那一块里（thread.tsx 的 ViewportFooter）：键盘弹出、抽屉打开、页面滚动时跟着输入框走。
-// 不是弹窗：Esc / 返回键不当拒绝，只有「×」。电脑不浮（卡片在对话流里）。
+// 不是弹窗：Esc / 返回键不当拒绝，只有「×」。电脑不浮（卡片在对话流里）。通用提问卡片 ask_user 不浮（它在对话流里一题一页）。
 
 import { XIcon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -13,6 +13,7 @@ import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { useToolLabels } from "@/lib/tool-labels";
 import { t } from "@/i18n";
 import { ApprovalFailure, ChangeList } from "./approval-bar";
+import { ASK_TOOL } from "./ask-shared";
 import { askText } from "./steps";
 
 export function ApprovalSheet() {
@@ -21,7 +22,8 @@ export function ApprovalSheet() {
   const labels = useToolLabels();
   if (!phone || !snapshot.sessionId) return null;
   const part = firstPendingApproval<ToolPart | { type: "text" | "reasoning"; approval?: undefined }>(snapshot.messages);
-  if (!part || part.type !== "tool-call" || !part.approval) return null;
+  // 通用提问卡片 ask_user 不浮：它本身就是对话流里一题一页的卡片（ask-card.tsx）
+  if (!part || part.type !== "tool-call" || !part.approval || part.toolName === ASK_TOOL) return null;
   const { approval } = part;
   const sessionId = snapshot.sessionId;
   const respond = (approved: boolean) => getSessionController(sessionId).respondToApproval(approval.id, approved);

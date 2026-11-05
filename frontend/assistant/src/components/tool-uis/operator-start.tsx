@@ -1,33 +1,30 @@
 // 开始前（方案 14.10，工具 operator_start，input {task, company, company_title, period}）：样子同「允许」卡片（operator-card.tsx）。
-// 能点（pearnly.tool_run awaiting_approval、还没有结果）时卡片自己调代录接口：资料第一页（documents，服务端分页，「显示更多」再取）→
-// 预检（precheck：每张 ready / choose / waiting / blocked 与写入目标 B4）。问话一行「写入 {公司} · {账套} 的 Express」；下面依次是
-// Express 登录没设置的一行〔设置〕（本页就在那台电脑上时）、上次推送结果不明的单〔已入账〕〔没有入账〕（resolve 后再预检）、停下的单与原因、
-// 要人定的按类一次问完（下拉）；底部「开始」一直能点，还差几项写在它上面。点「开始」照旧调 start（带回答与任务号），本页先定下卡片；
-// 交单结果（user.custom_tool_result {sent, not_sent[]}）到了，点完那一行下面列没收的单与原因。不调对话的 confirm / run_tool。
+// 用户 11-05：要人定的事（账套、对方档、科目……）都由 CC 先判定（write_precheck check）再用通用提问卡片 ask_user 一题一题问（ask-card.tsx），
+// 这张卡只剩问话一行「写入 {公司} · {账套} · {电脑} 的 Express」和「开始」。卡片能点（pearnly.tool_run awaiting_approval、还没有结果）时
+// 自己调代录接口：资料第一页（documents，服务端分页，「显示更多」再取）→ 预检（precheck：写入目标 B4，几份账套就列几份；结果不明的单）。
+// 主体只有不是选择题的两样：Express 登录没设置的一行〔设置〕（本页就在那台电脑上时）、上次推送结果不明的单〔已入账〕〔没有入账〕
+// （resolve 后再预检，防重复入账的流程锁）。「开始」照旧调 start（答案已由 ask_user 记住，这里不再带）；交单结果（user.custom_tool_result
+// {sent, not_sent[]}）到了，点完那一行下面列没收的单与原因。不调对话的 confirm / run_tool。
 
-import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { type FC, type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ToolCallMessagePartComponent, useAuiState } from "@assistant-ui/react";
+import { type FC, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Marquee } from "@/components/ui/marquee";
 import { co, lang, op } from "@/i18n";
 import type { CardPart } from "@/lib/approval-card";
 import { reportCaught } from "@/lib/caught";
-import { OperatorCard, useCardAction } from "./operator-card";
+import { settleCard } from "./card-phase";
+import { OperatorCard, useCardAction, useSessionId } from "./operator-card";
+import { uploadStateOf } from "./operator-steps";
 import {
-  answersFor,
   authorizeHere,
   cardPhase,
   type DocGroup,
   type DocRef,
   docTitle,
   groupOf,
-  kindTitle,
   loginHere,
   operatorActions,
-  optionLabel,
   type PrecheckDoc,
-  questionGroups,
-  questionKey,
-  questionsOf,
   reasonText,
   RESULT_UNKNOWN,
   resultOf,
@@ -36,11 +33,12 @@ import {
   type WriteTarget,
 } from "./operator-shared";
 
-/** 问话：写入 {公司} · {账套} 的 Express（不知道的那一项不写）；一批写进几份账套时列出每一份（服务端 targets，张数多的在前）。 */
+/** 问话：写入 {公司} · {账套} · {电脑} 的 Express（不知道的那一项不写）；一批写进几份账套时列出每一份（服务端 targets，张数多的在前）。 */
 export function writeLine(input: Pick<StartInput, "company" | "company_title">, targets: readonly WriteTarget[]): string {
   const sets = targets.map((t) => t.account_set_title || t.account_set || "").filter(Boolean);
   const named = sets.length > 1 ? new Intl.ListFormat(lang, { type: "conjunction" }).format(sets) : sets[0];
-  return op.writeTo([input.company_title || input.company, named].filter(Boolean).join(" · "));
+  const computers = [...new Set(targets.map((t) => t.computer ?? "").filter(Boolean))];
+  return op.writeTo([input.company_title || input.company, named, computers.join("、")].filter(Boolean).join(" · "));
 }
 
 /** 交给 start 的分组：交出的每张单此刻在哪一组（拖动改过的以站点记住的为准，documents 已带回）。 */
@@ -66,20 +64,49 @@ const DocLine: FC<{ title: string; detail?: string; slot: string; children?: Rea
 
 type Prep = { docs: DocRef[]; next: number | null; prechecks: PrecheckDoc[]; targets: WriteTarget[]; login: boolean | null };
 
-/** 准备中的资料与预检（只在卡片能点时取）。 */
-function usePrep(input: StartInput, on: boolean) {
+/** 第一页重取后合上已取过的「显示更多」那几页：第一页在前（新上传的落在这里），别的页里已有的照留，同一张只留一次。 */
+export function mergeDocs(first: readonly DocRef[], before: readonly DocRef[]): DocRef[] {
+  const seen = new Set(first.map((d) => d.doc_id));
+  return [...first, ...before.filter((d) => !seen.has(d.doc_id))];
+}
+
+/** 这段对话里识别完的上传（operator_upload 有结果、已识别）：编号连成一串，变了卡片就重取资料。 */
+export function uploadsDoneKey(messages: ReadonlyArray<{ content: ReadonlyArray<unknown> }>): string {
+  const done: string[] = [];
+  for (const message of messages) {
+    for (const part of message.content as ReadonlyArray<{ type?: string; toolName?: string; toolCallId?: string; result?: unknown; isError?: boolean }>) {
+      if (part.type !== "tool-call" || part.toolName !== "operator_upload" || part.result === undefined) continue;
+      if (uploadStateOf(part.result, !!part.isError, null).kind === "done") done.push(String(part.toolCallId));
+    }
+  }
+  return done.join("|");
+}
+
+/** 准备中的资料与预检（只在卡片能点时取）。上传识别完了（uploads 变了）重取；点「开始」前也重取（测试机 11-05：卡片出现后再上传的单，
+ *  第一次点「开始」报「没有要处理的单据」、刷新才列出来）。重取保留已用「显示更多」取过的页。 */
+function usePrep(input: StartInput, on: boolean, uploads: string) {
   const [prep, setPrep] = useState<Prep | null>(null);
-  const load = useCallback(async (offset: number, before: Prep | null) => {
+  const load = useCallback(async (offset: number, before: Prep | null, refresh = false): Promise<Prep> => {
     const page = await operatorActions.documents(input.company, input.period, offset);
-    const docs = [...(before?.docs ?? []), ...page.documents];
+    const docs = refresh ? mergeDocs(page.documents, before?.docs ?? []) : [...(before?.docs ?? []), ...page.documents];
+    const next = refresh && before ? before.next : page.next;
     const [checked, login] = await Promise.all([operatorActions.precheck(input.company, docs.map((d) => d.doc_id)), loginHere()]);
-    setPrep({ docs, next: page.next, prechecks: checked.documents, targets: checked.targets, login });
+    const fresh = { docs, next, prechecks: checked.documents, targets: checked.targets, login };
+    setPrep(fresh);
+    return fresh;
   }, [input.company, input.period]);
+  const latest = useRef<Prep | null>(null);
+  latest.current = prep;
   useEffect(() => {
     if (!on || !input.company) return;
-    void load(0, null).catch((caughtError: unknown) => reportCaught(caughtError, "operator-start"));
-  }, [on, input.company, load]);
-  return { prep, more: () => (prep && prep.next !== null ? load(prep.next, prep) : Promise.resolve()), reload: () => load(0, null) };
+    void load(0, latest.current, true).catch((caughtError: unknown) => reportCaught(caughtError, "operator-start"));
+  }, [on, input.company, load, uploads]);
+  return {
+    prep,
+    more: () => (prep && prep.next !== null ? load(prep.next, prep) : Promise.resolve()),
+    reload: () => load(0, null),
+    refresh: () => load(0, latest.current, true),
+  };
 }
 
 export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
@@ -87,25 +114,26 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
   const part = props as unknown as CardPart;
   const asking = cardPhase(part) === "ask";
   const action = useCardAction(props.toolCallId);
-  const { prep, more, reload } = usePrep(input, asking);
-  const [picked, setPicked] = useState<Record<string, string>>({});
+  const sessionId = useSessionId();
+  const uploads = useAuiState((s) => uploadsDoneKey(s.thread.messages));
+  const { prep, more, reload, refresh } = usePrep(input, asking, uploads);
   const [notice, setNotice] = useState("");
   const prechecks = prep?.prechecks ?? [];
-  const groupOfDoc = (id: string) => groupOf(prep?.docs.find((d) => d.doc_id === id) ?? {});
-  const questions = questionsOf(prechecks, groupOfDoc);
-  const left = questions.filter((q) => !picked[questionKey(q)]).length;
   const titleOf = (id: string) => docTitle(prep?.docs.find((d) => d.doc_id === id) ?? {}, id);
   const unknown = prechecks.filter((p) => p.state === "blocked" && p.reason === RESULT_UNKNOWN);
   const stopped = prechecks.filter((p) => (p.state === "blocked" || p.state === "waiting") && p.reason !== RESULT_UNKNOWN);
   const result = resultOf<StartResult>(props.result);
 
-  const start = () => {
-    const docIds = docsToStart(prep?.docs ?? [], prechecks);
-    const missing = !docIds.length ? op.noDocs : left > 0 ? op.confirmLeft(left) : "";
-    setNotice(missing);
-    if (missing) return;
-    void action.run(() => operatorActions.start(input, docIds, answersFor(questions, picked), groupsToStart(prep?.docs ?? [], docIds)));
-  };
+  // 点「开始」前再取一次资料（卡片出现后才上传、识别完的单也交上去）
+  const start = () =>
+    void action.run(async () => {
+      const fresh = await refresh();
+      const docIds = docsToStart(fresh.docs, fresh.prechecks);
+      setNotice(docIds.length ? "" : op.noDocs);
+      if (!docIds.length) return;
+      await operatorActions.start(input, docIds, {}, groupsToStart(fresh.docs, docIds));
+      settleCard(sessionId, props.toolCallId);
+    }, false);
   const resolve = (docId: string, entered: boolean) =>
     void action.run(async () => {
       await operatorActions.resolve(input.company, docId, entered);
@@ -137,29 +165,6 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
       ))}
       {stopped.map((d) => (
         <DocLine key={d.doc_id} slot="cc-op-handle" title={titleOf(d.doc_id)} detail={reasonText(d.reason, d.message)} />
-      ))}
-      {questionGroups(questions).map(([kind, list]) => (
-        <div key={kind} className="cc-op-ask-group" data-kind={kind} data-slot="cc-op-ask-group">
-          <div className="cc-op-ask-kind">{kindTitle(kind, list.flatMap((q) => q.groups ?? []))}</div>
-          {list.map((q) => (
-            <label key={questionKey(q)} className="cc-op-ask" data-slot="cc-op-ask">
-              <Marquee className="min-w-0 flex-1 truncate">{q.label || q.subject}</Marquee>
-              <select
-                className="cc-input cc-op-ask-select"
-                aria-label={`${kindTitle(kind)} · ${q.label || q.subject}`}
-                value={picked[questionKey(q)] ?? ""}
-                onChange={(e) => setPicked((p) => ({ ...p, [questionKey(q)]: e.target.value }))}
-              >
-                <option value="" disabled>—</option>
-                {q.options.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {optionLabel(kind, option)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
       ))}
       {prep.next !== null && (
         <button type="button" className="cc-show-more" disabled={action.busy} onClick={() => void action.run(more, false)}>

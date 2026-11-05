@@ -9,14 +9,14 @@ import { steps } from "@/i18n";
 import { shownError } from "@/lib/frappe";
 import { reportCaught } from "@/lib/caught";
 import type { CardPart } from "@/lib/approval-card";
-import { cardFailed, cardPhase, settleCard } from "./operator-shared";
+import { cardFailed, type CardPhase, cardPhase, settleCard } from "./card-phase";
 
 /** 这段对话的编号（点完卡片本页先定下用）。 */
 export const useSessionId = (): string | null => useAuiState((s) => s.threadListItem.externalId ?? s.threadListItem.remoteId ?? null);
 
-/** 卡片上的一个按钮的动作：在跑时按钮都不能点；出错写在按钮上方（同允许卡片确认没送到那一行）。done：做成后定下卡片。 */
-export function useCardAction(toolUseId: string) {
-  const sessionId = useSessionId();
+/** 卡片上的一个按钮的动作：在跑时按钮都不能点；出错写在按钮上方（同允许卡片确认没送到那一行）。done：做成后要做的（定下卡片）。
+ *  不是工具卡片的（对话末尾的待处理框、直写门）直接用它，不碰这段对话。 */
+export function useAction(done?: () => void) {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState("");
   const run = async (action: () => Promise<unknown>, settle = true) => {
@@ -24,7 +24,7 @@ export function useCardAction(toolUseId: string) {
     setFailure("");
     try {
       await action();
-      if (settle) settleCard(sessionId, toolUseId);
+      if (settle) done?.();
     } catch (caughtError) {
       reportCaught(caughtError, "operator-card");
       setFailure(shownError(caughtError));
@@ -35,11 +35,19 @@ export function useCardAction(toolUseId: string) {
   return { busy, failure, run };
 }
 
+/** 工具卡片的按钮动作：做成后在本页先定下这张卡片。 */
+export function useCardAction(toolUseId: string) {
+  const sessionId = useSessionId();
+  return useAction(() => settleCard(sessionId, toolUseId));
+}
+
 export type CardButton = { slot: string; label: string; primary?: boolean; onClick: () => void };
 
-/** 卡片外框。answer：点完那一行（所选那一项）；body 只在问的时候显示（点完只剩问话与所选那一项，同允许卡片）。 */
+/** 卡片外框。answer：点完那一行（所选那一项）；body 只在问的时候显示（点完只剩问话与所选那一项，同允许卡片）。
+ *  part：工具卡片（按它算此刻的样子）；不是工具卡片的（对话末尾的待处理框）给 phase。 */
 export const OperatorCard: FC<{
-  part: CardPart;
+  part?: CardPart | undefined;
+  phase?: CardPhase | undefined;
   slot: string;
   question: ReactNode;
   answer: string;
@@ -48,8 +56,8 @@ export const OperatorCard: FC<{
   buttons: readonly CardButton[];
   busy: boolean;
   failure: string;
-}> = ({ part, slot, question, answer, body, after, buttons, busy, failure }) => {
-  const phase = cardPhase(part);
+}> = ({ part, phase: given, slot, question, answer, body, after, buttons, busy, failure }) => {
+  const phase = given ?? (part ? cardPhase(part) : "ask");
   return (
     <div className="cc-steps-card" data-slot={slot}>
       <div className="aui-step cc-ask" data-phase={phase}>
@@ -58,7 +66,7 @@ export const OperatorCard: FC<{
         {phase === "answered" && (
           <div data-slot="cc-ask-answer" className="cc-ask-answer">
             {answer}
-            {cardFailed(part) && (
+            {part && cardFailed(part) && (
               <>
                 {" · "}
                 <span className="cc-step-failed">{steps.failed}</span>

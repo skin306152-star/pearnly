@@ -7,7 +7,7 @@
 //   异常   按严重度分组（需处理 → 需留意 → 知悉，组内服务端顺序；组标题的数是服务端按全部算的），需处理 / 需留意先列 8 条、
 //          知悉先列 3 条，其余「显示更多」；清单被截断时卡底写还有几条。一条一行 26：码名、单据 / 对方（或任务、账套、草稿的
 //          问题与分店）、金额（汇总的写「N 张」，草稿问题写「N 项」），行尾是去处：
-//            choice_needed  当场选（pending.tsx 的 ChooseRow，F18 规则：只预选已定的或服务端建议的，没有就空着必须人选）
+//            choice_needed  当场选（pending.tsx 的 PendingAsk：共用判定出题的提问卡，预选项排第一带「(推荐)」，没有预选就不默认选）
 //            task           到定时任务页并定位到那个任务
 //            其余           交给 CC：在这家开新对话、预填不自动发送（单据同待处理的「交给 CC」，重复单号、回读、草稿各有一句；
 //                           单据写单号 · 对方 · 金额 · 日期，不写内部记录名）。同号的几张服务端合成一条，行写「单号 · N 张」
@@ -25,7 +25,7 @@ import { ChevronRightIcon, SparklesIcon } from "lucide-react";
 import { type FC, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { PanelCard, PanelSkeleton } from "@/components/company-cards";
-import { AccountSetRow, ChooseRow, MrErpRow, ProposalRow, useAskCC } from "@/components/pending";
+import { PendingAsk, ProposalRow, useAskCC } from "@/components/pending";
 import { PeriodChip } from "@/components/period-chip";
 import { co } from "@/i18n";
 import { branchShort, docLine, docList, formatAmount, isPeriod, lastMonth, monthLabel, periodOf, refreshPendingCounts, useCompanyNav } from "@/lib/companies";
@@ -180,14 +180,9 @@ const ExceptionRow: FC<{ item: MonthException; company: string } & LedgerHandler
   if (proposalException(item)) {
     return <ProposalRow item={pendingOf(item, company)} head={<ItemHead item={item} />} onDone={onDone} onChanged={onChanged} />;
   }
-  if (choosableException(item)) {
-    return <ChooseRow item={pendingOf(item, company)} head={<ItemHead item={item} />} onDone={onDone} onChanged={onChanged} onAsk={() => onAct(item)} />;
-  }
-  if (accountSetException(item)) {
-    return <AccountSetRow item={pendingOf(item, company)} head={<ItemHead item={item} />} onDone={onDone} onChanged={onChanged} onAsk={() => onAct(item)} />;
-  }
-  if (mrerpException(item)) {
-    return <MrErpRow item={pendingOf(item, company)} head={<ItemHead item={item} />} onDone={onDone} onChanged={onChanged} onAsk={() => onAct(item)} />;
+  // 当场选、待选账套、MR.ERP 要选的：同待处理那一张提问卡（嵌在卡里，不带框）
+  if (choosableException(item) || accountSetException(item) || mrerpException(item)) {
+    return <PendingAsk company={company} items={[pendingOf(item, company)]} framed={false} head={<ItemHead item={item} />} onChanged={onChanged} onAsk={() => onAct(item)} />;
   }
   const task = item.action === "task" && !!item.task;
   const label = task ? co.ledger.openTask : co.handToCC;

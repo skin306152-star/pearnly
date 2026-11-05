@@ -1057,7 +1057,8 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn('return <div className="cc-steps-card">{children}</div>;', steps)
         # 允许 / 拒绝卡不进组（等回答的要看得见，点完的照 Claude 留在原处），也放进同样带环的卡片
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
-        self.assertIn('part.type === "tool-call" && (OPERATOR_CARDS.has(part.toolName) || approvalCard(part as unknown as CardPart, labels)) ? [] : groupByBase(part, context)', thread)
+        # 代录卡片与通用提问卡片 ask_user（CARD_TOOLS）同样不进组
+        self.assertIn('part.type === "tool-call" && (CARD_TOOLS.has(part.toolName) || approvalCard(part as unknown as CardPart, labels)) ? [] : groupByBase(part, context)', thread)
         self.assertIn('<LoneStep part={part as unknown as CardPart}>\n                        <ToolFallbackComponent {...part} />', thread)
         self.assertNotIn('<div className="cc-steps-card">', thread)
         self.assertNotIn("steps.steps(", steps)
@@ -1543,8 +1544,8 @@ class DialogsAndListsTests(unittest.TestCase):
     def test_card_button_icons_take_the_class_size(self):
         # V20（B4）：待处理卡片按钮里的图标（转圈）不再写 size 压掉 .cc-card-btn svg：电脑 16、手机 22
         pending = self.read("components/pending.tsx")
-        # 第 3 期的推送行（ProposalRow）多一处；MR.ERP 当场选那一行（MrErpRow，10-19）的「确认」「推送」两处
-        self.assertEqual(pending.count('{busy && <LoaderIcon className="cc-spinner" />}'), 6)
+        # 第 3 期的推送行（ProposalRow）那一处；当场选、待选账套、MR.ERP 要选的 11-05 起是一张提问卡（按钮在卡里，忙时不能点）
+        self.assertEqual(pending.count('{busy && <LoaderIcon className="cc-spinner" />}'), 1)
         self.assertNotRegex(pending, r"cc-card-btn[^>]*>\s*<\w+Icon className=\"[^\"]*size-")
         self.assertEqual(token_value(self.defs, "--cc-card-btn-icon-phone"), "22px")
 
@@ -1552,7 +1553,7 @@ class DialogsAndListsTests(unittest.TestCase):
         # V21（B4）：ccs.md「卡片按钮不带图标」（用户 10-17，点名待处理「交给 CC」）：去掉 Sparkles；转圈只在忙时出现
         pending = self.read("components/pending.tsx")
         self.assertNotIn("Sparkles", pending)
-        self.assertEqual(pending.count("{co.handToCC}"), 4)  # MR.ERP 当场选那一行菜单没读到过时的「交给 CC」（10-19）
+        self.assertEqual(pending.count("{co.handToCC}"), 2)  # 列表底部一处；提问卡判定失败时就地一处（11-05）
 
     def test_settings_row_buttons_are_cc_row_btn(self):
         # V22（B4）：设置「此电脑 · 连接」与「连接」里手写的 28 图标钮（公司一行与电脑一行的「···」、以前授权的文件夹的 ×）换成 .cc-row-btn 24，

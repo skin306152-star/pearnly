@@ -6,14 +6,10 @@
 //   - 右侧会话栏与公司页的「待处理」卡照旧（直写右侧不动）：同一个列表组件，会话栏的只列对话月份以外的（otherMonths）。
 //
 //   数据：companies.api.pending（服务端从推送记录与录入状态现算，不新增存储）。按公司分组；归不上公司的放最后。
-//   能当场选的（action choose：推送停在「要人选一次」，服务端只给推送去向与类别）：点开那一行才取要选的项与可选值
-//   （push.application.api.choices，同复核页、CC 的判定；列表不逐行读账套主档）。建议项排第一、预选，要点「确认」才作答：
-//   assistant.pending_api.answer 记下选择并按 CC 推送同一条路重推（只记不推不会进账）。可选值没读到的那张就地「交给 CC」。
-//   停在「待选账套」的（action account_set：定时任务跟随公司当年账套没有 / 多于一份 / 够不到单据日期的账套，T1；自动推前判出
-//   多份同期账套，数字会计员第 3 期）：点开取可换的账套（assistant.pending_api.account_sets），选一份「确认」= 换到它并重推
-//   （choose_account_set；多份同期时推成了服务端才记成这家公司现用的）；没有可换的就地「交给 CC」。
-//   停在要选 MR.ERP 导入菜单 / 默认值的（action mrerp，2026-10-19）：点开取这张单要选的（assistant.pending_api.mrerp_needs），
-//   选完「确认」记下并重推（mrerp_answer，同当场选）；别处已选好的直接「推送」，菜单没读到过的就地「交给 CC」。
+//   停在要人定的前置条件的（action choose 当场选、account_set 待选账套、mrerp MR.ERP 导入菜单 / 默认值；用户 11-05）：同一家的几张
+//   一起判一次（共用写账前置判定 write_precheck check），出一张通用提问卡（PendingAsk，同 CC 的 ask_user：一题一页、预选项排第一带
+//   「(推荐)」、「其他」可搜）；「提交」存下答案（answer），服务端把这些单重新排队写入；判定失败就地「交给 CC」。对话末尾那张单独一张、
+//   带框与「需要您的输入」，在「需要处理」框上面；会话栏、公司页、月结台账里嵌着。
 //   CC 准备好的提议（action push，数字会计员第 3 期：自动推前判成 A / B、这家的档位还只出提议）：行上不露「推送」，点开取
 //   CC 备好的内容（assistant.pending_api.proposal_detail，只读：账套、每一项做法、日期、单号、对方、金额），下面「推送」按当场选
 //   同一条路推（assistant.pending_api.answer 交空的选择，服务端照常重判、算人发起），没有确认步骤。
@@ -30,26 +26,17 @@ import { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } fr
 import { focusComposer, useStartIn } from "@/components/assistant-ui/projects";
 import { co, t } from "@/i18n";
 import {
-  answerChoices,
-  answerMrErp,
   cachedDetail,
-  chooseAccountSet,
-  type ChoiceNeeded,
-  type ChoicesView,
   docLine,
   docList,
   formatAmount,
   isPeriod,
   listCompanies,
-  loadAccountSets,
-  loadChoices,
-  loadMrErpNeeds,
   loadPending,
   loadProposal,
   onPendingChange,
   openSitePage,
   PENDING_EVENTS,
-  type MrErpNeed,
   type PendingItem,
   type ProposalView,
   pushOutcome,
@@ -62,53 +49,11 @@ import { filingOf, hintTitle, useProjects, useSection } from "@/lib/managed-agen
 import { shownError } from "@/lib/frappe";
 import { Marquee } from "@/components/ui/marquee";
 import { reportCaught, withReport } from "../lib/caught";
+import { AskCard } from "./tool-uis/ask-card";
+import { askActions, type AskItem, type AskResult, itemQuestion, itemsOfCheck, keyAnswers } from "./tool-uis/ask-shared";
+import { useAction } from "./tool-uis/operator-card";
 
-const choiceKey = (need: Pick<ChoiceNeeded, "kind" | "subject">) => `${need.kind}\n${need.subject}`;
 const FIXED: () => Record<string, string> = () => ({ cash: co.payCash, credit: co.payCredit, claim: co.vatClaim, expense: co.vatExpense });
-
-/** 一项要选的可选值：项自带的（对方档、付款、抵进项）或这份账套的科目表 / 存货表；建议的排第一（服务端的顺序）。 */
-export function optionsOf(view: Pick<ChoicesView, "options">, need: ChoiceNeeded): Array<{ value: string; label: string }> {
-  const fixed = FIXED();
-  const pool = need.options?.length
-    ? need.options
-    : need.kind === "item"
-      ? (view.options?.products ?? [])
-      : ["account", "receipt"].includes(need.kind)
-        ? (view.options?.accounts ?? [])
-        : [];
-  const rows = pool.map((o) => ({
-    value: o.code,
-    label: fixed[o.code] ?? [o.code, o.name ?? "", "branch" in o && o.branch ? `(${o.branch})` : ""].filter(Boolean).join(" "),
-  }));
-  const first = [...(need.suggested ?? []).map((s) => s.code), need.current ?? ""].filter(Boolean);
-  const ahead = first.flatMap((code) => rows.filter((r) => r.value === code));
-  return [...new Set([...ahead, ...rows])];
-}
-
-/** 打开时预填什么：已定的（current）、或服务端建议的第一项（在可选值里的）；都没有就空着，必须人选——
- *  不拿列表第一项充数（2026-10-15 验收 F18：没有建议时预选了科目表第一项「11-01-01-00 เงินสด」，直接确认会记错科目）。 */
-export function initialChoice(view: Pick<ChoicesView, "options">, need: ChoiceNeeded): string {
-  const values = new Set(optionsOf(view, need).map((o) => o.value));
-  const first = [need.current ?? "", ...(need.suggested ?? []).map((s) => s.code)].find((code) => code && values.has(code));
-  return first ?? "";
-}
-
-/** 这张单展开后能不能当场选完（每一项都有可选值、没在等电脑读科目表）。 */
-export function choosableView(view: ChoicesView | null | undefined): boolean {
-  return !!view && !view.wait && view.needed.length > 0 && view.needed.every((need) => optionsOf(view, need).length > 0);
-}
-
-/** 展开后已经没有要选的（公司规则定下了，第 2 期）：按钮直接推送，交空的选择、服务端不记直接重推。 */
-export function settledView(view: ChoicesView | null | undefined): boolean {
-  return !!view && !view.wait && view.needed.length === 0;
-}
-
-/** 当场选那一行的说明（第二行）：还要选哪几类（「付款方式 · 费用科目」）。列表给的是推送停下时要选的类别；展开读到要选的项后
- *  按读到的写——公司规则已定、没有要选的（按钮是「推送」）就不写这串（第 5 轮测试 7），也不退回原因那句。 */
-export function choiceLine(item: PendingItem, view: ChoicesView | null): string {
-  const kinds = view && !view.wait ? [...new Set(view.needed.map((need) => need.kind))] : (item.choice?.kinds ?? []);
-  return kinds.map((kind) => co.kind[kind] ?? kind).join(" · ");
-}
 
 /** 这张单是不是「当场选」那一类（服务端 action choose，带推送去向）。 */
 export function choosable(item: PendingItem): boolean {
@@ -129,6 +74,9 @@ export function mrerpChoosable(item: PendingItem): boolean {
 export function accountSetChoosable(item: PendingItem): boolean {
   return item.action === "account_set" && !!item.choice?.connection;
 }
+
+/** 停在要人定的前置条件、页面当场出提问卡的那几类：当场选（choose）、待选账套（account_set）、MR.ERP 导入菜单 / 默认值（mrerp）。 */
+export const asksFirst = (item: PendingItem) => choosable(item) || accountSetChoosable(item) || mrerpChoosable(item);
 
 /** 「交给 CC」预填的话（不自动发送）：一张「处理这张：INV-001 · 对方 · 1,070.00 · 2026-09-05」，几张时每张一行。
  *  只写单号、对方、金额、日期，不写内部记录名（测试窗口第 3 轮）；CC 按单号找（工具说明里讲了）。 */
@@ -275,19 +223,18 @@ const PendingGroup: FC<{
 }> = ({ company, title, items, onDone, onChanged, ask: askHere }) => {
   const askNew = useAskCC(company, title);
   const ask = askHere ?? askNew;
-  const hand = items.filter((item) => !item.url && !choosable(item) && !accountSetChoosable(item) && !proposal(item) && !mrerpChoosable(item));
+  // 归不上公司的没法判定：照旧一行一行、交给 CC
+  const asks = company ? items.filter(asksFirst) : [];
+  const hand = items.filter((item) => !item.url && !asks.includes(item) && !proposal(item));
   return (
     <section className="flex flex-col gap-(--cc-space-8)">
       {title && <h2 className="cc-section-label" data-flush="">{title}</h2>}
-      {items.map((item) =>
-        choosable(item) ? (
-          <ChooseRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} onAsk={() => ask([item])} />
-        ) : accountSetChoosable(item) ? (
-          <AccountSetRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} onAsk={() => ask([item])} />
-        ) : proposal(item) ? (
+      {asks.length > 0 && (
+        <PendingAsk key={asks.map((i) => i.document).join("\n")} company={company} items={asks} framed={false} onChanged={onChanged} onAsk={() => ask(asks)} />
+      )}
+      {items.filter((item) => !asks.includes(item)).map((item) =>
+        proposal(item) ? (
           <ProposalRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} />
-        ) : mrerpChoosable(item) ? (
-          <MrErpRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} onAsk={() => ask([item])} />
         ) : (
           <PendingRow key={item.document} item={item} />
         ),
@@ -332,215 +279,6 @@ const PendingRow: FC<{ item: PendingItem }> = ({ item }) =>
       <Summary item={item} />
     </div>
   );
-
-/** 能当场选的单：点开才取要选的项（每项一个下拉，建议项第一、预选），点「确认」记下并重推。
- *  head：会话栏「本月」卡的一行 26 高（码名 · 单据 · 金额，components/month-ledger.tsx），换掉默认的两行摘要；展开后同一套。 */
-export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onChanged: () => void; onAsk: () => void; head?: ReactNode }> = ({
-  item,
-  onDone,
-  onChanged,
-  onAsk,
-  head,
-}) => {
-  const [open, setOpen] = useState(false);
-  const [view, setView] = useState<ChoicesView | null>(null);
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const load = useCallback(async () => {
-    setError("");
-    setView(null);
-    try {
-      const next = await loadChoices(item);
-      setView(next);
-      setValues(Object.fromEntries(next.needed.map((need) => [choiceKey(need), initialChoice(next, need)])));
-    } catch (e) { reportCaught(e, "pending");
-      setError(shownError(e));
-    }
-  }, [item]);
-  const toggle = () => {
-    const next = !open;
-    setOpen(next);
-    if (next && !view) void load();
-  };
-  const confirm = async () => {
-    if (!view) return;
-    setBusy(true);
-    setError("");
-    try {
-      const outcome = pushOutcome(await answerChoices(item, view, values), co.ledger.code.push_failed!);
-      if (outcome.kind === "done") onDone(item.document);
-      else if (outcome.kind === "choose") await load();
-      else {
-        setError(outcome.text);
-        onChanged();
-      }
-    } catch (e) { reportCaught(e, "pending");
-      setError(shownError(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const kinds = choiceLine(item, view);
-  return (
-    <div className="cc-list-item flex-col" data-slot="cc-pending-choose" data-variant={head ? "row" : undefined} data-open={open || undefined}>
-      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-(--cc-space-8) text-start"}
-        aria-expanded={open} onClick={toggle}>
-        {head ?? (
-          <span className="min-w-0 flex-1">
-            <Marquee className="block truncate text-ink text-body">
-              {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
-            </Marquee>
-            {(kinds || !settledView(view)) && <Marquee className="block truncate text-ink-3 text-caption">{kinds || item.reason_label}</Marquee>}
-          </span>
-        )}
-        <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
-      </button>
-      {open && !view && !error && (
-        <div className="flex justify-center py-(--cc-space-8) text-ink-3">
-          <LoaderIcon className="cc-spinner" />
-        </div>
-      )}
-      {open && view && choosableView(view) && (
-        <>
-          {view.needed.map((need) => (
-            <label key={choiceKey(need)} className="cc-field">
-              <Marquee className="truncate text-caption">{[co.kind[need.kind] ?? need.kind, need.label].filter(Boolean).join(" · ")}</Marquee>
-              <select
-                className="cc-input"
-                value={values[choiceKey(need)] ?? ""}
-                onChange={(e) => setValues((v) => ({ ...v, [choiceKey(need)]: e.target.value }))}
-              >
-                {!values[choiceKey(need)] && <option value="" disabled>—</option>}
-                {optionsOf(view, need).map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </label>
-          ))}
-          <button type="button" className="cc-card-btn self-end" data-primary=""
-            disabled={busy || view.needed.some((need) => !values[choiceKey(need)])} onClick={() => void confirm()}>
-            {busy && <LoaderIcon className="cc-spinner" />}
-            {co.confirm}
-          </button>
-        </>
-      )}
-      {open && view && settledView(view) && (
-        <button type="button" className="cc-card-btn self-end" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void confirm()}>
-          {busy && <LoaderIcon className="cc-spinner" />}
-          {co.pushNow}
-        </button>
-      )}
-      {open && view && !choosableView(view) && !settledView(view) && (
-        // 科目表还在读、可选值没报上来：这张交给 CC（它会等电脑读完再问）
-        <>
-          {view.wait?.message && <p className="text-ink-3 text-body">{view.wait.message}</p>}
-          <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
-            {co.handToCC}
-          </button>
-        </>
-      )}
-      {error && <p role="alert" className="text-danger text-body">{error}</p>}
-    </div>
-  );
-};
-
-/** 停在要选 MR.ERP 导入菜单 / 默认值的单（action mrerp，2026-10-19）：同当场选那一行——点开才取这张单要选的（服务端按方向挑好、
- *  名称按用户语言），每项一个下拉、不预选，点「确认」记下（这份账套大家共用，同网页弹窗）并重推；别处已经选好、没有要选的直接
- *  「推送」；菜单还没从 MR.ERP 读到过的就地「交给 CC」（它能请服务器去读）。 */
-export const MrErpRow: FC<{ item: PendingItem; onDone: (document: string) => void; onChanged: () => void; onAsk: () => void; head?: ReactNode }> = ({
-  item,
-  onDone,
-  onChanged,
-  onAsk,
-  head,
-}) => {
-  const [open, setOpen] = useState(false);
-  const [view, setView] = useState<{ known: boolean; items: MrErpNeed[] } | null>(null);
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const load = useCallback(async () => {
-    setError("");
-    setView(null);
-    try {
-      setView(await loadMrErpNeeds(item));
-      setValues({});
-    } catch (e) { reportCaught(e, "pending");
-      setError(shownError(e));
-    }
-  }, [item]);
-  const toggle = () => {
-    const next = !open;
-    setOpen(next);
-    if (next && !view) void load();
-  };
-  const confirm = async () => {
-    setBusy(true);
-    setError("");
-    try {
-      const outcome = pushOutcome(await answerMrErp(item, values), co.ledger.code.push_failed!);
-      if (outcome.kind === "done") onDone(item.document);
-      else if (outcome.kind === "choose") await load();
-      else {
-        setError(outcome.text);
-        onChanged();
-      }
-    } catch (e) { reportCaught(e, "pending");
-      setError(shownError(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const choosing = !!view && view.items.length > 0;
-  const ready = !!view && view.known && !view.items.length;
-  return (
-    <div className="cc-list-item flex-col" data-slot="cc-pending-mrerp" data-variant={head ? "row" : undefined} data-open={open || undefined}>
-      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-(--cc-space-8) text-start"}
-        aria-expanded={open} onClick={toggle}>
-        {head ?? <Summary item={item} />}
-        <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
-      </button>
-      {open && !view && !error && (
-        <div className="flex justify-center py-(--cc-space-8) text-ink-3">
-          <LoaderIcon className="cc-spinner" />
-        </div>
-      )}
-      {open && choosing && (
-        <>
-          {view.items.map((need) => (
-            <label key={need.key} className="cc-field">
-              <Marquee className="truncate text-caption">{need.label}</Marquee>
-              <select className="cc-input" value={values[need.key] ?? ""} onChange={(e) => setValues((v) => ({ ...v, [need.key]: e.target.value }))}>
-                {!values[need.key] && <option value="" disabled>—</option>}
-                {need.options.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </label>
-          ))}
-          <button type="button" className="cc-card-btn self-end" data-primary=""
-            disabled={busy || view.items.some((need) => !values[need.key])} onClick={() => void confirm()}>
-            {busy && <LoaderIcon className="cc-spinner" />}
-            {co.confirm}
-          </button>
-        </>
-      )}
-      {open && ready && (
-        <button type="button" className="cc-card-btn self-end" data-primary="" disabled={busy} onClick={() => void confirm()}>
-          {busy && <LoaderIcon className="cc-spinner" />}
-          {co.pushNow}
-        </button>
-      )}
-      {open && view && !choosing && !ready && (
-        <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
-          {co.handToCC}
-        </button>
-      )}
-      {error && <p role="alert" className="text-danger text-body">{error}</p>}
-    </div>
-  );
-};
 
 /** 提议展开后的只读内容（一行一项：左类别名、右值）：推往的账套、CC 备好的每一项做法、日期、单号、对方、税前 / 税额 / 合计；
  *  没有值的不列。做法的值同当场选的标签规则（optionsOf）：现 / 赊、抵 / 记费用用页面的词，其余是服务端按主档写的「码 名称」。 */
@@ -646,99 +384,91 @@ export const ProposalBody: FC<{ view: ProposalView | null; error: string; busy: 
   </>
 );
 
-/** 停在「待选账套」的单：点开取可换的账套（一个下拉，只有一份时预选，几份时要人选），「确认」换到它并重推；没有可换的
- *  （新年度账套还没建、目录还没报上来）就地「交给 CC」。样式与当场选那一行同一套。 */
-export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) => void; onChanged: () => void; onAsk: () => void; head?: ReactNode }> = ({
-  item,
-  onDone,
-  onChanged,
-  onAsk,
-  head,
-}) => {
-  const [open, setOpen] = useState(false);
-  const [sets, setSets] = useState<Array<{ key: string; label: string }> | null>(null);
-  const [value, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
+// ---------------------------------------------------------------- 停在要人定的单：一张提问卡
+/** 停在要人定的前置条件的几张单（当场选、待选账套、MR.ERP 导入菜单 / 默认值）一起判一次（共用写账前置判定 write_precheck check），
+ *  没定下的每项一题，出一张通用提问卡（tool-uis/ask-card.tsx，同 CC 的 ask_user：预选项排第一带「(推荐)」、默认选中，「其他」可搜）。
+ *  「提交」= 存下答案（answer：照各自现有的记法记住，服务端把这些单重新排队写入），跳过的项不交、依赖它的单这次不写；列表重取。
+ *  判出来没有要问的（公司规则已定）：一行「推送」（交空的答案，服务端照常重判重推）。判定失败：原因一行 +「交给 CC」。
+ *  framed：对话末尾单独一张（带框与「需要您的输入」）；会话栏、公司页、月结台账里嵌着用时不带框。head：月结台账那一行的码名摘要。 */
+export const PendingAsk: FC<{
+  company: string;
+  items: readonly PendingItem[];
+  framed?: boolean;
+  head?: ReactNode;
+  onChanged: () => void;
+  onAsk: () => void;
+}> = ({ company, items, framed = true, head, onChanged, onAsk }) => {
+  const docs = useMemo(() => items.map((item) => item.document), [items]);
+  // 月结台账那一行（给了 head）：同以前的当场选，收着时只是一行，点开才判定（列表不逐行读账套）
+  const [open, setOpen] = useState(!head);
+  const [found, setFound] = useState<AskItem[] | null>(null);
   const [error, setError] = useState("");
-  const load = useCallback(async () => {
-    setError("");
-    setSets(null);
-    try {
-      const { sets: found, current } = await loadAccountSets(item);
-      setSets(found);
-      // 只预选已定的（F18）：只有一份，或这一组已经记住的现用账套
-      setValue(found.length === 1 ? found[0]!.key : found.some((set) => set.key === current) ? current : "");
-    } catch (e) { reportCaught(e, "pending");
-      setError(shownError(e));
-    }
-  }, [item]);
-  const toggle = () => {
-    const next = !open;
-    setOpen(next);
-    if (next && !sets) void load();
-  };
-  const confirm = async () => {
-    if (!value) return;
-    setBusy(true);
-    setError("");
-    try {
-      const result = await chooseAccountSet(item, value);
-      const outcome = pushOutcome(result, co.ledger.code.push_failed!);
-      if (outcome.kind === "done") {
-        onDone(item.document);
-        // 同一组别的单跟着记住的那份接着判了：列表重取（它们不再停在「多份账套」）
-        if (result.settled) onChanged();
-      }
-      // 选的那份这会儿已不在可换之列（目录刚变）：重取可换的账套再让人选，不弹错误
-      else if (result.status === "stale") void load();
-      // 还要人选（科目等）：原因记在单上，列表重取后这张单换成当场选那一行，不报错
-      else if (outcome.kind === "choose") onChanged();
-      else {
-        // 推不成（没进账本）：单回到「待选账套」能再选，这次的原因显示在这一行下面
-        setError(outcome.text);
-        onChanged();
-      }
-    } catch (e) { reportCaught(e, "pending");
-      setError(shownError(e));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const [sent, setSent] = useState<AskResult | null>(null);
+  const action = useAction();
+  const ids = docs.join("\n");
+  useEffect(() => {
+    if (!open || !company || !ids) return;
+    let alive = true;
+    void askActions.check(company, ids.split("\n")).then(
+      (reply) => alive && setFound(itemsOfCheck(reply)),
+      (caughtError: unknown) => {
+        reportCaught(caughtError, "pending-ask");
+        if (alive) setError(shownError(caughtError));
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [open, company, ids]);
+  const questions = useMemo(() => (found ?? []).map((item) => itemQuestion(item, company)), [found, company]);
+  const remember = (answers: ReadonlyArray<{ key: string; value: string }>, result: AskResult | null) =>
+    void action.run(async () => {
+      await askActions.remember(company, docs, answers);
+      setSent(result);
+      onChanged();
+      void refreshPendingCounts();
+    }, false);
+  const content = error ? (
+    <>
+      <p role="alert" className="text-danger text-body">{error}</p>
+      <button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc" onClick={onAsk}>
+        {co.handToCC}
+      </button>
+    </>
+  ) : found === null ? (
+    head && open && !error && (
+      <div className="flex justify-center py-(--cc-space-8) text-ink-3">
+        <LoaderIcon className="cc-spinner" />
+      </div>
+    )
+  ) : !questions.length ? (
+    <>
+      <button type="button" className="cc-card-btn self-start" data-primary="" data-slot="cc-pending-push" disabled={action.busy || !!sent}
+        onClick={() => remember([], null)}>
+        {co.pushNow}
+      </button>
+      {action.failure && <p role="alert" className="text-danger text-body">{action.failure}</p>}
+    </>
+  ) : (
+    <AskCard
+      questions={questions}
+      phase={sent ? "answered" : "ask"}
+      result={sent}
+      busy={action.busy}
+      failure={action.failure}
+      framed={framed}
+      slot="cc-pending-askq"
+      onSubmit={(result) => remember(keyAnswers(found ?? [], questions, result), result)}
+    />
+  );
+  if (!head) return <div className="flex flex-col gap-(--cc-space-8)" data-slot="cc-pending-ask">{content}</div>;
   return (
-    <div className="cc-list-item flex-col" data-slot="cc-pending-account-set" data-variant={head ? "row" : undefined} data-open={open || undefined}>
-      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-(--cc-space-8) text-start"}
-        aria-expanded={open} onClick={toggle}>
-        {head ?? <Summary item={item} />}
+    <div className="cc-list-item flex-col" data-slot="cc-pending-ask" data-variant="row" data-open={open || undefined}>
+      <button type="button" className="cc-pending-toggle cc-panel-row" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        {head}
         <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
       </button>
-      {open && !sets && !error && (
-        <div className="flex justify-center py-(--cc-space-8) text-ink-3">
-          <LoaderIcon className="cc-spinner" />
-        </div>
-      )}
-      {open && sets && sets.length > 0 && (
-        <>
-          <label className="cc-field">
-            <span className="text-caption">{co.accountSets}</span>
-            <select className="cc-input" value={value} onChange={(e) => setValue(e.target.value)}>
-              {!value && <option value="" disabled>—</option>}
-              {sets.map((set) => (
-                <option key={set.key} value={set.key}>{set.label}</option>
-              ))}
-            </select>
-          </label>
-          <button type="button" className="cc-card-btn self-end" data-primary="" disabled={busy || !value} onClick={() => void confirm()}>
-            {busy && <LoaderIcon className="cc-spinner" />}
-            {co.confirm}
-          </button>
-        </>
-      )}
-      {open && sets && !sets.length && (
-        <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
-          {co.handToCC}
-        </button>
-      )}
-      {error && <p role="alert" className="text-danger text-body">{error}</p>}
+      {open && <div className="flex flex-col gap-(--cc-space-8)">{content}</div>}
     </div>
   );
 };
@@ -786,12 +516,22 @@ const ChatPendingBox: FC<{ company: string; month: string }> = ({ company, month
     aui.thread().composer().setText(handText(rows));
     focusComposer();
   };
+  // 停在要人定的前置条件的单：单独一张提问卡（同 CC 的 ask_user，带框与「需要您的输入」），在框的上面；其余照旧一行一行
+  const asks = items.filter(asksFirst);
+  const rows = items.filter((item) => !asksFirst(item));
   return (
-    <section className="cc-steps-card cc-ask" data-phase="ask" data-slot="cc-pending-in-chat" aria-label={co.pendingDocs(items.length)}>
-      <div className="cc-ask-q">{co.pendingDocs(items.length)}</div>
-      <div className="cc-pending-in-chat">
-        <PendingItems {...state} items={items} company={company} embedded ask={ask} />
-      </div>
-    </section>
+    <>
+      {asks.length > 0 && (
+        <PendingAsk key={asks.map((i) => i.document).join("\n")} company={company} items={asks} onChanged={state.changed} onAsk={() => ask(asks)} />
+      )}
+      {rows.length > 0 && (
+        <section className="cc-steps-card cc-ask" data-phase="ask" data-slot="cc-pending-in-chat" aria-label={co.pendingDocs(rows.length)}>
+          <div className="cc-ask-q">{co.pendingDocs(rows.length)}</div>
+          <div className="cc-pending-in-chat">
+            <PendingItems {...state} items={rows} company={company} embedded ask={ask} />
+          </div>
+        </section>
+      )}
+    </>
   );
 };

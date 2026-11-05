@@ -188,8 +188,10 @@ class PanelStylesSourceTests(unittest.TestCase):
 
     def test_the_f18_rule_and_the_task_buttons_stay(self):
         pending = read("components/pending.tsx")
-        self.assertIn("initialChoice(next, need)", pending)
-        self.assertIn("view.needed.some((need) => !values[choiceKey(need)])", pending)
+        # F18（不拿列表第一项充数）在提问卡里：只有预选值排第一带「(推荐)」才默认选中，没选不能提交
+        self.assertIn("<AskCard", pending)
+        self.assertIn("isRecommended(q.options[0]) ? [q.options[0]!.label] : []", read("components/tool-uis/ask-shared.ts"))
+        self.assertIn('disabled={busy || !answered(state)} onClick={primary}>', read("components/tool-uis/ask-card.tsx"))
         self.assertIn("if (embedded && (!items || !items.length) && !error) return null;", pending)
         tasks = read("components/scheduled-tasks.tsx")
         self.assertEqual(tasks.count("onClick={() => newTask(taskCompany)}"), 2)
@@ -835,11 +837,11 @@ class ErpSectionsSourceTests(unittest.TestCase):
             for method in methods:
                 self.assertTrue(any(method == r or method.startswith(r + ".") for r in reasons[path]), f"{path}: {method}")
         # lib/companies.ts 里这几个函数只从 Cowork 的分区或 Cowork 才有的 action 调到
-        callers = {"loadChoices": "components/pending.tsx", "answerChoices": "components/pending.tsx",
-                   "pushProposal": "components/pending.tsx", "loadProposal": "components/pending.tsx",
-                   "loadAccountSets": "components/pending.tsx", "chooseAccountSet": "components/pending.tsx",
-                   "loadMrErpNeeds": "components/pending.tsx", "answerMrErp": "components/pending.tsx",
+        # 当场选、待选账套、MR.ERP 要选的 11-05 起走共用写账前置判定（pearnly_core.write_precheck，两产品都有）出提问卡，不再调 Cowork 专有接口
+        callers = {"pushProposal": "components/pending.tsx", "loadProposal": "components/pending.tsx",
                    "loadMrErpOptions": "components/company-cards.tsx", "refreshCatalogs": "components/add-company.tsx"}
+        for gone in ("loadChoices", "answerChoices", "loadAccountSets", "chooseAccountSet", "loadMrErpNeeds", "answerMrErp"):
+            self.assertNotIn(f"export function {gone}(", read("lib/companies.ts"))
         for name, home in callers.items():
             users = [p.relative_to(SRC_ROOT).as_posix() for p in SRC_ROOT.rglob("*.ts*")
                      if p.name != "companies.ts" and re.search(rf"\b{name}\(", p.read_text(encoding="utf-8"))]

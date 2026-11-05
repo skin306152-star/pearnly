@@ -1601,6 +1601,53 @@
   .cc-ask .cc-ask-foot { padding: var(--cc-space-4) var(--cc-space-12) var(--cc-space-12); }
   .cc-ask-answer { padding: 0 var(--cc-space-12) var(--cc-ask-py); color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); }
   .cc-ask-answer[data-unconfirmed] { opacity: 0.5; }
+  /* 通用提问卡片（components/tool-uis/ask-card.tsx，工具 ask_user，照 Claude Code 的提问卡片，用户 11-05）：同一层框（.cc-steps-card）；
+     头部左问题、右「‹ 第 n 项，共 m 项 ›」；选项一行一个（圆点 / 复选框 + 选项名 + 浅色说明），行间细线，最后一行「其他」；
+     底部靠右「跳过」「下一步 / 提交 ⌘↵」；卡片下方橙点 +「需要您的输入」。手机上卡片占满对话宽，选项行与按钮到触屏高度 */
+  .cc-askq-wrap { display: flex; flex-direction: column; }
+  .cc-askq { display: flex; flex-direction: column; }
+  .cc-askq-head { display: flex; align-items: flex-start; gap: var(--cc-space-12); padding: var(--cc-ask-py) var(--cc-space-12) var(--cc-space-8); }
+  .cc-askq-q {
+    flex: 1; min-width: 0; padding-top: var(--cc-space-2); color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh);
+    font-weight: var(--cc-weight-medium); overflow-wrap: anywhere;
+  }
+  .cc-askq-pager { display: flex; flex-shrink: 0; align-items: center; gap: var(--cc-space-2); color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
+  .cc-askq-pager .cc-row-btn:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }
+  .cc-askq-pager svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
+  .cc-askq-nth { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cc-askq-options { display: flex; flex-direction: column; border-top: var(--cc-ring-w) solid var(--cc-line); }
+  .cc-askq-opt {
+    display: flex; align-items: flex-start; gap: var(--cc-space-12); width: 100%; padding: var(--cc-space-8) var(--cc-space-12); text-align: start; outline: none;
+    transition: background-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-askq-opt + .cc-askq-opt { border-top: var(--cc-ring-w) solid var(--cc-line); }
+  .cc-askq-opt:hover { background: var(--cc-bg-hover); }
+  .cc-askq-opt:focus-visible { box-shadow: var(--cc-shadow-focus-inset); }
+  .cc-askq-mark {
+    position: relative; display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: var(--cc-icon-sm); height: var(--cc-icon-sm);
+    margin-top: var(--cc-space-2); border: var(--cc-ring-w) solid var(--cc-ink-3); border-radius: var(--cc-radius-full); color: var(--cc-bg-app);
+  }
+  .cc-askq-mark[data-on] { border-color: var(--cc-ink); }
+  .cc-askq-mark[data-on]:not([data-multi])::after { content: ""; width: 50%; height: 50%; border-radius: var(--cc-radius-full); background: var(--cc-ink); }
+  .cc-askq-mark[data-multi] { border-radius: var(--cc-radius-xs); }
+  .cc-askq-mark[data-multi][data-on] { background: var(--cc-ink); }
+  .cc-askq-mark svg { width: 100%; height: 100%; }
+  .cc-askq-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+  .cc-askq-label { color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); overflow-wrap: anywhere; }
+  .cc-askq-desc { color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); overflow-wrap: anywhere; }
+  .cc-askq-other { display: flex; flex-direction: column; gap: var(--cc-space-6); padding: 0 var(--cc-space-12) var(--cc-space-8) calc(var(--cc-icon-sm) + var(--cc-space-24)); }
+  .cc-askq-other-list { display: flex; flex-direction: column; }
+  .cc-askq-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--cc-space-8); padding: var(--cc-space-8) var(--cc-space-12) var(--cc-space-12); border-top: var(--cc-ring-w) solid var(--cc-line); }
+  .cc-askq .cc-alert { margin: var(--cc-space-8) var(--cc-space-12) 0; }
+  .cc-askq-foot .cc-menu-key { padding-inline-start: var(--cc-space-6); color: inherit; opacity: 0.6; }
+  .cc-askq-status { display: flex; align-items: center; padding: var(--cc-run-gap-reply) var(--cc-space-8) 0; }
+  :root[data-cc-touch] .cc-askq-opt { min-height: var(--cc-tap); }
+  /* 窄屏问题占满一行，翻页在它下面靠右（触屏不写快捷键：Shortcut 自己不出） */
+  @media (width < 768px) {
+    .cc-askq-head { flex-wrap: wrap; row-gap: var(--cc-space-2); }
+    .cc-askq-q { flex-basis: 100%; }
+    .cc-askq-pager { margin-inline-start: auto; }
+  }
   /* 手机上等回答时浮在输入框上方的那张（approval-sheet.tsx）：大圆角、弹层底，问话大号字，右上圆形 × ＝拒绝，右下大号胶囊「允许」 */
   .cc-ask-sheet {
     display: flex; flex-direction: column; gap: var(--cc-space-12); padding: var(--cc-space-16) var(--cc-space-16) var(--cc-space-16) var(--cc-space-24); border-radius: var(--cc-radius-sheet);

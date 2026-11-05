@@ -126,13 +126,14 @@ class LedgerSourceTests(unittest.TestCase):
         self.assertIn("start(filing, duplicatePrefill(item), false);", ledger)
         self.assertIn("return co.ledger.duplicateText(docList(lines));", ledger)
         self.assertIn('co.draftText(FORM_NAME[item.kind ?? ""] ?? item.kind ?? "", month)', ledger)
-        # 当场选沿用待处理的 ChooseRow（F18 规则在它里面）；交给 CC 同一个 useAskCC
-        self.assertIn("<ChooseRow item={pendingOf(item, company)} head={<ItemHead item={item} />}", ledger)
+        # 当场选、待选账套、MR.ERP 要选的沿用待处理的提问卡 PendingAsk（11-05；F18 规则在提问卡里：只有预选值才默认选中）；
+        # 交给 CC 同一个 useAskCC
+        self.assertIn("return <PendingAsk company={company} items={[pendingOf(item, company)]} framed={false} head={<ItemHead item={item} />}", ledger)
         self.assertIn("const ask = useAskCC(company, title);", ledger)
         pending = read("components/pending.tsx")
-        self.assertIn("export const ChooseRow: FC<", pending)
+        self.assertIn("export const PendingAsk: FC<", pending)
         self.assertIn("export function useAskCC(", pending)
-        self.assertIn("initialChoice(next, need)", pending)
+        self.assertIn("isRecommended(q.options[0]) ? [q.options[0]!.label] : []", read("components/tool-uis/ask-shared.ts"))
 
     def test_reads_are_live_only_while_mounted_and_use_get(self):
         month = read("lib/month.ts")
@@ -272,8 +273,8 @@ assert.equal(unlisted(month), 0);
 assert.ok(!page.includes("cc-month-note"));
 // 组标题是语义标题
 assert.match(page, /<div class="cc-subheading flex items-center gap-\(--cc-space-6\)" role="heading" aria-level="3"><span>To do<\/span>/);
-// choice_needed：当场选的那一行（待处理的 ChooseRow 行变体），码名 · 单据 · 金额，展开前不取可选项
-assert.match(page, /data-slot="cc-pending-choose" data-variant="row"/);
+// choice_needed：当场选的那一行（待处理的提问卡 PendingAsk 的行变体），码名 · 单据 · 金额，点开前不判定、不出题
+assert.match(page, /data-slot="cc-pending-ask" data-variant="row"/);
 const choose = page.split('data-variant="row"')[1].split("</button>")[0];
 assert.match(choose, /class="cc-pending-toggle cc-panel-row" aria-expanded="false"/);
 assert.deepEqual(text(choose).slice(1), ["Needs a choice", "INV-h1 · Makro", "1,070.50"]);
@@ -559,12 +560,12 @@ assert.deepEqual(proposalRows(view).map(([label]) => label), ["ชุดบั�
 """, lang="th")
 
     def test_an_mrerp_menu_stop_is_chosen_on_the_spot_and_pushed_again(self):
-        # 2026-10-19：MR.ERP 停在要选导入菜单 / 默认值的单，待处理页与「本月」卡当场选（action mrerp），不再只能交给 CC；
-        # 点开取这张单要选的（pending_api.mrerp_needs），「确认」记下并重推（mrerp_answer），值按键交
+        # 2026-10-19：MR.ERP 停在要选导入菜单 / 默认值的单，待处理页与「本月」卡当场选（action mrerp），不再只能交给 CC。
+        # 11-05 起同当场选一样是一张提问卡（PendingAsk）：共用写账前置判定（write_precheck check）出题，「提交」交回判定接口记下并重推
         self.run_page(r"""
-import { MrErpRow, mrerpChoosable, PendingItems } from "@/components/pending";
+import { mrerpChoosable, PendingItems } from "@/components/pending";
+import { askActions, itemQuestion, itemsOfCheck, keyAnswers } from "@/components/tool-uis/ask-shared";
 import { mrerpException } from "@/lib/month";
-import { answerMrErp, loadMrErpNeeds } from "@/lib/companies";
 const stop: any = { code: "push_failed", stage: "entry", severity: "action", action: "mrerp", group: "failed", document: "r1", ...doc,
   invoice_no: "INV-r1", reason_label: "Choose the MR.ERP menu", choice: { connection: "M1", account_set_key: "12:3", kinds: [] } };
 assert.equal(mrerpException(stop), true);
@@ -572,22 +573,26 @@ assert.equal(mrerpException({ ...stop, choice: null }), false);
 const item = pendingOf(stop, "COMPANY");
 assert.equal(item.action, "mrerp");
 assert.equal(mrerpChoosable(item), true);
+// 待处理列表：要选的进提问卡，不再单列一行；只有交给 CC 的那一张带「交给 CC」
 const page = renderToStaticMarkup(createElement(PendingItems, { items: [item, pendingOf(mismatch, "COMPANY")], error: "", done: noop, changed: noop, company: "COMPANY" }));
-assert.match(page, /data-slot="cc-pending-mrerp"/);
-assert.equal((page.match(/data-slot="cc-hand-to-cc"/g) ?? []).length, 1);  // 只带交给 CC 的那一张
+assert.match(page, /data-slot="cc-pending-ask"/);
+assert.ok(!page.includes("cc-pending-mrerp"));
+assert.equal((page.match(/data-slot="cc-hand-to-cc"/g) ?? []).length, 1);
+// 「本月」卡：收着的一行，点开才判定
 const card = html(withItems([stop]));
-assert.match(card, /data-slot="cc-pending-mrerp" data-variant="row"/);
-g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { document: "r1", known: true,
-  items: [{ key: "menu:purchase", label: "Purchase (goods)", options: [{ value: "68", label: "ซื้อ" }, { value: "454", label: "ซื้อ2" }] }] } }) });
-const needs = await loadMrErpNeeds(item);
-assert.equal(g.calls.at(-1).method, "/api/method/pearnly_cowork.assistant.pending_api.mrerp_needs");
-assert.deepEqual(needs.items.map((need: any) => need.key), ["menu:purchase"]);
-g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { document: "r1", status: "sent" } }) });
-const sent = await answerMrErp(item, { "menu:purchase": "68" });
-assert.equal(sent.status, "sent");
-assert.equal(g.calls.at(-1).method, "/api/method/pearnly_cowork.assistant.pending_api.mrerp_answer");
-assert.deepEqual(g.calls.at(-1).body, { document: "r1", values: JSON.stringify({ "menu:purchase": "68" }) });
-assert.equal(typeof MrErpRow, "function");
+assert.match(card, /data-slot="cc-pending-ask" data-variant="row"/);
+assert.equal(g.calls.length, 0);
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { groups: [{ group: "book", items: [
+  { key: "km", kind: "mrerp_menu", subject: "purchase", label: "Purchase (goods)", state: "open", value: "",
+    options: [{ code: "68", name: "ซื้อ" }, { code: "454", name: "ซื้อ2" }], docs: ["r1"] }] }] } }) });
+const items = itemsOfCheck(await askActions.check("COMPANY", ["r1"]));
+assert.equal(g.calls.at(-1).method, "/api/method/pearnly_core.write_precheck.api.check");
+const questions = items.map((i) => itemQuestion(i, "COMPANY"));
+assert.equal(questions[0]!.options.length, 2);                  // 没有预选：两个菜单都列出、都不默认选
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: {} }) });
+await askActions.remember("COMPANY", ["r1"], keyAnswers(items, questions, { answers: [{ header: "", question: "", labels: [questions[0]!.options[0]!.label] }] }));
+assert.equal(g.calls.at(-1).method, "/api/method/pearnly_core.write_precheck.api.answer");
+assert.deepEqual(g.calls.at(-1).body, { company: "COMPANY", doc_ids: '["r1"]', answers: JSON.stringify([{ key: "km", value: "68" }]) });
 """)
 
     def test_a_push_that_stops_for_a_choice_never_shows_the_reason_code(self):
@@ -609,13 +614,17 @@ assert.deepEqual(pushOutcome({ document: "p1", status: "waiting_for_cc", reason:
   { kind: "error", text: "Reading the account set" });
 """)
         pending = read("components/pending.tsx")
-        for name in ("ChooseRow", "ProposalRow", "AccountSetRow"):
+        # 当场选、换账套 11-05 起是提问卡（存下答案后重取列表，不显示原因码）；推送提议那一行照旧
+        for name in ("ProposalRow",):
             row = pending.split(f"export const {name}: FC<", 1)[1].split("\n};", 1)[0]
             self.assertIn("pushOutcome(", row, name)
             self.assertIn("co.ledger.code.push_failed!", row, name)
             self.assertNotRegex(row, r"setError\(result\.reason", name)  # 不再把原因码显示出来
         self.assertIn('else if (outcome.kind === "choose") onChanged();', pending.split("export const ProposalRow: FC<", 1)[1])
-        self.assertIn('else if (outcome.kind === "choose") await load();', pending.split("export const ChooseRow: FC<", 1)[1])
+        ask = pending.split("export const PendingAsk: FC<", 1)[1].split("\n};", 1)[0]
+        self.assertIn("await askActions.remember(company, docs, answers);", ask)
+        self.assertIn("onChanged();", ask)
+        self.assertNotIn("reason", ask)
 
     def test_rows_stay_within_a_phone_width(self):
         # 手机同一组件（会话栏照 ERP 手机端）：行里的字可截断；「推送」在展开后（同当场选那一行的展开：卡片按钮靠右，手机 44）

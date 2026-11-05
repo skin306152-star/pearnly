@@ -97,13 +97,13 @@ export async function sendMessage(id: string, text: string): Promise<void> {
   await post("send", { session_id: id, text });
 }
 
-/** 点「允许 / 拒绝」的回应：runs 是其中本站拦下的调用此刻在本站的状态（服务端 sessions.confirm；已作废、已执行的不再转给引擎，
+/** 点「允许 / 拒绝」的回应（通用提问卡片 ask_user 的作答也走这里：「允许」项带 answers，按题目顺序 [{labels, other?, skipped?}]）：runs 是其中本站拦下的调用此刻在本站的状态（服务端 sessions.confirm；已作废、已执行的不再转给引擎，
  *  照这里的状态定下卡片）。旧服务端没有 runs。 */
 export type ConfirmReply = { confirmed?: number; runs?: Record<string, ToolRunStatus> } | null;
 
 export function confirmTools(
   id: string,
-  confirmations: Array<{ tool_use_id: string; result: "allow" | "deny"; deny_message?: string }>,
+  confirmations: Array<{ tool_use_id: string; result: "allow" | "deny"; deny_message?: string; answers?: unknown }>,
 ): Promise<ConfirmReply> {
   return post<ConfirmReply>("confirm", { session_id: id, confirmations: JSON.stringify(confirmations) });
 }

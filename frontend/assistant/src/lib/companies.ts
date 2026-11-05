@@ -108,22 +108,9 @@ export type PendingItem = {
   url?: string;
 };
 
-/** 推送的「要人选的项」（push.application.service.choices_view，复核页、CC 同一套判定）。suggested 是费用科目的建议
- *  （最多 2 个，排第一的预选）；options 是对方档、付款、抵进项自带的可选值；科目、存货的可选值在 view.options 里。 */
-export type Suggestion = { code: string; name?: string; source?: string; reason?: string };
-export type ChoiceNeeded = {
-  kind: string; subject: string; label?: string; current?: string; suggested?: Suggestion[];
-  options?: Array<{ code: string; name?: string; branch?: string }>;
-};
-export type ChoicesView = {
-  needed: ChoiceNeeded[];
-  options?: { accounts?: Array<{ code: string; name?: string }>; products?: Array<{ code: string; name?: string }> };
-  account_set?: string; history?: string; wait?: { state: string; message: string }; fixed?: Record<string, string>;
-};
-/** 当场选作答的结果（assistant/pending_api.answer）：sent = 已交出去（Express 由 CC 桌面版写入）；already_* = 早推过了；
+/** 推送提议的结果（assistant/pending_api.answer）：sent = 已交出去（Express 由 CC 桌面版写入）；already_* = 早推过了；
  *  needs_choice = 还有要选的；其余（failed、waiting_for_cc…）原因记在单上，仍在「待处理」。 */
-// settled：选现用账套时同一组还停在「多份账套」、按记住的那份接着判了的张数（列表要重取）
-export type AnswerResult = { document: string; status: string; reason?: string; reason_label?: string; settled?: number };
+export type AnswerResult = { document: string; status: string; reason?: string; reason_label?: string };
 export const answered = (result: Pick<AnswerResult, "status">) => result.status === "sent" || result.status.startsWith("already_");
 
 // ---------------------------------------------------------------- 接口
@@ -183,24 +170,6 @@ export async function loadPending(company = "", limit = 200, search = ""): Promi
   );
 }
 
-/** 展开一行时取这张单要选的项与可选值（同复核页，push.application.api.choices）。 */
-export function loadChoices(item: Pick<PendingItem, "document" | "choice">): Promise<ChoicesView> {
-  const choice = item.choice;
-  if (!choice) return Promise.reject(new Error("no choice"));
-  return getMethod<ChoicesView>("pearnly_cowork.push.application.api.choices", {
-    history: item.document, connection: choice.connection, account_set_key: choice.account_set_key || undefined,
-  }).then((view) => ({ ...view, needed: view?.needed ?? [] }));
-}
-
-/** 作答：记下选的，再按 CC 推送同一条路重推这一张（assistant.pending_api.answer；只记不推不会进账）。要选的已由公司规则定下
- *  （needed 为空）时交空的 items，服务端不记、直接重推。 */
-export function answerChoices(item: Pick<PendingItem, "document">, view: ChoicesView, values: Record<string, string>): Promise<AnswerResult> {
-  const items = view.needed
-    .filter((need) => values[`${need.kind}\n${need.subject}`])
-    .map((need) => ({ kind: need.kind, subject: need.subject, value: values[`${need.kind}\n${need.subject}`], label: need.label ?? "" }));
-  return postMethod<AnswerResult>("pearnly_cowork.assistant.pending_api.answer", { document: item.document, items: JSON.stringify(items) });
-}
-
 /** 推一张 CC 准备好的提议（数字会计员第 3 期第 12 条）：同当场选完重推那一条路（assistant.pending_api.answer），交空的选择，
  *  服务端照常重判、算人发起；结果同 answerChoices（还要人选的会停在「要人选」）。 */
 export function pushProposal(item: Pick<PendingItem, "document">): Promise<AnswerResult> {
@@ -232,32 +201,6 @@ export function pushOutcome(result: AnswerResult, failed: string): PushOutcome {
   // 服务端翻不了的原因，给人看的话就是码本身：同样不显示
   const label = result.reason_label && result.reason_label !== result.reason ? result.reason_label : "";
   return { kind: "error", text: label || failed };
-}
-
-/** 停在「待选账套」的单可换的账套：这张单归的公司在推送去向那条连接上覆盖单据日期的那几份（服务端现算，同定时任务的判据）；
- *  current 是这一组已经记住、仍算数的现用账套（预选它，F18：只预选已定的），没有为空串。 */
-export function loadAccountSets(item: Pick<PendingItem, "document">): Promise<{ sets: Array<{ key: string; label: string }>; current: string }> {
-  return getMethod<{ account_sets?: Array<{ key: string; label: string }>; current?: string }>("pearnly_cowork.assistant.pending_api.account_sets",
-    { document: item.document }).then((found) => ({ sets: found?.account_sets ?? [], current: found?.current ?? "" }));
-}
-
-/** 换到选的那份账套并重推这一张（assistant.pending_api.choose_account_set）；结果同 answerChoices。
- *  候选是多份同期时，推成了服务端才把选的那份记成这家公司这一组现用的（之后同一组的单照选，组合变了再问）。 */
-export function chooseAccountSet(item: Pick<PendingItem, "document">, key: string): Promise<AnswerResult> {
-  return postMethod<AnswerResult>("pearnly_cowork.assistant.pending_api.choose_account_set", { document: item.document, account_set_key: key });
-}
-
-/** MR.ERP 停在要选导入菜单 / 默认值的单点开后要选的（assistant.pending_api.mrerp_needs，服务端按这张单的方向挑好、名称按用户
- *  语言）：key 是 menu:单据类型 / default:字段；known 为假 = 菜单还没从 MR.ERP 读到过（交给 CC）。 */
-export type MrErpNeed = { key: string; label: string; options: Array<{ value: string; label: string }> };
-export function loadMrErpNeeds(item: Pick<PendingItem, "document">): Promise<{ known: boolean; items: MrErpNeed[] }> {
-  return getMethod<{ known?: boolean; items?: MrErpNeed[] }>("pearnly_cowork.assistant.pending_api.mrerp_needs", { document: item.document })
-    .then((found) => ({ known: !!found?.known, items: found?.items ?? [] }));
-}
-
-/** 记下选的 MR.ERP 导入菜单 / 默认值（这份账套大家共用，同网页弹窗）并重推这一张；结果同 answerChoices。 */
-export function answerMrErp(item: Pick<PendingItem, "document">, values: Record<string, string>): Promise<AnswerResult> {
-  return postMethod<AnswerResult>("pearnly_cowork.assistant.pending_api.mrerp_answer", { document: item.document, values: JSON.stringify(values) });
 }
 
 /** 公司页改一条 MR.ERP 记住的选择时的可选值：这份账套最近一次从 MR.ERP 读到的（connections.api.mrerp_menu，同推送前的弹窗）。 */

@@ -66,7 +66,6 @@ BUSY_SITES = [
     ("components/companies.tsx", "animate-cc-pulse", "shown === null ?", 2),
     ("components/companies.tsx", "cc-spinner", "loading &&", 0),
     ("components/pending.tsx", "cc-spinner", "items === null ?", 2),
-    ("components/pending.tsx", "cc-spinner", "open && !view && !error", 3),
     ("components/pending.tsx", "cc-spinner", "busy &&", 0),
     ("components/company-page.tsx", "cc-spinner", "if (!detail)", 3),
     ("components/company-page.tsx", "cc-spinner", "if (!rows) return", 0),
@@ -78,8 +77,8 @@ BUSY_SITES = [
     ("components/assistant-ui/thread.tsx", "<TypingDots", "export const RunLine", 16),  # 状态行的样子：谁、什么时候挂见 BUSY_MOUNTS
     ("components/tool-uis/steps.tsx", "<TypingDots", "running &&", 0),
     ("components/assistant-ui/attachment.tsx", "cc-spinner", "{isUploading && (", 5),
-    ("components/pending.tsx", "cc-spinner", "{open && !sets && !error && (", 3),  # 待选账套那一行展开、可换账套还没取回
     ("components/pending.tsx", "cc-spinner", "{!view && !error && (", 3),  # 提议那一行展开、CC 备好的内容还没取回
+    ("components/pending.tsx", "cc-spinner", "head && open && !error && (", 3),  # 月结台账里要选的那一行点开、判定还没回来（11-05）
     ("components/company-cards.tsx", "cc-spinner", "if (!options) return", 0),  # MR.ERP 记住的选择展开、可选值还没取回（10-19）
     ("components/mrerp-login.tsx", "cc-spinner", "{busy &&", 0),  # MR.ERP 登录授权：要票、等 CC 桌面版交给站点时（11-02）
     ("components/run/upload-card.tsx", "<TypingDots", "{busy &&", 0),  # 上传状态卡片：上传中、排队中、识别中才有（11-04）

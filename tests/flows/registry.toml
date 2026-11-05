@@ -373,6 +373,10 @@ covers = [
   # 统一对话框架（11-04 U2）：代录会话里的卡片与步骤、工具登记、代录步骤名
   "frontend/assistant/src/components/tool-uis/operator-*.ts",
   "frontend/assistant/src/components/tool-uis/operator-*.tsx",
+  "frontend/assistant/src/components/tool-uis/card-phase.ts",
+  # 通用提问卡片 ask_user（用户 11-05，代录中途那一张也用它）
+  "frontend/assistant/src/components/tool-uis/ask-*.ts",
+  "frontend/assistant/src/components/tool-uis/ask-*.tsx",
   "frontend/assistant/src/components/tool-uis/index.tsx",
   "frontend/assistant/src/lib/tool-labels.ts",
   # 代录会话里的上传状态卡片（Code 版 CC 块 2；块 3 接进代录会话，专门的上传流程 cowork.cc.operator.upload 由块 5 补）
@@ -1044,8 +1048,24 @@ covers = [
 ]
 
 [[flow]]
+id = "cowork.cc.ask"
+title = "Cowork CC 对话里的通用提问卡片 ask_user（假智能体后端按脚本出题）：推荐项默认选中、翻页、「其他」走服务端搜索、提交后执行记录与模型收到的结果一致、刷新后是答过的摘要；手机不浮成允许卡"
+module = "scripts/flows/cc_ask.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "frontend/assistant/src/components/tool-uis/ask-*.ts",
+  "frontend/assistant/src/components/tool-uis/ask-*.tsx",
+  "frontend/assistant/src/components/tool-uis/approval-sheet.tsx",
+  "apps/pearnly_core/pearnly_core/assistant/ask.py",
+]
+
+[[flow]]
 id = "cowork.pending.operator"
-title = "Cowork CC 对话里的「需要处理」（待处理并进对话，提醒入口 ?view=pending 打开这家这个月的对话）：归代录的单当场选「确认」只记下选择、不按直写重推，页面写单据在代录中（产品账本 + 合成写入端）"
+title = "Cowork CC 对话里的「需要处理」（待处理并进对话，提醒入口 ?view=pending 打开这家这个月的对话）与公司页月结台账：归代录的单在提问卡上选付款方式「提交」只记下选择、不按直写重推（产品账本 + 合成写入端）"
 module = "scripts/flows/cowork_pending_operator.py"
 product = "cowork"
 start = "/assistant?view=pending&company={company}"
@@ -1055,6 +1075,10 @@ viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py",
   "frontend/assistant/src/components/pending.tsx",
+  # 待处理里停在要人定的单是一张提问卡（用户 11-05）；公司页月结台账里同一张（收着的一行，点开才判定）
+  "frontend/assistant/src/components/month-ledger.tsx",
+  "frontend/assistant/src/components/tool-uis/ask-*.ts",
+  "frontend/assistant/src/components/tool-uis/ask-*.tsx",
 ]
 
 [[flow]]

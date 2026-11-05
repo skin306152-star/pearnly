@@ -35,9 +35,14 @@
 - 归档：记 `archived_at`，之后不再接受 `user.message`（400）；状态字段保持 idle。
 - 所有状态只在内存里，进程重启就清空；编号按类自增，前缀仿真实写法（agent_、env_、sesn_、sevt_、sesrsc_、file_、msg_）。
 
+- 通用提问卡片（主会话 11-05，只为流程 `cc.ask`）：用户原文里有 ``[lab-ask]{…}[/lab-ask]`` 时不回文字，照真实引擎发一条
+  ``agent.custom_tool_use``（name ``ask_user``，input 就是中间那段 JSON），再记 ``session.status_idle``（stop_reason
+  requires_action，event_ids 是这一条）；之后收到这一条的 ``user.custom_tool_result``，记 running、回一条
+  ``[lab-agent] ask_user <结果原文>``（不截断，流程拿它核模型收到的工具结果），再记 idle。
+
 它不做什么：
-- 不模拟智能体的工具调用（`agent.tool_use`、`agent.custom_tool_use`、requires_action）、思考、沙箱与产出文件，
-  也不发 `span.model_request_*`（没有 token 用量）、不发 webhook；`user.custom_tool_result`、`user.tool_confirmation`
+- 除上面那一种外，不模拟智能体的工具调用（`agent.tool_use`、别的 `agent.custom_tool_use`）、思考、沙箱与产出文件，
+  也不发 `span.model_request_*`（没有 token 用量）、不发 webhook；别的 `user.custom_tool_result`、`user.tool_confirmation`
   只存不触发后续回合。
 - 不校验密钥、beta 头、工作区，不限流，不实现 `messages.create` 的流式与工具，不做智能体版本历史。
 - 文件下载不看 `downloadable`（上传的文件也能下，便于站点读回）。
@@ -57,6 +62,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
 REPLY_PREFIX = "[lab-agent]"
+ASK_OPEN, ASK_CLOSE = "[lab-ask]", "[/lab-ask]"  # 用户原文里这一段 = 让「模型」调 ask_user 的入参（JSON）
 REPLY_CHARS = 40
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 1000
@@ -264,10 +270,39 @@ def _turns(state: dict) -> None:
                 if not state["_deleted"]:
                     set_status(state, "idle")
                 return
-            text = state["_pending"].pop(0)
-            reply = f"{OPTIONS['prefix']} {text[:REPLY_CHARS]}"
+            item = state["_pending"].pop(0)
+            if isinstance(item, dict) and "ask" in item:
+                # 照真实引擎：发自定义工具调用，停在 requires_action 等页面交回结果（这一轮先到这里）
+                use_id = new_id("sevt")
+                publish(state, {"id": use_id, "type": "agent.custom_tool_use", "name": "ask_user", "input": item["ask"]})
+                state["status"] = "idle"
+                state["_asked"] = use_id
+                publish(state, {"id": new_id("sevt"), "type": "session.status_idle",
+                                "stop_reason": {"type": "requires_action", "event_ids": [use_id]}})
+                state["_pending"].clear()
+                state["_worker"] = None
+                return
+            reply = item["say"] if isinstance(item, dict) else f"{OPTIONS['prefix']} {item[:REPLY_CHARS]}"
             publish(state, {"id": new_id("sevt"), "type": "agent.message",
                             "content": [{"type": "text", "text": reply}]}, preview=True)
+
+
+def _asked(text: str):
+    """用户原文里有 ``[lab-ask]{…}[/lab-ask]``：这一轮发 ask_user（入参是中间的 JSON）；没有就是普通的一句。"""
+    start = text.find(ASK_OPEN)
+    end = text.find(ASK_CLOSE, start + len(ASK_OPEN)) if start >= 0 else -1
+    if start < 0 or end < 0:
+        return text
+    try:
+        return {"ask": json.loads(text[start + len(ASK_OPEN):end])}
+    except ValueError:
+        return text
+
+
+def _start(state: dict) -> None:
+    if not state["_worker"]:
+        state["_worker"] = threading.Thread(target=_turns, args=(state,), daemon=True)
+        state["_worker"].start()
 
 
 def receive(state: dict, events: list) -> list:
@@ -290,10 +325,16 @@ def receive(state: dict, events: list) -> list:
             elif kind == "user.message":
                 set_status(state, "running")
                 publish(state, event)
-                state["_pending"].append(_user_text(event))
-                if not state["_worker"]:
-                    state["_worker"] = threading.Thread(target=_turns, args=(state,), daemon=True)
-                    state["_worker"].start()
+                state["_pending"].append(_asked(_user_text(event)))
+                _start(state)
+            elif kind == "user.custom_tool_result" and event.get("custom_tool_use_id") and event.get("custom_tool_use_id") == state.get("_asked"):
+                # 提问卡片的作答交回来了：接着这一轮，回一条带工具结果原文的话
+                state["_asked"] = None
+                publish(state, event)
+                set_status(state, "running")
+                text = "".join(b.get("text", "") for b in event.get("content") or [] if isinstance(b, dict) and b.get("type") == "text")
+                state["_pending"].append({"say": f"{OPTIONS['prefix']} ask_user {text}"})
+                _start(state)
             else:
                 publish(state, event)
             stored.append(event)
@@ -344,7 +385,7 @@ def create_session(body: dict) -> dict:
              "title": body.get("title"), "usage": {"input_tokens": 0, "output_tokens": 0,
                                                     "cache_read_input_tokens": 0, "active_seconds": 0.0},
              "vault_ids": list(body.get("vault_ids") or []), "deployment_id": None,
-             "_events": [], "_streams": [], "_pending": [], "_worker": None, "_deleted": False}
+             "_events": [], "_streams": [], "_pending": [], "_worker": None, "_deleted": False, "_asked": None}
     STORE["sessions"][ident] = state
     for resource in body.get("resources") or []:
         add_resource(state, resource)

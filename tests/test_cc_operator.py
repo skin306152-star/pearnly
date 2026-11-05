@@ -190,7 +190,7 @@ import "cc-test-setup";
 import "cc-dom-setup";
 import assert from "node:assert/strict";
 import { answersFor, operatorActions, questionsOf, setOperatorSite } from "@/components/tool-uis/operator-shared";
-import { docsToStart, groupsToStart, writeLine } from "@/components/tool-uis/operator-start";
+import { docsToStart, groupsToStart, mergeDocs, uploadsDoneKey, writeLine } from "@/components/tool-uis/operator-start";
 import { resumeQuestion } from "@/components/tool-uis/operator-resume";
 import { createBridgeWatch, progressOf } from "@/components/operator/bridge";
 import { createSession, listGrouped, listSessions } from "@/lib/managed-agents/api";
@@ -223,6 +223,15 @@ const g = globalThis as any;
   assert.deepEqual(Object.keys(answers), ["A", "B"]);
   assert.deepEqual(docsToStart([{ doc_id: "A" }, { doc_id: "B", group: "skip" }, { doc_id: "C" }] as any, prechecks), ["A"]);
   assert.equal(writeLine({ company: "CO-1", company_title: "Acme" }, [{ account_set: "S1", account_set_title: "Acme 2026" }]), op.writeTo("Acme · Acme 2026"));
+  // 写入目标带上执行的电脑（几份账套同一台只写一次）
+  assert.equal(writeLine({ company: "CO-1", company_title: "Acme" }, [{ account_set: "S1", account_set_title: "Acme 2026", computer: "PC-1" }]),
+    op.writeTo("Acme · Acme 2026 · PC-1"));
+  // 测试机 11-05：卡片出现后才上传、识别完的单要能交上去——识别完的上传（operator_upload 有结果、已识别）一变卡片就重取资料；
+  // 重取的第一页在前、已用「显示更多」取过的页照留，同一张只留一次
+  const upload = (id: string, state: string) => ({ type: "tool-call", toolName: "operator_upload", toolCallId: id, result: { text: JSON.stringify({ state }) } });
+  assert.equal(uploadsDoneKey([{ content: [upload("u1", "done"), upload("u2", "failed"), { type: "text" }] }]), "u1");
+  assert.equal(uploadsDoneKey([{ content: [upload("u1", "done")] }, { content: [upload("u3", "done"), { type: "tool-call", toolName: "operator_upload", toolCallId: "u4" }] }]), "u1|u3");
+  assert.deepEqual(mergeDocs([{ doc_id: "N" }, { doc_id: "A" }] as any, [{ doc_id: "A" }, { doc_id: "B" }] as any).map((d) => d.doc_id), ["N", "A", "B"]);
   // 一批写进几份账套（U1 api.precheck：target 为空、targets 列出每一份，张数多的在前）：问话列出每一份，不只写公司
   const several = writeLine({ company: "CO-1", company_title: "Acme" }, [{ account_set: "S2", account_set_title: "Acme B", count: 2 }, { account_set: "S1", account_set_title: "Acme A", count: 1 }]);
   assert.ok(several.includes("Acme B") && several.includes("Acme A") && several.indexOf("Acme B") < several.indexOf("Acme A"), several);

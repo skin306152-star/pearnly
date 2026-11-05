@@ -1,13 +1,14 @@
 """流程用例：Cowork 的 CC 待处理（11-04 起并进对话：「这家公司 · 这个月」对话末尾的「需要处理」框，`?view=pending&company=`
-兼容入口打开它）里一张归代录的单（交给代录、电脑在 Express 里没录成停下了），当场选付款方式「确认」——
-选择照复核页记进账套记忆，但不按直写重推（主会话 10-27：由代录去录），页面显示「单据在代录中」，库里不多推送记录、不多领单。
+兼容入口打开它）里一张归代录的单（交给代录、电脑在 Express 里没录成停下了），对话末尾的提问卡（用户 11-05：同 CC 的 ask_user，
+共用写账前置判定出题）问付款方式，选现购「提交」——选择照复核页记进账套记忆，但不按直写重推（主会话 10-27：由代录去录），
+库里不多推送记录、不多领单。
 
 单据怎么到这一步（都是产品自己的函数，`cowork_operator_lib.py`）：代录批次准备（载荷带 ``entry_mode=operator``）→ 交出去 →
 实验室合成写入端领单、回执「要人看」（manual）→ 公司页删掉记住的付款方式 → CC 对话里再推这张，推前判出要选付款方式、只记原因
 （``choice_needed:payment``）→ 待处理列成「当场选」。
 
-执行到的服务端：`companies.api.pending`、`push.application.api.choices`、`assistant.pending_api.answer`（`operator_owned` 分支）、
-`push.application.service.save_choices / operator_owned`。
+执行到的服务端：`companies.api.pending`、`write_precheck.api.check / answer`（Cowork 的判定与记住钩子）、
+`push.application.service.operator_owned`。
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ import uuid
 
 from cowork_operator_lib import BASE, CLEANUP, SUBJECT
 
-TITLE = "Cowork CC 对话里的「需要处理」：归代录的单当场选「确认」只记下选择、不按直写重推，页面显示单据在代录中（产品账本，不连 Express）"
+TITLE = "Cowork CC 对话里的「需要处理」与公司页月结台账：归代录的单在提问卡上选付款方式「提交」只记下选择、不按直写重推（产品账本，不连 Express）"
 READY = "document.readyState === 'complete' && !!document.querySelector('[data-slot=\"cc-mode-switch\"]')"
 
 WAIT = ("const until=async(f,n=120)=>{for(let k=0;k<n;k++){try{if(f())return true;}catch(e){} await new Promise(r=>setTimeout(r,250));} return false;};"
@@ -56,45 +57,77 @@ print(json.dumps({{"company": company["id"], "title": company["title"], "period"
     return {**out, "ref": ref, "cases": []}
 
 
+SHOW_PANEL = "显示右侧栏"  # i18n.ts 的 showPanel（中文界面）
+
+
 def steps(params, camera_code=None):
     ref = params["ref"]
-    row = f"qa('[data-slot=\"cc-pending-in-chat\"] [data-slot=\"cc-pending-choose\"]').find(e=>e.innerText.includes({json.dumps(ref)}))"
+    card = "document.querySelector('[data-slot=\"cc-pending-askq\"]')"
+    company, back = json.dumps(params["company"]), json.dumps(f"/assistant?view=pending&company={params['company']}")
+    row = f"qa('[data-slot=\"cc-pending-ask\"][data-variant=\"row\"]').find(e=>e.innerText.includes({json.dumps(ref)}))"
     return [
-        {"name": "待处理列出这张", "js": WAIT + f"const seen=await until(()=>{row},160); const r={row}; "
+        # 公司页的月结台账（上个月，同造的单据月份）：这张列成收着的一行（码名 · 单据 · 金额），点开才判定、出同一张提问卡（不带框）
+        {"name": "去公司页", "js": f"setTimeout(()=>location.assign('/assistant?company='+encodeURIComponent({company})),0); return true;",
+         "wait_ms": 6000},
+        {"name": "月结台账点开", "js": WAIT + "await until(()=>document.querySelector('.cc-page-title'),120); "
+         # 手机上公司页的卡片在会话栏浮层里，从标题右边的开关打开（电脑上停靠在右边）
+         "if(!document.querySelector('[data-slot=\"cc-company-month\"]')) document.querySelector('button[aria-label=\"" + SHOW_PANEL + "\"]')?.click(); "
+         "await until(()=>document.querySelector('[data-slot=\"cc-company-month\"]'),120); "
+         # 公司页的卡片记得收没收（按人记）：「本月」收着就先点开
+         "const fold=document.querySelector('[data-slot=\"cc-company-month\"] .cc-panel-card-toggle[aria-expanded=\"false\"]'); fold?.click(); "
+         f"const seen=await until(()=>{row},200); const r={row}; "
+         "if(!r) return {seen, url: location.pathname+location.search, month: !!document.querySelector('[data-slot=\"cc-company-month\"]'), "
+         "open: document.querySelector('[data-slot=\"cc-company-month\"] .cc-panel-card-toggle')?.getAttribute('aria-expanded')||'', "
+         "asks: document.querySelectorAll('[data-slot=\"cc-pending-ask\"]').length, items: document.querySelectorAll('[data-slot=\"cc-month-item\"]').length, "
+         "text: (document.querySelector('[data-slot=\"cc-company-month\"]')?.innerText||'').slice(0,300)}; "
+         "const closed=r.querySelector('.cc-pending-toggle')?.getAttribute('aria-expanded'); r.querySelector('.cc-pending-toggle').click(); "
+         f"const opened=await until(()=>({row})?.querySelector('[data-slot=\"cc-pending-askq\"] [data-slot=\"cc-askq-question\"]'),160); const x={row}; "
+         "return {seen, closed, opened, question: x?.querySelector('[data-slot=\"cc-askq-question\"]')?.innerText.trim()||'', "
+         "framed: !!x?.querySelector('.cc-steps-card'), status: !!x?.querySelector('[data-slot=\"cc-askq-status\"]')};"},
+        {"name": "回到对话", "js": f"setTimeout(()=>location.assign({back}),0); return true;", "wait_ms": 6000},
+        {"name": "待处理出提问卡", "js": WAIT + f"const seen=await until(()=>{card},160); const c={card}; "
          "const chin=document.querySelector('[data-slot=\"cc-chin-company\"]')?.innerText.trim()||''; "
          "const mode=document.querySelector('[data-slot=\"cc-mode-switch\"] [aria-checked=\"true\"]')?.dataset.mode; "
-         "return {seen, text: r?.innerText.trim()||'', choose: qa('[data-slot=\"cc-pending-in-chat\"] [data-slot=\"cc-pending-choose\"]').length, "
-         "chin, mode, period: document.querySelector('[data-slot=\"cc-period-chip\"]')?.innerText.trim()||'', "
-         "nav: !!document.querySelector('[data-slot=\"cc-nav-pending\"]')};"},
-        {"name": "展开选付款方式", "js": WAIT + f"const r={row}; if(!r) return {{error:'row missing'}}; "
-         "r.querySelector('.cc-pending-toggle').click(); "
-         f"const ok=await until(()=>{row}?.querySelector('select'),120); const s={row}?.querySelector('select'); "
-         "if(!s) return {ok, error:'no select'}; const options=[...s.options].map(o=>({value:o.value, text:o.innerText.trim(), disabled:o.disabled})); "
-         "const before=s.value; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'cash'); "
-         "s.dispatchEvent(new Event('change',{bubbles:true})); await new Promise(r=>setTimeout(r,400)); "
-         f"const btn=[...({row}).querySelectorAll('button')].find(b=>b.innerText.trim()==='确认'); "
-         "return {ok, options, before, after: s.value, label: s.closest('label')?.innerText.trim().split('\\n')[0]||'', enabled: !!btn && !btn.disabled};"},
-        {"name": "确认", "js": WAIT + f"const btn=[...({row}).querySelectorAll('button')].find(b=>b.innerText.trim()==='确认'); "
-         "if(!btn) return {error:'no confirm button'}; btn.click(); "
-         f"const shown=await until(()=>({row})?.querySelector('[role=\"alert\"]'),160); await new Promise(r=>setTimeout(r,1500)); "
-         f"const r={row}; return {{shown, alert: r?.querySelector('[role=\"alert\"]')?.innerText.trim()||'', still: !!r}};"},
+         "const opts=qa('[data-slot=\"cc-pending-askq\"] [data-slot=\"cc-askq-option\"]'); "
+         "return {seen, question: c?.querySelector('[data-slot=\"cc-askq-question\"]')?.innerText.trim()||'', "
+         "options: opts.map(o=>({text:o.querySelector('.cc-askq-label')?.innerText.trim()||'', checked:o.getAttribute('aria-checked')==='true'})), "
+         "other: !!c?.querySelector('[data-slot=\"cc-askq-other-option\"]'), "
+         "next: (q=>q?{text:q.innerText.trim(), disabled:q.disabled}:null)(c?.querySelector('[data-slot=\"cc-askq-next\"]')), "
+         "status: !!document.querySelector('[data-slot=\"cc-askq-status\"]'), "
+         f"rowListed: qa('[data-slot=\"cc-pending-in-chat\"]').some(e=>e.innerText.includes({json.dumps(ref)})), "
+         "chin, mode, nav: !!document.querySelector('[data-slot=\"cc-nav-pending\"]')};"},
+        {"name": "选现购", "js": WAIT + f"const c={card}; if(!c) return {{error:'card missing'}}; "
+         "const o=qa('[data-slot=\"cc-pending-askq\"] [data-slot=\"cc-askq-option\"]').find(e=>(e.querySelector('.cc-askq-label')?.innerText.trim()||'')==='现购'); "
+         "if(!o) return {error:'no cash option'}; o.click(); await new Promise(r=>setTimeout(r,300)); "
+         "const n=c.querySelector('[data-slot=\"cc-askq-next\"]'); "
+         "return {checked: o.getAttribute('aria-checked')==='true', next: n?.innerText.trim()||'', enabled: !!n && !n.disabled};"},
+        {"name": "提交", "js": WAIT + f"const n={card}?.querySelector('[data-slot=\"cc-askq-next\"]'); if(!n) return {{error:'no submit'}}; n.click(); "
+         f"const done=await until(()=>{card}?.querySelector('[data-slot=\"cc-ask-answer\"]'),160); await new Promise(r=>setTimeout(r,1500)); "
+         f"const c={card}; return {{done, answer: c?.querySelector('[data-slot=\"cc-ask-answer\"]')?.innerText.trim()||'', "
+         "alert: c?.querySelector('[role=\"alert\"]')?.innerText.trim()||''};"},
     ]
 
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
-    listed, opened, answered = (by.get(k) or {} for k in ("待处理列出这张", "展开选付款方式", "确认"))
-    values = [o.get("value") for o in opened.get("options") or [] if not o.get("disabled")]
+    listed, picked, answered, ledger = (by.get(k) or {} for k in ("待处理出提问卡", "选现购", "提交", "月结台账点开"))
+    labels = [o.get("text") or "" for o in listed.get("options") or []]
     return [
-        {"case": "提醒入口打开这家这个月的对话（对话模式、下巴是这家），末尾「需要处理」框把这张列成能当场选的一行（单号、对方）；侧栏没有「待处理」",
+        {"case": "公司页月结台账：这张是收着的一行，点开才出同一张提问卡（嵌在台账里、不带框与「需要您的输入」），问付款方式", "seen": ledger,
+         "ok": bool(ledger.get("seen")) and ledger.get("closed") == "false" and bool(ledger.get("opened"))
+         and "付款方式" in (ledger.get("question") or "") and not ledger.get("framed") and not ledger.get("status")},
+        {"case": "提醒入口打开这家这个月的对话（对话模式、下巴是这家），末尾单独一张提问卡（带「需要您的输入」），这张单不再列成一行；侧栏没有「待处理」",
          "seen": {**listed, "want": params["title"]},
-         "ok": bool(listed.get("seen")) and params["ref"] in (listed.get("text") or "") and "Flow seller" in (listed.get("text") or "")
+         "ok": bool(listed.get("seen")) and bool(listed.get("status")) and not listed.get("rowListed")
          and listed.get("mode") == "chat" and params["title"] in (listed.get("chin") or "") and not listed.get("nav")},
-        {"case": "展开只问付款方式：现金 / 赊账两项、不预选，选了才能确认", "seen": opened,
-         "ok": bool(opened.get("ok")) and sorted(values) == ["cash", "credit"] and opened.get("before") == ""
-         and opened.get("after") == "cash" and bool(opened.get("enabled"))},
-        {"case": "确认后页面写「单据在代录中」（服务端那一句，不当推送成功、不显示原因码）", "seen": answered,
-         "ok": bool(answered.get("shown")) and answered.get("alert") == params["message"]},
+        {"case": "只问付款方式：记住的删掉了，按票种预选赊购（共用判定的预选规则，排第一带「(推荐)」、默认选中），现购、「其他」在后；一题时主按钮是「提交」",
+         "seen": listed,
+         "ok": "付款方式" in (listed.get("question") or "") and "Flow seller" in (listed.get("question") or "")
+         and labels == ["赊购 (推荐)", "现购"] and [o.get("checked") for o in listed.get("options") or []] == [True, False]
+         and bool(listed.get("other")) and (listed.get("next") or {}).get("text", "").startswith("提交")},
+        {"case": "改选现购（单选换成它），能提交", "seen": picked, "ok": bool(picked.get("checked")) and bool(picked.get("enabled"))},
+        {"case": "提交后卡片收成一行所选（现购），没有报错", "seen": answered,
+         "ok": bool(answered.get("done")) and "现购" in (answered.get("answer") or "") and not answered.get("alert")},
     ]
 
 

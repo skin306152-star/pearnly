@@ -846,6 +846,16 @@ const OPERATOR = {
     option: {
       newItem: "New stock item", new: "New",
     } as Record<string, string>,
+    precheck: {
+      kind: {
+        account_set: "Account set", current_book: "Account set in use", direction: "Document groups", document_policy: "Post or not",
+        department: "Department", mrerp_menu: "MR.ERP import menu", mrerp_default: "MR.ERP settings", vat: "Input VAT",
+        refund: "Sales returns account", vat_registered: "VAT registered", exempt_mode: "Exempt items", item: "Stock item",
+        stock_group: "Stock account group", goods_posting: "Posting", service_vat: "Service input VAT", posting_kind: "Service or stock",
+        payment: "Payment", receipt: "Receiving account", supplier: "Supplier", customer: "Customer", expense: "Expense account",
+        income: "Income account", stockAccount: "Stock account",
+      } as Record<string, string>,
+    },
     computer: "Computer", thisComputer: "This computer", online: "Online", offline: "Offline",
     expressLogin: "Express sign-in", loginSet: "Set", loginUnset: "Not set", setUp: "Set up", change: "Change",
     section: { files: "Documents", confirm: "Before you start", handle: "Needs handling", computer: "Computer and Express", report: "Report" } as Record<string, string>,
@@ -911,6 +921,16 @@ const OPERATOR = {
     option: {
       newItem: "库存（新建）", new: "新建",
     } as Record<string, string>,
+    precheck: {
+      kind: {
+        account_set: "账套", current_book: "现用账套", direction: "资料分组", document_policy: "是否入账",
+        department: "部门", mrerp_menu: "MR.ERP 导入菜单", mrerp_default: "MR.ERP 设置", vat: "进项税",
+        refund: "销货退回科目", vat_registered: "增值税登记户", exempt_mode: "免税商品写法", item: "存货",
+        stock_group: "存货科目组", goods_posting: "入账方式", service_vat: "服务品进项税", posting_kind: "服务或存货",
+        payment: "付款方式", receipt: "收款科目", supplier: "供应商", customer: "客户", expense: "费用科目",
+        income: "收入科目", stockAccount: "存货科目",
+      } as Record<string, string>,
+    },
     computer: "电脑", thisComputer: "本机", online: "在线", offline: "离线",
     expressLogin: "Express 登录", loginSet: "已设置", loginUnset: "未设置", setUp: "设置", change: "更换",
     section: { files: "资料", confirm: "开始前确认", handle: "需要处理", computer: "电脑与 Express", report: "报告" } as Record<string, string>,
@@ -976,6 +996,16 @@ const OPERATOR = {
     option: {
       newItem: "สินค้าคงคลัง (สร้างใหม่)", new: "สร้างใหม่",
     } as Record<string, string>,
+    precheck: {
+      kind: {
+        account_set: "ชุดบัญชี", current_book: "ชุดบัญชีที่ใช้อยู่", direction: "กลุ่มเอกสาร", document_policy: "บันทึกหรือไม่",
+        department: "แผนก", mrerp_menu: "เมนูนำเข้า MR.ERP", mrerp_default: "การตั้งค่า MR.ERP", vat: "ภาษีซื้อ",
+        refund: "บัญชีรับคืนสินค้า", vat_registered: "จดทะเบียนภาษีมูลค่าเพิ่ม", exempt_mode: "สินค้ายกเว้นภาษี", item: "สินค้า",
+        stock_group: "กลุ่มบัญชีสินค้าคงเหลือ", goods_posting: "วิธีลงบัญชี", service_vat: "ภาษีซื้อของสินค้าบริการ", posting_kind: "บริการหรือสินค้า",
+        payment: "วิธีชำระเงิน", receipt: "บัญชีรับเงิน", supplier: "ผู้จำหน่าย", customer: "ลูกค้า", expense: "บัญชีค่าใช้จ่าย",
+        income: "บัญชีรายได้", stockAccount: "บัญชีสินค้าคงเหลือ",
+      } as Record<string, string>,
+    },
     computer: "คอมพิวเตอร์", thisComputer: "เครื่องนี้", online: "ออนไลน์", offline: "ออฟไลน์",
     expressLogin: "เข้าสู่ระบบ Express", loginSet: "ตั้งค่าแล้ว", loginUnset: "ยังไม่ได้ตั้งค่า", setUp: "ตั้งค่า", change: "เปลี่ยน",
     section: { files: "เอกสาร", confirm: "ตรวจก่อนเริ่ม", handle: "ต้องดำเนินการ", computer: "คอมพิวเตอร์และ Express", report: "รายงาน" } as Record<string, string>,
@@ -1049,3 +1079,21 @@ const RUN = {
 };
 
 export const run = (RUN as Record<string, (typeof RUN)["en"]>)[lang] ?? RUN.en;
+
+// 通用提问卡片（components/tool-uis/ask-card.tsx，工具 ask_user，照 Claude Code 的提问卡片）：第 n 项，共 m 项、其他、跳过、下一步、提交、(推荐)
+const ASK = {
+  en: {
+    nth: (n: number, m: number) => `${n} of ${m}`, prev: "Previous question", after: "Next question", next: "Next", other: "Other", skip: "Skip", submit: "Submit",
+    recommended: (label: string) => `${label} (Recommended)`,
+  },
+  zh: {
+    nth: (n: number, m: number) => `第 ${n} 项，共 ${m} 项`, prev: "上一项", after: "下一项", next: "下一步", other: "其他", skip: "跳过", submit: "提交",
+    recommended: (label: string) => `${label} (推荐)`,
+  },
+  th: {
+    nth: (n: number, m: number) => `ข้อ ${n} จาก ${m}`, prev: "ข้อก่อนหน้า", after: "ข้อถัดไป", next: "ถัดไป", other: "อื่นๆ", skip: "ข้าม", submit: "ส่ง",
+    recommended: (label: string) => `${label} (แนะนำ)`,
+  },
+};
+
+export const ask = (ASK as Record<string, (typeof ASK)["en"]>)[lang] ?? ASK.en;
