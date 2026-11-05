@@ -1703,7 +1703,7 @@ class DocumentPolicySettleTests(unittest.TestCase):
 
 class OperatorSourceTests(unittest.TestCase):
     """代录的 Cowork 一侧（`assistant.operator_source`，主会话 10-27 必修 ① ②、资料区分组按公司记住）：预检逐张走推送准备同一套
-    判断（`service.operator_check`）；开录时先把预检里人定的按复核页同一条路记下，再按代录交（带代录标记），不经待处理、不按直写
+    判断（`assistant.precheck_source.operator_check`，替身仍记在 service 上）；开录时先把预检里人定的按复核页同一条路记下，再按代录交（带代录标记），不经待处理、不按直写
     重推；资料区拖动改单据方向与入账类型并按对方记进公司规则「分组」，列表、预检、交单都照它。"""
 
     def load(self, checks=None, pages=None, memory=None, docs=None):
@@ -1733,10 +1733,22 @@ class OperatorSourceTests(unittest.TestCase):
             save=lambda company, **kw: calls.append(("remember", company, kw)) or self.memory.update(
                 {kw["subject"]: kw["value"]}))
         tools = types.SimpleNamespace(_push_one=push_one)
+
+        def remember(company, answers):
+            # 真的 `assistant.precheck_source.remember` 把写账规则的项照原样交 `service.save_choices`（见 PrecheckTests）
+            for name, rows in answers.items():
+                doc = storage.read(name)
+                service.save_choices(name, doc.push_connection, doc.push_account_set or None,
+                                     json.dumps(rows, ensure_ascii=False))
+            return {"saved": 1}
+
+        # 代录预检与交单转调写账前置判定（`assistant.precheck_source`）：预检的原回包仍出自 `operator_check`
+        checking = types.SimpleNamespace(operator_check=service.operator_check, remember=remember)
         frappe.db.commits = 0
         patcher = mock.patch.dict(sys.modules, {
             "pearnly_cowork.push.application": types.SimpleNamespace(service=service),
             "pearnly_cowork.push.application.service": service,
+            "pearnly_cowork.assistant.precheck_source": checking,
             "pearnly_cowork.history": types.SimpleNamespace(storage=storage, api=history),
             "pearnly_cowork.history.storage": storage,
             "pearnly_cowork.history.api": history,
@@ -1759,6 +1771,9 @@ class OperatorSourceTests(unittest.TestCase):
         previous = getattr(package, "tools", None)
         package.tools = tools
         self.addCleanup(lambda: setattr(package, "tools", previous) if previous else delattr(package, "tools"))
+        before = getattr(package, "precheck_source", None)
+        package.precheck_source = checking
+        self.addCleanup(lambda: setattr(package, "precheck_source", before) if before else delattr(package, "precheck_source"))
         return module, calls
 
     def test_precheck_runs_the_push_preparation_for_each_document(self):

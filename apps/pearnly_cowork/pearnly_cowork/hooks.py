@@ -690,3 +690,13 @@ pearnly_express_operator = {
     "resolve": "pearnly_cowork.assistant.operator_source.resolve",
     "pending": "pearnly_cowork.assistant.operator_source.pending_documents",
 }
+
+# 写账前置判定（共用层 pearnly_core.write_precheck，评估 docs/work/2026-11-04-precheck-card.md）：开始前确认卡片的取数、作答与
+# 待处理里停着的单记下后重推；直写、代录、定时任务、自动推同一次判定。
+pearnly_write_precheck = {
+    "allowed": "pearnly_cowork.assistant.operator_source.allowed",
+    "check": "pearnly_cowork.assistant.precheck_source.check",
+    "remember": "pearnly_cowork.assistant.precheck_source.remember",
+    "search": "pearnly_cowork.assistant.precheck_source.search",
+    "resume": "pearnly_cowork.assistant.precheck_source.resume",
+}

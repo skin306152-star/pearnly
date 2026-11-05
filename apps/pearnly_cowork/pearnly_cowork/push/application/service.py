@@ -19,7 +19,6 @@ from pearnly_core.express_rules.contracts.history import primary_page, primary_p
 from pearnly_core.express_rules.contracts.push import clean_tax_id, explicit_direction, resolve_account_direction, resolve_posting_kind
 from pearnly_cowork.history import document_policy, push_state, storage
 from pearnly_cowork.push import choices as choice_store
-from pearnly_cowork.push import lifecycle
 from pearnly_cowork.push.application.provenance import original_history
 from pearnly_cowork.push.automation import rules as automation_rules
 from pearnly_cowork.push.automation import service as automation_service
@@ -532,12 +531,18 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
         # 这类单据录不录还没定（或定了不录）：先不问对方档、科目这些，提交时停在口径那一步
         return {"needed": [], "options": {}}
     found = _express_context(doc, loaded, account_set_key)
+    fixed = _fixed(doc.name, loaded.doc.name, found["target"].account_set, fixed)
+    return _choices(doc, loaded, found, posting_kind, fixed=fixed, hint=hint)[0]
+
+
+def _choices(doc, loaded, found, posting_kind, *, fixed=None, hint=None):
+    """`choices_view` 取完数之后的那一段（写账前置判定 `assistant.precheck_source.document` 同一段）→
+    (回包, 判定, (入账类型, 来源, 今天))。``fixed`` 是调用方已按 `_fixed` 取好的这张票已定的选择。"""
     target, flat, fields, direction, preparation = (found["target"], found["flat"], found["fields"],
                                                     found["direction"], found["preparation"])
     config = found["selected"]["config"]
-    fixed = _fixed(doc.name, loaded.doc.name, target.account_set, fixed)
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
-    posting_kind, _posting_from, decision = _posting_decision(
+    posting_kind, posting_from, decision = _posting_decision(
         doc, loaded.doc.name, lambda: _account_row(loaded, target), posting_kind, flat, direction, config,
         today,
         lambda kind: _decisions(loaded.doc.name, target.account_set, flat, fields, direction, kind, config,
@@ -571,58 +576,7 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
         result["fixed"] = dict(fixed)  # 这张票已定的（定时任务默认处理），不再问
     if planned:
         result["planned"] = planned  # 没有要选的：推出去会怎么写（与入账后的 written 同一个函数）
-    return result
-
-
-def operator_check(history, posting_kind=None) -> dict:
-    """代录开录前预检一张（主会话 10-27：预检走产品的准备，要人选的一次问完，显示此刻的结果、不读单上旧原因）：与推送准备
-    同一套挡单判断（单据口径、原件引用、单据日期在不在账套期间里）加同一套「要人选的项」（`choices_view`），不建推送记录、不改单据。
-    回 ``{"state": ready / choose / waiting / blocked, "reason"?, "message"?, "needed"?}``；``needed`` 每项带可选值，
-    商品、对方可选「在 Express 新建」（``NEW``，按直写现有建档、带查重）。``posting_kind``：交单时明传的入账类型（代录资料区的分组）。"""
-    from pearnly_core.express_rules.push.choices import NEW
-
-    scope.require("intake")
-    doc = storage.read(history)
-    if lifecycle.result_unknown(doc.last_push_status, doc.last_push_reason):
-        # 上次领单途中断了、结果不明：先在 Express 里核对（同复核页「核对」），开工前就说，不等交单时才被拒（10-27 实测）
-        return {"state": "blocked", "reason": RESULT_UNKNOWN, "record": doc.last_push_record or "",
-                "message": _("intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN")}
-    target = None  # 这张单交了会写进哪份账套（Code 版 CC B4）：与推送准备同一个 `_express_context` 冻结出的那份，判得出就带上
-    try:
-        if not doc.push_connection:
-            frappe.throw(_("cowork.company.pending.no_target"))
-        blocked = _document_block(doc)
-        if blocked:
-            frappe.throw(_(blocked))
-        original_history(doc)
-        loaded = connections.read_for_push(doc.push_connection, doc.workspace, doc.client, lock=True)
-        if loaded.endpoint.get("adapter") != "express":
-            frappe.throw(_("push.adapter_not_connected"))
-        found = _express_context(doc, loaded, doc.push_account_set or None)
-        target = _operator_target(doc, loaded, found)
-        _require_matching_account(loaded, found["target"], found["fields"], found["invoice_date"])
-    except (frappe.ValidationError, frappe.PermissionError) as error:
-        frappe.db.rollback()
-        return {"state": "blocked", "message": str(error)[:300], **({"target": target} if target else {})}
-    frappe.db.rollback()  # 只是看
-    view = choices_view(history, doc.push_connection, doc.push_account_set or None, posting_kind or None)
-    if view.get("wait"):
-        return {"state": "waiting", "reason": view["wait"].get("state") or "", "message": view["wait"].get("message") or "",
-                "target": target}
-    if not view.get("needed"):
-        return {"state": "ready", "target": target}
-    shared = view.get("options") or {}
-    needed = []
-    for item in view["needed"]:
-        kind = item.get("kind")
-        options = item.get("options") or (shared.get("products") if kind == "item" else
-                                          shared.get("accounts") if kind in ("account", "receipt") else []) or []
-        rows = [{"code": str(row.get("code") or ""), "name": str(row.get("name") or "")} for row in options
-                if isinstance(row, dict)]
-        if kind in ("item", "party"):
-            rows.insert(0, {"code": NEW, "name": ""})  # 在 Express 新建（第 3 期前按直写现有建档、带查重，主会话 10-27）
-        needed.append({**item, "options": rows})
-    return {"state": "choose", "needed": needed, "target": target}
+    return result, decision, (posting_kind, posting_from, today)
 
 
 def _operator_target(doc, loaded, found) -> dict:

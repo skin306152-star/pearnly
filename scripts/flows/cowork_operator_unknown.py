@@ -5,7 +5,7 @@
 
 执行到的服务端：`pearnly_core.assistant.api.create`（mode=operator，同一事务建任务）→ 代录事件源（`express_operator.feed`）；
 卡片调 `pearnly_core.express_operator.api`（documents / precheck / resolve）→ Cowork 的 `assistant.operator_source`（sources、precheck、
-resolve）→ `push.application.service.operator_check` 与 `resolve_unknown` → `push.lifecycle.result_unknown`（预检与核对两处判结果不明）。
+resolve）→ `assistant.precheck_source.operator_check` 与 `resolve_unknown` → `push.lifecycle.result_unknown`（预检与核对两处判结果不明）。
 造数据见 `cowork_operator_lib.py`（产品自己的函数 + 实验室的合成写入端，不连 Express）。说的那一句交给实验室的假智能体。
 网页上没有 CC 桌面版的桥：不点「开始」。
 """
@@ -112,7 +112,7 @@ from pearnly_core.express_operator import tasks
 frappe.set_user("admin@cowork.regression")
 record = frappe.db.get_value("Cowork Push Record", {params['record']!r}, ["status", "reason", "result_unknown"], as_dict=True)
 doc = frappe.db.get_value("Cowork OCR History", {params['doc']!r}, ["last_push_status", "last_push_reason", "last_push_record"], as_dict=True)
-check = frappe.get_attr("pearnly_cowork.push.application.service.operator_check")({params['doc']!r})
+check = frappe.get_attr("pearnly_cowork.assistant.precheck_source.operator_check")({params['doc']!r})
 locks = frappe.db.count("Cowork Push Writer Lock", {{"holder": {params['record']!r}}})
 attempts = frappe.get_all("Cowork Push Attempt", filters={{"push_record": {params['record']!r}}}, pluck="status")
 records = frappe.db.count("Cowork Push Record", {{"history": {params['doc']!r}}})

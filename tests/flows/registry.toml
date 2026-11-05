@@ -1028,6 +1028,22 @@ covers = [
 ]
 
 [[flow]]
+id = "cowork.precheck.api"
+title = "Cowork 写账前置判定（开始前确认卡片的共用接口 check / answer，W2）：一张现 / 赊没选过的进项票，卡片按组列出预选与已定，答错整批不记，作答记进账套记忆后重判变已定、不推送（产品账本，合成账套目录）"
+module = "scripts/flows/cowork_write_precheck.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/write_precheck/api.py",
+  "apps/pearnly_core/pearnly_core/write_precheck/products.py",
+  "apps/pearnly_core/pearnly_core/write_precheck/contracts.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py",
+]
+
+[[flow]]
 id = "cowork.pending.operator"
 title = "Cowork CC 对话里的「需要处理」（待处理并进对话，提醒入口 ?view=pending 打开这家这个月的对话）：归代录的单当场选「确认」只记下选择、不按直写重推，页面写单据在代录中（产品账本 + 合成写入端）"
 module = "scripts/flows/cowork_pending_operator.py"

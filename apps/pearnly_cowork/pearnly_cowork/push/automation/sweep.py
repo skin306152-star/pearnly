@@ -108,6 +108,11 @@ def one(row) -> str:
             codes = ",".join(code for code in (codes, "no_computer") if code)
         _mark(row, codes, cls=found["class"], tier=found["tier"], at=found["checked_at"],
               proposal=found["proposal"] if action == rules.PROPOSE else None)
+        if action == rules.STOP and found.get("needed"):
+            # 因为要人选的项停下（C 类）：同定时任务记下要选哪几类（只记原因，不改档位判断），待处理里当场能选、开始前确认卡片
+            # 照这张单重判（评估第 4 节）
+            push_state.record_failure(row.name, "choice_needed:" + ",".join(
+                dict.fromkeys(str(item.get("kind") or "") for item in found["needed"] if item.get("kind"))))
         frappe.db.commit()
         if action != rules.PUSH:
             return "no_computer" if "no_computer" in codes.split(",") else action

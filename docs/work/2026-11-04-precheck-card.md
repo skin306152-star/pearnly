@@ -410,3 +410,30 @@ LINE 的形态（快捷回复最多 12 项、标签不超过 20 字，Flex 卡�
 | Q11 | 是：删掉 4 个选择工具，不留两套问法 |
 
 U1/U2 两处对不上（start 未传 groups、多账套只读顶层 target）已交 cc-unified 合并分支修。
+
+## W2 施工记录（Cowork 钩子，11-05）
+
+- 基线：W1 变基到 `main` = `56c1807ed` 后为 `3a372b194`；W2 在它之上。
+- **共用层接口**（评估 3.1 里 W1 没做的那半）：`K/write_precheck/products.py` 读产品钩子 `pearnly_write_precheck = {check, remember,
+  search, resume?}`；`K/write_precheck/api.py` 白名单 `check`（带 `mode`）/ `answer`（答错整批不记、回 `writable` / `held`，`resume=1` 时
+  产品重排待处理里停着的单）/ `search`（大列表按单据的账套服务端分页）。超过 20 条的可选值只给预选值与搜索类型；预选值的选项标
+  `recommended` 排第一，可带 `note`（依据）。问什么由 CC 拿这份事实用通用提问工具 `ask_user` 出题（主会话 11-05，W5 前半）。
+  `contracts` / `preselect` 仍是纯函数，单测只许接口层两份文件导入 Frappe。
+- **Cowork 判定**放在助手域 `C/assistant/precheck_source.py`（与代录来源同层；推送域不能依赖助手、公司域，架构检查拦）：
+  - 一次收齐：结果不明 → 事实；录不录没选 → 一项（预选不录），**接着把后面的项算完**；停在待选账套 → 一项；方向判不出 → 一项（按对方记住）、
+    后面的项等方向定了再算；商品单入账方式没选 → 一项（预选走库存），并按预选再判一次把存货对照等一并列出；写账规则要选的项带预选；
+    已定可改的科目 / 现赊 / 抵不抵列进「已定」。写入路径 `service.prepare` 没改。
+  - 不进卡片：定时任务默认处理（10-08 口径，改了只对本次生效，现在没处传）；`service_vat`（Cowork 现在不问、Express 照收，按 11-04「不拦不问」不新增）；
+    存货科目组（Cowork 没选时按账套默认、CC 桌面版自动用最常用的组，不挡写入）；逐单 `posting_kind`（要试算才知道，留给 W6）；MR.ERP 菜单与默认值（MR.ERP 代录那批）。
+  - 记法分派 `remember`：写账规则的项照原样交 `service.save_choices`（同一份账套同一项只记一次）；录不录 `history.document_policy.choose`；
+    入账方式 `push.application.goods_posting.choose`；方向 `operator_source.regroup`；待选账套记现用账套并改去向。
+- **代录**：`service.operator_check` 挪成 `precheck_source.operator_check`（同一次判定里原来的回包，形状逐字不变；推送域不依赖助手域）；
+  `express_operator.api.precheck` 不改形状；交单的答案经 `remember` 记（写账规则的项仍调 `save_choices`，参数不变）。
+- **自动推**：`push.automation.sweep` 判成停下且有要选的项时记 `choice_needed:<类>`（只记原因，判档不变），待处理里当场能选。
+- **定时任务**：写入路径照旧（已经记 `choice_needed:<类>`），停下的单在待处理尾部卡片经同一个 `check` 重判、`answer(resume=1)` 记下后重推。
+- 接口约定给 W3 / W4 / W5：共享笔记 `写账前置判定-接口约定-W2-11-05.md`（第二版）。三个白名单接口 W4 接页面前只有回归流程
+  `cowork.precheck.api` 调，按 `not_entries.toml` 的 `internal` 登记、写明 W4 接入后删。
+- 实验室流程查出并修掉两处：`answer` 记下后重判的回滚把答案也回滚了（改为记下先提交）；`search` 读推送目标没锁连接被拒（改为锁上读完回滚）。
+- 测试：新 `tests/test_cowork_write_precheck.py`（17 条，另含大列表只给预选与搜索类型、推荐项排第一带依据、按单据账套分页、读不到的单拒绝、共用层先守 `allowed`；原 13 条：一次收齐、预选、已定、旧回包不变、事实不是选择、待选账套、记法分派与去重、
+  未知类拒收、自动推记原因、钩子声明、共用接口答错整批不记 / 照写与留下）；改 `test_cowork_companies`、`test_cowork_push_direction`、
+  `test_express_operator_code_cc` 跟着转调。

@@ -73,6 +73,7 @@ PER_DOCUMENT_KINDS = frozenset({"posting_kind"})
 
 MAX_DOCUMENTS = 500                # 一张卡片最多几张单（代录一批 200 张，留余量）
 MAX_ANSWERS = 500
+SMALL_LIST = 20                    # 可选值超过这么多条的项不在卡片里给 options，只给预选值与搜索类型（服务端分页）
 SUBJECT_MAX = 1000                 # 同 Cowork 账套记忆的归类键上限（`push/choices.record`）
 LABEL_MAX = 200
 VALUE_MAX = 200
@@ -150,6 +151,11 @@ def normalize_item(raw: Mapping[str, Any], direction: str = "") -> Dict[str, Any
     item["state"] = state_of(item)
     item["remember"] = kind not in PER_DOCUMENT_KINDS and source != TASK_DEFAULT
     if options:
+        # 预选 / 已定的值标「推荐」并排第一（卡片照 Claude Code 的提问卡片，推荐项在第一个，主会话 11-05）；``note`` 是这个
+        # 选项的依据（一句话，产品给的照带）
+        if value:
+            options = ([{**option, "recommended": True} for option in options if str(option.get("code") or "") == value]
+                       + [option for option in options if str(option.get("code") or "") != value])
         item["options"] = options
     if raw.get("search"):
         item["search"] = _text(raw.get("search"), 40)
@@ -362,7 +368,7 @@ __all__ = ["BOOK", "BOOK_SETTING", "CC", "CHECK", "COMPANY_RULE", "DECIDED", "DE
            "ERR_DUPLICATE_KEY", "ERR_EMPTY_VALUE", "ERR_NOT_OFFERED", "ERR_TOO_MANY", "ERR_UNKNOWN_KEY",
            "EXPRESS_HISTORY", "FACE", "GROUPS", "HISTORY", "KINDS", "KIND_GROUPS", "MAX_ANSWERS", "MAX_DOCUMENTS",
            "NOT_WRITABLE", "OPEN", "PAYMENT", "PER_DOCUMENT_KINDS", "PINNED", "PROPOSED", "PROPOSED_SOURCES",
-           "PURCHASE", "PrecheckError", "REMEMBERED", "RULE", "SALES", "SERVICE", "SOURCES", "STATES", "STOCK",
+           "PURCHASE", "PrecheckError", "REMEMBERED", "RULE", "SALES", "SERVICE", "SMALL_LIST", "SOURCES", "STATES", "STOCK",
            "STOCK_ACCOUNT_PREFIX", "SUGGESTED", "TASK_DEFAULT", "UNKNOWN", "WAITING", "defaults", "expand", "group_of",
            "held_back", "item_key", "items_of", "merge", "needs_card", "normalize_item", "preview", "state_of",
            "writable"]

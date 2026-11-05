@@ -509,15 +509,21 @@ class PrecheckTargetTests(Base):
         self.assertEqual(operator.book_target({"key": "K"})["account_set_title"], "K")
 
     def test_cowork_takes_the_account_set_its_push_preparation_froze(self):
-        """`operator_check` 的账套与推送准备同一个 `_express_context`；每种结论都带上，挡下的（如票面税号与账套不符）也带。"""
+        """代录预检（`assistant.precheck_source.operator_check`）的账套与推送准备同一个 `_express_context`；每种结论都带上，挡下的（如票面税号与账套不符）也带。"""
         path = ROOT / "apps/pearnly_cowork/pearnly_cowork/push/application/service.py"
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source)
         found = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
-        check = ast.get_source_segment(source, found["operator_check"])
-        self.assertIn('found = _express_context(doc, loaded, doc.push_account_set or None)\n        target = _operator_target(',
-                      check)
-        self.assertLess(check.index("target = _operator_target("), check.index("_require_matching_account("))
+        # 代录预检在写账前置判定里（`assistant.precheck_source`）：取数、账套与挡单照旧走推送服务这几个函数
+        self.assertNotIn("operator_check", found)
+        checking = (ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py").read_text(encoding="utf-8")
+        parts = {node.name: ast.get_source_segment(checking, node) for node in ast.parse(checking).body
+                 if isinstance(node, ast.FunctionDef)}
+        self.assertIn('return document(history, posting_kind)["legacy"]', parts["operator_check"])
+        check = parts["document"] + parts["_legacy"]
+        self.assertIn('found = service._express_context(doc, loaded, doc.push_account_set or None)\n'
+                      '        target = service._operator_target(', check)
+        self.assertLess(check.index("target = service._operator_target("), check.index("_require_matching_account("))
         for line in ('return {"state": "ready", "target": target}', '"target": target}',
                      '**({"target": target} if target else {})', 'return {"state": "choose", "needed": needed, "target": target}'):
             self.assertIn(line, check)

@@ -61,13 +61,14 @@ def sources(company, period, offset, limit) -> dict:
 
 
 def precheck(company, doc_ids) -> dict:
-    """开录前逐张预检（`push.application.service.operator_check`：与推送准备同一套判断，不建推送记录）。按公司记住的分组先落到
-    单据上（方向、入账类型，同拖动那条路），再按这张单交单时用的入账类型预检。"""
+    """开录前逐张预检（`assistant.precheck_source.operator_check`：写账前置判定同一次判断里原来的回包，不建推送记录）。按公司
+    记住的分组先落到单据上（方向、入账类型，同拖动那条路），再按这张单交单时用的入账类型预检。开始前要人定的项由 CC 调
+    ``write_precheck.api.check`` 取、用 ``ask_user`` 问（主会话 11-05），这里的形状不变。"""
     from pearnly_cowork.companies import rules
-    from pearnly_cowork.push.application import service
+    from pearnly_cowork.assistant import precheck_source as checking
 
     memory = rules.groups(company)
-    return {"documents": [{"doc_id": name, **service.operator_check(name, posting_kind=_settle(name, memory))}
+    return {"documents": [{"doc_id": name, **checking.operator_check(name, posting_kind=_settle(name, memory))}
                           for name in doc_ids]}
 
 
@@ -275,21 +276,19 @@ def regroup(company, doc_id, group) -> dict:
 
 
 def submit(company, doc_ids, batch, computer, answers=None) -> list:
-    """``answers``：预检里人定的（``{doc_id: [{kind, subject, value, label}]}``），先按复核页同一条路记下（值须在账套主档里或
-    「新建」），再交代录；不经待处理、不会按直写重推。"""
+    """``answers``：预检里人定的（``{doc_id: [{kind, subject, value, label}]}``），先按写账前置判定同一套记法记下
+    （`assistant.precheck_source.remember`：写账规则的项走复核页同一条路，值须在账套主档里或「新建」），再交代录；不经待处理、
+    不会按直写重推。"""
     from pearnly_cowork.assistant import tools
     from pearnly_cowork.companies import rules
-    from pearnly_cowork.history import storage
-    from pearnly_cowork.push.application import service
+    from pearnly_cowork.assistant import precheck_source as checking
 
     memory = rules.groups(company)
     results = []
     for index, name in enumerate(doc_ids, start=1):
         given = (answers or {}).get(name)
         if given:
-            doc = storage.read(name)
-            service.save_choices(name, doc.push_connection, doc.push_account_set or None,
-                                 json.dumps(given, ensure_ascii=False))
+            checking.remember(company, {name: given})
             frappe.db.commit()
         # 入账类型明传：单据列（识别那一批选的）在推送里比页面字段优先，拖动 / 记住的分组写在页面上，不明传就不生效
         posting = _settle(name, memory) or None

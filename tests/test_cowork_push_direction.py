@@ -12,6 +12,7 @@ import pathlib
 import sys
 import types
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
@@ -39,6 +40,37 @@ def courier(**fields):
     return {"document_type": "simplified_tax_invoice", "seller_name": "บริษัท ด่วนจี่ เอ็กซ์เพรส", "seller_tax": COURIER,
             "buyer_name": "", "buyer_tax": "", "total_amount": "285.00", "vat": "18.64", "date": "2026-10-14",
             **fields}
+
+
+def operator_check(service, name):
+    """代录预检 `assistant.precheck_source.operator_check`（写账前置判定）：判定模块按真文件加载，推送服务换成 ``service``（已接好替身），单据状态与待选账套
+    走替身（没有结果不明、不在待选账套）。"""
+    import importlib.util
+
+    ns = types.SimpleNamespace
+    policy = ns(SKIPPED_PREFIX="document_policy_skip_", document_class=lambda fields: "")
+    frappe = ns(**{**vars(service.frappe), "_": lambda text: text})
+    modules = {
+        "frappe": frappe, "pearnly_cowork.access": ns(scope=service.scope),
+        "pearnly_cowork.access.scope": service.scope,
+        "pearnly_cowork.push.application": ns(service=service), "pearnly_cowork.push.application.service": service,
+        "pearnly_cowork.push.application.provenance": ns(original_history=lambda d: None),
+        "pearnly_cowork.push.lifecycle": ns(result_unknown=lambda *a: False),
+        "pearnly_cowork.push": ns(lifecycle=ns(result_unknown=lambda *a: False)),
+        "pearnly_cowork.history": ns(storage=service.storage), "pearnly_cowork.history.storage": service.storage,
+        "pearnly_cowork.connections": ns(service=service.connections),
+        "pearnly_cowork.connections.service": service.connections,
+        "pearnly_cowork.contracts": ns(document_policy=policy), "pearnly_cowork.contracts.document_policy": policy,
+        "pearnly_cowork.companies": ns(pending=ns(account_set_stop=lambda row: False)),
+        "pearnly_cowork.push.express": ns(goods_posting=ns(blocked=lambda *a, **k: False)),
+        "pearnly_cowork.push.express.goods_posting": ns(blocked=lambda *a, **k: False),
+    }
+    path = ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py"
+    with mock.patch.dict(sys.modules, modules):
+        spec = importlib.util.spec_from_file_location("precheck_under_test", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.document(name)["legacy"]
 
 
 def wired(fields, *, book_tax=BOOK_TAX, own_tax=FIRM, direction=None, branches=None):
@@ -142,10 +174,10 @@ class PrepareDirection(unittest.TestCase):
                                                    direction="purchase")
             doc.push_connection, doc.push_account_set = "C1", BOOK
             doc.last_push_status = doc.last_push_reason = doc.last_push_record = ""
-            service.lifecycle.result_unknown = lambda *a: False
             service.frappe.db.rollback = lambda: None
-            service.choices_view = lambda *a, **k: {}
-            return service.operator_check("CWH-9151")
+            # 代录预检转调写账前置判定（`assistant.precheck_source.document`）：判定模块按真的加载，取数仍是这份推送服务
+            service._choices = lambda *a, **k: ({}, {"needed": [], "applied": {}}, (None, "", None))
+            return operator_check(service, "CWH-9151")
 
         ready = check()
         self.assertEqual(ready["state"], "ready")

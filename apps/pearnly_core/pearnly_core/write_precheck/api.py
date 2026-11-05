@@ -1,0 +1,87 @@
+"""写账前置判定的接口（多产品共用）：「开始前确认」卡片取数与作答。产品按 ``products`` 的钩子接入；三个接口先过产品的
+``allowed``（这家公司能不能写账），产品在钩子里再按单据核。
+
+- ``check``：这批单此刻要人定的项，按业务分组、跨单去重，每项已定 / 预选 / 未定（``contracts.merge``），另带 ``needs_card``
+  （直写全部已定就不出卡片，主会话 11-04 Q1）；只看不写。``mode``：operator / direct / pending（谁来问，原样带回）。
+  问什么由 CC 定：拿这份事实与预选，用通用提问工具 ``ask_user`` 出题（主会话 11-05），推荐项排第一（``recommended``）。
+- ``search``：大列表的项（科目、存货、对方）按这张单写进的账套服务端分页取可选值。
+- ``answer``：卡片点「开始」交回的答案 ``[{key, value}]``：按点之前那张卡片展开到每张单，交产品按现有记法记下；有答错的整批不记、
+  逐条回原因码。回记下后重判的卡片，带 ``writable``（照写的单）与 ``held``（因未定项留下的单）。``resume`` 为真时（待处理里的
+  卡片：定时任务、自动推停下的单）再交产品把照写的单按原来的写入路径重新排队。
+"""
+import frappe
+from frappe import _
+
+from pearnly_core.write_precheck import contracts, products
+
+BATCH_MAX = 200  # 一次判几张（代录一批的上限）：每张都跑一遍产品的写账准备
+MODES = ("operator", "direct", "pending")
+SEARCH_KINDS = ("accounts", "products", "parties")
+PAGE_MAX = 50
+
+
+def _ids(doc_ids) -> list:
+    doc_ids = frappe.parse_json(doc_ids) if isinstance(doc_ids, str) else doc_ids
+    if not isinstance(doc_ids, (list, tuple)):
+        frappe.throw(_("Invalid request"))
+    doc_ids = list(dict.fromkeys(str(d) for d in doc_ids if d))
+    if not doc_ids or len(doc_ids) > BATCH_MAX:
+        frappe.throw(_("Invalid request"))
+    return doc_ids
+
+
+def _require(company) -> None:
+    if not products.allowed(frappe.session.user, company):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+
+def card(company, doc_ids) -> dict:
+    """这批单的卡片（不经白名单的调用方用：代录预检、直写门）。产品交来的数据不合契约是程序错，照抛。"""
+    found = products.check(company, doc_ids)
+    merged = contracts.merge(found.get("documents") or [])
+    return {"company": company, "company_title": str(found.get("company_title") or company or ""), **merged,
+            "needs_card": contracts.needs_card(merged)}
+
+
+@frappe.whitelist(methods=["POST"])
+def check(company, doc_ids, mode="direct"):
+    _require(company)
+    if mode not in MODES:
+        frappe.throw(_("Invalid request"))
+    return {**card(str(company or ""), _ids(doc_ids)), "mode": mode}
+
+
+@frappe.whitelist(methods=["GET"])
+def search(company, doc_id, search, txt="", start=0, page_length=20):
+    """大列表的可选值（服务端分页）：``search`` 是 item 上给的搜索类型，``doc_id`` 定账套；产品再按这张单核读取权限。"""
+    _require(company)
+    try:
+        start, page_length = max(0, int(start or 0)), int(page_length or 20)
+    except (TypeError, ValueError):
+        frappe.throw(_("Invalid request"))
+    if search not in SEARCH_KINDS or not doc_id or not 1 <= page_length <= PAGE_MAX:
+        frappe.throw(_("Invalid request"))
+    return products.search(str(company or ""), str(doc_id), search, str(txt or "")[:100], start, page_length)
+
+
+@frappe.whitelist(methods=["POST"])
+def answer(company, doc_ids, answers, resume=0):
+    _require(company)
+    company, doc_ids = str(company or ""), _ids(doc_ids)
+    answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
+    if not isinstance(answers, list):
+        frappe.throw(_("Invalid request"))
+    before = card(company, doc_ids)
+    expanded, errors = contracts.expand(before, answers)
+    if errors:
+        return {**before, "errors": errors}
+    products.remember(company, expanded)
+    # 先落库：重判是「只是看」，产品判完会整笔回滚，不提交的话刚记下的答案也跟着回滚（11-05 实验室流程查出）
+    frappe.db.commit()
+    writable, held = contracts.writable(before, answers), contracts.held_back(before, answers)
+    results = products.resume(company, writable) if str(resume) in ("1", "true", "True") else []
+    after = card(company, doc_ids)
+    out = {**after, "writable": writable, "held": held}
+    if results:
+        out["results"] = results
+    return out

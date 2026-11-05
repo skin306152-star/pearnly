@@ -17,6 +17,7 @@ from pearnly_core.write_precheck import preselect as p  # noqa: E402
 PACKAGE = ROOT / "apps/pearnly_core/pearnly_core/write_precheck"
 PRODUCTS = ("frappe", "pearnly_cowork", "pearnly_erp_portal", "pearnly_dms", "pearnly_control")
 SHARED = ("pearnly_core.write_precheck", "pearnly_core.express_rules")
+FRAMEWORK_LAYER = ("api.py", "products.py")
 STDLIB = {"__future__", "collections", "hashlib", "json", "typing", "unicodedata"}
 
 TARGET = {"connection": "C1", "connection_title": "Office", "account_set": "T9", "account_set_title": "2026"}
@@ -37,6 +38,7 @@ def account(subject="purchase|0105556000001", value="", source=""):
 
 class Boundary(unittest.TestCase):
     def test_imports_no_framework_or_product_and_only_standard_library(self):
+        # 契约与预选是纯函数；Frappe 只在接口层（``api`` 白名单、``products`` 读产品钩子），仍不导入任何产品
         for path in sorted(PACKAGE.rglob("*.py")):
             for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
                 if isinstance(node, ast.Import):
@@ -48,6 +50,9 @@ class Boundary(unittest.TestCase):
                     continue
                 for name in names:
                     with self.subTest(module=path.name, imports=name):
+                        if path.name in FRAMEWORK_LAYER:
+                            self.assertTrue(name.split(".")[0] == "frappe" or name.startswith(SHARED), name)
+                            continue
                         self.assertNotIn(name.split(".")[0], PRODUCTS)
                         self.assertTrue(name in STDLIB or name.startswith(SHARED), name)
 
@@ -105,6 +110,14 @@ class States(unittest.TestCase):
         self.assertFalse(c.normalize_item({**account(value="5310", source=c.TASK_DEFAULT)})["remember"])
         self.assertFalse(c.normalize_item({"kind": "posting_kind", "subject": "D1", "value": "stock",
                                            "source": c.RULE})["remember"])
+
+
+class Recommended(unittest.TestCase):
+    def test_the_chosen_value_is_marked_and_comes_first(self):
+        item = c.normalize_item(party(value="S002", source=c.RULE))
+        self.assertEqual(item["options"][0], {"code": "S002", "recommended": True})
+        self.assertEqual([o["code"] for o in item["options"]], ["S002", "__new__", "S001"])
+        self.assertFalse(any(o.get("recommended") for o in c.normalize_item(party())["options"]))
 
 
 class Merge(unittest.TestCase):
