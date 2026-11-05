@@ -613,6 +613,15 @@ pearnly_express_operator = {
     "status": "pearnly_erp_portal.express.operator.status",
     "pending": "pearnly_erp_portal.express.operator.pending_documents",
 }
+# 写账前置判定（共用层 pearnly_core.write_precheck，开始前确认卡片，评估 docs/work/2026-11-04-precheck-card.md W3）：一批单写进
+# Express 前要人定的项一次收齐（账套、选择项、存货科目组、收银三项、库存单科目），记下走单据页「选一次」同一套核对
+pearnly_write_precheck = {
+    "allowed": "pearnly_erp_portal.express.precheck.allowed",
+    "check": "pearnly_erp_portal.express.precheck.check",
+    "remember": "pearnly_erp_portal.express.precheck.remember",
+    "search": "pearnly_erp_portal.express.precheck.search",
+    "resume": "pearnly_erp_portal.express.precheck.resume",
+}
 # 实操任务页底部的对话（对话框甲）：查进度、交代跳过 / 重做的工具在共用层，ERP 列上即用；进行中的说法同一个模块
 # ERP 版 CC 按公司组织对话（ADR-020，2026-11-02）：公司工具（列出、读资料、经「允许」记 / 删知识库）与说话规矩
 # 对话里直写（评估 2026-11-02 §13 第 9 步）：按公司列单、要选的项、记选择、交直写、推送结果、结果不明的核对（`express.cc_tools`）

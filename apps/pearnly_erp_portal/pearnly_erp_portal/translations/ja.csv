@@ -13,6 +13,7 @@ A board needs at least one list,ボードには少なくとも1つのリスト�
 A category needs a name,カテゴリ名を入力してください
 A company needs a name,会社には名前が必要です
 A company needs at least one warehouse,会社には倉庫が 1 つ以上必要です
+A computer can write it,書き込める端末があります
 A confirmed document cannot be edited,確定済みの伝票は編集できません
 A confirmed draft must point at the purchase record it created,確認済みの下書きは作成した仕入記録を指している必要があります
 A confirmed draft must point at the record it created,確定した下書きは、それが作成した伝票を指している必要があります
@@ -41,6 +42,7 @@ A warehouse needs a name,倉庫には名前が必要です
 A warehouse with stock cannot be turned off,在庫のある倉庫は無効にできません
 Abbreviated Tax Invoice,簡易税務請求書
 Account Set,帳簿
+Account name matches,勘定科目名が一致
 Accrual basis,発生主義
 Actual position,実際の棚番
 Actual positions and quantities,実際の棚番と数量
@@ -143,6 +145,7 @@ Base Unit,基準単位
 Base unit,基準単位
 Basis Qty,基準数量
 Basis Set,基準設定済み
+Basis used in this account set,この帳簿の基準
 Bind this account first,先に ERP アカウントを連携してください
 Binding code,連携コード
 Block Duplicate Documents,重複伝票をブロック
@@ -526,6 +529,7 @@ Exchange Rate,為替レート
 Exchange Rate is required,為替レートを入力してください
 Exchange Rate must be greater than zero,為替レートはゼロより大きい値にしてください
 Exempt items,免税品の記帳
+Exempt items without VAT per line,免税商品は行ごとに非課税
 Expected Amount,あるべき金額
 Expected Cash,現金予定額
 Expense,経費
@@ -607,6 +611,7 @@ Gray,グレー
 Green,緑
 Gross,売上総額
 Handled manually in Express,Express で手動処理済み
+Has taxed sales,課税売上あり
 Head Office,本店
 Hide Recent Orders,最近の会計を隠す
 Hide details,詳細を隠す
@@ -755,6 +760,7 @@ Mode of Payment,支払方法
 Modes of Payment,支払方法
 Monthly,毎月
 More Filters,追加フィルタ
+Most used fitting group in the account set,帳簿で最も使われている適合グループ
 Move,移動
 Move all cards in this list,このリストのカードをすべて移動
 Move list,リストを移動
@@ -820,6 +826,7 @@ Not enough stock in Express,Express の在庫が足りません
 Not enough stock on hand,在庫が足りません
 Not found in the Revenue Department records,税務局に登録がありません
 Not found on the document,書類に記載がありません
+Not in the account set yet,帳簿にまだありません
 Not in the list,一覧にありません
 Not permitted,権限がありません
 Not written to Express (disconnected),Express 未書き込み（接続解除済み）
@@ -845,6 +852,7 @@ Only an active count can be deleted,進行中の棚卸のみ削除できます
 Only an image or a PDF can be recognised,画像または PDF のみ認識できます
 Only board admins can do this,ボード管理者のみ実行できます
 Only low or out of stock,在庫少・在庫切れのみ
+Only one with this tax number,この税番号はこの1件のみ
 Only purchase documents can be sent in for now,現時点では仕入書類のみ受け付けます
 Only the checked features are visible to this employee,チェックした機能だけがこの従業員に表示されます
 Only the checked features are visible to this user,チェックした機能だけがこのユーザーに表示されます
@@ -1044,6 +1052,7 @@ Receipt No,レシート番号
 Receipt Status,レシート状態
 Receipt {0} · Change {1},レシート {0} · お釣り {1}
 Receipts,レシート枚数
+Receipts and simplified tax invoices are usually not claimed,レシートと簡易税票は通常控除しません
 Receive documents and add stock,伝票を登録して入庫
 Received,入庫数量
 Received Amount,入金額
@@ -1311,6 +1320,7 @@ Tax Inclusive,税込
 Tax Invoice,税務請求書
 Tax Withholding Amount,源泉徴収税額
 Tax Withholding Rate,源泉徴収税率
+Tax number and branch match,税番号と支店が一致
 Tax the whole document as the account set does,帳簿の設定どおり全体に課税
 Taxes,税
 Taxes and Charges,税金および諸費用
@@ -2159,6 +2169,16 @@ express.option.expense,費用計上
 express.option.no,いいえ
 express.option.yes,はい
 express.pendingRefunds,書き込み待ちの返品
+express.precheck.note.accountName,勘定科目名が一致
+express.precheck.note.bookBasis,この帳簿の基準
+express.precheck.note.mostUsedGroup,帳簿で最も使われている適合グループ
+express.precheck.note.notInBook,帳簿にまだありません
+express.precheck.note.onlyRecord,この税番号はこの1件のみ
+express.precheck.note.sameBranch,税番号と支店が一致
+express.precheck.note.splitExempt,免税商品は行ごとに非課税
+express.precheck.note.vatExpense,レシートと簡易税票は通常控除しません
+express.precheck.note.vatSales,課税売上あり
+express.precheck.note.writable,書き込める端末があります
 express.reason.itemUnmapped,この商品は Express にありません
 express.reason.noBook,この日付を含む Express 帳簿がありません
 express.reason.noStockBook,この Express 帳簿にはこの種類の在庫伝票の伝票帳がありません。Express で設定してください

@@ -13,6 +13,7 @@ A board needs at least one list,看板至少需要保留一个列表
 A category needs a name,请填写分类名称
 A company needs a name,请填写公司名称
 A company needs at least one warehouse,公司至少需要一个仓库
+A computer can write it,有电脑能写入
 A confirmed document cannot be edited,已提交的单据不能修改
 A confirmed draft must point at the purchase record it created,已确认的草稿必须关联其生成的采购记录
 A confirmed draft must point at the record it created,已确认的草稿必须关联其生成的记录
@@ -41,6 +42,7 @@ A warehouse needs a name,请填写仓库名称
 A warehouse with stock cannot be turned off,有库存的仓库不能停用
 Abbreviated Tax Invoice,简式税务发票
 Account Set,账套
+Account name matches,科目名称对得上
 Accrual basis,权责制
 Actual position,实际仓位
 Actual positions and quantities,实际仓位及数量
@@ -143,6 +145,7 @@ Base Unit,库存单位
 Base unit,库存单位
 Basis Qty,基准数量
 Basis Set,已设基准
+Basis used in this account set,此账套的口径
 Bind this account first,请先绑定 ERP 账号
 Binding code,绑定码
 Block Duplicate Documents,阻止重复单据
@@ -526,6 +529,7 @@ Exchange Rate,汇率
 Exchange Rate is required,汇率不能为空
 Exchange Rate must be greater than zero,汇率必须大于零
 Exempt items,免税商品写法
+Exempt items without VAT per line,免税商品按行不计税
 Expected Amount,预期金额
 Expected Cash,应有现金
 Expense,费用
@@ -607,6 +611,7 @@ Gray,灰
 Green,绿
 Gross,毛额
 Handled manually in Express,已在 Express 手工处理
+Has taxed sales,有含税销售
 Head Office,总部
 Hide Recent Orders,隐藏最近订单
 Hide details,隐藏详情
@@ -755,6 +760,7 @@ Mode of Payment,付款方式
 Modes of Payment,付款方式
 Monthly,每月
 More Filters,更多筛选条件
+Most used fitting group in the account set,账套里用得最多的合格组
 Move,移动
 Move all cards in this list,移动此列表中的所有卡片
 Move list,移动列表
@@ -820,6 +826,7 @@ Not enough stock in Express,Express 库存不足
 Not enough stock on hand,库存不足
 Not found in the Revenue Department records,税务局未查到该税号的登记信息
 Not found on the document,票面未载明
+Not in the account set yet,账套中未建
 Not in the list,不在清单
 Not permitted,没有权限
 Not written to Express (disconnected),未写入 Express（已断开）
@@ -845,6 +852,7 @@ Only an active count can be deleted,仅可删除进行中的盘点
 Only an image or a PDF can be recognised,仅支持识别图片或 PDF
 Only board admins can do this,仅看板管理员可执行此操作
 Only low or out of stock,只看低库存或缺货
+Only one with this tax number,此税号仅此一家
 Only purchase documents can be sent in for now,目前仅支持接收采购单据
 Only the checked features are visible to this employee,只勾选的功能，这个员工才看得到
 Only the checked features are visible to this user,该用户仅可查看已勾选的功能
@@ -1044,6 +1052,7 @@ Receipt No,小票号
 Receipt Status,小票状态
 Receipt {0} · Change {1},小票 {0} · 找零 {1}
 Receipts,小票张数
+Receipts and simplified tax invoices are usually not claimed,小票、简易税票的税额一般不抵进项
 Receive documents and add stock,收单并入库
 Received,入库数量
 Received Amount,已收金额
@@ -1311,6 +1320,7 @@ Tax Inclusive,含税
 Tax Invoice,税务发票
 Tax Withholding Amount,预扣税额
 Tax Withholding Rate,预扣税率
+Tax number and branch match,税号和分店都对得上
 Tax the whole document as the account set does,照账套现在的设置整张计税
 Taxes,税费
 Taxes and Charges,税费
@@ -2159,6 +2169,16 @@ express.option.expense,计入费用
 express.option.no,否
 express.option.yes,是
 express.pendingRefunds,待写退货
+express.precheck.note.accountName,科目名称对得上
+express.precheck.note.bookBasis,此账套的口径
+express.precheck.note.mostUsedGroup,账套里用得最多的合格组
+express.precheck.note.notInBook,账套中未建
+express.precheck.note.onlyRecord,此税号仅此一家
+express.precheck.note.sameBranch,税号和分店都对得上
+express.precheck.note.splitExempt,免税商品按行不计税
+express.precheck.note.vatExpense,小票、简易税票的税额一般不抵进项
+express.precheck.note.vatSales,有含税销售
+express.precheck.note.writable,有电脑能写入
 express.reason.itemUnmapped,Express 中没有这件商品
 express.reason.noBook,没有覆盖此日期的 Express 账套
 express.reason.noStockBook,此 Express 账套没有这种库存单的单据簿，请在 Express 中设置

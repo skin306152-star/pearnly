@@ -50,6 +50,8 @@ KINDS = {PURCHASE: Kind("purchase.read", "pearnly-purchase", "supplier_name", "s
          STOCK: Kind("stock.read", "", "", "doc_no", "posting_date", "", "submitted", True),
          COUNT: Kind("count.read", "pearnly-stock-count", "", "title", "posted_at", "", "Posted", True)}
 STOCK_ROUTES = {"in": "pearnly-stock-in", "out": "pearnly-stock-out", "transfer": "pearnly-stock-transfer"}
+# 写账前置判定的单号前缀（`express.precheck`）：采购、销售同代录；收银日汇总 / 退货单、出入库单、盘点另起
+PRECHECK_PREFIXES = {"P": PURCHASE, "S": SALES, "D": POS_DAY, "T": STOCK, "C": COUNT}
 PENDING_MAX = 500  # 每类单据最多看这么多张（同 Cowork 待处理的粗筛上限）
 LIMIT_MAX = 200
 # 停下的原因码 → 文案词条（与单据页 `public/desk/transactions.js` 的 EXPRESS_REASONS 同一张表，契约测试比对）
@@ -219,11 +221,21 @@ def _url(row) -> str:
 
 
 def _item(row) -> dict:
-    return {"document": row["name"], "company": row["company"], "doctype": row["doctype"],
+    item = {"document": row["name"], "company": row["company"], "doctype": row["doctype"],
             "reason_code": reason_code(row["ledger_state"], row["ledger_reason"]),
             "reason_label": reason_label(row["ledger_state"], row["ledger_reason"]),
             "invoice_no": row["number"], "counterparty": row["party"], "amount": _amount(row["total"]),
             "date": row["date"], "filename": "", "month": row["date"][:7], "action": "open", "url": _url(row)}
+    if item["reason_code"] == "choice_needed":
+        # 要人选的单：带写账前置判定的单号（`express.precheck`），对话尾部的确认卡片按它判、答（单据页照旧能打开）
+        item["doc_id"] = precheck_id(row["doctype"], row["name"])
+    return item
+
+
+def precheck_id(doctype, name) -> str:
+    """单据 → 写账前置判定的单号（``P:<名>`` 等）；不是写账本的单据回空。"""
+    prefix = next((key for key, value in PRECHECK_PREFIXES.items() if value == doctype), "")
+    return f"{prefix}:{name}" if prefix and name else ""
 
 
 def _items(companies, user=None) -> list:
@@ -292,5 +304,5 @@ def _operator_receipt(doctype, name) -> None:
         frappe.log_error(title="ERP operator receipt failed")
 
 
-__all__ = ["KINDS", "REASONS", "STOCK_ROUTES", "counts", "ledger_of", "matches", "needs_person", "notify", "pending", "pending_counts",
-           "reason_code", "reason_label"]
+__all__ = ["KINDS", "PRECHECK_PREFIXES", "REASONS", "STOCK_ROUTES", "counts", "ledger_of", "matches", "needs_person", "notify", "pending", "pending_counts",
+           "precheck_id", "reason_code", "reason_label"]

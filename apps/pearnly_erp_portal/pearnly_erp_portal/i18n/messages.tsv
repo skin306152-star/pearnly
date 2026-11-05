@@ -1874,3 +1874,13 @@ Viewing a document	正在查看单据详情	กำลังดูเอกสา
 Opening the original	正在打开原件	กำลังเปิดต้นฉบับ	原本を開いています
 Set the printed total	改了票面合计	แก้ยอดรวมตามเอกสารแล้ว	伝票の合計を設定しました
 Setting the printed total	正在改票面合计	กำลังแก้ยอดรวมตามเอกสาร	伝票の合計を設定しています
+Tax number and branch match	税号和分店都对得上	เลขผู้เสียภาษีและสาขาตรงกัน	税番号と支店が一致	express.precheck.note.sameBranch
+Only one with this tax number	此税号仅此一家	เลขผู้เสียภาษีนี้มีเพียงรายเดียว	この税番号はこの1件のみ	express.precheck.note.onlyRecord
+Not in the account set yet	账套中未建	ยังไม่มีในชุดบัญชี	帳簿にまだありません	express.precheck.note.notInBook
+Receipts and simplified tax invoices are usually not claimed	小票、简易税票的税额一般不抵进项	ใบเสร็จและใบกำกับภาษีอย่างย่อโดยทั่วไปไม่ขอคืนภาษีซื้อ	レシートと簡易税票は通常控除しません	express.precheck.note.vatExpense
+A computer can write it	有电脑能写入	มีเครื่องที่บันทึกได้	書き込める端末があります	express.precheck.note.writable
+Account name matches	科目名称对得上	ชื่อบัญชีตรงกัน	勘定科目名が一致	express.precheck.note.accountName
+Most used fitting group in the account set	账套里用得最多的合格组	กลุ่มที่ใช้มากที่สุดในชุดบัญชี	帳簿で最も使われている適合グループ	express.precheck.note.mostUsedGroup
+Basis used in this account set	此账套的口径	เกณฑ์ที่ชุดบัญชีนี้ใช้	この帳簿の基準	express.precheck.note.bookBasis
+Has taxed sales	有含税销售	มียอดขายที่มีภาษี	課税売上あり	express.precheck.note.vatSales
+Exempt items without VAT per line	免税商品按行不计税	สินค้ายกเว้นภาษีไม่คิด VAT รายบรรทัด	免税商品は行ごとに非課税	express.precheck.note.splitExempt

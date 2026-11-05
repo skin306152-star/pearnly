@@ -232,8 +232,11 @@ markers = ["pearnly_core.write_precheck", "pearnly_core import write_precheck"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
 # W2（11-05）Cowork 接入：代录预检 / 交单（hooks.pearnly_express_operator → assistant.precheck_source）、代录会话卡片
 # （express_operator.api.precheck 合成 card）、自动推因要选停下记原因（push.automation.sweep）、待处理与直写的卡片取数作答
-# （hooks.pearnly_write_precheck，W4 / W5 接页面前只有接口）。ERP（W3）、CC 卡片（W4）、直写门（W5）接入时同一提交补入口
-entries = ["cc.operator.page", "cc.operator.thread", "cowork.express.push", "cowork.companies", "cowork.cc-chat.push"]
+# （hooks.pearnly_write_precheck，W4 / W5 接页面前只有接口）。CC 卡片（W4）、直写门（W5）接入时同一提交补入口。
+# W3（11-05）ERP 接入：提交前弹窗（express.api.preflight → express.precheck）、代录预检与交单（hooks.pearnly_express_operator →
+# express.operator → express.precheck）、收银日汇总三项（express.pos_day）、待处理与卡片取数作答（hooks.pearnly_write_precheck）
+entries = ["cc.operator.page", "cc.operator.thread", "cowork.express.push", "cowork.companies", "cowork.cc-chat.push",
+           "erp.cc.write", "erp.cc.pos-day", "erp.cc.companies"]
 
 [[part]]
 id = "mrerp-rules"
@@ -1502,7 +1505,7 @@ where = "ERP 单据写 Express"
 steps = "接 Express 的公司采购 / 销售提交（网页手录、识别、LINE 编辑页）"
 expect = "预检缺选项当场弹框；写进 C 盘 T 账套并读回一致；关账回原因弹窗"
 check = "auto"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/facts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/choices.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/contracts.py"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/facts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/choices.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/contracts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py"]
 smoke = "express"
 site = "erp"
 args = { "company_tax" = "0105549038811", "branch" = "00012", "loccod" = "01", "kind" = "purchase" }

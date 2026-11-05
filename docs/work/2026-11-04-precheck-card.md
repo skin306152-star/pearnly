@@ -455,3 +455,45 @@ U1/U2 两处对不上（start 未传 groups、多账套只读顶层 target）已
 - 产品地图：两产品各加 `cc.tool.ask_user / pearnly_precheck / pearnly_precheck_answer` 三行；三个白名单接口有了调用方（工具声明），
   W2 的 `not_entries` 三条豁免删掉。
 - 还没做（W5 后半）：直写收到「开始」时调 `pearnly_precheck` 的接线、删 4 个文字选择工具（等 W4 卡片合入）。
+
+## W3 施工记录（ERP 钩子，11-05）
+
+- 基线：`main` = `3a372b194`（W1 合入后）；分支 `pearnly/precheck-erp-15197a`。共用层 `api.py` / `products.py` 归 W2，本块只改 ERP（`E/**`）与登记表。
+- **收齐**（新 `E/express/precheck.py`）：照写入同一条准备（`push._prepare_body`）判；停在要人选的项上时，把预选值、人刚答的值、
+  没有预选的按一个可选值试探（增值税登记户按「不是」试），在 `choices.assuming` 里临时当作选过（只在这次判定里，不写库），
+  再判一遍，直到准备走完或不再多出新项。于是同期账套 → 收银登记户 → 免税写法 → 写账规则选择项 → 存货科目组一遍列出。
+  写入路径（`push.send` → `prepare.prepare` / `stock_entry.prepare` / `pos_day.document`）判据、顺序、载荷都不变：
+  `choices.chosen / remembered` 和 `pos_day._registered` 只在判定范围里多读临时值，范围外与改造前逐字相同（离线测试比对载荷）。
+- **只问缺了没法写的**：已按公司记住的不出题（写账准备本来就照记住的写）；ERP 的现 / 赊来自单据，不问。
+- **每项**：≤ 20 条直接给选项；科目、存货、整张对方表不给选项，只给预选值、`value_label` 与搜索类型（`accounts` / `products` / `parties`）。
+  预选的选项排第一、带 `note`（「推荐」由共用层按预选值标）（新词条 10 条 `express.precheck.note.*`，过文案闸门）。预选规则用 W1 `preselect`：
+  对方档同税号同分店 / 唯一档 / 新建；存货新建；小票税额不抵；收款、退货科目按名称；服务品口径按账套；存货科目组按挂得最多的合格组；
+  增值税登记户按税号 13 位且卖过带税商品；免税写法拆开写；账套预选有电脑能写的那份。费用科目、库存单科目没有把握，留作未定。
+- **单号**：`P:` 采购、`S:` 销售（同代录）、`D:` 收银日汇总 / 退货单、`T:` 出入库单、`C:` 盘点。
+- **状态**：已写进 / 已手工处理 → 写不了（`already_written`）；在别的写账件里 → 写不了（`already_queued`）；上次结果不明 → 结果不明；
+  `contracts.RETRY_REASONS`（没账套、没电脑能写、在读主档、等原单）→ 等着；其余停下原因 → 写不了；公司断开 Express → 每张写不了。
+- **钩子**（`E/hooks.py`）：`pearnly_write_precheck = {check, remember, search, resume}`。`resume`：待处理尾部卡片答完后，停在要人选、
+  还没交写账件的单清掉原因、`push.send` 重排（同单据页「选一次」后的做法），归代录的、在途的、转人工的不动。`remember` 逐张核权限、带着答案重新收齐后核值，
+  先全部核完再记（一项不对一项都不记），增值税登记户记在公司上，其余进 `ERP Express Choice`；`search(company, doc_id, search, txt,
+  start, page_length)` 按这张单的账套（记过的 `ledger_book`，没记按单据日期选）服务端分页。
+- **转调**：`operator.precheck` 每张经同一次收齐出原回包（`needed` 是全部收齐的项、`current` 是预选），另带 `precheck`；交单时
+  `_remember` 与单据页提交前 `api.preflight` 都走 `precheck.save`。Desk 弹窗的默认值因此带上预选（`transactions.js` 原本就用 `current` 作默认）。
+- **待处理**：要人选的行多带 `doc_id`（判定单号），`action` 仍是 `open`，挂进对话尾部卡片由 W4 接。
+- 测试：新 `tests/test_erp_write_precheck.py`（14 条），改 `test_erp_express_direct.OperatorPrecheck` 的替身跟着转调（原断言不变）。
+- 共用件登记：`write-precheck` 入口补 `erp.cc.write`、`cc.operator.page`、`erp.cc.pos-day`、`erp.cc.companies`；`erp.cc.write` 的文件补 `precheck.py`、`hooks.py`。
+- 已知限制：收银公司登记状态未知、按「是」答后，免税写法那一问按小票行税额判（未知时各行税额为 0），会对全是应税商品的公司多问一次免税写法。
+- **钩子守卫**：`allowed(user, company)` 指向 `express.precheck.allowed`：公司在本人可见公司里、有任一类写账本单据（采购、销售、收银、出入库、盘点）的开单权。没指向代录的 `allowed`，那个只认采购、销售。
+- **实验室**（11-05，独立栈 `pearnly-precheck-w3-lab`，基线 `3a372b194`，W3 工作树源码）：`run.py --changed` 选出 6 条流程 15/15 格通过：
+  `erp.document.express`（新 / 老 × 电脑 / 手机）、`cc.operator`（新 / 老）、`cc.companies`（老）、`erp.express.service_vat`（新 / 老 × 两宽度）、
+  `erp.express.new-item-stock`（新 / 老）、`cc.sidebar-modes`（老 × 两宽度）。
+  W2 合入后变基到 `0e4b24bc2` 重跑：14/15，`erp.express.service_vat [new / desktop]` 页面 `Uncaught (in promise) Object`、弹窗没出那一项
+  （同格上一轮通过、同流程其余三格通过）；同一实验栈单格连跑 3 次全通过，判偶发（时序，同时在跑全闸门），记进共享「已知问题与结论」。
+  全闸门同次的扫码自检超时，单独重跑通过。
+- **影响清单入口**：
+
+  | 入口 | 结果 |
+  |---|---|
+  | `erp.cc.write`（写 C 盘 T 账套读回） | 没测到（要测试机，CC 1.12.14 发版窗口在用）；已用离线载荷比对代替：判定前后写入那条的结论相同，经卡片记与经单据页记的载荷逐字相同（`test_erp_write_precheck.Collect`）。主会话安排这批全部合入后、部署前统一测试机实测时带上 |
+  | `cc.operator.page` | 通过（流程 `cc.operator` 新 / 老） |
+  | `erp.cc.companies` | 通过（流程 `cc.companies` 老）；对话尾部卡片等 W4 |
+  | `erp.cc.pos-day` | 没测到（人工入口，收银日汇总写 Express 要测试机）；离线 `test_erp_write_precheck.PosDay` 覆盖三项一次收齐与登记户记在公司上 |

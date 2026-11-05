@@ -19,7 +19,7 @@ import frappe
 from pearnly_core.express_rules.contracts import pos as pos_contract
 
 from pearnly_erp_portal.cashier import vat as receipt_vat
-from pearnly_erp_portal.express import contracts, stock_entry
+from pearnly_erp_portal.express import choices, contracts, stock_entry
 from pearnly_erp_portal.masters import company as companies
 
 DOCTYPE = "ERP POS Day Summary"
@@ -217,7 +217,7 @@ def document(name, ref) -> dict:
         # （B3b 实录点 ②，S 盘 4,079 张原生 SR 如此；主会话 10-26 定不再停人工）
         cross_year = _cross_year(summary.company, against.day, summary.day)
         against_book = _book_path(summary.company, against.day) if cross_year else ""
-    if not companies.vat_registered(summary.company, lookup=True):
+    if not _registered(summary.company, lookup=True):
         return {"ref": ref, "hold": f"{contracts.CHOICE}:{VAT_REGISTERED}",
                 "needed": [{"kind": VAT_REGISTERED, "subject": "company", "label": "",
                             "options": [{"code": companies.VAT_YES, "name": ""}, {"code": companies.VAT_NO, "name": ""}]}]}
@@ -282,7 +282,7 @@ def document(name, ref) -> dict:
             return {"ref": ref, "items": [], "empty": True}
         payments, items = list(net.payments), net.items
     # 免税行（这一行没拆出税额）只在增值税登记户的单里标：ISVAT AMT01 只记应税部分、免税部分记 AMTRAT0，明细免税行 VATCOD '0'
-    exempt = companies.vat_registered(summary.company) == companies.VAT_YES and any(line.get("vat_exempt") for line in items)
+    exempt = _registered(summary.company) == companies.VAT_YES and any(line.get("vat_exempt") for line in items)
     whole = False
     if exempt:
         mode = _exempt_mode(summary.company, summary.day)
@@ -341,6 +341,12 @@ def document(name, ref) -> dict:
         body["refund"] = {"against": against.ledger_docnum, "against_total": contracts.money(against.grand_total),
                           **({"cross_year": True, "against_book": against_book} if cross_year else {})}
     return body
+
+
+def _registered(company, lookup=False) -> str:
+    """公司是不是增值税登记户（`masters.company.vat_registered`）。写账前置判定里还不知道时，按判定临时当作选过的值往下算
+    （`choices.assuming`，不写库；记在公司上要等人在卡片上答了，`express.precheck.remember`）。"""
+    return choices.assumed(company, VAT_REGISTERED, "company") or companies.vat_registered(company, lookup=lookup)
 
 
 def _cross_year(company, original_day, refund_day) -> bool:

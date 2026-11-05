@@ -92,9 +92,10 @@ def _target(company, doc_id):
 
 
 def precheck(company, doc_ids) -> dict:
-    """代录开录前逐张按写账规则准备一遍（`push.prepare_only`，与直写同一条路，不写单据、不排写账件）：要人选的项（新商品、
-    费用科目、对方档……连同可选值，商品与对方可选「新建」）当场列出一次问完；准备不了的写明原因。"""
-    from pearnly_erp_portal.express import api, facts
+    """代录开录前逐张判一遍（写账前置判定 `express.precheck.collect_document`：与直写同一条准备，不写单据、不排写账件）：要人选的项
+    （新商品、费用科目、对方档、账套、存货科目组、收银三项……连同可选值，商品与对方可选「新建」）一次收齐列出；准备不了的写明原因。
+    回包形状不变（U1 / U2 调用方不用改），每张另带 ``precheck``（开始前确认卡片这一张的判定，共用层合成 ``card``）。"""
+    from pearnly_erp_portal.express import precheck as write_precheck
 
     documents = []
     for doc_id in doc_ids:
@@ -107,24 +108,39 @@ def precheck(company, doc_ids) -> dict:
         if current and not _operator_held(current):
             documents.append({"doc_id": doc_id, "state": "blocked", "reason": "already_queued"})
             continue
-        result = push.prepare_only(doctype, name)
-        hold = str(result.get("hold") or "")
-        target = book_target(result.get("book"))
-        if "failed" in result:
-            row = {"doc_id": doc_id, "state": "blocked", "reason": result["failed"], "message": _(result["failed"])}
-        elif hold.startswith(contracts.CHOICE):
-            book = result.get("book") or {}
-            data = facts.load(book["key"]) if book.get("key") else None
-            row = {"doc_id": doc_id, "state": "choose", "reason": hold,
-                   "needed": [{**item, "options": api._options(item, data)} for item in result.get("needed") or []]}
-        elif hold == contracts.READING:
-            row = {"doc_id": doc_id, "state": "waiting", "reason": hold, "message": _(hold)}
-        elif hold:
-            row = {"doc_id": doc_id, "state": "blocked", "reason": hold, "message": _(hold)}
-        else:
-            row = {"doc_id": doc_id, "state": "ready"}
-        documents.append({**row, "target": target} if target else row)
+        found = write_precheck.collect_document(doctype, name)
+        row = legacy_row(doc_id, found)
+        target = book_target(found["result"].get("book"))
+        row = {**row, "target": target} if target else row
+        documents.append({**row, "precheck": write_precheck.document_view(doc_id, doctype, name, found)})
     return {"documents": documents}
+
+
+def legacy_needed(found) -> list:
+    """收齐的项 → 原来「要人选的项」的形状 ``{kind, subject, label, options, current}``（单据页弹窗、代录预检用；``current`` 是预选）。"""
+    from pearnly_erp_portal.express import precheck as write_precheck
+
+    return [{"kind": item["kind"], "subject": item["subject"], "label": item.get("label") or "",
+             "options": write_precheck.full_options(item, found["data"]), "current": item.get("value") or ""}
+            for item in found["items"]]
+
+
+def legacy_row(doc_id, found) -> dict:
+    """一张单的代录预检行（改造前的形状）：单据本身不对 → blocked；收齐了要人选的项 → choose；主档还在读 → waiting；其余停下的原因
+    → blocked；都没有 → ready。"""
+    result = found["result"]
+    hold = str(result.get("hold") or "")
+    if "failed" in result:
+        return {"doc_id": doc_id, "state": "blocked", "reason": result["failed"], "message": _(result["failed"])}
+    if found["items"] or hold.startswith(contracts.CHOICE):
+        kinds = ",".join(dict.fromkeys(item["kind"] for item in found["items"]))
+        reason = contracts.CHOICE + ":" + kinds if kinds else hold
+        return {"doc_id": doc_id, "state": "choose", "reason": reason, "needed": legacy_needed(found)}
+    if hold == contracts.READING:
+        return {"doc_id": doc_id, "state": "waiting", "reason": hold, "message": _(hold)}
+    if hold:
+        return {"doc_id": doc_id, "state": "blocked", "reason": hold, "message": _(hold)}
+    return {"doc_id": doc_id, "state": "ready"}
 
 
 def book_target(book) -> dict | None:
@@ -142,25 +158,14 @@ def _operator_held(job_name) -> bool:
     return bool(job) and job.get("status") == "manual" and str(job.get("request_key") or "").startswith(push.OPERATOR_KEY)
 
 
-def _remember(company, doctype, name, given) -> None:
-    """预检里人定的项按单据页「选一次」同一套核对记下（只认这一项能选的值，记在这家公司名下，`api.answer`）。"""
-    from pearnly_erp_portal.express import api, choices, facts
+def _remember(company, doctype, name, given, seen=None) -> None:
+    """预检里人定的项按单据页「选一次」同一套核对记下（只认这一项能选的值，记在这家公司名下，`express.precheck.save`）。同一问题前一张
+    已记下（例如这家公司这一年用哪套账，10-30 实测三张同问）的，这张不再问、不重复记。"""
+    from pearnly_erp_portal.express import precheck as write_precheck
 
-    result = push.prepare_only(doctype, name)
-    book = result.get("book") or {}
-    data = facts.load(book["key"]) if book.get("key") else None
-    asked = {(item["kind"], item["subject"]): item for item in result.get("needed") or []}
-    for answer in given if isinstance(given, list) else []:
-        if not isinstance(answer, dict):
-            frappe.throw(_("Invalid request"))
-        item = asked.get((answer.get("kind"), answer.get("subject")))
-        if not item:
-            continue  # 同一问题前一张已记下（例如这家公司这一年用哪套账，10-30 实测三张同问），这张不再问：不重复记
-        value = str(answer.get("value") or "").strip()
-        options = {option["code"]: option["name"] for option in api._options(item, data)}
-        if value not in options:
-            frappe.throw(_("Invalid request"))
-        choices.remember(company, item["kind"], item["subject"], value, options[value] or item.get("label") or "")
+    if not isinstance(given, list):
+        return
+    write_precheck.save(company, write_precheck.collect_document(doctype, name, write_precheck.given_of(given)), given, seen)
 
 
 def submit(company, doc_ids, batch, computer, answers=None) -> list:

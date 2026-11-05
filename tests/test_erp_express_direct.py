@@ -2095,15 +2095,28 @@ class OperatorExclusion(PushModule):
 
 
 class OperatorPrecheck(PushModule):
-    """主会话 10-27（必修 ①）：代录预检走写账准备（`push.prepare_only`，与直写同一条路，不写单据、不排写账件）：要人选的连同可选值
-    一次列出、准备不了的写明原因；开录时先把预检里人定的按单据页同一套核对记下，再交代录。没声明预检的产品：全部当可录。"""
+    """主会话 10-27（必修 ①）：代录预检走写账准备（与直写同一条路 `push._prepare_body`，不写单据、不排写账件）：要人选的连同可选值
+    一次列出、准备不了的写明原因；开录时先把预检里人定的按单据页同一套核对记下，再交代录。没声明预检的产品：全部当可录。
+    11-05 起经写账前置判定（`express.precheck.collect_document`）一次收齐，回包形状不变，每张另带 ``precheck``。"""
 
     def setUp(self):
         super().setUp()
         sys.modules.pop("pearnly_erp_portal.express.operator", None)
         self.addCleanup(sys.modules.pop, "pearnly_erp_portal.express.operator", None)
-        from pearnly_erp_portal.express import operator
+        from pearnly_erp_portal.express import operator, precheck
         self.operator = operator
+        for patch in (mock.patch.object(self.push, "document", lambda doctype, name: {"name": name}),
+                      mock.patch.object(precheck.printed, "hold", lambda doctype, name: None),
+                      mock.patch.object(precheck.push, "_company", lambda name: {"name": name, "tax_id": OWN}),
+                      mock.patch.object(precheck, "document_view", lambda doc_id, doctype, name, found=None:
+                                        {"doc_id": doc_id, "state": "check", "items": found["items"]})):
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def prepared(self, prepare):
+        """`push._prepare_body` 的替身：按单据名（替身单据内容里带着）回准备结论。"""
+        return mock.patch.object(self.push, "_prepare_body",
+                                 lambda doctype, company, body: (prepare(doctype, body["name"]), None, None))
 
     def run_precheck(self, results, job=None):
         from unittest import mock
@@ -2115,7 +2128,7 @@ class OperatorPrecheck(PushModule):
         with mock.patch.object(self.operator.guard, "has", lambda capability, user=None: True), \
                 mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
                 mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
-                mock.patch.object(self.push, "prepare_only", lambda doctype, name: results[name]), \
+                self.prepared(lambda doctype, name: results[name]), \
                 mock.patch.object(api, "_options", lambda item, data: [{"code": "B9", "name": "LED"}]), \
                 mock.patch.object(self.operator.jobs, "find_by_name", lambda name: None):
             return {row["doc_id"]: row for row in self.operator.precheck("CO-1", [f"P:{n}" for n in results])["documents"]}
@@ -2170,7 +2183,7 @@ class OperatorPrecheck(PushModule):
         with mock.patch.object(self.operator.guard, "has", lambda capability, user=None: True), \
                 mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
                 mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
-                mock.patch.object(self.push, "prepare_only", lambda doctype, name: needed), \
+                self.prepared(lambda doctype, name: needed), \
                 mock.patch.object(api, "_options", lambda item, data: [{"code": C.NEW, "name": ""}]), \
                 mock.patch.object(choices, "remember", lambda *args: calls.append(("remember",) + args)), \
                 mock.patch.object(self.push, "release_operator", lambda doctype, name: calls.append(("release", name))), \
@@ -2185,7 +2198,7 @@ class OperatorPrecheck(PushModule):
         with mock.patch.object(self.operator.guard, "has", lambda capability, user=None: True), \
                 mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
                 mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
-                mock.patch.object(self.push, "prepare_only", lambda doctype, name: needed), \
+                self.prepared(lambda doctype, name: needed), \
                 mock.patch.object(api, "_options", lambda item, data: [{"code": "B9", "name": ""}]):
             with self.assertRaises(frappe.ValidationError):  # 不是这一项能选的值：不记、不交
                 self.operator.submit("CO-1", ["P:PI-1"], {"id": "b1", "total": 1}, "",
@@ -2207,7 +2220,7 @@ class OperatorPrecheck(PushModule):
         with mock.patch.object(self.operator.guard, "has", lambda capability, user=None: True), \
                 mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
                 mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
-                mock.patch.object(self.push, "prepare_only", prepare), \
+                self.prepared(prepare), \
                 mock.patch.object(api, "_options", lambda item, data: [{"code": "BK1", "name": "TEST"}]), \
                 mock.patch.object(choices, "remember", lambda company, kind, subject, *rest: remembered.add(subject) or
                                   calls.append(("remember", subject))), \

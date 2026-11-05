@@ -13,6 +13,7 @@ A board needs at least one list,A board needs at least one list
 A category needs a name,A category needs a name
 A company needs a name,A company needs a name
 A company needs at least one warehouse,A company needs at least one warehouse
+A computer can write it,A computer can write it
 A confirmed document cannot be edited,A confirmed document cannot be edited
 A confirmed draft must point at the purchase record it created,A confirmed draft must point at the purchase record it created
 A confirmed draft must point at the record it created,A confirmed draft must point at the record it created
@@ -41,6 +42,7 @@ A warehouse needs a name,A warehouse needs a name
 A warehouse with stock cannot be turned off,A warehouse with stock cannot be turned off
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
 Account Set,Account Set
+Account name matches,Account name matches
 Accrual basis,Accrual basis
 Actual position,Actual position
 Actual positions and quantities,Actual positions and quantities
@@ -143,6 +145,7 @@ Base Unit,Base Unit
 Base unit,Base unit
 Basis Qty,Basis Qty
 Basis Set,Basis Set
+Basis used in this account set,Basis used in this account set
 Bind this account first,Bind this account first
 Binding code,Binding code
 Block Duplicate Documents,Block Duplicate Documents
@@ -526,6 +529,7 @@ Exchange Rate,Exchange Rate
 Exchange Rate is required,Exchange Rate is required
 Exchange Rate must be greater than zero,Exchange Rate must be greater than zero
 Exempt items,Exempt items
+Exempt items without VAT per line,Exempt items without VAT per line
 Expected Amount,Expected Amount
 Expected Cash,Expected Cash
 Expense,Expense
@@ -607,6 +611,7 @@ Gray,Gray
 Green,Green
 Gross,Gross
 Handled manually in Express,Handled manually in Express
+Has taxed sales,Has taxed sales
 Head Office,Head Office
 Hide Recent Orders,Hide Recent Orders
 Hide details,Hide details
@@ -755,6 +760,7 @@ Mode of Payment,Mode of Payment
 Modes of Payment,Modes of Payment
 Monthly,Monthly
 More Filters,More Filters
+Most used fitting group in the account set,Most used fitting group in the account set
 Move,Move
 Move all cards in this list,Move all cards in this list
 Move list,Move list
@@ -820,6 +826,7 @@ Not enough stock in Express,Not enough stock in Express
 Not enough stock on hand,Not enough stock on hand
 Not found in the Revenue Department records,Not found in the Revenue Department records
 Not found on the document,Not found on the document
+Not in the account set yet,Not in the account set yet
 Not in the list,Not in the list
 Not permitted,Not permitted
 Not written to Express (disconnected),Not written to Express (disconnected)
@@ -845,6 +852,7 @@ Only an active count can be deleted,Only an active count can be deleted
 Only an image or a PDF can be recognised,Only an image or a PDF can be recognised
 Only board admins can do this,Only board admins can do this
 Only low or out of stock,Only low or out of stock
+Only one with this tax number,Only one with this tax number
 Only purchase documents can be sent in for now,Only purchase documents can be sent in for now
 Only the checked features are visible to this employee,Only the checked features are visible to this employee
 Only the checked features are visible to this user,Only the checked features are visible to this user
@@ -1044,6 +1052,7 @@ Receipt No,Receipt No
 Receipt Status,Receipt Status
 Receipt {0} · Change {1},Receipt {0} · Change {1}
 Receipts,Receipts
+Receipts and simplified tax invoices are usually not claimed,Receipts and simplified tax invoices are usually not claimed
 Receive documents and add stock,Receive documents and add stock
 Received,Received
 Received Amount,Received Amount
@@ -1311,6 +1320,7 @@ Tax Inclusive,Tax Inclusive
 Tax Invoice,Tax Invoice
 Tax Withholding Amount,Tax Withholding Amount
 Tax Withholding Rate,Tax Withholding Rate
+Tax number and branch match,Tax number and branch match
 Tax the whole document as the account set does,Tax the whole document as the account set does
 Taxes,Taxes
 Taxes and Charges,Taxes and Charges
@@ -2159,6 +2169,16 @@ express.option.expense,Expense
 express.option.no,No
 express.option.yes,Yes
 express.pendingRefunds,Refunds to write
+express.precheck.note.accountName,Account name matches
+express.precheck.note.bookBasis,Basis used in this account set
+express.precheck.note.mostUsedGroup,Most used fitting group in the account set
+express.precheck.note.notInBook,Not in the account set yet
+express.precheck.note.onlyRecord,Only one with this tax number
+express.precheck.note.sameBranch,Tax number and branch match
+express.precheck.note.splitExempt,Exempt items without VAT per line
+express.precheck.note.vatExpense,Receipts and simplified tax invoices are usually not claimed
+express.precheck.note.vatSales,Has taxed sales
+express.precheck.note.writable,A computer can write it
 express.reason.itemUnmapped,The item is not in Express
 express.reason.noBook,No Express account set covers this date
 express.reason.noStockBook,This Express account set has no book for this kind of stock document. Set it up in Express

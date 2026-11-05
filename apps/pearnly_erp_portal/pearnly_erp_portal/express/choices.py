@@ -7,7 +7,12 @@
 - ``stock_group``：账套一个库存品都没有、要建第一个时挂哪个存货科目组（写账规则回 ``stock_acc_group_required``）。
 
 选过的值在账套里已经没有了（被删 / 改了），写账规则当没选过、重新问，不静默换别的。
+
+写账前置判定（`express.precheck`，开始前确认卡片）要一次收齐所有要人定的项：判定时把预选值或人刚答的值临时当作选过
+（:func:`assuming`，只在这次判定的调用里、不写库），写账准备才走得到后面几道。真正写入时不在这个范围里，读的只有记住的值。
 """
+import contextlib
+import contextvars
 import hashlib
 
 import frappe
@@ -15,6 +20,27 @@ import frappe
 CHOICE = "ERP Express Choice"
 ACCOUNT_SET = "account_set"
 STOCK_GROUP = "stock_group"
+
+
+_ASSUMED = contextvars.ContextVar("erp_express_assumed", default=None)
+
+
+@contextlib.contextmanager
+def assuming(company, values):
+    """这个范围里把 ``values``（``{kind: {subject: value}}``）当作这家公司选过的（判定专用，不写库）。"""
+    token = _ASSUMED.set((company, values or {}))
+    try:
+        yield
+    finally:
+        _ASSUMED.reset(token)
+
+
+def assumed(company, kind, subject) -> str:
+    """判定范围里临时当作选过的值；不在范围里、不是这家公司回空。"""
+    found = _ASSUMED.get()
+    if not found or found[0] != company:
+        return ""
+    return str((found[1].get(kind) or {}).get(subject) or "")
 
 
 def _name(company, kind, subject):
@@ -27,11 +53,15 @@ def remembered(company) -> dict:
     for row in frappe.get_all(CHOICE, filters={"company": company}, fields=["kind", "subject", "value"],
                               limit_page_length=0):
         found.setdefault(row.kind, {})[row.subject or ""] = row.value or ""
+    current = _ASSUMED.get()
+    if current and current[0] == company:
+        for kind, values in current[1].items():
+            found.setdefault(kind, {}).update({subject: value for subject, value in values.items() if value})
     return found
 
 
 def chosen(company, kind, subject) -> str:
-    return frappe.db.get_value(CHOICE, _name(company, kind, subject), "value") or ""
+    return assumed(company, kind, subject) or frappe.db.get_value(CHOICE, _name(company, kind, subject), "value") or ""
 
 
 def remember(company, kind, subject, value, label=""):

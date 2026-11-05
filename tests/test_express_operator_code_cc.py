@@ -471,7 +471,8 @@ class PrecheckTargetTests(Base):
         stubs = {name: types.ModuleType(name) for name in (
             "pearnly_erp_portal", "pearnly_erp_portal.access", "pearnly_erp_portal.access.guard",
             "pearnly_erp_portal.express", "pearnly_erp_portal.express.contracts", "pearnly_erp_portal.express.push",
-            "pearnly_erp_portal.express.api", "pearnly_erp_portal.express.facts", "pearnly_erp_portal.masters",
+            "pearnly_erp_portal.express.api", "pearnly_erp_portal.express.facts", "pearnly_erp_portal.express.precheck",
+            "pearnly_erp_portal.masters",
             "pearnly_erp_portal.masters.company", "pearnly_core.cc_desktop", "pearnly_core.cc_desktop.jobs")}
         guard = stubs["pearnly_erp_portal.access.guard"]
         guard.has = lambda capability, user=None: True
@@ -486,12 +487,16 @@ class PrecheckTargetTests(Base):
         prepared = {"PUR-1": {"payload": {}, "book": book}, "PUR-2": {"hold": "choice_needed:item", "book": book,
                                                                        "needed": []},
                     "PUR-3": {"hold": "express.account_set_missing"}}
-        push.prepare_only = lambda doctype, name: prepared[name]
+        # 写账前置判定（11-05）：同一次准备的结论原样交回，这里只看写进哪份账套
+        precheck = stubs["pearnly_erp_portal.express.precheck"]
+        precheck.collect_document = lambda doctype, name: {"result": prepared[name], "items": [], "data": None}
+        precheck.document_view = lambda doc_id, doctype, name, found=None: {"doc_id": doc_id}
         stubs["pearnly_erp_portal.express.api"]._options = lambda item, data: []
         stubs["pearnly_erp_portal.express.facts"].load = lambda key: None
         express = stubs["pearnly_erp_portal.express"]
         express.contracts, express.push = contracts, push
         express.api, express.facts = stubs["pearnly_erp_portal.express.api"], stubs["pearnly_erp_portal.express.facts"]
+        express.precheck = precheck
         stubs["pearnly_erp_portal.masters"].company = stubs["pearnly_erp_portal.masters.company"]
         stubs["pearnly_core.cc_desktop"].jobs = stubs["pearnly_core.cc_desktop.jobs"]
         operator = _load("erp_operator_code_cc", ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",

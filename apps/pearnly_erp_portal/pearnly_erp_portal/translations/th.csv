@@ -13,6 +13,7 @@ A board needs at least one list,บอร์ดต้องมีรายกา
 A category needs a name,กรุณากรอกชื่อหมวดหมู่
 A company needs a name,กรุณากรอกชื่อบริษัท
 A company needs at least one warehouse,บริษัทต้องมีคลังสินค้าอย่างน้อย 1 แห่ง
+A computer can write it,มีเครื่องที่บันทึกได้
 A confirmed document cannot be edited,ไม่สามารถแก้ไขเอกสารที่ยืนยันแล้วได้
 A confirmed draft must point at the purchase record it created,รายการที่ยืนยันแล้วต้องอ้างถึงเอกสารจัดซื้อที่สร้างขึ้น
 A confirmed draft must point at the record it created,ฉบับร่างที่ยืนยันแล้วต้องเชื่อมโยงกับรายการที่สร้างจากฉบับร่างนั้น
@@ -41,6 +42,7 @@ A warehouse needs a name,กรุณากรอกชื่อคลังส�
 A warehouse with stock cannot be turned off,คลังที่มีสต็อกปิดใช้งานไม่ได้
 Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
 Account Set,ชุดบัญชี
+Account name matches,ชื่อบัญชีตรงกัน
 Accrual basis,เกณฑ์สิทธิ
 Actual position,ตำแหน่งที่พบจริง
 Actual positions and quantities,ตำแหน่งจริงและจำนวน
@@ -143,6 +145,7 @@ Base Unit,หน่วยฐาน
 Base unit,หน่วยฐาน
 Basis Qty,จำนวนฐาน
 Basis Set,กำหนดฐานแล้ว
+Basis used in this account set,เกณฑ์ที่ชุดบัญชีนี้ใช้
 Bind this account first,กรุณาผูกบัญชี ERP ก่อนใช้งาน
 Binding code,รหัสผูกบัญชี
 Block Duplicate Documents,ป้องกันเอกสารซ้ำ
@@ -526,6 +529,7 @@ Exchange Rate,อัตราแลกเปลี่ยน
 Exchange Rate is required,กรุณาระบุอัตราแลกเปลี่ยน
 Exchange Rate must be greater than zero,อัตราแลกเปลี่ยนต้องมากกว่าศูนย์
 Exempt items,สินค้ายกเว้นภาษี
+Exempt items without VAT per line,สินค้ายกเว้นภาษีไม่คิด VAT รายบรรทัด
 Expected Amount,ยอดที่ควรมี
 Expected Cash,เงินสดที่ควรมี
 Expense,ค่าใช้จ่าย
@@ -607,6 +611,7 @@ Gray,เทา
 Green,เขียว
 Gross,ยอดขายรวม
 Handled manually in Express,จัดการด้วยมือใน Express แล้ว
+Has taxed sales,มียอดขายที่มีภาษี
 Head Office,สำนักงานใหญ่
 Hide Recent Orders,ซ่อนคำสั่งซื้อล่าสุด
 Hide details,ซ่อนรายละเอียด
@@ -755,6 +760,7 @@ Mode of Payment,วิธีการชำระเงิน
 Modes of Payment,วิธีชำระเงิน
 Monthly,ทุกเดือน
 More Filters,ตัวกรองเพิ่มเติม
+Most used fitting group in the account set,กลุ่มที่ใช้มากที่สุดในชุดบัญชี
 Move,ย้าย
 Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
 Move list,ย้ายรายการ
@@ -820,6 +826,7 @@ Not enough stock in Express,สินค้าคงเหลือใน Expres
 Not enough stock on hand,สินค้าคงเหลือไม่เพียงพอ
 Not found in the Revenue Department records,ไม่พบข้อมูลการจดทะเบียนของเลขประจำตัวผู้เสียภาษีนี้ในกรมสรรพากร
 Not found on the document,ไม่ได้ระบุในเอกสาร
+Not in the account set yet,ยังไม่มีในชุดบัญชี
 Not in the list,ไม่อยู่ในรายการ
 Not permitted,ไม่ได้รับอนุญาต
 Not written to Express (disconnected),ไม่ได้บันทึก Express (ยกเลิกเชื่อมต่อ)
@@ -845,6 +852,7 @@ Only an active count can be deleted,ลบได้เฉพาะงานต�
 Only an image or a PDF can be recognised,รองรับการอ่านเฉพาะรูปภาพหรือ PDF
 Only board admins can do this,เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ดำเนินการนี้ได้
 Only low or out of stock,เฉพาะใกล้หมดหรือหมด
+Only one with this tax number,เลขผู้เสียภาษีนี้มีเพียงรายเดียว
 Only purchase documents can be sent in for now,ขณะนี้รับเฉพาะเอกสารจัดซื้อเท่านั้น
 Only the checked features are visible to this employee,พนักงานคนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
 Only the checked features are visible to this user,ผู้ใช้นี้จะเห็นเฉพาะฟังก์ชันที่เลือกไว้
@@ -1044,6 +1052,7 @@ Receipt No,เลขที่ใบเสร็จ
 Receipt Status,สถานะใบเสร็จ
 Receipt {0} · Change {1},ใบเสร็จ {0} · เงินทอน {1}
 Receipts,จำนวนใบเสร็จ
+Receipts and simplified tax invoices are usually not claimed,ใบเสร็จและใบกำกับภาษีอย่างย่อโดยทั่วไปไม่ขอคืนภาษีซื้อ
 Receive documents and add stock,รับเอกสารและรับสินค้าเข้าสต็อก
 Received,รับเข้า
 Received Amount,จำนวนเงินที่ได้รับ
@@ -1311,6 +1320,7 @@ Tax Inclusive,รวมภาษี
 Tax Invoice,ใบกำกับภาษี
 Tax Withholding Amount,ยอดภาษีหัก ณ ที่จ่าย
 Tax Withholding Rate,อัตราภาษีหัก ณ ที่จ่าย
+Tax number and branch match,เลขผู้เสียภาษีและสาขาตรงกัน
 Tax the whole document as the account set does,คิดภาษีทั้งใบตามชุดบัญชี
 Taxes,ภาษี
 Taxes and Charges,ภาษีและค่าธรรมเนียม
@@ -2159,6 +2169,16 @@ express.option.expense,บันทึกเป็นค่าใช้จ่า
 express.option.no,ไม่ใช่
 express.option.yes,ใช่
 express.pendingRefunds,การคืนที่รอบันทึก
+express.precheck.note.accountName,ชื่อบัญชีตรงกัน
+express.precheck.note.bookBasis,เกณฑ์ที่ชุดบัญชีนี้ใช้
+express.precheck.note.mostUsedGroup,กลุ่มที่ใช้มากที่สุดในชุดบัญชี
+express.precheck.note.notInBook,ยังไม่มีในชุดบัญชี
+express.precheck.note.onlyRecord,เลขผู้เสียภาษีนี้มีเพียงรายเดียว
+express.precheck.note.sameBranch,เลขผู้เสียภาษีและสาขาตรงกัน
+express.precheck.note.splitExempt,สินค้ายกเว้นภาษีไม่คิด VAT รายบรรทัด
+express.precheck.note.vatExpense,ใบเสร็จและใบกำกับภาษีอย่างย่อโดยทั่วไปไม่ขอคืนภาษีซื้อ
+express.precheck.note.vatSales,มียอดขายที่มีภาษี
+express.precheck.note.writable,มีเครื่องที่บันทึกได้
 express.reason.itemUnmapped,ไม่มีสินค้านี้ใน Express
 express.reason.noBook,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
 express.reason.noStockBook,ชุดบัญชี Express นี้ไม่มีสมุดสำหรับเอกสารสินค้าประเภทนี้ กรุณาตั้งค่าใน Express
