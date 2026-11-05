@@ -73,6 +73,6 @@
 | 产品地图 | 通过；3 行页头「Print」由红变绿，存量基线少 6 条 |
 | 受影响流程 `run.py --changed` | `erp.print.all` 新 / 老两套数据通过 |
 | 建数据时跑的 7 条流程 | 27/28 格通过；`erp.stock-entry.scan` 新数据手机宽度那一格 900 秒超时（模拟架构下慢），单独重跑整条 4/4 通过 |
-| e2e 场景（主会话提议在 e2e 里加一条「获取PDF」） | 没加：`scripts/e2e/` 还在 product-map-next 窗口的分支上、没进 main，这里加会撞文件；部署后由主会话用 e2eerp 在 testerp 点一次 |
+| e2e 场景（主会话提议在 e2e 里加一条「获取PDF」） | 这次没加：施工时 `scripts/e2e/` 还在 product-map-next 的分支上，变基时才进 main；`deploy.sh` 现在部署后会跑 e2e、失败就停，没在 testerp 跑通过的新场景不该直接挂进去。建议另起一小步：加场景、先在 testerp 跑一次（部署前应失败、部署后应通过），再登记进地图。部署后由主会话用 e2eerp 在 testerp 点一次 |
 
 没有部署。部署后要在一个租户上真点一次「获取PDF」能下载到 PDF，才算业务验收。
