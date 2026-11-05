@@ -265,10 +265,10 @@ class Remember(Case):
             with self.assertRaises(frappe.ValidationError):
                 self.precheck.remember("CO-1", {"P:PI-1": [bad]})
         self.assertEqual(fake.STATE.db.table(choices.CHOICE), {})
-        # 这张单没停在子菜单：同样拒
+        # 这张单没停在子菜单：它带的子菜单答案跳过、不拒、不记
         self.docs["PI-1"]["ledger_job"] = None
-        with self.assertRaises(frappe.ValidationError):
-            self.precheck.remember("CO-1", {"P:PI-1": [self.answer()]})
+        self.assertEqual(self.precheck.remember("CO-1", {"P:PI-1": [self.answer(value="ซื้อเงินเชื่อ")]}), {"saved": 0})
+        self.assertEqual(fake.STATE.db.table(choices.CHOICE), {})
         with self.assertRaises(frappe.PermissionError):  # 别家公司的单
             self.precheck.remember("CO-2", {"P:PI-1": [self.answer()]})
 
@@ -293,6 +293,26 @@ class Remember(Case):
             out = operator.submit("CO-1", ["P:PI-1"], dict(BATCH), "PC-1", {"P:PI-1": [self.answer()]})
         self.assertEqual(out, [{"doc_id": "P:PI-1", "status": "sent", "reason": ""}])
         self.assertEqual(choices.operator_form("CO-1", "BK-1", "HP"), TMB_MENU)
+
+    def test_one_stopped_and_one_not_with_the_same_answer_are_both_sent_and_remembered_once(self):
+        """W3 审看：旧前端把同一份答案带给批里每一张（10-30 实机同类）；一张停在子菜单、一张没停，不能整批「请求无效」。"""
+        from pearnly_erp_portal.express import operator
+
+        self.stopped()
+        self.docs["PI-2"] = {"name": "PI-2", "company": "CO-1", "owner": "staff@x", "system_no": "PE-2", "status": "submitted",
+                             "ledger_state": "queued", "ledger_job": None, "ledger_reason": ""}
+        sent, kept = [], []
+        real = choices.remember
+        with mock.patch.object(self.push, "release_operator", lambda doctype, name: True), \
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: sent.append(name) or {"status": "sent"}), \
+                mock.patch.object(choices, "remember", lambda *args: kept.append(args) or real(*args)), \
+                mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+            out = operator.submit("CO-1", ["P:PI-1", "P:PI-2"], {"id": "b1", "total": 2}, "PC-1",
+                                  {"P:PI-1": [self.answer()], "P:PI-2": [self.answer()]})
+        self.assertEqual([row["status"] for row in out], ["sent", "sent"])
+        self.assertEqual(sent, ["PI-1", "PI-2"])
+        self.assertEqual(kept, [("CO-1", "operator_form", "BK-1|HP", TMB_MENU, "HP")])
+        self.assertEqual(len(fake.STATE.db.table(choices.CHOICE)), 1)
 
 
 class WriteRulesUnchanged(pre.Precheck):

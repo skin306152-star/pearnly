@@ -355,15 +355,17 @@ def menu_item(company, doctype, name, stop=None):
 
 
 def _menu_answers(doctype, name, answers, seen) -> list:
-    """人答的子菜单项核一遍（只认这张单停下时 CC 读到的候选，单种要对上；不对整批拒）→ ``[(对象, 值, 单种)]``，同一项只记一次。"""
+    """人答的子菜单项核一遍（只认这张单停下时 CC 读到的候选，单种要对上；不对整批拒）→ ``[(对象, 值, 单种)]``，同一项只记一次。
+    这张单没停在子菜单的，它带的子菜单答案跳过、不拒：代录交单逐张记，旧前端把同一份答案带给批里每一张（10-30 实机），一张停、
+    别的没停时不能整批「请求无效」。"""
     rows = [answer for answer in answers if answer.get("remember") is not False]
-    if not rows:
+    stop = menu_stop(doctype, name) if rows else {}
+    if not stop:
         return []
-    stop = menu_stop(doctype, name)
     checked = []
     for answer in rows:
         value = str(answer.get("value") or "").strip()
-        if not stop or str(answer.get("subject") or "").strip().upper() != stop["doc_type"] or value not in stop["codes"]:
+        if str(answer.get("subject") or "").strip().upper() != stop["doc_type"] or value not in stop["codes"]:
             frappe.throw(_("Invalid request"))
         key = (OPERATOR_FORM, choices.operator_subject(stop["book"], stop["doc_type"]))
         if key in seen:
