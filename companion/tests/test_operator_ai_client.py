@@ -69,3 +69,52 @@ def test_check_and_turn_requests_use_only_fields_that_need_no_beta_header():
     for kind, request in sent:
         assert set(request) <= ga, (kind, set(request) - ga)
         assert "context_management" not in json.dumps(request)
+
+
+def test_a_long_takeover_sends_only_the_latest_three_screenshots_and_logs_usage(caplog, monkeypatch):
+    """不用上下文编辑后旧截图不会自动清：每次请求只带最近 3 张，更早的换成文字占位；条目不删，tool_use / tool_result 仍一一对应。
+    每轮回了 usage 就在日志记一行（批次、种类、模型、输入 / 输出 token）。"""
+    import copy
+    import logging
+
+    from companion.express_operator import helper as H
+    from companion.express_operator.helper import SHOT_DROPPED, ComputerUseHelper
+
+    monkeypatch.setattr(H, "CHAIN", ((H.HAIKU, 20, "medium"),))  # 一段跑 16 轮（远多于 3 张）
+
+    sent = []
+
+    def transport(kind, request):
+        sent.append(copy.deepcopy(request))
+        n = len(sent)
+        usage = {"input_tokens": 1000 + n, "output_tokens": 50}
+        if n >= 16:
+            return {"content": [{"type": "tool_use", "id": f"f{n}", "name": "finish",
+                                 "input": {"status": "resolved", "note": "ok"}}], "stop_reason": "tool_use", "usage": usage}
+        name = "left_click" if n % 2 else "screenshot"
+        return {"content": [{"type": "tool_use", "id": f"u{n}", "name": name, "input": {"coordinate": [10, 10]}}],
+                "stop_reason": "tool_use", "usage": usage}
+
+    def member(name, inp):
+        return [png_block_of("iVBOR")] if name == "screenshot" else [{"type": "text", "text": "OK"}]
+
+    from companion.express_operator.helper import png_block as png_block_of
+
+    tools = type("Tools", (), {"screenshot": lambda self, purpose: "iVBOR",
+                               "member": lambda self, name, inp: member(name, inp)})()
+    helper = ComputerUseHelper(transport, sleep=lambda _s: None, batch="B-9")
+    with caplog.at_level(logging.INFO):
+        assert helper.take_over("目标", tools) == ("resolved", "ok")
+    last = json.dumps(sent[-1], ensure_ascii=False)
+    assert last.count('"type": "image"') <= 3 and SHOT_DROPPED in last
+    messages = sent[-1]["messages"]
+    assert len(messages) == 1 + 2 * 15  # 只追加、不删条目
+    for ask, answer in zip(messages[1::2], messages[2::2]):
+        uses = [b["id"] for b in ask["content"] if b["type"] == "tool_use"]
+        results = [b for b in answer["content"] if b["type"] == "tool_result"]
+        assert [r["tool_use_id"] for r in results] == uses
+        assert all(r.get("toolset_name") == "computer" for r in results)
+    lines = [r.getMessage() for r in caplog.records if "operator ai usage" in r.getMessage()]
+    assert len(lines) == 16
+    assert lines[0].startswith("operator ai usage · batch=B-9 · kind=turn · model=claude-haiku-5-5 · input=1001 · output=50")
+    assert "iVBOR" not in caplog.text

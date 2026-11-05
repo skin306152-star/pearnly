@@ -435,7 +435,7 @@ def express_factory(state, store, settings, root: Path, notify, member=None):
     probes = ProbeStore(root / "probe.json")
     account_key = str(settings.account_dir).lower()
     engine = Engine(desk, recipe, book, presence=presence, evidence=evidence.save,
-                    helper=ComputerUseHelper(transport) if transport else None,
+                    helper=ComputerUseHelper(transport, batch=state.id) if transport else None,
                     menus=MenuMemory(probes, account_key, recipe.version))
 
     def probe(doc_type):

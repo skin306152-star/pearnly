@@ -12,6 +12,7 @@
 """
 from __future__ import annotations
 
+import logging
 import time
 from typing import Callable, Dict, List, Optional, Protocol, Tuple
 
@@ -21,6 +22,9 @@ CHAIN: Tuple[Tuple[str, int, str], ...] = ((HAIKU, 8, "medium"), (OPUS, 14, "med
 SHOT = (1280, 720)
 # 请求体只用不需要 beta 头的字段（站点转发不带任何 anthropic-beta 头；11-05 测试机：带了上下文编辑 context_management，接手第一轮
 # 就被回 400）。每一轮截图都留着：一次接手最多 Haiku 8 轮、Opus 14 轮，各自从头开对话，上下文有上限
+KEEP_SHOTS = 3  # 每次请求最多带最近这几张截图；更早的换成一句文字（只改内容，不删条目，tool_use / tool_result 照旧一一对应）
+SHOT_DROPPED = "（较早的截图已省略）"
+log = logging.getLogger("pearnly_companion.express_operator")
 GA_FIELDS = frozenset({"model", "max_tokens", "system", "messages", "tools", "thinking", "output_config", "cache_control"})
 
 CHECK_SCHEMA = {
@@ -115,13 +119,35 @@ def png_block(png_b64: str) -> Dict:
     return {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": png_b64}}
 
 
+def keep_recent_shots(messages: List[Dict], keep: int = KEEP_SHOTS) -> None:
+    """只留最近 ``keep`` 张截图（含首条消息与各 tool_result 里的），更早的就地换成文字占位。"""
+    found: List[Tuple[List, int]] = []
+
+    def walk(blocks):
+        if not isinstance(blocks, list):
+            return
+        for index, block in enumerate(blocks):
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "image":
+                found.append((blocks, index))
+            elif block.get("type") == "tool_result":
+                walk(block.get("content"))
+
+    for message in messages:
+        walk(message.get("content"))
+    for blocks, index in found[:max(0, len(found) - keep)]:
+        blocks[index] = {"type": "text", "text": SHOT_DROPPED}
+
+
 class ComputerUseHelper:
     """经 ``transport(kind, request) -> response`` 调模型。``kind`` 是 ``check`` / ``turn``，``request`` 是 Messages API
     的请求体（不含密钥），``response`` 是 API 原样的响应字典。站点回 ``{"error": "budget"}`` 时抛 ``BudgetStop``。"""
 
     def __init__(self, transport: Callable[[str, Dict], Dict], *, max_takeovers: int = 20,
-                 sleep: Callable[[float], None] = time.sleep):
+                 sleep: Callable[[float], None] = time.sleep, batch: str = ""):
         self.transport = transport
+        self.batch = batch  # 写日志用
         self.max_takeovers = max_takeovers
         self.takeovers = 0
         self.calls = 0
@@ -130,6 +156,12 @@ class ComputerUseHelper:
     def _call(self, kind: str, request: Dict) -> Dict:
         self.calls += 1
         response = self.transport(kind, request)
+        usage = response.get("usage") if isinstance(response, dict) else None
+        if isinstance(usage, dict):  # 每轮用了多少（重放时报输入 token）；不记请求与截图
+            log.info(f"operator ai usage · batch={self.batch or '-'} · kind={kind} · model={request.get('model')} · "
+                     f"input={usage.get('input_tokens', 0)} · output={usage.get('output_tokens', 0)} · "
+                     f"cache_read={usage.get('cache_read_input_tokens', 0)} · "
+                     f"cache_write={usage.get('cache_creation_input_tokens', 0)}")
         if response.get("error") == "budget":
             raise BudgetStop("budget")
         if response.get("error"):
@@ -162,6 +194,7 @@ class ComputerUseHelper:
         messages: List[Dict] = [{"role": "user", "content": [{"type": "text", "text": goal},
                                                              png_block(tools.screenshot("takeover"))]}]
         for _ in range(max_turns):
+            keep_recent_shots(messages)
             response = self._call("turn", {
                 "model": model, "max_tokens": 8000,
                 "system": [{"type": "text", "text": CU_SYSTEM, "cache_control": {"type": "ephemeral"}}],
