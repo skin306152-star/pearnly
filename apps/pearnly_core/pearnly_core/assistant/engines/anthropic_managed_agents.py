@@ -159,8 +159,14 @@ class Adapter(base.Adapter):
         self.api.beta.sessions.update(conversation, title=title)
 
     def archive(self, conversation: str) -> None:
-        self.api.beta.sessions.events.send(conversation, events=[{"type": "user.interrupt"}])
-        self.api.beta.sessions.archive(conversation)
+        # 已经停下 / 已经归档 / 不存在都算成功（同 `delete`）：本站那一半没写成、用户再点一次时不因远端回错而失败
+        for step in (lambda: self.api.beta.sessions.events.send(conversation, events=[{"type": "user.interrupt"}]),
+                     lambda: self.api.beta.sessions.archive(conversation)):
+            try:
+                step()
+            except Exception as err:
+                if not _gone(err):
+                    raise
 
     def delete(self, conversation: str) -> None:
         try:

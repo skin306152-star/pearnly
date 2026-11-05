@@ -13,6 +13,8 @@
   以用户的名字为准。
 - 标题变了（临时标题、概括出的标题）经 `sidebar` 推给会话主人，各设备的侧栏马上并入。
 - 早于这套记法的对话（`title_source` 为空）不再补概括。
+- 概括期间对话被删了（用户回复一出来就删）：任务静默收手，不记错误、不写回（`_finish` 行没了也不动）；删除本身不等这个任务
+  （`sessions._write` 的说明）。
 """
 import frappe
 
@@ -74,8 +76,16 @@ def summarize(name: str, legacy_title: str | None = None) -> None:
                 lambda too_long: api.summarize(contracts.title_prompt(message, reply, too_long, target), model),
                 source=message, examples=engine_base.TITLE_EXAMPLES)  # 只按用户首句判断是否照抄示例
         except Exception:
+            if _gone(name):
+                return  # 概括期间对话被删了（远端会话跟着删、读不到）：静默收手，不记错误（11-05 删对话竞争）
             frappe.log_error(title="Assistant title summary failed")
     _finish(row, title)
+
+
+def _gone(name) -> bool:
+    """这段对话在本站已经删掉了。先结束任务的读快照（`_claim` 已提交，这里没有要丢的写），看的是此刻的表。"""
+    frappe.db.rollback()
+    return not frappe.db.exists(SESSION, name)
 
 
 def language(row) -> str:

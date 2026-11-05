@@ -105,8 +105,15 @@ class _Sdk(types.ModuleType):
 def _install_fakes():
     frappe, sdk = _Frappe(), _Sdk()
     sys.modules["frappe"], sys.modules["anthropic"] = frappe, sdk
-    for name in ("pearnly_core", "pearnly_core.assistant", "pearnly_core.account"):
+    for name in ("pearnly_core", "pearnly_core.assistant", "pearnly_core.account", "pearnly_core.transaction"):
         sys.modules[name] = types.ModuleType(name)
+    # 共用的「撞上数据库冲突整笔重来」（会话的本站写 `sessions._write` 用）：真模块，退避不真睡
+    frappe.QueryDeadlockError = type("QueryDeadlockError", (Exception,), {})
+    frappe.QueryTimeoutError = type("QueryTimeoutError", (Exception,), {})
+    frappe.DoesNotExistError = type("DoesNotExistError", (Exception,), {})
+    conflicts = _load("pearnly_core.transaction.conflicts", CORE / "transaction/conflicts.py")
+    conflicts.time = types.SimpleNamespace(sleep=lambda seconds: None)
+    sys.modules["pearnly_core.transaction"].conflicts = conflicts
     # 共用显示名（whoami 的 full_name）：替身原样回账号
     names = sys.modules["pearnly_core.account"].names = sys.modules["pearnly_core.account.names"] = types.ModuleType("names")
     names.display_name = lambda user: str(user or "")
@@ -1548,7 +1555,7 @@ class _NoticeDb:
     def row(self, name):
         return next(row for row in self.tables[notices.NOTICE] if row["name"] == name)
 
-    def get_value(self, doctype, filters, fields, as_dict=False):
+    def get_value(self, doctype, filters, fields, as_dict=False, for_update=False):
         if self.race and doctype == notices.NOTICE:
             self.race -= 1
             return None
@@ -1563,6 +1570,9 @@ class _NoticeDb:
     def set_value(self, doctype, filters, field, value=None, update_modified=True):
         for row in self.rows(doctype, filters):
             row.update(field if isinstance(field, dict) else {field: value})
+
+    def commit(self):
+        self.commits = getattr(self, "commits", 0) + 1
 
     def savepoint(self, name):
         self.savepoints.append(name)
@@ -3657,6 +3667,9 @@ class _SessionDb:
     def rollback(self):
         self.rollbacks = getattr(self, "rollbacks", 0) + 1
 
+    def exists(self, doctype, filters):
+        return self._find(filters) is not None
+
     def sql(self, query, *values, **kwargs):
         """只认 `context.active(wait=False)` 的「锁得到才写」：`busy` 里的记录名当作正被别的事务锁着（SKIP LOCKED 回空）。
         作废没答的卡片（`toolrun.cancel_waiting`）查执行记录：这里没有等「允许」的。"""
@@ -3952,6 +3965,7 @@ class SidebarSyncTests(unittest.TestCase):
         files.forget = lambda name: None
         patches = [mock.patch.dict(sys.modules, {"pearnly_core.assistant.files": files}),
                    mock.patch.object(sessions, "owned", lambda sid, allow_archived=False: row),
+                   mock.patch.object(sessions, "_lock", lambda sid: row if row.get("name") in self.db.rows else None),
                    mock.patch.object(sessions.engine, "adapter", return_value=api),
                    mock.patch.object(sessions, "segment_for_turn", lambda row, api: row.session_id),
                    mock.patch.object(sessions.toolrun, "remember_lang", lambda sid: None),
@@ -4182,11 +4196,17 @@ class _ProjectDb:
         found = found[:limit or limit_page_length or None]
         return [_Row({field: row.get(field) for field in fields}) if fields else row for row in found]
 
-    def get_value(self, doctype, filters, fields, as_dict=False):
+    def get_value(self, doctype, filters, fields, as_dict=False, for_update=False):
         found = [row for row in self.rows if self._ok(row, filters)]
         if not found:
             return None
         return _Row({field: found[0].get(field) for field in fields})
+
+    def commit(self):
+        self.commits = getattr(self, "commits", 0) + 1
+
+    def rollback(self, save_point=None):
+        self.rollbacks = getattr(self, "rollbacks", 0) + 1
 
     def set_value(self, doctype, name, field, value=None, update_modified=True):
         values = field if isinstance(field, dict) else {field: value}
@@ -4681,7 +4701,7 @@ class OperatorSessionTests(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
         real_get_value, real_exists = self.db.get_value, getattr(self.db, "exists", None)
-        self.db.get_value = lambda doctype, filters, fields, as_dict=False: (
+        self.db.get_value = lambda doctype, filters, fields, as_dict=False, for_update=False: (
             self.task_status if doctype == tasks.DOCTYPE else real_get_value(doctype, filters, fields, as_dict))
         self.db.exists = lambda doctype, filters: (doctype == tasks.DOCTYPE and self.task_status is not None) or (
             doctype != tasks.DOCTYPE and any(r.name == filters for r in self.db.rows))
@@ -5715,6 +5735,186 @@ class StopRaceTests(unittest.TestCase):
             stack.enter_context(mock.patch.object(relay.toolrun, "execute", mock.Mock(side_effect=RuntimeError("tool"))))
             relay._run("t1.example", "/sites", "conv", "sesn_r", "owner@x.test", "k", "tok", __import__("threading").Event())
         self.assertEqual(pushed, stream)
+
+
+class _SessionSnapshotDb:
+    """会话表的 MariaDB 11.8 行为（REPEATABLE READ + innodb_snapshot_isolation，实验室 11-05 实证）：事务里第一次普通读取读快照；
+    之后加锁读 / 改一条在快照之后被别处提交改过的行报 1020（_Deadlock），不等锁；`boom` 次数内加锁读报死锁 1213。提交、回滚结束
+    快照、放开本事务的锁。`delete_doc` 照 Frappe：先对这一行做不等锁的加锁读，撞上 1020 / 1213 改报「暂时不能删除」。"""
+
+    def __init__(self, *rows):
+        self.rows = {row["name"]: {**row, "version": 1} for row in rows}
+        self.view, self.mine, self.boom = None, set(), 0
+        self.commits = self.rollbacks = 0
+
+    def _snapshot(self):
+        if self.view is None:
+            self.view = {name: dict(row) for name, row in self.rows.items()}
+        return self.view
+
+    def commit_elsewhere(self, name, **values):
+        """别的事务（推送线程记活动时间、起标题任务写标题）改了这一行并已提交。"""
+        self.rows[name].update(values, version=self.rows[name]["version"] + 1)
+
+    def _current(self, name):
+        if self.view is not None and name in self.view and self.view[name]["version"] != self.rows[name]["version"]:
+            raise _Deadlock("1020 Record has changed since last read")
+        return self.rows[name]
+
+    def _match(self, pool, filters):
+        if isinstance(filters, str):
+            return filters if filters in pool else None
+        return next((n for n, r in pool.items() if all(r.get(k) == v for k, v in filters.items())), None)
+
+    def get_value(self, doctype, filters, fields, as_dict=False, for_update=False):
+        if for_update:
+            if self.boom:
+                self.boom -= 1
+                raise _Deadlock("1213 deadlock")
+            name = self._match(self.rows, filters)
+            if name is None:
+                return None
+            row = self._current(name)
+            self.mine.add(name)
+            self._snapshot()[name] = dict(row)
+        else:
+            pool = self._snapshot()
+            name = self._match(pool, filters)
+            if name is None:
+                return None
+            row = pool[name]
+        if isinstance(fields, str):
+            return row.get(fields)
+        return _Row({f: row.get(f) for f in fields}) if as_dict else tuple(row.get(f) for f in fields)
+
+    def set_value(self, doctype, name, field, value=None, update_modified=True):
+        values = field if isinstance(field, dict) else {field: value}
+        row = self._current(name)
+        row.update(values, version=row["version"] + 1)
+        self.mine.add(name)
+        self._snapshot()[name] = dict(row)
+
+    def exists(self, doctype, filters):
+        return self._match(self._snapshot(), filters) is not None
+
+    def delete_doc(self, doctype, name, ignore_permissions=False):
+        if name not in self.mine:  # Frappe：不等锁的加锁读（自己已锁住的行不算冲突）
+            try:
+                self._current(name)
+            except _Deadlock:
+                raise frappe.QueryTimeoutError("Cannot delete this document right now")
+        self.rows.pop(name)
+        self._snapshot().pop(name, None)
+
+    def commit(self):
+        self.commits += 1
+        self.view, self.mine = None, set()
+
+    def rollback(self, save_point=None):
+        self.rollbacks += 1
+        self.view, self.mine = None, set()
+
+
+class SessionWriteRaceTests(unittest.TestCase):
+    """11-05 删对话 500（产品地图 e2e，testcowork）：回复一出来就删，起标题那 10–15 秒里报「暂时不能删除」。删除请求先读这一行
+    （读快照），再调引擎删远端会话，最后 Frappe 不等锁地加锁读这一行；这期间推送线程、起标题任务改这一行并提交 → 1020。
+    修后：引擎调用之后在新事务里先锁住这一行再写，撞上冲突整笔重来，用尽回一句用户看得懂的话；改名、星标、归档同样。"""
+
+    OWNER = "owner@x.test"
+
+    def setUp(self):
+        self.db = _SessionSnapshotDb({"name": "row1", "session_id": "sesn_race1", "user": self.OWNER,
+                                      "engine_code": "claude", "archived": 0, "starred": 0, "title": "hi",
+                                      "title_source": "summarizing", "remote_ids": "", "operator_task": None})
+        self.sessions = _load("pearnly_core.assistant.sessions", CORE / "assistant/sessions.py")
+        self.pushed, self.remote = [], []
+        self.during = lambda: None  # 引擎调用进行中别处提交的写
+        files = types.ModuleType("files")
+        files.forget = lambda name: None
+        api = types.SimpleNamespace(
+            delete=lambda remote: (self.remote.append(("delete", remote)), self.during()),
+            archive=lambda remote: (self.remote.append(("archive", remote)), self.during()),
+            rename=lambda remote, title: (self.remote.append(("rename", remote)), self.during()))
+        for target, name, value in (
+                (frappe.session, "user", self.OWNER), (self.sessions.frappe, "db", self.db), (self.sessions.frappe, "QueryDeadlockError", _Deadlock),
+                (self.sessions.frappe, "delete_doc", self.db.delete_doc),
+                (self.sessions.config, "engine_code", lambda: "claude"),
+                (self.sessions.engine, "adapter", lambda: api),
+                (self.sessions.notices, "detach", lambda sid, user: None),
+                (self.sessions.sidebar, "changed", lambda user, kind, sid, **kw: self.pushed.append((kind, sid))),
+                (sys.modules, "pearnly_core.assistant.files", files)):
+            patcher = mock.patch.dict(target, {name: value}) if isinstance(target, dict) else \
+                mock.patch.object(target, name, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def title_written(self):
+        self.db.commit_elsewhere("row1", title="สรุปภาษี", title_source="summary")
+
+    def test_the_old_order_fails_like_the_site_did(self):
+        """修前的写法：读了这一行 → 引擎删远端时起标题任务写了标题 → Frappe 删除报「暂时不能删除」（就是线上那个 500）。"""
+        self.sessions.owned("sesn_race1")
+        self.title_written()
+        with self.assertRaises(frappe.QueryTimeoutError):
+            self.db.delete_doc("Pearnly Assistant Session", "row1")
+
+    def test_delete_while_the_title_is_written_succeeds(self):
+        self.during = self.title_written
+        self.sessions.delete("sesn_race1")
+        self.assertNotIn("row1", self.db.rows)
+        self.assertEqual(self.remote, [("delete", "sesn_race1")])
+        self.assertEqual(self.pushed, [("deleted", "sesn_race1")])
+
+    def test_a_conflict_on_the_lock_is_retried_without_deleting_the_remote_twice(self):
+        self.db.boom = 2
+        self.sessions.delete("sesn_race1")
+        self.assertNotIn("row1", self.db.rows)
+        self.assertEqual(self.remote, [("delete", "sesn_race1")])
+        self.assertGreaterEqual(self.db.rollbacks, 2)
+
+    def test_when_retries_run_out_the_user_gets_a_plain_message_not_a_500(self):
+        self.db.boom = 10
+        with self.assertRaises(frappe.ValidationError) as caught:
+            self.sessions.delete("sesn_race1")
+        self.assertEqual(str(caught.exception), self.sessions.BUSY)
+        self.assertIn("row1", self.db.rows)
+        self.assertEqual(self.pushed, [])
+
+    def test_deleted_meanwhile_on_another_device_counts_as_deleted(self):
+        self.during = lambda: self.db.rows.pop("row1")
+        self.sessions.delete("sesn_race1")
+        self.assertNotIn("row1", self.db.rows)
+        self.assertEqual(self.pushed, [])  # 那一台已经推过
+
+    def test_rename_star_and_archive_while_the_title_is_written(self):
+        self.during = self.title_written
+        self.sessions.rename("sesn_race1", "งานเดือนนี้")
+        self.assertEqual((self.db.rows["row1"]["title"], self.db.rows["row1"]["title_source"]), ("งานเดือนนี้", "user"))
+        self.db.commit_elsewhere("row1", modified="later")
+        self.sessions.star("sesn_race1", True)
+        self.assertEqual(self.db.rows["row1"]["starred"], 1)
+        self.sessions.archive("sesn_race1")
+        self.assertEqual(self.db.rows["row1"]["archived"], 1)
+        self.assertEqual([kind for kind, _sid in self.pushed], ["titled", "starred", "archived"])
+
+    def test_the_title_job_stops_quietly_when_the_conversation_was_deleted(self):
+        titles = sys.modules["pearnly_core.assistant.titles"]
+        logged, finished = [], []
+        api = types.SimpleNamespace(events=mock.Mock(side_effect=RuntimeError("404 session not found")))
+        settings = types.SimpleNamespace(engine=types.SimpleNamespace(title_model="haiku"))
+        row = _Row({"name": "row1", "session_id": "sesn_race1", "user": self.OWNER, "title": "hi",
+                    "title_source": "summarizing"})
+        with mock.patch.object(titles, "_claim", lambda name, legacy: row), \
+                mock.patch.object(titles, "_finish", lambda row, title: finished.append(title)), \
+                mock.patch.object(titles.config, "settings", lambda: settings), \
+                mock.patch.object(titles.engine, "adapter", lambda: api), \
+                mock.patch.object(titles.frappe, "db", self.db, create=True), \
+                mock.patch.object(titles.frappe, "log_error", lambda **kw: logged.append(kw), create=True):
+            titles.summarize("row1")  # 还在：照旧记一条错误、照旧收尾
+            self.assertEqual((len(logged), finished), (1, [""]))
+            self.db.rows.pop("row1")
+            titles.summarize("row1")  # 已删：不记错误、不写回
+        self.assertEqual((len(logged), finished), (1, [""]))
 
 
 class HistoryReadTests(unittest.TestCase):

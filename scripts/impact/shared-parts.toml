@@ -448,7 +448,8 @@ name = "事务冲突重试（transaction）"
 paths = ["apps/pearnly_core/pearnly_core/transaction/**"]
 markers = ["pearnly_core.transaction", "pearnly_core import transaction"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["shared.transaction", "cowork.transaction", "cc.mrerp-login"]
+# CC 对话的本站写（改名、星标、移月份、归档、删除）撞上快照冲突整笔重来（11-05 删对话 500，`assistant.sessions._write`）
+entries = ["shared.transaction", "cowork.transaction", "cc.mrerp-login", "cc.assistant"]
 
 [[part]]
 id = "provisioning"

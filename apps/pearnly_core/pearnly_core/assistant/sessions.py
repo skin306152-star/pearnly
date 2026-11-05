@@ -449,23 +449,79 @@ def get(session_id) -> dict:
     return _summary(row, engine.adapter().status(current(row)))
 
 
+BUSY = "This conversation could not be changed; please try again"
+
+
+def _fresh_retried(function, *args):
+    """结束这个请求的读快照（之前做完的写随之提交），再调 ``function``；撞上 1020 / 1213 整笔回滚、退避重来，最多 4 次
+    （`transaction.conflicts.retried`）。用尽、或等锁超时，回一句用户看得懂的话，不是 500。"""
+    from pearnly_core.transaction import conflicts
+
+    frappe.db.commit()
+    try:
+        return conflicts.retried(function, *args)
+    except (conflicts.Exhausted, conflicts.RollbackFailed, frappe.QueryTimeoutError):
+        frappe.db.rollback()
+        frappe.throw(_(BUSY))
+
+
+def _lock(sid):
+    """本人这段对话的最新一行，并锁住到这笔事务结束（等锁，不是 NOWAIT）；没有回 None。"""
+    return frappe.db.get_value(SESSION, {"session_id": sid, "user": _user(), "engine_code": config.engine_code()},
+                               FIELDS, as_dict=True, for_update=True)
+
+
+def _write(session_id, write, allow_archived=False, missing_ok=False, nested=False):
+    """改本站这一段对话（改名、星标、移月份、归档、删除的本站那一半）：先结束这个请求的读快照，在新事务里锁住这一行（等锁，
+    起标题、推送线程的写都是毫秒级短事务）再写；撞上快照冲突（1020）或死锁（1213）整笔回滚、退避重来，最多 4 次
+    （`transaction.conflicts.retried`）。用尽、或等锁超时，回一句用户看得懂的话，不是 500。
+
+    为什么要这样（11-05 删对话 500）：站点库开着快照隔离，请求先读了这一行（`owned`），中间再调引擎（网络调用），最后才加锁写；
+    这期间推送线程记最后活动时间、起标题任务写标题都会改这一行并提交，加锁时就报 1020，Frappe 的 `delete_doc` 把它转成
+    「暂时不能删除」。``write(row)`` 拿到的是锁住的最新一行；这一行没了：``missing_ok`` 时什么都不做（删除重来时已删掉算成功），
+    否则同 `owned` 报找不到。调用方在这之前做完的写会随这一步之前的提交落库（删除时远端已删，不能回滚掉）。``nested``：在别人
+    的事务里被调（代录任务删除回头删它的对话），就地锁住、写，不提交、不重来（由外层整笔重来）。"""
+    sid = _guard(contracts.session_id, session_id)
+
+    def attempt():
+        row = _lock(sid)
+        if not row:
+            if missing_ok:
+                return None
+            frappe.throw(_("Conversation not found"), frappe.DoesNotExistError)
+        if row.archived and not allow_archived:
+            frappe.throw(_("Conversation not found"), frappe.DoesNotExistError)
+        return write(row)
+
+    return attempt() if nested else _fresh_retried(attempt)
+
+
 def rename(session_id, title) -> None:
-    """手动改名：记成用户起的名字，之后的自动标题不再覆盖（`titles`）。"""
+    """手动改名：记成用户起的名字，之后的自动标题不再覆盖（`titles`）。先改引擎那边的名字，再在短事务里写本站（`_write`）。"""
     row = owned(session_id)
     title = contracts.title_from(title)
-    # 改名不算活动：不改最后活动时间（侧栏「上次更新」按它排，`context.active`）
-    frappe.db.set_value(SESSION, row.name, {"title": title, "title_source": titles.BY_USER}, update_modified=False)
-    _task_mirror(row, {"title": title})
     if segments(row):
         engine.adapter().rename(current(row), title)
+
+    def write(locked):
+        # 改名不算活动：不改最后活动时间（侧栏「上次更新」按它排，`context.active`）
+        frappe.db.set_value(SESSION, locked.name, {"title": title, "title_source": titles.BY_USER}, update_modified=False)
+        _task_mirror(locked, {"title": title})
+
+    _write(session_id, write)
     sidebar.changed(_user(), "titled", row.session_id, title=title)
 
 
 def star(session_id, starred) -> None:
     """加星标 / 取消：只是本站的整理标记，不动引擎那边的会话。"""
     row = owned(session_id)
-    frappe.db.set_value(SESSION, row.name, "starred", 1 if starred else 0, update_modified=False)
-    _task_mirror(row, {"starred": 1 if starred else 0})
+    value = 1 if starred else 0
+
+    def write(locked):
+        frappe.db.set_value(SESSION, locked.name, "starred", value, update_modified=False)
+        _task_mirror(locked, {"starred": value})
+
+    _write(session_id, write)
     sidebar.changed(_user(), "starred", row.session_id, starred=bool(starred))
 
 
@@ -482,36 +538,47 @@ def move(session_id, project, period=None, scope=None) -> dict:
     target, period, scope = _guard(projects.placement, wanted, period, scope, user)
     if wanted and not target:
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
-    if row.get("operator_task") and period != (row.get("period") or ""):
-        from pearnly_core.express_operator import tasks
 
-        # 代录会话的月份就是任务的月份：交给任务改（只在准备中能改，交单后拒），会话跟着记
-        tasks.update(row.operator_task, period=period)
-    frappe.db.set_value(SESSION, row.name, {"project": target, "period": period, "project_scope": scope},
-                        update_modified=False)
+    def write(locked):
+        if wanted != (locked.get("project") or ""):
+            frappe.throw(_("A conversation cannot be moved to another company."))
+        if locked.get("operator_task") and period != (locked.get("period") or ""):
+            from pearnly_core.express_operator import tasks
+
+            # 代录会话的月份就是任务的月份：交给任务改（只在准备中能改，交单后拒），会话跟着记
+            tasks.update(locked.operator_task, period=period)
+        frappe.db.set_value(SESSION, locked.name, {"project": target, "period": period, "project_scope": scope},
+                            update_modified=False)
+
+    _write(session_id, write)
     sidebar.project(user, "move", session=row.session_id, project=target, period=period, scope=scope)
     return {"id": row.session_id, "project": target, "period": period, "scope": scope}
 
 
 def archive(session_id) -> None:
+    """归档：先停下、归档引擎那边的会话（已经归档 / 不存在算成功，重来不失败），再在短事务里标本站（`_write`）。"""
     row = owned(session_id)
     api = engine.adapter()
     for remote in segments(row):
         api.archive(remote)
-    frappe.db.set_value(SESSION, row.name, "archived", 1)
+    _write(session_id, lambda locked: frappe.db.set_value(SESSION, locked.name, "archived", 1))
     sidebar.changed(_user(), "archived", row.session_id)
 
 
 def delete(session_id) -> None:
-    """删对话。代录会话（14.8）转给任务删除（`tasks.delete`：交出去还没收尾的不能删；它再回来删这段会话）。"""
+    """删对话。代录会话（14.8）转给任务删除（`tasks.delete`：交出去还没收尾的不能删；它再回来删这段会话）。
+    先删引擎那边（已经不存在算成功），再在短事务里删本站这一行与它的提醒、附件（`_write`）；本站这一行已经被删掉的（重来、
+    两台设备同时删）算成功。代录会话整个任务删除同样在新事务里做、撞上冲突整笔重来。"""
     row = owned(session_id, allow_archived=True)
-    if row.get("operator_task") and getattr(frappe.local, "pearnly_operator_deleting", None) != row.operator_task:
+    nested = bool(row.get("operator_task")) \
+        and getattr(frappe.local, "pearnly_operator_deleting", None) == row.operator_task
+    if row.get("operator_task") and not nested:
         from pearnly_core.express_operator import tasks
 
         if frappe.db.exists(tasks.DOCTYPE, {"name": row.operator_task, "owner": _user()}):
             frappe.local.pearnly_operator_deleting = row.operator_task
             try:
-                tasks.delete(row.operator_task)
+                _fresh_retried(tasks.delete, row.operator_task)
             finally:
                 frappe.local.pearnly_operator_deleting = None
             if not frappe.db.exists(SESSION, row.name):
@@ -519,12 +586,17 @@ def delete(session_id) -> None:
     api = engine.adapter()
     for remote in segments(row):
         api.delete(remote)
-    notices.detach(row.session_id, _user())
-    frappe.delete_doc(SESSION, row.name, ignore_permissions=True)
-    from pearnly_core.assistant import files
 
-    files.forget(row.name)
-    sidebar.changed(_user(), "deleted", row.session_id)
+    def write(locked):
+        from pearnly_core.assistant import files
+
+        notices.detach(locked.session_id, _user())
+        frappe.delete_doc(SESSION, locked.name, ignore_permissions=True)
+        files.forget(locked.name)
+        return True
+
+    if _write(session_id, write, allow_archived=True, missing_ok=True, nested=nested):
+        sidebar.changed(_user(), "deleted", row.session_id)
 
 
 MONTH_SCAN = 1000  # 「公司 · 月份」找对话时一次最多看这么多段（新到旧）

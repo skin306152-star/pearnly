@@ -100,7 +100,7 @@ class Adapter(abc.ABC):
 
     @abc.abstractmethod
     def archive(self, conversation: str) -> None:
-        """停下正在进行的回合并归档。"""
+        """停下正在进行的回合并归档；已经停下、已经归档或不存在算成功（重来不失败）。"""
 
     @abc.abstractmethod
     def delete(self, conversation: str) -> None:
