@@ -123,6 +123,7 @@ Checking your account,กำลังตรวจสอบข้อมูลบ�
 Checkpoint Key,คีย์จุดตรวจสอบ
 Checkpoints,จุดตรวจสอบ
 Choose a plan,เลือกแพ็กเกจ
+Choose document menu,เลือกเมนูเอกสาร
 Choose the company in Express,เลือกบริษัทใน Express
 Claiming a push job requires a connection,การรับงานส่งต้องระบุการเชื่อมต่อ
 Click to sort by {0},คลิกเพื่อเรียงตาม {0}
@@ -1273,6 +1274,7 @@ operator.report.reason.item_missing,ไม่มีสินค้านี้�
 operator.report.reason.license,สิทธิ์ใช้งาน Express เต็ม
 operator.report.reason.login_failed,เข้าสู่ระบบ Express ไม่สำเร็จ
 operator.report.reason.login_missing,ยังไม่ได้ตั้งค่าการเข้าสู่ระบบ Express
+operator.report.reason.menu_choice,เลือกเมนูเอกสาร
 operator.report.reason.negative_stock,สต็อกไม่พอ
 operator.report.reason.network_down,เชื่อมต่อเซิร์ฟเวอร์ไม่ได้
 operator.report.reason.network_wait,กำลังรอเซิร์ฟเวอร์

@@ -40,6 +40,7 @@ export const REASONS = {
   unsupported: "human",
   readback_mismatch: "human",
   unknown_screen: "human",
+  menu_choice: "human",
   crash_repeated: "human",
   cc_restarted: "human",
   placeholder_left: "human",

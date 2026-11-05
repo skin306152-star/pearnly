@@ -123,6 +123,7 @@ Checking your account,正在查看账号信息
 Checkpoint Key,检查点键
 Checkpoints,检查点
 Choose a plan,选择套餐
+Choose document menu,选择单据菜单
 Choose the company in Express,请在 Express 中选择公司
 Claiming a push job requires a connection,领取推送任务时必须指定连接
 Click to sort by {0},点击按 {0} 排序
@@ -1273,6 +1274,7 @@ operator.report.reason.item_missing,Express 中没有此商品
 operator.report.reason.license,Express 授权名额已满
 operator.report.reason.login_failed,Express 登录失败
 operator.report.reason.login_missing,Express 登录未设置
+operator.report.reason.menu_choice,选择单据菜单
 operator.report.reason.negative_stock,库存不够
 operator.report.reason.network_down,服务器无法连接
 operator.report.reason.network_wait,正在等待服务器

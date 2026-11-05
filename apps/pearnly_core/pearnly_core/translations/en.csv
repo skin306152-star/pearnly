@@ -123,6 +123,7 @@ Checking your account,Checking your account
 Checkpoint Key,Checkpoint Key
 Checkpoints,Checkpoints
 Choose a plan,Choose a plan
+Choose document menu,Choose document menu
 Choose the company in Express,Choose the company in Express
 Claiming a push job requires a connection,Claiming a push job requires a connection
 Click to sort by {0},Click to sort by {0}
@@ -1271,6 +1272,7 @@ operator.report.reason.item_missing,Item not in Express
 operator.report.reason.license,Express license limit reached
 operator.report.reason.login_failed,Express sign-in failed
 operator.report.reason.login_missing,Express sign-in not set
+operator.report.reason.menu_choice,Choose document menu
 operator.report.reason.negative_stock,Not enough stock
 operator.report.reason.network_down,Server unreachable
 operator.report.reason.network_wait,Waiting for the server
