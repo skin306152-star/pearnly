@@ -342,3 +342,33 @@
 账号这边什么都没写：添加成员先校验用户名（`team/service.py` 的 `_clean_username`），在建统一身份之前就拒了。按主会话要求不重试，
 脚本里用户名已改成 `e2eerp` / `e2ecowork`，等主会话同意后再跑一次 `--apply`（只读客户端那半已存在、密钥相同，重跑只回读不写）。
 本机 `~/.config/pearnly-e2e/accounts.env`（600）已生成两个随机密码，重跑沿用。
+
+第一次为什么失败、怎么改：产品的添加成员规定用户名只能是字母和数字（`_clean_username`），`e2e-erp` / `e2e-cowork` 带连字符被拒；
+主会话 11-05 同意改名为 `e2eerp` / `e2ecowork` 再跑一次。
+
+第二次 `--apply`（11-05 11:05，提交 d11a91d3f）：
+
+| 回读项 | testcowork `e2ecowork` | testerp `e2eerp` |
+|---|---|---|
+| 建账号（产品的添加成员：统一身份 + 站点用户） | 通过，`e2ecowork.testcowork@pearnly.com` | **不通过**：`Not permitted` |
+| 已启用 | 通过 | — |
+| 角色只有要用的 | 通过：Cowork Intake、Desk User | — |
+| 统一身份已绑定 | 通过 | — |
+| LINE 绑定 0 | 通过 | — |
+| 只读客户端两个池（重跑只回读） | 6 项全过，没有写 | 同左 |
+
+ERP 不通过的原因（只读查过）：ERP 能发给员工的岗位现在按菜单分（`ERP Menu …`，`team.service.assignable_roles`），
+脚本里写的 `ERP Purchase` 不在里面，`_clean_roles` 在建统一身份之前就拒了。核实没有留下半个账号：testerp 没有这个站点用户，
+pearnly-business、pearnly-cowork 两个池里都没有 `e2eerp`。脚本已改成岗位 `ERP Menu company`（另加 ERP Admin），等主会话同意再跑。
+
+### 删除 pearnly-business 池里多出来的 testcowork 客户端（11-05，用户批「删掉」；脚本 `scripts/production/drop-stale-keycloak-client.py`）
+
+| 删之前只读确认 | 结果 |
+|---|---|
+| testcowork 站点配置指的池 | `https://auth.pearnly.com/realms/pearnly-cowork`（不是 pearnly-business） |
+| 这个客户端在 pearnly-business 的在线会话 / 离线会话 | 0 / 0 |
+| 登录事件 | pearnly-business 池没开事件存储，查不到历史事件（如实记录）；站点只向自己的池登录，这个客户端不会被用到 |
+| 备份 | 本机 `~/pearnly-devtools/keycloak-backup/pearnly-business-testcowork.pearnly.com-20261105T110728.json`（600，含客户端密钥；删时又导出一份 `…110739.json`） |
+
+删后回读：pearnly-business 池里没有这个客户端了；pearnly-cowork 池里的 `testcowork.pearnly.com` 照常在、已启用；
+从外部看 testcowork 的 `/assistant` 照常转 fatcc.com，站点登录照常走 pearnly-cowork 池、登录页 200。

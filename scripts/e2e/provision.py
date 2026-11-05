@@ -5,7 +5,7 @@
 1. 测试租户上的 e2e 账号：testerp 的 `e2eerp`、testcowork 的 `e2ecowork`（产品规定用户名只能是字母和数字）。
    走产品自己的「添加成员」（`team.service.add_member`：先在统一身份里建号、再建站点用户并绑定），不手工改库；
    已有就用 `set_member_password` 把密码对齐到本机文件（本机文件是唯一一份）。权限只给 14 个场景要用的：
-   - ERP：功能角色 ERP Purchase（添加成员至少要一个岗位）+ ERP Admin（「添加公司」只有产品管理员能用，`rules.COMPANY_MANAGE_ROLES`；
+   - ERP：岗位 ERP Menu company（添加成员至少要一个岗位；ERP 能发的岗位按菜单分，11-05 第二次 --apply 时「ERP Purchase」已不在可发放的角色里被拒）+ ERP Admin（「添加公司」只有产品管理员能用，`rules.COMPANY_MANAGE_ROLES`；
      添加成员不外发管理员角色，所以单独加，只在测试租户）；
    - Cowork：Cowork Intake（添加公司、代录都按它判）。
    不绑 LINE（脚本核对没有有效 LINE 绑定，有就报出来，不动它）；不碰正式租户、不碰别人的账号。
@@ -35,7 +35,7 @@ import run as e2e  # noqa: E402  凭据文件的位置与键名与执行器同�
 SSH = os.environ.get("PEARNLY_PRODUCTION_SSH", "pearnly")
 ACCOUNTS = [
     {"key": "ERP", "product": "erp", "site": "testerp.pearnly.com", "username": "e2eerp", "first_name": "E2E", "last_name": "ERP",
-     "roles": ["ERP Purchase"], "extra_roles": ["ERP Admin"], "service": "pearnly_erp_portal.team.service"},
+     "roles": ["ERP Menu company"], "extra_roles": ["ERP Admin"], "service": "pearnly_erp_portal.team.service"},
     {"key": "COWORK", "product": "cowork", "site": "testcowork.pearnly.com", "username": "e2ecowork", "first_name": "E2E",
      "last_name": "Cowork", "roles": ["Cowork Intake"], "extra_roles": [], "service": "pearnly_cowork.team.service"},
 ]
