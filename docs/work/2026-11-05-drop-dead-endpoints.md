@@ -166,6 +166,9 @@ Cowork 实验室验证脚本：
 | 流程 `erp.stock.excel-units` | 自起的一套回归实验栈 `pearnly-dropdead-lab`（共用的 `pearnly-regression-lab` 当时被预选卡片窗口占着，没碰） | 第一次**不通过**，抓到真问题：删 `api_stock_count_import` 时切分规则把紧挨着的 `_stock_rows`（建盘点带表要用）一起切掉了，页面「上传导入」会报 NameError；恢复后通过（old / desktop） |
 | 改动涉及的全部流程 | `run.py --changed --base 56c1807ed`，同一套自起的实验栈，结果 `~/pearnly-devtools/flows-drop-dead-changed.json` | 22 条流程、两套数据、81 格全部通过（1206 秒） |
 
+流程覆盖闸门（`scripts/flows/coverage.py`，提交后才按提交范围算）：改到的入口文件里 `ocr.py`、`sessions.py`、Cowork `masters/api.py`、ERP `integrations/api.py`
+没有可跑的流程（要付费识别、真身份服务、真 LINE，或根本没有页面），逐个登记进 `tests/flows/not_flows.toml` 并写原因。
+
 误删的教训：按「下一个三连换行」切函数，遇到两个函数之间只空一行就会多切；之后改成删完用 ast 逐个核「少了哪些顶层名字」。
 
 

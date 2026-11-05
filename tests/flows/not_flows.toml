@@ -63,3 +63,19 @@ reason = "ERP 接 MR.ERP 的服务（经 mrerp/api.py 的管理员接口）：�
 [[file]]
 file = "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/connection.py"
 reason = "ERP 接 MR.ERP 的服务（经 mrerp/api.py 的管理员接口）：总开关 MRERP_LEDGER_ENABLED 是 False，入口不对用户开放、关着时全部 403，要连真 MR.ERP；离线由 tests/test_erp_mrerp_direct.py 守住，对用户开放时补流程"
+
+[[file]]
+file = "apps/pearnly_core/pearnly_core/ocr.py"
+reason = "谷歌识别后端（Vertex / AI Studio）的调用层与状态接口 api_status，没有自己的页面；真识别要付费、回归实验室没有密钥。请求形状与限流归类由 scripts/sample-verify-ocr.py（桩服务器）验，产品识别由 shared.ocr.pipeline 小样本实测（11-05 删没人调的自检接口时登记）"
+
+[[file]]
+file = "apps/pearnly_core/pearnly_core/sessions.py"
+reason = "会话登记与退出全部 / 改密后撤销其它会话：要真身份服务（Keycloak）按 sid 撤销，回归实验室没有身份服务。离线由 pearnly_core.account.test_native_account_password 候选检查守住，样板栈由 scripts/sample-session-revoke.sh、sample-cross-product.sh 验（11-05 删没人调的两个会话接口时登记）"
+
+[[file]]
+file = "apps/pearnly_cowork/pearnly_cowork/masters/api.py"
+reason = "Cowork 主档原生 RPC：Cowork 没有主档页面（导航里没有客户 / 商品 / 供应商入口），剩下的接口全仓都没有产品调用方、登记为兼容保留待另一批复核（docs/work/2026-11-05-drop-dead-endpoints.md 第 4 节）；存储层由 scripts/cowork-masters-lab-verify.py 在实验 Site 验"
+
+[[file]]
+file = "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py"
+reason = "ERP LINE 绑定码 / 解绑 / LINE 收单卡片编辑入口：要真 LINE 官方号和 LINE App，回归实验室没有；实机由入口 erp.line.binding、erp.line.chat 在三星上验，绑定逻辑由 scripts/erp-pos-lab-integrations-verify.py 在实验 Site 验（11-05 删没人调的 api_line_bot 时登记）"
