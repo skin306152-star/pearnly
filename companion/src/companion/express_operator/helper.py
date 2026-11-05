@@ -22,8 +22,9 @@ CHAIN: Tuple[Tuple[str, int, str], ...] = ((HAIKU, 8, "medium"), (OPUS, 14, "med
 SHOT = (1280, 720)
 # 请求体只用不需要 beta 头的字段（站点转发不带任何 anthropic-beta 头；11-05 测试机：带了上下文编辑 context_management，接手第一轮
 # 就被回 400）。每一轮截图都留着：一次接手最多 Haiku 8 轮、Opus 14 轮，各自从头开对话，上下文有上限
-KEEP_SHOTS = 3  # 每次请求最多带最近这几张截图；更早的换成一句文字（只改内容，不删条目，tool_use / tool_result 照旧一一对应）
-SHOT_DROPPED = "（较早的截图已省略）"
+# 一段对话最多带这么多张截图；再多就另起一段新对话（目标 + 已做过的事 + 最新一张截图），旧对话整段丢弃。
+# 已发出的消息绝不改写：模型的 thinking 块带签名，前面的内容变了 Anthropic 回 400（11-05 测试机：把旧截图换成文字后第 5 轮 400）
+SEGMENT_SHOTS = 5
 log = logging.getLogger("pearnly_companion.express_operator")
 GA_FIELDS = frozenset({"model", "max_tokens", "system", "messages", "tools", "thinking", "output_config", "cache_control"})
 
@@ -96,6 +97,8 @@ class Tools(Protocol):
 
     def member(self, name: str, inp: Dict) -> List[Dict]: ...
 
+    # 可选：``progress() -> str``，Express 里已经落下的（引擎读的），另起一段新对话时写进首条消息
+
 
 class Helper(Protocol):
     def check(self, png_b64: str, prompt: str) -> Optional[Dict]: ...
@@ -119,25 +122,56 @@ def png_block(png_b64: str) -> Dict:
     return {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": png_b64}}
 
 
-def keep_recent_shots(messages: List[Dict], keep: int = KEEP_SHOTS) -> None:
-    """只留最近 ``keep`` 张截图（含首条消息与各 tool_result 里的），更早的就地换成文字占位。"""
-    found: List[Tuple[List, int]] = []
+def count_images(messages: List[Dict]) -> int:
+    """这段对话里一共带了几张图（首条消息与各 tool_result 里的）。"""
+    total = 0
 
     def walk(blocks):
+        nonlocal total
         if not isinstance(blocks, list):
             return
-        for index, block in enumerate(blocks):
-            if not isinstance(block, dict):
-                continue
-            if block.get("type") == "image":
-                found.append((blocks, index))
-            elif block.get("type") == "tool_result":
+        for block in blocks:
+            if isinstance(block, dict) and block.get("type") == "image":
+                total += 1
+            elif isinstance(block, dict) and block.get("type") == "tool_result":
                 walk(block.get("content"))
 
     for message in messages:
         walk(message.get("content"))
-    for blocks, index in found[:max(0, len(found) - keep)]:
-        blocks[index] = {"type": "text", "text": SHOT_DROPPED}
+    return total
+
+
+def last_image(messages: List[Dict]) -> Optional[Dict]:
+    found = None
+
+    def walk(blocks):
+        nonlocal found
+        if not isinstance(blocks, list):
+            return
+        for block in blocks:
+            if isinstance(block, dict) and block.get("type") == "image":
+                found = block
+            elif isinstance(block, dict) and block.get("type") == "tool_result":
+                walk(block.get("content"))
+
+    for message in messages:
+        walk(message.get("content"))
+    return found
+
+
+def _step_text(index: int, name: str, inp: Dict, error: str) -> str:
+    keys = ("coordinate", "text", "path", "read", "scroll_direction", "duration", "region", "status")
+    shown = ", ".join(f"{k}={inp[k]!r}" for k in keys if k in inp) if isinstance(inp, dict) else ""
+    return f"{index}. {name}" + (f"（{shown[:120]}）" if shown else "") + (f" → 出错：{error[:120]}" if error else " → 已执行")
+
+
+def segment_goal(goal: str, steps: List[str], progress: str) -> str:
+    """另起一段新对话时的首条文字：原目标 + Express 里已经落了什么（引擎读的）+ 之前做过的动作 + 先核对、不要重做。"""
+    return (f"{goal}\n\n（接着上一段操作继续，上一段对话已结束。）\n"
+            + (f"Express 里已经落下的（固定流程读到的状态，最可靠）：\n{progress}\n" if progress else "")
+            + ("之前已做过的动作（按顺序）：\n" + "\n".join(steps[-40:]) + "\n" if steps else "")
+            + "先看最新截图核对 Express 当前状态，再继续；已经做过的动作不要重做"
+              "（录第一行就占号写账，重做会重复写账）。")
 
 
 class ComputerUseHelper:
@@ -193,8 +227,18 @@ class ComputerUseHelper:
     def _loop(self, model: str, max_turns: int, effort: str, goal: str, tools: Tools) -> Tuple[str, str]:
         messages: List[Dict] = [{"role": "user", "content": [{"type": "text", "text": goal},
                                                              png_block(tools.screenshot("takeover"))]}]
+        steps: List[str] = []  # 这次接手做过的动作（换段时写进新一段的首条消息）
         for _ in range(max_turns):
-            keep_recent_shots(messages)
+            if count_images(messages) > SEGMENT_SHOTS:
+                # 只追加、不改写：图多了就另起一段，旧对话（含 thinking 块）整段丢弃，不回放
+                progress = getattr(tools, "progress", None)
+                try:
+                    known = progress() if callable(progress) else ""
+                except Exception:  # noqa: BLE001 — 读不到状态就只给动作列表
+                    known = ""
+                shot = last_image(messages) or png_block(tools.screenshot("takeover"))
+                messages = [{"role": "user", "content": [{"type": "text", "text": segment_goal(goal, steps, known)},
+                                                         shot]}]
             response = self._call("turn", {
                 "model": model, "max_tokens": 8000,
                 "system": [{"type": "text", "text": CU_SYSTEM, "cache_control": {"type": "ephemeral"}}],
@@ -220,9 +264,11 @@ class ComputerUseHelper:
                     base["toolset_name"] = "computer"
                 if failed:
                     results.append({**base, "is_error": True, "content": "Not executed: an earlier action failed."})
+                    steps.append(_step_text(len(steps) + 1, block["name"], block.get("input") or {}, "not executed"))
                     continue
                 try:
                     results.append({**base, "content": tools.member(block["name"], block.get("input") or {})})
+                    steps.append(_step_text(len(steps) + 1, block["name"], block.get("input") or {}, ""))
                     last = results[-1]
                     inp = block.get("input") or {}
                     acted = block["name"] not in ("screenshot", "zoom", "cursor_position", "wait") and not (
@@ -232,6 +278,7 @@ class ComputerUseHelper:
                         raise
                     failed = True
                     results.append({**base, "is_error": True, "content": f"Error: {error}"})
+                    steps.append(_step_text(len(steps) + 1, block["name"], block.get("input") or {}, str(error)))
             if finish is not None:
                 return finish.get("status", "need_human"), finish.get("note", "")
             if acted and not failed and last is not None:

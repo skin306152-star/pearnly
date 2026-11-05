@@ -415,6 +415,32 @@ class Engine:
                   {"do": "wait", "ms": self.recipe.form_open_ms}])
         return [{"type": "text", "text": f"sent; Express window title: {self._fg_title()[:150]}"}]
 
+    def progress(self) -> str:
+        """AI 接手另起一段对话时写进首条消息：固定流程知道的、Express 里已经落下的（停在哪一步、已录完哪几行、单号格、存没存）。
+        读不到的项不写。"""
+        parts = []
+        if self._stage:
+            parts.append(f"当前步骤：{self._stage}")
+        d = self.draft
+        if d and self._lines_done:
+            rows = "；".join(f"第 {i} 行 品码 {l.item_code} 数量 {l.qty} 单价 {l.unit_price} 金额 {l.amount}"
+                            for i, l in enumerate(d.lines[:self._lines_done], start=1))
+            parts.append(f"明细已录完 {self._lines_done} 行（已占号写账）：{rows}")
+        elif d and self._stage == "line":
+            parts.append("明细还没有录完整的行")
+        if self.form is not None:
+            try:
+                number = self.docnum_text()
+                editing = self.in_edit()
+            except Exception:  # noqa: BLE001 — 读不到就不写这一项
+                number, editing = "", None
+            if number:
+                parts.append(f"单号格：{number}")
+            if editing is not None:
+                saved = bool(number) and "NEW" not in number.upper() and not editing
+                parts.append("已保存（单号 " + number + "）" if saved else "还没保存（编辑中）" if editing else "不在编辑中")
+        return "\n".join(parts)
+
     def menu_tree(self) -> List[Dict]:
         try:
             return self.act([{"do": "menu_tree"}], windows=False)["results"][0].get("tree") or []
@@ -663,6 +689,7 @@ class Engine:
     def enter_lines(self) -> None:
         self._stage = "line"
         for index, line in enumerate(self.draft.lines, start=1):
+            self._lines_done = index - 1  # 前面这几行已录完（AI 接手换段时据此写明已落的行）
             where = f"line{index}"
             text = (f"明细第 {index} 行已录完整：品码 {line.item_code}、仓 {line.loc or '默认'}、数量 {line.qty}、"
                     f"单价 {line.unit_price}；光标停在下一行（第 {index + 1} 行）的品码格，这一格是空的；没有弹窗；不要保存。")
@@ -685,6 +712,7 @@ class Engine:
                 if self._line_recovered:
                     break
             if self._line_recovered:
+                self._lines_done = index
                 continue  # AI 接手时已把这一行录完、光标停在下一行
             # 单价之后回车走完这一行：焦点回到下一行的品码格（同一列、往下一行）为止
             for _ in range(6):
@@ -695,6 +723,7 @@ class Engine:
                     break
             else:
                 self._recover(where, "Enter did not reach the next line", text, {"stage": "line"})
+            self._lines_done = index
 
     def check_totals(self, before_text: str) -> bool:
         """保存前读底部合计（不截图）：都和草稿对上才存。「จำนวนเงิน」按含税价录时显示含税额。回「是否已看过一眼」。"""
@@ -867,6 +896,7 @@ class Engine:
         self.form = self.recipe.form(doc_type) if doc_type else None
         self._t0 = time.monotonic()
         self._unread = 0
+        self._lines_done = 0
         self.rec = {"doc_id": draft.doc_id if draft else "", "doc_type": doc_type, "events": [], "reports": [],
                     "layers": {}, "checkpoints": 0, "fallbacks": [], "shots_ai": 0, "shots_evidence": 0, "voided": [],
                     "outcome": "", "reason": "", "detail": "", "docnum": "", "readback": None,
