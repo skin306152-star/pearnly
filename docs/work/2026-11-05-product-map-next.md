@@ -434,3 +434,48 @@ fatcc.com 回调 → 站点 `begin_login` → 静默确认 → 站点回调 → 
 `deploy.sh` 回读通过（状态 ok）后跑 `e2e_gate`：本机 `~/pearnly-devtools/e2e-venv/bin/python scripts/e2e/run.py --all`（可用 `PEARNLY_E2E_PYTHON` 换）。
 退出码 0 打印通过；1 停下（生产已激活，不自动回滚，给出看截图、回退与单独重跑的做法）；3 打印没测到、不拦；本机没有 e2e 环境也只打印、不拦。
 演练（`--dry-run`）不跑。离线核过四种情况（假 Python 回 0 / 1 / 3、本机没装）。
+
+### G 站外设置对比（11-05，窗口 product-map-g）
+
+做了什么：
+
+- `scripts/production/external-config-collect.py`（生产机段，只用标准库）：`deploy.sh` 的 `config_gate` **同一次 SSH** 里执行（压缩后经命令行参数传入，生产机上不落文件），
+  交回一行 `__EXT <JSON>`。Keycloak 用只读客户端 `pearnly-config-reader`（密钥 `/opt/pearnly/secrets/config-reader.env`）只发 GET；
+  realm / 客户端 / 身份提供者按白名单取字段（客户端 `secret`、身份提供者 `clientSecret`、SMTP 都不出生产机）。
+  各产品 web 容器里读站点配置并调 LINE（没存令牌的 gize / polymer / test01 用频道号 + 密钥现取短时令牌）：webhook 地址与开关、chatMode / markAsReadMode、
+  默认富菜单有没有、webhook 测试事件（只报告）。billing-web 里只读 `Pearnly Tenant Site` 与 fatcc.com 站点配置（密钥只给有没有）。
+  K3 客户端密钥两端一致：容器里与生产机上各用这次随机生成的盐取 HMAC，只交回 `secret_match`。
+- `scripts/production/check-external-config.py`（本机比较）：「应有」导入 `bootstrap-auth.realm_settings`（为此把该脚本的执行部分收进 `main()`，行为不变）、
+  `configure-ai-entry.readback_failures` / `logout_targets` / `PRODUCTION_ORIGINS`（读回核对抽成函数，配置时与对比时用同一份）、
+  `configure-line-login.verify_realm`（用回放的读数跑）/ `idp_representation`（从 `configure_site` 抽出）、`site-step.webhook_url`、
+  `line_login_contract`、`check-tenant-config.reference_of`、e2e `run.where_is`。本机再读 Cloudflare 两个区（pearnly.com、fatcc.com）、12 个主机的证书、
+  LINE 登录回调（L5）。
+- `deploy.sh`：`config_gate` 另打包站外设置那几个文件（更早的标记没有就跳过，不影响租户配置对比），远端命令末尾跑生产机段；
+  `liff_gate` 之后跑 `external_gate`，1 停下（生产没动，没有绕过开关），其它退出码也停下。演练与正式部署构建前各一次；激活前不再跑（站外设置不随镜像变）。
+
+拦与不拦（按 `[ext]` 分类）：same / shape 不对拦；presence 只报告。例外：缺入口登记（F1）、客户端密钥两端不一致（K3）、Keycloak 或入口登记读不到、
+LINE 不认频道凭据 → 拦；LINE 一时连不上、测试租户切在测试机、池里有不对应站点的客户端 → 只报告。`[ext]` 新登记的一节没有对应检查也拦。
+
+L5 实测（11-05，本机公开请求，无凭据）：`access.line.me/oauth2/v2.1/authorize?client_id=2010411313&redirect_uri=<登记过的 pearnly-business 接收地址>` 回 302 去 LINE 登录页；
+换成没登记的地址回 400。所以 L5 按「302 去 access.line.me = 已登记，400 = 没登记（拦）」判，其它只报告。
+
+读不到、如实留在开户清单与真机单：LINE redelivery 开关、Messaging 频道与登录频道的关联、**LIFF 的尺寸 / 作用域 / 加好友提示**——
+读 LIFF 要 LINE Login 频道密钥，它只在控制面（`Pearnly Target.line_login_channel_secret`），生产机与站点上都没有；Keycloak 里的身份提供者读回时密钥打码。
+LIFF 落地地址仍由上一步 `liff_gate`（公开页面上的 `liffEndpointUrl`）拦。
+
+离线测试 `scripts/production/test-check-external-config.py`（CI 已加一步）：按 B0 核查结果搭的样例全过；20 种拦的情况（记住我没开、两个池会话不同、缺入口登记、
+登记签发方不对、webhook 关着 / 地址不是本站、聊天模式、已读模式与测试租户不同、密钥不一致、池里没有站点客户端、退出跳转缺 fatcc.com、
+正式与测试客户端结构不同、pearnly-ai 没有 PKCE、LINE 入口没隐藏 / 不存在、首次登录不拒绝、Keycloak / 登记 / 产品容器读不到、LINE 不认凭据）逐个拦且标对节；
+7 种只报告的不拦（含 9-26 拆池留下的那类多余客户端）；解析与证书（测试租户在测试机只记 NOTE、正式租户不在生产拦、fatcc.com 被代理拦、
+证书 5 天拦 / 15 天报告）；L5 400 拦、连不上只报告；地图 `[ext]` 每一节都有检查；生产机段在本进程里跑容器脚本（假 LINE、假 Keycloak），
+输出里没有任何密钥、令牌、64 位摘要，除取令牌与 webhook 测试外没有写请求。`test-deploy-run.py` 加一条：站外设置随同一次 SSH、
+不通过在构建前停下、读不到回传停下、更早的标记跳过。
+
+本机段对真实外部只读跑过一次（样例事实 + 真 Cloudflare / 证书 / LINE 登录回调）：12 个主机指向生产 107.155.65.74，证书最早到期 auth.pearnly.com 还剩 44 天，
+两个池的 LINE 登录回调都已登记，通过。**生产机段还没对生产真跑**：`deploy.sh --dry-run` 要先问主会话。
+
+webhook 测试事件（L6）的安全性（主会话 11-05 条件）：LINE 的测试推送是带签名的空事件列表。`pearnly_core.line.webhook` 验签通过后事件列表为空，
+直接回 200：不分派处理器、不记事件、不回消息、不记 Error Log——`tests/test_core_line_token.py` 的 `WebhookTestEvent` 证明（产品镜像里跑；
+把签名密钥换错同一测试就不通过，说明它测到了验签那一步）。只有站点密钥不对时才会记「验签失败」，所以生产机段**一律用频道号 + 密钥现取令牌**
+（存了长期令牌的站也一样）：LINE 认这对凭据才发测试事件；不认就一个请求都不发给这个站的 webhook，按凭据不对拦（`test-check-external-config.py` 有一条）。
+测试事件不含任何事件，正式租户的频道不会因此给客户发出任何东西。

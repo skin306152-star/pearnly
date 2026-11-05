@@ -199,6 +199,13 @@ App 下虽然有 `.pre-commit-config.yaml`，但它们不是根级统一检查�
    - 不在 site_config 里的设置（Keycloak realm 与客户端、LINE 频道 / LIFF / 登录频道、fatcc.com 入口登记、DNS、证书）在 `config.toml` 的
      `[ext."<引用>"]` 分类（same / shape / presence，写 check、reads、where）；地图行的 `kc:` / `line:` / `liff:` / `ext:` / `dns:` / `tls:` 依赖
      必须有同名一节（规则 2），部署前对比按它读。
+   - **部署前站外设置对比**（`scripts/production/check-external-config.py`，`deploy.sh` 的 `external_gate`，接在 LIFF 落地地址后面）：
+     生产机那段 `external-config-collect.py` 与租户配置对比**同一次 SSH**（压缩后经命令行传入、不落文件），用只读客户端 `pearnly-config-reader`
+     读两个账号池、在各产品 web 容器里用站点自己的频道凭据读 LINE、在 billing-web 里读 fatcc.com 登记，只交回推导事实（客户端密钥两端一致在生产机上
+     用一次性盐比 HMAC，只交回一致与否）；本机再读 Cloudflare、证书、LINE 登录回调。「应有」从 `bootstrap-auth` / `configure-ai-entry` /
+     `configure-line-login` / `site-step` 导入，不另写。`same` / `shape` 不对、缺入口登记、客户端密钥不一致、Keycloak 或登记读不到 → 拦部署，没有绕过开关；
+     `presence`、LINE 一时连不上、测试租户切在测试机 → 只报告。`[ext]` 里新登记的一节没有对应检查也拦（`test-check-external-config.py` 同时核）。
+     LINE 的 redelivery、频道关联、LIFF 尺寸 / 作用域（LINE Login 频道密钥只在控制面）读不到，每次列在「读不到」里，留在开户清单与真机单。
 
 ## 四类副作用
 

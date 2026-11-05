@@ -289,7 +289,8 @@ class Driver(unittest.TestCase):
 
     def run_driver(self, *args, build='success', stage='success', remote_status='ok', candidate='success',
                    busy_server=False, attach_failures=0, flows=FLOWS_OK, base_flows='', changed='', on_main=True,
-                   with_map=False, config_rc=0, liff_rc=0, dump=True, manual=''):
+                   with_map=False, config_rc=0, liff_rc=0, dump=True, manual='', external=False, external_rc=0,
+                   external_facts=True):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             repo, bin_dir = root / 'repo', root / 'bin'
@@ -305,6 +306,13 @@ class Driver(unittest.TestCase):
                 (repo / 'scripts/production/check-liff-endpoints.py').write_text(
                     f'import sys\nopen("{root}/liff-rows", "w").write(sys.stdin.read())\n'
                     f'print("  PROBLEM mrerp.pearnly.com: LIFF endpoint is /stocktake" if {liff_rc} else "  liff ok")\nsys.exit({liff_rc})\n')
+            if external:  # 这个提交带站外设置对比：生产机段经同一次 SSH 传上去，本机比较换成假的（真比较另有离线测试）
+                (repo / 'ext/scripts/production').mkdir(parents=True)
+                shutil.copy(HERE / 'external-config-collect.py', repo / 'ext/scripts/production/external-config-collect.py')
+                (repo / 'ext/scripts/production/check-external-config.py').write_text(
+                    f'import shutil, sys\nshutil.copy(sys.argv[sys.argv.index("--facts") + 1], "{root}/external-facts")\n'
+                    f'print("  BLOCK [ext:fatcc.com] erp mrerp.pearnly.com: no registration" if {external_rc} else "  站外设置对比通过")\n'
+                    f'sys.exit({external_rc})\n')
             (repo / 'scripts/flows').mkdir(parents=True)
             (repo / 'scripts/flows/coverage.py').write_text(
                 'import sys\nif "--deploy-note" in sys.argv: print("本批改到的存量模块（还没有流程兜底）1 个：")\n')
@@ -322,6 +330,7 @@ case "$*" in
   *rev-list*) {f'echo {BASE}' if base_flows else ':'} ;;
   *"diff --name-only"*) printf '%s\n' {changed!r} ;;
   *show*deploy-run.sh) cat "{repo}/scripts/production/deploy-run.sh" ;;
+  *" archive "*external-config-collect*) {f'tar -c -C "{repo}/ext" scripts' if external else 'exit 128'} ;;
   *" archive "*) {f'tar -c -C "{repo}" scripts/impact scripts/check-product-map.py scripts/production/check-tenant-config.py scripts/production/check-liff-endpoints.py' if with_map else 'exit 128'} ;;
 esac
 ''')
@@ -348,7 +357,7 @@ esac
 ''')
             stub(bin_dir / 'fake-ssh', f'''printf 'ssh %s\\n' "$(printf '%s' "$*" | tr '\\n' ' ')" >> "{trace}"
 case "$*" in
-  *"--map-b64"*) cat > "{root}/config-script"; echo "  tenants read: erp 2"; {('echo "__MANUAL ' + manual + '";') if manual else ''} {('echo ' + repr(json.dumps({"erp": [{"site": "mrerp.pearnly.com", "keys": {"pearnly_line_liff_id": "1-a"}}, {"site": "gize.pearnly.com", "keys": {"pearnly_line_liff_id": None}}], "dms": {"error": "x"}})) + ' >&2;') if dump else ''} {'echo "  BLOCK erp mrerp.pearnly.com pearnly_x"; exit 1' if config_rc else 'echo "  tenant config check passed"'} ;;
+  *"--map-b64"*) cat > "{root}/config-script"; echo "  tenants read: erp 2"; {('case "$*" in *external-config-collect*) echo \'__EXT {"version": 1, "sites": {}}\' ;; esac;' if external_facts else '')} {('echo "__MANUAL ' + manual + '";') if manual else ''} {('echo ' + repr(json.dumps({"erp": [{"site": "mrerp.pearnly.com", "keys": {"pearnly_line_liff_id": "1-a"}}, {"site": "gize.pearnly.com", "keys": {"pearnly_line_liff_id": None}}], "dms": {"error": "x"}})) + ' >&2;') if dump else ''} {'echo "  BLOCK erp mrerp.pearnly.com pearnly_x"; exit 1' if config_rc else 'echo "  tenant config check passed"'} ;;
   *"nohup bash"*) cat > /dev/null; {'echo "BUSY abc"' if busy_server else 'echo "STARTED 4242"'} ;;
   *"tail -n"*)
     n=$(cat "{root}/attach-count" 2>/dev/null || echo 0); echo $((n + 1)) > "{root}/attach-count"
@@ -512,6 +521,31 @@ esac
         result, calls = self.run_driver('--dry-run', with_map=True, dump=False)
         self.assertEqual(result.returncode, 1)
         self.assertIn('读不到生产机回传的站点配置', result.stderr)
+
+    def test_external_settings_ride_the_same_ssh_and_block_before_the_build(self):
+        result, calls = self.run_driver(with_map=True, external=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.kinds(calls)[:2], ['ssh config', 'dispatch build-production.yml'])   # 不多一次 SSH
+        config = next(c for c in calls if c.startswith('ssh') and '--map-b64' in c)
+        self.assertIn('external-config-collect', config)
+        self.assertIn('站外设置对比通过', result.stdout)
+        self.assertNotIn('__EXT', result.stdout)
+        for args in ((), ('--dry-run',)):
+            with self.subTest(args=args):
+                result, calls = self.run_driver(*args, with_map=True, external=True, external_rc=1)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(self.kinds(calls), ['ssh config'])
+                self.assertIn('BLOCK [ext:fatcc.com] erp mrerp.pearnly.com', result.stdout)
+                self.assertIn('站外设置不对', result.stderr)
+                self.assertIn('没有绕过开关', result.stderr)
+        result, calls = self.run_driver('--dry-run', with_map=True, external=True, external_facts=False)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('读不到生产机回传的站外设置', result.stderr)
+        # 更早的标记没有这几个脚本：租户配置对比照跑，站外设置对比跳过
+        result, calls = self.run_driver(with_map=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('站外设置对比：提交', result.stdout)
+        self.assertNotIn('external-config-collect', next(c for c in calls if '--map-b64' in c))
 
     def test_containers_restarted_after_the_last_readback_are_listed_not_blocking(self):
         result, calls = self.run_driver(with_map=True, manual='pearnly-production-erp-web-1 2026-11-04T10:00:00Z')

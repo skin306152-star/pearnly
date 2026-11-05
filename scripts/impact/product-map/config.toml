@@ -233,7 +233,7 @@ reads = "web 容器里 GET https://api.line.me/v2/bot/info，只输出这两个�
 class = "shape"
 where = "production"
 check = "L3：LIFF 落地地址 ERP / Cowork 是站点根、DMS 是 /liff/dms-booking，尺寸 Full，作用域含 openid，加好友提示关（pearnly_control/onboarding/line_liff.py 同一口径）"
-reads = "web 容器里用 LINE Login 频道临时令牌 GET https://api.line.me/liff/v1/apps，只输出这个站点 LIFF 的设置"
+reads = "落地地址：deploy.sh 的 liff_gate（check-liff-endpoints.py，liff.line.me 公开页面里的 liffEndpointUrl）；尺寸、作用域、加好友提示要 LINE Login 频道密钥，只在控制面，生产机读不到（11-05 G 线核实），开户时 line_liff 校正、列在站外设置对比的「读不到」里"
 
 [ext."line:richmenu"]
 class = "presence"

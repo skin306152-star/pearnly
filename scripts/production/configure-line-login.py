@@ -159,13 +159,10 @@ def verify_realm(api):
     return True
 
 
-def configure_site(api, *, alias, login_channel_id, login_channel_secret, endpoints=LINE,
-                   line_user_pattern="U[0-9a-f]{32}"):
-    """该站点隐藏的 LINE 入口（OIDC）。LINE Login 频道 ID 即 LIFF ID 的前缀。"""
-    if not alias.startswith("line-") or not str(login_channel_id).isdigit() or not login_channel_secret:
-        raise RuntimeError("Invalid LINE login configuration")
-    prefix = _prefix(api)
-    body = {
+def idp_representation(alias, login_channel_id, login_channel_secret, endpoints=LINE):
+    """隐藏 LINE 入口应有的设置。开通时照它建 / 改；部署前站外设置对比（check-external-config.py 的 K5）
+    拿它去掉密钥后与读回比（Keycloak 读回时密钥是打码的）。"""
+    return {
         "alias": alias, "providerId": "oidc", "displayName": "LINE", "enabled": True,
         "hideOnLogin": True, "trustEmail": False, "storeToken": False, "linkOnly": False,
         "addReadTokenRoleOnCreate": False, "firstBrokerLoginFlowAlias": DENY_FLOW,
@@ -179,6 +176,15 @@ def configure_site(api, *, alias, login_channel_id, login_channel_secret, endpoi
             "disableUserInfo": "true",
         },
     }
+
+
+def configure_site(api, *, alias, login_channel_id, login_channel_secret, endpoints=LINE,
+                   line_user_pattern="U[0-9a-f]{32}"):
+    """该站点隐藏的 LINE 入口（OIDC）。LINE Login 频道 ID 即 LIFF ID 的前缀。"""
+    if not alias.startswith("line-") or not str(login_channel_id).isdigit() or not login_channel_secret:
+        raise RuntimeError("Invalid LINE login configuration")
+    prefix = _prefix(api)
+    body = idp_representation(alias, login_channel_id, login_channel_secret, endpoints)
     path = f"{prefix}/identity-provider/instances/{quote(alias)}"
     if api.exists(path):
         api.request(path, "PUT", body)

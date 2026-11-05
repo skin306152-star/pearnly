@@ -20,6 +20,8 @@
 #      各产品 web 容器里读站点配置（check-tenant-config.py，只读，不进数据库容器）；「应一致」的键正式租户与测试租户不同、
 #      或「形状规则」不满足就停下，没有绕过开关。服务器激活前会用镜像里那份再核一次（deploy-run.sh 的 config 步骤）。
 #      接着在本机核每个配了 LIFF 的站点的落地地址（check-liff-endpoints.py，只读 HTTP），不对也停下（11-03 事故待补项 A）。
+#      再核站外设置（11-05，check-external-config.py）：同一次 SSH 里 external-config-collect.py 只读 Keycloak 两个池、各站点 LINE 频道、
+#      fatcc.com 租户站点登记，本机再读 Cloudflare 解析、证书与 LINE 登录回调；按产品地图 [ext] 分类，应一致 / 形状不对、缺入口登记就停下。
 #   0. 流程用例闸：这个提交的 GitHub 状态 pearnly/flows 必须是全套通过（本机回归实验室 scripts/flows/run.py --all --post-status
 #      回写）；没过就停下。没有全套时沿用首父链上最近一次全套，前提是之后只改了非产品路径（flows_inherit.py）；
 #      不能沿用就停下、打印补跑命令，不构建、不动生产。
@@ -38,6 +40,11 @@ POLL=${PEARNLY_DEPLOY_POLL_SECONDS:-15}
 RECONNECT=${PEARNLY_DEPLOY_RECONNECT_SECONDS:-120}
 IMAGE_REPO=ghcr.io/skin306152-star/pearnly/frappe
 REMOTE_STATE=/opt/pearnly/state
+# 站外设置对比要从发布标记里取的文件：生产机段、本机比较，以及它导入「应有」的开户 / 配置脚本
+EXTERNAL_FILES="scripts/production/external-config-collect.py scripts/production/check-external-config.py \
+scripts/production/configure-line-login.py infrastructure/production/bootstrap-auth.py infrastructure/production/configure-ai-entry.py \
+infrastructure/production/site-step.py infrastructure/production/target.json apps/pearnly_core/pearnly_core/account/line_login_contract.py \
+scripts/e2e/run.py scripts/e2e/scenarios.py"
 
 mode=deploy digest= skip_stage=0 tag=
 while [[ $# -gt 0 ]]; do
@@ -47,7 +54,7 @@ while [[ $# -gt 0 ]]; do
     --tag) tag=${2:-}; shift ;;
     --digest) digest=${2:-}; shift ;;
     --skip-stage) skip_stage=1 ;;
-    -h|--help) sed -n '2,33p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,35p' "$0"; exit 0 ;;
     *) printf '不认识的参数：%s（--help 看用法）\n' "$1" >&2; exit 2 ;;
   esac
   shift
@@ -168,6 +175,12 @@ config_gate() {
   python3 "$tmp/scripts/check-product-map.py" --export "$tmp/product-map.json" ||
     { rm -rf "$tmp"; stop "提交 $short 的产品地图导不出来" "生产没动" "python3 scripts/check-product-map.py 看地图错在哪"; }
   b64=$(base64 < "$tmp/product-map.json" | tr -d '\n')
+  # 站外设置对比（11-05）：这个提交有那几个脚本才跑；单独打包，免得更早的标记连租户配置对比都跳过
+  local collect=
+  if git -C "$REPO" archive "$sha" $EXTERNAL_FILES 2>/dev/null | tar -x -C "$tmp" 2>/dev/null &&
+      [[ -f "$tmp/scripts/production/external-config-collect.py" ]]; then
+    collect="python3 -c 'import base64,sys,zlib; exec(compile(zlib.decompress(base64.b64decode(sys.argv[1])), \"external-config-collect\", \"exec\"))' $(python3 -c 'import base64,sys,zlib; print(base64.b64encode(zlib.compress(open(sys.argv[1],"rb").read(), 9)).decode())' "$tmp/scripts/production/external-config-collect.py") || echo __EXT_FAILED"
+  fi
   # 读到的站点配置（已去敏）经 stderr 回到本机，接着用来核 LIFF 落地地址；生产机上不落文件
   # 同一次 SSH 顺带列出上次回读通过之后被重启 / 重建过的生产容器（手工动过生产的痕迹，只报告；workflow.md「手工动过生产」）
   out=$(ssh_production "python3 - --map-b64 $b64 --dump /dev/stderr; rc=\$?
@@ -176,8 +189,10 @@ if [ -z \"\$last\" ]; then echo '__MANUAL unknown'; else
 for c in \$(docker ps --format '{{.Names}}' | grep '^pearnly-production-'); do
   at=\$(docker inspect -f '{{.State.StartedAt}}' \$c); [ \"\$(date -d \"\$at\" +%s)\" -gt \"\$last\" ] && echo \"__MANUAL \$c \$at\"
 done; fi
+$collect
 exit \$rc" < "$tmp/scripts/production/check-tenant-config.py" 2> "$tmp/sites.json") || rc=$?
-  printf '%s\n' "$out" | grep -v '^__MANUAL' | sed 's/^/  │ /'
+  printf '%s\n' "$out" | sed -n 's/^__EXT //p' > "$tmp/external.json"
+  printf '%s\n' "$out" | grep -v '^__MANUAL\|^__EXT' | sed 's/^/  │ /'
   manual=$(printf '%s\n' "$out" | sed -n 's/^__MANUAL //p')
   if [[ "$manual" == unknown ]]; then
     say "  ⚠ 生产机上还没有回读通过的时间记录（这一版之后的第一次部署会记下）"
@@ -192,7 +207,24 @@ exit \$rc" < "$tmp/scripts/production/check-tenant-config.py" 2> "$tmp/sites.jso
     *) rm -rf "$tmp"; stop "租户配置对比没跑成（退出码 $rc）" "生产没动" "网络或生产机问题；恢复后重跑" ;;
   esac
   liff_gate "$tmp"
+  external_gate "$tmp"
   rm -rf "$tmp"
+}
+
+# 站外设置对比（11-05，docs/work/2026-11-05-product-map-next.md §3）：Keycloak、LINE、fatcc.com 登记、解析、证书。
+# 生产机那段已在 config_gate 同一次 SSH 里读完（只交回推导事实，密钥不出生产机）；这里在本机比较并读本机能读的。没有绕过开关。
+external_gate() {
+  local tmp=$1 rc=0 out
+  if [[ ! -f "$tmp/scripts/production/check-external-config.py" ]]; then say "站外设置对比：提交 $short 还没有检查脚本，跳过"; return 0; fi
+  [[ -s "$tmp/external.json" ]] || stop "读不到生产机回传的站外设置" "生产没动" "重跑一次；还不行先只读看生产机上 /opt/pearnly/secrets/config-reader.env 与网络"
+  out=$(python3 "$tmp/scripts/production/check-external-config.py" --facts "$tmp/external.json" --map "$tmp/product-map.json" 2>&1) || rc=$?
+  printf '%s\n' "$out" | sed 's/^/  │ /'
+  case $rc in
+    0) say "站外设置对比通过" ;;
+    1) stop "站外设置不对（上面 BLOCK 行）" "生产没动" \
+         "改 Keycloak / LINE 后台 / fatcc.com 登记 / 解析后重跑，或在 scripts/impact/product-map/config.toml 改分类（走评审）；没有绕过开关" ;;
+    *) stop "站外设置对比没跑成（退出码 $rc）" "生产没动" "本机缺文件或输入读不出；看上面输出" ;;
+  esac
 }
 
 # 部署前也核 LIFF 落地地址（11-03 事故的待补项 A）：每个配了 LIFF 的站点，落地地址必须是规定的那一个、从 LINE 进网页不出 404。

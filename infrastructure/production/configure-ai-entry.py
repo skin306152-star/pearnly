@@ -36,6 +36,27 @@ def representation(origins) -> dict:
     }
 
 
+# 生产上 pearnly-ai 登记的入口（2026-10-10 起正式 fatcc.com，测试入口 testai.pearnly.com）；部署前站外设置对比照它核。
+PRODUCTION_ORIGINS = ("https://fatcc.com", "https://testai.pearnly.com")
+
+
+def readback_failures(actual: dict, origins) -> list[str]:
+    """读回的 pearnly-ai 客户端哪几项不对（空 = 都对）。配置后读回与部署前站外设置对比（check-external-config.py 的 K4）同一份。"""
+    wanted = representation(list(origins))
+    attributes = actual.get("attributes") or {}
+    checks = {
+        "publicClient": actual.get("publicClient") is True,
+        "standardFlowEnabled": actual.get("standardFlowEnabled") is True,
+        "directAccessGrantsEnabled": actual.get("directAccessGrantsEnabled") is False,
+        "implicitFlowEnabled": actual.get("implicitFlowEnabled") is False,
+        "serviceAccountsEnabled": actual.get("serviceAccountsEnabled") is False,
+        "redirectUris": sorted(actual.get("redirectUris") or []) == sorted(wanted["redirectUris"]),
+        "pkce": attributes.get("pkce.code.challenge.method") == "S256",
+        "login_theme": attributes.get("login_theme") == "pearnly-ai",
+    }
+    return [name for name, ok in checks.items() if not ok]
+
+
 def configure(api, origins) -> None:
     clients = f"/admin/realms/{api.realm}/clients"
     wanted = representation(origins)
@@ -46,17 +67,7 @@ def configure(api, origins) -> None:
     else:
         api.request(clients, "POST", wanted)
     actual = (api.request(clients + f"?clientId={CLIENT_ID}") or [{}])[0]
-    checks = {
-        "publicClient": actual.get("publicClient") is True,
-        "standardFlowEnabled": actual.get("standardFlowEnabled") is True,
-        "directAccessGrantsEnabled": actual.get("directAccessGrantsEnabled") is False,
-        "implicitFlowEnabled": actual.get("implicitFlowEnabled") is False,
-        "serviceAccountsEnabled": actual.get("serviceAccountsEnabled") is False,
-        "redirectUris": sorted(actual.get("redirectUris") or []) == sorted(wanted["redirectUris"]),
-        "pkce": (actual.get("attributes") or {}).get("pkce.code.challenge.method") == "S256",
-        "login_theme": (actual.get("attributes") or {}).get("login_theme") == "pearnly-ai",
-    }
-    failed = [name for name, ok in checks.items() if not ok]
+    failed = readback_failures(actual, origins)
     if failed:
         raise RuntimeError(f"{api.realm}: {CLIENT_ID} readback failed: {', '.join(failed)}")
 

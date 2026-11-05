@@ -143,5 +143,40 @@ class ConnectRetry(unittest.TestCase):
         self.assertNotIn("long-lived", str(caught.exception))
 
 
+class WebhookTestEvent(unittest.TestCase):
+    """部署前站外设置对比（scripts/production/external-config-collect.py，11-05）请 LINE 往每个站点的 webhook 发一次测试事件：
+    LINE 的测试推送是带签名的空事件列表。站点必须安静收下：回 200，不分派处理器、不记事件、不回消息、不记 Error Log。"""
+
+    def setUp(self):
+        import base64
+        import hashlib
+        import hmac
+        import types
+
+        self.body = b'{"destination":"U0123456789abcdef0123456789abcdef","events":[]}'
+        signature = base64.b64encode(hmac.new(b"secret-a", self.body, hashlib.sha256).digest()).decode()
+        self.headers = {"X-Line-Signature": signature}
+        self.enterContext(patch.object(line.frappe, "conf", {"pearnly_line_channel_secret": "secret-a",
+                                                             "pearnly_line_channel_id": "2011793651"}))
+        self.enterContext(patch.object(line.frappe, "request", types.SimpleNamespace(get_data=lambda: self.body),
+                                       create=True))
+        self.enterContext(patch.object(line.frappe, "get_request_header", lambda name: self.headers.get(name)))
+        self.enterContext(patch.object(line.frappe, "local", types.SimpleNamespace(response=line.frappe._dict()), create=True))
+        self.log = self.enterContext(patch.object(line.frappe, "log_error"))
+        self.hooks = self.enterContext(patch.object(line.frappe, "get_hooks", return_value=[]))
+        self.claim = self.enterContext(patch.object(line, "_claim_event"))
+        self.post = self.enterContext(patch.object(line.requests, "post"))
+        self.request = self.enterContext(patch.object(line.requests, "request", create=True))
+
+    def test_the_signed_empty_test_push_is_accepted_quietly(self):
+        self.assertEqual(line.webhook(), {"ok": True})
+        self.log.assert_not_called()
+        self.hooks.assert_not_called()
+        self.claim.assert_not_called()
+        self.post.assert_not_called()
+        self.request.assert_not_called()
+        self.assertNotIn("http_status_code", line.frappe.local.response)
+
+
 if __name__ == "__main__":
     unittest.main()

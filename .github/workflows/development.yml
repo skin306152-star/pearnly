@@ -169,6 +169,8 @@ jobs:
         run: python3 scripts/production/test-check-liff-endpoints.py
       - name: Verify the pre-deploy tenant config check blocks same and shape differences, only reports presence, and keeps secrets inside the container
         run: python3 scripts/production/test-check-tenant-config.py
+      - name: Verify the pre-deploy external settings check (Keycloak, LINE, fatcc.com registry, DNS, certificates) blocks same and shape differences and a missing entry registration, and no secret or digest leaves the host
+        run: python3 scripts/production/test-check-external-config.py
       - name: Verify the post-deploy entry check walks each formal tenant's must-verify entries (LIFF, plain address, CC entry)
         run: python3 scripts/production/test-check-tenant-entries.py
       - name: Verify migrations stop when DocTypes disappear

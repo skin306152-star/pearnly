@@ -21,12 +21,8 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 ROOT = Path("/opt/pearnly/secrets")
-config = dict(line.split("=", 1) for line in (ROOT / "runtime.env").read_text().splitlines() if "=" in line)
 BASE = "http://127.0.0.1:8180"
 REALMS = {"pearnly-business": "control-identity.json", "pearnly-cowork": "control-identity-cowork.json"}
-REALM = sys.argv[sys.argv.index("--realm") + 1] if "--realm" in sys.argv else "pearnly-business"
-if REALM not in REALMS:
-    raise SystemExit("Unknown realm")
 # "Remember me" keeps the sign-in for 30 days (user, 2026-11-03). Keycloak 26.7.4 native realm fields: a session
 # signed in with "remember me" ticked uses max(regular, these) for idle and max lifespan (server-spi-private
 # org.keycloak.models.utils.RealmExpiration.fromRealm). The regular session (ssoSessionIdleTimeout /
@@ -49,100 +45,117 @@ def request(path, method="GET", data=None, token=None, form=False):
         raise SystemExit(f"Keycloak request failed: {method} {path} HTTP {exc.code}") from None
 
 
-token = request("/realms/master/protocol/openid-connect/token", "POST", {
-    "grant_type": "password", "client_id": "admin-cli", "username": "pearnly-bootstrap",
-    "password": config["KEYCLOAK_ADMIN_PASSWORD"],
-}, form=True)["access_token"]
-if "--remember-me" in sys.argv:
-    realm_path = f"/admin/realms/{REALM}"
-    before = request(realm_path, token=token)
-    if not before.get("rememberMe"):
-        raise SystemExit("Remember me is off on this realm; run the full bootstrap first")
-    request(realm_path, "PUT", {"realm": REALM, **REMEMBER_ME}, token)
-    after = request(realm_path, token=token)
-    assert all(after.get(key) == value for key, value in REMEMBER_ME.items())
-    assert all(after.get(key) == before.get(key) for key in REGULAR_SESSION + ("rememberMe",))
-    print(f"Remember-me sessions set to 30 days on {REALM}; regular session lengths unchanged")
-    sys.exit(0)
-settings = {
-    "realm": REALM, "enabled": True, "displayName": "Pearnly",
-    "sslRequired": "external", "registrationAllowed": False,
-    "loginWithEmailAllowed": True, "duplicateEmailsAllowed": False, "editUsernameAllowed": False,
-    "resetPasswordAllowed": True, "rememberMe": True, "passwordPolicy": "",
-    "loginTheme": "pearnly", "emailTheme": "pearnly", "internationalizationEnabled": True,
-    "supportedLocales": ["th", "zh-CN", "en", "ja"], "defaultLocale": "th",
-    "bruteForceProtected": True, "permanentLockout": False,
-    "failureFactor": 10, "waitIncrementSeconds": 60, "maxFailureWaitSeconds": 900,
-    **REMEMBER_ME,
-}
-if "--smtp" in sys.argv:
-    settings["smtpServer"] = json.load(sys.stdin)
-    if settings["smtpServer"].get("from") != "hello@pearnly.com":
-        raise SystemExit("Official sender must be hello@pearnly.com")
-    settings["smtpServer"].update({"replyTo": "hello@pearnly.com", "fromDisplayName": "Pearnly"})
-    import smtplib
-    import ssl
-    smtp = settings["smtpServer"]
-    with smtplib.SMTP(smtp["host"], int(smtp["port"]), timeout=30) as mail:
-        mail.starttls(context=ssl.create_default_context())
-        mail.login(smtp["user"], smtp["password"])
-        assert mail.noop()[0] == 250
-    print("Existing SMTP credentials authenticated over TLS; no email sent")
-realms = request("/admin/realms", token=token)
-if any(row["realm"] == REALM for row in realms):
-    request(f"/admin/realms/{REALM}", "PUT", settings, token)
-else:
-    request("/admin/realms", "POST", settings, token)
+def realm_settings(realm):
+    """这个账号池应有的设置：完整初始化照它写入；部署前站外设置对比（scripts/production/check-external-config.py）照它读回核对。"""
+    return {
+        "realm": realm, "enabled": True, "displayName": "Pearnly",
+        "sslRequired": "external", "registrationAllowed": False,
+        "loginWithEmailAllowed": True, "duplicateEmailsAllowed": False, "editUsernameAllowed": False,
+        "resetPasswordAllowed": True, "rememberMe": True, "passwordPolicy": "",
+        "loginTheme": "pearnly", "emailTheme": "pearnly", "internationalizationEnabled": True,
+        "supportedLocales": ["th", "zh-CN", "en", "ja"], "defaultLocale": "th",
+        "bruteForceProtected": True, "permanentLockout": False,
+        "failureFactor": 10, "waitIncrementSeconds": 60, "maxFailureWaitSeconds": 900,
+        **REMEMBER_ME,
+    }
 
-# Provisioning collects a company, username and email, not separate personal
-# first/last names. Keep native profile validation, but do not require names.
-profile_path = f"/admin/realms/{REALM}/users/profile"
-profile = request(profile_path, token=token)
-for attribute in profile.get("attributes", []):
-    if attribute.get("name") in ("username", "email"):
-        attribute.setdefault("permissions", {})["edit"] = ["admin"]
-    if attribute.get("name") in ("firstName", "lastName"):
-        attribute.pop("required", None)
-request(profile_path, "PUT", profile, token)
-assert all(not attribute.get("required") for attribute in
-           request(profile_path, token=token).get("attributes", [])
-           if attribute.get("name") in ("firstName", "lastName"))
 
-# Dedicated local control-plane client. Never copy this secret to tenant Sites.
-clients_path = f"/admin/realms/{REALM}/clients"
-client = request(clients_path + "?clientId=pearnly-control", token=token)
-if not client:
-    request(clients_path, "POST", {"clientId": "pearnly-control", "enabled": True,
-        "publicClient": False, "serviceAccountsEnabled": True, "standardFlowEnabled": False,
-        "directAccessGrantsEnabled": False, "fullScopeAllowed": False}, token)
+# 完整初始化后读回核对的键；部署前站外设置对比核同一组（check-external-config.py 的 K1）。
+READBACK_KEYS = ("sslRequired", "registrationAllowed", "loginWithEmailAllowed", "loginTheme",
+                 "defaultLocale", "bruteForceProtected", "resetPasswordAllowed", "editUsernameAllowed", *REMEMBER_ME)
+
+
+def main():
+    config = dict(line.split("=", 1) for line in (ROOT / "runtime.env").read_text().splitlines() if "=" in line)
+    REALM = sys.argv[sys.argv.index("--realm") + 1] if "--realm" in sys.argv else "pearnly-business"
+    if REALM not in REALMS:
+        raise SystemExit("Unknown realm")
+    token = request("/realms/master/protocol/openid-connect/token", "POST", {
+        "grant_type": "password", "client_id": "admin-cli", "username": "pearnly-bootstrap",
+        "password": config["KEYCLOAK_ADMIN_PASSWORD"],
+    }, form=True)["access_token"]
+    if "--remember-me" in sys.argv:
+        realm_path = f"/admin/realms/{REALM}"
+        before = request(realm_path, token=token)
+        if not before.get("rememberMe"):
+            raise SystemExit("Remember me is off on this realm; run the full bootstrap first")
+        request(realm_path, "PUT", {"realm": REALM, **REMEMBER_ME}, token)
+        after = request(realm_path, token=token)
+        assert all(after.get(key) == value for key, value in REMEMBER_ME.items())
+        assert all(after.get(key) == before.get(key) for key in REGULAR_SESSION + ("rememberMe",))
+        print(f"Remember-me sessions set to 30 days on {REALM}; regular session lengths unchanged")
+        sys.exit(0)
+    settings = realm_settings(REALM)
+    if "--smtp" in sys.argv:
+        settings["smtpServer"] = json.load(sys.stdin)
+        if settings["smtpServer"].get("from") != "hello@pearnly.com":
+            raise SystemExit("Official sender must be hello@pearnly.com")
+        settings["smtpServer"].update({"replyTo": "hello@pearnly.com", "fromDisplayName": "Pearnly"})
+        import smtplib
+        import ssl
+        smtp = settings["smtpServer"]
+        with smtplib.SMTP(smtp["host"], int(smtp["port"]), timeout=30) as mail:
+            mail.starttls(context=ssl.create_default_context())
+            mail.login(smtp["user"], smtp["password"])
+            assert mail.noop()[0] == 250
+        print("Existing SMTP credentials authenticated over TLS; no email sent")
+    realms = request("/admin/realms", token=token)
+    if any(row["realm"] == REALM for row in realms):
+        request(f"/admin/realms/{REALM}", "PUT", settings, token)
+    else:
+        request("/admin/realms", "POST", settings, token)
+
+    # Provisioning collects a company, username and email, not separate personal
+    # first/last names. Keep native profile validation, but do not require names.
+    profile_path = f"/admin/realms/{REALM}/users/profile"
+    profile = request(profile_path, token=token)
+    for attribute in profile.get("attributes", []):
+        if attribute.get("name") in ("username", "email"):
+            attribute.setdefault("permissions", {})["edit"] = ["admin"]
+        if attribute.get("name") in ("firstName", "lastName"):
+            attribute.pop("required", None)
+    request(profile_path, "PUT", profile, token)
+    assert all(not attribute.get("required") for attribute in
+               request(profile_path, token=token).get("attributes", [])
+               if attribute.get("name") in ("firstName", "lastName"))
+
+    # Dedicated local control-plane client. Never copy this secret to tenant Sites.
+    clients_path = f"/admin/realms/{REALM}/clients"
     client = request(clients_path + "?clientId=pearnly-control", token=token)
-cid = client[0]["id"]
-service_user = request(clients_path + f"/{cid}/service-account-user", token=token)["id"]
-manager = request(clients_path + "?clientId=realm-management", token=token)[0]["id"]
-roles = [request(clients_path + f"/{manager}/roles/{role}", token=token)
-         for role in ("view-users", "manage-users", "view-clients", "manage-clients")]
-request(f"/admin/realms/{REALM}/users/{service_user}/role-mappings/clients/{manager}", "POST", roles, token)
-request(clients_path + f"/{cid}/scope-mappings/clients/{manager}", "POST", roles, token)
-secret = request(clients_path + f"/{cid}/client-secret", token=token)["value"]
-secret_file = ROOT / REALMS[REALM]
-fd = os.open(secret_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-with os.fdopen(fd, "w") as handle:
-    json.dump({"issuer": "https://auth.pearnly.com/realms/" + REALM,
-               "client_id": "pearnly-control", "client_secret": secret}, handle)
-readback = request(f"/admin/realms/{REALM}", token=token)
-assert all(readback.get(key) == settings[key] for key in (
-    "sslRequired", "registrationAllowed", "loginWithEmailAllowed", "loginTheme",
-    "defaultLocale", "bruteForceProtected", "resetPasswordAllowed", "editUsernameAllowed", *REMEMBER_ME))
-# The only external sign-in allowed is Pearnly's per-site LINE entry: hidden, and its first
-# login flow denies (never creates or links accounts). See scripts/production/configure-line-login.py.
-assert all(idp["alias"].startswith("line-") and idp.get("hideOnLogin")
-           and idp.get("firstBrokerLoginFlowAlias") == "pearnly-line-deny" and not idp.get("trustEmail")
-           for idp in request(f"/admin/realms/{REALM}/identity-provider/instances", token=token) or [])
-print("Production realm verified: Thai default, cat theme, email/username login, reset enabled, no social/signup")
-print("Local control client configured; secret stored privately, not printed")
-service_token = request(f"/realms/{REALM}/protocol/openid-connect/token", "POST", {
-    "grant_type": "client_credentials", "client_id": "pearnly-control", "client_secret": secret,
-}, form=True)["access_token"]
-request(f"/admin/realms/{REALM}/users?max=1", token=service_token)
-request(clients_path + "?clientId=pearnly-control", token=service_token)
-print("Control service-account user and client queries verified")
+    if not client:
+        request(clients_path, "POST", {"clientId": "pearnly-control", "enabled": True,
+            "publicClient": False, "serviceAccountsEnabled": True, "standardFlowEnabled": False,
+            "directAccessGrantsEnabled": False, "fullScopeAllowed": False}, token)
+        client = request(clients_path + "?clientId=pearnly-control", token=token)
+    cid = client[0]["id"]
+    service_user = request(clients_path + f"/{cid}/service-account-user", token=token)["id"]
+    manager = request(clients_path + "?clientId=realm-management", token=token)[0]["id"]
+    roles = [request(clients_path + f"/{manager}/roles/{role}", token=token)
+             for role in ("view-users", "manage-users", "view-clients", "manage-clients")]
+    request(f"/admin/realms/{REALM}/users/{service_user}/role-mappings/clients/{manager}", "POST", roles, token)
+    request(clients_path + f"/{cid}/scope-mappings/clients/{manager}", "POST", roles, token)
+    secret = request(clients_path + f"/{cid}/client-secret", token=token)["value"]
+    secret_file = ROOT / REALMS[REALM]
+    fd = os.open(secret_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as handle:
+        json.dump({"issuer": "https://auth.pearnly.com/realms/" + REALM,
+                   "client_id": "pearnly-control", "client_secret": secret}, handle)
+    readback = request(f"/admin/realms/{REALM}", token=token)
+    assert all(readback.get(key) == settings[key] for key in READBACK_KEYS)
+    # The only external sign-in allowed is Pearnly's per-site LINE entry: hidden, and its first
+    # login flow denies (never creates or links accounts). See scripts/production/configure-line-login.py.
+    assert all(idp["alias"].startswith("line-") and idp.get("hideOnLogin")
+               and idp.get("firstBrokerLoginFlowAlias") == "pearnly-line-deny" and not idp.get("trustEmail")
+               for idp in request(f"/admin/realms/{REALM}/identity-provider/instances", token=token) or [])
+    print("Production realm verified: Thai default, cat theme, email/username login, reset enabled, no social/signup")
+    print("Local control client configured; secret stored privately, not printed")
+    service_token = request(f"/realms/{REALM}/protocol/openid-connect/token", "POST", {
+        "grant_type": "client_credentials", "client_id": "pearnly-control", "client_secret": secret,
+    }, form=True)["access_token"]
+    request(f"/admin/realms/{REALM}/users?max=1", token=service_token)
+    request(clients_path + "?clientId=pearnly-control", token=service_token)
+    print("Control service-account user and client queries verified")
+
+
+if __name__ == "__main__":
+    main()

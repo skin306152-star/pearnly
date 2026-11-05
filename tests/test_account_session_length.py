@@ -3,6 +3,7 @@
 
 Keycloak 这边（用户 2026-11-03）：产品 realm 勾「记住我」的会话也保持 30 天（`infrastructure/production/bootstrap-auth.py`
 的 REMEMBER_ME），不勾的普通会话不动。用假 Keycloak 跑脚本本身，不连真服务。"""
+import importlib.machinery
 import importlib.util
 import io
 import json
@@ -123,12 +124,18 @@ class KeycloakRememberMeTests(unittest.TestCase):
         source = BOOTSTRAP.read_text(encoding="utf-8")
         self.assertIn('REMEMBER_ME = {"ssoSessionIdleTimeoutRememberMe": 2592000, '
                       '"ssoSessionMaxLifespanRememberMe": 2592000}', source)
-        settings = source.split("settings = {", 1)[1].split("\n}", 1)[0]
-        self.assertIn("**REMEMBER_ME", settings)
-        self.assertNotIn('"ssoSessionIdleTimeout"', settings)     # 普通会话不在完整初始化里设
-        self.assertNotIn('"ssoSessionMaxLifespan"', settings)
-        readback = source.split("readback = request(", 1)[1].split("# The only external", 1)[0]
-        self.assertIn("*REMEMBER_ME", readback)
+        # 导入不连 Keycloak、不读密钥（部署前站外设置对比 check-external-config.py 照同一份核对）
+        loader = importlib.machinery.SourceFileLoader("bootstrap_auth", str(BOOTSTRAP))
+        module = importlib.util.module_from_spec(importlib.util.spec_from_loader("bootstrap_auth", loader))
+        loader.exec_module(module)
+        settings = module.realm_settings("pearnly-cowork")
+        self.assertEqual(settings["realm"], "pearnly-cowork")
+        for key in REMEMBER_ME_KEYS:
+            self.assertEqual(settings[key], THIRTY_DAYS)
+            self.assertIn(key, module.READBACK_KEYS)
+        self.assertNotIn("ssoSessionIdleTimeout", settings)     # 普通会话不在完整初始化里设
+        self.assertNotIn("ssoSessionMaxLifespan", settings)
+        self.assertIn("assert all(readback.get(key) == settings[key] for key in READBACK_KEYS)", source)
         sample = (ROOT / "scripts/sample-cowork-realm.py").read_text(encoding="utf-8")
         copy = sample.split("COPY = (", 1)[1].split(")", 1)[0]
         for key in REMEMBER_ME_KEYS:
