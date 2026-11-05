@@ -51,7 +51,7 @@ class Boundary(unittest.TestCase):
                 for name in names:
                     with self.subTest(module=path.name, imports=name):
                         if path.name in FRAMEWORK_LAYER:
-                            self.assertTrue(name.split(".")[0] == "frappe" or name.startswith(SHARED), name)
+                            self.assertTrue(name.split(".")[0] == "frappe" or name in STDLIB or name.startswith(SHARED), name)
                             continue
                         self.assertNotIn(name.split(".")[0], PRODUCTS)
                         self.assertTrue(name in STDLIB or name.startswith(SHARED), name)

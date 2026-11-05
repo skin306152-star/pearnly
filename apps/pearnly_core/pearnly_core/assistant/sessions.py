@@ -35,7 +35,7 @@ import json
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import (config, context, contracts, engine, engines, notices, prefs, projects, relay,
+from pearnly_core.assistant import (ask, config, context, contracts, engine, engines, notices, prefs, projects, relay,
                                     sidebar, titles, toolrun, tools)
 
 SESSION = context.SESSION
@@ -779,6 +779,9 @@ def confirm(session_id, confirmations) -> dict:
     # 代录卡片（`pop_` 开头）不经引擎、不经本站执行记录：卡片自己调代录接口，结论由代录事件源投影出来
     batch = [item for item in _guard(contracts.confirmations, confirmations)
              if not str(item["tool_use_id"]).startswith("pop_")]
+    # 通用提问卡片（`ask_user`）的作答随确认项带来（``answers``），本站记、本站交回，不转给引擎
+    answers = {contracts.event_id(item.get("tool_use_id")): item.get("answers") for item in confirmations
+               if isinstance(item, dict) and item.get("answers") is not None}
     if not batch:
         return {"confirmed": 0, "runs": {}}
     remote = current(row)
@@ -791,7 +794,10 @@ def confirm(session_id, confirmations) -> dict:
         use_id = item["tool_use_id"]
         if runs.get(use_id) != "awaiting_approval":
             continue
-        status = toolrun.decide(row.session_id, remote, use_id, item["result"] == "allow")
+        try:
+            status = toolrun.decide(row.session_id, remote, use_id, item["result"] == "allow", answers.get(use_id))
+        except ask.AnswerError:
+            frappe.throw(_("Invalid request"))
         # 没抢到（同一刻别处点了、或刚被作废）：回此刻的状态
         runs[use_id] = status if status != "not_waiting" else _tool_runs(row, [use_id]).get(use_id, runs[use_id])
     return {"confirmed": len(batch), "runs": runs}

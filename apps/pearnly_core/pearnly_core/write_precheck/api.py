@@ -67,7 +67,11 @@ def search(company, doc_id, search, txt="", start=0, page_length=20):
 @frappe.whitelist(methods=["POST"])
 def answer(company, doc_ids, answers, resume=0):
     _require(company)
-    company, doc_ids = str(company or ""), _ids(doc_ids)
+    return record(str(company or ""), _ids(doc_ids), answers, str(resume) in ("1", "true", "True"))
+
+
+def record(company, doc_ids, answers, resume=False) -> dict:
+    """作答（白名单 ``answer`` 与 CC 工具 ``pearnly_precheck_answer`` 共用）。调用方已过 :func:`_require`。"""
     answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
     if not isinstance(answers, list):
         frappe.throw(_("Invalid request"))
@@ -79,9 +83,36 @@ def answer(company, doc_ids, answers, resume=0):
     # 先落库：重判是「只是看」，产品判完会整笔回滚，不提交的话刚记下的答案也跟着回滚（11-05 实验室流程查出）
     frappe.db.commit()
     writable, held = contracts.writable(before, answers), contracts.held_back(before, answers)
-    results = products.resume(company, writable) if str(resume) in ("1", "true", "True") else []
+    results = products.resume(company, writable) if resume else []
     after = card(company, doc_ids)
     out = {**after, "writable": writable, "held": held}
     if results:
         out["results"] = results
     return out
+
+
+# ── CC 工具（共用层 `assistant.tools.CORE_TOOLS` 声明）：开始写账前取要人定的项、用户在提问卡片里答完后记下 ──
+
+
+def _tool_ids(tool_input) -> tuple:
+    company = str((tool_input or {}).get("company") or "")
+    _require(company)
+    return company, _ids((tool_input or {}).get("doc_ids"))
+
+
+def tool_check(tool_input) -> str:
+    import json
+
+    company, doc_ids = _tool_ids(tool_input)
+    mode = (tool_input or {}).get("mode") or "direct"
+    if mode not in MODES:
+        frappe.throw(_("Invalid request"))
+    return json.dumps({**card(company, doc_ids), "mode": mode}, ensure_ascii=False, default=str)
+
+
+def tool_answer(tool_input) -> str:
+    import json
+
+    company, doc_ids = _tool_ids(tool_input)
+    found = record(company, doc_ids, (tool_input or {}).get("answers"), bool((tool_input or {}).get("resume")))
+    return json.dumps(found, ensure_ascii=False, default=str)

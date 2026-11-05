@@ -552,7 +552,7 @@ class PendingMonthTests(unittest.TestCase):
         config = types.SimpleNamespace(engine_code=lambda: self.engine)
         package = types.ModuleType("pearnly_core.assistant")
         modules = {"pearnly_core.assistant": package}
-        for name in ("config", "context", "contracts", "engine", "engines", "notices", "prefs", "projects", "relay",
+        for name in ("ask", "config", "context", "contracts", "engine", "engines", "notices", "prefs", "projects", "relay",
                      "sidebar", "titles", "toolrun", "tools"):
             setattr(package, name, types.SimpleNamespace())
         package.config, package.contracts = config, assistant_contracts

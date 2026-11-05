@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import contracts, engine, tools
+from pearnly_core.assistant import ask, contracts, engine, tools
 
 TOOL_RUN = "Pearnly Assistant Tool Run"
 LANG_TTL = 30 * 86400
@@ -138,9 +138,12 @@ def _refused_before_card(conversation: str, call: dict) -> str | None:
         frappe.local.pearnly_assistant = before
 
 
-def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
+def decide(conversation: str, remote: str, use_id: str, allow: bool, answers=None) -> str:
     """用户在对话里对一次要授权的工具调用点了「允许 / 拒绝」：允许就以本人身份执行，拒绝就告诉智能体没得到同意。
-    只认本对话、本人、还在等的那一次；授权只管这一次调用，不延续到下一次。"""
+    只认本对话、本人、还在等的那一次；授权只管这一次调用，不延续到下一次。
+
+    通用提问工具 ``ask_user``（`ask`）：「允许」带着 ``answers``（卡片上的作答），不执行工具，答案就是结果；关掉卡片（拒绝）每题算跳过。
+    答案对不上题目抛 `ask.AnswerError`（先核、再抢占，答错不占掉这张卡片）。"""
     # 先结束请求开头的读快照（`sessions.confirm` 此前只读）：同一刻点了停止、刚被作废的这一条，按旧快照还「在等」，
     # 一改就撞 1020（见文件头）
     frappe.db.rollback()
@@ -148,6 +151,10 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
                                           "user": frappe.session.user, "status": "awaiting_approval"}, "name")
     if not name:
         return "not_waiting"
+    asked = None
+    if frappe.db.get_value(TOOL_RUN, name, "tool") == ask.TOOL:
+        tool_input = json.loads(frappe.db.get_value(TOOL_RUN, name, "tool_input") or "{}")
+        asked = ask.result(tool_input, answers) if allow else ask.skipped(tool_input)
     # 抢占：同一次点击重复到达、两个页面同时点，只有一个能把状态从等待改走。只锁这一条、改完马上提交（作废那边锁着时
     # 它是一条一个短事务，等不了多久；它见到这条被锁就跳过，不会反过来等这里）
     # 同时改 modified：增量补拉按「锚点之后改过的」带回执行记录（`sessions._run_rows`）
@@ -162,6 +169,13 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
         return "not_waiting"
     if not claimed:
         return "not_waiting"
+    if asked is not None:
+        # 提问卡片答完（或关掉）：答案落进执行记录（重开、换设备照它定下卡片），经 user.custom_tool_result 交回模型
+        frappe.db.set_value(TOOL_RUN, name, {"status": "done", "result": asked[:60000]})
+        frappe.db.commit()
+        _publish_run(conversation, use_id, "done")
+        _hand_back(conversation, remote, use_id, asked, False)
+        return "done"
     _announce(conversation, use_id, allow)
     if not allow:
         # 带上 status: denied（不随语言变）：对话页重开时照它认出这一步被拒绝、没做，步骤不写成做完的说法（第 8 轮测试机）。

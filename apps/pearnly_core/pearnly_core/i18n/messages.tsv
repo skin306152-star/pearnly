@@ -1006,3 +1006,9 @@ Computer in use	电脑正在使用	มีผู้ใช้คอมพิวเ
 Waiting for the server	正在等待服务器	กำลังรอเซิร์ฟเวอร์	サーバーを待っています	operator.report.reason.network_wait
 Account set in use	账套正在使用	ชุดบัญชีกำลังถูกใช้งาน	帳簿は使用中です	operator.report.reason.account_busy
 Waiting for start time	等待开始时刻	รอเวลาเริ่ม	開始時刻を待っています	operator.report.reason.waiting_start
+Asked questions	已提问	ถามคำถามแล้ว	質問しました	
+Waiting for answers	等待作答	รอคำตอบ	回答待ち	
+Checked push choices	查看了推送前要选的项	ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว	送信前の選択項目を確認しました
+Checking push choices	正在查看推送前要选的项	กำลังตรวจสอบสิ่งที่ต้องเลือกก่อนส่ง	送信前の選択項目を確認しています
+Saved push choices	保存了推送选项	บันทึกตัวเลือกการส่งแล้ว	送信の選択を保存しました
+Saving push choices	正在保存推送选项	กำลังบันทึกตัวเลือกการส่ง	送信の選択を保存しています

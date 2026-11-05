@@ -50,6 +50,7 @@ Approval,承認
 Approved amounts are credited to your balance.,承認後、残高に反映されます。
 Are you sure you want to sign out?,ログアウトしますか？
 Arguments,引数
+Asked questions,質問しました
 Attempt,試行回数
 Attempts,試行回数
 Authoritative push status.,送信ステータスの正本です。
@@ -113,8 +114,10 @@ Change password,パスワード変更
 Change your password and sign out other devices on the account page of the identity service,パスワードの変更と他の端末からのログアウトは、ID サービスのアカウントページで行ってください
 Change your password from your account profile using Change Password.,プロフィールの「パスワード変更」からログインパスワードを変更してください。
 Charges,課金
+Checked push choices,送信前の選択項目を確認しました
 Checked the hands-on task,代行入力タスクを確認しました
 Checked your account,アカウント情報を確認しました
+Checking push choices,送信前の選択項目を確認しています
 Checking the hands-on task,代行入力タスクを確認しています
 Checking your account,アカウント情報を確認しています
 Checkpoint Key,チェックポイントキー
@@ -660,6 +663,8 @@ Save,保存
 Save purchase order,仕入伝票を保存
 Saved,保存しました
 Saved as a draft; confirm it before it can be pushed,保存すると下書きになります。確認してから送信できます
+Saved push choices,送信の選択を保存しました
+Saving push choices,送信の選択を保存しています
 "Scan to add this account, then send the bind code in LINE.",スキャンして友だち追加し、LINEでこの連携コードを送信してください。
 Seen At,報告日時
 Seller,売り手
@@ -880,6 +885,7 @@ Voided {0},取消済み {0}
 WHT deducted,源泉徴収税額
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},{0} 秒待っても同一アカウントのロックを取得できません（{1}）。同一アカウントへの同時ログインは禁止です。{2}
 Waiting,待機中
+Waiting for answers,回答待ち
 Waiting for start time,開始時刻を待っています
 Waiting for the server,サーバーを待っています
 Warehouses,倉庫

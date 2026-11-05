@@ -50,6 +50,7 @@ Approval,审批
 Approved amounts are credited to your balance.,审核通过后计入账户余额。
 Are you sure you want to sign out?,确定要退出登录吗？
 Arguments,参数
+Asked questions,已提问
 Attempt,尝试次数
 Attempts,尝试次数
 Authoritative push status.,推送状态以此为准。
@@ -113,8 +114,10 @@ Change password,更改密码
 Change your password and sign out other devices on the account page of the identity service,请在身份服务的账户页修改密码并退出其他设备
 Change your password from your account profile using Change Password.,请在个人资料中使用「更改密码」修改登录密码。
 Charges,扣费
+Checked push choices,查看了推送前要选的项
 Checked the hands-on task,查看了实操任务
 Checked your account,已查看账号信息
+Checking push choices,正在查看推送前要选的项
 Checking the hands-on task,正在查看实操任务
 Checking your account,正在查看账号信息
 Checkpoint Key,检查点键
@@ -660,6 +663,8 @@ Save,保存
 Save purchase order,保存采购单
 Saved,已保存
 Saved as a draft; confirm it before it can be pushed,保存为草稿，确认后方可推送
+Saved push choices,保存了推送选项
+Saving push choices,正在保存推送选项
 "Scan to add this account, then send the bind code in LINE.",扫码添加好友，再发送此绑定码。
 Seen At,上报时间
 Seller,卖方
@@ -880,6 +885,7 @@ Voided {0},已作废 {0}
 WHT deducted,预扣税额
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},等待 {0} 秒后仍未获取同一账号的锁（{1}）。同一账号不可并发登录。{2}
 Waiting,等待
+Waiting for answers,等待作答
 Waiting for start time,等待开始时刻
 Waiting for the server,正在等待服务器
 Warehouses,仓库

@@ -115,7 +115,7 @@ def _install_fakes():
     sys.modules["pearnly_core.assistant"].engines = engines
     for part in ("base", "anthropic_managed_agents"):
         setattr(engines, part, _load(f"pearnly_core.assistant.engines.{part}", CORE / f"assistant/engines/{part}.py"))
-    for part in ("config", "tools", "definition", "engine", "context", "toolrun", "sidebar", "titles", "relay", "projects"):
+    for part in ("config", "tools", "definition", "engine", "context", "ask", "toolrun", "sidebar", "titles", "relay", "projects"):
         module = _load(f"pearnly_core.assistant.{part}", CORE / f"assistant/{part}.py")
         setattr(sys.modules["pearnly_core.assistant"], part, module)
     return frappe, sdk
@@ -1270,7 +1270,8 @@ class ToolAndDefinitionTests(unittest.TestCase):
         english = {line.split("\t", 1)[0] for line in terms[1:] if line.strip()}
         for tool in tools.CORE_TOOLS:
             self.assertIn(tool.get("label"), english, f"{tool['name']} needs a label in the core term table")
-        self.assertNotIn("label", json.dumps(definition.brief("erp")["tools"]))
+        # 给模型的工具表不带步骤显示用的 label（提问工具的选项里有个同名字段，那是参数，不算）
+        self.assertFalse([tool["name"] for tool in definition.brief("erp")["tools"] if "label" in tool])
 
     def test_step_names_say_what_is_happening_now(self):
         # 工作状态行（教程第 8 条）：进行中的说法由声明工具的 App 给（共用工具在 CORE_STEP_NAMES），译文在同一张术语表；
@@ -1301,10 +1302,15 @@ class ToolAndDefinitionTests(unittest.TestCase):
         with mock.patch.object(frappe, "get_hooks", side_effect=lambda name: hooks.get(name, [])):
             steps = tools.steps()
         self.assertEqual(steps["running"], {"pearnly_whoami": "Checking your account",
-                                            "pearnly_tax_id_lookup": "Looking up a tax ID", "p_read": "Reading it"})
+                                            "pearnly_tax_id_lookup": "Looking up a tax ID",
+                                            "pearnly_precheck": "Checking push choices",
+                                            "pearnly_precheck_answer": "Saving push choices",
+                                            "ask_user": "Waiting for answers", "p_read": "Reading it"})
         self.assertEqual((steps["done"]["p_read"], steps["done"]["p_plain"]), ("Read it", "Did it"))
         # 要点「允许」的工具：卡片上的问话（没写问话用步骤名）；点了拒绝的那一步照它写（第 8 轮）
-        self.assertEqual(steps["ask"], {"p_write": "Save it?", "p_gate": "Changed it", "p_when": "Set it?"})
+        # 共用的提问工具 ask_user 也要等人作答（卡片由它自己的题目画，这一项只给重开时认步骤）
+        self.assertEqual(steps["ask"], {"ask_user": "Asked questions", "p_write": "Save it?", "p_gate": "Changed it",
+                                        "p_when": "Set it?"})
         # 带了哪些参数才要「允许」：重开对话时页面据此认出出过卡片的那一步（同 needs_approval）
         self.assertEqual(steps["gate"], {"p_gate": ["x"]})
         # 问法随参数变的（ask_when，按声明顺序）：重开对话时问话与当场一样（第 10 轮审查）；不要「允许」的工具不给
@@ -4773,7 +4779,7 @@ class ToolRunRecordTests(unittest.TestCase):
             asked.append(filters["tool_use_id"][1])
             return [_Row(tool_use_id=i, status=runs[i]) for i in filters["tool_use_id"][1] if i in runs]
 
-        def decide(conversation, remote, use_id, allow):
+        def decide(conversation, remote, use_id, allow, answers=None):
             decided.append((use_id, allow))
             if use_id == "sevt_race":  # 同一刻别处点了停止：没抢到
                 runs[use_id] = "cancelled"
@@ -5294,6 +5300,8 @@ class _SnapshotDb:
         self._cursor = types.SimpleNamespace(rowcount=int(hit))
 
     def get_value(self, doctype, filters, field, as_dict=False):
+        if isinstance(filters, str):  # 按名取一列（`decide` 看这条是不是提问工具）
+            return self.rows.get(filters, {}).get(field)
         return next((n for n, r in self.snapshot().items() if r["tool_use_id"] == filters["tool_use_id"]
                      and r["session_id"] == filters["session_id"] and r["status"] == filters["status"]), None)
 
@@ -5303,6 +5311,122 @@ class _SnapshotDb:
     def rollback(self):
         self.rollbacks += 1
         self.view = None
+
+
+class _AskDb(_SnapshotDb):
+    """同 `_SnapshotDb`，另认按人筛（只认本人的卡片）、按名取几列。"""
+
+    def get_value(self, doctype, filters, field, as_dict=False):
+        if isinstance(filters, dict) and filters.get("user"):
+            found = super().get_value(doctype, filters, field, as_dict)
+            return found if found and self.rows[found]["user"] == filters["user"] else None
+        if isinstance(filters, str) and isinstance(field, list):
+            return _Row({key: self.rows[filters].get(key) for key in field})
+        return super().get_value(doctype, filters, field, as_dict)
+
+    def set_value(self, doctype, name, values, value=None):
+        self.rows[name].update(values if isinstance(values, dict) else {values: value})
+
+
+class AskUserTests(unittest.TestCase):
+    """通用提问工具 ask_user（主会话 11-05，照 Claude Code 的 AskUserQuestion）：题目形状不合不出卡片；卡片作答随「允许」交来，
+    答案落进执行记录、经 user.custom_tool_result 交回模型；答错不占掉卡片；关掉卡片每题算跳过；只认本人、本对话、还在等的那一张。"""
+
+    QUESTIONS = {"questions": [
+        {"question": "Cash or credit for ABC?", "header": "Payment", "multiSelect": False,
+         "options": [{"label": "Credit", "description": "18 bills before were credit"}, {"label": "Cash"}]},
+        {"question": "Which documents to skip?", "header": "Skip", "multiSelect": True,
+         "options": [{"label": "INV-1"}, {"label": "INV-2"}, {"label": "INV-3"}],
+         "search": {"company": "CO1", "doc_id": "h1", "kind": "accounts"}}]}
+
+    def ask(self):
+        return sys.modules.get("pearnly_core.assistant.ask") or _load("pearnly_core.assistant.ask",
+                                                                       CORE / "assistant/ask.py")
+
+    def test_question_shape_is_checked_before_the_card(self):
+        ask = self.ask()
+        self.assertIsNone(ask.problem(self.QUESTIONS))
+        bad = [{"questions": []}, {"questions": [self.QUESTIONS["questions"][0]] * 5},
+               {"questions": [{**self.QUESTIONS["questions"][0], "header": "A header that is too long"}]},
+               {"questions": [{**self.QUESTIONS["questions"][0], "options": [{"label": "Only"}]}]},
+               {"questions": [{**self.QUESTIONS["questions"][0], "options": [{"label": "A"}, {"label": "A"}]}]},
+               {"questions": [{**self.QUESTIONS["questions"][1], "search": {"kind": "warehouses"}}]},
+               {"questions": [{**self.QUESTIONS["questions"][0], "question": ""}]}]
+        for tool_input in bad:
+            with self.subTest(tool_input=tool_input):
+                self.assertIsInstance(ask.problem(tool_input), str)
+
+    def test_answers_come_back_in_question_order(self):
+        ask = self.ask()
+        out = json.loads(ask.result(self.QUESTIONS, {"answers": [{"labels": ["Credit"]},
+                                                                {"labels": ["INV-1", "INV-3"], "other": "5300 ค่าใช้จ่าย"}]}))
+        self.assertEqual(out, {"answers": [
+            {"header": "Payment", "question": "Cash or credit for ABC?", "labels": ["Credit"]},
+            {"header": "Skip", "question": "Which documents to skip?", "labels": ["INV-1", "INV-3"], "other": "5300 ค่าใช้จ่าย"}]})
+        skipped = json.loads(ask.result(self.QUESTIONS, [{"skipped": True}, {}]))
+        self.assertEqual([a.get("skipped") for a in skipped["answers"]], [True, True])
+        self.assertEqual(json.loads(ask.skipped(self.QUESTIONS))["answers"][0]["labels"], [])
+        for answers in ([{"labels": ["Cash", "Credit"]}, {}], [{"labels": ["Later"]}, {}], [{}], "x"):
+            with self.subTest(answers=answers), self.assertRaises(ask.AnswerError):
+                ask.result(self.QUESTIONS, answers)
+
+    def _decide(self, user="owner@x.test", allow=True, answers=None, tool="ask_user"):
+        rows = {"r1": {"session_id": "conv", "tool_use_id": "sevt_1", "user": "owner@x.test", "status": "awaiting_approval",
+                       "version": 1, "tool": tool, "tool_input": json.dumps(self.QUESTIONS)}}
+        db, published, handed, ran = _AskDb(rows), [], [], []
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        with contextlib.ExitStack() as stack:
+            for patch in (mock.patch.object(toolrun.frappe, "db", db, create=True),
+                          mock.patch.object(toolrun.frappe, "QueryDeadlockError", _Deadlock, create=True),
+                          mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user=user), create=True),
+                          mock.patch.object(toolrun, "_publish_run", lambda c, u, status, user=None: published.append(status)),
+                          mock.patch.object(toolrun, "_announce", lambda *a: None),
+                          mock.patch.object(toolrun, "_hand_back", lambda c, r, u, text, err: handed.append((u, text, err))),
+                          mock.patch.object(toolrun, "_finish", lambda *a: ran.append(a) or "done")):
+                stack.enter_context(patch)
+            try:
+                status = toolrun.decide("conv", "sesn", "sevt_1", allow, answers)
+            except Exception as error:  # noqa: BLE001 — 交给调用的测试看
+                status = error
+        return status, rows["r1"], handed, published, ran
+
+    def test_the_answer_is_the_result_kept_on_the_record_and_handed_back(self):
+        status, row, handed, published, ran = self._decide(answers=[{"labels": ["Cash"]}, {"skipped": True}])
+        self.assertEqual((status, row["status"], published, ran), ("done", "done", ["done"], []))
+        self.assertEqual(json.loads(row["result"])["answers"][0]["labels"], ["Cash"])
+        self.assertEqual(handed, [("sevt_1", row["result"], False)])  # 不是出错：模型照常往下走
+
+    def test_a_wrong_answer_does_not_take_the_card(self):
+        ask = self.ask()
+        status, row, handed, published, _ran = self._decide(answers=[{"labels": ["Later"]}, {}])
+        self.assertIsInstance(status, ask.AnswerError)
+        self.assertEqual((row["status"], handed, published), ("awaiting_approval", [], []))  # 还在等，可以重答
+
+    def test_closing_the_card_skips_every_question(self):
+        status, row, handed, _published, _ran = self._decide(allow=False)
+        self.assertEqual(status, "done")
+        self.assertTrue(all(a.get("skipped") for a in json.loads(handed[0][1])["answers"]))
+
+    def test_only_the_owner_of_the_waiting_card_can_answer(self):
+        status, row, handed, _published, _ran = self._decide(user="other@x.test", answers=[{"labels": ["Cash"]}, {}])
+        self.assertEqual((status, row["status"], handed), ("not_waiting", "awaiting_approval", []))
+
+    def test_other_tools_still_run_on_allow(self):
+        status, row, handed, _published, ran = self._decide(tool="p_write")
+        self.assertEqual((status, len(ran), handed), ("done", 1, []))
+
+    def test_confirm_carries_the_answers_to_decide(self):
+        source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
+        confirm = source.split("def confirm(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn('item.get("answers")', confirm)
+        self.assertIn('toolrun.decide(row.session_id, remote, use_id, item["result"] == "allow", answers.get(use_id))', confirm)
+        self.assertIn("except ask.AnswerError:", confirm)
+        tools_module = sys.modules["pearnly_core.assistant.tools"]
+        declared = {tool["name"]: tool for tool in tools_module.CORE_TOOLS}
+        self.assertIs(declared["ask_user"]["approval"], True)  # 走「等人作答」那一套，不自动执行
+        self.assertEqual(declared["ask_user"]["refuse"], "pearnly_core.assistant.ask.problem")
+        for name in ("pearnly_precheck", "pearnly_precheck_answer"):
+            self.assertTrue(declared[name]["handler"].startswith("pearnly_core.write_precheck.api.tool_"))
 
 
 class StopRaceTests(unittest.TestCase):

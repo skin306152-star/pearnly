@@ -355,18 +355,3 @@ reason = "同上：Cowork 盘点原生 RPC，产品页面不调"
 anchor = "endpoint:pearnly_cowork.stocktake.api.entries"
 kind = "internal"
 reason = "同上：Cowork 盘点原生 RPC，产品页面不调"
-
-[[anchor]]
-anchor = "endpoint:pearnly_core.write_precheck.api.check"
-kind = "internal"
-reason = "写账前置判定的卡片接口（W2，11-05）：CC 卡片（W4）接入前只有回归流程 cowork.precheck.api 经网页会话调用；W4 接页面后闸门报「该删」时同一提交删掉这一条"
-
-[[anchor]]
-anchor = "endpoint:pearnly_core.write_precheck.api.answer"
-kind = "internal"
-reason = "写账前置判定的卡片接口（W2，11-05）：CC 卡片（W4）接入前只有回归流程 cowork.precheck.api 经网页会话调用；W4 接页面后闸门报「该删」时同一提交删掉这一条"
-
-[[anchor]]
-anchor = "endpoint:pearnly_core.write_precheck.api.search"
-kind = "internal"
-reason = "写账前置判定大列表的服务端分页（W2，11-05）：CC 卡片（W4）接入前只有回归流程 cowork.precheck.api 经网页会话调用；W4 接页面后闸门报「该删」时同一提交删掉这一条"

@@ -233,7 +233,7 @@ search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastru
 # W2（11-05）Cowork 接入：代录预检 / 交单（hooks.pearnly_express_operator → assistant.precheck_source）、代录会话卡片
 # （express_operator.api.precheck 合成 card）、自动推因要选停下记原因（push.automation.sweep）、待处理与直写的卡片取数作答
 # （hooks.pearnly_write_precheck，W4 / W5 接页面前只有接口）。ERP（W3）、CC 卡片（W4）、直写门（W5）接入时同一提交补入口
-entries = ["cc.operator.page", "cc.operator.thread", "cowork.express.push", "cowork.companies"]
+entries = ["cc.operator.page", "cc.operator.thread", "cowork.express.push", "cowork.companies", "cowork.cc-chat.push"]
 
 [[part]]
 id = "mrerp-rules"
@@ -1944,7 +1944,7 @@ where = "CC 对话页推送（让 CC 推、对话末尾的「需要处理」框�
 steps = "CC 对话页（Cowork）上传单据后让 CC 推送 / 对话末尾的「需要处理」框推送 / 让 CC 改记住的选择"
 expect = "照常写进 Express、读回一致；CC 说的与写入的一致"
 check = "manual"
-files = ["apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py", "apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py"]
+files = ["apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py", "apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py", "apps/pearnly_core/pearnly_core/assistant/tools.py"]
 
 [[entry]]
 id = "control.execution"

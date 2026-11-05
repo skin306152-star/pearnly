@@ -60,6 +60,70 @@ CORE_TOOLS = [
      "input_schema": {"type": "object", "properties": {
          "tax_id": {"type": "string"}, "branch": {"type": "integer", "minimum": 0}}, "required": ["tax_id"]},
      "handler": "pearnly_core.assistant.tools.tax_id_lookup"},
+    {"name": "pearnly_precheck",
+     "label": "Checked push choices",
+     "description": "Before writing documents into Express or MR.ERP (direct write, hands-on entry, or documents waiting in "
+                    "pending), get everything a person must decide first, for one company and its documents: groups "
+                    "(book, purchase, sales, stock, service, payment) of items, each with kind, subject, label, state "
+                    "(decided = already remembered for this company, do not ask; proposed = a preselected value; open = no "
+                    "value yet), value / value_label, source, options (small lists, the recommended one first, with a note "
+                    "saying why) or search (accounts / products / parties for big lists) and the documents it holds; plus "
+                    "unknown (last write result unknown: the user must check Express first), not_writable (facts, not "
+                    "choices), waiting and ready. needs_card false means everything is decided: write without asking. "
+                    "Otherwise turn the proposed and open items into ask_user questions, then save the answers with "
+                    "pearnly_precheck_answer.",
+     "input_schema": {"type": "object", "properties": {
+         "company": {"type": "string", "description": "The company id the documents belong to."},
+         "doc_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 200},
+         "mode": {"type": "string", "enum": ["direct", "operator", "pending"]}},
+         "required": ["company", "doc_ids"]},
+     "handler": "pearnly_core.write_precheck.api.tool_check"},
+    {"name": "pearnly_precheck_answer",
+     "label": "Saved push choices",
+     "description": "Save what the user chose in ask_user for the items pearnly_precheck returned: answers is "
+                    "[{key, value}] with the item key and the option code (or a code the user picked through search). "
+                    "Choices are remembered for the company the same way as everywhere else, so the next time they come "
+                    "back decided. Items left unanswered keep their documents back this time; proposed items not "
+                    "answered are written with the proposed value. Returns the card checked again with writable and held "
+                    "documents, or errors (nothing saved) when a value is not offered. resume true re-queues documents "
+                    "waiting in pending after saving.",
+     "input_schema": {"type": "object", "properties": {
+         "company": {"type": "string"},
+         "doc_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 200},
+         "answers": {"type": "array", "items": {"type": "object", "properties": {
+             "key": {"type": "string"}, "value": {"type": "string"}}, "required": ["key", "value"]}},
+         "resume": {"type": "boolean"}},
+         "required": ["company", "doc_ids", "answers"]},
+     "handler": "pearnly_core.write_precheck.api.tool_answer"},
+    {"name": "ask_user",
+     "label": "Asked questions",
+     "approval": True,
+     "refuse": "pearnly_core.assistant.ask.problem",
+     "description": "Ask the user 1-4 questions in one card and wait for the answers (like a before-start confirmation). "
+                    "Use it whenever a decision is the user's: above all before writing documents, after "
+                    "pearnly_precheck, ask only the proposed and open items (never the decided ones), one question per "
+                    "item or per group of same-kind items, the recommended option first with '(Recommended)' left out of "
+                    "the label and the reason in its description (for example how this supplier was recorded before). "
+                    "You may add your own questions when you notice something the user should decide (for example the "
+                    "buyer on a document is not this company). Each question: question (full sentence ending with ?), "
+                    "header (at most 12 characters), multiSelect, options 2-4 each with label and description; the card "
+                    "adds Other by itself. For big lists set search {company, doc_id, kind: accounts|products|parties} so "
+                    "Other can search them. The result is {answers: [{header, question, labels, other?, skipped?}]} in "
+                    "question order; skipped means the user left it undecided, so documents that depend on it are not "
+                    "written this time. Map the labels back to option codes and save them with pearnly_precheck_answer.",
+     "input_schema": {"type": "object", "properties": {
+         "questions": {"type": "array", "minItems": 1, "maxItems": 4, "items": {"type": "object", "properties": {
+             "question": {"type": "string"},
+             "header": {"type": "string", "maxLength": 12},
+             "multiSelect": {"type": "boolean"},
+             "options": {"type": "array", "minItems": 2, "maxItems": 4, "items": {"type": "object", "properties": {
+                 "label": {"type": "string"}, "description": {"type": "string"}}, "required": ["label"]}},
+             "search": {"type": "object", "properties": {
+                 "company": {"type": "string"}, "doc_id": {"type": "string"},
+                 "kind": {"type": "string", "enum": ["accounts", "products", "parties"]}}}},
+             "required": ["question", "header", "options"]}}},
+         "required": ["questions"]},
+     "handler": "pearnly_core.assistant.ask.unanswered"},
 ]
 
 
@@ -67,6 +131,9 @@ CORE_TOOLS = [
 CORE_STEP_NAMES = {
     "pearnly_whoami": "Checking your account",
     "pearnly_tax_id_lookup": "Looking up a tax ID",
+    "pearnly_precheck": "Checking push choices",
+    "pearnly_precheck_answer": "Saving push choices",
+    "ask_user": "Waiting for answers",
 }
 
 

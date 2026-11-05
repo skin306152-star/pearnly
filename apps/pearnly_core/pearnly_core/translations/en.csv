@@ -50,6 +50,7 @@ Approval,Approval
 Approved amounts are credited to your balance.,Approved amounts are credited to your balance.
 Are you sure you want to sign out?,Are you sure you want to sign out?
 Arguments,Arguments
+Asked questions,Asked questions
 Attempt,Attempt
 Attempts,Attempts
 Authoritative push status.,Authoritative push status.
@@ -113,8 +114,10 @@ Change password,Change password
 Change your password and sign out other devices on the account page of the identity service,Change your password and sign out other devices on the account page of the identity service
 Change your password from your account profile using Change Password.,Change your password from your account profile using Change Password.
 Charges,Charges
+Checked push choices,Checked push choices
 Checked the hands-on task,Checked the hands-on task
 Checked your account,Checked your account
+Checking push choices,Checking push choices
 Checking the hands-on task,Checking the hands-on task
 Checking your account,Checking your account
 Checkpoint Key,Checkpoint Key
@@ -658,6 +661,8 @@ Save,Save
 Save purchase order,Save purchase order
 Saved,Saved
 Saved as a draft; confirm it before it can be pushed,Saved as a draft; confirm it before it can be pushed
+Saved push choices,Saved push choices
+Saving push choices,Saving push choices
 "Scan to add this account, then send the bind code in LINE.","Scan to add this account, then send the bind code in LINE."
 Seen At,Seen At
 Seller,Seller
@@ -878,6 +883,7 @@ Voided {0},Voided {0}
 WHT deducted,WHT deducted
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}
 Waiting,Waiting
+Waiting for answers,Waiting for answers
 Waiting for start time,Waiting for start time
 Waiting for the server,Waiting for the server
 Warehouses,Warehouses

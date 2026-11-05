@@ -1782,3 +1782,36 @@ tests = ["impact:cowork.line.stocktake.liff-camera"]
 device_only = "同 ERP：LINE App 的原生相机授权只能真机"
 device = "三星 LINE：点 Cowork 富菜单「库存盘点」→ 经 LIFF 打开盘点页 → 扫码弹 LINE 相机授权 → 扫测试码 → 认出商品"
 group = "scan.line-stocktake-liff"
+
+[[row]]
+id = "cowork.cc.tool.ask_user"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:ask_user"
+group = "cc.tool.ask_user"
+where = "CC 工具 ask_user"
+tests = ["unit:tests/test_assistant.py::ask_user"]
+
+[[row]]
+id = "cowork.cc.tool.pearnly_precheck"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:pearnly_precheck"
+group = "cc.tool.pearnly_precheck"
+where = "CC 工具 pearnly_precheck"
+tests = ["unit:tests/test_assistant.py::pearnly_precheck"]
+
+[[row]]
+id = "cowork.cc.tool.pearnly_precheck_answer"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:pearnly_precheck_answer"
+group = "cc.tool.pearnly_precheck_answer"
+where = "CC 工具 pearnly_precheck_answer"
+tests = ["unit:tests/test_assistant.py::pearnly_precheck_answer"]

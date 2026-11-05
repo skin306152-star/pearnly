@@ -50,6 +50,7 @@ Approval,การอนุมัติ
 Approved amounts are credited to your balance.,ยอดที่อนุมัติจะเพิ่มในยอดคงเหลือ
 Are you sure you want to sign out?,ต้องการออกจากระบบใช่หรือไม่
 Arguments,อาร์กิวเมนต์
+Asked questions,ถามคำถามแล้ว
 Attempt,จำนวนครั้งที่พยายาม
 Attempts,จำนวนครั้งที่พยายาม
 Authoritative push status.,สถานะการส่งยึดตามค่านี้
@@ -113,8 +114,10 @@ Change password,เปลี่ยนรหัสผ่าน
 Change your password and sign out other devices on the account page of the identity service,กรุณาเปลี่ยนรหัสผ่านและออกจากระบบอุปกรณ์อื่นในหน้าบัญชีของบริการยืนยันตัวตน
 Change your password from your account profile using Change Password.,กรุณาเปลี่ยนรหัสผ่านเข้าสู่ระบบด้วย «เปลี่ยนรหัสผ่าน» ในข้อมูลส่วนตัว
 Charges,รายการหักเงิน
+Checked push choices,ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว
 Checked the hands-on task,ตรวจสอบงานทำใน Express แล้ว
 Checked your account,ตรวจสอบข้อมูลบัญชีแล้ว
+Checking push choices,กำลังตรวจสอบสิ่งที่ต้องเลือกก่อนส่ง
 Checking the hands-on task,กำลังตรวจสอบงานทำใน Express
 Checking your account,กำลังตรวจสอบข้อมูลบัญชี
 Checkpoint Key,คีย์จุดตรวจสอบ
@@ -660,6 +663,8 @@ Save,บันทึก
 Save purchase order,บันทึกเอกสารซื้อ
 Saved,บันทึกแล้ว
 Saved as a draft; confirm it before it can be pushed,บันทึกเป็นฉบับร่าง ต้องยืนยันก่อนจึงจะส่งได้
+Saved push choices,บันทึกตัวเลือกการส่งแล้ว
+Saving push choices,กำลังบันทึกตัวเลือกการส่ง
 "Scan to add this account, then send the bind code in LINE.",สแกนเพื่อเพิ่มเพื่อน แล้วส่งรหัสผูกนี้ใน LINE
 Seen At,เวลารายงาน
 Seller,ผู้ขาย
@@ -880,6 +885,7 @@ Voided {0},ยกเลิก {0} แล้ว
 WHT deducted,ภาษีหัก ณ ที่จ่าย
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},รอ {0} วินาทีแล้วยังไม่สามารถขอล็อกของบัญชีเดียวกันได้ ({1}) ไม่สามารถเข้าสู่ระบบบัญชีเดียวกันพร้อมกันได้ {2}
 Waiting,รอคิว
+Waiting for answers,รอคำตอบ
 Waiting for start time,รอเวลาเริ่ม
 Waiting for the server,กำลังรอเซิร์ฟเวอร์
 Warehouses,คลังสินค้า

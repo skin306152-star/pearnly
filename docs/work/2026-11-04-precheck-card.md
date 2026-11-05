@@ -437,3 +437,21 @@ U1/U2 两处对不上（start 未传 groups、多账套只读顶层 target）已
 - 测试：新 `tests/test_cowork_write_precheck.py`（17 条，另含大列表只给预选与搜索类型、推荐项排第一带依据、按单据账套分页、读不到的单拒绝、共用层先守 `allowed`；原 13 条：一次收齐、预选、已定、旧回包不变、事实不是选择、待选账套、记法分派与去重、
   未知类拒收、自动推记原因、钩子声明、共用接口答错整批不记 / 照写与留下）；改 `test_cowork_companies`、`test_cowork_push_direction`、
   `test_express_operator_code_cc` 跟着转调。
+
+## W5 前半施工记录：通用提问工具 `ask_user`（11-05）
+
+- 用户 11-05：卡片样子固定、内容由 CC 按当前问题出（照 Claude Code 的 AskUserQuestion）；主会话定第三版约定：复用 `user.custom_tool_result`、
+  题目可带 `search`、答案落库跨设备一致、给模型写用法、W4 卡片合入后删 4 个文字选择工具。
+- 共用层 `K/assistant/ask.py`（纯函数）：`problem` 核题目形状（1–4 题、header ≤12 字、2–4 个不重复选项、`search` 的 company / doc_id / kind），
+  `result` 把卡片作答归成 `{answers: [{header, question, labels, other?, skipped?}]}`（按题目顺序；单选最多一个；没选没打字算跳过），`skipped` 整张关掉。
+- `K/assistant/tools.CORE_TOOLS` 加三个两产品共用的工具：`ask_user`（`approval: True` 走「等人作答」的执行记录，`refuse` 指向 `ask.problem`，
+  形状不合不出卡片）、`pearnly_precheck`（转调 `write_precheck.card`）、`pearnly_precheck_answer`（转调 `write_precheck.record`，同白名单 `answer`）。
+  给模型的说明写在工具描述里：开始前调 `pearnly_precheck`，只问预选与未定（已定的不问），推荐项放第一、依据写进 description，可凭判断加题，
+  答完把 label 对回编码用 `pearnly_precheck_answer` 记下。
+- 作答不另开接口：对话页仍调 `assistant.api.confirm`，确认项多带 `answers`；`sessions.confirm` 交 `toolrun.decide(…, answers)`：
+  `ask_user` 不执行工具，先核答案（答错抛 `AnswerError`、回「请求无效」，卡片仍在等）、再抢占，答案写进执行记录（done），经
+  `user.custom_tool_result` 交回模型；关掉卡片（拒绝）每题算跳过。重开对话、换设备照执行记录定下卡片（现有机制）。
+- 新词条（共用层术语表）：Asked questions / Waiting for answers；取数与记下沿用产品已有的「查看了推送前要选的项 / 保存了推送选项」那四条。
+- 产品地图：两产品各加 `cc.tool.ask_user / pearnly_precheck / pearnly_precheck_answer` 三行；三个白名单接口有了调用方（工具声明），
+  W2 的 `not_entries` 三条豁免删掉。
+- 还没做（W5 后半）：直写收到「开始」时调 `pearnly_precheck` 的接线、删 4 个文字选择工具（等 W4 卡片合入）。

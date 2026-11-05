@@ -377,6 +377,22 @@ class SweepAndShared(unittest.TestCase):
                 with self.assertRaises(PermissionError):
                     call()
             self.assertEqual(len(calls), before)
+            # CC 工具：同一套取数与作答（JSON 文本交回模型），权限同白名单接口
+            frappe.session = ns(user="acc@firm.example")
+            told = json.loads(api.tool_check({"company": "CO1", "doc_ids": ["h1", "h2"], "mode": "pending"}))
+            self.assertEqual((told["mode"], told["needs_card"]), ("pending", True))
+            with self.assertRaises(Stop):
+                api.tool_check({"company": "CO1", "doc_ids": ["h1"], "mode": "later"})
+            saved = json.loads(api.tool_answer({"company": "CO1", "doc_ids": ["h1", "h2"],
+                                                "answers": [{"key": key["payment"], "value": "cash"}]}))
+            self.assertEqual((saved["writable"], saved["held"]), (["h1"], ["h2"]))
+            refused = json.loads(api.tool_answer({"company": "CO1", "doc_ids": ["h1"],
+                                                  "answers": [{"key": key["payment"], "value": "later"}]}))
+            self.assertEqual([e["code"] for e in refused["errors"]], [card.ERR_NOT_OFFERED])
+            for call in (lambda: api.tool_check({"company": "CO2", "doc_ids": ["h1"]}),
+                         lambda: api.tool_answer({"company": "CO2", "doc_ids": ["h1"], "answers": []})):
+                with self.assertRaises(PermissionError):
+                    call()
             frappe.session = ns(user="Guest")
             with self.assertRaises(PermissionError):
                 api.check("CO1", ["h1"])
