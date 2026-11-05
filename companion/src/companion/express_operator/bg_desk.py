@@ -73,6 +73,8 @@ def _send(hwnd, msg: int, wparam: int, lparam: int, *, ansi: bool = False) -> bo
     return bool(send(hwnd, msg, wparam, lparam, 0x2, SEND_TIMEOUT_MS, ctypes.byref(res)))
 
 class BackgroundDesk(WindowsDesk):
+    background = True  # 引擎据此告诉 AI 接手：这台只能键盘与 express_menu（鼠标动作一律被拒）
+
     def __init__(self, express_exe: str = ""):
         super().__init__(express_exe)
         self.sent = 0  # 发出的消息数（汇报里看速度用）

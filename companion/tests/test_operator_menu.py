@@ -371,3 +371,21 @@ def test_detail_over_the_limit_is_cut_at_2000_and_the_worker_sends_the_same_limi
     assert len(rec_detail) == 2000 and rec_detail.startswith("ai: x")
     assert NeedHuman("unknown_screen", "d").evidence == ""
 
+
+def _takeover_systems(site):
+    return [" ".join(b["text"] for b in r["system"]) for r in site.requests if isinstance(r.get("system"), list)]
+
+
+def test_background_desk_tells_the_ai_to_use_only_the_keyboard_and_foreground_does_not(tmp_path):
+    for background in (True, False):
+        site = Scripted([[{"name": "finish", "input": {"status": "need_human", "note": "?"}}]] * 2)
+        engine, sim = engine_for(tmp_path / str(background), renamed_menu(), transport=site)
+        if background:
+            sim.background = True
+        assert engine.background is background
+        engine.run(hp())
+        systems = _takeover_systems(site)
+        assert systems, "takeover was not called"
+        for text in systems:
+            assert ("只能用键盘动作" in text) is background
+            assert ("不能用鼠标点击" in text) is background

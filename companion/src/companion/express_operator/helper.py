@@ -62,6 +62,17 @@ Express 操作要点：
 - 除非目标里说要保存，否则不要点保存；不要重复保存同一张单。
 - 做完（或确认做不到）一定调用 finish。"""
 
+# 后台做法（bg_desk：不动真实鼠标、没有组合键）追加在系统提示后面；前台做法（win32_desk）不加
+CU_BACKGROUND = """这台电脑是后台做法：不能用鼠标点击 / 拖动 / 移动（会被拒绝），只能用键盘动作（key / type，不能按组合键）、
+express_menu 打开菜单、screenshot / zoom 看画面。"""
+
+
+def cu_system(background: bool) -> List[Dict]:
+    """接手用的系统提示：后台做法多一段只能用键盘的说明（11-05 真机：AI 先试鼠标被拒、再改键盘，白烧轮次）。"""
+    blocks = [{"type": "text", "text": CU_SYSTEM + ("\n\n" + CU_BACKGROUND if background else ""),
+               "cache_control": {"type": "ephemeral"}}]
+    return blocks
+
 FINISH_TOOL = {
     "name": "finish",
     "description": "结束这次任务。resolved = 目标已达到；need_human = 需要人来处理（说明原因）；escalate = 你处理不了，交给更强的模型。",
@@ -241,7 +252,7 @@ class ComputerUseHelper:
                                                          shot]}]
             response = self._call("turn", {
                 "model": model, "max_tokens": 8000,
-                "system": [{"type": "text", "text": CU_SYSTEM, "cache_control": {"type": "ephemeral"}}],
+                "system": cu_system(bool(getattr(tools, "background", False))),
                 "tools": [{"type": "computer_toolset_20260801"}, MENU_TOOL, FINISH_TOOL], "messages": messages,
                 "output_config": {"effort": effort}, "thinking": {"type": "adaptive"},
                 "cache_control": {"type": "ephemeral"}})
