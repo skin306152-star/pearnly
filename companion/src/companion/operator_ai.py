@@ -22,7 +22,8 @@ def _note_missing(reason: str, base: str) -> None:
 
 
 def transport_for(settings, batch_id: str) -> Optional[Callable[[str, Dict], Dict]]:
-    """这个成员的 ``transport(kind, request) -> response``；没有站点或这种通道没有这个方法回 None（照旧判断不了就交人）。"""
+    """这个成员的 ``transport(kind, request) -> response``；没有站点或这种通道没有这个方法回 None（照旧判断不了就交人）。
+    ``settings`` 是成员配置（``CompanionConfig``：``backend_url`` / ``bearer_token``），不是 ``ExpressSettings``；没有成员配置传 None。"""
     token = str(getattr(settings, "bearer_token", "") or "")
     base = str(getattr(settings, "backend_url", "") or "")
     path = channel.path(token, "operator_ai") if token else ""

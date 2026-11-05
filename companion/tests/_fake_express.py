@@ -27,6 +27,7 @@ from typing import Dict, List, Optional
 from companion.express_operator import menu as M
 from companion.express_operator.desk import Refused, run
 from companion.express_operator.draft import Draft, Line, money
+from companion.secret_store import ExpressSettings
 
 NEW, SAVE, CANCEL, VOID = 53504, 53507, 53512, 53515
 GRID_COLS = ["item", "loc", "qty", "price", "disc", "amount"]
@@ -72,6 +73,12 @@ def _date_text(typed: str) -> str:
         return dt.date(int(y) + 2500 - 543, int(m), int(d)).strftime("%Y%m%d")
     except (ValueError, TypeError):
         return typed
+
+
+def express_settings(account_dir: str, *, exe: str = "", company: str = "x", account_set: str = "TEST") -> ExpressSettings:
+    """测试用真实的 Express 设置（``secret_store.ExpressSettings``，写账线交给代录的就是它，不带站点与令牌）。"""
+    return ExpressSettings(method="dbf", express_root="", express_exe=exe, account_dir=account_dir,
+                           account_company=company, account_set=account_set, account_set_row=0)
 
 
 def samples() -> List[Draft]:

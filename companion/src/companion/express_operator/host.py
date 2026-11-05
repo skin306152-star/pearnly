@@ -115,8 +115,12 @@ class Host:
         self.lock = threading.Lock()
 
     # ── 写账线 ────────────────────────────────────────────────────────────
-    def handle(self, task_id: str, payload: Dict, settings) -> Dict:
+    def handle(self, task_id: str, payload: Dict, settings, member=None) -> Dict:
         """录一张。回 ``{"status": saved / human / stopped / skipped / waiting, "docnum", "reason", "detail", "meta"}``。
+
+        ``settings``：这张单的 Express 设置（``ExpressSettings``：程序、账套目录、公司）；``member``：领到这张单的成员配置
+        （``CompanionConfig``：站点地址、令牌、通道），AI 接手的模型调用走它的通道（11-05 测试机：原来拿 ExpressSettings
+        建通道，没有令牌，每一批都没接上 AI）。
 
         ``task_id``：写账件号（写账线给 ``task_journal.key_of``：同一件写账每次派都一样，投递号会换）。同一件再派来照上次的结果；
         换了号是站点按原批次号交来的新指令，已停的这一批重新打开（``batch.Runner.add``）。"""
@@ -132,7 +136,7 @@ class Host:
         # 单据号用站点上这张单的编号（载荷 operator.batch.doc），页面按它对上是哪一张；旧载荷没有就用写账任务号
         draft = from_payload(str(info.get("doc") or task_id), payload)
         with self.lock:
-            runner = self.runners.get(batch_id) or self._start(batch_id, info, settings, factory)
+            runner = self.runners.get(batch_id) or self._start(batch_id, info, settings, factory, member)
         from .engine import NeedHuman
 
         try:
@@ -200,7 +204,7 @@ class Host:
                                        express_exe=str(info.get("exe") or ""))
             runner = None
             try:
-                runner, _parts = self.factory(state, store, settings, self.root, self.notify)
+                runner, _parts = self.factory(state, store, settings, self.root, self.notify, member=None)  # 只收拾，不接 AI
                 runner.session._claim(pid)
                 runner.recover_orphan()
                 done.append(pid)
@@ -213,7 +217,7 @@ class Host:
                     self.notify(runner.snapshot())
         return done
 
-    def _start(self, batch_id: str, info: Dict, settings, factory: Optional[Callable] = None):
+    def _start(self, batch_id: str, info: Dict, settings, factory: Optional[Callable] = None, member=None):
         from .batch import BatchState, BatchStore
 
         state = BatchState(batch_id, str(getattr(settings, "account_company", "") or ""),
@@ -225,7 +229,7 @@ class Host:
             state.site = state.site or str(info.get("company") or "")
         except (OSError, ValueError, KeyError):
             store.save(state)
-        runner, parts = (factory or self.factory)(state, store, settings, self.root, self.notify)
+        runner, parts = (factory or self.factory)(state, store, settings, self.root, self.notify, member=member)
         self.runners[batch_id], self.parts[batch_id] = runner, parts
         return runner
 
@@ -391,8 +395,9 @@ def front_of(desk) -> Dict:
     return fg
 
 
-def express_factory(state, store, settings, root: Path, notify):
-    """Express 的装配（Windows 上的真实组装）：后台做法（不碰真键盘鼠标）+ 真账套 + 本机截图。"""
+def express_factory(state, store, settings, root: Path, notify, member=None):
+    """Express 的装配（Windows 上的真实组装）：后台做法（不碰真键盘鼠标）+ 真账套 + 本机截图。``settings`` 是 Express 设置，
+    ``member`` 是成员配置（AI 通道用它的站点与令牌；没有就不接 AI，认不出的画面交人）。"""
     from . import credentials
     from . import recipe as R
     from .batch import Runner, no_lock
@@ -426,7 +431,7 @@ def express_factory(state, store, settings, root: Path, notify):
     from .helper import ComputerUseHelper
     from ..operator_ai import transport_for
 
-    transport = transport_for(settings, state.id)
+    transport = transport_for(member, state.id)  # 成员配置（站点、令牌）；不是 settings（ExpressSettings 没有令牌）
     probes = ProbeStore(root / "probe.json")
     account_key = str(settings.account_dir).lower()
     engine = Engine(desk, recipe, book, presence=presence, evidence=evidence.save,

@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-from _fake_express import FakeBook, FakeExpress
+from _fake_express import FakeBook, FakeExpress, express_settings
 
 from companion import worker
 from companion.express_operator import recipe as R
@@ -28,7 +28,7 @@ def payload(doc_type, party, code, qty, price, index, total, batch="b1", ref="R1
 
 
 def fake_factory(sims):
-    def factory(state, store, settings, root, notify):
+    def factory(state, store, settings, root, notify, member=None):
         sim = FakeExpress(RECIPE.data)
         sims.append(sim)
         book = FakeBook(sim)
@@ -49,7 +49,7 @@ def fake_factory(sims):
 def test_batch_arrives_one_job_at_a_time_and_express_closes_after_the_last(tmp_path):
     sims, seen = [], []
     host = Host(tmp_path, factory=fake_factory(sims), notify=seen.append)
-    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    st = express_settings(str(tmp_path / "book"))
     first = host.handle("t1", payload("RR", "P001", "501780", "2", "10.00", 1, 2), st)
     assert first["status"] == "saved" and first["docnum"] == "RR0000001" and sims[0].alive
     second = host.handle("t2", payload("HS", "CASH", "500310", "1", "53.50", 2, 2, ref="R2"), st)
@@ -61,7 +61,7 @@ def test_batch_arrives_one_job_at_a_time_and_express_closes_after_the_last(tmp_p
 def test_the_site_document_number_names_the_document_in_the_batch(tmp_path):
     sims = []
     host = Host(tmp_path, factory=fake_factory(sims))
-    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    st = express_settings(str(tmp_path / "book"))
     job = payload("RR", "P001", "501780", "1", "1.00", 1, 1)
     job["operator"]["batch"]["doc"] = "CWH-op1"
     host.handle("task-uuid-1", job, st)
@@ -71,7 +71,7 @@ def test_the_site_document_number_names_the_document_in_the_batch(tmp_path):
 def test_a_document_needing_a_human_comes_back_with_its_reason(tmp_path):
     sims = []
     host = Host(tmp_path, factory=fake_factory(sims))
-    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    st = express_settings(str(tmp_path / "book"))
     out = host.handle("t1", payload("RR", "NOPE", "501780", "1", "1.00", 1, 1), st)
     assert out["status"] == "human" and out["reason"] == "party_missing"
 
@@ -79,7 +79,7 @@ def test_a_document_needing_a_human_comes_back_with_its_reason(tmp_path):
 def test_stop_returns_the_remaining_jobs_unwritten(tmp_path):
     sims = []
     host = Host(tmp_path, factory=fake_factory(sims))
-    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    st = express_settings(str(tmp_path / "book"))
     host.handle("t1", payload("RR", "P001", "501780", "1", "1.00", 1, 3), st)
     assert host.control("b1", "stop")
     out = host.handle("t2", payload("RR", "P001", "501780", "1", "1.00", 2, 3, ref="R2"), st)
@@ -101,7 +101,7 @@ def test_a_computer_that_cannot_operate_express_hands_the_job_to_a_person(monkey
     monkeypatch.setattr(sys, "platform", "darwin")
     qc = Queue()
     task = SimpleNamespace(id="t9", payload=payload("RR", "P001", "A", "1", "1", 1, 1), invoice_no="")
-    st = SimpleNamespace(account_dir=str(tmp_path), express_exe="", has_selection=lambda: True)
+    st = express_settings(str(tmp_path))
     out = worker._handle_operator_task(SimpleNamespace(ui_lang="zh"), qc, task, st)
     assert out == "needs_review" and qc.acks == [("failed", "t9", "OPERATOR_UNAVAILABLE", "needs_review")]
 
@@ -112,13 +112,13 @@ def test_operator_results_map_to_the_normal_acks(monkeypatch, tmp_path):
     results = iter([{"status": "saved", "docnum": "RR0000007", "meta": {"batch": "b"}},
                     {"status": "human", "reason": "negative_stock", "detail": "x", "meta": {}},
                     {"status": "waiting", "reason": "network_down", "meta": {}}])
-    fake = SimpleNamespace(handle=lambda *_a: next(results))
+    fake = SimpleNamespace(handle=lambda *_a, **_k: next(results))
     monkeypatch.setattr(host_module, "host", lambda notify=None: fake)
     monkeypatch.setattr(sys, "platform", "win32")
     monkeypatch.setattr(worker.task_journal, "remember", lambda *_a: None)
     monkeypatch.setattr(worker, "activity", lambda *_a, **_k: None)
     qc = Queue()
-    st = SimpleNamespace(account_dir=str(tmp_path), express_exe=r"\\s\ExpressI.exe")
+    st = express_settings(str(tmp_path), exe=r"\\s\ExpressI.exe")
     task = SimpleNamespace(id="t1", payload={}, invoice_no="")
     outs = [worker._handle_operator_task(SimpleNamespace(ui_lang="zh"), qc, task, st) for _ in range(3)]
     assert outs == [None, "needs_review", "waiting_lock"]
@@ -143,7 +143,7 @@ def test_stop_takes_effect_at_once_when_no_document_is_being_entered(tmp_path):
     """10-27 实机：点了停止要等下一张领到才生效，Express 一直开着。现在没有单在录时当场停、正常退出 Express。"""
     sims = []
     host = Host(tmp_path, factory=fake_factory(sims))
-    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    st = express_settings(str(tmp_path / "book"))
     host.handle("t1", payload("RR", "P001", "501780", "1", "1.00", 1, 3), st)
     assert sims[0].alive
     assert host.control("b1", "stop")
@@ -156,7 +156,7 @@ def test_skipping_a_document_waiting_for_a_person_marks_it_at_once(tmp_path):
     """10-27 实机：停在「需要处理」的那张点跳过没反应、后面的排不上。现在当场标成跳过，后面的照常录。"""
     sims = []
     host = Host(tmp_path, factory=fake_factory(sims))
-    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    st = express_settings(str(tmp_path / "book"))
     first = host.handle("t1", payload("RR", "NOPE", "501780", "1", "1.00", 1, 2), st)
     assert first["status"] == "human"
     assert host.control("b1", "skip", "t1")
@@ -168,7 +168,7 @@ def test_skipping_a_document_waiting_for_a_person_marks_it_at_once(tmp_path):
 def test_tasks_come_back_after_a_restart_and_finished_ones_can_be_deleted(tmp_path):
     """10-27 实机：CC 重启后任务列表清空。现在从本机批次文件读回；已结束的可删（只删记录与截图，不动账套）。"""
     sims = []
-    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    st = express_settings(str(tmp_path / "book"))
     first = Host(tmp_path, factory=fake_factory(sims))
     first.handle("t1", payload("RR", "P001", "501780", "1", "1.00", 1, 1), st)
     restarted = Host(tmp_path, factory=fake_factory(sims))   # 新进程：内存里没有任何批次
@@ -184,7 +184,7 @@ def test_tasks_come_back_after_a_restart_and_finished_ones_can_be_deleted(tmp_pa
 def test_building_masters_mid_batch_closes_express_and_the_next_document_reopens_it(tmp_path):
     sims = []
     host = Host(tmp_path, factory=fake_factory(sims))
-    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    st = express_settings(str(tmp_path / "book"))
     host.handle("t1", payload("RR", "P001", "501780", "1", "1.00", 1, 3), st)
     assert sims[0].alive
     host.close_express(payload("RR", "P001", "501780", "1", "1.00", 2, 3))
@@ -200,7 +200,7 @@ def test_masters_are_prepared_before_the_operator_and_failures_ack_like_direct_w
 
     handled, closed = [], []
 
-    def handle(task_id, given, _st):
+    def handle(task_id, given, _st, member=None):
         handled.append(given)
         return {"status": "saved", "docnum": "RR0000008", "meta": {"batch": "b"}}
 
@@ -217,7 +217,7 @@ def test_masters_are_prepared_before_the_operator_and_failures_ack_like_direct_w
     ])
     monkeypatch.setattr(masters, "prepare", lambda p, _st, before_create: next(outcomes)(p, before_create))
     qc = Queue()
-    st = SimpleNamespace(account_dir=str(tmp_path), express_exe=r"\\s\ExpressI.exe")
+    st = express_settings(str(tmp_path), exe=r"\\s\ExpressI.exe")
     task = SimpleNamespace(id="t1", payload={"doctype": "RR"}, invoice_no="")
     assert worker._handle_operator_task(SimpleNamespace(ui_lang="zh"), qc, task, st) is None
     assert handled == [{"doctype": "RR", "supplier": {"code": "S0001"}}] and closed == [{"doctype": "RR"}]
@@ -231,7 +231,7 @@ def _restarted_mid_batch(tmp_path):
     """三张的批次录完第一张后 CC 重启：本机批次文件停在「进行中」，宿主里没有在跑的。"""
     sims = []
     host = Host(tmp_path, factory=fake_factory(sims))
-    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    st = express_settings(str(tmp_path / "book"))
     first = payload("RR", "P001", "501780", "1", "1.00", 1, 3)
     first["operator"]["batch"].update(doc="CWH-1", company="CO-1")
     host.handle("t1", first, st)
@@ -274,7 +274,7 @@ def test_restart_then_one_is_still_queued_and_one_needs_a_person(tmp_path):
 def test_settle_never_touches_a_batch_being_entered(tmp_path):
     sims = []
     host = Host(tmp_path, factory=fake_factory(sims))
-    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    st = express_settings(str(tmp_path / "book"))
     host.handle("t1", payload("RR", "P001", "501780", "1", "1.00", 1, 2), st)
     assert not host.control("b1", "settle", results={"t1": {"state": "cancelled"}})
     assert host.snapshots()[0]["live"] is True
@@ -294,7 +294,7 @@ class _BoundExpress(FakeExpress):
 def _orphan_host(tmp_path, sim, clock=lambda: 1000.0):
     from companion.express_operator.session import Session
 
-    def factory(state, store, settings, root, notify):
+    def factory(state, store, settings, root, notify, member=None):
         book = FakeBook(sim)
         engine = Engine(sim, RECIPE, book, sleep=lambda _s: None)
         session = Session(sim, RECIPE, express_exe="", account_dir=state.account_dir, company_name="",
@@ -363,7 +363,7 @@ def test_left_express_is_only_tidied_after_the_grace_while_nothing_runs(tmp_path
 
 def shared_factory(sims):
     """同一个假 Express / 账套跨 CC 重启（账套在电脑上，CC 进程换了它还在）。"""
-    def factory(state, store, settings, root, notify):
+    def factory(state, store, settings, root, notify, member=None):
         if not sims:
             sims.append(FakeExpress(RECIPE.data))
         sim = sims[0]
@@ -388,7 +388,7 @@ def test_cc_ended_mid_batch_then_the_same_documents_come_back_and_each_is_entere
     from companion.express_operator.batch import BatchStore
 
     sims = []
-    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    st = express_settings(str(tmp_path / "book"))
     first = Host(tmp_path, factory=shared_factory(sims))
     one = payload("RR", "P001", "501780", "1", "1.00", 1, 3)
     one["operator"]["batch"]["doc"] = "CWH-1"
@@ -425,21 +425,21 @@ def test_the_host_routes_by_target_and_answers_unsupported_for_one_it_cannot_ent
     """Express 载荷照旧走 Express 装配；MR.ERP 这一版还没有装配：不开批次、不建批次文件、不碰账套，这张按「不支持」回执。"""
     sims, called = [], []
 
-    def express(*args):
+    def express(*args, **kwargs):
         called.append("express")
-        return fake_factory(sims)(*args)
+        return fake_factory(sims)(*args, **kwargs)
 
     host = Host(tmp_path, factory=express)
     out = host.handle("t1", mrerp_payload(), None)
     assert (out["status"], out["reason"]) == ("human", "unsupported")
     assert out["meta"] == {"batch": "m1", "target": "mrerp"}
     assert called == [] and host.runners == {} and not (tmp_path / "batches").exists()
-    st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+    st = express_settings(str(tmp_path / "book"))
     assert host.handle("t2", payload("RR", "P001", "501780", "1", "1.00", 1, 1), st)["status"] == "saved"
     assert called == ["express"]                                   # Express 载荷（没写目标）照旧
     # 以后加了目标的装配（第 2 步）就按目标取那一个
     seen = []
-    host = Host(tmp_path / "x", factory=express, assemblers={"mrerp": lambda *a: seen.append(a) or fake_factory(sims)(*a)})
+    host = Host(tmp_path / "x", factory=express, assemblers={"mrerp": lambda *a, **k: seen.append(a) or fake_factory(sims)(*a, **k)})
     host.handle("t3", {**payload("RR", "P001", "501780", "1", "1.00", 1, 1, batch="m2"),
                        "operator": {**mrerp_payload()["operator"], "batch": {"id": "m2", "index": 1, "total": 1}}}, st)
     assert len(seen) == 1 and called == ["express"]
@@ -486,7 +486,7 @@ def test_an_express_operator_job_still_needs_windows_and_the_express_program(mon
     qc = Queue()
     job = payload("RR", "P001", "A", "1", "1", 1, 1)
     job["operator"]["target"] = "express"
-    st = SimpleNamespace(account_dir=str(tmp_path), express_exe="", has_selection=lambda: True)
+    st = express_settings(str(tmp_path))
     task = SimpleNamespace(id="t9", payload=job, invoice_no="")
     assert worker._handle_operator_task(SimpleNamespace(ui_lang="zh"), qc, task, st) == "needs_review"
     assert qc.acks == [("failed", "t9", "OPERATOR_UNAVAILABLE", "needs_review")]

@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from _fake_express import FakeBook, FakeExpress, samples
 
 from companion import operator_ai as site_ai
+from companion.config import CompanionConfig
 from companion import worker
 from companion.express_operator import recipe as R
 from companion.express_operator.engine import Engine
@@ -45,9 +46,9 @@ def test_an_ai_call_error_is_named_in_the_note_and_logged_without_the_screenshot
 def test_why_the_ai_is_not_connected_is_logged_once(caplog, monkeypatch):
     monkeypatch.setattr(site_ai, "_NOTED", set())
     with caplog.at_level(logging.INFO):
-        assert site_ai.transport_for(SimpleNamespace(bearer_token="", backend_url="https://a.test"), "B1") is None
-        assert site_ai.transport_for(SimpleNamespace(bearer_token="", backend_url="https://a.test"), "B2") is None
-        assert site_ai.transport_for(SimpleNamespace(bearer_token="exp_x", backend_url=""), "B3") is None
+        assert site_ai.transport_for(CompanionConfig(bearer_token="", backend_url="https://a.test"), "B1") is None
+        assert site_ai.transport_for(CompanionConfig(bearer_token="", backend_url="https://a.test"), "B2") is None
+        assert site_ai.transport_for(CompanionConfig(bearer_token="exp_x", backend_url=""), "B3") is None
     found = [r.getMessage() for r in caplog.records if "operator ai not connected" in r.getMessage()]
     assert found == ["operator ai not connected · reason=no_token · site=https://a.test",
                      "operator ai not connected · reason=no_site · site=-"]

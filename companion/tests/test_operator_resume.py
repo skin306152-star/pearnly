@@ -14,7 +14,7 @@ import sys
 from dataclasses import asdict
 from types import SimpleNamespace
 
-from _fake_express import FakeBook, FakeExpress
+from _fake_express import FakeBook, FakeExpress, express_settings
 
 from companion import worker
 from companion.express_operator import contract as K
@@ -44,9 +44,9 @@ class Rig:
         self.before_run = None  # (draft) -> None：引擎录这张之前做点什么（抛 Stopped 等）
         self.after_run = None  # (draft, rec) -> rec：引擎录完这张之后改结果
         self.reachable = True
-        self.st = SimpleNamespace(account_dir=str(tmp_path / "book"), account_company="x", account_set="TEST")
+        self.st = express_settings(str(tmp_path / "book"))
 
-    def factory(self, state, store, settings, root, notify):
+    def factory(self, state, store, settings, root, notify, member=None):
         rig, engine = self, Engine(self.sim, RECIPE, self.book, sleep=lambda _s: None)
         real = engine.run
 
@@ -164,8 +164,8 @@ def test_a_server_outage_answers_waiting_once_then_the_same_job_is_not_looped(tm
     rig = Rig(tmp_path)
     crashed = []
 
-    def factory(state, store, settings, root, notify):
-        runner, parts = rig.factory(state, store, settings, root, notify)
+    def factory(state, store, settings, root, notify, member=None):
+        runner, parts = rig.factory(state, store, settings, root, notify, member)
         real = runner.engine.run
 
         def run(draft):
@@ -227,7 +227,7 @@ def test_the_writing_line_passes_the_stable_job_key_not_the_delivery_number(monk
     from companion.express_operator import host as host_module
 
     seen = []
-    fake = SimpleNamespace(handle=lambda key, *_a: seen.append(key) or {"status": "human", "reason": "x", "meta": {}},
+    fake = SimpleNamespace(handle=lambda key, *_a, **_k: seen.append(key) or {"status": "human", "reason": "x", "meta": {}},
                            close_express=lambda _p: None)
     monkeypatch.setattr(host_module, "host", lambda notify=None: fake)
     monkeypatch.setattr(sys, "platform", "win32")
@@ -237,7 +237,7 @@ def test_the_writing_line_passes_the_stable_job_key_not_the_delivery_number(monk
         def ack_failure(self, *_a, **_k):
             pass
 
-    st = SimpleNamespace(account_dir=str(tmp_path), express_exe=r"\\s\ExpressI.exe")
+    st = express_settings(str(tmp_path), exe=r"\\s\ExpressI.exe")
     for task in (SimpleNamespace(id="delivery-2", key="record-key", payload={}, invoice_no=""),
                  SimpleNamespace(id="erp-job-1", key=None, payload={}, invoice_no="")):
         worker._handle_operator_task(SimpleNamespace(ui_lang="zh"), Queue(), task, st)

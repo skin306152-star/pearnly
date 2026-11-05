@@ -8,7 +8,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
-from _fake_express import FakeBook, FakeExpress, FakeSite, tiny_png
+from _fake_express import FakeBook, FakeExpress, FakeSite, express_settings, tiny_png
 
 from companion.express_operator import contract as K
 from companion.express_operator import menu as M
@@ -273,7 +273,7 @@ def test_opening_express_raising_anything_is_settled_the_same_way(tmp_path):
 
 
 def host_factory(tmp_path, menus, sims, *, transport=None, crash=None):
-    def factory(state, store, settings, root, notify):
+    def factory(state, store, settings, root, notify, member=None):
         engine, sim = engine_for(tmp_path, menus, transport=transport)
         sims.append(sim)
         session = Session(sim)
@@ -291,7 +291,7 @@ def job(index=1, total=1, **operator):
             "entry_mode": "operator", "operator": {"batch": {"id": "b1", "index": index, "total": total}, **operator}}
 
 
-SETTINGS = SimpleNamespace(account_dir="c:\\book", account_company="x", account_set="TEST")
+SETTINGS = express_settings("c:\\book")
 
 
 def test_host_returns_menu_choice_with_the_options_and_the_batch_is_settled(tmp_path):
