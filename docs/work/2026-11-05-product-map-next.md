@@ -315,3 +315,30 @@
 | pearnly-ai 客户端 | 两个池都有，回调含 fatcc.com 与 testai，PKCE、主题对 | K4 现在全过 |
 | LINE 身份提供者 | 两个池各一个 `line-2010411313`（全平台共用的登录频道），启用、隐藏、首次登录流程 `pearnly-line-deny` | K5：站点的 `pearnly_line_login_idp` 要在它的池里存在 |
 | 作用域 | 两个池都有 `pearnly-login-source` | — |
+
+### 第 4 问的生产写入（11-05，用户同意、主会话回「执行」；脚本 `scripts/e2e/provision.py`，一次 `--apply`）
+
+为什么 ERP 测试账号多给 ERP Admin：ERP 的「添加公司」只有产品管理员能用（`access/rules.py` 的 `COMPANY_MANAGE_ROLES`），而产品的添加成员按规定不外发管理员角色；
+不给就测不了 11-03 事故 3 的场景。只限 testerp 这一个测试账号（主会话 11-05 同意）。Cowork 的添加公司、代录按 Cowork Intake 判，只给它。
+
+只读客户端密钥单独放生产机 `/opt/pearnly/secrets/config-reader.env`（600），不改 `runtime.env`（主会话同意）。
+
+`--apply` 结果（11-05 10:49，提交 460eba75c 之上的工作树）：
+
+| 回读项 | pearnly-business | pearnly-cowork |
+|---|---|---|
+| 客户端 `pearnly-config-reader` 建好 | 通过（新建） | 通过（新建） |
+| 机密客户端、只开服务账号（不开授权码、不开密码直传） | 通过 | 通过 |
+| 只有 view-realm / view-clients / view-identity-providers（realm 角色只有默认那个） | 通过 | 通过 |
+| 用自己的令牌能读 realm、能读客户端 | 通过 | 通过 |
+| 用自己的令牌写 realm 被拒（403） | 通过 | 通过 |
+| 密钥文件 `/opt/pearnly/secrets/config-reader.env` 600、两个键 | 通过 | 通过 |
+
+| 回读项 | testerp `e2e-erp` | testcowork `e2e-cowork` |
+|---|---|---|
+| 建账号 | **不通过**：`Username can only have letters and numbers`（产品规定用户名只能字母和数字） | **不通过**：同左 |
+| 启用、角色、统一身份已绑定、LINE 绑定 0 | 没到这一步 | 没到这一步 |
+
+账号这边什么都没写：添加成员先校验用户名（`team/service.py` 的 `_clean_username`），在建统一身份之前就拒了。按主会话要求不重试，
+脚本里用户名已改成 `e2eerp` / `e2ecowork`，等主会话同意后再跑一次 `--apply`（只读客户端那半已存在、密钥相同，重跑只回读不写）。
+本机 `~/.config/pearnly-e2e/accounts.env`（600）已生成两个随机密码，重跑沿用。
