@@ -4,7 +4,10 @@
 ``ERP Express Choice`` 按「公司 + 哪一类 + 对象」一行（对象就是写账规则给的 ``subject``）。另加两类 ERP 自己的：
 
 - ``account_set``：这家公司同期有两份账套时用哪一份（按公司 + 会计年度记，用户 10-17「两份同期账套按公司按年度问一次」）；
-- ``stock_group``：账套一个库存品都没有、要建第一个时挂哪个存货科目组（写账规则回 ``stock_acc_group_required``）。
+- ``stock_group``：账套一个库存品都没有、要建第一个时挂哪个存货科目组（写账规则回 ``stock_acc_group_required``）；
+- ``operator_form``：代录停在定制菜单的子菜单、里面几个命令时这份账套这种单走哪一个（对象 = 「账套 | 单据种类」，值 = 菜单文字，
+  `pearnly_core.express_operator.menu_choice`，评估 2026-11-05 修法 D）。它不是写账规则：不进 :func:`remembered`（写账准备的输入照旧），
+  交代录时经 :func:`operator_form` 读、带进载荷 ``operator.form_choice``。
 
 选过的值在账套里已经没有了（被删 / 改了），写账规则当没选过、重新问，不静默换别的。
 
@@ -16,6 +19,8 @@ import contextvars
 import hashlib
 
 import frappe
+
+from pearnly_core.express_operator.menu_choice import KIND as OPERATOR_FORM
 
 CHOICE = "ERP Express Choice"
 ACCOUNT_SET = "account_set"
@@ -48,10 +53,10 @@ def _name(company, kind, subject):
 
 
 def remembered(company) -> dict:
-    """``{kind: {subject: value}}``：这家公司选过的。"""
+    """``{kind: {subject: value}}``：这家公司选过的（代录子菜单 ``operator_form`` 不在内：不是写账规则）。"""
     found = {}
-    for row in frappe.get_all(CHOICE, filters={"company": company}, fields=["kind", "subject", "value"],
-                              limit_page_length=0):
+    for row in frappe.get_all(CHOICE, filters={"company": company, "kind": ["!=", OPERATOR_FORM]},
+                              fields=["kind", "subject", "value"], limit_page_length=0):
         found.setdefault(row.kind, {})[row.subject or ""] = row.value or ""
     current = _ASSUMED.get()
     if current and current[0] == company:
@@ -77,3 +82,15 @@ def remember(company, kind, subject, value, label=""):
                           **values})
     doc.flags.name_set = True
     doc.insert(ignore_permissions=True, set_name=name)
+
+
+def operator_subject(book_key, doc_type) -> str:
+    """代录子菜单那一类的对象：「账套 | 单据种类（大写）」（同一家公司几份账套、几种单各记各的）。"""
+    return f"{str(book_key or '').strip()}|{str(doc_type or '').strip().upper()}"
+
+
+def operator_form(company, book_key, doc_type) -> str:
+    """这家公司这份账套这种单（``HP`` / ``RR`` …）记住的代录子菜单文字（代录载荷 ``operator.form_choice``）；没记过回空串。"""
+    if not company or not str(book_key or "").strip() or not str(doc_type or "").strip():
+        return ""
+    return frappe.db.get_value(CHOICE, _name(company, OPERATOR_FORM, operator_subject(book_key, doc_type)), "value") or ""

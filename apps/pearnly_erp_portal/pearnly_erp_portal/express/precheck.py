@@ -14,8 +14,13 @@
 - **单号**：``P:`` 采购、``S:`` 销售（同代录）、``D:`` 收银日汇总 / 退货单、``T:`` 出入库单、``C:`` 盘点。
 - **权限**：这家公司在本人可见公司里、有这类单据的开单权（同单据页「选一次」`api.answer`），员工只看本人录入的；别人的单不回、
   不报存在与否。记下的值按单据页同一套核对（只认这一项能选的值）。
+- **代录停在定制菜单的子菜单**（原因 menu_choice；这张单当前那件代录写账件转了人工，回执 ``meta.operator`` 带单种与候选，评估
+  2026-11-05 修法 D）：判定里多一项 ``operator_form``（归类键 = 单据种类，选项 = 候选菜单文字，:func:`menu_item`），代录预检原来的
+  回包也列进 ``needed``；记住（:func:`save_answers`）单开一支：值须是候选之一，记进这家公司的选择（对象 = 那件写账件的账套 | 单种），
+  再交代录时载荷带 ``operator.form_choice``（`push.send`）。写账准备与写入路径不经这一项。
 """
 import copy
+import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -23,7 +28,9 @@ import frappe
 from frappe import _
 
 from pearnly_core.cc_desktop import jobs
+from pearnly_core.express_operator import menu_choice
 from pearnly_core.express_rules.contracts import pos as pos_contract
+from pearnly_core.express_rules.push import common as receipt_rules
 from pearnly_core.express_rules.push import choices as choice_rules
 from pearnly_core.express_rules.push import service_vat as service_vat_rules
 from pearnly_core.write_precheck import contracts as card
@@ -304,7 +311,79 @@ def document_view(doc_id, doctype, name, found=None) -> dict:
         view["target"] = shown
     if state != card.CHECK:
         return {**view, "state": state, "reason": reason}
-    return {**view, "state": card.CHECK, "items": found["items"]}
+    menu = menu_item(push.company_of(doctype, name), doctype, name)
+    items = [*found["items"], {**menu, "direction": view["direction"]}] if menu else found["items"]
+    return {**view, "state": card.CHECK, "items": items}
+
+
+# ---------------- 代录停在定制菜单的子菜单 ----------------
+
+
+OPERATOR_FORM = choices.OPERATOR_FORM
+
+
+def menu_stop(doctype, name) -> dict:
+    """这张单停在定制菜单的子菜单：单据当前那件写账件是代录交的、转了人工，电脑存下的回执 ``meta.operator`` 带单种与候选（共用写账
+    通道原样存回执，读时过同一个净化 `express_rules.push.common.clean_operator_meta`，再按 `menu_choice.stopped_at` 取）。
+    回 ``{doc_type, codes, book}``（账套是那件写账件的）；不是回空 dict。"""
+    current = frappe.db.get_value(doctype, name, "ledger_job") if name else None
+    row = frappe.db.get_value(jobs.JOB, current, ["status", "request_key", "book_key", "meta_json"], as_dict=True) \
+        if current else None
+    if not row or row.get("status") != "manual" or not str(row.get("request_key") or "").startswith(push.OPERATOR_KEY) \
+            or not row.get("book_key"):
+        return {}
+    try:
+        meta = json.loads(row.get("meta_json") or "{}")
+    except ValueError:
+        return {}
+    operator = receipt_rules.clean_operator_meta(meta.get("operator")) if isinstance(meta, dict) else {}
+    doc_type, codes = menu_choice.stopped_at({"meta": {"operator": operator}})
+    return {"doc_type": doc_type, "codes": codes, "book": str(row["book_key"])} if doc_type else {}
+
+
+def menu_item(company, doctype, name, stop=None):
+    """停在子菜单的单要人定的那一项（不是回 None）：选项是 CC 读到的候选菜单文字；这家公司这份账套这种单记过、且仍在候选里的是已定。"""
+    stop = stop if stop is not None else menu_stop(doctype, name)
+    if not stop:
+        return None
+    remembered = choices.operator_form(company, stop["book"], stop["doc_type"])
+    value = remembered if remembered in stop["codes"] else ""
+    return {"kind": OPERATOR_FORM, "subject": stop["doc_type"], "label": stop["doc_type"], "value": value,
+            "source": card.REMEMBERED if value else "", "options": [{"code": code, "name": ""} for code in stop["codes"]]}
+
+
+def _menu_answers(doctype, name, answers, seen) -> list:
+    """人答的子菜单项核一遍（只认这张单停下时 CC 读到的候选，单种要对上；不对整批拒）→ ``[(对象, 值, 单种)]``，同一项只记一次。"""
+    rows = [answer for answer in answers if answer.get("remember") is not False]
+    if not rows:
+        return []
+    stop = menu_stop(doctype, name)
+    checked = []
+    for answer in rows:
+        value = str(answer.get("value") or "").strip()
+        if not stop or str(answer.get("subject") or "").strip().upper() != stop["doc_type"] or value not in stop["codes"]:
+            frappe.throw(_("Invalid request"))
+        key = (OPERATOR_FORM, choices.operator_subject(stop["book"], stop["doc_type"]))
+        if key in seen:
+            continue
+        seen.add(key)
+        checked.append((key[1], value, stop["doc_type"]))
+    return checked
+
+
+def save_answers(company, doctype, name, answers, seen=None) -> int:
+    """一张单人答的值全部记下（卡片 :func:`remember`、代录交单前 `operator._remember` 同一条）：子菜单那项单独核（:func:`_menu_answers`），
+    其余照写账准备收齐后核（:func:`save`）；都核过才记。回记了几项。"""
+    seen = seen if seen is not None else set()
+    if not isinstance(answers, list) or any(not isinstance(answer, dict) for answer in answers):
+        frappe.throw(_("Invalid request"))
+    menu = [answer for answer in answers if answer.get("kind") == OPERATOR_FORM]
+    rest = [answer for answer in answers if answer.get("kind") != OPERATOR_FORM]
+    checked = _menu_answers(doctype, name, menu, seen)
+    saved = save(company, collect_document(doctype, name, given_of(rest)), rest, seen) if rest else 0
+    for subject, value, label in checked:
+        choices.remember(company, OPERATOR_FORM, subject, value, label)
+    return saved + len(checked)
 
 
 # ---------------- MR.ERP 账本（公司选了 MR.ERP 账套、总开关开着，`mrerp.push.handles`） ----------------
@@ -446,7 +525,7 @@ def remember(company, answers) -> dict:
         if ledger_mrerp:
             saved += save_mrerp(company, doctype, given, seen)
             continue
-        saved += save(company, collect_document(doctype, name, given_of(given)), given, seen)
+        saved += save_answers(company, doctype, name, given, seen)
     return {"saved": saved}
 
 
@@ -552,5 +631,6 @@ def _resume_mrerp(company, doc_ids) -> list:
     return results
 
 
-__all__ = ["PREFIXES", "check", "collect", "collect_document", "collect_form", "doc_id_of", "document_view",
-           "allowed", "full_options", "given_of", "mrerp_needed", "mrerp_view", "remember", "resolve_target", "resume", "save", "search"]
+__all__ = ["OPERATOR_FORM", "PREFIXES", "check", "collect", "collect_document", "collect_form", "doc_id_of", "document_view",
+           "allowed", "full_options", "given_of", "menu_item", "menu_stop", "mrerp_needed", "mrerp_view", "remember",
+           "resolve_target", "resume", "save", "save_answers", "search"]

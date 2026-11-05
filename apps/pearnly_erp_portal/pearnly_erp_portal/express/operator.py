@@ -109,7 +109,7 @@ def precheck(company, doc_ids) -> dict:
             documents.append({"doc_id": doc_id, "state": "blocked", "reason": "already_queued"})
             continue
         found = write_precheck.collect_document(doctype, name)
-        row = legacy_row(doc_id, found)
+        row = with_menu(legacy_row(doc_id, found), write_precheck.menu_item(company, doctype, name))
         target = book_target(found["result"].get("book"))
         row = {**row, "target": target} if target else row
         documents.append({**row, "precheck": write_precheck.document_view(doc_id, doctype, name, found)})
@@ -143,6 +143,20 @@ def legacy_row(doc_id, found) -> dict:
     return {"doc_id": doc_id, "state": "ready"}
 
 
+def with_menu(row, menu) -> dict:
+    """代录预检行加上停在子菜单那一项（评估 2026-11-05 修法 D）：还没定的列进 ``needed``（中途选那张卡片照它出下拉），原来 ready 的
+    改成 choose；已记住且仍在候选里的不再问。单据本身不对、主档在读、停在别的原因的行不动。纯函数。"""
+    if not menu or menu.get("value") or row.get("state") not in ("ready", "choose"):
+        return row
+    need = {"kind": menu["kind"], "subject": menu["subject"], "label": menu.get("label") or "",
+            "options": list(menu.get("options") or []), "current": ""}
+    if row["state"] == "ready":
+        return {**row, "state": "choose", "reason": contracts.CHOICE + ":" + menu["kind"], "needed": [need]}
+    reason = str(row.get("reason") or contracts.CHOICE)
+    reason = reason + ("," if ":" in reason else ":") + menu["kind"]
+    return {**row, "reason": reason, "needed": [*(row.get("needed") or []), need]}
+
+
 def book_target(book) -> dict | None:
     """这张单交了会写进哪份账套（Code 版 CC B4）：准备那一步按税号、分店、单据日期选出的那份（`express.target.pick`，与交单
     同一条准备）；``writers`` 是报过能写它的电脑。没选出（没有账套、同期几份没选）回 None。纯函数。"""
@@ -159,13 +173,14 @@ def _operator_held(job_name) -> bool:
 
 
 def _remember(company, doctype, name, given, seen=None) -> None:
-    """预检里人定的项按单据页「选一次」同一套核对记下（只认这一项能选的值，记在这家公司名下，`express.precheck.save`）。同一问题前一张
-    已记下（例如这家公司这一年用哪套账，10-30 实测三张同问）的，这张不再问、不重复记。"""
+    """预检里人定的项按单据页「选一次」同一套核对记下（只认这一项能选的值，记在这家公司名下，`express.precheck.save_answers`；
+    代录子菜单那项只认停下时的候选）。同一问题前一张已记下（例如这家公司这一年用哪套账，10-30 实测三张同问）的，这张不再问、
+    不重复记。"""
     from pearnly_erp_portal.express import precheck as write_precheck
 
     if not isinstance(given, list):
         return
-    write_precheck.save(company, write_precheck.collect_document(doctype, name, write_precheck.given_of(given)), given, seen)
+    write_precheck.save_answers(company, doctype, name, given, seen)
 
 
 def submit(company, doc_ids, batch, computer, answers=None) -> list:

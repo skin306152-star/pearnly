@@ -21,7 +21,7 @@ from frappe.utils import now_datetime
 from pearnly_core.cc_desktop import books, devices, jobs
 from pearnly_core.express_rules.contracts import pos as pos_contract
 
-from pearnly_erp_portal.express import contracts, pos_day, prepare, printed, stock_entry
+from pearnly_erp_portal.express import choices, contracts, pos_day, prepare, printed, stock_entry
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal import mrerp
 from pearnly_erp_portal.mrerp import contracts as mrerp_contracts, push as mrerp_push
@@ -440,7 +440,10 @@ def send(doctype, name, operator=None):
         if operator:
             from pearnly_core.express_operator import contracts as operator_contracts
 
-            payload = operator_contracts.for_operator(payload, operator)
+            # 定制菜单的子菜单多个候选（评估 2026-11-05 修法 D）：这家这份账套这种单记住的菜单文字，与按单据付款方式认的现金 / 转账
+            payload = operator_contracts.for_operator(
+                payload, operator, form_choice=choices.operator_form(company, book["key"], payload.get("doctype")),
+                pay_route=operator_pay_route(doctype, name))
         if vat_fields:
             # 混有免税商品的现销日汇总 / 混合税率的采购：税记录的应税基数按规则交（载荷 9，旧版 CC 诚实拒收）
             payload = {**payload, "vat_fields": vat_fields,
@@ -461,6 +464,22 @@ def send(doctype, name, operator=None):
     if unmapped:
         return {"status": "held", "reason": contracts.WAREHOUSE_UNMAPPED}
     return {"status": "sent"}
+
+
+def operator_pay_route(doctype, name) -> str:
+    """代录载荷 ``operator.pay_route``：已付 / 已收的采购、销售单按单据「付款方式」（``payment_method``）认现金 / 转账，定不下来回空
+    （`pearnly_core.express_operator.menu_choice.pay_route`）。没付清的单不给（赊购 / 赊销；采购的付款方式默认是现金，不算数）。"""
+    from pearnly_core.express_operator.menu_choice import pay_route
+
+    if doctype == PURCHASE:
+        row = frappe.db.get_value(doctype, name, ["is_paid", "payment_status", "payment_method"], as_dict=True) or {}
+        paid = bool(row.get("is_paid")) or row.get("payment_status") == "paid"
+    elif doctype == SALES:
+        row = frappe.db.get_value(doctype, name, ["payment_status", "payment_method"], as_dict=True) or {}
+        paid = row.get("payment_status") == "paid"
+    else:
+        return ""
+    return pay_route(row.get("payment_method")) if paid else ""
 
 
 def mrerp_run(doctype, name):
