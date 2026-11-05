@@ -46,26 +46,6 @@ kind = "internal"
 reason = "Code 版 CC 块 1（W1）先合入的只读接口：代录会话里上传卡片的状态；页面调用随块 3（W3，frontend/assistant/components/operator）接上，接上的同一提交删掉本条（11-04 调用方识别收紧后，components/run/ 里的注释与类型不算调用方）"
 
 [[anchor]]
-anchor = "endpoint:pearnly_core.manifest.describe"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 scripts/flows/cc_person_names.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_core.ocr.api_selftest"
-kind = "delete"
-reason = "全仓没有调用方，测试与文档也没提到（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_core.sessions.logout_here"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 tests/baseline/unguarded_endpoints.toml 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_core.sessions.my_sessions"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 tests/baseline/unguarded_endpoints.toml 在调（待删候选）"
-
-[[anchor]]
 anchor = "endpoint:pearnly_cowork.connections.api.mrerp_remembered"
 kind = "compat"
 reason = "11-04 核实：前端没有拼名调用，产品里没有调用方；文档 docs/development/architecture.md 提到（兼容保留候选，待核实）"
@@ -77,8 +57,8 @@ reason = "11-04 核实：前端没有拼名调用，产品里没有调用方；�
 
 [[anchor]]
 anchor = "endpoint:pearnly_cowork.files.guard.optimize_file"
-kind = "delete"
-reason = "全仓没有调用方，测试与文档也没提到（待删候选）"
+kind = "internal"
+reason = "11-05 复核：覆盖 Frappe 原生 File.optimize_file（原生 File 表单「优化」按钮经 run_doc_method 调，方法名不带模块路径），先过原件保护再交原生；删了原生按钮会绕过保护，不删"
 
 [[anchor]]
 anchor = "endpoint:pearnly_cowork.history.api.duplicate_setting"
@@ -121,19 +101,9 @@ kind = "compat"
 reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
 
 [[anchor]]
-anchor = "endpoint:pearnly_cowork.masters.api.clients"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 apps/pearnly_control/pearnly_control/account/test_identity_pools.py 在调（待删候选）"
-
-[[anchor]]
 anchor = "endpoint:pearnly_cowork.masters.api.commit_client_import"
 kind = "compat"
 reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_cowork.masters.api.create_client"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 tests/test_cowork_client_records_source_parity.py 在调（待删候选）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_cowork.masters.api.create_workspace"
@@ -166,19 +136,9 @@ kind = "compat"
 reason = "产品里没有调用方；文档 docs/work/cowork-backend/masters-product-store.md 提到（兼容保留候选，待核实）"
 
 [[anchor]]
-anchor = "endpoint:pearnly_cowork.masters.api.products"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 apps/pearnly_core/pearnly_core/account/test_line_login.py 在调（待删候选）"
-
-[[anchor]]
 anchor = "endpoint:pearnly_cowork.masters.api.resolve_buyer"
 kind = "compat"
 reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_cowork.masters.api.roster"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 apps/pearnly_dms/pearnly_dms/operators/test_line_account.py 在调（待删候选）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_cowork.masters.api.save_client"
@@ -199,16 +159,6 @@ reason = "产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-
 anchor = "endpoint:pearnly_cowork.masters.api.save_supplier_profile"
 kind = "compat"
 reason = "产品里没有调用方；文档 docs/work/cowork-backend/masters-supplier-posting.md 提到（兼容保留候选，待核实）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_cowork.masters.api.supplier_profiles"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 scripts/flows/cowork_operator_lib.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_cowork.masters.api.workspaces"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 scripts/flows/cowork_recon_presets.py 在调（待删候选）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_cowork.masters.workspace_api.commit_workspace_import"
@@ -276,36 +226,6 @@ kind = "compat"
 reason = "11-04 核实：前端没有拼名调用，产品里没有调用方；文档 docs/work/2026-09-20-cowork-backend-migration.md 提到（兼容保留候选，待核实）"
 
 [[anchor]]
-anchor = "endpoint:pearnly_cowork.stocktake.api.add_entry"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_permissions.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_cowork.stocktake.api.close"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 apps/pearnly_core/pearnly_core/execution/test_pool.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_cowork.stocktake.api.create"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 apps/pearnly_control/pearnly_control/account/test_member_service.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_cowork.stocktake.api.edit_entry"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 tests/test_erp_stocktake_photos.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_cowork.stocktake.api.export"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 scripts/flows/cowork_exports.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_cowork.stocktake.api.report"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 apps/pearnly_control/pearnly_control/account/test_repool.py 在调（待删候选）"
-
-[[anchor]]
 anchor = "endpoint:pearnly_erp_portal.cashier.api.api_counter_lookup"
 kind = "compat"
 reason = "11-04 核实：前端没有拼名调用，产品里没有调用方；文档 docs/work/2026-09-23-erp-sales-records.md 提到（兼容保留候选，待核实）"
@@ -321,19 +241,9 @@ kind = "compat"
 reason = "11-04 核实：前端没有拼名调用，产品里没有调用方；文档 docs/work/2026-09-23-pos-parity-ledger.md 提到（兼容保留候选，待核实）"
 
 [[anchor]]
-anchor = "endpoint:pearnly_erp_portal.integrations.api.api_line_bot"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）"
-
-[[anchor]]
 anchor = "endpoint:pearnly_erp_portal.inventory.api.api_adjust"
 kind = "compat"
 reason = "11-04 核实：前端没有拼名调用，产品里没有调用方；文档 docs/work/2026-09-23-erp-sales-records.md 提到（兼容保留候选，待核实）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.inventory.api.api_count"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_permissions.py 在调（待删候选）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.inventory.api.api_issue"
@@ -341,54 +251,9 @@ kind = "compat"
 reason = "11-04 核实：前端没有拼名调用，产品里没有调用方；文档 docs/p4/23-one-click-onboarding.md 提到（兼容保留候选，待核实）"
 
 [[anchor]]
-anchor = "endpoint:pearnly_erp_portal.inventory.api.api_list_openings"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.inventory.api.api_list_warehouses"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.inventory.api.api_rebuild_balance"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）"
-
-[[anchor]]
 anchor = "endpoint:pearnly_erp_portal.inventory.api.api_receive"
 kind = "compat"
 reason = "11-04 核实：前端没有拼名调用，产品里没有调用方；文档 docs/work/2026-09-23-erp-sales-records.md 提到（兼容保留候选，待核实）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_count_entries"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_count_entry_total"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_count_import"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_count_item_total"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_count_items"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_count_post"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.inventory.api.api_stock_summary"
@@ -401,44 +266,14 @@ kind = "compat"
 reason = "11-04 核实：前端没有拼名调用，产品里没有调用方；文档 docs/work/2026-09-22-stocktake-workbench.md 提到（兼容保留候选，待核实）"
 
 [[anchor]]
-anchor = "endpoint:pearnly_erp_portal.inventory.api.api_upsert_opening"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.inventory.serials.api_unit_history"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.masters.api.api_company_terminals"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，产品里没有调用方，只有测试 apps/pearnly_erp_portal/pearnly_erp_portal/access/test_entry_flow_acceptance.py 在调（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.masters.api.api_create_company_terminal"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.masters.api.api_set_customer_active"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.masters.api.api_update_company_terminal"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）"
-
-[[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.account_sets"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 scripts/flows/cowork_mrerp_login.py 在调（待删候选）"
+kind = "compat"
+reason = "11-05 复核：ERP 接 MR.ERP 账套域（c2159f8bb，11-03 合入）的管理入口，代码开关 MRERP_LEDGER_ENABLED 关着、页面未接，等岳父的 MR.ERP 账号实测后接页面；是待接功能不是废弃，开关打开时页面接上的同一提交删掉本条"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.choose"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 scripts/flows/cowork_pending_operator.py 在调（待删候选）"
+kind = "compat"
+reason = "同上：ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.choose_ledger"
@@ -447,23 +282,23 @@ reason = "产品里没有调用方；文档 docs/work/2026-11-03-mrerp-operator-
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.company_choices"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 tests/flows/behind_baseline.txt 在调（待删候选）"
+kind = "compat"
+reason = "同上：ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.configure"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 scripts/flows/cowork_mrerp_login.py 在调（待删候选）"
+kind = "compat"
+reason = "同上：ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.connection_view"
-kind = "delete"
-reason = "全仓没有调用方，测试与文档也没提到（待删候选）"
+kind = "compat"
+reason = "同上：ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.detach"
-kind = "delete"
-reason = "产品里没有调用方，只有测试 tests/test-desk-place-and-switch.cjs 在调（待删候选）"
+kind = "compat"
+reason = "同上：ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.read_choices"
@@ -472,23 +307,8 @@ reason = "产品里没有调用方；文档 docs/work/2026-11-03-mrerp-operator-
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.refresh_catalog"
-kind = "delete"
-reason = "全仓没有调用方，测试与文档也没提到（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.products.service.api_add_unit"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.purchasing.api.api_purchase_category"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.team.api.api_set_member_companies"
-kind = "delete"
-reason = "11-04 核实：前端没有拼名调用，全仓没有调用方，测试与文档也没提到（待删候选）"
+kind = "compat"
+reason = "同上：ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.work.api.boards_list"

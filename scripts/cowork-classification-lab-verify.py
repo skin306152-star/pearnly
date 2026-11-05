@@ -41,8 +41,8 @@ class ClassificationChecks(unittest.TestCase):
         user(cls.outsider, ["Cowork Intake"])
         cls.workspace = api.create_workspace("Category lab " + suffix)["name"]
         cls.other = api.create_workspace("Category other " + suffix)["name"]
-        cls.client = api.create_client(cls.workspace, "Buyer A")["name"]
-        cls.client_b = api.create_client(cls.workspace, "Buyer B")["name"]
+        cls.client = frappe.get_doc({"doctype": "Cowork Client", "workspace": cls.workspace, "display_name": "Buyer A", "enabled": 1}).insert().name
+        cls.client_b = frappe.get_doc({"doctype": "Cowork Client", "workspace": cls.workspace, "display_name": "Buyer B", "enabled": 1}).insert().name
         for actor in (cls.actor, cls.reader):
             grant(actor, "Cowork Workspace", cls.workspace)
         grant(cls.actor, "Cowork Workspace", cls.other)

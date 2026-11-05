@@ -190,8 +190,6 @@ def main():
         frappe.conf["pearnly_ocr_api_key"] = ""
         check("没配密钥时状态就是『没配』（不假装可用）",
               ocr.api_status()["configured"] is False)
-        selftest = ocr.api_selftest()
-        check("没配密钥时自检返回 no_key", selftest.get("reason") == "no_key", selftest)
 
         # ── 6. 限流/配额耗尽**不能**伪装成"这张图读不出" ────────────────────
         # 实测踩到：连续跑 8 张图，后几张被 Vertex 回 429；原本的实现一律返回 None，

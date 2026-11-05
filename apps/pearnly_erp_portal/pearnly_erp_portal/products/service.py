@@ -561,14 +561,6 @@ def api_set_active(name=None, active=None, **kwargs):
     return set_active(name, active)
 
 
-@frappe.whitelist(methods=["POST"])
-def api_add_unit(name=None, **kwargs):
-    kwargs.pop("cmd", None)
-    return add_unit(name, **kwargs)
-
-# ── Excel 批量导入 ──────────────────────────────────────────────────────────
-
-
 def _row_error(token) -> str:
     """逐行错误：认识的 token 翻成用户看得懂的那一句，不认识的照原样截断带上。"""
     token = str(token)

@@ -159,10 +159,12 @@ def main():
                            posting_date="2026-09-07", client_uuid="lab-inv-in-3")
     results["unknown_unit_allowed"] = ok
 
-    # 盘点：系统 39 → 实盘 30 应落一笔 -9 的差异流水。
-    ok, counted = as_user(STOCK, stock.count_lines, warehouse=warehouse,
-                          lines=[{"product": watched[0], "counted_qty": 30}],
-                          posting_date="2026-09-08")
+    # 盘点：实盘 30，差异落一笔 count 流水。原来调的 stock.count_lines 只有这里用，11-05 随没人调的
+    # api_count 一起删了（docs/work/2026-11-05-drop-dead-endpoints.md）；页面盘点走 count.py，这里按它原来的算法直接落。
+    system_qty = stock.current_balance(watched[0], warehouse).qty
+    ok, counted = as_user(STOCK, stock.apply_movement, product=watched[0], warehouse=warehouse,
+                          movement_type="count", qty=30 - system_qty, posting_date="2026-09-08",
+                          ref_type="count", reason="stocktake")
     results["count"] = counted
 
     # 出入库单据：草稿 → 提交（落流水）→ 作废（反向冲销，流水不删）。

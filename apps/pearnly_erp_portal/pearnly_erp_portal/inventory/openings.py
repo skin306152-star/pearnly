@@ -8,43 +8,13 @@
 或库存流水的仓位不能重新设置期初；后续变更走入库或盘点调整。
 """
 
-import frappe
-
-from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.inventory import contracts, opening_batch, warehouses
-
-DOCTYPE = "ERP Stock Opening"
-PRODUCT = "ERP Product"
-INVALID = "Invalid value"
-
-
-def _name(product: str, warehouse: str, location="") -> str:
-    return contracts.position_name("OPN", product, warehouse, location)
+from pearnly_erp_portal.inventory import opening_batch
 
 
 def upsert_opening(*, product, warehouse, as_of_date, qty, unit_cost=None, note=None, location="") -> dict:
-    """Compatibility API: same report permission, shared immutable initialization."""
+    """单个仓位放一笔期初（测试与实验室准备数据用；页面走 `opening_batch` 的预览 / 提交）。
+
+    对外接口 `api_upsert_opening` / `api_list_openings` 没有页面调，11-05 删了。
+    """
     return opening_batch.upsert_one(product=product, warehouse=warehouse, as_of_date=as_of_date,
                                     qty=qty, unit_cost=unit_cost, note=note, location=location)
-
-
-def list_openings(*, product=None, warehouse=None, limit=200) -> list[dict]:
-    guard.require("report.read")
-    filters: dict = {}
-    if product:
-        filters["product"] = product
-    if warehouse:
-        filters["warehouse"] = warehouses.required(warehouse)
-    else:
-        filters.update(warehouses.scope_filter())
-    return frappe.get_list(DOCTYPE, filters=filters,
-                           fields=["name", "product", "warehouse", "location", "as_of_date", "qty",
-                                   "unit_cost", "note"],
-                           order_by="as_of_date desc", limit_page_length=int(limit))
-
-
-def opening_for(product: str, warehouse: str, location=""):
-    name = _name(product, warehouse, location)
-    if not frappe.db.exists(DOCTYPE, name):
-        return None
-    return frappe.db.get_value(DOCTYPE, name, ["as_of_date", "qty", "unit_cost"], as_dict=True)

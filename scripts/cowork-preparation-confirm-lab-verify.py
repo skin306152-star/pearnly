@@ -282,7 +282,7 @@ class PreparationConfirmation(unittest.TestCase):
     def test_client_id_is_server_derived_for_mapping(self):
         from pearnly_cowork.masters import api as masters
         frappe.set_user(self.manager)
-        client = masters.create_client(self.workspace, 'Synthetic mapped buyer')['name']
+        client = frappe.get_doc({"doctype": "Cowork Client", "workspace": self.workspace, "display_name": 'Synthetic mapped buyer', "enabled": 1}).insert().name
         frappe.set_user('Administrator')
         BASE['grant'](self.actor, 'Cowork Client', client)
         frappe.set_user(self.manager)

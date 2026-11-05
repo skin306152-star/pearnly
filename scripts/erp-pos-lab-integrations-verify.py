@@ -157,8 +157,6 @@ def main():
     ok, err = as_user(OWNER, binding.start)
     results["code_refused_without_a_channel"] = ok
     results["code_refused_error"] = None if ok else err
-    ok, err = as_user(OWNER, binding.account)
-    results["account_refused_without_a_channel"] = ok
 
     # 配上（进程内，不写站点配置）+ 假 LINE 通道 → 发码、机器人身份一起回来。
     frappe.conf["pearnly_line_channel_id"] = "lab-channel"
@@ -225,8 +223,6 @@ def main():
         results["outsider_can_read"] = ok
         ok, err = as_user(OUTSIDER, binding.start)
         results["outsider_can_bind"] = ok
-        ok, err = as_user(OUTSIDER, binding.account)
-        results["outsider_can_read_account"] = ok
 
         # 别的站点看不到这条绑定（每租户一个站点 = 天然隔离）。
         results["site_a_bindings"] = frappe.db.count("Pearnly LINE Binding")
@@ -242,7 +238,6 @@ def main():
 
     expected = {
         "code_refused_without_a_channel": False,
-        "account_refused_without_a_channel": False,
         "dispatch_handled": True,
         "code_issued": True,
         "code_shape": True,
@@ -258,7 +253,6 @@ def main():
         "chat_unbind_status": "unbound",
         "outsider_can_read": False,
         "outsider_can_bind": False,
-        "outsider_can_read_account": False,
         "other_site_bindings": 0,
     }
     problems = {k: {"expected": v, "actual": results.get(k)} for k, v in expected.items()

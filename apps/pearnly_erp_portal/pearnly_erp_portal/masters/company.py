@@ -452,24 +452,6 @@ def selling_warehouse(company=None) -> str | None:
     return next(iter(places)) if len(places) == 1 else None
 
 
-def create_terminal(*, company_name=None, terminal_name, warehouse=None, is_default=False) -> dict:
-    """在公司页里加一台收银台（判据是 `company.manage`，见 `get_profile` 的说明）。"""
-    guard.require("company.manage")
-    from pearnly_erp_portal.cashier import terminals as service
-
-    return service.create_terminal(terminal_name=terminal_name, warehouse=warehouse,
-                                   is_default=is_default,
-                                   company=document_company(company_name), internal=True)
-
-
-def update_terminal(name, **changes) -> dict:
-    """改一台收银台：名字 / 卖货的仓 / 启用停用（同样走 `company.manage`）。"""
-    guard.require("company.manage")
-    from pearnly_erp_portal.cashier import terminals as service
-
-    return service.update_terminal(name, internal=True, **changes)
-
-
 def set_payment_methods(company=None, methods=None) -> dict:
     """这家公司收哪几种钱（公司页那一节）。空 = 四种全开。"""
     guard.require("company.manage")

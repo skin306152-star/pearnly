@@ -17,7 +17,7 @@ from pearnly_cowork.stocktake.calculations import active_quantity, summarize_ite
 from pearnly_cowork.stocktake.contracts import StocktakeValidationError, entry_request
 from pearnly_cowork.stocktake.documents import persist
 from pearnly_cowork.stocktake.export import TEXT_KEYS, workbook
-from pearnly_cowork.stocktake.native_contract import decoded_import, encode, identifier, revision, void_flag
+from pearnly_cowork.stocktake.native_contract import encode, identifier, revision, void_flag
 
 TASK, ITEM, ENTRY, OPERATION = access.TYPES
 
@@ -107,30 +107,6 @@ def _rows(doctype, task, order):
 
 def _new(doctype, record_id, workspace, **values):
     return frappe.get_doc({"doctype": doctype, "record_id": record_id, "workspace": workspace, **values})
-
-
-def create(workspace, title, request_id, header, rows):
-    access.require(workspace)
-    request_id = contract(identifier, request_id)
-    title, items, digest = contract(decoded_import, title, parse(header), parse(rows))
-    # Decoded-import replay compares canonical row content. It does not claim
-    # compatibility with legacy raw-XLSX digest keys or import existing IDs.
-    if frappe.db.exists(TASK, request_id):
-        return _existing(request_id, workspace, title, digest)
-    with atomic():
-        task = _new(TASK, request_id, workspace, title=title, source_digest=digest,
-                    source_format="decoded_rows_v1", count_mode="scan", status="active",
-                    created_by=frappe.session.user, created_at=now())
-        frappe.db.savepoint("stocktake_create_insert")
-        try:
-            persist(task)
-        except frappe.DuplicateEntryError:
-            frappe.db.rollback(save_point="stocktake_create_insert")
-            return _existing(request_id, workspace, title, digest)
-        for item in items:
-            persist(_new(ITEM, str(uuid4()), workspace, task=request_id, **item,
-                         actual_qty=None, version=0))
-    return {"id": request_id}
 
 
 def _existing(task_id, workspace, title, digest):

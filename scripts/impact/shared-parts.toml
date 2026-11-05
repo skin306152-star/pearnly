@@ -1665,7 +1665,7 @@ where = "Cowork 下载"
 steps = "银行 / 收入对账、销项税核查导出；盘点导出 / 模板；任务管理导出；原件下载；工作台导出"
 expect = "文件名正确、能打开"
 check = "manual"
-files = ["apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_recon_api.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_recon_service.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/income_recon_api.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/income_recon_service.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/vat_check_service.py", "apps/pearnly_cowork/pearnly_cowork/recon_center/api.py", "apps/pearnly_cowork/pearnly_cowork/stocktake/api.py", "apps/pearnly_cowork/pearnly_cowork/stocktake/desk_api.py", "apps/pearnly_cowork/pearnly_cowork/stocktake/service.py", "apps/pearnly_cowork/pearnly_cowork/work/api.py", "apps/pearnly_cowork/pearnly_cowork/work/service.py", "apps/pearnly_cowork/pearnly_cowork/files/api.py", "apps/pearnly_cowork/pearnly_cowork/roundtrip/api.py"]
+files = ["apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_recon_api.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_recon_service.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/income_recon_api.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/income_recon_service.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/vat_check_service.py", "apps/pearnly_cowork/pearnly_cowork/recon_center/api.py", "apps/pearnly_cowork/pearnly_cowork/stocktake/desk_api.py", "apps/pearnly_cowork/pearnly_cowork/stocktake/service.py", "apps/pearnly_cowork/pearnly_cowork/work/api.py", "apps/pearnly_cowork/pearnly_cowork/work/service.py", "apps/pearnly_cowork/pearnly_cowork/files/api.py", "apps/pearnly_cowork/pearnly_cowork/roundtrip/api.py"]
 
 [[entry]]
 id = "control.topup-proof"

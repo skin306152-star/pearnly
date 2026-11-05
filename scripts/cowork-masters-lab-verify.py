@@ -24,6 +24,30 @@ MANAGER_ROLES = ("Cowork Admin",)
 READER_ROLES = ("Cowork OCR History",)
 
 
+# 名册 / 商品 / 供应商档案的列表接口（roster / products / supplier_profiles）没有页面调，11-05 删了
+# （docs/work/2026-11-05-drop-dead-endpoints.md）：存下来的结果直接按库读，排序同原来的列表。
+def clients_in(workspace, include_inactive=False):
+	filters = {"workspace": workspace} if include_inactive else {"workspace": workspace, "enabled": 1}
+	return frappe.get_all("Cowork Client", filters=filters, fields=["name", "display_name"],
+		order_by="enabled desc, display_name asc, name asc")
+
+
+def products_in(workspace, include_inactive=False):
+	filters = {"workspace": workspace} if include_inactive else {"workspace": workspace, "enabled": 1}
+	return frappe.get_all("Cowork Product", filters=filters, fields=["name", "display_name"],
+		order_by="enabled desc, display_name asc, name asc")
+
+
+def profiles_in(workspace):
+	"""有效的供应商档案（两项默认都清空的那行不算），新的在前。"""
+	from pearnly_cowork.masters import supplier_posting
+
+	rows = frappe.get_all("Cowork Supplier Posting Profile", filters={"workspace": workspace},
+		fields=["seller_tax_id", "default_payment", "default_item_type", "source"],
+		order_by="modified desc, name desc")
+	return [dict(row) for row in rows if supplier_posting.has_effect(row)]
+
+
 class NativeClientRoster(unittest.TestCase):
 	@classmethod
 	def setUpClass(cls):
@@ -73,7 +97,7 @@ class NativeClientRoster(unittest.TestCase):
 			update_modified=False)
 		return created["name"]
 
-	def test_a_client_is_created_cleaned_and_listed_with_its_totals(self):
+	def test_a_client_is_created_cleaned_and_listed(self):
 		created = self.api.save_client(self.workspace, {"name": "  ACME Co., Ltd.  ",
 			"short_name": "x" * 200, "tax_id": " 0-1055-48103-91-2 ", "notes": "  first  ",
 			"surprise": "dropped"})
@@ -84,19 +108,7 @@ class NativeClientRoster(unittest.TestCase):
 		self.assertNotIn("surprise", created)
 
 		second = self.api.save_client(self.workspace, {"name": "Beta Shop"})
-		self.history("107.00", client=created["name"])
-		self.history("93.50", client=created["name"])
-		self.history("10.00")                                     # unassigned
-
-		roster = self.api.roster(self.workspace)
-		self.assertEqual([row["name"] for row in roster], [created["name"], second["name"]])
-		acme = roster[0]
-		self.assertEqual(acme["display_name"], "ACME Co., Ltd.")
-		self.assertEqual(acme["invoice_count"], 2)
-		self.assertEqual(acme["total_amount"], 200.5)
-		self.assertTrue(acme["last_invoice_at"])
-		self.assertEqual(roster[1]["invoice_count"], 0)
-		self.assertEqual(roster[1]["total_amount"], 0)
+		self.assertEqual([row["name"] for row in clients_in(self.workspace)], [created["name"], second["name"]])
 
 	def test_an_update_only_touches_what_it_was_given(self):
 		client = self.api.save_client(self.workspace, {"name": "Gamma", "notes": "keep me",
@@ -118,11 +130,11 @@ class NativeClientRoster(unittest.TestCase):
 	def test_deactivating_hides_a_client_without_deleting_it(self):
 		client = self.api.save_client(self.workspace, {"name": "Delta"})
 		self.api.save_client(self.workspace, {"is_active": 0}, name=client["name"])
-		self.assertEqual([row["name"] for row in self.api.roster(self.workspace)], [])
-		self.assertEqual([row["name"] for row in self.api.roster(self.workspace,
-			include_inactive=1)], [client["name"]])
+		self.assertEqual([row["name"] for row in clients_in(self.workspace)], [])
+		self.assertEqual([row["name"] for row in clients_in(self.workspace,
+			include_inactive=True)], [client["name"]])
 		self.api.save_client(self.workspace, {"is_active": True}, name=client["name"])
-		self.assertEqual([row["name"] for row in self.api.roster(self.workspace)],
+		self.assertEqual([row["name"] for row in clients_in(self.workspace)],
 			[client["name"]])
 
 	def test_a_client_with_records_cannot_be_deleted_and_an_empty_one_can(self):
@@ -143,12 +155,11 @@ class NativeClientRoster(unittest.TestCase):
 
 	def test_permissions_follow_the_feature_and_the_company(self):
 		frappe.set_user(self.reader)
-		self.assertTrue(self.api.roster(self.workspace) == [])
 		with self.assertRaises(frappe.PermissionError):
 			self.api.save_client(self.workspace, {"name": "Reader cannot write"})
 		frappe.set_user(self.outsider)
 		with self.assertRaises(frappe.PermissionError):
-			self.api.roster(self.workspace)
+			self.api.client_detail(self.workspace, "missing")
 		with self.assertRaises(frappe.PermissionError):
 			self.api.save_client(self.workspace, {"name": "Outsider cannot write"})
 
@@ -240,7 +251,7 @@ class NativeProductRoster(unittest.TestCase):
 		self.assertEqual(product["units"][0]["is_default_sell"], 1)
 		self.assertEqual(product["units"][1]["is_default_sell"], 0)
 
-		listed = self.api.products(self.workspace)
+		listed = products_in(self.workspace)
 		self.assertEqual([row["display_name"] for row in listed], ["น้ำปลา"])
 		self.assertEqual(self.api.product_detail(self.workspace, product["name"])["sku"], "FS-001")
 
@@ -267,7 +278,7 @@ class NativeProductRoster(unittest.TestCase):
 		with self.assertRaises(frappe.ValidationError):
 			self.api.save_product(self.workspace, {"display_name": "Bad", "units": [
 				{"unit_name": "ถุง"}]})
-		self.assertEqual(self.api.products(self.workspace), [])
+		self.assertEqual(products_in(self.workspace), [])
 
 	def test_an_exact_factor_survives_the_round_trip(self):
 		product = self.api.save_product(self.workspace, {"display_name": "นม",
@@ -282,9 +293,9 @@ class NativeProductRoster(unittest.TestCase):
 	def test_deactivating_hiding_and_deleting_a_product(self):
 		product = self.api.save_product(self.workspace, {"display_name": "ชา"})
 		self.api.save_product(self.workspace, {"is_active": 0}, name=product["name"])
-		self.assertEqual(self.api.products(self.workspace), [])
-		self.assertEqual([row["name"] for row in self.api.products(self.workspace,
-			include_inactive=1)], [product["name"]])
+		self.assertEqual(products_in(self.workspace), [])
+		self.assertEqual([row["name"] for row in products_in(self.workspace,
+			include_inactive=True)], [product["name"]])
 		self.assertTrue(self.api.delete_product(self.workspace, product["name"])["deleted"])
 		self.assertFalse(frappe.db.exists("Cowork Product", product["name"]))
 		self.assertEqual(frappe.db.count("Cowork Product Unit",
@@ -292,7 +303,6 @@ class NativeProductRoster(unittest.TestCase):
 
 	def test_permissions_and_a_foreign_company(self):
 		frappe.set_user(self.reader)
-		self.assertEqual(self.api.products(self.workspace), [])
 		with self.assertRaises(frappe.PermissionError):
 			self.api.save_product(self.workspace, {"display_name": "Reader cannot write"})
 		frappe.set_user(self.manager)
@@ -339,7 +349,7 @@ class NativeSupplierPosting(unittest.TestCase):
 
 	def test_a_profile_is_saved_in_parts_and_listed_with_the_cleaned_anchor(self):
 		self.api.save_supplier_profile(self.workspace, self.TAX, default_payment="cash")
-		listed = self.api.supplier_profiles(self.workspace)
+		listed = profiles_in(self.workspace)
 		self.assertEqual(len(listed), 1)
 		self.assertEqual(listed[0]["seller_tax_id"], self.CLEAN)
 		self.assertEqual(listed[0]["default_payment"], "cash")
@@ -347,7 +357,7 @@ class NativeSupplierPosting(unittest.TestCase):
 		self.assertEqual(listed[0]["source"], "user_rule")
 		# A second call that only names the item type leaves the payment alone.
 		self.api.save_supplier_profile(self.workspace, self.CLEAN, default_item_type="goods")
-		listed = self.api.supplier_profiles(self.workspace)
+		listed = profiles_in(self.workspace)
 		self.assertEqual((listed[0]["default_payment"], listed[0]["default_item_type"]),
 			("cash", "goods"))
 
@@ -359,20 +369,20 @@ class NativeSupplierPosting(unittest.TestCase):
 		for bad in ("12345", "", "010556100001", "01055610000134", "abc"):
 			with self.assertRaises(frappe.ValidationError):
 				self.api.save_supplier_profile(self.workspace, bad, default_payment="cash")
-		self.assertEqual(self.api.supplier_profiles(self.workspace), [])
+		self.assertEqual(profiles_in(self.workspace), [])
 
 	def test_a_learned_correction_never_overwrites_a_user_rule(self):
 		self.api.save_supplier_profile(self.workspace, self.CLEAN, default_payment="cash")
 		kept = self.inputs.save_profile(self.workspace, self.CLEAN, default_payment="credit",
 			source="correction")
 		self.assertEqual(kept["preserved_user_rule"], True)
-		self.assertEqual(self.api.supplier_profiles(self.workspace)[0]["default_payment"], "cash")
+		self.assertEqual(profiles_in(self.workspace)[0]["default_payment"], "cash")
 		# The same rule does not stop a correction from filling a tax id it owns itself.
 		self.inputs.save_profile(self.workspace, "0105561000013", default_payment="credit",
 			source="correction")
 		self.inputs.save_profile(self.workspace, "0105561000013", default_item_type="expense",
 			source="correction")
-		rows = {row["seller_tax_id"]: row for row in self.api.supplier_profiles(self.workspace)}
+		rows = {row["seller_tax_id"]: row for row in profiles_in(self.workspace)}
 		self.assertEqual((rows["0105561000013"]["default_payment"],
 			rows["0105561000013"]["default_item_type"], rows["0105561000013"]["source"]),
 			("credit", "expense", "correction"))
@@ -381,7 +391,7 @@ class NativeSupplierPosting(unittest.TestCase):
 		self.api.save_supplier_profile(self.workspace, self.CLEAN, default_payment="cash")
 		self.assertEqual(self.api.delete_supplier_profile(self.workspace, self.TAX),
 			{"deleted": True})
-		self.assertEqual(self.api.supplier_profiles(self.workspace), [])
+		self.assertEqual(profiles_in(self.workspace), [])
 		# The native input row stays (it is auditable and refuses on_trash), only its effect is gone.
 		self.assertTrue(frappe.db.exists("Cowork Supplier Posting Profile",
 			{"workspace": self.workspace, "seller_tax_id": self.CLEAN}))
@@ -393,13 +403,10 @@ class NativeSupplierPosting(unittest.TestCase):
 	def test_permissions_follow_the_feature_the_role_and_the_company(self):
 		self.api.save_supplier_profile(self.workspace, self.CLEAN, default_payment="cash")
 		frappe.set_user(self.reader)
-		self.assertEqual(len(self.api.supplier_profiles(self.workspace)), 1)   # read is allowed
 		with self.assertRaises(frappe.PermissionError):
 			self.api.save_supplier_profile(self.workspace, self.CLEAN, default_payment="credit")
 		with self.assertRaises(frappe.PermissionError):
 			self.api.delete_supplier_profile(self.workspace, self.CLEAN)
-		with self.assertRaises(frappe.PermissionError):
-			self.api.supplier_profiles(self.other_workspace)
 
 
 class NativeClientImport(unittest.TestCase):
@@ -461,7 +468,7 @@ class NativeClientImport(unittest.TestCase):
 		])
 		self.assertEqual((preview["total"], preview["valid_count"], preview["skip_count"],
 			preview["error_count"]), (5, 2, 1, 2))
-		self.assertEqual([row["display_name"] for row in self.api.roster(self.workspace)],
+		self.assertEqual([row["display_name"] for row in clients_in(self.workspace)],
 			["Existing"])
 
 	def test_a_commit_creates_the_rows_and_re_running_it_skips_them(self):
@@ -471,7 +478,7 @@ class NativeClientImport(unittest.TestCase):
 		# The duplicate inside the same batch is a skip, not an error, and nothing was doubled.
 		self.assertEqual([row["status"] for row in committed["results"]],
 			["created", "error", "error", "skip", "created"])
-		roster = self.api.roster(self.workspace)
+		roster = clients_in(self.workspace)
 		self.assertEqual({row["display_name"] for row in roster}, {"บริษัท อัลฟ่า", "Delta Co."})
 		# The deployed row mapping: phone lands in contact_phone, the tax id is stored as given.
 		by_name = {row["display_name"]: row["name"] for row in roster}
@@ -480,7 +487,7 @@ class NativeClientImport(unittest.TestCase):
 			("0-1055-48103-91-2", "18", "0812345678"))
 		again = self.api.commit_client_import(self.workspace, self.rows())
 		self.assertEqual((again["created"], again["skipped"], again["errors"]), (0, 3, 2))
-		self.assertEqual(len(self.api.roster(self.workspace)), 2)
+		self.assertEqual(len(clients_in(self.workspace)), 2)
 
 	def test_a_duplicate_tax_id_is_refused_by_the_single_create_and_the_update(self):
 		first = self.api.save_client(self.workspace, {"name": "First", "tax_id": "0105548103912"})
@@ -502,7 +509,6 @@ class NativeClientImport(unittest.TestCase):
 			self.api.preview_client_import(self.workspace, self.rows())
 		with self.assertRaises(frappe.PermissionError):
 			self.api.commit_client_import(self.workspace, self.rows())
-		self.assertEqual(self.api.roster(self.workspace), [])
 
 
 if __name__ == "__main__":
@@ -521,8 +527,6 @@ if __name__ == "__main__":
 		base = f"http://{frappe.local.site}"
 		rpc = "/api/method/pearnly_cowork.masters.api."
 		anonymous = {
-			"roster": client.get(rpc + "roster", base_url=base,
-				query_string={"workspace": "x"}).status_code,
 			"client_detail": client.get(rpc + "client_detail", base_url=base,
 				query_string={"workspace": "x", "name": "y"}).status_code,
 			"save_client": client.post(rpc + "save_client", base_url=base,
@@ -531,16 +535,12 @@ if __name__ == "__main__":
 				json={"workspace": "x", "name": "y"}).status_code,
 			"resolve_buyer": client.post(rpc + "resolve_buyer", base_url=base,
 				json={"workspace": "x", "buyer_name": "y"}).status_code,
-			"products": client.get(rpc + "products", base_url=base,
-				query_string={"workspace": "x"}).status_code,
 			"product_detail": client.get(rpc + "product_detail", base_url=base,
 				query_string={"workspace": "x", "name": "y"}).status_code,
 			"save_product": client.post(rpc + "save_product", base_url=base,
 				json={"workspace": "x", "values": {}}).status_code,
 			"delete_product": client.post(rpc + "delete_product", base_url=base,
 				json={"workspace": "x", "name": "y"}).status_code,
-			"supplier_profiles": client.get(rpc + "supplier_profiles", base_url=base,
-				query_string={"workspace": "x"}).status_code,
 			"save_supplier_profile": client.post(rpc + "save_supplier_profile", base_url=base,
 				json={"workspace": "x", "seller_tax_id": "0105548103912"}).status_code,
 			"delete_supplier_profile": client.post(rpc + "delete_supplier_profile", base_url=base,

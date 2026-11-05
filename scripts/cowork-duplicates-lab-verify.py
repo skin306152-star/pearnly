@@ -69,8 +69,8 @@ class DuplicateChecks(unittest.TestCase):
         user(cls.reader, ["Cowork OCR History"])
         cls.workspace = api.create_workspace("Duplicate lab " + suffix)["name"]
         cls.foreign = api.create_workspace("Duplicate other " + suffix)["name"]
-        cls.client = api.create_client(cls.workspace, "Buyer A")["name"]
-        cls.client_b = api.create_client(cls.workspace, "Buyer B")["name"]
+        cls.client = frappe.get_doc({"doctype": "Cowork Client", "workspace": cls.workspace, "display_name": "Buyer A", "enabled": 1}).insert().name
+        cls.client_b = frappe.get_doc({"doctype": "Cowork Client", "workspace": cls.workspace, "display_name": "Buyer B", "enabled": 1}).insert().name
         for actor in (cls.actor, cls.other, cls.reader):
             grant(actor, "Cowork Workspace", cls.workspace)
         grant(cls.actor, "Cowork Workspace", cls.foreign)

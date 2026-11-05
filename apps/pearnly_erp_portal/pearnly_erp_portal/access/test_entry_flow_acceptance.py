@@ -16,7 +16,7 @@ import openpyxl
 from pearnly_erp_portal.access import menu
 from pearnly_erp_portal.access.setup import sync_roles
 from pearnly_erp_portal.cashier import api as cashier_api
-from pearnly_erp_portal.inventory import api as stock_api, stock, workbook
+from pearnly_erp_portal.inventory import api as stock_api, count as counts, openings, stock, warehouses, workbook
 from pearnly_erp_portal.masters import api as master_api, company
 from pearnly_erp_portal.products import contracts as product_contracts, service as products
 from pearnly_erp_portal.purchasing import entry as purchase, recognition, suppliers
@@ -134,16 +134,13 @@ class EntryFlowAcceptance(unittest.TestCase):
         task = stock_api.api_create_stock_count(title=self.prefix + " XLSX count",
             warehouse=self.warehouse, file_url=uploaded.file_url)
         self.assertEqual((task["rows"], task["counted"], task["problems"]), (3, 2, []))
-        repeated_import = stock_api.api_stock_count_import(name=task["name"], file_url=uploaded.file_url)
-        self.assertEqual((repeated_import["rows"], repeated_import["counted"], repeated_import["problems"]),
-                         (3, 2, []))
-        items = stock_api.api_stock_count_items(count=task["name"], limit=0)
+        items = counts.list_items(count=task["name"], limit=0)
         by_product = {row["product"]: row for row in items}
         self.assertFalse(by_product[self.products["blank"]]["counted"])
         self.assertTrue(by_product[self.products["counted_zero"]]["counted"])
-        self.assertEqual(len(stock_api.api_stock_count_entries(count=task["name"], limit=0)), 2)
+        self.assertEqual(len(counts.list_entries(count=task["name"], limit=0)), 2)
         review = stock_api.api_stock_count_review(task["name"])
-        posted = stock_api.api_stock_count_post(name=task["name"], review_token=review["review_token"])
+        posted = stock_api.api_stock_count_close(name=task["name"], review_token=review["review_token"])
         self.assertEqual(posted["status"], "Posted")
         self.assertEqual(len(posted["adjustments"]), 2)
         self.assertEqual(tuple(self.quantity(key) for key in ("zero", "blank", "counted_zero")),
@@ -155,7 +152,7 @@ class EntryFlowAcceptance(unittest.TestCase):
             self.assertTrue(doc.doc_no)
         movements = frappe.db.count("ERP Stock Movement", {"ref_id": ["in", entries]})
         self.assertEqual(movements, 2)
-        replay = stock_api.api_stock_count_post(name=task["name"], review_token=review["review_token"])
+        replay = stock_api.api_stock_count_close(name=task["name"], review_token=review["review_token"])
         self.assertTrue(replay["deduped"])
         self.assertEqual(frappe.db.count("ERP Stock Movement", {"ref_id": ["in", entries]}), movements)
         self.assertEqual(tuple(self.quantity(key) for key in ("zero", "blank", "counted_zero")),
@@ -267,12 +264,13 @@ class EntryFlowAcceptance(unittest.TestCase):
         self.as_role("stock-card")
         args = {"product": self.products["card"], "warehouse": self.warehouse,
                 "as_of_date": "2026-09-24", "qty": 4, "unit_cost": 10, "note": self.prefix}
-        opening = stock_api.api_upsert_opening(**args)
-        replay = stock_api.api_upsert_opening(**args)
+        opening = openings.upsert_opening(**args)
+        replay = openings.upsert_opening(**args)
         self.assertEqual(opening["name"], replay["name"])
         self.assertEqual(self.quantity("card"), Decimal(4))
         self.assertEqual(frappe.db.count("ERP Stock Movement", {"ref_type": "opening", "ref_id": opening["name"]}), 1)
-        rows = stock_api.api_list_openings(product=self.products["card"], warehouse=self.warehouse)
+        rows = frappe.get_list("ERP Stock Opening", filters={"product": self.products["card"], "warehouse": self.warehouse},
+                              fields=["name"])
         self.assertEqual([row["name"] for row in rows], [opening["name"]])
         card = stock_api.api_stock_card(product=self.products["card"], warehouse=self.warehouse,
                                        date_from="2026-09-23", date_to="2026-09-25")
@@ -281,7 +279,7 @@ class EntryFlowAcceptance(unittest.TestCase):
         self.denied(stock_api.api_stock, warehouse=self.warehouse)
         self.denied(stock_api.api_create_warehouse, company=self.company["name"], warehouse_name=self.prefix + " denied")
         self.as_role("inventory")
-        self.denied(stock_api.api_upsert_opening, **args)
+        self.denied(openings.upsert_opening, **args)
 
     def test_cashier_leaf_shift_sale_replay_and_settlement(self):
         self.as_role("cashier")
@@ -349,13 +347,13 @@ class EntryFlowAcceptance(unittest.TestCase):
         profile = master_api.api_get_profile(name=self.company["name"])
         self.assertEqual(profile["phone"], "020000000")
         self.assertTrue(profile["can_write"])
-        self.assertTrue(any(row["name"] == self.terminal for row in master_api.api_company_terminals(company_name=self.company["name"])))
+        self.assertTrue(any(row["name"] == self.terminal for row in company.terminals_of(self.company["name"])))
         self.denied(stock_api.api_create_warehouse, company=self.company["name"], warehouse_name=self.prefix + " denied")
         self.denied(cashier_api.api_open_shift, terminal=self.terminal)
         self.as_role("warehouses")
         created = stock_api.api_create_warehouse(company=self.company["name"], warehouse_name=self.prefix + " extra")
         stock_api.api_update_warehouse(name=created["name"], note=self.prefix + " updated", is_active=False)
-        rows = stock_api.api_list_warehouses(company=self.company["name"], include_inactive=True, limit=0)
+        rows = warehouses.list_warehouses(company=self.company["name"], include_inactive=True, limit=0)
         saved = next(row for row in rows if row["name"] == created["name"])
         self.assertEqual((saved["company"], saved["note"], saved["is_active"]),
                          (self.company["name"], self.prefix + " updated", 0))

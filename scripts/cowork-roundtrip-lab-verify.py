@@ -281,7 +281,7 @@ class NativeRoundtrip(unittest.TestCase):
         from pearnly_cowork.history import storage
         from pearnly_cowork.roundtrip import spec as rt
         frappe.set_user("Administrator")
-        client = masters.create_client(self.workspace, "Synthetic roundtrip client " + uuid.uuid4().hex)["name"]
+        client = frappe.get_doc({"doctype": "Cowork Client", "workspace": self.workspace, "display_name": "Synthetic roundtrip client " + uuid.uuid4().hex, "enabled": 1}).insert().name
         grant(self.actor, "Cowork Client", client)
         frappe.db.commit()
         frappe.set_user(self.actor)

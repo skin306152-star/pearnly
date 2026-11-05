@@ -18,41 +18,6 @@ def create_workspace(display_name, tax_id=None, address=None, branch=None, phone
     return workspace_service.create(display_name, tax_id, address, branch, phone)
 
 
-@frappe.whitelist(methods=["POST"])
-def create_client(workspace, display_name, tax_id=None):
-    require_manager()
-    scope.require_scope(workspace)
-    doc = frappe.get_doc({"doctype": "Cowork Client", "workspace": workspace,
-                          "display_name": display_name, "tax_id": tax_id, "enabled": 1}).insert()
-    return {"name": doc.name, "workspace": doc.workspace, "display_name": doc.display_name}
-
-
-@frappe.whitelist()
-def workspaces(start=0, limit=50):
-    if not scope.allowed_any((*scope.READ_FEATURES, "master_data")):
-        frappe.throw(_("Not Permitted"), frappe.PermissionError)
-    return frappe.get_list("Cowork Workspace", filters={"enabled": 1},
-                           fields=["name", "display_name", "tax_id"], order_by="display_name, name",
-                           limit_start=max(0, int(start)), limit_page_length=max(1, min(int(limit), 200)))
-
-
-@frappe.whitelist()
-def clients(workspace, start=0, limit=50):
-    if not scope.allowed_any((*scope.READ_FEATURES, "master_data")):
-        frappe.throw(_("Not Permitted"), frappe.PermissionError)
-    scope.require_scope(workspace)
-    return frappe.get_list("Cowork Client", filters={"workspace": workspace, "enabled": 1},
-                           fields=["name", "display_name", "tax_id"], order_by="display_name, name",
-                           limit_start=max(0, int(start)), limit_page_length=max(1, min(int(limit), 200)))
-
-
-@frappe.whitelist()
-def roster(workspace, start=0, limit=50, include_inactive=0):
-    """The client roster with the deployed ordering and the three per-client totals."""
-    return clients_service.list_clients(workspace, start=start, limit=limit,
-        include_inactive=bool(int(include_inactive)))
-
-
 @frappe.whitelist()
 def client_detail(workspace, name):
     return clients_service.get_client(workspace, name)
@@ -77,12 +42,6 @@ def resolve_buyer(workspace, buyer_name, buyer_tax=None, buyer_candidates=None):
     """Which client an invoice's buyer belongs to; the decision is the ported core."""
     return clients_service.resolve_buyer(workspace, buyer_name, buyer_tax=buyer_tax,
         buyer_candidates=buyer_candidates)
-
-
-@frappe.whitelist()
-def products(workspace, start=0, limit=50, include_inactive=0):
-    return products_service.list_products(workspace, start=start, limit=limit,
-        include_inactive=bool(int(include_inactive)))
 
 
 @frappe.whitelist()
@@ -115,12 +74,6 @@ def save_supplier_profile(workspace, seller_tax_id, default_payment=None, defaul
     """
     return push_inputs.save_profile(workspace, seller_tax_id, default_payment=default_payment,
         default_item_type=default_item_type, source='user_rule', allow_empty=False)
-
-
-@frappe.whitelist()
-def supplier_profiles(workspace, limit=None):
-    """The company's effective supplier posting profiles, newest first."""
-    return push_inputs.list_profiles(workspace, limit=limit)
 
 
 @frappe.whitelist(methods=["POST"])

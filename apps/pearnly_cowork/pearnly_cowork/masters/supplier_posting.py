@@ -47,10 +47,6 @@ ERR_SOURCE = "purchase.source_invalid"
 DETAILS = {"default_payment": "default_payment_invalid",
     "default_item_type": "default_item_type_invalid"}
 
-# 旧侧列表口的 Query(ge=1, le=500)。
-MAX_LIMIT = 500
-
-
 def clean_seller_tax_id(raw: Any) -> str:
     """档案锚（卖方税号）：合法返回 13 位数字串，否则空串。"""
     return clean_tax_id(raw)

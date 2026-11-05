@@ -144,7 +144,7 @@ def list_terminals(*, include_inactive=False, limit=50, company=None) -> list[di
 
 def create_terminal(*, terminal_name, warehouse=None, is_default=False, company=None,
                     internal=False) -> dict:
-    # `internal=True`：公司页那条路（判据是 `company.manage`，见 `masters/company.create_terminal`）
+    # `internal=True`：公司页那条路（判据是 `company.manage`，`masters/company` 建公司 / 存公司资料时带收银台）
     # —— 建公司时就要把收银台配好，那会儿不一定有人已经拿到收银岗位。
     if not internal:
         guard.require("cashier.manage")

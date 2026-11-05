@@ -156,7 +156,7 @@ class NativeBackend(unittest.TestCase):
             user(name, roles)
         cls.workspace = masters.create_workspace("Synthetic A " + suffix)["name"]
         cls.foreign = masters.create_workspace("Synthetic B " + suffix)["name"]
-        cls.client = masters.create_client(cls.workspace, "Synthetic buyer")["name"]
+        cls.client = frappe.get_doc({"doctype": "Cowork Client", "workspace": cls.workspace, "display_name": "Synthetic buyer", "enabled": 1}).insert().name
         grant(cls.actor, "Cowork Workspace", cls.workspace)
         grant(cls.reader, "Cowork Workspace", cls.workspace)
         grant(cls.outsider, "Cowork Workspace", cls.foreign)
@@ -364,20 +364,6 @@ class NativeBackend(unittest.TestCase):
         with self.assertRaises(frappe.PermissionError):
             self.api.detail(self.reference)
         self.assertFalse(frappe.get_list("Cowork OCR History", pluck="name"))
-
-    def test_master_pagination_can_reach_record_201(self):
-        from pearnly_cowork.masters import api as masters
-        frappe.set_user("Administrator")
-        # db_insert keeps this fixture fast; the production API still validates masters.
-        for index in range(201):
-            doc = frappe.get_doc({"doctype": "Cowork Client", "workspace": self.workspace,
-                                  "display_name": "Pagination", "enabled": 1})
-            doc.name = uuid.uuid4().hex
-            doc.db_insert()
-        pages = [masters.clients(self.workspace, start=offset, limit=100) for offset in (0, 100, 200)]
-        names = [r.name for page in pages for r in page]
-        self.assertEqual(len(names), 202)
-        self.assertEqual(len(set(names)), 202)
 
     def test_empty_update_and_internal_source_claim_are_rejected(self):
         row = self.create()

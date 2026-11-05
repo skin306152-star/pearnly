@@ -72,9 +72,3 @@ def check() -> list[str]:
                     _("{0}: entry prefixes must start with /: {1}").format(product, prefix)
                 )
     return problems
-
-
-@frappe.whitelist()
-def describe():
-    """给前端用：当前站点的产品清单。"""
-    return current()

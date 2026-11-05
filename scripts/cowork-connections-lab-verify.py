@@ -38,7 +38,7 @@ class NativeConnections(unittest.TestCase):
             BASE["user"](user,roles)
         cls.workspace=masters.create_workspace("Synthetic connection "+cls.suffix)["name"]
         cls.foreign=masters.create_workspace("Synthetic foreign connection "+cls.suffix)["name"]
-        cls.client=masters.create_client(cls.workspace,"Synthetic buyer "+cls.suffix)["name"]
+        cls.client=frappe.get_doc({"doctype": "Cowork Client", "workspace": cls.workspace, "display_name": "Synthetic buyer "+cls.suffix, "enabled": 1}).insert().name
         for user in (cls.actor,cls.log_reader):
             BASE["grant"](user,"Cowork Workspace",cls.workspace)
         BASE["grant"](cls.outsider,"Cowork Workspace",cls.foreign)

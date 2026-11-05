@@ -3,8 +3,8 @@
 
 来源：ec2e5c957e6b ``services/clients/store.py`` 的 CRUD（字段规则已在
 ``masters/client_records.py``）与 ``services/clients/buyer_resolve.py`` 的写路径
-（``learn_buyer_to_client`` / ``try_resolve_buyer_to_client`` / ``resolve_or_create``）
-以及 ``list_clients`` 的三个聚合。
+（``learn_buyer_to_client`` / ``try_resolve_buyer_to_client`` / ``resolve_or_create``）。
+旧侧 ``list_clients`` 名册列表（带三个聚合）迁过来后一直没有页面调，11-05 删了。
 
 **原生与旧侧的结构性差异（都是有意为之）**：
 
@@ -62,46 +62,6 @@ def require_reader():
 def _project(doc):
     return {field: doc.get(field) for field in CLIENT_FIELDS if field != "name"} | {
         "name": doc.name}
-
-
-def _aggregates(workspace, client_names):
-    """每个客户的发票数 / 合计金额 / 最近一张时间（旧侧 list_clients 的三个子查询）。"""
-    if not client_names:
-        return {}
-    rows = frappe.db.get_all(HISTORY, filters={"workspace": workspace,
-        "client": ("in", list(client_names))},
-        fields=["client", {"COUNT": "name", "as": "invoice_count"},
-            {"SUM": "total_amount", "as": "total_amount"},
-            {"MAX": "creation", "as": "last_invoice_at"}],
-        group_by="client")
-    return {row["client"]: row for row in rows}
-
-
-def list_clients(workspace, start=0, limit=50, include_inactive=False):
-    """名册列表：部署版排序 `is_active DESC, name ASC` + 三个聚合。"""
-    require_reader()
-    scope.require_scope(workspace)
-    start, limit = max(0, int(start)), max(1, min(int(limit), 500))
-    if include_inactive:
-        # The ORM permission query for this DocType hides disabled clients by design
-        # (`enabled=1` is part of it), so the "include inactive" branch reads through
-        # the database after the service's own checks: the feature gate and
-        # `require_scope(workspace)` above already cover exactly this company.
-        rows = frappe.db.get_all(CLIENT, filters={"workspace": workspace},
-            fields=list(CLIENT_FIELDS),
-            order_by="enabled desc, display_name asc, name asc",
-            limit_start=start, limit_page_length=limit)
-    else:
-        rows = frappe.get_list(CLIENT, filters={"workspace": workspace, "enabled": 1},
-            fields=list(CLIENT_FIELDS), order_by="enabled desc, display_name asc, name asc",
-            limit_start=start, limit_page_length=limit)
-    aggregates = _aggregates(workspace, [row["name"] for row in rows])
-    for row in rows:
-        totals = aggregates.get(row["name"]) or {}
-        row["invoice_count"] = int(totals.get("invoice_count") or 0)
-        row["total_amount"] = float(totals.get("total_amount") or 0)
-        row["last_invoice_at"] = totals.get("last_invoice_at")
-    return rows
 
 
 def get_client(workspace, name):

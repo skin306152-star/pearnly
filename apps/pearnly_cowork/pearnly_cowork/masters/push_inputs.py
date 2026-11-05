@@ -144,25 +144,6 @@ def save_profile(workspace, seller_tax_id, *, default_payment=None, default_item
     return {'name': name, 'preserved_user_rule': False}
 
 
-def list_profiles(workspace, limit=None):
-    """A company's effective posting profiles, newest first, with the deployed limit.
-
-    Native input rows are auditable and may not be removed, so "removed" is expressed by
-    clearing both defaults: such a row has no effect and is not part of this projection
-    (the deployed delete dropped the row outright).
-    """
-    if not scope.allowed_any((*scope.READ_FEATURES, 'master_data')):
-        deny()
-    _workspace(workspace)
-    scope.require_scope(workspace)
-    limit = posting_rules.MAX_LIMIT if limit in (None, '') else int(limit)
-    limit = max(1, min(limit, posting_rules.MAX_LIMIT))
-    rows = frappe.db.get_all(TYPES[1], filters={'workspace': workspace},
-        fields=['name', 'seller_tax_id', 'default_payment', 'default_item_type', 'source', 'modified'],
-        order_by='modified desc, name desc', limit_page_length=limit)
-    return [dict(row) for row in rows if posting_rules.has_effect(row)]
-
-
 def clear_profile(workspace, seller_tax_id):
     """Remove a profile's effect; ``deleted`` says whether it had one.
 

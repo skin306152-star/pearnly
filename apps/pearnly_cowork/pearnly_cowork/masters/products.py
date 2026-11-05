@@ -131,20 +131,6 @@ def _apply(product, values, *, creating):
             product.append("units", row)
 
 
-def list_products(workspace, start=0, limit=50, include_inactive=False):
-    require_reader()
-    scope.require_scope(workspace)
-    start, limit = max(0, int(start)), max(1, min(int(limit), 500))
-    filters = {"workspace": workspace}
-    if not include_inactive:
-        filters["enabled"] = 1
-    return frappe.get_list(PRODUCT, filters=filters,
-        fields=["name", "workspace", "display_name", "sku", "base_unit", "enabled",
-            "name_th", "name_en", "name_zh"],
-        order_by="enabled desc, display_name asc, name asc",
-        limit_start=start, limit_page_length=limit)
-
-
 def get_product(workspace, name):
     require_reader()
     scope.require_scope(workspace)

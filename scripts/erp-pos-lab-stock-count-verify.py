@@ -84,6 +84,19 @@ def _upload(data: bytes, name: str) -> str:
     return save_file(name, data, None, None, is_private=1, df="File").file_url
 
 
+def import_into(count, file_url):
+    """往已开的盘点里并一张表（`count.apply_import` 的覆盖语义；建盘点带表也走它）。
+
+    原来经接口 `api_stock_count_import` 调；那个接口页面不调，11-05 删了（docs/work/2026-11-05-drop-dead-endpoints.md）。
+    """
+    from pearnly_erp_portal.inventory import api as inventory_api
+    from pearnly_erp_portal.inventory import count as counts
+
+    rows, problems = inventory_api._stock_rows(file_url)
+    imported = counts.apply_import(count=count, rows=rows)
+    return {**imported, "problems": imported["problems"] + problems}
+
+
 def main():
     site = connect()
     frappe.set_user("Administrator")
@@ -297,8 +310,8 @@ def main():
          "unit": "pcs", "book_qty": None, "counted_qty": None, "warehouse": "", "location": ""},
     ])
     file_url = _upload(sheet, "lab-stock-count.xlsx")
-    ok, imported = as_user(STOCK, inventory_api.api_stock_count_import,
-                           name=import_task, file_url=file_url)
+    ok, imported = as_user(STOCK, import_into,
+                           import_task, file_url)
     results["import_ok"] = ok
     results["import_rows"] = (imported or {}).get("rows")
     results["import_counted"] = (imported or {}).get("counted")
@@ -318,8 +331,8 @@ def main():
         "ERP Stock Count Entry", {"count": import_task, "item": row_a2.get("name")}, "location")
 
     # 同一份表再传一次是**覆盖**，不是又记一笔；改成 9 也一样只有一条
-    ok, again_import = as_user(STOCK, inventory_api.api_stock_count_import,
-                               name=import_task, file_url=file_url)
+    ok, again_import = as_user(STOCK, import_into,
+                               import_task, file_url)
     results["import_again_rows"] = (again_import or {}).get("rows")
     results["import_entries_total"] = frappe.db.count(
         "ERP Stock Count Entry", {"count": import_task, "voided": 0})
@@ -327,8 +340,8 @@ def main():
         {"product_code": "LAB-SC-A", "product_name": "Lab count A", "barcode": "",
          "unit": "pcs", "book_qty": 10, "counted_qty": 9, "warehouse": "", "location": "A1"},
     ])
-    ok, _ = as_user(STOCK, inventory_api.api_stock_count_import,
-                    name=import_task, file_url=_upload(changed, "lab-stock-count-2.xlsx"))
+    ok, _ = as_user(STOCK, import_into,
+                    import_task, _upload(changed, "lab-stock-count-2.xlsx"))
     results["import_after_change"] = float(
         frappe.db.get_value("ERP Stock Count Item", row_a2.get("name"), "counted_qty") or 0)
 
@@ -339,8 +352,8 @@ def main():
         {"product_code": "LAB-SC-B", "product_name": "Lab count B", "barcode": "",
          "unit": "pcs", "book_qty": None, "counted_qty": 2, "warehouse": "", "location": ""},
     ])
-    ok, mixed_result = as_user(STOCK, inventory_api.api_stock_count_import,
-                               name=import_task, file_url=_upload(mixed, "lab-mixed.xlsx"))
+    ok, mixed_result = as_user(STOCK, import_into,
+                               import_task, _upload(mixed, "lab-mixed.xlsx"))
     results["import_mixed_rows"] = (mixed_result or {}).get("rows")
     results["import_mixed_problems"] = [p["reason"] for p in
                                         (mixed_result or {}).get("problems") or []]

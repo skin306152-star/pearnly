@@ -188,7 +188,6 @@ class EntryPermissions(unittest.TestCase):
 
     def test_stock_count_template_includes_zero_stock(self):
         self.as_role("stock-count")
-        self.denied(stock_api.api_count)
         self.denied(stock_api.api_adjust)
         rows = count.template_rows(warehouse=self.a["warehouse"])
         self.assertTrue(any(row["product_name"] == self.prefix + " item" for row in rows))

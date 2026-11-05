@@ -4,11 +4,11 @@
 设计（与计划合同一致）：
 
 - **不另造一套令牌**。登录会话就是 Frappe 原生 session；这里只做"登记"，
-  把每个会话记下来，用于展示、审计和撤权。
+  把每个会话记下来，用于审计和撤权。
 - **不同产品、不同设备互不踢**。除非显式"退出全部"或改密，否则新登录不
   影响已有会话。
-- 撤权分三种：退出本产品（只结束本站）、退出全部（含身份服务会话）、
-  改密后撤销（保留当前、其余作废）。
+- 撤权分两种：退出全部（含身份服务会话）、改密后撤销（保留当前、其余作废）。
+  退出本产品走身份服务的登出（`pearnly_core.identity.sign_out`）。
 
 身份服务侧的会话用 ID token 里的 `sid` 关联；撤权时按 `sid` 精确终止，
 不去动别人的会话。
@@ -118,34 +118,6 @@ def _drop_local_sessions(user: str, keep_current: bool = False):
 
 
 # ── 对外接口 ────────────────────────────────────────────────────────────────
-
-
-@frappe.whitelist()
-def my_sessions():
-    """当前账号的活跃会话列表（供产品界面展示"登录设备"）。"""
-    user = frappe.session.user
-    if user == "Guest":
-        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
-    return frappe.get_all(
-        "Pearnly Session",
-        filters={"user": user, "status": "active"},
-        fields=["name", "deployment", "user_agent", "ip_address", "created_at", "last_seen_at"],
-        order_by="last_seen_at desc",
-        limit_page_length=0,
-    )
-
-
-@frappe.whitelist(methods=["POST"])
-def logout_here():
-    """退出本产品：只结束当前站点的这个会话。"""
-    sid = frappe.session.sid
-    frappe.db.set_value(
-        "Pearnly Session", {"session_id": sid},
-        {"status": "revoked", "revoked_at": frappe.utils.now()}, update_modified=False,
-    )
-    frappe.db.commit()
-    frappe.local.login_manager.logout()
-    return {"ok": True}
 
 
 @frappe.whitelist(methods=["POST"])

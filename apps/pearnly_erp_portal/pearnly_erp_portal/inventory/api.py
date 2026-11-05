@@ -45,11 +45,6 @@ def _json_args(kwargs, *names):
 # ── 仓库 ────────────────────────────────────────────────────────────────────
 
 
-@frappe.whitelist()
-def api_list_warehouses(**kwargs):
-    return warehouses.list_warehouses(**_clean(kwargs))
-
-
 @frappe.whitelist(methods=["POST"])
 def api_create_warehouse(**kwargs):
     return warehouses.create_warehouse(**_clean(kwargs))
@@ -200,15 +195,6 @@ def api_issue(**kwargs):
     warehouse = kwargs.pop("warehouse", None)
     return stock.apply_lines(warehouse=warehouse, movement_type="stock_out",
                              lines=kwargs.pop("lines"), **kwargs)
-
-
-@frappe.whitelist(methods=["POST"])
-def api_count(**kwargs):
-    guard.require("stock.manage")
-    _json_args(kwargs, "lines")
-    kwargs = _clean(kwargs)
-    warehouse = kwargs.pop("warehouse", None)
-    return stock.count_lines(warehouse=warehouse, **kwargs)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -662,30 +648,6 @@ def api_stock_count_template(**kwargs):
     frappe.local.response.type = "binary"
 
 
-@frappe.whitelist(methods=["POST"])
-def api_stock_count_import(**kwargs):
-    """往一份已开的盘点里传表（同一份表重复上传是**覆盖**那一行，不是又记一笔）。"""
-    kwargs = _clean(kwargs)
-    name = kwargs.get("name")
-    rows, problems = _stock_rows(kwargs.get("file_url"))
-    imported = counts.apply_import(count=name, rows=rows)
-    return {**imported, "problems": imported["problems"] + problems}
-
-def _stock_rows(file_url) -> tuple:
-    """上传的原生文件（`File` 记录）按 URL 读回内容，再交给纯解析层。"""
-    url = str(file_url or "").strip()
-    name = frappe.db.get_value("File", {"file_url": url}, "name", order_by="creation desc") \
-        if url else None
-    if not name:
-        frappe.throw(_("Choose a file to import"))
-    try:
-        return workbook.parse_workbook(frappe.get_doc("File", name).get_content(),
-                                       workbook.header_aliases(_stock_label_texts()))
-    except ValueError as error:
-        frappe.throw(_(STOCK_FILE_ERRORS.get(str(error), "That file could not be read; "
-                                                       "please use the template")))
-
-
 def _stock_label_texts() -> dict:
     """界面标签 → 字段：四种语言都给（表可能是在另一种语言的站点上下载的）。"""
     from pearnly_core import browser_text
@@ -708,24 +670,19 @@ def _stock_headers(unit_kind=None) -> list:
     return workbook.template_headers(browser_text.label, unit_kind)
 
 
-@frappe.whitelist()
-def api_stock_count_items(**kwargs):
-    return counts.list_items(**_clean(kwargs))
-
-
-@frappe.whitelist()
-def api_stock_count_item_total(**kwargs):
-    return counts.items_total(**_clean(kwargs))
-
-
-@frappe.whitelist()
-def api_stock_count_entries(**kwargs):
-    return counts.list_entries(**_clean(kwargs))
-
-
-@frappe.whitelist()
-def api_stock_count_entry_total(**kwargs):
-    return counts.entries_total(**_clean(kwargs))
+def _stock_rows(file_url) -> tuple:
+    """上传的原生文件（`File` 记录）按 URL 读回内容，再交给纯解析层。"""
+    url = str(file_url or "").strip()
+    name = frappe.db.get_value("File", {"file_url": url}, "name", order_by="creation desc") \
+        if url else None
+    if not name:
+        frappe.throw(_("Choose a file to import"))
+    try:
+        return workbook.parse_workbook(frappe.get_doc("File", name).get_content(),
+                                       workbook.header_aliases(_stock_label_texts()))
+    except ValueError as error:
+        frappe.throw(_(STOCK_FILE_ERRORS.get(str(error), "That file could not be read; "
+                                                       "please use the template")))
 
 
 @frappe.whitelist()
@@ -757,12 +714,6 @@ def api_stock_count_edit_entry(**kwargs):
 def api_stock_count_close(**kwargs):
     kwargs = _clean(kwargs)
     return counts.close_count(kwargs.get("name"), review_token=kwargs.get("review_token"))
-
-
-@frappe.whitelist(methods=["POST"])
-def api_stock_count_post(**kwargs):
-    kwargs = _clean(kwargs)
-    return counts.post_count(kwargs.get("name"), review_token=kwargs.get("review_token"))
 
 
 @frappe.whitelist()
@@ -891,24 +842,6 @@ def api_stock_opening_template(warehouse):
 @frappe.whitelist(methods=["POST"])
 def api_read_stock_opening_file(file_url):
     return opening_batch.read_file(file_url)
-
-
-@frappe.whitelist()
-def api_list_openings(**kwargs):
-    return openings.list_openings(**_clean(kwargs))
-
-
-@frappe.whitelist(methods=["POST"])
-def api_upsert_opening(**kwargs):
-    return _opening_transaction(openings.upsert_opening, **_clean(kwargs))
-
-
-@frappe.whitelist(methods=["POST"])
-def api_rebuild_balance(**kwargs):
-    """按流水重算结存。用于验证"结存确实能由流水重建"，也可用于修复。"""
-    guard.require("warehouses.manage")
-    kwargs = _clean(kwargs)
-    return stock.rebuild_balance(kwargs.get("product"), kwargs.get("warehouse"), kwargs.get("location", ""))
 
 
 @frappe.whitelist()

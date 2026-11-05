@@ -39,7 +39,7 @@ class NativeFeedback(unittest.TestCase):
             BASE["user"](name, roles)
         cls.workspace = masters.create_workspace("Synthetic feedback " + cls.suffix)["name"]
         cls.foreign = masters.create_workspace("Synthetic foreign feedback " + cls.suffix)["name"]
-        cls.client = masters.create_client(cls.workspace, "Synthetic feedback buyer")["name"]
+        cls.client = frappe.get_doc({"doctype": "Cowork Client", "workspace": cls.workspace, "display_name": "Synthetic feedback buyer", "enabled": 1}).insert().name
         for actor, company in [(cls.actor, cls.workspace), (cls.reader, cls.workspace),
                                (cls.outsider, cls.foreign)]:
             BASE["grant"](actor, "Cowork Workspace", company)

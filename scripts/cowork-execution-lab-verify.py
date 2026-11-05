@@ -471,7 +471,7 @@ class NativeExecution(unittest.TestCase):
     def test_omitted_client_is_not_replaced_by_native_user_default(self):
         from pearnly_cowork.masters import api as masters
         frappe.set_user("Administrator")
-        client = masters.create_client(self.workspace, "Synthetic Default " + uuid.uuid4().hex[:6])["name"]
+        client = frappe.get_doc({"doctype": "Cowork Client", "workspace": self.workspace, "display_name": "Synthetic Default " + uuid.uuid4().hex[:6], "enabled": 1}).insert().name
         permission = grant(self.actor, "Cowork Client", client)
         frappe.db.commit()
         frappe.set_user(self.actor)

@@ -147,8 +147,6 @@ class NativeBoundaries(unittest.TestCase):
 
     def test_openings_and_native_exports_respect_company(self):
         self.as_user("stock-card")
-        with self.assertRaises((frappe.PermissionError, frappe.ValidationError)):
-            openings.list_openings(warehouse=self.b["warehouse"])
         before = stock.current_balance(self.product, self.a["warehouse"])
         with self.assertRaises(frappe.ValidationError):
             openings.upsert_opening(product=self.product, warehouse=self.a["warehouse"],
@@ -160,8 +158,8 @@ class NativeBoundaries(unittest.TestCase):
         self.as_user("stock-card")
         opening = openings.upsert_opening(product=fresh, warehouse=self.a["warehouse"],
                                           as_of_date="2026-09-24", qty=1, unit_cost=17)
-        self.assertIn(opening["name"], {row.name for row in openings.list_openings(
-            product=fresh, warehouse=self.a["warehouse"])})
+        self.assertIn(opening["name"], set(frappe.get_list("ERP Stock Opening",
+            filters={"product": fresh, "warehouse": self.a["warehouse"]}, pluck="name")))
         tampered = client.get("ERP Stock Opening", opening["name"])
         tampered["qty"] = 99
         self.denied(client.save, tampered)

@@ -817,11 +817,6 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
     return out[start:] if size is None else out[start:start + size]
 
 
-def items_total(*, count: str, q=None, filter="all") -> int:
-    guard.require("count.read")
-    return len(list_items(count=count, q=q, filter=filter, limit=0))
-
-
 def close_count(name: str, review_token=None) -> dict:
     """The single finish action applies reviewed differences and closes atomically."""
     return post_count(name, review_token=review_token)

@@ -155,14 +155,14 @@ def main():
         as_dict=True) if ok else None
 
     # 停用后默认列表看不到，但记录仍在。
-    ok, off = as_user(SALES, customers.set_active, buyer_name, 0)
+    ok, off = as_user(SALES, customers.update_customer, buyer_name, is_active=0)
     results["deactivate_customer"] = ok
     results["deactivate_customer_error"] = None if ok else off
     ok, listed = as_user(CASHIER, customers.list_customers)
     results["hidden_after_deactivate"] = ok and all(r["name"] != buyer_name for r in listed)
     ok, listed_all = as_user(CASHIER, customers.list_customers, include_inactive=True)
     results["visible_with_inactive"] = ok and any(r["name"] == buyer_name for r in listed_all)
-    ok, back = as_user(SALES, customers.set_active, buyer_name, 1)
+    ok, back = as_user(SALES, customers.update_customer, buyer_name, is_active=1)
     results["reactivate_customer"] = ok
     results["reactivate_customer_error"] = None if ok else back
 

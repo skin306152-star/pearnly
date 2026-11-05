@@ -46,14 +46,7 @@ echo "[3] 两个会话应同时有效（互不踢）"
 echo "    cowork-a: $(who "$JAR_C" "$COWORK_HOST" "$COWORK")"
 echo "    erp-a:    $(who "$JAR_E" "$ERP_HOST" "$ERP")"
 
-echo "[4] 各自的会话登记表"
-for pair in "$JAR_C|$COWORK_HOST|$COWORK|cowork-a" "$JAR_E|$ERP_HOST|$ERP|erp-a"; do
-  IFS='|' read -r jar host base label <<< "$pair"
-  curl -sS -b "$jar" -H "Host: $host" "$base/api/method/pearnly_core.sessions.my_sessions" \
-    | python3 -c "import sys,json;d=json.load(sys.stdin);m=d.get('message') or [];print('    $label 登记会话数:', len(m), [r['deployment'] for r in m])"
-done
-
-echo "[5] 在 Cowork 站点调用退出全部，只应影响 Cowork"
+echo "[4] 在 Cowork 站点调用退出全部，只应影响 Cowork"
 CSRF=$(curl -sS -b "$JAR_C" -H "Host: $COWORK_HOST" "$COWORK/pearnly-password" \
        | sed -n 's/.*var CSRF = "\([^"]*\)".*/\1/p' | head -1)
 curl -sS -b "$JAR_C" -H "Host: $COWORK_HOST" -H "Content-Type: application/json" \

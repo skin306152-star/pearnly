@@ -17,7 +17,7 @@ reason = "身份绑定与登录回调：bind_identity 只给开户脚本和系�
 
 [[file]]
 file = "apps/pearnly_cowork/pearnly_cowork/stocktake/api.py"
-reason = "Cowork 盘点的原生 RPC（建盘点 / 记数 / 导出给程序调），产品页面不调它（页面走 stocktake/desk_api.py，由 cowork.stocktake.list / cowork.exports 覆盖）；导出由 tests/test_exports.py 与 scripts/cowork-stocktake-export-lab-verify.py 守住"
+reason = "Cowork 盘点的只读原生 RPC（records / detail / entries；没人调的建盘点、记数、关闭、报告、导出 11-05 删了），产品页面不调它（页面走 stocktake/desk_api.py，由 cowork.stocktake.list / cowork.exports 覆盖）"
 
 [[file]]
 file = "frontend/assistant/src/components/company-cards.tsx"

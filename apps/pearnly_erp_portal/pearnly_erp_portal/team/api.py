@@ -42,14 +42,6 @@ def api_set_member_roles(**kwargs):
 
 
 @frappe.whitelist(methods=["POST"])
-def api_set_member_companies(**kwargs):
-    """把账号指到指定的几家公司（空 = 不限制，官方 User Permission 那套）。"""
-    _json_args(kwargs, "companies")
-    kwargs = _clean(kwargs)
-    return service.set_member_companies(kwargs.pop("email", None), **kwargs)
-
-
-@frappe.whitelist(methods=["POST"])
 @do_not_record
 def api_set_member_password(**kwargs):
     kwargs = _clean(kwargs)

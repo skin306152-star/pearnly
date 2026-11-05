@@ -2,8 +2,9 @@
 
 只跑老数据（期初只给没接 Express 的公司）。公司设成「汽车」类型，建一件本地按台商品（没有库存，直接开按台）：
 - 期初：同一个仓三台一行一台（数量 1、单价一样）预览 → 提交，一个位置一笔期初、账面 3，三台都登记在这个仓、在库；
-- 盘点：开一份这个仓的盘点，上传一张只有车架号与实盘两列的表：第一台 1、第二台 0、一个系统里没有的号 1 →
-  第一台逐台记上、第二台不记、没有的号逐行报「该台不存在」（不当场建台）；同一张表再传一次不重记；
+- 盘点：按页面「上传导入」开一份这个仓的盘点（建盘点时带表，`api_create_stock_count` + `file_url`），表里只有车架号与实盘两列：
+  第一台 1、第二台 0、一个系统里没有的号 1 → 第一台逐台记上、第二台不记、没有的号逐行报「该台不存在」（不当场建台）；
+  （11-05：原来先开空盘点再调 `api_stock_count_import` 往里传、再传一次验不重记；那个接口页面不调，已删，流程改走页面同一条路）
 - 盘点模板（这份盘点的表）：这件商品一台一行、带车架号，第一台实盘 1。
 跑完公司类型还原成普通（同 erp_stock_in_units.py）。
 """
@@ -60,18 +61,16 @@ if(!review||!review.valid) return {{valid:false, rows:(review||{{}}).rows}};
 const done=await call({js_value(api + 'api_submit_stock_opening')}, {{...head, review_token:review.review_token}});
 return {{valid:true, statuses:review.rows.map(r=>r.status), serials:review.rows.map(r=>r.serial_no), done}};"""},
         {"name": "上传盘点表", "js": JS + f"""
-const task=await call({js_value(api + 'api_create_stock_count')}, {{title:{js_value(params['title'])}, warehouse:{js_value(params['warehouse'])}}});
-if(!task||!task.name) return {{error:'no count'}};
-const first=await call({js_value(api + 'api_stock_count_import')}, {{name:task.name, file_url:{js_value(params['file_url'])}}});
-const again=await call({js_value(api + 'api_stock_count_import')}, {{name:task.name, file_url:{js_value(params['file_url'])}}});
-return {{count:task.name, first, again}};"""},
+const first=await call({js_value(api + 'api_create_stock_count')}, {{title:{js_value(params['title'])}, warehouse:{js_value(params['warehouse'])}, file_url:{js_value(params['file_url'])}}});
+if(!first||!first.name) return {{error:'no count'}};
+return {{count:first.name, first}};"""},
     ]
 
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): (r.get("value") or {}) for r in results}
     opening, upload = by.get("期初预览与提交") or {}, by.get("上传盘点表") or {}
-    first, again = upload.get("first") or {}, upload.get("again") or {}
+    first = upload.get("first") or {}
     unknown = [p for p in first.get("problems") or [] if p.get("reason") == "unit_not_found"]
     return [
         {"case": "opening preview reads three units at one place and submits one position", "seen": opening,
@@ -79,8 +78,6 @@ def judge(params, results, camera_code=None):
          and opening.get("serials") == params["vins"] and (opening.get("done") or {}).get("created") == 1},
         {"case": "stocktake upload counts the first unit, skips the zero and lists the unknown number", "seen": first,
          "ok": first.get("rows") == 2 and first.get("counted") == 2 and len(unknown) == 1 and unknown[0].get("row") == 4},
-        {"case": "the same file uploaded again records nothing new", "seen": again,
-         "ok": again.get("rows") == 2 and len(again.get("problems") or []) == 1},
     ]
 
 

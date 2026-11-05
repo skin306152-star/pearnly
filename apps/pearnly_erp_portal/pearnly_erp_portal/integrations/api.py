@@ -6,12 +6,6 @@ from pearnly_erp_portal.integrations import binding, intake
 
 
 @frappe.whitelist()
-def api_line_bot(**kwargs):
-    """本站点 LINE 官方号对外身份（名字、Basic ID、加好友链接）。"""
-    return binding.account()
-
-
-@frappe.whitelist()
 def api_line_binding(**kwargs):
     return binding.status()
 

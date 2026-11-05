@@ -11,7 +11,7 @@
 
 | 文件 | 作用 |
 |---|---|
-| `pearnly_core/sessions.py` | 登记、列出、退出本产品、退出全部 |
+| `pearnly_core/sessions.py` | 登记、退出全部（11-05 删了没人调的「列出」`my_sessions` 与「退出本产品」`logout_here`；退出本产品走 `pearnly_core.identity.sign_out`） |
 | `doctype/pearnly_session/` | 会话登记表（用户、部署、会话 id、身份会话 id、UA、IP、状态） |
 | `hooks.py` 的 `on_session_creation` | 登录后自动登记 |
 | `password.py` | 改密成功后调用"保留当前、撤销其余" |
@@ -43,6 +43,6 @@
    跨站点的全局退出需要汇总各站点的登记表，属于控制面能力（P4）。本轮验证的是
    "一个产品的操作不影响另一个产品"，这正好也是用户要的。
 2. **管理员交接**（owner 转移）未做。
-3. **会话列表界面**未做：接口 `my_sessions` 已可用，产品界面还没接。
+3. **会话列表界面**未做；接口 `my_sessions` 一直没有界面接，11-05 删了（[记录](../work/2026-11-05-drop-dead-endpoints.md)），要做界面时再加。
 4. 会话登记表**没有过期清理**，长期运行会累积。
 5. 会话的 `last_seen_at` 只在登录时写一次，中间没有刷新。

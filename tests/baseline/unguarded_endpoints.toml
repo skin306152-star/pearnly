@@ -35,24 +35,9 @@ kind = "own"
 reason = "结束当前登录人自己的会话"
 
 [[endpoint]]
-method = "pearnly_core.manifest.describe"
-kind = "public"
-reason = "本站装了哪些产品（界面骨架用），不含业务数据"
-
-[[endpoint]]
 method = "pearnly_core.ocr.api_status"
 kind = "public"
 reason = "识别服务是否可用"
-
-[[endpoint]]
-method = "pearnly_core.sessions.logout_here"
-kind = "own"
-reason = "结束当前登录人在本站的这个会话"
-
-[[endpoint]]
-method = "pearnly_core.sessions.my_sessions"
-kind = "own"
-reason = "当前登录人自己的活跃会话（按 user 过滤），未登录拒"
 
 [[endpoint]]
 method = "pearnly_cowork.folder_intake.api.terms"

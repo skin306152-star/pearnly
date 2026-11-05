@@ -511,18 +511,6 @@ def api_count_units(product=None, status=None, warehouse=None, q=None, company=N
     return list_filters.count(DOCTYPE, filters, or_filters)
 
 
-@frappe.whitelist()
-def api_unit_history(name=None):
-    """这一台的进出（按台流水，新的在前）。"""
-    _require_read()
-    unit = frappe.get_doc(DOCTYPE, name)
-    if unit.company != _company(unit.company):
-        frappe.throw(_(NOT_FOUND))
-    return frappe.get_all(MOVEMENT, filters={"serial": unit.name},  # bounded: 一台的流水
-                          fields=["action", "warehouse", "location", "ref_type", "ref_id", "posting_date", "reversed"],
-                          order_by="creation desc", limit_page_length=200)
-
-
 def _require_manage():
     from pearnly_erp_portal.access import guard
 

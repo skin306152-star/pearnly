@@ -1,12 +1,9 @@
-"""Pure JSON boundary for decoded stocktake imports and scan operations."""
-import hashlib
+"""Pure JSON boundary for stocktake scan operations (request ids, revisions, void flags)."""
 import json
 import re
 from uuid import UUID
 
-from pearnly_cowork.stocktake.contracts import (
-    ImportCell, MAX_ROWS, StocktakeValidationError, validate_import_rows,
-)
+from pearnly_cowork.stocktake.contracts import StocktakeValidationError
 
 
 def encode(value):
@@ -40,37 +37,3 @@ def void_flag(value):
     if isinstance(value, str) and value in ("0", "1", "true", "false"):
         return value in ("1", "true")
     raise StocktakeValidationError("stocktake.request_invalid")
-
-
-def decoded_import(title, header, rows):
-    """Revalidate decoded cells; this does not claim to validate XLSX bytes.
-
-    The digest identifies this endpoint's validated row snapshot. File size,
-    ZIP limits and the old raw-file digest belong to a future XLSX adapter.
-    """
-    if not isinstance(title, str) or not title.strip() or len(title) > 120:
-        raise StocktakeValidationError("stocktake.name_invalid")
-    if not isinstance(header, list) or not isinstance(rows, list):
-        raise StocktakeValidationError("stocktake.row_invalid")
-    if len(rows) > MAX_ROWS:
-        raise StocktakeValidationError("stocktake.too_many_rows")
-    cells = []
-    for number, row in enumerate(rows, 2):
-        if not isinstance(row, list):
-            raise StocktakeValidationError("stocktake.row_invalid", number)
-        decoded = []
-        for cell in row:
-            if (not isinstance(cell, dict) or set(cell) != {"value", "data_type"}
-                    or not isinstance(cell["data_type"], str)
-                    or type(cell["value"]) not in (str, int, float, bool, type(None))):
-                raise StocktakeValidationError("stocktake.row_invalid", number)
-            # A JSON caller cannot label a numeric identifier as a text cell.
-            if cell["data_type"] == "s" and cell["value"] is not None and not isinstance(cell["value"], str):
-                raise StocktakeValidationError("stocktake.code_as_text", number)
-            decoded.append(ImportCell(**cell))
-        cells.append(decoded)
-    items = validate_import_rows(header, cells)
-    for item in items:
-        item["book_qty"] = format(item["book_qty"], ".6f")
-    digest = hashlib.sha256(encode(items).encode()).hexdigest()
-    return title.strip(), items, digest

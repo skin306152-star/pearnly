@@ -44,12 +44,6 @@ def _active_binding(user: str):
     )
 
 
-def account() -> dict:
-    """本站点这个官方号对外的身份。页面用它显示"加谁为好友"。"""
-    guard.require("integration.read")
-    return line.public_account()
-
-
 def status() -> dict:
     """当前账号绑了没有。"""
     guard.require("integration.read")

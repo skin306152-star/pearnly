@@ -273,35 +273,6 @@ def apply_transfer(*, warehouse: str, to_warehouse: str, lines, posting_date=Non
     return {"movements": movements, "updated": updated, "deduped": False}
 
 
-def count_lines(*, warehouse: str, lines, posting_date=None, reason="stocktake") -> dict:
-    """盘点：实盘数与系统数比，差异落一笔 count 流水（数量收敛到实盘值）。"""
-    _require()
-    adjustments = []
-    lock_products([line["product"] for line in lines])
-    for line in lines:
-        product = line["product"]
-        _product(product)
-        place = positions.prepare(line, warehouse)
-        system_qty = current_balance(product, place["warehouse"], place["location"]).qty
-        try:
-            counted = contracts.d(line["counted_qty"])
-        except ValueError:
-            frappe.throw(_(INVALID))
-        delta = counted - system_qty
-        movement = None
-        if delta != 0:
-            movement = apply_movement(
-                product=product, **{k: place[k] for k in ("warehouse", "location")},
-                movement_type=contracts.COUNT,
-                qty=delta, posting_date=posting_date, ref_type="count", reason=reason,
-            )["movement"]
-        adjustments.append({"product": product, "warehouse": place["warehouse"],
-                            "location": place["location"], "system_qty": float(system_qty),
-                            "counted_qty": float(counted), "delta": float(delta),
-                            "movement": movement})
-    return {"adjustments": adjustments}
-
-
 def reverse_movements(*, ref_type, ref_id, client_uuid, reason=None, company=None):
     """Internal only: caller authorizes reversal; original ledger fixes the storage position.
 

@@ -95,8 +95,3 @@ def update_customer(name, **fields) -> dict:
     doc.save()
     frappe.db.commit()
     return {"name": doc.name}
-
-
-def set_active(name, active) -> dict:
-    return update_customer(name, is_active=active)
-

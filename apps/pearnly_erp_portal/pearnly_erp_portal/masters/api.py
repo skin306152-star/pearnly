@@ -62,22 +62,6 @@ def api_company_warehouses(company_name=None, include_inactive=1):
 # 判据是 `company.manage`（不是收银岗位）：建公司时就要把这些配好，那会儿还不一定有人
 # 已经拿到收银岗位。收银**业务**接口（开班、卖货）仍旧判 `cashier.*`，见 `cashier/api.py`。
 
-@frappe.whitelist()
-def api_company_terminals(company_name=None):
-    return company.terminals_of(company_name)
-
-
-@frappe.whitelist(methods=["POST"])
-def api_create_company_terminal(**kwargs):
-    return company.create_terminal(**_clean(kwargs))
-
-
-@frappe.whitelist(methods=["POST"])
-def api_update_company_terminal(**kwargs):
-    kwargs = _clean(kwargs)
-    return company.update_terminal(kwargs.pop("name", None), **kwargs)
-
-
 @frappe.whitelist(methods=["POST"])
 def api_set_payment_methods(**kwargs):
     kwargs = _clean(kwargs)
@@ -150,9 +134,3 @@ def api_lookup_tax(tax_id, branch=0):
 def api_update_customer(**kwargs):
     kwargs = _clean(kwargs)
     return customers.update_customer(kwargs.pop("name", None), **kwargs)
-
-
-@frappe.whitelist(methods=["POST"])
-def api_set_customer_active(**kwargs):
-    kwargs = _clean(kwargs)
-    return customers.set_active(kwargs.pop("name", None), kwargs.pop("is_active", 1))
