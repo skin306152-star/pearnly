@@ -366,7 +366,7 @@ module = "scripts/flows/cc_operator.py"
 start = "/assistant"
 user = "admin"
 datasets = ["new", "old"]
-viewports = ["desktop"]
+viewports = ["desktop", "mobile"]
 covers = [
   "frontend/assistant/src/components/operator/*.ts",
   "frontend/assistant/src/components/operator/*.tsx",

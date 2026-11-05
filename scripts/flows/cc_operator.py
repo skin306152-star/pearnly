@@ -14,6 +14,7 @@ import json
 import uuid
 
 from cc_lib import JS
+from erp_lib import ensure_documents
 
 TITLE = "CC 代录（统一对话框架）：新建页没选公司发不出、选公司说一句建代录会话与任务、侧栏按模式列、开始前卡片与资料一致、删除（假智能体后端）"
 READY = "document.readyState === 'complete' && !!document.querySelector('[data-mode=\"operator\"]')"
@@ -24,22 +25,37 @@ USER = "admin@erp.regression"
 def prepare(lab, manifest):
     lab.python(manifest["site"], f'frappe.db.set_value("User", {USER!r}, "language", "zh")\nfrappe.db.commit()\nprint("{{}}")')
     company = manifest.get("company") or manifest["companies"][0]
+    ensure_documents(lab, manifest)  # 新开户那套数据没有已提交的采购单：按正式函数补一张（已有就不动，可重复跑）
     out = lab.python(manifest["site"], f"""
 from pearnly_core.express_operator import tasks
 from pearnly_erp_portal.express import contracts, operator, push
 frappe.set_user({USER!r})
 period = frappe.utils.add_months(frappe.utils.today(), -1)[:7]
 first, last = operator._month(period)
-# 这家这个月已提交、还没交进写账队列的一张采购单：临时标成「电脑离线、停下」（真实的停下状态之一），它就该出现在资料里；verify 还原
-marked = frappe.get_all(push.PURCHASE, filters={{"company": {company!r}, "status": "submitted", "doc_date": ["between", [first, last]],
-                                                 "ledger_state": ["in", ["", None]], "ledger_job": ["is", "not set"]}},
-                        pluck="name", order_by="name asc", limit_page_length=1)
-for name in marked:
-    frappe.db.set_value(push.PURCHASE, name, {{"ledger_state": contracts.HELD, "ledger_reason": contracts.OFFLINE}}, update_modified=False)
+# 这家已提交、还没交进写账队列（没有写账件；状态同代录资料的范围）、不带按台号码（带号码的不交代录）的采购单：先找这个月的；
+# 新开户那套数据这个月没有，就挑一张别的
+# 月份的、临时把单据日期挪进这个月（11-05：W4 加了「开始前重取」断言后，new 数据集这一格因为没有等着录的单必挂）。
+# 挑中的临时标成「电脑离线、停下」（真实的停下状态之一），它就该出现在资料里；原来的日期与账本状态记进 restore，cleanup 原样还原
+waiting = \"\"\"SELECT name, doc_date, ledger_state, ledger_reason FROM `tabPurchase Document` p
+    WHERE company = %s AND status = 'submitted' AND COALESCE(ledger_job, '') = ''
+    AND COALESCE(ledger_state, '') IN ('', 'queued', 'held', 'failed')
+    AND NOT EXISTS (SELECT 1 FROM `tabERP Line Serial` s WHERE s.parenttype = 'Purchase Document' AND s.parent = p.name)
+    ORDER BY (doc_date BETWEEN %s AND %s) DESC, name ASC LIMIT 1\"\"\"
+found = frappe.db.sql(waiting, ({company!r}, first, last), as_dict=True)
+if not found:
+    raise RuntimeError("no submitted purchase document waiting to be written for {company}: the dataset needs one")
+row = found[0]
+restore = [{{"name": row.name, "doc_date": str(row.doc_date), "ledger_state": row.ledger_state or "",
+             "ledger_reason": row.ledger_reason or ""}}]
+values = {{"ledger_state": contracts.HELD, "ledger_reason": contracts.OFFLINE}}
+if not (first <= str(row.doc_date) <= last):
+    values["doc_date"] = first
+frappe.db.set_value(push.PURCHASE, row.name, values, update_modified=False)
+marked = [row.name]
 frappe.db.commit()
 docs = operator.sources({company!r}, period, 0, 500)["documents"]
 print(json.dumps({{"title": frappe.db.get_value("ERP Company", {company!r}, "company_name") or {company!r}, "period": period,
-                  "marked": marked, "refs": [d["ref"] for d in docs],
+                  "marked": marked, "restore": restore, "refs": [d["ref"] for d in docs],
                   "docs": len(docs), "tasks": frappe.db.count(tasks.DOCTYPE, {{"owner": {USER!r}}}),
                   "sessions": frappe.db.count("Pearnly Assistant Session", {{"user": {USER!r}}})}}))
 """)
@@ -133,13 +149,22 @@ def judge(params, results, camera_code=None):
     ]
 
 
+def cleanup(lab, manifest, params):
+    """跑完（成功、失败、步骤本身出错都一样，`run.py` 在 finally 里调）把 prepare 临时改的采购单原样还原：单据日期、账本状态与原因。"""
+    lab.python(manifest["site"], f"""
+from pearnly_erp_portal.express import push
+for row in {params.get("restore") or []!r}:
+    if frappe.db.exists(push.PURCHASE, row["name"]):
+        frappe.db.set_value(push.PURCHASE, row["name"], {{"doc_date": row["doc_date"], "ledger_state": row["ledger_state"],
+                                                          "ledger_reason": row["ledger_reason"]}}, update_modified=False)
+frappe.db.commit()
+print("{{}}")
+""")
+
+
 def verify(lab, manifest, params, camera_code=None):
     rows = lab.python(manifest["site"], f"""
 from pearnly_core.express_operator import tasks
-from pearnly_erp_portal.express import push
-for name in {params["marked"]!r}:
-    frappe.db.set_value(push.PURCHASE, name, {{"ledger_state": "", "ledger_reason": ""}}, update_modified=False)
-frappe.db.commit()
 print(json.dumps({{"tasks": frappe.db.count(tasks.DOCTYPE, {{"owner": {USER!r}}}),
                   "sessions": frappe.db.count("Pearnly Assistant Session", {{"user": {USER!r}}}),
                   "orphans": frappe.db.count("Pearnly Assistant Session", {{"user": {USER!r}, "operator_task": ["is", "set"],

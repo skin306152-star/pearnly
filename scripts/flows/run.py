@@ -253,11 +253,24 @@ def run_flow(lab, flow, dataset, viewport):
     site, user = manifest["site"], f"{flow.get('user', 'admin')}@{product}.regression"
     before = lab.client_errors(site)
     params = module.prepare(lab, manifest)
+    prepared = [params]
+    try:
+        return _run_prepared(lab, flow, module, manifest, dataset, viewport, site, user, before, params, prepared)
+    finally:
+        # 流程临时改了站点数据的（例如把一张单挪进这个月），声明 cleanup：成功、失败、步骤本身出错都还原（11-05 cc.operator）
+        cleanup = getattr(module, "cleanup", None)
+        if cleanup:
+            for one in prepared:
+                cleanup(lab, manifest, one)
+
+
+def _run_prepared(lab, flow, module, manifest, dataset, viewport, site, user, before, params, prepared):
     started = time.monotonic()
     runs = [(None, None)]
     camera = flow.get("camera") and next((c for c in params.get("cases", []) if c["key"] == "by_barcode"), None)
     if camera and viewport == "mobile":
         params_camera = module.prepare(lab, manifest)
+        prepared.append(params_camera)
         # 相机那一遍读的是它自己那份准备里的码（每次准备都换新码的流程，例如盘点当场新建物料）
         runs.append((params_camera, next(c for c in params_camera["cases"] if c["key"] == "by_barcode")["scan"]))
     checks, page_errors, below, icons = [], [], set(), set()
