@@ -311,7 +311,9 @@ def document_view(doc_id, doctype, name, found=None) -> dict:
         view["target"] = shown
     if state != card.CHECK:
         return {**view, "state": state, "reason": reason}
-    menu = menu_item(push.company_of(doctype, name), doctype, name)
+    # 停在子菜单的只有代录交过、转了人工的采购 / 销售单（代录只录这两类）
+    menu = menu_item(push.company_of(doctype, name), doctype, name) \
+        if doctype in (push.PURCHASE, push.SALES) and job else None
     items = [*found["items"], {**menu, "direction": view["direction"]}] if menu else found["items"]
     return {**view, "state": card.CHECK, "items": items}
 
