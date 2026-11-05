@@ -133,25 +133,34 @@ CC 桌面版的 A/B/C 与 D 的 CC 部分（读 `form_choice` / `pay_route`、�
 - 子菜单多候选：主会话 11-05 定按付款方式选、定不下来问一次记在站点，见 D；D 的服务端改动待主会话审。
 - ③ 主会话 11-05 已转给 W4。
 
-## 14. D 的服务端施工（Cowork + pearnly_core，分支 `pearnly/operator-menu-server`，基于 476e55879）
+## 14. D 的服务端施工（Cowork + pearnly_core，分支 `pearnly/operator-menu-server`，基于 476e55879；主会话 11-05 二次审定后改）
 
 - 纯函数 `pearnly_core.express_operator.menu_choice`：`pay_route(*付款文字)` → `cash` / `transfer` / 空（现金：`เงินสด`、整词 `cash`；
   转账：`โอน`、`ธนาคาร`、`พร้อมเพย์`、整词 transfer / bank / banking / promptpay / qr，泰国各家银行泰文名与缩写；两类都有、都没有 → 空）；
-  `parse_reason` 从单据上记的原因 `[OPERATOR_MENU_CHOICE] HP: 甲 | 乙` 读回候选（回执 `meta.operator.menu_options` 过不了共用回执净化
-  `sanitize_push_meta` 的白名单，不为它改共用回执口径）；`option_code` 截到选择记忆的值上限 60 字（CC 按互相包含仍认得出）。
+  `stopped_at(推送记录回执)` 读回执 `meta.operator` 的单种与候选；`option_code` 截到选择记忆的值上限 60 字（CC 按互相包含仍认得出）。
+  不从原因原文解析候选（原因原文只给人看）。
+- 回执净化（共用，`express_rules.push.common`）：新增可选键 `meta.operator`，`clean_operator_meta` 只放行 `doc_type`（去空白、≤10 字）
+  与 `menu_options`（字符串列表，空白归一、去空，≤10 条、每条 ≤120 字，超了截掉不报错），其余 operator 键照旧丢掉。不带时净化结果与
+  476e55879 逐字节相同（测试钉住那一版的输出）；ERP 共用同一个净化，加的是可选键。旧系统逐字对照脚本里的回执不带它，加注释说明是
+  有意差异。Cowork 回执照旧存进推送记录 `response_json`（没加字段）。
 - 载荷：`contracts.for_operator(…, form_choice=, pay_route=)` 有值才写进 `operator` 段，MR.ERP 不带，不升版本。Cowork 推送准备
   （`push.application.service.prepare`，载荷已有 `doctype` 那一步）读 `choices.operator_form(连接, 账套, 单种)` 与
   `operator_pay_route(票面字段)`（`payment_method`；印了收现金 / 找零算现金；`posting_payment_manual` 是现购 / 赊购，不看）。
-- 选择记忆：Cowork `push/choices.KINDS` 加 `operator_form`，`Cowork Express Choice.kind` 下拉加同名选项（只改元数据，Select 列不变，
-  要 migrate）；`remembered` / `of_sets` 不列它（推送判定、自动推指纹、公司主档页「记住的选择」照旧）。
+- 选择记忆：Cowork `push/choices.KINDS` 加 `operator_form`，`Cowork Express Choice.kind` 下拉加同名选项（原生 DocType 改动，Select 列
+  不变，要 migrate，同 service_vat 先例）。`remembered` 不返回它（推送判定、自动推指纹只吃 `remembered`，测试证明库里多一条时输出与
+  指纹逐字相同）；`of_sets` 返回它。`menu_stops(连接, 账套)` 按「连接 + 状态 + 建立时间」索引取最近 50 条停在子菜单的推送记录，
+  给出各（账套, 单种）最近一次的候选。
+- 公司页「记住的选择」：同一种行，分区「单据菜单 / เมนูเอกสาร / Document menu」；不能设为全公司；删照账套记忆那条路；改值从下拉选，
+  可选项是这份账套这种单最近一次停下时的候选（记住的在第一个），只写记过它的那份账套；没有候选（推送记录已清或从没停过）时只能删。
 - 预选卡片：`write_precheck.contracts.KIND_GROUPS["operator_form"] = BOOK`；Cowork `precheck_source.document` 对停在子菜单的单
-  （推送转人工、原因 menu_choice）报一项 `{kind: operator_form, subject: 单种, options: [{code: 菜单文字}]}`，记过且仍在候选里为已定；
-  代录预检原来的回包同时把它列进 `needed`（中途选那张卡片照它出下拉）；`remember` 单开分支直接 `choice_store.record`（记在停下那条
-  推送记录的连接与账套，读不到用单据去向），值须是候选之一，不经 `service.save_choices`。
-- 事件源 `feed.py` 不改：中途选的卡片自己调 `precheck` 取项（上面那条已列进去），任务子表的原因只存 140 字，候选不从那里走。
-- 测试：`tests/test_express_operator_menu_choice.py`（新，已登记 Development checks）、`tests/test_cowork_write_precheck.py`（加 8 条）。
-- 共用件影响清单（`check-impact.py`，命中 write-precheck、cc-operator-target）：本次只做离线检查，以下入口都是「没测到（本窗口不碰测试机，
-  待合入前在实验栈 / 测试机实测）」：cc.operator.page、cc.operator.thread、cowork.express.push、cowork.companies、cowork.cc-chat.push、
-  cc.desktop.operator、cc.desktop.write、cc.desktop.places、cowork.cc.channel、erp.cc.connect、cowork.mrerp.push、shared.team.members。
+  （推送转人工、那条推送记录的回执带候选）报一项 `{kind: operator_form, subject: 单种, options: [{code: 菜单文字}]}`，记过且仍在候选里
+  为已定；代录预检原来的回包同时把它列进 `needed`（中途选那张卡片照它出下拉）；`remember` 单开分支直接 `choice_store.record`（记在
+  停下那条推送记录的连接与账套），值须是候选之一，不经 `service.save_choices`。
+- 事件源 `feed.py` 不改：中途选的卡片自己调 `precheck` 取项。
+- 测试：`tests/test_express_operator_menu_choice.py`（新，已登记 Development checks）、`tests/test_cowork_write_precheck.py`、
+  `tests/test_cowork_companies.py`、`tests/test_companion_contract.py` 加用例。
+- 共用件影响清单（`check-impact.py`，命中 write-precheck、cc-operator-target 等）：本次只做离线检查，入口都是「没测到（本窗口不碰测试机，
+  待合入前在实验栈 / 测试机实测）」，清单见交付报告。
 - ERP 待接（另一个窗口的 `express/precheck.py` 合入后）：交代录载荷时同样传 `form_choice` / `pay_route`（付款文字取 ERP 单据「付款方式」）；
-  它的预检钩子对停在子菜单的单报 `operator_form` 项、记住处自己定（ERP 没有 Cowork 的选择记忆表）。
+  回执若经共用通道存，同一个净化已放行 `meta.operator` 两项；它的预检钩子对停在子菜单的单用 `menu_choice.stopped_at` 报 `operator_form`
+  项、记住处自己定（ERP 没有 Cowork 的选择记忆表）。
