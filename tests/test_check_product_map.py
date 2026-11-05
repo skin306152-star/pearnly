@@ -130,6 +130,48 @@ class Rules(unittest.TestCase):
         hits, _ = gate.impact_rows(product_map, found("nav:erp:a", "nav:erp:b"), {}, ["apps/x/api.py"], endpoints=endpoints)
         self.assertEqual(hits, {"erp.a": ["改到它调用的接口"]})
 
+    def test_rule_4_an_endpoint_counts_as_changed_only_when_its_own_function_has_a_diff(self):
+        """主会话 11-05：按函数算「改到它调用的接口」；同文件里别的函数删了不算，拿不准（模块级、装饰器、import）照旧命中。"""
+        import difflib
+        old = "import frappe\n\n\n@frappe.whitelist()\ndef called():\n    return 1\n\n\n@frappe.whitelist()\ndef other():\n    return 2\n"
+
+        def changes(new):
+            diff = "".join(difflib.unified_diff(old.splitlines(True), new.splitlines(True), n=0))
+            return pm.function_changes(old, new, diff)
+
+        self.assertEqual(changes(old.replace("\n\n\n@frappe.whitelist()\ndef other():\n    return 2\n", "\n")), {"other"})
+        self.assertEqual(changes(old.replace("return 1", "return 3")), {"called"})
+        self.assertIsNone(changes(old.replace("import frappe\n", "import frappe\nimport json\n")))
+        self.assertIsNone(changes(old.replace("@frappe.whitelist()\ndef called", "@frappe.whitelist(methods=[\"POST\"])\ndef called")))
+        self.assertIsNone(changes(old + "\nLIMIT = 5\n"))
+        self.assertEqual(changes(old + "\n\n# 说明\n"), set())
+        self.assertIsNone(pm.function_changes(None, old, ""))                 # 新文件整个算
+        self.assertEqual(pm.deleted_whitelisted(old, old.split("\n\n\n@frappe.whitelist()\ndef other")[0]), {"other"})
+
+        rows = [row("nav:erp:a"), row("nav:erp:b")]
+        product_map = pm.Map({r.id: r for r in rows}, {}, {}, [], [])
+        endpoints = {"pearnly_x.api.called": pm.Endpoint("pearnly_x.api.called", "apps/x/api.py", ["apps/x/a.js"])}
+        hit = lambda functions: gate.impact_rows(product_map, found("nav:erp:a", "nav:erp:b"), {}, ["apps/x/api.py"],
+                                                 endpoints=endpoints, functions=functions)[0]
+        self.assertEqual(hit({"apps/x/api.py": {"other"}}), {})              # 删同文件里别的函数：不命中
+        self.assertEqual(hit({"apps/x/api.py": {"called"}}), {"erp.a": ["改到它调用的接口"]})
+        self.assertEqual(hit({"apps/x/api.py": None}), {"erp.a": ["改到它调用的接口"]})   # 模块级改动：整个文件算
+        self.assertEqual(hit(None), {"erp.a": ["改到它调用的接口"]})          # 没给函数（--files）：整个文件算
+
+        import tempfile
+        root = Path(tempfile.mkdtemp())
+        (root / "apps/x").mkdir(parents=True)
+        (root / "scripts/impact").mkdir(parents=True)
+        (root / "scripts/impact/shared-parts.toml").write_text("part = []\n", encoding="utf-8")
+        (root / "apps/x/a.js").write_text('const api = "pearnly_x.api."; p.call(api + "gone");', encoding="utf-8")
+        (root / "apps/y").mkdir(parents=True)
+        (root / "apps/y/b.js").write_text('p.call("pearnly_y.other.gone");', encoding="utf-8")
+        removed = {"apps/pearnly_x/pearnly_x/api.py": {"gone"}}
+        hits, _ = gate.impact_rows(product_map, {**found("nav:erp:a"), **{"nav:erp:b": pm.Found("nav:erp:b", "nav-page", "ERP", "desk",
+                                   ["desktop"], ["apps/y/b.js"], "页面 b")}}, {}, ["apps/pearnly_x/pearnly_x/api.py"], root=root,
+                                   endpoints={}, functions={"apps/pearnly_x/pearnly_x/api.py": {"gone"}}, removed=removed)
+        self.assertEqual(hits, {"erp.a": ["改到它调用的接口"]})              # 页面还在调的接口被删：命中；别的模块同名不算
+
     def test_rule_6_changed_must_verify_or_shared_rows_need_green_tests_or_a_device_record(self):
         import tempfile
         rows = [row("nav:erp:a", must_verify=True, probe={"type": "liff"}, tests=["flow:f.desk"]),

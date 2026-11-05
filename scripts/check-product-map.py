@@ -8,7 +8,7 @@
 3. 没有测试：某行某端不是绿（流程 / 单测 / 离线入口 / 业务探针）也不是真机（标了只能真机、写了理由与清单）→ 失败，
    除非「行 id@端」在 untested_baseline.txt。基线只许减少：新加的条目、已经有测试或已不存在的条目都失败。
    「上线必验」的行每端都要有测试，或者有探针。
-4. 影响清单：相对 merge-base 的改动命中的行（入口文件、共用件、读到的配置键）：要跑的流程、要点的入口、真机单、
+4. 影响清单：相对 merge-base 的改动命中的行（入口文件、它调用的接口函数——按函数算，拿不准按整个文件——、共用件、读到的配置键）：要跑的流程、要点的入口、真机单、
    部署后要逐租户核的上线必验行、同组兄弟入口与各自的测试强弱。只出清单，不判失败。
 5. 对照组：同一 group 里 ERP / Cowork 缺一边又没写 na，或同一端某行的测试比兄弟弱 → 失败，
    除非在 sibling_baseline.txt（只许减少）。
@@ -199,6 +199,21 @@ def enforce_hits(product_map: pm.Map, hits: dict, flows, impact, changes: list, 
     return errors
 
 
+def merge_base(base: str, root=ROOT) -> str | None:
+    base = base if base != "auto" else (os.environ.get("PRODUCT_MAP_BASE") or "origin/main")
+    result = subprocess.run(["git", "merge-base", base, "HEAD"], cwd=root, capture_output=True, text=True)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def git_show(base: str, path: str, root=ROOT) -> str | None:
+    result = subprocess.run(["git", "show", f"{base}:{path}"], cwd=root, capture_output=True, text=True)
+    return result.stdout if result.returncode == 0 else None
+
+
+def _read(path: Path) -> str | None:
+    return path.read_text(encoding="utf-8") if path.is_file() else None
+
+
 def changed(base: str, root=ROOT) -> list[str]:
     def git(*args):
         return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True).stdout
@@ -212,12 +227,33 @@ def changed(base: str, root=ROOT) -> list[str]:
     return sorted(name for name in names if name)
 
 
-def impact_rows(product_map, found, keys, changes, root=ROOT, endpoints=None):
-    """改动 → 命中的行与原因（入口文件、它调用的接口所在的模块、共用件、读到的配置键）。"""
+def impact_rows(product_map, found, keys, changes, root=ROOT, endpoints=None, functions=None, removed=None):
+    """改动 → 命中的行与原因（入口文件、它调用的接口、共用件、读到的配置键）。
+
+    「改到它调用的接口」按函数算（主会话 11-05）：`functions` 是 {改到的 .py: 函数体有 diff 的函数名，None = 整个文件算}，
+    只有这一行调用的那个接口函数被改动才命中，同文件里别的函数删改不算；没给 `functions`（`--files`、测试）就按整个文件算。
+    `removed` 是 {文件: 这次删掉的白名单接口名}：页面还提到这个名字（同模块）的行照样命中。"""
     called = {}
     for endpoint in (endpoints or {}).values():
         for caller in endpoint.callers:
-            called.setdefault(caller, set()).add(endpoint.file)
+            called.setdefault(caller, set()).add((endpoint.file, endpoint.dotted.rsplit(".", 1)[1]))
+    functions = functions or {}
+    changed_set = set(changes)
+
+    def endpoint_changed(file, name):
+        return file in changed_set and (functions.get(file) is None or name in functions[file])
+
+    def calls_removed(files):
+        for path, names in (removed or {}).items():
+            module = pm.module_of(path) if path.startswith("apps/") else ""
+            for caller in files:
+                text = (root / caller).read_text(encoding="utf-8", errors="ignore") if (root / caller).is_file() else ""
+                folder = (root / caller).parent
+                near = module and (module in text or any(module in sibling.read_text(encoding="utf-8", errors="ignore")
+                                                         for sibling in folder.glob("*.js") if sibling.is_file()))
+                if near and any(re.search(r"\b" + re.escape(name) + r"\b", text) for name in names):
+                    return True
+        return False
     shared = tomllib.loads((root / "scripts/impact/shared-parts.toml").read_text(encoding="utf-8"))
     part_paths = {p["id"]: p["paths"] for p in shared["part"]}
     hit_parts = {pid for pid, paths in part_paths.items() if any(pm._match(c, p) for c in changes for p in paths)}
@@ -228,7 +264,8 @@ def impact_rows(product_map, found, keys, changes, root=ROOT, endpoints=None):
         files = found[row.anchor].files if row.anchor in found else []
         if set(files) & set(changes):
             why.append("改到入口文件")
-        elif {module for path in files for module in called.get(path, ())} & set(changes):
+        elif any(endpoint_changed(file, name) for path in files for file, name in called.get(path, ())) \
+                or (removed and calls_removed(files)):
             why.append("改到它调用的接口")
         if hit_parts & set(row.parts):
             why.append("改到共用件 " + "、".join(sorted(hit_parts & set(row.parts))))
@@ -370,7 +407,16 @@ def main(argv=None) -> int:
         print(suggest(product_map, found))
         return 0
     changes = args.files if args.files is not None else changed(args.base)
-    hits, _ = impact_rows(product_map, found, keys, changes, endpoints=endpoints)
+    functions, removed = {}, {}
+    if args.files is None:
+        base = merge_base(args.base)
+        if base:
+            functions = pm.changed_functions(ROOT, base, changes)
+            removed = {path: names for path in changes if path.endswith(".py") and path.startswith("apps/")
+                       and (names := pm.deleted_whitelisted(git_show(base, path), _read(ROOT / path)))}
+        else:
+            functions = {path: None for path in changes}
+    hits, _ = impact_rows(product_map, found, keys, changes, endpoints=endpoints, functions=functions, removed=removed)
     if args.batch:
         print(batch(product_map, hits))
         return 0

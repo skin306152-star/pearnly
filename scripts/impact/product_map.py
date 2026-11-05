@@ -749,3 +749,100 @@ def discover_endpoints(repo: Repo | None = None) -> dict[str, Endpoint]:
             callers = sorted(callers)
             endpoints[dotted] = Endpoint(dotted, path, callers)
     return endpoints
+
+
+# ---------------------------------------------------------------- 按函数算「改到它调用的接口」
+
+HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", re.M)
+
+
+def _spans(source: str):
+    """顶层语句的行范围：{函数名: (起, 止, 装饰器止)}，以及其余顶层语句（模块级、类、import）的范围。解析不了返回 None。"""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return None
+    functions, others = {}, []
+    for node in tree.body:
+        start = min([node.lineno] + [d.lineno for d in getattr(node, "decorator_list", [])])
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            functions[node.name] = (start, node.end_lineno, node.lineno - 1)
+        else:
+            others.append((start, node.end_lineno))
+    return functions, others
+
+
+def _touched(lines: set, source: str, spans) -> tuple[set, set, bool]:
+    """这些行落在哪些函数（整体）、哪些函数的装饰器上，以及有没有落在函数外的实际代码上（空行与纯注释行不算）。"""
+    functions, others = spans
+    text = source.split("\n")
+    names, decorators, outside = set(), set(), False
+    for line in lines:
+        hit = next((name for name, (start, end, _) in functions.items() if start <= line <= end), None)
+        if hit:
+            names.add(hit)
+            if line <= functions[hit][2]:
+                decorators.add(hit)
+            continue
+        if any(start <= line <= end for start, end in others):
+            outside = True
+            continue
+        content = text[line - 1].strip() if 0 < line <= len(text) else ""
+        if content and not content.startswith("#"):
+            outside = True
+    return names, decorators, outside
+
+
+def function_changes(old: str | None, new: str | None, diff: str):
+    """一个 .py 文件的改动 → 函数体有 diff 的顶层函数名（新增 / 删除 / 改动）。
+
+    拿不准就返回 None（整个文件算改到，宁可多拦，主会话 11-05）：新建或删掉的文件、解析不了、改到模块级代码
+    （import、常量、类、顶层语句）、改到一个前后都在的函数的装饰器。"""
+    if old is None or new is None:
+        return None
+    old_spans, new_spans = _spans(old), _spans(new)
+    if old_spans is None or new_spans is None:
+        return None
+    old_lines, new_lines = set(), set()
+    for start, count, new_start, new_count in HUNK.findall(diff):
+        start, count = int(start), int(count) if count != "" else 1
+        new_start, new_count = int(new_start), int(new_count) if new_count != "" else 1
+        old_lines |= set(range(start, start + count))
+        new_lines |= set(range(new_start, new_start + new_count))
+        if count == 0 and new_count == 0:
+            return None
+    names, decorators, outside = set(), set(), False
+    for lines, source, spans in ((old_lines, old, old_spans), (new_lines, new, new_spans)):
+        touched, decorated, beyond = _touched(lines, source, spans)
+        names |= touched
+        decorators |= decorated
+        outside = outside or beyond
+    kept = set(old_spans[0]) & set(new_spans[0])
+    if outside or decorators & kept:
+        return None
+    return names
+
+
+def changed_functions(root: Path, base: str, paths) -> dict:
+    """{改到的 .py 文件: 函数名集合或 None（整个文件算）}，相对 `base`（分叉点）对比工作区（含未提交改动）。"""
+    def git(*args):
+        result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
+        return result.stdout if result.returncode == 0 else None
+
+    out = {}
+    for path in paths:
+        if not path.endswith(".py"):
+            continue
+        old = git("show", f"{base}:{path}")
+        new_file = root / path
+        new = new_file.read_text(encoding="utf-8") if new_file.is_file() else None
+        diff = git("diff", "-U0", base, "--", path)
+        out[path] = None if diff is None else function_changes(old, new, diff)
+    return out
+
+
+def deleted_whitelisted(old: str | None, new: str | None) -> set:
+    """这次删掉的白名单接口名（基线里有、工作区没了）：调用它的行照样算改到。"""
+    if not old:
+        return set()
+    return set(WHITELIST.findall(old)) - set(WHITELIST.findall(new or ""))
