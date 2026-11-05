@@ -19,6 +19,9 @@ HAIKU = "claude-haiku-5-5"
 OPUS = "claude-opus-5-5"
 CHAIN: Tuple[Tuple[str, int, str], ...] = ((HAIKU, 8, "medium"), (OPUS, 14, "medium"))
 SHOT = (1280, 720)
+# 请求体只用不需要 beta 头的字段（站点转发不带任何 anthropic-beta 头；11-05 测试机：带了上下文编辑 context_management，接手第一轮
+# 就被回 400）。每一轮截图都留着：一次接手最多 Haiku 8 轮、Opus 14 轮，各自从头开对话，上下文有上限
+GA_FIELDS = frozenset({"model", "max_tokens", "system", "messages", "tools", "thinking", "output_config", "cache_control"})
 
 CHECK_SCHEMA = {
     "type": "object", "additionalProperties": False,
@@ -164,9 +167,6 @@ class ComputerUseHelper:
                 "system": [{"type": "text", "text": CU_SYSTEM, "cache_control": {"type": "ephemeral"}}],
                 "tools": [{"type": "computer_toolset_20260801"}, MENU_TOOL, FINISH_TOOL], "messages": messages,
                 "output_config": {"effort": effort}, "thinking": {"type": "adaptive"},
-                "context_management": {"edits": [{"type": "clear_tool_uses_20250919",
-                                                  "trigger": {"type": "input_tokens", "value": 40000},
-                                                  "keep": {"type": "tool_uses", "value": 4}}]},
                 "cache_control": {"type": "ephemeral"}})
             if response.get("stop_reason") == "refusal":
                 return "need_human", "refusal"

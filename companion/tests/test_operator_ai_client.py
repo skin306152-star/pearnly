@@ -40,3 +40,32 @@ def test_refusals_and_errors_come_back_as_errors(monkeypatch):
 
 def test_no_site_means_no_helper():
     assert site_ai.transport_for(CompanionConfig(bearer_token="", backend_url=""), "B1") is None
+
+
+def test_check_and_turn_requests_use_only_fields_that_need_no_beta_header():
+    """站点转发不带任何 anthropic-beta 头（11-05 测试机：接手请求带了上下文编辑 context_management，第一轮就被回 400）。
+    看图判断与接手每一轮的请求体只许用正式字段。"""
+    from companion.express_operator.helper import ComputerUseHelper
+
+    ga = {"model", "max_tokens", "system", "messages", "tools", "thinking", "output_config", "cache_control"}
+    sent = []
+
+    def transport(kind, request):
+        sent.append((kind, json.loads(json.dumps(request))))
+        if kind == "check":
+            return {"content": [{"type": "text", "text": json.dumps({"state": "as_expected"})}], "stop_reason": "end_turn"}
+        if len([k for k, _ in sent if k == "turn"]) == 1:
+            return {"content": [{"type": "tool_use", "id": "a", "name": "screenshot", "input": {}}], "stop_reason": "tool_use"}
+        return {"content": [{"type": "tool_use", "id": "b", "name": "finish",
+                             "input": {"status": "resolved", "note": "ok"}}], "stop_reason": "tool_use"}
+
+    tools = type("Tools", (), {"screenshot": lambda self, purpose: "iVBOR",
+                               "member": lambda self, name, inp: [{"type": "text", "text": "OK"}]})()
+    helper = ComputerUseHelper(transport, sleep=lambda _s: None)
+    helper.check("iVBOR", "期望")
+    assert helper.take_over("目标", tools) == ("resolved", "ok")
+    kinds = [k for k, _ in sent]
+    assert kinds == ["check", "turn", "turn"]
+    for kind, request in sent:
+        assert set(request) <= ga, (kind, set(request) - ga)
+        assert "context_management" not in json.dumps(request)
