@@ -38,8 +38,8 @@ asserts = ["不出 Keycloak「确定要注销吗」页", "回到 fatcc.com 登�
 id = "e2e.erp.liff-web"
 product = "ERP"
 runs = ["mobile"]
-where = "普通浏览器打开本站 LIFF 落地（LINE 拼出来的两种地址）；LINE 登录之后那一半仍是三星真机"
-asserts = ["本站一侧不 404", "LIFF SDK 转去 access.line.me 时带的是本站的 LINE 登录频道号"]
+where = "已登录后，逐个走地图里带 LIFF 探针的路径：本站入口转 LIFF，再打开 LINE 拼出来的两种地址（落地接路径、带 liff.state）；LINE 登录本身仍是三星真机"
+asserts = ["本站入口转到本站的 LIFF", "两种拼法的每一跳都不是 4xx / 5xx（11-03 事故 1）", "停在本站、已登录不再出登录页"]
 
 [[scenario]]
 id = "e2e.erp.chat-one"
@@ -52,8 +52,8 @@ asserts = ["90 秒内出现助手回复，没有出错卡片", "侧栏出现这�
 id = "e2e.erp.operator-new"
 product = "ERP"
 runs = ["desktop", "mobile"]
-where = "切到「代录」，选 e2e 测试公司，新建任务（不点开始，不派给电脑），跑完删掉或复用同一个准备中任务"
-asserts = ["主栏顶上出现「公司 · 月份」，月份默认上个月", "侧栏出现准备中的任务", "没有派给电脑的记录"]
+where = "切到「代录」，从侧栏「公司」选第一家（不点开始，不派给电脑；这一步还不建任务，不用清理）"
+asserts = ["进这家的代录新建任务页：公司胶囊是这家，月份胶囊默认上个月", "不是对话模式的公司页，仍在代录模式（11-03 事故 3 第 3 项）", "没有在跑的代录任务"]
 
 [[scenario]]
 id = "e2e.cowork.login"
@@ -87,8 +87,8 @@ asserts = ["不出 Keycloak「确定要注销吗」页", "回到 fatcc.com 登�
 id = "e2e.cowork.liff-web"
 product = "Cowork"
 runs = ["mobile"]
-where = "普通浏览器打开本站 LIFF 落地（LINE 拼出来的两种地址）；LINE 登录之后那一半仍是三星真机"
-asserts = ["本站一侧不 404", "LIFF SDK 转去 access.line.me 时带的是本站的 LINE 登录频道号"]
+where = "已登录后，逐个走地图里带 LIFF 探针的路径：本站入口转 LIFF，再打开 LINE 拼出来的两种地址（落地接路径、带 liff.state）；LINE 登录本身仍是三星真机"
+asserts = ["本站入口转到本站的 LIFF", "两种拼法的每一跳都不是 4xx / 5xx（11-03 事故 1）", "停在本站、已登录不再出登录页"]
 
 [[scenario]]
 id = "e2e.cowork.chat-one"
@@ -101,5 +101,5 @@ asserts = ["90 秒内出现助手回复，没有出错卡片", "侧栏出现这�
 id = "e2e.cowork.operator-new"
 product = "Cowork"
 runs = ["desktop", "mobile"]
-where = "切到「代录」，选 e2e 测试公司，新建任务（不点开始，不派给电脑），跑完删掉或复用同一个准备中任务"
-asserts = ["主栏顶上出现「公司 · 月份」，月份默认上个月", "侧栏出现准备中的任务", "没有派给电脑的记录"]
+where = "切到「代录」，从侧栏「公司」选第一家（不点开始，不派给电脑；这一步还不建任务，不用清理）"
+asserts = ["进这家的代录新建任务页：公司胶囊是这家，月份胶囊默认上个月", "不是对话模式的公司页，仍在代录模式（11-03 事故 3 第 3 项）", "没有在跑的代录任务"]

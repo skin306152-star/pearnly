@@ -330,6 +330,85 @@ def chat_one_step(page, ctx):
     no_trouble(hops, [ctx.site])
 
 
+def operator_new_step(page, ctx):
+    """代录模式下从「公司」选一家：进这家的代录新建任务页（顶上「公司 · 月份」，月份默认上个月），不是对话模式的公司页
+    （11-03 事故 3 的第 3 项）；不点开始，不派给电脑。"""
+    hops = start(page, ctx)
+    page.wait_for_selector('[data-slot="cc-mode-switch"] [aria-checked="true"]', timeout=NAV_TIMEOUT)
+    expect(cc(page, "return await toMode('operator');"), "切不到「代录」模式")
+    open_nav(page, ctx, "cc-nav-companies")
+    first = page.locator('[data-slot="cc-company-rows"] button').first
+    first.wait_for(timeout=NAV_TIMEOUT)
+    title = first.inner_text().strip().splitlines()[0].strip()
+    first.click()
+    chip = page.locator('[data-slot="cc-chin-company"]')
+    period = page.locator('[data-slot="cc-period-chip"]')
+    try:
+        period.wait_for(state="visible", timeout=NAV_TIMEOUT)
+    except Exception as error:  # noqa: BLE001
+        shown = "对话模式的公司页" if page.locator('[data-slot="cc-company-page"]').count() else page.url.split("?")[0]
+        raise Failed(f"代录模式下选公司应进代录新建任务页（公司 · 月份），实际是 {shown}") from error
+    expect(cc(page, "return mode();") == "operator", "选公司后掉回了对话模式")
+    expect(not page.locator('[data-slot="cc-company-page"]').count(), "代录模式下选公司进了对话模式的公司页")
+    try:   # 公司名稍后才填进胶囊（先是占位「公司」）
+        page.wait_for_function("t => (document.querySelector('[data-slot=\"cc-chin-company\"]')?.innerText || '').includes(t)",
+                               arg=title, timeout=20_000)
+    except Exception as error:  # noqa: BLE001
+        raise Failed(f"公司胶囊应是 {title}，实际是 {chip.inner_text().strip()}") from error
+    expect(period.inner_text().strip(), "月份胶囊是空的（应默认上个月）")
+    running = [s for s in cc(page, "return await listed('operator');") if s.get("status") in ("queued", "running")]
+    expect(not running, "没点开始却有代录任务在跑")
+    no_trouble(hops, [ctx.site])
+
+
+def _liff_module():
+    spec = importlib.util.spec_from_file_location("check_liff_endpoints", ROOT / "scripts" / "production" / "check-liff-endpoints.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def liff_paths(product: str) -> list[str]:
+    """地图里这个产品带 LIFF 探针的入口路径（卡片「แก้ไข」、菜单格……），单号换成不存在的（同部署后探针）。"""
+    import sys
+    sys.path.insert(0, str(ROOT / "scripts" / "impact"))
+    import product_map
+
+    name = {"erp": "ERP", "cowork": "Cowork"}[product]
+    rows = product_map.load().rows.values()
+    return sorted({row.probe["path"].replace("{doc}", "PEARNLY-PROBE-0") for row in rows
+                   if row.product == name and (row.probe or {}).get("type") == "liff" and row.probe.get("path")})
+
+
+def liff_web_step(page, ctx):
+    """已登录的人在 LINE 里点卡片 / 菜单：本站入口转 LIFF，LINE 把路径接在 LIFF 落地地址后面（两种拼法）再打开。
+    逐个走地图里带 LIFF 探针的路径：每一跳不许 4xx / 5xx（11-03 事故 1 是落地带子路径拼出 404），停在本站、不出登录页。
+    LINE 登录本身（真 LINE 账号、LIFF 取身份）测不了，仍在三星真机单。"""
+    import urllib.parse
+
+    liff = _liff_module()
+    hops = start(page, ctx)
+    paths = liff_paths(ctx.product)
+    expect(paths, "地图里这个产品没有带 LIFF 探针的入口")
+    for path in paths:
+        entry = f"https://{ctx.site}{liff.ENTER}?" + urllib.parse.urlencode({"to": path})
+        status, location, _ = liff.fetch(entry, liff.LINE_BROWSER_UA)
+        prefix = "https://liff.line.me/"
+        expect(300 <= status < 400 and (location or "").startswith(prefix), f"{path}：本站入口没有转到 LIFF（{status} {location or ''}）")
+        liff_id, _, rest = location[len(prefix):].partition("/")
+        endpoint = liff.liff_endpoint(urllib.parse.unquote(liff_id))
+        for url in liff.composed(endpoint, "/" + rest):
+            before = len(hops)
+            goto(page, url)
+            page.wait_for_load_state("load")
+            walked = hops[before:]
+            bad = bad_hops(walked)
+            expect(not bad, f"{path} 经 LINE 拼出的地址出错：{'、'.join(bad)}")
+            expect(page.url.startswith(f"https://{ctx.site}/"), f"{path} 经 LINE 打开后离开了本站：{page.url.split('?')[0]}")
+            expect(not pearnly_login_pages(walked, [ctx.site]), f"{path} 经 LINE 打开出了登录页（已登录不该再登）")
+    no_trouble(hops, [ctx.site])
+
+
 STEPS: dict = {}
 for _product in ("erp", "cowork"):
     STEPS[f"e2e.{_product}.login"] = login_step
@@ -337,3 +416,5 @@ for _product in ("erp", "cowork"):
     STEPS[f"e2e.{_product}.logout"] = logout_step
     STEPS[f"e2e.{_product}.add-company"] = add_company_step
     STEPS[f"e2e.{_product}.chat-one"] = chat_one_step
+    STEPS[f"e2e.{_product}.operator-new"] = operator_new_step
+    STEPS[f"e2e.{_product}.liff-web"] = liff_web_step
