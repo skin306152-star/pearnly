@@ -12,6 +12,7 @@
 """
 import ast
 import importlib.util
+import json
 import sys
 import types
 import unittest
@@ -23,6 +24,7 @@ sys.path.insert(0, str(ROOT / "apps/pearnly_core"))
 sys.path.insert(0, str(ROOT / "companion/src"))
 
 from pearnly_core.express_operator import contracts  # noqa: E402
+from pearnly_core.express_rules.push import common  # noqa: E402
 from pearnly_core.express_operator import menu_choice as M  # noqa: E402
 from pearnly_core.write_precheck import contracts as card  # noqa: E402
 
@@ -70,29 +72,52 @@ class PayRoute(unittest.TestCase):
         self.assertEqual(M.pay_route("scba"), "")
 
 
-class Reason(unittest.TestCase):
-    def test_the_reason_cc_writes_reads_back_its_options(self):
-        from companion.express_operator.engine import MenuChoice
+class Receipt(unittest.TestCase):
+    """候选走结构化回执：CC 宿主 ``host._result`` 在 menu_choice 时 meta 带 ``doc_type`` 与 ``menu_options``，worker 放进
+    ``meta.operator``；共用回执净化只放行这两项（可选键，不带时结果逐字节不变），站点从推送记录存下的回执读。"""
 
-        stop = MenuChoice("hp", OPTIONS)
+    def test_the_meta_cc_sends_survives_the_receipt_and_reads_back(self):
+        host = (ROOT / "companion/src/companion/express_operator/host.py").read_text(encoding="utf-8")
+        self.assertIn("meta.update(doc_type=doc.doc_type, menu_options=list(doc.menu_options))", host)
         worker = (ROOT / "companion/src/companion/worker.py").read_text(encoding="utf-8")
-        self.assertIn('error_code=f"OPERATOR_{reason.upper()}"', worker)
-        self.assertIn('detail = f"[{error_code}] {error}"', (ROOT / "companion/src/companion/queue_client.py")
-                      .read_text(encoding="utf-8"))
-        raw = f"[OPERATOR_{stop.reason.upper()}] {stop.detail[:300]}"
-        self.assertEqual(M.parse_reason(raw), ("HP", OPTIONS))
-        self.assertEqual(stop.reason, M.REASON)
-        self.assertIn(M.REASON, contracts.REASONS)
+        self.assertIn('meta = {"operator": {**(result.get("meta") or {})', worker)
+        cc_meta = {"operator": {"batch": "OP-1", "docnum": "", "voided": [], "placeholders": [], "reports": [],
+                                "seconds": 3, "reason": "menu_choice", "doc_type": "HP", "menu_options": OPTIONS}}
+        clean = common.sanitize_push_meta(cc_meta)
+        self.assertEqual(clean, {"operator": {"doc_type": "HP", "menu_options": OPTIONS}})  # 别的 operator 键照旧丢掉
+        self.assertEqual(M.stopped_at({"ok": False, "meta": {**clean, "stage": "needs_review"}}), ("HP", OPTIONS))
 
-    def test_other_reasons_and_broken_text_give_nothing(self):
-        for raw in ("", None, "[OPERATOR_UNKNOWN_SCREEN] x", "[OPERATOR_MENU_CHOICE]", "[OPERATOR_MENU_CHOICE] HP: ",
-                    "[OPERATOR_MENU_CHOICE] H-P: a | b", "push.result_unknown"):
+    def test_receipts_without_the_keys_are_unchanged(self):
+        """不带这两项的旧回执（直写、ERP、旧版 CC 的代录）：净化结果与改动前（476e55879）逐字节相同，期望值是那一版的输出。"""
+        olds = (({}, "{}"),
+                ({"companion_version": "1.12.14", "doc_type": "purchase", "written": True, "tables_written": ["APTRN"]},
+                 '{"companion_version": "1.12.14", "doc_type": "purchase", "tables_written": ["APTRN"], "written": true}'),
+                ({"docnum": "RR1", "verify": {"state": "ok", "fields": [], "party": {}}},
+                 '{"docnum": "RR1", "verify": {"fields": [], "party": {}, "state": "ok"}}'),
+                ({"operator": {"batch": "OP-1", "docnum": "HP1", "voided": ["HP0"], "reason": ""}}, "{}"),
+                ({"operator": {"doc_type": "", "menu_options": []}}, "{}"), ({"operator": "x"}, "{}"), ({"operator": None}, "{}"),
+                ({"notes": {"pos_vouchers": ["JV1"]}, "stage": "x", "created_masters": ["P1"]},
+                 '{"created_masters": ["P1"], "pos_vouchers": ["JV1"], "stage": "x"}'))
+        for raw, before in olds:
             with self.subTest(raw=raw):
-                self.assertEqual(M.parse_reason(raw), ("", []))
+                self.assertEqual(json.dumps(common.sanitize_push_meta(raw), sort_keys=True, ensure_ascii=False), before)
 
-    def test_options_are_trimmed_and_unique(self):
-        raw = "[OPERATOR_MENU_CHOICE] RR:  ซื้อ  A |  | ซื้อ  A | ซื้อ B "
-        self.assertEqual(M.parse_reason(raw), ("RR", ["ซื้อ A", "ซื้อ B"]))
+    def test_over_the_limits_is_cut_without_an_error(self):
+        raw = {"operator": {"doc_type": "  hp-very-long-type ", "menu_options": ["  a  b ", "", 7, None, "x" * 500]
+                            + [f"m{n}" for n in range(30)]}}
+        found = common.clean_operator_meta(raw["operator"])
+        self.assertEqual(found["doc_type"], "hp-very-lo")
+        self.assertEqual(len(found["menu_options"]), common.OPERATOR_OPTIONS_MAX)
+        self.assertEqual(found["menu_options"][:2], ["a b", "x" * common.OPERATOR_OPTION_LEN])
+        self.assertEqual(common.sanitize_push_meta(raw)["operator"], found)
+
+    def test_reading_the_stored_receipt(self):
+        for response in (None, {}, {"meta": {}}, {"meta": {"operator": {"doc_type": "HP"}}},
+                         {"meta": {"operator": {"menu_options": OPTIONS}}}, {"meta": {"operator": "x"}}):
+            with self.subTest(response=response):
+                self.assertEqual(M.stopped_at(response), ("", []))
+        found = M.stopped_at({"meta": {"operator": {"doc_type": "rr", "menu_options": ["ซื้อ  A", "ซื้อ A", "ซื้อ B"]}}})
+        self.assertEqual(found, ("RR", ["ซื้อ A", "ซื้อ B"]))
 
     def test_a_long_option_is_cut_to_what_the_store_keeps_and_cc_still_finds_it(self):
         from companion.express_operator import menu as cc_menu
@@ -100,6 +125,7 @@ class Reason(unittest.TestCase):
         long = "ซื้อโดยโอนผ่าน ธนาคารกรุงศรีอยุธยา บัญชีออมทรัพย์ สาขาบุรีรัมย์ เลขที่ 123-4-56789-0"
         code = M.option_code(long)
         self.assertEqual(len(code), M.CHOICE_MAX)
+        self.assertEqual(M.stopped_at({"meta": {"operator": {"doc_type": "HP", "menu_options": [long]}}}), ("HP", [code]))
         self.assertEqual(cc_menu.pick(["ซื้อเงินสด-ทั่วไป", long], code, ""), long)
 
 
@@ -197,13 +223,22 @@ class CoworkPayload(unittest.TestCase):
         self.assertEqual(route(None), "")
 
 
+ROWS = [{"kind": "payment", "subject": "purchase|0105555000011", "value": "cash"},
+        {"kind": "account", "subject": "purchase|0105555000011", "value": "5100"},
+        {"kind": M.KIND, "subject": "HP", "value": OPTIONS[1]}]
+
+
 class CoworkStore(unittest.TestCase):
-    def load(self, rows=()):
+    def load(self, rows=(), table=None):
         calls = []
 
         def sql(query, values=(), as_dict=False):
-            calls.append((" ".join(query.split()), values))
-            return list(rows)
+            query = " ".join(query.split())
+            calls.append((query, values))
+            if table is None:
+                return list(rows)
+            found = [row for row in table if "kind!=%s" not in query or row["kind"] != values[2]]
+            return [types.SimpleNamespace(**row) for row in found]
 
         frappe = types.ModuleType("frappe")
         frappe.__dict__.update(_=lambda t: t, throw=lambda *a, **k: (_ for _ in ()).throw(ValueError(a[0])),
@@ -223,8 +258,6 @@ class CoworkStore(unittest.TestCase):
         return module, calls
 
     def test_the_store_takes_the_kind_and_the_doctype_offers_it(self):
-        import json
-
         module, _calls = self.load()
         self.assertIn(M.KIND, module.KINDS)
         meta = json.loads((ROOT / "apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_express_choice/"
@@ -241,15 +274,98 @@ class CoworkStore(unittest.TestCase):
         self.assertEqual(module.operator_form("C1", "", "HP"), "")
         self.assertEqual(module.operator_form("C1", "P:\\69EXP\\T9", ""), "")
 
-    def test_write_rule_memory_and_the_company_page_leave_it_out(self):
+    def test_the_company_page_lists_it(self):
         module, calls = self.load()
-        self.assertEqual(set(module.remembered("C1", "P:\\69EXP\\T9")),
-                         set(module.KINDS) - {M.KIND})  # 推送判定、自动推指纹的输入照旧
-        self.assertIn("kind!=%s", calls[-1][0])
-        self.assertIn(M.KIND, calls[-1][1])
         module.of_sets("C1", ["P:\\69EXP\\T9"])
-        self.assertIn("kind!=%s", calls[-1][0])
-        self.assertIn(M.KIND, calls[-1][1])
+        self.assertNotIn("kind!=", calls[-1][0])  # 公司主档页「记住的选择」列出、可删可改
+
+    def test_push_decisions_and_the_automatic_fingerprint_do_not_see_it(self):
+        """推送判定（`decide` 的 ``remembered``）与自动推指纹（`automation.rules.fingerprint`）都只吃 `remembered`：库里多一条
+        代录子菜单，它的输出与指纹逐字相同；不排除的话指纹就会变（证明这条测试管用）。"""
+        rules = _load_rules()
+        with_menu, _calls = self.load(table=ROWS)
+        without, _calls = self.load(table=ROWS[:2])
+        got, plain = with_menu.remembered("C1", "T9"), without.remembered("C1", "T9")
+        self.assertEqual(got, plain)
+        self.assertNotIn(M.KIND, got)
+        self.assertEqual(rules.fingerprint(got, ()), rules.fingerprint(plain, ()))
+        leaked = {**plain, M.KIND: {"HP": OPTIONS[1]}}
+        self.assertNotEqual(rules.fingerprint(leaked, ()), rules.fingerprint(plain, ()))
+
+    def test_menu_stops_read_the_latest_candidates_per_book_and_doc_type(self):
+        def receipt(doc_type, options):
+            return json.dumps({"ok": False, "meta": {"operator": {"doc_type": doc_type, "menu_options": options},
+                                                     "stage": "needs_review"}}, ensure_ascii=False)
+
+        rows = [types.SimpleNamespace(account_key="p:\\69exp\\t9", response_json=receipt("HP", OPTIONS)),
+                types.SimpleNamespace(account_key="P:\\69EXP\\T9", response_json=receipt("HP", ["old"])),
+                types.SimpleNamespace(account_key="P:\\OTHER", response_json=receipt("HP", ["x", "y"])),
+                types.SimpleNamespace(account_key="P:\\69EXP\\T9", response_json="{broken"),
+                types.SimpleNamespace(account_key="P:\\69EXP\\T9", response_json=receipt("RR", ["a", "b"]))]
+        module, calls = self.load(rows=rows)
+        found = module.menu_stops("C1", ["P:\\69EXP\\T9"])
+        key = module.normalize_express_account_key("P:\\69EXP\\T9")
+        self.assertEqual(found, {(key, "HP"): OPTIONS, (key, "RR"): ["a", "b"]})  # 新 → 旧，每种单取最近一次
+        query, values = calls[-1]
+        self.assertIn("status='manual' AND reason LIKE %s ORDER BY created_at DESC LIMIT %s", query)
+        self.assertEqual(values, ("C1", "[OPERATOR\\_MENU\\_CHOICE]%", module.MENU_SCAN_MAX))
+        self.assertEqual(module.menu_stops("C1", []), {})
+
+
+def _load_rules():
+    spec = importlib.util.spec_from_file_location(
+        "cowork_automation_rules_under_test", ROOT / "apps/pearnly_cowork/pearnly_cowork/push/automation/rules.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class CompanyPage(unittest.TestCase):
+    """公司主档页「记住的选择」：代录子菜单一行（不能设为全公司），可选项是这份账套这种单最近一次停下的候选，没有候选只能删。"""
+
+    def load(self):
+        source = (ROOT / "apps/pearnly_cowork/pearnly_cowork/companies/choices.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        wanted = {"encode", "decode", "group_of", "subject_name", "tax_in", "merge_express", "menu_options"}
+        body = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in wanted]
+        import base64
+        import binascii
+
+        frappe = types.SimpleNamespace(throw=lambda *a, **k: (_ for _ in ()).throw(ValueError(a[0])), DoesNotExistError=LookupError)
+        namespace = {"base64": base64, "binascii": binascii, "json": json, "frappe": frappe, "_": lambda t: t,
+                     "EDITABLE": {"payment": ("cash", "credit")},
+                     "express_choices": types.SimpleNamespace(OPERATOR_FORM=M.KIND)}
+        exec(compile(ast.Module(body=body, type_ignores=[]), "choices.py", "exec"), namespace)
+        return types.SimpleNamespace(**namespace)
+
+    def test_a_menu_row_offers_the_latest_candidates_with_the_remembered_one_first(self):
+        page = self.load()
+        rows = [{"kind": M.KIND, "subject": "HP", "label": "HP", "value": OPTIONS[1], "account_set": "p:\\69exp\\t9",
+                 "chosen_by": "a@x", "chosen_at": "2026-11-05"},
+                {"kind": "payment", "subject": "purchase|0105555000011", "label": "ร้าน A", "value": "cash",
+                 "account_set": "p:\\69exp\\t9"}]
+        found = page.merge_express(rows, "C1", {})
+        menu = next(row for row in found if row["kind"] == M.KIND)
+        self.assertEqual((menu["subject_label"], menu["value"], menu["promotable"]), ("HP", OPTIONS[1], False))
+        self.assertTrue(next(row for row in found if row["kind"] == "payment")["promotable"])
+        page.menu_options(found, rows, {("p:\\69exp\\t9", "HP"): OPTIONS})
+        self.assertEqual((menu["options"], menu["editable"]), ([OPTIONS[1], OPTIONS[0]], True))
+        self.assertNotIn("options", next(row for row in found if row["kind"] == "payment"))
+        page.menu_options(found, rows, {})
+        self.assertEqual((menu["options"], menu["editable"]), ([], False))  # 没有候选：只能删
+
+    def test_forget_set_and_promote_routes(self):
+        source = (ROOT / "apps/pearnly_cowork/pearnly_cowork/companies/choices.py").read_text(encoding="utf-8")
+        forget = _function(ROOT / "apps/pearnly_cowork/pearnly_cowork/companies/choices.py", "forget")
+        self.assertIn('parts[2] in express_choices.KINDS', forget)  # 删照账套记忆那条路
+        set_value = _function(ROOT / "apps/pearnly_cowork/pearnly_cowork/companies/choices.py", "set_value")
+        self.assertIn("parts[2] == express_choices.OPERATOR_FORM", set_value)
+        menu = _function(ROOT / "apps/pearnly_cowork/pearnly_cowork/companies/choices.py", "_set_menu")
+        self.assertIn("express_choices.menu_stops(connection, keys)", menu)
+        self.assertIn('frappe.throw(_("cowork.company.choice_not_editable"))', menu)  # 不在候选里的值拒收
+        promote = _function(ROOT / "apps/pearnly_cowork/pearnly_cowork/companies/choices.py", "promote")
+        self.assertIn('parts[2] in KINDS', promote)  # 只认写账规则的类：代录子菜单不能设为全公司
+        self.assertIn("from pearnly_core.express_rules.push.choices import KINDS", source)
 
 
 if __name__ == "__main__":

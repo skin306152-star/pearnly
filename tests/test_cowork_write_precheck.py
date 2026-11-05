@@ -7,8 +7,9 @@
   入账方式「走库存」；记住的 / 公司规则 / Express 历史是已定、可改；定时任务默认处理定下的不列。
 - 记法分派：写账规则的项照原样交 `service.save_choices`（同一份账套同一项只记一次），录不录、入账方式、分组、待选账套各走现有那条路。
 - 自动推因要选的项停下（C 类）记 ``choice_needed:<类>``；共用接口作答整批核过才记，回照写与留下的单。
-- 代录停在定制菜单的子菜单（原因 ``menu_choice``）：判定里报一项 ``operator_form``（选项是 CC 读到的候选），代录预检原来的回包也列进
-  ``needed``；记过且仍在候选里的是已定；作答直接记进选择记忆（停下那条推送记录的连接与账套），不经 ``save_choices``。
+- 代录停在定制菜单的子菜单（原因 ``menu_choice``）：判定里报一项 ``operator_form``（选项是那条推送记录存下的回执
+  ``meta.operator.menu_options``），代录预检原来的回包也列进 ``needed``；记过且仍在候选里的是已定；作答直接记进选择记忆（停下那条
+  推送记录的连接与账套），不经 ``save_choices``。
 
     python3 tests/test_cowork_write_precheck.py
 """
@@ -64,7 +65,7 @@ def document(**extra):
 
 def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_book=None, direction="purchase",
          mismatch=None, config=None, accounts=None, planned=None, hinted=None,
-         menu_memory=None, record_book=("C9", "K9")):
+         menu_memory=None, record_book=("C9", "K9"), menu=None):
     """真加载判定模块；``needed``：写账规则要选的项；``block``：录不录的原因码；``goods``：商品单要选入账方式；``planned``：
     没有要选的项时推送服务给的「会怎么写」；``hinted``：带了用户说的费用类别时科目建议换成的顺序（同 `service._suggest`）。"""
     calls = []
@@ -157,7 +158,9 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
     modules["pearnly_cowork.assistant.pending_api"] = modules["pearnly_cowork.assistant"].pending_api
     patcher = mock.patch.dict(sys.modules, modules)
     patcher.start()
-    book = {"connection": record_book[0], "account_key": record_book[1]} if record_book else None
+    meta = {"stage": "needs_review", **({"operator": menu} if menu else {})}
+    book = {"connection": record_book[0], "account_key": record_book[1],
+            "response_json": json.dumps({"ok": False, "meta": meta}, ensure_ascii=False)} if record_book else None
     modules["frappe"].db.get_value = lambda doctype, *a, **k: book if doctype == "Cowork Push Record" else "ABC Co"
     spec = importlib.util.spec_from_file_location("cowork_write_precheck_under_test", PATH)
     module = importlib.util.module_from_spec(spec)
@@ -434,10 +437,13 @@ class Remember(unittest.TestCase):
 MENU_OPTIONS = ["ซื้อเงินสด-ทั่วไป", "ซื้อโดยโอนผ่าน TMB 2-01792-3"]
 
 
+MENU = {"doc_type": "HP", "menu_options": MENU_OPTIONS}  # 净化后存进推送记录回执的 meta.operator
+
+
 def menu_stop(**extra):
-    """CC 桌面版停在子菜单那一张：推送记录转人工，原因照 CC 写的原文抄到单据上。"""
+    """CC 桌面版停在子菜单那一张：推送记录转人工（候选在那条记录存下的回执里，见 ``load(menu=…)``）。"""
     return document(last_push_status="manual", last_push_record="PR-7",
-                    last_push_reason="[OPERATOR_MENU_CHOICE] HP: " + " | ".join(MENU_OPTIONS), **extra)
+                    last_push_reason="[OPERATOR_MENU_CHOICE] HP: …", **extra)
 
 
 class MenuChoice(unittest.TestCase):
@@ -447,7 +453,7 @@ class MenuChoice(unittest.TestCase):
         return module.document("h1"), calls, module
 
     def test_a_document_stopped_at_a_submenu_reports_one_item_and_the_old_answer_lists_it(self):
-        found, _calls, _m = self.run_document(menu_stop())
+        found, _calls, _m = self.run_document(menu_stop(), menu=MENU)
         menu = {item["kind"]: item for item in found["items"]}["operator_form"]
         self.assertEqual((menu["subject"], menu["value"], menu["source"]), ("HP", "", ""))
         self.assertEqual(menu["options"], [{"code": text, "name": ""} for text in MENU_OPTIONS])
@@ -462,33 +468,36 @@ class MenuChoice(unittest.TestCase):
         self.assertEqual((errors, expanded["h1"][0]["value"]), ([], MENU_OPTIONS[1]))
 
     def test_other_choices_stay_and_the_submenu_is_added(self):
-        found, _calls, _m = self.run_document(menu_stop(), needed=(ITEM,))
+        found, _calls, _m = self.run_document(menu_stop(), needed=(ITEM,), menu=MENU)
         self.assertEqual([need["kind"] for need in found["legacy"]["needed"]], ["item", "operator_form"])
 
     def test_a_remembered_option_still_offered_is_decided(self):
-        found, _calls, _m = self.run_document(menu_stop(), menu_memory={("C9", "K9", "HP"): MENU_OPTIONS[0]})
+        found, _calls, _m = self.run_document(menu_stop(), menu=MENU, menu_memory={("C9", "K9", "HP"): MENU_OPTIONS[0]})
         menu = {item["kind"]: item for item in found["items"]}["operator_form"]
         self.assertEqual((menu["value"], menu["source"]), (MENU_OPTIONS[0], card.REMEMBERED))
         self.assertEqual(found["legacy"]["state"], "ready")  # 已定：重试时载荷带 form_choice，不再问
-        gone, _calls, _m = self.run_document(menu_stop(), menu_memory={("C9", "K9", "HP"): "ซื้อเงินเชื่อ"})
+        gone, _calls, _m = self.run_document(menu_stop(), menu=MENU, menu_memory={("C9", "K9", "HP"): "ซื้อเงินเชื่อ"})
         self.assertEqual({i["kind"]: i for i in gone["items"]}["operator_form"]["value"], "")  # 记过的不在候选里：当没记
 
     def test_without_a_submenu_stop_nothing_is_added(self):
-        for doc in (document(), document(last_push_status="manual", last_push_reason="[OPERATOR_UNKNOWN_SCREEN] x"),
-                    document(last_push_status="pending", last_push_reason="[OPERATOR_MENU_CHOICE] HP: a | b")):
-            with self.subTest(reason=doc.last_push_reason):
-                found, _calls, _m = self.run_document(doc)
+        cases = ((document(), MENU), (document(last_push_status="manual", last_push_record="PR-7"), None),
+                 (document(last_push_status="pending", last_push_record="PR-7"), MENU),
+                 (document(last_push_status="manual", last_push_record=""), MENU),
+                 (document(last_push_status="manual", last_push_record="PR-7"), {"doc_type": "HP"}))
+        for doc, menu in cases:
+            with self.subTest(status=doc.last_push_status, menu=menu):
+                found, _calls, _m = self.run_document(doc, menu=menu)
                 self.assertNotIn("operator_form", {item["kind"] for item in found["items"]})
 
     def test_check_reports_the_item(self):
-        module, _calls, patcher = load(menu_stop())
+        module, _calls, patcher = load(menu_stop(), menu=MENU)
         self.addCleanup(patcher.stop)
         found = module.check("CO1", ["h1"])
         self.assertEqual([item["kind"] for item in found["documents"][0]["items"]], ["operator_form"])
         self.assertNotIn("legacy", found["documents"][0])
 
     def test_remember_goes_to_the_store_of_the_stopped_record_not_save_choices(self):
-        module, calls, patcher = load(menu_stop())
+        module, calls, patcher = load(menu_stop(), menu=MENU)
         self.addCleanup(patcher.stop)
         row = {"kind": "operator_form", "subject": "HP", "value": MENU_OPTIONS[1], "label": "HP", "remember": True}
         out = module.remember("CO1", {"h1": [row], "h2": [row]})
@@ -497,16 +506,17 @@ class MenuChoice(unittest.TestCase):
         self.assertEqual([c for c in calls if c[0] == "save"], [])
         self.assertEqual(out["saved"], 1)
 
-    def test_without_the_record_the_document_target_is_used(self):
-        module, calls, patcher = load(menu_stop(), record_book=None)
+    def test_without_the_stopped_record_nothing_is_remembered(self):
+        module, calls, patcher = load(menu_stop(), record_book=None, menu=MENU)
         self.addCleanup(patcher.stop)
-        module.remember("CO1", {"h1": [{"kind": "operator_form", "subject": "hp", "value": MENU_OPTIONS[0],
-                                        "label": "", "remember": True}]})
-        self.assertEqual([c[1:6] for c in calls if c[0] == "record"], [("C1", BOOK, "operator_form", "HP", MENU_OPTIONS[0])])
+        with self.assertRaises(Stop):
+            module.remember("CO1", {"h1": [{"kind": "operator_form", "subject": "HP", "value": MENU_OPTIONS[0],
+                                            "label": "", "remember": True}]})
+        self.assertEqual([c for c in calls if c[0] == "record"], [])
 
     def test_a_value_that_was_not_offered_is_refused(self):
         for doc, value in ((menu_stop(), "ซื้อเงินเชื่อ"), (document(), MENU_OPTIONS[0])):
-            module, calls, patcher = load(doc)
+            module, calls, patcher = load(doc, menu=MENU)
             self.addCleanup(patcher.stop)
             with self.subTest(value=value), self.assertRaises(Stop):
                 module.remember("CO1", {"h1": [{"kind": "operator_form", "subject": "HP", "value": value,

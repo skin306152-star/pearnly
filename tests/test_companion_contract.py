@@ -627,6 +627,19 @@ class WriteCheck(unittest.TestCase):
                       handle)
         self.assertIn("meta={**(done.get('meta') or {}), 'written': False, 'duplicate_skipped': True}", handle)
 
+    def test_the_operator_submenu_receipt_keys_are_the_ones_the_server_keeps(self):
+        """代录停在定制菜单的子菜单（11-05 修法 D）：CC 宿主回执 meta 带 doc_type / menu_options，worker 放进 meta.operator；
+        服务端回执净化只放行这两项（`common.clean_operator_meta`）。"""
+        result = method_source(COMPANION / "express_operator" / "host.py", "Host", "_result")
+        self.assertIn("meta.update(doc_type=doc.doc_type, menu_options=list(doc.menu_options))", result)
+        handle = method_source_of(COMPANION / "worker.py", "_handle_operator_task")
+        self.assertIn("meta = {'operator': {**(result.get('meta') or {})", handle)
+        clean = method_source_of(RULES / "common.py", "clean_operator_meta")
+        for key in ("doc_type", "menu_options"):
+            self.assertTrue(quoted(clean, key), key)
+        self.assertIn("out[OPERATOR_META] = operator", method_source_of(RULES / "common.py", "sanitize_push_meta"))
+        self.assertIn('OPERATOR_META = "operator"', (RULES / "common.py").read_text(encoding="utf-8"))
+
     def test_automatic_pushes_only_go_to_a_version_that_returns_the_check(self):
         server = module_constants(self.PUSH / "automation" / "rules.py")["VERIFY_MIN_VERSION"]
         helper = module_constants(COMPANION / "version.py")["VERSION"]

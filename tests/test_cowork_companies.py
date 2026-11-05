@@ -388,9 +388,16 @@ folders = Folders()
 class ExpressChoices(types.ModuleType):
     """`push.choices` 的替身（真实现另测 SQL 形状）：内存里的选择表。"""
 
+    OPERATOR_FORM = "operator_form"
+    KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt", "service_vat", "operator_form")
+
     def __init__(self):
         super().__init__("pearnly_cowork.push.choices")
         self.rows, self.recorded, self.replaced = [], [], []
+        self.stops = {}  # 代录子菜单最近一次停下的候选：{(规范账套键, 单种): [候选]}（真实现读推送记录回执，另测）
+
+    def menu_stops(self, connection, account_sets, limit=50):
+        return dict(self.stops)
 
     def of_sets(self, connection, account_sets, limit=200):
         keys = {key.casefold() for key in account_sets}
@@ -522,6 +529,7 @@ def reset(**catalogs):
     sessions_stub.conversations = {}
     folders.bound, folders.forgotten = {}, []
     express_choices.rows, express_choices.recorded, express_choices.replaced = [], [], []
+    express_choices.stops = {}
     preparation.reported, preparation.asked = None, []
 
 
@@ -1041,6 +1049,32 @@ class ChoiceTests(unittest.TestCase):
         for key, value in ((rows["payment"]["key"], "later"), (rows["party"]["key"], "S009")):
             with self.assertRaises(frappe.ValidationError):
                 choices.set_value(self.company, self.sets, key, value)
+
+    def test_the_operator_submenu_shows_changes_to_a_candidate_and_is_deleted(self):
+        """代录子菜单（11-05 修法 D）：同一种行，类别 operator_form；可选项是这份账套这种单最近一次停下时 CC 读到的候选（记住的在
+        第一个），只写记过它的那份账套；不在候选里的值、没有候选时都改不了；不能设为全公司；删照账套记忆那条路。"""
+        from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+
+        menus = ["ซื้อเงินสด-ทั่วไป", "ซื้อโดยโอนผ่าน TMB 2-01792-3"]
+        choice("operator_form", "HP", menus[1], day=6, label="HP")
+        row = next(r for r in choices.listing(self.company, self.sets) if r["kind"] == "operator_form")
+        self.assertEqual((row["source"], row["subject_label"], row["value"], row["promotable"]),
+                         ("express", "HP", menus[1], False))
+        self.assertEqual((row["options"], row["editable"]), ([], False))  # 没有候选：只能删
+        with self.assertRaises(frappe.ValidationError):
+            choices.set_value(self.company, self.sets, row["key"], menus[0])
+        express_choices.stops = {(normalize_express_account_key("S:\\69EXP\\ABC"), "HP"): menus}
+        row = next(r for r in choices.listing(self.company, self.sets) if r["kind"] == "operator_form")
+        self.assertEqual((row["options"], row["editable"]), ([menus[1], menus[0]], True))
+        saved = choices.set_value(self.company, self.sets, row["key"], menus[0])
+        self.assertEqual(express_choices.recorded[-1], ("C1", "S:\\69EXP\\ABC", "operator_form", "HP", menus[0]))
+        self.assertEqual(saved["account_sets"], ["S:\\69EXP\\ABC"])  # 不扩到别的年度 / 分店
+        with self.assertRaises(frappe.ValidationError):
+            choices.set_value(self.company, self.sets, row["key"], "ซื้อเงินเชื่อ")
+        with self.assertRaises(Exception):
+            choices.promote(self.company, self.sets, row["key"])
+        self.assertEqual(choices.forget(self.company, self.sets, row["key"]), {"removed": 2})
+        self.assertFalse([r for r in express_choices.rows if r["kind"] == "operator_form"])
 
     def test_changing_a_choice_reaches_every_branch_of_the_month(self):
         # 审查 2026-10-15（major）：原先只写一份账套，别的分店推送仍用旧值
