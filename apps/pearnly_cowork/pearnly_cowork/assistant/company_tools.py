@@ -39,7 +39,7 @@ GUIDANCE = [
     "one in a few words. For a document already entered, the choice that decided it is in its written.company_rules, "
     "not in <client_choices>.",
     "A choice the user wants for the whole company (or one branch) rather than one account set goes in with "
-    "cowork_company_choice_save; a choice said for this document only is saved with cowork_save_push_choices as usual.",
+    "cowork_company_choice_save; a choice said for this document only is saved with pearnly_precheck_answer as usual.",
     # 数字会计员第 3 期第 13 条：档位只由数据升降，没有改档位的工具；为什么没自动推按票上的原因码照实说
     "Automatic pushing for a company (automation in cowork_company_profile: L0 propose only, L1 by rules, L2 whole "
     "month; Express companies only, an MR.ERP company has none) moves only by data (qualified month readbacks, write checks); there is no tool or setting to change it, so "
@@ -648,7 +648,7 @@ TOOLS = [
                     "row from cowork_company_profile choices marked promotable (an account set choice or one learned "
                     "from Express history, which only goes company-wide, without branch), to make it company-wide; "
                     "or pass document, kind (party, item, account, "
-                    "payment, vat, department) and value (an account, product or party code from cowork_push_choices, "
+                    "payment, vat, department) and value (an account, product or party code from pearnly_precheck, "
                     "or cash / credit, claim / expense), with item (the product name as on the document) for item "
                     "and direction sales for a customer. The rule is for that document's own party (its seller, its "
                     "buyer for a sales customer), worked out from the document itself: pass only the document the "

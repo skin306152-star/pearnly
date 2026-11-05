@@ -300,6 +300,98 @@ class Access(Precheck):
         self.assertEqual(self.precheck.doc_id_of(self.push.POS_DAY, "D1"), "D:D1")
 
 
+def mrerp_views(menus=("purchase",), defaults=("supplier_type",)):
+    """MR.ERP 菜单 / 主档视图（`mrerp.choices.views` 的形状）：``menus`` / ``defaults`` 里的要人选，其余已选好。"""
+    kinds = {kind: {"options": [{"idmenu": "68", "label": "ซื้อ"}, {"idmenu": "454", "label": "ซื้อ2"}],
+                    "needed": kind in menus} for kind in ("purchase", "purchase_expense", "sales_credit", "sales_cash")}
+    fields = {field: {"options": [{"code": f"{field[:3]}001", "name": "A"}, {"code": f"{field[:3]}002", "name": "B"}],
+                      "needed": field in defaults}
+              for field in ("supplier_type", "ap_account", "customer_type", "ar_account", "bank_account")}
+    return {"known": True, "kinds": kinds}, {"known": True, "fields": fields}
+
+
+class MrErp(Precheck):
+    """ERP 公司选了 MR.ERP 账套（主会话 11-05：旧工具 erp_push_choices / erp_save_push_choices 删掉后，MR.ERP 的导入菜单与主档默认值
+    也经共用卡片问）：总开关开着才出这两类题；答了记在公司上（`mrerp.choices.choose`），停在要选的单记下后排一次导入。"""
+
+    def setUp(self):
+        super().setUp()
+        fake.STATE.db.table("ERP Company")["CO-1"].update(mrerp_enabled=1, express_enabled=0, mrerp_connection="MR1",
+                                                          mrerp_account_set="12:3")
+        docs = fake.STATE.db.table(self.push.PURCHASE)
+        docs["PI-1"] = {"name": "PI-1", "company": "CO-1", "owner": "staff@x", "system_no": "PE-1", "supplier_name": "S",
+                        "ledger_state": E.HELD, "ledger_reason": self.precheck.mrerp_contracts.CHOICE, "ledger_job": None}
+        self.chosen, self.sent, self.viewed = [], [], []
+        for patch in (
+                mock.patch.object(self.precheck.guard, "has", lambda capability, user=None: True),
+                mock.patch.object(self.precheck.guard, "scope_filters", lambda user=None: {}),
+                mock.patch.object(self.precheck.companies, "allowed_companies", lambda user=None: ["CO-1"]),
+                mock.patch.object(self.push, "operator_owned", lambda doctype, name: False),
+                mock.patch.object(self.precheck.mrerp_choices, "views",
+                                  lambda row: self.viewed.append(row.mrerp_account_set) or mrerp_views()),
+                mock.patch.object(self.precheck.mrerp_choices, "choose",
+                                  lambda company, kind, subject, value: self.chosen.append((company, kind, subject, value))
+                                  or {"picked": value}),
+                mock.patch.object(self.precheck.mrerp_push, "send",
+                                  lambda doctype, name: self.sent.append(name) or {"status": "sent"})):
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def switch(self, on):
+        # 打在判定实际用的那个模块上（别的测试可能重载过 `pearnly_erp_portal.mrerp`）
+        patch = mock.patch.object(self.precheck.mrerp_push.mrerp, "MRERP_LEDGER_ENABLED", on)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def test_menus_and_defaults_are_asked_answered_remembered_and_the_import_queued(self):
+        self.switch(True)
+        out = self.precheck.check("CO-1", ["P:PI-1"])
+        found, = out["documents"]
+        self.assertEqual(found["state"], card.CHECK)
+        self.assertEqual([(item["kind"], item["subject"], [o["code"] for o in item["options"]]) for item in found["items"]],
+                         [("mrerp_menu", "purchase", ["68", "454"]), ("mrerp_default", "supplier_type", ["sup001", "sup002"])])
+        merged = card.merge(out["documents"])
+        self.assertTrue(card.needs_card(merged))
+        self.assertEqual([group["group"] for group in merged["groups"]], ["book"])
+        # 选的值不在读到的候选里：整批不记
+        with self.assertRaises(Exception):
+            self.precheck.remember("CO-1", {"P:PI-1": [{"kind": "mrerp_menu", "subject": "purchase", "value": "999"}]})
+        self.assertEqual(self.chosen, [])
+        answers = [{"kind": "mrerp_menu", "subject": "purchase", "value": "454", "label": "ซื้อ2", "remember": True},
+                   {"kind": "mrerp_default", "subject": "supplier_type", "value": "sup002", "label": "B", "remember": True}]
+        self.assertEqual(self.precheck.remember("CO-1", {"P:PI-1": answers}), {"saved": 2})
+        self.assertEqual(self.chosen, [("CO-1", "mrerp_menu", "purchase", "454"),
+                                       ("CO-1", "mrerp_default", "supplier_type", "sup002")])
+        # 停在要选导入菜单的单：记下后排一次导入（同单据上「选一次」）；别的原因停下的不动
+        fake.STATE.db.table(self.push.PURCHASE)["PI-2"] = {
+            "name": "PI-2", "company": "CO-1", "owner": "staff@x", "ledger_state": E.HELD,
+            "ledger_reason": self.precheck.mrerp_contracts.PURCHASE_CASH, "ledger_job": None}
+        self.assertEqual(self.precheck.resume("CO-1", ["P:PI-1", "P:PI-2"]),
+                         [{"doc_id": "P:PI-1", "status": "sent", "reason": ""}])
+        self.assertEqual(self.sent, ["PI-1"])
+
+    def test_the_switch_off_asks_nothing_about_mrerp(self):
+        self.switch(False)
+        out = self.precheck.check("CO-1", ["P:PI-1"])
+        self.assertEqual(out["documents"], [{"doc_id": "P:PI-1", "state": card.NOT_WRITABLE, "reason": E.DISCONNECTED}])
+        self.assertEqual(self.viewed, [])  # 关着时不读 MR.ERP 的菜单
+        self.assertEqual(self.precheck.resume("CO-1", ["P:PI-1"]), [])
+        self.assertEqual(self.sent, [])
+
+    def test_imported_queued_unknown_and_unsupported_documents(self):
+        self.switch(True)
+        docs = fake.STATE.db.table(self.push.PURCHASE)
+        docs["PI-1"].update(ledger_state=E.WRITTEN)
+        self.assertEqual(self.precheck.mrerp_view("P:PI-1", self.push.PURCHASE, "PI-1")["reason"], self.precheck.WRITTEN)
+        docs["PI-1"].update(ledger_state=E.QUEUED, ledger_reason="")
+        self.assertEqual(self.precheck.mrerp_view("P:PI-1", self.push.PURCHASE, "PI-1")["reason"],
+                         self.precheck.ALREADY_QUEUED)
+        docs["PI-1"].update(ledger_state=E.HELD, ledger_reason=self.precheck.mrerp_contracts.UNKNOWN)
+        self.assertEqual(self.precheck.mrerp_view("P:PI-1", self.push.PURCHASE, "PI-1")["state"], card.UNKNOWN)
+        # MR.ERP 不导的单据（收银日汇总、出入库、盘点）写不了，不问菜单
+        self.assertIsNone(self.precheck.mrerp_needed("CO-1", self.push.POS_DAY))
+
+
 class Declared(unittest.TestCase):
     def test_the_product_declares_the_precheck_hook(self):
         source = (base.ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")

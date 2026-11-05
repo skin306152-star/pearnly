@@ -401,17 +401,6 @@ anchor = "tool:cowork:cowork_pos_layout"
 where = "CC 工具 cowork_pos_layout"
 
 [[row]]
-id = "cowork.cc.tool.cowork_push_choices"
-product = "Cowork"
-channel = "cc-chat"
-ends = ["desktop", "mobile"]
-kind = "cc-tool"
-anchor = "tool:cowork:cowork_push_choices"
-group = "cc.tool.push_choices"
-where = "CC 工具 cowork_push_choices"
-tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_push_choices"]
-
-[[row]]
 id = "cowork.cc.tool.cowork_push_documents"
 product = "Cowork"
 channel = "cc-chat"
@@ -576,17 +565,6 @@ kind = "cc-tool"
 anchor = "tool:cowork:cowork_save_folder_tasks"
 where = "CC 工具 cowork_save_folder_tasks"
 tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_save_folder_tasks"]
-
-[[row]]
-id = "cowork.cc.tool.cowork_save_push_choices"
-product = "Cowork"
-channel = "cc-chat"
-ends = ["desktop", "mobile"]
-kind = "cc-tool"
-anchor = "tool:cowork:cowork_save_push_choices"
-group = "cc.tool.save_push_choices"
-where = "CC 工具 cowork_save_push_choices"
-tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_save_push_choices"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_set_folder_task_enabled"

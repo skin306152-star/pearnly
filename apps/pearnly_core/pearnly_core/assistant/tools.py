@@ -73,11 +73,17 @@ CORE_TOOLS = [
                     "unknown (last write result unknown: the user must check Express first), not_writable (facts, not "
                     "choices), waiting and ready. needs_card false means everything is decided: write without asking. "
                     "Otherwise turn the proposed and open items into ask_user questions, then save the answers with "
-                    "pearnly_precheck_answer.",
+                    "pearnly_precheck_answer. planned, when present, maps a document id to how that document will be "
+                    "entered if it is written now (only for documents with nothing left to decide): before writing, "
+                    "whenever you tell the user cash or credit or which account, take it from planned, never from the "
+                    "document type. When the user said in the chat what kind of expense the documents are (e.g. "
+                    "stationery), pass it as hint in their own words, with only the documents it is about: it only "
+                    "reorders the suggested expense accounts and their reason.",
      "input_schema": {"type": "object", "properties": {
          "company": {"type": "string", "description": "The company id the documents belong to."},
          "doc_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 200},
-         "mode": {"type": "string", "enum": ["direct", "operator", "pending"]}},
+         "mode": {"type": "string", "enum": ["direct", "operator", "pending"]},
+         "hint": {"type": "string", "description": "The expense category the user stated, in their words."}},
          "required": ["company", "doc_ids"]},
      "handler": "pearnly_core.write_precheck.api.tool_check"},
     {"name": "pearnly_precheck_answer",

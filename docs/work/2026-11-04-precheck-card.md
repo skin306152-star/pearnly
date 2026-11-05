@@ -509,3 +509,23 @@ U1/U2 两处对不上（start 未传 groups、多账套只读顶层 target）已
 - subject 问题：新路 `pearnly_precheck_answer` 只收 `{key, value}`，subject 由卡片项带，认不出的 key / 空值回 `precheck.unknown_key` /
   `precheck.empty_value`，不说成连接问题（tests/test_cowork_write_precheck.py 证明）；旧的 4 个文字选择工具等 W4 合入后删，那条错路随之消失。
 - 测试：tests/test_assistant.py `ModeGateTests`（代录会话拒直写推送、直写会话拒代录任务工具、各自与共用工具照常执行、真实声明带 modes）。
+
+## W5 施工记录（二）：删旧的文字选择工具，推前预览与费用类别并进 `pearnly_precheck`（11-05）
+
+- 删：Cowork `cowork_push_choices`、`cowork_save_push_choices`（工具声明、处理函数、步骤名、只为它们服务的
+  `push.application.api.save_document_choices`、等科目表 / 等常用科目的两个等待常量、产品地图两行）。要人选的项一律经
+  `pearnly_precheck` → `ask_user` → `pearnly_precheck_answer`。
+- 旧工具带的、卡片原来接不住的两样，改由判定带（主会话 11-05 同意）：
+  1. **planned**（推前「会怎么写」，10-20 教程录制事故后加）：Cowork 判定里一张单全部已定、还没推出 / 没入账时带上推送服务试算的 planned
+     （与入账后的 written 同一个函数），共用层 `card` 汇总成 `planned: {doc_id: …}`；说话规矩挂到 `cowork_push_documents`：
+     推前说现 / 赊、科目照 `pearnly_precheck` 的 planned，不照票种。
+  2. **hint**（用户说的费用类别）：`pearnly_precheck` 可选入参，共用层只交给钩子声明了 `hint` 参数的产品（ERP 照旧两个参数），
+     Cowork 传给 `service._choices` 的科目建议，只影响建议的排序与依据。
+- 丢掉、不补的：旧工具记现 / 赊时同时写成那张单自己的付款方式（同一家的几张单可以各是各的）；卡片的付款项按供应商合并、
+  记进账套记忆，按票改付款方式仍在复核页（试过在卡片作答里同时写成单据自己的：重判时那一项从卡片上消失、看不到也改不了，
+  实验室流程 cowork.precheck.api 查出，撤回）。旧工具最多等 45 秒科目表、20 秒常用科目历史；判定遇到科目表在读回 `waiting`（CC 稍后再取），常用科目没读完就按名称 /
+  费用类别建议，不干等。
+- 测试：`tests/test_cowork_write_precheck.py` `PlannedAndHint`（全部已定带 planned 且原样不改、还有预选 / 未定或已推出时不带、hint
+  改变科目预选）、`SweepAndShared` 共用层汇总 planned 与 hint 只交给声明了的产品；
+  `tests/test_assistant.py` 与 `tests/test_cowork_assistant_tools.py` 说明里写明照 planned 说、旧工具名不再出现；`_choices_view`
+  的科目表重读两条测试改为直接测它（推送那一步仍用）。

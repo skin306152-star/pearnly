@@ -8,7 +8,10 @@
                                  # ref?, party?, record?, direction?, target?, items: [{kind, subject, label, value, value_label,
                                  # source, options?, search?, direction?}]}``。要人定的项一次收齐（录不录、入账方式、方向、
                                  # 账套、科目组、对方 / 存货 / 科目 / 现赊……），每项带现在的值与来源（记住的 = 已定，规则 /
-                                 # 历史 / 建议 = 预选，没有 = 未定）。权限由产品核：只回当前用户能写的单，别人的单不报存在与否
+                                 # 历史 / 建议 = 预选，没有 = 未定）。权限由产品核：只回当前用户能写的单，别人的单不报存在与否。
+                                 # 可选：一张单什么都不用定时带 ``planned``（此刻写进去会怎么写：现 / 赊、科目……，产品自己的形状），
+                                 # CC 推前照它说；可选关键字参数 ``hint``（用户在对话里说的费用类别，原话）：只影响科目建议的排序与依据，
+                                 # 声明了才传
         "remember": "<点路径>",  # (company, answers) -> {"saved": int}：``answers`` = ``{doc_id: [{kind, subject, value, label,
                                  # remember}]}``（``contracts.expand`` 的结果），按各类现有的记法记下（账套记忆、公司规则、
                                  # 租户口径……），值的校验与谁能选照现有写入函数，不合法的 frappe.throw；``remember`` 为假的只管这一张
@@ -21,9 +24,12 @@
 
 没声明的站点（DMS、控制面）：没有可判的单。一个站点只装一个产品，取最后声明的那一份。
 """
+import inspect
+
 import frappe
 
 HOOK = "pearnly_write_precheck"
+HINT_MAX = 120
 
 
 def _path(key: str) -> str:
@@ -45,11 +51,15 @@ def allowed(user, company) -> bool:
                 and frappe.get_attr(path)(user, company))
 
 
-def check(company, doc_ids) -> dict:
+def check(company, doc_ids, hint="") -> dict:
     path = _path("check")
     if not path:
         return {"documents": []}
-    found = frappe.get_attr(path)(company, list(doc_ids))
+    function = frappe.get_attr(path)
+    hint = str(hint or "").strip()[:HINT_MAX]
+    # ``hint`` 只交给声明了这个参数的产品（没有科目建议的产品照旧两个参数）
+    extra = {"hint": hint} if hint and "hint" in inspect.signature(function).parameters else {}
+    found = function(company, list(doc_ids), **extra)
     return found if isinstance(found, dict) else {"documents": []}
 
 

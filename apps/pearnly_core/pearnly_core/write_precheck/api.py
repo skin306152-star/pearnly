@@ -2,7 +2,8 @@
 ``allowed``（这家公司能不能写账），产品在钩子里再按单据核。
 
 - ``check``：这批单此刻要人定的项，按业务分组、跨单去重，每项已定 / 预选 / 未定（``contracts.merge``），另带 ``needs_card``
-  （直写全部已定就不出卡片，主会话 11-04 Q1）；只看不写。``mode``：operator / direct / pending（谁来问，原样带回）。
+  （直写全部已定就不出卡片，主会话 11-04 Q1）与 ``planned``（``{doc_id: 产品给的「此刻写进去会怎么写」}``，只有什么都不用定的单才有，
+  CC 推前说现 / 赊、科目照它）；只看不写。``mode``：operator / direct / pending（谁来问，原样带回）。
   问什么由 CC 定：拿这份事实与预选，用通用提问工具 ``ask_user`` 出题（主会话 11-05），推荐项排第一（``recommended``）。
 - ``search``：大列表的项（科目、存货、对方）按这张单写进的账套服务端分页取可选值。
 - ``answer``：卡片点「开始」交回的答案 ``[{key, value}]``：按点之前那张卡片展开到每张单，交产品按现有记法记下；有答错的整批不记、
@@ -35,12 +36,19 @@ def _require(company) -> None:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
-def card(company, doc_ids) -> dict:
-    """这批单的卡片（不经白名单的调用方用：代录预检、直写门）。产品交来的数据不合契约是程序错，照抛。"""
-    found = products.check(company, doc_ids)
-    merged = contracts.merge(found.get("documents") or [])
-    return {"company": company, "company_title": str(found.get("company_title") or company or ""), **merged,
-            "needs_card": contracts.needs_card(merged)}
+def card(company, doc_ids, hint="") -> dict:
+    """这批单的卡片（不经白名单的调用方用：代录预检、直写门）。产品交来的数据不合契约是程序错，照抛。``hint``：用户说的费用类别
+    （CC 传，只影响科目建议，`products.check`）。"""
+    found = products.check(company, doc_ids, hint)
+    documents = found.get("documents") or []
+    merged = contracts.merge(documents)
+    out = {"company": company, "company_title": str(found.get("company_title") or company or ""), **merged,
+           "needs_card": contracts.needs_card(merged)}
+    planned = {str(doc["doc_id"]): doc["planned"] for doc in documents
+               if isinstance(doc, dict) and doc.get("doc_id") and doc.get("planned")}
+    if planned:
+        out["planned"] = planned
+    return out
 
 
 @frappe.whitelist(methods=["POST"])
@@ -107,7 +115,8 @@ def tool_check(tool_input) -> str:
     mode = (tool_input or {}).get("mode") or "direct"
     if mode not in MODES:
         frappe.throw(_("Invalid request"))
-    return json.dumps({**card(company, doc_ids), "mode": mode}, ensure_ascii=False, default=str)
+    found = card(company, doc_ids, str((tool_input or {}).get("hint") or ""))
+    return json.dumps({**found, "mode": mode}, ensure_ascii=False, default=str)
 
 
 def tool_answer(tool_input) -> str:

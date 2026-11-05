@@ -46,9 +46,11 @@ def _party(doc, fields) -> str:
     return str(getattr(doc, "buyer_name" if sales else "seller_name", "") or "")
 
 
-def document(history, posting_kind=None) -> dict:
+def document(history, posting_kind=None, hint=None) -> dict:
     """一张单的判定：``{"doc_id", "state", "reason"?, "message"?, "record"?, "target"?, "direction"?, "ref", "party",
-    "items", "legacy"}``。``state`` / ``items`` 是共用卡片（``contracts.merge``）的输入；``legacy`` 是代录开始前预检原来的回包
+    "items", "planned"?, "legacy"}``。``hint``：用户在对话里说的费用类别（CC 传，只影响科目建议，`service._suggest`）；``planned``：
+    什么都不用定时此刻推出去会怎么写（`push.express.pushed.planned`，与入账后的 written 同一个函数），CC 推前照它说现 / 赊、科目
+    （2026-10-20 教程录制：推前说赊购，写进去是现购）。``state`` / ``items`` 是共用卡片（``contracts.merge``）的输入；``legacy`` 是代录开始前预检原来的回包
     （:func:`operator_check`，形状与改造前逐字相同）。"""
     from pearnly_core.express_rules.contracts.history import primary_page_fields
     from pearnly_cowork.companies import pending
@@ -104,7 +106,8 @@ def document(history, posting_kind=None) -> dict:
     if pending.account_set_stop(row):
         items.append(_book_item(pending.account_set_options(row)))
     fixed = service._fixed(doc.name, loaded.doc.name, found["target"].account_set, None)  # 定时任务默认处理
-    view, decision, (kind, posting_from, today) = service._choices(doc, loaded, found, posting_kind or None, fixed=fixed)
+    view, decision, (kind, posting_from, today) = service._choices(doc, loaded, found, posting_kind or None, fixed=fixed,
+                                                                   hint=hint or None)
     if legacy is None:
         legacy = _legacy(view, target)
     out = {**base, "target": target, "direction": found["direction"] or "", "legacy": legacy}
@@ -125,10 +128,14 @@ def document(history, posting_kind=None) -> dict:
         items.append(goods)
         # 预选「走库存」时还要定的项（存货对照等）一并列出：按预选的入账类型重新取数再判一次（只看不记）
         found = service._express_context(doc, loaded, doc.push_account_set or None)
-        view, decision, _posting = service._choices(doc, loaded, found, goods["value"], fixed=fixed)
+        view, decision, _posting = service._choices(doc, loaded, found, goods["value"], fixed=fixed, hint=hint or None)
         frappe.db.rollback()
     items.extend(choice_items(view, found["fields"], found["direction"]))
     items.extend(decided_items(decision, found["fields"], found["direction"]))
+    if view.get("planned") and all(card.state_of(item) == card.DECIDED for item in items) \
+            and getattr(doc, "last_push_status", None) not in ("pending", "success"):
+        # 什么都不用定（全部已定）才给：还有预选 / 未定的项时写法要等人答完、重判后再看
+        out["planned"] = view["planned"]
     return {**out, "state": card.CHECK, "items": items}
 
 
@@ -314,9 +321,9 @@ def decided_items(decision, fields, direction) -> list:
 # ── 产品钩子（``hooks.pearnly_write_precheck``）──
 
 
-def check(company, doc_ids) -> dict:
+def check(company, doc_ids, hint=None) -> dict:
     """这家公司这批单的判定（共用层 ``write_precheck.api.check``）：按公司记住的分组先落到单据上（同代录预检），再逐张判；本人读不到的
-    单不回、也不报存在与否。"""
+    单不回、也不报存在与否。``hint``：用户说的费用类别（只影响科目建议）。"""
     from pearnly_cowork.assistant import operator_source
     from pearnly_cowork.companies import rules
 
@@ -326,7 +333,7 @@ def check(company, doc_ids) -> dict:
     for name in doc_ids:
         try:
             posting = operator_source._settle(name, memory) or None
-            found = document(name, posting)
+            found = document(name, posting, hint)
         except (frappe.DoesNotExistError, frappe.PermissionError):
             frappe.db.rollback()
             frappe.clear_messages()

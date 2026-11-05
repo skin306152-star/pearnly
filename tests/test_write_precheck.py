@@ -18,7 +18,7 @@ PACKAGE = ROOT / "apps/pearnly_core/pearnly_core/write_precheck"
 PRODUCTS = ("frappe", "pearnly_cowork", "pearnly_erp_portal", "pearnly_dms", "pearnly_control")
 SHARED = ("pearnly_core.write_precheck", "pearnly_core.express_rules")
 FRAMEWORK_LAYER = ("api.py", "products.py")
-STDLIB = {"__future__", "collections", "hashlib", "json", "typing", "unicodedata"}
+STDLIB = {"__future__", "collections", "hashlib", "inspect", "json", "typing", "unicodedata"}
 
 TARGET = {"connection": "C1", "connection_title": "Office", "account_set": "T9", "account_set_title": "2026"}
 

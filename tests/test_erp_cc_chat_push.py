@@ -330,8 +330,7 @@ class DeclarationTests(unittest.TestCase):
             terms[cells[0]] = cells[1:4]
         names = [tool["name"] for tool in tools.TOOLS]
         self.assertEqual(sorted(names), sorted(tools.STEP_NAMES))
-        self.assertEqual(set(names), {"erp_list_documents", "erp_push_documents", "erp_push_choices",
-                                      "erp_save_push_choices", "erp_resolve_push_result", "erp_push_results",
+        self.assertEqual(set(names), {"erp_list_documents", "erp_push_documents", "erp_resolve_push_result", "erp_push_results",
                                       "erp_pending", "erp_document_detail", "erp_document_original",
                                       "erp_set_printed_total"})
         for tool in tools.TOOLS:
@@ -370,7 +369,6 @@ class DeclarationTests(unittest.TestCase):
             "When a push result is unknown (Express may or may not have it), record what the user found"))
         self.assertIn(direct_push.unconfirmed_rule("Express", "erp_resolve_push_result"),
                       by_name["erp_push_documents"]["description"])
-        self.assertIs(by_name["erp_save_push_choices"]["input_schema"]["properties"]["items"], direct_push.CHOICE_ITEMS)
         props = by_name["erp_list_documents"]["input_schema"]["properties"]
         self.assertEqual({key: props[key] for key in ("company", "all_companies", "offset", "limit")},
                          {**direct_push.scope_props("erp_companies", "documents", "documents"),
@@ -380,7 +378,7 @@ class DeclarationTests(unittest.TestCase):
             self.assertIn(line, tools.GUIDANCE)
         cowork = (COWORK / "assistant/tools.py").read_text(encoding="utf-8")
         for used in ("direct_push.resolve_description(", "direct_push.unconfirmed_rule(", "direct_push.scope_props(",
-                     "direct_push.RESOLVE_SCHEMA", "direct_push.CHOICE_ITEMS", "direct_push.GUIDANCE_TIMES",
+                     "direct_push.RESOLVE_SCHEMA", "direct_push.GUIDANCE_TIMES",
                      "direct_push.cc_desktop(", "_json = direct_push.dumps"):
             self.assertIn(used, cowork)  # Cowork 引用同一份（字节一致由 test_cowork_push_tools_golden 锁住）
 
@@ -396,7 +394,7 @@ class DeclarationTests(unittest.TestCase):
 
     def test_pushing_only_goes_through_the_existing_erp_path(self):
         source = (ERP / "express/cc_tools.py").read_text(encoding="utf-8")
-        for used in ("api.retry(", "push.send(", "api.answer(", "api._document(", "push.operator_owned("):
+        for used in ("api.retry(", "push.send(", "api._document(", "push.operator_owned("):
             self.assertIn(used, source)
         for forbidden in ("jobs.enqueue", "jobs.cancel", "jobs.retry", "frappe.db.set_value", "frappe.db.sql", ".insert(",
                           ".save(", "ignore_permissions", "prepare.prepare", "choices.remember"):
@@ -618,33 +616,6 @@ class PushTests(unittest.TestCase):
         item = call(tools.push_documents, documents=["P:PUR-2"])["results"][0]
         self.assertEqual((item["status"], item["reason_code"]), ("failed", E.DISCONNECTED))
         self.assertEqual(CALLS, [])
-
-
-class ChoiceTests(unittest.TestCase):
-    def setUp(self):
-        reset()
-        doc(PURCHASE, "PUR-3", reason="choice_needed:account", needed=NEEDED)
-
-    def test_choices_are_capped_searchable_and_saved_through_the_document_page(self):
-        out = call(tools.push_choices, document="P:PUR-3")
-        item, = out["needed"]
-        self.assertEqual((item["kind"], item["subject"], item["options"]["total"], len(item["options"]["shown"])),
-                         ("account", "Fuel", 40, 30))
-        self.assertEqual((out["status"], out["can_answer"], out["company_title"]), ("needs_choice", True, "Siam Trading"))
-        found = call(tools.push_choices, document="P:PUR-3", search="expense 39")["needed"][0]["options"]
-        self.assertEqual(found["shown"], [{"code": "53-039", "name": "Expense 39"}])
-        saved = call(tools.save_push_choices, document="P:PUR-3",
-                     items=[{"kind": "account", "subject": "Fuel", "value": "53-07", "label": "x"}])
-        self.assertEqual((saved["status"], saved["push"]["status"]), ("saved", "queued"))
-        self.assertEqual(CALLS[0], ("answer", PURCHASE, "PUR-3", [{"kind": "account", "subject": "Fuel", "value": "53-07"}]))
-        self.assertEqual(CALLS[1], ("send", PURCHASE, "PUR-3"))
-
-    def test_a_value_not_offered_is_not_saved(self):
-        out = call(tools.save_push_choices, document="P:PUR-3", items=[{"kind": "account", "subject": "Fuel", "value": "99"}])
-        self.assertEqual(out, {"document": "P:PUR-3", "status": "not_saved", "reason": "Invalid request"})
-        frappe.session.user = "viewer@x"
-        self.assertEqual(call(tools.save_push_choices, document="P:PUR-3", items=[{"kind": "a", "value": "b"}])["reason"],
-                         "not_permitted")
 
 
 class ResolveTests(unittest.TestCase):

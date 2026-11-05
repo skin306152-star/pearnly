@@ -6,7 +6,7 @@
 - **给模型的时间**：工具结果里的时间点一律是站点时区的 ``YYYY-MM-DD HH:MM``（`local_time` / `local_times` / `dumps`；
   2026-10-13 录屏：推送时间按 UTC 原样交出去，曼谷 15:40 被说成 08:40）。
 - **结果的状态码与字段名**（`ENTERED` … `NOT_SAVED`）与几段参数形状：按公司的范围（`scope_props`）、翻页（`page_props`）、
-  一次推几张（`documents_prop`）、记选择的项（`CHOICE_ITEMS`）、推送结果的筛选（`RESULT_STATES`）。
+  一次推几张（`documents_prop`）、推送结果的筛选（`RESULT_STATES`）。
 - **「结果不明」怎么核对**：推送结果里怎么说（`unconfirmed_rule`）、核对工具的说明与参数（`resolve_description` /
   `RESOLVE_SCHEMA`）、核对的结果（`resolved` / `not_saved` / `not_found`）。
 - **说话规矩里与产品无关的几段**（`GUIDANCE_TIMES` 等，`cc_desktop` 是 Windows 端的正式名字）。
@@ -116,12 +116,6 @@ def page_props(maximum: int = LIST_MAX) -> dict:
 
 def documents_prop(maximum: int = PUSH_MAX) -> dict:
     return {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": maximum}
-
-
-# 记选择的项：要选的那一项的类别（kind）与对象（subject），选的值（value），可带给人看的名字（label）
-CHOICE_ITEMS = {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {
-    "kind": {"type": "string"}, "subject": {"type": "string"}, "value": {"type": "string"},
-    "label": {"type": "string"}}, "required": ["kind", "value"]}}
 
 
 # ---------------- 给模型的时间 ----------------

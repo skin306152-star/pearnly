@@ -32,6 +32,7 @@ from pearnly_core.write_precheck import preselect
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.express import choices, contracts, facts, pending, pos_day, printed, push, stock_entry, target
 from pearnly_erp_portal.masters import company as companies
+from pearnly_erp_portal.mrerp import choices as mrerp_choices, contracts as mrerp_contracts, push as mrerp_push
 
 PREFIXES = pending.PRECHECK_PREFIXES  # 单号前缀（待处理也按它给要人选的行带单号）
 WRITE = {push.PURCHASE: "purchase.write", push.SALES: "sales.write", push.POS_DAY: "cashier.write",
@@ -306,6 +307,66 @@ def document_view(doc_id, doctype, name, found=None) -> dict:
     return {**view, "state": card.CHECK, "items": found["items"]}
 
 
+# ---------------- MR.ERP 账本（公司选了 MR.ERP 账套、总开关开着，`mrerp.push.handles`） ----------------
+
+MRERP_KINDS = (mrerp_choices.MENU, mrerp_choices.DEFAULT)
+
+
+def mrerp_needed(company, doctype):
+    """这家公司这类单导入 MR.ERP 前此刻要人选的导入菜单（``mrerp_menu`` / 单据类型）与主档默认值（``mrerp_default`` / 主档字段），
+    卡片项的形状；选一次记在公司上，大家共用（同单据上「选一次」`mrerp.push.answer`）。MR.ERP 不导的单据类型回 None。"""
+    direction = mrerp_push.DIRECTIONS.get(doctype)
+    row = mrerp_choices.company_row(company) if direction else None
+    if not row:
+        return None
+    menu_view, master_view = mrerp_choices.views(row)
+    return [{"kind": raw["kind"], "subject": raw["subject"], "label": raw["subject"], "value": "", "source": "",
+             "options": [_option(option) for option in raw.get("options") or ()]}
+            for raw in mrerp_contracts.needed(menu_view, master_view, direction)]
+
+
+def mrerp_view(doc_id, doctype, name) -> dict:
+    """MR.ERP 账本的一张单（卡片输入）：已导入的、在导的不再判，上次结果不明的要人核对；MR.ERP 不导的单据类型写不了。"""
+    head = _head(doctype, name)
+    view = {"doc_id": doc_id, "ref": head["ref"], "direction": "sales" if push.DIRECTIONS[doctype] == "sales" else "purchase"}
+    if head["party"]:
+        view["party"] = head["party"]
+    reason = str(frappe.db.get_value(doctype, name, "ledger_reason") or "")
+    if head["ledger_state"] in (contracts.WRITTEN, contracts.HANDLED, contracts.MISMATCH):
+        return {**view, "state": card.NOT_WRITABLE, "reason": WRITTEN}
+    if reason.startswith(mrerp_contracts.UNKNOWN):
+        return {**view, "state": card.UNKNOWN, "reason": mrerp_contracts.UNKNOWN}
+    if head["ledger_state"] == contracts.QUEUED:
+        return {**view, "state": card.NOT_WRITABLE, "reason": ALREADY_QUEUED}
+    items = mrerp_needed(push.company_of(doctype, name), doctype)
+    if items is None:
+        return {**view, "state": card.NOT_WRITABLE, "reason": contracts.DISCONNECTED}
+    return {**view, "state": card.CHECK, "items": items}
+
+
+def save_mrerp(company, doctype, answers, seen) -> int:
+    """记 MR.ERP 的导入菜单 / 主档默认值：只认此刻要选的那几项、最近一次读到的可用值（不是就整批拒），记在公司上
+    （`mrerp.choices.choose`）。同一项（``seen``）只记一次。"""
+    asked = {(item["kind"], item["subject"]): item for item in mrerp_needed(company, doctype) or ()}
+    checked = []
+    for answer in answers or ():
+        if not isinstance(answer, dict):
+            frappe.throw(_("Invalid request"))
+        key = (answer.get("kind"), answer.get("subject"))
+        if key in seen or answer.get("remember") is False:
+            continue
+        item = asked.get(key)
+        value = str(answer.get("value") or "").strip()
+        if item is None or value not in {option["code"] for option in item["options"]}:
+            frappe.throw(_("Invalid request"))
+        seen.add(key)
+        checked.append((key, value))
+    for (kind, subject), value in checked:
+        if mrerp_choices.choose(company, kind, subject, value) is None:
+            frappe.throw(_("Invalid request"))
+    return len(checked)
+
+
 # ---------------- 钩子 ----------------
 
 
@@ -315,11 +376,14 @@ def check(company, doc_ids) -> dict:
     if not _company_ok(company):
         return {"company_title": "", "documents": []}
     title = frappe.db.get_value(push.COMPANY, company, "company_name") or company
-    linked = push.enabled(company)
+    linked, ledger_mrerp = push.enabled(company), mrerp_push.handles(company)  # MR.ERP 总开关关着时 handles 回假
     documents = []
     for doc_id in doc_ids:
         found = resolve_target(company, doc_id)
         if found is None:
+            continue
+        if ledger_mrerp:
+            documents.append(mrerp_view(doc_id, *found))
             continue
         if not linked:
             documents.append({"doc_id": doc_id, "state": card.NOT_WRITABLE, "reason": contracts.DISCONNECTED})
@@ -373,12 +437,15 @@ def remember(company, answers) -> dict:
     （``contracts.expand`` 的结果）。逐张核权限，按这张单（带着人答的值）重新收齐后核值、记下（:func:`save`）。"""
     if not _company_ok(company) or not isinstance(answers, dict):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
-    seen, saved = set(), 0
+    seen, saved, ledger_mrerp = set(), 0, mrerp_push.handles(company)
     for doc_id, given in answers.items():
         found = resolve_target(company, doc_id)
         if found is None:
             frappe.throw(_("Not Permitted"), frappe.PermissionError)
         doctype, name = found
+        if ledger_mrerp:
+            saved += save_mrerp(company, doctype, given, seen)
+            continue
         saved += save(company, collect_document(doctype, name, given_of(given)), given, seen)
     return {"saved": saved}
 
@@ -442,7 +509,11 @@ def resume(company, doc_ids) -> list:
     """共用层 ``write_precheck.api.answer(resume=1)`` 调的钩子（待处理尾部的卡片）：记下答案后，停在要人选、还没交写账件的单按原来的
     写入路径重新准备（同单据页「选一次」后 `api.answer` 的做法：清掉停下的原因，`push.send`）。归代录的、在途的、转了人工的不动；
     这家公司断开了 Express 的不重排。回 ``[{doc_id, status, reason}]``。"""
-    if not _company_ok(company) or not push.enabled(company):
+    if not _company_ok(company):
+        return []
+    if mrerp_push.handles(company):
+        return _resume_mrerp(company, doc_ids)
+    if not push.enabled(company):
         return []
     results = []
     for doc_id in doc_ids:
@@ -462,5 +533,24 @@ def resume(company, doc_ids) -> list:
     return results
 
 
+def _resume_mrerp(company, doc_ids) -> list:
+    """MR.ERP 账本：停在要人选导入菜单 / 默认值（``choice_needed:mrerp``）的单，记下后排一次导入（同单据上「选一次」后
+    `mrerp.push.answer` 的 `send`）；归代录的不动。"""
+    results = []
+    for doc_id in doc_ids:
+        found = resolve_target(company, doc_id)
+        if found is None:
+            continue
+        doctype, name = found
+        row = frappe.db.get_value(doctype, name, ["ledger_state", "ledger_reason"], as_dict=True) or {}
+        if row.get("ledger_state") != contracts.HELD or row.get("ledger_reason") != mrerp_contracts.CHOICE \
+                or push.operator_owned(doctype, name):
+            continue
+        result = mrerp_push.send(doctype, name) or {}
+        results.append({"doc_id": doc_id, "status": str(result.get("status") or ""),
+                        "reason": str(result.get("reason") or "")[:300]})
+    return results
+
+
 __all__ = ["PREFIXES", "check", "collect", "collect_document", "collect_form", "doc_id_of", "document_view",
-           "allowed", "full_options", "given_of", "remember", "resolve_target", "resume", "save", "search"]
+           "allowed", "full_options", "given_of", "mrerp_needed", "mrerp_view", "remember", "resolve_target", "resume", "save", "search"]

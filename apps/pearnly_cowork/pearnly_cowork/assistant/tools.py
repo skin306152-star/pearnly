@@ -677,7 +677,6 @@ def _choices_view(name, connection, account_set, posting_kind, hint=None):
 
 
 # 这份账套的科目表还没读到时（`push.application.service.masters_wait`）给模型的说法：已请电脑读，别拿空的科目表请人选。
-MASTERS_WAIT_SECONDS = 45
 MASTERS_WAITING = {
     "reading": "CC Desktop is still reading this account set's chart of accounts from the computer. Check again "
                "shortly; do not ask the user to choose an account yet.",
@@ -692,27 +691,6 @@ MASTERS_WAITING = {
 
 def _masters_note(state) -> str:
     return MASTERS_WAITING.get(str(state or ""), MASTERS_WAITING["reading"])
-
-
-# 这本账套近 12 个月的常用科目正在由电脑读（`choices_view` 的 ``history``，科目建议 B）：一般几秒读完，最多等这么久，
-# 读到了建议里就有「这家常用的科目」；没读完照样给按名称 / 用户说的类别的建议，不干等。
-HISTORY_WAIT_SECONDS = 20
-
-
-def _choices_waited(name, connection, account_set, posting_kind, hint=None):
-    """同 `_choices_view`；科目表正在读时最多等 `MASTERS_WAIT_SECONDS`（一般十几秒读完），读到了就给可选的科目；
-    常用科目的历史正在读时最多等 `HISTORY_WAIT_SECONDS`。"""
-    view = _choices_view(name, connection, account_set, posting_kind, hint)
-    started = time.monotonic()
-    deadline, history_deadline = started + MASTERS_WAIT_SECONDS, started + HISTORY_WAIT_SECONDS
-    while True:
-        now = time.monotonic()
-        if not (((view.get("wait") or {}).get("state") == "reading" and now < deadline)
-                or (view.get("history") == "reading" and not view.get("wait") and now < history_deadline)):
-            return view
-        time.sleep(3)
-        frappe.db.rollback()  # 电脑读完是在别的请求里提交的
-        view = _choices_view(name, connection, account_set, posting_kind, hint)
 
 
 def _key(name, version, last) -> str:
@@ -747,10 +725,6 @@ DUPLICATE_NOTE = ("duplicate_warning means a document with the same number or fi
                   "says nothing about Express or MR.ERP. It is information only: never ask whether to push because of "
                   "it and never hold a push for it; push when the user asks, and at most mention it in one short line "
                   "with the result.")
-MRERP_CHOICES_NOTE = ("An MR.ERP account set has no per-document choices like Express (party, product, account, cash or "
-                      "credit, VAT claim): the counterparty is found by tax ID in MR.ERP or created there, purchases are "
-                      "always on credit, and the import menu per document kind and the default values are chosen once "
-                      "per account set with cowork_mrerp_setup.")
 
 
 def _adapter_of(connection) -> str:
@@ -2228,109 +2202,10 @@ def _told(out, group) -> dict:
 CHOICE_OPTIONS_SHOWN = 30
 
 
-def _push_target_of(doc, tool_input):
-    """（连接, 账套, 没定时的去向）：这次说的优先，否则票上记的。停在「待选账套」的单推往票上那条连接时，票上那份账套不算
-    （`_stop_target`）：记住了用记住的那份，没定账套回 None、第三项是给 CC 的去向（还没定、候选）。"""
-    connection = tool_input.get("connection") or doc.push_connection
-    account_set = tool_input.get("account_set_key") or None
-    if account_set or connection != doc.push_connection:
-        return connection, account_set or doc.push_account_set or None, None
-    stop = _stop_target(doc)
-    if not stop:
-        return connection, doc.push_account_set or None, None
-    if stop.get("account_set_remembered"):
-        return connection, stop["push_account_set"], None
-    return connection, None, stop
-
-
 def _not_chosen(name, stop, **extra) -> dict:
     """停在「待选账套」、账套还没定：不按票上那份看 / 记 / 推，给候选让 CC 问用户（`ACCOUNT_SET_STOP_NOTE`）。"""
     return {"document": name, **extra, "reason": "account_set_not_chosen",
             "account_set_options": stop.get("account_set_options") or []}
-
-
-def push_choices(tool_input) -> str:
-    """Express 推送前这张单据在这份账套里要人选一次的（对方档 / 商品 / 费用科目 / 付款 / 抵进项 / 部门）与可选值。"""
-    scope.require("intake")
-    name = str(tool_input.get("document") or "")
-    try:
-        doc = storage.read(name)
-    except (frappe.DoesNotExistError, frappe.PermissionError):
-        frappe.clear_messages()
-        return _json({"document": name, "status": "not_found"})
-    connection, account_set, stop = _push_target_of(doc, tool_input)
-    if not connection:
-        return _json({"document": name, "status": "failed", "reason": "no_push_target"})
-    if stop:
-        return _json(_not_chosen(name, stop, status="account_set_not_chosen"))
-    if _adapter_of(connection) == "mrerp":
-        # MR.ERP 没有按单据要人选的项：只说这份账套推之前还要选的菜单 / 默认值（同 `_push_one` 推之前那一步）
-        out = {"document": name, "connection": connection, "account_set": account_set, "adapter": "mrerp",
-               "needed": [], "note": MRERP_CHOICES_NOTE}
-        direction = _mrerp_direction(doc, connection, account_set)
-        entry = _mrerp_entry(doc, connection, account_set, direction)
-        if entry:
-            out["mrerp_entry"] = entry
-        setup = _mrerp_setup_needed(connection, account_set, direction)
-        if setup:
-            out.update(mrerp_setup={"connection": connection, "account_set_key": account_set, **setup},
-                       note=MRERP_CHOICES_NOTE + " " + MRERP_SETUP_NOTE)
-        return _json({**_account_named(out, connection, "account_set"),
-                      **_entered_note(getattr(doc, "last_push_status", None))})
-    try:
-        view = _choices_waited(name, connection, account_set, tool_input.get("posting_kind") or doc.posting_kind,
-                               str(tool_input.get("hint") or "").strip()[:120] or None)
-    except (frappe.ValidationError, frappe.PermissionError) as error:
-        frappe.db.rollback()
-        frappe.clear_messages()
-        return _json({"document": name, "status": "failed", "reason": str(error)[:300]})
-    wait = view.get("wait")
-    if wait:
-        return _json(_account_named({"document": name, "connection": connection,
-                                     "account_set": view.get("account_set") or account_set,
-                                     "status": wait["state"], "note": _masters_note(wait["state"])},
-                                    connection, "account_set"))
-    search = str(tool_input.get("search") or "").strip().casefold()
-    options = {}
-    for kind, rows in (view.get("options") or {}).items():
-        found = [r for r in rows if not search or search in f"{r.get('code')} {r.get('name')}".casefold()]
-        options[kind] = {"total": len(found), "shown": found[:CHOICE_OPTIONS_SHOWN]}
-    out = _account_named({"document": name, "connection": connection,
-                          "account_set": view.get("account_set") or account_set,
-                          "needed": view.get("needed") or [], "options": options}, connection, "account_set")
-    if view.get("fixed"):
-        # 来自定时任务、推往该任务账套的票：任务默认处理已定的类别（推送服务按任务取，不再问、不记进账套）
-        out["task_defaults"] = view["fixed"]
-    if view.get("planned") and getattr(doc, "last_push_status", None) not in ("pending", "success"):
-        # 没有要选的：推出去会怎么写（现 / 赊、科目、哪层定的；按记住的选择而票面指向另一个时带 document_payment），
-        # 与入账后的 written 同一个函数。CC 推前照它说（2026-10-20 教程录制：推前说赊购，写进去是现购）
-        out["planned"] = view["planned"]
-    return _json({**out, **_entered_note(getattr(doc, "last_push_status", None))})
-
-
-def save_push_choices(tool_input) -> str:
-    scope.require("intake")
-    name = str(tool_input.get("document") or "")
-    try:
-        doc = storage.read(name)
-    except (frappe.DoesNotExistError, frappe.PermissionError):
-        frappe.clear_messages()
-        return _json({"document": name, "status": "not_found"})
-    connection, account_set, stop = _push_target_of(doc, tool_input)
-    if stop:
-        return _json(_not_chosen(name, stop, status="not_saved"))
-    if _adapter_of(connection) == "mrerp":
-        return _json({"document": name, "status": "not_saved", "reason": MRERP_CHOICES_NOTE})
-    try:
-        # 为这张票选的现 / 赊同时写成这张票自己的（同复核页改付款方式）：同一家供应商的几张票可以各是各的（2026-10-20 教程录制）
-        result = application_api.save_document_choices(name, connection, account_set,
-                                                       json.dumps(tool_input.get("items") or []))
-        frappe.db.commit()
-    except (frappe.ValidationError, frappe.PermissionError) as error:
-        frappe.db.rollback()
-        frappe.clear_messages()
-        return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
-    return _json({"document": name, "status": "saved", "result": result, **_entered_note(getattr(doc, "last_push_status", None))})
 
 
 def resolve_push_result(tool_input) -> str:
@@ -4131,19 +4006,19 @@ WRITTEN_NOTE = ("An entered document carries written: the facts of how it was wr
                 "written.company_rules only; when it is missing, say only that it was the company's choice. Never take "
                 "a choice from <client_choices> or the team notes as the one that decided an entered document: they "
                 "show today's choices, which may be for other parties.")
-# 推前「会怎么写」（`push.express.pushed.planned`，`cowork_push_choices` 的 planned）：2026-10-20 教程录制，推前 CC 照票种说
+# 推前「会怎么写」（`push.express.pushed.planned`，经 ``pearnly_precheck`` 的 planned）：2026-10-20 教程录制，推前 CC 照票种说
 # NL-0907-2569-04 是赊购，推送时按这家记住的现购写成 HP690907-001，直到用户追问才解释。推前说现赊 / 科目只照 planned
-PLANNED_NOTE = ("When needed is empty, planned says how the document will be entered if it is pushed now, with the same "
-                "facts and words as written on an entered document (payment, payment_from, account and the like; no "
-                "docnum yet). planned.document_payment, when present, means the payment follows a remembered choice, a "
-                "client company choice or the task's default (payment_from) while the document itself points to the "
-                "other one (document_payment.payment, from the words on it or its type). Before you push, whenever you "
-                "tell the user whether a document goes in as cash or credit or to which account, take it from planned "
-                "(call cowork_push_choices for that document first), never from the document type; when "
-                "document_payment is present, say in that same message, before pushing, that it will be entered as "
-                "planned.payment because of that choice although the document points to document_payment.payment. "
-                "This is information, not a question: do not wait for a reply unless the user said otherwise for that "
-                "document, in which case save their payment for it with cowork_save_push_choices first.")
+PLANNED_NOTE = ("Before pushing, whenever you tell the user whether a document goes in as cash or credit or to which "
+                "account, take it from planned in pearnly_precheck for that document (call it first), never from the "
+                "document type: planned uses the same facts and words as written on an entered document (payment, "
+                "payment_from, account and the like; no docnum yet). planned.document_payment, when present, means the "
+                "payment follows a remembered choice, a client company choice or the task's default (payment_from) "
+                "while the document itself points to the other one (document_payment.payment, from the words on it or "
+                "its type): say in that same message, before pushing, that it will be entered as planned.payment "
+                "because of that choice although the document points to document_payment.payment. This is "
+                "information, not a question: do not wait for a reply unless the user said otherwise. A payment "
+                "saved with pearnly_precheck_answer is remembered for that supplier in the account set (its later "
+                "documents too); one document of its own payment is changed on its review page.")
 # 定时任务的各项：单个保存与批量保存共用一份，免得两份说明走样
 FOLDER_TASK_PROPS = {
     "name": {"type": "string", "description": "Existing task to change; leave out to create one."},
@@ -4385,7 +4260,7 @@ TOOLS = [
                     "again with answers, or answer with cowork_pos_layout; the answer is remembered for this company. "
                     "Returns the documents created, one per day, to push with cowork_push_documents without "
                     "posting_kind (each day keeps its own; a push may need the receiving account of each payment "
-                    "method once, kind receipt in cowork_push_choices). "
+                    "method once, kind receipt in pearnly_precheck). "
                     "posting_kind stock writes item lines with cost when the export has items. .xls is not supported. "
                     "Importing the same export again enters it again.",
      "input_schema": {"type": "object", "properties": {
@@ -4461,9 +4336,9 @@ TOOLS = [
                     "when the user asks; last_attempt_failed means a try did not go through and it is tried again), "
                     "failed with a reason, " + direct_push.unconfirmed_rule("Express or MR.ERP", "cowork_resolve_push_result")
                     + ", needs_choice "
-                    "(get the choices with cowork_push_choices, ask the user, save them and push again; for MR.ERP "
-                    "it comes with mrerp_setup, the import menus or default values that account set still needs: "
-                    "choose them with cowork_mrerp_setup instead), "
+                    "(call pearnly_precheck for those documents, ask with ask_user, save with pearnly_precheck_answer "
+                    "and push again; for MR.ERP it comes with mrerp_setup, the import menus or default values that "
+                    "account set still needs: choose them with cowork_mrerp_setup instead), "
                     "waiting_for_cc (the computer is still reading that account set's chart; push again shortly), "
                     "or already_success / already_pending (already entered or on its way; it is not pushed again and "
                     "CC cannot change it, see below). connection and account_set_key choose where to push (from "
@@ -4477,54 +4352,13 @@ TOOLS = [
                     "same reply, besides that "
                     "document's own outcome, tell the user how many other documents now use that account set, where "
                     "each waits (a handling or other choice, a proposal to push, or not pushed yet) and that none of "
-                    "them was pushed, as same_group_note says; push them only when the user asks. " + WRITTEN_NOTE,
+                    "them was pushed, as same_group_note says; push them only when the user asks. " + WRITTEN_NOTE + " " + PLANNED_NOTE,
      "input_schema": {"type": "object", "properties": {
          "documents": direct_push.documents_prop(PUSH_MAX),
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},
          "posting_kind": {"type": "string", "enum": ["service", "stock"], "description": "Express."}},
          "required": ["documents"]},
      "handler": "pearnly_cowork.assistant.tools.push_documents"},
-    {"name": "cowork_push_choices", "label": "Checked push choices",
-     "description": "Before pushing to Express, what this document still needs a person to choose once in this "
-                    "account set (party, product, expense account, payment, VAT claim, department, receiving account "
-                    "of a POS payment method; kinds in needed) " + PLANNED_NOTE + " "
-                    "and the allowed values (up to 30 per kind; pass search to narrow by code or name). Use it when a "
-                    "push came back needs_choice. Ask the user, then save with cowork_save_push_choices and push "
-                    "again. status reading means the computer is still reading that account set's chart: check again "
-                    "shortly. For a document from a scheduled folder task pushed to that task's account set, the "
-                    "task's default handling (task_defaults) is applied and not asked; to change it, change the task. "
-                    "An expense account item may come with suggested accounts (up to 2, best first; source hint = "
-                    "matches what the user said, history = this supplier's usual account in this account set over "
-                    "the last 12 months, name = the account name matches the document; reason says why): name the "
-                    "first one and ask the user to confirm it (a short yes is enough) or pick another; never save a "
-                    "suggestion the user has not confirmed. When the user said in the chat what kind of expense this "
-                    "document is (e.g. stationery), pass it as hint in the user's own words. For an MR.ERP account "
-                    "set (adapter mrerp) needed is always empty: mrerp_setup, when present, lists the import menus "
-                    "or default values to choose with cowork_mrerp_setup. " + MRERP_ENTRY_NOTE + " "
-                    "status account_set_not_chosen: " + ACCOUNT_SET_STOP_NOTE,
-     "input_schema": {"type": "object", "properties": {
-         "document": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
-         "posting_kind": {"type": "string", "enum": ["service", "stock"]}, "search": {"type": "string"},
-         "hint": {"type": "string", "description": "The expense category the user stated for this document, "
-                                                   "in their words."}},
-         "required": ["document"]},
-     "handler": "pearnly_cowork.assistant.tools.push_choices"},
-    {"name": "cowork_save_push_choices", "label": "Saved push choices",
-     "description": "Record what the user chose for the items listed by cowork_push_choices: each item is the needed "
-                    "entry's kind and subject with the chosen value (a listed code; party and product also accept "
-                    "the NEW value given there). The account set reuses them for later documents of the same kind. "
-                    "A payment (cash or credit) saved for a document is also that document's own payment "
-                    "(document_payment in the result), so documents of one supplier can each have their own: save it "
-                    "for each document with that document's value. Every other kind (party, product, account, VAT "
-                    "claim, department) is one value per supplier in the account set: when documents of one supplier "
-                    "need different values of such a kind, save and push them one document at a time. "
-                    "Only values the user chose or confirmed in this chat. Express only: MR.ERP choices are saved "
-                    "with cowork_mrerp_setup.",
-     "input_schema": {"type": "object", "properties": {
-         "document": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
-         "items": direct_push.CHOICE_ITEMS},
-         "required": ["document", "items"]},
-     "handler": "pearnly_cowork.assistant.tools.save_push_choices"},
     {"name": "cowork_resolve_push_result", "label": "Confirmed a push result",
      "description": direct_push.resolve_description("Express or MR.ERP"),
      "input_schema": direct_push.RESOLVE_SCHEMA,

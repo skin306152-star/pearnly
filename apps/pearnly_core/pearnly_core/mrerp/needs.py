@@ -2,7 +2,7 @@
 
 同网页推送前那一步（`public/desk/targets.js::mrerp_menu_ready`）：菜单与默认值的规则在 `mrerp.menus` /
 `mrerp.masters`，视图由 `connections.service.mrerp_menu` 给；这里只按方向挑出会用到的、要人选的，给 CC 工具
-（`assistant.tools`：推之前先问、`cowork_push_choices`、`cowork_mrerp_setup`、定时任务保存前）用。
+（`assistant.tools`：推之前先问、`pearnly_precheck`、`cowork_mrerp_setup`、定时任务保存前）用。
 """
 from __future__ import annotations
 

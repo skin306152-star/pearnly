@@ -675,7 +675,7 @@ def save_choices(history, connection, account_set_key, items, *, document_paymen
     """记下会计在复核页选的（每项 `{kind, subject, value, label}`）；值须在这份账套的主档里（或「新建」）。账套记忆里记过的科目 /
     现 / 赊被改成别的值时 `push.choices.record` 另记一条改值（自动推判档 R1，10-18）。
 
-    ``document_payment``（CC 记的，`api.save_document_choices`）：为这张进项票的供应商选的现 / 赊同时写成这张票自己的付款方式
+    ``document_payment``（CC 卡片答的现 / 赊，`assistant.precheck_source.remember`）：为这张进项票的供应商选的现 / 赊同时写成这张票自己的付款方式
     （`posting_payment_manual`，同复核页改付款方式，付款判定的第一级）。账套记忆按供应商只有一个值：2026-10-20 教程录制，用户说
     「印了已转账的是现金、其余赊账」，同一家供应商的两张票 CC 一张记现金、一张记赊账，后记的盖掉先记的，两张都按同一个值写进
     Express（KD2609-00318 应现购写成 RR、NL-0907-2569-04 应赊购写成 HP），CC 推前说的与写入的不一致。"""

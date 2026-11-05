@@ -45,7 +45,6 @@ KINDS = {
 PREFIXES = {kind.prefix: kind for kind in KINDS.values()}
 LIST_MAX = direct_push.LIST_MAX
 PUSH_MAX = direct_push.PUSH_MAX
-CHOICE_OPTIONS_SHOWN = 30  # 每项可选值最多给几个（同 Cowork；用 search 缩小）
 WITH_OPERATOR = "with_operator"  # 交给代录、还没录成：直写不接
 NOT_PERMITTED = "not_permitted"
 OTHER_COMPANY = "other_company"
@@ -185,11 +184,11 @@ def _route(kind, name, row) -> str:
     回 ``sent`` 或交不了的结论码。"""
     if mrerp_push.handles(row.company):
         if row.ledger_state == contracts.HELD and row.ledger_reason == mrerp_contracts.CHOICE:
-            return ""  # 要人选一次：先选（erp_save_push_choices 选完当场再交）
+            return ""  # 要人选一次：先选（pearnly_precheck_answer 带 resume 选完当场再交）
         return "sent" if mrerp_push.send(kind.doctype, name).get("status") == "sent" else ""
     view = api._view(kind.doctype, row)
     if view.get("needed"):
-        return ""  # 要人选一次：先选（erp_save_push_choices 选完当场再交）
+        return ""  # 要人选一次：先选（pearnly_precheck_answer 带 resume 选完当场再交）
     if view.get("can_retry"):
         api.retry(kind.doctype, name)  # 单据上的「再写一次」
         return "sent"
@@ -197,14 +196,6 @@ def _route(kind, name, row) -> str:
         push.send(kind.doctype, name)  # 提交时排直写的同一个函数（停在会自己好的原因上时每分钟也是它）
         return "sent"
     return ""
-
-
-def _mrerp_view(kind, row) -> dict:
-    """账本是 MR.ERP 的单要人选的项（停在单据上的 ``ledger_needed``，`mrerp.push`）与能不能选（开单权）。"""
-    needed = []
-    if row.ledger_state == contracts.HELD and row.ledger_reason == mrerp_contracts.CHOICE:
-        needed = api._needed(row)
-    return {"needed": needed, "can_answer": bool(needed) and guard.has(api.CAPABILITIES[kind.doctype][1])}
 
 
 def _push_one(document, tool_input) -> dict:
@@ -518,60 +509,6 @@ def push_documents(tool_input) -> str:
     return direct_push.dumps(out)
 
 
-def _options(item, search) -> dict:
-    rows = item.get("options") or []
-    found = [row for row in rows if not search or search in f"{row.get('code')} {row.get('name')}".casefold()]
-    return {"total": len(found), "shown": found[:CHOICE_OPTIONS_SHOWN]}
-
-
-def push_choices(tool_input) -> str:
-    document = str(tool_input.get("document") or "")
-    kind, name = _parse(document)
-    row = _row(kind, name) if kind else None
-    if row is None:
-        return direct_push.dumps(direct_push.not_found(document))
-    view = _mrerp_view(kind, row) if mrerp_push.handles(row.company) else api._view(kind.doctype, row)
-    search = str(tool_input.get("search") or "").strip().casefold()
-    needed = [{**{key: value for key, value in item.items() if key != "options"}, "options": _options(item, search)}
-              for item in view.get("needed") or []]
-    out = {"document": document, "company": row.company, "company_title": _company_title(row.company),
-           "needed": needed, "can_answer": bool(view.get("can_answer")), **_outcome(kind, name)}
-    if row.ledger_state in (contracts.WRITTEN, contracts.MISMATCH, contracts.HANDLED):
-        out["entered_note"] = ENTERED_RESULT
-    return direct_push.dumps(out)
-
-
-def save_push_choices(tool_input) -> str:
-    document = str(tool_input.get("document") or "")
-    kind, name = _parse(document)
-    row = _row(kind, name, write=True) if kind else None
-    if row is None:
-        return direct_push.dumps(direct_push.not_found(document))
-    if row == NOT_PERMITTED:
-        return direct_push.dumps(direct_push.not_saved(document, NOT_PERMITTED))
-    if _other_company(row, tool_input):
-        return direct_push.dumps({**direct_push.not_saved(document, OTHER_COMPANY), "company": row.company,
-                                  "company_title": _company_title(row.company)})
-    answers = [{"kind": str(item.get("kind") or ""), "subject": str(item.get("subject") or ""),
-                "value": str(item.get("value") or "")} for item in tool_input.get("items") or [] if isinstance(item, dict)]
-    if mrerp_push.handles(row.company):
-        if not mrerp_push.answer(kind.doctype, name, answers):  # MR.ERP 的菜单 / 默认值：记在公司上，再排导入
-            frappe.db.rollback()
-            return direct_push.dumps(direct_push.not_saved(document, _("Invalid request")))
-        answers = None
-    try:
-        if answers is not None:
-            api.answer(kind.doctype, name, answers)  # 单据上的「选一次」：记在这家公司名下，当场再准备、交直写
-    except (frappe.ValidationError, frappe.PermissionError) as error:
-        frappe.db.rollback()
-        frappe.clear_messages()
-        return direct_push.dumps(direct_push.not_saved(document, str(error)[:300] or NOT_PERMITTED))
-    results = [{"document": document, "status": "sent"}]
-    _settle(results)
-    outcome = {key: value for key, value in results[0].items() if key != "document"}
-    return direct_push.dumps({"document": document, "status": direct_push.SAVED, "push": outcome})
-
-
 def resolve_push_result(tool_input) -> str:
     """结果不明的单：照单据页对这种情形的「再写一次」交回原来那台电脑核对（有就报回单号，没有才写一次）。"""
     document = str(tool_input.get("document") or "")
@@ -606,9 +543,6 @@ QUEUED_NOTE = ("queued: sent, but Express has not reported a result yet (CC Desk
                "be offline: it is entered once CC Desktop is back). Tell the user it is queued; check later with "
                "erp_push_results when they ask. Do not wait or sleep. A queued document is not entered yet: never say "
                "it was entered or recorded into Express, not even at the start of the reply.")
-ENTERED_RESULT = ("This document is already entered into Express and stays as entered there: CC cannot change it. Tell "
-                  "the user it cannot be changed from here, with its docnum, amounts in baht and times in local time; "
-                  "never say it needs to be or can be changed in Express or anywhere else, in any language.")
 ROW_NOTE = ("name is the document id for the other tools (P purchase, S sales, M stock movement or transfer, D POS day "
             "summary, C stock count); invoice_no is its number in ERP. last_push_status is pending (on its way to "
             "Express), success (entered: written.docnum is its number in Express; mismatch means the computer's check "
@@ -658,8 +592,10 @@ TOOLS = [
                     "there, tell it to the user), queued (no result yet, or CC Desktop is offline: it is entered "
                     "later; check with erp_push_results when the user asks), failed with a reason, "
                     + direct_push.unconfirmed_rule(PROGRAM, "erp_resolve_push_result")
-                    + ", needs_choice (get the choices with erp_push_choices, ask the user and save them with "
-                    "erp_save_push_choices, which sends it again), waiting_for_cc (CC Desktop has not reported this "
+                    + ", needs_choice (call pearnly_precheck for those documents, ask the user with ask_user and "
+                    "save the answers with pearnly_precheck_answer with resume true, which sends them again: do not "
+                    "push them again; for an MR.ERP company the items are its import menus and default values, chosen "
+                    "once for the company), waiting_for_cc (CC Desktop has not reported this "
                     "company's account set yet, is still reading it, or no computer can write it now; ERP tries again "
                     "every minute by itself), with_operator (handed to operator entry and not entered yet: operator "
                     "entry enters it, a push from here does not), or already_success / already_pending (already "
@@ -669,26 +605,6 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {
          "documents": direct_push.documents_prop(PUSH_MAX), "company": COMPANY_PROP}, "required": ["documents"]},
      "handler": "pearnly_erp_portal.express.cc_tools.push_documents"},
-    {"name": "erp_push_choices", "label": "Checked push choices",
-     "description": "What an ERP document still needs a person to choose once before it can be written into Express "
-                    "(party, product, expense account, payment, VAT claim, department, account set, stock account "
-                    "group and the like; needed, each with its allowed values: up to "
-                    f"{CHOICE_OPTIONS_SHOWN}, pass search to narrow by code or name), and its push status now. Use it "
-                    "when a push came back needs_choice. Ask the user, then save with erp_save_push_choices. A choice "
-                    "is kept for the company and reused for its later documents of the same kind.",
-     "input_schema": {"type": "object", "properties": {
-         "document": {"type": "string"}, "search": {"type": "string"}}, "required": ["document"]},
-     "handler": "pearnly_erp_portal.express.cc_tools.push_choices"},
-    {"name": "erp_save_push_choices", "label": "Saved push choices",
-     "description": "Record what the user chose for the items listed by erp_push_choices: each item is the needed "
-                    "entry's kind and subject with the chosen value (a listed code; party and product also accept the "
-                    "NEW value given there). The company reuses them for later documents of the same kind. Saving "
-                    "sends the document to Express again right away (push in the result, with the same words as "
-                    "erp_push_documents): do not push it again. Only values the user chose or confirmed in this chat.",
-     "input_schema": {"type": "object", "properties": {
-         "document": {"type": "string"}, "items": direct_push.CHOICE_ITEMS, "company": COMPANY_PROP},
-         "required": ["document", "items"]},
-     "handler": "pearnly_erp_portal.express.cc_tools.save_push_choices"},
     {"name": "erp_resolve_push_result", "label": "Confirmed a push result",
      "description": direct_push.resolve_description(
          PROGRAM, "and ERP sends it back to the computer that was writing it, which checks Express by the "
@@ -758,8 +674,6 @@ STEP_NAMES = {
     "erp_document_original": "Opening the original",
     "erp_set_printed_total": "Setting the printed total",
     "erp_push_documents": "Pushing documents",
-    "erp_push_choices": "Checking push choices",
-    "erp_save_push_choices": "Saving push choices",
     "erp_resolve_push_result": "Confirming a push result",
     "erp_push_results": "Checking push results",
 }

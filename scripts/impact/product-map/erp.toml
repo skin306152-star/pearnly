@@ -158,17 +158,6 @@ where = "CC 工具 erp_pending"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_pending"]
 
 [[row]]
-id = "erp.cc.tool.erp_push_choices"
-product = "ERP"
-channel = "cc-chat"
-ends = ["desktop", "mobile"]
-kind = "cc-tool"
-anchor = "tool:erp:erp_push_choices"
-group = "cc.tool.push_choices"
-where = "CC 工具 erp_push_choices"
-tests = ["unit:tests/test_erp_cc_chat_push.py::erp_push_choices"]
-
-[[row]]
 id = "erp.cc.tool.erp_push_documents"
 product = "ERP"
 channel = "cc-chat"
@@ -200,17 +189,6 @@ anchor = "tool:erp:erp_resolve_push_result"
 group = "cc.tool.resolve_push_result"
 where = "CC 工具 erp_resolve_push_result"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_resolve_push_result"]
-
-[[row]]
-id = "erp.cc.tool.erp_save_push_choices"
-product = "ERP"
-channel = "cc-chat"
-ends = ["desktop", "mobile"]
-kind = "cc-tool"
-anchor = "tool:erp:erp_save_push_choices"
-group = "cc.tool.save_push_choices"
-where = "CC 工具 erp_save_push_choices"
-tests = ["unit:tests/test_erp_cc_chat_push.py::erp_save_push_choices"]
 
 [[row]]
 id = "erp.cc.tool.erp_set_printed_total"

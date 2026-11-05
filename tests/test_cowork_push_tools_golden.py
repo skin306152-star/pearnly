@@ -72,8 +72,6 @@ def _follow_up(case) -> dict:
 
     for target, name, value in (
             (tools.storage, "read", read),
-            (tools.application_api, "save_document_choices",
-             lambda *a: calls.append(("save",) + a) or {"saved": 1, "document_payment": "cash"}),
             (tools.application_api, "resolve_unknown",
              lambda *a: calls.append(("resolve",) + a) or {"status": "success", "docnum": "RR6910-007", "reason": ""}),
             (frappe.db, "get_value", lambda *a, **k: "express")):
@@ -86,10 +84,6 @@ def _follow_up(case) -> dict:
     out["resolve_not_entered"] = tools.resolve_push_result({"document": "H1", "entered": False})
     with mock.patch.object(tools.application_api, "resolve_unknown", refused):
         out["resolve_refused"] = tools.resolve_push_result({"document": "H1", "entered": True})
-    out["save_not_found"] = tools.save_push_choices({"document": "NOPE", "items": [{"kind": "payment", "value": "cash"}]})
-    out["save_saved"] = tools.save_push_choices({"document": "H1", "items": [{"kind": "payment", "subject": "S",
-                                                                             "value": "cash"}]})
-    out["choices_not_found"] = tools.push_choices({"document": "NOPE"})
     out["calls"] = json.dumps(calls, ensure_ascii=False, default=str)
     return out
 

@@ -140,7 +140,7 @@ DOCUMENT_FROM = {"explicit": "document", "doc_type": "document_type", "profile":
 
 def planned(payload: Any, decided_by: Any = None, company_rules: Any = None,
             document_verdict: Any = None) -> Optional[Dict[str, Any]]:
-    """推之前这张单会怎么写进 Express（复核页「要选的项」与 CC 的 `cowork_push_choices`）：与入账后的 ``written`` 同一个函数、
+    """推之前这张单会怎么写进 Express（复核页「要选的项」与 CC 的 `pearnly_precheck` 的 planned）：与入账后的 ``written`` 同一个函数、
     同一份载荷（准备推送那一步试算出的），所以推前说的与写进去的是同一个值。
 
     现 / 赊由账套记忆、公司规则或任务默认定（``payment_from`` 在 `CHOICE_LAYERS`），而票面自己指向另一个值时（``document_verdict``

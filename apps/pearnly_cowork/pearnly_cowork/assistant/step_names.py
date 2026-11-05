@@ -21,8 +21,6 @@ STEP_NAMES = {
     "cowork_refresh_account_sets": "Refreshing account sets",
     "cowork_list_documents": "Listing documents",
     "cowork_push_documents": "Pushing documents",
-    "cowork_push_choices": "Checking push choices",
-    "cowork_save_push_choices": "Saving push choices",
     "cowork_resolve_push_result": "Confirming a push result",
     "cowork_delete_documents": "Deleting documents",
     "cowork_export_review_workbook": "Exporting the review workbook",

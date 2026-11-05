@@ -61,8 +61,9 @@ def document(**extra):
 
 
 def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_book=None, direction="purchase",
-         mismatch=None, config=None, accounts=None):
-    """真加载判定模块；``needed``：写账规则要选的项；``block``：录不录的原因码；``goods``：商品单要选入账方式。"""
+         mismatch=None, config=None, accounts=None, planned=None, hinted=None):
+    """真加载判定模块；``needed``：写账规则要选的项；``block``：录不录的原因码；``goods``：商品单要选入账方式；``planned``：
+    没有要选的项时推送服务给的「会怎么写」；``hinted``：带了用户说的费用类别时科目建议换成的顺序（同 `service._suggest`）。"""
     calls = []
     doc = doc or document()
     fields = json.loads(doc.pages)[0]["fields"]
@@ -71,9 +72,15 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
              "selected": {"config": dict(config or {})}, "flat": {}, "preparation": {}}
 
     def choices(_doc, _loaded, _found, posting_kind, **kw):
-        calls.append(("choices", posting_kind))
+        calls.append(("choices", posting_kind) + ((kw["hint"],) if kw.get("hint") else ()))
         view = {"needed": [dict(item) for item in needed],
                 "options": {"accounts": accounts or [{"code": "5100", "name": "ค่าใช้จ่าย"}]}}
+        if kw.get("hint") and hinted:
+            for item in view["needed"]:
+                if item["kind"] == "account":
+                    item["suggested"] = [dict(row) for row in hinted]
+        if planned and not view["needed"]:
+            view["planned"] = dict(planned)
         return view, {"needed": view["needed"], "applied": dict((decided or {}).get("applied") or {}),
                       "decided_by": dict((decided or {}).get("decided_by") or {})}, (None, "", None)
 
@@ -86,7 +93,8 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
         _operator_target=lambda *a: dict(target), _require_matching_account=matching, _choices=choices,
         _fixed=lambda *a: None,
         _account_row=lambda *a: {"attributes": {"tax_id": "0105555000099"}}, operator_owned=lambda d: False,
-        save_choices=lambda *args: calls.append(("save",) + args) or {"saved": len(json.loads(args[3]))})
+        save_choices=lambda *args, **kw: calls.append(("save",) + args + ((kw,) if kw else ())) or {
+            "saved": len(json.loads(args[3]))})
     policy = ns(SKIPPED_PREFIX="document_policy_skip_", VALUES=("enter", "skip"),
                 document_class=lambda fields: "payment_evidence" if block else "")
     goods_posting = ns(blocked=lambda *a, **k: goods, company_key=lambda *a: "tax:0105555000099")
@@ -224,6 +232,52 @@ class Collect(unittest.TestCase):
         self.assertEqual((item["value"], item["source"], item["subject"]), ("K2", card.REMEMBERED, "K1|K2"))
 
 
+# 2026-10-20 教程录制：NL-0907-2569-04 票面是赊购，这家记住的是现购，写进去是现购（HP690907-001），CC 推前却照票种说赊购
+PLANNED = {"payment": "cash", "payment_from": "remembered", "account": "5100",
+           "document_payment": {"payment": "credit", "from": "document_type"}}
+
+
+class PlannedAndHint(unittest.TestCase):
+    """旧工具 ``cowork_push_choices`` 删掉后，推前「会怎么写」（planned）与用户说的费用类别（hint）改由判定带（主会话 11-05）。"""
+
+    def run_document(self, *args, hint=None, **kwargs):
+        module, calls, patcher = load(*args, **kwargs)
+        self.addCleanup(patcher.stop)
+        return module.document("h1", None, hint), calls
+
+    def test_nothing_to_decide_says_how_it_will_be_entered(self):
+        decided = {"applied": {"payment": "cash"}, "decided_by": {"payment": "remembered"}}
+        found, _calls = self.run_document(decided=decided, planned=PLANNED)
+        # 与推送服务试算的同一份（入账后的 written 同一个函数），一字不改交给 CC：推前说现购、说清票面指向赊购
+        self.assertEqual(found["planned"], PLANNED)
+        merged = card.merge([found])
+        self.assertFalse(card.needs_card(merged))
+
+    def test_planned_waits_until_everything_is_decided(self):
+        # 还有预选 / 未定的项：写法要等人答完、重判后再看，不先说
+        found, _calls = self.run_document(needed=(PAYMENT,), planned=PLANNED)
+        self.assertNotIn("planned", found)
+        decided = {"applied": {"payment": "cash"}, "decided_by": {"payment": "remembered"}}
+        found, _calls = self.run_document(block="document_policy_needed_payment_evidence", decided=decided,
+                                          planned=PLANNED)
+        self.assertNotIn("planned", found)
+
+    def test_an_entered_or_queued_document_gives_no_plan(self):
+        decided = {"applied": {"payment": "cash"}, "decided_by": {"payment": "remembered"}}
+        for status in ("success", "pending"):
+            found, _calls = self.run_document(document(last_push_status=status), decided=decided, planned=PLANNED)
+            self.assertNotIn("planned", found, status)
+
+    def test_the_users_expense_words_reorder_the_account_suggestions(self):
+        stationery = [{"code": "5210", "name": "ค่าเครื่องเขียน"}, {"code": "5100", "name": "ค่าใช้จ่าย"}]
+        found, calls = self.run_document(needed=(ACCOUNT,), hinted=stationery)
+        self.assertEqual(Collect.by_kind(None, found)["account"]["value"], "5100")
+        found, calls = self.run_document(needed=(ACCOUNT,), hinted=stationery, hint="ค่าเครื่องเขียน")
+        account = Collect.by_kind(None, found)["account"]
+        self.assertEqual((account["value"], account["source"]), ("5210", card.SUGGESTED))
+        self.assertIn(("choices", None, "ค่าเครื่องเขียน"), calls)
+
+
 class BigLists(unittest.TestCase):
     CHART = [{"code": "5100", "name": "ค่าใช้จ่าย"}] + [{"code": f"6{n:03d}", "name": f"บัญชี {n}"} for n in range(30)]
 
@@ -318,6 +372,47 @@ class SweepAndShared(unittest.TestCase):
         self.assertIn('"allowed": "pearnly_cowork.assistant.operator_source.allowed"', hooks)
         for key in ("check", "remember", "search", "resume"):
             self.assertIn(f'"{key}": "pearnly_cowork.assistant.precheck_source.{key}"', hooks)
+
+    def test_shared_card_carries_planned_and_passes_hint_only_to_products_that_take_it(self):
+        seen = []
+        documents = [{"doc_id": "h1", "items": [], "planned": dict(PLANNED)},
+                     {"doc_id": "h2", "items": [dict(ACCOUNT, value="", source="", search="accounts")]}]
+
+        def with_hint(company, ids, hint=""):
+            seen.append(("with_hint", hint))
+            return {"documents": documents}
+
+        def without_hint(company, ids):
+            seen.append(("without_hint",))
+            return {"documents": documents}
+
+        product = ns(allowed=lambda user, company: True, check=with_hint, remember=lambda *a: None)
+        frappe = frappe_stub([])
+        frappe.parse_json = json.loads
+        frappe.whitelist = lambda **k: (lambda fn: fn)
+        frappe.get_hooks = lambda name: {"check": "p.check", "remember": "p.remember", "allowed": "p.allowed"}
+        frappe.session = ns(user="acc@firm.example")
+        frappe.PermissionError = PermissionError
+        frappe.throw = lambda message, exc=None: (_ for _ in ()).throw((exc or Stop)(message))
+        frappe.get_attr = lambda path: getattr(product, path.split(".")[1])
+        with mock.patch.dict(sys.modules, {"frappe": frappe}):
+            import pearnly_core.write_precheck as package
+            for name in ("products", "api"):
+                sys.modules.pop(f"pearnly_core.write_precheck.{name}", None)
+                package.__dict__.pop(name, None)  # 包上留着前一条测试载入的旧模块（绑着旧的 frappe 替身）
+            from pearnly_core.write_precheck import api
+            out = json.loads(api.tool_check({"company": "CO1", "doc_ids": ["h1", "h2"], "hint": " ค่าเครื่องเขียน "}))
+            # 只有什么都不用定的单带 planned，按单号交给 CC，原样不改
+            self.assertEqual(out["planned"], {"h1": PLANNED})
+            self.assertEqual(seen[-1], ("with_hint", "ค่าเครื่องเขียน"))
+            api.tool_check({"company": "CO1", "doc_ids": ["h1"]})
+            self.assertEqual(seen[-1], ("with_hint", ""))
+            # 没声明 hint 的产品（ERP）照旧两个参数，不因 CC 带了 hint 出错
+            product.check = without_hint
+            api.tool_check({"company": "CO1", "doc_ids": ["h1"], "hint": "stationery"})
+            self.assertEqual(seen[-1], ("without_hint",))
+            documents[0].pop("planned")
+            self.assertNotIn("planned", json.loads(api.tool_check({"company": "CO1", "doc_ids": ["h1"]})))
 
     def test_shared_answer_checks_everything_before_remembering(self):
         calls = []

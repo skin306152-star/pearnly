@@ -336,7 +336,6 @@ class BehaviourTests(unittest.TestCase):
         self.assertEqual(result[1]["reason"], "no_push_target")
 
 
-
 class PushTargetTests(unittest.TestCase):
     """仅识别的单据也能推：这次说的连接与账套优先，没说就用识别时选的。"""
 
@@ -773,7 +772,6 @@ class EditDocumentTests(unittest.TestCase):
         self.assertIn("changed", out["reason"])
 
 
-
 class IntakeChoiceTests(unittest.TestCase):
     """录入口径：每种 ERP 一条连接与状态、上次用的账套排第一、上次口径来自上一次识别；科目组与 MR.ERP 设置走连接服务。"""
 
@@ -880,9 +878,9 @@ class IntakeChoiceTests(unittest.TestCase):
         self.assertEqual((len(asked), "status" in out), (1, False))
 
 
-
 class PushFollowUpTests(unittest.TestCase):
-    """推送前要人选的项（可搜、每类最多 30 个）、保存、结果不明的确认：都走复核页同一套服务。"""
+    """推送前取要选的项（推送那一步的 `_choices_view`）、结果不明的确认：都走复核页同一套服务。要人选的项改由共用卡片
+    （``pearnly_precheck`` + ``ask_user``）问，见 test_cowork_write_precheck。"""
 
     def setUp(self):
         self.calls = []
@@ -895,21 +893,12 @@ class PushFollowUpTests(unittest.TestCase):
                                                                               for i in range(100)]},
                                                      "account_set": "K"}
         tools.application_api.save_choices = lambda *a: self.calls.append(("save",) + a) or {"saved": 1}
-        tools.application_api.save_document_choices = (
-            lambda *a: self.calls.append(("save",) + a) or {"saved": 1, "document_payment": "cash"})
         tools.application_api.resolve_unknown = lambda *a: self.calls.append(("resolve",) + a) or {"status": "success"}
-
-    def test_options_are_capped_and_searchable(self):
-        out = json.loads(tools.push_choices({"document": "H1"}))
-        self.assertEqual((out["connection"], out["needed"][0]["kind"]), ("EXP1", "item"))
-        self.assertEqual((out["options"]["products"]["total"], len(out["options"]["products"]["shown"])), (100, 30))
-        found = json.loads(tools.push_choices({"document": "H1", "search": "item 42"}))["options"]["products"]
-        self.assertEqual(found["shown"], [{"code": "P42", "name": "Item 42"}])
 
     def test_an_unread_account_set_is_read_by_the_companion_then_tried_again(self):
         attempts, calls = [], []
 
-        def view(*a):
+        def view(*a, **k):
             attempts.append(a)
             if len(attempts) == 1:
                 raise frappe.ValidationError("catalog_refresh_invalid")
@@ -920,7 +909,7 @@ class PushFollowUpTests(unittest.TestCase):
         tools.connections_api.refresh_status = lambda *a: calls.append(("status",) + a) or {"status": "succeeded"}
         saved_sleep, tools.time.sleep = tools.time.sleep, lambda s: None
         try:
-            out = json.loads(tools.push_choices({"document": "H1"}))
+            out = tools._choices_view("H1", "EXP1", "K", None)
         finally:
             tools.time.sleep = saved_sleep
         self.assertEqual(len(attempts), 2)
@@ -928,7 +917,7 @@ class PushFollowUpTests(unittest.TestCase):
         self.assertEqual(out["needed"], [])
 
     def test_an_account_set_the_computer_cannot_read_is_explained(self):
-        def stale(*a):
+        def stale(*a, **k):
             raise frappe.ValidationError("catalog_refresh_invalid")
 
         tools.application.choices_view = stale
@@ -936,127 +925,12 @@ class PushFollowUpTests(unittest.TestCase):
         tools.connections_api.refresh_status = lambda *a: {"status": "failed", "error_code": "account_set_missing"}
         saved_sleep, tools.time.sleep = tools.time.sleep, lambda s: None
         try:
-            out = json.loads(tools.push_choices({"document": "H1"}))
+            with self.assertRaises(frappe.ValidationError) as caught:
+                tools._choices_view("H1", "EXP1", "K", None)
         finally:
             tools.time.sleep = saved_sleep
-        self.assertEqual(out["status"], "failed")
-        self.assertIn("account_set_missing", out["reason"])
-        self.assertIn("Choose another account set", out["reason"])
-
-    def test_a_chart_still_being_read_is_waited_for_then_offered(self):
-        """2026-10-13 录制：推往电脑没选的账套（DEMO02），科目表从没读过，CC 拿到 0 个科目、95 张票卡在「要人选」。
-        现在服务端已请电脑读（`view.wait`），工具等它读完再给可选的科目。"""
-        reading = {"needed": [{"kind": "account", "subject": "S"}], "options": {}, "account_set": "K",
-                   "wait": {"state": "reading", "message": "reading"}}
-        ready = {"needed": [{"kind": "account", "subject": "S"}], "account_set": "K",
-                 "options": {"accounts": [{"code": "5300", "name": "Rent"}]}}
-        views = [reading, reading, ready]
-        tools.application.choices_view = lambda *a: views.pop(0)
-        saved_sleep, tools.time.sleep = tools.time.sleep, lambda s: None
-        try:
-            out = json.loads(tools.push_choices({"document": "H1"}))
-        finally:
-            tools.time.sleep = saved_sleep
-        self.assertEqual(out["options"]["accounts"]["shown"], [{"code": "5300", "name": "Rent"}])
-        self.assertNotIn("status", out)
-
-    def test_a_chart_not_read_in_time_says_reading_instead_of_an_empty_list(self):
-        tools.application.choices_view = lambda *a: {"needed": [{"kind": "account", "subject": "S"}], "options": {},
-                                                     "account_set": "K",
-                                                     "wait": {"state": "reading", "message": "reading"}}
-        clock = iter(range(0, 1000, 20))
-        saved = tools.time.sleep, tools.time.monotonic
-        tools.time.sleep, tools.time.monotonic = (lambda s: None), (lambda: next(clock))
-        try:
-            out = json.loads(tools.push_choices({"document": "H1"}))
-        finally:
-            tools.time.sleep, tools.time.monotonic = saved
-        self.assertEqual(out["status"], "reading")
-        self.assertIn("still reading", out["note"])
-        self.assertNotIn("options", out)
-        for state in ("offline", "update_needed", "failed"):
-            tools.application.choices_view = lambda *a, state=state: {
-                "needed": [{"kind": "account"}], "options": {}, "account_set": "K",
-                "wait": {"state": state, "message": state}}
-            out = json.loads(tools.push_choices({"document": "H1"}))
-            self.assertEqual(out["status"], state)
-            self.assertEqual(out["note"], tools.MASTERS_WAITING[state])
-
-    def test_the_users_expense_note_is_passed_on_and_suggestions_come_back(self):
-        """第 4、6 条：会计员在消息里说了「ค่าเครื่องเขียน」，CC 把它当提示交给建议；建议原样交给模型，由它请会计员确认。"""
-        seen = []
-        suggested = [{"code": "5320-01", "name": "ค่าเครื่องเขียน", "source": "hint", "reason": "Matches"}]
-
-        def view(*a, **k):
-            seen.append(k)
-            return {"needed": [{"kind": "account", "subject": "S", "suggested": suggested}], "account_set": "K",
-                    "options": {"accounts": [{"code": "5320-01", "name": "ค่าเครื่องเขียน"}]}}
-
-        tools.application.choices_view = view
-        out = json.loads(tools.push_choices({"document": "H1", "hint": "  ค่าเครื่องเขียน "}))
-        self.assertEqual(seen, [{"hint": "ค่าเครื่องเขียน"}])
-        self.assertEqual(out["needed"][0]["suggested"], suggested)
-        json.loads(tools.push_choices({"document": "H1"}))
-        self.assertEqual(seen[-1], {})  # 没说就不传
-        description = next(t for t in tools.TOOLS if t["name"] == "cowork_push_choices")
-        self.assertIn("hint", description["input_schema"]["properties"])
-        self.assertIn("never save a suggestion the user has not confirmed", description["description"])
-
-    def test_the_suppliers_history_still_being_read_is_waited_for_briefly(self):
-        reading = {"needed": [{"kind": "account", "subject": "S", "suggested": []}], "options": {},
-                   "account_set": "K", "history": "reading"}
-        ready = {"needed": [{"kind": "account", "subject": "S", "suggested": [{"code": "5300", "source": "history"}]}],
-                 "options": {}, "account_set": "K"}
-        views = [reading, reading, ready]
-        tools.application.choices_view = lambda *a, **k: views.pop(0)
-        saved_sleep, tools.time.sleep = tools.time.sleep, lambda s: None
-        try:
-            out = json.loads(tools.push_choices({"document": "H1"}))
-        finally:
-            tools.time.sleep = saved_sleep
-        self.assertEqual(out["needed"][0]["suggested"][0]["source"], "history")
-        # 一直没读完：最多等 HISTORY_WAIT_SECONDS，照样给按名称的建议，不干等
-        tools.application.choices_view = lambda *a, **k: dict(reading)
-        clock = iter(range(0, 1000, 5))
-        saved = tools.time.sleep, tools.time.monotonic
-        tools.time.sleep, tools.time.monotonic = (lambda s: None), (lambda: next(clock))
-        try:
-            out = json.loads(tools.push_choices({"document": "H1"}))
-        finally:
-            tools.time.sleep, tools.time.monotonic = saved
-        self.assertEqual(out["needed"][0]["kind"], "account")
-        self.assertLessEqual(next(clock), 5 * (tools.HISTORY_WAIT_SECONDS // 5 + 3))
-
-    def test_choices_are_saved_for_the_document_target(self):
-        items = [{"kind": "item", "subject": "Coffee", "value": "P1"}]
-        out = json.loads(tools.save_push_choices({"document": "H1", "items": items}))
-        self.assertEqual(out["status"], "saved")
-        self.assertEqual(self.calls[0][:4], ("save", "H1", "EXP1", "K"))
-        self.assertEqual(json.loads(self.calls[0][4]), items)
-        # 2026-10-20 教程录制：CC 记的现 / 赊同时是这张票自己的（同一家供应商的两张票各记各的），结果里说写成了什么
-        self.assertEqual(out["result"]["document_payment"], "cash")
-        self.assertIn("document_payment", next(tool for tool in tools.TOOLS
-                                               if tool["name"] == "cowork_save_push_choices")["description"])
-
-    def test_nothing_to_choose_shows_how_it_will_be_entered(self):
-        """2026-10-20 教程录制：推前 CC 照票种说 NL-0907-2569-04 赊购，写进去是按记住的现购（HP690907-001）。没有要选的项时
-        `cowork_push_choices` 带上推出去会怎么写（planned，与入账后的 written 同一个函数），说明要 CC 推前照它说。"""
-        planned = {"payment": "cash", "payment_from": "remembered",
-                   "document_payment": {"payment": "credit", "from": "document_type"}}
-        tools.application.choices_view = lambda *a: {"needed": [], "options": {}, "account_set": "K",
-                                                     "planned": dict(planned)}
-        out = json.loads(tools.push_choices({"document": "H1"}))
-        self.assertEqual(out["planned"], planned)
-        # 已入账的不给（看 written）
-        self.doc.last_push_status = "success"
-        try:
-            self.assertNotIn("planned", json.loads(tools.push_choices({"document": "H1"})))
-        finally:
-            del self.doc.last_push_status
-        description = next(tool for tool in tools.TOOLS if tool["name"] == "cowork_push_choices")["description"]
-        self.assertIn("planned", description)
-        self.assertIn("document_payment", description)
-        self.assertIn("never from the document type", description)
+        self.assertIn("account_set_missing", str(caught.exception))
+        self.assertIn("Choose another account set", str(caught.exception))
 
     def test_unknown_result_is_confirmed_only_with_a_push_to_confirm(self):
         tools.resolve_push_result({"document": "H1", "entered": True, "docnum": "RR001"})
@@ -1064,7 +938,6 @@ class PushFollowUpTests(unittest.TestCase):
         self.doc.last_push_record = ""
         out = json.loads(tools.resolve_push_result({"document": "H1", "entered": False}))
         self.assertEqual(out["status"], "not_saved")
-
 
 
 class DeleteAndExportTests(unittest.TestCase):
@@ -1105,7 +978,6 @@ class DeleteAndExportTests(unittest.TestCase):
         self.assertEqual(self.calls[1][2], b"PK-xlsx")
         self.assertRegex(self.calls[1][1], r"^cowork-review-\d{8}-\d{6}\.xlsx$")  # 每次导出新名字，对话里出新卡片
         self.assertTrue(out["files_added_to_chat"])
-
 
 
 class FolderTaskTests(unittest.TestCase):
@@ -1238,7 +1110,6 @@ class FolderTaskTests(unittest.TestCase):
         out = json.loads(tools.save_folder_task({"title": "B", "connection": "EXP1"}))
         self.assertEqual(out["status"], "not_saved")
         self.assertIn("overlaps", out["reason"])
-
 
 
 class ReconTests(unittest.TestCase):
@@ -1397,7 +1268,6 @@ class ReconTests(unittest.TestCase):
         self.assertEqual((out["files_added_to_chat"], out["files_note"]), (True, tools.FILES_ADDED_NOTE))
         with self.assertRaises(frappe.ValidationError):
             tools.recon_list({"kind": "payroll"})
-
 
 
 class TaxDraftTests(unittest.TestCase):
@@ -1680,7 +1550,6 @@ class StocktakeAndWorkTests(unittest.TestCase):
         self.assertEqual(out["cards"][1]["list"], "Done")
         out = json.loads(tools.work_board({"mine": True}))
         self.assertEqual([c["card"] for c in out["cards"]], ["C1"])
-
 
 
 class ApprovalPreviewTests(unittest.TestCase):
@@ -3092,14 +2961,12 @@ class ListAndRunsTests(unittest.TestCase):
         self.assertNotRegex(said, r"(?i)(change|correct|fix|edit)[^.]{0,60}\bin (Express|MR\.ERP)[^.]{0,60}(then|and)"
                                   r"[^.]{0,30}read")
         self.assertIn("do not suggest changing it in Express or MR.ERP", tools.ENTERED_RESULT)
-        # 结果提示：已入账的单改了 Pearnly 里的记录、查 / 存选项时带上 entered_note；没入账的不带
+        # 结果提示：已入账的单改了 Pearnly 里的记录时带上 entered_note；没入账的不带
         self.assertEqual(tools._entered_note("success"), {"entered_note": tools.ENTERED_RESULT})
         for status in (None, "", "pending", "failed", "manual"):
             self.assertEqual(tools._entered_note(status), {})
         source = (ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py").read_text(encoding="utf-8")
         self.assertIn('return _json({"status": "saved", **out, **_entered_note(out.get("push_status"))})', source)
-        self.assertIn('return _json({**out, **_entered_note(getattr(doc, "last_push_status", None))})', source)
-        self.assertIn('"result": result, **_entered_note(getattr(doc, "last_push_status", None))})', source)
 
     def test_entered_documents_are_never_sent_anywhere_to_be_changed_in_any_language(self):
         """第 6 轮测试：改已入账的 SD-6909-1010 科目，CC 说了改不了、给了单号泰铢时间，最后一句仍是「ถ้าต้องการให้ใบนี้ลงบัญชี
@@ -3534,21 +3401,16 @@ class FolderTaskDeclarationTests(unittest.TestCase):
         self.assertNotIn("must be pushed again", edit)
         self.assertIn("not pushed again", edit)
         self.assertIn("already_success", self._tool("cowork_push_documents")["description"])
-        self.assertIn("task_defaults", self._tool("cowork_push_choices")["description"])
+        # 推前「会怎么写」：照 pearnly_precheck 的 planned 说（2026-10-20 教程录制：推前说赊购，写进去是现购）
+        push = self._tool("cowork_push_documents")["description"]
+        for words in ("planned in pearnly_precheck", "never from the document type", "document_payment",
+                      "pearnly_precheck_answer"):
+            self.assertIn(words, push)
+        self.assertNotIn("cowork_push_choices", json.dumps(tools.TOOLS))
         # 新任务处理文件夹里还没处理过的，包括建任务前已有的（不再说只收新放入的）
         self.assertNotIn("new photos", self._tool("cowork_save_folder_task")["description"])
         self.assertNotIn("only handles files put in the folder after now",
                          self._tool("cowork_set_folder_task_enabled")["description"])
-
-    def test_task_defaults_come_back_with_push_choices(self):
-        doc = types.SimpleNamespace(push_connection="EXP1", push_account_set="K", posting_kind="service")
-        fixed = {"needed": [], "options": {}, "fixed": {"account": "5100"}}
-        with mock.patch.object(tools.storage, "read", lambda name: doc, create=True), \
-                mock.patch.object(tools.application, "choices_view", lambda *a: fixed, create=True):
-            out = json.loads(tools.push_choices({"document": "H1"}))
-            self.assertEqual(out["task_defaults"], {"account": "5100"})
-            fixed.pop("fixed")
-            self.assertNotIn("task_defaults", json.loads(tools.push_choices({"document": "H1"})))
 
 
 class FolderFilesTests(unittest.TestCase):
@@ -3872,12 +3734,7 @@ class AccountSetNameTests(unittest.TestCase):
                                                     "push_account_set": self.KEY, "pages": [{"fields": {}}]}):
             self.assertNamedFirst(tools._document("H1"), "push_account_set")
 
-    def test_push_choices_stock_group_and_task_runs_name_the_account_set(self):
-        doc = types.SimpleNamespace(push_connection="EXP1", push_account_set=self.KEY, posting_kind="stock")
-        with mock.patch.object(tools.storage, "read", lambda name: doc), \
-                mock.patch.object(tools.application, "choices_view", create=True,
-                                  new=lambda *a: {"needed": [], "options": {}, "account_set": self.KEY.lower()}):
-            self.assertNamedFirst(json.loads(tools.push_choices({"document": "H1"})), "account_set")
+    def test_stock_group_and_task_runs_name_the_account_set(self):
         with mock.patch.object(tools.connections_api, "stock_acc_group", create=True,
                                new=lambda name, key: {"account_set_key": key.lower(), "known": True, "groups": []}):
             self.assertNamedFirst(json.loads(tools.stock_group({"connection": "EXP1", "account_set_key": self.KEY})),
@@ -4380,24 +4237,15 @@ class StoppedAccountSetTests(unittest.TestCase):
         self.assertEqual((plain["account_label"], plain["push_account_set"]), ("70EXP · T.9 ตัวอย่าง", self.T9))
         self.assertNotIn("push_target", plain)
 
-    def test_pushing_or_choosing_does_not_fall_back_to_the_stored_set(self):
+    def test_pushing_does_not_fall_back_to_the_stored_set(self):
         stored = types.SimpleNamespace(**self.doc(), posting_kind="", record_version=1, last_push_record="")
         stored.get = lambda key, default=None: getattr(stored, key, default)
-        seen = []
         with mock.patch.object(tools.storage, "read", lambda name: stored), \
-                mock.patch.object(tools.storage, "project", create=True, new=lambda doc: self.doc()), \
-                mock.patch.object(tools, "_choices_waited", create=True,
-                                  new=lambda name, connection, account_set, kind, hint: seen.append(account_set) or {
-                                      "needed": [], "options": {}, "account_set": account_set}):
+                mock.patch.object(tools.storage, "project", create=True, new=lambda doc: self.doc()):
             out = json.loads(tools.push_documents({"documents": ["H1"]}))["results"][0]
             self.assertEqual((out["status"], out["reason"], out["account_set_options"]),
                              ("needs_choice", "account_set_not_chosen", self.BOOKS))
             self.assertEqual((self.pushed, self.chosen), ([], []))
-            out = json.loads(tools.push_choices({"document": "H1"}))
-            self.assertEqual((out["status"], out["account_set_options"]), ("account_set_not_chosen", self.BOOKS))
-            out = json.loads(tools.save_push_choices({"document": "H1", "items": [{"kind": "account", "value": "1"}]}))
-            self.assertEqual((out["status"], out["reason"]), ("not_saved", "account_set_not_chosen"))
-            self.assertEqual(seen, [])
             # 说了候选里的一份：走待处理当场换账套同一条（推成了才抄去向、记现用账套）
             out = json.loads(tools.push_documents({"documents": ["H1"], "account_set_key": "s:\\68exp\\67niexcp"}))
             self.assertEqual(self.chosen, [("H1", "s:\\68exp\\67niexcp")])
@@ -4411,19 +4259,15 @@ class StoppedAccountSetTests(unittest.TestCase):
             self.current, self.chosen[:] = "s:\\68exp\\t7", []
             json.loads(tools.push_documents({"documents": ["H1"]}))
             self.assertEqual(self.chosen, [("H1", "s:\\68exp\\t7")])
-            tools.push_choices({"document": "H1"})
-            self.assertEqual(seen, ["s:\\68exp\\t7"])
             # 普通单照旧走 _push_one、按票上那份看
             stored.last_push_reason = ""
             json.loads(tools.push_documents({"documents": ["H1"]}))
             self.assertEqual(self.pushed, [("H1", None, None, None)])
-            tools.push_choices({"document": "H1"})
-            self.assertEqual(seen[-1], self.T9)
         self.assertEqual(self.pushed[-1:], [("H1", None, None, None)])
 
     def test_cc_is_told_a_stopped_document_has_no_account_set_yet(self):
         declared = {tool["name"]: tool["description"] for tool in tools.TOOLS}
-        for name in ("cowork_list_documents", "cowork_document_detail", "cowork_push_documents", "cowork_push_choices"):
+        for name in ("cowork_list_documents", "cowork_document_detail", "cowork_push_documents"):
             self.assertIn("account set not chosen yet", declared[name], name)
             self.assertIn("never name one as its account set", declared[name], name)
         # 推停下的单、记成现用账套时：同组跟着走的张数要告诉用户、它们没被推（10-19 验收：CC 说成「G 不动」）；说明与结果同名
@@ -4599,15 +4443,6 @@ class MrErpTests(unittest.TestCase):
         self.assertIn("cowork_mrerp_setup", found["note"])
         self.assertNotIn("handling_choice_needed", found)
 
-    def test_push_choices_say_mrerp_has_none_and_point_to_the_setup(self):
-        out = json.loads(tools.push_choices({"document": "H1"}))
-        self.assertEqual((out["adapter"], out["needed"]), ("mrerp", []))
-        self.assertEqual(out["mrerp_setup"]["menus"], ["purchase"])
-        self.assertIn("no per-document choices", out["note"])
-        saved = json.loads(tools.save_push_choices({"document": "H1", "items": [{"kind": "party", "value": "X"}]}))
-        self.assertEqual(saved["status"], "not_saved")
-        self.assertIn("cowork_mrerp_setup", saved["reason"])
-
     def test_the_setup_view_is_short_and_follows_the_direction(self):
         self.view = _mrerp_view(menus=("purchase",), defaults=("ap_account",), options=200)
         with mock.patch.object(tools.connections_api, "mrerp_menu", lambda name, key: json.loads(json.dumps(self.view)),
@@ -4714,23 +4549,15 @@ class MrErpTests(unittest.TestCase):
         self._undeclared(document_type="tax_invoice", vat="53.90", buyer_tax="0999900019123", buyer_name="บริษัท ทดสอบ")
         self.view = _mrerp_view(defaults=("bank_account", "ar_account", "ap_account", "supplier_type"))
         self.view["kinds"]["purchase_expense"]["chosen"] = "454"
-        out = json.loads(tools.push_choices({"document": "H1"}))
-        self.assertEqual(out["mrerp_entry"], {"entered_as": "purchase", "menu": "ซื้อ"})
-        self.assertEqual(out["mrerp_setup"]["defaults"], ["supplier_type", "ap_account"])
-        self.assertEqual(out["mrerp_setup"]["direction"], "purchase")
-        self.assertIn("never guess it from the items", out["note"] + tools.MRERP_ENTRY_NOTE)
         pushed = tools._push_one("H1")
         self.assertEqual(pushed["mrerp_setup"]["defaults"], ["supplier_type", "ap_account"])
         self.assertIn("ask the user for all of them in one message", pushed["note"])
         # 第 1 张：无买方的简易税票（别家开来的）→ 采购（费用），菜单是 454
         self._undeclared(document_type="simplified_tax_invoice", vat="42.00")
-        out = json.loads(tools.push_choices({"document": "H1"}))
-        self.assertEqual(out["mrerp_entry"], {"entered_as": "purchase_expense", "menu": "ซื้อ2"})
-        # 卖方是这家公司：销项，不给采购菜单的预判，只问销项用得到的
+        self.assertEqual(tools._push_one("H1")["mrerp_setup"]["direction"], "purchase")
+        # 卖方是这家公司：销项，只问销项用得到的
         self._undeclared(document_type="tax_invoice", vat="315.00", seller_tax="0999900019123", buyer_tax="0105569004563")
-        out = json.loads(tools.push_choices({"document": "H1"}))
-        self.assertNotIn("mrerp_entry", out)
-        self.assertEqual(out["mrerp_setup"]["defaults"], ["ar_account", "bank_account"])
+        self.assertEqual(tools._push_one("H1")["mrerp_setup"]["defaults"], ["ar_account", "bank_account"])
         # 详情同样带着（还没推的才带）
         detail = {"name": "H1", "pages": [{"fields": {"document_type": "simplified_tax_invoice", "vat": "1",
                                                       "seller_tax": "0105569004563"}}],

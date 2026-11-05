@@ -5447,6 +5447,11 @@ class AskUserTests(unittest.TestCase):
         self.assertEqual(declared["ask_user"]["refuse"], "pearnly_core.assistant.ask.problem")
         for name in ("pearnly_precheck", "pearnly_precheck_answer"):
             self.assertTrue(declared[name]["handler"].startswith("pearnly_core.write_precheck.api.tool_"))
+        # 旧的 cowork_push_choices 删掉后（主会话 11-05）：推前说现 / 赊、科目照判定带的 planned，不照票种；用户说的费用类别经 hint 交
+        precheck = declared["pearnly_precheck"]
+        for words in ("planned", "never from the document type", "hint"):
+            self.assertIn(words, precheck["description"])
+        self.assertIn("hint", precheck["input_schema"]["properties"])
 
 
 class ModeGateTests(unittest.TestCase):
