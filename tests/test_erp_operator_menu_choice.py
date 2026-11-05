@@ -128,6 +128,41 @@ class Payload(Case):
             self.assertEqual(route(self.push.SALES, "SI-1"), wanted, row)
         self.assertEqual(route(self.push.STOCK, "STE-1"), "")
 
+    def test_pay_route_follows_the_payment_rows_when_they_agree(self):
+        """主会话 11-05：已付清的采购单，付款明细（不算冲销行）方式全一致就按明细；不一致或没有明细按单头；没付清不给。"""
+        route = self.push.operator_pay_route
+        payments = fake.STATE.db.table(self.push.PURCHASE_PAYMENT)
+
+        def rows(*methods, reversal=()):
+            payments.clear()
+            for index, method in enumerate(methods):
+                payments[f"PAY-{index}"] = {"name": f"PAY-{index}", "parent": "PI-1", "parenttype": self.push.PURCHASE,
+                                            "method": method, "is_reversal": 0}
+            for index, method in enumerate(reversal):
+                payments[f"REV-{index}"] = {"name": f"REV-{index}", "parent": "PI-1", "parenttype": self.push.PURCHASE,
+                                            "method": method, "is_reversal": 1}
+            payments["OTHER"] = {"name": "OTHER", "parent": "PI-9", "parenttype": self.push.PURCHASE, "method": "cheque",
+                                 "is_reversal": 0}  # 别的单的明细不算
+
+        header = {"name": "PI-1", "is_paid": 1, "payment_method": "cheque"}  # 单头认不出：看得出是不是按明细
+        self.docs["PI-1"] = dict(header)
+        rows("cash", "cash")
+        self.assertEqual(route(self.push.PURCHASE, "PI-1"), "cash")              # 明细都是现金
+        rows("transfer", "promptpay", reversal=("cash",))
+        self.assertEqual(route(self.push.PURCHASE, "PI-1"), "")                   # 明细混合：退回单头（cheque → 空）
+        rows("bank", "bank", reversal=("cash",))
+        self.assertEqual(route(self.push.PURCHASE, "PI-1"), "transfer")          # 明细都是转账，冲销行不算
+        self.docs["PI-1"] = {**header, "payment_method": "transfer"}
+        rows("cash", "transfer")
+        self.assertEqual(route(self.push.PURCHASE, "PI-1"), "transfer")          # 混合：按单头
+        rows()
+        self.assertEqual(route(self.push.PURCHASE, "PI-1"), "transfer")          # 没有明细：按单头
+        rows("", "")
+        self.assertEqual(route(self.push.PURCHASE, "PI-1"), "transfer")          # 明细没写方式：按单头
+        self.docs["PI-1"] = {"name": "PI-1", "is_paid": 0, "payment_status": "partial", "payment_method": "cash"}
+        rows("cash")
+        self.assertEqual(route(self.push.PURCHASE, "PI-1"), "")                   # 没付清：不给
+
 
 class Judge(Case):
     def test_the_stop_is_read_from_the_stored_receipt_through_the_shared_filter(self):

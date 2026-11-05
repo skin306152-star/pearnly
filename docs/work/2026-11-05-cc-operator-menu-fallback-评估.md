@@ -173,7 +173,8 @@ CC 桌面版的 A/B/C 与 D 的 CC 部分（读 `form_choice` / `pay_route`、�
 - 载荷：`push.send` 代录交单处 `for_operator(…, form_choice=choices.operator_form(公司, 准备选出的账套, payload.doctype),
   pay_route=push.operator_pay_route(单据))`。`operator_pay_route`：采购（`is_paid` 或已付清）/ 销售（已收清）才按单据「付款方式」
   `payment_method` 认（cash → 现金；transfer / promptpay / bank → 转账；cheque / other → 空）；没付清的不给（赊购 / 赊销；采购付款方式
-  默认是现金，不算数）。没记过、没付清时载荷与以前逐字节相同，不升载荷版本；直写不带。
+  默认是现金，不算数）。主会话 11-05 补：采购的付款明细（`ERP Purchase Payment`，不算冲销行、没写方式的行）方式全一致就按明细认，
+  不一致或没有明细退回单头（销售单没有付款明细，只看单头）。没记过、没付清时载荷与以前逐字节相同，不升载荷版本；直写不带。
 - 回执：ERP 走共用机器通道 `cc_desktop.jobs`，回执 `meta` 原样存在写账件 `meta_json`（那一层不净化）。ERP 读时先过同一个共用净化
   `common.clean_operator_meta`，再 `menu_choice.stopped_at`。
 - 预检：`express/precheck.menu_stop`（单据当前那件写账件是代录交的 `erp:operator:`、状态 manual、有账套、回执带候选）→

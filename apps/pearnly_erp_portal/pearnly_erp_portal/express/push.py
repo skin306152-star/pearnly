@@ -467,8 +467,9 @@ def send(doctype, name, operator=None):
 
 
 def operator_pay_route(doctype, name) -> str:
-    """代录载荷 ``operator.pay_route``：已付 / 已收的采购、销售单按单据「付款方式」（``payment_method``）认现金 / 转账，定不下来回空
-    （`pearnly_core.express_operator.menu_choice.pay_route`）。没付清的单不给（赊购 / 赊销；采购的付款方式默认是现金，不算数）。"""
+    """代录载荷 ``operator.pay_route``：已付清 / 已收清的采购、销售单认现金 / 转账，定不下来回空
+    （`pearnly_core.express_operator.menu_choice.pay_route`）。采购的付款明细（不算冲销行）方式全一致就按明细；明细不一致或没有明细，
+    按单头「付款方式」（``payment_method``）。没付清的单不给（赊购 / 赊销；采购的付款方式默认是现金，不算数）。"""
     from pearnly_core.express_operator.menu_choice import pay_route
 
     if doctype == PURCHASE:
@@ -479,7 +480,18 @@ def operator_pay_route(doctype, name) -> str:
         paid = row.get("payment_status") == "paid"
     else:
         return ""
-    return pay_route(row.get("payment_method")) if paid else ""
+    if not paid:
+        return ""
+    methods = set()
+    if doctype == PURCHASE:
+        methods = {str(item.get("method") or "") for item in frappe.get_all(  # bounded: 一张单的付款明细
+            PURCHASE_PAYMENT, filters={"parent": name, "parenttype": doctype}, fields=["method", "is_reversal"],
+            limit_page_length=PAYMENT_ROWS_MAX) if not item.get("is_reversal") and item.get("method")}
+    return pay_route(methods.pop() if len(methods) == 1 else row.get("payment_method"))
+
+
+PURCHASE_PAYMENT = "ERP Purchase Payment"
+PAYMENT_ROWS_MAX = 200  # 一张采购单的付款明细（正常几行）
 
 
 def mrerp_run(doctype, name):
