@@ -202,8 +202,8 @@ def _with_menu(found, menu) -> dict:
 
 
 def _remember_menu(stop, subject, value, label) -> int:
-    """记下这家这本账套这种单走哪个子菜单命令：值须是这张单停下时 CC 读到的候选之一。直接记进选择记忆（不经
-    `service.save_choices`：那条路的可选值只认写账规则的类）。``stop``：`_menu_stop` 的结果。"""
+    """记下这家这本账套这种单走哪个子菜单命令：值须是这张单停下时 CC 读到的候选之一（没停下、单种不是这张的由 :func:`remember`
+    先跳过）。直接记进选择记忆（不经 `service.save_choices`：那条路的可选值只认写账规则的类）。``stop``：`_menu_stop` 的结果。"""
     from pearnly_cowork.push import choices as choice_store
 
     if not stop or str(subject or "").strip().upper() != stop["doc_type"] or value not in stop["codes"]:
@@ -476,8 +476,9 @@ def remember(company, answers) -> dict:
                 continue
             if kind == OPERATOR_FORM:
                 stop = _menu_stop(doc)
-                if stop and str(row.get("subject") or "").strip().upper() != stop["doc_type"]:
-                    continue  # 批里别的单停下的单种（旧前端把同一份答案带给每一张）：不是这张的，跳过、不拒、不占「记过」
+                if not stop or str(row.get("subject") or "").strip().upper() != stop["doc_type"]:
+                    # 这张没停在子菜单、或停的不是这种单（旧前端把同一份答案带给批里每一张）：不是这张的，跳过、不拒、不占「记过」
+                    continue
                 key = (*once, stop.get("connection"), stop.get("account_set"))
                 if key not in done:
                     done.add(key)

@@ -168,6 +168,17 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
     return module, calls, patcher
 
 
+def load_operator(checking):
+    """真加载代录来源（`assistant.operator_source`，交单那一步）：记答案走 ``checking``（上面真加载的判定模块），其余替身。"""
+    sys.modules["pearnly_cowork.assistant"].precheck_source = checking
+    sys.modules["pearnly_cowork.companies"].rules = ns(groups=lambda company: {})
+    spec = importlib.util.spec_from_file_location(
+        "cowork_operator_source_under_test", ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 PARTY = {"kind": "party", "subject": "purchase|0105555000011|00000|ร้าน a", "label": "ร้าน A",
          "options": [{"code": "S1", "name": "ร้าน A", "branch": "00000"}, {"code": "S2", "name": "ร้าน A สาขา 2",
                                                                          "branch": "00002"}], "current": ""}
@@ -506,13 +517,33 @@ class MenuChoice(unittest.TestCase):
         self.assertEqual([c for c in calls if c[0] == "save"], [])
         self.assertEqual(out["saved"], 1)
 
-    def test_without_the_stopped_record_nothing_is_remembered(self):
+    def test_without_the_stopped_record_the_answer_is_skipped(self):
+        """读不到停下的那条推送记录（没停在子菜单）：这张带的子菜单答案跳过、不拒、不记（同 ERP，主会话 11-05）。"""
         module, calls, patcher = load(menu_stop(), record_book=None, menu=MENU)
         self.addCleanup(patcher.stop)
-        with self.assertRaises(Stop):
-            module.remember("CO1", {"h1": [{"kind": "operator_form", "subject": "HP", "value": MENU_OPTIONS[0],
-                                            "label": "", "remember": True}]})
+        out = module.remember("CO1", {"h1": [{"kind": "operator_form", "subject": "HP", "value": MENU_OPTIONS[0],
+                                              "label": "", "remember": True}]})
+        self.assertEqual(out["saved"], 0)
         self.assertEqual([c for c in calls if c[0] == "record"], [])
+
+    def test_one_stopped_and_one_not_with_the_same_answer_are_both_sent_and_remembered_once(self):
+        """一批一张停在子菜单、一张没停，旧前端把同一份答案带给每一张：经代录交单逐张记，两张都交出、只记一次。"""
+        stopped = menu_stop(name="h1")
+        plain = document(name="h2")
+        module, calls, patcher = load(stopped, menu=MENU)
+        self.addCleanup(patcher.stop)
+        docs = {"h1": stopped, "h2": plain}
+        sys.modules["pearnly_cowork.history.storage"].read = lambda name: docs[name]
+        operator_source = load_operator(module)
+        row = {"kind": "operator_form", "subject": "HP", "value": MENU_OPTIONS[1], "label": "HP", "remember": True}
+        sent = []
+        sys.modules["pearnly_cowork.assistant"].tools = ns(_push_one=lambda name, **k: sent.append(name) or {"status": "sent"})
+        with mock.patch.object(operator_source, "_settle", lambda name, memory: None):
+            out = operator_source.submit("CO1", ["h1", "h2"], {"id": "b1", "total": 2}, "PC-1", {"h1": [row], "h2": [row]})
+        self.assertEqual([item["status"] for item in out], ["sent", "sent"])
+        self.assertEqual(sent, ["h1", "h2"])
+        self.assertEqual([c for c in calls if c[0] == "record"],
+                         [("record", "C9", "K9", "operator_form", "HP", MENU_OPTIONS[1], "HP")])
 
     def test_two_documents_stopped_at_different_doc_types_each_keep_their_own(self):
         """W3 审看：一批两张分别停在 RR、HS，旧前端把同一份答案（RR、HS 两项）带给每一张：单种不是这张的跳过、不拒，两张各记一次；
@@ -543,14 +574,18 @@ class MenuChoice(unittest.TestCase):
             module.remember("CO1", {"h1": [{**answers[0], "value": "ซื้อเงินเชื่อ"}, answers[1]]})
         self.assertEqual([c for c in calls if c[0] == "record"], [])
 
-    def test_a_value_that_was_not_offered_is_refused(self):
-        for doc, value in ((menu_stop(), "ซื้อเงินเชื่อ"), (document(), MENU_OPTIONS[0])):
-            module, calls, patcher = load(doc, menu=MENU)
-            self.addCleanup(patcher.stop)
-            with self.subTest(value=value), self.assertRaises(Stop):
-                module.remember("CO1", {"h1": [{"kind": "operator_form", "subject": "HP", "value": value,
-                                                "remember": True}]})
-            self.assertEqual([c for c in calls if c[0] == "record"], [])
+    def test_a_value_that_was_not_offered_is_refused_and_a_document_that_did_not_stop_skips_it(self):
+        module, calls, patcher = load(menu_stop(), menu=MENU)
+        self.addCleanup(patcher.stop)
+        with self.assertRaises(Stop):  # 停下且单种对上、值不在候选里
+            module.remember("CO1", {"h1": [{"kind": "operator_form", "subject": "HP", "value": "ซื้อเงินเชื่อ",
+                                            "remember": True}]})
+        self.assertEqual([c for c in calls if c[0] == "record"], [])
+        module, calls, patcher = load(document(), menu=MENU)  # 没停在子菜单：跳过、不拒、不记
+        self.addCleanup(patcher.stop)
+        out = module.remember("CO1", {"h1": [{"kind": "operator_form", "subject": "HP", "value": MENU_OPTIONS[0],
+                                              "remember": True}]})
+        self.assertEqual((out["saved"], [c for c in calls if c[0] == "record"]), (0, []))
 
 
 class SweepAndShared(unittest.TestCase):
