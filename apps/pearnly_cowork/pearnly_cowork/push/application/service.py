@@ -267,12 +267,36 @@ def prepare(history, connection, request_key, expected_history_version, expected
     if operator and prepared.disposition == "ready":
         from pearnly_core.express_operator import contracts as operator_contracts
 
-        payload = operator_contracts.for_operator(payload, operator)
+        # 定制菜单的子菜单多个候选（评估 2026-11-05 修法 D）：这家这本账套这种单记住的菜单文字，与按票面付款文字认的现金 / 转账
+        payload = operator_contracts.for_operator(
+            payload, operator, form_choice=choice_store.operator_form(loaded.doc.name, target.account_set,
+                                                                      payload.get("doctype")),
+            pay_route=operator_pay_route(fields))
     row = ledger.reserve(context=context, request_key=request_key, frozen_target=frozen,
         frozen_payload=payload,
         disposition="prepared" if prepared.disposition == "ready" else "manual",
         reason=prepared.reason or "", checks=prepared.preflight.checks_json(), route_device=route_device)
     return _view(row)
+
+
+def operator_pay_route(fields) -> str:
+    """代录载荷 ``operator.pay_route``：票面付款文字（识别出的付款方式；印了收现金 / 找零的算现金）按共用规则认现金 / 转账，
+    定不下来回空（`pearnly_core.express_operator.menu_choice.pay_route`）。``posting_payment_manual`` 是现购 / 赊购，不是付款途径，不看。"""
+    from decimal import Decimal, InvalidOperation
+
+    from pearnly_core.express_operator.menu_choice import pay_route
+
+    def positive(value) -> bool:
+        try:
+            return Decimal(str(value or "0").replace(",", "").strip() or "0") > 0
+        except InvalidOperation:
+            return False
+
+    fields = fields or {}
+    texts = [fields.get("payment_method")]
+    if positive(fields.get("cash_amount")) or positive(fields.get("change_amount")):
+        texts.append("cash")
+    return pay_route(*texts)
 
 
 def _proposal_outcome(doc, connection, account_set, fields, direction, payload, account_row=None):

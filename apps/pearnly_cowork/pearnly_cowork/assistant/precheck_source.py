@@ -9,7 +9,10 @@
   只收「缺了就没法正确写入」的项（Express、MR.ERP 都不拦的不收，用户 11-04）。定时任务默认处理定下的不进卡片（改了只对本次生效，
   不进账套记忆，10-08 口径）。
 - :func:`remember`：卡片答案按各类现有的记法记下：账套记忆（`service.save_choices`）、租户口径（`history.document_policy`）、
-  公司入账方式（`goods_posting.choose`）、公司分组（`operator_source.regroup`）、现用账套（`companies.pending`）。
+  公司入账方式（`goods_posting.choose`）、公司分组（`operator_source.regroup`）、现用账套（`companies.pending`）、代录子菜单
+  （``operator_form``，直接记进选择记忆 `push.choices.record`，不经 `save_choices`：那条路只认写账规则的类）。
+- 代录停在定制菜单的子菜单（回执原因 ``[OPERATOR_MENU_CHOICE] 单种: 候选 | 候选``，记在单据上）：判定里收一项 ``operator_form``
+  （归类键 = 单据种类，选项 = 候选菜单文字），代录预检原来的回包也列进 ``needed``；记住后再交时载荷带 ``operator.form_choice``。
 - :func:`resume`：待处理里停着的单记下答案后按原来的写入路径重推（同待处理页「当场选」）。
 
 只看不写：判定里记付款方式的那一笔整笔回滚（同 `choices_view`）；只有按公司记住的分组照代录预检的做法先落到单据上。
@@ -30,6 +33,7 @@ DOCUMENT_POLICY = "document_policy"
 GOODS_POSTING = "goods_posting"
 CURRENT_BOOK = "current_book"
 PAYMENT = "payment"
+OPERATOR_FORM = "operator_form"  # 代录停在定制菜单的子菜单（原因 menu_choice）：这家这本账套这种单走哪个命令（评估 2026-11-05 修法 D）
 # 写账规则记下的来源（`push.express.decide` 的 ``decided_by``）→ 卡片的来源
 DECIDED_BY = {"remembered": card.REMEMBERED, "company_rule": card.COMPANY_RULE,
               "express_history": card.EXPRESS_HISTORY}
@@ -73,6 +77,7 @@ def document(history, posting_kind=None, hint=None) -> dict:
         return {**base, "state": card.UNKNOWN, "reason": service.RESULT_UNKNOWN, "record": legacy["record"],
                 "legacy": legacy}
     items, target, found, loaded, legacy = [], None, None, None, None
+    menu = _menu_item(doc)
     try:
         if not doc.push_connection:
             frappe.throw(_("cowork.company.pending.no_target"))
@@ -123,7 +128,7 @@ def document(history, posting_kind=None, hint=None) -> dict:
         if subject:
             items.append({"kind": DIRECTION, "subject": subject, "label": name,
                           "options": [{"code": code} for code in ("purchase", "expense", "sales")]})
-        return {**out, "state": card.CHECK, "items": items}
+        return _with_menu({**out, "state": card.CHECK, "items": items}, menu)
     goods = _goods_item(doc, loaded, found, decision, kind, posting_from, today)
     if goods:
         items.append(goods)
@@ -140,7 +145,71 @@ def document(history, posting_kind=None, hint=None) -> dict:
             and getattr(doc, "last_push_status", None) not in ("pending", "success"):
         # 什么都不用定（全部已定）才给：还有预选 / 未定的项时写法要等人答完、重判后再看
         out["planned"] = view["planned"]
-    return {**out, "state": card.CHECK, "items": items}
+    return _with_menu({**out, "state": card.CHECK, "items": items}, menu)
+
+
+def _menu_of(doc) -> tuple:
+    """这张单停在定制菜单的子菜单（最近一次推送转人工、原因 ``menu_choice``）：(单据种类, [候选的值])；不是回 ("", [])。"""
+    from pearnly_core.express_operator import menu_choice
+
+    if str(getattr(doc, "last_push_status", "") or "") != "manual":
+        return "", []
+    doc_type, options = menu_choice.parse_reason(getattr(doc, "last_push_reason", ""))
+    codes = list(dict.fromkeys(code for code in (menu_choice.option_code(option) for option in options) if code))
+    return (doc_type, codes) if doc_type and codes else ("", [])
+
+
+def _menu_book(doc) -> tuple:
+    """代录子菜单记在哪份账套：停下的那条推送记录写的连接与账套（交单时载荷按同一份读），读不到按单据上的去向。"""
+    record = str(getattr(doc, "last_push_record", "") or "")
+    found = frappe.db.get_value("Cowork Push Record", record, ["connection", "account_key"], as_dict=True) if record else None
+    if isinstance(found, dict) and found.get("connection") and found.get("account_key"):
+        return str(found["connection"]), str(found["account_key"])
+    return str(getattr(doc, "push_connection", "") or ""), str(getattr(doc, "push_account_set", "") or "")
+
+
+def _menu_item(doc):
+    """停在子菜单的单要人定的那一项（没有回 None）：选项是 CC 读到的候选菜单文字；这份账套这种单记过、且仍在候选里的是已定。"""
+    doc_type, codes = _menu_of(doc)
+    if not doc_type:
+        return None
+    from pearnly_cowork.push import choices as choice_store
+
+    connection, account_set = _menu_book(doc)
+    remembered = choice_store.operator_form(connection, account_set, doc_type) if connection and account_set else ""
+    value = remembered if remembered in codes else ""
+    return {"kind": OPERATOR_FORM, "subject": doc_type, "label": doc_type, "value": value,
+            "source": card.REMEMBERED if value else "", "options": [{"code": code, "name": ""} for code in codes]}
+
+
+def _with_menu(found, menu) -> dict:
+    """判定结果里加上子菜单那一项；还没定的同时列进代录预检原来的回包（``needed``，中途选那张卡片照它出下拉）。"""
+    if not menu or found.get("state") != card.CHECK:
+        return found
+    found["items"] = [*(found.get("items") or []), {**menu, "direction": found.get("direction") or ""}]
+    legacy = dict(found.get("legacy") or {})
+    if not menu["value"]:
+        need = {key: menu[key] for key in ("kind", "subject", "label", "options")}
+        if legacy.get("state") == "ready":
+            legacy = {"state": "choose", "needed": [need], **({"target": legacy["target"]} if "target" in legacy else {})}
+        elif legacy.get("state") == "choose":
+            legacy["needed"] = [*(legacy.get("needed") or []), need]
+        found["legacy"] = legacy
+    return found
+
+
+def _remember_menu(doc, subject, value, label) -> int:
+    """记下这家这本账套这种单走哪个子菜单命令：值须是这张单停下时 CC 读到的候选之一。直接记进选择记忆（不经
+    `service.save_choices`：那条路的可选值只认写账规则的类）。"""
+    from pearnly_cowork.push import choices as choice_store
+
+    doc_type, codes = _menu_of(doc)
+    if not doc_type or str(subject or "").strip().upper() != doc_type or value not in codes:
+        frappe.throw(_("cowork.choice.invalid"))
+    connection, account_set = _menu_book(doc)
+    if not connection or not account_set:
+        frappe.throw(_("cowork.company.pending.no_target"))
+    return int(bool(choice_store.record(connection, account_set, OPERATOR_FORM, doc_type, value, label or doc_type)))
 
 
 def operator_check(history, posting_kind=None) -> dict:
@@ -404,6 +473,12 @@ def remember(company, answers) -> dict:
                 if kind != PAYMENT:
                     frappe.throw(_("cowork.choice.invalid"))
                 saved += _set_document_payment(doc, value)
+                continue
+            if kind == OPERATOR_FORM:
+                key = (*once, *_menu_book(doc))
+                if key not in done:
+                    done.add(key)
+                    saved += _remember_menu(doc, row.get("subject"), value, str(row.get("label") or ""))
                 continue
             if kind in CHOICE_KINDS:
                 key = (*once, doc.push_connection, doc.push_account_set)

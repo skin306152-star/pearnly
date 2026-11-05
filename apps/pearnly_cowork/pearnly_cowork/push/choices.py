@@ -20,9 +20,14 @@ from frappe import _
 from frappe.utils import now_datetime
 
 from pearnly_cowork.push.express.automation import OVERRIDE_DAYS, OVERRIDE_KINDS
-from pearnly_core.express_rules.push.choices import KINDS
+from pearnly_core.express_operator.menu_choice import KIND as OPERATOR_FORM
+from pearnly_core.express_rules.push.choices import KINDS as RULE_KINDS
 from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
+# 记得住的类：写账规则那几类（`express_rules.push.choices.KINDS`）+ 代录子菜单选哪一项（``operator_form``，归类键 = 单据种类、
+# 值 = 菜单文字，评估 2026-11-05 修法 D）。``operator_form`` 不是写账规则：不进 `remembered` / `of_sets`（推送判定、自动推指纹、
+# 公司主档页的「记住的选择」都照旧），只经 `operator_form` 读
+KINDS = RULE_KINDS + (OPERATOR_FORM,)
 DOCTYPE = "Cowork Express Choice"
 OVERRIDE_DOCTYPE = "Cowork Express Choice Change"
 DOCTYPES = (DOCTYPE, OVERRIDE_DOCTYPE)
@@ -56,14 +61,26 @@ def _key(connection, account_set, kind, subject):
 
 
 def remembered(connection, account_set) -> dict:
-    """这份账套里记过的选择：`{kind: {subject: value}}`（值为空的不算）。"""
+    """这份账套里记过的写账规则选择：`{kind: {subject: value}}`（值为空的不算；代录子菜单 ``operator_form`` 不在内）。"""
     account_set = normalize_express_account_key(account_set)
     rows = frappe.db.sql(f"""SELECT kind, subject, value FROM `tab{DOCTYPE}`
-        WHERE connection=%s AND account_set=%s AND COALESCE(value, '')!=''""", (connection, account_set), as_dict=True)
-    found = {kind: {} for kind in KINDS}
+        WHERE connection=%s AND account_set=%s AND kind!=%s AND COALESCE(value, '')!=''""",
+                         (connection, account_set, OPERATOR_FORM), as_dict=True)
+    found = {kind: {} for kind in RULE_KINDS}
     for row in rows:
         found.setdefault(row.kind, {})[row.subject] = row.value
     return found
+
+
+def operator_form(connection, account_set, doc_type) -> str:
+    """这份账套这种单（``HP`` / ``RR`` …）记住的代录子菜单文字（代录载荷 ``operator.form_choice``）；没记过回空串。"""
+    doc_type = str(doc_type or "").strip().upper()
+    if not connection or not account_set or not doc_type:
+        return ""
+    found = frappe.db.sql(f"""SELECT value FROM `tab{DOCTYPE}` WHERE connection=%s AND account_set=%s AND kind=%s
+        AND subject=%s AND COALESCE(value, '')!='' LIMIT 1""",
+                          (connection, normalize_express_account_key(account_set), OPERATOR_FORM, doc_type))
+    return str(found[0][0] or "") if found else ""
 
 
 def chosen_at(connection, account_set, kind, subject):
@@ -158,14 +175,14 @@ CHOICE_FIELDS = ["name", "account_set", "kind", "subject", "label", "value", "ch
 
 
 def of_sets(connection, account_sets, limit=200) -> list:
-    """一家公司各年度账套（公司主档，ADR-020）里记过的选择，新 → 旧，最多 `limit` 条（值为空的不算）。只读；调用方已核过
+    """一家公司各年度账套（公司主档，ADR-020）里记过的写账规则选择（代录子菜单不列），新 → 旧，最多 `limit` 条（值为空的不算）。只读；调用方已核过
     这条连接的推送权限，合并同类（同一类别、同一归类键只留最新一条）由调用方做。"""
     sets = sorted({normalize_express_account_key(item) for item in account_sets or () if item})
     if not connection or not sets:
         return []
     return frappe.db.sql(f"""SELECT {", ".join(CHOICE_FIELDS)} FROM `tab{DOCTYPE}`
-        WHERE connection=%s AND account_set IN %s AND COALESCE(value, '')!=''
-        ORDER BY chosen_at DESC LIMIT %s""", (connection, tuple(sets), int(limit)), as_dict=True)
+        WHERE connection=%s AND account_set IN %s AND kind!=%s AND COALESCE(value, '')!=''
+        ORDER BY chosen_at DESC LIMIT %s""", (connection, tuple(sets), OPERATOR_FORM, int(limit)), as_dict=True)
 
 
 def forget(connection, account_sets, kind, subjects, replaced_by=None) -> int:
@@ -187,5 +204,5 @@ def forget(connection, account_sets, kind, subjects, replaced_by=None) -> int:
     return len(rows)
 
 
-__all__ = ["CHOICE_FIELDS", "DOCTYPE", "DOCTYPES", "OVERRIDE_DOCTYPE", "OVERRIDE_KEEP_DAYS", "OVERRIDE_SCAN_MAX", "deny",
-           "deny_query", "forget", "guard", "latest", "of_sets", "overrides", "record", "reject_share", "remembered"]
+__all__ = ["CHOICE_FIELDS", "DOCTYPE", "DOCTYPES", "KINDS", "OPERATOR_FORM", "OVERRIDE_DOCTYPE", "OVERRIDE_KEEP_DAYS", "OVERRIDE_SCAN_MAX", "deny",
+           "deny_query", "forget", "guard", "latest", "of_sets", "operator_form", "overrides", "record", "reject_share", "remembered"]
