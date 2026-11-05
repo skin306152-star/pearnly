@@ -169,6 +169,8 @@ class Runner:
         self._reopen = bool(state.started)
         if hasattr(engine, "may_void"):
             engine.may_void = self.may_void  # 作废第二道闸由批次把关
+        if hasattr(engine, "batch_id"):
+            engine.batch_id = state.id  # 引擎写日志时带上批次号
 
     # ── 控制（CC 窗口经桥调用，任意线程）──────────────────────────────────────
     def pause(self) -> None:

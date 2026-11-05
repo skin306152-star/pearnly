@@ -38,7 +38,7 @@ _hidden += [
 # 这里再逐个列一遍兜底；配方是数据文件（每种表单怎么录），随包放在模块旁边。只用 ctypes，排除名单不动。
 _hidden += [f"src.companion.express_operator.{name}" for name in (
     "contract", "draft", "recipe", "desk", "win32_desk", "bg_desk", "engine", "helper", "book", "precheck", "session",
-    "credentials", "presence", "probe", "batch", "evidence", "host", "login_dialog", "scheduler")]
+    "credentials", "presence", "probe", "batch", "evidence", "host", "login_dialog", "scheduler", "menu")]
 _datas_operator = [("../src/companion/express_operator/recipes/*.json", "src/companion/express_operator/recipes")]
 
 a = Analysis(

@@ -447,6 +447,15 @@ def _ack_operator(cfg, qc, task, result, meta):
         return None
     reason = str(result.get("reason") or "unknown_screen")
     outcome = "waiting_lock" if status == "waiting" else "needs_review"
+    # 没存上的单记一行（托盘只记「任务状态异常」时，看日志就知道是哪张、为什么）；说明只取前 200 字
+    info = result.get("meta") or {}
+    options = info.get("menu_options") if reason == "menu_choice" else None
+    batch = ((task.payload or {}).get("operator") or {}).get("batch") or {} if isinstance(task.payload, dict) else {}
+    doc = batch.get("doc") or task.invoice_no or "-"
+    (log.info if status in ("waiting", "stopped", "skipped") else log.warning)(
+        f"operator result · task={task.id} · doc={doc} · batch={info.get('batch') or '-'} · status={status} · "
+        f"reason={reason} · detail={str(result.get('detail') or '')[:200]!r}"
+        + (f" · menu_options={len(options or [])}" if reason == "menu_choice" else ""))
     qc.ack_failure(task.id, result.get("detail") or reason, error_code=f"OPERATOR_{reason.upper()}", outcome=outcome,
                    meta=meta)
     return outcome

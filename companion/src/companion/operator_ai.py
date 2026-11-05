@@ -7,16 +7,28 @@ from __future__ import annotations
 from typing import Callable, Dict, Optional
 
 from . import channel
+from .logger import get_logger
 
 TIMEOUT_S = 180.0  # 一轮电脑操作（Opus、带截图）几十秒
+log = get_logger(__name__)
+_NOTED: set = set()  # 接不上 AI 的原因每种只记一次（每批装配都会问，不刷日志）
+
+
+def _note_missing(reason: str, base: str) -> None:
+    if (reason, base) in _NOTED:
+        return
+    _NOTED.add((reason, base))
+    log.info(f"operator ai not connected · reason={reason} · site={base or '-'}")
 
 
 def transport_for(settings, batch_id: str) -> Optional[Callable[[str, Dict], Dict]]:
     """这个成员的 ``transport(kind, request) -> response``；没有站点或这种通道没有这个方法回 None（照旧判断不了就交人）。"""
     token = str(getattr(settings, "bearer_token", "") or "")
     base = str(getattr(settings, "backend_url", "") or "")
-    path = channel.path(token, "operator_ai")
+    path = channel.path(token, "operator_ai") if token else ""
     if not token or not base or not path:
+        # 代录照样录，只是认不出的画面判断不了、交给人：说明里写「ai not connected」，这里记下是哪一种
+        _note_missing("no_token" if not token else "no_site" if not base else "channel_has_no_operator_ai", base)
         return None
 
     def transport(kind: str, request: Dict) -> Dict:

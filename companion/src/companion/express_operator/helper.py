@@ -105,7 +105,7 @@ class NoHelper:
         return None
 
     def take_over(self, goal: str, tools: Tools) -> Tuple[str, str]:
-        return "need_human", "no helper"
+        return "need_human", "ai not connected"
 
 
 def png_block(png_b64: str) -> Dict:

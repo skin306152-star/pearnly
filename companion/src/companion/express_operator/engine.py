@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import logging
 import re
 import time
 from decimal import Decimal
@@ -21,6 +22,9 @@ from . import menu as M
 from .desk import MenuAmbiguous
 from .draft import Draft
 from .helper import NoHelper, png_block
+
+# 写进 companion.log（托盘进程的日志）：AI 接不上时的错误码，不含截图与请求体
+log = logging.getLogger("pearnly_companion.express_operator")
 from .recipe import Form, Recipe
 
 MAX_TAKEOVERS_PER_DOC = 3
@@ -119,6 +123,7 @@ class Engine:
         self._menu_options: Dict[str, List[str]] = {}  # 单种 → 这家子菜单里的候选（这一批里见过的）
         self._form_choice = ""  # 当前开着的单据窗口是按哪个候选开的
         self._ai_menu_path: Optional[List[str]] = None
+        self.batch_id = ""  # 写日志用（批次给）
 
     # ── 记录 ────────────────────────────────────────────────────────────────
     def _event(self, kind: str, **data) -> None:
@@ -265,14 +270,15 @@ class Engine:
             self._event("check", where=where, problem="", after_pause=True)  # 人碰过 Express：等人停手后重读就对了
             return True
         png = self.screenshot(where)
+        failed = ""
         try:
             answer = self.helper.check(png, f"期望：{expect_text}\n草稿单：\n{self._describe()}")
         except RuntimeError as error:  # 站点没接上 / 出错（预算用完是 BudgetStop，照旧往上抛）：当作判断不了
-            self._event("ai_unavailable", where=where, note=str(error)[:200])
+            failed = self._ai_unavailable(where, error)
             answer = None
         self.rec["checkpoints"] += 1
         self._layer("vision")
-        problem = f"no helper; {self._screen_note()}" if answer is None else self._judge(answer, expect)
+        problem = f"{self._ai_note(failed)}; {self._screen_note()}" if answer is None else self._judge(answer, expect)
         self._event("check", where=where, problem=problem)
         if not problem:
             return True
@@ -280,6 +286,19 @@ class Engine:
             return False
         self._recover(where, problem, expect_text, expect)
         return True
+
+    def _ai_note(self, failed: str = "") -> str:
+        """判断不了时说明里写清是哪一种：这台没接 AI（成员通道没有 operator_ai）、AI 调用出错（站点回的错误码）、AI 没给答案。"""
+        if failed:
+            return f"ai unavailable: {failed}"
+        return "ai not connected" if isinstance(self.helper, NoHelper) else "ai gave no answer"
+
+    def _ai_unavailable(self, where: str, error: Exception) -> str:
+        code = str(error)[:80] or type(error).__name__
+        self._event("ai_unavailable", where=where, note=code)
+        log.warning(f"operator ai unavailable · batch={self.batch_id or '-'} · doc={(self.rec or {}).get('doc_id') or '-'}"
+                    f" · where={where} · error={code}")
+        return code
 
     def _describe(self) -> str:
         return self.draft.describe() if self.draft else "（探路，没有草稿单）"
@@ -309,9 +328,12 @@ class Engine:
                 + ("这一步本来就是保存：确认保存成功即可，不要重复保存。\n" if expect.get("saved") else "不要保存。\n")
                 + f"草稿单：\n{self._describe()}\n做完调用 finish。")
         try:
-            status, note = self.helper.take_over(goal, self)
+            if isinstance(self.helper, NoHelper):
+                status, note = "need_human", self._ai_note()
+            else:
+                status, note = self.helper.take_over(goal, self)
         except RuntimeError as error:  # 站点没接上 / 出错：交给人（预算用完是 BudgetStop，照旧往上抛）
-            status, note = "need_human", f"ai unavailable: {error}"
+            status, note = "need_human", self._ai_note(self._ai_unavailable(where, error))
         self._event("takeover", where=where, status=status, note=note[:200])
         if status == "resolved":
             ok = reverify() if reverify else None
@@ -322,7 +344,9 @@ class Engine:
                 if where.startswith("line"):
                     self._line_recovered = True
                 return
-        raise NeedHuman("unknown_screen", f"{where}: {problem}")
+        # 说明里先写 AI 那一侧怎么了（没接 / 出错 / AI 自己的结论），再写固定流程的问题（菜单树等可能很长，放后面）
+        ai = note if note.startswith("ai ") else f"ai: {note or status}"
+        raise NeedHuman("unknown_screen", f"{where}: {ai[:120]} · {problem}")
 
     def _xy(self, coord) -> Tuple[int, int]:
         return int(round(coord[0] * self.scale)), int(round(coord[1] * self.scale))
