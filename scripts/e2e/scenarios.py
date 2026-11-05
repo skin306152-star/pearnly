@@ -12,12 +12,28 @@
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
-I18N = Path(__file__).resolve().parents[2] / "frontend" / "assistant" / "src" / "i18n.ts"
+ROOT = Path(__file__).resolve().parents[2]
+I18N = ROOT / "frontend" / "assistant" / "src" / "i18n.ts"
+REPLY_TIMEOUT = 90_000
+
+
+def _cc_js() -> str:
+    """CC 对话页的页面帮手（say / mode / toMode / pickCompany / rows……），与流程用例同一份 scripts/flows/cc_lib.py。"""
+    spec = importlib.util.spec_from_file_location("cc_lib", ROOT / "scripts" / "flows" / "cc_lib.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.JS
+
+
+def cc(page, body: str):
+    return page.evaluate("async () => {" + _cc_js() + body + "}")
 
 
 class NotTested(Exception):
@@ -135,7 +151,8 @@ def by_words(page, selector: str, key: str):
     """selector 里文字等于词条（任一语言）且看得见的那个元素。"""
     texts = words(key)
     handle = page.wait_for_function(
-        "([sel, texts]) => [...document.querySelectorAll(sel)].find(e => e.getClientRects().length && texts.includes(e.innerText.trim()))",
+        "([sel, texts]) => [...document.querySelectorAll(sel)].find(e => e.getClientRects().length"
+        " && texts.includes(e.innerText.trim().split('\\n')[0].trim()))",   # 菜单项后面可能带快捷键（如「ลบ D」）
         arg=[selector, texts], timeout=NAV_TIMEOUT)
     return handle.as_element()
 
@@ -245,9 +262,78 @@ def add_company_step(page, ctx):
     no_trouble(hops, [ctx.site])
 
 
+ROW = '[data-slot="aui_thread-list-item"]'
+# 界面删除对话用的同一个接口（assistant.api.delete，POST，带 CSRF），回 [状态码, 正文]
+DELETE = """async id => { const r = await fetch('/api/method/pearnly_core.assistant.api.delete', {method: 'POST',
+  headers: {'X-Frappe-CSRF-Token': window.csrf_token || '', 'Content-Type': 'application/x-www-form-urlencoded'},
+  body: new URLSearchParams({session_id: id})}); return [r.status, (await r.text()).slice(0, 300)]; }"""
+
+
+def delete_chat(page, ctx, row_id: str):
+    """走产品的删除：侧栏这条对话的「更多」→ 删除 → 确认；之后侧栏里没有它。对话标题会被模型改写，所以按行编号认。"""
+    if ctx.run != "desktop":
+        page.click('[data-slot="cc-nav-toggle"]')
+        page.wait_for_timeout(400)
+    row = page.locator(f'{ROW}[data-row-id="{row_id}"]')
+    row.hover()
+    row.locator('[data-slot="aui_thread-list-item-more"]').click()
+    by_words(page, "[role=menuitem]", "delete").click()
+    page.click('[data-slot="cc-delete-chats-yes"]')
+    row.wait_for(state="detached", timeout=NAV_TIMEOUT)
+
+
+def chat_one_step(page, ctx):
+    """新对话发一句固定的话：90 秒内有助手回复、没有出错卡片，侧栏出现这条对话；跑完走产品的删除把它删掉。"""
+    hops = start(page, ctx)
+    title = f"e2e {time.strftime('%H%M%S')} ตอบคำว่า OK คำเดียว"
+    before = {item["id"] for item in cc(page, "return await listed('chat');")}
+    expect(cc(page, f"return await say({json.dumps(title)});"), "输入框发不出去（发送钮不可用）")
+    reply = page.locator('[data-slot="aui_assistant-message-content"]').last
+    try:
+        page.wait_for_function("() => { const all = document.querySelectorAll('[data-slot=\"aui_assistant-message-content\"]');"
+                               " return all.length && all[all.length - 1].innerText.trim().length > 0; }", timeout=REPLY_TIMEOUT)
+    except Exception as error:  # noqa: BLE001  超时就是没回复
+        raise Failed(f"{REPLY_TIMEOUT // 1000} 秒内没有助手回复") from error
+    errors = page.locator('[data-slot="aui_thread-viewport"] [data-slot*="error"]')
+    expect(not errors.count() or not errors.first.is_visible(), f"对话里出现了出错卡片：{errors.first.inner_text()[:80] if errors.count() else ''}")
+    expect(reply.inner_text().strip(), "助手回复是空的")
+    new_id = ""
+    for _ in range(60):   # 侧栏同一个接口（assistant.api.listing）里多出来的那一条就是这次的对话
+        fresh = [item["id"] for item in cc(page, "return await listed('chat');") if item["id"] not in before]
+        if fresh:
+            new_id = fresh[0]
+            break
+        page.wait_for_timeout(500)
+    expect(new_id, "侧栏接口里没有出现这条对话")
+    if ctx.run == "desktop":
+        # 电脑：走界面「更多 → 删除 → 确认」（当前行在页面上可能还是本地临时编号，按页面上的认）
+        delete_chat(page, ctx, page.locator(f"{ROW}[data-active]").get_attribute("data-row-id"))
+    else:
+        # 手机的删除是长按出菜单（触摸事件，WebKit 上模拟不稳）：调界面删除用的同一个接口清理，界面那条路由电脑宽度覆盖。
+        # 回复刚出来时服务端会话可能还在收尾（running），这时删不掉：等侧栏接口里它不再是运行中再删
+        item = {}
+        for _ in range(60):
+            item = next((s for s in cc(page, "return await listed('chat');") if s["id"] == new_id), {})
+            # 回复后服务端还在给这条对话起标题，这期间删会锁等待超时回 500（11-05 实测）：等标题不再是发的那句话、也不在运行中
+            if item.get("status") not in ("queued", "running", "rescheduling") and item.get("title") and item["title"] != title:
+                break
+            page.wait_for_timeout(500)
+        deleted = page.evaluate(DELETE, new_id)
+        expect(deleted[0] == 200, f"删除接口回 {deleted[0]}：{deleted[1][:120]}（删时状态 {item.get('status')}）")
+    gone = False
+    for _ in range(40):   # 删除落库可能晚一点：最多等 20 秒
+        gone = cc(page, f"const id = {json.dumps(new_id)}; return !(await listed('chat')).some(s => s.id === id);")
+        if gone:
+            break
+        page.wait_for_timeout(500)
+    expect(gone, f"删掉后侧栏接口里还有这条对话 {new_id}")
+    no_trouble(hops, [ctx.site])
+
+
 STEPS: dict = {}
 for _product in ("erp", "cowork"):
     STEPS[f"e2e.{_product}.login"] = login_step
     STEPS[f"e2e.{_product}.switch-site"] = switch_site_step
     STEPS[f"e2e.{_product}.logout"] = logout_step
     STEPS[f"e2e.{_product}.add-company"] = add_company_step
+    STEPS[f"e2e.{_product}.chat-one"] = chat_one_step
