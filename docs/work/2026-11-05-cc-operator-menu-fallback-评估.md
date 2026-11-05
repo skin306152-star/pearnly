@@ -164,3 +164,26 @@ CC 桌面版的 A/B/C 与 D 的 CC 部分（读 `form_choice` / `pay_route`、�
 - ERP 待接（另一个窗口的 `express/precheck.py` 合入后）：交代录载荷时同样传 `form_choice` / `pay_route`（付款文字取 ERP 单据「付款方式」）；
   回执若经共用通道存，同一个净化已放行 `meta.operator` 两项；它的预检钩子对停在子菜单的单用 `menu_choice.stopped_at` 报 `operator_form`
   项、记住处自己定（ERP 没有 Cowork 的选择记忆表）。
+
+### 14.1 ERP 接上（11-05，变基到 origin/main 0691f8241 后，W3 的 `express/precheck.py` 已在基线里）
+
+- 记在哪：ERP 已有的按公司记住的选择 `ERP Express Choice`（公司 + 类 + 对象，`kind` 是 Data 列不是 Select），加一类 `operator_form`，
+  对象 = 「账套 key | 单据种类（大写）」，值 = 菜单文字。**不改 DocType、不加字段、不用 migrate。** `express/choices.py`：
+  `operator_subject` / `operator_form(公司, 账套, 单种)`；`remembered()` 查询排除这一类（写账准备的输入照旧）。
+- 载荷：`push.send` 代录交单处 `for_operator(…, form_choice=choices.operator_form(公司, 准备选出的账套, payload.doctype),
+  pay_route=push.operator_pay_route(单据))`。`operator_pay_route`：采购（`is_paid` 或已付清）/ 销售（已收清）才按单据「付款方式」
+  `payment_method` 认（cash → 现金；transfer / promptpay / bank → 转账；cheque / other → 空）；没付清的不给（赊购 / 赊销；采购付款方式
+  默认是现金，不算数）。没记过、没付清时载荷与以前逐字节相同，不升载荷版本；直写不带。
+- 回执：ERP 走共用机器通道 `cc_desktop.jobs`，回执 `meta` 原样存在写账件 `meta_json`（那一层不净化）。ERP 读时先过同一个共用净化
+  `common.clean_operator_meta`，再 `menu_choice.stopped_at`。
+- 预检：`express/precheck.menu_stop`（单据当前那件写账件是代录交的 `erp:operator:`、状态 manual、有账套、回执带候选）→
+  `menu_item` 报 `{kind: operator_form, subject: 单种, label: 单种, value, source, options: [{code: 菜单文字, name: ""}]}`，记过且仍在候选里
+  为已定（`remembered`）；`document_view` 在 CHECK 状态把它加进 items（带 direction）。代录预检原来的回包 `operator.with_menu`：还没定的
+  列进 `needed`（ready → choose，原因 `choice_needed:operator_form`；choose 时追加）。
+- 记住：`precheck.save_answers`（卡片 `remember` 钩子与代录交单前的 `operator._remember` 同一条）：`operator_form` 单开一支，值须是这张单
+  停下时的候选、单种对上，否则整批拒（先核完再记，其它项也不记）；`remember: false` 不记；其余项照原来 `save` 收齐后核。
+- 公司页：ERP 没有「记住的选择」显示 / 修改入口（`ERP Express Choice` 只在写账准备里读），本次不新造；要看要改时另评估。无新文案。
+- 写账准备不受影响：测试证明库里多两条 `operator_form` 时 `remembered`、准备结论与载荷、预检收齐的项逐字相同。ERP 没有自动推指纹。
+- 测试：`tests/test_erp_operator_menu_choice.py`（新，已登记 Development checks）；`tests/test_express_operator_code_cc.py` 的 ERP 预检替身补
+  `menu_item`。影响清单（`check-impact.py`，只算 ERP 四个文件）：命中共用件无；只改到调用方的入口 `erp.cc.write`、`erp.cc.stock-void`、
+  `cc.operator.page`、`erp.mrerp.direct`、`erp.entry.choices`，本窗口不碰测试机，均「没测到（待合入前在实验栈 / 测试机实测）」；离线覆盖见上。
