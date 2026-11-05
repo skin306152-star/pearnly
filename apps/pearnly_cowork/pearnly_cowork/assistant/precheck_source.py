@@ -192,6 +192,7 @@ def _with_menu(found, menu) -> dict:
     found["items"] = [*(found.get("items") or []), {**menu, "direction": found.get("direction") or ""}]
     legacy = dict(found.get("legacy") or {})
     if not menu["value"]:
+        found.pop("planned", None)  # 「会怎么写」只在什么都不用定时给（同 :func:`document`），子菜单还没定就不给
         need = {key: menu[key] for key in ("kind", "subject", "label", "options")}
         if legacy.get("state") == "ready":
             legacy = {"state": "choose", "needed": [need], **({"target": legacy["target"]} if "target" in legacy else {})}

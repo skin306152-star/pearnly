@@ -482,6 +482,15 @@ class MenuChoice(unittest.TestCase):
         found, _calls, _m = self.run_document(menu_stop(), needed=(ITEM,), menu=MENU)
         self.assertEqual([need["kind"] for need in found["legacy"]["needed"]], ["item", "operator_form"])
 
+    def test_an_open_submenu_drops_what_the_push_would_write(self):
+        """「会怎么写」（planned）只在什么都不用定时给：别的都已定、子菜单还没定时不给；子菜单已记住时照给。"""
+        planned = {"payment": "cash"}
+        found, _calls, _m = self.run_document(menu_stop(), menu=MENU, planned=planned)
+        self.assertNotIn("planned", found)
+        found, _calls, _m = self.run_document(menu_stop(), menu=MENU, planned=planned,
+                                              menu_memory={("C9", "K9", "HP"): MENU_OPTIONS[0]})
+        self.assertEqual(found["planned"], planned)
+
     def test_a_remembered_option_still_offered_is_decided(self):
         found, _calls, _m = self.run_document(menu_stop(), menu=MENU, menu_memory={("C9", "K9", "HP"): MENU_OPTIONS[0]})
         menu = {item["kind"]: item for item in found["items"]}["operator_form"]
