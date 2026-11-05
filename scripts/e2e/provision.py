@@ -35,7 +35,7 @@ import run as e2e  # noqa: E402  凭据文件的位置与键名与执行器同�
 SSH = os.environ.get("PEARNLY_PRODUCTION_SSH", "pearnly")
 ACCOUNTS = [
     {"key": "ERP", "product": "erp", "site": "testerp.pearnly.com", "username": "e2eerp", "first_name": "E2E", "last_name": "ERP",
-     "roles": ["ERP Menu company"], "extra_roles": ["ERP Admin"], "service": "pearnly_erp_portal.team.service"},
+     "roles": ["ERP Menu company", "ERP Menu purchase"], "extra_roles": ["ERP Admin"], "service": "pearnly_erp_portal.team.service"},
     {"key": "COWORK", "product": "cowork", "site": "testcowork.pearnly.com", "username": "e2ecowork", "first_name": "E2E",
      "last_name": "Cowork", "roles": ["Cowork Intake"], "extra_roles": [], "service": "pearnly_cowork.team.service"},
 ]

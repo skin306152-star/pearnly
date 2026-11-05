@@ -372,3 +372,30 @@ pearnly-business、pearnly-cowork 两个池里都没有 `e2eerp`。脚本已改�
 
 删后回读：pearnly-business 池里没有这个客户端了；pearnly-cowork 池里的 `testcowork.pearnly.com` 照常在、已启用；
 从外部看 testcowork 的 `/assistant` 照常转 fatcc.com，站点登录照常走 pearnly-cowork 池、登录页 200。
+
+### 第三次 `--apply`（11-05 11:2x，主会话同意 ERP 岗位改名并补最小菜单权限）
+
+ERP 测试账号 `e2eerp` 给的角色与原因（14 个场景里 ERP 那 7 个逐个核过权限判定）：
+
+| 角色 | 为什么要 | 对应场景 |
+|---|---|---|
+| ERP Menu company | 添加成员至少要一个岗位；CC 里列公司、读公司资料要 `company.read`（`access/menu.py` 的 company 菜单） | 添加公司、代录选公司 |
+| ERP Menu purchase | 代录新建任务按 `express/operator.allowed` 要 `purchase.write` 或 `sales.write`，ERP Admin 本身不带 | 代录新建任务 |
+| ERP Admin | 「添加公司」只有产品管理员能用（`rules.COMPANY_MANAGE_ROLES`）；添加成员按规定不外发，脚本单独加，只限 testerp 这一个测试账号 | 添加公司（11-03 事故 3） |
+| Desk User | 添加成员自带的基础角色 | — |
+
+登录、切换站点、退出、LIFF、对话这几个场景不需要别的角色；没有 User Permission，所以能用全部启用的公司（`masters/company.allowed_companies`）。
+Cowork 测试账号 `e2ecowork` 只有 Cowork Intake（添加公司、代录都按它判）与 Desk User。
+
+| 回读项 | testerp `e2eerp` | testcowork `e2ecowork` |
+|---|---|---|
+| 账号 | 通过：新建 `e2eerp.testerp@pearnly.com` | 通过：已存在，密码对齐本机文件 |
+| 已启用 | 通过 | 通过 |
+| 角色 | 通过：Desk User、ERP Admin、ERP Menu company、ERP Menu purchase | 通过：Cowork Intake、Desk User |
+| 统一身份已绑定 | 通过 | 通过 |
+| LINE 绑定 0 | 通过 | 通过 |
+| 只读客户端两个池（只回读） | 6 项全过 | 同左 |
+
+真实登录各一次（本机 Playwright 1.60.0 Chromium，电脑宽度）：未登录打开 `/assistant` → fatcc.com 登录框 → auth.pearnly.com（各自的池）→
+fatcc.com 回调 → 站点 `begin_login` → 静默确认 → 站点回调 → `/assistant` 200，当前用户分别是 `e2eerp.testerp@pearnly.com`、
+`e2ecowork.testcowork@pearnly.com`。全程没有出现 Pearnly 登录页。
