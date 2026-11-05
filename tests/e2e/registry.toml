@@ -1,0 +1,105 @@
+# 登录后端到端场景（11-05，docs/work/2026-11-05-product-map-next.md §2）。
+# 部署回读通过后，本机 scripts/e2e/run.py 用专用 e2e 账号对生产上的测试租户（testerp / testcowork）跑：经真实的 fatcc.com 入口
+# 与 Keycloak 登录，回归实验室测不到这一段。正式租户一个都不登录。
+#
+# 字段：id；product（ERP / Cowork）；runs（desktop 电脑宽度 Chromium、mobile 手机宽度 Chromium、iphone WebKit + iPhone 参数，算手机）；
+#       where（怎么走）；asserts（断言的业务结果，不只看能不能打开）；
+#       since（第一次在测试租户上真实跑通过的「日期 提交」）——写了 since 地图行才能用 `e2e:<id>` 引用、才算绿（scripts/check-product-map.py）。
+
+[[scenario]]
+id = "e2e.erp.login"
+product = "ERP"
+runs = ["desktop", "mobile", "iphone"]
+where = "未登录打开 https://testerp.pearnly.com/assistant → fatcc.com 两步登录（用户名 → 继续 → auth.pearnly.com 密码页，勾记住我）"
+asserts = ["落回本站 /assistant，CC 外壳出现", "当前用户是 e2e 账号", "密码页是 pearnly-ai 主题，中间不出现 Keycloak 默认页", "主导航没有 4xx / 5xx，页面没有报错"]
+
+[[scenario]]
+id = "e2e.erp.switch-site"
+product = "ERP"
+runs = ["desktop", "mobile", "iphone"]
+where = "已登录 testerp，左下角站点列表先点 test01（同池），再点 testcowork（跨池）"
+asserts = ["同池：直接进另一站，不出密码页", "跨池：出 CC 登录页（fatcc.com/?fresh=1），不是 Pearnly Keycloak 登录页", "在 CC 登录页登另一个池的 e2e 账号后落到那一站 /assistant"]
+
+[[scenario]]
+id = "e2e.erp.add-company"
+product = "ERP"
+runs = ["desktop", "mobile"]
+where = "侧栏「公司」→ 添加公司 → 点一家「已添加」的（不新建公司）"
+asserts = ["在本页弹窗，一次都不开新窗口", "候选列表由服务端搜索返回", "打开那家公司页，仍在本站、没有登录页"]
+
+[[scenario]]
+id = "e2e.erp.logout"
+product = "ERP"
+runs = ["desktop", "mobile", "iphone"]
+where = "点退出"
+asserts = ["不出 Keycloak「确定要注销吗」页", "回到 fatcc.com 登录页", "再开本站 /assistant 要重新登录（会话真的没了）"]
+
+[[scenario]]
+id = "e2e.erp.liff-web"
+product = "ERP"
+runs = ["mobile"]
+where = "普通浏览器打开本站 LIFF 落地（LINE 拼出来的两种地址）；LINE 登录之后那一半仍是三星真机"
+asserts = ["本站一侧不 404", "LIFF SDK 转去 access.line.me 时带的是本站的 LINE 登录频道号"]
+
+[[scenario]]
+id = "e2e.erp.chat-one"
+product = "ERP"
+runs = ["desktop", "mobile", "iphone"]
+where = "新对话发一句固定的话，跑完删掉这条对话"
+asserts = ["90 秒内出现助手回复，没有出错卡片", "侧栏出现这条对话", "删掉后侧栏没有它"]
+
+[[scenario]]
+id = "e2e.erp.operator-new"
+product = "ERP"
+runs = ["desktop", "mobile"]
+where = "切到「代录」，选 e2e 测试公司，新建任务（不点开始，不派给电脑），跑完删掉或复用同一个准备中任务"
+asserts = ["主栏顶上出现「公司 · 月份」，月份默认上个月", "侧栏出现准备中的任务", "没有派给电脑的记录"]
+
+[[scenario]]
+id = "e2e.cowork.login"
+product = "Cowork"
+runs = ["desktop", "mobile", "iphone"]
+where = "未登录打开 https://testcowork.pearnly.com/assistant → fatcc.com 两步登录（用户名 → 继续 → auth.pearnly.com 密码页，勾记住我）"
+asserts = ["落回本站 /assistant，CC 外壳出现", "当前用户是 e2e 账号", "密码页是 pearnly-ai 主题，中间不出现 Keycloak 默认页", "主导航没有 4xx / 5xx，页面没有报错"]
+
+[[scenario]]
+id = "e2e.cowork.switch-site"
+product = "Cowork"
+runs = ["desktop", "mobile", "iphone"]
+where = "已登录 testcowork，左下角站点列表点 testerp（跨池）"
+asserts = ["跨池：出 CC 登录页（fatcc.com/?fresh=1），不是 Pearnly Keycloak 登录页", "在 CC 登录页登另一个池的 e2e 账号后落到那一站 /assistant"]
+
+[[scenario]]
+id = "e2e.cowork.add-company"
+product = "Cowork"
+runs = ["desktop", "mobile"]
+where = "侧栏「公司」→ 添加公司 → 点一家「已添加」的（不新建公司）"
+asserts = ["在本页弹窗，一次都不开新窗口", "候选列表由服务端搜索返回", "打开那家公司页，仍在本站、没有登录页"]
+
+[[scenario]]
+id = "e2e.cowork.logout"
+product = "Cowork"
+runs = ["desktop", "mobile", "iphone"]
+where = "点退出"
+asserts = ["不出 Keycloak「确定要注销吗」页", "回到 fatcc.com 登录页", "再开本站 /assistant 要重新登录（会话真的没了）"]
+
+[[scenario]]
+id = "e2e.cowork.liff-web"
+product = "Cowork"
+runs = ["mobile"]
+where = "普通浏览器打开本站 LIFF 落地（LINE 拼出来的两种地址）；LINE 登录之后那一半仍是三星真机"
+asserts = ["本站一侧不 404", "LIFF SDK 转去 access.line.me 时带的是本站的 LINE 登录频道号"]
+
+[[scenario]]
+id = "e2e.cowork.chat-one"
+product = "Cowork"
+runs = ["desktop", "mobile", "iphone"]
+where = "新对话发一句固定的话，跑完删掉这条对话"
+asserts = ["90 秒内出现助手回复，没有出错卡片", "侧栏出现这条对话", "删掉后侧栏没有它"]
+
+[[scenario]]
+id = "e2e.cowork.operator-new"
+product = "Cowork"
+runs = ["desktop", "mobile"]
+where = "切到「代录」，选 e2e 测试公司，新建任务（不点开始，不派给电脑），跑完删掉或复用同一个准备中任务"
+asserts = ["主栏顶上出现「公司 · 月份」，月份默认上个月", "侧栏出现准备中的任务", "没有派给电脑的记录"]

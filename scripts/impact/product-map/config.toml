@@ -173,3 +173,100 @@ class = "varies"
 class = "presence"
 secret = true
 note = "LINE 频道号、密钥、长期令牌（pearnly_core.line._conf 按前缀拼出来读）"
+
+# ---------------------------------------------------------------- 站外设置（11-05 G 块，docs/work/2026-11-05-product-map-next.md §3）
+# 不在 site_config 里、却会让正式租户与测试租户行为不同的设置。地图行的 config 写 kc: / line: / liff: / ext: / dns: / tls: 引用时，
+# 这里必须有同名一节（规则 2）；部署前对比（scripts/production/check-external-config.py）逐节读。
+# class：same = 正式租户与同产品测试租户（或两个账号池之间）应一致，不同拦部署；shape = 每个租户各自满足 check，不满足拦部署；
+#        presence = 只核有没有，只报告（密钥只核有没有、一致与否，不比值、不打印）。
+# where：production = 一次 SSH 在生产机上读（Keycloak 只听本机、LINE 凭据不出 web 容器、计费登记在容器里）；local = 本机读。
+
+[ext."kc:pearnly-business:remember-me"]
+class = "shape"
+where = "production"
+check = "K1：realm 记住我开、记住我会话 30 天（bootstrap-auth.py 的 REMEMBER_ME），普通会话、主题、防暴力破解与 pearnly-cowork 池一致"
+reads = "Keycloak 管理接口 GET /admin/realms/pearnly-business（只读客户端）"
+
+[ext."kc:pearnly-cowork:remember-me"]
+class = "shape"
+where = "production"
+check = "K1：同上，pearnly-cowork 池"
+reads = "Keycloak 管理接口 GET /admin/realms/pearnly-cowork（只读客户端）"
+
+[ext."kc:site-client"]
+class = "same"
+where = "production"
+check = "K2：每个站点的 OIDC 客户端：启用、授权码、回调 = https://<站点>/api/method/pearnly_core.identity.callback、webOrigins、退出跳转含本站根与 https://fatcc.com/*、后台退出地址、PKCE S256、在站点 pearnly_oidc_issuer 那个池；站点名换成 {site} 并去掉测试入口 testai 后，正式租户与同产品测试租户相同；池里不对应任何站点的客户端只报告"
+reads = "Keycloak 管理接口 GET /admin/realms/<池>/clients?clientId=<站点>"
+
+[ext."kc:site-client-secret"]
+class = "presence"
+where = "production"
+check = "K3：Keycloak 里站点客户端的密钥与站点配置里的一致（只在生产机里比摘要，只输出一致 / 不一致；不一致拦部署：那家登录全挂）"
+reads = "Keycloak GET …/clients/<id>/client-secret 与 web 容器里站点配置各取摘要"
+
+[ext."kc:pearnly-ai"]
+class = "shape"
+where = "production"
+check = "K4：两个池的 pearnly-ai 客户端照 configure-ai-entry.py 的 checks：公开客户端、PKCE S256、回调含 fatcc.com、主题 pearnly-ai、不开密码直传"
+reads = "Keycloak GET /admin/realms/<池>/clients?clientId=pearnly-ai"
+
+[ext."kc:line-idp"]
+class = "shape"
+where = "production"
+check = "K5：站点 pearnly_line_login_idp 指的 LINE 身份提供者在它的池里存在、启用、登录页隐藏、首次登录流程 pearnly-line-deny、clientId 是频道号；作用域 pearnly-login-source 存在（configure-line-login.py）"
+reads = "Keycloak GET /admin/realms/<池>/identity-provider/instances、…/client-scopes"
+
+[ext."line:webhook"]
+class = "shape"
+where = "production"
+check = "L1：Messaging 频道 webhook 地址 = https://<站点>/api/method/pearnly_core.line.webhook，且「Use webhook」开着"
+reads = "web 容器里用站点自己的频道凭据 GET https://api.line.me/v2/bot/channel/webhook/endpoint，只输出地址与开关"
+
+[ext."line:bot-mode"]
+class = "same"
+where = "production"
+check = "L2：chatMode = bot，markAsReadMode 与同产品测试租户相同"
+reads = "web 容器里 GET https://api.line.me/v2/bot/info，只输出这两个字段"
+
+[ext."liff:endpoint"]
+class = "shape"
+where = "production"
+check = "L3：LIFF 落地地址 ERP / Cowork 是站点根、DMS 是 /liff/dms-booking，尺寸 Full，作用域含 openid，加好友提示关（pearnly_control/onboarding/line_liff.py 同一口径）"
+reads = "web 容器里用 LINE Login 频道临时令牌 GET https://api.line.me/liff/v1/apps，只输出这个站点 LIFF 的设置"
+
+[ext."line:richmenu"]
+class = "presence"
+where = "production"
+check = "L4：默认富菜单设了没有，与同产品测试租户比"
+reads = "web 容器里 GET https://api.line.me/v2/bot/user/all/richmenu，只输出有没有"
+
+[ext."line:login-callback"]
+class = "shape"
+where = "local"
+check = "L5：LINE 登录频道登记了 Keycloak 的接收地址 https://auth.pearnly.com/realms/<池>/broker/<idp>/endpoint（LINE 没有读取接口；LINE 对没登记的回调直接回错误页，施工时先实测这个行为）"
+reads = "本机不登录请求一次 https://access.line.me/oauth2/v2.1/authorize?client_id=<频道>&redirect_uri=<接收地址>…"
+
+[ext."line:webhook-test"]
+class = "presence"
+where = "production"
+check = "L6：LINE → 服务器 webhook 连通（LINE 发一个测试事件，处理器按规定忽略），只报告"
+reads = "web 容器里 POST https://api.line.me/v2/bot/channel/webhook/test，只输出成功与状态码"
+
+[ext."ext:fatcc.com"]
+class = "shape"
+where = "production"
+check = "F1 / F2：计费服务 billing.internal 的「租户站点」登记里每个生产站点都有一条，产品与签发方（站点 pearnly_oidc_issuer）对得上；缺登记那家进不了 CC，拦部署。fatcc.com 入口站点的签名密钥只核有没有"
+reads = "billing web 容器里只读 Pearnly Tenant Site（不进数据库容器）"
+
+[ext."dns:tenant"]
+class = "shape"
+where = "local"
+check = "C1：正式租户域名、auth.pearnly.com 指向生产；fatcc.com 只解析不代理；正式与测试租户的代理开关相同。测试租户切到测试机时只记 NOTE，并让登录后 e2e 记「没测到」"
+reads = "Cloudflare 接口 GET /zones/<区>/dns_records（本机令牌，只发 GET）"
+
+[ext."tls:expiry"]
+class = "shape"
+where = "local"
+check = "C2：租户域名、fatcc.com、auth.pearnly.com 的证书剩余少于 7 天拦部署，少于 21 天只报告"
+reads = "本机 TLS 握手读证书"

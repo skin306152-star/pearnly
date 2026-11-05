@@ -29,8 +29,8 @@ def row(anchor, **overrides):
     return pm.Row(**base)
 
 
-def run(rows, discovered, *, baseline=(), not_entries=None, config=None, keys=None, families=None, endpoints=None):
-    product_map = pm.Map({r.id: r for r in rows}, not_entries or {}, config or {}, list(baseline), [])
+def run(rows, discovered, *, baseline=(), not_entries=None, config=None, keys=None, families=None, endpoints=None, ext=None):
+    product_map = pm.Map({r.id: r for r in rows}, not_entries or {}, config or {}, list(baseline), [], {}, ext or {})
     return gate.check(product_map, REPO, discovered, keys or {}, families or {}, FLOWS, IMPACT, set(), endpoints or {})
 
 
@@ -241,6 +241,76 @@ class Rules(unittest.TestCase):
         self.assertTrue(all(r["probe"].get("type") in pm.PROBES for r in must))
         shape = [rule for rule in exported["config"].values() if rule.get("class") == "shape"]
         self.assertTrue(shape and all(rule.get("pattern") for rule in shape))
+
+
+E2E = {"e2e.erp.login": {"id": "e2e.erp.login", "product": "ERP", "runs": ["desktop", "iphone"], "where": "登录",
+                         "asserts": ["落回本站"], "since": "2026-11-05 56c1807ed"},
+       "e2e.erp.planned": {"id": "e2e.erp.planned", "product": "ERP", "runs": ["desktop", "mobile"], "where": "还没跑通",
+                           "asserts": ["x"]}}
+EXT = {"kc:pearnly-business:remember-me": {"class": "shape", "where": "production", "check": "记住我 30 天", "reads": "GET realm"}}
+
+
+class LoginEndToEndAndExternalSettings(unittest.TestCase):
+    """11-05：登录后 e2e（部署后对测试租户跑）当测试引用；站外设置引用要在 config.toml 的 [ext] 里（docs/work/2026-11-05-product-map-next.md）。"""
+
+    def setUp(self):
+        self.saved = dict(pm._E2E_CACHE)
+        pm._E2E_CACHE["default"] = E2E
+
+    def tearDown(self):
+        pm._E2E_CACHE.clear()
+        pm._E2E_CACHE.update(self.saved)
+
+    def test_a_scenario_that_has_passed_for_real_makes_its_ends_green(self):
+        # iphone 跑法算手机那一端
+        self.assertEqual(pm.status(row("nav:erp:a", tests=["e2e:e2e.erp.login"]), FLOWS, IMPACT), {"desktop": pm.GREEN, "mobile": pm.GREEN})
+        self.assertEqual(pm.status(row("nav:erp:a", tests=["e2e:e2e.erp.login@desktop"]), FLOWS, IMPACT),
+                         {"desktop": pm.GREEN, "mobile": pm.RED})
+        self.assertEqual(run([row("nav:erp:a", tests=["e2e:e2e.erp.login"])], found("nav:erp:a")), [])
+
+    def test_a_scenario_without_since_or_not_registered_cannot_be_cited(self):
+        errors = "\n".join(run([row("nav:erp:a", tests=["e2e:e2e.erp.planned"]), row("nav:erp:b", tests=["e2e:e2e.erp.nope"]),
+                                row("nav:erp:c", tests=["e2e:e2e.erp.login@tablet"])], found("nav:erp:a", "nav:erp:b", "nav:erp:c")))
+        self.assertIn("还没在测试租户上真实跑通过", errors)
+        self.assertIn("引用的场景不在 tests/e2e/registry.toml", errors)
+        self.assertIn("这个场景不跑 tablet", errors)
+        # 没跑通的场景不让行变绿：两端都还是红
+        self.assertEqual(pm.status(row("nav:erp:a", tests=["e2e:e2e.erp.planned"]), FLOWS, IMPACT), {"desktop": pm.RED, "mobile": pm.RED})
+
+    def test_external_setting_refs_must_be_declared_in_ext(self):
+        cited = row("nav:erp:a", config=["kc:pearnly-business:remember-me", "line:webhook"])
+        errors = "\n".join(run([cited], found("nav:erp:a"), ext=EXT))
+        self.assertIn("站外设置依赖 line:webhook 不在 config.toml 的 [ext]", errors)
+        self.assertNotIn("remember-me 不在", errors)
+
+    def test_load_checks_ext_sections_and_registry_fields(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "config.toml").write_text('[ext."kc:x"]\nclass = "varies"\nwhere = "moon"\n\n[ext."site:y"]\nclass = "same"\n'
+                                                'where = "local"\ncheck = "c"\nreads = "r"\n', encoding="utf-8")
+            errors = "\n".join(pm.load(tmp).errors)
+        self.assertIn("[ext] kc:x 的 class 只能是", errors)
+        self.assertIn("[ext] kc:x 的 where 只能是", errors)
+        self.assertIn("[ext] kc:x 要写 check", errors)
+        self.assertIn("[ext] 的 'site:y' 要写成", errors)
+        bad = {"e2e.x": {"id": "e2e.x", "product": "DMS", "runs": ["tablet"], "where": "", "asserts": [], "since": "昨天"}}
+        errors = "\n".join(pm.validate_e2e(bad, path=Path("/nonexistent")))
+        for text in ("product 只能是", "runs 只能是", "要写 where", "since 写成"):
+            self.assertIn(text, errors)
+
+    def test_impact_list_batch_and_export_mention_e2e_and_ext(self):
+        rows = [row("nav:erp:a", tests=["e2e:e2e.erp.login"], must_verify=True, probe={"type": "assistant-gate"})]
+        product_map = pm.Map({r.id: r for r in rows}, {}, {}, [], [], {}, EXT)
+        hits = {"erp.a": ["改到入口文件"]}
+        self.assertIn("部署后跑（测试租户登录后 e2e，合入前没有它兜底）：`e2e.erp.login`", gate.render(product_map, hits, FLOWS, IMPACT, True))
+        self.assertIn("登录后 e2e（部署后对测试租户跑全套，其中本批命中）：e2e.erp.login", gate.batch(product_map, hits))
+        self.assertEqual(gate.export(product_map)["ext"], EXT)
+
+    def test_the_real_registry_and_ext_sections_are_valid(self):
+        self.assertEqual(pm.validate_e2e(pm.e2e_scenarios()), [])
+        real = pm.load()
+        self.assertEqual(real.errors, [])
+        self.assertTrue({"kc:site-client", "line:webhook", "liff:endpoint", "ext:fatcc.com", "dns:tenant"} <= set(real.ext))
 
 
 if __name__ == "__main__":

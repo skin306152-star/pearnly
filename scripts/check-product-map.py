@@ -4,7 +4,9 @@
 四条规则（离线、只读）：
 1. 未登记：代码里发现的入口（锚点）不在任何地图行、也不在 not_entries.toml → 失败；site_config 键没在 config.toml 分类 → 失败；
    白名单接口找不到调用方（前端、Python、CC 桌面版、站外配置、部署脚本都没调它）又没在 not_entries.toml 登记 → 失败。
-2. 已过期：地图行的锚点在代码里找不到、引用的流程 / 入口 / 共用件 / 单测不存在 → 失败；not_entries 里的锚点已不在代码里也失败。
+2. 已过期：地图行的锚点在代码里找不到、引用的流程 / 入口 / 共用件 / 单测 / e2e 场景不存在 → 失败；not_entries 里的锚点已不在代码里也失败；
+   站外设置引用（kc: / line: / liff: / ext: / dns: / tls:）不在 config.toml 的 [ext] → 失败（部署前对比按 [ext] 读，11-05 G 块）。
+   e2e 场景（tests/e2e/registry.toml，部署后对测试租户跑登录后的流程）写了 since 才算绿，影响清单标「部署后跑」。
 3. 没有测试：某行某端不是绿（流程 / 单测 / 离线入口 / 业务探针）也不是真机（标了只能真机、写了理由与清单）→ 失败，
    除非「行 id@端」在 untested_baseline.txt。基线只许减少：新加的条目、已经有测试或已不存在的条目都失败。
    「上线必验」的行每端都要有测试，或者有探针。
@@ -83,6 +85,9 @@ def check(product_map: pm.Map, repo: pm.Repo, found: dict, keys: dict, families:
             if kind == "site" and name not in product_map.config and not any(
                     name.startswith(spec[:-1]) for spec in product_map.config if spec.endswith("*")):
                 errors.append(f"已过期：行 {row.id} 的配置依赖 {ref} 不在 config.toml")
+            elif kind != "site" and ref not in product_map.ext:
+                errors.append(f"已过期：行 {row.id} 的站外设置依赖 {ref} 不在 config.toml 的 [ext] —— 写 class、check、reads、where，"
+                              "部署前对比才会去读它")
     endpoints = endpoints or {}
     for dotted, endpoint in sorted(endpoints.items()):
         if not endpoint.callers and f"endpoint:{dotted}" not in product_map.not_entries:
@@ -283,6 +288,7 @@ def render(product_map, hits, flows, impact, markdown: bool) -> str:
     lines = []
     flow_ids = sorted({ref.partition(":")[2].partition("@")[0] for row in rows for ref in row.tests if ref.startswith("flow:")})
     entries = sorted({ref.partition(":")[2] for row in rows for ref in row.tests if ref.startswith("impact:")})
+    e2e_ids = e2e_of(rows)
     must = [row for row in rows if row.must_verify]
     device = [row for row in rows if row.device_only]
     red = [row for row in rows if not all(pm.tested(v) for v in pm.status(row, flows, impact).values())]
@@ -298,6 +304,8 @@ def render(product_map, hits, flows, impact, markdown: bool) -> str:
             lines.append("要跑的流程：`python3 scripts/flows/run.py " + " ".join(f"--flow {f}" for f in flow_ids) + "`")
         if entries:
             lines.append("要点的共用件入口：" + "、".join(f"`{e}`" for e in entries))
+        if e2e_ids:
+            lines.append("部署后跑（测试租户登录后 e2e，合入前没有它兜底）：" + "、".join(f"`{e}`" for e in e2e_ids))
         if must:
             lines.append("部署后逐个正式租户核（上线必验）：" + "、".join(f"`{row.id}`" for row in must))
         if device:
@@ -311,6 +319,8 @@ def render(product_map, hits, flows, impact, markdown: bool) -> str:
                          + f"  ← {'；'.join(hits[row.id])}")
         if flow_ids:
             lines.append("要跑的流程：" + " ".join(flow_ids))
+        if e2e_ids:
+            lines.append("部署后跑（测试租户登录后 e2e）：" + " ".join(e2e_ids))
         if must:
             lines.append("部署后逐个正式租户核：" + " ".join(row.id for row in must))
     siblings = []
@@ -341,6 +351,10 @@ def render(product_map, hits, flows, impact, markdown: bool) -> str:
     return "\n".join(lines)
 
 
+def e2e_of(rows) -> list:
+    return sorted({ref.partition(":")[2].partition("@")[0] for row in rows for ref in row.tests if ref.startswith("e2e:")})
+
+
 def suggest(product_map, found) -> str:
     anchors = {row.anchor for row in product_map.rows.values()}
     out = []
@@ -362,7 +376,8 @@ def export(product_map: pm.Map) -> dict:
              "config": row.config, "must_verify": row.must_verify, "probe": row.probe, "device_only": row.device_only,
              "device": row.device}
             for row in product_map.rows.values() if row.must_verify or row.device_only]
-    return {"version": EXPORT_VERSION, "config": product_map.config, "rows": sorted(rows, key=lambda row: row["id"])}
+    return {"version": EXPORT_VERSION, "config": product_map.config, "ext": product_map.ext,
+            "rows": sorted(rows, key=lambda row: row["id"])}
 
 
 def batch(product_map, hits) -> str:
@@ -375,6 +390,9 @@ def batch(product_map, hits) -> str:
     lines += [f"  真机 {row.id}：{row.device}（只能真机：{row.device_only}）" for row in device]
     if not device:
         lines.append("  真机单：本批没有只能真机的入口")
+    e2e_ids = e2e_of(rows)
+    if e2e_ids:
+        lines.append(f"  登录后 e2e（部署后对测试租户跑全套，其中本批命中）：{'、'.join(e2e_ids)}")
     return "\n".join(lines)
 
 
@@ -421,6 +439,7 @@ def main(argv=None) -> int:
         print(batch(product_map, hits))
         return 0
     errors = check(product_map, repo, found, keys, families, flows, impact, parts, endpoints)
+    errors += pm.validate_e2e(pm.e2e_scenarios())
     errors += check_siblings(sibling_gaps(product_map, flows, impact), sibling_baseline())
     errors += enforce_hits(product_map, hits, flows, impact, changes)
     report = render(product_map, hits, flows, impact, args.markdown)

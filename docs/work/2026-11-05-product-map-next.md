@@ -294,3 +294,24 @@
 
 合计约 **14.5 小时**机器耗时（不含等授权、等 CI）。B1–B3 与 G1–G4 文件不重叠，可以两个窗口并行；M 块碰地图格式，由一个写者在两条线之间做。
 每块按仓库流程：全闸门 → 推分支 → Development checks 绿 → 快进合入 main。本方案不涉及生产部署本身，接线随下一批部署生效。
+
+## 14. 审定与施工记录
+
+主会话 11-05 审定：方案通过，§12 各问照建议；第 4 问（两个 e2e 账号、Keycloak 只读客户端）属账号与系统设置写入，主会话问用户，批了再做；
+之前先做不依赖它的块，需要账号和凭据的地方用离线假数据；生产和 Keycloak 上任何写入都等主会话消息。
+
+### B0 只读核查（11-05，一次 SSH，生产 107.155.65.74，只读、不打印密钥）
+
+| 查什么 | 结果 | 对方案的影响 |
+|---|---|---|
+| 站点 | ERP：gize、mrerp、polymer、test01、testerp；Cowork：ccdemo、erpcowork、testcowork；DMS：ris、testdms（共 10 个） | test01 在业务池、已登记 → 同池切换用 testerp ↔ test01（§12 第 5 问） |
+| `pearnly_assistant_entry_url` | 10 个站点都没配，走默认 fatcc.com | B 在测试租户上走的就是正式入口 fatcc.com，不是 testai |
+| 智能体密钥 | 10 个站点都有 | 测试租户能跑对话场景 |
+| fatcc.com 计费登记（`billing.internal` 的 `Pearnly Tenant Site`） | 10 个站点都有，产品与签发方都对 | F1 现在全过；签发方取站点配置 `pearnly_oidc_issuer` 比 |
+| LINE 键 | 9 个站点有频道（ccdemo 没开 LINE）；`pearnly_line_channel_id / channel_secret / liff_id / product` 9 个都有；`login_idp` 7 个（DMS 两站没有，正式与测试一致）；`channel_access_token` 6 个（gize、polymer、test01 没存令牌，走临时令牌） | L1–L4 读取要支持「没存令牌就用频道号 + 密钥现取」 |
+| Keycloak realm | 两个池设置一致：记住我开、记住我 30 天、普通 1800 / 36000 秒、主题 pearnly、防暴力破解 10 次、默认泰文 | K1 现在全过 |
+| 站点客户端 | 每个站点一个，回调、webOrigins、退出跳转（本站根 + fatcc.com）、后台退出、PKCE S256 形状一致；**test 开头的站点退出跳转多一个 testai**（`configure-ai-entry.logout_targets` 有意为之） | K2 比对时去掉 testai 那一项再比 |
+| 多余客户端 | **pearnly-business 池里残留 `testcowork.pearnly.com` 客户端**（9-26 拆池前建的，testcowork 现在在 pearnly-cowork 池） | G 报「池里有不对应任何站点的客户端」，只报告不拦；删不删由主会话定（生产写入） |
+| pearnly-ai 客户端 | 两个池都有，回调含 fatcc.com 与 testai，PKCE、主题对 | K4 现在全过 |
+| LINE 身份提供者 | 两个池各一个 `line-2010411313`（全平台共用的登录频道），启用、隐藏、首次登录流程 `pearnly-line-deny` | K5：站点的 `pearnly_line_login_idp` 要在它的池里存在 |
+| 作用域 | 两个池都有 `pearnly-login-source` | — |

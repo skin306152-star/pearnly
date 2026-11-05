@@ -192,6 +192,13 @@ App 下虽然有 `.pre-commit-config.yaml`，但它们不是根级统一检查�
      每个正式租户 × 它那个产品的每个上线必验行跑探针——`liff`（照 LINE 的走法：本站入口转本站 LIFF，再走 LIFF 落地地址接路径、
      带 `liff.state` 两种地址，站内每一跳不许 4xx / 5xx；一个 `pearnly_line_*` 都没有的租户算没开 LINE，跳过并记 NOTE，有频道却没 LIFF ID 才算问题）、`http`、`assistant-gate`（不登录开 `/assistant` 要转到 CC 入口并带 `?site=`）。只读、不登录、不写。
    - **本批真机单**：`deploy.sh` 在回读之后（演练在末尾）按上次放上生产到这次的改动打印命中的上线必验行与只能真机的行（`check-product-map.py --batch`）。
+9. 登录后端到端与站外设置（11-05，[方案](../work/2026-11-05-product-map-next.md)）：
+   - 回归实验室没有身份服务与 fatcc.com 入口，登录之后的行为（静默登录、跨站切换、退出、在 CC 里点了会不会跳出去）由 **e2e 场景**
+     （`tests/e2e/registry.toml`）在部署回读通过后、用专用 e2e 账号对生产上的测试租户跑；正式租户不登录。地图行用 `e2e:<场景 id>[@端]` 引用；
+     场景写了 `since`（第一次真实跑通过的日期与提交）才能被引用、才算绿，影响清单与本批清单标「部署后跑」——合入前没有它兜底。
+   - 不在 site_config 里的设置（Keycloak realm 与客户端、LINE 频道 / LIFF / 登录频道、fatcc.com 入口登记、DNS、证书）在 `config.toml` 的
+     `[ext."<引用>"]` 分类（same / shape / presence，写 check、reads、where）；地图行的 `kc:` / `line:` / `liff:` / `ext:` / `dns:` / `tls:` 依赖
+     必须有同名一节（规则 2），部署前对比按它读。
 
 ## 四类副作用
 

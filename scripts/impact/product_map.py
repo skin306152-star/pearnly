@@ -3,7 +3,8 @@
 本模块只做三件事，闸门（scripts/check-product-map.py）与部署脚本共用：
 - `discover()`：从代码枚举入口（锚点），一类一个发现器，不按某个页面、某个租户单独写；
 - `load()`：读地图文件 scripts/impact/product-map/*.toml 与旁边的 not_entries.toml、config.toml、untested_baseline.txt；
-- `validate()` / `status()`：地图行本身的格式与引用是否成立、每行每端的测试强度（绿 / 黄 / 真机 / 红）。
+- `validate()` / `status()`：地图行本身的格式与引用是否成立、每行每端的测试强度（绿 / 黄 / 真机 / 红）；
+- `e2e_scenarios()`：登录后端到端场景登记表 tests/e2e/registry.toml（部署后对测试租户跑，docs/work/2026-11-05-product-map-next.md）。
 
 纯离线：只读 tracked 文件，不导入产品代码、不连网络。
 """
@@ -21,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MAP_DIR = ROOT / "scripts" / "impact" / "product-map"
 SHARED_PARTS = ROOT / "scripts" / "impact" / "shared-parts.toml"
 FLOWS = ROOT / "tests" / "flows" / "registry.toml"
+E2E = ROOT / "tests" / "e2e" / "registry.toml"
 
 # 一期范围：ERP 与 Cowork（DMS、控制面第二期）
 APPS = {"pearnly_erp_portal": "ERP", "pearnly_cowork": "Cowork"}
@@ -37,8 +39,14 @@ ENDPOINT_KINDS = {"dynamic", "compat", "internal", "delete"}
 CONFIG_CLASSES = {"same", "shape", "presence", "varies", "infra"}
 ROW_FIELDS = {"id", "product", "products", "channel", "ends", "kind", "anchor", "where", "parts", "config", "tests",
               "device", "device_only", "must_verify", "probe", "group", "na", "incidents", "note"}
-CONFIG_REF = re.compile(r"^(site|liff|line|feature|kc|ext):\S+$")
+CONFIG_REF = re.compile(r"^(site|liff|line|feature|kc|ext|dns|tls):\S+$")
 FLOW_VIEWPORTS = {"desktop": "desktop", "mobile": "mobile"}
+# 站外设置（config.toml 的 [ext."<引用>"]，11-05 G 块）：只有三类，读法在部署前对比（scripts/production/check-external-config.py）
+EXT_CLASSES = {"same", "shape", "presence"}
+EXT_WHERE = {"production", "local"}
+# e2e 的三种跑法与它们算哪一端：iPhone 近似（WebKit）算手机
+E2E_RUNS = {"desktop": "desktop", "mobile": "mobile", "iphone": "mobile"}
+E2E_FIELDS = {"id", "product", "runs", "where", "asserts", "since"}
 
 
 def tracked(root=ROOT) -> list[str]:
@@ -489,6 +497,7 @@ class Map:
     baseline: list              # "<行 id>@<端>"
     errors: list
     kinds: dict = field(default_factory=dict)   # not_entries 里接口的分诊（dynamic / compat / internal / delete）
+    ext: dict = field(default_factory=dict)     # 站外设置引用 → {class, check, reads, where}
 
 
 def load(directory=MAP_DIR) -> Map:
@@ -515,7 +524,7 @@ def load(directory=MAP_DIR) -> Map:
                 errors.append(f"锚点重复：{row.anchor}（行 {anchors[row.anchor]}、{row.id}）")
             rows[row.id] = row
             anchors[row.anchor] = row.id
-    not_entries, config, kinds = {}, {}, {}
+    not_entries, config, kinds, ext = {}, {}, {}, {}
     if (directory / "not_entries.toml").exists():
         for raw in tomllib.loads((directory / "not_entries.toml").read_text(encoding="utf-8")).get("anchor", []):
             if not str(raw.get("reason") or "").strip():
@@ -538,11 +547,21 @@ def load(directory=MAP_DIR) -> Map:
                 if not spec.get("pattern"):
                     errors.append(f"config.toml：{name} 是 shape，要写 pattern（部署前对比按它判）")
             config[name] = spec
+        for name, spec in data.get("ext", {}).items():
+            if not CONFIG_REF.match(name) or name.startswith("site:"):
+                errors.append(f"config.toml：[ext] 的 {name!r} 要写成 liff: / line: / kc: / ext: / dns: / tls: 开头的引用")
+            if spec.get("class") not in EXT_CLASSES:
+                errors.append(f"config.toml：[ext] {name} 的 class 只能是 {sorted(EXT_CLASSES)}")
+            if spec.get("where") not in EXT_WHERE:
+                errors.append(f"config.toml：[ext] {name} 的 where 只能是 {sorted(EXT_WHERE)}（在生产机上读还是本机读）")
+            if not str(spec.get("check") or "").strip() or not str(spec.get("reads") or "").strip():
+                errors.append(f"config.toml：[ext] {name} 要写 check（核什么、按什么拦）与 reads（怎么只读地取到）")
+            ext[name] = spec
     baseline = []
     if (directory / "untested_baseline.txt").exists():
         baseline = [line.strip() for line in (directory / "untested_baseline.txt").read_text(encoding="utf-8").splitlines()
                     if line.strip() and not line.startswith("#")]
-    return Map(rows, not_entries, config, baseline, errors, kinds)
+    return Map(rows, not_entries, config, baseline, errors, kinds, ext)
 
 
 def test_sources(root=ROOT):
@@ -551,6 +570,47 @@ def test_sources(root=ROOT):
     impact = {e["id"]: e for e in tomllib.loads((Path(root) / "scripts/impact/shared-parts.toml").read_text(encoding="utf-8"))["entry"]}
     parts = {p["id"] for p in tomllib.loads((Path(root) / "scripts/impact/shared-parts.toml").read_text(encoding="utf-8"))["part"]}
     return flows, impact, parts
+
+
+_E2E_CACHE: dict = {}
+
+
+def e2e_scenarios(path=E2E) -> dict:
+    """登录后端到端场景 {id: 场景}。场景写了 `since`（第一次在测试租户上真实跑通过的日期与提交）才能被地图行引用、才算绿。"""
+    path = Path(path)
+    if not path.exists():
+        return {}
+    return {s["id"]: s for s in tomllib.loads(path.read_text(encoding="utf-8")).get("scenario", [])}
+
+
+def _e2e(e2e):
+    if e2e is not None:
+        return e2e
+    if "default" not in _E2E_CACHE:
+        _E2E_CACHE["default"] = e2e_scenarios()
+    return _E2E_CACHE["default"]
+
+
+def validate_e2e(scenarios: dict, path=E2E) -> list[str]:
+    errors = []
+    raw = tomllib.loads(Path(path).read_text(encoding="utf-8")).get("scenario", []) if Path(path).exists() else []
+    if len(raw) != len(scenarios):
+        errors.append("tests/e2e/registry.toml：场景 id 重复")
+    for scenario in scenarios.values():
+        where = f"tests/e2e/registry.toml：场景 {scenario.get('id')}"
+        unknown = set(scenario) - E2E_FIELDS
+        if unknown:
+            errors.append(f"{where} 有不认识的字段 {sorted(unknown)}")
+        if scenario.get("product") not in CODE:
+            errors.append(f"{where} 的 product 只能是 {sorted(CODE)}")
+        if not scenario.get("runs") or set(scenario["runs"]) - set(E2E_RUNS):
+            errors.append(f"{where} 的 runs 只能是 {sorted(E2E_RUNS)} 的非空子集")
+        if not str(scenario.get("where") or "").strip() or not scenario.get("asserts"):
+            errors.append(f"{where} 要写 where（怎么走）与 asserts（断言的业务结果）")
+        since = str(scenario.get("since") or "")
+        if since and not re.fullmatch(r"\d{4}-\d{2}-\d{2} [0-9a-f]{7,40}", since):
+            errors.append(f"{where} 的 since 写成「日期 提交」，如 2026-11-05 56c1807ed")
+    return errors
 
 
 def validate(product_map: Map, repo: Repo, flows: dict, impact: dict, parts: set) -> list[str]:
@@ -573,7 +633,7 @@ def validate(product_map: Map, repo: Repo, flows: dict, impact: dict, parts: set
                 errors.append(f"{where}：共用件 {part} 不在 shared-parts.toml")
         for ref in row.config:
             if not CONFIG_REF.match(ref):
-                errors.append(f"{where}：配置依赖 {ref!r} 要写成 site: / liff: / line: / feature: / kc: / ext: 开头")
+                errors.append(f"{where}：配置依赖 {ref!r} 要写成 site: / liff: / line: / feature: / kc: / ext: / dns: / tls: 开头")
         for ref in row.tests:
             problem = _test_ref_problem(ref, repo, flows, impact)
             if problem:
@@ -587,7 +647,7 @@ def validate(product_map: Map, repo: Repo, flows: dict, impact: dict, parts: set
     return errors
 
 
-def _test_ref_problem(ref: str, repo: Repo, flows: dict, impact: dict) -> str:
+def _test_ref_problem(ref: str, repo: Repo, flows: dict, impact: dict, e2e: dict | None = None) -> str:
     kind, _, value = ref.partition(":")
     if kind == "flow":
         flow_id, _, end = value.partition("@")
@@ -607,14 +667,24 @@ def _test_ref_problem(ref: str, repo: Repo, flows: dict, impact: dict) -> str:
         if name and not re.search(r"\b" + re.escape(name) + r"\b", repo.text(path)):
             return f"测试文件里找不到 {name}"
         return ""
-    return "只能是 flow: / impact: / unit: 开头"
+    if kind == "e2e":
+        scenario_id, _, end = value.partition("@")
+        scenario = _e2e(e2e).get(scenario_id)
+        if scenario is None:
+            return "引用的场景不在 tests/e2e/registry.toml"
+        if not scenario.get("since"):
+            return "这个场景还没在测试租户上真实跑通过（registry 里没有 since），先不能引用"
+        if end and end not in {E2E_RUNS[r] for r in scenario.get("runs", []) if r in E2E_RUNS}:
+            return f"这个场景不跑 {end}"
+        return ""
+    return "只能是 flow: / impact: / unit: / e2e: 开头"
 
 
 GREEN, YELLOW, DEVICE, RED = "绿", "黄", "真机", "红"
 
 
-def status(row: Row, flows: dict, impact: dict) -> dict:
-    """每端的测试强度：绿 = 有业务断言（流程、单测、离线入口、读码 / 消息等业务探针）；
+def status(row: Row, flows: dict, impact: dict, e2e: dict | None = None) -> dict:
+    """每端的测试强度：绿 = 有业务断言（流程、单测、离线入口、读码 / 消息等业务探针、跑通过的登录后 e2e）；
     真机 = 标了只能真机、有真机清单；黄 = 只有打开冒烟 / 人工清单；红 = 都没有。只有绿和真机算有测试（主会话 11-04）。"""
     result = {end: RED for end in row.ends}
 
@@ -633,6 +703,13 @@ def status(row: Row, flows: dict, impact: dict) -> dict:
         elif kind == "unit":
             for end in row.ends:
                 raise_to(end, GREEN)
+        elif kind == "e2e":
+            scenario_id, _, only = value.partition("@")
+            scenario = _e2e(e2e).get(scenario_id)
+            if scenario and scenario.get("since"):
+                for end in {E2E_RUNS[r] for r in scenario.get("runs", []) if r in E2E_RUNS}:
+                    if not only or end == only:
+                        raise_to(end, GREEN)
         elif kind == "impact" and value in impact:
             entry = impact[value]
             level = GREEN if entry["check"] == "offline" or (entry["check"] == "auto" and entry.get("smoke") != "page") \
