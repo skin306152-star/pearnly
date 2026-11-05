@@ -164,7 +164,7 @@ Cowork 实验室验证脚本：
 | 候选离线检查（改了 pearnly_core） | `cand-local.sh offline`，生产镜像 `sha256:29ae8ca6`（11-04 那批），日志 `~/pearnly-devtools/cand-drop-dead.log` | 通过 |
 | 改动文件的静态核对 | 每个改动的 .py：ast 列出「基线有、现在没了」的顶层函数 / 常量，逐个对照本记录；「引用了却没定义的名字」扫描 | 只剩本记录里列的删除；没有未定义的名字 |
 | 流程 `erp.stock.excel-units` | 自起的一套回归实验栈 `pearnly-dropdead-lab`（共用的 `pearnly-regression-lab` 当时被预选卡片窗口占着，没碰） | 第一次**不通过**，抓到真问题：删 `api_stock_count_import` 时切分规则把紧挨着的 `_stock_rows`（建盘点带表要用）一起切掉了，页面「上传导入」会报 NameError；恢复后通过（old / desktop） |
-| 改动涉及的全部流程 | `run.py --changed`，同一套自起的实验栈 | 见下 |
+| 改动涉及的全部流程 | `run.py --changed --base 56c1807ed`，同一套自起的实验栈，结果 `~/pearnly-devtools/flows-drop-dead-changed.json` | 22 条流程、两套数据、81 格全部通过（1206 秒） |
 
 误删的教训：按「下一个三连换行」切函数，遇到两个函数之间只空一行就会多切；之后改成删完用 ast 逐个核「少了哪些顶层名字」。
 
