@@ -734,14 +734,32 @@ def save_choices(history, connection, account_set_key, items, *, document_paymen
         elif not value or (options and value not in options) or (kind in ("payment", "vat", service_vat.KIND)
                                                                  and value not in options):
             frappe.throw(_("cowork.choice.invalid"))
-        saved += int(choice_store.record(loaded.doc.name, target.account_set, kind, str(item.get("subject") or ""),
-                                         value, item.get("label")))
+        subject = str(item.get("subject") or "").strip() or _own_subject(kind, fields, direction)
+        if not subject:
+            frappe.throw(_("cowork.choice.subject_missing"))
+        item["subject"] = subject  # document_payment 按同一个归类键认这张票的现 / 赊
+        saved += int(choice_store.record(loaded.doc.name, target.account_set, kind, subject, value, item.get("label")))
     result = {"saved": saved}
     if document_payment:
         chosen = _document_payment(doc, fields, direction, items)
         if chosen:
             result["document_payment"] = chosen
     return result
+
+
+# 归类键由这张单的对方唯一确定的类（按对方记，`supplier_subject`）：调用方没带归类键时按这张单补上，同复核页「要选的项」记的键
+OWN_SUBJECT_KINDS = ("payment", "vat")
+
+
+def _own_subject(kind, fields, direction) -> str:
+    """没带归类键的现 / 赊、抵不抵：按这张单的对方算（同票上人改的付款方式按对方记下的取法）；补不了回空。"""
+    if kind not in OWN_SUBJECT_KINDS or direction not in ("purchase", "sale"):
+        return ""
+    name, tax = ((fields.get("seller_name"), fields.get("seller_tax")) if direction == "purchase"
+                 else (fields.get("buyer_name"), fields.get("buyer_tax")))
+    if not str(tax or "").strip() and not str(name or "").strip():
+        return ""
+    return choice_rules.supplier_subject(direction, tax, name)
 
 
 def _document_payment(doc, fields, direction, items):

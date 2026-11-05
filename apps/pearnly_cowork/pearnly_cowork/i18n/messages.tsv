@@ -1539,6 +1539,7 @@ Accrual basis	权责制	เกณฑ์สิทธิ	発生主義	cowork.choic
 Cash basis	收付实现制	เกณฑ์เงินสด	現金主義	cowork.choice.cash_basis
 The chosen value is not in this account set. Choose again	所选项不在此账套中，请重新选择	รายการที่เลือกไม่มีอยู่ในชุดบัญชีนี้ กรุณาเลือกใหม่	選んだ値はこの帳簿にありません。選び直してください	cowork.choice.invalid
 This is set by the scheduled task's default handling. Change it in the task	此项由定时任务的默认处理决定，请在定时任务中修改	รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา	この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください	cowork.choice.task_default
+The subject of the choice is missing	缺少要记住的对象	ไม่ได้ระบุรายการที่ต้องจดจำ	記憶する対象がありません	cowork.choice.subject_missing
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again	不支持旧版 Excel（.xls）文件，请另存为 .xlsx 或 .csv 后重新发送	ไม่รองรับไฟล์ Excel รุ่นเก่า (.xls) กรุณาบันทึกเป็น .xlsx หรือ .csv แล้วส่งใหม่	旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください	pos.xls_not_supported
 Only POS exports in Excel (.xlsx) or CSV can be imported	只能导入 Excel（.xlsx）或 CSV 格式的 POS 导出	นำเข้าได้เฉพาะไฟล์ส่งออก POS แบบ Excel (.xlsx) หรือ CSV	取り込めるのは Excel（.xlsx）か CSV の POS エクスポートだけです	pos.type_unsupported
 This file cannot be read	无法读取此文件	ไม่สามารถอ่านไฟล์นี้ได้	このファイルは読み取れません	pos.file_unreadable

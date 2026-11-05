@@ -111,7 +111,9 @@ def latest(connection, account_sets, kind, subjects) -> dict:
 
 def record(connection, account_set, kind, subject, value, label=""):
     """记一个选择（同键覆盖）；返回是否有变化。"""
-    if kind not in KINDS or not isinstance(subject, str) or not subject or len(subject) > 1000:
+    if kind in KINDS and (not isinstance(subject, str) or not subject.strip()):
+        frappe.throw(_("cowork.choice.subject_missing"))
+    if kind not in KINDS or len(subject) > 1000:
         frappe.throw(_("connection.config_invalid"))
     value = str(value or "").strip()
     if len(value) > 60:

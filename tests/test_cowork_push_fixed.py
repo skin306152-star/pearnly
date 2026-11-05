@@ -358,6 +358,44 @@ class ServiceEntrypoints(unittest.TestCase):
         self.assertEqual(service.save_choices("H1", "C1", BOOK, json.dumps(items)), {"saved": 1})
 
 
+class OwnSubject(unittest.TestCase):
+    """11-05 真机：CC 存付款项只带 ``{"kind": "payment", "value": "cash"}``、没带归类键，`choices.record` 回「请检查 ERP 连接配置」，
+    模型当成连接坏了。现 / 赊、抵不抵的归类键由这张单的对方唯一确定：没带就按这张单补（同复核页记的键）；补不了回准确的错误码。"""
+
+    def _wired(self, fields, direction="purchase"):
+        service, _frappe_module, calls = _service(hooks=[], providers={})
+        ServiceEntrypoints._wired(ServiceEntrypoints(), service)
+        facts = (types.SimpleNamespace(account_set=BOOK), {}, fields, direction, {}, {})
+        service._express_facts = lambda *a: facts
+        return service, calls
+
+    def test_payment_without_subject_is_saved_under_the_documents_party(self):
+        service, calls = self._wired({"seller_tax": "0105599220213", "seller_name": "KD"})
+        items = [{"kind": "payment", "value": "cash"}]
+        self.assertEqual(service.save_choices("H1", "C1", BOOK, json.dumps(items)), {"saved": 1})
+        self.assertEqual([r[2:5] for r in calls["records"]], [("payment", "purchase|0105599220213", "cash")])
+        service, calls = self._wired({"buyer_tax": "", "buyer_name": "Shop A"}, direction="sale")
+        service.save_choices("H1", "C1", BOOK, json.dumps([{"kind": "vat", "value": "claim"}]))  # 值校验另说
+        self.assertEqual(calls["records"][0][3], "sale|name:" + service.choice_rules.norm_name("Shop A"))
+
+    def test_subject_given_is_kept(self):
+        service, calls = self._wired({"seller_tax": "0105599220213", "seller_name": "KD"})
+        items = [{"kind": "payment", "subject": "purchase|0105599220205", "value": "credit"}]
+        service.save_choices("H1", "C1", BOOK, json.dumps(items))
+        self.assertEqual(calls["records"][0][3], "purchase|0105599220205")
+
+    def test_subject_that_cannot_be_filled_is_a_precise_error(self):
+        service, calls = self._wired({})
+        with self.assertRaises(Translated) as raised:
+            service.save_choices("H1", "C1", BOOK, json.dumps([{"kind": "payment", "value": "cash"}]))
+        self.assertEqual(str(raised.exception), "cowork.choice.subject_missing")
+        service, calls = self._wired({"seller_tax": "0105599220213"})
+        with self.assertRaises(Translated) as raised:  # 科目按对方 + 商品记，不由单据唯一确定：不补
+            service.save_choices("H1", "C1", BOOK, json.dumps([{"kind": "account", "value": "5300"}]))
+        self.assertEqual(str(raised.exception), "cowork.choice.subject_missing")
+        self.assertEqual(calls["records"], [])
+
+
 class DocumentPayment(unittest.TestCase):
     """2026-10-20 教程录制：用户说「印了已转账的是现金、其余赊账」，同一家供应商（KD / NL）各有一张现金、一张赊账，CC 为每张票
     记现 / 赊，账套记忆按供应商只有一个值、后记的盖掉先记的，两张都按同一个值写进 Express。CC 为这张票记的现 / 赊同时写成这张
