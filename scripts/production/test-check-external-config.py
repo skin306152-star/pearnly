@@ -84,7 +84,7 @@ def realm_facts(realm, sites):
 
 def line_facts(host):
     return {"webhook": {"endpoint": SRC.site_step.webhook_url(host), "active": True},
-            "bot": {"chatMode": "bot", "markAsReadMode": "auto"}, "richmenu": True,
+            "bot": {"chatMode": "chat", "markAsReadMode": "auto"}, "richmenu": True,
             "webhook_test": {"success": True, "statusCode": 200}}
 
 
@@ -160,8 +160,8 @@ class Compare(unittest.TestCase):
         def webhook_elsewhere(f):
             site_row(f, "gize.pearnly.com")["line"]["webhook"]["endpoint"] = "https://gize.pearnly.com/stocktake/hook"
 
-        def chat_mode(f):
-            site_row(f, "erpcowork.pearnly.com")["line"]["bot"]["chatMode"] = "chat"
+        def chat_mode_differs(f):
+            site_row(f, "erpcowork.pearnly.com")["line"]["bot"]["chatMode"] = "bot"
 
         def read_mode_differs(f):
             site_row(f, "gize.pearnly.com")["line"]["bot"]["markAsReadMode"] = "manual"
@@ -214,7 +214,7 @@ class Compare(unittest.TestCase):
             "登记的签发方不对": (wrong_registration_issuer, "ext:fatcc.com"),
             "webhook 关着": (webhook_off, "line:webhook"),
             "webhook 地址不是本站": (webhook_elsewhere, "line:webhook"),
-            "聊天模式": (chat_mode, "line:bot-mode"),
+            "聊天模式与测试租户不同": (chat_mode_differs, "line:bot-mode"),
             "已读模式与测试租户不同": (read_mode_differs, "line:bot-mode"),
             "客户端密钥两端不一致": (secret_mismatch, "kc:site-client-secret"),
             "池里没有站点客户端": (client_missing, "kc:site-client"),
@@ -255,6 +255,14 @@ class Compare(unittest.TestCase):
         def extra_registration(f):
             f["billing"]["sites"].append({"site": "gone.pearnly.com", "product": "erp", "issuer": BUSINESS})
 
+        def test_tenant_without_the_testai_logout(f):
+            # 11-05 生产演练：test01、testcowork 的退出跳转没有 testai（只影响测试入口）
+            for realm in ("pearnly-business", "pearnly-cowork"):
+                for client in f["keycloak"][realm]["clients"]:
+                    if client["clientId"] in ("test01.pearnly.com", "testcowork.pearnly.com"):
+                        client["attributes"]["post.logout.redirect.uris"] = (
+                            f"https://{client['clientId']}/##https://fatcc.com/*")
+
         def entry_without_webhook_secret(f):
             f["billing"]["entry"]["webhook_secret"] = False
 
@@ -264,7 +272,8 @@ class Compare(unittest.TestCase):
                  "池里多出的客户端（9-26 拆池留下的 testcowork）": (orphan_client, "kc:site-client"),
                  "密钥没比成": (secret_not_compared, "kc:site-client-secret"),
                  "登记里多一个已拆的站": (extra_registration, "ext:fatcc.com"),
-                 "入口站点缺回调签名密钥": (entry_without_webhook_secret, "ext:fatcc.com")}
+                 "入口站点缺回调签名密钥": (entry_without_webhook_secret, "ext:fatcc.com"),
+                 "测试租户退出跳转缺 testai": (test_tenant_without_the_testai_logout, "kc:site-client")}
         for name, (mutate, key) in cases.items():
             with self.subTest(case=name):
                 facts = good_facts()
@@ -382,11 +391,15 @@ class _Response(io.BytesIO):
 
 def fake_line(calls):
     import urllib.error
+    import urllib.parse
 
     def urlopen(request, timeout=None):
         url, auth = request.full_url, request.get_header("Authorization") or ""
         calls.append((request.get_method(), url, auth))
         if url.endswith("/oauth2/v3/token"):
+            form = dict(urllib.parse.parse_qsl(request.data.decode()))
+            if (form.get("client_id"), form.get("client_secret")) != ("1650000000", CHANNEL_SECRET):
+                raise urllib.error.HTTPError(url, 400, "Invalid 'client_credentials'.", {}, None)  # LINE 不认带空白的值
             return _Response(200, {"access_token": FRESH_TOKEN})
         if url.endswith("/webhook/endpoint"):
             return _Response(200, {"endpoint": "https://x/api/method/pearnly_core.line.webhook", "active": True})
@@ -448,7 +461,7 @@ class Collector(unittest.TestCase):
                 (sites / name / "site_config.json").write_text(json.dumps({
                     "pearnly_oidc_issuer": BUSINESS + "/", "pearnly_oidc_client_id": name,
                     "pearnly_oidc_redirect_uri": f"https://{name}{ext.CALLBACK}", "pearnly_oidc_client_secret": SITE_SECRET,
-                    "pearnly_line_channel_id": "1650000000", "pearnly_line_channel_secret": CHANNEL_SECRET,
+                    "pearnly_line_channel_id": " 1650000000", "pearnly_line_channel_secret": CHANNEL_SECRET + "\n",
                     "pearnly_line_liff_id": CHANNEL + "-abc", "pearnly_line_login_idp": ALIAS, **extra}))
             (sites / "common_site_config.json").write_text(json.dumps({"db_password": "db-IIII"}))
 
@@ -476,6 +489,9 @@ class Collector(unittest.TestCase):
             "bot": {"chatMode": "bot", "markAsReadMode": "auto"}, "richmenu": False,
             "webhook_test": {"success": True, "statusCode": 200}})
         self.assertEqual(facts["sites"]["cowork"], {"error": "Error: No such container"})
+        # 频道号、密钥首尾的空白去掉再交给 LINE（站点 pearnly_core.line._conf 同样 strip；11-05 生产 mrerp / testerp 就是这样）
+        issued = [c for c in calls if c[1].endswith("/oauth2/v3/token")]
+        self.assertTrue(issued)
         # 一律用频道号 + 密钥现取（证明验签密钥对，测试事件才不会被站点当成验签失败）；存的长期令牌不用
         self.assertEqual(sum(1 for m, url, _ in calls if url.endswith("/oauth2/v3/token")), 2)
         self.assertTrue(all(auth in ("", f"Bearer {FRESH_TOKEN}") for _, _, auth in calls))

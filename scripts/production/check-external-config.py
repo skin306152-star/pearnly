@@ -46,6 +46,7 @@ ENTRY = "fatcc.com"
 ISSUER_BASE = f"https://{AUTH}/realms/"
 CALLBACK = "/api/method/pearnly_core.identity.callback"
 BACKCHANNEL = "/api/method/pearnly_core.identity.backchannel_logout"
+TEST_ENTRY = "testai.pearnly.com"
 TLS_BLOCK_DAYS, TLS_NOTE_DAYS = 7, 21
 LINE_AUTHORIZE = "https://access.line.me/oauth2/v2.1/authorize"
 UNREADABLE = (
@@ -178,7 +179,7 @@ def _client_shape(client: dict, site: str, src: Sources) -> list[str]:
         wrong.append(f"回调里没有 {base}{CALLBACK}")
     if base not in (client.get("webOrigins") or []):
         wrong.append(f"webOrigins 没有 {base}")
-    missing = [u for u in [base + "/"] + src.ai_entry.logout_targets(site) if u not in logout]
+    missing = [u for u in [base + "/"] + src.ai_entry.logout_targets(site) if u not in logout and TEST_ENTRY not in u]
     if missing:
         wrong.append(f"退出跳转缺 {'、'.join(missing)}")
     if attributes.get("backchannel.logout.url") != base + BACKCHANNEL:
@@ -242,6 +243,12 @@ def check_site_clients(src: Sources, facts: dict, rows: dict, out: Findings) -> 
             wrong = _client_shape(client, site, src)
             if wrong:
                 out.add("kc:site-client", f"{product} {site} 客户端：{'；'.join(wrong)}", "block")
+            logout = str((client.get("attributes") or {}).get("post.logout.redirect.uris") or "")
+            for target in src.ai_entry.logout_targets(site):
+                if TEST_ENTRY in target and target not in logout.split("##"):
+                    # 测试入口 testai 只影响从测试入口退出回到哪（11-05 生产演练：test01、testcowork 缺），只报告；
+                    # 补齐用 configure-ai-entry.py --tenant-logout（生产写入，要授权）
+                    out.add("kc:site-client", f"{product} {site} 客户端：退出跳转缺测试入口 {target}（只报告）", "note")
             structures[site] = _client_structure(client, site)
             match = row.get("secret_match")
             if match is False:
@@ -324,9 +331,6 @@ def check_line(src: Sources, rows: dict, out: Findings) -> None:
             bot = line.get("bot") or {}
             if "error" in bot:
                 out.add("line:bot-mode", f"{product} {site}：机器人模式读不到（{bot['error']}）", "note")
-            elif bot.get("chatMode") != "bot":
-                out.add("line:bot-mode", f"{product} {site}：chatMode 是 {bot.get('chatMode')}，应为 bot（聊天模式下自动回复失效）",
-                        "block")
             test = line.get("webhook_test") or {}
             if "error" in test or test.get("success") is not True:
                 out.add("line:webhook-test", f"{product} {site}：LINE → 服务器 webhook 测试没成功"
@@ -339,9 +343,11 @@ def check_line(src: Sources, rows: dict, out: Findings) -> None:
         for site, line in sorted(lines.items()):
             if src.tenant.is_test(site) or "error" in line:
                 continue
-            mine, theirs = (line.get("bot") or {}).get("markAsReadMode"), (ref.get("bot") or {}).get("markAsReadMode")
-            if "error" not in (line.get("bot") or {}) and "error" not in (ref.get("bot") or {}) and mine != theirs:
-                out.add("line:bot-mode", f"{product} {site}：markAsReadMode {mine}，测试租户 {reference['site']} 是 {theirs}（应一致）")
+            # chatMode 不钉死 bot：11-05 生产演练 9 个频道都是 chat（聊天功能开着），收发照常；只要求与同产品测试租户一致
+            for name in ("chatMode", "markAsReadMode"):
+                mine, theirs = (line.get("bot") or {}).get(name), (ref.get("bot") or {}).get(name)
+                if "error" not in (line.get("bot") or {}) and "error" not in (ref.get("bot") or {}) and mine != theirs:
+                    out.add("line:bot-mode", f"{product} {site}：{name} {mine}，测试租户 {reference['site']} 是 {theirs}（应一致）")
             if line.get("richmenu") is not ref.get("richmenu"):
                 out.add("line:richmenu", f"{product} {site}：默认富菜单 {_has(line.get('richmenu'))}，"
                                          f"测试租户 {reference['site']} {_has(ref.get('richmenu'))}")

@@ -95,8 +95,11 @@ def call(method, path, token, body=None):
 def token_of(conf):
     # 总用频道号 + 密钥现取（存了长期令牌的站也一样）：LINE 收下就证明站点验签用的密钥是对的，
     # 之后请 LINE 发的 webhook 测试事件才一定验签通过、被站点安静收下（不会记「验签失败」）。
-    form = urllib.parse.urlencode({"grant_type": "client_credentials", "client_id": str(conf["pearnly_line_channel_id"]),
-                                   "client_secret": str(conf.get("pearnly_line_channel_secret") or "")}).encode()
+    # 去掉首尾空白，与站点读法一致（pearnly_core.line._conf 会 strip；11-05 生产演练：mrerp 的密钥、testerp 的频道号带空白，
+    # 不去掉 LINE 就不认，而站点验签照常）
+    form = urllib.parse.urlencode({"grant_type": "client_credentials",
+                                   "client_id": str(conf["pearnly_line_channel_id"]).strip(),
+                                   "client_secret": str(conf.get("pearnly_line_channel_secret") or "").strip()}).encode()
     request = urllib.request.Request(LINE + "/oauth2/v3/token", data=form, method="POST",
                                      headers={"Content-Type": "application/x-www-form-urlencoded"})
     try:

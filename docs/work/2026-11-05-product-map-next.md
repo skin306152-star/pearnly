@@ -479,3 +479,26 @@ webhook 测试事件（L6）的安全性（主会话 11-05 条件）：LINE 的�
 把签名密钥换错同一测试就不通过，说明它测到了验签那一步）。只有站点密钥不对时才会记「验签失败」，所以生产机段**一律用频道号 + 密钥现取令牌**
 （存了长期令牌的站也一样）：LINE 认这对凭据才发测试事件；不认就一个请求都不发给这个站的 webhook，按凭据不对拦（`test-check-external-config.py` 有一条）。
 测试事件不含任何事件，正式租户的频道不会因此给客户发出任何东西。
+
+#### 生产演练（11-05 14:03，main 04aa8977c，主会话同意的那 1 次只读 SSH，约 64 秒）
+
+`deploy.sh --dry-run` 本身会先被流程闸拦（main 上 56c1807e 之后改了产品路径、没跑全套），连不到生产；所以把 `deploy.sh` 里
+`config_gate` / `liff_gate` / `external_gate` 三个函数原样抽出来单独跑（同一段代码、同一次 SSH）。
+
+全过：租户配置对比、LIFF 落地地址（9 站）、两个池 realm、pearnly-ai、LINE 入口与拒绝流程、fatcc.com 登记 10 条、客户端密钥两端一致（10 站）、
+解析（12 个主机指向生产）、证书（最早 auth.pearnly.com 剩 44 天）、LINE 登录回调（两个池都已登记）、webhook 地址与开关（读到的 7 站）。
+
+拦下 11 项，按性质分：
+- **规则错了，已改**：L2 原来钉死 `chatMode = bot`，生产 9 个频道全是 `chat`（聊天功能开着）且收发正常——改为只要求与同产品测试租户一致。
+  K2 里 test01、testcowork 的退出跳转缺 `https://testai.pearnly.com/*`（testerp、testdms 有）：只影响从测试入口退出回到哪，改为只报告；
+  补齐要在生产跑 `configure-ai-entry.py --tenant-logout`（写入，待主会话定）。
+- **我们脚本的错，已改**：mrerp、testerp 的「频道号 + 密钥」LINE 不认（换短时令牌 HTTP 400）。主会话同意后再连一次只读 SSH 查清（11-05）：
+  mrerp 站点配置里的密钥是 33 个字符（LINE 的是 32 位，多了首尾空白），testerp 的频道号前面多一个空格；站点读配置时 `pearnly_core.line._conf`
+  会 strip，所以站点验签照常——两站 30 天内「LINE webhook 验签失败」0 条，LINE 事件 mrerp 56 条（最近 11-03 18:32）、testerp 9 条；
+  存的长期令牌校验回来的频道号与配置一致（mrerp `2011793822`、testerp `2011288286`），机器人信息能读（@918gofwr MRERP、@063eadty ERP-TEST）。
+  生产机段原样把带空白的值交给 LINE 才被拒：改为与站点同样 strip（测试里假 LINE 只认去掉空白的值，去掉 strip 那条测试就不通过）。
+  配置里的空白不影响使用，不改（要清理是生产写入，主会话定）。
+
+只报告：erpcowork 没有默认富菜单（testcowork 有）；ris、testdms 的 webhook 测试事件没成功（LINE 回状态码 0，像是连不到 / 超时，地址与开关都对）——待查。
+
+待办（主会话 11-05 定）：test01、testcowork 补 testai 退出跳转（`configure-ai-entry.py --tenant-logout`，生产 Keycloak 写入）先不做。

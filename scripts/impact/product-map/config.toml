@@ -226,7 +226,7 @@ reads = "web 容器里用站点自己的频道凭据 GET https://api.line.me/v2/
 [ext."line:bot-mode"]
 class = "same"
 where = "production"
-check = "L2：chatMode = bot，markAsReadMode 与同产品测试租户相同"
+check = "L2：chatMode、markAsReadMode 与同产品测试租户相同（11-05 生产演练：9 个频道都是 chat，收发照常，不钉死 bot）"
 reads = "web 容器里 GET https://api.line.me/v2/bot/info，只输出这两个字段"
 
 [ext."liff:endpoint"]
