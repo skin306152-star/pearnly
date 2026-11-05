@@ -4,10 +4,7 @@ cowork.cc.action.settings@desktop
 cowork.cc.action.settings@mobile
 cowork.cc.tool.cowork_document_original@desktop
 cowork.cc.tool.cowork_document_original@mobile
-cowork.cc.view.chat@desktop
-cowork.cc.view.chat@mobile
 cowork.cc.view.company@desktop
 cowork.desk.pearnly-team@mobile
 cowork.line.event.follow@mobile
 erp.cc.view.tasks@desktop
-erp.line.card-edit@mobile

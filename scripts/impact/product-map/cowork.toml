@@ -853,6 +853,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-view"
 anchor = "ccview:cowork:chat"
 where = "CC 对话（新建、收发、侧栏找回）"
+tests = ["e2e:e2e.cowork.chat-one"]
 group = "cc.view.chat"
 
 [[row]]
@@ -884,7 +885,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-view"
 anchor = "ccview:cowork:operator"
 where = "CC 代录（任务会话）"
-tests = ["flow:cowork.operator.unknown", "unit:tests/test_cc_operator.py::test_events_fold_into_the_same_conversation", "unit:tests/test_cc_operator.py::test_cards_bridge_and_sidebar_modes"]
+tests = ["flow:cowork.operator.unknown", "unit:tests/test_cc_operator.py::test_events_fold_into_the_same_conversation", "unit:tests/test_cc_operator.py::test_cards_bridge_and_sidebar_modes", "e2e:e2e.cowork.operator-new"]
 group = "cc.view.operator"
 
 [[row]]
@@ -930,7 +931,7 @@ anchor = "line:cowork:link:/desk/pearnly-intake/new/{x}"
 where = "LINE 识别后的卡片，点「แก้ไข」→ 经 LIFF 打开录入编辑页"
 parts = ["line", "line-session"]
 config = ["site:pearnly_line_liff_id", "liff:endpoint"]
-tests = ["unit:tests/test_cowork_line_intake.py::test_purchase_card"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_purchase_card", "e2e:e2e.cowork.liff-web"]
 must_verify = true
 probe = { type = "liff", path = "/desk/pearnly-intake/new/{doc}" }
 group = "line.card-edit"
@@ -958,7 +959,7 @@ anchor = "line:cowork:menu:stocktake"
 where = "LINE 富菜单「库存盘点」→ 经 LIFF 打开 /desk/pearnly-stocktake"
 parts = ["line", "line-session"]
 config = ["site:pearnly_line_liff_id", "liff:endpoint"]
-tests = ["unit:tests/test_cowork_line_intake.py::test_menu_web_pages_open_through_the_line_sign_in_entry", "impact:cowork.line.stocktake.liff-camera"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_menu_web_pages_open_through_the_line_sign_in_entry", "impact:cowork.line.stocktake.liff-camera", "e2e:e2e.cowork.liff-web"]
 must_verify = true
 probe = { type = "liff", path = "/desk/pearnly-stocktake" }
 group = "line.menu.stocktake"
@@ -974,7 +975,7 @@ anchor = "line:cowork:menu:work"
 where = "LINE 富菜单「任务」→ 经 LIFF 打开 /desk/pearnly-work"
 parts = ["line", "line-session"]
 config = ["site:pearnly_line_liff_id", "liff:endpoint"]
-tests = ["unit:tests/test_cowork_line_intake.py::test_menu_web_pages_open_through_the_line_sign_in_entry"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_menu_web_pages_open_through_the_line_sign_in_entry", "e2e:e2e.cowork.liff-web"]
 must_verify = true
 probe = { type = "liff", path = "/desk/pearnly-work" }
 group = "line.menu.work"
@@ -1636,7 +1637,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:cowork:switch-account"
 where = "CC 左下角站点列表，点另一个站点（切换账号）"
-tests = ["unit:tests/test_assistant_entry.py::SiteSwitchTests"]
+tests = ["unit:tests/test_assistant_entry.py::SiteSwitchTests", "e2e:e2e.cowork.switch-site", "e2e:e2e.cowork.login"]
 parts = ["login-session"]
 config = ["ext:fatcc.com", "kc:pearnly-business:remember-me", "kc:pearnly-cowork:remember-me"]
 must_verify = true
@@ -1652,7 +1653,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:cowork:add-company"
 where = "CC 侧栏「公司」→ 添加公司"
-tests = ["flow:cowork.cc.sidebar-modes"]
+tests = ["flow:cowork.cc.sidebar-modes", "e2e:e2e.cowork.add-company"]
 group = "cc.action.add-company"
 incidents = ["2026-11-03 ERP 版 CC 添加公司跳系统浏览器、要重新登录"]
 
@@ -1698,7 +1699,7 @@ kind = "cc-action"
 anchor = "ccaction:cowork:logout"
 where = "CC 退出（直接退出、跳回，不出确认页）"
 parts = ["login-session"]
-tests = ["unit:tests/test_assistant_ui.py::test_cc_logout_goes_straight_out", "unit:tests/test_assistant_entry.py::test_logout_confirmation_submits_itself_without_a_card"]
+tests = ["unit:tests/test_assistant_ui.py::test_cc_logout_goes_straight_out", "unit:tests/test_assistant_entry.py::test_logout_confirmation_submits_itself_without_a_card", "e2e:e2e.cowork.logout"]
 group = "cc.action.logout"
 
 [[row]]

@@ -272,7 +272,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-view"
 anchor = "ccview:erp:chat"
 where = "CC 对话（新建、收发、侧栏找回）"
-tests = ["flow:cc.chat"]
+tests = ["flow:cc.chat", "e2e:e2e.erp.chat-one"]
 group = "cc.view.chat"
 
 [[row]]
@@ -305,7 +305,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-view"
 anchor = "ccview:erp:operator"
 where = "CC 代录（任务会话）"
-tests = ["flow:cc.operator", "unit:tests/test_cc_operator.py::test_events_fold_into_the_same_conversation", "unit:tests/test_cc_operator.py::test_cards_bridge_and_sidebar_modes"]
+tests = ["flow:cc.operator", "unit:tests/test_cc_operator.py::test_events_fold_into_the_same_conversation", "unit:tests/test_cc_operator.py::test_cards_bridge_and_sidebar_modes", "e2e:e2e.erp.operator-new"]
 group = "cc.view.operator"
 
 [[row]]
@@ -364,7 +364,7 @@ anchor = "line:erp:link:/desk/{root}/line/{x}"
 where = "LINE 识别后的采购 / 销售卡片，点「แก้ไข」→ 经 LIFF 打开这张单的编辑页"
 parts = ["line", "line-session"]
 config = ["site:pearnly_line_liff_id", "liff:endpoint"]
-tests = ["impact:erp.line.intake.submit"]
+tests = ["impact:erp.line.intake.submit", "e2e:e2e.erp.liff-web"]
 must_verify = true
 probe = { type = "liff", path = "/desk/pearnly-purchase/line/{doc}" }
 group = "line.card-edit"
@@ -380,7 +380,7 @@ anchor = "line:erp:link:/desk/{root}/new?entry=manual"
 where = "LINE 录入流程里「手工录入」→ 经 LIFF 打开空白单据页"
 parts = ["line", "line-session"]
 config = ["site:pearnly_line_liff_id", "liff:endpoint"]
-tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_manual_entry_is_a_link_to_the_blank_native_page"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_manual_entry_is_a_link_to_the_blank_native_page", "e2e:e2e.erp.liff-web"]
 must_verify = true
 probe = { type = "liff", path = "/desk/pearnly-purchase/new?entry=manual" }
 
@@ -419,7 +419,7 @@ anchor = "line:erp:menu:stocktake"
 where = "LINE 富菜单右上「盘点」→ 经 LIFF 打开 /desk/pearnly-stock-count"
 parts = ["line", "line-session"]
 config = ["site:pearnly_line_liff_id", "liff:endpoint"]
-tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_tiles_follow_permissions_and_stocktake_opens_the_native_page", "impact:erp.line.stocktake.liff-camera"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_tiles_follow_permissions_and_stocktake_opens_the_native_page", "impact:erp.line.stocktake.liff-camera", "e2e:e2e.erp.liff-web"]
 must_verify = true
 probe = { type = "liff", path = "/desk/pearnly-stock-count" }
 group = "line.menu.stocktake"
@@ -1438,7 +1438,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:erp:switch-account"
 where = "CC 左下角站点列表，点另一个站点（切换账号）"
-tests = ["unit:tests/test_assistant_entry.py::SiteSwitchTests"]
+tests = ["unit:tests/test_assistant_entry.py::SiteSwitchTests", "e2e:e2e.erp.switch-site", "e2e:e2e.erp.login"]
 parts = ["login-session"]
 config = ["ext:fatcc.com", "kc:pearnly-business:remember-me", "kc:pearnly-cowork:remember-me"]
 must_verify = true
@@ -1454,7 +1454,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:erp:add-company"
 where = "CC 侧栏「公司」→ 添加公司"
-tests = ["flow:cc.companies", "unit:tests/test_erp_cc_companies.py::AddCompanyTests"]
+tests = ["flow:cc.companies", "unit:tests/test_erp_cc_companies.py::AddCompanyTests", "e2e:e2e.erp.add-company"]
 group = "cc.action.add-company"
 incidents = ["2026-11-03 ERP 版 CC 添加公司跳系统浏览器、要重新登录"]
 
@@ -1501,7 +1501,7 @@ kind = "cc-action"
 anchor = "ccaction:erp:logout"
 where = "CC 退出（直接退出、跳回，不出确认页）"
 parts = ["login-session"]
-tests = ["unit:tests/test_assistant_ui.py::test_cc_logout_goes_straight_out", "unit:tests/test_assistant_entry.py::test_logout_confirmation_submits_itself_without_a_card"]
+tests = ["unit:tests/test_assistant_ui.py::test_cc_logout_goes_straight_out", "unit:tests/test_assistant_entry.py::test_logout_confirmation_submits_itself_without_a_card", "e2e:e2e.erp.logout"]
 group = "cc.action.logout"
 
 [[row]]

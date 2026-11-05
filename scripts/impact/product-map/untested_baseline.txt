@@ -73,8 +73,6 @@ cowork.cc.tool.express_operator_control@desktop
 cowork.cc.tool.express_operator_control@mobile
 cowork.cc.tool.express_operator_status@desktop
 cowork.cc.tool.express_operator_status@mobile
-cowork.cc.view.chat@desktop
-cowork.cc.view.chat@mobile
 cowork.cc.view.company@desktop
 cowork.cc.view.company@mobile
 cowork.cc.view.tasks@mobile
@@ -374,5 +372,4 @@ erp.desk.pearnly-warehouses.action.company.newWarehouse@desktop
 erp.desk.pearnly-warehouses.action.company.newWarehouse@mobile
 erp.desk.query-report-erp stock count variance.action.Export@desktop
 erp.desk.query-report-erp stock count variance.action.Export@mobile
-erp.line.card-edit@mobile
 erp.line.event.unfollow@mobile

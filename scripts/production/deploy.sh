@@ -28,6 +28,7 @@
 #   3. 激活：一次 SSH 把本提交里的 deploy-run.sh 传上去、nohup 后台启动（脚本内容取自 git 里这个提交，服务器上还会与镜像里那份再比一次）。
 #      deploy-run.sh 照旧逐个激活 ERP / Cowork / DMS / 基础层，之间等可用内存 ≥ 8 GB，每 10 秒记内存，最后跑 deploy-readback.sh。
 #   4. 看进度：一条 SSH 长连接在服务器那头 tail 日志，部署结束自己断开；中途断线等 120 秒再接，最多 5 次。不在本机循环反复新建 SSH。
+#   5. 回读通过后跑登录后端到端（e2e_gate：测试租户、本机无头浏览器）；不通过停下，没测到只打印。
 # 任何一步失败立刻停下，打印现在停在哪、生产受没受影响、下一步怎么处理；不自动回滚。
 # 需要：gh 已登录、~/.config/pearnly-production/operator 密钥、能连生产机。
 set -euo pipefail
@@ -46,7 +47,7 @@ while [[ $# -gt 0 ]]; do
     --tag) tag=${2:-}; shift ;;
     --digest) digest=${2:-}; shift ;;
     --skip-stage) skip_stage=1 ;;
-    -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,33p' "$0"; exit 0 ;;
     *) printf '不认识的参数：%s（--help 看用法）\n' "$1" >&2; exit 2 ;;
   esac
   shift
@@ -228,6 +229,29 @@ batch_note() {
   (cd "$REPO" && python3 scripts/check-product-map.py --batch --files $files 2>/dev/null) | sed 's/^/  /' || true
 }
 
+# 登录后端到端（11-05，docs/work/2026-11-05-product-map-next.md）：回读通过后，用专用 e2e 账号经真实的 fatcc.com 与 Keycloak
+# 登录生产上的测试租户（testerp / testcowork），走登录、切换站点、添加公司、退出、LINE 进网页、对话一句、代录新建任务（scripts/e2e/run.py --all，
+# 约 6 分钟，每次部署对话场景约 1–2 泰铢模型费）。正式租户一个都不登录。不通过就停下（不自动回滚）；没测到（测试租户切在测试机、
+# 本机没有 e2e 账号或 Playwright 版本不对）只打印、不拦。本机 Python：PEARNLY_E2E_PYTHON，默认 ~/pearnly-devtools/e2e-venv/bin/python。
+e2e_gate() {
+  local py=${PEARNLY_E2E_PYTHON:-$HOME/pearnly-devtools/e2e-venv/bin/python} rc=0 out
+  if [[ ! -x "$py" ]]; then
+    printf '\n登录后 e2e：没测到（本机没有 %s；建法见 scripts/e2e/run.py 文件头）\n' "$py"
+    return 0
+  fi
+  say "登录后 e2e（测试租户，约 6 分钟）"
+  out=$(cd "$REPO" && "$py" scripts/e2e/run.py --all 2>&1) || rc=$?
+  printf '%s\n' "$out" | sed 's/^/  /'
+  case $rc in
+    0) say "登录后 e2e 全部通过" ;;
+    3) printf '\n登录后 e2e 有没测到的格（见上面「没测到」行），不算通过也不算不通过，不拦\n' ;;
+    1) stop "生产已激活、回读通过，但测试租户登录后流程不通过（见上面「不通过」行与截图）" \
+         "不自动回滚；先只读看截图与上面原因，判断是这批代码、站外设置还是测试租户数据" \
+         "回退做法见上一次发布记录的「回退」一节；修好后单独重跑：$py scripts/e2e/run.py --all" ;;
+    *) printf '\n登录后 e2e 没跑起来（退出码 %s），不拦；本机单独重跑：%s scripts/e2e/run.py --all\n' "$rc" "$py" ;;
+  esac
+}
+
 # ---------- 发布标记 ----------
 git -C "$REPO" fetch -q --tags origin main
 main_sha=$(git -C "$REPO" rev-parse origin/main)
@@ -399,6 +423,7 @@ case "$status" in
         $((t_build / 60)) $((t_build % 60)) $((t_stage / 60)) $((t_stage % 60)) \
         $((server / 60)) $((server % 60)) $((total / 60)) $((total % 60))
     fi
+    e2e_gate
     printf '这一批特有的表、字段、补丁回读与线上冒烟按发布记录另做。\n'
     ;;
   "failed readback")

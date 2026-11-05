@@ -399,3 +399,38 @@ Cowork 测试账号 `e2ecowork` 只有 Cowork Intake（添加公司、代录都�
 真实登录各一次（本机 Playwright 1.60.0 Chromium，电脑宽度）：未登录打开 `/assistant` → fatcc.com 登录框 → auth.pearnly.com（各自的池）→
 fatcc.com 回调 → 站点 `begin_login` → 静默确认 → 站点回调 → `/assistant` 200，当前用户分别是 `e2eerp.testerp@pearnly.com`、
 `e2ecowork.testcowork@pearnly.com`。全程没有出现 Pearnly 登录页。
+
+### B2 场景真实跑通（11-05，生产测试租户 testerp / testcowork，本机 Playwright 1.60.0）
+
+全套 `scripts/e2e/run.py --all`：**34 格全部通过**（14 个场景 × 各自的跑法），顺序跑合计 339 秒；登记表每个场景写了 `since = "2026-11-05 4d42df765"`。
+
+| 场景 | 电脑 | 手机宽度 | iPhone 近似 | 说明 |
+|---|---|---|---|---|
+| 登录 | 过 | 过 | 过 | 两步登录经 fatcc.com 与各自账号池，当前用户对得上，全程没有 Pearnly 登录页 |
+| 切换站点 | 过 | 过 | 过 | ERP：开 test01（同池非成员）、testcowork（跨池）都落 CC 登录页，再登 e2ecowork 落 testcowork；Cowork：开 testerp 落 CC 登录页，再登 e2eerp |
+| 添加公司 | 过 | 过 | — | 本页弹窗、一次都没开新窗口，候选服务端搜索，点「已添加」的打开那家（不新建） |
+| 退出 | 过 | 过 | 过 | 没有 Keycloak 注销确认页，回 fatcc.com；再开 `/assistant` 要重新登录 |
+| LINE 进网页 | — | 过 | — | 已登录后逐个走地图里带 LIFF 探针的路径（ERP 3 个、Cowork 3 个），两种拼法每一跳都不是 4xx / 5xx |
+| 对话一句 | 过 | 过 | 过 | 回复 90 秒内到、没有出错卡片、侧栏接口里有这条；电脑走界面删除，手机调同一个删除接口；删后侧栏接口里没有 |
+| 代录新建任务 | 过 | 过 | — | 代录模式下从「公司」选一家进代录新建任务页（公司胶囊对、月份默认上个月），不是对话模式公司页（11-04 修复在生产有效） |
+
+证明不是空跑（同日真实跑过）：
+- 「Pearnly 登录页」判定：未登录直接走 testerp 自己的登录入口，判定报出 `auth.pearnly.com/…/auth?client_id=testerp.pearnly.com`；
+- LIFF 子路径（11-03 mrerp 的形状）：已登录打开 `https://testerp.pearnly.com/stocktake/api/method/…line_login.enter`，判定报出 404。
+
+和原方案的出入（都已改登记表）：
+- 浏览器里的 CC 没有站点列表（列表只在 CC 桌面版），切换站点 = 直接打开另一站 `/assistant`（同 `openSite`），不需要 test01 账号（主会话同意）。
+- 代录新建任务这一步还不建任务（侧栏接口里没有），断言改成新建任务页的公司与月份、没进公司页、没有在跑的任务，不用清理。
+- LIFF：普通浏览器里不在 LINE，落地后走站点自己的登录（部署后探针已核这一段）；所以场景改成**已登录**后走 LINE 拼出的地址，覆盖 11-03 事故 1 的 404。
+
+**跑出来的产品问题（未修，报主会话）**：对话回复刚出来、服务端还在给这条对话起标题时删除它，`pearnly_core.assistant.api.delete` 回 500
+（`QueryTimeoutError`，提示暂时不能删除），等标题出来后再删就正常。手机上回复后马上长按删除会碰到。e2e 里手机那一路先等标题出来再删。
+
+地图：12 行加了 `e2e:` 引用（两个产品的切换站点（并引登录）、添加公司、退出、CC 对话视图、代录视图，以及 LINE 卡片「แก้ไข」、手输、
+菜单盘点 / 工作等带 LIFF 探针的入口）；`untested_baseline.txt` 376 → 373，`sibling_baseline.txt` 同步删 3 条。
+
+### B3 接进部署（11-05）
+
+`deploy.sh` 回读通过（状态 ok）后跑 `e2e_gate`：本机 `~/pearnly-devtools/e2e-venv/bin/python scripts/e2e/run.py --all`（可用 `PEARNLY_E2E_PYTHON` 换）。
+退出码 0 打印通过；1 停下（生产已激活，不自动回滚，给出看截图、回退与单独重跑的做法）；3 打印没测到、不拦；本机没有 e2e 环境也只打印、不拦。
+演练（`--dry-run`）不跑。离线核过四种情况（假 Python 回 0 / 1 / 3、本机没装）。

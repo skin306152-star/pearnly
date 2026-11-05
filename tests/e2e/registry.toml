@@ -11,6 +11,7 @@ id = "e2e.erp.login"
 product = "ERP"
 runs = ["desktop", "mobile", "iphone"]
 where = "未登录打开 https://testerp.pearnly.com/assistant → fatcc.com 两步登录（用户名 → 继续 → auth.pearnly.com 密码页，勾记住我）"
+since = "2026-11-05 4d42df765"
 asserts = ["落回本站 /assistant，CC 外壳出现", "当前用户是 e2e 账号", "密码页是 pearnly-ai 主题，中间不出现 Keycloak 默认页", "主导航没有 4xx / 5xx，页面没有报错"]
 
 [[scenario]]
@@ -18,6 +19,7 @@ id = "e2e.erp.switch-site"
 product = "ERP"
 runs = ["desktop", "mobile", "iphone"]
 where = "已登录 testerp，左下角站点列表先点 test01（同池），再点 testcowork（跨池）"
+since = "2026-11-05 4d42df765"
 asserts = ["同池：直接进另一站，不出密码页", "跨池：出 CC 登录页（fatcc.com/?fresh=1），不是 Pearnly Keycloak 登录页", "在 CC 登录页登另一个池的 e2e 账号后落到那一站 /assistant"]
 
 [[scenario]]
@@ -25,6 +27,7 @@ id = "e2e.erp.add-company"
 product = "ERP"
 runs = ["desktop", "mobile"]
 where = "侧栏「公司」→ 添加公司 → 点一家「已添加」的（不新建公司）"
+since = "2026-11-05 4d42df765"
 asserts = ["在本页弹窗，一次都不开新窗口", "候选列表由服务端搜索返回", "打开那家公司页，仍在本站、没有登录页"]
 
 [[scenario]]
@@ -32,6 +35,7 @@ id = "e2e.erp.logout"
 product = "ERP"
 runs = ["desktop", "mobile", "iphone"]
 where = "点退出"
+since = "2026-11-05 4d42df765"
 asserts = ["不出 Keycloak「确定要注销吗」页", "回到 fatcc.com 登录页", "再开本站 /assistant 要重新登录（会话真的没了）"]
 
 [[scenario]]
@@ -39,6 +43,7 @@ id = "e2e.erp.liff-web"
 product = "ERP"
 runs = ["mobile"]
 where = "已登录后，逐个走地图里带 LIFF 探针的路径：本站入口转 LIFF，再打开 LINE 拼出来的两种地址（落地接路径、带 liff.state）；LINE 登录本身仍是三星真机"
+since = "2026-11-05 4d42df765"
 asserts = ["本站入口转到本站的 LIFF", "两种拼法的每一跳都不是 4xx / 5xx（11-03 事故 1）", "停在本站、已登录不再出登录页"]
 
 [[scenario]]
@@ -46,6 +51,7 @@ id = "e2e.erp.chat-one"
 product = "ERP"
 runs = ["desktop", "mobile", "iphone"]
 where = "新对话发一句固定的话，跑完删掉这条对话"
+since = "2026-11-05 4d42df765"
 asserts = ["90 秒内出现助手回复，没有出错卡片", "侧栏出现这条对话", "删掉后侧栏没有它"]
 
 [[scenario]]
@@ -53,6 +59,7 @@ id = "e2e.erp.operator-new"
 product = "ERP"
 runs = ["desktop", "mobile"]
 where = "切到「代录」，从侧栏「公司」选第一家（不点开始，不派给电脑；这一步还不建任务，不用清理）"
+since = "2026-11-05 4d42df765"
 asserts = ["进这家的代录新建任务页：公司胶囊是这家，月份胶囊默认上个月", "不是对话模式的公司页，仍在代录模式（11-03 事故 3 第 3 项）", "没有在跑的代录任务"]
 
 [[scenario]]
@@ -60,6 +67,7 @@ id = "e2e.cowork.login"
 product = "Cowork"
 runs = ["desktop", "mobile", "iphone"]
 where = "未登录打开 https://testcowork.pearnly.com/assistant → fatcc.com 两步登录（用户名 → 继续 → auth.pearnly.com 密码页，勾记住我）"
+since = "2026-11-05 4d42df765"
 asserts = ["落回本站 /assistant，CC 外壳出现", "当前用户是 e2e 账号", "密码页是 pearnly-ai 主题，中间不出现 Keycloak 默认页", "主导航没有 4xx / 5xx，页面没有报错"]
 
 [[scenario]]
@@ -67,6 +75,7 @@ id = "e2e.cowork.switch-site"
 product = "Cowork"
 runs = ["desktop", "mobile", "iphone"]
 where = "已登录 testcowork，左下角站点列表点 testerp（跨池）"
+since = "2026-11-05 4d42df765"
 asserts = ["跨池：出 CC 登录页（fatcc.com/?fresh=1），不是 Pearnly Keycloak 登录页", "在 CC 登录页登另一个池的 e2e 账号后落到那一站 /assistant"]
 
 [[scenario]]
@@ -74,6 +83,7 @@ id = "e2e.cowork.add-company"
 product = "Cowork"
 runs = ["desktop", "mobile"]
 where = "侧栏「公司」→ 添加公司 → 点一家「已添加」的（不新建公司）"
+since = "2026-11-05 4d42df765"
 asserts = ["在本页弹窗，一次都不开新窗口", "候选列表由服务端搜索返回", "打开那家公司页，仍在本站、没有登录页"]
 
 [[scenario]]
@@ -81,6 +91,7 @@ id = "e2e.cowork.logout"
 product = "Cowork"
 runs = ["desktop", "mobile", "iphone"]
 where = "点退出"
+since = "2026-11-05 4d42df765"
 asserts = ["不出 Keycloak「确定要注销吗」页", "回到 fatcc.com 登录页", "再开本站 /assistant 要重新登录（会话真的没了）"]
 
 [[scenario]]
@@ -88,6 +99,7 @@ id = "e2e.cowork.liff-web"
 product = "Cowork"
 runs = ["mobile"]
 where = "已登录后，逐个走地图里带 LIFF 探针的路径：本站入口转 LIFF，再打开 LINE 拼出来的两种地址（落地接路径、带 liff.state）；LINE 登录本身仍是三星真机"
+since = "2026-11-05 4d42df765"
 asserts = ["本站入口转到本站的 LIFF", "两种拼法的每一跳都不是 4xx / 5xx（11-03 事故 1）", "停在本站、已登录不再出登录页"]
 
 [[scenario]]
@@ -95,6 +107,7 @@ id = "e2e.cowork.chat-one"
 product = "Cowork"
 runs = ["desktop", "mobile", "iphone"]
 where = "新对话发一句固定的话，跑完删掉这条对话"
+since = "2026-11-05 4d42df765"
 asserts = ["90 秒内出现助手回复，没有出错卡片", "侧栏出现这条对话", "删掉后侧栏没有它"]
 
 [[scenario]]
@@ -102,4 +115,5 @@ id = "e2e.cowork.operator-new"
 product = "Cowork"
 runs = ["desktop", "mobile"]
 where = "切到「代录」，从侧栏「公司」选第一家（不点开始，不派给电脑；这一步还不建任务，不用清理）"
+since = "2026-11-05 4d42df765"
 asserts = ["进这家的代录新建任务页：公司胶囊是这家，月份胶囊默认上个月", "不是对话模式的公司页，仍在代录模式（11-03 事故 3 第 3 项）", "没有在跑的代录任务"]
