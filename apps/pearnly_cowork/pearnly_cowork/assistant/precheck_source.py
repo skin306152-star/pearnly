@@ -10,8 +10,9 @@
   不进账套记忆，10-08 口径）。
 - :func:`remember`：卡片答案按各类现有的记法记下：账套记忆（`service.save_choices`）、租户口径（`history.document_policy`）、
   公司入账方式（`goods_posting.choose`）、公司分组（`operator_source.regroup`）、现用账套（`companies.pending`）、代录子菜单
-  （``operator_form``，直接记进选择记忆 `push.choices.record`，不经 `save_choices`：那条路只认写账规则的类）。
-- 代录停在定制菜单的子菜单（回执原因 ``[OPERATOR_MENU_CHOICE] 单种: 候选 | 候选``，记在单据上）：判定里收一项 ``operator_form``
+  （``operator_form``，直接记进选择记忆 `push.choices.record`，记在停下那条推送记录的连接与账套；不经 `save_choices`：那条路
+  只认写账规则的类）。
+- 代录停在定制菜单的子菜单（原因 menu_choice，推送记录存下的回执 ``meta.operator`` 带单种与候选）：判定里收一项 ``operator_form``
   （归类键 = 单据种类，选项 = 候选菜单文字），代录预检原来的回包也列进 ``needed``；记住后再交时载荷带 ``operator.form_choice``。
 - :func:`resume`：待处理里停着的单记下答案后按原来的写入路径重推（同待处理页「当场选」）。
 
@@ -148,38 +149,40 @@ def document(history, posting_kind=None, hint=None) -> dict:
     return _with_menu({**out, "state": card.CHECK, "items": items}, menu)
 
 
-def _menu_of(doc) -> tuple:
-    """这张单停在定制菜单的子菜单（最近一次推送转人工、原因 ``menu_choice``）：(单据种类, [候选的值])；不是回 ("", [])。"""
+def _menu_stop(doc) -> dict:
+    """这张单停在定制菜单的子菜单（最近一次推送转人工，那条推送记录存下的回执 ``meta.operator`` 带单种与候选，
+    `menu_choice.stopped_at`）：``{doc_type, codes, connection, account_set}``（连接与账套是那条推送记录写的，交单时载荷按同一份
+    读记住的值）；不是回空 dict。"""
     from pearnly_core.express_operator import menu_choice
 
-    if str(getattr(doc, "last_push_status", "") or "") != "manual":
-        return "", []
-    doc_type, options = menu_choice.parse_reason(getattr(doc, "last_push_reason", ""))
-    codes = list(dict.fromkeys(code for code in (menu_choice.option_code(option) for option in options) if code))
-    return (doc_type, codes) if doc_type and codes else ("", [])
-
-
-def _menu_book(doc) -> tuple:
-    """代录子菜单记在哪份账套：停下的那条推送记录写的连接与账套（交单时载荷按同一份读），读不到按单据上的去向。"""
     record = str(getattr(doc, "last_push_record", "") or "")
-    found = frappe.db.get_value("Cowork Push Record", record, ["connection", "account_key"], as_dict=True) if record else None
-    if isinstance(found, dict) and found.get("connection") and found.get("account_key"):
-        return str(found["connection"]), str(found["account_key"])
-    return str(getattr(doc, "push_connection", "") or ""), str(getattr(doc, "push_account_set", "") or "")
+    if str(getattr(doc, "last_push_status", "") or "") != "manual" or not record:
+        return {}
+    found = frappe.db.get_value("Cowork Push Record", record, ["connection", "account_key", "response_json"], as_dict=True)
+    if not isinstance(found, dict):
+        return {}
+    try:
+        response = json.loads(found.get("response_json") or "{}")
+    except ValueError:
+        return {}
+    doc_type, codes = menu_choice.stopped_at(response)
+    if not doc_type or not found.get("connection") or not found.get("account_key"):
+        return {}
+    return {"doc_type": doc_type, "codes": codes, "connection": str(found["connection"]),
+            "account_set": str(found["account_key"])}
 
 
 def _menu_item(doc):
     """停在子菜单的单要人定的那一项（没有回 None）：选项是 CC 读到的候选菜单文字；这份账套这种单记过、且仍在候选里的是已定。"""
-    doc_type, codes = _menu_of(doc)
-    if not doc_type:
+    stop = _menu_stop(doc)
+    if not stop:
         return None
     from pearnly_cowork.push import choices as choice_store
 
-    connection, account_set = _menu_book(doc)
-    remembered = choice_store.operator_form(connection, account_set, doc_type) if connection and account_set else ""
-    value = remembered if remembered in codes else ""
-    return {"kind": OPERATOR_FORM, "subject": doc_type, "label": doc_type, "value": value,
-            "source": card.REMEMBERED if value else "", "options": [{"code": code, "name": ""} for code in codes]}
+    remembered = choice_store.operator_form(stop["connection"], stop["account_set"], stop["doc_type"])
+    value = remembered if remembered in stop["codes"] else ""
+    return {"kind": OPERATOR_FORM, "subject": stop["doc_type"], "label": stop["doc_type"], "value": value,
+            "source": card.REMEMBERED if value else "", "options": [{"code": code, "name": ""} for code in stop["codes"]]}
 
 
 def _with_menu(found, menu) -> dict:
@@ -198,18 +201,15 @@ def _with_menu(found, menu) -> dict:
     return found
 
 
-def _remember_menu(doc, subject, value, label) -> int:
+def _remember_menu(stop, subject, value, label) -> int:
     """记下这家这本账套这种单走哪个子菜单命令：值须是这张单停下时 CC 读到的候选之一。直接记进选择记忆（不经
-    `service.save_choices`：那条路的可选值只认写账规则的类）。"""
+    `service.save_choices`：那条路的可选值只认写账规则的类）。``stop``：`_menu_stop` 的结果。"""
     from pearnly_cowork.push import choices as choice_store
 
-    doc_type, codes = _menu_of(doc)
-    if not doc_type or str(subject or "").strip().upper() != doc_type or value not in codes:
+    if not stop or str(subject or "").strip().upper() != stop["doc_type"] or value not in stop["codes"]:
         frappe.throw(_("cowork.choice.invalid"))
-    connection, account_set = _menu_book(doc)
-    if not connection or not account_set:
-        frappe.throw(_("cowork.company.pending.no_target"))
-    return int(bool(choice_store.record(connection, account_set, OPERATOR_FORM, doc_type, value, label or doc_type)))
+    return int(bool(choice_store.record(stop["connection"], stop["account_set"], OPERATOR_FORM, stop["doc_type"], value,
+                                        label or stop["doc_type"])))
 
 
 def operator_check(history, posting_kind=None) -> dict:
@@ -475,10 +475,11 @@ def remember(company, answers) -> dict:
                 saved += _set_document_payment(doc, value)
                 continue
             if kind == OPERATOR_FORM:
-                key = (*once, *_menu_book(doc))
+                stop = _menu_stop(doc)
+                key = (*once, stop.get("connection"), stop.get("account_set"))
                 if key not in done:
                     done.add(key)
-                    saved += _remember_menu(doc, row.get("subject"), value, str(row.get("label") or ""))
+                    saved += _remember_menu(stop, row.get("subject"), value, str(row.get("label") or ""))
                 continue
             if kind in CHOICE_KINDS:
                 key = (*once, doc.push_connection, doc.push_account_set)
