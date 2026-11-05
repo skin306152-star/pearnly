@@ -67,6 +67,8 @@ export type Choice = {
   supplier_name?: string; account_label?: string; branch?: string; promotable?: boolean;
   // MR.ERP 账套记住的导入菜单 / 默认值（source mrerp，2026-10-19）：改的时候可选值按这里点开时现取（loadMrErpOptions）
   mrerp?: MrErpChoice;
+  // 代录子菜单（kind operator_form，11-05）：能改成的几项（这份账套这种单最近一次停下时 CC 读到的候选，记住的在第一个）；没有就只能删
+  options?: string[];
 };
 export type MrErpChoice = { connection: string; account_set_key: string; part: "menu" | "default"; field: string };
 /** follows：跟随公司当年账套（T1，任务记了公司），账套处写「跟随公司当年账套」，account_label 只作兜底。 */

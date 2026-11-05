@@ -573,7 +573,7 @@ const COMPANY = {
       group: "Document groups", party: "Party", item: "Stock item", account: "Expense account", payment: "Payment", vat: "Tax on receipts",
       department: "Department", receipt: "Receiving account", pos: "POS layout", income: "Income reconciliation",
       vatCheck: "VAT reconciliation", history: "Express history", posting: "Posting", current_book: "Account set in use",
-      posting_history: "Posting history", mrerp_menu: "MR.ERP import menu", mrerp_default: "MR.ERP settings",
+      posting_history: "Posting history", mrerp_menu: "MR.ERP import menu", mrerp_default: "MR.ERP settings", operator_form: "Document menu",
     } as Record<string, string>,
   },
   zh: {
@@ -659,7 +659,7 @@ const COMPANY = {
       group: "资料分组", party: "对方档", item: "存货", account: "费用科目", payment: "付款方式", vat: "票面税额",
       department: "部门", receipt: "收款科目", pos: "POS 版式", income: "收入对账",
       vatCheck: "增值税核对", history: "Express 历史", posting: "入账方式", current_book: "现用账套", posting_history: "入账方式历史",
-      mrerp_menu: "MR.ERP 导入菜单", mrerp_default: "MR.ERP 设置",
+      mrerp_menu: "MR.ERP 导入菜单", mrerp_default: "MR.ERP 设置", operator_form: "单据菜单",
     } as Record<string, string>,
   },
   th: {
@@ -745,7 +745,7 @@ const COMPANY = {
       group: "กลุ่มเอกสาร", party: "คู่ค้า", item: "สินค้าคงเหลือ", account: "บัญชีค่าใช้จ่าย", payment: "วิธีชำระเงิน", vat: "จำนวนภาษีตามเอกสาร",
       department: "แผนก", receipt: "บัญชีรับเงิน", pos: "รูปแบบ POS", income: "กระทบยอดรายได้",
       vatCheck: "กระทบยอดภาษีมูลค่าเพิ่ม", history: "ประวัติ Express", posting: "วิธีลงบัญชี", current_book: "ชุดบัญชีที่ใช้อยู่",
-      posting_history: "ประวัติวิธีลงบัญชี", mrerp_menu: "เมนูนำเข้า MR.ERP", mrerp_default: "การตั้งค่า MR.ERP",
+      posting_history: "ประวัติวิธีลงบัญชี", mrerp_menu: "เมนูนำเข้า MR.ERP", mrerp_default: "การตั้งค่า MR.ERP", operator_form: "เมนูเอกสาร",
     } as Record<string, string>,
   },
 };

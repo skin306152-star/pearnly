@@ -25,9 +25,11 @@ from pearnly_core.express_rules.push.choices import KINDS as RULE_KINDS
 from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 # 记得住的类：写账规则那几类（`express_rules.push.choices.KINDS`）+ 代录子菜单选哪一项（``operator_form``，归类键 = 单据种类、
-# 值 = 菜单文字，评估 2026-11-05 修法 D）。``operator_form`` 不是写账规则：不进 `remembered` / `of_sets`（推送判定、自动推指纹、
-# 公司主档页的「记住的选择」都照旧），只经 `operator_form` 读
+# 值 = 菜单文字，评估 2026-11-05 修法 D）。``operator_form`` 不是写账规则：不进 `remembered`（推送判定、自动推指纹的输入照旧），
+# 交代录时经 `operator_form` 读；公司主档页「记住的选择」经 `of_sets` 列出、可删可改（改值的可选项见 `menu_stops`）
 KINDS = RULE_KINDS + (OPERATOR_FORM,)
+MENU_STOP_PREFIX = "[OPERATOR_MENU_CHOICE]"  # CC 回执的原因码写在推送记录原因开头（``worker._ack_operator``）
+MENU_SCAN_MAX = 50
 DOCTYPE = "Cowork Express Choice"
 OVERRIDE_DOCTYPE = "Cowork Express Choice Change"
 DOCTYPES = (DOCTYPE, OVERRIDE_DOCTYPE)
@@ -175,14 +177,42 @@ CHOICE_FIELDS = ["name", "account_set", "kind", "subject", "label", "value", "ch
 
 
 def of_sets(connection, account_sets, limit=200) -> list:
-    """一家公司各年度账套（公司主档，ADR-020）里记过的写账规则选择（代录子菜单不列），新 → 旧，最多 `limit` 条（值为空的不算）。只读；调用方已核过
+    """一家公司各年度账套（公司主档，ADR-020）里记过的选择（含代录子菜单），新 → 旧，最多 `limit` 条（值为空的不算）。只读；调用方已核过
     这条连接的推送权限，合并同类（同一类别、同一归类键只留最新一条）由调用方做。"""
     sets = sorted({normalize_express_account_key(item) for item in account_sets or () if item})
     if not connection or not sets:
         return []
     return frappe.db.sql(f"""SELECT {", ".join(CHOICE_FIELDS)} FROM `tab{DOCTYPE}`
-        WHERE connection=%s AND account_set IN %s AND kind!=%s AND COALESCE(value, '')!=''
-        ORDER BY chosen_at DESC LIMIT %s""", (connection, tuple(sets), OPERATOR_FORM, int(limit)), as_dict=True)
+        WHERE connection=%s AND account_set IN %s AND COALESCE(value, '')!=''
+        ORDER BY chosen_at DESC LIMIT %s""", (connection, tuple(sets), int(limit)), as_dict=True)
+
+
+def menu_stops(connection, account_sets, limit=MENU_SCAN_MAX) -> dict:
+    """这条连接这几份账套最近停在定制菜单子菜单的代录单，各（账套, 单种）最近一次 CC 读到的候选：``{(规范账套键, 单种):
+    [候选的值]}``（公司主档页改代录子菜单时的可选项）。读推送记录存下的回执 ``meta.operator``（`menu_choice.stopped_at`），按
+    「连接 + 状态 + 建立时间」索引取最近 ``limit`` 条；只读，调用方已核过这条连接的推送权限。"""
+    import json as _json
+
+    from pearnly_core.express_operator.menu_choice import stopped_at
+
+    sets = {normalize_express_account_key(item) for item in account_sets or () if item}
+    if not connection or not sets:
+        return {}
+    rows = frappe.db.sql("""SELECT account_key, response_json FROM `tabCowork Push Record`
+        WHERE connection=%s AND status='manual' AND reason LIKE %s ORDER BY created_at DESC LIMIT %s""",
+                         (connection, MENU_STOP_PREFIX.replace("_", "\\_") + "%", int(limit)), as_dict=True)
+    found = {}
+    for row in rows:
+        account_set = normalize_express_account_key(row.account_key)
+        if account_set not in sets:
+            continue
+        try:
+            doc_type, codes = stopped_at(_json.loads(row.response_json or "{}"))
+        except ValueError:
+            continue
+        if doc_type:
+            found.setdefault((account_set, doc_type), codes)
+    return found
 
 
 def forget(connection, account_sets, kind, subjects, replaced_by=None) -> int:
@@ -205,4 +235,4 @@ def forget(connection, account_sets, kind, subjects, replaced_by=None) -> int:
 
 
 __all__ = ["CHOICE_FIELDS", "DOCTYPE", "DOCTYPES", "KINDS", "OPERATOR_FORM", "OVERRIDE_DOCTYPE", "OVERRIDE_KEEP_DAYS", "OVERRIDE_SCAN_MAX", "deny",
-           "deny_query", "forget", "guard", "latest", "of_sets", "operator_form", "overrides", "record", "reject_share", "remembered"]
+           "deny_query", "forget", "guard", "latest", "menu_stops", "of_sets", "operator_form", "overrides", "record", "reject_share", "remembered"]

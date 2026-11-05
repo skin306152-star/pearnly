@@ -107,7 +107,7 @@ export function choiceSection(choice: Pick<Choice, "source" | "kind">): string {
 }
 
 const SECTION_ORDER = ["party", "account", "payment", "vat", "posting", "group", "item", "department", "receipt", "current_book", "pos", "income",
-  "vatCheck", "history", "posting_history", "mrerp_menu", "mrerp_default"];
+  "vatCheck", "history", "posting_history", "mrerp_menu", "mrerp_default", "operator_form"];
 
 // ---------------------------------------------------------------- 卡片外框
 /** 会话栏给卡片的控制：折叠（记在本机）、调顺序（Alt+↑/↓；拖动由会话栏的共用拖动负责）、登记看得见的卡片
@@ -859,6 +859,8 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
   const history = choice.source === "history";
   const rule = choice.source === "rule";
   const mrerp = choice.source === "mrerp" && !!choice.mrerp;
+  // 代录子菜单：可选项由服务端给（最近一次停下时的候选），从下拉改，同 MR.ERP 那一行
+  const menus = choice.source === "express" && choice.editable !== false && (choice.options?.length ?? 0) > 1 ? choice.options! : undefined;
   const options = (choice.source === "express" || rule || choice.source === "policy") && choice.editable !== false ? EDITABLE[choice.kind] : undefined;
   const subject = choice.subject_label || choice.supplier_name || "";
   const meta = history
@@ -896,6 +898,14 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
               </div>
             )}
             {mrerp && <MrErpChoiceSelect choice={choice} label={subject} busy={busy} onSet={onSet} />}
+            {menus && (
+              <select className="cc-input min-w-0 flex-1" aria-label={subject} data-slot="cc-choice-menu" value={choice.value}
+                onChange={(e) => !busy && e.target.value !== choice.value && onSet(e.target.value, e.target.value)}>
+                {menus.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            )}
             {onPromote && choice.promotable && (
               <button type="button" className="cc-card-btn" data-slot="cc-choice-promote" onClick={() => !busy && onPromote()}>
                 {co.makeCompanyWide}

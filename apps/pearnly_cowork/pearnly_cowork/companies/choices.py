@@ -121,7 +121,7 @@ def merge_express(rows, connection, years) -> list:
             "value": row.get("value") or "", "editable": row["kind"] in EDITABLE,
             "year_label": years.get((connection, str(row.get("account_set") or "").casefold()), ""),
             "set_by": row.get("chosen_by") or "", "set_at": str(row.get("chosen_at") or ""), "merged": 1,
-            "promotable": True}
+            "promotable": row["kind"] != express_choices.OPERATOR_FORM}
     return list(merged.values())
 
 
@@ -138,11 +138,32 @@ def _express(sets) -> list:
     out = []
     for connection, keys in _express_sets(sets).items():
         rows = express_choices.of_sets(connection, keys, READ_MAX)
-        out += merge_express(rows, connection, years)
+        found = merge_express(rows, connection, years)
+        if any(row["kind"] == express_choices.OPERATOR_FORM for row in found):
+            menu_options(found, rows, express_choices.menu_stops(connection, keys))
+        out += found
     for row in out:
         label = VALUE_LABELS.get((row["kind"], row["value"]))
         row["value_label"] = _(label) if label else row["value"]
     return out
+
+
+def menu_options(found, rows, stops) -> None:
+    """代录子菜单（``operator_form``）那几行能改成哪几项：这份账套这种单最近一次停下时 CC 读到的候选（``stops``：
+    `push.choices.menu_stops`），记住的值排第一；没有候选的只能删（``editable`` 为假）。就地改 ``found``。纯函数。"""
+    from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+
+    latest = {}
+    for row in rows:  # 新 → 旧：每种单取最近记的那份账套
+        if row["kind"] == express_choices.OPERATOR_FORM:
+            latest.setdefault(row["subject"], normalize_express_account_key(row.get("account_set")))
+    for item in found:
+        if item["kind"] != express_choices.OPERATOR_FORM:
+            continue
+        subject = decode(item["key"])[3]  # 这一类的归类就是单种本身（`group_of` 原样）
+        codes = stops.get((latest.get(subject, ""), subject)) or []
+        options = [item["value"]] + [code for code in codes if code != item["value"]] if codes else []
+        item["options"], item["editable"] = options, len(options) > 1
 
 
 def mrerp_rows(sets) -> list:
@@ -508,7 +529,7 @@ def forget(company, sets, key) -> dict:
     """删一条记住的选择（真删）。Express 的这家公司各年度、各分店一起删，否则 `latest()` 会从别处把它找回来。"""
     parts = decode(key)
     source = parts[0]
-    if source == "express" and len(parts) == 4 and parts[2] in KINDS:
+    if source == "express" and len(parts) == 4 and parts[2] in express_choices.KINDS:
         _source, connection, kind, group = parts
         keys = _require_connection(connection, sets)
         subjects = _subjects(connection, keys, kind, group)
@@ -572,6 +593,30 @@ def _set_mrerp(sets, parts, value) -> dict:
     return {"saved": True}
 
 
+def _set_menu(sets, parts, value) -> dict:
+    """改代录子菜单记住的那一项：值只收这份账套这种单最近一次停下时 CC 读到的候选（`push.choices.menu_stops`）；只写记过这一条的
+    那几份账套（菜单是各账套自己的，不扩到别的年度 / 分店）。"""
+    from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+
+    _source, connection, kind, subject = parts
+    keys = _require_connection(connection, sets)
+    rows = [row for row in express_choices.of_sets(connection, keys, 2000)
+            if row["kind"] == kind and row["subject"] == subject]
+    if not rows:
+        frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
+    value = str(value or "").strip()
+    stops = express_choices.menu_stops(connection, keys)
+    written = []
+    for row in rows:
+        if value not in (stops.get((normalize_express_account_key(row["account_set"]), subject)) or []):
+            continue
+        express_choices.record(connection, row["account_set"], kind, subject, value, row.get("label") or subject)
+        written.append(row["account_set"])
+    if not written:
+        frappe.throw(_("cowork.company.choice_not_editable"))
+    return {"saved": True, "account_set_key": written[0], "account_sets": written}
+
+
 def set_value(company, sets, key, value, period="") -> dict:
     """直接改一条：只收付款方式（cash / credit）与简易税票抵不抵（claim / expense）。推送按每份账套各自记的取
     （`push.choices.remembered`），所以写进这家公司在这条连接上**所有记过这一条的账套**（各分店、各年度），再加覆盖这个月
@@ -598,6 +643,8 @@ def set_value(company, sets, key, value, period="") -> dict:
         target_set(sets, "", period)  # 同改公司规则：本人能用覆盖这个月那份账套所在的连接
         goods_posting.set_company(*_policy_scope(company), str(value).strip())
         return {"saved": True}
+    if len(parts) == 4 and parts[0] == "express" and parts[2] == express_choices.OPERATOR_FORM:
+        return _set_menu(sets, parts, value)
     if len(parts) != 4 or parts[0] != "express" or parts[2] not in EDITABLE:
         frappe.throw(_("cowork.company.choice_not_editable"))
     _source, connection, kind, group = parts
