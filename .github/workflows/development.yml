@@ -51,6 +51,8 @@ jobs:
         run: python3 tests/test_erp_write_precheck.py
       - name: ERP printing follows the issue slip and receipt note templates (rules here, layout in the candidate checks)
         run: python3 tests/test_erp_printing.py
+      - name: Every print format names a PDF generator, so the native print page Get PDF link does not carry pdf_generator=None
+        run: python3 tests/test_print_formats_pdf.py
       - name: ERP purchases have no purchase order kind any more; old callers land on a kept kind
         run: python3 tests/test_erp_purchase_order_retired.py
       - name: Verify migrations, schedulers and Express sync never check the company against the current account
