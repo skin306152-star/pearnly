@@ -31,6 +31,15 @@ WORK_RUNS = 200  # 接续时回看最近这么多次调用，凑工作清单
 # 点了「拒绝」交回模型的指令：只给模型读（tool_result 的 instruction），不是界面文案，不经 _()
 DENIED_INSTRUCTION = "Do not try it again unless the user asks."
 # 会话主人已停用时交回模型的结果（`owner_disabled`）：只给模型读，不经 _()（主人已登录不了，对话页也不会再打开）
+# 工具不属于这段会话的模式（直写 / 代录，工具声明的 ``modes``）：只给模型读，不经 _()（11-05 测试机：代录会话里 CC 调了直写推送）
+WRONG_MODE = {
+    "operator": json.dumps({"status": "failed", "reason": "wrong_mode", "instruction":
+                            "This is a hands-on (operator) conversation: documents are entered in Express through the "
+                            "hands-on start card, never by direct push. Do not call direct-write tools here."}),
+    "chat": json.dumps({"status": "failed", "reason": "wrong_mode", "instruction":
+                        "This is a direct-write conversation: hands-on task tools work only in a hands-on conversation."}),
+}
+SESSION = "Pearnly Assistant Session"
 OWNER_DISABLED = json.dumps({"status": "failed", "reason": "user_disabled",
                              "instruction": "The account that owns this conversation is disabled. Do not call tools again."})
 
@@ -97,7 +106,8 @@ def execute(conversation: str, remote: str, call: dict) -> str:
     frappe.db.rollback()
     gated = tools.needs_approval(call.get("name"), call.get("input"))
     asked = gated  # 要「允许」的工具（被拒时结果带「没问过用户」的标记）
-    refused = OWNER_DISABLED if owner_disabled() else (_refused_before_card(conversation, call) if gated else None)
+    refused = OWNER_DISABLED if owner_disabled() else (
+        _wrong_mode(conversation, call.get("name")) or (_refused_before_card(conversation, call) if gated else None))
     gated = gated and not refused
     try:
         run = frappe.get_doc({"doctype": TOOL_RUN, "tool_use_id": use_id, "session_id": conversation,
@@ -126,6 +136,17 @@ def execute(conversation: str, remote: str, call: dict) -> str:
         frappe.db.commit()
         return "error"
     return _finish(conversation, remote, run.name, use_id, call.get("name"), call.get("input"))
+
+
+def session_mode(conversation: str) -> str:
+    """这段会话是代录（挂着代录任务）还是直写（同 `sessions` 列表里的 mode）。"""
+    return "operator" if frappe.db.get_value(SESSION, {"session_id": conversation}, "operator_task") else "chat"
+
+
+def _wrong_mode(conversation: str, name) -> str | None:
+    """工具声明了 ``modes`` 而这段会话的模式不在其中：不出卡片、不执行，拒绝结果交回模型（服务端拦，不靠提示词）。"""
+    mode = session_mode(conversation)
+    return None if tools.mode_allowed(name, mode) else WRONG_MODE[mode]
 
 
 def _refused_before_card(conversation: str, call: dict) -> str | None:

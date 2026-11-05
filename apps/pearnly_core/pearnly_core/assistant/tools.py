@@ -8,6 +8,8 @@
 - 改全公司共用设置、定时安排的工具声明 `"approval"`：`True` 每次都要用户在对话里点「允许」才执行；
   也可以是参数名列表，带了其中任一个（即要写）才要（ADR-019，用户 2026-10-10：经授权后代为操作）。
   卡片上的问句是 `"ask"`；问法随参数变时另写 `"ask_when": {参数名: 问句}`，给了该参数就用那句。
+  只属于一种会话的工具写 `"modes"`：`["chat"]` 直写会话（例如直写推送）、`["operator"]` 代录会话；不符的调用在服务端拒绝
+  （`toolrun._wrong_mode`，11-05 测试机：代录会话里 CC 用了直写推送，两种模式就没区别了）。
   出卡片前要先核对的另写 `"refuse": "<函数路径>"`（函数(参数) → 交回模型的拒绝结果文本或 None）：核出要拒绝的不出卡片、
   不执行工具，直接把那段结果交回模型（`refusal`；2026-10-16：存公司规则时模型说给用户的对方与单据对不上，不该先让人点「允许」）。
 - 进行中的说法（对话底部的工作状态行、正在执行的那一步，如「正在识别单据」）另在 `pearnly_assistant_step_names`
@@ -175,6 +177,13 @@ def steps() -> dict[str, dict[str, str]]:
 def _given(values: dict, key: str) -> bool:
     """这次调用给了这个参数（False / 0 也算给了；空串、空表不算）。"""
     return values.get(key) not in (None, "", {}, [])
+
+
+def mode_allowed(name: str, mode: str) -> bool:
+    """这个工具能不能在这种会话里用（工具声明 ``"modes": ["chat"]`` 只在直写会话、``["operator"]`` 只在代录会话；没声明的两种都行）。"""
+    tool = next((t for t in declared() if t["name"] == name), None)
+    modes = (tool or {}).get("modes")
+    return not modes or mode in modes
 
 
 def needs_approval(name: str, tool_input) -> bool:

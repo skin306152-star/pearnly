@@ -53,7 +53,7 @@ def control(tool_input) -> str:
 
 
 TOOLS = [
-    {"name": "express_operator_status",
+    {"name": "express_operator_status", "modes": ["operator"],
      "label": "Checked the hands-on task",
      "description": "Read the Express operator task this conversation belongs to: overall status, the computer doing it, "
                     "and every document numbered from 1 in task order with its state (queued, saved, not_done, cancelled, "
@@ -62,7 +62,7 @@ TOOLS = [
                     "in the operator_task note.",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]},
      "handler": "pearnly_core.express_operator.tools.status"},
-    {"name": "express_operator_control",
+    {"name": "express_operator_control", "modes": ["operator"],
      "label": "Updated the hands-on task",
      "description": "Skip or redo documents of the Express operator task this conversation belongs to. action skip leaves "
                     "the documents out of this run; action redo (retry) enters them again. documents are the numbers from "

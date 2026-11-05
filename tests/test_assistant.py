@@ -5429,6 +5429,89 @@ class AskUserTests(unittest.TestCase):
             self.assertTrue(declared[name]["handler"].startswith("pearnly_core.write_precheck.api.tool_"))
 
 
+class ModeGateTests(unittest.TestCase):
+    """直写 / 代录两种会话各用各的工具（11-05 测试机 CC 1.12.14：代录会话里 CC 调了直写推送，两种模式就没区别了）：工具声明 ``modes``，
+    服务端按这段会话的模式拦——不执行、不出卡片，执行记录记 error，拒绝结果交回模型；不靠提示词。"""
+
+    def _execute(self, tool, operator_task):
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        tools_module = sys.modules["pearnly_core.assistant.tools"]
+        runs, posted, ran = {}, [], []
+
+        class Doc:
+            def __init__(self, values):
+                self.values, self.name = values, f"run{len(runs) + 1}"
+
+            def insert(self, ignore_permissions=False):
+                runs[self.name] = self.values
+
+        class Db:
+            def get_value(self, doctype, filters, field, as_dict=False):
+                if doctype == "User":
+                    return 1
+                if doctype == "Pearnly Assistant Session":
+                    return operator_task if filters == {"session_id": "conv"} else None
+                return None
+
+            def set_value(self, doctype, name, values):
+                runs[name].update(values)
+
+            def rollback(self):
+                pass
+
+            def commit(self):
+                pass
+
+        declared = [{"name": "p_push", "label": "Pushed documents", "modes": ["chat"], "description": "d",
+                     "input_schema": {"type": "object"}, "handler": "x.y"},
+                    {"name": "p_task", "label": "Checked the task", "modes": ["operator"], "description": "d",
+                     "input_schema": {"type": "object"}, "handler": "x.y"},
+                    {"name": "p_any", "label": "Read it", "description": "d", "input_schema": {"type": "object"},
+                     "handler": "x.y"}]
+        api = types.SimpleNamespace(post=lambda remote, batch: posted.extend(batch))
+        with mock.patch.object(toolrun.frappe, "db", Db(), create=True), \
+                mock.patch.object(toolrun.frappe, "get_doc", Doc, create=True), \
+                mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True), \
+                mock.patch.object(tools_module, "declared", lambda: declared), \
+                mock.patch.object(toolrun.engine, "adapter", return_value=api), \
+                mock.patch.object(toolrun, "_with_language", lambda conversation, text: text), \
+                mock.patch.object(toolrun, "_finish", lambda *a: ran.append(a[4]) or "done"):
+            status = toolrun.execute("conv", "sesn", {"id": "sevt_1", "name": tool, "input": {}})
+        return status, runs, posted, ran
+
+    def test_a_hands_on_conversation_refuses_direct_push(self):
+        status, runs, posted, ran = self._execute("p_push", "TASK-1")
+        self.assertEqual((status, ran), ("error", []))
+        self.assertEqual(runs["run1"]["status"], "error")
+        result = json.loads(posted[0]["content"][0]["text"])
+        self.assertEqual(result["reason"], "wrong_mode")
+        self.assertIn("hands-on", result["instruction"])
+        self.assertTrue(posted[0]["is_error"])
+
+    def test_a_direct_conversation_refuses_hands_on_task_tools(self):
+        status, _runs, posted, ran = self._execute("p_task", None)
+        self.assertEqual((status, ran, json.loads(posted[0]["content"][0]["text"])["reason"]), ("error", [], "wrong_mode"))
+
+    def test_each_mode_runs_its_own_tools_and_shared_ones(self):
+        for tool, task in (("p_push", None), ("p_task", "TASK-1"), ("p_any", None), ("p_any", "TASK-1")):
+            with self.subTest(tool=tool, task=task):
+                status, _runs, posted, ran = self._execute(tool, task)
+                self.assertEqual((status, ran, posted), ("done", [tool], []))
+
+    def test_the_real_push_and_task_tools_declare_their_mode(self):
+        cowork = (ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py").read_text(encoding="utf-8")
+        erp = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py").read_text(encoding="utf-8")
+        operator = (CORE / "express_operator/tools.py").read_text(encoding="utf-8")
+        self.assertIn('{"name": "cowork_push_documents", "label": "Pushed documents", "modes": ["chat"],', cowork)
+        self.assertIn('{"name": "erp_push_documents", "label": "Pushed documents", "modes": ["chat"],', erp)
+        for name in ("express_operator_status", "express_operator_control"):
+            self.assertIn(f'{{"name": "{name}", "modes": ["operator"],', operator)
+        # 共用的提问与写账前置判定两种会话都能用
+        shared = {tool["name"]: tool for tool in sys.modules["pearnly_core.assistant.tools"].CORE_TOOLS}
+        for name in ("ask_user", "pearnly_precheck", "pearnly_precheck_answer"):
+            self.assertNotIn("modes", shared[name])
+
+
 class StopRaceTests(unittest.TestCase):
     """第 11 轮重测 A 段（lab 84da6f81，真引擎）：点「允许」后立刻点停止，停止 4/4 返回 500 QueryDeadlockError（停止比确认早约
     240 毫秒发出：确认要攒 250 毫秒一批）。停止的请求一开头读会话行就有了读快照，交引擎「打断」的几百毫秒里点「允许」的请求把那条

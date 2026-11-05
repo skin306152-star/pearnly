@@ -4451,7 +4451,7 @@ TOOLS = [
          "direction": {"type": "string", "enum": ["purchase", "sales"]},
          "totals": {"type": "boolean"}, **direct_push.page_props(LIST_MAX), **SCOPE_PROPS}},
      "handler": "pearnly_cowork.assistant.tools.list_documents"},
-    {"name": "cowork_push_documents", "label": "Pushed documents",
+    {"name": "cowork_push_documents", "label": "Pushed documents", "modes": ["chat"],
      "description": "Push recognized documents to their accounting target (Express through CC Desktop, or MR.ERP), "
                     "the same as Submit on the web page. Only when the user asked to push. Up to 20 at a time. After "
                     f"sending it waits up to about {PUSH_WAIT_SECONDS} seconds for the result from Express or MR.ERP (writing "

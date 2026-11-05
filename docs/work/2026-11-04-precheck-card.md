@@ -497,3 +497,15 @@ U1/U2 两处对不上（start 未传 groups、多账套只读顶层 target）已
   | `cc.operator.page` | 通过（流程 `cc.operator` 新 / 老） |
   | `erp.cc.companies` | 通过（流程 `cc.companies` 老）；对话尾部卡片等 W4 |
   | `erp.cc.pos-day` | 没测到（人工入口，收银日汇总写 Express 要测试机）；离线 `test_erp_write_precheck.PosDay` 覆盖三项一次收齐与登记户记在公司上 |
+
+## W5 施工记录（一）：直写 / 代录各用各的工具（11-05 测试机 CC 1.12.14 实测）
+
+- 现象（共享笔记「CC1.12.14实测-11-05/结果.md」）：testcowork 代录会话里 CC 调了「推送单据」（直写）录了 HP691105-001，没走代录「开始」；
+  保存推送选项时付款项没带 subject，服务端回「请检查 ERP 连接配置」，CC 误判为连接问题。
+- 修法：工具声明可带 `modes`（`["chat"]` 只在直写会话、`["operator"]` 只在代录会话）；`toolrun.execute` 按会话行有没有 `operator_task`
+  判模式，不符的调用不执行、不出卡片，执行记录记 error，交回模型 `{"reason": "wrong_mode", "instruction": …}`（给模型的英文，不进界面）。
+  标了：`cowork_push_documents`、`erp_push_documents` → chat；`express_operator_status`、`express_operator_control` → operator；
+  `ask_user`、`pearnly_precheck`、`pearnly_precheck_answer` 两种都能用。
+- subject 问题：新路 `pearnly_precheck_answer` 只收 `{key, value}`，subject 由卡片项带，认不出的 key / 空值回 `precheck.unknown_key` /
+  `precheck.empty_value`，不说成连接问题（tests/test_cowork_write_precheck.py 证明）；旧的 4 个文字选择工具等 W4 合入后删，那条错路随之消失。
+- 测试：tests/test_assistant.py `ModeGateTests`（代录会话拒直写推送、直写会话拒代录任务工具、各自与共用工具照常执行、真实声明带 modes）。

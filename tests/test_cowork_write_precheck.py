@@ -389,6 +389,14 @@ class SweepAndShared(unittest.TestCase):
             refused = json.loads(api.tool_answer({"company": "CO1", "doc_ids": ["h1"],
                                                   "answers": [{"key": key["payment"], "value": "later"}]}))
             self.assertEqual([e["code"] for e in refused["errors"]], [card.ERR_NOT_OFFERED])
+            # 11-05 测试机：旧工具要模型自己拼 subject，付款项漏了就报「请检查 ERP 连接配置」。新路只认 key：subject 取自卡片，
+            # 认不出的 key / 空值回写账前置判定自己的原因码，不说成连接问题
+            unknown = json.loads(api.tool_answer({"company": "CO1", "doc_ids": ["h1"],
+                                                  "answers": [{"key": "not-a-key", "value": "cash"},
+                                                              {"key": key["payment"], "value": ""}]}))
+            self.assertEqual([e["code"] for e in unknown["errors"]], [card.ERR_UNKNOWN_KEY, card.ERR_EMPTY_VALUE])
+            self.assertNotIn("connection", json.dumps(unknown["errors"]))
+            self.assertEqual([c for c in calls if c[0] == "remember"][-1][1]["h1"][0]["subject"], PAYMENT["subject"])  # 记下的那次：subject 来自卡片项
             for call in (lambda: api.tool_check({"company": "CO2", "doc_ids": ["h1"]}),
                          lambda: api.tool_answer({"company": "CO2", "doc_ids": ["h1"], "answers": []})):
                 with self.assertRaises(PermissionError):

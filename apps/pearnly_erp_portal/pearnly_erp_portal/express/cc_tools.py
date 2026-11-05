@@ -650,7 +650,7 @@ TOOLS = [
          "date_to": {"type": "string", "description": "YYYY-MM-DD"}, **direct_push.page_props(LIST_MAX),
          **SCOPE_PROPS}},
      "handler": "pearnly_erp_portal.express.cc_tools.list_documents"},
-    {"name": "erp_push_documents", "label": "Pushed documents",
+    {"name": "erp_push_documents", "label": "Pushed documents", "modes": ["chat"],
      "description": "Send ERP documents to Express again, the same as Retry in the document's Express window: only when "
                     f"the user asked. Up to {PUSH_MAX} at a time. After sending it waits up to about "
                     f"{direct_push.PUSH_WAIT_SECONDS} seconds for the result from Express, so do not wait or check "
