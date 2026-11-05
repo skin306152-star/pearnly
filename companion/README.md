@@ -126,6 +126,12 @@
   - 转人工的单在作废前留一张当时的截图（本机证据目录），路径放在任务说明最前面。
   - 已知（1.12.15 修，`docs/work/2026-11-05-cc-operator-menu-fallback-评估.md`）：开录前开单据窗口时菜单对不上（定制菜单里那一项是子菜单）
     直接退出，不进 AI 接手、不留截图，本机批次停在 running。
+- 1.12.15（未发布；代录遇到定制菜单不退出，`docs/work/2026-11-05-cc-operator-menu-fallback-评估.md`；旧服务端上照样能用）：
+  - 菜单按编号找不到再按文字找（`express_operator/menu.py`，前台 / 后台做法共用）；落到子菜单时只有一个可用命令就用它；
+  - 子菜单里有几个命令：按载荷 `operator.form_choice`（站点记住的菜单文字）或 `operator.pay_route`（`cash` / `transfer`）选，
+    定不下来只停这一张，原因 `menu_choice`，结果 `meta.menu_options` 带候选、`meta.doc_type` 带单种（不调 AI）；
+  - 菜单文字对不上交 AI 接手，AI 用 `express_menu` 工具读菜单、按文字打开；开对了把路径记进本机 `probe.json`，同一本账套下次不再调 AI；
+  - 开 Express、探路和宿主里的任何意外都收尾成「认不出的画面」：单据等人、批次停止并落盘、Express 正常退出，留截图。
 
 ## 本机测试
 
