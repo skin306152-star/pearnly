@@ -375,6 +375,8 @@ def _handle_dbf_task(
 
 
 ERR_OPERATOR_UNAVAILABLE = "OPERATOR_UNAVAILABLE"
+# 代录回执说明发往站点最多多少字（同 express_operator.contract.DETAIL_MAX：AI 结论原文整段带上；日志仍只记前 200 字）
+OPERATOR_DETAIL_MAX = 2000
 
 
 def _handle_operator_task(cfg, qc, task, st):
@@ -415,7 +417,7 @@ def _handle_operator_task(cfg, qc, task, st):
         return "waiting_lock"
     except Exception as exc:  # noqa: BLE001 — 代录出了意外：交人，不重试（重试可能重录）
         log.warning(f"✗ operator task {task.id}: {type(exc).__name__}: {exc}")
-        qc.ack_failure(task.id, f"{type(exc).__name__}: {exc}"[:300], error_code="OPERATOR_ERROR",
+        qc.ack_failure(task.id, f"{type(exc).__name__}: {exc}"[:OPERATOR_DETAIL_MAX], error_code="OPERATOR_ERROR",
                        outcome="needs_review")
         return "needs_review"
     meta = {"operator": {**(result.get("meta") or {}), **({"masters": ready.created} if ready.created else {})}}
@@ -432,7 +434,7 @@ def _handle_operator_target(cfg, qc, task):
         result = operator_host.host().handle(task_journal.key_of(task), task.payload or {}, None, member=cfg)
     except Exception as exc:  # noqa: BLE001 — 同 Express：出了意外交人，不重试（重试可能重录）
         log.warning(f"✗ operator task {task.id}: {type(exc).__name__}: {exc}")
-        qc.ack_failure(task.id, f"{type(exc).__name__}: {exc}"[:300], error_code="OPERATOR_ERROR",
+        qc.ack_failure(task.id, f"{type(exc).__name__}: {exc}"[:OPERATOR_DETAIL_MAX], error_code="OPERATOR_ERROR",
                        outcome="needs_review")
         return "needs_review"
     return _ack_operator(cfg, qc, task, result, {"operator": dict(result.get("meta") or {})})
@@ -457,7 +459,7 @@ def _ack_operator(cfg, qc, task, result, meta):
         f"operator result · task={task.id} · doc={doc} · batch={info.get('batch') or '-'} · status={status} · "
         f"reason={reason} · detail={str(result.get('detail') or '')[:200]!r}"
         + (f" · menu_options={len(options or [])}" if reason == "menu_choice" else ""))
-    qc.ack_failure(task.id, result.get("detail") or reason, error_code=f"OPERATOR_{reason.upper()}", outcome=outcome,
+    qc.ack_failure(task.id, str(result.get("detail") or reason)[:OPERATOR_DETAIL_MAX], error_code=f"OPERATOR_{reason.upper()}", outcome=outcome,
                    meta=meta)
     return outcome
 

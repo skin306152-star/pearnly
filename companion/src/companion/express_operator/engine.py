@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from . import book as B
+from . import contract as K
 from . import menu as M
 from .desk import MenuAmbiguous
 from .draft import Draft
@@ -46,6 +47,7 @@ class NeedHuman(Exception):
     def __init__(self, reason: str, detail: str = ""):
         super().__init__(f"{reason}: {detail}")
         self.reason, self.detail = reason, detail
+        self.evidence = ""  # 截到的画面（本机路径）：宿主放进回执 meta.evidence，不进说明
 
 
 class MenuChoice(NeedHuman):
@@ -253,8 +255,7 @@ class Engine:
         path = self.evidence_shot(doc_id)
         if not path:
             return
-        self.rec["evidence"] = str(path)
-        self.rec["detail"] = f"{path} · {self.rec.get('detail') or ''}"[:300]  # 站点任务行的说明最多 300 字：路径放前面
+        self.rec["evidence"] = str(path)  # 路径只走结果 meta.evidence，不进说明（1.12.15：说明留给 AI 结论原文）
 
     def screenshot(self, purpose: str) -> str:
         res = self.act([{"do": "screenshot", "size": [1280, 720]}], windows=False)["results"][0]
@@ -346,7 +347,12 @@ class Engine:
                 return
         # 说明里先写 AI 那一侧怎么了（没接 / 出错 / AI 自己的结论），再写固定流程的问题（菜单树等可能很长，放后面）
         ai = note if note.startswith("ai ") else f"ai: {note or status}"
-        raise NeedHuman("unknown_screen", f"{where}: {ai[:120]} · {problem}")
+        raise NeedHuman("unknown_screen", f"{ai} · {where}: {problem}"[:K.DETAIL_MAX])
+
+    @property
+    def background(self) -> bool:
+        """这台电脑是不是后台做法（``bg_desk``：不动真实鼠标，只能键盘与 express_menu）。AI 接手按它给提示与工具。"""
+        return bool(getattr(self.desk, "background", False))
 
     def _xy(self, coord) -> Tuple[int, int]:
         return int(round(coord[0] * self.scale)), int(round(coord[1] * self.scale))
@@ -922,16 +928,16 @@ class Engine:
             if docnum == SAVED_UNREAD:
                 docnum = ""
         except NeedHuman as e:
-            self.rec.update(outcome="need_human", reason=e.reason, detail=e.detail[:300])
+            self.rec.update(outcome="need_human", reason=e.reason, detail=e.detail[:K.DETAIL_MAX])
             if isinstance(e, MenuChoice):
                 self.rec["menu_options"] = list(e.options)
             self._need_human_shot(draft.doc_id)  # 作废前截下转人工那一刻的画面（2026-11-03：原来只截存成的单）
             self.rec["voided"] = self.abandon()
         except Blocked as e:
-            self.rec.update(outcome="blocked", reason=e.reason, detail=e.detail[:300])
+            self.rec.update(outcome="blocked", reason=e.reason, detail=e.detail[:K.DETAIL_MAX])
             self.rec["voided"] = self.abandon()
         except Crash as e:
-            self.rec.update(outcome="crash", reason=e.reason, detail=e.detail[:300])
+            self.rec.update(outcome="crash", reason=e.reason, detail=e.detail[:K.DETAIL_MAX])
             self.form_open = None
         if self.rec["outcome"] != "crash":
             try:

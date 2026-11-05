@@ -1365,5 +1365,24 @@ class ServiceVatBasis(unittest.TestCase):
         self.assertIn("srv", module_constants(WIRE / "report_rules.py")["SUPPLIER_KEYS"])
 
 
+
+class OperatorReceiptDetail(unittest.TestCase):
+    """代录回执（写账回执 ``ack_failure``，CC 桌面版 1.12.15 起）：说明（detail）以 AI 接手的结论原文开头
+    （``ai: <结论> · <步骤>: <固定流程问题>``）、最多 2000 字，**不再以截图路径开头**；转人工那一刻的截图本机路径放在
+    ``meta.operator.evidence``（字符串，站点单独处理）。旧服务端对说明长度有上限的自行截断，不影响 CC。"""
+
+    def test_detail_leads_with_the_ai_conclusion_and_the_screenshot_rides_in_meta_evidence(self):
+        op = COMPANION / "express_operator"
+        self.assertEqual(_literal(op / "contract.py", "DETAIL_MAX"), 2000)
+        self.assertEqual(_literal(COMPANION / "worker.py", "OPERATOR_DETAIL_MAX"), 2000)
+        engine = (op / "engine.py").read_text(encoding="utf-8")
+        self.assertIn('f"{ai} · {where}: {problem}"[:K.DETAIL_MAX]', engine)
+        self.assertNotIn("self.rec[\"detail\"] = f\"{path}", engine)
+        host = (op / "host.py").read_text(encoding="utf-8")
+        self.assertIn('meta["evidence"] = doc.evidence', host)
+        ack = method_source_of(COMPANION / "worker.py", "_ack_operator")
+        self.assertIn("[:OPERATOR_DETAIL_MAX]", ack)
+
+
 if __name__ == "__main__":
     unittest.main()

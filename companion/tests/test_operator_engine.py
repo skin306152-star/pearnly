@@ -296,7 +296,8 @@ def test_a_late_unit_dialog_is_waited_for_so_the_price_does_not_land_in_it():
 
 
 def test_a_document_handed_to_a_person_keeps_a_screenshot_of_that_moment():
-    """2026-11-03：转人工的单在作废前截下当时的画面（原来只截存成的单），本机路径放在说明最前面，随任务回到待处理。"""
+    """2026-11-03：转人工的单在作废前截下当时的画面（原来只截存成的单）。1.12.15 起本机路径只在 rec["evidence"]（回执
+    meta.evidence），说明里不再带路径（没接 AI 时也一样）。"""
     d = samples()[1]
     sim = FakeExpress(RECIPE.data, inject={"typo_price:P002": "9"})
     saved = []
@@ -306,7 +307,7 @@ def test_a_document_handed_to_a_person_keeps_a_screenshot_of_that_moment():
     assert rec["outcome"] == "need_human"
     assert saved == [f"{d.doc_id}-need-human"]
     assert rec["evidence"] == f"C:/evidence/{d.doc_id}-need-human.png"
-    assert rec["detail"].startswith(rec["evidence"] + " · ")
+    assert "C:/evidence" not in rec["detail"] and rec["detail"].startswith("ai not connected · line1.price: ")
 
 
 def test_a_site_without_the_ai_method_hands_the_document_to_a_person_instead_of_crashing():

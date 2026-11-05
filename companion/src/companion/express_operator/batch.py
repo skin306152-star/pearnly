@@ -54,6 +54,8 @@ class DocState:
     recheck: bool = False
     # 原因 menu_choice 时子菜单里的候选菜单文字（回执 meta 带给站点问人）。旧批次文件没有这一项，按空读
     menu_options: List[str] = field(default_factory=list)
+    # 转人工那一刻的截图（本机路径，回执 meta.evidence；1.12.15 起不进说明）。旧批次文件没有这一项，按空读
+    evidence: str = ""
 
 
 @dataclass
@@ -331,15 +333,17 @@ class Runner:
         d.recheck = True
         self._set(current="")
 
-    def halt(self, doc_id: str, reason: str, detail: str = "", *, hold: bool = False) -> None:
+    def halt(self, doc_id: str, reason: str, detail: str = "", *, hold: bool = False, evidence: str = "") -> None:
         """宿主收尾整批停：批次记停止 + 原因 + 画面文字并落盘（不留 running）；正在录的这张按 ``park``；``hold``：还没开始的
         这张也记等人（同原因，意外发生在开 Express / 探路时）。"""
         s = self.state
-        s.status, s.reason, s.detail = K.BATCH_STOPPED, reason, str(detail or "")[:300]
+        s.status, s.reason, s.detail = K.BATCH_STOPPED, reason, str(detail or "")[:K.DETAIL_MAX]
         self.park(doc_id)
         d = s.doc(doc_id)
         if hold and d is not None and d.status == K.PENDING:
             d.status, d.reason, d.detail = K.WAITING, reason, s.detail
+        if evidence and d is not None:
+            d.evidence = evidence
         self._set(current="")
 
     def run_one(self, doc_id: str) -> DocState:
@@ -368,7 +372,7 @@ class Runner:
         except NeedHuman as e:
             if e.reason == "menu_choice":  # 探路时子菜单定不下来：只停这一张（候选带回站点），下一张同种单再探
                 self._probed.discard(d.doc_type)
-                d.status, d.reason, d.detail = K.WAITING, "menu_choice", e.detail[:300]
+                d.status, d.reason, d.detail = K.WAITING, "menu_choice", e.detail[:K.DETAIL_MAX]
                 d.menu_options = list(getattr(e, "options", []) or [])
                 self._set(current="")
                 return d
@@ -382,7 +386,8 @@ class Runner:
         except Exception as e:  # noqa: BLE001 — 开 Express / 探路时没接住的意外：同 _one 的口径收尾，不留 running
             shot = self._shot(d.doc_id)
             text = f"{type(e).__name__}: {e}"
-            d.status, d.reason, d.detail = K.WAITING, "unknown_screen", (f"{shot} · {text}" if shot else text)[:300]
+            d.status, d.reason, d.detail = K.WAITING, "unknown_screen", text[:K.DETAIL_MAX]
+            d.evidence = shot or d.evidence
             if hasattr(self.engine, "form_open"):
                 self.engine.form_open = None
             self._set(status=K.BATCH_STOPPED, reason="unknown_screen", current="", detail=d.detail)
@@ -415,10 +420,11 @@ class Runner:
             try:
                 result = self.probe(d.doc_type)
             except NeedHuman as e:
-                if e.reason == "unknown_screen":  # 探路时 AI 也接不住：截一张当时的画面，路径进说明
+                if e.reason == "unknown_screen":  # 探路时 AI 也接不住：截一张当时的画面，路径走 meta.evidence（不进说明）
                     shot = self._shot(d.doc_id)
                     if shot:
-                        raise NeedHuman(e.reason, f"{shot} · {e.detail}") from e
+                        d.evidence = shot
+                        e.evidence = shot
                 raise
             if result is not None and not result.get("ok", True):
                 d.status, d.reason, d.detail = K.WAITING, "recipe_mismatch", ",".join(result.get("missing", []))
@@ -561,7 +567,7 @@ class Runner:
             except Exception as e:  # noqa: BLE001 — 引擎没接住的意外（认不出的框留在 Express 上、菜单命令被禁用）
                 # 这张如实记「未完成」（原因 + 原文），不留「正在录」；Express 上留着认不出的东西不乱点，整批停下等人，
                 # 后面的单不再一张张撞上去（11-01 录制机：一张出意外后其余每张都报「命令被禁用」、页面一直「进行中」）
-                d.status, d.reason, d.detail = K.WAITING, "unknown_screen", f"{type(e).__name__}: {e}"[:300]
+                d.status, d.reason, d.detail = K.WAITING, "unknown_screen", f"{type(e).__name__}: {e}"[:K.DETAIL_MAX]
                 self.engine.form_open = None
                 self._set(status=K.BATCH_STOPPED, reason="unknown_screen", current="")
                 return False
@@ -584,6 +590,7 @@ class Runner:
                 d.status, d.reason, d.detail = K.WAITING, rec.get("reason") or "unknown_screen", rec.get("detail", "")
                 d.docnum = rec.get("docnum", "")
                 d.menu_options = list(rec.get("menu_options") or [])
+                d.evidence = str(rec.get("evidence") or "")
                 if rec.get("void_refused"):  # 放弃时作废闸没过：那张半截单留着，交给人处理
                     d.placeholders.append(rec["void_refused"])
             self._set(current="")

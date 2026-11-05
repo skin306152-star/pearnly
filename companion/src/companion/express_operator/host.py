@@ -144,12 +144,14 @@ class Host:
             doc = runner.run_one(draft.doc_id)
         except NeedHuman as error:
             # 整批停在哪一步、看到了什么（没截图时也查得到）；停在半路的这张记等人（原因同整批），再交来时先读账套判断存没存
-            runner.halt(draft.doc_id, error.reason, error.detail)
+            evidence = str(getattr(error, "evidence", "") or "")
+            runner.halt(draft.doc_id, error.reason, error.detail, evidence=evidence)
             self._finish(batch_id)
+            meta = {"batch": batch_id, **({"evidence": evidence} if evidence else {})}
             return {"status": "waiting" if error.reason in ("network_down",) else "human", "reason": error.reason,
-                    "detail": error.detail[:300], "meta": {"batch": batch_id}}
+                    "detail": error.detail[:K.DETAIL_MAX], "meta": meta}
         except Exception as error:  # noqa: BLE001 — 最后一道兜底（批次没接住的意外）：同上收尾成「认不出的画面」，不留 running
-            detail = f"{type(error).__name__}: {error}"[:300]
+            detail = f"{type(error).__name__}: {error}"[:K.DETAIL_MAX]
             runner.halt(draft.doc_id, "unknown_screen", detail, hold=True)
             self._finish(batch_id)
             return {"status": "human", "reason": "unknown_screen", "detail": detail, "meta": {"batch": batch_id}}
@@ -250,6 +252,8 @@ class Host:
                 "reports": doc.reports, "seconds": doc.seconds, "reason": doc.reason}
         if doc.reason == "menu_choice":  # 站点据此问一次走哪个菜单、记住后按 operator.form_choice 再交
             meta.update(doc_type=doc.doc_type, menu_options=list(doc.menu_options))
+        if doc.evidence:  # 转人工那一刻的截图（本机路径）：站点单独处理，不在说明里
+            meta["evidence"] = doc.evidence
         if doc.status == K.SAVED:
             return {"status": "saved", "docnum": doc.docnum, "meta": meta}
         if doc.status == K.SKIPPED:
@@ -257,7 +261,8 @@ class Host:
                     "meta": meta}
         if doc.status == K.ENTERING:
             return {"status": "waiting", "reason": doc.reason or "network_wait", "meta": meta}
-        return {"status": "human", "reason": doc.reason or "unknown_screen", "detail": doc.detail[:300], "meta": meta}
+        return {"status": "human", "reason": doc.reason or "unknown_screen", "detail": doc.detail[:K.DETAIL_MAX],
+                "meta": meta}
 
     # ── CC 窗口（桥）──────────────────────────────────────────────────────
     def snapshots(self) -> list:

@@ -6,6 +6,9 @@
 """
 from __future__ import annotations
 
+# 回执说明（detail）最多多少字：AI 接手的结论原文放最前、整段带给站点（1.12.15 起；截图路径不进说明，走 meta.evidence）
+DETAIL_MAX = 2000
+
 ENTRY_MODE = "operator"  # 载荷 entry_mode：direct = 直写（缺省），operator = 代录
 
 # ── 执行目标（ADR-026）：载荷 ``operator.target`` 写录到哪种账本，没写 = Express（载荷 16 / 17 与以前一样）。

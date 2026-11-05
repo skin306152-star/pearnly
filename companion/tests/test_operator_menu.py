@@ -210,7 +210,8 @@ def test_ai_that_cannot_open_the_form_hands_over_with_a_screenshot(tmp_path):
     engine, sim = engine_for(tmp_path, renamed_menu(), transport=site, evidence=shots)
     rec = engine.run(hp())
     assert rec["outcome"] == "need_human" and rec["reason"] == "unknown_screen"
-    assert rec["evidence"].endswith("S-HP-1-need-human.png") and rec["detail"].startswith(rec["evidence"])
+    assert rec["evidence"].endswith("S-HP-1-need-human.png") and "need-human.png" not in rec["detail"]
+    assert rec["detail"].startswith("ai: no such menu · ")
     assert "S-HP-1-need-human" in shots.saved
     assert not (tmp_path / "probe.json").exists()
 
@@ -260,7 +261,7 @@ def test_probe_raising_anything_stops_the_batch_with_a_clear_state(tmp_path):
     r, sim, _ = runner_for(tmp_path, [hp("A"), hp("B")], t9_menu(), probe_error=RuntimeError("boom"))
     d = r.run_one("A")
     assert (d.status, d.reason) == (K.WAITING, "unknown_screen") and "RuntimeError: boom" in d.detail
-    assert "A-need-human.png" in d.detail
+    assert "need-human.png" not in d.detail and d.evidence.endswith("A-need-human.png")
     saved = BatchStore(tmp_path / "batches").load(r.state.id)
     assert saved.status == K.BATCH_STOPPED and saved.reason == "unknown_screen" and saved.current == ""
 
@@ -323,7 +324,8 @@ def test_host_probe_whose_ai_gives_up_is_unknown_screen_with_a_screenshot(tmp_pa
     host = Host(tmp_path / "op", factory=host_factory(tmp_path, renamed_menu(), sims, transport=site))
     out = host.handle("t1", job(), SETTINGS)
     assert out["status"] == "human" and out["reason"] == "unknown_screen"
-    assert "need-human.png" in out["detail"] and not sims[0].alive
+    assert "need-human.png" not in out["detail"] and out["detail"].startswith("ai: ?")
+    assert out["meta"]["evidence"].endswith("need-human.png") and not sims[0].alive
     assert BatchStore(tmp_path / "op" / "batches").load("b1").status == K.BATCH_STOPPED
 
 
@@ -332,3 +334,40 @@ def test_the_usual_menu_still_opens_with_the_recipe_path(tmp_path):
     engine = Engine(sim, RECIPE, FakeBook(sim), sleep=lambda _s: None)
     assert engine.run(hp())["outcome"] == "saved"
     assert FakeSite and tiny_png  # 同一套假件
+
+
+# ── 1.12.15：AI 结论整段进说明、截图路径走 meta.evidence；后台做法只用键盘 ─────────────
+LONG_NOTE = "未能打开单据窗口。" + "已尝试键盘与菜单；" * 160  # 约 1500 字（真机最后一轮约 530 token 的结论被截到约 100 字）
+
+
+def test_a_long_ai_conclusion_leads_the_detail_in_full_and_the_screenshot_is_not_in_it(tmp_path):
+    assert 1400 < len(LONG_NOTE) < 1700
+    site = Scripted([[{"name": "finish", "input": {"status": "need_human", "note": LONG_NOTE}}]] * 2)
+    engine, _sim = engine_for(tmp_path, renamed_menu(), transport=site)
+    rec = engine.run(hp())
+    assert rec["outcome"] == "need_human" and rec["reason"] == "unknown_screen"
+    assert rec["detail"].startswith("ai: " + LONG_NOTE) and len(rec["detail"]) <= K.DETAIL_MAX
+    assert "need-human.png" not in rec["detail"] and rec["evidence"].endswith("S-HP-1-need-human.png")
+
+
+def test_host_receipt_carries_the_whole_ai_conclusion_and_the_screenshot_in_meta_evidence(tmp_path):
+    sims = []
+    site = Scripted([[{"name": "finish", "input": {"status": "need_human", "note": LONG_NOTE}}]] * 2)
+    host = Host(tmp_path / "op", factory=host_factory(tmp_path, renamed_menu(), sims, transport=site))
+    out = host.handle("t1", job(), SETTINGS)
+    assert out["status"] == "human" and out["reason"] == "unknown_screen"
+    assert out["detail"].startswith("ai: ") and LONG_NOTE in out["detail"] and len(out["detail"]) <= K.DETAIL_MAX
+    assert "need-human.png" not in out["detail"] and out["meta"]["evidence"].endswith("need-human.png")
+    saved = BatchStore(tmp_path / "op" / "batches").load("b1")
+    assert saved.docs[0].evidence == out["meta"]["evidence"]  # 批次文件也记着，重启后回执照样带
+
+
+def test_detail_over_the_limit_is_cut_at_2000_and_the_worker_sends_the_same_limit():
+    from companion import worker
+    assert worker.OPERATOR_DETAIL_MAX == K.DETAIL_MAX == 2000
+    from companion.express_operator.engine import NeedHuman
+    huge = "x" * 5000
+    rec_detail = f"ai: {huge} · form_open: screen wrong"[:K.DETAIL_MAX]
+    assert len(rec_detail) == 2000 and rec_detail.startswith("ai: x")
+    assert NeedHuman("unknown_screen", "d").evidence == ""
+
