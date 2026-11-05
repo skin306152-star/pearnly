@@ -52,6 +52,8 @@ class DocState:
     task: str = ""
     # 停下时这张正在录、结果不明：再交来时先读账套判断存没存（同续录），不当新单重录。旧批次文件没有这一项，按否读
     recheck: bool = False
+    # 原因 menu_choice 时子菜单里的候选菜单文字（回执 meta 带给站点问人）。旧批次文件没有这一项，按空读
+    menu_options: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -293,7 +295,7 @@ class Runner:
             self._set()
             return d
         if d.status in (K.WAITING, K.SKIPPED, K.VOIDED):
-            d.draft, d.doc_type, d.reason, d.detail = asdict(draft), draft.doc_type, "", ""
+            d.draft, d.doc_type, d.reason, d.detail, d.menu_options = asdict(draft), draft.doc_type, "", "", []
             if d.recheck:
                 d.status, d.recheck = K.ENTERING, False  # 开录前行数留着：续录先读这之后新增的行
             else:
@@ -327,6 +329,17 @@ class Runner:
         d.recheck = True
         self._set(current="")
 
+    def halt(self, doc_id: str, reason: str, detail: str = "", *, hold: bool = False) -> None:
+        """宿主收尾整批停：批次记停止 + 原因 + 画面文字并落盘（不留 running）；正在录的这张按 ``park``；``hold``：还没开始的
+        这张也记等人（同原因，意外发生在开 Express / 探路时）。"""
+        s = self.state
+        s.status, s.reason, s.detail = K.BATCH_STOPPED, reason, str(detail or "")[:300]
+        self.park(doc_id)
+        d = s.doc(doc_id)
+        if hold and d is not None and d.status == K.PENDING:
+            d.status, d.reason, d.detail = K.WAITING, reason, s.detail
+        self._set(current="")
+
     def run_one(self, doc_id: str) -> DocState:
         """录批次里的一张（写账线里调；锁由写账线拿着）。第一次先开 Express、核公司；每种单第一次先探路。
         整批停的原因（登录、公司、授权名额、服务器、预算）抛 ``NeedHuman``，由调用方回执。"""
@@ -348,6 +361,41 @@ class Runner:
             if s.status != K.BATCH_PAUSED:
                 self._set(status=K.BATCH_PAUSED, reason="")
             self.sleep(1)
+        try:
+            self._prepare(d)
+        except NeedHuman as e:
+            if e.reason == "menu_choice":  # 探路时子菜单定不下来：只停这一张（候选带回站点），下一张同种单再探
+                self._probed.discard(d.doc_type)
+                d.status, d.reason, d.detail = K.WAITING, "menu_choice", e.detail[:300]
+                d.menu_options = list(getattr(e, "options", []) or [])
+                self._set(current="")
+                return d
+            raise
+        except BudgetStop:
+            raise NeedHuman("budget", "probe")
+        except Stopped:
+            d.status, d.reason = K.SKIPPED, "stopped"
+            self._set(status=K.BATCH_STOPPED, reason="", current="")
+            return d
+        except Exception as e:  # noqa: BLE001 — 开 Express / 探路时没接住的意外：同 _one 的口径收尾，不留 running
+            shot = self._shot(d.doc_id)
+            text = f"{type(e).__name__}: {e}"
+            d.status, d.reason, d.detail = K.WAITING, "unknown_screen", (f"{shot} · {text}" if shot else text)[:300]
+            if hasattr(self.engine, "form_open"):
+                self.engine.form_open = None
+            self._set(status=K.BATCH_STOPPED, reason="unknown_screen", current="", detail=d.detail)
+            return d
+        if d.status == K.WAITING:
+            return d
+        if not self._one(d) and d.status == K.ENTERING:
+            if s.reason in K.BATCH_STOPPERS:
+                raise NeedHuman(s.reason, "")  # 宿主记下原因与画面文字后同样 park
+            self.park(doc_id)  # 停在半路（人点了停止、重开时要人选公司）：再交来时先读账套判断存没存
+        return d
+
+    def _prepare(self, d: DocState) -> None:
+        """第一次先开 Express、核公司；每种单第一次先探路（菜单开表单、读标签）。异常由 ``run_one`` 收尾。"""
+        s = self.state
         if not s.started:
             self._tidy()
             s.counts_start = s.counts_start or self.book.counts()
@@ -361,16 +409,31 @@ class Runner:
                 self.session.ensure_open()
         if self.probe and d.doc_type not in self._probed:
             self._probed.add(d.doc_type)
-            result = self.probe(d.doc_type)
+            self._hint(d)
+            try:
+                result = self.probe(d.doc_type)
+            except NeedHuman as e:
+                if e.reason == "unknown_screen":  # 探路时 AI 也接不住：截一张当时的画面，路径进说明
+                    shot = self._shot(d.doc_id)
+                    if shot:
+                        raise NeedHuman(e.reason, f"{shot} · {e.detail}") from e
+                raise
             if result is not None and not result.get("ok", True):
                 d.status, d.reason, d.detail = K.WAITING, "recipe_mismatch", ",".join(result.get("missing", []))
                 self._set()
-                return d
-        if not self._one(d) and d.status == K.ENTERING:
-            if s.reason in K.BATCH_STOPPERS:
-                raise NeedHuman(s.reason, "")  # 宿主记下原因与画面文字后同样 park
-            self.park(doc_id)  # 停在半路（人点了停止、重开时要人选公司）：再交来时先读账套判断存没存
-        return d
+
+    def _hint(self, d: DocState) -> None:
+        """探路时没有草稿单：把这一张的菜单选择（站点记住的菜单文字、付款方式）交给引擎，子菜单多候选时照它选。"""
+        if hasattr(self.engine, "menu_hint"):
+            draft = d.draft or {}
+            self.engine.menu_hint = (str(draft.get("form_choice") or ""), str(draft.get("pay_route") or ""))
+
+    def _shot(self, doc_id: str) -> str:
+        shot = getattr(self.engine, "evidence_shot", None)
+        try:
+            return shot(doc_id) if shot else ""
+        except Exception:  # noqa: BLE001
+            return ""
 
     def close_express(self) -> None:
         """批中途要建主档：正常退出 Express（开过才退），下一张从头开、核公司，单据窗口也从菜单重开（Express 重新读主档）。"""
@@ -430,7 +493,13 @@ class Runner:
         if not self.probe:
             return
         for doc_type in dict.fromkeys(d.doc_type for d in self.state.docs if d.status == K.PENDING):
-            result = self.probe(doc_type)
+            self._hint(next(d for d in self.state.docs if d.doc_type == doc_type and d.status == K.PENDING))
+            try:
+                result = self.probe(doc_type)
+            except NeedHuman as e:
+                if e.reason != "menu_choice":
+                    raise
+                continue  # 子菜单定不下来：不探，录到每一张时各按自己的选择开（定不下来那张停 menu_choice）
             if result is not None and not result.get("ok", True):
                 for d in self.state.docs:
                     if d.doc_type == doc_type and d.status == K.PENDING:
@@ -512,6 +581,7 @@ class Runner:
             else:
                 d.status, d.reason, d.detail = K.WAITING, rec.get("reason") or "unknown_screen", rec.get("detail", "")
                 d.docnum = rec.get("docnum", "")
+                d.menu_options = list(rec.get("menu_options") or [])
                 if rec.get("void_refused"):  # 放弃时作废闸没过：那张半截单留着，交给人处理
                     d.placeholders.append(rec["void_refused"])
             self._set(current="")

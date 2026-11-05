@@ -40,7 +40,8 @@ CU_SYSTEM = """你在一台 Windows 电脑上操作泰国会计软件 Express（
 草稿单的会计口径已定，你只管照录，不改科目、不改金额、不自作主张。截图坐标就是你给动作用的坐标。
 
 Express 操作要点：
-- 菜单先单独按 Alt 再按数字；单据窗口开着时 Alt+数字 是单据窗口的快捷键，会弹 Message#.40。
+- 打开单据窗口用 express_menu 工具：先 {"read": true} 看菜单，再 {"path": [...]} 一层一项给编号或菜单文字；不要按 Alt 和数字
+  （后台操作按不了组合键；单据窗口开着时 Alt+数字 是单据窗口的快捷键，会弹 Message#.40）。
 - 新单单号显示「前缀**NEW**」，保存后才变正式号。日期打 日/月/佛历两位年，如 25/10/69。数字不带千分位。
 - 明细表格回车进不去，要点表格第一行的品码格。单位框里回车是跳到倍数格，要点框里的「ตกลง」。
 - 常见提醒 4079 / 4107 / 4108 / 605 / 1029 按「ตกลง」继续；4224 / 4091（负库存被拦）不要硬录，finish(need_human)。
@@ -61,6 +62,20 @@ FINISH_TOOL = {
                      "properties": {"status": {"type": "string", "enum": ["resolved", "need_human", "escalate"]},
                                     "note": {"type": "string"}}},
 }
+
+
+MENU_TOOL = {
+    "name": "express_menu",
+    "description": ("Express 的菜单（不动鼠标键盘，按菜单命令直接打开）。{\"read\": true} 读整棵菜单（缩进是层级，▸ 是子菜单，"
+                    "(灰) 是灰掉的）；{\"path\": [\"1\", \"ซื้อเงินเชื่อ\"]} 从顶层起一层一项，每项给菜单编号或菜单文字，打开最后那一项。"
+                    "落到子菜单时只有一个命令就打开它；有几个命令时由系统按单据定，不用你选。"),
+    "input_schema": {"type": "object", "additionalProperties": False,
+                     "properties": {"read": {"type": "boolean"},
+                                    "path": {"type": "array", "items": {"type": "string"}, "maxItems": 5}}},
+}
+CUSTOM_TOOLS = ("express_menu",)  # 自定义工具（结果不带 toolset_name）
+# 工具执行时这些异常原样往上抛给引擎（崩溃、被拦、人点停止；菜单子菜单多候选由引擎按单据定，不让 AI 猜）
+RAISE_THROUGH = ("Crash", "Blocked", "Stopped", "MenuAmbiguous")
 
 
 class BudgetStop(Exception):
@@ -147,7 +162,7 @@ class ComputerUseHelper:
             response = self._call("turn", {
                 "model": model, "max_tokens": 8000,
                 "system": [{"type": "text", "text": CU_SYSTEM, "cache_control": {"type": "ephemeral"}}],
-                "tools": [{"type": "computer_toolset_20260801"}, FINISH_TOOL], "messages": messages,
+                "tools": [{"type": "computer_toolset_20260801"}, MENU_TOOL, FINISH_TOOL], "messages": messages,
                 "output_config": {"effort": effort}, "thinking": {"type": "adaptive"},
                 "context_management": {"edits": [{"type": "clear_tool_uses_20250919",
                                                   "trigger": {"type": "input_tokens", "value": 40000},
@@ -167,16 +182,20 @@ class ComputerUseHelper:
                     finish = block.get("input") or {}
                     results.append({"type": "tool_result", "tool_use_id": block["id"], "content": "OK"})
                     continue
-                base = {"type": "tool_result", "tool_use_id": block["id"], "toolset_name": "computer"}
+                base = {"type": "tool_result", "tool_use_id": block["id"]}
+                if block["name"] not in CUSTOM_TOOLS:
+                    base["toolset_name"] = "computer"
                 if failed:
                     results.append({**base, "is_error": True, "content": "Not executed: an earlier action failed."})
                     continue
                 try:
                     results.append({**base, "content": tools.member(block["name"], block.get("input") or {})})
                     last = results[-1]
-                    acted = block["name"] not in ("screenshot", "zoom", "cursor_position", "wait")
+                    inp = block.get("input") or {}
+                    acted = block["name"] not in ("screenshot", "zoom", "cursor_position", "wait") and not (
+                        block["name"] == "express_menu" and (inp.get("read") or not inp.get("path")))
                 except Exception as error:  # noqa: BLE001 — 回给模型；崩溃 / 拦截由引擎的异常类型往上抛
-                    if type(error).__name__ in ("Crash", "Blocked", "Stopped"):
+                    if type(error).__name__ in RAISE_THROUGH:
                         raise
                     failed = True
                     results.append({**base, "is_error": True, "content": f"Error: {error}"})

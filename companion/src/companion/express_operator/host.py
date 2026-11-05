@@ -139,12 +139,16 @@ class Host:
             runner.add(draft, task_id)
             doc = runner.run_one(draft.doc_id)
         except NeedHuman as error:
-            runner.state.status, runner.state.reason = K.BATCH_STOPPED, error.reason
-            runner.state.detail = error.detail[:300]  # 整批停在哪一步、看到了什么（没截图时也查得到）
-            runner.park(draft.doc_id)  # 停在半路的这张记等人（原因同整批），再交来时先读账套判断存没存
+            # 整批停在哪一步、看到了什么（没截图时也查得到）；停在半路的这张记等人（原因同整批），再交来时先读账套判断存没存
+            runner.halt(draft.doc_id, error.reason, error.detail)
             self._finish(batch_id)
             return {"status": "waiting" if error.reason in ("network_down",) else "human", "reason": error.reason,
                     "detail": error.detail[:300], "meta": {"batch": batch_id}}
+        except Exception as error:  # noqa: BLE001 — 最后一道兜底（批次没接住的意外）：同上收尾成「认不出的画面」，不留 running
+            detail = f"{type(error).__name__}: {error}"[:300]
+            runner.halt(draft.doc_id, "unknown_screen", detail, hold=True)
+            self._finish(batch_id)
+            return {"status": "human", "reason": "unknown_screen", "detail": detail, "meta": {"batch": batch_id}}
         self.last_used[batch_id] = self.clock()
         total = int(info.get("total") or 0)
         index = int(info.get("index") or 0)
@@ -240,6 +244,8 @@ class Host:
     def _result(self, batch_id: str, doc) -> Dict:
         meta = {"batch": batch_id, "docnum": doc.docnum, "voided": doc.voided, "placeholders": doc.placeholders,
                 "reports": doc.reports, "seconds": doc.seconds, "reason": doc.reason}
+        if doc.reason == "menu_choice":  # 站点据此问一次走哪个菜单、记住后按 operator.form_choice 再交
+            meta.update(doc_type=doc.doc_type, menu_options=list(doc.menu_options))
         if doc.status == K.SAVED:
             return {"status": "saved", "docnum": doc.docnum, "meta": meta}
         if doc.status == K.SKIPPED:
@@ -395,7 +401,7 @@ def express_factory(state, store, settings, root: Path, notify):
     from .engine import Engine
     from .evidence import Evidence, prune
     from .presence import Presence, WindowsSignals
-    from .probe import ProbeStore, probe_form
+    from .probe import MenuMemory, ProbeStore, probe_form
     from .session import Session
 
     recipe = R.load()
@@ -421,10 +427,11 @@ def express_factory(state, store, settings, root: Path, notify):
     from ..operator_ai import transport_for
 
     transport = transport_for(settings, state.id)
-    engine = Engine(desk, recipe, book, presence=presence, evidence=evidence.save,
-                    helper=ComputerUseHelper(transport) if transport else None)
     probes = ProbeStore(root / "probe.json")
     account_key = str(settings.account_dir).lower()
+    engine = Engine(desk, recipe, book, presence=presence, evidence=evidence.save,
+                    helper=ComputerUseHelper(transport) if transport else None,
+                    menus=MenuMemory(probes, account_key, recipe.version))
 
     def probe(doc_type):
         cached = probes.get(account_key, recipe.version, doc_type)

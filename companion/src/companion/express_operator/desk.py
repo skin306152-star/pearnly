@@ -13,6 +13,8 @@ Windows 上的实现是 ``win32_desk.WindowsDesk``；测试里用假 Express（�
   ``grid_click``（点明细表格某一格）、``dialog_button``（按弹窗里某个文字的按钮）；
 - 鼠标（只给 AI 接手用）：``click``、``drag``、``scroll``、``move``、``mouse``、``cursor``；
 - 画面：``screenshot``（缩到给定大小的 PNG，base64）、``zoom``；
+- 菜单：``menu``（``path`` 每项是编号或菜单文字，``name`` 是单据名，找法见 ``menu.resolve``）、``menu_tree``（只读，各层文字 /
+  命令号 / 是否子菜单 / 是否灰，深度 3）；
 - 其他：``wait``、``close_express``。
 """
 from __future__ import annotations
@@ -26,6 +28,15 @@ CC_INPUT_MARK = 0x50524E4C  # "PRNL"
 
 class Refused(Exception):
     """守卫拒绝：前台不是 Express、落点不在 Express、命令是灰的、弹窗里没有那个按钮等。"""
+
+
+class MenuAmbiguous(Exception):
+    """菜单路径落到子菜单，里面有不止一个可用命令（同一种单分几套单号，11-05 测试机）：不猜，带上候选文字（去掉编号）
+    与走到这个子菜单的路径，由引擎按载荷的选择定一项。"""
+
+    def __init__(self, options: List[str], path: List[str]):
+        super().__init__(f"menu submenu has {len(options)} commands: {' | '.join(options)[:200]}")
+        self.options, self.path = list(options), list(path)
 
 
 class Desk(Protocol):
@@ -46,6 +57,9 @@ def run(do, actions: List[Dict]) -> List[Dict]:
         except Refused as error:
             failed = True
             results.append({"ok": False, "error": str(error), "refused": True})
+        except MenuAmbiguous as error:  # 带着候选回给引擎（引擎据此抛同一个异常）
+            failed = True
+            results.append({"ok": False, "error": str(error), "ambiguous": error.options, "path": error.path})
         except Exception as error:  # noqa: BLE001 — 回给引擎，由它决定接手还是停下
             failed = True
             results.append({"ok": False, "error": f"{type(error).__name__}: {error}"})

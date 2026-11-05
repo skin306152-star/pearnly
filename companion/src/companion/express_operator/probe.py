@@ -40,6 +40,22 @@ class ProbeStore:
         tmp.replace(self.path)
 
 
+class MenuMemory:
+    """这本账套这种单实际的菜单路径（AI 接手选对、开出了正确窗口后记下，主会话 11-05）：与探路结果同一个文件、同一组键
+    （账套 + 配方版本 + 单种，后缀 ``|menu``），配方版本变了自然作废。子菜单里选哪个候选是业务选择，由站点记，不记在这里。"""
+
+    def __init__(self, store: ProbeStore, account_key: str, version: str):
+        self.store, self.account_key, self.version = store, account_key, version
+
+    def get(self, doc_type: str) -> Optional[List[str]]:
+        found = self.store.get(self.account_key, self.version, f"{doc_type}|menu")
+        path = (found or {}).get("path") if isinstance(found, dict) else None
+        return [str(k) for k in path] if isinstance(path, list) and path else None
+
+    def put(self, doc_type: str, path: List[str], title: str = "") -> None:
+        self.store.put(self.account_key, self.version, f"{doc_type}|menu", {"path": [str(k) for k in path], "title": title})
+
+
 def probe_form(engine: Engine, doc_type: str) -> Dict:
     """回 ``{"ok", "labels": [新建状态下看得到的格子标签], "missing": [配方要用、却没找到的]}``。不保存任何单。
 

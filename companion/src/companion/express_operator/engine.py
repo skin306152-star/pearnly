@@ -17,11 +17,14 @@ from decimal import Decimal
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from . import book as B
+from . import menu as M
+from .desk import MenuAmbiguous
 from .draft import Draft
 from .helper import NoHelper, png_block
 from .recipe import Form, Recipe
 
 MAX_TAKEOVERS_PER_DOC = 3
+MENU_VERIFY_S = 10  # AI 用菜单开了窗口后，等单据窗口标题出来最多这么久
 # 固定流程读画面的宽限（11-01 录制机实测：同一个 Express 里开 HP 表单，平常 0.3–3 秒，间歇会到 6–35 秒，开不开第二个 Express
 # 都出现；只读一次就判成画面不对、作废了存对的单）。按等待次数算（测试里的等待是假的）；中途有人在本批的 Express 里动过就等人
 # 停手、重新计时再读
@@ -39,6 +42,14 @@ class NeedHuman(Exception):
     def __init__(self, reason: str, detail: str = ""):
         super().__init__(f"{reason}: {detail}")
         self.reason, self.detail = reason, detail
+
+
+class MenuChoice(NeedHuman):
+    """菜单子菜单里有几个命令、载荷的选择与付款方式都定不下来：只停这一张（原因 ``menu_choice``），候选带回站点问人。"""
+
+    def __init__(self, doc_type: str, options: List[str]):
+        super().__init__("menu_choice", f"{doc_type}: " + " | ".join(options))
+        self.doc_type, self.options = doc_type, list(options)
 
 
 class Blocked(Exception):
@@ -83,7 +94,7 @@ class Engine:
     def __init__(self, desk, recipe: Recipe, book: B.Book, *, helper=None,
                  presence: Optional[Callable[[], None]] = None, evidence: Optional[Callable[[str, str], None]] = None,
                  log: Callable[[str], None] = lambda _m: None, sleep: Callable[[float], None] = time.sleep,
-                 may_void: Callable[[str], bool] = lambda _docnum: True):
+                 may_void: Callable[[str], bool] = lambda _docnum: True, menus=None):
         self.desk, self.recipe, self.book = desk, recipe, book
         self.helper = helper or NoHelper()
         self.presence = presence  # 发键前、读画面判对错前调用：锁屏 / 有人在用就在里面等（等过回真），人点停止就抛 Stopped
@@ -102,6 +113,12 @@ class Engine:
         self._line_recovered = False
         self._stage = ""
         self._before = None  # 这张开录前账套各表行数（放弃时只作废之后新出现的单号）
+        # 记住的菜单路径（AI 选对后按「账套 + 配方版本 + 单种」记在本机 probe.json，``probe.MenuMemory``）：get(单种) / put(单种, 路径, 标题)
+        self.menus = menus
+        self.menu_hint: Tuple[str, str] = ("", "")  # 探路时（没有草稿单）由批次给：这一张的 form_choice、pay_route
+        self._menu_options: Dict[str, List[str]] = {}  # 单种 → 这家子菜单里的候选（这一批里见过的）
+        self._form_choice = ""  # 当前开着的单据窗口是按哪个候选开的
+        self._ai_menu_path: Optional[List[str]] = None
 
     # ── 记录 ────────────────────────────────────────────────────────────────
     def _event(self, kind: str, **data) -> None:
@@ -169,6 +186,8 @@ class Engine:
             self.windows = reply.get("windows", [])
             self._health()
         for res in reply["results"]:
+            if res.get("ambiguous") is not None:
+                raise MenuAmbiguous(res["ambiguous"], res.get("path") or [])
             if not res.get("ok") and not res.get("skipped"):
                 raise Unexpected(("refused: " if res.get("refused") else "error: ") + str(res.get("error", ""))[:200])
         return reply
@@ -213,13 +232,21 @@ class Engine:
             self.act([{"do": "dialog_button", "text": rule["button"]}, {"do": "wait", "ms": 600}])
         raise Unexpected("dialog does not close")
 
+    def evidence_shot(self, doc_id: str) -> str:
+        """留一张当时的截图（本机证据目录），回路径；没接证据目录、截不到回空串（画面状态不明时截图也可能失败）。
+        不依赖这一张的记录（探路、开 Express 时出的意外也能截）。"""
+        if not self.evidence:
+            return ""
+        try:
+            res = self.desk.act([{"do": "screenshot", "size": [1280, 720]}], False)["results"][0]
+            return str(self.evidence(f"{doc_id}-need-human", res["png"]) or "") if res.get("png") else ""
+        except Exception:  # noqa: BLE001
+            return ""
+
     def _need_human_shot(self, doc_id: str) -> None:
         """转人工的单留一张当时的截图（本机证据目录，同存成的单；不上传），路径附在说明后面，随任务回到待处理。截不到不影响转人工。"""
-        if not self.evidence:
-            return
-        try:
-            path = self.evidence(f"{doc_id}-need-human", self.screenshot("need_human"))
-        except Exception:  # noqa: BLE001 — 画面状态不明时截图也可能失败
+        path = self.evidence_shot(doc_id)
+        if not path:
             return
         self.rec["evidence"] = str(path)
         self.rec["detail"] = f"{path} · {self.rec.get('detail') or ''}"[:300]  # 站点任务行的说明最多 300 字：路径放前面
@@ -349,7 +376,29 @@ class Engine:
         if name == "wait":
             self.act([{"do": "wait", "ms": int(min(float(inp.get("duration", 1)), 10) * 1000)}])
             return ok
+        if name == "express_menu":
+            return self._ai_menu(inp)
         raise ValueError(f"unsupported member {name}")
+
+    def _ai_menu(self, inp: Dict) -> List[Dict]:
+        """AI 接手的菜单工具（后台做法也能用：按命令号发，不按组合键）：``{"read": true}`` 读菜单；``{"path": [编号或文字…]}``
+        打开那一项（同固定流程的 ``menu`` 动作、同一套守卫；落到多命令子菜单时抛 ``MenuAmbiguous``，不让 AI 猜）。"""
+        path = [str(k).strip() for k in (inp.get("path") or []) if str(k).strip()]
+        if inp.get("read") or not path:
+            return [{"type": "text", "text": self.menu_summary() or "(menu not readable)"}]
+        self._ai_menu_path = path
+        self.act([{"do": "menu", "path": path, "name": self.form.name if self.form else ""},
+                  {"do": "wait", "ms": self.recipe.form_open_ms}])
+        return [{"type": "text", "text": f"sent; Express window title: {self._fg_title()[:150]}"}]
+
+    def menu_tree(self) -> List[Dict]:
+        try:
+            return self.act([{"do": "menu_tree"}], windows=False)["results"][0].get("tree") or []
+        except Unexpected:
+            return []
+
+    def menu_summary(self) -> str:
+        return M.summary(self.menu_tree(), focus=self.form.menu[0] if self.form else "")
 
     def _reason(self, rule: Dict) -> str:
         """主档里找不到码时 Express 弹选择框：表头上是对方没有，明细里是商品没有。"""
@@ -416,11 +465,21 @@ class Engine:
         return docnum if ok and not self.in_edit() else ""
 
     # ── 固定流程 ────────────────────────────────────────────────────────────
+    @staticmethod
+    def _is_form(form: Form, title: str) -> bool:
+        """前台是这种单的单据窗口：标题含配方的单据标题，或含「单种 - 」（同一种单分几套单号的定制菜单开出的窗口名可能不同）。"""
+        return form.title in title or f"{form.doc_type} - " in title
+
+    def _menu_hint_now(self) -> Tuple[str, str]:
+        return (self.draft.form_choice, self.draft.pay_route) if self.draft else self.menu_hint
+
     def ensure_form(self, doc_type: str) -> None:
         form = self.recipe.form(doc_type)
         self.form = form
         fg = (self.act([{"do": "activate"}, {"do": "wait", "ms": 300}]).get("fg") or {}).get("title", "")
-        if self.form_open == doc_type and form.title in fg:
+        options = self._menu_options.get(doc_type)
+        want = M.pick(options, *self._menu_hint_now()) if options else ""
+        if self.form_open == doc_type and self._is_form(form, fg) and (not options or (want and want == self._form_choice)):
             return
         # 一次只开一种单据窗口：每个单据窗口各带一条工具栏，开着几个时读不准哪条（试点实测）。Ctrl+F4 关掉当前的
         for _ in range(6):
@@ -430,19 +489,69 @@ class Engine:
             if any("1312" in w.get("title", "") for w in self.windows):
                 self.act([{"do": "dialog_button", "text": "ตกลง"}, {"do": "wait", "ms": 1000}])
             fg = (self.act([{"do": "wait", "ms": 100}]).get("fg") or {}).get("title", "")
-        # 菜单路径（数字）：真键盘做法是先单独按 Alt 再按数字；后台做法按菜单项文字找到命令号直接发（desk 决定）
-        title = (self.act([{"do": "menu", "path": form.menu}, {"do": "wait", "ms": self.recipe.form_open_ms}]).get("fg")
-                 or {}).get("title", "")
-        self._event("form_open", doc_type=doc_type)
-        opened = lambda: form.title in self._fg_title()  # noqa: E731
-        if form.title in title or self._wait_for(opened, SLOW_FORM_S):
+        self.form_open, self._form_choice = None, ""
+        opened = lambda: self._is_form(form, self._fg_title())  # noqa: E731
+        # 菜单路径（数字）：真键盘做法是先单独按 Alt 再按数字；后台做法按菜单项文字找到命令号直接发（desk 决定）。
+        # 找不到、改了名、灰掉（文字对不上）→ 进检查点交 AI 接手；子菜单里几个命令 → 按载荷的选择定，定不下来停这一张
+        remembered = self.menus.get(doc_type) if self.menus else None
+        path = list(remembered or form.menu)
+        try:
+            title, choice = self._open_menu(form, path)
+        except Unexpected as error:
+            title, choice = self._menu_takeover(form, str(error), opened)
+        self._event("form_open", doc_type=doc_type, **({"choice": choice} if choice else {}))
+        if self._is_form(form, title) or self._wait_for(opened, SLOW_FORM_S):
             self._layer("win32")
         else:
             self.checkpoint("form_open", f"已打开「{form.title}」单据窗口，处于浏览状态，没有弹窗。", {"form": doc_type},
                             reverify=opened)
-        self.form_open = doc_type
+        self.form_open, self._form_choice = doc_type, choice
         self.baseline = {w["hwnd"] for w in self.windows}
         self.labels = {}
+
+    def _send_menu(self, form: Form, path: List[str]) -> str:
+        reply = self.act([{"do": "menu", "path": path, "name": form.name}, {"do": "wait", "ms": self.recipe.form_open_ms}])
+        return (reply.get("fg") or {}).get("title", "")
+
+    def _open_menu(self, form: Form, path: List[str]) -> Tuple[str, str]:
+        """发菜单。回 (前台标题, 子菜单里选的那一项；没选为空)。"""
+        try:
+            return self._send_menu(form, path), ""
+        except MenuAmbiguous as ambiguous:
+            return self._choose(form, ambiguous)
+
+    def _choose(self, form: Form, ambiguous: MenuAmbiguous) -> Tuple[str, str]:
+        """子菜单里有几个命令：用站点记住的菜单文字，或按单据的付款方式选唯一一项（``menu.pick``）；定不下来抛 ``MenuChoice``
+        （只停这一张、不调 AI）。选中的不写进本机记忆（业务选择由站点记）。"""
+        self._menu_options[form.doc_type] = list(ambiguous.options)
+        choice = M.pick(ambiguous.options, *self._menu_hint_now())
+        self._event("menu_choice", options=ambiguous.options[:8], choice=choice)
+        if not choice:
+            raise MenuChoice(form.doc_type, ambiguous.options)
+        return self._send_menu(form, list(ambiguous.path) + [choice]), choice
+
+    def _menu_takeover(self, form: Form, error: str, opened: Callable[[], bool]) -> Tuple[str, str]:
+        """菜单对不上：交 AI 接手（它用 ``express_menu`` 读菜单、按文字选）。开对了窗口就把 AI 用的路径记进本机（同一本账套
+        这种单下次直接用，不再调 AI）；AI 走到多命令子菜单时同固定流程按选择定；AI 也定不了照 ``_recover`` 转人工。"""
+        self._ai_menu_path = None
+        tree = self.menu_summary()
+        problem = (f"menu: {error}\n这家公司的 Express 菜单（▸ 是子菜单）：\n{tree or '(读不到)'}\n"
+                   f"用 express_menu 工具按菜单文字或编号打开「{form.title}」这种单据的窗口（名字可能不同，按意思找）；"
+                   f"不要按 Alt 和数字。")
+        expect_text = f"已打开「{form.title}」单据窗口，处于浏览状态，没有弹窗。"
+        try:
+            self._recover("form_menu", problem, expect_text, {"form": form.doc_type},
+                          reverify=lambda: bool(self._wait_for(opened, MENU_VERIFY_S)))
+        except MenuAmbiguous as ambiguous:
+            title, choice = self._choose(form, ambiguous)
+            if self.menus and self._is_form(form, title or self._fg_title()):
+                self.menus.put(form.doc_type, list(ambiguous.path), "")
+            return title, choice
+        title = self._fg_title()
+        if self.menus and self._ai_menu_path:
+            self.menus.put(form.doc_type, self._ai_menu_path, title[:120])
+            self._event("menu_learned", path=self._ai_menu_path)
+        return title, ""
 
     def _value_seen(self, label: str, value: str, seen: str) -> bool:
         if self.form.values.get(label) == "vat_mode":
@@ -760,6 +869,8 @@ class Engine:
                 docnum = ""
         except NeedHuman as e:
             self.rec.update(outcome="need_human", reason=e.reason, detail=e.detail[:300])
+            if isinstance(e, MenuChoice):
+                self.rec["menu_options"] = list(e.options)
             self._need_human_shot(draft.doc_id)  # 作废前截下转人工那一刻的画面（2026-11-03：原来只截存成的单）
             self.rec["voided"] = self.abandon()
         except Blocked as e:

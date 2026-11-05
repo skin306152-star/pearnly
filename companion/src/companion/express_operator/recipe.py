@@ -40,6 +40,11 @@ class Form:
         return self.spec["title"]
 
     @property
+    def name(self) -> str:
+        """单据名（标题「HP - ซื้อเงินสด」里的「ซื้อเงินสด」）：菜单按编号找不到时按它找（``menu.resolve``）。"""
+        return str(self.spec.get("menu_name") or self.title.split(" - ", 1)[-1]).strip()
+
+    @property
     def header(self) -> Dict:
         return self.spec["header"]
 

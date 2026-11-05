@@ -65,6 +65,10 @@ class Draft:
     vat_rate: str = "7"
     vat_included: bool = False
     expected: Dict[str, str] = field(default_factory=dict)  # 载荷的 net / vat / total；空则按行算
+    # 菜单落到多个命令的子菜单时选哪个（``menu.pick``）：站点记住的菜单文字、单据的付款方式（cash / transfer / 空）。
+    # 载荷 ``operator.form_choice`` / ``operator.pay_route``，旧服务端不带就是空（定不下来停这一张、原因 menu_choice）
+    form_choice: str = ""
+    pay_route: str = ""
 
     def __post_init__(self):
         self.doc_type = self.doc_type.upper()
@@ -162,4 +166,11 @@ def from_payload(doc_id: str, payload: Dict) -> Draft:
     return Draft(doc_id=str(doc_id), doc_type=doc_type, date=_be_to_iso(payload.get("docdate_be")),
                  party_code=str(party.get("code") or "").strip(), lines=lines,
                  ref_no=ref_no, vat_rate=str(payload["vat_rate"]) if payload.get("vat_rate") not in (None, "") else "7",
-                 vat_included=options.get("vat_included") is True, expected=expected)
+                 vat_included=options.get("vat_included") is True, expected=expected,
+                 form_choice=str(options.get("form_choice") or "").strip()[:200],
+                 pay_route=_pay_route(options.get("pay_route")))
+
+
+def _pay_route(value) -> str:
+    route = str(value or "").strip().lower()
+    return route if route in ("cash", "transfer") else ""

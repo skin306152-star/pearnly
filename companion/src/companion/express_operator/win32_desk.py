@@ -98,6 +98,17 @@ if IS_WIN:
     gdi32.GetDIBits.argtypes = [HDC, HANDLE, W.UINT, W.UINT, ctypes.c_void_p, ctypes.c_void_p, W.UINT]
     gdi32.DeleteObject.argtypes = [HANDLE]
     gdi32.DeleteDC.argtypes = [HDC]
+    # 菜单（只读，两种做法共用；后台做法按命令号发 WM_COMMAND）
+    user32.GetMenu.argtypes = [HWND]
+    user32.GetMenu.restype = W.HMENU
+    user32.GetSubMenu.argtypes = [W.HMENU, ctypes.c_int]
+    user32.GetSubMenu.restype = W.HMENU
+    user32.GetMenuItemCount.argtypes = [W.HMENU]
+    user32.GetMenuItemID.argtypes = [W.HMENU, ctypes.c_int]
+    user32.GetMenuItemID.restype = W.UINT
+    user32.GetMenuState.argtypes = [W.HMENU, W.UINT, W.UINT]
+    user32.GetMenuState.restype = W.UINT
+    user32.GetMenuStringW.argtypes = [W.HMENU, W.UINT, W.LPWSTR, ctypes.c_int, W.UINT]
 
     ULONG_PTR = ctypes.c_size_t
 
@@ -143,6 +154,8 @@ BM_CLICK, WM_MDIGETACTIVE = 0x00F5, 0x0229
 TB_ISBUTTONENABLED, TB_BUTTONCOUNT, TB_COMMANDTOINDEX = 0x0409, 0x0418, 0x0419
 SB_GETTEXTA, SB_GETTEXTLENGTHW = 0x0402, 0x040C
 SHOT_SIZE = (1280, 720)
+MF_BYPOSITION, MF_GRAYED, MF_DISABLED, MF_SEPARATOR = 0x0400, 0x0001, 0x0002, 0x0800
+MENU_DEPTH = 3
 
 
 def button_command(button) -> tuple:
@@ -604,6 +617,48 @@ class WindowsDesk:
         user32.PostMessageW(HWND(self.main_window()["hwnd"]), WM_COMMAND, int(cmd), 0)
         return {"cmd": int(cmd)}
 
+    # ── 菜单 ────────────────────────────────────────────────────────────────
+    def _item_text(self, menu, index: int) -> str:
+        buf = ctypes.create_unicode_buffer(128)
+        user32.GetMenuStringW(menu, index, buf, 128, MF_BYPOSITION)
+        return buf.value.replace("&", "").strip()
+
+    def _menu_items(self, menu, depth: int) -> List[Dict]:
+        items: List[Dict] = []
+        count = int(user32.GetMenuItemCount(menu))
+        for index in range(max(0, count)):
+            sub = user32.GetSubMenu(menu, index)
+            state = int(user32.GetMenuState(menu, index, MF_BYPOSITION))
+            flags = 0 if state == 0xFFFFFFFF else (state & 0xFF if sub else state)  # 子菜单：高字节是项数
+            if not sub and flags & MF_SEPARATOR:
+                continue
+            node = {"text": self._item_text(menu, index), "cmd": 0 if sub else int(user32.GetMenuItemID(menu, index)),
+                    "sub": bool(sub), "grey": bool(flags & (MF_GRAYED | MF_DISABLED)), "items": []}
+            if sub and depth > 1:
+                node["items"] = self._menu_items(sub, depth - 1)
+            items.append(node)
+        return items
+
+    def menu_tree(self, depth: int = MENU_DEPTH) -> List[Dict]:
+        """Express 主窗口的菜单（只读，不展开、不点）：各层文字 / 命令号 / 是否子菜单 / 是否灰。读不到回空。"""
+        main = self.main_window()
+        if not main:
+            raise Refused("no Express window")
+        menu = user32.GetMenu(HWND(main["hwnd"]))
+        return self._menu_items(menu, depth) if menu else []
+
+    def menu_resolve(self, path: List[str], name: str = "") -> tuple:
+        """回 (命令号, 是否原样按编号找到)；找法见 ``menu.resolve``。菜单读不到时抛 ``Refused``。"""
+        from . import menu as M
+
+        tree = self.menu_tree(max(MENU_DEPTH, len(path) + 1))
+        if not tree:
+            raise Refused("menu not found")
+        return M.resolve(tree, path, name)
+
+    def menu_command(self, path: List[str], name: str = "") -> int:
+        return self.menu_resolve(path, name)[0]
+
     def active_form(self):
         """当前激活的单据窗口（MDI 子窗口）：开着几张单据窗口时只看这一张。"""
         main = self.main_window()
@@ -809,13 +864,23 @@ class WindowsDesk:
         if op == "us_layout":
             self.us_layout()
             return {}
+        if op == "menu_tree":
+            return {"tree": self.menu_tree()}
         if op == "menu":  # 真键盘：先单独按 Alt 激活菜单栏，再按数字（单据窗口开着时 Alt+数字 是单据窗口的快捷键）
             self.guard()
+            path = [str(k) for k in a["path"]]
+            main = self.main_window()
+            if main and user32.GetMenu(HWND(main["hwnd"])):
+                # 读得到菜单：编号原样对得上照旧按键；要按文字找、或落到子菜单里唯一的命令时按命令号发（同后台做法）
+                cmd, literal = self.menu_resolve(path, str(a.get("name") or ""))
+                if not literal:
+                    user32.PostMessageW(HWND(main["hwnd"]), WM_COMMAND, int(cmd), 0)
+                    return {"cmd": int(cmd)}
             self.us_layout()
             self.key_combo("alt")
             time.sleep(0.3)
-            for k in a["path"]:
-                self.sendkeys(str(k))
+            for k in path:
+                self.sendkeys(k)
                 time.sleep(0.4)
             return {}
         if op == "close_form":

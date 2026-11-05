@@ -65,6 +65,9 @@ REASONS = {
     "unsupported": HUMAN,  # 这种单还没有配方
     "readback_mismatch": HUMAN,  # 存进去的和草稿不符（不自动改已存的单）
     "unknown_screen": HUMAN,  # 认不出的弹窗 / 画面，AI 也处理不了
+    # 单据菜单落到子菜单、里面有几个命令（同一种单分几套单号），载荷的选择与付款方式都定不下来：只停这一张，结果 meta 带
+    # menu_options（候选菜单文字）与 doc_type，站点问一次、记住后按 operator.form_choice 再交（不调 AI、不整批停）
+    "menu_choice": HUMAN,
     "crash_repeated": HUMAN,  # 同一张崩了两次
     "cc_restarted": HUMAN,  # 录到一半 CC 重启：上次留下的 Express 已按放弃收拾（作废两道保护），这张没录成
     "placeholder_left": HUMAN,  # 崩在录明细之后：Express 留了金额 0 的空单头占号，要人作废（不自动改已存的单）

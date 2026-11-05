@@ -6,7 +6,7 @@ Express 不用在最前面，人照常用这台电脑；锁屏也不影响（发
   （系统按收字线程的输入法代码页换成 ANSI，默认输入法是中文时泰文会变「?」，10-28 测试机）；
 - 全选：编辑格发 ``EM_SETSEL``、下拉框发 ``CB_SETEDITSEL``（代替 Home、Shift+End）；
 - 回车走格：给焦点格投递 ``WM_KEYDOWN`` / ``WM_KEYUP``（投递才会经过 Express 自己的消息循环，回车跳格由它处理）；
-- 菜单：按菜单项文字（「&1.」「4.」……）找到命令号，给主窗口发 ``WM_COMMAND``；关单据窗口发 ``SC_CLOSE``（同 Ctrl+F4）；
+- 菜单：读菜单树，按编号（「&1.」「4.」……）或文字找到命令号（``menu.resolve``），给主窗口发 ``WM_COMMAND``；关单据窗口发 ``SC_CLOSE``（同 Ctrl+F4）；
 - 明细表格：给表格控件投递鼠标按下 / 抬起（表格里的坐标），不动真鼠标；
 - 焦点和「前台」都按 Express 自己的界面线程读（``GetGUIThreadInfo``），不看整台电脑的前台；别的程序抢了前台后 Express
   线程没有焦点格（10-30 实机），给它最后激活的顶层窗口发 ``WM_ACTIVATE``，让它自己放回焦点（不把 Express 拉到前面）；
@@ -28,16 +28,8 @@ if IS_WIN:
 
     from .win32_desk import GUITHREADINFO, HWND, gdi32, user32
 
-    user32.GetMenu.argtypes = [HWND]
     user32.GetLastActivePopup.argtypes = [HWND]
     user32.GetLastActivePopup.restype = HWND
-    user32.GetMenu.restype = W.HMENU
-    user32.GetSubMenu.argtypes = [W.HMENU, ctypes.c_int]
-    user32.GetSubMenu.restype = W.HMENU
-    user32.GetMenuItemCount.argtypes = [W.HMENU]
-    user32.GetMenuItemID.argtypes = [W.HMENU, ctypes.c_int]
-    user32.GetMenuItemID.restype = W.UINT
-    user32.GetMenuStringW.argtypes = [W.HMENU, W.UINT, W.LPWSTR, ctypes.c_int, W.UINT]
     user32.ScreenToClient.argtypes = [HWND, ctypes.POINTER(W.POINT)]
     user32.IsWindowEnabled.argtypes = [HWND]
     user32.PrintWindow.argtypes = [HWND, W.HDC, W.UINT]
@@ -52,7 +44,7 @@ WM_KEYDOWN, WM_KEYUP, WM_CHAR, WM_COMMAND, WM_SYSCOMMAND = 0x0100, 0x0101, 0x010
 WM_ACTIVATE, WA_ACTIVE = 0x0006, 1
 WM_INPUTLANGCHANGEREQUEST, LANG_THAI = 0x0050, 0x041E
 WM_LBUTTONDOWN, WM_LBUTTONUP, MK_LBUTTON, SC_CLOSE = 0x0201, 0x0202, 0x0001, 0xF060
-EM_SETSEL, CB_SETEDITSEL, MF_BYPOSITION = 0x00B1, 0x0142, 0x0400
+EM_SETSEL, CB_SETEDITSEL = 0x00B1, 0x0142
 SCAN = {0x0D: 0x1C, 0x09: 0x0F, 0x24: 0x47, 0x23: 0x4F, 0x26: 0x48, 0x28: 0x50, 0x25: 0x4B, 0x27: 0x4D}
 
 
@@ -245,34 +237,10 @@ class BackgroundDesk(WindowsDesk):
             self.sendkeys("{" + name.upper() + "}" if len(name) > 1 else name)
 
     # ── 菜单与单据窗口 ────────────────────────────────────────────────────
-    def _item_text(self, menu, index: int) -> str:
-        buf = ctypes.create_unicode_buffer(128)
-        user32.GetMenuStringW(menu, index, buf, 128, MF_BYPOSITION)
-        return buf.value.replace("&", "").strip()
-
-    def menu_command(self, path: List[str]) -> int:
-        """按菜单项开头的数字（「1.ซื้อ」「4.…」）一层层找下去，回最后一项的命令号。"""
-        menu = user32.GetMenu(self._main_hwnd())
-        for depth, key in enumerate(path):
-            if not menu:
-                raise Refused("menu not found")
-            found = None
-            for index in range(user32.GetMenuItemCount(menu)):
-                if self._item_text(menu, index).startswith(f"{key}."):
-                    found = index
-                    break
-            if found is None:
-                raise Refused(f"menu item {key} not found")
-            if depth == len(path) - 1:
-                cmd = user32.GetMenuItemID(menu, found)
-                if cmd in (0, 0xFFFFFFFF):
-                    raise Refused("menu item opens a submenu")
-                return int(cmd)
-            menu = user32.GetSubMenu(menu, found)
-        raise Refused("empty menu path")
-
-    def menu(self, path: List[str]) -> Dict:
-        cmd = self.menu_command([str(k) for k in path])
+    def menu(self, path: List[str], name: str = "") -> Dict:
+        """按菜单树找命令号（``menu.resolve``：编号 → 文字 → 子菜单里唯一的命令；多个候选抛 ``MenuAmbiguous``），给主窗口发
+        ``WM_COMMAND``。读菜单在 ``WindowsDesk``（两种做法共用）。"""
+        cmd = self.menu_command([str(k) for k in path], name)
         self._post(self._main_hwnd(), WM_COMMAND, cmd, 0)
         return {"cmd": cmd}
 
@@ -382,7 +350,7 @@ class BackgroundDesk(WindowsDesk):
         if op == "wait":
             return {"waited": round(self.settle(min(int(a.get("ms", 500)), 30000)), 3)}
         if op == "menu":
-            return self.menu(a["path"])
+            return self.menu(a["path"], str(a.get("name") or ""))
         if op == "close_form":
             self.close_form()
             return {}

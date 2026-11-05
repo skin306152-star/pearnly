@@ -2,7 +2,9 @@
 """代录离线回放用：假 Express（实现 ``Desk`` 同一个 ``act`` 接口）、假账套（``Book`` 接口）、假模型站点（``transport``）。
 
 按试点 31516fff 在服务器版 69EXP\\test 上实测的录法，模拟执行器要面对的事（不是 Express 的仿真）：
-- 菜单：先单独按 Alt 再按数字；单据窗口开着时 Alt+数字 弹 Message#.40；Ctrl+F4 关单据窗口；
+- 菜单：先单独按 Alt 再按数字；单据窗口开着时 Alt+数字 弹 Message#.40；Ctrl+F4 关单据窗口；给了 ``menus``（菜单树，同
+  ``menu_tree`` 的形状）时按真菜单找命令号（``menu.resolve``，同后台做法），``menu_forms`` 是命令号 → 单种、``menu_titles``
+  是命令号 → 窗口里的单据名（定制菜单开出的窗口名可能不同）；
 - 工具栏命令号（新建 / 保存 / 取消 / 作废），编辑中「保存」才亮，灰的命令拒绝；
 - 表头按回车逐格跳（标签顺序照实测）；单号格新建后是「前缀**NEW**」（赊销 / 现销先只显示前缀，录了客户才带 NEW）；
   日期打「日/月/佛历两位年」，格子里读出来是公历 yyyymmdd；对方码不存在回车弹选择框；
@@ -22,6 +24,7 @@ import zlib
 from decimal import Decimal
 from typing import Dict, List, Optional
 
+from companion.express_operator import menu as M
 from companion.express_operator.desk import Refused, run
 from companion.express_operator.draft import Draft, Line, money
 
@@ -84,12 +87,17 @@ def samples() -> List[Draft]:
 
 class FakeExpress:
     def __init__(self, recipe_data: Dict, *, inject: Optional[Dict] = None, readable: str = "win32",
-                 parties=PARTIES, items=ITEMS, company: str = "บริษัท ทดสอบ จำกัด", exe: str = ""):
+                 parties=PARTIES, items=ITEMS, company: str = "บริษัท ทดสอบ จำกัด", exe: str = "",
+                 menus: Optional[List[Dict]] = None, menu_forms: Optional[Dict[int, str]] = None,
+                 menu_titles: Optional[Dict[int, str]] = None):
         self.data = recipe_data
         self.readable = readable
         self.inject = inject or {}
         self.parties, self.items, self.company, self.exe = set(parties), set(items), company, exe
         self.menu_active, self.menu = False, []
+        self.menus, self.menu_forms, self.menu_titles = menus, dict(menu_forms or {}), dict(menu_titles or {})
+        self.menu_sent: List[int] = []  # 按真菜单发出的命令号
+        self.form_name = ""  # 窗口里的单据名（空 = 配方标题）
         self.form: Optional[str] = None
         self.editing = False
         self.head: Dict[str, str] = {}
@@ -124,7 +132,7 @@ class FakeExpress:
         if self.dialogs:
             return self.dialogs[-1]["title"]
         if self.form and not self.form_delay:
-            name = self.data["forms"][self.form]["title"]
+            name = self.form_name or self.data["forms"][self.form]["title"]
             return f"Express Accounting - {name} - [{name}]"
         return "Express Accounting"
 
@@ -455,6 +463,15 @@ class FakeExpress:
             return {}
         if op == "activate":
             return {"title": self.title()}
+        if op == "menu_tree":
+            return {"tree": self.menus or []}
+        if op == "menu" and self.menus is not None:
+            cmd, _ = M.resolve(self.menus, [str(k) for k in a["path"]], str(a.get("name") or ""))
+            self.menu_sent.append(cmd)
+            if cmd in self.menu_forms:
+                self.form, self.editing, self.head, self.grid, self.focus = self.menu_forms[cmd], False, {}, [], None
+                self.form_name = self.menu_titles.get(cmd, "")
+            return {"cmd": cmd}
         if op == "menu":
             self.do({"do": "key", "text": "alt"})
             for k in a["path"]:
