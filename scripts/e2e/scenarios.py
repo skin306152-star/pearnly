@@ -140,6 +140,14 @@ def by_words(page, selector: str, key: str):
     return handle.as_element()
 
 
+def open_nav(page, ctx, slot: str):
+    """侧栏导航里的一项（手机先开侧栏抽屉）。"""
+    if ctx.run != "desktop":
+        page.click('[data-slot="cc-nav-toggle"]')
+        page.wait_for_timeout(400)   # 抽屉滑出的动画
+    page.click(f'[data-slot="{slot}"]')
+
+
 def open_user_menu(page, ctx):
     """左下角用户菜单（手机先开侧栏抽屉）。"""
     if ctx.run != "desktop":
@@ -208,8 +216,38 @@ def logout_step(page, ctx):
     no_trouble(hops, [ctx.site])
 
 
+def add_company_step(page, ctx):
+    """侧栏「公司」→ 添加公司：在本页弹窗（一次都不开新窗口，11-03 事故 3）；候选由服务端搜索；点一家「已添加」的打开那家，不新建公司。"""
+    hops = start(page, ctx)
+    opened = []
+    page.context.on("page", lambda other: opened.append(other.url))
+    open_nav(page, ctx, "cc-nav-companies")
+    by_words(page, "button", "addCompany").click()
+    dialog = page.locator('[data-slot="cc-add-company"]')
+    dialog.wait_for(state="visible", timeout=NAV_TIMEOUT)
+    added = words("added")
+    candidates = '[data-slot="cc-add-company"] [data-slot="cc-candidates"] button'
+    page.wait_for_function("sel => document.querySelectorAll(sel).length > 0", arg=candidates, timeout=NAV_TIMEOUT)
+    rows = [text for text in page.locator(candidates).all_inner_texts()]
+    picked = next((text for text in rows if any(word in text for word in added)), None)
+    expect(picked, f"候选里没有「已添加」的公司（共 {len(rows)} 个候选）")
+    title = picked.strip().splitlines()[0].strip()
+    box = dialog.locator("input").first
+    if box.count():
+        box.fill(title[:12])
+        page.wait_for_function("([sel, t]) => [...document.querySelectorAll(sel)].some(e => e.innerText.includes(t))",
+                               arg=[candidates, title], timeout=NAV_TIMEOUT)
+    page.locator(candidates, has_text=title).first.click()
+    dialog.wait_for(state="hidden", timeout=NAV_TIMEOUT)
+    page.wait_for_function("t => document.body.innerText.includes(t)", arg=title, timeout=NAV_TIMEOUT)
+    expect(not opened, f"添加公司开了新窗口：{opened[0] if opened else ''}")
+    expect(page.url.startswith(f"https://{ctx.site}/assistant"), f"点已添加的公司后离开了本站 CC：{page.url.split('?')[0]}")
+    no_trouble(hops, [ctx.site])
+
+
 STEPS: dict = {}
 for _product in ("erp", "cowork"):
     STEPS[f"e2e.{_product}.login"] = login_step
     STEPS[f"e2e.{_product}.switch-site"] = switch_site_step
     STEPS[f"e2e.{_product}.logout"] = logout_step
+    STEPS[f"e2e.{_product}.add-company"] = add_company_step
