@@ -37,7 +37,8 @@ A. 菜单按文字找，读得到整棵菜单
 B. 菜单错误一律进检查点（AI 接手），AI 有后台能用的菜单工具
 - `engine.ensure_form`：菜单这一步改成 `try … except Unexpected → self._recover("form_menu", 问题+候选菜单文字, 期望「已打开 X 单据窗口」, …, reverify=opened)`。
 - `helper`：AI 接手多一个自定义工具 `express_menu`（`{"path": ["1", "2", "1"]}` 或文字），走 `engine.member("express_menu")` → `desk.menu`（WM_COMMAND，
-  后台做法可用、过同一套守卫）；目标文字里带 `menu_tree` 的这一段（子菜单候选）与草稿单（付款方式现金 / 转账、单据种类），由模型选。
+  后台做法可用、过同一套守卫）；目标文字里带 `menu_tree` 与配方里的单据窗口标题，模型按标题找对应的命令（用于改名、多一层、编号变了这类
+  「文字对不上」）。**子菜单下多个同类命令（同一种单分几套单号）不让 AI 猜**，按 D 处理。
   服务端 `express_operator/ai.py` 只白名单字段、不限 `tools` 内容，不用改服务端。
 - AI 选中并开出正确窗口后，把「这本账套 + 这种单 → 实际菜单路径」记进本机 `probe.json`（已有的按账套缓存），同一本下次直接用、不再花 AI；
   缓存记的是路径和看到的窗口标题，配方版本变了就作废（现有逻辑）。
@@ -50,6 +51,33 @@ C. 所有异常都收尾成明确状态
   回 `{"status": "human", "reason": "unknown_screen", "detail": 原文}`，站点就按「需要处理 · 认不出的画面」显示，不再是 `OPERATOR_ERROR`。
   worker 那层的 `except Exception` 保留（宿主外的错误仍按需要处理回执）。
 - 启动收尾：CC 重启时 `recover_orphans` 已会把留下的批次 / Express 收掉；本次卡在 running 的那类批次文件会被它认出（进程号在 `express.json`）。
+
+D. 子菜单多个候选：按付款方式选，定不下来问一次、记在站点（主会话 11-05 审定后补，**服务端改动待审**）
+
+现状核对：
+- 写账口径里付款只有「现购 / 赊购」两值（`pearnly_core.express_rules.push.choices.PAYMENT_VALUES = ("cash", "credit")`），预选卡片
+  （`write_precheck`）的付款项也是这两值；「现金还是哪家银行转账」目前没有任何地方定，只有单据上识别出的付款文字（Cowork 单据 `payment_method`，
+  ERP 采购记录「付款方式」）。T9MANAC7 的两项（`ซื้อเงินสด-ทั่วไป`、`ซื้อโดยโอนผ่าน TMB 2-01792-3`）都是现购，区别是付款走现金还是 TMB 转账（两套单号）。
+- 选择记忆（Cowork `push/choices.py` 的 `choice_store`）按「连接 + 账套 + 种类 + subject」记，连接属于公司，等同「公司 + 账套」。
+
+方案：
+1. 站点给代录载荷多带两项（`operator` 段，旧版 CC 忽略，不升载荷版本）：`form_choice`（这本账套这种单记住的子菜单文字，没有就空）、
+   `pay_route`（`cash` / `transfer` / 空，按单据的付款文字认：`เงินสด`/`cash` → cash，`โอน`/`transfer`/银行名 → transfer，认不出空）。
+   Cowork 在 `tools._push_one` → `service` 组 `operator` 段处补；ERP 在它的代录交单处同样补（同一个纯函数放 `pearnly_core.express_operator`）。
+2. CC 桌面版遇到子菜单多个命令时依次：`form_choice` 文字对上就用；否则按 `pay_route` 在候选文字里找唯一一项（cash → 含 `เงินสด`/`ทั่วไป` 且不含 `โอน`；
+   transfer → 含 `โอน`/银行）；还不唯一就停在检查点：这张记 `WAITING`、原因 `menu_choice`（新原因码，级别「必须人工」），`meta.menu_options` 带候选文字，
+   **不调 AI、不转「认不出的画面」**。
+3. 站点收到 `menu_choice`：代录事件源（`express_operator/feed.py`）把候选放进这张单的状态；CC 对话里模型用 `ask_user` 问一次（题目「这家这种单走哪个菜单」，
+   选项就是候选文字）；答案经一个新的小工具（或并进 `pearnly_precheck_answer`，看预选卡片窗口的接口）写进 `choice_store`：种类 `operator_form`、
+   subject = 单据种类（HP / RR / …）、值 = 选中的菜单文字；然后照「重试」再交，载荷带上 `form_choice`。换电脑、换人都用这一条。
+4. 新原因码要三处同步（CC `contract.py` REASONS、服务端 `express_operator/contracts.py`、前端 `operator-shared.ts`，测试逐条比对）+ 一条新文案
+   （原因说明，中 / 泰 / 英，官方简短，例如「选择单据菜单」），按文案闸门走。
+5. 与预选卡片的关系：理想是开始前就问（预选卡片「写进哪份账套」那类），但菜单候选要 CC 读到 Express 菜单才知道；第一版按上面「录到时问一次、记住」，
+   记住后以后开始前就不再问。是否把菜单树随心跳上报、并进预选卡片，交预选卡片窗口评估。
+
+改动面：服务端 pearnly_core（纯函数 + 原因码 + 事件源）、Cowork（载荷两项、保存答案）、ERP（载荷两项、保存答案）、前端（原因码、文案）、CC 桌面版。
+CC 桌面版的 A/B/C 与 D 的 CC 部分（读 `form_choice` / `pay_route`、新原因码）不依赖服务端先上线：旧服务端不带这两项时，多候选直接停 `menu_choice`
+（旧服务端不认这个原因码，按「需要处理」显示）。
 
 ## 1. 现有同类与复用
 - 复用：`_recover` / `take_over` / `_need_human_shot` / `probe.json` 缓存 / `NeedHuman` 收尾分支 / `desk.run` 守卫；只新增菜单读取与一个 AI 工具。
@@ -101,5 +129,6 @@ C. 所有异常都收尾成明确状态
 ## 13. 待主会话定 / 已知
 - ③「开始」卡片只取一次资料：W4 新卡片还没合入 main（远端只有 `pearnly/precheck-erp-15197a`，W4 在 precheck-card-ui 窗口），现在没法确认；
   当前 main 上 `operator-start.tsx` 的 `usePrep` 只在 `asking` 变 true 时 `load(0)`，后上传的单要刷新页面才进卡片。请转给 W4：资料变化（上传完成事件）时或点开始前重取一次。
-- 真正在 Express 里存单的验收：accserver 上有没有「现购是子菜单」的测试账套可写？没有的话本次只验到「菜单选对、窗口对上」，存单部分沿用 1→2 的普通公司。
-- 子菜单多个候选时由 AI 按草稿单选（例如现金 → `ทั่วไป`，转账 → `โอนผ่าน TMB`），选完记住本账套；要不要改成「开始前预选卡片里问一次」由预选卡片窗口定（同④一并考虑）。
+- 真正在 Express 里存单的验收：主会话 11-05 定不为此改正式账套；C 盘验「菜单选对、窗口对上」，真存单用普通菜单的公司，记录里写缺口。
+- 子菜单多候选：主会话 11-05 定按付款方式选、定不下来问一次记在站点，见 D；D 的服务端改动待主会话审。
+- ③ 主会话 11-05 已转给 W4。
