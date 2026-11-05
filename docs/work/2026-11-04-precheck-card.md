@@ -544,3 +544,16 @@ U1/U2 两处对不上（start 未传 groups、多账套只读顶层 target）已
   未定项只答一张时别的照留）；`tests/test_cowork_write_precheck.py` `DocumentPayment`（单据自己的付款列成已定项、已推出的不列、
   单张作答只写这张不进记忆、同一家两张一张记住赊购一张单独现购按真实付款规则各写各的）；流程 `cowork.precheck.api` 加两步
   （单张改赊购 → planned 说赊购、记忆不变；那一项改回现购 → 单据自己的是现购）。
+
+## 遗留（下一批做，主会话 11-05 定这次不动）
+
+- `apps/pearnly_cowork/pearnly_cowork/push/application/api.py` 的 `save_document_choices`：只给已删的 `cowork_save_push_choices`
+  用，现在没有调用方（死代码，文档串还写着旧工具名）。这次没删：这个入口文件没有能在实验栈跑的流程（复核页推送要电脑写 Express），
+  改它要给它登记免流程（`tests/flows/not_flows.toml`），等于扩大豁免。下一批有流程覆盖这个文件（或同批改到它）时一起删，
+  `push/application/service.py` 里 `save_choices` 的 ``document_payment`` 参数随之看是否还有调用方。
+
+## 收尾（11-05）
+
+- 合入 main：W1 3a372b194、W2 0e4b24bc2、ask_user 094ab34b7、w5-mode-gate 70c32bc31、删旧工具 ad2fedbb1、单张付款 fdb853488。
+- 本任务的工作树与本地 / 远端分支（precheck-cowork-42d954、w5-mode-gate、drop-choice-tools、precheck-doc-payment 等）均已删除；
+  实验栈 `pearnly-precheck-w2-lab` 的容器、卷、网络已删（主会话定以后不用）。
