@@ -75,9 +75,68 @@ class Forward(unittest.TestCase):
             self.assertEqual(ai.forward(body(), post=self.post), {"error": "not_configured"})
         self.assertEqual(self.sent, [])
 
+    def test_context_management_is_refused_like_any_field_outside_the_list(self):
+        """它要 beta 头、本转发不发：带了 Anthropic 回 400；CC 1.12.15 起不发，带了整件拒收（11-05 真机 anthropic_400）。"""
+        self.assertNotIn("context_management", ai.FIELDS)
+        found = ai.forward(body(context_management={"edits": [{"type": "clear_tool_uses_20250919"}]}), post=self.post)
+        self.assertEqual(found, {"error": "invalid_field"})
+        self.assertEqual(self.sent, [])
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_a_refusal_is_logged_without_the_request_and_the_code_carries_the_type(self):
+        logged = []
+        logger = types.SimpleNamespace(info=lambda *a: logged.append(("info", a)),
+                                       warning=lambda *a: logged.append(("warning", a)))
+        secret = "SCREENSHOT-BASE64-" + "A" * 50
+
+        class Response:
+            status_code = 400
+
+            def json(self):
+                return {"type": "error", "error": {"type": "invalid_request_error",
+                                                   "message": "context_management: requires beta header " + "x" * 400}}
+
+        requests = types.ModuleType("requests")
+        requests.post = lambda *a, **k: Response()
+        with mock.patch.object(sys.modules["frappe"], "logger", lambda name=None: logger), \
+                mock.patch.dict(sys.modules, {"requests": requests}):
+            request = body(messages=[{"role": "user", "content": [{"type": "text", "text": secret}]}])
+            found = ai.forward(request)
+        self.assertEqual(found, {"error": "anthropic_400:invalid_request_error"})  # 只回码，说明不回给电脑
+        self.assertEqual(ai.spent("B1"), 0.0)  # 被拒的不计费
+        [(level, args)] = logged
+        line = args[0] % args[1:]
+        self.assertEqual(level, "warning")
+        for part in ("400", "invalid_request_error", HAIKU, "turn", "B1", "context_management: requires beta header"):
+            self.assertIn(part, line)
+        self.assertNotIn(secret, line)
+        self.assertNotIn("messages", line)
+        self.assertLessEqual(len(args[-1]), ai.MESSAGE_LOG_MAX)
+
+    def test_refusal_codes(self):
+        self.assertEqual(ai.refused(429, {"error": {"type": "rate_limit_error", "message": "slow"}}),
+                         ("anthropic_429:rate_limit_error", "rate_limit_error", "slow"))
+        self.assertEqual(ai.refused(502, None), ("anthropic_502", "", ""))  # 正文读不出：只有状态码
+        self.assertEqual(ai.refused(400, {"error": "x"})[0], "anthropic_400")
+        code, kind, _message = ai.refused(400, {"error": {"type": "a b;c" * 30}})
+        self.assertLessEqual(len(code), ai.ERROR_MAX)
+        self.assertTrue(code.startswith("anthropic_400:") and " " not in code and ";" not in code)
+        # 电脑只特判 budget，其余照码转人工：带类型的码不会被当成 budget
+        helper = (ROOT / "companion/src/companion/express_operator/helper.py").read_text(encoding="utf-8")
+        self.assertIn('if response.get("error") == "budget":', helper)
+        self.assertNotEqual(code, "budget")
+
+    def test_a_non_json_refusal_body_still_gives_the_status(self):
+        class Response:
+            status_code = 503
+
+            def json(self):
+                raise ValueError("html")
+
+        requests = types.ModuleType("requests")
+        requests.post = lambda *a, **k: Response()
+        with mock.patch.dict(sys.modules, {"requests": requests}):
+            self.assertEqual(ai.forward(body()), {"error": "anthropic_503"})
+
 
 
 class Prices(unittest.TestCase):
@@ -122,3 +181,7 @@ class OlderCcDesktop(unittest.TestCase):
         cowork = (ROOT / "apps/pearnly_cowork/pearnly_cowork/companion/http_auth.py").read_text(encoding="utf-8")
         self.assertIn("METHODS = {'heartbeat': METHOD, 'lease': 'pearnly_cowork.companion.queue_api.lease',", cowork)
         self.assertIn("FOLDER_ONLY_ALLOWED = {**FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS, **LOGIN_METHODS}", cowork)
+
+
+if __name__ == "__main__":
+    unittest.main()
