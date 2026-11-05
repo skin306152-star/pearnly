@@ -51,16 +51,28 @@
 - 实验室 `scripts/cc-delete-race-lab-verify.py`：在真 MariaDB 上，删 / 归档 / 改名 / 星标时另一个连接改这一行并提交，
   本站这一半照样写成；修前的顺序在同一情形下报 `QueryTimeoutError`。
 
+## 验证（基线 `ccc2b9b3d`，分支 `ea206450e`）
+
+- 全闸门（`development.yml` 同名步骤）190 项通过；离线 `tests/test_assistant.py` 190 条通过。
+- 生产镜像候选离线检查：线上同版镜像 `fb1037ad…` 挂上本分支五个产品源码跑 `ci-candidate-checks.sh offline`，102 步通过。
+- 实验室（独立栈 `pearnly-cc-race-lab`）：
+  - 实证脚本 `cc-delete-race-lab-verify.py`：Cowork、ERP 两个站点都是 `{"old_order_fails": true, "delete": true, "archive": true, "rename": true,
+    "star": true}`，即修前顺序在真 MariaDB 上报 `QueryTimeoutError`，修后四种写法都写成。
+  - `run.py --changed`：14 格中 10 格通过（`cc.chat` 4、`cc.operator` 2、`cc.sidebar-modes` 2、`cowork.cc.sidebar-modes` 2）。
+    另 4 格是 `cc.operator.replay` 在 prepare 报 need two submitted purchase documents：新栈里没有已提交采购单，是共享
+    「已知问题与结论」11-05 已记的流程数据依赖。先跑 `erp.purchase.create`（4/4）后重跑 `cc.operator.replay` 4/4 通过。
+  - `cc.chat` 单独再跑 4/4；`cc.companies` 1/1。
+
 ## 影响清单（`check-impact.py`：共用件 `assistant`，以及 `transaction` 新增调用方 `cc.assistant`）
 
 | 入口 | 结果 |
 |---|---|
-| `cc.assistant` | 待实验室 |
-| `shared.assistant` | 待实验室 |
-| `control.assistant` | 待实验室 |
-| `cowork.assistant` | 待实验室 |
-| `cc.operator.thread` | 待实验室 |
-| `erp.cc.companies` | 待实验室 |
-| `erp.cc.chat-push` | 离线 |
-| `cowork.cc-chat.push` | 待实验室 |
-| `cowork.cc.troubleshooting` | 待实验室 |
+| `cc.assistant` | 通过：流程 `cc.chat`（新 / 老 × 电脑 / 手机，新建对话、发消息、删除）、`cc.sidebar-modes`；实证脚本删除、归档、改名、星标 |
+| `shared.assistant` | 通过：流程 `cc.chat` 打开对话页、无页面报错 |
+| `cc.operator.thread` | 通过：流程 `cc.operator`（新 / 老）、`cc.operator.replay`（新 / 老 × 两宽度） |
+| `erp.cc.companies` | 通过：流程 `cc.companies`（老） |
+| `erp.cc.chat-push` | 离线：`tests/test_assistant.py` 190 条；直写工具链没改 |
+| `control.assistant` | 没测到：fatcc.com 智能体入口在控制面，回归实验室没有控制面站点；改动只在会话表的写操作，入口登录与跳转没动 |
+| `cowork.assistant` | 没测到：要真引擎调 Cowork 工具，实验室的假智能体不调工具；离线覆盖会话写操作 |
+| `cowork.cc-chat.push` | 没测到：同上（要真引擎让 CC 推送）；推送链路没改 |
+| `cowork.cc.troubleshooting` | 没测到：同上（要真引擎调排查工具）；工具没改 |
