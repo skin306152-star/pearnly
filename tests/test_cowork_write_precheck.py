@@ -92,6 +92,7 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
         RESULT_UNKNOWN="push.result_unknown", _document_block=lambda d: block, _express_context=lambda *a: dict(found),
         _operator_target=lambda *a: dict(target), _require_matching_account=matching, _choices=choices,
         _fixed=lambda *a: None,
+        _document_payment=lambda d, fields, direction, items: calls.append(("doc_payment", d.name, items)) or items[-1]["value"],
         _account_row=lambda *a: {"attributes": {"tax_id": "0105555000099"}}, operator_owned=lambda d: False,
         save_choices=lambda *args, **kw: calls.append(("save",) + args + ((kw,) if kw else ())) or {
             "saved": len(json.loads(args[3]))})
@@ -276,6 +277,59 @@ class PlannedAndHint(unittest.TestCase):
         account = Collect.by_kind(None, found)["account"]
         self.assertEqual((account["value"], account["source"]), ("5210", card.SUGGESTED))
         self.assertIn(("choices", None, "ค่าเครื่องเขียน"), calls)
+
+
+class DocumentPayment(unittest.TestCase):
+    """单张的现 / 赊例外（主会话 11-05）：按供应商记住照旧是默认；CC 在对话里能只改一张（答案带 doc_id），只写那张单自己的付款方式、
+    不记进账套记忆；重判时那张单的付款项单独一项、已定（来源「这张单上人定的」）、能再改，不会从卡片上消失。"""
+
+    def test_the_documents_own_payment_shows_as_its_own_decided_item(self):
+        module, _calls, patcher = load(document(pages=json.dumps([{"fields": {
+            "direction": "purchase", "seller_name": "ร้าน A", "seller_tax": "0105555000011", "seller_branch": "00000",
+            "posting_payment_manual": "cash"}}])))
+        self.addCleanup(patcher.stop)
+        found = module.document("h1")
+        own, = [item for item in found["items"] if item["kind"] == "payment"]
+        self.assertEqual((own["subject"], own["value"], own["source"]), ("document:h1", "cash", card.DOCUMENT))
+        merged = card.merge([found])
+        item, = [i for i in card.items_of(merged) if i["kind"] == "payment"]
+        self.assertEqual((item["state"], item["docs"], item["remember"]), (card.DECIDED, ["h1"], False))
+        # 已推出去的不列（看 written）
+        module2, _c, patcher2 = load(document(last_push_status="success", pages=json.dumps([{"fields": {
+            "direction": "purchase", "seller_name": "ร้าน A", "posting_payment_manual": "cash"}}])))
+        self.addCleanup(patcher2.stop)
+        self.assertFalse([i for i in module2.document("h1")["items"] if i["kind"] == "payment"])
+
+    def test_an_answer_for_one_document_writes_only_that_document(self):
+        module, calls, patcher = load()
+        self.addCleanup(patcher.stop)
+        row = {"kind": "payment", "subject": "purchase|0105555000011", "value": "cash", "label": "ร้าน A",
+               "remember": False, "document": True}
+        self.assertEqual(module.remember("CO1", {"h1": [row]}), {"saved": 1})
+        written, = [c for c in calls if c[0] == "doc_payment"]
+        self.assertEqual(written[1], "h1")
+        self.assertEqual(written[2][0]["value"], "cash")
+        self.assertEqual([c for c in calls if c[0] == "save"], [])  # 不记进账套记忆
+        with self.assertRaises(Stop):  # 只答给一张的只认现 / 赊
+            module.remember("CO1", {"h1": [dict(row, kind="account", value="5100")]})
+
+    def test_two_documents_of_one_supplier_one_remembered_on_credit_one_paid_in_cash(self):
+        """同一家两张：一张照账套记住的赊购，一张单独改成现购。写入按共用付款判定：单据自己的压过账套记忆（第一级人工裁决），
+        planned 与入账后的 written 是同一个函数，所以推前说的与写进去的一致。"""
+        from pearnly_core.express_rules.push import choices as rules
+
+        fields = {"direction": "purchase", "seller_name": "ร้าน A", "seller_tax": "0105555000011", "seller_branch": "00000",
+                  "document_type": "tax_invoice", "vat": "7", "total": "107"}
+        subject = rules.supplier_subject("purchase", "0105555000011", "ร้าน A")
+        remembered = {"payment": {subject: "credit"}}
+        first = rules.resolve(fields, direction="purchase", posting_kind="service", config={}, remembered=remembered,
+                              account_resolved=True)
+        second = rules.resolve({**fields, "posting_payment_manual": "cash"}, direction="purchase", posting_kind="service",
+                               config={}, remembered=remembered, account_resolved=True)
+        self.assertEqual((first["applied"].get("payment"), first["applied"].get("payment_from")), ("credit", "remembered"))
+        self.assertEqual(second["applied"].get("remember_payment"), "cash")
+        self.assertNotIn("payment", second["applied"])  # 账套记忆不再管这一张
+        self.assertEqual((first["needed"], second["needed"]), ([], []))
 
 
 class BigLists(unittest.TestCase):

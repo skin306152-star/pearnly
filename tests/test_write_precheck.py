@@ -233,6 +233,59 @@ class Card(unittest.TestCase):
         self.assertEqual((len(summary["rows"]), summary["more"]), (4, 2))
 
 
+def payment(value="credit", source="remembered", subject="purchase|0105556000001"):
+    return {"kind": "payment", "subject": subject, "label": "ABC", "value": value, "source": source,
+            "direction": "purchase", "options": [{"code": "cash"}, {"code": "credit"}]}
+
+
+class DocumentAnswers(unittest.TestCase):
+    """单张的例外（主会话 11-05）：按供应商记住照旧是默认；答案带 ``doc_id`` 只改那一张、不记住、不合并；那一张自己定的列成单独一项，
+    来源 ``document``、算已定、能再改。"""
+
+    def card(self):
+        return c.merge([doc("P1", payment()), doc("P2", payment())])
+
+    def test_an_answer_for_one_document_changes_only_it_and_is_not_remembered(self):
+        card = self.card()
+        item, = c.items_of(card)
+        self.assertEqual(item["docs"], ["P1", "P2"])
+        expanded, errors = c.expand(card, [{"key": item["key"], "value": "cash", "doc_id": "P2"}])
+        self.assertEqual(errors, [])
+        self.assertEqual(expanded, {"P2": [{"kind": "payment", "subject": item["subject"], "value": "cash", "label": "ABC",
+                                            "remember": False, "document": True}]})
+        # 不带 doc_id：照旧记给这一家（两张都展开、要记住）
+        expanded, _errors = c.expand(card, [{"key": item["key"], "value": "cash"}])
+        self.assertEqual(sorted(expanded), ["P1", "P2"])
+        self.assertTrue(all(row["remember"] and "document" not in row for rows in expanded.values() for row in rows))
+
+    def test_only_payment_and_only_a_document_of_the_item_can_be_answered_alone(self):
+        card = c.merge([doc("P1", payment(), account(value="5100", source="remembered"))])
+        keys = {item["kind"]: item["key"] for item in c.items_of(card)}
+        _expanded, errors = c.expand(card, [{"key": keys["account"], "value": "5200", "doc_id": "P1"},
+                                            {"key": keys["payment"], "value": "cash", "doc_id": "P9"}])
+        self.assertEqual([error["code"] for error in errors], [c.ERR_NOT_PER_DOCUMENT] * 2)
+
+    def test_the_documents_own_value_is_decided_kept_apart_and_answered_for_it_alone(self):
+        own = payment("cash", c.DOCUMENT, subject="document:P2")
+        card = c.merge([doc("P1", payment()), doc("P2", own)])
+        items = {item["subject"]: item for item in c.items_of(card)}
+        self.assertEqual(items["document:P2"]["state"], c.DECIDED)
+        self.assertEqual(items["document:P2"]["docs"], ["P2"])
+        self.assertFalse(items["document:P2"]["remember"])
+        self.assertFalse(c.needs_card(card))
+        expanded, _errors = c.expand(card, [{"key": items["document:P2"]["key"], "value": "credit"}])
+        self.assertEqual(expanded["P2"][0]["document"], True)
+        self.assertEqual(expanded["P2"][0]["remember"], False)
+
+    def test_an_open_item_answered_for_one_document_still_holds_the_others(self):
+        card = c.merge([doc("P1", payment("", "")), doc("P2", payment("", ""))])
+        item, = c.items_of(card)
+        answers = [{"key": item["key"], "value": "cash", "doc_id": "P2"}]
+        self.assertEqual(c.held_back(card, answers), ["P1"])
+        self.assertEqual(c.writable(card, answers), ["P2"])
+        self.assertEqual(c.held_back(card, [{"key": item["key"], "value": "cash"}]), [])
+
+
 class Preselect(unittest.TestCase):
     def test_most_used(self):
         self.assertEqual(p.most_used({"B": 3, "A": 3, "C": 1}), "A")

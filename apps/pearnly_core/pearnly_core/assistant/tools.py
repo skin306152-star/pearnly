@@ -94,12 +94,17 @@ CORE_TOOLS = [
                     "back decided. Items left unanswered keep their documents back this time; proposed items not "
                     "answered are written with the proposed value. Returns the card checked again with writable and held "
                     "documents, or errors (nothing saved) when a value is not offered. resume true re-queues documents "
-                    "waiting in pending after saving.",
+                    "waiting in pending after saving. An answer with doc_id changes that one document only and is not "
+                    "remembered (only for payment: e.g. this supplier is usually on credit but this document was paid "
+                    "in cash); the next check lists it as that document's own decided item, which can be changed again "
+                    "the same way. Without doc_id a payment is remembered for the supplier (its later documents too).",
      "input_schema": {"type": "object", "properties": {
          "company": {"type": "string"},
          "doc_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 200},
          "answers": {"type": "array", "items": {"type": "object", "properties": {
-             "key": {"type": "string"}, "value": {"type": "string"}}, "required": ["key", "value"]}},
+             "key": {"type": "string"}, "value": {"type": "string"},
+             "doc_id": {"type": "string", "description": "Only this document (payment only); not remembered."}},
+             "required": ["key", "value"]}},
          "resume": {"type": "boolean"}},
          "required": ["company", "doc_ids", "answers"]},
      "handler": "pearnly_core.write_precheck.api.tool_answer"},

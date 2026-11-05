@@ -39,7 +39,9 @@ COMPANY_RULE = "company_rule"      # Cowork 公司规则
 EXPRESS_HISTORY = "express_history"  # Express 历史一贯（例：同一供应商近 12 个月 ≥3 次同科目）
 BOOK_SETTING = "book_setting"      # 账套自己的设置定的（单别默认科目、逐行 VAT、只有一个可用值）
 FACE = "face"                      # 票面写明（付款状态 / 方式）
-DECIDED_SOURCES = frozenset({PINNED, TASK_DEFAULT, REMEMBERED, COMPANY_RULE, EXPRESS_HISTORY, BOOK_SETTING, FACE})
+DOCUMENT = "document"              # 这张单上人定的（只管这一张，不记进账套记忆；例：这家平时赊购，这一张现金付的）
+DECIDED_SOURCES = frozenset({PINNED, TASK_DEFAULT, REMEMBERED, COMPANY_RULE, EXPRESS_HISTORY, BOOK_SETTING, FACE,
+                             DOCUMENT})
 # 预选：要人点「开始」才算数
 SUGGESTED = "suggested"            # 已有的建议（费用科目建议的第一个）
 HISTORY = "history"                # 按使用次数
@@ -70,6 +72,9 @@ KINDS = frozenset(KIND_GROUPS) | {"party", "account"}
 STOCK_ACCOUNT_PREFIX = "stock:"
 # 只管这一张单的类：改了不记住
 PER_DOCUMENT_KINDS = frozenset({"posting_kind"})
+# 能只答给其中一张单的类（答案带 ``doc_id``）：只写那一张自己的、不记住、不合并（主会话 11-05：「按供应商记住照旧是默认，
+# 单张的例外 CC 在对话里也能改」）。产品把这一张自己定的列成单独一项，来源 :data:`DOCUMENT`
+DOCUMENT_ANSWER_KINDS = frozenset({"payment"})
 
 MAX_DOCUMENTS = 500                # 一张卡片最多几张单（代录一批 200 张，留余量）
 MAX_ANSWERS = 500
@@ -84,6 +89,7 @@ ERR_DUPLICATE_KEY = "precheck.duplicate_key"
 ERR_EMPTY_VALUE = "precheck.empty_value"
 ERR_NOT_OFFERED = "precheck.value_not_offered"
 ERR_TOO_MANY = "precheck.too_many_answers"
+ERR_NOT_PER_DOCUMENT = "precheck.not_per_document"  # 这一类不能只答给一张单（不在 DOCUMENT_ANSWER_KINDS），或这张单不在这一项里
 
 
 class PrecheckError(ValueError):
@@ -149,7 +155,7 @@ def normalize_item(raw: Mapping[str, Any], direction: str = "") -> Dict[str, Any
             "value": value, "value_label": _text(raw.get("value_label"), LABEL_MAX) if value else "",
             "source": source}
     item["state"] = state_of(item)
-    item["remember"] = kind not in PER_DOCUMENT_KINDS and source != TASK_DEFAULT
+    item["remember"] = kind not in PER_DOCUMENT_KINDS and source not in (TASK_DEFAULT, DOCUMENT)
     if options:
         # 预选 / 已定的值标「推荐」并排第一（卡片照 Claude Code 的提问卡片，推荐项在第一个，主会话 11-05）；``note`` 是这个
         # 选项的依据（一句话，产品给的照带）
@@ -295,9 +301,11 @@ def defaults(card: Mapping[str, Any]) -> List[Dict[str, str]]:
 
 def expand(card: Mapping[str, Any], answers: Iterable[Mapping[str, Any]]
            ) -> Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, str]]]:
-    """卡片交回的答案 ``[{key, value}]`` → ``({doc_id: [{kind, subject, value, label, remember}]}, errors)``。
+    """卡片交回的答案 ``[{key, value, doc_id?}]`` → ``({doc_id: [{kind, subject, value, label, remember, document?}]}, errors)``。
 
     答案可以改已定项（卡片上「已定」可改）。值要在这一项的可选范围里（给了 ``options`` 且没有 ``search`` 时）。
+    带 ``doc_id`` 的只展开到那一张（这一类要在 :data:`DOCUMENT_ANSWER_KINDS`、这张单要在这一项里），记成 ``document: True``、
+    ``remember: False``：产品只写那一张自己的；来源是 :data:`DOCUMENT` 的项（这张单上人定的）作答同样只写那一张。
     出错的答案逐条回 ``{key, code}``，不展开；其余照展开（调用方决定整批拒还是部分收）。"""
     answers = list(answers or ())
     errors: List[Dict[str, str]] = []
@@ -312,10 +320,14 @@ def expand(card: Mapping[str, Any], answers: Iterable[Mapping[str, Any]]
         if item is None:
             errors.append({"key": key, "code": ERR_UNKNOWN_KEY})
             continue
-        if key in seen:
+        one = _text(answer.get("doc_id"), 200)
+        if one and (item["kind"] not in DOCUMENT_ANSWER_KINDS or one not in item["docs"]):
+            errors.append({"key": key, "code": ERR_NOT_PER_DOCUMENT})
+            continue
+        if (key, one) in seen:
             errors.append({"key": key, "code": ERR_DUPLICATE_KEY})
             continue
-        seen.add(key)
+        seen.add((key, one))
         value = _text(answer.get("value"), VALUE_MAX)
         if not value:
             errors.append({"key": key, "code": ERR_EMPTY_VALUE})
@@ -324,24 +336,30 @@ def expand(card: Mapping[str, Any], answers: Iterable[Mapping[str, Any]]
         if codes is not None and not item.get("search") and value not in codes:
             errors.append({"key": key, "code": ERR_NOT_OFFERED})
             continue
-        for doc_id in item["docs"]:
-            result.setdefault(doc_id, []).append({"kind": item["kind"], "subject": item["subject"], "value": value,
-                                                  "label": item["label"], "remember": item["remember"]})
+        document = bool(one) or item["source"] == DOCUMENT
+        for doc_id in ([one] if one else item["docs"]):
+            row = {"kind": item["kind"], "subject": item["subject"], "value": value, "label": item["label"],
+                   "remember": item["remember"] and not document}
+            if document:
+                row["document"] = True
+            result.setdefault(doc_id, []).append(row)
     return result, errors
 
 
 def _answered(answers) -> set:
-    return {str(answer.get("key") or "") for answer in answers or () if isinstance(answer, Mapping)
-            and str(answer.get("value") or "").strip()}
+    """答了的 ``(key, doc_id)``；不带 ``doc_id`` 的（整项都答了）记 ``(key, "")``。"""
+    return {(str(answer.get("key") or ""), _text(answer.get("doc_id"), 200)) for answer in answers or ()
+            if isinstance(answer, Mapping) and str(answer.get("value") or "").strip()}
 
 
 def held_back(card: Mapping[str, Any], answers: Iterable[Mapping[str, Any]] = ()) -> List[str]:
-    """答了这些以后，还因为未定项留下的单（有未定项没答）。预选项没答也照预选写，不留。"""
+    """答了这些以后，还因为未定项留下的单（有未定项没答）。预选项没答也照预选写，不留。只答给其中一张的，别的几张照旧留下。"""
     answered = _answered(answers)
     held: List[str] = []
     for item in items_of(card):
-        if item["state"] == OPEN and item["key"] not in answered:
-            held.extend(doc_id for doc_id in item["docs"] if doc_id not in held)
+        if item["state"] != OPEN or (item["key"], "") in answered:
+            continue
+        held.extend(doc_id for doc_id in item["docs"] if doc_id not in held and (item["key"], doc_id) not in answered)
     return held
 
 
@@ -364,8 +382,8 @@ def preview(card: Mapping[str, Any], limit: int = 4) -> Dict[str, Any]:
     return {"rows": shown, "more": max(0, len(rows) - len(shown))}
 
 
-__all__ = ["BOOK", "BOOK_SETTING", "CC", "CHECK", "COMPANY_RULE", "DECIDED", "DECIDED_SOURCES", "DOC_STATES",
-           "ERR_DUPLICATE_KEY", "ERR_EMPTY_VALUE", "ERR_NOT_OFFERED", "ERR_TOO_MANY", "ERR_UNKNOWN_KEY",
+__all__ = ["BOOK", "BOOK_SETTING", "CC", "CHECK", "COMPANY_RULE", "DECIDED", "DECIDED_SOURCES", "DOCUMENT", "DOCUMENT_ANSWER_KINDS", "DOC_STATES",
+           "ERR_DUPLICATE_KEY", "ERR_EMPTY_VALUE", "ERR_NOT_OFFERED", "ERR_NOT_PER_DOCUMENT", "ERR_TOO_MANY", "ERR_UNKNOWN_KEY",
            "EXPRESS_HISTORY", "FACE", "GROUPS", "HISTORY", "KINDS", "KIND_GROUPS", "MAX_ANSWERS", "MAX_DOCUMENTS",
            "NOT_WRITABLE", "OPEN", "PAYMENT", "PER_DOCUMENT_KINDS", "PINNED", "PROPOSED", "PROPOSED_SOURCES",
            "PURCHASE", "PrecheckError", "REMEMBERED", "RULE", "SALES", "SERVICE", "SMALL_LIST", "SOURCES", "STATES", "STOCK",

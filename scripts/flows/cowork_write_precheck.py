@@ -53,12 +53,28 @@ def steps(params, camera_code=None):
          "a.answers=JSON.stringify([{key:pay.key,value:'cash'}]); "
          "const r=await call('pearnly_core.write_precheck.api.answer',a,true); "
          "return {errors: r&&r.errors||null, writable: r&&r.writable, held: r&&r.held, needs: r&&r.needs_card, items: items(r)};"},
+        # 单张的例外（主会话 11-05）：这家记住的是现购，这一张单独改成赊购（答案带 doc_id）：只改这张、不记住；重判时这张的付款项
+        # 单独一项、已定（来源 document），推前说明 planned 按它说赊购；再用那一项改回现购
+        {"name": "单张改赊购", "js": JS + find + f"const a={args}; const c=await call('pearnly_core.write_precheck.api.check',a,true); "
+         "const pay=items(c).find(i=>i.kind==='payment'); if(!pay) return {error:'no payment item'}; "
+         f"a.answers=JSON.stringify([{{key:pay.key,value:'credit',doc_id:{json.dumps(params['doc'])}}}]); "
+         "const r=await call('pearnly_core.write_precheck.api.answer',a,true); "
+         "return {errors: r&&r.errors||null, writable: r&&r.writable, items: items(r), planned: r&&r.planned||null};"},
+        {"name": "那一项改回现购", "js": JS + find + f"const a={args}; const c=await call('pearnly_core.write_precheck.api.check',a,true); "
+         "const pay=items(c).find(i=>i.kind==='payment'&&i.source==='document'); if(!pay) return {error:'no own payment item'}; "
+         "a.answers=JSON.stringify([{key:pay.key,value:'cash'}]); "
+         "const r=await call('pearnly_core.write_precheck.api.answer',a,true); "
+         "return {errors: r&&r.errors||null, items: items(r), planned: r&&r.planned||null};"},
     ]
 
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
     first, wrong, done, found = (by.get(k) or {} for k in ("取卡片", "答错整批不记", "作答", "搜存货"))
+    alone, back = (by.get(k) or {} for k in ("单张改赊购", "那一项改回现购"))
+    alone_pay = [i for i in alone.get("items") or [] if i.get("kind") == "payment"]
+    back_pay = [i for i in back.get("items") or [] if i.get("kind") == "payment"]
+    planned_of = lambda seen: ((seen.get("planned") or {}).get(params["doc"]) or {}).get("payment")
     first_items = {i.get("kind"): i for i in first.get("items") or []}
     done_items = {i.get("kind"): i for i in done.get("items") or []}
     pay, account = first_items.get("payment") or {}, first_items.get("account") or {}
@@ -76,6 +92,14 @@ def judge(params, results, camera_code=None):
          "ok": done.get("errors") is None and done.get("writable") == [params["doc"]] and done.get("held") == []
          and done.get("needs") is False and (done_items.get("payment") or {}).get("state") == "decided"
          and (done_items.get("payment") or {}).get("value") == "cash"},
+        {"case": "单张改赊购：只改这张、不记住；重判时这张的付款项单独一项、已定（来源 document）、赊购；推前说明 planned 也是赊购",
+         "seen": alone,
+         "ok": alone.get("errors") is None and alone.get("writable") == [params["doc"]] and len(alone_pay) == 1
+         and alone_pay[0].get("source") == "document" and alone_pay[0].get("state") == "decided"
+         and alone_pay[0].get("value") == "credit" and planned_of(alone) == "credit"},
+        {"case": "那一项能再改：改回现购后仍是这张自己的一项（来源 document），planned 跟着变现购", "seen": back,
+         "ok": back.get("errors") is None and len(back_pay) == 1 and back_pay[0].get("source") == "document"
+         and back_pay[0].get("value") == "cash" and planned_of(back) == "cash"},
     ]
 
 
@@ -85,14 +109,18 @@ frappe.set_user("admin@cowork.regression")
 saved = frappe.get_all("Cowork Express Choice", filters={{"connection": {params['connection']!r}, "kind": "payment"}},
                        fields=["subject", "value"], limit_page_length=10)
 doc = frappe.db.get_value("Cowork OCR History", {params['doc']!r}, ["last_push_status", "last_push_record"], as_dict=True)
+from pearnly_core.express_rules.contracts.history import primary_page_fields
+own = primary_page_fields(json.loads(frappe.db.get_value("Cowork OCR History", {params['doc']!r}, "pages") or "[]")).get("posting_payment_manual")
 records = frappe.db.count("Cowork Push Record", {{"history": {params['doc']!r}}})
 gone = cleanup()
-print(json.dumps({{"saved": saved, "doc": dict(doc or {{}}), "records": records, "gone": gone, "left": leftovers()}}, default=str))
+print(json.dumps({{"saved": saved, "doc": dict(doc or {{}}), "own": own, "records": records, "gone": gone, "left": leftovers()}}, default=str))
 """)
     saved = [(row["subject"], row["value"]) for row in rows["saved"]]
     return [
-        {"case": "现 / 赊按供应商记进账套记忆（同复核页那条路），只记一条", "saved": rows["saved"],
+        {"case": "现 / 赊按供应商记进账套记忆（同复核页那条路），只记一条；单张改的没进记忆", "saved": rows["saved"],
          "ok": saved == [(params["subject"], "cash")]},
+        {"case": "单张改的写在这张单自己的付款方式上（最后改回的现购）", "saved": {"own": rows["own"]},
+         "ok": rows["own"] == "cash"},
         {"case": "取卡片与作答都不推送：没有推送记录、单据推送状态不变", "saved": {"doc": rows["doc"], "records": rows["records"]},
          "ok": rows["records"] == 0 and not rows["doc"].get("last_push_status") and not rows["doc"].get("last_push_record")},
         {"case": "造的连接、公司、单据都清掉", "saved": {"gone": rows["gone"], "left": rows["left"]},

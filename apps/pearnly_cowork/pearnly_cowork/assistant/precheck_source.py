@@ -29,6 +29,7 @@ DIRECTION = "direction"
 DOCUMENT_POLICY = "document_policy"
 GOODS_POSTING = "goods_posting"
 CURRENT_BOOK = "current_book"
+PAYMENT = "payment"
 # 写账规则记下的来源（`push.express.decide` 的 ``decided_by``）→ 卡片的来源
 DECIDED_BY = {"remembered": card.REMEMBERED, "company_rule": card.COMPANY_RULE,
               "express_history": card.EXPRESS_HISTORY}
@@ -132,6 +133,9 @@ def document(history, posting_kind=None, hint=None) -> dict:
         frappe.db.rollback()
     items.extend(choice_items(view, found["fields"], found["direction"]))
     items.extend(decided_items(decision, found["fields"], found["direction"]))
+    own = document_payment_item(doc, found["fields"], found["direction"])
+    if own:
+        items.append(own)
     if view.get("planned") and all(card.state_of(item) == card.DECIDED for item in items) \
             and getattr(doc, "last_push_status", None) not in ("pending", "success"):
         # 什么都不用定（全部已定）才给：还有预选 / 未定的项时写法要等人答完、重判后再看
@@ -293,6 +297,38 @@ def search(company, doc_id, kind, txt, start, page_length) -> dict:
     return {"options": matched[start:start + page_length], "more": len(matched) > start + page_length}
 
 
+DOCUMENT_SUBJECT = "document:"  # 这张单自己定的那一项的归类键前缀（只管这一张，不和同一家别的单合并）
+
+
+def document_payment_item(doc, fields, direction):
+    """这张进项单自己的现 / 赊（单据上人定的 ``posting_payment_manual``，同复核页改付款方式；付款判定的第一级，压过账套记忆）：
+    单独一项、已定（来源「这张单上人定的」）、能再改；没有回 None。已推出去的不列（同 planned）。"""
+    from pearnly_core.express_rules.push import choices as choice_rules
+
+    value = str(fields.get("posting_payment_manual") or "").strip()
+    if direction != "purchase" or value not in choice_rules.PAYMENT_VALUES \
+            or getattr(doc, "last_push_status", None) in ("pending", "success"):
+        return None
+    return {"kind": PAYMENT, "subject": DOCUMENT_SUBJECT + doc.name, "label": str(fields.get("seller_name") or ""),
+            "value": value, "source": card.DOCUMENT, "direction": direction,
+            "options": [{"code": code} for code in choice_rules.PAYMENT_VALUES]}
+
+
+def _set_document_payment(doc, value) -> int:
+    """只写这一张单自己的现 / 赊（不记进账套记忆、不改同一家别的单）：同复核页改付款方式（`service._document_payment`）。"""
+    from pearnly_core.express_rules.contracts.history import primary_page_fields
+    from pearnly_core.express_rules.push import choices as choice_rules
+    from pearnly_cowork.push.application import service
+
+    fields = primary_page_fields(json.loads(doc.pages or "[]"))
+    direction = str(fields.get("direction") or "")
+    if direction != "purchase" or value not in choice_rules.PAYMENT_VALUES:
+        frappe.throw(_("cowork.choice.invalid"))
+    subject = choice_rules.supplier_subject(direction, fields.get("seller_tax"), fields.get("seller_name"))
+    return int(bool(service._document_payment(doc, fields, direction,
+                                              [{"kind": PAYMENT, "subject": subject, "value": value}])))
+
+
 def decided_items(decision, fields, direction) -> list:
     """已定、可改的项（费用科目、现 / 赊、抵不抵）：记住的、公司规则、Express 历史定的列进「已定」，定时任务默认处理定下的不列。"""
     from pearnly_core.express_rules.push import choices as choice_rules
@@ -355,7 +391,8 @@ def remember(company, answers) -> dict:
     scope.require("intake")
     done, saved = set(), 0
     for name, rows in (answers or {}).items():
-        rows = [row for row in rows or () if isinstance(row, dict) and row.get("remember", True)]
+        # ``document``：只答给这一张的（现 / 赊例外，主会话 11-05），不记住、只写这张单自己的
+        rows = [row for row in rows or () if isinstance(row, dict) and (row.get("remember", True) or row.get("document"))]
         if not rows:
             continue
         doc = storage.read(name)
@@ -363,6 +400,11 @@ def remember(company, answers) -> dict:
         for row in rows:
             kind, value = str(row.get("kind") or ""), str(row.get("value") or "").strip()
             once = (kind, str(row.get("subject") or ""))
+            if row.get("document"):
+                if kind != PAYMENT:
+                    frappe.throw(_("cowork.choice.invalid"))
+                saved += _set_document_payment(doc, value)
+                continue
             if kind in CHOICE_KINDS:
                 key = (*once, doc.push_connection, doc.push_account_set)
                 if key not in done:

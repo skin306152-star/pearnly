@@ -4016,9 +4016,11 @@ PLANNED_NOTE = ("Before pushing, whenever you tell the user whether a document g
                 "while the document itself points to the other one (document_payment.payment, from the words on it or "
                 "its type): say in that same message, before pushing, that it will be entered as planned.payment "
                 "because of that choice although the document points to document_payment.payment. This is "
-                "information, not a question: do not wait for a reply unless the user said otherwise. A payment "
-                "saved with pearnly_precheck_answer is remembered for that supplier in the account set (its later "
-                "documents too); one document of its own payment is changed on its review page.")
+                "information, not a question: do not wait for a reply unless the user said otherwise. When the user "
+                "says one document was paid differently (e.g. this one in cash while the supplier is usually on "
+                "credit), answer its payment item with that document's doc_id in pearnly_precheck_answer: only that "
+                "document changes and nothing is remembered; without doc_id the payment is remembered for the supplier "
+                "and its later documents.")
 # 定时任务的各项：单个保存与批量保存共用一份，免得两份说明走样
 FOLDER_TASK_PROPS = {
     "name": {"type": "string", "description": "Existing task to change; leave out to create one."},

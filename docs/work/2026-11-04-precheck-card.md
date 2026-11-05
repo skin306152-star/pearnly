@@ -522,10 +522,25 @@ U1/U2 两处对不上（start 未传 groups、多账套只读顶层 target）已
   2. **hint**（用户说的费用类别）：`pearnly_precheck` 可选入参，共用层只交给钩子声明了 `hint` 参数的产品（ERP 照旧两个参数），
      Cowork 传给 `service._choices` 的科目建议，只影响建议的排序与依据。
 - 丢掉、不补的：旧工具记现 / 赊时同时写成那张单自己的付款方式（同一家的几张单可以各是各的）；卡片的付款项按供应商合并、
-  记进账套记忆，按票改付款方式仍在复核页（试过在卡片作答里同时写成单据自己的：重判时那一项从卡片上消失、看不到也改不了，
-  实验室流程 cowork.precheck.api 查出，撤回）。旧工具最多等 45 秒科目表、20 秒常用科目历史；判定遇到科目表在读回 `waiting`（CC 稍后再取），常用科目没读完就按名称 /
+  记进账套记忆（试过在卡片作答里同时写成单据自己的：重判时那一项从卡片上消失、看不到也改不了，实验室流程 cowork.precheck.api
+  查出，撤回；单张的例外改由下一节的单据级作答承接）。旧工具最多等 45 秒科目表、20 秒常用科目历史；判定遇到科目表在读回 `waiting`（CC 稍后再取），常用科目没读完就按名称 /
   费用类别建议，不干等。
 - 测试：`tests/test_cowork_write_precheck.py` `PlannedAndHint`（全部已定带 planned 且原样不改、还有预选 / 未定或已推出时不带、hint
   改变科目预选）、`SweepAndShared` 共用层汇总 planned 与 hint 只交给声明了的产品；
   `tests/test_assistant.py` 与 `tests/test_cowork_assistant_tools.py` 说明里写明照 planned 说、旧工具名不再出现；`_choices_view`
   的科目表重读两条测试改为直接测它（推送那一步仍用）。
+
+## W5 施工记录（三）：单张的现 / 赊例外（11-05，主会话：「都在对话框里工作」，单张单的例外 CC 在对话里也能改）
+
+- 默认照旧：卡片的付款项按供应商合并，作答记进账套记忆（这家以后的单也照它）。
+- 例外：`pearnly_precheck_answer` 的答案可带 `doc_id`（共用契约 `contracts.expand`）：只展开到那一张、`remember: False`、
+  `document: True`，不合并、不记住；只认 `DOCUMENT_ANSWER_KINDS`（现在只有 payment），别的类或不在这一项里的单回
+  `precheck.not_per_document`。只答给一张的未定项，别的几张照旧留下（`held_back` 按 `(key, doc_id)` 算）。
+- 新来源 `document`（这张单上人定的，算已定、不记住）。Cowork 判定在单据有 `posting_payment_manual`（复核页改的、或卡片单张作答写的）
+  时把它列成那一张自己的一项（归类键 `document:<单号>`，不和同一家别的单合并），能再改；作答经 `service._document_payment`
+  只写这张单自己的付款方式（同复核页）。付款判定本来就是单据自己的压过账套记忆（第一级人工裁决），planned 与写入同一个函数。
+- 前端卡片不读来源，不用改；CC 的说明（`pearnly_precheck_answer`、推送工具的推前说明）写明单张改用 doc_id。
+- 测试：`tests/test_write_precheck.py` `DocumentAnswers`（单张展开不记住、只认付款与这一项里的单、单据自己的一项已定可再改、
+  未定项只答一张时别的照留）；`tests/test_cowork_write_precheck.py` `DocumentPayment`（单据自己的付款列成已定项、已推出的不列、
+  单张作答只写这张不进记忆、同一家两张一张记住赊购一张单独现购按真实付款规则各写各的）；流程 `cowork.precheck.api` 加两步
+  （单张改赊购 → planned 说赊购、记忆不变；那一项改回现购 → 单据自己的是现购）。
