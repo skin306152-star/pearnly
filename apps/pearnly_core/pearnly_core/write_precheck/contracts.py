@@ -62,6 +62,8 @@ DOC_STATES = (CHECK, UNKNOWN, NOT_WRITABLE, WAITING)
 KIND_GROUPS = {
     "account_set": BOOK, "current_book": BOOK, "direction": BOOK, "document_policy": BOOK, "department": BOOK,
     "mrerp_menu": BOOK, "mrerp_default": BOOK,
+    # 代录：这家定制过的 Express 菜单里这种单走哪个子菜单命令（归类键 = 单据种类，`express_operator.menu_choice`）
+    "operator_form": BOOK,
     "vat": PURCHASE,
     "refund": SALES, "vat_registered": SALES, "exempt_mode": SALES,
     "item": STOCK, "stock_group": STOCK, "goods_posting": STOCK,

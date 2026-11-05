@@ -82,12 +82,20 @@ def target_of(payload) -> str:
     return str(found or TARGET_EXPRESS)
 
 
-def for_operator(payload: dict, batch: dict, *, vat_included: bool = False, target: str = TARGET_EXPRESS) -> dict:
+PAY_ROUTES = ("cash", "transfer")  # ``operator.pay_route`` 的取值（``menu_choice.pay_route``）
+FORM_CHOICE_MAX = 200
+
+
+def for_operator(payload: dict, batch: dict, *, vat_included: bool = False, target: str = TARGET_EXPRESS,
+                 form_choice: str = "", pay_route: str = "") -> dict:
     """直写载荷 → 代录载荷：加 ``entry_mode = operator`` 与批次信息，版本至少 16（旧版 CC 诚实拒收，不会被当直写写进 DBF）。
     ``batch``：``{"id", "index", "total", "start_at", "doc", "company"}``（第几张从 1 数；``start_at`` 为 0 = 现在开始；``doc`` 是站点上
     这张单的编号，CC 用它当批次里的单据号，页面才对得上是哪一张）。
 
-    ``target``（ADR-026）：``express`` 不写目标键，载荷与以前逐字节相同；``mrerp`` 写 ``operator.target``、版本至少 18。"""
+    ``target``（ADR-026）：``express`` 不写目标键，载荷与以前逐字节相同；``mrerp`` 写 ``operator.target``、版本至少 18。
+
+    Express 子菜单多个候选时（评估 2026-11-05 修法 D，CC 桌面版 1.12.15 起读，旧版忽略，不升版本）：``form_choice`` 是这家这本账套
+    这种单记住的菜单文字，``pay_route`` 是按单据付款文字认的 ``cash`` / ``transfer``；空的不写键（载荷与以前逐字节相同），MR.ERP 不带。"""
     if target not in TARGETS:
         raise ValueError("bad operator target")
     info = {"id": str(batch.get("id") or ""), "index": int(batch.get("index") or 0),
@@ -103,6 +111,13 @@ def for_operator(payload: dict, batch: dict, *, vat_included: bool = False, targ
     if target != TARGET_EXPRESS:
         operator["target"] = target
         floor = MRERP_OPERATOR_PAYLOAD_VERSION
+    else:
+        choice = " ".join(str(form_choice or "").split())[:FORM_CHOICE_MAX]
+        route = str(pay_route or "").strip().lower()
+        if choice:
+            operator["form_choice"] = choice
+        if route in PAY_ROUTES:
+            operator["pay_route"] = route
     return {**payload, "entry_mode": ENTRY_MODE, "operator": operator,
             "payload_version": max(int(payload.get("payload_version") or 1), floor)}
 
