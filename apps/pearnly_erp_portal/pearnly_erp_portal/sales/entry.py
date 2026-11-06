@@ -279,6 +279,7 @@ def _line_row(raw, computed, *, company=None, place=None):
     row["discount_pct"] = computed.get("discount_pct")
     row["vat_applicable"] = int(bool(computed["vat_applicable"]))
     place = place or {}
+    row = positions.one_warehouse(row, place.get("warehouse"))  # 一张单一个仓库，以单头为准（岳父 11-06）
     return positions.prepare(row, place.get("warehouse"), company=company, location=place.get("location"))
 
 

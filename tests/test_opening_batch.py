@@ -432,22 +432,24 @@ class OpeningBatch(unittest.TestCase):
             self.submit()
         self.assertFalse(self.state["openings"])
 
-    def test_each_row_can_name_its_own_warehouse_and_the_preview_checks_its_locations(self):
-        """多仓闭环 P1（G5）：期初表加仓库列，空着 = 表头的仓，写了按名称或编号在本公司里认；同一件商品不同仓各算一个位置；
-        库位按这一行的仓的清单在预览就核（原来提交才整批失败）；别家 / 认不到的仓记成这一行的错。"""
+    def test_one_warehouse_per_opening_old_template_rows_elsewhere_are_problems(self):
+        """一张单一个仓库（岳父 11-06，反转多仓闭环 P1 G5）：模板没有仓库列；旧模板的仓库列空着或就是表头的仓才收，
+        写了别的仓（按名称或编号认出来的）这一行是问题行，认不到的仓同样记成这一行的错，整批预览照常出。"""
         rows = [{"product": "P1", "qty": "4", "unit_cost": "10"},
                 {"product": "P1", "warehouse": "Shop", "location": "A-01", "qty": "2", "unit_cost": "10"},
                 {"product": "P1", "warehouse": "W3", "location": "B-09", "qty": "1", "unit_cost": "10"},
                 {"product": "P1", "warehouse": "X1", "qty": "1", "unit_cost": "10"}]
         result = self.preview(rows=rows)
         self.assertEqual([(row["warehouse"] if row["status"] != "error" else None, row["status"]) for row in result["rows"]],
-                         [("W1", "ready"), ("W3", "ready"), (None, "error"), (None, "error")])
-        self.assertIn("location list", result["rows"][2]["error"])
+                         [("W1", "ready"), (None, "error"), (None, "error"), (None, "error")])
+        self.assertIn("differs from the warehouse", result["rows"][1]["error"])
+        self.assertIn("differs from the warehouse", result["rows"][2]["error"])
         self.assertIn("Warehouse not found", result["rows"][3]["error"])
         self.assertFalse(result["valid"])
-        done = self.submit(rows=rows[:2])
-        self.assertEqual(done["created"], 2)
-        self.assertEqual(sorted((row.warehouse, row.location or "") for row in self.state["openings"]), [("W1", ""), ("W3", "A-01")])
+        self.assertNotIn("warehouse", [field for field, _label in self.service.opening_workbook.FIELD_LABELS])
+        done = self.submit(rows=rows[:1])
+        self.assertEqual(done["created"], 1)
+        self.assertEqual(sorted((row.warehouse, row.location or "") for row in self.state["openings"]), [("W1", "")])
 
     def test_file_permission_and_remote_url_are_checked_before_reading(self):
         with self.assertRaisesRegex(ValueError, "local"):

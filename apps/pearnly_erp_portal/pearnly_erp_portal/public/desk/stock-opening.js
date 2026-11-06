@@ -11,7 +11,7 @@
 		let form, pagination, busy = false, reviewed = null, revision = 0, page_index = 0;
 		const page_size = 20, lines = [], visible = [], review_rows = new Map();
 		const back = () => p.redirect_up(root);
-		// `warehouse`：这一行放进哪个仓（空着 = 表头的仓，多仓闭环 P1：一张期初表可以分几个仓）
+		// `warehouse`：旧模板带进来的这一行的仓（一张单一个仓库，岳父 11-06：空着 = 表头的仓，写了别的仓预览里列为问题行）
 		// `internal_code`：表里的内部编码一列；`serial_no` 等：按台公司的一台一行（岳父 10-25），这几格只在表里带了值时出现
 		const input_names = ["product", "product_code", "internal_code", "barcode", "serial_no", "secondary_no", "color", "unit", "warehouse",
 			"location", "qty", "unit_cost"];
@@ -171,8 +171,9 @@
 						}
 					} },
 				{ fieldtype: "Data", fieldname: "unit", label: t("stock.col.unit"), read_only: 1 },
+				// 一张单一个仓库（岳父 11-06）：行上不出仓库；只有旧模板带进来的行写了仓才出这一格（和表头不一样的预览里列为问题行，清空就用表头的仓）
 				{ fieldtype: "Link", fieldname: "warehouse", label: t("stock.col.warehouse"), options: "ERP Warehouse",
-					get_query: p.warehouse_query(), only_select: true, onchange: () => change("warehouse") },
+					get_query: p.warehouse_query(), only_select: true, hidden: !initial.warehouse, onchange: () => change("warehouse") },
 				{ fieldtype: "Autocomplete", fieldname: "location", label: t("stock.count.location"), onchange: () => change("location"),
 					get_query: p.location_query(() => view.form?.get_value("warehouse") || form?.get_value("warehouse")) },
 				{ fieldtype: "Column Break" },

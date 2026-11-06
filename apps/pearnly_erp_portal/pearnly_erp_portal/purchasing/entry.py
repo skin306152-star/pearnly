@@ -203,6 +203,7 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
                                      currency_rate=rate, company=company)
         if flag(payload.get("update_stock"), True) and row["item_type"] == "goods" and not row.get("product"):
             frappe.throw(_("Please select an Item"))
+        row = positions.one_warehouse(row, place["warehouse"])  # 一张单一个仓库，以单头为准（岳父 11-06）
         rows.append(positions.prepare(row, place["warehouse"], company=company, location=place["location"]))
     if original:
         _cancel(original, _("Amended"))

@@ -167,20 +167,21 @@ def _position(row, context, *, current):
     return "ready"
 
 
+WAREHOUSE_MISMATCH = "The warehouse differs from the warehouse of this document"
+
+
 def _row_warehouse(value, context, *, current):
-    """这一行的仓：空着用表头的仓；写了就按名称或编号在这家公司里认（启用的）；提交时（``current``）锁住再读一次。"""
+    """这一行的仓：一张单一个仓库（岳父 11-06，反转多仓闭环 P1 G5）——空着或就是表头的仓才收；旧模板的仓库列写了别的仓，
+    这一行记成问题行（预览照常出，整批不因它失败）。``current``：提交时照样核。"""
     if not _text(value) or _text(value) == context["warehouse"]:
         return context["warehouse"]
-    if not current:
-        try:
-            return warehouses.required(_text(value), company=context["company"])
-        except Exception:  # noqa: BLE001 - 认不到的仓记成这一行的错，整批预览照常出
-            frappe.clear_messages()
-            raise ValueError("Warehouse not found") from None
-    name = warehouses.required(_text(value), company=context["company"])
-    rows = frappe.db.sql("select name, company, is_active from `tabERP Warehouse` where name=%s for update", (name,), as_dict=True)
-    if not rows or rows[0].company != context["company"] or not rows[0].is_active:
-        raise ValueError("Warehouse not found")
+    try:
+        name = warehouses.required(_text(value), company=context["company"])
+    except Exception:  # noqa: BLE001 - 认不到的仓记成这一行的错，整批预览照常出
+        frappe.clear_messages()
+        raise ValueError("Warehouse not found") from None
+    if name != context["warehouse"]:
+        raise ValueError(WAREHOUSE_MISMATCH)
     return name
 
 
@@ -262,7 +263,7 @@ def _review(rows, context, catalog, *, current=False):
             location = _text(row.get("location"))
             if len(location) > 140:
                 raise ValueError(INVALID_ROW)
-            # 每行可写自己的仓（期初表的仓库列，多仓闭环 P1 G5）：空着 = 表头的仓；只认这家公司启用的仓；库位按这个仓的清单核
+            # 一张单一个仓库：行上的仓只能是表头的仓（旧模板的仓库列写了别的仓记成问题行）；仓位按这个仓的清单核
             warehouse = _row_warehouse(row.get("warehouse"), context, current=current)
             location = _row_location(warehouse, location)
             row.update(product=product.name, product_name=product.product_name, code=product.code or "",

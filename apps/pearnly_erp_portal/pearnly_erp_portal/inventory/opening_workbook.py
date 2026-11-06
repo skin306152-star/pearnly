@@ -16,8 +16,6 @@ FIELD_LABELS = (
     ("attribute", "product.col.attribute"),
     ("barcode", "stock.col.barcode"),
     ("unit", "stock.col.unit"),
-    # 仓库列（多仓闭环 P1 G5）：空着 = 页面上选的那个仓；一份表可以分几个仓
-    ("warehouse", "stock.col.warehouse"),
     ("location", "stock.count.location"),
     ("qty", "stock.opening.qty"),
     ("unit_cost", "stock.opening.cost"),
@@ -28,6 +26,9 @@ UNIT_LABELS = {
     "vehicle": (("serial_no", "serial.vehicle.primary"), ("secondary_no", "serial.vehicle.secondary"), ("color", "serial.color")),
     "device": (("serial_no", "serial.device.primary"), ("secondary_no", "serial.device.secondary"), ("color", "serial.color")),
 }
+# 一张单一个仓库（岳父 11-06，反转多仓闭环 P1 G5）：模板不再有仓库列；旧模板带着这一列照样认出来，和页面上选的仓不一样的行
+# 在预览里列为问题行（`opening_batch._row_warehouse`）
+LEGACY_LABELS = (("warehouse", "stock.col.warehouse"),)
 TEXT_FIELDS = ("product", "product_code", "internal_code", "barcode", "serial_no", "secondary_no")
 
 
@@ -44,7 +45,7 @@ def _norm(value):
 
 
 def header_aliases(labels=None):
-    every = (*FIELD_LABELS, *(pair for pairs in UNIT_LABELS.values() for pair in pairs))
+    every = (*FIELD_LABELS, *LEGACY_LABELS, *(pair for pairs in UNIT_LABELS.values() for pair in pairs))
     aliases = {_norm(field): field for field, _ in every}
     aliases.update({_norm(key): field for field, key in every})
     aliases.update({_norm(key): field for key, field in (labels or {}).items()})
