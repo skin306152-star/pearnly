@@ -8,12 +8,13 @@ import json
 import frappe
 from frappe import _
 
-from pearnly_core.cc_desktop.wire.ack_rules import OPERATOR_REASON_MAX
-
 FIELDS = ('last_push_status', 'last_pushed_at', 'last_push_record', 'last_push_reason')
 EVENT = 'cowork_intake_changed'
 # 推送状态 / 原因变了要知道的入口（hooks.py；文件夹任务据此刷新那份文件的结果与结果表格）。history 域不导入它们。
 HOOK = 'cowork_push_state_changed'
+# 票上记的推送原因最多多长：同写账回执规则 `ack_rules.OPERATOR_REASON_MAX`（代录回执带 AI 接手的完整结论，
+# 测试守住两边一致）；history 域不导入回执规则
+REASON_MAX = 2100
 
 
 def _changed(history, *users):
@@ -57,7 +58,7 @@ def mirror(row, timestamp, *, select=False):
     if not select and previous.last_push_record not in (None, '', row.name):
         return
     target = _target(previous, row, select)
-    reason = (row.reason or '')[:OPERATOR_REASON_MAX] if row.status == 'manual' else ''
+    reason = (row.reason or '')[:REASON_MAX] if row.status == 'manual' else ''
     # 同一条记录、同一状态但原因变了也要抄（10-29 测试机：结果不明核对成「没有入账」状态都是 manual，原先不抄，
     # 票上一直是结果不明，再推被当作结果不明拦下）
     if previous.last_push_record == row.name and previous.last_push_status == row.status \

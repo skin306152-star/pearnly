@@ -499,7 +499,8 @@ class OperatorReasonTests(unittest.TestCase):
             field = fields.get("reason") or fields.get("last_push_reason") or fields["ledger_reason"]
             self.assertIn(field["fieldtype"], ("Small Text", "Text", "Long Text"), path)
         push_state = (root / "pearnly_cowork/pearnly_cowork/history/push_state.py").read_text(encoding="utf-8")
-        self.assertIn("reason = (row.reason or '')[:OPERATOR_REASON_MAX]", push_state)
+        self.assertIn(f"REASON_MAX = {ack_rules.OPERATOR_REASON_MAX}\n", push_state)
+        self.assertIn("reason = (row.reason or '')[:REASON_MAX]", push_state)
         erp = (root / "pearnly_erp_portal/pearnly_erp_portal/express/push.py").read_text(encoding="utf-8")
         self.assertIn('str(view.get("reason") or "")[:ack_rules.OPERATOR_REASON_MAX]', erp)
 

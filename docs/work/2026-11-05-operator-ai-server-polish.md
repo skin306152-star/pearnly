@@ -42,4 +42,4 @@ Haiku 5.5：带 configs 回 200，输入 token 4550 → 2888（鼠标成员定�
 
 ## 闸门
 
-本地按 `.github/workflows/development.yml` 逐条全跑（见交付说明）；`check-impact.py` 登记 `history/push_state.py` 进 `cowork.cc.channel`。
+本地按 `.github/workflows/development.yml` 逐条全跑（见交付说明）；`check-impact.py` 无未登记调用方。
