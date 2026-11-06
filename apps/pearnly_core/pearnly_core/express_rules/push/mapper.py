@@ -40,7 +40,7 @@ from typing import Any, Dict, List, Optional
 
 from pearnly_core.express_rules.contracts import pos as pos_contract
 from pearnly_core.express_rules.push.prior_doc import attach_prior_docnum
-from pearnly_core.express_rules.push.choices import apply_to_payload
+from pearnly_core.express_rules.push.choices import apply_to_payload, with_line_kinds
 from datetime import date
 from pearnly_core.express_rules.push.posting_kind import (
     POSTING_KIND_SERVICE,
@@ -224,6 +224,8 @@ def build_express_payload(
     if not ap_acc:
         return fail("no_ap_account")
 
+    # 存货对照逐行定下的过账类型（记费用 / 存货，11-06 按行选）写到行上，再按行定 item_mode
+    fields = with_line_kinds(fields, choices.get("kinds"), posting_kind)
     line_kinds = item_posting_kinds(fields.get("items"))
     if line_kinds is not None and len(line_kinds) != len(fields.get("items") or []):
         return fail("posting_kind_needed", line_item_names(fields))

@@ -4,7 +4,10 @@
 每个决定按「账套 + 这一类」记一次：
 - `party`：票面对方（进项供应商 / 销项客户）落 Express 哪个档。同税号有几个档（连锁分店、会计按名称区分）、
   或同税号只有一个档但分店号对不上（识别常把 00113 读成 00013）时要选；选「新建」就照票面新建，不再拦。
-- `item`：票面品名（对方的叫法）落哪个 Express 存货。只管库存行；名字能对上 Express 存货名的不问。
+- `item`：票面品名（对方的叫法）落哪个 Express 存货。库存行：名字能对上 Express 存货名的不问。没声明过账类型的行（11-06 按行选
+  物料与库存，评估 docs/work/2026-11-06-erp-line-item-stock-choice-评估.md 第 15 节）：这一问同时定这一行动不动库存 —— 选存货 /
+  新建存货（``__new__``）= 库存行，选「记费用」（``__expense__``）或 Express 的非库存品 = 费用 / 服务行；名字对上库存品或非库存品的照它，
+  不问。选定的过账类型放进 ``applied["kinds"]``，映射器按它定行（`with_line_kinds`）。
 - `account`：服务类进项记哪个费用科目（按供应商）。选了就按会计的记法写直接科目行，不建服务存货。
 - `payment`：进项现购还是赊购（按供应商）。复核页改过付款方式就记下。
 - `vat`：小票 / 简易税票上的税额抵不抵进项（按供应商）。
@@ -31,6 +34,8 @@ from pearnly_core.express_rules.push import service_vat
 from pearnly_core.express_rules.push.payment import payment_verdict, payment_written
 
 NEW = "__new__"
+# 存货对照的一个值：这一行不建存货、写成费用 / 服务行（不动库存；11-06 按行选）
+EXPENSE = "__expense__"
 KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt", "service_vat")  # 末项 = service_vat.KIND
 # 只在 ERP 的收银退货单上出现的一类（不进 KINDS：Cowork 按 KINDS 存取、列出账套记忆，加进去会改 Cowork 现有输出）
 REFUND = pos_contract.REFUND_KIND
@@ -98,12 +103,41 @@ def _party(fields, direction):
     return (fields.get(f"{side}_name") or "", fields.get(f"{side}_tax") or "", fields.get(f"{side}_branch") or "")
 
 
-def _stock_lines(fields, posting_kind) -> List[Dict[str, Any]]:
+def _stock_lines(fields, posting_kind, kinds: Optional[Mapping[str, str]] = None) -> List[Dict[str, Any]]:
     items = [item for item in fields.get("items") or [] if isinstance(item, Mapping)]
-    kinds = [str(item.get("posting_kind") or "") for item in items]
-    if any(kinds):
-        return [item for item, kind in zip(items, kinds) if kind == "stock"]
-    return items if posting_kind == "stock" else []
+    declared = line_kinds(items, posting_kind, kinds)
+    return [item for item, kind in zip(items, declared) if kind == "stock"]
+
+
+def _row_kind(item) -> str:
+    kind = str(item.get("posting_kind") or "").strip()
+    return kind if kind in ("stock", "service") else ""
+
+
+def line_kinds(items, posting_kind, kinds: Optional[Mapping[str, str]] = None) -> List[str]:
+    """每一行的过账类型（``stock`` / ``service`` / 空 = 没声明）：行上声明的（复核页逐行选的）> 存货对照定的（``kinds``，按规范品名）
+    > 整批声明的。有一行在行上声明过时，没声明的行不套整批（同映射器 `item_posting_kinds`：部分行声明 = 要人补）。"""
+    rows = [item for item in items or [] if isinstance(item, Mapping)]
+    own = [_row_kind(item) for item in rows]
+    batch = posting_kind if posting_kind in ("stock", "service") and not any(own) else ""
+    picked = kinds or {}
+    return [kind or str(picked.get(norm_name(str(item.get("name") or "")[:50])) or "") or batch
+            for item, kind in zip(rows, own)]
+
+
+def with_line_kinds(fields: Mapping[str, Any], kinds: Optional[Mapping[str, str]], posting_kind: Optional[str] = None):
+    """把存货对照定下的过账类型写到行上（映射器定行之前）：行上已声明的不改；有定下的就把每一行都写上（没定下的行照整批），
+    让映射器按行出 ``item_mode``。没有 ``kinds`` 原样返回。"""
+    if not kinds or not isinstance(fields, Mapping):
+        return fields
+    items = fields.get("items")
+    if not isinstance(items, list):
+        return fields
+    rows = [item for item in items if isinstance(item, Mapping)]
+    declared = line_kinds(rows, posting_kind, kinds)
+    if not any(declared) or not all(declared):
+        return fields  # 有的行定不下（没整批声明）：不硬写，照旧交映射器判（部分声明 = 要人补）
+    return {**fields, "items": [{**item, "posting_kind": kind} for item, kind in zip(rows, declared)]}
 
 
 def _expense_receipt(fields) -> bool:
@@ -115,7 +149,8 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             config: Mapping[str, Any], remembered: Mapping[str, Mapping[str, str]],
             account_resolved: bool = False, fixed: Optional[Mapping[str, str]] = None,
             receipts: Iterable = (), trace: Optional[Dict[str, List[Optional[str]]]] = None,
-            refund: bool = False, book: str = "", ask_service_vat: bool = False) -> Dict[str, Any]:
+            refund: bool = False, book: str = "", ask_service_vat: bool = False,
+            undeclared_lines: bool = False) -> Dict[str, Any]:
     """这张票在这份账套里的决定 → `{"applied": {...}, "needed": [...]}`。
 
     `config`：推送准备用的账套配置（含小助手上报的 `reported_customers / reported_suppliers / reported_products /
@@ -131,6 +166,8 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     `book`：服务品进项税口径按「这本账套 × 这家供应商」记；账套记忆本来就按账套分的（Cowork）不给，按公司记的（ERP）给账套键。
     `ask_service_vat`：账套历史定不了时要不要问服务品进项税口径（ERP 单据上问；Cowork 的两处选择卡还没有这一项，先不问，
     记过的照用，定不了由 CC 桌面版拒写转人工）。
+    `undeclared_lines`：没声明过账类型的行要不要按行问（11-06）：调用方在这张单推往这份账套「没声明就会交人」时给（永续 / 混合库存账套的
+    商品单，Cowork `goods_posting.blocked`）；不给（默认）没声明的行照旧不问，交映射器按记账画像定。记过的、Express 同名的照样定下。
     `trace`：给了就就地记下「每一类用了哪几个归类键」`{kind: [subject | None]}`（None = 任务默认定的），
     `company_choices.decided_by` 据此说清按什么定的（第 2 期公司规则）；不给不记，结果不变。
     """
@@ -213,31 +250,74 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
         _service_vat(fields, posting_kind, config, applied, needed if ask_service_vat else [], chosen, used, explicit, book,
                      name, tax, branch)
 
-    # ── 存货对照（库存行）──
-    products = [row for row in _rows(config.get("reported_products")) if str(row.get("kind") or "stock") == "stock"]
-    lines = _stock_lines(fields, posting_kind)
-    if lines and products:
+    # ── 存货对照：库存行落哪个存货；没声明过账类型的行顺带定它动不动库存（11-06 按行选）──
+    catalog = _rows(config.get("reported_products"))
+    products = [row for row in catalog if str(row.get("kind") or "stock") == "stock"]
+    others = [row for row in catalog if str(row.get("kind") or "stock") != "stock"]
+    rows_all = [item for item in fields.get("items") or [] if isinstance(item, Mapping)]
+    own_kinds = [_row_kind(item) for item in rows_all]
+    batch = posting_kind if posting_kind in ("stock", "service") and not any(own_kinds) else ""
+    items: Dict[str, str] = {}
+    kinds: Dict[str, str] = {}
+    if rows_all and catalog:
         names = {norm_name(row.get("name")): row["code"] for row in products if norm_name(row.get("name"))}
-        codes = _codes(products)
-        items: Dict[str, str] = {}
-        for line in lines:
+        other_names = {norm_name(row.get("name")) for row in others if norm_name(row.get("name"))}
+        codes, other_codes = _codes(products), _codes(others)
+        for line, own in zip(rows_all, own_kinds):
             if str(line.get("code") or "").strip():
                 continue  # 行上已给出 Express 存货码（ERP 前台的单）：照码写，不按品名对、不问
             label = str(line.get("name") or "").strip()[:50]  # 载荷里的品名截到 50 字（`extract_line_items`）
+            norm = norm_name(label)
             key = item_subject(direction, tax, name, label)
+            if own == "service":
+                continue  # 行上声明了服务（复核页逐行选的）：不问存货
+            if not own:
+                # 行上没声明：这一行记过的 > 整批声明 > Express 同名（库存品 = 库存行，非库存品 = 费用行）> 问
+                value = str((remembered.get("item") or {}).get(key) or "").strip()
+                if value == EXPENSE or value in other_codes:
+                    kinds[norm] = "service"
+                    used("item", key)
+                    continue
+                if value and (value == NEW or value in codes):
+                    kinds[norm] = "stock"
+                    items[norm] = value
+                    used("item", key)
+                    continue
+                if batch == "service":
+                    continue
+                if not batch:
+                    if not undeclared_lines:
+                        continue  # 调用方没要按行问：照旧交映射器按记账画像定（周期制账套同名存货也不改成库存行）
+                    if norm in names:
+                        kinds[norm] = "stock"
+                    elif norm in other_names:
+                        kinds[norm] = "service"
+                    else:
+                        needed.append({"kind": "item", "subject": key, "label": label, "current": value or "",
+                                       "expense": True})
+                    continue
+            # 库存行（行上或整批声明了存货）：照旧——选过的（含任务默认的「新建」）> Express 同名不问 > 问
             value = chosen("item", key)
             if value and (value == NEW or value in codes):
-                items[norm_name(label)] = value
+                items[norm] = value
                 used("item", key)
-            elif norm_name(label) in names and not value:
+            elif norm in names and value in ("", EXPENSE):
                 continue  # Express 里有同名存货：小助手照名找得到，不用问
             else:
-                needed.append({"kind": "item", "subject": key, "label": label, "current": value or ""})
-        if items:
-            applied["items"] = items
+                # 整批声明的存货行也可以改成记费用（这一行的选择优先于整批）；行上声明的存货行不给「记费用」
+                needed.append({"kind": "item", "subject": key, "label": label,
+                               "current": "" if value == EXPENSE else value or "", "expense": not own})
+    if items:
+        applied["items"] = items
+    if kinds:
+        applied["kinds"] = kinds
+    lines = _stock_lines(fields, posting_kind, kinds)
 
-    # ── 服务类进项的费用科目 ──
-    if direction == "purchase" and posting_kind != "stock" and not lines and not account_resolved:
+    # ── 服务类进项的费用科目：没有库存行的单；有库存行时只要有一行定为费用 / 服务（混行单，11-06）也问 ──
+    effective = line_kinds(rows_all, posting_kind, kinds)
+    expense_lines = any(kind == "service" for kind in effective)
+    if (direction == "purchase" and not account_resolved
+            and ((posting_kind != "stock" and not lines) or (lines and expense_lines))):
         accounts = _rows(config.get("reported_accounts"))
         value = chosen("account", party_key)
         if value and (not accounts or value in _codes(accounts)):
@@ -378,5 +458,5 @@ def borrow_receipts(remembered: Dict[str, Dict[str, str]], receipts: Iterable, b
             mine[subject] = value
 
 
-__all__ = ["KINDS", "NEW", "PAYMENT_VALUES", "REFUND", "VAT_VALUES", "apply_to_payload", "borrow_receipts", "item_subject", "norm_name",
-           "party_subject", "resolve", "service_vat_subject", "supplier_subject"]
+__all__ = ["EXPENSE", "KINDS", "NEW", "PAYMENT_VALUES", "REFUND", "VAT_VALUES", "apply_to_payload", "borrow_receipts", "item_subject", "norm_name",
+           "line_kinds", "party_subject", "resolve", "service_vat_subject", "supplier_subject", "with_line_kinds"]
