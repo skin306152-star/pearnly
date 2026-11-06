@@ -400,6 +400,10 @@ covers = [
   "frontend/assistant/src/lib/managed-agents/api.ts",
   "frontend/assistant/src/lib/managed-agents/runtime-provider.tsx",
   "frontend/assistant/src/lib/managed-agents/reducer.ts",
+  # 代录会话输入框的附件同直写（11-06「选中就上传」）：附件方块显示识别到哪
+  "frontend/assistant/src/components/assistant-ui/attachment.tsx",
+  "frontend/assistant/src/lib/managed-agents/attachments.ts",
+  "frontend/assistant/src/lib/managed-agents/attachment-recognition.ts",
   "scripts/flows/cc_lib.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
 ]

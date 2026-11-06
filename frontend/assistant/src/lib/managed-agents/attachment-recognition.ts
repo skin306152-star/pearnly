@@ -6,6 +6,7 @@
 import { useSyncExternalStore } from "react";
 import { getMethod } from "@/lib/frappe";
 import { run, steps } from "@/i18n";
+import { reportCaught } from "../caught";
 
 /** 服务端 shapes.upload_view 里这里用到的几项。 */
 export type OperatorUpload = { batch: string; state: string; pages_done?: number; page_count?: number; documents?: unknown[] };
@@ -56,8 +57,9 @@ export function watchRecognition(id: string, task: string, upload: OperatorUploa
       if (!states.has(id)) return;
       if (row) set(id, recognitionOf(row));
       if (row && !recognitionOf(row).busy) return;
-    } catch {
-      // 一时读不到（断网等）：保留上一次的样子，下一次再读
+    } catch (err) {
+      // 一时读不到（断网等）：报一次错，保留上一次的样子，下一次再读
+      reportCaught(err, "attachments");
     }
     if (states.has(id)) timers.set(id, setTimeout(tick, POLL_MS));
   };
