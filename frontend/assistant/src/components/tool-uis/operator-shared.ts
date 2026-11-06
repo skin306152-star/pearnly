@@ -170,10 +170,11 @@ export type StartInput = { task: string; company: string; company_title?: string
 export type StartResult = { sent?: number; not_sent?: Array<DocRef & { reason?: string }>; computer?: string; start_at?: number };
 
 /** operator_choose 的 input：每张没做成、要人处理的单一张（整批停的不在这里）。 */
-export type ChooseInput = { task: string; company: string; doc_id: string; ref?: string; party?: string; reason?: string; level?: Level; result_unknown?: boolean };
+/** detail：CC 回执的说明原文（AI 接手的结论在最前，站点 feed.reason_detail，最多 2000 字），没有就不显示。 */
+export type ChooseInput = { task: string; company: string; doc_id: string; ref?: string; party?: string; reason?: string; detail?: string; level?: Level; result_unknown?: boolean };
 
 /** operator_resume 的 input：整批停（或停止，reason = stopped）时一张；doc_ids = 会被继续的几张。 */
-export type ResumeInput = { task: string; company: string; reason: string; doc_id?: string; ref?: string; party?: string; doc_ids?: string[] };
+export type ResumeInput = { task: string; company: string; reason: string; detail?: string; doc_id?: string; ref?: string; party?: string; doc_ids?: string[] };
 
 /** 站点 precheck 一张单的结论（开始前、中途选都用）。 */
 export type PrecheckNeed = { kind: string; subject: string; label: string; options: ChoiceOption[] };

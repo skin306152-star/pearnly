@@ -52,6 +52,9 @@ REASONS = {
     "waiting_start": AUTO,
 }
 
+# 代录回执原因最多存多长（``[OPERATOR_<原因>] <说明>`` 整段，CC 桌面版说明最多 2000 字）：同
+# ``cc_desktop.wire.ack_rules.OPERATOR_REASON_MAX``（测试守住两边一致）
+REASON_MAX = 2100
 BATCH_STOPPERS = frozenset({"company_mismatch", "login_failed", "login_missing", "license", "network_down", "budget",
                             "account_in_use", "account_set_unavailable"})
 

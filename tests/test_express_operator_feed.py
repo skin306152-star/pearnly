@@ -472,6 +472,43 @@ class ProjectionTests(unittest.TestCase):
         self.assertEqual(steps, [1, 2, 3])
 
 
+class DetailTests(unittest.TestCase):
+    """AI 接手的结论完整到卡片（11-05 真机：feed 只留原因码、单据行截 140，卡片只剩「无法识别的 Express 画面」）：CC 回执
+    ``[OPERATOR_X] ai: <结论> · <步骤>: <问题>`` 整段记在单据行，单据结果、停下等人的卡片、整批停的卡片都带 ``detail``；
+    旧版 CC 开头的本机截图路径不给页面；产品自己的原因码没有说明。"""
+
+    def setUp(self):
+        self.tasks, self.feed, self.state = _env(self)
+
+    def stopped(self, reason):
+        made = self.tasks.create("CO-1", "2026-10", "Siam")
+        self.tasks.attach(made["name"], [{"doc_id": "H-1", "status": "sent"}], {}, "CCD-1", None)
+        self.state["statuses"] = {"H-1": {"state": "not_done", "reason": reason}}
+        self.tasks.settle(made["name"])
+        task = self.state["db"][made["name"]]
+        return task, self.feed.project(task, None, TZ)
+
+    def test_the_whole_ai_conclusion_reaches_the_document_result_and_the_card(self):
+        conclusion = "ai: 未能打开「RR - ซื้อเงินเชื่อ」单据窗口，已停止操作。\n" + "已尝试按 Alt 打开菜单。" * 120 + " · form_open: 画面不对"
+        self.assertGreater(len(conclusion), 1400)
+        task, events = self.stopped("[OPERATOR_UNKNOWN_SCREEN] " + conclusion)
+        self.assertEqual(task["documents"][0]["reason"], "[OPERATOR_UNKNOWN_SCREEN] " + conclusion)
+        card = next(e for e in events if e.get("name") == self.feed.CHOOSE)
+        self.assertEqual((card["input"]["reason"], card["input"]["detail"]), ("unknown_screen", conclusion))
+        result = next(e for e in events if e["type"] == "agent.tool_result" and "_rnot_done_" in e["id"])
+        self.assertEqual(json.loads(result["content"][0]["text"])["detail"], conclusion)
+
+    def test_an_old_computer_s_screenshot_path_is_not_shown_and_product_codes_have_no_detail(self):
+        old = "[OPERATOR_UNKNOWN_SCREEN] C:\\Users\\skin3\\AppData\\Local\\CC\\operator\\b1\\need-human.png · form_open: ai: 没打开"
+        self.assertEqual(self.feed.reason_detail(old), "form_open: ai: 没打开")
+        self.assertEqual(self.feed.reason_detail("[OPERATOR_LOGIN_MISSING] no login"), "no login")
+        for code in ("needs_choice", "push.result_unknown", ""):
+            self.assertEqual(self.feed.reason_detail(code), "")
+        _task, events = self.stopped("[OPERATOR_LOGIN_MISSING] " + "登录" * 400)
+        card = next(e for e in events if e.get("name") == self.feed.RESUME)
+        self.assertEqual(card["input"]["detail"], "登录" * 400)
+
+
 class StampTests(unittest.TestCase):
     def setUp(self):
         self.tasks, self.feed, self.state = _env(self)

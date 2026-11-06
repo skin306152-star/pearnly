@@ -16,6 +16,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import re
 from datetime import datetime, timedelta
 
 import frappe
@@ -84,6 +85,21 @@ def reason_code(raw) -> str:
     text = str(raw or "").strip()
     found = tasks._ACK_REASON.match(text)
     return found.group(1).lower() if found else text[:80]
+
+
+# 1.12.15 以前的 CC 说明以转人工截图的本机路径开头（``C:\…\need-human.png · ``）：本机路径不给页面
+_LOCAL_PATH = re.compile(r"^(?:[A-Za-z]:\\|\\\\)[^·]*?\.png\s*·\s*")
+DETAIL_MAX = 2000
+
+
+def reason_detail(raw) -> str:
+    """CC 回执 ``[OPERATOR_X] 说明`` 里的说明原文（AI 接手的结论在最前，1.12.15 起整段带来）：卡片照原文显示；
+    去掉旧版开头的本机截图路径；不是代录回执的（产品的码、结果不明）没有说明。"""
+    text = str(raw or "").strip()
+    found = tasks._ACK_REASON.match(text)
+    if not found:
+        return ""
+    return _LOCAL_PATH.sub("", text[found.end():].strip(), count=1).strip()[:DETAIL_MAX]
 
 
 def _resumable(raw) -> bool:
@@ -234,8 +250,9 @@ def project(task, upload_states=None, tz: str = "UTC") -> list[dict]:
             continue
         code = reason_code(item["raw"])
         unknown = item["raw"] == tasks.RESULT_UNKNOWN
+        detail = reason_detail(item["raw"])
         value = {"state": item["state"], "docnum": str(_get(row, "docnum") or ""),
-                 "voided_docnum": str(_get(row, "voided_docnum") or ""), "reason": code,
+                 "voided_docnum": str(_get(row, "voided_docnum") or ""), "reason": code, "detail": detail,
                  "level": contracts.level(code) if code else "", "result_unknown": unknown, **view}
         out.result(f"{use}_r{item['state']}_{_ms(item['done'])}", use, value, item["done"],
                    is_error=item["state"] == "not_done", bump=0)
@@ -245,7 +262,7 @@ def project(task, upload_states=None, tz: str = "UTC") -> list[dict]:
             stopped.append(item)
             continue
         card = f"{p}c{item['key']}_{_ms(item['done'])}"
-        out.tool(card, CHOOSE, {**base, **view, "reason": code, "level": contracts.level(code),
+        out.tool(card, CHOOSE, {**base, **view, "reason": code, "detail": detail, "level": contracts.level(code),
                                 "result_unknown": unknown}, item["done"], custom=True, bump=1)
         out.run(card, "awaiting_approval", item["done"], bump=1)
         awaiting.append(card)
@@ -260,6 +277,7 @@ def project(task, upload_states=None, tz: str = "UTC") -> list[dict]:
                         if reason_code(item["raw"]) in contracts.BATCH_STOPPERS), stopped[0])
         card = f"{p}resume_{_ms(when)}"
         out.tool(card, RESUME, {**base, **_doc_view(stopper), "reason": reason_code(stopper["raw"]),
+                                "detail": reason_detail(stopper["raw"]),
                                 "doc_ids": [_doc_view(item)["doc_id"] for item in stopped]}, when, custom=True, bump=2)
         out.run(card, "awaiting_approval", when, bump=2)
         awaiting.append(card)
@@ -517,5 +535,5 @@ def report(name):
 
 
 __all__ = ["PREFIX", "SESSION_PREFIX", "TOOL_NAMES", "awaiting", "events", "is_local", "last_time", "project", "publish",
-           "receipt", "reason_code", "refresh", "report", "report_csv", "report_rows", "run_state", "session_of", "since",
+           "reason_detail", "receipt", "reason_code", "refresh", "report", "report_csv", "report_rows", "run_state", "session_of", "since",
            "stamp", "stored_rows"]

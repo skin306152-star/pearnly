@@ -73,6 +73,7 @@ export const OperatorChooseCard: ToolCallMessagePartComponent = (props) => {
       body={
         <div className="cc-op-before-body">
           <span className="text-ink-3 text-caption" data-slot="cc-op-reason">{reasonText(input.reason)}</span>
+          {input.detail ? <span className="cc-op-detail" data-slot="cc-op-detail">{input.detail}</span> : null}
         </div>
       }
       buttons={buttons}

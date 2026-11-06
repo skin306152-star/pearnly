@@ -29,6 +29,9 @@ RESULT_UNKNOWN = "push.result_unknown"
 FINAL = ("finished", "stopped")
 LIST_MAX = 100
 TITLE_MAX = 140
+# 单据行记的原因（产品回的原因码，或 CC 回执 ``[OPERATOR_<原因>] <说明>`` 整段，说明以 AI 接手的结论开头）：同写账回执
+# ``cc_desktop.wire.ack_rules.OPERATOR_REASON_MAX``，页面卡片显示完整结论（11-05 真机）
+REASON_MAX = contracts.REASON_MAX
 FIELDS = ["name", "product", "company", "company_title", "period", "title", "starred", "status", "computer", "start_at",
           "started_at", "finished_at", "session_id", "creation", "modified"]
 
@@ -198,7 +201,7 @@ def attach(name, results, groups=None, computer: str = "", start_at=None) -> dic
         doc_id = str(item.get("doc_id") or "")
         sent = str(item.get("status") or "") in ("sent", "queued")
         rows.append({"doc_id": doc_id, "doc_group": groups.get(doc_id) or None, "state": "queued" if sent else "not_done",
-                     "reason": "" if sent else str(item.get("reason") or item.get("status") or "")[:140]})
+                     "reason": "" if sent else str(item.get("reason") or item.get("status") or "")[:REASON_MAX]})
     doc.set("documents", rows)
     doc.computer = str(computer or "")
     doc.start_at = start_at or None
@@ -228,7 +231,7 @@ def _refresh(doc, rows) -> None:
         if state in ("saved", "not_done", "cancelled", "queued"):
             row.state = state
             row.docnum = str(r.get("docnum") or row.docnum or "")
-            row.reason = str(r.get("reason") or "")[:140] if state == "not_done" else row.reason
+            row.reason = str(r.get("reason") or "")[:REASON_MAX] if state == "not_done" else row.reason
             # 排着的被同一份账套里哪张结果不明的单挡着（产品给 {ref, party}）：页面写成「单号 · 对方 · 结果不明」
             blocker = r.get("blocked_by") if state == "queued" and isinstance(r.get("blocked_by"), dict) else {}
             row.blocked_by = " · ".join(str(blocker.get(k) or "") for k in ("ref", "party") if blocker.get(k))[:140]
@@ -343,7 +346,7 @@ def _resubmit(doc, rows, answers=None) -> None:
         if str(result.get("status") or "") in ("sent", "queued"):
             row.state, row.reason = "queued", ""
         else:
-            row.reason = str(result.get("reason") or result.get("status") or "")[:140]
+            row.reason = str(result.get("reason") or result.get("status") or "")[:REASON_MAX]
     if any(row.state == "queued" for row in rows) and doc.status in ("attention", "finished", "stopped"):
         doc.status, doc.finished_at = "queued", None
 

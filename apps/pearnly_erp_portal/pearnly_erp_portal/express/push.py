@@ -19,6 +19,7 @@ from frappe import _
 from frappe.utils import now_datetime
 
 from pearnly_core.cc_desktop import books, devices, jobs
+from pearnly_core.cc_desktop.wire import ack_rules
 from pearnly_core.express_rules.contracts import pos as pos_contract
 
 from pearnly_erp_portal.express import choices, contracts, pos_day, prepare, printed, stock_entry
@@ -595,7 +596,8 @@ def job_changed(view):
     before.company = company_of(doctype, name)
     state = _state(view)
     values = {"ledger_state": state, "ledger_job": view.get("job"), "ledger_docnum": view.get("docnum") or "",
-              "ledger_reason": "" if state in (contracts.WRITTEN, contracts.QUEUED) else str(view.get("reason") or "")[:500]}
+              "ledger_reason": "" if state in (contracts.WRITTEN, contracts.QUEUED)
+              else str(view.get("reason") or "")[:ack_rules.OPERATOR_REASON_MAX]}
     _set(doctype, name, values)
     if state not in (contracts.WRITTEN, contracts.MISMATCH) and before.company and not enabled(before.company):
         # 断开时电脑正在写、结果没写成（或撤掉的那件）：不再写，标已断开（:func:`detach`）
@@ -625,8 +627,6 @@ NEEDED_EVENT = "pearnly_erp_express_needed"
 
 
 def _needs_choice(reason):
-    from pearnly_core.cc_desktop.wire import ack_rules
-
     # 关账、库存不足也弹出（只有原因、能重试；10-24 验收：页面不自动弹）
     return ack_rules.error_code(reason) in prepare.PARTY_CODES | prepare.GROUP_CODES | prepare.SERVICE_VAT_CODES | {
         "PERIOD_LOCKED", "STOCK_INSUFFICIENT"}

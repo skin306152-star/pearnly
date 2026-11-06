@@ -49,6 +49,13 @@ export const OperatorResumeCard: ToolCallMessagePartComponent = (props) => {
       slot="cc-op-resume"
       question={resumeQuestion(input)}
       answer={op.resume}
+      body={
+        input.detail ? (
+          <div className="cc-op-before-body">
+            <span className="cc-op-detail" data-slot="cc-op-detail">{input.detail}</span>
+          </div>
+        ) : undefined
+      }
       buttons={buttons}
       busy={action.busy}
       failure={action.failure}

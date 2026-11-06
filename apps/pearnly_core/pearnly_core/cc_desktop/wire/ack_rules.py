@@ -42,6 +42,16 @@ NEEDS_PERSON_CODES = frozenset({
     "SERVICE_VAT_BASIS_CHOICE",
 })
 _ERROR_CODE = re.compile(r"^\[([A-Z0-9_]+)\]")
+REASON_MAX = 500
+# 代录回执（`[OPERATOR_<原因>] <说明>`，CC 桌面版 1.12.15 起说明以 AI 接手的结论原文开头、最多 2000 字）：原因整段留下，
+# 站点卡片要显示完整结论（11-05 真机：截到 500 / 140 / 80 后只剩「无法识别的 Express 画面」）。其它回报仍截 500。
+OPERATOR_REASON_MAX = 2100
+
+
+def reason_text(error):
+    """回报原因存多长：代录回执整段（:data:`OPERATOR_REASON_MAX`），其它截 :data:`REASON_MAX`。"""
+    text = str(error or "")
+    return text[:OPERATOR_REASON_MAX if error_code(text).startswith("OPERATOR_") else REASON_MAX]
 
 
 def error_code(error):
@@ -84,12 +94,12 @@ def acknowledgement(*, branch, attempt, success, outcome=None, error=None):
     if stage == common.STAGE_WAITING_LOCK:
         return Transition("pending", attempt, stage, retry=True)
     if stage in {common.STAGE_NEEDS_MAPPING, common.STAGE_NEEDS_REVIEW}:
-        return Transition("manual", attempt, stage, str(error or "")[:500] or stage)
+        return Transition("manual", attempt, stage, reason_text(error) or stage)
     if stage == common.STAGE_FAILED and error_code(error) in NEEDS_PERSON_CODES:
-        return Transition("manual", attempt, common.STAGE_NEEDS_REVIEW, str(error)[:500])
+        return Transition("manual", attempt, common.STAGE_NEEDS_REVIEW, reason_text(error))
     # Legacy applies `int(log.attempt or 1)` only on the failure branch;
     # success/waiting/manual leave the stored attempt unchanged, including zero.
     attempt = attempt or 1
     status = "manual" if attempt >= MAX_ATTEMPTS else "pending"
-    reason = (str(error or "")[:500] or "agent_failed")
+    reason = (reason_text(error) or "agent_failed")
     return Transition(status, attempt + 1, stage, reason, status == "pending")

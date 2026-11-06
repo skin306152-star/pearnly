@@ -25,7 +25,7 @@ import cc_desktop_fake as fake  # noqa: E402
 frappe = fake.install()
 
 from pearnly_core.cc_desktop import books, contracts, devices, documents, http_auth, jobs, requests  # noqa: E402
-from pearnly_core.cc_desktop.wire import queue_contracts, route_contracts  # noqa: E402
+from pearnly_core.cc_desktop.wire import ack_rules, queue_contracts, route_contracts  # noqa: E402
 
 SITE = "testerp.localhost"
 KEY_A, KEY_B = "a" * 43, "b" * 43
@@ -454,6 +454,55 @@ class BookIdentity(unittest.TestCase):
         self.assertEqual(len(keys), 1)
         # 没有文件号（旧版 CC）才按路径
         self.assertNotEqual(contracts.book_identity(spellings[0]), contracts.book_identity(spellings[1]))
+
+
+def _operator_contracts():
+    """代录契约（纯常量，不经 express_operator 包的 __init__）。"""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "operator_contracts_for_receipts", ROOT / "apps/pearnly_core/pearnly_core/express_operator/contracts.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class OperatorReasonTests(unittest.TestCase):
+    """代录回执（``[OPERATOR_<原因>] <说明>``，CC 桌面版 1.12.15 起说明以 AI 接手的结论原文开头、最多 2000 字）整段存下，
+    站点卡片才看得到完整结论（11-05 真机：截到 500 / 140 / 80 只剩「无法识别的 Express 画面」）；其它回报仍截 500。"""
+
+    def test_an_operator_receipt_keeps_the_whole_ai_conclusion_and_others_still_stop_at_500(self):
+        conclusion = "ai: " + "未能打开单据窗口。" * 180  # 约 1600 字
+        error = "[OPERATOR_UNKNOWN_SCREEN] " + conclusion
+        for outcome in ("needs_review", None):
+            state = ack_rules.acknowledgement(branch="legacy", attempt=3, success=False, outcome=outcome, error=error)
+            self.assertEqual(state.reason, error)
+        self.assertEqual(len(ack_rules.reason_text("[OPERATOR_X] " + "y" * 3000)), ack_rules.OPERATOR_REASON_MAX)
+        for other in ("x" * 600, "[DBF_WRITE_FAILED] " + "x" * 600, "[FIELD_TOO_LONG] " + "x" * 600):
+            self.assertEqual(ack_rules.acknowledgement(branch="legacy", attempt=3, success=False, outcome="needs_review",
+                                                       error=other).reason, other[:500])
+            self.assertEqual(ack_rules.acknowledgement(branch="legacy", attempt=3, success=False, error=other).reason,
+                             other[:500])
+
+    def test_every_store_on_the_way_to_the_card_holds_the_whole_receipt(self):
+        operator = _operator_contracts()
+
+        root = pathlib.Path(__file__).resolve().parents[1] / "apps"
+        self.assertEqual(operator.REASON_MAX, ack_rules.OPERATOR_REASON_MAX)
+        for path in ("pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_push_record/cowork_push_record.json",
+                     "pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_express_operator_task_document/"
+                     "pearnly_express_operator_task_document.json",
+                     "pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_cc_job/pearnly_cc_job.json",
+                     "pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_ocr_history/cowork_ocr_history.json",
+                     "pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/purchase_document/purchase_document.json"):
+            fields = {f["fieldname"]: f for f in __import__('json').loads((root / path).read_text(encoding="utf-8"))["fields"]}
+            field = fields.get("reason") or fields.get("last_push_reason") or fields["ledger_reason"]
+            self.assertIn(field["fieldtype"], ("Small Text", "Text", "Long Text"), path)
+        push_state = (root / "pearnly_cowork/pearnly_cowork/history/push_state.py").read_text(encoding="utf-8")
+        self.assertIn("reason = (row.reason or '')[:OPERATOR_REASON_MAX]", push_state)
+        erp = (root / "pearnly_erp_portal/pearnly_erp_portal/express/push.py").read_text(encoding="utf-8")
+        self.assertIn('str(view.get("reason") or "")[:ack_rules.OPERATOR_REASON_MAX]', erp)
+
 
 
 if __name__ == "__main__":

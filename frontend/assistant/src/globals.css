@@ -2204,6 +2204,8 @@
     color: var(--cc-ink-2); font-size: var(--cc-panel-font); line-height: var(--cc-panel-lh);
   }
   .cc-op-before-body:empty { display: none; }
+  /* 代录停下那张的说明原文（AI 接手的结论，最多 2000 字）：照原文分行 */
+  .cc-op-detail { color: var(--cc-ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
   .cc-op-ask-group { display: flex; flex-direction: column; gap: var(--cc-space-6); }
   .cc-op-ask-kind { color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
   .cc-op-ask, .cc-op-line { display: flex; align-items: center; gap: var(--cc-space-8); min-height: var(--cc-panel-row); color: var(--cc-ink); }
