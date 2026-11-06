@@ -1,5 +1,6 @@
 // 对话页用到的全部接口（`pearnly_core.assistant.api`）。会话归属、工具执行都在服务端判定。
 
+import type { OperatorUpload } from "./attachment-recognition";
 import { get, post, upload } from "@/lib/frappe";
 import type { FeedEvent, RunStatus, SessionSummary, ToolRunStatus } from "./events";
 import { listMode, type ListMode } from "./list-mode";
@@ -126,7 +127,11 @@ export async function runTool(id: string, toolUseId: string): Promise<ToolRunRep
 }
 
 /** 上传结果；PDF 读得出页数时带 pages（对话里附件卡片的「PDF · N 页」）。 */
-export type UploadedFile = { fileId: string; filename: string; mountPath: string; size_bytes: number; pages?: number };
+export type UploadedFile = {
+  fileId: string; filename: string; mountPath: string; size_bytes: number; pages?: number;
+  /** 代录会话：这一份也交给了会话挂的任务识别（任务号、任务里的那一行，attachment-recognition.ts） */
+  task?: string; upload?: OperatorUpload;
+};
 
 export type SessionFile = {
   id: string;

@@ -13,7 +13,8 @@
 //     creates the session through initialize().
 //
 // 代录会话（方案 cc-unified-plan 14：代录任务就是一段会话）用的也是这一份：同一个 thread、runtime、停止键与 Esc（发 interrupt，服务端
-// 记成任务控制 stop）。只差两处：输入框放的资料交给这个任务（站点 intake，之后由代录事件源出上传那一步），不进对话附件；代录模式下的
+// 记成任务控制 stop）、同一套附件组件和上传路径（2026-11-06「选中就上传」：选中、拖进、粘贴就传进会话，服务端同时交给会话挂的任务
+// 识别，输入框那一项显示上传中、识别中；发出后附件在这条消息里，CC 读得到，只放附件不打字也发得出）。只差一处：代录模式下的
 // 新对话没选公司、月份时发不出（同直写选公司的下巴，任务必填），发出去建的是代录会话（sessions.create 的 mode=operator）。
 
 import {
@@ -41,11 +42,8 @@ import {
 } from "./session-controller";
 import { initialProjection, isBusy, withNotices } from "./reducer";
 import { loadProfile } from "@/lib/profile";
-import { uploadMethod } from "@/lib/frappe";
 import { useListMode, useSessionTask } from "./list-mode";
-import { filingOf, useProjects } from "./projects";
-import { ACCEPT } from "./attachments";
-import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react";
+import { useProjects } from "./projects";
 import { loadToolLabels } from "@/lib/tool-labels";
 import { runningTurn, type OpenState } from "@/lib/follow-scroll";
 
@@ -122,12 +120,10 @@ function useSessionThreadRuntime() {
   );
 
   const attachments = useMemo(() => createAttachmentAdapter(ensureSession), [ensureSession]);
-  // 代录会话（已建的挂着任务；新对话看此刻的模式）：资料留在本页，发送时交给任务
+  // 代录会话（已建的挂着任务；新对话看此刻的模式）：附件同直写（服务端交任务识别），只是新对话要先选好公司、月份
   const task = useSessionTask(sessionId);
   const operatorMode = useListMode((s) => s.mode === "operator");
   const operator = sessionId ? !!task : operatorMode;
-  const [held] = useState(() => new Map<string, File>());
-  const operatorFiles = useMemo(() => heldAttachments(held), [held]);
   // 代录的新对话：公司、月份（产品有月份时）都选了才发得出
   const draftReady = useProjects((s) => !!s.draft.project && (!s.period || !!s.draft.period));
 
@@ -173,7 +169,7 @@ function useSessionThreadRuntime() {
     isRunning: running,
     isDisabled: snapshot.isDead,
     isSendDisabled: operator && !sessionId && !draftReady,
-    adapters: { attachments: operator ? operatorFiles : attachments },
+    adapters: { attachments },
 
     onNew: async (message: AppendMessage) => {
       // 按「还没有用户消息」判断首条：先加附件时会话在上传那一刻就建好了，按「有没有会话」判断会漏掉取标题，
@@ -190,15 +186,6 @@ function useSessionThreadRuntime() {
       let ok = false;
       try {
         ok = await attemptSend(threadId, restore, async (sent) => {
-          if (operator) {
-            // 代录：资料交给这个任务（一份一次 intake），说的话交给这段会话的 CC
-            const id = await ensureSession();
-            const picked = takeHeld(held, message.attachments);
-            if (picked.length) await intakeAll(id, picked);
-            if (text) await getSessionController(id).sendMessage(text, [], pendingShownAs);
-            sent();
-            return;
-          }
           // 有附件没传上（发送时已重传过一次）：整条不发，先于建会话、发出（attachments.ts 的 filesToSend）
           const files = filesToSend(message.attachments);
           const send = async (id: string) => {
@@ -242,45 +229,6 @@ function useSessionThreadRuntime() {
   // 发送请求没回来（断网）、字已放回输入框的那一条，服务端其实收下了（回声晚到）：放回的字与附件撤掉、原因清掉，不再发第二遍
   useEffect(() => controller?.onDelivered((text) => sendLanded(threadId, text)), [controller, threadId]);
   return runtime;
-}
-
-// ------------------------------------------------------- 代录会话的资料
-/** 附件只留在本页（文件对象），发送时交给代录任务。 */
-function heldAttachments(files: Map<string, File>): AttachmentAdapter {
-  return {
-    accept: ACCEPT,
-    async add({ file }): Promise<PendingAttachment> {
-      const id = `op-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      files.set(id, file);
-      const type = file.type.startsWith("image/") ? ("image" as const) : ("document" as const);
-      return { id, type, name: file.name, contentType: file.type, file, status: { type: "requires-action", reason: "composer-send" } };
-    },
-    async remove(attachment) {
-      files.delete(attachment.id);
-    },
-    async send(attachment): Promise<CompleteAttachment> {
-      return { ...attachment, status: { type: "complete" }, content: [] };
-    },
-  };
-}
-
-/** 这条消息带的资料（取走，不再留在本页）。 */
-function takeHeld(files: Map<string, File>, attachments: AppendMessage["attachments"]): File[] {
-  return (attachments ?? []).flatMap((a) => {
-    const file = files.get(a.id) ?? a.file;
-    files.delete(a.id);
-    return file ? [file] : [];
-  });
-}
-
-/** 资料交给这段会话挂的代录任务（站点 intake：一份一个新请求号，同一份再放照常存、照常识别）。 */
-async function intakeAll(sessionId: string, files: readonly File[]) {
-  const task = useListMode.getState().tasks[sessionId] ?? "";
-  const company = filingOf(sessionId).project;
-  if (!task || !company) throw new Error("operator task not ready");
-  for (const file of files) {
-    await uploadMethod("pearnly_core.express_operator.api.intake", { company, task, request_key: crypto.randomUUID() }, file);
-  }
 }
 
 // ---------------------------------------------------------------- provider

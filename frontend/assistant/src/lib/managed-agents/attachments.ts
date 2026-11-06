@@ -1,12 +1,14 @@
 // 输入框附件（「+」按钮、拖进来、粘贴截图都走这里）。
 //
 // 选中文件时先确保有会话（新对话会在这一步建会话），再交给本站：服务端校验类型和大小、HEIC 转 JPEG、
-// 交给当前引擎放进该会话。随消息带过去的只是智能体读取它的位置，智能体自己去读。
+// 交给当前引擎放进该会话。随消息带过去的只是智能体读取它的位置，智能体自己去读。代录会话同一套（2026-11-06）：服务端另交给
+// 会话挂的任务识别，这一项传完接着显示识别到哪（attachment-recognition.ts）。
 // 改自 Anthropic 官方示例的 attachments.ts（MIT，见 NOTICE.md）。
 
 import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react";
 import { uploadFile, type UploadedFile } from "./api";
 import { beginPending } from "./pending-send";
+import { stopRecognition, watchRecognition } from "./attachment-recognition";
 import { shownError } from "@/lib/frappe";
 import { reportCaught, withReport } from "../caught";
 
@@ -71,6 +73,8 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>): At
     uploaded.set(id, stored);
     metas.set(stored.mountPath, { size: stored.size_bytes ?? file.size, ...(stored.pages ? { pages: stored.pages } : {}) });
     if (/^image\/(png|jpe?g|gif|webp)$/.test(file.type)) previews.set(stored.mountPath, URL.createObjectURL(file));
+    // 代录会话：服务端同时交给了任务识别，输入框这一项接着显示识别到哪（还在输入框里才显示：已发出的不再读）
+    if (stored.task && stored.upload && !sent.has(id)) watchRecognition(id, stored.task, stored.upload);
     return stored;
   };
 
@@ -105,6 +109,7 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>): At
     async remove(attachment) {
       // 已挂进沙箱的文件只读、只属于本会话，留着无害；这里只把输入框里的这一项去掉。
       uploaded.delete(attachment.id);
+      stopRecognition(attachment.id);
     },
 
     async send(attachment): Promise<CompleteAttachment> {
@@ -114,6 +119,7 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>): At
       // 抛了就是未捕获的错误，也不会经过我们的发送失败处理。
       sent.add(attachment.id);
       unsent.delete(attachment.id);
+      stopRecognition(attachment.id);
       let info = uploaded.get(attachment.id);
       if (!info) {
         beginPending(attachment.name);

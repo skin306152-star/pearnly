@@ -805,6 +805,68 @@ class RelayTests(unittest.TestCase):
                 else:
                     setattr(frappe, name, value)
 
+    def test_operator_session_upload_hands_the_file_to_its_task_and_plain_chat_does_not(self):
+        """2026-11-06「选中就上传」：代录会话放进输入框的文件走同一个上传口，进会话的同时交给会话挂的任务识别（请求键 = 文件编号），
+        回包多带任务与那一行，输入框那一项显示识别中；直写会话不交；任务不收（产品没声明上传）照常只进对话。还原成只进对话就失败。"""
+        import tempfile
+
+        root = tempfile.mkdtemp()
+        rows = {"s1": types.SimpleNamespace(name="row1", operator_task="t001", get=lambda k: {"operator_task": "t001"}.get(k)),
+                "s2": types.SimpleNamespace(name="row2", operator_task="", get=lambda k: None)}
+        sessions = types.ModuleType("pearnly_core.assistant.sessions")
+        sessions.SESSION = "Pearnly Assistant Session"
+        sessions.owned = lambda sid, allow_archived=False: rows[sid]
+        sessions.segment_for_turn = lambda row, api: "remote-" + row.name
+        sessions._guard = lambda fn, *a: fn(*a)
+        sys.modules["pearnly_core.assistant.sessions"] = sys.modules["pearnly_core.assistant"].sessions = sessions
+        sys.modules.setdefault("pearnly_core.desk", types.ModuleType("pearnly_core.desk"))
+        heic = types.ModuleType("heic")
+        heic.is_heic = lambda content: False
+        sys.modules["pearnly_core.desk.heic"] = sys.modules["pearnly_core.desk"].heic = heic
+        taken = []
+        operator_uploads = types.ModuleType("pearnly_core.express_operator.uploads")
+        answer = {"view": {"batch": "B-1", "state": "queued", "pages_done": 0, "page_count": 2}}
+        operator_uploads.take = lambda task, name, content, key: taken.append((task, name, content, key)) or answer["view"]
+        package = sys.modules.setdefault("pearnly_core.express_operator", types.ModuleType("pearnly_core.express_operator"))
+        files = _load("pearnly_core.assistant.files", CORE / "assistant/files.py")
+        numbers = iter(["file_A", "file_B", "file_C"])
+
+        def attach(remote, name, content, mime):
+            number = next(numbers)
+            return {"file_id": number, "path": f"/mnt/session/uploads/{number}/{name}"}
+
+        class Sent:
+            def __init__(self, name, content):
+                self.filename, self.mimetype = name, "application/pdf"
+                self.stream = types.SimpleNamespace(read=lambda size: content)
+
+        saved = (getattr(frappe, "get_site_path", None), getattr(frappe, "request", None), getattr(frappe, "cache", None))
+        frappe.get_site_path = lambda *parts: os.path.join(root, *parts)
+        frappe.cache = types.SimpleNamespace(set_value=lambda *a, **k: None)
+        try:
+            with mock.patch.dict(sys.modules, {"pearnly_core.express_operator.uploads": operator_uploads}), \
+                    mock.patch.object(package, "uploads", operator_uploads, create=True), \
+                    mock.patch.object(files.engine, "adapter", return_value=types.SimpleNamespace(attach=attach)):
+                frappe.request = types.SimpleNamespace(files={"file": Sent("bill.pdf", b"%PDF-x")})
+                out = files.upload("s1")
+                self.assertEqual(taken, [("t001", "bill.pdf", b"%PDF-x", "file_A")])
+                self.assertEqual((out["fileId"], out["task"], out["upload"]["batch"]), ("file_A", "t001", "B-1"))
+                out = files.upload("s2")  # 直写会话：只进对话
+                self.assertEqual(len(taken), 1)
+                self.assertNotIn("task", out)
+                answer["view"] = None  # 任务不收：照常只进对话，不带任务
+                out = files.upload("s1")
+                self.assertEqual((out["fileId"], "task" in out), ("file_C", False))
+        finally:
+            for name, value in zip(("get_site_path", "request", "cache"), saved):
+                if value is None and hasattr(frappe, name):
+                    delattr(frappe, name)
+                elif value is not None:
+                    setattr(frappe, name, value)
+        send = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("def send(", 1)[1].split("\ndef ", 1)[0]
+        # 这条消息发出后才把它带着的那几份记进对话（上传卡片排在消息后面）
+        self.assertLess(send.index("api.post(remote, batch)"), send.index("operator_uploads.sent(row.operator_task, text)"))
+
     def test_files_tools_put_in_the_conversation_are_kept_and_can_be_used_as_input(self):
         # 2026-10 CC 闭环 L3：工具产出（以前只交给引擎、本站不留）能再交给对账等工具；从文件夹取来的同样，来源分开记，
         # 产品据此不把自己生成的文件再拿去识别

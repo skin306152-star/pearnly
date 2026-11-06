@@ -158,10 +158,9 @@ def _docs(task) -> list:
 
 
 def _uploads(task) -> list:
-    base = _moment(_get(task, "creation"))
-    return [{"row": row, "key": str(_get(row, "name") or index),
-             "at": _moment(_get(row, "uploaded_at")) or base + timedelta(microseconds=index)}
-            for index, row in enumerate(_get(task, "uploads") or [], start=1)]
+    """进了对话的上传（没有上传时刻的是对话输入框里的一份，带着它的消息还没发出：``uploads.take``，不出卡片）。"""
+    return [{"row": row, "key": str(_get(row, "name") or index), "at": _moment(_get(row, "uploaded_at"))}
+            for index, row in enumerate(_get(task, "uploads") or [], start=1) if _moment(_get(row, "uploaded_at"))]
 
 
 def _doc_view(item) -> dict:

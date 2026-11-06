@@ -4,6 +4,9 @@
 
 - 只给任务的创建人本人（同 ``tasks.read``），上传还要过产品的权限（``products.allowed``，同 ``intake``）；
 - 同一请求键再交（页面重试同一份）只记一行；上传照常、识别照常、扣费照常（产品口径「上传识别都扣费」），这里不查重不拦；
+- 对话输入框里放的资料（2026-11-06「选中就上传」，代录与直写同一套附件组件和上传路径）：对话的上传口（``assistant/files.upload``）
+  选中就交识别（``take``），这一行先不记时刻（还没进对话，对话里不出上传卡片）；带着它的那条消息发出时才记上（``sent``），上传
+  卡片排在这条消息后面。请求键就是引擎给的文件编号，消息里带着它的位置，按它对上；
 - 识别进度的实时提醒不在这里：识别排队、开始读、读到第几页、有结论，共用识别队列已推 ``pearnly_ocr_work``（只推提交人，
   ``reference`` 就是这里的 ``batch``），页面收到再读一次 ``read``。
 """
@@ -16,6 +19,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime
 
+from pearnly_core.execution.errors import Deferred
 from pearnly_core.express_operator import products, shapes, tasks
 
 UPLOAD = "Pearnly Express Operator Task Upload"
@@ -48,8 +52,9 @@ def check(name, company, request_key) -> None:
         frappe.throw(_("Invalid request"))
 
 
-def record(name, request_key, filename, size, result) -> dict:
-    """产品收下这一份后记一行（同一请求键已记过就更新那一行），回这一行此刻的样子（刚交识别：排队中）。"""
+def record(name, request_key, filename, size, result, pending: bool = False) -> dict:
+    """产品收下这一份后记一行（同一请求键已记过就更新那一行），回这一行此刻的样子（刚交识别：排队中）。``pending``：对话输入框里
+    的一份，消息还没发出，先不记上传时刻（``sent`` 再记）。"""
     doc = tasks._own(name, for_update=True)
     key = str(request_key or "")
     values = {"request_key": key, "source": str(result.get("source") or "")[:140],
@@ -57,11 +62,41 @@ def record(name, request_key, filename, size, result) -> dict:
               "batch": str(result.get("name") or result.get("batch") or "")[:140]}
     row = next((item for item in doc.get("uploads") or [] if item.request_key == key), None)
     if row is None:
-        row = doc.append("uploads", {**values, "uploaded_at": now_datetime()})
+        row = doc.append("uploads", {**values, "uploaded_at": None if pending else now_datetime()})
     else:
         row.update(values)
     tasks._save(doc)
     return shapes.upload_view(_row(row), {"state": "queued", "page_count": result.get("page_count")}, doc.period or "")
+
+
+def take(name, filename, content: bytes, request_key) -> dict | None:
+    """对话输入框里放进来的一份（对话的上传口调）：交给这段会话挂的任务识别，记一行（还没进对话）。产品不收上传（``unsupported``）
+    回 None，文件照常只进对话；原件存放处 / 识别服务一时连不上回一句可重试的话（输入框那一项标红，可再传），不回 500。"""
+    doc = tasks._own(name)
+    if not products.enabled() or not products.allowed(frappe.session.user, doc.company):
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    check(name, doc.company, request_key)
+    try:
+        result = products.intake(doc.company, filename, content, str(request_key))
+    except Deferred:
+        frappe.throw(_("upload.deferred"))
+    if not result.get("accepted"):
+        return None
+    return record(name, request_key, filename, len(content), result, pending=True)
+
+
+def sent(name, text) -> int:
+    """带着附件的那条消息发出了：消息里带着的、还没进对话的那几行记上此刻（上传卡片排在这条消息后面）。回记了几行。"""
+    doc = tasks._own(name, for_update=True)
+    body = str(text or "")
+    rows = [row for row in doc.get("uploads") or [] if not row.uploaded_at and row.request_key and row.request_key in body]
+    if not rows:
+        return 0
+    moment = now_datetime()
+    for row in rows:
+        row.uploaded_at = moment
+    tasks._save(doc)
+    return len(rows)
 
 
 def read(name, batches=None) -> dict:
@@ -81,4 +116,4 @@ def read(name, batches=None) -> dict:
     return {"task": doc.name, "period": doc.period or "", "uploads": out}
 
 
-__all__ = ["UPLOAD", "check", "read", "record"]
+__all__ = ["UPLOAD", "check", "read", "record", "sent", "take"]

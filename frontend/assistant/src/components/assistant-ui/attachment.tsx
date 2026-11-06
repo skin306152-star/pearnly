@@ -19,6 +19,7 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { useShallow } from "zustand/shallow";
+import { useRecognition } from "@/lib/managed-agents/attachment-recognition";
 import {
   Tooltip,
   TooltipContent,
@@ -150,6 +151,9 @@ const AttachmentThumb: FC<{ name: string }> = ({ name }) => {
 /** 输入框里的一个附件：方块 + 移除。 */
 const ComposerAttachment: FC = () => {
   const name = useAuiState((s) => s.attachment.name);
+  const id = useAuiState((s) => s.attachment.id);
+  // 代录会话：传完接着显示识别到哪（排队中、识别中、已识别 N 张、失败；attachment-recognition.ts）
+  const recognition = useRecognition(id);
 
   const uploadState = useAuiState((s) =>
     s.attachment.status.type === "running"
@@ -160,7 +164,8 @@ const ComposerAttachment: FC = () => {
         : undefined,
   );
   const isUploading = uploadState === "uploading";
-  const isError = uploadState === "error";
+  const isRecognizing = !uploadState && !!recognition?.busy;
+  const isError = uploadState === "error" || (!uploadState && !!recognition?.failed);
 
   const errorMessage = useAuiState((s) =>
     s.attachment.status.type === "incomplete" &&
@@ -179,7 +184,7 @@ const ComposerAttachment: FC = () => {
               data-error={isError || undefined}
               role="button"
               tabIndex={0}
-              aria-label={[t("attachment").replace("{0}", name), isError ? t("uploadFailed") : isUploading ? t("uploading") : ""]
+              aria-label={[t("attachment").replace("{0}", name), uploadState === "error" ? t("uploadFailed") : isUploading ? t("uploading") : recognition?.text ?? ""]
                 .filter(Boolean)
                 .join(" · ")}
             >
@@ -190,6 +195,15 @@ const ComposerAttachment: FC = () => {
                   className="aui-attachment-tile-uploading bg-app/60 absolute inset-0 flex items-center justify-center"
                 >
                   <Loader2Icon className="cc-spinner size-(--cc-icon) text-muted-foreground" />
+                </div>
+              )}
+              {isRecognizing && (
+                <div
+                  aria-hidden="true"
+                  className="aui-attachment-tile-uploading bg-app/60 absolute inset-0 flex flex-col items-center justify-center gap-(--cc-space-4)"
+                >
+                  <Loader2Icon className="cc-spinner size-(--cc-icon) text-muted-foreground" />
+                  <span className="cc-compose-type">{recognition?.text}</span>
                 </div>
               )}
               {isError && (
@@ -207,6 +221,7 @@ const ComposerAttachment: FC = () => {
       </AttachmentPrimitive.Root>
       <TooltipContent side="top">
         <AttachmentPrimitive.Name />
+        {!uploadState && recognition && <p>{recognition.text}</p>}
         {errorMessage && (
           <p className="aui-attachment-error-message">{errorMessage}</p>
         )}

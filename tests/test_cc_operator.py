@@ -38,6 +38,47 @@ g.navigator ??= { userAgent: "node", onLine: true };
 STUBS = {"socket.io-client": SOCKET_STUB, "cc-dom-setup": DOM_SETUP, "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; '
          'export const loadProfile = async () => null; export const assistantMascot = () => null; export const assistantLogo = () => null;'}
 
+FRAPPE_STUB = r"""
+export const getMethod = async (method: string, args: Record<string, unknown>) => (globalThis as any).reply(method, args);
+"""
+
+RECOGNITION = r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { recognitionNow, recognitionOf, stopRecognition, watchRecognition } from "@/lib/managed-agents/attachment-recognition";
+
+const g = globalThis as any;
+const ticks: Array<() => void> = [];
+g.setTimeout = (f: () => void) => { ticks.push(f); return ticks.length; };
+g.clearTimeout = () => {};
+const asked: unknown[] = [];
+let row: Record<string, unknown> = { batch: "B-1", state: "reading", pages_done: 1, page_count: 3 };
+g.reply = (method: string, args: Record<string, unknown>) => { asked.push([method, args]); return { uploads: [row] }; };
+const flush = async () => { const f = ticks.shift(); assert.ok(f); await f(); await new Promise((r) => setImmediate(r)); };
+
+assert.deepEqual(recognitionOf({ batch: "B", state: "queued" }), { busy: true, failed: false, text: "排队中" });
+assert.equal(recognitionOf({ batch: "B", state: "reading", pages_done: 2, page_count: 5 }).text, "识别中 2/5 页");
+assert.deepEqual(recognitionOf({ batch: "B", state: "done", documents: [{}, {}] }), { busy: false, failed: false, text: "已识别 2 张" });
+assert.equal(recognitionOf({ batch: "B", state: "failed" }).failed, true);
+
+watchRecognition("att-1", "t001", { batch: "B-1", state: "queued" });
+assert.equal(recognitionNow("att-1")?.text, "排队中");
+await flush();
+assert.deepEqual(asked[0], ["pearnly_core.express_operator.api.task_uploads", { name: "t001", batches: JSON.stringify(["B-1"]) }]);
+assert.equal(recognitionNow("att-1")?.text, "识别中 1/3 页");
+row = { batch: "B-1", state: "done", documents: [{}] };
+await flush();
+assert.equal(recognitionNow("att-1")?.text, "已识别 1 张");
+assert.equal(ticks.length, 0);  // 有结论就不再读
+
+watchRecognition("att-2", "t001", { batch: "B-2", state: "queued" });
+stopRecognition("att-2");  // 发出或移除：不再显示、不再读
+assert.equal(recognitionNow("att-2"), undefined);
+await flush();
+assert.equal(asked.length, 2);
+console.log("HARNESS OK");
+"""
+
 OLD_WORDS = re.compile(r"代录|录入|已录入|再录一次|不录了|录入前确认|录入后处理|等开始|正在录入|批次|照录|挂起|转人工|读回")
 
 WORDS = r"""
@@ -403,12 +444,28 @@ class SourceRules(unittest.TestCase):
         self.assertIn("if (controller) await attemptStop(threadId, () => controller.interrupt());", provider)
         self.assertIn('if (c.action === "stop") await b.call("operator_control", { batch: batch.id, action: "stop", doc: "" });', read("components/operator/bridge.ts"))
 
-    def test_operator_sessions_hand_files_to_the_task_and_need_a_company(self):
+    def test_operator_sessions_use_the_chat_attachments_and_need_a_company(self):
+        """2026-11-06「选中就上传」：代录与直写同一套附件组件和上传路径——选中、拖进、粘贴就传（服务端同时交任务识别），发出走
+        直写同一条发送（附件在这条消息里、CC 读得到、只放附件也发得出）。以前代录的资料留在本页、发送时另调 intake、只有附件时
+        不发消息：消息里没有附件、CC 不知道这些文件（11-06 测试机实测）。"""
         provider = read("lib/managed-agents/runtime-provider.tsx")
         self.assertIn("isSendDisabled: operator && !sessionId && !draftReady,", provider)
         self.assertIn("const draftReady = useProjects((s) => !!s.draft.project && (!s.period || !!s.draft.period));", provider)
-        self.assertIn("adapters: { attachments: operator ? operatorFiles : attachments },", provider)
-        self.assertIn('await uploadMethod("pearnly_core.express_operator.api.intake", { company, task, request_key: crypto.randomUUID() }, file);', provider)
+        self.assertIn("adapters: { attachments },", provider)
+        for gone in ("operatorFiles", "heldAttachments", "takeHeld", "intakeAll", "express_operator.api.intake", "if (operator) {"):
+            self.assertNotIn(gone, provider)
+        # 发出就是直写那一条：附件位置随消息带给 CC（attachments.ts 的 filesToSend）
+        self.assertIn("const files = filesToSend(message.attachments);", provider)
+        self.assertIn("await getSessionController(id).sendMessage(text, files, pendingShownAs);", provider)
+        attachments = read("lib/managed-agents/attachments.ts")
+        self.assertIn("if (stored.task && stored.upload && !sent.has(id)) watchRecognition(id, stored.task, stored.upload);", attachments)
+        tile = read("components/assistant-ui/attachment.tsx")
+        self.assertIn("const recognition = useRecognition(id);", tile)
+        self.assertIn('<span className="cc-compose-type">{recognition?.text}</span>', tile)
+
+    def test_a_composer_file_shows_its_recognition_until_it_has_a_result(self):
+        out = run_ts(RECOGNITION, stubs={**STUBS, "@/lib/frappe": FRAPPE_STUB}, lang="zh")
+        self.assertIn("HARNESS OK", out)
 
     def test_old_words_never_reach_the_page(self):
         for lang in ("zh", "th", "en"):

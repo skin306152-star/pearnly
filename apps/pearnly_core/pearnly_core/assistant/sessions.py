@@ -812,6 +812,15 @@ def send(session_id, text) -> None:
     if note:
         batch.append(note)
     api.post(remote, batch)
+    if row.get("operator_task"):
+        from pearnly_core.express_operator import uploads as operator_uploads
+
+        # 代录会话：这条消息带着的、输入框里已交识别的资料这时才进对话（上传卡片排在这条消息后面，files._operator_take）。
+        # 消息已发出：记不上（任务刚被删等）只留日志，不当发送失败
+        try:
+            operator_uploads.sent(row.operator_task, text)
+        except Exception:
+            frappe.log_error(title="Operator upload sent mark failed")
     # 发出成功才算这段对话有了动静：最后活动时间记成现在（侧栏「上次更新」按它排；CC 回复时由 relay 再记）
     context.active(row.name)
     if row.get("pending_carry"):

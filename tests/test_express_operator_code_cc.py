@@ -304,6 +304,52 @@ class UploadRecordTests(Base):
             self.assertIn(f'"fieldname": "{field}"', child)
 
 
+class ConversationUploadTests(Base):
+    """2026-11-06「选中就上传」：代录会话输入框里的文件由对话的上传口交给任务（``uploads.take``，请求键 = 文件编号），带着它的消息
+    发出时才进对话（``uploads.sent``）；之前对话里不出上传卡片，发出后卡片排在这条消息后面。"""
+
+    def test_a_file_in_the_composer_is_recognized_at_once_and_joins_the_conversation_when_sent(self):
+        feed = importlib.import_module("pearnly_core.express_operator.feed")
+        task = tasks.create("CO-1", "2026-10")["name"]
+        view = uploads.take(task, "bill.pdf", b"%PDF-x", "file_011ABC")
+        self.assertEqual(self.product.intakes, [("CO-1", "bill.pdf", 6, "file_011ABC")])  # 选中就交识别
+        self.assertEqual((view["batch"], view["state"], view["uploaded_at"]), ("B-file_011ABC", "queued", ""))
+        doc = frappe.get_doc("Pearnly Express Operator Task", task)
+
+        def shown():
+            return [e["input"]["filename"] for e in feed.project(doc, None, "UTC") if e.get("name") == feed.UPLOAD]
+
+        self.assertEqual(shown(), [])  # 还在输入框里：对话里没有上传卡片
+        self.assertEqual(uploads.read(task)["uploads"][0]["batch"], "B-file_011ABC")  # 输入框那一项照样读得到识别状态
+        self.assertEqual(uploads.sent(task, "看看这张"), 0)  # 不带它的消息不算
+        before = STATE["now"]
+        STATE["now"] = datetime.datetime(2026, 11, 4, 16, 5)
+        self.addCleanup(STATE.__setitem__, "now", before)
+        note = "看看这张\n\n[Attached file, mounted read-only in the sandbox:\n- bill.pdf → /mnt/session/uploads/file_011ABC/bill.pdf]"
+        self.assertEqual(uploads.sent(task, note), 1)
+        self.assertEqual(shown(), ["bill.pdf"])
+        self.assertEqual(doc.uploads[0].uploaded_at, STATE["now"])  # 发出那一刻：卡片排在这条消息后面
+        self.assertEqual(uploads.sent(task, note), 0)  # 再发一遍同一句不重记
+
+    def test_take_refuses_like_intake_and_skips_what_the_product_does_not_take(self):
+        task = tasks.create("CO-1", "2026-10")["name"]
+        self.product.deferred = True
+        with self.assertRaises(ValidationError_) as caught:
+            uploads.take(task, "bill.pdf", b"x", "file_1")
+        self.assertEqual(str(caught.exception), "upload.deferred")  # 一时连不上：可重试的一句，不是 500
+        self.product.deferred = False
+        self.product.install(intake=False)  # 产品不收上传：文件照常只进对话，任务上不记
+        self.assertIsNone(uploads.take(task, "bill.pdf", b"x", "file_2"))
+        self.assertEqual(frappe.get_doc("Pearnly Express Operator Task", task).uploads, [])
+        self.product.install()
+        self.product.allowed = {"CO-2"}
+        with self.assertRaises(PermissionError_):
+            uploads.take(task, "bill.pdf", b"x", "file_3")  # 这家公司现在不能代录
+        frappe.session.user = "b@example.com"
+        with self.assertRaises(DoesNotExistError_):
+            uploads.take(task, "bill.pdf", b"x", "file_4")  # 别人的任务
+
+
 class UploadStatusTests(Base):
     """B2：每份上传此刻的状态，五种都能显示（上传中在页面，其余四种来自这里）。"""
 

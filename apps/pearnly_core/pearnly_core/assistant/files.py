@@ -15,6 +15,7 @@
 - 对话接续到新上下文后，沙箱里的旧文件没了，本站这份还在（按对话留，不分段）：`kept` 列给智能体，工具照样按文件名取。
 - 用户发的附件也能在右侧面板预览（2026-10-16 CC 外壳，同 Claude 点消息里的附件卡片）：引擎不让下载用户上传的文件，
   `download` / `preview` 找不到可下载的结果时取本站留存的那份；列表里的附件带上大小与 PDF 页数（附件卡片的说明行）。
+- 代录会话里放进输入框的文件（2026-11-06）：同一个上传口、同一套附件组件，另交给会话挂的代录任务识别（``_operator_take``）。
 - PDF 的一页画成图（`page_image`，第 5 轮测试 1、2）：附件卡片的缩略图（第一页，`thumb`）、手机上的 PDF 预览（安卓 Chrome
   不能在 iframe 里显示 PDF，逐页 `page`）。用镜像里已有的 PyMuPDF（识别流水线同一个，frappe.Dockerfile 锁定），不给前端
   加 PDF 渲染库；只有两种宽度，回应带私有缓存头（文件编号对应的内容不变），浏览器同一张只取一次。画好的页图与从引擎取来的
@@ -49,9 +50,22 @@ def upload(session_id) -> dict:
         content, name, mime = heic.to_jpeg(content), heic.jpeg_name(name), "image/jpeg"
     api = engine.adapter()
     stored = api.attach(sessions.segment_for_turn(row, api), name, content, mime)
+    task = _operator_take(row, stored["file_id"], name, content)
     _keep(row, stored["file_id"], name, content)
     meta = _remember_meta(stored["file_id"], name, content)
-    return {"fileId": stored["file_id"], "filename": name, "mountPath": stored["path"], **meta}
+    return {"fileId": stored["file_id"], "filename": name, "mountPath": stored["path"], **meta, **task}
+
+
+def _operator_take(row, file_id, name, content) -> dict:
+    """代录会话（2026-11-06「选中就上传」）：放进输入框的这一份同时交给会话挂的任务识别，请求键就是文件编号（带着它的消息发出时
+    按它记上时刻，``express_operator.uploads.sent``）。回包多带 ``task`` 与 ``upload``（同 ``task_uploads`` 里的一项），输入框那一项
+    按它显示识别中；产品不收上传时不带，文件照常只进对话。"""
+    if not row.get("operator_task"):
+        return {}
+    from pearnly_core.express_operator import uploads
+
+    view = uploads.take(row.operator_task, name, content, file_id)
+    return {"task": row.operator_task, "upload": view} if view else {}
 
 
 KEPT = "assistant-attachments"
