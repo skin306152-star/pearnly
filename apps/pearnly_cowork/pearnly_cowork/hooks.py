@@ -659,6 +659,8 @@ cowork_device_labels = ["pearnly_cowork.companion.devices.labels"]
 # 收入对账（`reconciliation.income_recon_service.known_numbers`）：票面号与 Express 单号不同的已推单据（票号超长，CC 桌面版给销项单
 # 自编号，2026-10-20 教程录制），按推送记录里的两个号配；reconciliation 不导入 push
 cowork_recon_known_numbers = ["pearnly_cowork.push.application.service.known_numbers"]
+# LINE 识别后按行追问存货对照（11-06 按行选物料）：推送侧的取行 / 标题 / 记答案 / 搜存货（`line.items` 不导入推送域）
+cowork_line_items = ["pearnly_cowork.push.application.line_items"]
 
 pearnly_worker_preload = [
     "pearnly_cowork.recon_center.jobs",

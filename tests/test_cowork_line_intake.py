@@ -142,7 +142,8 @@ class LineFlowTest(unittest.TestCase):
         self.assertTrue(self.last()["text"].startswith("Purchase or sales?"))
         self.assertEqual(flow.choices("U1")["account_set_key"], "15:1")
 
-    def test_express_search_hides_unwritable_books_then_asks_posting_kind(self):
+    def test_express_search_hides_unwritable_books_then_goes_straight_to_upload(self):
+        """11-06 按行选物料：Express 上传前不再问整批服务 / 存货（也就没有存货科目组一步），识别后按行追问（`line.items`）。"""
         with mock.patch.object(flow, "_connections", return_value={"express": EXPRESS}), \
                 mock.patch.object(flow, "_state", return_value=(True, "")):
             flow.start("U1", "tok")
@@ -152,68 +153,15 @@ class LineFlowTest(unittest.TestCase):
                              ["1. 69EXP · 69ACME DATA（Acme）", "2. 68EXP · 68ACME AUDITED（Acme）"])
             self.tap("2")
             self.tap("intake.dir.purchase")
-            self.assertEqual(self.labels(), ["Service", "Stock", "Cancel"])
-            self.tap("Stock")
             payload = flow.choices("U1")
         self.assertTrue(flow.ready(payload))
-        self.assertEqual((payload["connection"], payload["account_set_key"], payload["posting_kind"]),
-                         ("CON-X", r"s:\2568\exp68\68acme", "stock"))
+        self.assertTrue(self.last()["text"].endswith("the text the right way up and the whole page in frame."))
+        self.assertEqual((payload["connection"], payload["account_set_key"], payload.get("posting_kind")),
+                         ("CON-X", r"s:\2568\exp68\68acme", None))
         # 选定 Express 账套就让助手读这份账套的主档（推送前的库存检查用）；MR.ERP 不需要。
         self.assertEqual(self.read.call_args.args, ("CON-X", r"s:\2568\exp68\68acme"))
         self.refresh.assert_not_called()
-
-    def express_stock(self):
-        with mock.patch.object(flow, "_connections", return_value={"express": EXPRESS}), \
-                mock.patch.object(flow, "_state", return_value=(True, "")):
-            flow.start("U1", "tok")
-            self.tap("Express")
-            self.search("acme")
-            self.tap("2")
-            self.tap("intake.dir.purchase")
-            self.tap("Stock")
-
-    def test_express_stock_asks_the_stock_account_group_once_for_the_account_set(self):
-        """用户 2026-09-28：合格组两个以上又没选过，点序号选一次，存回这份账套。"""
-        groups = [{"acccod": "SA", "label": "SA · 11-04-01-00 · Stock A"},
-                  {"acccod": "SB", "label": "SB · 11-04-02-00 · Stock B"}]
-        self.stock_view = {"known": True, "groups": groups, "chosen": None}
-        self.express_stock()
-        self.assertEqual(self.last()["text"].splitlines()[1:],
-                         ["1. SA · 11-04-01-00 · Stock A", "2. SB · 11-04-02-00 · Stock B"])
-        self.assertEqual(self.labels(), ["1", "2", "Cancel"])
-        self.tap("2")
-        self.choose.assert_called_once_with("CON-X", r"s:\2568\exp68\68acme", "SB")
-        self.assertTrue(flow.ready(flow.choices("U1")))
-        self.assertTrue(self.last()["text"].endswith("the text the right way up and the whole page in frame."))
-
-    def test_express_stock_does_not_ask_when_there_is_nothing_to_choose_here(self):
-        """选过、只有一个、小助手还没读过这份账套：LINE 不问（网页提交前再问）。"""
-        two = [{"acccod": "SA", "label": "SA"}, {"acccod": "SB", "label": "SB"}]
-        for view in ({"known": True, "groups": two, "chosen": "SA"}, {"known": True, "groups": two[:1], "chosen": None},
-                     {"known": False, "groups": [], "chosen": None}):
-            self.stock_view = view
-            self.express_stock()
-            self.assertTrue(flow.ready(flow.choices("U1")), view)
         self.choose.assert_not_called()
-
-    def test_express_stock_with_more_groups_than_buttons_asks_to_type(self):
-        """用户 10-24：超出 LINE 一屏按钮的（超过 12 个），先让人打名称关键字找；正好 12 个照样列按钮。"""
-        twelve = [{"acccod": f"S{i}", "label": f"S{i}"} for i in range(12)]
-        self.stock_view = {"known": True, "groups": twelve, "chosen": None}
-        self.express_stock()
-        self.assertEqual(self.labels(), [str(i) for i in range(1, 13)] + ["Cancel"])
-        many = [{"acccod": f"S{i}", "label": f"Stock {i}"} for i in range(14)]
-        self.stock_view = {"known": True, "groups": many, "chosen": None}
-        self.express_stock()
-        self.assertFalse(flow.ready(flow.choices("U1")))
-        self.assertEqual(self.last()["text"], "Type a word from the inventory account group name to find it")
-        self.assertEqual(self.labels(), ["Cancel"])   # 不列按钮，问打字
-        self.assertTrue(self.search("Stock"))   # 14 个都匹配：请多打几个字
-        self.assertEqual(self.last()["text"], "Too many matches; type a few more letters to narrow it down")
-        self.assertTrue(self.search("Stock 1"))   # Stock 1 / 10–13 → 5 个
-        self.assertEqual(self.labels(), ["1", "2", "3", "4", "5", "Cancel"])
-        self.assertTrue(self.search("S7"))   # 整串科目编号：直接选上
-        self.assertTrue(flow.ready(flow.choices("U1")))
 
     def test_mrerp_choice_does_not_ask_for_an_account_read(self):
         self.books = MRERP_BOOKS[:1]

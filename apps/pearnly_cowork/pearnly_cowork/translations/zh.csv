@@ -103,8 +103,10 @@ Advertising,广告费
 "After refunds, an item's quantity for a day is zero or less, or its amount is negative",退款后有商品当天的数量为零或负数，或金额为负数
 All,全部
 All Members,全所可用
+All as expense,全部记费用
 All labels,全部标签
 All members,全部成员
+All new stock items,全部新建存货
 Allowed Users,授权用户
 Allowed root folder on the PC,允许读取的根目录
 Already exists,已存在
@@ -725,6 +727,7 @@ Examples Json,修正例数据（JSON）
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,不支持旧版 Excel（.xls）文件，请另存为 .xlsx 或 .csv 后重新发送
 Excel/CSV from online banking or electronic PDF,网银导出的 Excel/CSV 或电子版 PDF
 Excess tax brought forward,上期结转的多缴税额
+Existing item,选已有存货
 Expected VAT,应为税额
 Expense,记费用
 Expense (goods from now on),记费用（商品单据均记费用）
@@ -1069,9 +1072,11 @@ Never,从不
 New Files,新文件数
 New code,重新生成绑定码
 New folder rule,新建规则
+New items:,新物料：
 New records must start as drafts.,新记录必须先保存为草稿。
 New scheduled task,新建定时任务
 New stock count,新建盘点
+New stock item,新建存货
 New task,新建任务
 "New, as on the invoice",新建（按票面）
 Next Attempt At,下次重试时间
@@ -1153,6 +1158,7 @@ Off,关
 Old Value,原值
 On,开
 On schedule,定时
+One by one,逐项选择
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 + 进项或销项 + 服务或存货。
 One folder per rule. PDF and image files only.,每个文件夹对应一条规则，仅支持 PDF 和图片文件。
 One folder per scheduled task. PDF and image files only.,每个文件夹对应一个定时任务，仅支持 PDF 和图片文件。
@@ -2067,6 +2073,7 @@ Type a word from the inventory account group name to find it,输入存货科目�
 Type of income paid,所得类型
 "Type or scan, then press Enter",输入或扫码后按回车
 Type the inventory account group name or account code to find it,输入存货科目组名称或科目编号查找
+Type the item name or code,请输入存货名称或编码
 Unbind LINE,解绑 LINE
 Unbind Pearnly Cowork LINE?,确定要解绑 Pearnly Cowork LINE 吗？
 "Under 1,000 baht","低于 1,000 泰铢"
@@ -2489,6 +2496,13 @@ cowork.intake.waitingRoom,排队中，稍后自动提交
 cowork.line.boundAt,绑定时间
 cowork.line.code,绑定码
 cowork.line.expired,绑定码已过期
+cowork.line.items.allExpense,全部记费用
+cowork.line.items.allNew,全部新建存货
+cowork.line.items.each,逐项选择
+cowork.line.items.new,新物料：
+cowork.line.items.newOne,新建存货
+cowork.line.items.pick,选已有存货
+cowork.line.items.type,请输入存货名称或编码
 cowork.line.lineName,LINE 名称
 cowork.line.newCode,重新生成绑定码
 cowork.line.remaining,剩余 {0}

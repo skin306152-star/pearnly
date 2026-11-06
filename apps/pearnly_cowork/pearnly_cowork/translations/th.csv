@@ -103,8 +103,10 @@ Advertising,ค่าโฆษณา
 "After refunds, an item's quantity for a day is zero or less, or its amount is negative",หลังหักการคืน มีสินค้าที่จำนวนของวันเป็นศูนย์หรือติดลบ หรือยอดเงินติดลบ
 All,ทั้งหมด
 All Members,ทุกคนในสำนักงานใช้ได้
+All as expense,ค่าใช้จ่ายทั้งหมด
 All labels,ป้ายกำกับทั้งหมด
 All members,สมาชิกทั้งหมด
+All new stock items,สร้างใหม่ทั้งหมด
 Allowed Users,ผู้ใช้ที่ได้รับอนุญาต
 Allowed root folder on the PC,โฟลเดอร์หลักที่อนุญาต
 Already exists,มีอยู่แล้ว
@@ -725,6 +727,7 @@ Examples Json,ข้อมูลตัวอย่างการแก้ไข
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,ไม่รองรับไฟล์ Excel รุ่นเก่า (.xls) กรุณาบันทึกเป็น .xlsx หรือ .csv แล้วส่งใหม่
 Excel/CSV from online banking or electronic PDF,Excel/CSV จากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์
 Excess tax brought forward,ภาษีที่ชำระเกินยกมา
+Existing item,เลือกสินค้าที่มี
 Expected VAT,ภาษีที่ควรเป็น
 Expense,บันทึกเป็นค่าใช้จ่าย
 Expense (goods from now on),ค่าใช้จ่าย (เอกสารสินค้าทั้งหมด)
@@ -1069,9 +1072,11 @@ Never,ไม่ซ้ำ
 New Files,จำนวนไฟล์ใหม่
 New code,สร้างรหัสใหม่
 New folder rule,สร้างกฎ
+New items:,สินค้าใหม่:
 New records must start as drafts.,รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง
 New scheduled task,สร้างงานตามกำหนดเวลา
 New stock count,สร้างการตรวจนับ
+New stock item,สร้างสินค้าใหม่
 New task,สร้างงานใหม่
 "New, as on the invoice",สร้างใหม่ตามเอกสาร
 Next Attempt At,เวลาลองใหม่ครั้งถัดไป
@@ -1153,6 +1158,7 @@ Off,ปิด
 Old Value,ค่าเดิม
 On,เปิด
 On schedule,ตามกำหนดเวลา
+One by one,เลือกทีละรายการ
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",หนึ่งโฟลเดอร์ = หนึ่งกฎ = หนึ่งบริษัท + ชุดบัญชีหนึ่งปี + ซื้อหรือขาย + บริการหรือสต็อก
 One folder per rule. PDF and image files only.,หนึ่งโฟลเดอร์ต่อหนึ่งกฎ รองรับเฉพาะไฟล์ PDF และรูปภาพ
 One folder per scheduled task. PDF and image files only.,หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ
@@ -2067,6 +2073,7 @@ Type a word from the inventory account group name to find it,พิมพ์ค�
 Type of income paid,ประเภทเงินได้พึงประเมินที่จ่าย
 "Type or scan, then press Enter",พิมพ์หรือสแกน แล้วกด Enter
 Type the inventory account group name or account code to find it,พิมพ์ชื่อกลุ่มบัญชีสินค้าคงเหลือหรือรหัสบัญชีเพื่อค้นหา
+Type the item name or code,พิมพ์ชื่อหรือรหัสสินค้า
 Unbind LINE,ยกเลิกการเชื่อมต่อ LINE
 Unbind Pearnly Cowork LINE?,ต้องการยกเลิกการเชื่อมต่อ LINE ของ Pearnly Cowork ใช่หรือไม่
 "Under 1,000 baht","ต่ำกว่า 1,000 บาท"
@@ -2489,6 +2496,13 @@ cowork.intake.waitingRoom,อยู่ในคิว ระบบจะส่�
 cowork.line.boundAt,เวลาที่ผูกบัญชี
 cowork.line.code,รหัสผูกบัญชี
 cowork.line.expired,รหัสหมดอายุแล้ว
+cowork.line.items.allExpense,ค่าใช้จ่ายทั้งหมด
+cowork.line.items.allNew,สร้างใหม่ทั้งหมด
+cowork.line.items.each,เลือกทีละรายการ
+cowork.line.items.new,สินค้าใหม่:
+cowork.line.items.newOne,สร้างสินค้าใหม่
+cowork.line.items.pick,เลือกสินค้าที่มี
+cowork.line.items.type,พิมพ์ชื่อหรือรหัสสินค้า
 cowork.line.lineName,ชื่อ LINE
 cowork.line.newCode,สร้างรหัสใหม่
 cowork.line.remaining,เหลือเวลา {0}

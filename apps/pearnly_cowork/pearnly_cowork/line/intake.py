@@ -156,12 +156,41 @@ def announce(source_name, phase, records):
         from pearnly_cowork.line import cards
 
         messages = cards.previews(records, pending)
+        question = _item_question(pending["line_user_id"], records)
+        if question:
+            messages.append(question)  # 卡片后面跟一条按行追问（同一次发送；快捷回复挂在最后一条上）
         # 一次回复最多 5 条（LINE）：第一批用回复令牌，其余推送（ERP 同法）。
         line.reply_or_push(pending["line_user_id"], messages[:5], pending.get("reply_token"))
         for start in range(5, len(messages), 5):
             line.push(pending["line_user_id"], messages[start:start + 5])
 
     _with_language(pending, send)
+
+
+def _item_question(line_user_id, records):
+    """这一批识别出的票里有定不了的行（Express 去向、没声明过账类型），排进本人的按行追问；现在就该问的那张回它的提问
+    （`line.items`）。按绑定的这个账号判（同 webhook 的做法），判不了就不问。"""
+    from pearnly_core import line_binding
+
+    from pearnly_cowork.line import items
+
+    user = line_binding.user_of(line_user_id)
+    if not user:
+        return None
+    previous = frappe.session.user
+    try:
+        frappe.set_user(user)
+        question = None
+        for history in records or ():
+            asked = items.queue(line_user_id, history)
+            question = question or asked
+        return question
+    except Exception:
+        frappe.db.rollback()
+        frappe.log_error(title="Cowork LINE item question failed", message=frappe.get_traceback()[-1500:])
+        return None
+    finally:
+        frappe.set_user(previous)
 
 
 def _with_language(pending, send):

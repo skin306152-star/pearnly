@@ -103,8 +103,10 @@ Advertising,広告費
 "After refunds, an item's quantity for a day is zero or less, or its amount is negative",返品後、数量がゼロ以下か金額がマイナスの品目がある日があります
 All,すべて
 All Members,事務所全員が利用可
+All as expense,すべて経費
 All labels,すべてのラベル
 All members,すべてのメンバー
+All new stock items,すべて新規在庫品
 Allowed Users,許可ユーザー
 Allowed root folder on the PC,許可されたルートフォルダー
 Already exists,すでに存在します
@@ -725,6 +727,7 @@ Examples Json,修正例データ（JSON）
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください
 Excel/CSV from online banking or electronic PDF,ネットバンキングの Excel/CSV または電子版 PDF
 Excess tax brought forward,繰越超過納付額
+Existing item,既存の品目
 Expected VAT,想定税額
 Expense,経費に計上
 Expense (goods from now on),費用に計上（以後も同様）
@@ -1069,9 +1072,11 @@ Never,なし
 New Files,新規ファイル数
 New code,新しいコード
 New folder rule,ルールを作成
+New items:,新しい品目：
 New records must start as drafts.,新しいレコードは下書きとして作成する必要があります。
 New scheduled task,定期タスクを作成
 New stock count,棚卸を作成
+New stock item,新規在庫品
 New task,新規タスク
 "New, as on the invoice",伝票どおり新規作成
 Next Attempt At,次回再試行日時
@@ -1153,6 +1158,7 @@ Off,オフ
 Old Value,変更前の値
 On,オン
 On schedule,スケジュール
+One by one,1件ずつ選ぶ
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",1 フォルダー = 1 ルール = 1 社 + 1 年度の帳簿 + 仕入または売上 + サービスまたは在庫
 One folder per rule. PDF and image files only.,1 フォルダーに 1 ルール。PDF と画像のみ。
 One folder per scheduled task. PDF and image files only.,1 フォルダーに 1 定期タスク。PDF と画像のみ。
@@ -2067,6 +2073,7 @@ Type a word from the inventory account group name to find it,在庫勘定グル�
 Type of income paid,支払った所得の種類
 "Type or scan, then press Enter",入力またはスキャンして Enter
 Type the inventory account group name or account code to find it,在庫勘定グループ名または勘定コードを入力して検索
+Type the item name or code,品目名かコードを入力してください
 Unbind LINE,LINE 連携を解除
 Unbind Pearnly Cowork LINE?,Pearnly Cowork LINE の連携を解除しますか？
 "Under 1,000 baht","1,000 バーツ未満"
@@ -2489,6 +2496,13 @@ cowork.intake.waitingRoom,順番待ち・自動で送信します
 cowork.line.boundAt,連携日時
 cowork.line.code,連携コード
 cowork.line.expired,コードの有効期限が切れました
+cowork.line.items.allExpense,すべて経費
+cowork.line.items.allNew,すべて新規在庫品
+cowork.line.items.each,1件ずつ選ぶ
+cowork.line.items.new,新しい品目：
+cowork.line.items.newOne,新規在庫品
+cowork.line.items.pick,既存の品目
+cowork.line.items.type,品目名かコードを入力してください
 cowork.line.lineName,LINE の名前
 cowork.line.newCode,新しいコード
 cowork.line.remaining,残り {0}

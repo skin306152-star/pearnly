@@ -103,8 +103,10 @@ Advertising,Advertising
 "After refunds, an item's quantity for a day is zero or less, or its amount is negative","After refunds, an item's quantity for a day is zero or less, or its amount is negative"
 All,All
 All Members,All Members
+All as expense,All as expense
 All labels,All labels
 All members,All members
+All new stock items,All new stock items
 Allowed Users,Allowed Users
 Allowed root folder on the PC,Allowed root folder on the PC
 Already exists,Already exists
@@ -725,6 +727,7 @@ Examples Json,Examples Json
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again
 Excel/CSV from online banking or electronic PDF,Excel/CSV from online banking or electronic PDF
 Excess tax brought forward,Excess tax brought forward
+Existing item,Existing item
 Expected VAT,Expected VAT
 Expense,Expense
 Expense (goods from now on),Expense (goods from now on)
@@ -1069,9 +1072,11 @@ Never,Never
 New Files,New Files
 New code,New code
 New folder rule,New folder rule
+New items:,New items:
 New records must start as drafts.,New records must start as drafts.
 New scheduled task,New scheduled task
 New stock count,New stock count
+New stock item,New stock item
 New task,New task
 "New, as on the invoice","New, as on the invoice"
 Next Attempt At,Next Attempt At
@@ -1153,6 +1158,7 @@ Off,Off
 Old Value,Old Value
 On,On
 On schedule,On schedule
+One by one,One by one
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.","One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
 One folder per rule. PDF and image files only.,One folder per rule. PDF and image files only.
 One folder per scheduled task. PDF and image files only.,One folder per scheduled task. PDF and image files only.
@@ -2067,6 +2073,7 @@ Type a word from the inventory account group name to find it,Type a word from th
 Type of income paid,Type of income paid
 "Type or scan, then press Enter","Type or scan, then press Enter"
 Type the inventory account group name or account code to find it,Type the inventory account group name or account code to find it
+Type the item name or code,Type the item name or code
 Unbind LINE,Unbind LINE
 Unbind Pearnly Cowork LINE?,Unbind Pearnly Cowork LINE?
 "Under 1,000 baht","Under 1,000 baht"
@@ -2489,6 +2496,13 @@ cowork.intake.waitingRoom,"Waiting in line, will submit automatically"
 cowork.line.boundAt,Bound at
 cowork.line.code,Binding code
 cowork.line.expired,Code expired
+cowork.line.items.allExpense,All as expense
+cowork.line.items.allNew,All new stock items
+cowork.line.items.each,One by one
+cowork.line.items.new,New items:
+cowork.line.items.newOne,New stock item
+cowork.line.items.pick,Existing item
+cowork.line.items.type,Type the item name or code
 cowork.line.lineName,LINE name
 cowork.line.newCode,New code
 cowork.line.remaining,Time left {0}

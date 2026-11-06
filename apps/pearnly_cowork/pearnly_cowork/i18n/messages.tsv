@@ -1531,6 +1531,13 @@ Department	部门	แผนก	部門	cowork.choice.department
 Receiving account	收款科目	บัญชีรับเงิน	入金勘定	cowork.choice.receipt
 New, as on the invoice	新建（按票面）	สร้างใหม่ตามเอกสาร	伝票どおり新規作成	cowork.choice.new
 Expense	记费用	บันทึกเป็นค่าใช้จ่าย	経費に計上	cowork.choice.expenseLine
+New items:	新物料：	สินค้าใหม่:	新しい品目：	cowork.line.items.new
+All new stock items	全部新建存货	สร้างใหม่ทั้งหมด	すべて新規在庫品	cowork.line.items.allNew
+All as expense	全部记费用	ค่าใช้จ่ายทั้งหมด	すべて経費	cowork.line.items.allExpense
+One by one	逐项选择	เลือกทีละรายการ	1件ずつ選ぶ	cowork.line.items.each
+New stock item	新建存货	สร้างสินค้าใหม่	新規在庫品	cowork.line.items.newOne
+Existing item	选已有存货	เลือกสินค้าที่มี	既存の品目	cowork.line.items.pick
+Type the item name or code	请输入存货名称或编码	พิมพ์ชื่อหรือรหัสสินค้า	品目名かコードを入力してください	cowork.line.items.type
 Cash purchase	现购	ซื้อเงินสด	現金仕入	cowork.choice.cash
 Credit purchase	赊购	ซื้อเงินเชื่อ	掛仕入	cowork.choice.credit
 Claim as input VAT	抵扣进项税	ใช้สิทธิ์ภาษีซื้อ	仕入税額控除する	cowork.choice.claim

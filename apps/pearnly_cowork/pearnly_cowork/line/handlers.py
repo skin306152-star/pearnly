@@ -80,6 +80,13 @@ def _postback(user_id, bound, data, reply_token) -> bool:
         # 旧菜单的「ประสานงาน」：工作协调要重新设计，还没开放（用户 2026-09-26）。
         _reply(reply_token, _("This channel is not open yet"))
         return True
+    from pearnly_cowork.line import items
+
+    if items.is_step(data):
+        # 识别后按行追问存货对照（11-06 按行选物料）
+        if _usable(bound, reply_token):
+            _as(bound, lambda: items.answer(user_id, data, reply_token))
+        return True
     if not (flow.is_start(data) or flow.is_step(data)):
         return False
     if _usable(bound, reply_token):
@@ -144,6 +151,11 @@ def _handle(event: dict, user_id: str) -> bool:
         return True
     if text.casefold() in {word.casefold() for word in flow.MENU_WORDS} and flow.allowed(bound):
         flow.menu(reply_token)
+        return True
+    # 正在「选已有存货」：打的字就是找存货的关键词（11-06 按行选物料）
+    from pearnly_cowork.line import items
+
+    if text and flow.allowed(bound) and _as(bound, lambda: items.search(user_id, text, reply_token)):
         return True
     # 正在选账套：打的字就是找账套的关键词（用户 2026-09-27）。
     if text and flow.allowed(bound) and _as(bound, lambda: flow.search(user_id, text, reply_token)):
