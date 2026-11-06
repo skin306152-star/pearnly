@@ -1899,7 +1899,8 @@ TAX_IDS = ("seller_tax", "buyer_tax")
 CHOICES = {"document_type": ("tax_invoice", "simplified_tax_invoice", "receipt", "credit_note", "payment_evidence",
                              "order_evidence", "other"),
            "direction": ("purchase", "sales"), "posting_kind": ("service", "stock")}
-ITEM_COLUMNS = ("name", "qty", "price", "subtotal")
+# 明细行：品名 / 数量 / 单价 / 金额，加复核页每行的过账类型（服务 / 存货，Express 行级判据 `item_posting_kinds`）
+ITEM_COLUMNS = ("name", "qty", "price", "subtotal", "posting_kind")
 DETAIL_FIELDS = ("document_type", "invoice_number", "date", "date_raw", "seller_name", "seller_tax", "seller_branch",
                  "seller_addr", "buyer_name", "buyer_tax", "buyer_branch", "buyer_addr", "subtotal", "vat", "discount",
                  "total_amount", "wht_amount", "currency", "notes", "direction", "posting_kind")
@@ -2058,7 +2059,8 @@ def edit_document(tool_input) -> str:
         cleaned = {key: (None if value in (None, "") else _clean(key, value)) for key, value in changes.items()}
         rows = None if items is None else [
             _filled({"name": str(row.get("name") or "").strip(),
-                     **{key: _amount(row[key]) for key in ("qty", "price", "subtotal") if row.get(key) not in (None, "")}})
+                     **{key: _amount(row[key]) for key in ("qty", "price", "subtotal") if row.get(key) not in (None, "")},
+                     **({"posting_kind": _clean("posting_kind", row["posting_kind"])} if row.get("posting_kind") else {})})
             for row in items if isinstance(row, dict)]
     except ValueError as error:
         return _json({"status": "not_saved", "reason": str(error)})
@@ -2080,7 +2082,7 @@ def edit_document(tool_input) -> str:
         else:
             fields[target] = value
     if rows is not None:
-        fields["items"] = rows
+        fields["items"] = _kept_kinds(before.get("items"), rows)
     pages[index] = {**pages[index], "fields": fields}
     try:
         saved = storage.update_pages(name, pages, str(tool_input["version"]))
@@ -2093,6 +2095,20 @@ def edit_document(tool_input) -> str:
         return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
     out = _detail(saved)
     return _json({"status": "saved", **out, **_entered_note(out.get("push_status"))})
+
+
+def _kept_kinds(old, rows):
+    """改明细时没给过账类型的行，沿用原来同名那一行的（复核页逐行选的服务 / 存货；以前 CC 改一次明细就全丢了）。
+    同名几行按出现顺序一一对上；原来没有的行不补。"""
+    pool = {}
+    for row in old or []:
+        if isinstance(row, dict) and row.get("posting_kind"):
+            pool.setdefault(str(row.get("name") or "").strip(), []).append(row["posting_kind"])
+    out = []
+    for row in rows:
+        kinds = pool.get(row.get("name") or "")
+        out.append({**row, "posting_kind": kinds.pop(0)} if kinds and not row.get("posting_kind") else row)
+    return out
 
 
 ORIGINAL_PAGES_MAX = 3
@@ -4190,7 +4206,9 @@ TOOLS = [
                      "additionalProperties": False},
          "items": {"type": "array", "items": {"type": "object", "properties": {
              "name": {"type": "string"}, "qty": {"type": ["string", "number"]},
-             "price": {"type": ["string", "number"]}, "subtotal": {"type": ["string", "number"]}}}},
+             "price": {"type": ["string", "number"]}, "subtotal": {"type": ["string", "number"]},
+             "posting_kind": {"type": "string", "enum": ["service", "stock"],
+                              "description": "Per line, as on the review page; leave it out to keep the line's current one."}}}},
          "basis": {"type": "string", "description": "What the change is based on, in a few words: the user's words, "
                                                    "the original's page, or how a number was worked out. Required to "
                                                    "change amounts, tax IDs, the invoice number, date, type, currency "

@@ -721,6 +721,22 @@ class EditDocumentTests(unittest.TestCase):
         self.assertEqual(fields["items"], [{"name": "A"}])
         self.assertEqual((out["status"], out["version"]), ("saved", 5))
 
+    def test_editing_items_keeps_each_lines_posting_kind(self):
+        """11-06（按行选物料 C8）：复核页逐行选的服务 / 存货，CC 改明细时没给就沿用同名那一行的；给了照给的；乱填不保存。"""
+        self.doc["pages"][1]["fields"]["items"] = [{"name": "Freight", "subtotal": "40", "posting_kind": "service"},
+                                                   {"name": "Ice", "subtotal": "60", "posting_kind": "stock"}]
+        out = json.loads(tools.edit_document({"document": "H1", "version": 4, "basis": "the user said so", "items": [
+            {"name": "Ice", "qty": "2", "subtotal": "60"}, {"name": "Freight", "subtotal": "45"},
+            {"name": "Box", "subtotal": "5", "posting_kind": "stock"}]}))
+        self.assertEqual(out["status"], "saved")
+        items = self.saved[0][1][1]["fields"]["items"]
+        self.assertEqual([row.get("posting_kind") for row in items], ["stock", "service", "stock"])
+        self.assertEqual([row.get("posting_kind") for row in out["items"]], ["stock", "service", "stock"])
+        out = json.loads(tools.edit_document({"document": "H1", "version": 4, "basis": "x",
+                                              "items": [{"name": "Ice", "posting_kind": "goods"}]}))
+        self.assertEqual(out["status"], "not_saved")
+        self.assertEqual(len(self.saved), 1)
+
     def test_bad_values_and_unknown_fields_are_refused_before_saving(self):
         for changes in ({"total_amount": "abc"}, {"seller_tax": "123"}, {"direction": "refund"}, {"push_state": "x"}):
             out = json.loads(tools.edit_document({"document": "H1", "version": 4, "changes": changes}))
