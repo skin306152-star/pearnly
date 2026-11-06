@@ -177,7 +177,7 @@ def test_changing_the_machine_root_updates_every_member_and_keeps_what_still_fit
     store = ProfileStore.load(tmp_path / "c.json", protector=_Protector())
     _member(store, "exp_a_1", str(root70), str(acme), revenue="4999")         # 仍登记在主根：原样保留
     _member(store, "exp_b_2", r"S:\\OLD", str(other_drive), revenue="4888")  # 登记在另一年度：保留，主根改成那一年
-    _member(store, "exp_c_3", r"S:\\GONE", r"S:\\GONE\\OLD", paused=True)  # 新数据根里没有：换成默认账套
+    _member(store, "exp_c_3", r"S:\\GONE", r"S:\\GONE\\OLD", paused=True)  # 新数据根里没有：所选原样留着（11-06 不再换）
     registry = {
         str(root70): [AccountSet(code="A", name="ACME", company="", path=str(acme), tax_id="", writable=False, row=1),
                       AccountSet(code="N", name="NEWCO", company="", path=str(newco), tax_id="", writable=False, row=2)],
@@ -190,6 +190,7 @@ def test_changing_the_machine_root_updates_every_member_and_keeps_what_still_fit
     monkeypatch.setattr(gui_pairing, "probe_default_accounts", lambda path: {"revenue_acc": "4100"})
 
     roots = [str(root70), str(root69)]
+    before_third = store.runtime_config(store.profiles[2].profile_id)
     assert gui_pairing.apply_roots(store, roots) == 3
 
     reloaded = ProfileStore.load(tmp_path / "c.json", protector=_Protector())
@@ -199,13 +200,37 @@ def test_changing_the_machine_root_updates_every_member_and_keeps_what_still_fit
     # 推送按「数据根 + 账套」找账套：主根必须是真正登记它的那一年
     assert (second.express_root, list(second.authorized_roots)) == (str(root69), roots)
     assert (second.account_dir, second.revenue_acc) == (str(other_drive), "4888")
-    assert (third.express_root, third.account_dir, third.account_company, third.account_set_row,
-            third.revenue_acc) == (str(root70), str(newco), "New Co.", 2, "4100")
+    # 11-06 有意变化：所选账套不在新位置里不再换成主根第一本（测试机上被换成了 S 盘一本真实客户的账），所选、行号、科目原样留着，
+    # 主根取新位置第一个；新数据根也照样写进去（心跳报新名单），人在网页里选账套
+    assert (third.express_root, third.account_dir, list(third.authorized_roots)) == (str(root70), r"S:\\GONE\\OLD", roots)
+    assert (third.account_company, third.account_set_row) == (before_third.account_company, before_third.account_set_row)
+    assert third.revenue_acc == before_third.revenue_acc
     assert [record.paused for record in reloaded.profiles] == [False, False, True]
     assert [cfg.bearer_token for cfg in (first, second, third)] == ["exp_a_1", "exp_b_2", "exp_c_3"]
 
 
-def test_nothing_is_written_when_a_member_has_no_usable_account_set(tmp_path, monkeypatch):
+def test_a_member_whose_account_set_is_gone_keeps_it_instead_of_taking_another_real_one(tmp_path, monkeypatch):
+    """11-06 测试机：去掉所选账套所在的位置后，CC 把成员自动换成了新位置里第一本账套（S 盘一本真实客户的账）。现在原样留着所选，
+    不去读新位置里有哪些账套来挑，也不读它的默认科目；主根与授权名单照样换成新的。"""
+    store = ProfileStore.load(tmp_path / "c.json", protector=_Protector())
+    _member(store, "exp_a_1", r"S:\\EXP68", r"S:\\EXP68\\ACME", revenue="4999")
+    before = store.runtime_config(store.profiles[0].profile_id)
+    detailed = []
+    monkeypatch.setattr(gui_pairing, "probe_account_sets",
+                        lambda root, include_details=True: [] if not include_details else detailed.append(root) or [
+                            AccountSet(code="R", name="REAL", company="Real Customer", path=root + r"\\REAL", tax_id="",
+                                       writable=True, row=1)])
+    monkeypatch.setattr(gui_pairing, "probe_default_accounts", lambda path: {"revenue_acc": "4100"})
+    root70 = str(tmp_path / "70EXP")
+    assert gui_pairing.apply_roots(store, [root70]) == 1
+    after = ProfileStore.load(tmp_path / "c.json", protector=_Protector()).runtime_config(before.profile_id)
+    assert (after.account_dir, after.account_set, after.account_company, after.account_set_row, after.revenue_acc) == (
+        before.account_dir, before.account_set, before.account_company, before.account_set_row, "4999")
+    assert (after.express_root, list(after.authorized_roots)) == (root70, [root70])
+    assert detailed == []  # 没去新位置里挑账套
+
+
+def test_nothing_is_written_when_no_new_root_is_reachable(tmp_path, monkeypatch):
     store = ProfileStore.load(tmp_path / "c.json", protector=_Protector())
     _member(store, "exp_a_1", r"S:\\EXP68", r"S:\\EXP68\\ACME")
     before = (tmp_path / "c.json").read_bytes()
@@ -214,7 +239,7 @@ def test_nothing_is_written_when_a_member_has_no_usable_account_set(tmp_path, mo
     import pytest
 
     with pytest.raises(ValueError):
-        gui_pairing.apply_roots(store, [str(tmp_path / "70EXP")])
+        gui_pairing.apply_roots(store, [str(tmp_path / "70EXP")], offline=[str(tmp_path / "70EXP")])
     assert (tmp_path / "c.json").read_bytes() == before
 
 

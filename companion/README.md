@@ -137,6 +137,10 @@
   - 后台做法（`bg_desk`）的电脑上，AI 接手的系统提示写明只能用键盘、`express_menu` 和看画面，电脑工具集里鼠标类成员整组关掉
     （`configs` 的 `enabled: false`，`helper.MOUSE_MEMBERS`），模型不再出鼠标调用；前台做法不变。
     站点卡片显示完整结论要服务端同批（`feed.reason_detail`、回执原因整段存）；旧服务端只显示原因。
+  - 加 / 删 Express 位置、「重新查找」之后账套清单一扫完（完整快照）就马上整份上报，不等下一拍（`worker._snapshot_waiting`、
+    `master_refresh.complete_after`，最少隔 5 秒）：网页「添加公司」几秒内就有新位置的账套。
+  - 去掉位置后成员的所选账套不在新位置里时**不再自动换成新位置里第一本账套**（11-06 测试机被换成了 S 盘一本真实客户的账）：所选
+    原样留着，主根取新位置第一个，等人在网页里选（`express_machine.apply_roots`）。
 
 ## 本机测试
 

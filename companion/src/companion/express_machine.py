@@ -311,7 +311,8 @@ def apply_roots(store, roots: List[str], offline: Iterable[str] = ()) -> int:
 
     成员原来的默认账套仍登记在新数据根里（按登记表里的账套名单认，账套可以在别的盘）→ 账套、行号、人工改过的
     科目原样保留，主数据根取真正登记它的那一个（推送按「数据根 + 账套」找账套，两者必须对得上）；
-    不在了才换成主根里第一个够得到的账套，科目取它 ISINFO 的默认值。全部算好再写，有一个成员找不到可用账套
+    不在了**也不换**（11-06：自动换成过 S 盘一本真实客户的账）：所选原样留着、主根取新位置第一个，等人在网页里选；
+    只有成员还没有所选账套时才取主根里第一个够得到的账套，科目取它 ISINFO 的默认值。全部算好再写，有一个成员找不到可用账套
     就一个都不改。服务端在下一次心跳拿到新的账套与数据根，不用重新配对。
 
     ``offline``：其中暂时访问不到、只是保留授权的数据根（:func:`rescan_roots`）：不去读它们的登记表；成员的主数据根就是
@@ -343,6 +344,16 @@ def apply_roots(store, roots: List[str], offline: Iterable[str] = ()) -> int:
             updates = {"express_root": home}
         elif away is not None:
             home, updates = away, {"express_root": away}
+        elif account:
+            # 所选账套不在新位置里（位置被去掉、账套挪走）：**不换成别的账套**，原来的所选、行号、科目原样留着，推送都带账套与数据根、按授权
+            # 位置核对（worker._task_settings），不会因此写进别的账套；人在网页里选账套（11-06 测试机：去掉 70EXP 后两个成员被自动换成 S 盘一本真实客户的账）。
+            # 主根取新位置的第一个（心跳照常扫新位置、报新名单）。
+            if not reachable:
+                raise ValueError(roots[0])
+            home = reachable[0]
+            updates = {"express_root": home}
+            log.warning("所选账套不在新的 Express 位置里，保留原来的所选、不自动换账套，等人在网页里选 · profile=%s",
+                        record.profile_id)
         else:
             if not reachable:
                 raise ValueError(roots[0])

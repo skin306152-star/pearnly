@@ -837,6 +837,24 @@ def _operator_heartbeat(cfg: CompanionConfig, qc, state: dict, on_update_availab
             device_link.REJECTIONS.rejected(cfg)
 
 
+# 账套清单扫完了一份新的完整快照（加 / 删 Express 位置、「重新查找」之后）：最少隔这么久就报，不等下一拍（每分钟一拍）
+_SNAPSHOT_HEARTBEAT_MIN_S = 5
+
+
+def _snapshot_waiting(cfg: CompanionConfig, state: dict, now: float) -> bool:
+    """这个成员有一份比上次报过的更新、已经扫完的完整账套快照，且离上一拍至少 :data:`_SNAPSHOT_HEARTBEAT_MIN_S` 秒。"""
+    if now - state.get("last_heartbeat", 0.0) < _SNAPSHOT_HEARTBEAT_MIN_S:
+        return False
+    try:
+        from . import master_refresh
+
+        authorized = list(getattr(cfg, "authorized_roots", None) or ())
+        return master_refresh.complete_after(cfg.resolved_express_root() or "", cfg.account_dir or "",
+                                             float(state.get("last_master", 0.0) or 0.0), scan_roots(cfg, authorized))
+    except Exception:  # noqa: BLE001 — 判断不了就照常按每分钟一拍
+        return False
+
+
 def _run_periodic(
     cfg: CompanionConfig, qc, state: dict, on_update_available=None
 ) -> None:
@@ -849,7 +867,7 @@ def _run_periodic(
     )
     if refresh_request_id or now - state.get("last_heartbeat", 0.0) >= max(
         10, cfg.heartbeat_interval_s
-    ):
+    ) or _snapshot_waiting(cfg, state, now):
         state["last_heartbeat"] = now
         try:
             from . import update_block

@@ -346,6 +346,24 @@ def request_master(
     return None, 0.0
 
 
+def complete_after(
+    express_root: str,
+    account_dir: str,
+    newer_than: float,
+    authorized_roots: Optional[list[str]] = None,
+) -> bool:
+    """这个成员（同 :func:`request_master` 的键，平时那种：带科目表）有没有比 ``newer_than`` 新、已经扫完的完整快照（不算「进行中」
+    快照）。心跳据此不等下一拍：加 / 删 Express 位置、「重新查找」、新年度文件夹之后扫完就马上整份上报（11-06 用户：加了位置要等
+    一分钟网页「添加公司」才有）。只看这个成员自己的键，别的成员扫完的不算（不然它永远拿不走、这个成员每拍都报）。"""
+    if not _norm(express_root) and not _norm(account_dir):
+        return False
+    identity = _key(express_root, account_dir, False, authorized_roots)
+    with _lock:
+        refresh = _refreshes.get(identity)
+        return bool(refresh is not None and not refresh.running and refresh.payload is not None
+                    and not refresh.payload.get("partial") and refresh.completed_at > newer_than)
+
+
 def refresh_error(
     express_root: str,
     account_dir: str,
