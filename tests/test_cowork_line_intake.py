@@ -379,10 +379,25 @@ class LineAnnounceTest(unittest.TestCase):
         with mock.patch.object(intake.frappe, "cache", fake), mock.patch("pearnly_core.execution.state.store", return_value=fake), \
                 mock.patch.object(intake.frappe, "local", mock.Mock(lang="zh")), \
                 mock.patch("pearnly_cowork.line.cards.previews", return_value=[{"type": "flex"}]), \
+                mock.patch.object(intake, "_item_question", return_value=None), \
                 mock.patch.object(intake.line, "reply_or_push") as send:
             intake.announce("CWS-1", "saved", ["H1"])
             intake.announce("CWS-1", "saved", ["H1"])
         send.assert_called_once_with("U1", [{"type": "flex"}], "tok")
+
+    def test_the_item_question_goes_after_the_cards(self):
+        """11-06 按行选物料：有定不了的行就在卡片后面跟一条提问（同一次发送，快捷回复挂在最后一条上）。"""
+        cache = {intake._PENDING + "CWS-3": {"line_user_id": "U1", "language": "th", "reply_token": "tok"}}
+        fake = mock.Mock(get_value=cache.get, delete_value=lambda key: cache.pop(key, None))
+        question = {"type": "text", "text": "new"}
+        with mock.patch.object(intake.frappe, "cache", fake), mock.patch("pearnly_core.execution.state.store", return_value=fake), \
+                mock.patch.object(intake.frappe, "local", mock.Mock(lang="zh")), \
+                mock.patch("pearnly_cowork.line.cards.previews", return_value=[{"type": "flex"}]), \
+                mock.patch.object(intake, "_item_question", return_value=question) as asked, \
+                mock.patch.object(intake.line, "reply_or_push") as send:
+            intake.announce("CWS-3", "saved", ["H1"])
+        asked.assert_called_once_with("U1", ["H1"])
+        send.assert_called_once_with("U1", [{"type": "flex"}, question], "tok")
 
     def test_uploads_not_from_line_are_ignored(self):
         fake = mock.Mock(get_value=lambda key: None)

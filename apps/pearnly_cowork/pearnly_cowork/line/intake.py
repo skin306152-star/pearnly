@@ -174,11 +174,11 @@ def _item_question(line_user_id, records):
 
     from pearnly_cowork.line import items
 
-    user = line_binding.user_of(line_user_id)
-    if not user:
-        return None
     previous = frappe.session.user
     try:
+        user = line_binding.user_of(line_user_id)
+        if not user:
+            return None
         frappe.set_user(user)
         question = None
         for history in records or ():
