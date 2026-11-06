@@ -744,7 +744,7 @@ class RelayTests(unittest.TestCase):
     def test_tools_can_reach_this_conversations_attachments_and_only_those(self):
         # 引擎不让下载用户上传的文件：原件在本站留一份挂在会话上；工具执行时知道是哪个对话，只取这个对话的附件。
         files = (CORE / "assistant/files.py").read_text(encoding="utf-8")
-        upload = files.split("def upload(", 1)[1].split("\ndef ", 1)[0]
+        upload = files.split("def _upload(", 1)[1].split("\ndef ", 1)[0]
         self.assertIn('_keep(row, stored["file_id"], name, content)', upload)
         kept = files.split("def _kept(", 1)[1].split("\ndef ", 1)[0]
         self.assertIn("sessions.owned(", kept)
@@ -840,9 +840,25 @@ class RelayTests(unittest.TestCase):
                 self.filename, self.mimetype = name, "application/pdf"
                 self.stream = types.SimpleNamespace(read=lambda size: content)
 
+        import contextlib
+
+        trail = []
+
+        @contextlib.contextmanager
+        def lock(key, timeout=None, blocking_timeout=None):
+            trail.append(("lock", key))
+            yield
+            trail.append(("unlock", key))
+
         saved = (getattr(frappe, "get_site_path", None), getattr(frappe, "request", None), getattr(frappe, "cache", None))
         frappe.get_site_path = lambda *parts: os.path.join(root, *parts)
-        frappe.cache = types.SimpleNamespace(set_value=lambda *a, **k: None)
+        frappe.cache = types.SimpleNamespace(set_value=lambda *a, **k: None, lock=lock)
+        db_saved = (getattr(frappe.db, "rollback", None), getattr(frappe.db, "commit", None))
+        frappe.db.rollback = lambda *a, **k: trail.append(("rollback",))
+        frappe.db.commit = lambda *a, **k: trail.append(("commit",))
+        operator_uploads.take = (lambda take: lambda *a: trail.append(("take",)) or take(*a))(operator_uploads.take)
+        site = getattr(frappe.local, "site", None)
+        frappe.local.site = "t.localhost"
         try:
             with mock.patch.dict(sys.modules, {"pearnly_core.express_operator.uploads": operator_uploads}), \
                     mock.patch.object(package, "uploads", operator_uploads, create=True), \
@@ -851,13 +867,24 @@ class RelayTests(unittest.TestCase):
                 out = files.upload("s1")
                 self.assertEqual(taken, [("t001", "bill.pdf", b"%PDF-x", "file_A")])
                 self.assertEqual((out["fileId"], out["task"], out["upload"]["batch"]), ("file_A", "t001", "B-1"))
-                out = files.upload("s2")  # 直写会话：只进对话
+                # 同一段代录会话里同时传几份按会话排队：拿锁、丢旧读视图、交任务、先提交再放锁（11-06 一次选两份第二份 500）
+                key = "t.localhost:pearnly_assistant:upload:row1"
+                self.assertEqual(trail, [("lock", key), ("rollback",), ("take",), ("commit",), ("unlock", key)])
+                trail.clear()
+                out = files.upload("s2")  # 直写会话：只进对话，不排队
+                self.assertEqual(trail, [])
                 self.assertEqual(len(taken), 1)
                 self.assertNotIn("task", out)
                 answer["view"] = None  # 任务不收：照常只进对话，不带任务
                 out = files.upload("s1")
                 self.assertEqual((out["fileId"], "task" in out), ("file_C", False))
         finally:
+            frappe.local.site = site
+            for name, value in zip(("rollback", "commit"), db_saved):
+                if value is None:
+                    delattr(frappe.db, name)
+                else:
+                    setattr(frappe.db, name, value)
             for name, value in zip(("get_site_path", "request", "cache"), saved):
                 if value is None and hasattr(frappe, name):
                     delattr(frappe, name)

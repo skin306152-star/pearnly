@@ -38,8 +38,26 @@ from pearnly_core.desk import heic
 INLINE_TYPES = frozenset({"image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"})
 
 
+# 同一段代录会话里同时传几份（一次选两份）按会话排队：等前一份传完、提交了再做下一份
+OPERATOR_UPLOAD_LOCK_SECONDS = 180
+
+
 def upload(session_id) -> dict:
     row = sessions.owned(session_id)
+    if not row.get("operator_task"):
+        return _upload(row)
+    # 代录会话：第一份要开远端会话（`sessions._remote_ready`），每份都要记到同一个任务上；几份并发时第二份读到的是旧样子，
+    # 写回撞「记录已被改」（11-06 测试机：一次选两份，第二份 500 QueryDeadlockError）。按会话排队，拿到锁后丢掉此前的读视图
+    # 重新读，做完先提交再放锁，下一份读到的就是提交后的样子。
+    with frappe.cache.lock(f"{frappe.local.site}:pearnly_assistant:upload:{row.name}", timeout=OPERATOR_UPLOAD_LOCK_SECONDS,
+                           blocking_timeout=OPERATOR_UPLOAD_LOCK_SECONDS):
+        frappe.db.rollback()
+        out = _upload(sessions.owned(session_id))
+        frappe.db.commit()
+        return out
+
+
+def _upload(row) -> dict:
     sent = (frappe.request.files or {}).get("file") if frappe.request else None
     if not sent:
         frappe.throw(_("No file was received."))
