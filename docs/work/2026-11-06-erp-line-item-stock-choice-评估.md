@@ -29,6 +29,9 @@
    收银台是另一套 `ERP Sale`。所以真正要改的入口是：**LINE、网页采购、网页销售**，加上 Express 推送判据与 CC 桌面版写入。
 4. **施工排在库存整改合入之后**：它的分支已提交代码，改了采购 / 销售页的行仓、`positions.py`、`push.py`、两个 `entry.py`、术语表等 15 处与本需求重叠的文件（第 6 节）。
 
+5. **Cowork 同样覆盖（第 15 节）**：Cowork 不记库存，每行要定的是「对 Express 已有存货 / 新建存货 / 记费用」。复核页本来就有逐行过账类型，混行载荷映射器本来就会出、卡在同一处 CC 拒写；
+   改法是把现有的「存货对照」一问扩成每行一问（加「记费用」），LINE 去掉上传前「入账方式」改成识别后追问。记忆不建共用表：规则与键共用，存储各产品各自（一个站点只装一个产品）。MR.ERP 只有整张货 / 费，不出按行选择。
+
 ## 0. 需求原文与理解
 
 - **原话**（用户 11-06，经主会话转来；主会话复述后用户回答「是的」）：
@@ -47,7 +50,6 @@
   - 采购「未到货、以后再收」的收货步骤（ERP 采购单 = 已付且到货的进货单，「不入库」在这里只表示只记账，不是待收货）；
   - 改识别提示词（销售识别不加 `item_type`，见 12 节 #12）；
   - 已写进 Express 的采购 / 销售单作废回写 Express（现在就没有，另立任务，见旁见）；
-  - Cowork 的 LINE「入账方式」（同类，但是 Cowork 自己一套，见 3 节）；
   - 收银台、盘点、出入库、物料调整单。
 
 ## 1. 现有同类与复用
@@ -89,7 +91,7 @@
 | 收银台 | 不覆盖 | `ERP Sale` 另一套，行上只用扫进来的物料、有物料就出库（`cashier/sales.py:120-131`），没有「只记账」的需要 |
 | 出入库 / 调拨 / 物料调整 / 盘点 / 期初 | 不覆盖 | 本来就全是物料、全动库存 |
 | Excel 导入 | 不涉及 | 采购 / 销售只有导出（`purchasing/api.py:120`、`sales/output.py:52`）；物料导入、盘点、期初导入不是这一类 |
-| Cowork LINE「入账方式」 | 不覆盖 | Cowork 只写 Express、不经 ERP 库存，逐行 `posting_kind` 已有（`C/line/flow.py:34`）；同名问题以后另议 |
+| Cowork（LINE、网页录入 / 复核、CC 直写、代录、定时 / 自动推） | 覆盖（11-06 用户要求两产品都做） | 见第 15 节 |
 
 - **同一条规则只写一份**：预选（4.2）放在一个共用函数里，LINE 识别后、网页识别后、提交时补空三处都调它；学习在 `entry.post` 成功后统一做，哪个入口提交都记。
 
@@ -124,6 +126,7 @@
 **记忆表**（新 DocType，暂名「明细物料记忆」`ERP Line Item Memory`，只经一个模块读写，同 `category_memory` 的写法）：
 
 - 键：`公司 × 方向（采购 / 销售）× 对方（供应商 / 客户，散客为空）× 品名键`，记录名 = 四者的 sha256；品名键沿用 `category_memory.item_key`（去大小写、空白、标点，泰文声调保留）。
+  〔15.3 调整〕键直接用共用写账规则的 `item_subject`（`方向|对方税号或名称|规范品名`，`K/express_rules/push/choices.py:71-77`），与 ERP Express Choice 的 `item` 同一个键，ERP 与 Cowork 共用这条键函数和预选顺序。
 - 值：物料（可空 = 只记账且不挂物料）、`item_type`、仓位、最后一张单（追查用）。
 - 为什么带公司：同一个本地供应商可以给两家公司供货，一家管库存、一家只记账；分类记忆不分公司，是因为分类与 Cowork 共用口径，这里不能照搬（12 节 #3）。
 - 学习：每次提交成功（网页、LINE 编辑页、修改）按行上**最终**的值覆盖记下；作废不撤销记忆（轻便口径，下次人改了就覆盖）。
@@ -298,7 +301,7 @@
 | 网页按钮 | 批量编辑 | Frappe 自带 `Bulk Edit`，不新增 |
 | 弹窗 | 全部 | 选项「入库 / 只记账」复用上面的词 |
 
-### 10.2 改已有文案（**要用户确认**后登记 `scripts/i18n/copy-approved.tsv`）
+### 10.2 改已有文案（**用户 11-06 已同意**，经主会话转达；施工改字时按 `check-copy.py` 结果登记 `scripts/i18n/copy-approved.tsv`，日期 2026-11-06、出处本文件。删除不用登记）
 
 | # | msgid | 用在哪 | 中文 旧 → 新 | 泰文 旧 → 新 |
 |---|---|---|---|---|
@@ -389,6 +392,141 @@ LINE 模拟 webhook 走完 6.1 全部分支；网页采购 / 销售混行单提�
 | S5 | 流程用例、产品地图、冒烟、check-impact 42 个入口实测、实验栈走查截图（电脑 / 手机）、全闸门 | S1–S4 | 约 3 小时机器 |
 
 合计约 17 小时机器时间（不含等人、不含测试机实录与真机）。S1 与 S2–S4 文件不交叠，可并行；服务端随 Cowork 下一批部署，部署后发 CC 正式版。
+
+## 15. Cowork（11-06 用户要求 ERP、Cowork 都覆盖，入口含 CC、LINE、网页端）
+
+> 路径缩写：`C/` = `apps/pearnly_cowork/pearnly_cowork/`，`K/` = `apps/pearnly_core/pearnly_core/`，`F/` = `frontend/assistant/src/`。证据同前：只读代码，没有实测。
+
+### 15.0 概念对照：Cowork 每一行要定什么
+
+Cowork 不记库存，它的「物料」就是客户 Express（或 MR.ERP）账套里的存货 / 商品主档。所以每一行要定的是：
+
+| ERP（第 0–14 节） | Cowork |
+|---|---|
+| 对应已有 ERP 物料 / 新建物料 / 不建只记账 | 对应 Express 已有存货（库存品或非库存品主档）/ 新建存货 / 不建存货、写成费用 / 服务行 |
+| 入库 / 出库 / 不动 | 库存行（`stock_item` / `stock_sale`）在 Express 带进出库；费用 / 服务行（`non_stock_item` / `direct_account`）不碰库存 |
+| 仓库（单头）、仓位（行） | 仓库 = Express 仓（`loccod`）；**Cowork 现在推单不带仓**，CC 写进账套主仓（`ISINFO.MAINLOC`，`companion/src/companion/account_rules.py:58-64`）；Express 只有「仓」一级（STLOC），**没有仓位**，Cowork 也没有（只有盘点模块有 `location` 文本，`C/stocktake/contracts.py:12`） |
+| 成本 = 票面行金额 ÷ 数量 | 同（CC 入库按行净额，`companion/src/companion/stock_purchase.py` 文件头） |
+
+### 15.1 各入口现在怎么定
+
+| 入口 | 现在 | 证据 |
+|---|---|---|
+| LINE 收单 | 上传前：目标 → 账套 → 进项 / 销项 → **入账方式**（Express：服务 / 存货，整批）→（存货且账套有两个以上合格科目组）存货科目组 → 上传。入账方式只存成整张票的 `posting_kind`，不写到行上。识别后不追问，卡片只有「编辑」跳网页复核页 | `C/line/flow.py:129-142,322-396,447-448`；`C/line/intake.py:79-80`；`C/line/cards.py:148,161-162` |
+| 网页新建录入 | 弹窗只问整批 `posting_kind` 与存货科目组 | `C/public/desk/intake-choices.js:34,56,105-117` |
+| 网页复核页 | 整票 `posting_kind`；**每行已有「过账类型」下拉**（空 / 服务 / 存货，只给 Express，MR.ERP 不摆）；行上没有存货选择。提交前弹框：有库存行先问存货科目组，再问对方档 / 存货 / 费用科目 / 付款 / 抵不抵 / 部门；存货对照是「选现成存货 / 新建」 | `C/public/desk/intake-upload.js:95-99,307,446,883-888`；`C/public/desk/targets.js:407-443` |
+| 推送退回 | 永续 / 混合库存账套里没声明的商品单退回 `posting_needs_review`，复核页给「存货 / 服务」两个按钮，按公司记住（`goods_posting`） | `C/public/desk/intake-upload.js:142,575-579`；`C/push/express/goods_posting.py` |
+| CC 对话直写 | `cowork_push_documents` 只有整批 `posting_kind` 参数；写前走开始前确认卡片（`pearnly_precheck` → `ask_user` → `pearnly_precheck_answer`），Cowork 判定会出 `item`（预选「新建」）、`goods_posting`（预选存货）等，**不出** `posting_kind_needed`、`stock_group`；共用层的 `preselect.posting_kind` 没有调用方。**CC 改单工具 `edit_document` 重建明细时只留品名 / 数量 / 单价 / 金额，行上的过账类型会丢** | `C/assistant/tools.py:4331,4361,2058-2061`；`C/assistant/precheck_source.py:31-37,268-294`；`K/write_precheck/preselect.py:142` |
+| CC 代录 | 资料区按整张单分组：「采购」组 = 存货、「费用」组 = 服务；存货按码 → 按名找 → 找不到建档（库存品 `ensure_stock_item`、非库存品 `ensure_item`）；界面每行同样的步骤（品码 → 仓 → 数量 → 单价），配方不分库存 / 非库存；同单混行能不能录没有实录 | `C/assistant/operator_source.py:78-84`；`companion/src/companion/express_operator/masters.py:110-134,170-178`；`engine.py:700-714` |
+| 定时任务 | 任务级 `posting_kind` 必填；默认处理键 `payment / vat / account / item / department`，`item` 只能 `__new__` 或 `ask`；仍有未定项就记 `choice_needed:<kinds>` 留待处理，其余照推；默认值不进账套记忆 | `C/folder_intake/push.py:189,211-215`；`C/folder_intake/contracts.py:45,48,212-215`；`K/express_rules/push/choices.py:143-146` |
+| 自动推（网页 / LINE 上传后扫描） | 同上记 `choice_needed`，留待处理 | `C/push/automation/sweep.py:111-115` |
+| 混行 | 映射器按行出 `item_mode`，**会产出混行载荷**；服务端不拦；CC 桌面版整单拒写（第 4.4 节同一处）；`stock_acccod` 只看第一行；有库存行的单不问费用科目 | `K/express_rules/push/mapper.py:227-229,244-249,372-374`；`K/express_rules/push/choices.py:239` |
+
+### 15.2 改后：每一行一个问题，各入口同一套
+
+**一个问题**：把现有的「存货对照」`item`（`K/express_rules/push/choices.py:216-235`，只问库存行）扩成**每一行都可问**，选项是：
+Express 目录里的物料（库存品与非库存品都列，服务端搜索）、「新建存货」（现有 `__new__`）、「记费用」（新值）。选了库存品 / 新建存货 = 库存行；选了非库存品 / 记费用 = 费用 / 服务行。
+这样「这行动不动库存」和「对哪个存货」是同一个回答，行上的过账类型由它推出；`posting_kind_needed`（部分行没声明）并进这一问，不再单独存在。
+
+**预选顺序**（与 ERP 4.2 同一个纯函数，见 15.3）：
+
+| # | 条件 | 结果 | 状态 |
+|---|---|---|---|
+| 1 | 复核页 / 卡片上人已选（行上过账类型或存货） | 照人选的 | 已定 |
+| 2 | 账套记忆 `item` 命中（键 `方向|对方|品名`，同公司各年度账套通用，`C/push/choices.py:97,181`），值仍在目录里 | 照记住的（存货码 / 新建存货 / 记费用） | 已定 |
+| 3 | 行上已带 Express 码（ERP 前台的单） | 照码，库存与否按这件主档 | 已定 |
+| 4 | 品名与 Express 目录同名（`catalog_resolver` 跨库存 / 非库存两个目录） | 库存品 → 库存行；非库存品 → 费用行并挂这件 | 已定 |
+| 5 | 本批 / 定时任务声明的入账方式、这家公司选过的 `goods_posting` | 照它（整张的默认，只填还没定的行） | 已定（同现状，见 C2） |
+| 6 | 其余 | 预选「新建存货」（同现在 `precheck_source.py:293-294`） | 预选 → 卡片上点「开始」才算；LINE 追问 |
+
+Cowork 识别不逐行读货物 / 服务（`C/ocr/` 里没有 `item_type`），没有 ERP 采购那条「识别说是服务」，**不改提示词**（同 #12）。
+
+**各入口改后**：
+
+| 入口 | 改后 |
+|---|---|
+| LINE | Express 目标：上传前去掉「入账方式」一步（MR.ERP 目标的付款一步不变）。识别后同 ERP 6.1：全部已定不问；有未定行就在卡片后跟一条带快捷回复的提问「全部新建存货 / 全部记费用 / 逐项选择 / 取消」，逐项时可「选已有存货」（打字找，同现有账套搜索的做法）；有库存行且账套要选存货科目组才在这里问一次（不再在上传前问）。答案存在这张票上，之后自动推照它走。卡片照开始前确认卡片评估 2.5 的做法列预选结果 |
+| 网页新建录入 | 弹窗去掉整批入账方式（保留目标、账套、方向） |
+| 网页复核页 | 行上「过账类型」保留，用 15.2 的预选填好；加「批量编辑」（同 ERP 6.2，原生 Dialog + Grid：品名、存货、过账类型）；推送前的统一卡片照旧问存货对照，只是问的是全部未定行 |
+| CC 直写 | 开始前确认卡片的 `item` 项按上面扩成每行一问；整批 `posting_kind` 参数降为「没定的行的默认」；未定的用 `ask_user`（`search: products`，已支持）；CC 可带 `proposals` 预选（现有机制） |
+| CC 代录 | 资料区分组仍按整张单；行的库存与否按每行定的结果（不再按「采购组 = 存货」整张定）；录入步骤每行本来相同，存货按选定的码录。同单混行能不能在 Express 界面录完，要原生实录（第 4.4 节 S0 第 5 条） |
+| 定时任务 / 自动推 | 先用账套记忆；任务级入账方式与 `item = __new__` 作为没定的行的默认；仍未定的行记 `choice_needed:item` 留卡片，其余单照推，不硬拦（同现状） |
+| 修 CC 改单丢过账类型 | `edit_document` 重建明细时带上行上的 `posting_kind`（C8） |
+
+### 15.3 记忆：共用一份还是各存一份
+
+**Cowork 现有的「记住的选择」**（逐个核过）：
+
+| 存储 | 记什么 | 键 | 证据 |
+|---|---|---|---|
+| `Cowork Express Choice`（账套记忆） | 对方档、**存货 `item`**、费用科目、付款、抵不抵、部门、收款科目、服务品进项税、代录表单 | 连接 + 账套 + kind + subject；`item` 的 subject = `方向|税号或名|品名`；同公司各年度账套可互查；改值另记变更表 | `C/push/choices.py:33,60,97,112,181`；`K/express_rules/push/choices.py:71-77` |
+| `Cowork Company Choice`（公司规则） | 同类决定按公司垫底一层，另有 `group`（进项 / 费用 / 销项） | 公司 + kind + subject + 分店 | `C/companies/rules.py:30,40`；`C/hooks.py:624` |
+| `Cowork Supplier Category Memory`（分类记忆） | 采购分类 | 工作空间 + 客户 + 卖方 + 品名（只取第一行），退回到卖方 | `C/history/categories.py:20,239,253-259,287,310` |
+| `Cowork Workspace.document_policy` | 转账凭条 / 预扣税凭证录不录、`goods_posting|<公司>`、现用账套 | 租户一份 JSON | `C/history/document_policy.py:3,24-25`；`C/contracts/document_policy.py:106-110` |
+| `Cowork ERP Connection.stock_acc_groups` | 存货科目组 | 按账套 | `C/connections/service.py:436-451` |
+| 开始前确认卡片 `remember` | 按 kind 分派到上面这些 | — | `C/assistant/precheck_source.py:453-512` |
+
+**比较**：
+
+| 方案 | 说明 | 结论 |
+|---|---|---|
+| A 一张共用 DocType 放 `pearnly_core` | 一个站点只装一个产品（`K/manifest.py:31-45`、ADR-001「公司 × 产品 = 一个站点」），两产品**不在同一个库**，共用表只是两个站点各建一份同结构的表，不共享数据；ERP 的值是 ERP 物料（Link），Cowork 的值是 Express 存货码，放进同一结构要么丢掉 Link 约束、要么两套字段；Cowork 已有「存货对照按账套记、带变更记录」的现成存储，再加一张就是两个来源 | 不建议 |
+| B 各存各的、规则和键共用 | 共用层放**纯规则**：预选顺序（15.2 / 4.2 同一个函数，放 `K/write_precheck/preselect.py`，该包文件头已写「多产品共用、记在哪留在各产品」）与键（直接用现有 `item_subject`）；Cowork 就用 `Cowork Express Choice` 的 `item`，值域加「记费用」，**不新建表**；ERP 新建第 4.2 节那张表，键改成「公司 × `item_subject`」（与 ERP Express Choice 的 `item` 同一个键，两层对得上） | **建议** |
+
+所以第 4.2 节 ERP 记忆表的键按方案 B 调整为「公司 × `item_subject`（方向 | 对方税号或名称 | 规范品名）」，含义不变。
+
+### 15.4 和分类 / 科目的串联
+
+- 现在：分类 → 分类映射里的科目（`K/express_rules/push/common.py:124-137` `resolve_account_sourced` 的 `category_map`），命中就不问科目（`C/push/application/service.py:453`）；
+  没命中按供应商记住的费用科目（`supplier_subject`，`K/express_rules/push/choices.py:65-68`）→ Express 历史一致（同一供应商近 12 个月 ≥3 张同科目，`C/push/application/service.py:500-516`）→ 问人。
+- **有库存行的单现在不问费用科目**（`choices.py:239` 的 `not lines`）。混行单的费用行因此拿不到科目、按名建非库存物料。改后：单里有「记费用」的行就按现有顺序定科目（同一张单一个费用科目，供应商键不变）；
+  逐行不同科目照 ERP 前台已有的「行自带科目」（`split_by_account`）做法，Cowork 本批不加（C4）。
+- 分类记忆只按第一行品名记、定整张单的分类，本需求不改。
+
+### 15.5 MR.ERP 目标
+
+- MR.ERP 导入只有四种单：赊销、现销、采购（货品，selmenu 67）、采购费用（453）；**采购只有赊购**（`K/mrerp/push/modules.py:35-61`；[11-03 记录](2026-11-03-erp-mrerp-direct.md)）。
+- 货 / 费按**整张单**判（`K/mrerp/push/routing.py:84-88`）；费用单明细固定一行含税总额，不逐行展开（`K/mrerp/push/xlsx/purchase.py:8-11`）；自建商品固定库存型（`K/mrerp/push/xlsx/product.py:4`）。一张单货费混着时的处理：没找到。
+- **建议**：MR.ERP 目标不出按行选择（复核页现在就不摆行上过账类型），整张按货 / 费照旧；混行的写法要 MR.ERP 原生证据（MR.ERP 实测等岳父账号，记忆「MR.ERP 实测等岳父账号」），拿到前不做拆单、不猜（C6）。ERP 的 MR.ERP 直写（总开关关着）同口径。
+
+### 15.6 CC 混行写入（两产品共用同一个 CC）
+
+第 4.4 节与施工记录的 CC 改动两产品共用：Cowork 映射器现在就会产出混行载荷、被 CC 整单拒写；`pearnly/cc-mixed-lines` 合入后，混行单盖 19、只派给新版 CC，Cowork 与 ERP 同时受益。
+`stock_acccod` 只看第一行的问题已在该分支一起修了（`mapper.py`）。第 4.4 节「等原生证据」5 条对 Cowork 同样适用。
+
+### 15.7 共用件与先后
+
+- 改到共用层 `K/express_rules/push/choices.py`（`item` 扩成每行、值域加「记费用」、混行问科目）、`K/write_precheck/preselect.py`（预选函数）：两产品都调，**由同一个施工窗口按序做**（先共用层、再 ERP、再 Cowork），合入前在生产镜像跑候选离线检查（共用层改动规矩）。
+- Cowork 文件与库存整改不交叠；共用层文件与库存整改也不交叠。ERP 部分仍等库存整改合入（第 13 节）。
+- check-impact 施工时对 Cowork 文件再跑一次补进登记表（LINE、复核页、CC 直写、代录、定时任务各入口）。
+
+### 15.8 工作量（机器耗时，在第 14 节之外）
+
+| 步 | 内容 | 写码 + 本地检查 |
+|---|---|---|
+| W1 | 共用层：`item` 每行一问、值域加「记费用」、混行问科目、预选纯函数（ERP、Cowork 共用） | 约 2.5 小时 |
+| W2 | Cowork 判定与记忆：`precheck_source` 出每行 `item`、`posting_kind_needed` 并入、整批 / 任务默认降为补空、`edit_document` 带过账类型 | 约 2.5 小时 |
+| W3 | Cowork 网页：新建弹窗去入账方式、复核页行上预选、批量编辑 | 约 2 小时 |
+| W4 | Cowork LINE：去入账方式、识别后追问（复用 ERP 6.1 的问法与会话）、存货科目组挪到识别后、卡片 | 约 3 小时 |
+| W5 | 代录按行定库存与否（配方核对等原生实录）；流程用例、产品地图、冒烟、全闸门 | 约 3 小时 |
+
+合计约 13 小时；W1 是 ERP S2 的前置，ERP 与 Cowork 共约 30 小时机器时间。
+
+### 15.9 Cowork 要主会话定的点
+
+| # | 问题 | 我的建议 | 不定的影响 |
+|---|---|---|---|
+| C1 | 记忆共用一张表还是各存 | 方案 B：规则与键共用（`pearnly_core`），存储各产品各自；Cowork 用现有账套记忆不新建表 | 共用 DocType 不共享数据（一站点一产品），还会让 Cowork 有两个存货对照来源 |
+| C2 | 公司选过的 `goods_posting`（整张走库存 / 记费用）与按行选择的关系 | 按行优先，`goods_posting` 继续算「已定」、只填还没定的行 | 降成「预选」会让现在能自动推的单变成要人点「开始」 |
+| C3 | `item` 扩成每行一问（含「记费用」），`posting_kind_needed` 并进去 | 做 | 不做就是一张单两种问法（过账类型 + 存货） |
+| C4 | 混行单的费用行科目 | 有「记费用」行就按现有顺序定一个费用科目（同供应商键）；逐行不同科目本批不加 | 不问会让费用行按名建非库存物料、落兜底科目 |
+| C5 | Cowork 要不要选仓库 | 不加，照旧写主仓；Express 没有仓位，Cowork 不做仓位 | 加仓库要 Cowork 读 Express 仓库表、按公司记默认仓，另评估 |
+| C6 | MR.ERP 目标 | 不出按行选择，整张货 / 费照旧；混行等 MR.ERP 原生证据 | 猜着拆单可能在 MR.ERP 里多出一张 |
+| C7 | Cowork LINE 去掉上传前「入账方式」，识别后追问 | 做（同 ERP 6.1）；存货科目组改到识别后需要时问 | 保留就和 ERP 两种问法 |
+| C8 | CC 改单丢行上过账类型 | 本需求一起修（是缺陷） | 用 CC 改过明细的单回到整张默认 |
+| C9 | 复核页 | 行上「过账类型」保留并预选、加「批量编辑」；存货对照仍在推送前统一卡片里 | 把存货选择也搬到行上要改动更大的复核页布局 |
+| C10 | 定时任务的任务级入账方式 | 降为「没定的行的默认」，任务设置页不改 | 不降就盖掉按行记住的结果 |
+
 
 ## 旁见（不在本需求范围）
 
