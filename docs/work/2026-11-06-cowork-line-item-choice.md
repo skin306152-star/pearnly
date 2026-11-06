@@ -16,7 +16,8 @@
 | 网页 | 9a756a98e | 新建录入弹窗不再整批选服务 / 存货；复核页「批量编辑」原生 Dialog + Table |
 | LINE | 549f37cf3 | 上传前去掉「入账方式」与随后的存货科目组；识别后按行追问 `C/line/items.py`（推送侧经钩子 `cowork_line_items` → `C/push/application/line_items.py`） |
 | 登记与测试 | ba747bda3 | 产品地图、共用件登记表、Cowork 关注 / 取消关注与 ERP 取消关注的单测、基线减项 |
-| 流程用例 | 6694a6638 | `scripts/flows/cowork_intake_bulk_kind.py`（`cowork.intake.bulk-kind`） |
+| 流程用例 | 6694a6638、5c035a440 | `scripts/flows/cowork_intake_bulk_kind.py`（`cowork.intake.bulk-kind`）；修批量编辑按钮 |
+| 候选检查修正 | 7691d9cfc、4f1c2deb2 | 删随功能去掉的旧测试；通知卡片时取绑定出错兜住 |
 
 代录与定时 / 自动推不另改代码：共用规则里「这一行记过的」排在整批声明（定时任务的入账方式、代录资料区的分组）之前，
 没记过的行照整批；代录每行本来就按 `item_mode` 建库存或非库存档（`companion/.../express_operator/masters.py`）。
@@ -35,5 +36,12 @@
 
 - 单测：`tests/test_express_rules_line_choice.py`、`tests/test_cowork_line_items.py`（已登记 development.yml）、`tests/test_cowork_write_precheck.py` 新增 4 条、
   `tests/test_cowork_assistant_tools.py` 新增 1 条；`tests/test_cowork_line_intake.py`、ERP `integrations/test_line_intake.py` 新增的要 Frappe，跑在候选离线检查里。
-- 本地全闸门、实验栈流程、候选离线检查：结果见交付消息（本文件末尾补）。
-- **没做**：真机 LINE（三星）、测试机真 Express 写入、原生混行证据（主会话安排）。
+- 本地全闸门（照 development.yml 逐步）：4f1c2deb2 上 197 项全过。
+- 实验栈（本机 `pearnly-lineitem-lab`，生产镜像 fb1037ad 底座 + 本工作树源码）`run.py --changed` 涉及的流程：
+  cc.chat、cc.operator、cowork.cc.ask、cowork.pending.operator、cowork.field-help、cowork.mrerp-login、cowork.precheck.api 全过；
+  cowork.intake.review、新的 cowork.intake.bulk-kind 两套数据 × 电脑 / 手机 8 格全过（第一轮发现批量编辑按钮提前读了编辑状态把复核页弄挂，已修，5c035a44）；
+  cc.operator.replay 4 格不通过：新建的实验栈每家公司只有 1 张已提交采购单、这条流程要 2 张（`need two submitted purchase documents`），本分支没动 ERP 采购建单，未处理。
+- 候选离线检查（`ci-candidate-checks.sh offline`，生产镜像、候选代码挂进镜像 apps）：4f1c2deb2 上整条通过（含要 Frappe 的 Cowork / ERP LINE 测试）；
+  中途发现两处：上传前存货科目组的旧测试（随功能删掉）、通知卡片时取绑定出错没兜住（已修）。
+- **没测到**：LINE 模拟 webhook 冒烟（实验栈站点没配 LINE 频道，ERP 站点同样回 0 条）；识别后追问的端到端（要付费识别 + CC 上报的账套主档，实验栈没有，只有单测）；
+  真机 LINE（三星）、测试机真 Express 写入、原生混行证据（主会话安排）。
