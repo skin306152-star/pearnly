@@ -46,3 +46,21 @@
 | `shared.team.members` 团队页（因 `i18n.ts`） | 没测到：这次只改 `STEPS` 的状态行两个键，团队页不读这两个键 |
 
 产品地图：`scripts/check-product-map.py` 一致，没有增删入口。
+
+## 3. 切模式时离开不属于新模式的对话（用户 11-06 补充）
+
+现象（用户原话）：「当我在不同模式点开的对话框，切换到另一个模式时，不属于这个模式的对话框还一直在」——侧栏已按模式筛，右边正在看的那段没跟着换。
+
+做法（直写、代录同一套，`frontend/assistant/src/lib/nav.ts`）：
+
+- 每段会话是哪种由服务端每行的 `mode` 定（侧栏取列表、打开、新建时都带回），`lib/managed-agents/list-mode.ts` 记下（`sessionMode`）；
+- 换了模式——左上角两个图标、Ctrl / ⌘ + Shift + 1 / 2（`switchMode`），或直接进了另一个模式自己的视图（`noteViewMode`，如代录下进定时任务）——都调同一个 `leaveForeignThread`：正在看的对话已知不属于新模式，就清草稿、开新对话（同「新建」落到的新建页）；属于新模式的、还没发出的新对话、还没见过的照旧；
+- 外壳 `Layout` 用 `useThreadExit()` 登记「正在看的对话 / 去新建页」，电脑、手机、CC 桌面版同一个外壳；
+- 后退 / 前进：换了模式、还没离开旧对话那一下（模式已换、对话还是旧的）不进记录，后退回到「原模式 + 原对话」，不会回到「代录模式开着直写对话」；
+- 深链接（`?c=`、旧的 `?task=`）本来就按会话的 mode 先定模式再打开，刷新后地址是干净的 `/assistant`（新建页），都不经这里。
+
+测试：`tests/test_cc_operator.py`（直写→代录、代录→直写离开；属于新模式、新对话、没见过的不动；进共有视图不换模式不离开；进对话模式自己的视图换模式并离开；外壳登记、两处调用、后退记录跳过中间态）。把 `nav.ts` 还原成改前，这条测试失败。
+
+画面（`scripts/cc-visual` 新增场景 mode-before / mode-leave / mode-op-open / mode-op-leave / mode-leave-back，假服务端的列表按 mode 筛、多一段代录会话 op_1）：web / desktop / phone 改前改后对比在共享笔记「CC对话页-执行中与上沿-11-06/切模式/」。改前：切到代录后右边还是直写那段；改后：落到新建页；代录会话在代录模式下照旧打开；切模式后点 ← 回到直写模式 + 原对话。
+
+连带：`check-impact` 另列出 `shared.login`、`cc.settings.connection`、`cc.desktop.bridge`（因 `assistant.tsx`）——这次只在 `Layout` 加了一行登记，登录、设置、桌面桥的代码没动，没单测；流程用例覆盖通过（cc.sidebar-modes / cowork.cc.sidebar-modes 等，步骤只断言模式与侧栏，切回对话后落到新建页不影响断言），流程整套随今晚冻结后的全套跑。

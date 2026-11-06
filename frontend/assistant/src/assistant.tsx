@@ -94,7 +94,7 @@ import type { SessionFile } from "@/lib/managed-agents/api";
 import { onNotice, setActiveSession, setChatView } from "@/lib/managed-agents/activity";
 import { noticeReloader } from "@/lib/managed-agents/notice-reload";
 import { listen } from "@/lib/managed-agents/realtime";
-import { modeForKey, noteViewMode, openOperator, switchMode, useCurrentMode, useDeepLinks, useNavHistory, useView, ViewContext, type Mode, type View } from "@/lib/nav";
+import { modeForKey, noteViewMode, openOperator, switchMode, useCurrentMode, useDeepLinks, useNavHistory, useThreadExit, useView, ViewContext, type Mode, type View } from "@/lib/nav";
 import { OPEN_LAYERS } from "@/lib/layers";
 import { useBackLayer } from "@/lib/back-stack";
 import { useSidebarKeys } from "@/lib/sidebar-keys";
@@ -975,6 +975,8 @@ function useDockFits(el: HTMLDivElement | null) {
 function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useResultsPanel>; onSidebarResize: (width: number | null) => void }) {
   const { view, setView } = useView();
   const nav = useNavHistory(view, setView);
+  // 换模式时正在看的对话不属于新模式就去新建页（lib/nav.ts 的 leaveForeignThread）
+  useThreadExit();
   const operator = useContext(OperatorContext);
   useModeKeys(operator);
   useOperatorBridge(operator);

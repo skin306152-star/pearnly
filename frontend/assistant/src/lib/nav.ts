@@ -18,6 +18,8 @@
 //   对话自己的视图 chat / tasks；代录自己的视图 operator（就是对话页：代录任务是一段会话，同一个 thread / runtime，方案 cc-unified-plan 14）；
 //   两种模式共有的 companies / company。模式单独记（useModePlace.mode）：进了模式自己的视图就是那个模式，进共有的视图不换模式；
 //   侧栏按模式筛（lib/managed-agents/list-mode.ts，跟着这里改）。两种模式各记各的最后位置：切到代录时记下当时的对话视图，切回来回到它。
+//   换了模式（左上角、快捷键，或直接进了另一个模式自己的视图）时正在看的对话不属于新模式，就离开它、落到新建页（同「新建」，用户 11-06：
+//   原来侧栏换了、右边还留着那段）；属于新模式的、还没发出的新对话照旧。后退 / 前进、深链接是连模式带对话一起换的，不走这里。
 //   后退 / 前进也记模式。
 
 import { useAui, useAuiState } from "@assistant-ui/react";
@@ -25,7 +27,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { create } from "zustand";
 import { type PendingMonth, refreshPendingCounts, useCompanyNav, usePendingCounts } from "@/lib/companies";
 import { getSession } from "@/lib/managed-agents/api";
-import { useListMode } from "@/lib/managed-agents/list-mode";
+import { sessionMode, useListMode } from "@/lib/managed-agents/list-mode";
 import { getMethod } from "@/lib/frappe";
 import { hasSection, projectsReady, setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { reportCaught, withReport } from "./caught";
@@ -51,10 +53,27 @@ useModePlace.subscribe((now) => {
   if (useListMode.getState().mode !== now.mode) useListMode.setState({ mode: now.mode });
 });
 
+/** 正在看的对话（服务端编号，还没发出的新对话为 ""）与「去新建页」（同「新建」：清掉草稿、开一段新对话），由外壳登记（useThreadExit）。 */
+type ThreadExit = { current: () => string; toNew: () => void };
+let threadExit: ThreadExit | null = null;
+export function setThreadExit(exit: ThreadExit | null) {
+  threadExit = exit;
+}
+
+/** 换到这个模式后，正在看的对话不属于它（侧栏筛不出它）就离开，落到新建页；属于它的、还没发出的、还不知道是哪种的照旧。 */
+export function leaveForeignThread(mode: Mode) {
+  const id = threadExit?.current() ?? "";
+  const kind = id ? sessionMode(id) : "";
+  if (kind && kind !== mode) threadExit?.toNew();
+}
+
 /** 换视图时跟着定模式：模式自己的视图就是那个模式，共有的不换（ViewContext 的 setView 都经这里）。 */
 export function noteViewMode(view: View) {
   const mode = ownMode(view);
-  if (mode && mode !== useModePlace.getState().mode) useModePlace.setState({ mode });
+  if (mode && mode !== useModePlace.getState().mode) {
+    useModePlace.setState({ mode });
+    leaveForeignThread(mode);
+  }
 }
 
 /** 切模式：记下这个模式此刻的视图，回到另一个模式上次的视图。 */
@@ -68,6 +87,7 @@ export function switchMode(mode: Mode, view: View, setView: (v: View) => void) {
     useModePlace.setState({ operatorView: view, mode });
     setView(place.chatView);
   }
+  leaveForeignThread(mode);
 }
 
 /** 打开代录（对话页本身，侧栏只列代录会话）：从对话模式来的先记下对话视图。 */
@@ -75,6 +95,32 @@ export function openOperator(view: View, setView: (v: View) => void) {
   const place = useModePlace.getState();
   if (place.mode !== "operator") useModePlace.setState({ chatView: view });
   setView("operator");
+}
+
+/** 这段对话（本页编号）已知不属于这个模式。 */
+function foreignTo(aui: ReturnType<typeof useAui>, thread: string, mode: Mode): boolean {
+  if (!thread) return false;
+  const item = aui.threads().getState().threadItems.find((i) => i.id === thread || i.remoteId === thread);
+  const kind = item?.remoteId ? sessionMode(item.remoteId) : "";
+  return !!kind && kind !== mode;
+}
+
+/** 外壳登记「正在看的对话」与「去新建页」（leaveForeignThread 用）。 */
+export function useThreadExit() {
+  const aui = useAui();
+  useEffect(() => {
+    setThreadExit({
+      current: () => {
+        const state = aui.threads().getState();
+        return state.threadItems.find((item) => item.id === state.mainThreadId)?.remoteId ?? "";
+      },
+      toNew: () => {
+        setDraft({});
+        void aui.threads().switchToNewThread();
+      },
+    });
+    return () => setThreadExit(null);
+  }, [aui]);
 }
 
 /** 当前模式。 */
@@ -108,10 +154,12 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
       return;
     }
     if (current && current.view === view && current.mode === mode && current.thread === thread && current.company === company) return;
+    // 换模式后、离开不属于新模式的对话之前那一下（模式已换、对话还是旧的）不记：后退不会回到「代录模式里开着直写对话」
+    if (foreignTo(aui, thread, mode)) return;
     stack.current = [...stack.current.slice(0, index.current + 1), { view, mode, thread, company }].slice(-50);
     index.current = stack.current.length - 1;
     bump((n) => n + 1);
-  }, [view, mode, thread, company]);
+  }, [aui, view, mode, thread, company]);
 
   const go = useCallback(
     (step: number) => {

@@ -235,8 +235,8 @@ import { docsToStart, groupsToStart, mergeDocs, uploadsDoneKey, writeLine } from
 import { resumeQuestion } from "@/components/tool-uis/operator-resume";
 import { createBridgeWatch, progressOf } from "@/components/operator/bridge";
 import { createSession, listGrouped, listSessions } from "@/lib/managed-agents/api";
-import { useListMode } from "@/lib/managed-agents/list-mode";
-import { modeForKey, switchMode, targetOf, useModePlace } from "@/lib/nav";
+import { noteSessionTasks, sessionMode, useListMode } from "@/lib/managed-agents/list-mode";
+import { modeForKey, noteViewMode, setThreadExit, switchMode, targetOf, useModePlace } from "@/lib/nav";
 import { op } from "@/i18n";
 
 const g = globalThis as any;
@@ -367,6 +367,31 @@ const g = globalThis as any;
   switchMode("chat", "operator", () => {});
   assert.equal(useListMode.getState().mode, "chat");
   assert.equal(modeForKey({ code: "Digit2", ctrlKey: true, metaKey: false, shiftKey: true, altKey: false }), "operator");
+  // 换模式时正在看的对话不属于新模式：离开、落到新建页（用户 11-06：侧栏换了、右边还留着那段）；属于新模式的、还没发出的新对话、
+  // 还不知道是哪种的照旧；直接进另一个模式自己的视图（换了模式）同样，进共有的视图不换模式也不离开
+  let watching = "";
+  let toNew = 0;
+  setThreadExit({ current: () => watching, toNew: () => { toNew += 1; watching = ""; } });
+  noteSessionTasks([{ id: "sesn_chat", mode: "chat" }, { id: "op_A", mode: "operator", task: "A" }]);
+  assert.equal(sessionMode("sesn_chat"), "chat");
+  assert.equal(sessionMode("op_A"), "operator");
+  assert.equal(useListMode.getState().tasks.op_A, "A");
+  watching = "sesn_chat"; switchMode("operator", "chat", () => {});
+  assert.equal(toNew, 1);
+  watching = "op_A"; switchMode("chat", "operator", () => {});
+  assert.equal(toNew, 2);
+  watching = "op_A"; switchMode("operator", "chat", () => {});
+  assert.equal(toNew, 2);
+  watching = ""; switchMode("chat", "operator", () => {});
+  assert.equal(toNew, 2);
+  watching = "sesn_never_seen"; switchMode("operator", "chat", () => {});
+  assert.equal(toNew, 2);
+  watching = "op_A"; noteViewMode("companies");
+  assert.equal(toNew, 2);
+  noteViewMode("tasks");
+  assert.equal(useModePlace.getState().mode, "chat");
+  assert.equal(toNew, 3);
+  setThreadExit(null);
   // 深链接：?c=<会话>；旧的代录任务链接按任务号
   assert.deepEqual(targetOf("/assistant?c=op_OPT-1"), { c: "op_OPT-1", view: "" });
   assert.deepEqual(targetOf("/assistant?view=tasks&task=OPT-1"), { c: "", view: "tasks", task: "OPT-1" });
@@ -480,6 +505,13 @@ class OperatorTests(unittest.TestCase):
 
     def test_cards_bridge_and_sidebar_modes(self):
         run_ts(ACTIONS, stubs=STUBS, lang="zh")
+        # 外壳登记「正在看的对话 / 去新建页」，左上角、快捷键与进视图换模式都经 nav.ts 的同一个 leaveForeignThread
+        shell = read("assistant.tsx")
+        self.assertIn("  useThreadExit();\n", shell)
+        nav = read("lib/nav.ts")
+        self.assertEqual(nav.count("leaveForeignThread(mode);"), 2)
+        # 换了模式、还没离开旧对话那一下不进后退记录（后退不会回到「代录模式开着直写对话」；画面场景 mode-leave-back）
+        self.assertIn("    if (foreignTo(aui, thread, mode)) return;\n", nav)
 
 
 if __name__ == "__main__":

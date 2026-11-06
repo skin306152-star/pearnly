@@ -48,6 +48,7 @@ const SESSIONS = [
   session("sesn_b1", "银行对账 九月", "C-0002", { period: "2026-09", updated_at: iso(60) }),
   session("sesn_b2", "供应商主档补全", "C-0002", { updated_at: iso(160) }),
   session("sesn_c1", "Green Leaf 年度结账准备", "C-0003", { updated_at: iso(600) }),
+  session("op_1", "代录 九月进项", "C-0001", { period: "2026-09", mode: "operator", task: "OPT-1", updated_at: iso(30) }),
   session("sesn_r1", "怎么设置定时任务", "", { updated_at: iso(30) }),
   session("sesn_err", "连接出错的对话", "", { updated_at: iso(40) }),
   session("sesn_r2", "一个非常非常长的对话标题用来看侧栏末尾渐隐是否正常显示", "", { updated_at: iso(300) }),
@@ -141,6 +142,7 @@ const EVENTS = {
   sesn_a1: { events: PENDING, full: true, run: { status: "requires_action", parked: ["sevt_t1"], awaiting_approval: [], executing: [], as_of: at(10) } },
   sesn_a2: { events: RUNNING, full: true, run: { status: "running", parked: [], awaiting_approval: [], executing: [], as_of: at(1) } },
   sesn_a3: { events: DONE, full: true, run: IDLE_RUN(at(5)) },
+  op_1: { events: DONE, full: true, run: IDLE_RUN(at(5)) },
   sesn_rich: { events: RICH, full: true, run: IDLE_RUN(at(6)) },
   sesn_err: { events: ERRORED, full: true, run: IDLE_RUN(at(3)) },
 };
@@ -234,8 +236,8 @@ function method(name, q, unmocked) {
     const m = name.slice(A.length);
     switch (m) {
       case "projects": return { kind: "company", period: true, scope: false, projects: COMPANIES };
-      case "listing": return { sessions: SESSIONS, nextCursor: null, groups: {}, ordered: [], runs: {} };
-      case "get": return SESSIONS.find((s) => s.id === q.get("session_id")) ?? SESSIONS[0];
+      case "listing": return { sessions: SESSIONS.map((x) => ({ ...x, mode: x.mode ?? "chat" })).filter((x) => x.mode === (q.get("mode") || "chat")), nextCursor: null, groups: {}, ordered: [], runs: {} };
+      case "get": { const x = SESSIONS.find((s) => s.id === q.get("session_id")) ?? SESSIONS[0]; return { ...x, mode: x.mode ?? "chat" }; }
       case "events": return EVENTS[q.get("session_id")] ?? { events: [], full: true, run: IDLE_RUN(null) };
       case "layout": return { prefs: null };
       case "tool_steps": return { done: { bash: "已运行命令", write: "已写文件" }, running: {}, ask: {}, ask_when: {}, gate: {} };
