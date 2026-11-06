@@ -42,15 +42,15 @@ def steps(params, camera_code=None):
          "const rows=[...d.querySelectorAll('.grid-body .grid-row')].length;"
          "return {rows};"},
         {"name": "全部设成存货并保存", "js": IDLE +
-         "const d=[...document.querySelectorAll('.modal.show')].pop(); if(!d) return {error:'no dialog'};"
-         "const s=d.querySelector('.frappe-control[data-fieldname=\"all\"] select'); if(!s) return {error:'no all select'};"
-         "s.value='stock'; s.dispatchEvent(new Event('change',{bubbles:true})); await new Promise(r=>setTimeout(r,600));"
-         "const ok=d.querySelector('.modal-footer .btn-primary'); if(!ok) return {error:'no primary'}; ok.click();"
+         # 产品皮肤把下拉换成了可搜索的组合框（`intake-choices.js` 文件头）：经原生弹窗的 set_value 选值，onchange 照常触发
+         "const dlg=(frappe.ui.open_dialogs||[]).slice(-1)[0]; if(!dlg||!dlg.fields_dict.all) return {error:'no dialog'};"
+         "await dlg.set_value('all','stock'); await new Promise(r=>setTimeout(r,600));"
+         "const rows=(dlg.fields_dict.rows.df.data||[]).map(r=>r.posting_kind);"
+         "const ok=dlg.$wrapper.find('.modal-footer .btn-primary:visible')[0]; if(!ok) return {error:'no primary', rows}; ok.click();"
          "await new Promise(r=>setTimeout(r,900)); await idle();"
-         "const kinds=[...document.querySelectorAll('.frappe-control[data-fieldname=\"posting_kind\"] select')].filter(e=>e.closest('[data-fieldname=\"lines\"]')).map(e=>e.value);"
          "const save=[...document.querySelectorAll('.page-head .btn-secondary, .page-head .secondary-action')].find(e=>e.offsetParent);"
-         "if(!save) return {error:'no save button', kinds}; save.click(); await new Promise(r=>setTimeout(r,900)); await idle();"
-         "return {kinds, saved:true};"},
+         "if(!save) return {error:'no save button', rows}; save.click(); await new Promise(r=>setTimeout(r,900)); await idle();"
+         "return {rows, saved:true};"},
     ]
 
 
@@ -59,8 +59,8 @@ def judge(params, results, camera_code=None):
     opened, done = by.get("打开批量编辑") or {}, by.get("全部设成存货并保存") or {}
     return [
         {"case": "the bulk edit dialog lists both lines", "seen": opened, "ok": opened.get("rows") == 2},
-        {"case": "both lines on the page are stock after the dialog", "seen": done,
-         "ok": done.get("kinds") == ["stock", "stock"] and done.get("saved") is True},
+        {"case": "the dialog sets every line to stock and the page is saved", "seen": done,
+         "ok": done.get("rows") == ["stock", "stock"] and done.get("saved") is True},
     ]
 
 

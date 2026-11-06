@@ -357,8 +357,7 @@
 				sync_save();
 			}},
 			// 一次设好每一行的过账类型（11-06 按行选物料，评估 2026-11-06 第 15 节 C9）：原生弹窗 + 表格，写回各行，存法同逐行改
-			{fieldtype: "Button", fieldname: "bulk_kind", label: __("Bulk Edit"), hidden: no_kind || !reviewable,
-				click: () => bulk_kinds()},
+			{fieldtype: "Button", fieldname: "bulk_kind", label: __("Bulk Edit"), hidden: 1, click: () => bulk_kinds()},
 		]);
 		const bulk_kinds = () => {
 			const kept = lines.filter(line => !line.removed);
@@ -379,9 +378,9 @@
 					]},
 			], __("Save"), async () => {
 				const data = d.fields_dict.rows.df.data || [];
-				kept.forEach((line, index) => void line.form.set_value("posting_kind", data[index]?.posting_kind || ""));
+				await Promise.all(kept.map((line, index) => line.form.set_value("posting_kind", data[index]?.posting_kind || "")));
 				d.hide();
-				sync_save();
+				sync_save();  // 值都写上之后再重算要不要「保存」
 			});
 		};
 		// 税费金额与备注放在明细下面（ERP `purchase-layout.js` 同法：定义在一张表单里，按分段挪到各自区域）。
@@ -435,6 +434,7 @@
 				line.form.set_df_property("remove", "hidden", !editable);
 			}
 			items_form.set_df_property("add_line", "hidden", !editable);
+			items_form.set_df_property("bulk_kind", "hidden", !editable || Boolean(no_kind));  // 能改且摆过账类型时才有
 			items_region.toggle(Boolean(lines.length) || editable);
 		};
 		set_reviewable(false);
