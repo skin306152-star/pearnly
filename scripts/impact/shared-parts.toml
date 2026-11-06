@@ -425,6 +425,7 @@ paths = ["apps/pearnly_core/pearnly_core/execution/**"]
 markers = ["pearnly_core.execution", "pearnly_core import execution", "pearnly_ocr_handlers", "pearnly_ocr_failure_handlers", "pearnly_ocr_finished_handlers", "pearnly_ocr_resume_unknown"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
 entries = ["control.execution", "shared.execution", "cowork.execution", "dms.execution", "erp.execution", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "cowork.express.push", "erp.stock-count.upload", "cc.mrerp-login", "erp.cc.companies"]
+not_entries = { "apps/pearnly_core/pearnly_core/express_operator/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时代录上传回可重试的话，不调执行队列", "apps/pearnly_cowork/pearnly_cowork/files/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时录入上传回可重试的话，不调执行队列" }
 
 [[part]]
 id = "assistant"
