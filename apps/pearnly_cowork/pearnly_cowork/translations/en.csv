@@ -1906,6 +1906,7 @@ The stock count record was not found.,The stock count record was not found.
 The stock count request is invalid. Reload and try again.,The stock count request is invalid. Reload and try again.
 "The stock lines could not be posted. Check the items, quantities and prices","The stock lines could not be posted. Check the items, quantities and prices"
 The stocktake export snapshot is incomplete. Reload and try again.,The stocktake export snapshot is incomplete. Reload and try again.
+The subject of the choice is missing,The subject of the choice is missing
 The supplier is missing. Add it and submit again.,The supplier is missing. Add it and submit again.
 The system is busy and the reconciliation was not finished. Please try again shortly.,The system is busy and the reconciliation was not finished. Please try again shortly.
 The task owner can no longer enter documents with this connection.,The task owner can no longer enter documents with this connection.
@@ -2279,6 +2280,7 @@ cowork.choice.party,Express record
 cowork.choice.payment,Payment
 cowork.choice.receipt,Receiving account
 cowork.choice.service_vat,Service input VAT
+cowork.choice.subject_missing,The subject of the choice is missing
 cowork.choice.task_default,This is set by the scheduled task's default handling. Change it in the task
 cowork.choice.title,Choose once for this account set
 cowork.choice.vat,Tax on this receipt

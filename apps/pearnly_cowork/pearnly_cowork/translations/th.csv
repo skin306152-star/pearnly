@@ -1906,6 +1906,7 @@ The stock count record was not found.,ไม่พบรายการตรว
 The stock count request is invalid. Reload and try again.,คำขอตรวจนับสินค้าไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 "The stock lines could not be posted. Check the items, quantities and prices",ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
 The stocktake export snapshot is incomplete. Reload and try again.,ข้อมูลส่งออกการตรวจนับสินค้าไม่ครบถ้วน กรุณารีเฟรชแล้วลองอีกครั้ง
+The subject of the choice is missing,ไม่ได้ระบุรายการที่ต้องจดจำ
 The supplier is missing. Add it and submit again.,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
 The system is busy and the reconciliation was not finished. Please try again shortly.,ระบบไม่ว่าง การกระทบยอดยังไม่เสร็จสมบูรณ์ กรุณาลองใหม่อีกครั้งภายหลัง
 The task owner can no longer enter documents with this connection.,ผู้รับผิดชอบงานตามกำหนดเวลาไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
@@ -2279,6 +2280,7 @@ cowork.choice.party,ข้อมูลคู่ค้าใน Express
 cowork.choice.payment,วิธีชำระเงิน
 cowork.choice.receipt,บัญชีรับเงิน
 cowork.choice.service_vat,ภาษีซื้อของสินค้าบริการ
+cowork.choice.subject_missing,ไม่ได้ระบุรายการที่ต้องจดจำ
 cowork.choice.task_default,รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา
 cowork.choice.title,เลือกครั้งเดียวสำหรับชุดบัญชีนี้
 cowork.choice.vat,จำนวนภาษีตามเอกสาร

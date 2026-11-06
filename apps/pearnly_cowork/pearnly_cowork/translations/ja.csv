@@ -1906,6 +1906,7 @@ The stock count record was not found.,棚卸記録が見つかりません。
 The stock count request is invalid. Reload and try again.,棚卸リクエストが無効です。再読み込みしてから再試行してください。
 "The stock lines could not be posted. Check the items, quantities and prices",在庫明細を記帳できません。品名・数量・単価を確認してください
 The stocktake export snapshot is incomplete. Reload and try again.,棚卸しのエクスポートデータが不完全です。再読み込みして再試行してください。
+The subject of the choice is missing,記憶する対象がありません
 The supplier is missing. Add it and submit again.,仕入先がありません。追加して再送信してください
 The system is busy and the reconciliation was not finished. Please try again shortly.,システムが混み合っているため照合を完了できませんでした。しばらくしてからもう一度お試しください。
 The task owner can no longer enter documents with this connection.,定期タスクの担当者はこの接続で登録できなくなっています。
@@ -2279,6 +2280,7 @@ cowork.choice.party,Express の取引先
 cowork.choice.payment,支払方法
 cowork.choice.receipt,入金勘定
 cowork.choice.service_vat,サービスの仮払消費税
+cowork.choice.subject_missing,記憶する対象がありません
 cowork.choice.task_default,この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください
 cowork.choice.title,この帳簿で一度だけ選択
 cowork.choice.vat,この領収書の税額

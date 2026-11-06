@@ -1906,6 +1906,7 @@ The stock count record was not found.,找不到盘点记录。
 The stock count request is invalid. Reload and try again.,盘点请求无效，请重新加载后重试。
 "The stock lines could not be posted. Check the items, quantities and prices",无法记录库存明细，请核对品名、数量和单价
 The stocktake export snapshot is incomplete. Reload and try again.,盘点导出数据不完整，请刷新后重试。
+The subject of the choice is missing,缺少要记住的对象
 The supplier is missing. Add it and submit again.,缺少供应商，请补充后重新提交
 The system is busy and the reconciliation was not finished. Please try again shortly.,系统繁忙，对账未完成，请稍后重试。
 The task owner can no longer enter documents with this connection.,定时任务负责人已无权使用此连接录入。
@@ -2279,6 +2280,7 @@ cowork.choice.party,Express 对应档案
 cowork.choice.payment,付款方式
 cowork.choice.receipt,收款科目
 cowork.choice.service_vat,服务品进项税
+cowork.choice.subject_missing,缺少要记住的对象
 cowork.choice.task_default,此项由定时任务的默认处理决定，请在定时任务中修改
 cowork.choice.title,此账套仅需选择一次
 cowork.choice.vat,票面税额
