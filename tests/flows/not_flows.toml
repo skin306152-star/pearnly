@@ -79,3 +79,7 @@ reason = "Cowork 主档原生 RPC：Cowork 没有主档页面（导航里没有�
 [[file]]
 file = "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py"
 reason = "ERP LINE 绑定码 / 解绑 / LINE 收单卡片编辑入口：要真 LINE 官方号和 LINE App，回归实验室没有；实机由入口 erp.line.binding、erp.line.chat 在三星上验，绑定逻辑由 scripts/erp-pos-lab-integrations-verify.py 在实验 Site 验（11-05 删没人调的 api_line_bot 时登记）"
+
+[[file]]
+file = "apps/pearnly_cowork/pearnly_cowork/files/api.py"
+reason = "Cowork 原件上传 / 下载接口：上传会存原件并交识别（真扣费、要甲骨文或桶），回归实验室不跑；录入页上传由 intake-upload.js 的流程只到页面层，接口由 tests/test_cowork_upload_deferred.py（存放处连不上回可重试的话、死锁重试）与 tests/test_cowork_direct_upload.py 守住（11-06 接住 Deferred 时登记）"
