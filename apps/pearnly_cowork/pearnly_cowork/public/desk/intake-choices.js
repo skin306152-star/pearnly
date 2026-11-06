@@ -6,7 +6,7 @@
  *      MR.ERP 是「公司 → 年度」，Express 照真实用法是「年度（数据文件夹）→ 账套（登录列表原样）」
  *      （用户 2026-09-27）；用服务端存着的那份，「重新读取」才让助手重扫；上次选的账套下次预选；
  *   3. 进项 / 销项；
- *   4. 入账方式 —— **以第三方为准**（用户 2026-09-26），与旧线上 `mode_options` 一致：
+ *   4. 入账方式 —— **以第三方为准**（用户 2026-09-26），与旧线上 `mode_options` 一致（11-06 起 Express 不在这里选，见 MODE）：
  *      · MR.ERP 选付款方式（现金 / 赊账）；进项只有赊账（旧版对 MR.ERP 进项现金明确拦截，
  *        `mrerp_purchase_cash_unverified`）；不选过账类型；
  *      · Express 选过账类型（服务 / 存货）；付款按票面由六级漏斗判定，复核页仍可逐张改。
@@ -26,8 +26,9 @@
 		const picked = {target: null, connection: null, company: null, account_set_key: null,
 			account_label: null, direction: null, posting_kind: null, payment: null};
 		const STEP_FIELDS = ["company", "year", "direction", "posting_kind", "payment"];
-		// 每个目标在入口要选的那一样（旧线上 `line_target_projection.mode_options`）。
-		const MODE = {mrerp: "payment", express: "posting_kind"};
+		// 每个目标在入口要选的那一样（旧线上 `line_target_projection.mode_options`）。Express 不再整批选服务 / 存货：
+		// 每一行在复核页或推送前按行定（存货 / 新建存货 / 记费用，11-06 按行选物料，评估 2026-11-06 第 15 节 C7）。
+		const MODE = {mrerp: "payment"};
 		const options = {
 			direction: () => [{value: "purchase", label: t("intake.dir.purchase")},
 				{value: "sales", label: t("intake.dir.sales")}],
@@ -86,7 +87,7 @@
 		const paint_primary = () => {
 			sync_stock_group();
 			const ready = gated() && Boolean(picked.direction
-				&& (recognize_only() || (picked.account_set_key && mode() && picked[mode()])))
+				&& (recognize_only() || (picked.account_set_key && (!mode() || picked[mode()]))))
 				&& (!stock_needed() || Boolean(d.get_value("stock_acc_group")));
 			if (ready) d.enable_primary_action();
 			else d.disable_primary_action();

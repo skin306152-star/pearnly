@@ -356,7 +356,34 @@
 				lines.push(add_line({name: "", qty: "", price: "", subtotal: "", posting_kind: ""}, lines.length, null));
 				sync_save();
 			}},
+			// 一次设好每一行的过账类型（11-06 按行选物料，评估 2026-11-06 第 15 节 C9）：原生弹窗 + 表格，写回各行，存法同逐行改
+			{fieldtype: "Button", fieldname: "bulk_kind", label: __("Bulk Edit"), hidden: no_kind || !reviewable,
+				click: () => bulk_kinds()},
 		]);
+		const bulk_kinds = () => {
+			const kept = lines.filter(line => !line.removed);
+			if (!kept.length) return;
+			const label = value => KIND_OPTIONS.find(row => row.value === (value || ""))?.label || "";
+			const rows = kept.map(line => ({name: line.form.get_value("name") || "", posting_kind: line.form.get_value("posting_kind") || ""}));
+			const d = p.dialog(__("Bulk Edit"), [
+				{fieldtype: "Select", fieldname: "all", label: __("Posting Kind"), options: KIND_OPTIONS, onchange: () => {
+					const value = d.get_value("all") || "";
+					for (const row of d.fields_dict.rows.df.data) row.posting_kind = value;
+					d.fields_dict.rows.grid.refresh();
+				}},
+				{fieldtype: "Table", fieldname: "rows", label: t("intake.nav.items"), cannot_add_rows: 1, cannot_delete_rows: 1,
+					in_place_edit: 1, data: rows, fields: [
+						{fieldtype: "Data", fieldname: "name", label: t("intake.item.name"), read_only: 1, in_list_view: 1, columns: 6},
+						{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"), options: KIND_OPTIONS,
+							in_list_view: 1, columns: 4, formatter: value => p.escape(label(value))},
+					]},
+			], __("Save"), async () => {
+				const data = d.fields_dict.rows.df.data || [];
+				kept.forEach((line, index) => void line.form.set_value("posting_kind", data[index]?.posting_kind || ""));
+				d.hide();
+				sync_save();
+			});
+		};
 		// 税费金额与备注放在明细下面（ERP `purchase-layout.js` 同法：定义在一张表单里，按分段挪到各自区域）。
 		let moving = false;
 		for (const section of form.sections) {
