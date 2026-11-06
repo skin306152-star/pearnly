@@ -17,6 +17,7 @@ Several computers report into one connection (ADR-021, plan 2.3):
   reporter binding and no versions any more (preparation evidence v2 binds no key; versions
   live on each computer), so two computers reporting in turn never rewrite the connection row.
 """
+from dataclasses import replace
 from datetime import datetime, timezone
 
 import frappe
@@ -49,6 +50,22 @@ def _account_observation(doc, observation, account, observed_at):
             'account_sets': pool.catalog(doc.name, lock=True)}
 
 
+def _without_stale_refresh(plan):
+    """电脑交回的刷新回执已过期（租约到期、被顶掉……）：只丢这份回执和它读回的那份账套的目录、主档与读取失败，在线、账套名单
+    与例行上报照收。以前整份心跳拒收（``connection.refresh_stale``），电脑只在上报成功后才清掉这条请求，就一直带着它每拍
+    重报、永远报不进来（11-06 测试机：读账套时断网休眠，醒来心跳每 3 秒 417）；现在这一拍收下、回复里不再派它，电脑自己清掉。"""
+    if (plan.completion or {}).get('scope') != 'account_set':
+        return replace(plan, completion=None)  # 目录刷新：名单本来就是例行上报，照收
+    refreshed = (plan.completion or {}).get('account_set')
+    error = plan.projection_error if (plan.projection_error or {}).get('scope') == 'endpoint' else None
+    observations = [item for item in plan.observations
+                    if not item.get('account_set_key') or item.get('account_set_key') != refreshed]
+    # 这一拍的主档是那份账套读回来的，不能记到所选账套名下：整拍的主档都不记，下一拍例行上报再带
+    patch = {key: value for key, value in plan.patch.items() if key not in pool.FACT_KEYS}
+    return replace(plan, completion=None, observations=observations, projection_error=error, refreshed_account='',
+                   patch=patch)
+
+
 def ingest(doc, plan, *, credential_id, token_generation, issuer, member, protected=None, now=None):
     """``member``：这台电脑（`member.Member`，由 Companion 读好）；``protected()``：被未了结推送记录引用的账套键
     （账套资料不淘汰它们）。"""
@@ -61,8 +78,10 @@ def ingest(doc, plan, *, credential_id, token_generation, issuer, member, protec
 
     # Validate authority before any report mutation. An obsolete or foreign
     # completion cannot publish a directory as a side effect of being rejected.
-    completed = refresh.validate_completion(doc, plan.completion, credential_id, token_generation, now,
-                                            device=member.device, canonical=canonical)
+    completed, stale = refresh.current_completion(doc, plan.completion, credential_id, token_generation, now,
+                                                  device=member.device, canonical=canonical)
+    if stale:
+        plan = _without_stale_refresh(plan)
     report = _slim(model.parse(doc.get('report_json'), {}))
     report.update({key: value for key, value in plan.patch.items() if key == desktop_update.KEY})
     encoded = model.dumps(report)

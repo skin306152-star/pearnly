@@ -134,3 +134,49 @@ def test_only_the_latest_account_set_reads_stay_in_memory(monkeypatch):
     assert len(catalog_refresh._target_refreshes) <= catalog_refresh._TARGET_KEEP + 1
     newest = catalog_refresh._key(rf"C:\ACCOUNT\70EXP\BOOK{catalog_refresh._TARGET_KEEP + 3}")
     assert catalog_refresh._target_refreshes[newest].payload is not None
+
+
+def test_a_refused_reply_keeps_the_read_and_the_sites_next_ok_without_it_clears_it(tmp_path):
+    """11-06 测试机（服务端 refresh-stale-heartbeat）：读账套时断网休眠，醒来交的回执服务端认过期。旧服务端整份心跳回 417，
+    这条请求在 CC 里一直留着、每拍重报；新服务端这一拍照收、回复里不再派它，CC 现有逻辑（交了回执 + 回复没有新请求）就清掉，
+    下一拍不再带回执——已装着的 CC 桌面版不用升级也能自愈。"""
+    catalog_refresh._reset_for_tests()
+    root = tmp_path / "ACCOUNT" / "70EXP"
+    demo01 = _book(root, "DEMO01", "1111-00", "S-DEMO01")
+    demo02 = _book(root, "DEMO02", "5300-01", "S-DEMO02")
+    cfg = _cfg(root, demo01)
+
+    class Refused(Exception):
+        response = types.SimpleNamespace(status_code=417)
+
+    class _Site(_QC):
+        refuse = True
+
+        def health(self, **kwargs):
+            self.health_calls.append(kwargs)
+            if self.refuse and kwargs.get("master_refresh_request_id"):
+                raise Refused("417 EXPECTATION FAILED")
+            return {"ok": True}
+
+    qc = _Site()
+    state = {
+        "last_heartbeat": 0.0, "last_catalog": time.time() - 60,
+        "reported_account_sets": [{"path": str(book), "root": str(root), "writable": True} for book in (demo01, demo02)],
+        "master_refresh_received_at": time.time() - 1,
+        "master_refresh_request": {"request_id": "r-stale", "scope_kind": "account_set",
+                                   "account_set_key": str(demo02).lower()},
+    }
+    with mock.patch("src.companion.master_refresh.request_master", return_value=(None, 0.0)):
+        deadline = time.time() + 5
+        while time.time() < deadline and not any(c.get("master_refresh_request_id") for c in qc.health_calls):
+            worker._run_periodic(cfg, qc, state, on_update_available=None)
+            time.sleep(0.05)
+        assert qc.health_calls[-1]["master_refresh_request_id"] == "r-stale"
+        assert state["master_refresh_request"]["request_id"] == "r-stale"  # 旧服务端：拒收，留着
+        qc.refuse = False
+        worker._run_periodic(cfg, qc, state, on_update_available=None)  # 有请求时每拍立即重报
+        assert qc.health_calls[-1]["master_refresh_request_id"] == "r-stale"
+        assert "master_refresh_request" not in state  # 新服务端：照收、没再派 → 清掉
+        state["last_heartbeat"] = 0.0
+        worker._run_periodic(cfg, qc, state, on_update_available=None)
+        assert not qc.health_calls[-1].get("master_refresh_request_id")

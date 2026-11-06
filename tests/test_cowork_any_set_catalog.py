@@ -224,6 +224,44 @@ class AnySetCatalog(unittest.TestCase):
         later = account_masters.ensure(self.doc, KEYS["DEMO02"], "owner@example.com", self.now + timedelta(minutes=11))
         self.assertEqual((later["state"], later.get("requested")), ("reading", True))
 
+    def test_a_late_reply_for_an_expired_read_is_dropped_and_the_heartbeat_still_counts(self):
+        """11-06 测试机：读账套时断网休眠，租约到期；醒来电脑照旧交这份回执。以前整份心跳回 connection.refresh_stale（417），
+        电脑只在上报成功后才清这条请求，于是每拍重报、永远报不进来。现在只丢这份回执和它读回的那份账套的目录与主档，
+        这一拍照收（在线、账套名单），回复里不再派这条请求，电脑自己清掉。"""
+        account_masters.ensure(self.doc, KEYS["DEMO02"], "owner@example.com", self.now)
+        leased = self.lease(SETS["DEMO01"])
+        self.assertEqual(leased["account_set_key"], KEYS["DEMO02"])
+        before = pool.facts("CONN", KEYS["DEMO01"])["reported_accounts"]
+        self.now = NOW + timedelta(hours=20)  # 第二天下午醒来
+        result = self.heartbeat(accounts=chart("5300", 37), refresh=leased,
+                                catalog={"products": [{"code": "P1", "name": "Soap", "kind": "stock"}], "customers": [],
+                                         "suppliers": [], "departments": []})
+        self.assertTrue(result["ok"])
+        self.assertNotIn("master_refresh", result)
+        row = self.refreshes()[0]
+        self.assertEqual((row.status, row.error_code), ("failed", "ERR_REFRESH_LEASE_EXPIRED"))
+        # 过期回执读回的目录与主档一样也不记：那份账套只记「读取失败（租约到期）」、没有目录，所选账套的主档没被盖
+        head = state.heads(self.doc)[state.scope(KEYS["DEMO02"], "express")[2]]
+        self.assertEqual((head["status"], head["error_code"], head.get("snapshot_id")),
+                         ("error", "ERR_REFRESH_LEASE_EXPIRED", None))
+        self.assertFalse(pool.facts("CONN", KEYS["DEMO02"]))
+        self.assertEqual(pool.facts("CONN", KEYS["DEMO01"])["reported_accounts"], before)
+        # 下一拍（电脑已清掉请求）照常
+        self.now += timedelta(minutes=1)
+        self.assertTrue(self.heartbeat(accounts=chart("1111", 149))["ok"])
+
+    def test_a_reply_for_a_read_this_site_never_handed_out_is_dropped_too(self):
+        """回执对不上任何一条刷新（切过站点、记录已清）：同上，不整份拒收。"""
+        for scope, key in (("account_set", KEYS["DEMO02"]), ("endpoint", "@endpoint")):
+            result = self.heartbeat(refresh={"request_id": "gone-" + scope, "scope_kind": scope, "account_set_key": key},
+                                    catalog={"products": [], "customers": [], "suppliers": [], "departments": []})
+            self.assertTrue(result["ok"])
+            self.assertNotIn("master_refresh", result)
+        self.assertNotIn(state.scope(KEYS["DEMO02"], "express")[2], state.heads(self.doc))
+        self.assertEqual(refresh.current_completion(self.doc, None, "CRED", 1, self.now), (None, False))
+        with self.assertRaises(Exception):
+            refresh.validate_completion(self.doc, {"request_id": "gone", "scope": "endpoint"}, "CRED", 1, self.now)
+
     def test_offline_and_unlisted_account_sets_are_said_plainly(self):
         self.pc.report({"offline": True}, self.now)
         self.assertEqual(account_masters.ensure(self.doc, KEYS["DEMO03"], "owner@example.com", self.now)["state"],

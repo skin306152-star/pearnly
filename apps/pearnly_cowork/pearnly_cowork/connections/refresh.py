@@ -165,18 +165,20 @@ def supersede(doc, row, now):
         fail(doc, row, 'ERR_REFRESH_SUPERSEDED', now)
 
 
-def validate_completion(doc, completion, credential_id, token_generation, now, *, device=None,
-                        canonical=normalize_express_account_key):
-    """``canonical`` turns the computer's own spelling of the account set back into the canonical key."""
+def current_completion(doc, completion, credential_id, token_generation, now, *, device=None,
+                       canonical=normalize_express_account_key):
+    """电脑交回的这份刷新回执还算不算数：回 ``(那条刷新, 过期没有)``。没交回执是 ``(None, False)``；交了但对不上一条正租着、
+    租给这把密钥、这台电脑、没到期的刷新（租约到期、被顶掉、连接改过、密钥换过）是 ``(None, True)``。
+    ``canonical`` turns the computer's own spelling of the account set back into the canonical key."""
     if completion is None:
-        return None
+        return None, False
     handle = completion.get('request_id')
     if not isinstance(handle, str) or not handle or len(handle) > 140:
-        frappe.throw(_('connection.refresh_stale'))
+        return None, True
     rows = frappe.db.sql('''SELECT name FROM `tabCowork ERP Refresh`
         WHERE connection=%s AND lease_handle=%s FOR UPDATE''', (doc.name, handle))
     if len(rows) != 1:
-        frappe.throw(_('connection.refresh_stale'))
+        return None, True
     row = state.read(state.REFRESH, rows[0][0])
     key = '@endpoint' if completion.get('scope') == 'endpoint' else canonical(completion.get('account_set'))
     if (row.status != 'leased' or row.adapter != 'express' or row.account_set_key != key
@@ -185,6 +187,16 @@ def validate_completion(doc, completion, credential_id, token_generation, now, *
             or row.lease_owner != credential_id or row.lease_generation != token_generation
             or (row.get('lease_device') and row.lease_device != device)
             or not row.lease_expires_at or row.lease_expires_at <= now):
+        return None, True
+    return row, False
+
+
+def validate_completion(doc, completion, credential_id, token_generation, now, *, device=None,
+                        canonical=normalize_express_account_key):
+    """同 :func:`current_completion`，过期的回 ``connection.refresh_stale``（给不能丢掉回执、只能整份拒收的调用方）。"""
+    row, stale = current_completion(doc, completion, credential_id, token_generation, now, device=device,
+                                    canonical=canonical)
+    if stale:
         frappe.throw(_('connection.refresh_stale'))
     return row
 
