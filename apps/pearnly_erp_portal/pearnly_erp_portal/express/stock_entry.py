@@ -1,6 +1,8 @@
 """ERP 出入库单 / 盘点调整 → Express 库存单（载荷 6，CC 桌面版 `dbf_stock`；出入库第一期 B 段，10-25）。
 
-- 出库单 → 领用 OU；入库单 → 调整 JU（正）；盘点生成的出入库单（``ref_type = count``）→ 盘点调整 TK（出库那张数量记负）。
+- 出库单 → 领用 OU；入库单 → 调整 JU（正）；物料调整单（岳父 11-06，号 IA）→ 盘点调整 TK（一张调整单一张 TK，数量带正负，
+  按「存货 × Express 仓」轧差，见 :func:`document`；盘点生成的调整单也是这样写，盘点本身不再写 TK）；
+  历史盘点生成的出入库单（``ref_type = count``，AD 号）→ 整份盘点轧差一张 TK（:func:`count_document`，只给旧盘点）。
 - 采购确认后自动生成的入库单（``ref_type = purchase``）不写：那张采购单已带库存行写进 Express，再写一张就重复入账。
 - 账套照采购 / 销售同一条规则选（`target.pick`：税号 + 分店 + 日期，同期两份按选过的，没选过停下让人选一次）；账套资料还没读到时
   请电脑读（`masters.ensure`），读好了再准备。这类单没有对方、没有税，不走发票那套写账规则（`express_rules`），载荷在这里直接备：
@@ -64,8 +66,11 @@ def eligible(row) -> bool:
     return row.get("status") == "submitted" and (row.get("ref_type") or "") not in SKIPPED_REFS
 
 
+ADJUST_DIRECTION = "adjust"
+
+
 def kind(row) -> str:
-    if (row.get("ref_type") or "") == COUNT_REF:
+    if (row.get("ref_type") or "") == COUNT_REF or row.get("direction") == ADJUST_DIRECTION:
         return COUNT
     if row.get("direction") == "transfer":
         return TRANSFER
@@ -113,13 +118,48 @@ def remarks_of(units, product) -> dict:
     return {"remarks": remarks} if remarks else {}
 
 
+def _net(lines) -> list:
+    """物料调整单交给 TK 的明细：按「存货 × Express 仓」轧差（库存单位），净 0 的不写——Express 不分仓位，同一仓里「先减后加」的仓位
+    挪动写成毛额，在不许负库存的账套里减的会被拦（同 :func:`count_document`）。单价只带**人亲手填 / 改过**的（主会话 11-06 审定 #5）：
+    这一格的增加行全是人填的、价一样才带，否则不带，Express 用自己的均价。"""
+    net, order = {}, []
+    for line in lines:
+        key = (line["code"] or line["product"] or line["name"], line["loccod"])
+        slot = net.get(key)
+        if slot is None:
+            slot = net[key] = {"code": line["code"], "name": line["name"], "unit": line["unit"], "loccod": line["loccod"],
+                               "qty": contracts.d(0), "product": line["product"], "prices": set(), "default": False}
+            order.append(key)
+        qty = contracts.d(line["qty"])
+        slot["qty"] += qty
+        if qty > 0:
+            if line.get("manual_cost") is not None:
+                slot["prices"].add(line["manual_cost"])
+            else:
+                slot["default"] = True
+    out = []
+    for key in order:
+        slot = net[key]
+        if not slot["qty"]:
+            continue
+        item = {"code": slot["code"], "name": slot["name"], "qty": _plain(slot["qty"]), "unit": slot["unit"],
+                "loccod": slot["loccod"], "product": slot["product"]}
+        if slot["qty"] > 0 and not slot["default"] and len(slot["prices"]) == 1:
+            item["unit_cost"] = _plain(next(iter(slot["prices"])).quantize(contracts.d("0.0001")))
+        out.append(item)
+    return out
+
+
 def document(name, ref, base=False) -> dict:
     """这张出入库单交给电脑的样子（还没选账套）。``ref``：单据标识（`push.ref`）。行照行上的单位与数量交（另带 ERP 商品单位表的
     换算率 ``factor``），CC 桌面版按 Express 主档的包装单位照原生记法写（`stock_units`）；``base=True`` 换成库存单位（盘点轧差用）。"""
     doc = frappe.get_doc(DOCTYPE, name)
     doctype = kind(doc)
     products, warehouses, lines = {}, {}, []
-    units = line_units(doc) if doctype != COUNT else {}  # 盘点不改台（10-26）
+    adjust = doc.direction == ADJUST_DIRECTION
+    base = base or adjust  # 物料调整按库存单位轧差
+    # 盘点不改台（10-26）；物料调整写 TK 也不带台号（TK 是轧差后的数）
+    units = line_units(doc) if doctype != COUNT else {}
     for index, line in enumerate(doc.lines, start=1):
         product = products.get(line.product)
         if product is None:
@@ -135,7 +175,7 @@ def document(name, ref, base=False) -> dict:
         if base:
             qty, unit, cost = qty * factor, stock_unit, cost / factor
         if doctype == COUNT and doc.direction == "out":
-            qty = -qty
+            qty = -qty  # 历史盘点生成的出库单（物料调整单的数量本来就带正负）
         # ``product``：ERP 商品（选存货、回填编码用），进载荷前去掉
         item = {"code": product.get("express_code") or "", "name": product.get("product_name") or "",
                 "qty": _plain(qty), "unit": unit, "loccod": warehouses.get(warehouse, ""), "product": line.product}
@@ -145,6 +185,8 @@ def document(name, ref, base=False) -> dict:
             item["unit_cost"] = _plain(cost.quantize(contracts.d("0.0001")))
         if not base:
             item.update(remarks_of(units.get(index), product))
+        if adjust and qty > 0 and line.get("unit_cost_manual") and line.unit_cost not in (None, ""):
+            item["manual_cost"] = cost  # 人填的单价（每个库存单位），轧差时用
         lines.append(item)
     if doc.warehouse and doc.warehouse not in warehouses:
         warehouses[doc.warehouse] = frappe.db.get_value("ERP Warehouse", doc.warehouse, "express_code") or ""
@@ -152,6 +194,8 @@ def document(name, ref, base=False) -> dict:
         for item in lines:
             item.pop("unit_cost", None)  # RL 不带价（原生 UNITPR / TRNVAL 全空）
         warehouses[doc.to_warehouse] = frappe.db.get_value("ERP Warehouse", doc.to_warehouse, "express_code") or ""
+    if adjust:
+        lines = _net(lines)
     body = {"ref": ref, "direction": "stock", "doctype": doctype, "date": str(doc.posting_date),
             "number": doc.doc_no or doc.name, "remark": str(doc.reason or "").strip(),
             "loccod": warehouses.get(doc.warehouse, ""), "lines": lines}
@@ -369,7 +413,7 @@ def form_body(payload) -> dict:
     """出入库单表单此刻的内容（还没存）→ :func:`prepare` 要的单（提交前问要人定的项用，`api.preflight`）：单别、日期（科目），
     明细只带商品与它的 Express 编码（Express 里没有的商品选存货，P3x）。"""
     direction = str(payload.get("direction") or "")
-    direction = direction if direction in ("out", "transfer") else "in"
+    direction = direction if direction in ("out", "transfer", ADJUST_DIRECTION) else "in"
     lines = []
     for line in payload.get("lines") or []:
         product = str((line or {}).get("product") or "").strip() if isinstance(line, dict) else ""

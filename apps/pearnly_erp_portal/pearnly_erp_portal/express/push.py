@@ -413,8 +413,8 @@ def send(doctype, name, operator=None):
         _set(doctype, name, {"ledger_state": contracts.HELD, "ledger_reason": pos_day.NET_NEGATIVE, "ledger_needed": None})
         frappe.db.commit()
         return {"status": "held", "reason": pos_day.NET_NEGATIVE}
-    if (doctype == COUNT and not body["lines"]) or (doctype == POS_DAY and body.get("empty")):
-        # 整份盘点轧差后没有要调的（只有库位之间挪动）、收银日一天全退（冲减后全部为 0）：Express 里什么都不用写
+    if (doctype in (STOCK, COUNT) and not body["lines"]) or (doctype == POS_DAY and body.get("empty")):
+        # 整份盘点 / 物料调整单轧差后没有要调的（只有仓位之间挪动）、收银日一天全退（冲减后全部为 0）：Express 里什么都不用写
         _set(doctype, name, {"ledger_state": None, "ledger_reason": "", "ledger_needed": None})
         frappe.db.commit()
         return {"status": "nothing_to_write"}

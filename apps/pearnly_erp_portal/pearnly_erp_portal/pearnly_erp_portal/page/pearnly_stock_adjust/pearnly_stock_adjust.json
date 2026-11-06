@@ -1,0 +1,13 @@
+{
+ "doctype": "Page",
+ "name": "pearnly-stock-adjust",
+ "page_name": "pearnly-stock-adjust",
+ "title": "nav.stockAdjust",
+ "module": "Pearnly ERP Portal",
+ "standard": "Yes",
+ "roles": [
+  {
+   "role": "Desk User"
+  }
+ ]
+}

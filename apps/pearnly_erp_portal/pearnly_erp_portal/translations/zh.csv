@@ -79,6 +79,7 @@ Additional Information,附加信息
 Additional Information updated successfully.,附加信息已更新
 Address,地址
 Address and notes,地址与备注
+Adjust products from count results,按盘点结果调整物料
 Admins only,仅管理员
 Against Payment,关联付款
 All,全部
@@ -775,6 +776,7 @@ New Category,新建分类
 New Customer,新建客户
 New Invoice,新单
 New Order,新订单
+New Product Adjustment,新建物料调整单
 New Purchase Invoice,新建采购发票
 New Sales Document,新建销售单
 New Stock Issue,新建出库单
@@ -992,6 +994,7 @@ Printed Total,票面合计
 Private,私有
 Product,产品
 Product / position / counted by / time,物料 / 仓位 / 盘点人 / 时间
+Product Adjustment,物料调整
 Product ID,物料标识
 Product Name,物料名称
 Product Ref,物料外部标识
@@ -1029,6 +1032,7 @@ Qty (entered unit),数量（录入单位）
 Quantities of products tracked by unit must be whole numbers in the base unit,按台管理的商品数量须为基本单位整数
 Quantity,数量
 Quantity Available,可用数量
+Quantity cannot be 0,数量不能为 0
 Quantity counted this time,本次实盘数量
 Quantity differences,数量差异
 "Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts.",数量差异，差得最多的排在最前。灰柱是账面数量、彩柱是实盘数量；鼠标放到柱子上能看到商品、仓位和具体数量。
@@ -1253,6 +1257,7 @@ Status,状态
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",仍然是关的：库存表要进库存那批，过账不能悄悄把它们跳过
 Stock,库存
 Stock Account Group,存货科目组
+Stock Count,盘点
 Stock Posted At,库存过账时间
 Stock Posting,库存过账
 Stock Token,库存令牌
@@ -1415,6 +1420,7 @@ The total is zero,合计为零
 The units must match the stock of each warehouse,台数须与各仓账面数相等
 The value is not a number,该值不是数字
 The value must be zero or more,该值不能小于 0
+The warehouse differs from the warehouse of this document,仓库与本单仓库不一致
 The warehouse has no matching Express warehouse,仓库在 Express 里没有对应的仓库
 Then,自动
 There are no lines,缺少明细
@@ -1484,6 +1490,7 @@ This shift belongs to another cashier,该班次属于其他收银员
 This shift is already closed,该班次已交班
 This shift is closed,该班次已交班
 This status change is not allowed,不允许此状态变更
+This stock count already has an adjustment,此盘点已有物料调整单
 This stock count is already posted,该盘点单已过账
 This stock count is closed,该盘点已结束
 This stock entry comes from a stock count sent to Express. It cannot be voided on its own,此单由已写进 Express 的盘点生成，不能单独作废
@@ -1543,6 +1550,7 @@ Unbound,未绑定
 Unit,单位
 Unit Cost,单位成本
 Unit Cost (net of VAT),单位成本（不含 VAT）
+Unit Cost Entered,单价已填写
 Unit Price,单价
 Unit barcode,单位条码
 Unit not found,该台不存在
@@ -2212,6 +2220,7 @@ keyword,搜索卡片
 member,成员
 nav.posReceipts,收银记录
 nav.posShifts,班次记录
+nav.stockAdjust,物料调整
 nav.stockCount,盘点
 nav.stockTransfer,调拨
 none,无
@@ -2380,6 +2389,7 @@ stock.count.action.delete,删除选中的 {0} 个
 stock.count.addEntry,新增盘点记录
 stock.count.addEntryHint,账面数量 {0} {1}
 stock.count.addEntryTitle,新增盘点记录 — {0}
+stock.count.adjust,按盘点结果调整物料
 stock.count.back,返回
 stock.count.blank,未填
 stock.count.book,账面数量
@@ -2723,6 +2733,7 @@ trade.methodCash,现金
 trade.methodPromptpay,PromptPay
 trade.methodTransfer,转账
 trade.net,净总计
+trade.newAdjust,新建物料调整单
 trade.newIn,新建入库单
 trade.newInvoice,新单
 trade.newOrder,新订单

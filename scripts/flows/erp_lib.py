@@ -143,7 +143,7 @@ if not has("ERP Stock Count", {{"warehouse": ["in", stores], "status": "Posted"}
     companies.set_active_company(co)
     posted = count.create_count(title="flow seed " + frappe.generate_hash(length=6), warehouse=wh)["name"]
     count.add_entry(count=posted, product=product, qty=1, warehouse=wh, location=shelf or None, request_id="flow-seed-count-" + posted)
-    count.close_count(posted, review_token=count.review_count(posted)["review_token"])
+    count.post_count(posted, review_token=count.review_count(posted)["review_token"])  # 结束 + 生成物料调整单 + 提交（11-06 起结束不入账）
     frappe.db.commit()
     made.append("count")
     frappe.set_user("admin@erp.regression")

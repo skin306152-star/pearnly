@@ -142,7 +142,7 @@ def receiving(value=None, *, company=None) -> str:
 # 预填（多仓闭环 P1，G2–G4，主会话 10-26 问 1 / 问 2）：界面与自动渠道建单时建议一个仓，写在单上、看得见可改；服务端不再兜底。
 PREFILL_CONTEXT, PREFILL_LAST, PREFILL_SELLING, PREFILL_SOLE = "context", "last", "selling", "sole"
 INBOUND = ("purchase", "stock_in", "opening")  # 进货类：卖货仓只给它们当建议（问 1：进货就进卖货那个仓）
-KINDS = INBOUND + ("sales", "stock_out", "count", "transfer")
+KINDS = INBOUND + ("sales", "stock_out", "count", "transfer", "stock_adjust")
 LAST_KEY = "pearnly_last_warehouse"  # Frappe 原生 user default：{"单据类型:公司": 仓}（问 2：按人 + 单据类型 + 公司记）
 
 

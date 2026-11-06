@@ -25,6 +25,7 @@ SALE_REFS = ("sale", "ERP Sales Document")
 COUNT_REF = "count"
 OPENING_REF = "serial_opening"
 IN_TYPES = ("opening", "purchase_in", "stock_in")
+ADJUST = "adjust"  # 物料调整：按行的正负分别走进 / 出
 OUT_TYPES = ("sale_out", "stock_out")
 MAX_NO, MAX_COLOR, TAIL, VIN_LENGTH = 40, 60, 8, 17
 KINDS = ("vehicle", "device")
@@ -126,6 +127,13 @@ def apply(*, lines, movement_type, ref_type, ref_id, company, posting_date=None)
         return
     products = tracked((line.get("product") for line in lines), company)
     if not products:
+        return
+    if movement_type == ADJUST:
+        # 物料调整（岳父 11-06，主会话审定 #3）：增加的行同入库（登记新台 / 收回已售的台），减少的行同出库（选在库的台，改成已出库）
+        common = {"ref_type": ref_type, "ref_id": ref_id, "company": company, "posting_date": posting_date}
+        apply(lines=[line for line in lines if frappe.utils.flt(line.get("qty")) > 0], movement_type="stock_in", **common)
+        apply(lines=[{**line, "qty": -frappe.utils.flt(line.get("qty"))} for line in lines if frappe.utils.flt(line.get("qty")) < 0],
+              movement_type="stock_out", **common)
         return
     if movement_type not in IN_TYPES + OUT_TYPES:
         frappe.throw(_(QTY_MISMATCH))

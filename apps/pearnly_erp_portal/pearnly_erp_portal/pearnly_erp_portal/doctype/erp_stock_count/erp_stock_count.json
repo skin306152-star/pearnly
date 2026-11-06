@@ -19,6 +19,7 @@
   "closed_by",
   "posted_at",
   "posted_by",
+  "adjustment",
   "ledger_section",
   "ledger_state",
   "ledger_docnum",
@@ -110,6 +111,13 @@
    "read_only": 1
   },
   {
+   "fieldname": "adjustment",
+   "fieldtype": "Link",
+   "options": "ERP Stock Entry",
+   "label": "Product Adjustment",
+   "read_only": 1
+  },
+  {
    "fieldname": "ledger_section",
    "fieldtype": "Section Break",
    "label": "Express",
@@ -193,5 +201,6 @@
    "report": 1,
    "export": 1
   }
- ]
+ ],
+ "modified": "2026-11-06 12:00:00.000000"
 }

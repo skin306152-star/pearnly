@@ -52,3 +52,5 @@ pearnly_erp_portal.patches.v1_22_express_linked_at
 pearnly_erp_portal.patches.v1_23_product_category_master
 # 单据上的账本栏改成通用列（express_* → ledger_*，另记账本 ledger_target）：旧列抄过来，旧列这一版保留作回退（评估 11-02 §12 第 6 条）
 pearnly_erp_portal.patches.v1_24_ledger_state
+# 物料调整菜单（岳父 11-06）：已有盘点 / 入库 / 出库菜单的员工补发，历史 AD 单挪到物料调整列表后照样看得到
+pearnly_erp_portal.patches.v1_25_stock_adjust_menu

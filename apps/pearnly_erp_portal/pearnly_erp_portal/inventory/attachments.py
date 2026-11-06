@@ -22,7 +22,7 @@ CANCELLED = "Document has been cancelled"
 def _entry(name, write=False):
     guard.require("stock.read")
     doc = documents._get(name)
-    guard.require("stock." + doc.direction)
+    documents.require_kind(doc.direction, doc.get("ref_type"), doc.get("stock_count"))
     if write and doc.status == "void":
         frappe.throw(_(CANCELLED))
     return doc

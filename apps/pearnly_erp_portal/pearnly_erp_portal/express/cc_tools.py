@@ -543,7 +543,7 @@ QUEUED_NOTE = ("queued: sent, but Express has not reported a result yet (CC Desk
                "be offline: it is entered once CC Desktop is back). Tell the user it is queued; check later with "
                "erp_push_results when they ask. Do not wait or sleep. A queued document is not entered yet: never say "
                "it was entered or recorded into Express, not even at the start of the reply.")
-ROW_NOTE = ("name is the document id for the other tools (P purchase, S sales, M stock movement or transfer, D POS day "
+ROW_NOTE = ("name is the document id for the other tools (P purchase, S sales, M stock movement, transfer or adjustment, D POS day "
             "summary, C stock count); invoice_no is its number in ERP. last_push_status is pending (on its way to "
             "Express), success (entered: written.docnum is its number in Express; mismatch means the computer's check "
             "after writing did not match; handled means a person handled it in Express), manual (stopped: reason says "
@@ -571,7 +571,7 @@ GUIDANCE = [
 
 TOOLS = [
     {"name": "erp_list_documents", "label": "Listed documents",
-     "description": "List ERP documents that are written into Express (purchases, sales, stock movements and transfers, "
+     "description": "List ERP documents that are written into Express (purchases, sales, stock movements, transfers and adjustments, "
                     "POS day summaries, stock counts) for the company this conversation is filed under, newest first: "
                     "number, date, counterparty, total and the push status. Filter by push_state (waiting = not in "
                     "Express yet and not on its way: stopped or failed; pending; success; failed = stopped, failed or "

@@ -49,7 +49,8 @@ KINDS = {PURCHASE: Kind("purchase.read", "pearnly-purchase", "supplier_name", "s
          POS_DAY: Kind("cashier.read", "pearnly-pos-receipts", "", "name", "day", "grand_total", "submitted", False),
          STOCK: Kind("stock.read", "", "", "doc_no", "posting_date", "", "submitted", True),
          COUNT: Kind("count.read", "pearnly-stock-count", "", "title", "posted_at", "", "Posted", True)}
-STOCK_ROUTES = {"in": "pearnly-stock-in", "out": "pearnly-stock-out", "transfer": "pearnly-stock-transfer"}
+STOCK_ROUTES = {"in": "pearnly-stock-in", "out": "pearnly-stock-out", "transfer": "pearnly-stock-transfer",
+                "adjust": "pearnly-stock-adjust"}  # 物料调整（岳父 11-06）
 # 写账前置判定的单号前缀（`express.precheck`）：采购、销售同代录；收银日汇总 / 退货单、出入库单、盘点另起
 PRECHECK_PREFIXES = {"P": PURCHASE, "S": SALES, "D": POS_DAY, "T": STOCK, "C": COUNT}
 PENDING_MAX = 500  # 每类单据最多看这么多张（同 Cowork 待处理的粗筛上限）

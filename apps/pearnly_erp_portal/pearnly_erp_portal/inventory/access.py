@@ -10,23 +10,37 @@ _ENTRY_WRITE = object()
 _OPENING_WRITE = object()
 
 
+ADJUST = "adjust"
+COUNT_REF = "count"
+
+
+def entry_kind(direction, ref_type=None) -> str:
+    """这张单归哪一页、要哪种能力：物料调整（``adjust``）含历史盘点生成的 AD 单（方向是 in / out、``ref_type = count``，
+    岳父 11-06：以后在物料调整列表里显示，不再出现在入库 / 出库列表）；其余按方向。"""
+    return ADJUST if direction == ADJUST or ref_type == COUNT_REF else str(direction or "")
+
+
 def entry_permission(doc, ptype="read", user=None, **kwargs):
     if ptype not in scope.READ_TYPES:
         return False
-    return bool(guard.has("stock." + str(doc.direction), user)
-                and scope.warehouse_allowed(doc.warehouse, user))
+    kind = entry_kind(doc.direction, doc.get("ref_type"))
+    # 盘点生成的物料调整单：盘点员（`count.write`）也能看（`documents.require_kind` 同判）
+    allowed = guard.has("stock." + kind, user) or (kind == ADJUST and doc.get("stock_count") and guard.has("count.write", user))
+    return bool(allowed and scope.warehouse_allowed(doc.warehouse, user))
 
 
 def validate_entry_write(doc, method=None, *args, **kwargs):
     """Only the service may change an entry, including its lines and posting state."""
     context = getattr(frappe.local, "stock_entry_service_write", None)
+    if context and context[1] is _ENTRY_WRITE and method == "on_trash" and context[0].name == doc.name:
+        return  # 删草稿（`documents.delete_draft`）：框架按名字重新取一份再删，认同一张单
     if not context or context[0] is not doc or context[1] is not _ENTRY_WRITE:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
 def write_entry(doc, method):
     """Bind an unforgeable write capability to this document for one service save."""
-    if doc.doctype != "ERP Stock Entry" or method not in ("insert", "save"):
+    if doc.doctype != "ERP Stock Entry" or method not in ("insert", "save", "delete"):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     previous = getattr(frappe.local, "stock_entry_service_write", None)
     ignored = doc.flags.ignore_permissions
@@ -63,11 +77,21 @@ def write_opening(doc, method="insert"):
 def entry_query(user=None):
     user = user or frappe.session.user
     directions = [key for key in ("in", "out", "transfer") if guard.has("stock." + key, user)]
-    if not directions:
+    adjust = guard.has("stock." + ADJUST, user)
+    counted = guard.has("count.write", user)  # 盘点生成的物料调整单盘点员也看得到
+    if not directions and not adjust and not counted:
         return "1=0"
-    choices = ",".join(frappe.db.escape(key) for key in directions)
+    table = "`tabERP Stock Entry`"
+    kinds = []
+    if directions:
+        choices = ",".join(frappe.db.escape(key) for key in directions)
+        kinds.append(f"({table}.`direction` in ({choices}) and ifnull({table}.`ref_type`, '') != 'count')")
+    if adjust:
+        kinds.append(f"({table}.`direction` = 'adjust' or {table}.`ref_type` = 'count')")
+    elif counted:
+        kinds.append(f"({table}.`direction` = 'adjust' and ifnull({table}.`stock_count`, '') != '')")
     active = frappe.db.escape(company.active_company(user))
-    return (f"`tabERP Stock Entry`.`direction` in ({choices}) and `tabERP Stock Entry`.`warehouse` in "
+    return (f"({' or '.join(kinds)}) and {table}.`warehouse` in "
             f"(select name from `tabERP Warehouse` where company={active})")
 
 

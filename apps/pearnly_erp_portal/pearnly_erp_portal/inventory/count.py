@@ -586,6 +586,9 @@ def get_count(name: str) -> dict:
         "difference_total": doc.difference_total, "closed_at": doc.closed_at,
         "closed_by": doc.closed_by, "posted_at": doc.posted_at, "posted_by": doc.posted_by,
         "ledger_state": doc.ledger_state, "ledger_docnum": doc.ledger_docnum,
+        # 物料调整单（岳父 11-06）：结束后生成，作废 / 删掉的不算
+        "adjustment": _live_adjustment(doc),
+        "adjustment_no": frappe.db.get_value("ERP Stock Entry", _live_adjustment(doc), "doc_no") if _live_adjustment(doc) else None,
     }
 
 
@@ -818,8 +821,40 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
 
 
 def close_count(name: str, review_token=None) -> dict:
-    """The single finish action applies reviewed differences and closes atomically."""
-    return post_count(name, review_token=review_token)
+    """结束盘点（岳父 11-06）：只锁定结果、算差异，**不动库存、不开单、不写 Express**；差异由「按盘点结果调整物料」生成一张
+    物料调整单草稿（`adjustment_draft`），人改完提交才入账（`documents._post` → :func:`adjustment_posted`）。
+
+    结束前照旧核：审阅令牌没变、盘点期间库存没变（变了要重盘）、至少盘了一项。一项差异都没有（也没有台要换位）的直接过账——
+    没有要入账的数，盘到的停用物料当场重新启用。"""
+    guard.require("count.write")
+    count_state.lock_task(name, active=False)
+    doc = _get(name)
+    if doc.status in ("Closed", "Posted"):
+        return {"name": name, "status": doc.status, "deduped": True}
+    if doc.status != "Active":
+        frappe.throw(_(CLOSED))
+    rows = list_items(count=name, limit=0)
+    stock_service.lock_products([r["product"] for r in rows])
+    review = review_count(name, _locked=True)
+    if review_token and review_token != review["review_token"]:
+        frappe.throw(_("The stock count changed. Review the differences again."))
+    if review["conflicts"]:
+        frappe.throw(_("Stock changed during counting. Recount the affected products."))
+    if not [r for r in review["items"] if r["counted"]]:
+        frappe.throw(_("Count at least one item before finishing"))
+    operations = _operations(review)
+    closing = {"closed_at": now(), "closed_by": frappe.session.user}
+    if operations:
+        frappe.db.set_value(COUNT, name, {"status": "Closed", **closing}, update_modified=False)
+        status = "Closed"
+    else:
+        _reactivate(name)
+        _move_counted_units(name, review["entries"])
+        frappe.db.set_value(COUNT, name, {"status": "Posted", **closing, "posted_at": now(),
+                                          "posted_by": frappe.session.user}, update_modified=False)
+        status = "Posted"
+    count_live.changed(name)
+    return {"name": name, "status": status, "differences": len(operations), "deduped": False}
 
 
 def review_count(name, *, _locked=False):
@@ -838,38 +873,21 @@ def review_count(name, *, _locked=False):
             "location_total": sum(bool(r["location_difference"]) for r in items)}
 
 
-def post_count(name: str, review_token=None) -> dict:
-    guard.require("count.write")
-    count_state.lock_task(name, active=False)
-    doc = _get(name)
-    if doc.status == "Posted":
-        return {"name": name, "status": "Posted", "adjustments": [], "deduped": True}
-    if doc.status != "Active":
-        frappe.throw(_(CLOSED))
-    rows = list_items(count=name, limit=0)
-    stock_service.lock_products([r["product"] for r in rows])
-    review = review_count(name, _locked=True)
-    if review_token and review_token != review["review_token"]:
-        frappe.throw(_("The stock count changed. Review the differences again."))
-    if review["conflicts"]:
-        frappe.throw(_("Stock changed during counting. Recount the affected products."))
+def _operations(review) -> list:
+    """差异 → ``[((物料, 仓, 仓位), 带符号数量, 单价或 None)]``，按快照算（同以前过账的口径）：没挪位置的按位置轧差；
+    挪了位置的物料「先减后加」——原处减掉快照账面、实际盘到的地方逐条加回，各带原处的估值（等量互换也不丢成本）；
+    按台：盘到的台原来在别处（别的仓，或这个仓里没盘的那一行）时原处减 1。数量是库存单位。"""
     rows = [r for r in review["items"] if r["counted"]]
-    if not rows:
-        frappe.throw(_("Count at least one item before finishing"))
-    # Remove the checked book quantity at its source, add observations at their actual
-    # positions. Aggregate first so A -> B and B -> A cannot overwrite one another.
     changes, incoming, costs = {}, {}, {}
     by_name = {r["name"]: r for r in rows}
     moved_products = {r["product"] for r in rows if r["location_difference"]}
     operations = []
     for row in rows:
         key = (row["product"], row["warehouse"], row["location"] or "")
-        # 估值：位置现有成本 → 商品参考成本（见 `valuation`）。
+        # 估值：位置现有成本 → 物料参考成本（见 `valuation`）。
         cost = valuation(row["product"], key)
         costs[row["name"]] = cost
         if row["product"] in moved_products:
-            # Remove all observed source quantities before adding destinations, carrying
-            # their costs. Netting quantities alone would lose valuation on equal swaps.
             operations.append((key, -_qty(row["book_qty"]), cost))
         else:
             changes[key] = changes.get(key, Decimal(0)) - _qty(row["book_qty"])
@@ -882,49 +900,98 @@ def post_count(name: str, review_token=None) -> dict:
             incoming.setdefault(key, []).append((amount, cost))
         else:
             changes[key] = changes.get(key, Decimal(0)) + amount
-    # Position transfers keep separate source-cost receipts, including mixed/unknown costs.
     for key in sorted(incoming):
         for quantity, cost in incoming[key]:
             operations.append((key, quantity, cost))
     for key, delta in sorted(changes.items()):
         operations.append((key, delta, valuation(key[0], key)))
-    # 按台：盘到的车原来在别处（别的仓，或这个仓里没盘的那一行）时，原处减 1；实际处的加 1 已在上面的行差异里
     for key in _unit_sources(review["entries"], {(r["product"], r["warehouse"], r["location"] or "") for r in rows}):
         operations.append((key, Decimal(-1), valuation(key[0], key)))
-    # **盘点差异也开入库/出库单据**（用户 2026-09-23：这些编号要和商品库存、出入库、
-    # 收发存每一笔记录联动；MR.ERP 的调整/盘点模块 `stktranmod` 同样是把带有自己编号的
-    # 单据写进库存卡，旧线上盘点差异也发 IR/IS 号并落一张出入库单）。
-    #
-    # 因此这里不再直接写"没有单据号的 count 流水"，而是走 `create_entry`：
-    # 单据拿系统发的 IR/IS 号，流水带着这个号（收发存/库存明细都显示得出），
-    # 单据本身在出入库页能按号查到，`ref_type/ref_id` 指回这份盘点。
-    # `commit=False`：整批盘点一个事务，失败不留半截（与过账前的行为一致）。
-    _reactivate(name)
-    applied = []
-    for index, (key, delta, unit_cost) in enumerate(operations):
-        if not delta:
-            continue
-        created = stock_documents.create_entry(
-            direction="in" if delta > 0 else "out", posting_date=str(frappe.utils.nowdate()),
-            warehouse=key[1],
-            lines=[{"product": key[0], "qty": abs(delta), "location": key[2],
-                    "unit_cost": unit_cost}],
-            reason=stock_documents.adjustment_note(doc.title or name), ref_type="count", ref_id=name,
-            dedupe_key=f"count:{name}:{index}", submit=True, commit=False,
-            # 盘点走自己的编号定义（AD 段），与入库 IR / 出库 IS 分开。
-            numbering_direction="stocktake")
-        applied.append({"product": key[0], "warehouse": key[1], "location": key[2],
-                        "delta": float(delta), "entry": created["name"], "doc_no": created["doc_no"]})
-    _move_counted_units(name, review["entries"])
-    frappe.db.set_value(COUNT, name, {"status": "Posted", "closed_at": now(),
-                        "closed_by": frappe.session.user, "posted_at": now(),
-                        "posted_by": frappe.session.user}, update_modified=False)
-    # 接了 Express 的公司：整份盘点轧差写一张盘点调整 TK（出入库第一期 B2，验收 10-25）
-    from pearnly_erp_portal.express import push as express_push
+    return [operation for operation in operations if operation[1]]
 
-    express_push.queue(COUNT, name)
+
+def post_count(name: str, review_token=None) -> dict:
+    """结束 + 生成调整单 + 提交，一步到底（以前「结束盘点」的效果；只给脚本与测试用，界面上是三步）。"""
+    closed = close_count(name, review_token=review_token)
+    if closed["status"] != "Closed":
+        return {**closed, "adjustment": None}
+    draft = adjustment_draft(name)
+    stock_documents.submit_entry(draft["name"])
+    return {"name": name, "status": "Posted", "adjustment": draft["name"], "deduped": False}
+
+
+ADJUSTMENT_EXISTS = "This stock count already has an adjustment"
+
+
+def _live_adjustment(doc):
+    """这份盘点现在有效的调整单（草稿或已提交）；作废了 / 删掉了的不算。"""
+    name = doc.get("adjustment")
+    if name and frappe.db.get_value("ERP Stock Entry", name, "status") in ("draft", "submitted"):
+        return name
+    return None
+
+
+def adjustment_draft(name: str) -> dict:
+    """「按盘点结果调整物料」：把已结束盘点的差异生成一张物料调整单**草稿**（单头 = 盘点仓、备注「盘点：盘点名称」、
+    每个差异一行，数量带正负，增加的行带盘点估值、不算人填的价）。一份盘点同时只有一张有效的调整单：已有就回那一张。"""
+    guard.require("count.write")
+    count_state.lock_task(name, active=False)
+    doc = _get(name)
+    if doc.status != "Closed":
+        frappe.throw(_(CLOSED if doc.status == "Active" else POSTED))
+    existing = _live_adjustment(doc)
+    if existing:
+        return {"name": existing, "created": False}
+    review = review_count(name, _locked=True)
+    operations = _operations(review)
+    if not operations:
+        frappe.throw(_("Count at least one item before finishing"))
+    lines = [{"product": key[0], "warehouse": key[1], "location": key[2], "qty": float(delta),
+              **({"unit_cost": float(cost)} if delta > 0 and cost is not None else {})}
+             for key, delta, cost in operations]
+    created = stock_documents.create_entry(
+        direction=stock_documents.ADJUST, posting_date=frappe.utils.nowdate(), warehouse=doc.warehouse, lines=lines,
+        reason=stock_documents.adjustment_note(doc.title or name), stock_count=name, trusted=True, commit=False)
+    frappe.db.set_value(COUNT, name, "adjustment", created["name"], update_modified=False)
     count_live.changed(name)
-    return {"name": name, "status": "Posted", "adjustments": applied, "deduped": False}
+    frappe.db.commit()
+    return {"name": created["name"], "doc_no": created["doc_no"], "created": True}
+
+
+def _adjusting(count, entry):
+    """调整单入账 / 作废时回到它的盘点：锁住盘点，核这张单就是盘点记着的那一张。"""
+    count_state.lock_task(count, active=False)
+    doc = frappe.get_doc(COUNT, count)
+    if doc.get("adjustment") != entry:
+        frappe.throw(_(ADJUSTMENT_EXISTS))
+    return doc
+
+
+def before_adjustment_posted(count, entry) -> None:
+    """盘点生成的调整单过账之前（`documents._post`）：盘到的停用物料重新启用（过账要认得出它）。"""
+    doc = _adjusting(count, entry)
+    if doc.status != "Closed":
+        frappe.throw(_(POSTED))
+    _reactivate(count)
+
+
+def adjustment_posted(count, entry) -> None:
+    """盘点生成的调整单落完流水：盘到别处的台换到实际盘到的仓 / 仓位，盘点置「已过账」。"""
+    _adjusting(count, entry)
+    _move_counted_units(count, list_entries(count=count, limit=0))
+    frappe.db.set_value(COUNT, count, {"status": "Posted", "posted_at": now(), "posted_by": frappe.session.user},
+                        update_modified=False)
+    count_live.changed(count)
+
+
+def adjustment_released(count, entry) -> None:
+    """调整单作废 / 草稿删掉：盘点回到「已结束」，可以再生成（一份盘点同时只有一张有效的调整单）。"""
+    count_state.lock_task(count, active=False)
+    if frappe.db.get_value(COUNT, count, "adjustment") != entry:
+        return
+    frappe.db.set_value(COUNT, count, {"status": "Closed", "adjustment": None, "posted_at": None, "posted_by": None},
+                        update_modified=False)
+    count_live.changed(count)
 
 
 REACTIVATED_NOTE = "Reactivated by stock count {0}"

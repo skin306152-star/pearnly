@@ -79,6 +79,7 @@ Additional Information,ข้อมูลเพิ่มเติม
 Additional Information updated successfully.,อัปเดตข้อมูลเพิ่มเติมแล้ว
 Address,ที่อยู่
 Address and notes,ที่อยู่และหมายเหตุ
+Adjust products from count results,ปรับปรุงสินค้าตามผลการตรวจนับ
 Admins only,เฉพาะผู้ดูแล
 Against Payment,อ้างอิงการชำระเงิน
 All,ทั้งหมด
@@ -775,6 +776,7 @@ New Category,สร้างหมวดหมู่
 New Customer,เพิ่มลูกค้า
 New Invoice,บิลใหม่
 New Order,คำสั่งซื้อใหม่
+New Product Adjustment,สร้างใบปรับปรุงสินค้า
 New Purchase Invoice,สร้างใบแจ้งหนี้ซื้อ
 New Sales Document,สร้างเอกสารขาย
 New Stock Issue,สร้างใบจ่ายสินค้า
@@ -992,6 +994,7 @@ Printed Total,ยอดรวมตามเอกสาร
 Private,ส่วนตัว
 Product,สินค้า
 Product / position / counted by / time,สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา
+Product Adjustment,ปรับปรุงสินค้า
 Product ID,รหัสระบุสินค้า
 Product Name,ชื่อสินค้า
 Product Ref,รหัสอ้างอิงสินค้า
@@ -1029,6 +1032,7 @@ Qty (entered unit),จำนวน (หน่วยที่กรอก)
 Quantities of products tracked by unit must be whole numbers in the base unit,สินค้าที่ติดตามรายชิ้นต้องระบุจำนวนเต็มในหน่วยฐาน
 Quantity,จำนวน
 Quantity Available,จำนวนคงเหลือ
+Quantity cannot be 0,จำนวนต้องไม่เป็น 0
 Quantity counted this time,จำนวนที่นับครั้งนี้
 Quantity differences,ผลต่างจำนวน
 "Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts.",ผลต่างจำนวน เรียงจากมากไปน้อย แท่งเทาคือจำนวนตามบัญชี แท่งสีคือจำนวนที่นับได้ วางเมาส์บนแท่งเพื่อดูสินค้า ตำแหน่ง และจำนวน
@@ -1253,6 +1257,7 @@ Status,สถานะ
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",ยังปิดอยู่: ตารางสต็อกต้องเข้าเป็นชุดงานของฝ่ายสต็อก และการลงบัญชีห้ามข้ามไปเงียบ ๆ
 Stock,สต็อก
 Stock Account Group,กลุ่มบัญชีสินค้าคงเหลือ
+Stock Count,ตรวจนับสต็อก
 Stock Posted At,วันเวลาที่ลงบัญชีสต็อก
 Stock Posting,การบันทึกสต็อก
 Stock Token,โทเคนสต็อก
@@ -1415,6 +1420,7 @@ The total is zero,ยอดรวมเป็นศูนย์
 The units must match the stock of each warehouse,จำนวนรายชิ้นต้องเท่ากับยอดคงคลังของแต่ละคลัง
 The value is not a number,ค่านี้ไม่ใช่ตัวเลข
 The value must be zero or more,ค่านี้ต้องไม่ติดลบ
+The warehouse differs from the warehouse of this document,คลังไม่ตรงกับคลังของเอกสารนี้
 The warehouse has no matching Express warehouse,คลังนี้ไม่มีคลังที่ตรงกันใน Express
 Then,ให้ทำ
 There are no lines,ไม่มีรายการ
@@ -1484,6 +1490,7 @@ This shift belongs to another cashier,กะนี้เป็นของพน
 This shift is already closed,กะนี้ปิดแล้ว
 This shift is closed,กะนี้ปิดแล้ว
 This status change is not allowed,ไม่อนุญาตให้เปลี่ยนสถานะนี้
+This stock count already has an adjustment,การตรวจนับนี้มีใบปรับปรุงสินค้าแล้ว
 This stock count is already posted,เอกสารตรวจนับนี้ลงบัญชีแล้ว
 This stock count is closed,การตรวจนับนี้ปิดแล้ว
 This stock entry comes from a stock count sent to Express. It cannot be voided on its own,รายการนี้สร้างจากการตรวจนับที่ส่งเข้า Express แล้ว ยกเลิกแยกไม่ได้
@@ -1543,6 +1550,7 @@ Unbound,ยังไม่ผูก
 Unit,หน่วย
 Unit Cost,ต้นทุนต่อหน่วย
 Unit Cost (net of VAT),ต้นทุนต่อหน่วย (ไม่รวม VAT)
+Unit Cost Entered,กรอกราคาต่อหน่วยแล้ว
 Unit Price,ราคาต่อหน่วย
 Unit barcode,บาร์โค้ดหน่วย
 Unit not found,ไม่พบรายการนี้
@@ -2212,6 +2220,7 @@ keyword,ค้นหาการ์ด
 member,สมาชิก
 nav.posReceipts,บันทึกการรับเงิน
 nav.posShifts,ประวัติกะ
+nav.stockAdjust,ปรับปรุงสินค้า
 nav.stockCount,ตรวจนับสต็อก
 nav.stockTransfer,โอนย้ายระหว่างคลัง
 none,ไม่มี
@@ -2380,6 +2389,7 @@ stock.count.action.delete,ลบ {0} รายการที่เลือก
 stock.count.addEntry,บันทึกการนับ
 stock.count.addEntryHint,จำนวนตามบัญชี {0} {1}
 stock.count.addEntryTitle,บันทึกการนับ — {0}
+stock.count.adjust,ปรับปรุงสินค้าตามผลการตรวจนับ
 stock.count.back,กลับ
 stock.count.blank,ยังไม่กรอก
 stock.count.book,จำนวนตามบัญชี
@@ -2723,6 +2733,7 @@ trade.methodCash,เงินสด
 trade.methodPromptpay,พร้อมเพย์
 trade.methodTransfer,โอนเงิน
 trade.net,ยอดสุทธิ
+trade.newAdjust,สร้างใบปรับปรุงสินค้า
 trade.newIn,สร้างใบรับสินค้า
 trade.newInvoice,บิลใหม่
 trade.newOrder,คำสั่งซื้อใหม่

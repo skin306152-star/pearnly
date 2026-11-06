@@ -38,7 +38,7 @@ class NativeDeskContract(unittest.TestCase):
         # Cowork 8 项（用户 2026-09-26）：录入工作台、三个对账中心、库存盘点、工作协调 + 首页、团队管理；
         # 识别记录、推送日志、客户、公司资料、集成、使用教程不做。
         # ERP 2026-10-23 加任务管理（看板，从 Cowork 复制），20 项；2026-10-27 删「采购设置」「集成」两页（用户：「是不要的」），18 项。
-        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,8,19])  # ERP 多仓闭环 P2 加「调拨」
+        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,8,20])  # ERP 多仓闭环 P2 加「调拨」、11-06 加「物料调整」
         dms = {label: feature for label, _, _, feature in PAGES['dms']}
         self.assertIsNone(dms['nav.connect'])
         self.assertEqual(dms['nav.roster'], 'roster')
@@ -98,7 +98,7 @@ class NativeDeskContract(unittest.TestCase):
         # 收银那几个入口与公司页都是前面几批加的，这里补上，别让清单停在旧版本。
         self.assertEqual(available, {'pearnly-home','pearnly-connect','pearnly-roster','pearnly-records','pearnly-intake','pearnly-purchase',
             'pearnly-products', 'pearnly-inventory', 'pearnly-stock-count',
-            'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-transfer', 'pearnly-stock-card', 'pearnly-sales', 'pearnly-cashier',
+            'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-transfer', 'pearnly-stock-adjust', 'pearnly-stock-card', 'pearnly-sales', 'pearnly-cashier',
             'pearnly-suppliers', 'pearnly-clients', 'pearnly-pos-receipts', 'pearnly-pos-shifts',
             'pearnly-team', 'pearnly-company', 'pearnly-warehouses',
             # Cowork 库存盘点（上传盘点，2026-09-26）。
@@ -170,6 +170,11 @@ class ProductNavigationAccess(unittest.TestCase):
         # 「主数据」组只装「集成」一页，2026-10-27 随它一起删。
         self.assertEqual([g[0] for g in groups], ['nav.group.goodsStock', 'nav.group.purchasing',
                                                  'nav.group.sales', None])
+        # 「物料与库存」的顺序（岳父 11-06）：库存、物料、入库、出库、调拨、物料调整、收发存报表、盘点
+        declared = next(item for item in DECLARATIONS if item['product'] == 'erp')['groups']
+        self.assertEqual(declared[0][2], ['pearnly-inventory', 'pearnly-products', 'pearnly-stock-in', 'pearnly-stock-out',
+                                          'pearnly-stock-transfer', 'pearnly-stock-adjust', 'pearnly-stock-card',
+                                          'pearnly-stock-count'])
         boot = self.boot()
         boot.workspace_sidebar_item = {'pearnly erp': {'items': [
             {'link_to': route} for route in self.namespace['available_pages']('erp')]}}

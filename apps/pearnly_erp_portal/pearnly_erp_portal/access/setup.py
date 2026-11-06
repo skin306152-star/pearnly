@@ -25,7 +25,7 @@ def sync_roles():
         for doctype in set(lookup + readable + writable):
             if frappe.db.exists("DocType", doctype):
                 _grant(doctype, role, write if doctype in writable else read)
-        if key in ("inventory", "stock-in", "stock-out", "stock-transfer", "stock-card", "stock-count", "warehouses"):
+        if key in ("inventory", "stock-in", "stock-out", "stock-transfer", "stock-adjust", "stock-card", "stock-count", "warehouses"):
             _grant("ERP Stock Count Item", role, {"read": 1}, permlevel=1)
     # 按台记录：能读商品或库存的角色新旧两套都给读与导出（行仍按公司与仓过滤，`inventory.access.record_query`）。
     # 后加的表开户时老岗位角色与管理员拿不到，按 features.json 同一口径在这里补，已有站点迁移即生效。

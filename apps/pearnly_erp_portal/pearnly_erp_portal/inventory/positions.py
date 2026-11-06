@@ -58,9 +58,17 @@ def header(warehouse=None, location=None, *, company=None) -> dict:
     return {"warehouse": warehouse, "location": check(warehouse, location) if warehouse else ""}
 
 
-def prepare(line, warehouse=None, *, company=None, location=None):
+def one_warehouse(line, warehouse=None) -> dict:
+    """一张单一个仓库（岳父 11-06）：单头有仓时行上的仓一律是单头的（服务 / 费用行不进出库，不给仓）。单头没仓的（LINE / 识别收单）
+    照旧按行。"""
+    if not warehouse or line.get("item_type") == "service":
+        return dict(line)
+    return {**line, "warehouse": warehouse}
+
+
+def prepare(line, warehouse=None, *, company=None, location=None, allow_inactive=False):
     """明细行定仓与库位。``warehouse`` / ``location``：单头的（行上没写仓的用单头仓；行上没写库位、又落在单头仓的用单头库位，
-    再没有才是商品的建议库位）。"""
+    再没有才是商品的建议库位）。``allow_inactive``：停用的物料也认（盘点盘到停用物料，生成的调整单提交时才重新启用它）。"""
     result = dict(line)
     if result.get("warehouse"):
         result["warehouse"] = warehouses.required(result["warehouse"], company=company)
@@ -69,7 +77,7 @@ def prepare(line, warehouse=None, *, company=None, location=None):
     product = frappe.db.get_value("ERP Product", result["product"],
                                   ["is_active", "default_location"],
                                   as_dict=True)
-    if not product or not product.is_active:
+    if not product or not (product.is_active or allow_inactive):
         frappe.throw(_("Product not found"))
     if result.get("item_type") == "service":
         # 服务 / 费用行不进出库，不取仓（10-24 验收问题 22：多仓、没有收银台的公司开费用单，关联了服务物料就报

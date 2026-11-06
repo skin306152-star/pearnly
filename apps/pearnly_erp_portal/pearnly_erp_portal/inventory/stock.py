@@ -95,7 +95,7 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
                    unit_cost=None, posting_date=None, posting_time=None, ref_type=None,
                    ref_id=None, doc_no=None, reason=None, client_uuid=None,
                    allow_negative=True, internal=False, location="", allow_inactive=False,
-                   company=None, system=False, base_unit_cost=None) -> dict:
+                   company=None, system=False, base_unit_cost=None, place_checked=False) -> dict:
     """写一笔流水并推进结存。`client_uuid` 是整请求的幂等锚：命中即原样返回，不重复记账。
 
     `allow_negative` 默认与旧线上一致（允许超卖，告警在上层）；要拦负库存时显式传 False。
@@ -108,6 +108,8 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
 
     `system=True`：没有用户动作的系统路径（Express 主档同步对齐库存）。公司必须给，按数据核（仓库属于这家公司），
     不按当前账号的可用范围核——同步以 Administrator 或排任务的人跑，停用的公司不在他们的可用范围里（10-30 事故）。
+
+    `place_checked=True`：仓位已在别处核过（盘点生成的物料调整单：盘点记录时核过，旧仓位也能盘），不再按仓位清单核。
     """
     if system and not (internal and company):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
@@ -145,7 +147,7 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
     warehouse_doc = frappe.db.exists("ERP Warehouse", warehouse)
     if not warehouse_doc:
         frappe.throw(_("Warehouse not found"), frappe.DoesNotExistError)
-    if base_qty > 0 and ref_type not in ("void", "count", "express_sync"):
+    if base_qty > 0 and ref_type not in ("void", "count", "express_sync") and not place_checked:
         # 库位清单（第 5 项）：货进到哪个库位要在这个仓的清单里。从旧库位出货、作废冲回照常；盘点在记录时已经核过（记在账面
         # 原位置照常）；Express 同步按 Express 的数对齐，不因库位清单停住（验收 10-26）
         positions.check(warehouse, location)
@@ -204,8 +206,11 @@ def _movement_company(warehouse, company, internal):
 
 def apply_lines(*, warehouse: str, movement_type: str, lines, posting_date=None,
                 ref_type=None, ref_id=None, doc_no=None, reason=None, client_uuid=None,
-                allow_negative=True, internal=False, company=None) -> dict:
-    """整单动库存：逐行换算并落流水；首行带幂等锚，重复整单提交直接跳过。"""
+                allow_negative=True, internal=False, company=None, units=True, place_checked=False) -> dict:
+    """整单动库存：逐行换算并落流水；首行带幂等锚，重复整单提交直接跳过。
+
+    `units=False`：不经按台登记 / 出台（盘点生成的物料调整单照盘点口径，盘到别处的台由盘点自己换位）；
+    `place_checked`：见 `apply_movement`。"""
     if not isinstance(lines, list) or not lines:
         frappe.throw(_("Provide at least one line item"))
 
@@ -219,8 +224,9 @@ def apply_lines(*, warehouse: str, movement_type: str, lines, posting_date=None,
     # 按台管理的商品：台数核对、登记 / 收回 / 出台（行上的 `serials`；不开按台的商品不经这里）
     from pearnly_erp_portal.inventory import serials
 
-    serials.apply(lines=lines, movement_type=movement_type, ref_type=ref_type, ref_id=ref_id, company=company,
-                  posting_date=posting_date)
+    if units:
+        serials.apply(lines=lines, movement_type=movement_type, ref_type=ref_type, ref_id=ref_id, company=company,
+                      posting_date=posting_date)
 
     movements, updated = [], []
     for index, line in enumerate(lines):
@@ -231,7 +237,7 @@ def apply_lines(*, warehouse: str, movement_type: str, lines, posting_date=None,
             qty=line["qty"], unit=line.get("unit"), unit_cost=line.get("unit_cost"),
             posting_date=posting_date, ref_type=ref_type, ref_id=ref_id, doc_no=doc_no,
             reason=reason, client_uuid=client_uuid if index == 0 else None,
-            allow_negative=allow_negative, internal=True, company=company,
+            allow_negative=allow_negative, internal=True, company=company, place_checked=place_checked,
         )
         movements.append(result["movement"])
         updated.append({"product": line["product"], "warehouse": place["warehouse"],

@@ -149,7 +149,8 @@ def entry_lines_mismatch():
             """, name=doc["name"])[0]["qty"] or 0
             signed = moved if abs(float(net)) <= 0.000001 else None
         else:
-            signed = moved if doc["direction"] == "in" else -moved
+            # 物料调整的明细本来就带正负（同流水），入库正、出库负
+            signed = moved if doc["direction"] in ("in", "adjust") else -moved
         if signed is None or abs(float(lines) - float(signed)) > 0.000001:
             broken.append({"name": doc["name"], "doc_no": doc["doc_no"], "direction": doc["direction"],
                            "lines_qty": float(lines), "movement_qty": float(net if signed is None else signed)})
@@ -157,17 +158,23 @@ def entry_lines_mismatch():
 
 
 def count_link_mismatch():
-    """已过账的盘点：**有差异**的必须有差异单（`ERP Stock Entry`，`ref_type=count`）且已提交。
+    """已过账的盘点：**有差异**的必须有差异单且已提交。11-06 起差异单是盘点记着的那张物料调整单（`adjustment`）；
+    以前的盘点是 `ref_type=count` 的 AD 单。已结束、还没调整的盘点（`Closed`）不算问题。
 
     实盘数与系统数一样、差异为 0 的盘点本来就不会有差异单 —— 那不是问题（第一版没区分，
     把这种盘点也报出来了，属于判太严）。
     """
     broken = []
     for count in _rows("""
-        SELECT name, title, status, warehouse, difference_total
+        SELECT name, title, status, warehouse, difference_total, adjustment
         FROM `tabERP Stock Count` WHERE status = 'Posted'
     """):
         if not count.get("difference_total"):
+            continue
+        if count.get("adjustment"):
+            status = _rows("SELECT status FROM `tabERP Stock Entry` WHERE name = %(name)s", name=count["adjustment"])
+            if not status or status[0]["status"] != "submitted":
+                broken.append({**count, "why": f"调整单 {count['adjustment']} 不是已提交"})
             continue
         entry = _rows("""
             SELECT name, status, doc_no FROM `tabERP Stock Entry`

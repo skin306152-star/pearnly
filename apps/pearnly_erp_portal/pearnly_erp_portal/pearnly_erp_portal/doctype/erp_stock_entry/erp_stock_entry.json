@@ -21,6 +21,7 @@
   "section_ref",
   "ref_type",
   "ref_id",
+  "stock_count",
   "dedupe_key",
   "submitted_at",
   "ledger_section",
@@ -41,7 +42,7 @@
    "fieldname": "direction",
    "fieldtype": "Select",
    "label": "Direction",
-   "options": "in\nout\ntransfer",
+   "options": "in\nout\ntransfer\nadjust",
    "reqd": 1,
    "in_list_view": 1
   },
@@ -140,6 +141,13 @@
    "fieldtype": "Data",
    "label": "Reference",
    "length": 200
+  },
+  {
+   "fieldname": "stock_count",
+   "fieldtype": "Link",
+   "options": "ERP Stock Count",
+   "label": "Stock Count",
+   "read_only": 1
   },
   {
    "fieldname": "dedupe_key",
@@ -253,7 +261,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-02 19:00:00.000000",
+ "modified": "2026-11-06 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Stock Entry",
  "owner": "Administrator",

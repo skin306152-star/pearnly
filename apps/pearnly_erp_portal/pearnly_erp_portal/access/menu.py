@@ -13,6 +13,8 @@ CATALOG = {
     "stock-out": ("warehouses", "ERP Stock", ("stock.out",), ("ERP Stock Entry",), SERIALS),
     # 调拨（多仓闭环 P2）：单独一项，团队管理里可单独勾；只勾出库的人不能调拨
     "stock-transfer": ("warehouses", "ERP Stock", ("stock.transfer",), ("ERP Stock Entry",), SERIALS),
+    # 物料调整（岳父 11-06，号 IA）：正负混录；历史盘点生成的 AD 单也在这一页
+    "stock-adjust": ("warehouses", "ERP Stock", ("stock.adjust",), ("ERP Stock Entry",), SERIALS),
     "stock-card": ("stockcard", "ERP Stock", ("report.read", "report.write"), ("ERP Stock Opening",), ("ERP Stock Movement", *SERIALS)),
     "stock-count": ("stocktake", "ERP Stock", ("count.read", "count.write"),
                     ("ERP Stock Count", "ERP Stock Count Item", "ERP Stock Count Entry", "ERP Product Category"), SERIALS),
@@ -56,7 +58,7 @@ def capabilities(held):
         result.add("company.read")
     if any(key not in NON_BUSINESS for key in selected):
         result.update(("products.view", "stock.read"))
-    if any(key in selected for key in ("stock-in", "stock-out", "stock-transfer")):
+    if any(key in selected for key in ("stock-in", "stock-out", "stock-transfer", "stock-adjust")):
         result.add("stock.write")
     return result
 

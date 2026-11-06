@@ -614,6 +614,16 @@ where = "侧栏「pearnly-stock-transfer」"
 tests = ["flow:erp.stock-transfer", "impact:erp.page.stock-transfer"]
 
 [[row]]
+id = "erp.desk.pearnly-stock-adjust"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-stock-adjust"
+where = "侧栏「pearnly-stock-adjust」"
+tests = ["flow:erp.stock-adjust", "impact:erp.page.stock-adjust"]
+
+[[row]]
 id = "erp.desk.pearnly-suppliers"
 product = "ERP"
 channel = "desk"
@@ -1272,6 +1282,46 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-transfer:trade.newTransfer"
 where = "pearnly-stock-transfer 页头「trade.newTransfer」"
+
+[[row]]
+id = "erp.desk.pearnly-stock-adjust.action.trade.action.submit"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-adjust:trade.action.submit"
+where = "pearnly-stock-adjust 页头「trade.action.submit」"
+tests = ["flow:erp.stock-adjust"]
+
+[[row]]
+id = "erp.desk.pearnly-stock-adjust.action.trade.newAdjust"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-adjust:trade.newAdjust"
+where = "pearnly-stock-adjust 页头「trade.newAdjust」"
+tests = ["flow:erp.stock-adjust"]
+
+[[row]]
+id = "erp.desk.pearnly-stock-count.action.stock.count.adjust"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-count:stock.count.adjust"
+where = "pearnly-stock-count 页头「stock.count.adjust」"
+tests = ["flow:erp.stocktake.adjust"]
+
+[[row]]
+id = "erp.desk.pearnly-stock-count.action.nav.stockAdjust"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-count:nav.stockAdjust"
+where = "pearnly-stock-count 页头「nav.stockAdjust」"
+tests = ["flow:erp.stocktake.adjust"]
 
 [[row]]
 id = "erp.desk.pearnly-suppliers.action.supplier.new"

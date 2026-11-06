@@ -1120,6 +1120,7 @@ class StockVoid(PushModule):
         from pearnly_erp_portal.inventory import documents
         entry = types.SimpleNamespace(name="AD-1", status="submitted", direction="out", ref_type="count", ref_id="STC-1",
                                       warehouse="W1")
+        entry.get = lambda key, default=None: getattr(entry, key, default)
         reversed_ = []
         for count_state, blocked in (("written", True), ("queued", True), (None, False)):
             with mock.patch.object(documents.guard, "require", lambda *a, **k: None), \
@@ -1896,7 +1897,7 @@ class PendingKinds(PushModule):
         for doctype, kind in pending.KINDS.items():
             self.assertEqual((kind.ready, kind.capability), (push.ready(doctype), api.CAPABILITIES[doctype][0]), doctype)
             self.assertEqual(kind.by_warehouse, doctype in (push.STOCK, push.COUNT), doctype)
-        self.assertEqual(set(pending.STOCK_ROUTES), {"in", "out", "transfer"})
+        self.assertEqual(set(pending.STOCK_ROUTES), {"in", "out", "transfer", "adjust"})  # 物料调整（岳父 11-06）
 
 
 class LinkedAtBackfill(unittest.TestCase):

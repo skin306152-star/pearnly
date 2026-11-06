@@ -1,4 +1,5 @@
-/* 入库 / 出库 / 调拨（同一份代码，方向不同；调拨 = 多仓闭环 P2，同公司两仓之间，单头多一组「调入仓库 + 调入库位」）。
+/* 入库 / 出库 / 调拨 / 物料调整（同一份代码，方向不同；调拨 = 多仓闭环 P2，同公司两仓之间，单头多一组「调入仓库 + 调入库位」；
+ * 物料调整 = 岳父 11-06，号 IA，一张单正负混录，盘点差异也生成它的草稿；历史盘点生成的 AD 单也列在这一页）。
  *
  * 两条路（用户 2026-09-22 口径）：
  *   /desk/pearnly-stock-in        列表；点行 = 弹窗查看（已提交的只读）/ 提交（草稿）
@@ -23,20 +24,24 @@
 		const api = "pearnly_erp_portal.inventory.api.";
 		// 页面名与注册名一致（`pearnly_stock_in.js` / `pearnly_stock_out.js` / `pearnly_stock_transfer.js`）。
 		const transfer = direction === "transfer";
-		const root = { in: "pearnly-stock-in", out: "pearnly-stock-out", transfer: "pearnly-stock-transfer" }[direction];
-		const nav_label = { in: "nav.stockIn", out: "nav.stockOut", transfer: "nav.stockTransfer" }[direction];
+		const adjust = direction === "adjust";
+		const root = { in: "pearnly-stock-in", out: "pearnly-stock-out", transfer: "pearnly-stock-transfer",
+			adjust: "pearnly-stock-adjust" }[direction];
+		const nav_label = { in: "nav.stockIn", out: "nav.stockOut", transfer: "nav.stockTransfer", adjust: "nav.stockAdjust" }[direction];
 		// 预填本人上次选的仓（`warehouses.prefill` 的单据类型）
 		const prefill_kind = transfer ? "transfer" : `stock_${direction}`;
 		const SECOND = "new";
 		const canWrite = frappe.model.can_write("ERP Stock Entry");
 		const url = (...parts) => p.subroute(root, ...parts);
-		const title_new = () => t({ in: "trade.newIn", out: "trade.newOut", transfer: "trade.newTransfer" }[direction]);
+		const title_new = () => t({ in: "trade.newIn", out: "trade.newOut", transfer: "trade.newTransfer",
+			adjust: "trade.newAdjust" }[direction]);
 		const express_label = state => state ? __({ queued: "Queued", written: "express.state.written", mismatch: "Mismatch",
 			held: "Pending", failed: "Failed", detached: "express.state.detached" }[state] || state) : "";
 		// 出库不填单价：旧线上出库单是按**结存成本**计价的（`contracts.issue()`），
 		// 单价那一格在界面上只读、由服务端在过账时算，所以这里不给人填 —— 但**只锁那一格**，
 		// 商品行本身要能加能改。
-		const priced = direction === "in";
+		// 物料调整的增加行可以填价（默认带当前均价），减少行那一格只读（`p.trade.lines_editor` 的 `adjust`）
+		const priced = direction === "in" || adjust;
 		// 弹窗点「全屏编辑」时把已填的值带进二级页面（两边在同一个闭包里，不必写进 URL）。
 		let carry = null;
 		let list, form, lines = null, head = null, page_files = null;
@@ -84,11 +89,12 @@
 					{ fieldtype: "Button", fieldname: "add_line", label: t("trade.action.addLine"),
 						click: () => lines?.add() }]
 				: [p.trade.lines(t, { stock: true, cost: true, readonly: true, locked_price: !priced, to_location: transfer,
+					line_warehouses: Boolean(doc.line_warehouses),
 					data: doc.lines || [] })]),
 			// 用途（录制问题 #14）：入库是退库，出库是内部领用 / 报损；可以不填。调拨没有用途。
 			// 只读时官方 Select 显示的是原值（other / internal_use），已提交的单改用文字框显示译文
 			{ fieldtype: "Section Break" },
-			...(transfer ? [] : [editable ? { fieldtype: "Select", fieldname: "purpose", label: __("stock.purpose.label"),
+			...(transfer || adjust ? [] : [editable ? { fieldtype: "Select", fieldname: "purpose", label: __("stock.purpose.label"),
 				options: [{ value: "", label: "" }, ...purpose_options()], default: doc.purpose || "" }
 				: { fieldtype: "Data", fieldname: "purpose", label: __("stock.purpose.label"), default: purpose_label(doc.purpose) },
 			{ fieldtype: "Column Break" }]),
@@ -105,7 +111,7 @@
 		function mount_lines(container, rows, target) {
 			head = target;
 			const value = key => head?.fields_dict?.[key]?.get_value() || "";
-			lines = p.trade.lines_editor(t, { cost: true, locked_price: !priced, data: rows || [],
+			lines = p.trade.lines_editor(t, { cost: true, locked_price: !priced, adjust, data: rows || [],
 				warehouse: () => value("warehouse"), location: () => value("location"),
 				...(transfer ? { to_warehouse: () => value("to_warehouse"), to_location: () => value("to_location") } : {}) });
 			place = p.place.track(head, () => lines.rows());
@@ -119,7 +125,10 @@
 
 		// 按台管理的商品提交前逐行登记 / 选台（`p.serials`）：出库、调拨选这个仓（这一行库位）在库的台，入库「退货」收回已售的台，
 		// 其余入库登记新台
-		const units = (lines_, values, way) => p.serials.collect(lines_, way === "out" || way === "transfer"
+		// 物料调整：增加的行登记新台、减少的行选在库的台（主会话 11-06 审定 #3）；盘点生成的调整单不登记 / 不选台（服务端照盘点口径）
+		const units = (lines_, values, way, counted) => counted ? lines_ : p.serials.collect(lines_, way === "adjust"
+			? { mode: line => (Number(line.qty) < 0 ? "pick" : "register"), filters: { warehouse: values.warehouse, location: values.location || "" } }
+			: way === "out" || way === "transfer"
 			? { mode: "pick", filters: { warehouse: values.warehouse, location: values.location || "" } }
 			: { mode: values.purpose === "return" ? "return" : "register" });
 		const clean = values => ({ posting_date: values.posting_date,
@@ -220,7 +229,7 @@
 			// 之后才落地，那一笔 paint 会把"新建入库/出库单"盖到二级页面右上角（同盘点那个坑）。
 			function restore_new() {
 				if (frappe.get_route().length !== 1) return;
-				if (canWrite) page.set_primary_action(title_new(), () => editor()); // entry: trade.newIn, trade.newOut, trade.newTransfer
+				if (canWrite) page.set_primary_action(title_new(), () => editor()); // entry: trade.newIn, trade.newOut, trade.newTransfer, trade.newAdjust
 				else page.clear_primary_action();
 			}
 			// 选中若干张**已过账**的单据 → 右上角出现"作废选中"。库存流水不改不删，作废是追加
@@ -275,8 +284,9 @@
 
 		async function editor(name) {
 			const doc = name ? await p.call(api + "api_get_stock_entry", { name }) : {};
-			// 草稿（含老数据留下的）可以提交；已提交/已作废只能看。
-			const editable = canWrite && (!name || doc.status === "draft");
+			// 草稿（含老数据留下的、盘点生成的物料调整单）可以提交；已提交/已作废只能看。盘点生成的调整单盘点员也能提交（服务端同判）
+			const can_write = canWrite || Boolean(doc.stock_count && frappe.model.can_write("ERP Stock Count"));
+			const editable = can_write && (!name || doc.status === "draft");
 			if (editable && !doc.warehouse) doc.warehouse = await p.place.prefill(prefill_kind);
 			const posting_date = doc.posting_date || frappe.datetime.get_today();
 			const doc_no = await doc_no_default(doc, posting_date);
@@ -290,10 +300,19 @@
 				click: () => p.express("ERP Stock Entry", name, () => list?.reload()) });
 			// 已提交 / 已作废的单能打印：出库 → 领料单、入库 → 收货单（作废单带「已作废」水印）
 			// 调拨还没有打印格式（没有样板，多仓闭环 P2），不出「打印」
-			if (name && doc.status !== "draft" && !transfer) fields.push({ fieldtype: "Button", fieldname: "print", label: __("Print"),
+			// 物料调整单本批不出打印（没有样板，主会话 11-06 审定 #6）；历史盘点 AD 单照旧印收货单 / 领料单
+			if (name && doc.status !== "draft" && ["in", "out"].includes(doc.direction)) fields.push({ fieldtype: "Button", fieldname: "print", label: __("Print"),
 				click: () => p.trade.print("ERP Stock Entry", name,
 					doc.direction === "out" ? "Pearnly Goods Issue Slip" : "Pearnly Goods Receipt Note") });
-			if (doc.status === "submitted" && canWrite) fields.push({ fieldtype: "Button",
+			// 草稿可以删（真删；盘点生成的调整单删了，盘点可以再生成）
+			if (name && doc.status === "draft" && can_write) fields.push({ fieldtype: "Button", fieldname: "delete_draft",
+				label: __("Delete"), click: () => frappe.confirm(__("Permanently delete {0}?", [doc.doc_no || name]),
+					() => p.trade.act(d, async () => {
+						await p.call(api + "api_delete_stock_entry_draft", { name }, "POST");
+						frappe.utils.play_sound("delete");
+						d.hide(); await list?.reload();
+					})) });
+			if (doc.status === "submitted" && can_write) fields.push({ fieldtype: "Button",
 				fieldname: "void", label: t("trade.void"),
 				click: () => frappe.confirm(t("trade.voidConfirm"), () => p.trade.act(d, async () => {
 					await p.call(api + "api_void_stock_entry", { name }, "POST");
@@ -306,7 +325,7 @@
 					// 必填没填时它会展开那一段并返回 null —— 那就别提交。
 					const rows = lines ? lines.values() : values.lines;
 					if (rows === null) return;
-					if (!await units(rows, values, doc.direction || direction)) return;
+					if (!await units(rows, values, doc.direction || direction, Boolean(doc.stock_count))) return;
 					// 接了 Express：这家公司这个单别的科目要人选一次时当场弹窗（同采购 / 销售提交前）；关掉弹窗不提交
 					if (!await p.express_preflight("ERP Stock Entry", { direction: doc.direction || direction, ...clean({ ...values, lines: rows }) }, name)) return;
 					// 一次调用就建单/改单 + 过账；完了回列表，不停在这一页。

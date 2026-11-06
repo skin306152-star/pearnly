@@ -355,8 +355,9 @@
 		// `locked_price`：只锁单价那一格，其余照常能编 —— 出库就是这样（成本由服务端按
 		// 当前结存算，界面上看得到、改不了）；整表 `readonly` 是另一回事（只读查看）。
 		// `to_location`：调拨单多一列调入库位（只读查看用）
+		// `line_warehouses`：明细显示仓库列。库存单一张单一个仓库（岳父 11-06）：只有行上的仓与单头不一样的老单才显示
 		lines(t, { cost = false, stock = false, readonly = false, locked_price = false, to_location = false,
-			data = [], onChange = () => {} } = {}) {
+			line_warehouses = true, data = [], onChange = () => {} } = {}) {
 			const price = cost ? "unit_cost" : "unit_price";
 			return {
 				fieldtype: "Table", fieldname: "lines", label: t("trade.lines"),
@@ -382,7 +383,7 @@
 						} },
 					// 仓库：官方原生 Link（不是自由填写），只列当前公司的仓库。
 					{ fieldtype: "Link", options: "ERP Warehouse", get_query: p.warehouse_query(), only_select: true,
-						fieldname: "warehouse", label: t("trade.warehouse"), in_list_view: 1, columns: 2 },
+						fieldname: "warehouse", label: t("trade.warehouse"), in_list_view: line_warehouses ? 1 : 0, columns: 2 },
 					// 只读的表（已提交的单、小票详情）用原生只读文字：只读的 Autocomplete 不建选项列表，赋值时框架校验会报错
 					{ fieldtype: readonly ? "Data" : "Autocomplete", fieldname: "location", label: t("trade.location"), in_list_view: 1, columns: 2,
 						get_query: p.location_query() },
@@ -415,7 +416,7 @@
 				&& (String(row.product || "").trim() || String(row.description || "").trim()));
 			return kept.map(row => Object.fromEntries([
 				"product", "warehouse", "location", "to_location", "description", "qty", "unit", "unit_price",
-				"unit_cost", "discount", "vat_rate", "original_line", "serials",
+				"unit_cost", "unit_cost_manual", "discount", "vat_rate", "original_line", "serials",
 			].filter(key => row[key] !== undefined).map(key => [key, row[key]])));
 		},
 		// ── 明细：逐条摊开（入库/出库的录入**不用表格**）───────────────────────────
@@ -431,7 +432,10 @@
 		// 表头一变所有行跟着变。服务端口径也是这样（`inventory/positions.py::prepare`：
 		// `line.warehouse || doc.warehouse`，两个都没写时只认「这家公司只有一个仓」，多仓报错让人选，多仓闭环 P1）。
 		// `to_warehouse` / `to_location`：调拨单（多仓闭环 P2）——每行多一格调入库位，按单头调入仓的清单选，新行默认单头调入库位
-		lines_editor(t, { cost = false, locked_price = false, data = [], warehouse, location, to_warehouse, to_location } = {}) {
+		// `adjust`：物料调整单（岳父 11-06）——数量可正可负；增加的行单价默认带这个仓位现在的均价（人可以改，改过的记
+		// `unit_cost_manual`，写 Express 只带这种），减少的行单价那一格只读（按出货时均价出）
+		lines_editor(t, { cost = false, locked_price = false, adjust = false, data = [], warehouse, location, to_warehouse,
+			to_location } = {}) {
 			const price = cost ? "unit_cost" : "unit_price";
 			const host = $("<div class='pearnly-line-editor'></div>");
 			const lines = [];
@@ -456,9 +460,10 @@
 							if (line.form.get_value("product") !== selected) return;
 							// 售价取主数据里"设过的"那个价（没设过就别替商家宣布免费）；成本直接取主档成本。
 							// 仓与库位跟表头（多仓闭环 P1）：选商品不改；表头没写库位时，商品的建议库位由服务端按这个仓的清单补
-							await line.form.set_values({ description: item.product_name, internal_code: item.internal_code || "",
-								unit: item.unit || item.base_unit,
-								[price]: cost ? item.default_cost : (item.price_set ? item.unit_price : 0) });
+							await priced(line, () => line.form.set_values({ description: item.product_name,
+								internal_code: item.internal_code || "", unit: item.unit || item.base_unit,
+								...(adjust ? {} : { [price]: cost ? item.default_cost : (item.price_set ? item.unit_price : 0) }) }));
+							if (adjust) await default_cost(line);
 							// 物料格下面一行小字「分类 · 特性/颜色」（岳父 11-01：同名不同色 / 尺寸一眼分得开）
 							line.form.set_df_property("product", "description",
 								[item.category_name, item.attribute].filter(Boolean).join(" · "));
@@ -468,26 +473,44 @@
 					{ fieldtype: "Data", fieldname: "internal_code", label: __("product.field.internalCode"), read_only: 1 },
 					{ fieldtype: "Data", fieldname: "description", label: t("trade.description") },
 					{ fieldtype: "Column Break" },
-					// 仓库：表头的镜像（只读）—— 这一行进哪个仓，一眼看得到。
-					{ fieldtype: "Link", options: "ERP Warehouse", only_select: true, read_only: 1,
+					// 仓库：表头的镜像，不显示——一张单一个仓库，以单头为准（岳父 11-06）；仓位行上可以改
+					{ fieldtype: "Link", options: "ERP Warehouse", only_select: true, read_only: 1, hidden: 1,
 						fieldname: "warehouse", label: t("trade.warehouse") },
 					{ fieldtype: "Autocomplete", fieldname: "location", label: t(transfer ? "trade.fromLocation" : "trade.location"),
-						get_query: p.location_query(() => head_warehouse()) },
+						get_query: p.location_query(() => head_warehouse()),
+						onchange: () => (adjust && line.ready ? void default_cost(line) : null) },
 					...(transfer ? [{ fieldtype: "Autocomplete", fieldname: "to_location", label: t("trade.toLocation"),
 						get_query: p.location_query(() => to_warehouse() || "") }] : []),
 					{ fieldtype: "Column Break" },
 					{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: 1,
 						precision: 3, formatter: value => p.number(value) },
-					{ fieldtype: "Data", fieldname: "unit", label: t("trade.unit") },
+					{ fieldtype: "Data", fieldname: "unit", label: t("trade.unit"),
+						onchange: () => (adjust && line.ready ? void default_cost(line) : null) },
 					{ fieldtype: "Currency", fieldname: price, options: "currency",
 						label: t(cost ? "trade.cost" : "trade.price"),
-						// 出库不给人填价：只锁这一格，行照样能加能改（结存成本由服务端算）。
-						read_only: locked_price ? 1 : 0, formatter: value => p.money(value) },
+						// 出库不给人填价：只锁这一格，行照样能加能改（结存成本由服务端算）；物料调整的减少行同样
+						read_only: locked_price ? 1 : 0, ...(adjust ? { read_only_depends_on: "eval:!(doc.qty > 0)" } : {}),
+						formatter: value => p.money(value),
+						onchange: () => { if (adjust && line.ready && !line.pricing) line.manual = 1; } },
 					{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
 					{ fieldtype: "Section Break" },
 					{ fieldtype: "Button", fieldname: "remove", label: __("Delete"),
 						click: () => drop(line) },
 				];
+			}
+			// 程序带出的价不算人填的（`line.pricing` 期间单价格的 onchange 不记人填）
+			async function priced(line, set) {
+				line.pricing = true;
+				try { await set(); } finally { line.pricing = false; }
+			}
+			// 物料调整：人没改过单价的行，选物料 / 换仓位 / 换单位时按这个仓位现在的均价带出（看不到成本的人服务端回空）
+			async function default_cost(line) {
+				const product = line.form.get_value("product");
+				if (!product || line.manual) return;
+				const result = await p.call("pearnly_erp_portal.inventory.api.api_default_unit_cost", { product,
+					warehouse: head_warehouse(), location: line.form.get_value("location") || "", unit: line.form.get_value("unit") || "" });
+				if (line.form.get_value("product") !== product || line.manual) return;
+				await priced(line, () => line.form.set_value(price, result?.unit_cost ?? null));
 			}
 			// 段标题按当前顺序重排（删掉中间一条之后，后面的段号要接上）。
 			function relabel() {
@@ -538,7 +561,7 @@
 					{ fieldtype: "Section Break", label: `${t("trade.lines")} ${lines.length + 1}`, collapsible: 1 },
 					{ fieldtype: "HTML", fieldname: "fields" },
 				]);
-				const line = { wrapper, section: outer.sections[0], ready: false,
+				const line = { wrapper, section: outer.sections[0], ready: false, manual: values.unit_cost_manual ? 1 : 0,
 					stash: Object.fromEntries(Object.entries(values).filter(([key]) => !field_names.includes(key))) };
 				line.form = p.layout(outer.fields_dict.fields.$wrapper, line_fields(line));
 				if (values.spec) line.form.set_df_property("product", "description", values.spec);
@@ -547,9 +570,9 @@
 				relabel();
 				// 先铺值再放开 onchange：初始化时别把"带出来的"值又算一遍。
 				// 行里的仓库永远是**表头那一个**（旧行自带的仓库不覆盖它 —— 那是老表格的遗留）。
-				void line.form.set_values({ qty: 1, currency: "THB", ...(values.location === undefined ? { location: head_location() } : {}),
+				void priced(line, () => line.form.set_values({ qty: 1, currency: "THB", ...(values.location === undefined ? { location: head_location() } : {}),
 					...(transfer && values.to_location === undefined ? { to_location: (to_location?.() || "") } : {}),
-					...values, warehouse: head_warehouse() }).then(() => {
+					...values, warehouse: head_warehouse() })).then(() => {
 					line.ready = true;
 					// 只有**最后那一条**默认展开：铺一叠草稿行时不会一串全开着（前面几条在
 					// `add` 开头就收起来了；这里判"还是不是最后一条"，避免异步回来时又展开）。
@@ -577,7 +600,7 @@
 						if (!any(line.form.get_value("product")) && !any(line.form.get_value("description"))) continue;
 						const row = line.form.get_values(!check, check);
 						if (!row) { line.section.collapse(false); return null; }
-						out.push({ ...line.stash, ...row });
+						out.push({ ...line.stash, ...row, ...(adjust ? { unit_cost_manual: line.manual ? 1 : 0 } : {}) });
 					}
 					return out;
 				},

@@ -49,7 +49,9 @@
 		// 手机竖屏只留四列；横屏 / 平板收成六列按比例铺满；电脑上全列。转屏跨档就重画。
 		const screen = () => window.matchMedia("(max-width: 575px)").matches ? "phone"
 			: window.matchMedia("(max-width: 991px)").matches ? "compact" : "full";
-		const status_text = task => task.status === "Active" ? t("stock.count.statusActive") : t("stock.count.statusClosed");
+		// 已结束（还没调整）/ 已过账（物料调整单已提交入账，岳父 11-06）
+		const status_text = task => task.status === "Active" ? t("stock.count.statusActive")
+			: task.status === "Posted" ? t("stock.count.statusPosted") : t("stock.count.statusClosed");
 		const open_detail = name => frappe.set_route(root, name);
 		const qty = value => value == null ? "—" : p.number(value);
 		// 有差异的地方标红：色值与差异看板、导出表同一个红（框架的 `--red-600`），
@@ -203,7 +205,12 @@
 			} else {
 				page.add_inner_button(t("stock.action.export"), () => void p.export_file(
 					`${api}api_stock_count_export`, {name}));
-				// 过账后整份轧差写进 Express 的盘点调整 TK：同采购 / 出入库单同一个 Express 弹窗（状态、单号、原因、再写一次）
+				// 结束后差异生成物料调整单草稿，人改完提交才入账（岳父 11-06）；有了就打开那一张
+				if (state.task.adjustment)
+					page.add_inner_button(__("nav.stockAdjust"), () => frappe.set_route("pearnly-stock-adjust", state.task.adjustment));
+				else if (state.task.status === "Closed" && state.can_write)
+					page.add_inner_button(t("stock.count.adjust"), adjust_products);
+				// 以前的盘点（整份轧差写进 Express 的盘点调整 TK）：同采购 / 出入库单同一个 Express 弹窗（状态、单号、原因、再写一次）
 				if (state.task.ledger_state)
 					page.add_inner_button(__("Express"), () => p.express("ERP Stock Count", name, () => void show_route()));
 			}
@@ -495,6 +502,10 @@
 				await p.call(api + "api_stock_count_close", { name: count, review_token: reviewed }, "POST");
 				p.success(t("stock.count.closed")); await refresh();
 			});
+		}
+		async function adjust_products() {
+			const result = await p.call(api + "api_stock_count_adjust", { name: count }, "POST");
+			frappe.set_route("pearnly-stock-adjust", result.name);
 		}
 		function open_new() {
 			let file_url = "";

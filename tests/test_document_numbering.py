@@ -27,9 +27,14 @@ from pearnly_erp_portal.numbering import contracts  # noqa: E402
 class Prefixes(unittest.TestCase):
     def test_the_four_business_prefixes_are_fixed(self):
         """采购 PE / 销售 SI / 入库 IR / 出库 IS —— 与旧线上逐字相同；盘点调整 AD、调拨 TF（多仓闭环 P2）是后加的库存单据定义。"""
+        # 物料调整 IA（岳父 11-06）：新单一律 IA，不再发 AD；历史 AD 号仍是本系统的形状
         self.assertEqual(contracts.BY_DIRECTION,
-                         {"purchase": "PE", "sales": "SI", "in": "IR", "out": "IS", "stocktake": "AD", "transfer": "TF"})
-        self.assertEqual(contracts.PREFIXES, ("PE", "SI", "IR", "IS", "AD", "TF"))
+                         {"purchase": "PE", "sales": "SI", "in": "IR", "out": "IS", "transfer": "TF", "adjust": "IA"})
+        self.assertEqual(contracts.PREFIXES, ("PE", "SI", "IR", "IS", "AD", "TF", "IA"))
+        self.assertTrue(contracts.matches("AD2569-000003", "AD"))
+        self.assertEqual(contracts.format_number(contracts.prefix_for("adjust"), date(2026, 11, 6), 1), "IA2569-000001")
+        with self.assertRaises(ValueError):
+            contracts.prefix_for("stocktake")
 
     def test_the_old_production_source_pins_the_same_letters(self):
         """把口径钉在旧线上那份实现上：四个字母必须仍然出现在它的映射里。"""

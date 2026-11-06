@@ -14,7 +14,7 @@ name = "产品外壳与页面注册（product.js；字段说明图标 field-help
 paths = ["apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/public/desk/product.css", "apps/pearnly_core/pearnly_core/public/desk/field-help.js"]
 markers = ["pearnly.register("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.stock-count.switch.posted-to-active", "erp.stock-count.switch.active-to-posted", "erp.purchase.detail.not-permitted", "erp.sales.detail.not-permitted", "cowork.stocktake.switch"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.stock-count.switch.posted-to-active", "erp.stock-count.switch.active-to-posted", "erp.purchase.detail.not-permitted", "erp.sales.detail.not-permitted", "cowork.stocktake.switch"]
 
 [[part]]
 id = "page-errors"
@@ -22,7 +22,7 @@ name = "页面报错回传（Desk 页面与 LINE 单页、CC 对话页）"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/errors.js", "apps/pearnly_core/pearnly_core/desk/client_errors.py"]
 markers = ["desk/errors.js", "pearnlyReportError"]
 search = ["apps/**/*.html", "apps/**/hooks.py", "frontend/**/*.ts", "frontend/**/*.tsx"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu", "erp.line.stocktake", "dms.liff.id-scan", "shared.page-errors", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu", "erp.line.stocktake", "dms.liff.id-scan", "shared.page-errors", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void"]
 not_entries = { "apps/pearnly_core/pearnly_core/hooks.py" = "加载声明（app_include_js 第一个），Desk 页面入口见本共用件 entries" }
 
 [[part]]
@@ -31,7 +31,7 @@ name = "手机键盘不盖住正在填的格（Desk 页面与弹窗、LINE 独�
 paths = ["apps/pearnly_core/pearnly_core/public/desk/keyboard.js"]
 markers = ["desk/keyboard.js"]
 search = ["apps/**/*.html", "apps/**/hooks.py", "frontend/src/**/*.ts"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "shared.keyboard.erp-dialogs", "shared.keyboard.cowork-intake", "shared.keyboard.dms-editor", "shared.keyboard.erp-line-stocktake"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "shared.keyboard.erp-dialogs", "shared.keyboard.cowork-intake", "shared.keyboard.dms-editor", "shared.keyboard.erp-line-stocktake"]
 not_entries = { "apps/pearnly_core/pearnly_core/hooks.py" = "加载声明（app_include_js 第二个），Desk 页面与弹窗入口见本共用件 entries" }
 
 [[part]]
@@ -57,7 +57,7 @@ name = "共用 Link 选择框（新建 / 打开留在产品内）"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/link.js"]
 markers = ["take_create", "take_open", "link_editors", "open_link_record", "open_link_create", "watch_master_control"]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.intake", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.inventory.opening.item-scan"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.intake", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.inventory.opening.item-scan"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html" = "接口名 api_line_stocktake_create_product 里碰巧含标记字样，LINE 页不用 Link 选择框" }
 
 [[part]]
@@ -66,7 +66,7 @@ name = "共用 Select 弹出选择"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/select.js"]
 markers = ["fieldtype: \"Select\"", "fieldtype: 'Select'"]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "erp.scan.pick-product", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "erp.scan.pick-product", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void"]
 
 [[part]]
 id = "desk-list"
@@ -74,7 +74,7 @@ name = "共用列表（勾选、排序、筛选）"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/list.js", "apps/pearnly_core/pearnly_core/desk/list_filters.py"]
 markers = [".list(", ".selection_action(", ".sort_rows(", ".filter_values(", ".filter_conditions("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "erp.report.stock-summary-qty-sort", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "erp.report.stock-summary-qty-sort", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void"]
 
 [[part]]
 id = "desk-home"
@@ -132,7 +132,7 @@ name = "ERP 单据共用（仓库查询、明细、Express 预检）"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js"]
 markers = [".warehouse_query", ".trade.", ".express_preflight(", ".terminal_query", ".place.", ".express_company("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-card", "erp.page.stock-count", "erp.page.purchase", "erp.page.sales", "erp.page.pos-receipts", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.pos-shifts", "erp.place.header", "erp.products.new-dialog.opening", "erp.inventory.opening.row-warehouse", "erp.warehouses.express-new-hidden", "erp.report.stock-count-variance"]
+entries = ["erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.purchase", "erp.page.sales", "erp.page.pos-receipts", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.pos-shifts", "erp.place.header", "erp.products.new-dialog.opening", "erp.inventory.opening.row-warehouse", "erp.warehouses.express-new-hidden", "erp.report.stock-count-variance"]
 
 [[part]]
 id = "erp-originals"
@@ -310,7 +310,7 @@ name = "ERP 盘点按码认商品"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py"]
 markers = ["product_of_code", "inventory import count", "inventory.count"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.stock-count.code"]
+entries = ["erp.stock-count.code", "erp.stock-count.adjust"]
 
 [[part]]
 id = "ocr"
@@ -551,6 +551,26 @@ check = "auto"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_stock_transfer/pearnly_stock_transfer.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js"]
 smoke = "page"
 url = "/desk/pearnly-stock-transfer"
+
+[[entry]]
+id = "erp.page.stock-adjust"
+product = "ERP"
+where = "pearnly-stock-adjust"
+steps = "侧栏点「pearnly-stock-adjust」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_stock_adjust/pearnly_stock_adjust.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js"]
+smoke = "page"
+url = "/desk/pearnly-stock-adjust"
+
+[[entry]]
+id = "erp.stock-count.adjust"
+product = "ERP"
+where = "盘点结束 → 按盘点结果调整物料（岳父 11-06）"
+steps = "盘点 → 打开一份进行中的 → 结束盘点 → 「按盘点结果调整物料」→ 物料调整单草稿改一行 → 提交；再作废那张调整单 → 回盘点页再生成、删草稿"
+expect = "结束后库存、流水不变、不排 Express；草稿是盘点差异（仓位挪动先减后加）；提交后盘点已过账、物料按实盘、停用物料重新启用、盘到别处的台换位；作废后库存回原、盘点回到已结束可再生成；接 Express 的公司只写这张调整单的 TK"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js"]
 
 [[entry]]
 id = "erp.page.stock-out"

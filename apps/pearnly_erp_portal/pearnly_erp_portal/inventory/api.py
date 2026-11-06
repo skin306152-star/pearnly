@@ -62,8 +62,8 @@ def api_update_warehouse(**kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_create_stock_entry(**kwargs):
     guard.require("stock." + str(kwargs.get("direction")))
-    kwargs.pop("numbering_direction", None)
-    kwargs.pop("commit", None)
+    for key in ("numbering_direction", "commit", "stock_count", "trusted"):
+        kwargs.pop(key, None)  # 盘点来的调整单只由盘点生成（`count.adjustment_draft`），接口不收
     _json_args(kwargs, "lines", "attachments")
     kwargs = _clean(kwargs)
     # 新建时先选好的附件（已传到原件层的登记 File）：建单前先核，建好后挂上（`inventory.attachments`）
@@ -86,7 +86,7 @@ def api_next_stock_entry_number(**kwargs):
     填进只读输入框给用户看的。"""
     kwargs = _clean(kwargs)
     # 只给能开出入库单的人（原来没有守卫，任何登录账号能看到各类单据的流水号，10-27 回归基线 B）
-    if not any(guard.has(capability) for capability in ("stock.in", "stock.out", "stock.transfer", "count.write")):
+    if not any(guard.has(capability) for capability in ("stock.in", "stock.out", "stock.transfer", "stock.adjust", "count.write")):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     return {"doc_no": numbering.preview(direction=kwargs.get("direction"),
                                         on=kwargs.get("posting_date"))}
@@ -113,7 +113,8 @@ def api_update_stock_entry(**kwargs):
 
 
 # ── 出入库单附件（统一原件层；`inventory.attachments`）─────────────────────────────
-_UPLOAD_DIRECTIONS = {"in": "stock_in", "out": "stock_out", "transfer": "stock_transfer", "count": "stock_count"}
+_UPLOAD_DIRECTIONS = {"in": "stock_in", "out": "stock_out", "transfer": "stock_transfer", "adjust": "stock_adjust",
+                      "count": "stock_count"}
 
 
 def _upload_direction(direction):
@@ -158,6 +159,24 @@ def api_add_stock_entry_files(name, files):
 @frappe.whitelist(methods=["POST"])
 def api_remove_stock_entry_file(name, file):
     return attachments.remove(name, file)
+
+
+@frappe.whitelist()
+def api_default_unit_cost(product=None, warehouse=None, location=None, unit=None):
+    """物料调整增加行的默认单价（这个位置现在的均价，没有就物料参考成本；页面选物料 / 换仓位时带出，人可以改）。
+    只给开得了物料调整、看得到成本的人；仓要是当前公司的。"""
+    guard.require("stock.adjust")
+    if not guard.cost_visible() or not product:
+        return {"unit_cost": None}
+    warehouse = warehouses.required(warehouse)
+    cost = documents.default_unit_cost(product, warehouse, location or "", unit or None)
+    return {"unit_cost": None if cost is None else float(cost)}
+
+
+@frappe.whitelist(methods=["POST"])
+def api_delete_stock_entry_draft(name):
+    """删一张草稿（盘点生成的物料调整单草稿删了，盘点可以再生成）。"""
+    return documents.delete_draft(name)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -714,6 +733,13 @@ def api_stock_count_edit_entry(**kwargs):
 def api_stock_count_close(**kwargs):
     kwargs = _clean(kwargs)
     return counts.close_count(kwargs.get("name"), review_token=kwargs.get("review_token"))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_stock_count_adjust(**kwargs):
+    """「按盘点结果调整物料」：已结束的盘点生成物料调整单草稿（已有就回那一张）。"""
+    kwargs = _clean(kwargs)
+    return counts.adjustment_draft(kwargs.get("name"))
 
 
 @frappe.whitelist()

@@ -29,11 +29,14 @@ STOCK_OUT = "IS"
 STOCK_ADJUST = "AD"
 # 调拨：第四个库存单据定义（多仓闭环 P2；对齐 MR.ERP 的调拨菜单 `stktrant`，那边前缀由用户自填，这里定 TF）。
 STOCK_TRANSFER = "TF"
+# 物料调整（岳父 11-06）：正负混录的调整单，盘点差异也生成它。新单一律 IA；历史盘点差异单的 AD 号不改，
+# `AD` 仍留在 `PREFIXES` 里（旧号照样是本系统的形状），但不再发新的 AD。
+STOCK_ADJUSTMENT = "IA"
 
 # 业务方向 → 前缀。方向名与旧线上 `direction` 一致（purchase / sales / in / out）。
 BY_DIRECTION = {"purchase": PURCHASE, "sales": SALES, "in": STOCK_IN, "out": STOCK_OUT,
-                "stocktake": STOCK_ADJUST, "transfer": STOCK_TRANSFER}
-PREFIXES = (PURCHASE, SALES, STOCK_IN, STOCK_OUT, STOCK_ADJUST, STOCK_TRANSFER)
+                "transfer": STOCK_TRANSFER, "adjust": STOCK_ADJUSTMENT}
+PREFIXES = (PURCHASE, SALES, STOCK_IN, STOCK_OUT, STOCK_ADJUST, STOCK_TRANSFER, STOCK_ADJUSTMENT)
 
 BUDDHIST_OFFSET = 543
 SERIAL_WIDTH = 6

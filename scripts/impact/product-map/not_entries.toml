@@ -360,3 +360,33 @@ reason = "同上：Cowork 盘点原生 RPC，产品页面不调"
 anchor = "endpoint:pearnly_cowork.stocktake.api.entries"
 kind = "internal"
 reason = "同上：Cowork 盘点原生 RPC，产品页面不调"
+
+[[anchor]]
+anchor = "action:erp:pearnly-stock-adjust:trade.newIn"
+kind = "internal"
+reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头那颗新建按钮按方向只出本页那一个（title_new）；这个码只是同一行代码的别的方向，这一页不出现"
+
+[[anchor]]
+anchor = "action:erp:pearnly-stock-adjust:trade.newOut"
+kind = "internal"
+reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头那颗新建按钮按方向只出本页那一个（title_new）；这个码只是同一行代码的别的方向，这一页不出现"
+
+[[anchor]]
+anchor = "action:erp:pearnly-stock-adjust:trade.newTransfer"
+kind = "internal"
+reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头那颗新建按钮按方向只出本页那一个（title_new）；这个码只是同一行代码的别的方向，这一页不出现"
+
+[[anchor]]
+anchor = "action:erp:pearnly-stock-in:trade.newAdjust"
+kind = "internal"
+reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头那颗新建按钮按方向只出本页那一个（title_new）；这个码只是同一行代码的别的方向，这一页不出现"
+
+[[anchor]]
+anchor = "action:erp:pearnly-stock-out:trade.newAdjust"
+kind = "internal"
+reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头那颗新建按钮按方向只出本页那一个（title_new）；这个码只是同一行代码的别的方向，这一页不出现"
+
+[[anchor]]
+anchor = "action:erp:pearnly-stock-transfer:trade.newAdjust"
+kind = "internal"
+reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头那颗新建按钮按方向只出本页那一个（title_new）；这个码只是同一行代码的别的方向，这一页不出现"

@@ -8,6 +8,7 @@
   "qty",
   "unit",
   "unit_cost",
+  "unit_cost_manual",
   "warehouse",
   "location",
   "to_location"
@@ -42,6 +43,13 @@
    "in_list_view": 1
   },
   {
+   "fieldname": "unit_cost_manual",
+   "fieldtype": "Check",
+   "label": "Unit Cost Entered",
+   "hidden": 1,
+   "default": "0"
+  },
+  {
    "fieldname": "warehouse",
    "fieldtype": "Link",
    "options": "ERP Warehouse",
@@ -61,7 +69,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-31 09:00:00.000000",
+ "modified": "2026-11-06 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Stock Entry Line",
  "owner": "Administrator",

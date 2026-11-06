@@ -1884,3 +1884,12 @@ Most used fitting group in the account set	账套里用得最多的合格组	ก
 Basis used in this account set	此账套的口径	เกณฑ์ที่ชุดบัญชีนี้ใช้	この帳簿の基準	express.precheck.note.bookBasis
 Has taxed sales	有含税销售	มียอดขายที่มีภาษี	課税売上あり	express.precheck.note.vatSales
 Exempt items without VAT per line	免税商品按行不计税	สินค้ายกเว้นภาษีไม่คิด VAT รายบรรทัด	免税商品は行ごとに非課税	express.precheck.note.splitExempt
+Product Adjustment	物料调整	ปรับปรุงสินค้า	商品調整	nav.stockAdjust
+New Product Adjustment	新建物料调整单	สร้างใบปรับปรุงสินค้า	商品調整伝票を作成	trade.newAdjust
+Adjust products from count results	按盘点结果调整物料	ปรับปรุงสินค้าตามผลการตรวจนับ	棚卸結果で商品を調整	stock.count.adjust
+Quantity cannot be 0	数量不能为 0	จำนวนต้องไม่เป็น 0	数量は 0 にできません
+This stock count already has an adjustment	此盘点已有物料调整单	การตรวจนับนี้มีใบปรับปรุงสินค้าแล้ว	この棚卸には調整伝票があります
+Stock Count	盘点	ตรวจนับสต็อก	棚卸
+Product Adjustment	物料调整	ปรับปรุงสินค้า	商品調整
+Unit Cost Entered	单价已填写	กรอกราคาต่อหน่วยแล้ว	単価入力済み
+The warehouse differs from the warehouse of this document	仓库与本单仓库不一致	คลังไม่ตรงกับคลังของเอกสารนี้	この伝票の倉庫と一致しません

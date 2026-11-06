@@ -23,7 +23,7 @@
 	}
 
 	function count_of(line) {
-		const qty = Number(line.qty || 0);
+		const qty = Math.abs(Number(line.qty || 0));  // 物料调整的减少行是负数，按台数算绝对值
 		return Number.isInteger(qty) && qty > 0 ? qty : 0;
 	}
 

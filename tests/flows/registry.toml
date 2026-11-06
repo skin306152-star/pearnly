@@ -887,6 +887,41 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.stock-adjust"
+title = "ERP 物料调整：一张单正负混录、增加行默认均价可改、减少行单价只读、收发存分收入 / 发出、作废冲回、接 Express 才排账本（岳父 11-06）"
+module = "scripts/flows/erp_stock_adjust.py"
+start = "/desk/pearnly-stock-adjust"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_stock_adjust/pearnly_stock_adjust.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/stock.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/access.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/stock_entry.py",
+]
+
+[[flow]]
+id = "erp.stocktake.adjust"
+title = "ERP 盘点 → 物料调整：结束盘点不动库存、按盘点结果生成调整单草稿、提交才入账、作废后可再生成（岳父 11-06）"
+module = "scripts/flows/erp_stocktake_adjust.py"
+start = "/desk/pearnly-stock-count/{task}"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/audit.py",
+]
+
+[[flow]]
 id = "erp.stock-card"
 title = "ERP 库存卡：打开一件商品在一个仓的卡，连着两次渲染只出一份卡、期末结存与账面一致（多仓 P2 渲染竞态）"
 module = "scripts/flows/erp_stock_card.py"

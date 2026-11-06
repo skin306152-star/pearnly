@@ -79,6 +79,7 @@ Additional Information,追加情報
 Additional Information updated successfully.,追加情報を更新しました
 Address,住所
 Address and notes,住所と備考
+Adjust products from count results,棚卸結果で商品を調整
 Admins only,管理者のみ
 Against Payment,関連支払
 All,すべて
@@ -775,6 +776,7 @@ New Category,カテゴリ作成
 New Customer,顧客を追加
 New Invoice,新規会計
 New Order,新しい注文
+New Product Adjustment,商品調整伝票を作成
 New Purchase Invoice,仕入請求書作成
 New Sales Document,販売伝票を作成
 New Stock Issue,出庫伝票を作成
@@ -992,6 +994,7 @@ Printed Total,伝票の合計
 Private,非公開
 Product,製品
 Product / position / counted by / time,商品・位置・担当者・日時
+Product Adjustment,商品調整
 Product ID,商品ID
 Product Name,商品名
 Product Ref,商品の外部参照
@@ -1029,6 +1032,7 @@ Qty (entered unit),数量（入力単位）
 Quantities of products tracked by unit must be whole numbers in the base unit,個体管理の商品は基本単位の整数で入力してください
 Quantity,数量
 Quantity Available,在庫数
+Quantity cannot be 0,数量は 0 にできません
 Quantity counted this time,今回の実地数量
 Quantity differences,数量差異
 "Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts.",数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量。棒にマウスを載せると商品・場所・数量が見えます。
@@ -1253,6 +1257,7 @@ Status,ステータス
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",まだオフです。在庫テーブルは在庫バッチに入る前提で、転記が黙って飛ばしてはいけません
 Stock,在庫
 Stock Account Group,在庫勘定グループ
+Stock Count,棚卸
 Stock Posted At,在庫転記日時
 Stock Posting,在庫計上
 Stock Token,在庫トークン
@@ -1415,6 +1420,7 @@ The total is zero,合計がゼロです
 The units must match the stock of each warehouse,個体数は各倉庫の帳簿数と一致する必要があります
 The value is not a number,数値ではありません
 The value must be zero or more,0 以上で入力してください
+The warehouse differs from the warehouse of this document,この伝票の倉庫と一致しません
 The warehouse has no matching Express warehouse,この倉庫に対応する Express の倉庫がありません
 Then,実行
 There are no lines,明細がありません
@@ -1484,6 +1490,7 @@ This shift belongs to another cashier,このシフトは他のレジ担当のも
 This shift is already closed,このシフトはすでに終了しています
 This shift is closed,このシフトは終了しています
 This status change is not allowed,このステータス変更は許可されていません
+This stock count already has an adjustment,この棚卸には調整伝票があります
 This stock count is already posted,この棚卸はすでに計上済みです
 This stock count is closed,この棚卸は終了しています
 This stock entry comes from a stock count sent to Express. It cannot be voided on its own,この入出庫は Express に送った棚卸から作られたため、単独で取り消せません
@@ -1543,6 +1550,7 @@ Unbound,未連携
 Unit,単位
 Unit Cost,単位原価
 Unit Cost (net of VAT),単価（VAT除く）
+Unit Cost Entered,単価入力済み
 Unit Price,単価
 Unit barcode,単位バーコード
 Unit not found,該当する個体がありません
@@ -2212,6 +2220,7 @@ keyword,カードを検索
 member,メンバー
 nav.posReceipts,レジ記録
 nav.posShifts,シフト記録
+nav.stockAdjust,商品調整
 nav.stockCount,棚卸
 nav.stockTransfer,倉庫間移動
 none,なし
@@ -2380,6 +2389,7 @@ stock.count.action.delete,選択した{0}件を削除
 stock.count.addEntry,カウントを記録
 stock.count.addEntryHint,帳簿数量 {0} {1}
 stock.count.addEntryTitle,カウントを記録 — {0}
+stock.count.adjust,棚卸結果で商品を調整
 stock.count.back,戻る
 stock.count.blank,未入力
 stock.count.book,帳簿数量
@@ -2723,6 +2733,7 @@ trade.methodCash,現金
 trade.methodPromptpay,PromptPay
 trade.methodTransfer,振込
 trade.net,純額
+trade.newAdjust,商品調整伝票を作成
 trade.newIn,入庫伝票を作成
 trade.newInvoice,新規会計
 trade.newOrder,新しい注文

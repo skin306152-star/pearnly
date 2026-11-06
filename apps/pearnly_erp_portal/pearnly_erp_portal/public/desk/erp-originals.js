@@ -8,7 +8,8 @@
 	const STOCK = "pearnly_erp_portal.inventory.api.api_stock_upload";
 	const API = {purchase: ["pearnly_erp_portal.purchasing.api.api_purchase_upload"],
 		sales: ["pearnly_erp_portal.sales.api.api_sale_upload"],
-		stock_in: [STOCK, "in"], stock_out: [STOCK, "out"], stock_transfer: [STOCK, "transfer"], stock_count: [STOCK, "count"]};
+		stock_in: [STOCK, "in"], stock_out: [STOCK, "out"], stock_transfer: [STOCK, "transfer"],
+		stock_adjust: [STOCK, "adjust"], stock_count: [STOCK, "count"]};
 	const new_key = () => (crypto?.randomUUID ? crypto.randomUUID()
 		: `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 14)}`);
 
