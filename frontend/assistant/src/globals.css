@@ -894,6 +894,8 @@
   --cc-thread-gutter: var(--cc-space-16);        /* 对话内容区左右（栏宽 = --cc-thread-w + 两侧各一份） */
   --cc-turn-gap: var(--cc-space-24);             /* 一轮与一轮之间 */
   --cc-thread-tail: 56px;         /* 现有值·CC 自定：对话末尾给输入框让出的空 */
+  --cc-thread-fade: var(--cc-space-24);          /* 对话滚动区上沿：内容滚到顶栏下面这一段里淡出，不贴着顶栏（照 Claude 桌面端截图，用户 11-06） */
+  --cc-thread-top: var(--cc-space-24);           /* 对话内容离滚动区上沿（不小于 --cc-thread-fade：停在最上面时第一条不在淡出区里） */
   --cc-run-gap: var(--cc-space-16);              /* 工作状态行离上面的消息（发出后、回复还没来） */
   --cc-run-gap-reply: var(--cc-space-8);         /* 工作状态行跟在回复后面 */
   --cc-reply-actions-h: 30px;     /* 现有值·CC 自定：回复下操作行的高（消息底部用负外边距让出） */
@@ -1059,6 +1061,8 @@
   --cc-reveal-rest: 1;            /* 现有值·CC 自定：手机常显 */
   --cc-body-size: var(--code-text-prose);
   --cc-body-lh: var(--code-text-prose-lh);
+  --cc-thread-fade: 0px;          /* 现有值·CC 自定：手机顶栏自己往下淡出（--cc-mtopbar-pb），滚动区不再加一层 */
+  --cc-thread-top: var(--cc-space-16);
 }
 :root[data-cc-touch] { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); }
 :root[data-cc-touch][data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }
@@ -2039,8 +2043,11 @@
   .cc-user-row {
     display: grid; grid-auto-rows: auto; grid-template-columns: minmax(var(--cc-bubble-min), 1fr) auto; align-content: start;
     row-gap: var(--cc-space-8); padding-inline: var(--cc-space-8);
+    /* 发出后组件库把这一条顶到滚动区最上沿（按它的外框算）：外框往上多出一段上沿淡出的高、版面不变，气泡停在淡出区下面；
+       多出的这一截不接指针，上一条回复的操作行照常能点 */
+    margin-top: calc(0px - var(--cc-thread-fade)); padding-top: var(--cc-thread-fade); pointer-events: none;
   }
-  .cc-user-row > :where(*) { grid-column-start: 2; }
+  .cc-user-row > :where(*) { grid-column-start: 2; pointer-events: auto; }
   /* 对话里的提醒卡与结果文件卡：卡片底、最宽 --cc-card-max-w；左边 36 的图标格（圆角 6、叠色底、图标 18） */
   .cc-file-card {
     display: flex; max-width: var(--cc-card-max-w); border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-md);
@@ -2707,7 +2714,7 @@ html[data-cc-mshell], html[data-cc-mshell] body { height: 100%; overflow: hidden
 @media (prefers-reduced-motion: reduce) { .hm .hm-eyes, .hm-cc .hm-calm, .hm-cc .hm-laugh, .cc-tail, .cc-bell, .cc-hold, .cc-tick { animation: none; } }
 .pearnly-mascot-host svg { height: 100%; width: auto; display: block; }
 
-/* 等待回复（components/typing-dots.tsx）：同 Claude —— 四个小橘点依次亮起、像在转，旁边灰色的「8秒 · 思考中」 */
+/* 等待回复（components/typing-dots.tsx）：同 Claude —— 四个小橘点依次亮起、像在转，旁边灰色的「8秒 · 执行中」 */
 .typing-dots { display: inline-flex; align-items: center; gap: var(--cc-dots-gap); min-height: var(--cc-dots-min-h); vertical-align: middle; }
 .cc-spin { display: inline-grid; grid-template-columns: repeat(2, var(--cc-spin-dot)); gap: var(--cc-spin-gap); flex-shrink: 0; padding: var(--cc-spin-pad); }
 .cc-spin i { width: var(--cc-spin-dot); height: var(--cc-spin-dot); border-radius: 50%; background: var(--cc-brand); animation: cc-spin-dot var(--cc-dots-dur) var(--cc-ease) infinite; }

@@ -1250,7 +1250,7 @@ async function everyRequest() {
         self.page_language(page, r"""
 assert.equal(lang, "th");
 assert.equal(t("newChat"), "สร้างใหม่");
-assert.equal(steps.thinkingNow, "กำลังคิด");
+assert.equal(steps.thinkingNow, "กำลังดำเนินการ");
 for (const request of await everyRequest()) {
   assert.equal(request.lang, "th", request.url);
   assert.equal(request.credentials, "same-origin", request.url);

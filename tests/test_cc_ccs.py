@@ -312,6 +312,8 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-greeting-font": "20px", "--cc-mascot-h": "var(--cc-mascot-h-sm)",
             "--cc-row-h": "var(--code-row-phone)", "--cc-group-h": "var(--code-group-band-phone)", "--cc-reveal-rest": "1",
             "--cc-body-size": "var(--code-text-prose)", "--cc-body-lh": "var(--code-text-prose-lh)",
+            # 对话上沿：手机顶栏自己淡出，滚动区不加淡出层，内容离上沿仍是 16（用户 11-06）
+            "--cc-thread-fade": "0px", "--cc-thread-top": "var(--cc-space-16)",
         })
         # 触屏（手机变体，或粗指针且不是桌面窗口：data-cc-touch，标准化记录 B1 合成一份）的菜单项、搜索框 44；触屏平板（网页布局，
         # 第 11 轮 D26）的对话顶栏高也在这个不分层的变量块里（写在 components 层敌不过 :root，合并审查）
@@ -511,7 +513,17 @@ g.done();
         self.assertIn("hideWhenRunning", bar)
         self.assertIn("cc-reply-actions", bar)
         # 栏宽 768：内容区左右各一份 --cc-thread-gutter（16），正文与输入框正好 --cc-thread-w 48rem；不再另设 --thread-max-width
-        self.assertIn("max-w-[calc(var(--cc-thread-w)+var(--cc-thread-gutter)*2)] flex-1 flex-col px-(--cc-thread-gutter) pt-(--cc-space-16)", thread)
+        self.assertIn("max-w-[calc(var(--cc-thread-w)+var(--cc-thread-gutter)*2)] flex-1 flex-col px-(--cc-thread-gutter) pt-(--cc-thread-top)", thread)
+        # 上沿（用户 11-06，照 Claude 桌面端）：滚动区顶上一段淡出层，不占版面；内容离上沿不小于淡出高；手机顶栏自己淡出，这里为 0；
+        # 发出后组件库把提问顶到上沿，提问的外框往上多出淡出高（版面不变、那一截不接指针），气泡停在淡出区下面
+        self.assertIn("pointer-events-none sticky top-0 z-(--cc-z-raise) -mb-(--cc-thread-fade) h-(--cc-thread-fade) shrink-0 bg-linear-to-b from-app to-transparent", thread)
+        self.assertIn("--cc-thread-fade: var(--cc-space-24);", self.css)
+        self.assertIn("--cc-thread-top: var(--cc-space-24);", self.css)
+        phone = self.css.split(':root[data-cc-variant="phone"] {', 1)[1].split("}", 1)[0]
+        self.assertIn("--cc-thread-fade: 0px;", phone)
+        self.assertIn("--cc-thread-top: var(--cc-space-16);", phone)
+        self.assertIn("margin-top: calc(0px - var(--cc-thread-fade)); padding-top: var(--cc-thread-fade); pointer-events: none;", self.css)
+        self.assertIn(".cc-user-row > :where(*) { grid-column-start: 2; pointer-events: auto; }", self.css)
         self.assertNotIn("--thread-max-width", thread)
         self.assertIn("--cc-thread-gutter: var(--cc-space-16);", self.css)
         self.assertIn("--cc-thread-w: 48rem;", self.css)

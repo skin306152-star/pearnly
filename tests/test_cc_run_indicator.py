@@ -128,7 +128,7 @@ assert.equal(lastAssistant(end).status.type, "complete");
 assert.deepEqual(steps.map((s) => s.split(":")[1]), ["thinking", "thinking", "thinking", "tool", "tool", "thinking", "thinking",
   "thinking", "tool", "thinking", "thinking", "writing", "writing"]);
 // 文字（中文页）：计时从发出算；想完出正文时说「思考了 M秒」；执行中说这一步的进行时
-assert.equal(statusText({ kind: "thinking" }, 3, 0, ""), "3秒 · 思考中…");
+assert.equal(statusText({ kind: "thinking" }, 3, 0, ""), "3秒 · 执行中…");
 assert.equal(statusText({ kind: "writing" }, 8, 4, ""), "8秒 · 思考了 4秒");
 assert.equal(statusText({ kind: "writing" }, 8, 0, ""), "8秒");
 assert.equal(statusText({ kind: "tool", toolName: "x", args: {} }, 75, 0, "正在识别单据"), "1分15秒 · 正在识别单据");

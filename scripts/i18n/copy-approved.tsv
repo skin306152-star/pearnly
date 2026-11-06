@@ -214,3 +214,5 @@ pearnly_erp_portal:stock.board.shelf	zh	仓位	2026-11-06	docs/work/2026-11-06-e
 pearnly_erp_portal:stock.location.fromStock	zh	带入有库存的仓位	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
 pearnly_erp_portal:stock.location.list	zh	仓位清单	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
 pearnly_erp_portal:stock.workbench.finishConfirm	zh	确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项，结束后不能再修改。	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
+assistant:STEPS.thinking	zh	正在执行…	2026-11-06	docs/work/2026-11-06-cc-thread-polish.md
+assistant:STEPS.thinkingNow	zh	执行中	2026-11-06	docs/work/2026-11-06-cc-thread-polish.md

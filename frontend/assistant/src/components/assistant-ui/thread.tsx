@@ -133,11 +133,13 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
         data-slot="aui_thread-viewport"
         className="relative flex flex-1 flex-col overflow-x-auto overflow-y-auto [scrollbar-gutter:stable] scroll-smooth"
       >
+        {/* 上沿（同 Claude 桌面端）：内容滚到顶栏下面这一段里淡出，不贴着顶栏；不占版面（内容离上沿 --cc-thread-top）；手机顶栏自己淡出，这里高为 0 */}
+        <div aria-hidden="true" className="pointer-events-none sticky top-0 z-(--cc-z-raise) -mb-(--cc-thread-fade) h-(--cc-thread-fade) shrink-0 bg-linear-to-b from-app to-transparent" />
         <div
           ref={settle.content}
           className={cn(
             // 栏宽 768（设计文档 3.10）：内容区左右各留一份 --cc-thread-gutter，正文与输入框正好 --cc-thread-w
-            "mx-auto flex w-full max-w-[calc(var(--cc-thread-w)+var(--cc-thread-gutter)*2)] flex-1 flex-col px-(--cc-thread-gutter) pt-(--cc-space-16)",
+            "mx-auto flex w-full max-w-[calc(var(--cc-thread-w)+var(--cc-thread-gutter)*2)] flex-1 flex-col px-(--cc-thread-gutter) pt-(--cc-thread-top)",
             (isEmpty || isLoading) && "justify-center",
           )}
         >
@@ -570,7 +572,7 @@ const AssistantMessage: FC = () => {
                 case "text":
                   return <MarkdownText />;
                 case "reasoning":
-                  return null; // 引擎不给思考内容；进行中由步骤标题显示「正在思考…」
+                  return null; // 引擎不给思考内容；进行中由工作状态行显示「执行中」
                 case "tool-call":
                   // 不进组的只有允许 / 拒绝卡：同组里的步骤一样放进带环的卡片（只一层框），不单独浮在正文里；手机上还在等回答的不画
                   return (
