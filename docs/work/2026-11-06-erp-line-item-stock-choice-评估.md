@@ -564,3 +564,15 @@ Cowork 识别不逐行读货物 / 服务（`C/ocr/` 里没有 `item_type`），�
 3. 混行赊购单的服务品进项税口径（现按「有非库存行 = 有服务品」查历史 / 问人）与非库存行要不要问费用科目（共用规则现在只在整单没有库存行时问）；
 4. 原生作废一张 CC 写的混行单是否顺利（CC 现在不作废采购 / 销售单，Express 里人手作废）；
 5. 代录配方遇到同单混行能不能录。
+
+## 施工进度（11-06 晚收工，交接新窗口）
+
+主会话 11-06：本项**不进 11-06 晚这批**，两条分支都不合入 main；合入顺序：CC 1.12.15 发正式版后先合 `pearnly/cc-mixed-lines`，再合 `pearnly/cowork-line-item`。
+
+| 部分 | 分支 / 状态 | 说明 |
+|---|---|---|
+| CC 混行写入 | `pearnly/cc-mixed-lines` 4fb0ae540，已推；GitHub `architecture-and-offline`、`companion-tests` 均通过 | 见上节「CC 桌面版混行写入施工记录」；5 条原生证据等用户测完线上 CC 后由主会话安排 |
+| Cowork | `pearnly/cowork-line-item` 7bfcf4adb，已推，**叠在 cc-mixed-lines 上**；全闸门 197 项、候选离线、实验栈受影响流程通过（cc.operator.replay 4 格因实验数据不足不通过，与本分支无关，证明见交接笔记）；GitHub CI 收工时还在跑 | 施工记录在该分支 `docs/work/2026-11-06-cowork-line-item-choice.md`（C1–C10 全做，含行为变化与没测到的项） |
+| ERP | 未开工 | 库存整改 11-06 晚合入 main 后，由新窗口从新的 `origin/main` 开分支，再变基到 `pearnly/cowork-line-item` 之上（共用层 `choices.py` 的 `EXPENSE` / `line_kinds` / 混行问科目要复用），按第 14 节 S2–S5 做 |
+
+交接笔记：共享笔记文件夹 `交接-按行选物料-Cowork施工-11-06.md`。
