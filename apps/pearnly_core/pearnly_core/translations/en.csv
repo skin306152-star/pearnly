@@ -842,6 +842,7 @@ Type {0} or more characters for results.,Type {0} or more characters for results
 UI language,UI language
 Unable to load this page. Please reload.,Unable to load this page. Please reload.
 Unable to read the current advisor list. Retry before changing the assignment.,Unable to read the current advisor list. Retry before changing the assignment.
+Unable to upload right now. Please try again later.,Unable to upload right now. Please try again later.
 Unable to verify this company’s LINE official account. Please try again.,Unable to verify this company’s LINE official account. Please try again.
 Unbind LINE,Unbind LINE
 Unbound At,Unbound At
@@ -1422,6 +1423,7 @@ shell.notBuilt.title,Page unavailable
 shell.wait.elapsed,{0} seconds so far
 shell.wait.pages,Recognized {0}/{1} pages · {2}%
 state is invalid or has expired,state is invalid or has expired
+upload.deferred,Unable to upload right now. Please try again later.
 username / password are required,username / password are required
 {0} of {1} pages used this cycle; {2} remaining.,{0} of {1} pages used this cycle; {2} remaining.
 {0} pages per cycle,{0} pages per cycle

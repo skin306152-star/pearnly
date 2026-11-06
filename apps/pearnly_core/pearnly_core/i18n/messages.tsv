@@ -814,6 +814,7 @@ WHT deducted	预扣税额	ภาษีหัก ณ ที่จ่าย	源泉
 Goods / Service	商品 / 服务	สินค้า / บริการ	商品 / サービス	intake.item.name
 Invoice {0}/{1}	发票 {0}/{1}	ใบกำกับภาษี {0}/{1}	請求書 {0}/{1}	intake.review.invoice
 The recognition queue is full. Please try again later.	识别队列已满，请稍后重试。	คิวการอ่านเต็ม กรุณาลองใหม่ภายหลัง	読み取り待ちがいっぱいです。後でもう一度お試しください。	intake.error.queue_full
+Unable to upload right now. Please try again later.	暂时无法上传，请稍后重试。	ยังอัปโหลดไม่ได้ในขณะนี้ กรุณาลองใหม่ภายหลัง	現在アップロードできません。後でもう一度お試しください。	upload.deferred
 Recognition took too long. Please try again later.	识别超时，请稍后重试。	การอ่านใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง	読み取りに時間がかかりすぎました。後でもう一度お試しください。	intake.error.timeout
 Network error	网络错误	เครือข่ายผิดพลาด	ネットワークエラー	intake.error.poll_unreachable
 Recognition failed. Please try again.	识别失败，请重试。	การอ่านไม่สำเร็จ กรุณาลองใหม่	読み取りに失敗しました。もう一度お試しください。	intake.error.workflow_error

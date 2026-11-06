@@ -844,6 +844,7 @@ Type {0} or more characters for results.,พิมพ์อย่างน้อ
 UI language,ภาษาของหน้าจอ
 Unable to load this page. Please reload.,ไม่สามารถโหลดหน้านี้ได้ กรุณารีเฟรช
 Unable to read the current advisor list. Retry before changing the assignment.,ไม่สามารถอ่านรายชื่อที่ปรึกษาปัจจุบันได้ กรุณาลองใหม่ก่อนเปลี่ยนผู้รับค่าคอมมิชชัน
+Unable to upload right now. Please try again later.,ยังอัปโหลดไม่ได้ในขณะนี้ กรุณาลองใหม่ภายหลัง
 Unable to verify this company’s LINE official account. Please try again.,ไม่สามารถตรวจสอบบัญชี LINE ทางการของบริษัทได้ กรุณาลองใหม่
 Unbind LINE,ยกเลิกการผูก LINE
 Unbound At,ยกเลิกการผูกเมื่อ
@@ -1424,6 +1425,7 @@ shell.notBuilt.title,หน้านี้ไม่พร้อมใช้ง�
 shell.wait.elapsed,ผ่านไป {0} วินาที
 shell.wait.pages,อ่านแล้ว {0}/{1} หน้า · {2}%
 state is invalid or has expired,state ไม่ถูกต้องหรือหมดอายุ
+upload.deferred,ยังอัปโหลดไม่ได้ในขณะนี้ กรุณาลองใหม่ภายหลัง
 username / password are required,ต้องระบุ username / password
 {0} of {1} pages used this cycle; {2} remaining.,รอบนี้ใช้แล้ว {0}/{1} หน้า คงเหลือ {2} หน้า
 {0} pages per cycle,{0} หน้าต่อรอบ

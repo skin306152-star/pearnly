@@ -844,6 +844,7 @@ Type {0} or more characters for results.,{0} 文字以上入力してくださ�
 UI language,表示言語
 Unable to load this page. Please reload.,このページを読み込めません。再読み込みしてください。
 Unable to read the current advisor list. Retry before changing the assignment.,現在の担当者一覧を取得できません。再試行してから帰属を変更してください。
+Unable to upload right now. Please try again later.,現在アップロードできません。後でもう一度お試しください。
 Unable to verify this company’s LINE official account. Please try again.,会社のLINE公式アカウントを確認できません。再試行してください。
 Unbind LINE,LINE連携を解除
 Unbound At,連携解除日時
@@ -1424,6 +1425,7 @@ shell.notBuilt.title,このページは利用できません
 shell.wait.elapsed,経過 {0} 秒
 shell.wait.pages,{0}/{1} ページ読み取り済み · {2}%
 state is invalid or has expired,state が無効か期限切れです
+upload.deferred,現在アップロードできません。後でもう一度お試しください。
 username / password are required,username / password は必須です
 {0} of {1} pages used this cycle; {2} remaining.,今期{0}/{1}ページ使用、残り{2}ページ。
 {0} pages per cycle,1期間あたり{0}ページ

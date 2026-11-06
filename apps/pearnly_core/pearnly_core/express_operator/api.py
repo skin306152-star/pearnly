@@ -17,6 +17,7 @@ from datetime import datetime
 import frappe
 from frappe import _
 
+from pearnly_core.execution.errors import Deferred
 from pearnly_core.express_operator import products, shapes, tasks, uploads
 
 PAGE_MAX = 100
@@ -73,6 +74,7 @@ def resolve(company, doc_id, entered, docnum=""):
 
 
 UPLOAD_MAX = 30 * 1024 * 1024
+UPLOAD_DEFERRED = "upload.deferred"  # 暂时无法上传，请稍后重试。
 GROUPS = ("purchase", "sales", "expense", "payment", "skip")
 
 
@@ -90,7 +92,11 @@ def intake(company, request_key, task=""):
     content = incoming.stream.read(UPLOAD_MAX + 1)
     if len(content) > UPLOAD_MAX:
         frappe.throw(_("Invalid request"))
-    result = products.intake(company, incoming.filename, content, str(request_key or ""))
+    try:
+        result = products.intake(company, incoming.filename, content, str(request_key or ""))
+    except Deferred:
+        # 原件存放处 / 识别服务一时连不上（甲骨文、Cloud Run）：回一句可重试的话，页面把文件放回输入框，不回 500
+        frappe.throw(_(UPLOAD_DEFERRED))
     if task and result.get("accepted"):
         result = {**result, "upload": uploads.record(task, request_key, incoming.filename, len(content), result)}
     return result

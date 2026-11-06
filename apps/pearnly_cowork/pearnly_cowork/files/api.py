@@ -5,6 +5,7 @@ from frappe.core.doctype.access_log.access_log import make_access_log
 from frappe.core.api.file import zip_files as native_zip_files
 from pearnly_cowork.access import scope
 from pearnly_cowork.files import access, service
+from pearnly_core.execution.errors import Deferred
 from pearnly_core.originals import checks as originals
 
 
@@ -27,6 +28,10 @@ def upload(workspace=None, request_key=None, client=None):
             frappe.db.rollback()
             if attempt == 2:
                 raise
+        except Deferred:
+            # 原件存放处一时连不上（甲骨文 / 桶）：回一句可重试的话（同代录上传），不回 500
+            frappe.db.rollback()
+            frappe.throw(_("upload.deferred"))
 
 
 @frappe.whitelist(methods=["POST"])

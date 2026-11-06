@@ -175,6 +175,10 @@ class Product:
 
     def intake(self, company, filename, content, request_key):
         self.intakes.append((company, filename, len(content), request_key))
+        if getattr(self, "deferred", False):
+            from pearnly_core.execution.errors import Deferred
+
+            raise Deferred("oracle_unreachable", 10)
         if not self.accept:
             return {"accepted": False, "code": "no_target"}
         return {"accepted": True, "source": f"SRC-{request_key}", "name": f"B-{request_key}", "page_count": 12,
@@ -260,6 +264,18 @@ class UploadRecordTests(Base):
         with self.assertRaises(DoesNotExistError_):
             upload("CO-1", "k1", task)  # 别的产品站点看不到
         self.assertEqual(self.product.intakes, [])
+
+    def test_an_unreachable_store_answers_a_retry_sentence_instead_of_a_server_error(self):
+        """11-06 测试机：原件存放处（甲骨文）一时连不上时产品抛 Deferred，以前没接住、页面收到 500；现在回「暂时无法上传，
+        请稍后重试。」（页面把文件放回输入框，可重发），任务上不记这一份。"""
+        task = tasks.create("CO-1", "2026-10")["name"]
+        self.product.deferred = True
+        with self.assertRaises(ValidationError_) as caught:
+            upload("CO-1", "k1", task)
+        self.assertEqual(str(caught.exception), "upload.deferred")
+        self.assertEqual(frappe.get_doc("Pearnly Express Operator Task", task).uploads, [])
+        self.product.deferred = False
+        self.assertTrue(upload("CO-1", "k1", task)["accepted"])  # 连得上了，同一份重发照常收
 
     def test_not_accepted_or_unsupported_is_not_recorded(self):
         task = tasks.create("CO-1", "2026-10")["name"]

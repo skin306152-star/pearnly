@@ -844,6 +844,7 @@ Type {0} or more characters for results.,至少输入 {0} 个字符
 UI language,界面语言
 Unable to load this page. Please reload.,无法加载此页面，请刷新。
 Unable to read the current advisor list. Retry before changing the assignment.,无法读取当前顾问名册。请重试后再修改归属。
+Unable to upload right now. Please try again later.,暂时无法上传，请稍后重试。
 Unable to verify this company’s LINE official account. Please try again.,无法核实本公司的 LINE 官方账号，请重试。
 Unbind LINE,解绑 LINE
 Unbound At,解绑时间
@@ -1424,6 +1425,7 @@ shell.notBuilt.title,页面暂不可用
 shell.wait.elapsed,已用 {0} 秒
 shell.wait.pages,已识别 {0}/{1} 页 · {2}%
 state is invalid or has expired,state 无效或已过期
+upload.deferred,暂时无法上传，请稍后重试。
 username / password are required,username / password 必填
 {0} of {1} pages used this cycle; {2} remaining.,本周期已用 {0}/{1} 页，剩余 {2} 页。
 {0} pages per cycle,每周期 {0} 页
