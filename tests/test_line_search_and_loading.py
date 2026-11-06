@@ -1,4 +1,4 @@
-"""LINE 选择超过 12 项改打字找（用户 2026-10-24），以及等结果时统一显示官方三个点。
+"""LINE 选择超过 12 项改打字找（用户 2026-10-24；Cowork 上传前的存货科目组一步 11-06 随整批入账方式去掉），以及等结果时统一显示官方三个点。
 
 Run with Frappe installed. No Site, Redis or network: database reads, LINE requests and saving are replaced.
 """
@@ -9,7 +9,6 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from pearnly_core import line
-from pearnly_cowork.line import flow as cowork_flow
 from pearnly_erp_portal.integrations import line_flow
 
 USER = "U" + "a" * 32
@@ -137,37 +136,6 @@ class ErpLastWarehouse(unittest.TestCase):
                     get_value=lambda *args, **kwargs: SimpleNamespace(company="CO-1", is_active=1))):
             self.assertEqual(line_flow._last_warehouse("CO-1", "u@example.com"), "WH-1")
         self.assertEqual(rows.call_args.args[0], intake.DOCTYPE)
-
-
-class CoworkStockGroupSearch(unittest.TestCase):
-    GROUPS = [{"acccod": "1150-01", "label": "สินค้าสำเร็จรูป"}, {"acccod": "1150-02", "label": "วัตถุดิบ"},
-              {"acccod": "1150-03", "label": "สินค้าระหว่างทาง"}]
-
-    def setUp(self):
-        service = SimpleNamespace(stock_acc_group=Mock(return_value={"groups": self.GROUPS}))
-        self.enterContext(patch.dict("sys.modules", {"pearnly_cowork.connections.service": service}))
-        self.enterContext(patch("pearnly_cowork.connections.service", service, create=True))
-        self.ask = self.enterContext(patch.object(cowork_flow, "_ask"))
-        self.chosen = self.enterContext(patch.object(cowork_flow, "_choose_stock_group"))
-        self.next = self.enterContext(patch.object(cowork_flow, "_next"))
-        self.enterContext(patch.object(cowork_flow, "_save"))
-        self.enterContext(patch.object(cowork_flow, "_", side_effect=lambda text: text))
-        self.payload = {"connection": "C1", "account_set_key": "K1"}
-
-    def test_an_exact_account_code_is_chosen(self):
-        self.assertTrue(cowork_flow._search_stock_group(USER, self.payload, "1150-02", "r"))
-        self.chosen.assert_called_once_with(self.payload, "1150-02")
-        self.next.assert_called_once()
-
-    def test_a_name_lists_numbered_matches(self):
-        self.assertTrue(cowork_flow._search_stock_group(USER, self.payload, "สินค้า", "r"))
-        self.assertEqual(self.payload["offered"][cowork_flow.STOCK_GROUP], ["1150-01", "1150-03"])
-        self.assertEqual(len(self.ask.call_args.args[2]), 2)
-        self.chosen.assert_not_called()
-
-    def test_no_match_asks_again(self):
-        self.assertTrue(cowork_flow._search_stock_group(USER, self.payload, "xyz", "r"))
-        self.assertEqual(self.ask.call_args.args[2], [])
 
 
 class WaitingBubble(unittest.TestCase):
