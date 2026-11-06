@@ -92,6 +92,20 @@ MENU_TOOL = {
                      "properties": {"read": {"type": "boolean"},
                                     "path": {"type": "array", "items": {"type": "string"}, "maxItems": 5}}},
 }
+# 后台模式（bg_desk）不动真鼠标：工具集里鼠标类成员整组关掉（``configs`` 的 ``enabled: false``），模型就不再出这些调用，
+# 不靠提示词劝、也不靠调用后被拒（11-05 测试机：后台接手几轮都花在被拒的鼠标点击上）。前台（win32_desk）照常全开。
+MOUSE_MEMBERS = ("left_click", "right_click", "middle_click", "double_click", "triple_click", "left_click_drag",
+                 "mouse_move", "left_mouse_down", "left_mouse_up", "scroll", "cursor_position")
+
+
+def cu_tools(background: bool) -> List[Dict]:
+    """接手对话的工具：电脑操作工具集（后台关鼠标成员）+ express_menu + finish。同一次接手里不变（缓存前缀稳定）。"""
+    toolset: Dict = {"type": "computer_toolset_20260801"}
+    if background:
+        toolset["configs"] = {name: {"enabled": False} for name in MOUSE_MEMBERS}
+    return [toolset, MENU_TOOL, FINISH_TOOL]
+
+
 CUSTOM_TOOLS = ("express_menu",)  # 自定义工具（结果不带 toolset_name）
 # 工具执行时这些异常原样往上抛给引擎（崩溃、被拦、人点停止；菜单子菜单多候选由引擎按单据定，不让 AI 猜）
 RAISE_THROUGH = ("Crash", "Blocked", "Stopped", "MenuAmbiguous")
@@ -253,7 +267,7 @@ class ComputerUseHelper:
             response = self._call("turn", {
                 "model": model, "max_tokens": 8000,
                 "system": cu_system(bool(getattr(tools, "background", False))),
-                "tools": [{"type": "computer_toolset_20260801"}, MENU_TOOL, FINISH_TOOL], "messages": messages,
+                "tools": cu_tools(bool(getattr(tools, "background", False))), "messages": messages,
                 "output_config": {"effort": effort}, "thinking": {"type": "adaptive"},
                 "cache_control": {"type": "ephemeral"}})
             if response.get("stop_reason") == "refusal":

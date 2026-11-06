@@ -389,3 +389,28 @@ def test_background_desk_tells_the_ai_to_use_only_the_keyboard_and_foreground_do
         for text in systems:
             assert ("只能用键盘动作" in text) is background
             assert ("不能用鼠标点击" in text) is background
+
+
+def test_background_desk_turns_the_mouse_members_off_in_the_toolset_and_foreground_keeps_them(tmp_path):
+    """后台接手的请求里电脑工具集带 ``configs``，鼠标类成员全部 ``enabled: false``（11-06 直调：接口收下，输入 token 4550 → 2888，
+    鼠标成员不再下发）；键盘、截图、放大照常；前台不带 configs（17 个成员全开）。同一次接手每轮的工具相同（缓存前缀不变）。"""
+    from companion.express_operator import helper
+
+    assert set(helper.MOUSE_MEMBERS) == {"left_click", "right_click", "middle_click", "double_click", "triple_click",
+                                         "left_click_drag", "mouse_move", "left_mouse_down", "left_mouse_up", "scroll",
+                                         "cursor_position"}
+    for background in (True, False):
+        site = Scripted([[{"name": "finish", "input": {"status": "need_human", "note": "?"}}]] * 2)
+        engine, sim = engine_for(tmp_path / f"t{background}", renamed_menu(), transport=site)
+        if background:
+            sim.background = True
+        engine.run(hp())
+        toolsets = [t for r in site.requests if isinstance(r.get("tools"), list)
+                    for t in r["tools"] if t.get("type") == "computer_toolset_20260801"]
+        assert toolsets, "takeover was not called"
+        for toolset in toolsets:
+            if background:
+                assert toolset["configs"] == {name: {"enabled": False} for name in helper.MOUSE_MEMBERS}
+                assert not {"key", "type", "screenshot", "zoom", "wait"} & set(toolset["configs"])
+            else:
+                assert "configs" not in toolset
