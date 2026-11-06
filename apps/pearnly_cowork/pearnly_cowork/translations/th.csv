@@ -726,6 +726,7 @@ Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send aga
 Excel/CSV from online banking or electronic PDF,Excel/CSV จากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์
 Excess tax brought forward,ภาษีที่ชำระเกินยกมา
 Expected VAT,ภาษีที่ควรเป็น
+Expense,บันทึกเป็นค่าใช้จ่าย
 Expense (goods from now on),ค่าใช้จ่าย (เอกสารสินค้าทั้งหมด)
 Expense (this kind from now on),ค่าใช้จ่าย (เอกสารประเภทนี้ทั้งหมด)
 Expense account,บัญชีค่าใช้จ่าย
@@ -2273,6 +2274,7 @@ cowork.choice.claim,ใช้สิทธิ์ภาษีซื้อ
 cowork.choice.credit,ซื้อเงินเชื่อ
 cowork.choice.department,แผนก
 cowork.choice.expense,ไม่ใช้สิทธิ์ภาษีซื้อ บันทึกเป็นค่าใช้จ่าย
+cowork.choice.expenseLine,บันทึกเป็นค่าใช้จ่าย
 cowork.choice.invalid,รายการที่เลือกไม่มีอยู่ในชุดบัญชีนี้ กรุณาเลือกใหม่
 cowork.choice.item,สินค้าคงเหลือ
 cowork.choice.new,สร้างใหม่ตามเอกสาร

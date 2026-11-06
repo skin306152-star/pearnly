@@ -844,7 +844,7 @@ const OPERATOR = {
       payment: "Payment", vat: "VAT rate differs from the invoice", receipt: "Receiving account", department: "Department", other: "Other",
     } as Record<string, string>,
     option: {
-      newItem: "New stock item", new: "New",
+      newItem: "New stock item", new: "New", expense: "Expense",
     } as Record<string, string>,
     precheck: {
       kind: {
@@ -919,7 +919,7 @@ const OPERATOR = {
       payment: "付款方式", vat: "税率与票面不符", receipt: "收款科目", department: "部门", other: "其他",
     } as Record<string, string>,
     option: {
-      newItem: "库存（新建）", new: "新建",
+      newItem: "库存（新建）", new: "新建", expense: "记费用",
     } as Record<string, string>,
     precheck: {
       kind: {
@@ -994,7 +994,7 @@ const OPERATOR = {
       payment: "การชำระเงิน", vat: "อัตราภาษีไม่ตรงกับใบกำกับ", receipt: "บัญชีรับเงิน", department: "แผนก", other: "อื่นๆ",
     } as Record<string, string>,
     option: {
-      newItem: "สินค้าคงคลัง (สร้างใหม่)", new: "สร้างใหม่",
+      newItem: "สินค้าคงคลัง (สร้างใหม่)", new: "สร้างใหม่", expense: "บันทึกเป็นค่าใช้จ่าย",
     } as Record<string, string>,
     precheck: {
       kind: {

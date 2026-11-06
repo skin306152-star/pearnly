@@ -399,6 +399,34 @@ class BigLists(unittest.TestCase):
         self.assertEqual([r["code"] for r in module.search("CO1", "h1", "products", "", 0, 20)["options"]],
                          ["__new__", "P1"])  # 只列库存品，第一页最前面是新建
         self.assertEqual([r["code"] for r in module.search("CO1", "h1", "parties", "ร้าน", 0, 20)["options"]], ["S9"])
+        # 没声明过账类型的行（11-06 按行选）：库存品、非库存品都列，前两项是新建存货与记费用
+        self.assertEqual([r["code"] for r in module.search("CO1", "h1", "products_all", "", 0, 20)["options"]],
+                         ["__new__", "__expense__", "P1", "S1"])
+        self.assertEqual([r["code"] for r in module.search("CO1", "h1", "products_all", "fee", 0, 20)["options"]], ["S1"])
+
+    def test_per_line_questions_replace_the_whole_document_stock_or_expense_question(self):
+        """按行问了存货对照（没声明过账类型的行，11-06）就不再整张问「走库存 / 记费用」；没有按行问的照旧问。"""
+        item = {"kind": "item", "subject": "purchase|0105555000011|box", "label": "Box", "current": "", "expense": True}
+        module, _calls, patcher = load(needed=(item,), goods=True)
+        self.addCleanup(patcher.stop)
+        self.assertNotIn("goods_posting", [i["kind"] for i in module.document("h1")["items"]])
+        module, _calls, patcher = load(needed=(dict(item, expense=False),), goods=True)
+        self.addCleanup(patcher.stop)
+        self.assertIn("goods_posting", [i["kind"] for i in module.document("h1")["items"]])
+
+    def test_a_line_without_a_posting_kind_offers_the_expense_option(self):
+        item = {"kind": "item", "subject": "purchase|0105555000011|box", "label": "Box", "current": "", "expense": True}
+        module, _calls, patcher = load(needed=(item,))
+        self.addCleanup(patcher.stop)
+        entry = {i["kind"]: i for i in module.document("h1")["items"]}["item"]
+        codes = [row["code"] for row in entry.get("options") or []]
+        self.assertEqual(codes[:2], ["__new__", "__expense__"])
+        self.assertEqual(entry["value"], "__new__")  # 预选照旧是新建存货（要人点「开始」）
+        stock = dict(item, expense=False)
+        module, _calls, patcher = load(needed=(stock,))
+        self.addCleanup(patcher.stop)
+        entry = {i["kind"]: i for i in module.document("h1")["items"]}["item"]
+        self.assertNotIn("__expense__", [row["code"] for row in entry.get("options") or []])
 
     def test_search_on_a_document_the_user_cannot_read_is_refused(self):
         module, _calls, patcher = load()

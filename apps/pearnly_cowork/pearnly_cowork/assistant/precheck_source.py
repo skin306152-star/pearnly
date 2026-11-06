@@ -225,7 +225,7 @@ def operator_check(history, posting_kind=None) -> dict:
 
 def _legacy(view, target) -> dict:
     """代录开始前预检原来的回包（:func:`operator_check` 改造前的形状，U1 / U2 的调用方不用改）。"""
-    from pearnly_core.express_rules.push.choices import NEW
+    from pearnly_core.express_rules.push.choices import EXPENSE, NEW
 
     if view.get("wait"):
         return {"state": "waiting", "reason": view["wait"].get("state") or "",
@@ -237,13 +237,16 @@ def _legacy(view, target) -> dict:
         rows = _options(item, view.get("options") or {})
         if item.get("kind") in ("item", "party"):
             rows.insert(0, {"code": NEW, "name": ""})  # 在 Express 新建（按直写现有建档、带查重，主会话 10-27）
+        if item.get("kind") == "item" and item.get("expense"):
+            rows.insert(1, {"code": EXPENSE, "name": ""})  # 这一行记费用（11-06 按行选）
         needed.append({**item, "options": rows})
     return {"state": "choose", "needed": needed, "target": target}
 
 
 def _options(item, shared) -> list:
     kind = item.get("kind")
-    options = item.get("options") or (shared.get("products") if kind == "item" else
+    products = shared.get("products_all") if kind == "item" and item.get("expense") else shared.get("products")
+    options = item.get("options") or (products if kind == "item" else
                                       shared.get("accounts") if kind in ("account", "receipt") else []) or []
     return [{"code": str(row.get("code") or ""), "name": str(row.get("name") or "")} for row in options
             if isinstance(row, dict)]
@@ -274,6 +277,8 @@ def _goods_item(doc, loaded, found, decision, kind, posting_from, today):
     if kind or not goods_posting.blocked(found["fields"], direction=found["direction"], config=config, posting_kind=None,
                                          today=today, vat_choice=(decision.get("applied") or {}).get("vat")):
         return None
+    if any(item.get("kind") == "item" and item.get("expense") for item in decision.get("needed") or ()):
+        return None  # 已按行问存货对照（存货 / 新建存货 / 记费用，11-06）：不再整张问「走库存 / 记费用」
     company = goods_posting.company_key(loaded.doc.name, service._account_row(loaded, found["target"]))
     if not company:
         return None
@@ -310,8 +315,9 @@ def _preselect(item, rows, fields, direction, shared):
 
 
 def choice_items(view, fields, direction) -> list:
-    """写账规则要人选的项（`choices_view` 的 ``needed``）→ 卡片项，带可选值与预选。"""
-    from pearnly_core.express_rules.push.choices import NEW
+    """写账规则要人选的项（`choices_view` 的 ``needed``）→ 卡片项，带可选值与预选。没声明过账类型的行（``expense``）
+    多一个「记费用」，大列表按 ``products_all`` 搜（库存品与非库存品都列）。"""
+    from pearnly_core.express_rules.push.choices import EXPENSE, NEW
 
     shared = view.get("options") or {}
     out = []
@@ -319,6 +325,8 @@ def choice_items(view, fields, direction) -> list:
         rows = _options(item, shared)
         if item.get("kind") in ("item", "party"):
             rows.insert(0, {"code": NEW, "name": ""})
+        if item.get("kind") == "item" and item.get("expense"):
+            rows.insert(1, {"code": EXPENSE, "name": ""})
         value, source = _preselect(item, rows, fields, direction, shared)
         notes = {str(row.get("code") or ""): str(row.get("reason") or "") for row in item.get("suggested") or ()
                  if isinstance(row, dict) and row.get("reason")}
@@ -326,7 +334,7 @@ def choice_items(view, fields, direction) -> list:
                  "value": value, "source": source, "direction": direction}
         if len(rows) > card.SMALL_LIST and item["kind"] in SEARCH_OF:
             # 大列表（科目表、存货）：只给预选值与名称，其余经 `search` 服务端分页取
-            entry["search"] = SEARCH_OF[item["kind"]]
+            entry["search"] = SEARCH_OF[item["kind"]] + ("_all" if item["kind"] == "item" and item.get("expense") else "")
             entry["value_label"] = next((row["name"] for row in rows if row["code"] == value), "")
         else:
             entry["options"] = [{**row, "note": notes[row["code"]]} if notes.get(row["code"]) else row for row in rows]
@@ -336,8 +344,9 @@ def choice_items(view, fields, direction) -> list:
 
 def search(company, doc_id, kind, txt, start, page_length) -> dict:
     """大列表的可选值（共用接口 ``write_precheck.api.search``）：这张单写进的那份账套的科目表 / 存货 / 对方主档，按编码或名称
-    包含 ``txt`` 筛，服务端分页；存货、对方第一页最前面是「在 Express 新建」。读不到这张单（不是本人能看的）照抛。只看不写。"""
-    from pearnly_core.express_rules.push.choices import NEW
+    包含 ``txt`` 筛，服务端分页；存货、对方第一页最前面是「在 Express 新建」；``products_all``（没声明过账类型的行）库存品与
+    非库存品都列、第二项是「记费用」。读不到这张单（不是本人能看的）照抛。只看不写。"""
+    from pearnly_core.express_rules.push.choices import EXPENSE, NEW
     from pearnly_cowork.connections import service as connections
     from pearnly_cowork.history import storage
     from pearnly_cowork.push.application import service
@@ -356,14 +365,18 @@ def search(company, doc_id, kind, txt, start, page_length) -> dict:
     elif kind == "products":
         rows = [row for row in config.get("reported_products") or []
                 if isinstance(row, dict) and str(row.get("kind") or "stock") == "stock"]
+    elif kind == "products_all":
+        rows = [row for row in config.get("reported_products") or [] if isinstance(row, dict)]  # 没声明过账类型的行
     else:
         rows = config.get("reported_customers" if found["direction"] == "sales" else "reported_suppliers") or []
     needle = str(txt or "").strip().casefold()
     matched = [{"code": str(row.get("code") or ""), "name": str(row.get("name") or "")} for row in rows
                if isinstance(row, dict) and row.get("code")
                and (not needle or needle in str(row.get("code")).casefold() or needle in str(row.get("name") or "").casefold())]
-    if kind in ("products", "parties") and not needle:
+    if kind in ("products", "products_all", "parties") and not needle:
         matched.insert(0, {"code": NEW, "name": ""})
+    if kind == "products_all" and not needle:
+        matched.insert(1, {"code": EXPENSE, "name": ""})  # 这一行记费用（11-06 按行选）
     return {"options": matched[start:start + page_length], "more": len(matched) > start + page_length}
 
 

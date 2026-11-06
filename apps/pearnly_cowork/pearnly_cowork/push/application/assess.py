@@ -97,8 +97,8 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
     # 商品单入账方式按公司选过的照用（同准备推送，`service._posting_decision`）
     posting_kind, posting_from, decision = service._posting_decision(
         doc, connection, account_row, posting_kind, flat, direction, config, today,
-        lambda kind: service._decisions(connection, account_set, flat, fields, direction, kind, config, preparation,
-                                        fixed, siblings=lambda: service._same_company(loaded, account_set),
+        lambda kind, **more: service._decisions(connection, account_set, flat, fields, direction, kind, config, preparation,
+                                        fixed, **more, siblings=lambda: service._same_company(loaded, account_set),
                                         account_row=account_row, since=getattr(doc, "creation", None)))
     payload, ready, reason = None, False, ""
     if not decision["needed"] and not blocked and not conflict:

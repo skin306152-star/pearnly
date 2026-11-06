@@ -726,6 +726,7 @@ Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send aga
 Excel/CSV from online banking or electronic PDF,网银导出的 Excel/CSV 或电子版 PDF
 Excess tax brought forward,上期结转的多缴税额
 Expected VAT,应为税额
+Expense,记费用
 Expense (goods from now on),记费用（商品单据均记费用）
 Expense (this kind from now on),记费用（同类单据均记费用）
 Expense account,费用科目
@@ -2273,6 +2274,7 @@ cowork.choice.claim,抵扣进项税
 cowork.choice.credit,赊购
 cowork.choice.department,部门
 cowork.choice.expense,不抵扣，计入费用
+cowork.choice.expenseLine,记费用
 cowork.choice.invalid,所选项不在此账套中，请重新选择
 cowork.choice.item,存货
 cowork.choice.new,新建（按票面）

@@ -386,6 +386,7 @@
 	 * 要问的一次问齐。选好存下返回 true；关掉弹窗返回 false（这张票这次先不推）。 */
 	const PUSH_API = "pearnly_cowork.push.application.api.";
 	const NEW_CHOICE = "__new__";
+	const EXPENSE_CHOICE = "__expense__";  // 存货对照的「记费用」：这一行不建存货、写成费用行（11-06 按行选）
 	const CHOICE_VALUES = {payment: ["cash", "credit"], vat: ["claim", "expense"]};
 
 	function choice_field(item, index, view) {
@@ -404,13 +405,14 @@
 			return {...base, fieldtype: "Select", options: CHOICE_VALUES[item.kind].map(value => ({value,
 				label: __(`cowork.choice.${value}`)}))};
 		}
-		const rows = item.kind === "item" ? view.options?.products : view.options?.accounts;
+		const rows = item.kind === "item" ? (item.expense ? view.options?.products_all : view.options?.products) : view.options?.accounts;
 		// 费用科目的建议（服务端 `push.express.account_suggest`）排在清单最前、预选第一项；仍要点「保存」才算选定。
 		const suggested = (item.suggested || []).filter(row => row?.code);
 		const first = new Set(suggested.map(row => row.code));
 		const ordered = [...suggested, ...(rows || []).filter(row => !first.has(row.code))];
 		const options = ordered.map(row => ({value: row.code, label: [row.code, row.name].filter(Boolean).join(" · ")}));
 		if (item.kind === "item") options.push({value: NEW_CHOICE, label: __("cowork.choice.new")});
+		if (item.kind === "item" && item.expense) options.push({value: EXPENSE_CHOICE, label: __("cowork.choice.expenseLine")});
 		if (!item.current && suggested.length) base.default = suggested[0].code;
 		// 主档没报上来（科目表空）时只能手填科目码，服务端照样核。
 		return {...base, fieldtype: options.length ? "Autocomplete" : "Data", options};

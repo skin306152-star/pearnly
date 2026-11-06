@@ -726,6 +726,7 @@ Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send aga
 Excel/CSV from online banking or electronic PDF,Excel/CSV from online banking or electronic PDF
 Excess tax brought forward,Excess tax brought forward
 Expected VAT,Expected VAT
+Expense,Expense
 Expense (goods from now on),Expense (goods from now on)
 Expense (this kind from now on),Expense (this kind from now on)
 Expense account,Expense account
@@ -2273,6 +2274,7 @@ cowork.choice.claim,Claim as input VAT
 cowork.choice.credit,Credit purchase
 cowork.choice.department,Department
 cowork.choice.expense,Count as expense
+cowork.choice.expenseLine,Expense
 cowork.choice.invalid,The chosen value is not in this account set. Choose again
 cowork.choice.item,Stock item
 cowork.choice.new,"New, as on the invoice"

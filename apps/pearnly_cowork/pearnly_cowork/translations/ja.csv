@@ -726,6 +726,7 @@ Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send aga
 Excel/CSV from online banking or electronic PDF,ネットバンキングの Excel/CSV または電子版 PDF
 Excess tax brought forward,繰越超過納付額
 Expected VAT,想定税額
+Expense,経費に計上
 Expense (goods from now on),費用に計上（以後も同様）
 Expense (this kind from now on),費用に計上（以後も同様）
 Expense account,費用勘定
@@ -2273,6 +2274,7 @@ cowork.choice.claim,仕入税額控除する
 cowork.choice.credit,掛仕入
 cowork.choice.department,部門
 cowork.choice.expense,控除せず費用に含める
+cowork.choice.expenseLine,経費に計上
 cowork.choice.invalid,選んだ値はこの帳簿にありません。選び直してください
 cowork.choice.item,在庫品目
 cowork.choice.new,伝票どおり新規作成

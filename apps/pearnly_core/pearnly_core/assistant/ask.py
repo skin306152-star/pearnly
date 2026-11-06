@@ -20,7 +20,7 @@ OPTIONS_MIN, OPTIONS_MAX = 2, 4
 HEADER_MAX = 12
 TEXT_MAX = 500
 OTHER_MAX = 500
-SEARCH_KINDS = ("accounts", "products", "parties")
+SEARCH_KINDS = ("accounts", "products", "products_all", "parties")  # products_all：没声明过账类型的行，库存品与非库存品都列
 
 
 class AnswerError(ValueError):

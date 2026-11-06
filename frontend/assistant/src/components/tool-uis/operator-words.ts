@@ -33,6 +33,8 @@ export function docTitle(doc: { ref?: string | undefined; party?: string | undef
 }
 
 export const NEW_CODE = "__new__";
+/** 存货对照的「记费用」：这一行不建存货、写成费用 / 服务行（11-06 按行选物料与库存）。 */
+export const EXPENSE_CODE = "__expense__";
 export type ChoiceOption = { code: string; name: string };
 
 /** 代码就是选项的几项：现购 / 赊购、抵进项 / 记费用。 */
@@ -43,9 +45,10 @@ const CODED: Record<string, () => string> = {
   expense: () => co.vatExpense,
 };
 
-/** 一个选项的说法：新建（商品写「库存（新建）」）、现购 / 赊购、抵进项 / 记费用；已有的写编码与名称。 */
+/** 一个选项的说法：新建（商品写「库存（新建）」）、记费用、现购 / 赊购、抵进项 / 记费用；已有的写编码与名称。 */
 export function optionLabel(kind: string, option: ChoiceOption): string {
   if (option.code === NEW_CODE) return kind === "item" ? op.option.newItem! : op.option.new!;
+  if (option.code === EXPENSE_CODE) return op.option.expense!;
   const name = (option.name ?? "").trim();
   if (!name && CODED[option.code]) return CODED[option.code]!();
   return [option.code, name].filter(Boolean).join(" ") || op.unknownReason;

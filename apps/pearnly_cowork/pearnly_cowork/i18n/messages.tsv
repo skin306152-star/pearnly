@@ -1530,6 +1530,7 @@ Tax on this receipt	票面税额	จำนวนภาษีตามเอก�
 Department	部门	แผนก	部門	cowork.choice.department
 Receiving account	收款科目	บัญชีรับเงิน	入金勘定	cowork.choice.receipt
 New, as on the invoice	新建（按票面）	สร้างใหม่ตามเอกสาร	伝票どおり新規作成	cowork.choice.new
+Expense	记费用	บันทึกเป็นค่าใช้จ่าย	経費に計上	cowork.choice.expenseLine
 Cash purchase	现购	ซื้อเงินสด	現金仕入	cowork.choice.cash
 Credit purchase	赊购	ซื้อเงินเชื่อ	掛仕入	cowork.choice.credit
 Claim as input VAT	抵扣进项税	ใช้สิทธิ์ภาษีซื้อ	仕入税額控除する	cowork.choice.claim

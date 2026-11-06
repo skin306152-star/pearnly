@@ -198,8 +198,8 @@ def prepare(history, connection, request_key, expected_history_version, expected
     # 商品单的入账方式这家公司选过就照选的（没声明、会交人的那类，`push.express.goods_posting`）；意图里仍是调用方给的值
     posting_kind, _posting_from, decision = _posting_decision(
         doc, loaded.doc.name, lambda: _account_row(loaded, target), posting_kind, flat, direction, selected['config'],
-        today, lambda kind: _decisions(loaded.doc.name, target.account_set, flat, fields, direction, kind,
-                                       selected['config'], preparation, fixed,
+        today, lambda kind, **more: _decisions(loaded.doc.name, target.account_set, flat, fields, direction, kind,
+                                       selected['config'], preparation, fixed, **more,
                                        siblings=lambda: _same_company(loaded, target.account_set),
                                        account_row=lambda: _account_row(loaded, target),
                                        since=getattr(doc, "creation", None)))
@@ -337,15 +337,22 @@ def _posting_decision(doc, connection, account_row, posting_kind, flat, directio
     车道，入账类型按同一个值再定一次，变了就按新的重判（审查处理 10-16：选了抵进项的小票在永续账套里同样会交人，原先公司的
     入账方式不套用，复核页点了按钮也推不动）。重判时记付款方式那一笔同值不重写（`push.choices.record`）。"""
     kind, source = _goods_posting(doc, connection, account_row, posting_kind, flat, direction, config, today)
-    decision = decide(kind)
+    decision = decide(kind, undeclared_lines=_per_line(kind, flat, direction, config, today))
     vat = (decision.get("applied") or {}).get("vat")
     if vat and source != goods_posting.DECLARED:
         again = _goods_posting(doc, connection, account_row, posting_kind, flat, direction, config, today,
                                vat_choice=vat)
         if again != (kind, source):
             kind, source = again
-            decision = decide(kind)
+            decision = decide(kind, undeclared_lines=_per_line(kind, flat, direction, config, today, vat))
     return kind, source, decision
+
+
+def _per_line(kind, flat, direction, config, today, vat_choice=None) -> bool:
+    """没声明入账类型、这家公司也没选过、推往这份账套会交人（永续 / 混合库存账套的商品单）：按行问「存货对照」（存货 / 新建存货 /
+    记费用，11-06 按行选），不再整张问「走库存 / 记费用」。周期制账套、声明过的、公司选过的照旧。"""
+    return not kind and goods_posting.blocked((flat.get("fields") or {}), direction=direction, config=config,
+                                              posting_kind=None, today=today, vat_choice=vat_choice)
 
 
 def _posting_history(connection, account_set, fields, direction, posting_from):
@@ -431,7 +438,7 @@ def _company_rules(connection, account_set, account_row):
 
 
 def _decisions(connection, account_set, flat, fields, direction, posting_kind, config, preparation, fixed=None,
-               siblings=None, account_row=None, *, since=None):
+               siblings=None, account_row=None, *, since=None, undeclared_lines=False):
     """这张票在这份账套里的选择（规则见 `push/express/choices.py`）：记过的套用，缺的列出来要人选。
 
     票上会计明确改过的付款方式按对方记下（「按对方记住会计第一次的选择」，用户 2026-09-28）。
@@ -451,7 +458,7 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
         fields, direction=direction, posting_kind=resolve_posting_kind(posting_kind, flat), config=config,
         remembered=choice_store.remembered(connection, account_set), rules=(company or {}).get("rules") or (),
         branch=(company or {}).get("branch") or "", rules_read=rules_read, account_resolved=source == SRC_CATEGORY,
-        fixed=fixed, receipts=_pos_receipts(flat),
+        fixed=fixed, receipts=_pos_receipts(flat), undeclared_lines=undeclared_lines,
         borrow=lambda remembered, receipts: _borrow_receipts(remembered, connection, siblings, receipts, config),
         settle=lambda needed: _settled_account(needed, connection, account_set, fields, config, fixed))
     applied = decision["applied"]
@@ -569,8 +576,8 @@ def _choices(doc, loaded, found, posting_kind, *, fixed=None, hint=None):
     posting_kind, posting_from, decision = _posting_decision(
         doc, loaded.doc.name, lambda: _account_row(loaded, target), posting_kind, flat, direction, config,
         today,
-        lambda kind: _decisions(loaded.doc.name, target.account_set, flat, fields, direction, kind, config,
-                                preparation, fixed, siblings=lambda: _same_company(loaded, target.account_set),
+        lambda kind, **more: _decisions(loaded.doc.name, target.account_set, flat, fields, direction, kind, config,
+                                preparation, fixed, **more, siblings=lambda: _same_company(loaded, target.account_set),
                                 account_row=lambda: _account_row(loaded, target)))
     planned = None if decision["needed"] else _planned(doc, loaded, found, posting_kind, decision, today)
     frappe.db.rollback()  # 只是看：记付款方式的那一笔不在这里落
@@ -581,6 +588,10 @@ def _choices(doc, loaded, found, posting_kind, *, fixed=None, hint=None):
         options["products"] = [{"code": row["code"], "name": row.get("name") or ""}
                                for row in config.get("reported_products") or []
                                if isinstance(row, dict) and str(row.get("kind") or "stock") == "stock"][:5000]
+    if any(item.get("kind") == "item" and item.get("expense") for item in decision["needed"]):
+        # 没声明过账类型的行（11-06 按行选）：库存品、非库存品都能选（选非库存品 = 这一行记费用并挂这件）
+        options["products_all"] = [{"code": row["code"], "name": row.get("name") or ""}
+                                   for row in config.get("reported_products") or [] if isinstance(row, dict)][:5000]
     if kinds & {"account", "receipt"}:
         options["accounts"] = [{"code": row["code"], "name": row.get("name") or ""}
                                for row in config.get("reported_accounts") or [] if isinstance(row, dict)][:2000]
@@ -731,6 +742,8 @@ def save_choices(history, connection, account_set_key, items, *, document_paymen
         options = parties if kind == "party" else allowed[kind]
         if kind in ("party", "item") and value == choice_rules.NEW:
             pass
+        elif kind == "item" and value == choice_rules.EXPENSE:
+            pass  # 这一行记费用（不建存货，11-06 按行选）
         elif not value or (options and value not in options) or (kind in ("payment", "vat", service_vat.KIND)
                                                                  and value not in options):
             frappe.throw(_("cowork.choice.invalid"))

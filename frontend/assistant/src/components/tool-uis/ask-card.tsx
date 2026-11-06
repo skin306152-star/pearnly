@@ -38,7 +38,7 @@ import {
 } from "./ask-shared";
 import type { CardPhase } from "./card-phase";
 import { useSessionId } from "./operator-card";
-import { type ChoiceOption, NEW_CODE } from "./operator-words";
+import { type ChoiceOption, EXPENSE_CODE, NEW_CODE } from "./operator-words";
 
 /** 「其他」展开后先列几条（其余「显示更多」：本页已取到的先放出，不够再向服务端取下一页）。 */
 const OTHER_ROWS = 5;
@@ -95,7 +95,7 @@ const OtherInput: FC<{ question: AskQuestion; state: AskState; onChange: (other:
       {listing && (
         <div className="cc-askq-other-list" role="listbox" aria-label={ask.other}>
           {listed.map((c) => {
-            const label = c.code === NEW_CODE ? op.option.new! : [c.code, c.name].filter(Boolean).join(" ");
+            const label = c.code === NEW_CODE ? op.option.new! : c.code === EXPENSE_CODE ? op.option.expense! : [c.code, c.name].filter(Boolean).join(" ");
             const on = state.otherCode === c.code;
             return (
               <button key={c.code} type="button" role="option" aria-selected={on} className="cc-menu-item" data-slot="cc-askq-choice" onClick={() => onChange(label, c.code)}>
