@@ -52,21 +52,22 @@
 			f("vat_amount", "VAT", "Currency", {read_only: 1}),
 			f("wht_amount", "Withholding Tax", "Currency", {read_only: 1, depends_on: "eval:doc.wht_rate > 0"}),
 			u.section("Additional Information", {collapsible: 1, collapsed: 1}),
+			// 两栏（行上不再出仓库后重排，各栏长度接近）：左栏「是什么货、放哪」（类型、仓位），右栏分类
 			f("item_type", "Item Type", "Select", {options: u.options(["goods", "service"]), default: "goods"}),
-			// 物料号 / 条码：**自动带出来的**（选了物料、或扫了码就填上），不是让人手打的格，
-			// 所以从界面上收起来 —— 字段留着，值照旧随这一行提交（`LINE_FIELDS` 里要它们）。
-			f("code", "Item Code", "Data", {hidden: 1}), f("barcode", "Barcode", "Data", {hidden: 1}),
-			f("category", "Category", "Link", {options: "ERP Purchase Category", get_query: () => ({filters: {parent_category: ["is", "not set"], is_active: 1}}),
-				onchange: () => line.ready && line.form.set_value("subcategory", "")}),
-			f("subcategory", "Subcategory", "Link", {options: "ERP Purchase Category",
-				get_query: () => ({filters: {parent_category: line.form?.get_value("category") || "__none__", is_active: 1}})}), col(),
 			// 仓库：一张单一个仓库，以单头为准（岳父 11-06），行上不显示；值随单头走（`p.place.track`），仓位行上可以改
 			f("warehouse", "Warehouse", "Link",
 				{options: "ERP Warehouse", get_query: p.warehouse_query(), hidden: 1}),
 			// 库位：能改时原生 Autocomplete（按仓库从服务端取清单）；只读（已提交 / 作废）用原生只读文字——只读的 Autocomplete 不建选项列表，
 			// 给它赋值时框架校验会报错、打断整页（10-26 打印窗口发现）
 			f("location", "Location", state.editable ? "Autocomplete" : "Data",
-				{get_query: p.location_query(() => line.form?.get_value("warehouse") || state.form?.get_value("warehouse"))}),
+				{get_query: p.location_query(() => line.form?.get_value("warehouse") || state.form?.get_value("warehouse"))}), col(),
+			// 物料号 / 条码：**自动带出来的**（选了物料、或扫了码就填上），不是让人手打的格，
+			// 所以从界面上收起来 —— 字段留着，值照旧随这一行提交（`LINE_FIELDS` 里要它们）。
+			f("code", "Item Code", "Data", {hidden: 1}), f("barcode", "Barcode", "Data", {hidden: 1}),
+			f("category", "Category", "Link", {options: "ERP Purchase Category", get_query: () => ({filters: {parent_category: ["is", "not set"], is_active: 1}}),
+				onchange: () => line.ready && line.form.set_value("subcategory", "")}),
+			f("subcategory", "Subcategory", "Link", {options: "ERP Purchase Category",
+				get_query: () => ({filters: {parent_category: line.form?.get_value("category") || "__none__", is_active: 1}})}),
 			...(state.editable ? [u.section(""), f("remove", "Delete", "Button", {click: () => state.remove_line(line)})] : []),
 		].map(field => ({...field,
 			read_only: ["Button", "Section Break", "Column Break"].includes(field.fieldtype) ? field.read_only : !state.editable || field.read_only,
