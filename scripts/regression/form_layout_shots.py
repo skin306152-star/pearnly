@@ -26,7 +26,7 @@ spec.loader.exec_module(run)
 PAGES = {
     "erp": ["pearnly-home", "pearnly-company", "pearnly-warehouses", "pearnly-team", "pearnly-tasks", "pearnly-products",
             "pearnly-suppliers", "pearnly-clients", "pearnly-purchase", "pearnly-sales", "pearnly-stock-in", "pearnly-stock-out",
-            "pearnly-stock-transfer", "pearnly-stock-card", "pearnly-stock-count", "pearnly-pos-shifts", "pearnly-pos-receipts",
+            "pearnly-stock-transfer", "pearnly-stock-adjust", "pearnly-stock-card", "pearnly-stock-count", "pearnly-pos-shifts", "pearnly-pos-receipts",
             "pearnly-inventory", "user"],
     "cowork": ["pearnly-home", "pearnly-intake", "pearnly-recon-bank", "pearnly-recon-income", "pearnly-recon-vat",
                "pearnly-stocktake", "pearnly-team", "pearnly-work", "user"],
