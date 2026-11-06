@@ -524,6 +524,10 @@ g.done();
         self.assertIn("--cc-thread-top: var(--cc-space-16);", phone)
         self.assertIn("margin-top: calc(0px - var(--cc-thread-fade)); padding-top: var(--cc-thread-fade); pointer-events: none;", self.css)
         self.assertIn(".cc-user-row > :where(*) { grid-column-start: 2; pointer-events: auto; }", self.css)
+        # 滚动条不常显（用户 11-06，同 Claude）：全局细条、滑块平时透明（位置照留、出现时不跳），鼠标在这块滚动区上才出现
+        self.assertIn("    scrollbar-width: thin;\n    scrollbar-color: transparent transparent;\n  }\n"
+                      "  *:hover { scrollbar-color: var(--cc-fill-muted) transparent; }", self.css)
+        self.assertEqual(self.css.count("scrollbar-color:"), 2)
         self.assertNotIn("--thread-max-width", thread)
         self.assertIn("--cc-thread-gutter: var(--cc-space-16);", self.css)
         self.assertIn("--cc-thread-w: 48rem;", self.css)

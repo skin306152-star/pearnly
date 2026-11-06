@@ -64,3 +64,11 @@
 画面（`scripts/cc-visual` 新增场景 mode-before / mode-leave / mode-op-open / mode-op-leave / mode-leave-back，假服务端的列表按 mode 筛、多一段代录会话 op_1）：web / desktop / phone 改前改后对比在共享笔记「CC对话页-执行中与上沿-11-06/切模式/」。改前：切到代录后右边还是直写那段；改后：落到新建页；代录会话在代录模式下照旧打开；切模式后点 ← 回到直写模式 + 原对话。
 
 连带：`check-impact` 另列出 `shared.login`、`cc.settings.connection`、`cc.desktop.bridge`（因 `assistant.tsx`）——这次只在 `Layout` 加了一行登记，登录、设置、桌面桥的代码没动，没单测；流程用例覆盖通过（cc.sidebar-modes / cowork.cc.sidebar-modes 等，步骤只断言模式与侧栏，切回对话后落到新建页不影响断言），流程整套随今晚冻结后的全套跑。
+
+## 4. 滚动条不常显（用户 11-06 补充）
+
+用户原话：「cc 左侧的滚动条不要常显」。照 Claude：平时不显示，鼠标在这块滚动区上（含正在用滚轮滚）才出现，移开就收。
+
+做法：`globals.css` 原来的全局细滚动条规则改成滑块平时透明（`scrollbar-color: transparent transparent`，位置照留、出现时版面不跳），`*:hover` 时滑块是 `--cc-fill-muted`。侧栏、对话区、右侧面板、菜单、弹窗共用这一条，不另起类。CC 桌面版是 PySide6 6.11（QtWebEngine 约 Chromium 134），支持标准 `scrollbar-color`；手机是系统浮层滚动条，滚动时才出现，未改。
+
+验证：本机是 mac（浮层滚动条，截图里本来就看不到滚动条，没有改系统设置去强制显示，也没碰测试机），改用内置浏览器读计算后的样式：鼠标在右侧空白时对话区与侧栏的滑块都透明；移到对话区只有对话区出现；移到侧栏只有侧栏出现（记录在共享笔记「…/滚动条/说明.md」）。`tests/test_cc_ccs.py` 断言这条规则。Windows 上的真实观感待部署后看。

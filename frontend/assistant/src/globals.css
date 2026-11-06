@@ -1087,10 +1087,12 @@
 @layer base {
   * {
     @apply border-border outline-ring;   /* 浏览器自带的聚焦框也只是一圈实色蓝（不用半透明那一圈，用户 10-16 不要光晕） */
-    /* 细滚动条、不带上下箭头（Windows 桌面端默认是带箭头的粗条），同 claude.ai */
+    /* 细滚动条、不带上下箭头（Windows 桌面端默认是带箭头的粗条），同 claude.ai；平时不显示（滑块透明，位置照留、出现时版面不跳），
+       鼠标在这块滚动区上（含正在用滚轮滚）才出现，移开就收（同 Claude，用户 11-06：侧栏滚动条不要常显）；手机是系统的浮层滚动条，滚动时才出现 */
     scrollbar-width: thin;
-    scrollbar-color: var(--cc-fill-muted) transparent;
+    scrollbar-color: transparent transparent;
   }
+  *:hover { scrollbar-color: var(--cc-fill-muted) transparent; }
   /* 能点的显示手指、不能点的保持箭头（同 Claude；Tailwind 4 把按钮默认改成了箭头）。放在 base 层，个别控件（如分隔条的左右箭头）可以覆盖 */
   button:not(:disabled), [role="button"]:not([aria-disabled="true"]), a[href], summary, select, label[for],
   [role="menuitem"]:not([data-disabled]), [role="menuitemradio"]:not([data-disabled]), [role="menuitemcheckbox"]:not([data-disabled]),
