@@ -30,7 +30,7 @@ def is_step(data) -> bool:
 def _button(label, **params):
     label = str(label)[:20]
     return {"type": "action", "action": {"type": "postback", "label": label, "displayText": label,
-                                         "data": urlencode({"a": ACTION, **params})}}
+                                         "data": urlencode({"a": "cowork_item", **params})}}  # = ACTION（字面量：产品地图按它认入口）
 
 
 def _message(text, items):

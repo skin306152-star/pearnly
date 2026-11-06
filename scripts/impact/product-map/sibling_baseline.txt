@@ -6,5 +6,4 @@ cowork.cc.tool.cowork_document_original@desktop
 cowork.cc.tool.cowork_document_original@mobile
 cowork.cc.view.company@desktop
 cowork.desk.pearnly-team@mobile
-cowork.line.event.follow@mobile
 erp.cc.view.tasks@desktop

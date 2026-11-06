@@ -330,6 +330,7 @@ kind = "line-event"
 anchor = "line:erp:event:unfollow"
 where = "删除 / 屏蔽 ERP 官方号"
 parts = ["line", "line-binding"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_unfollow_unbinds_and_resyncs_the_menu"]
 group = "line.unfollow"
 
 [[row]]

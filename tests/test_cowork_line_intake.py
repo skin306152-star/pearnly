@@ -230,6 +230,29 @@ class LineHandlerTest(unittest.TestCase):
         search.assert_called_once_with("U1", "LJ land", "tok")
         self.assertEqual(self.replies, [])
 
+    def test_follow_asks_for_the_binding_code_and_unfollow_unbinds(self):
+        self.assertTrue(handlers._handle({"type": "follow", "replyToken": "tok"}, "U1"))
+        self.assertEqual(self.replies, ["Send the code from the Cowork page to bind"])
+        with mock.patch.object(handlers.line_binding, "unbind") as unbind:
+            self.assertTrue(handlers._handle({"type": "unfollow"}, "U1"))
+        unbind.assert_called_once_with("U1")
+        handlers.menu.request_sync.assert_called_with("U1")
+
+    def test_item_buttons_and_words_go_to_the_item_questions_first(self):
+        """11-06 按行选物料：识别后按行追问的按钮（a=cowork_item）交 `line.items`；在「选已有存货」这一步打的字先给它找存货。"""
+        from pearnly_cowork.line import items
+
+        with mock.patch.object(handlers.line_binding, "user_of", return_value="a@x"), \
+                mock.patch.object(items, "answer") as answer, \
+                mock.patch.object(items, "search", return_value=True) as search, \
+                mock.patch.object(handlers.flow, "search") as account_search:
+            self.assertTrue(handlers._handle({"type": "postback", "replyToken": "tok",
+                                              "postback": {"data": "a=cowork_item&v=each"}}, "U1"))
+            handlers._handle(self.event(message={"type": "text", "text": "ice"}), "U1")
+        answer.assert_called_once_with("U1", "a=cowork_item&v=each", "tok")
+        search.assert_called_once_with("U1", "ice", "tok")
+        account_search.assert_not_called()
+
     def test_menu_tap_needs_binding(self):
         with mock.patch.object(handlers.line_binding, "user_of", return_value=None):
             handlers._handle({"type": "postback", "replyToken": "tok",

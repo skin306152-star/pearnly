@@ -168,6 +168,16 @@ class Flow(Base):
         self.assertNotIn("U1", self.sessions)
         self.assertEqual(self.last_text(), "Cancelled")
 
+    def test_unfollow_unbinds_and_resyncs_the_menu(self):
+        """删除 / 屏蔽官方号：解绑这个 LINE、按权限重挂菜单，不回消息（与 Cowork 同一做法）。"""
+        self.enterContext(patch("pearnly_core.line.user_language", return_value="th"))
+        with patch("pearnly_core.line_binding.unbind") as unbind, \
+                patch("pearnly_erp_portal.integrations.line_menu.request_sync") as sync:
+            self.assertTrue(handlers.handle({"type": "unfollow", "source": {"userId": "U1"}}))
+        unbind.assert_called_once_with("U1")
+        sync.assert_called_once_with("U1")
+        self.assertEqual(self.replies, [])
+
 
 class Documents(Base):
     def event(self):

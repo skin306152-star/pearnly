@@ -886,6 +886,7 @@ kind = "line-event"
 anchor = "line:cowork:event:follow"
 where = "加 Cowork 官方号好友"
 parts = ["line", "line-binding"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_follow_asks_for_the_binding_code_and_unfollow_unbinds"]
 group = "line.follow"
 
 [[row]]
@@ -897,6 +898,7 @@ kind = "line-event"
 anchor = "line:cowork:event:unfollow"
 where = "删除 / 屏蔽 Cowork 官方号"
 parts = ["line", "line-binding"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_follow_asks_for_the_binding_code_and_unfollow_unbinds"]
 group = "line.unfollow"
 
 [[row]]
@@ -1005,6 +1007,17 @@ anchor = "line:cowork:postback:cowork"
 where = "LINE 录入流程里的选项按钮与取消（a=cowork&s=…）"
 parts = ["line"]
 tests = ["unit:tests/test_cowork_line_intake.py::test_cancel_clears_the_session", "unit:tests/test_cowork_line_intake.py::test_old_button_is_rejected"]
+
+[[row]]
+id = "cowork.line.postback.cowork_item"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:cowork:postback:cowork_item"
+where = "LINE 识别后按行追问存货对照（全部新建存货 / 全部记费用 / 逐项选择 / 选已有存货 / 取消，a=cowork_item&v=…，11-06）"
+parts = ["line", "express-rules"]
+tests = ["unit:tests/test_cowork_line_items.py::test_a_card_gets_one_question_listing_the_new_items_and_the_next_card_waits", "unit:tests/test_cowork_line_items.py::test_one_by_one_with_a_typed_search_and_stale_buttons", "unit:tests/test_cowork_line_intake.py::test_item_buttons_and_words_go_to_the_item_questions_first"]
 
 [[row]]
 id = "cowork.line.postback.cowork_erp_start"

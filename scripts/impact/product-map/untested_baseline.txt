@@ -189,8 +189,6 @@ cowork.desk.pearnly-work.action.cowork.work.notify.title@desktop
 cowork.desk.pearnly-work.action.cowork.work.notify.title@mobile
 cowork.desk.pearnly-work.action.cowork.work.rules.manage@desktop
 cowork.desk.pearnly-work.action.cowork.work.rules.manage@mobile
-cowork.line.event.follow@mobile
-cowork.line.event.unfollow@mobile
 erp.cc.action.attach@desktop
 erp.cc.action.attach@mobile
 erp.cc.action.company-open-in-product@desktop
@@ -366,4 +364,3 @@ erp.desk.pearnly-warehouses.action.company.newWarehouse@desktop
 erp.desk.pearnly-warehouses.action.company.newWarehouse@mobile
 erp.desk.query-report-erp stock count variance.action.Export@desktop
 erp.desk.query-report-erp stock count variance.action.Export@mobile
-erp.line.event.unfollow@mobile

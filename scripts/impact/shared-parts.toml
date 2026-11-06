@@ -188,7 +188,7 @@ name = "LINE 收发与等待三个点（webhook、reply / push / batch）"
 paths = ["apps/pearnly_core/pearnly_core/line.py"]
 markers = ["pearnly_core.line.", "pearnly_core.line import", "pearnly_core import line\n", "pearnly_core import line,", "pearnly_core import line as", "pearnly_line_handlers", "pearnly_line_mirror"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot", "erp.line.stocktake.liff-camera", "cowork.line.stocktake.liff-camera"]
+entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot", "erp.line.stocktake.liff-camera", "cowork.line.stocktake.liff-camera", "cowork.line.item-questions"]
 
 [[part]]
 id = "line-session"
@@ -221,7 +221,7 @@ name = "Express 写账规则（express_rules）"
 paths = ["apps/pearnly_core/pearnly_core/express_rules/**"]
 markers = ["pearnly_core.express_rules", "pearnly_core import express_rules"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day", "erp.cc.pos-refund", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push", "cc.operator.page", "cowork.cc.troubleshooting"]
+entries = ["erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day", "erp.cc.pos-refund", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push", "cc.operator.page", "cowork.cc.troubleshooting", "cowork.line.item-questions"]
 not_entries = { "apps/pearnly_core/pearnly_core/cc_desktop/books.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/contracts.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/report_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_20_express_account_sets.py" = "一次性迁移", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_2_backfill_history_parties.py" = "一次性迁移", "apps/pearnly_core/pearnly_core/write_precheck/preselect.py" = "写账前置判定（共用层纯函数）只取写账规则的常量、分店归一与付款判定；它的入口登记在共用件 write-precheck" }
 
 [[part]]
@@ -1389,10 +1389,19 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py", 
 id = "cowork.line.chat"
 product = "Cowork"
 where = "LINE Cowork-test 一对一"
-steps = "三星 adb：关注、绑定、解绑、富菜单「发单据进 ERP」、旧菜单 ประสานงาน、เมนู、快捷回复、打字找账套 / 存货科目组、上传图片 / PDF"
+steps = "三星 adb：关注、绑定、解绑、富菜单「发单据进 ERP」、旧菜单 ประสานงาน、เมนู、快捷回复、打字找账套、上传图片 / PDF、识别后按行追问（全部新建存货 / 全部记费用 / 逐项选择 / 选已有存货）"
 expect = "同 ERP"
 check = "manual"
-files = ["apps/pearnly_cowork/pearnly_cowork/hooks.py", "apps/pearnly_cowork/pearnly_cowork/line/handlers.py", "apps/pearnly_cowork/pearnly_cowork/line/binding.py", "apps/pearnly_cowork/pearnly_cowork/line/flow.py", "apps/pearnly_cowork/pearnly_cowork/line/intake.py", "apps/pearnly_cowork/pearnly_cowork/line/menu.py", "apps/pearnly_cowork/pearnly_cowork/line/cards.py"]
+files = ["apps/pearnly_cowork/pearnly_cowork/hooks.py", "apps/pearnly_cowork/pearnly_cowork/line/handlers.py", "apps/pearnly_cowork/pearnly_cowork/line/binding.py", "apps/pearnly_cowork/pearnly_cowork/line/flow.py", "apps/pearnly_cowork/pearnly_cowork/line/intake.py", "apps/pearnly_cowork/pearnly_cowork/line/menu.py", "apps/pearnly_cowork/pearnly_cowork/line/cards.py", "apps/pearnly_cowork/pearnly_cowork/line/items.py"]
+
+[[entry]]
+id = "cowork.line.item-questions"
+product = "Cowork"
+where = "LINE 识别后按行追问存货对照（11-06 按行选物料）"
+steps = "上传一张推往永续 / 混合库存 Express 账套、没声明过账类型、有认不出品名的票 → 卡片后跟一条提问；分别点全部新建存货 / 全部记费用 / 逐项选择（新建存货、记费用、选已有存货打字找）/ 取消；同批两张"
+expect = "新物料列全；答案记进账套记忆（同复核页「要选的项」），之后推送照它写；同批一次问一张；取消不记；旧按钮无效"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/line/items.py", "apps/pearnly_cowork/pearnly_cowork/push/application/line_items.py"]
 
 [[entry]]
 id = "dms.line.chat"
