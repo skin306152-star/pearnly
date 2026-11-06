@@ -158,6 +158,20 @@
 	// 原件页图：Cowork 自己的私有文件服务（PDF 与图片都从它出，见 `files.api.page`）。
 	const page_url = (history, physical_page) => `/api/method/${FILES}page?`
 		+ new URLSearchParams({history_name: history, physical_page: String(physical_page)});
+	/** 编辑页（`new/<票>`）左边换成同一份原件的另一张票（翻原件页、下拉选发票）时，地址跟着换成那张票：
+	 * 刷新、复制链接、截图都对得上那张票（2026-11-06：翻到第 1 张后地址还停在第 8 张，被当成第 8 张明细为空）。
+	 * 只换地址（`replaceState`，不多一条后退记录），不重走路由：重走会把整页重画，这一批的下拉与原件串都丢了；
+	 * 框架记的当前路由一起改，`frappe.get_route()` 与地址一致。换了回 true。 */
+	p.intake_follow_route = (record_name, {router = frappe.router, history = window.history,
+		location = window.location} = {}) => {
+		const route = ["pearnly-intake", "new", record_name];
+		const path = p.subroute(...route);
+		if (!record_name || location.pathname === path) return false;
+		history.replaceState(history.state, "", path + location.search + location.hash);
+		router.current_route = route;
+		router.current_sub_path = route.join("/");
+		return true;
+	};
 
 	const size_text = bytes => {
 		const value = Number(bytes) || 0;
@@ -625,6 +639,8 @@
 			if (current && current.name !== record_name && dirty()) await save_review({quiet: true});
 			current = details.get(record_name) || await detail(record_name);
 			fill(current);
+			// 从地址打开的编辑页：地址跟着左边这张票（新建上传的这一批地址是 `new`，不指哪张票，不动）。
+			if (name && still_current()) p.intake_follow_route(current.name);
 			if (form.get_value("invoice") !== record_name) form.set_value("invoice", record_name);
 			// 右上角：提交＝把这一批推送出去（见 `submit`），仅识别的这一批是导出；保存只在改过时出现。
 			sync_save();
