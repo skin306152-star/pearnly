@@ -369,8 +369,9 @@ def build_express_payload(
     if is_expense:
         # 留痕:这张票原本会读到多少进项税,现改折进成本(VAT capitalized · 排障/对账用)。
         payload["vat_capitalized"] = vat_capitalized
-    if item_mode == ITEM_MODE_STOCK and stock_acccod:
+    if has_stock_mode and stock_acccod:
         # 与销项同键同义:账套一件库存品都没有时,小助手靠它建 STKTYP=0(见 sales_mapper 同处)。
+        # 按「有没有库存行」判,不按第一行(混行单第一行是运费等非库存行时也要带,11-06)。
         payload["stock_acccod"] = stock_acccod
     for item in payload["items"]:
         if item.get("item_mode") != ITEM_MODE_NONSTOCK:

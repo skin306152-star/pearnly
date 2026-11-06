@@ -234,7 +234,15 @@ ROLE_PAYLOAD_VERSION = 5
 FACTOR_PAYLOAD_VERSION = 7
 # 明细行带按台号码 `remarks`（CC 桌面版写进 Express 单据行的附加说明 ARTRNRM）：旧版不认这一键、税票上没有号码，盖 17 让它诚实拒收
 REMARKS_PAYLOAD_VERSION = 17
+# 明细库存行与非库存行同在一张单（混行；ERP 按行选入库 / 只记账，11-06）：旧版 CC 桌面版整单拒收，盖 19 让派单只交给能写的电脑
+MIXED_LINES_PAYLOAD_VERSION = 19
 _STOCK_MODES = ("stock_item", "stock_sale")
+
+
+def mixed_lines(items) -> bool:
+    """明细里库存行（``stock_item`` / ``stock_sale``）与非库存行都有。"""
+    kinds = {str(item.get("item_mode") or "").strip() in _STOCK_MODES for item in items or [] if isinstance(item, dict)}
+    return kinds == {True, False}
 
 
 def finalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -252,6 +260,8 @@ def finalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         floor = max(floor, FACTOR_PAYLOAD_VERSION)  # 旧版 CC 桌面版按 1 写包装单位：诚实拒收
     if any(item.get("remarks") for item in lines):
         floor = max(floor, REMARKS_PAYLOAD_VERSION)  # 旧版不写按台号码：诚实拒收
+    if mixed_lines(lines):
+        floor = max(floor, MIXED_LINES_PAYLOAD_VERSION)  # 旧版混行整单拒收：只派给能写的电脑
     # 免税行标记（收银日汇总、混合税率的采购盖 11；整单免税的进货单盖 12）：旧版不认或照无税写，诚实拒收
     floor = max(floor, pos_contract.exempt_payload_version(payload))
     if any(isinstance(line, dict) and line.get("role") for line in payload.get("lines") or []):

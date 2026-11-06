@@ -434,7 +434,7 @@ def write_purchase(
             **_located(locations, moves),
         )
         stloc_expected, notes = record_locations(account_dir, moves, notes)
-        # 按台号码:明细行号 = 载荷顺序(库存 / 非库存两条路都从 1 起,混行拒收)
+        # 按台号码:明细行号 = 载荷顺序(混行单分段写也用整张单的行号,`dbf_detail.runs`)
         remarks = dbf_remarks.write(account_dir, docnum, enumerate(entry.items, start=1))
         clock.lap("write")
         detail_n = (
@@ -457,6 +457,7 @@ def write_purchase(
             base=base,
             detail_n=detail_n,
             has_stock=has_stock,
+            stock_seqs=dbf_detail.stock_line_numbers(line_modes),
         )
         verify_locations(account_dir, stloc_expected)
         check_remarks(account_dir, docnum, remarks)
@@ -853,6 +854,7 @@ def _verify(
     base: Optional[Decimal] = None,
     detail_n: int = 0,
     has_stock: bool = False,
+    stock_seqs=None,
 ) -> None:
     """读回:APTRN 行在、含税额对、GLJNLIT 借贷平且应付贷方==含税、有税则 ISVAT 行在;
     有明细则行数==NXTSEQ + 行合计≈税前(走库存的行带成本签名,不查"无成本")。"""
@@ -892,7 +894,7 @@ def _verify(
     if detail_n:
         try:
             err = dbf_detail.verify_detail(
-                account_dir, docnum, base, detail_n, allow_stock_impact=has_stock
+                account_dir, docnum, base, detail_n, allow_stock_impact=has_stock, stock_seqs=stock_seqs
             )
         except dbf_detail.DetailVerifyError as e:
             # 明细读回不符:message 一字不改(云端按文本 match 的既有断言依赖),证据随第三参带走。

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """采购单的行:GLJNLIT 分录行构造 + 明细行路由 + 走库存时的存货重分类分录。
 
-一张采购票的明细按 item_mode 走两条路,不混:
+一张采购票的明细按 item_mode 逐行走两条路:
 - stock_item → stock_purchase.write_stock_in_lines:建/复用 STKTYP=0 库存品 + 真入库 + 真成本;
 - 其余(non_stock_item / direct_account)→ dbf_detail.write_stcrd_detail,不动库存。
+同一张单两种行都有(混行,载荷 19,ERP 按行选入库 / 只记账,11-06)时照载荷顺序分段写,SEQNUM 用整张单的行号(`dbf_detail.runs`)。
 
 走库存的钱在 Express 里该挂存货而不是购货,故在同一凭证追加一对重分类分录:借 存货 / 贷 购货。
 Pearnly 云端算好、本来就平的那张分录一个字不改 —— 净效果=购货科目对这些行归零、存货增加、
@@ -80,46 +81,55 @@ def write_detail(
 ) -> Tuple[List[dict], List[GlRow]]:
     """写本单明细行,返回 (逐行 mode 结果, 要追加的重分类分录行)。
 
-    混行(库存 + 非库存)拒收:两条路的 STCRD SEQNUM 都从 1 起会撞,且只有一半货真进库存,
-    V1 不静默处理 → 交会计拆单。``items``：调用方按单据价格口径备好的明细（价含税的带含税额），不给用 ``entry.items``。
+    混行(库存 + 非库存)照载荷顺序分段写,每行 SEQNUM = 它在整张单里的行号(以前两条路各从 1 起会撞,V1 整单拒收);
+    只有库存行入库、进重分类。``items``：调用方按单据价格口径备好的明细（价含税的带含税额），不给用 ``entry.items``。
     """
     items = entry.items if items is None else items
-    stock_items = [it for it in items if _mode(it) == dbf_detail.ITEM_MODE_STOCK]
-    if not stock_items:
-        line_modes = dbf_detail.write_stcrd_detail(
-            account_dir,
-            docnum,
-            docdat,
-            items,
-            entry.supplier_code,
-            entry.items_account,
-            depcod=depcod,
-            userid=userid,
-            ref_no=entry.ref_no,
-            posopr=S.STCRD_POSOPR_PURCHASE,
-            **({"locations": locations} if locations is not None else {}),
-        )
+    segments = dbf_detail.runs(items, lambda it: _mode(it) == dbf_detail.ITEM_MODE_STOCK)
+    whole = len(segments) == 1  # 只有一种行:调用与以前一字不差(不带 seqs)
+    line_modes: List[dict] = []
+    inv_amounts: Dict[str, Decimal] = {}
+    for stock, seqs, part in segments:
+        numbered = {} if whole else {"seqs": seqs}
+        if not stock:
+            line_modes += dbf_detail.write_stcrd_detail(
+                account_dir,
+                docnum,
+                docdat,
+                part,
+                entry.supplier_code,
+                entry.items_account,
+                depcod=depcod,
+                userid=userid,
+                ref_no=entry.ref_no,
+                posopr=S.STCRD_POSOPR_PURCHASE,
+                **({"locations": locations} if locations is not None else {}),
+                **numbered,
+            )
+            continue
+        try:
+            modes, amounts = stock_purchase.write_stock_in_lines(
+                account_dir,
+                docnum,
+                docdat,
+                part,
+                entry.supplier_code,
+                depcod=depcod,
+                acccod=getattr(entry, "stock_acccod", ""),
+                userid=userid,
+                ref_no=entry.ref_no,
+                **({"locations": locations, "moves": moves} if locations is not None else {}),
+                **numbered,
+            )
+        except Exception as e:  # 入库任一步失败 → 统一交会计(整单回滚·不留半截库存)
+            raise StockLineError(str(e)) from e
+        line_modes += modes
+        for acc, amount in amounts.items():
+            inv_amounts[acc] = inv_amounts.get(acc, Decimal("0")) + amount
+
+    if not any(stock for stock, _seqs, _part in segments):
         return line_modes, []
-    if len(stock_items) != len(items):
-        raise StockLineError("混合库存+非库存明细行(V1 不支持)")
-
-    try:
-        line_modes, inv_amounts = stock_purchase.write_stock_in_lines(
-            account_dir,
-            docnum,
-            docdat,
-            items,
-            entry.supplier_code,
-            depcod=depcod,
-            acccod=getattr(entry, "stock_acccod", ""),
-            userid=userid,
-            ref_no=entry.ref_no,
-            **({"locations": locations, "moves": moves} if locations is not None else {}),
-        )
-    except Exception as e:  # 入库任一步失败 → 统一交会计(整单回滚·不留半截库存)
-        raise StockLineError(str(e)) from e
-
-    return line_modes, _reclass_rows(inv_amounts, gl_rows)
+    return line_modes, _reclass_rows(inv_amounts, gl_rows, getattr(entry, "items_account", ""))
 
 
 def has_stock_lines(line_modes: List[dict]) -> bool:
@@ -144,13 +154,15 @@ def _d(v) -> Decimal:
     return Decimal(str(v))
 
 
-def _reclass_rows(inv_amounts: Dict[str, Decimal], gl_rows: List[GlRow]) -> List[GlRow]:
+def _reclass_rows(inv_amounts: Dict[str, Decimal], gl_rows: List[GlRow], items_account: str = "") -> List[GlRow]:
     """{存货科目: 入库净额} → 逐科目一对 借 存货 / 贷 购货。
 
     购货科目取本单已有的采购分录(各账套科目码不同,不硬编码)。搬走的钱不许超过本单购货额,
     否则购货会被贷成负数 —— 那说明行净额与税前额对不上(漏行/含税混算),交会计而不是硬写。
+    ``items_account``:库存行记在的那个采购科目(载荷 ``items_account``)。混行单的采购分录按行科目拆成几条(费用行记自己的科目),
+    重分类要贷库存行那一条,不是排在第一的费用科目。
     """
-    purchase_acc, purchase_amt = _purchase_line(gl_rows)
+    purchase_acc, purchase_amt = _purchase_line(gl_rows, items_account)
     rows: List[GlRow] = []
     moved = Decimal("0")
     for inv_acc, raw in inv_amounts.items():
@@ -165,8 +177,10 @@ def _reclass_rows(inv_amounts: Dict[str, Decimal], gl_rows: List[GlRow]) -> List
     return rows
 
 
-def _purchase_line(gl_rows: List[GlRow]) -> Tuple[str, Decimal]:
-    for seqit, accnum, _trntyp, amt in gl_rows:
-        if seqit == S.SEQIT["purchase"]:
-            return accnum, amt
-    raise StockLineError("本单缺购货分录,拼不出存货重分类")
+def _purchase_line(gl_rows: List[GlRow], items_account: str = "") -> Tuple[str, Decimal]:
+    """库存行的购货分录:有记在 ``items_account`` 的采购分录用它,没有用第一条采购分录(以前的口径)。"""
+    purchases = [(accnum, amt) for seqit, accnum, _trntyp, amt in gl_rows if seqit == S.SEQIT["purchase"]]
+    if not purchases:
+        raise StockLineError("本单缺购货分录,拼不出存货重分类")
+    wanted = str(items_account or "").strip()
+    return next((row for row in purchases if wanted and str(row[0]).strip() == wanted), purchases[0])

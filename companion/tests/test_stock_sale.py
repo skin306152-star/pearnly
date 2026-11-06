@@ -394,3 +394,42 @@ def test_opening_stock_rolls_back_when_sale_fails(acct, monkeypatch):
         (r.DOCNUM or "").strip().startswith("OB")
         for r in _rows(acct, "STCRD", STKCOD="OIL02")
     )
+
+
+def test_mixed_stock_and_service_lines_land_in_one_sale(acct):
+    """混行(载荷 19,ERP 按行选出库 / 只记账,11-06):服务费行夹在两段库存行之间,一张单写完;SEQNUM 照载荷顺序不撞;
+    只有库存行扣库存、结转成本,两段库存行的成本分录合成一对(同一次写完)。"""
+    items = [
+        {"name": "ดีเซล", "qty": "10", "unit_price": "20", "amount": "200", "item_mode": "stock_sale"},
+        {"name": "ค่าบริการ", "qty": "1", "unit_price": "100", "amount": "100", "item_mode": "non_stock_item"},
+        {"name": "ดีเซล", "qty": "15", "unit_price": "20", "amount": "300", "item_mode": "stock_sale"},
+    ]
+    res = WS.write_sale(
+        _stock_sale(items=items, payload_version=19),
+        acct,
+        allowed_sets=("DATAT",),
+        selected_dir=str(acct),
+        make_backup=True,
+    )
+    assert res.ok, res.error
+    stc = _rows(acct, "STCRD", DOCNUM=res.docnum)
+    assert [int((r.SEQNUM or "").strip()) for r in stc] == [1, 2, 3]
+    assert [(r.STKDES or "").strip() for r in stc] == ["ดีเซล", "ค่าบริการ", "ดีเซล"]
+    assert not S.stcrd_no_stock_impact(stc[0])
+    assert S.stcrd_no_stock_impact(stc[1])
+    assert not S.stcrd_no_stock_impact(stc[2])
+    stm = _rows(acct, "STMAS", STKCOD="OIL01")[0]
+    assert abs(float(stm.MREMBAL) - 975.0) < 0.01  # 只扣两段柴油 25
+    gl = _rows(acct, "GLJNLIT", VOUCHER=res.docnum)
+    cogs = [r for r in gl if (r.SEQIT or "").strip() == "8"]
+    assert len(cogs) == 1 and abs(float(cogs[0].AMOUNT) - 500.0) < 0.01  # 25 × 均价 20
+    dr = sum(Decimal(str(r.AMOUNT)) for r in gl if (r.TRNTYP or "").strip() == "0")
+    cr = sum(Decimal(str(r.AMOUNT)) for r in gl if (r.TRNTYP or "").strip() == "1")
+    assert dr == cr
+    assert [m["seq"] for m in res.line_modes] == [1, 2, 3]
+    assert [m["mode"] for m in res.line_modes][0::2] == ["stock_sale", "stock_sale"]
+
+
+def test_merge_gl_rows_sums_the_same_account_once():
+    rows = [("8", "51", "0", Decimal("2")), ("9", "11", "1", Decimal("2")), ("8", "51", "0", Decimal("3"))]
+    assert WS.merge_gl_rows(rows) == [("8", "51", "0", Decimal("5")), ("9", "11", "1", Decimal("2"))]

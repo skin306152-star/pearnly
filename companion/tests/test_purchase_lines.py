@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """采购明细行路由(车道 B):选库存的行走入库路并追加存货重分类分录,其余行照旧不碰库存。
 
-覆盖:非库存行零回归 / 库存行追加「借 存货 · 贷 购货」且借贷平且购货净额归零 / 混行整单拒 /
+覆盖:非库存行零回归 / 库存行追加「借 存货 · 贷 购货」且借贷平且购货净额归零 / 混行一张单写完(载荷 19) /
 dbf_detail 见到 stock_item 显性报错(不静默降级成不动库存的科目行)。
 """
 
@@ -189,19 +189,114 @@ class PurchaseLineRoutingTest(unittest.TestCase):
         self.assertEqual(net_purchase, Decimal("0"))
         self.assertEqual(res.line_modes[0]["mode"], "stock_item")
 
-    def test_mixed_stock_and_non_stock_rejects_whole_document(self):
-        """混行 → 整单失败并回滚(SEQNUM 会撞 + 只有一半货进库存),错误码指向入库路。"""
+    def _stcrd_by_seq(self, docnum):
+        return {int((r.SEQNUM or "").strip()): r for r in self._rows("STCRD", DOCNUM=docnum)}
+
+    def test_mixed_stock_and_non_stock_lines_land_in_one_document(self):
+        """混行(载荷 19,ERP 按行选入库 / 只记账):一张单写完;SEQNUM 是整张单的行号不撞;只有库存行动库存、进重分类。"""
         res = self._write(
             [
                 _item("ดีเซล", "10", "20", "200", "stock_item"),
                 _item("ค่าขนส่ง", "1", "400", "400", "direct_account"),
             ],
-            make_backup=True,  # 走真备份-回滚路,验单头也被撤掉
+            make_backup=True,
+            payload_version=19,
         )
-        self.assertFalse(res.ok)
-        self.assertEqual(res.error_code, W.ERR_STOCK_IN)
-        self.assertEqual(self._rows("APTRN"), [])
-        self.assertEqual(self._rows("STCRD"), [])
+        self.assertTrue(res.ok, res.error)
+        rows = self._stcrd_by_seq(res.docnum)
+        self.assertEqual(sorted(rows), [1, 2])
+        self.assertFalse(S.stcrd_no_stock_impact(rows[1]))  # 柴油真入库
+        self.assertTrue(S.stcrd_no_stock_impact(rows[2]))   # 运费不动库存
+        self.assertEqual([m["seq"] for m in res.line_modes], [1, 2])
+        self.assertEqual([m["mode"] for m in res.line_modes], ["stock_item", "direct_account"])
+        gl = self._gl(res.docnum)
+        inv_dr = [r for r in gl if (r.SEQIT or "").strip() == "7"]
+        self.assertEqual(len(inv_dr), 1)
+        self.assertAlmostEqual(float(inv_dr[0].AMOUNT), 200.0, places=2)  # 只重分类库存行
+        dr = sum(Decimal(str(r.AMOUNT)) for r in gl if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT)
+        cr = sum(Decimal(str(r.AMOUNT)) for r in gl if (r.TRNTYP or "").strip() == S.TRNTYP_CREDIT)
+        self.assertEqual(dr, cr)
+        oil = self._rows("STMAS", STKCOD="OIL01")[0]
+        self.assertAlmostEqual(float(oil.MREMBAL), 110.0, places=2)
+
+    def test_mixed_lines_keep_the_payload_order(self):
+        """非库存行在前、库存行夹在中间:物理顺序与 SEQNUM 都照载荷顺序,NXTSEQ = 总行数。"""
+        res = self._write(
+            [
+                _item("ค่าขนส่ง", "1", "100", "100", "direct_account"),
+                _item("ดีเซล", "10", "20", "200", "stock_item"),
+                _item("ค่าบริการ", "1", "300", "300", "direct_account"),
+            ],
+            payload_version=19,
+        )
+        self.assertTrue(res.ok, res.error)
+        written = self._rows("STCRD", DOCNUM=res.docnum)
+        self.assertEqual([int((r.SEQNUM or "").strip()) for r in written], [1, 2, 3])
+        self.assertEqual([(r.STKDES or "").strip() for r in written], ["ค่าขนส่ง", "ดีเซล", "ค่าบริการ"])
+        rows = self._stcrd_by_seq(res.docnum)
+        self.assertTrue(S.stcrd_no_stock_impact(rows[1]))
+        self.assertFalse(S.stcrd_no_stock_impact(rows[2]))
+        self.assertTrue(S.stcrd_no_stock_impact(rows[3]))
+        head = self._rows("APTRN", DOCNUM=res.docnum)[0]
+        self.assertEqual((head.NXTSEQ or "").strip(), "3")
+
+    def test_mixed_lines_reclass_from_the_account_the_stock_lines_sit_in(self):
+        """采购分录按行科目拆成几条、第一条是费用行自己的科目:重分类贷库存行那条采购科目(``items_account``),不贷费用科目。"""
+        freight = "53-01-00-00"
+        lines = [
+            {"acc": freight, "side": "D", "amount": "400.00", "desc": "ค่าขนส่ง", "role": "purchase"},
+            {"acc": PURCHASE_ACC, "side": "D", "amount": "200.00", "desc": "ซื้อ", "role": "purchase"},
+            {"acc": "11-05-04-01", "side": "D", "amount": "42.00", "desc": "ภาษีซื้อ", "role": "input_vat"},
+            {"acc": "21-02-01-00", "side": "C", "amount": "642.00", "desc": "เจ้าหนี้", "role": "ap"},
+        ]
+        res = self._write(
+            [
+                {**_item("ค่าขนส่ง", "1", "400", "400", "direct_account"), "account": freight},
+                _item("ดีเซล", "10", "20", "200", "stock_item"),
+            ],
+            lines=lines,
+            payload_version=19,
+        )
+        self.assertTrue(res.ok, res.error)
+        pur_cr = [r for r in self._gl(res.docnum) if (r.SEQIT or "").strip() == "8"]
+        self.assertEqual(len(pur_cr), 1)
+        self.assertEqual((pur_cr[0].ACCNUM or "").strip(), PURCHASE_ACC)
+        self.assertAlmostEqual(float(pur_cr[0].AMOUNT), 200.0, places=2)
+
+    def test_readback_lets_only_the_stock_lines_of_a_mixed_document_touch_stock(self):
+        """混行单读回:库存行放行库存影响,非库存行动了库存就报错(不因整张单有库存行一起放过)。"""
+        res = self._write(
+            [
+                _item("ดีเซล", "10", "20", "200", "stock_item"),
+                _item("ค่าขนส่ง", "1", "400", "400", "direct_account"),
+            ],
+            payload_version=19,
+        )
+        self.assertTrue(res.ok, res.error)
+        self.assertEqual(dbf_detail.stock_line_numbers(res.line_modes), frozenset({1}))
+        verify = lambda seqs: dbf_detail.verify_detail(  # noqa: E731
+            self.acct, res.docnum, Decimal("600"), 2, allow_stock_impact=True, stock_seqs=seqs)
+        self.assertIsNone(verify({1}))
+        t = dbf.Table(str(self.acct / "STCRD.DBF"), codepage=S.CODEPAGE)
+        t.open(dbf.READ_WRITE)
+        try:
+            for r in t:
+                if (r.DOCNUM or "").strip() == res.docnum and (r.SEQNUM or "").strip() == "2":
+                    with r as rec:
+                        rec.MREMBAL = 5.0
+        finally:
+            t.close()
+        self.assertIn("non-stock line 2", verify({1}) or "")
+        self.assertIsNone(verify(None))  # 不给行号:照以前整张放行
+
+    def test_runs_split_lines_into_consecutive_kinds_with_whole_document_numbers(self):
+        stock = lambda it: it["item_mode"] == "stock_item"  # noqa: E731
+        items = [{"item_mode": m} for m in ("direct_account", "stock_item", "stock_item", "non_stock_item")]
+        runs = dbf_detail.runs(items, stock)
+        self.assertEqual([(kind, seqs) for kind, seqs, _part in runs], [(False, [1]), (True, [2, 3]), (False, [4])])
+        self.assertEqual(dbf_detail.runs(items[1:3], stock)[0][1], [1, 2])
+        with self.assertRaises(ValueError):
+            dbf_detail.line_numbers(items, [1, 2])
 
     def test_unbalanced_voucher_is_refused_before_it_reaches_the_ledger(self):
         """载荷整体平、但只有前两条借方进得了分录(第三条被丢)→ 写盘前自检拦下并整单回滚。"""

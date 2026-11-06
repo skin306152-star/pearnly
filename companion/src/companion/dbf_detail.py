@@ -18,7 +18,7 @@ from __future__ import annotations
 import datetime as _dt
 from decimal import Decimal
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterable, List, Optional, Tuple
 
 import dbf
 
@@ -103,6 +103,31 @@ def line_mode(
     }
 
 
+def line_numbers(items: list, seqs: Optional[List[int]] = None) -> List[int]:
+    """明细行号(STCRD.SEQNUM):给了 ``seqs`` 用它(混行单分段写),否则从 1 起连续编。"""
+    if seqs is None:
+        return list(range(1, len(items) + 1))
+    if len(seqs) != len(items):
+        raise ValueError(f"line numbers {len(seqs)} != items {len(items)}")
+    return list(seqs)
+
+
+def runs(items: list, is_stock) -> List[Tuple[bool, List[int], list]]:
+    """一张单的明细按载荷顺序切成「连续的同一类」几段:``[(是不是库存行, [行号…], [行…])]``,行号从 1 起、整张单连续。
+
+    混行单(库存 + 非库存,载荷 19)照载荷顺序一段段写:库存段走入库 / 出库路,其余段走非库存路,每行的 SEQNUM 是它在整张单里的
+    行号,不再各从 1 起撞号(V1 拒收的原因)。"""
+    out: List[Tuple[bool, List[int], list]] = []
+    for seq, item in enumerate(items, start=1):
+        kind = bool(is_stock(item))
+        if out and out[-1][0] == kind:
+            out[-1][1].append(seq)
+            out[-1][2].append(item)
+        else:
+            out.append((kind, [seq], [item]))
+    return out
+
+
 def _open(account_dir, name: str, mode):
     t = dbf.Table(str(Path(account_dir) / f"{name}.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(mode)
@@ -170,9 +195,11 @@ def write_stcrd_detail(
     ref_no: str = "",
     posopr: str = S.STCRD_POSOPR,
     locations: Optional[List[Optional[str]]] = None,
+    seqs: Optional[List[int]] = None,
 ) -> List[dict]:
     """逐行 OCR 商品写 STCRD,按 item_mode 分发。返回逐行 mode 结果(供状态诚实化)。
     ``locations``:载荷 4 的逐行仓库码(None = 主仓);这些行不动库存,不碰 STLOC。
+    ``seqs``:这几行在整张单里的行号(混行单分段写时给,见 :func:`runs`;``locations`` 照整张单的下标取);不给 = 从 1 起。
     NETVAL 逐行求和已在云端对账闸 ≈ 税前额;此处只忠实落行。
 
     `ref_no` 只有采购侧传(真账镜像:采购行带 REFNUM 98%+,销项行 0/14834 带)。"""
@@ -187,7 +214,7 @@ def write_stcrd_detail(
     t = _open(account_dir, "STCRD", dbf.READ_WRITE)
     fields = {name.upper() for name in t.field_names}
     try:
-        for seq, it in enumerate(items, start=1):
+        for seq, it in zip(line_numbers(items, seqs), items):
             qty = float(Decimal(str(it.get("qty") or "1")))
             unit_price = float(Decimal(str(it.get("unit_price") or "0")))
             amount = float(Decimal(str(it.get("amount") or "0")))
@@ -236,11 +263,13 @@ def verify_detail(
     *,
     allow_stock_impact: bool = False,
     since_recno: int = 0,
+    stock_seqs: Optional[Iterable[int]] = None,
 ) -> Optional[str]:
     """读回明细:行数==detail_n、行合计≈税前额。非库存/直接科目行必须零库存影响
     (LOT/余额全 0);V2-b 卖库存品(allow_stock_impact=True)本就动库存,跳过该闸。
     不符 → raise DetailVerifyError(带结构化现场证据,供 ack meta.evidence);库存影响
-    不符仍返错误描述(无证据场景)。"""
+    不符仍返错误描述(无证据场景)。
+    ``stock_seqs``:放行库存影响时,只放行这几个行号(库存行);混行单其余行照样必须零库存影响。不给 = 整张单都放行(以前的口径)。"""
     st = _open(account_dir, "STCRD", dbf.READ_ONLY)
     try:
         # 只数还算数的行:删单后旧明细软删仍在表里,连它一起数则行数与合计都翻倍,
@@ -289,4 +318,21 @@ def verify_detail(
         for r in rows:
             if not S.stcrd_no_stock_impact(r):
                 return "STCRD line touches stock/COGS (LOT/bal non-zero)"
+    elif stock_seqs is not None:
+        allowed = {int(seq) for seq in stock_seqs}
+        for r in rows:
+            if _seqnum(r) not in allowed and not S.stcrd_no_stock_impact(r):
+                return f"STCRD non-stock line {_seqnum(r)} touches stock/COGS (LOT/bal non-zero)"
     return None
+
+
+def _seqnum(rec) -> Optional[int]:
+    try:
+        return int(str(rec.SEQNUM or "").strip())
+    except (ValueError, AttributeError):
+        return None
+
+
+def stock_line_numbers(line_modes: List[dict]) -> frozenset:
+    """回执里动库存的行号(采购入库 ``stock_item``、销售出库 ``stock_sale``),给读回逐行放行库存影响。"""
+    return frozenset(int(m["seq"]) for m in line_modes or [] if m.get("mode") in (ITEM_MODE_STOCK, "stock_sale"))

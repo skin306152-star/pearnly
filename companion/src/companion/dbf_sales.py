@@ -380,6 +380,7 @@ def write_sale(
             detail_n=detail_n,
             has_stock=has_stock,
             since=since,
+            stock_seqs=dbf_detail.stock_line_numbers(line_modes),
         )
         verify_locations(account_dir, stloc_expected)
         check_remarks(account_dir, docnum, remarks)
@@ -534,28 +535,32 @@ def _write_all(
     cogs_rows = []  # V2-b:卖库存品的 COGS 分录(借成本/贷存货),接在 asset/rev/vat 之后
     if write_detail:
         items = inclusive_items(entry.items, flgvat, total)  # 现销价含税：明细 UNITPR / TRNVAL 记含税（同原生）
-        stock_items = [
-            it for it in items if str(it.get("item_mode") or "") == "stock_sale"
-        ]
-        if stock_items and len(stock_items) != len(items):
-            # 一单里库存品与非库存混行:SEQNUM 会撞 + 部分扣库存,V1 不静默处理 → 交会计。
-            raise _WriteError("混合库存+非库存明细行(V1 不支持)", ERR_STOCK_NOT_FOUND)
-        if stock_items:
-            line_modes, cogs_rows = stock_sale.write_stock_lines(
-                account_dir,
-                docnum,
-                docdat,
-                items,
-                entry.customer_code,
-                depcod=depcod,
-                userid=userid,
-                acccod=getattr(entry, "stock_acccod", ""),
-                **_located(locations, moves),
-            )
-        else:
-            line_modes = _write_stcrd_detail(
-                account_dir, docnum, docdat, entry, depcod, userid=userid, items=items, **_located(locations)
-            )
+        # 混行(库存品 + 非库存,载荷 19,ERP 按行选出库 / 只记账,11-06):照载荷顺序分段写,每行 SEQNUM = 整张单的行号
+        # (以前两条路各从 1 起会撞,V1 整单拒收);只有库存行扣库存、结转成本。只有一种行时调用与以前一字不差。
+        segments = dbf_detail.runs(items, lambda it: str(it.get("item_mode") or "") == stock_sale.ITEM_MODE)
+        whole = len(segments) == 1
+        for stock, seqs, part in segments:
+            numbered = {} if whole else {"seqs": seqs}
+            if stock:
+                modes, rows = stock_sale.write_stock_lines(
+                    account_dir,
+                    docnum,
+                    docdat,
+                    part,
+                    entry.customer_code,
+                    depcod=depcod,
+                    userid=userid,
+                    acccod=getattr(entry, "stock_acccod", ""),
+                    **_located(locations, moves),
+                    **numbered,
+                )
+                line_modes += modes
+                cogs_rows = merge_gl_rows(cogs_rows + rows)
+            else:
+                line_modes += _write_stcrd_detail(
+                    account_dir, docnum, docdat, entry, depcod, userid=userid, items=part, **_located(locations),
+                    **numbered,
+                )
 
     if has_vat:
         iv = _open(account_dir, "ISVAT", dbf.READ_WRITE)
@@ -628,9 +633,10 @@ def _write_all(
 
 def _write_stcrd_detail(
     account_dir, docnum: str, docdat, entry, depcod: str = "", userid: str = S.PEARNLY_USERID, locations=None,
-    items=None,
+    items=None, seqs=None,
 ):
-    """逐行写 STCRD(委托共用 dbf_detail·PEOPLE=客户码)。返回逐行 mode 结果。``items`` 不给用 ``entry.items``。"""
+    """逐行写 STCRD(委托共用 dbf_detail·PEOPLE=客户码)。返回逐行 mode 结果。``items`` 不给用 ``entry.items``;
+    ``seqs``:混行单分段写时这几行在整张单里的行号。"""
     return dbf_detail.write_stcrd_detail(
         account_dir,
         docnum,
@@ -641,7 +647,17 @@ def _write_stcrd_detail(
         depcod=depcod,
         userid=userid,
         **_located(locations),
+        **({"seqs": seqs} if seqs is not None else {}),
     )
+
+
+def merge_gl_rows(rows):
+    """同一 (SEQIT, 科目, 借贷) 的分录合并成一条、按第一次出现的顺序(混行单几段库存行各自算出的成本分录,合起来与一次写完相同)。"""
+    merged = {}
+    for seqit, accnum, trntyp, amount in rows:
+        key = (seqit, accnum, trntyp)
+        merged[key] = merged.get(key, Decimal("0")) + Decimal(str(amount))
+    return [(seqit, accnum, trntyp, amount) for (seqit, accnum, trntyp), amount in merged.items()]
 
 
 def _update_arbal(
@@ -700,6 +716,7 @@ def _verify(
     detail_n: int = 0,
     has_stock: bool = False,
     since: Optional[Dict[str, int]] = None,
+    stock_seqs=None,
 ) -> None:
     since = since or {}
     # 读回一律只看还算数的行。销项 DOCNUM 就是票面发票号,删单重推时新单与那条软删的旧单
@@ -739,7 +756,7 @@ def _verify(
 
     if detail_n:
         _verify_detail(account_dir, docnum, base, detail_n, has_stock=has_stock,
-                       since_recno=since.get("STCRD", 0))
+                       since_recno=since.get("STCRD", 0), stock_seqs=stock_seqs)
 
     gi = _open(account_dir, "GLJNLIT", dbf.READ_ONLY)
     try:
@@ -800,12 +817,13 @@ def _verify_detail(
     *,
     has_stock: bool = False,
     since_recno: int = 0,
+    stock_seqs=None,
 ) -> None:
-    """读回明细(委托共用 dbf_detail);不符 → 抛错触发回滚。V2-b 卖库存放行库存影响行。"""
+    """读回明细(委托共用 dbf_detail);不符 → 抛错触发回滚。V2-b 卖库存放行库存影响行(混行单只放行 ``stock_seqs`` 那几行)。"""
     try:
         err = dbf_detail.verify_detail(
             account_dir, docnum, base, detail_n, allow_stock_impact=has_stock,
-            since_recno=since_recno,
+            since_recno=since_recno, stock_seqs=stock_seqs,
         )
     except dbf_detail.DetailVerifyError as e:
         # 明细读回不符:message 一字不改(既有按文本 match 的断言依赖),证据随第三参带走。

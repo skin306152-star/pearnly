@@ -785,6 +785,26 @@ class PosPayload(unittest.TestCase):
             self.assertTrue(quoted(path.read_text(encoding="utf-8"), "new_ok"), path)
         self.assertIn("create_new_items", (COMPANION / "dbf_transfer.py").read_text(encoding="utf-8"))
 
+    def test_the_mixed_lines_version_matches(self):
+        """混行（库存行与非库存行同在一张采购 / 销售单，ERP 按行选入库 / 只记账，11-06）：服务端盖的版本 CC 认得、两边同值；
+        CC 不再整单拒收混行；服务端只在真有两种行时才盖。"""
+        version = _literal(RULES / "common.py", "MIXED_LINES_PAYLOAD_VERSION")
+        self.assertEqual(version, _literal(COMPANION / "payload_contract.py", "MIXED_LINES_PAYLOAD_VERSION"))
+        self.assertIn(version, _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
+        self.assertGreater(version, _literal(COMPANION / "payload_contract.py", "MRERP_OPERATOR_PAYLOAD_VERSION"))
+        for path in (COMPANION / "purchase_lines.py", COMPANION / "dbf_sales.py"):
+            self.assertNotIn("V1 不支持", path.read_text(encoding="utf-8"), path)
+        sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+        from pearnly_core.express_rules.push import common
+
+        stock, service = {"item_mode": "stock_item"}, {"item_mode": "direct_account"}
+        self.assertTrue(common.mixed_lines([stock, service]))
+        self.assertTrue(common.mixed_lines([{"item_mode": "stock_sale"}, {"item_mode": "non_stock_item"}]))
+        self.assertFalse(common.mixed_lines([stock, stock]))
+        self.assertFalse(common.mixed_lines([service]))
+        self.assertEqual(common.finalize_payload({"items": [stock, service]})["payload_version"], version)
+        self.assertLess(common.finalize_payload({"items": [stock]})["payload_version"], version)
+
     def test_the_unit_remarks_version_and_key_match(self):
         """按台号码（ARTRNRM，评估 2026-11-02）：服务端带 `remarks` 时盖的版本 CC 认得；键在 ERP 合同、共用写账规则、CC 三处同名；
         一条说明的宽度两边同为 50（ARTRNRM.REMARK C(50)）。"""

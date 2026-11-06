@@ -239,8 +239,10 @@ def write_stock_lines(
     acccod: str = "",
     locations: Optional[List[Optional[str]]] = None,
     moves: Optional[list] = None,
+    seqs: Optional[List[int]] = None,
 ) -> Tuple[List[Dict], List[Tuple[str, str, str, Decimal]]]:
     """写库存明细行 + 扣 STMAS,返回 (逐行 mode 结果, COGS 分录行)。
+    ``seqs``:这几行在整张单里的行号(混行单分段写,`dbf_detail.runs`;``locations`` 照整张单的下标取);不给 = 从 1 起。
 
     items = item_mode=='stock_sale' 的行(已在备份-回滚事务内)。逐行三分支(据单次读取的结存):
     - 有正库存(bal>0)→ 库存出行 + 扣 STMAS + COGS 分录(移动均价);
@@ -256,7 +258,7 @@ def write_stock_lines(
     st.open(dbf.READ_WRITE)
     st_fields = {field.upper() for field in st.field_names}
     try:
-        for seq, it in enumerate(items, start=1):
+        for seq, it in zip(dbf_detail.line_numbers(items, seqs), items):
             name = str(it.get("name") or "")
             qty = float(Decimal(str(it.get("qty") or "1")))
             unit_price = float(Decimal(str(it.get("unit_price") or "0")))

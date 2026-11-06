@@ -18,7 +18,7 @@ def test_missing_version_defaults_to_v1_supported():
 
 
 def test_future_version_rejected():
-    assert check_payload_version({"payload_version": 19}) == ERR_PAYLOAD_VERSION
+    assert check_payload_version({"payload_version": 20}) == ERR_PAYLOAD_VERSION
 
 
 def test_supported_set_is_v1_to_v12_today():
@@ -40,10 +40,12 @@ def test_supported_set_is_v1_to_v12_today():
     assert check_payload_version({"payload_version": 15}) is None
     # v16(2026-11-02):代录 Express(entry_mode = operator);v17(2026-11-02):明细行按台号码 `remarks`(ARTRNRM,dbf_remarks)
     # v18(2026-11-02):代录到 Express 以外的目标(operator.target,ADR-026;本版按「不支持」回执)
-    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18})
+    # v19(2026-11-06):采购 / 销售明细库存行与非库存行同在一张单(混行;ERP 按行选入库 / 只记账),分段写、SEQNUM 用整张单的行号
+    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19})
     assert check_payload_version({"payload_version": 16}) is None
     assert check_payload_version({"payload_version": 17}) is None
     assert check_payload_version({"payload_version": 18}) is None
+    assert check_payload_version({"payload_version": 19}) is None
     assert check_payload_version({"payload_version": 14}) is None
     assert check_payload_version({"payload_version": 11}) is None
     assert check_payload_version({"payload_version": 5}) is None

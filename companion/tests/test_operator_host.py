@@ -453,7 +453,7 @@ def test_the_assemblers_match_the_targets_the_heartbeat_reports():
     assert tuple(host_module.ASSEMBLERS) == payload_contract.OPERATOR_TARGETS == (K.TARGET_EXPRESS,)
     assert host_module.default_factory is host_module.express_factory
     assert payload_contract.MRERP_OPERATOR_PAYLOAD_VERSION in payload_contract.SUPPORTED_PAYLOAD_VERSIONS
-    assert payload_contract.MRERP_OPERATOR_PAYLOAD_VERSION == max(payload_contract.SUPPORTED_PAYLOAD_VERSIONS)
+    assert payload_contract.MIXED_LINES_PAYLOAD_VERSION == max(payload_contract.SUPPORTED_PAYLOAD_VERSIONS)
     assert K.target_of({}) == K.target_of({"operator": {"batch": {}}}) == "express"
     assert K.target_of(mrerp_payload()) == "mrerp"
 

@@ -104,5 +104,21 @@ class PayloadTest(unittest.TestCase):
             self.assertNotIn("stock_acccod", result.payload)
 
 
+    def test_a_mixed_purchase_whose_first_line_is_a_fee_still_carries_the_group(self):
+        """混行（第一行运费不入库、第二行入库，ERP 按行选，11-06）：按「有没有库存行」带组，不按第一行；载荷盖混行版本。"""
+        fields = {"seller_name": "Synthetic Supplier", "seller_tax": "0105550000001", "subtotal": "100.00", "vat": "7.00",
+                  "invoice_number": "SYN-3", "posting_item_type_manual": "goods",
+                  "items": [{"name": "Freight", "qty": "1", "subtotal": "40.00", "posting_kind": "service"},
+                            {"name": "Synthetic item", "qty": "1", "subtotal": "60.00", "posting_kind": "stock"}]}
+        history = {"id": "h3", "invoice_date": "2026-09-28", "invoice_no": "SYN-3", "total_amount": "107.00", "fields": fields}
+        result = build_express_payload(history, config={"account_set": "TEST", "fallback_acc": "11-04-02-00",
+                                                        "vat_input_acc": "11-05-04-01", "ap_acc": "21-02-01-00",
+                                                        "catalog_fingerprint": EMPTY, "reported_stock_acc_groups": GROUPS,
+                                                        "stock_acccod": "SA"}, today=TODAY)
+        self.assertTrue(result.ok, result.reason)
+        self.assertEqual([item["item_mode"] for item in result.payload["items"]], ["non_stock_item", "stock_item"])
+        self.assertEqual(result.payload["stock_acccod"], "SA")
+        self.assertEqual(result.payload["payload_version"], 19)
+
 if __name__ == "__main__":
     unittest.main()

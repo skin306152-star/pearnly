@@ -89,6 +89,7 @@ def write_stock_in_lines(
     ref_no: str = "",
     locations: Optional[List[Optional[str]]] = None,
     moves: Optional[list] = None,
+    seqs: Optional[List[int]] = None,
 ) -> Tuple[List[Dict], Dict[str, Decimal]]:
     """写库存入库行 + 累加 STMAS 结存,返回 (逐行 mode 结果, {存货科目码: 入库金额合计})。
 
@@ -100,6 +101,7 @@ def write_stock_in_lines(
 
     载荷 4(``stock_location``):``locations`` 是逐行仓库码(None = 主仓,同以前),``moves`` 收集各行在 STLOC 上的
     变动交调用方记账;两者都是 None 时与以前逐字节相同。
+    ``seqs``:这几行在整张单里的行号(混行单分段写,`dbf_detail.runs`;``locations`` 照整张单的下标取);不给 = 从 1 起。
     """
     line_modes: List[Dict] = []
     in_by_account: Dict[str, Decimal] = {}
@@ -107,7 +109,7 @@ def write_stock_in_lines(
     st.open(dbf.READ_WRITE)
     try:
         st_fields = {name.upper() for name in st.field_names}
-        for seq, it in enumerate(items, start=1):
+        for seq, it in zip(dbf_detail.line_numbers(items, seqs), items):
             name = str(it.get("name") or "")
             qty = Decimal(str(it.get("qty") or "0"))
             amount = _money(it.get("amount") or "0")
