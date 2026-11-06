@@ -978,7 +978,10 @@ def before_adjustment_posted(count, entry) -> None:
 def adjustment_posted(count, entry) -> None:
     """盘点生成的调整单落完流水：盘到别处的台换到实际盘到的仓 / 仓位，盘点置「已过账」。"""
     _adjusting(count, entry)
-    _move_counted_units(count, list_entries(count=count, limit=0))
+    # 只要带台的记录（服务端内部取，不经页面的读权限：提交调整单的可能是只有物料调整菜单的人）
+    units = frappe.get_all(ENTRY, filters={"count": count, "serial": ["is", "set"]},  # bounded: 一份盘点按台记的
+                           fields=["serial", "warehouse", "location", "voided"], limit_page_length=0)
+    _move_counted_units(count, units)
     frappe.db.set_value(COUNT, count, {"status": "Posted", "posted_at": now(), "posted_by": frappe.session.user},
                         update_modified=False)
     count_live.changed(count)
