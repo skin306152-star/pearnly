@@ -886,6 +886,10 @@ Voided,已作废
 Voided Number,作废单号
 Voided {0},已作废 {0}
 WHT deducted,预扣税额
+Wait Check,核对函数
+Wait Keys,等待项
+Wait Remote,远端会话
+Wait Until,等待截止
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},等待 {0} 秒后仍未获取同一账号的锁（{1}）。同一账号不可并发登录。{2}
 Waiting,等待
 Waiting for answers,等待作答

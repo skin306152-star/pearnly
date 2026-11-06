@@ -122,7 +122,8 @@ def _install_fakes():
     sys.modules["pearnly_core.assistant"].engines = engines
     for part in ("base", "anthropic_managed_agents"):
         setattr(engines, part, _load(f"pearnly_core.assistant.engines.{part}", CORE / f"assistant/engines/{part}.py"))
-    for part in ("config", "tools", "definition", "engine", "context", "ask", "toolrun", "sidebar", "titles", "relay", "projects"):
+    for part in ("config", "tools", "definition", "engine", "context", "ask", "waits", "toolrun", "sidebar", "titles", "relay",
+                 "projects"):
         module = _load(f"pearnly_core.assistant.{part}", CORE / f"assistant/{part}.py")
         setattr(sys.modules["pearnly_core.assistant"], part, module)
     return frappe, sdk
@@ -6276,6 +6277,242 @@ class SetupSignalTests(unittest.TestCase):
         source = (CORE / "assistant/config.py").read_text(encoding="utf-8")
         for msgid in ("CC is not set up for this site yet.", "CC is only available on product sites."):
             self.assertEqual(source.count(f'_("{msgid}")'), 2, msgid)
+
+
+
+class _WaitDb:
+    """挂着的执行记录（`waits`）的最小库：只认 `waits` 发的几句（挂着的、按会话 / 等待键筛、抢占交回、作废）。"""
+
+    def __init__(self, rows):
+        self.rows = rows  # {记录名: {...}}
+        self._cursor = types.SimpleNamespace(rowcount=0)
+
+    def _parked(self, sql, values):
+        found = [name for name, row in self.rows.items() if row["status"] == "running" and row.get("wait_until")]
+        if "session_id=%s" in sql:
+            found = [n for n in found if self.rows[n]["session_id"] == values[0]]
+        if "wait_keys LIKE %s" in sql:
+            needle = values[0].strip("%")
+            found = [n for n in found if needle in (self.rows[n].get("wait_keys") or "")]
+        return [(n,) for n in sorted(found, key=lambda n: self.rows[n]["wait_until"])]
+
+    def sql(self, query, values=()):
+        if query.startswith("SELECT name"):
+            return self._parked(query, values)
+        name = values[-1]
+        row = self.rows.get(name)
+        hit = bool(row and row["status"] == "running" and row.get("wait_until"))
+        if hit:
+            if "status='cancelled'" in query:
+                row.update(status="cancelled", wait_until=None)
+            else:
+                row.update(status=values[0], result=values[1], wait_until=None)
+        self._cursor = types.SimpleNamespace(rowcount=1 if hit else 0)
+        return ()
+
+    def get_value(self, doctype, name, fields, as_dict=False):
+        if doctype == "User":
+            return 1  # 会话主人在用
+        if not isinstance(name, str) or name not in self.rows:
+            return None
+        row = _Row({"name": name, **self.rows[name]})
+        if isinstance(fields, str):
+            return row.get(fields)
+        return _Row({field: row.get(field) for field in fields}) if as_dict else tuple(row.get(f) for f in fields)
+
+    def set_value(self, doctype, name, values, value=None, **kw):
+        if isinstance(values, str):
+            values = {values: value}
+        if doctype == "Pearnly Assistant Tool Run":
+            self.rows[name].update(values)
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+
+class WaitTests(unittest.TestCase):
+    """识别完了 CC 不主动继续（用户 2026-11-06）：识别没完成时这次调用挂着，识别有结论时由本站交回，CC 在同一轮里接着做。
+    成功、失败、到上限、挂着时用户又发消息、结束提醒漏了靠巡检补交、点停止作废，每种都只交回一次。"""
+
+    NOW = datetime.datetime(2026, 11, 6, 22, 0)
+
+    def setUp(self):
+        self.toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        self.waits = sys.modules["pearnly_core.assistant.waits"]
+        self.posted, self.published, self.enqueued = [], [], []
+        self.answers = {}  # 核对函数的回答：按 final 给
+        self.calls = []
+        check = types.ModuleType("fake_wait_check")
+        check.check = self._check
+        sys.modules["fake_wait_check"] = check
+        self.db = _WaitDb({})
+        adapter = types.SimpleNamespace(post=lambda remote, events: self.posted.append((remote, events)))
+        context = sys.modules["pearnly_core.assistant.context"]
+        self.patches = [
+            mock.patch.object(frappe, "db", self.db, create=True),
+            mock.patch.object(frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True),
+            mock.patch.object(frappe, "set_user", lambda user: setattr(frappe.session, "user", user), create=True),
+            mock.patch.object(frappe, "publish_realtime", lambda *a, **k: self.published.append((a, k)), create=True),
+            mock.patch.object(frappe, "enqueue", lambda path, **k: self.enqueued.append((path, k)), create=True),
+            mock.patch.object(frappe, "log_error", lambda *a, **k: None, create=True),
+            mock.patch.object(frappe, "local", types.SimpleNamespace(site="t1.example", lang="zh", cache={}), create=True),
+            mock.patch.object(frappe.utils, "now_datetime", lambda: self.NOW, create=True),
+            mock.patch.object(self.toolrun.engine, "adapter", return_value=adapter),
+            mock.patch.object(self.toolrun, "_use_lang", lambda conversation: None),
+            mock.patch.object(self.toolrun, "interface_language", lambda conversation, user=None: "Chinese"),
+            mock.patch.object(context, "active", lambda name, wait=True: False),
+        ]
+        for patch in self.patches:
+            patch.start()
+        self.addCleanup(lambda: [patch.stop() for patch in self.patches])
+
+    def _check(self, tool_input, interim, final):
+        self.calls.append(final)
+        return self.answers.get(final, self.answers.get("any"))
+
+    def _park(self, name="run1", conversation="conv", key="ocr:cowork.invoice:B1"):
+        """工具执行中要求挂起：`_finish` 不交回、记下等什么。"""
+        self.db.rows[name] = {"tool_use_id": f"sevt_{name}", "session_id": conversation, "user": "owner@x.test",
+                              "tool": "cowork_recognize_attachments", "status": "running", "tool_input": "{}"}
+
+        def run(tool, data):
+            self.waits.park([key], "fake_wait_check.check")
+            return '{"results": [{"batch": "B1"}]}', False
+
+        with mock.patch.object(self.toolrun.tools, "run", run):
+            status = self.toolrun._finish(conversation, "sesn_remote", name, f"sevt_{name}", "cowork_recognize_attachments", {})
+        return status
+
+    def _results(self):
+        return [event for _remote, events in self.posted for event in events if event["type"] == "user.custom_tool_result"]
+
+    def test_parked_call_is_not_handed_back_until_recognition_finishes(self):
+        self.assertEqual(self._park(), "running")
+        row = self.db.rows["run1"]
+        self.assertEqual((row["status"], json.loads(row["wait_keys"]), row["wait_remote"]),
+                         ("running", ["ocr:cowork.invoice:B1"], "sesn_remote"))
+        self.assertEqual(row["wait_until"], self.NOW + datetime.timedelta(minutes=self.waits.WAIT_MINUTES))
+        self.assertEqual(self._results(), [])  # 挂着：不交回、不开模型
+        # 识别还没结束：核对不交
+        self.answers["any"] = {"done": False}
+        self.waits.settle_key("ocr:cowork.invoice:B1")
+        self.assertEqual(self._results(), [])
+        # 识别结束（成功）：交回一次，CC 接着做；执行记录推给对话页（带 settled，页面马上补拉接上推送）
+        self.answers[None] = {"done": True, "text": '{"results": [{"state": "saved"}]}', "is_error": False}
+        self.waits.settle_key("ocr:cowork.invoice:B1")
+        results = self._results()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["custom_tool_use_id"], "sevt_run1")
+        self.assertFalse(results[0]["is_error"])
+        self.assertIn('"saved"', results[0]["content"][0]["text"])
+        self.assertEqual((row["status"], row["wait_until"]), ("done", None))
+        pushed = [a[1]["event"] for a, k in self.published if a[1]["event"].get("type") == "pearnly.tool_run"]
+        self.assertEqual([(e["status"], e.get("settled")) for e in pushed], [("done", True)])
+        # 同一个键再来一次（重复提醒、巡检）：不再交
+        self.waits.settle_key("ocr:cowork.invoice:B1")
+        self.waits.sweep()
+        self.assertEqual(len(self._results()), 1)
+
+    def test_a_failed_recognition_is_handed_back_as_it_is(self):
+        self._park()
+        self.answers[None] = {"done": True, "text": '{"results": [{"state": "failed", "reason": "ocr.bad"}]}',
+                              "is_error": False}
+        self.waits.settle_key("ocr:cowork.invoice:B1")
+        self.assertIn("ocr.bad", self._results()[0]["content"][0]["text"])
+        self.assertEqual(self.db.rows["run1"]["status"], "done")
+
+    def test_the_deadline_hands_back_still_running_and_ends_the_wait(self):
+        self._park()
+        self.answers["any"] = {"done": False}
+        self.waits.sweep()  # 没到上限、还没结束：不交
+        self.assertEqual(self._results(), [])
+        self.db.rows["run1"]["wait_until"] = self.NOW - datetime.timedelta(seconds=1)
+        self.answers[self.waits.DEADLINE] = {"done": True, "text": '{"note": "still running"}', "is_error": False}
+        self.waits.sweep()
+        self.assertEqual(self.calls[-1], self.waits.DEADLINE)
+        self.assertIn("still running", self._results()[0]["content"][0]["text"])
+        self.assertEqual(self.db.rows["run1"]["status"], "done")
+
+    def test_a_check_that_fails_at_the_deadline_still_hands_back_the_parked_text(self):
+        self._park()
+        self.db.rows["run1"]["wait_until"] = self.NOW - datetime.timedelta(seconds=1)
+        self.answers[self.waits.DEADLINE] = None  # 核对函数出错 / 回不出：必须交时交回挂起时的结果
+        self.waits.sweep()
+        self.assertIn('"batch": "B1"', self._results()[0]["content"][0]["text"])
+
+    def test_a_missed_finish_notice_is_settled_by_the_sweep(self):
+        self._park()
+        # 识别结束的提醒没送到（进程重启）：每分钟的巡检核对到已结束就补交
+        self.answers[None] = {"done": True, "text": '{"results": [{"state": "saved"}]}', "is_error": False}
+        self.waits.sweep()
+        self.assertEqual(len(self._results()), 1)
+
+    def test_a_user_message_while_parked_hands_back_first(self):
+        self._park()
+        self.answers[self.waits.USER_MESSAGE] = {"done": True, "text": '{"note": "user wrote"}', "is_error": False}
+        self.assertEqual(self.waits.release("conv"), 1)
+        self.assertEqual(self.calls[-1], self.waits.USER_MESSAGE)
+        self.assertEqual(len(self._results()), 1)
+        self.assertEqual(self.waits.release("conv"), 0)
+        # 发消息时先交回、再发这条（引擎停在等工具结果时不收用户消息）
+        body = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("\ndef send(", 1)[1].split("\ndef ", 1)[0]
+        self.assertLess(body.index("waits.release"), body.index("api.post(remote, batch)"))
+
+    def test_stop_cancels_the_parked_call_and_a_later_finish_hands_nothing_back(self):
+        self._park()
+        self.assertEqual(self.waits.cancel("conv"), 1)
+        self.assertEqual((self.db.rows["run1"]["status"], self.db.rows["run1"]["wait_until"]), ("cancelled", None))
+        self.answers["any"] = {"done": True, "text": "{}", "is_error": False}
+        self.waits.settle_key("ocr:cowork.invoice:B1")
+        self.waits.sweep()
+        self.assertEqual(self._results(), [])
+        # 停止、这一轮结束都经 cancel_waiting：挂着的一起作废
+        body = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8").split("\ndef cancel_waiting(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("waits.cancel", body)
+
+    def test_only_this_keys_waiters_are_settled_and_the_finish_notice_queues_one_job(self):
+        self._park("run1", key="ocr:cowork.invoice:B1")
+        self._park("run2", key="ocr:cowork.invoice:B2")
+        self.waits.finished("ocr:cowork.invoice:B9")
+        self.assertEqual(self.enqueued, [])  # 没有人等的键不排任务
+        self.waits.finished("ocr:cowork.invoice:B2")
+        self.assertEqual([k["key"] for _p, k in self.enqueued], ["ocr:cowork.invoice:B2"])
+        self.answers[None] = {"done": True, "text": "{}", "is_error": False}
+        self.waits.settle_key("ocr:cowork.invoice:B2")
+        self.assertEqual([r["custom_tool_use_id"] for r in self._results()], ["sevt_run2"])
+        self.assertEqual(self.db.rows["run1"]["status"], "running")
+
+    def test_progress_is_pushed_and_replayed_with_real_numbers_only(self):
+        self._park()
+        self.answers[None] = {"done": False, "progress": {"done": 8, "total": 12, "label": "reading_pages"}}
+        self.waits.touch("ocr:cowork.invoice:B1")
+        event = self.published[-1][0][1]["event"]
+        self.assertEqual((event["type"], event["tool_use_id"], event["done"], event["total"], event["label"]),
+                         ("pearnly.progress", "sevt_run1", 8, 12, "reading_pages"))
+        replay = self.waits.progress_events("conv")
+        self.assertEqual([(e["done"], e["total"]) for e in replay], [(8, 12)])
+        self.assertEqual(self.waits.progress_events("other"), [])
+        # 读事件时并进来
+        source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("\ndef _with_tool_runs(", 1)[1]
+        self.assertIn("waits.progress_events(row.session_id)", source.split("\ndef ", 1)[0])
+
+    def test_a_tool_that_does_not_park_is_handed_back_at_once(self):
+        self.db.rows["run1"] = {"tool_use_id": "sevt_run1", "session_id": "conv", "user": "owner@x.test", "status": "running"}
+        with mock.patch.object(self.toolrun.tools, "run", lambda tool, data: ("{}", False)):
+            self.assertEqual(self.toolrun._finish("conv", "sesn_remote", "run1", "sevt_run1", "x", {}), "done")
+        self.assertEqual(len(self._results()), 1)
+        self.assertFalse(self.db.rows["run1"].get("wait_until"))
+
+    def test_the_sweep_runs_every_minute(self):
+        hooks = (CORE / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn('"pearnly_core.assistant.waits.sweep"', hooks.split('"* * * * *"', 1)[1].split("]", 1)[0])
+        options = json.loads((CORE / "pearnly_core/doctype/pearnly_assistant_tool_run/pearnly_assistant_tool_run.json")
+                             .read_text(encoding="utf-8"))
+        until = next(f for f in options["fields"] if f["fieldname"] == "wait_until")
+        self.assertTrue(until.get("search_index"))
 
 
 if __name__ == "__main__":

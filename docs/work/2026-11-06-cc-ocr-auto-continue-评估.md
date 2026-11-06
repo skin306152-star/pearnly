@@ -100,3 +100,41 @@
 3. 前端：订阅 `pearnly_ocr_work`、步骤进度、文案：约 1 小时，构建与单测约 10 分钟。
 4. 本机实验栈实测（含小样本付费识别）：约 40 分钟。
 5. 合入后随下一批部署，测试窗口真机验收。
+
+## 14. 审定与施工记录
+
+主会话 11-06 审定：A + B 同意；三件事按建议（挂着时发消息先交回再发、新增「识别中 · 共 {n} 页」、机制通用只接识别）；
+补两条：挂着要有上限（定 15 分钟：12 页约 3–4 分钟，排队高峰留余量；到了交回「还在识别」、结束这一轮；点停止立刻作废）；
+测试覆盖成功、失败、超时、中途发消息、漏通知补交，还原修复就失败。不进 11-06 晚这批，随下一批合入。
+
+| 改动 | 位置 |
+| --- | --- |
+| 挂起 / 交回 / 作废 / 每分钟巡检（到上限交回、漏通知补交）/ 进度 | `apps/pearnly_core/pearnly_core/assistant/waits.py`（新）、`toolrun.py`（`_finish` 挂起不交回、`cancel_waiting` 连带作废）、`sessions.py`（发消息前交回、读事件并进进度）、`hooks.py`（每分钟 `waits.sweep`） |
+| 执行记录加 4 列（`wait_keys` / `wait_check` / `wait_remote` / `wait_until`，后者带索引，只扫挂着的） | `pearnly_assistant_tool_run.json`；列名进 `i18n/messages.tsv` |
+| 执行记录推送带 `settled`（页面马上补拉、接上推送线程） | `contracts.tool_run_event` |
+| Claude 分段读每段报真实已读页数 | `claude_ocr/segments.py`、`claude_ocr/client.py`；Cowork `ocr/execution/claude.py`、`workflow.py`；ERP `recognition/claude.py`（同一回报接到 ERP 已有的按页进度） |
+| Cowork 识别工具：没识别完就挂起；核对函数；识别结束钩子；读到新页 / 开始读推进度 | `pearnly_cowork/assistant/tools.py`、`ocr/execution/store.py`、`hooks.py`（`pearnly_ocr_finished_handlers`） |
+| 前端：交回时马上补拉、识别推送补拉（2 秒内一次）、状态行读正在执行那一步的进度、「识别中 · 共 {n} 页」 | `poll-source.ts`、`progress.ts`、`turn.ts`、`thread.tsx`、`upload-state.ts`、`events.ts`、`i18n.ts` |
+| 实验室假引擎：`[lab-tool]` 模拟任意工具调用；等工具结果时照真实引擎拒收用户消息 | `scripts/flows/lab_agents.py` |
+
+给模型的识别工具说明改了一句（「等到识别完再交回，接着做」），`tests/fixtures/assistant/cowork-push-tools-golden.json` 按说明重写（只此一项不同）。
+`tests/flows/behind_baseline.txt` 去掉 `ocr/execution/store.py`（现在已在流程覆盖范围内）。
+
+前端 CC 只有中英泰三语；「四语」的第四种（日文）只在 Desk 术语表里，新列名已带四语。
+
+### 验证（11-06 晚，基线 `f34e084a4` 之上的工作树）
+
+- 离线：`tests/test_assistant.py` `WaitTests`（挂起不交回、识别结束交回一次、失败照交、到上限交回「还在做」、核对出错到上限照交挂起时的结果、巡检补交漏的结束提醒、
+  发消息先交回、点停止作废后不再交、只交等这个键的、进度只用真实数字、不挂起的照常当场交回、巡检每分钟登记）；`tests/test_cowork_assistant_tools.py`
+  `RecognitionWaitTests`（没识别完就挂起、核对函数的真实页数与交回结果、提前交回的说明、结束提醒按识别任务号找、Claude 两条路线报页并推进度）；
+  `tests/test_claude_ocr_segments.py`（24 页报 7/14/21、单段不报、回报出错不影响读）；前端 `tests/test_cc_run_indicator.py`（交回时马上补拉、识别推送 2 秒内补拉一次、
+  关了不听；状态行读正在执行那一步的进度、「识别中 · 共 12 页」）、`tests/test_cc_run_ui.py`（上传卡片不写「0/12」）。
+- 闸门：本地按 `development.yml` 全跑 196 项，首轮 5 项不过（流程覆盖基线、黄金样本、翻译包、共用件调用方 ×2），改后逐项重跑通过；
+  `cand-local.sh offline`（线上同版镜像 `fb1037ad…`）通过。
+- 本机实验栈（`pearnly-ocrwait-lab`，回归实验室编排，假引擎 `[lab-tool]`，识别没有 ocr 进程、只排队）：Cowork 对话传 PDF、假 CC 调
+  `cowork_recognize_attachments` → 推送线程等约 90 秒后挂起（执行记录 running、运行状态 `executing`、进度事件 `queued 0/1`）。
+  五种结束方式：识别结束（共用队列 `work._finish` 落定）→ 短任务交回 → 假 CC 回「[lab-agent] cowork_recognize_attachments …not_invoice…」；
+  挂着时发「还要多久」→ 先交回（带 user_message 说明）再发，引擎不拒、两段回话；到上限 → 巡检交回（带 deadline 说明）；点停止 → 作废，
+  之后识别结束不再交回、没有回话；结束提醒漏了 → 巡检补交。实验栈已 `down -v` 清掉。
+- 没测到：真引擎（Managed Agents）与真识别（Claude 12 页）——测试机今晚另有安排、实验室没有识别凭据，留给下一批随批在测试机 / testcowork 验收
+  （付费识别只跑一份 12 页小样本）；Managed Agents 空闲等待是否另计运行时长，施工后读账单核。

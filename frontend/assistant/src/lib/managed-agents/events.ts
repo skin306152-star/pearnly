@@ -56,6 +56,8 @@ export type ToolRunEvent = {
   processed_at: string | null;
   tool_use_id: string;
   status: ToolRunStatus;
+  /** 挂着的调用刚由本站交回引擎（pearnly_core.assistant.waits）：会话被叫醒、没有推送线程在跟，收到就补拉一次接上。 */
+  settled?: boolean;
 };
 
 /** 一步（或整段对话）进行到哪（方案 14.10，服务端 assistant/contracts.py 的 progress_event，只在站点与页面之间）：

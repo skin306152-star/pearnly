@@ -119,9 +119,11 @@ def merge(parts, total, unread=()):
     return result
 
 
-def read_all(total, read_part):
+def read_all(total, read_part, on_pages=None):
     """按段读完一份 ``total`` 页的文件：``read_part(首页, 末页)`` → 这一段的结果（同 ``engine.run``）。
-    第一段的末页由 ``total`` 定；``total`` 事先不知道时（原件在甲骨文）传 ``None``，第一段的结果里带 ``page_total``。"""
+    第一段的末页由 ``total`` 定；``total`` 事先不知道时（原件在甲骨文）传 ``None``，第一段的结果里带 ``page_total``。
+    ``on_pages(已读完几页, 共几页)``：每段读完报一次真实进度（下一段从第 N 页重读时前 N−1 页已读完；读完 = 共几页），
+    只作展示，出错不影响读（2026-11-06：代录卡片识别期间一直「0 / 12 页」）。只有一段的文件读完才报。"""
     parts, first, unread = [], 1, []
     while True:
         if len(parts) == MAX_SEGMENTS:
@@ -136,4 +138,14 @@ def read_all(total, read_part):
         if last >= total or outcome.get("read") is None:
             break
         first = next_first(first, last, outcome["read"])
+        _report(on_pages, first - 1, total)
     return merge(parts, total, unread)
+
+
+def _report(on_pages, done, total):
+    if on_pages is None:
+        return
+    try:
+        on_pages(max(0, done), total)
+    except Exception:  # noqa: BLE001 - 进度只作展示
+        pass

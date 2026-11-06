@@ -398,13 +398,17 @@ TOOL_RUN_PREFIX = "ptoolrun_"
 TOOL_RUN_STATES = ("awaiting_approval", "running", "done", "error", "denied", "cancelled")
 
 
-def tool_run_event(tool_use_id, status, processed_at) -> dict:
-    """一次调用在本站的执行状态（同执行记录的 status）。"""
+def tool_run_event(tool_use_id, status, processed_at, settled=False) -> dict:
+    """一次调用在本站的执行状态（同执行记录的 status）。`settled`：挂着的调用刚交回引擎（`waits`）：会话这时由本站叫醒、
+    没有推送线程在跟，对话页收到就马上补拉一次（读到在跑就接上推送，`sessions._follow`）。"""
     use_id = event_id(tool_use_id)
     if status not in TOOL_RUN_STATES:
         raise ContractError("unknown tool run status")
-    return {"type": TOOL_RUN_EVENT, "id": f"{TOOL_RUN_PREFIX}{use_id}_{status}", "tool_use_id": use_id,
-            "status": status, "processed_at": processed_at}
+    event = {"type": TOOL_RUN_EVENT, "id": f"{TOOL_RUN_PREFIX}{use_id}_{status}", "tool_use_id": use_id,
+             "status": status, "processed_at": processed_at}
+    if settled:
+        event["settled"] = True
+    return event
 
 
 def tool_use_ids(events) -> list[str]:

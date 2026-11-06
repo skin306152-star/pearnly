@@ -36,7 +36,7 @@ import frappe
 from frappe import _
 
 from pearnly_core.assistant import (ask, config, context, contracts, engine, engines, notices, prefs, projects, relay,
-                                    sidebar, titles, toolrun, tools)
+                                    sidebar, titles, toolrun, tools, waits)
 
 SESSION = context.SESSION
 LIST_LIMIT = 100  # 加星标的最多这么多条（都在第一页）
@@ -159,11 +159,12 @@ def _with_tool_runs(events, row, since=None) -> list:
     改过的记录一并带上（`_run_rows`）。读不出来就不带，不挡取事件。"""
     try:
         runs = _run_rows(row, contracts.tool_use_ids(events), since)
-        return events + [contracts.tool_run_event(run.tool_use_id, run.status, _when(run.modified) if run.modified else None)
-                         for run in runs if run.status in contracts.TOOL_RUN_STATES]
+        events = events + [contracts.tool_run_event(run.tool_use_id, run.status, _when(run.modified) if run.modified else None)
+                           for run in runs if run.status in contracts.TOOL_RUN_STATES]
     except Exception:
         frappe.log_error(title="Assistant tool runs read failed")
-        return events
+    # 挂着等后台结论的调用此刻的进度（`waits`，识别读到第几页），现算并进来
+    return events + waits.progress_events(row.session_id)
 
 
 def run_state(row, api, latest, as_of=None, operator=None):
@@ -803,6 +804,8 @@ def send(session_id, text) -> None:
 
         # 实操任务里的对话：每条都带上是哪个任务（工具按任务号查、改）
         company = "\n\n".join(p for p in (company, operator_tasks.thread_note(row.operator_task)) if p)
+    # 有调用挂着等后台结论（`waits`，例如识别还没完）：引擎这时只收工具结果，先把它按「还在做」交回，再发这条消息
+    waits.quietly("Assistant wait release failed", waits.release, row.session_id)
     batch = [{"type": "user.message", "content": [{"type": "text", "text": text}]}]
     # 接续的前文、公司说明、还没带过的提醒、界面语言、当地日期时间合成一条系统消息：引擎规定每批最多一条、只能放在最后。
     # 界面语言每条都带（同标题一个来源，`toolrun.interface_language`）：CC 按它回复，不按消息里夹的外文专名猜；

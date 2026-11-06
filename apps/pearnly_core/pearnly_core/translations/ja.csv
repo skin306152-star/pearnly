@@ -886,6 +886,10 @@ Voided,取消済み
 Voided Number,取消番号
 Voided {0},取消済み {0}
 WHT deducted,源泉徴収税額
+Wait Check,確認関数
+Wait Keys,待機対象
+Wait Remote,リモートセッション
+Wait Until,待機期限
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},{0} 秒待っても同一アカウントのロックを取得できません（{1}）。同一アカウントへの同時ログインは禁止です。{2}
 Waiting,待機中
 Waiting for answers,回答待ち

@@ -19,7 +19,7 @@ export type TurnActivity =
   | { kind: "hidden" }
   | { kind: "thinking" }
   | { kind: "writing" }
-  | { kind: "tool"; toolName: string; args: Record<string, unknown> }
+  | { kind: "tool"; toolName: string; args: Record<string, unknown>; toolCallId?: string }
   | { kind: "reconnecting" }
   | { kind: "input" };
 
@@ -56,7 +56,7 @@ function partActivity(message: ThreadMessage): TurnActivity {
     if (part.type === "reasoning") return THINKING;
     // 有结果、或被拒绝了的一步：引擎在看结果，接着想
     if (part.result !== undefined || part.approval?.approved === false) return THINKING;
-    return { kind: "tool", toolName: part.toolName, args: part.args };
+    return { kind: "tool", toolName: part.toolName, args: part.args, toolCallId: part.toolCallId };
   }
   return THINKING;
 }

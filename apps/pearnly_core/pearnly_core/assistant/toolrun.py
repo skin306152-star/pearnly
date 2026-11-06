@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import ask, contracts, engine, tools
+from pearnly_core.assistant import ask, contracts, engine, tools, waits
 
 TOOL_RUN = "Pearnly Assistant Tool Run"
 LANG_TTL = 30 * 86400
@@ -243,7 +243,8 @@ def cancel_waiting(conversation: str) -> int:
             changed.append(run)
     for run in changed:
         _publish_run(conversation, run.tool_use_id, "cancelled", run.user)
-    return len(changed)
+    # 挂着等后台结论的（`waits`）同样作废：引擎不再等它，之后那件事结束了也不再交回
+    return len(changed) + waits.quietly("Assistant wait cancel failed", waits.cancel, conversation)
 
 
 def _announce(conversation: str, use_id: str, allow: bool) -> None:
@@ -257,11 +258,11 @@ def _announce(conversation: str, use_id: str, allow: bool) -> None:
         print(f"assistant answer {conversation}: {type(err).__name__}", flush=True)
 
 
-def _publish_run(conversation: str, use_id: str, status: str, user: str | None = None) -> None:
+def _publish_run(conversation: str, use_id: str, status: str, user: str | None = None, settled: bool = False) -> None:
     """执行记录的状态变了（执行完 / 出错、拒绝、作废，`contracts.tool_run_event`）：推给会话主人自己的房间，开着这段对话的
     设备当场按本站记录定下那张卡（第 11 轮 A 段）。推不出去不影响主流程：那边重开、补拉时随事件并进来（`sessions.events`）。"""
     try:
-        event = contracts.tool_run_event(use_id, status, datetime.now(timezone.utc).isoformat())
+        event = contracts.tool_run_event(use_id, status, datetime.now(timezone.utc).isoformat(), settled=settled)
         frappe.publish_realtime(contracts.REALTIME_EVENT, {"session_id": conversation, "event": event},
                                 user=user or frappe.session.user)
     except Exception as err:
@@ -317,9 +318,11 @@ def _finish(conversation, remote, run_name, use_id, tool, tool_input) -> str:
     frappe.local.pearnly_assistant = {"session_id": conversation, "may_wait": may_wait()}
     fresh()
     _use_lang(conversation)
+    wait = None
     try:
         # 点「允许」之后、执行之前主人被停用了（或推送线程、引擎回调替已停用的主人执行）：不执行，按出错交回
         text, is_error = (OWNER_DISABLED, True) if owner_disabled() else tools.run(tool, tool_input)
+        wait = None if is_error else waits.requested()
     except Exception:
         frappe.db.rollback()
         frappe.log_error(title="Assistant tool failed")
@@ -329,6 +332,13 @@ def _finish(conversation, remote, run_name, use_id, tool, tool_input) -> str:
     status = "error" if is_error else "done"
     # 工具自己写的先提交，执行记录另起一个短事务写：这一条的行锁不和工具拿着的锁同时持有（见文件头「锁与快照」）
     frappe.db.commit()
+    if wait:
+        # 工具要等后台的事有结论再交（`waits`，例如识别还没完）：执行记录照旧 running、记下等什么，这次不交回引擎；
+        # 那件事结束、用户又发消息、到上限、点停止时由 `waits` 交回或作废。结果文本先存着，必须交回时就交它。
+        frappe.db.set_value(TOOL_RUN, run_name, "result", text[:60000])
+        waits.hold(run_name, remote, wait)
+        frappe.db.commit()
+        return "running"
     # 留记录：谁（user）、何时（modified）、调了什么（tool / tool_input）、结果（result，含改后的状态）。先落库、推给对话页，
     # 再交回引擎：执行过就以本站记录为准，交回失败（这一轮已被停止）也不丢（第 11 轮 A2：工具已执行，记录却一直停在 running）
     frappe.db.set_value(TOOL_RUN, run_name, {"status": status, "result": text[:60000]})

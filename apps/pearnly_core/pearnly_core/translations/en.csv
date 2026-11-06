@@ -884,6 +884,10 @@ Voided,Voided
 Voided Number,Voided Number
 Voided {0},Voided {0}
 WHT deducted,WHT deducted
+Wait Check,Wait Check
+Wait Keys,Wait Keys
+Wait Remote,Wait Remote
+Wait Until,Wait Until
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}
 Waiting,Waiting
 Waiting for answers,Waiting for answers

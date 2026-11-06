@@ -104,8 +104,9 @@ def evidence(outcome):
     return rows
 
 
-def recognize(content, filename, page_count, anchor_year):
-    """返回 ``(pipeline_json, evidence)``（与 ``forward.recognize`` 同形）。读不出时抛 ``Deferred`` 交工作单重试。"""
+def recognize(content, filename, page_count, anchor_year, on_pages=None):
+    """返回 ``(pipeline_json, evidence)``（与 ``forward.recognize`` 同形）。读不出时抛 ``Deferred`` 交工作单重试。
+    ``on_pages(已读完几页, 共几页)``：长文件分段读时每段读完报一次（``claude_ocr.segments``）。"""
     from pearnly_core.execution.errors import Deferred
 
     media_type = mimetypes.guess_type(filename or "")[0] or ""
@@ -113,20 +114,20 @@ def recognize(content, filename, page_count, anchor_year):
         from pearnly_core import ocr
         media_type = ocr.detect_image_mime(content)
     started = time.monotonic()
-    outcome = client.read("voucher", [(content, media_type)])
+    outcome = client.read("voucher", [(content, media_type)], on_pages=on_pages)
     if not outcome.get("read"):
         raise Deferred("claude_no_result", delay=30)
     outcome.setdefault("seconds", round(time.monotonic() - started, 2))
     return to_pipeline(outcome, page_count, anchor_year).model_dump_json(), evidence(outcome)
 
 
-def recognize_original(stored, filename, page_count, anchor_year):
+def recognize_original(stored, filename, page_count, anchor_year, on_pages=None):
     """原件存在甲骨文（ADR-023，``files.service.edge_original``）：只交 ``(对象名, sha256)``，甲骨文读文件、转正、渲染、交 Claude。
     返回同 :func:`recognize`。甲骨文连不上抛 ``Deferred``（原件就在那台上，等它回来再读）。"""
     from pearnly_core.execution.errors import Deferred
 
     started = time.monotonic()
-    outcome = client.read_original("voucher", *stored)
+    outcome = client.read_original("voucher", *stored, on_pages=on_pages)
     if not outcome.get("read"):
         raise Deferred("claude_no_result", delay=30)
     outcome.setdefault("seconds", round(time.monotonic() - started, 2))

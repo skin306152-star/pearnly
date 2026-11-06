@@ -621,7 +621,7 @@ class PendingMonthTests(unittest.TestCase):
         package = types.ModuleType("pearnly_core.assistant")
         modules = {"pearnly_core.assistant": package}
         for name in ("ask", "config", "context", "contracts", "engine", "engines", "notices", "prefs", "projects", "relay",
-                     "sidebar", "titles", "toolrun", "tools"):
+                     "sidebar", "titles", "toolrun", "tools", "waits"):
             setattr(package, name, types.SimpleNamespace())
         package.config, package.contracts = config, assistant_contracts
         package.context = types.SimpleNamespace(SESSION="Pearnly Assistant Session")

@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import direct_push
+from pearnly_core.assistant import direct_push, waits
 from pearnly_cowork.access import scope
 from pearnly_cowork.connections import api as connections_api
 from pearnly_core.mrerp import needs as mrerp_needs
@@ -1461,7 +1461,8 @@ def recognize_attachments(tool_input) -> str:
             frappe.clear_messages()
     admitted = [_admit(file_id, choices) for file_id in file_ids]
     waiting = [a for a in admitted if a.get("batch")]
-    deadline = time.monotonic() + RECOGNIZE_WAIT_SECONDS
+    # 推送线程里先等一会儿（短的当场拿到结果）；别处执行（页面兜底、引擎回调）不占进程，看一眼就挂起
+    deadline = time.monotonic() + (RECOGNIZE_WAIT_SECONDS if direct_push.may_wait() else 0)
     names = {}
     while waiting:
         frappe.db.rollback()  # 识别在队列里另一进程做：每次重新读，看得到它刚提交的结果
@@ -1471,9 +1472,78 @@ def recognize_attachments(tool_input) -> str:
         if not waiting or time.monotonic() >= deadline:
             break
         time.sleep(3)
-    for item in admitted:
-        _declare_direction(item, choices.get("direction"))
+    if waiting:
+        # 还有没识别完的：这次调用挂着，识别都有结论时再交回，CC 接着做原本要做的事（`pearnly_core.assistant.waits`，
+        # 2026-11-06 用户：识别完了 CC 不主动继续、要再问一句）。挂不上（不在对话里执行）就照旧交回「还在识别」。
+        waits.park([_wait_key(item["batch"]) for item in waiting], RECOGNITION_WAIT)
+    else:
+        for item in admitted:
+            _declare_direction(item, choices.get("direction"))
     return _json({"results": admitted})
+
+
+RECOGNITION_WAIT = "pearnly_cowork.assistant.tools.recognition_wait"
+
+
+def _wait_key(batch) -> str:
+    from pearnly_cowork.ocr.execution import store
+
+    return store.wait_key(batch)
+# 挂着的识别必须交回时（`waits.release` / 到上限）给模型的说明：只给模型读，不经 _()
+STILL_RUNNING = {
+    waits.DEADLINE: ("Recognition is still running after a long wait. Tell the user it is still running and that you will "
+                     "check when they ask; check with cowork_recognition_results and these batches."),
+    waits.USER_MESSAGE: ("The user sent a new message while recognition was still running. Answer it; check the documents "
+                         "still running later with cowork_recognition_results and these batches."),
+}
+
+
+def recognition_wait(tool_input, interim, final=None) -> dict | None:
+    """挂着的 `cowork_recognize_attachments`（`waits` 的核对函数，以会话主人身份调）：重读各份识别；都有结论（或必须交回）就给出
+    与当场等到时同样的结果，交回前照旧把会计员说的进 / 销项写到拿回的旧票上；进度是各份真实已读页数之和。"""
+    try:
+        admitted = json.loads(interim or "{}").get("results") or []
+    except (ValueError, AttributeError):
+        return None
+    names, pages, done, reading = {}, 0, 0, False
+    waiting = []
+    for item in admitted:
+        if not item.get("batch"):
+            continue
+        try:
+            item.update(_result(item["batch"], names))
+            detail = _recognition().detail(item["batch"])
+        except (frappe.DoesNotExistError, frappe.PermissionError):
+            frappe.clear_messages()
+            item.update(state="not_found")
+            continue
+        count = int(detail.get("page_count") or 0)
+        pages += count
+        if item.get("state") in FINISHED + BROKEN:
+            done += count
+        else:
+            waiting.append(item)
+            done += int(detail.get("pages_done") or 0)
+            reading = reading or bool(detail.get("reading"))
+    progress = {"done": done, "total": pages, "label": "reading_pages" if reading or done else "queued"}
+    if waiting and not final:
+        return {"done": False, "progress": progress}
+    for item in admitted:
+        _declare_direction(item, tool_input.get("direction"))
+    out = {"results": admitted}
+    if waiting:
+        out["note"] = STILL_RUNNING.get(final) or STILL_RUNNING[waits.DEADLINE]
+    return {"done": True, "text": _json(out), "is_error": False, "progress": progress}
+
+
+def recognition_finished(name, kind, status, code):
+    """hooks ``pearnly_ocr_finished_handlers``：一份识别有了结论（共用层 ``work._finish``）。CC 对话里挂着等它的调用去核对、交回。
+    识别让出续跑（``deferred``）不算，余额不足的算（同对账等识别）。"""
+    if status in ("queued", "running") or (status == "deferred" and code != "insufficient_balance"):
+        return
+    reference = frappe.db.get_value("Pearnly OCR Work", name, "reference")
+    if reference:
+        waits.finished(_wait_key(reference))
 
 
 def _declare_direction(item, direction):
@@ -4105,9 +4175,10 @@ TOOLS = [
                     "by cowork_intake_options; if the user wants the documents entered into Express or MR.ERP and has not said "
                     "where in this conversation, get the choices there first (a company the user names is where: "
                     "its account set, found there with search). Otherwise call it directly, without "
-                    "listing documents or checking CC Desktop first. Waits up to about 90 seconds and returns the "
-                    "recognized documents; anything still running comes back with its batch for "
-                    "cowork_recognition_results. Each attachment is charged once like a web upload; calling again "
+                    "listing documents or checking CC Desktop first. Waits until recognition finishes (long files take "
+                    "a few minutes) and returns the recognized documents, so carry on with what the user asked right "
+                    "after it; anything still running after a long wait, or when the user writes meanwhile, comes back "
+                    "with its batch for cowork_recognition_results. Each attachment is charged once like a web upload; calling again "
                     "for the same attachment returns the same result at no extra charge, so never tell the user it "
                     "was charged "
                     "twice; only when its last recognition failed does calling again recognize it anew. "

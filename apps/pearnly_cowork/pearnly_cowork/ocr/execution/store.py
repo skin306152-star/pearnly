@@ -87,6 +87,18 @@ def actor(user):
 PAGES_KEY = "cowork:ocr-pages:"
 
 
+def wait_key(name) -> str:
+    """CC 对话里挂着等这份识别的等待键（``pearnly_core.assistant.waits``；同共用识别队列的类别 + 识别任务号）。"""
+    return f"ocr:cowork.invoice:{name}"
+
+
+def _touch_waits(name):
+    """读到新的一页、开始读了：CC 对话里挂着等这份的，推一条进度（只作展示）。"""
+    from pearnly_core.assistant import waits
+
+    waits.touch(wait_key(name))
+
+
 def pages_reached(name, page, user=None):
     """``user``：推给谁（默认当前用户；任务派发的进度回调里当前用户是访客，由调用方给出提交人）。"""
     if not page:
@@ -100,6 +112,7 @@ def pages_reached(name, page, user=None):
             frappe.publish_realtime("pearnly_ocr_work", {"kind": "cowork.invoice", "reference": name,
                                                          "pages_done": page - 1},
                                     user=user or frappe.session.user, after_commit=False)
+            _touch_waits(name)
     except Exception:
         pass  # 进度只作展示：缓存一时写不了 / 推送不了不影响识别
 
@@ -109,6 +122,7 @@ def reading_started(name, user=None):
     try:
         frappe.publish_realtime("pearnly_ocr_work", {"kind": "cowork.invoice", "reference": name, "reading": True},
                                 user=user or frappe.session.user, after_commit=False)
+        _touch_waits(name)
     except Exception:
         pass
 

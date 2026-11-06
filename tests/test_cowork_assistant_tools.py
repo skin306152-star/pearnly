@@ -578,6 +578,104 @@ class RecognizeAttachmentTests(unittest.TestCase):
         self.assertEqual(out, {"file": "file_c", "status": "not_started", "reason": "insufficient_balance"})
 
 
+
+class RecognitionWaitTests(unittest.TestCase):
+    """识别完了 CC 不主动继续（用户 2026-11-06）：还没识别完的这次调用挂起（共用层 ``assistant.waits``），识别有结论时按原工具
+    同一取数交回；进度是各份真实已读页数；识别结束的提醒按识别任务号找到等它的调用。"""
+
+    setUp = RecognizeAttachmentTests.setUp
+    _attachment = RecognizeAttachmentTests._attachment
+    _submit = RecognizeAttachmentTests._submit
+
+    def _states(self, **by_batch):
+        """各份识别此刻的样子：{批次: (状态, 已读页, 共几页, 开始读了没有)}。"""
+        def detail(batch):
+            state, done, pages, reading = by_batch[batch]
+            return {"state": state, "page_count": pages, "pages_done": done, "reading": reading,
+                    "requires_review": 0, "history_records": ["H1"] if state == "saved" else []}
+        sys.modules["pearnly_cowork.ocr.execution.service"].detail = detail
+
+    def _store(self):
+        store = types.ModuleType("pearnly_cowork.ocr.execution.store")
+        store.wait_key = lambda name: f"ocr:cowork.invoice:{name}"
+        sys.modules["pearnly_cowork.ocr.execution.store"] = store
+        sys.modules["pearnly_cowork.ocr.execution"].store = store
+
+    def test_a_long_recognition_parks_the_call_instead_of_answering_still_running(self):
+        self._store()
+        self._states(B1=("recognizing", 0, 12, True))
+        with mock.patch.object(frappe, "local", types.SimpleNamespace(lang="en", site="s1", message_log=[],
+                                                                       pearnly_assistant={"session_id": "conv"})):
+            out = json.loads(tools.recognize_attachments({"files": ["file_abc"]}))["results"][0]
+            wait = frappe.local.pearnly_assistant.get("wait")
+        self.assertEqual(out["batch"], "B1")
+        self.assertEqual(wait, {"keys": ["ocr:cowork.invoice:B1"], "check": tools.RECOGNITION_WAIT})
+        self.assertEqual(tools.RECOGNITION_WAIT, "pearnly_cowork.assistant.tools.recognition_wait")
+        # 识别完了的不挂
+        self._states(B1=("saved", 1, 1, False))
+        with mock.patch.object(frappe, "local", types.SimpleNamespace(lang="en", site="s1", message_log=[],
+                                                                       pearnly_assistant={"session_id": "conv"})):
+            tools.recognize_attachments({"files": ["file_abc"]})
+            self.assertIsNone(frappe.local.pearnly_assistant.get("wait"))
+
+    def test_the_check_reports_real_pages_and_hands_back_the_same_result_when_done(self):
+        interim = json.dumps({"results": [{"file": "file_abc", "batch": "B1"}, {"file": "file_two", "batch": "B2"}]})
+        self._states(B1=("recognizing", 0, 12, True), B2=("queued", 0, 3, False))
+        found = tools.recognition_wait({}, interim, None)
+        self.assertEqual(found, {"done": False, "progress": {"done": 0, "total": 15, "label": "reading_pages"}})
+        self._states(B1=("recognizing", 7, 12, True), B2=("saved", 3, 3, False))
+        self.assertEqual(tools.recognition_wait({}, interim, None)["progress"], {"done": 10, "total": 15,
+                                                                                "label": "reading_pages"})
+        self._states(B1=("queued", 0, 12, False), B2=("queued", 0, 3, False))
+        self.assertEqual(tools.recognition_wait({}, interim, None)["progress"]["label"], "queued")
+        self._states(B1=("saved", 12, 12, False), B2=("failed", 0, 3, False))
+        found = tools.recognition_wait({}, interim, None)
+        out = json.loads(found["text"])
+        self.assertTrue(found["done"])
+        self.assertEqual([item["state"] for item in out["results"]], ["saved", "failed"])
+        self.assertEqual(out["results"][0]["documents"][0]["invoice_no"], "R308")
+        self.assertNotIn("note", out)
+
+    def test_handing_back_early_says_it_is_still_running(self):
+        interim = json.dumps({"results": [{"file": "file_abc", "batch": "B1"}]})
+        self._states(B1=("recognizing", 0, 12, True))
+        for final in (tools.waits.DEADLINE, tools.waits.USER_MESSAGE):
+            found = tools.recognition_wait({}, interim, final)
+            out = json.loads(found["text"])
+            self.assertTrue(found["done"])
+            self.assertEqual(out["results"][0]["state"], "recognizing")
+            self.assertEqual(out["note"], tools.STILL_RUNNING[final])
+            self.assertIn("cowork_recognition_results", out["note"])
+
+    def test_claude_recognition_reports_pages_and_pushes_them_to_waiting_chats(self):
+        """生产走的 Claude 识别原来完全不报页（代录卡片一直「0 / 12 页」）：两条 Claude 路线都带上每段读完的回报，写进与谷歌路线
+        同一个按页缓存；读到新页、开始读时推给 CC 对话里挂着等这份的调用。"""
+        root = Path(__file__).resolve().parents[1] / "apps/pearnly_cowork/pearnly_cowork/ocr/execution"
+        workflow = (root / "workflow.py").read_text(encoding="utf-8")
+        claude_part = workflow.split("if claude_ocr.uses_claude():", 1)[1].split("return _freeze_result", 1)[0]
+        self.assertIn("store.pages_reached(doc.name, done + 1)", claude_part)
+        self.assertEqual(claude_part.count("on_pages=on_pages"), 2)
+        store = (root / "store.py").read_text(encoding="utf-8")
+        for function in ("def pages_reached(", "def reading_started("):
+            self.assertIn("_touch_waits(name)", store.split(function, 1)[1].split("\ndef ", 1)[0], function)
+        self.assertIn('return f"ocr:cowork.invoice:{name}"', store)
+
+    def test_the_finish_notice_finds_the_waiters_by_batch(self):
+        self._store()
+        seen = []
+        with mock.patch.object(tools.waits, "finished", seen.append), \
+                mock.patch.object(frappe.db, "get_value", lambda doctype, name, field: "B7", create=True):
+            for status, code in (("succeeded", ""), ("failed", "x"), ("uncertain", ""), ("cancelled", ""),
+                                 ("deferred", "insufficient_balance"), ("deferred", "remote_dispatched"),
+                                 ("running", ""), ("queued", "")):
+                tools.recognition_finished("W1", "cowork.invoice", status, code)
+        self.assertEqual(seen, ["ocr:cowork.invoice:B7"] * 5)
+        hooks = (_COWORK_DIR / "hooks.py").read_text(encoding="utf-8") if "_COWORK_DIR" in globals() else \
+            Path(__file__).resolve().parents[1].joinpath("apps/pearnly_cowork/pearnly_cowork/hooks.py").read_text("utf-8")
+        handlers = hooks.split("pearnly_ocr_finished_handlers", 1)[1].split("\n# ", 1)[0]
+        self.assertIn("pearnly_cowork.assistant.tools.recognition_finished", handlers)
+
+
 class PosImportToolTests(unittest.TestCase):
     """L9：对话里的 POS 导出按天建票（不识别、不扣费）；认列问一次（附件或文件夹任务里停着的那份），旧版 .xls 说清楚。"""
 

@@ -2,6 +2,7 @@
 // 不碰 React、不读接口；字走 i18n。同一份再传就是又一行、又一张卡片，这里不比对、不提示（产品口径：上传识别都扣费）。
 
 import { run, t } from "@/i18n";
+import { readingText } from "@/lib/managed-agents/progress";
 import type { TaskUpload, UploadState } from "./types";
 
 /** 服务端一行 → 卡片状态。reason：识别失败码 → 给人看的原因（产品自己的说法）；month：任务月份给人看的写法。 */
@@ -31,7 +32,7 @@ export function uploadText(state: UploadState): string {
     case "queued":
       return run.queued;
     case "reading":
-      return state.pageCount > 0 ? run.readingPages(Math.min(state.pagesDone, state.pageCount), state.pageCount) : run.reading;
+      return readingText(state.pagesDone, state.pageCount);
     case "done": {
       const read = run.read(state.documents);
       return state.outside > 0 && state.month ? `${read} · ${run.outside(state.outside, state.month)}` : read;

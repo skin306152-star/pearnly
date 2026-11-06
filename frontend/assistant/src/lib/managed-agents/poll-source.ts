@@ -28,7 +28,7 @@
 
 import { listEvents } from "./api";
 import { type FeedEvent, isLocalEvent, type RelayEnvelope, type RunStatus } from "./events";
-import { isConnected, onHeartbeat, subscribe } from "./realtime";
+import { isConnected, onHeartbeat, onSiteEvent, subscribe } from "./realtime";
 import { reportCaught } from "../caught";
 
 const FAST_MS = 1200;
@@ -38,6 +38,9 @@ const PUSHED_RUNNING_MS = 8000;
 const PUSHED_IDLE_MS = 30000;
 // 一轮结束后很快补拉一次，对齐推送可能漏掉的事件
 const SETTLE_MS = 1500;
+// 识别状态变了（共用识别队列推给提交人的 pearnly_ocr_work：开始读、读到第几页、有结论）：补拉一次，代录上传卡片与挂着等识别的一步
+// 当场变（以前要等空闲时 30 秒一次的补拉）。几份同时识别时推得密，这么久里最多补拉一次。
+const OCR_WORK_MS = 2000;
 
 export class PollingSource {
   static readonly CONNECTING = 0;
@@ -75,6 +78,8 @@ export class PollingSource {
   private held: FeedEvent[] = [];
   private readonly unsubscribe: () => void;
   private readonly offHeartbeat: () => void;
+  private readonly offOcrWork: () => void;
+  private ocrWorkAt = 0;
   private readonly onVisible = () => {
     if (document.visibilityState !== "visible") return;
     this.onwake?.();
@@ -112,6 +117,7 @@ export class PollingSource {
     this.offHeartbeat = onHeartbeat(() => {
       if (this.readyState !== PollingSource.CLOSED) this.onalive?.();
     });
+    this.offOcrWork = onSiteEvent("pearnly_ocr_work", () => this.ocrWork());
     document.addEventListener("visibilitychange", this.onVisible);
     window.addEventListener("pageshow", this.onPageShow);
     window.addEventListener("online", this.onOnline);
@@ -123,6 +129,7 @@ export class PollingSource {
     this.held = [];
     this.unsubscribe();
     this.offHeartbeat();
+    this.offOcrWork();
     document.removeEventListener("visibilitychange", this.onVisible);
     window.removeEventListener("pageshow", this.onPageShow);
     window.removeEventListener("online", this.onOnline);
@@ -169,6 +176,17 @@ export class PollingSource {
     if ((kind === "session.status_idle" && stop !== "requires_action") || kind === "session.status_terminated") {
       this.reschedule(SETTLE_MS);
     }
+    // 挂着的调用刚交回引擎：会话被本站叫醒，马上补拉并要运行状态（读到在跑，服务端就接上推送线程，回复实时出）
+    if (kind === "pearnly.tool_run" && (event as { settled?: boolean }).settled) this.refresh();
+  }
+
+  /** 识别状态变了：最多每 OCR_WORK_MS 补拉一次。 */
+  private ocrWork() {
+    if (this.readyState === PollingSource.CLOSED) return;
+    const now = Date.now();
+    if (now - this.ocrWorkAt < OCR_WORK_MS) return;
+    this.ocrWorkAt = now;
+    this.reschedule(0);
   }
 
   private schedule(delay: number) {

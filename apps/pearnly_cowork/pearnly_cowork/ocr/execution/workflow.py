@@ -110,6 +110,11 @@ def _recognize(doc, frozen, examples, source):
         from pearnly_cowork.ocr.execution import claude
 
         year = date.fromisoformat(str(doc.anchor_date)).year
+
+        def on_pages(done, _total):
+            # 分段读完一段报一次真实页数（与谷歌路线同一个缓存与推送；``pages_reached`` 记的是「到第 N 页时前 N−1 页读完」）
+            store.pages_reached(doc.name, done + 1)
+
         with core_work.step("claude"):
             if source.kind == "document":
                 document = extract_table(read_bytes(source), source.filename)
@@ -121,9 +126,10 @@ def _recognize(doc, frozen, examples, source):
             elif edge_original(source):
                 # 原件存在甲骨文（ADR-023）：只交对象名与 sha256，甲骨文自己读文件、渲染、交 Claude，原件字节不经过这台。
                 pipeline, evidence = claude.recognize_original(edge_original(source), source.filename,
-                                                               int(doc.page_count), year)
+                                                               int(doc.page_count), year, on_pages=on_pages)
             else:
-                pipeline, evidence = claude.recognize(read_bytes(source), source.filename, int(doc.page_count), year)
+                pipeline, evidence = claude.recognize(read_bytes(source), source.filename, int(doc.page_count), year,
+                                                      on_pages=on_pages)
         with core_work.step("freeze"):
             return _freeze_result(doc, None, frozen, examples, remote=(pipeline, evidence))
     environment = frozen["environment"]

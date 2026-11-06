@@ -61,10 +61,13 @@ const cases: Array<[UploadState, string, boolean]> = [
   [{ kind: "queued" }, run.queued, true],
   [{ kind: "reading", pagesDone: 3, pageCount: 12 }, run.readingPages(3, 12), true],
   [{ kind: "reading", pagesDone: 0, pageCount: 0 }, run.reading, true],
+  // 还没有真实的已读页数（Claude 一次读完 8 页以内的文件）：只写共几页，不写「0/12」（2026-11-06 用户以为卡住、重传两次）
+  [{ kind: "reading", pagesDone: 0, pageCount: 12 }, run.readingTotal(12), true],
   [{ kind: "done", documents: 11, outside: 0 }, run.read(11), false],
   [{ kind: "done", documents: 11, outside: 2, month: "10" }, `${run.read(11)} · ${run.outside(2, "10")}`, false],
   [{ kind: "failed", stage: "read", reason: "Unreadable" }, "Unreadable", false],
 ];
+assert.doesNotMatch(uploadText({ kind: "reading", pagesDone: 0, pageCount: 12 }), /0\s*\/\s*12/);
 for (const [state, line, busy] of cases) {
   assert.equal(uploadText(state), line);
   assert.equal(uploadBusy(state), busy);

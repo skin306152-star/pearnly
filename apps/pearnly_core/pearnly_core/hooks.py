@@ -386,7 +386,8 @@ permission_query_conditions = {"User": "pearnly_core.desk.permissions.user_query
 persistent_cache_keys = ["pearnly_oidc_session:*", "pearnly_oidc_state:*"]
 
 # Durable OCR backlog repair; second-level ETA delivery uses execution.dispatch.
-scheduler_events = {"cron": {"* * * * *": ["pearnly_core.execution.work.sweep"],
+# 每分钟：识别队列补投递；CC 对话里挂着等后台结论的调用到上限交回、结束了却没交回的补交（assistant.waits）。
+scheduler_events = {"cron": {"* * * * *": ["pearnly_core.execution.work.sweep", "pearnly_core.assistant.waits.sweep"],
                              # 导出文件 1 小时过期：每 10 分钟删一次过期的。
                              "*/10 * * * *": ["pearnly_core.exports.service.sweep"]},
                     "hourly": ["pearnly_core.account.line_login.reconcile"],

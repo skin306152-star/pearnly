@@ -886,6 +886,10 @@ Voided,ยกเลิกแล้ว
 Voided Number,เลขที่ที่ยกเลิก
 Voided {0},ยกเลิก {0} แล้ว
 WHT deducted,ภาษีหัก ณ ที่จ่าย
+Wait Check,ฟังก์ชันตรวจสอบ
+Wait Keys,รายการที่รอ
+Wait Remote,เซสชันระยะไกล
+Wait Until,รอถึง
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},รอ {0} วินาทีแล้วยังไม่สามารถขอล็อกของบัญชีเดียวกันได้ ({1}) ไม่สามารถเข้าสู่ระบบบัญชีเดียวกันพร้อมกันได้ {2}
 Waiting,รอคิว
 Waiting for answers,รอคำตอบ

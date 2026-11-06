@@ -501,7 +501,9 @@ pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.oc
 pearnly_ocr_resume_unknown = ["cowork.vat_check", "cowork.recon_document"]
 # 识别有了结论：等它的对账放回队列接着跑（对账等识别时不占进程）；任何一份结束都腾出识别名额，放等名额的对账
 # （recon_center/waiting.py，2026-10-01）。
-pearnly_ocr_finished_handlers = {kind: "pearnly_cowork.recon_center.waiting.work_finished"
+# 录入识别有了结论还要告诉 CC 对话里挂着等它的调用（识别完 CC 接着做，pearnly_core.assistant.waits，2026-11-06）
+pearnly_ocr_finished_handlers = {kind: ["pearnly_cowork.recon_center.waiting.work_finished"]
+                                 + (["pearnly_cowork.assistant.tools.recognition_finished"] if kind == "cowork.invoice" else [])
                                  for kind in ("cowork.invoice", "cowork.vat_check", "cowork.recon_document")}
 # 识别交给 Cloud Tasks（站点配置 pearnly_cowork_ocr_tasks，默认关）时，读的过程中的进度由 Cloud Run 回调送来，
 # 按类别交给这里登记的函数更新页面 / 看板（ocr/remote/callback.py，2026-10-01）。

@@ -1061,18 +1061,21 @@ const RUN = {
   en: {
     queued: "Queued", reading: "Reading",
     readingPages: (n: number, m: number) => `Reading ${n}/${m} pages`,
+    readingTotal: (m: number) => `Reading · ${m} ${m === 1 ? "page" : "pages"}`,
     read: (n: number) => `Read ${n} ${n === 1 ? "document" : "documents"}`,
     outside: (n: number, month: string) => `${n} not in ${month}`,
   },
   zh: {
     queued: "排队中", reading: "识别中",
     readingPages: (n: number, m: number) => `识别中 ${n}/${m} 页`,
+    readingTotal: (m: number) => `识别中 · 共 ${m} 页`,
     read: (n: number) => `已识别 ${n} 张`,
     outside: (n: number, month: string) => `${n} 张不在 ${month}`,
   },
   th: {
     queued: "อยู่ในคิว", reading: "กำลังอ่าน",
     readingPages: (n: number, m: number) => `กำลังอ่าน ${n}/${m} หน้า`,
+    readingTotal: (m: number) => `กำลังอ่าน · ${m} หน้า`,
     read: (n: number) => `อ่านแล้ว ${n} ใบ`,
     outside: (n: number, month: string) => `${n} ใบไม่อยู่ใน ${month}`,
   },

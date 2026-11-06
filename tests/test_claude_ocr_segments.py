@@ -61,6 +61,24 @@ class Plan(unittest.TestCase):
         self.assertEqual(got["page_total"], 12)
         self.assertEqual(got["pages_unread"], [])
 
+    def test_each_segment_reports_the_pages_really_read(self):
+        """代录卡片识别期间一直「0 / 12 页」（2026-11-06）：每段读完报一次真实已读页数（下一段从第 8 页重读 → 前 7 页读完）；
+        只有一段的文件中途没有可报的页数；报进度出错不影响读。"""
+        reports = []
+        reader = Reader({page: f"N{page}" for page in range(1, 25)})
+        segments.read_all(24, reader, lambda done, total: reports.append((done, total)))
+        self.assertEqual(reader.calls, [(1, 8), (8, 15), (15, 22), (22, 24)])
+        self.assertEqual(reports, [(7, 24), (14, 24), (21, 24)])
+        reports.clear()
+        segments.read_all(None, Reader({1: "N1"}), lambda done, total: reports.append((done, total)))
+        self.assertEqual(reports, [])
+
+        def broken(done, total):
+            raise RuntimeError("socket down")
+
+        got = segments.read_all(12, Reader({page: f"N{page}" for page in range(1, 13)}), broken)
+        self.assertEqual(len(got["read"]["documents"]), 12)
+
     def test_bjc_shape_eleven_invoices_one_spanning_pages_nine_and_ten(self):
         """BJC 税票 12 页 11 张：第 9、10 页是同一张单的 1/2、2/2，模型按规则只报一张、记在第 9 页。"""
         starts = {page: f"N{page}" for page in (1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12)}

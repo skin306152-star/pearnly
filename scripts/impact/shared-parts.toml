@@ -2095,7 +2095,9 @@ where = "Cowork 的 CC 工具与公司页"
 steps = "CC 对话里让 CC 推送 / 查待处理 / 改记住的选择；公司页"
 expect = "工具结果正确、说的与做的一致"
 check = "manual"
-files = ["apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/step_names.py", "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/companies/pending.py", "apps/pearnly_cowork/pearnly_cowork/companies/provider.py", "apps/pearnly_cowork/pearnly_cowork/companies/service.py", "apps/pearnly_cowork/pearnly_cowork/companies/context.py", "apps/pearnly_cowork/pearnly_cowork/companies/notes.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/notify.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/rules.py", "apps/pearnly_cowork/pearnly_cowork/hooks.py"]
+files = ["apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/step_names.py", "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/companies/pending.py", "apps/pearnly_cowork/pearnly_cowork/companies/provider.py", "apps/pearnly_cowork/pearnly_cowork/companies/service.py", "apps/pearnly_cowork/pearnly_cowork/companies/context.py", "apps/pearnly_cowork/pearnly_cowork/companies/notes.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/notify.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/rules.py", "apps/pearnly_cowork/pearnly_cowork/hooks.py",
+         # 识别读到新页、开始读时推给 CC 对话里挂着等这份的调用（assistant.waits，11-06）
+         "apps/pearnly_cowork/pearnly_cowork/ocr/execution/store.py"]
 
 [[entry]]
 id = "cc.assistant"

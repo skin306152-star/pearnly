@@ -71,8 +71,9 @@ def read_all(images, *, structured, review, label, finish=None, progress=None, o
     ``originals``：附件都在甲骨文（原件层，ADR-024）时只交引用，甲骨文按同样做法转正、渲染，原件不经过生产。"""
     if progress:
         progress(0, 1)
-    outcome = (client.read_originals("voucher", originals, own_tax) if originals
-               else client.read("voucher", images, own_tax))
+    # 长文件分段读时每段读完报一次真实页数（``claude_ocr.segments``，2026-11-06）
+    outcome = (client.read_originals("voucher", originals, own_tax, on_pages=progress) if originals
+               else client.read("voucher", images, own_tax, on_pages=progress))
     if progress:
         progress(1, 1)
     if outcome.get("pages_unread"):

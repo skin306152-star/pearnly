@@ -149,11 +149,12 @@ def _checkpointed(key, call):
     return result
 
 
-def read(kind, files, own_tax=None, text=None):
+def read(kind, files, own_tax=None, text=None, on_pages=None):
     """读一份单据（一个文件的所有页；对账文档一次一页）。``text``：表格文件导出的文字，代替 ``files``。
     返回 claude_ocr.engine.run 的结果加 ``where``；read 为 None 表示读不出。超过一次调用页数的文件按段读完再合并
     （``segments``，每段一次调用、一个检查点）；不超过的与原来一次调用完全相同。
-    在识别工作单里时每段按内容存断点：同一份重跑直接用上次读到的，不重复付费（与谷歌路线的检查点同一张表）。"""
+    在识别工作单里时每段按内容存断点：同一份重跑直接用上次读到的，不重复付费（与谷歌路线的检查点同一张表）。
+    ``on_pages(已读完几页, 共几页)``：分段读时每段读完报一次真实进度（``segments.read_all``）。"""
     import hashlib
 
     total = page_prep.total(files) if files else 0
@@ -167,7 +168,7 @@ def read(kind, files, own_tax=None, text=None):
         return _checkpointed(f"claude:{kind}:{digest}",
                              lambda: _remote(kind, pages, own_tax, text) or _local(kind, pages, own_tax, text))
 
-    return segments.read_all(max(total, 1), part)
+    return segments.read_all(max(total, 1), part, on_pages)
 
 
 def _edge_part(key, body):
@@ -195,17 +196,17 @@ def _edge_part(key, body):
     return part
 
 
-def read_originals(kind, originals, own_tax=None):
+def read_originals(kind, originals, own_tax=None, on_pages=None):
     """一张单据的几份原件都存在甲骨文（ERP 一次识别带几个附件）：交 ``[(对象名, sha256), …]``，甲骨文按次序读、每份先转正
     （同 ERP 在生产上先 ``ocr.orient`` 再交 :func:`read`）、再渲染，原件字节不经过生产。几份接起来超过一次调用的页数时按段读
     （同 :func:`read`）。检查点同 :func:`read`。"""
     key = f"claude:{kind}:originals:{','.join(sha for _name, sha in originals)}:{own_tax or ''}"
     body = {"kind": kind, "own_tax": own_tax, "orient": True,
             "originals": [{"object": name, "sha256": sha} for name, sha in originals]}
-    return segments.read_all(None, _edge_part(key, body))
+    return segments.read_all(None, _edge_part(key, body), on_pages)
 
 
-def read_original(kind, object_name, sha256, own_tax=None, page=None):
+def read_original(kind, object_name, sha256, own_tax=None, page=None, on_pages=None):
     """读一份存在甲骨文上的原件（原件层 ``pearnly_core.originals``）：只交对象名与 sha256，甲骨文自己读文件、
     转正、渲染、交 Claude —— 原件字节不经过生产。只走甲骨文：连不上抛 ``Deferred``，工作单稍后重试（原件本来就在那台上）。
     ``page``：对账文档一次读一页（同 :func:`read` 逐页交）；不给时整份读，超过一次调用的页数按段读（同 :func:`read`）。
@@ -216,4 +217,4 @@ def read_original(kind, object_name, sha256, own_tax=None, page=None):
         return _checkpointed(key + f":p{int(page)}", lambda: dict(
             internal("/v1/read", {"kind": kind, "own_tax": own_tax, "original": original | {"page": int(page)}},
                      timeout=SEND_TIMEOUT), where="oracle"))
-    return segments.read_all(None, _edge_part(key, {"kind": kind, "own_tax": own_tax, "original": original}))
+    return segments.read_all(None, _edge_part(key, {"kind": kind, "own_tax": own_tax, "original": original}), on_pages)

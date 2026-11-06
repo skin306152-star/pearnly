@@ -643,7 +643,7 @@ const RunIndicator: FC<{ className?: string }> = ({ className }) => {
   if (waiting) return phone ? null : <RunLine kind="input" className={className} />;
   if (!visible) return null;
   // 进行到哪（pearnly.progress：识别中 n/m 页、等电脑空闲、第 n/N 张 · 暂停原因）：有就说它，断线时照旧说重连
-  const live = activity.kind === "reconnecting" ? null : liveProgress(snapshot);
+  const live = activity.kind === "reconnecting" ? null : liveProgress(snapshot, activity.kind === "tool" ? activity.toolCallId : undefined);
   const shown = live ? progressText(live) : "";
   const step = shown || (activity.kind === "tool" ? runningStepLabel(activity.toolName, activity.args, labels) : "");
   const text = statusText(shown ? { kind: "tool", toolName: "", args: {} } : activity, Math.floor((now - start) / 1000), thought, step);

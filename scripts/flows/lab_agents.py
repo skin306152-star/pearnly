@@ -35,6 +35,8 @@
 - 归档：记 `archived_at`，之后不再接受 `user.message`（400）；状态字段保持 idle。
 - 所有状态只在内存里，进程重启就清空；编号按类自增，前缀仿真实写法（agent_、env_、sesn_、sevt_、sesrsc_、file_、msg_）。
 
+- 任意工具（11-06，识别完自动继续的实测）：``[lab-tool]{"name": 工具名, "input": {…}}[/lab-tool]`` 同上发这个工具的调用、
+  收到结果后回「[lab-agent] <工具名> <结果原文>」。停在等工具结果时收到 ``user.message`` 照真实引擎回 400。
 - 通用提问卡片（主会话 11-05，只为流程 `cc.ask`）：用户原文里有 ``[lab-ask]{…}[/lab-ask]`` 时不回文字，照真实引擎发一条
   ``agent.custom_tool_use``（name ``ask_user``，input 就是中间那段 JSON），再记 ``session.status_idle``（stop_reason
   requires_action，event_ids 是这一条）；之后收到这一条的 ``user.custom_tool_result``，记 running、回一条
@@ -63,6 +65,8 @@ from urllib.parse import parse_qs, urlsplit
 
 REPLY_PREFIX = "[lab-agent]"
 ASK_OPEN, ASK_CLOSE = "[lab-ask]", "[/lab-ask]"  # 用户原文里这一段 = 让「模型」调 ask_user 的入参（JSON）
+# 用户原文里这一段 = 让「模型」调任意一个 Pearnly 工具（JSON：{"name": 工具名, "input": 入参}；识别完自动继续 11-06）
+TOOL_OPEN, TOOL_CLOSE = "[lab-tool]", "[/lab-tool]"
 REPLY_CHARS = 40
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 1000
@@ -271,12 +275,13 @@ def _turns(state: dict) -> None:
                     set_status(state, "idle")
                 return
             item = state["_pending"].pop(0)
-            if isinstance(item, dict) and "ask" in item:
+            if isinstance(item, dict) and ("ask" in item or "tool" in item):
                 # 照真实引擎：发自定义工具调用，停在 requires_action 等页面交回结果（这一轮先到这里）
                 use_id = new_id("sevt")
-                publish(state, {"id": use_id, "type": "agent.custom_tool_use", "name": "ask_user", "input": item["ask"]})
+                name, data = ("ask_user", item["ask"]) if "ask" in item else (item["tool"]["name"], item["tool"].get("input") or {})
+                publish(state, {"id": use_id, "type": "agent.custom_tool_use", "name": name, "input": data})
                 state["status"] = "idle"
-                state["_asked"] = use_id
+                state["_asked"], state["_asked_name"] = use_id, name
                 publish(state, {"id": new_id("sevt"), "type": "session.status_idle",
                                 "stop_reason": {"type": "requires_action", "event_ids": [use_id]}})
                 state["_pending"].clear()
@@ -288,15 +293,18 @@ def _turns(state: dict) -> None:
 
 
 def _asked(text: str):
-    """用户原文里有 ``[lab-ask]{…}[/lab-ask]``：这一轮发 ask_user（入参是中间的 JSON）；没有就是普通的一句。"""
-    start = text.find(ASK_OPEN)
-    end = text.find(ASK_CLOSE, start + len(ASK_OPEN)) if start >= 0 else -1
-    if start < 0 or end < 0:
-        return text
-    try:
-        return {"ask": json.loads(text[start + len(ASK_OPEN):end])}
-    except ValueError:
-        return text
+    """用户原文里有 ``[lab-ask]{…}[/lab-ask]``：这一轮发 ask_user（入参是中间的 JSON）；有 ``[lab-tool]{"name", "input"}[/lab-tool]``：
+    发这个工具的调用；都没有就是普通的一句。"""
+    for opening, closing, key in ((ASK_OPEN, ASK_CLOSE, "ask"), (TOOL_OPEN, TOOL_CLOSE, "tool")):
+        start = text.find(opening)
+        end = text.find(closing, start + len(opening)) if start >= 0 else -1
+        if start < 0 or end < 0:
+            continue
+        try:
+            return {key: json.loads(text[start + len(opening):end])}
+        except ValueError:
+            return text
+    return text
 
 
 def _start(state: dict) -> None:
@@ -322,6 +330,9 @@ def receive(state: dict, events: list) -> list:
                 state["_pending"].clear()
                 publish(state, event)
                 set_status(state, "idle")
+            elif kind == "user.message" and state.get("_asked") and state.get("_asked_name") != "ask_user":
+                # 照真实引擎：停在等工具结果时只收结果 / 打断，用户消息 400（提问卡片的流程照旧不管）
+                raise bad_request("session is waiting on a tool result; only settle events are accepted")
             elif kind == "user.message":
                 set_status(state, "running")
                 publish(state, event)
@@ -329,11 +340,12 @@ def receive(state: dict, events: list) -> list:
                 _start(state)
             elif kind == "user.custom_tool_result" and event.get("custom_tool_use_id") and event.get("custom_tool_use_id") == state.get("_asked"):
                 # 提问卡片的作答交回来了：接着这一轮，回一条带工具结果原文的话
+                name = state.get("_asked_name") or "ask_user"
                 state["_asked"] = None
                 publish(state, event)
                 set_status(state, "running")
                 text = "".join(b.get("text", "") for b in event.get("content") or [] if isinstance(b, dict) and b.get("type") == "text")
-                state["_pending"].append({"say": f"{OPTIONS['prefix']} ask_user {text}"})
+                state["_pending"].append({"say": f"{OPTIONS['prefix']} {name} {text}"})
                 _start(state)
             else:
                 publish(state, event)

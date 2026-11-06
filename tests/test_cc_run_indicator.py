@@ -32,6 +32,8 @@ export function io() {
     // 通道其实已断、还没报断开（socket.io 发现断开前的那几秒）
     lose() { socket.connected = false; },
     ping() { (manager.ping ?? []).forEach((fn) => fn()); },
+    // 站点推来的别的事件（如共用识别队列的 pearnly_ocr_work）
+    emit(name: string, data?: any) { (handlers[name] ?? []).forEach((fn) => fn(data)); },
     pingListeners: () => (manager.ping ?? []).length,
   };
   return socket;
@@ -43,6 +45,8 @@ PUSH = r"""
 import { dispatch } from "@/lib/managed-agents/realtime";
 const push = (sid: string, e: any) => { site.log.push(e); dispatch({ session_id: sid, event: e }); };
 const preview = (sid: string, e: any) => dispatch({ session_id: sid, event: e });
+// 只推、不进事件记录（本站事件：执行记录、进度）
+const dispatchTo = (sid: string, e: any) => dispatch({ session_id: sid, event: e });
 """
 
 
@@ -1325,6 +1329,60 @@ g.fire("online");                                                          // �
 await g.sleep(30);
 assert.deepEqual(parts(), ["hi", "first", "second"]);                      // first 在前
 g.respond = respond;
+""")
+
+    def test_a_call_handed_back_by_the_site_and_recognition_pushes_refetch_at_once(self):
+        # 2026-11-06：识别完了 CC 不主动继续。挂着等识别的调用由本站交回（pearnly_core.assistant.waits）时会话被本站叫醒、没有
+        # 推送线程在跟：推来的执行记录带 settled，页面马上补拉并要运行状态（服务端读到在跑就接上推送）。普通的执行记录不多补拉。
+        # 识别状态变了（pearnly_ocr_work）也马上补拉一次（代录上传卡片当场变，不等 30 秒），推得密时 2 秒内只补拉一次。
+        self.run_page(r"""
+import { PollingSource } from "@/lib/managed-agents/poll-source";
+import { listen } from "@/lib/managed-agents/realtime";
+---
+const S = "sesn_settled";
+site.log.length = 0;
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }));
+listen();
+const src = new PollingSource(S);
+src.onmessage = () => {};
+await g.sleep(30);
+const reads = statusReads(S), calls = eventsCalls(S).length;
+dispatchTo(S, { type: "pearnly.tool_run", id: "ptoolrun_sevt_a_done", tool_use_id: "sevt_a", status: "done", processed_at: at(2) });
+await g.sleep(20);
+assert.equal(eventsCalls(S).length, calls);                               // 普通的执行记录：不多补拉
+dispatchTo(S, { type: "pearnly.tool_run", id: "ptoolrun_sevt_b_done", tool_use_id: "sevt_b", status: "done", processed_at: at(3),
+                settled: true });
+await g.sleep(20);
+assert.equal(statusReads(S), reads + 1);                                  // 交回了：马上补拉并要状态
+const before = eventsCalls(S).length;
+g.socket.emit("pearnly_ocr_work", { kind: "cowork.invoice", reference: "B1", pages_done: 7 });
+await g.sleep(20);
+assert.equal(eventsCalls(S).length, before + 1);                          // 识别状态变了：补拉一次
+g.socket.emit("pearnly_ocr_work", { kind: "cowork.invoice", reference: "B1", status: "succeeded" });
+await g.sleep(20);
+assert.equal(eventsCalls(S).length, before + 1);                          // 2 秒内不再补拉
+src.close();
+g.socket.emit("pearnly_ocr_work", {});
+await g.sleep(20);
+assert.equal(eventsCalls(S).length, before + 1);                          // 关了就不再听
+""")
+
+    def test_the_status_line_shows_the_running_steps_real_pages(self):
+        # 挂着等识别的一步：状态行读这一步的进度（整段对话的那一条优先）；还没有真实已读页数时只写共几页，不写「0/12」
+        self.run_page(r"""
+import { liveProgress, progressText, readingText } from "@/lib/managed-agents/progress";
+import { run } from "@/i18n";
+---
+const step = { type: "pearnly.progress", id: "p1", processed_at: at(1), tool_use_id: "sevt_r", done: 7, total: 12, label: "reading_pages", detail: "" };
+const whole = { ...step, id: "p0", tool_use_id: "", done: 2, total: 5, label: "entering" };
+assert.equal(liveProgress({ progress: new Map([["sevt_r", step]]) } as any, "sevt_r"), step);
+assert.equal(liveProgress({ progress: new Map([["sevt_r", step]]) } as any), null);
+assert.equal(liveProgress({ progress: new Map([["sevt_r", step], ["", whole]]) } as any, "sevt_r"), whole);
+assert.equal(progressText(step as any), run.readingPages(7, 12));
+assert.equal(progressText({ ...step, done: 0 } as any), run.readingTotal(12));
+assert.equal(readingText(0, 12), "识别中 · 共 12 页");
+assert.equal(readingText(15, 12), run.readingPages(12, 12));
+assert.equal(readingText(0, 0), run.reading);
 """)
 
     def test_a_tail_opened_while_the_push_channel_is_down_treats_the_first_connect_as_a_reconnect(self):

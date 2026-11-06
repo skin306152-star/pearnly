@@ -88,7 +88,6 @@ apps/pearnly_cowork/pearnly_cowork/ocr/enterprise/local/geometry.py
 apps/pearnly_cowork/pearnly_cowork/ocr/enterprise/local/result.py
 apps/pearnly_cowork/pearnly_cowork/ocr/enterprise/pages.py
 apps/pearnly_cowork/pearnly_cowork/ocr/execution/settings.py
-apps/pearnly_cowork/pearnly_cowork/ocr/execution/store.py
 apps/pearnly_cowork/pearnly_cowork/ocr/execution/work_guard.py
 apps/pearnly_cowork/pearnly_cowork/ocr/feedback/__init__.py
 apps/pearnly_cowork/pearnly_cowork/ocr/policy.py

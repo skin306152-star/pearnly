@@ -95,7 +95,7 @@ BUSY_MOUNTS = [
     ("components/assistant-ui/thread.tsx", "if (!pending) return null;"),
     # 工作状态行（RunLine）：对话这一轮在跑时才挂；代录会话是同一段对话，同一个状态行（进度由 pearnly.progress 说，11-04）
     ("components/assistant-ui/thread.tsx", "  if (!visible) return null;\n  // 进行到哪"),
-    ("components/assistant-ui/thread.tsx", "const live = activity.kind === \"reconnecting\" ? null : liveProgress(snapshot);"),
+    ("components/assistant-ui/thread.tsx", "const live = activity.kind === \"reconnecting\" ? null : liveProgress(snapshot, "),
 ]
 
 # setInterval：(文件, 所在函数或条件——在调用往上 window 行内出现的原文, 什么时候在跑, window)

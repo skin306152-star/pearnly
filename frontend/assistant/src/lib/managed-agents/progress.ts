@@ -13,9 +13,19 @@ const ms = (iso: string | null | undefined) => {
   return Number.isFinite(at) ? at : null;
 };
 
-/** 整段对话那一条进度（状态行用），没有回 null。 */
-export function liveProgress(state: { progress: ReadonlyMap<string, ProgressEvent> }): ProgressEvent | null {
-  return state.progress.get("") ?? null;
+/** 状态行用的进度：整段对话那一条；没有就用正在执行的那一步的（直写对话里服务端挂着等识别的那一步），
+ *  都没有回 null。 */
+export function liveProgress(state: { progress: ReadonlyMap<string, ProgressEvent> }, toolCallId?: string): ProgressEvent | null {
+  return state.progress.get("") ?? (toolCallId ? state.progress.get(toolCallId) ?? null : null);
+}
+
+/** 识别中的一句：有真实的已读页数才写「n/m 页」；还没读完一页（Claude 一次读完 8 页以内的文件，中途没有页数）只写共几页，
+ *  不写「0/m」（2026-11-06：代录卡片一直「0 / 12 页」，用户以为卡住、重传了两次）。 */
+export function readingText(done: number, total: number): string {
+  const pages = Math.max(0, total);
+  if (pages <= 0) return run.reading;
+  const read = Math.min(Math.max(0, done), pages);
+  return read > 0 ? run.readingPages(read, pages) : run.readingTotal(pages);
 }
 
 /** 这一步此刻的进度：有进度且比结果新（或还没结果）才算，否则以结果为准回 null。 */
@@ -37,7 +47,7 @@ export function progressText(event: Pick<ProgressEvent, "done" | "total" | "labe
   const total = Math.max(0, event.total);
   switch (event.label) {
     case "reading_pages":
-      return total > 0 ? run.readingPages(Math.min(done, total), total) : run.reading;
+      return readingText(done, total);
     case "queued":
       return run.queued;
     case "blocked":
