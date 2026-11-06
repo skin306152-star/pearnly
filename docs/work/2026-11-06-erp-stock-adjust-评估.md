@@ -1,5 +1,9 @@
 # 需求影响评估：ERP 库存整改（菜单顺序、物料调整 IA、盘点改流程、编号、Express、仓库 / 仓位）
 
+> **审定：主会话 11-06 审过、开工。** 第 12 节逐条定：#1 #2 #3 #4 #6 #8 #9 按建议；**#5 改为只带人亲手填 / 改过的单价**（见 4.4）；
+> #7 先按 TK 做，副作用转用户（见文末「待爸爸确认」）；10.2 改文案清单由主会话转用户确认，确认前不登记 `copy-approved.tsv`。
+> 叫法：界面一律「物料」（菜单「物料调整」、按钮「按盘点结果调整物料」）。
+>
 > 按 [需求影响评估模板](../development/templates/impact-assessment.md) 填写；只写事实和建议，**不施工**。交主会话审定。
 > 基线：`origin/main` e60fcb20（11-06）；分支 `pearnly/erp-stock-adjust-df0d3d`。下文路径省略 `apps/pearnly_erp_portal/pearnly_erp_portal/`。
 > 证据层级：代码（本分支逐处读过）+ testerp 测试租户只读统计（11-06，生产机 ERP 网页容器里只读事务查一次，不进数据库容器）。
@@ -81,6 +85,7 @@
 | `ERP Stock Entry Line` | `product` / `qty` / `unit` / `unit_cost` | 建单 | 流水、Express 明细、打印 | 调整单 `qty` 可正可负；`unit_cost` 只用于正数行 |
 | | `warehouse` | `positions.prepare` | 流水的仓、Express 行 `loccod`（`express/stock_entry.document` 按**行**取仓） | 新单 = 单头；历史单原值保留 |
 | | `location` / `to_location` | 行 / 单头默认 | 流水的仓位 | 不变 |
+| | `unit_cost_manual`（新） | 页面：人填 / 改过单价时置 1；系统带出的默认值、盘点估值为 0 | Express TK 是否带 `unit_cost` | 新增（只对调整单有意义） |
 | `ERP Stock Movement` | `movement_type` | `stock.apply_movement` | 收发存（按正负分栏）、库存卡类型、成本滚动 | 调整单写 `adjust`（带符号） |
 | | `qty_base`（带符号）、`unit_cost`、`value_delta` | 同上 | 结存、收发存数量 / 金额 | 正数行按单价入；负数行按当前均价出 |
 | | `ref_type` / `ref_id` / `doc_no` | 同上 | 作废冲回（按 ref 找原流水）、Express 对齐 `_pending`、库存卡 | 调整单 `ref_type = stock_entry`、`ref_id` = 单名、`doc_no` = IA 号 |
@@ -125,7 +130,7 @@
 - **写入**：调整单 → TK。`express/stock_entry.kind()` 加 `adjust → TK`；`document()` 对调整单**按「存货 × Express 仓」轧差（换库存单位）**、净 0 的行不写
   （Express 不分仓位，同一仓里「先减后加」的仓位挪动写成毛额会在不许负库存的账套里被拦——这是现在 `count_document` 的做法，挪进 `document()` 让写入与作废用同一份明细）。
   一张调整单全是仓位挪动、轧完一行不剩 → 不排 Express（`ledger_state` 留空，单据上 Express 按钮不出）。
-- **单价**：正数行带单上的单价（`unit_cost`），CC 按它入；单价为空（成本未知）不带，CC 取 Express 均价（见 12 节 #5）。
+- **单价**（主会话定 #5）：只带**人亲手填或改过**的单价——明细行记 `unit_cost_manual`（新 Check 字段）：选物料时系统带出的默认均价、盘点生成时的估值都是 0，人在单价格里填 / 改过才是 1；提交时只有 1 且数量为正的行带 `unit_cost`，其余不带，CC 取 Express 自己的均价。这样盘点来的调整单与 10-25「盘点 TK 不带价、以 Express 为准」一致，人改的价又能进 Express。ERP 自己的流水照单上单价入账（不论是不是人填的）。
 - **科目 / 簿**：照现有 TK：这家公司为 TK 选过科目用选的，没选过用账套默认；账套没有 TK 簿停 `NO_STOCK_BOOK`；Express 里没有的物料走现有选存货 / 新建（载荷 15）。
 - **作废**：已写进去的调整单作废 → 现有 `express_push.void` → CC `dbf_void` 作废 TK（照原生）；没写进去的只在 ERP 作废。
 - **盘点本身不再写 TK**：`close_count` 不再 `express_push.queue(COUNT, …)`。历史盘点里还在队列 / 停下的 TK 照旧能处理（`push.COUNT` 通道、待处理、CC 工具里的「C 盘点」保留只读给历史）。
@@ -250,7 +255,7 @@ Page / Dialog / FieldGroup（含 `read_only_depends_on`）/ ControlLink / Autoco
 
 | # | 问题 | 我的建议 | 不定的影响 |
 |---|---|---|---|
-| 1 | 正式租户有没有「明细行仓库 ≠ 单头」的旧单（mrerp / polymer 等），能否只读查一次 | 同意的话按 testerp 同一个脚本只读查（生产机 ERP 网页容器、只读事务、一次 SSH）。testerp 结果：出入库 / 采购 / 销售都是 **0 张**。无论查不查，做法都是「旧单原值保留、详情有不一致时显示仓库列」，不改数据 | 不查就不知道旧单里有没有要显示仓库列的情况，做法不变 |
+| 1 | 正式租户有没有「明细行仓库 ≠ 单头」的旧单（mrerp / polymer 等），能否只读查一次。**已查（11-06，同意后一次 SSH、ERP 网页容器只读事务）：gize / mrerp / polymer / test01 / testerp 五个 ERP 站点，出入库 / 采购 / 销售行仓 ≠ 单头的单全部 0 张；盘点跨仓记录只有 testerp 1 份（2 条）；所有盘点都没有 Express 状态** | 同意的话按 testerp 同一个脚本只读查（生产机 ERP 网页容器、只读事务、一次 SSH）。testerp 结果：出入库 / 采购 / 销售都是 **0 张**。无论查不查，做法都是「旧单原值保留、详情有不一致时显示仓库列」，不改数据 | 不查就不知道旧单里有没有要显示仓库列的情况，做法不变 |
 | 2 | 「物料调整」权限怎么发 | 新菜单 `stock-adjust`；迁移给已有「盘点」「入库」「出库」任一菜单的人加上（不让人突然看不到历史 AD 单）；盘点来的调整单 `count.write` 也能提交，手工的只认 `stock.adjust` | 不补发会让现在能看到 AD 单的员工看不到 |
 | 3 | 手工调整单里按台管理的物料怎么办 | 增加行登记新台、减少行选在库的台（同入库「其他」/ 出库，复用同一个选台弹窗）；盘点来的调整单照盘点口径：不登记 / 不出台，只把盘到别处的台换位 | 不定就只能拒按台物料进调整单 |
 | 4 | 期初页去掉行上「仓库」等于反转 10-26 多仓 P1 G5「一张期初表分几个仓」 | 照「一张单一个仓库」反转：页面行上去掉仓库、Excel 模板去掉仓库列；旧模板带仓库列导入时，与表头不同的行在预览里列为问题行（期初预览本来有问题行） | 保留 G5 就和第 6 条口径冲突 |
@@ -279,3 +284,9 @@ Page / Dialog / FieldGroup（含 `read_only_depends_on`）/ ControlLink / Autoco
 ## 旁见（不在本需求范围）
 
 - `inventory/api.py::api_adjust`（无单据直接调数、`movement_type = adjust`、无单号）只有测试脚本在用；它的流水在 Express 对齐里算「其他来源」。保留不动，以后可删。
+
+## 待爸爸确认（主会话转用户）
+
+- 手工物料调整单在接 Express 的公司写成 TK（ตรวจนับสินค้า）。CC 写 TK 时，Express 会把这些物料在该仓的「最后盘点日」记成调整单日期，
+  单据说明固定是「ตรวจนับสินค้า + 单号」（Express 原生盘点调整单的写法）。也就是说，Express 里看，手工调整和盘点调整是同一种单。
+  如果岳父希望手工调整在 Express 里不算盘点，要另议改用调整单 JU（Express 原生 JU 能否录负数还没实录）。
