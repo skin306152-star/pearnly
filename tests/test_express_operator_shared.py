@@ -38,13 +38,14 @@ class SameContract(unittest.TestCase):
             self.assertEqual(getattr(SERVER, name), getattr(CLIENT, name), name)
 
     def test_targets_match_the_desktop_and_the_routing_rule(self):
-        """执行目标（ADR-026）：两端同值；派单纯规则认的 Express 与契约同一个；载荷 18 两端同号、是 CC 认的最高版本。"""
+        """执行目标（ADR-026）：两端同值；派单纯规则认的 Express 与契约同一个；载荷 18 两端同号、CC 认得（11-06 起最高是混行 19）。"""
         self.assertEqual((SERVER.TARGET_EXPRESS, SERVER.TARGET_MRERP), ("express", "mrerp"))
         self.assertEqual(SERVER.TARGETS, CLIENT.TARGETS)
         self.assertEqual((SERVER.TARGET_EXPRESS, SERVER.TARGET_MRERP), (CLIENT.TARGET_EXPRESS, CLIENT.TARGET_MRERP))
         self.assertEqual(ROUTE.EXPRESS, SERVER.TARGET_EXPRESS)
         self.assertEqual(SERVER.MRERP_OPERATOR_PAYLOAD_VERSION, PAYLOAD.MRERP_OPERATOR_PAYLOAD_VERSION)
-        self.assertEqual(SERVER.MRERP_OPERATOR_PAYLOAD_VERSION, max(PAYLOAD.SUPPORTED_PAYLOAD_VERSIONS))
+        self.assertIn(SERVER.MRERP_OPERATOR_PAYLOAD_VERSION, PAYLOAD.SUPPORTED_PAYLOAD_VERSIONS)
+        self.assertEqual(PAYLOAD.MIXED_LINES_PAYLOAD_VERSION, max(PAYLOAD.SUPPORTED_PAYLOAD_VERSIONS))
         self.assertGreater(SERVER.MRERP_OPERATOR_PAYLOAD_VERSION, PAYLOAD.REMARKS_PAYLOAD_VERSION)
         # 这一版 CC 只报 Express（MR.ERP 执行层随第 2 步）：心跳的写法过派单规则的净化不变
         self.assertEqual(ROUTE.stored_targets(list(PAYLOAD.OPERATOR_TARGETS)), "express")
