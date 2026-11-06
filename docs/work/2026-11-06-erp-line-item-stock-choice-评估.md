@@ -395,3 +395,30 @@ LINE 模拟 webhook 走完 6.1 全部分支；网页采购 / 销售混行单提�
 - **已写进 Express 的采购 / 销售单作废不回写 Express**（`express/push.py:537-541`），采购「修改」会在 Express 里多出一张、旧单留着。这是现有缺口，与按行无关，建议另立任务。
 - **现有一类单可能已经写不进 Express**：LINE 选「库存商品」的采购遇到识别补的「不可抵扣的增值税」行时整张是混行（`intake.py:262-264` + `purchase_lines.py:103-104`）；网页识别里运费被识别成服务、其余是货物的单同样。只按代码推断，没查数据；本需求的 S1 会一起解决。
 - **LINE 销售选「服务」时名字对上已有物料的行照样出库**（`sales/entry.py:245-251` 认名不看选择，`_post_stock` 有物料就出）。本需求按行选之后自然消失。
+
+## CC 桌面版混行写入施工记录（11-06，审定 #1 / #14）
+
+分支 `pearnly/cc-mixed-lines`（基线 `origin/main` e0a622d6，提交 24cbed03）。只做不依赖原生证据的部分；**CC 1.12.15 发正式版前不合入 main**，服务端先部署、CC 再发版。
+
+| 改了什么 | 落点 |
+|---|---|
+| 载荷 19：CC 支持集加 19（`MIXED_LINES_PAYLOAD_VERSION`）；服务端 `finalize_payload` 遇到明细里库存行与非库存行都有就盖 19（`common.mixed_lines`），派单只交给报过 19 的电脑 | `companion/src/companion/payload_contract.py`、`apps/pearnly_core/pearnly_core/express_rules/push/common.py` |
+| 混行写入：明细照载荷顺序切成「连续同一类」几段（`dbf_detail.runs`），库存段走入库 / 出库路、其余段走非库存路，每行 STCRD.SEQNUM = 它在整张单里的行号（三条写入路加 `seqs`，不给时与以前一字不差）；物理记录顺序也照载荷顺序；只有一种行的单调用不变 | `purchase_lines.write_detail`、`dbf_sales._write_all`、`dbf_detail` / `stock_purchase` / `stock_sale` |
+| 采购重分类：贷库存行所在的那条采购分录（载荷 `items_account`），不是排在第一的费用行科目；没有匹配时照旧取第一条 | `purchase_lines._purchase_line` |
+| 销售成本分录：几段库存行各算的「借成本 / 贷存货」按科目合并成一对（同一次写完） | `dbf_sales.merge_gl_rows` |
+| 读回：混行单只放行库存行行号动库存，非库存行动了库存照样报错 | `dbf_detail.verify_detail(stock_seqs=…)`、`dbf_writer._verify`、`dbf_sales._verify` |
+| 采购映射器：按「有没有库存行」带存货科目组，不按第一行（第一行是运费时以前漏带） | `express_rules/push/mapper.py` |
+
+验证（本机 Mac，CC 测试依赖按 `packaging/requirements-build.txt` 锁定版本装在临时虚拟环境）：
+- CC 全量 `pytest tests`：1415 通过、53 跳过、8 失败；8 个失败全在 `test_write_dispatch.py`，在 `origin/main` 上同样失败（本机不是 Windows），与本改动无关。
+- 新增 / 改的用例：采购混行写入（库存行在前 / 夹在中间、重分类科目、读回逐行放行、`runs` 行号）、销售混行（两段库存行夹服务行、成本分录合并）、
+  `tests/test_companion_contract.py` 载荷 19 两边一致与只在混行时盖、映射器混行带组并盖 19；旧的「19 是未来版本」断言改为 20。
+- Development checks 本地全闸门：见交付消息。
+- **没做**：Windows 测试机上的 CC 全量测试（推分支后由 Companion checks 在测试机 runner 跑）、真 Express 写入、生产镜像候选离线检查（改了 `pearnly_core`，合入前要跑）。
+
+**等原生证据再定的（主会话安排测试机后补）**：
+1. 原生混行 RR / HP / IV / HS 的 STCRD：行号是否照单据行顺序 1..n、库存品与非库存品行的栏位（POSOPR、LOT / 余额栏）是否与两条写入路各自写的一致——本分支按「照载荷顺序、整张单连续编号」写；
+2. 原生混行单的总账：库存行是直接借存货，还是先借购货再重分类（本分支沿用现有全库存单的「借购货 + 重分类」）；
+3. 混行赊购单的服务品进项税口径（现按「有非库存行 = 有服务品」查历史 / 问人）与非库存行要不要问费用科目（共用规则现在只在整单没有库存行时问）；
+4. 原生作废一张 CC 写的混行单是否顺利（CC 现在不作废采购 / 销售单，Express 里人手作废）；
+5. 代录配方遇到同单混行能不能录。
