@@ -203,3 +203,14 @@ assistant:OPERATOR.voidedNo	zh	已作废 {x}	2026-10-27	docs/work/2026-10-26-exp
 pearnly_cowork:cowork.stock.workbench.saveNext	zh	继续	2026-11-02	docs/work/2026-11-02-stocktake-scan-inline-评估.md
 pearnly_erp_portal:stock.workbench.saveNext	zh	继续	2026-11-02	docs/work/2026-11-02-stocktake-scan-inline-评估.md
 assistant:COMPANY.ledger.code.result_unknown	zh	结果不明	2026-11-04	docs/work/2026-11-04-cc-code-style.md
+pearnly_erp_portal:A location that has been used cannot be removed	zh	已使用的仓位不能删除	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
+pearnly_erp_portal:A location with stock cannot be turned off	zh	有库存的仓位不能停用	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
+pearnly_erp_portal:Duplicate location	zh	仓位重复	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
+pearnly_erp_portal:Location	zh	仓位	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
+pearnly_erp_portal:Locations	zh	仓位清单	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
+pearnly_erp_portal:This location is not in the location list of this warehouse	zh	仓位不在此仓库的仓位清单中	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
+pearnly_erp_portal:This warehouse has no active location	zh	此仓库没有启用的仓位	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
+pearnly_erp_portal:stock.board.shelf	zh	仓位	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
+pearnly_erp_portal:stock.location.fromStock	zh	带入有库存的仓位	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
+pearnly_erp_portal:stock.location.list	zh	仓位清单	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
+pearnly_erp_portal:stock.workbench.finishConfirm	zh	确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项，结束后不能再修改。	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md

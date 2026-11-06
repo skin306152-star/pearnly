@@ -21,8 +21,8 @@ A customer needs a name,请填写客户名称
 A dropdown field needs at least one option,下拉字段至少需要一个选项
 A field is longer than Express allows. Shorten it and submit again,部分字段超出 Express 允许的长度，请缩短后重新提交
 A line quantity is invalid. Correct it and submit again.,明细数量无效，请修改后重新提交
-A location that has been used cannot be removed,已使用的库位不能删除
-A location with stock cannot be turned off,有库存的库位不能停用
+A location that has been used cannot be removed,已使用的仓位不能删除
+A location with stock cannot be turned off,有库存的仓位不能停用
 A payment has to be approved before it counts as paid,付款经审批后方视为已付
 A product needs a name,请填写物料名称
 A refund cannot be more than the original sale,退款不能超过原始销售单
@@ -63,7 +63,7 @@ Add a link,添加链接
 Add an item,添加项目
 Add another list,添加另一个列表
 Add label,添加标签
-Add locations in stock,带入有库存的库位
+Add locations in stock,带入有库存的仓位
 Add member,添加成员
 Add opening item,添加明细
 Add photos,添加照片
@@ -474,7 +474,7 @@ Due this week,7 天内到期
 Due time,到期时间
 Due today,今天到期
 Due today or tomorrow,今明两天到期
-Duplicate location,库位重复
+Duplicate location,仓位重复
 ERP,ERP
 ERP Stock Count Variance,盘点差异看板
 ERP menu,ERP 菜单
@@ -499,6 +499,8 @@ Enable POS cashier,启用 POS 收银台
 Enable {0},启用 {0}
 Enable {0} selected,启用选中的 {0} 个
 Enabled,已启用
+"End this stock count? {0} counted, {1} not counted. It can't be edited afterwards.",确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项，结束后不能再修改。
+"End this stock count? {0} counted, {1} not counted; it can't be edited afterwards.",确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项，结束后不能再修改。
 Engine No,发动机号
 Enter a board name,请输入看板名称
 Enter a comment,请输入评论
@@ -727,8 +729,8 @@ Listed companies,列出了公司
 Listed documents,查看了单据
 Listing documents,正在查看单据
 Loading...,加载中…
-Location,地点
-Locations,库位清单
+Location,仓位
+Locations,仓位清单
 Lookup failed,查找失败
 "Lookup failed, please fill in manually",查询失败，请手动填写
 Lookup failed. Try again.,查找失败，请重试。
@@ -1219,7 +1221,7 @@ Several Express suppliers have this tax ID. Choose the supplier and submit again
 Several matches found for {0}. Please select a record.,「{0}」找到多个匹配结果，请选择一条记录。
 Several matches found. Please select a record.,找到多个匹配结果，请选择一条记录。
 Sheet,表格文件
-Shelf,库位
+Shelf,仓位
 Shift,班次
 Shift History,班次记录
 Shift No,班次编号
@@ -1477,7 +1479,7 @@ This item is not a stock item in Express. Choose another item,此商品在 Expre
 This item is not on the original cash sale,原现销单上没有此商品
 This label no longer exists,标签不存在
 This list no longer exists,列表不存在
-This location is not in the location list of this warehouse,库位不在此仓库的库位清单中
+This location is not in the location list of this warehouse,仓位不在此仓库的仓位清单中
 This member cannot be assigned,无法分配给此成员
 This option is no longer current,该选项已失效，请按最新步骤选择
 This payment method is not enabled for this company,该公司未启用此收款方式
@@ -1507,7 +1509,7 @@ This unit number is already registered,该号码已登记
 This warehouse already exists,该仓库已存在
 This warehouse belongs to the company above,这个仓挂在上面那家公司名下
 This warehouse code already exists,仓库编号已存在
-This warehouse has no active location,此仓库没有启用的库位
+This warehouse has no active location,此仓库没有启用的仓位
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。
 Time,时间
 Time left {0},剩余 {0}
@@ -2371,7 +2373,7 @@ stock.attachmentLimit,最多 {0} 个附件
 stock.board.by,统计维度
 stock.board.freezeColumn,冻结列
 stock.board.only,仅显示
-stock.board.shelf,库位
+stock.board.shelf,仓位
 stock.board.title,盘点工作台
 stock.board.unfreezeColumn,取消冻结列
 stock.cell.notSet,未设置
@@ -2484,8 +2486,8 @@ stock.field.docNoAuto,自动生成
 stock.field.search,搜索名称或条码
 stock.field.view,显示方式
 stock.location.description,说明
-stock.location.fromStock,带入有库存的库位
-stock.location.list,库位清单
+stock.location.fromStock,带入有库存的仓位
+stock.location.list,仓位清单
 stock.location.offList,不在清单
 stock.mobile.cameraOff,关闭相机
 stock.mobile.codePlaceholder,编码或条码
@@ -2554,7 +2556,7 @@ stock.workbench.editEntry,修改记录
 stock.workbench.elsewhere,该物料还存放于：
 stock.workbench.entryQty,本次实盘数量
 stock.workbench.find,查找物料
-stock.workbench.finishConfirm,确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点 {1} 项保持不变，结束后仅可查看和导出。
+stock.workbench.finishConfirm,确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项，结束后不能再修改。
 stock.workbench.locationDiff,仓位差异
 stock.workbench.lookupError,查找失败
 stock.workbench.lookupFailed,未找到物料，请核对编码后重试。

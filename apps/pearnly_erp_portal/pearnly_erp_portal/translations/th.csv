@@ -499,6 +499,8 @@ Enable POS cashier,เปิดใช้เครื่องขาย POS
 Enable {0},เปิดใช้งาน {0}
 Enable {0} selected,เปิดใช้งาน {0} รายการที่เลือก
 Enabled,เปิดใช้งานแล้ว
+"End this stock count? {0} counted, {1} not counted. It can't be edited afterwards.",ต้องการสิ้นสุดการตรวจนับใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังสิ้นสุดแก้ไขไม่ได้
+"End this stock count? {0} counted, {1} not counted; it can't be edited afterwards.",ต้องการสิ้นสุดการตรวจนับใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังสิ้นสุดแก้ไขไม่ได้
 Engine No,เลขเครื่องยนต์
 Enter a board name,กรุณากรอกชื่อบอร์ด
 Enter a comment,กรุณากรอกความคิดเห็น
@@ -727,7 +729,7 @@ Listed companies,แสดงรายชื่อบริษัท
 Listed documents,ดูรายการเอกสารแล้ว
 Listing documents,กำลังดูรายการเอกสาร
 Loading...,กำลังโหลด…
-Location,ที่ตั้ง
+Location,ตำแหน่ง
 Locations,รายการตำแหน่ง
 Lookup failed,ค้นหาไม่สำเร็จ
 "Lookup failed, please fill in manually",ค้นหาไม่สำเร็จ กรุณากรอกข้อมูลด้วยตนเอง
@@ -2554,7 +2556,7 @@ stock.workbench.editEntry,แก้ไขรายการ
 stock.workbench.elsewhere,สินค้านี้มีอยู่ที่อื่นด้วย:
 stock.workbench.entryQty,จำนวนที่นับครั้งนี้
 stock.workbench.find,ค้นหาสินค้า
-stock.workbench.finishConfirm,ต้องการสิ้นสุดการตรวจนับและปรับสต็อกตามผลต่างที่ยืนยันแล้วใช่หรือไม่ นับแล้ว {0} รายการ อีก {1} รายการไม่เปลี่ยนแปลง หลังสิ้นสุดดูและส่งออกได้เท่านั้น
+stock.workbench.finishConfirm,ต้องการสิ้นสุดการตรวจนับใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังสิ้นสุดแก้ไขไม่ได้
 stock.workbench.locationDiff,ผลต่างตำแหน่ง
 stock.workbench.lookupError,ค้นหาไม่สำเร็จ
 stock.workbench.lookupFailed,ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง

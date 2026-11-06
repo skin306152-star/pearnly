@@ -499,6 +499,8 @@ Enable POS cashier,Enable POS cashier
 Enable {0},Enable {0}
 Enable {0} selected,Enable {0} selected
 Enabled,Enabled
+"End this stock count? {0} counted, {1} not counted. It can't be edited afterwards.","End this stock count? {0} counted, {1} not counted. It can't be edited afterwards."
+"End this stock count? {0} counted, {1} not counted; it can't be edited afterwards.","End this stock count? {0} counted, {1} not counted; it can't be edited afterwards."
 Engine No,Engine No
 Enter a board name,Enter a board name
 Enter a comment,Enter a comment
@@ -2554,7 +2556,7 @@ stock.workbench.editEntry,Correct entry
 stock.workbench.elsewhere,This item is also stocked at:
 stock.workbench.entryQty,Quantity counted this time
 stock.workbench.find,Find product
-stock.workbench.finishConfirm,Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.
+stock.workbench.finishConfirm,"End this stock count? {0} counted, {1} not counted; it can't be edited afterwards."
 stock.workbench.locationDiff,Position differences
 stock.workbench.lookupError,Lookup failed
 stock.workbench.lookupFailed,Product not found. Check the code and try again.

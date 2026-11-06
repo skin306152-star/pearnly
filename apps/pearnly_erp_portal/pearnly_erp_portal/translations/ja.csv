@@ -499,6 +499,8 @@ Enable POS cashier,POS レジを有効にする
 Enable {0},{0}件を有効化
 Enable {0} selected,選択した{0}件を有効化
 Enabled,有効
+"End this stock count? {0} counted, {1} not counted. It can't be edited afterwards.",棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件。終了後は修正できません。
+"End this stock count? {0} counted, {1} not counted; it can't be edited afterwards.",棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件、終了後は修正できません。
 Engine No,エンジン番号
 Enter a board name,ボード名を入力してください
 Enter a comment,コメントを入力してください
@@ -2554,7 +2556,7 @@ stock.workbench.editEntry,記録を修正
 stock.workbench.elsewhere,この商品は他の場所にも在庫があります:
 stock.workbench.entryQty,今回の実地数量
 stock.workbench.find,商品を検索
-stock.workbench.finishConfirm,確認済みの差異を在庫に反映して終了しますか？棚卸済み {0} 件、未棚卸 {1} 件は変更せず、終了後は閲覧・出力のみです。
+stock.workbench.finishConfirm,棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件、終了後は修正できません。
 stock.workbench.locationDiff,棚番の差異
 stock.workbench.lookupError,検索できませんでした
 stock.workbench.lookupFailed,商品が見つかりません。コードを確認してください。
