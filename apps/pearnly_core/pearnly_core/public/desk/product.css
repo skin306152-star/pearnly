@@ -140,6 +140,19 @@ body.pearnly-product-desk .standard-sidebar-item.active-sidebar .icon {
 	display: none;
 }
 
+/* 左下角用户块上方那段空白（用户 2026-11-06）：原生底部区里的推广横幅、「Getting Started」、侧栏卡片
+   在产品里都是空的或隐藏的，但横幅区的上下外边距、包着那条链接的 <p> 的下边距、空卡片区占的那一格
+   flex 间距照留，再加用户块自带的 mt-3，合起来七十来像素，菜单因此早早要滚动。
+   空的占位不占位、用户块不再额外下推；有内容时（账号区菜单、编辑排序的保存/放弃）原生样式照旧。 */
+body.pearnly-product-desk .body-sidebar .promotional-banners:empty,
+body.pearnly-product-desk .body-sidebar .body-sidebar-cards:empty,
+body.pearnly-product-desk .body-sidebar-bottom > p:has(> .onboarding-sidebar.hidden) {
+	display: none;
+}
+body.pearnly-product-desk .body-sidebar-bottom .dropdown-navbar-user {
+	margin-top: 0 !important;
+}
+
 /* Ordering retains native handles/save/discard; changing destinations is not a preference. */
 .pearnly-product-desk .pearnly-sidebar-order .edit-menu,
 .pearnly-product-desk .pearnly-sidebar-order [data-name="add-sidebar-item"] {
