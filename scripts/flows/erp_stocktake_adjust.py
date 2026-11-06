@@ -18,8 +18,9 @@ TITLE = "ERP 盘点 → 物料调整：结束不动库存、生成草稿、提�
 IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
 CAPTURE = ("window.__dlgs=window.__dlgs||[];if(!frappe.ui.Dialog.prototype.__cap){const o=frappe.ui.Dialog.prototype.show;"
            "frappe.ui.Dialog.prototype.show=function(){window.__dlgs.push(this);return o.apply(this,arguments)};frappe.ui.Dialog.prototype.__cap=1;}")
-BUTTON = ("const button=key=>{const label=__(key);return [...document.querySelectorAll('.page-head button, .page-actions button, .inner-group-button button')]"
-          ".find(e=>e.offsetParent&&e.innerText.trim()===label)};")
+# 页头按钮：电脑宽度在页头，手机宽度收进「⋯」菜单（隐藏的那份 innerText 为空，按 textContent 认，点击照样生效）
+BUTTON = ("const button=key=>{const label=__(key);return [...document.querySelectorAll('.page-head button, .page-head .dropdown-item, .page-actions button')]"
+          ".find(e=>e.textContent.trim()===label)};")
 
 
 def prepare(lab, manifest):
@@ -38,7 +39,8 @@ frappe.db.set_value("ERP Company", {company!r}, "express_enabled", 0, update_mod
 user = "stock@erp.regression"
 for key in ("stock-adjust", "stock-count"):
     if not frappe.db.exists("Has Role", {{"parent": user, "role": menu.role(key)}}):
-        frappe.get_doc("User", user).add_roles(menu.role(key))
+        person = frappe.get_doc("User", user); person.flags.ignore_permissions = True  # 测试准备：管理员账号不能改别人的角色
+        person.add_roles(menu.role(key))
 # 一个干净的仓：这一遍只有这件物料（快照只这一行）
 a = warehouses.create_warehouse(warehouse_name="flow count " + frappe.generate_hash(length=4), company={company!r})["name"]
 documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), warehouse=a, submit=True,

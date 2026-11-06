@@ -40,7 +40,8 @@ express = frappe.db.get_value("ERP Company", {company!r}, "express_enabled")
 frappe.db.set_value("ERP Company", {company!r}, "express_enabled", 0, update_modified=False)
 user = "stock@erp.regression"
 if not frappe.db.exists("Has Role", {{"parent": user, "role": menu.role("stock-adjust")}}):  # 老数据建库时还没有物料调整菜单
-    frappe.get_doc("User", user).add_roles(menu.role("stock-adjust"))
+    person = frappe.get_doc("User", user); person.flags.ignore_permissions = True  # 测试准备：管理员账号不能改别人的角色
+    person.add_roles(menu.role("stock-adjust"))
 a = frappe.get_all("ERP Warehouse", filters={{"company": {company!r}, "is_active": 1}}, pluck="name", order_by="creation asc", limit=1)[0]
 p = frappe.db.get_value("ERP Product", {product!r}, ["name", "code"], as_dict=True)
 documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), warehouse=a, submit=True,
@@ -55,7 +56,7 @@ print(json.dumps({{"product": p.name, "scan": {scan!r} or p.code, "a": a, "befor
 
 def _fill(scan, qty):
     """在最后一条明细里按码填物料（扫码枪回车那条路）并填数量；回这一条的 FieldGroup。"""
-    return ("const lines=()=>window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.qty&&f.fields_dict.unit_cost&&f.$wrapper.is(':visible'));"
+    return ("const lines=()=>window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.qty&&f.fields_dict.unit_cost&&$(f.wrapper).is(':visible'));"
             "const l=lines().pop(); if(!l) return {error:'no line'};"
             "const i=l.fields_dict.product.$input[0];"
             f"i.focus(); i.value={scan}; i.dispatchEvent(new Event('input',{{bubbles:true}}));"
@@ -89,8 +90,9 @@ def steps(params, camera_code=None):
          "d.get_primary_btn().trigger('click');"
          "for(let k=0;k<80&&d.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();"
          "await new Promise(r=>setTimeout(r,800));"
+         "const msg=[...document.querySelectorAll('.msgprint, .modal.show .modal-body')].map(e=>e.innerText).join(' | ').slice(0,400);"
          "const row=[...document.querySelectorAll('.dt-row, .list-row, .frappe-list .result')].map(e=>e.innerText).find(t=>t.includes('IA'));"
-         "return {submitted: !d.$wrapper.is(':visible'), listed: Boolean(row)};"},
+         "return {submitted: !d.$wrapper.is(':visible'), listed: Boolean(row), msg};"},
     ]
 
 

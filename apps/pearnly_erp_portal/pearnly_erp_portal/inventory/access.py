@@ -7,6 +7,7 @@ from pearnly_erp_portal.masters import company
 from pearnly_erp_portal.masters import access as scope
 
 _ENTRY_WRITE = object()
+_ENTRY_DELETE = object()  # 删草稿那一次（只认这张单的名字）
 _OPENING_WRITE = object()
 
 
@@ -32,8 +33,8 @@ def entry_permission(doc, ptype="read", user=None, **kwargs):
 def validate_entry_write(doc, method=None, *args, **kwargs):
     """Only the service may change an entry, including its lines and posting state."""
     context = getattr(frappe.local, "stock_entry_service_write", None)
-    if context and context[1] is _ENTRY_WRITE and method == "on_trash" and context[0].name == doc.name:
-        return  # 删草稿（`documents.delete_draft`）：框架按名字重新取一份再删，认同一张单
+    if context and context[1] is _ENTRY_DELETE and context[0].name == doc.name:
+        return  # 删草稿（`documents.delete_draft`）：框架按名字重新取一份再删（on_trash / on_change），认同一张单
     if not context or context[0] is not doc or context[1] is not _ENTRY_WRITE:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
@@ -44,7 +45,7 @@ def write_entry(doc, method):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     previous = getattr(frappe.local, "stock_entry_service_write", None)
     ignored = doc.flags.ignore_permissions
-    frappe.local.stock_entry_service_write = (doc, _ENTRY_WRITE)
+    frappe.local.stock_entry_service_write = (doc, _ENTRY_DELETE if method == "delete" else _ENTRY_WRITE)
     try:
         return getattr(doc, method)(ignore_permissions=True)
     finally:

@@ -483,13 +483,13 @@
 						get_query: p.location_query(() => to_warehouse() || "") }] : []),
 					{ fieldtype: "Column Break" },
 					{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: 1,
-						precision: 3, formatter: value => p.number(value) },
+						precision: 3, formatter: value => p.number(value), onchange: () => (adjust ? lock_price(line) : null) },
 					{ fieldtype: "Data", fieldname: "unit", label: t("trade.unit"),
 						onchange: () => (adjust && line.ready ? void default_cost(line) : null) },
 					{ fieldtype: "Currency", fieldname: price, options: "currency",
 						label: t(cost ? "trade.cost" : "trade.price"),
 						// 出库不给人填价：只锁这一格，行照样能加能改（结存成本由服务端算）；物料调整的减少行同样
-						read_only: locked_price ? 1 : 0, ...(adjust ? { read_only_depends_on: "eval:!(doc.qty > 0)" } : {}),
+						read_only: locked_price ? 1 : 0,
 						formatter: value => p.money(value),
 						onchange: () => { if (adjust && line.ready && !line.pricing) line.manual = 1; } },
 					{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
@@ -497,6 +497,11 @@
 					{ fieldtype: "Button", fieldname: "remove", label: __("Delete"),
 						click: () => drop(line) },
 				];
+			}
+			// 物料调整：减少的行（数量 ≤ 0）单价那一格只读（按出货时均价出，官方 set_df_property）
+			function lock_price(line) {
+				const locked = !(Number(line.form.get_value("qty")) > 0) ? 1 : 0;
+				if (line.form.fields_dict[price]?.df.read_only !== locked) line.form.set_df_property(price, "read_only", locked);
 			}
 			// 程序带出的价不算人填的（`line.pricing` 期间单价格的 onchange 不记人填）
 			async function priced(line, set) {
@@ -574,6 +579,7 @@
 					...(transfer && values.to_location === undefined ? { to_location: (to_location?.() || "") } : {}),
 					...values, warehouse: head_warehouse() })).then(() => {
 					line.ready = true;
+					if (adjust) lock_price(line);
 					// 只有**最后那一条**默认展开：铺一叠草稿行时不会一串全开着（前面几条在
 					// `add` 开头就收起来了；这里判"还是不是最后一条"，避免异步回来时又展开）。
 					if (lines[lines.length - 1] === line) line.section.collapse(false);

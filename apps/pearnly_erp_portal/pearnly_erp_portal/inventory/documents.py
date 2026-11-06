@@ -461,11 +461,11 @@ def delete_draft(name):
     if doc.status != "draft":
         frappe.throw(_(BAD_TRANSITION))
     count = doc.get("stock_count")
-    access.write_entry(doc, "delete")  # 草稿的附件框架连带删（`attachments.guard_file` 放行草稿）
-    if count:
+    if count:  # 先让盘点放开这张单（盘点上的链接还指着它时框架不让删）
         from pearnly_erp_portal.inventory import count as counts
 
         counts.adjustment_released(count, name)
+    access.write_entry(doc, "delete")  # 草稿的附件框架连带删（`attachments.guard_file` 放行草稿）
     frappe.db.commit()
     return {"ok": True}
 
