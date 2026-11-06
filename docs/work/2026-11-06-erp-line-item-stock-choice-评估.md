@@ -1,5 +1,12 @@
 # 需求影响评估：ERP 采购 / 销售按行决定物料与库存（LINE 识别后追问、网页批量设、各入口同一套规则）
 
+> **审定：主会话 11-06 审过。** 第 12 节 14 条全部按建议定，补充：
+> - #1 做。测试机原生证据由主会话安排，要等用户实测代录之后：S 盘副本只读统计照 4.4 做；C 盘 Express 一开单据就报 -330（授权），原生混行 RR 改在 accserver 的 TEST 账套录一张读回（用户已授权写 TEST）。
+> - #4 按行记住、不再问，以 11-06 新口径为准；开始前确认卡片记录 1.7 已补注。
+> - #9 不加 CC 建单工具（CC 对话本来就不建 ERP 采购 / 销售单，由主会话向用户说明）。
+> - #14 ERP 部分等库存整改合入 main 后从最新 main 开新分支施工；CC 部分现在可在单独分支开发，CC 1.12.15 发正式版后才合入 main；服务端先部署，CC 再发版。
+> - 10.2 的 4 条改文案由主会话转用户确认，确认前不登记 `copy-approved.tsv`。
+
 > 按 [需求影响评估模板](../development/templates/impact-assessment.md) 填写；只写事实和建议，**不施工、不改代码**。交主会话审定。
 > 基线：`origin/main` = `cd9f8efa3`（11-06）；分支 `pearnly/line-item-stock-choice-770877`。下文路径省略 `apps/pearnly_erp_portal/pearnly_erp_portal/`，
 > CC 桌面版路径写 `companion/…`。
