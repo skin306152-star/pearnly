@@ -77,6 +77,7 @@ BUSY_SITES = [
     ("components/assistant-ui/thread.tsx", "<TypingDots", "export const RunLine", 16),  # 状态行的样子：谁、什么时候挂见 BUSY_MOUNTS
     ("components/tool-uis/steps.tsx", "<TypingDots", "running &&", 0),
     ("components/assistant-ui/attachment.tsx", "cc-spinner", "{isUploading && (", 5),
+    ("components/assistant-ui/attachment.tsx", "cc-spinner", "{isRecognizing && (", 5),  # 代录输入框里传完的一份还在识别（11-06）
     ("components/pending.tsx", "cc-spinner", "{!view && !error && (", 3),  # 提议那一行展开、CC 备好的内容还没取回
     ("components/pending.tsx", "cc-spinner", "head && open && !error && (", 3),  # 月结台账里要选的那一行点开、判定还没回来（11-05）
     ("components/company-cards.tsx", "cc-spinner", "if (!options) return", 0),  # MR.ERP 记住的选择展开、可选值还没取回（10-19）
