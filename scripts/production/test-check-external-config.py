@@ -389,7 +389,8 @@ class _Response(io.BytesIO):
         return False
 
 
-def fake_line(calls):
+def fake_line(calls, webhook=None):
+    """``webhook``：webhook 测试依次回的结果（列表，取完用最后一个）；不给就一律成功。"""
     import urllib.error
     import urllib.parse
 
@@ -408,18 +409,21 @@ def fake_line(calls):
         if url.endswith("/richmenu"):
             raise urllib.error.HTTPError(url, 404, "no", {}, None)
         if url.endswith("/webhook/test"):
+            if webhook:
+                return _Response(200, webhook.pop(0) if len(webhook) > 1 else webhook[0])
             return _Response(200, {"success": True, "statusCode": 200, "reason": "OK", "detail": "200"})
         raise AssertionError(url)
     return urlopen
 
 
-def run_site_dumper(sites_dir: Path, salt: str, calls: list) -> str:
+def run_site_dumper(sites_dir: Path, salt: str, calls: list, webhook=None) -> str:
     """在本进程里跑容器内那段脚本（假 LINE），返回它的标准输出。"""
     out = io.StringIO()
     cwd = os.getcwd()
     try:
         os.chdir(sites_dir.parent)
-        with mock.patch("urllib.request.urlopen", fake_line(calls)), mock.patch.object(sys, "argv", ["-", salt]), \
+        with mock.patch("urllib.request.urlopen", fake_line(calls, webhook)), mock.patch.object(sys, "argv", ["-", salt]), \
+                mock.patch("time.sleep", lambda seconds: None), \
                 contextlib.redirect_stdout(out):
             exec(compile(col.SITE_DUMPER, "site-dumper", "exec"), {"__name__": "__main__"})
     finally:
@@ -500,6 +504,30 @@ class Collector(unittest.TestCase):
                          ["/oauth2/v3/token", "/v2/bot/channel/webhook/test"])
         self.assertNotIn("smtpServer", facts["keycloak"]["pearnly-business"]["realm"])
         self.assertEqual(facts["keycloak"]["pearnly-business"]["idps"][0]["config"], {"clientId": CHANNEL})
+
+    def test_a_failed_webhook_test_is_tried_again_and_keeps_line_s_reason(self):
+        # 11-05：ris、testdms 只看到「状态码 0」（LINE 没拿到回应），看不出是连不上还是超时；11-06 部署时两家都通过（一时的）
+        timeout = {"success": False, "statusCode": 0, "reason": "REQUEST_TIMEOUT", "detail": "timeout"}
+        ok = {"success": True, "statusCode": 200, "reason": "OK", "detail": "200"}
+        with tempfile.TemporaryDirectory() as folder:
+            sites = Path(folder) / "sites"
+            (sites / "ris.pearnly.com").mkdir(parents=True)
+            (sites / "ris.pearnly.com" / "site_config.json").write_text(json.dumps({
+                "pearnly_line_channel_id": "1650000000", "pearnly_line_channel_secret": CHANNEL_SECRET}))
+            for answers, expected in (([timeout, ok], {"success": True, "statusCode": 200, "tries": 2}),
+                                      ([timeout], {**timeout, "tries": 2}),
+                                      ([ok], {"success": True, "statusCode": 200})):
+                with self.subTest(answers=answers):
+                    calls = []
+                    printed = run_site_dumper(sites, "salt", calls, list(answers))
+                    [row] = json.loads(printed.split("__SITES ", 1)[1])
+                    self.assertEqual(row["line"]["webhook_test"], expected)
+                    self.assertEqual(sum(1 for _m, url, _a in calls if url.endswith("/webhook/test")), expected.get("tries", 1))
+        facts = good_facts()
+        site_row(facts, "mrerp.pearnly.com")["line"]["webhook_test"] = {**timeout, "tries": 2}
+        out = run(facts)
+        self.assertEqual(out.block, [])
+        self.assertTrue(any("状态码 0，REQUEST_TIMEOUT，timeout，试了 2 次" in line for line in out.note), out.note)
 
     def test_no_test_event_is_sent_when_line_refuses_the_channel_secret(self):
         # 密钥不对时站点验不过签、会记「验签失败」：这种站一个请求都不发给它的 webhook，按凭据不对拦

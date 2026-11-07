@@ -71,7 +71,7 @@ DENY_FLOW = "pearnly-line-deny"
 
 # 在各产品 web 容器里跑（容器自带 python3，只用标准库）：argv[1] = 这次的盐。只输出推导事实与密钥的 HMAC。
 SITE_DUMPER = r'''
-import hashlib, hmac, json, os, sys, urllib.error, urllib.parse, urllib.request
+import hashlib, hmac, json, os, sys, time, urllib.error, urllib.parse, urllib.request
 
 LINE = "https://api.line.me"
 salt = sys.argv[1].encode()
@@ -110,6 +110,28 @@ def token_of(conf):
                       "kind": "refused"}
 
 
+def webhook_test(token, pause=3):
+    # LINE 发一个空事件到这家的 webhook，要 2 秒内回 200。没成功时带上 LINE 给的原因（COULD_NOT_CONNECT / REQUEST_TIMEOUT …，
+    # 状态码 0 = LINE 没拿到回应），隔几秒再试一次：11-05 ris、testdms 只回了「状态码 0」、看不出原因，11-06 部署时两家都通过（一时的）
+    tries = 0
+    while True:
+        tries += 1
+        status, body = call("POST", "/v2/bot/channel/webhook/test", token, {})
+        if body is None:
+            result = {"error": f"HTTP {status}"}
+        elif body.get("success") is True:
+            result = {"success": True, "statusCode": body.get("statusCode")}
+        else:
+            result = {"success": body.get("success"), "statusCode": body.get("statusCode"),
+                      "reason": str(body.get("reason") or "")[:60], "detail": str(body.get("detail") or "")[:200]}
+        if result.get("success") is True or tries >= 2:
+            break
+        time.sleep(pause)
+    if tries > 1:
+        result["tries"] = tries
+    return result
+
+
 def line_facts(conf):
     try:
         token, failed = token_of(conf)
@@ -124,8 +146,7 @@ def line_facts(conf):
         out["bot"] = {"chatMode": body.get("chatMode"), "markAsReadMode": body.get("markAsReadMode")} if body is not None else {"error": f"HTTP {status}"}
         status, body = call("GET", "/v2/bot/user/all/richmenu", token)
         out["richmenu"] = True if status == 200 and (body or {}).get("richMenuId") else False if status == 404 else {"error": f"HTTP {status}"}
-        status, body = call("POST", "/v2/bot/channel/webhook/test", token, {})
-        out["webhook_test"] = {"success": body.get("success"), "statusCode": body.get("statusCode")} if body is not None else {"error": f"HTTP {status}"}
+        out["webhook_test"] = webhook_test(token)
         return out
     except Exception as exc:  # 连不上 LINE：只说类型，不带任何请求内容
         return {"error": type(exc).__name__, "kind": "unreachable"}

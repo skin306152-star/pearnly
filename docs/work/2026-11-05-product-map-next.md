@@ -500,5 +500,10 @@ webhook 测试事件（L6）的安全性（主会话 11-05 条件）：LINE 的�
   配置里的空白不影响使用，不改（要清理是生产写入，主会话定）。
 
 只报告：erpcowork 没有默认富菜单（testcowork 有）；ris、testdms 的 webhook 测试事件没成功（LINE 回状态码 0，像是连不到 / 超时，地址与开关都对）——待查。
+- **11-07 查过**（小件窗口）：LINE 的测试事件是空事件数组、要 2 秒内回 200，状态码 0 = LINE 没拿到回应（连不上或超时）。
+  11-06 22:43 部署时同一项（「dms：站点 2 个，配了 LINE 2 个」）没有报这一条，两家都通过了；本机实验栈 DMS / ERP / Cowork 三个站对签名的空事件都在
+  10 毫秒内回 200，`pearnly_core.line.webhook` 三个产品同一条路、空事件不进产品处理器。结论：11-05 那次是一时的，代码没有问题。
+  检查本身改了：生产机段（`external-config-collect.py`）没成功时记下 LINE 给的原因（`reason` / `detail`，如 COULD_NOT_CONNECT、REQUEST_TIMEOUT），
+  隔 3 秒再试一次；对比段把状态码、原因、试了几次一起报出来（`test-check-external-config.py` 守住）。下次再出现就能看出是哪一种。
 
 待办（主会话 11-05 定）：test01、testcowork 补 testai 退出跳转（`configure-ai-entry.py --tenant-logout`，生产 Keycloak 写入）先不做。

@@ -333,8 +333,10 @@ def check_line(src: Sources, rows: dict, out: Findings) -> None:
                 out.add("line:bot-mode", f"{product} {site}：机器人模式读不到（{bot['error']}）", "note")
             test = line.get("webhook_test") or {}
             if "error" in test or test.get("success") is not True:
-                out.add("line:webhook-test", f"{product} {site}：LINE → 服务器 webhook 测试没成功"
-                                             f"（{test.get('error') or test.get('statusCode')}）")
+                why = test.get("error") or "，".join(str(part) for part in (
+                    f"状态码 {test.get('statusCode')}", test.get("reason"), test.get("detail")) if part)
+                tries = f"，试了 {test['tries']} 次" if test.get("tries") else ""
+                out.add("line:webhook-test", f"{product} {site}：LINE → 服务器 webhook 测试没成功（{why}{tries}）")
         tests = [{"site": s} for s in lines if src.tenant.is_test(s) and "error" not in lines[s]]
         reference = src.tenant.reference_of(product, tests)
         if not reference:
