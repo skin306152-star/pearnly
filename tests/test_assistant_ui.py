@@ -2850,7 +2850,59 @@ assert.equal(co.unassigned, "未归属公司");
         row = projects.split("const PendingPlaceholder: FC", 1)[1].split("\n};\n", 1)[0]
         self.assertIn('className="cc-activity" data-activity="notice"', row)
         self.assertIn('start(row.company ? { project: row.company, period: withPeriod ? row.month : "" } : NO_FILING);', row)
-        self.assertIn("<LoosePlaceholders />", projects.split("export const SidebarError: FC", 1)[1].split("\n};\n", 1)[0])
+        # 侧栏三处 11-07：占位行不再单独飘在列表最上面（侧栏出错行那里只剩出错提示），同对话行一样归组（下面的分组测试）
+        self.assertNotIn("Placeholders", projects.split("export const SidebarError: FC", 1)[1].split("\n};\n", 1)[0])
+        self.assertNotIn("LoosePlaceholder", projects)
+
+    def test_placeholders_sit_in_the_same_groups_and_rows_as_conversations(self):
+        # 侧栏三处 11-07（用户：「没挂公司的直写那边明明做的很好的，为什么到代录这边又是一个样了」）：还没有对话的「公司 · 月份」
+        # 占位行同对话行一样归组——有公司的进那家的组（侧栏里还没有这家时补一个组），归不上公司的进「最近」，按月份进那个月，
+        # 不分组进「最近」；组里只有占位行也算有内容（默认展开）；搜索按标题与公司名。标题按内容起（对方 / 文件名），不写死月份
+        self.run_page(r"""
+import { companySections, flatSections, groupOpen, monthSections } from "@/lib/managed-agents/sidebar-groups";
+import { placeholderTitle } from "@/lib/companies";
+const at = (m: number) => Date.UTC(2026, 9, 15, 12, 0) - m * 60000;
+const projects = ["A", "B", "C", "D", "E", "F", "G"].map((x, i) => ({ id: `comp_${x}`, title: `Company ${x}`, last_active: new Date(at(i)).toISOString() }));
+const rows = [{ index: 0, title: "a chat", starred: false, time: at(5), group: "comp_A", period: "2026-10" },
+              { index: 1, title: "loose chat", starred: false, time: at(6), group: "" }];
+const p = (company: string, month: string, parties: string[] = [], files: string[] = []) => ({ company, month, count: 2, conversation: "", parties, files });
+const pending = [p("comp_A", "2026-09", ["BJC Big C", "Makro"]), p("comp_G", "2026-10", [], ["scan.pdf"]), p("", "", ["Lotus"])];
+const opts = { pending, pendingTitle: (row: any) => placeholderTitle(row, "zh") };
+const s = companySections(rows, projects, opts)!;
+const by = (key: string) => s.find((x) => x.key === key) as any;
+assert.deepEqual(by("project:comp_A").pending.map((r: any) => r.month), ["2026-09"]);
+assert.deepEqual(by("project:comp_A").indices, [0]);
+assert.deepEqual(by("recents").pending.map((r: any) => r.parties[0]), ["Lotus"]);
+assert.deepEqual(by("recents").indices, [1]);
+assert.equal("pending" in by("project:comp_B"), false);  // 没有占位行的组不带这个键
+// 只有占位行的公司（G 排在第 7）也算有内容、默认展开；空公司组照旧收着
+assert.equal(groupOpen(by("project:comp_G"), new Set(), false), true);
+assert.equal(groupOpen(by("project:comp_B"), new Set(), false), false);
+// 搜索：标题、公司名命中
+const found = companySections(rows, projects, { ...opts, query: "makro" })!;
+assert.deepEqual(found.map((x) => x.key), ["project:comp_A"]);
+assert.deepEqual((found[0] as any).pending.length, 1);
+assert.deepEqual((found[0] as any).indices, []);
+assert.deepEqual(companySections(rows, projects, { ...opts, query: "company g" })!.map((x) => x.key), ["project:comp_G"]);
+// 按月份：进那个月；归不上公司的进「未指定月份」。不分组：都进「最近」
+const m = monthSections(rows, projects, opts)!;
+assert.deepEqual(m.map((x) => [x.key, ((x as any).pending ?? []).length]), [["month:2026-10", 1], ["month:2026-09", 1], ["month:", 1]]);
+const f = flatSections(rows, projects, opts)!;
+assert.deepEqual(f.map((x) => [x.key, (x as any).pending.length]), [["recents", 3]]);
+// 标题：对方（中日用「、」，其余用「, 」），没有对方用第一个文件名，都没有「N 张单要处理」
+assert.equal(placeholderTitle(pending[0], "zh"), "BJC Big C、Makro");
+assert.equal(placeholderTitle(pending[0], "th"), "BJC Big C, Makro");
+assert.equal(placeholderTitle(pending[1], "zh"), "scan.pdf");
+assert.match(placeholderTitle(p("comp_A", "2026-09"), "en"), /^2 /);
+""")
+        tree = read("components/assistant-ui/thread-list.tsx")
+        # 同一个侧栏（直写、代录都是 CompanyGroups）：占位行放在各组的行容器里、对话行前面
+        self.assertEqual(tree.count("<PendingRows rows={section.pending} />"), 4)
+        self.assertIn("const placeholders = usePlaceholders();", tree)
+        css = read("globals.css")
+        # 手机抽屉里对话行的高、圆角、字色与缩进，占位行同一条规则
+        self.assertIn('.cc-drawer :is([data-slot="aui_thread-list-item"], [data-slot="cc-pending-placeholder"])', css)
+        self.assertIn('.cc-drawer :is([data-slot="aui_thread-list-item-trigger"], [data-slot="cc-pending-placeholder-trigger"])', css)
 
     def test_months_branches_and_amounts(self):
         self.run_page(r"""
@@ -2881,16 +2933,17 @@ assert.deepEqual(parseCounts([{ company: "comp_a", count: 2 }, { company: null, 
 // 按「公司 · 月份」（待处理并进对话）：conversation 空 = 还没有对话（侧栏占位行）；归不上公司的 company 为空；数为 0、月份不对的不要
 assert.deepEqual(
   parseCounts({ total: 4, companies: { comp_a: 3 }, months: [
-    { company: "comp_a", month: "2026-10", count: 2, conversation: "sesn_1" },
-    { company: "comp_a", month: "2026-09", count: 1, conversation: null },
+    { company: "comp_a", month: "2026-10", count: 2, conversation: "sesn_1", parties: ["BJC", " "], files: ["a.pdf"] },
+    { company: "comp_a", month: "2026-09", count: 1, conversation: null, parties: "BJC" },
     { company: null, month: "", count: 1 },
     { company: "comp_b", month: "2026-13", count: 1 },
     { company: "comp_c", month: "2026-10", count: 0 },
   ] }).months,
   [
-    { company: "comp_a", month: "2026-10", count: 2, conversation: "sesn_1" },
-    { company: "comp_a", month: "2026-09", count: 1, conversation: "" },
-    { company: "", month: "", count: 1, conversation: "" },
+    // 占位行的标题素材：对方、文件名（不是数组、空白的不要；旧服务端不给为空）
+    { company: "comp_a", month: "2026-10", count: 2, conversation: "sesn_1", parties: ["BJC"], files: ["a.pdf"] },
+    { company: "comp_a", month: "2026-09", count: 1, conversation: "", parties: [], files: [] },
+    { company: "", month: "", count: 1, conversation: "", parties: [], files: [] },
   ],
 );
 // 分店：服务端给了就用；旧服务端按账套上的分店号现分（一套账服务几个分店、每个分店一套账都如实列）
@@ -3392,7 +3445,8 @@ class SidebarShellSourceTests(unittest.TestCase):
         # 组头没有待处理数了（用户 11-04：Code 的组头没有数，待处理并进对话；还没有对话的月份在组里一行占位）
         self.assertNotIn("cc-group-count", head)
         self.assertNotIn("openPending", projects)
-        self.assertIn("{open && <PendingPlaceholders company={project.id} />}", head)
+        # 占位行不挂在组头下面（那样不在组的行容器里、没缩进），放进组里的行容器（thread-list.tsx 的 PendingRows）
+        self.assertNotIn("PendingPlaceholders", head)
         # 右侧：···（分组和排序）、新建（新建在最右，悬停才出）
         order = [head.index(x) for x in ("<GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} />", "<GroupNew ")]
         self.assertEqual(order, sorted(order))
@@ -3426,7 +3480,7 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn(".cc-project-row .cc-group-toggle { color: var(--cc-ink-2); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: normal; }", css)
         self.assertIn('[data-slot="cc-project-items"] { --cc-row-indent: calc(var(--cc-icon-sm) + var(--cc-space-4) + var(--cc-row-gap)); }', css)
         self.assertIn(".cc-row-trigger { gap: var(--cc-space-4); padding-inline: calc(var(--cc-row-pad) + var(--cc-row-indent, 0px)) var(--cc-space-4); }", css)
-        self.assertIn('.cc-drawer [data-slot="aui_thread-list-item-trigger"] { padding-inline-start: calc(var(--cc-space-12) + var(--cc-row-indent, 0px)); }', css)
+        self.assertIn('.cc-drawer :is([data-slot="aui_thread-list-item-trigger"], [data-slot="cc-pending-placeholder-trigger"]) { padding-inline-start: calc(var(--cc-space-12) + var(--cc-row-indent, 0px)); }', css)
         self.assertIn("margin-inline: calc(var(--cc-row-pad) + var(--cc-row-indent, 0px) - var(--cc-inline-edit-px)) var(--cc-space-4);", css)
         # 「显示更多」也缩进到公司名文字起点（用户 10-16 看预览后定）
         self.assertIn("padding-inline: calc(var(--cc-row-pad) + var(--cc-row-indent, 0px)) var(--cc-row-pad);", css)
@@ -3536,7 +3590,7 @@ class SidebarShellSourceTests(unittest.TestCase):
         # 手机抽屉：行字仍 14（不再放大到 17），行与组标题带 44 由手机变体给
         drawer = css.split("/* 手机抽屉（设计文档 3.16）", 1)[1].split("/* 手机顶栏与抽屉里的圆按钮", 1)[0]
         self.assertNotIn("font-size", drawer)
-        self.assertIn('.cc-drawer [data-slot="aui_thread-list-item"] { min-height: var(--cc-row-h);', drawer)
+        self.assertIn('.cc-drawer :is([data-slot="aui_thread-list-item"], [data-slot="cc-pending-placeholder"]) { min-height: var(--cc-row-h);', drawer)
 
     def test_deleting_chats_asks_once_first(self):
         """删除对话先确认一次（用户 10-17，同 Claude 手机 app）：标题「删除对话？」/ 多选「删除 N 个对话？」、「取消 / 删除」、

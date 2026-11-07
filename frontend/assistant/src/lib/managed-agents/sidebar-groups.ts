@@ -13,7 +13,13 @@
 // 先后（新置顶的排最上面）；按公司分组时组里的对话拖过以后按手排的先后（arrangeGroup：比存下时这组最新的那个时间还新的排最上面，
 // 不比它新的接在后面）。没手排过的照排序方式排。
 // 搜索同时匹配对话标题和公司名（公司名命中时这家的对话都算）；搜索时每组都显示全部命中的，没命中的组不显示。
+//
+// 待处理的占位行（还没有对话的「公司 · 月份」，options.pending）同对话行一样归组（侧栏三处 11-07：直写、代录同一套，
+// 不再单独飘在列表最上面、不再挂在组头下面）：按公司分组时进那家公司的组（这家还没有组时调用方补一个）、归不上公司的进「最近」；
+// 按月份进那个月（归不上公司的进「未指定月份」）；不分组进「最近」。排在组里对话行的前面（要你处理的在上面），不参与手排和
+// 「显示更多」；组里只有占位行也算有内容（默认展开的前 5 家照样数它）。搜索按占位行的标题与公司名匹配。
 
+import type { PendingMonth } from "@/lib/companies";
 import { FIRST_SHOWN, OPEN_FIRST, type ProjectRow, rowActivity } from "./projects";
 import { arrange, type GroupOrder } from "./sidebar-order";
 import type { SortBy } from "./sidebar-view";
@@ -31,11 +37,12 @@ export type SidebarRow = {
   key?: string;
 };
 
+/** pending：这一组的待处理占位行（没有时不带这个键）。 */
 export type SidebarSection =
   | { type: "pinned"; key: "pinned"; indices: number[] }
-  | { type: "project"; key: string; project: ProjectRow; rank: number; indices: number[]; all: number[]; more: boolean }
-  | { type: "month"; key: string; period: string; indices: number[] }
-  | { type: "recents"; key: "recents"; indices: number[] };
+  | { type: "project"; key: string; project: ProjectRow; rank: number; indices: number[]; all: number[]; more: boolean; pending?: PendingMonth[] }
+  | { type: "month"; key: string; period: string; indices: number[]; pending?: PendingMonth[] }
+  | { type: "recents"; key: "recents"; indices: number[]; pending?: PendingMonth[] };
 
 export type SortOptions = { by: SortBy; desc: boolean };
 
@@ -53,7 +60,12 @@ export type SectionOptions = {
   pinnedOrder?: readonly string[];
   /** 按公司分组时各组里手排的先后（键 = 公司编号，最近 ""）。 */
   groupOrders?: Readonly<Record<string, GroupOrder>>;
+  /** 待处理的占位行（还没有对话的「公司 · 月份」）与它们的标题（搜索用）。 */
+  pending?: readonly PendingMonth[];
+  pendingTitle?: (row: PendingMonth) => string;
 };
+
+const withPending = (pending: PendingMonth[]) => (pending.length ? { pending } : {});
 
 const UPDATED_DESC: SortOptions = { by: "updated", desc: true };
 
@@ -140,15 +152,26 @@ function searcher(projects: readonly ProjectRow[], query: string) {
   const groupOf = (row: SidebarRow) => (known.has(row.group) ? row.group : "");
   const named = new Map(projects.map((p) => [p.id, p.title.toLowerCase()]));
   const matches = (row: SidebarRow) => !q || row.title.toLowerCase().includes(q) || !!named.get(groupOf(row))?.includes(q);
-  return { q, groupOf, matches };
+  return { q, groupOf, matches, known, named };
+}
+
+/** 占位行按搜索词筛（标题或公司名命中），回它们与「归到哪一组」（侧栏里有这家的组是公司编号，否则 ""）。 */
+function pendingRows(options: SectionOptions, q: string, known: ReadonlySet<string>, named: ReadonlyMap<string, string>) {
+  const titleOf = options.pendingTitle ?? (() => "");
+  const rows = (options.pending ?? []).filter(
+    (row) => !q || titleOf(row).toLowerCase().includes(q) || !!named.get(row.company)?.includes(q),
+  );
+  return { rows, groupOf: (row: PendingMonth) => (known.has(row.company) ? row.company : "") };
 }
 
 /** 按公司分好的各组；搜索时一条都没命中回 null（侧栏显示「没有结果」）。 */
 export function companySections(rows: readonly SidebarRow[], projects: readonly ProjectRow[], options: SectionOptions = {}): SidebarSection[] | null {
-  const { q: query, groupOf, matches } = searcher(projects, options.query ?? "");
+  const { q: query, groupOf, matches, known, named } = searcher(projects, options.query ?? "");
   const sort = options.sort ?? UPDATED_DESC;
   const sorted = [...rows].sort(compareRows(sort));
   const recentFirst = [...rows].sort(compareRows(UPDATED_DESC));
+  const placeholders = pendingRows(options, query, known, named);
+  const pendingOf = (group: string) => placeholders.rows.filter((row) => placeholders.groupOf(row) === group);
 
   const sections: SidebarSection[] = [];
   const pinned = pinnedIndices(sorted, matches, options.pinnedOrder);
@@ -176,7 +199,8 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
   // 默认展开的「前 5 家」只数有对话的公司（测试窗口第 3 轮：手机上没有对话的空公司组排在前面，占掉了 5 个位置，有对话的
   // 各组一打开都收着）；空公司组排在它们之后，默认收着。对话列表还没到（一条对话都还没归到任何公司、服务端也没说哪家还有）时
   // 照公司顺序数前 5 家（复审第 3 轮：公司先到、对话后到的那段时间不能全收着）
-  const anyChats = rows.some((row) => !!groupOf(row)) || Object.keys(options.serverMore ?? {}).length > 0;
+  const anyChats = rows.some((row) => !!groupOf(row)) || Object.keys(options.serverMore ?? {}).length > 0
+    || placeholders.rows.some((row) => !!placeholders.groupOf(row));
   let rank = 0;
   let empties = 0;
   const inGroup = (group: string) =>
@@ -185,17 +209,20 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
     );
   for (const project of ordered) {
     const all = inGroup(project.id);
-    if (query && !all.length && !project.title.toLowerCase().includes(query)) continue;
-    if (!query && !all.length && options.empty === false) continue;
+    const pending = pendingOf(project.id);
+    const filled = all.length > 0 || pending.length > 0;
+    if (query && !filled && !project.title.toLowerCase().includes(query)) continue;
+    if (!query && !filled && options.empty === false) continue;
     const indices = query ? all : all.slice(0, options.shown?.[project.id] ?? FIRST_SHOWN);
     const serverHas = project.id in (options.serverMore ?? {});
     const more = !query && (all.length > indices.length || serverHas);
-    const order = !anyChats || all.length || serverHas ? rank++ : OPEN_FIRST + empties++;
-    sections.push({ type: "project", key: `project:${project.id}`, project, rank: order, indices, all, more });
+    const order = !anyChats || filled || serverHas ? rank++ : OPEN_FIRST + empties++;
+    sections.push({ type: "project", key: `project:${project.id}`, project, rank: order, indices, all, more, ...withPending(pending) });
   }
 
   const recents = inGroup("");
-  if (recents.length) sections.push({ type: "recents", key: "recents", indices: recents });
+  const loose = pendingOf("");
+  if (recents.length || loose.length) sections.push({ type: "recents", key: "recents", indices: recents, ...withPending(loose) });
 
   if (query && !sections.length) return null;
   return sections;
@@ -224,7 +251,7 @@ export function pinGuest(sections: SidebarSection[], index: number, at: number):
 
 /** 按处理月份：已置顶 → 各月（降序新的在前，升序旧的在前）→ 未指定月份（键 month:）。 */
 export function monthSections(rows: readonly SidebarRow[], projects: readonly ProjectRow[], options: SectionOptions = {}): SidebarSection[] | null {
-  const { q: query, matches } = searcher(projects, options.query ?? "");
+  const { q: query, matches, known, named } = searcher(projects, options.query ?? "");
   const sort = options.sort ?? UPDATED_DESC;
   const sorted = [...rows].sort(compareRows(sort)).filter(matches);
   const sections: SidebarSection[] = [];
@@ -236,23 +263,31 @@ export function monthSections(rows: readonly SidebarRow[], projects: readonly Pr
     const period = row.period ?? "";
     months.set(period, [...(months.get(period) ?? []), row.index]);
   }
+  // 占位行进它那个月（归不上公司的进「未指定月份」）
+  const placeholders = pendingRows(options, query, known, named).rows;
+  const monthOf = (row: PendingMonth) => (row.company ? row.month : "");
+  for (const row of placeholders) if (!months.has(monthOf(row))) months.set(monthOf(row), []);
   const periods = [...months.keys()].filter(Boolean).sort();
   if (sort.desc) periods.reverse();
   if (months.has("")) periods.push("");
-  for (const period of periods) sections.push({ type: "month", key: `month:${period}`, period, indices: months.get(period)! });
+  for (const period of periods) {
+    const pending = placeholders.filter((row) => monthOf(row) === period);
+    sections.push({ type: "month", key: `month:${period}`, period, indices: months.get(period)!, ...withPending(pending) });
+  }
   if (query && !sections.length) return null;
   return sections;
 }
 
 /** 不分组：已置顶 → 其余全部（同一个「最近」组，可折叠）。 */
 export function flatSections(rows: readonly SidebarRow[], projects: readonly ProjectRow[], options: SectionOptions = {}): SidebarSection[] | null {
-  const { q: query, matches } = searcher(projects, options.query ?? "");
+  const { q: query, matches, known, named } = searcher(projects, options.query ?? "");
   const sorted = [...rows].sort(compareRows(options.sort ?? UPDATED_DESC)).filter(matches);
   const sections: SidebarSection[] = [];
   const pinned = pinnedIndices(sorted, () => true, options.pinnedOrder);
   if (pinned.length) sections.push({ type: "pinned", key: "pinned", indices: pinned });
   const rest = sorted.filter((row) => !row.starred).map((row) => row.index);
-  if (rest.length) sections.push({ type: "recents", key: "recents", indices: rest });
+  const pending = pendingRows(options, query, known, named).rows;
+  if (rest.length || pending.length) sections.push({ type: "recents", key: "recents", indices: rest, ...withPending(pending) });
   if (query && !sections.length) return null;
   return sections;
 }

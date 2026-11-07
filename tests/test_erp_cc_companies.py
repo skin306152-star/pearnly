@@ -711,8 +711,8 @@ class PendingTests(unittest.TestCase):
         sessions_stub.conversations[("CO-00001", "2026-10")] = "sesn_oct"
         self.assertEqual(cc_companies.pending_counts(), {"total": 4, "companies": {"CO-00001": 2, "CO-00002": 2},
                                                          "unassigned": 0, "months": [
-            {"company": "CO-00001", "month": "2026-10", "count": 2, "conversation": "sesn_oct"},
-            {"company": "CO-00002", "month": "2026-10", "count": 2, "conversation": ""}]})
+            {"company": "CO-00001", "month": "2026-10", "count": 2, "parties": ["Thai Steel"], "files": [], "conversation": "sesn_oct"},
+            {"company": "CO-00002", "month": "2026-10", "count": 2, "parties": ["Thai Steel"], "files": [], "conversation": ""}]})
         # 「公司 · 月份」按同一批条目算（与数同一口径），不另查一遍
         self.assertEqual([item["document"] for item in sessions_stub.calls[-1]], ["PUR-3", "PUR-1", "SAL-1", "SAL-2"])
         self.assertEqual([item["document"] for item in cc_companies.pending(company="CO-00002")["items"]],
@@ -744,7 +744,8 @@ class PendingTests(unittest.TestCase):
         self.assertEqual(cc_companies.pending(company="CO-00002"), {"items": [], "count": 0})
         self.assertEqual(cc_companies.pending_counts(), {"total": 1, "companies": {"CO-00001": 1}, "unassigned": 0,
                                                          "months": [{"company": "CO-00001", "month": "2026-10",
-                                                                     "count": 1, "conversation": ""}]})
+                                                                     "count": 1, "parties": ["Thai Steel"], "files": [],
+                                                                     "conversation": ""}]})
         frappe.session.user = "nobody@x"
         with self.assertRaises(PermissionError_):
             cc_companies.pending()

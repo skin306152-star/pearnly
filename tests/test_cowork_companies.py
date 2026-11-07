@@ -1504,8 +1504,8 @@ class PendingTests(unittest.TestCase):
         counted = pending.pending_counts()
         # months（Code 版 CC B3）：按「公司 · 月份」，归不上公司的（h4）只算在 unassigned；本人这家这个月的对话带上
         self.assertEqual(counted, {"total": 4, "companies": {abc: 2, xyz: 1}, "unassigned": 1, "months": [
-            {"company": abc, "month": "2026-09", "count": 2, "conversation": "sesn_abc"},
-            {"company": xyz, "month": "2026-09", "count": 1, "conversation": ""}]})
+            {"company": abc, "month": "2026-09", "count": 2, "parties": ["Makro"], "files": [], "conversation": "sesn_abc"},
+            {"company": xyz, "month": "2026-09", "count": 1, "parties": ["Shop"], "files": [], "conversation": ""}]})
         fresh_request()
         items = {item["document"]: item for item in pending.pending()["items"]}
         self.assertEqual(set(items), {"h1", "h2", "h3", "h4"})

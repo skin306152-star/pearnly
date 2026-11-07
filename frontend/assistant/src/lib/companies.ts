@@ -394,7 +394,9 @@ export function useBranches(company: string): Branch[] {
 /** 待处理按「公司 · 月份」（服务端 pending_counts 的 months）：conversation 是本人这家这个月最近更新、没归档的那段对话，没有为空；
  *  company 为空 = 归不上公司（只有 Cowork）。待处理并进对话（用户 11-04）：有对话的落在那段对话末尾的「需要处理」框，没有的侧栏放
  *  一行占位，点了才建对话。 */
-export type PendingMonth = { company: string; month: string; count: number; conversation: string };
+/** 待处理的一个「公司 · 月份」（company 空 = 归不上公司）；conversation：本人这家这个月那段对话（空 = 侧栏出一行占位）。
+ *  parties、files：这几张单的对方名称（张数多的在前）与第一个文件名，占位行的标题素材（旧服务端不给，为空）。 */
+export type PendingMonth = { company: string; month: string; count: number; conversation: string; parties: string[]; files: string[] };
 type Counts = { loaded: boolean; total: number; companies: Record<string, number>; months: PendingMonth[] | null };
 export const usePendingCounts = create<Counts>(() => ({ loaded: false, total: 0, companies: {}, months: null }));
 
@@ -407,7 +409,13 @@ export function onPendingChange(handler: () => void): () => void {
   return onProjectChange((change) => (change.op === "upsert" && change.part === "pending" ? handler() : undefined));
 }
 
-type MonthReply = { company?: string | null; month?: string | null; count?: number | string; conversation?: string | null };
+type MonthReply = {
+  company?: string | null; month?: string | null; count?: number | string; conversation?: string | null;
+  parties?: unknown; files?: unknown;
+};
+
+const names = (value: unknown): string[] =>
+  Array.isArray(value) ? value.map((item) => String(item ?? "").trim()).filter(Boolean) : [];
 type CountsReply =
   | { total?: number; companies?: Record<string, number>; by_company?: Record<string, number>; months?: MonthReply[] | null }
   | Array<{ company: string | null; count: number }>;
@@ -427,10 +435,21 @@ export function parseCounts(out: CountsReply | null | undefined): { total: numbe
   const total = Number(out?.total) || Object.values(companies).reduce((a, b) => a + (Number(b) || 0), 0);
   const months = Array.isArray(out?.months)
     ? out.months
-        .map((row) => ({ company: String(row.company ?? ""), month: String(row.month ?? ""), count: Number(row.count) || 0, conversation: String(row.conversation ?? "") }))
+        .map((row) => ({
+          company: String(row.company ?? ""), month: String(row.month ?? ""), count: Number(row.count) || 0,
+          conversation: String(row.conversation ?? ""), parties: names(row.parties), files: names(row.files),
+        }))
         .filter((row) => row.count > 0 && (isPeriod(row.month) || !row.company))
     : null;
   return { total, companies, months };
+}
+
+/** 占位行（还没有对话的「公司 · 月份」）的标题：同对话一样按内容起名，不写死月份（侧栏三处 11-07）——这几张单的对方
+ *  （中文、日文用「、」连，其余用「, 」：泰文的列举写法名字之间不加分隔，带空格的公司名会连成一片），没有对方时第一个
+ *  文件名（同只发了附件的对话），都没有时「N 张单要处理」。 */
+export function placeholderTitle(row: Pick<PendingMonth, "parties" | "files" | "count">, language: string = lang): string {
+  if (row.parties.length) return row.parties.join(/^(zh|ja)/.test(language) ? "、" : ", ");
+  return row.files[0] || co.pendingDocs(row.count);
 }
 
 let counting: Promise<void> | null = null;

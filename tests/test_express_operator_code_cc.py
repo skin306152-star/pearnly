@@ -632,9 +632,23 @@ class PendingMonthTests(unittest.TestCase):
                  {"company": "CO-1", "month": "2026-09"}, {"company": "CO-2", "month": "2026-10"},
                  {"company": None, "month": "2026-10"}, {"company": "CO-1", "month": "2026-1"}]
         self.assertEqual(assistant_contracts.pending_months(items), [
-            {"company": "CO-1", "month": "2026-10", "count": 2}, {"company": "CO-1", "month": "2026-09", "count": 1},
-            {"company": "CO-2", "month": "2026-10", "count": 1}])
+            {"company": "CO-1", "month": "2026-10", "count": 2, "parties": [], "files": []},
+            {"company": "CO-1", "month": "2026-09", "count": 1, "parties": [], "files": []},
+            {"company": "CO-2", "month": "2026-10", "count": 1, "parties": [], "files": []}])
         self.assertEqual(assistant_contracts.pending_months([]), [])
+
+    def test_placeholder_title_sources(self):
+        # 侧栏三处 11-07：占位行按内容起名（对方名称，张数多的在前，最多 3 个；没有对方时第一个文件名），不写死月份
+        items = [{"company": "CO-1", "month": "2026-10", "counterparty": "Makro", "filename": "a.pdf"},
+                 {"company": "CO-1", "month": "2026-10", "counterparty": " BJC  Big C ", "filename": "b.pdf"},
+                 {"company": "CO-1", "month": "2026-10", "counterparty": "BJC Big C", "filename": ""},
+                 {"company": "CO-1", "month": "2026-10", "counterparty": "Lotus"},
+                 {"company": "CO-1", "month": "2026-10", "counterparty": "7-Eleven"},
+                 {"company": "CO-2", "month": "2026-10", "counterparty": "", "filename": "scan 01.jpg"}]
+        out = assistant_contracts.pending_months(items)
+        self.assertEqual(out[0]["parties"], ["BJC Big C", "Makro", "Lotus"])
+        self.assertEqual(out[0]["files"], ["a.pdf"])
+        self.assertEqual((out[1]["parties"], out[1]["files"]), ([], ["scan 01.jpg"]))
 
     def test_latest_own_open_conversation_of_that_company_and_month(self):
         session = lambda sid, project, period, modified, **extra: Row(  # noqa: E731
@@ -651,9 +665,9 @@ class PendingMonthTests(unittest.TestCase):
         items = [{"company": "CO-1", "month": "2026-10"}, {"company": "CO-1", "month": "2026-09"},
                  {"company": "CO-2", "month": "2026-10"}]
         self.assertEqual(self.sessions.pending_months(items), [
-            {"company": "CO-1", "month": "2026-10", "count": 1, "conversation": "new"},
-            {"company": "CO-1", "month": "2026-09", "count": 1, "conversation": "sep"},
-            {"company": "CO-2", "month": "2026-10", "count": 1, "conversation": ""}])
+            {"company": "CO-1", "month": "2026-10", "count": 1, "parties": [], "files": [], "conversation": "new"},
+            {"company": "CO-1", "month": "2026-09", "count": 1, "parties": [], "files": [], "conversation": "sep"},
+            {"company": "CO-2", "month": "2026-10", "count": 1, "parties": [], "files": [], "conversation": ""}])
         doctype, filters, order, limit = STATE["queries"][-1]
         self.assertEqual((doctype, order, limit), ("Pearnly Assistant Session", "modified desc, name desc",
                                                    self.sessions.MONTH_SCAN))  # 一次查询、有上限

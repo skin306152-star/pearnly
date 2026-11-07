@@ -413,7 +413,8 @@ def _create_operator(project, period, scope) -> dict:
 
 def open_operator(task, scope="") -> str:
     """代录任务的会话（`tasks.create` 与旧任务补建的补丁共用）：本站先建一行（编号 `op_<任务号>`，挂在任务的公司、月份上，
-    标题是任务名或公司名），远端会话第一次发话时才开。没配引擎的站点不建，回空串。"""
+    标题先放任务名或公司名、记成占位标题，首条消息发出时同直写一样换成用户的话再概括，`titles.PLACEHOLDER`），远端会话第一次
+    发话时才开。没配引擎的站点不建，回空串。"""
     code = config.engine_code()
     if not code:
         return ""
@@ -426,7 +427,8 @@ def open_operator(task, scope="") -> str:
         scope = ""
     title = contracts.title_from(task.get("title") or task.get("company_title") or task.get("company") or "")
     frappe.get_doc({"doctype": SESSION, "session_id": sid, "user": task.owner, "product": config.product(),
-                    "engine_code": code, "title": title, "starred": 1 if task.get("starred") else 0,
+                    "engine_code": code, "title": title, "title_source": titles.PLACEHOLDER,
+                    "starred": 1 if task.get("starred") else 0,
                     "project": task.company, "period": task.period, "project_scope": scope,
                     "operator_task": task.name, "remote_ids": "[]"}).insert(ignore_permissions=True)
     sidebar.changed(task.owner, "created", sid)
@@ -831,8 +833,9 @@ def send(session_id, text) -> None:
     if shown:
         # 发出成功才算带过（只标这次真带上的几条）；发不出（抛错）下次再带
         notices.mark_carried(frappe.session.user, [item["name"] for item in shown])
-    if not row.title:
-        # 首条消息原文先当临时标题（只写本站，会话列表读本站表），不拖慢发送；第一轮结束后才概括（`titles`）
+    if titles.provisional(row):
+        # 首条消息原文先当临时标题（只写本站，会话列表读本站表），不拖慢发送；第一轮结束后才概括（`titles`）。
+        # 代录会话建时放的公司名同样换掉（直写、代录同一套：标题 = 用户第一句的简要）
         titles.start(row, text, frappe.session.user)
     elif titles.due(row):
         # 上一轮结束时推送线程没排上概括（进程重启、过了时限）：这时补排

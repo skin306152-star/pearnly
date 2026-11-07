@@ -164,6 +164,7 @@ class TaskTests(unittest.TestCase):
             slice(None), [row for row in self.state["sessions"] if row["session_id"] != sid])
         assistant = types.ModuleType("pearnly_core.assistant")
         assistant.sessions = sessions
+        assistant.titles = types.SimpleNamespace(PLACEHOLDER="placeholder")
         self.saved = {k: sys.modules.get(k) for k in ("frappe", "frappe.utils", "pearnly_core", "pearnly_core.express_operator",
                                                        "pearnly_core.express_operator.products",
                                                        "pearnly_core.express_operator.contracts", "pearnly_core.assistant",

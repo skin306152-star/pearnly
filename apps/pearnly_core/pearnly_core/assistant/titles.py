@@ -13,6 +13,9 @@
   以用户的名字为准。
 - 标题变了（临时标题、概括出的标题）经 `sidebar` 推给会话主人，各设备的侧栏马上并入。
 - 早于这套记法的对话（`title_source` 为空）不再补概括。
+- 代录会话建的时候还没有用户的话，先放公司名（或任务名）当占位标题，记 `title_source = placeholder`（侧栏三处 11-07：代录、上传
+  开出来的对话标题全是公司名）：首条消息发出时同直写一样换成原文、第一轮结束后概括（`sessions.send`）。只发了附件的，概括素材是
+  附件名与 CC 第一段回复（`contracts.title_parts`），标题按回复里说的单据内容起。
 - 概括期间对话被删了（用户回复一出来就删）：任务静默收手，不记错误、不写回（`_finish` 行没了也不动）；删除本身不等这个任务
   （`sessions._write` 的说明）。
 """
@@ -26,6 +29,7 @@ FROM_MESSAGE = "message"  # 临时标题（首条消息原文），等第一轮�
 SUMMARIZING = "summarizing"
 SUMMARY = "summary"  # 概括过（成不成都算）
 BY_USER = "user"  # 用户手动改过名
+PLACEHOLDER = "placeholder"  # 代录会话建时放的公司名（任务名），首条消息发出时换掉
 JOB = "pearnly_core.assistant.titles.summarize"
 JOB_TIMEOUT = 120
 FIELDS = ["name", "session_id", "user", "title", "title_source"]
@@ -37,6 +41,11 @@ def start(row, text: str, user: str) -> None:
     frappe.db.set_value(SESSION, row.name, {"title": title, "title_source": FROM_MESSAGE})
     row.update({"title": title, "title_source": FROM_MESSAGE})
     sidebar.changed(user, "titled", row.session_id, title=title)
+
+
+def provisional(row) -> bool:
+    """还没有用户的话起的标题：空的，或代录会话建时放的占位标题。首条消息发出时用它的原文（`start`）。"""
+    return not row.get("title") or (row.get("title_source") or "") == PLACEHOLDER
 
 
 def due(row) -> bool:

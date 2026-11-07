@@ -1183,8 +1183,8 @@ class RelayTests(unittest.TestCase):
                       "the user's interface language", "even when the message or the reply is in another language",
                       "company names and document numbers may stay as written", "<reply>",
                       "<too_long>", "- Thai: ผลงานเมื่อคืน", "- Thai: ภาษีเดือน 9 สามบริษัท", "- Chinese: ", "- Japanese: ",
-                      "- English: "):
-            self.assertIn(words, instruction)
+                      "- English: ", "If the message is only file names", "name the documents the reply describes"):
+            self.assertIn(words, instruction)  # 只发了附件：按回复里的单据内容起名（侧栏三处 11-07）
         for _language, example in engines.base.TITLE_EXAMPLES:
             self.assertTrue(contracts.title_fits(example), example)  # 示例本身放得下
         # 年份按标题的语言写（第 8 轮：英文标题写成「Express Sep 2569 push log」）：泰文可留佛历，其余语言用公历（减 543）
@@ -4066,6 +4066,30 @@ class SidebarSyncTests(unittest.TestCase):
             patch.start()
             self.addCleanup(patch.stop)
         return sessions
+
+    def test_an_operator_conversation_gets_its_title_from_the_first_message_like_any_other(self):
+        # 侧栏三处 11-07（用户：「我要的是对话内用户第一句话的简要」）：代录、上传开出来的对话建时放公司名当占位标题，
+        # 首条消息发出时同直写一样换成原文、第一轮结束后概括；只发了附件的用附件名（概括时按 CC 回复里的单据内容起）。
+        # 旧的、没有标题来源的对话不改名
+        titles = self.titles
+        api = types.SimpleNamespace(post=lambda remote, batch: None)
+        row = self.db.rows["row1"]
+        row.update(title="บริษัท มานะชัยบริการ จำกัด", title_source=titles.PLACEHOLDER, remote_ids="", pending_carry="")
+        sessions = self._sessions(row, api)
+        sessions.send("sesn_first1", "ช่วยลงบิล BJC เดือนนี้")
+        self.assertEqual((row.title, row.title_source), ("ช่วยลงบิล BJC เดือนนี้", titles.FROM_MESSAGE))
+        note = "\n\n[Attached files, mounted read-only in the sandbox:\n- bjc-oct.pdf → /mnt/session/uploads/f1/bjc-oct.pdf\n]"
+        row.update(title="บริษัท มานะชัยบริการ จำกัด", title_source=titles.PLACEHOLDER)
+        sessions.send("sesn_first1", note)
+        self.assertEqual((row.title, row.title_source), ("bjc-oct.pdf", titles.FROM_MESSAGE))
+        # 只换占位标题：已有用户的话、改过名的、早于这套记法的都不动
+        for source in (titles.FROM_MESSAGE, titles.SUMMARY, titles.BY_USER, None):
+            row.update(title="ชื่อเดิม", title_source=source)
+            sessions.send("sesn_first1", "ข้อความใหม่")
+            self.assertEqual(row.title, "ชื่อเดิม", source)
+        # 建代录会话时写的就是占位标题（sessions.open_operator、tasks.thread 两处）
+        self.assertIn('"title_source": titles.PLACEHOLDER', (CORE / "assistant/sessions.py").read_text(encoding="utf-8"))
+        self.assertIn('"title_source": titles.PLACEHOLDER', (CORE / "express_operator/tasks.py").read_text(encoding="utf-8"))
 
     def test_every_list_change_is_pushed_to_the_owner_only(self):
         row = self.db.rows["row1"]

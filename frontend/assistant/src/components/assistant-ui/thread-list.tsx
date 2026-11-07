@@ -23,7 +23,7 @@
 import { Marquee } from "@/components/ui/marquee";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSidebar } from "@/components/ui/sidebar";
-import { focusComposer, ProjectHeader, SidebarError, useNewChatIn } from "@/components/assistant-ui/projects";
+import { focusComposer, PendingRows, ProjectHeader, SidebarError, useNewChatIn, usePlaceholders } from "@/components/assistant-ui/projects";
 import {
   altMove,
   chain,
@@ -45,7 +45,7 @@ import { cn } from "@/lib/utils";
 import { isImeEnter } from "@/lib/ime";
 import { isDragging } from "@/lib/layers";
 import { co, dayLabel, sb, t } from "@/i18n";
-import { branchShort, monthLabel, monthShort } from "@/lib/companies";
+import { branchShort, monthLabel, monthShort, placeholderTitle } from "@/lib/companies";
 import { shownError } from "@/lib/frappe";
 import { type Activity, useActivity, useBumps } from "@/lib/managed-agents/activity";
 import { NO_FILING, type ProjectRow, setDraft, setError, showMore, useProjects } from "@/lib/managed-agents/projects";
@@ -400,9 +400,12 @@ const CHAT_ORDERS: GroupOrders = { setPinnedOrder, setCompanyOrder, setGroupOrde
 const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const aui = useAui();
   const { threadIds, itemsById, dates, unsent } = useDates();
-  const projects = useProjects((s) => s.projects);
+  const listed = useProjects((s) => s.projects);
   const kind = useProjects((s) => s.kind);
   const filings = useProjects((s) => s.filings);
+  // 待处理的占位行（还没有对话的「公司 · 月份」）同对话行一样归组；侧栏里还没有组的公司补一个组放它们（侧栏三处 11-07）
+  const placeholders = usePlaceholders();
+  const projects = useMemo(() => (placeholders.extra.length ? [...listed, ...placeholders.extra] : listed), [listed, placeholders.extra]);
   const shown = useProjects((s) => s.shown);
   const serverMore = useProjects((s) => s.more.groups);
   const view = useSidebarView();
@@ -474,15 +477,17 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     });
     const sort = { by: view.sort, desc: view.desc };
     const pinnedOrder = order.pinned;
-    if (view.by === "month") return { rows, sections: monthSections(rows, projects, { query, sort, pinnedOrder }) };
-    if (view.by === "none") return { rows, sections: flatSections(rows, projects, { query, sort, pinnedOrder }) };
+    const pending = { pending: placeholders.rows, pendingTitle: (row: (typeof placeholders.rows)[number]) => placeholderTitle(row) };
+    if (view.by === "month") return { rows, sections: monthSections(rows, projects, { query, sort, pinnedOrder, ...pending }) };
+    if (view.by === "none") return { rows, sections: flatSections(rows, projects, { query, sort, pinnedOrder, ...pending }) };
     return {
       rows,
       sections: companySections(rows, projects, {
         query, shown, serverMore, sort, empty: view.empty, companyOrder: order.companies, pinnedOrder, groupOrders: order.groups,
+        ...pending,
       }),
     };
-  }, [threadIds, itemsById, dates, unsent, pinning, projects, filings, shown, serverMore, query, view, order]);
+  }, [threadIds, itemsById, dates, unsent, pinning, projects, placeholders.rows, filings, shown, serverMore, query, view, order]);
   spotRef.current = (key) => {
     const row = rows.find((entry) => entry.key === key);
     if (!row) return null;
@@ -763,6 +768,7 @@ export const SidebarGroups: FC<SidebarGroupsProps> = ({
               more={moreOf(section)}
               Header={Header}
             >
+              <PendingRows rows={section.pending} />
               <RowScopeContext.Provider value={scopeOf(section.project.id)}>
                 <DragList id={rowList(section.project.id)} items={rowIdsOf(section.project.id)}>
                   <Items indices={section.indices} ids={threadIds} />
@@ -779,6 +785,7 @@ export const SidebarGroups: FC<SidebarGroupsProps> = ({
         if (section.type === "recents") {
           return byCompany ? (
             <RecentsGroup key={section.key} open={open} menu={sortMenu} onToggle={toggle} onNew={onNewRecent}>
+              <PendingRows rows={section.pending} />
               <RowScopeContext.Provider value={scopeOf("")}>
                 <DragList id={rowList("")} items={rowIdsOf("")}>
                   <Items indices={section.indices} ids={threadIds} />
@@ -787,12 +794,14 @@ export const SidebarGroups: FC<SidebarGroupsProps> = ({
             </RecentsGroup>
           ) : (
             <SectionGroup key={section.key} label={t("recents")} open={open} menu={sortMenu} onToggle={toggle} onNew={onNewRecent}>
+              <PendingRows rows={section.pending} />
               <Items indices={section.indices} ids={threadIds} />
             </SectionGroup>
           );
         }
         return (
           <SectionGroup key={section.key} label={section.period ? monthLabel(section.period) : sb.noMonth} open={open} menu={sortMenu} onToggle={toggle}>
+            <PendingRows rows={section.pending} />
             <Items indices={section.indices} ids={threadIds} />
           </SectionGroup>
         );

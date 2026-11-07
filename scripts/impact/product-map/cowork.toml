@@ -1700,9 +1700,9 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:cowork:pending-in-chat"
-where = "CC 待处理并进对话（「公司 · 月份」对话末尾的「需要处理」框、侧栏还没有对话的月份占位行、「未归属公司」）"
+where = "CC 待处理并进对话（「公司 · 月份」对话末尾的「需要处理」框；还没有对话的月份在侧栏一行占位，同对话行归组：进那家公司的组、归不上公司的进「最近」，标题按单据对方起）"
 parts = ["cc-sidebar-list"]
-tests = ["unit:tests/test_assistant_ui.py::test_pending_folds_into_the_conversation", "unit:tests/test_cc_ask.py::test_card_renders_like_the_code_question_card", "flow:cowork.pending.operator"]
+tests = ["unit:tests/test_assistant_ui.py::test_pending_folds_into_the_conversation", "unit:tests/test_assistant_ui.py::test_placeholders_sit_in_the_same_groups_and_rows_as_conversations", "unit:tests/test_cc_ask.py::test_card_renders_like_the_code_question_card", "flow:cowork.pending.operator"]
 group = "cc.action.pending-in-chat"
 
 [[row]]

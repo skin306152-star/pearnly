@@ -473,19 +473,36 @@ def period(value) -> str:
 _period = period  # `project_change` 的参数也叫 period
 
 
+PENDING_PARTIES = 3  # 占位行标题最多列几个对方
+
+
 def pending_months(items) -> list:
     """待处理按「公司 · 月份」计数（Code 版 CC B3：侧栏这家这个月的对话亮「等你处理」，没有对话出占位行）：
-    `items` 是产品待处理的条目（带 `company`、`month`），归不上公司或月份不成形的不算（另有 `unassigned`）。
-    回 `[{"company", "month", "count"}]`，按公司、月份新到旧排。"""
+    `items` 是产品待处理的条目（带 `company`、`month`，有的带 `counterparty`、`filename`），归不上公司或月份不成形的不算
+    （另有 `unassigned`）。回 `[{"company", "month", "count", "parties", "files"}]`，按公司、月份新到旧排。
+    `parties`（对方名称，张数多的在前、一样多按先出现，最多 `PENDING_PARTIES` 个）与 `files`（第一个文件名）是占位行的标题素材
+    （侧栏三处 11-07：占位行同对话一样按内容起名，不写死月份；只有附件的对话按附件起名，这里按这几张单的对方）。"""
     found = {}
     for item in items or ():
         company, month = str(item.get("company") or "").strip(), str(item.get("month") or "").strip()
         if not company or not PERIOD.match(month):
             continue
-        found[(company, month)] = found.get((company, month), 0) + 1
+        entry = found.setdefault((company, month), {"count": 0, "parties": {}, "files": []})
+        entry["count"] += 1
+        party = " ".join(str(item.get("counterparty") or "").split())
+        if party:
+            entry["parties"][party] = entry["parties"].get(party, 0) + 1
+        filename = str(item.get("filename") or "").strip()
+        if filename and not entry["files"]:
+            entry["files"].append(filename)
     ordered = sorted(found.items(), key=lambda pair: pair[0][1], reverse=True)
     ordered.sort(key=lambda pair: pair[0][0])
-    return [{"company": company, "month": month, "count": count} for (company, month), count in ordered]
+    out = []
+    for (company, month), entry in ordered:
+        seen = list(entry["parties"])
+        parties = sorted(seen, key=lambda name: (-entry["parties"][name], seen.index(name)))[:PENDING_PARTIES]
+        out.append({"company": company, "month": month, "count": entry["count"], "parties": parties, "files": entry["files"]})
+    return out
 
 
 def project_scope(value) -> str:

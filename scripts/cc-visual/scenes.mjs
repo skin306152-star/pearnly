@@ -101,6 +101,20 @@ const CHOICES = FAKE(["pearnly_cowork.push.application.api.choices", {
   options: {},
 }]);
 const TASK_ROW = "[data-task]";
+// 待处理按「公司 · 月份」（pending_counts 的 months）：侧栏里有组的一家（曼谷物流，十月还没有对话）、侧栏里没有组的一家（只有待处理）、
+// 归不上公司的
+const PENDING_MONTHS = FAKE(["pearnly_core.assistant.api.projects", { kind: "company", period: true, scope: false,
+  api: "pearnly_cowork.companies.api.", sections: ["pending"], projects: [
+    { id: "C-0001", title: "สยามเทรดดิ้ง จำกัด", subtitle: "0105551000001", count: 4, last_active: "2026-10-15T02:55:00.000Z" },
+    { id: "C-0002", title: "曼谷物流有限公司", subtitle: "0105551000002", count: 2, last_active: "2026-10-15T02:00:00.000Z" },
+    { id: "C-0003", title: "Green Leaf Co., Ltd.", subtitle: "0105551000003", count: 1, last_active: "2026-10-14T17:00:00.000Z" },
+  ] }], ["pearnly_cowork.companies.api.pending_counts", { total: 6, companies: { "C-0002": 2, "C-0009": 3 }, months: [
+  { company: "C-0002", month: "2026-10", count: 2, conversation: "", parties: ["BJC Big C", "Makro"], files: ["bjc-oct.pdf"] },
+  { company: "C-0009", month: "2025-12", count: 3, conversation: "", parties: [], files: ["scan-dec-01.pdf"] },
+  { company: "", month: "", count: 1, conversation: "", parties: ["Lotus"], files: [] },
+] }], ["pearnly_cowork.companies.api.detail", { company: { id: "C-0009", title: "บริษัท ซินเซียร์ไอซ์ จำกัด", legal_name: "บริษัท ซินเซียร์ไอซ์ จำกัด",
+  tax_id: "0105551000009", branch: "00000", adapter: "express", created_by: "test@example.com", created_at: "2026-10-01T00:00:00.000Z" },
+  account_sets: [], branches: [] }, "C-0009"]);
 
 export const SCENES = [
   // ── 外壳与对话 ──
@@ -146,6 +160,9 @@ export const SCENES = [
     [...DRAWER, ["click", ".cc-drawer-title ~ .cc-round-btn", 0], ["type", SEARCH, "查不到的词zz"]])),
   S("sidebar-multiselect", "/assistant?c=sesn_a1", [["click", ROW, 1, "meta"], ["click", ROW, 2, "meta"]], { layouts: ["wide"] }),
   S("sidebar-drag", "/assistant?c=sesn_a1", [["press", ROW, 2, 0, 60]], { layouts: ["wide"] }),
+  // 侧栏待处理（「公司 · 月份」还没有对话，侧栏三处 11-07）：直写、代录两种模式同一份数据，侧栏要一模一样
+  S("sidebar-pending-chat", "/assistant?c=sesn_r1", both([["wait", 800]], [["wait", 800], ...DRAWER, ["wait", 600]]), { init: PENDING_MONTHS }),
+  S("sidebar-pending-op", "/assistant?c=op_1", both([["wait", 800]], [["wait", 800], ...DRAWER, ["wait", 600]]), { init: PENDING_MONTHS }),
   S("split-resize", "/assistant?c=sesn_a1", [["drag", ".cc-split", 0, 60, 0], ["reload"]], { layouts: ["wide"] }),
   S("split-resizing", "/assistant?c=sesn_a1", [["attr", "data-cc-resizing", ""]], { layouts: ["wide"] }),
   // 收起侧栏（components/ui/sidebar.tsx 的 offcanvas：侧栏移到屏外、占位宽 0）：网页点侧栏头的收起钮，CC 桌面版点侧栏标题栏里的开关；

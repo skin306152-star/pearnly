@@ -271,15 +271,17 @@ CONTROLS_MAX = 50
 
 def thread(name) -> dict:
     """这个任务的对话：已有就回它，没有就建一段（建在「最近」，侧栏不列，``sessions.listing``）。打字发问时才建。"""
-    from pearnly_core.assistant import sessions
+    from pearnly_core.assistant import sessions, titles
 
     doc = _own(name, for_update=True)
     if doc.session_id and frappe.db.exists(sessions.SESSION, {"session_id": doc.session_id, "user": _user()}):
         return {"session_id": doc.session_id}
     made = sessions.create()
     row = frappe.db.get_value(sessions.SESSION, {"session_id": made["id"], "user": _user()}, "name")
+    # 公司名（任务名）只是占位标题：首条消息发出时换成用户的话再概括（`titles.PLACEHOLDER`）
     frappe.db.set_value(sessions.SESSION, row, {"operator_task": doc.name,
-                                                "title": (doc.title or doc.company_title or doc.company)[:TITLE_MAX]},
+                                                "title": (doc.title or doc.company_title or doc.company)[:TITLE_MAX],
+                                                "title_source": titles.PLACEHOLDER},
                         update_modified=False)
     doc.session_id = made["id"]
     _save(doc)

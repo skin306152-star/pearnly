@@ -2178,7 +2178,7 @@
   @media (hover: none) {
     /* 整个手机抽屉、平板侧栏都不可选字：只关行本身时，长按会改选旁边能选的字（抽屉顶上的「CC」）并弹出 Google 触摸搜索
        （2026-10-15 部署 aa246686 后 A14 / Chrome 155 重验 F11c） */
-    [data-slot="aui_thread-list-item"], .cc-project-row, .cc-mdrawer, [data-slot="sidebar"] {
+    [data-slot="aui_thread-list-item"], [data-slot="cc-pending-placeholder"], .cc-project-row, .cc-mdrawer, [data-slot="sidebar"] {
       -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
     }
     [data-slot="aui_thread-list-item"] input, .cc-project-row input, .cc-mdrawer :is(input, textarea),
@@ -2555,8 +2555,9 @@
 .cc-drawer { scrollbar-width: none; }
 .cc-drawer::-webkit-scrollbar { display: none; }
 /* 手机抽屉（设计文档 3.16）：行与组标题带 44（手机变体的 --cc-row-h / --cc-group-h），行字仍 14；箭头、组操作常显（--cc-reveal-rest） */
-.cc-drawer [data-slot="aui_thread-list-item"] { min-height: var(--cc-row-h); border-radius: var(--cc-radius-mrow); color: var(--cc-ink); }
-.cc-drawer [data-slot="aui_thread-list-item-trigger"] { padding-inline-start: calc(var(--cc-space-12) + var(--cc-row-indent, 0px)); }
+/* 待处理的占位行（cc-pending-placeholder）同对话行一套（侧栏三处 11-07：直写、代录同一个样子） */
+.cc-drawer :is([data-slot="aui_thread-list-item"], [data-slot="cc-pending-placeholder"]) { min-height: var(--cc-row-h); border-radius: var(--cc-radius-mrow); color: var(--cc-ink); }
+.cc-drawer :is([data-slot="aui_thread-list-item-trigger"], [data-slot="cc-pending-placeholder-trigger"]) { padding-inline-start: calc(var(--cc-space-12) + var(--cc-row-indent, 0px)); }
 .cc-drawer .cc-row-edit { margin-inline-start: calc(var(--cc-space-12) + var(--cc-row-indent, 0px) - var(--cc-inline-edit-px)); }
 .cc-drawer [data-slot="cc-project-items"] .cc-show-more { padding-inline-start: calc(var(--cc-space-12) + var(--cc-row-indent, 0px)); }
 .cc-drawer .cc-section-label { display: flex; align-items: center; min-height: var(--cc-group-h); margin-top: var(--cc-group-top); padding: 0 var(--cc-space-12); }
