@@ -80,3 +80,8 @@
 - 回执 meta 带 `writer`（成功时）；服务端 `sanitize_push_meta` 只收白名单键，旧服务端忽略，服务端收存晚一批。
 - 桥 `operator_state` 多回 `login_user`（已授权账户名）；页面显示放哪里待主会话定（设置页没有 Express 授权那一行）。
 - 测试：新增 `tests/test_writer_id.py` 12 条 + `test_account_history.py` 1 条；业务代码换回 main（保留新模块）后 4 条失败。
+- 页面（主会话选 A）：代录开始卡片已登录时多一行「Express 登录　BIT5」（复用已有文案 `op.expressLogin`，标签 + 账号名两段，不新增文案；`check-copy` 新增 0）；
+  CC 设置「连接」一节这次不动。
+- TEST 实测（11-07，skin3，本分支代码 + 安装版 cdx_reindex_runner）：`writer_id` 找到 `70EXP\secure\SCUSER.DBF`，取到 skin3 授权的账号 **BIT9**（在用户表里）；
+  直写赊购 RR691107-004：`APTRN.USERID = BIT9`、`GLJNL.CREBY = PEARNLY`、`cc_vouchers` 认得出；在 Express 里原生作废照常（又弹了一次 Message#43，按确定后完成），
+  单头 / 凭证头标 C，P001 余额与 500603 总结存回到写前。Express 已正常退出。
