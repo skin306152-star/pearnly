@@ -105,6 +105,25 @@ def _line_row(line) -> dict:
             "warehouse": line["warehouse"], "location": line["location"], "to_location": line.get("to_location") or ""}
 
 
+def stock_units(products) -> dict:
+    """物料 → 库存单位（`base_unit`，没填退回 `unit`，同 `stock.resolve_factor` 的基准）。只取给定的这几件物料。"""
+    names = sorted({str(product) for product in products if product})
+    if not names:
+        return {}
+    rows = frappe.get_all("ERP Product", filters={"name": ["in", names]},  # bounded: 这张单的物料
+                          fields=["name", "base_unit", "unit"], limit_page_length=0)
+    return {row.name: (row.base_unit or row.unit or "").strip() for row in rows}
+
+
+def _with_units(lines) -> list:
+    """行上没写单位的补物料的库存单位。服务端自己生成的行（盘点差异生成的调整单、按库存单位算的系统单）不带单位，
+    数量本来就按库存单位入账（空单位 = 库存单位，`stock.resolve_factor`），补上只是让单据上看得见、写 Express 有单位，换算不变。"""
+    missing = [line["product"] for line in lines if not str(line.get("unit") or "").strip()]
+    units = stock_units(missing)
+    return [line if str(line.get("unit") or "").strip() else {**line, "unit": units.get(line["product"]) or None}
+            for line in lines]
+
+
 def _flag(value) -> bool:
     return value in (True, 1, "1", "true", "True")
 
@@ -176,8 +195,8 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
     location = positions.header(warehouse, location, company=company)["location"]
     raw = _business_lines(lines)
     raw = _own_warehouse(raw, warehouse, stock_count)
-    lines = [positions.prepare(line, warehouse, company=company, location=location, allow_inactive=bool(stock_count))
-             for line in raw]
+    lines = _with_units([positions.prepare(line, warehouse, company=company, location=location, allow_inactive=bool(stock_count))
+                         for line in raw])
     if transfer:
         lines = _transfer_lines(list(zip(lines, raw)), destination["location"], destination["warehouse"])
     if direction == ADJUST:
@@ -324,8 +343,10 @@ def get_entry(name):
     from pearnly_erp_portal.products import categories
 
     labels = categories.names(item.category for item in shown.values())
+    # 老单 / 修复前生成的草稿行上没存单位：显示库存单位（空单位本来就按库存单位入账）
+    stock_unit = stock_units(row.product for row in doc.get("lines") or [] if not row.unit)
     data["lines"] = [
-        {"product": row.product, "qty": row.qty, "unit": row.unit,
+        {"product": row.product, "qty": row.qty, "unit": row.unit or stock_unit.get(row.product) or None,
          "product_name": (shown.get(row.product) or {}).get("product_name") or "",
          "internal_code": (shown.get(row.product) or {}).get("internal_code") or "",
          "spec": categories.spec(labels.get((shown.get(row.product) or {}).get("category")),
@@ -375,8 +396,8 @@ def update_entry(name, **changes):
                             for row in doc.lines]
     if "lines" in changes:
         raw = _own_warehouse(_business_lines(changes["lines"]), doc.warehouse, doc.get("stock_count"))
-        lines = [positions.prepare(line, doc.warehouse, company=company, location=doc.get("location"),
-                                   allow_inactive=bool(doc.get("stock_count"))) for line in raw]
+        lines = _with_units([positions.prepare(line, doc.warehouse, company=company, location=doc.get("location"),
+                                               allow_inactive=bool(doc.get("stock_count"))) for line in raw])
         if transfer:
             lines = _transfer_lines(list(zip(lines, raw)), doc.get("to_location"), doc.to_warehouse)
         if doc.direction == ADJUST:

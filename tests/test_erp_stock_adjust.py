@@ -90,6 +90,36 @@ class OneWarehouse(unittest.TestCase):
         self.assertEqual([row["warehouse"] for row in rows], ["W2", "W1"])
 
 
+class LineUnits(unittest.TestCase):
+    """行上没写单位的补物料库存单位（11-07 线上 testerp：盘点生成的调整单草稿 IA2569-000001 单位一格空）。"""
+
+    PRODUCTS = {"A": types.SimpleNamespace(name="A", base_unit="ชิ้น", unit="กล่อง"),
+                "B": types.SimpleNamespace(name="B", base_unit="", unit="ขวด")}
+
+    def get_all(self, doctype, filters=None, **kwargs):
+        self.asked.append((doctype, list(filters["name"][1])))
+        return [self.PRODUCTS[name] for name in filters["name"][1] if name in self.PRODUCTS]
+
+    def setUp(self):
+        self.asked = []
+        patcher = mock.patch.object(documents.frappe, "get_all", self.get_all, create=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_generated_lines_get_the_stock_unit(self):
+        rows = documents._with_units([{"product": "A", "qty": -2}, {"product": "B", "qty": 1, "unit": ""}])
+        self.assertEqual([row["unit"] for row in rows], ["ชิ้น", "ขวด"])
+
+    def test_a_unit_on_the_line_is_kept(self):
+        rows = documents._with_units([{"product": "A", "qty": 1, "unit": "กล่อง"}])
+        self.assertEqual(rows[0]["unit"], "กล่อง")
+        self.assertEqual(self.asked, [])
+
+    def test_old_lines_without_a_unit_show_the_stock_unit(self):
+        self.assertEqual(documents.stock_units(["A", "B", "A", None]), {"A": "ชิ้น", "B": "ขวด"})
+        self.assertEqual(self.asked, [("ERP Product", ["A", "B"])])
+
+
 class Kinds(unittest.TestCase):
     def test_old_count_entries_belong_to_adjustments(self):
         self.assertEqual(access.entry_kind("in", "count"), "adjust")

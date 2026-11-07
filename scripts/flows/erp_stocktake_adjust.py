@@ -48,7 +48,7 @@ documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), ware
 task = count.create_count(title={title!r}, warehouse=a)["name"]
 count.add_entry(count=task, product={product!r}, qty=3, warehouse=a, location="", request_id="flow-ia-count-" + task)
 frappe.db.commit()
-print(json.dumps({{"a": a, "task": task, "express": int(express or 0)}}))
+print(json.dumps({{"a": a, "task": task, "express": int(express or 0), "unit": documents.stock_units([{product!r}])[{product!r}]}}))
 """)
     return {**out, "company": company, "product": product, "title": title, "cases": []}
 
@@ -66,7 +66,8 @@ def steps(params, camera_code=None):
          "for(let k=0;k<60&&(window.__dlgs.length===n||frappe.get_route()[0]!=='pearnly-stock-adjust');k++) await new Promise(r=>setTimeout(r,250));"
          "await idle(); const d=window.__dlgs[window.__dlgs.length-1]; if(!d) return {error:'no draft dialog'};"
          "const qty=[...d.$wrapper.find('.pearnly-line-editor [data-fieldname=\"qty\"] input')].map(e=>e.value);"
-         "return {route: frappe.get_route()[0], editable: Boolean(d.get_primary_btn().is(':visible')), qty};"},
+         "const unit=[...d.$wrapper.find('.pearnly-line-editor [data-fieldname=\"unit\"] input')].map(e=>e.value);"
+         "return {route: frappe.get_route()[0], editable: Boolean(d.get_primary_btn().is(':visible')), qty, unit};"},
         {"name": "提交调整单", "js": IDLE +
          "const d=window.__dlgs.filter(x=>x.$wrapper.is(':visible')).pop(); if(!d) return {error:'dialog gone'};"
          "d.get_primary_btn().trigger('click');"
@@ -83,6 +84,8 @@ def judge(params, results, camera_code=None):
          "ok": closed.get("adjust_button") is True and closed.get("close_gone") is True},
         {"case": "the button opens the draft adjustment with the difference", "seen": draft,
          "ok": draft.get("route") == "pearnly-stock-adjust" and draft.get("editable") is True and "-2" in (draft.get("qty") or [])},
+        {"case": "the generated draft line shows the product's stock unit", "seen": draft.get("unit"),
+         "ok": bool(params.get("unit")) and draft.get("unit") == [params["unit"]]},
         {"case": "draft submitted", "seen": by.get("提交调整单"), "ok": (by.get("提交调整单") or {}).get("submitted") is True},
     ]
 
