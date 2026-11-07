@@ -144,7 +144,7 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
     <div className="cc-op-before-body">
       {prep.login?.set && prep.login.user && (
         <div className="cc-op-line" data-slot="cc-op-login-user">
-          <span className="min-w-0 flex-1 truncate">{op.expressLogin}</span>
+          <Marquee className="min-w-0 flex-1 truncate">{op.expressLogin}</Marquee>
           <span>{prep.login.user}</span>
         </div>
       )}

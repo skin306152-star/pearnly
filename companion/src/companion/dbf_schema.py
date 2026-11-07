@@ -111,7 +111,7 @@ STCRD_POSOPR_TRANSFER_IN = "3"
 # 在本所又把推送记到一个真人名下。Express 打开账套不拿单据上的用户名去比对用户表(真实账套里大多数单据的录入人
 # 都不在本机用户表,照常打开;2026-10-08 核对),所以写一个固定的、看得出是 Pearnly 写的名字。
 # 11-07 起(用户「录入人应该记 exp 的账户人吧」):单头 USERID 与新建主档的建档人记这台电脑授权的 Express 账户名(``writer_id``),
-# 取不到才记它;凭证头 GLJNL.CREBY 一律记它,当作「CC 写的」机器标记(认自己写的单:``is_pearnly`` / ``account_history`` / ``service_vat``)。
+# 取不到才记它;凭证头 GLJNL.CREBY 一律记它,当作「CC 写的」机器标记(认自己写的单看 ``is_pearnly`` 与 ``writer_id.cc_vouchers``)。
 PEARNLY_USERID = "PEARNLY"
 
 
