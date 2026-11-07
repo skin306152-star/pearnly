@@ -209,6 +209,7 @@ kind = "cc-tool"
 anchor = "tool:erp:express_operator_control"
 group = "cc.tool.express_operator_control"
 where = "CC 工具 express_operator_control"
+tests = ["unit:tests/test_express_operator_tasks.py::test_the_tools_number_documents_in_task_order_and_refuse_ones_outside_it"]
 
 [[row]]
 id = "erp.cc.tool.express_operator_status"
@@ -219,6 +220,7 @@ kind = "cc-tool"
 anchor = "tool:erp:express_operator_status"
 group = "cc.tool.express_operator_status"
 where = "CC 工具 express_operator_status"
+tests = ["unit:tests/test_express_operator_tasks.py::test_the_tools_number_documents_in_task_order_and_refuse_ones_outside_it"]
 
 [[row]]
 id = "erp.cc.tool.pearnly_tax_id_lookup"

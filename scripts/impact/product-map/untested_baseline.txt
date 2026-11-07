@@ -11,10 +11,6 @@ cowork.cc.action.delete-chats@mobile
 cowork.cc.action.mrerp-auth@mobile
 cowork.cc.action.settings@desktop
 cowork.cc.action.settings@mobile
-cowork.cc.tool.express_operator_control@desktop
-cowork.cc.tool.express_operator_control@mobile
-cowork.cc.tool.express_operator_status@desktop
-cowork.cc.tool.express_operator_status@mobile
 cowork.cc.view.company@desktop
 cowork.cc.view.company@mobile
 cowork.cc.view.tasks@mobile
@@ -139,10 +135,6 @@ erp.cc.action.deep-link@desktop
 erp.cc.action.deep-link@mobile
 erp.cc.action.delete-chats@desktop
 erp.cc.action.delete-chats@mobile
-erp.cc.tool.express_operator_control@desktop
-erp.cc.tool.express_operator_control@mobile
-erp.cc.tool.express_operator_status@desktop
-erp.cc.tool.express_operator_status@mobile
 erp.cc.view.company@mobile
 erp.cc.view.tasks@desktop
 erp.cc.view.tasks@mobile
