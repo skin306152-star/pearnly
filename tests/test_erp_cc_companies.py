@@ -222,6 +222,7 @@ core_assistant.sessions = sessions_stub
 # ERP 权限：哪个人有哪些能力、员工按本人录入收窄
 CAPS = {"boss@x": {"company.read", "company.manage", "purchase.read", "purchase.write", "sales.read", "sales.write"},
         "staff@x": {"company.read", "purchase.read", "purchase.write"},
+        "clerk@x": {"company.read", "sales.read", "sales.write"},  # 开单员、没被限定公司（11-07 定案 #1 能选中即建）
         "viewer@x": {"company.read"},
         "nobody@x": set()}
 STAFF = {"staff@x"}
@@ -556,7 +557,9 @@ class AddCompanyTests(unittest.TestCase):
         STATE.db.table("ERP Company")["CO-00001"]["is_active"] = 0
         self.assertEqual([row["title"] for row in cc_companies.candidates()], ["Chiang Mai Rice"])
 
-    def test_only_company_managers_list_or_create(self):
+    def test_only_people_who_can_build_list_or_create(self):
+        # 11-07 定案 #1：能管公司的人，或有开单权限、看得到全部公司的人（clerk@x）能选中即建；被限定公司的员工、只读、
+        # 没权限的不能（他看不到新建出来的那家）
         for user in ("staff@x", "viewer@x", "nobody@x"):
             frappe.session.user = user
             with self.assertRaises(PermissionError_):
@@ -564,6 +567,34 @@ class AddCompanyTests(unittest.TestCase):
             with self.assertRaises(PermissionError_):
                 cc_companies.create("", "0105570000009:00000")
         self.assertEqual(len(STATE.db.table("ERP Company")), 3)
+        frappe.session.user = "clerk@x"
+        self.assertIn("Chiang Mai Rice", [row["title"] for row in cc_companies.candidates()])
+        self.assertTrue(cc_companies.create("", "0105570000009:00000")["created"])
+        self.assertEqual(len(STATE.db.table("ERP Company")), 4)
+
+    def test_choices_merge_visible_companies_with_the_books_not_built_yet(self):
+        # 对话里选公司的弹窗：本人可见的公司 + 还没建的账套（只给能建的人），服务端分页、按标签筛；纯 ERP 公司（不接账本）
+        # 是「erp」，只在有这类公司时出这个标签（定案 #3）；停用的不出
+        out = cc_companies.choices()
+        found = {row["title"]: row for row in out["rows"]}
+        self.assertEqual((found["Siam Trading"]["company"], found["Siam Trading"]["adapter"]), ("CO-00001", "express"))
+        self.assertEqual((found["Korat Branch"]["company"], found["Korat Branch"]["adapter"]), ("CO-00002", "erp"))
+        self.assertIsNone(found["Chiang Mai Rice"]["company"])
+        self.assertNotIn("Old Co", found)
+        self.assertEqual(sum(1 for row in out["rows"] if row["title"] == "Siam Trading"), 1)  # 已建的不按账套重复一行
+        self.assertEqual(out["adapters"], ["erp", "express"])
+        self.assertEqual([row["title"] for row in cc_companies.choices(adapter="erp")["rows"]], ["Korat Branch"])
+        self.assertEqual([row["title"] for row in cc_companies.choices("chiang")["rows"]], ["Chiang Mai Rice"])
+        projects.stats["CO-00002"] = {"count": 1, "last_active": "2026-11-01 09:00:00"}
+        rows = cc_companies.choices()["rows"]
+        self.assertEqual([row["title"] for row in rows], ["Korat Branch", "Chiang Mai Rice", "Siam Trading"])  # 我有对话的在前
+        self.assertEqual(cc_companies.choices(start=1, limit=1)["rows"], rows[1:2])
+        # 被限定公司的员工：只见分给他的那家，没有还没建的
+        frappe.session.user = "staff@x"
+        self.assertEqual([(row["title"], row["company"]) for row in cc_companies.choices()["rows"]], [("Siam Trading", "CO-00001")])
+        frappe.session.user = "nobody@x"
+        with self.assertRaises(PermissionError_):
+            cc_companies.choices()
 
     def test_create_from_express_books_builds_the_company_the_background_job_would(self):
         made = cc_companies.create("", "0105570000009:00000", "k-1")

@@ -195,6 +195,29 @@ def require_manage(user=None) -> str:
     return user
 
 
+def can_build(user=None) -> bool:
+    """能在对话里选中没建过的公司顺手建（主会话 11-07 定案 #1）：能管公司的人；或有开单权限、看得到全部公司（没被 User
+    Permission 限定到某几家）的人——ERP 本来就按电脑报来的账套自动建公司，员工选中只是提前建好那一行。被限定公司的员工
+    看不到新建出来的那家，不给建；改名、停用、删除仍只在 ERP Desk。"""
+    user = user or frappe.session.user
+    if not user or user == "Guest" or not guard.has("company.read", user=user):
+        return False
+    if guard.has("company.manage", user=user):
+        return True
+    if not any(guard.has(capability, user=user) for capability in WRITE_CAPABILITIES):
+        return False
+    # 同 `masters.company.allowed_companies`：有 User Permission 就是被限定了
+    return not frappe.get_all("User Permission", filters={"user": user, "allow": COMPANY}, pluck="name",
+                              limit_page_length=1)
+
+
+def require_build(user=None) -> str:
+    user = require_read(user)
+    if not can_build(user):
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    return user
+
+
 def _mrerp_on() -> bool:
     from pearnly_erp_portal import mrerp
     from pearnly_erp_portal.mrerp import connection as connections
@@ -218,9 +241,14 @@ def _mrerp_sets() -> list:
 def candidates(search=None) -> list:
     """「添加公司」的候选（形状同 Cowork `companies.service.candidates`，页面用同一个弹窗）：Express = 在用电脑报的账套按
     「税号 + 分店」合并（`express.companies.catalog`，后台本来就会照它补建，这里多半是「已添加」）；MR.ERP = 各连接目录里的
-    账套，一份一行（一家公司只接一份账本）。``company`` 是已有的那家（停用的不列，人停的不在这里重开）。只给能管公司的人。
-    不调电脑、不扣费；纯 ERP 公司（不接账本）在 ERP 公司页建。"""
-    require_manage()
+    账套，一份一行（一家公司只接一份账本）。``company`` 是已有的那家（停用的不列，人停的不在这里重开）。只给能建公司的人
+    （`can_build`）。不调电脑、不扣费；纯 ERP 公司（不接账本）在 ERP 公司页建。"""
+    require_build()
+    return _catalog(search)[:CANDIDATES_MAX]
+
+
+def _catalog(search=None) -> list:
+    """`candidates` 的全部行（不截断、不判权限，调用方判）。"""
     from pearnly_erp_portal.express import companies as express_companies
     from pearnly_erp_portal.express import contracts
 
@@ -248,7 +276,54 @@ def candidates(search=None) -> list:
     if needle:
         out = [item for item in out if needle in " ".join([item["title"], item["tax_id"], *item["years"]]).casefold()]
     out.sort(key=lambda item: (item["company"] is not None, item["title"].casefold()))
-    return out[:CANDIDATES_MAX]
+    return out
+
+
+ADAPTERS = ("express", "mrerp", "erp")
+
+
+def _adapter(row) -> str:
+    """已建公司接的账本：Express、MR.ERP，或不接账本的纯 ERP 公司（弹窗里只在有这类公司时出「ERP」标签，定案 #3）。"""
+    if row.get("express_enabled"):
+        return "express"
+    if row.get("mrerp_connection"):
+        return "mrerp"
+    return "erp"
+
+
+def choices(search=None, adapter=None, start=0, limit=PAGE_MAX) -> dict:
+    """对话里选公司的弹窗（形状同 Cowork `companies.service.choices`）：本人可见的公司与目录里还没建的账套合成一张表，服务端
+    分页。没建的只给能建公司的人（`can_build`）；``adapters`` 是不按标签筛时有哪几种。顺序：我有对话的按最近活动在前，其余按名称。"""
+    user = require_read()
+    try:
+        start, limit = max(0, int(start or 0)), max(1, min(int(limit or PAGE_MAX), PAGE_MAX))
+    except (TypeError, ValueError):
+        start, limit = 0, PAGE_MAX
+    wanted = str(adapter or "").strip()
+    if wanted not in ADAPTERS:
+        wanted = ""
+    needle = " ".join(str(search or "").split()).casefold()
+    names = visible(user)
+    built = frappe.get_all(COMPANY, filters={"name": ["in", names], "is_active": 1},
+                           fields=[*FIELDS, "mrerp_connection", "mrerp_account_set"],
+                           order_by="company_name asc, name asc", limit_page_length=COMPANY_MAX) if names else []
+    rows = [{"identity": row.name, "title": row.company_name or row.name, "legal_name": row.company_name or "",
+             "tax_id": row.tax_id or "", "branch": row.branch or "", "branches": [row.branch] if row.branch else [],
+             "adapter": _adapter(row), "years": [], "connection": row.mrerp_connection or "",
+             "account_set_key": row.mrerp_account_set or "", "company": row.name} for row in built]
+    if can_build(user):
+        rows += [item for item in _catalog() if item["company"] is None]
+    adapters = sorted({row["adapter"] for row in rows})
+    rows = [row for row in rows if (not wanted or row["adapter"] == wanted)
+            and (not needle or needle in " ".join([row["title"], row["tax_id"], *row["years"]]).casefold())]
+    mine = projects.mine(user, [row["company"] for row in rows if row["company"]]) if rows else {}
+    ours = sorted((row for row in rows if row["company"] in mine), key=lambda row: mine[row["company"]]["last_active"],
+                  reverse=True)
+    rest = sorted((row for row in rows if row["company"] not in mine), key=lambda row: row["title"].casefold())
+    page = (ours + rest)[start:start + limit]
+    for row in page:
+        row["mine_last_active"] = when((mine.get(row["company"]) or {}).get("last_active"))
+    return {"rows": page, "adapters": adapters}
 
 
 def _companies() -> list:
@@ -269,8 +344,9 @@ def _not_in_catalog():
 
 def create(connection, account_set_key, request_key=None) -> dict:
     """从候选里的一份账套建公司：服务端自己读目录算名称、税号，前端给的一律不收；已有就回现有的那家（同一组账套、同一份 MR.ERP
-    账套只有一家，重复点、两人同时点都一样：同站点串行，建好在锁里提交）。``request_key`` 收下不用（形状同 Cowork）。"""
-    require_manage()
+    账套只有一家，重复点、两人同时点都一样：同站点串行，建好在锁里提交）。``request_key`` 收下不用（形状同 Cowork）。
+    能建公司的人才能建（`can_build`，11-07 定案 #1）。"""
+    require_build()
     from pearnly_core.execution import state as pearnly_state
     from pearnly_erp_portal.express import companies as express_companies
     from pearnly_erp_portal.express import contracts, masters

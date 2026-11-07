@@ -22,8 +22,10 @@ REFS_MAX = 500
 
 
 def sections() -> tuple:
-    """本人看到的分区：「添加公司」（`create`）只给能管公司的人（候选与建公司在服务端同样拦）。"""
-    return tuple(item for item in SECTIONS if item != "create" or guard.has("company.manage"))
+    """本人看到的分区：「添加公司」（`create`）只给能建公司的人（`cc_service.can_build`，候选与建公司在服务端同样拦）。"""
+    from pearnly_erp_portal.masters import cc_service
+
+    return tuple(item for item in SECTIONS if item != "create" or cc_service.can_build())
 
 
 def _visible(user) -> set:

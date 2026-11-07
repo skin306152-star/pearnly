@@ -14,6 +14,12 @@ def companies(search=None, start=0, limit=service.PAGE_MAX):
 
 
 @frappe.whitelist(methods=["GET"])
+def choices(search=None, adapter=None, start=0, limit=service.PAGE_MAX):
+    """对话里选公司的弹窗：本人可见的公司与目录里还没建的合成一张表（`service.choices`）。"""
+    return service.choices(search, adapter, start, limit)
+
+
+@frappe.whitelist(methods=["GET"])
 def detail(company, period=None):
     return service.detail(company, period)
 

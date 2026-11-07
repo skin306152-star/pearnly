@@ -159,7 +159,8 @@ def company_note(data: Mapping[str, Any]) -> str:
         for folder in folders[:FOLDERS_MAX]:
             lines += _folder_lines(folder, period)
     else:
-        lines.append("No documents folder yet; it can only be chosen in CC Desktop on a computer, on the company page.")
+        lines.append("No documents folder yet; it can only be chosen in CC Desktop on a computer, from the documents "
+                     "folder card in the conversation's side panel.")
     notes = list(data.get("notes") or [])
     if notes:
         shown, more = _notes(notes)

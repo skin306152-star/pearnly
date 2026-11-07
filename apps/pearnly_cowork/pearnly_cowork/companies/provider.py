@@ -6,7 +6,7 @@
 - `context`：给 CC 的公司说明（`service.context_text`），出错记日志、回空串，不挡发话。
 - `SCOPE = True`：对话可以再指定一个分店（5 位分店号，空 = 不指定，补充 甲.2）。
 - `API` / `SECTIONS`：给页面的声明（共用层 `projects.listing` 原样转交）：公司接口的方法前缀，与 Cowork 有的全部分区
-  （页面只出声明了的；ERP 声明自己的一份，见 `pearnly_erp_portal.masters.cc_projects`）。
+  （页面只出声明了的；`sections()` 按本人收窄：改名、删除只给管理员；ERP 声明自己的一份，见 `pearnly_erp_portal.masters.cc_projects`）。
 """
 import frappe
 
@@ -20,6 +20,13 @@ SCOPE = True
 API = "pearnly_cowork.companies.api."
 # 待处理、月结台账、知识库、单据文件夹、定时任务、记住的选择、申报草稿；从账套目录添加公司、改名、删除、刷新账套
 SECTIONS = ("pending", "month", "notes", "folders", "tasks", "choices", "drafts", "create", "rename", "delete", "catalog")
+MANAGE = ("rename", "delete")  # 改名、删除公司只给 Cowork 管理员（11-07 定案 #2）
+
+
+def sections() -> tuple:
+    """本人看到的分区：改名、删除只给 Cowork 管理员（`service.require_manage` 在服务端同样拦）。"""
+    admin = scope.administrator()
+    return tuple(item for item in SECTIONS if admin or item not in MANAGE)
 
 
 def allowed(ref, user) -> bool:

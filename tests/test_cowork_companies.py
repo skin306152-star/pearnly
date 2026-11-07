@@ -250,6 +250,7 @@ class Scope(types.ModuleType):
         super().__init__("pearnly_cowork.access.scope")
         self.features = {"intake", "ocr_history"}
         self.READ_FEATURES = ("intake", "ocr_history")
+        self.admin = True  # Cowork Admin（改名、删除公司只给管理员，11-07 定案 #2）
 
     def allowed(self, feature, user=None):
         return feature in self.features
@@ -267,6 +268,9 @@ class Scope(types.ModuleType):
 
     def default_workspace(self):
         return "WS1"
+
+    def administrator(self, user=None):
+        return self.admin
 
 
 scope = Scope()
@@ -690,7 +694,8 @@ class ContextTests(unittest.TestCase):
         text = context.company_note(note_data(period="", folders=[]))
         self.assertNotIn("Work month", text)
         self.assertNotIn("covers the work month", text)
-        self.assertIn("No documents folder yet; it can only be chosen in CC Desktop on a computer, on the company page.",
+        self.assertIn("No documents folder yet; it can only be chosen in CC Desktop on a computer, from the documents "
+                      "folder card in the conversation's side panel.",
                       text)
         tie = note_data(folders=[{**note_data()["folders"][0], "month_folder": None,
                                   "month_candidates": ["ABC\\09", "ABC\\ก.ย."]}])
@@ -770,6 +775,56 @@ class CompanyTests(unittest.TestCase):
         made = make()
         fresh_request()
         self.assertEqual({i["identity"]: i["company"] for i in service.candidates()}[f"tax:{TAX}"], made["id"])
+
+    def test_choices_merge_built_companies_with_the_catalog_and_page_on_the_server(self):
+        # 主会话 11-07 定案：对话里选公司的弹窗——已建的与目录里还没建的合成一张表，按身份合并、服务端分页、按标签筛；
+        # 没建的只给有录入权限的人；我有对话的在前
+        abc = make()
+        fresh_request()
+        out = service.choices()
+        found = {row["identity"]: row for row in out["rows"]}
+        self.assertEqual(found[f"tax:{TAX}"]["company"], abc["id"])  # 已建的不再按目录重复一行
+        self.assertEqual(sum(1 for row in out["rows"] if row["identity"] == f"tax:{TAX}"), 1)
+        self.assertIsNone(found["mrerp:M1:001"]["company"])  # 还没建：点了用 create 顺手建
+        self.assertEqual(out["adapters"], ["express", "mrerp"])
+        self.assertEqual({row["adapter"] for row in service.choices(adapter="mrerp")["rows"]}, {"mrerp"})
+        self.assertEqual(service.choices(adapter="bogus")["rows"], out["rows"])  # 不认识的标签当没筛
+        self.assertEqual([row["identity"] for row in service.choices("xyz")["rows"]], [f"tax:{OTHER_TAX}"])
+        # 我有对话的在前，其余按名称；一页最多 50，按 start 往后翻
+        mr = make("M1", "2569")
+        projects.mine_stats = {mr["id"]: {"count": 1, "last_active": "2026-10-15 09:00:00"}}
+        fresh_request()
+        rows = service.choices()["rows"]
+        self.assertEqual(rows[0]["company"], mr["id"])
+        self.assertEqual(rows[0]["mine_last_active"], "2026-10-15T02:00:00Z")
+        rest = [row["title"].casefold() for row in rows[1:]]
+        self.assertEqual(rest, sorted(rest))
+        self.assertEqual(service.choices(start=1, limit=1)["rows"], rows[1:2])
+        self.assertEqual(len(service.choices(limit=999)["rows"]), len(rows))
+        # 只能看识别记录：只列已建的（不能建），没有权限的不能看
+        scope.features = {"ocr_history"}
+        fresh_request()
+        self.assertEqual({row["company"] for row in service.choices()["rows"]}, {abc["id"], mr["id"]})
+        scope.features = set()
+        with self.assertRaises(frappe.PermissionError):
+            service.choices()
+
+    def test_only_cowork_admins_rename_or_delete_a_company(self):
+        # 11-07 定案 #2：主档全所共用，改名、删除只给 Cowork 管理员（服务端判），页面上非管理员不出这两项
+        made = make()
+        scope.admin = False
+        try:
+            with self.assertRaises(frappe.PermissionError):
+                service.rename(made["id"], "x")
+            with self.assertRaises(frappe.PermissionError):
+                service.delete(made["id"])
+            self.assertNotIn("rename", provider.sections())
+            self.assertNotIn("delete", provider.sections())
+            self.assertIn("create", provider.sections())
+        finally:
+            scope.admin = True
+        self.assertEqual(provider.sections(), provider.SECTIONS)
+        self.assertEqual(service.rename(made["id"], "ABC ใหม่")["title"], "ABC ใหม่")
 
     def test_create_reads_the_catalog_itself_and_is_idempotent(self):
         made = make()
@@ -4063,7 +4118,7 @@ class GuardTests(unittest.TestCase):
                 decorator = ast.unparse(node.decorator_list[0])
                 methods[node.name] = "GET" if "GET" in decorator else "POST"
         self.assertEqual({name for name, kind in methods.items() if kind == "GET"},
-                         {"candidates", "companies", "detail", "month", "pending", "pending_counts", "task_overview"})
+                         {"candidates", "companies", "choices", "detail", "month", "pending", "pending_counts", "task_overview"})
         for name in ("create", "rename", "delete", "note_save", "note_delete", "folder_bind", "folder_unbind",
                      "choice_forget", "choice_set", "choice_promote"):
             self.assertEqual(methods.get(name), "POST", name)

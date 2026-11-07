@@ -58,6 +58,13 @@ def require_write():
     scope.require("intake")
 
 
+def require_manage():
+    """改名、删除公司：主档全所共用，只给 Cowork 管理员（主会话 11-07 定案 #2，服务端判）。"""
+    require_write()
+    if not scope.administrator():
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+
 # ---------------- 账套目录（请求内缓存） ----------------
 
 
@@ -299,6 +306,11 @@ def candidates(search=None) -> list:
     """本人能用的连接下、按身份合并的候选：`[{identity, title, legal_name, tax_id, branch, branches, adapter, years,
     connection, account_set_key, company}]`。不可写的账套不列；`company` 是已建的主档编号（没建是 None）。"""
     require_write()
+    return _catalog(search)[:CANDIDATES_MAX]
+
+
+def _catalog(search=None) -> list:
+    """`candidates` 的全部行（不截断、不判权限，调用方判）。"""
     groups = {}
     for connection, adapter, row in _rows():
         if not identity.usable(adapter, row):
@@ -328,7 +340,51 @@ def candidates(search=None) -> list:
             continue
         out.append(item)
     out.sort(key=lambda item: (item["company"] is not None, item["title"].casefold()))
-    return out[:CANDIDATES_MAX]
+    return out
+
+
+def _matches(needle, *parts) -> bool:
+    return not needle or needle in " ".join(str(part or "") for part in parts).casefold()
+
+
+def choices(search=None, adapter=None, start=0, limit=PAGE_MAX) -> dict:
+    """对话里选公司的弹窗（主会话 11-07 定案）：已建的主档与目录里还没建的账套合成一张表，按身份合并、服务端分页。
+    行同 `candidates`（`company` 是已建的编号，没建是 None，点了用 `create` 顺手建）；已建但目录里已经没有账套的照样列
+    （下面有对话）。没建的只给有录入权限的人（建要录入权限，同 `create`）。``adapter``：只要 MR.ERP / Express 一种（弹窗标签）；
+    ``adapters``：不按标签筛时有哪几种（弹窗只出有的标签）。顺序：我有对话的按我最近的活动在前，其余按名称。一页最多 50 行。"""
+    require_read()
+    try:
+        start, limit = max(0, int(start or 0)), max(1, min(int(limit or PAGE_MAX), PAGE_MAX))
+    except (TypeError, ValueError):
+        start, limit = 0, PAGE_MAX
+    wanted = str(adapter or "").strip()
+    if wanted and wanted not in ADAPTERS:
+        wanted = ""
+    needle = " ".join(str(search or "").split()).casefold()
+    built = frappe.get_all(COMPANY, fields=FIELDS, order_by="title asc", limit_page_length=COMPANY_MAX)
+    rows = []
+    for row in built:
+        sets = _sets_of(row)
+        newest = sets[0] if sets else {}
+        rows.append({"identity": row.identity or row.name, "title": row.title or "", "legal_name": row.legal_name or "",
+                     "tax_id": row.tax_id or "", "branch": row.branch or "",
+                     "branches": [item["branch"] for item in identity.branches(sets)], "adapter": row.adapter or "",
+                     "years": _years(sets), "connection": newest.get("connection") or row.seed_connection or "",
+                     "account_set_key": newest.get("key") or row.seed_account_set or "", "company": row.name})
+    if scope.allowed("intake"):
+        rows += [item for item in _catalog() if item["company"] is None]
+    adapters = sorted({row["adapter"] for row in rows if row["adapter"]})
+    rows = [row for row in rows if (not wanted or row["adapter"] == wanted)
+            and _matches(needle, row["title"], row["legal_name"], row["tax_id"], *row["years"])]
+    mine = projects.mine(frappe.session.user, [row["company"] for row in rows if row["company"]]) if rows else {}
+    ours = sorted((row for row in rows if row["company"] in mine), key=lambda row: mine[row["company"]]["last_active"],
+                  reverse=True)
+    rest = sorted((row for row in rows if row["company"] not in mine), key=lambda row: row["title"].casefold())
+    page = (ours + rest)[start:start + limit]
+    for row in page:
+        stat = mine.get(row["company"]) or {}
+        row["mine_last_active"] = when(stat.get("last_active"))
+    return {"rows": page, "adapters": adapters}
 
 
 def listing(search=None, start=0, limit=PAGE_MAX) -> list:
@@ -436,7 +492,7 @@ def _title(value) -> str:
 
 
 def rename(company, title) -> dict:
-    require_write()
+    require_manage()
     _company_row(company)
     doc = read(COMPANY, company, for_update=True)
     doc.title = _title(title)
@@ -457,9 +513,10 @@ def set_combined_vat(company, combined) -> dict:
 
 
 def delete(company) -> dict:
-    """删主档（不确认，入口在 ⋯ 菜单里）：知识库、公司规则、自动推送档位 → 文件夹绑定 → 对话归回「最近」→ 主档；
-    账套记忆、任务、草稿、工作空间里按公司记的口径（入账方式、现用账套，重建主档后照样显示）都不动。"""
-    require_write()
+    """删主档（入口在侧栏公司组头、右侧栏公司卡的 ⋯ 菜单里）：知识库、公司规则、自动推送档位 → 文件夹绑定 → 对话归回「最近」→ 主档；
+    账套记忆、任务、草稿、工作空间里按公司记的口径（入账方式、现用账套，重建主档后照样显示）都不动。
+    只给 Cowork 管理员（11-07 定案 #2）；页面上删之前确认一次（同删对话）。"""
+    require_manage()
     row = _company_row(company, for_update=True)
     frappe.db.delete(NOTE, {"company": row.name})
     rules.forget_company(row.name)

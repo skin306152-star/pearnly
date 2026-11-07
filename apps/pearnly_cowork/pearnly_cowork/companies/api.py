@@ -19,6 +19,12 @@ def companies(search=None, start=0, limit=service.PAGE_MAX):
     return service.listing(search, start, limit)
 
 
+@frappe.whitelist(methods=["GET"])
+def choices(search=None, adapter=None, start=0, limit=service.PAGE_MAX):
+    """对话里选公司的弹窗：已建的与目录里还没建的合成一张表（`service.choices`）。"""
+    return service.choices(search, adapter, start, limit)
+
+
 @frappe.whitelist(methods=["POST"])
 def create(connection, account_set_key, request_key=None):
     found = service.create(connection, account_set_key, request_key)
