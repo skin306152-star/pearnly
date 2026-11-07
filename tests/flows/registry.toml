@@ -569,6 +569,20 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.pos.shift-buttons"
+title = "ERP 收银台页头四颗按钮逐个实点：开班（备用金 500）、新单清空购物车、最近订单列出本班小票、交班，查库里班次与实点（清存量基线 11-07）"
+module = "scripts/flows/erp_pos_shift_buttons.py"
+start = "/desk/pearnly-cashier"
+user = "cashier"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-adapter.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-shift.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/shifts.py",
+]
+
+[[flow]]
 id = "erp.team.add-member"
 title = "ERP 团队：添加用户邮箱留空补 <登录名>.<站点前缀>@pearnly.com、乱填被拒、重名被拒（f1f7b02f）"
 module = "scripts/flows/erp_team_add.py"

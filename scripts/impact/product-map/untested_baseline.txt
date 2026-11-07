@@ -121,14 +121,6 @@ erp.desk.all.action.selection@desktop
 erp.desk.all.action.selection@mobile
 erp.desk.form-user.action.Save@desktop
 erp.desk.form-user.action.Save@mobile
-erp.desk.pearnly-cashier.action.trade.closeShift@desktop
-erp.desk.pearnly-cashier.action.trade.closeShift@mobile
-erp.desk.pearnly-cashier.action.trade.newInvoice@desktop
-erp.desk.pearnly-cashier.action.trade.newInvoice@mobile
-erp.desk.pearnly-cashier.action.trade.openShift@desktop
-erp.desk.pearnly-cashier.action.trade.openShift@mobile
-erp.desk.pearnly-cashier.action.trade.recentOrders@desktop
-erp.desk.pearnly-cashier.action.trade.recentOrders@mobile
 erp.desk.pearnly-clients@desktop
 erp.desk.pearnly-clients@mobile
 erp.desk.pearnly-company.action.Cancel@desktop
