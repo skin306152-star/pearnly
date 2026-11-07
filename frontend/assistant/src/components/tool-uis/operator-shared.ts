@@ -282,10 +282,11 @@ export async function authorizeHere(): Promise<boolean> {
   return !!reply?.ok;
 }
 
-/** 本页在支持实操的 CC 桌面版窗口里，Express 登录设置了没有（operator_state 的 login）；不在回 null。 */
-export async function loginHere(): Promise<boolean | null> {
+/** 本页在支持实操的 CC 桌面版窗口里，Express 登录设置了没有、授权的是哪个账号（operator_state 的 login / login_user；
+ *  这个账号也是直写单据的录入人）；不在回 null。 */
+export async function loginHere(): Promise<{ set: boolean; user: string } | null> {
   const found = await desktop().catch(withReport(null, "operator-bridge"));
   if (!found || !(await found.state()).features?.includes(OPERATOR)) return null;
-  const reply = (await found.call("operator_state")) as unknown as { ok?: boolean; login?: boolean };
-  return reply?.ok ? !!reply.login : null;
+  const reply = (await found.call("operator_state")) as unknown as { ok?: boolean; login?: boolean; login_user?: string };
+  return reply?.ok ? { set: !!reply.login, user: String(reply.login_user ?? "") } : null;
 }

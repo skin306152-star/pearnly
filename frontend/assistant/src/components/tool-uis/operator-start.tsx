@@ -62,7 +62,7 @@ const DocLine: FC<{ title: string; detail?: string; slot: string; children?: Rea
   </div>
 );
 
-type Prep = { docs: DocRef[]; next: number | null; prechecks: PrecheckDoc[]; targets: WriteTarget[]; login: boolean | null };
+type Prep = { docs: DocRef[]; next: number | null; prechecks: PrecheckDoc[]; targets: WriteTarget[]; login: { set: boolean; user: string } | null };
 
 /** 第一页重取后合上已取过的「显示更多」那几页：第一页在前（新上传的落在这里），别的页里已有的照留，同一张只留一次。 */
 export function mergeDocs(first: readonly DocRef[], before: readonly DocRef[]): DocRef[] {
@@ -142,7 +142,13 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
 
   const body = prep && (
     <div className="cc-op-before-body">
-      {prep.login === false && (
+      {prep.login?.set && prep.login.user && (
+        <div className="cc-op-line" data-slot="cc-op-login-user">
+          <span className="min-w-0 flex-1 truncate">{op.expressLogin}</span>
+          <span>{prep.login.user}</span>
+        </div>
+      )}
+      {prep.login?.set === false && (
         <div className="cc-op-line" data-slot="cc-op-login">
           <Marquee className="min-w-0 flex-1 truncate">{op.reason.login_missing}</Marquee>
           <button type="button" className="cc-card-btn" data-slot="cc-op-authorize" disabled={action.busy}
