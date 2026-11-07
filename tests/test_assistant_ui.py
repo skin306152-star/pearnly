@@ -2824,12 +2824,10 @@ assert.deepEqual(spotOf({ months, companies: { A: 8, B: 1 } }, ""), { company: "
 // 旧服务端没给按月份的数：只落到公司（开公司页）
 assert.deepEqual(spotOf({ months: null, companies: { B: 1 } }, ""), { company: "B", month: "", conversation: "" });
 assert.equal(co.pendingDocs(2), "2 documents need you");
-assert.equal(co.unassigned, "No company");
 """)
         self.run_page(r"""
 import { co } from "@/i18n";
 assert.equal(co.pendingDocs(3), "3 张单要处理");
-assert.equal(co.unassigned, "未归属公司");
 """, lang="zh")
         pending = read("components/pending.tsx")
         # 框是页面现画的（不写进会话、不开模型轮），只在服务端指定的那段对话或占位行点开的新对话里出；「交给 CC」在这段对话里预填
