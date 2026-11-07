@@ -428,6 +428,11 @@ def test_mixed_stock_and_service_lines_land_in_one_sale(acct):
     assert dr == cr
     assert [m["seq"] for m in res.line_modes] == [1, 2, 3]
     assert [m["mode"] for m in res.line_modes][0::2] == ["stock_sale", "stock_sale"]
+    # 原生 IV / HS(S 盘 95 本人录的单,11-07):两种行都是 POSOPR 9、XSALVAL 记税前额;库存行 X 栏记成本,非库存行 X 栏是 0
+    assert {(r.POSOPR or "").strip() for r in stc} == {S.STCRD_POSOPR}
+    assert [float(r.XSALVAL) for r in stc] == [200.0, 100.0, 300.0]
+    assert (float(stc[1].XUNITPR), float(stc[1].XTRNVAL)) == (0.0, 0.0)
+    assert float(stc[0].XTRNVAL) > 0 and float(stc[2].XTRNVAL) > 0
 
 
 def test_merge_gl_rows_sums_the_same_account_once():

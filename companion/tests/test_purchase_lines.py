@@ -219,6 +219,21 @@ class PurchaseLineRoutingTest(unittest.TestCase):
         oil = self._rows("STMAS", STKCOD="OIL01")[0]
         self.assertAlmostEqual(float(oil.MREMBAL), 110.0, places=2)
 
+    def test_mixed_purchase_lines_carry_the_native_cost_and_sale_columns(self):
+        """原生 RR / HP(S 盘 95 本人录的单,11-07):库存行 X 栏记成本、XSALVAL 是 0;非库存行 X 栏与 XSALVAL 都记税前额。"""
+        res = self._write(
+            [
+                _item("ดีเซล", "10", "20", "200", "stock_item"),
+                _item("ค่าขนส่ง", "1", "400", "400", "direct_account"),
+            ],
+            payload_version=19,
+        )
+        self.assertTrue(res.ok, res.error)
+        rows = self._stcrd_by_seq(res.docnum)
+        self.assertEqual((float(rows[1].XTRNVAL), float(rows[1].XSALVAL)), (200.0, 0.0))
+        self.assertEqual((float(rows[2].XUNITPR), float(rows[2].XTRNVAL), float(rows[2].XSALVAL)), (400.0, 400.0, 400.0))
+        self.assertEqual({(r.POSOPR or "").strip() for r in rows.values()}, {S.STCRD_POSOPR_PURCHASE})
+
     def test_mixed_lines_keep_the_payload_order(self):
         """非库存行在前、库存行夹在中间:物理顺序与 SEQNUM 都照载荷顺序,NXTSEQ = 总行数。"""
         res = self._write(

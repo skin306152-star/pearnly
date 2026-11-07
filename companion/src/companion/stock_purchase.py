@@ -157,6 +157,9 @@ def write_stock_in_lines(
                     posopr=S.STCRD_POSOPR_PURCHASE,
                 ), units.unit, stock_location.location_at(locations, seq - 1))
             row = dbf_fields.priced_line(row, it, st_fields)  # 现购 HP 价含税：UNITPR / TRNVAL 记含税，成本照税前
+            # 进货的库存行没有售价：原生 RR / HP 的库存行 XSALVAL 是 0（S 盘 95 本人录的 15.9 万行里 93%，11-07 取证），
+            # 非库存行才记税前额（那条路不经这里）
+            row["XSALVAL"] = 0.0
             S.append_stcrd(st, stock_units.stamp(row, units, base_cost=_money(amount / units.base_qty)))
             if moves is not None:
                 moves.append(stock_location.move(row, stock_location.KIND_PURCHASE))

@@ -226,8 +226,10 @@ def write_stcrd_detail(
                 account_dir, mode, name, account, unit, docdat, userid
             )
             # 引用主档商品的行(非库存品、编码 = 科目码的直接科目行)按原生非库存商品行写;只有建主档失败的直接科目行
-            # (created 为 None)才是只写科目码的旧写法
-            builder = S.stcrd_nonstock_row if created is not None else S.stcrd_detail_row
+            # (created 为 None)才是只写科目码的旧写法。原生非库存行的 X 栏两边不同(S 盘 95 本人录的单,11-07 取证):
+            # 进货 RR / HP 记税前额(30 万行全是),销货 IV / HS 是 0(10.3 万行全是,售价只在 XSALVAL)——销货照直接科目行写
+            costed = created is not None and posopr == S.STCRD_POSOPR_PURCHASE
+            builder = S.stcrd_nonstock_row if costed else S.stcrd_detail_row
             S.append_stcrd(t, dbf_fields.priced_line(
                 account_rules.localize_stcrd(account_dir, builder(
                     docnum,

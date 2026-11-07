@@ -250,7 +250,8 @@ def stcrd_nonstock_row(
     """一条 STCRD 非库存商品明细行(V2·STKCOD=非库存主档码·不动库存/无 COGS)。
 
     与直接科目行(stcrd_detail_row)区别:STKCOD 是商品主档码(非账码),且 X 字段=净额
-    (XUNITPR=单价/XTRNVAL=金额·按 Express 原生非库存写法·实证 HP580101 非零)。无 COGS
+    (XUNITPR=单价/XTRNVAL=金额·按 Express 原生**进货**非库存写法·实证 HP580101 非零;销货的非库存行原生 X=0,
+    由 dbf_detail 改用 stcrd_detail_row 写)。无 COGS
     /无库存来自 STKTYP∈{3,4,5} 非库存主档 + LOT 字段全 0(本行不写 LOT*/MREM*/PHYBAL→默认 0)。
     """
     row = stcrd_detail_row(

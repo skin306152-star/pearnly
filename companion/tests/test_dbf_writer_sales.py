@@ -478,7 +478,9 @@ def test_nonstock_mode_creates_master_and_links(datat):
     assert code and code.startswith("PN")  # 建了非库存主档
     row = _rows(datat, "STCRD", DOCNUM=res.docnum)[0]
     assert (row.STKCOD or "").strip() == code  # STCRD 引用主档码(非账码)
-    assert float(row.XTRNVAL) == 9000.00  # 非库存:X=净额(非零)
+    # 销货的非库存行照原生:X 栏 0、售价在 XSALVAL(S 盘 95 本人录的 IV / HS 10.3 万行全是,11-07;以前照进货写成净额)
+    assert float(row.XUNITPR) == 0 and float(row.XTRNVAL) == 0
+    assert float(row.XSALVAL) == 9000.00
     assert float(row.PHYBAL or 0) == 0  # 无库存影响
     assert res.line_modes[0]["mode"] == "non_stock_item"
     assert res.line_modes[0]["reason"] == ""
