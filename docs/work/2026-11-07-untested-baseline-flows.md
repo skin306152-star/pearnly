@@ -20,6 +20,21 @@
 - **修法**：`purchasing/entry.py` 的 `delete_drafts` 同销售补 `ignore_permissions=True`。前面三道闸不变：写岗位 + 本人范围（`access.get_document(write=True)`）、整批行锁、全部是草稿才删。
 - **证据**：修后同一流程 4 格全过（删除按钮后草稿行消失、库里没有这条记录）。
 
+### 发现的问题（未在本组修）：同一进程两份 PDF 同时生成偶发 500
+
+- **现象**：变基到 46190218e 后回写 `pearnly/flows` 7/8，`erp.purchase.actions [new / mobile]`「补开收据」请求 500、单上没有那份凭证。连跑 5 遍（`--jobs 2`，两个站点同时跑）约四分之一的格复现，
+  补开收据、预扣税凭证轮流丢；`--jobs 1` 单线程连跑两遍 8/8 全过。一次点击只发一次请求（流程里计数），不是重复点击。
+- **根因**：锁定版 Frappe 的 `www/printview.py`（`get_font` 的默认值，约第 628 行）字体串写坏了：`"InterVariable", "Inter", -apple-system", …`（`-apple-system` 前少一个引号）。
+  `frappe.utils.pdf.get_pdf → prepare_options → read_options_from_html → get_print_format_styles` 用 `cssutils.parseString` 解析整页样式；cssutils「解析出错抛不抛」是**进程级全局开关**
+  （`CSSParser.__parseSetting` 每次解析临时改 `cssutils.log.raiseExceptions`、解析完改回）。同一进程两个线程同时解析时，先完成的把开关改回「抛」，另一个正撞上这句坏 CSS 就抛
+  `xml.dom.SyntaxErr: CSSStyleDeclaration: Syntax Error in Property: font-family …` → 500。
+- **复现条件**：同一网页进程里两份 PDF 同时生成。生产网页是 gunicorn `gthread` 4 线程（`infrastructure/compose/01-bench.yml`），满足条件；实验室是开发服务器多线程，两个站点并行跑流程时满足。
+- **影响**：所有走 `frappe.utils.pdf.get_pdf` 的打印（采购补开收据 / 预扣税凭证、各单打印、收货单等），概率随同时打印的人数上升。
+- **证据**：错误日志是延迟写入（实验室没刷进表），原文从缓存队列 `insert_queue_for_Error Log` 取出，存在共享笔记「PDF并发500-错误原文-11-07.txt」
+  （调用链 `purchasing/api.py:128 api_purchase_voucher → purchasing/output.py:117 voucher → frappe/utils/pdf.py:113 get_pdf → :228 prepare_options → :278 read_options_from_html`）。
+- **处理**：主会话 11-07 定：本组这一格按 `--rerun-failed` 补跑通过后合入；修法另开一项（先评估打印设置给有效字体，所有打印格式改前改后截图对比；进程内串行生成作补充评估）。
+- 流程这边补了：点完凭证等它真挂到单上再进下一步、记下页面上未处理的拒绝原文、断言一次点击只发一次请求。
+
 ## 第二组：收银台页头（`pearnly/baseline-pos-buttons`）
 
 | 新流程 | 实点的入口 | 断言 |

@@ -110,12 +110,20 @@ const done=await dialog({{amount: 50, method: 'transfer'}}); if(!done) return {{
 return {{via, ...done}};"""},
         {"name": "补开收据", "js": JS + ACTION + OPEN + f"""
 if(!await open({v['paying']}, {v['paying_no']})) return {{error:'purchase did not open '+window.__opened}};
+window.__rej=window.__rej||[]; if(!window.__rejHook){{window.__rejHook=1; window.addEventListener('unhandledrejection', e=>{{const r=e.reason||{{}};window.__rej.push(String(r.message||r.exc_type||r._server_messages||r.statusText||JSON.stringify(r)).slice(0,300));}});}}
+window.__vposts=0; if(!window.__vhook){{window.__vhook=1; const _a=$.ajax; $.ajax=function(o){{if(o&&String(o.url||'').includes('api_purchase_voucher')) window.__vposts++; return _a.apply(this, arguments);}};}}
 const via=await action(frappe.pearnly.purchase_ui.label('substitute_receipt')); if(!via) return {{error:'no Substitute Receipt item'}};
-await sleep(800); await idle(); return {{via, msg: msg()}};"""},
+// 等这份凭证真的挂到单上（生成 PDF 要几秒，不只看在途请求）再进下一步
+const has=async()=>((await call('pearnly_erp_portal.purchasing.api.api_purchase_document', {{name: {v['paying']}}}, 'GET'))||{{}}).attachments?.some(a=>a.kind==='substitute_receipt'&&a.generated);
+const made=await until(has, 30000); await idle(); return {{via, made: !!made, msg: msg(), rejected: window.__rej, posts: window.__vposts}};"""},
         {"name": "预扣税凭证", "js": JS + ACTION + OPEN + f"""
 if(!await open({v['paying']}, {v['paying_no']})) return {{error:'purchase did not open '+window.__opened}};
+window.__rej=window.__rej||[]; if(!window.__rejHook){{window.__rejHook=1; window.addEventListener('unhandledrejection', e=>{{const r=e.reason||{{}};window.__rej.push(String(r.message||r.exc_type||r._server_messages||r.statusText||JSON.stringify(r)).slice(0,300));}});}}
+window.__vposts=0; if(!window.__vhook){{window.__vhook=1; const _a=$.ajax; $.ajax=function(o){{if(o&&String(o.url||'').includes('api_purchase_voucher')) window.__vposts++; return _a.apply(this, arguments);}};}}
 const via=await action(frappe.pearnly.purchase_ui.label('wht_cert')); if(!via) return {{error:'no Withholding Tax Certificate item'}};
-await sleep(800); await idle(); return {{via, msg: msg()}};"""},
+// 等这份凭证真的挂到单上（生成 PDF 要几秒，不只看在途请求）再进下一步
+const has=async()=>((await call('pearnly_erp_portal.purchasing.api.api_purchase_document', {{name: {v['paying']}}}, 'GET'))||{{}}).attachments?.some(a=>a.kind==='wht_cert'&&a.generated);
+const made=await until(has, 30000); await idle(); return {{via, made: !!made, msg: msg(), rejected: window.__rej, posts: window.__vposts}};"""},
         {"name": "修改", "js": JS + ACTION + OPEN + f"""
 if(!await open({v['paying']}, {v['paying_no']})) return {{error:'purchase did not open '+window.__opened}};
 const via=await action(__('Amend')); if(!via) return {{error:'no Amend item'}};
@@ -142,6 +150,8 @@ def judge(params, results, camera_code=None):
          "ok": (drop.get("label") or "").endswith("(1)") and drop.get("gone") is True},
         {"case": "payment, voucher and cancel dialogs closed without a message", "seen": {k: by.get(k) for k in ("付款", "作废")},
          "ok": all((by.get(k) or {}).get("open") is False and not (by.get(k) or {}).get("msg") for k in ("付款", "作废"))},
+        {"case": "each voucher menu item attaches its PDF to the purchase", "seen": {k: by.get(k) for k in ("补开收据", "预扣税凭证")},
+         "ok": all((by.get(k) or {}).get("made") is True and (by.get(k) or {}).get("posts") == 1 for k in ("补开收据", "预扣税凭证"))},
         {"case": "amend submits and leaves the amend page", "seen": amend, "ok": amend.get("moved") is True},
     ]
 
