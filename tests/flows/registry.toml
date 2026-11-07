@@ -1256,6 +1256,7 @@ covers = [
   "frontend/assistant/src/components/scheduled-tasks.tsx",
   "frontend/assistant/src/components/mrerp-login.tsx",
   "frontend/assistant/src/components/mrerp-connect.tsx",
+  "frontend/assistant/src/lib/when.ts",
   "frontend/assistant/src/components/settings.tsx",
   "apps/pearnly_cowork/pearnly_cowork/public/desk/targets.js",
   "apps/pearnly_cowork/pearnly_cowork/companies/provider.py",
