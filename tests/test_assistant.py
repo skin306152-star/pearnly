@@ -879,8 +879,16 @@ class RelayTests(unittest.TestCase):
                 answer["view"] = None  # 任务不收：照常只进对话，不带任务
                 out = files.upload("s1")
                 self.assertEqual((out["fileId"], "task" in out), ("file_C", False))
+                # 产品的识别工具按附件身份拿回这次已交的识别（11-07 代录里同一份识别两次）：只有代录会话、只问它挂的任务
+                asked = []
+                operator_uploads.batch_of = lambda task, key: asked.append((task, key)) or {"file_A": "B-1"}.get(key, "")
+                for sid, fid, want in (("s1", "file_A", "B-1"), ("s1", "file_X", ""), ("s2", "file_A", "")):
+                    frappe.local.pearnly_assistant = {"session_id": sid}
+                    self.assertEqual(files.taken(fid), want)
+                self.assertEqual(asked, [("t001", "file_A"), ("t001", "file_X")])  # 直写会话不去问
         finally:
             frappe.local.site = site
+            frappe.local.pearnly_assistant = None
             for name, value in zip(("rollback", "commit"), db_saved):
                 if value is None:
                     delattr(frappe.db, name)

@@ -86,6 +86,19 @@ def _operator_take(row, file_id, name, content) -> dict:
     return {"task": row.operator_task, "upload": view} if view else {}
 
 
+def taken(file_id) -> str:
+    """当前工具调用所在的代录会话里，这一份（已认成编号的 ``file_id``）放进输入框时交给任务的那次识别（识别任务号，
+    `_operator_take`）；不是代录会话、这一份没交过回空串。产品的「识别附件」工具据此拿回那一份，不再按自己的请求号另交一次
+    （11-07 本机实验栈真引擎：代录里同一份 12 页 PDF 识别两次，照收两次费、资料里 11 张列成 22 行，CC 等的是排在后面的自己那份）。"""
+    context = getattr(frappe.local, "pearnly_assistant", None) or {}
+    row = sessions.owned(context.get("session_id"), allow_archived=True)
+    if not row.get("operator_task"):
+        return ""
+    from pearnly_core.express_operator import uploads
+
+    return uploads.batch_of(row.operator_task, file_id)
+
+
 KEPT = "assistant-attachments"
 # 用户上传以外的两种来源，各占会话目录下的一个子目录：工具生成的、产品从文件夹取来的。
 ORIGINS = ("tool", "folder")

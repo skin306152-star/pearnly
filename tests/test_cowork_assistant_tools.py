@@ -407,6 +407,8 @@ class RecognizeAttachmentTests(unittest.TestCase):
         chat.origin = lambda file_id: {"file_page": "tool", "file_folder": "folder"}.get(file_id, "user")
         chat.resolve = lambda ref: {"receipt.jpg": "file_abc", "/mnt/session/uploads/file_abc/receipt.jpg": "file_abc"}.get(
             ref, ref)
+        self.taken = {}  # 代录会话里放进输入框时已交给任务识别的：{文件编号: 识别任务号}
+        chat.taken = lambda file_id: self.taken.get(file_id, "")
         originals = types.ModuleType("pearnly_cowork.files.service")
         originals.create = lambda workspace, name, content, key: self.created.append((name, content, key)) or {"name": "CWS-1"}
         ocr = types.ModuleType("pearnly_cowork.ocr.execution.service")
@@ -463,6 +465,25 @@ class RecognizeAttachmentTests(unittest.TestCase):
         self.assertNotIn("currency", doc)  # 空项不给
         self.assertEqual(doc["push_target"], "not chosen yet")  # 仅识别不说成「不推送」
         self.assertNotIn("intake_target", doc)
+
+    def test_an_operator_upload_already_recognizing_is_taken_back_not_recognized_again(self):
+        # 11-07 本机实验栈真引擎：代录会话放进输入框就交了任务识别，CC 再调本工具按自己的请求号又交一次——同一份收两次费、
+        # 资料里 11 张列成 22 行、CC 等的是排在后面的自己那份（答「还在排队」，卡片已 7/12）
+        self.taken = {"file_abc": "B-UPLOAD"}
+        sys.modules["pearnly_cowork.ocr.execution.service"].detail = lambda batch: {
+            "state": "saved", "page_count": 12, "requires_review": 0, "history_records": ["H1"]}
+        out = json.loads(tools.recognize_attachments({"files": ["receipt.jpg"]}))["results"][0]
+        self.assertEqual((self.created, self.submitted), ([], []))
+        self.assertEqual((out["file"], out["batch"], out["state"]), ("receipt.jpg", "B-UPLOAD", "saved"))
+
+    def test_an_operator_upload_that_failed_is_recognized_again_by_the_tool(self):
+        self.taken = {"file_abc": "B-UPLOAD"}
+        states = {"B-UPLOAD": "failed", "B1": "saved"}
+        sys.modules["pearnly_cowork.ocr.execution.service"].detail = lambda batch: {
+            "state": states[batch], "page_count": 1, "requires_review": 0, "history_records": ["H1"]}
+        out = json.loads(tools.recognize_attachments({"files": ["file_abc"]}))["results"][0]
+        self.assertEqual([key for _source, key, _choices in self.submitted], ["assistant:file_abc"])
+        self.assertEqual(out["batch"], "B1")
 
     def test_the_key_follows_the_file_whatever_the_model_calls_it(self):
         # 接续新上下文后模型按文件名称呼旧附件：请求号仍按本对话里的文件编号，不重复识别，也不与别的对话里的同名文件撞
@@ -617,6 +638,19 @@ class RecognitionWaitTests(unittest.TestCase):
                                                                        pearnly_assistant={"session_id": "conv"})):
             tools.recognize_attachments({"files": ["file_abc"]})
             self.assertIsNone(frappe.local.pearnly_assistant.get("wait"))
+
+    def test_an_operator_upload_still_reading_is_the_one_waited_for(self):
+        # 代录会话放进输入框时已交识别、还在读：工具不另交，挂着等的就是那一份（结束提醒按它的识别号找回来），进度与上传卡片同一份数
+        self._store()
+        self.taken = {"file_abc": "B-UP"}
+        self._states(**{"B-UP": ("recognizing", 7, 12, True)})
+        with mock.patch.object(frappe, "local", types.SimpleNamespace(lang="en", site="s1", message_log=[],
+                                                                       pearnly_assistant={"session_id": "conv"})):
+            interim = tools.recognize_attachments({"files": ["file_abc"]})
+            wait = frappe.local.pearnly_assistant.get("wait")
+        self.assertEqual((self.created, self.submitted), ([], []))
+        self.assertEqual(wait, {"keys": ["ocr:cowork.invoice:B-UP"], "check": tools.RECOGNITION_WAIT})
+        self.assertEqual(tools.recognition_wait({}, interim, None)["progress"], {"done": 7, "total": 12, "label": "reading_pages"})
 
     def test_the_check_reports_real_pages_and_hands_back_the_same_result_when_done(self):
         interim = json.dumps({"results": [{"file": "file_abc", "batch": "B1"}, {"file": "file_two", "batch": "B2"}]})

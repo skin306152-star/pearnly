@@ -85,6 +85,13 @@ def take(name, filename, content: bytes, request_key) -> dict | None:
     return record(name, request_key, filename, len(content), result, pending=True)
 
 
+def batch_of(name, request_key) -> str:
+    """任务里这个请求键那一份交的识别任务号；没记过、没交成回空串（只认本人的任务，同 ``read``）。"""
+    doc = tasks._own(name)
+    key = str(request_key or "")
+    return next((str(row.batch) for row in doc.get("uploads") or [] if key and row.request_key == key and row.batch), "")
+
+
 def sent(name, text) -> int:
     """带着附件的那条消息发出了：消息里带着的、还没进对话的那几行记上此刻（上传卡片排在这条消息后面）。回记了几行。"""
     doc = tasks._own(name, for_update=True)

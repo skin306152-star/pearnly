@@ -1203,7 +1203,8 @@ def _admit(file_id, choices) -> dict:
     try:
         filename, content = chat_files.attachment(file_id)
         # 请求号按本对话里的文件编号：给编号、挂载路径还是文件名都是同一个附件（接续新上下文后模型按文件名称呼旧附件）
-        base = "assistant:" + chat_files.resolve(file_id)
+        fid = chat_files.resolve(file_id)
+        base = "assistant:" + fid
     except frappe.ValidationError:
         frappe.clear_messages()
         return {"file": file_id, "status": "not_found", "attachments_in_this_chat": chat_files.attachments()}
@@ -1216,6 +1217,11 @@ def _admit(file_id, choices) -> dict:
     if chat_files.origin(file_id) == "tool":
         return {"file": file_id, "filename": filename, "status": "not_started",
                 "reason": "made_by_tool: this file was made by a tool, not a document to recognize"}
+    # 代录会话里放进输入框时已交给任务识别的那一份（`assistant.files.taken`）：拿回它，不按本工具的请求号另交、另扣费；
+    # 那次没出结果（``RETRY_STATES``）才照下面重新识别
+    taken = chat_files.taken(fid)
+    if taken and _recognition().detail(taken).get("state") not in RETRY_STATES:
+        return {"file": file_id, "filename": filename, "batch": taken}
     try:
         for attempt in range(1, RECOGNIZE_ATTEMPTS + 1):
             key = base if attempt == 1 else f"{base}:{attempt}"

@@ -331,6 +331,14 @@ class ConversationUploadTests(Base):
         self.assertEqual(doc.uploads[0].uploaded_at, STATE["now"])  # 发出那一刻：卡片排在这条消息后面
         self.assertEqual(uploads.sent(task, note), 0)  # 再发一遍同一句不重记
 
+    def test_the_recognition_a_composer_file_already_started_is_found_by_its_file_id(self):
+        # 产品的「识别附件」工具据此拿回这一份，不另交一次（11-07 实验栈：同一份识别两次、资料里列成两倍）
+        task = tasks.create("CO-1", "2026-10")["name"]
+        uploads.take(task, "bill.pdf", b"%PDF-x", "file_011ABC")
+        self.assertEqual(uploads.batch_of(task, "file_011ABC"), "B-file_011ABC")
+        self.assertEqual(uploads.batch_of(task, "file_other"), "")
+        self.assertEqual(uploads.batch_of(task, ""), "")
+
     def test_take_refuses_like_intake_and_skips_what_the_product_does_not_take(self):
         task = tasks.create("CO-1", "2026-10")["name"]
         self.product.deferred = True
