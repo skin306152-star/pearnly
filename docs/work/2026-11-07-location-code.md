@@ -32,7 +32,7 @@
 | 层 | 结果 |
 |---|---|
 | 单测 `tests/test_erp_locations.py` | 12 条通过：同仓重复编码被拒（不分大小写）、超长被拒、空编码多行可以、别的仓同编码可以、控制器同一判据；下拉「编码 · 名称 · 说明」、按编码 / 名称搜、值是名称；导入按编码认、名称优先；导出两处带编码列、列在「仓位」后面 |
-| 流程（实验栈 pearnly-smallfix-lab，`run.py --changed --migrate`，按产品地图选 19 条 67 格，跑在 146a51ec3） | 67/67 通过：第一遍 66/67，`erp.stock-transfer [new / desktop]` 900 秒超时（没有断言失败，模拟架构下的慢格），`--rerun-failed` 补跑通过。其中 `erp.warehouses.codes` 新老 × 电脑手机 4 格：写编码保存、选项「编码 · 名称 · 说明」、按编码搜到、库里记下；`erp.stocktake.places`、`erp.exports`、`erp.stock-opening.scan`、`erp.stock.excel-units` 等用到选仓位、导出、导入的都过。之后的提交只有两条新词的翻译包与文档 |
+| 流程（实验栈 pearnly-smallfix-lab，`run.py --changed --migrate`，按产品地图选 19 条 67 格，跑在 146a51ec3） | 67/67 通过：第一遍 66/67，`erp.stock-transfer [new / desktop]` 900 秒超时（没有断言失败，模拟架构下的慢格），`--rerun-failed` 补跑通过。其中 `erp.warehouses.codes` 新老 × 电脑手机 4 格：写编码保存、选项「编码 · 名称 · 说明」、按编码搜到、库里记下；`erp.stocktake.places`、`erp.exports`、`erp.products.opening`、`erp.stock.excel-units` 等用到选仓位、导出、导入的都过。之后的提交只有两条新词的翻译包与文档 |
 | 真机 | [2026-11-07-device-location-code.md](2026-11-07-device-location-code.md)：LINE 问仓位按钮、LINE 盘点相机两行，上线后在 testerp 补 |
 
 ## 共用件连带回归
