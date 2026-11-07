@@ -1032,7 +1032,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-purchase:Print"
 where = "pearnly-purchase 页头「Print」"
-tests = ["unit:tests/test_print_formats_pdf.py", "unit:tests/test_erp_printing.py"]
+tests = ["unit:tests/test_print_formats_pdf.py", "unit:tests/test_erp_printing.py", "e2e:e2e.erp.print-pdf"]
 
 [[row]]
 id = "erp.desk.pearnly-purchase.action.Submit"
