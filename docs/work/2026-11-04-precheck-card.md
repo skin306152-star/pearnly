@@ -551,6 +551,9 @@ U1/U2 两处对不上（start 未传 groups、多账套只读顶层 target）已
   用，现在没有调用方（死代码，文档串还写着旧工具名）。这次没删：这个入口文件没有能在实验栈跑的流程（复核页推送要电脑写 Express），
   改它要给它登记免流程（`tests/flows/not_flows.toml`），等于扩大豁免。下一批有流程覆盖这个文件（或同批改到它）时一起删，
   `push/application/service.py` 里 `save_choices` 的 ``document_payment`` 参数随之看是否还有调用方。
+  - **11-07 已做**（小件窗口）：全仓（含 companion/、frontend/、scripts/）核过没有调用方，删了 `save_document_choices` 和只有它传的
+    ``document_payment`` 参数（CC 卡片按票写现 / 赊一直走 `service._document_payment`，测试改成直接测它）；
+    `push/application/api.py` 登记进 `tests/flows/not_flows.toml`（写明原因）。
 
 ## 收尾（11-05）
 

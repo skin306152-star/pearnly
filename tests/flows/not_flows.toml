@@ -83,3 +83,7 @@ reason = "ERP LINE 绑定码 / 解绑 / LINE 收单卡片编辑入口：要真 L
 [[file]]
 file = "apps/pearnly_cowork/pearnly_cowork/files/api.py"
 reason = "Cowork 原件上传 / 下载接口：上传会存原件并交识别（真扣费、要甲骨文或桶），回归实验室不跑；录入页上传由 intake-upload.js 的流程只到页面层，接口由 tests/test_cowork_upload_deferred.py（存放处连不上回可重试的话、死锁重试）与 tests/test_cowork_direct_upload.py 守住（11-06 接住 Deferred 时登记）"
+
+[[file]]
+file = "apps/pearnly_cowork/pearnly_cowork/push/application/api.py"
+reason = "Cowork 推送的原生 RPC（准备 / 确认 / 提交推送、记录、复核页「要选的项」、标结果不明）：要接 Express 账套并有电脑执行写入（CC 桌面版），回归实验室的 Cowork 数据没有接账套的公司、也没有 CC 桌面版。离线由 tests/test_cowork_push_fixed.py（save_choices、按票现 / 赊）等推送测试守住，实机由入口 cc.desktop.write 在测试机验（11-07 删死入口 save_document_choices 时登记，见 docs/work/2026-11-04-precheck-card.md「遗留」）"
