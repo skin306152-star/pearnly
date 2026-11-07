@@ -121,7 +121,8 @@ def clean_result(raw):
     return result
 
 
-def recognise(attachments, document_name=None, billing_reference=None, company=None, progress=None):
+def recognise(attachments, document_name=None, billing_reference=None, company=None, progress=None, prefill=True):
+    """``prefill``：每行按记忆 / 认出的物料预选入库与否（网页；LINE 按收单前选的对方另算，`integrations.intake`）。"""
     guard.require("purchase.write")
     from pearnly_core import ocr
 
@@ -187,7 +188,16 @@ def recognise(attachments, document_name=None, billing_reference=None, company=N
     # 分类：按「供应商 + 品名」记住的预填到空着的行（认得出供应商才填；网页上人可以改，入账时再记下）。
     from pearnly_erp_portal.purchasing import category_memory
 
-    category_memory.fill(category_memory.matched_supplier(result), result.get("lines"))
+    supplier = category_memory.matched_supplier(result)
+    category_memory.fill(supplier, result.get("lines"))
+    if prefill and company:
+        # 每一行对哪件物料、入不入库（11-06 按行选物料与库存）：记忆 → 认出的物料 → 识别给的类型，页面照预选显示、人可以改
+        from pearnly_erp_portal.products import line_memory
+
+        line_memory.fill(result.get("lines"), company=company, direction="purchase",
+                         party_tax=result.get("supplier_tax_id"), expense=result.get("doc_kind") == "expense",
+                         party_name=(frappe.db.get_value("ERP Supplier", supplier, "supplier_name") if supplier else None)
+                         or result.get("supplier_name"))
     result.update(source="ocr", image_sha256=files.combined_hash(hashes), review=issues,
                   ocr_model=model, additional=extras)
     result.update(checks.marks(result))

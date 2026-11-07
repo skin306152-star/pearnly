@@ -264,6 +264,37 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.trade.line-stock"
+title = "ERP 采购：明细按行勾入库、批量编辑设整张，只有入库行动库存、随单新建的物料记来源单据（11-06 按行选物料与库存）"
+module = "scripts/flows/erp_trade_line_stock.py"
+start = "/desk/pearnly-purchase"
+user = "purchase"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/entry.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/line_memory.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/line_rules.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js",
+]
+
+[[flow]]
+id = "erp.trade.line-stock-sales"
+title = "ERP 销售：明细按行勾出库、批量编辑设整张，认不到的出库行随单新建并出库（11-06 按行选物料与库存）"
+module = "scripts/flows/erp_trade_line_stock_sales.py"
+start = "/desk/pearnly-sales"
+user = "sales"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/line_memory.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js",
+]
+
+[[flow]]
 id = "erp.exports"
 title = "ERP 导出：销售 / 采购 / 库存 / 已过账盘点 / 班次 / 首页账本各点一次导出，走 POST、文件里有该有的单据（10-29 导出一律 POST）"
 module = "scripts/flows/erp_exports.py"

@@ -1024,6 +1024,45 @@ class MixedRatePurchase(PushModule):
         self.assertEqual(self.push._exempt_base(old), Decimal("50"))  # 很早的单：照行金额
 
 
+class LineStockKinds(PushModule):
+    """11-06 按行选物料与库存（评估 4.4）：动不动库存按行。Express 存货但这一行只记账 → 非库存行、不带存货码；销售没码的行看
+    行上的出库勾选（以前有物料就出库）；采购没码照旧看入库勾选；Express 非库存品照它的码写非库存。"""
+
+    def setUp(self):
+        super().setUp()
+        fake.STATE.db.table("ERP Product").update({
+            "P-STOCK": {"name": "P-STOCK", "product_name": "ICE", "express_code": "ICE-01", "express_stock": 1},
+            "P-LOCAL": {"name": "P-LOCAL", "product_name": "LOCAL", "express_code": "", "express_stock": 0},
+            "P-FREIGHT": {"name": "P-FREIGHT", "product_name": "FREIGHT", "express_code": "S01", "express_stock": 0}})
+
+    def lines(self, doctype, *rows):
+        import types
+
+        doc = types.SimpleNamespace(has_vat=1, lines=[Row(product=product, item_type=kind, warehouse=None, description=product or "X",
+                                                          unit="ถุง", qty=1, line_total=100, vat_rate=7)
+                                                      for product, kind in rows])
+        return [(line["stock"], line["code"]) for line in self.push._lines(doctype, doc)]
+
+    def test_an_express_stock_item_recorded_only_is_a_non_stock_line_without_its_code(self):
+        self.assertEqual(self.lines(self.push.PURCHASE, ("P-STOCK", "goods"), ("P-STOCK", "service")),
+                         [(True, "ICE-01"), (False, "")])
+
+    def test_sales_lines_follow_the_stock_out_mark(self):
+        self.assertEqual(self.lines(self.push.SALES, ("P-LOCAL", "goods"), ("P-LOCAL", "service"), (None, "goods")),
+                         [(True, ""), (False, ""), (False, "")])
+
+    def test_purchase_lines_without_a_code_follow_the_stock_in_mark(self):
+        self.assertEqual(self.lines(self.push.PURCHASE, ("P-LOCAL", "goods"), ("P-LOCAL", "service")), [(True, ""), (False, "")])
+
+    def test_an_express_non_stock_item_keeps_its_code(self):
+        self.assertEqual(self.lines(self.push.SALES, ("P-FREIGHT", "goods"), ("P-FREIGHT", "service")),
+                         [(False, "S01"), (False, "S01")])
+
+    def test_a_mixed_document_is_payload_19(self):
+        items = [{"name": "ICE", "code": "ICE-01", "item_mode": "stock_item"}, {"name": "FREIGHT", "item_mode": "non_stock_item"}]
+        self.assertEqual(common.finalize_payload({"items": items})["payload_version"], 19)
+
+
 class UnitRemarks(PushModule):
     """按台号码（评估 2026-11-02）：单据 ``serials`` 子表按明细行号挂到那一行，按商品的号码种类拼成附加说明；没有台的行不带。"""
 

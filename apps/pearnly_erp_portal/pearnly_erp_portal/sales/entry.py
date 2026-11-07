@@ -17,6 +17,7 @@ from pearnly_erp_portal.express import push as express_push
 from pearnly_erp_portal.inventory import positions, serials, stock, warehouses
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.numbering import service as numbering
+from pearnly_erp_portal.products import line_memory
 from pearnly_erp_portal.sales import access, contracts, files
 
 DOCTYPE = "ERP Sales Document"
@@ -24,8 +25,8 @@ LINE_DOCTYPE = "ERP Sales Document Line"
 
 HEAD_FIELDS = ("customer", "party_type", "address", "source", "source_file", "note",
                "image_sha256", "printed_total", "ocr_review")
-LINE_FIELDS = ("product", "description", "qty", "unit", "unit_price", "discount",
-               "discount_pct", "vat_applicable", "warehouse", "location")
+LINE_FIELDS = ("item_type", "product", "description", "qty", "unit", "unit_price", "discount",
+               "discount_pct", "vat_applicable", "warehouse", "location", "new_item")
 
 BLOCKED = "This document cannot be recorded yet"
 
@@ -45,8 +46,12 @@ def _lines(payload):
     for raw in rows:
         row = {key: raw[key] for key in LINE_FIELDS if key in raw}
         row["description"] = str(row.get("description") or "").strip()
+        # 出不出库按行定（11-06 按行选物料与库存）：没给的提交时按预选补（`line_memory.fill`），给了的照人定的
+        row["item_type"] = row.get("item_type") or None
         if not row["description"]:
             frappe.throw(_("Item Name is required"))
+        if row["item_type"] not in ("goods", "service", None):
+            frappe.throw(_("Invalid value"))
         try:
             qty = contracts._d(row.get("qty"))
             price = contracts._d(row.get("unit_price"))
@@ -202,7 +207,14 @@ def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
     customer, buyer_name = _buyer(payload, company, express_push.started(DOCTYPE, name) if name else None)
     # 单头「仓库 + 库位」（多仓闭环 P1）：存在单上，行上没写的用它
     place = positions.header(payload.get("warehouse"), payload.get("location"), company=company)
-    rows = [_line_row(raw, computed, company=company, place=place) for raw, computed in zip(payload["lines"], totals["lines"])]
+    party_tax = _party_tax(customer, payload)
+    line_memory.fill([row for row in payload["lines"] if not row.get("item_type")], company=company, direction="sales",
+                     party_tax=party_tax, party_name=buyer_name, warehouse=place["warehouse"])
+    created = []
+    # 认不到物料的出库行随单新建（同 LINE，评估 12 节 #2）；报价单不出库，只认不建
+    create = contracts.should_post_stock(kind, contracts.SUBMITTED)
+    rows = [_line_row(raw, computed, company=company, place=place, create=create, created=created)
+            for raw, computed in zip(payload["lines"], totals["lines"])]
     collection = _collection(payload, kind, totals["grand_total"], day)
     source = payload.get("source") or doc.get("source") or "manual"
     doc.update({key: payload[key] for key in HEAD_FIELDS if key in payload})
@@ -228,6 +240,10 @@ def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
         "summary": ", ".join(row["description"] for row in rows), **collection})
     doc.flags.sales_action = True
     doc.save()
+    line_memory.learn(company, "sales", party_tax, buyer_name, doc.lines, doc.name)
+    for product in created:  # 随单新建的物料记下是哪张单建的（物料页「来由」）
+        frappe.db.set_value("ERP Product", product, {"origin_doctype": DOCTYPE, "origin_name": doc.name},
+                            update_modified=False)
     _post_stock(doc)
     files.bind(doc, payload.get("attachments"))
     digest = files.evidence_hash(doc)
@@ -242,13 +258,24 @@ def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
     return {"name": doc.name, "status": doc.status, "system_no": doc.system_no}
 
 
-def _resolve_item(row, company=None):
-    """明细的物料：选了就核对，没选就按名称在这家公司该用的商品里找（`selection.match_product`，**不自动建商品**）。
+def _party_tax(customer, payload):
+    """记忆键里的对方：客户档的税号，没有档时票面读出的买方税号（散客为空，按名称）。"""
+    tax = frappe.db.get_value("ERP Customer", customer, "tax_id") if customer else None
+    return tax or contracts.buyer_tax(payload.get("buyer_tax_id")) or ""
 
-    旧线上销项明细的商品关联是可空的（"现填时可为空"），卖的东西没建档时明细照样能记，
-    只是这一行不动库存 —— 要不要建档由物料岗位决定，销售不替它建。
+
+def _resolve_item(row, company=None, *, create=False, created=None):
+    """明细的物料（11-06 按行选物料与库存）：出库行（``item_type = goods``）认不到就按票面新建（``create``，同 LINE，
+    `products.sales.resolve`）；只记账的行不认不建，选了物料的照样核对。
+
+    旧线上销项明细的商品关联是可空的（"现填时可为空"）：只记账、没建档的行照样能记，不动库存。
     """
-    auto = not row.get("product")
+    if row.get("item_type") == "goods" and (create or row.get("new_item")):
+        from pearnly_erp_portal.products import sales as sale_items
+
+        return sale_items.resolve(row, create=True, company=company, created=created)
+    row.pop("new_item", None)
+    auto = not row.get("product") and row.get("item_type") == "goods"  # 只记账的行不按名认物料
     if auto:
         from pearnly_erp_portal.masters.selection import match_product
 
@@ -270,9 +297,9 @@ def _resolve_item(row, company=None):
     return row
 
 
-def _line_row(raw, computed, *, company=None, place=None):
+def _line_row(raw, computed, *, company=None, place=None, create=False, created=None):
     """明细行：只带这张单自己的字段（纯规则层算出来的是"金额"，不是行结构）。"""
-    row = _resolve_item(dict(raw), company)
+    row = _resolve_item(dict(raw), company, create=create, created=created)
     row["line_no"] = computed["line_no"]
     row["line_total"] = computed["line_total"]
     row["discount"] = computed["discount"]
@@ -308,7 +335,7 @@ def _post_stock(doc):
     units = serials.line_serials(doc)
     rows = [{"product": row.product, "qty": row.qty, "unit": row.unit, "serials": units.get(row.idx, []),
              **positions.saved(row, company=doc.get("company"))}
-            for row in doc.lines if row.product]
+            for row in doc.lines if row.product and (row.item_type or "goods") == "goods"]  # 只记账的行有物料也不出库
     if not rows:
         return
     # 出库仓来自**这张单上明确的仓**（每行已经由 `positions.saved()` 定过）；行上没写时只认「这家公司只有一个仓」，

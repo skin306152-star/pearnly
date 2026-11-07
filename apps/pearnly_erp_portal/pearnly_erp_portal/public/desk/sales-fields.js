@@ -27,9 +27,11 @@
 		if (!field) return;
 		Object.assign(field.df, changes); field.refresh();
 	};
-	u.line_keys = ["product", "description", "qty", "unit", "unit_price", "discount",
-		"discount_pct", "vat_applicable", "warehouse", "location"];
+	u.line_keys = ["item_type", "product", "description", "qty", "unit", "unit_price", "discount",
+		"discount_pct", "vat_applicable", "warehouse", "location", "new_item"];
+	// 行上「出库」勾选 = 这一行出不出库（11-06 按行选物料与库存）：不勾就是只记账（服务端 `item_type = service`）
 	u.clean_lines = lines => (lines || []).filter(row => row.description || row.product)
+		.map(row => ({...row, ...(row.stock_out === undefined ? {} : {item_type: Number(row.stock_out) ? "goods" : "service"})}))
 		.map(row => Object.fromEntries(u.line_keys.filter(key => row[key] !== undefined).map(key => [key, row[key]])));
 	// Each item is a native collapsible section + FieldGroup. No generic Grid menus,
 	// column configuration, row import or framework document navigation is exposed.
@@ -44,8 +46,10 @@
 			f("unit", "UOM"), f("unit_price", "Rate", "Currency", {default: 0}), col(),
 			f("discount", "Discount Amount", "Currency", {default: 0}),
 			f("vat_applicable", "VAT Applies", "Check", {default: 1}),
+			f("stock_out", "trade.groupOut", "Check", {default: 1}),
 			f("line_total", "Amount", "Currency", {read_only: 1}),
 			u.section("Additional Information", {collapsible: 1, collapsed: 1}),
+			f("new_item", "Item", "Check", {hidden: 1}),
 			// 仓库：一张单一个仓库，以单头为准（岳父 11-06），行上不显示；值随单头走（`p.place.track`），仓位行上可以改
 			f("warehouse", "Warehouse", "Link",
 				{options: "ERP Warehouse", get_query: p.warehouse_query(), hidden: 1}),
@@ -95,6 +99,7 @@
 				.flatMap((field, index) => index ? [col(), field] : [field]),
 			u.section(""), f("lines", "Items", "HTML"),
 			f("add_line", "purchase.action.addLine", "Button", {hidden: !editable, click: () => state.add_line?.()}),
+			f("bulk_edit", "Bulk Edit", "Button", {hidden: !editable, click: () => state.bulk_edit?.()}),
 			f("merge_lines", "Merge Items", "Button", {hidden: 1, click: () => state.merge?.()}),
 			u.section("Taxes and Charges"),
 			f("has_vat", "trade.hasVat", "Check", {hidden: !editable}),

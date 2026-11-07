@@ -3,7 +3,8 @@
 点菜单「ซื้อ / ขาย」（或手打 1 / 2 / ซื้อ / ขาย）之后，先问「上传识别 / 手动录入」：手动录入
 直接在 LINE 里打开网页端原生的空白新建页（快捷回复的链接按钮，不再多发消息）；上传识别则依次用
 **LINE 原生快捷回复按钮**问：公司 → 供应商（采购）/ 客户（销售）→ 已付 / 未付 →（已付）付款方式 →
-服务 / 库存商品 →（库存商品且默认仓定不下来时）仓库 → 提示上传 PDF 或图片。每一步末尾都有「取消」。
+提示上传 PDF 或图片。每一步末尾都有「取消」。每一行对哪件物料、入不入库、放哪个仓，识别完按行预选、只追问定不了的
+（`line_items`，11-06 按行选物料与库存；以前在这里整批问「服务 / 库存商品」和仓库）。
 
 公司、供应商 / 客户、仓库可能远多于一屏（快捷回复最多 13 个按钮，按账套自动建公司后一个租户几十家）：放得下就照旧列按钮；
 放不下就请用户打名称（模糊匹配）或编号（税号、公司编号、Express 编码，必须准确命中），从匹配结果里点序号（用户 10-24：
@@ -141,13 +142,12 @@ def answer(line_user_id, user, data, reply_token):
     elif step == "method":
         payload["payment_method"] = value
     else:
-        payload[{"company": "company", "party": "party", "kind": "item_kind",
-                 "warehouse": "warehouse"}[step]] = value
+        payload[{"company": "company", "party": "party"}[step]] = value
     _next(line_user_id, user, payload, reply_token)
 
 
 def _pending(payload):
-    """还差哪一步。仓库只在「库存商品 + 默认仓定不下来」时才问。"""
+    """还差哪一步。"""
     if payload.get("entry") != "upload":
         return "entry"
     if not payload.get("company"):
@@ -158,21 +158,12 @@ def _pending(payload):
         return "paid"
     if payload["is_paid"] and not payload.get("payment_method"):
         return "method"
-    if not payload.get("item_kind"):
-        return "kind"
-    if payload["item_kind"] == "goods" and not payload.get("warehouse"):
-        return "warehouse"
     return "upload"
 
 
 def _next(line_user_id, user, payload, reply_token, note=""):
     """问下一步；``note``（打字找没找到时的那句）放在问题前面，按钮照这一步原来的给。"""
     step = _pending(payload)
-    if step == "warehouse":
-        default = _default_warehouse(payload["company"])
-        if default:
-            payload["warehouse"] = default
-            step = _pending(payload)
     _save(line_user_id, payload)
     if step == "upload":
         # 上传前的拍摄提示（用户 2026-09-26）：侧着的照片会读错商品名，不另花识别费去转正。
@@ -181,11 +172,7 @@ def _next(line_user_id, user, payload, reply_token, note=""):
     options = _options(step, payload, user)
     if step in SEARCHED and len(options) > MAX_CHOICES:
         return _ask_search(reply_token, step, payload, user, note=note)
-    if not options:
-        # 公司下没有启用的仓库之类：说清楚，而不是给一排空按钮。
-        line_session.clear_session(line_user_id)
-        return _text(reply_token, _("No warehouse is available for this company"))
-    numbered = step in ("company", "party", "warehouse")
+    numbered = step in ("company", "party")
     if step == "entry":
         # 手动录入是链接按钮：点了直接打开网页端原生空白新建页，不回 webhook、不多发消息。
         # 与卡片「编辑」、菜单「盘点」同一个入口：LINE 里未登录时用绑定的 LINE 免密登录。
@@ -209,7 +196,7 @@ def _next(line_user_id, user, payload, reply_token, note=""):
 
 # ── 打字找（选项放不下一屏时）────────────────────────────────────────────────────
 
-SEARCHED = ("company", "party", "warehouse")
+SEARCHED = ("company", "party")
 # LINE 选择的统一规则（用户 10-24，Cowork 同）：选项不超过 12 个直接列按钮、不出关键字提示；超过 12 个先请用户打名称关键字
 # （提示里不提编号，整串编号照样认），再在当前公司里找：找到不超过 12 个列序号按钮，超过 12 个请多打几个字，没找到说没找到再问；
 # 当前公司、上次用过的一开始就给按钮。按钮最多 12 个，另加「取消」。
@@ -224,7 +211,7 @@ _SEARCH_PROMPTS = {
 
 def _ask_search(reply_token, step, payload, user, note=""):
     """请用户打名称里的关键字（用户 10-24：「先输入关键词再按匹配词列出内容」，提示里不要编号——谁知道编号；
-    整串编号照样认，只是不要求）；当前公司（选公司时）、这个人上次在这家公司用的仓（选仓库时）给一个按钮直接点。"""
+    整串编号照样认，只是不要求）；当前公司（选公司时）给一个按钮直接点。"""
     lines = [note] if note else []
     lines += [_QUESTIONS[step](payload), _SEARCH_PROMPTS[step](payload)]
     items = []
@@ -238,25 +225,7 @@ def _ask_search(reply_token, step, payload, user, note=""):
         if current:
             label = frappe.db.get_value("ERP Company", current, "company_name") or current
             items.append(_button(short_name(label), urlencode({"a": "erp", "s": step, "v": current})))
-    if step == "warehouse":
-        last = _last_warehouse(payload["company"], user)
-        if last:
-            label = frappe.db.get_value("ERP Warehouse", last, "warehouse_name") or last
-            items.append(_button(label, urlencode({"a": "erp", "s": step, "v": last})))
     _ask(reply_token, "\n".join(lines), items)
-
-
-def _last_warehouse(company_name, user):
-    """这个人上次在 LINE 给这家公司收单选的仓（还启用才给）。"""
-    from pearnly_erp_portal.integrations import intake  # intake 引用本模块：用到时才导入
-
-    for warehouse in frappe.get_all(intake.DOCTYPE, filters={"company": company_name, "sent_by": user,
-                                                               "warehouse": ["is", "set"]},
-                                    pluck="warehouse", order_by="creation desc", limit=5):
-        row = frappe.db.get_value("ERP Warehouse", warehouse, ["company", "is_active"], as_dict=True)
-        if row and row.company == company_name and row.is_active:
-            return warehouse
-    return None
 
 
 def search(line_user_id, user, text, reply_token) -> bool:
@@ -268,7 +237,7 @@ def search(line_user_id, user, text, reply_token) -> bool:
         return False
     exact, found = find(step, payload, user, text)
     if exact:
-        payload[{"company": "company", "party": "party", "warehouse": "warehouse"}[step]] = exact
+        payload[{"company": "company", "party": "party"}[step]] = exact
         payload.pop("offered", None)
         _next(line_user_id, user, payload, reply_token)
         return True
@@ -357,8 +326,6 @@ _QUESTIONS = {
     "party": lambda p: _("Choose the supplier") if p["direction"] == "purchase" else _("Choose the customer"),
     "paid": lambda p: _("Paid or unpaid?"),
     "method": lambda p: _("Choose the payment method"),
-    "kind": lambda p: _("Service or stock item?"),
-    "warehouse": lambda p: _("Choose the warehouse"),
 }
 
 
@@ -381,12 +348,6 @@ def _options(step, payload, user):
     if step == "method":
         methods = PURCHASE_METHODS if payload["direction"] == "purchase" else SALES_METHODS
         return [(key, _(METHOD_LABELS[key])) for key in methods]
-    if step == "kind":
-        return [("goods", _("Stock item")), ("service", _("Service"))]
-    if step == "warehouse":
-        rows = frappe.get_all("ERP Warehouse", filters={"company": payload["company"], "is_active": 1},
-                              fields=["name", "warehouse_name"], order_by="warehouse_name asc")
-        return [(row.name, row.warehouse_name or row.name) for row in rows]
     return []
 
 
@@ -423,19 +384,8 @@ def recent_parties(payload, limit):
     return [(name, labels.get(name) or name) for name in names]
 
 
-def _default_warehouse(company_name):
-    """沿用网页端收发货的默认仓：收银台上的卖货仓 → 这家公司唯一的仓；定不下来返回空。"""
-    from pearnly_erp_portal.inventory import warehouses
-    from pearnly_erp_portal.masters import company
-
-    shop = company.selling_warehouse(company_name)
-    if shop and frappe.db.get_value("ERP Warehouse", shop, "is_active"):
-        return shop
-    return warehouses.sole(company_name)
-
-
 def summary(payload) -> str:
-    """一行说清楚这次按什么录：公司 · 供应商 · 已付（方式）· 类别（仓）。"""
+    """一行说清楚这次按什么录：公司 · 供应商 · 已付（方式）。"""
     parts = [frappe.db.get_value("ERP Company", payload.get("company"), "company_name") or ""]
     party = payload.get("party")
     if party == FALLBACK:
@@ -450,11 +400,6 @@ def summary(payload) -> str:
     if payload.get("is_paid") and payload.get("payment_method"):
         paid += f" ({_(METHOD_LABELS.get(payload['payment_method'], 'Other'))})"
     parts.append(paid)
-    kind = _("Stock item") if payload.get("item_kind") == "goods" else _("Service")
-    if payload.get("item_kind") == "goods" and payload.get("warehouse"):
-        kind += " · " + (frappe.db.get_value("ERP Warehouse", payload["warehouse"], "warehouse_name")
-                         or payload["warehouse"])
-    parts.append(kind)
     head = _(DIRECTION_LABELS[payload["direction"]])
     return head + " · " + " · ".join(part for part in parts if part)
 

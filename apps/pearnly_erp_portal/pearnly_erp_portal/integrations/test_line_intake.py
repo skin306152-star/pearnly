@@ -61,7 +61,6 @@ class Flow(Base):
         self.enterContext(patch("pearnly_erp_portal.masters.company.allowed_companies",
                                 side_effect=lambda user=None: list(self.companies)))
         self.enterContext(patch.object(line_flow, "_options", side_effect=self.options))
-        self.enterContext(patch.object(line_flow, "_default_warehouse", return_value="WH-1"))
         self.enterContext(patch("frappe.utils.get_url", return_value="https://testerp.pearnly.com"))
 
     def options(self, step, payload, user):
@@ -70,15 +69,14 @@ class Flow(Base):
                 "party": [(line_flow.FROM_DOCUMENT, "From the document"), (line_flow.FALLBACK, "General supplier"),
                           ("SUP-1", "Acme")],
                 "paid": [("1", "Paid"), ("0", "Unpaid")],
-                "method": [("cash", "Cash"), ("transfer", "Transfer")],
-                "kind": [("goods", "Stock item"), ("service", "Service")],
-                "warehouse": [("WH-1", "Main")]}[step]
+                "method": [("cash", "Cash"), ("transfer", "Transfer")]}[step]
 
     def tap(self, action):
         handlers.handle({"type": "postback", "source": {"userId": "U1"}, "replyToken": "r",
                          "postback": {"data": action["data"]}})
 
-    def test_steps_run_in_order_and_skip_single_company_and_default_warehouse(self):
+    def test_steps_run_in_order_and_skip_single_company(self):
+        """11-06 按行选物料与库存：上传前不再问「服务 / 库存商品」和仓库（识别后按行预选，`line_items`）。"""
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
             self.tap({"data": "a=mode:purchase"})
             self.tap(self.buttons()[0])                        # Upload and recognise
@@ -88,11 +86,9 @@ class Flow(Base):
             self.tap(self.buttons()[2])                        # Acme
             self.tap(self.buttons()[0])                        # Paid
             self.tap(next(b for b in self.buttons() if "transfer" in b["data"]))
-            self.tap(self.buttons()[0])                        # Stock item
         payload = self.sessions["U1"]["payload"]
         self.assertEqual(payload, {"direction": "purchase", "entry": "upload", "company": "CO-1", "party": "SUP-1",
-                                   "is_paid": 1, "payment_method": "transfer", "item_kind": "goods",
-                                   "warehouse": "WH-1"})
+                                   "is_paid": 1, "payment_method": "transfer"})
         self.assertTrue(line_flow.ready(payload))
         self.assertIn("Please upload a PDF or image", self.last_text())
 
@@ -121,16 +117,15 @@ class Flow(Base):
     def test_stale_or_forged_answers_do_not_advance(self):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
             self.tap({"data": "a=mode:purchase"})
-            self.tap({"data": "a=erp&s=kind&v=goods"})         # not the current step
+            self.tap({"data": "a=erp&s=paid&v=1"})             # not the current step
             self.assertEqual(self.last_text(), "This option is no longer current")
             self.tap({"data": "a=erp&s=party&v=SUP-404"})      # not an offered value
             self.assertEqual(self.last_text(), "This option is no longer current")
         self.assertNotIn("party", self.sessions["U1"]["payload"])
 
-    def test_unpaid_skips_method_and_service_skips_warehouse(self):
+    def test_unpaid_skips_method(self):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
-            for data in ("a=mode:purchase", "a=erp&s=entry&v=upload", "a=erp&s=party&v=%40doc", "a=erp&s=paid&v=0",
-                         "a=erp&s=kind&v=service"):
+            for data in ("a=mode:purchase", "a=erp&s=entry&v=upload", "a=erp&s=party&v=%40doc", "a=erp&s=paid&v=0"):
                 self.tap({"data": data})
         payload = self.sessions["U1"]["payload"]
         self.assertEqual((payload["is_paid"], payload["payment_method"], payload.get("warehouse")), (0, "", None))
@@ -345,6 +340,181 @@ class Payload(Base):
         self.enterContext(patch.object(intake, "_", lambda text, lang=None: seen.append(lang) or text))
         intake.build_payload(_doc(direction="sales", party="@any", result=json.dumps({"lines": []})))
         self.assertEqual(seen, ["th"])
+
+
+class ChosenPayload(Base):
+    """11-06 按行选物料与库存：识别后每行的选择存在票上（`line_items`），建单按行带上入库与否、物料、新建、仓位；
+    有入库行才带单头仓；不再交整张的 update_stock / auto_create_product。"""
+
+    def setUp(self):
+        super().setUp()
+        self.enterContext(patch.object(intake, "_file_name", return_value="FILE-1"))
+
+    def chosen(self, direction="purchase"):
+        rows = [{"description": "Soap", "qty": 2, "unit_price": 10}, {"description": "Freight", "qty": 1, "unit_price": 50},
+                {"description": "New box", "qty": 1, "unit_price": 5}]
+        choices = {"warehouse": "WH-2", "location_asked": True, "lines": [
+            {"item_type": "goods", "product": "P-SOAP", "location": "A1", "decided": True, "new": False},
+            {"item_type": "service", "product": None, "location": None, "decided": True, "new": False},
+            {"item_type": "goods", "product": None, "location": None, "decided": True, "new": True}]}
+        return _doc(direction=direction, item_kind=None, warehouse=None, line_choices=json.dumps(choices),
+                    result=json.dumps({"doc_no": "INV-1", "doc_date": "2026-09-25", "supplier_name": "Acme", "lines": rows}))
+
+    def test_purchase_lines_carry_each_choice(self):
+        payload = intake.build_payload(self.chosen())
+        self.assertEqual([(row["item_type"], row.get("product"), row.get("new_item"), row.get("location"))
+                          for row in payload["lines"]],
+                         [("goods", "P-SOAP", None, "A1"), ("service", None, None, None), ("goods", None, 1, None)])
+        self.assertEqual(payload["warehouse"], "WH-2")
+        self.assertNotIn("update_stock", payload)
+        self.assertNotIn("auto_create_product", payload)
+
+    def test_sales_lines_carry_each_choice(self):
+        payload = intake.build_payload(self.chosen("sales"))
+        self.assertEqual([row["item_type"] for row in payload["lines"]], ["goods", "service", "goods"])
+        self.assertEqual(payload["warehouse"], "WH-2")
+
+    def test_record_only_documents_carry_no_warehouse(self):
+        doc = self.chosen()
+        choices = json.loads(doc.line_choices)
+        for row in choices["lines"]:
+            row["item_type"] = "service"
+        doc = _doc(item_kind=None, warehouse=None, line_choices=json.dumps(choices), result=doc.result)
+        self.assertNotIn("warehouse", intake.build_payload(doc))
+
+
+class LineItems(Base):
+    """识别后按行追问（`line_items`，评估 6.1）：定不了的行随卡片问一次，整批 / 逐项 / 选已有 / 取消；有入库行、仓定不下来才问仓库，
+    同一批沿用；仓建了仓位清单才问一次仓位；一批几张一次只问一张；旧按钮、别人的票无效。"""
+
+    def setUp(self):
+        super().setUp()
+        from pearnly_erp_portal.integrations import line_items
+
+        self.items = line_items
+        self.enterContext(patch.object(line_items, "_", _same))
+        self.docs = {}
+        self.enterContext(patch.object(line_items, "_doc", side_effect=lambda name: self.docs[name]))
+        self.enterContext(patch.object(line_items, "_save_choices",
+                                       side_effect=lambda name, value: setattr(self.docs[name], "line_choices", json.dumps(value))))
+        self.enterContext(patch.object(line_items, "_card", side_effect=lambda doc: {"card": doc.name}))
+        self.enterContext(patch.object(line_items, "_prefill", return_value=None))
+        self.enterContext(patch.object(line_items, "_warehouses", return_value=[("WH-1", "Main"), ("WH-2", "Shop")]))
+        self.enterContext(patch.object(line_items, "_usable_warehouse", return_value=True))
+        self.locations = []
+        self.enterContext(patch("pearnly_erp_portal.inventory.positions.listed", side_effect=lambda w: list(self.locations)))
+        self.enterContext(patch("pearnly_erp_portal.inventory.positions.has_list", side_effect=lambda w: bool(self.locations)))
+        frappe.db.exists.return_value = True
+        self.sessions["U1"] = {"state": line_flow.STATE, "payload": {"direction": "purchase", "entry": "upload"}}
+        self.roles["buyer"] = {"purchase.write", "purchase.read", "integration.read"}
+
+    def add(self, name, lines, warehouse=None):
+        choices = {"warehouse": warehouse, "location_asked": False, "lines": lines}
+        doc = _doc(name=name, party="@doc", item_kind=None, warehouse=None, line_choices=json.dumps(choices), result=json.dumps(
+            {"doc_no": name, "supplier_name": "Acme",
+             "lines": [{"description": f"Item {index + 1}"} for index in range(len(lines))]}))
+        doc.reload = lambda: None
+        doc.get = lambda key, default=None: getattr(doc, key, default)
+        self.docs[name] = doc
+        return doc
+
+    @staticmethod
+    def row(decided=False, item_type="goods", product=None):
+        return {"item_type": item_type, "product": product, "location": None, "decided": decided, "new": False}
+
+    def tap(self, data):
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            handlers.handle({"type": "postback", "source": {"userId": "U1"}, "replyToken": "r", "postback": {"data": data}})
+
+    def say(self, text):
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            handlers.handle({"type": "message", "source": {"userId": "U1"}, "replyToken": "r",
+                             "message": {"type": "text", "text": text}})
+
+    def labels(self, message):
+        return [item["action"]["label"] for item in message["quickReply"]["items"]]
+
+    def lines(self, name):
+        return json.loads(self.docs[name].line_choices)["lines"]
+
+    def test_a_document_with_every_line_decided_and_a_warehouse_asks_nothing(self):
+        self.add("LI-1", [self.row(True, product="P1"), self.row(True, "service")], warehouse="WH-1")
+        self.assertIsNone(self.items.queue("U1", ["LI-1"]))
+
+    def test_undecided_lines_are_listed_with_four_buttons(self):
+        self.add("LI-1", [self.row(True, product="P1"), self.row(), self.row()], warehouse="WH-1")
+        question = self.items.queue("U1", ["LI-1"])
+        self.assertEqual(question["text"].splitlines(), ["Acme · LI-1", "erp.line.items.new", "2. Item 2", "3. Item 3"])
+        self.assertEqual(self.labels(question), [key[:20] for key in ("erp.line.items.allNewIn", "erp.line.items.allNone",
+                                                                      "erp.line.items.each", "Cancel")])
+
+    def test_all_new_marks_the_undecided_lines_and_replies_the_updated_card(self):
+        self.add("LI-1", [self.row(True, product="P1"), self.row()], warehouse="WH-1")
+        self.items.queue("U1", ["LI-1"])
+        self.tap("a=erp_item&v=all_new&n=LI-1")
+        self.assertEqual([(row["item_type"], row["new"], row["decided"]) for row in self.lines("LI-1")],
+                         [("goods", False, True), ("goods", True, True)])
+        self.assertEqual(self.replies[-1], [{"card": "LI-1"}])
+        self.assertNotIn(self.items.ASKING, self.sessions["U1"]["payload"])
+
+    def test_one_by_one_with_record_only_and_an_existing_item(self):
+        self.add("LI-1", [self.row(), self.row()], warehouse="WH-1")
+        self.items.queue("U1", ["LI-1"])
+        self.tap("a=erp_item&v=each&n=LI-1")
+        self.assertEqual(self.labels(self.replies[-1][0]), [key[:20] for key in ("erp.line.items.newIn", "erp.line.tag.none",
+                                                                                 "erp.line.items.pick", "Cancel")])
+        self.tap("a=erp_item&v=none&n=LI-1&i=0")
+        self.tap("a=erp_item&v=pick&n=LI-1&i=1")
+        self.assertEqual(self.replies[-1][0]["text"], "erp.line.items.type")
+        with patch.object(self.items, "_products", return_value=[("P-9", "C9 Box", False), ("P-8", "C8 Bag", False)]):
+            self.say("bo")
+        self.assertTrue(self.replies[-1][0]["text"].startswith("Found 2."))
+        frappe.db.get_value.return_value = {"express_code": "", "express_stock": 0}
+        self.tap("a=erp_item&v=o&n=LI-1&i=1&k=0")
+        frappe.db.get_value.return_value = None
+        self.assertEqual([(row["item_type"], row["product"]) for row in self.lines("LI-1")],
+                         [("service", None), ("goods", "P-9")])
+        self.assertEqual(self.replies[-1], [{"card": "LI-1"}])
+
+    def test_the_warehouse_is_asked_only_for_stock_lines_and_kept_for_the_batch(self):
+        self.add("LI-1", [self.row(True, product="P1")])
+        self.add("LI-2", [self.row(True, product="P2")])
+        question = self.items.queue("U1", ["LI-1", "LI-2"])
+        self.assertEqual(self.labels(question), ["1. Main", "2. Shop", "Cancel"])
+        self.tap("a=erp_item&v=w&n=LI-1&k=1")
+        self.assertEqual(json.loads(self.docs["LI-1"].line_choices)["warehouse"], "WH-2")
+        self.assertEqual(self.sessions["U1"]["payload"]["batch_warehouse"], "WH-2")
+        # 排着的第二张沿用这次选的仓、不再问，回两张更新后的卡片
+        self.assertEqual(json.loads(self.docs["LI-2"].line_choices)["warehouse"], "WH-2")
+        self.assertEqual(self.replies[-1], [{"card": "LI-1"}, {"card": "LI-2"}])
+
+    def test_a_location_list_is_asked_once_with_a_skip(self):
+        self.locations = ["A1", "B2"]
+        self.add("LI-1", [self.row(True, product="P1"), self.row(True, product="P2")], warehouse="WH-1")
+        question = self.items.queue("U1", ["LI-1"])
+        self.assertEqual(self.labels(question), ["A1", "B2", "erp.line.items.noLocation"[:20], "Cancel"])
+        self.tap("a=erp_item&v=l&n=LI-1&k=1")
+        self.assertEqual([row["location"] for row in self.lines("LI-1")], ["B2", "B2"])
+        self.assertEqual(self.replies[-1], [{"card": "LI-1"}])
+
+    def test_documents_are_asked_one_at_a_time_and_cancel_moves_on(self):
+        self.add("LI-1", [self.row()], warehouse="WH-1")
+        self.add("LI-2", [self.row()], warehouse="WH-1")
+        self.assertIsNotNone(self.items.queue("U1", ["LI-1"]))
+        self.assertIsNone(self.items.queue("U1", ["LI-2"]))  # 排在 LI-1 后面
+        self.tap("a=erp_item&v=all_new&n=LI-2")               # 不是当前这张：无效
+        self.assertEqual(self.last_text(), "This option is no longer current")
+        self.tap("a=erp_item&v=cancel&n=LI-1")
+        self.assertTrue(self.replies[-1][0]["text"].startswith("Acme · LI-2"))
+        self.assertFalse(self.lines("LI-1")[0]["decided"])     # 取消：这张照预选，不改
+
+    def test_another_person_s_document_is_not_answered(self):
+        self.add("LI-1", [self.row()], warehouse="WH-1")
+        self.items.queue("U1", ["LI-1"])
+        self.docs["LI-1"].sent_by = "someone-else"
+        self.tap("a=erp_item&v=all_none&n=LI-1")
+        self.assertEqual(self.last_text(), "This option is no longer current")
+        self.assertFalse(self.lines("LI-1")[0]["decided"])
 
 
 class Language(Base):
@@ -1341,7 +1511,9 @@ class CardShape(Base):
                 for row in card["contents"]["body"]["contents"] if row.get("layout") == "horizontal"}
 
     def test_card_follows_the_old_layout_and_has_only_an_edit_link(self):
-        doc = _doc()
+        # 11-06 按行选物料与库存：整张一行「物料类型」去掉，有入库行时列单头仓，每行标入库 / 新建 · 入库
+        doc = _doc(line_choices=json.dumps({"warehouse": "WH-1", "lines": [
+            {"item_type": "goods", "product": "P" if i % 2 else None} for i in range(12)]}))
         result = {**json.loads(doc.result), "doc_kind": "purchase_invoice",
                   "lines": [{"description": f"Item {i}", "qty": 1, "unit_price": 10} for i in range(12)]}
         card = self.card(doc, result, {"grand_total": "107.00", "vat_amount": "7.00", "discount_total": "0",
@@ -1351,7 +1523,8 @@ class CardShape(Base):
                          ("Review document · Buy", "#16873E"))
         rows = self.rows(card)
         labels = [label for label in rows]
-        self.assertEqual(labels[:4], ["Company", "Transaction type", "Documents", "Item Type"])
+        self.assertEqual(labels[:4], ["Company", "Transaction type", "Documents", "Warehouse"])
+        self.assertEqual(rows["Warehouse"], "WH-1")  # 替身里仓库没有名称：显示编号
         # 采购只列卖方；金额与付款在明细下面（用户 2026-09-26）。
         self.assertEqual(labels[4:], ["Document no.", "Date", "Document type", "Seller", "Seller tax ID",
                          "Seller branch", "Seller address", "Notes",
@@ -1367,6 +1540,11 @@ class CardShape(Base):
         text = json.dumps(card, ensure_ascii=False)
         for i in range(12):  # 商品名称全部显示（用户 2026-09-26）
             self.assertIn(f"{i + 1}. Item {i}", text)
+        self.assertIn("1 × 10.00 · erp.line.tag.newIn", text)
+        self.assertIn("1 × 10.00 · trade.groupIn", text)
+        old = self.card(_doc(), result, {})  # 改版前识别的票没有每行选择：不列仓库、不标
+        self.assertNotIn("Warehouse", self.rows(old))
+        self.assertNotIn("trade.groupIn", json.dumps(old))
         footer = card["contents"]["footer"]["contents"]
         self.assertEqual(len(footer), 1)
         self.assertEqual(footer[0]["action"], {"type": "uri", "label": "Edit",

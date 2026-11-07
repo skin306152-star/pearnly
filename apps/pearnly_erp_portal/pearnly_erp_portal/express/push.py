@@ -180,12 +180,15 @@ def _lines(doctype, doc):
         if line.warehouse and line.warehouse not in warehouses:
             warehouses[line.warehouse] = frappe.db.get_value("ERP Warehouse", line.warehouse, "express_code") or ""
         code = product.get("express_code") or ""
-        if code:
+        # 动不动库存按行定（11-06 按行选物料与库存，评估 4.4）：只记账的行即使挂的是 Express 存货也写成非库存行、不带存货码
+        # （按名写非库存品；评估 12 节 #6 允许，不拦）
+        goods = (line.get("item_type") or "goods") == "goods"
+        if code and goods:
             stock = bool(product.get("express_stock"))
-        elif doctype == PURCHASE:
-            stock = (line.get("item_type") or "goods") == "goods" and bool(line.product)
+        elif code and product.get("express_stock"):
+            stock, code = False, ""
         else:
-            stock = bool(line.product)
+            stock = goods and bool(line.product)
         # 包装单位（箱 = 12）：带上 ERP 商品单位表的换算率（CC 桌面版按 Express 主档的包装单位照原生记法写，认不出时按它换；验收 10-25）
         factor = stock_entry.base_unit(line.product, product, line.unit, strict=False)[1] if stock and line.product else None
         out.append({"name": line.description or product.get("product_name") or code, "code": code, "unit": line.unit,
@@ -232,24 +235,26 @@ def form_document(doctype, payload, company) -> dict:
     from pearnly_erp_portal.inventory import warehouses
 
     stocked = str(payload.get("update_stock", 1)) not in ("0", "False", "false", "")
+    # 认不到物料的入库 / 出库行提交时随单建档（采购；销售收据同口径，11-06 按行选物料与库存）
+    creates = doctype == PURCHASE or str(payload.get("doc_kind") or "receipt") == "receipt"
     lines = []
     for line, computed in zip(payload.get("lines") or [], totals.get("lines") or []):
         line = frappe._dict({**line, "line_total": computed.get("line_total")})
         if not line.get("warehouse") and payload.get("warehouse"):
             line.warehouse = payload.get("warehouse")  # 单头仓给行上没写的（同提交时 `positions.prepare`，多仓闭环 P1）
-        goods = doctype == SALES or (line.get("item_type") or "goods") == "goods"
+        goods = (line.get("item_type") or "goods") == "goods"
         if goods and not line.get("product"):
             line.product = _matched_product(line, company)  # 提交时同样按条码 / 编码 / 品名认（不建档）
-        if goods and stocked and (doctype == PURCHASE or line.product) and not warehouses.receiving(
+        if goods and stocked and (creates or line.product) and not warehouses.receiving(
                 line.get("warehouse"), company=company):
             # 提交时也会这样拒（`positions.prepare`）：先报表单的错，别让人答完 Express 的选择又被打回（10-24 验收）
             frappe.throw(_("Warehouse not found"))
         lines.append(line)
     out = _lines(doctype, frappe._dict({"lines": lines}))
-    if doctype == PURCHASE:
-        for line, item in zip(lines, out):
-            if (line.get("item_type") or "goods") == "goods" and not line.get("product"):
-                item["stock"] = True  # 认不到的货物行提交时自动建档入库：按库存品准备，不误问费用科目（10-24 审查）
+    for line, item in zip(lines, out):
+        if creates and (line.get("item_type") or "goods") == "goods" and not line.get("product"):
+            # 认不到的入库 / 出库行提交时自动建档（采购，销售收据同口径）：按库存品准备，不误问费用科目（10-24 审查）
+            item["stock"] = True
     company_row = frappe.db.get_value(COMPANY, company, ["tax_id", "branch"], as_dict=True) or {}
     return contracts.document(ref="preflight", direction=DIRECTIONS[doctype], doc_date=str(payload.get("doc_date") or
                               frappe.utils.nowdate()), number=number, company=company_row, party=party, paid=paid,
@@ -704,8 +709,10 @@ def _product_lines(doctype, name):
     """这张单交给电脑的明细 → ``[(ERP 商品, 行上的品名)]``（按序号）；收银日汇总回 ``{品名: (ERP 商品, 品名)}``；别的单回 None。"""
     if doctype in LINES:
         rows = frappe.get_all(LINES[doctype], filters={"parent": name, "parenttype": doctype},  # bounded: 一张单的明细
-                              fields=["product", "description"], order_by="idx asc", limit_page_length=0)
-        return [(row.product, str(row.description or "").strip()) for row in rows]
+                              fields=["product", "description", "item_type"], order_by="idx asc", limit_page_length=0)
+        # 只记账的行在 Express 写成非库存品（11-06 按行选）：电脑回的码不挂到这一行的 ERP 物料上（它可能是库存物料）
+        return [(row.product if (row.item_type or "goods") == "goods" else None, str(row.description or "").strip())
+                for row in rows]
     if doctype == STOCK:
         return [(line["product"], line["name"]) for line in stock_entry.document(name, "link")["lines"]]
     if doctype == COUNT:

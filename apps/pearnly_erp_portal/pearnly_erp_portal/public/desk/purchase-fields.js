@@ -31,8 +31,10 @@
 		Object.assign(field.df, changes); field.refresh();
 	};
 	u.line_keys = ["item_type", "product", "description", "code", "barcode", "qty", "unit", "unit_price",
-		"discount", "vat_rate", "wht_rate", "category", "subcategory", "warehouse", "location"];
+		"discount", "vat_rate", "wht_rate", "category", "subcategory", "warehouse", "location", "new_item"];
+	// 行上「入库」勾选 = 这一行入不入库（11-06 按行选物料与库存）：不勾就是只记账（服务端 `item_type = service`）
 	u.clean_lines = lines => (lines || []).filter(row => row.description || row.product)
+		.map(row => ({...row, ...(row.stock_in === undefined ? {} : {item_type: Number(row.stock_in) ? "goods" : "service"})}))
 		.map(row => Object.fromEntries(u.line_keys.filter(key => row[key] !== undefined).map(key => [key, row[key]])));
 	// Each item is a native collapsible section + FieldGroup. No generic Grid menus,
 	// column configuration, row import or framework document navigation is exposed.
@@ -44,7 +46,8 @@
 			f("product", "Item", "Data", {hidden: 1}),
 			f("description", "Item Name", "Data", {hidden: 1}),
 			f("qty", "Quantity", "Float", {reqd: 1, default: 1, precision: 6}),
-			f("unit", "UOM"), f("unit_price", "Rate", "Currency", {default: 0}), col(),
+			f("unit", "UOM"), f("unit_price", "Rate", "Currency", {default: 0}),
+			f("stock_in", "trade.groupIn", "Check", {default: 1}), col(),
 			f("discount", "Discount Amount", "Currency", {default: 0}),
 			f("vat_rate", "VAT Rate", "Percent", {default: state.defaults.settings.default_vat_rate}),
 			f("wht_rate", "Withholding Tax Rate", "Percent", {default: 0}),
@@ -52,8 +55,8 @@
 			f("vat_amount", "VAT", "Currency", {read_only: 1}),
 			f("wht_amount", "Withholding Tax", "Currency", {read_only: 1, depends_on: "eval:doc.wht_rate > 0"}),
 			u.section("Additional Information", {collapsible: 1, collapsed: 1}),
-			// 两栏（行上不再出仓库后重排，各栏长度接近）：左栏「是什么货、放哪」（类型、仓位），右栏分类
-			f("item_type", "Item Type", "Select", {options: u.options(["goods", "service"]), default: "goods"}),
+			// 两栏：左栏放哪（仓位），右栏分类。入不入库是上面的「入库」勾选（提交时由 `clean_lines` 换成 `item_type`）
+			f("new_item", "Item", "Check", {hidden: 1}),
 			// 仓库：一张单一个仓库，以单头为准（岳父 11-06），行上不显示；值随单头走（`p.place.track`），仓位行上可以改
 			f("warehouse", "Warehouse", "Link",
 				{options: "ERP Warehouse", get_query: p.warehouse_query(), hidden: 1}),
@@ -130,6 +133,7 @@
 				.flatMap((field, index) => index ? [col(), field] : [field]),
 			u.section(""), f("lines", "Items", "HTML"),
 			f("add_line", "Add row", "Button", {hidden: !editable, click: () => state.add_line?.()}),
+			f("bulk_edit", "Bulk Edit", "Button", {hidden: !editable, click: () => state.bulk_edit?.()}),
 			f("merge_lines", "Merge Items", "Button", {hidden: 1, click: () => state.merge?.()}),
 			// 左栏净额 / 折扣 / 尾差，右栏税额与合计（11-01：原来左三格右五格）
 			u.section("Taxes and Charges"),

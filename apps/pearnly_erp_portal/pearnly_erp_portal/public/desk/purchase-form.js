@@ -67,7 +67,8 @@
 			return {...Object.fromEntries(["source", "requester", "requester_user", "external_ref", "image_sha256", "ocr_review"]
 				.filter(key => doc[key] !== undefined).map(key => [key, doc[key]])),
 				...(state.ocr_review ? {ocr_review: state.ocr_review} : {}),
-				auto_create_product: doc.auto_create_product ?? 1, update_stock: doc.update_stock ?? 1, source: state.source || doc.source || "web", ...values, lines};
+				// 入不入库、认不到的物料新建与否按行定（11-06 按行选物料与库存），不再交整张的开关
+				source: state.source || doc.source || "web", ...values, lines};
 		};
 		const label_lines = () => state.lines.forEach((line, i) => {
 			// Preserve the framework's collapse indicator/listeners while changing text.
@@ -88,17 +89,20 @@
 				on_select: async item => {
 					await line.form.set_values({description: item.product_name, code: item.code, barcode: item.barcode,
 					unit: item.base_unit || item.unit, unit_price: Number(line.form.get_value("unit_price")) || item.default_cost || 0,
-					vat_rate: item.vat_applicable ? defaults.settings.default_vat_rate : 0});
+					vat_rate: item.vat_applicable ? defaults.settings.default_vat_rate : 0,
+					// Express 的非库存品（运费、服务费类主档）默认只记账（同服务端预选 `line_rules`）
+					...(item.express_code && !item.express_stock ? {stock_in: 0} : {})});
 					// 仓与库位跟单头，选商品不改（商品的建议库位只在属于这个仓的清单时由服务端补，多仓闭环 P1）
 				}, on_clear: () => line.form.set_values({code: "", barcode: ""})});
 			line.form.sections.forEach(section => section.wrapper.addClass("px-0"));
 			line.form.sections.forEach(section => section.columns.forEach(column => column.wrapper.addClass("px-0 px-sm-3")));
 			line.form.sections[0].body.addClass("mt-0 pt-0");
 			state.lines.push(line);
-			// 类型「费用」的单：新明细默认服务类（10-24 验收：默认货物，提交时又要选仓库、对存货）
-			const item_type = form.get_value("doc_kind") === "expense" ? "service" : "goods";
-			await line.form.set_values({item_type, qty: 1, unit_price: 0, vat_rate: defaults.settings.default_vat_rate, wht_rate: 0,
-				warehouse: form.get_value("warehouse") || "", location: form.get_value("location") || "", ...values});
+			// 类型「费用」的单：新明细默认只记账（10-24 验收：默认货物，提交时又要选仓库、对存货）；带来的行照它自己的类型（识别预选、已存的单）
+			const item_type = values.item_type || (form.get_value("doc_kind") === "expense" ? "service" : "goods");
+			await line.form.set_values({qty: 1, unit_price: 0, vat_rate: defaults.settings.default_vat_rate, wht_rate: 0,
+				warehouse: form.get_value("warehouse") || "", location: form.get_value("location") || "", ...values,
+				stock_in: item_type === "goods" ? 1 : 0});
 			line.form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
 			await line.choice.show();
 			line.ready = true; line.section.collapse(false); changes();
@@ -128,13 +132,20 @@
 			outstanding: Number(doc.net_payable || 0) - Number(doc.paid_amount || 0)});
 		state.place.sync();  // 单头填好了，之后人改单头才带着行走
 		await state.party_choice.show();
-		// 改成「费用」时，还没选商品的货物行一并改成服务类
+		// 改成「费用」时，还没选物料的入库行一并改成只记账
 		form.fields_dict.doc_kind.df.onchange = () => {
 			if (form.get_value("doc_kind") !== "expense") return;
 			for (const line of state.lines) {
-				if (line.form.get_value("item_type") === "goods" && !line.form.get_value("product")) void line.form.set_value("item_type", "service");
+				if (line.form.get_value("stock_in") && !line.form.get_value("product")) void line.form.set_value("stock_in", 0);
 			}
 		};
+		// 批量编辑（11-06 按行选物料与库存）：单头仓库、每行入库与仓位，原生 Dialog + Table
+		state.bulk_edit = () => p.trade.bulk_lines({stock_label: __("trade.groupIn"), warehouse: form.get_value("warehouse"),
+			set_warehouse: value => form.set_value("warehouse", value),
+			lines: state.lines.filter(line => line.form.get_value("description") || line.form.get_value("product")).map(line => ({
+				label: line.form.get_value("description") || "", stock: line.form.get_value("stock_in"),
+				location: line.form.get_value("location"),
+				set: values => line.form.set_values({stock_in: values.stock, location: values.location})}))});
 		await state.set_lines(doc.lines?.length ? doc.lines : [{}]);
 		form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
 		let attachment_list;

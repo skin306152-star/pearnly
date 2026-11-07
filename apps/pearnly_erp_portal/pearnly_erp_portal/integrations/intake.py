@@ -1,7 +1,7 @@
 """LINE 收单：按选好的选项识别 → 一张只有「编辑」的卡 → 网页端原生采购 / 销售页提交入账。
 
-链条（用户 2026-09-25 定稿）：`line_flow` 问完公司、供应商/客户、已付/未付、付款方式、
-服务/库存（必要时仓库）→ 用户发 PDF/图片 → 这里留底（私有 File）并落一条内部记录 →
+链条（用户 2026-09-25 定稿）：`line_flow` 问完公司、供应商/客户、已付/未付、付款方式
+→ 用户发 PDF/图片 → 这里留底（私有 File）并落一条内部记录 →
 交共用 OCR 队列识别 → 推一张卡，**只有「编辑」**（不过期、不回执，省官方号消息额度）→
 点「编辑」在 LINE 里打开网页端**原生**的采购 / 销售新建页，识别结果与选择已填好 →
 点「提交」才入账过账（与手工录入同一个入账函数，收发存按现有功能关联）→ 之后再点
@@ -9,7 +9,8 @@
 
 - 不是草稿：这条内部记录网页端列表里看不到，只能从卡片进来。
 - 重复单据放行，同一个文件也放行（用户 2026-09-25）；同一张卡只入一次（`line-intake:<记录名>`）。
-- 服务类不动库存；库存类采购入库、销售出库（销售匹配不到商品自动新建，允许负库存）。
+- 每一行对哪件物料、入不入库按行预选，定不了的识别后随卡片追问（`line_items`，11-06）：入库行采购入库、出库行销售出库
+  （认不到物料自动新建，销售允许负库存），只记账的行不动库存。
 """
 import hashlib
 import json
@@ -21,7 +22,7 @@ from frappe.utils import add_to_date, now, now_datetime
 from pearnly_core import line, line_binding
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.integrations import line_cards, line_flow
+from pearnly_erp_portal.integrations import line_cards, line_flow, line_items
 
 DOCTYPE = "ERP LINE Intake"
 QUEUED, READY, FAILED, CONFIRMED = "queued", "ready", "failed", "confirmed"
@@ -184,7 +185,7 @@ def run(intake, line_user_id, reply_token="", filename=""):
         try:
             result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}],
                                                           billing_reference="erp.line_intake:" + doc.name,
-                                                          company=doc.company)
+                                                          company=doc.company, prefill=False)
         except frappe.ValidationError as exc:
             from pearnly_erp_portal.recognition import billing, policy
 
@@ -200,8 +201,18 @@ def run(intake, line_user_id, reply_token="", filename=""):
         doc.status = READY
         doc.save(ignore_permissions=True)
         cards = [(doc, result)] + [(_sibling(doc, extra), extra) for extra in extras]
+        for card, data in cards:
+            # 每一行预选（按收单前选的对方，`line_items.prepare`）；有定不了的随卡片问
+            line_items.prepare(card, data, line_user_id)
         frappe.db.commit()
         messages = [line_cards.preview(card, data, totals(card, data)) for card, data in cards]
+        try:
+            question = line_items.queue(line_user_id, [card.name for card, _data in cards])
+        except Exception:
+            frappe.log_error(title="ERP LINE item question failed", message=frappe.get_traceback()[-1500:])
+            question = None  # 提问出错不挡卡片：卡片照预选，「编辑」照样能改
+        if question:
+            messages.append(question)
         # 一次回复最多 5 条（LINE）：第一批用回复令牌，其余推送。
         line.reply_or_push(line_user_id, messages[:5], reply_token)
         for start in range(5, len(messages), 5):
@@ -241,6 +252,7 @@ def _fallback_name(direction):
 def build_payload(doc, result=None) -> dict:
     """把「选好的主档 + 识别字段」拼成网页端入账函数要的入参（同一个形状）。"""
     result = result if result is not None else json.loads(doc.result or "{}")
+    chosen = line_items.choices_of(doc)  # 每行的选择（改版前识别的票没有：照旧按整批 `item_kind`）
     goods = doc.item_kind == "goods"
     attachments = [{"file": _file_name(doc), "kind": "bill"}]
     party = doc.party if doc.party not in ("", None, line_flow.FROM_DOCUMENT, line_flow.FALLBACK) else None
@@ -257,17 +269,21 @@ def build_payload(doc, result=None) -> dict:
             payload["due_date"] = dates.due(payload["due_date"], payload.get("doc_date"))
             if not payload["due_date"]:
                 payload.pop("due_date")
-        lines = []
-        for row in result.get("lines") or []:
-            # 识别补的「不可抵扣的增值税」行永远是服务，不按 LINE 里选的「库存商品」入库。
-            stock = goods and not row.get(recognition.NON_CLAIMABLE_VAT)
-            row = {**row, "item_type": "goods" if stock else "service"}
-            if stock and doc.warehouse:
-                row["warehouse"] = doc.warehouse
-            lines.append(row)
+        if chosen:
+            lines = _chosen_lines(result, chosen)
+            stock = _place(chosen, lines)
+        else:
+            lines = []
+            for row in result.get("lines") or []:
+                # 改版前识别的票：识别补的「不可抵扣的增值税」行永远是服务，不按 LINE 里选的「库存商品」入库。
+                moved = goods and not row.get(recognition.NON_CLAIMABLE_VAT)
+                row = {**row, "item_type": "goods" if moved else "service"}
+                if moved and doc.warehouse:
+                    row["warehouse"] = doc.warehouse
+                lines.append(row)
+            stock = {"update_stock": int(goods), "auto_create_product": int(goods)}
         payload.update(company=doc.company, lines=lines, is_paid=doc.is_paid,
-                       payment_method=doc.payment_method or "cash", update_stock=int(goods),
-                       auto_create_product=int(goods), source="line", attachments=attachments,
+                       payment_method=doc.payment_method or "cash", source="line", attachments=attachments, **stock,
                        **_recogniser(doc.direction).marks(result))  # 票面合计与识别标记（写账前核对，`express.contracts.printed_hold`）
         if party:
             payload["supplier"] = party
@@ -286,12 +302,17 @@ def build_payload(doc, result=None) -> dict:
     for row in result.get("lines") or []:
         row = {key: row.get(key) for key in ("product", "description", "qty", "unit", "unit_price",
                                              "discount") if row.get(key) not in (None, "")}
-        if goods and doc.warehouse:
-            row["warehouse"] = doc.warehouse
+        if not chosen:
+            # 改版前识别的票：整批「库存商品」才出库（以前名字刚好对上已有物料的行也照样出库，现在按行）
+            row["item_type"] = "goods" if goods else "service"
+            if goods and doc.warehouse:
+                row["warehouse"] = doc.warehouse
         lines.append(row)
+    if chosen:
+        lines = _chosen_lines({"lines": lines}, chosen)
     payload.update(company=doc.company, lines=lines, is_paid=doc.is_paid,
                    payment_method=doc.payment_method or None, source="line", attachments=attachments,
-                   **_recogniser(doc.direction).marks(result))
+                   **(_place(chosen, lines) if chosen else {}), **_recogniser(doc.direction).marks(result))
     if not doc.is_paid:
         payload["paid_amount"] = 0
     elif payload.get("doc_date"):
@@ -317,6 +338,31 @@ def build_payload(doc, result=None) -> dict:
             if customer:
                 payload["customer"] = customer
     return payload
+
+
+def _chosen_lines(result, chosen):
+    """识别的行 + 这张票上每行的选择（`line_items`）：入库与否、物料、新建、仓位。"""
+    lines = []
+    for index, row in enumerate(result.get("lines") or []):
+        choice = chosen["lines"][index] if index < len(chosen["lines"]) else None
+        row = dict(row)
+        if choice:
+            row["item_type"] = choice.get("item_type") or "goods"
+            if choice.get("product") and not row.get("product"):
+                row["product"] = choice["product"]
+            if choice.get("new") and not row.get("product"):
+                row["new_item"] = 1
+            if choice.get("location") and row["item_type"] == "goods":
+                row["location"] = choice["location"]
+        lines.append(row)
+    return lines
+
+
+def _place(chosen, lines):
+    """单头仓（一张单一个仓库）：有入库行才给。"""
+    if chosen.get("warehouse") and any(row.get("item_type") == "goods" for row in lines):
+        return {"warehouse": chosen["warehouse"]}
+    return {}
 
 
 def totals(doc, result=None) -> dict:
@@ -406,12 +452,7 @@ def submit(name, payload) -> dict:
     if doc.direction == "purchase":
         from pearnly_erp_portal.purchasing import entry
     else:
-        from pearnly_erp_portal.products import sales as sale_items
         from pearnly_erp_portal.sales import entry
-
-        if doc.item_kind == "goods":
-            payload["lines"] = [sale_items.resolve(dict(row), company=payload.get("company"))
-                                for row in payload.get("lines") or []]
     return entry.post(payload, request_id="line-intake:" + doc.name, finalize=finish, allow_duplicate=True)
 
 

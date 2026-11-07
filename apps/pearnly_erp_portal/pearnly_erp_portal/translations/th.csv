@@ -60,7 +60,11 @@ Add a count,บันทึกการนับ
 Add a count — {0},บันทึกการนับ — {0}
 Add a field,เพิ่มช่อง
 Add a link,เพิ่มลิงก์
+Add all and issue,จ่ายออกใหม่ทั้งหมด
+Add all and receive,รับเข้าใหม่ทั้งหมด
 Add an item,เพิ่มรายการ
+Add and issue,สร้างใหม่และจ่ายออก
+Add and receive,สร้างใหม่และรับเข้า
 Add another list,เพิ่มรายการอื่น
 Add label,เพิ่มป้ายกำกับ
 Add locations in stock,เพิ่มตำแหน่งที่มีสต็อก
@@ -86,6 +90,7 @@ All,ทั้งหมด
 All Items,สินค้าทั้งหมด
 All companies,ทุกบริษัท
 All labels,ป้ายกำกับทั้งหมด
+All record only,ลงบัญชีอย่างเดียวหมด
 All the items have been already returned.,สินค้าทั้งหมดถูกคืนแล้ว
 Already exists,มีอยู่แล้ว
 Already received,ได้รับไฟล์นี้แล้ว
@@ -255,6 +260,7 @@ Choose purchase or sales first,กรุณาเลือก ซื้อ ห�
 Choose the company,เลือกบริษัท
 Choose the customer,กรุณาเลือกลูกค้า
 Choose the inventory account group for this account set first.,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
+Choose the location,กรุณาเลือกตำแหน่ง
 Choose the payment method,กรุณาเลือกวิธีชำระเงิน
 Choose the service input VAT for this supplier and submit again,กรุณาเลือกภาษีซื้อของสินค้าบริการสำหรับผู้จำหน่ายรายนี้แล้วส่งใหม่
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
@@ -533,6 +539,7 @@ Exchange Rate is required,กรุณาระบุอัตราแลกเ
 Exchange Rate must be greater than zero,อัตราแลกเปลี่ยนต้องมากกว่าศูนย์
 Exempt items,สินค้ายกเว้นภาษี
 Exempt items without VAT per line,สินค้ายกเว้นภาษีไม่คิด VAT รายบรรทัด
+Existing item,เลือกสินค้าที่มี
 Expected Amount,ยอดที่ควรมี
 Expected Cash,เงินสดที่ควรมี
 Expense,ค่าใช้จ่าย
@@ -787,9 +794,12 @@ New Stock Transfer,สร้างใบโอนย้ายสินค้า
 New Supplier,เพิ่มผู้จำหน่าย
 New code,สร้างรหัสใหม่
 New company,เพิ่มบริษัท
+New items:,สินค้าใหม่:
 New product,เพิ่มสินค้า
 New stock count,สร้างการตรวจนับ
 New warehouse,เพิ่มคลังสินค้า
+New · In,ใหม่ · รับเข้า
+New · Out,ใหม่ · จ่ายออก
 Next,ถัดไป
 Next Number,เลขถัดไป
 No,ลำดับ
@@ -847,6 +857,7 @@ OCR,อ่านเอกสาร (OCR)
 Observer,ผู้สังเกตการณ์
 Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,หากไม่ได้เลือก หมายถึงยังไม่ได้ตั้งต้นทุน มูลค่าและต้นทุนต่อหน่วยจะเว้นว่างไว้
 On Hand,คงเหลือ
+One by one,เลือกทีละรายการ
 Only Draft documents can be deleted,ลบได้เฉพาะเอกสารฉบับร่าง
 Only a completed sale receipt can be refunded,คืนสินค้าและคืนเงินได้เฉพาะใบเสร็จที่ปิดการขายแล้ว
 Only a receipt records a collection,บันทึกการรับเงินได้เฉพาะใบเสร็จรับเงิน
@@ -1079,6 +1090,7 @@ Recognition stopped before it finished. Please try again.,การอ่าน�
 Recognizing...,กำลังอ่านเอกสาร…
 Record,เอกสาร
 Record a count,บันทึกการตรวจนับ
+Record only,ลงบัญชีอย่างเดียว
 Record purchases,บันทึกการซื้อ
 Record sales,บันทึกการขาย
 Recorded,บันทึกแล้ว
@@ -1537,11 +1549,13 @@ Transfer,โอนเงิน
 Type,ประเภท
 Type a word from the company name to find it,พิมพ์คำในชื่อบริษัทเพื่อค้นหา
 Type a word from the customer name to find it,พิมพ์คำในชื่อลูกค้าเพื่อค้นหา
+Type a word from the location name to find it,พิมพ์คำในชื่อตำแหน่งเพื่อค้นหา
 Type a word from the supplier name to find it,พิมพ์คำในชื่อผู้จำหน่ายเพื่อค้นหา
 Type a word from the warehouse name to find it,พิมพ์คำในชื่อคลังสินค้าเพื่อค้นหา
 Type any warehouse name; a new warehouse is created if that name is new,พิมพ์ชื่อคลังได้เอง ถ้าชื่อใหม่ระบบจะสร้างให้
 Type the company name or number to find it,พิมพ์ชื่อหรือรหัสบริษัทเพื่อค้นหา
 Type the customer name or code to find it,พิมพ์ชื่อหรือรหัสลูกค้าเพื่อค้นหา
+Type the item name or code,พิมพ์ชื่อหรือรหัสสินค้า
 Type the supplier name or code to find it,พิมพ์ชื่อหรือรหัสผู้จำหน่ายเพื่อค้นหา
 Type the warehouse name or code to find it,พิมพ์ชื่อหรือรหัสคลังสินค้าเพื่อค้นหา
 UOM,หน่วยวัด
@@ -1826,14 +1840,30 @@ erp.detail.zero_total,ยอดรวมเป็นศูนย์
 erp.line.boundAt,เวลาที่ผูกบัญชี
 erp.line.code,รหัสผูกบัญชี
 erp.line.expired,รหัสหมดอายุแล้ว
+erp.line.items.allNewIn,รับเข้าใหม่ทั้งหมด
+erp.line.items.allNewOut,จ่ายออกใหม่ทั้งหมด
+erp.line.items.allNone,ลงบัญชีอย่างเดียวหมด
+erp.line.items.each,เลือกทีละรายการ
+erp.line.items.location,กรุณาเลือกตำแหน่ง
+erp.line.items.new,สินค้าใหม่:
+erp.line.items.newIn,สร้างใหม่และรับเข้า
+erp.line.items.newOut,สร้างใหม่และจ่ายออก
+erp.line.items.noLocation,ไม่ระบุ
+erp.line.items.pick,เลือกสินค้าที่มี
+erp.line.items.type,พิมพ์ชื่อหรือรหัสสินค้า
+erp.line.items.typeLocation,พิมพ์คำในชื่อตำแหน่งเพื่อค้นหา
 erp.line.lineName,ชื่อ LINE
 erp.line.newCode,สร้างรหัสใหม่
 erp.line.remaining,เหลือเวลา {0}
 erp.line.status.bound,ผูกบัญชีแล้ว
 erp.line.status.unbound,ยังไม่ได้ผูกบัญชี
+erp.line.tag.newIn,ใหม่ · รับเข้า
+erp.line.tag.newOut,ใหม่ · จ่ายออก
+erp.line.tag.none,ลงบัญชีอย่างเดียว
 erp.line.unbind,ยกเลิกการเชื่อมต่อ LINE
 erp.line.unbindConfirm,ต้องการยกเลิกการเชื่อมต่อ Pearnly ERP LINE ใช่หรือไม่
 erp.nav.work,จัดการงาน
+erp.trade.allLines,ทั้งหมด
 erp.work.activity.archive,{who} เก็บถาวรการ์ดนี้
 erp.work.activity.assign,{who} เพิ่ม {0} ในการ์ดนี้
 erp.work.activity.attach,{who} แนบไฟล์ {0}

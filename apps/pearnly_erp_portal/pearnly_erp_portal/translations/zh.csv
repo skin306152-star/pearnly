@@ -60,7 +60,11 @@ Add a count,新增盘点记录
 Add a count — {0},新增盘点记录 — {0}
 Add a field,新建字段
 Add a link,添加链接
+Add all and issue,全部新建并出库
+Add all and receive,全部新建并入库
 Add an item,添加项目
+Add and issue,新建并出库
+Add and receive,新建并入库
 Add another list,添加另一个列表
 Add label,添加标签
 Add locations in stock,带入有库存的仓位
@@ -86,6 +90,7 @@ All,全部
 All Items,所有物料
 All companies,全部公司
 All labels,全部标签
+All record only,全部只记账
 All the items have been already returned.,所有物料都已退货
 Already exists,已存在
 Already received,该文件已接收
@@ -255,6 +260,7 @@ Choose purchase or sales first,请先选择采购或销售
 Choose the company,选择公司
 Choose the customer,请选择客户
 Choose the inventory account group for this account set first.,请先为此账套选择存货科目组。
+Choose the location,请选择仓位
 Choose the payment method,请选择付款方式
 Choose the service input VAT for this supplier and submit again,请为此供应商选择服务品进项税后重新提交
 Choose the sheet to import,请先选择要导入的表格
@@ -533,6 +539,7 @@ Exchange Rate is required,汇率不能为空
 Exchange Rate must be greater than zero,汇率必须大于零
 Exempt items,免税商品写法
 Exempt items without VAT per line,免税商品按行不计税
+Existing item,选已有物料
 Expected Amount,预期金额
 Expected Cash,应有现金
 Expense,费用
@@ -787,9 +794,12 @@ New Stock Transfer,新建调拨单
 New Supplier,新建供应商
 New code,重新生成
 New company,新建公司
+New items:,新物料：
 New product,新建物料
 New stock count,新建盘点
 New warehouse,新建仓库
+New · In,新建 · 入库
+New · Out,新建 · 出库
 Next,下一个
 Next Number,下一编号
 No,序号
@@ -847,6 +857,7 @@ OCR,文字识别
 Observer,观察者
 Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,未勾选表示未设置成本，金额与单位成本留空
 On Hand,现有库存
+One by one,逐项选择
 Only Draft documents can be deleted,只能删除草稿单据
 Only a completed sale receipt can be refunded,仅可对已完成的小票退货退款
 Only a receipt records a collection,仅收据可登记收款
@@ -1079,6 +1090,7 @@ Recognition stopped before it finished. Please try again.,识别中断，请重�
 Recognizing...,识别中…
 Record,单据
 Record a count,录入盘点
+Record only,只记账
 Record purchases,采购录入
 Record sales,销售录入
 Recorded,已入账
@@ -1537,11 +1549,13 @@ Transfer,转账
 Type,类型
 Type a word from the company name to find it,输入公司名称关键字查找
 Type a word from the customer name to find it,输入客户名称关键字查找
+Type a word from the location name to find it,输入仓位名称关键字查找
 Type a word from the supplier name to find it,输入供应商名称关键字查找
 Type a word from the warehouse name to find it,输入仓库名称关键字查找
 Type any warehouse name; a new warehouse is created if that name is new,仓库可以自由填写，名字没见过的会自动新建一个
 Type the company name or number to find it,输入公司名称或编号查找
 Type the customer name or code to find it,输入客户名称或编号查找
+Type the item name or code,请输入物料名称或编码
 Type the supplier name or code to find it,输入供应商名称或编号查找
 Type the warehouse name or code to find it,输入仓库名称或编号查找
 UOM,单位
@@ -1826,14 +1840,30 @@ erp.detail.zero_total,合计为零
 erp.line.boundAt,绑定时间
 erp.line.code,绑定码
 erp.line.expired,绑定码已过期
+erp.line.items.allNewIn,全部新建并入库
+erp.line.items.allNewOut,全部新建并出库
+erp.line.items.allNone,全部只记账
+erp.line.items.each,逐项选择
+erp.line.items.location,请选择仓位
+erp.line.items.new,新物料：
+erp.line.items.newIn,新建并入库
+erp.line.items.newOut,新建并出库
+erp.line.items.noLocation,不填
+erp.line.items.pick,选已有物料
+erp.line.items.type,请输入物料名称或编码
+erp.line.items.typeLocation,输入仓位名称关键字查找
 erp.line.lineName,LINE 名称
 erp.line.newCode,重新生成
 erp.line.remaining,剩余 {0}
 erp.line.status.bound,已绑定
 erp.line.status.unbound,未绑定
+erp.line.tag.newIn,新建 · 入库
+erp.line.tag.newOut,新建 · 出库
+erp.line.tag.none,只记账
 erp.line.unbind,解绑 LINE
 erp.line.unbindConfirm,确定要解绑 Pearnly ERP LINE 吗？
 erp.nav.work,任务管理
+erp.trade.allLines,全部
 erp.work.activity.archive,{who} 归档了此卡片
 erp.work.activity.assign,{who} 将 {0} 添加到此卡片
 erp.work.activity.attach,{who} 添加了附件 {0}

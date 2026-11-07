@@ -91,6 +91,8 @@ jobs:
         run: python3 tests/test_erp_serials.py
       - name: ERP product adjustment (mixed signs, hand-typed prices only to Express TK, one warehouse per document, old count entries listed as adjustments)
         run: python3 tests/test_erp_stock_adjust.py
+      - name: ERP per-line item and stock choice
+        run: python3 tests/test_erp_line_item_choice.py
       - name: Scanned GS1 codes and GTIN lengths meet product barcodes (Data Matrix, DataBar, GS1-128, UPC and EAN forms)
         run: python3 tests/test_products_gs1.py
       - name: ERP task management (boards copied from Cowork) keeps Cowork's board rights, refuses people without it and shows only their boards

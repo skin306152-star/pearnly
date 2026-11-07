@@ -32,6 +32,7 @@
   "warehouse",
   "section_card",
   "result",
+  "line_choices",
   "error"
  ],
  "fields": [
@@ -203,6 +204,12 @@
    "label": "Recognition Result"
   },
   {
+   "fieldname": "line_choices",
+   "fieldtype": "Long Text",
+   "label": "Line Choices",
+   "hidden": 1
+  },
+  {
    "fieldname": "error",
    "fieldtype": "Small Text",
    "label": "Error"
@@ -210,7 +217,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-18 12:00:00.000000",
+ "modified": "2026-11-07 00:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP LINE Intake",
  "owner": "Administrator",

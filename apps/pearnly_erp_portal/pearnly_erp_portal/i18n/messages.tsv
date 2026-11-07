@@ -1250,8 +1250,6 @@ No warehouse is available for this company	该公司无可用仓库	บริษ
 Not found on the document	票面未载明	ไม่ได้ระบุในเอกสาร	書類に記載がありません
 Paid or unpaid?	请选择已付或未付	กรุณาเลือก ชำระแล้ว หรือ ยังไม่ชำระ	支払済みですか、未払いですか？
 Please upload a PDF or image	请上传 PDF 或图片	กรุณาอัปโหลดไฟล์ PDF หรือรูปภาพ	PDF または画像をアップロードしてください
-Service or stock item?	请选择服务或库存商品	กรุณาเลือก บริการ หรือ สินค้าคงคลัง	サービスですか、在庫品ですか？
-Stock item	库存商品	สินค้าคงคลัง	在庫品
 Subtotal	小计	ยอดก่อนภาษี	小計
 Tap the menu to start	请点击下方菜单开始	กรุณากดเมนูด้านล่างเพื่อเริ่มต้น	下のメニューから始めてください
 The recognition queue is busy. Please send the document again shortly.	识别队列繁忙，请稍后重新发送	ระบบอ่านเอกสารมีคิวหนาแน่น กรุณาส่งเอกสารใหม่อีกครั้งในภายหลัง	読み取りが混み合っています。しばらくしてからもう一度送ってください
@@ -1893,3 +1891,19 @@ Stock Count	盘点	ตรวจนับสต็อก	棚卸
 Product Adjustment	物料调整	ปรับปรุงสินค้า	商品調整
 Unit Cost Entered	单价已填写	กรอกราคาต่อหน่วยแล้ว	単価入力済み
 The warehouse differs from the warehouse of this document	仓库与本单仓库不一致	คลังไม่ตรงกับคลังของเอกสารนี้	この伝票の倉庫と一致しません
+Record only	只记账	ลงบัญชีอย่างเดียว	記帳のみ	erp.line.tag.none
+New · In	新建 · 入库	ใหม่ · รับเข้า	新規 · 入庫	erp.line.tag.newIn
+New · Out	新建 · 出库	ใหม่ · จ่ายออก	新規 · 出庫	erp.line.tag.newOut
+New items:	新物料：	สินค้าใหม่:	新しい品目：	erp.line.items.new
+Add all and receive	全部新建并入库	รับเข้าใหม่ทั้งหมด	すべて新規で入庫	erp.line.items.allNewIn
+Add all and issue	全部新建并出库	จ่ายออกใหม่ทั้งหมด	すべて新規で出庫	erp.line.items.allNewOut
+All record only	全部只记账	ลงบัญชีอย่างเดียวหมด	すべて記帳のみ	erp.line.items.allNone
+One by one	逐项选择	เลือกทีละรายการ	1件ずつ選ぶ	erp.line.items.each
+Add and receive	新建并入库	สร้างใหม่และรับเข้า	新規で入庫	erp.line.items.newIn
+Add and issue	新建并出库	สร้างใหม่และจ่ายออก	新規で出庫	erp.line.items.newOut
+Existing item	选已有物料	เลือกสินค้าที่มี	既存の品目	erp.line.items.pick
+Type the item name or code	请输入物料名称或编码	พิมพ์ชื่อหรือรหัสสินค้า	品目名かコードを入力してください	erp.line.items.type
+Choose the location	请选择仓位	กรุณาเลือกตำแหน่ง	保管場所を選んでください	erp.line.items.location
+Type a word from the location name to find it	输入仓位名称关键字查找	พิมพ์คำในชื่อตำแหน่งเพื่อค้นหา	保管場所名の一部を入力して検索	erp.line.items.typeLocation
+None	不填	ไม่ระบุ	指定しない	erp.line.items.noLocation
+All	全部	ทั้งหมด	すべて	erp.trade.allLines

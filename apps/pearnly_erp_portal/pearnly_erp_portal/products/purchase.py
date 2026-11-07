@@ -8,25 +8,28 @@ from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.products import contracts, service
 
 
-def resolve(line, *, create=True, currency_rate=1, company=None):
+def resolve(line, *, create=True, currency_rate=1, company=None, created=None):
+    """``line["new_item"]``：人在 LINE 里选了「新建」——不按品名认（同名几件时也新建一件）。``created``：随单新建的物料名记进这个列表
+    （单据保存后回填来由，`purchasing.entry`）。"""
     guard.require("purchase.write")
+    fresh = bool(line.pop("new_item", None))
     if line.get("item_type", "goods") == "service":
         return line
     name = line.get("product")
     auto = not name  # 按品名 / 编码自动认的：单位跟商品走（`selection.own_unit`）
-    if not name:
+    if not name and not fresh:
         for field in ("barcode", "code"):
             if line.get(field):
                 name = service.find(field, line[field], company)  # 别家公司 Express 的同码商品不认
                 if name:
                     break
-    if not name:
+    if not name and not fresh:
         from pearnly_erp_portal.masters.selection import match_product
 
         name, found = match_product(line["description"], company)  # 这家公司该用的商品里认（别家 Express 的不认）
         if found > 1:
             frappe.throw(_("Please select an Item"))
-    if not name and create:
+    if not name and (create or fresh):
         product_name = contracts.require_name(line["description"])
         # 编码一律由本系统续号发（用户 2026-09-26：采购与销售同一条规则）。票面上印的是供应商
         # 自己的货号，只拿来在上面匹配已有商品，不当成我们的商品编码。
@@ -47,6 +50,8 @@ def resolve(line, *, create=True, currency_rate=1, company=None):
         # ERP Purchase retains read-only permission on the general item master.
         item.insert(ignore_permissions=True)
         name = item.name
+        if created is not None:
+            created.append(name)
     if name:
         item = frappe.get_doc("ERP Product", name)
         if getattr(item, "express_company", None) and company and item.express_company != company:

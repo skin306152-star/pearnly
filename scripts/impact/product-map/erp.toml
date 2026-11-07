@@ -372,7 +372,7 @@ kind = "line-menu"
 anchor = "line:erp:menu:purchase"
 where = "LINE 富菜单左上「采购」"
 parts = ["line"]
-tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_tiles_follow_permissions_and_stocktake_opens_the_native_page", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_steps_run_in_order_and_skip_single_company_and_default_warehouse"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_tiles_follow_permissions_and_stocktake_opens_the_native_page", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_steps_run_in_order_and_skip_single_company"]
 group = "line.menu.purchase"
 
 [[row]]
@@ -460,7 +460,18 @@ kind = "line-postback"
 anchor = "line:erp:postback:mode"
 where = "LINE 选采购 / 销售（富菜单与「เมนู」回的按钮，a=mode:…）"
 parts = ["line"]
-tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_steps_run_in_order_and_skip_single_company_and_default_warehouse"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_steps_run_in_order_and_skip_single_company"]
+
+[[row]]
+id = "erp.line.postback.erp_item"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:erp:postback:erp_item"
+where = "LINE 识别后按行追问（全部新建并入库 / 全部只记账 / 逐项选择 / 选已有物料 / 仓库 / 仓位 / 取消，a=erp_item&v=…，11-06 按行选物料与库存）"
+parts = ["line"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_undecided_lines_are_listed_with_four_buttons", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_one_by_one_with_record_only_and_an_existing_item", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_the_warehouse_is_asked_only_for_stock_lines_and_kept_for_the_batch", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_documents_are_asked_one_at_a_time_and_cancel_moves_on"]
 
 [[row]]
 id = "erp.desk.pearnly-cashier"

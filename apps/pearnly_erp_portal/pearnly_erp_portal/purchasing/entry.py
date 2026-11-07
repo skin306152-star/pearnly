@@ -12,6 +12,7 @@ from pearnly_erp_portal.express import push as express_push
 from pearnly_erp_portal.inventory import positions, serials, stock, warehouses
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.numbering import service as numbering
+from pearnly_erp_portal.products import line_memory
 from pearnly_erp_portal.products import purchase as purchase_items
 from pearnly_erp_portal.purchasing import access, amounts, category_memory, contracts, files, settings
 
@@ -22,7 +23,7 @@ HEAD_FIELDS = ("doc_no", "due_date", "currency", "fx_rate", "supplier_tax_id", "
                "requester_user", "notes", "source", "external_ref", "image_sha256", "printed_total", "ocr_review")
 LINE_FIELDS = ("item_type", "product", "product_ref", "description", "code", "barcode", "qty", "unit",
                "unit_price", "discount", "vat_rate", "wht_rate", "category", "subcategory",
-               "warehouse", "location")
+               "warehouse", "location", "new_item")
 
 
 def flag(value, default=False):
@@ -84,8 +85,9 @@ def _lines(payload):
     for raw in rows:
         row = {key: raw[key] for key in LINE_FIELDS if key in raw}
         row["description"] = str(row.get("description") or "").strip()
-        row["item_type"] = row.get("item_type") or "goods"
-        if not row["description"] or row["item_type"] not in ("goods", "service"):
+        # 没给类型的行（LINE 以外的旧调用方、接口）提交时按预选补（`line_memory.fill`），给了的照人定的
+        row["item_type"] = row.get("item_type") or None
+        if not row["description"] or row["item_type"] not in ("goods", "service", None):
             frappe.throw(_("Item Name is required"))
         for key in ("category", "subcategory"):
             if row.get(key):
@@ -197,10 +199,14 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
             frappe.throw(_("Supplier Invoice No already exists"))
     # 单头「仓库 + 库位」（多仓闭环 P1）：存在单上，行上没写的用它（LINE / 识别收单不带单头时照旧按行）
     place = positions.header(payload.get("warehouse"), payload.get("location"), company=company)
-    rows = []
+    # 每一行对哪件物料、入不入库（11-06 按行选物料与库存）：没定类型的行按记忆 / 认出的物料预选补上，定了的不动
+    line_memory.fill([row for row in totals["lines"] if not row.get("item_type")], company=company, direction="purchase",
+                     party_tax=payload.get("supplier_tax_id"), party_name=supplier_name, expense=kind in ("expense", "service"),
+                     warehouse=place["warehouse"])
+    rows, created = [], []
     for row in totals["lines"]:
         row = purchase_items.resolve(dict(row), create=flag(payload.get("auto_create_product"), True),
-                                     currency_rate=rate, company=company)
+                                     currency_rate=rate, company=company, created=created)
         if flag(payload.get("update_stock"), True) and row["item_type"] == "goods" and not row.get("product"):
             frappe.throw(_("Please select an Item"))
         row = positions.one_warehouse(row, place["warehouse"])  # 一张单一个仓库，以单头为准（岳父 11-06）
@@ -217,7 +223,8 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
         "calculation_version": amounts.CURRENT_VERSION, "status": "submitted", "has_vat": int(has_vat),
         "request_id": request_id, "request_hash": fingerprint, "dedupe_ref": reference,
         "corrected_from": amended_from, "price_mode": payload.get("price_mode") or "exclusive",
-        "update_stock": int(flag(payload.get("update_stock"), True)),
+        # 入不入库按行定：有一行入库就是 1（旧接口明确传 0 的整张不入库，照旧）
+        "update_stock": int(flag(payload.get("update_stock"), True) and any(row["item_type"] == "goods" for row in rows)),
         "auto_create_product": int(flag(payload.get("auto_create_product"), True)),
         "is_paid": int(flag(payload.get("is_paid"), True)),
         "payment_method": payload.get("payment_method") or "cash",
@@ -238,6 +245,10 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
     doc.flags.purchase_action = True
     doc.save()
     category_memory.learn(supplier, doc.lines)
+    line_memory.learn(company, "purchase", doc.supplier_tax_id, supplier_name, doc.lines, doc.name)
+    for product in created:  # 随单新建的物料记下是哪张单建的（物料页「来由」）
+        frappe.db.set_value("ERP Product", product, {"origin_doctype": "Purchase Document", "origin_name": doc.name},
+                            update_modified=False)
     if doc.update_stock:
         units = serials.line_serials(doc)
         goods = [{"product": row.product, "qty": row.qty, "unit": row.unit, "serials": units.get(row.idx, []),

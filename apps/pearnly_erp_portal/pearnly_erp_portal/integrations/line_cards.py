@@ -8,8 +8,9 @@
 
 与旧卡不同的地方（用户口径）：
 - 〔定·09-25〕只有「编辑」一个按钮：打开网页端原生的采购 / 销售页，提交才入账；卡片不过期。
-- 〔定·09-26〕「字段细一点、商品名称全部显示」：在 LINE 里选的（商品类别 / 仓库、供应商或客户、
-  付款）照实显示在对应行里；明细不再只报条数，每一行商品名、数量 × 单价 = 金额都列出来。
+- 〔定·09-26〕「字段细一点、商品名称全部显示」：在 LINE 里选的（供应商或客户、付款）照实显示在对应行里；明细不再只报条数，
+  每一行商品名、数量 × 单价 = 金额都列出来。
+- 〔11-06 按行选物料与库存〕每行标「入库 / 出库 / 只记账 / 新建 · 入库」（以前整张一行「物料类型：库存商品 · 仓库」），有入库行时另列仓库。
 """
 import json
 from decimal import Decimal, InvalidOperation
@@ -129,14 +130,31 @@ def _payment(doc):
     return _(line_flow.METHOD_LABELS.get(doc.payment_method, "Other")) if doc.payment_method else _("Paid")
 
 
-def _item_kind(doc):
-    kind = _("Stock item") if doc.item_kind == "goods" else _("Service")
-    if doc.item_kind == "goods" and doc.warehouse:
-        kind += " · " + (frappe.db.get_value("ERP Warehouse", doc.warehouse, "warehouse_name") or doc.warehouse)
-    return kind
+def _warehouse(chosen):
+    """单头仓（有入库 / 出库行才有）。"""
+    name = (chosen or {}).get("warehouse")
+    if not name or not any(row and row.get("item_type") == "goods" for row in chosen["lines"]):
+        return None
+    return frappe.db.get_value("ERP Warehouse", name, "warehouse_name") or name
 
 
-def _items(result, totals, shown):
+# 每一行的标签（11-06 按行选物料与库存）：`line_rules.tag` 的键 → 词条
+TAGS = {"in": "trade.groupIn", "out": "trade.groupOut", "none": "erp.line.tag.none",
+        "new_in": "erp.line.tag.newIn", "new_out": "erp.line.tag.newOut"}
+
+
+def _tag(doc, chosen, index):
+    from pearnly_erp_portal.products import line_rules
+
+    rows = (chosen or {}).get("lines") or []
+    row = rows[index] if index < len(rows) else None
+    return _(TAGS[line_rules.tag(row, doc.direction)]) if row else ""
+
+
+def _items(doc, result, totals, shown):
+    from pearnly_erp_portal.integrations import line_items
+
+    chosen = line_items.choices_of(doc)
     lines = result.get("lines") or []
     computed = (totals or {}).get("lines") or []
     rows = [{"type": "text", "text": f"{_('Items')} · {len(lines)}", "size": "sm", "weight": "bold",
@@ -147,6 +165,9 @@ def _items(result, totals, shown):
                                             "×", _money(row.get("unit_price"))) if part)
         if row.get("discount") not in (None, "", 0, "0"):
             detail += f" − {_money(row.get('discount'))}"
+        tag = _tag(doc, chosen, index)
+        if tag:
+            detail += f" · {tag}"
         rows.append({"type": "box", "layout": "horizontal", "margin": "md", "contents": [
             {"type": "text", "text": f"{index + 1}. {row.get('description') or '-'}", "size": "xxs",
              "color": "#1B1B2B", "flex": 5, "wrap": True},
@@ -188,7 +209,10 @@ def preview(doc, result, totals) -> dict:
 
 
 def _card(doc, result, totals, shown) -> dict:
+    from pearnly_erp_portal.integrations import line_items
+
     accent, head = COLORS[doc.direction], _(line_flow.DIRECTION_LABELS[doc.direction])
+    warehouse = _warehouse(line_items.choices_of(doc))
     seller, buyer = _parties(doc, result)
     before, discount, vat, wht, grand = _amounts(doc, totals)
     kind = result.get("doc_kind")
@@ -196,7 +220,7 @@ def _card(doc, result, totals, shown) -> dict:
         _kv(_("Company"), _company(doc)["name"]),
         _kv(_("Transaction type"), head),
         _kv(_("Documents"), "1"),
-        _kv(_("Item Type"), _item_kind(doc)),
+        *([_kv(_("Warehouse"), warehouse)] if warehouse else []),
         _separator(),
         _kv(_("Document no."), result.get("doc_no")),
         _kv(_("Date"), _be_date(result["doc_date"]) if result.get("doc_date") else "-"),
@@ -210,7 +234,7 @@ def _card(doc, result, totals, shown) -> dict:
                      seller if doc.direction == "purchase" else buyer),
         _kv(_("Notes"), result.get("notes")),
         _separator(),
-        _items(result, totals, shown),
+        _items(doc, result, totals, shown),
         # 金额与付款放到明细下面（用户 2026-09-26）。
         _separator(),
         _kv(_("Subtotal"), _money(before) if before is not None else "-"),

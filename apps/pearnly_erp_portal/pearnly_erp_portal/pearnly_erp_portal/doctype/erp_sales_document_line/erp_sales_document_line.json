@@ -5,6 +5,7 @@
  "engine": "InnoDB",
  "field_order": [
   "line_no",
+  "item_type",
   "product",
   "description",
   "qty",
@@ -22,6 +23,13 @@
    "fieldname": "line_no",
    "fieldtype": "Int",
    "label": "No"
+  },
+  {
+   "fieldname": "item_type",
+   "fieldtype": "Select",
+   "label": "Item Type",
+   "options": "goods\nservice",
+   "default": "goods"
   },
   {
    "fieldname": "product",
@@ -97,7 +105,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-11-07 00:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Sales Document Line",
  "owner": "Administrator",

@@ -32,7 +32,8 @@ the document.'''.replace("POS_RULES", checks.POS_RULES)
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"}
 
 
-def recognise(attachments, document_name=None, billing_reference=None, progress=None, company=None):
+def recognise(attachments, document_name=None, billing_reference=None, progress=None, company=None, prefill=True):
+    """``prefill``：每行按记忆 / 认出的物料预选出库与否（网页；LINE 按收单前选的对方另算，`integrations.intake`）。"""
     guard.require("sales.write")
     from pearnly_core import ocr
 
@@ -77,6 +78,12 @@ def recognise(attachments, document_name=None, billing_reference=None, progress=
     # 同一文件里的其余单据（多页 / 一张图几张票）：LINE 各出一张卡；网页一次只填第一张。
     extras = [{**doc, "review": codes, "ocr_model": used}
               for doc, codes, used in documents[1:]]
+    if prefill and company:
+        # 每一行对哪件物料、出不出库（11-06 按行选物料与库存）：记忆 → 认出的物料，页面照预选显示、人可以改
+        from pearnly_erp_portal.products import line_memory
+
+        line_memory.fill(result.get("lines"), company=company, direction="sales",
+                         party_tax=contracts.buyer_tax(result.get("buyer_tax_id")) or "", party_name=result.get("buyer_name"))
     result = {**result, "customer": _customer(result, company), "source": contracts.SOURCE_OCR,
               "image_sha256": files.combined_hash(hashes), "review": issues, "ocr_model": model, "additional": extras}
     return {**result, **checks.marks(result)}

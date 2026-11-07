@@ -620,4 +620,43 @@
 			finally { dialog.pearnly_busy = false; dialog.$wrapper.find("button").prop("disabled", false); }
 		},
 	};
+	// 采购 / 销售明细「批量编辑」（11-06 按行选物料与库存，评估 6.2）：原生 Dialog + Table，单头仓库、「全部」一键设、每行入库（出库）与仓位，
+	// 点保存写回各行（不提交）。`lines`：[{label, stock, location, set({stock, location})}]；`stock_label`：入库 / 出库那一列的字（已翻译）。
+	p.trade.bulk_lines = async ({lines, stock_label, warehouse, set_warehouse}) => {
+		if (!lines.length) return;
+		const rows = lines.map(line => ({label: line.label, stock: line.stock ? 1 : 0, location: line.location || ""}));
+		const d = p.dialog(__("Bulk Edit"), [
+			{fieldtype: "Link", fieldname: "warehouse", label: __("Warehouse"), options: "ERP Warehouse", only_select: true,
+				get_query: p.warehouse_query(), default: warehouse || "", onchange: () => {
+					// 换了仓：仓位按新仓的清单重选
+					for (const row of d.fields_dict.rows.df.data) row.location = "";
+					d.fields_dict.rows.grid.refresh();
+				}},
+			{fieldtype: "Column Break"},
+			{fieldtype: "Select", fieldname: "all", label: __("erp.trade.allLines"),
+				options: [{value: "", label: ""}, {value: "goods", label: stock_label}, {value: "service", label: __("erp.line.tag.none")}],
+				onchange: () => {
+					const value = d.get_value("all");
+					if (!value) return;
+					for (const row of d.fields_dict.rows.df.data) row.stock = value === "goods" ? 1 : 0;
+					d.fields_dict.rows.grid.refresh();
+				}},
+			{fieldtype: "Section Break"},
+			{fieldtype: "Table", fieldname: "rows", label: __("Items"), cannot_add_rows: 1, cannot_delete_rows: 1, in_place_edit: 1,
+				data: rows, fields: [
+					{fieldtype: "Data", fieldname: "label", label: __("Item Name"), read_only: 1, in_list_view: 1, columns: 5},
+					{fieldtype: "Check", fieldname: "stock", label: stock_label, in_list_view: 1, columns: 2},
+					{fieldtype: "Autocomplete", fieldname: "location", label: __("Location"), in_list_view: 1, columns: 3,
+						get_query: p.location_query(() => d?.get_value("warehouse"))},
+				]},
+		], __("Save"), async () => {
+			const data = d.fields_dict.rows.df.data || [];
+			if ((d.get_value("warehouse") || "") !== (warehouse || "")) await set_warehouse(d.get_value("warehouse") || "");
+			// 先换单头仓（明细跟着单头走），再写各行的入库与仓位
+			for (const [index, line] of lines.entries()) {
+				await line.set({stock: data[index]?.stock ? 1 : 0, location: data[index]?.location || ""});
+			}
+			d.hide();
+		});
+	};
 })();

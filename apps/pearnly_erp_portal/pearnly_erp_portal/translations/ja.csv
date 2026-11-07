@@ -60,7 +60,11 @@ Add a count,カウントを記録
 Add a count — {0},カウントを記録 — {0}
 Add a field,フィールドを追加
 Add a link,リンクを追加
+Add all and issue,すべて新規で出庫
+Add all and receive,すべて新規で入庫
 Add an item,項目を追加
+Add and issue,新規で出庫
+Add and receive,新規で入庫
 Add another list,リストを追加
 Add label,ラベルを追加
 Add locations in stock,在庫のあるロケーションを追加
@@ -86,6 +90,7 @@ All,すべて
 All Items,すべての商品
 All companies,全社
 All labels,すべてのラベル
+All record only,すべて記帳のみ
 All the items have been already returned.,すべての商品は返品済みです
 Already exists,すでに存在します
 Already received,このファイルは受け取り済みです
@@ -255,6 +260,7 @@ Choose purchase or sales first,先に仕入か売上を選んでください
 Choose the company,会社を選んでください
 Choose the customer,顧客を選んでください
 Choose the inventory account group for this account set first.,先にこの帳簿の在庫勘定グループを選んでください。
+Choose the location,保管場所を選んでください
 Choose the payment method,支払方法を選んでください
 Choose the service input VAT for this supplier and submit again,この仕入先のサービスの仮払消費税を選んで再送信してください
 Choose the sheet to import,取り込むシートを選択してください
@@ -533,6 +539,7 @@ Exchange Rate is required,為替レートを入力してください
 Exchange Rate must be greater than zero,為替レートはゼロより大きい値にしてください
 Exempt items,免税品の記帳
 Exempt items without VAT per line,免税商品は行ごとに非課税
+Existing item,既存の品目
 Expected Amount,あるべき金額
 Expected Cash,現金予定額
 Expense,経費
@@ -787,9 +794,12 @@ New Stock Transfer,移動伝票を作成
 New Supplier,仕入先を追加
 New code,新しいコード
 New company,会社を追加
+New items:,新しい品目：
 New product,商品を追加
 New stock count,棚卸を作成
 New warehouse,倉庫を追加
+New · In,新規 · 入庫
+New · Out,新規 · 出庫
 Next,次へ
 Next Number,次の番号
 No,番号
@@ -847,6 +857,7 @@ OCR,文字認識
 Observer,オブザーバー
 Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,オフは原価が未確定であることを示し、金額と単価は 0 と推測せず空のままにします
 On Hand,現在庫
+One by one,1件ずつ選ぶ
 Only Draft documents can be deleted,下書きの伝票のみ削除できます
 Only a completed sale receipt can be refunded,完了した売上レシートのみ返品できます
 Only a receipt records a collection,入金を記録できるのは領収書のみです
@@ -1079,6 +1090,7 @@ Recognition stopped before it finished. Please try again.,読み取りが途中�
 Recognizing...,読み取り中…
 Record,伝票
 Record a count,棚卸を入力
+Record only,記帳のみ
 Record purchases,仕入入力
 Record sales,売上入力
 Recorded,記録しました
@@ -1537,11 +1549,13 @@ Transfer,振込
 Type,種別
 Type a word from the company name to find it,会社名の一部を入力して検索
 Type a word from the customer name to find it,顧客名の一部を入力して検索
+Type a word from the location name to find it,保管場所名の一部を入力して検索
 Type a word from the supplier name to find it,仕入先名の一部を入力して検索
 Type a word from the warehouse name to find it,倉庫名の一部を入力して検索
 Type any warehouse name; a new warehouse is created if that name is new,倉庫名は自由入力です。新しい名前なら自動作成します
 Type the company name or number to find it,会社名または番号を入力して検索
 Type the customer name or code to find it,顧客名またはコードを入力して検索
+Type the item name or code,品目名かコードを入力してください
 Type the supplier name or code to find it,仕入先名またはコードを入力して検索
 Type the warehouse name or code to find it,倉庫名またはコードを入力して検索
 UOM,単位
@@ -1826,14 +1840,30 @@ erp.detail.zero_total,合計がゼロです
 erp.line.boundAt,連携日時
 erp.line.code,連携コード
 erp.line.expired,コードの有効期限が切れました
+erp.line.items.allNewIn,すべて新規で入庫
+erp.line.items.allNewOut,すべて新規で出庫
+erp.line.items.allNone,すべて記帳のみ
+erp.line.items.each,1件ずつ選ぶ
+erp.line.items.location,保管場所を選んでください
+erp.line.items.new,新しい品目：
+erp.line.items.newIn,新規で入庫
+erp.line.items.newOut,新規で出庫
+erp.line.items.noLocation,指定しない
+erp.line.items.pick,既存の品目
+erp.line.items.type,品目名かコードを入力してください
+erp.line.items.typeLocation,保管場所名の一部を入力して検索
 erp.line.lineName,LINE の名前
 erp.line.newCode,新しいコード
 erp.line.remaining,残り {0}
 erp.line.status.bound,連携済み
 erp.line.status.unbound,未連携
+erp.line.tag.newIn,新規 · 入庫
+erp.line.tag.newOut,新規 · 出庫
+erp.line.tag.none,記帳のみ
 erp.line.unbind,LINE 連携を解除
 erp.line.unbindConfirm,Pearnly ERP LINE の連携を解除しますか？
 erp.nav.work,タスク管理
+erp.trade.allLines,すべて
 erp.work.activity.archive,{who} がこのカードをアーカイブしました
 erp.work.activity.assign,{who} がこのカードに {0} を追加しました
 erp.work.activity.attach,{who} が {0} を添付しました

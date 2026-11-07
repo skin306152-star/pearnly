@@ -73,15 +73,19 @@
 					// 单价只补空：识别读出 / 已填的单价不被商品默认价盖掉
 					await line.form.set_values({description: item.product_name, unit: item.base_unit || item.unit,
 					unit_price: Number(line.form.get_value("unit_price")) || (item.price_set ? item.unit_price : 0),
-					vat_applicable: item.vat_applicable ? 1 : 0});
+					vat_applicable: item.vat_applicable ? 1 : 0,
+					// Express 的非库存品（运费、服务费类主档）默认只记账（同服务端预选 `line_rules`）
+					...(item.express_code && !item.express_stock ? {stock_out: 0} : {})});
 					// 仓与库位跟单头，选商品不改（商品的建议库位只在属于这个仓的清单时由服务端补，多仓闭环 P1）
 				}, on_clear: () => Promise.resolve()});
 			line.form.sections.forEach(section => section.wrapper.addClass("px-0"));
 			line.form.sections.forEach(section => section.columns.forEach(column => column.wrapper.addClass("px-0 px-sm-3")));
 			line.form.sections[0].body.addClass("mt-0 pt-0");
 			state.lines.push(line);
+			// 出不出库：带来的行照它自己的类型（识别预选、已存的单），新行默认出库（11-06 按行选物料与库存）
 			await line.form.set_values({qty: 1, unit_price: 0, discount: 0, vat_applicable: 1,
-				warehouse: form.get_value("warehouse") || "", location: form.get_value("location") || "", ...values});
+				warehouse: form.get_value("warehouse") || "", location: form.get_value("location") || "", ...values,
+				stock_out: (values.item_type || "goods") === "goods" ? 1 : 0});
 			line.form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
 			await line.choice.show();
 			line.ready = true; line.section.collapse(false); changes();
@@ -168,7 +172,8 @@
 				values.lines = u.clean_lines(values.lines);
 				// 按台管理的商品：出库的销售单（收据）逐行选在库的台（`p.serials`；取消就不提交）
 				// 选台只出这一行仓（库位）在库的台（G17）；行上没写仓的按单头仓
-				if ((values.doc_kind || doc.doc_kind) === "receipt" && !(await p.serials.collect(values.lines,
+				if ((values.doc_kind || doc.doc_kind) === "receipt" && !(await p.serials.collect(
+					values.lines.filter(row => (row.item_type || "goods") === "goods"),
 					{mode: "pick", filters: values.warehouse ? {warehouse: values.warehouse, location: values.location || ""} : {}}))) return;
 				if (state.ocr_hash) values.image_sha256 = state.ocr_hash;
 				// LINE 那张源文件由服务端按卡片补上，这里只交用户另加的附件。
@@ -214,6 +219,13 @@
 				}
 				finally {waiting.done();}
 			});
+			// 批量编辑（11-06 按行选物料与库存）：单头仓库、每行出库与仓位，原生 Dialog + Table
+			state.bulk_edit = () => p.trade.bulk_lines({stock_label: __("trade.groupOut"), warehouse: form.get_value("warehouse"),
+				set_warehouse: value => form.set_value("warehouse", value),
+				lines: state.lines.filter(line => line.form.get_value("description") || line.form.get_value("product")).map(line => ({
+					label: line.form.get_value("description") || "", stock: line.form.get_value("stock_out"),
+					location: line.form.get_value("location"),
+					set: values => line.form.set_values({stock_out: values.stock, location: values.location})}))});
 			state.merge = async () => {
 				const rows = u.clean_lines(state.values(true).lines); if (rows.length < 2 && !state.split_lines) return;
 				if (state.split_lines) {await state.set_lines(state.split_lines); state.split_lines = null;}

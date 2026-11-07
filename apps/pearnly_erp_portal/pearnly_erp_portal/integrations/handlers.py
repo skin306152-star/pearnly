@@ -12,7 +12,7 @@ from frappe import _
 from pearnly_core import line, line_binding
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.integrations import intake, line_flow, line_menu
+from pearnly_erp_portal.integrations import intake, line_flow, line_items, line_menu
 
 # 解绑指令词是**用户手打的词**，所以按通道语言认，并容错中英泰三套写法：
 # 认不出就等于这个功能对用户不存在。
@@ -84,10 +84,20 @@ def _receive_document(user_id: str, bound: str, message: dict, reply_token: str)
         line.reply(reply_token, [{"type": "text", "text": _("Could not store this document")}])
 
 
+def _as(bound, function, *args):
+    """识别后追问要按绑定的这个账号查物料、算卡片金额（webhook 本身是 Guest），做完还原。"""
+    previous = frappe.session.user
+    try:
+        frappe.set_user(bound)
+        return function(*args)
+    finally:
+        frappe.set_user(previous)
+
+
 def _postback(user_id: str, bound, data: str, reply_token: str) -> bool:
     params = {key: values[0] for key, values in parse_qs(data or "").items()}
     action = params.get("a") or ""
-    if not (action.startswith("mode:") or action == "erp"):
+    if not (action.startswith("mode:") or action in ("erp", line_items.ACTION)):
         return False
     if not bound:
         line.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
@@ -98,6 +108,8 @@ def _postback(user_id: str, bound, data: str, reply_token: str) -> bool:
     if action.startswith("mode:"):
         # 富菜单（新旧两套都是 `a=mode:purchase|sales`）与「เมนู」回的按钮。
         line_flow.start(user_id, bound, action[len("mode:"):], reply_token)
+    elif action == line_items.ACTION:
+        _as(bound, line_items.answer, user_id, bound, data, reply_token)  # 识别后按行追问（11-06 按行选物料与库存）
     else:
         line_flow.answer(user_id, bound, data, reply_token)
     return True
@@ -175,6 +187,8 @@ def _handle(event: dict) -> bool:
     if text.casefold() in line_flow.MENU_WORDS:
         line_flow.menu(bound, reply_token)
         return True
+    if _as(bound, line_items.search, user_id, bound, text, reply_token):
+        return True  # 正停在识别后追问的「选已有物料 / 仓库 / 仓位」：打的字是名称或编码
     if line_flow.search(user_id, bound, text, reply_token):
         return True  # 正停在选公司 / 供应商 / 客户 / 仓库：打的字是名称或编号
     direction = line_flow.DIRECTION_WORDS.get(text.casefold())
