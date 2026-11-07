@@ -126,7 +126,7 @@
   - 转人工的单在作废前留一张当时的截图（本机证据目录），路径放在任务说明最前面。
   - 已知（1.12.15 修，`docs/work/2026-11-05-cc-operator-menu-fallback-评估.md`）：开录前开单据窗口时菜单对不上（定制菜单里那一项是子菜单）
     直接退出，不进 AI 接手、不留截图，本机批次停在 running。
-- 1.12.15（未发布；代录遇到定制菜单不退出，`docs/work/2026-11-05-cc-operator-menu-fallback-评估.md`；旧服务端上照样能用）：
+- 1.12.15（2026-11-06 正式发布，main 08f32a3b1；代录遇到定制菜单不退出，`docs/work/2026-11-05-cc-operator-menu-fallback-评估.md`；旧服务端上照样能用）：
   - 菜单按编号找不到再按文字找（`express_operator/menu.py`，前台 / 后台做法共用）；落到子菜单时只有一个可用命令就用它；
   - 子菜单里有几个命令：按载荷 `operator.form_choice`（站点记住的菜单文字）或 `operator.pay_route`（`cash` / `transfer`）选，
     定不下来只停这一张，原因 `menu_choice`，结果 `meta.menu_options` 带候选、`meta.doc_type` 带单种（不调 AI）；
@@ -141,6 +141,11 @@
     `master_refresh.complete_after`，最少隔 5 秒）：网页「添加公司」几秒内就有新位置的账套。
   - 去掉位置后成员的所选账套不在新位置里时**不再自动换成新位置里第一本账套**（11-06 测试机被换成了 S 盘一本真实客户的账）：所选
     原样留着，主根取新位置第一个，等人在网页里选（`express_machine.apply_roots`）。
+- 1.12.16（未发布；采购 / 销售同一张单里库存行与非库存行一起写，`docs/work/2026-11-07-cc-mixed-lines-native-evidence.md`；
+  **先部署服务端再发**：服务端遇混行单盖载荷 19、只派给报过 19 的电脑，旧版照旧整单拒收混行单）：
+  - 载荷 19：明细照载荷顺序分段写，STCRD 行号是整张单的行号，只有库存行动库存与成本；进货重分类贷库存行所在的采购科目；
+    销货几段库存行的成本分录合成一对；读回只放行库存行动库存；
+  - 照 Express 原生（S 盘 95 本取证）：进货库存行 XSALVAL 写 0；销货非库存行 XUNITPR / XTRNVAL 写 0（售价在 XSALVAL）。
 
 ## 本机测试
 
