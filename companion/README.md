@@ -154,6 +154,13 @@
     找新年度只在勾给它的位置下找；年度文件夹、授权数据根照旧整台电脑一份；
   - 设置「此电脑 → 连接」：同时有两种 Express 成员时位置行尾的「×」换成「···」（Cowork / ERP 两个勾 + 移除），路径下面写给谁读；
     某种成员仅剩的那个位置勾不掉。桥加功能标记 `place_channels` 与同名动作。
+  - 总结存与对方余额照 Express 原生（`docs/work/2026-11-07-cc-stock-balance-native-评估.md`；载荷不变）：动库存的单一律按增减改
+    `STMAS.TOTBAL / TOTVAL`（以前盖成「批次链 MREMBAL ± 本单」，两者不等的品被写错），`UNITPR` 随之重算；判有货、均价、全仓负库存核对、
+    上报结存都读总结存；赊购加 `APMAS.BALANCE` 并记 `LASRCV`、赊销加 `ARMAS.BALANCE`，现购 / 现销不动（`stock_sale.move_stmas`、
+    `master_create.move_party_balance`）。
+  - 直写的录入人记这台电脑授权的 Express 账户名（`docs/work/2026-11-07-cc-direct-writer-userid-评估.md`，`writer_id`）：单头 USERID 与新建主档
+    建档人记它（大写、≤ 8 个字符、在账套的 SCUSER 用户表里，否则仍记 PEARNLY）；凭证头 `GLJNL.CREBY` 仍记 PEARNLY 当机器标记，认自己写的单
+    改看它；回执 meta 带 `writer`，桥 `operator_state` 多回 `login_user`（代录开始卡片显示授权的账号）。
 
 ## 本机测试
 
