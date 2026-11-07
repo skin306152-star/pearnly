@@ -1,5 +1,7 @@
 # 需求影响评估：一台电脑同时连事务所 Cowork 和客户 ERP 时的账套隔离
 
+> **审定：主会话 11-07 审过，第 12 节 5 条全部按建议定。** 做法 B（按成员选位置，两种成员都在时新加位置只勾 Cowork），服务端 `SCOPED_FROM` 提到 1.12.17；CC 先发、服务端后上；本窗口在分支 `pearnly/cc-place-members` 施工，合入前报主会话。
+
 > 按 [需求影响评估模板](../development/templates/impact-assessment.md) 填写；**只写评估，不改代码**，交主会话审定。
 > 基线 `origin/main` = `8e5cb5724`（11-07）；分支 `pearnly/deferred-three-assess-42d230`。
 > 路径缩写：`C/` = `apps/pearnly_cowork/pearnly_cowork/`，`K/` = `apps/pearnly_core/pearnly_core/`，`E/` = `apps/pearnly_erp_portal/pearnly_erp_portal/`，`cc/` = `companion/src/companion/`，`F/` = `frontend/assistant/src/`。
@@ -163,3 +165,34 @@
 | S3 服务端 | `SCOPED_FROM` 提版、注释改正；测试 | 约 30 分钟 | 全闸门约 20 分钟 |
 | S4 验证 | 测试机两成员实测、读回 | — | 测试机约 40 分钟（主会话排） |
 合计写码约 3.5 小时 + 机器跑约 1.5 小时（4.1 查过正式租户无需清理，原先预留的清单一步取消）。部署顺序：**CC 新版先发、服务端提版后上**（先提版会让还没升级的电脑暂停自动建公司；CC 走心跳自动更新，间隔短，但顺序反了会有一段时间新电脑建不了公司）。
+
+## 施工记录（11-07，分支 `pearnly/cc-place-members`）
+
+**做了什么**
+
+- CC 桌面版 1.12.17（`companion/`）：
+  - `express_places.py`：每个位置给哪几种成员读的纯规则（`settle_channels` 补没登记的、`places_for`、`shows_channels`），文件头写明口径。
+  - `profile_store.py` / `config.py`：全局设置加 `place_channels`；读文件、改位置、加 / 删成员时按规则补（`_settled`）；`set_place_channels` 改一个位置。
+    升级时已经同时连着 Cowork 与 ERP 的电脑：位置全部只给 Cowork（ERP 一本都不报，要人勾）。
+  - `worker.py`：`member_places` 只取勾给这个成员的位置；扫描（`scan_roots`）、上报（`places_scope`）、找新年度都只用它；有位置清单但一个都没勾给它时什么都不报
+    （以前「没有位置清单 = 全报」的兜底只留给真没有清单的旧文件）；所选账套不在范围里时不报它的名字与目录、不报目录。年度文件夹与授权数据根照旧整机一份。
+  - `desktop_settings.py` / `tomo_bridge.py`：快照带 `place_channels`（`show` / `members` / `places`），桥加功能标记与同名动作；某种成员仅剩的位置勾不掉；改完重启取任务线程、下一拍整份上报。
+  - `version.py` 1.12.17，README 一条（先发 CC 再部署服务端）。
+- 前端（`frontend/assistant/`）：设置「此电脑 → 连接」位置行：桌面端说要摆时行尾「×」换成「···」（Cowork / ERP 两个勾 + 移除），路径下一行写给谁读；仅剩的那个勾灰。只连一种成员时和以前一样。
+- 服务端（单独一个提交）：`E/express/companies.py` 的 `SCOPED_FROM` 1.12.0 → 1.12.17，文件头注释改正（原注释还写着已删的 `erp_scope`）；
+  相关单测与实验栈流程 `cc_companies` 的假电脑版本改成 1.12.17。
+
+**行为变化（如实）**
+
+- 同时连着 Cowork 与 ERP 的电脑升级到 1.12.17 后，ERP 那边的账套名单变空、「添加公司」候选变空，直到有人在设置里给 ERP 勾上位置；已经建好的 ERP 公司和它们的写账不受影响（写账按派单与可达行，新勾上后可达行回来）。
+  今天生产里没有这种电脑（4.1）；testerp 上的两台测试电脑会出现这种情况。
+- 服务端门槛上线后，1.12.16 及更早版本的电脑报的账套不再自动建 ERP 公司、不进候选（升级后恢复）。
+
+**验证**
+
+- CC 单元：新增 `companion/tests/test_place_channels.py` 7 项（规则、ERP 加入事务所电脑一本不报、只连 ERP 的电脑照旧、升级换算、设置里勾选与仅剩位置、只连 Cowork 不出勾、所选账套不报名）；
+  本机 Python 3.12 + pytest 跑 `test_place_channels` / `test_sites_and_channels` / `test_desktop_settings` / `test_snapshot_heartbeat` 50 项通过；整套 CC 测试 1427 通过，
+  8 项 `test_write_dispatch.py` 因本机没装 PySide6 导入失败（与本改动无关，Windows 上的 Companion checks 完整跑）。
+- 前端：`tsc --noEmit` 通过；`tests/test_assistant_ui.py` 加源码断言一项；`tests/test_companion_contract.py` 89 项通过。
+- 产品地图：`cowork.cc.action.settings` 补上测试（`flow:cc.settings` + 上面那项单测），基线减 4 条；`cc.desktop.places` 入口步骤加勾选实测；`check-product-map` / `check-architecture` / `check-copy` 通过。
+- 还没做：测试机实测（同时连 testcowork 与 testerp、勾 / 不勾 ERP、读回 testerp 的 `Pearnly CC Book` 与「添加公司」候选），要装 1.12.17 staging，先登记占用表、主会话排时间。

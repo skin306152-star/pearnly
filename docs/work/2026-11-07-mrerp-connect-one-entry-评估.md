@@ -1,5 +1,7 @@
 # 需求影响评估：MR.ERP 连接只留一份界面（Cowork 网页「推送目标」与 CC「设置 → 连接」）
 
+> **审定：主会话 11-07 审过，第 12 节 5 条全部按建议定。** 并进 CC 连接评估的 D 步，由接手 B / C / D 的窗口施工。
+
 > 按 [需求影响评估模板](../development/templates/impact-assessment.md) 填写；**只写评估，不改代码**，交主会话审定。
 > 基线 `origin/main` = `8e5cb5724`（11-07）；分支 `pearnly/deferred-three-assess-42d230`。`C/` = `apps/pearnly_cowork/pearnly_cowork/`，`F/` = `frontend/assistant/src/`。
 > 证据：只读代码 + CC 连接评估（`pearnly/cc-connect-company-picker-3e453c` 分支 `docs/work/2026-11-07-cc-connect-company-picker-评估.md` §1.4、§12.1）。

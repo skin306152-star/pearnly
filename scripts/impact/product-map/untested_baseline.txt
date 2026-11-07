@@ -7,8 +7,6 @@ cowork.cc.action.company-open-in-product@mobile
 cowork.cc.action.delete-chats@desktop
 cowork.cc.action.delete-chats@mobile
 cowork.cc.action.mrerp-auth@mobile
-cowork.cc.action.settings@desktop
-cowork.cc.action.settings@mobile
 cowork.cc.view.company@desktop
 cowork.cc.view.company@mobile
 cowork.cc.view.tasks@mobile

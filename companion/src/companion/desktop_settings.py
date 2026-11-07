@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 
 from . import autostart, channel, device_link, folder_store, master_refresh, pairing, pairing_flow
 from . import folder_plan as plan
+from . import express_places as place_channels
 from .express_machine import (apply_roots, default_places, gone_test, machine_roots, merge, offline_roots,
                               places_roots, rescan_roots, same_root, within)
 from .i18n import MessageSpec, normalize, t
@@ -208,6 +209,9 @@ class DesktopSettings:
             "express_roots": roots,
             # 这台电脑的「Express 位置」（express_places，用户 10-24）：设置里添加 / 移除，只读这些下面的 Express
             "express_places": list(store.global_settings.express_places),
+            # 每个位置给哪几种成员读（11-07 共用电脑隔离，express_places 文件头）：show = 设置页要不要在位置后面摆
+            # 「Cowork / ERP」两个勾（同时有两种 Express 成员，或有哪种成员缺了某个位置）；旧版桥没有这一项，设置页不摆
+            "place_channels": self._place_channels(store),
             "members": members,
             "autostart": self._autostart(store),
             # CC 开着时保持电脑唤醒（默认开）/ 用电池时也保持（默认关，D8）（keep_awake.py）；旧版桥没有这两项，设置页据此不显示
@@ -217,6 +221,45 @@ class DesktopSettings:
             "update": {"state": update_state, "version": update_version},
             "legacy_roots": legacy,
         }
+
+    @staticmethod
+    def _present_channels(store) -> list:
+        """这台电脑有哪几种 Express 成员（只读文件夹的 MR.ERP 小助手不算，它不读 Express）。"""
+        found = {member_channel(record) for record in store.profiles
+                 if (getattr(record, "kind", "express") or "express") != "folder"}
+        return [name for name in place_channels.CHANNELS if name in found]
+
+    def _place_channels(self, store) -> dict:
+        places = list(store.global_settings.express_places)
+        pairs = store.global_settings.place_channels
+        present = self._present_channels(store)
+        return {
+            "show": place_channels.shows_channels(places, pairs, present),
+            "members": present,
+            "places": [{"path": place, "channels": list(place_channels.channels_of(place, pairs))} for place in places],
+        }
+
+    def set_place_channels(self, path: str, kinds: list) -> dict:
+        """设置页一个位置后面的「Cowork / ERP」勾（11-07 共用电脑隔离）：这个位置给哪几种成员读。勾掉某种成员仅剩的那个位置
+        不行（它就一个账套都没有了）；本来就一个都没给它（升级后 ERP 还没勾）时照常可以勾上。改完重启取任务线程，
+        下一拍心跳按新范围整份上报（服务端那边的账套名单随之换掉）。"""
+        store = self._store()
+        places = list(store.global_settings.express_places)
+        place = next((item for item in places if same_root(item, path)), "")
+        if not place:
+            return {"ok": False}
+        wanted = [name for name in place_channels.CHANNELS if name in set(kinds or ())]
+        pairs = store.global_settings.place_channels
+        before = list(place_channels.channels_of(place, pairs))
+        for name in before:
+            if name not in wanted and name in self._present_channels(store) \
+                    and place_channels.places_for(places, pairs, name) == [place]:
+                return {"ok": False}
+        if wanted == before:
+            return {"ok": True}
+        store.set_place_channels(place, wanted)
+        master_refresh.rescan_soon()
+        return {"ok": True, "profiles_changed": True}
 
     def _legacy(self, member: str, key: str) -> list:
         """以前在设置里授权（不是经公司添加）、最近一次服务端说没人用（不在 roots_in_use 里）的根目录：设置页「以前授权的

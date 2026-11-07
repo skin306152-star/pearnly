@@ -169,6 +169,8 @@ export type DesktopMember = {
   // 这个成员连的站点与通道（CC 桌面版 1.11.0，features 含 sites，ADR-025）：cowork = Cowork 站点；core = 共用机器通道（ERP 站点）
   site?: string; channel?: string;
 };
+/** 位置给谁读：channels 里是成员的通道（cowork / core，同 DesktopMember.channel）。 */
+export type PlaceChannels = { show: boolean; members: string[]; places: { path: string; channels: string[] }[] };
 export type DesktopState = {
   version: string;
   site: string; // 这台电脑连的公司（站点域名），没连是空
@@ -176,6 +178,9 @@ export type DesktopState = {
   // 这台电脑的「Express 位置」（CC 桌面版 1.12.0，features 含 express_places，用户 10-24）：只读这些盘 / 文件夹下的 Express，
   // Cowork 与 ERP 共用；设置里添加（add_place，原生选择框）/ 移除（remove_place）
   express_places?: string[];
+  // 每个位置给哪几种成员读（CC 桌面版 1.12.17，features 含 place_channels，11-07 共用电脑隔离）：show = 位置后面要不要摆
+  // 「Cowork / ERP」勾（同时有两种 Express 成员，或有哪种成员缺了某个位置）；改一个位置用桥的 place_channels（path, channels）
+  place_channels?: PlaceChannels;
   members: DesktopMember[];
   autostart: boolean;
   keep_awake?: boolean; // CC 开着时保持电脑唤醒（companion keep_awake.py，1.7.0）；旧版桌面端没有这一项
@@ -270,6 +275,8 @@ export const DEVICES = "devices";
 export const SITES = "sites";
 /** 「Express 位置」清单（CC 桌面版 1.12.0，桥的 add_place / remove_place）：可以添加多个盘 / 文件夹，只读它们下面的 Express。 */
 export const EXPRESS_PLACES = "express_places";
+/** 每个「Express 位置」给哪几种成员读（CC 桌面版 1.12.17，11-07 共用电脑隔离）：state().place_channels + 桥的 place_channels。 */
+export const PLACE_CHANNELS = "place_channels";
 /** 代录 Express（10-26，入口与直写分开）：桥的 operator_state / operator_control / operator_frame / operator_authorize /
  *  operator_forget（companion tomo_bridge.py）。没有这一项的桌面版（和网页、手机）上，代录只发起、不在本页看进度。 */
 export const OPERATOR = "operator";

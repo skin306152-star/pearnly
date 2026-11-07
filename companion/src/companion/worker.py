@@ -479,21 +479,47 @@ def places_of(cfg) -> tuple:
     return tuple(place for place in (getattr(cfg, "express_places", None) or ()) if str(place or "").strip())
 
 
-def scan_roots(cfg, authorized: list) -> list:
-    """心跳要扫的数据根：只扫位置下面的（Cowork 与 ERP 成员一样；用户 10-24「我选择了c盘，就只扫描c盘的exp，别搞出s盘」）。
-    还没有位置清单（旧文件，profile_store 读的时候会按主数据根换算出来）时照旧扫全部授权的。"""
-    from .express_places import within
+def member_places(cfg) -> Optional[list]:
+    """给这个成员读的位置（11-07 共用电脑隔离：每个位置记给哪几种成员，express_places.places_for）。还没有位置清单（旧文件，
+    profile_store 读的时候会换算出来）回 None = 不按位置筛；有清单但一个都不给这个成员回 []（什么都不扫、不报）。"""
+    from .express_places import places_for
 
     places = places_of(cfg)
-    return [root for root in authorized if within(root, places)] if places else authorized
+    if not places:
+        return None
+    kind = str(getattr(cfg, "channel", "") or "cowork")
+    return places_for(places, getattr(cfg, "place_channels", None) or (), kind)
+
+
+def _member_or_all_places(cfg) -> list:
+    """找新年度用的位置：给这个成员的；还没有位置清单时是空（不找，同以前 places_of 为空）。"""
+    places = member_places(cfg)
+    return list(places_of(cfg)) if places is None else places
+
+
+def _in_member_places(cfg, path: str) -> bool:
+    """``path`` 在给这个成员的位置下面（还没有位置清单时都算在）。"""
+    from .express_places import within
+
+    places = member_places(cfg)
+    return places is None or (bool(str(path or "").strip()) and within(path, places))
+
+
+def scan_roots(cfg, authorized: list) -> list:
+    """心跳要扫的数据根：只扫给这个成员的位置下面的（用户 10-24「我选择了c盘，就只扫描c盘的exp，别搞出s盘」；11-07 起
+    同一台电脑上 Cowork 与 ERP 成员各读勾给自己的位置）。还没有位置清单时照旧扫全部授权的。"""
+    from .express_places import within
+
+    places = member_places(cfg)
+    return [root for root in authorized if within(root, places)] if places is not None else authorized
 
 
 def places_scope(cfg, rows: list) -> list:
-    """只报位置下面的账套（Cowork 与 ERP 成员一样）：成员记录里万一还留着位置外的数据根，也不报出去。"""
+    """只报给这个成员的位置下面的账套：成员记录里万一还留着位置外的数据根、本机清单里还有上次报的，也不报出去。"""
     from .express_places import within
 
-    places = places_of(cfg)
-    return [row for row in rows if within(str(row.get("root") or ""), places)] if places else rows
+    places = member_places(cfg)
+    return [row for row in rows if within(str(row.get("root") or ""), places)] if places is not None else rows
 
 
 def _outcome_for(error_code: Optional[str]) -> Optional[str]:
@@ -886,8 +912,8 @@ def _run_periodic(
                 now,
                 bool(refresh_request_id and refresh_scope == "endpoint"),
                 scan_roots(cfg, authorized),
-                # 新建的年度文件夹照样找进来，只在「Express 位置」下面找（用户 10-24：不再整台电脑、局域网去搜）
-                discover=places_of(cfg),
+                # 新建的年度文件夹照样找进来，只在给这个成员的「Express 位置」下面找（用户 10-24：不再整台电脑、局域网去搜）
+                discover=tuple(_member_or_all_places(cfg)),
             )
             # 扫得慢时先交「进行中」快照（读完的数据根换成新的、其余沿用上次报的，master_refresh / merge_partial）：
             # 照常上报，但不算网页「重新读取」已完成、不存本机清单、不记新年度文件夹，等完整快照。
@@ -911,13 +937,16 @@ def _run_periodic(
             sets = known_sets or []
             accts = known_accts or []
             # 随心跳上报客户所选账套整组(顶层 4 键·对齐云端契约)。account_set 唯一键 = 账套 PATH。
+            # 所选账套不在给这个成员的位置里（同一台电脑上 ERP 成员没勾那个位置，11-07）：不报它的名字与目录
+            own_selected = _in_member_places(cfg, cfg.account_dir or "")
             selected = {
                 "account_set": cfg.account_set or "",
                 "account_dir": cfg.account_dir or "",
                 "account_company": cfg.account_company or "",
                 "account_set_row": int(cfg.account_set_row or 0),
                 "express_root": root or "",
-            }
+            } if own_selected else {"account_set": "", "account_dir": "", "account_company": "", "account_set_row": 0,
+                                    "express_root": ""}
             mapping = {
                 k: (getattr(cfg, k, "") or "")
                 for k in (
@@ -948,6 +977,7 @@ def _run_periodic(
                 )
             elif (
                 cfg.account_dir
+                and own_selected
                 and now - state.get("last_catalog", 0.0) >= _CATALOG_INTERVAL_S
             ):
                 from .catalog_refresh import request_catalog

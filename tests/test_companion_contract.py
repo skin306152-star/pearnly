@@ -1284,7 +1284,7 @@ class CompanyFolders(unittest.TestCase):
 
     def test_the_page_uses_the_company_folder_bridge(self):
         # 由前端包（frontend/assistant）接上：pick_folder、features 里的 company_folders、legacy_roots
-        self.assertIn('FEATURES = ("company_folders", "devices", "sites", "express_places", "operator", "mrerp_login")', self.bridge)
+        self.assertIn('FEATURES = ("company_folders", "devices", "sites", "express_places", "operator", "mrerp_login", "place_channels")', self.bridge)
         self.assertIn('"legacy_roots"', (COMPANION / "desktop_settings.py").read_text(encoding="utf-8"))
         for name in ("pick_folder", "company_folders", "legacy_roots"):
             self.assertTrue(quoted(self.page, name) or re.search(r"\b%s\b" % name, self.page), name)

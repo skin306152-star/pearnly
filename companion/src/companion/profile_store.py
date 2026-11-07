@@ -63,6 +63,8 @@ class GlobalSettings:
     keep_awake_on_battery_set: bool = False
     # 这台电脑的「Express 位置」（express_places，用户 10-24）：只读这些盘 / 文件夹下的 Express，Cowork 与 ERP 成员共用
     express_places: tuple = ()
+    # 每个位置给哪几种成员读（place_channels，11-07 共用电脑隔离）：((位置, (通道, ...)), ...)，见 express_places 文件头
+    place_channels: tuple = ()
 
     @classmethod
     def from_config(cls, cfg: CompanionConfig) -> "GlobalSettings":
@@ -91,6 +93,9 @@ class GlobalSettings:
         places = values.get("express_places")
         values["express_places"] = tuple(str(place).strip() for place in places if str(place).strip()) \
             if isinstance(places, (list, tuple)) else ()
+        from .express_places import normalize_channels
+
+        values["place_channels"] = normalize_channels(values.get("place_channels"))
         return cls(**values)
 
 
@@ -198,9 +203,11 @@ class ProfileStore:
             if raw.get("schema_version") != SCHEMA_VERSION:
                 store._write(store.global_settings, list(store.profiles))
             store._settle_places()
+            store._settle_channels()
             return store
         store = cls._migrate_flat(target, raw, original, cipher)
         store._settle_places()
+        store._settle_channels()
         return store
 
     @classmethod
@@ -393,6 +400,8 @@ class ProfileStore:
         else:
             profiles.append(record)
         self._assert_unique_profile_ids(profiles)
+        global_settings = self._settled(global_settings, profiles)
+        _adopt_globals(cfg, global_settings)
         self._write(global_settings, profiles)
         self.global_settings = global_settings
         self._profiles = profiles
@@ -407,9 +416,41 @@ class ProfileStore:
         """这台电脑的「Express 位置」（整份换掉，express_places）。成员的数据根由调用方随后按新位置写（express_machine.apply_roots）。"""
         from .express_places import merge
 
-        settings = replace(self.global_settings, express_places=tuple(merge(places)))
+        settings = self._settled(replace(self.global_settings, express_places=tuple(merge(places))), self._profiles)
         self._write(settings, self._profiles)
         self.global_settings = settings
+
+    def set_place_channels(self, path: str, kinds) -> None:
+        """一个位置给哪几种成员读（设置页的「Cowork / ERP」勾，place_channels）。位置不在清单里抛 :class:`ProfileStoreError`。"""
+        from .express_places import CHANNELS, same_root
+
+        place = next((item for item in self.global_settings.express_places if same_root(item, path)), "")
+        if not place:
+            raise ProfileStoreError("place not found")
+        wanted = tuple(name for name in CHANNELS if name in set(kinds or ()))
+        pairs = tuple(item for item in self.global_settings.place_channels if not same_root(item[0], place))
+        # 别的位置照旧；万一还有没登记的，按成员补（_settled），不因为改了这一个就给出去
+        settings = self._settled(replace(self.global_settings, place_channels=((place, wanted), *pairs)), self._profiles)
+        self._write(settings, self._profiles)
+        self.global_settings = settings
+
+    @staticmethod
+    def _settled(settings: GlobalSettings, profiles) -> GlobalSettings:
+        """按位置清单与这些成员整理 place_channels（express_places.settle_channels）：没登记的位置补上，移除了的去掉。"""
+        from .express_places import settle_channels
+
+        present = {getattr(record, "channel", "") or channels.COWORK for record in profiles
+                   if getattr(record, "kind", "express") != "folder"}
+        pairs = settle_channels(settings.express_places, settings.place_channels, present)
+        return settings if pairs == settings.place_channels else replace(settings, place_channels=pairs)
+
+    def _settle_channels(self) -> None:
+        """读文件时：位置还没登记给谁的按这台电脑现有的成员补上（升级到 1.12.17 时同时连着 Cowork 与 ERP 的电脑，ERP 不勾）。"""
+        settings = self._settled(self.global_settings, self._profiles)
+        if settings != self.global_settings:
+            self._write(settings, self._profiles)
+            self.global_settings = settings
+            log.info("Express 位置登记给哪几种成员：%s", [list(item) for item in settings.place_channels])
 
     def _settle_places(self) -> None:
         """升级（1.12.0 之前没有位置清单）：按各 Express 成员的主数据根换算出所在位置记下来；授权的数据根只留位置里的——
@@ -508,8 +549,9 @@ class ProfileStore:
         profiles = [item for item in self._profiles if item.profile_id != profile_id]
         if len(profiles) == len(self._profiles):
             raise ProfileStoreError("profile not found")
-        self._write(self.global_settings, profiles)
-        self._profiles = profiles
+        settings = self._settled(self.global_settings, profiles)
+        self._write(settings, profiles)
+        self.global_settings, self._profiles = settings, profiles
 
     @staticmethod
     def _assert_unique_profile_ids(profiles: list[ProfileRecord]) -> None:

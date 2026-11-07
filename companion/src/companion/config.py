@@ -122,6 +122,8 @@ class CompanionConfig:
     channel: str = "cowork"
     # 这台电脑的「Express 位置」（全局，express_places，用户 10-24）：只读这些盘 / 文件夹下的年度与账套，Cowork 与 ERP 共用
     express_places: tuple = ()
+    # 每个位置给哪几种成员读（全局，place_channels，11-07 共用电脑隔离）：((位置, (通道, ...)), ...)，见 express_places 文件头
+    place_channels: tuple = ()
 
     def resolved_express_root(self) -> Optional[str]:
         """探测账套用的数据根:显式 express_root 优先,否则取 account_dir 的父目录。"""

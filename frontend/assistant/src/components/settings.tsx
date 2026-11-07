@@ -24,6 +24,7 @@ import {
   COMPANY_FOLDERS,
   connectComputer,
   EXPRESS_PLACES,
+  PLACE_CHANNELS,
   currentLink,
   type Desktop,
   type DesktopState,
@@ -417,6 +418,12 @@ function Connections({ api }: { api: Desktop }) {
   const placesFeature = !!state.features?.includes(EXPRESS_PLACES);
   const places = state.express_places ?? [];
   const expressMembers = members.some((m) => m.kind !== "folder");
+  // 每个位置给哪几种成员读（CC 桌面版 1.12.17，11-07 共用电脑隔离）：只有桌面端说要摆（show）时才出现
+  const placeChannels = state.features?.includes(PLACE_CHANNELS) && state.place_channels?.show ? state.place_channels : null;
+  const byPlace = (path: string) => placeChannels?.places.find((row) => row.path === path)?.channels ?? (placeChannels ? [] : null);
+  // 某种成员仅剩的这一个位置：不能勾掉（勾掉它就一个账套都没有了；桌面端同样拒）
+  const onlyPlaceOf = (name: string, path: string) =>
+    (placeChannels?.places ?? []).filter((row) => row.channels.includes(name)).every((row) => row.path === path);
   const pickRoots = async () => {
     const result = await run("roots", placesFeature ? "add_place" : "pick_roots");
     if (result.ok && !members.length) connect(); // 找到 Express 就接着连上
@@ -513,24 +520,47 @@ function Connections({ api }: { api: Desktop }) {
 
       {/* 「Express 位置」：只读这些盘 / 文件夹下的 Express 年度和账套（Cowork 与 ERP 共用）；有 Express 成员时至少留一个 */}
       {placesFeature &&
-        places.map((path) => (
-          <div data-marquee-host="" key={path} className="cc-settings-row text-body">
-            <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
-            <Marquee className="min-w-0 flex-1 truncate" title={path}>
-              {path}
-            </Marquee>
-            <button
-              type="button"
-              aria-label={st.remove}
-              title={st.remove}
-              disabled={!!busy || (expressMembers && places.length <= 1)}
-              onClick={() => void run("roots", "remove_place", { path })}
-              className="cc-row-btn cc-tap"
-            >
-              <XIcon />
-            </button>
-          </div>
-        ))}
+        places.map((path) => {
+          const removable = !(expressMembers && places.length <= 1);
+          const remove = () => void run("roots", "remove_place", { path });
+          const readers = byPlace(path);
+          return (
+            <div data-marquee-host="" key={path} className="cc-settings-row text-body">
+              <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <Marquee as="div" className="truncate" title={path}>
+                  {path}
+                </Marquee>
+                {/* 同一台电脑连着 Cowork 与 ERP（11-07 共用电脑隔离）：这个位置给谁读 */}
+                {!!readers?.length && <div className="text-muted-foreground text-caption">{readers.map(channelName).join(" · ")}</div>}
+              </div>
+              {readers ? (
+                <PlaceMenu
+                  readers={readers}
+                  members={placeChannels?.members ?? []}
+                  locked={(name) => readers.includes(name) && onlyPlaceOf(name, path)}
+                  disabled={!!busy}
+                  removable={removable}
+                  onToggle={(name, on) => void run("roots", "place_channels", {
+                    path, channels: on ? [...readers, name] : readers.filter((item) => item !== name),
+                  })}
+                  onRemove={remove}
+                />
+              ) : (
+                <button
+                  type="button"
+                  aria-label={st.remove}
+                  title={st.remove}
+                  disabled={!!busy || !removable}
+                  onClick={remove}
+                  className="cc-row-btn cc-tap"
+                >
+                  <XIcon />
+                </button>
+              )}
+            </div>
+          );
+        })}
 
       {companyFolders && legacy.length > 0 && (
         <>
@@ -597,6 +627,48 @@ function Connections({ api }: { api: Desktop }) {
 /** 还没连上时公司一行右边：正在连接 / 被另一台电脑用着（改用这台）/ 不是管理员 / 失败重试 / 电脑已移除 / 连接。
  *  deviceState：成员的密钥被服务端说不再用（claimed_elsewhere = 同一配对码被另一台电脑认领，写现有「已在另一台电脑连接」；
  *  superseded 写「未连接」），都给「重试」。 */
+/** 位置的通道名在界面上写产品名（不翻译）：cowork = Cowork 站点，core = ERP 站点。 */
+const channelName = (name: string) => (name === "core" ? "ERP" : "Cowork");
+
+/** 同时连着 Cowork 与 ERP 时一个位置行尾的「···」：两种成员各一个勾（勾上 = 这个位置下的账套报给它）、移除位置。
+ *  勾选项同侧栏分组的写法（menuitemcheckbox，点了菜单不关）。 */
+function PlaceMenu({ readers, members, locked, disabled, removable, onToggle, onRemove }: {
+  readers: string[]; members: string[]; locked: (name: string) => boolean; disabled: boolean; removable: boolean;
+  onToggle: (name: string, on: boolean) => void; onRemove: () => void;
+}) {
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger disabled={disabled} aria-label={t("more")} className="cc-row-btn cc-tap">
+        <MoreHorizontalIcon />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu z-(--cc-z-confirm) min-w-(--cc-menu-w-md)">
+          {members.map((name) => (
+            <DropdownMenu.CheckboxItem
+              key={name}
+              className="cc-menu-item"
+              data-slot="cc-place-channel"
+              checked={readers.includes(name)}
+              disabled={locked(name)}
+              onCheckedChange={(on) => onToggle(name, on === true)}
+              onSelect={(event) => event.preventDefault()}
+            >
+              <span className="min-w-0 flex-1 truncate">{channelName(name)}</span>
+              <DropdownMenu.ItemIndicator asChild>
+                <CheckIcon />
+              </DropdownMenu.ItemIndicator>
+            </DropdownMenu.CheckboxItem>
+          ))}
+          <DropdownMenu.Separator className="cc-menu-sep" />
+          <DropdownMenu.Item className="cc-menu-item" data-danger="" disabled={!removable} onSelect={onRemove}>
+            {st.remove}
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
 function LinkAction({ link, deviceState = "", onConnect, onDownload, disabled }: {
   link: Link; deviceState?: string; onConnect: (o?: { replace?: number; rejoin?: boolean }) => void; onDownload: () => void;
   disabled: boolean;

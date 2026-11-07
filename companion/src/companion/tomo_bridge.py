@@ -51,7 +51,8 @@ REFUSED = json.dumps({"ok": False, "refused": True})
 # operator = 代录 Express（10-26，入口与直写分开）：operator_state / operator_control / operator_frame / operator_authorize。
 # mrerp_login = MR.ERP 登录在 CC 里授权（ADR-026 第 7 条，11-02）：mrerp_authorize 收对话页发的一次性票，弹原生小窗收用户名和
 # 密码，经这台电脑连着这个站点的成员的机器通道交给站点，站点收下了再存本机凭据管理器；页面拿不到密码，只回成没成。
-FEATURES = ("company_folders", "devices", "sites", "express_places", "operator", "mrerp_login")
+# place_channels = 每个位置给哪几种成员读（11-07 共用电脑隔离）：state() 带 ``place_channels``，``place_channels`` 动作改一个位置的勾。
+FEATURES = ("company_folders", "devices", "sites", "express_places", "operator", "mrerp_login", "place_channels")
 
 
 class TomoBridge(QObject):
@@ -132,6 +133,11 @@ class TomoBridge(QObject):
         if method == "remove_place":
             path = str(args.get("path") or "")
             return self._job(lambda: s.remove_place(path, lang))
+        if method == "place_channels":
+            # 一个位置给哪几种成员读（11-07 共用电脑隔离）：只认位置清单里已有的位置
+            path = str(args.get("path") or "")
+            kinds = [str(item) for item in args.get("channels") or [] if isinstance(item, str)]
+            return self._job(lambda: s.set_place_channels(path, kinds))
         if method == "remove":
             # 断开连接：先请服务端吊销本机这把密钥（device_leave，要连网），再删成员；做完由 _job 回界面线程重启各线程
             return self._job(lambda: s.disconnect(member))

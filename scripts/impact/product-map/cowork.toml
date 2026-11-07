@@ -1704,6 +1704,7 @@ kind = "cc-action"
 anchor = "ccaction:cowork:settings"
 where = "CC 设置（主题、语言；电脑齿轮 / 手机头像菜单）"
 parts = ["cc-assistant-settings"]
+tests = ["flow:cc.settings", "unit:tests/test_assistant_ui.py::test_settings_places_say_which_members_read_each_place"]
 group = "cc.action.settings"
 
 [[row]]

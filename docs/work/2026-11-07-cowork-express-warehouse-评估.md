@@ -1,5 +1,7 @@
 # 需求影响评估：Cowork 推单选 Express 仓库
 
+> **审定：主会话 11-07 审过，第 12 节 7 条全部按建议定。** 排在 CC 连接 / 公司选择 D 步合入 `main` 之后由本窗口施工（主会话通知开工）；CC 部分与共用电脑隔离同一版（1.12.17）发。
+
 > 按 [需求影响评估模板](../development/templates/impact-assessment.md) 填写；**只写评估，不改代码**，交主会话审定。
 > 基线 `origin/main` = `8e5cb5724`（11-07，已含 Cowork 按行选物料 `5cfe2abb3`）；分支 `pearnly/deferred-three-assess-42d230`。
 > 路径缩写：`C/` = `apps/pearnly_cowork/pearnly_cowork/`，`K/` = `apps/pearnly_core/pearnly_core/`，`E/` = `apps/pearnly_erp_portal/pearnly_erp_portal/`，`cc/` = `companion/src/companion/`。

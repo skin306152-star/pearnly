@@ -2646,6 +2646,21 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertNotIn("st.folders", computer)
         self.assertNotIn("row.folders", computer)
 
+    def test_settings_places_say_which_members_read_each_place(self):
+        # 11-07 共用电脑隔离：同时连着 Cowork 与 ERP 时位置行尾「···」里两个勾（Cowork / ERP）+ 移除，路径下面写给谁读；
+        # 只在桌面端说要摆（features 含 place_channels、state.place_channels.show）时出现，否则照旧一个「×」
+        settings = read("components/settings.tsx")
+        self.assertIn("state.features?.includes(PLACE_CHANNELS) && state.place_channels?.show ? state.place_channels : null", settings)
+        menu = settings.split("function PlaceMenu(", 1)[1].split("\nfunction ", 1)[0]
+        self.assertIn("<DropdownMenu.CheckboxItem", menu)
+        self.assertIn("disabled={locked(name)}", menu)   # 某种成员仅剩的位置勾不掉（桌面端同样拒）
+        self.assertIn("onSelect={(event) => event.preventDefault()}", menu)   # 点了菜单不关，两个勾可以连着点
+        self.assertIn('void run("roots", "place_channels", {', settings)
+        self.assertIn('const channelName = (name: string) => (name === "core" ? "ERP" : "Cowork");', settings)
+        desktop = read("lib/desktop.ts")
+        self.assertIn('export const PLACE_CHANNELS = "place_channels";', desktop)
+        self.assertIn("place_channels?: PlaceChannels;", desktop)
+
     def test_company_styles_only_use_the_design_variables(self):
         colour = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(|style=\{")
         # 唯一的行内样式是拖动算出的位移，只在共用拖动里（components/ui/drag.tsx），各处展开它给的属性
