@@ -69,8 +69,9 @@ class LedgerSourceTests(unittest.TestCase):
             self.assertIn(words, i18n)
         i18n = read("i18n.ts")
         self.assertIn('stage: { intake: "收单", entry: "录账", verify: "核对", tax: "报税" }', i18n)
-        # 卡片标题照旧：当月「本月」、别的月写月份（11-07 卡头加了月份胶囊，标题不改，改已有文案要先给用户看），交给 CC、显示更多沿用
-        self.assertIn('thisMonth: "本月"', i18n)
+        # 卡片标题是「月结」（11-07 卡头带了月份胶囊，用户同意不再写「本月 / 2026年9月」），交给 CC、显示更多沿用
+        self.assertIn('      title: "月结",', i18n)
+        self.assertNotIn("thisMonth", i18n)
         self.assertIn('handToCC: "交给 CC"', i18n)
         # 同一张单在相邻的「待处理」卡里叫什么，这里就叫什么（服务端已有词条 cowork.company.pending.not_pushed）
         tsv = (COWORK / "i18n/messages.tsv").read_text(encoding="utf-8")
@@ -121,9 +122,8 @@ class LedgerSourceTests(unittest.TestCase):
         self.assertIn("  if (!seen) {\n    if (!month && !error) return null;\n    if (month && emptyMonth(month) && !error) return null;\n  }", card)
         self.assertIn("{loading && !month && <PanelSkeleton />}", card)
         self.assertIn('<p role="alert"', card)
-        # 卡头：标题按看的那个月（当月「本月」），月份胶囊只换卡里看的月份
-        self.assertIn("const title = period === periodOf(new Date()) ? co.thisMonth : monthLabel(period);", card)
-        self.assertIn("      title={title}\n", card)
+        # 卡头：标题「月结」，看的是哪个月由卡头胶囊写着
+        self.assertIn("      title={co.ledger.title}\n", card)
         # 重复单号只是知悉：单独一句「核对同号」，不用「处理这几张」；草稿用表名，不带内部码
         self.assertIn("start(filing, duplicatePrefill(item), false);", ledger)
         self.assertIn("return co.ledger.duplicateText(docList(lines));", ledger)

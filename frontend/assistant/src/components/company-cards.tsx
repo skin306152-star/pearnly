@@ -15,7 +15,7 @@
 //
 // 文案走 i18n.ts 的 co；样式只用 globals.css 的 .cc-* 与变量。
 
-import { ChevronRightIcon, FolderIcon, GripVerticalIcon, LoaderIcon, PlusIcon, XIcon } from "lucide-react";
+import { ArrowRightIcon, ChevronRightIcon, FolderIcon, GripVerticalIcon, LoaderIcon, PlusIcon, XIcon } from "lucide-react";
 import {
   createContext,
   type FC,
@@ -685,11 +685,12 @@ export function accountFull(choice: Pick<Choice, "value" | "value_label" | "acco
   return name.startsWith(choice.value) ? name : `${choice.value} ${name}`;
 }
 
-/** 点开后「对方 → 代码 名称」那一行：只有代码类、且知道名称时才有（Express 账套行只有代码，再写一遍就和收起时重复了）。 */
-export function choiceFullLine(choice: Pick<Choice, "kind" | "value" | "value_label" | "account_label">, subject: string): string {
+/** 点开后「对方 →（箭头图标）代码 名称」那一行的右半：只有代码类、且知道名称时才有（Express 账套行只有代码，再写一遍就和收起时
+ *  重复了）；没有回 ""。 */
+export function choiceFullLine(choice: Pick<Choice, "kind" | "value" | "value_label" | "account_label">): string {
   if (!CODE_KINDS.has(choice.kind)) return "";
   const full = accountFull(choice);
-  return full === choice.value ? "" : `${subject} → ${full}`;
+  return full === choice.value ? "" : full;
 }
 
 /** 删掉 / 提升走了一条后焦点放哪一条：下一条，没有下一条就上一条；一条都不剩回 ""。 */
@@ -848,7 +849,7 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
       ? [ruleScope(choice), choice.set_by_name ?? "", formatWhen(choice.set_at)]
       : [choice.year_label ?? "", choice.set_by_name ?? "", formatWhen(choice.set_at)];
   const value = choiceValue(choice);
-  const full = choiceFullLine(choice, subject);
+  const full = choiceFullLine(choice);
   const alert = error ? <p role="alert" className="cc-choice-error text-danger" data-slot="cc-choice-error">{error}</p> : null;
   return (
     <div className="cc-choice" data-slot="cc-choice" data-source={choice.source} data-choice-key={choice.key} data-open={open ? "" : undefined}>
@@ -859,7 +860,13 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
       {open && (
         <div className="cc-choice-detail" data-slot="cc-choice-detail">
           <Marquee className="block truncate">{meta.filter(Boolean).join(" · ")}</Marquee>
-          {full && <span className="cc-choice-full">{full}</span>}
+          {full && (
+            <span className="cc-choice-full">
+              {subject}
+              <ArrowRightIcon aria-hidden className="mx-(--cc-space-4) inline size-(--cc-icon-xs) align-middle" />
+              {full}
+            </span>
+          )}
           <div className="cc-card-actions" aria-busy={busy || undefined}>
             {options && (
               <div role="group" aria-label={subject} className="cc-choice-seg" data-slot="cc-choice-seg">

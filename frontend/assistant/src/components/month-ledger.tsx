@@ -28,7 +28,7 @@ import { PanelCard, PanelSkeleton } from "@/components/company-cards";
 import { PendingAsk, ProposalRow, useAskCC } from "@/components/pending";
 import { PeriodChip } from "@/components/period-chip";
 import { co } from "@/i18n";
-import { branchShort, docLine, docList, formatAmount, monthLabel, periodOf, refreshPendingCounts, useCompanyNav } from "@/lib/companies";
+import { branchShort, docLine, docList, formatAmount, monthLabel, refreshPendingCounts, useCompanyNav } from "@/lib/companies";
 import { useProjects } from "@/lib/managed-agents/projects";
 import {
   accountSetException,
@@ -315,11 +315,11 @@ export const MonthCard: FC<{ company: string; period: string }> = ({ company, pe
     if (!month && !error) return null;
     if (month && emptyMonth(month) && !error) return null;
   }
-  const title = period === periodOf(new Date()) ? co.thisMonth : monthLabel(period);
+  // 看哪个月由卡头月份胶囊写着：标题「月结」（用户 11-07 同意，原「本月 / 2026年9月」，月份写两遍）
   return (
     <PanelCard
       id="month"
-      title={title}
+      title={co.ledger.title}
       summary={month ? monthSummary(month) : undefined}
       slot="cc-panel-month"
       extra={<PeriodChip value={period} onChange={(next) => setSeen(next === own ? "" : next)} allowNone={false} look="cc-chin-btn" />}

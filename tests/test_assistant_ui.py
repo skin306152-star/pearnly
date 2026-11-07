@@ -1526,7 +1526,10 @@ assert.match(html, /<div class="cc-card-actions">/);
 const [deny, allow] = buttons(html);
 assert.match(deny!, /^<button type="button" class="cc-card-btn">Deny<\/button>$/);
 assert.match(allow!, /^<button type="button" class="cc-card-btn" data-primary="">Allow<\/button>$/);
-assert.doesNotMatch(html, /<svg/);
+assert.doesNotMatch(html.slice(html.indexOf('<div class="cc-card-actions">')), /<svg/);
+// 改前 → 改后之间是 SVG 箭头图标（用户 11-07：图标统一 SVG，不用「→」字符）
+assert.match(html, /<svg[^>]*lucide-arrow-right[^>]*aria-hidden="true"/);
+assert.doesNotMatch(html, /→/);
 // 改动清单不另套一层带边框的框（卡里只一层框，细线隔开：.cc-ask-changes）
 assert.match(html, /<ul class="cc-ask-changes">/);
 assert.doesNotMatch(html, /rounded-md border/);
@@ -1577,7 +1580,8 @@ g.done();
         source = read("components/tool-uis/approval-bar.tsx")
         self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|emerald|\bred-\d|\d+px", source))
         self.assertNotIn("@/components/ui/button", source)
-        self.assertNotIn("lucide-react", source)
+        # 图标只有改前 → 改后之间的 SVG 箭头（11-07 图标统一 SVG），按钮不带图标
+        self.assertEqual(re.findall(r'import \{([^}]*)\} from "lucide-react";', source), [" ArrowRightIcon "])
         # 卡片按钮：电脑 24 高（设计系统 xs 档，6.webp「跳过 / 提交」，第 11 轮按钮排查 G4）、左右 8、13px、字重 500、两钮间距 8；
         # 手机（粗指针 / 手机外壳）大号全圆角胶囊 44（8.webp 约 42–43，取点按区下限）、16px
         css = read("globals.css")
@@ -4304,14 +4308,14 @@ assert.equal(choiceValue({ kind: "payment", value: "credit", value_label: "credi
 // 代码类（对方档、存货、部门、收款科目）收起时也只写代码，完整的「代码 名称」放在点开后的说明（第 10 轮审查：280 宽里对方名被挤到约 90）
 for (const kind of ["party", "item", "department", "receipt"]) {
   assert.equal(choiceValue({ kind, value: "S001", value_label: "S001 ACME" }), "S001", kind);
-  assert.equal(choiceFullLine({ kind, value: "S001", value_label: "S001 ACME" }, "ACME"), "ACME → S001 ACME", kind);
+  assert.equal(choiceFullLine({ kind, value: "S001", value_label: "S001 ACME" }), "S001 ACME", kind);
 }
 // POS 版式的值是内部的 auto / person：不写
 assert.equal(choiceValue({ kind: "pos_layout", value: "auto", value_label: "" }), "");
 // Express 账套行的科目只有代码、没有名称：点开后不再写一遍「对方 → 代码」
-assert.equal(choiceFullLine({ kind: "account", value: "53-05-25-00", value_label: "53-05-25-00" }, "ACME"), "");
-assert.equal(choiceFullLine(history, "ACME"), "ACME → 53-05-25-00 Repairs");
-assert.equal(choiceFullLine({ kind: "payment", value: "cash", value_label: "Cash" }, "ACME"), "");
+assert.equal(choiceFullLine({ kind: "account", value: "53-05-25-00", value_label: "53-05-25-00" }), "");
+assert.equal(choiceFullLine(history), "53-05-25-00 Repairs");
+assert.equal(choiceFullLine({ kind: "payment", value: "cash", value_label: "Cash" }), "");
 assert.equal(accountFull(history), "53-05-25-00 Repairs");
 assert.equal(accountFull({ value: "5300", value_label: "Repairs" }), "5300 Repairs");
 assert.equal(accountFull({ value: "5300", value_label: "5300" }), "5300");
@@ -4579,7 +4583,8 @@ const learned = (open: boolean) => renderToStaticMarkup(createElement(ChoiceRow,
   subject_label: "", supplier_name: "ACME", value: "5320", account_label: "5320 Utilities", count: 9, last_date: "2026-09-30" },
   open, onSet() {}, onForget() {} }));
 assert.deepEqual(text(learned(false)), ["ACME", "5320"]);
-assert.deepEqual(text(learned(true)), ["ACME", "5320", "From Express history · 9 · Sep 30, 2026", "ACME → 5320 Utilities", "Delete"]);
+assert.deepEqual(text(learned(true)), ["ACME", "5320", "From Express history · 9 · Sep 30, 2026", "ACME", "5320 Utilities", "Delete"]);
+assert.match(learned(true), /<span class="cc-choice-full">ACME<svg[^>]*lucide-arrow-right/);
 // 按公司记的入账方式（可改、可删）、现用账套（只删，改选走待处理 / CC）与 Express 历史定下的入账方式（只删）：用户 2026-10-17
 // 「加上，方便看和删」。行样式以外壳为准：展开的入账方式行出两段按钮，现用账套行没有分段、只有删除
 import { choiceSection, setChoiceShown } from "@/components/company-cards";
@@ -4616,7 +4621,7 @@ assert.deepEqual([co.kind.mrerp_menu, co.kind.mrerp_default], ["MR.ERP import me
 assert.deepEqual(text(policyRow(menu, false)), ["Purchase (goods)", "ซื้อ"]);
 assert.deepEqual(text(policyRow(dept, false)), ["Department", "D001"]);
 const opened = policyRow(dept, true);
-assert.deepEqual(text(opened), ["Department", "D001", "TEST2019", "Department → D001 บัญชี"]);
+assert.deepEqual(text(opened), ["Department", "D001", "TEST2019", "Department", "D001 บัญชี"]);
 assert.ok(opened.includes("cc-spinner"));
 assert.ok(!opened.includes("cc-choice-forget") && !opened.includes("cc-choice-promote"));
 assert.equal(setChoiceShown([menu], "m1", "454", "ซื้อ2")[0].value_label, "ซื้อ2");

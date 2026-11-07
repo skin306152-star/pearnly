@@ -8,6 +8,7 @@
 - 改名就地改（同对话行的 InlineRename）；公司卡「全部账套」展开；知识库、定时任务卡空的也显示「＋」；「本月」卡的月份胶囊只换卡里看的月份。
 """
 import pathlib
+import re
 import sys
 import unittest
 
@@ -133,6 +134,24 @@ assert.equal(await saveCompanyName("C-1", "Other"), null);
 assert.equal(useProjects.getState().projects.find((p) => p.id === "C-1")?.title, "New Co");
 assert.ok(useProjects.getState().error);
 """)
+
+
+class IconGlyphTests(unittest.TestCase):
+    """用户 11-07：图标一律用 SVG 图标组件（lucide），不拿 emoji 或箭头、三角、勾叉这类字符当图标。"""
+
+    GLYPH = re.compile(r"[\u2190-\u21FF\u25A0-\u25FF\u2700-\u27BF\u2B00-\u2BFF\U0001F000-\U0001FAFF\u2304\u2713-\u2718]")
+
+    def test_no_glyph_stands_in_for_an_icon(self):
+        found = []
+        for path in sorted(SRC.rglob("*.tsx")):
+            text = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), path.read_text(encoding="utf-8"), flags=re.S)
+            for no, line in enumerate(text.split("\n"), 1):
+                code = re.sub(r"(^|[^:])//.*$", r"\1", line)
+                # JSX 文字节点（>…<）与模板 / 字符串里拼进界面的箭头
+                for piece in re.findall(r">([^<>{}]*)<", code) + re.findall(r"`([^`]*)`", code):
+                    if self.GLYPH.search(piece):
+                        found.append(f"{path.relative_to(SRC)}:{no}: {code.strip()[:100]}")
+        self.assertEqual(found, [])
 
 
 if __name__ == "__main__":

@@ -509,7 +509,7 @@ const COMPANY = {
     wholeCompany: "Whole company", branchN: (b: string) => `Branch ${b}`, makeCompanyWide: "Set for whole company",
  pushNow: "Push",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
-    company: "Company", thisMonth: "This month", library: "Library",
+    company: "Company", library: "Library",
     chatRunning: "In progress", chatWaiting: "Needs your input", chatDone: "Done",
     // 会话栏卡头右侧的一句状态（同 Claude 卡头摘要，用我们自己的词）与拖动调顺序的读屏播报（开发窗口 10-16 定）
     card: {
@@ -595,7 +595,7 @@ const COMPANY = {
     wholeCompany: "全公司", branchN: (b: string) => `分店 ${b}`, makeCompanyWide: "设为全公司",
  pushNow: "推送",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
-    company: "公司", thisMonth: "本月", library: "资料",
+    company: "公司", library: "资料",
     chatRunning: "进行中", chatWaiting: "需要您的输入", chatDone: "已完成",
     // 会话栏卡头右侧的一句状态（同 Claude 卡头摘要，用我们自己的词）与拖动调顺序的读屏播报（开发窗口 10-16 定）
     card: {
@@ -680,7 +680,7 @@ const COMPANY = {
     wholeCompany: "ทั้งบริษัท", branchN: (b: string) => `สาขา ${b}`, makeCompanyWide: "ใช้กับทั้งบริษัท",
  pushNow: "ส่ง",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
-    company: "บริษัท", thisMonth: "เดือนนี้", library: "ข้อมูล",
+    company: "บริษัท", library: "ข้อมูล",
     chatRunning: "กำลังดำเนินการ", chatWaiting: "ต้องการข้อมูลจากคุณ", chatDone: "เสร็จแล้ว",
     // 会话栏卡头右侧的一句状态（同 Claude 卡头摘要，用我们自己的词）与拖动调顺序的读屏播报（开发窗口 10-16 定）
     card: {

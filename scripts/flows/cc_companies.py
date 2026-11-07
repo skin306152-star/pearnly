@@ -23,20 +23,27 @@ from erp_lib import ensure_documents  # noqa: E402
 TITLE = "ERP 版 CC 按公司：对话里选公司弹窗（对话 / 代录两种模式）、右侧栏只出 ERP 分区、「···」、知识库落库、待处理点开到单据页"
 READY = "document.readyState === 'complete' && !!document.querySelector('[data-slot=\"cc-chin-company\"]')"
 
-WAIT = ("const until=async(f,n=120)=>{for(let k=0;k<n;k++){try{if(f())return true;}catch(e){} await new Promise(r=>setTimeout(r,250));} return false;};"
-        "const calls=()=>performance.getEntriesByType('resource').map(e=>e.name).filter(n=>n.includes('/api/method/'));"
-        "const set=(el,v)=>{const proto=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;"
-        "Object.getOwnPropertyDescriptor(proto,'value').set.call(el,v); el.dispatchEvent(new Event('input',{bubbles:true}));};"
-        "const navText=()=>[...document.querySelectorAll('.cc-nav-item')].map(e=>e.innerText.trim());")
+WAIT = JS + (  # cc_lib 的帮手（until / sleep / q / qa / say / pickCompany / toMode / press …）+ 这条流程自己的几个
+    "const calls=()=>performance.getEntriesByType('resource').map(e=>e.name).filter(n=>n.includes('/api/method/'));"
+    "const set=(el,v)=>{const proto=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;"
+    "Object.getOwnPropertyDescriptor(proto,'value').set.call(el,v); el.dispatchEvent(new Event('input',{bubbles:true}));};"
+    "const navText=()=>[...document.querySelectorAll('.cc-nav-item')].map(e=>e.innerText.trim());")
 
 
 # 新建页下巴点「公司」弹选择公司窗口，读出各行（已建的带 data-built）；记下页面有没有开新窗口（以前 ERP 开新建公司页）
 OPEN = ("let opened=''; window.open=(u)=>{opened=String(u); return null;}; "
         "const box=()=>document.querySelector('[data-slot=\"cc-company-picker\"]'); "
         "document.querySelector('[data-slot=\"cc-chin-company\"]').click(); await until(box,40); "
-        "await until(()=>box().querySelector('[data-slot=\"cc-candidates\"] .cc-list-row[data-built]'),80); "
         "const rowsNow=()=>[...box().querySelectorAll('[data-slot=\"cc-candidates\"] .cc-list-row')]; "
-        "const seen=rowsNow().map(r=>[r.innerText.split('\\n')[0].trim(), r.hasAttribute('data-built')]);")
+        "const settled=()=>!box().querySelector('[data-slot=\"cc-candidates\"] .cc-spinner')&&rowsNow().length>1; "
+        # 标签（MR.ERP / Express / ERP）按下（mousedown）就切；没有标签时就是这一页
+        "const tabsNow=()=>[...box().querySelectorAll('[role=\"tab\"]')]; "
+        "const toTab=async t=>{t.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0})); await until(()=>t.dataset.state==='active',20); await sleep(300); await until(settled,40);}; "
+        "await until(settled,80); const picker=[]; "
+        "for(const t of (tabsNow().length?tabsNow():[null])){if(t) await toTab(t); "
+        "picker.push(...rowsNow().map(r=>[r.innerText.split('\\n')[0].trim(), r.hasAttribute('data-built')]));} "
+        "const findRow=async want=>{for(const t of (tabsNow().length?tabsNow():[null])){if(t) await toTab(t); "
+        "const r=rowsNow().find(r=>r.innerText.split('\\n')[0].trim()===want); if(r) return r;} return null;};")
 
 
 def prepare(lab, manifest):
@@ -88,27 +95,27 @@ print(json.dumps({{"a": {a!r}, "b": {b!r}, "titles": titles, "document": row.nam
 def steps(params, camera_code=None):
     a_title, b_title = params["titles"][params["a"]], params["titles"][params["b"]]
     return [
-        {"name": "选择公司", "js": JS + WAIT + f"const NEW={json.dumps(params['new_title'])}; " + OPEN +
-         "const row=rowsNow().find(r=>r.innerText.split('\\n')[0].trim()===NEW); if(!row) return {error:'new company row missing', seen}; row.click(); "
+        {"name": "选择公司", "js": WAIT + f"const NEW={json.dumps(params['new_title'])}; " + OPEN +
+         "const row=await findRow(NEW); if(!row) return {error:'new company row missing', picker}; row.click(); "
          "const chosen=await until(()=>!box()&&(document.querySelector('[data-slot=\"cc-chin-company\"]')?.innerText||'').includes(NEW),80); "
-         "return {seen, chosen, opened, nav: navText()};"},
-        {"name": "代录选公司", "js": JS + WAIT + f"const A={json.dumps(a_title)}; "
+         "return {seen: picker, chosen, opened, nav: navText()};"},
+        {"name": "代录选公司", "js": WAIT + f"const A={json.dumps(a_title)}; "
          "if(!await toMode('operator')) return {error:'no operator mode'}; const picked=await pickCompany(A); "
          # 代录模式下选已建的 A = 直写的新建页、下巴选好 A（统一对话框架：没说话不建任务）
          "const work=!!document.querySelector('.aui-thread-welcome-root'); const inMode=mode(); await toMode('chat'); "
          "return {picked, work, mode: inMode};"},
-        {"name": "公司对话", "js": JS + WAIT + f"const A={json.dumps(a_title)}; const LINE={json.dumps(params['line'])}; "
+        {"name": "公司对话", "js": WAIT + f"const A={json.dumps(a_title)}; const LINE={json.dumps(params['line'])}; "
          "document.querySelector('[data-slot=\"aui_thread-list-new\"], .aui-thread-list-new')?.click(); await sleep(400); "
          "if(!await pickCompany(A)) return {error:'pick A failed'}; if(!await say(LINE)) return {error:'send failed'}; "
          "await until(()=>document.querySelector('[data-slot=\"cc-session-panel\"] [data-card=\"notes\"]'),120); "
          "const cards=[...document.querySelectorAll('[data-slot=\"cc-session-panel\"] [data-card]')].map(e=>e.dataset.card); "
          "const more=document.querySelector('[data-slot=\"cc-company-more\"]'); let items=[]; "
-         "if(more){press(more); await until(()=>q('[role=\"menu\"]'),20); items=qa('[role=\"menu\"] [data-slot^=\"cc-company-\"]').map(e=>e.dataset.slot); "
+         "if(more){press(more); await until(()=>q('[role=\"menu\"] [data-slot^=\"cc-company-\"]'),40); await sleep(300); items=qa('[role=\"menu\"] [data-slot^=\"cc-company-\"]').map(e=>e.dataset.slot); "
          "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); await sleep(300);} "
          "return {cards, more: !!more, items, nav: navText()};", "wait_ms": 500},
-        {"name": "组头菜单", "js": JS + WAIT + f"const A={json.dumps(a_title)}; "
+        {"name": "组头菜单", "js": WAIT + f"const A={json.dumps(a_title)}; "
          "const head=qa('[data-slot=\"cc-project\"]').find(e=>e.innerText.includes(A)); if(!head) return {error:'no group header'}; "
-         "const more=head.querySelector('.cc-group-more'); press(more); await until(()=>q('[data-slot=\"cc-group-sort-menu\"]'),20); "
+         "const more=head.querySelector('.cc-group-more'); press(more); await until(()=>q('[data-slot=\"cc-group-sort-menu\"] [data-slot^=\"cc-company-\"]'),40); await sleep(300); "
          "const menu=q('[data-slot=\"cc-group-sort-menu\"]'); const items=[...menu.querySelectorAll('[data-slot^=\"cc-company-\"]')].map(e=>e.dataset.slot); "
          "const sort=!!menu.querySelector('[aria-haspopup]'); document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); await sleep(300); "
          "return {items, sort};"},
@@ -119,15 +126,20 @@ def steps(params, camera_code=None):
          "[...document.querySelectorAll('[data-slot=\"cc-note-editor\"] button')].find(b=>b.innerText.trim()==='保存').click(); "
          f"const got=await until(()=>document.querySelector('[data-card=\"notes\"]').innerText.includes({json.dumps(params['note'])})&&!document.querySelector('[data-slot=\"cc-note-editor\"]'),80); "
          "return {got, text: document.querySelector('[data-card=\"notes\"]').innerText.slice(0,300)};"},
-        # 待处理 11-04 起并进对话：对话那个月的在末尾「需要处理」框，别的月在右侧栏「待处理」卡；两处的行同一个样子
+        # 待处理 11-04 起并进对话：提醒链接 ?view=pending&company= 打开服务端指定的那段「公司 · 月份」对话，那个月的在末尾
+        # 「需要处理」框，别的月在右侧栏「待处理」卡；两处的行同一个样子
+        {"name": "待处理链接", "js": f"location.href='/assistant?view=pending&company={params['a']}'; return 1;", "wait_ms": 6000},
         {"name": "待处理", "js": WAIT + "const rowsAll=()=>[...document.querySelectorAll('[data-slot=\"cc-pending-row\"]')]; "
-         "if(!await until(()=>rowsAll().length,80)) return {error:'no pending rows', nav: navText()}; await new Promise(r=>setTimeout(r,800)); "
-         "const rows=rowsAll(); let opened=''; window.open=(u)=>{opened=String(u); return null;}; "
-         "const openOf=(text)=>{opened=''; const row=rows.find(r=>r.innerText.includes(text)); if(row) row.click(); return opened;}; "
+         "await until(()=>document.querySelector('[data-slot=\"cc-pending-in-chat\"]'),120); "
+         "if(!await until(()=>rowsAll().length>=3,80)) return {error:'pending rows missing', rows: rowsAll().map(r=>r.innerText.trim().slice(0,80)), nav: navText()}; "
+         "await new Promise(r=>setTimeout(r,800)); "
+         "const prow=rowsAll(); let opened=''; window.open=(u)=>{opened=String(u); return null;}; "
+         "const openOf=(text)=>{opened=''; const row=prow.find(r=>r.innerText.includes(text)); if(row) row.click(); return opened;}; "
          f"const entry=openOf({json.dumps(params['entry_no'])}); const day=openOf({json.dumps(params['day'])}); "
-         f"(rows.find(r=>r.innerText.includes({json.dumps(params['number'])}))||rows[0])?.click(); "
-         "return {rows: rows.map(r=>[r.tagName, r.innerText.trim().slice(0,120)]), opened, entry, day, "
+         f"(prow.find(r=>r.innerText.includes({json.dumps(params['number'])}))||prow[0])?.click(); "
+         "return {rows: prow.map(r=>[r.tagName, r.innerText.trim().slice(0,120)]), opened, entry, day, "
          "hand: !!document.querySelector('[data-slot=\"cc-hand-to-cc\"]'), "
+         "box: !!q('[data-slot=\"cc-pending-in-chat\"]'), "
          "cowork: calls().filter(n=>n.includes('pearnly_cowork')).slice(0,5), "
          "erp: calls().filter(n=>n.includes('pearnly_erp_portal.masters.cc_companies')).length};"},
     ]
@@ -153,8 +165,8 @@ def judge(params, results, camera_code=None):
         {"case": "组头「···」上半段是这家的在浏览器中打开，下半段照旧分组和排序", "seen": group,
          "ok": group.get("items") == ["cc-company-desk"] and bool(group.get("sort"))},
         {"case": "知识库新增一条（右侧栏知识库卡）", "seen": note, "ok": bool(note.get("got"))},
-        {"case": "待处理点开到 ERP 单据页、不交给 CC", "seen": pending,
-         "ok": pending.get("opened") == f"/desk/pearnly-purchase/{params['document']}" and not pending.get("hand")
+        {"case": "提醒链接打开这家这个月的对话：末尾「需要处理」框与右侧栏待处理卡；点开到 ERP 单据页、不交给 CC", "seen": pending,
+         "ok": bool(pending.get("box")) and pending.get("opened") == f"/desk/pearnly-purchase/{params['document']}" and not pending.get("hand")
          and all(tag == "BUTTON" for tag, _text in pending.get("rows") or [["x", ""]])},
         {"case": "待处理也列出入库单与收银日汇总，点开到各自的页面", "seen": pending,
          "ok": pending.get("entry") == f"/desk/pearnly-stock-{params['entry_direction']}/{params['entry']}"

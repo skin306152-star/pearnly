@@ -14,6 +14,7 @@
 // 那一行再淡一档（data-unconfirmed）；没答就没了（中断、回合结束）写「已取消」（沿用步骤的 cancelled 词条）。
 // 确认请求没送到（restoreGates 带回 failure）：按钮还在，上方一行原因，再点重试。
 
+import { ArrowRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardState } from "@/lib/approval-card";
 import { steps, t } from "@/i18n";
@@ -48,7 +49,7 @@ export function ChangeList({ preview, className }: { preview?: readonly Change[]
           {change.before ? (
             <>
               <span className="line-through decoration-ink-4">{change.before}</span>
-              <span className="px-(--cc-space-6) text-ink-3">→</span>
+              <ArrowRightIcon aria-hidden className="mx-(--cc-space-6) inline size-(--cc-icon-xs) align-middle text-ink-3" />
             </>
           ) : null}
           <span className="font-medium">{change.after}</span>

@@ -33,8 +33,8 @@ JS = (
     "const row=()=>[...box().querySelectorAll('[data-slot=\"cc-candidates\"] .cc-list-row')].find(e=>e.innerText.split('\\n')[0].includes(title)); "
     "if(!await until(row,20)){const input=box().querySelector('input'); "
     "if(input){Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,title); input.dispatchEvent(new Event('input',{bubbles:true}));} "
-    # 搜不到时可能在另一个标签（MR.ERP / Express）下
-    "if(!await until(row,40)){for(const tab of [...box().querySelectorAll('[role=\"tab\"]')]){tab.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerType:'mouse'})); tab.click(); if(await until(row,20)) break;}}} "
+    # 搜不到时可能在另一个标签（MR.ERP / Express / ERP）下；组件库的标签按下（mousedown）就切
+    "if(!await until(row,40)){for(const tab of [...box().querySelectorAll('[role=\"tab\"]')]){tab.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0})); if(await until(row,20)) break;}}} "
     "const item=row(); if(!item) return false; item.click(); "
     "return await until(()=>!box()&&(q('[data-slot=\"cc-chin-company\"]')?.innerText||'').includes(title),80);};"
     "const call=async(m,args,post)=>{const body=new URLSearchParams(args||{}); const r=await fetch('/api/method/'+m+(post?'':'?'+body),"
