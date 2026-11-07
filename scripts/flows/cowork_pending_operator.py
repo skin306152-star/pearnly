@@ -77,7 +77,7 @@ def steps(params, camera_code=None):
          "await until(()=>document.querySelector('[data-slot=\"cc-chin-company\"], .cc-mpill'),120); await new Promise(r=>setTimeout(r,800)); "
          # 电脑：右侧栏关着就点顶栏的开关；手机：右上「…」→ 公司名，右侧栏盖满屏
          "if(!month()){const t=document.querySelector('[data-slot=\"cc-panel-toggle\"][aria-pressed=\"false\"]'); "
-         "if(t) t.click(); else {qa('.cc-mpill button')[1]?.click(); await until(()=>document.querySelector('.cc-menu-item'),20); document.querySelector('.cc-menu-item')?.click();}} "
+         "if(t) t.click(); else {const m=qa('.cc-mpill button')[1]; m?.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerType:'mouse'})); await until(()=>document.querySelector('.cc-menu-item'),20); document.querySelector('.cc-menu-item')?.click();}} "
          "await until(month,120); "
          # 卡片记得收没收（按人记）：收着就先点开
          "const fold=document.querySelector('[data-slot=\"cc-panel-month\"] .cc-panel-card-toggle[aria-expanded=\"false\"]'); fold?.click(); "
@@ -95,7 +95,7 @@ def steps(params, camera_code=None):
          "return out;"},
         {"name": "回到对话", "js": f"setTimeout(()=>location.assign({back}),0); return true;", "wait_ms": 6000},
         {"name": "待处理出提问卡", "js": WAIT + f"const seen=await until(()=>{card},160); const c={card}; "
-         "const chin=document.querySelector('[data-slot=\"cc-chin-company\"]')?.innerText.trim()||''; "
+         "const chin=(document.querySelector('[data-slot=\"cc-chin-company\"]')?.innerText||document.querySelector('[data-slot=\"cc-mobile-title\"] .cc-mtitle-sub')?.innerText||'').trim(); "
          "const mode=document.querySelector('[data-slot=\"cc-mode-switch\"] [aria-checked=\"true\"]')?.dataset.mode; "
          "const opts=qa('[data-slot=\"cc-pending-askq\"] [data-slot=\"cc-askq-option\"]'); "
          "return {seen, question: c?.querySelector('[data-slot=\"cc-askq-question\"]')?.innerText.trim()||'', "
@@ -125,7 +125,7 @@ def judge(params, results, camera_code=None):
         {"case": "右侧栏「本月」月结台账：这张是收着的一行，点开才出同一张提问卡（嵌在台账里、不带框与「需要您的输入」），问付款方式", "seen": ledger,
          "ok": bool(ledger.get("seen")) and ledger.get("closed") == "false" and bool(ledger.get("opened"))
          and "付款方式" in (ledger.get("question") or "") and not ledger.get("framed") and not ledger.get("status")},
-        {"case": "提醒入口打开这家这个月的对话（对话模式、下巴是这家），末尾单独一张提问卡（带「需要您的输入」），这张单不再列成一行；侧栏没有「待处理」",
+        {"case": "提醒入口打开这家这个月的对话（对话模式、下巴或手机标题是这家），末尾单独一张提问卡（带「需要您的输入」），这张单不再列成一行；侧栏没有「待处理」",
          "seen": {**listed, "want": params["title"]},
          "ok": bool(listed.get("seen")) and bool(listed.get("status")) and not listed.get("rowListed")
          and listed.get("mode") == "chat" and params["title"] in (listed.get("chin") or "") and not listed.get("nav")},
