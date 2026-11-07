@@ -12,6 +12,7 @@ x-local: &local
     GOOGLE_APPLICATION_CREDENTIALS: ""
     PEARNLY_ERP_POS_LAB: "1"
     PEARNLY_ERP_ACCEPTANCE: "1"
+    PEARNLY_DEPLOYMENT: acceptance
 
 services:
   mariadb:

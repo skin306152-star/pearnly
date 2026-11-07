@@ -22,6 +22,9 @@ app=${TESTENV_APP:-dms}
 case "$app" in dms|erp|cowork) ;; *) echo "unknown app $app (expected dms|erp|cowork)" >&2; exit 2 ;; esac
 project=${TESTENV_PROJECT:-pearnly-testenv-$app}
 export TESTENV_PROJECT="$project"
+# 测试机导入的是线上租户的 site_config（同一把 Anthropic 密钥）：容器里标成 testenv，CC 用测试机自己的智能体，
+# 不更新线上那个（production/compose.yml 的 PEARNLY_DEPLOYMENT，11-07）。
+export PEARNLY_DEPLOYMENT=testenv
 
 [[ -s "$env_file" ]] || { echo "Missing $env_file"; exit 2; }
 # 实时源码（用户 2026-09-27：改了马上能试）：镜像仍是线上那份（底座与依赖一致），产品代码取被测工作树，

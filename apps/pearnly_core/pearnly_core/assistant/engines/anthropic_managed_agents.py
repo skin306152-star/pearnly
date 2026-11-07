@@ -7,6 +7,7 @@
 """
 import hashlib
 import json
+import os
 
 import anthropic
 
@@ -17,6 +18,12 @@ BETA = "managed-agents-2026-04-01"
 EFFORT = "low"
 MANAGED_BY = "pearnly-assistant"
 ENVIRONMENT = {"name": "pearnly-assistant", "config": {"type": "cloud", "networking": {"type": "limited"}}}
+# 部署环境（容器环境变量，生产 compose 写死 production；测试机 `infrastructure/testenv/run.sh` 设 testenv，其余实验栈没设当 dev）。
+# 测试机导入的是线上租户的 site_config（同一把 Anthropic 密钥、同一个站点名），只靠站点配置分不出来：
+# 非生产环境用自己的智能体（名字后缀 + 元数据 `pearnly_deployment`），按它匹配，永远不会更新线上那个（11-07）。
+# 生产的名字与元数据保持原样，部署这一改不会新建 / 更新线上智能体。
+DEPLOYMENT_ENV = "PEARNLY_DEPLOYMENT"
+PRODUCTION = "production"
 UPLOADS = "/mnt/session/uploads"
 OUTPUTS = "/mnt/session/outputs"
 # 产出约定只与本引擎的沙箱有关，所以写在适配器里：写进这个目录的文件才会出现在对话页右侧的结果面板。
@@ -68,9 +75,15 @@ def _gone(err) -> bool:
     return isinstance(err, anthropic.APIStatusError) and err.status_code in (400, 404, 410)
 
 
+def deployment() -> str:
+    """本进程的部署环境：production，或别的标识（没设是 dev）。"""
+    return str(os.environ.get(DEPLOYMENT_ENV) or "").strip().lower() or "dev"
+
+
 def spec(brief: dict, model: str) -> dict:
+    where = deployment()
     body = {
-        "name": brief["name"],
+        "name": brief["name"] if where == PRODUCTION else f"{brief['name']} [{where}]",
         "model": {"id": model, "effort": EFFORT},
         "system": brief["system"] + WORKSPACE,
         "tools": [
@@ -86,8 +99,14 @@ def spec(brief: dict, model: str) -> dict:
     }
     fingerprint = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()[:16]
     body["metadata"] = {"pearnly_managed": MANAGED_BY, "pearnly_product": brief["product"],
-                        "pearnly_spec": fingerprint}
+                        "pearnly_spec": fingerprint, **({} if where == PRODUCTION else {"pearnly_deployment": where})}
     return body
+
+
+def _ours(meta: dict, wanted: dict) -> bool:
+    """这个智能体是不是本环境、本产品的那一个：生产的没有 `pearnly_deployment`，非生产的按它对上。"""
+    return (meta.get("pearnly_managed") == MANAGED_BY and meta.get("pearnly_product") == wanted["pearnly_product"]
+            and meta.get("pearnly_deployment") == wanted.get("pearnly_deployment"))
 
 
 class Adapter(base.Adapter):
@@ -105,7 +124,7 @@ class Adapter(base.Adapter):
         meta_wanted = body["metadata"]
         for agent in self.api.beta.agents.list():
             meta = agent.metadata or {}
-            if meta.get("pearnly_managed") == MANAGED_BY and meta.get("pearnly_product") == meta_wanted["pearnly_product"]:
+            if _ours(meta, meta_wanted):
                 if meta.get("pearnly_spec") != meta_wanted["pearnly_spec"]:
                     self.api.beta.agents.update(agent.id, **body)
                 return agent.id

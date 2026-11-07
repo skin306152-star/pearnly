@@ -230,6 +230,9 @@ bash scripts/testenv.sh lab-stop cowork    # testcowork 切回线上 → 停栈�
 - **OCR 是真凭据**：测试机 `/opt/pearnly/secrets/ocr.json` 自 2026-09-24 起是线上那份
   （DMS 验证识别时放入），所以在测试环境经 LINE 发单据会产生**真实付费调用**。只用于人工验收，
   不跑会自动调用 OCR 的脚本；要回到零费用就换回空占位。
+- **CC 智能体按部署环境分开**（11-07）：导入的租户 site_config 带着线上的 Anthropic 密钥，`run.sh` 给容器设
+  `PEARNLY_DEPLOYMENT=testenv`，CC 在同一账号里用自己的智能体「CC (Pearnly <产品>) [testenv]」，不更新线上那个；
+  其他没设这个变量的本机栈当 `dev`，同样各用各的。只有生产 compose 默认 `production`。
 - 测试机上另有一个**空的** Keycloak（仅本地），不代表线上身份；身份以线上为准。
 - **DMS 切到测试机后先在测试机发布一次图文菜单**（`rich_menu.publish`）。测试机与生产共用同一个 LINE 官方号，测试机的库是旧副本、
   记的是旧菜单 ID：不先发布，用户一发消息测试机就把旧菜单挂回他手机上（2026-10-03 少了第 6 格）。发布按内容命名，和生产内容相同时

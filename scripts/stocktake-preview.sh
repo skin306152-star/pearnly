@@ -36,6 +36,7 @@ FILES=(
   "$HERE/infrastructure/compose/stocktake-preview.yml"
 )
 args=(); for f in "${FILES[@]}"; do args+=(-f "$f"); done
+export PEARNLY_DEPLOYMENT=preview  # 不是线上：CC 智能体不跟线上共用（production/compose.yml）
 dc() { docker --context "$CTX" compose --env-file "$ENV_FILE" "${args[@]}" "$@"; }
 
 PREVIEW_URL="http://stocktake.localhost:8136/desk/pearnly-products"

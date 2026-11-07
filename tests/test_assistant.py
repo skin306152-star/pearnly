@@ -1590,6 +1590,51 @@ class PrepareTests(unittest.TestCase):
         finally:
             claude.WORKSPACE = original
 
+    def _where(self, value):
+        patcher = mock.patch.dict(os.environ, {claude.DEPLOYMENT_ENV: value})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_production_keeps_its_agent_name_and_metadata(self):
+        # 生产这一改不能让线上智能体的说明变样（变了部署后就会更新 / 新建线上那个）
+        self._where("production")
+        brief = definition.brief("cowork")
+        body = claude.spec(brief, engines.default_model(CLAUDE))
+        self.assertEqual(body["name"], brief["name"])
+        self.assertEqual(set(body["metadata"]), {"pearnly_managed", "pearnly_product", "pearnly_spec"})
+
+    def test_a_test_environment_never_updates_the_production_agent(self):
+        # 11-07：测试机导入线上租户的 site_config（同一把密钥），按名字 / 产品找到线上智能体就更新，把线上 CC 改成测试分支的说明
+        self._where("production")
+        live = claude.spec(definition.brief("erp"), engines.default_model(CLAUDE))
+        production = types.SimpleNamespace(id="agent_live", metadata={**live["metadata"], "pearnly_spec": "older"})
+        env = types.SimpleNamespace(id="env", name=claude.ENVIRONMENT["name"])
+        self._where("testenv")
+        api = _FakeApi(agents=[production], environments=[env])
+        self.assertEqual(self._prepare(api)["agent"], "agent_new")
+        self.assertEqual(api.updated, [])
+        [made] = api.created
+        self.assertEqual((made["name"], made["metadata"]["pearnly_deployment"]), ("CC (Pearnly erp) [testenv]", "testenv"))
+
+    def test_production_never_takes_a_test_environment_agent(self):
+        self._where("testenv")
+        test = claude.spec(definition.brief("erp"), engines.default_model(CLAUDE))
+        testenv = types.SimpleNamespace(id="agent_test", metadata={**test["metadata"], "pearnly_spec": "older"})
+        self._where("production")
+        api = _FakeApi(agents=[testenv], environments=[types.SimpleNamespace(id="env", name=claude.ENVIRONMENT["name"])])
+        self.assertEqual(self._prepare(api)["agent"], "agent_new")
+        self.assertEqual(api.updated, [])
+
+    def test_only_production_compose_defaults_to_production(self):
+        compose = (ROOT / "infrastructure/production/compose.yml").read_text(encoding="utf-8")
+        self.assertIn("PEARNLY_DEPLOYMENT: ${PEARNLY_DEPLOYMENT:-production}", compose)
+        self.assertIn("export PEARNLY_DEPLOYMENT=testenv", (ROOT / "infrastructure/testenv/run.sh").read_text(encoding="utf-8"))
+        self.assertIn("PEARNLY_DEPLOYMENT: acceptance",
+                      (ROOT / "infrastructure/compose/erp-acceptance.yml").read_text(encoding="utf-8"))
+        self.assertIn("export PEARNLY_DEPLOYMENT=preview", (ROOT / "scripts/stocktake-preview.sh").read_text(encoding="utf-8"))
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(claude.deployment(), "dev")  # 没设的（实验栈、本机样板）都不是生产
+
     def test_a_new_key_or_model_prepares_again(self):
         self._prepare(_FakeApi())
         for change in ({"key": "sk-ant-api03-" + "y" * 40}, {"model": "claude-sonnet-5-5"}):
