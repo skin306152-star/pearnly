@@ -66,7 +66,9 @@ def steps(params, camera_code=None):
          "for(let k=0;k<60&&(window.__dlgs.length===n||frappe.get_route()[0]!=='pearnly-stock-adjust');k++) await new Promise(r=>setTimeout(r,250));"
          "await idle(); const d=window.__dlgs[window.__dlgs.length-1]; if(!d) return {error:'no draft dialog'};"
          "const qty=[...d.$wrapper.find('.pearnly-line-editor [data-fieldname=\"qty\"] input')].map(e=>e.value);"
-         "const unit=[...d.$wrapper.find('.pearnly-line-editor [data-fieldname=\"unit\"] input')].map(e=>e.value);"
+         # 单位：可改时是输入框，盘点生成的行只读时是显示文字（.control-value）
+         "const unit=[...d.$wrapper.find('.pearnly-line-editor .frappe-control[data-fieldname=\"unit\"]')]"
+         ".map(e=>{const i=e.querySelector('input');return (i&&i.offsetParent!==null?i.value:(e.querySelector('.control-value')||{}).textContent||'').trim()});"
          "return {route: frappe.get_route()[0], editable: Boolean(d.get_primary_btn().is(':visible')), qty, unit};"},
         {"name": "提交调整单", "js": IDLE +
          "const d=window.__dlgs.filter(x=>x.$wrapper.is(':visible')).pop(); if(!d) return {error:'dialog gone'};"
