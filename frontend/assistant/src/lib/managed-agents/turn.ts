@@ -13,7 +13,7 @@
 // 两段工具之间的交接空档都算在跑（见 reducer 文件头）。
 
 import { steps } from "@/i18n";
-import { isBusy, type Projection, type ThreadMessage } from "./reducer";
+import { isBusy, type Projection, type ThreadMessage, type ToolPart } from "./reducer";
 
 export type TurnActivity =
   | { kind: "hidden" }
@@ -54,11 +54,27 @@ function partActivity(message: ThreadMessage): TurnActivity {
       return { kind: "writing" };
     }
     if (part.type === "reasoning") return THINKING;
-    // 有结果、或被拒绝了的一步：引擎在看结果，接着想
-    if (part.result !== undefined || part.approval?.approved === false) return THINKING;
-    return { kind: "tool", toolName: part.toolName, args: part.args, toolCallId: part.toolCallId };
+    // 有结果、或被拒绝了的一步：整批都有结论时引擎在看结果，接着想；同一批并行调用里前面还有一步没结论（服务端挂着等识别，
+    // 后面那步先回了）就说那一步（11-07 实验栈：代录里「识别 + 查待处理」并行，状态行一直「执行中…」看不到识别页数）
+    if (settled(part)) return openInBatch(message, i) ?? THINKING;
+    return toolActivity(part);
   }
   return THINKING;
+}
+
+const settled = (part: ToolPart) => part.result !== undefined || part.approval?.approved === false;
+
+const toolActivity = (part: ToolPart): TurnActivity =>
+  ({ kind: "tool", toolName: part.toolName, args: part.args, toolCallId: part.toolCallId });
+
+/** 紧挨在 index 前面的同一批工具调用里，最后一步还没结论的；中间隔着正文或思考就不是同一批。 */
+function openInBatch(message: ThreadMessage, index: number): TurnActivity | null {
+  for (let j = index - 1; j >= 0; j--) {
+    const part = message.content[j]!;
+    if (part.type !== "tool-call") return null;
+    if (!settled(part)) return toolActivity(part);
+  }
+  return null;
 }
 
 /** 这一轮的计时起点（毫秒）。本页发出的（乐观气泡、还在发送）从按下发送那一刻算；别处发出的、刷新后接着看的从服务端记下

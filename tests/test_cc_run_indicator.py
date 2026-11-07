@@ -184,6 +184,40 @@ assert.equal(turnActivity(s).kind, "tool");
 assert.equal(isBusy(s), true);
 """)
 
+    def test_a_parallel_step_that_answered_first_does_not_hide_the_one_still_reading(self):
+        # 11-07 本机实验栈真引擎：代录里 CC 并行调「识别」与「查待处理」，后者当场有结果、识别挂在服务端；状态行只看最后一步，
+        # 一直「执行中…」，看不到识别页数。整批都有结论才算引擎在看结果。
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { liveProgress, progressText } from "@/lib/managed-agents/progress";
+import { turnActivity } from "@/lib/managed-agents/turn";
+---
+const S = "sesn_par1";
+site.echo = false;
+site.toolReply = () => new Promise(() => {});
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+await c.sendMessage("录入这份", []);
+push(S, ev("u1", "user.message", 1, { content: text("录入这份") }));
+push(S, ev("r1", "session.status_running", 2));
+push(S, ev("t1", "agent.custom_tool_use", 3, { name: "cowork_recognize_attachments", input: { files: ["a.pdf"] } }));
+push(S, ev("t2", "agent.custom_tool_use", 4, { name: "cowork_pending", input: {} }));
+push(S, ev("p1", "session.status_idle", 5, { stop_reason: { type: "requires_action", event_ids: ["t1", "t2"] } }));
+push(S, ev("res2", "user.custom_tool_result", 6, { custom_tool_use_id: "t2", content: text("0 waiting") }));
+dispatchTo(S, { type: "pearnly.progress", id: "pprog_t1", processed_at: "2026-11-07T06:08:00Z", tool_use_id: "t1",
+                done: 7, total: 12, label: "reading_pages" });
+await g.sleep(5);
+let s: any = c.getSnapshot();
+const activity: any = turnActivity(s);
+assert.equal(activity.kind, "tool");
+assert.equal(activity.toolCallId, "t1");
+assert.equal(progressText(liveProgress(s, activity.toolCallId)!), "识别中 7/12 页");
+// 识别也有结论了：整批答完，引擎接着想
+push(S, ev("res1", "user.custom_tool_result", 7, { custom_tool_use_id: "t1", content: text("11 documents") }));
+assert.equal(turnActivity(c.getSnapshot()).kind, "thinking");
+""")
+
     def test_a_confirm_that_never_arrived_keeps_the_card_and_says_why(self):
         # 第 9 轮测试：拦住 assistant.api.confirm 后卡片折成做完的说法「记下了公司选择」、按钮还挂着。确认没送到不能写成功：
         # 卡片照原样回来（问话、改动都在），按钮可再点，上方一行原因（通用句）；再点送到了才定下
