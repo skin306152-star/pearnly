@@ -1024,7 +1024,6 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-purchase:New"
 where = "pearnly-purchase 页头「New」"
-tests = ["flow:erp.purchase.create"]
 
 [[row]]
 id = "erp.desk.pearnly-purchase.action.Payment"
@@ -1146,6 +1145,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-sales:Submit"
 where = "pearnly-sales 页头「Submit」"
+tests = ["flow:erp.sales.scan"]
 
 [[row]]
 id = "erp.desk.pearnly-stock-count.action.Express"

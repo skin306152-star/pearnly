@@ -180,6 +180,8 @@ erp.desk.pearnly-purchase.action.Cancel@desktop
 erp.desk.pearnly-purchase.action.Cancel@mobile
 erp.desk.pearnly-purchase.action.Delete@desktop
 erp.desk.pearnly-purchase.action.Delete@mobile
+erp.desk.pearnly-purchase.action.New@desktop
+erp.desk.pearnly-purchase.action.New@mobile
 erp.desk.pearnly-purchase.action.Payment@desktop
 erp.desk.pearnly-purchase.action.Payment@mobile
 erp.desk.pearnly-purchase.action.substitute_receipt@desktop
@@ -200,8 +202,6 @@ erp.desk.pearnly-sales.action.Express@desktop
 erp.desk.pearnly-sales.action.Express@mobile
 erp.desk.pearnly-sales.action.New@desktop
 erp.desk.pearnly-sales.action.New@mobile
-erp.desk.pearnly-sales.action.Submit@desktop
-erp.desk.pearnly-sales.action.Submit@mobile
 erp.desk.pearnly-stock-count.action.Express@desktop
 erp.desk.pearnly-stock-count.action.Express@mobile
 erp.desk.pearnly-stock-count.action.stock.count.new@desktop
