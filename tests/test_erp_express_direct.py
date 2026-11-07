@@ -917,10 +917,10 @@ class AutoCompanies(Base):
         self.assertEqual(target.current(COMPANY, "2024-05-01")["key"], older)
 
     def test_only_connected_computers_that_report_the_chosen_roots_count(self):
-        # 1.11.0 报整台电脑的账套、断开后名单还留着：照它们建会把事务所别的客户建进来
+        # 1.12.17 以前报位置下全部账套（同一台电脑连着 Cowork 时含事务所别的客户）、断开后名单还留着：照它们建会把别的客户建进来
         from pearnly_erp_portal.express import companies
-        devices = [{"name": "PCD-new", "token_digest": "x", "companion_version": "1.12.0"},
-                   {"name": "PCD-old", "token_digest": "x", "companion_version": "1.11.0"},
+        devices = [{"name": "PCD-new", "token_digest": "x", "companion_version": "1.12.17"},
+                   {"name": "PCD-old", "token_digest": "x", "companion_version": "1.12.16"},
                    {"name": "PCD-left", "token_digest": None, "companion_version": "1.12.3"},
                    {"name": "PCD-retired", "token_digest": "x", "retired_at": "2026-10-23", "companion_version": "1.13.0"}]
         self.assertEqual(companies.scoped(devices), ["PCD-new"])

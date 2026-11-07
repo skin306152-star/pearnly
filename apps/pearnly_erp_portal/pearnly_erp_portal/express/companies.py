@@ -2,11 +2,13 @@
 
 共用机器通道换了一台电脑的账套名单（`pearnly_core.cc_desktop.books.replace` → 钩子 ``books_changed``）就排一个后台任务
 （同站点只留一件）：账套按「税号 + 分店」分组，已有同税号同分店的公司就接上，没有就建一家（公司名取账套登记的公司名，
-不做收银）；新建的每家排上主档同步（`masters.queue`，每分钟按顺序发起几家，读好了在后台落库）。哪些账套报给这个 ERP 由 CC 里
-这台电脑的 ERP 成员选（选了的 Express 数据根才报），见 docs/work/2026-10-23-erp-express-auto-companies.md。
+不做收银）；新建的每家排上主档同步（`masters.queue`，每分钟按顺序发起几家，读好了在后台落库）。哪些账套报给这个 ERP：CC 里
+「Express 位置」勾给 ERP 的那些（同一台电脑也连着 Cowork 时默认不勾，要人勾；只连 ERP 的电脑全给），见
+docs/work/2026-11-07-cc-shared-computer-isolation-评估.md。
 
-**只看还连着、按所选数据根报账套的电脑**（CC 桌面版 :data:`SCOPED_FROM` 起、令牌没作废、没退役）：1.11.0 报的是整台电脑的
-账套，电脑断开（`devices.leave`）后名单也还留着；照它们建会把事务所电脑上别的客户都建进这个 ERP。
+**只看还连着、按成员报账套的电脑**（CC 桌面版 :data:`SCOPED_FROM` 起、令牌没作废、没退役）：更早的版本报的是位置下全部账套
+（1.12.0 的 ERP 勾选 10-24 随整机位置删了，1.12.0–1.12.16 也一样），电脑断开（`devices.leave`）后名单也还留着；照它们建会把
+事务所电脑上别的客户都建进这个 ERP。
 
 **没有有效 13 位税号的账套不建公司**：ERP 认账套（选账套、写单、同步）全靠税号 + 分店，没税号认不出归哪家，建了也写不进、
 同步不了；Express 里补上税号后下一次心跳就建。停用的公司不重建、不启用（人停的）。
@@ -21,7 +23,7 @@ from pearnly_erp_portal.inventory import warehouses
 COMPANY = "ERP Company"
 BOOK = "Pearnly CC Book"
 DEVICE = "Pearnly CC Device"
-SCOPED_FROM = "1.12.0"  # 起这一版 CC 桌面版的 ERP 成员只报人选的数据根里的账套（`worker.erp_scope`）
+SCOPED_FROM = "1.12.17"  # 起这一版 CC 桌面版的 ERP 成员只报勾给它的「Express 位置」下的账套（companion express_places.places_for）
 COMMIT_EVERY = 20
 DEVICES_MAX = 500    # 一个租户连着的电脑（候选只看在用的几台）
 BOOKS_MAX = 5000     # 这些电脑报的账套行（一台几十份）

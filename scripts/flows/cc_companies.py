@@ -70,11 +70,11 @@ if not frappe.db.exists("User Permission", {{"user": "purchase@erp.regression", 
     frappe.get_doc({{"doctype": "User Permission", "user": "purchase@erp.regression", "allow": "ERP Company",
                     "for_value": {a!r}, "apply_to_all_doctypes": 1}}).insert(ignore_permissions=True)
 titles = {{name: frappe.db.get_value("ERP Company", name, "company_name") for name in ({a!r}, {b!r})}}
-# 选择公司弹窗里还没建的账套：一台在用的电脑（CC 桌面版 1.12 起只报人选的数据根）报 A 公司的账套与一家还没有公司的账套
+# 选择公司弹窗里还没建的账套：一台在用的电脑（CC 桌面版 1.12.17 起只报勾给 ERP 的位置）报 A 公司的账套与一家还没有公司的账套
 a_row = frappe.db.get_value("ERP Company", {a!r}, ["tax_id", "branch"], as_dict=True)
 from pearnly_core.cc_desktop import documents
 device = documents.new(documents.DEVICE, "PCD-flow" + {tag!r}, {{"device_label": "flow-pc", "token_digest": "flow",
-                                                               "companion_version": "1.12.12"}})
+                                                               "companion_version": "1.12.17"}})
 new_tax = "0105570" + {tag!r}[:6]
 for key, company, tax, branch in (("flow-a", titles[{a!r}], a_row.tax_id, a_row.branch), ("flow-new", "Flow New " + {tag!r}, new_tax, "00000")):
     documents.new(documents.BOOK, frappe.generate_hash(length=20), {{"device": device.name, "book_key": key + {tag!r}, "label": company,

@@ -541,7 +541,7 @@ class AddCompanyTests(unittest.TestCase):
             self.addCleanup(patch.stop)
         # 两台电脑：PC1 在用、报了 Siam（已有 CO-00001）与 Chiang Mai（还没有公司）；PC-OLD 是旧版、报的不算
         devices = STATE.db.table("Pearnly CC Device")
-        devices["PC1"] = Row(name="PC1", token_digest="t", retired_at=None, companion_version="1.12.12")
+        devices["PC1"] = Row(name="PC1", token_digest="t", retired_at=None, companion_version="1.12.17")
         devices["PC-OLD"] = Row(name="PC-OLD", token_digest="t", retired_at=None, companion_version="1.11.0")
         books_table = STATE.db.table("Pearnly CC Book")
         for name, device, company, tax, branch, start in (
