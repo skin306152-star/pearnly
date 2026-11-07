@@ -71,18 +71,23 @@ const lines=lineForms(); if(lines.length!==3) return {{error:'lines '+lines.leng
 for (const line of lines) {{ await line.set_values({{qty: 2, unit_price: 10}}); }}
 await sleep(600); await idle();
 return {{checks: lines.map(l=>l.get_value({check})), products: lines.map(l=>!!l.get_value('product'))}};"""},
-        {"name": "批量编辑", "js": JS + f"""
+        # 打开弹窗、设好（全部入库、运费那行取消）后截图（设了 PEARNLY_FLOWS_SHOTS 时，`flows-shots/<流程>-<数据>-<宽度>/bulk-edit.png`）
+        {"name": "打开批量编辑", "shot": True, "full": True, "file": "bulk-edit", "js": JS + f"""
 const on=f=>{{const w=f.wrapper&&(f.wrapper.jquery?f.wrapper[0]:f.wrapper); return !!w&&w.isConnected;}};
 const head=window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.bulk_edit&&on(f)).pop();
 head.fields_dict.bulk_edit.$input.click(); await sleep(800); await idle();
 const dlg=await until(()=>(frappe.ui.open_dialogs||[]).slice(-1)[0]); if(!dlg||!dlg.fields_dict.rows) return {{error:'no dialog'}};
 const listed=(dlg.fields_dict.rows.df.data||[]).map(r=>r.label); const warehouse=dlg.get_value('warehouse');
 await dlg.set_value('all','goods'); await sleep(400);
-const data=dlg.fields_dict.rows.df.data; data[1].stock=0; dlg.fields_dict.rows.grid.refresh();
+const data=dlg.fields_dict.rows.df.data; data[1].stock=0; dlg.fields_dict.rows.grid.refresh(); await sleep(400);
+return {{listed: listed.length, warehouse}};"""},
+        {"name": "批量编辑", "js": JS + f"""
+const on=f=>{{const w=f.wrapper&&(f.wrapper.jquery?f.wrapper[0]:f.wrapper); return !!w&&w.isConnected;}};
+const dlg=(frappe.ui.open_dialogs||[]).slice(-1)[0]; if(!dlg||!dlg.fields_dict.rows) return {{error:'no dialog'}};
 const ok=dlg.$wrapper.find('.modal-footer .btn-primary:visible')[0]; if(!ok) return {{error:'no primary'}}; ok.click();
 await sleep(900); await idle();
 const lines=window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.unit_price&&f.fields_dict[{check}]&&on(f));
-return {{listed: listed.length, warehouse, checks: lines.map(l=>l.get_value({check}))}};"""},
+return {{checks: lines.map(l=>l.get_value({check}))}};"""},
         {"name": "提交", "js": JS + """
 const btn=all('.page-actions .primary-action, .page-actions .btn-primary')[0]; if(!btn) return {error:'no submit button'};
 btn.click(); await sleep(1500);
@@ -94,7 +99,8 @@ return {moved: !!moved, route: frappe.get_route(), msg: msg()};"""},
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): (r.get("value") or {}) for r in results}
-    made, bulk, sent = by.get("三行明细", {}), by.get("批量编辑", {}), by.get("提交", {})
+    made, sent = by.get("三行明细", {}), by.get("提交", {})
+    bulk = {**by.get("打开批量编辑", {}), **by.get("批量编辑", {})}
     params["doc"] = (sent.get("route") or [None, None])[1]
     return [{"case": "every line shows the stock check, ticked by default; the first line is the existing item", "seen": made,
              "ok": made.get("checks") == [1, 1, 1] and made.get("products") == [True, False, False]},

@@ -472,6 +472,8 @@ anchor = "line:erp:postback:erp_item"
 where = "LINE 识别后按行追问（全部新建并入库 / 全部只记账 / 逐项选择 / 选已有物料 / 仓库 / 仓位 / 取消，a=erp_item&v=…，11-06 按行选物料与库存）"
 parts = ["line"]
 tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_undecided_lines_are_listed_with_four_buttons", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_one_by_one_with_record_only_and_an_existing_item", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_the_warehouse_is_asked_only_for_stock_lines_and_kept_for_the_batch", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_documents_are_asked_one_at_a_time_and_cancel_moves_on"]
+device_only = "提问随识别完的卡片一起发，要真 LINE 官方号收图、付费识别和 LINE App 的快捷回复按钮；实验栈没有 LINE 频道，模拟 webhook 也不走识别"
+device = "部署后在 testerp（ERP-TEST 官方号，三星 LINE）：富菜单「ซื้อ」→ 上传识别 → 选公司、按票面、已付现金（不再问服务 / 库存商品和仓库）→ 拍一张有已知物料、运费、新物料三种行的票 → 卡片每行标「入库 / 只记账 / 新建 · 入库」，后跟一条提问列出新物料，按钮「全部新建并入库 / 全部只记账 / 逐项选择 / 取消」→ 点「逐项选择」：一项点「新建并入库」、一项点「选已有物料」打名称点序号 → 公司有多个仓且定不下来时问仓库（点一个）→ 仓建了仓位清单时问一次仓位（点一个或「不填」）→ 回一张更新后的卡片，标签已变 → 点卡片「编辑」打开采购页，每行「入库」勾选与卡片一致 → 提交 → 入库的行进了库存、运费行没有。再拍两张连发：一次只问一张，第二张沿用刚选的仓库不再问；同一张票再拍一次：记过的行不再问。销售「ขาย」同走一遍（按钮是「全部新建并出库」）"
 
 [[row]]
 id = "erp.desk.pearnly-cashier"
