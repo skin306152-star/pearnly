@@ -55,3 +55,20 @@
 | 4 | 销货是否同样核一遍（收入按科目组 ACCNUM03？） | 另立：这次只做进货 |
 
 工作量（机器耗时）：写代码约 1.5 小时、CC 全量 10 分钟、回归与 TEST 约 1 小时。
+
+## 7. 主会话审定（11-07）
+
+① 定期账套同批改；② 旧单不动——今天的生产只读统计里，正式租户没有 CC 写过带库存行的进货（erpcowork 只有 1 张赊销，ccdemo 没有库存行，正式 ERP 0 张），
+不用列清单；③ 放 **1.12.18**，CC 正式版从 main 打，**1.12.17 正式版发出之前不合进 main**，做完放在分支上排队，合入前发主会话；④ 销货收入科目另立
+（[半页评估](2026-11-07-cc-sales-revenue-native-评估.md)）。
+
+## 8. 施工记录（分支 `pearnly/cc-purchase-gl-native`，基线 main 62ceb4a35）
+
+- `stock_purchase.write_stock_in_lines` 多收 `groups`：按物料科目组累计 {(ACCNUM01, ACCNUM02): 入库额}。
+- `purchase_lines.stock_journal`（取代 `_reclass_rows`）：从采购那条借方（记在 `items_account` 的那条，没有用第一条）扣出入库额，按账套类型逐科目一条借方
+  （永续 ACCNUM01、定期 ACCNUM02；科目组的科目不能记账而账套默认 ACCNUM04 / ACCNUM18 能记账时用默认；都不能就仍记科目组的科目），SEQIT 0，
+  同 (SEQIT, 科目, 借贷) 合并；余下的留在原采购科目，为 0 不写；扣出的超过这条购货额照旧报错。`dbf_writer` 不再追加 SEQIT 7 / 8。
+- 测试：新增 `tests/test_purchase_gl_native.py` 5 条（永续两个科目组各一条、定期借科目组购货、科目组购货科目不能记账退回 ACCNUM18、现购同规则、混行借贷平且购货只留非库存部分）；
+  `test_purchase_lines.py` 3 条、`test_purchase_stock_loop.py` 1 条按新口径改写（原来钉的是「保留云端购货借方再追加重分类」）。业务代码换回 main 后 8 条失败。
+  CC 全量 1559 通过。
+- 服务端不动：Cowork 读回对带库存行的单本来就只比表头（`push/express/pushed.py`、`readback/diff.py` 的注释还写着「重分类」，下次动服务端时改字）。

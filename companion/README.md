@@ -165,6 +165,9 @@
   - 心跳目录多报仓库表 `warehouses`（`catalog_probe.probe_warehouses`，`docs/work/2026-11-07-cowork-express-warehouse-评估.md`）：代码表
     ISTAB 21 的全部仓 + 主仓 `ISINFO.MAINLOC`，主仓与本账 STCRD 动库存的进货 / 销货行（POSOPR 0 / 9）用过的仓标 `"1"`（与记账指纹同一遍扫）；Cowork 只在在用的仓有两个
     以上时让人选仓。写入不变（载荷 4 的行 `loccod` 早就会写）；旧服务端忽略这个键。服务端先部署也无妨（没报仓库表时什么都不变）。
+  - 进货单库存行的分录照 Express 原生直接记物料科目组的科目（`docs/work/2026-11-07-cc-purchase-gl-native-评估.md`；载荷不变）：永续盘存借
+    `ISACC.ACCNUM01`、定期盘存借 `ACCNUM02`，同科目一条、SEQIT 0，不再追加「借存货 / 贷购货」重分类（SEQIT 7 / 8）；定期账套的购货不再全记进
+    账套默认 ACCNUM18（`purchase_lines.stock_journal`）。
 
 ## 本机测试
 
