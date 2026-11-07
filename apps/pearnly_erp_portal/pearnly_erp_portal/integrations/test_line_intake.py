@@ -404,6 +404,8 @@ class LineItems(Base):
         self.locations = []
         self.enterContext(patch("pearnly_erp_portal.inventory.positions.listed", side_effect=lambda w: list(self.locations)))
         self.enterContext(patch("pearnly_erp_portal.inventory.positions.has_list", side_effect=lambda w: bool(self.locations)))
+        self.location_codes = {}  # 仓位编码（11-07）：{仓位名称: 编码}
+        self.enterContext(patch("pearnly_erp_portal.inventory.positions.codes", side_effect=lambda w: dict(self.location_codes)))
         frappe.db.exists.return_value = True
         self.sessions["U1"] = {"state": line_flow.STATE, "payload": {"direction": "purchase", "entry": "upload"}}
         self.roles["buyer"] = {"purchase.write", "purchase.read", "integration.read"}
@@ -496,6 +498,20 @@ class LineItems(Base):
         self.tap("a=erp_item&v=l&n=LI-1&k=1")
         self.assertEqual([row["location"] for row in self.lines("LI-1")], ["B2", "B2"])
         self.assertEqual(self.replies[-1], [{"card": "LI-1"}])
+
+    def test_location_buttons_show_the_code_and_a_typed_code_picks_the_location(self):
+        """仓位编码（11-07）：问仓位的按钮写「编码 · 名称」，点下去记名称；打字回复编码也认。"""
+        self.locations = ["Shelf A", "Shelf B"]
+        self.location_codes = {"Shelf A": "A1"}
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        question = self.items.queue("U1", ["LI-1"])
+        self.assertEqual(self.labels(question)[:2], ["A1 · Shelf A", "Shelf B"])
+        self.tap("a=erp_item&v=l&n=LI-1&k=0")
+        self.assertEqual([row["location"] for row in self.lines("LI-1")], ["Shelf A"])
+        self.add("LI-2", [self.row(True, product="P2")], warehouse="WH-1")
+        self.items.queue("U1", ["LI-2"])
+        self.say("a1")  # 打的是编码（不分大小写）
+        self.assertEqual([row["location"] for row in self.lines("LI-2")], ["Shelf A"])
 
     def test_documents_are_asked_one_at_a_time_and_cancel_moves_on(self):
         self.add("LI-1", [self.row()], warehouse="WH-1")
