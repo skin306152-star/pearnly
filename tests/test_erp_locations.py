@@ -31,14 +31,19 @@ class Locations(unittest.TestCase):
     def setUp(self):
         self.lists = {"W1": [("A-01", 1), ("A-02", 1), ("OLD", 0)], "W2": []}
         self.notes = {("W1", "A-01"): "前排货架"}  # 库位说明（用户 10-29）
+        self.codes = {}  # 仓位编码（11-07）：{(仓, 仓位): 编码}
         self.stock = {("W1", "A-01"): 3.0}
         self.moved = {("W1", "A-02")}
 
-        def get_all(doctype, filters=None, pluck=None, fields=None, **kw):
+        def get_all(doctype, filters=None, pluck=None, fields=None, or_filters=None, **kw):
             if doctype == L.CHILD:
-                rows = [{"location_name": name, "is_active": active, "description": self.notes.get((filters["parent"], name))}
+                rows = [{"location_name": name, "is_active": active, "description": self.notes.get((filters["parent"], name)),
+                         "location_code": self.codes.get((filters["parent"], name))}
                         for name, active in self.lists.get(filters["parent"], [])
                         if "is_active" not in filters or active == filters["is_active"]]
+                if or_filters:  # 按名称或编码模糊搜（like %字%）
+                    rows = [row for row in rows if any(op == "like" and value.strip("%").casefold() in (row[field] or "").casefold()
+                                                       for field, (op, value) in or_filters.items())]
                 return [row[pluck] for row in rows] if pluck else [types.SimpleNamespace(**row) for row in rows]
             if doctype == "ERP Stock Balance":
                 return [types.SimpleNamespace(location=loc, qty=qty) for (wh, loc), qty in self.stock.items()
@@ -95,8 +100,8 @@ class Locations(unittest.TestCase):
             L.api_save_locations("W1", [{"location_name": "A-01"}, {"location_name": " A-01"}, {"location_name": "A-02"}])
         with mock.patch.object(L, "api_get_locations", lambda warehouse: "reloaded"):
             L.api_save_locations("W1", [{"location_name": "A-01"}, {"location_name": "A-02", "is_active": 0}])
-        self.assertEqual(self.saved["W1"], [{"location_name": "A-01", "is_active": 1, "description": ""},
-                                            {"location_name": "A-02", "is_active": 0, "description": ""}])
+        self.assertEqual(self.saved["W1"], [{"location_code": "", "location_name": "A-01", "is_active": 1, "description": ""},
+                                            {"location_code": "", "location_name": "A-02", "is_active": 0, "description": ""}])
         with mock.patch.object(L, "api_get_locations", lambda warehouse: "reloaded"):
             L.api_save_locations("W1", [{"location_name": "A-01", "description": " 前排货架 "}, {"location_name": "A-02"}])
         self.assertEqual(self.saved["W1"][0]["description"], "前排货架")
@@ -106,9 +111,59 @@ class Locations(unittest.TestCase):
         options = L.api_location_options("", "W1")
         self.assertEqual([row["value"] for row in options], ["A-01", "A-02", "OLD-B"])  # 有库存的旧库位也列出、标「不在清单」
         self.assertEqual(options[-1]["label"], "OLD-B · stock.location.offList")
-        self.assertEqual(options[0]["label"], "A-01 · 前排货架")  # 有说明的显示「库位 · 说明」，值仍是库位名
+        self.assertEqual(options[0]["label"], "A-01 · 前排货架")  # 没编码：「名称 · 说明」，值仍是仓位名称
         self.assertEqual(L.api_location_options("A", None), [])
         self.assertEqual(L.api_location_options("", "W2"), [])  # 没建清单：没有选项，照旧手输
+
+    def test_location_codes_are_unique_within_a_warehouse_and_may_be_empty(self):
+        """仓位编码（11-07）：同一仓库里不能重（不分大小写）、可空、多行空编码可以；最长 30；别的仓同编码可以。"""
+        with mock.patch.object(L, "api_get_locations", lambda warehouse: "reloaded"):
+            with self.assertRaisesRegex(Refused, "Duplicate location code: a1"):
+                L.api_save_locations("W1", [{"location_name": "A-01", "location_code": "A1"},
+                                            {"location_name": "A-02", "location_code": " a1 "}])
+            with self.assertRaisesRegex(Refused, "Invalid value"):
+                L.api_save_locations("W1", [{"location_name": "A-01", "location_code": "X" * 31}, {"location_name": "A-02"}])
+            L.api_save_locations("W1", [{"location_name": "A-01", "location_code": " A1 "}, {"location_name": "A-02"},
+                                        {"location_name": "A-03", "location_code": ""}])
+            self.assertEqual([row["location_code"] for row in self.saved["W1"]], ["A1", "", ""])
+            L.api_save_locations("W2", [{"location_name": "B-01", "location_code": "A1"}])  # 别的仓同编码可以
+        rows = [types.SimpleNamespace(location_code=code) for code in ("A1", "", None, "B2")]
+        self.assertEqual(L.duplicate_code(rows), "")
+        self.assertEqual(L.duplicate_code(rows + [types.SimpleNamespace(location_code="b2")]), "b2")  # 仓库控制器同一判据
+
+    def test_options_show_code_name_and_note_and_search_by_either(self):
+        self.codes[("W1", "A-01")] = "A1"
+        options = L.api_location_options("", "W1")
+        self.assertEqual(options[0], {"value": "A-01", "label": "A1 · A-01 · 前排货架"})  # 「编码 · 名称 · 说明」，值仍是名称
+        self.assertEqual(options[1], {"value": "A-02", "label": "A-02"})  # 没编码、没说明只写名称
+        self.assertEqual([row["value"] for row in L.api_location_options("a1", "W1")], ["A-01"])  # 按编码搜
+        self.assertEqual([row["value"] for row in L.api_location_options("02", "W1")], ["A-02"])  # 按名称搜
+
+    def test_imports_and_line_take_a_code_for_its_location(self):
+        self.codes.update({("W1", "A-01"): "A1", ("W1", "A-02"): "A-01X"})
+        self.assertEqual(P.resolve("W1", " a1 "), "A-01")      # 编码 → 名称（不分大小写）
+        self.assertEqual(P.resolve("W1", "A-02"), "A-02")      # 本来就是名称
+        self.assertEqual(P.resolve("W1", "Z-9"), "Z-9")        # 都不是：照原样，交给清单核
+        self.assertEqual(P.resolve("W2", "A1"), "A1")          # 别的仓没有这个编码
+        self.codes[("W1", "A-02")] = "A-01"
+        self.assertEqual(P.resolve("W1", "A-01"), "A-01")      # 名称与别的仓位的编码撞了：按名称
+        self.assertEqual(P.label("A-01", "A1", ""), "A1 · A-01")
+
+    def test_stock_and_count_exports_carry_the_location_code(self):
+        """库存导出、盘点导出加「仓位编码」一列（11-07 主会话定），收发存不加。"""
+        import ast
+
+        self.codes[("W1", "A-01")] = "A1"
+        rows = P.with_codes([{"warehouse": "W1", "location": "A-01"}, {"warehouse": "W1", "location": ""},
+                             {"warehouse": "W2", "location": "X"}])
+        self.assertEqual([row["location_code"] for row in rows], ["A1", "", ""])
+        source = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py").read_text(encoding="utf-8")
+        tree = {node.targets[0].id: ast.literal_eval(node.value) for node in ast.parse(source).body
+                if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") in ("EXPORT_COLUMNS", "COUNT_COLUMNS")}
+        for name in ("EXPORT_COLUMNS", "COUNT_COLUMNS"):
+            fields = [field for field, _key in tree[name]]
+            self.assertEqual(fields[fields.index("location") + 1], "location_code", name)
+        self.assertEqual(source.count("positions.with_codes("), 2)  # 库存导出、盘点导出各一处
 
     def test_a_warehouse_with_stock_cannot_be_turned_off(self):
         """G16（多仓闭环 P0）：同库位停用，仓里还有货就不能停；没货的照停；只改名不核。"""

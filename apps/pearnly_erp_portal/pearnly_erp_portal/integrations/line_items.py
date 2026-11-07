@@ -238,8 +238,10 @@ def _question(doc, asking) -> dict | None:
             return _message(f"{_title(doc, result)}\n{_('erp.line.items.location')}\n{_('erp.line.items.typeLocation')}",
                             [skip], name)
         asking["offered"] = names
+        codes = positions.codes(value["warehouse"])  # 按钮写「编码 · 名称」（11-07），点下去记的仍是名称
         return _message(f"{_title(doc, result)}\n{_('erp.line.items.location')}",
-                        [_button(label, v="l", n=name, k=index) for index, label in enumerate(names)] + [skip], name)
+                        [_button(positions.label(label, codes.get(label)), v="l", n=name, k=index)
+                         for index, label in enumerate(names)] + [skip], name)
     return None
 
 
@@ -476,10 +478,14 @@ def search(line_user_id, user, text, reply_token) -> bool:
     else:
         from pearnly_erp_portal.inventory import positions
 
-        names = positions.listed(choices_of(doc)["warehouse"])
-        if wanted in names:
-            return _chose_location(line_user_id, payload, reply_token, doc, wanted) or True
-        found = [(name, name) for name in names if wanted.casefold() in name.casefold()]
+        warehouse = choices_of(doc)["warehouse"]
+        names = positions.listed(warehouse)
+        exact = positions.resolve(warehouse, wanted)  # 打的是仓位编码也认（11-07）
+        if exact in names:
+            return _chose_location(line_user_id, payload, reply_token, doc, exact) or True
+        codes = positions.codes(warehouse)
+        found = [(name, positions.label(name, codes.get(name))) for name in names
+                 if wanted.casefold() in name.casefold() or wanted.casefold() in codes.get(name, "").casefold()]
     if not found:
         _reply(reply_token, [_text(_("No match for “{0}”").format(wanted[:40])), _question(doc, asking)])
         line_flow.keep(line_user_id, payload)

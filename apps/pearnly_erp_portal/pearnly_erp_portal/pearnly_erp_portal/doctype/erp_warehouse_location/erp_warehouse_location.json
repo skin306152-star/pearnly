@@ -5,11 +5,19 @@
  "engine": "InnoDB",
  "istable": 1,
  "field_order": [
+  "location_code",
   "location_name",
   "description",
   "is_active"
  ],
  "fields": [
+  {
+   "fieldname": "location_code",
+   "fieldtype": "Data",
+   "label": "Location code",
+   "length": 30,
+   "in_list_view": 1
+  },
   {
    "fieldname": "location_name",
    "fieldtype": "Data",
@@ -34,7 +42,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-29 14:00:00.000000",
+ "modified": "2026-11-07 18:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Warehouse Location",
  "owner": "Administrator",

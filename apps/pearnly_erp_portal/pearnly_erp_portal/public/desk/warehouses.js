@@ -135,9 +135,11 @@
 					{fieldtype: "Section Break"},
 					{fieldtype: "Table", fieldname: "locations", label: __("stock.location.list"), in_place_edit: true, data: [],
 						fields: [
-							{fieldtype: "Data", fieldname: "location_name", label: __("stock.count.location"), reqd: 1, in_list_view: 1, columns: 3},
-							// 库位说明（用户 10-29）：选择框显示「A1 · 说明」，盘点打印的库位格也带上
-							{fieldtype: "Data", fieldname: "description", label: __("stock.location.description"), in_list_view: 1, columns: 3},
+							// 仓位编码（11-07）：同一仓库里不能重、可空（服务端核）；选择框显示「编码 · 名称 · 说明」，按编码或名称都搜得到
+							{fieldtype: "Data", fieldname: "location_code", label: __("stock.location.code"), length: 30, in_list_view: 1, columns: 2},
+							{fieldtype: "Data", fieldname: "location_name", label: __("stock.count.location"), reqd: 1, in_list_view: 1, columns: 2},
+							// 库位说明（用户 10-29），盘点打印的库位格也带上
+							{fieldtype: "Data", fieldname: "description", label: __("stock.location.description"), in_list_view: 1, columns: 2},
 							{fieldtype: "Check", fieldname: "is_active", label: __("Active"), default: 1, in_list_view: 1, columns: 2},
 							{fieldtype: "Float", fieldname: "qty", label: __("Qty"), read_only: 1, in_list_view: 1, columns: 2},
 						]},
@@ -155,7 +157,8 @@
 					"POST");
 				if (!is_new && locations_loaded) {
 					await p.call(stock_api.replace("api.", "locations.") + "api_save_locations", {warehouse: row.name,
-						rows: (values.locations || []).map(item => ({location_name: item.location_name, description: item.description || "",
+						rows: (values.locations || []).map(item => ({location_code: item.location_code || "",
+							location_name: item.location_name, description: item.description || "",
 							is_active: item.is_active ? 1 : 0}))}, "POST");
 				}
 				dialog.hide();

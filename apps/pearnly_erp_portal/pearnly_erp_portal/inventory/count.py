@@ -341,6 +341,8 @@ def _upsert_import_entry(count: str, item_name: str, row) -> None:
     request_id = f"import:{count}:{item_name}"
     existing = frappe.db.get_value(ENTRY, {"request_id": request_id}, "name")
     location = (row.get("location") or "").strip() or None
+    if location:  # 表里写的是仓位编码也认（11-07），换成这一行所在仓的仓位名称
+        location = positions.resolve(frappe.db.get_value(ITEM, item_name, "warehouse"), location) or None
     if existing:
         edit_entry(entry=existing, qty=row.get("counted_qty"), location=location)
         return

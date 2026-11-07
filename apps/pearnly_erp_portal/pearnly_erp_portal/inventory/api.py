@@ -256,6 +256,7 @@ EXPORT_COLUMNS = (
     ("barcode", "stock.col.barcode"),
     ("warehouse_name", "stock.col.warehouse"),
     ("location", "stock.count.location"),
+    ("location_code", "stock.location.code"),  # 仓位编码（11-07 主会话定：库存导出、盘点导出加这一列，收发存不加）
     ("unit", "stock.col.unit"),
     ("qty_on_hand", "stock.col.onHand"),
     ("unit_cost", "stock.col.cost"),
@@ -329,7 +330,9 @@ def stock_export_size(**kwargs):
 
 
 def stock_export_file(**kwargs):
-    return _csv(_stock_export_rows(**kwargs))
+    from pearnly_erp_portal.inventory import positions
+
+    return _csv(positions.with_codes(_stock_export_rows(**kwargs)))
 
 
 @frappe.whitelist(methods=["POST"])
@@ -366,6 +369,7 @@ COUNT_COLUMNS = (
     ("unit", "stock.col.unit"),
     ("warehouse_name", "stock.col.warehouse"),
     ("location", "stock.count.location"),
+    ("location_code", "stock.location.code"),
     ("actual_positions", "stock.workbench.actualPositions"),
     ("book_qty", "stock.count.book"),
     ("counted_qty", "stock.count.counted"),
@@ -795,6 +799,9 @@ def stock_count_export_file(name=None, only=None, warehouse=None, location=None,
     items = stock_contracts.count_rows(counts.list_items(count=name, limit=0), only=only or "",
                                        warehouse=warehouse or "", location=location or "")
     kept = {row["name"] for row in items}
+    from pearnly_erp_portal.inventory import positions
+
+    positions.with_codes(items)  # 汇总表带「仓位编码」一列
     entries = [row for row in counts.list_entries(count=name, limit=0) if row.get("item") in kept]
     blind = task.get("status") == "Active" and not (mode == "check" and guard.has("stock.manage"))
     return {"filename": f"{name}.xlsx", "content": _count_workbook(task, items, entries, blind=blind)}

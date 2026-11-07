@@ -37,6 +37,44 @@ def listed(warehouse) -> list:
                           order_by="idx asc", limit_page_length=0)
 
 
+CODE_LENGTH = 30  # 仓位编码（11-07）：同一仓库里不能重，可空；单据、流水里存的仍是仓位名称
+
+
+def codes(warehouse) -> dict:
+    """这个仓清单里各仓位的编码 ``{仓位名称: 编码}``（没写编码的不列）。"""
+    if not warehouse:
+        return {}
+    rows = frappe.get_all("ERP Warehouse Location", filters={"parent": warehouse, "parenttype": "ERP Warehouse"},  # bounded: 一个仓的库位
+                          fields=["location_name", "location_code"], limit_page_length=0)
+    return {row.location_name: row.location_code.strip() for row in rows if (row.location_code or "").strip()}
+
+
+def label(name, code="", description="") -> str:
+    """「编码 · 名称 · 说明」（选仓位的下拉、LINE 按钮同一个写法）：没编码、没说明的那段不写。"""
+    return " · ".join(part for part in ((code or "").strip(), (name or "").strip(), (description or "").strip()) if part)
+
+
+def with_codes(rows) -> list:
+    """导出行带上仓位编码 ``location_code``（按行的仓与仓位名称查那个仓的清单，每个仓只查一次）；没编码留空。"""
+    by_warehouse: dict = {}
+    for row in rows:
+        warehouse = row.get("warehouse")
+        if warehouse not in by_warehouse:
+            by_warehouse[warehouse] = codes(warehouse)
+        row["location_code"] = by_warehouse[warehouse].get(row.get("location") or "", "")
+    return rows
+
+
+def resolve(warehouse, value) -> str:
+    """导入的表格、LINE 里打的字：先按这个仓清单里的编码认（不分大小写），认到换成那个仓位的名称；认不到照原样当名称。"""
+    value = clean_location(value)
+    if not value or not warehouse:
+        return value
+    wanted = value.casefold()
+    found = [name for name, code in codes(warehouse).items() if code.casefold() == wanted]
+    return found[0] if len(found) == 1 and value not in listed(warehouse) else value
+
+
 def check(warehouse, location):
     """库位清单（第 5 项）：仓库建了清单，库位就只能是清单里在用的；空库位（不分库位）照旧可以；没建清单的仓照旧手输。
     只在货**进**库位时核（库存流水 `stock.apply_movement`、盘点记到别处）：从清单之前的旧库位出货照常。"""

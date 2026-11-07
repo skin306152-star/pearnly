@@ -186,9 +186,10 @@ def _row_warehouse(value, context, *, current):
 
 
 def _row_location(warehouse, location):
-    """库位按这个仓的清单核（`positions.check`，预览就核，原来提交才整批失败，G5）；不在清单记成这一行的错。"""
+    """库位按这个仓的清单核（`positions.check`，预览就核，原来提交才整批失败，G5）；不在清单记成这一行的错。
+    表里写的是仓位编码也认（11-07，`positions.resolve`），存仓位名称。"""
     try:
-        return positions.check(warehouse, location)
+        return positions.check(warehouse, positions.resolve(warehouse, location))
     except ValueError:
         raise
     except Exception as error:  # noqa: BLE001 - frappe.throw 的校验错：整批预览照常出，错误落在这一行

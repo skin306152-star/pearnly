@@ -3,14 +3,15 @@
 每套数据在仓库页打开数据清单里第一个仓：
 - 新开户（接了 Express 的仓）：编号一格就是 Express 仓库码、只读；
 - 老数据（本地仓）：填一个编号保存，库里记下、仓库列表那一列显示它。
-两套都给第一个库位写说明保存：库里记下；库位选择框的选项显示「库位 · 说明」。没有库位清单的仓先建一个库位再写。
+两套都给第一个库位写说明与仓位编码（11-07）保存：库里记下；库位选择框的选项显示「编码 · 仓位 · 说明」，按编码搜得到这个仓位。
+没有库位清单的仓先建一个库位再写。
 """
 from __future__ import annotations
 
 import json
 import uuid
 
-TITLE = "ERP 仓库：仓库编号与库位说明"
+TITLE = "ERP 仓库：仓库编号、库位说明与仓位编码"
 IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
 CAPTURE = ("window.__dlgs=window.__dlgs||[];if(!frappe.ui.Dialog.prototype.__cap){const o=frappe.ui.Dialog.prototype.show;"
            "frappe.ui.Dialog.prototype.show=function(){window.__dlgs.push(this);return o.apply(this,arguments)};frappe.ui.Dialog.prototype.__cap=1;}")
@@ -34,11 +35,11 @@ frappe.db.commit()
 print(json.dumps({{"warehouse": wh.name, "warehouse_name": wh.warehouse_name, "express_code": wh.express_code or "", "location": rows[0]}}))
 """)
     tag = uuid.uuid4().hex[:4].upper()
-    return {**out, "company": company, "code": "WF" + tag, "note": "ชั้นหน้า " + tag, "cases": []}
+    return {**out, "company": company, "code": "WF" + tag, "note": "ชั้นหน้า " + tag, "location_code": "L" + tag, "cases": []}
 
 
 def steps(params, camera_code=None):
-    name, code, note, loc = (json.dumps(params[k]) for k in ("warehouse_name", "code", "note", "location"))
+    name, code, note, loc, loc_code = (json.dumps(params[k]) for k in ("warehouse_name", "code", "note", "location", "location_code"))
     return [
         {"name": "打开仓库", "js": IDLE + CAPTURE +
          f"const a=[...document.querySelectorAll('a, .dt-cell__content')].find(e=>e.offsetParent&&e.children.length===0&&e.textContent.trim()==={name});"
@@ -54,37 +55,44 @@ def steps(params, camera_code=None):
          "const d=window.__dlgs[window.__dlgs.length-1]; if(!d) return {error:'no dialog'};"
          f"if(!d.fields_dict.warehouse_code.df.read_only) await d.set_value('warehouse_code', {code});"
          f"const row=(d.fields_dict.locations.grid.get_data()||[]).find(r=>r.location_name==={loc}); if(!row) return {{error:'location row missing'}};"
-         f"row.description={note}; d.fields_dict.locations.grid.refresh(); await new Promise(r=>setTimeout(r,300));"
+         f"row.description={note}; row.location_code={loc_code}; d.fields_dict.locations.grid.refresh(); await new Promise(r=>setTimeout(r,300));"
          "d.get_primary_btn().trigger('click'); for(let k=0;k<40&&d.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();"
          "return {closed: !d.$wrapper.is(':visible')};"},
         {"name": "库位选项", "js": IDLE +
          f"const r=await frappe.call({{method:'pearnly_erp_portal.inventory.locations.api_location_options', args:{{warehouse:{json.dumps(params['warehouse'])}}}}});"
-         "return {options: (r.message||[]).map(o=>typeof o==='string'?{value:o,label:o}:o)};"},
+         f"const by=await frappe.call({{method:'pearnly_erp_portal.inventory.locations.api_location_options', args:{{warehouse:{json.dumps(params['warehouse'])}, txt:{loc_code}.toLowerCase()}}}});"
+         "const shape=o=>typeof o==='string'?{value:o,label:o}:o;"
+         "return {options: (r.message||[]).map(shape), by_code: (by.message||[]).map(shape).map(o=>o.value)};"},
     ]
 
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): (r.get("value") or {}) for r in results}
     opened, options = by.get("打开仓库", {}), by.get("库位选项", {}).get("options") or []
+    by_code = by.get("库位选项", {}).get("by_code")
     if params["express_code"]:
         code_ok = opened.get("code") == params["express_code"] and opened.get("code_read_only")
     else:
         code_ok = not opened.get("code_read_only")
     label = next((o.get("label") for o in options if o.get("value") == params["location"]), None)
     return [
-        {"case": "code field", "seen": opened, "ok": bool(code_ok) and "description" in (opened.get("columns") or [])
+        {"case": "code field", "seen": opened, "ok": bool(code_ok) and {"description", "location_code"} <= set(opened.get("columns") or [])
          and opened.get("list_has_code_column")},
         {"case": "saved", "seen": by.get("填编号与库位说明保存"), "ok": (by.get("填编号与库位说明保存") or {}).get("closed") is True},
-        {"case": "location option shows description", "seen": options, "ok": label == f"{params['location']} · {params['note']}"},
+        {"case": "location option shows code, name and description", "seen": options,
+         "ok": label == f"{params['location_code']} · {params['location']} · {params['note']}"},
+        {"case": "location found by its code", "seen": by_code, "ok": by_code == [params["location"]]},
     ]
 
 
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 row = frappe.db.get_value("ERP Warehouse", {params['warehouse']!r}, ["warehouse_code", "express_code"], as_dict=True)
-desc = frappe.db.get_value("ERP Warehouse Location", {{"parent": {params['warehouse']!r}, "location_name": {params['location']!r}}}, "description")
-print(json.dumps({{"warehouse": row, "description": desc}}))
+loc = frappe.db.get_value("ERP Warehouse Location", {{"parent": {params['warehouse']!r}, "location_name": {params['location']!r}}},
+                         ["description", "location_code"], as_dict=True)
+print(json.dumps({{"warehouse": row, "description": loc.description, "location_code": loc.location_code}}))
 """)
     want_code = None if params["express_code"] else params["code"]
     return [{"case": "code and description saved", "saved": got,
-             "ok": (got["warehouse"]["warehouse_code"] or None) == want_code and got["description"] == params["note"]}]
+             "ok": (got["warehouse"]["warehouse_code"] or None) == want_code and got["description"] == params["note"]
+             and got["location_code"] == params["location_code"]}]

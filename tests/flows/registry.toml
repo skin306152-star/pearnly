@@ -234,7 +234,7 @@ covers = [
 
 [[flow]]
 id = "erp.warehouses.codes"
-title = "ERP 仓库：仓库编号与库位说明（盘点菜单做完整 S5）"
+title = "ERP 仓库：仓库编号、库位说明与仓位编码（盘点菜单做完整 S5；仓位编码 11-07）"
 module = "scripts/flows/erp_warehouse_codes.py"
 start = "/desk/pearnly-warehouses"
 user = "admin"
