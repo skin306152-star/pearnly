@@ -425,31 +425,34 @@ class DocumentPayment(unittest.TestCase):
     def items(self, value, supplier=None):
         return json.dumps([{"kind": "payment", "subject": "purchase|" + (supplier or self.SUPPLIER), "value": value}])
 
-    def test_the_payment_cc_saves_for_a_document_is_written_on_that_document(self):
-        service, calls, updates = self._service()
-        out = service.save_choices("H1", "C1", BOOK, self.items("credit"), document_payment=True)
-        self.assertEqual(out, {"saved": 1, "document_payment": "credit"})
-        self.assertEqual([record[2:5] for record in calls["records"]],
-                         [("payment", "purchase|" + self.SUPPLIER, "credit")])  # 供应商记忆照记（以后的票用）
+    def _on_document(self, service, value, supplier=None):
+        doc = service.storage.read("H1")
+        _target, _flat, fields, direction, _prep, _config = service._express_facts(doc, None, BOOK)
+        return service._document_payment(doc, fields, direction, json.loads(self.items(value, supplier)))
+
+    def test_the_payment_cc_answers_for_a_document_is_written_on_that_document(self):
+        service, _calls, updates = self._service()
+        self.assertEqual(self._on_document(service, "credit"), "credit")
         (name, pages, version), = updates
         self.assertEqual((name, version, pages[0]["fields"]["posting_payment_manual"]), ("H1", "4", "credit"))
 
-    def test_the_web_entry_and_other_cases_leave_the_document_alone(self):
-        for kwargs, setup in (({}, {}),                                          # 网页「要选的项」照旧只记供应商
-                              ({"document_payment": True}, {"status": "success"}),  # 已入账的不动
-                              ({"document_payment": True}, {"direction": "sales"})):
-            with self.subTest(kwargs=kwargs, setup=setup):
+    def test_the_review_page_choice_only_remembers_the_supplier(self):
+        service, calls, updates = self._service()
+        out = service.save_choices("H1", "C1", BOOK, self.items("cash"))
+        self.assertEqual((out, updates), ({"saved": 1}, []))  # 网页「要选的项」只记供应商（以后的票用）
+        self.assertEqual([record[2:5] for record in calls["records"]], [("payment", "purchase|" + self.SUPPLIER, "cash")])
+
+    def test_other_cases_leave_the_document_alone(self):
+        for setup in ({"status": "success"}, {"direction": "sales"}):  # 已入账的、销项的不动
+            with self.subTest(setup=setup):
                 service, _calls, updates = self._service(**setup)
-                out = service.save_choices("H1", "C1", BOOK, self.items("cash"), **kwargs)
-                self.assertEqual((out, updates), ({"saved": 1}, []))
+                self.assertEqual((self._on_document(service, "cash"), updates), (None, []))
         # 选的是别家供应商的现 / 赊：不写到这张票上
         service, _calls, updates = self._service()
-        out = service.save_choices("H1", "C1", BOOK, self.items("cash", "0105599220213"), document_payment=True)
-        self.assertEqual((out, updates), ({"saved": 1}, []))
+        self.assertEqual((self._on_document(service, "cash", "0105599220213"), updates), (None, []))
         # 这张票已是这个值：不重写
         service, _calls, updates = self._service(manual="cash")
-        out = service.save_choices("H1", "C1", BOOK, self.items("cash"), document_payment=True)
-        self.assertEqual((out, updates), ({"saved": 1, "document_payment": "cash"}, []))
+        self.assertEqual((self._on_document(service, "cash"), updates), ("cash", []))
 
     def test_two_documents_of_one_supplier_keep_their_own_payment_when_pushed(self):
         """录制里的那一对：先记 NL-0924 现金、再记 NL-0907 赊账，供应商记忆最后是赊账；推送时各按自己的付款方式。"""

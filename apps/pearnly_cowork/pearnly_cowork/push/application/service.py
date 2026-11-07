@@ -706,14 +706,10 @@ def masters_wait(masters, needed):
     return wait
 
 
-def save_choices(history, connection, account_set_key, items, *, document_payment=False):
+def save_choices(history, connection, account_set_key, items):
     """记下会计在复核页选的（每项 `{kind, subject, value, label}`）；值须在这份账套的主档里（或「新建」）。账套记忆里记过的科目 /
-    现 / 赊被改成别的值时 `push.choices.record` 另记一条改值（自动推判档 R1，10-18）。
-
-    ``document_payment``（CC 卡片答的现 / 赊，`assistant.precheck_source.remember`）：为这张进项票的供应商选的现 / 赊同时写成这张票自己的付款方式
-    （`posting_payment_manual`，同复核页改付款方式，付款判定的第一级）。账套记忆按供应商只有一个值：2026-10-20 教程录制，用户说
-    「印了已转账的是现金、其余赊账」，同一家供应商的两张票 CC 一张记现金、一张记赊账，后记的盖掉先记的，两张都按同一个值写进
-    Express（KD2609-00318 应现购写成 RR、NL-0907-2569-04 应赊购写成 HP），CC 推前说的与写入的不一致。"""
+    现 / 赊被改成别的值时 `push.choices.record` 另记一条改值（自动推判档 R1，10-18）。只记账套记忆，不改这张票自己的付款方式
+    （CC 卡片为这张票答的现 / 赊走 `_document_payment`，`assistant.precheck_source`）。"""
     scope.require("intake")
     doc = storage.read(history)
     loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)
@@ -750,14 +746,8 @@ def save_choices(history, connection, account_set_key, items, *, document_paymen
         subject = str(item.get("subject") or "").strip() or _own_subject(kind, fields, direction)
         if not subject:
             frappe.throw(_("cowork.choice.subject_missing"))
-        item["subject"] = subject  # document_payment 按同一个归类键认这张票的现 / 赊
         saved += int(choice_store.record(loaded.doc.name, target.account_set, kind, subject, value, item.get("label")))
-    result = {"saved": saved}
-    if document_payment:
-        chosen = _document_payment(doc, fields, direction, items)
-        if chosen:
-            result["document_payment"] = chosen
-    return result
+    return {"saved": saved}
 
 
 # 归类键由这张单的对方唯一确定的类（按对方记，`supplier_subject`）：调用方没带归类键时按这张单补上，同复核页「要选的项」记的键
@@ -776,8 +766,10 @@ def _own_subject(kind, fields, direction) -> str:
 
 
 def _document_payment(doc, fields, direction, items):
-    """`save_choices` 的 ``document_payment``：items 里为这张进项票的供应商（归类键同 `choices.resolve`）选的现 / 赊写成这张票的
-    付款方式，回写下的值；已推出去的、不是进项、没选这家现 / 赊的、已是这个值的不动，回 None。"""
+    """CC 卡片为这张票答的现 / 赊（`assistant.precheck_source._set_document_payment`）：items 里为这张进项票的供应商（归类键同
+    `choices.resolve`）选的现 / 赊写成这张票的付款方式（`posting_payment_manual`，同复核页改付款方式，付款判定的第一级），回写下的值；
+    已推出去的、不是进项、没选这家现 / 赊的、已是这个值的不动，回 None。账套记忆按供应商只有一个值：2026-10-20 教程录制，同一家
+    供应商的两张票一张现金、一张赊账，后记的盖掉先记的，两张都按同一个值写进 Express，所以按票写在票上。"""
     if direction != "purchase" or doc.last_push_status in ("pending", "success"):
         return None
     subject = choice_rules.supplier_subject(direction, fields.get("seller_tax"), fields.get("seller_name"))
