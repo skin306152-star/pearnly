@@ -509,7 +509,9 @@ g.done();
 class LongPressTests(unittest.TestCase):
     def test_long_press_rows_do_not_select_text_but_inputs_still_do(self):
         css = read("globals.css")
-        block = css.split('    [data-slot="aui_thread-list-item"], .cc-project-row, .cc-mdrawer, [data-slot="sidebar"] {', 1)[1].split("\n  }", 1)[0]
+        # 侧栏的待处理占位行同对话行一套（侧栏三处 11-07）
+        block = css.split('    [data-slot="aui_thread-list-item"], [data-slot="cc-pending-placeholder"], .cc-project-row, .cc-mdrawer, '
+                          '[data-slot="sidebar"] {', 1)[1].split("\n  }", 1)[0]
         self.assertIn("-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;", block)
         # 整个手机抽屉与平板侧栏都不可选：只关行本身时长按会改选抽屉顶上的「CC」并弹 Google 触摸搜索（部署后重验 F11c）
         self.assertIn('.cc-mdrawer :is(input, textarea)', block)
