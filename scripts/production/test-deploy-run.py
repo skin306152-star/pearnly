@@ -166,7 +166,7 @@ class RunnerSelfCheck(unittest.TestCase):
 class Readback(unittest.TestCase):
     def run_readback(self, containers=None, maintenance=0, errors=0, codes=None, record=IMAGE, rejected='NULL', browser='NULL',
                      browser_before=0, liff='2010411313-aaaa1111', liff_exit=0, liff_seen=None, entries_exit=0,
-                     export=True):
+                     export=True, unmarked=()):
         containers = containers or {
             'pearnly-production-erp-web-1': IMAGE, 'pearnly-production-erp-ocr-worker-1': IMAGE,
             'pearnly-production-mariadb-1': 'mariadb:11', 'pearnly-production-billing-web-1': IMAGE}
@@ -188,6 +188,7 @@ class Readback(unittest.TestCase):
             for product in ('erp', 'cowork', 'dms'):
                 (deploy / f'active-image-{product}.json').write_text(json.dumps([record]) + '\n')
             (root / 'containers.json').write_text(json.dumps(containers))
+            (root / 'unmarked.json').write_text(json.dumps(list(unmarked)))  # 这几个容器没有 PEARNLY_DEPLOYMENT=production
             stub(bin_dir / 'docker', f'''python3 - "$@" <<'EOF'
 import json, sys
 args = sys.argv[1:]
@@ -197,7 +198,8 @@ if args[0] == "ps":
 elif args[0] == "inspect" and "Config.Image" in args[2]:
     print(containers[args[3]])
 elif args[0] == "inspect":
-    print("PATH=/usr/bin\\nFRAPPE_BACKGROUND_WORKERS_NOFORK=1")
+    unmarked = json.load(open("{root}/unmarked.json"))
+    print("PATH=/usr/bin\\nFRAPPE_BACKGROUND_WORKERS_NOFORK=1" + ("" if args[-1] in unmarked else "\\nPEARNLY_DEPLOYMENT=production"))
 elif args[0] == "exec" and "python3" in args:
     product = args[3].split("-")[2]
     print(f"site-a-{{product}}.pearnly.com {maintenance} {liff}\\nsite-b-{{product}}.pearnly.com 0 -")
@@ -235,6 +237,12 @@ case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*) pri
         self.assertIn('Readback passed.', result.stdout)
         self.assertIn('873MiB', result.stdout)
         self.assertIn('pearnly-maintenance-erp', result.stdout)
+
+    def test_every_frappe_container_is_checked_for_the_deployment_mark(self):
+        result = self.run_readback()
+        self.assertIn('  3 containers checked', result.stdout)   # 两个 web、一个 ocr-worker；数据库不算
+        missing = self.run_readback(unmarked=('pearnly-production-billing-web-1',))
+        self.assertIn('PROBLEM pearnly-production-billing-web-1 has no PEARNLY_DEPLOYMENT=production', missing.stdout)
 
     def test_scheduler_rejected_in_maintenance_is_listed_not_a_problem(self):
         result = self.run_readback(errors='NULL', rejected=4)
@@ -276,6 +284,8 @@ case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*) pri
             'no site has a liff': dict(liff='-'),
             'must-verify entry failed': dict(entries_exit=1),
             'no product map export': dict(export=False),
+            # 生产上漏了 PEARNLY_DEPLOYMENT 的容器：CC 只用已有的生产智能体、不建不改，回读要报出来（11-07）
+            'a worker without PEARNLY_DEPLOYMENT': dict(unmarked=('pearnly-production-erp-ocr-worker-1',)),
         }
         for name, kwargs in cases.items():
             with self.subTest(case=name):

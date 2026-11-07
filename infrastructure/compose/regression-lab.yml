@@ -40,6 +40,8 @@ services:
       PEARNLY_REGRESSION_LAB: "1"
       PYTHONDONTWRITEBYTECODE: "1"
       ANTHROPIC_BASE_URL: http://agents:18780
+      # 不是线上：CC 用实验室自己的智能体（没设时只用已有的生产智能体、不建，实验室的假服务里没有就开不了对话）
+      PEARNLY_DEPLOYMENT: dev
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_started}

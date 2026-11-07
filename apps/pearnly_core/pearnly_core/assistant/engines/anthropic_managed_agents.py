@@ -18,12 +18,15 @@ BETA = "managed-agents-2026-04-01"
 EFFORT = "low"
 MANAGED_BY = "pearnly-assistant"
 ENVIRONMENT = {"name": "pearnly-assistant", "config": {"type": "cloud", "networking": {"type": "limited"}}}
-# 部署环境（容器环境变量，生产 compose 写死 production；测试机 `infrastructure/testenv/run.sh` 设 testenv，其余实验栈没设当 dev）。
+# 部署环境（容器环境变量 PEARNLY_DEPLOYMENT）：生产 compose 默认 production；测试机 `infrastructure/testenv/run.sh` 设 testenv、
+# 回归实验室 dev、本机 ERP 验收栈 acceptance、盘点预览 preview（11-07）。
 # 测试机导入的是线上租户的 site_config（同一把 Anthropic 密钥、同一个站点名），只靠站点配置分不出来：
-# 非生产环境用自己的智能体（名字后缀 + 元数据 `pearnly_deployment`），按它匹配，永远不会更新线上那个（11-07）。
-# 生产的名字与元数据保持原样，部署这一改不会新建 / 更新线上智能体。
+# 明确标了非生产的用自己的智能体（名字后缀 + 元数据 `pearnly_deployment`），按它匹配，永远不会更新线上那个。
+# 没设或认不出（生产上某个容器漏了这个变量）：安全失败——只用账号里已有的生产智能体，不新建、不更新，记一条错误日志；
+# 找不到生产智能体就报错（不在生产密钥下建出一个「[dev]」把线上 CC 分裂）。生产的名字与元数据保持原样，部署这一改不动线上智能体。
 DEPLOYMENT_ENV = "PEARNLY_DEPLOYMENT"
 PRODUCTION = "production"
+LABELLED = ("testenv", "dev", "acceptance", "preview")
 UPLOADS = "/mnt/session/uploads"
 OUTPUTS = "/mnt/session/outputs"
 # 产出约定只与本引擎的沙箱有关，所以写在适配器里：写进这个目录的文件才会出现在对话页右侧的结果面板。
@@ -76,14 +79,16 @@ def _gone(err) -> bool:
 
 
 def deployment() -> str:
-    """本进程的部署环境：production，或别的标识（没设是 dev）。"""
-    return str(os.environ.get(DEPLOYMENT_ENV) or "").strip().lower() or "dev"
+    """本进程的部署环境：production 或 `LABELLED` 里的一个；没设或认不出回空（只用已有的生产智能体，不建不改）。"""
+    value = str(os.environ.get(DEPLOYMENT_ENV) or "").strip().lower()
+    return value if value == PRODUCTION or value in LABELLED else ""
 
 
 def spec(brief: dict, model: str) -> dict:
     where = deployment()
+    labelled = where in LABELLED  # 没设 / 认不出的与生产同一份说明：要找的就是线上那个，只是不改它
     body = {
-        "name": brief["name"] if where == PRODUCTION else f"{brief['name']} [{where}]",
+        "name": f"{brief['name']} [{where}]" if labelled else brief["name"],
         "model": {"id": model, "effort": EFFORT},
         "system": brief["system"] + WORKSPACE,
         "tools": [
@@ -99,7 +104,7 @@ def spec(brief: dict, model: str) -> dict:
     }
     fingerprint = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()[:16]
     body["metadata"] = {"pearnly_managed": MANAGED_BY, "pearnly_product": brief["product"],
-                        "pearnly_spec": fingerprint, **({} if where == PRODUCTION else {"pearnly_deployment": where})}
+                        "pearnly_spec": fingerprint, **({"pearnly_deployment": where} if labelled else {})}
     return body
 
 
@@ -107,6 +112,17 @@ def _ours(meta: dict, wanted: dict) -> bool:
     """这个智能体是不是本环境、本产品的那一个：生产的没有 `pearnly_deployment`，非生产的按它对上。"""
     return (meta.get("pearnly_managed") == MANAGED_BY and meta.get("pearnly_product") == wanted["pearnly_product"]
             and meta.get("pearnly_deployment") == wanted.get("pearnly_deployment"))
+
+
+def _unmarked(what: str) -> None:
+    """这个进程没标部署环境：记一条错误日志（部署回读也核各容器的这个变量）。记不下（不在站点里）就算了。"""
+    try:
+        import frappe
+
+        frappe.log_error(title=f"CC agent: {DEPLOYMENT_ENV} not set",
+                         message=f"{DEPLOYMENT_ENV}={os.environ.get(DEPLOYMENT_ENV)!r}: {what}")
+    except Exception:  # noqa: BLE001
+        pass
 
 
 class Adapter(base.Adapter):
@@ -122,12 +138,19 @@ class Adapter(base.Adapter):
 
     def _agent(self, body: dict) -> str:
         meta_wanted = body["metadata"]
+        known = bool(deployment())
         for agent in self.api.beta.agents.list():
             meta = agent.metadata or {}
             if _ours(meta, meta_wanted):
                 if meta.get("pearnly_spec") != meta_wanted["pearnly_spec"]:
-                    self.api.beta.agents.update(agent.id, **body)
+                    if known:
+                        self.api.beta.agents.update(agent.id, **body)
+                    else:
+                        _unmarked("used the production agent without updating it")
                 return agent.id
+        if not known:
+            _unmarked("found no production agent and created none")
+            raise RuntimeError(f"{DEPLOYMENT_ENV} is not set: no agent is created")
         return self.api.beta.agents.create(**body).id
 
     def _environment(self) -> str:

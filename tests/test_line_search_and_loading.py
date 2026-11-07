@@ -127,15 +127,29 @@ class ErpNoMatch(unittest.TestCase):
 
 
 class ErpLastWarehouse(unittest.TestCase):
-    def test_reads_the_line_intake_table_by_its_registered_name(self):
-        # 验收问题 20：表名写成 "ERP Line Intake"（实际 "ERP LINE Intake"），选「库存商品」后 LINE 没有回复
-        from pearnly_erp_portal.integrations import intake
+    """验收问题 20：表名写成 "ERP Line Intake"（实际 "ERP LINE Intake"），选「库存商品」后 LINE 没有回复。
+    11-06 起 LINE 识别预填仓走 `line_items._prefill` → `warehouses.prefill_for`（按这张票的公司与发单人）：这条路读写收单记录
+    都要用注册名，预填按这张票自己的公司和发单人取。"""
 
-        with patch.object(line_flow.frappe, "get_all", return_value=["WH-1"]) as rows, \
-                patch.object(line_flow.frappe, "db", SimpleNamespace(
-                    get_value=lambda *args, **kwargs: SimpleNamespace(company="CO-1", is_active=1))):
-            self.assertEqual(line_flow._last_warehouse("CO-1", "u@example.com"), "WH-1")
-        self.assertEqual(rows.call_args.args[0], intake.DOCTYPE)
+    def test_the_line_path_reads_the_intake_by_its_registered_name_and_prefills_for_its_sender(self):
+        import json
+        from pathlib import Path
+
+        from pearnly_erp_portal.integrations import intake, line_items
+        from pearnly_erp_portal.inventory import warehouses
+
+        doctype = Path(intake.__file__).resolve().parents[1] / "pearnly_erp_portal/doctype/erp_line_intake/erp_line_intake.json"
+        self.assertEqual(json.loads(doctype.read_text(encoding="utf-8"))["name"], intake.DOCTYPE)
+        with patch.object(line_items.frappe, "get_doc", return_value="DOC") as read, \
+                patch.object(line_items.frappe, "db", SimpleNamespace(set_value=Mock())) as db:
+            self.assertEqual(line_items._doc("LI-1"), "DOC")
+            line_items._save_choices("LI-1", {"lines": []})
+        self.assertEqual(read.call_args.args, (intake.DOCTYPE, "LI-1"))
+        self.assertEqual(db.set_value.call_args.args[:3], (intake.DOCTYPE, "LI-1", "line_choices"))
+        card = SimpleNamespace(direction="purchase", company="CO-1", sent_by="u@example.com")
+        with patch.object(warehouses, "prefill_for", return_value={"warehouse": "WH-1", "reason": "last"}) as prefill:
+            self.assertEqual(line_items._prefill(card), "WH-1")
+        prefill.assert_called_once_with("purchase", "CO-1", user="u@example.com")
 
 
 class WaitingBubble(unittest.TestCase):

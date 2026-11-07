@@ -40,6 +40,15 @@ for c in $(docker ps --format '{{.Names}}' | grep '^pearnly-production-.*ocr-wor
     && echo "  $c ok" || problem "$c has no FRAPPE_BACKGROUND_WORKERS_NOFORK=1"
 done
 
+echo "-- PEARNLY_DEPLOYMENT=production on every Frappe container (CC agent: unset ones only reuse the production agent)"
+checked=0
+for c in $(docker ps --format '{{.Names}}' | grep -E '^pearnly-production-.*-(web|worker|scheduler|dispatch)-[0-9]+$'); do
+  checked=$((checked + 1))
+  docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$c" | grep -qx 'PEARNLY_DEPLOYMENT=production' \
+    || problem "$c has no PEARNLY_DEPLOYMENT=production"
+done
+[[ $checked -gt 0 ]] && echo "  $checked containers checked" || problem "no Frappe containers found for the PEARNLY_DEPLOYMENT check"
+
 echo "-- sites: maintenance and Error Log since $(date -u -r "$since" +%FT%TZ 2>/dev/null || date -u -d "@$since" +%FT%TZ)"
 list_sites='import json, os
 for s in sorted(os.listdir("sites")):

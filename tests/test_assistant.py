@@ -1543,6 +1543,7 @@ class PrepareTests(unittest.TestCase):
         frappe.hooks, frappe.store = [], {}
         engine._adapters.clear()
         _configure()
+        self._where("dev")  # 明确标了环境的进程照常建 / 更新自己的智能体；没标的另有用例
 
     def test_adapter_is_reused_per_settings(self):
         sdk.api = _FakeApi()
@@ -1632,8 +1633,50 @@ class PrepareTests(unittest.TestCase):
         self.assertIn("PEARNLY_DEPLOYMENT: acceptance",
                       (ROOT / "infrastructure/compose/erp-acceptance.yml").read_text(encoding="utf-8"))
         self.assertIn("export PEARNLY_DEPLOYMENT=preview", (ROOT / "scripts/stocktake-preview.sh").read_text(encoding="utf-8"))
-        with mock.patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(claude.deployment(), "dev")  # 没设的（实验栈、本机样板）都不是生产
+        self.assertIn("PEARNLY_DEPLOYMENT: dev", (ROOT / "infrastructure/compose/regression-lab.yml").read_text(encoding="utf-8"))
+        for value in ("", "  ", "staging", "prod"):
+            with mock.patch.dict(os.environ, {claude.DEPLOYMENT_ENV: value}):
+                self.assertEqual(claude.deployment(), "")  # 没设 / 认不出：不当成任何环境
+
+    def test_every_frappe_service_in_the_production_compose_carries_the_deployment(self):
+        """生产 compose 里跑 Frappe 的服务（网页、后台、定时、派发）都经 x-runtime 的环境组拿到 PEARNLY_DEPLOYMENT：
+        另写 environment 的必须并进这一组（漏一个容器，CC 在那个容器里就只能用已有的生产智能体）。"""
+        text = (ROOT / "infrastructure/production/compose.yml").read_text(encoding="utf-8")
+        services = re.split(r"\n(?=  [a-z0-9-]+:\n)", text.split("\nservices:\n", 1)[1].split("\nvolumes:\n", 1)[0])
+        frappe_services = 0
+        for block in services:
+            name = block.strip().split(":", 1)[0]
+            if not re.search(r"-(web|worker|scheduler|dispatch)$", name):
+                continue
+            frappe_services += 1
+            self.assertRegex(block, r"<<: \*(web|worker|scheduler|runtime)\b", name)
+            own = re.search(r"\n    environment:(.*?)(?=\n    [a-z_]+:|\Z)", block, re.S)
+            if own:
+                self.assertIn("<<: *frappe-env", own.group(1), f"{name} 另写了 environment，没有并进 frappe-env")
+        self.assertGreaterEqual(frappe_services, 15)
+        runtime = text.split("x-runtime: &runtime", 1)[1].split("\nx-", 1)[0]
+        self.assertIn("environment: &frappe-env", runtime)
+        self.assertIn("PEARNLY_DEPLOYMENT: ${PEARNLY_DEPLOYMENT:-production}", runtime)
+
+    def test_an_unmarked_process_reuses_the_production_agent_and_never_creates_or_updates(self):
+        self._where("production")
+        live = claude.spec(definition.brief("erp"), engines.default_model(CLAUDE))
+        production = types.SimpleNamespace(id="agent_live", metadata={**live["metadata"], "pearnly_spec": "older"})
+        env = types.SimpleNamespace(id="env", name=claude.ENVIRONMENT["name"])
+        self._where("")
+        logged = []
+        with mock.patch.object(frappe, "log_error", lambda **kw: logged.append(kw["title"]), create=True):
+            api = _FakeApi(agents=[production], environments=[env])
+            self.assertEqual(self._prepare(api)["agent"], "agent_live")
+            self.assertEqual((api.updated, [b for b in api.created if "model" in b]), ([], []))
+            self.assertEqual(logged, ["CC agent: PEARNLY_DEPLOYMENT not set"])
+            # 账号里没有生产智能体：报错，不建出一个来
+            frappe.store = {}
+            api = _FakeApi(environments=[env])
+            with self.assertRaises(RuntimeError):
+                self._prepare(api)
+            self.assertEqual([b for b in api.created if "model" in b], [])
+        self.assertEqual(len(logged), 2)
 
     def test_a_new_key_or_model_prepares_again(self):
         self._prepare(_FakeApi())
