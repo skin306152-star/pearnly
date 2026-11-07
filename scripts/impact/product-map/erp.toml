@@ -862,6 +862,7 @@ kind = "page-action"
 anchor = "action:erp:pearnly-home:home.ledger.export"
 group = "desk.pearnly-home.home.ledger.export"
 where = "pearnly-home 页头「home.ledger.export」"
+tests = ["flow:erp.exports"]
 
 [[row]]
 id = "erp.desk.pearnly-home.action.home.plans.title"
@@ -918,6 +919,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-inventory:stock.action.export"
 where = "pearnly-inventory 页头「stock.action.export」"
+tests = ["flow:erp.exports"]
 
 [[row]]
 id = "erp.desk.pearnly-inventory.action.stock.opening.title"
@@ -1002,6 +1004,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-purchase:Export"
 where = "pearnly-purchase 页头「Export」"
+tests = ["flow:erp.exports"]
 
 [[row]]
 id = "erp.desk.pearnly-purchase.action.Express"
@@ -1105,6 +1108,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-sales:Export"
 where = "pearnly-sales 页头「Export」"
+tests = ["flow:erp.exports"]
 
 [[row]]
 id = "erp.desk.pearnly-sales.action.Express"
@@ -1170,6 +1174,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-count:stock.action.export"
 where = "pearnly-stock-count 页头「stock.action.export」"
+tests = ["flow:erp.exports"]
 
 [[row]]
 id = "erp.desk.pearnly-stock-count.action.stock.count.close"

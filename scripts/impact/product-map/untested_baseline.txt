@@ -22,16 +22,12 @@ cowork.desk.pearnly-home.action.Delete@desktop
 cowork.desk.pearnly-home.action.Delete@mobile
 cowork.desk.pearnly-home.action.home.billing@desktop
 cowork.desk.pearnly-home.action.home.billing@mobile
-cowork.desk.pearnly-home.action.home.ledger.export@desktop
-cowork.desk.pearnly-home.action.home.ledger.export@mobile
 cowork.desk.pearnly-home.action.home.plans.title@desktop
 cowork.desk.pearnly-home.action.home.plans.title@mobile
 cowork.desk.pearnly-home.action.home.topup@desktop
 cowork.desk.pearnly-home.action.home.topup@mobile
 cowork.desk.pearnly-intake.action.Export@desktop
 cowork.desk.pearnly-intake.action.Export@mobile
-cowork.desk.pearnly-intake.action.Save@desktop
-cowork.desk.pearnly-intake.action.Save@mobile
 cowork.desk.pearnly-intake.action.Submit@desktop
 cowork.desk.pearnly-intake.action.Submit@mobile
 cowork.desk.pearnly-intake.action.cowork.folder.new@desktop
@@ -42,14 +38,10 @@ cowork.desk.pearnly-recon-bank.action.Cancel@desktop
 cowork.desk.pearnly-recon-bank.action.Cancel@mobile
 cowork.desk.pearnly-recon-bank.action.Save@desktop
 cowork.desk.pearnly-recon-bank.action.Save@mobile
-cowork.desk.pearnly-recon-bank.action.cowork.recon.export@desktop
-cowork.desk.pearnly-recon-bank.action.cowork.recon.export@mobile
 cowork.desk.pearnly-recon-bank.action.cowork.recon.live.back@desktop
 cowork.desk.pearnly-recon-bank.action.cowork.recon.live.back@mobile
 cowork.desk.pearnly-recon-bank.action.cowork.recon.new@desktop
 cowork.desk.pearnly-recon-bank.action.cowork.recon.new@mobile
-cowork.desk.pearnly-recon-bank.action.cowork.recon.presets@desktop
-cowork.desk.pearnly-recon-bank.action.cowork.recon.presets@mobile
 cowork.desk.pearnly-recon-bank.action.cowork.recon.questions@desktop
 cowork.desk.pearnly-recon-bank.action.cowork.recon.questions@mobile
 cowork.desk.pearnly-recon-bank.action.cowork.recon.running@desktop
@@ -60,8 +52,6 @@ cowork.desk.pearnly-recon-income.action.Cancel@desktop
 cowork.desk.pearnly-recon-income.action.Cancel@mobile
 cowork.desk.pearnly-recon-income.action.Save@desktop
 cowork.desk.pearnly-recon-income.action.Save@mobile
-cowork.desk.pearnly-recon-income.action.cowork.recon.export@desktop
-cowork.desk.pearnly-recon-income.action.cowork.recon.export@mobile
 cowork.desk.pearnly-recon-income.action.cowork.recon.live.back@desktop
 cowork.desk.pearnly-recon-income.action.cowork.recon.live.back@mobile
 cowork.desk.pearnly-recon-income.action.cowork.recon.new@desktop
@@ -96,8 +86,6 @@ cowork.desk.pearnly-recon-vat.action.cowork.recon.start@desktop
 cowork.desk.pearnly-recon-vat.action.cowork.recon.start@mobile
 cowork.desk.pearnly-recon-vat@desktop
 cowork.desk.pearnly-recon-vat@mobile
-cowork.desk.pearnly-stocktake.action.cowork.stock.action.export@desktop
-cowork.desk.pearnly-stocktake.action.cowork.stock.action.export@mobile
 cowork.desk.pearnly-stocktake.action.cowork.stock.count.close@desktop
 cowork.desk.pearnly-stocktake.action.cowork.stock.count.close@mobile
 cowork.desk.pearnly-stocktake.action.cowork.stock.count.new@desktop
@@ -168,8 +156,6 @@ erp.desk.pearnly-home.action.Delete@desktop
 erp.desk.pearnly-home.action.Delete@mobile
 erp.desk.pearnly-home.action.home.billing@desktop
 erp.desk.pearnly-home.action.home.billing@mobile
-erp.desk.pearnly-home.action.home.ledger.export@desktop
-erp.desk.pearnly-home.action.home.ledger.export@mobile
 erp.desk.pearnly-home.action.home.plans.title@desktop
 erp.desk.pearnly-home.action.home.plans.title@mobile
 erp.desk.pearnly-home.action.home.topup@desktop
@@ -180,8 +166,6 @@ erp.desk.pearnly-inventory.action.Edit@desktop
 erp.desk.pearnly-inventory.action.Edit@mobile
 erp.desk.pearnly-inventory.action.preview@desktop
 erp.desk.pearnly-inventory.action.preview@mobile
-erp.desk.pearnly-inventory.action.stock.action.export@desktop
-erp.desk.pearnly-inventory.action.stock.action.export@mobile
 erp.desk.pearnly-inventory.action.stock.opening.title@desktop
 erp.desk.pearnly-inventory.action.stock.opening.title@mobile
 erp.desk.pearnly-inventory.action.submit@desktop
@@ -196,8 +180,6 @@ erp.desk.pearnly-purchase.action.Cancel@desktop
 erp.desk.pearnly-purchase.action.Cancel@mobile
 erp.desk.pearnly-purchase.action.Delete@desktop
 erp.desk.pearnly-purchase.action.Delete@mobile
-erp.desk.pearnly-purchase.action.Export@desktop
-erp.desk.pearnly-purchase.action.Export@mobile
 erp.desk.pearnly-purchase.action.Payment@desktop
 erp.desk.pearnly-purchase.action.Payment@mobile
 erp.desk.pearnly-purchase.action.substitute_receipt@desktop
@@ -214,8 +196,6 @@ erp.desk.pearnly-sales.action.Collection@desktop
 erp.desk.pearnly-sales.action.Collection@mobile
 erp.desk.pearnly-sales.action.Delete@desktop
 erp.desk.pearnly-sales.action.Delete@mobile
-erp.desk.pearnly-sales.action.Export@desktop
-erp.desk.pearnly-sales.action.Export@mobile
 erp.desk.pearnly-sales.action.Express@desktop
 erp.desk.pearnly-sales.action.Express@mobile
 erp.desk.pearnly-sales.action.New@desktop
@@ -224,8 +204,6 @@ erp.desk.pearnly-sales.action.Submit@desktop
 erp.desk.pearnly-sales.action.Submit@mobile
 erp.desk.pearnly-stock-count.action.Express@desktop
 erp.desk.pearnly-stock-count.action.Express@mobile
-erp.desk.pearnly-stock-count.action.stock.action.export@desktop
-erp.desk.pearnly-stock-count.action.stock.action.export@mobile
 erp.desk.pearnly-stock-count.action.stock.count.new@desktop
 erp.desk.pearnly-stock-count.action.stock.count.new@mobile
 erp.desk.pearnly-stock-in.action.trade.newOut@desktop
