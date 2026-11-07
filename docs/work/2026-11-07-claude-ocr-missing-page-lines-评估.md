@@ -143,8 +143,16 @@ v1 全量重录与对照数据留在甲骨文 `runs-prod/replay-p1107`（567 条
 | 最小压测（金标单页 30 份 × 15 路，6QAA 直连） | 失败 0；单份 p50 11.5 → 10.9 秒，p90 18.5 → 21.0 秒（本轮升级 5 份、补读 3 次，旧一轮升级 3 份） |
 | 本地闸门 / 候选离线检查（生产镜像 1560bb95） | 见交付说明 |
 
-共用件连带（`check-impact.py` 命中 `ocr`）：`shared.ocr.pipeline`、`cowork.ocr`、`erp.ocr`、`erp.cc.troubleshooting` 读法层由上面的回放与 BJC 验证覆盖；
-三产品各付费上传一张的端到端 **没测到**（新代码要先部署甲骨文 claude-ocr，部署后由主会话安排）；`dms.ocr.id-card`、原件下载、盘点 / 出入库附件不经过发票补读，不受影响。
+共用件连带（`check-impact.py`：命中 `ocr`，改到调用方的 `tax-documents`；新登记 `shared.claude-ocr.line-fill`）：
+
+| 入口 | 结果 |
+| --- | --- |
+| `shared.claude-ocr.line-fill` | 通过：552 份回放 `--fill` 表头 0 份不同；BJC 补读 9 张补上 8 张、0 张写错；语料补上 2 张 |
+| `shared.ocr.pipeline` | 读法层通过（同上；压测 30 份 × 15 路失败 0）；部署后三产品付费各传一张 **没测到**（要先部署甲骨文 claude-ocr） |
+| `cowork.ocr`、`cowork.execution`、`cowork.tax-documents` | 闸门里 Cowork 正式代码出的结果（`*-p1107fill-cowork.jsonl`）表头不变；真实站点上传 **没测到**（同上，部署后验收） |
+| `erp.ocr`、`erp.tax-documents`、`erp.cc.troubleshooting` | ERP 模型名改为只看识别阶段（单元测试 + 候选离线检查）；真实站点识别 **没测到**（同上）。缺页采购单补上明细后合计仍空，照旧进「没有票面合计」 |
+| `dms.ocr.id-card` | 不经过：身份证读法不走发票补读（`kind != voucher`） |
+| `shared.originals.download`、`erp.stock-count.upload`、`erp.stock-in.attach`、`erp.stock-out.attach` | 不经过：原件存取与附件不调识别读法 |
 
 测试花费（6QAA，台账 `~/pearnly-devtools/test-window/round12/ocr-spend.md`）：本任务合计约 31.4 美元（提示词三版的小样本、全量重录与对照约 30.6，补读闸门约 0.8）；11 月已知累计 37.10 美元。
 

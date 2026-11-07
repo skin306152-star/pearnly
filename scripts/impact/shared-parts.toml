@@ -441,7 +441,7 @@ name = "税务单据共用规则（tax_documents）"
 paths = ["apps/pearnly_core/pearnly_core/tax_documents/**"]
 markers = ["pearnly_core.tax_documents", "pearnly_core import tax_documents"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["shared.tax-documents", "cowork.tax-documents", "erp.tax-documents", "erp.cc.write", "cowork.express.push", "shared.claude-ocr.self-check", "erp.cc.troubleshooting"]
+entries = ["shared.tax-documents", "cowork.tax-documents", "erp.tax-documents", "erp.cc.write", "cowork.express.push", "shared.claude-ocr.self-check", "shared.claude-ocr.line-fill", "erp.cc.troubleshooting"]
 
 [[part]]
 id = "transaction"
@@ -2114,6 +2114,15 @@ steps = "金标回放基准：scripts/claude-ocr/gate.py --replay 新旧策略 +
 expect = "「原来对、改后错」为 0；升级率与每页成本照实记进任务记录；上传照常排队、识别、记录"
 check = "manual"
 files = ["apps/pearnly_core/pearnly_core/claude_ocr/consistency.py"]
+
+[[entry]]
+id = "shared.claude-ocr.line-fill"
+product = "共用"
+where = "Claude 识别发票类收尾的明细补读（明细为空的票只读明细，对上票面金额才写回）"
+steps = "回放基准 scripts/claude-ocr/gate.py --replay --fill 与不补读逐格比；BJC 缺页票补读；部署后 Cowork 传 BJC 原件一次（付费小样本）"
+expect = "表头逐格不变；补出的明细加总对上票面小计或合计，对不上的保持空；识别证据里补读记为 claude_lines"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/claude_ocr/lines.py"]
 
 [[entry]]
 id = "shared.tax-documents"
