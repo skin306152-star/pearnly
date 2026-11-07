@@ -85,3 +85,7 @@
 - TEST 实测（11-07，skin3，本分支代码 + 安装版 cdx_reindex_runner）：`writer_id` 找到 `70EXP\secure\SCUSER.DBF`，取到 skin3 授权的账号 **BIT9**（在用户表里）；
   直写赊购 RR691107-004：`APTRN.USERID = BIT9`、`GLJNL.CREBY = PEARNLY`、`cc_vouchers` 认得出；在 Express 里原生作废照常（又弹了一次 Message#43，按确定后完成），
   单头 / 凭证头标 C，P001 余额与 500603 总结存回到写前。Express 已正常退出。
+- 离线回归（测试机 101 本 T 账套副本，`express-stock-balance-regression.py --scenario same`；旧 = main c0976cd50 记 PEARNLY，新 = 本分支 `--userid BIT5`）：
+  85 本写成、16 本跳过；新旧不同的栏**只有**单头录入人 `APTRN.USERID`（85）、`ARTRN.USERID`（85）、`STTRN.USERID`（80）、库存单凭证头 `GLJNL.USERID`（70），
+  **`GLJNL.CREBY` 一栏不差**（两边都是 PEARNLY），余额、结存、成本一栏不差。脚本的余额不变量当时拿旧代码副本当「写前」（旧代码已含结存修复、也加余额，
+  所以 85 本报「余额变化 0」），已改成写单前先记下余额再核；新旧余额栏一栏不差，即与 main 已核过的写法相同。

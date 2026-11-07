@@ -189,6 +189,9 @@ def write_book(acct: Path, scenario: str, userid: str = "") -> dict:
         return {"state": "skip", "why": "no supplier or customer"}
     first = calendar.periods[0]
     day = first.beg + dt.timedelta(days=min(14, (first.end - first.beg).days))
+    # 写前的对方余额（不变量按它核；旧代码那份副本未必是写前——旧代码也可能加余额）
+    party_before = {table: float(num(next((r["BALANCE"] for r in rows(acct, table, (key, "BALANCE")) if r[key] == code), 0)))
+                    for table, key, code in (("APMAS", "SUPCOD", suppliers[0]), ("ARMAS", "CUSCOD", customers[0]))}
     steps = []
     for doctype, qty, amount in STEPS:
         if doctype == "OU":
@@ -207,7 +210,7 @@ def write_book(acct: Path, scenario: str, userid: str = "") -> dict:
                          **({"userid": userid} if userid else {}))
         steps.append({"doctype": doctype, "ok": res.ok, "docnum": res.docnum, "error": res.error_code or res.error})
     return {"state": "written", "item": code, "apart": scenario == "apart", "supplier": suppliers[0], "customer": customers[0],
-            "main": main, "steps": steps,
+            "main": main, "steps": steps, "party_before": party_before,
             "before": {k: float(num(before[k])) for k in ("TOTBAL", "TOTVAL", "MREMBAL", "MREMVAL")}}
 
 
@@ -322,13 +325,13 @@ def compare_book(old: Path, new: Path, old_run: dict, new_run: dict, extra=froze
         problems.append(f"TOTBAL {master['TOTBAL']} != sum STLOC {stloc}")
     for table, key, party, doctype, field in (("APMAS", "SUPCOD", new_run["supplier"], "RR", "BALANCE"),
                                              ("ARMAS", "CUSCOD", new_run["customer"], "IV", "BALANCE")):
-        before = [r for r in rows(old, table, (key, field)) if r[key] == party]
         after = [r for r in rows(new, table, (key, field)) if r[key] == party]
-        if not before or not after or field not in after[0] or after[0][field] is None:
+        if not after or field not in after[0] or after[0][field] is None:
             continue
+        start = Decimal(str((new_run.get("party_before") or {}).get(table, 0)))
         amount = {"RR": Decimal("53.50"), "IV": Decimal("42.80")}[doctype] if doctype in done else Decimal(0)
-        if abs(num(after[0][field]) - num(before[0][field]) - amount) >= Decimal("0.005"):
-            problems.append(f"{table}.{field} moved {num(after[0][field]) - num(before[0][field])} != {amount}")
+        if abs(num(after[0][field]) - start - amount) >= Decimal("0.005"):
+            problems.append(f"{table}.{field} moved {num(after[0][field]) - start} != {amount}")
     return {"state": "fail" if problems else "ok", "why": "; ".join(problems), "item": code, "apart": new_run.get("apart"),
             "cost_differs": cost, "guard_changed": guard_changed, "diffs": diffs, "stloc": float(stloc),
             "stloc_old": float(stloc_old_src), "totbal": master["TOTBAL"]}
