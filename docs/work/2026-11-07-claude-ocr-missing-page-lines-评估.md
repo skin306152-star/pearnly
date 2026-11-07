@@ -125,3 +125,37 @@ v1 全量重录与对照数据留在甲骨文 `runs-prod/replay-p1107`（567 条
   票面三个金额都没读出时，对上补读读出的本页小计（分页补读时每页对上各自的小计，或末页的累计小计）。对不上就不写回，阶段记录里写原因。只改 `lines`，表头、金额、`settled`、`why_after` 不动。
 - **记录**：补读的调用进 `stages`（带 `purpose: lines`），费用、耗时照计；Cowork 的层级链 / 升级模型、ERP 的模型名只看识别阶段，不把补读算成升级。
 - **闸门**：表头用 10-27 基准（`replay-lp`）回放、补读走真实 Haiku（6QAA），和不补读的回放逐格比，表头必须完全相同；补出的行看合计自洽，返回空 / 拒写的逐张人工抽查；BJC 用 testcowork 检查点里那三次明细为空的 Opus 读法直接补读；最小压测一轮。预计约 1 美元。
+
+主会话 11-07 补充：先 Haiku，Haiku 读出了行却对不上才交 Opus（BJC 每行两层折扣，Haiku 拿毛额当行金额）；单行 `line_math` 只记录、不单独否决，写回以净额加总对上票面为准。
+
+## 11. 实现与验证（11-07）
+
+实现：`claude_ocr/lines.py`（新）、`claude_ocr/engine.py`（`fill_lines`，`engine.run` 收尾后调用）；Cowork `ocr/execution/claude.py`
+（层级链 / 升级模型只看识别阶段，补读的证据行记 `claude_lines`）、ERP `recognition/claude.py`（模型名只看识别阶段）；
+`scripts/claude-ocr/gate.py` 加 `--fill` / `--fill-cap`（回放时也补读，走真实 Haiku / Opus，付费）。单元测试 `tests/test_claude_ocr_rules.py::LinesFill` 12 条。
+
+| 验证 | 结果 |
+| --- | --- |
+| 表头逐格（10-27 基准 `replay-lp` 552 份，补读 vs 不补读） | 除明细外 **0 份不同** |
+| 语料补读（36 张空明细） | 补上 2 张（6700889 三行、6901191 一行，均对上票面）；33 张 Haiku 答「没印明细」；1 张（6801740）Haiku 有行缺金额 → Opus 答没印。补读约 0.03 美元 / 552 份 |
+| 人工抽查「没印明细」 | 6801740、6700033、6801008、6801041、6700654、6801686 原件首页：保险收据、社保收据、只印合计页，确无明细表 |
+| BJC（testcowork 三次明细为空的 Opus 读法直接补读） | 9 张空明细补上 8 张：e1dc 第 1 / 7 / 8 张都补上（11 / 10 / 5 行，对上本页小计 38803.20、未税 38869.00、31394.30）；8d10 第 1 张 Haiku、Opus 都对不上 38803.20，**不写回**（宁空勿错）；0 张写错 |
+| 最小压测（金标单页 30 份 × 15 路，6QAA 直连） | 失败 0；单份 p50 11.5 → 10.9 秒，p90 18.5 → 21.0 秒（本轮升级 5 份、补读 3 次，旧一轮升级 3 份） |
+| 本地闸门 / 候选离线检查（生产镜像 1560bb95） | 见交付说明 |
+
+共用件连带（`check-impact.py` 命中 `ocr`）：`shared.ocr.pipeline`、`cowork.ocr`、`erp.ocr`、`erp.cc.troubleshooting` 读法层由上面的回放与 BJC 验证覆盖；
+三产品各付费上传一张的端到端 **没测到**（新代码要先部署甲骨文 claude-ocr，部署后由主会话安排）；`dms.ocr.id-card`、原件下载、盘点 / 出入库附件不经过发票补读，不受影响。
+
+测试花费（6QAA，台账 `~/pearnly-devtools/test-window/round12/ocr-spend.md`）：本任务合计约 31.4 美元（提示词三版的小样本、全量重录与对照约 30.6，补读闸门约 0.8）；11 月已知累计 37.10 美元。
+
+## 12. 上线步骤（合入 main 后，由主会话执行；不在生产上试）
+
+顺序无硬约束：甲骨文新 + 生产旧时，生产旧代码把补读的 Haiku 阶段算进层级链 / ERP 模型名（只是标签，数据不受影响）；生产新 + 甲骨文旧时不补读。建议同一批先甲骨文、后生产。
+
+1. 长期主目录确认 `git log -1` 是本任务合入的提交。
+2. 甲骨文现有镜像打备份标签：`ssh -i ~/.ssh/oracle_free ubuntu@213.35.126.34 'sudo docker tag pearnly-claude-ocr:latest pearnly-claude-ocr:before-line-fill-20261107'`
+3. 部署：`bash scripts/claude-ocr/deploy.sh`（不带 `--secrets`）。
+4. 回读：`docker ps` 里 `pearnly-claude-ocr` 为 Up；`sudo docker exec pearnly-claude-ocr grep -c fill_lines /app/pearnly_core/claude_ocr/engine.py` 大于 0，`/app/pearnly_core/claude_ocr/lines.py` 存在；`curl -k https://127.0.0.1:8443/healthz`（在甲骨文上）回 `{"ok": true}`。
+5. 回退：`sudo docker tag pearnly-claude-ocr:before-line-fill-20261107 pearnly-claude-ocr:latest`，再按 deploy.sh 里同一条 `docker rm -f` + `docker run` 重起容器。
+6. 生产镜像（兜底副本与 Cowork / ERP 两处标签）随下一批 `scripts/production/deploy.sh` 上线。
+7. 部署后验收（付费小样本）：Cowork 传 BJC 原件一次，看第 1、7 张明细是否补上、合计仍空；识别证据里补读行为 `claude_lines`。
