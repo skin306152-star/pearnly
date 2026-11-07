@@ -955,6 +955,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-purchase:Amend"
 where = "pearnly-purchase 页头「Amend」"
+tests = ["flow:erp.purchase.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-purchase.action.Cancel"
@@ -964,6 +965,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-purchase:Cancel"
 where = "pearnly-purchase 页头「Cancel」"
+tests = ["flow:erp.purchase.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-purchase.action.Delete"
@@ -973,6 +975,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-purchase:Delete"
 where = "pearnly-purchase 页头「Delete」"
+tests = ["flow:erp.purchase.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-purchase.action.Export"
@@ -1002,6 +1005,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-purchase:New"
 where = "pearnly-purchase 页头「New」"
+tests = ["flow:erp.purchase.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-purchase.action.Payment"
@@ -1011,6 +1015,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-purchase:Payment"
 where = "pearnly-purchase 页头「Payment」"
+tests = ["flow:erp.purchase.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-purchase.action.Print"
@@ -1040,6 +1045,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-purchase:substitute_receipt"
 where = "pearnly-purchase 页头「substitute_receipt」"
+tests = ["flow:erp.purchase.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-purchase.action.wht_cert"
@@ -1049,6 +1055,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-purchase:wht_cert"
 where = "pearnly-purchase 页头「wht_cert」"
+tests = ["flow:erp.purchase.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-sales.action.Cancel"
@@ -1058,6 +1065,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-sales:Cancel"
 where = "pearnly-sales 页头「Cancel」"
+tests = ["flow:erp.sales.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-sales.action.Collection"
@@ -1067,6 +1075,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-sales:Collection"
 where = "pearnly-sales 页头「Collection」"
+tests = ["flow:erp.sales.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-sales.action.Delete"
@@ -1076,6 +1085,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-sales:Delete"
 where = "pearnly-sales 页头「Delete」"
+tests = ["flow:erp.sales.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-sales.action.Export"
@@ -1095,6 +1105,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-sales:Express"
 where = "pearnly-sales 页头「Express」"
+tests = ["flow:erp.sales.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-sales.action.New"
@@ -1104,6 +1115,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-sales:New"
 where = "pearnly-sales 页头「New」"
+tests = ["flow:erp.sales.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-sales.action.Print"

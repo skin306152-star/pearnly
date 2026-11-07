@@ -264,6 +264,22 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.purchase.actions"
+title = "ERP 采购单页头动作逐个实点：列表新建、删草稿、付款、补开收据、预扣税凭证、修改、作废，查库里付款记录、凭证文件、作废与冲回（清存量基线 11-07）"
+module = "scripts/flows/erp_purchase_actions.py"
+start = "/desk/pearnly-purchase"
+user = "purchase"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/entry.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/output.py",
+]
+
+[[flow]]
 id = "erp.trade.line-stock"
 title = "ERP 采购：明细按行勾入库、批量编辑设整张，只有入库行动库存、随单新建的物料记来源单据（11-06 按行选物料与库存）"
 module = "scripts/flows/erp_trade_line_stock.py"
@@ -672,6 +688,22 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/entry-choice.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/sales/*.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/selection.py",
+]
+
+[[flow]]
+id = "erp.sales.actions"
+title = "ERP 销售单页头动作逐个实点：列表新建、删草稿、收款、作废、Express 弹窗，查库里收款、作废与回库（清存量基线 11-07）"
+module = "scripts/flows/erp_sales_actions.py"
+start = "/desk/pearnly-sales"
+user = "sales"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-form.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py",
 ]
 
 [[flow]]

@@ -346,9 +346,12 @@ def payment(name, *, amount=None, method="cash", date=None, note=None, paid=None
 
 
 def delete_drafts(names):
+    """只删草稿（没入库、没付钱）。同销售 `sales.entry.delete_drafts`：共享口径不给功能角色框架的 delete 位
+    （业务单据只能作废），删自己范围里的草稿是产品自己的动作——write 岗位 + 本人范围（`access.get_document`）、
+    整批行锁、全部是草稿，三道都过了才绕过框架那一位。原先没绕，采购岗点列表「删除」一律 PermissionError（11-07 流程用例发现）。"""
     docs = [access.get_document(name, write=True, lock=True) for name in sorted(set(names))]
     if any(doc.status != "draft" for doc in docs):
         frappe.throw(_("Only Draft documents can be deleted"))
     for doc in docs:
-        frappe.delete_doc("Purchase Document", doc.name)
+        frappe.delete_doc("Purchase Document", doc.name, ignore_permissions=True)
     return {"deleted": len(docs)}
