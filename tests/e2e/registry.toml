@@ -66,7 +66,7 @@ asserts = ["进这家的代录新建任务页：公司胶囊是这家，月份�
 id = "e2e.erp.print-pdf"
 product = "ERP"
 runs = ["desktop"]
-since = "2026-11-07 84b9fa7c4"
+since = "2026-11-07 db09e1e94"
 where = "已登录 testerp，打开 e2e 账号读得到的最新一张采购单的原生打印页（采购收货单格式，同页头「打印」），点「获取PDF」"
 asserts = ["「获取PDF」链接不带 pdf_generator=None（11-05 回 417）", "回 200、application/pdf，下载的文件头是 %PDF-", "主导航没有 4xx / 5xx，不出登录页"]
 
