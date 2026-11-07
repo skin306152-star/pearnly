@@ -785,6 +785,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-clients:client.new"
 where = "pearnly-clients 页头「client.new」"
+tests = ["flow:erp.party.dialogs"]
 
 [[row]]
 id = "erp.desk.pearnly-company.action.Cancel"
@@ -803,6 +804,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-company:company.new"
 where = "pearnly-company 页头「company.new」"
+tests = ["flow:erp.company.create"]
 
 [[row]]
 id = "erp.desk.pearnly-company.action.company.save"
@@ -943,6 +945,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-products:product.action.import"
 where = "pearnly-products 页头「product.action.import」"
+tests = ["flow:erp.products.import"]
 
 [[row]]
 id = "erp.desk.pearnly-products.action.product.action.new"
@@ -952,6 +955,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-products:product.action.new"
 where = "pearnly-products 页头「product.action.new」"
+tests = ["flow:erp.products.create"]
 
 [[row]]
 id = "erp.desk.pearnly-products.action.product.action.submit"
@@ -961,6 +965,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-products:product.action.submit"
 where = "pearnly-products 页头「product.action.submit」"
+tests = ["flow:erp.products.create"]
 
 [[row]]
 id = "erp.desk.pearnly-purchase.action.Amend"
@@ -1016,6 +1021,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-purchase:New"
 where = "pearnly-purchase 页头「New」"
+tests = ["flow:erp.purchase.create"]
 
 [[row]]
 id = "erp.desk.pearnly-purchase.action.Payment"
@@ -1044,6 +1050,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-purchase:Submit"
 where = "pearnly-purchase 页头「Submit」"
+tests = ["flow:erp.purchase.create"]
 
 [[row]]
 id = "erp.desk.pearnly-purchase.action.substitute_receipt"
@@ -1172,6 +1179,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-count:stock.count.close"
 where = "pearnly-stock-count 页头「stock.count.close」"
+tests = ["flow:erp.stocktake.adjust"]
 
 [[row]]
 id = "erp.desk.pearnly-stock-count.action.stock.count.new"
@@ -1190,6 +1198,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-count:stock.count.start"
 where = "pearnly-stock-count 页头「stock.count.start」"
+tests = ["flow:erp.stocktake.scan"]
 
 [[row]]
 id = "erp.desk.pearnly-stock-in.action.trade.action.submit"
@@ -1199,6 +1208,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-in:trade.action.submit"
 where = "pearnly-stock-in 页头「trade.action.submit」"
+tests = ["flow:erp.stock-in.units"]
 
 [[row]]
 id = "erp.desk.pearnly-stock-in.action.trade.newIn"
@@ -1208,6 +1218,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-in:trade.newIn"
 where = "pearnly-stock-in 页头「trade.newIn」"
+tests = ["flow:erp.stock-in.units"]
 
 [[row]]
 id = "erp.desk.pearnly-stock-in.action.trade.newOut"
@@ -1271,6 +1282,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-transfer:trade.action.submit"
 where = "pearnly-stock-transfer 页头「trade.action.submit」"
+tests = ["flow:erp.stock-transfer"]
 
 [[row]]
 id = "erp.desk.pearnly-stock-transfer.action.trade.newIn"
@@ -1298,6 +1310,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-transfer:trade.newTransfer"
 where = "pearnly-stock-transfer 页头「trade.newTransfer」"
+tests = ["flow:erp.stock-transfer"]
 
 [[row]]
 id = "erp.desk.pearnly-stock-adjust.action.trade.action.submit"
@@ -1347,6 +1360,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-suppliers:supplier.new"
 where = "pearnly-suppliers 页头「supplier.new」"
+tests = ["flow:erp.party.dialogs"]
 
 [[row]]
 id = "erp.desk.pearnly-tasks.action.erp.work.archived.title"
