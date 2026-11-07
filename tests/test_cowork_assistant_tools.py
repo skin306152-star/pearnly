@@ -3325,6 +3325,83 @@ class CompanyScopeTests(unittest.TestCase):
         self.assertTrue(any("all_companies true" in line for line in tools.GUIDANCE))
 
 
+class ReconPresetAndFolderTaskTests(unittest.TestCase):
+    """对账记住的口径（列、改、删）与回答对账问题、立即跑文件夹任务、盘点模板与差异表：调页面同一个服务，业务拒绝回原因。"""
+
+    def setUp(self):
+        LocalTimeTests.setUp(self)
+
+    def _module(self, name, **attrs):
+        return LocalTimeTests._module(self, name, **attrs)
+
+    def test_presets_list_change_and_remove_go_to_the_preset_service(self):
+        calls = []
+        self._module("pearnly_cowork.recon_center.presets",
+                     listing=lambda kind: calls.append(("list", kind)) or [{"rule": "card_fee", "value": "no"}],
+                     change=lambda kind, key, rule, value: calls.append(("change", kind, key, rule, value)) or [],
+                     remove=lambda kind, key, rule: calls.append(("remove", kind, key, rule)) or [])
+        out = json.loads(tools.recon_presets({"kind": "bank"}))
+        self.assertEqual((out["kind"], out["presets"]), ("bank", [{"rule": "card_fee", "value": "no"}]))
+        tools.recon_presets({"kind": "income", "action": "change", "scope_key": "income:9", "rule": "fee", "value": "yes"})
+        tools.recon_presets({"kind": "vat", "action": "remove", "scope_key": "vat:9", "rule": "fee"})
+        self.assertEqual(calls, [("list", "bank"), ("change", "income", "income:9", "fee", "yes"),
+                                 ("remove", "vat", "vat:9", "fee")])
+
+    def test_a_refused_preset_change_is_returned_not_raised(self):
+        def refuse(*args):
+            frappe.throw("recon.preset.not_owner")
+
+        self._module("pearnly_cowork.recon_center.presets", change=refuse)
+        out = json.loads(tools.recon_presets({"kind": "bank", "action": "change", "scope_key": "k", "rule": "r", "value": "v"}))
+        self.assertEqual(out["status"], "not_saved")
+        self.assertIn("recon.preset.not_owner", out["reason"])
+
+    def test_an_answer_reruns_or_returns_the_remaining_questions(self):
+        answers = []
+        presets = self._module("pearnly_cowork.recon_center.presets", answer=lambda kind, task, rule, value, subject, lang: (
+            answers.append((kind, task, rule, value, subject)) or {"job": "J9"}))
+        out = json.loads(tools.recon_answer({"kind": "bank", "task": "T1", "rule": "card_fee", "value": "no"}))
+        self.assertEqual((out["status"], out["rerun_job"]), ("saved", "J9"))
+        self.assertEqual(answers, [("bank", "T1", "card_fee", "no", None)])
+        presets.answer = lambda *args: {"task": {"name": "T1", "questions": [{"rule": "fx"}], "notes": []}}
+        out = json.loads(tools.recon_answer({"kind": "bank", "task": "T1", "rule": "card_fee", "value": "no"}))
+        self.assertEqual((out["task"], out["questions"]), ("T1", [{"rule": "fx"}]))
+
+        def refuse(*args):
+            frappe.throw("recon.answer.invalid")
+
+        presets.answer = refuse
+        out = json.loads(tools.recon_answer({"kind": "bank", "task": "T1", "rule": "x", "value": "y"}))
+        self.assertEqual(out["status"], "not_saved")
+
+    def test_run_now_asks_the_task_service_and_says_cc_desktop_picks_it_up(self):
+        asked = []
+        with mock.patch.object(tools.rules, "run_now", lambda name: asked.append(name) or {"name": name, "title": "Ice"},
+                               create=True):
+            out = json.loads(tools.run_folder_task({"task": "R1"}))
+        self.assertEqual(asked, ["R1"])
+        self.assertEqual((out["task"], out["title"], out["requested"]), ("R1", "Ice", True))
+
+    def test_the_stocktake_template_and_variance_workbook_go_into_the_conversation(self):
+        added = []
+        chat = types.ModuleType("pearnly_core.assistant.files")
+        chat.add_to_conversation = lambda name, content, mime: added.append((name, content, mime)) or "/mnt/x/" + name
+        self._module("pearnly_core.assistant.files", **chat.__dict__)
+        self._module("pearnly_cowork.stocktake.upload", template=lambda: b"PK-template")
+        exported = []
+        self._module("pearnly_cowork.stocktake.service", export=lambda count: exported.append(count) or b"PK-variance")
+        out = json.loads(tools.stocktake_template({}))
+        self.assertEqual((out["status"], out["file"], out["files_added_to_chat"]), ("ready", "/mnt/x/stocktake-template.xlsx", True))
+        site_now = datetime(2026, 11, 7, 9, 30)
+        with mock.patch.object(tools.frappe, "db", types.SimpleNamespace(get_value=lambda *a, **k: 'March: shop/1'), create=True), \
+                mock.patch.object(tools.frappe, "utils", types.SimpleNamespace(now_datetime=lambda: site_now), create=True):
+            out = json.loads(tools.stocktake_export({"count": "S1"}))
+        self.assertEqual(exported, ["S1"])
+        # 文件名用盘点名称 + 日期，不能放进文件名的字符换成「-」
+        self.assertEqual(added[-1][:2], ("March- shop-1-20261107.xlsx", b"PK-variance"))
+        self.assertEqual((out["status"], out["files_added_to_chat"]), ("exported", True))
+
+
 class LocalTimeTests(unittest.TestCase):
     """2026-10-13 录屏（testcowork，泰文界面、曼谷用户）：推送时间按 UTC 原样交给模型，CC 把 15:40 推送成功说成「今天 08:40」。
     工具结果里的时间点一律是站点时区的 YYYY-MM-DD HH:MM：存 UTC 的字段由工具点名、换算一次；存站点时区的只换格式（不再偏）；

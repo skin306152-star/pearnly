@@ -457,6 +457,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_recon_answer"
 where = "CC 工具 cowork_recon_answer"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_an_answer_reruns_or_returns_the_remaining_questions"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_recon_delete"
@@ -496,6 +497,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_recon_presets"
 where = "CC 工具 cowork_recon_presets"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_presets_list_change_and_remove_go_to_the_preset_service", "unit:tests/test_cowork_assistant_tools.py::test_a_refused_preset_change_is_returned_not_raised"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_recon_result"
@@ -556,6 +558,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_run_folder_task"
 where = "CC 工具 cowork_run_folder_task"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_run_now_asks_the_task_service_and_says_cc_desktop_picks_it_up"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_save_folder_task"
@@ -655,6 +658,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_stocktake_export"
 where = "CC 工具 cowork_stocktake_export"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_the_stocktake_template_and_variance_workbook_go_into_the_conversation"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_stocktake_list"
@@ -664,6 +668,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_stocktake_list"
 where = "CC 工具 cowork_stocktake_list"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_tools_name_the_fields_stored_in_utc"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_stocktake_report"
@@ -683,6 +688,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_stocktake_template"
 where = "CC 工具 cowork_stocktake_template"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_the_stocktake_template_and_variance_workbook_go_into_the_conversation"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_tax_draft_delete"
@@ -742,6 +748,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_work_boards"
 where = "CC 工具 cowork_work_boards"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_tools_name_the_fields_stored_in_utc"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_work_card"
