@@ -653,7 +653,7 @@ function PlaceMenu({ readers, members, locked, disabled, removable, onToggle, on
               onCheckedChange={(on) => onToggle(name, on === true)}
               onSelect={(event) => event.preventDefault()}
             >
-              <span className="min-w-0 flex-1 truncate">{channelName(name)}</span>
+              <Marquee className="min-w-0 flex-1 truncate">{channelName(name)}</Marquee>
               <DropdownMenu.ItemIndicator asChild>
                 <CheckIcon />
               </DropdownMenu.ItemIndicator>
