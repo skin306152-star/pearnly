@@ -86,6 +86,21 @@ def title_from(text) -> str:
     return " ".join(text.split())[:TITLE_MAX]
 
 
+def has_words(text) -> bool:
+    """首条消息除了附件说明还有没有字（只发了附件的回 False）。"""
+    text = str(text or "")
+    note = ATTACHMENT_NOTE.search(text)
+    return bool((text[:note.start()] if note else text).strip())
+
+
+def first_message(events) -> str:
+    """「旧 → 新」的事件里第一条用户消息的原文（含附件说明）；没有回空串。"""
+    for event in events:
+        if event.get("type") == "user.message":
+            return _text(event)
+    return ""
+
+
 def _message_body(text) -> str:
     """首条消息给概括用的部分：去掉附件说明、合并空白；只发了附件就用各附件的文件名。"""
     text = str(text or "")

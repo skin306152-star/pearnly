@@ -1,9 +1,11 @@
 """侧栏标题（ADR-019，同 Claude：主题名词短语）。
 
 - 首条消息原文先当临时标题（`start`，只写本站表，不拖慢发送），记 `title_source = message`。
-- 第一轮结束后在后台概括一次（`summarize`）：推送线程看到这一轮结束时排（`turn_ended`）；推送线程没看到的（进程重启、
-  过了时限），下一条消息或任一页面在对话空闲时读运行状态时补排。带上首条消息与 CC 第一段回复的开头（从引擎会话读），
-  用引擎目录登记的便宜模型，按显示宽度卡长度（`contracts.make_title`：超宽重问一次，仍超宽在词或字形簇边界收短）。
+- 标题 = 用户第一句的简短摘要（主会话 11-07：同 Claude；中文 10 字左右）：第一句发出后马上在后台概括一次（`summarize`），
+  只看这一句（原文随任务交过去，不读引擎、不等回复），第一轮还没结束标题就换上。只发了附件的：发出时还不知道附件里是什么，
+  先用文件名当临时标题，等第一轮结束（推送线程看到时排，`turn_ended`；没看到的，下一条消息或任一页面在对话空闲时读运行状态
+  时补排）按附件名与 CC 第一段回复的开头（从第一段远端会话读）概括。用引擎目录登记的便宜模型，按显示宽度卡长度
+  （`contracts.make_title`：超宽重问一次，仍超宽在词或字形簇边界收短）。
 - 标题用会话主人的界面语言（`language`），不跟着消息里夹的外文专名走（10-19 测试：中文对话被起成泰文标题）。
 - 每段对话只概括一次：任务先在行锁下把状态从 message 改成 summarizing 才调模型，同时排了几次也只有一次调到模型。
   概括不出来（模型出错、没给、照抄提示里的示例标题）保留临时标题，同样算概括过，不再重试。
@@ -32,15 +34,18 @@ BY_USER = "user"  # 用户手动改过名
 PLACEHOLDER = "placeholder"  # 代录会话建时放的公司名（任务名），首条消息发出时换掉
 JOB = "pearnly_core.assistant.titles.summarize"
 JOB_TIMEOUT = 120
-FIELDS = ["name", "session_id", "user", "title", "title_source"]
+FIELDS = ["name", "session_id", "user", "title", "title_source", "remote_ids"]
 
 
 def start(row, text: str, user: str) -> None:
-    """首条消息：原文当临时标题。调用方在请求事务里，提交后才推给侧栏。"""
+    """首条消息：原文当临时标题。调用方在请求事务里，提交后才推给侧栏。有字的马上排概括（只看这一句，提交后入队）；
+    只发了附件的等第一轮结束（`turn_ended`）。"""
     title = contracts.title_from(text)
     frappe.db.set_value(SESSION, row.name, {"title": title, "title_source": FROM_MESSAGE})
     row.update({"title": title, "title_source": FROM_MESSAGE})
     sidebar.changed(user, "titled", row.session_id, title=title)
+    if contracts.has_words(text):
+        request(row.name, after_commit=True, message=str(text))
 
 
 def provisional(row) -> bool:
@@ -53,10 +58,12 @@ def due(row) -> bool:
     return (row.get("title_source") or "") == FROM_MESSAGE
 
 
-def request(name: str, after_commit: bool = False) -> None:
-    """排一次概括（同一段对话排着、跑着的不重复排；真正只概括一次靠任务里的状态核对）。"""
+def request(name: str, after_commit: bool = False, message: str | None = None) -> None:
+    """排一次概括（同一段对话排着、跑着的不重复排；真正只概括一次靠任务里的状态核对）。``message``：首条消息原文（有字的
+    马上概括时随任务交过去，任务不再从引擎读）。"""
+    extra = {"message": message} if message is not None else {}
     frappe.enqueue(JOB, queue="short", timeout=JOB_TIMEOUT, job_id=f"assistant-title-{name}", deduplicate=True,
-                   enqueue_after_commit=after_commit, name=name)
+                   enqueue_after_commit=after_commit, name=name, **extra)
 
 
 def turn_ended(conversation: str) -> None:
@@ -66,9 +73,10 @@ def turn_ended(conversation: str) -> None:
         request(row.name)
 
 
-def summarize(name: str, legacy_title: str | None = None) -> None:
-    """后台任务：概括这段对话的侧栏标题，写回并推给会话主人。`legacy_title` 只给上线前已排队的旧任务用
-    （`sessions.retitle`）：那时还没有 `title_source`，标题仍是排队时的原文才概括。"""
+def summarize(name: str, legacy_title: str | None = None, message: str | None = None) -> None:
+    """后台任务：概括这段对话的侧栏标题，写回并推给会话主人。``message``：首条消息原文（有字的发出时马上排，只按它概括）；
+    没给的从第一段远端会话读首条消息与 CC 第一段回复（只发了附件的，第一轮结束后）。`legacy_title` 只给上线前已排队的
+    旧任务用（`sessions.retitle`）：那时还没有 `title_source`，标题仍是排队时的原文才概括。"""
     row = _claim(name, legacy_title)
     if not row:
         return
@@ -77,8 +85,15 @@ def summarize(name: str, legacy_title: str | None = None) -> None:
     if model:
         try:
             api = engine.adapter()
-            # 第一段远端会话的编号就是对话编号（接续的新段在 remote_ids 后面），第一轮一定在它里面
-            message, reply = contracts.title_parts(api.events(row.session_id))
+            if message is not None and contracts.has_words(message):
+                message, reply = contracts.title_parts([_said(message)])
+            else:
+                # 第一轮在第一段远端会话里（直写是对话编号本身，代录记在 remote_ids 的第一个）
+                events = _opening(api.events(_first_remote(row)))
+                message, reply = contracts.title_parts(events)
+                if not reply and not contracts.has_words(contracts.first_message(events)):
+                    _release(row)  # 只发了附件、还没有回复：等第一轮结束再概括（不算概括过）
+                    return
             message = message or row.title or ""
             target = language(row)
             title = contracts.make_title(
@@ -89,6 +104,40 @@ def summarize(name: str, legacy_title: str | None = None) -> None:
                 return  # 概括期间对话被删了（远端会话跟着删、读不到）：静默收手，不记错误（11-05 删对话竞争）
             frappe.log_error(title="Assistant title summary failed")
     _finish(row, title)
+
+
+def _said(text) -> dict:
+    return {"type": "user.message", "content": [{"type": "text", "text": str(text)}]}
+
+
+def _opening(events) -> list:
+    """开头的事件：读到第一条用户消息之后的第一段回复就停（引擎按页读，不读整段对话）。"""
+    out, asked = [], False
+    for event in events:
+        out.append(event)
+        kind = event.get("type")
+        asked = asked or kind == "user.message"
+        if asked and kind == "agent.message":
+            break
+    return out
+
+
+def _first_remote(row) -> str:
+    """第一段远端会话（同 `sessions.segments` 的第一个；titles 不回头导入 sessions）。"""
+    import json
+
+    try:
+        found = json.loads(row.get("remote_ids") or "[]")
+    except ValueError:
+        found = []
+    return found[0] if found else row.session_id
+
+
+def _release(row) -> None:
+    """认领了却还不能概括（只发了附件、第一轮还没回复）：放回临时标题，第一轮结束时再排。"""
+    frappe.db.set_value(SESSION, {"name": row.name, "title_source": SUMMARIZING}, "title_source", FROM_MESSAGE,
+                        update_modified=False)
+    frappe.db.commit()
 
 
 def _gone(name) -> bool:

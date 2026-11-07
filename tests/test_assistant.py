@@ -3877,6 +3877,42 @@ class SidebarSyncTests(unittest.TestCase):
             titles.summarize("row6")
         self.assertEqual((db.rows["row6"].title, db.rows["row6"].title_source), ("原文", titles.SUMMARY))
 
+    def test_the_title_sums_up_the_first_message_right_away_and_files_only_wait_for_the_reply(self):
+        # 主会话 11-07：第一句发出后马上概括，只看第一句（不读引擎、不带回复），中文 10 字左右；只发了附件的等第一轮回复
+        # （回复里说了是什么单据）再按附件名与回复概括；代录会话从第一段远端会话读
+        titles, db = self.titles, self.db
+        asked, read = [], []
+        api = types.SimpleNamespace(events=lambda remote, newest_first=False: read.append(remote) or iter(self.history),
+                                    summarize=lambda text, model: asked.append(text) or "ภาษีเดือนนี้")
+        self.history = []
+        with mock.patch.object(titles.engine, "adapter", return_value=api):
+            titles.summarize("row1", message="ช่วยสรุปภาษีเดือนนี้ให้หน่อย")
+        self.assertEqual((db.rows["row1"].title, db.rows["row1"].title_source), ("ภาษีเดือนนี้", titles.SUMMARY))
+        self.assertEqual(read, [])  # 不读引擎、不等回复
+        self.assertEqual(asked[0], contracts.title_prompt("ช่วยสรุปภาษีเดือนนี้ให้หน่อย", "", "", "Thai"))
+        self.assertNotIn("<reply>", asked[0])
+        # 只发了附件、还没有回复：不算概括过，放回临时标题，等第一轮结束再排
+        note = "[Attached files, mounted read-only in the sandbox:\n- bjc-oct.pdf → /mnt/session/uploads/f1/bjc-oct.pdf\n]"
+        db.rows["row2"].update(title="bjc-oct.pdf", title_source="message", remote_ids='["sesn_remote9"]', session_id="op_t1")
+        self.history = [{"type": "user.message", "content": [{"type": "text", "text": note}]}]
+        asked.clear()
+        with mock.patch.object(titles.engine, "adapter", return_value=api):
+            titles.summarize("row2")
+        self.assertEqual((db.rows["row2"].title, db.rows["row2"].title_source, asked), ("bjc-oct.pdf", titles.FROM_MESSAGE, []))
+        self.assertEqual(read, ["sesn_remote9"])  # 代录会话读第一段远端会话，不是 op_ 编号
+        # 第一轮回复出来了：按附件名与回复概括
+        self.history.append({"type": "agent.message", "content": [{"type": "text", "text": "BJC 12 หน้า ใบกำกับภาษีซื้อ"}]})
+        with mock.patch.object(titles.engine, "adapter", return_value=api):
+            titles.summarize("row2")
+        self.assertEqual((db.rows["row2"].title, db.rows["row2"].title_source), ("ภาษีเดือนนี้", titles.SUMMARY))
+        self.assertIn("<reply>", asked[0])
+        # 有字没字（附件说明不算字）
+        self.assertTrue(contracts.has_words("ดูให้หน่อย\n\n" + note))
+        self.assertFalse(contracts.has_words(note))
+        # 提示：标题 = 第一句的简要，中文 10 字左右
+        self.assertIn("a short summary of the user's first message", engines.base.TITLE_INSTRUCTION)
+        self.assertIn("about 10 characters (at most 12) in Chinese or Japanese", engines.base.TITLE_INSTRUCTION)
+
     def test_the_title_comes_only_from_this_conversation_and_never_from_the_prompt_examples(self):
         """2026-10-16 测试：一条改科目的对话（SD-6909-1010）被起名「ภาษีเดือน 9 สามบริษัท」。查明不是别的对话串来的：
         那是提示里的示例原文，标题模型照抄了回来。素材只读本行对话编号的事件、只推给本行的主人；照抄示例的不收，重问一次，
@@ -4098,15 +4134,18 @@ class SidebarSyncTests(unittest.TestCase):
                                     archive=lambda remote: None, delete=lambda remote: None)
         sessions = self._sessions(row, api)
         titles = self.titles
-        # 首条消息：原文先当临时标题，提交后推给侧栏；这时不排概括（等第一轮结束）
+        # 首条消息：原文先当临时标题，提交后推给侧栏；有字的马上排概括（主会话 11-07：标题 = 第一句的简要，只看这一句，
+        # 原文随任务交过去，第一轮还没结束就换上）
         sessions.send("sesn_first1", "เมื่อคืนเป็นยังไงบ้าง")
         self.assertEqual((row.title, row.title_source), ("เมื่อคืนเป็นยังไงบ้าง", titles.FROM_MESSAGE))
         self.assertEqual(self.pushed, [(contracts.REALTIME_EVENT, self.change("titled", "sesn_first1", title="เมื่อคืนเป็นยังไงบ้าง"),
                                         self.OWNER, True)])
-        self.assertEqual(self.queued, [])
-        # 下一条消息时还挂着临时标题（推送线程没看到上一轮结束）：补排，提交后入队
+        self.assertEqual([(m, kw["name"], kw["enqueue_after_commit"], kw.get("message")) for m, kw in self.queued],
+                         [(titles.JOB, "row1", True, "เมื่อคืนเป็นยังไงบ้าง")])
+        # 下一条消息时还挂着临时标题（任务还没跑）：再排一次（同一个任务号去重），提交后入队
         sessions.send("sesn_first1", "แล้ววันนี้ล่ะ")
-        self.assertEqual([(m, kw["name"], kw["enqueue_after_commit"]) for m, kw in self.queued], [(titles.JOB, "row1", True)])
+        self.assertEqual([(m, kw["name"], kw["enqueue_after_commit"]) for m, kw in self.queued][-1], (titles.JOB, "row1", True))
+        self.queued[:] = self.queued[-1:]
         self.assertEqual(row.title, "เมื่อคืนเป็นยังไงบ้าง")  # 标题不跟着新消息变
         # 手动改名：记成用户起的，之后自动标题不覆盖
         self.pushed.clear()
