@@ -156,8 +156,22 @@ STLOC 各仓结存（`stock_location`）一直是按增减记的，没受影响 
 ## 13. 线上影响面（只读，待主会话批准后统计）
 
 - 写法来源：TOTBAL 跟着 MREMBAL 写的做法在 CC 迁进本仓（1.1.77，09-27）之前就有，即 **CC 一开始写库存就是这样**；库存单 OU / JU / TK（10-25，载荷 6）、退货 SR（10-26，载荷 10）沿用同一写法。RR / IV 不加 BALANCE 同样从一开始就是。
-- 统计做法（已发主会话申请）：一次 SSH，只在 cowork / erp 两个 web 容器里用 `frappe.get_all` 读 `Cowork Push Record`、`Pearnly CC Job`（status = success），按站点 × 工作空间 × 账套统计：单据数（按方向与单别）、带库存行的单数与行数、涉及的不同存货码个数、赊购 RR / 赊销 IV 张数、首末日期、电脑台数；只打印计数。
-- 结果：（待补）
+- 统计做法（主会话批准）：一次 SSH，只在 cowork / erp 两个 web 容器里用 `frappe.get_all` 读 `Cowork Push Record`、`Pearnly CC Job`（status = success），按站点 × 工作空间 × 账套统计：单据数（按方向与单别）、带库存行的单数与行数、涉及的不同存货码个数、赊购 RR / 赊销 IV 张数、首末日期、电脑台数；只打印计数。
+  第一次（sites_path 写错）8 个站点都在 `frappe.init` 报 FileNotFoundError、没读到数据；改成在 sites 目录下跑后第二次跑通。两次都删了 `/tmp` 下的脚本并回读确认。
+- 结果（11-07，生产只读）：
+
+  | 站点 | 工作空间 / 账套（账套键只取前 16 位） | CC 成功写的单 | 带库存行的 | 物料数 | 赊购 RR / 赊销 IV | 日期 |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | **erpcowork**（正式 Cowork） | nb2t7uhhen / `s:\2569\exp69\69…` | IV 1 | IV 1（1 行） | 1 | IV 1 | 10-15 |
+  | ccdemo | dn0tkh1dot / `\\pc-afa21e\c$\a…` | HP 5、RR 4 | 0 | 0 | RR 4 | 10-20 |
+  | ccdemo | dn0tkh1dot / `\\accserver\d$\a…` | RR 5、HP 13、IV 8、HS 8 | 0 | 0 | RR 5、IV 8 | 10-20 ~ 10-21 |
+  | testcowork（测试） | 3 本（C 盘 70EXP、C:\PearnlyExpress、TEST） | HP 72、RR 3、IV 7、HS 66 | 31 张、165 行 | 64 | RR 3、IV 7 | 10-13 ~ 11-05 |
+  | testerp（测试） | 3 本 | HP 7、HS 2、JU 2 | 8 张、8 行 | 5 | 0 | 10-23 ~ 11-03 |
+  | mrerp、gize、polymer、test01（正式 ERP） | — | **0** | 0 | 0 | 0 | — |
+
+- 结论：**正式租户里只有 erpcowork 的一本账套**（`S:\2569\EXP69\69…`，S 盘办公室服务器上的真实账套）被 CC 写过 1 张带库存行的赊销 IV（10-15）：最多 1 件物料的总结存可能被改错（写前 TOTBAL = MREMBAL 就没错）、1 个客户余额少记这一张。
+  ccdemo（演示站点；其中一本在 `\\pc-afa21e` 这台电脑的 C 盘）有 9 张赊购、8 张赊销没加对方余额，没有库存行。正式 ERP 站点 CC 一张都没写过。测试租户不算影响。
+- 需要读客户电脑账套才能知道的（**不读**，由主会话请用户决定）：erpcowork 那本账套的完整路径（账套键只读了前 16 位，要再查一次推送记录或看工作空间设置）、那件物料写前 TOTBAL 是否等于 MREMBAL、客户余额现在差多少；ccdemo 两本账套是否算客户数据、要不要补余额。
 - 需要读客户电脑账套才能知道的（**不读**，由主会话请用户决定）：每本账套里实际被改错的品数与差额、被少记的对方余额。
 
 ## 14. 工作量与排期
@@ -167,3 +181,59 @@ STLOC 各仓结存（`stock_location`）一直是按增减记的，没受影响 
 3. 离线回归（测试机 T 账套）约 20 分钟；TEST 实测约 30 分钟（要登记占用、测试机空闲时做）。
 4. 闸门与 CI：约 30 分钟；合入前发主会话。
 5. 修复工具（如用户同意）另立。
+
+## 15. 主会话审定（11-07）
+
+第 12 节：① 读的一侧同批改成 TOTBAL / TOTVAL；② MREMBAL / MREMVAL 维持现状（继续增减），批次链另议、记待办；③ 同批补 `UNITPR` 与 `APMAS.LASRCV`，
+最后进价 / 售价那几栏另立待办；④ 已写错的数据先不动，影响面统计出来后写一页「受影响客户 × 账套 × 大约件数 + 修复方案 + 风险 + 要用户做什么」交主会话问用户，
+读客户电脑上的账套也在这次要问的范围里，问之前不读；⑤ 并进 1.12.16（混行那批已在 main、未发正式版），服务端先部署、CC 再发，时间主会话定。
+
+## 16. 施工记录（分支 `pearnly/cc-stock-balance-native`）
+
+### 以后写对（改 CC）
+
+- `stock_sale.move_stmas`：所有动库存的写法共用一处按增减改主档——`TOTBAL / TOTVAL` 在**现有值**上加本单（入正出负），总结存为正时
+  `UNITPR = TOTVAL / TOTBAL`（4 位小数），不为正时不动（同原生 000004 −2 → −3）；`MREMBAL / MREMVAL` 照旧增减（补期初照旧设成期初数）；
+  可带同时要写的栏（盘点的 `LASUPD / MLOTNUM`、期初的 `OPNBAL / OPNVAL`）。取代原来的 `write_stmas_fields` / `_reduce_stmas`（删掉）。
+  调用方：进货 `stock_purchase`、销货 `stock_sale`（含收银日汇总）、补期初、库存单 `dbf_stock`、退货 `dbf_refund`、作废 `dbf_void`。
+- 读：`stock_lookup.balances` 同时给总结存 `totbal / totval` 与批次链 `mrembal / mremval`。判有没有货、均价（销货、领用 / 减少调整、退货兜底成本）、
+  补期初的「已有货跳过」、`stock_guard` 按全仓核负库存、`express_masters` 上报的 `balance` 一律用总结存；STCRD 行上的结存栏（批次链口径）不变。
+  盘点 TK 在没有 STLOC 的账套里 `PHYBAL` 记写后总结存。
+- 对方余额：`master_create.move_party_balance`——赊购 RR 加 `APMAS.BALANCE`、`LASRCV` 只往后记（S 盘 75% 的供应商 LASRCV = 最晚一张赊购的日期）；
+  赊销 IV 加 `ARMAS.BALANCE`（原生 IV 不动 `LASIVC`：TEST 1b 客户第一张单也没记）；现购 HP、现销 HS 不动；退货 SR 改用同一个函数减余额（行为不变）。
+- 索引：Express 的 APMAS / ARMAS / STMAS 索引只用代码、名称、类型（TEST 与 S 盘 20 本 CDX 里没有 BALANCE / TOTBAL / UNITPR），改这几栏不用额外重建索引。
+- 合成测试表规格补上真表就有的 `APMAS.BALANCE / LASRCV`、`STMAS.UNITPR`（只给测试建表用）。
+
+### 测试
+
+- 新增 `companion/tests/test_stock_balance_native.py`（12 条）+ `test_dbf_refund.py` 1 条：夹具照 TEST 500603 做成 TOTBAL 45 / MREMBAL 3，
+  进货、销货、领用 + 作废、调整、退货、补期初、全仓负库存核对、赊购 / 现购 / 赊销 / 现销的对方余额、LASRCV 不往回改、结存不为正时均价不动。
+  **还原修复**（业务代码换回 main，测试表规格保留）：12 条里 11 条失败、退货那条失败；剩下的「旧日期赊购不把 LASRCV 往回改」旧代码本来就不碰这一栏。
+- 两条旧断言按新口径改：`test_express_masters`（上报结存取 TOTBAL）、`test_stock_lookup`（同名多行挑总结存为正的）。
+- CC 全量 `pytest`：1534 通过、42 跳过（本机 Python 3.11，依赖按 `packaging/requirements-build.txt` 锁定版本）。
+- `scripts/express-stloc-regression.py` 的「STMAS = 各仓合计」改按 TOTBAL 核（原来核 MREMBAL）。
+- 新增 `scripts/express-stock-balance-regression.py`：新旧两份 CC 源码在同一批账套副本上写同样 5 张单（RR +5、HP +1、IV −2、HS −1、OU −1），逐表逐行逐字段比，
+  只许余额 / 均价栏和（均价不同时）成本栏不同，并核新写法的不变量。结果见下。
+
+## 17. 一页：已经写错的数据（交主会话问用户）
+
+**以后写对**靠这次改 CC（第 16 节），并进 1.12.16 发布后，新写的单就对了。**已经写错的**不会自己好，下面是现状和选项。
+
+| 受影响 | 账套 | 大约多少 | 错在哪 |
+| --- | --- | --- | --- |
+| erpcowork 正式工作空间 nb2t7uhhen | `S:\2569\EXP69\69…`（S 盘办公室服务器，完整账套名要再查一次） | 1 张赊销 IV（10-15）、1 件物料、1 个客户 | 物料总结存可能被改成「批次链 − 1」（写前两者相等就没错）；客户余额少记这张单的含税额 |
+| ccdemo 演示站点 | `\\pc-afa21e\c$\…`、`\\accserver\d$\…` 两本 | 赊购 9 张、赊销 8 张；没有库存行 | 9 个供应商 / 8 个客户（次数，人数可能更少）的余额各少记一张 |
+| 正式 ERP（mrerp / gize / polymer / test01） | — | 0 | — |
+
+**修复办法**（都只改上面这几本里 CC 写过的对象；先只读出报告给人看，同意后再改；在写前备份里改、改完读回）：
+
+1. 总结存 `TOTBAL`：改成各仓结存合计（Express 原生 99.96% 如此，CC 一直按增减记各仓结存，所以各仓那边是对的）。没有各仓表的账套，用「期初 + 全部进出」交叉核，对不上就不动、列给会计。
+2. 货值 `TOTVAL`：没有独立来源。先在 TEST 试 Express 自带的「计算成本（คำนวณต้นทุน）」能不能把它和均价算回；能就请会计在 Express 里跑这一件，不能就列清单请会计核。
+3. 对方余额 `BALANCE`：按 Express 的月桶式子（期初 + 赊购 / 赊销 − 付款 / 收款 − 退货）重算，与「CC 写的赊购 / 赊销合计」交叉核，一致才改。
+
+**风险**：改的是客户真实账套；改错会让 Express 报表、信用额度、库存控制看到错数。所以只改这几本里 CC 写过的那几件 / 那几个对方，每一处先出报告、留备份；不一致的不碰。erpcowork 那本只有 1 件物料、1 个客户，人工在 Express 里核对改正也行，比做工具省。
+
+**要用户定的**：
+1. erpcowork 那本账套（S 盘）要不要修？建议：先只读核对那 1 件物料、1 个客户（要读客户账套，需用户同意），差了再由会计在 Express 里改或由我们按上面办法改。
+2. ccdemo 两本算不算客户数据、要不要补余额？建议：演示用就不修，以后演示前用 Express 自带功能或重建演示账套。
+3. 以上都要读客户电脑 / 服务器上的账套；用户同意前不读。
