@@ -1269,6 +1269,7 @@ user = "admin"
 datasets = ["old"]
 viewports = ["desktop", "mobile"]
 covers = [
+  "frontend/assistant/src/lib/hover-scroll.ts",
   "frontend/assistant/src/assistant.tsx",
   "frontend/assistant/src/lib/nav.ts",
   "frontend/assistant/src/lib/profile.ts",
