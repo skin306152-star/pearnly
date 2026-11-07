@@ -409,6 +409,48 @@ def liff_web_step(page, ctx):
     no_trouble(hops, [ctx.site])
 
 
+# 打哪种单（11-05 报 417 的是采购单「打印」）：单据类型与它的打印格式（随 App 同步的标准格式，`print_format/*/*.json`）
+PRINTABLE = ("Purchase Document", "Pearnly Purchase Goods Receipt")
+# 这个账号读得到的最新一张（框架原生 frappe.client.get_list，同列表页的权限）；读不到回 []
+LATEST = """async doctype => { const r = await fetch('/api/method/frappe.client.get_list?' + new URLSearchParams({doctype,
+  fields: '["name"]', order_by: 'modified desc', limit_page_length: 1})); if (!r.ok) return [];
+  return ((await r.json()).message || []).map(row => row.name); }"""
+PDF_LINK = 'a[href*="frappe.utils.print_format.download_pdf"]'
+
+
+def print_pdf_step(page, ctx):
+    """原生打印页「获取PDF」真拿到 PDF（11-05：链接带 pdf_generator=None，download_pdf 回 417；修法是打印格式写明 wkhtmltopdf）。
+    打开这张单的原生打印页（同页面「打印」按钮去的那一页），点「获取PDF」：回 200、application/pdf、文件头 %PDF-。不改任何单据。"""
+    import urllib.parse
+
+    hops = start(page, ctx)
+    doctype, fmt = PRINTABLE
+    names = page.evaluate(LATEST, doctype)
+    if not names:
+        raise NotTested(f"{ctx.site} 上没有 e2e 账号读得到的采购单")
+    name = names[0]
+    goto(page, f"https://{ctx.site}/printview?" + urllib.parse.urlencode(
+        {"doctype": doctype, "name": name, "format": fmt, "no_letterhead": 1}))
+    page.wait_for_load_state("load")
+    link = page.locator(PDF_LINK).first
+    expect(link.count(), f"{doctype} {name} 的原生打印页（{fmt}）没有「获取PDF」")
+    href = link.get_attribute("href") or ""
+    expect("pdf_generator=None" not in href, f"「获取PDF」链接带着 pdf_generator=None（{doctype} {name}，{fmt}）")
+    link.evaluate("a => a.removeAttribute('target')")   # 下载留在这一页上收（新标签页里的下载这一页收不到）
+    with page.expect_response(lambda r: "frappe.utils.print_format.download_pdf" in r.url, timeout=NAV_TIMEOUT) as answered, \
+            page.expect_download(timeout=NAV_TIMEOUT) as downloading:
+        link.click()
+    response, download = answered.value, downloading.value
+    kind = (response.headers.get("content-type") or "").split(";")[0].strip()
+    expect(response.status == 200, f"「获取PDF」回 {response.status}（{doctype} {name}，{fmt}）")
+    expect(kind == "application/pdf", f"「获取PDF」回的是 {kind or '没有类型'}，不是 application/pdf")
+    with open(download.path(), "rb") as handle:
+        head = handle.read(5)
+    download.delete()
+    expect(head == b"%PDF-", f"下载的文件不是 PDF（文件头 {head!r}）")
+    no_trouble(hops, [ctx.site])
+
+
 STEPS: dict = {}
 for _product in ("erp", "cowork"):
     STEPS[f"e2e.{_product}.login"] = login_step
@@ -418,3 +460,4 @@ for _product in ("erp", "cowork"):
     STEPS[f"e2e.{_product}.chat-one"] = chat_one_step
     STEPS[f"e2e.{_product}.operator-new"] = operator_new_step
     STEPS[f"e2e.{_product}.liff-web"] = liff_web_step
+STEPS["e2e.erp.print-pdf"] = print_pdf_step
