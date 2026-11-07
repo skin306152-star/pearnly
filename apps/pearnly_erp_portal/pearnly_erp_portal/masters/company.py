@@ -444,7 +444,11 @@ def selling_warehouse(company=None) -> str | None:
     口径与 `cashier.terminals.place_of` 一致：只认收银台自己身上写着的仓，不猜。
     多台启用收银台指向**不同**的仓时不替谁拿主意，回 None，由调用方按"唯一的仓 / 报错"处理。
     """
-    name = document_company(company)
+    return terminal_warehouse(document_company(company))
+
+
+def terminal_warehouse(name) -> str | None:
+    """同 :func:`selling_warehouse`，公司已由调用方核过（LINE 识别任务：收单时按发单人核过），这里不再按当前账号核。"""
     places = {str(row or "").strip() for row in frappe.get_all(
         "ERP POS Terminal", filters={"company": name, "is_active": 1},
         pluck="warehouse", limit_page_length=0) or []}

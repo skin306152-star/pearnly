@@ -295,6 +295,20 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.line.card-lines"
+title = "LINE 卡片「编辑」打开的采购页：每行预选（认出的物料 / 识别说的服务 / 新品名）带到页面，提交后只有入库行动库存（11-06 按行选物料与库存）"
+module = "scripts/flows/erp_line_card_lines.py"
+start = "/desk/pearnly-purchase"
+user = "purchase"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py",
+]
+
+[[flow]]
 id = "erp.exports"
 title = "ERP 导出：销售 / 采购 / 库存 / 已过账盘点 / 班次 / 首页账本各点一次导出，走 POST、文件里有该有的单据（10-29 导出一律 POST）"
 module = "scripts/flows/erp_exports.py"

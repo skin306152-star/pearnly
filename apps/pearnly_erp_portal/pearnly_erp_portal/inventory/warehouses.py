@@ -161,15 +161,28 @@ def prefill(kind, company=None, context=None) -> dict:
     这种单据选的 → 卖货仓（只给进货类）→ 这家公司唯一的启用仓 → 空（必须选）。只建议启用着的本公司仓；不是公司默认仓。"""
     if kind not in KINDS:
         frappe.throw(_("Invalid value"))
-    company = companies.document_company(company)
-    active = set(names_of(company, include_inactive=False))
+    return prefill_for(kind, companies.document_company(company), context=context)
+
+
+def _active_of(company) -> list:
+    """给定公司的启用仓（不按当前账号取公司，同 :func:`names_of` 带公司时）。"""
+    return frappe.get_all(DOCTYPE, filters={"company": company, "is_active": 1}, pluck="name",  # bounded: 一家公司的仓
+                          order_by="creation asc", limit_page_length=0)
+
+
+def prefill_for(kind, company, *, user=None, context=None) -> dict:
+    """同 :func:`prefill`，公司已由调用方核过（网页：按本人可用范围；LINE 识别任务：收单时按发单人核过），这里不再按当前账号核。
+    ``user``：按谁上次选的（默认当前账号）。"""
+    if kind not in KINDS or not company:
+        return {"warehouse": "", "reason": ""}
+    active = set(_active_of(company))
     if context and context in active:
         return {"warehouse": context, "reason": PREFILL_CONTEXT}
-    last = _last_choices().get(f"{kind}:{company}")
+    last = _last_choices(user).get(f"{kind}:{company}")
     if last in active:
         return {"warehouse": last, "reason": PREFILL_LAST}
     if kind in INBOUND:
-        shop = companies.selling_warehouse(company)
+        shop = companies.terminal_warehouse(company)
         if shop in active:
             return {"warehouse": shop, "reason": PREFILL_SELLING}
     if len(active) == 1:

@@ -192,9 +192,9 @@ class Locations(unittest.TestCase):
         active = {"CO-1": ["W1", "W2", "SHOP"], "CO-2": ["X1"]}
         defaults = {}
         patches = [
-            mock.patch.object(W, "names_of", lambda company=None, include_inactive=True: active.get(company, [])),
+            mock.patch.object(W, "_active_of", lambda company: active.get(company, [])),
             mock.patch.object(W.companies, "document_company", lambda company=None: company or "CO-1"),
-            mock.patch.object(W.companies, "selling_warehouse", lambda company=None: "SHOP" if company == "CO-1" else None),
+            mock.patch.object(W.companies, "terminal_warehouse", lambda company: "SHOP" if company == "CO-1" else None),
             mock.patch.object(W.frappe, "defaults", types.SimpleNamespace(
                 get_user_default=lambda key, user=None: defaults.get(key),
                 set_user_default=lambda key, value, user=None: defaults.__setitem__(key, value)), create=True),

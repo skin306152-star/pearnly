@@ -139,11 +139,8 @@ def _place(doc, value, payload):
 def _prefill(doc):
     from pearnly_erp_portal.inventory import warehouses
 
-    try:
-        return warehouses.prefill(doc.direction, doc.company).get("warehouse") or None
-    except frappe.ValidationError:
-        frappe.clear_messages()
-        return None
+    # 公司在收单时已按发单人核过（`intake.receive`）：按这张票的公司和发单人取，不再按当前账号核（识别任务是系统路径）
+    return warehouses.prefill_for(doc.direction, doc.company, user=doc.sent_by).get("warehouse") or None
 
 
 def _usable_warehouse(name, company):
