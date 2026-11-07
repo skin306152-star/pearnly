@@ -25,8 +25,14 @@
   `infrastructure/testenv/run.sh` 导出 `testenv`（壳环境优先于 env 文件）；本机 ERP 验收栈 `acceptance`、盘点预览 `preview`；其余没设的当 `dev`。
   非生产的智能体名字加后缀「[testenv]」、元数据带 `pearnly_deployment`，按它匹配；生产的名字与元数据保持原样。
 - 证据：同一份说明、`PEARNLY_DEPLOYMENT=production`，main 与本分支的 `spec()` 一字不差（部署后不会更新、也不会新建线上智能体）；
-  testenv / 没设时分别是「CC (Pearnly cowork) [testenv]」「… [dev]」。测试 `tests/test_assistant.py::PrepareTests`（测试环境不更新线上那个、
+  testenv 时是「CC (Pearnly cowork) [testenv]」；没设时与生产同一份（找的就是线上那个，只是不改）。测试 `tests/test_assistant.py::PrepareTests`（测试环境不更新线上那个、
   生产不认测试环境那个、生产名字与元数据不变、只有生产 compose 默认 production）；去掉按环境匹配后两条不通过。
+- **安全失败（主会话 11-07 补）**：没设或认不出 `PEARNLY_DEPLOYMENT`（生产上某个容器漏了这个变量）→ 只用账号里已有的生产智能体照常对话，
+  **不新建、不更新**，记一条错误日志「CC agent: PEARNLY_DEPLOYMENT not set」；账号里没有生产智能体就报错，不建。选「照常用生产智能体」而不是直接拒绝：
+  漏标的容器多半是线上的某个后台进程，拒绝会让那条路上的 CC 直接用不了；只读地用线上那个不会改到它，回读又能把漏标的容器报出来。
+  只有明确标了 testenv / dev / acceptance / preview 的才用带后缀的那个。回归实验室编排设 `dev`。
+- 两道保险：测试核生产 compose 里所有网页 / 后台 / 定时 / 派发服务都经 `frappe-env` 拿到这个变量（另写 environment 的必须并进这一组）；
+  部署回读（`deploy-readback.sh`）逐个核这些容器 `PEARNLY_DEPLOYMENT=production`，不对就报 PROBLEM（`test-deploy-run.py` 守住）。
 - 测试机下次 `lab-start` / `live` 起栈后会在同一账号里新建一个「[testenv]」智能体（一次），之后测试机只改它。
 
 ## 3. 删死代码 `save_document_choices`
@@ -72,9 +78,13 @@
 |---|---|
 | 单元测试（改到的文件） | 通过 |
 | 本地全闸门（`gate.sh`，201 步） | 全过 |
-| 生产镜像候选离线检查（`ci-candidate-checks.sh offline`，镜像 1560bb95 挂本分支五个 App） | 102 组通过；`tests/test_line_search_and_loading.py::ErpLastWarehouse` 临时跳过——main 3bf45089b 删了 `line_flow._last_warehouse` 而测试还在调，是 main 现有问题，已报主会话 |
-| 流程（本机实验栈 pearnly-smallfix-lab，`run.py --changed`） | cc.chat、erp.stock-entry.scan、erp.stock-transfer、erp.stock-adjust 新 / 老 × 电脑 / 手机 16/16；erp.stocktake.adjust 4/4 |
+| 生产镜像候选离线检查（`ci-candidate-checks.sh offline`，镜像 1560bb95 挂本分支五个 App） | 整组跑完（不跳过）、LANE EXIT 0，见下文「候选离线检查」。`ErpLastWarehouse` 原来还在调 main 3bf45089b 删掉的 `line_flow._last_warehouse`（main 现有问题）：按主会话定改成核 LINE 识别这条路读写收单记录用注册名「ERP LINE Intake」、预填按这张票的公司与发单人调 `warehouses.prefill_for` |
+| 流程（本机实验栈 pearnly-smallfix-lab，`run.py --changed`） | cc.chat、erp.stock-entry.scan、erp.stock-transfer、erp.stock-adjust 新 / 老 × 电脑 / 手机 16/16（安全失败改动后、实验栈编排加 `PEARNLY_DEPLOYMENT=dev` 重建后再跑一遍，仍 16/16，回写在 2aff7cf34）；erp.stocktake.adjust 4/4 |
 | e2e（testerp） | `e2e.erp.print-pdf` 通过 |
+
+## 候选离线检查
+
+生产镜像 1560bb95 挂 2aff7cf34 五个 App，`ci-candidate-checks.sh offline` 整组 102 组、没有跳过任何一条（含改好的 `ErpLastWarehouse`），LANE EXIT 0。
 
 ## 共用件连带回归（`check-impact`）
 
