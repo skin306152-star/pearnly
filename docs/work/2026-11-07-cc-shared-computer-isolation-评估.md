@@ -195,4 +195,17 @@
   8 项 `test_write_dispatch.py` 因本机没装 PySide6 导入失败（与本改动无关，Windows 上的 Companion checks 完整跑）。
 - 前端：`tsc --noEmit` 通过；`tests/test_assistant_ui.py` 加源码断言一项；`tests/test_companion_contract.py` 89 项通过。
 - 产品地图：`cowork.cc.action.settings` 补上测试（`flow:cc.settings` + 上面那项单测），基线减 4 条；`cc.desktop.places` 入口步骤加勾选实测；`check-product-map` / `check-architecture` / `check-copy` 通过。
-- 还没做：测试机实测（同时连 testcowork 与 testerp、勾 / 不勾 ERP、读回 testerp 的 `Pearnly CC Book` 与「添加公司」候选），要装 1.12.17 staging，先登记占用表、主会话排时间。
+- 测试机实测（11-07 16:22–16:31，主会话安排，占用表登记 / 释放）：Companion test build 打本分支 `471063c9a` 的 1.12.17 测试包（sha256 f39d23a0…6aa0），
+  skin3 静默装上；这台电脑原来就同时连着 testcowork（Cowork）与 testerp（ERP，暂停中）、只留位置 `\\accserver\d$\ACCOUNT\70EXP`。
+
+  | 步骤 | 本机（companion.json / 心跳日志 / 桥） | testerp 读回（生产只读，一次 SSH 各一次） | 结论 |
+  |---|---|---|---|
+  | 升级到 1.12.17 | `place_channels` 自动登记成 70EXP → 只给 Cowork；Cowork 照常报 2 本 | — | 升级换算符合预期 |
+  | 临时恢复 testerp、带调试口开窗口 | 桥 `state()`：`features` 含 `place_channels`，`show` 为真，成员 cowork + core；ERP 成员本机缓存 101 本、**上报 0 本** | DESKTOP-MN2BRKR 版本 1.12.17，账套行 **101 → 0** | ERP 不勾就一本不报 |
+  | 经桥勾上 ERP（`place_channels` 动作） | 回 `ok`，配置写成 Cowork + ERP；取任务线程重启后两种成员都报 2 本 | 账套行 **0 → 2**（2 个税号，都在 70EXP 下）；「添加公司」候选按这些行分组，即这 2 家 | 勾上后才报 |
+  | 试勾掉 ERP 仅剩的位置 | 回 `ok: false`，配置不变 | — | 仅剩位置勾不掉 |
+  | 收尾 | 停 CC、配置还原（哈希与实测前一致）、装回 1.12.15 正式版（sha256 与 latest.json 一致）；普通权限 `--background`、无调试口；16:30 心跳正常 | — | 已恢复原状 |
+
+  没测到：设置页里「···」两个勾的样子。测试机 CC 打开的是线上 testcowork 的对话页（线上前端还没有这个改动），所以界面上看不到；
+  是直接调桌面端同一个桥动作验的 CC 这一侧，界面部分只有单测（`test_settings_places_say_which_members_read_each_place`）。合入部署后在测试机或录制笔记本上补看一次。
+  副作用（已登记占用表）：testerp 上这台电脑的账套行由 11-05 留下的 101 行变成 70EXP 下的 2 行；设备记录版本停在 1.12.17（testerp 暂停中不再心跳，下次恢复时按当时的版本更新）。
