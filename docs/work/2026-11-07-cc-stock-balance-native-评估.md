@@ -234,7 +234,22 @@ STLOC 各仓结存（`stock_location`）一直是按增减记的，没受影响 
 - CC 全量 `pytest`：1534 通过、42 跳过（本机 Python 3.11，依赖按 `packaging/requirements-build.txt` 锁定版本）。
 - `scripts/express-stloc-regression.py` 的「STMAS = 各仓合计」改按 TOTBAL 核（原来核 MREMBAL）。
 - 新增 `scripts/express-stock-balance-regression.py`：新旧两份 CC 源码在同一批账套副本上写同样 5 张单（RR +5、HP +1、IV −2、HS −1、OU −1），逐表逐行逐字段比，
-  只许余额 / 均价栏和（均价不同时）成本栏不同，并核新写法的不变量。结果见下。
+  只许余额 / 均价栏和（均价不同时）成本栏不同，并核新写法的不变量。
+
+### 离线回归结果（测试机 `C:\PearnlyExpress\70EXP` 的 101 本 T 账套副本，源账套只读）
+
+- **新旧逐字段对比**（`express-stock-balance-regression.py`；T 账套是清空过的，副本里给一件品种上结存再写）：
+
+  | 场景 | 写成并比对 | 新旧都写不进 | 跳过 | 新旧不同的栏（本数） |
+  | --- | --- | --- | --- | --- |
+  | 总结存 ≠ 批次链（45 / 3，均价 10 vs 20） | 80 | 5 | 16 | STMAS.TOTBAL / TOTVAL / MREMVAL、APMAS.BALANCE、ARMAS.BALANCE（85）；均价不同带来的成本栏 STCRD.XUNITPR / XTRNVAL / MREMVAL、STLOC 金额期桶、凭证金额（85）、领用单货值（80）；APMAS.LASRCV（58） |
+  | 总结存 = 批次链（45 / 45） | 80 | 5 | 16 | **只有** APMAS.BALANCE、ARMAS.BALANCE（85）与 APMAS.LASRCV（58） |
+
+  其余栏、其余表一栏不差；新写法的不变量全成立（总结存变化 = 本次数量合计、写前等于各仓合计的写后仍相等、供应商余额只加赊购那张、客户余额只加赊销那张）。
+  「新旧都写不进」= 领用单 OU 的默认科目不能记账（`ACCOUNT_NOT_POSTABLE`），新旧一样；跳过 = 没有 ISPRD 或主仓还没有任何品的行。LASRCV 只有 58 本不同，
+  是因为其余账套的供应商最后进货日本来就比这次的单据日晚（只往后记）。
+- **现有回归用新代码重跑**：STLOC 85 过 / 0 / 16 跳过（「主档 = 各仓合计」改按 TOTBAL 核）；库存单 79 / 1 / 21（那 1 条是 T9GIS 不许负库存时正确停下，同 10-25 基线）；
+  退货 80 / 0 / 21；调拨 80 / 0 / 21；随单新建物料 92 / 3 / 6（3 本 SANGJ 账套没配库存核算科目，旧代码同样 3 本失败）。
 
 ## 17. 一页：已经写错的数据（交主会话问用户）
 

@@ -272,7 +272,9 @@ def compare_book(old: Path, new: Path, old_run: dict, new_run: dict) -> dict:
     old_steps = [(s["doctype"], s.get("ok"), s.get("docnum")) for s in old_run.get("steps", [])]
     new_steps = [(s["doctype"], s.get("ok"), s.get("docnum")) for s in new_run.get("steps", [])]
     guard_changed = [n for o, n in zip(old_steps, new_steps) if o != n]
-    failed_new = [s for s in new_run["steps"] if s.get("ok") is False]
+    old_ok = {s["doctype"]: s.get("ok") for s in old_run.get("steps", [])}
+    # 新旧都写不进的（账套默认科目不能记账等，与本次改动无关）不算失败，只有旧的写得进、新的写不进才算
+    failed_new = [s for s in new_run["steps"] if s.get("ok") is False and old_ok.get(s["doctype"]) is not False]
     if failed_new:
         problems.append(f"new write failed: {failed_new}")
     cost = _cost_differs(new_run)
