@@ -67,8 +67,7 @@ def find_rows(account_dir, name: str, types: Iterable[str]) -> List[Dict]:
             out.append(
                 {
                     "stkcod": _gv(r, "STKCOD"),
-                    "mrembal": float(_gv(r, "MREMBAL") or 0),
-                    "mremval": float(_gv(r, "MREMVAL") or 0),
+                    **balances(r),
                     "acccod": _gv(r, "ACCCOD"),
                     "vatcod": str(_gv(r, "VATCOD") or "").strip(),
                 }
@@ -90,8 +89,7 @@ def find_rows_by_code(account_dir, code: str, types: Iterable[str]) -> List[Dict
         return [
             {
                 "stkcod": _gv(r, "STKCOD"),
-                "mrembal": float(_gv(r, "MREMBAL") or 0),
-                "mremval": float(_gv(r, "MREMVAL") or 0),
+                **balances(r),
                 "acccod": _gv(r, "ACCCOD"),
             }
             for r in t
@@ -109,6 +107,20 @@ def first_code(account_dir, name: str, types: Iterable[str]) -> Optional[str]:
         if row["stkcod"]:
             return row["stkcod"]
     return None
+
+
+def balances(rec) -> Dict[str, float]:
+    """一条 STMAS 的结存：``totbal / totval`` 是总结存（``TOTBAL / TOTVAL``），``mrembal / mremval`` 是先进先出批次链（``MREMBAL / MREMVAL``）。
+
+    判有没有货、算均价、按全仓核负库存一律看总结存：S 盘 95 本真账两者不等的 3 万件里，各仓结存合计等于 TOTBAL 的占 99.96%、
+    等于 MREMBAL 的 3 件，Express 维护的均价 UNITPR 也是 TOTVAL / TOTBAL（11-07 取证，``docs/work/2026-11-07-cc-stock-balance-native-评估.md``）。
+    批次链只给 STCRD 行上的结存栏用（既有写法，与成本方案一起另定）。老表没有 TOTBAL 列时按批次链。"""
+    out = {"mrembal": float(_gv(rec, "MREMBAL") or 0), "mremval": float(_gv(rec, "MREMVAL") or 0)}
+    total = _gv(rec, "TOTBAL", None)
+    out["totbal"] = out["mrembal"] if total is None else float(total or 0)
+    value = _gv(rec, "TOTVAL", None)
+    out["totval"] = out["mremval"] if value is None else float(value or 0)
+    return out
 
 
 def _gv(rec, field: str, default=""):

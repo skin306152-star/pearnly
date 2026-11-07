@@ -5,9 +5,9 @@
 
 **① 有货(STKTYP=0 库存品·正库存)**:把货从客户真实库存里扣出去,按移动均价结转成本。
 账务(逆向真账 gold HS580101-001,沙盒验证通过):
-- 均价成本 = STMAS.MREMVAL / STMAS.MREMBAL;COGS = 数量 × 均价;
+- 均价成本 = STMAS.TOTVAL / STMAS.TOTBAL(总结存,= Express 维护的 UNITPR);COGS = 数量 × 均价;
 - STCRD 库存出行:XUNITPR=均价、XTRNVAL=COGS、MREMBAL/MREMVAL=卖后结存(带库存签名);
-- STMAS 扣减:MREMBAL/TOTBAL−数量、MREMVAL/TOTVAL−COGS(均价不变);
+- STMAS 扣减(:func:`move_stmas`):总结存 TOTBAL / TOTVAL 与批次链 MREMBAL / MREMVAL 各自 −数量 / −COGS,UNITPR 随总结存重算;
 - 额外分录:借 COGS 科目(ISACC.ACCNUM02)/ 贷 存货科目(ISACC.ACCNUM01)· 金额=COGS。
 
 **② 有档没货(零/负库存)**:照卖,卖成更负 —— 负结存在真账里是常态(61EXP/61SKBAC 取证:
@@ -80,10 +80,10 @@ def _gv(rec, field: str, default=""):
 
 
 def find_stock_item(account_dir: Path, name: str, code: str = "") -> Optional[Dict]:
-    """按品名匹配客户既有库存商品(STKTYP=0)。返回 {stkcod,mrembal,mremval,acccod} 或 None。
+    """按品名匹配客户既有库存商品(STKTYP=0)。返回 ``stock_lookup.balances`` 的结存(totbal / totval 总结存、mrembal / mremval 批次链)+ stkcod、acccod,或 None。
 
     **单次读取、返回真实结存**(不在此按 bal 过滤 —— 那会与建档侧的 find_stock_item_code 形成
-    两次读取分歧:某刻 MREMBAL 瞬时读成 0 就把"复用"误判成"新建"、对真库存品建出重复档)。
+    两次读取分歧:某刻结存瞬时读成 0 就把"复用"误判成"新建"、对真库存品建出重复档)。
     调用方(write_stock_lines)据结存三分支:bal>0 扣库存+均价 COGS / bal≤0 卖成更负 / None 才新建。
     优先返有正库存的行(可卖);同名多行仅存零/负库存时返首行(在它上面继续卖成负)。
 
@@ -98,13 +98,13 @@ def find_stock_item(account_dir: Path, name: str, code: str = "") -> Optional[Di
         return rows[0]
     rows = stock_lookup.find_rows(account_dir, name, (stock_lookup.STOCK_TYPE,))
     for info in rows:
-        if info["mrembal"] > 0:
-            return info  # 可卖 → 立即用
+        if info["totbal"] > 0:
+            return info  # 可卖(总结存为正) → 立即用
     # 没找到有正库存的同名品 → 诊断落盘(排查"读到 0/漏读"用:文件 stat + 所有匹配行 + PID)
     _diag_no_positive(
         name,
         Path(account_dir) / "STMAS.DBF",
-        [(r["stkcod"], r["mrembal"]) for r in rows],
+        [(r["stkcod"], r["totbal"]) for r in rows],
     )
     return rows[0] if rows else None
 
@@ -265,12 +265,12 @@ def write_stock_lines(
             amount = float(Decimal(str(it.get("amount") or "0")))
             unit = str(it.get("unit") or "")
             item = find_stock_item(account_dir, name, str(it.get("code") or ""))
-            if item and item["mrembal"] > 0:
+            if item and item["totbal"] > 0:
                 # ① 复用(有正库存):真扣库存 + 移动均价结转 COGS
                 # 包装单位按 Express 主档系数换成库存单位动结存、算成本(stock_units;验收 10-25)
                 units = stock_units.resolve(account_dir, item["stkcod"], unit, qty, it.get("factor"))
                 base = float(units.base_qty)
-                avg = item["mremval"] / item["mrembal"]
+                avg = item["totval"] / item["totbal"]
                 cogs = _q2(base * avg)
                 new_bal = item["mrembal"] - base
                 new_val = _q2(item["mremval"] - cogs)
@@ -295,7 +295,7 @@ def write_stock_lines(
                 S.append_stcrd(st, stock_units.stamp(dbf_fields.priced_line(row, it, st_fields), units))
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
-                _reduce_stmas(account_dir, item["stkcod"], new_bal, new_val)
+                move_stmas(account_dir, item["stkcod"], -base, -cogs)
                 key = (cogs_acc, inv_acc)
                 cogs_by_pair[key] = cogs_by_pair.get(key, Decimal("0")) + Decimal(
                     str(cogs)
@@ -335,7 +335,7 @@ def write_stock_lines(
                 S.append_stcrd(st, stock_units.stamp(dbf_fields.priced_line(row, it, st_fields), units))
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
-                _reduce_stmas(account_dir, basis.stkcod, new_bal, new_val)
+                move_stmas(account_dir, basis.stkcod, -base, -cogs)
                 if cogs:
                     inv_acc, cogs_acc = stock_accounts(account_dir, basis.acccod)
                     key = (cogs_acc, inv_acc)
@@ -377,55 +377,50 @@ def write_stock_lines(
     return line_modes, cogs_rows
 
 
-def write_stmas_fields(
-    account_dir: Path, stkcod: str, fields: Dict[str, float]
-) -> None:
-    """按 STKCOD 定位库存主档,写入 fields 指定字段。
+def move_stmas(account_dir: Path, stkcod: str, qty, value, *, fields: Optional[Dict] = None,
+               lots: Optional[Tuple[float, float]] = None) -> bool:
+    """按本单的增减改库存主档结存（照 Express 原生，11-07 取证）。所有动库存的写法共用这一处。
 
-    库存主档的唯一写入脚手架:卖(_reduce_stmas)、期初(_set_stmas_opening)、进货入库
-    (stock_purchase)共用一份定位逻辑,避免三处各写一遍 STKCOD 匹配循环而口径漂移。
-
-    只写还算数的行:软删的同码旧档若排在前面,扣库存就扣进了 Express 看不见的行 —— 真档
-    余额一动不动,账面有货实物没货(或反过来),而且不报任何错。
+    - ``TOTBAL / TOTVAL`` 是总结存：在**这一行现有值**上加 ``qty / value``（入为正、出为负）。以前写成「MREMBAL ± 本单」，
+      两者不等的品（S 盘 95 本 18%）一写就把总结存改错（TEST 500603：45 → 4）。
+    - ``UNITPR``：总结存为正时 = TOTVAL / TOTBAL（4 位小数，Express 维护的移动均价，S 盘 94% 的有货品如此）；不为正时不动（同原生）。
+    - ``MREMBAL / MREMVAL``（先进先出批次链）维持既有做法：同样增减；``lots`` 给了就直接设成这两个值（补期初）。批次链与成本方案另定。
+    - ``fields``：同时要写的其他栏（盘点的 LASUPD / MLOTNUM、期初的 OPNBAL / OPNVAL）。
+    只改还算数的行（软删的同码旧档不碰）；老表没有的栏不写。找不到这件品返回 False。
     """
+    qty, value = Decimal(str(qty)), Decimal(str(value))
     t = dbf.Table(str(Path(account_dir) / "STMAS.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     t.open(dbf.READ_WRITE)
     try:
+        names = {name.upper() for name in t.field_names}
         for r in S.live_rows(t):
-            if _gv(r, "STKCOD") == stkcod:
-                with r as rec:
-                    for k, v in fields.items():
-                        rec[k] = v
-                return
+            if _gv(r, "STKCOD") != stkcod:
+                continue
+            with r as rec:
+                def num(field):
+                    return Decimal(str(_gv(rec, field) or 0))
+                total, worth = num("TOTBAL") + qty, num("TOTVAL") + value
+                out = {"TOTBAL": float(total), "TOTVAL": float(worth)}
+                if lots is None:
+                    out.update({"MREMBAL": float(num("MREMBAL") + qty), "MREMVAL": float(num("MREMVAL") + value)})
+                else:
+                    out.update({"MREMBAL": float(lots[0]), "MREMVAL": float(lots[1])})
+                if total > 0:
+                    out["UNITPR"] = float((worth / total).quantize(Decimal("0.0001"), ROUND_HALF_UP))
+                out.update(fields or {})
+                for key, val in out.items():
+                    if key in names:
+                        rec[key] = val
+            return True
+        return False
     finally:
         t.close()
 
 
-def _reduce_stmas(
-    account_dir: Path, stkcod: str, new_bal: float, new_val: float
-) -> None:
-    """扣客户库存主档:MREMBAL/TOTBAL=卖后余额,MREMVAL/TOTVAL=卖后货值(均价不变)。"""
-    write_stmas_fields(
-        account_dir,
-        stkcod,
-        {"MREMBAL": new_bal, "MREMVAL": new_val, "TOTBAL": new_bal, "TOTVAL": new_val},
-    )
-
-
 def _set_stmas_opening(account_dir: Path, stkcod: str, qty: float, val: float) -> None:
-    """置 STMAS 期初 + 结存字段:OPNBAL/OPNVAL(期初)+ MREMBAL/MREMVAL/TOTBAL/TOTVAL(结存)。"""
-    write_stmas_fields(
-        account_dir,
-        stkcod,
-        {
-            "OPNBAL": qty,
-            "OPNVAL": val,
-            "MREMBAL": qty,
-            "MREMVAL": val,
-            "TOTBAL": qty,
-            "TOTVAL": val,
-        },
-    )
+    """置 STMAS 期初:OPNBAL / OPNVAL 与批次链 MREMBAL / MREMVAL 设成期初数(既有做法),总结存 TOTBAL / TOTVAL 加上期初数
+    (这件品此前卖成负的,总结存 = 负数 + 期初,不盖掉)。"""
+    move_stmas(account_dir, stkcod, qty, val, fields={"OPNBAL": qty, "OPNVAL": val}, lots=(qty, val))
 
 
 def set_opening_stock(
@@ -461,7 +456,7 @@ def set_opening_stock(
                 account_dir, name, userid=userid, unit=unit
             ).stkcod
             cur = find_stock_item(account_dir, name)
-            if cur and cur["mrembal"] > 0:
+            if cur and cur["totbal"] > 0:
                 results.append(
                     {"name": name, "stkcod": stkcod, "mode": "skip_has_stock"}
                 )

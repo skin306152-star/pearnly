@@ -83,7 +83,7 @@ def test_find_rows_filters_by_stock_type(acct):
 def test_find_rows_prefers_nothing_and_keeps_physical_order(acct):
     """同名多行:原样返回(调用方自己决定优先谁),顺序即物理行序。"""
     for code, bal in (("A1", 0.0), ("A2", 5.0)):
-        _add_stmas(acct, STKCOD=code, STKDES="ซ้ำกัน", STKTYP="0", MREMBAL=bal)
+        _add_stmas(acct, STKCOD=code, STKDES="ซ้ำกัน", STKTYP="0", TOTBAL=bal, MREMBAL=5.0 - bal)  # 批次链反着放：只认总结存
     rows = SL.find_rows(acct, "ซ้ำกัน", (SL.STOCK_TYPE,))
     assert [r["stkcod"] for r in rows] == ["A1", "A2"]
     assert SS.find_stock_item(acct, "ซ้ำกัน")["stkcod"] == "A2"  # 卖货侧挑有货的那条

@@ -108,7 +108,9 @@ TABLE_SPECS = {
         "SUPCOD C(10); SUPTYP C(2); PRENAM C(15); SUPNAM C(60); "
         "ADDR01 C(50); ADDR02 C(50); ADDR03 C(30); VATRAT N(5,2); "
         "FLGVAT C(1); ACCNUM C(15); TAXID C(15); ORGNUM N(5,0); USERID C(8); "
-        "CREBY C(8); CREDAT D; CHGDAT D; STATUS C(1)"
+        "CREBY C(8); CREDAT D; CHGDAT D; STATUS C(1); "
+        # 供应商余额与最后进货日：Express 录赊购 RR 时加余额、记 LASRCV（实录 RR0000015 / 16，11-07）
+        "BALANCE B; LASRCV D"
     ),
     "ARMAS": (
         "CUSCOD C(10); CUSTYP C(2); PRENAM C(15); CUSNAM C(60); "
@@ -128,7 +130,8 @@ TABLE_SPECS = {
         "SQUCOD C(2); SFACTOR B; VATCOD C(1); STKLEV C(2); STKCLASS C(1); "
         "NEGALLOW C(1); ISINV C(1); ISSAL C(1); ISPUR C(1); STNPR B; "
         "TOTBAL B; TOTVAL B; OPNBAL B; OPNVAL B; MREMBAL B; MREMVAL B; USERID C(8); "
-        "CREBY C(8); CREDAT D; CHGDAT D; STATUS C(1)"
+        # UNITPR：Express 维护的移动均价 = TOTVAL / TOTBAL（S 盘 94%，11-07）
+        "UNITPR B; CREBY C(8); CREDAT D; CHGDAT D; STATUS C(1)"
     ),
     # 科目映射(ACCCOD→点号账码)。ensure_item 按目标科目反查/新建 ACCCOD 用。列宽照真表 C(50)。
     "ISACC": (

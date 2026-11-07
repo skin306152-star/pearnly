@@ -313,6 +313,37 @@ def _code_exists(account_dir: Path, table: str, codefield: str, code: str) -> bo
         t.close()
 
 
+PARTY_CODE = {"APMAS": "SUPCOD", "ARMAS": "CUSCOD"}
+
+
+def move_party_balance(account_dir: Path, table: str, code: str, amount: Decimal, *, received=None) -> bool:
+    """对方档余额（``APMAS / ARMAS.BALANCE``）加 ``amount``（减就传负数），照 Express 原生（11-07 取证）：
+
+    - 赊购 RR 加供应商余额、赊销 IV 加客户余额（TEST 实录 RR0000014 / 15 / 16、IV0000027 / 31 / 39）；现购 HP、现销 HS 不动（实录 HP0000006、
+      HS0000040）；退货 SR 减客户余额（实录 SR0000001 / 2，退现金也减）。S 盘 95 本：``ARMAS.BALANCE = 期初 + IV − RE − SR``（99.9%）、
+      ``APMAS.BALANCE = 期初 + RR − PS − GR``（85%），都不含 HP / HS。
+    - ``received``：赊购的单据日，``APMAS.LASRCV``（最后进货日）往后记（S 盘 75% 的供应商 LASRCV = 最晚一张赊购的日期）。
+    以前 CC 只加月桶不加余额，原生作废 CC 写的单时余额被多减一次（TEST RR691107-001）。老表没有这一栏不写；只改未删的行。
+    找不到这个码返回 False（调用方在写前备份里，已建好档，正常不会发生）。
+    """
+    t = _open(Path(account_dir), table, dbf.READ_WRITE)
+    try:
+        names = {name.upper() for name in t.field_names}
+        field = PARTY_CODE[table]
+        for r in S.live_rows(t):
+            if (getattr(r, field) or "").strip() != code:
+                continue
+            with r as rec:
+                if "BALANCE" in names:
+                    rec["BALANCE"] = float(Decimal(str(rec["BALANCE"] or 0)) + Decimal(str(amount)))
+                if received is not None and "LASRCV" in names and (rec["LASRCV"] is None or rec["LASRCV"] < received):
+                    rec["LASRCV"] = received
+            return True
+        return False
+    finally:
+        t.close()
+
+
 def _cash_customer(account_dir: Path) -> str:
     """这套账自己唯一的现金客户(名称是「เงินสด / ขายสด / cash…」);没有或不止一个返回空串。"""
     t = _open(account_dir, "ARMAS", dbf.READ_ONLY)

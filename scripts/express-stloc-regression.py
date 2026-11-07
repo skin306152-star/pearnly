@@ -6,7 +6,7 @@
 - 主仓（ISINFO.MAINLOC）那一行 LOCBAL 先 +5 再 −2，期桶 QTY{期} 同样增减，最后进货 / 销货 / 变动日记上；
 - 新写的明细照 Express 原生记法：SEQNUM 右对齐、TQUCOD 不空、TFACTOR > 0（同账套原生明细的行号写法一并统计）；
 - STLOC 其他行一行不变；没被写的表逐字节不变（写入集合 = 进货 / 销货备份表 + STLOC，另有索引文件）；
-- 写前这件品 STMAS.MREMBAL 等于各仓 LOCBAL 合计的，写后仍相等（Express 的「STMAS = Σ STLOC」）；
+- 写前这件品 STMAS.TOTBAL（总结存）等于各仓 LOCBAL 合计的，写后仍相等（Express 的「STMAS = Σ STLOC」；11-07 前误核 MREMBAL）；
 - 给了 ``--runner``：照正式 CC 重建索引，并核写过的表 CDX 与 DBF 一致（``express_cdx_check``）。
 源账套只读（只 copytree 出来）；工作副本用完删掉。不连网络、不碰服务器。
 
@@ -154,7 +154,7 @@ def check(acct: Path) -> dict:
     need = ("ap_acc", "vat_input_acc", "fallback_acc", "ar_acc", "revenue_acc", "vat_output_acc")
     if any(not accounts.get(name) for name in need):
         return {"state": "skip", "why": f"default accounts missing: {[n for n in need if not accounts.get(n)]}"}
-    stock = [row for row in rows(acct, "STMAS", ("STKCOD", "STKDES", "STKTYP", "MREMBAL")) if str(row["STKTYP"]) == "0"
+    stock = [row for row in rows(acct, "STMAS", ("STKCOD", "STKDES", "STKTYP", "TOTBAL")) if str(row["STKTYP"]) == "0"
              and row["STKCOD"]]
     before_rows = stloc_rows(acct)
     at_main = {key(row)[0] for row in before_rows if key(row)[1] == main}
@@ -174,7 +174,7 @@ def check(acct: Path) -> dict:
         if k[0] == code:
             sums_before[k[1]] = row
     total_before = sum(Decimal(repr(float(r.get("LOCBAL") or 0))) for r in sums_before.values())
-    master_before = Decimal(repr(float(pick["MREMBAL"] or 0)))
+    master_before = Decimal(repr(float(pick["TOTBAL"] or 0)))
     files_before = digests(acct)
     touched = {*S.PURCHASE_BACKUP_TABLES, *S.SALES_BACKUP_TABLES, *S.LOCATION_TABLES}
     index_before = cdx_check.snapshot(cdx_reindex, acct, touched) if with_runner else {}
@@ -226,12 +226,12 @@ def check(acct: Path) -> dict:
     # 明细照原生记法（10-26 验收 B3b 实录点 ①）：行号右对齐、单位与倍数带上；同账套原生明细的行号写法作对照
     problems.extend(native_check.problems(dbf, S, acct, [res.docnum, res2.docnum]))
     native = native_check.native_alignment(dbf, S, acct, {res.docnum, res2.docnum})
-    master_after = [r for r in rows(acct, "STMAS", ("STKCOD", "MREMBAL")) if r["STKCOD"] == code]
+    master_after = [r for r in rows(acct, "STMAS", ("STKCOD", "TOTBAL")) if r["STKCOD"] == code]
     total_after = sum(Decimal(repr(float(r.get("LOCBAL") or 0))) for k, r in after.items() if k[0] == code)
     consistent_before = abs(master_before - total_before) < Decimal("0.0001")
     if consistent_before and master_after:
-        if abs(Decimal(repr(float(master_after[0]["MREMBAL"] or 0))) - total_after) >= Decimal("0.0001"):
-            problems.append(f"STMAS {master_after[0]['MREMBAL']} != sum STLOC {total_after} after write (was equal)")
+        if abs(Decimal(repr(float(master_after[0]["TOTBAL"] or 0))) - total_after) >= Decimal("0.0001"):
+            problems.append(f"STMAS {master_after[0]['TOTBAL']} != sum STLOC {total_after} after write (was equal)")
     return {"state": "fail" if problems else "ok", "why": "; ".join(problems), "item": code, "main": main,
             "stmas_equal_before": consistent_before, "docnums": [res.docnum, res2.docnum], "native_seqnum": native,
             "cdx_checked": sorted(index_before)}

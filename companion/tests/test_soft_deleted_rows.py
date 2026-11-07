@@ -401,7 +401,7 @@ def test_stock_master_write_lands_on_the_live_row(datat):
     _seed(datat, "STMAS", {"STKCOD": "PN00001", "MREMBAL": 999.0}, deleted=True)
     _seed(datat, "STMAS", {"STKCOD": "PN00001", "MREMBAL": 10.0})
 
-    SS.write_stmas_fields(datat, "PN00001", {"MREMBAL": 5.0})
+    assert SS.move_stmas(datat, "PN00001", -5, 0)
 
     assert [r["MREMBAL"] for r in _live(datat, "STMAS", STKCOD="PN00001")] == [5.0]
     t = dbf.Table(str(datat / "STMAS.DBF"), codepage=S.CODEPAGE)

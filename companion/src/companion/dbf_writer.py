@@ -711,6 +711,9 @@ def _write_all(
 
     _bump_isrun(account_dir, prefix, jnltyp)
     notes = _update_apbal(account_dir, prefix, entry.supplier_code, docdat, total)
+    if prefix == "RR":
+        # 赊购加供应商余额、记最后进货日（原生；现购 HP 不动，``master_create.move_party_balance``）
+        master_create.move_party_balance(account_dir, "APMAS", entry.supplier_code, total, received=docdat)
     return docnum, line_modes, purchase_lines.has_stock_lines(line_modes), notes, [row[:3] for row in gl_rows]
 
 

@@ -68,7 +68,7 @@ def books(tmp_path):
     _table(acct / "STMAS.DBF", S.TABLE_SPECS["STMAS"] + "; " + _STMAS_EXTRA, [
         {"STKCOD": "P01", "STKDES": "น้ำแข็งหลอด", "STKTYP": "0", "STKGRP": "ICE", "QUCOD": "ถง", "SQUCOD": "ถง",
          "SFACTOR": 1.0, "PQUCOD": "กล", "PFACTOR": 12.0, "SELLPR1": 0.1 + 0.2, "SELLPR2": 35.5, "SELLPR5": 1.23456789,
-         "BARCOD": "8850001", "VATCOD": "1", "NEGALLOW": "N", "MREMBAL": 0.1 + 0.2},
+         "BARCOD": "8850001", "VATCOD": "1", "NEGALLOW": "N", "TOTBAL": 0.1 + 0.2, "MREMBAL": 7.0},
         {"STKCOD": "S01", "STKDES": "ค่าขนส่ง", "STKTYP": "4"},
         {"STKCOD": "OLD", "STKDES": "ลบแล้ว", "STKTYP": "0"},
     ])

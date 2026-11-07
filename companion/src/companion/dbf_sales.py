@@ -628,6 +628,9 @@ def _write_all(
 
     _bump_isrun(account_dir, prefix, jnltyp)
     notes = _update_arbal(account_dir, entry.customer_code, docdat, prefix, total)
+    if prefix == "IV":
+        # 赊销加客户余额（原生；现销 HS 不动，``master_create.move_party_balance``）
+        master_create.move_party_balance(account_dir, "ARMAS", entry.customer_code, total)
     return docnum, line_modes, stock_sale.has_stock_lines(line_modes), notes, [row[:3] for row in gl_rows]
 
 

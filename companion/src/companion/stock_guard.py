@@ -12,9 +12,9 @@ Express 自己录单会拦库存不足，CC 照写会把账写成 Express 不允
   - ``ISINFO.CHKNEGLEV`` 是 1 或 2（空也按 2）且账套有 STLOC：按单个仓核。每行按**实际写入的仓**（行上的仓库码；没带就是主仓
     ``ISINFO.MAINLOC``，与写单同一条规则）的 ``LOCBAL`` 核，那个仓还没有这件品的行按 0；同一张单里同一件品同一个仓的几行合起来核。
     Express 录行时就拦那一行（Message 4224）；ERP 不能写出半张单，所以整单停在人工。不看全仓合计。
-  - ``CHKNEGLEV = 0``，或账套没有 STLOC：不按仓核，同一件品全单合起来按全仓 ``STMAS.MREMBAL`` 核（报出的仓记 :data:`ALL_LOCATIONS`）；
+  - ``CHKNEGLEV = 0``，或账套没有 STLOC：不按仓核，同一件品全单合起来按全仓总结存 ``STMAS.TOTBAL`` 核（报出的仓记 :data:`ALL_LOCATIONS`）；
     合计够就照写，允许单个仓变负（Express 保存时才查全仓合计，Message 4091，01 仓照样存成 −3）。
-  - 各仓合计和 ``MREMBAL`` 对不上的老账照上面的规则核（原来「对不上就按全仓放行」会写出 Express 自己不允许的分仓负数，已去掉），
+  - 全仓总结存原生就等于各仓合计（S 盘 95 本 99.96%；以前按批次链 ``MREMBAL`` 核，18% 的品会核错，11-07 改）；对不上的老账照上面的规则核（原来「对不上就按全仓放行」会写出 Express 自己不允许的分仓负数，已去掉），
     ERP 同步时这件品进公司页 Express 区的差异清单（``express.masters.stock_differences``），提示去 Express 里修。
 """
 
@@ -48,7 +48,7 @@ def _table_rows(account_dir, name: str, fields: Tuple[str, ...]) -> List[dict]:
     try:
         out = []
         for rec in S.live_rows(table):
-            out.append({field: stock_location._text(rec, field) if field not in ("LOCBAL", "MREMBAL")
+            out.append({field: stock_location._text(rec, field) if field not in ("LOCBAL", "TOTBAL")
                         else stock_location._dec(stock_location._value(rec, field)) for field in fields})
         return out
     finally:
@@ -101,14 +101,14 @@ def short_of(account_dir, need: Dict[Tuple[str, str], Decimal], located_lines: b
         return []
     book_checks = not negative_allowed(account_dir)
     codes = {key[0] for key in need}
-    masters = {row["STKCOD"]: row for row in _table_rows(account_dir, "STMAS", ("STKCOD", "NEGALLOW", "MREMBAL"))
+    masters = {row["STKCOD"]: row for row in _table_rows(account_dir, "STMAS", ("STKCOD", "NEGALLOW", "TOTBAL"))
                if row["STKCOD"] in codes}
     flags = {code: (masters.get(code) or {}).get("NEGALLOW", "").upper() for code in codes}
     # 商品级「ส/คติดลบได้?」盖过账套设置（服务器测试账套 1-戊、第 6 条）：Y 不核；N 当作账套不许负库存（按 CHKNEGLEV 按仓 / 全仓）；空 / A 跟账套
     checked = {code for code, flag in flags.items() if flag == _NO or (flag != _YES and book_checks)}
     if not checked:
         return []
-    totals = {code: (masters.get(code) or {}).get("MREMBAL", Decimal(0)) for code in checked}
+    totals = {code: (masters.get(code) or {}).get("TOTBAL", Decimal(0)) for code in checked}
     has_stloc = located_lines and stock_location._file(account_dir, stock_location.TABLE) is not None
     level_by_warehouse = by_warehouse(account_dir)
     located: Dict[Tuple[str, str], Decimal] = {}

@@ -23,6 +23,7 @@ import pytest
 
 from account_rules_fixture import glacc, isinfo, seed
 from companion import dbf_refund
+from companion import dbf_schema as S
 from companion import dbf_sales as WS
 from companion import fiscal_period
 from companion import payload_contract
@@ -153,6 +154,24 @@ def test_a_cash_refund_writes_every_table_like_the_recorded_sr(book):
     assert _sr_bucket(book) == 100.0
     assert _rows(book, "ARMAS", CUSCOD=CUSTOMER)[0]["BALANCE"] == 60.5  # 实录：160.5 → 60.5
     assert [mode["mode"] for mode in res.line_modes] == ["stock_sale"]
+
+
+def test_a_refund_adds_to_the_total_on_hand_not_the_lot_chain(book):
+    """总结存 TOTBAL 与批次链 MREMBAL 不等时（S 盘 18% 的品），退货回仓加在总结存上，UNITPR 随之重算（11-07 照原生）。"""
+    table = dbf.Table(str(book / "STMAS.DBF"), codepage=S.CODEPAGE)
+    table.open(dbf.READ_WRITE)
+    try:
+        for row in table:
+            if row["STKCOD"].strip() == "ICE01":
+                with row as rec:
+                    rec["TOTBAL"], rec["TOTVAL"] = 43.0, 430.0  # 批次链仍是 3 / 30
+    finally:
+        table.close()
+    res = _write(book, _refund())
+    assert res.ok, res.error
+    master = _rows(book, "STMAS", STKCOD="ICE01")[0]
+    assert (master["TOTBAL"], master["TOTVAL"], master["UNITPR"]) == (44.0, 440.0, 10.0)  # 旧写法：TOTBAL = 3 + 1 = 4
+    assert (master["MREMBAL"], master["MREMVAL"]) == (4.0, 40.0)
 
 
 def test_a_non_cash_refund_writes_a_reversed_transfer_voucher(book):

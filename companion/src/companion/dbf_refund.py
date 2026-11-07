@@ -377,7 +377,7 @@ def plan_cross_year(account_dir, entry, items: List[Dict[str, Any]], locations) 
             raise Refused(ERR_STOCK_ITEM, f"line {index + 1}: {code!r} is not a stock item in Express")
         units = stock_units.resolve(account_dir, code, str(item.get("unit") or ""), _dec(item.get("qty")),
                                     item.get("factor"))
-        bal, val = _dec(master["mrembal"]), _dec(master["mremval"])
+        bal, val = _dec(master["totbal"]), _dec(master["totval"])  # 总结存的均价（= Express 的 UNITPR）
         unit_cost = val / bal if bal > 0 else _dec(stock_sale.standard_cost(account_dir, code))
         cost = _q2(units.base_qty * unit_cost)
         accounts = ("", "")
@@ -461,7 +461,7 @@ def write_refund(payload: Dict[str, Any], account_dir, entry, *, userid: str = S
         docnum, gl_rows, cash_acc, line_modes = _write_all(account_dir, entry, cuscod, lines, docdate_be, docdat,
                                                            vatprd, userid=userid, depcod=depcod, moves=moves)
         notes = _update_arbal(account_dir, cuscod, docdat, PREFIX, Decimal(entry.total_amount))
-        _reduce_balance(account_dir, cuscod, Decimal(entry.total_amount))
+        master_create.move_party_balance(account_dir, "ARMAS", cuscod, -Decimal(entry.total_amount))  # 退现金也减客户余额（实录 SR0000001）
         stloc_expected, notes = record_locations(account_dir, moves, notes)
         remarks = dbf_remarks.write(account_dir, docnum, ((line.seq, line.item) for line in lines))  # 退货单的行号只数库存行
         vouchers = []
@@ -551,8 +551,7 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
             S.append_stcrd(table, _filtered(table, row))
             if moves is not None:
                 moves.append(stock_location.move(row, stock_location.KIND_RETURN))
-            stock_sale.write_stmas_fields(account_dir, line.stkcod, {"MREMBAL": float(new_bal), "MREMVAL": float(new_val),
-                                                                     "TOTBAL": float(new_bal), "TOTVAL": float(new_val)})
+            stock_sale.move_stmas(account_dir, line.stkcod, units.base_qty, line.cost)
             if line.cost:
                 cogs[line.accounts] = cogs.get(line.accounts, Decimal(0)) + line.cost
             line_modes.append(dbf_detail.line_mode(line.number, str(item.get("name") or ""), line.stkcod,
@@ -613,21 +612,6 @@ def _cash_account(account_dir, entry) -> str:
     given = next((str(ln.get("acc") or "").strip() for ln in entry.lines if ln.get("role") == "cash"), "")
     cash = account_rules.default_account(account_dir, "ACCNUM00")
     return cash if cash and account_rules.postable_account(account_dir, cash) else given
-
-
-def _reduce_balance(account_dir, cuscod: str, total: Decimal) -> None:
-    """ARMAS.BALANCE 减退款额（实录 SR0000001：退现金也冲减客户余额）。老表没有这一列不动。"""
-    table = _open(Path(account_dir), "ARMAS", dbf.READ_WRITE)
-    try:
-        if "BALANCE" not in _fields(table):
-            return
-        for r in S.live_rows(table):
-            if _text(r, "CUSCOD") == cuscod:
-                with r as rec:
-                    rec["BALANCE"] = float(_dec(rec["BALANCE"]) - total)
-                return
-    finally:
-        table.close()
 
 
 def _verify(account_dir, docnum: str, entry, line_count: int, gl_rows, since: Dict[str, int]) -> None:

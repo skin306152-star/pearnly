@@ -7,7 +7,7 @@
 - STTRN 单头留着：``DOCSTAT`` N → C、``TRNVAL`` → 0、``NXTSEQ`` → 空；
 - STCRD 明细行打删除标记，``NETVAL`` 改成这一行的货值（Express 作废领用单时如此，SEQNUM 不变）；
 - GLJNL 凭证头 ``DOCSTAT`` → C；GLJNLIT 各行 ``AMOUNT`` 改成空（null，不是 0）；
-- STLOC 各仓结存、期桶按原单反向回滚（不动日期栏）；STMAS ``MREMBAL / MREMVAL / TOTBAL / TOTVAL`` 加回；
+- STLOC 各仓结存、期桶按原单反向回滚（不动日期栏）；STMAS 总结存 ``TOTBAL / TOTVAL`` 加回、``UNITPR`` 随之重算（批次链 ``MREMBAL / MREMVAL`` 同样加回）；
 - ISRUN 计数器不回退（作废号不复用）；不要原因、不要密码。
 
 调拨 RL 照原生作废（实录 RL0000003，副本 s12-rl3 → s12-rl3v）：单头 DOCSTAT C、NXTSEQ 空；那一对明细只打删除标记（字段不改）；
@@ -30,6 +30,7 @@ from . import dbf_schema as S
 from . import fiscal_period
 from . import stock_guard
 from . import stock_location
+from . import stock_sale
 from .consistency import account_company_matches
 from .dbf_stock import COUNT, ISSUE, KINDS, _dec
 from .dbf_transfer import TRANSFER
@@ -284,25 +285,14 @@ def _void_lines(account_dir: Path, docnum: str, kind: str) -> List[stock_locatio
 
 
 def _restore_masters(account_dir: Path, moves: List[stock_location.Move]) -> None:
-    """商品主档结存加回原单的变动（Express 作废时动 MREMBAL / MREMVAL / TOTBAL / TOTVAL 四栏）。"""
+    """商品主档结存加回原单的变动（Express 作废时动 TOTBAL / TOTVAL，UNITPR 随之重算；批次链 MREMBAL / MREMVAL 同样加回，既有写法）。"""
     back: Dict[str, Tuple[Decimal, Decimal]] = {}
     for item in moves:
         qty, value = back.get(item.stkcod, (Decimal(0), Decimal(0)))
         back[item.stkcod] = (qty - item.qty, value - item.value)
-    table = _open(account_dir, "STMAS", dbf.READ_WRITE)
-    try:
-        for rec in S.live_rows(table):
-            code = _text(rec, "STKCOD")
-            if code not in back:
-                continue
-            qty, value = back.pop(code)
-            with rec as fields:
-                for name, delta in (("MREMBAL", qty), ("TOTBAL", qty), ("MREMVAL", value), ("TOTVAL", value)):
-                    fields[name] = float(_dec(rec[name]) + delta)
-    finally:
-        table.close()
-    if back:
-        raise _WriteError(f"STMAS missing {sorted(back)}", ERR_CHANGED)
+    missing = sorted(code for code, (qty, value) in back.items() if not stock_sale.move_stmas(account_dir, code, qty, value))
+    if missing:
+        raise _WriteError(f"STMAS missing {missing}", ERR_CHANGED)
 
 
 def _void_head(account_dir: Path, docnum: str) -> None:

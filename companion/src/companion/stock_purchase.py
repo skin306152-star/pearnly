@@ -55,7 +55,8 @@ def _gv(rec, field: str, default=""):
 
 
 def _stmas_state(account_dir: Path, stkcod: str) -> Tuple[Decimal, Decimal, str]:
-    """读库存主档现状 → (结存数量, 结存货值, ACCCOD 科目联动键)。
+    """读库存主档现状 → (批次链结存 MREMBAL, 批次链货值 MREMVAL, ACCCOD 科目联动键)。结存数只给 STCRD 行上的结存栏用
+    (既有写法);主档总结存由 ``stock_sale.move_stmas`` 按增减改,不从这里推。
 
     按 STKCOD 读而不按品名读:同名可能有多行(历史脏数据/建档撞名),按名匹配会把货入到另一行,
     与随后写 STMAS 的那一行对不上。
@@ -96,7 +97,8 @@ def write_stock_in_lines(
     items = item_mode=='stock_item' 的行(已在备份-回滚事务内)。逐行:建/复用 STKTYP=0 库存档
     → 按码读现结存 → 追加 STCRD 入库行 → STMAS 结存累加。
 
-    只滚结存(MREMBAL/MREMVAL/TOTBAL/TOTVAL),**不碰期初列 OPNBAL/OPNVAL**:期初是会计的
+    只滚结存(总结存 TOTBAL/TOTVAL 按增减、UNITPR 随之重算,批次链 MREMBAL/MREMVAL 同样增减,见 ``stock_sale.move_stmas``),
+    **不碰期初列 OPNBAL/OPNVAL**:期初是会计的
     开账事实,进货是期中发生额,把进货写进期初会让客户的期初余额报表凭空长大。
 
     载荷 4(``stock_location``):``locations`` 是逐行仓库码(None = 主仓,同以前),``moves`` 收集各行在 STLOC 上的
@@ -163,16 +165,7 @@ def write_stock_in_lines(
             S.append_stcrd(st, stock_units.stamp(row, units, base_cost=_money(amount / units.base_qty)))
             if moves is not None:
                 moves.append(stock_location.move(row, stock_location.KIND_PURCHASE))
-            stock_sale.write_stmas_fields(
-                account_dir,
-                stkcod,
-                {
-                    "MREMBAL": float(new_bal),
-                    "MREMVAL": float(new_val),
-                    "TOTBAL": float(new_bal),
-                    "TOTVAL": float(new_val),
-                },
-            )
+            stock_sale.move_stmas(account_dir, stkcod, units.base_qty, amount)
             in_by_account[inv_acc] = in_by_account.get(inv_acc, Decimal("0")) + amount
             line_modes.append(
                 dbf_detail.line_mode(

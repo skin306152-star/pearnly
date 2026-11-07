@@ -12,7 +12,8 @@
 - 过账：一张 JNLTYP 00 普通日记账，VOUCHER = 单号，摘要 = 备注（没写是「จ่ายสินค้าภายใน / ปรับปรุงสินค้า + 单号」），每行
   SEQIT '1'；领用借科目、贷各物料的存货科目，调整为正借存货、贷对方科目，为负反过来。**定期盘存账套（ISINFO.ISPERPETUA ≠ Y）
   与零金额的单不过账**（样本里一律如此）。
-- 成本：领用与减少的调整按移动均价（MREMVAL / MREMBAL；没货按标准成本 STNPR，再没有记 0），与 CC 写销货相同（金样本
+- 主档结存按增减改（``stock_sale.move_stmas``：总结存 TOTBAL / TOTVAL ± 本单、UNITPR 随之重算、批次链 MREMBAL / MREMVAL 同样增减，11-07 照原生）；
+- 成本：领用与减少的调整按移动均价（总结存 TOTVAL / TOTBAL；没货按标准成本 STNPR，再没有记 0），与 CC 写销货相同（金样本
   HS580101-001）；增加的调整用载荷给的单位成本，没给同领用。盘点调整 TK 的盘盈不用载荷的单价（Express 原生不让填）：挂这个仓最近一次
   进货那一批（RDOCNUM / MLOTNUM）、取那一批的成本（S 盘先进先出 2,836 行、平均成本 96 行；实录 TK0000001 在平均成本账套也是批成本）；
   挂不上批次的先进先出账套记 0（同原生），平均成本账套按商品均价（待核）。主档 LASUPD 记盘点日、盘盈那一行成最新一批（MLOTNUM），
@@ -221,14 +222,6 @@ def _location_states(account_dir, keys) -> Dict[Tuple[str, str], Tuple[Decimal, 
     return out
 
 
-def _stmas_fields(account_dir) -> set:
-    table = _open(account_dir, "STMAS", dbf.READ_ONLY)
-    try:
-        return {name.upper() for name in table.field_names}
-    finally:
-        table.close()
-
-
 def _stamp_take_dates(account_dir, places, docdat) -> None:
     """原生盘点：各 (商品, 仓) 的 STLOC.TAKDAT 记盘点那天（实录第 9 条）。老账套没有这一栏不写。"""
     table = stock_location._open(account_dir, stock_location.TABLE, dbf.READ_WRITE)
@@ -244,9 +237,9 @@ def _stamp_take_dates(account_dir, places, docdat) -> None:
 
 
 def _cost(account_dir, item: Dict[str, Any]) -> Decimal:
-    """移动均价（有正结存时）→ 标准成本 → 0。"""
-    if item["mrembal"] > 0:
-        return _dec(item["mremval"]) / _dec(item["mrembal"])
+    """移动均价（总结存为正时，TOTVAL / TOTBAL，= Express 的 UNITPR）→ 标准成本 → 0。"""
+    if item["totbal"] > 0:
+        return _dec(item["totval"]) / _dec(item["totbal"])
     return _dec(stock_sale.standard_cost(account_dir, item["stkcod"]))
 
 
@@ -424,7 +417,8 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
     inventory: Dict[str, Decimal] = {}
     lines: List[Dict] = []
     perpetual = _perpetual(account_dir)  # 定期盘存账套不过账，也就不查存货科目组（验收 10-25：缺组时原来报笼统的写盘失败）
-    balances: Dict[str, Tuple[Decimal, Decimal]] = {}
+    balances: Dict[str, Tuple[Decimal, Decimal]] = {}  # 批次链结存（STCRD 行上的结存栏，既有写法）
+    totals: Dict[str, Tuple[Decimal, Decimal]] = {}  # 总结存（判成本、PHYBAL；主档按增减改，``stock_sale.move_stmas``）
     # 盘点调整 TK 照 Express 原生（实录第 9 条 TK0000001）：单价不取载荷的，盘盈挂这个仓最近一次进货的那一批、取那一批的成本
     # （S 盘先进先出 2,836 行、平均成本 96 行如此；实录 TK0000001 在平均成本账套也是批成本 45，不是这个仓的均价 50）；挂不上批次的
     # 先进先出账套记 0（同原生），平均成本账套按商品均价（待核）。明细带 PHYBAL（写后这个仓的结存）
@@ -445,16 +439,19 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             qty = units.base_qty
             signed = -qty if kind == ISSUE else qty
             bal, val = balances.get(stkcod, (_dec(match["mrembal"]), _dec(match["mremval"])))
+            tot_bal, tot_val = totals.get(stkcod, (_dec(match["totbal"]), _dec(match["totval"])))
+            now = {**match, "totbal": tot_bal, "totval": tot_val}
             given = _dec(item.get("unit_cost")) / (units.base_qty / units.qty if units.qty else 1)  # 每包成本 → 每个库存单位
-            unit_cost = given if (signed > 0 and given > 0) else _cost(account_dir, {**match, "mrembal": bal, "mremval": val})
+            unit_cost = given if (signed > 0 and given > 0) else _cost(account_dir, now)
             place = places[seq - 1]
             lot = lots.get(place) if count and signed > 0 else None
             if count and signed > 0:
-                unit_cost = lot[0] if lot else Decimal(0) if fifo else _cost(account_dir, {**match, "mrembal": bal, "mremval": val})
+                unit_cost = lot[0] if lot else Decimal(0) if fifo else _cost(account_dir, now)
             value = _q2(abs(qty) * unit_cost)
             signed_value = -value if signed < 0 else value
             new_bal, new_val = bal + signed, _q2(val + signed_value)
             balances[stkcod] = (new_bal, new_val)
+            totals[stkcod] = (tot_bal + signed, _q2(tot_val + signed_value))
             unit = units.unit
             trn = units.qty if kind == ISSUE else (units.qty if signed >= 0 else -abs(units.qty))
             row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_entry_row(
@@ -472,7 +469,7 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
                 located[place] = (place_qty + signed, place_val + signed_value)
                 # 原生：MREMBAL / MREMVAL 是写前结存，FLAG 5，PHYBAL 写后这个仓的结存，没有对方科目与品名
                 # PHYBAL：这个仓写后的结存；账套没有 STLOC（不分仓）时就是商品主档写后的结存（复核 10-26）
-                row.update({"FLAG": S.STCRD_FLAG_COUNT, "PHYBAL": float(place_qty + signed if has_stloc else new_bal),
+                row.update({"FLAG": S.STCRD_FLAG_COUNT, "PHYBAL": float(place_qty + signed if has_stloc else tot_bal + signed),
                             "MREMBAL": float(bal),
                             "MREMVAL": float(val), "ACCNUMCR": "", "STKDES": "", "NETVAL": float(signed_value)})
                 if lot:
@@ -482,14 +479,13 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             S.append_stcrd(table, _filtered(table, row))
             if moves is not None:
                 moves.append(stock_location.move(row, move_kind))
-            master = {"MREMBAL": float(new_bal), "MREMVAL": float(new_val), "TOTBAL": float(new_bal), "TOTVAL": float(new_val)}
+            master = {}
             if count:
                 # 原生盘点：主档的最后变动日记这一天，盘盈那一行成了这件品最新的一批（MLOTNUM = 日期 + ':' + 单号行号）
                 master["LASUPD"] = docdat
                 if signed > 0:
                     master["MLOTNUM"] = f"{docdat:%Y%m%d}{S.STCRD_POSOPR_COUNT}{docnum:<12}{S.seqnum_text(seq)}"
-                master = {key: value for key, value in master.items() if key in _stmas_fields(account_dir)}
-            stock_sale.write_stmas_fields(account_dir, stkcod, master)
+            stock_sale.move_stmas(account_dir, stkcod, signed, signed_value, fields=master)
             total += signed_value
             if value and perpetual:
                 inventory_account = stock_sale.stock_accounts(account_dir, match.get("acccod") or "")[0]

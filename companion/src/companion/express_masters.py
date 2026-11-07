@@ -11,7 +11,7 @@
     电话 TELNUM、付款期天数 PAYTRM；供应商另带赊购单服务品进项税口径串 ``srv``（读账套原表 APTRN，``service_vat``，10-29）；
   - products：STMAS 的代码、名称、类别（STKTYP = 0 记 stock，其余 non_stock，同 ``catalog_probe``）、商品组 STKGRP、基本单位
     QUCOD、销售单位 SQUCOD 与换算 SFACTOR、采购单位 PQUCOD 与换算 PFACTOR、售价 SELLPR1–5、条码 BARCOD、税码 VATCOD、
-    该品允许负库存 NEGALLOW、全仓结存 MREMBAL（``balance``，出入库第一期起）；
+    该品允许负库存 NEGALLOW、全仓总结存 TOTBAL（``balance``，出入库第一期起；11-07 前误读 MREMBAL）；
   - units / warehouses / departments：代码表 ISTAB 里 TABTYP = 20 / 21 / 50 的行（单位、仓库、部门），名称取 TYPDES，空则 SHORTNAM；
   - stock：各仓结存 STLOC 的 STKCOD / LOCCOD / LOCBAL / LOCVAL，只给数量或金额非 0 的行。
 - 数字一律字符串化的 Decimal（DBF 浮点 → repr → Decimal 再按位数四舍五入，不带 float 误差）：金额（LOCVAL）两位小数；数量、
@@ -141,8 +141,9 @@ def _product(rec, columns, _gone):
             "prices": [number(get(rec, columns, slot)) for slot in PRICE_SLOTS],
             "barcode": text(get(rec, columns, "BARCOD")), "vatcod": text(get(rec, columns, "VATCOD")),
             "negallow": text(get(rec, columns, "NEGALLOW")),
-            # 全仓结存（出入库第一期，10-25）：ERP 对齐前核「STMAS 结存 = 各仓 STLOC 合计」，对不上的不抹 ERP、进差异清单
-            "balance": number(get(rec, columns, "MREMBAL"))}
+            # 全仓结存（出入库第一期，10-25）：ERP 对齐前核「STMAS 结存 = 各仓 STLOC 合计」，对不上的不抹 ERP、进差异清单。
+            # 总结存是 TOTBAL（MREMBAL 是批次链，S 盘 18% 的品两者不等，11-07 改）；老表没有 TOTBAL 时按 MREMBAL
+            "balance": number(get(rec, columns, "TOTBAL" if "TOTBAL" in columns else "MREMBAL"))}
 
 
 def _code_table(rec, columns, _gone):
