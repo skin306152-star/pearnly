@@ -1278,6 +1278,24 @@ class ReconTests(unittest.TestCase):
         self.assertEqual((out["rows_total"], out["unmatched_total"]), (3, 1))
         self.assertEqual(out["unmatched"], [{"status": "Report only", "invoice_no": "B"}])
 
+    def test_delete_passes_the_named_tasks_and_a_refusal_is_returned(self):
+        api = sys.modules["pearnly_cowork.recon_center.api"]
+        api.delete = lambda kind, names: self.calls.append(("delete", kind, json.loads(names))) or {"deleted": 2}
+        out = json.loads(tools.recon_delete({"kind": "income", "tasks": ["T1", "T2"]}))
+        self.assertEqual((out, self.calls[-1]), ({"deleted": 2}, ("delete", "income", ["T1", "T2"])))
+
+        def refuse(kind, names):
+            frappe.throw("recon.running")
+
+        api.delete = refuse
+        out = json.loads(tools.recon_delete({"kind": "bank", "tasks": ["T3"]}))
+        self.assertEqual(out["status"], "not_deleted")
+        self.assertIn("recon.running", out["reason"])
+        with self.assertRaises(frappe.ValidationError):
+            tools.recon_delete({"kind": "bank", "tasks": []})
+        with self.assertRaises(frappe.ValidationError):
+            tools.recon_delete({"kind": "payroll", "tasks": ["T1"]})
+
     def test_export_goes_into_the_conversation_and_kinds_are_checked(self):
         out = json.loads(tools.recon_export({"kind": "bank", "task": "T1"}))
         self.assertEqual(out["file"], "/mnt/x/BBL Feb.xlsx")
@@ -1559,6 +1577,50 @@ class StocktakeAndWorkTests(unittest.TestCase):
         out = json.loads(tools.stocktake_delete({"counts": ["S1", "closed"]}))
         self.assertEqual(out["deleted"], ["S1"])
         self.assertIn("closed", out["not_deleted"])
+
+    def test_closing_a_count_goes_through_the_page_call_and_a_refusal_is_returned(self):
+        desk = sys.modules["pearnly_cowork.stocktake.desk_api"]
+        desk.api_stock_count_close = lambda count: self.calls.append(("close", count)) or {"status": "Closed"}
+        commits = frappe.commits
+        self.assertEqual(json.loads(tools.stocktake_close({"count": "S1"})), {"status": "Closed"})
+        self.assertEqual((self.calls, frappe.commits), ([("close", "S1")], commits + 1))
+
+        def refuse(count):
+            frappe.throw("stocktake.closed")
+
+        desk.api_stock_count_close = refuse
+        rollbacks = frappe.rollbacks
+        out = json.loads(tools.stocktake_close({"count": "S1"}))
+        self.assertEqual((out["status"], frappe.rollbacks), ("not_saved", rollbacks + 1))
+        self.assertIn("stocktake.closed", out["reason"])
+
+    def test_card_tools_call_the_board_page_with_what_the_model_gave(self):
+        """卡片的查、建、改、移动 / 完成、评论、搜索：调看板页面同一个接口；改卡片带查卡片时的 modified（别人刚改过就不覆盖）。"""
+        work = sys.modules["pearnly_cowork.work.api"]
+        for name in ("card", "create", "update", "move", "toggle_done", "comment", "search"):
+            setattr(work, name, lambda *args, _name=name: self.calls.append((_name, *args)) or {"ok": _name})
+        tools.work_card({"card": "C1"})
+        tools.work_create_card({"title": "Pay SSO", "list": "L1"})
+        tools.work_update_card({"card": "C1", "modified": "2026-11-07 10:00:00", "values": {"due_date": "2026-11-15"}})
+        tools.work_move_card({"card": "C1", "list": "L2"})
+        tools.work_move_card({"card": "C1", "toggle_done": True})
+        tools.work_comment({"card": "C1", "content": "done"})
+        tools.work_search({"keyword": "VAT"})
+        self.assertEqual(self.calls, [
+            ("card", "C1"), ("create", "Pay SSO", "L1"),
+            ("update", "C1", "2026-11-07 10:00:00", json.dumps({"due_date": "2026-11-15"})),
+            ("move", "C1", "L2"), ("toggle_done", "C1"), ("comment", "C1", "done"), ("search", "VAT", None)])
+
+    def test_a_card_changed_by_someone_else_is_not_overwritten(self):
+        work = sys.modules["pearnly_cowork.work.api"]
+
+        def stale(card, modified, values):
+            frappe.throw("work.card.changed")
+
+        work.update = stale
+        out = json.loads(tools.work_update_card({"card": "C1", "modified": "old", "values": {"title": "x"}}))
+        self.assertEqual(out["status"], "not_saved")
+        self.assertIn("work.card.changed", out["reason"])
 
     def test_board_hides_templates_and_mine_keeps_my_cards(self):
         out = json.loads(tools.work_board({}))

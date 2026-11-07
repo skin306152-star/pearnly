@@ -466,6 +466,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_recon_delete"
 where = "CC 工具 cowork_recon_delete"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_delete_passes_the_named_tasks_and_a_refusal_is_returned"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_recon_export"
@@ -614,6 +615,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_stocktake_close"
 where = "CC 工具 cowork_stocktake_close"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_closing_a_count_goes_through_the_page_call_and_a_refusal_is_returned"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_stocktake_count"
@@ -749,6 +751,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_work_card"
 where = "CC 工具 cowork_work_card"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_card_tools_call_the_board_page_with_what_the_model_gave"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_work_comment"
@@ -758,6 +761,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_work_comment"
 where = "CC 工具 cowork_work_comment"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_card_tools_call_the_board_page_with_what_the_model_gave"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_work_create_card"
@@ -767,6 +771,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_work_create_card"
 where = "CC 工具 cowork_work_create_card"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_card_tools_call_the_board_page_with_what_the_model_gave"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_work_move_card"
@@ -776,6 +781,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_work_move_card"
 where = "CC 工具 cowork_work_move_card"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_card_tools_call_the_board_page_with_what_the_model_gave"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_work_search"
@@ -785,6 +791,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_work_search"
 where = "CC 工具 cowork_work_search"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_card_tools_call_the_board_page_with_what_the_model_gave"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_work_update_card"
@@ -794,6 +801,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_work_update_card"
 where = "CC 工具 cowork_work_update_card"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_card_tools_call_the_board_page_with_what_the_model_gave", "unit:tests/test_cowork_assistant_tools.py::test_a_card_changed_by_someone_else_is_not_overwritten"]
 
 [[row]]
 id = "cowork.cc.tool.express_operator_control"
