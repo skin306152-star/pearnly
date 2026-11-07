@@ -481,6 +481,7 @@ Due time,เวลาครบกำหนด
 Due today,ครบกำหนดวันนี้
 Due today or tomorrow,ครบกำหนดวันนี้หรือพรุ่งนี้
 Duplicate location,ตำแหน่งซ้ำ
+Duplicate location code,รหัสตำแหน่งซ้ำ
 ERP,ERP
 ERP Stock Count Variance,แดชบอร์ดผลต่างการตรวจนับ
 ERP menu,เมนู ERP
@@ -737,6 +738,7 @@ Listed documents,ดูรายการเอกสารแล้ว
 Listing documents,กำลังดูรายการเอกสาร
 Loading...,กำลังโหลด…
 Location,ตำแหน่ง
+Location code,รหัสตำแหน่ง
 Locations,รายการตำแหน่ง
 Lookup failed,ค้นหาไม่สำเร็จ
 "Lookup failed, please fill in manually",ค้นหาไม่สำเร็จ กรุณากรอกข้อมูลด้วยตนเอง
@@ -2515,6 +2517,7 @@ stock.countEntryVoid,รายการนี้สร้างจากกา�
 stock.field.docNoAuto,สร้างอัตโนมัติ
 stock.field.search,ค้นหาชื่อหรือบาร์โค้ด
 stock.field.view,มุมมอง
+stock.location.code,รหัสตำแหน่ง
 stock.location.description,คำอธิบาย
 stock.location.fromStock,เพิ่มตำแหน่งที่มีสต็อก
 stock.location.list,รายการตำแหน่ง

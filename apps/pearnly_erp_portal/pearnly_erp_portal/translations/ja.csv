@@ -481,6 +481,7 @@ Due time,期限時刻
 Due today,今日が期限
 Due today or tomorrow,今日か明日が期日
 Duplicate location,ロケーションが重複しています
+Duplicate location code,ロケーションコードが重複しています
 ERP,ERP
 ERP Stock Count Variance,棚卸差異ボード
 ERP menu,ERPメニュー
@@ -737,6 +738,7 @@ Listed documents,書類を一覧しました
 Listing documents,書類を一覧しています
 Loading...,読み込み中…
 Location,保管場所
+Location code,ロケーションコード
 Locations,ロケーション一覧
 Lookup failed,検索できませんでした
 "Lookup failed, please fill in manually",照会に失敗しました。手入力してください
@@ -2515,6 +2517,7 @@ stock.countEntryVoid,この入出庫は棚卸から作られたため、単独�
 stock.field.docNoAuto,自動生成
 stock.field.search,名前・バーコードで検索
 stock.field.view,表示
+stock.location.code,ロケーションコード
 stock.location.description,説明
 stock.location.fromStock,在庫のあるロケーションを追加
 stock.location.list,ロケーション一覧

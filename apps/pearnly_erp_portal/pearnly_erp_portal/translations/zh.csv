@@ -481,6 +481,7 @@ Due time,到期时间
 Due today,今天到期
 Due today or tomorrow,今明两天到期
 Duplicate location,仓位重复
+Duplicate location code,仓位编码重复
 ERP,ERP
 ERP Stock Count Variance,盘点差异看板
 ERP menu,ERP 菜单
@@ -737,6 +738,7 @@ Listed documents,查看了单据
 Listing documents,正在查看单据
 Loading...,加载中…
 Location,仓位
+Location code,仓位编码
 Locations,仓位清单
 Lookup failed,查找失败
 "Lookup failed, please fill in manually",查询失败，请手动填写
@@ -2515,6 +2517,7 @@ stock.countEntryVoid,此单由盘点生成，不能单独作废
 stock.field.docNoAuto,自动生成
 stock.field.search,搜索名称或条码
 stock.field.view,显示方式
+stock.location.code,仓位编码
 stock.location.description,说明
 stock.location.fromStock,带入有库存的仓位
 stock.location.list,仓位清单

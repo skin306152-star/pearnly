@@ -481,6 +481,7 @@ Due time,Due time
 Due today,Due today
 Due today or tomorrow,Due today or tomorrow
 Duplicate location,Duplicate location
+Duplicate location code,Duplicate location code
 ERP,ERP
 ERP Stock Count Variance,ERP Stock Count Variance
 ERP menu,ERP menu
@@ -737,6 +738,7 @@ Listed documents,Listed documents
 Listing documents,Listing documents
 Loading...,Loading...
 Location,Location
+Location code,Location code
 Locations,Locations
 Lookup failed,Lookup failed
 "Lookup failed, please fill in manually","Lookup failed, please fill in manually"
@@ -2515,6 +2517,7 @@ stock.countEntryVoid,Entries from a stock count cannot be voided alone
 stock.field.docNoAuto,Generated automatically
 stock.field.search,Search name or barcode
 stock.field.view,View
+stock.location.code,Location code
 stock.location.description,Description
 stock.location.fromStock,Add locations in stock
 stock.location.list,Locations
