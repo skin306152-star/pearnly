@@ -866,27 +866,6 @@ tests = ["e2e:e2e.cowork.chat-one"]
 group = "cc.view.chat"
 
 [[row]]
-id = "cowork.cc.view.companies"
-product = "Cowork"
-channel = "cc-chat"
-ends = ["desktop", "mobile"]
-kind = "cc-view"
-anchor = "ccview:cowork:companies"
-where = "CC 侧栏「公司」列表"
-tests = ["flow:cowork.cc.sidebar-modes"]
-group = "cc.view.companies"
-
-[[row]]
-id = "cowork.cc.view.company"
-product = "Cowork"
-channel = "cc-chat"
-ends = ["desktop", "mobile"]
-kind = "cc-view"
-anchor = "ccview:cowork:company"
-where = "CC 公司主档页"
-group = "cc.view.company"
-
-[[row]]
 id = "cowork.cc.view.operator"
 product = "Cowork"
 channel = "cc-operator"
@@ -894,7 +873,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-view"
 anchor = "ccview:cowork:operator"
 where = "CC 代录（任务会话）"
-tests = ["flow:cowork.operator.unknown", "unit:tests/test_cc_operator.py::test_events_fold_into_the_same_conversation", "unit:tests/test_cc_operator.py::test_cards_bridge_and_sidebar_modes", "e2e:e2e.cowork.operator-new"]
+tests = ["flow:cowork.operator.unknown", "unit:tests/test_cc_operator.py::test_events_fold_into_the_same_conversation", "unit:tests/test_cc_operator.py::test_cards_bridge_and_sidebar_modes"]
 group = "cc.view.operator"
 
 [[row]]
@@ -1686,13 +1665,24 @@ group = "cc.action.company-picker"
 incidents = ["2026-11-03 ERP 版 CC 添加公司跳系统浏览器、要重新登录"]
 
 [[row]]
+id = "cowork.cc.action.company-menu"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:company-menu"
+where = "CC 侧栏公司组头「···」与对话右侧栏公司卡「···」：改名（就地）、刷新账套、在浏览器中打开、删除公司（先确认「删除公司？」）；按产品声明出（Cowork 改名、删除只给管理员）"
+tests = ["unit:tests/test_cc_company_menu.py::CompanyMenuSourceTests"]
+group = "cc.action.company-menu"
+
+[[row]]
 id = "cowork.cc.action.company-open-in-product"
 product = "Cowork"
 channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:cowork:company-open-in-product"
-where = "CC 公司页「在产品里打开」（ERP：在 ERP 打开）"
+where = "CC 侧栏公司组头「···」/ 对话右侧栏公司卡「···」→ 在浏览器中打开（ERP：这家的 ERP 公司页）"
 group = "cc.action.company-open-in-product"
 
 [[row]]
@@ -1750,7 +1740,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:cowork:deep-link"
-where = "CC 深链接（?c= 打开对话、?view= / ?company= 打开页面；推送通知、托盘点开）"
+where = "CC 深链接（?c= 打开对话；?view=tasks 定时任务页；?company= 定时任务页只看这家（没有定时任务的产品在这家开新对话）；?view=companies 新对话并弹选择公司；?view=pending 那家那个月的对话；推送通知、托盘点开）"
 tests = ["flow:cowork.pending.operator"]
 group = "cc.action.deep-link"
 

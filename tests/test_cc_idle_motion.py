@@ -63,12 +63,8 @@ BUSY_SITES = [
     ("components/company-picker.tsx", "cc-spinner", "rows === null ?", 3),
     ("components/company-picker.tsx", "cc-spinner", "busy === row.identity ?", 1),
     ("components/company-picker.tsx", "cc-spinner", "refreshing ?", 0),
-    ("components/companies.tsx", "animate-cc-pulse", "shown === null ?", 2),
-    ("components/companies.tsx", "cc-spinner", "loading &&", 0),
     ("components/pending.tsx", "cc-spinner", "items === null ?", 2),
     ("components/pending.tsx", "cc-spinner", "busy &&", 0),
-    ("components/company-page.tsx", "cc-spinner", "if (!detail)", 3),
-    ("components/company-page.tsx", "cc-spinner", "if (!rows) return", 0),
     ("components/scheduled-tasks.tsx", "animate-cc-pulse", "rules === null || shown === null ?", 3),
     ("components/ui/skeleton.tsx", "animate-cc-pulse", "function Skeleton(", 5),
     ("components/assistant-ui/thread-list.tsx", "cc-spinner", "loading &&", 0),
@@ -91,7 +87,8 @@ BUSY_MOUNTS = [
     ("components/assistant-ui/thread-list.tsx", "<AuiIf condition={(s) => s.threads.isLoading && !s.threads.threadIds.length}>\n        <ThreadListSkeleton />"),
     ("components/results-panel.tsx", "if (!preview) return <Loading />;"),
     ("components/session-panel.tsx", "{!detail && !error && <PanelSkeleton />}"),
-    ("components/month-ledger.tsx", "{loading && <PanelSkeleton />}"),
+    # 「本月」卡换到别的月、还没取到时才是骨架（11-07 卡头月份胶囊）
+    ("components/month-ledger.tsx", "{loading && !month && <PanelSkeleton />}"),
     ("components/assistant-ui/thread.tsx", "if (!pending) return null;"),
     # 工作状态行（RunLine）：对话这一轮在跑时才挂；代录会话是同一段对话，同一个状态行（进度由 pearnly.progress 说，11-04）
     ("components/assistant-ui/thread.tsx", "  if (!visible) return null;\n  // 进行到哪"),
@@ -105,7 +102,7 @@ INTERVAL_SITES = [
     ("components/scheduled-tasks.tsx", "function HelperConnect(", "「连接 CC 桌面版」弹窗开着时每 3 秒看是否在线", 16),
     ("components/ui/drag.tsx", "if (step && (step < 0 ? d.intent.up : d.intent.down))", "拖动中指针贴着滚动区边缘时自动滚，离开边缘 / 放下即停", 8),
     ("components/assistant-ui/thread.tsx", "if (!running) return;", "工作状态行显示时每秒走一次计时（回合结束即卸下）", 3),
-    ("lib/company-panel.ts", "export function useMinuteClock()", "公司页开着时每分钟刷新相对时间", 4),
+    ("lib/company-panel.ts", "export function useMinuteClock()", "挂着的组件每分钟刷新相对时间（11-07 公司页删了以后没有组件挂它）", 4),
     ("components/operator/bridge.ts", "const start = () => {", "有代录的产品、页面看得见时每 3 秒读一次桥（只有支持实操的 CC 桌面版才真读）；切到后台即停", 4),
 ]
 # 自己反复排 requestAnimationFrame 的循环：(文件, 函数名, 停下的条件——函数体里的原文)
@@ -389,7 +386,8 @@ class ComponentLoopTests(unittest.TestCase):
                 self.assertRegex(code, r"clearInterval\(", f"{rel}：setInterval 要有对应的 clearInterval")
         self.assertEqual(sorted(used), list(range(len(INTERVAL_SITES))), "登记了却找不到")
         company = [rel for rel, code in source_files() if "useMinuteClock()" in code and not rel.startswith("lib/company-panel")]
-        self.assertEqual(company, ["components/company-page.tsx"])
+        # 原来只有公司页的对话列表挂；公司页 11-07 删了，现在没有组件常挂每分钟的时钟
+        self.assertEqual(company, [])
 
     def test_self_rescheduling_frames_have_an_end(self):
         found = set()

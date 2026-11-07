@@ -243,9 +243,13 @@ class DeepLinkTests(unittest.TestCase):
         self.assertIn('latest.current.setView("tasks")', nav)
         self.assertIn("switchToNewThread()", nav)
         self.assertIn("/^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$/", nav)  # 同服务端 OPAQUE_ID
-        # 公司主档页的提醒（?company=）在代录模式下点开：先回对话模式（代录模式下进公司是新建任务页，用户 11-03）
-        self.assertIn('if (useModePlace.getState().mode === "operator") useModePlace.setState({ mode: "chat", operatorView: "operator" });\n'
-                      '          useCompanyNav.setState({ company });\n          latest.current.setView("company");', nav)
+        # 公司、待处理的提醒（?company=、?view=pending、旧的 ?view=companies）在代录模式下点开：先回对话模式，再落到对话或定时任务页
+        # （公司页 11-07 删了，不再落公司页）
+        self.assertIn('// 公司、待处理都在对话模式里落（提醒点开时在代录就先回对话模式）\n'
+                      '        if (useModePlace.getState().mode === "operator") useModePlace.setState({ mode: "chat", operatorView: "operator" });\n'
+                      '        const newChat = ', nav)
+        self.assertNotIn('setView("company")', nav)
+        self.assertNotIn('setView("companies")', nav)
         page = read("assistant.tsx")
         self.assertIn("useDeepLinks(setView, () => loadProfile().then(hasScheduledTasks));", page)
         self.assertIn("<DeepLinks />", page)
@@ -332,7 +336,7 @@ class TextTests(unittest.TestCase):
         for lang in ("en", "zh", "th"):
             words = block(company, f"  {lang}: {{")
             sets[lang] = keys(words) | keys(block(words, "kind: {"))
-            self.assertTrue({"companies", "addCompany", "added", "refreshSets", "notes", "docFolder", "monthFolder", "accountSets",
+            self.assertTrue({"companies", "refreshSets", "deleteCompanyAsk", "allSets", "notes", "docFolder", "monthFolder", "accountSets",
                              "taxDrafts", "remembered", "noPeriod", "period", "branch", "noBranch", "headOffice", "branchShort",
                              "combinedVat", "showMore", "deleteCompany", "chooseOnComputer", "changeFolder",
                              "removeFolder", "updateDesktop", "folderOk", "folderWaiting", "folderOffline", "folderMissing",
@@ -342,6 +346,10 @@ class TextTests(unittest.TestCase):
         self.assertEqual(sets["en"], sets["zh"])
         self.assertEqual(sets["en"], sets["th"])
         self.assertNotIn("moveTo", sets["en"])   # 用户 10-17：「移到」已删，词条一并去掉
+        # 用户 11-07：公司列表（添加公司、排序）、公司页（打开公司、对话列表、让 CC 起草）删了，词条一并去掉
+        for gone in ("addCompany", "added", "openCompany", "conversations", "noChats", "sortBy", "sortRecent", "sortName",
+                     "draftNotes", "draftNotesText"):
+            self.assertNotIn(gone, sets["en"], gone)
         # 工具步骤（含跑完的按类摘要）：三种语言的词条一样多
         steps = block(i18n, "const STEPS = {")
         step_sets = {lang: keys(block(steps, f"  {lang}: {{")) | keys(block(block(steps, f"  {lang}: {{"), "summary: {"))
@@ -2576,7 +2584,7 @@ g.done();
 # 下面用假站点按契约回应。
 
 COMPANY_SOURCES = ("lib/companies.ts", "lib/managed-agents/projects.ts", "lib/managed-agents/sidebar-groups.ts",
-                   "components/companies.tsx", "components/company-page.tsx", "components/company-cards.tsx",
+                   "components/company-menu.tsx", "components/company-cards.tsx",
                    "components/session-panel.tsx", "lib/company-panel.ts", "components/company-picker.tsx",
                    "components/pending.tsx", "components/period-chip.tsx", "components/assistant-ui/projects.tsx",
                    "hooks/use-long-press.ts", "components/month-ledger.tsx", "lib/month.ts")
@@ -2591,8 +2599,10 @@ class CompanyMasterSourceTests(unittest.TestCase):
         # 普通列表：没有公司分组，或侧栏「分组依据」不是公司（按月份 / 不分组，sidebar-view.ts）
         self.assertIn("if (!(await groupedListing())) {", adapter)
         self.assertIn("return !!(await projectsReady()) && byCompany();", adapter)
+        # 侧栏顶部导航没有「公司」（用户 11-07：选公司在对话里弹窗，公司页的操作搬到组头与公司卡的「···」）：新建、定时任务
         app = read("assistant.tsx")
-        self.assertIn("if (!kind) return null;", app.split("function CompanyNav(", 1)[1].split("\nfunction ", 1)[0])
+        self.assertNotIn("function CompanyNav(", app)
+        self.assertIn("      {!mobile && <NewNav />}\n      <ScheduledNav onPick={onPick} />\n    </>", app.split("function SidebarNav(", 1)[1].split("\nfunction ", 1)[0])
 
     def test_pin_wording_and_the_three_custom_writes_keep_other_keys(self):
         app, thread_list = read("assistant.tsx"), read("components/assistant-ui/thread-list.tsx")
@@ -2770,39 +2780,42 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertIn(".cc-chin-btn[data-chosen] { color: var(--cc-ink); }", css)
         self.assertIn(":root:not([data-cc-variant=\"phone\"]) .cc-composer-inline :is(.cc-attach, .cc-send) "
                       "{ width: var(--cc-composer-btn); height: var(--cc-composer-btn); }", css)
-        # 公司页的输入框同一套格子：「＋」要带 aui-composer-add-attachment 才落在 add 格，和光标、发送同一行（用户 10-16 截图：「＋」跑到上一行）
-        company_page = read("components/company-page.tsx")
-        self.assertIn('className="cc-composer cc-composer-inline"', company_page)
-        self.assertIn('className="aui-composer-add-attachment cc-attach"', company_page)
-        self.assertIn('className="aui-composer-send-slot', company_page)
 
     def test_hand_to_cc_and_drafts_prefill_without_sending(self):
         pending = read("components/pending.tsx")
         self.assertIn("handText(items), false);", pending)
         self.assertIn("co.draftText(d.kind, period ? monthLabel(period) : d.period), false);", read("components/company-cards.tsx"))
-        page = read("components/company-page.tsx")
-        # 主档页输入框是用户自己打的字：发出
-        self.assertIn('const filing = () => ({ project: company, period: withPeriod ? period : "", scope: withScope ? scope : "" });', page)
-        self.assertIn("start(filing(), value, true);", page)
-        # 审查第 4 轮：Safari 选字的回车（keyCode 229）不发送；「＋」选的文件带进这家的新对话输入框（不替用户发出）
-        self.assertIn('if (e.key === "Enter" && !e.shiftKey && !isImeEnter(e)) {', page)
-        self.assertIn("start(filing(), value, false, picked);", page)
-        self.assertNotIn("!e.nativeEvent.isComposing) {\n              e.preventDefault();\n              send();", page)
+        # 公司页「在这家新建对话」的输入框 11-07 随公司页删了；在这家开新对话走组头「＋」（useStartIn 同一个预填）
         projects = read("components/assistant-ui/projects.tsx")
         self.assertIn('for (const file of files) void composer.addAttachment(file).catch(withReport(() => undefined, "projects"));', projects)
         self.assertIn("if (send && !files.length) composer.send();", projects)
-        # 让 CC 起草的月份 = 公司页的月份（同输入框、「月结」卡）
-        self.assertIn('start({ project: company, period: pageMonth, scope: "" }, co.draftNotesText, false)', read("components/company-cards.tsx"))
+        # 公司页空知识库的「让 CC 起草」11-07 随公司页删了
+        self.assertNotIn("draftNotesText", read("components/company-cards.tsx"))
 
     def test_deep_links_for_companies_tasks_and_pending(self):
         nav = read("lib/nav.ts")
         # operator：代录模式（评估 2026-10-26-express-operator-product-评估.md §10，左上角「对话 | 代录」）；pending 11-04 起不再是视图
-        self.assertIn('export type View = "chat" | "tasks" | "companies" | "company" | "operator";', nav)
-        # ?view=pending 是兼容入口（早上汇总提醒、CC 桌面版托盘还在发）：落到这家待处理最多那个月的对话，没有就开新对话，多家开公司页
-        self.assertIn("const spot = await pendingSpot(company);", nav)
-        self.assertIn("if (spot.conversation && (await openConversation(aui, spot.conversation))) {", nav)
-        self.assertIn('setDraft({ project: spot.company, period: useProjects.getState().period ? spot.month : "", scope: "" });', nav)
+        # 公司列表（companies）、公司页（company）11-07 删了，不再是视图
+        self.assertIn('export type View = "chat" | "tasks" | "operator";', nav)
+        open_ = nav.split("    const open = async (target: Target) => {", 1)[1].split("\n    };\n", 1)[0]
+        # 落不到公司、待处理时都是新对话（带上公司与月份就是在这家开新对话；产品不按月份时月份空）
+        self.assertIn('setDraft(project ? { project, period: useProjects.getState().period ? month || lastMonth() : "", scope: "" } : {});\n'
+                      '          latest.current.setView("chat");\n          void aui.threads().switchToNewThread();', open_)
+        # ?view=pending 是兼容入口（早上汇总提醒、CC 桌面版托盘还在发）：落到这家待处理最多那个月的对话，没有就在那家那个月开新对话；
+        # 多家（或一家都没有）开新对话（侧栏占位行带提醒点），不再落公司页
+        self.assertIn("const spot = await pendingSpot(company);", open_)
+        self.assertIn("if (spot.conversation && (await openConversation(aui, spot.conversation))) {", open_)
+        self.assertIn("return newChat(spot.company, spot.month);", open_)
         self.assertNotIn('setView("pending")', nav)
+        # 旧的 ?view=companies：新对话并弹选择公司窗口，选了就把这家放进新对话的下巴（上个月）
+        companies = open_.split('if (target.view === "companies") {', 1)[1].split("\n        }\n", 1)[0]
+        self.assertIn("newChat();\n          openCompanyPicker(", companies)
+        self.assertIn('if (id) setDraft({ project: id, period: useProjects.getState().period ? lastMonth() : "", scope: "" });', companies)
+        # ?company=（定时任务提醒没挂对话时的地址）：有定时任务的产品落定时任务页只看这家，没有的在这家开新对话
+        company = open_.split("// ?company=：", 1)[1]
+        self.assertIn("if (!tasks) return newChat(company);", company)
+        self.assertIn('useCompanyNav.setState({ taskCompany: company, taskFocus: "" });\n        latest.current.setView("tasks");', company)
+        self.assertNotIn('setView("company")', nav)
         self.assertIn('url.searchParams.delete("company");', nav)
         self.assertIn("useCompanyNav.setState({ taskCompany: company });", nav)
 
@@ -3432,11 +3445,13 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertNotIn("function PendingNav(", app)
         self.assertNotIn("cc-nav-pending", app)
         self.assertNotIn("PendingView", app)
-        company = app.split("function CompanyNav(", 1)[1].split("\nfunction ", 1)[0]
-        self.assertIn('data-active={view === "companies" || undefined}', company)   # 主档页不再把「公司」选中
-        self.assertNotIn('view === "company" ||', company)
-        # 顺序（主会话 11-03 改，两种模式共用）：新建、公司，模式自己的定时任务在最下面；手机抽屉同一个导航（没有新建这一行）
-        order = [nav.index(x) for x in ("<NewNav />", "<CompanyNav ", "<ScheduledNav ")]
+        # 左侧「公司」入口与公司列表页、公司页没有了（用户 11-07：选公司在对话里弹窗，公司页的操作搬到组头与公司卡的「···」）
+        self.assertNotIn("function CompanyNav(", app)
+        self.assertNotIn("cc-nav-companies", app)
+        self.assertNotIn('view === "companies"', app)
+        self.assertNotIn('view === "company"', app)
+        # 顺序（主会话 11-03 改，两种模式共用）：新建，模式自己的定时任务在下面；手机抽屉同一个导航（没有新建这一行）
+        order = [nav.index(x) for x in ("<NewNav />", "<ScheduledNav ")]
         self.assertEqual(order, sorted(order))
         self.assertIn("{!mobile && <NewNav />}", nav)
         new = app.split("function NewNav(", 1)[1].split("\nfunction ", 1)[0]
@@ -3463,9 +3478,14 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertNotIn("openPending", projects)
         # 占位行不挂在组头下面（那样不在组的行容器里、没缩进），放进组里的行容器（thread-list.tsx 的 PendingRows）
         self.assertNotIn("PendingPlaceholders", head)
-        # 右侧：···（分组和排序）、新建（新建在最右，悬停才出）
-        order = [head.index(x) for x in ("<GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} />", "<GroupNew ")]
+        # 右侧：···（上半段这家公司的项、下半段分组和排序，用户 11-07）、新建（新建在最右，悬停才出）
+        order = [head.index(x) for x in ("<GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} onCloseAutoFocus={rename.onCloseAutoFocus}>",
+                                         "<CompanyMenuItems company={project.id} onRename={rename.request} separator />",
+                                         "</GroupSortMenu>", "<GroupNew ")]
         self.assertEqual(order, sorted(order))
+        # 「··· → 重命名」：组头就地改名，改名框替换开关（同对话行的 InlineRename）
+        self.assertIn('{editing ? (\n      <div className="cc-group-toggle" data-slot="cc-group-rename">\n        {icon}\n        {editing}\n      </div>\n    ) : (', header)
+        self.assertIn("editing={editing}", head)
         css = read("globals.css")
         self.assertIn(".cc-group-more, .cc-group-new { display: none; }", css)
         # 「···」菜单开着时（指针、焦点都在菜单里）「＋」照样露着、「···」不挪位（第 5 轮视觉审查：最近组打开「···」后「＋」消失）
@@ -3508,11 +3528,12 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn('<Marquee className="cc-row-meta" data-slot="cc-row-meta">', rows)
         self.assertIn('data-slot="aui_thread-list-item"\n      data-marquee-host=""', rows)
         self.assertIn('<div data-slot="cc-group" data-marquee-host=""', header)
-        # C：公司组「···」不再有打开公司、在这家新建对话，换成分组和排序；长按组头、菜单键打开的也是它
+        # C：公司组「···」不再有打开公司、在这家新建对话，是分组和排序（11-07 起上面多这家公司的改名、刷新账套等，
+        # components/company-menu.tsx）；长按组头、菜单键打开的也是它
         self.assertNotIn("openCompany", head)
         self.assertNotIn("newChatHere", head + group)
         self.assertNotIn("DropdownMenu.Item", head)
-        self.assertIn("<GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} />", head)
+        self.assertIn("<GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} onCloseAutoFocus={rename.onCloseAutoFocus}>", head)
         # 长按出菜单；拿起后手指动了（真的在拖）就收起菜单（第 6 轮第 2 项）
         self.assertIn("const { open: menuOpen, setOpen: setMenuOpen, modal: menuModal, press } = useLongPressMenu();", head)
         self.assertIn("onMenuKey={() => setMenuOpen(true)}", head)
@@ -3541,9 +3562,10 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertEqual(others.count('onNew={onNewRecent}'), 2)
         self.assertIn('onNewRecent={() => newChatIn("")}\n      sortMenu\n', others)
         self.assertNotIn("<GroupSortMenu />", others)
-        # 公司页仍有路：会话栏公司卡的名称（顶栏「公司名 ›」、手机胶囊菜单打开会话栏），公司列表页的卡片
-        self.assertIn("onClick={() => openCompany(c.id, c.title)}", read("components/session-panel.tsx"))
-        self.assertIn("onClick={() => openCompany(row.id, row.title)}", read("components/companies.tsx"))
+        # 公司页 11-07 删了：会话栏公司卡的名称不再是「打开公司」，公司的操作在卡头「···」
+        panel = read("components/session-panel.tsx")
+        self.assertNotIn("openCompany", panel)
+        self.assertIn('data-slot="cc-company-more"', panel)
 
     def test_truncated_single_lines_scroll_on_hover(self):
         # 悬停滚动（用户 2026-10-15 夜，参考 DeepSeek 桌面端录屏）：一个共用钩子 + 组件，参数在 globals.css
@@ -3574,10 +3596,10 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("mask-image: linear-gradient(to right, transparent, black var(--cc-marquee-fade), black calc(100% - var(--cc-marquee-end)), transparent);", css)
         self.assertIn(".cc-marquee, .cc-fade-cell { --cc-marquee-end: var(--cc-row-fade); text-overflow: clip; }", css)   # 右端保留末尾渐隐
         self.assertIn("@media (prefers-reduced-motion: reduce), (hover: none) {\n  .cc-marquee[data-marquee] > .cc-marquee-text { transform: none; transition: none; }", css)
-        # 用到的地方：标题栏对话名、会话栏行、公司页对话行、菜单里的公司名
+        # 用到的地方：标题栏对话名、会话栏行（公司名、「全部账套」）、菜单里的公司名（公司页对话行 11-07 随页删了）
         self.assertIn('<Marquee className="truncate">{title || t("untitled")}</Marquee>', read("assistant.tsx"))
         self.assertIn('<Marquee className="min-w-0 flex-1 truncate">{c.title}</Marquee>', read("components/session-panel.tsx"))
-        self.assertIn('<Marquee className="cc-row-title">{row.title || t("untitled")}</Marquee>', read("components/company-page.tsx"))
+        self.assertIn('<Marquee className="min-w-0 flex-1 truncate">{co.allSets}</Marquee>', read("components/session-panel.tsx"))
         self.assertIn('<Marquee className="min-w-0 flex-1 truncate text-ink">{t("recents")}</Marquee>', read("components/company-picker.tsx"))
 
     def test_rows_fade_pulse_and_take_a_metadata_line(self):
@@ -3988,7 +4010,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server.browser";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { ChoiceRow, FolderSection, SetsSection } from "@/components/company-page";
+import { ChoiceRow, FolderSection, SetsSection } from "@/components/company-cards";
 import { loadDesktopFeatures } from "@/lib/desktop";
 import { useProjects } from "@/lib/managed-agents/projects";
 
@@ -4488,26 +4510,9 @@ assert.equal(useTaskOverview.getState().loaded, true);
         self.assertNotIn(".cc-project-tasks", read("globals.css"))
 
     def test_the_company_page_lists_its_own_chats_from_the_server(self):
-        # 公司页的对话按这家从服务端取（分组列表 group=<公司>，分页），不靠侧栏已加载的几条
-        page = read("components/company-page.tsx")
-        chats = page.split("export const Conversations: FC", 1)[1].split("\n// ----", 1)[0]
-        # 顺带核对侧栏以为在跑的那几个（同侧栏的 check）：读回的运行状态里有等你点「允许」的标「等你处理」
-        self.assertIn("const check = runningSessions();", chats)
-        self.assertIn("await listGrouped({ group: company, after, check });", chats)
-        # 读回的运行状态交给 noteRun 校正实时状态（同侧栏 absorb），之后才开始跑的补读一次
-        self.assertIn("for (const [id, run] of Object.entries(found ?? {})) noteRun(id, run);", chats)
-        self.assertIn("absorbRuns(check, page.runs);", chats)
-        self.assertIn("listGrouped({ group: company, check: ids })", chats)
-        # 加载中转圈、没有对话时说一句，不是一片空白
-        self.assertIn("if (!rows) return <LoaderIcon", chats)
-        self.assertIn('{!rows.length && <p className="cc-company-empty">{co.noChats}</p>}', chats)
-        self.assertIn("const mark = chatMark(chatState(activities[row.id], runs[row.id], row.unread), activities[row.id]);", chats)
-        self.assertIn("onClick={() => void load(next)}", chats)
-        self.assertNotIn("threadItems", chats)
-        # 别家的移动不重取；移进这家、从这一页移走的才重取，侧栏条数变化与推送合成一次
-        self.assertIn("if (change.project === company || rowsNow.current?.some((row) => row.id === change.session_id)) reload();", chats)
-        self.assertNotIn('change.op === "move" ? void load()', chats)
-        self.assertIn("soon.current = window.setTimeout(() => void load(), RELOAD_MERGE_MS);", chats)
+        # 公司页（连同它按这家从服务端取的对话列表）11-07 删了：这家的对话就是侧栏这家的组（分组列表 group=<公司>，组里「显示更多」翻页）
+        self.assertFalse((SRC / "components/company-page.tsx").exists())
+        self.assertNotRegex("\n".join(p.read_text(encoding="utf-8") for p in SRC.rglob("*.ts*")), r"\bConversations\b")
         self.run_page(r"""
 import { listGrouped } from "@/lib/managed-agents/api";
 g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { sessions: [], nextCursor: null } }) });
@@ -4577,7 +4582,7 @@ assert.deepEqual(text(learned(false)), ["ACME", "5320"]);
 assert.deepEqual(text(learned(true)), ["ACME", "5320", "From Express history · 9 · Sep 30, 2026", "ACME → 5320 Utilities", "Delete"]);
 // 按公司记的入账方式（可改、可删）、现用账套（只删，改选走待处理 / CC）与 Express 历史定下的入账方式（只删）：用户 2026-10-17
 // 「加上，方便看和删」。行样式以外壳为准：展开的入账方式行出两段按钮，现用账套行没有分段、只有删除
-import { choiceSection, setChoiceShown } from "@/components/company-page";
+import { choiceSection, setChoiceShown } from "@/components/company-cards";
 import { co } from "@/i18n";
 const posting = { key: "p1", source: "policy", kind: "posting", subject_label: "Goods documents", value: "stock", editable: true };
 const book = { key: "p2", source: "policy", kind: "current_book", subject_label: "Current year · Head office", value: "s:\\69exp\\abc",
@@ -4673,9 +4678,10 @@ console.log("HARNESS OK");
 class CompanyPageLiveTests(unittest.TestCase):
     def test_the_company_page_rechecks_like_the_other_lists(self):
         # 验收 F8：另一台设备「更换…」文件夹后，这页错过那次推送（后台标签页、实时通道断过）就一直停在旧路径。
-        # 同待处理、定时任务页：电脑同步文件夹、回到前台、拿回焦点、重连时重取，另有兜底定时
-        page = read("components/company-page.tsx")
-        # 审查第 4 轮：公司页与它的会话栏共用一份详情（usePanelDetail），只有先挂上的那一处跟着事件重取
+        # 同待处理、定时任务页：电脑同步文件夹、回到前台、拿回焦点、重连时重取，另有兜底定时。公司页 11-07 删了，
+        # 公司的资料（单据文件夹等）只在会话栏：它读共用的一份详情（usePanelDetail），只有先挂上的那一处跟着事件重取
+        self.assertFalse((SRC / "components/company-page.tsx").exists())
+        page = read("components/session-panel.tsx")
         self.assertIn("const { detail, error, reload } = usePanelDetail(company, period);", page)
         self.assertNotIn("loadDetail(", page)
         panel = read("lib/company-panel.ts")
@@ -6879,8 +6885,7 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
         self.assertNotIn("text-overflow: ellipsis", css)
         # 原来还在用 truncate / 省略号的单行：卡头摘要、列表页标题、对话框标题、菜单项、设置里的 Express 路径、工作状态行、表格格子
         self.assertIn('<Marquee id={summaryId} className="cc-panel-card-summary">', read("components/company-cards.tsx"))
-        for rel, title in (("components/companies.tsx", "{co.companies}"),
-                           ("components/scheduled-tasks.tsx", '{tr("cowork.folder.title")}')):
+        for rel, title in (("components/scheduled-tasks.tsx", '{tr("cowork.folder.title")}'),):
             self.assertIn(f'<h1 className="cc-page-title"><Marquee className="cc-page-title-text">{title}</Marquee></h1>', read(rel), rel)
         self.assertIn('<DialogPrimitive.Title className="cc-dialog-title">\n              <Marquee className="block truncate">{title}</Marquee>',
                       read("components/scheduled-tasks.tsx"))
@@ -9012,9 +9017,9 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         # 第 11 轮复量只借 8 时是 9（页面卡片的细线）：连这条细线一起借
         self.assertIn("width: calc(100% + var(--cc-keyboard-edge) * 2 + 2 * var(--cc-hairline)); margin-inline: calc(var(--cc-keyboard-edge) * -1 - var(--cc-hairline));",
                       block(self.css, ':root[data-cc-keyboard] .cc-mmain .cc-composer:not([data-collapsed]) {'))
-        # M10：公司页输入框同对话页，没在输入、也没有字时收成一行胶囊
-        page = read("components/company-page.tsx")
-        self.assertIn('data-collapsed={!typing && !text ? "" : undefined}', page)
+        # M10：对话页输入框没在输入、也没有字时收成一行胶囊（照着它做的公司页输入框 11-07 随公司页删了）
+        self.assertIn('data-collapsed={!typing && empty ? "" : undefined}', read("components/assistant-ui/thread.tsx"))
+        self.assertFalse((SRC / "components/company-page.tsx").exists())
 
     def test_desktop_fixes(self):
         css = self.css
@@ -9101,14 +9106,13 @@ class Round11ReviewTests(unittest.TestCase):
         self.assertIn(':root[data-cc-touch] .cc-welcome-filing { gap: var(--cc-space-8); }', self.css)
 
     def test_company_composer_folds_on_android_back(self):
-        # 审查：公司页输入框加了收成胶囊，却没接安卓返回键收键盘（KEYBOARD_CLOSED），返回后仍是展开的
-        page = read("components/company-page.tsx")
-        composer = page[page.index("const CompanyComposer: FC"):]
-        self.assertIn('import { KEYBOARD_CLOSED } from "@/lib/viewport";', page)
-        self.assertIn("emptyNow.current = !text;", composer)
-        self.assertIn("if (emptyNow.current && document.activeElement === box.current) box.current?.blur();", composer)
-        self.assertIn("window.addEventListener(KEYBOARD_CLOSED, closed);", composer)
-        self.assertIn("return () => window.removeEventListener(KEYBOARD_CLOSED, closed);", composer)
+        # 审查：公司页输入框加了收成胶囊，却没接安卓返回键收键盘（KEYBOARD_CLOSED），返回后仍是展开的。公司页 11-07 删了，
+        # 收成胶囊的输入框只剩对话页那一个，它接着返回键（收键盘就收成胶囊）
+        users = sorted(p.relative_to(SRC).as_posix() for p in SRC.rglob("*.tsx") if "KEYBOARD_CLOSED" in p.read_text(encoding="utf-8"))
+        self.assertEqual(users, ["components/assistant-ui/thread.tsx"])
+        thread = read("components/assistant-ui/thread.tsx")
+        self.assertIn("window.addEventListener(KEYBOARD_CLOSED, closed);", thread)
+        self.assertIn("return () => window.removeEventListener(KEYBOARD_CLOSED, closed);", thread)
 
     def test_scheduled_task_target_cards_are_tappable_edge_to_edge(self):
         # 审查（复量附录 #83）：写入目标卡（MR.ERP / Express）的内边距在卡片上，按钮只有 21–38 高；挪进按钮，手机至少 44

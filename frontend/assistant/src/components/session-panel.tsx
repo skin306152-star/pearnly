@@ -1,15 +1,16 @@
-// 右侧会话栏（设计文档 3.13 / 4.4；有公司分组的产品挂了公司的对话与公司页里，DMS 与没挂公司的对话没有它，ADR-020）。
+// 右侧会话栏（设计文档 3.13 / 4.4；有公司分组的产品挂了公司的对话里，DMS 与没挂公司的对话没有它，ADR-020）。
 // 公司卡与输出文件各产品都有；其余卡片只在产品声明了那个分区时出（sections：month / pending / notes / folders / tasks / choices /
 // drafts；ERP 只有待处理与知识库），不按产品名分支。
 //
 //   版式   宽 280；卡片纵向、间距统一一个变量（--cc-panel-gap）。宽屏与页面并排停靠；放不下「对话最窄 + 会话栏」时浮在页面
-//          上方（Esc、× 关）；手机盖满屏（对话页从胶囊菜单里的公司名、公司页从标题旁的按钮打开），返回键关。
+//          上方（Esc、× 关）；手机盖满屏（从胶囊菜单里的公司名打开），返回键关。
 //          对话里与文件预览共用右侧一个位置：打开文件时换成预览，关了预览回到会话栏（assistant.tsx 的 Layout）。
 //   卡片   默认顺序 公司 / 本月（月结台账，components/month-ledger.tsx）/ 待处理 / 知识库 / 单据文件夹 / 定时任务 / 记住的选择 /
-//          申报草稿 / 输出文件；没内容的不显示。对话里「待处理」只列对话月份以外的（对话那个月的在「本月」卡，开发窗口 10-16 定）。
-//          公司页（page）：公司卡写公司信息与全部账套，「月结」卡带月份胶囊（公司页自己的月份），待处理列全部月份，
-//          知识库（空时「让 CC 起草」）与定时任务空的也显示，没有输出文件。
-//          卡头右侧一句状态；顺序、折叠记在这台设备（lib/company-panel.ts，对话与公司页同一份）。
+//          申报草稿 / 输出文件；没内容的不显示，知识库、定时任务空的也显示（「＋」加第一条，用户 11-07：公司页删了，对话里要能加）。
+//          对话里「待处理」只列对话月份以外的（对话那个月的在「本月」卡，开发窗口 10-16 定）。
+//          公司卡「···」：改名 / 刷新账套 / 在 ERP 中打开 / 删除公司（components/company-menu.tsx，同侧栏组头的「···」）；
+//          「全部账套」在卡里展开（公司页删了以后看全部账套的地方）。「本月」卡的月份胶囊只换卡里看的月份，不移动对话（定案 #4）。
+//          卡头右侧一句状态；顺序、折叠记在这台设备（lib/company-panel.ts）。
 //   拖动   共用拖动（components/ui/drag.tsx，同 Claude 视频：浮起跟手、其余卡片让位、松手当帧平滑落位、只在这一列、Esc 只取消拖动、
 //          键盘与读屏、手机长按把手 250ms）；6 点把手 grab / grabbing。放下时记顺序；Alt+↑/↓ 同样挪。
 //   数据   公司详情按「公司|月份」缓存，只在会话栏挂着（看得见）时跟着站点事件重取（lib/company-panel 的 usePanelDetail）。
@@ -17,10 +18,11 @@
 // 样式只用 globals.css 的 .cc-panel* 与变量。
 
 import { useAuiState } from "@assistant-ui/react";
-import { BookOpenIcon, Building2Icon, CalendarIcon, ChevronRightIcon, StoreIcon, XIcon } from "lucide-react";
+import { BookOpenIcon, Building2Icon, CalendarIcon, ChevronDownIcon, MoreHorizontalIcon, StoreIcon, XIcon } from "lucide-react";
 import { Fragment, type FC, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useOpenCompany } from "@/components/assistant-ui/projects";
-import { companyLine } from "@/components/companies";
+import { InlineRename } from "@/components/assistant-ui/thread-list";
+import { CompanyMenuItems, saveCompanyName, useCompanyMenu, useRenameAfterMenu } from "@/components/company-menu";
+import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import {
   ChoicesSection,
   DraftsSection,
@@ -34,12 +36,12 @@ import {
   SetsList,
   TasksSection,
 } from "@/components/company-cards";
-import { MonthCard, MonthSection } from "@/components/month-ledger";
+import { MonthCard } from "@/components/month-ledger";
 import { branchName } from "@/components/period-chip";
 import { FileTypeIcon, useResults } from "@/components/results-panel";
 import { co, t } from "@/i18n";
-import { branchesOf, branchShort, type Detail, monthLabel, setsForScope } from "@/lib/companies";
-import { moveCard, type PanelCard as CardId, setCardOrder, setPagePeriod, toggleCard, usePanel, usePanelDetail } from "@/lib/company-panel";
+import { branchesOf, branchShort, companyLine, type Detail, monthLabel, setsForScope } from "@/lib/companies";
+import { moveCard, type PanelCard as CardId, setCardOrder, toggleCard, usePanel, usePanelDetail } from "@/lib/company-panel";
 import { type Filing, NO_FILING, type Section, useProjects } from "@/lib/managed-agents/projects";
 import { OPEN_LAYERS } from "@/lib/back-stack";
 import { opener, returnFocusAfterClose } from "@/lib/focus-return";
@@ -150,7 +152,7 @@ export function declaredCards(cards: Record<CardId, ReactNode>, sections: readon
 // 会话栏开关（顶栏右侧，assistant.tsx）：关掉浮着的会话栏后焦点的去处
 const PANEL_TOGGLE = '[data-slot="cc-panel-toggle"]';
 
-export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => void; page?: boolean }> = ({ filing, mode, onClose, page = false }) => {
+export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => void }> = ({ filing, mode, onClose }) => {
   const { project: company, period, scope } = filing;
   const { detail, error, reload } = usePanelDetail(company, period);
   const focus = usePanel((s) => s.focus);
@@ -197,40 +199,25 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
   const branches = detail ? branchesOf(detail) : [];
   const multi = branches.length > 1 ? branches : [];
   const sections = useProjects((s) => s.sections);
-  const all: Record<CardId, ReactNode> = page
-    ? {
-        company: detail ? <CompanyPageCard detail={detail} period={period} /> : null,
-        month: <MonthSection company={company} period={period} onPeriod={setPagePeriod} />,
-        pending: <PendingCard company={company} />,
-        notes: detail ? <NotesSection company={company} notes={detail.notes} reload={reload} keepEmpty /> : null,
-        folders: detail ? <FolderSection company={company} folders={detail.folders} reload={reload} /> : null,
-        tasks: detail ? <TasksSection company={company} detail={detail} period={period} keepEmpty /> : null,
-        choices: detail ? <ChoicesSection company={company} choices={detail.choices} period={period} reload={reload} /> : null,
-        drafts: detail?.drafts ? (
-          <DraftsSection company={company} drafts={detail.drafts} branches={multi} combined={!!detail.company.combined_vat} />
-        ) : null,
-        outputs: null,
-      }
-    : {
-        company: detail ? <CompanyCard detail={detail} period={period} scope={scope} /> : null,
-        month: <MonthCard company={company} period={period} />,
-        pending: <PendingCard company={company} period={period} />,
-        notes: detail ? <NotesSection company={company} notes={detail.notes} reload={reload} /> : null,
-        folders: detail ? <FolderSection company={company} folders={detail.folders} reload={reload} hideEmpty /> : null,
-        tasks: detail ? <TasksSection company={company} detail={detail} period={period} /> : null,
-        choices: detail ? <ChoicesSection company={company} choices={detail.choices} period={period} reload={reload} /> : null,
-        drafts: detail?.drafts ? (
-          <DraftsSection company={company} drafts={detail.drafts} branches={multi} combined={!!detail.company.combined_vat} />
-        ) : null,
-        outputs: <OutputsCard />,
-      };
+  const all: Record<CardId, ReactNode> = {
+    company: detail ? <CompanyCard detail={detail} period={period} scope={scope} reload={reload} /> : null,
+    month: <MonthCard company={company} period={period} />,
+    pending: <PendingCard company={company} period={period} />,
+    notes: detail ? <NotesSection company={company} notes={detail.notes} reload={reload} /> : null,
+    folders: detail ? <FolderSection company={company} folders={detail.folders} reload={reload} hideEmpty /> : null,
+    tasks: detail ? <TasksSection company={company} detail={detail} period={period} /> : null,
+    choices: detail ? <ChoicesSection company={company} choices={detail.choices} period={period} reload={reload} /> : null,
+    drafts: detail?.drafts ? (
+      <DraftsSection company={company} drafts={detail.drafts} branches={multi} combined={!!detail.company.combined_vat} />
+    ) : null,
+    outputs: <OutputsCard />,
+  };
   const cards = declaredCards(all, sections);
   return (
     <aside
       ref={box}
       className="cc-panel"
       data-mode={mode}
-      data-page={page || undefined}
       data-slot="cc-session-panel"
       aria-label={detail?.company.title || co.company}
     >
@@ -258,22 +245,54 @@ const InfoRow: FC<{ icon: ReactNode; label: string; value: string }> = ({ icon, 
   </div>
 );
 
-/** 公司卡：名称（点了打开公司页）、法定名、税号 · 分店，合并申报；本对话的月份、分店与覆盖这个月的账套
- *  （没指定分店时各分店的都列，总店在前，一份一行；lib/companies 的 setsForScope）。 */
-const CompanyCard: FC<{ detail: Detail; period: string; scope: string }> = ({ detail, period, scope }) => {
-  const openCompany = useOpenCompany();
+/** 公司卡：名称、法定名、税号 · 分店，合并申报；本对话的月份、分店与覆盖这个月的账套（没指定分店时各分店的都列，总店在前，
+ *  一份一行；lib/companies 的 setsForScope），下面「全部账套」展开看这家的全部账套（多分店按分店分组，覆盖这个月的高亮）。
+ *  卡头「···」：这家公司的改名 / 刷新账套 / 在 ERP 中打开 / 删除公司（同侧栏组头，按产品声明；一项都没有时不出）；改名就地改名称那一行。 */
+const CompanyCard: FC<{ detail: Detail; period: string; scope: string; reload: () => Promise<void> }> = ({ detail, period, scope, reload }) => {
   const c = detail.company;
-  const branch = branchesOf(detail).find((b) => b.branch === scope);
+  const branches = branchesOf(detail);
+  const branch = branches.find((b) => b.branch === scope);
   const sets = setsForScope(detail, period, scope);
   const legal = c.legal_name && c.legal_name !== c.title ? c.legal_name : "";
   const line = companyLine(c);
+  const menu = useCompanyMenu();
+  const [renaming, setRenaming] = useState(false);
+  const rename = useRenameAfterMenu(() => setRenaming(true));
+  const [allSets, setAllSets] = useState(false);
   return (
-    <PanelCard id="company" title={co.company} summary={sets.length ? co.card.sets(sets.length) : undefined} slot="cc-panel-company">
-      <button type="button" className="cc-panel-row" data-strong="" title={co.openCompany} onClick={() => openCompany(c.id, c.title)}>
+    <PanelCard
+      id="company"
+      title={co.company}
+      summary={sets.length ? co.card.sets(sets.length) : undefined}
+      slot="cc-panel-company"
+      forceOpen={renaming}
+      action={
+        menu.any ? (
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger className="cc-panel-btn" aria-label={t("more")} title={t("more")} data-slot="cc-company-more">
+              <MoreHorizontalIcon />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-md)" onCloseAutoFocus={rename.onCloseAutoFocus}>
+                <CompanyMenuItems company={c.id} onRename={rename.request} onChanged={() => void reload()} />
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        ) : undefined
+      }
+    >
+      <div className="cc-panel-row" data-strong="" title={c.title}>
         <Building2Icon />
-        <Marquee className="min-w-0 flex-1 truncate">{c.title}</Marquee>
-        <ChevronRightIcon />
-      </button>
+        {renaming ? (
+          <InlineRename
+            value={c.title}
+            onSave={(next) => void saveCompanyName(c.id, next).then((saved) => (saved ? reload() : undefined))}
+            onDone={() => setRenaming(false)}
+          />
+        ) : (
+          <Marquee className="min-w-0 flex-1 truncate">{c.title}</Marquee>
+        )}
+      </div>
       {legal && <div className="cc-panel-row cc-panel-indent"><Marquee className="truncate">{legal}</Marquee></div>}
       {line && <div className="cc-panel-row cc-panel-indent"><Marquee className="truncate">{line}</Marquee></div>}
       {!!c.combined_vat && (
@@ -294,31 +313,16 @@ const CompanyCard: FC<{ detail: Detail; period: string; scope: string }> = ({ de
           ))}
         </>
       )}
-    </PanelCard>
-  );
-};
-
-/** 公司页的公司卡（名称已是页面标题）：法定名（与名称不同才写）、税号 · 分店、合并申报，下面是全部账套（多分店按分店分组，覆盖公司页这个月的高亮）。 */
-const CompanyPageCard: FC<{ detail: Detail; period: string }> = ({ detail, period }) => {
-  const c = detail.company;
-  const branches = branchesOf(detail);
-  const legal = c.legal_name && c.legal_name !== c.title ? c.legal_name : "";
-  const line = companyLine(c);
-  const sets = detail.account_sets;
-  if (!legal && !line && !c.combined_vat && !sets.length) return null;
-  return (
-    <PanelCard id="company" title={co.company} summary={sets.length ? co.card.sets(sets.length) : undefined} slot="cc-panel-company">
-      {legal && <div className="cc-panel-row text-ink" title={legal}><Marquee className="truncate">{legal}</Marquee></div>}
-      {line && <div className="cc-panel-row" title={line}><Marquee className="truncate">{line}</Marquee></div>}
-      {!!c.combined_vat && (
-        <div className="cc-panel-row">
-          <span className="cc-chip">{co.combinedVat}</span>
-        </div>
-      )}
-      {sets.length > 0 && (
+      {detail.account_sets.length > 0 && (
         <>
-          <InfoRow icon={<BookOpenIcon />} label={co.accountSets} value="" />
-          <SetsList sets={sets} branches={branches.length > 1 ? branches : []} period={period} />
+          {/* 同待处理卡的展开行（.cc-pending-toggle） */}
+          <button type="button" className="cc-pending-toggle cc-panel-row" aria-expanded={allSets} data-slot="cc-company-all-sets" onClick={() => setAllSets((v) => !v)}>
+            <BookOpenIcon />
+            <Marquee className="min-w-0 flex-1 truncate">{co.allSets}</Marquee>
+            <span className="cc-panel-extra">{detail.account_sets.length}</span>
+            <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
+          </button>
+          {allSets && <SetsList sets={detail.account_sets} branches={branches.length > 1 ? branches : []} period={period} />}
         </>
       )}
     </PanelCard>

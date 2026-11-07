@@ -37,11 +37,6 @@ apps/pearnly_core/pearnly_core/execution/work.py
 apps/pearnly_core/pearnly_core/ocr_models/__init__.py
 apps/pearnly_core/pearnly_core/ocr_models/orient.py
 apps/pearnly_core/pearnly_core/workspace.py
-apps/pearnly_cowork/pearnly_cowork/companies/context.py
-apps/pearnly_cowork/pearnly_cowork/companies/ledger.py
-apps/pearnly_cowork/pearnly_cowork/companies/months.py
-apps/pearnly_cowork/pearnly_cowork/companies/notes.py
-apps/pearnly_cowork/pearnly_cowork/companies/rules.py
 apps/pearnly_cowork/pearnly_cowork/companion/credentials.py
 apps/pearnly_cowork/pearnly_cowork/companion/devices.py
 apps/pearnly_cowork/pearnly_cowork/companion/request_access.py
@@ -53,9 +48,6 @@ apps/pearnly_cowork/pearnly_cowork/connections/model.py
 apps/pearnly_cowork/pearnly_cowork/connections/pool.py
 apps/pearnly_cowork/pearnly_cowork/connections/reports.py
 apps/pearnly_cowork/pearnly_cowork/contracts/duplicates.py
-apps/pearnly_cowork/pearnly_cowork/folder_intake/access.py
-apps/pearnly_cowork/pearnly_cowork/folder_intake/agent.py
-apps/pearnly_cowork/pearnly_cowork/folder_intake/company_folders.py
 apps/pearnly_cowork/pearnly_cowork/folder_intake/inbox.py
 apps/pearnly_cowork/pearnly_cowork/folder_intake/live.py
 apps/pearnly_cowork/pearnly_cowork/folder_intake/notify.py
@@ -104,8 +96,6 @@ apps/pearnly_cowork/pearnly_cowork/ocr/table_engine/roundtrip.py
 apps/pearnly_cowork/pearnly_cowork/ocr/table_inputs/__init__.py
 apps/pearnly_cowork/pearnly_cowork/ocr/validation/chains.py
 apps/pearnly_cowork/pearnly_cowork/ocr/validation/sources.py
-apps/pearnly_cowork/pearnly_cowork/pos_import/layouts.py
-apps/pearnly_cowork/pearnly_cowork/push/express/company_choices.py
 apps/pearnly_cowork/pearnly_cowork/push/native/contracts.py
 apps/pearnly_cowork/pearnly_cowork/push/native/documents.py
 apps/pearnly_cowork/pearnly_cowork/reconciliation/export/theme.py
@@ -115,7 +105,6 @@ apps/pearnly_cowork/pearnly_cowork/roundtrip/export_mapping.py
 apps/pearnly_cowork/pearnly_cowork/roundtrip/export_writer.py
 apps/pearnly_cowork/pearnly_cowork/roundtrip/intake.py
 apps/pearnly_cowork/pearnly_cowork/tabular/summary.py
-apps/pearnly_cowork/pearnly_cowork/tax/access.py
 apps/pearnly_dms/pearnly_dms/account/__init__.py
 apps/pearnly_dms/pearnly_dms/account/portal.py
 apps/pearnly_dms/pearnly_dms/adapter/__init__.py

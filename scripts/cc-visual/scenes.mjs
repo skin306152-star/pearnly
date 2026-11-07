@@ -64,9 +64,10 @@ const FAKE = (...rules) => `(() => { const rules = ${JSON.stringify(rules)}; con
         : new Response(JSON.stringify({ message: body }), { headers: { "content-type": "application/json" } }));
     }
     return real(input, init); }; })();`;
-// 选择公司弹窗的场景：projects 带上 Cowork 的公司接口前缀与 catalog（头部「刷新账套」），公司同假服务端
-const PICKER_PROJECTS = ["pearnly_core.assistant.api.projects", { kind: "company", period: true, scope: false, api: "pearnly_cowork.companies.api.",
-  sections: ["create", "catalog"], projects: [
+// 公司相关场景（选择公司弹窗、公司卡与组头的「···」）：projects 带上 Cowork 的公司接口前缀与它声明的分区（管理员：改名、删除、
+// 刷新账套），公司同假服务端
+const COMPANY_PROJECTS = ["pearnly_core.assistant.api.projects", { kind: "company", period: true, scope: false, api: "pearnly_cowork.companies.api.",
+  sections: ["month", "pending", "notes", "folders", "tasks", "choices", "drafts", "create", "rename", "delete", "catalog"], projects: [
     { id: "C-0001", title: "สยามเทรดดิ้ง จำกัด", subtitle: "0105551000001" }, { id: "C-0002", title: "曼谷物流有限公司", subtitle: "0105551000002" },
     { id: "C-0003", title: "Green Leaf Co., Ltd.", subtitle: "0105551000003" }] }];
 // CC 桌面版的本机状态（设置「此电脑」两页有东西可看：公司一行、Express 文件夹、以前授权的文件夹、开关、版本、日志）。
@@ -194,7 +195,6 @@ export const SCENES = [
   // 标题栏里第一颗 .cc-row-btn 是侧栏收起钮，按 aria-haspopup 找）；窄屏：右上「…」→ 公司名，会话栏盖满屏
   S("session-panel", "/assistant?c=sesn_a1", both([["click", ':is(.cc-topbar, .cc-titlebar) .cc-row-btn[aria-haspopup="menu"]', 0]],
     [["click", ".cc-mpill button", 1], ["click", ".cc-menu-item", 0]]), { expect: `${MENU}, .cc-panel[data-mode="phone"]` }),
-  S("company-panel", "/assistant?company=C-0001", [["click", ".cc-page-head .cc-icon-btn", 0]]),
 
   // ── 页面 ──
   S("pending", "/assistant?view=pending"),
@@ -213,31 +213,40 @@ export const SCENES = [
   S("tasks-loading", "/assistant?view=tasks", [], { before: [["hold", "pearnly_cowork.folder_intake.api.listing", 20000]] }),
   // 取列表失败：出错框 + 空状态卡
   S("tasks-error", "/assistant?view=tasks", [], { init: FAKE(["pearnly_cowork.folder_intake.api.listing", null]) }),
-  S("companies", "/assistant?view=companies"),
-  S("companies-loading", "/assistant?view=companies", [], { before: [["hold", "pearnly_cowork.companies.api.companies", 20000]] }),
-  S("companies-error", "/assistant?view=companies", [], { init: FAKE(["pearnly_cowork.companies.api.companies", null]) }),
-  S("companies-search-empty", "/assistant?view=companies", [["type", ".cc-page-search input", "zz"], ["wait", 600]],
-    { init: FAKE(["pearnly_cowork.companies.api.companies", [], "search="]) }),
   S("pending-loading", "/assistant?view=pending", [], { before: [["hold", "pearnly_cowork.companies.api.pending", 20000]] }),
   S("pending-error", "/assistant?view=pending", [], { init: FAKE(["pearnly_cowork.companies.api.pending", null]) }),
   S("pending-search-empty", "/assistant?view=pending", [["type", ".cc-page-search input", "zz"]]),
   // 能当场选的那一张点开：一个下拉（建议项预选）+「确认」
   S("pending-open", "/assistant?view=pending", [["click", '[data-slot="cc-pending-choose"] .cc-pending-toggle', 0], ["wait", 400]],
     { init: CHOICES, expect: '[data-slot="cc-pending-choose"] select' }),
-  S("company", "/assistant?company=C-0001"),
-  // 选择公司要产品声明的公司接口前缀（假服务端的 projects 默认不带 api，别的场景照旧）
   // 选择公司（用户 11-07：新对话下巴点「公司」弹窗，不再是下拉；手机在问候下面那一行）：搜索、MR.ERP / Express 标签、「最近」打勾
-  S("company-picker", "/assistant", [["click", '[data-slot="cc-chin-company"]', 0], ["wait", 600]], { init: FAKE(PICKER_PROJECTS), expect: DIALOG }),
+  S("company-picker", "/assistant", [["click", '[data-slot="cc-chin-company"]', 0], ["wait", 600]], { init: FAKE(COMPANY_PROJECTS), expect: DIALOG }),
   S("company-picker-mrerp", "/assistant", [["click", '[data-slot="cc-chin-company"]', 0], ["wait", 600], ["click", '[role="tab"]', 0], ["wait", 400]],
-    { init: FAKE(PICKER_PROJECTS), expect: DIALOG }),
+    { init: FAKE(COMPANY_PROJECTS), expect: DIALOG }),
   // 一家都没有（连接也没接）：「没有结果」+「连接」
   S("company-picker-empty", "/assistant", [["click", '[data-slot="cc-chin-company"]', 0], ["wait", 600]],
-    { init: FAKE(PICKER_PROJECTS, ["pearnly_cowork.companies.api.choices", { rows: [], adapters: [] }]), expect: DIALOG }),
-  // 知识库编辑：公司页的知识库卡点「+」出编辑框（卡头的按钮在卡里第一个；能悬停的设备上悬停卡头才显示，窄屏先打开公司栏）
-  S("notes-edit", "/assistant?company=C-0001", both(
+    { init: FAKE(COMPANY_PROJECTS, ["pearnly_cowork.companies.api.choices", { rows: [], adapters: [] }]), expect: DIALOG }),
+  // 公司页删了以后（用户 11-07）公司的事在对话右侧栏：公司卡「···」（改名 / 刷新账套 / 在浏览器中打开 / 删除公司）、知识库空的也有「＋」
+  //（宽屏会话栏停靠时默认开着；窄屏右上「…」→ 公司名，会话栏盖满屏）
+  S("company-card-menu", "/assistant?c=sesn_a1", both([["hover", '[data-slot="cc-panel-company"] .cc-panel-card-head', 0], ["click", '[data-slot="cc-company-more"]', 0], ["wait", 400]],
+    [["click", ".cc-mpill button", 1], ["click", ".cc-menu-item", 0], ["wait", 600], ["click", '[data-slot="cc-company-more"]', 0], ["wait", 400]]),
+    { init: FAKE(COMPANY_PROJECTS), expect: MENU }),
+  S("company-delete-confirm", "/assistant?c=sesn_a1", both([["hover", '[data-slot="cc-panel-company"] .cc-panel-card-head', 0], ["click", '[data-slot="cc-company-more"]', 0], ["wait", 400],
+    ["click", '[data-slot="cc-company-delete"]', 0], ["wait", 500]],
+    [["click", ".cc-mpill button", 1], ["click", ".cc-menu-item", 0], ["wait", 600], ["click", '[data-slot="cc-company-more"]', 0], ["wait", 400],
+      ["click", '[data-slot="cc-company-delete"]', 0], ["wait", 500]]),
+    { init: FAKE(COMPANY_PROJECTS), expect: DIALOG }),
+  S("company-all-sets", "/assistant?c=sesn_a1", both([["click", '[data-slot="cc-company-all-sets"]', 0], ["wait", 300]],
+    [["click", ".cc-mpill button", 1], ["click", ".cc-menu-item", 0], ["wait", 600], ["click", '[data-slot="cc-company-all-sets"]', 0], ["wait", 300]]),
+    { init: FAKE(COMPANY_PROJECTS) }),
+  // 侧栏公司组头「···」：上半段这家的改名等，下半段分组和排序（手机长按组头）
+  S("group-company-menu", "/assistant", both([["hover", '[data-slot="cc-project"]', 0], ["click", '[data-slot="cc-project"] .cc-group-more', 0], ["wait", 400]],
+    [...DRAWER, ["longpress", '[data-slot="cc-project"] .cc-group-toggle', 0], ["wait", 400]]), { init: FAKE(COMPANY_PROJECTS), expect: MENU }),
+  // 知识库编辑：右侧栏知识库卡点「+」出编辑框（卡头的按钮能悬停的设备上悬停卡头才显示）
+  S("notes-edit", "/assistant?c=sesn_a1", both(
     [["hover", '[data-slot="cc-company-notes"] .cc-panel-card-head', 0], ["click", '[data-slot="cc-company-notes"] .cc-panel-btn', 0], ["wait", 400]],
-    [["click", ".cc-page-head .cc-icon-btn", 0], ["click", '[data-slot="cc-company-notes"] .cc-panel-btn', 0], ["wait", 400]]),
-  { expect: '[data-slot="cc-company-notes"] textarea' }),
+    [["click", ".cc-mpill button", 1], ["click", ".cc-menu-item", 0], ["wait", 600], ["click", '[data-slot="cc-company-notes"] .cc-panel-btn', 0], ["wait", 400]]),
+  { init: FAKE(COMPANY_PROJECTS), expect: '[data-slot="cc-company-notes"] textarea' }),
 
   // ── 弹窗 ──
   S("delete-confirm", "/assistant?c=sesn_a1", both(

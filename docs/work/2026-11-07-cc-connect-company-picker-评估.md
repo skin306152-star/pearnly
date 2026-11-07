@@ -362,3 +362,31 @@ MR.ERP：设置 → 连接「连接」：网址（configure）+ CC 小窗授权 
 
 合计写代码约 5.75 小时 + 机器跑约 2.5 小时；不发 CC 桌面版新版；部署由主会话安排（测试机试前端要带 `PEARNLY_TESTENV_LOCAL_SPA=1` 同步 SPA，
 否则 `testenv.sh live` 盖不到 `frontend/` 构建产物；交给用户前先从外部读回确认是新版本）。
+
+## 15. 施工记录（B、C 步，11-07，窗口 cc-picker-bcd）
+
+分支 `pearnly/cc-picker-bcd-7b34a9`（第 A 步 `8bdd4375f` 变基到 `origin/main` 后接着做）。截图前后对比在共享笔记
+「公司选择弹窗-BCD-11-07/」（B-选择弹窗、C-删公司页搬功能；电脑、手机、CC 桌面版 × 浅深色，本机假服务端 `scripts/cc-visual`）。
+
+### B 选择公司弹窗
+- `components/add-company.tsx` 改名为 `components/company-picker.tsx`（`openCompanyPicker(then, current?)`），数据走第 A 步的 `choices`
+  （服务端搜索、按标签筛、每页 50、「显示更多」）；标签按 `adapters`（两种以上才摆，有纯 ERP 公司多「ERP」）；第一行「最近」（新对话才有）、
+  当前那行打勾；没建的点了用现有 `create` 建（同一行重点同一个 `request_key`）；头部「刷新账套」（声明 `catalog`）；一家都没有时「没有结果」
+  +「连接」（打开设置 → 连接；设置里没有「连接」一栏的地方不出，`lib/desktop.ts` 的 `useHasConnections`，同设置页的判断）。
+- 新对话下巴、手机问候行、代录新建页（同一个 `DraftChin`）与定时任务「＋」都开这一个弹窗；下巴在有公司分组的产品里一直显示。
+- 前端不再调 `candidates`：两个产品的 `candidates` 白名单接口与服务包装删了（产品地图拦「无调用方接口」），测试改测 `_catalog`。
+- 流程 `cc_lib.pickCompany` 在弹窗里选；e2e `add-company` 改名 `pick-company`（没跑过，产品地图先不引用）。
+
+### C 删公司页、搬功能
+- 删 `components/companies.tsx`、`components/company-page.tsx`、侧栏「公司」一行；`View` 只剩 chat / tasks / operator；公司页会话栏模式、
+  公司页月份（`usePagePeriod`）、`hasAnyCompany`、`useOpenCompany` 一并删。
+- 新 `components/company-menu.tsx`：改名（就地，`InlineRename`）、刷新账套、在浏览器中打开（desk_url）、删除公司（先确认「删除公司？」，
+  `delete-chats.tsx` 的同一个弹窗）；侧栏组头「···」上半段与右侧栏公司卡「···」同用；按声明出（Cowork 改名、删除只给管理员）。
+- 公司卡：名称不再点进公司页；「全部账套」展开（同待处理卡的展开行）。知识库、定时任务卡空的也显示「＋」；「让 CC 起草」删了。
+- 「本月」卡：卡头月份胶囊只换卡里看的月份（不移动对话）；标题改用已有的「月结」（月份已由胶囊写出）。
+- 深链接：`?view=companies` → 新对话并弹选择公司；`?company=` → 定时任务页只看这家（没有定时任务的产品在这家开新对话）；
+  `?view=pending` → 那家那个月的对话 / 新对话，多家开对话页；都先回对话模式。
+- 文案：新增「删除公司？」「全部账套」；删掉不再用的词条（添加公司、已添加、打开公司、对话、暂无对话、排序方式 / 最近活动 / 名称、
+  让 CC 起草及其预填句、本月）。没有改已有文案。
+- 流程 `cc_companies`（ERP）从新对话起：弹窗列可见公司与没建的账套、选中即建、代录选公司、右侧栏分区与「···」、组头「···」、知识库、
+  待处理；`cc_sidebar_modes` 去掉「公司」入口相关步骤、两种模式都在弹窗里选。e2e `operator-new` 改从弹窗选（去掉 since）。

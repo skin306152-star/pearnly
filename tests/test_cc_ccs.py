@@ -1414,23 +1414,21 @@ class DialogsAndListsTests(unittest.TestCase):
         self.defs = {**code_block(self.css, ":root"), **cc_block(self.css, ":root")}
         self.read = lambda rel: (SRC / rel).read_text(encoding="utf-8")
 
-    def test_list_prefetch_margin_is_read_from_globals_css(self):
-        # 2.6：IntersectionObserver 的 rootMargin 不是样式、也是长度：globals.css 定值，建观察器时读，回退常量与它同值
-        companies = self.read("components/companies.tsx")
-        fallback = re.search(r"^export const OBSERVE_MARGIN = (\d+);$", companies, re.M).group(1)
-        self.assertEqual(token_value(self.defs, "--cc-observe-margin"), f"{fallback}px")
-        self.assertIn('rootMargin: `${fixedPx("--cc-observe-margin", OBSERVE_MARGIN)}px`', companies)
-        self.assertNotIn('"200px"', companies)
+    def test_the_company_list_and_company_page_are_gone(self):
+        # 用户 11-07：侧栏「公司」、公司列表页、公司页删了（列表预取只剩对话列表一处，见上面 thread-list 的 OBSERVE_MARGIN）
+        for rel in ("components/companies.tsx", "components/company-page.tsx"):
+            self.assertFalse((SRC / rel).exists(), rel)
 
     def test_menus_take_the_shared_offset(self):
         # V8（B4）：本批的菜单原来都是 4，改成 menu.tsx 导出的 menuOffset()（主菜单 4），不再写数
-        for rel in ("components/settings.tsx", "components/scheduled-tasks.tsx", "components/companies.tsx", "components/company-page.tsx"):
+        # 11-07：公司页的「···」搬到会话栏公司卡（session-panel.tsx）
+        for rel in ("components/settings.tsx", "components/scheduled-tasks.tsx", "components/session-panel.tsx"):
             source = self.read(rel)
             self.assertIn("sideOffset={menuOffset()}", source, rel)
             self.assertNotRegex(source, r"sideOffset=\{\d", rel)
 
     B4 = ("components/settings.tsx", "components/scheduled-tasks.tsx", "components/company-picker.tsx", "components/delete-chats.tsx",
-          "components/companies.tsx", "components/company-page.tsx", "components/pending.tsx")
+          "components/company-menu.tsx", "components/pending.tsx")
 
     def test_text_uses_the_measured_steps(self):
         # V1（B4）：text-sm / text-xs 换成实测字阶 text-body 14/20、text-caption 12/17；提示条、无结果行用共用类
@@ -1441,8 +1439,7 @@ class DialogsAndListsTests(unittest.TestCase):
         self.assertEqual(tasks.count('className="cc-empty-line"'), 3)
 
     def test_loading_cards_breathe_like_the_skeleton(self):
-        # V5（B4 部分，B2 验收时测试窗口发现）：公司列表、定时任务列表的加载卡片同 Skeleton 的节奏（animate-cc-pulse），不用 Tailwind 的 pulse
-        self.assertIn('className="cc-grid-card animate-cc-pulse"', self.read("components/companies.tsx"))
+        # V5（B4 部分，B2 验收时测试窗口发现）：定时任务列表（公司列表 11-07 删了）的加载卡片同 Skeleton 的节奏（animate-cc-pulse），不用 Tailwind 的 pulse
         self.assertIn('className="cc-card h-(--cc-task-skeleton-h) animate-cc-pulse"', self.read("components/scheduled-tasks.tsx"))
         for rel in self.B4:
             self.assertNotIn("animate-pulse", self.read(rel), rel)
@@ -1496,8 +1493,7 @@ class DialogsAndListsTests(unittest.TestCase):
 
     def test_error_boxes_are_cc_alert(self):
         # V12（B4）：列表页、公司页的出错框统一 .cc-alert（危险浅底、危险线、内边距 12、圆角 8），不再各写一份
-        for rel, n in (("components/companies.tsx", 1), ("components/company-page.tsx", 1), ("components/pending.tsx", 1),
-                       ("components/scheduled-tasks.tsx", 1)):
+        for rel, n in (("components/pending.tsx", 1), ("components/scheduled-tasks.tsx", 1)):
             source = self.read(rel)
             self.assertEqual(len(re.findall(r'className="cc-alert[ "]', source)), n, rel)
             self.assertNotIn("bg-danger-soft", source, rel)

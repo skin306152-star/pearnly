@@ -1,15 +1,15 @@
 """流程用例：CC 对话页 `/assistant` 左侧栏两种模式共用一个框架（主会话 11-03 审定；11-04 统一对话框架：代录任务就是一段会话，
 同一个侧栏按模式筛，ERP、Cowork 同一个模块，电脑与手机宽度）——
-对话模式与代录模式里共有的入口（新建、公司）位置、顺序一样，切模式时一格不挪；定时任务只在对话模式（只 Cowork 声明了）；没有
-「待处理」入口（11-04 并进对话）；侧栏同一个接口按模式列：对话模式只列直写的对话、代录模式只列代录会话（准备的两段各只在自己的
-模式出现）；代录模式下点「公司」留在代录（主栏换成公司页），在公司列表选一家 = 直写的新建页、下巴选好这家（同组头「＋」，用户
-11-03），没说话不建任务；侧栏点那段「要你处理」的代录会话：在代录打开它，代录事件源出那张没录成的单的卡片（单号、原因）；
-对话模式下选公司照旧进公司页。
+对话模式与代录模式里共有的入口（新建）位置、顺序一样，切模式时一格不挪；没有「公司」（11-07 删了，对话里点「公司」弹窗选）与
+「待处理」（11-04 并进对话）入口；定时任务只在对话模式（只 Cowork 声明了）；侧栏同一个接口按模式列：对话模式只列直写的对话、代录
+模式只列代录会话（准备的两段各只在自己的模式出现）；代录模式新建页下巴点「公司」在弹窗里选一家 = 下巴选好这家（月份上个月），
+仍在代录、没说话不建任务；侧栏点那段「要你处理」的代录会话：在代录打开它，代录事件源出那张没录成的单的卡片（单号、原因）；
+对话模式下同一个弹窗选公司，下巴选好这家。
 
 准备（都在站点里用产品自己的函数）：一段这家这个月的直写对话（`sessions.create`，假智能体后端）、一段代录会话（`sessions.create`
 带 mode=operator，同一事务建任务），把任务记成一张没录成、要人选公司的单（需要你处理）。Cowork 的旧数据集没有公司：用代录
-流程的造数据（`cowork_operator_lib`）建一条合成账套目录的连接、从目录建一家，Cowork 另走一步「添加公司」：弹窗候选里这家是
-「已添加」，点了打开它的公司页（ERP 的添加公司在 `cc_companies.py`）。verify 删掉准备的会话与任务、按连接清掉造的数据。
+流程的造数据（`cowork_operator_lib`）建一条合成账套目录的连接、从目录建一家，Cowork 另走一步「选择公司」：弹窗里这家是已建的
+（ERP 的选中即建在 `cc_companies.py`）。verify 删掉准备的会话与任务、按连接清掉造的数据。
 设了 `PEARNLY_FLOWS_SHOTS` 时每一步截图（`run.py`）。
 """
 from __future__ import annotations
@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cowork_operator_lib as operator_lib  # noqa: E402
 from cc_lib import JS  # noqa: E402
 
-TITLE = "CC 侧栏两种模式同一个框架：共有入口不挪、定时任务只对话模式、没有待处理入口、侧栏按模式列会话、代录下选公司进新建页、点代录会话打开它的卡片"
+TITLE = "CC 侧栏两种模式同一个框架：共有入口不挪、定时任务只对话模式、没有公司与待处理入口、侧栏按模式列会话、两种模式在弹窗里选公司、点代录会话打开它的卡片"
 READY = "document.readyState === 'complete' && !!document.querySelector('[data-mode=\"operator\"]')"
 
 WAIT = JS + (
@@ -41,7 +41,7 @@ WAIT = JS + (
     ".querySelector(`[data-mode=\"${m}\"]`)||q(`[data-mode=\"${m}\"]`); b?.click(); return await until(()=>mode()===m,40);};")
 
 # 共有入口（两种模式都有的）在侧栏里的样子：位置、顺序
-SHARED = ("aui_thread-list-new", "cc-nav-companies")
+SHARED = ("aui_thread-list-new",)
 REASON = "[OPERATOR_COMPANY_PICK] flow"
 
 
@@ -90,34 +90,27 @@ print(json.dumps({{"product": {product!r}, "company": company, "title": title, "
     return {**out, "tag": tag, "shot": out["product"], "user": user}
 
 
-# 公司列表页里名字是这家的那张卡（第一行是公司名）
-PICK = "const card=()=>qa('[data-slot=\"cc-company-rows\"] button').find(e=>e.innerText.split('\\n')[0].trim()===TITLE);"
-
-
 def _shot(params, name):
     return {"shot": True, "file": f"{params['shot']}-{name}"}
 
 
 def steps(params, camera_code=None):
     tag = json.dumps(params["tag"])
+    title = json.dumps(params["title"])
     return [
         {"name": "对话模式", **_shot(params, "1-对话模式"), "js": WAIT + "await until(()=>mode()==='chat'); await openDrawer(); "
-         f"await until(()=>root()&&q('[data-slot=\"cc-nav-companies\"]')); await until(()=>shownRows({tag}).length>0,60); await sleep(800); "
+         f"await until(()=>root()); await until(()=>shownRows({tag}).length>0,60); await sleep(800); "
          f"return {{mode: mode(), nav: nav(), rows: shownRows({tag}), "
          "listed: {chat: (await listed('chat')).map(s=>s.id), operator: (await listed('operator')).map(s=>s.id)}};"},
         {"name": "切到代录", **_shot(params, "2-代录模式"), "js": WAIT + "await switchTo('operator'); await openDrawer(); "
          f"await until(()=>shownRows({tag}).some(t=>t.includes('要你处理')),60); await sleep(800); "
          f"return {{mode: mode(), nav: nav(), rows: shownRows({tag}), "
          "groups: (root()?.querySelectorAll('[data-slot=\"cc-project\"]')||[]).length};"},
-        {"name": "代录下点公司", **_shot(params, "3-代录下公司页"), "js": WAIT + "await openDrawer(); q('[data-slot=\"cc-nav-companies\"]').click(); "
-         "const page=await until(()=>q('.cc-page')&&q('[data-slot=\"cc-company-rows\"]')); await sleep(800); await openDrawer(); await sleep(300); "
-         f"return {{page, mode: mode(), active: q('[data-slot=\"cc-nav-companies\"]')?.hasAttribute('data-active'), nav: nav(), rows: shownRows({tag})}};"},
-        # 用户 11-03 / 11-04：代录模式下从「公司」选一家 = 直写的新建页、下巴选好这家（月份上个月），不是对话公司页；没说话不建任务
-        {"name": "代录下选公司", **_shot(params, "3b-代录下选公司"), "js": WAIT + f"const TITLE={json.dumps(params['title'])}; " + PICK +
-         "if(!await until(card)) return {error:'company card missing'}; card().click(); "
-         "const ok=await until(()=>(q('[data-slot=\"cc-chin-company\"]')?.innerText||'').includes(TITLE)&&q('.aui-thread-welcome-root')); await sleep(800); "
-         "return {ok, mode: mode(), chin: q('[data-slot=\"cc-chin-company\"]')?.innerText.trim()||'', "
-         "period: q('[data-slot=\"cc-period-chip\"]')?.innerText.trim()||'', page: !!q('[data-slot=\"cc-company-page\"]')};"},
+        # 用户 11-03 / 11-04 / 11-07：代录模式新建页下巴点「公司」在弹窗里选一家 = 下巴选好这家（月份上个月），没说话不建任务
+        {"name": "代录下选公司", **_shot(params, "3-代录下选公司"), "js": WAIT + "if(phone()) {q('.cc-mshell')?.dataset.open==='true'&&q('[data-slot=\"cc-nav-toggle\"]')?.click(); await sleep(600);} "
+         f"const ok=await pickCompany({title}); await sleep(800); "
+         "return {ok, mode: mode(), chin: q('[data-slot=\"cc-chin-company\"]')?.innerText.trim()||'', welcome: !!q('.aui-thread-welcome-root'), "
+         "period: q('[data-slot=\"cc-period-chip\"]')?.innerText.trim()||''};"},
         {"name": "打开代录会话", **_shot(params, "5-打开代录会话"), "js": WAIT + "await openDrawer(); "
          f"const row=(root()?[...root().querySelectorAll('[data-slot=\"aui_thread-list-item\"]')]:[]).find(e=>e.innerText.includes({tag})&&e.innerText.includes('要你处理')); "
          "if(!row) return {error:'operator row missing'}; (row.querySelector('[data-slot=\"aui_thread-list-item-trigger\"]')||row).click(); "
@@ -127,21 +120,17 @@ def steps(params, camera_code=None):
         {"name": "切回对话", **_shot(params, "6-切回对话"), "js": WAIT + "await switchTo('chat'); await openDrawer(); "
          f"await until(()=>shownRows({tag}).some(t=>t.includes('对话')),60); await sleep(800); "
          f"return {{mode: mode(), nav: nav(), rows: shownRows({tag})}};"},
-        {"name": "对话下选公司", **_shot(params, "7-对话下选公司"), "js": WAIT + f"const TITLE={json.dumps(params['title'])}; " + PICK +
-         "await openDrawer(); q('[data-slot=\"cc-nav-companies\"]').click(); if(!await until(card)) return {error:'company card missing'}; card().click(); "
-         "const ok=await until(()=>q('[data-slot=\"cc-company-page\"]')); await sleep(600); "
-         "return {ok, mode: mode()};"},
-    ] + ([] if params["product"] != "cowork" else [
-        {"name": "添加公司", **_shot(params, "8-添加公司"), "js": WAIT + f"const TITLE={json.dumps(params['title'])}; " + PICK +
-         "let opened=''; window.open=(u)=>{opened=String(u); return null;}; await openDrawer(); q('[data-slot=\"cc-nav-companies\"]').click(); "
-         "if(!await until(()=>qa('button').some(b=>b.innerText.trim()==='添加公司'))) return {error:'no add button'}; "
-         "qa('button').find(b=>b.innerText.trim()==='添加公司').click(); "
-         "if(!await until(()=>q('[data-slot=\"cc-candidates\"] .cc-list-row'))) return {error:'candidates missing'}; "
-         "const all=qa('[data-slot=\"cc-candidates\"] .cc-list-row'); const cands=all.map(r=>r.innerText.trim()); "
-         "const row=all.find(r=>r.innerText.split('\\n')[0].trim()===TITLE); if(!row) return {rows: cands, error:'company row missing'}; row.click(); "
-         "const ok=await until(()=>q('[data-slot=\"cc-company-page\"]')&&q('.cc-page-title')?.innerText.trim()===TITLE); "
-         "return {ok, rows: cands, opened, dialog: !!q('[data-slot=\"cc-add-company\"]'), mode: mode()};"},
-    ])
+        # 对话模式：同一个弹窗，选了下巴选好这家；不开新窗口；弹窗里这家是已建的（Cowork 的这家从目录建过）
+        {"name": "对话下选公司", **_shot(params, "7-对话下选公司"), "js": WAIT + "let opened=''; window.open=(u)=>{opened=String(u); return null;}; "
+         "if(phone()) {q('.cc-mshell')?.dataset.open==='true'&&q('[data-slot=\"cc-nav-toggle\"]')?.click(); await sleep(600);} "
+         "q('[data-slot=\"aui_thread-list-new\"]')?.click(); await sleep(400); "
+         "const chin=q('[data-slot=\"cc-chin-company\"]'); chin?.click(); const box=()=>q('[data-slot=\"cc-company-picker\"]'); await until(box,40); "
+         "await until(()=>box()?.querySelector('[data-slot=\"cc-candidates\"] .cc-list-row[data-built]'),80); "
+         f"const row=[...(box()?.querySelectorAll('[data-slot=\"cc-candidates\"] .cc-list-row')||[])].find(r=>r.innerText.split('\\n')[0].includes({title})); "
+         "const built=!!row?.hasAttribute('data-built'); row?.click(); "
+         f"const ok=await until(()=>!box()&&(q('[data-slot=\"cc-chin-company\"]')?.innerText||'').includes({title}),80); "
+         "return {ok, built, opened, mode: mode()};"},
+    ]
 
 
 def _shared(nav):
@@ -150,9 +139,8 @@ def _shared(nav):
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
-    chat, operator, companies, picked, opened, back = (by.get(k) or {} for k in ("对话模式", "切到代录", "代录下点公司", "代录下选公司",
-                                                                              "打开代录会话", "切回对话"))
-    chat_pick, added = by.get("对话下选公司") or {}, by.get("添加公司") or {}
+    chat, operator, picked, opened, back = (by.get(k) or {} for k in ("对话模式", "切到代录", "代录下选公司", "打开代录会话", "切回对话"))
+    chat_pick = by.get("对话下选公司") or {}
     scheduled = "tasks" in params["sections"]
     slots = lambda step: [item["slot"] for item in step.get("nav") or []]
     tag = params["tag"]
@@ -160,11 +148,11 @@ def judge(params, results, camera_code=None):
     listed = chat.get("listed") or {}
     in_chat, in_operator = listed.get("chat") or [], listed.get("operator") or []
     return [
-        {"case": "共有入口（新建、公司）切到代录时位置、顺序一样（手机抽屉里没有新建那一行，只比公司）",
+        {"case": "共有入口（新建）切到代录时位置、顺序一样（手机抽屉里没有新建那一行，两边都空）",
          "seen": {"chat": _shared(chat.get("nav")), "operator": _shared(operator.get("nav"))},
-         "ok": bool(_shared(chat.get("nav"))) and _shared(chat.get("nav")) == _shared(operator.get("nav"))},
-        {"case": "没有「待处理」入口（11-04 并进对话），两种模式都没有", "seen": {"chat": slots(chat), "operator": slots(operator)},
-         "ok": "cc-nav-pending" not in slots(chat) + slots(operator)},
+         "ok": bool(chat.get("mode")) and _shared(chat.get("nav")) == _shared(operator.get("nav"))},
+        {"case": "没有「公司」（11-07 删了）与「待处理」（11-04 并进对话）入口，两种模式都没有", "seen": {"chat": slots(chat), "operator": slots(operator)},
+         "ok": not {"cc-nav-pending", "cc-nav-companies"} & set(slots(chat) + slots(operator))},
         {"case": "定时任务只在对话模式、只在声明了的产品，且在共有入口下面", "seen": {"chat": slots(chat), "operator": slots(operator), "sections": params["sections"]},
          "ok": ("cc-nav-tasks" in slots(chat)) == scheduled and "cc-nav-tasks" not in slots(operator)
          and (not scheduled or slots(chat)[-1] == "cc-nav-tasks")},
@@ -177,21 +165,14 @@ def judge(params, results, camera_code=None):
          "seen": {"chat": chat.get("rows"), "operator": operator.get("rows"), "back": back.get("rows"), "groups": operator.get("groups")},
          "ok": has(chat, "对话") and not has(chat, "要你处理") and has(operator, "要你处理") and not has(operator, f"{tag} 对话")
          and has(back, "对话") and not has(back, "要你处理") and (operator.get("groups") or 0) >= 1},
-        {"case": "代录模式下点「公司」：主栏换成公司页，仍在代录（侧栏仍只列代录会话）", "seen": companies,
-         "ok": bool(companies.get("page")) and companies.get("mode") == "operator" and bool(companies.get("active"))
-         and not has(companies, f"{tag} 对话")},
-        {"case": "代录模式下从「公司」选一家：直写的新建页、下巴选好这家，不出对话公司页，仍在代录", "seen": {**picked, "want": params["title"]},
-         "ok": bool(picked.get("ok")) and picked.get("mode") == "operator" and not picked.get("page")
-         and params["title"] in (picked.get("chin") or "")},
+        {"case": "代录模式新建页在弹窗里选一家：下巴选好这家、月份有值，仍在代录", "seen": {**picked, "want": params["title"]},
+         "ok": bool(picked.get("ok")) and picked.get("mode") == "operator" and bool(picked.get("welcome"))
+         and params["title"] in (picked.get("chin") or "") and bool(picked.get("period"))},
         {"case": "侧栏点「要你处理」的代录会话：在代录打开，出那张没录成的单的卡片（单号、要人选公司的原因）", "seen": opened,
          "ok": bool(opened.get("ok")) and opened.get("mode") == "operator" and f"{tag}-REF" in (opened.get("card") or "")
          and bool(opened.get("reason"))},
-        {"case": "对话模式下从「公司」选一家：照旧进公司页", "seen": chat_pick,
-         "ok": bool(chat_pick.get("ok")) and chat_pick.get("mode") == "chat"},
-        *([] if params["product"] != "cowork" else [
-            {"case": "Cowork「添加公司」弹窗：候选里这家标「已添加」，点了打开它的公司页（不开新窗口）", "seen": {**added, "want": params["title"]},
-             "ok": bool(added.get("ok")) and not added.get("opened") and not added.get("dialog")
-             and any(r.startswith(params["title"]) and "已添加" in r for r in added.get("rows") or [])}]),
+        {"case": "对话模式同一个弹窗选这家（已建的那行）：下巴选好、不开新窗口", "seen": {**chat_pick, "want": params["title"]},
+         "ok": bool(chat_pick.get("ok")) and bool(chat_pick.get("built")) and not chat_pick.get("opened") and chat_pick.get("mode") == "chat"},
         {"case": "切回对话：回到对话的侧栏，共有入口还在原位", "seen": {"mode": back.get("mode"), "nav": _shared(back.get("nav"))},
          "ok": back.get("mode") == "chat" and _shared(back.get("nav")) == _shared(chat.get("nav"))},
     ]

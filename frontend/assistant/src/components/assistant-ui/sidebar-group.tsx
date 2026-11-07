@@ -59,10 +59,18 @@ type HeaderProps = {
   onMove?: (delta: -1 | 1) => void;
   /** 右侧操作区（待处理数、···（分组和排序）、新建）。 */
   children?: ReactNode;
+  /** 就地改名（公司组头「···」→ 重命名）：给了就用它替换开关。 */
+  editing?: ReactNode;
 } & Omit<HTMLAttributes<HTMLDivElement>, "title" | "children">;
 
-export const GroupHeader: FC<HeaderProps> = ({ label, icon, title, open, onToggle, dot, onMenuKey, handle, onMove, children, className, ...rest }) => (
+export const GroupHeader: FC<HeaderProps> = ({ label, icon, title, open, onToggle, dot, onMenuKey, handle, onMove, children, editing, className, ...rest }) => (
   <div data-slot="cc-group" data-marquee-host="" {...rest} className={cn("cc-group-row", className)}>
+    {editing ? (
+      <div className="cc-group-toggle" data-slot="cc-group-rename">
+        {icon}
+        {editing}
+      </div>
+    ) : (
     <button
       type="button"
       {...handle}
@@ -90,6 +98,7 @@ export const GroupHeader: FC<HeaderProps> = ({ label, icon, title, open, onToggl
       <ChevronRightIcon className="cc-group-caret" aria-hidden />
       {dot}
     </button>
+    )}
     {children && <div className="cc-group-actions">{children}</div>}
   </div>
 );
@@ -163,6 +172,8 @@ export function headOffset(trigger: { left: number } | null | undefined, head: {
 }
 
 /** 组标题右侧的「···」：打开「分组和排序」。open / onOpenChange 只有公司组头传（长按组头、菜单键也打开它）。
+ *  children：公司组头放在最上面的这家公司的项（components/company-menu.tsx，用户 11-07 公司页的改名、删除等搬到这里）；
+ *  onCloseAutoFocus：菜单关完再出改名框（company-menu.tsx 的 useRenameAfterMenu）。
  *  alignHead（手机上的公司组头）：菜单左边贴着组头开关的左边、盖住组里各行的起点（测试窗口第 7 轮：长按组头出的菜单按「···」
  *  右对齐，左边缘正好落在组里各行文字起点右边几像素，各行首字从菜单左边露出一点）。菜单盖在列表上照常，只是不再切在字头上。 */
 export const GroupSortMenu = memo(function GroupSortMenu({
@@ -170,7 +181,11 @@ export const GroupSortMenu = memo(function GroupSortMenu({
   modal = true,
   onOpenChange,
   alignHead,
+  children,
+  onCloseAutoFocus,
 }: {
+  children?: ReactNode;
+  onCloseAutoFocus?: (event: Event) => void;
   open?: boolean;
   /** 长按组头开的不按模态（hooks/use-long-press.ts 的 useLongPressMenu） */
   modal?: boolean;
@@ -211,7 +226,9 @@ export const GroupSortMenu = memo(function GroupSortMenu({
           className="cc-menu min-w-(--cc-menu-w-lg)"
           data-slot="cc-group-sort-menu"
           aria-label={sb.groupAndSort}
+          onCloseAutoFocus={onCloseAutoFocus}
         >
+          {children}
           <SubMenu label={<Parent label={sb.groupBy} value={GROUP_LABEL[view.by]()} />} className="cc-menu min-w-(--cc-menu-w-sm)">
             <DropdownMenu.RadioGroup value={view.by} onValueChange={(by) => setSidebarView({ by: by as GroupBy })}>
               {(["company", "month", "none"] as const).map((by) => (

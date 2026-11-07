@@ -8,13 +8,14 @@
 //   各卡     待处理（这家的，当场选沿用 F18 规则）→ 知识库（新增 / 修改有「取消」「保存」，F11e）→ 单据文件夹（只有 CC 桌面版
 //            窗口能选，桥 pick_folder 的结果原样交给 folder_bind）→ 账套（多分店按分店分组，覆盖本月的高亮）→ 定时任务
 //            （点一行跳任务页，「＋」带预填）→ 申报草稿（按分店分组）→ 记住的选择（按类别，一条一行、点开才有按钮；付款方式、
-//            简易税票抵不抵能直接改，其余只能删；Express 历史学到的只读可删）。没内容的卡在会话栏里不显示（keepEmpty 时照样显示，公司页用）。
+//            简易税票抵不抵能直接改，其余只能删；Express 历史学到的只读可删）。没内容的卡在会话栏里不显示；知识库、定时任务空的也显示
+//            （「＋」加第一条，用户 11-07）。
 //   公司规则（数字会计员第 2 期）：「记住的选择」里公司规则的行展开后写明「全公司 / 分店 X」，付款 / 抵进项用两段式直接改；
 //            账套行与历史行展开后多一个「设为全公司」。公司页知识库是空的时给「让 CC 起草」（新对话里预填、不自动发送）。
 //
 // 文案走 i18n.ts 的 co；样式只用 globals.css 的 .cc-* 与变量。
 
-import { ChevronRightIcon, FolderIcon, GripVerticalIcon, LoaderIcon, PlusIcon, SparklesIcon, XIcon } from "lucide-react";
+import { ChevronRightIcon, FolderIcon, GripVerticalIcon, LoaderIcon, PlusIcon, XIcon } from "lucide-react";
 import {
   createContext,
   type FC,
@@ -59,7 +60,6 @@ import {
   useCompanyNav,
   usePendingCounts,
 } from "@/lib/companies";
-import { usePageMonth } from "@/lib/company-panel";
 import { knownReaders, openSettings, pickFolder, rememberReader, useDesktopFeatures } from "@/lib/desktop";
 import { useProjects } from "@/lib/managed-agents/projects";
 import { useView } from "@/lib/nav";
@@ -277,23 +277,14 @@ export async function removeNote(company: string, note: string): Promise<(notes:
   return (notes) => notes.filter((n) => n.id !== note);
 }
 
-export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Promise<void>; keepEmpty?: boolean }> = ({
-  company,
-  notes,
-  reload,
-  keepEmpty = false,
-}) => {
+/** 知识库卡：空的也显示（「＋」加第一条，用户 11-07：公司页删了，对话里要能加）。 */
+export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Promise<void> }> = ({ company, notes, reload }) => {
   // 页面上显示的知识库：整页重取到了就以服务端为准；存 / 删成功时先按服务端的回应改这里
   const [list, setList] = useState(notes);
   useEffect(() => setList(notes), [notes]);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState("");
   const [error, setError] = useState("");
-  const start = useStartIn();
-  // 公司页此刻的月份（输入框、「月结」卡的月份胶囊同一个；服务端不收月份的产品是空）
-  const pageMonth = usePageMonth();
-  /** 让 CC 起草（只在公司页的空知识库里）：在这家开新对话（月份 = 公司页的月份），预填一句、不自动发送。 */
-  const draft = () => start({ project: company, period: pageMonth, scope: "" }, co.draftNotesText, false);
   const remove = async (id: string) => {
     setError("");
     try {
@@ -310,7 +301,6 @@ export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Pr
     else setAdding(false);
     void reload();
   };
-  if (!keepEmpty && !list.length && !adding && !error) return null;
   return (
     <PanelCard
       id="notes"
@@ -346,12 +336,6 @@ export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Pr
           ),
         )}
         {adding && <NoteEditor initial="" onSave={(text) => save(text)} onCancel={() => setAdding(false)} />}
-        {keepEmpty && !list.length && !adding && (
-          <button type="button" className="cc-btn self-start" data-slot="cc-notes-draft" onClick={draft}>
-            <SparklesIcon />
-            {co.draftNotes}
-          </button>
-        )}
         {error && <p role="alert" className="text-danger">{error}</p>}
       </div>
     </PanelCard>
@@ -568,12 +552,7 @@ export const SetsSection: FC<{ sets: AccountSet[]; branches: Branch[]; period: s
 
 // ---------------------------------------------------------------- 定时任务
 /** 这家的定时任务：点一行到任务页并定位，「＋」到任务页接着开新建表单（预填覆盖本月的账套，本机绑了文件夹时连同文件夹）。 */
-export const TasksSection: FC<{ company: string; detail: Detail; period: string; keepEmpty?: boolean }> = ({
-  company,
-  detail,
-  period,
-  keepEmpty = false,
-}) => {
+export const TasksSection: FC<{ company: string; detail: Detail; period: string }> = ({ company, detail, period }) => {
   const { setView } = useView();
   const { app, companyFolders, deviceName } = useDesktopFeatures();
   const tasks = detail.tasks ?? [];
@@ -589,7 +568,7 @@ export const TasksSection: FC<{ company: string; detail: Detail; period: string;
     });
     setView("tasks");
   };
-  if (!detail.tasks || (!tasks.length && !keepEmpty)) return null;
+  if (!detail.tasks) return null; // 没有定时任务的产品；有的空着也显示「＋」
   return (
     <PanelCard
       id="tasks"

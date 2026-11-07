@@ -126,9 +126,11 @@ class NotesSourceTests(unittest.TestCase):
         self.assertIn("useEffect(() => setList(notes), [notes]);", section)
         self.assertIn("{list.map((note) =>", section)
         self.assertNotIn("await reload()", section)  # 重取失败不能挡住已存好的那一条
-        # 让 CC 起草（第 2 期）：只在公司页的空知识库里（keepEmpty），新对话里预填、不自动发送
-        self.assertIn("{keepEmpty && !list.length && !adding && (", section)
-        self.assertIn("co.draftNotesText, false);", section)
+        # 用户 11-07：公司页删了，知识库卡空的也显示（卡头「＋」加第一条）；公司页空知识库的「让 CC 起草」跟着删了
+        self.assertNotIn("return null", section)
+        self.assertNotIn("keepEmpty", section)
+        self.assertNotIn("draftNotes", section)
+        self.assertIn("onClick={() => setAdding(true)}", section)
         pending = read("components/pending.tsx")
         # 公司规则定下了、判定出来没有要问的：提问卡那里只一行「推送」（11-05 起当场选是一张提问卡）
         self.assertIn(") : !questions.length ? (", pending)
@@ -139,33 +141,22 @@ class NotesSourceTests(unittest.TestCase):
             self.assertIn("save", keys(block(messages, f"  {lang}: {{")), lang)
 
     def test_other_in_place_edits_show_the_saved_value_at_once(self):
-        page = read("components/company-page.tsx")
-        header = page[page.index("const Header: FC"):page.index("// ---------------------------------------------------------------- 输入框")]
-        self.assertIn("setTitle(saved);", header)
-        # 公司页标题：点名字就地改名（设计文档 3.15）。第 5 轮：按钮里面放滚动的文字，滚动时的遮罩不再把按钮的焦点环裁掉
-        self.assertIn('<button type="button" className="cc-page-title-btn" title={t("rename")} onClick={rename}>\n'
-                      '              <Marquee className="cc-page-title-text">{title}</Marquee>\n            </button>', header)
-        self.assertNotIn('as="button"', header)
-        css = read("globals.css")
-        button = css.split("  .cc-page-title-btn {", 1)[1].split("}", 1)[0]
-        self.assertNotIn("overflow", button)                                    # 按钮自己不裁切
-        self.assertIn(".cc-page-title[data-editable] { display: flex; overflow: visible; }", css)
-        # 放不下时末尾渐隐（同所有单行截断的文字，用户 10-16「统一渐隐」），不用省略号；块级，列表页的纯文字标题也用它
-        self.assertIn(".cc-page-title-text { display: block; min-width: 0; overflow: hidden; white-space: nowrap; }", css)
-        # 第 5 轮测试 3：「··· → 重命名」后菜单关上时不把焦点还给「···」，改名框直接能输入。第 5 轮复测焦点仍在 body：
-        # 选中那一下就挂上改名框，自动聚焦被菜单的焦点陷阱拉回菜单项。改为菜单关完（onCloseAutoFocus）才挂改名框
-        self.assertIn("const renameFromMenu = useRef(false);", header)
-        # 「重命名」只在产品声明了 rename 时出（ERP 版 CC 按公司，2026-11-02），菜单项多缩进一层
-        select = header.split("<DropdownMenu.Item\n                className=\"cc-menu-item\"\n                onSelect={() => {", 1)[1].split("}}", 1)[0]
-        self.assertIn("if (isMobile) return rename();", select)
-        self.assertIn("renameFromMenu.current = true;", select)
-        self.assertNotIn("startRename()", select)                              # 菜单开着时不挂改名框
-        close = header.split("onCloseAutoFocus={(e) => {", 1)[1].split("}}", 1)[0]
-        self.assertIn("if (!renameFromMenu.current) return;", close)
-        self.assertIn("e.preventDefault();", close)
-        self.assertIn("startRename();", close)
-        title = page[page.index("const TitleRename: FC"):]
-        self.assertIn("if (el && document.activeElement !== el) el.focus({ preventScroll: true });", title)
+        # 公司改名（用户 11-07 从公司页标题搬到组头与公司卡的「···」，components/company-menu.tsx）：存下就改侧栏与缓存里的名称，
+        # 用服务端回的名称（没回就用输入的）
+        menu = read("components/company-menu.tsx")
+        save = menu[menu.index("export async function saveCompanyName"):menu.index("export function askDeleteCompany")]
+        self.assertIn("const saved = (out as { title?: string } | null)?.title || next;", save)
+        self.assertIn("renameProjectLocally(company, saved);", save)
+        self.assertIn("forgetPanelDetail(company);", save)
+        # 第 5 轮测试 3（原公司页标题）：「··· → 重命名」后菜单关完（onCloseAutoFocus）才挂改名框，焦点不还给「···」
+        after = menu[menu.index("export function renameAfterMenu"):menu.index("export function useRenameAfterMenu")]
+        self.assertIn("if (!asked) return;", after)
+        self.assertIn("event.preventDefault();\n      start();", after)
+        self.assertNotIn("start()", after.split("request: () => {", 1)[1].split("},", 1)[0])  # 菜单开着时不挂改名框
+        # 公司卡就地改名：存下后重取这家详情，卡上马上是新名字
+        panel = read("components/session-panel.tsx")
+        card = panel[panel.index("const CompanyCard: FC"):]
+        self.assertIn("onSave={(next) => void saveCompanyName(c.id, next).then((saved) => (saved ? reload() : undefined))}", card)
         page = read("components/company-cards.tsx")
         choices = page[page.index("const ChoicesSection"):page.index("export const ChoiceRow")]
         self.assertIn("setChoiceShown(rows, c.key, v, shown)", choices)
@@ -175,13 +166,6 @@ class NotesSourceTests(unittest.TestCase):
         # 第 6 批：按读者编号（「电脑|连接」）记刚移除的那一行，同一条连接上别的电脑那一行不跟着藏
         self.assertIn("setGone((before) => [...before, idOf(f)]);", folders)
         self.assertIn("const idOf = (f: CompanyFolder) => f.reader_id || f.reader;", folders)
-
-    def test_the_company_page_lists_only_conversations_that_were_sent(self):
-        # 第 5 轮测试 4 / 审查：公司页「＋」选了文件就建了会话，不发也在服务端留一条空标题的；公司页对话列表不列它
-        # （标题空 = 还没发过消息）。列表自己取数，不经侧栏的多设备同步
-        page = read("components/company-page.tsx")
-        chats = page[page.index("const load = useCallback("):page.index("useEffect(() => void load(), [load]);")]
-        self.assertIn("page.sessions.filter((row) => !seen.has(row.id) && !row.archived_at && row.title)", chats)
 
 
 class OpenAtBottomSourceTests(unittest.TestCase):
@@ -215,7 +199,7 @@ class BehaviourTests(unittest.TestCase):
         run_ts(r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { noteKey } from "@/components/company-page";
+import { noteKey } from "@/components/company-cards";
 
 const g = globalThis as any;
 const key = (key: string, extra: any = {}) => ({ key, keyCode: key === "Enter" ? 13 : 0, nativeEvent: { isComposing: false }, ...extra });
@@ -241,7 +225,7 @@ import "cc-test-setup";
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server.browser";
-import { NoteEditor } from "@/components/company-page";
+import { NoteEditor } from "@/components/company-cards";
 
 const g = globalThis as any;
 const html = (initial: string) => renderToStaticMarkup(createElement(NoteEditor, { initial, onSave: async () => {}, onCancel: () => {} }));
@@ -258,7 +242,7 @@ g.done();
         run_ts(r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { commitNote, putNote, removeNote, setChoiceShown } from "@/components/company-page";
+import { commitNote, putNote, removeNote, setChoiceShown } from "@/components/company-cards";
 import { shownError } from "@/lib/frappe";
 import { useProjects } from "@/lib/managed-agents/projects";
 

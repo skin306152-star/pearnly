@@ -69,7 +69,7 @@ class LedgerSourceTests(unittest.TestCase):
             self.assertIn(words, i18n)
         i18n = read("i18n.ts")
         self.assertIn('stage: { intake: "收单", entry: "录账", verify: "核对", tax: "报税" }', i18n)
-        # 已有文案不改：卡片标题仍是「本月」，交给 CC、显示更多沿用
+        # 卡片标题照旧：当月「本月」、别的月写月份（11-07 卡头加了月份胶囊，标题不改，改已有文案要先给用户看），交给 CC、显示更多沿用
         self.assertIn('thisMonth: "本月"', i18n)
         self.assertIn('handToCC: "交给 CC"', i18n)
         # 同一张单在相邻的「待处理」卡里叫什么，这里就叫什么（服务端已有词条 cowork.company.pending.not_pushed）
@@ -81,16 +81,16 @@ class LedgerSourceTests(unittest.TestCase):
         for words in ('express_changed: "ถูกแก้ไขใน Express"', 'express_deleted: "ถูกลบใน Express"', 'express_voided: "ถูกยกเลิกใน Express"'):
             self.assertIn(words, i18n)
 
-    def test_panel_and_company_page_use_the_same_ledger(self):
+    def test_the_panel_card_carries_the_ledger_and_its_own_month_chip(self):
         panel = read("components/session-panel.tsx")
         self.assertIn("month: <MonthCard company={company} period={period} />,", panel)
         self.assertNotIn("const MonthCard: FC = () => null;", panel)
-        # 公司页的「月结」卡在公司页的会话栏里，月份胶囊与输入框的同一个（公司页自己的月份）
-        self.assertIn("month: <MonthSection company={company} period={period} onPeriod={setPagePeriod} />,", panel)
-        self.assertIn("{withPeriod && <PeriodChip look=\"cc-chin-btn\" side=\"top\" value={period} onChange={setPagePeriod} />}",
-                      read("components/company-page.tsx"))
+        # 用户 11-07：公司页（连同它的「月结」卡 MonthSection、公司页自己的月份）删了；会话栏「本月」卡头带月份胶囊，
+        # 只换卡里看的月份（本地状态），选回对话那个月就是不另看；换公司、换对话月份时回到对话那个月（主会话定案 #4）
+        self.assertNotIn("MonthSection", panel)
+        self.assertNotIn("setPagePeriod", panel)
         ledger = read("components/month-ledger.tsx")
-        self.assertIn('extra={<PeriodChip value={period} onChange={onPeriod} allowNone={false} look="cc-chin-btn" />}', ledger)
+        self.assertIn('extra={<PeriodChip value={period} onChange={(next) => setSeen(next === own ? "" : next)} allowNone={false} look="cc-chin-btn" />}', ledger)
         self.assertIn("summary={month ? monthSummary(month) : undefined}", ledger)
         # 段行右侧的状态完整显示，左边段名让位、放不下时由它滚；同一行不会两处一起滚（用户 10-16 截图）
         self.assertEqual(ledger.count('className="cc-panel-extra cc-month-status"'), 1)
@@ -114,14 +114,16 @@ class LedgerSourceTests(unittest.TestCase):
         self.assertIn('<Marquee className="min-w-0 flex-1 truncate" data-marquee-host="">{co.ledger.stage[stage]}</Marquee>\n'
                       '        <Marquee className="cc-panel-extra cc-month-status" data-marquee-host="">{stageSummary(stage, month) || word}</Marquee>',
                       ledger)
-        self.assertIn("const period = isPeriod(chosen) ? chosen : lastMonth();", ledger)  # 页面「不指定」时看上个月
-        # 会话栏：没取到、空月不显示；出错显示原因
+        # 会话栏：看的是对话那个月时，没取到、空月不显示；换到别的月一直显示，还没取到是骨架；出错显示原因
         card = ledger.split("export const MonthCard: FC", 1)[1].split("\n};", 1)[0]
-        self.assertIn("if (!month && !error) return null;", card)
-        self.assertIn("if (month && emptyMonth(month) && !error) return null;", card)
+        self.assertIn("const period = seen || own;", card)
+        self.assertIn("useEffect(() => setSeen(\"\"), [company, own]);", card)
+        self.assertIn("  if (!seen) {\n    if (!month && !error) return null;\n    if (month && emptyMonth(month) && !error) return null;\n  }", card)
+        self.assertIn("{loading && !month && <PanelSkeleton />}", card)
         self.assertIn('<p role="alert"', card)
-        # 卡头：当月写「本月」，对话挂的是别的月写那个月
+        # 卡头：标题按看的那个月（当月「本月」），月份胶囊只换卡里看的月份
         self.assertIn("const title = period === periodOf(new Date()) ? co.thisMonth : monthLabel(period);", card)
+        self.assertIn("      title={title}\n", card)
         # 重复单号只是知悉：单独一句「核对同号」，不用「处理这几张」；草稿用表名，不带内部码
         self.assertIn("start(filing, duplicatePrefill(item), false);", ledger)
         self.assertIn("return co.ledger.duplicateText(docList(lines));", ledger)
@@ -371,21 +373,16 @@ assert.ok(handText([one, one]).startsWith("处理这几张：\n"));
 assert.ok(duplicatePrefill(month.exceptions.items.find((i: any) => i.code === "duplicate_number")).startsWith("核对这几张同号单据：\n"));
 """, lang="zh")
 
-    def test_card_waits_hidden_and_the_company_section_shows_its_month(self):
+    def test_card_waits_hidden_until_its_month_arrives(self):
         self.run_page(r"""
-import { MonthCard, MonthSection } from "@/components/month-ledger";
+import * as ledger from "@/components/month-ledger";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { lastMonth, monthLabel } from "@/lib/companies";
 const render = (type: any, props: any) => renderToStaticMarkup(createElement(SidebarProvider, null, createElement(type, props)));
 // 会话栏：还没取到不占位；对话没定月份不取
-assert.ok(!render(MonthCard, { company: "COMPANY", period: "2026-09" }).includes("cc-panel-month"));
-assert.ok(!render(MonthCard, { company: "COMPANY", period: "" }).includes("cc-panel-month"));
-// 公司页：一直显示，卡头月份胶囊（幽灵按钮）默认上个月，取的时候是骨架（V27）
-const section = render(MonthSection, { company: "COMPANY", period: "", onPeriod: () => {} });
-assert.match(section, /data-slot="cc-company-month"/);
-assert.ok(text(section).slice(0, 2).join("|") === `Month-end|${monthLabel(lastMonth())}`);
-assert.match(section, /class="cc-chin-btn" data-slot="cc-period-chip"/);
-assert.match(section, /data-slot="cc-panel-skeleton"/);
+assert.ok(!render(ledger.MonthCard, { company: "COMPANY", period: "2026-09" }).includes("cc-panel-month"));
+assert.ok(!render(ledger.MonthCard, { company: "COMPANY", period: "" }).includes("cc-panel-month"));
+// 公司页的「月结」卡（MonthSection）11-07 随公司页删了
+assert.equal("MonthSection" in ledger, false);
 """)
 
     def test_thai_and_chinese_words(self):

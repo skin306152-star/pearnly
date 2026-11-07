@@ -1,5 +1,4 @@
 # 对照组缺口的存量（scripts/check-product-map.py 规则 5，主会话 11-04）：只许减少——补齐后删掉对应条目，不许新加。
 # <组>@<产品> = 这一组 ERP / Cowork 缺一边、没写 na；<行 id>@<端> = 同一端这一行的测试比组里最强的兄弟弱。
-cowork.cc.view.company@desktop
 cowork.desk.pearnly-team@mobile
 erp.cc.view.tasks@desktop

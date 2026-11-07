@@ -5,9 +5,9 @@
 //   手机         — 左上角圆形菜单按钮；抽屉里大号「CC」、搜索、定时任务、最近对话，底部头像与「新建会话」
 //
 // 颜色、尺寸、动效只引用 globals.css 的变量与 .cc-* 样式类，这里不写数值。「定时任务」只在有这个功能的产品（Cowork）出现。
-// 公司（ADR-020，共用层 projects() 的 kind 为 company 时：Cowork 公司主档、ERP 公司）：侧栏「公司」一行、按公司分组，
-// 视图多「公司列表」「公司页」；对话顶栏「公司名 ›」与右侧会话栏（components/session-panel.tsx）；输入框下巴的
-// 公司、月份、分店（ComposerChin）。待处理（用户 11-04：左侧不要，并进对话）落在「公司 · 本月」对话末尾的「需要处理」框
+// 公司（ADR-020，共用层 projects() 的 kind 为 company 时：Cowork 公司主档、ERP 公司）：侧栏按公司分组（组头「···」有这家的改名、
+// 删除等）；对话顶栏「公司名 ›」与右侧会话栏（components/session-panel.tsx）；输入框下巴的公司（点了弹选择公司窗口，
+// components/company-picker.tsx）、月份、分店（ComposerChin）。用户 11-07：侧栏「公司」、公司列表页、公司页删了。待处理（用户 11-04：左侧不要，并进对话）落在「公司 · 本月」对话末尾的「需要处理」框
 // （thread.tsx 的 Tail 插槽，components/pending.tsx 的 PendingInChat），还没有对话的侧栏一行占位（projects.tsx）。
 // 哪些分区出现只看产品声明的 sections（useSection），不按产品名分支。DMS 与今天一样。
 // 实操（CC 在 Express 窗口里逐张填写，Cowork 与 ERP 都有；设计稿 https://claude.ai/artifact/SgtxECheQE4e6gtF1G4WKW）：侧栏最上面那一行
@@ -64,8 +64,6 @@ import {
   WelcomeFiling,
 } from "@/components/assistant-ui/projects";
 import { CompanyPickerDialog } from "@/components/company-picker";
-import { Companies } from "@/components/companies";
-import { CompanyPage } from "@/components/company-page";
 import { PendingInChat } from "@/components/pending";
 import { Settings } from "@/components/settings";
 import { ResultsContext, ResultsPanel, useResultFiles } from "@/components/results-panel";
@@ -103,7 +101,7 @@ import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
 import { setDraft, useProjects, useSection } from "@/lib/managed-agents/projects";
 import { useCompanyNav, watchPendingCounts } from "@/lib/companies";
-import { dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePageMonth, usePanel } from "@/lib/company-panel";
+import { dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePanel } from "@/lib/company-panel";
 import { cssPx } from "@/lib/css-var";
 import { syncPrefs } from "@/lib/prefs-sync";
 import { DeleteChatsHost, deleteChat } from "@/components/delete-chats";
@@ -480,14 +478,14 @@ function WindowButtons({ maximized, toggle }: { maximized: boolean; toggle: () =
 // ── 侧栏 ───────────────────────────────────────────────────────────────────────────────────────
 
 // 顶部导航（设计文档 3.3、4.2）：两种模式共用一个框架（主会话 11-03，照 Claude 桌面版）——先是两边共有的：新建（按模式：新对话 /
-// 新建任务）、公司；再是模式自己的：定时任务（只对话模式）。共有的在上，切模式时一格都不挪。没有「待处理」（用户 11-04：并进对话）。
+// 新建任务）；再是模式自己的：定时任务（只对话模式）。没有「公司」（用户 11-07：账套已在连接里接好，对话里点「公司」弹窗选，
+// 公司页上的改名、删除等搬到组头与公司卡的「···」）。共有的在上，切模式时一格都不挪。没有「待处理」（用户 11-04：并进对话）。
 // 只有当前页选中：只看某家的定时任务与主档页都不算，顶部那一行不选中。键盘上与组标题、
 // 对话行是同一组 roving 焦点（data-roving）。手机抽屉没有「新建」这一行（底部胶囊），其余同一顺序。onPick：手机上点了收起抽屉
 function SidebarNav({ mobile = false, onPick }: { mobile?: boolean; onPick?: () => void }) {
   const items = (
     <>
       {!mobile && <NewNav />}
-      <CompanyNav onPick={onPick} />
       <ScheduledNav onPick={onPick} />
     </>
   );
@@ -524,30 +522,6 @@ function ScheduledNav({ onPick }: { onPick?: () => void }) {
     >
       <span className="cc-nav-icon"><ClockIcon /></span>
       <span className="cc-nav-label">{t("scheduledTasks")}</span>
-    </button>
-  );
-}
-
-/** 侧栏「公司」（只在有公司分组的产品）。onPick：手机上点了收起抽屉。 */
-function CompanyNav({ onPick }: { onPick?: () => void }) {
-  const kind = useProjects((s) => s.kind);
-  const { view, setView } = useView();
-  if (!kind) return null;
-  return (
-    <button
-      type="button"
-      data-roving=""
-      className="cc-nav-item"
-      data-slot="cc-nav-companies"
-      title={co.companies}
-      data-active={view === "companies" || undefined}
-      onClick={() => {
-        setView("companies");
-        onPick?.();
-      }}
-    >
-      <span className="cc-nav-icon"><Building2Icon /></span>
-      <span className="cc-nav-label">{co.companies}</span>
     </button>
   );
 }
@@ -998,12 +972,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   const overlay = usePanel((s) => s.overlay);
   const mode: PanelMode = isMobile ? "phone" : fits ? "docked" : "floating";
   useEffect(() => setPanelDocked(mode === "docked"), [mode]);
-  // 公司页同样有会话栏（公司的资料全在这里，默认开着；开关与对话共用），月份是公司页自己的
-  const kind = useProjects((s) => s.kind);
-  const pageCompany = useCompanyNav((s) => s.company);
-  const pagePeriod = usePageMonth();
-  const companyPage = view === "company" && !!kind && !!pageCompany;
-  const hasPanel = (view === "chat" && saved && !!filing.project) || companyPage;
+  const hasPanel = view === "chat" && saved && !!filing.project;
   const panelShown = hasPanel && !(view === "chat" && results.open) && (mode === "docked" ? panelOpen : overlay);
   useEffect(() => setPanelOverlay(false), [results.sessionId, view]);
   // 点了「公司名 ›」（或手机菜单里的公司名）：预览开着时换回会话栏
@@ -1073,15 +1042,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
     <>
       <MainTopBar nav={nav} window={win} chrome={chrome} tools={tools} />
       <div ref={setArea} className="relative flex min-h-0 flex-1 flex-row">
-        {view === "tasks" ? (
-          <ScheduledTasks />
-        ) : view === "companies" ? (
-          <Companies />
-        ) : view === "company" ? (
-          <CompanyPage />
-        ) : (
-          chatPage
-        )}
+        {view === "tasks" ? <ScheduledTasks /> : chatPage}
         {view === "chat" && results.open && results.sessionId && (
           <ResultsPanel
             sessionId={results.sessionId}
@@ -1091,12 +1052,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
             onClose={() => results.setOpen(false)}
           />
         )}
-        {panelShown &&
-          (companyPage ? (
-            <SessionPanel page filing={{ project: pageCompany, period: pagePeriod, scope: "" }} mode={mode} onClose={closePanel} />
-          ) : (
-            <SessionPanel filing={filing} mode={mode} onClose={closePanel} />
-          ))}
+        {panelShown && <SessionPanel filing={filing} mode={mode} onClose={closePanel} />}
       </div>
     </>
   );

@@ -64,10 +64,10 @@ class TitleBarSourceTests(unittest.TestCase):
         # 一个停靠位：预览开着时不显示会话栏；只在挂了公司的对话（ERP / DMS 的 kind 为空，useFiledCompany 回空）
         # 挂不挂看对话有没有服务端编号，不看消息条数（换对话时线程加载期间消息为 0，会话栏不卸下再挂上）
         self.assertIn("const saved = useAuiState((s) => !!s.threadListItem.remoteId);", layout)
-        self.assertIn("const hasPanel = (view === \"chat\" && saved && !!filing.project) || companyPage;", layout)
-        # 公司页也有会话栏（公司的资料全在这里），月份是公司页自己的
-        self.assertIn('const companyPage = view === "company" && !!kind && !!pageCompany;', layout)
-        self.assertIn('<SessionPanel page filing={{ project: pageCompany, period: pagePeriod, scope: "" }} mode={mode} onClose={closePanel} />', layout)
+        # 只在对话里（用户 11-07：公司页连同它的会话栏删了；定时任务页没有会话栏）
+        self.assertIn("const hasPanel = view === \"chat\" && saved && !!filing.project;", layout)
+        self.assertNotIn("companyPage", layout)
+        self.assertNotIn("<SessionPanel page", layout)
         self.assertNotIn("hasMessages", layout)
         # 窄屏：画第一帧前就量好放不放得下
         dock = app.split("function useDockFits(", 1)[1].split("\nfunction ", 1)[0]
@@ -78,7 +78,7 @@ class TitleBarSourceTests(unittest.TestCase):
         self.assertIn('<div ref={setArea} className="relative flex min-h-0 flex-1 flex-row">', layout)
         self.assertIn("const panelShown = hasPanel && !(view === \"chat\" && results.open) && (mode === \"docked\" ? panelOpen : overlay);", layout)
         self.assertIn('const mode: PanelMode = isMobile ? "phone" : fits ? "docked" : "floating";', layout)
-        self.assertIn("<SessionPanel filing={filing} mode={mode} onClose={closePanel} />", layout)
+        self.assertIn("{panelShown && <SessionPanel filing={filing} mode={mode} onClose={closePanel} />}", layout)
         # 返回键：原有两层不变，会话栏浮层 / 全屏另登记
         self.assertIn('useBackLayer(isMobile && view === "chat" && results.open, () => results.setOpen(false));', layout)
         self.assertIn('useBackLayer(panelShown && mode !== "docked", () => setPanelOverlay(false));', layout)
@@ -89,8 +89,6 @@ class TitleBarSourceTests(unittest.TestCase):
         # 换到另一家时各卡重新挂上（知识库的新增框不把这条写进另一家）
         self.assertIn("<Fragment key={`${scope}:${id}`}>{cards[id] ?? null}</Fragment>", panel)
         self.assertIn("<SortableCards cards={cards} scope={company} />", panel)
-        # 公司页换公司（有缓存不经过加载态）：整页重新挂上，输入框的字与分店不串到另一家
-        self.assertIn("<Master key={detail.company.id} detail={detail}", read("components/company-page.tsx"))
         self.assertIn('if (mode === "docked") return;', panel)
         # 拖动中按 Esc 只取消拖动，不关浮着的会话栏（鼠标、键盘拖都一样；取消拖动的那一下 Esc 也认得出，lib/layers.ts）
         self.assertIn("if (isDragEscape(e)) return;", panel)
@@ -101,8 +99,10 @@ class TitleBarSourceTests(unittest.TestCase):
         for lang in ("en", "zh", "th"):
             self.assertTrue({"showPanel", "hidePanel", "reorder"} <= keys(block(messages, f"  {lang}: {{")), lang)
             company = block(block(i18n, "const COMPANY = {"), f"  {lang}: {{")
-            self.assertTrue({"company", "thisMonth", "library", "sortBy", "sortRecent", "sortName", "chatRunning", "chatWaiting",
-                             "chatDone", "noChats", "card"} <= keys(company), lang)
+            self.assertTrue({"company", "library", "chatRunning", "chatWaiting", "chatDone", "card", "allSets",
+                             "deleteCompanyAsk"} <= keys(company), lang)
+            # 公司列表页的排序、公司页的对话列表 11-07 随页删了
+            self.assertFalse({"sortBy", "sortRecent", "sortName", "noChats", "conversations", "openCompany"} & keys(company), lang)
             card = block(company, "    card: {")
             self.assertEqual({"sets", "notes", "tasks", "choices", "docs", "drafts", "files", "folders", "toDo", "toCheck", "pickedUp",
                               "movedTo", "droppedAt", "cancelled", "instructions"}, keys(card), lang)
@@ -110,7 +110,8 @@ class TitleBarSourceTests(unittest.TestCase):
         self.assertIn('showPanel: "显示右侧栏",', i18n)
         self.assertIn('hidePanel: "隐藏右侧栏",', i18n)
         self.assertIn('reorder: "调整顺序",', i18n)
-        self.assertIn('noChats: "暂无对话"', i18n)
+        self.assertIn('allSets: "全部账套"', i18n)
+        self.assertIn('deleteCompanyAsk: "删除公司？"', i18n)
         for words in ('notes: (n: number) => `${n} 条`', 'tasks: (n: number) => `${n} 个任务`', 'choices: (n: number) => `${n} 项`',
                       'docs: (n: number) => `${n} 张`', 'drafts: (n: number) => `${n} 份`', 'files: (n: number) => `${n} 个文件`',
                       'sets: (n: number) => `${n} 本`', 'toDo: (n: number) => `需处理 ${n}`',
@@ -147,9 +148,9 @@ class PanelStylesSourceTests(unittest.TestCase):
         search = css.split(".cc-page-search {", 1)[1].split("}", 1)[0]
         self.assertIn("height: var(--cc-list-search-h);", search)
         self.assertIn("border-radius: var(--cc-radius-list-search);", search)
-        # 待处理页 11-04 删了（并进对话末尾的框），列表页只剩公司、定时任务
+        # 待处理页 11-04 删了（并进对话末尾的框），公司列表 11-07 删了，列表页只剩定时任务
         self.assertNotIn("cc-page-title", read("components/pending.tsx"))
-        for page in ("components/companies.tsx", "components/scheduled-tasks.tsx"):
+        for page in ("components/scheduled-tasks.tsx",):
             text = read(page)
             self.assertIn('<h1 className="cc-page-title">', text, page)
             self.assertIn('className="cc-page-search"', text, page)
@@ -168,23 +169,14 @@ class PanelStylesSourceTests(unittest.TestCase):
         topbar = css.split(".cc-topbar {", 1)[1].split("}", 1)[0]
         self.assertIn("height: var(--cc-topbar-h);", topbar)
         self.assertNotIn("margin", topbar)
-        # 公司列表的卡片网格在「公司主档（ADR-020」区块里
-        company = css.split("公司主档（ADR-020", 1)[1]
-        self.assertIn(".cc-card-grid {", company)
-        self.assertIn(".cc-grid-card {", company)
-        self.assertNotIn(".cc-grid-card {", css.split("公司主档（ADR-020", 1)[0])
         # 标题栏改名时 Esc 只取消改名，浮着的会话栏（看 defaultPrevented）不跟着关
         rename = read("components/assistant-ui/thread-list.tsx")
         self.assertIn('if (e.key === "Escape" && !e.nativeEvent.isComposing) {\n          e.preventDefault();\n          finish(false);', rename)
-        # 公司页标题同一套（审查第 4 轮）：只结束一次、输入法回车 / Esc 不算、cc-inline-edit 样式
-        title = read("components/company-page.tsx").split("const TitleRename: FC", 1)[1].split("\n};", 1)[0]
-        for line in ("if (finished.current) return;", 'if (e.key === "Enter" && !isImeEnter(e)) {',
-                     'if (e.key === "Escape" && !e.nativeEvent.isComposing) {', 'className="cc-inline-edit cc-page-title-edit"'):
-            self.assertIn(line, title)
+        # 公司改名（11-07 公司页标题删了，组头与公司卡就地改）用的就是上面这个对话行的 InlineRename，不另写一份
+        for rel in ("components/session-panel.tsx", "components/assistant-ui/projects.tsx"):
+            self.assertIn('import { InlineRename } from "@/components/assistant-ui/thread-list";', read(rel), rel)
+            self.assertNotIn("TitleRename", read(rel), rel)
         self.assertIn("e.defaultPrevented", read("components/session-panel.tsx"))
-        # 「名称」排序：剩下的页一次取完，出错停下
-        companies = read("components/companies.tsx")
-        self.assertIn('if (sort !== "name" || done || loading || error || !rows) return;', companies)
 
     def test_the_f18_rule_and_the_task_buttons_stay(self):
         pending = read("components/pending.tsx")
@@ -208,10 +200,10 @@ class PanelStylesSourceTests(unittest.TestCase):
         self.assertNotIn("setFor(", card)
 
     def test_the_panel_pending_card_lists_only_other_months(self):
-        # 开发窗口 10-16 定：会话栏「待处理」卡只列对话月份以外的，对话那个月的只在「本月」卡；公司页（会话栏 page）列全部月份
+        # 开发窗口 10-16 定：会话栏「待处理」卡只列对话月份以外的，对话那个月的只在「本月」卡（列全部月份的公司页 11-07 删了）
         panel = read("components/session-panel.tsx")
         self.assertIn("pending: <PendingCard company={company} period={period} />,", panel)
-        self.assertIn("pending: <PendingCard company={company} />,", panel)
+        self.assertNotIn("pending: <PendingCard company={company} />,", panel)
         # 对话那个月的落在对话末尾的「需要处理」框（11-04 待处理并进对话），两处正好不重复
         self.assertIn("pendingMonth(item) === month", read("components/pending.tsx").split("const ChatPendingBox: FC", 1)[1])
         cards = read("components/company-cards.tsx")
@@ -420,12 +412,9 @@ assert.deepEqual(otherMonths(items, "").map((i) => i.document), ["a", "b", "c", 
     def test_list_page_search_and_sort(self):
         # 待处理页（连同它的搜索）11-04 删了：待处理并进对话末尾的框，按这段对话的公司、月份列，不再搜
         self.assertNotIn("matchesPending", read("components/pending.tsx"))
-        self.run_page(r"""
-import { sortCompanies } from "@/components/companies";
-const rows = [{ title: "beta" }, { title: "Alpha" }, { title: "gamma 10" }, { title: "gamma 9" }];
-assert.deepEqual(sortCompanies(rows, "recent").map((r) => r.title), ["beta", "Alpha", "gamma 10", "gamma 9"]);  // 服务端的顺序
-assert.deepEqual(sortCompanies(rows, "name").map((r) => r.title), ["Alpha", "beta", "gamma 9", "gamma 10"]);
-""")
+        # 公司列表页（连同它的「最近活动 / 名称」排序）11-07 删了：选公司在对话里的选择公司窗口（服务端分页搜索）
+        self.assertFalse((SRC_ROOT / "components/companies.tsx").exists())
+        self.assertNotIn("sortCompanies", "\n".join(p.read_text(encoding="utf-8") for p in SRC_ROOT.rglob("*.ts*")))
 
     def test_cards_toggle_summaries_and_grip_slot(self):
         self.run_page(r"""
@@ -480,7 +469,9 @@ assert.equal(folderSummary([]), "");
             self.assertIn(line, cards)
         panel = read("components/session-panel.tsx")
         self.assertIn('<PanelCard id="outputs" title={t("files")} summary={co.card.files(files.length)} slot="cc-panel-outputs">', panel)
-        self.assertEqual(panel.count("summary={sets.length ? co.card.sets(sets.length) : undefined}"), 2)
+        # 公司卡只剩对话里这一张（公司页的公司卡 CompanyPageCard 11-07 删了）
+        self.assertEqual(panel.count("summary={sets.length ? co.card.sets(sets.length) : undefined}"), 1)
+        self.assertNotIn("CompanyPageCard", panel)
 
     def test_summaries_in_every_language_and_the_month_head(self):
         self.run_page(r"""
@@ -562,16 +553,11 @@ assert.equal(clampToList(5, { top: 0, height: 1200 }, list), 0);  // 比整列�
 assert.equal(clampToList(900, tall, { top: -400, bottom: 600 }), 600 - 579);
 """)
 
-    def test_company_page_month_is_shared_with_the_panel(self):
+    def test_company_page_month_is_gone(self):
+        # 公司页自己的月份（输入框与「月结」卡共用）11-07 随公司页删了；「本月」卡的月份胶囊只在卡里（见 test_cc_month_ledger）
         self.run_page(r"""
-import { pagePeriod, setPagePeriod, usePagePeriod } from "@/lib/company-panel";
-// 还没选过：按设置取上个月（产品不按月份时为空）；选了以后输入框与「月结」卡都用它
-assert.equal(pagePeriod(null, true, "2026-09"), "2026-09");
-assert.equal(pagePeriod(null, false, "2026-09"), "");
-setPagePeriod("2026-07");
-assert.equal(usePagePeriod.getState().period, "2026-07");
-assert.equal(pagePeriod(usePagePeriod.getState().period, true, "2026-09"), "2026-07");
-assert.equal(pagePeriod("", true, "2026-09"), "");   // 选了「不指定」
+import * as panel from "@/lib/company-panel";
+for (const gone of ["pagePeriod", "setPagePeriod", "usePagePeriod", "usePageMonth"]) assert.equal(gone in panel, false, gone);
 """)
 
 
@@ -679,65 +665,42 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn("margin-inline-start: auto;", end)
 
 
-class CompanyPageSkeletonTests(unittest.TestCase):
-    def test_the_company_page_is_the_conversation_skeleton(self):
-        page = read("components/company-page.tsx")
-        master = page.split("const Master: FC", 1)[1].split("\n};", 1)[0]
-        lines = [line.strip() for line in master.split('<div className="cc-company-page" data-slot="cc-company-page">', 1)[1].strip().splitlines()]
-        self.assertEqual(lines[0], "<Header detail={detail} reload={reload} />")
-        self.assertTrue(lines[2].startswith("<CompanyComposer company={id} title={detail.company.title} period={period}"), lines)
-        self.assertEqual(lines[3], "<Conversations company={id} />")
-        # 不再有标签与左栏的卡片：资料全在会话栏
-        for gone in ("Tabs", "cc-tabs", "CompanyTabs", "cc-company-cols", "MonthSection", "SetsSection company", "<PendingCard"):
-            self.assertNotIn(gone, master, gone)
-        self.assertNotIn('from "radix-ui"', page)
-        # 输入框同对话：输入框 + 下巴（公司固定，月份胶囊 = 本页的月份，分店胶囊）
-        composer = page.split("const CompanyComposer: FC", 1)[1].split("\n};", 1)[0]
-        # 手机上同对话页：没在输入、也没有字时收成一行胶囊（第 11 轮按钮排查 M10）；发送钮带 aui-composer-send，收起时藏起来
-        self.assertIn('<div className="cc-composer cc-composer-inline" data-collapsed={!typing && !text ? "" : undefined}>', composer)
-        self.assertIn("onFocus={() => setTyping(true)}\n          onBlur={() => setTyping(false)}", composer)
-        self.assertIn('className="aui-composer-send cc-send"', composer)
-        self.assertIn('<div className="cc-composer-chin" data-slot="cc-composer-chin">', composer)
-        self.assertIn('<span className="cc-chin-btn cc-chin-fixed" data-slot="cc-chin-company" data-chosen="">', composer)
-        self.assertIn('{withPeriod && <PeriodChip look="cc-chin-btn" side="top" value={period} onChange={setPagePeriod} />}', composer)
-        self.assertIn("<BranchChip look=\"cc-chin-btn\" side=\"top\" branches={branches} value={scope} onChange={setScope} />", composer)
-        # 对话列表：行同侧栏行（标题、月份 · 分店、相对时间），最新在前，显示更多
-        chats = page.split("export const Conversations: FC", 1)[1]
-        self.assertIn("{newestFirst(rows).map((row) => {", chats)
-        self.assertIn('const meta = [monthShort(row.period ?? ""), branchShort(row.scope ?? "")].filter(Boolean).join(" · ");', chats)
-        self.assertIn('<span className="cc-chat-row-when">{relativeWhen(row.updated_at, now)}</span>', chats)
-        self.assertIn("const now = useMinuteClock();", chats)
-        self.assertIn('<Marquee className="cc-row-title">{row.title || t("untitled")}</Marquee>', chats)
-        self.assertIn('{meta && <Marquee className="cc-row-meta">{meta}</Marquee>}', chats)
-        self.assertIn("onClick={() => void load(next)}", chats)
-        # 手机：标题旁打开盖满屏的会话栏
-        self.assertIn("onClick={() => setPanelOverlay(true)}", page)
-        # 页宽同对话
-        css = read("globals.css")
-        self.assertIn("max-width: calc(var(--cc-thread-w) + var(--cc-page-gutter) * 2);", css.split(".cc-company-page {", 1)[1].split("}", 1)[0])
-        # 原来公司页的页签与分栏都没了（.cc-tabs 这个名字 B1 起是结果面板的页签，标准化记录 V24，不在公司页）
-        for gone in (".cc-tab {", ".cc-company-cols", ".cc-company-pane"):
-            self.assertNotIn(gone, css, gone)
-        self.assertNotIn("cc-tabs", page)
+class CompanyPageGoneTests(unittest.TestCase):
+    """用户 11-07：公司页（对话骨架的那一页与它的会话栏）删了；资料都在对话的会话栏里，会话栏只有一套卡片。"""
 
-    def test_the_company_page_panel_holds_the_company_cards(self):
+    def test_the_company_page_is_gone(self):
+        self.assertFalse((SRC_ROOT / "components/company-page.tsx").exists())
+        self.assertNotIn("<CompanyPage", read("assistant.tsx"))
+
+    def test_the_panel_has_one_set_of_cards(self):
         panel = read("components/session-panel.tsx")
-        page = panel.split("const all: Record<CardId, ReactNode> = page", 1)[1].split("    : {", 1)[0]
-        for line in ("company: detail ? <CompanyPageCard detail={detail} period={period} /> : null,",
-                     "month: <MonthSection company={company} period={period} onPeriod={setPagePeriod} />,",
-                     "pending: <PendingCard company={company} />,",
-                     "notes: detail ? <NotesSection company={company} notes={detail.notes} reload={reload} keepEmpty /> : null,",
-                     "folders: detail ? <FolderSection company={company} folders={detail.folders} reload={reload} /> : null,",
-                     "tasks: detail ? <TasksSection company={company} detail={detail} period={period} keepEmpty /> : null,",
-                     "outputs: null,"):
-            self.assertIn(line, page)
-        self.assertIn("<ChoicesSection", page)
-        self.assertIn("<DraftsSection", page)
-        card = panel.split("const CompanyPageCard: FC", 1)[1].split("\n};", 1)[0]
-        self.assertIn("<SetsList sets={sets} branches={branches.length > 1 ? branches : []} period={period} />", card)
-        self.assertIn("summary={sets.length ? co.card.sets(sets.length) : undefined}", card)
-        # 公司页的「月结」卡：月份胶囊一直显示（不是悬停才出的操作）
-        self.assertIn('extra={<PeriodChip value={period} onChange={onPeriod} allowNone={false} look="cc-chin-btn" />}', read("components/month-ledger.tsx"))
+        self.assertIn("export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => void }> = ({ filing, mode, onClose }) => {", panel)
+        self.assertNotIn("data-page", panel)
+        self.assertNotIn("= page", panel)
+        cards = panel.split("const all: Record<CardId, ReactNode> = {", 1)[1].split("\n  };", 1)[0]
+        for line in ("company: detail ? <CompanyCard detail={detail} period={period} scope={scope} reload={reload} /> : null,",
+                     "month: <MonthCard company={company} period={period} />,",
+                     "pending: <PendingCard company={company} period={period} />,",
+                     # 知识库、定时任务空的也显示（「＋」加第一条），不再要公司页的 keepEmpty
+                     "notes: detail ? <NotesSection company={company} notes={detail.notes} reload={reload} /> : null,",
+                     "folders: detail ? <FolderSection company={company} folders={detail.folders} reload={reload} hideEmpty /> : null,",
+                     "tasks: detail ? <TasksSection company={company} detail={detail} period={period} /> : null,",
+                     "outputs: <OutputsCard />,"):
+            self.assertIn(line, cards)
+        self.assertIn("<ChoicesSection", cards)
+        self.assertIn("<DraftsSection", cards)
+        self.assertNotIn("keepEmpty", cards)
+        # 公司页公司卡上的全部账套搬进对话的公司卡：「全部账套」一行展开（多分店按分店分组，覆盖这个月的高亮）
+        card = panel.split("const CompanyCard: FC", 1)[1].split("\n};", 1)[0]
+        self.assertIn('aria-expanded={allSets} data-slot="cc-company-all-sets" onClick={() => setAllSets((v) => !v)}>', card)
+        self.assertIn("{allSets && <SetsList sets={detail.account_sets} branches={branches.length > 1 ? branches : []} period={period} />}", card)
+        # 名称一行不再是「打开公司」的按钮
+        self.assertIn('<div className="cc-panel-row" data-strong="" title={c.title}>', card)
+        self.assertNotIn("openCompany", card)
+        tasks = read("components/company-cards.tsx").split("export const TasksSection: FC", 1)[1].split("\n};", 1)[0]
+        self.assertIn("if (!detail.tasks) return null;", tasks)
+        self.assertNotIn("!tasks.length", tasks.split("return (", 1)[0])
+
 
 class ErpSectionsSourceTests(unittest.TestCase):
     """ERP 版 CC 按公司（2026-11-02，评估 §15）：页面只出产品声明的分区，不按产品名分支；Cowork 写死的接口只在 Cowork 的分区里。"""
@@ -760,7 +723,7 @@ class ErpSectionsSourceTests(unittest.TestCase):
                       read("assistant.tsx"))
 
     def test_no_branch_on_the_product_name_for_company_parts(self):
-        for path in ("lib/companies.ts", "lib/company-panel.ts", "components/companies.tsx", "components/company-page.tsx",
+        for path in ("lib/companies.ts", "lib/company-panel.ts", "components/company-menu.tsx", "lib/nav.ts",
                      "components/session-panel.tsx", "components/pending.tsx", "components/company-picker.tsx",
                      "components/company-cards.tsx", "components/month-ledger.tsx", "components/assistant-ui/projects.tsx"):
             text = read(path)
@@ -770,19 +733,22 @@ class ErpSectionsSourceTests(unittest.TestCase):
         self.assertIn('const kind = useSection("pending");', read("components/pending.tsx").split("function useChatPending(", 1)[1].split("\n}\n", 1)[0])
         self.assertIn('useEffect(() => (pending ? watchPendingCounts() : undefined), [pending]);', app)
         nav = read("lib/nav.ts")
-        self.assertIn('if (!kind || (target.view === "pending" && !hasSection("pending"))) {', nav)
+        self.assertIn('if (!kind || (target.view === "pending" && !hasSection("pending"))) return newChat();', nav)
 
     def test_every_card_and_menu_item_follows_a_declared_section(self):
         panel = read("components/session-panel.tsx")
         self.assertIn('month: "month", pending: "pending", notes: "notes", folders: "folders", tasks: "tasks", choices: "choices", drafts: "drafts",',
                       panel)
         self.assertIn("const cards = declaredCards(all, sections);", panel)
-        page = read("components/company-page.tsx")
-        header = page.split("const Header: FC", 1)[1].split("\n};", 1)[0]
+        # 公司的「···」（11-07 从公司页标题搬到组头与公司卡，components/company-menu.tsx）：每项按声明出，一项都没有时不出
+        menu = read("components/company-menu.tsx")
+        items = menu.split("export const CompanyMenuItems: FC", 1)[1]
         for line in ('const canRename = useSection("rename");', 'const canRefresh = useSection("catalog");',
-                     'const canDelete = useSection("delete");', 'const desk = useSection("desk") && c.desk_url ? c.desk_url : "";',
-                     "{hasMenu && (", "{canRename && (", "{canRefresh && (", "{desk && (", "{canDelete && ("):
-            self.assertIn(line, header)
+                     'const canDelete = useSection("delete");', 'const withDesk = useSection("desk");', "if (!withDesk) return;",
+                     "if (!(canRename || canRefresh || canDelete || desk)) return null;",
+                     "{canRename && (", "{canRefresh && (", "{desk && (", "{canDelete && ("):
+            self.assertIn(line, items)
+        self.assertIn("menu.any ? (", read("components/session-panel.tsx").split("const CompanyCard: FC", 1)[1].split("\n};", 1)[0])
         picker = read("components/company-picker.tsx")
         # 选择公司只有账套目录这一种（2026-11-04：ERP 以前在新窗口开 ERP 新建公司页，CC 桌面版里交给系统浏览器、要重新登录）
         self.assertNotIn("openSitePage", picker)
@@ -793,7 +759,6 @@ class ErpSectionsSourceTests(unittest.TestCase):
         # 没建的行服务端只给能建的人：页面不另判 create，点了直接建
         self.assertNotIn('useSection("create")', picker)
         self.assertIn("onClick={() => openCompanyPicker(pick, draft.project)}", read("components/assistant-ui/projects.tsx"))
-        self.assertIn("{add && (", read("components/companies.tsx"))
         pending = read("components/pending.tsx")
         self.assertIn("const hand = items.filter((item) => !item.url && ", pending)
         self.assertIn("useEffect(() => onPendingChange(() => void reload()), [reload]);", pending)
@@ -807,7 +772,7 @@ class ErpSectionsSourceTests(unittest.TestCase):
                     found.setdefault(path.relative_to(SRC_ROOT).as_posix(), set()).add(method.rstrip("."))
         reasons = {
             # 待处理里 Cowork 服务端才给的 action（choose / push / account_set / mrerp），ERP 的待处理只给 open；记住的选择卡（choices）
-            # 里改 MR.ERP 菜单；添加公司（create）与公司页「刷新账套」（catalog）的刷新账套；文件头注释
+            # 里改 MR.ERP 菜单；选择公司窗口与公司「···」的「刷新账套」（catalog）；文件头注释
             "lib/companies.ts": {"pearnly_cowork.companies.api", "pearnly_cowork.push.application.api.choices",
                                  "pearnly_cowork.assistant.pending_api.answer", "pearnly_cowork.assistant.pending_api.proposal_detail",
                                  "pearnly_cowork.assistant.pending_api.account_sets",
@@ -825,7 +790,7 @@ class ErpSectionsSourceTests(unittest.TestCase):
             # 桌面端用登录的账号连 Cowork 通道（只在 Cowork 站点上做）；装桌面版取安装包；注释
             "lib/desktop.ts": {"pearnly_cowork.companion.api.register"},
             "lib/install.ts": {"pearnly_cowork.companion.api.installer"},
-            # 月结台账只在声明了 month 的产品（Cowork）的会话栏「本月」卡与公司页「月结」卡里读
+            # 月结台账只在声明了 month 的产品（Cowork）的会话栏「本月」卡里读
             "lib/month.ts": {"pearnly_cowork.companies.api.month"},
             "lib/frappe.ts": {"pearnly_cowork.folder_intake.api"},
             # MR.ERP 登录授权的共用组件按产品的通道要票：Cowork 走 Cowork 通道，ERP 走共用通道（channelOf(product)），ERP 调不到这一条
@@ -839,19 +804,21 @@ class ErpSectionsSourceTests(unittest.TestCase):
         # 当场选、待选账套、MR.ERP 要选的 11-05 起走共用写账前置判定（pearnly_core.write_precheck，两产品都有）出提问卡，不再调 Cowork 专有接口
         callers = {"pushProposal": "components/pending.tsx", "loadProposal": "components/pending.tsx",
                    "loadMrErpOptions": "components/company-cards.tsx", "refreshCatalogs": "components/company-picker.tsx"}
+        # 「刷新账套」还在公司的「···」里（11-07 从公司页搬来；只在声明了 catalog 的产品）
+        also = {"refreshCatalogs": {"components/company-menu.tsx"}}
         for gone in ("loadChoices", "answerChoices", "loadAccountSets", "chooseAccountSet", "loadMrErpNeeds", "answerMrErp"):
             self.assertNotIn(f"export function {gone}(", read("lib/companies.ts"))
         for name, home in callers.items():
             users = [p.relative_to(SRC_ROOT).as_posix() for p in SRC_ROOT.rglob("*.ts*")
                      if p.name != "companies.ts" and re.search(rf"\b{name}\(", p.read_text(encoding="utf-8"))]
             self.assertIn(home, users, name)
-            self.assertLessEqual(set(users), {home, "components/company-page.tsx", "components/month-ledger.tsx"}, name)
+            self.assertLessEqual(set(users), {home, "components/month-ledger.tsx", *also.get(name, ())}, name)
         pending = read("components/pending.tsx")
         for kind in ("choose", "push", "mrerp", "account_set"):
             self.assertIn(f'item.action === "{kind}"', pending)
-        page = read("components/company-page.tsx")
-        self.assertIn("await refreshCatalogs();", page.split("const refreshSets = async", 1)[1].split("};", 1)[0])
-        self.assertIn("{canRefresh && (", page)
+        menu = read("components/company-menu.tsx")
+        self.assertIn("await refreshCatalogs();", menu.split("const refresh = async", 1)[1].split("};", 1)[0])
+        self.assertIn("{canRefresh && (", menu)
 
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")

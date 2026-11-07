@@ -1,8 +1,9 @@
 // 按公司分组的界面零件（lib/managed-agents/projects.ts；只在产品有公司分组时出现（Cowork、ERP），DMS 不出现）：
 //
 //   ProjectHeader       — 一家公司的组头（sidebar-group.tsx 的 GroupHeader，设计文档 3.4）：最左公司图标、公司名（同会话行标题
-//                         字号字色），整行折叠 / 展开，下面这家的对话行缩进到公司名起点；右侧「···」（分组和排序，用户 2026-10-15
-//                         夜：打开公司、在这家新建对话不要了）、「＋」（在这家开新对话，月份 = 上个月）；手机上长按组头、键盘菜单键出
+//                         字号字色），整行折叠 / 展开，下面这家的对话行缩进到公司名起点；右侧「···」（上半段是这家公司的改名 /
+//                         刷新账套 / 在 ERP 中打开 / 删除公司，用户 11-07 从公司页搬来，components/company-menu.tsx；下半段分组和
+//                         排序）、「＋」（在这家开新对话，月份 = 上个月）；手机上长按组头、键盘菜单键出
 //                         「···」菜单；收起时组里有在跑或没看过的，名字后一个点。组头开关同时是拖动把手（thread-list.tsx 的公司组排序，
 //                         共用拖动）。组头不再有待处理数（用户 11-04：左侧待处理不要，并进对话）
 //   PendingPlaceholder  — 待处理并进对话（用户 11-04）：这家这个月有要处理的单、本人还没有这个月的对话时，组里一行「{月份}」，
@@ -17,13 +18,15 @@
 //   MobileChatTitle     — 手机对话页顶栏中间的两行标题：对话名、公司名（挂在公司下时；照 Claude 手机端 8.webp，不可点）
 //
 // 公司组里不再有「⏱ 定时任务 N」一行（用户 2026-10-15 夜同意设计文档 4.2：改由右侧栏「定时任务」卡与公司页「定时任务」标签承担）。
-// 删公司在主档页的「⋯」里，不确认；出错时在侧栏显示一行（服务端给的原文）。颜色、圆角只用 globals.css 的变量。
+// 删公司在组头与公司卡的「···」里，先确认一次（主会话 11-07 定案 #8）；出错时在侧栏显示一行（服务端给的原文）。颜色、圆角只用 globals.css 的变量。
 
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { Building2Icon, CalendarIcon, ChevronDownIcon, ChevronRightIcon, StoreIcon, XIcon } from "lucide-react";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
 import { type FC, type HTMLAttributes, memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { openCompanyPicker } from "@/components/company-picker";
+import { CompanyMenuItems, saveCompanyName, useRenameAfterMenu } from "@/components/company-menu";
+import { InlineRename } from "@/components/assistant-ui/thread-list";
 import { BranchChip, BranchChoices, PeriodChip, PeriodChoices } from "@/components/period-chip";
 import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/components/assistant-ui/sidebar-group";
 import type { DragHandle } from "@/components/ui/drag";
@@ -109,21 +112,6 @@ export function useNewChatIn() {
   };
 }
 
-/** 打开一家公司：对话模式进公司页；代录模式进这家的新建页（同组头「＋」：直写的新建页、公司选好、月份上个月）。title：公司显示名。 */
-export function useOpenCompany() {
-  const { setView } = useView();
-  const start = useStartIn();
-  return (company: string, title = "") => {
-    if (useModePlace.getState().mode === "operator") {
-      if (title) hintTitle(company, title);
-      start({ project: company, period: useProjects.getState().period ? lastMonth() : "" });
-      return;
-    }
-    useCompanyNav.setState({ company });
-    setView("company");
-  };
-}
-
 // ---------------------------------------------------------------- 组头
 // 记住（memo）：公司组头是拖动项，拖动库每次拿起、经过、放下都重画所有组头；把手（useSortableItem 记住的）、开关、挪一格没变就不重画
 export const ProjectHeader = memo(function ProjectHeader({
@@ -154,6 +142,9 @@ export const ProjectHeader = memo(function ProjectHeader({
   const newChat = useRef(newChatIn);
   newChat.current = newChatIn;
   const onNew = useCallback(() => newChat.current(project.id), [project.id]);
+  // 「···」→ 重命名：组头就地改名（同对话行），菜单关完再出输入框
+  const [renaming, setRenaming] = useState(false);
+  const rename = useRenameAfterMenu(() => setRenaming(true));
   return (
     <>
     <CompanyHeaderView
@@ -167,8 +158,15 @@ export const ProjectHeader = memo(function ProjectHeader({
       menuOpen={menuOpen}
       onMenuKey={() => setMenuOpen(true)}
       onContextMenu={isMobile ? (e) => e.preventDefault() : undefined}
+      editing={
+        renaming ? (
+          <InlineRename value={project.title} onSave={(next) => void saveCompanyName(project.id, next)} onDone={() => setRenaming(false)} />
+        ) : undefined
+      }
     >
-      <GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} />
+      <GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} onCloseAutoFocus={rename.onCloseAutoFocus}>
+        <CompanyMenuItems company={project.id} onRename={rename.request} separator />
+      </GroupSortMenu>
       <GroupNew onClick={onNew} />
     </CompanyHeaderView>
     </>
@@ -252,6 +250,7 @@ export function CompanyHeaderView({
   activity,
   menuOpen = false,
   onMenuKey,
+  editing,
   children,
   ...rest
 }: {
@@ -263,6 +262,7 @@ export function CompanyHeaderView({
   activity?: Activity;
   menuOpen?: boolean;
   onMenuKey?: () => void;
+  editing?: ReactNode;
   children?: ReactNode;
 } & Omit<HTMLAttributes<HTMLDivElement>, "title" | "children">) {
   return (
@@ -279,6 +279,7 @@ export function CompanyHeaderView({
       onMenuKey={onMenuKey}
       handle={handle}
       onMove={onMove}
+      editing={editing}
       dot={
         !open && activity ? (
           <span

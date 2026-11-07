@@ -478,15 +478,15 @@ covers = [
 
 [[flow]]
 id = "cc.companies"
-title = "ERP 版 CC 按公司：侧栏公司（没有待处理入口）、添加公司在 CC 里弹窗（对话 / 代录两种模式，代录进新建页不建任务）、公司页只出 ERP 分区、知识库落库、公司页待处理点开到单据页、员工只见分到的公司"
+title = "ERP 版 CC 按公司：侧栏没有公司与待处理入口、对话里选公司弹窗（选中没建的就建，对话 / 代录两种模式，代录进新建页不建任务）、右侧栏只出 ERP 分区、公司卡与组头「···」、知识库落库、待处理点开到单据页、员工只见分到的公司"
 module = "scripts/flows/cc_companies.py"
-start = "/assistant?view=companies"
+start = "/assistant"
 user = "admin"
 datasets = ["old"]
 viewports = ["desktop"]
 covers = [
-  "frontend/assistant/src/components/companies.tsx",
-  "frontend/assistant/src/components/company-page.tsx",
+  "frontend/assistant/src/components/company-menu.tsx",
+  "frontend/assistant/src/components/assistant-ui/projects.tsx",
   "frontend/assistant/src/components/company-cards.tsx",
   "frontend/assistant/src/components/session-panel.tsx",
   "frontend/assistant/src/components/pending.tsx",
@@ -1262,7 +1262,7 @@ covers = [
 
 [[flow]]
 id = "cc.sidebar-modes"
-title = "CC 侧栏两种模式同一个框架（ERP）：共有入口不挪、没有待处理入口、侧栏同一个接口按模式列会话、代录下点公司不切模式、代录下选公司进新建页、点代录会话打开它的卡片"
+title = "CC 侧栏两种模式同一个框架（ERP）：共有入口不挪、没有公司与待处理入口、侧栏同一个接口按模式列会话、两种模式在弹窗里选公司、点代录会话打开它的卡片"
 module = "scripts/flows/cc_sidebar_modes.py"
 start = "/assistant"
 user = "admin"
@@ -1275,7 +1275,6 @@ covers = [
   "frontend/assistant/src/components/pending.tsx",
   "frontend/assistant/src/lib/managed-agents/list-mode.ts",
   "frontend/assistant/src/components/operator/mode-switch.tsx",
-  "frontend/assistant/src/components/companies.tsx",
   "apps/pearnly_core/pearnly_core/express_operator/tasks.py",
   "apps/pearnly_core/pearnly_core/express_operator/products.py",
   "apps/pearnly_core/pearnly_core/shell.py",
@@ -1287,7 +1286,7 @@ covers = [
 
 [[flow]]
 id = "cowork.cc.sidebar-modes"
-title = "CC 侧栏两种模式同一个框架（Cowork）：共有入口不挪、定时任务只在对话模式、没有待处理入口、侧栏同一个接口按模式列会话、代录下选公司进新建页、点代录会话打开它的卡片、添加公司弹窗点已添加的打开它"
+title = "CC 侧栏两种模式同一个框架（Cowork）：共有入口不挪、定时任务只在对话模式、没有公司与待处理入口、侧栏同一个接口按模式列会话、两种模式在弹窗里选公司（已建的那行）、点代录会话打开它的卡片"
 module = "scripts/flows/cc_sidebar_modes.py"
 product = "cowork"
 start = "/assistant"
@@ -1295,13 +1294,15 @@ user = "admin"
 datasets = ["old"]
 viewports = ["desktop", "mobile"]
 covers = [
+  "apps/pearnly_cowork/pearnly_cowork/companies/api.py",
+  "apps/pearnly_cowork/pearnly_cowork/companies/service.py",
+  "apps/pearnly_cowork/pearnly_cowork/companies/provider.py",
   "frontend/assistant/src/assistant.tsx",
   "frontend/assistant/src/lib/nav.ts",
   "frontend/assistant/src/lib/profile.ts",
   "frontend/assistant/src/components/pending.tsx",
   "frontend/assistant/src/lib/managed-agents/list-mode.ts",
   "frontend/assistant/src/components/operator/mode-switch.tsx",
-  "frontend/assistant/src/components/companies.tsx",
   "apps/pearnly_core/pearnly_core/express_operator/tasks.py",
   "apps/pearnly_core/pearnly_core/express_operator/products.py",
   "apps/pearnly_core/pearnly_core/shell.py",

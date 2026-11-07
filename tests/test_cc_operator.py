@@ -236,7 +236,7 @@ import { resumeQuestion } from "@/components/tool-uis/operator-resume";
 import { createBridgeWatch, progressOf } from "@/components/operator/bridge";
 import { createSession, listGrouped, listSessions } from "@/lib/managed-agents/api";
 import { noteSessionTasks, sessionMode, useListMode } from "@/lib/managed-agents/list-mode";
-import { modeForKey, noteViewMode, setThreadExit, switchMode, targetOf, useModePlace } from "@/lib/nav";
+import { modeForKey, noteViewMode, ownMode, setThreadExit, switchMode, targetOf, useModePlace } from "@/lib/nav";
 import { op } from "@/i18n";
 
 const g = globalThis as any;
@@ -368,7 +368,8 @@ const g = globalThis as any;
   assert.equal(useListMode.getState().mode, "chat");
   assert.equal(modeForKey({ code: "Digit2", ctrlKey: true, metaKey: false, shiftKey: true, altKey: false }), "operator");
   // 换模式时正在看的对话不属于新模式：离开、落到新建页（用户 11-06：侧栏换了、右边还留着那段）；属于新模式的、还没发出的新对话、
-  // 还不知道是哪种的照旧；直接进另一个模式自己的视图（换了模式）同样，进共有的视图不换模式也不离开
+  // 还不知道是哪种的照旧；直接进另一个模式自己的视图（换了模式）同样，进本模式的视图不换模式也不离开
+  // （两种模式共有的公司列表、公司页 11-07 删了：每个视图都属于一个模式）
   let watching = "";
   let toNew = 0;
   setThreadExit({ current: () => watching, toNew: () => { toNew += 1; watching = ""; } });
@@ -386,7 +387,9 @@ const g = globalThis as any;
   assert.equal(toNew, 2);
   watching = "sesn_never_seen"; switchMode("operator", "chat", () => {});
   assert.equal(toNew, 2);
-  watching = "op_A"; noteViewMode("companies");
+  assert.deepEqual(["chat", "tasks", "operator"].map((v) => ownMode(v as any)), ["chat", "chat", "operator"]);
+  watching = "op_A"; noteViewMode("operator");
+  assert.equal(useModePlace.getState().mode, "operator");
   assert.equal(toNew, 2);
   noteViewMode("tasks");
   assert.equal(useModePlace.getState().mode, "chat");

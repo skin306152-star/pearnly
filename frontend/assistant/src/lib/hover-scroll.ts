@@ -25,7 +25,7 @@ import { touchOnly } from "@/lib/touch";
 
 const HOST = "[data-marquee-host]";
 const ROW =
-  '[role^="menuitem"], [role="option"], button, a, label, .cc-panel-row, .cc-list-item, .cc-list-row, .cc-grid-card, .cc-folder-line, .cc-choice-row';
+  '[role^="menuitem"], [role="option"], button, a, label, .cc-panel-row, .cc-list-item, .cc-list-row, .cc-folder-line, .cc-choice-row';
 
 /** 能不能悬停滚动：系统没要求减少动态效果、主要输入方式能悬停。 */
 export function canHoverScroll(): boolean {

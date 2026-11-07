@@ -332,13 +332,13 @@ def chat_one_step(page, ctx):
 
 
 def operator_new_step(page, ctx):
-    """代录模式下从「公司」选一家：进这家的代录新建任务页（顶上「公司 · 月份」，月份默认上个月），不是对话模式的公司页
-    （11-03 事故 3 的第 3 项）；不点开始，不派给电脑。"""
+    """代录模式新建页下巴点「公司」在选择公司弹窗里选一家（11-07 起没有左侧「公司」）：仍在代录新建任务页（顶上「公司 · 月份」，月份
+    默认上个月），不是对话模式（11-03 事故 3 的第 3 项）；不点开始，不派给电脑。"""
     hops = start(page, ctx)
     page.wait_for_selector('[data-slot="cc-mode-switch"] [aria-checked="true"]', timeout=NAV_TIMEOUT)
     expect(cc(page, "return await toMode('operator');"), "切不到「代录」模式")
-    open_nav(page, ctx, "cc-nav-companies")
-    first = page.locator('[data-slot="cc-company-rows"] button').first
+    page.locator('[data-slot="cc-chin-company"]:visible').first.click()
+    first = page.locator('[data-slot="cc-company-picker"] [data-slot="cc-candidates"] .cc-list-row[data-built]').first
     first.wait_for(timeout=NAV_TIMEOUT)
     title = first.inner_text().strip().splitlines()[0].strip()
     first.click()
@@ -347,10 +347,8 @@ def operator_new_step(page, ctx):
     try:
         period.wait_for(state="visible", timeout=NAV_TIMEOUT)
     except Exception as error:  # noqa: BLE001
-        shown = "对话模式的公司页" if page.locator('[data-slot="cc-company-page"]').count() else page.url.split("?")[0]
-        raise Failed(f"代录模式下选公司应进代录新建任务页（公司 · 月份），实际是 {shown}") from error
+        raise Failed(f"代录模式下选公司应留在代录新建任务页（公司 · 月份），实际在 {page.url.split('?')[0]}") from error
     expect(cc(page, "return mode();") == "operator", "选公司后掉回了对话模式")
-    expect(not page.locator('[data-slot="cc-company-page"]').count(), "代录模式下选公司进了对话模式的公司页")
     try:   # 公司名稍后才填进胶囊（先是占位「公司」）
         page.wait_for_function("t => (document.querySelector('[data-slot=\"cc-chin-company\"]')?.innerText || '').includes(t)",
                                arg=title, timeout=20_000)

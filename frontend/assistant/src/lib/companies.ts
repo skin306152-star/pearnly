@@ -6,7 +6,7 @@
 //               Cowork 的名称、税号一律由服务端从账套目录算，页面只交「哪条连接的哪份账套」与幂等的 request_key。
 //               下面写死 pearnly_cowork. 的几处（推送选择、提议、换账套、MR.ERP 菜单、刷新账套）只在 Cowork 声明的分区与
 //               Cowork 服务端给的 action 里调到（ERP 的待处理只给 action open），tests/test_assistant_ui.py 列出并核对
-//   当前公司  — 公司页 / 主档页 / 定时任务页 / 待处理页看的是哪家（useCompanyNav；深链接 ?company=、?view=tasks&company=）
+//   当前公司  — 定时任务页只看哪家（useCompanyNav；深链接 ?company=、?view=tasks&company=）
 //   月份分店  — 处理月份 YYYY-MM（公历存，泰文按佛历显示）；分店号 5 位，00000 是总公司（显示走翻译）
 //   待处理    — 按公司、按「公司 · 月份」的计数（pending_counts，GROUP 查询）：公司列表上的数、侧栏的占位行、对话末尾「需要处理」框
 //               落在哪段对话；推送状态的站点事件来了重取，回到前台重取
@@ -246,12 +246,11 @@ export type TaskSeed = {
 };
 export type SeedBranch = { branch: string; label: string; connection: string; account_set_key: string; account_label: string };
 type CompanyNav = {
-  company: string; // 主档页看的是哪家
   taskCompany: string; // 定时任务页只看这家（""= 全部）
   taskFocus: string; // 定时任务页定位到哪个任务
   taskSeed: TaskSeed | null; // 打开定时任务页时接着开新建表单并预填
 };
-export const useCompanyNav = create<CompanyNav>(() => ({ company: "", taskCompany: "", taskFocus: "", taskSeed: null }));
+export const useCompanyNav = create<CompanyNav>(() => ({ taskCompany: "", taskFocus: "", taskSeed: null }));
 
 // ---------------------------------------------------------------- 月份与分店
 const MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
@@ -307,6 +306,13 @@ export function monthShort(period: string, now = new Date()): string {
 export const HQ = "00000";
 
 /** 分店短写：总公司 → 「总公司」，其余 → 「分店 00001」（走翻译）；空 = 不指定。 */
+/** 公司卡的第二行：税号 · 分店 · 年度。 */
+export function companyLine(row: Pick<CompanyRow, "tax_id" | "branch" | "years">): string {
+  return [row.tax_id ?? "", row.tax_id && row.branch ? branchShort(row.branch) : "", (row.years ?? []).join(" ")]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export function branchShort(scope: string): string {
   if (!scope) return "";
   return scope === HQ ? co.headOffice : `${co.branchShort} ${scope}`;
@@ -653,17 +659,4 @@ export function setsForScope(detail: Pick<Detail, "branches" | "account_sets">, 
   const covering = groups.flatMap((sets) => coveringOf(sets, period));
   const out = covering.length ? covering : groups.flatMap((sets) => coveringOrNewest(sets, period));
   return out.filter((s, i) => out.findIndex((other) => id(other) === id(s)) === i);
-}
-
-// ---------------------------------------------------------------- 全所有没有公司（新对话的公司条只在至少有一家时出现）
-let anyCompany: Promise<boolean> | null = null;
-
-export function hasAnyCompany(): Promise<boolean> {
-  anyCompany ??= listCompanies("", 0, 1).then((rows) => rows.length > 0, () => false);
-  return anyCompany;
-}
-
-/** 建了或删了公司：下次重新问。 */
-export function forgetAnyCompany() {
-  anyCompany = null;
 }

@@ -6,7 +6,6 @@
 //            只在看得见的卡片之间挪（空卡不显示，也不占位）。
 //   开关     宽屏停靠时按记下的「开着」显示（公司页同样，默认开着）；窄屏浮在页面上、手机盖满屏时只在点了之后显示
 //            （overlay，换对话、换页就收起），不因为记着「开着」一打开就把页面盖住。
-//   公司页   自己的月份（usePagePeriod）：「在这家新建对话」输入框的月份胶囊与会话栏「本月」卡的月份胶囊是同一个。
 //   公司详情 按「公司|月份」缓存：先用缓存显示、后台再取；只在会话栏看得见时（组件挂着）跟着站点事件、回到前台重取
 //            （lib/live.ts）；别处改了这家重取，删了清掉。
 //   对话行   公司页的对话列表：行尾装饰只用现有的真实信号（见 chatState），时间写相对时间（relativeWhen）。
@@ -178,25 +177,6 @@ export const openCompanyCard = () => showCard("company");
 /** 停靠位放不放得下会话栏：对话区宽度够「对话最窄 + 会话栏」才并排，否则浮在对话上。 */
 export function dockFits(width: number, chatMin: number, panelWidth: number): boolean {
   return width >= chatMin + panelWidth;
-}
-
-// ---------------------------------------------------------------- 公司页自己的月份
-/** 公司页的月份：null = 还没选过（按设置取上个月，产品不按月份时为空）；换公司不重置（同原来页面里的月份）。 */
-export const usePagePeriod = create<{ period: string | null }>(() => ({ period: null }));
-
-export function setPagePeriod(period: string) {
-  usePagePeriod.setState({ period });
-}
-
-/** 公司页此刻的月份（输入框与会话栏「本月」卡共用）。 */
-export function pagePeriod(saved: string | null, withPeriod: boolean, fallback = lastMonth()): string {
-  return saved ?? (withPeriod ? fallback : "");
-}
-
-export function usePageMonth(): string {
-  const saved = usePagePeriod((s) => s.period);
-  const withPeriod = useProjects((s) => s.period);
-  return pagePeriod(saved, withPeriod);
 }
 
 // ---------------------------------------------------------------- 公司详情（按 公司|月份 缓存）

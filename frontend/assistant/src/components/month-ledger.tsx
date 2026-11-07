@@ -22,13 +22,13 @@
 // 文案走 i18n.ts 的 co.ledger（服务端只给码）；样式只用 globals.css 的 .cc-panel* / .cc-month-* 与变量。
 
 import { ChevronRightIcon, SparklesIcon } from "lucide-react";
-import { type FC, useState } from "react";
+import { type FC, useEffect, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { PanelCard, PanelSkeleton } from "@/components/company-cards";
 import { PendingAsk, ProposalRow, useAskCC } from "@/components/pending";
 import { PeriodChip } from "@/components/period-chip";
 import { co } from "@/i18n";
-import { branchShort, docLine, docList, formatAmount, isPeriod, lastMonth, monthLabel, periodOf, refreshPendingCounts, useCompanyNav } from "@/lib/companies";
+import { branchShort, docLine, docList, formatAmount, monthLabel, periodOf, refreshPendingCounts, useCompanyNav } from "@/lib/companies";
 import { useProjects } from "@/lib/managed-agents/projects";
 import {
   accountSetException,
@@ -303,37 +303,28 @@ function useLedgerActions(company: string, period: string, drop: (document: stri
 }
 
 // ---------------------------------------------------------------- 会话栏「本月」卡
-/** 对话挂的公司与月份；没有月份、取不到、整个月什么都没有时不显示（出错时显示原因）。 */
-export const MonthCard: FC<{ company: string; period: string }> = ({ company, period }) => {
-  const { month, error, reload, drop } = useMonth(company, period);
-  const handlers = useLedgerActions(company, period, drop, reload);
-  if (!month && !error) return null;
-  if (month && emptyMonth(month) && !error) return null;
-  const title = period === periodOf(new Date()) ? co.thisMonth : monthLabel(period);
-  return (
-    <PanelCard id="month" title={title} summary={month ? monthSummary(month) : undefined} slot="cc-panel-month">
-      {error && <p role="alert" className="px-(--cc-space-4) text-danger">{error}</p>}
-      {month && <LedgerBody month={month} company={company} {...handlers} />}
-    </PanelCard>
-  );
-};
-
-// ---------------------------------------------------------------- 公司页概览第一节
-/** 公司页的月结台账（在公司页的会话栏里）：卡头月份胶囊（最近 12 个月，不列「不指定」）与「在这家新建对话」共用页面的
- *  月份（lib/company-panel 的 usePagePeriod），页面是「不指定」时看上个月；一直显示，取的时候是骨架。 */
-export const MonthSection: FC<{ company: string; period: string; onPeriod: (p: string) => void }> = ({ company, period: chosen, onPeriod }) => {
-  const period = isPeriod(chosen) ? chosen : lastMonth();
+/** 对话挂的公司与月份；卡头月份胶囊（最近 12 个月）只换卡里看的月份，不移动对话（主会话 11-07 定案 #4：对话的月份在下巴改）。
+ *  看的是对话那个月时：没有月份、取不到、整个月什么都没有时不显示（出错时显示原因）；换到别的月一直显示，取的时候是骨架。 */
+export const MonthCard: FC<{ company: string; period: string }> = ({ company, period: own }) => {
+  const [seen, setSeen] = useState("");
+  useEffect(() => setSeen(""), [company, own]);
+  const period = seen || own;
   const { month, error, loading, reload, drop } = useMonth(company, period);
   const handlers = useLedgerActions(company, period, drop, reload);
+  if (!seen) {
+    if (!month && !error) return null;
+    if (month && emptyMonth(month) && !error) return null;
+  }
+  const title = period === periodOf(new Date()) ? co.thisMonth : monthLabel(period);
   return (
     <PanelCard
       id="month"
-      title={co.ledger.title}
+      title={title}
       summary={month ? monthSummary(month) : undefined}
-      slot="cc-company-month"
-      extra={<PeriodChip value={period} onChange={onPeriod} allowNone={false} look="cc-chin-btn" />}
+      slot="cc-panel-month"
+      extra={<PeriodChip value={period} onChange={(next) => setSeen(next === own ? "" : next)} allowNone={false} look="cc-chin-btn" />}
     >
-      {loading && <PanelSkeleton />}
+      {loading && !month && <PanelSkeleton />}
       {error && <p role="alert" className="px-(--cc-space-4) text-danger">{error}</p>}
       {month && <LedgerBody month={month} company={company} {...handlers} />}
     </PanelCard>

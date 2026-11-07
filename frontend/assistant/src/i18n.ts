@@ -490,8 +490,8 @@ export const st = (SETTINGS as Record<string, (typeof SETTINGS)["en"]>)[lang] ??
 // 日文与服务端词条在 apps/pearnly_cowork/pearnly_cowork/i18n/messages.tsv。
 const COMPANY = {
   en: {
-    companies: "Companies", addCompany: "Add company", added: "Added", refreshSets: "Refresh account sets", openCompany: "Open company",
-    deleteCompany: "Delete company", conversations: "Chats", notes: "Notes", add: "Add", docFolder: "Documents folder",
+    companies: "Companies", refreshSets: "Refresh account sets",
+    deleteCompany: "Delete company", deleteCompanyAsk: "Delete company?", allSets: "All account sets", notes: "Notes", add: "Add", docFolder: "Documents folder",
     monthFolder: (name: string) => `This month: ${name}`, accountSets: "Account sets", taxDrafts: "Tax drafts", remembered: "Saved choices",
     period: "Month", noPeriod: "No month", branch: "Branch", noBranch: "No branch", headOffice: "Head office", branchShort: "Branch",
     combinedVat: "Combined VAT filing", showMore: "Show more", chooseOnComputer: "Choose on computer",
@@ -507,11 +507,10 @@ const COMPANY = {
     fromHistory: (n: number) => `From Express history · ${n}`,
     // 公司规则（数字会计员第 2 期）：全公司 / 分店的选择、设为全公司、让 CC 起草知识库、当场选已由规则定下时直接推送
     wholeCompany: "Whole company", branchN: (b: string) => `Branch ${b}`, makeCompanyWide: "Set for whole company",
-    draftNotes: "Let CC draft", pushNow: "Push",
-    draftNotesText: "Draft a few notes for this company from its push records, saved choices and Express history",
+ pushNow: "Push",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
-    company: "Company", thisMonth: "This month", library: "Library", sortBy: "Sort by", sortRecent: "Recent activity", sortName: "Name",
-    chatRunning: "In progress", chatWaiting: "Needs your input", chatDone: "Done", noChats: "No chats",
+    company: "Company", thisMonth: "This month", library: "Library",
+    chatRunning: "In progress", chatWaiting: "Needs your input", chatDone: "Done",
     // 会话栏卡头右侧的一句状态（同 Claude 卡头摘要，用我们自己的词）与拖动调顺序的读屏播报（开发窗口 10-16 定）
     card: {
       sets: (n: number) => (n === 1 ? "1 account set" : `${n} account sets`),
@@ -577,8 +576,8 @@ const COMPANY = {
     } as Record<string, string>,
   },
   zh: {
-    companies: "公司", addCompany: "添加公司", added: "已添加", refreshSets: "刷新账套", openCompany: "打开公司",
-    deleteCompany: "删除公司", conversations: "对话", notes: "知识库", add: "添加", docFolder: "单据文件夹",
+    companies: "公司", refreshSets: "刷新账套",
+    deleteCompany: "删除公司", deleteCompanyAsk: "删除公司？", allSets: "全部账套", notes: "知识库", add: "添加", docFolder: "单据文件夹",
     monthFolder: (name: string) => `本月：${name}`, accountSets: "账套", taxDrafts: "申报草稿", remembered: "记住的选择",
     period: "处理月份", noPeriod: "不指定", branch: "分店", noBranch: "不指定分店", headOffice: "总公司", branchShort: "分店",
     combinedVat: "合并申报", showMore: "显示更多", chooseOnComputer: "在电脑上选择",
@@ -594,11 +593,10 @@ const COMPANY = {
     fromHistory: (n: number) => `来自 Express 历史 · ${n} 次`,
     // 公司规则（数字会计员第 2 期）：全公司 / 分店的选择、设为全公司、让 CC 起草知识库、当场选已由规则定下时直接推送
     wholeCompany: "全公司", branchN: (b: string) => `分店 ${b}`, makeCompanyWide: "设为全公司",
-    draftNotes: "让 CC 起草", pushNow: "推送",
-    draftNotesText: "按这家的推送记录、记住的选择和 Express 历史起草几条知识库",
+ pushNow: "推送",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
-    company: "公司", thisMonth: "本月", library: "资料", sortBy: "排序方式", sortRecent: "最近活动", sortName: "名称",
-    chatRunning: "进行中", chatWaiting: "需要您的输入", chatDone: "已完成", noChats: "暂无对话",
+    company: "公司", thisMonth: "本月", library: "资料",
+    chatRunning: "进行中", chatWaiting: "需要您的输入", chatDone: "已完成",
     // 会话栏卡头右侧的一句状态（同 Claude 卡头摘要，用我们自己的词）与拖动调顺序的读屏播报（开发窗口 10-16 定）
     card: {
       sets: (n: number) => `${n} 本`,
@@ -663,8 +661,8 @@ const COMPANY = {
     } as Record<string, string>,
   },
   th: {
-    companies: "บริษัท", addCompany: "เพิ่มบริษัท", added: "เพิ่มแล้ว", refreshSets: "รีเฟรชชุดบัญชี", openCompany: "เปิดบริษัท",
-    deleteCompany: "ลบบริษัท", conversations: "แชท", notes: "บันทึก", add: "เพิ่ม", docFolder: "โฟลเดอร์เอกสาร",
+    companies: "บริษัท", refreshSets: "รีเฟรชชุดบัญชี",
+    deleteCompany: "ลบบริษัท", deleteCompanyAsk: "ลบบริษัท?", allSets: "ชุดบัญชีทั้งหมด", notes: "บันทึก", add: "เพิ่ม", docFolder: "โฟลเดอร์เอกสาร",
     monthFolder: (name: string) => `เดือนนี้: ${name}`, accountSets: "ชุดบัญชี", taxDrafts: "ร่างแบบภาษี", remembered: "ตัวเลือกที่จำไว้",
     period: "เดือนที่ทำ", noPeriod: "ไม่ระบุเดือน", branch: "สาขา", noBranch: "ไม่ระบุสาขา", headOffice: "สำนักงานใหญ่", branchShort: "สาขา",
     combinedVat: "ยื่นรวม", showMore: "แสดงเพิ่ม", chooseOnComputer: "เลือกบนคอมพิวเตอร์",
@@ -680,11 +678,10 @@ const COMPANY = {
     fromHistory: (n: number) => `จากประวัติ Express · ${n} ครั้ง`,
     // 公司规则（数字会计员第 2 期）：全公司 / 分店的选择、设为全公司、让 CC 起草知识库、当场选已由规则定下时直接推送
     wholeCompany: "ทั้งบริษัท", branchN: (b: string) => `สาขา ${b}`, makeCompanyWide: "ใช้กับทั้งบริษัท",
-    draftNotes: "ให้ CC ร่าง", pushNow: "ส่ง",
-    draftNotesText: "ร่างบันทึกของบริษัทนี้สักสองสามข้อจากประวัติการส่ง ตัวเลือกที่จำไว้ และประวัติ Express",
+ pushNow: "ส่ง",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
-    company: "บริษัท", thisMonth: "เดือนนี้", library: "ข้อมูล", sortBy: "เรียงตาม", sortRecent: "กิจกรรมล่าสุด", sortName: "ชื่อ",
-    chatRunning: "กำลังดำเนินการ", chatWaiting: "ต้องการข้อมูลจากคุณ", chatDone: "เสร็จแล้ว", noChats: "ไม่มีแชท",
+    company: "บริษัท", thisMonth: "เดือนนี้", library: "ข้อมูล",
+    chatRunning: "กำลังดำเนินการ", chatWaiting: "ต้องการข้อมูลจากคุณ", chatDone: "เสร็จแล้ว",
     // 会话栏卡头右侧的一句状态（同 Claude 卡头摘要，用我们自己的词）与拖动调顺序的读屏播报（开发窗口 10-16 定）
     card: {
       sets: (n: number) => `${n} ชุด`,
