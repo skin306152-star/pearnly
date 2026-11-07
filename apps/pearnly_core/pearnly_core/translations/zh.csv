@@ -1008,9 +1008,6 @@ connect.master.advisors,顾问 {0}
 connect.master.branches,分店 {0}
 connect.master.carModels,车型 {0}
 connect.master.terms,称谓 {0}
-connect.mrerp.authorizeInCC,在 CC 桌面版中授权
-connect.mrerp.authorized,已授权：{0}
-connect.mrerp.notAuthorized,未授权
 connect.no,否
 connect.notice.connected,已连接 · {0}
 connect.notice.ok,连接正常 · {0}

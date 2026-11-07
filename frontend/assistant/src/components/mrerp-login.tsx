@@ -13,7 +13,7 @@ import { LoaderIcon } from "lucide-react";
 import { co, st } from "@/i18n";
 import { authorizeMrErp, channelOf, deviceKey, openSettings, useDesktopFeatures } from "@/lib/desktop";
 import { postMethod } from "@/lib/frappe";
-import { formatWhen } from "@/lib/companies";
+import { formatWhen } from "@/lib/when";
 import { reportCaught } from "@/lib/caught";
 
 export type MrErpCredential = { username?: string; device?: string; at?: string } | null;

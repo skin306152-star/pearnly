@@ -335,6 +335,12 @@ class ProviderTests(unittest.TestCase):
             self.assertTrue(callable(getattr(cc_companies, method)), method)
         for method in ("desk", "rename", "delete", "month", "task_overview", "folder_bind", "candidates"):
             self.assertFalse(hasattr(cc_companies, method), method)
+        # 设置 → 连接的 MR.ERP 一行只在 MR.ERP 账本开着时声明（主会话 11-07 定案 #13）：关着回 {}，页面就不出这一行
+        mrerp = importlib.import_module("pearnly_erp_portal.mrerp")
+        self.assertFalse(mrerp.MRERP_LEDGER_ENABLED)
+        self.assertEqual(cc_projects.connect(), {})
+        with mock.patch.object(mrerp, "MRERP_LEDGER_ENABLED", True):
+            self.assertEqual(cc_projects.connect(), {"mrerp": "pearnly_erp_portal.mrerp.api."})
         hooks = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")
         self.assertIn('pearnly_assistant_projects = ["pearnly_erp_portal.masters.cc_projects"]', hooks)
         self.assertIn('"pearnly_erp_portal.masters.cc_tools.TOOLS"', hooks)

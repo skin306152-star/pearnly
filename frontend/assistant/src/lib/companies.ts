@@ -16,6 +16,7 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { co, lang } from "@/i18n";
+import { LOCALE } from "@/lib/when";
 import { getMethod, postMethod } from "@/lib/frappe";
 import { projectsReady, useProjects } from "@/lib/managed-agents/projects";
 import { onConnectionChange, onProjectChange, onSiteEvent } from "@/lib/managed-agents/realtime";
@@ -273,7 +274,6 @@ export function recentMonths(now = new Date(), count = 12): string[] {
   return Array.from({ length: count }, (_, i) => periodOf(new Date(now.getFullYear(), now.getMonth() - i, 1)));
 }
 
-const LOCALE: Record<string, string> = { th: "th-TH-u-ca-buddhist", zh: "zh-CN", en: "en-US" };
 const at = (period: string) => {
   const m = MONTH.exec(period);
   return m ? new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 15)) : null;
@@ -358,18 +358,7 @@ export function formatAmount(value: string | number | null | undefined): string 
 
 /** 显示时间：服务端给带时区的 ISO（companies.service.when 把站点时区的裸时间换成 UTC），按这台设备的时区显示；
  *  只有日期的（「2026-09-30」）只显示日期；不带时区的不猜（不补 Z，原先当成 UTC 晚了 7 小时），原样显示。 */
-export function formatWhen(value: string | undefined | null): string {
-  if (!value) return "";
-  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (day) {
-    const date = new Date(Date.UTC(Number(day[1]), Number(day[2]) - 1, Number(day[3])));
-    return new Intl.DateTimeFormat(LOCALE[lang] ?? "en-US", { dateStyle: "medium", timeZone: "UTC" }).format(date);
-  }
-  if (!/[zZ]$|[+-]\d\d:?\d\d$/.test(value)) return value;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(LOCALE[lang] ?? "en-US", { dateStyle: "medium", timeStyle: "short" }).format(date);
-}
+export { formatWhen } from "@/lib/when";
 
 // ---------------------------------------------------------------- 公司详情缓存（顶栏分店胶囊要知道这家有几个分店）
 const detailCache = new Map<string, Promise<Detail | null>>();

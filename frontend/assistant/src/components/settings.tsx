@@ -1,11 +1,12 @@
 // 设置（同 Claude：左下角菜单 →「设置」，或 Ctrl+,）。左边分栏（同侧栏导航行 .cc-nav-item 与组标题 .cc-section-label），右边内容：
 //
 //   常规      — 主题、对话字体、对话文字大小、对话记录宽度、动效、语言（同 Claude 设置的「外观」）、通知（浏览器 / 手机推送）
-//   连接      — 只在浏览器里（Cowork 站点）出现：池里的电脑（一台一行）、在不在线；连接、文件夹只在电脑上的 CC 里改。
+//   连接      — 只在浏览器里（Cowork 站点）出现：最上面「MR.ERP」一行（components/mrerp-connect.tsx，产品声明了才出），下面池里的
+//               电脑（一台一行）、在不在线；Express 的连接、文件夹只在电脑上的 CC 里改。深链接 ?settings=connections 打开这一栏。
 //               第 6 批（ADR-021）：登记人或管理员可在「···」移除一台电脑；管理员另有 Express 的「全所可用」开关，
 //               关掉以后按成员名单（MR.ERP 没有这个开关）
 //   此电脑    — 只在 CC 桌面端出现（lib/desktop.ts 的 desktop()）：
-//     连接    — 这台电脑连的公司（登录的账号自动连上，不用配对码）、Express 数据文件夹（Express 授权留在这里）；
+//     连接    — 最上面「MR.ERP」一行（同浏览器）；这台电脑连的公司（登录的账号自动连上，不用配对码）、Express 数据文件夹（Express 授权留在这里）；
 //               下面「电脑」同浏览器里的「连接」（池里每台电脑、移除、全所可用）
 //
 // 单据文件夹改在公司主档页按公司选（ADR-020，只在 CC 桌面版里经原生选择框）：桌面版声明了 company_folders 时这里不再有
@@ -38,6 +39,7 @@ import {
   textSize,
 } from "@/lib/desktop";
 import { useInstallGuide } from "@/components/install-prompt";
+import { MrerpRow } from "@/components/mrerp-connect";
 import { Shortcut } from "@/components/shortcut";
 import { type ChatFont, type ChatWidth, type Motion, pref, setPref, type Theme } from "@/lib/appearance";
 import { chooseLanguage, postMethod, shownError, siteFetch } from "@/lib/frappe";
@@ -93,6 +95,14 @@ export function Settings() {
     };
     window.addEventListener("tomo-settings", show);
     window.addEventListener("keydown", key);
+    // 深链接 ?settings=<一栏>（Cowork Desk 的 MR.ERP「连接」新开一页到这里，用户 11-07 连接只留一个入口）：打开那一栏，地址里去掉
+    const wanted = new URL(location.href).searchParams.get("settings");
+    if (wanted) {
+      const url = new URL(location.href);
+      url.searchParams.delete("settings");
+      history.replaceState(history.state, "", url.pathname + url.search + url.hash);
+      show(new CustomEvent("tomo-settings", { detail: wanted }));
+    }
     return () => {
       window.removeEventListener("tomo-settings", show);
       window.removeEventListener("keydown", key);
@@ -433,6 +443,8 @@ function Connections({ api }: { api: Desktop }) {
 
   return (
     <>
+      {/* MR.ERP 一行在最上面（用户 11-07，产品声明了 connect.mrerp 才出）；下面 Express 部分照旧 */}
+      <MrerpRow />
       <div data-marquee-host="" className="cc-settings-row">
         <div className="min-w-0 flex-1">
           <Marquee as="div" className="truncate text-body">{elsewhere || location.host}</Marquee>
@@ -748,7 +760,12 @@ async function getJson<T>(method: string): Promise<T | null> {
 }
 
 function WebConnections() {
-  return <PoolComputers />;
+  return (
+    <>
+      <MrerpRow />
+      <PoolComputers />
+    </>
+  );
 }
 
 // 「全所可用」名单能勾的人：与服务端 `set_members` 核新加的人同一口径（启用、有录入 / 推送记录 / 管理角色），

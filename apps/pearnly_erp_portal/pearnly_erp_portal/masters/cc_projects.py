@@ -28,6 +28,13 @@ def sections() -> tuple:
     return tuple(item for item in SECTIONS if item != "create" or cc_service.can_build())
 
 
+def connect() -> dict:
+    """设置 → 连接的 MR.ERP 一行只在 MR.ERP 账本开着时出（`MRERP_LEDGER_ENABLED`，主会话 11-07 定案 #13）；关着不声明，页面就不出。"""
+    from pearnly_erp_portal import mrerp
+
+    return {"mrerp": "pearnly_erp_portal.mrerp.api."} if mrerp.enabled() else {}
+
+
 def _visible(user) -> set:
     from pearnly_erp_portal.masters import cc_service
 

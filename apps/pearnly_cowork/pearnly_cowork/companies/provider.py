@@ -23,6 +23,11 @@ SECTIONS = ("pending", "month", "notes", "folders", "tasks", "choices", "drafts"
 MANAGE = ("rename", "delete")  # 改名、删除公司只给 Cowork 管理员（11-07 定案 #2）
 
 
+def connect() -> dict:
+    """设置 → 连接最上面的 MR.ERP 一行（11-07）：Cowork 的 MR.ERP 主连接接口（`connections.api`，谁能改网址、授权由它判）。"""
+    return {"mrerp": "pearnly_cowork.connections.api."}
+
+
 def sections() -> tuple:
     """本人看到的分区：改名、删除只给 Cowork 管理员（`service.require_manage` 在服务端同样拦）。"""
     admin = scope.administrator()

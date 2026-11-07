@@ -89,38 +89,11 @@
 		window.open(info.url, "_blank", "noopener,noreferrer");
 	}
 
-	/** MR.ERP 的连接：网页只存网址。账号密码不在网页上收（ADR-026 第 7 条）：在 CC 桌面版里授权一次，同一次输入存到那台电脑与
-	 *  连接上；这里只显示「已授权：用户名 · 电脑 · 时间」（服务端连接视图的 `credential`，不含密码）。Desk 不在 CC 桌面版窗口里，
-	 *  授权按钮不可用（同文件夹授权只在 CC 里）；CC 对话页里同一组件可用（frontend/assistant 的 MrErpLogin）。 */
-	function connect_dialog({connection, on_done}) {
-		const config = connection?.config || {};
-		const saved = config.system_url || "https://www.mrerp4sme.com";
-		// 幂等键在弹窗打开时定下来：重试同一份输入不会建出第二条连接。
-		const request_key = key();
-		const credential = connection?.credential;
-		const when = credential?.at ? frappe.datetime.str_to_user(moment(credential.at).format("YYYY-MM-DD HH:mm:ss")) : "";
-		const detail = credential?.username ? [credential.username, credential.device, when].filter(Boolean).join(" · ") : "";
-		const d = p.dialog(`${__("Connect")} MR.ERP`, [
-			{fieldtype: "Data", fieldname: "system_url", label: __("System URL"), default: saved, reqd: 1},
-			{fieldtype: "HTML", fieldname: "login", options: `<p class="text-muted">${p.escape(detail
-				? __("connect.mrerp.authorized", [detail]) : __("connect.mrerp.notAuthorized"))}</p>`},
-			{fieldtype: "Button", fieldname: "authorize", label: __("connect.mrerp.authorizeInCC")},
-		], __("Connect"), async (values, dialog) => {
-			// 网址没变就不改连接（改了会升连接版本）；没有连接就建一条，登录之后在 CC 桌面版里授权。
-			if (!connection || values.system_url !== saved) {
-				await p.call(API.connections + "configure", {
-					adapter: "mrerp", request_key, label: "MR.ERP",
-					config: {system_url: values.system_url},
-					// 已经有连接时按它的版本改；没有就建一条新的。
-					...(connection ? {name: connection.name, expected_revision: connection.revision} : {}),
-				}, "POST");
-				p.success(__("Saved"), "click");
-			}
-			dialog.hide();
-			await on_done();
-		});
-		d.fields_dict.authorize.$input?.prop("disabled", true);
-		return d;
+	/** MR.ERP 的连接只留一个入口（用户 11-07）：CC「设置 → 连接」最上面的 MR.ERP 一行（地址 + 在 CC 桌面版中授权，
+	 *  frontend/assistant 的 components/mrerp-connect.tsx）。这里新开一页到那一栏（CC 认 `?settings=connections`），
+	 *  Desk 不再自己弹窗；回到这页后卡片状态照原来的定时重读刷新。 */
+	function connect_dialog() {
+		window.open("/assistant?settings=connections", "_blank", "noopener");
 	}
 
 	/**

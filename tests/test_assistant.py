@@ -4685,6 +4685,21 @@ class ProjectTests(unittest.TestCase):
         self.hooks = {}
         self.assertEqual(self.projects.listing(), {"kind": None, "period": False, "scope": False, "projects": []})
 
+    def test_projects_pass_on_the_declared_connect_rows_only_when_the_product_gives_them(self):
+        """设置 → 连接里出哪几种 ERP 的「连接」一行（11-07 MR.ERP 一行）：产品的 `connect()` 给 {种类: 连接接口前缀} 才回，
+        形状不对的项丢掉，给空（ERP 的 MR.ERP 账本关着）就不回这个键；其余各键不变。"""
+        plain = self.projects.listing()
+        self.assertNotIn("connect", plain)
+        for given, want in (({"mrerp": "pearnly_cowork.connections.api."}, {"mrerp": "pearnly_cowork.connections.api."}),
+                            ({"mrerp": "", "": "x", "bad": 3}, {}), ({}, {})):
+            self.provider.connect = lambda given=given: given
+            try:
+                out = self.projects.listing()
+            finally:
+                del self.provider.connect
+            self.assertEqual(out.get("connect"), want if want else {}, given)
+            self.assertEqual({key: value for key, value in out.items() if key != "connect"}, plain)
+
     def test_projects_pass_on_the_declared_api_and_sections_and_nothing_else_changes(self):
         """产品声明的公司接口前缀与分区（Cowork / ERP 的 provider `API` / `SECTIONS`）原样转交；没声明就不回这两个键，
         其余各键逐字段与没声明时一样（2026-11-02 ERP 版 CC 按公司）。"""

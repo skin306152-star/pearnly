@@ -50,6 +50,8 @@ type State = {
   /** 公司接口的方法前缀（provider API；"" = 没有声明）与声明的分区。 */
   api: string;
   sections: readonly Section[];
+  /** 设置 → 连接里出哪几种 ERP 的「连接」一行：{种类: 连接接口前缀}（产品按开关、按用户给；{} = 不出）。 */
+  connect: Readonly<Record<string, string>>;
   projects: ProjectRow[];
   filings: Record<string, Filing>;
   draft: Filing;
@@ -69,6 +71,7 @@ export const useProjects = create<State>(() => ({
   scope: false,
   api: "",
   sections: [],
+  connect: {},
   projects: [],
   filings: {},
   draft: NO_FILING,
@@ -88,7 +91,14 @@ let readAt = -Infinity;
 /** 最近读完的一次公司列表的请求发出的时刻（还没读过是 -Infinity）。 */
 export const projectsSeen = () => readAt;
 
-type ProjectsReply = { kind?: string | null; period?: boolean; scope?: boolean; projects?: ProjectRow[]; api?: string; sections?: unknown[] };
+type ProjectsReply = { kind?: string | null; period?: boolean; scope?: boolean; projects?: ProjectRow[]; api?: string; sections?: unknown[]; connect?: unknown };
+
+/** 声明里的 connect：只留「种类 → 接口前缀」都是非空字符串的。 */
+export function connectOf(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(
+    (entry): entry is [string, string] => typeof entry[1] === "string" && !!entry[0] && !!entry[1]));
+}
 
 /** 回包里声明的分区（认不出的丢掉）。 */
 export function sectionsOf(value: unknown): Section[] {
@@ -120,6 +130,7 @@ export function refreshProjects(): Promise<ProjectKind> {
         scope: !!kind && !!out?.scope,
         api: kind && typeof out?.api === "string" ? out.api : "",
         sections: kind ? sectionsOf(out?.sections) : [],
+        connect: connectOf(out?.connect),
         projects: sortRows([...kept, ...rows]),
       });
       readAt = seen;
@@ -435,7 +446,7 @@ export function resetProjects() {
   provisional.clear();
   holds.clear();
   store.setState({
-    loaded: false, kind: null, period: false, scope: false, api: "", sections: [], projects: [], filings: {}, draft: NO_FILING, shown: {},
+    loaded: false, kind: null, period: false, scope: false, api: "", sections: [], connect: {}, projects: [], filings: {}, draft: NO_FILING, shown: {},
     requestedGroup: null, more: EMPTY_CURSOR, error: "",
   });
 }

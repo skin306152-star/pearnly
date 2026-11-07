@@ -1008,9 +1008,6 @@ connect.master.advisors,担当者 {0}
 connect.master.branches,支店 {0}
 connect.master.carModels,車種 {0}
 connect.master.terms,敬称 {0}
-connect.mrerp.authorizeInCC,CC デスクトップで承認
-connect.mrerp.authorized,承認済み：{0}
-connect.mrerp.notAuthorized,未承認
 connect.no,いいえ
 connect.notice.connected,接続しました · {0}
 connect.notice.ok,接続正常 · {0}

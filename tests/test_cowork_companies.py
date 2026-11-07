@@ -2639,6 +2639,13 @@ class TaskOverviewTests(unittest.TestCase):
         detail = service.detail(self.abc)
         self.assertEqual([task["name"] for task in detail["tasks"]], ["R1", "R2", "R4"])
 
+    def test_the_connect_row_points_at_the_cowork_connections_api(self):
+        # 设置 → 连接最上面的 MR.ERP 一行（11-07）：Cowork 声明自己的连接接口（谁能改网址、授权由它判），页面不写死产品
+        self.assertEqual(provider.connect(), {"mrerp": "pearnly_cowork.connections.api."})
+        api = (APP / "connections/api.py").read_text(encoding="utf-8")
+        for name in ("def records(", "def configure(", "def request_refresh("):
+            self.assertIn(name, api)
+
     def test_the_hooks_are_declared(self):
         hooks = (APP / "hooks.py").read_text(encoding="utf-8")
         for name, path in (("cowork_company_history_choices", "pearnly_cowork.readback.history.company_choices"),

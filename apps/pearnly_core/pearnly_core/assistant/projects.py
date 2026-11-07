@@ -114,7 +114,8 @@ def mine(user, refs=None) -> dict:
 
 
 def declared(found) -> dict:
-    """产品给页面的声明：`api`（公司接口的方法前缀）、`sections`（有哪些分区）；没声明的那项不回。产品另有 `sections()` 时用它
+    """产品给页面的声明：`api`（公司接口的方法前缀）、`sections`（有哪些分区）、`connect`（设置 → 连接里出哪几种 ERP 的「连接」，
+    `{"mrerp": 连接接口前缀}`）；没声明的那项不回。产品另有 `sections()` 时用它
     （按当前用户收窄，例如 ERP 只给能管公司的人「添加公司」），没有就是 `SECTIONS`。"""
     out = {}
     api = getattr(found, "API", None) if found else None
@@ -124,6 +125,11 @@ def declared(found) -> dict:
     sections = narrowed() if callable(narrowed) else getattr(found, "SECTIONS", None) if found else None
     if isinstance(sections, (list, tuple)):
         out["sections"] = [str(item) for item in sections if isinstance(item, str) and item]
+    # 连接设置里出哪几种 ERP 的「连接」一行（11-07 CC 设置 → 连接最上面的 MR.ERP）：{种类: 连接接口前缀}；产品按开关、按用户给
+    hooked = getattr(found, "connect", None) if found else None
+    connect = hooked() if callable(hooked) else None
+    if isinstance(connect, dict):
+        out["connect"] = {key: value for key, value in connect.items() if isinstance(key, str) and isinstance(value, str) and key and value}
     return out
 
 

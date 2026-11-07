@@ -9124,7 +9124,7 @@ class Round11ReviewTests(unittest.TestCase):
         tasks = read("components/scheduled-tasks.tsx")
         self.assertIn('<div key={a.adapter} className="cc-card flex items-center justify-between gap-(--cc-space-8)" data-selected={picked || undefined}>', tasks)
         self.assertIn('"cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-(--cc-space-12) py-(--cc-target-card-py) text-start disabled:cursor-default",', tasks)
-        self.assertIn('<button type="button" className="cc-btn me-(--cc-space-12)" onClick={() => setConnectOpen(a.adapter)}>', tasks)
+        self.assertIn('<button type="button" className="cc-btn me-(--cc-space-12)" onClick={() => connectTo(a.adapter)}>', tasks)
         self.assertNotIn("cc-card flex items-center justify-between gap-(--cc-space-8) px-", tasks)
 
 

@@ -623,9 +623,6 @@ Disable	停用	ปิดใช้งาน	無効化	connect.action.disable
 Disabled	已停用	ปิดใช้งานแล้ว	無効	connect.state.disabled
 Connected	已连接	เชื่อมต่อแล้ว	接続済み	connect.state.connected
 Not connected	未连接	ยังไม่เชื่อมต่อ	未接続	connect.state.notConnected
-Authorized: {0}	已授权：{0}	อนุญาตแล้ว: {0}	承認済み：{0}	connect.mrerp.authorized
-Not authorized	未授权	ยังไม่ได้อนุญาต	未承認	connect.mrerp.notAuthorized
-Authorize in CC Desktop	在 CC 桌面版中授权	อนุญาตใน CC เดสก์ท็อป	CC デスクトップで承認	connect.mrerp.authorizeInCC
 Change account	修改账号	แก้ไขบัญชี	アカウントを変更	connect.action.edit
 Connect DMS	连接 DMS	เชื่อมต่อ DMS	DMSに接続	connect.action.connect
 Connect and save	连接并保存	เชื่อมต่อและบันทึก	接続して保存	connect.action.connectSave

@@ -4,11 +4,12 @@
 1. 造数据（产品自己的函数，不连 MR.ERP）：一条 MR.ERP 连接（网页老做法存的账号密码 `flow-old`，即「老连接」）、合成账套目录、
    从目录建一家公司，再把连接停用——这家公司就没有可用账套，「新建任务」走不带公司种子的表单，MR.ERP 卡片出「连接」；
    另建一条 Express 连接并给一台合成电脑发密钥（发票要认得出电脑，同 CC 桌面版登记）。
-2. CC 对话页 `/assistant?view=tasks&company=<公司>`：点「新建任务」→ MR.ERP 卡片的「连接」→ 弹窗里**没有任何密码框**，显示
-   「已授权：flow-old」，「在 CC 桌面版中授权」按钮在浏览器里不可用；改系统网址、点「连接」→ 弹窗关上。
+2. CC 对话页 `/assistant?view=tasks&company=<公司>`：点「新建任务」→ MR.ERP 卡片的「连接」→ 打开设置 → 连接（11-07 起 MR.ERP 连接只在
+   这里），最上面「MR.ERP」一行写「已授权：flow-old」→ 点这一行的「连接」→ 弹窗里**没有任何密码框**，「在 CC 桌面版中授权」按钮
+   在浏览器里不可用；改系统地址、点「连接」→ 弹窗关上。
 3. 页面会话向站点要一次性票（CC 窗口里点授权时同一条接口，带合成电脑的设备密钥）：拿得到、形状对。
-4. Cowork Desk：同一个连接弹窗（录入、定时任务两处共用的 `intake_targets.connect_dialog`）里同样没有密码字段、显示授权状态、
-   授权按钮不可用。
+4. Cowork Desk：录入、自动录入规则两处共用的 `intake_targets.connect_dialog` 不再自己弹窗，新开一页 `/assistant?settings=connections`；
+   打开这个地址就是设置 → 连接，最上面是 MR.ERP 一行。
 落库核对：网址改了、连接启用、**密码仍是老连接存的那个**（页面没有收、也没有改密码）、没有授权记录；最后把造的数据全部删掉。
 机器通道交密码那一半（CC 桌面版经机器令牌交给站点）回归实验室没有 CC 桌面版，由 scripts/cowork-mrerp-login-lab-verify.py 在真实站点
 走 WSGI 验，离线由 tests/test_mrerp_cc_login.py、tests/test_cowork_mrerp_cc_login.py 守住。
@@ -18,7 +19,7 @@ from __future__ import annotations
 import json
 import uuid
 
-TITLE = "Cowork MR.ERP 登录：网页没有密码框、只显示授权状态，授权只在 CC 桌面版里；网址照存、老连接的密码不动"
+TITLE = "Cowork MR.ERP 连接只在 CC 设置 → 连接：定时任务与 Desk 的「连接」都到这里；网页没有密码框、授权只在 CC 桌面版里；网址照存、老连接的密码不动"
 READY = "document.readyState === 'complete' && !!document.querySelector('textarea[aria-label]')"
 LABEL, EXPRESS_LABEL = "Flow MR.ERP login", "Flow MR.ERP login Express"
 USER = "admin@cowork.regression"
@@ -106,18 +107,23 @@ def steps(params, camera_code=None):
          "const card=()=>qa('.cc-card').filter(shown).find(c=>c.innerText.includes('MR.ERP')); "
          "const ok=await until(()=>card()&&card().querySelector('button.cc-btn'),80); if(!ok) return {error:'no MR.ERP connect button'}; "
          "card().querySelector('button.cc-btn').click(); "
-         "const opened=await until(()=>q('[data-slot=\"cc-mrerp-login\"]'),60); "
-         "const login=q('[data-slot=\"cc-mrerp-login\"]'); const button=q('[data-slot=\"cc-mrerp-authorize\"]'); "
-         "const url=qa('input.cc-input').filter(shown).find(e=>/^https?:/.test(e.value)); "
-         "return {opened, passwords: passwords(), status: login?login.innerText:'', authorize_disabled: !!(button&&button.disabled), "
-         "url: url?url.value:''};"},
+         # 打开设置 → 连接（定时任务的新建表单留在后面），最上面 MR.ERP 一行
+         "const row=()=>q('[data-slot=\"cc-mrerp-row\"]'); const settled=await until(()=>row()&&/已授权|未授权/.test(row().innerText),80); "
+         "const status=row()?row().querySelector('[data-slot=\"cc-mrerp-status\"]')?.innerText||'':''; "
+         "const first=!!row()&&row().closest('[role=\"dialog\"]')?.querySelector('.cc-settings-row')===row(); "
+         "row()?.querySelector('[data-slot=\"cc-mrerp-connect\"]')?.click(); "
+         "const opened=await until(()=>q('[data-slot=\"cc-mrerp-connect-dialog\"] [data-slot=\"cc-mrerp-login\"]'),60); "
+         "const box=q('[data-slot=\"cc-mrerp-connect-dialog\"]'); const button=box?.querySelector('[data-slot=\"cc-mrerp-authorize\"]'); "
+         "const url=box?.querySelector('[data-slot=\"cc-mrerp-url\"]'); "
+         "return {settled, first, status, opened, passwords: passwords(), login: box?.querySelector('[data-slot=\"cc-mrerp-login\"]')?.innerText||'', "
+         "authorize_disabled: !!(button&&button.disabled), url: url?url.value:''};"},
         {"name": "改网址、点连接", "js": WAIT +
-         "const url=qa('input.cc-input').filter(shown).find(e=>/^https?:/.test(e.value)); if(!url) return {error:'no url input'}; "
+         "const box=q('[data-slot=\"cc-mrerp-connect-dialog\"]'); const url=box?.querySelector('[data-slot=\"cc-mrerp-url\"]'); if(!url) return {error:'no url input'}; "
          "Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(url," + json.dumps(NEW_URL) + "); "
          "url.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,300)); "
-         "const box=q('[data-slot=\"cc-mrerp-login\"]').closest('[role=dialog]'); const save=box&&box.querySelector('button[data-primary]'); "
-         "if(!save) return {error:'no connect button in the dialog'}; save.click(); "
-         "const closed=await until(()=>!q('[data-slot=\"cc-mrerp-login\"]'),80); return {closed, passwords: passwords()};"},
+         "const save=box.querySelector('.cc-dialog-foot button[data-primary]'); if(!save) return {error:'no connect button in the dialog'}; save.click(); "
+         "const closed=await until(()=>!q('[data-slot=\"cc-mrerp-connect-dialog\"]'),80); return {closed, passwords: passwords(), "
+         "row: !!q('[data-slot=\"cc-mrerp-row\"]')};"},
         {"name": "页面要一次性票", "js": WAIT +
          "const body=new URLSearchParams({connection:" + json.dumps(connection) + ",device_key:" + json.dumps(key) + "}); "
          "const r=await fetch('/api/method/pearnly_cowork.companion.api.mrerp_login_ticket',{method:'POST',"
@@ -125,32 +131,34 @@ def steps(params, camera_code=None):
          "const m=(await r.json()).message||{}; return {status: r.status, ok: m.ok===true, shape: /^mrl_[A-Za-z0-9_-]{32,64}$/.test(m.ticket||''), "
          "expires: m.expires_in};"},
         {"name": "打开 Desk", "js": "location.href='/desk/pearnly-home'; return 1;", "wait_ms": 6000},
-        {"name": "Desk 的连接弹窗", "js": WAIT +
+        {"name": "Desk 的连接", "js": WAIT +
          "await until(()=>window.frappe&&frappe.pearnly&&frappe.pearnly.intake_targets,80); "
-         "const rows=await frappe.xcall('pearnly_cowork.connections.api.records',{limit:100}); "
-         "const connection=rows.find(r=>r.name===" + json.dumps(connection) + "); "
-         "const d=frappe.pearnly.intake_targets.connect_dialog({connection, on_done: async()=>{}}); "
-         "await until(()=>d.$wrapper.is(':visible'),40); const w=d.$wrapper; "
-         "const out={passwords: w.find('input[type=password]').length, text: w.find('.modal-body').text(), "
-         "authorize_disabled: w.find('[data-fieldname=authorize] button').prop('disabled')===true, "
-         "url: w.find('[data-fieldname=system_url] input').val()}; d.hide(); return out;"},
+         "let opened=''; const real=window.open; window.open=(u)=>{opened=String(u); return null;}; "
+         "const d=frappe.pearnly.intake_targets.connect_dialog({connection: null, on_done: async()=>{}}); window.open=real; "
+         "return {opened, dialog: !!d, modals: document.querySelectorAll('.modal.show').length};"},
+        {"name": "打开设置的连接一节", "js": "location.href='/assistant?settings=connections'; return 1;", "wait_ms": 6000},
+        {"name": "设置的连接一节", "js": WAIT +
+         "const ok=await until(()=>q('[data-slot=\"cc-mrerp-row\"]'),80); "
+         "return {ok, search: location.search, nav: q('[role=\"dialog\"] .cc-nav-item[data-active]')?.innerText.trim()||''};"},
     ]
 
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
-    dialog, saved, ticket, desk = (by.get(k) or {} for k in ("新建任务、点 MR.ERP 的连接", "改网址、点连接", "页面要一次性票",
-                                                            "Desk 的连接弹窗"))
+    dialog, saved, ticket, desk, settings = (by.get(k) or {} for k in ("新建任务、点 MR.ERP 的连接", "改网址、点连接", "页面要一次性票",
+                                                                      "Desk 的连接", "设置的连接一节"))
     return [
-        {"case": "CC 页的 MR.ERP 连接弹窗打开、没有密码框", "seen": dialog,
-         "ok": bool(dialog.get("opened")) and dialog.get("passwords") == 0},
-        {"case": "显示「已授权：flow-old」、授权按钮在浏览器里不可用", "seen": dialog,
-         "ok": "已授权：" + OLD_USER in str(dialog.get("status")) and dialog.get("authorize_disabled") is True},
-        {"case": "改网址点连接后弹窗关上", "seen": saved, "ok": bool(saved.get("closed"))},
+        {"case": "定时任务的 MR.ERP「连接」打开设置 → 连接，最上面一行 MR.ERP 写「已授权：flow-old」", "seen": dialog,
+         "ok": bool(dialog.get("settled")) and bool(dialog.get("first")) and "已授权：" + OLD_USER in str(dialog.get("status"))},
+        {"case": "这一行的「连接」弹窗打开、没有密码框、授权按钮在浏览器里不可用", "seen": dialog,
+         "ok": bool(dialog.get("opened")) and dialog.get("passwords") == 0 and dialog.get("authorize_disabled") is True},
+        {"case": "改网址点连接后弹窗关上，设置里那一行还在", "seen": saved, "ok": bool(saved.get("closed")) and bool(saved.get("row"))},
         {"case": "页面会话拿得到一次性票", "seen": ticket,
          "ok": ticket.get("status") == 200 and ticket.get("ok") is True and ticket.get("shape") is True},
-        {"case": "Desk 连接弹窗没有密码字段、显示授权状态、授权按钮不可用", "seen": desk,
-         "ok": desk.get("passwords") == 0 and "已授权：" + OLD_USER in str(desk.get("text")) and desk.get("authorize_disabled") is True},
+        {"case": "Desk 的 MR.ERP「连接」新开一页到 CC 设置的连接一节，不再自己弹窗", "seen": desk,
+         "ok": desk.get("opened") == "/assistant?settings=connections" and not desk.get("dialog") and desk.get("modals") == 0},
+        {"case": "打开 /assistant?settings=connections 就是设置 → 连接（有 MR.ERP 一行），地址里的参数去掉", "seen": settings,
+         "ok": bool(settings.get("ok")) and "settings=" not in str(settings.get("search"))},
     ]
 
 

@@ -1006,9 +1006,6 @@ connect.master.advisors,Advisors {0}
 connect.master.branches,Branches {0}
 connect.master.carModels,Car models {0}
 connect.master.terms,Titles {0}
-connect.mrerp.authorizeInCC,Authorize in CC Desktop
-connect.mrerp.authorized,Authorized: {0}
-connect.mrerp.notAuthorized,Not authorized
 connect.no,No
 connect.notice.connected,Connected · {0}
 connect.notice.ok,Connection OK · {0}

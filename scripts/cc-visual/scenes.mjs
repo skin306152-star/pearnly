@@ -70,6 +70,10 @@ const COMPANY_PROJECTS = ["pearnly_core.assistant.api.projects", { kind: "compan
   sections: ["month", "pending", "notes", "folders", "tasks", "choices", "drafts", "create", "rename", "delete", "catalog"], projects: [
     { id: "C-0001", title: "สยามเทรดดิ้ง จำกัด", subtitle: "0105551000001" }, { id: "C-0002", title: "曼谷物流有限公司", subtitle: "0105551000002" },
     { id: "C-0003", title: "Green Leaf Co., Ltd.", subtitle: "0105551000003" }] }];
+// 设置 → 连接的 MR.ERP 一行：Cowork 声明 connect.mrerp，主连接已由管理员授权过
+const MRERP_PROJECTS = ["pearnly_core.assistant.api.projects", { ...COMPANY_PROJECTS[1], connect: { mrerp: "pearnly_cowork.connections.api." } }];
+const MRERP_RECORDS = ["pearnly_cowork.connections.api.records", [{ name: "CONN-2", adapter: "mrerp", enabled: 1, main: true, revision: 3,
+  config: { system_url: "https://www.mrerp4sme.com" }, credential: { username: "somchai", device: "OFFICE-PC", at: "2026-10-14T09:30:00+07:00" } }]];
 // CC 桌面版的本机状态（设置「此电脑」两页有东西可看：公司一行、Express 文件夹、以前授权的文件夹、开关、版本、日志）。
 // 只在有桌面版桥（qt 桩）的环境里换；浏览器环境不碰（不能凭空造出 tomoDesktop，否则变体会变成桌面版）
 const DESKTOP_STATE = `if (window.tomoDesktop) { const s = ${JSON.stringify({
@@ -265,6 +269,13 @@ export const SCENES = [
   // 池里有电脑：一台一行（状态点、「···」），再打开第一个「···」菜单（桌面版是本机公司那一行的，浏览器是第一台电脑的）
   S("settings-computers", "/assistant?c=sesn_a1", both([...SETTINGS_WIDE, ["click", ".cc-modal nav button", 1], ["wait", 300]],
     [...SETTINGS_NARROW, ["click", ".cc-modal nav button", 1], ["wait", 300]]), { init: DESKTOP_STATE + COMPUTERS }),
+  // 设置 → 连接最上面「MR.ERP」一行（用户 11-07：MR.ERP 连接只留这一个入口；产品声明了 connect.mrerp 才出），点「连接」出弹窗
+  S("settings-mrerp", "/assistant?c=sesn_a1", both([...SETTINGS_WIDE, ["click", ".cc-modal nav button", 1], ["wait", 400]],
+    [...SETTINGS_NARROW, ["click", ".cc-modal nav button", 1], ["wait", 400]]),
+    { init: DESKTOP_STATE + COMPUTERS + FAKE(MRERP_PROJECTS, MRERP_RECORDS), expect: '[data-slot="cc-mrerp-row"]' }),
+  S("settings-mrerp-connect", "/assistant?c=sesn_a1", both([...SETTINGS_WIDE, ["click", ".cc-modal nav button", 1], ["wait", 400], ["click", '[data-slot="cc-mrerp-connect"]', 0], ["wait", 400]],
+    [...SETTINGS_NARROW, ["click", ".cc-modal nav button", 1], ["wait", 400], ["click", '[data-slot="cc-mrerp-connect"]', 0], ["wait", 400]]),
+    { init: DESKTOP_STATE + COMPUTERS + FAKE(MRERP_PROJECTS, MRERP_RECORDS), expect: '[data-slot="cc-mrerp-connect-dialog"]' }),
   S("settings-computer-menu", "/assistant?c=sesn_a1", both([...SETTINGS_WIDE, ["click", ".cc-modal nav button", 1], ["wait", 300], ["click", '.cc-modal main [aria-haspopup="menu"]', 0]],
     [...SETTINGS_NARROW, ["click", ".cc-modal nav button", 1], ["wait", 300], ["click", '.cc-modal main [aria-haspopup="menu"]', 0]]),
     { init: DESKTOP_STATE + COMPUTERS, expect: MENU }),

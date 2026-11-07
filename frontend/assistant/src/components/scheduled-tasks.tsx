@@ -44,7 +44,7 @@ import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Switch } from "@/components/settings";
 import { openCompanyPicker } from "@/components/company-picker";
-import { MrErpLogin, type MrErpCredential } from "@/components/mrerp-login";
+import type { MrErpCredential } from "@/components/mrerp-login";
 import {
   cachedDetail,
   folderParts,
@@ -58,7 +58,7 @@ import {
   useTaskOverview,
   watchTaskOverview,
 } from "@/lib/companies";
-import { knownReaders, useDesktopFeatures } from "@/lib/desktop";
+import { knownReaders, openSettings, useDesktopFeatures } from "@/lib/desktop";
 import { getMethod, postMethod, shownError } from "@/lib/frappe";
 import { useLiveRefresh } from "@/lib/live";
 import { useProjects } from "@/lib/managed-agents/projects";
@@ -733,6 +733,8 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
   const [menuAsk, setMenuAsk] = useState<null | ((ok: boolean) => void)>(null);
   const [menuView, setMenuView] = useState<MenuView | null>(null);
   const [connectOpen, setConnectOpen] = useState<string | null>(null);
+  // MR.ERP 的「连接」只在设置 → 连接里（用户 11-07，components/mrerp-connect.tsx）：直接打开那一栏；Express / CC 桌面版照旧本页弹窗
+  const connectTo = (kind: string) => (kind === "mrerp" ? openSettings("connections") : setConnectOpen(kind));
   const catalogRun = useRef(0);
   const optionsRun = useRef(0);
 
@@ -962,7 +964,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
               target={[ADAPTERS.find((a) => a.adapter === target)?.label ?? "", rule ? tr("cowork.folder.followCompany") : seedBranches.find((b) => b.branch === branch)?.account_label ?? seed?.account_label ?? ""]
                 .filter(Boolean).join(" · ")}
               state={rule ? null : describe(target, snapshot, tr)}
-              onConnect={!rule && !ready(target, snapshot) ? () => setConnectOpen(target) : undefined}
+              onConnect={!rule && !ready(target, snapshot) ? () => connectTo(target) : undefined}
             />
           ) : (
             <div className="cc-field">
@@ -991,7 +993,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
                         {state && <span className={cn("text-caption", state.tone === "ok" ? "text-success" : state.tone === "bad" ? "text-danger" : "text-ink-3")}>{state.text}</span>}
                       </button>
                       {!rule && !ok && (
-                        <button type="button" className="cc-btn me-(--cc-space-12)" onClick={() => setConnectOpen(a.adapter)}>
+                        <button type="button" className="cc-btn me-(--cc-space-12)" onClick={() => connectTo(a.adapter)}>
                           {tr("Connect")}
                         </button>
                       )}
@@ -1272,71 +1274,10 @@ function MenuDialog({ tr, view, direction, connection, accountSet, onDone }: {
   );
 }
 
-// ── 连接：MR.ERP 填账号密码；Express / CC 桌面版是「下载 CC 桌面版」并等它连上（同 Cowork 的连接弹窗） ─────────────
+// ── 连接：Express / CC 桌面版是「下载 CC 桌面版」并等它连上（同 Cowork 的连接弹窗）；MR.ERP 在设置 → 连接 ─────────────
 
 function ConnectDialog({ tr, kind, connection, onClose }: { tr: Tr; kind: string; connection: Connection | null; onClose: () => void }) {
-  if (kind === "mrerp") return <MrerpConnect tr={tr} connection={connection} onClose={onClose} />;
   return <HelperConnect tr={tr} connection={connection} adapter={kind === "helper" ? connection?.adapter ?? "express" : kind} onClose={onClose} />;
-}
-
-function MrerpConnect({ tr, connection, onClose }: { tr: Tr; connection: Connection | null; onClose: () => void }) {
-  // MR.ERP 的账号密码不在网页上收（ADR-026 第 7 条）：这里只存网址，登录在 CC 桌面版里授权（MrErpLogin，Cowork 与 ERP 同一组件）
-  const requestKey = useMemo(key, []);
-  const saved = connection?.config?.system_url || "https://www.mrerp4sme.com";
-  const [url, setUrl] = useState(saved);
-  const [current, setCurrent] = useState<Connection | null>(connection);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const save = async (): Promise<Connection | null> => {
-    if (current && url === (current.config?.system_url || saved)) return current;
-    const next = await postMethod<Connection>(CONN + "configure", {
-      adapter: "mrerp", request_key: requestKey, label: "MR.ERP", config: { system_url: url },
-      ...(current ? { name: current.name, expected_revision: current.revision } : {}),
-    });
-    setCurrent(next);
-    return next;
-  };
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      title={`${tr("Connect")} MR.ERP`}
-      footer={
-        <>
-          {error && <span className="me-auto text-danger text-body">{error}</span>}
-          <button type="button" className="cc-btn" onClick={onClose}>{t("cancel")}</button>
-          <button
-            type="button"
-            className="cc-btn"
-            data-primary=""
-            disabled={busy || !url}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await save();
-                onClose();
-              } catch (e) { reportCaught(e, "scheduled-tasks");
-                setError(shownError(e));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            {tr("Connect")}
-          </button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-(--cc-space-16) pb-(--cc-space-8)">
-        <Field label={tr("System URL")}><input className="cc-input" value={url} onChange={(e) => setUrl(e.target.value)} /></Field>
-        <MrErpLogin product="cowork" connection={current}
-          ensure={async () => (await save().catch((e) => { reportCaught(e, "scheduled-tasks"); setError(shownError(e)); return null; }))?.name ?? null}
-          onDone={() => void getMethod<Connection[]>(CONN + "records", { limit: 100 })
-            .then((rows) => setCurrent(rows?.find((row) => row.name === current?.name) ?? mainOf(rows, "mrerp")))
-            .catch(withReport(() => undefined, "scheduled-tasks"))} />
-      </div>
-    </Modal>
-  );
 }
 
 function HelperConnect({ tr, connection, adapter, onClose }: { tr: Tr; connection: Connection | null; adapter: string; onClose: () => void }) {

@@ -1245,7 +1245,7 @@ covers = [
 
 [[flow]]
 id = "cowork.mrerp-login"
-title = "Cowork MR.ERP 登录：CC 定时任务与 Desk 的连接弹窗没有密码框、只显示「已授权」与「在 CC 桌面版中授权」（浏览器里不可用），页面要得到一次性票；网址照存、老连接的密码不动"
+title = "Cowork MR.ERP 连接只在 CC 设置 → 连接（11-07）：定时任务与 Desk 的「连接」都到那里，最上面 MR.ERP 一行与连接弹窗没有密码框、只显示「已授权」与「在 CC 桌面版中授权」（浏览器里不可用），页面要得到一次性票，?settings=connections 打开那一栏；网址照存、老连接的密码不动"
 module = "scripts/flows/cowork_mrerp_login.py"
 product = "cowork"
 start = "/assistant"
@@ -1255,7 +1255,11 @@ viewports = ["desktop"]
 covers = [
   "frontend/assistant/src/components/scheduled-tasks.tsx",
   "frontend/assistant/src/components/mrerp-login.tsx",
+  "frontend/assistant/src/components/mrerp-connect.tsx",
+  "frontend/assistant/src/components/settings.tsx",
   "apps/pearnly_cowork/pearnly_cowork/public/desk/targets.js",
+  "apps/pearnly_cowork/pearnly_cowork/companies/provider.py",
+  "apps/pearnly_core/pearnly_core/assistant/projects.py",
   "apps/pearnly_cowork/pearnly_cowork/companion/api.py",
   "apps/pearnly_cowork/pearnly_cowork/connections/mrerp_login.py",
   "apps/pearnly_core/pearnly_core/cc_desktop/login_tickets.py",

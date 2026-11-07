@@ -390,3 +390,21 @@ MR.ERP：设置 → 连接「连接」：网址（configure）+ CC 小窗授权 
   让 CC 起草及其预填句、本月）。没有改已有文案。
 - 流程 `cc_companies`（ERP）从新对话起：弹窗列可见公司与没建的账套、选中即建、代录选公司、右侧栏分区与「···」、组头「···」、知识库、
   待处理；`cc_sidebar_modes` 去掉「公司」入口相关步骤、两种模式都在弹窗里选。e2e `operator-new` 改从弹窗选（去掉 since）。
+
+## 16. 施工记录（D 步：连接里加 MR.ERP，并进「MR.ERP 连接只留一个入口」，11-07）
+
+分支 `pearnly/cc-mrerp-connect`（叠在 B+C `pearnly/cc-picker-bcd-7b34a9` 上）。截图在共享笔记「公司选择弹窗-BCD-11-07/D-连接里加MR.ERP/」。
+
+- 服务端声明 `connect`：共用层 `projects.declared` 转交产品 `connect()` 给的 `{种类: 连接接口前缀}`（形状不对的丢掉，空就不回）；
+  Cowork `companies.provider.connect()` 给 `pearnly_cowork.connections.api.`；ERP `masters.cc_projects.connect()` 只在
+  `MRERP_LEDGER_ENABLED` 打开时给 `pearnly_erp_portal.mrerp.api.`（今天关着，不出这一行）。
+- 前端 `components/mrerp-connect.tsx`：`MrerpRow`（设置 → 连接最上面一行：MR.ERP、状态「未连接 / 未授权 / 已授权：…」、「连接」），
+  `MrerpConnect`（原定时任务里的弹窗搬来：系统地址 + `MrErpLogin`）；接口前缀只来自声明，存下或授权后对这条连接
+  `request_refresh` 读一次账套目录。桌面版「此电脑 → 连接」与浏览器的「连接」都在最上面放这一行，下面 Express 部分不动。
+- 唯一入口：定时任务的 MR.ERP「连接」改成打开设置的连接一节（定时任务里的 MR.ERP 弹窗删了，Express 的照旧）；Cowork Desk 录入工作台
+  与自动录入规则的 MR.ERP「连接」改成新开一页 `/assistant?settings=connections`（评估原写 `/pearnly-app/?settings=…`，那是 Desk 的壳、
+  会落到 Desk 首页，改成 CC 的地址）；CC 认 `?settings=<一栏>` 打开那一栏、地址里去掉。Desk 不再用的三个词条（connect.mrerp.*）删了。
+- 新增词条「系统地址」（CC 里原来用服务端词条 System URL，同一个中文）。没有改已有文案。
+- `lib/when.ts`：`formatWhen` 抽成小模块（`lib/companies` 照旧导出），设置页经 MR.ERP 授权组件不再连带加载公司数据与实时连接。
+- 流程 `cowork.mrerp-login` 改成：定时任务「连接」→ 设置 → 连接（MR.ERP 一行「已授权：flow-old」在最上面）→ 弹窗（没有密码框、授权按钮在
+  浏览器里不可用）→ 改地址存下；Desk 的「连接」新开 `/assistant?settings=connections`；打开这个地址就是设置的连接一节。

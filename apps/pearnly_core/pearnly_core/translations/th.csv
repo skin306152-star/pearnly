@@ -1008,9 +1008,6 @@ connect.master.advisors,ที่ปรึกษา {0}
 connect.master.branches,สาขา {0}
 connect.master.carModels,รุ่นรถ {0}
 connect.master.terms,คำนำหน้า {0}
-connect.mrerp.authorizeInCC,อนุญาตใน CC เดสก์ท็อป
-connect.mrerp.authorized,อนุญาตแล้ว: {0}
-connect.mrerp.notAuthorized,ยังไม่ได้อนุญาต
 connect.no,ไม่
 connect.notice.connected,เชื่อมต่อแล้ว · {0}
 connect.notice.ok,การเชื่อมต่อปกติ · {0}
