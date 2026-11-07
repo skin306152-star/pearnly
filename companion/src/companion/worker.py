@@ -17,7 +17,7 @@ from typing import Callable, Optional
 
 from .config import CompanionConfig
 from .logger import activity, get_logger
-from . import cdx_reindex, device_link, projection_refresh, task_journal
+from . import cdx_reindex, device_link, projection_refresh, task_journal, writer_id
 from .queue_client import QueueClient, QueueClientConfig
 
 log = get_logger(__name__)
@@ -309,6 +309,8 @@ def _handle_dbf_task(
         selected_dir=st.account_dir,
         expected_company=st.account_company,
         index_batch=index_batch,
+        # 录入人：这台电脑授权的 Express 账户名（取不到 / 不合格记 PEARNLY，``writer_id``）；凭证建立人仍记 PEARNLY 当机器标记
+        userid=writer_id.resolve(st.account_dir),
     )
     # 同一份账套可能还有另一个站点的 CC 桌面版在写（Cowork 与 ERP 各派单，ADR-025）：写期间锁住账套目录里的锁文件，
     # 锁不到就按「等账套」回报（不算失败），过一会儿服务端再派
@@ -347,7 +349,7 @@ def _handle_dbf_task(
             outcome="waiting_lock",
         )
         return "waiting_lock"
-    meta = _push_meta(res, direction, st.account_dir)
+    meta = _push_meta(res, direction, st.account_dir, writer=common["userid"])
     if res.ok:
         log.info(f"✓ dbf task {task.id} → {res.docnum}")
         task_journal.remember(
@@ -573,7 +575,7 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
     }.get(error_code or "")
 
 
-def _push_meta(res, direction: str, account_dir: str) -> dict:
+def _push_meta(res, direction: str, account_dir: str, *, writer: str = "") -> dict:
     """构造回传云端的富元数据(诚实展示·见 doc32 §6)。"""
     from .version import VERSION
 
@@ -616,6 +618,9 @@ def _push_meta(res, direction: str, account_dir: str) -> dict:
         # 写完顺手核对(数字会计员第 3 期第 6 条):{state, fields, party}。随 meta 进 task_journal,重发时照样带回。
         if getattr(res, "verify", None):
             m["verify"] = dict(res.verify)
+        # 这张单实际记的录入人（授权的 Express 账户名或 PEARNLY）：服务端存进推送记录 / 写账件，查得到是谁的名义写的
+        if writer:
+            m["writer"] = writer
     if (getattr(res, "error_code", "") or "") in (
         "CDX_REINDEX_FAILED",
         "ACCOUNT_BUSY_LOCKED",

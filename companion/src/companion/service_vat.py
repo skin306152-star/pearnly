@@ -16,6 +16,7 @@ import threading
 from pathlib import Path
 from typing import Dict, Iterable, Optional, Tuple
 
+from . import writer_id
 from .dbf_schema import PEARNLY_USERID
 
 # ── 规则（与共用写账规则同一份，见文件头）────────────────────────────────────────
@@ -60,7 +61,7 @@ def basis(*, has_vat: bool, cash: bool, service: bool, supplier: str = "", book:
 
 
 # ── 读历史 ──────────────────────────────────────────────────────────────────
-_FIELDS = ("RECTYP", "SUPCOD", "FLGVAT", "SRV_VATTYP", "DOCSTAT", "USERID")
+_FIELDS = ("RECTYP", "SUPCOD", "FLGVAT", "SRV_VATTYP", "DOCSTAT", "USERID", "DOCNUM")
 _CREDIT = "3"
 _lock = threading.Lock()
 # 账套路径 → (表头签名, 已读行数, {供应商: {口径}})
@@ -91,7 +92,7 @@ def _layout(head: bytes, f) -> Tuple[tuple, int, int, int, dict]:
     return (hlen, rlen, tuple(sorted(fields.items()))), count, hlen, rlen, fields
 
 
-def _scan(f, start: int, count: int, hlen: int, rlen: int, fields: dict, found: Dict[str, set]) -> None:
+def _scan(f, start: int, count: int, hlen: int, rlen: int, fields: dict, found: Dict[str, set], ours=frozenset()) -> None:
     if "SRV_VATTYP" not in fields or "SUPCOD" not in fields:
         return
     chunk = 2000
@@ -109,7 +110,7 @@ def _scan(f, start: int, count: int, hlen: int, rlen: int, fields: dict, found: 
 
             value = get("SRV_VATTYP")
             if (value not in VALUES or get("RECTYP") != _CREDIT or get("FLGVAT") not in ("1", "2")
-                    or get("DOCSTAT") == "C" or get("USERID").upper() == PEARNLY_USERID):
+                    or get("DOCSTAT") == "C" or get("USERID").upper() == PEARNLY_USERID or get("DOCNUM") in ours):
                 continue
             found.setdefault(get("SUPCOD"), set()).add(value)
 
@@ -130,7 +131,8 @@ def history(account_dir) -> Dict[str, str]:
                 start, found = cached[1], {code: set(values) for code, values in cached[2].items()}
             else:
                 start, found = 0, {}
-            _scan(f, start, count, hlen, rlen, fields, found)
+            # CC 写的单不算历史：旧版单头录入人记 PEARNLY，11-07 起看凭证头的机器标记（只在有新行要读时扫凭证头）
+            _scan(f, start, count, hlen, rlen, fields, found, writer_id.cc_vouchers(account_dir) if start < count else frozenset())
     except (OSError, struct.error, IndexError):
         return {}
     with _lock:

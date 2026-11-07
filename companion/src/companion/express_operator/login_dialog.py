@@ -54,3 +54,8 @@ def forget() -> bool:
 
 def stored() -> bool:
     return credentials.exists(credentials.target("default"))
+
+
+def stored_user() -> str:
+    """已授权的 Express 账户名（不是秘密；页面显示「谁的名义」用，直写的录入人见 ``writer_id``）；没授权回空串。"""
+    return credentials.user_name(credentials.target("default"))

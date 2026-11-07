@@ -75,6 +75,19 @@ def read(target_name: str) -> Optional[Tuple[str, str]]:
         advapi32.CredFree(ptr)
 
 
+def user_name(target_name: str) -> str:
+    """只回这条凭据的用户名（不是秘密；直写记录入人用，``writer_id``）；不读密码。没有、读不了回空串。"""
+    if sys.platform != "win32":
+        return ""
+    ptr = ctypes.POINTER(CREDENTIAL)()
+    if not advapi32.CredReadW(target_name, CRED_TYPE_GENERIC, 0, ctypes.byref(ptr)):
+        return ""
+    try:
+        return str(ptr.contents.UserName or "")
+    finally:
+        advapi32.CredFree(ptr)
+
+
 def exists(target_name: str) -> bool:
     return read(target_name) is not None
 

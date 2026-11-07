@@ -67,3 +67,16 @@
 四条全按建议：① 单头 USERID 与主档建档人记 Express 账户名，凭证 `GLJNL.CREBY` 继续记 `PEARNLY` 当机器标记；4 处认自己单的地方统一改成按 CREBY 标记认
 （测试：录入人改成真人名后，CC 不会把自己写的单当人录的来学）；② 不在这本账套 `SCUSER` 里的照旧记 `PEARNLY`；③ CC 设置「授权登录」那一行显示已授权账号名，
 新文案过 `check-copy`；④ 写账回执带上实际记的录入人，服务端白名单晚一批收、心跳不报。结存修复合入后再动代码，跟 1.12.17 发，合入前发主会话。
+
+## 施工记录（分支 `pearnly/cc-writer-userid`，基线 main 5b73b90a8）
+
+- `writer_id.resolve(账套)`：读 `credentials.user_name("Pearnly CC/Express/default")`（新函数，只回用户名、不读密码）→ 去空白、转大写 → 空 / 超过 8 个字符 /
+  cp874 写不出 / 不在账套所在年度 `secure\SCUSER.DBF`（往上找 4 层，只读 RECTYP U 的 RECCOD）→ `PEARNLY`；读凭据出错也是 `PEARNLY`。
+  worker 写账入口统一算一次传给各写入函数（进货、销货含期初与收银日汇总、库存单、调拨、作废、退货），代录建主档（`express_operator/masters.py`）同样用它。
+- 凭证头 `GLJNL.CREBY` 在 5 处（进货、销货、库存单、退货、收银转账凭证）一律记 `PEARNLY`（`dbf_schema.is_pearnly` 认）；库存单凭证头的 `USERID` 记录入人。
+- 认 CC 写的单：`writer_id.cc_vouchers(账套)` 扫凭证头取机器标记的凭证号；`service_vat` 读历史时去掉这些单（旧版单头 PEARNLY 的照旧去掉）；
+  `product_master.backfill_account_items` 认「CC 写过的单」改成「单头 PEARNLY 或凭证头机器标记」；`account_history` 本来就看凭证头 CREBY，不用改；
+  `product_master.shape_gaps` 只补旧版 CC 建的档（CREBY = PEARNLY；新建的档形状本来就齐），不改。
+- 回执 meta 带 `writer`（成功时）；服务端 `sanitize_push_meta` 只收白名单键，旧服务端忽略，服务端收存晚一批。
+- 桥 `operator_state` 多回 `login_user`（已授权账户名）；页面显示放哪里待主会话定（设置页没有 Express 授权那一行）。
+- 测试：新增 `tests/test_writer_id.py` 12 条 + `test_account_history.py` 1 条；业务代码换回 main（保留新模块）后 4 条失败。

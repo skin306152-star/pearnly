@@ -149,7 +149,7 @@ def write(account_dir, prefix: str, *, docnum: str, docdat, docdate_be: str, cas
             voucher = _next_voucher(gj, prefix, docdate_be)
             descrp = fit(f"{row.get('label') or ''} {docnum}".strip(), _GL_DESCRP)
             gj.append({"JNLTYP": GENERAL_JOURNAL, "VOUDAT": docdat, "VOUCHER": voucher, "DESCRP": descrp,
-                       "TRNSTAT": "P", "DOCSTAT": "N", "CREBY": userid})
+                       "TRNSTAT": "P", "DOCSTAT": "N", "CREBY": S.PEARNLY_USERID})  # 机器标记
             written.append({"voucher": voucher, "acc": str(row["acc"]), "amount": Decimal(str(row["amount"])),
                             "descrp": descrp})
     finally:

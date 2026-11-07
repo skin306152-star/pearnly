@@ -689,7 +689,7 @@ def _write_all(
                 "DESCRP": descrp,
                 "TRNSTAT": "P",
                 "DOCSTAT": "N",
-                "CREBY": userid,
+                "CREBY": S.PEARNLY_USERID,  # 凭证建立人一律记机器标记（认 CC 写的单；单头录入人记 Express 账户名，``writer_id``）
             }
         )
     finally:

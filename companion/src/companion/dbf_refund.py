@@ -592,7 +592,7 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
     journal = _open(account_dir, "GLJNL", dbf.READ_WRITE)
     try:
         journal.append(_filtered(journal, {"JNLTYP": jnltyp, "VOUDAT": docdat, "VOUCHER": docnum, "DESCRP": descrp,
-                                           "TRNSTAT": "P", "DOCSTAT": "N", "CREBY": userid}))
+                                           "TRNSTAT": "P", "DOCSTAT": "N", "CREBY": S.PEARNLY_USERID}))
     finally:
         journal.close()
     departmental = _department_accounts(account_dir) if depcod else frozenset()

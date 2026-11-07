@@ -54,6 +54,8 @@ def main(argv=None) -> int:
     parser.add_argument("--out", default="")
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--scenario", choices=("apart", "same"), default="apart")
+    parser.add_argument("--userid", default="", help="write：这次写单的录入人（不给 = 写入函数默认的 PEARNLY）")
+    parser.add_argument("--allow", default="", help="compare：另外许可不同的栏，逗号分隔 TABLE.FIELD（如录入人 APTRN.USERID）")
     args = parser.parse_args(argv)
     sys.path.insert(0, args.companion)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -119,7 +121,7 @@ def write_all(args) -> int:
             shutil.rmtree(copy, ignore_errors=True)
             try:
                 shutil.copytree(book, copy)
-                result = write_book(copy, args.scenario)
+                result = write_book(copy, args.scenario, args.userid)
             except Exception:
                 result = {"state": "fail", "why": traceback.format_exc()[-600:]}
             result["book"] = book.name
@@ -165,7 +167,7 @@ def _seed(acct, main, scenario):
     return pick["STKCOD"], pick["STKDES"] or pick["STKCOD"]
 
 
-def write_book(acct: Path, scenario: str) -> dict:
+def write_book(acct: Path, scenario: str, userid: str = "") -> dict:
     info = rows(acct, "ISINFO", ("MAINLOC", "ACCNUM00"))
     main = (info[0]["MAINLOC"] if info else "") or ""
     calendar = fiscal_period.load(acct)
@@ -195,12 +197,14 @@ def write_book(acct: Path, scenario: str) -> dict:
                 continue
             payload = {"payload_version": 6, "direction": "stock", "doctype": "OU", "docdate_be": be(day),
                        "ref_no": "REG-OU", "items": [{"code": code, "name": name[:50], "qty": str(qty), "unit": ""}]}
-            res = D.write_stock_entry(payload, acct, selected_dir=str(acct), make_backup=False, today=day)
+            res = D.write_stock_entry(payload, acct, selected_dir=str(acct), make_backup=False, today=day,
+                                      **({"userid": userid} if userid else {}))
         else:
             body = payload_for(doctype, be(day), f"REG-{doctype}", accounts, cash, name, code, qty, Decimal(amount),
                                supplier=suppliers[0], customer=customers[0])
             writer = W.write_purchase if doctype in ("RR", "HP") else WS.write_sale
-            res = writer(body, acct, allowed_sets=("DATAT",), selected_dir=str(acct), make_backup=False)
+            res = writer(body, acct, allowed_sets=("DATAT",), selected_dir=str(acct), make_backup=False,
+                         **({"userid": userid} if userid else {}))
         steps.append({"doctype": doctype, "ok": res.ok, "docnum": res.docnum, "error": res.error_code or res.error})
     return {"state": "written", "item": code, "apart": scenario == "apart", "supplier": suppliers[0], "customer": customers[0],
             "main": main, "steps": steps,
@@ -241,10 +245,11 @@ def compare_all(args) -> int:
     old_runs = {r["book"]: r for r in map(json.loads, open(old_dir / "writes.jsonl", encoding="utf-8"))}
     new_runs = {r["book"]: r for r in map(json.loads, open(new_dir / "writes.jsonl", encoding="utf-8"))}
     counts = {"ok": 0, "fail": 0, "skip": 0}
+    extra = {tuple(item.strip().upper().split(".", 1)) for item in args.allow.split(",") if "." in item}
     with open(args.out, "w", encoding="utf-8") as out:
         for book in sorted(new_runs):
             try:
-                result = compare_book(old_dir / book, new_dir / book, old_runs.get(book) or {}, new_runs[book])
+                result = compare_book(old_dir / book, new_dir / book, old_runs.get(book) or {}, new_runs[book], extra)
             except Exception:
                 result = {"state": "fail", "why": traceback.format_exc()[-600:]}
             result["book"] = book
@@ -265,7 +270,7 @@ def _cost_differs(run) -> bool:
     return False
 
 
-def compare_book(old: Path, new: Path, old_run: dict, new_run: dict) -> dict:
+def compare_book(old: Path, new: Path, old_run: dict, new_run: dict, extra=frozenset()) -> dict:
     if new_run.get("state") != "written":
         return {"state": "skip", "why": new_run.get("why", "")}
     problems = []
@@ -294,7 +299,7 @@ def compare_book(old: Path, new: Path, old_run: dict, new_run: dict) -> dict:
                     continue
                 key = (table, field)
                 diffs[f"{table}.{field}"] = diffs.get(f"{table}.{field}", 0) + 1
-                if key in ALWAYS or (cost and (key in COST or (table == "STLOC" and field.startswith("VAL")))):
+                if key in ALWAYS or key in extra or (cost and (key in COST or (table == "STLOC" and field.startswith("VAL")))):
                     continue
                 if not guard_changed:
                     unexpected.append(f"{table}.{field}")

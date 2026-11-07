@@ -254,6 +254,18 @@ def test_v3_leaves_out_documents_pearnly_wrote_and_suppliers_without_accounts_st
     assert s003["posting"]["stock"] == {"docs": 1, "last": _days(3).isoformat()}
 
 
+def test_a_cc_document_under_a_real_writer_name_is_still_left_out_by_the_journal_mark(books):
+    """11-07 起 CC 直写的单头录入人记 Express 账户名（BIT5），凭证头 CREBY 仍记 PEARNLY：照样不算历史（不自己学自己）。"""
+    _with_stock(books)
+    _append(books.acct / "APMAS.DBF", [{"SUPCOD": "S003", "SUPNAM": "ร้านวัสดุ", "TAXID": "0105556099999"}])
+    _append(books.acct / "APTRN.DBF", [_doc("RR-020", "S003", 3), {**_doc("RR-021", "S003", 2), "USERID": "BIT5"}])
+    _append(books.acct / "GLJNL.DBF", [_head("RR-020", 3), {**_head("RR-021", 2), "CREBY": "PEARNLY"}])
+    _append(books.acct / "STCRD.DBF", [_stock_line("RR-020", "P01", 3, "S003"), _stock_line("RR-021", "P01", 2, "S003")])
+    _result, data = _read(books)
+    s003 = next(row for row in data["suppliers"] if row["code"] == "S003")
+    assert s003["posting"]["stock"] == {"docs": 1, "last": _days(3).isoformat()}
+
+
 def test_v3_sends_no_posting_when_it_cannot_tell(books, monkeypatch):
     # 存货明细或主档读不到：不交 posting（不猜），其余照旧
     _result, data = _read(books)

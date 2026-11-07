@@ -31,6 +31,7 @@ from . import stock_defaults
 from . import stock_lookup
 from . import stock_template
 from . import unit_code
+from . import writer_id
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -509,8 +510,10 @@ def backfill_account_items(account_dir: Path, *, created_date: _dt.date, userid:
         finally:
             t.close()
 
+    # CC 写的单：旧版单头录入人记 PEARNLY；11-07 起单头记 Express 账户名，看凭证头的机器标记（``writer_id.cc_vouchers``）
+    marked = writer_id.cc_vouchers(account_dir)
     ours = {r["DOCNUM"] for name in ("APTRN", "ARTRN") for r in live(name, "DOCNUM", "USERID")
-            if r["USERID"].upper() == userid.upper()}
+            if S.is_pearnly(r["USERID"]) or r["DOCNUM"] in marked}
     if not ours:
         return []
     accounts = {r["ACCNUM"] for r in live("GLACC", "ACCNUM") if r["ACCNUM"]}

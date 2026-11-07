@@ -110,7 +110,14 @@ STCRD_POSOPR_TRANSFER_IN = "3"
 # 小助手写入的录入人(USERID / CREBY,C(8))。以前写 BIT9 —— 那是测试机所在事务所的真人账号,别的事务所没有这个人,
 # 在本所又把推送记到一个真人名下。Express 打开账套不拿单据上的用户名去比对用户表(真实账套里大多数单据的录入人
 # 都不在本机用户表,照常打开;2026-10-08 核对),所以写一个固定的、看得出是 Pearnly 写的名字。
+# 11-07 起(用户「录入人应该记 exp 的账户人吧」):单头 USERID 与新建主档的建档人记这台电脑授权的 Express 账户名(``writer_id``),
+# 取不到才记它;凭证头 GLJNL.CREBY 一律记它,当作「CC 写的」机器标记(认自己写的单:``is_pearnly`` / ``account_history`` / ``service_vat``)。
 PEARNLY_USERID = "PEARNLY"
+
+
+def is_pearnly(value) -> bool:
+    """这个录入人 / 凭证建立人栏是不是 CC 的机器标记(``PEARNLY``)。"""
+    return str(value or "").strip().upper() == PEARNLY_USERID
 
 # OCR 自由文本单位 → Express 2 字符单位码(只作 unit_code.resolve 的后备,结果仍须是该账套的合法码)。
 # 2026-10-08 按测试机 62 套真实账套改正:「ชิ้น」是 ชน(62/62,旧表写 ชิ 一套都没有)、「อัน」是 อน(62/62)。

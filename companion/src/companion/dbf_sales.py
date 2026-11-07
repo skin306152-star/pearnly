@@ -609,7 +609,7 @@ def _write_all(
                 "DESCRP": descrp,
                 "TRNSTAT": "P",
                 "DOCSTAT": "N",
-                "CREBY": userid,
+                "CREBY": S.PEARNLY_USERID,  # 凭证建立人一律记机器标记（``dbf_schema.is_pearnly``）
             }
         )
     finally:

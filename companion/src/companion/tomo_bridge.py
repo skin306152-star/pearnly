@@ -202,7 +202,9 @@ class TomoBridge(QObject):
         if method == "operator_state":
             from .express_operator import login_dialog
 
-            state = {"ok": True, "batches": current.snapshots(), "login": login_dialog.stored()}
+            state = {"ok": True, "batches": current.snapshots(), "login": login_dialog.stored(),
+                     # 已授权的 Express 账户名（直写与代录都记这个人为录入人；不回密码）
+                     "login_user": login_dialog.stored_user()}
             login = self._mrerp_login_module()
             if login is not None:
                 # 这台电脑存了哪些 MR.ERP 连接的登录（只有连接号，第 2 步 mrerp_operator.login.stored）

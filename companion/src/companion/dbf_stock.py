@@ -528,7 +528,7 @@ def _post(account_dir, kind, docnum, docdat, account, remark, total, inventory, 
     journal = _open(account_dir, "GLJNL", dbf.READ_WRITE)
     try:
         journal.append(_filtered(journal, {"JNLTYP": jnltyp or GENERAL_JOURNAL, "VOUDAT": docdat, "VOUCHER": docnum,
-                                           "DESCRP": descrp, "TRNSTAT": "P", "DOCSTAT": "N", "CREBY": userid,
+                                           "DESCRP": descrp, "TRNSTAT": "P", "DOCSTAT": "N", "CREBY": S.PEARNLY_USERID,
                                            "CREDAT": today, "USERID": userid, "CHGDAT": today}))
     finally:
         journal.close()

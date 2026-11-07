@@ -250,7 +250,9 @@ def prepare(payload: Dict, settings, *, before_create: Callable[[], None] = lamb
     docdat = S.be_yymmdd_to_greg(str(payload["docdate_be"]))
     backup = dbf_writer._backup(account_dir, MASTER_TABLES)
     try:
-        created = _create(plan, account_dir, docdat, S.PEARNLY_USERID)
+        from .. import writer_id
+
+        created = _create(plan, account_dir, docdat, writer_id.resolve(account_dir))  # 建档人同直写：授权的 Express 账户名
     except Exception as exc:  # noqa: BLE001 — 任一步失败：主档表整笔还原，照直写的错误码回执
         dbf_writer._restore(account_dir, backup)
         dbf_writer._discard_backup(backup)
