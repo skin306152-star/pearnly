@@ -1750,6 +1750,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:cowork:deep-link"
 where = "CC 深链接（?c= 打开对话、?view= / ?company= 打开页面；推送通知、托盘点开）"
+tests = ["flow:cowork.pending.operator"]
 group = "cc.action.deep-link"
 
 [[row]]

@@ -4,8 +4,6 @@ cowork.cc.action.attach@desktop
 cowork.cc.action.attach@mobile
 cowork.cc.action.company-open-in-product@desktop
 cowork.cc.action.company-open-in-product@mobile
-cowork.cc.action.deep-link@desktop
-cowork.cc.action.deep-link@mobile
 cowork.cc.action.delete-chats@desktop
 cowork.cc.action.delete-chats@mobile
 cowork.cc.action.mrerp-auth@mobile
@@ -119,8 +117,6 @@ erp.cc.action.attach@desktop
 erp.cc.action.attach@mobile
 erp.cc.action.company-open-in-product@desktop
 erp.cc.action.company-open-in-product@mobile
-erp.cc.action.deep-link@desktop
-erp.cc.action.deep-link@mobile
 erp.cc.action.delete-chats@desktop
 erp.cc.action.delete-chats@mobile
 erp.cc.view.company@mobile
