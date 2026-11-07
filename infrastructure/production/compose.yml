@@ -31,7 +31,7 @@ x-runtime: &runtime
     SOCKETIO_PORT: '9000'
     GUNICORN_WORKERS: '2'
     GUNICORN_THREADS: '4'
-    # 部署环境（pearnly_core.assistant.engines.anthropic_managed_agents.deployment）：线上就是 production；
+    # 部署环境（CC 智能体适配器按它区分）：线上就是 production；
     # 测试机 `infrastructure/testenv/run.sh`、本机验收 / 预览栈各自设成别的，CC 智能体按它分开，测试环境不会改到线上那个。
     PEARNLY_DEPLOYMENT: ${PEARNLY_DEPLOYMENT:-production}
     # Claude 识别路线（ADR-022，pearnly_core.claude_ocr.client）：甲骨文 claude-ocr 服务的地址、令牌、证书指纹，
