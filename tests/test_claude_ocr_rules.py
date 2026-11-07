@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps/pearnly_core"))
-from pearnly_core.claude_ocr import engine, rules, spec  # noqa: E402
+from pearnly_core.claude_ocr import engine, lines, rules, spec  # noqa: E402
 
 GOOD_TAX = "0105546015062"  # 冰厂 SINCERE，校验位对
 
@@ -85,15 +85,22 @@ class Schema(unittest.TestCase):
 
 
 class FakeClient:
-    """按顺序回预设结果的假 Anthropic 客户端；记录每次请求。"""
-    def __init__(self, *reads):
-        self.reads, self.calls = list(reads), []
+    """按顺序回预设结果的假 Anthropic 客户端；记录每次请求。明细补读（``lines.SCHEMA``）的请求另记在 ``fill_calls``，
+    按 ``fills`` 依次回答（``None`` = 输出超限），没预设就回「没印明细」。"""
+    def __init__(self, *reads, fills=()):
+        self.reads, self.calls, self.fills, self.fill_calls = list(reads), [], list(fills), []
         self.messages = SimpleNamespace(create=self.create)
 
     def create(self, **kwargs):
-        self.calls.append(kwargs)
-        read = self.reads.pop(0)
         usage = SimpleNamespace(input_tokens=1000, output_tokens=200, cache_creation_input_tokens=0, cache_read_input_tokens=3000)
+        if kwargs["output_config"]["format"]["schema"] is lines.SCHEMA:
+            self.fill_calls.append(kwargs)
+            read = self.fills.pop(0) if self.fills else {"lines": [], "printed_subtotal": ""}
+            if read is None:
+                return SimpleNamespace(stop_reason="max_tokens", usage=usage, content=[])
+        else:
+            self.calls.append(kwargs)
+            read = self.reads.pop(0)
         return SimpleNamespace(stop_reason="end_turn", usage=usage,
                                content=[SimpleNamespace(type="text", text=json.dumps(read))])
 
@@ -133,6 +140,139 @@ class Engine(unittest.TestCase):
         engine.run(client, "voucher", [("image/jpeg", b"x")] * 12)
         images = [b for b in client.calls[0]["messages"][0]["content"] if b["type"] == "image"]
         self.assertEqual(len(images), engine.PAGES_PER_CALL)
+
+
+
+def line(amount, qty="1", price=None, description="item"):
+    return {"description": description, "code": "", "barcode": "", "item_type": "goods", "qty": qty, "unit": "",
+            "unit_price": price or amount, "discount": "", "discount_percent": "", "amount": amount, "vat_rate": ""}
+
+
+def fill_answer(*amounts, printed=""):
+    return {"lines": [line(a) for a in amounts], "printed_subtotal": printed}
+
+
+class LinesFill(unittest.TestCase):
+    """明细补读（claude_ocr.lines，2026-11-07 BJC 缺页票）：只补空明细，对得上才写回，表头不动，不算升级。"""
+
+    def test_empty_lines_filled_when_they_add_up_to_the_printed_subtotal(self):
+        client = FakeClient(reading(doc()), fills=[fill_answer("60.00", "40.00")])
+        out = engine.run(client, "voucher", [("image/jpeg", b"x")])
+        self.assertEqual([l["amount"] for l in out["read"]["documents"][0]["lines"]], ["60.00", "40.00"])
+        self.assertFalse(out["escalated"])  # 补读不算升级
+        self.assertEqual([c["model"] for c in client.fill_calls], [engine.HAIKU])
+        self.assertEqual(client.fill_calls[0]["system"][0]["text"], spec.VOUCHER_SYSTEM)  # 同一份系统提示，命中缓存
+        self.assertIn("IV001", client.fill_calls[0]["messages"][0]["content"][-1]["text"])
+        fill = out["stages"][-1]
+        self.assertEqual((fill["purpose"], fill["fill_pages"]), ("lines", [1, 1]))
+        self.assertIn("+2 lines", fill["note"])
+        self.assertEqual(lines.reading_stages(out["stages"]), out["stages"][:1])
+        self.assertAlmostEqual(out["usd"], sum(s["usd"] for s in out["stages"]), places=6)
+
+    def test_lines_that_do_not_add_up_are_not_written(self):
+        client = FakeClient(reading(doc()), fills=[fill_answer("60.00", "50.00")])
+        out = engine.run(client, "voucher", [("image/jpeg", b"x")])
+        self.assertEqual(out["read"]["documents"][0]["lines"], [])
+        self.assertIn("not filled", out["stages"][-1]["note"])
+
+    def test_line_math_is_only_recorded_the_sum_decides(self):
+        # BJC：每行两层折扣，单行算术不一定照我们的式子成立；净额加总对上票面就写回（主会话 11-07）
+        odd = {"lines": [line("100.00", qty="2", price="60.00")], "printed_subtotal": ""}
+        client = FakeClient(reading(doc()), fills=[odd])
+        out = engine.run(client, "voucher", [("image/jpeg", b"x")])
+        self.assertEqual(len(out["read"]["documents"][0]["lines"]), 1)
+        self.assertIn("line_math differs", out["stages"][-1]["note"])
+
+    def test_haiku_lines_that_do_not_add_up_go_to_opus(self):
+        client = FakeClient(reading(doc()), fills=[fill_answer("60.00", "50.00"), fill_answer("60.00", "40.00")])
+        out = engine.run(client, "voucher", [("image/jpeg", b"x")])
+        self.assertEqual([c["model"] for c in client.fill_calls], [engine.HAIKU, engine.OPUS])
+        self.assertEqual([l["amount"] for l in out["read"]["documents"][0]["lines"]], ["60.00", "40.00"])
+        self.assertFalse(out["escalated"])
+        self.assertIn("claude-opus-5-5: +2 lines", out["stages"][-1]["note"])
+
+    def test_no_lines_printed_does_not_go_to_opus(self):
+        client = FakeClient(reading(doc()), fills=[fill_answer()])
+        engine.run(client, "voucher", [("image/jpeg", b"x")])
+        self.assertEqual([c["model"] for c in client.fill_calls], [engine.HAIKU])
+
+    def test_both_models_off_stay_empty(self):
+        client = FakeClient(reading(doc()), fills=[fill_answer("60.00", "50.00"), fill_answer("70.00")])
+        out = engine.run(client, "voucher", [("image/jpeg", b"x")])
+        self.assertEqual(out["read"]["documents"][0]["lines"], [])
+        self.assertEqual([s["model"] for s in out["stages"]], [engine.HAIKU, engine.HAIKU, engine.OPUS])
+
+    def test_missing_page_invoice_matches_the_page_subtotal_and_keeps_totals_empty(self):
+        partial = doc(total=None, subtotal=None, vat=None)  # 「หน้า 1/2」缺第 2 页：合计印在缺的页上
+        client = FakeClient(reading(partial), reading(partial), fills=[fill_answer("30.00", "20.50", printed="50.50")])
+        out = engine.run(client, "voucher", [("image/jpeg", b"x")])
+        got = out["read"]["documents"][0]
+        self.assertEqual(len(got["lines"]), 2)
+        self.assertEqual((got["total"], got["subtotal"], got["vat"]), (None, None, None))
+        client = FakeClient(reading(partial), reading(partial), fills=[fill_answer("30.00", "20.50", printed="")])
+        self.assertEqual(engine.run(client, "voucher", [("image/jpeg", b"x")])["read"]["documents"][0]["lines"], [])
+
+    def test_only_the_header_is_kept_exactly(self):
+        import copy
+        first = reading(doc())
+        client = FakeClient(first, fills=[fill_answer("100.00")])
+        out = engine.run(client, "voucher", [("image/jpeg", b"x")])
+        expected = engine._blank_to_none(copy.deepcopy(first))
+        expected["documents"][0]["lines"] = [engine._blank_to_none(line("100.00"))]
+        self.assertEqual(out["read"], expected)
+
+    def test_pages_from_its_first_page_to_the_next_invoice(self):
+        read = reading(doc(page=1), doc(page=3, invoice_number="IV002"), doc(page=3, invoice_number="IV003"))
+        self.assertEqual(lines.span(read, 0, 5), (1, 2))
+        self.assertEqual(lines.span(read, 1, 5), (3, 3))  # 同一页上几张票：只给这一页
+        self.assertEqual(lines.span(reading(doc(page=2)), 0, 4), (2, 4))
+        two = reading(doc(page=1), doc(page=3, invoice_number="IV002"))
+        client = FakeClient(two, two)  # 3 页 2 张票：自检升级，Opus 读法相同
+        engine.run(client, "voucher", [("image/jpeg", b"a"), ("image/jpeg", b"b"), ("image/jpeg", b"c")])
+        images = [[b for b in c["messages"][0]["content"] if b["type"] == "image"] for c in client.fill_calls]
+        self.assertEqual([len(i) for i in images], [2, 1])
+
+    def test_too_long_is_read_page_by_page_in_order(self):
+        client = FakeClient(reading(doc()), fills=[None, fill_answer("60.00", printed="60.00"), fill_answer("40.00", printed="40.00")])
+        out = engine.run(client, "voucher", [("image/jpeg", b"a"), ("image/jpeg", b"b")])
+        self.assertEqual([l["amount"] for l in out["read"]["documents"][0]["lines"]], ["60.00", "40.00"])
+        self.assertEqual([s.get("fill_pages") for s in out["stages"][1:]], [[1, 2], [1, 1], [2, 2]])
+
+    def test_documents_with_lines_not_invoices_and_table_text_are_not_filled(self):
+        client = FakeClient(reading(doc(lines=[line("100.00")])))
+        engine.run(client, "voucher", [("image/jpeg", b"x")])
+        client2 = FakeClient(reading(entry="not_invoice"))
+        engine.run(client2, "voucher", [("image/jpeg", b"x")])
+        client3 = FakeClient(reading(doc()))
+        engine.run(client3, "voucher", [], text="a | b")
+        self.assertEqual((client.fill_calls, client2.fill_calls, client3.fill_calls), ([], [], []))
+
+    def test_a_failing_fill_call_keeps_the_reading(self):
+        client = FakeClient(reading(doc()))
+        def broken(**kwargs):
+            if kwargs["output_config"]["format"]["schema"] is lines.SCHEMA:
+                raise ConnectionError("rate limited")
+            return FakeClient.create(client, **kwargs)
+        client.messages = SimpleNamespace(create=broken)
+        out = engine.run(client, "voucher", [("image/jpeg", b"x")])
+        self.assertEqual(out["read"]["documents"][0]["lines"], [])
+        self.assertIn("ConnectionError", out["stages"][-1]["error"])
+        self.assertIn("not filled: no answer", out["stages"][-1]["note"])
+
+    def test_free_lines_without_price_or_amount_do_not_count(self):
+        free = dict(line("0"), unit_price="", amount="", qty="1")
+        client = FakeClient(reading(doc()), fills=[{"lines": [line("100.00"), free], "printed_subtotal": ""}])
+        self.assertEqual(len(engine.run(client, "voucher", [("image/jpeg", b"x")])["read"]["documents"][0]["lines"]), 2)
+        priced = dict(line("0"), unit_price="5.00", amount="", qty="1")
+        client = FakeClient(reading(doc()), fills=[{"lines": [line("100.00"), priced], "printed_subtotal": ""}])
+        self.assertEqual(engine.run(client, "voucher", [("image/jpeg", b"x")])["read"]["documents"][0]["lines"], [])
+
+    def test_after_opus_the_fill_is_still_haiku(self):
+        client = FakeClient(reading(doc(seller_tax="0105546015063")), reading(doc()), fills=[fill_answer("100.00")])
+        out = engine.run(client, "voucher", [("image/jpeg", b"x")])
+        self.assertTrue(out["escalated"])
+        self.assertEqual([s["model"] for s in out["stages"]], [engine.HAIKU, engine.OPUS, engine.HAIKU])
+        self.assertEqual(len(out["read"]["documents"][0]["lines"]), 1)
 
 
 def row(date, deposit="", withdrawal="", balance=""):

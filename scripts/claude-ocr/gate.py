@@ -134,7 +134,7 @@ client.read = _recording_read
 from pearnly_core.claude_ocr import consistency, engine as claude_engine, rules as claude_rules  # noqa: E402
 
 _real_run = claude_engine.run
-REPLAY = {"dir": None, "record": False, "policy": "current", "spent": 0.0}
+REPLAY = {"dir": None, "record": False, "policy": "current", "spent": 0.0, "fill": False, "fill_cap": 0.0}
 
 
 def _policy_why(read, pages, policy):
@@ -189,7 +189,13 @@ def _replay_run(api, kind, images, own_tax=None, text=None):
         path.write_text(json.dumps(rec, ensure_ascii=False))
         with LOCK:
             REPLAY["spent"] += (first.get("usd") or 0) + (second.get("usd") or 0)
-    return _choose(rec, REPLAY["policy"], own_tax)
+    result = _choose(rec, REPLAY["policy"], own_tax)
+    if REPLAY["fill"] and not text and REPLAY["spent"] < REPLAY["fill_cap"]:
+        # 明细补读（claude_ocr.lines，生产在 engine.run 收尾时做）：``--fill`` 时走真实 Haiku（付费，到 ``--fill-cap`` 美元就不再补），不加则不补
+        added = claude_engine.fill_lines(api, result, images)
+        with LOCK:
+            REPLAY["spent"] += sum(s.get("usd") or 0 for s in added)
+    return result
 
 
 def _pages(path, content):
@@ -297,7 +303,8 @@ def invoices(args):
     done, spent = _spent(name)
     budget = {"spent": spent}
     if args.record or args.replay:
-        REPLAY.update(dir=args.record or args.replay, record=bool(args.record), policy=args.escalation)
+        REPLAY.update(dir=args.record or args.replay, record=bool(args.record), policy=args.escalation, fill=args.fill,
+                      fill_cap=args.fill_cap)
         Path(REPLAY["dir"]).mkdir(parents=True, exist_ok=True)
         claude_engine.run = _replay_run
         if args.replay:
@@ -322,7 +329,8 @@ def invoices(args):
         outcome = outcomes[-1] if outcomes else {}
         item = {"id": key, "pages": pages, "seconds": round(time.monotonic() - started, 2), "outcome": outcome.get("read"),
                 "usd": round(sum(o.get("usd") or 0 for o in outcomes), 6), "escalated": any(o.get("escalated") for o in outcomes),
-                "why": outcome.get("why"), "where": outcome.get("where"), "doc_kind": (outcome.get("read") or {}).get("doc_kind")}
+                "why": outcome.get("why"), "where": outcome.get("where"), "doc_kind": (outcome.get("read") or {}).get("doc_kind"),
+                "fill": [s.get("note") for s in outcome.get("stages") or [] if s.get("purpose") == "lines"]}
         try:
             erp = erp_read(outcome, content, path.name) if outcome.get("read") else None
         except Exception as exc:  # noqa: BLE001  ERP 那边出错单独记，不丢 Cowork 这份
@@ -462,6 +470,8 @@ def main():
     one.add_argument("--record", help="回放基准目录：读两遍（Haiku、Opus）存下")
     one.add_argument("--replay", help="回放基准目录：不调模型，按 --escalation 选读法")
     one.add_argument("--escalation", default="current", help="legacy | current | 检查代码逗号分隔")
+    one.add_argument("--fill", action="store_true", help="回放 / 录制时也做明细补读（与生产一致；走真实 Haiku，付费）")
+    one.add_argument("--fill-cap", type=float, default=0.5, help="明细补读的花费上限（美元）")
     two = sub.add_parser("recon")
     two.add_argument("--list", required=True)
     two.add_argument("--cap", type=float, default=3.0)

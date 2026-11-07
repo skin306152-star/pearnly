@@ -3,7 +3,7 @@
 ``structured`` / ``review`` / ``finish``。不调谷歌（不调 Vision 取原文核对）。"""
 import re
 
-from pearnly_core.claude_ocr import client
+from pearnly_core.claude_ocr import client, lines as claude_lines
 from pearnly_core.tax_documents import claude_kinds
 
 
@@ -84,7 +84,9 @@ def read_all(images, *, structured, review, label, finish=None, progress=None, o
     read = outcome.get("read")
     if not read:
         return []
-    model = outcome["stages"][-1]["model"] if outcome.get("stages") else "claude"
+    # 识别用的模型（Haiku 或升级后的 Opus）；收尾的明细补读（``claude_ocr.lines``）不算
+    reading = claude_lines.reading_stages(outcome.get("stages"))
+    model = reading[-1]["model"] if reading else "claude"
     docs = read.get("documents") or []
     if not docs or read.get("doc_kind") in NOT_DOCUMENTS:
         return [({"not_document": True, "lines": []}, [], model)]

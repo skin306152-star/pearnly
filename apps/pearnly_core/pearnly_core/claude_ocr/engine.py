@@ -4,7 +4,7 @@ import json
 import re
 import time
 
-from pearnly_core.claude_ocr import consistency, rules, spec
+from pearnly_core.claude_ocr import consistency, lines, rules, spec
 
 HAIKU, OPUS = "claude-haiku-5-5", "claude-opus-5-5"
 # 美元 / 百万 token：输入、输出、写缓存、读缓存（只用于估算我们自己的成本，不参与扣费）。
@@ -28,8 +28,8 @@ def _blank_to_none(value):
     return None if isinstance(value, str) and not value.strip() else value
 
 
-def _call(client, model, kind, images, hint, text=None):
-    system, schema, ask = spec.SPECS[kind]
+def _call(client, model, kind, images, hint, text=None, parts=None):
+    system, schema, ask = parts or spec.SPECS[kind]
     content = [{"type": "text", "text": spec.TEXT_INTRO + text}] if text else []
     for number, (media_type, data) in enumerate(images, 1):
         content.append({"type": "text", "text": f"Page {number}"})
@@ -90,7 +90,23 @@ def run(client, kind, images, own_tax=None, text=None):
               "usd": round(sum(s["usd"] for s in stages), 6), "seconds": round(sum(s["seconds"] for s in stages), 2)}
     if kind == "voucher":
         result.update(finish(read, len(images), escalated=len(stages) > 1))
+        if not text:
+            fill_lines(client, result, images)
     return result
+
+
+def fill_lines(client, result, images):
+    """收尾之后的明细补读（``lines``）：明细为空的票交 Haiku 只读明细（读出了却对不上再交 Opus），对得上才写回。补读的调用记进 ``stages``，费用、耗时照计；
+    ``escalated`` 不变（补读不算升级）。生产与回放基准同一份。"""
+    def call(model, pages, ask):
+        return _call(client, model, "voucher", pages, "", parts=(spec.VOUCHER_SYSTEM, lines.SCHEMA, ask))
+
+    added = lines.fill(call, result.get("read"), list(images), (HAIKU, OPUS))
+    if added:
+        result["stages"] = list(result.get("stages") or []) + added
+        result["usd"] = round((result.get("usd") or 0) + sum(s["usd"] for s in added), 6)
+        result["seconds"] = round((result.get("seconds") or 0) + sum(s["seconds"] for s in added), 2)
+    return added
 
 
 def finish(read, pages, *, escalated):

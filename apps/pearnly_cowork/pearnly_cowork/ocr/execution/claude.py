@@ -7,7 +7,7 @@ import json
 import mimetypes
 import time
 
-from pearnly_core.claude_ocr import client
+from pearnly_core.claude_ocr import client, lines as claude_lines
 from pearnly_core.tax_documents import claude_kinds, codes as tax_codes
 from pearnly_cowork.ocr.results import UNREAD_STAGE
 from pearnly_cowork.ocr.schema import PipelineResult
@@ -60,7 +60,7 @@ def to_pipeline(outcome, page_count, anchor_year):
     read = outcome.get("read") or {}
     copy = read.get("copy_marking") == "copy"
     unread = set(outcome.get("pages_unread") or ())
-    models = [s["model"] for s in outcome.get("stages") or []]
+    models = [s["model"] for s in claude_lines.reading_stages(outcome.get("stages"))]  # 明细补读不算升级
     chain = ["CLAUDE", *[m.upper() for m in models]]
     by_page = {}
     for doc in read.get("documents") or []:
@@ -96,7 +96,8 @@ def evidence(outcome):
         usage = stage.get("usage") or {}
         rows.append({"checkpoint_key": hashlib.sha256(json.dumps([stage.get("model"), attempt, outcome.get("why")],
                                                                   sort_keys=True).encode()).hexdigest(),
-                     "stage": "claude_read" if attempt == 0 else "claude_review", "page": None, "attempt": attempt,
+                     "stage": ("claude_lines" if stage.get("purpose") == claude_lines.PURPOSE
+                               else "claude_read" if attempt == 0 else "claude_review"), "page": None, "attempt": attempt,
                      "model": stage.get("model"), "raw_sha256": "", "input_tokens": usage.get("input_tokens", 0),
                      "output_tokens": usage.get("output_tokens", 0), "finish_reason": stage.get("stop_reason"),
                      "usd": stage.get("usd"), "where": outcome.get("where")})
