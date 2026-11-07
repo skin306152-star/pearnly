@@ -10,7 +10,7 @@
 //                         对话末尾就是「需要处理」框（pending.tsx 的 PendingInChat）。侧栏还没有这家的组、归不上公司的（「未归属
 //                         公司」）放在列表最上面（SidebarError 那一块）
 //   ComposerChin        — 输入框下巴（thread.tsx 的 Chin 插槽，设计文档 3.12）：公司、月份、分店三个幽灵按钮。新对话里「公司 ▾」选这段
-//                         对话挂哪家（我最近的公司 + 搜索 + 添加公司… + 最近；至少有一家公司时才显示）；已有对话里点公司名打开右侧
+//                         对话挂哪家（用户 11-07：点了弹选择公司窗口，company-picker.tsx；有公司分组的产品一直显示）；已有对话里点公司名打开右侧
 //                         会话栏的公司卡（同顶栏，lib/company-panel 的 openCompanyCard），月份、分店改了就 move。已有对话不能换公司
 //                         （用户 10-17：「移到」已删，没挂公司的已有对话下巴里也不再有「公司 ▾」）
 //   ConversationCompany — 对话顶栏「ABC 有限公司 ›」（点了打开右侧会话栏的公司卡）；手机在胶囊菜单最上面（MobileCompanyItem）
@@ -20,10 +20,10 @@
 // 删公司在主档页的「⋯」里，不确认；出错时在侧栏显示一行（服务端给的原文）。颜色、圆角只用 globals.css 的变量。
 
 import { useAui, useAuiState } from "@assistant-ui/react";
-import { Building2Icon, CalendarIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon, StoreIcon, XIcon } from "lucide-react";
-import { DropdownMenu, menuOffset, SubMenu } from "@/components/ui/menu";
+import { Building2Icon, CalendarIcon, ChevronDownIcon, ChevronRightIcon, StoreIcon, XIcon } from "lucide-react";
+import { DropdownMenu, SubMenu } from "@/components/ui/menu";
 import { type FC, type HTMLAttributes, memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAddCompanyAction } from "@/components/add-company";
+import { openCompanyPicker } from "@/components/company-picker";
 import { BranchChip, BranchChoices, PeriodChip, PeriodChoices } from "@/components/period-chip";
 import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/components/assistant-ui/sidebar-group";
 import type { DragHandle } from "@/components/ui/drag";
@@ -34,10 +34,7 @@ import { co, t } from "@/i18n";
 import {
   branchShort,
   cachedDetail,
-  type CompanyRow,
-  hasAnyCompany,
   lastMonth,
-  listCompanies,
   monthLabel,
   type PendingMonth,
   placeholderTitle,
@@ -317,71 +314,8 @@ export const SidebarErrorLine: FC<{ error: string; onClose: () => void }> = ({ e
 };
 
 // ---------------------------------------------------------------- 选公司（新对话的公司条）
-/** 记住选过的公司名（搜出来、刚添加的公司不在侧栏里）。 */
+/** 记住选过的公司名（弹窗里选的、刚建的公司不在侧栏里）。 */
 const titles = new Map<string, string>();
-
-/** 我最近的 10 家（侧栏里的）；输入了就搜全所公司；末尾「添加公司…」「最近」。 */
-const CompanyChoices: FC<{ current: string; onPick: (id: string) => void }> = ({ current, onPick }) => {
-  const projects = useProjects((s) => s.projects);
-  const [search, setSearch] = useState("");
-  const [found, setFound] = useState<CompanyRow[] | null>(null);
-  useEffect(() => {
-    const text = search.trim();
-    if (!text) return setFound(null);
-    let alive = true;
-    const timer = window.setTimeout(
-      () => void listCompanies(text, 0, 20).then((rows) => alive && setFound(rows), () => alive && setFound([])),
-      250,
-    );
-    return () => {
-      alive = false;
-      window.clearTimeout(timer);
-    };
-  }, [search]);
-  const rows: Array<{ id: string; title: string }> = found ?? projects.slice(0, 10);
-  const add = useAddCompanyAction(onPick);
-  const choice = (id: string, label: ReactNode) => (
-    <DropdownMenu.Item
-      key={id || "recents"}
-      className="cc-menu-item"
-      onSelect={() => {
-        if (id && typeof label === "string") {
-          titles.set(id, label);
-          hintTitle(id, label); // 挂进侧栏还没有的公司时先按这个名称搭出这一组
-        }
-        if (id !== current) onPick(id);
-      }}
-    >
-      <Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>
-      {id === current && <CheckIcon />}
-    </DropdownMenu.Item>
-  );
-  return (
-    <>
-      <div className="px-(--cc-space-4) pb-(--cc-space-4)">
-        <input
-          className="cc-input w-full"
-          value={search}
-          aria-label={t("search")}
-          placeholder={t("search")}
-          onChange={(e) => setSearch(e.target.value)}
-          // 菜单的按字母跳转不吃输入框里的键
-          onKeyDown={(e) => e.key !== "Escape" && e.key !== "ArrowDown" && e.stopPropagation()}
-        />
-      </div>
-      {rows.map((p) => choice(p.id, p.title))}
-      {found !== null && !found.length && <div className="cc-menu-label">{t("noResults")}</div>}
-      <DropdownMenu.Separator className="cc-menu-sep" />
-      {add && (
-        <DropdownMenu.Item className="cc-menu-item" onSelect={add}>
-          <PlusIcon />
-          {co.addCompany}
-        </DropdownMenu.Item>
-      )}
-      {choice("", t("recents"))}
-    </>
-  );
-};
 
 // ---------------------------------------------------------------- 输入框上方的公司条
 
@@ -454,39 +388,37 @@ export const WelcomeFiling: FC = () => {
   );
 };
 
-/** 新的空白对话（还没建会话）：「公司 ▾」，选了公司后接月份与分店；至少有一家公司才显示。菜单默认向上开（下巴），
- *  手机问候下面那一行向下开。 */
+/** 新的空白对话（还没建会话）：「公司 ▾」点了弹选择公司窗口（company-picker.tsx：连接里读到的全部账套公司，选了就在这段对话里
+ *  用它，没建过的顺手建），选了公司后接月份与分店。有公司分组的产品（Cowork、ERP）一直显示：一家都没有时弹窗里给「连接」。
+ *  月份、分店的菜单默认向上开（下巴），手机问候下面那一行向下开。 */
 const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {
-  const kind = useProjects((s) => s.kind);
   const withPeriod = useProjects((s) => s.period);
   const withScope = useProjects((s) => s.scope);
-  const sidebarHasOne = useProjects((s) => s.projects.length > 0);
   const draft = useProjects((s) => s.draft);
-  const [any, setAny] = useState(false);
-  useEffect(() => {
-    if (kind && !sidebarHasOne) void hasAnyCompany().then(setAny);
-  }, [kind, sidebarHasOne]);
   const title = useCompanyTitle(draft.project);
   const branches = useBranches(withScope ? draft.project : "");
-  if (!(sidebarHasOne || any || draft.project)) return null;
-  const pick = (project: string) =>
+  const pick = (project: string, label: string) => {
+    if (project && label) {
+      titles.set(project, label);
+      hintTitle(project, label); // 挂进侧栏还没有的公司时先按这个名称搭出这一组
+    }
+    if (project === draft.project) return;
     setDraft(project ? { project, period: withPeriod ? lastMonth() : "", scope: "" } : NO_FILING);
+  };
   return (
     <>
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger asChild>
-          <button type="button" className="cc-chin-btn" data-slot="cc-chin-company" data-chosen={draft.project ? "" : undefined}>
-            <Building2Icon />
-            <Marquee className="min-w-0 truncate">{draft.project ? title || co.companies : co.companies}</Marquee>
-            <ChevronDownIcon />
-          </button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content side={side} align="start" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-lg) max-w-(--cc-menu-w-max)">
-            <CompanyChoices current={draft.project} onPick={pick} />
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+      <button
+        type="button"
+        className="cc-chin-btn"
+        data-slot="cc-chin-company"
+        data-chosen={draft.project ? "" : undefined}
+        aria-haspopup="dialog"
+        onClick={() => openCompanyPicker(pick, draft.project)}
+      >
+        <Building2Icon />
+        <Marquee className="min-w-0 truncate">{draft.project ? title || co.companies : co.companies}</Marquee>
+        <ChevronDownIcon />
+      </button>
       {draft.project && withPeriod && (
         <PeriodChip look="cc-chin-btn" side={side} value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />
       )}

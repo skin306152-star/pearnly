@@ -1674,15 +1674,15 @@ group = "cc.action.switch-account"
 incidents = ["2026-11-03 切换账号第一次落到 Keycloak 登录页"]
 
 [[row]]
-id = "cowork.cc.action.add-company"
+id = "cowork.cc.action.company-picker"
 product = "Cowork"
 channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-action"
-anchor = "ccaction:cowork:add-company"
-where = "CC 侧栏「公司」→ 添加公司"
-tests = ["flow:cowork.cc.sidebar-modes", "e2e:e2e.cowork.add-company"]
-group = "cc.action.add-company"
+anchor = "ccaction:cowork:company-picker"
+where = "CC 新对话下巴（手机问候行、代录新建页）点「公司」→ 选择公司弹窗（MR.ERP / Express 标签，没建的选中即建）；定时任务「＋」先选公司"
+tests = ["flow:cowork.cc.sidebar-modes", "unit:tests/test_cc_company_picker.py::PickerBehaviourTests"]
+group = "cc.action.company-picker"
 incidents = ["2026-11-03 ERP 版 CC 添加公司跳系统浏览器、要重新登录"]
 
 [[row]]

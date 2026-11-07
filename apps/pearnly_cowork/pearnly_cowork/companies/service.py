@@ -30,7 +30,6 @@ from pearnly_core.express_rules.targets.identity import normalize_express_accoun
 
 COMPANY_MAX = 2000
 PAGE_MAX = 50
-CANDIDATES_MAX = 200
 TITLE_MAX = 140
 REQUEST_KEY = re.compile(r"^[A-Za-z0-9-]{8,64}$")
 FIELDS = ["name", "identity", "adapter", "title", "legal_name", "tax_id", "branch", "name_key", "seed_connection",
@@ -302,15 +301,10 @@ def _built(keys, named) -> dict:
     return built
 
 
-def candidates(search=None) -> list:
-    """本人能用的连接下、按身份合并的候选：`[{identity, title, legal_name, tax_id, branch, branches, adapter, years,
-    connection, account_set_key, company}]`。不可写的账套不列；`company` 是已建的主档编号（没建是 None）。"""
-    require_write()
-    return _catalog(search)[:CANDIDATES_MAX]
-
-
 def _catalog(search=None) -> list:
-    """`candidates` 的全部行（不截断、不判权限，调用方判）。"""
+    """连接里按身份合并的账套目录（`choices` 里还没建的那些行从这里来；不截断、不判权限，调用方判）：`[{identity, title,
+    legal_name, tax_id, branch, branches, adapter, years, connection, account_set_key, company}]`。只看本人能用的连接，不可写的账套
+    不列；`company` 是已建的主档编号（没建是 None）。"""
     groups = {}
     for connection, adapter, row in _rows():
         if not identity.usable(adapter, row):
@@ -349,7 +343,7 @@ def _matches(needle, *parts) -> bool:
 
 def choices(search=None, adapter=None, start=0, limit=PAGE_MAX) -> dict:
     """对话里选公司的弹窗（主会话 11-07 定案）：已建的主档与目录里还没建的账套合成一张表，按身份合并、服务端分页。
-    行同 `candidates`（`company` 是已建的编号，没建是 None，点了用 `create` 顺手建）；已建但目录里已经没有账套的照样列
+    行同 `_catalog`（`company` 是已建的编号，没建是 None，点了用 `create` 顺手建）；已建但目录里已经没有账套的照样列
     （下面有对话）。没建的只给有录入权限的人（建要录入权限，同 `create`）。``adapter``：只要 MR.ERP / Express 一种（弹窗标签）；
     ``adapters``：不按标签筛时有哪几种（弹窗只出有的标签）。顺序：我有对话的按我最近的活动在前，其余按名称。一页最多 50 行。"""
     require_read()
@@ -832,6 +826,6 @@ def announce(op, company, part=None) -> None:
         frappe.log_error(title="Cowork company announce failed")
 
 
-__all__ = ["announce", "books", "candidates", "company_of_rules", "context_text", "create", "delete", "detail", "exists",
+__all__ = ["announce", "books", "company_of_rules", "context_text", "create", "delete", "detail", "exists",
            "facts", "folder_bind", "folder_unbind", "get", "listing", "rename", "set_combined_vat", "subtitle", "summary",
            "task_overview", "usable_connections"]

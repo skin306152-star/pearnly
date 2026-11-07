@@ -2577,7 +2577,7 @@ g.done();
 
 COMPANY_SOURCES = ("lib/companies.ts", "lib/managed-agents/projects.ts", "lib/managed-agents/sidebar-groups.ts",
                    "components/companies.tsx", "components/company-page.tsx", "components/company-cards.tsx",
-                   "components/session-panel.tsx", "lib/company-panel.ts", "components/add-company.tsx",
+                   "components/session-panel.tsx", "lib/company-panel.ts", "components/company-picker.tsx",
                    "components/pending.tsx", "components/period-chip.tsx", "components/assistant-ui/projects.tsx",
                    "hooks/use-long-press.ts", "components/month-ledger.tsx", "lib/month.ts")
 
@@ -2705,10 +2705,13 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertIn("const { isMobile } = useSidebar();", chin)
         self.assertIn("if (!kind || isMobile) return null;", chin)
         self.assertIn("return fresh ? <DraftChin /> : <SessionChin />;", chin)
-        # 新对话：「公司 ▾」选公司（至少有一家公司才出现），下巴里菜单向上开；月份、分店是草稿
+        # 新对话：「公司 ▾」点了弹选择公司窗口（用户 11-07，不再是下拉）；有公司分组的产品一直出现（一家都没有时弹窗里给「连接」）；
+        # 月份、分店是草稿，菜单在下巴里向上开
         draft = projects.split('const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {', 1)[1].split("\n};", 1)[0]
-        self.assertIn("if (!(sidebarHasOne || any || draft.project)) return null;", draft)
-        self.assertIn('<DropdownMenu.Content side={side} align="start" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-lg) max-w-(--cc-menu-w-max)">', draft)
+        self.assertNotIn("return null;", draft)
+        self.assertNotIn("DropdownMenu", draft)
+        self.assertIn("onClick={() => openCompanyPicker(pick, draft.project)}", draft)
+        self.assertIn('aria-haspopup="dialog"', draft)
         self.assertIn('<PeriodChip look="cc-chin-btn" side={side} value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />',
                       draft)
         # 手机新对话：同一行放在问候下面（WelcomeFiling），菜单向下开；只在手机、Cowork、新对话
@@ -3575,8 +3578,7 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn('<Marquee className="truncate">{title || t("untitled")}</Marquee>', read("assistant.tsx"))
         self.assertIn('<Marquee className="min-w-0 flex-1 truncate">{c.title}</Marquee>', read("components/session-panel.tsx"))
         self.assertIn('<Marquee className="cc-row-title">{row.title || t("untitled")}</Marquee>', read("components/company-page.tsx"))
-        self.assertIn('<Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>\n      {id === current && <CheckIcon />}',
-                      read("components/assistant-ui/projects.tsx"))
+        self.assertIn('<Marquee className="min-w-0 flex-1 truncate text-ink">{t("recents")}</Marquee>', read("components/company-picker.tsx"))
 
     def test_rows_fade_pulse_and_take_a_metadata_line(self):
         rows = read("components/assistant-ui/thread-list.tsx")
@@ -4515,7 +4517,7 @@ assert.deepEqual(g.calls.at(-1).args, { grouped: "1", group: "comp_abc", after: 
 
     def test_new_tasks_start_from_a_company(self):
         tasks = read("components/scheduled-tasks.tsx")
-        self.assertIn("openAddCompany((id) => void seedFor(id), co.chooseCompany)", tasks)
+        self.assertIn("openCompanyPicker((id) => void seedFor(id))", tasks)   # 必须选一家：不传 current，不出「最近」
         self.assertEqual(tasks.count('onClick={() => newTask(taskCompany)}'), 2)   # 顶上「＋」与空列表的「＋」
         self.assertNotIn("useTaskCompanies", tasks)   # 不再为侧栏每家读一次详情
         self.assertIn("groupTasks(shown, overview.tasks, order, overview.titles)", tasks)
@@ -4529,12 +4531,13 @@ assert.deepEqual(g.calls.at(-1).args, { grouped: "1", group: "comp_abc", after: 
         self.assertIn("{fromCompany ? (\n            <FromCompany", tasks)
         self.assertIn("{!fromCompany && (", tasks)
         self.assertIn("<Field label={co.branch}>", tasks)
-        # 添加公司按 ERP 分标签：两种以上 ERP 才摆，只列选中的那种
-        add = read("components/add-company.tsx")
-        self.assertIn("const shown = rows && erps.length > 1 ? rows.filter((row) => row.adapter === shownErp) : rows;", add)
-        self.assertIn('{erps.length > 1 && (\n        <Tabs.Root value={shownErp} onValueChange={setErp}', add)
+        # 选择公司按 ERP 分标签：服务端给的 adapters 两种以上才摆，按标签在服务端筛、分页（不在页面里滤）
+        picker = read("components/company-picker.tsx")
+        self.assertIn("void listChoices(text.trim(), tab, start)", picker)
+        self.assertIn("{tabs.length > 0 && (", picker)
+        self.assertNotIn("rows.filter(", picker)
         # 分了标签时整窗定高，切标签不跳
-        self.assertIn('.cc-modal:has([data-slot="cc-add-company-tabs"]) { height: calc(var(--cc-viewport-h) * var(--cc-modal-share)); }',
+        self.assertIn('.cc-modal:has([data-slot="cc-company-picker-tabs"]) { height: calc(var(--cc-viewport-h) * var(--cc-modal-share)); }',
                       read("globals.css"))
 
     def test_branches_group_account_sets_and_saved_choices_show_where_they_came_from(self):
@@ -6678,6 +6681,7 @@ assert.deepEqual(clampIntoView({ ...rect(10), height: 800 }, view).top, 88);   /
         self.assertIn("if (!send) focusComposer();", start)
         self.assertIn("else focusComposer(false);", start)
         self.assertIn("focusComposer();", read("components/assistant-ui/thread-list.tsx").split("export const ThreadListNew", 1)[1])
+        # projects.tsx 经选择公司弹窗用到 lib/desktop → lib/profile（Vite 的 import.meta.glob 取品牌图，这里用不到）
         self.run_page(r"""
 import { focusComposer } from "@/components/assistant-ui/projects";
 const g = globalThis as any;
@@ -6688,7 +6692,7 @@ focusComposer();
 assert.equal(focused, 1);           // 点击当下就聚焦（手机上这样才弹键盘）
 await g.sleep(20);
 assert.equal(focused, 2);           // 新对话换上来后再聚焦一次
-""")
+""", stubs={"@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'})
 
 class NoAlwaysOnTests(unittest.TestCase):
     """用户 10-16（ADR-021 第 56、58 条）：「常驻模式」从界面拿掉——替别人接活、开机锁屏都没有了，电脑列表不再写「常驻」；
@@ -6878,8 +6882,10 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
         for rel, title in (("components/companies.tsx", "{co.companies}"),
                            ("components/scheduled-tasks.tsx", '{tr("cowork.folder.title")}')):
             self.assertIn(f'<h1 className="cc-page-title"><Marquee className="cc-page-title-text">{title}</Marquee></h1>', read(rel), rel)
-        for rel in ("components/add-company.tsx", "components/scheduled-tasks.tsx"):
-            self.assertIn('<DialogPrimitive.Title className="cc-dialog-title">\n              <Marquee className="block truncate">{title}</Marquee>', read(rel), rel)
+        self.assertIn('<DialogPrimitive.Title className="cc-dialog-title">\n              <Marquee className="block truncate">{title}</Marquee>',
+                      read("components/scheduled-tasks.tsx"))
+        self.assertIn('<DialogPrimitive.Title className="cc-dialog-title">\n              <Marquee className="block truncate">{co.chooseCompany}</Marquee>',
+                      read("components/company-picker.tsx"))
         # 父项、单选项、勾选项（第 7 轮：单选 / 勾选分成 RadioItem / CheckboxItem 两个）
         self.assertEqual(read("components/assistant-ui/sidebar-group.tsx").count('<Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>'), 3)
         self.assertIn('<Marquee className="typing-dots-label ms-(--cc-dots-gap) min-w-0 truncate" aria-hidden="true">{text}</Marquee>', read("components/assistant-ui/thread.tsx"))

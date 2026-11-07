@@ -23,12 +23,11 @@ since = "2026-11-05 4d42df765"
 asserts = ["同池：直接进另一站，不出密码页", "跨池：出 CC 登录页（fatcc.com/?fresh=1），不是 Pearnly Keycloak 登录页", "在 CC 登录页登另一个池的 e2e 账号后落到那一站 /assistant"]
 
 [[scenario]]
-id = "e2e.erp.add-company"
+id = "e2e.erp.pick-company"
 product = "ERP"
 runs = ["desktop", "mobile"]
-where = "侧栏「公司」→ 添加公司 → 点一家「已添加」的（不新建公司）"
-since = "2026-11-05 4d42df765"
-asserts = ["在本页弹窗，一次都不开新窗口", "候选列表由服务端搜索返回", "打开那家公司页，仍在本站、没有登录页"]
+where = "新对话下巴（手机在问候下面）点「公司」→ 选择公司弹窗 → 点一家已建的（不新建公司）"
+asserts = ["在本页弹窗，一次都不开新窗口", "列表由服务端 choices 返回", "弹窗关掉、下巴换成这家，仍在本站、没有登录页"]
 
 [[scenario]]
 id = "e2e.erp.logout"
@@ -87,12 +86,11 @@ since = "2026-11-05 4d42df765"
 asserts = ["跨池：出 CC 登录页（fatcc.com/?fresh=1），不是 Pearnly Keycloak 登录页", "在 CC 登录页登另一个池的 e2e 账号后落到那一站 /assistant"]
 
 [[scenario]]
-id = "e2e.cowork.add-company"
+id = "e2e.cowork.pick-company"
 product = "Cowork"
 runs = ["desktop", "mobile"]
-where = "侧栏「公司」→ 添加公司 → 点一家「已添加」的（不新建公司）"
-since = "2026-11-05 4d42df765"
-asserts = ["在本页弹窗，一次都不开新窗口", "候选列表由服务端搜索返回", "打开那家公司页，仍在本站、没有登录页"]
+where = "新对话下巴（手机在问候下面）点「公司」→ 选择公司弹窗 → 点一家已建的（不新建公司）"
+asserts = ["在本页弹窗，一次都不开新窗口", "列表由服务端 choices 返回", "弹窗关掉、下巴换成这家，仍在本站、没有登录页"]
 
 [[scenario]]
 id = "e2e.cowork.logout"

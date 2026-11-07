@@ -1513,15 +1513,15 @@ group = "cc.action.switch-account"
 incidents = ["2026-11-03 切换账号第一次落到 Keycloak 登录页"]
 
 [[row]]
-id = "erp.cc.action.add-company"
+id = "erp.cc.action.company-picker"
 product = "ERP"
 channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-action"
-anchor = "ccaction:erp:add-company"
-where = "CC 侧栏「公司」→ 添加公司"
-tests = ["flow:cc.companies", "unit:tests/test_erp_cc_companies.py::AddCompanyTests", "e2e:e2e.erp.add-company"]
-group = "cc.action.add-company"
+anchor = "ccaction:erp:company-picker"
+where = "CC 新对话下巴（手机问候行、代录新建页）点「公司」→ 选择公司弹窗（MR.ERP / Express 标签，没建的选中即建）；定时任务「＋」先选公司"
+tests = ["flow:cc.companies", "unit:tests/test_erp_cc_companies.py::AddCompanyTests", "unit:tests/test_cc_company_picker.py::PickerBehaviourTests"]
+group = "cc.action.company-picker"
 incidents = ["2026-11-03 ERP 版 CC 添加公司跳系统浏览器、要重新登录"]
 
 [[row]]

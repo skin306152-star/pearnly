@@ -354,6 +354,14 @@ search = ["frontend/assistant/src/**"]
 entries = ["cc.assistant", "cc.operator.page"]
 
 [[part]]
+id = "cc-company-picker"
+name = "CC 选择公司弹窗（新对话下巴、手机问候行、代录新建页、定时任务「＋」先选公司；直写与代录、Cowork 与 ERP 同一个）"
+paths = ["frontend/assistant/src/components/company-picker.tsx"]
+markers = ["@/components/company-picker\""]
+search = ["frontend/assistant/src/**"]
+entries = ["cc.assistant", "cc.operator.page"]
+
+[[part]]
 id = "cc-drag"
 name = "CC 共用拖动（侧栏对话与任务、会话栏卡片、实操资料分组）"
 paths = ["frontend/assistant/src/components/ui/drag.tsx"]
@@ -1900,7 +1908,7 @@ where = "对话页设置 → 常规 / 连接（浏览器与桌面版）"
 steps = "ERP / Cowork 对话页 → 齿轮 / 用户菜单「设置」/ Ctrl+, → 连接；电脑池列表、移除电脑"
 expect = "无报错、电脑列表能出来；桌面版多「此电脑」一栏"
 check = "auto"
-files = ["frontend/assistant/src/assistant.tsx", "frontend/assistant/src/components/scheduled-tasks.tsx", "frontend/assistant/src/components/company-cards.tsx", "frontend/assistant/src/lib/desktop.ts"]
+files = ["frontend/assistant/src/assistant.tsx", "frontend/assistant/src/components/company-picker.tsx", "frontend/assistant/src/components/scheduled-tasks.tsx", "frontend/assistant/src/components/company-cards.tsx", "frontend/assistant/src/lib/desktop.ts"]
 smoke = "assistant"
 url = "/assistant"
 site = "cowork"
@@ -1912,7 +1920,7 @@ where = "桌面版「此电脑」→ 连接 / 系统"
 steps = "Windows 测试机 CC：公司行暂停 / 断开、重新查找、添加文件夹 / 移除位置、以前授权的文件夹、开机自启、保持唤醒、更新、日志；公司页「在电脑上选择文件夹」；登录后自动连接"
 expect = "每项生效；只剩一个位置时 × 灰"
 check = "manual"
-files = ["frontend/assistant/src/assistant.tsx", "frontend/assistant/src/components/settings.tsx", "frontend/assistant/src/components/company-cards.tsx", "frontend/assistant/src/components/scheduled-tasks.tsx", "frontend/assistant/src/components/shortcut.tsx", "frontend/assistant/src/lib/back-stack.ts", "frontend/assistant/src/lib/install.ts", "frontend/assistant/src/lib/push.ts", "frontend/assistant/src/lib/variant.ts", "companion/src/companion/tomo_bridge.py", "companion/src/companion/desktop_settings.py", "companion/src/companion/window_link.py", "companion/src/companion/window_main.py", "companion/src/companion/device_link.py", "companion/src/companion/folder_plan.py", "companion/src/companion/gui_tomo.py", "companion/src/companion/gui_tray.py", "companion/src/companion/pairing_flow.py"]
+files = ["frontend/assistant/src/assistant.tsx", "frontend/assistant/src/components/company-picker.tsx", "frontend/assistant/src/components/settings.tsx", "frontend/assistant/src/components/company-cards.tsx", "frontend/assistant/src/components/scheduled-tasks.tsx", "frontend/assistant/src/components/shortcut.tsx", "frontend/assistant/src/lib/back-stack.ts", "frontend/assistant/src/lib/install.ts", "frontend/assistant/src/lib/push.ts", "frontend/assistant/src/lib/variant.ts", "companion/src/companion/tomo_bridge.py", "companion/src/companion/desktop_settings.py", "companion/src/companion/window_link.py", "companion/src/companion/window_main.py", "companion/src/companion/device_link.py", "companion/src/companion/folder_plan.py", "companion/src/companion/gui_tomo.py", "companion/src/companion/gui_tray.py", "companion/src/companion/pairing_flow.py"]
 
 [[entry]]
 id = "cc.desktop.places"
@@ -2106,7 +2114,7 @@ where = "CC 对话页（会话列表、实时、附件）"
 steps = "新建对话、发消息、附件、切会话、侧栏排序"
 expect = "照常、无报错"
 check = "manual"
-files = ["frontend/assistant/src/assistant.tsx", "frontend/assistant/src/components/assistant-ui/thread-list.tsx", "frontend/assistant/src/components/assistant-ui/sidebar-group.tsx", "frontend/assistant/src/components/assistant-ui/projects.tsx", "frontend/assistant/src/components/companies.tsx", "frontend/assistant/src/components/company-cards.tsx", "frontend/assistant/src/components/company-page.tsx", "frontend/assistant/src/components/month-ledger.tsx", "frontend/assistant/src/components/pending.tsx", "frontend/assistant/src/components/session-panel.tsx", "frontend/assistant/src/components/results-panel.tsx", "frontend/assistant/src/lib/company-panel.ts", "frontend/assistant/src/lib/managed-agents/projects.ts", "frontend/assistant/src/lib/managed-agents/session-list-adapter.ts", "frontend/assistant/src/lib/managed-agents/sidebar-drag.ts", "frontend/assistant/src/components/document-view.tsx", "frontend/assistant/src/lib/frappe.ts", "frontend/assistant/src/lib/install.ts", "frontend/assistant/src/lib/managed-agents/activity.ts", "frontend/assistant/src/lib/managed-agents/api.ts", "frontend/assistant/src/lib/managed-agents/events.ts", "frontend/assistant/src/lib/managed-agents/list-sync.ts", "frontend/assistant/src/lib/managed-agents/realtime.ts", "frontend/assistant/src/lib/managed-agents/reducer.ts", "frontend/assistant/src/lib/managed-agents/session-controller.ts", "frontend/assistant/src/lib/managed-agents/sidebar-order.ts", "frontend/assistant/src/lib/managed-agents/sidebar-view.ts", "frontend/assistant/src/lib/prefs-sync.ts", "frontend/assistant/src/lib/push.ts", "frontend/assistant/src/lib/tool-labels.ts", "frontend/assistant/vite.config.ts", "apps/pearnly_core/pearnly_core/assistant/sessions.py"]
+files = ["frontend/assistant/src/assistant.tsx", "frontend/assistant/src/components/assistant-ui/thread-list.tsx", "frontend/assistant/src/components/assistant-ui/sidebar-group.tsx", "frontend/assistant/src/components/assistant-ui/projects.tsx", "frontend/assistant/src/components/companies.tsx", "frontend/assistant/src/components/scheduled-tasks.tsx", "frontend/assistant/src/components/company-cards.tsx", "frontend/assistant/src/components/company-page.tsx", "frontend/assistant/src/components/month-ledger.tsx", "frontend/assistant/src/components/pending.tsx", "frontend/assistant/src/components/session-panel.tsx", "frontend/assistant/src/components/results-panel.tsx", "frontend/assistant/src/lib/company-panel.ts", "frontend/assistant/src/lib/managed-agents/projects.ts", "frontend/assistant/src/lib/managed-agents/session-list-adapter.ts", "frontend/assistant/src/lib/managed-agents/sidebar-drag.ts", "frontend/assistant/src/components/document-view.tsx", "frontend/assistant/src/lib/frappe.ts", "frontend/assistant/src/lib/install.ts", "frontend/assistant/src/lib/managed-agents/activity.ts", "frontend/assistant/src/lib/managed-agents/api.ts", "frontend/assistant/src/lib/managed-agents/events.ts", "frontend/assistant/src/lib/managed-agents/list-sync.ts", "frontend/assistant/src/lib/managed-agents/realtime.ts", "frontend/assistant/src/lib/managed-agents/reducer.ts", "frontend/assistant/src/lib/managed-agents/session-controller.ts", "frontend/assistant/src/lib/managed-agents/sidebar-order.ts", "frontend/assistant/src/lib/managed-agents/sidebar-view.ts", "frontend/assistant/src/lib/prefs-sync.ts", "frontend/assistant/src/lib/push.ts", "frontend/assistant/src/lib/tool-labels.ts", "frontend/assistant/vite.config.ts", "apps/pearnly_core/pearnly_core/assistant/sessions.py"]
 
 [[entry]]
 id = "shared.claude-ocr.self-check"

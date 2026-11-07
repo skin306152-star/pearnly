@@ -761,7 +761,7 @@ class ErpSectionsSourceTests(unittest.TestCase):
 
     def test_no_branch_on_the_product_name_for_company_parts(self):
         for path in ("lib/companies.ts", "lib/company-panel.ts", "components/companies.tsx", "components/company-page.tsx",
-                     "components/session-panel.tsx", "components/pending.tsx", "components/add-company.tsx",
+                     "components/session-panel.tsx", "components/pending.tsx", "components/company-picker.tsx",
                      "components/company-cards.tsx", "components/month-ledger.tsx", "components/assistant-ui/projects.tsx"):
             text = read(path)
             self.assertNotRegex(text, r'product\s*===\s*"(erp|cowork)"', path)
@@ -783,17 +783,16 @@ class ErpSectionsSourceTests(unittest.TestCase):
                      'const canDelete = useSection("delete");', 'const desk = useSection("desk") && c.desk_url ? c.desk_url : "";',
                      "{hasMenu && (", "{canRename && (", "{canRefresh && (", "{desk && (", "{canDelete && ("):
             self.assertIn(line, header)
-        add = read("components/add-company.tsx")
-        action = add.split("export function useAddCompanyAction(", 1)[1].split("\n}", 1)[0]
-        self.assertIn('const fromCatalog = useSection("create");', action)
-        # 添加公司只有账套目录这一种（2026-11-04：ERP 以前在新窗口开 ERP 新建公司页，CC 桌面版里交给系统浏览器、要重新登录）
-        self.assertIn("return fromCatalog ? () => openAddCompany(then) : null;", action)
-        self.assertNotIn("openSitePage", add)
+        picker = read("components/company-picker.tsx")
+        # 选择公司只有账套目录这一种（2026-11-04：ERP 以前在新窗口开 ERP 新建公司页，CC 桌面版里交给系统浏览器、要重新登录）
+        self.assertNotIn("openSitePage", picker)
         self.assertNotIn("newCompanyUrl", read("lib/companies.ts"))
-        # 「刷新账套」只在声明了 catalog 的产品（ERP 的站点上没有 Cowork 的连接接口）
-        self.assertIn('const canRefresh = useSection("catalog");', add)
-        self.assertIn(") : !search.trim() && canRefresh ? (", add)
-        self.assertIn("const add = useAddCompanyAction(onPick);", read("components/assistant-ui/projects.tsx"))
+        # 「刷新账套」只在声明了 catalog 的产品（ERP 的站点上没有 Cowork 的连接接口），在弹窗头部一直在
+        self.assertIn('const canRefresh = useSection("catalog");', picker)
+        self.assertIn("{canRefresh && (", picker.split('<div className="cc-dialog-head">', 1)[1].split("</div>", 1)[0])
+        # 没建的行服务端只给能建的人：页面不另判 create，点了直接建
+        self.assertNotIn('useSection("create")', picker)
+        self.assertIn("onClick={() => openCompanyPicker(pick, draft.project)}", read("components/assistant-ui/projects.tsx"))
         self.assertIn("{add && (", read("components/companies.tsx"))
         pending = read("components/pending.tsx")
         self.assertIn("const hand = items.filter((item) => !item.url && ", pending)
@@ -839,7 +838,7 @@ class ErpSectionsSourceTests(unittest.TestCase):
         # lib/companies.ts 里这几个函数只从 Cowork 的分区或 Cowork 才有的 action 调到
         # 当场选、待选账套、MR.ERP 要选的 11-05 起走共用写账前置判定（pearnly_core.write_precheck，两产品都有）出提问卡，不再调 Cowork 专有接口
         callers = {"pushProposal": "components/pending.tsx", "loadProposal": "components/pending.tsx",
-                   "loadMrErpOptions": "components/company-cards.tsx", "refreshCatalogs": "components/add-company.tsx"}
+                   "loadMrErpOptions": "components/company-cards.tsx", "refreshCatalogs": "components/company-picker.tsx"}
         for gone in ("loadChoices", "answerChoices", "loadAccountSets", "chooseAccountSet", "loadMrErpNeeds", "answerMrErp"):
             self.assertNotIn(f"export function {gone}(", read("lib/companies.ts"))
         for name, home in callers.items():
@@ -868,7 +867,7 @@ class ErpSectionsBehaviourTests(unittest.TestCase):
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server.browser";
 import { refreshProjects, resetProjects, useProjects } from "@/lib/managed-agents/projects";
-import { createCompany, deleteNote, listCandidates, listCompanies, loadDetail, loadPending, refreshPendingCounts, saveNote, usePendingCounts } from "@/lib/companies";
+import { createCompany, deleteNote, listChoices, listCompanies, loadDetail, loadPending, refreshPendingCounts, saveNote, usePendingCounts } from "@/lib/companies";
 import { declaredCards } from "@/components/session-panel";
 import { PendingItems } from "@/components/pending";
 const g = globalThis as any;
@@ -878,8 +877,8 @@ g.respond = async (method: string) => {
   if (method === "projects") return ok({ kind: "company", period: true, scope: false, api: ERP,
     sections: ["pending", "notes", "create", "desk", "bogus", 3], projects: [{ id: "CO-00001", title: "Siam", subtitle: "0105536082808" }] });
   if (method.includes(ERP + "companies")) return ok([{ id: "CO-00001", title: "Siam", tax_id: "0105536082808" }]);
-  if (method.includes(ERP + "candidates")) return ok([{ identity: "express:0105536082808:00000", title: "Siam", company: "CO-00001",
-    connection: "", account_set_key: "0105536082808:00000", adapter: "express" }]);
+  if (method.includes(ERP + "choices")) return ok({ rows: [{ identity: "express:0105536082808:00000", title: "Siam", company: "CO-00001",
+    connection: "", account_set_key: "0105536082808:00000", adapter: "express" }], adapters: ["express"] });
   if (method.includes(ERP + "create")) return ok({ id: "CO-00009", title: "Korat", created: true });
   if (method.includes(ERP + "pending_counts")) return ok({ total: 2, companies: { "CO-00001": 2 }, unassigned: 0 });
   if (method.includes(ERP + "pending")) return ok({ items: [], count: 0 });
@@ -899,8 +898,11 @@ assert.equal((await loadDetail("CO-00001", "2026-10")).company.desk_url, "/desk/
 assert.deepEqual(await loadPending("CO-00001"), []);
 await refreshPendingCounts();
 assert.equal(usePendingCounts.getState().total, 2);
-// 添加公司：同 Cowork 的弹窗，候选与建公司走 ERP 自己的接口
-assert.equal((await listCandidates("si"))[0].company, "CO-00001");
+// 选择公司：同 Cowork 的弹窗，选择列表与建公司走 ERP 自己的接口
+const picked = await listChoices("si", "express");
+assert.equal(picked.rows[0].company, "CO-00001");
+assert.deepEqual(picked.adapters, ["express"]);
+assert.ok(g.calls.some((call: any) => String(call.method).endsWith(ERP + "choices")));
 assert.equal((await createCompany({ connection: "", account_set_key: "0105536082808:00001" })).id, "CO-00009");
 await saveNote("CO-00001", "x");
 await deleteNote("CO-00001", "n1");

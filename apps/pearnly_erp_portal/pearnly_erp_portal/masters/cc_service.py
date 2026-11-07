@@ -5,7 +5,7 @@
 这里只出 Cowork 前端已有的形状（`frontend/assistant/src/lib/companies.ts`），字段是子集：
 
 - 公司 = `ERP Company` 的一行（编号 = 文档名），只回本人可见（`company.allowed_companies`，已只含启用的）的；
-- 改名、删、停用在 ERP 公司页（`/desk/pearnly-company`）；「添加公司」同 Cowork 从账套建（`candidates` / `create`，只给能管公司的人，
+- 改名、删、停用在 ERP 公司页（`/desk/pearnly-company`）；选择公司弹窗同 Cowork（`choices` 列已建的与账套目录里还没建的，`create` 选中即建，只给能建公司的人 `can_build`，
   2026-11-04：以前打开 ERP 新建公司页，CC 桌面版里会交给系统浏览器、要重新登录），不接账本的纯 ERP 公司在 ERP 公司页建；
   公司页的「在浏览器中打开」去这家的公司页（`detail.company.desk_url`）；
 - 账套：CC 桌面版报来的 Express 账套按「税号 + 分店」对上（共用通道 `books.for_company`，与 ERP 写账选账套同一条）；
@@ -31,7 +31,6 @@ WRITE_CAPABILITIES = ("purchase.write", "sales.write", "company.manage")
 FIELDS = ["name", "company_name", "short_name", "tax_id", "branch", "vat_registered", "express_enabled", "express_book",
           "express_synced_at", "express_sync_state", "is_active", "owner", "creation"]
 DESK = "/desk/pearnly-company"
-CANDIDATES_MAX = 200  # 同 Cowork 添加公司的候选上限
 CONNECTIONS_MAX = 50
 
 
@@ -238,17 +237,10 @@ def _mrerp_sets() -> list:
     return out
 
 
-def candidates(search=None) -> list:
-    """「添加公司」的候选（形状同 Cowork `companies.service.candidates`，页面用同一个弹窗）：Express = 在用电脑报的账套按
-    「税号 + 分店」合并（`express.companies.catalog`，后台本来就会照它补建，这里多半是「已添加」）；MR.ERP = 各连接目录里的
-    账套，一份一行（一家公司只接一份账本）。``company`` 是已有的那家（停用的不列，人停的不在这里重开）。只给能建公司的人
-    （`can_build`）。不调电脑、不扣费；纯 ERP 公司（不接账本）在 ERP 公司页建。"""
-    require_build()
-    return _catalog(search)[:CANDIDATES_MAX]
-
-
 def _catalog(search=None) -> list:
-    """`candidates` 的全部行（不截断、不判权限，调用方判）。"""
+    """账套目录里的公司（`choices` 里还没建的那些行从这里来；不截断、不判权限，调用方判）：Express = 在用电脑报的账套按
+    「税号 + 分店」合并（`express.companies.catalog`，后台本来就会照它补建）；MR.ERP = 各连接目录里的账套，一份一行（一家公司只接
+    一份账本）。``company`` 是已有的那家（停用的不列，人停的不在这里重开）。不调电脑、不扣费；纯 ERP 公司（不接账本）在 ERP 公司页建。"""
     from pearnly_erp_portal.express import companies as express_companies
     from pearnly_erp_portal.express import contracts
 

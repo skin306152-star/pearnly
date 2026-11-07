@@ -43,7 +43,7 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Switch } from "@/components/settings";
-import { openAddCompany } from "@/components/add-company";
+import { openCompanyPicker } from "@/components/company-picker";
 import { MrErpLogin, type MrErpCredential } from "@/components/mrerp-login";
 import {
   cachedDetail,
@@ -329,7 +329,7 @@ function useCompanyTitle(company: string): string {
   return known || listed || read;
 }
 
-/** 新建任务从公司里建：给了公司就按这家预填（同主档页「＋」）；没给先在添加公司对话框里选公司。 */
+/** 新建任务从公司里建：给了公司就按这家预填（同主档页「＋」）；没给先在选择公司弹窗里选（必须选一家，不出「最近」）。 */
 function useNewTask(open: (seed: TaskSeed | null) => void) {
   const { app, companyFolders, deviceName } = useDesktopFeatures();
   const withPeriod = useProjects((s) => s.period);
@@ -338,7 +338,7 @@ function useNewTask(open: (seed: TaskSeed | null) => void) {
     useCompanyNav.setState({ taskCompany: company, taskFocus: "" });
     open(detail ? taskSeedOf(detail, withPeriod ? lastMonth() : "", knownReaders(), app && companyFolders, deviceName) : null);
   };
-  return (company: string) => (company ? void seedFor(company) : openAddCompany((id) => void seedFor(id), co.chooseCompany));
+  return (company: string) => (company ? void seedFor(company) : openCompanyPicker((id) => void seedFor(id)));
 }
 
 // ── 列表 ────────────────────────────────────────────────────────────────────────────────────────

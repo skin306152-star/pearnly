@@ -233,32 +233,33 @@ def logout_step(page, ctx):
     no_trouble(hops, [ctx.site])
 
 
-def add_company_step(page, ctx):
-    """侧栏「公司」→ 添加公司：在本页弹窗（一次都不开新窗口，11-03 事故 3）；候选由服务端搜索；点一家「已添加」的打开那家，不新建公司。"""
+def pick_company_step(page, ctx):
+    """新对话下巴点「公司」→ 选择公司弹窗（用户 11-07，不再是下拉、不再有左侧「公司」）：在本页弹窗（一次都不开新窗口，11-03 事故 3）；
+    列表由服务端 choices 返回（已建的与目录里还没建的）；点一家已建的（不新建公司），弹窗关掉、下巴换成这家、仍在本站 CC。"""
     hops = start(page, ctx)
     opened = []
     page.context.on("page", lambda other: opened.append(other.url))
-    open_nav(page, ctx, "cc-nav-companies")
-    by_words(page, "button", "addCompany").click()
-    dialog = page.locator('[data-slot="cc-add-company"]')
+    chip = page.locator('[data-slot="cc-chin-company"]:visible').first
+    chip.wait_for(timeout=NAV_TIMEOUT)
+    chip.click()
+    dialog = page.locator('[data-slot="cc-company-picker"]')
     dialog.wait_for(state="visible", timeout=NAV_TIMEOUT)
-    added = words("added")
-    candidates = '[data-slot="cc-add-company"] [data-slot="cc-candidates"] button'
-    page.wait_for_function("sel => document.querySelectorAll(sel).length > 0", arg=candidates, timeout=NAV_TIMEOUT)
-    rows = [text for text in page.locator(candidates).all_inner_texts()]
-    picked = next((text for text in rows if any(word in text for word in added)), None)
-    expect(picked, f"候选里没有「已添加」的公司（共 {len(rows)} 个候选）")
-    title = picked.strip().splitlines()[0].strip()
+    built = '[data-slot="cc-company-picker"] [data-slot="cc-candidates"] .cc-list-row[data-built]'
+    page.wait_for_function("sel => document.querySelectorAll(sel).length > 0", arg=built, timeout=NAV_TIMEOUT)
+    rows = [text for text in page.locator(built).all_inner_texts()]
+    expect(rows, "选择公司弹窗里没有已建的公司")
+    title = rows[0].strip().splitlines()[0].strip()
     box = dialog.locator("input").first
     if box.count():
         box.fill(title[:12])
         page.wait_for_function("([sel, t]) => [...document.querySelectorAll(sel)].some(e => e.innerText.includes(t))",
-                               arg=[candidates, title], timeout=NAV_TIMEOUT)
-    page.locator(candidates, has_text=title).first.click()
+                               arg=[built, title], timeout=NAV_TIMEOUT)
+    page.locator(built, has_text=title).first.click()
     dialog.wait_for(state="hidden", timeout=NAV_TIMEOUT)
-    page.wait_for_function("t => document.body.innerText.includes(t)", arg=title, timeout=NAV_TIMEOUT)
-    expect(not opened, f"添加公司开了新窗口：{opened[0] if opened else ''}")
-    expect(page.url.startswith(f"https://{ctx.site}/assistant"), f"点已添加的公司后离开了本站 CC：{page.url.split('?')[0]}")
+    page.wait_for_function("t => [...document.querySelectorAll('[data-slot=\"cc-chin-company\"]')].some(e => e.innerText.includes(t))",
+                           arg=title, timeout=NAV_TIMEOUT)
+    expect(not opened, f"选择公司开了新窗口：{opened[0] if opened else ''}")
+    expect(page.url.startswith(f"https://{ctx.site}/assistant"), f"选了公司后离开了本站 CC：{page.url.split('?')[0]}")
     no_trouble(hops, [ctx.site])
 
 
@@ -456,7 +457,7 @@ for _product in ("erp", "cowork"):
     STEPS[f"e2e.{_product}.login"] = login_step
     STEPS[f"e2e.{_product}.switch-site"] = switch_site_step
     STEPS[f"e2e.{_product}.logout"] = logout_step
-    STEPS[f"e2e.{_product}.add-company"] = add_company_step
+    STEPS[f"e2e.{_product}.pick-company"] = pick_company_step
     STEPS[f"e2e.{_product}.chat-one"] = chat_one_step
     STEPS[f"e2e.{_product}.operator-new"] = operator_new_step
     STEPS[f"e2e.{_product}.liff-web"] = liff_web_step

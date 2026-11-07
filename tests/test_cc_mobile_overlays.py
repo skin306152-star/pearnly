@@ -135,15 +135,15 @@ class DialogFitTests(unittest.TestCase):
         # 每个居中弹窗都用 cc-modal，不再自己写 top-1/2（工具类会盖过 cc-modal 的位置）
         for path, needle in [
             ("components/scheduled-tasks.tsx", "cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex"),
-            ("components/add-company.tsx", "cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex"),
+            ("components/company-picker.tsx", "cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex"),
             ("components/settings.tsx", "cc-dialog cc-modal fixed left-1/2 z-(--cc-z-modal-top) flex"),
             ("components/ui/dialog.tsx", "cc-modal fixed start-1/2 z-(--cc-z-sheet) grid overflow-y-auto"),
         ]:
             source = read(path)
             self.assertIn(needle, source, path)
             self.assertNotRegex(source, r"\btop-(?:1/2|\[50%\])", path)
-        self.assertIn("[--cc-modal-share:var(--cc-add-company-share)]", read("components/add-company.tsx"))
-        self.assertIn("  --cc-add-company-share: 0.8;", css)
+        self.assertIn("[--cc-modal-share:var(--cc-company-picker-share)]", read("components/company-picker.tsx"))
+        self.assertIn("  --cc-company-picker-share: 0.8;", css)
         # 设置弹窗的份额与宽高在 .cc-dialog[data-size="settings"] 里（标准弹窗写法，10-19），组件只写 data-size
         self.assertIn('data-size="settings"', read("components/settings.tsx"))
         settings_size = css.split('  .cc-dialog[data-size="settings"] {', 1)[1].split("}", 1)[0]
@@ -164,7 +164,7 @@ class DialogFitTests(unittest.TestCase):
         self.assertIn('<div className="cc-dialog-body">{children}</div>', modal)
         self.assertIn('{footer && <div className="cc-dialog-foot">{footer}</div>}', modal)
         self.assertLess(modal.index("DialogPrimitive.Close"), modal.index("cc-dialog-body"))  # 关闭在头上，不随主体滚走
-        add = read("components/add-company.tsx")
+        add = read("components/company-picker.tsx")
         self.assertIn('<div className="cc-dialog-head">', add)
         self.assertIn('<div className="shrink-0 px-(--cc-dialog-px) pb-(--cc-space-8)">', add)  # 搜索框不随列表滚走
         self.assertIn('<div className="min-h-0 flex-1 overflow-y-auto px-(--cc-space-12) pb-(--cc-space-12)" data-slot="cc-candidates">', add)

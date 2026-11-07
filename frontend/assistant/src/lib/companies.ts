@@ -38,7 +38,7 @@ export type CompanyRow = {
   years?: string[]; mine_count?: number; mine_last_active?: string | null;
 };
 
-/** 添加公司时的候选（按 identity 合并；company 是已建的编号）。 */
+/** 账套目录里的一家（按 identity 合并；company 是已建的编号）。 */
 export type Candidate = {
   identity: string; title: string; legal_name?: string; tax_id?: string; branch?: string; adapter?: string;
   years?: string[]; connection: string; account_set_key: string; company: string | null;
@@ -123,8 +123,15 @@ export async function listCompanies(search = "", start = 0, limit = 50): Promise
   return getMethod<CompanyRow[]>(await call("companies"), { search: search || undefined, start, limit }).then((rows) => rows ?? []);
 }
 
-export async function listCandidates(search = ""): Promise<Candidate[]> {
-  return getMethod<Candidate[]>(await call("candidates"), { search: search || undefined }).then((rows) => rows ?? []);
+/** 选择公司弹窗的一页（服务端 choices：已建的与账套目录里还没建的按身份合并；company 为 null = 还没建，选中时用 create 顺手建）。
+ *  adapter：只要哪一种（mrerp / express / erp，弹窗标签）；adapters：不按标签筛时有哪几种。 */
+export type CompanyChoice = Candidate & { mine_last_active?: string | null };
+export const CHOICES_PAGE = 50;
+export async function listChoices(search = "", adapter = "", start = 0): Promise<{ rows: CompanyChoice[]; adapters: string[] }> {
+  const out = await getMethod<{ rows?: CompanyChoice[]; adapters?: string[] }>(await call("choices"), {
+    search: search || undefined, adapter: adapter || undefined, start, limit: CHOICES_PAGE,
+  });
+  return { rows: out?.rows ?? [], adapters: out?.adapters ?? [] };
 }
 
 /** 从账套目录建公司：只交连接与账套键，名称、税号由服务端读目录算；已有就回现有的那家。 */

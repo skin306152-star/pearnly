@@ -1,6 +1,6 @@
 """ERP 版 CC 的公司接口（ADR-020，2026-11-02）：共用层 `projects.listing` 把这个前缀（`cc_projects.API`）交给 CC 对话页，页面的
 公司列表、公司页、知识库、待处理都调这里。方法名与形状同 Cowork（`pearnly_cowork.companies.api`），只有 Cowork 前端已有的
-那几个，字段是子集；「添加公司」同 Cowork 从账套建（`candidates` / `create`），改名、删、停用在 ERP 公司页。
+那几个，字段是子集；选择公司弹窗同 Cowork（`choices` 列已建的与账套目录里还没建的，`create` 选中即建），改名、删、停用在 ERP 公司页。
 读用 GET、写只收 POST；逻辑与权限在 `cc_service`。写入成功后提交，实时事件在提交后才推。
 """
 import frappe
@@ -22,11 +22,6 @@ def choices(search=None, adapter=None, start=0, limit=service.PAGE_MAX):
 @frappe.whitelist(methods=["GET"])
 def detail(company, period=None):
     return service.detail(company, period)
-
-
-@frappe.whitelist(methods=["GET"])
-def candidates(search=None):
-    return service.candidates(search)
 
 
 @frappe.whitelist(methods=["POST"])

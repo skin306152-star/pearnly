@@ -63,7 +63,7 @@ import {
   MobileFilingItems,
   WelcomeFiling,
 } from "@/components/assistant-ui/projects";
-import { AddCompanyDialog } from "@/components/add-company";
+import { CompanyPickerDialog } from "@/components/company-picker";
 import { Companies } from "@/components/companies";
 import { CompanyPage } from "@/components/company-page";
 import { PendingInChat } from "@/components/pending";
@@ -1175,7 +1175,7 @@ function Workspace() {
           {/* 设置在 InstallProvider 里：「通知」一行在 iPhone 浏览器里要打开「添加到主屏幕」的步骤 */}
           <InstallProvider>
             <Settings />
-            <AddCompanyDialog />
+            <CompanyPickerDialog />
             <SidebarProvider style={sidebarWidth.style} open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <Layout results={results} onSidebarResize={sidebarWidth.update} />
             </SidebarProvider>

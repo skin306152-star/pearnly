@@ -8,7 +8,7 @@
   toMode(m)                         切到那种模式（看得见的那个切换钮）
   press(e)                          Radix 下拉按下就开，单发 click 不开
   say(t)                            在当前对话的输入框里写一句并发出（同 cc_chat.py）
-  pickCompany(title)                新建页下巴的公司胶囊里选这家（月份随之默认上个月）
+  pickCompany(title)                新建页下巴点「公司」，在选择公司弹窗里选这家（名称完全相同；月份随之默认上个月）
   call(m, args, post)               调站点接口（完整点分名），回 message
   listed(m)                         侧栏同一个接口 `assistant.api.listing` 按模式列的会话（第一页）
   openSteps(slot)                   展开对话里收起的步骤组，直到出现 data-slot = slot 的那一步
@@ -27,15 +27,16 @@ JS = (
     "const say=async t=>{const ta=q('textarea.aui-composer-input'); "
     "Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(ta,t); ta.dispatchEvent(new Event('input',{bubbles:true})); "
     "await sleep(300); const b=q('button.aui-composer-send'); if(!b||b.disabled) return false; b.click(); return true;};"
-    "const pickCompany=async title=>{const chin=q('[data-slot=\"cc-chin-company\"]'); if(!chin) return false; "
-    "chin.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerType:'mouse'})); "
-    "if(!await until(()=>chin.getAttribute('aria-expanded')==='true',20)) chin.click(); "
-    # 菜单只先列侧栏里有的公司（前 10 家），别的要在菜单顶上的搜索框里搜（服务端分页搜索）
-    "if(!await until(()=>qa('[role=\"menuitem\"]').some(e=>e.innerText.includes(title)),8)){const box=q('[role=\"menu\"] input'); "
-    "if(box){Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(box,title); box.dispatchEvent(new Event('input',{bubbles:true}));}} "
-    "await until(()=>qa('[role=\"menuitem\"]').some(e=>e.innerText.includes(title)),60); "
-    "const item=qa('[role=\"menuitem\"]').find(e=>e.innerText.includes(title)); if(!item) return false; item.click(); "
-    "return await until(()=>(q('[data-slot=\"cc-chin-company\"]')?.innerText||'').includes(title),40);};"
+    "const pickCompany=async title=>{const chin=q('[data-slot=\"cc-chin-company\"]'); if(!chin) return false; chin.click(); "
+    # 点「公司」弹选择公司窗口（11-07 起不再是下拉）；列表是服务端分页搜索（每页 50），不在第一页的就在顶上的搜索框里搜
+    "const box=()=>q('[data-slot=\"cc-company-picker\"]'); if(!await until(box,40)) return false; "
+    "const row=()=>[...box().querySelectorAll('[data-slot=\"cc-candidates\"] .cc-list-row')].find(e=>e.innerText.split('\\n')[0].includes(title)); "
+    "if(!await until(row,20)){const input=box().querySelector('input'); "
+    "if(input){Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,title); input.dispatchEvent(new Event('input',{bubbles:true}));} "
+    # 搜不到时可能在另一个标签（MR.ERP / Express）下
+    "if(!await until(row,40)){for(const tab of [...box().querySelectorAll('[role=\"tab\"]')]){tab.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerType:'mouse'})); tab.click(); if(await until(row,20)) break;}}} "
+    "const item=row(); if(!item) return false; item.click(); "
+    "return await until(()=>!box()&&(q('[data-slot=\"cc-chin-company\"]')?.innerText||'').includes(title),80);};"
     "const call=async(m,args,post)=>{const body=new URLSearchParams(args||{}); const r=await fetch('/api/method/'+m+(post?'':'?'+body),"
     "{method:post?'POST':'GET',headers:{'X-Frappe-CSRF-Token':window.csrf_token||'','Content-Type':'application/x-www-form-urlencoded'},"
     "body:post?body:undefined}); return (await r.json()).message;};"

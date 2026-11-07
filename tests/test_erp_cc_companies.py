@@ -331,9 +331,9 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(cc_projects.sections(), ("pending", "notes", "desk"))
         frappe.session.user = "boss@x"
         # 前缀指向的模块真有页面要调的那几个方法，没有 Cowork 才有的改名、删；新建公司页的地址（desk）已删
-        for method in ("companies", "detail", "candidates", "create", "note_save", "note_delete", "pending", "pending_counts"):
+        for method in ("companies", "choices", "detail", "create", "note_save", "note_delete", "pending", "pending_counts"):
             self.assertTrue(callable(getattr(cc_companies, method)), method)
-        for method in ("desk", "rename", "delete", "month", "task_overview", "folder_bind"):
+        for method in ("desk", "rename", "delete", "month", "task_overview", "folder_bind", "candidates"):
             self.assertFalse(hasattr(cc_companies, method), method)
         hooks = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")
         self.assertIn('pearnly_assistant_projects = ["pearnly_erp_portal.masters.cc_projects"]', hooks)
@@ -546,29 +546,29 @@ class AddCompanyTests(unittest.TestCase):
             books_table[name] = Row(name=name, device=device, company=company, label=company, tax_id=tax, branch=branch,
                                     period_start=start, period_end=start[:4] + "-12-31")
 
-    def test_candidates_merge_reported_books_by_tax_id_and_branch_and_mark_the_added_ones(self):
-        rows = cc_companies.candidates()
+    def test_catalog_merges_reported_books_by_tax_id_and_branch_and_marks_the_built_ones(self):
+        rows = cc_service._catalog()
         self.assertEqual([(row["title"], row["company"], row["years"]) for row in rows],
                          [("Chiang Mai Rice", None, ["2026"]), ("Siam Trading", "CO-00001", ["2026", "2025"])])
         self.assertEqual(rows[0] | {}, {**rows[0], "identity": "express:0105570000009:00000", "adapter": "express", "connection": "",
                                        "account_set_key": "0105570000009:00000", "tax_id": "0105570000009", "branch": "00000"})
-        self.assertEqual([row["title"] for row in cc_companies.candidates("siam")], ["Siam Trading"])   # 服务端搜
+        self.assertEqual([row["title"] for row in cc_service._catalog("siam")], ["Siam Trading"])   # 服务端搜
         # 人停用的公司不出（不在这里重开）
         STATE.db.table("ERP Company")["CO-00001"]["is_active"] = 0
-        self.assertEqual([row["title"] for row in cc_companies.candidates()], ["Chiang Mai Rice"])
+        self.assertEqual([row["title"] for row in cc_service._catalog()], ["Chiang Mai Rice"])
 
     def test_only_people_who_can_build_list_or_create(self):
         # 11-07 定案 #1：能管公司的人，或有开单权限、看得到全部公司的人（clerk@x）能选中即建；被限定公司的员工、只读、
         # 没权限的不能（他看不到新建出来的那家）
         for user in ("staff@x", "viewer@x", "nobody@x"):
             frappe.session.user = user
-            with self.assertRaises(PermissionError_):
-                cc_companies.candidates()
+            with contextlib.suppress(PermissionError_):   # 没权限的连列表都不给；能看的也只见已建的
+                self.assertTrue(all(row["company"] for row in cc_companies.choices()["rows"]), user)
             with self.assertRaises(PermissionError_):
                 cc_companies.create("", "0105570000009:00000")
         self.assertEqual(len(STATE.db.table("ERP Company")), 3)
         frappe.session.user = "clerk@x"
-        self.assertIn("Chiang Mai Rice", [row["title"] for row in cc_companies.candidates()])
+        self.assertIn(("Chiang Mai Rice", None), [(row["title"], row["company"]) for row in cc_companies.choices()["rows"]])
         self.assertTrue(cc_companies.create("", "0105570000009:00000")["created"])
         self.assertEqual(len(STATE.db.table("ERP Company")), 4)
 
@@ -623,10 +623,10 @@ class AddCompanyTests(unittest.TestCase):
         self.assertEqual(self.queued, [])
 
     def test_mrerp_sets_only_when_the_ledger_is_on_and_for_admins(self):
-        self.assertFalse(any(row["adapter"] == "mrerp" for row in cc_companies.candidates()))
+        self.assertFalse(any(row["adapter"] == "mrerp" for row in cc_service._catalog()))
         self.mrerp_on = True
         STATE.db.table("ERP MRERP Connection")["MR-1"] = Row(name="MR-1")
-        found = [row for row in cc_companies.candidates() if row["adapter"] == "mrerp"]
+        found = [row for row in cc_service._catalog() if row["adapter"] == "mrerp"]
         self.assertEqual([(row["title"], row["connection"], row["account_set_key"], row["years"], row["company"]) for row in found],
                          [("Nakhon Foods", "MR-1", "c69:db1", ["2026"], None)])
         made = cc_companies.create("MR-1", "c69:db1")
@@ -635,14 +635,14 @@ class AddCompanyTests(unittest.TestCase):
                          ("Nakhon Foods", "0105560000001", "00000", 0))
         self.assertEqual(self.chosen, [(made["id"], "MR-1", "c69:db1")])
         self.assertEqual(cc_companies.create("MR-1", "c69:db1")["created"], False)
-        self.assertEqual([row["company"] for row in cc_companies.candidates() if row["adapter"] == "mrerp"], [made["id"]])
+        self.assertEqual([row["company"] for row in cc_service._catalog() if row["adapter"] == "mrerp"], [made["id"]])
         with self.assertRaises(ValidationError):
             cc_companies.create("MR-1", "other:db")
         # 不是 MR.ERP 管理员：候选里没有 MR.ERP，建也建不了
         CAPS["manager@x"] = {"company.read", "company.manage"}
         frappe.session.user = "manager@x"
         self.addCleanup(CAPS.pop, "manager@x", None)
-        self.assertFalse(any(row["adapter"] == "mrerp" for row in cc_companies.candidates()))
+        self.assertFalse(any(row["adapter"] == "mrerp" for row in cc_service._catalog()))
         with self.assertRaises(ValidationError):
             cc_companies.create("MR-1", "c69:db1")
 

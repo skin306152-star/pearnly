@@ -64,6 +64,11 @@ const FAKE = (...rules) => `(() => { const rules = ${JSON.stringify(rules)}; con
         : new Response(JSON.stringify({ message: body }), { headers: { "content-type": "application/json" } }));
     }
     return real(input, init); }; })();`;
+// 选择公司弹窗的场景：projects 带上 Cowork 的公司接口前缀与 catalog（头部「刷新账套」），公司同假服务端
+const PICKER_PROJECTS = ["pearnly_core.assistant.api.projects", { kind: "company", period: true, scope: false, api: "pearnly_cowork.companies.api.",
+  sections: ["create", "catalog"], projects: [
+    { id: "C-0001", title: "สยามเทรดดิ้ง จำกัด", subtitle: "0105551000001" }, { id: "C-0002", title: "曼谷物流有限公司", subtitle: "0105551000002" },
+    { id: "C-0003", title: "Green Leaf Co., Ltd.", subtitle: "0105551000003" }] }];
 // CC 桌面版的本机状态（设置「此电脑」两页有东西可看：公司一行、Express 文件夹、以前授权的文件夹、开关、版本、日志）。
 // 只在有桌面版桥（qt 桩）的环境里换；浏览器环境不碰（不能凭空造出 tomoDesktop，否则变体会变成桌面版）
 const DESKTOP_STATE = `if (window.tomoDesktop) { const s = ${JSON.stringify({
@@ -220,7 +225,14 @@ export const SCENES = [
   S("pending-open", "/assistant?view=pending", [["click", '[data-slot="cc-pending-choose"] .cc-pending-toggle', 0], ["wait", 400]],
     { init: CHOICES, expect: '[data-slot="cc-pending-choose"] select' }),
   S("company", "/assistant?company=C-0001"),
-  S("add-company", "/assistant?view=companies", [["click", ".cc-page-head .cc-btn-sm[data-primary]", 0], ["wait", 500]]),
+  // 选择公司要产品声明的公司接口前缀（假服务端的 projects 默认不带 api，别的场景照旧）
+  // 选择公司（用户 11-07：新对话下巴点「公司」弹窗，不再是下拉；手机在问候下面那一行）：搜索、MR.ERP / Express 标签、「最近」打勾
+  S("company-picker", "/assistant", [["click", '[data-slot="cc-chin-company"]', 0], ["wait", 600]], { init: FAKE(PICKER_PROJECTS), expect: DIALOG }),
+  S("company-picker-mrerp", "/assistant", [["click", '[data-slot="cc-chin-company"]', 0], ["wait", 600], ["click", '[role="tab"]', 0], ["wait", 400]],
+    { init: FAKE(PICKER_PROJECTS), expect: DIALOG }),
+  // 一家都没有（连接也没接）：「没有结果」+「连接」
+  S("company-picker-empty", "/assistant", [["click", '[data-slot="cc-chin-company"]', 0], ["wait", 600]],
+    { init: FAKE(PICKER_PROJECTS, ["pearnly_cowork.companies.api.choices", { rows: [], adapters: [] }]), expect: DIALOG }),
   // 知识库编辑：公司页的知识库卡点「+」出编辑框（卡头的按钮在卡里第一个；能悬停的设备上悬停卡头才显示，窄屏先打开公司栏）
   S("notes-edit", "/assistant?company=C-0001", both(
     [["hover", '[data-slot="cc-company-notes"] .cc-panel-card-head', 0], ["click", '[data-slot="cc-company-notes"] .cc-panel-btn', 0], ["wait", 400]],

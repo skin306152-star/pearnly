@@ -18,7 +18,7 @@ import { lang } from "@/i18n";
 import { onNotice } from "@/lib/managed-agents/activity";
 import { setDraft } from "@/lib/managed-agents/projects";
 import { deepLink, showNote } from "@/lib/notify";
-import { APP_NAME } from "@/lib/profile";
+import { APP_NAME, useProfile } from "@/lib/profile";
 import { reportCaught, withReport } from "./caught";
 
 type Message = { role?: string; content?: unknown };
@@ -37,6 +37,21 @@ declare global {
 /** 打开设置（section：general / connections / system）；设置窗口在 components/settings.tsx 里听这个事件。 */
 export function openSettings(section = "") {
   window.dispatchEvent(new CustomEvent("tomo-settings", { detail: section }));
+}
+
+/** 设置里有没有「连接」一栏（同 components/settings.tsx：CC 桌面版都有「此电脑 → 连接」；浏览器里只有 Cowork 站点有只读的「连接」）。
+ *  选公司弹窗一家都没有时的「连接」按钮跟着它，没有这一栏的地方不出按钮。 */
+export function useHasConnections(): boolean {
+  const [app, setApp] = useState(false);
+  const product = useProfile()?.product;
+  useEffect(() => {
+    let alive = true;
+    void desktop().then((found) => alive && setApp(!!found));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return app || product === "cowork";
 }
 
 /** 打开某段对话（target 是对话编号，空串 = 定时任务页，「/assistant?…」是深链接）；lib/nav.ts 的 useDeepLinks 听这个事件。 */

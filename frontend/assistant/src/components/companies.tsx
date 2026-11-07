@@ -10,7 +10,8 @@
 
 import { CheckIcon, ChevronDownIcon, Building2Icon, InboxIcon, LoaderIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAddCompanyAction } from "@/components/add-company";
+import { openCompanyPicker } from "@/components/company-picker";
+import { useSection } from "@/lib/managed-agents/projects";
 import { useOpenCompany } from "@/components/assistant-ui/projects";
 import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { co, lang, t } from "@/i18n";
@@ -121,10 +122,14 @@ export const Companies: FC = () => {
 
   const shown = useMemo(() => (rows ? sortCompanies(rows, sort) : null), [rows, sort]);
 
-  const add = useAddCompanyAction((id, title) => {
-    forgetAnyCompany();
-    openCompany(id, title);
-  });
+  const canAdd = useSection("create");
+  const add = canAdd
+    ? () =>
+        openCompanyPicker((id, title) => {
+          forgetAnyCompany();
+          openCompany(id, title);
+        })
+    : null;
 
   return (
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">

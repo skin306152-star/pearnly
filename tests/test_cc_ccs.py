@@ -1429,7 +1429,7 @@ class DialogsAndListsTests(unittest.TestCase):
             self.assertIn("sideOffset={menuOffset()}", source, rel)
             self.assertNotRegex(source, r"sideOffset=\{\d", rel)
 
-    B4 = ("components/settings.tsx", "components/scheduled-tasks.tsx", "components/add-company.tsx", "components/delete-chats.tsx",
+    B4 = ("components/settings.tsx", "components/scheduled-tasks.tsx", "components/company-picker.tsx", "components/delete-chats.tsx",
           "components/companies.tsx", "components/company-page.tsx", "components/pending.tsx")
 
     def test_text_uses_the_measured_steps(self):
@@ -1506,7 +1506,7 @@ class DialogsAndListsTests(unittest.TestCase):
         # V14（B4）：定时任务、添加公司、删除确认三份手抄的外壳统一 .cc-dialog：圆角 16（不再带 cc-card 的 8）、标题实测 title 档 22/28
         # （衬线照旧）、脚部上下 12 带上边线；层级普通弹窗 --cc-z-sheet、删除确认 --cc-z-confirm（要盖过设置里的菜单）
         for rel, size, layer in (("components/scheduled-tasks.tsx", '{wide ? "lg" : "sm"}', "--cc-z-sheet"),
-                                 ("components/add-company.tsx", '"md"', "--cc-z-sheet"),
+                                 ("components/company-picker.tsx", '"md"', "--cc-z-sheet"),
                                  ("components/delete-chats.tsx", '"sm"', "--cc-z-confirm")):
             source = self.read(rel)
             self.assertIn(f"data-size={size}", source, rel)
@@ -1532,7 +1532,7 @@ class DialogsAndListsTests(unittest.TestCase):
 
     def test_overlays_fade_with_cc_overlay(self):
         # V15（B4）：弹窗遮罩用 .cc-overlay（120ms 主缓动），不用 tw-animate 的 animate-in / fade-in（150ms）；层级与弹窗同档
-        for rel, layer in (("components/settings.tsx", "--cc-z-modal"), ("components/add-company.tsx", "--cc-z-sheet"),
+        for rel, layer in (("components/settings.tsx", "--cc-z-modal"), ("components/company-picker.tsx", "--cc-z-sheet"),
                            ("components/delete-chats.tsx", "--cc-z-confirm"), ("components/scheduled-tasks.tsx", "--cc-z-sheet")):
             source = self.read(rel)
             self.assertIn(f'<DialogPrimitive.Overlay className="cc-overlay z-({layer})" />', source, rel)

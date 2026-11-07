@@ -10,11 +10,6 @@ from pearnly_cowork.companies import ledger, notes, pending as pending_items, se
 
 
 @frappe.whitelist(methods=["GET"])
-def candidates(search=None):
-    return service.candidates(search)
-
-
-@frappe.whitelist(methods=["GET"])
 def companies(search=None, start=0, limit=service.PAGE_MAX):
     return service.listing(search, start, limit)
 

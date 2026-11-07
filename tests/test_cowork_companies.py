@@ -760,8 +760,8 @@ class CompanyTests(unittest.TestCase):
               M1=[{"source_id": "2569", "label": "2569", "active": True,
                    "attributes": {"company": "001", "company_name": "MR Co"}}])
 
-    def test_candidates_merge_years_and_branches_of_one_tax_id(self):
-        found = {item["identity"]: item for item in service.candidates()}
+    def test_catalog_merges_years_and_branches_of_one_tax_id(self):
+        found = {item["identity"]: item for item in service._catalog()}
         abc = found[f"tax:{TAX}"]
         self.assertEqual(abc["years"], ["70EXP", "69EXP", "68EXP"])
         self.assertEqual(abc["branches"], ["00000", "00012"])
@@ -769,12 +769,12 @@ class CompanyTests(unittest.TestCase):
         self.assertIn(f"tax:{OTHER_TAX}", found)
         self.assertIn("name:express:C1:no tax co", found)
         self.assertIn("mrerp:M1:001", found)
-        self.assertEqual([item["identity"] for item in service.candidates("xyz")], [f"tax:{OTHER_TAX}"])
+        self.assertEqual([item["identity"] for item in service._catalog("xyz")], [f"tax:{OTHER_TAX}"])
         # 不可写的账套不列（这里同税号的别的账套照样代表这家）
         self.assertNotIn("abc readonly", [item["title"].casefold() for item in found.values()])
         made = make()
         fresh_request()
-        self.assertEqual({i["identity"]: i["company"] for i in service.candidates()}[f"tax:{TAX}"], made["id"])
+        self.assertEqual({i["identity"]: i["company"] for i in service._catalog()}[f"tax:{TAX}"], made["id"])
 
     def test_choices_merge_built_companies_with_the_catalog_and_page_on_the_server(self):
         # 主会话 11-07 定案：对话里选公司的弹窗——已建的与目录里还没建的合成一张表，按身份合并、服务端分页、按标签筛；
@@ -4118,7 +4118,7 @@ class GuardTests(unittest.TestCase):
                 decorator = ast.unparse(node.decorator_list[0])
                 methods[node.name] = "GET" if "GET" in decorator else "POST"
         self.assertEqual({name for name, kind in methods.items() if kind == "GET"},
-                         {"candidates", "companies", "choices", "detail", "month", "pending", "pending_counts", "task_overview"})
+                         {"companies", "choices", "detail", "month", "pending", "pending_counts", "task_overview"})
         for name in ("create", "rename", "delete", "note_save", "note_delete", "folder_bind", "folder_unbind",
                      "choice_forget", "choice_set", "choice_promote"):
             self.assertEqual(methods.get(name), "POST", name)
