@@ -211,6 +211,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_delete_documents"
 where = "CC 工具 cowork_delete_documents"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_delete_passes_the_list_and_reports_skipped"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_delete_folder_tasks"
@@ -220,6 +221,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_delete_folder_tasks"
 where = "CC 工具 cowork_delete_folder_tasks"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_save_enable_delete_go_through_the_task_service"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_document_detail"
@@ -241,6 +243,7 @@ kind = "cc-tool"
 anchor = "tool:cowork:cowork_document_original"
 group = "cc.tool.document_original"
 where = "CC 工具 cowork_document_original"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_original_pages_go_into_the_conversation"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_edit_document"
@@ -260,6 +263,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_export_review_workbook"
 where = "CC 工具 cowork_export_review_workbook"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_export_adds_the_workbook_to_the_conversation"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_express_readback"
@@ -329,6 +333,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_folder_task_runs"
 where = "CC 工具 cowork_folder_task_runs"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_runs_and_tasks_carry_results"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_folder_tasks"
@@ -390,6 +395,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_pos_import"
 where = "CC 工具 cowork_pos_import"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_one_fixed_key_per_attachment_and_no_recognition", "unit:tests/test_cowork_assistant_tools.py::test_layout_questions_come_back_and_answers_are_remembered_before_entering", "unit:tests/test_cowork_assistant_tools.py::test_old_excel_and_other_files_are_explained_without_a_source"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_pos_layout"
@@ -399,6 +405,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_pos_layout"
 where = "CC 工具 cowork_pos_layout"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_a_held_folder_file_is_answered_with_its_tasks_target_and_resumed"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_push_documents"
@@ -468,6 +475,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_recon_export"
 where = "CC 工具 cowork_recon_export"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_export_goes_into_the_conversation_and_kinds_are_checked"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_recon_list"
@@ -477,6 +485,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_recon_list"
 where = "CC 工具 cowork_recon_list"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_list_reads_the_tasks_the_page_lists"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_recon_presets"
@@ -515,6 +524,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_recon_status"
 where = "CC 工具 cowork_recon_status"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_status_reads_afresh_until_the_reconciliation_finishes"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_refresh_account_sets"
@@ -613,6 +623,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_stocktake_count"
 where = "CC 工具 cowork_stocktake_count"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_recount_clears_then_records_the_new_quantity", "unit:tests/test_cowork_assistant_tools.py::test_count_uses_the_book_position_unless_told_otherwise"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_stocktake_create"
@@ -632,6 +643,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_stocktake_delete"
 where = "CC 工具 cowork_stocktake_delete"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_delete_reports_each_count_and_refusals_do_not_raise"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_stocktake_export"
@@ -659,6 +671,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_stocktake_report"
 where = "CC 工具 cowork_stocktake_report"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_report_lists_only_differences_and_uncounted_items"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_stocktake_template"
@@ -717,6 +730,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_work_board"
 where = "CC 工具 cowork_work_board"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_board_hides_templates_and_mine_keeps_my_cards"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_work_boards"
