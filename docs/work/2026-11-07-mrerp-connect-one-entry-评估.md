@@ -12,9 +12,11 @@
 1. **背后本来就是一条连接**：四处界面都调 `connections.api.configure` 改同一条 MR.ERP 主连接，授权都走 `MrErpLogin` 的一次性票；数据不会分叉。要收的只是界面。
 2. 界面现在有**两份实现、四个入口**（见 1.1）。CC 连接评估的 D 步（已审定、未施工）会把 CC 里的两处并成一个组件；剩下的就是 Desk 的 `connect_dialog`。
 3. **建议唯一入口 = CC「设置 → 连接」最上面的 MR.ERP 一行**（D 步要加的那一行）。理由：授权只能在 CC 桌面版做（ADR-026 第 7 条），Desk 那份连授权按钮都是灰的，只能改网址。
-4. Desk 两处（新建录入、自动录入规则）的目标卡片**保留状态和「连接」按钮**，按钮改成打开 CC 的「设置 → 连接」（新开一页 `/pearnly-app/?settings=connections`），Desk 不再自己弹 MR.ERP 窗口。CC 定时任务里的「连接」按钮同样直接打开设置的这一节。
+4. Desk 两处（新建录入、自动录入规则）的目标卡片**保留状态和「连接」按钮**，按钮改成打开 CC 的「设置 → 连接」（新开一页 `/assistant?settings=connections`），Desk 不再自己弹 MR.ERP 窗口。CC 定时任务里的「连接」按钮同样直接打开设置的这一节。
 5. 不改行为：谁能改网址（管理员）、谁能授权到站点 / 只存本机、目录什么时候刷新，全部照现状，由服务端判。
 6. **排在 D 步之后做**，最好就并进 D 步：D 步本来就要抽组件、加这一行，再多一个深链接、两处 Desk 按钮改指向，约 1 小时写码。
+
+> **11-07 施工更正（主会话同意）**：跳转地址用 `/assistant?settings=connections`（CC 的地址）。原稿写的 `/pearnly-app/?settings=…` 是 Desk 的壳，会落到 Desk 首页。
 
 ## 0. 需求原文与理解
 
@@ -48,7 +50,7 @@
 
 ## 2. Frappe 原生能力
 
-- Desk 那边删掉一个自定义内容的原生 Dialog，按钮仍是目标卡片自带的 action（`p.cowork_choice` 的 `action`），只改 `on_click` 去向：`window.open("/pearnly-app/?settings=connections")`。不新增 Desk 组件。
+- Desk 那边删掉一个自定义内容的原生 Dialog，按钮仍是目标卡片自带的 action（`p.cowork_choice` 的 `action`），只改 `on_click` 去向：`window.open("/assistant?settings=connections")`。不新增 Desk 组件。
 - CC 是自己的前端（ADR-007 的 CC 例外范围内），不涉及 Frappe 组件。
 
 ## 3. 按类通用
@@ -76,7 +78,7 @@
 | CC 桌面版「设置 → 此电脑 → 连接」 | MR.ERP 一行（D 步）：网址 + 授权，唯一能授权的地方 |
 | 浏览器 CC「设置 → 连接」 | 同一行，授权按钮灰（同今天 `MrErpLogin` 在浏览器里的样子），管理员可改网址 |
 | CC 定时任务目标卡片「连接」 | 直接打开设置的「连接」一节（`openSettings("connections")`，`F/lib/desktop.ts:38`），不再弹自己的窗 |
-| Desk 新建录入 / 自动录入规则的 MR.ERP「连接」 | 新标签页打开 `/pearnly-app/?settings=connections`；回到 Desk 后卡片状态照今天的定时重读刷新（`intake-choices.js` 开着弹窗时定时 `state()`） |
+| Desk 新建录入 / 自动录入规则的 MR.ERP「连接」 | 新标签页打开 `/assistant?settings=connections`；回到 Desk 后卡片状态照今天的定时重读刷新（`intake-choices.js` 开着弹窗时定时 `state()`） |
 | 手机（CC 网页） | 同浏览器 |
 | LINE | 不涉及（LINE 只选目标，不配连接） |
 
@@ -114,7 +116,7 @@
 | # | 问题 | 我的建议 | 不定的影响 |
 |---|---|---|---|
 | 1 | 唯一入口放哪 | CC「设置 → 连接」的 MR.ERP 一行 | 放 Desk 不行：Desk 不能授权，还是要去 CC |
-| 2 | Desk 两处「连接」按钮怎么链过去 | 新标签页打开 CC 的「设置 → 连接」（`/pearnly-app/?settings=connections`）；保留卡片状态 | 在当前页跳走会丢掉正在填的新建录入弹窗 |
+| 2 | Desk 两处「连接」按钮怎么链过去 | 新标签页打开 CC 的「设置 → 连接」（`/assistant?settings=connections`）；保留卡片状态 | 在当前页跳走会丢掉正在填的新建录入弹窗 |
 | 3 | Express 的 Desk「连接」弹窗要不要一起收 | 本批不动（只是下载 + 在线状态，无配置；用户 11-07 定 Express 保持现状） | 一起收要改 Express 的 Desk 下载入口，超出「不改行为」 |
 | 4 | CC 定时任务里的「连接」 | 直接打开设置的连接节，不再弹 `MrerpConnect` | 留着就是同一组件两处出现（不算两份实现，但入口仍两处） |
 | 5 | 排期 | 并进 CC 连接评估的 D 步一起做 | 单独做要等 D 步合入再改，多一轮闸门 |
