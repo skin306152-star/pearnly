@@ -3,7 +3,7 @@
 输入 = Track A `purchase_adapter` 规整好的 P1 采购载荷。一张赊购(RR)写 6 表:
 ISRUN(增号)→ APTRN(单头)→ ISVAT(进项税)→ GLJNL+GLJNLIT(分录 Dr 采购/Dr 进项税
 = Cr 应付)→ APBAL(供应商应付按月桶累加)。明细行走 purchase_lines 路由:选库存的行真入
-STCRD/STMAS 并追加「借 存货 / 贷 购货」重分类分录,其余行照旧不碰库存。
+STCRD/STMAS,分录照原生直接记物料科目组科目(永续借存货、定期借购货,``purchase_lines.stock_journal``),其余行照旧不碰库存。
 
 ⚠️ 风险高(替闭源 Express 复刻过账)。强制护栏:**三重一致性闸 = 写盘目标 == 客户所选账套
 (目录+账套名+ISINFO 公司)· 缺所选 fail-safe 拒** · 写前备份 · 失败整体回滚 · 读回校验借贷平 ·
@@ -562,7 +562,7 @@ def _write_all(
     jnltyp = book.get("JNLTYP") or S.JNLTYP_PURCHASE
     depcod = depcod or book.get("DEPCOD", "")
     duedat = None
-    # 期末盘存制的账套:采购借记账套的「购货」科目(ISINFO.ACCNUM18),不借存货、也不做「借存货 / 贷购货」重分类
+    # 期末盘存制的账套:采购借记账套的「购货」科目(ISINFO.ACCNUM18),不借存货;库存行另按物料科目组的购货科目记(``stock_journal``)
     # (以前一律借账套默认存货科目 ACCNUM04,7 套期末盘存制账套记错科目)。只换默认存货科目,会计选过的科目不动。
     periodic = account_rules.periodic_inventory(account_dir)
     if periodic:
@@ -635,19 +635,20 @@ def _write_all(
     finally:
         ap.close()
 
-    # 明细行路由:选库存的行真入库并回吐「借 存货 / 贷 购货」重分类分录,接在本单分录之后。
+    # 明细行路由:选库存的行真入库,回吐按物料科目组累计的入库额;分录里这部分从采购借方扣出、直接记科目组科目(原生,11-07)。
     gl_rows = purchase_lines.journal_rows(entry)
     if deferred_vat:
         # 口径 2：进项税那一行改借「未到期进项税」（同原生）
         gl_rows = [(seq, deferred_vat if seq == S.SEQIT["input_vat"] else acc, side, amt) for seq, acc, side, amt in gl_rows]
-    line_modes, reclass = [], []
+    line_modes, groups = [], {}
     if write_detail:
-        line_modes, reclass = purchase_lines.write_detail(
+        line_modes, groups = purchase_lines.write_detail(
             account_dir, docnum, docdat, entry, gl_rows, depcod=depcod, userid=userid,
             items=inclusive_items(entry.items, flgvat, total),  # 现购价含税：明细记含税（同原生）
             **_located(locations, moves),
         )
-        gl_rows += [] if periodic else reclass
+        gl_rows = purchase_lines.stock_journal(account_dir, gl_rows, groups, getattr(entry, "items_account", ""),
+                                               periodic=periodic)
 
     if vat > 0 and not deferred_vat:
         # 进项税记录只给有税额的单：整单免税（税额 0）原生不记（语料 5,078 张全免税进货单 95% 没有这一行，主会话 10-29）；
@@ -919,8 +920,7 @@ def _verify(
                     cr += amt
                     if (r.SEQIT or "").strip() == S.SEQIT["ap"]:
                         ap_cr += amt
-        # 走库存时多一对重分类分录(借存货/贷购货),dr/cr 各 + 入库额仍平。故校验「借贷平 +
-        # 应付贷方==含税总额」,不再要求总借方==总额(否则重分类会被误判成不平)。
+        # 校验「借贷平 + 应付贷方==含税总额」(库存行按科目组拆了借方,总借方仍 == 总额;不再要求某一条借方 == 总额)。
         if rows < 2 or dr != cr or ap_cr != total:
             raise _WriteError(
                 f"GL not balanced (dr={dr} cr={cr} ap={ap_cr} total={total} rows={rows})",

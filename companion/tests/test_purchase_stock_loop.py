@@ -297,23 +297,15 @@ class PurchaseToSaleLoopTest(unittest.TestCase):
         self.assertEqual(float(out[0].XTRNVAL), 600.0)
         self.assertEqual(float(out[0].MREMBAL), 150.0)
 
-    def test_reclass_does_not_rewrite_the_cloud_side_entry(self):
-        """重分类是**追加**:云端算好、本来就平的那三行必须原位原额还在。
-
-        借贷平 / 购货净额归零由 test_purchase_lines 覆盖;这里钉的是「没被改写」——
-        直接把购货行的科目改成存货也能让净额归零,但那是在动客户已核对过的分录。
-        """
+    def test_stock_lines_debit_inventory_directly_and_vat_and_payables_stay(self):
+        """照 Express 原生（11-07，S 盘 95 本）：库存行的钱从采购借方整条记到物料科目组的存货科目（SEQIT 0），没有「借存货 / 贷购货」
+        重分类；进项税、应付原样不动。以前是保留云端那条购货借方再追加一对重分类（原生一张都没有）。"""
         res = self._buy(_purchase("PO-7001", "1000.00", "70.00", "1070.00", 100, 10))
         self.assertTrue(res.ok, res.error)
-        orig = [
-            r
-            for r in self._rows("GLJNLIT", VOUCHER=res.docnum, ACCNUM=PURCHASE_ACC)
-            if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT
-        ]
-        self.assertEqual(len(orig), 1)
-        self.assertEqual(float(orig[0].AMOUNT), 1000.0)
-        self.assertEqual((orig[0].SEQIT or "").strip(), S.SEQIT["purchase"])
-        # 进项税 / 应付不受库存路影响
+        self.assertEqual(self._rows("GLJNLIT", VOUCHER=res.docnum, ACCNUM=PURCHASE_ACC), [])
+        inventory = self._rows("GLJNLIT", VOUCHER=res.docnum, ACCNUM=INVENTORY_ACC)
+        self.assertEqual([((r.SEQIT or "").strip(), (r.TRNTYP or "").strip(), float(r.AMOUNT)) for r in inventory],
+                         [(S.SEQIT["purchase"], S.TRNTYP_DEBIT, 1000.0)])
         self.assertEqual(self._net(res.docnum, VAT_IN_ACC), Decimal("70.00"))
         self.assertEqual(self._net(res.docnum, AP_ACC), Decimal("-1070.00"))
 

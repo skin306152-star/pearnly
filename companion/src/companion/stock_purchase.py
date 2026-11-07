@@ -11,8 +11,8 @@
 
 数量/金额非法(qty≤0 或 amount<0)当场抛错交会计,绝不写负库存/负成本。
 
-GL 不在这里写:本模块只落库存台账(STCRD 入库行 + STMAS 结存累加),返回「存货科目 → 入库额」
-给调用方(dbf_writer)追加重分类分录(借 存货 / 贷 购货),与销售侧追加 COGS 分录同款机制。
+GL 不在这里写:本模块只落库存台账(STCRD 入库行 + STMAS 结存累加),返回「存货科目 → 入库额」,
+``groups`` 另收「物料科目组 (ACCNUM01, ACCNUM02) → 入库额」交调用方照原生直接记科目组科目(``purchase_lines.stock_journal``)。
 """
 
 from __future__ import annotations
@@ -91,8 +91,10 @@ def write_stock_in_lines(
     locations: Optional[List[Optional[str]]] = None,
     moves: Optional[list] = None,
     seqs: Optional[List[int]] = None,
+    groups: Optional[Dict[Tuple[str, str], Decimal]] = None,
 ) -> Tuple[List[Dict], Dict[str, Decimal]]:
     """写库存入库行 + 累加 STMAS 结存,返回 (逐行 mode 结果, {存货科目码: 入库金额合计})。
+    ``groups``(可选):按物料科目组累计 {(存货科目 ACCNUM01, 购货 / 成本科目 ACCNUM02): 入库金额}。
 
     items = item_mode=='stock_item' 的行(已在备份-回滚事务内)。逐行:建/复用 STKTYP=0 库存档
     → 按码读现结存 → 追加 STCRD 入库行 → STMAS 结存累加。
@@ -167,6 +169,8 @@ def write_stock_in_lines(
                 moves.append(stock_location.move(row, stock_location.KIND_PURCHASE))
             stock_sale.move_stmas(account_dir, stkcod, units.base_qty, amount)
             in_by_account[inv_acc] = in_by_account.get(inv_acc, Decimal("0")) + amount
+            if groups is not None:
+                groups[(inv_acc, _cogs_acc)] = groups.get((inv_acc, _cogs_acc), Decimal("0")) + amount
             line_modes.append(
                 dbf_detail.line_mode(
                     seq,

@@ -56,6 +56,8 @@ def main(argv=None) -> int:
     parser.add_argument("--scenario", choices=("apart", "same"), default="apart")
     parser.add_argument("--userid", default="", help="write：这次写单的录入人（不给 = 写入函数默认的 PEARNLY）")
     parser.add_argument("--allow", default="", help="compare：另外许可不同的栏，逗号分隔 TABLE.FIELD（如录入人 APTRN.USERID）")
+    parser.add_argument("--gl", action="store_true",
+                        help="compare：分录口径改了（进货库存行照原生直接记科目组科目）——凭证明细不逐行比，改核每个科目的净额与写法")
     args = parser.parse_args(argv)
     sys.path.insert(0, args.companion)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -252,7 +254,7 @@ def compare_all(args) -> int:
     with open(args.out, "w", encoding="utf-8") as out:
         for book in sorted(new_runs):
             try:
-                result = compare_book(old_dir / book, new_dir / book, old_runs.get(book) or {}, new_runs[book], extra)
+                result = compare_book(old_dir / book, new_dir / book, old_runs.get(book) or {}, new_runs[book], extra, args.gl)
             except Exception:
                 result = {"state": "fail", "why": traceback.format_exc()[-600:]}
             result["book"] = book
@@ -273,7 +275,41 @@ def _cost_differs(run) -> bool:
     return False
 
 
-def compare_book(old: Path, new: Path, old_run: dict, new_run: dict, extra=frozenset()) -> dict:
+def _gl_net(acct: Path, vouchers) -> dict:
+    """{凭证号: {科目: 借减贷}}（活行）。"""
+    out = {}
+    for r in rows(acct, "GLJNLIT", ("VOUCHER", "ACCNUM", "TRNTYP", "AMOUNT", "SEQIT")):
+        voucher = str(r["VOUCHER"] or "").strip()
+        if voucher not in vouchers:
+            continue
+        sign = 1 if str(r["TRNTYP"] or "").strip() == "0" else -1
+        acc = str(r["ACCNUM"] or "").strip()
+        out.setdefault(voucher, {})[acc] = out.get(voucher, {}).get(acc, Decimal(0)) + sign * num(r["AMOUNT"])
+    return out
+
+
+def _gl_problems(old: Path, new: Path, new_run: dict) -> list:
+    """进货库存行照原生（11-07）：新写法没有 SEQIT 7 / 8；永续账套每个科目的净额与旧写法相同（余额不变）；定期账套库存行记到科目组的
+    购货科目 ACCNUM02（不能记账时账套默认 ACCNUM18），凭证合计不变。"""
+    problems = []
+    vouchers = {s.get("docnum") for s in new_run.get("steps", []) if s.get("ok") and s.get("doctype") in ("RR", "HP")}
+    for r in rows(new, "GLJNLIT", ("VOUCHER", "SEQIT")):
+        if str(r["VOUCHER"] or "").strip() in vouchers and str(r["SEQIT"] or "").strip() in ("7", "8"):
+            problems.append(f"reclass row SEQIT {r['SEQIT']} in {r['VOUCHER']}")
+            break
+    info = (rows(new, "ISINFO", ("ISPERPETUA",)) or [{}])[0]
+    periodic = str(info.get("ISPERPETUA") or "").strip().upper() == "N"
+    a, b = _gl_net(old, vouchers), _gl_net(new, vouchers)
+    for voucher in vouchers:
+        x, y = a.get(voucher, {}), b.get(voucher, {})
+        if abs(sum(y.values(), Decimal(0))) >= Decimal("0.005"):
+            problems.append(f"{voucher} not balanced")
+        if not periodic and any(abs(x.get(k, Decimal(0)) - y.get(k, Decimal(0))) >= Decimal("0.005") for k in set(x) | set(y)):
+            problems.append(f"{voucher} account nets differ in a perpetual book: {dict(x)} vs {dict(y)}")
+    return problems
+
+
+def compare_book(old: Path, new: Path, old_run: dict, new_run: dict, extra=frozenset(), gl=False) -> dict:
     if new_run.get("state") != "written":
         return {"state": "skip", "why": new_run.get("why", "")}
     problems = []
@@ -289,6 +325,8 @@ def compare_book(old: Path, new: Path, old_run: dict, new_run: dict, extra=froze
     diffs, unexpected = {}, []
     for path in sorted(p for p in new.iterdir() if p.suffix.upper() == ".DBF"):
         table = path.stem.upper()
+        if gl and table == "GLJNLIT":
+            continue  # 分录口径改了：不逐行比，下面按科目净额核
         a, b = rows(old, table, deleted=True), rows(new, table, deleted=True)
         if len(a) != len(b):
             if not guard_changed:
@@ -308,6 +346,8 @@ def compare_book(old: Path, new: Path, old_run: dict, new_run: dict, extra=froze
                     unexpected.append(f"{table}.{field}")
     if unexpected:
         problems.append(f"unexpected differences: {sorted(set(unexpected))[:8]}")
+    if gl:
+        problems.extend(_gl_problems(old, new, new_run))
     # 新写法的不变量
     code = new_run["item"]
     master = [r for r in rows(new, "STMAS", ("STKCOD", "TOTBAL", "TOTVAL", "UNITPR")) if r["STKCOD"] == code][0]

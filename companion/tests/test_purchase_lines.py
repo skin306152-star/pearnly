@@ -149,7 +149,7 @@ class PurchaseLineRoutingTest(unittest.TestCase):
         return self._rows("GLJNLIT", VOUCHER=docnum)
 
     def test_non_stock_lines_stay_on_the_old_path(self):
-        """非库存行零回归:不追加重分类分录,明细行零库存影响。"""
+        """非库存行零回归:分录只有采购 / 进项税 / 应付,明细行零库存影响。"""
         res = self._write([_item("ค่าบริการ", "1", "600", "600", "direct_account")])
         self.assertTrue(res.ok, res.error)
         seqits = {(r.SEQIT or "").strip() for r in self._gl(res.docnum)}
@@ -157,36 +157,18 @@ class PurchaseLineRoutingTest(unittest.TestCase):
         for row in self._rows("STCRD", DOCNUM=res.docnum):
             self.assertTrue(S.stcrd_no_stock_impact(row))
 
-    def test_stock_lines_reclass_purchase_into_inventory(self):
-        """走库存 → 追加 借 存货 / 贷 购货:借贷仍平,购货科目对这些行净额归零。"""
+    def test_stock_lines_debit_the_item_groups_inventory_account_like_native_express(self):
+        """走库存(永续盘存)→ 照原生直接借物料科目组的存货科目(SEQIT 0),没有「借存货 / 贷购货」重分类;借贷仍平(S 盘 95 本 11-07)。"""
         res = self._write([_item("ดีเซล", "30", "20", "600", "stock_item")])
         self.assertTrue(res.ok, res.error)
         gl = self._gl(res.docnum)
-        dr = sum(
-            Decimal(str(r.AMOUNT))
-            for r in gl
-            if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT
-        )
-        cr = sum(
-            Decimal(str(r.AMOUNT))
-            for r in gl
-            if (r.TRNTYP or "").strip() == S.TRNTYP_CREDIT
-        )
+        dr = sum(Decimal(str(r.AMOUNT)) for r in gl if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT)
+        cr = sum(Decimal(str(r.AMOUNT)) for r in gl if (r.TRNTYP or "").strip() == S.TRNTYP_CREDIT)
         self.assertEqual(dr, cr)
-        inv_dr = [r for r in gl if (r.SEQIT or "").strip() == "7"]
-        pur_cr = [r for r in gl if (r.SEQIT or "").strip() == "8"]
-        self.assertEqual(len(inv_dr), 1)
-        self.assertEqual(len(pur_cr), 1)
-        self.assertEqual((inv_dr[0].ACCNUM or "").strip(), INVENTORY_ACC)
-        self.assertEqual((pur_cr[0].ACCNUM or "").strip(), PURCHASE_ACC)
-        self.assertAlmostEqual(float(inv_dr[0].AMOUNT), 600.0, places=2)
-        net_purchase = sum(
-            Decimal(str(r.AMOUNT))
-            * (1 if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT else -1)
-            for r in gl
-            if (r.ACCNUM or "").strip() == PURCHASE_ACC
-        )
-        self.assertEqual(net_purchase, Decimal("0"))
+        self.assertEqual({(r.SEQIT or "").strip() for r in gl}, {"0", "3", "6"})
+        debits = [((r.ACCNUM or "").strip(), float(r.AMOUNT)) for r in gl
+                  if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT and (r.SEQIT or "").strip() == "0"]
+        self.assertEqual(debits, [(INVENTORY_ACC, 600.0)])  # 购货科目一行都没有了
         self.assertEqual(res.line_modes[0]["mode"], "stock_item")
 
     def _stcrd_by_seq(self, docnum):
@@ -210,9 +192,10 @@ class PurchaseLineRoutingTest(unittest.TestCase):
         self.assertEqual([m["seq"] for m in res.line_modes], [1, 2])
         self.assertEqual([m["mode"] for m in res.line_modes], ["stock_item", "direct_account"])
         gl = self._gl(res.docnum)
-        inv_dr = [r for r in gl if (r.SEQIT or "").strip() == "7"]
-        self.assertEqual(len(inv_dr), 1)
-        self.assertAlmostEqual(float(inv_dr[0].AMOUNT), 200.0, places=2)  # 只重分类库存行
+        debits = {(r.ACCNUM or "").strip(): float(r.AMOUNT) for r in gl
+                  if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT and (r.SEQIT or "").strip() == "0"}
+        self.assertEqual(debits, {INVENTORY_ACC: 200.0, PURCHASE_ACC: 400.0})  # 只有库存行记存货，运费留在原科目
+        self.assertFalse({"7", "8"} & {(r.SEQIT or "").strip() for r in gl})
         dr = sum(Decimal(str(r.AMOUNT)) for r in gl if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT)
         cr = sum(Decimal(str(r.AMOUNT)) for r in gl if (r.TRNTYP or "").strip() == S.TRNTYP_CREDIT)
         self.assertEqual(dr, cr)
@@ -255,8 +238,8 @@ class PurchaseLineRoutingTest(unittest.TestCase):
         head = self._rows("APTRN", DOCNUM=res.docnum)[0]
         self.assertEqual((head.NXTSEQ or "").strip(), "3")
 
-    def test_mixed_lines_reclass_from_the_account_the_stock_lines_sit_in(self):
-        """采购分录按行科目拆成几条、第一条是费用行自己的科目:重分类贷库存行那条采购科目(``items_account``),不贷费用科目。"""
+    def test_mixed_lines_take_the_stock_amount_out_of_the_line_the_stock_lines_sit_in(self):
+        """采购分录按行科目拆成几条、第一条是费用行自己的科目:库存行的钱从它那条采购科目(``items_account``)扣出记存货,费用科目不动。"""
         freight = "53-01-00-00"
         lines = [
             {"acc": freight, "side": "D", "amount": "400.00", "desc": "ค่าขนส่ง", "role": "purchase"},
@@ -273,10 +256,9 @@ class PurchaseLineRoutingTest(unittest.TestCase):
             payload_version=19,
         )
         self.assertTrue(res.ok, res.error)
-        pur_cr = [r for r in self._gl(res.docnum) if (r.SEQIT or "").strip() == "8"]
-        self.assertEqual(len(pur_cr), 1)
-        self.assertEqual((pur_cr[0].ACCNUM or "").strip(), PURCHASE_ACC)
-        self.assertAlmostEqual(float(pur_cr[0].AMOUNT), 200.0, places=2)
+        debits = {(r.ACCNUM or "").strip(): float(r.AMOUNT) for r in self._gl(res.docnum)
+                  if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT and (r.SEQIT or "").strip() == "0"}
+        self.assertEqual(debits, {freight: 400.0, INVENTORY_ACC: 200.0})  # 原采购科目扣成 0 就不写
 
     def test_readback_lets_only_the_stock_lines_of_a_mixed_document_touch_stock(self):
         """混行单读回:库存行放行库存影响,非库存行动了库存就报错(不因整张单有库存行一起放过)。"""
