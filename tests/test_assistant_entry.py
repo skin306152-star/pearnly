@@ -48,7 +48,8 @@ class ContractTests(unittest.TestCase):
     def test_language_defaults_to_thai(self):
         self.assertEqual(contracts.lang("zh-CN,zh;q=0.9,en;q=0.8"), "zh")
         self.assertEqual(contracts.lang("en-US"), "en")
-        self.assertEqual(contracts.lang("ja-JP,fr"), "th")
+        self.assertEqual(contracts.lang("ja-JP,fr"), "ja")
+        self.assertEqual(contracts.lang("ko-KR,fr"), "th")
         self.assertEqual(contracts.lang(""), "th")
 
     def test_entry_token_is_derived_not_the_root(self):
@@ -72,6 +73,10 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(query["client_id"], "pearnly-ai")
         self.assertEqual(query["code_challenge_method"], "S256")
         self.assertEqual(query["ui_locales"], "zh-CN")
+        # 日文（11-08）：入口登录主题 pearnly-ai 补了日文
+        ja = contracts.authorize_url(COWORK, redirect_uri="https://fatcc.com/cb", state="s", nonce="n",
+                                     challenge="c", login_hint="somchai", locale="ja")
+        self.assertEqual(parse_qs(urlsplit(ja).query)["ui_locales"], ["ja"])
         self.assertEqual(query["prompt"], "none")
         self.assertEqual(query["login_hint"], "somchai")
         self.assertEqual(contracts.site_entry_url("acme-cowork.pearnly.com"),
@@ -83,6 +88,7 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(contracts.site_entry_url("acme-cowork.pearnly.com", "zh", picked=True),
                          "https://acme-cowork.pearnly.com/api/method/pearnly_core.identity.begin_login"
                          "?redirect_to=/assistant&locale=zh&picked=1")
+        self.assertTrue(contracts.site_entry_url("acme-cowork.pearnly.com", "ja").endswith("&locale=ja"))
         self.assertNotIn("locale", contracts.site_entry_url("acme-cowork.pearnly.com", "fr&x=1", picked=True))
 
 

@@ -2,6 +2,8 @@
 
 界面文案只写完成操作必需的字：官方、简短、陈述事实。不写原因、过程、提示、欢迎语和开发说明，不用口语；Windows 端在用户可见处只叫「CC 桌面版」。想加说明时，先考虑能否用状态、图标、禁用态或官方组件自带文案表达；能沿用 Frappe / ERPNext 自带说法的就沿用。
 
+**四种语言是硬性要求**（用户 2026-11-08「有日本客户」）：用户看得到的每条文案都要有中文、英文、泰文、日文，缺一种不能合入。术语表四列由 `scripts/check-i18n.py` 守；CC 网页 `i18n.ts` 每个语言表都要有 `ja` 段、CC 桌面版 `_M` 每条都是 `(中, 泰, 英, 日)` 四列，由 `scripts/check-copy.py` 的 R-LANG 拦。日文、英文用词照术语表已有的（同一个概念同一个词），不另起译法；界面语言跟用户在个人资料选的走（CC 网页按 `pearnly_core/account/ui_language.py`，CC 桌面版跟对话页同步），不回落成别的语言。
+
 `scripts/check-i18n.py` 管"中文 / 泰文不许写死、必须进字典"；`scripts/check-copy.py` 管"进了字典的字是不是碎碎念"，以及新代码有没有绕开字典（写死英文、拼接、动态 msgid）。两道闸都在 Development checks 里。
 
 ## 怎么用
@@ -33,8 +35,8 @@ python3 tests/test_check_copy.py              # 闸门自己的测试（改词�
 | 来源 | 词条 id（`来源:键`） | 判什么 |
 | --- | --- | --- |
 | 术语表 `apps/<app>/<app>/i18n/messages.tsv` | `<app>:<key>`，无 key 用 en（msgid） | 内容判据，四种语言 |
-| CC 网页 `frontend/assistant/src/i18n.ts` | `assistant:<对象>.<键路径>`（按键比对，一行拆多行不算改动） | 内容判据 |
-| CC 桌面版 `companion/src/companion/i18n.py` 的 `_M` | `companion:<key>`（中文为准） | 内容判据 |
+| CC 网页 `frontend/assistant/src/i18n.ts` | `assistant:<对象>.<键路径>`（按键比对，一行拆多行不算改动） | 内容判据，四种语言（R-LANG） |
+| CC 桌面版 `companion/src/companion/i18n.py` 的 `_M`（每条 `(中, 泰, 英, 日)`） | `companion:<key>`（中文为准） | 内容判据，四种语言（R-LANG） |
 | Keycloak 主题 `messages_*.properties` | `keycloak:<主题>.<key>` | 内容判据 |
 | keep-cjk 整文件豁免的四语表（`sources.TABLE_MODULES`） | `table:<模块>#<路径>` | 内容判据 |
 | Python（改动文件）：`_()`；`frappe.throw / msgprint`（位置参数与 `msg=` / `title=`，含 f-string）、`publish_realtime("msgprint", …)`、`frappe.*Error(…)` 的写死文案（只作重试信号、不到界面的 `QueryDeadlockError` / `QueryTimeoutError` 不判）；`_()` 与字符串或另一个 `_()` 用 `+` 拼接；f-string / `+` / `.format` 拼出来的 msgid；assistant 工具声明的 label / ask / ask_when、`*STEP_NAMES` | — | R-HARD / R-CONCAT |
@@ -84,6 +86,7 @@ python3 tests/test_check_copy.py              # 闸门自己的测试（改词�
 | R-EMPTY | 空态（最后一段键名是 empty / *Empty）只写事实：暂无… / 没有… / …为空 / 缺少… / No … / … missing / ไม่มี / ไม่พบ；后面不接「请点击…」「Use “…”」 | 「暂无记录。请点击右上角「新建录入」。」→「暂无记录」 |
 | R-NAME | 旧称（复用 `tests/test_cc_desktop_name.py` 的正则与 ALLOWED；岗位名「销售助手 / ผู้ช่วยผู้จัดการ」不算） | 「小助手」→「CC 桌面版」 |
 | R-ALIGN | 中文 ≥ 4 字、英文 ≥ 12 词、英文词数 / 中文字数 > 1：英文 msgid 里藏着开发说明；日文超中文 3 倍、中文改了译文没跟标黄 | control:33 / 41 / 45 |
+| R-LANG | CC 网页、CC 桌面版新增 / 改动的词条缺中文、英文、泰文、日文任一种（`i18n.ts` 里英文单复数的第二个字符串 `#2` 不算单独词条） | `RUN.queued` 只有 en / zh / th |
 | R-LINE20 | LINE 快捷按钮（`dms.card.*BTN_*` 等）四语都不超过 20 字符（按码位数，偏严） | — |
 | R-HARD | 新代码引用的词不在字典里、写死（JSX、toast、Desk 弹窗、`frappe.throw`、CC 桌面版控件、页面）、动态 msgid、DocType 新文字不在术语表 | `<span>Toggle Sidebar</span>` |
 | R-CONCAT | 把一句话拆成两条词条再拼起来（`{t(a)}{t(b)}`、`__(a) + __(b)`、`_(a) + " — 说明"`）：改成一条带占位符的词条；确属列表拼接的逐条豁免 | `_("Saved") + " — we will push it"` |
@@ -137,7 +140,7 @@ CC 网页的按钮、菜单、状态硬上限 10 字。
 
 ## 清单格式
 
-`--report` 输出 Markdown：抬头一行计数（新增、改动（已登记 / 未登记）、删除、译文改动、移动、拦截、标黄、豁免），然后 1 改动已有文案（需用户先看）、2 新增文案（另列「提示类新增」请人判断是否该存在）、3 删除文案、4 译文改动与移动、5 登记与豁免变动、6 拦截项（全文与位置）、7 规则改动。四种语言并排，CC 网页没有日文显示「—」，表格里 `|` 转义、换行显示为 ⏎、超过 60 字截断（第 1 节的新文案不截断）。
+`--report` 输出 Markdown：抬头一行计数（新增、改动（已登记 / 未登记）、删除、译文改动、移动、拦截、标黄、豁免），然后 1 改动已有文案（需用户先看）、2 新增文案（另列「提示类新增」请人判断是否该存在）、3 删除文案、4 译文改动与移动、5 登记与豁免变动、6 拦截项（全文与位置）、7 规则改动。四种语言并排，缺的语言显示「—」，表格里 `|` 转义、换行显示为 ⏎、超过 60 字截断（第 1 节的新文案不截断）。
 
 ## 做不到的
 

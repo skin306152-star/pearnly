@@ -10,9 +10,9 @@ from frappe.utils import escape_html
 from pearnly_control.assistant_entry import entry
 
 no_cache = 1
-LANG_LABELS = (("th", "ไทย"), ("zh", "中文"), ("en", "English"))
+LANG_LABELS = (("th", "ไทย"), ("zh", "中文"), ("en", "English"), ("ja", "日本語"))
 PRODUCTS = {"cowork": "Cowork", "erp": "ERP", "dms": "DMS"}
-SITE_PATH = {"th": "", "en": "/en", "zh": "/zh"}
+SITE_PATH = {"th": "", "en": "/en", "zh": "/zh", "ja": "/en"}  # 宣传页没有日文版，日文跟英文版
 
 
 def get_context(context):

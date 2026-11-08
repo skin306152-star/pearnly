@@ -146,6 +146,20 @@ def _ref_came_with_merge(ref, trees, snaps, cache) -> bool:
     return False
 
 
+def missing_languages(entry) -> list:
+    """R-LANG：CC 网页、CC 桌面版的词条四种语言（中 / 英 / 泰 / 日）都要有，缺一种就拦。
+    i18n.ts 里 `#2` 这类同一值的第二个字符串（英文单复数）不算单独的词条。"""
+    if entry.source not in sources.FULL_LANGUAGE_SOURCES or "#" in entry.key:
+        return []
+    missing = [lang for lang in sources.LANGS if not str(entry.texts.get(lang) or "").strip()]
+    if not missing:
+        return []
+    return [rules.Finding(
+        "R-LANG", "block", missing[0], "缺 " + " / ".join(missing),
+        "CC 网页与 CC 桌面版的文案中文、英文、泰文、日文四种都要有", entry.id, entry.loc,
+        rules.rules_role_name(entry.role))]
+
+
 def check_changes(changes, checker, pol) -> list:
     findings = []
     for change in changes:
@@ -153,6 +167,7 @@ def check_changes(changes, checker, pol) -> list:
             continue
         entry = change.entry
         exempt = pol.exempt_for(entry)
+        findings += missing_languages(entry)
         findings += checker.check_entry(
             entry, change.langs, exempt, changed_from=change.old if change.kind == "changed" else None
         )

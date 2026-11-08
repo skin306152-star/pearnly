@@ -890,6 +890,34 @@ class TempRepo(unittest.TestCase):
         # 整个入口：有拦截退出码 1
         self.assertEqual(quiet_main(["--repo", self.dir, "--base", self.base]), 1)
 
+    def test_cc_web_and_desktop_need_all_four_languages(self):
+        # 用户 2026-11-08「有日本客户」：CC 网页、CC 桌面版新增的词条中英泰日缺一种就拦（R-LANG）
+        self.write("frontend/assistant/src/i18n.ts", (
+            "const RUN = {\n"
+            "  en: { queued: \"Queued\", read: (n: number) => `Read ${n} ${n === 1 ? \"document\" : \"documents\"}` },\n"
+            "  zh: { queued: \"排队中\", read: (n: number) => `已识别 ${n} 张` },\n"
+            "  th: { queued: \"อยู่ในคิว\", read: (n: number) => `อ่านแล้ว ${n} ใบ` },\n"
+            "};\n"
+            "const ASK = {\n"
+            "  en: { skip: \"Skip\" }, zh: { skip: \"跳过\" }, th: { skip: \"ข้าม\" }, ja: { skip: \"スキップ\" },\n"
+            "};\n"))
+        self.write("companion/src/companion/i18n.py", (
+            "_M = {\n"
+            "    \"btn_cancel\": (\"取消\", \"ยกเลิก\"),\n"
+            "    \"btn_save\": (\"保存\", \"บันทึก\", \"Save\", \"保存\"),\n"
+            "}\n"))
+        kinds, findings = self.run_gate()
+        lang = {f.entry_id: f.snippet for f in findings if f.rule == "R-LANG" and f.level == "block"}
+        self.assertEqual(lang, {"assistant:RUN.queued": "缺 ja", "assistant:RUN.read": "缺 ja",
+                                "companion:btn_cancel": "缺 en / ja"})
+        # 英文单复数的第二个字符串不算单独的词条；四种齐的不拦
+        self.assertNotIn("assistant:RUN.read#2", lang)
+        self.assertNotIn("assistant:ASK.skip", lang)
+        self.assertNotIn("companion:btn_save", lang)
+        self.assertEqual(kinds["companion:btn_save"], "new")
+        entry = next(e for e in sources.companion_entries("i18n.py", "_M = {\"k\": (\"中\", \"ไทย\", \"En\", \"日\")}\n"))
+        self.assertEqual(entry.texts, {"zh": "中", "th": "ไทย", "en": "En", "ja": "日"})
+
     def test_changed_needs_approval(self):
         tsv = "apps/pearnly_cowork/pearnly_cowork/i18n/messages.tsv"
         self.edit(tsv, "\t未选择推送目标\t", "\t未选推送目标\t")

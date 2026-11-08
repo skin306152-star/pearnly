@@ -8,9 +8,9 @@ LOGIN_MAX = 254
 SITE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$")
 ISSUER = re.compile(r"^https?://[^\s/?#]+(?::\d+)?/realms/[A-Za-z0-9_-]+$")
 # 入口支持的语言（与对话页一致）；浏览器给的其他语言一律用泰文。Keycloak 的中文代码是 zh-CN。
-LANGS = ("th", "zh", "en")
+LANGS = ("th", "zh", "en", "ja")
 DEFAULT_LANG = "th"
-KEYCLOAK_LOCALE = {"th": "th", "zh": "zh-CN", "en": "en"}
+KEYCLOAK_LOCALE = {"th": "th", "zh": "zh-CN", "en": "en", "ja": "ja"}
 CLIENT_ID = "pearnly-ai"
 TOKEN_CONTEXT = b"pearnly-assistant-entry-v1"
 
@@ -53,7 +53,7 @@ def issuer(value) -> str:
 
 
 def lang(value) -> str:
-    """把 Accept-Language / Cookie 里的语言归到入口支持的三种。"""
+    """把 Accept-Language / Cookie 里的语言归到入口支持的四种。"""
     for part in str(value or "").replace("_", "-").lower().split(","):
         code = part.split(";")[0].strip().split("-")[0]
         if code in LANGS:
