@@ -1,11 +1,7 @@
 # 产品地图里还没有测试的入口（行 id@端），scripts/check-product-map.py 第 3 条：只许减少——补上测试后删掉对应条目，不许新加。
 # 「有测试」只认绿（流程 / 单测 / 离线入口 / 业务探针）与真机（标了只能真机并写了理由与清单）；只有打开冒烟、页面快照、人工清单的不算（主会话 11-04）。
-cowork.cc.action.attach@desktop
-cowork.cc.action.attach@mobile
 cowork.cc.action.company-open-in-product@desktop
 cowork.cc.action.company-open-in-product@mobile
-cowork.cc.action.delete-chats@desktop
-cowork.cc.action.delete-chats@mobile
 cowork.desk.pearnly-intake.action.Export@desktop
 cowork.desk.pearnly-intake.action.Export@mobile
 cowork.desk.pearnly-intake.action.Submit@desktop
@@ -14,9 +10,5 @@ cowork.desk.pearnly-intake.action.cowork.folder.new@desktop
 cowork.desk.pearnly-intake.action.cowork.folder.new@mobile
 cowork.desk.pearnly-intake.action.intake.action.new@desktop
 cowork.desk.pearnly-intake.action.intake.action.new@mobile
-erp.cc.action.attach@desktop
-erp.cc.action.attach@mobile
 erp.cc.action.company-open-in-product@desktop
 erp.cc.action.company-open-in-product@mobile
-erp.cc.action.delete-chats@desktop
-erp.cc.action.delete-chats@mobile

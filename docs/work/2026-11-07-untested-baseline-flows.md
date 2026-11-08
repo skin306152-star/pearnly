@@ -172,6 +172,12 @@
 - ERP 版 CC 没有「定时任务」：分区由产品声明，只有 Cowork 声明了 tasks（`assistant.tsx` hasScheduledTasks），`ccview:erp:tasks` 是共用视图类型带出来的，
   登记 `not_entries`、删 ERP 行，Cowork 行写 `na = { ERP = … }`；对照组缺口存量删 `erp.cc.view.tasks@desktop`。基线 24 → 20。
 
+## 第十四组：CC 添加文件、删除对话（`pearnly/baseline-rest`，11-08）
+
+- 新流程 `cc.attach-delete` / `cowork.cc.attach-delete`（同一模块，假智能体后端）：新建页「添加文件」（页面的文件选择框替身放进一份小文本）→ 传完发一句 → 收到回复；
+  本会话文件列表（`assistant.api.session_files`）里有这份、下载回来内容一致；标题栏「对话选项」→「删除」→ 确认 → 侧栏接口里没有这段、库里这段会话没了。
+  两产品 × 电脑手机 4/4，老的 `cc.chat` 同跑 4/4。基线删 8 条（20 → 12）。
+
 ## 下一组
 
 只开页面的几页、Cowork 录入与盘点（第一份交接第 4 节）。

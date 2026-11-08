@@ -1584,6 +1584,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:erp:attach"
 where = "CC 对话里上传附件"
+tests = ["flow:cc.attach-delete"]
 group = "cc.action.attach"
 
 [[row]]
@@ -1594,6 +1595,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:erp:delete-chats"
 where = "CC 删除对话（先确认一次）"
+tests = ["flow:cc.attach-delete"]
 group = "cc.action.delete-chats"
 
 # 相机 / 扫码入口逐个成行（11-04 事故回放待补项 E）：锚点来自共用件登记表扫码两个共用件的入口（scan:<入口 id>）。

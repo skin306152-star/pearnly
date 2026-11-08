@@ -1777,6 +1777,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:cowork:attach"
 where = "CC 对话里上传附件"
+tests = ["flow:cowork.cc.attach-delete"]
 group = "cc.action.attach"
 
 [[row]]
@@ -1787,6 +1788,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:cowork:delete-chats"
 where = "CC 删除对话（先确认一次）"
+tests = ["flow:cowork.cc.attach-delete"]
 group = "cc.action.delete-chats"
 
 [[row]]

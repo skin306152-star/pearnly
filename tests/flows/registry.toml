@@ -1651,3 +1651,34 @@ viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_core/pearnly_core/assistant/waits.py",
 ]
+
+[[flow]]
+id = "cc.attach-delete"
+title = "CC 对话页：添加文件随消息发出（会话文件列表有它、下载内容对）、对话选项删除对话（侧栏与库里都没了）（假智能体后端，清存量基线 11-08）"
+module = "scripts/flows/cc_attach_delete.py"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "frontend/assistant/src/components/assistant-ui/thread.tsx",
+  "frontend/assistant/src/components/delete-chats.tsx",
+  "frontend/assistant/src/lib/managed-agents/attachments.ts",
+  "apps/pearnly_core/pearnly_core/assistant/files.py",
+]
+
+[[flow]]
+id = "cowork.cc.attach-delete"
+title = "Cowork CC 对话页：同 ERP（添加文件、删除对话）"
+module = "scripts/flows/cc_attach_delete.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "frontend/assistant/src/components/assistant-ui/thread.tsx",
+  "frontend/assistant/src/components/delete-chats.tsx",
+  "frontend/assistant/src/lib/managed-agents/attachments.ts",
+  "apps/pearnly_core/pearnly_core/assistant/files.py",
+]
