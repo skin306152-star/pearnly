@@ -626,6 +626,10 @@ pearnly_express_operator = {
     "allowed": "pearnly_erp_portal.express.operator.allowed",
     "sources": "pearnly_erp_portal.express.operator.sources",
     "precheck": "pearnly_erp_portal.express.operator.precheck",
+    # 放文件（A 批 1，ADR-027 代录完整）：交 ERP 对话收单识别、识别状态现读；目标只有 Express
+    "intake": "pearnly_erp_portal.express.operator.intake",
+    "uploads": "pearnly_erp_portal.express.operator.uploads",
+    "target": "pearnly_erp_portal.express.operator.target",
     "submit": "pearnly_erp_portal.express.operator.submit",
     "status": "pearnly_erp_portal.express.operator.status",
     "pending": "pearnly_erp_portal.express.operator.pending_documents",

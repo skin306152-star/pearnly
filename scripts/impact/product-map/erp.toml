@@ -15,6 +15,36 @@ where = "代录 allowed"
 tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
 
 [[row]]
+id = "erp.cc.operator.intake"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:erp:intake"
+where = "代录 intake"
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/express/test_operator_intake.py::test_files_go_to_chat_intake_with_no_direction"]
+
+[[row]]
+id = "erp.cc.operator.uploads"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:erp:uploads"
+where = "代录 uploads"
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/express/test_operator_intake.py::test_uploads_maps_states_and_lists_the_documents_of_the_file"]
+
+[[row]]
+id = "erp.cc.operator.target"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:erp:target"
+where = "代录 target"
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/express/test_operator_intake.py::test_files_go_to_chat_intake_with_no_direction"]
+
+[[row]]
 id = "erp.cc.operator.pending"
 product = "ERP"
 channel = "cc-operator"

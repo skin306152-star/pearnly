@@ -467,7 +467,14 @@ CC_OCR_KIND = "erp.cc_intake"
 
 
 def receive_chat(*, company, direction, filename, content, request_key, session_id="") -> dict:
-    """CC 对话里的一个附件交识别。同一个人同一个请求键（对话附件编号）回原来那条：不重复识别、不重复收费；上次失败的才重来。"""
+    """CC 对话里的一个附件交识别。同一个人同一个请求键（对话附件编号）回原来那条：不重复识别、不重复收费；上次失败的才重来。
+    ``direction`` 空（代录放文件、用户没说采购还是销售）：先按采购读，票上卖方是本公司再按销售读（`run_chat`；主会话 11-08 定案 ②）。"""
+    guessed = False
+    if not direction:
+        allowed = [kind for kind, capability in DIRECTION_CAPABILITY.items() if guard.has(capability)]
+        if not allowed:
+            frappe.throw(_("Not permitted"), frappe.PermissionError)
+        direction, guessed = allowed[0], len(allowed) > 1
     if direction not in DIRECTION_CAPABILITY:
         frappe.throw(_("Choose purchase or sales first"))
     guard.require(DIRECTION_CAPABILITY[direction])
@@ -484,6 +491,7 @@ def receive_chat(*, company, direction, filename, content, request_key, session_
     doc = frappe.get_doc({
         "doctype": DOCTYPE, "status": QUEUED, "direction": direction, "owner": user, "sent_by": user,
         "source": SOURCE_CC, "session_id": str(session_id or "")[:140], "request_key": key,
+        "direction_guessed": int(guessed),
         "language": getattr(frappe.local, "lang", None) or channel_language(),
         "media_type": "pdf" if str(filename or "").lower().endswith(".pdf") else "image",
         "file_hash": hashlib.sha256(content).hexdigest(), "source_file": file.file_url, "source_file_name": file.name,
@@ -514,9 +522,7 @@ def run_chat(intake):
     frappe.local.lang = doc.get("language") or previous_lang
     try:
         try:
-            result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}],
-                                                          billing_reference=CC_OCR_KIND + ":" + doc.name,
-                                                          company=doc.company, prefill=False)
+            result = _read_chat(doc)
         except frappe.ValidationError as exc:
             _drop(doc, FAILED, str(exc))
             return {"failed": "recognition_failed"}
@@ -533,6 +539,28 @@ def run_chat(intake):
     finally:
         frappe.set_user(previous)
         frappe.local.lang = previous_lang
+
+
+# 按采购读出来是本公司开出的票（`purchasing.recognition` 拒收的那句）：方向是猜的就改按销售再读一次（这一次读的费用在我们，
+# 采购那遍拒收前不扣费，租户只按销售这遍收一次）
+ISSUED_HERE = "This document was issued by this company, not a purchase document"
+
+
+def _read_chat(doc):
+    files = [{"file": _file_name(doc), "kind": "bill"}]
+    try:
+        return _recogniser(doc.direction).recognise(files, billing_reference=CC_OCR_KIND + ":" + doc.name,
+                                                    company=doc.company, prefill=False)
+    except frappe.ValidationError as exc:
+        if not (doc.get("direction_guessed") and doc.direction == "purchase" and str(exc) == _(ISSUED_HERE)
+                and guard.has(DIRECTION_CAPABILITY["sales"])):
+            raise
+    frappe.db.rollback()
+    frappe.clear_messages()
+    frappe.db.set_value(DOCTYPE, doc.name, {"direction": "sales", "direction_guessed": 0})
+    doc.direction = "sales"
+    return _recogniser("sales").recognise(files, billing_reference=CC_OCR_KIND + ":" + doc.name, company=doc.company,
+                                          prefill=False)
 
 
 def chat_failed(arguments, code):
@@ -557,7 +585,8 @@ def chat_records(names) -> list:
     for name in rows + siblings:
         doc = frappe.get_doc(DOCTYPE, name)
         result = json.loads(doc.result or "{}")
-        item = {"record": doc.name, "status": doc.status, "direction": doc.direction, "company": doc.company}
+        item = {"record": doc.name, "status": doc.status, "direction": doc.direction, "company": doc.company,
+                "file_hash": doc.file_hash or ""}
         if doc.status == FAILED:
             item["reason"] = doc.error or ""
         if doc.status in (READY, CONFIRMED):

@@ -54,6 +54,28 @@ def upload_view(row, found, period: str) -> dict:
             "page_count": page_count, "code": code if state in ("failed", "queued") else "", "documents": documents}
 
 
+FAILED_WORK = ("failed", "uncertain", "cancelled")  # 共用识别队列落定没出结果的状态
+
+
+def upload_state(*, done: bool, failed: bool, reading: bool, pages_done=0, page_count=0, code="") -> dict:
+    """上传卡片的状态（两产品同一个判法，A 批 1）：产品只给「识别完了 / 没出结果 / 已经开始读」与页数，形状在这里定。纯函数。"""
+    page_count = _int(page_count)
+    if done:
+        return {"state": "done", "pages_done": page_count, "page_count": page_count, "code": ""}
+    if failed:
+        return {"state": "failed", "pages_done": _int(pages_done), "page_count": page_count, "code": _text(code) or UNAVAILABLE}
+    return {"state": "reading" if reading else "queued", "pages_done": _int(pages_done), "page_count": page_count,
+            "code": _text(code)}
+
+
+def work_state(record_status: str, work_status: str, code: str = "") -> dict:
+    """产品的识别记录状态 + 共用识别队列那件的状态 → 上传卡片状态（ERP 收单记录：queued / ready / confirmed / failed）。纯函数。"""
+    record_status, work_status = str(record_status or ""), str(work_status or "")
+    return upload_state(done=record_status in ("ready", "confirmed"),
+                        failed=record_status == "failed" or work_status in FAILED_WORK,
+                        reading=work_status == "running", code=code or (work_status if work_status in FAILED_WORK else ""))
+
+
 def target_view(target) -> dict | None:
     """一张单开始后写进哪份账套（产品预检给的原料）：没有账套键回 None。``writers``：报过能写这份账套的电脑（只有 ERP 给）。"""
     if not isinstance(target, dict) or not _text(target.get("account_set"), 255):

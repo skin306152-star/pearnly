@@ -44,6 +44,18 @@ class Compare(unittest.TestCase):
                          ["push:label", "push:step", "push:words", "push:params:a", "push:params:b", "push:params:c",
                           "push:required", "push:approval", "push:modes"])
 
+    def test_operator_hooks_must_match_across_products(self):
+        """代录是 CC 独有的，两产品接法要一样（ADR-027 A）：一边声明了另一边没有的键都列出来。"""
+        hooks = {"cowork": {"pearnly_express_operator": ["allowed", "intake", "regroup"], "pearnly_write_precheck": ["check"]},
+                 "erp": {"pearnly_express_operator": ["allowed", "intake", "target"], "pearnly_write_precheck": ["check"]}}
+        self.assertEqual(cc.compare_operator(hooks), ["operator:pearnly_express_operator:regroup",
+                                                      "operator:pearnly_express_operator:target"])
+        real = cc.operator_hooks()  # 读真 hooks.py，不导入
+        self.assertIn("intake", real["erp"]["pearnly_express_operator"])  # A 批 1：ERP 补上放文件
+        self.assertEqual(sorted(cc.compare_operator(real)), sorted(
+            line.split("  #")[0] for line in (ROOT / "scripts/impact/cc-tools-baseline.txt").read_text(encoding="utf-8").splitlines()
+            if line.startswith("operator:")))
+
     def test_baseline_only_shrinks(self):
         self.assertEqual(cc.check(["a:label"], ["a:label"]), [])
         errors = cc.check(["a:label", "b:step"], ["a:label", "gone:modes", "gone:modes"])

@@ -485,6 +485,37 @@ class CoworkUploadStateTests(unittest.TestCase):
             {"doc_id": "h2", "ref": "IV-2", "date": "2026-10-04", "party": "Shop", "waiting": False}])
 
 
+class SharedUploadStateTests(unittest.TestCase):
+    """A 批 1：上传卡片状态的判法在共用层一份（``shapes.upload_state``），Cowork（识别记录）与 ERP（收单记录 + 共用识别队列，
+    ``shapes.work_state``）都用它，两边同样的情形得到同样的卡片。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.shapes = _load("operator_shapes_code_cc", ROOT / "apps/pearnly_core/pearnly_core/express_operator/shapes.py")
+
+    def test_erp_intake_states_match_the_cowork_card(self):
+        work = self.shapes.work_state
+        self.assertEqual(work("queued", "queued"), {"state": "queued", "pages_done": 0, "page_count": 0, "code": ""})
+        self.assertEqual(work("queued", "running")["state"], "reading")
+        self.assertEqual(work("ready", "succeeded")["state"], "done")
+        self.assertEqual(work("confirmed", "succeeded")["state"], "done")
+        self.assertEqual(work("failed", "succeeded", "This is not a purchase or sales document"),
+                         {"state": "failed", "pages_done": 0, "page_count": 0, "code": "This is not a purchase or sales document"})
+        for failed in ("failed", "uncertain", "cancelled"):
+            self.assertEqual(work("queued", failed), {"state": "failed", "pages_done": 0, "page_count": 0, "code": failed})
+        self.assertEqual(work("failed", "", "")["code"], "unavailable")
+        cowork = _load("cowork_operator_source_shared",
+                       ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py",
+                       {"pearnly_cowork": types.ModuleType("pearnly_cowork"),
+                        "pearnly_cowork.access": types.SimpleNamespace(scope=types.ModuleType("scope")),
+                        "pearnly_cowork.access.scope": types.ModuleType("scope"),
+                        "pearnly_core.express_operator.shapes": self.shapes,
+                        "pearnly_core.express_operator": types.SimpleNamespace(shapes=self.shapes)})
+        source = (ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py").read_text(encoding="utf-8")
+        self.assertIn("shapes.upload_state(", source)  # Cowork 也走共用的判法
+        self.assertEqual(cowork.upload_state({"state": "uncertain", "page_count": 1}), work("queued", "uncertain") | {"page_count": 1})
+
+
 class ProgressEventTests(unittest.TestCase):
     """B5：识别排队、开始读、读到第几页、有结论都已推给提交人（同一个事件，`reference` 是识别任务号 = 上传的 `batch`），
     这次不另加推送。"""

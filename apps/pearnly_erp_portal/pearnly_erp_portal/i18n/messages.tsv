@@ -1921,3 +1921,5 @@ Recording a count	正在记录实盘数	กำลังบันทึกจำ�
 Finishing a stock count	正在结束盘点	กำลังปิดการตรวจนับสต็อก	棚卸を終了しています
 Created an adjustment from a stock count	按盘点结果生成了物料调整单	สร้างใบปรับปรุงสินค้าจากผลการตรวจนับแล้ว	棚卸結果から調整伝票を作成しました
 Creating an adjustment from a stock count	正在按盘点结果生成物料调整单	กำลังสร้างใบปรับปรุงสินค้าจากผลการตรวจนับ	棚卸結果から調整伝票を作成しています
+Some lines have no product yet	部分行未选物料	บางบรรทัดยังไม่ได้เลือกสินค้า	商品が未選択の行があります
+Direction Guessed	方向为推断	ทิศทางจากการคาดคะเน	方向は推定

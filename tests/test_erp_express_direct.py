@@ -2201,7 +2201,8 @@ class OperatorPrecheck(PushModule):
                 mock.patch.object(self.operator, "_company_ok", lambda user, company: company == "CO-9"), \
                 mock.patch.object(self.operator.guard, "has", lambda capability, user=None: capability == "purchase.write"), \
                 mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {"owner": "a@x"}), \
-                mock.patch.object(frappe, "get_all", lambda doctype, **kw: seen.append(kw["filters"]) or rows, create=True), \
+                mock.patch.object(frappe, "get_all", lambda doctype, **kw: [] if doctype == "ERP LINE Intake"  # 代录放文件的待提交记录（A 批 1）：这里没有
+                                  else (seen.append(kw["filters"]) or rows), create=True), \
                 mock.patch.object(frappe, "get_list", side_effect=AssertionError("must not use the list permission"),
                                   create=True), \
                 mock.patch.object(frappe, "session", types.SimpleNamespace(user="a@x"), create=True):

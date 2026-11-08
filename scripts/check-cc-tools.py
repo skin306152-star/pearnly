@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """CC 工具一致检查（ADR-027 标准二，2026-11-08）：同类工具在 Cowork 与 ERP 两个产品里，去掉产品前缀（``cowork_`` / ``erp_``）后
-逐项一致——步骤名（做完 / 进行中，英文原文与四语译文）、参数（名字、类型、必填）、要不要「允许」卡片、限哪种会话（modes）。
+逐项一致——步骤名（做完 / 进行中，英文原文与四语译文）、参数（名字、类型、必填）、要不要「允许」卡片、限哪种会话（modes）；
+代录（CC 独有）两产品的接法声明（``pearnly_express_operator``、``pearnly_write_precheck`` 的键）也要一样。
 确属产品差异的逐条登记在 ``scripts/impact/cc-tools-baseline.txt``（只许减少：已经一致或工具不在了的条目要删）。
 
     python3 scripts/check-cc-tools.py            # 在生产镜像里跑（要导入两个产品的工具声明，见 ci-candidate-checks.sh）
@@ -99,6 +100,32 @@ def compare(products: dict, words: dict) -> list[str]:
     return diffs
 
 
+OPERATOR_HOOKS = ("pearnly_express_operator", "pearnly_write_precheck")
+
+
+def _hook_dict(app: str, name: str) -> dict:
+    tree = ast.parse((ROOT / "apps" / app / app / "hooks.py").read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == name for t in node.targets):
+            value = ast.literal_eval(node.value)
+            return value if isinstance(value, dict) else {}
+    return {}
+
+
+def operator_hooks() -> dict:
+    """两产品代录与开始前卡片的接法声明（代录是 CC 独有，两产品要一样，ADR-027 A）：{产品: {钩子: [键]}}。只读 hooks.py，不导入。"""
+    return {product: {hook: sorted(_hook_dict(app, hook)) for hook in OPERATOR_HOOKS} for product, app in PRODUCTS.items()}
+
+
+def compare_operator(hooks: dict) -> list[str]:
+    """两产品代录接法：一边声明了、另一边没有的键 → ``operator:<钩子>:<键>``。"""
+    diffs = []
+    for hook in OPERATOR_HOOKS:
+        cowork, erp = set(hooks["cowork"].get(hook) or ()), set(hooks["erp"].get(hook) or ())
+        diffs += [f"operator:{hook}:{key}" for key in sorted(cowork ^ erp)]
+    return diffs
+
+
 def baseline(path=BASELINE) -> list:
     if not Path(path).exists():
         return []
@@ -122,7 +149,7 @@ def main() -> int:
         sys.path.insert(0, str(ROOT / "apps" / app))
     products = {product: declared(product) for product in PRODUCTS}
     words = {product: glossary(product) for product in PRODUCTS}
-    errors = check(compare(products, words), baseline())
+    errors = check(compare(products, words) + compare_operator(operator_hooks()), baseline())
     if errors:
         print(f"CC 工具一致检查：不通过（{len(errors)} 处）", file=sys.stderr)
         for error in errors:

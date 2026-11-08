@@ -435,6 +435,7 @@ Difference,Difference
 Difference value,Difference value
 Differences,Differences
 Direction,Direction
+Direction Guessed,Direction Guessed
 Direction must be in or out,Direction must be in or out
 Disable,Disable
 Disable {0},Disable {0}
@@ -1268,6 +1269,7 @@ Skipped {0} row(s); the first ones are listed above,Skipped {0} row(s); the firs
 Sold,Sold
 Sold At,Sold At
 Sold by,Sold by
+Some lines have no product yet,Some lines have no product yet
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
 Someone else changed this card. Close it and open it again.,Someone else changed this card. Close it and open it again.
 Sort Order,Sort Order

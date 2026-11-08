@@ -435,6 +435,7 @@ Difference,差異
 Difference value,差異金額
 Differences,差異合計
 Direction,方向
+Direction Guessed,方向は推定
 Direction must be in or out,方向は入庫か出庫のいずれかです
 Disable,無効化
 Disable {0},{0}件を無効化
@@ -1268,6 +1269,7 @@ Skipped {0} row(s); the first ones are listed above,{0}行をスキップしま�
 Sold,販売済み
 Sold At,販売日時
 Sold by,担当者
+Some lines have no product yet,商品が未選択の行があります
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
 Someone else changed this card. Close it and open it again.,このカードは他の人が変更しました。閉じて開き直してください
 Sort Order,並び順

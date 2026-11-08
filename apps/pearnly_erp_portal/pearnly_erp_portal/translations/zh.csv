@@ -435,6 +435,7 @@ Difference,差异
 Difference value,差异金额
 Differences,差异合计
 Direction,方向
+Direction Guessed,方向为推断
 Direction must be in or out,方向只能是入库或出库
 Disable,停用
 Disable {0},停用 {0}
@@ -1268,6 +1269,7 @@ Skipped {0} row(s); the first ones are listed above,已跳过 {0} 行，部分�
 Sold,已售
 Sold At,销售时间
 Sold by,收银员
+Some lines have no product yet,部分行未选物料
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,部分物料在盘点期间发生库存变动，请重新盘点已标记的物料后再结束盘点。
 Someone else changed this card. Close it and open it again.,此卡片已被其他用户修改，请关闭后重新打开。
 Sort Order,排序

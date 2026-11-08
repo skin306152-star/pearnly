@@ -4,6 +4,9 @@ ERP 的单在提交时就排进直写（机器产生的单固定走直写，主�
 采购 / 销售单（排着还没准备、停下等人的），会计可以改用代录录。
 
 - 谁能发起：这家公司在本人可见公司里，且有这类单据的开单权（与 ERP 推送、单据上「再写一次」同一判据）；
+- 放文件（A 批 1，ADR-027 代录完整）：代录对话里放进的文件走 ERP 对话收单（`integrations.intake.receive_chat`，同 LINE 收单的识别），
+  每张票一条待提交记录，以 ``I:<记录>`` 出现在资料区；开录时先用网页同一个入账函数提交成 ERP 单据（`intake.submit_chat`），再交代录。
+  识别中的状态照共用识别队列现读（``uploads``）。目标只有 Express（MR.ERP 执行层两产品一起等岳父账号）。
 - 交单：逐张走 ERP 推送同一条路（``push.send``：要人选的照旧停在单据上），载荷加代录标记；回执照直写同一条回到单据上
   （ledger_state / ledger_docnum / ledger_reason）。写账电脑照 ERP 原来的口径（开单的人登录过 CC 的电脑）。
 """
@@ -18,6 +21,7 @@ from pearnly_erp_portal.express import contracts, push
 from pearnly_erp_portal.masters import company as companies
 
 KINDS = {"P": (push.PURCHASE, "purchase.write"), "S": (push.SALES, "sales.write")}
+INTAKE = "I"  # 代录放文件识别出、还没提交的收单记录（``I:<记录>``）
 
 
 def _company_ok(user, company) -> bool:
@@ -62,9 +66,107 @@ def sources(company, period, offset, limit) -> dict:
                   "date": str(row.doc_date or ""), "party": row.get(party) or "", "ref": row.system_no or row.name,
                   "total": str(row.grand_total or ""), "stopped": row.ledger_reason or ""} for row in found
                  if not row.ledger_job or _operator_held(row.ledger_job)]
+    rows += _intake_rows(company, first, last)
     rows.sort(key=lambda r: (r["date"], r["doc_id"]))
     page = rows[offset:offset + limit]
     return {"documents": page, "next_offset": offset + limit if len(rows) > offset + limit else None}
+
+
+# ---------------- 放文件：收单记录（``I:``）----------------
+
+INTAKE_MAX = 200  # 一个人一家公司同时等着提交的收单记录（代录一批上限同共用层）
+
+
+def intake(company, filename, content, request_key) -> dict:
+    """资料区 / 输入框放进一份：交 ERP 对话收单识别（方向没说，先按采购读，`intake.receive_chat`）。回包 ``name`` 就是共用识别队列的
+    reference（共用层记成这一份的 batch，页面收 ``pearnly_ocr_work`` 推送再读 ``uploads``）。"""
+    from pearnly_erp_portal.integrations import intake as chat_intake
+
+    if not _company_ok(frappe.session.user, company):
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    found = chat_intake.receive_chat(company=company, direction="", filename=filename, content=content,
+                                     request_key=request_key)
+    return {"accepted": found.get("status") != chat_intake.FAILED, **found}
+
+
+def uploads(company, period, batches) -> dict:
+    """这几份此刻识别到哪了（只读）：收单记录 + 共用识别队列 → 上传卡片的状态（`express_operator.shapes.work_state`，两产品同一套）；
+    识别完的带出这个文件里的每张票（``I:<记录>``：单号、日期、对方、还在不在等着录入）。别人的、不是对话来的不回。"""
+    from pearnly_core.express_operator import shapes
+    from pearnly_erp_portal.integrations import intake as chat_intake
+
+    out = {}
+    rows = chat_intake.chat_records(list(batches or ()))
+    by_file = {}
+    for row in rows:
+        by_file.setdefault(row.get("file_hash") or row["record"], []).append(row)
+    for batch in dict.fromkeys(str(item) for item in batches or () if item):
+        mine = next((row for row in rows if row["record"] == batch), None)
+        if not mine or mine.get("company") != company:
+            continue
+        work = frappe.db.get_value("Pearnly OCR Work", {"kind": chat_intake.CC_OCR_KIND, "reference": batch},
+                                   ["status", "last_code"], as_dict=True, order_by="creation desc") or {}
+        out[batch] = shapes.work_state(mine["status"], work.get("status"), work.get("last_code") or mine.get("reason") or "")
+        if out[batch]["state"] == "done":
+            out[batch]["documents"] = [_intake_row(row)["document"]
+                                       for row in by_file.get(mine.get("file_hash") or batch, [])
+                                       if row["status"] in (chat_intake.READY, chat_intake.CONFIRMED)]
+    return out
+
+
+def target(company) -> str:
+    return "express"
+
+
+def _intake_row(row) -> dict:
+    document = {"doc_id": f"{INTAKE}:{row['record']}", "ref": row.get("doc_no") or "", "date": str(row.get("doc_date") or ""),
+                "party": row.get("party") or "", "waiting": row["status"] != "confirmed"}
+    return {"document": document, "kind": row.get("direction") or "purchase"}
+
+
+INTAKE_DOCTYPE = "ERP LINE Intake"  # 同 `integrations.intake.DOCTYPE`；先查有没有，有才导入收单模块
+
+
+def _intake_rows(company, first, last) -> list:
+    """资料区里还等着提交的收单记录（本人、这家公司、单据日期在这个月）。"""
+    names = frappe.get_all(INTAKE_DOCTYPE, filters={"source": "cc", "sent_by": frappe.session.user, "company": company,
+                                                    "status": "ready"},
+                           pluck="name", order_by="creation desc", limit_page_length=INTAKE_MAX)
+    if not names:
+        return []
+    from pearnly_erp_portal.integrations import intake as chat_intake
+
+    out = []
+    for row in chat_intake.chat_records(names):
+        if row["status"] != chat_intake.READY or not (first <= str(row.get("doc_date") or "") <= last):
+            continue
+        kind = row.get("direction") or "purchase"
+        out.append({"doc_id": f"{INTAKE}:{row['record']}", "kind": kind, "group": kind, "date": str(row.get("doc_date") or ""),
+                    "party": row.get("party") or "", "ref": row.get("doc_no") or "",
+                    "total": str((row.get("totals") or {}).get("grand_total") or ""), "stopped": ""})
+    return out
+
+
+def _intake(company, doc_id):
+    """``I:<记录>`` → 收单记录（本人、对话来的、这家公司的）；别的回 None。"""
+    from pearnly_erp_portal.integrations import intake as chat_intake
+
+    prefix, _sep, name = str(doc_id).partition(":")
+    if prefix != INTAKE or not name:
+        return None
+    row = frappe.db.get_value(chat_intake.DOCTYPE, name, ["name", "source", "sent_by", "company", "direction", "status",
+                                                          "purchase", "sales_document"], as_dict=True)
+    if not row or row.source != chat_intake.SOURCE_CC or row.sent_by != frappe.session.user or row.company != company:
+        return None
+    if not guard.has(chat_intake.DIRECTION_CAPABILITY[row.direction]):
+        return None
+    return row
+
+
+def _submitted(row):
+    """收单记录提交出的 ERP 单据 ``(doctype, 名)``；还没提交回 None。"""
+    name = row.purchase if row.direction == "purchase" else row.sales_document
+    return ((push.PURCHASE if row.direction == "purchase" else push.SALES), name) if name else None
 
 
 def pending_documents() -> list:
@@ -99,6 +201,9 @@ def precheck(company, doc_ids) -> dict:
 
     documents = []
     for doc_id in doc_ids:
+        if str(doc_id).startswith(INTAKE + ":"):
+            documents.append(_intake_precheck(company, doc_id))
+            continue
         target = _target(company, doc_id)
         if target is None:
             documents.append({"doc_id": doc_id, "state": "blocked", "reason": "not_permitted", "message": _("Not Permitted")})
@@ -114,6 +219,43 @@ def precheck(company, doc_ids) -> dict:
         row = {**row, "target": target} if target else row
         documents.append({**row, "precheck": write_precheck.document_view(doc_id, doctype, name, found)})
     return {"documents": documents}
+
+
+UNDECIDED_LINES = "erp.intake.lines_undecided"
+UNDECIDED_LINES_TEXT = "Some lines have no product yet"
+
+
+def _intake_precheck(company, doc_id) -> dict:
+    """一条待提交的收单记录：按它提交时的入参（`intake.build_payload`，同网页表单）判写进 Express 要人选的项（`collect_form`）。
+    有定不了物料的行先停（开始前卡片问这几行在下一步加，A 批 1b）；已提交的按提交出的单据判。"""
+    import json
+
+    from pearnly_erp_portal.express import precheck as write_precheck
+    from pearnly_erp_portal.integrations import intake as chat_intake
+
+    row = _intake(company, doc_id)
+    if row is None:
+        return {"doc_id": doc_id, "state": "blocked", "reason": "not_permitted", "message": _("Not Permitted")}
+    done = _submitted(row)
+    if done:
+        found = write_precheck.collect_document(*done)
+        return {**legacy_row(doc_id, found), "precheck": write_precheck.document_view(doc_id, *done, found)}
+    if row.status != chat_intake.READY:
+        return {"doc_id": doc_id, "state": "blocked", "reason": "not_ready", "message": _("This document is no longer available")}
+    doc = frappe.get_doc(chat_intake.DOCTYPE, row.name)
+    chosen = json.loads(doc.line_choices or "null") or {}
+    view = {"doc_id": doc_id, "ref": json.loads(doc.result or "{}").get("doc_no") or row.name, "direction": row.direction}
+    if any(line and not line.get("decided") for line in chosen.get("lines") or []):
+        return {"doc_id": doc_id, "state": "blocked", "reason": UNDECIDED_LINES, "message": _(UNDECIDED_LINES_TEXT),
+                "precheck": {**view, "state": "not_writable", "reason": UNDECIDED_LINES}}
+    doctype = push.PURCHASE if row.direction == "purchase" else push.SALES
+    found = write_precheck.collect_form(doctype, chat_intake.build_payload(doc), company)
+    state, reason = write_precheck._state(found["result"])
+    shown = book_target(found["result"].get("book"))
+    view = {**view, **({"target": shown} if shown else {})}
+    check = {**view, "state": state, **({"reason": reason} if reason else {}),
+             **({"items": found["items"]} if state == "check" else {})}
+    return {**legacy_row(doc_id, found), **({"target": shown} if shown else {}), "precheck": check}
 
 
 def legacy_needed(found) -> list:
@@ -186,7 +328,13 @@ def _remember(company, doctype, name, given, seen=None) -> None:
 def submit(company, doc_ids, batch, computer, answers=None) -> list:
     results = []
     for index, doc_id in enumerate(doc_ids, start=1):
-        target = _target(company, doc_id)
+        if str(doc_id).startswith(INTAKE + ":"):
+            target = _submit_intake(company, doc_id)
+            if isinstance(target, dict):
+                results.append(target)
+                continue
+        else:
+            target = _target(company, doc_id)
         if target is None:
             results.append({"doc_id": doc_id, "status": "not_permitted", "reason": ""})
             continue
@@ -200,13 +348,39 @@ def submit(company, doc_ids, batch, computer, answers=None) -> list:
     return results
 
 
+def _submit_intake(company, doc_id):
+    """开录时把收单记录提交成 ERP 单据（网页同一个入账函数，请求号按记录固定、只入一次），回 ``(doctype, 名)`` 交代录；提交不了回
+    这一张的结果行（原因原样）。"""
+    from pearnly_erp_portal.integrations import intake as chat_intake
+
+    row = _intake(company, doc_id)
+    if row is None:
+        return {"doc_id": doc_id, "status": "not_permitted", "reason": ""}
+    if not _submitted(row):
+        try:
+            chat_intake.submit_chat(row.name)
+        except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+            frappe.db.rollback()
+            frappe.clear_messages()
+            return {"doc_id": doc_id, "status": "failed", "reason": str(error)[:300]}
+        row = _intake(company, doc_id)
+    return _submitted(row) if row else None
+
+
 def status(company, doc_ids) -> list:
     """CC 重启后恢复出来的任务，以站点为准收尾（共用层 ``status``）：按单据的 Express 写账状态——已写入 → 已入账（带单号）、
     排着写账件 → 仍在队列、停住 / 失败 / 对不上 → 未完成（带原因）、没排或已撤回、人标了手工处理 → 已取消；不是这家公司、
     本人没权限的 → unknown。"""
     out = []
     for doc_id in doc_ids:
-        target = _target(company, doc_id)
+        if str(doc_id).startswith(INTAKE + ":"):
+            found = _intake(company, doc_id)
+            target = _submitted(found) if found else None
+            if found and not target:
+                out.append({"doc_id": doc_id, "state": "cancelled", "docnum": "", "reason": ""})  # 还没提交、没交代录
+                continue
+        else:
+            target = _target(company, doc_id)
         row = frappe.db.get_value(target[0], target[1], ["ledger_state", "ledger_docnum", "ledger_reason", "ledger_job"],
                                   as_dict=True) if target else None
         if not row:

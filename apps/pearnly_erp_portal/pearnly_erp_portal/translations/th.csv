@@ -435,6 +435,7 @@ Difference,ผลต่าง
 Difference value,มูลค่าผลต่าง
 Differences,ผลต่างรวม
 Direction,ทิศทาง
+Direction Guessed,ทิศทางจากการคาดคะเน
 Direction must be in or out,ทิศทางต้องเป็น รับเข้า หรือ จ่ายออก เท่านั้น
 Disable,ปิดใช้งาน
 Disable {0},ปิดใช้งาน {0}
@@ -1268,6 +1269,7 @@ Skipped {0} row(s); the first ones are listed above,ข้าม {0} แถว �
 Sold,ขายแล้ว
 Sold At,เวลาขาย
 Sold by,พนักงานเก็บเงิน
+Some lines have no product yet,บางบรรทัดยังไม่ได้เลือกสินค้า
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,สินค้าบางรายการมีการเคลื่อนไหวของสต็อกระหว่างการตรวจนับ กรุณาตรวจนับสินค้าที่ทำเครื่องหมายไว้ใหม่ก่อนสิ้นสุดการตรวจนับ
 Someone else changed this card. Close it and open it again.,มีผู้ใช้อื่นแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่
 Sort Order,ลำดับการจัดเรียง

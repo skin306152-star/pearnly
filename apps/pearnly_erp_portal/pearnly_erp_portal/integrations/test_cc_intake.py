@@ -46,6 +46,8 @@ class Base(unittest.TestCase):
         self.enterContext(patch.object(frappe, "throw", side_effect=self.reject))
         self.enterContext(patch.object(frappe, "set_user", lambda user: setattr(frappe.session, "user", user)))
         self.require = self.enterContext(patch("pearnly_erp_portal.access.guard.require"))
+        self.capabilities = {"purchase.write", "sales.write"}
+        self.enterContext(patch("pearnly_erp_portal.access.guard.has", side_effect=lambda capability, user=None: capability in self.capabilities))
         self.enterContext(patch("pearnly_erp_portal.masters.company.document_company", side_effect=lambda company, user=None: company or "CO-1"))
         self.enterContext(patch("pearnly_core.line.reply_or_push", side_effect=AssertionError("no LINE from the chat")))
         self.enterContext(patch("requests.sessions.Session.request", side_effect=AssertionError("External network forbidden")))
@@ -95,9 +97,18 @@ class Receive(Base):
         self.db.get_value.return_value = SimpleNamespace(name="LI-00007", status=intake.FAILED)
         self.assertEqual(self.receive()["status"], intake.QUEUED)  # 上次失败的才重来
 
-    def test_direction_is_required_and_a_full_queue_fails_the_record(self):
+    def test_no_direction_reads_as_purchase_first_and_a_full_queue_fails_the_record(self):
+        self.receive(direction="")
+        self.assertEqual((self.inserted[-1].direction, self.inserted[-1].direction_guessed), ("purchase", 1))
+        self.capabilities = {"sales.write"}
+        self.receive(direction="", request_key="assistant:file_2")
+        self.assertEqual((self.inserted[-1].direction, self.inserted[-1].direction_guessed), ("sales", 0))  # 只能开销售单就不猜
+        self.capabilities = set()
+        with self.assertRaises(frappe.PermissionError):
+            self.receive(direction="", request_key="assistant:file_3")
+        self.capabilities = {"purchase.write", "sales.write"}
         with self.assertRaises(frappe.ValidationError):
-            self.receive(direction="")
+            self.receive(direction="refund")
         from pearnly_core.execution.errors import QueueFull
 
         self.submit.side_effect = QueueFull()
@@ -128,6 +139,20 @@ class Run(Base):
                          ("erp.cc_intake:LI-00001", "CO-1", False))
         self.assertEqual(self.prepared, [("LI-00001", None), ("LI-00002", None)])
         self.assertEqual(frappe.session.user, "buyer@x")
+
+    def test_a_guessed_purchase_issued_by_this_company_is_read_again_as_sales(self):
+        self.doc.direction_guessed = 1
+        purchase, sales = Mock(), Mock()
+        purchase.recognise.side_effect = frappe.ValidationError(intake.ISSUED_HERE)
+        sales.recognise.return_value = {"doc_no": "SI1"}
+        self.enterContext(patch.object(intake, "_recogniser", side_effect=lambda direction: sales if direction == "sales" else purchase))
+        self.enterContext(patch.object(frappe, "clear_messages", create=True))
+        self.assertEqual(intake.run_chat("LI-00001"), {"records": ["LI-00001"]})
+        self.assertEqual(self.doc.direction, "sales")
+        self.db.set_value.assert_any_call(intake.DOCTYPE, "LI-00001", {"direction": "sales", "direction_guessed": 0})
+        self.assertEqual(sales.recognise.call_args.kwargs["billing_reference"], "erp.cc_intake:LI-00001")
+        self.doc.direction, self.doc.direction_guessed, self.doc.status = "purchase", 0, intake.QUEUED
+        self.assertEqual(intake.run_chat("LI-00001"), {"failed": "recognition_failed"})  # 方向是人说的：不改读
 
     def test_failures_keep_the_reason_and_only_chat_records_run(self):
         self.recogniser.recognise.side_effect = frappe.ValidationError("This is not a purchase or sales document")

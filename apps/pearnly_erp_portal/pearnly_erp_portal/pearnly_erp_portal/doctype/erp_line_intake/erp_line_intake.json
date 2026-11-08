@@ -15,6 +15,7 @@
   "source",
   "session_id",
   "request_key",
+  "direction_guessed",
   "file_hash",
   "source_file",
   "source_file_name",
@@ -116,6 +117,13 @@
    "label": "Request Key",
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "direction_guessed",
+   "fieldtype": "Check",
+   "label": "Direction Guessed",
+   "read_only": 1,
+   "default": "0"
   },
   {
    "fieldname": "file_hash",

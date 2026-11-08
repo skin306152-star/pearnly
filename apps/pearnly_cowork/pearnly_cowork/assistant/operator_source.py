@@ -209,15 +209,12 @@ def upload_state(project) -> dict:
     """一份识别任务（`ocr.execution.service.detail` 的回包）→ 代录上传卡片的状态（共用层 ``shapes.UPLOAD_STATES``）：存好了 /
     不是单据 → 已识别；共用队列落定失败 / 结果不确定 / 取消 → 失败（带失败码）；其余按录入工作台等候页同一个判据分排队中、识别中
     （``reading``：已离开队列）。纯函数。"""
+    from pearnly_core.express_operator import shapes
+
     state = str(project.get("state") or "")
-    page_count = int(project.get("page_count") or 0)
-    if state in _DONE_PHASES:
-        return {"state": "done", "pages_done": page_count, "page_count": page_count, "code": ""}
-    if state in _FAILED_WORK:
-        return {"state": "failed", "pages_done": int(project.get("pages_done") or 0), "page_count": page_count,
-                "code": str(project.get("last_code") or state)}
-    return {"state": "reading" if project.get("reading") else "queued", "pages_done": int(project.get("pages_done") or 0),
-            "page_count": page_count, "code": str(project.get("last_code") or "")}
+    return shapes.upload_state(done=state in _DONE_PHASES, failed=state in _FAILED_WORK, reading=bool(project.get("reading")),
+                               pages_done=project.get("pages_done") or 0, page_count=project.get("page_count") or 0,
+                               code=str(project.get("last_code") or (state if state in _FAILED_WORK else "")))
 
 
 def uploads(company, period, batches) -> dict:
