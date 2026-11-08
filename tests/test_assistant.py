@@ -1512,6 +1512,19 @@ class ToolAndDefinitionTests(unittest.TestCase):
         hooks = (ROOT / "apps/pearnly_cowork/pearnly_cowork/hooks.py").read_text(encoding="utf-8")
         self.assertRegex(hooks, r'pearnly_assistant_guidance = \["pearnly_cowork\.assistant\.tools\.GUIDANCE"[,\]]')
 
+    def test_business_documents_go_to_recognition_not_the_sandbox(self):
+        # 2026-11-08 testerp：ERP 版 CC 没有识别工具，27 页发票 PDF 在沙箱里逐页自己看，还说「服务器没有泰文识别引擎」
+        # （没过自检、不进单据、不按页收费）。共用说明（两个产品、直写与代录同一份）写死：票据只交识别工具。
+        for product in ("erp", "cowork"):
+            system = claude.spec(definition.brief(product), "claude-opus-5-5")["system"]
+            for phrase in ("are read only by a Pearnly recognition tool",
+                           "Never read one yourself (by looking at its pages, OCR or text extraction in the sandbox)",
+                           "Looking at an original page a tool put into the chat to check a field the tools point to is fine",
+                           "CC cannot recognize documents in this chat",
+                           "never say the server lacks a recognition or language engine",
+                           "Scans and photos of receipts and invoices are not for these scripts"):
+                self.assertIn(phrase, system)
+
     def test_instructions_keep_large_files_out_of_the_conversation(self):
         # 2026-10-10：整本 PDF 用 read 读进上下文，一次加了约 11 万 token，此后每次请求都过 Haiku 的 10 万计价线
         system = claude.spec(definition.brief("cowork"), "claude-haiku-5-5")["system"]
