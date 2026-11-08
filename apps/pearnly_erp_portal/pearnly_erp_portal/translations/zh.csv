@@ -241,9 +241,11 @@ Checkbox,勾选
 Checked pending items,查看了待处理
 Checked push choices,查看了推送前要选的项
 Checked push results,查看了推送结果
+Checked stock,查看了库存
 Checking pending items,正在查看待处理
 Checking push choices,正在查看推送前要选的项
 Checking push results,正在查看推送结果
+Checking stock,正在查看库存
 Checklist,清单
 Checkout,结账
 Checkout Order / Submit Order / New Order,结账 / 提交订单 / 新订单
@@ -1639,8 +1641,10 @@ Vehicle,车
 Vehicles,汽车
 View,显示方式
 Viewed a document,查看了单据详情
+Viewed a stock card,查看了收发存明细
 Viewed a stock count,查看了盘点结果
 Viewing a document,正在查看单据详情
+Viewing a stock card,正在查看收发存明细
 Viewing a stock count,正在查看盘点结果
 Visibility,可见范围
 Void Reason,撤销原因

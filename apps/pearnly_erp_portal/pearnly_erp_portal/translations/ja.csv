@@ -241,9 +241,11 @@ Checkbox,チェックボックス
 Checked pending items,処理待ちの項目を確認しました
 Checked push choices,送信前の選択項目を確認しました
 Checked push results,送信結果を確認しました
+Checked stock,在庫を確認しました
 Checking pending items,処理待ちの項目を確認しています
 Checking push choices,送信前の選択項目を確認しています
 Checking push results,送信結果を確認しています
+Checking stock,在庫を確認しています
 Checklist,チェックリスト
 Checkout,会計
 Checkout Order / Submit Order / New Order,会計 / 注文確定 / 新規注文
@@ -1639,8 +1641,10 @@ Vehicle,車両
 Vehicles,自動車
 View,表示
 Viewed a document,書類を確認しました
+Viewed a stock card,受払明細を確認しました
 Viewed a stock count,棚卸結果を確認しました
 Viewing a document,書類を確認しています
+Viewing a stock card,受払明細を確認しています
 Viewing a stock count,棚卸結果を確認しています
 Visibility,公開範囲
 Void Reason,取消理由

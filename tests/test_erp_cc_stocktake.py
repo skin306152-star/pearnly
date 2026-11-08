@@ -86,6 +86,11 @@ def _acting(company, user=None):
 
 
 companies.acting = _acting
+stock = types.ModuleType("pearnly_erp_portal.inventory.stock")
+report = types.ModuleType("pearnly_erp_portal.inventory.report")
+inv_contracts = types.ModuleType("pearnly_erp_portal.inventory.contracts")
+inv_contracts.PRODUCT_VIEW = "product"
+products_service = types.ModuleType("pearnly_erp_portal.products.service")
 for name, module in (("pearnly_erp_portal", types.ModuleType("pearnly_erp_portal")),
                      ("pearnly_erp_portal.inventory", types.ModuleType("pearnly_erp_portal.inventory")),
                      ("pearnly_erp_portal.masters", types.ModuleType("pearnly_erp_portal.masters"))):
@@ -94,6 +99,17 @@ for name, module in (("pearnly_erp_portal", types.ModuleType("pearnly_erp_portal
 sys.modules["pearnly_erp_portal.inventory.count"] = count
 sys.modules["pearnly_erp_portal.masters.cc_tools"] = cc_masters
 sys.modules["pearnly_erp_portal.masters.company"] = companies
+for _name, _module in (("pearnly_erp_portal.inventory.stock", stock), ("pearnly_erp_portal.inventory.report", report),
+                       ("pearnly_erp_portal.inventory.contracts", inv_contracts),
+                       ("pearnly_erp_portal.products.service", products_service)):
+    sys.modules[_name] = _module
+_products_pkg = types.ModuleType("pearnly_erp_portal.products")
+_products_pkg.__path__ = []
+_products_pkg.service = products_service
+sys.modules["pearnly_erp_portal.products"] = _products_pkg
+sys.modules["pearnly_erp_portal.inventory"].stock = stock
+sys.modules["pearnly_erp_portal.inventory"].report = report
+sys.modules["pearnly_erp_portal.inventory"].contracts = inv_contracts
 sys.modules["pearnly_erp_portal.masters"].company = companies
 sys.modules["pearnly_erp_portal.inventory"].count = count
 sys.modules["pearnly_erp_portal.masters"].cc_tools = cc_masters
@@ -202,6 +218,56 @@ class Behaviour(unittest.TestCase):
         self.assertEqual(DB.rollbacks, before + 1)
 
 
+class StockLookup(unittest.TestCase):
+    """P2-1：在库一览与单品收发存明细（erp_stock_lookup / erp_stock_card），只读、在对话挂的那家公司下面取数、服务端分页。"""
+
+    def setUp(self):
+        CALLS.clear()
+        cc_masters.FILED = "C-1"
+        stock.stock_overview = _record("stock_overview", [{"code": "A1", "product_name": "Apple", "qty_on_hand": 5.0,
+                                                           "company_qty": 9.0, "status": "ok", "unit_cost": None,
+                                                           "warehouse": "WH-1", "name": "x"}])
+        stock.stock_count = _record("stock_count", 1)
+        products_service.find_product = _record("find_product", {"name": "P-1", "code": "A1"})
+        report.card = _record("card", {"product_name": "Apple", "unit": "pcs", "opening": {"qty": 1.0},
+                                       "closing": {"qty": 9.0},
+                                       "rows": [{"date": f"2026-11-{i % 28 + 1:02d}", "kind": "in", "qty": 1.0,
+                                                 "bal_qty": float(i), "doc_no": f"D{i}"} for i in range(80)]})
+
+    def test_erp_stock_lookup_by_product_in_the_chat_s_company(self):
+        out = run("stock_lookup", search="apple", limit=1)
+        name, _args, kwargs = CALLS[0]
+        self.assertEqual((name, kwargs["view"], kwargs["q"], kwargs["start"], kwargs["limit"], kwargs["_acting"]),
+                         ("stock_overview", "product", "apple", 0, 1, "C-1"))
+        self.assertEqual(CALLS[1][0], "stock_count")
+        self.assertEqual(out["total"], 1)
+        self.assertEqual(out["next_offset"], 1)
+        self.assertNotIn("warehouse", out["rows"][0])  # 内部编号不给模型
+        self.assertNotIn("unit_cost", out["rows"][0])  # 没有成本权限的空值不带
+        CALLS.clear()
+        run("stock_lookup", by_position=True, company="C-2")
+        self.assertEqual((CALLS[0][2]["view"], CALLS[0][2]["_acting"]), (None, "C-2"))
+        self.assertEqual(run("stock_lookup", company="C-9")["status"], "not_saved")
+
+    def test_erp_stock_card_by_code_with_the_latest_rows(self):
+        out = run("stock_card", product="A1", date_from="2026-11-01")
+        self.assertEqual([c[0] for c in CALLS], ["find_product", "card"])
+        self.assertEqual((CALLS[1][2]["product"], CALLS[1][2]["date_from"], CALLS[1][2]["_acting"]), ("P-1", "2026-11-01", "C-1"))
+        self.assertEqual((out["movements"], len(out["rows"])), (80, tools.CARD_ROWS))
+        self.assertEqual(out["rows"][-1]["doc_no"], "D79")  # 最近的在后面
+        products_service.find_product = _record("find_product", {"ambiguous": 1, "candidates": [{"name": "P-1"}, {"name": "P-2"}]})
+        self.assertEqual(len(run("stock_card", product="A1")["candidates"]), 2)
+        products_service.find_product = _record("find_product", {})
+        self.assertIn("not_found", run("stock_card", product="ZZ")["reason"])
+
+    def test_read_only(self):
+        source = (ERP / "inventory/cc_tools.py").read_text(encoding="utf-8")
+        start = source.index("def stock_lookup(")
+        end = source.index("COMPANY_PROP = ")
+        for forbidden in ("apply_movement", "apply_lines", "rebuild_balance", "frappe.db.", ".insert(", ".save("):
+            self.assertNotIn(forbidden, source[start:end])
+
+
 class Declaration(unittest.TestCase):
     def test_erp_declares_them_with_cowork_s_shape_words_and_no_allow_card(self):
         hooks = (ERP / "hooks.py").read_text(encoding="utf-8")
@@ -210,11 +276,13 @@ class Declaration(unittest.TestCase):
         names = [tool["name"] for tool in tools.TOOLS]
         self.assertEqual(sorted(names), sorted(tools.STEP_NAMES))
         self.assertEqual(set(names), {"erp_stocktake_list", "erp_stocktake_report", "erp_stocktake_create",
-                                      "erp_stocktake_count", "erp_stocktake_close", "erp_stocktake_adjust"})
+                                      "erp_stocktake_count", "erp_stocktake_close", "erp_stocktake_adjust",
+                                      "erp_stock_lookup", "erp_stock_card"})
         by_name = {tool["name"]: tool["handler"].rpartition(".")[2] for tool in tools.TOOLS}
         self.assertEqual(by_name, {"erp_stocktake_list": "stocktake_list", "erp_stocktake_report": "stocktake_report",
                                    "erp_stocktake_create": "stocktake_create", "erp_stocktake_count": "stocktake_count",
-                                   "erp_stocktake_close": "stocktake_close", "erp_stocktake_adjust": "stocktake_adjust"})
+                                   "erp_stocktake_close": "stocktake_close", "erp_stocktake_adjust": "stocktake_adjust",
+                                   "erp_stock_lookup": "stock_lookup", "erp_stock_card": "stock_card"})
 
         def terms(path):
             return {line.split("\t")[0]: line.split("\t")[1:4]
@@ -228,8 +296,8 @@ class Declaration(unittest.TestCase):
             self.assertTrue(callable(getattr(tools, func)))
             for text in (tool["label"], tools.STEP_NAMES[tool["name"]]):
                 self.assertTrue(all(erp.get(text, [""])[:3]), f"{text} needs zh / th / ja")
-            if tool["name"] == "erp_stocktake_adjust":
-                continue  # 只有 ERP 有（Cowork 盘点不生成调整单）
+            if tool["name"] in ("erp_stocktake_adjust", "erp_stock_lookup", "erp_stock_card"):
+                continue  # 只有 ERP 有（Cowork 盘点不生成调整单、不管库存）
             twin = "cowork_" + tool["name"][len("erp_"):]
             start = source.index(f'{{"name": "{twin}", "label": "{tool["label"]}"')  # 同名工具、同一个步骤名
             end = source.find('{"name": "cowork_', start + 10)

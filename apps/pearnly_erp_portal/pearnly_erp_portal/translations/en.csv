@@ -241,9 +241,11 @@ Checkbox,Checkbox
 Checked pending items,Checked pending items
 Checked push choices,Checked push choices
 Checked push results,Checked push results
+Checked stock,Checked stock
 Checking pending items,Checking pending items
 Checking push choices,Checking push choices
 Checking push results,Checking push results
+Checking stock,Checking stock
 Checklist,Checklist
 Checkout,Checkout
 Checkout Order / Submit Order / New Order,Checkout Order / Submit Order / New Order
@@ -1639,8 +1641,10 @@ Vehicle,Vehicle
 Vehicles,Vehicles
 View,View
 Viewed a document,Viewed a document
+Viewed a stock card,Viewed a stock card
 Viewed a stock count,Viewed a stock count
 Viewing a document,Viewing a document
+Viewing a stock card,Viewing a stock card
 Viewing a stock count,Viewing a stock count
 Visibility,Visibility
 Void Reason,Void Reason

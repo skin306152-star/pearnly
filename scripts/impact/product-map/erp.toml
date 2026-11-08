@@ -201,6 +201,26 @@ where = "CC 工具 erp_set_printed_total"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_set_printed_total"]
 
 [[row]]
+id = "erp.cc.tool.erp_stock_card"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_stock_card"
+where = "CC 工具 erp_stock_card"
+tests = ["unit:tests/test_erp_cc_stocktake.py::erp_stock_card"]
+
+[[row]]
+id = "erp.cc.tool.erp_stock_lookup"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_stock_lookup"
+where = "CC 工具 erp_stock_lookup"
+tests = ["unit:tests/test_erp_cc_stocktake.py::erp_stock_lookup"]
+
+[[row]]
 id = "erp.cc.tool.erp_stocktake_adjust"
 product = "ERP"
 channel = "cc-chat"

@@ -1,4 +1,5 @@
-"""ERP 版 CC 的盘点工具（盘点 2026-11-08 P1-1）：在对话里列盘点、看差异、新建、按码记实盘数、结束、按结果生成物料调整单草稿。
+"""ERP 版 CC 的库存工具：盘点（盘点 2026-11-08 P1-1：列盘点、看差异、新建、按码记实盘数、结束、按结果生成物料调整单草稿）与
+库存只读查询（P2-1：在库一览 / 按物料合计、单品库存卡）。
 
 - 形状照 Cowork 的 ``cowork_stocktake_*``（列表、结果、记数、结束），ERP 自己在 ``hooks.py`` 的 ``pearnly_assistant_tools`` 声明（ADR-009）；
   两份盘点代码不在这里合并，工具只调 ERP 盘点页同一组服务函数（``inventory.count``），权限、仓库可见、锁与审阅令牌都由它们核。
@@ -152,6 +153,67 @@ def stocktake_adjust(tool_input) -> str:
     return _json({**out, "state": "draft"})
 
 
+STOCK_MAX = 50
+CARD_ROWS = 60  # 库存卡只交最近这么多笔（期初、期末照全），更早的让人在库存卡页看
+
+
+def stock_lookup(tool_input) -> str:
+    """在库一览（同库存页，服务端分页）：默认按物料合计各仓，by_position 分仓 / 仓位列；成本按岗位遮蔽（没有成本权限是空）。"""
+    from pearnly_erp_portal.inventory import contracts, stock
+
+    company, reason = _company(tool_input)
+    if reason:
+        return _json({"status": "not_saved", "reason": reason})
+    limit = max(1, min(int(tool_input.get("limit") or 20), STOCK_MAX))
+    offset = max(0, int(tool_input.get("offset") or 0))
+    query = {"q": str(tool_input.get("search") or "").strip() or None,
+             "warehouse": str(tool_input.get("warehouse") or "").strip() or None,
+             "include_zero": bool(tool_input.get("include_zero")), "only_low": bool(tool_input.get("only_low")),
+             "view": None if tool_input.get("by_position") else contracts.PRODUCT_VIEW}
+    with _in(company):
+        rows = _call(stock.stock_overview, start=offset, limit=limit, **query)
+        if rows.get("status") == "not_saved":
+            return _json(rows)
+        total = _call(stock.stock_count, **query)
+    keep = ("code", "product_name", "attribute", "warehouse_name", "location", "unit", "qty_on_hand", "company_qty",
+            "status", "unit_cost", "value")
+    found = rows.get("result") or []
+    return _json({"total": total.get("result"), "rows": [{k: r.get(k) for k in keep if r.get(k) not in (None, "")}
+                                                          for r in found],
+                  "next_offset": offset + len(found) if len(found) == limit else None})
+
+
+def stock_card(tool_input) -> str:
+    """单品库存卡（同库存卡页）：期初、逐笔进出（最近 ``CARD_ROWS`` 笔）、期末；物料按代码 / 条码认，认出几件回候选。"""
+    from pearnly_erp_portal.inventory import report
+    from pearnly_erp_portal.products import service as products
+
+    company, reason = _company(tool_input)
+    if reason:
+        return _json({"status": "not_saved", "reason": reason})
+    code = str(tool_input.get("product") or "").strip()
+    with _in(company):
+        found = _call(products.find_product, code)
+        if found.get("status") == "not_saved":
+            return _json(found)
+        if found.get("ambiguous"):
+            return _json({"status": "not_saved", "reason": "several products have this code: ask the user which one",
+                          "candidates": found.get("candidates")})
+        if not found.get("name"):
+            return _json({"status": "not_saved", "reason": "not_found: no product has this code or barcode; find it with "
+                                                           "erp_stock_lookup search first"})
+        card = _call(report.card, product=found["name"], warehouse=str(tool_input.get("warehouse") or "").strip() or None,
+                     date_from=tool_input.get("date_from") or None, date_to=tool_input.get("date_to") or None)
+    if card.get("status") == "not_saved":
+        return _json(card)
+    rows = card.get("rows") or []
+    keep = ("date", "kind", "doc_no", "desc", "warehouse_name", "location", "qty", "bal_qty", "unit_price", "amount")
+    return _json({"product": found.get("code") or found["name"], "product_name": card.get("product_name"),
+                  "unit": card.get("unit"), "warehouse": card.get("warehouse_name"), "opening": card.get("opening"),
+                  "closing": card.get("closing"), "movements": len(rows),
+                  "rows": [{k: r.get(k) for k in keep if r.get(k) not in (None, "")} for r in rows[-CARD_ROWS:]]})
+
+
 COMPANY_PROP = {"type": "string", "description": "Only when the stock count is for another company than the one this "
                                                  "conversation is filed under: that company's id, after checking with "
                                                  "the user."}
@@ -203,9 +265,34 @@ TOOLS = [
                     "(give the user its number). If the count already has one, that one is returned.",
      "input_schema": {"type": "object", "properties": {"count": {"type": "string"}}, "required": ["count"]},
      "handler": "pearnly_erp_portal.inventory.cc_tools.stocktake_adjust"},
+    {"name": "erp_stock_lookup", "label": "Checked stock",
+     "description": "Stock on hand now, like the stock page: by default one row per product with its total over the company's "
+                    "warehouses (company_qty) and status (ok, low, out); by_position true lists each warehouse and location "
+                    "instead. search matches name, code or barcode; warehouse limits it to one warehouse; include_zero also "
+                    "lists products with none left; only_low lists low and out of stock only. Costs are empty for people "
+                    f"who may not see them. Up to {STOCK_MAX} per call: total is how many match; pass next_offset as offset.",
+     "input_schema": {"type": "object", "properties": {
+         "search": {"type": "string"}, "warehouse": {"type": "string"}, "by_position": {"type": "boolean"},
+         "include_zero": {"type": "boolean"}, "only_low": {"type": "boolean"},
+         "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": STOCK_MAX},
+         "company": COMPANY_PROP}},
+     "handler": "pearnly_erp_portal.inventory.cc_tools.stock_lookup"},
+    {"name": "erp_stock_card", "label": "Viewed a stock card",
+     "description": "One product's stock card, like the stock card page: opening balance, each movement in and out with its "
+                    f"document number and running balance (the latest {CARD_ROWS}; movements is how many there are) and "
+                    "the closing balance. product is its code or barcode (find it with erp_stock_lookup when unsure); "
+                    "warehouse and the dates (YYYY-MM-DD) are optional.",
+     "input_schema": {"type": "object", "properties": {
+         "product": {"type": "string"}, "warehouse": {"type": "string"},
+         "date_from": {"type": "string", "description": "YYYY-MM-DD"}, "date_to": {"type": "string", "description": "YYYY-MM-DD"},
+         "company": COMPANY_PROP}, "required": ["product"]},
+     "handler": "pearnly_erp_portal.inventory.cc_tools.stock_card"},
 ]
 
+
 STEP_NAMES = {
+    "erp_stock_lookup": "Checking stock",
+    "erp_stock_card": "Viewing a stock card",
     "erp_stocktake_list": "Listing stock counts",
     "erp_stocktake_report": "Viewing a stock count",
     "erp_stocktake_create": "Creating a stock count",

@@ -241,9 +241,11 @@ Checkbox,ช่องทำเครื่องหมาย
 Checked pending items,ตรวจสอบรายการรอดำเนินการแล้ว
 Checked push choices,ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว
 Checked push results,ตรวจสอบผลการส่งแล้ว
+Checked stock,ตรวจสอบสต็อกแล้ว
 Checking pending items,กำลังตรวจสอบรายการรอดำเนินการ
 Checking push choices,กำลังตรวจสอบสิ่งที่ต้องเลือกก่อนส่ง
 Checking push results,กำลังตรวจสอบผลการส่ง
+Checking stock,กำลังตรวจสอบสต็อก
 Checklist,รายการตรวจสอบ
 Checkout,ชำระเงิน
 Checkout Order / Submit Order / New Order,ชำระเงิน / ยืนยันคำสั่งซื้อ / คำสั่งซื้อใหม่
@@ -1639,8 +1641,10 @@ Vehicle,รถยนต์
 Vehicles,รถยนต์
 View,มุมมอง
 Viewed a document,ดูเอกสารแล้ว
+Viewed a stock card,ดูรายการรับ-จ่าย-คงเหลือแล้ว
 Viewed a stock count,ดูผลการตรวจนับสต็อกแล้ว
 Viewing a document,กำลังดูเอกสาร
+Viewing a stock card,กำลังดูรายการรับ-จ่าย-คงเหลือ
 Viewing a stock count,กำลังดูผลการตรวจนับสต็อก
 Visibility,การมองเห็น
 Void Reason,เหตุผลการยกเลิก

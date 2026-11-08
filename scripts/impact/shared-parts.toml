@@ -301,7 +301,7 @@ name = "ERP 按码找商品（products.service / purchase / sales）"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py"]
 markers = ["products.service", "products import service", "products import purchase", "products import sales", "find_product"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "apps/**/*.js"]
-entries = ["erp.products.find-by-code", "erp.entry.choices", "erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.cashier.camera", "erp.inventory.opening.item-scan", "erp.cashier.search", "erp.cashier.scanner-gun", "erp.cc.masters", "erp.cc.write", "erp.line.intake.submit", "erp.serials.dialog", "erp.stock-count.new-product", "erp.line.stocktake.new-product", "erp.trade.line-stock"]
+entries = ["erp.products.find-by-code", "erp.entry.choices", "erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.cashier.camera", "erp.inventory.opening.item-scan", "erp.cashier.search", "erp.cashier.scanner-gun", "erp.cc.masters", "erp.cc.write", "erp.line.intake.submit", "erp.serials.dialog", "erp.stock-count.new-product", "erp.line.stocktake.new-product", "erp.trade.line-stock", "erp.cc.stocktake"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/contracts.py" = "只在注释里提到", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/erp_product/erp_product.py" = "只在注释里提到", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/opening_batch.py" = "只在注释里提到（建商品带期初由 products.service 调它）", "apps/pearnly_erp_portal/pearnly_erp_portal/products/categories.py" = "只在注释里提到（分类按名称认的口径同 products.service.taken）" }
 
 [[part]]
@@ -2039,11 +2039,11 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/__init__.py", "apps/p
 [[entry]]
 id = "erp.cc.stocktake"
 product = "ERP"
-where = "ERP 版 CC 对话里盘点（列盘点、看差异、新建、按码记实盘数、结束、按结果生成物料调整单草稿）"
+where = "ERP 版 CC 对话里的库存（盘点：列盘点、看差异、新建、按码记实盘数、结束、按结果生成物料调整单草稿；在库一览、单品收发存明细）"
 steps = "ERP 账号在 CC 对话里：列这家公司的盘点、新建一份（多仓公司说哪个仓）、按物料码记数（同码几件、码不在系统、重盘各试一次）、看差异、结束、生成调整单；员工账号、别家公司各试一次"
 expect = "与盘点页同一组服务函数：只见本人可用公司的仓；结束只锁定结果不动库存；调整单是草稿、人在调整单页提交才入账；业务拒绝原话交回"
 check = "offline"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/cc_tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/cc_tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/stock.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/report.py"]
 
 [[entry]]
 id = "erp.cc.chat-push"
