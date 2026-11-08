@@ -2,7 +2,8 @@
 
 - 形状照 Cowork 的 ``cowork_stocktake_*``（列表、结果、记数、结束），ERP 自己在 ``hooks.py`` 的 ``pearnly_assistant_tools`` 声明（ADR-009）；
   两份盘点代码不在这里合并，工具只调 ERP 盘点页同一组服务函数（``inventory.count``），权限、仓库可见、锁与审阅令牌都由它们核。
-- 公司按对话挂的那家（``masters.cc_tools.filed``），模型给了别的公司要本人可用（``companies.document_company``）；没挂公司时按本人当前公司。
+- 公司按对话挂的那家：工具执行期间 ERP 的「当前公司」就是它（共用层 ``pearnly_assistant_tool_context`` → ``masters.company.acting``），
+  盘点服务照页面口径按当前公司取仓；模型给了别的公司（``masters.cc_tools.resolve`` 认得出、本人可用）就在那家下面执行。
 - 不加「允许」卡片（主会话 11-08 第 4 条，同 Cowork 盘点工具）；结束只锁定结果、不动库存（ERP 口径，岳父 11-06），调整单只生成草稿，
   人在调整单页提交才入账。
 - 业务拒绝回 ``not_saved`` 与原因（已翻译），不抛给模型（同 Cowork ``_call``）。
@@ -40,6 +41,13 @@ def _company(tool_input) -> tuple:
     return (wanted or None), reason
 
 
+def _in(company):
+    """在 ``company`` 下面执行（``masters.company.acting``，不在本人可用公司里的拒）；None = 照当前（对话挂的那家）。"""
+    from pearnly_erp_portal.masters import company as companies
+
+    return companies.acting(company)
+
+
 def _counts():
     from pearnly_erp_portal.inventory import count
 
@@ -54,10 +62,11 @@ def stocktake_list(tool_input) -> str:
     limit = max(1, min(int(tool_input.get("limit") or 20), LIST_MAX))
     offset = max(0, int(tool_input.get("offset") or 0))
     status = tool_input.get("status") or None
-    rows = _call(counts.list_counts, status=status, limit=limit, start=offset, company=company)
-    if rows.get("status") == "not_saved":
-        return _json(rows)
-    total = _call(counts.count_total, status=status, company=company)
+    with _in(company):
+        rows = _call(counts.list_counts, status=status, limit=limit, start=offset)
+        if rows.get("status") == "not_saved":
+            return _json(rows)
+        total = _call(counts.count_total, status=status)
     found = rows.get("result") or []
     keep = ("name", "title", "status", "warehouse_name", "item_total", "counted_total", "difference_total", "creation",
             "closed_at")
@@ -91,8 +100,9 @@ def stocktake_create(tool_input) -> str:
     company, reason = _company(tool_input)
     if reason:
         return _json({"status": "not_saved", "reason": reason})
-    return _json(_call(_counts().create_count, title=str(tool_input.get("title") or ""),
-                       warehouse=str(tool_input.get("warehouse") or "") or None, company=company))
+    with _in(company):
+        return _json(_call(_counts().create_count, title=str(tool_input.get("title") or ""),
+                           warehouse=str(tool_input.get("warehouse") or "") or None))
 
 
 def stocktake_count(tool_input) -> str:

@@ -43,11 +43,12 @@ frappe.clear_messages = lambda: None
 sys.modules["frappe"] = frappe
 
 CALLS = []
+ACTING = []  # 正在「代」哪家公司（替身 masters.company.acting 压栈）
 
 
 def _record(name, result=None, error=None):
     def fn(*args, **kwargs):
-        CALLS.append((name, args, kwargs))
+        CALLS.append((name, args, {**kwargs, "_acting": ACTING[-1] if ACTING else None}))
         if error:
             raise error
         return result() if callable(result) else result
@@ -67,6 +68,24 @@ def _resolve(wanted, filed="", write=False):
 
 
 cc_masters.resolve = _resolve
+companies = types.ModuleType("pearnly_erp_portal.masters.company")
+
+
+import contextlib  # noqa: E402
+
+
+@contextlib.contextmanager
+def _acting(company, user=None):
+    if company and company not in ("C-1", "C-2"):
+        raise PermissionError_("Not permitted")
+    ACTING.append(company or (ACTING[-1] if ACTING else None))
+    try:
+        yield company
+    finally:
+        ACTING.pop()
+
+
+companies.acting = _acting
 for name, module in (("pearnly_erp_portal", types.ModuleType("pearnly_erp_portal")),
                      ("pearnly_erp_portal.inventory", types.ModuleType("pearnly_erp_portal.inventory")),
                      ("pearnly_erp_portal.masters", types.ModuleType("pearnly_erp_portal.masters"))):
@@ -74,6 +93,8 @@ for name, module in (("pearnly_erp_portal", types.ModuleType("pearnly_erp_portal
     sys.modules[name] = module
 sys.modules["pearnly_erp_portal.inventory.count"] = count
 sys.modules["pearnly_erp_portal.masters.cc_tools"] = cc_masters
+sys.modules["pearnly_erp_portal.masters.company"] = companies
+sys.modules["pearnly_erp_portal.masters"].company = companies
 sys.modules["pearnly_erp_portal.inventory"].count = count
 sys.modules["pearnly_erp_portal.masters"].cc_tools = cc_masters
 
@@ -112,22 +133,25 @@ class Behaviour(unittest.TestCase):
 
     def test_list_uses_the_filed_company_and_pages_on_the_server(self):
         out = run("stocktake_list", limit=1)
-        self.assertEqual(CALLS[0], ("list_counts", (), {"status": None, "limit": 1, "start": 0, "company": "C-1"}))
-        self.assertEqual(CALLS[1][2]["company"], "C-1")
+        # 盘点服务照页面口径按当前公司取仓：工具在对话挂的那家（C-1）下面执行，不再逐个函数传公司（主会话 11-08 选 A）
+        self.assertEqual(CALLS[0], ("list_counts", (), {"status": None, "limit": 1, "start": 0, "_acting": "C-1"}))
+        self.assertEqual(CALLS[1][2]["_acting"], "C-1")
+        self.assertEqual(ACTING, [])  # 退出后还原
         self.assertEqual(out["total"], 1)
         self.assertEqual(out["next_offset"], 1)
         self.assertNotIn("extra", out["counts"][0])
 
     def test_another_company_must_be_resolvable(self):
         run("stocktake_list", company="C-2")
-        self.assertEqual(CALLS[0][2]["company"], "C-2")
+        self.assertEqual(CALLS[0][2]["_acting"], "C-2")
         CALLS.clear()
         out = run("stocktake_list", company="C-9")
         self.assertEqual(out["status"], "not_saved")
         self.assertEqual(CALLS, [])
         cc_masters.FILED = ""
         run("stocktake_create", title="Nov")
-        self.assertIsNone(CALLS[-1][2]["company"])  # 没挂公司：交给盘点服务按本人当前公司
+        self.assertIsNone(CALLS[-1][2]["_acting"])  # 没挂公司：照本人当前公司
+        self.assertNotIn("company", CALLS[-1][2])
 
     def test_report_lists_only_differences_and_uncounted_by_default(self):
         out = run("stocktake_report", count="SC-1")
@@ -138,7 +162,7 @@ class Behaviour(unittest.TestCase):
     def test_close_takes_the_review_token_first(self):
         out = run("stocktake_close", count="SC-1")
         self.assertEqual([c[0] for c in CALLS], ["review_count", "close_count"])
-        self.assertEqual(CALLS[1][2], {"review_token": "tok-1"})
+        self.assertEqual(CALLS[1][2]["review_token"], "tok-1")
         self.assertEqual(out["status"], "Closed")
 
     def test_adjust_only_makes_a_draft(self):

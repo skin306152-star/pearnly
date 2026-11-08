@@ -163,6 +163,8 @@ class Declared(unittest.TestCase):
                       source)
         tools = (ROOT / "apps/pearnly_core/pearnly_core/assistant/tools.py").read_text(encoding="utf-8")
         self.assertIn('frappe.get_hooks("pearnly_assistant_tool_context")', tools)
+        count = (ERP / "inventory/count.py").read_text(encoding="utf-8")
+        self.assertNotIn("company=None) -> list[dict]", count)  # P1-1 逐个函数加的公司参数已改回（选 A）
 
 
 if __name__ == "__main__":
