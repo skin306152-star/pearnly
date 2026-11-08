@@ -197,6 +197,8 @@ export type DesktopState = {
   // 每个位置给哪几种成员读（CC 桌面版 1.12.17，features 含 place_channels，11-07 共用电脑隔离）：show = 位置后面要不要摆
   // 「Cowork / ERP」勾（同时有两种 Express 成员，或有哪种成员缺了某个位置）；改一个位置用桥的 place_channels（path, channels）
   place_channels?: PlaceChannels;
+  // 每个位置下面有哪些年度文件夹（CC 桌面版 1.12.19，11-08）：新的在前；设置页在位置下面一行列出。旧版桌面端没有这一项
+  place_years?: { path: string; years: string[] }[];
   members: DesktopMember[];
   autostart: boolean;
   keep_awake?: boolean; // CC 开着时保持电脑唤醒（companion keep_awake.py，1.7.0）；旧版桌面端没有这一项

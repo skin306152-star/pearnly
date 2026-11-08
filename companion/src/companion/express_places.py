@@ -6,7 +6,10 @@
 
 - 位置是整台电脑一份（全局设置 ``express_places``），Cowork 与 ERP 成员共用；设置里添加 / 移除。
 - 心跳只扫、只报位置下面的年度；新建的年度只在位置下面找（不再整台电脑、局域网去搜）。
-- 位置可以是盘符、上层文件夹，也可以就是某个年度文件夹（那就只读这一年）。
+- 位置可以是盘符、上层文件夹，也可以就是某个年度文件夹（那就只读这一年）。要覆盖以后新建的年度，就选上层文件夹 / 盘。
+- 清单按用户选的原样存（:func:`add`）：一个位置在另一个下面也照样单列（11-08 生产 KORN：位置 P:\\ 下再选 P:\\69EXP 被合并悄悄吞掉，
+  只剩一个位置又不能删，怎么点都改不成只读这一年）。扫描、上报按并集（:func:`within`）；找年度时的去重（:func:`merge`）只在内部用。
+  只有第一次装自动找的、1.12.0 升级换算的（不是人选的）才取年度文件夹所在的上一级（:func:`place_of`），好让以后新年度自动进来。
 
 **每个位置给哪种成员读**（11-07，共用电脑隔离评估审定的做法 B）：一台电脑可以同时连事务所的 Cowork 和某个客户的 ERP
 （ADR-025，每种通道一个站点）。位置整机一份时，ERP 成员会把位置下事务所全部客户的账套报给这个客户的 ERP（ERP 照着自动建公司、
@@ -67,8 +70,19 @@ def place_of(root: str) -> str:
     return parent or str(root or "").strip()
 
 
+def add(places: Iterable[str], picked: str) -> List[str]:
+    """位置清单加上选的这一个：按选的原样存，同一个文件夹（不同写法）才算重复；在别的位置里面、外面都照样单列。"""
+    kept: List[str] = []
+    for place in [*(places or ()), picked]:
+        text = str(place or "").strip()
+        if text and not any(same_root(text, known) for known in kept):
+            kept.append(text)
+    return kept
+
+
 def merge(places: Iterable[str]) -> List[str]:
-    """去重；一个位置在另一个下面的只留外面那个（添加了 C:\\ 就不再单列 C:\\PearnlyExpress）。顺序按先来后到。"""
+    """找年度、自动换算用的去重：一个位置在另一个下面的只留外面那个（C:\\ 下面就不再单找 C:\\PearnlyExpress）。顺序按先来后到。
+    只在内部用，不拿它改用户选的清单（:func:`add`）。"""
     kept: List[str] = []
     for place in places or ():
         text = str(place or "").strip()

@@ -413,10 +413,14 @@ class ProfileStore:
         return self.path
 
     def set_places(self, places) -> None:
-        """这台电脑的「Express 位置」（整份换掉，express_places）。成员的数据根由调用方随后按新位置写（express_machine.apply_roots）。"""
-        from .express_places import merge
+        """这台电脑的「Express 位置」（整份换掉，express_places）。成员的数据根由调用方随后按新位置写（express_machine.apply_roots）。
+        按给的原样存，只去掉同一个文件夹的重复写法；一个在另一个下面的照样单列（express_places.add，11-08）。"""
+        from .express_places import add
 
-        settings = self._settled(replace(self.global_settings, express_places=tuple(merge(places))), self._profiles)
+        kept: list = []
+        for place in places or ():
+            kept = add(kept, place)
+        settings = self._settled(replace(self.global_settings, express_places=tuple(kept)), self._profiles)
         self._write(settings, self._profiles)
         self.global_settings = settings
 

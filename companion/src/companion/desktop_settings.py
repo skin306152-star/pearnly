@@ -25,8 +25,8 @@ from urllib.parse import urlsplit
 from . import autostart, channel, device_link, folder_store, master_refresh, pairing, pairing_flow
 from . import folder_plan as plan
 from . import express_places as place_channels
-from .express_machine import (apply_roots, default_places, gone_test, machine_roots, merge, offline_roots,
-                              places_roots, rescan_roots, same_root, within)
+from .express_machine import (apply_roots, authorized_order, default_places, gone_test, machine_roots, offline_roots,
+                              places_roots, rescan_roots, same_root, under, within)
 from .i18n import MessageSpec, normalize, t
 from .logger import get_logger
 from .profile_store import ProfileRecord, ProfileStore, ProfileStoreError
@@ -212,6 +212,10 @@ class DesktopSettings:
             # 每个位置给哪几种成员读（11-07 共用电脑隔离，express_places 文件头）：show = 设置页要不要在位置后面摆
             # 「Cowork / ERP」两个勾（同时有两种 Express 成员，或有哪种成员缺了某个位置）；旧版桥没有这一项，设置页不摆
             "place_channels": self._place_channels(store),
+            # 每个位置下面有哪些年度（11-08 KORN：清单只写 P:\\，看不出里面有 69EXP 在内的 17 个年度）：设置页在位置下面一行列出，
+            # 新的在前；旧版桥没有这一项，设置页不列
+            "place_years": [{"path": place, "years": authorized_order([root for root in roots if under(root, place)])}
+                            for place in store.global_settings.express_places],
             "members": members,
             "autostart": self._autostart(store),
             # CC 开着时保持电脑唤醒（默认开）/ 用电池时也保持（默认关，D8）（keep_awake.py）；旧版桥没有这两项，设置页据此不显示
@@ -509,7 +513,8 @@ class DesktopSettings:
         if not found:
             return {"ok": False, "message": t("express_not_found", lang)}
         store = self._store()
-        places = merge([picked] if replace else [*store.global_settings.express_places, picked])
+        # 选什么存什么：在已有位置里面的年度文件夹也单列（11-08 KORN：P:\\ 下再选 P:\\69EXP 被吞掉、仍回成功）
+        places = place_channels.add([] if replace else store.global_settings.express_places, picked)
         gone = gone_test()   # 原来授权的照旧带上，确实没了的不带（同一次每台服务器只问一次）
         current = [root for root in machine_roots(store) if within(root, places) and not within(root, [picked])
                    and not gone(root)]

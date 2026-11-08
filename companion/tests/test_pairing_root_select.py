@@ -288,3 +288,19 @@ def test_the_same_folder_written_two_ways_is_one_root():
     assert gui_pairing.same_root("C:/PearnlyExpress\\70EXP", "c:\\pearnlyexpress\\70exp\\")
     assert not gui_pairing.same_root("C:/PearnlyExpress/70EXP", "C:/PearnlyExpress/69EXP")
     assert not gui_pairing.same_root("", "")
+
+
+def test_adding_a_copied_year_folder_keeps_the_main_root(tmp_path, monkeypatch):
+    """10-26 测试机：新加的位置里有一份整个复制出来的年度文件夹（登记表写绝对路径，两个年度都登记同一本账），新找到的排在前面，
+    主根就换成了复制品。登记它的年度不止一个时留原来的主根（默认账套、没带账套的单、代录兜底开的程序都跟着主根）。"""
+    root69, copy72 = str(tmp_path / "69EXP"), str(tmp_path / "copy" / "72EXP")
+    acme = str(tmp_path / "data" / "ACME")
+    store = ProfileStore.load(tmp_path / "c.json", protector=_Protector())
+    _member(store, "exp_a_1", root69, acme)
+    same = [AccountSet(code="A", name="ACME", company="", path=acme, tax_id="", writable=False, row=1)]
+    monkeypatch.setattr(gui_pairing, "probe_account_sets", lambda root, include_details=True: same)
+
+    assert gui_pairing.apply_roots(store, [copy72, root69]) == 1
+    after = ProfileStore.load(tmp_path / "c.json", protector=_Protector()).runtime_config(store.profiles[0].profile_id)
+    assert after.express_root == root69 and after.account_dir == acme
+    assert sorted(after.authorized_roots) == sorted([copy72, root69])

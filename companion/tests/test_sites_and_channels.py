@@ -222,6 +222,29 @@ def test_a_place_is_where_a_year_folder_sits_and_inner_places_merge_into_outer()
     assert merge([r"C:\PearnlyExpress", "C:\\", r"c:\pearnlyexpress", "S:\\"]) == ["C:\\", "S:\\"]
 
 
+def test_places_keep_what_was_picked_nested_or_not_and_only_drop_the_same_folder_twice():
+    # 11-08 KORN：P:\ 已在清单里，再选 P:\69EXP 被吞了。清单按选的原样存，同一个文件夹的不同写法才算重复
+    from companion.express_places import add
+
+    assert add(["P:\\"], r"P:\69EXP") == ["P:\\", r"P:\69EXP"]
+    assert add([r"P:\69EXP"], "P:\\") == [r"P:\69EXP", "P:\\"]
+    assert add(["P:\\", r"P:\69EXP"], "p:/69exp") == ["P:\\", r"P:\69EXP"]
+    assert add([], r"C:\PearnlyExpress") == [r"C:\PearnlyExpress"]
+
+
+def test_nested_places_given_to_different_members_scan_only_their_own():
+    # 共用电脑隔离（11-07）的粒度就是位置：事务所的 Cowork 读整个 P:\，同台电脑上客户的 ERP 只勾 P:\69EXP，就只扫这一年
+    from companion import channel as ch
+
+    authorized = [r"P:\69EXP", r"P:\68EXP"]
+    places = ("P:\\", r"P:\69EXP")
+    pairs = (("P:\\", (ch.COWORK,)), (r"P:\69EXP", (ch.CORE,)))
+    cowork = types.SimpleNamespace(express_places=places, place_channels=pairs, channel=ch.COWORK)
+    erp = types.SimpleNamespace(express_places=places, place_channels=pairs, channel=ch.CORE)
+    assert worker.scan_roots(cowork, authorized) == authorized
+    assert worker.scan_roots(erp, authorized) == [r"P:\69EXP"]
+
+
 def _place_member(store, token, site, roots):
     cfg = store.new_runtime_config()
     cfg.update(backend_url=site, bearer_token=token, account_dir=r"C:\PearnlyExpress\70EXP\T9",

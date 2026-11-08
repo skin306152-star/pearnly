@@ -337,8 +337,11 @@ def apply_roots(store, roots: List[str], offline: Iterable[str] = ()) -> int:
     for record in express_members(store):
         cfg = store.runtime_config(record.profile_id)
         account = str(cfg.account_dir or "").strip()
-        home = next((root for root in reachable
-                     if account and any(same_root(item.path, account) for item in registered(root))), None)
+        # 登记它的年度不止一个（整个复制出来的年度文件夹，登记表写绝对路径）：原来的主根在里面就留原来的（10-26 测试机：
+        # 新加的位置里有复制品，排在前面就成了主根）
+        homes = [root for root in reachable
+                 if account and any(same_root(item.path, account) for item in registered(root))]
+        home = next((root for root in homes if same_root(root, cfg.express_root)), homes[0] if homes else None)
         away = next((root for root in offline if same_root(root, cfg.express_root)), None)
         if home is not None:
             updates = {"express_root": home}

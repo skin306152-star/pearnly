@@ -430,6 +430,12 @@ function Connections({ api }: { api: Desktop }) {
   const expressMembers = members.some((m) => m.kind !== "folder");
   // 每个位置给哪几种成员读（CC 桌面版 1.12.17，11-07 共用电脑隔离）：只有桌面端说要摆（show）时才出现
   const placeChannels = state.features?.includes(PLACE_CHANNELS) && state.place_channels?.show ? state.place_channels : null;
+  // 位置下面有哪些年度（1.12.19 起桌面端给，11-08 KORN：清单只写 P:\，看不出里面有哪些年度）：写相对位置的名字（P:\ 下的 69EXP），
+  // 位置本身就是年度文件夹时不写
+  const yearsOf = (path: string) =>
+    (state.place_years?.find((row) => row.path === path)?.years ?? [])
+      .map((root) => (root.toLowerCase().startsWith(path.toLowerCase()) ? root.slice(path.length).replace(/^[\\/]+/, "") : root))
+      .filter(Boolean);
   const byPlace = (path: string) => placeChannels?.places.find((row) => row.path === path)?.channels ?? (placeChannels ? [] : null);
   // 默认就读的成员（defaults，1.12.18 起桌面端给；旧版没有时当所有成员）仅剩的这一个位置：不能勾掉（勾掉它就一个账套都没有了；
   // 桌面端同样拒）。默认不读、后来勾上的（共用电脑上的 ERP）可以勾回 0 个位置，同初始状态（11-08）
@@ -538,6 +544,7 @@ function Connections({ api }: { api: Desktop }) {
           const removable = !(expressMembers && places.length <= 1);
           const remove = () => void run("roots", "remove_place", { path });
           const readers = byPlace(path);
+          const years = yearsOf(path);
           return (
             <div data-marquee-host="" key={path} className="cc-settings-row text-body">
               <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
@@ -545,6 +552,11 @@ function Connections({ api }: { api: Desktop }) {
                 <Marquee as="div" className="truncate" title={path}>
                   {path}
                 </Marquee>
+                {years.length > 0 && (
+                  <Marquee as="div" className="truncate text-muted-foreground text-caption" title={years.join("\n")}>
+                    {years.join(" · ")}
+                  </Marquee>
+                )}
                 {/* 同一台电脑连着 Cowork 与 ERP（11-07 共用电脑隔离）：这个位置给谁读 */}
                 {!!readers?.length && <div className="text-muted-foreground text-caption">{readers.map(channelName).join(" · ")}</div>}
               </div>

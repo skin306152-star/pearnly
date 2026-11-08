@@ -156,12 +156,41 @@ def test_places_can_be_added_and_removed_and_the_last_one_stays(tmp_path, monkey
     assert settings.add_place(r"T:\ACCOUNT", "zh") == {"ok": True, "profiles_changed": True}
     assert applied[-1] == [r"T:\EXP70", r"S:\\EXP68", r"S:\\EXP69"]   # 原来位置下的照旧
     assert places() == [*first, r"T:\ACCOUNT"]
-    assert settings.add_place(r"T:\ACCOUNT\EXP70", "zh")["ok"] is True and places() == [*first, r"T:\ACCOUNT"]  # 已在里面
+    assert settings.add_place(r"t:/account", "zh")["ok"] is True and places() == [*first, r"T:\ACCOUNT"]  # 同一个不重复
 
     assert settings.remove_place(first[0], "zh") == {"ok": True, "profiles_changed": True}
     assert applied[-1] == [r"T:\EXP70"] and places() == [r"T:\ACCOUNT"]
     assert settings.remove_place(r"T:\ACCOUNT", "zh") == {"ok": False}   # 有 Express 成员时至少留一个
     assert settings.remove_place(r"Z:\NOPE", "zh") == {"ok": False}
+
+
+def test_a_year_folder_added_inside_a_place_is_kept_as_picked_and_the_outer_place_can_go(tmp_path, monkeypatch):
+    # 11-08 生产 KORN：升级换算出的位置是 P:\，用户再选 P:\69EXP 被「一个在另一个下面只留外面那个」悄悄吞掉、仍回成功；
+    # 只剩一个位置又不能删 → 怎么点都改不成只读这一年。现在选什么存什么（用户 10-24「选哪个读哪个」），外层可以删
+    store = _store(tmp_path, monkeypatch)
+    cfg = store.runtime_config(store.profiles[0].profile_id)
+    cfg.update(express_root=r"P:\69EXP", account_dir=r"P:\69EXP\ACME", account_set=r"P:\69EXP\ACME",
+               authorized_roots=[r"P:\69EXP", r"P:\68EXP", r"P:\67EXP"])
+    store.save_profile(cfg)
+    store.set_places(["P:\\"])
+    applied = []
+    monkeypatch.setattr(desktop_settings, "places_roots", lambda places: [r"P:\69EXP"])
+    monkeypatch.setattr(desktop_settings, "apply_roots", lambda fresh, roots, offline=(): applied.append(roots))
+    monkeypatch.setattr(desktop_settings, "gone_test", lambda: (lambda root: False))
+    monkeypatch.setattr(desktop_settings.master_refresh, "rescan_soon", lambda: None)
+    settings = _settings(store)
+    places = lambda: list(ProfileStore.load(store.path, protector=_Protector()).global_settings.express_places)  # noqa: E731
+
+    assert settings.add_place(r"P:\69EXP", "zh") == {"ok": True, "profiles_changed": True}
+    assert places() == ["P:\\", r"P:\69EXP"]
+    assert sorted(applied[-1]) == sorted([r"P:\69EXP", r"P:\68EXP", r"P:\67EXP"])   # 外层照旧在：一个都不少扫
+    # 每个位置下面有哪些年度：设置页逐行列出（P:\ 下面 3 个，含 69EXP）
+    years = {row["path"]: row["years"] for row in settings.snapshot()["place_years"]}
+    assert years == {"P:\\": [r"P:\69EXP", r"P:\68EXP", r"P:\67EXP"], r"P:\69EXP": [r"P:\69EXP"]}
+
+    assert settings.remove_place("P:\\", "zh") == {"ok": True, "profiles_changed": True}
+    assert places() == [r"P:\69EXP"] and applied[-1] == [r"P:\69EXP"]   # 只读这一年
+    assert settings.remove_place(r"P:\69EXP", "zh") == {"ok": False}   # 最后一个照旧不能删
 
 
 def test_a_folder_that_is_not_express_changes_nothing(tmp_path, monkeypatch):
