@@ -107,6 +107,7 @@ Amount,จำนวนเงิน
 Amount Payable,ยอดที่ต้องชำระ
 Amount Received,รับชำระ
 Amounts,จำนวนเงิน
+An item group's account is not in the Express chart of accounts,บัญชีของกลุ่มสินค้าไม่มีในผังบัญชี Express
 Anonymous,ลูกค้าทั่วไป
 Anonymous buyers get no tax id; only companies have branches,ลูกค้าทั่วไปไม่มีเลขประจำตัวผู้เสียภาษี และมีเพียงบริษัทเท่านั้นที่มีสาขา
 Another computer is writing to this account set. It is sent automatically once it is done,เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ
@@ -2220,6 +2221,7 @@ express.error.INVALID_DOC_DATE,วันที่เอกสารไม่ถ�
 express.error.INVALID_INVOICE_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 express.error.INVALID_QUANTITY,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 express.error.ITEMS_INVALID,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+express.error.ITEM_GROUP_ACCOUNT_MISSING,บัญชีของกลุ่มสินค้าไม่มีในผังบัญชี Express
 express.error.JOURNAL_BOOK_NOT_FOUND,ชุดบัญชีนี้ไม่มีสมุดสำหรับเอกสารประเภทนี้ กรุณาตั้งค่าใน Express
 express.error.MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
 express.error.MISSING_REF_NO,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่

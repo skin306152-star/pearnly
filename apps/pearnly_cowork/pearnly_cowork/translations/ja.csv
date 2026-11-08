@@ -122,6 +122,7 @@ An amount could not be read. Check the amount format in the file,読み取れな
 An amount has too many decimal places. Check the file,小数点以下の桁が多すぎる金額があります。ファイルを確認してください
 An amount in this POS export cannot be read,この POS エクスポートの金額が読み取れません
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,請求書の明細に金額がなく、数量と単価も揃っていません。入力を補ってからエクスポートしてください。
+An item group's account is not in the Express chart of accounts,品目グループの勘定が Express の勘定科目表にありません
 An option in the ERP data report is invalid.,ERP データレポート内の選択肢が無効です。
 An original file is already stored for this source.,この参照元には既に元ファイルが保存されています。
 Anchor Date,基準日
@@ -3419,6 +3420,7 @@ intake.error.INVALID_DOC_DATE,書類の日付が無効です。修正して再�
 intake.error.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
 intake.error.INVALID_QUANTITY,明細の数量が無効です。修正して再送信してください
 intake.error.ITEMS_INVALID,明細を Express に書き込めません。確認して再送信してください
+intake.error.ITEM_GROUP_ACCOUNT_MISSING,品目グループの勘定が Express の勘定科目表にありません
 intake.error.JOURNAL_BOOK_NOT_FOUND,この帳簿には振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください
 intake.error.MAPPING_MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
 intake.error.MAPPING_MISSING_ITEM,対応する在庫品目がありません。選択して再送信してください

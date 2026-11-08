@@ -122,6 +122,7 @@ An amount could not be read. Check the amount format in the file,部分金额无
 An amount has too many decimal places. Check the file,部分金额小数位数过多，请检查文件
 An amount in this POS export cannot be read,此 POS 导出中有金额无法读取
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,发票明细缺少金额，且数量和单价不完整，请补全后再导出。
+An item group's account is not in the Express chart of accounts,物料科目组的科目不在 Express 科目表中
 An option in the ERP data report is invalid.,ERP 数据报告中的选项无效。
 An original file is already stored for this source.,此来源已保存原始文件。
 Anchor Date,参考日期
@@ -3419,6 +3420,7 @@ intake.error.INVALID_DOC_DATE,单据日期无效，请修改后重新提交
 intake.error.INVALID_INVOICE_DATE,单据日期无效，请修改后重新提交
 intake.error.INVALID_QUANTITY,明细数量无效，请修改后重新提交
 intake.error.ITEMS_INVALID,明细无法写入 Express，请核对后重新提交
+intake.error.ITEM_GROUP_ACCOUNT_MISSING,物料科目组的科目不在 Express 科目表中
 intake.error.JOURNAL_BOOK_NOT_FOUND,此账套没有可用于转账凭证的普通日记账单据簿，请在 Express 中设置后重新提交
 intake.error.MAPPING_MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
 intake.error.MAPPING_MISSING_ITEM,缺少对应存货，请选择后重新提交

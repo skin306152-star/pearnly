@@ -29,6 +29,11 @@ class StockLineError(Exception):
     """采购入库路失败(混行 / 数量成本非法 / 建档失败 / 重分类超额)→ 整单回滚交会计。"""
 
 
+class GroupAccountMissing(StockLineError):
+    """物料科目组的存货 / 购货科目不在这套账的科目表里:原生 Express 存档报 1155「过账科目设置不对」、整张拒存
+    (11-08 TEST 原生实录),CC 照原生停单,写明哪个科目组的哪个科目,要人在 Express 改科目组。"""
+
+
 def journal_rows(entry) -> List[GlRow]:
     """entry.lines → [(SEQIT, ACCNUM, TRNTYP, amount)]。
 
@@ -154,7 +159,9 @@ def stock_journal(account_dir, gl_rows: List[GlRow], groups: Dict[Tuple[str, str
     逐科目一条借方(SEQIT 0,同科目合并),余下的留在原采购科目(为 0 就不写)。
 
     - 永续盘存借 ``ACCNUM01``(存货),定期盘存(``periodic``)借 ``ACCNUM02``(购货;S 盘 30 本定期账套 29,395 张如此);
-    - 科目组的科目不能记账、账套默认(永续 ``ISINFO.ACCNUM04``、定期 ``ACCNUM18``)能记账时用默认;都不能就仍记科目组的科目(同以前重分类,不核);
+    - 科目组的科目在科目表里但不能记账、账套默认(永续 ``ISINFO.ACCNUM04``、定期 ``ACCNUM18``)能记账时用默认(69POL 原生 259 / 296 张如此);
+      都不能就仍记科目组的科目(同以前重分类,不核);
+    - 科目组的科目**不在科目表里** → 抛 :class:`GroupAccountMissing`(原生 1155 整张拒存,11-08 TEST 实录);读不到科目表不拦;
     - 扣出的钱超过本单这条购货额 → 抛 :class:`StockLineError`(行净额与税前额对不上,交会计)。
     """
     if not groups:
@@ -166,6 +173,10 @@ def stock_journal(account_dir, gl_rows: List[GlRow], groups: Dict[Tuple[str, str
         if amount <= 0:
             continue
         group = str((purchases if periodic else inventory) or "").strip()
+        if group and account_rules.chart_account(account_dir, group) is False:
+            slot = "ACCNUM02" if periodic else "ACCNUM01"
+            used_by = ", ".join(account_rules.groups_using(account_dir, slot, group)) or "?"
+            raise GroupAccountMissing(f"item group {used_by} {slot} {group} not in GLACC")
         acc = group
         if not (group and account_rules.postable_account(account_dir, group)) and fallback \
                 and account_rules.postable_account(account_dir, fallback):

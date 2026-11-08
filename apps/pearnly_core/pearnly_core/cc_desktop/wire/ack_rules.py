@@ -24,6 +24,8 @@ NEEDS_PERSON_CODES = frozenset({
     "JOURNAL_BOOK_NOT_FOUND", "ACCOUNT_NOT_POSTABLE", "POS_INVALID",
     # 新建库存品挂的存货科目组不合格 / 没配（CC 桌面版 1.11.0 起单独回报）：要人选一次组
     "STOCK_ACC_GROUP_UNFIT",
+    # 物料科目组的存货 / 购货科目不在科目表（原生 Express 1155 整张拒存，CC 桌面版 1.12.18 起照原生停单）：要人在 Express 改科目组
+    "ITEM_GROUP_ACCOUNT_MISSING",
     # ERP 的单写进 Express 已关账的会计期（1.12.0，只有带 respect_period_lock 的载荷会回）
     "PERIOD_LOCKED",
     # 账套不允许负库存（ISINFO.NEGALLOW = N）、写销货时库存不够（出入库第一期，CC 桌面版 stock_guard）

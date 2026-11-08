@@ -122,6 +122,7 @@ An amount could not be read. Check the amount format in the file,An amount could
 An amount has too many decimal places. Check the file,An amount has too many decimal places. Check the file
 An amount in this POS export cannot be read,An amount in this POS export cannot be read
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,An invoice line has no amount or complete quantity and unit price. Complete it before exporting.
+An item group's account is not in the Express chart of accounts,An item group's account is not in the Express chart of accounts
 An option in the ERP data report is invalid.,An option in the ERP data report is invalid.
 An original file is already stored for this source.,An original file is already stored for this source.
 Anchor Date,Anchor Date
@@ -3419,6 +3420,7 @@ intake.error.INVALID_DOC_DATE,The document date is invalid. Correct it and submi
 intake.error.INVALID_INVOICE_DATE,The document date is invalid. Correct it and submit again.
 intake.error.INVALID_QUANTITY,A line quantity is invalid. Correct it and submit again.
 intake.error.ITEMS_INVALID,The lines cannot be written to Express. Check them and submit again.
+intake.error.ITEM_GROUP_ACCOUNT_MISSING,An item group's account is not in the Express chart of accounts
 intake.error.JOURNAL_BOOK_NOT_FOUND,This account set has no general journal book for the transfer vouchers. Add one in Express and submit again
 intake.error.MAPPING_MISSING_CUSTOMER,The customer is missing. Choose the customer and submit again.
 intake.error.MAPPING_MISSING_ITEM,The matching stock item is missing. Choose it and submit again.

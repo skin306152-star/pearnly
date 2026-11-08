@@ -1423,6 +1423,7 @@ Writing to Express failed and was undone. It is retried automatically	写入 Exp
 Express did not read back what was written, so it was undone. It is retried automatically	写入后校验不一致，已撤回，将自动重试	ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ	書き込み後の確認が合わず元に戻しました。自動で再試行します	express.error.READBACK_VERIFY_FAILED
 Express could not index the invoice, so it was undone. It is retried automatically	Express 索引重建失败，已撤回，将自动重试	Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ	Express の索引を作れず元に戻しました。自動で再試行します	express.error.CDX_REINDEX_FAILED
 The stock lines could not be posted. Check the items, quantities and prices	无法记录库存明细，请核对品名、数量和单价	ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย	在庫明細を記帳できません。品名・数量・単価を確認してください	express.error.STOCK_IN_FAILED
+An item group's account is not in the Express chart of accounts	物料科目组的科目不在 Express 科目表中	บัญชีของกลุ่มสินค้าไม่มีในผังบัญชี Express	品目グループの勘定が Express の勘定科目表にありません	express.error.ITEM_GROUP_ACCOUNT_MISSING
 Written	已写入	บันทึกแล้ว	書き込み済み	express.state.written
 Expense Account	费用科目	บัญชีค่าใช้จ่าย	費用勘定	express.kind.account
 Receiving Account	收款科目	บัญชีรับเงิน	入金勘定	express.kind.receipt

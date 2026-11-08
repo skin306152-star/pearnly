@@ -107,6 +107,7 @@ Amount,金额
 Amount Payable,应付金额
 Amount Received,实收金额
 Amounts,金额
+An item group's account is not in the Express chart of accounts,物料科目组的科目不在 Express 科目表中
 Anonymous,匿名
 Anonymous buyers get no tax id; only companies have branches,散客无税号；仅公司设有分支机构
 Another computer is writing to this account set. It is sent automatically once it is done,另一台电脑正在写入此账套，完成后将自动推送
@@ -2220,6 +2221,7 @@ express.error.INVALID_DOC_DATE,单据日期无效，请修改后重新提交
 express.error.INVALID_INVOICE_DATE,单据日期无效，请修改后重新提交
 express.error.INVALID_QUANTITY,明细数量无效，请修改后重新提交
 express.error.ITEMS_INVALID,明细无法写入 Express，请核对后重新提交
+express.error.ITEM_GROUP_ACCOUNT_MISSING,物料科目组的科目不在 Express 科目表中
 express.error.JOURNAL_BOOK_NOT_FOUND,此账套没有这种单据的单据簿，请在 Express 中设置
 express.error.MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
 express.error.MISSING_REF_NO,缺少发票号，请补充后重新提交

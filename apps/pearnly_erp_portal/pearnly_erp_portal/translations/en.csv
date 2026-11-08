@@ -107,6 +107,7 @@ Amount,Amount
 Amount Payable,Amount Payable
 Amount Received,Amount Received
 Amounts,Amounts
+An item group's account is not in the Express chart of accounts,An item group's account is not in the Express chart of accounts
 Anonymous,Anonymous
 Anonymous buyers get no tax id; only companies have branches,Anonymous buyers get no tax id; only companies have branches
 Another computer is writing to this account set. It is sent automatically once it is done,Another computer is writing to this account set. It is sent automatically once it is done
@@ -2220,6 +2221,7 @@ express.error.INVALID_DOC_DATE,The document date is invalid. Correct it and subm
 express.error.INVALID_INVOICE_DATE,The document date is invalid. Correct it and submit again.
 express.error.INVALID_QUANTITY,A line quantity is invalid. Correct it and submit again.
 express.error.ITEMS_INVALID,The lines cannot be written to Express. Check them and submit again.
+express.error.ITEM_GROUP_ACCOUNT_MISSING,An item group's account is not in the Express chart of accounts
 express.error.JOURNAL_BOOK_NOT_FOUND,This account set has no book for this kind of document. Set it up in Express
 express.error.MISSING_CUSTOMER,The customer is missing. Choose the customer and submit again.
 express.error.MISSING_REF_NO,The invoice number is missing. Add it and submit again.

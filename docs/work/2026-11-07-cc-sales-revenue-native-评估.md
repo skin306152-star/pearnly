@@ -120,3 +120,17 @@
 | `cowork.cc-chat.push` / `cowork.cc.troubleshooting` / `cowork.line.item-questions` / `erp.trade.line-stock` | 没测到：只经过推送载荷生成，不读回执收入；载荷未改 |
 
 - 受影响流程：`scripts/flows` 没有覆盖 Express 写账 / 读回的流程，无流程可跑。
+
+### ASIAFC 停单（主会话 11-08 定，随本次合入）
+
+- 依据：进货记录 10.1，TEST 原生实录——物料科目组的存货科目不在科目表时 Express 存档报 1155、整张拒存。
+- 改法（CC）：`purchase_lines.stock_journal` 发现库存行科目组的科目（永续 ACCNUM01 / 定期 ACCNUM02）不在科目表 → 抛 `GroupAccountMissing`，
+  整单回滚，回 `ITEM_GROUP_ACCOUNT_MISSING`（原文 `item group ST01 ACCNUM01 1140-02 not in GLACC`）；在科目表但不能记账仍记账套默认；
+  科目表读不到或是空的不拦（`account_rules.chart_account` 回 None）。
+- 回报口径：CC `worker` 与服务端 `cc_desktop/wire/ack_rules.NEEDS_PERSON_CODES` 都按「要人处理」，不烧重试；文案 Cowork
+  `intake.error.ITEM_GROUP_ACCOUNT_MISSING`、ERP `express.error.ITEM_GROUP_ACCOUNT_MISSING`：「物料科目组的科目不在 Express 科目表中」
+  （四种语言，`check-copy.py` 新增 2 条、无拦截）。网页按错误码出译文、不带参数，科目组与科目码在回报原文里（CC 对话的单据自检读得到）。
+- 测试：`test_purchase_gl_native.py` 新增 2 条（永续 / 定期：不在科目表 → 不写、错误码对、原文带科目组与科目、账套字节不变），把原来那条
+  「不在科目表退回默认」改成「在科目表但不能记账（ACCTYP 1）退回默认」；业务代码还原后新增 2 条失败。CC 全量 1576 通过。
+- 销货收入不跟着改：收入科目组的科目不能记账 / 不在科目表照载荷（没有原生证据，主会话只定了进货）。
+- 离线回归里的 T7 / T8 / T9ASIAFC（种结存挑中的物料在 ST01，存货科目 1140-02 不在科目表）现在会停单，是预期。

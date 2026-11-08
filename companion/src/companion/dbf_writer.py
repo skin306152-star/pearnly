@@ -71,6 +71,7 @@ ERR_SUPPLIER_DUP = "SUPPLIER_DUP_SUSPECTED"  # 疑似重复供应商 → 不建,
 ERR_SUPPLIER_AMBIGUOUS = "SUPPLIER_BRANCH_AMBIGUOUS"  # 同税号多分店档定不出唯一 → 转人工
 ERR_DEFERRED_VAT = "ACCOUNT_NOT_POSTABLE"  # 口径 2 的「未到期进项税」科目(ISINFO.ACCNUM28)没设或不能记账 → 不写,转人工
 ERR_SERVICE_VAT = service_vat.CHOICE_CODE  # 赊购单服务品进项税口径账套历史定不了、载荷也没给 → 不写,转人工选一次
+ERR_GROUP_ACCOUNT = "ITEM_GROUP_ACCOUNT_MISSING"  # 物料科目组的存货 / 购货科目不在科目表(原生 1155 拒存)→ 不写,转人工(11-08)
 ERR_STOCK_IN = "STOCK_IN_FAILED"  # 采购入库路失败(混行/数量成本非法/建档失败)→ 交会计
 # 载荷 4 的仓库码不合格 / 不在这套账的仓库代码表(ISTAB 21)里 → 整单不写,不回落主仓(见 stock_location)
 ERR_LOCATION = stock_location.ERR_LOCATION
@@ -518,6 +519,8 @@ class _WriteError(Exception):
 
 def _error_code(e: Exception) -> str:
     """异常 → 云端错误码。入库路的失败单独给码,会计一眼知道是"库存"这步卡住而非写盘出错。"""
+    if isinstance(e, purchase_lines.GroupAccountMissing):
+        return ERR_GROUP_ACCOUNT
     if isinstance(e, purchase_lines.StockLineError):
         # 入库路新建库存品挂的存货科目组不合格:单独给码,产品端让人选一次组(见 stock_template.ERR_STOCK_GROUP)
         return (stock_template.ERR_STOCK_GROUP if isinstance(e.__cause__, stock_template.InventoryAccountUnfit)

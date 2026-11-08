@@ -549,6 +549,8 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         ERR_LOCATION: "needs_review",
         # 新建库存品的存货科目组不合格 / 没配:要人选一次组(1.11.0)
         stock_template.ERR_STOCK_GROUP: "needs_review",
+        # 物料科目组的存货 / 购货科目不在科目表(原生 1155 整张拒存):要人在 Express 改科目组(1.12.18)
+        "ITEM_GROUP_ACCOUNT_MISSING": "needs_review",
         # 直接记科目的行要的「编码 = 科目码」的商品已是一件库存品:重试结论一样,要人处理(1.12.11)
         product_master.ERR_ACCOUNT_ITEM_STOCK: "needs_review",
         # ERP 的单写进已关账的会计期:重试结论一样(1.12.0)

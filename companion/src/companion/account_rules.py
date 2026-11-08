@@ -100,6 +100,38 @@ def book(account_dir, prefix: str) -> Dict[str, str]:
     return {}
 
 
+def chart_account(account_dir, acc: str) -> Optional[bool]:
+    """科目在不在这套账的科目表里（不论能不能记账）：在 True、不在 False、读不到科目表或科目表是空的 None（调用方照旧，不拿它拦单）。"""
+    acc = str(acc or "").strip()
+    if not acc:
+        return False
+    try:
+        t = _open(account_dir, "GLACC")
+    except Exception:  # noqa: BLE001
+        return None
+    if t is None:
+        return None
+    try:
+        codes = {str(_gv(r, "ACCNUM")) for r in S.live_rows(t)}
+    finally:
+        t.close()
+    return (acc in codes) if codes else None
+
+
+def groups_using(account_dir, slot: str, acc: str) -> list:
+    """科目组表（ISACC）里 ``slot`` 栏记着 ``acc`` 的科目组码（报错时写明是哪个组用）；读不到回空。"""
+    try:
+        t = _open(account_dir, "ISACC")
+    except Exception:  # noqa: BLE001
+        return []
+    if t is None:
+        return []
+    try:
+        return sorted({str(_gv(r, "ACCCOD")) for r in S.live_rows(t) if str(_gv(r, slot)) == str(acc or "").strip()})
+    finally:
+        t.close()
+
+
 def postable_account(account_dir, acc: str) -> bool:
     """科目在这套账的科目表里、可记账（ACCTYP='0'）。"""
     acc = str(acc or "").strip()

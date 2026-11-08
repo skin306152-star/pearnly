@@ -167,8 +167,9 @@
     以上时让人选仓。写入不变（载荷 4 的行 `loccod` 早就会写）；旧服务端忽略这个键。服务端先部署也无妨（没报仓库表时什么都不变）。
   - 进货单库存行的分录照 Express 原生直接记物料科目组的科目（`docs/work/2026-11-07-cc-purchase-gl-native-评估.md`；载荷不变）：永续盘存借
     `ISACC.ACCNUM01`、定期盘存借 `ACCNUM02`，同科目一条、SEQIT 0，不再追加「借存货 / 贷购货」重分类（SEQIT 7 / 8）；定期账套的购货不再全记进
-    账套默认 ACCNUM18（`purchase_lines.stock_journal`）。科目组的科目不能记账或不在科目表 → 记账套默认（永续 ACCNUM04、定期 ACCNUM18；
-    11-08 用 614 本真账副本核过：不能记账的那组原生 296 张里 259 张记账套默认）。
+    账套默认 ACCNUM18（`purchase_lines.stock_journal`）。科目组的科目在科目表里但不能记账 → 记账套默认（永续 ACCNUM04、定期 ACCNUM18；
+    11-08 用 614 本真账副本核过：不能记账的那组原生 296 张里 259 张记账套默认）；**不在科目表里 → 整单不写**，回 `ITEM_GROUP_ACCOUNT_MISSING`
+    （要人处理，原文写明科目组与科目；11-08 TEST 原生实录：Express 报 1155 整张拒存）。
   - 销货单的收入照 Express 原生按物料科目组记（`docs/work/2026-11-07-cc-sales-revenue-native-评估.md`；载荷不变）：每行物料科目组的收入科目
     `ISACC.ACCNUM03` 能记账、不是费用类 → 这一行记它（同科目一条、SEQIT 5），没配 / 不能记账 / 费用类照载荷（`dbf_sales.revenue_journal`）；
     回执 `meta.revenue` 带实际记的收入，服务端读回按它比分录。**先部署服务端再发**（旧服务端滤掉 `revenue`，读回会把照科目组记的收入报成改过）。

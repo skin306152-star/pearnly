@@ -72,13 +72,31 @@ def test_a_periodic_book_debits_each_groups_purchases_account(two_groups):
 
 
 def test_a_periodic_group_without_a_postable_purchases_account_falls_back_to_the_book_default(two_groups):
-    """科目组的购货科目不在科目表里（不能记账）→ 照原生那几千张记账套默认购货 ISINFO.ACCNUM18。"""
+    """科目组的购货科目在科目表里、但是汇总科目（ACCTYP 1，不能记账）→ 照原生（69POL 259 / 296 张）记账套默认购货 ISINFO.ACCNUM18。"""
     isinfo(two_groups, MAINLOC="01", ISPERPETUA="N", ACCNUM18=DEFAULT_PUR)
-    seed(two_groups, "ISACC", [{"ACCTYP": "S", "ACCCOD": "ST03", "METHOD": "A", "ACCNUM01": OTHER_INV, "ACCNUM02": "59-99-99-99"}])
+    seed(two_groups, "GLACC", [{"ACCNUM": "51-40-00-00", "ACCNAM": "ซื้อ (รวม)", "ACCTYP": "1", "GROUP": "5"}])
+    seed(two_groups, "ISACC", [{"ACCTYP": "S", "ACCCOD": "ST03", "METHOD": "A", "ACCNUM01": OTHER_INV, "ACCNUM02": "51-40-00-00"}])
     _append(two_groups / "STMAS.DBF", [{"STKCOD": "GAS01", "STKDES": "แก๊ส", "STKTYP": "0", "ACCCOD": "ST03", "QUCOD": "ถง"}])
     res = _buy(two_groups, _purchase([_item("GAS01", 1, 40.0, "stock_item")]))
     assert res.ok, res.error
     assert _debits(two_groups, res.docnum)[0] == (("0", DEFAULT_PUR), 40.0)
+
+
+@pytest.mark.parametrize("periodic", [False, True])
+def test_a_group_account_missing_from_the_chart_stops_the_document_like_native(two_groups, periodic):
+    """科目组的存货 / 购货科目不在科目表里 → 原生 Express 报 1155 整张拒存（11-08 TEST 实录），CC 照原生停单、写明科目组与科目，
+    账套一个字节不动。"""
+    if periodic:
+        isinfo(two_groups, MAINLOC="01", ISPERPETUA="N", ACCNUM18=DEFAULT_PUR)
+    seed(two_groups, "ISACC", [{"ACCTYP": "S", "ACCCOD": "ST09", "METHOD": "A", "ACCNUM01": "11-99-99-99", "ACCNUM02": "59-99-99-99"}])
+    _append(two_groups / "STMAS.DBF", [{"STKCOD": "GAS01", "STKDES": "แก๊ส", "STKTYP": "0", "ACCCOD": "ST09", "QUCOD": "ถง"}])
+    before = {p.name: p.read_bytes() for p in two_groups.iterdir() if p.is_file()}
+    res = _buy(two_groups, _purchase([_item("GAS01", 1, 40.0, "stock_item"), _item("ICE01", 1, 10.0, "stock_item")]),
+               make_backup=True)
+    assert not res.ok
+    assert res.error_code == "ITEM_GROUP_ACCOUNT_MISSING"
+    assert "ST09" in res.error and ("59-99-99-99" if periodic else "11-99-99-99") in res.error
+    assert {p.name: p.read_bytes() for p in two_groups.iterdir() if p.is_file()} == before
 
 
 def test_a_cash_purchase_follows_the_same_rule(two_groups):

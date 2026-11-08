@@ -107,6 +107,7 @@ Amount,金額
 Amount Payable,支払金額
 Amount Received,受取額
 Amounts,金額
+An item group's account is not in the Express chart of accounts,品目グループの勘定が Express の勘定科目表にありません
 Anonymous,匿名
 Anonymous buyers get no tax id; only companies have branches,匿名の買い手には税番号がなく、支店があるのは法人だけです
 Another computer is writing to this account set. It is sent automatically once it is done,別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します
@@ -2220,6 +2221,7 @@ express.error.INVALID_DOC_DATE,書類の日付が無効です。修正して再�
 express.error.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
 express.error.INVALID_QUANTITY,明細の数量が無効です。修正して再送信してください
 express.error.ITEMS_INVALID,明細を Express に書き込めません。確認して再送信してください
+express.error.ITEM_GROUP_ACCOUNT_MISSING,品目グループの勘定が Express の勘定科目表にありません
 express.error.JOURNAL_BOOK_NOT_FOUND,この帳簿にはこの種類の伝票帳がありません。Express で設定してください
 express.error.MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
 express.error.MISSING_REF_NO,請求書番号がありません。追加して再送信してください
