@@ -78,8 +78,10 @@ def test_removing_a_folder_keeps_the_others_and_language_follows_the_page():
     assert json.loads(bridge.call("remove_folder", json.dumps({"id": "m1", "path": "C:/in", "lang": "th"}))) == {"ok": True}
     assert settings.calls == [("folders", "m1", [])]
     bridge.call("lang", json.dumps({"lang": "th"}))
-    bridge.call("lang", json.dumps({"lang": "en"}))   # 小助手只有中文 / 泰文：英文页面不改托盘语言
-    assert langs == ["th"]
+    bridge.call("lang", json.dumps({"lang": "en"}))   # 11-08 起托盘四种语言：英文、日文页面也跟着改
+    bridge.call("lang", json.dumps({"lang": "ja"}))
+    bridge.call("lang", json.dumps({"lang": "ko"}))   # 没有的语言不改托盘语言
+    assert langs == ["th", "en", "ja"]
 
 
 def test_download_new_version_is_answered_only_on_the_chat_page():
