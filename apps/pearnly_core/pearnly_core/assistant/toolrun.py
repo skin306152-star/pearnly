@@ -338,6 +338,7 @@ def _finish(conversation, remote, run_name, use_id, tool, tool_input) -> str:
         frappe.db.set_value(TOOL_RUN, run_name, "result", text[:60000])
         waits.hold(run_name, remote, wait)
         frappe.db.commit()
+        waits.announce(run_name)
         return "running"
     # 留记录：谁（user）、何时（modified）、调了什么（tool / tool_input）、结果（result，含改后的状态）。先落库、推给对话页，
     # 再交回引擎：执行过就以本站记录为准，交回失败（这一轮已被停止）也不丢（第 11 轮 A2：工具已执行，记录却一直停在 running）

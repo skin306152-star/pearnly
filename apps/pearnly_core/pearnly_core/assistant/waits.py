@@ -259,16 +259,29 @@ def touch(key: str) -> None:
     """产品：等的这件事有了新进度（读到第几页、开始读了）。推给挂着等它的那段对话（只作展示，出错不影响识别）。"""
     try:
         for name in _by_key(key):
-            row = _row(name)
-            if row is None:
-                continue
-            with _as_owner(row.user):
-                event = _progress(row)
-            if event:
-                frappe.publish_realtime(contracts.REALTIME_EVENT, {"session_id": row.session_id, "event": event},
-                                        user=row.user, after_commit=False)
+            _push_progress(name)
     except Exception:
         pass
+
+
+def announce(run_name: str) -> None:
+    """`toolrun._finish`：刚挂起（已提交）就推一次此刻的进度。挂起之前识别「开始读」的那次推送还没有挂着的记录、没人收，
+    要等读到下一页才再推（11-08 线上：BJC 前 8 页约 4 分钟一直没有进度）；推了页面马上显示「识别中 · 共 N 页」。"""
+    try:
+        _push_progress(run_name)
+    except Exception:
+        pass
+
+
+def _push_progress(name: str) -> None:
+    row = _row(name)
+    if row is None:
+        return
+    with _as_owner(row.user):
+        event = _progress(row)
+    if event:
+        frappe.publish_realtime(contracts.REALTIME_EVENT, {"session_id": row.session_id, "event": event},
+                                user=row.user, after_commit=False)
 
 
 def progress_events(conversation: str) -> list:

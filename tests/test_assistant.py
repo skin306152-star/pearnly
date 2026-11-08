@@ -6557,6 +6557,17 @@ class WaitTests(unittest.TestCase):
         self.assertEqual([r["custom_tool_use_id"] for r in self._results()], ["sevt_run2"])
         self.assertEqual(self.db.rows["run1"]["status"], "running")
 
+    def test_parking_pushes_the_current_progress_at_once(self):
+        # 11-08 线上验收：挂起之前识别「开始读」那次推送没有挂着的记录、没人收，挂起那一刻又不推，靠推送的页面要等到
+        # 读完第一段（BJC 约 4 分钟）才有进度。挂起提交后就推一条此刻的进度：页面马上显示「识别中 · 共 12 页」。
+        self.answers[None] = {"done": False, "progress": {"done": 0, "total": 12, "label": "reading_pages"}}
+        self.assertEqual(self._park(), "running")
+        pushed = [a[1]["event"] for a, k in self.published if a[1]["event"].get("type") == "pearnly.progress"]
+        self.assertEqual([(e["tool_use_id"], e["done"], e["total"], e["label"]) for e in pushed],
+                         [("sevt_run1", 0, 12, "reading_pages")])
+        self.assertEqual(self.published[-1][1].get("user"), "owner@x.test")
+        self.assertEqual(self._results(), [])  # 只推进度，不交回
+
     def test_progress_is_pushed_and_replayed_with_real_numbers_only(self):
         self._park()
         self.answers[None] = {"done": False, "progress": {"done": 8, "total": 12, "label": "reading_pages"}}
