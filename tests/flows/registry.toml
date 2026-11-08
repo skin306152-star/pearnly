@@ -1347,7 +1347,7 @@ product = "cowork"
 start = "/assistant"
 user = "admin"
 datasets = ["new", "old"]
-viewports = ["desktop"]
+viewports = ["desktop", "mobile"]
 covers = [
   "frontend/assistant/src/components/scheduled-tasks.tsx",
   "frontend/assistant/src/components/mrerp-login.tsx",

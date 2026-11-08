@@ -327,16 +327,6 @@ tests = ["flow:cc.operator", "unit:tests/test_cc_operator.py::test_events_fold_i
 group = "cc.view.operator"
 
 [[row]]
-id = "erp.cc.view.tasks"
-product = "ERP"
-channel = "cc-chat"
-ends = ["desktop", "mobile"]
-kind = "cc-view"
-anchor = "ccview:erp:tasks"
-where = "CC 定时任务页"
-group = "cc.view.tasks"
-
-[[row]]
 id = "erp.line.page.stocktake"
 product = "ERP"
 channel = "line"

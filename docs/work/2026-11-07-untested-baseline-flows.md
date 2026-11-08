@@ -166,6 +166,12 @@
 浏览器直接输四个 `/desk/...` 地址、旧书签 `/pearnly-app#/history`、`#/guide` 都回到 `/desk/pearnly-home`，`#/purchase` 照旧到采购页。
 `check-entries` 111 个调用点、153 个声明码完整；`check-copy` 无增删改；架构检查通过；地图基线 34 → 24。
 
+## 第十三组：CC 定时任务视图、MR.ERP 授权的手机端（`pearnly/baseline-rest`，11-08）
+
+- `cowork.mrerp-login` 原来只跑电脑宽度：补上手机宽度（新老 × 电脑手机 4/4），挂着它的 Cowork「定时任务」视图、MR.ERP 授权两行的手机端从基线删掉。
+- ERP 版 CC 没有「定时任务」：分区由产品声明，只有 Cowork 声明了 tasks（`assistant.tsx` hasScheduledTasks），`ccview:erp:tasks` 是共用视图类型带出来的，
+  登记 `not_entries`、删 ERP 行，Cowork 行写 `na = { ERP = … }`；对照组缺口存量删 `erp.cc.view.tasks@desktop`。基线 24 → 20。
+
 ## 下一组
 
 只开页面的几页、Cowork 录入与盘点（第一份交接第 4 节）。

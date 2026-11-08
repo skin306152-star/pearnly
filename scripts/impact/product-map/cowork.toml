@@ -886,6 +886,7 @@ anchor = "ccview:cowork:tasks"
 where = "CC 定时任务页"
 tests = ["flow:cowork.mrerp-login"]
 group = "cc.view.tasks"
+na = { ERP = "ERP 版 CC 没有定时任务：分区由产品声明，只有 Cowork 声明了 tasks（assistant.tsx hasScheduledTasks）" }
 
 [[row]]
 id = "cowork.line.event.follow"
