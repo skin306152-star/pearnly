@@ -95,9 +95,16 @@
 - **浏览器不能直传 Anthropic**：Files API 只认 API 密钥，没有预签名 / 短期令牌（platform.claude.com Files 文档；SDK 的 `dangerouslyAllowBrowser` 等于把密钥给前端）。
   所以「传给 Anthropic」这一跳只能由服务端做，能省的是**别让它挡住回话**。
 
-### 2.4 LibreChat / Open WebUI
+### 2.4 LibreChat / Open WebUI / LobeChat（三个仓库默认分支最新源码）
 
-（草稿：调研代理 11-08 晚还没回，明早补对照：乐观显示 / 真实进度 / 直传 / 上传中能否发送 / 处理中状态。结论不依赖这一节。）
+| 项目 | 乐观显示 | 真实进度 | 直传对象存储 | 上传中能否发送 | 「处理中」单独显示 | 失败 |
+|---|---|---|---|---|---|---|
+| LibreChat | 是（本地预览；`client/src/hooks/Files/useFileHandling.ts` `processFiles`） | 否：axios 没接 `onUploadProgress`，写死 0.1→0.5→0.9→1（`packages/data-provider/src/request.ts`） | 否（后端 `/api/files`） | 否：`ChatForm.tsx` 有 `progress < 1` 就禁用发送，能打字 | 否（向量化在同一请求里，一直一个转圈） | 删卡片 + 弹错，无重试；上传中移除会中止请求 |
+| Open WebUI | 只有占位卡（文件名、大小、转圈），图片传完才换缩略图（`MessageInput.svelte` `uploadFileHandler`） | 否（fetch） | 否 | **能**：消息进 `chatRequestQueues`、清空输入框，传完自动发（`Chat.svelte` `processNextInQueue`） | 否（解析流结束前同一个转圈） | 删卡片 + 弹错，无重试 |
+| LobeChat | 是（`src/store/file/slices/chat/action.ts` `uploadChatFiles`） | **是**：XHR `upload` 进度，环形百分比 + 已传字节（`src/services/upload.ts`、`UploadStatus.tsx`） | **是**（S3 预签名 PUT） | 否：`ChatInput/index.tsx` 有 pending / uploading / processing 就禁用 | **是**：传完转 `processing`，每 2 秒查切块 / 向量化 | 错误图标 + 文字，有重试、移除 |
+
+读法：**乐观显示、真实进度（XHR）是公认做法**；「上传中能否发送」两派——dsh、LibreChat、LobeChat 禁用发送，Open WebUI 与 assistant-ui 新版是「先收下、传完自动发」。
+「传输」和「处理」分开显示只有 LobeChat 做了——这正是我们代录要的（传完方块就好，识别在别处显示，见 U3）。
 
 ## 3. 标准方案
 
@@ -143,7 +150,7 @@
 - 交叠：**正是 CC 一套「转圈写明在等什么：上传中 / 识别中 · 共 N 页 / 等电脑」那一项** → 由它定稿、一起改，避免两种口径。
 
 ### U4 上传中照样能发送（保留现有做法，补齐显示）
-- 口径：**能发**（与 dsh「禁用发送」不同，取我们已有、也是 assistant-ui 新版的做法）：点发送 → 临时气泡立刻出现、附件卡在气泡里显示进度（U1）→ 传完自动交出 → 正式气泡接替；
+- 口径：**能发**（dsh / LibreChat / LobeChat 禁用发送；Open WebUI 与 assistant-ui 新版是「先收下、传完自动发」——取后者，也是我们已有的做法）：点发送 → 临时气泡立刻出现、附件卡在气泡里显示进度（U1）→ 传完自动交出 → 正式气泡接替；
   没传上 → 整条放回输入框，原因写在输入框上方（已有 `send-failure.ts`）。理由：用户说「Claude 马上就能上传到对话框」，要的是不被挡；我们已做到不丢附件。
 - 文件：只 U1 那几处，无另外改动。估时并在 U1。
 
