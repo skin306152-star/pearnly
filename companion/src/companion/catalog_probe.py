@@ -191,7 +191,7 @@ def _scan_stcrd(account_dir) -> Tuple[int, int, set]:
     return lines, moving, locations
 
 
-# Express 仓库代码表:ISTAB 里 TABTYP='21' 的行(同 stock_location.warehouses / express_masters)。
+# Express 仓库代码表:ISTAB 里 TABTYP='21' 的行(写入时校验仓库码、ERP 按需读主档用的也是这一段)。
 _WAREHOUSE_TABTYP = "21"
 _MAX_WAREHOUSES = 200
 
@@ -199,9 +199,7 @@ _MAX_WAREHOUSES = 200
 def probe_warehouses(account_dir, used=()) -> List[Dict[str, str]]:
     """ISTAB(TABTYP=21)+ 主仓 → [{code,name,main?,used?}]。``used``:STCRD 动库存的进货 / 销货行出现过的仓码(`_scan_stcrd`)。
     主仓不在代码表里(少见)也列上、标 main / used:写入时不带仓码就是写它。"""
-    from . import account_rules
-
-    main = account_rules.main_location(account_dir, fallback="")
+    main = _main_location(account_dir)
     used = set(used or ()) | ({main} if main else set())
     out: List[Dict[str, str]] = []
     seen = set()
@@ -218,6 +216,13 @@ def probe_warehouses(account_dir, used=()) -> List[Dict[str, str]]:
     if main and main not in seen:
         out.insert(0, _warehouse(main, "", main, used))
     return out
+
+
+def _main_location(account_dir) -> str:
+    """主仓 ISINFO.MAINLOC(写入时没带仓库码就写它;只读、读不到回空)。"""
+    for r in _iter_records(account_dir, "ISINFO"):
+        return _gv(r, "MAINLOC")
+    return ""
 
 
 def _warehouse(code: str, name: str, main: str, used: set) -> Dict[str, str]:
