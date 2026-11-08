@@ -201,6 +201,66 @@ where = "CC 工具 erp_set_printed_total"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_set_printed_total"]
 
 [[row]]
+id = "erp.cc.tool.erp_stocktake_adjust"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_stocktake_adjust"
+where = "CC 工具 erp_stocktake_adjust"
+tests = ["unit:tests/test_erp_cc_stocktake.py::erp_stocktake_adjust"]
+
+[[row]]
+id = "erp.cc.tool.erp_stocktake_close"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_stocktake_close"
+where = "CC 工具 erp_stocktake_close"
+tests = ["unit:tests/test_erp_cc_stocktake.py::erp_stocktake_close"]
+
+[[row]]
+id = "erp.cc.tool.erp_stocktake_count"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_stocktake_count"
+where = "CC 工具 erp_stocktake_count"
+tests = ["unit:tests/test_erp_cc_stocktake.py::erp_stocktake_count"]
+
+[[row]]
+id = "erp.cc.tool.erp_stocktake_create"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_stocktake_create"
+where = "CC 工具 erp_stocktake_create"
+tests = ["unit:tests/test_erp_cc_stocktake.py::erp_stocktake_create"]
+
+[[row]]
+id = "erp.cc.tool.erp_stocktake_list"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_stocktake_list"
+where = "CC 工具 erp_stocktake_list"
+tests = ["unit:tests/test_erp_cc_stocktake.py::erp_stocktake_list"]
+
+[[row]]
+id = "erp.cc.tool.erp_stocktake_report"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_stocktake_report"
+where = "CC 工具 erp_stocktake_report"
+tests = ["unit:tests/test_erp_cc_stocktake.py::erp_stocktake_report"]
+
+[[row]]
 id = "erp.cc.tool.express_operator_control"
 product = "ERP"
 channel = "cc-operator"

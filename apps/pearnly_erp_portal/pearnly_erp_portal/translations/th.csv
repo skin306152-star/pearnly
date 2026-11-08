@@ -371,6 +371,8 @@ Create the warehouse in Express,สร้างคลังใน Express
 "Create the warehouse in Express, then use Sync Express on the company page",สร้างคลังใน Express แล้วกด「ซิงค์ Express」ที่หน้าบริษัท
 Create the warehouse in Express. It is added here at the next sync,สร้างคลังใน Express แล้วคลังจะปรากฏที่นี่หลังซิงก์ครั้งถัดไป
 Created,สร้างเมื่อ
+Created a stock count,สร้างการตรวจนับสต็อกแล้ว
+Created an adjustment from a stock count,สร้างใบปรับปรุงสินค้าจากผลการตรวจนับแล้ว
 Created by purchase,สร้างจากการซื้อ
 Created by sale,สร้างจากการขาย
 Created in stock count,สร้างระหว่างตรวจนับ
@@ -379,6 +381,8 @@ Created when a sales draft is confirmed,สร้างเมื่อยืน�
 Created when the draft is confirmed,สร้างเมื่อยืนยันฉบับร่าง
 Created {0} product(s),สร้างสินค้า {0} รายการแล้ว
 Created {0}; {1} row(s) were not saved — fix them and save again,สร้างสินค้าแล้ว {0} รายการ บันทึกไม่สำเร็จ {1} แถว กรุณาแก้ไขแล้วบันทึกอีกครั้ง
+Creating a stock count,กำลังสร้างการตรวจนับสต็อก
+Creating an adjustment from a stock count,กำลังสร้างใบปรับปรุงสินค้าจากผลการตรวจนับ
 Creation,วันที่สร้าง
 Credit,เงินเชื่อ
 Credit Note,ใบลดหนี้
@@ -592,6 +596,8 @@ Find,ค้นหา
 Find product,ค้นหาสินค้า
 Finish,เสร็จสิ้น
 Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,ต้องการสิ้นสุดการตรวจนับและปรับสต็อกตามผลต่างที่ยืนยันแล้วใช่หรือไม่ นับแล้ว {0} รายการ อีก {1} รายการไม่เปลี่ยนแปลง หลังสิ้นสุดดูและส่งออกได้เท่านั้น
+Finished a stock count,ปิดการตรวจนับสต็อกแล้ว
+Finishing a stock count,กำลังปิดการตรวจนับสต็อก
 First Receipt,ใบเสร็จแรก
 First warehouse of this company (more on the Warehouses page),คลังแรกของบริษัทนี้ (เพิ่มเติมได้ที่หน้าคลังสินค้า)
 Fiscal Year Starts In,เดือนที่เริ่มปีบัญชี
@@ -735,7 +741,9 @@ List archived,เก็บถาวรรายการแล้ว
 List name,ชื่อรายการ
 Listed companies,แสดงรายชื่อบริษัท
 Listed documents,ดูรายการเอกสารแล้ว
+Listed stock counts,ดูรายการตรวจนับสต็อกแล้ว
 Listing documents,กำลังดูรายการเอกสาร
+Listing stock counts,กำลังดูรายการตรวจนับสต็อก
 Loading...,กำลังโหลด…
 Location,ตำแหน่ง
 Location code,รหัสตำแหน่ง
@@ -1096,7 +1104,9 @@ Record only,ลงบัญชีอย่างเดียว
 Record purchases,บันทึกการซื้อ
 Record sales,บันทึกการขาย
 Recorded,บันทึกแล้ว
+Recorded a count,บันทึกจำนวนที่นับได้แล้ว
 Recorded {0} opening row(s); skipped {1} already recorded row(s),บันทึกสต็อกยกมา {0} แถว ข้าม {1} แถวที่บันทึกแล้ว
+Recording a count,กำลังบันทึกจำนวนที่นับได้
 Recount this product,ตรวจนับสินค้านี้ใหม่
 Recurring,การทำซ้ำ
 Red,แดง
@@ -1629,7 +1639,9 @@ Vehicle,รถยนต์
 Vehicles,รถยนต์
 View,มุมมอง
 Viewed a document,ดูเอกสารแล้ว
+Viewed a stock count,ดูผลการตรวจนับสต็อกแล้ว
 Viewing a document,กำลังดูเอกสาร
+Viewing a stock count,กำลังดูผลการตรวจนับสต็อก
 Visibility,การมองเห็น
 Void Reason,เหตุผลการยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ต้องการยกเลิกรายการตรวจนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ

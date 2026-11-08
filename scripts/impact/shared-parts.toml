@@ -310,7 +310,7 @@ name = "ERP 盘点按码认商品"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py"]
 markers = ["product_of_code", "inventory import count", "inventory.count"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.stock-count.code", "erp.stock-count.adjust"]
+entries = ["erp.stock-count.code", "erp.stock-count.adjust", "erp.cc.stocktake"]
 
 [[part]]
 id = "ocr"
@@ -441,7 +441,7 @@ name = "CC 对话（assistant）"
 paths = ["apps/pearnly_core/pearnly_core/assistant/**"]
 markers = ["pearnly_core.assistant", "pearnly_core import assistant", "pearnly_assistant_tools", "pearnly_assistant_guidance", "pearnly_assistant_step_names", "pearnly_assistant_projects"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["control.assistant", "shared.assistant", "cowork.assistant", "cc.assistant", "cc.operator.thread", "erp.cc.companies", "erp.cc.chat-push", "cowork.cc-chat.push", "cowork.cc.troubleshooting"]
+entries = ["control.assistant", "shared.assistant", "cowork.assistant", "cc.assistant", "cc.operator.thread", "erp.cc.companies", "erp.cc.chat-push", "erp.cc.stocktake", "cowork.cc-chat.push", "cowork.cc.troubleshooting"]
 
 [[part]]
 id = "tax-documents"
@@ -2035,6 +2035,15 @@ steps = "开关关着：ERP 采购 / 销售提交、对话直写、待处理照�
 expect = "关着时 MR.ERP 入口全挡、Express 输出不变；开着时单据记 MR.ERP 单号，现购停下，要选的停在单据上，账号被代录占着时排队"
 check = "offline"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/__init__.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/connection.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/contracts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py"]
+
+[[entry]]
+id = "erp.cc.stocktake"
+product = "ERP"
+where = "ERP 版 CC 对话里盘点（列盘点、看差异、新建、按码记实盘数、结束、按结果生成物料调整单草稿）"
+steps = "ERP 账号在 CC 对话里：列这家公司的盘点、新建一份（多仓公司说哪个仓）、按物料码记数（同码几件、码不在系统、重盘各试一次）、看差异、结束、生成调整单；员工账号、别家公司各试一次"
+expect = "与盘点页同一组服务函数：只见本人可用公司的仓；结束只锁定结果不动库存；调整单是草稿、人在调整单页提交才入账；业务拒绝原话交回"
+check = "offline"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/cc_tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py"]
 
 [[entry]]
 id = "erp.cc.chat-push"

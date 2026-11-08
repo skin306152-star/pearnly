@@ -1909,3 +1909,15 @@ Choose the location	请选择仓位	กรุณาเลือกตำแห�
 Type a word from the location name to find it	输入仓位名称关键字查找	พิมพ์คำในชื่อตำแหน่งเพื่อค้นหา	保管場所名の一部を入力して検索	erp.line.items.typeLocation
 None	不填	ไม่ระบุ	指定しない	erp.line.items.noLocation
 All	全部	ทั้งหมด	すべて	erp.trade.allLines
+Listed stock counts	查看了盘点列表	ดูรายการตรวจนับสต็อกแล้ว	棚卸の一覧を確認しました
+Viewed a stock count	查看了盘点结果	ดูผลการตรวจนับสต็อกแล้ว	棚卸結果を確認しました
+Created a stock count	新建了盘点	สร้างการตรวจนับสต็อกแล้ว	棚卸を作成しました
+Recorded a count	记录了实盘数	บันทึกจำนวนที่นับได้แล้ว	実数を記録しました
+Finished a stock count	结束了盘点	ปิดการตรวจนับสต็อกแล้ว	棚卸を終了しました
+Listing stock counts	正在查看盘点列表	กำลังดูรายการตรวจนับสต็อก	棚卸の一覧を確認しています
+Viewing a stock count	正在查看盘点结果	กำลังดูผลการตรวจนับสต็อก	棚卸結果を確認しています
+Creating a stock count	正在新建盘点	กำลังสร้างการตรวจนับสต็อก	棚卸を作成しています
+Recording a count	正在记录实盘数	กำลังบันทึกจำนวนที่นับได้	実数を記録しています
+Finishing a stock count	正在结束盘点	กำลังปิดการตรวจนับสต็อก	棚卸を終了しています
+Created an adjustment from a stock count	按盘点结果生成了物料调整单	สร้างใบปรับปรุงสินค้าจากผลการตรวจนับแล้ว	棚卸結果から調整伝票を作成しました
+Creating an adjustment from a stock count	正在按盘点结果生成物料调整单	กำลังสร้างใบปรับปรุงสินค้าจากผลการตรวจนับ	棚卸結果から調整伝票を作成しています

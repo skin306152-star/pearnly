@@ -171,17 +171,18 @@ def count_company(count) -> str | None:
 # ── 任务 ────────────────────────────────────────────────────────────────────
 
 
-def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
+def create_count(*, title, warehouse=None, notes=None, snapshot=True, company=None) -> dict:
     """开一份盘点。
 
     `snapshot=True`（盘点在库）把当前结存抄成快照行；`snapshot=False`（上传导入）
     只建一张空任务，行由上传的表带进来（`apply_import`）。
+    `company`：按哪家公司取仓（CC 按对话挂的公司，`inventory.cc_tools`；页面不传 = 本人当前公司）。
     """
     guard.require("count.write")
     name = (title or "").strip()
     if not name:
         frappe.throw(_(TITLE_REQUIRED))
-    warehouse = warehouses.required(warehouse)
+    warehouse = warehouses.required(warehouse, company=companies.document_company(company) if company else None)
     warehouses.remember("count", warehouse)  # 下次建盘点预填本人上次选的仓（多仓闭环 P1，问 2）
     doc = frappe.get_doc({"doctype": COUNT, "title": name, "warehouse": warehouse,
                           "notes": notes, "status": "Active"})
@@ -554,9 +555,10 @@ SORT_FIELDS = {
 }
 
 
-def list_counts(*, status=None, limit=50, start=0, sort_by=None, sort_order=None) -> list[dict]:
+def list_counts(*, status=None, limit=50, start=0, sort_by=None, sort_order=None, company=None) -> list[dict]:
+    """`company`：看哪家公司的盘点（CC 按对话挂的公司；页面不传 = 本人当前公司），只认本人可用的公司。"""
     guard.require("count.read")
-    filters = dict(warehouses.scope_filter())
+    filters = dict(warehouses.scope_filter(companies.document_company(company) if company else None))
     if status:
         filters["status"] = status
     rows = frappe.get_list(
@@ -570,9 +572,9 @@ def list_counts(*, status=None, limit=50, start=0, sort_by=None, sort_order=None
     return [dict(row, warehouse_name=_warehouse_label(row.warehouse)) for row in rows]
 
 
-def count_total(*, status=None) -> int:
+def count_total(*, status=None, company=None) -> int:
     guard.require("count.read")
-    filters = dict(warehouses.scope_filter())
+    filters = dict(warehouses.scope_filter(companies.document_company(company) if company else None))
     if status:
         filters["status"] = status
     return list_filters.count(COUNT, filters)

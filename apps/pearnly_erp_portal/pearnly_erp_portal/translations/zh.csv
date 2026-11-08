@@ -371,6 +371,8 @@ Create the warehouse in Express,请在 Express 中建仓库
 "Create the warehouse in Express, then use Sync Express on the company page",请在 Express 中建仓库，再在公司页点「同步 Express」
 Create the warehouse in Express. It is added here at the next sync,请在 Express 中建仓库，下次同步后自动出现
 Created,创建时间
+Created a stock count,新建了盘点
+Created an adjustment from a stock count,按盘点结果生成了物料调整单
 Created by purchase,采购自动建
 Created by sale,销售自动建
 Created in stock count,盘点新建
@@ -379,6 +381,8 @@ Created when a sales draft is confirmed,销售草稿确认后生成
 Created when the draft is confirmed,草稿确认后生成
 Created {0} product(s),已新建 {0} 个物料
 Created {0}; {1} row(s) were not saved — fix them and save again,已新建 {0} 个物料，{1} 行保存失败，请修正后重新保存
+Creating a stock count,正在新建盘点
+Creating an adjustment from a stock count,正在按盘点结果生成物料调整单
 Creation,创建日期
 Credit,赊账
 Credit Note,贷项通知单
@@ -592,6 +596,8 @@ Find,查询
 Find product,查找物料
 Finish,完成
 Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点 {1} 项保持不变，结束后仅可查看和导出。
+Finished a stock count,结束了盘点
+Finishing a stock count,正在结束盘点
 First Receipt,首张小票
 First warehouse of this company (more on the Warehouses page),公司的首个仓库（其他仓库可在「仓库」页面添加）
 Fiscal Year Starts In,会计年度起始月份
@@ -735,7 +741,9 @@ List archived,列表已归档
 List name,列表名称
 Listed companies,列出了公司
 Listed documents,查看了单据
+Listed stock counts,查看了盘点列表
 Listing documents,正在查看单据
+Listing stock counts,正在查看盘点列表
 Loading...,加载中…
 Location,仓位
 Location code,仓位编码
@@ -1096,7 +1104,9 @@ Record only,只记账
 Record purchases,采购录入
 Record sales,销售录入
 Recorded,已入账
+Recorded a count,记录了实盘数
 Recorded {0} opening row(s); skipped {1} already recorded row(s),已录入 {0} 行期初库存，已跳过 {1} 行已录入明细
+Recording a count,正在记录实盘数
 Recount this product,重新盘点该物料
 Recurring,重复性
 Red,红
@@ -1629,7 +1639,9 @@ Vehicle,车
 Vehicles,汽车
 View,显示方式
 Viewed a document,查看了单据详情
+Viewed a stock count,查看了盘点结果
 Viewing a document,正在查看单据详情
+Viewing a stock count,正在查看盘点结果
 Visibility,可见范围
 Void Reason,撤销原因
 Void all current observations for this product and recount it? Previous records remain in the history.,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。

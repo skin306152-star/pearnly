@@ -371,6 +371,8 @@ Create the warehouse in Express,Express で倉庫を作成してください
 "Create the warehouse in Express, then use Sync Express on the company page",Express で倉庫を作成し、会社ページで「Express と同期」を押してください
 Create the warehouse in Express. It is added here at the next sync,Express で倉庫を作成してください。次回の同期でここに追加されます
 Created,作成日時
+Created a stock count,棚卸を作成しました
+Created an adjustment from a stock count,棚卸結果から調整伝票を作成しました
 Created by purchase,仕入で作成
 Created by sale,売上で作成
 Created in stock count,棚卸で作成
@@ -379,6 +381,8 @@ Created when a sales draft is confirmed,販売下書きの確定時に作成さ�
 Created when the draft is confirmed,下書きの確定時に作成されます
 Created {0} product(s),{0}件の商品を作成しました
 Created {0}; {1} row(s) were not saved — fix them and save again,{0}件を作成しました。{1}行は保存できませんでした。修正して再保存してください
+Creating a stock count,棚卸を作成しています
+Creating an adjustment from a stock count,棚卸結果から調整伝票を作成しています
 Creation,作成日時
 Credit,掛け
 Credit Note,返品・値引伝票
@@ -592,6 +596,8 @@ Find,検索
 Find product,商品を検索
 Finish,完了
 Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,確認済みの差異を在庫に反映して終了しますか？棚卸済み {0} 件、未棚卸 {1} 件は変更せず、終了後は閲覧・出力のみです。
+Finished a stock count,棚卸を終了しました
+Finishing a stock count,棚卸を終了しています
 First Receipt,最初のレシート
 First warehouse of this company (more on the Warehouses page),この会社の最初の倉庫（追加は「倉庫」ページから）
 Fiscal Year Starts In,会計年度の開始月
@@ -735,7 +741,9 @@ List archived,リストをアーカイブしました
 List name,リスト名
 Listed companies,会社一覧を表示
 Listed documents,書類を一覧しました
+Listed stock counts,棚卸の一覧を確認しました
 Listing documents,書類を一覧しています
+Listing stock counts,棚卸の一覧を確認しています
 Loading...,読み込み中…
 Location,保管場所
 Location code,ロケーションコード
@@ -1096,7 +1104,9 @@ Record only,記帳のみ
 Record purchases,仕入入力
 Record sales,売上入力
 Recorded,記録しました
+Recorded a count,実数を記録しました
 Recorded {0} opening row(s); skipped {1} already recorded row(s),期首在庫を{0}行登録しました。登録済みの{1}行はスキップしました
+Recording a count,実数を記録しています
 Recount this product,この商品を再棚卸
 Recurring,繰り返し
 Red,赤
@@ -1629,7 +1639,9 @@ Vehicle,車両
 Vehicles,自動車
 View,表示
 Viewed a document,書類を確認しました
+Viewed a stock count,棚卸結果を確認しました
 Viewing a document,書類を確認しています
+Viewing a stock count,棚卸結果を確認しています
 Visibility,公開範囲
 Void Reason,取消理由
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。

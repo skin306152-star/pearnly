@@ -636,11 +636,12 @@ pearnly_write_precheck = {
 # 实操任务页底部的对话（对话框甲）：查进度、交代跳过 / 重做的工具在共用层，ERP 列上即用；进行中的说法同一个模块
 # ERP 版 CC 按公司组织对话（ADR-020，2026-11-02）：公司工具（列出、读资料、经「允许」记 / 删知识库）与说话规矩
 # 对话里直写（评估 2026-11-02 §13 第 9 步）：按公司列单、要选的项、记选择、交直写、推送结果、结果不明的核对（`express.cc_tools`）
+# 盘点（盘点 2026-11-08 P1-1）：列、看差异、新建、记数、结束、按结果生成调整单草稿（`inventory.cc_tools`）
 pearnly_assistant_tools = ["pearnly_core.express_operator.tools.TOOLS", "pearnly_erp_portal.masters.cc_tools.TOOLS",
-                           "pearnly_erp_portal.express.cc_tools.TOOLS"]
+                           "pearnly_erp_portal.express.cc_tools.TOOLS", "pearnly_erp_portal.inventory.cc_tools.TOOLS"]
 pearnly_assistant_guidance = ["pearnly_erp_portal.masters.cc_tools.GUIDANCE", "pearnly_erp_portal.express.cc_tools.GUIDANCE"]
 pearnly_assistant_step_names = ["pearnly_core.express_operator.tools.STEP_NAMES",
-                                "pearnly_erp_portal.express.cc_tools.STEP_NAMES"]
+                                "pearnly_erp_portal.express.cc_tools.STEP_NAMES", "pearnly_erp_portal.inventory.cc_tools.STEP_NAMES"]
 # 对话按 ERP 公司归组：provider 交给共用层（`pearnly_core.assistant.projects`），公司接口前缀与分区也在它上面声明
 pearnly_assistant_projects = ["pearnly_erp_portal.masters.cc_projects"]
 # 公司建、改名、停用、启用、删：推给能看这家的人，CC 侧栏即时更新（`masters.cc_service`）
