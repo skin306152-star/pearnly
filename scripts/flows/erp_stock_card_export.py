@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from desk_list import AWAIT_EXPORT, CAPTURE_EXPORTS, workbook_text  # noqa: E402
+from desk_list import ACTION, AWAIT_EXPORT, CAPTURE_EXPORTS, workbook_text  # noqa: E402
 from erp_lib import JS, codes, company, js_value  # noqa: E402
 
 TITLE = "ERP 收发存导出：三种报表各导一次、文件对得上账面"
@@ -54,14 +54,15 @@ print(json.dumps({{"product": product, "code": row.express_code or row.code, "qt
 def _export(params, report, output):
     values = {"report": report, "format": output, "date_from": "2000-01-01", "product_from": params["product"],
               "product_to": params["product"]}
-    return JS + CAPTURE_EXPORTS + f"""
+    return JS + ACTION + CAPTURE_EXPORTS + f"""
 frappe.set_route('pearnly-stock-card');
 const page=await until(()=>document.querySelector('[data-page-route="pearnly-stock-card"]'),20000);
 if(!page) return {{error:'page did not open'}};
 await idle();
-const button=await until(()=>[...document.querySelectorAll('.page-head button, .page-actions button')].find(e=>e.offsetParent&&e.innerText.trim()==='导出'));
-if(!button) return {{error:'no export button'}};
-button.click();
+// 电脑宽度是页头按钮，手机宽度收在「⋯」菜单里
+await until(()=>[...document.querySelectorAll('.page-head button')].some(e=>e.offsetParent));
+const via=await action('导出');
+if(!via) return {{error:'no export action'}};
 const dialog=await until(()=>window.cur_dialog&&cur_dialog.fields_dict.report&&cur_dialog.display&&cur_dialog);
 if(!dialog) return {{error:'no export dialog'}};
 await dialog.set_values({js_value(values)});
