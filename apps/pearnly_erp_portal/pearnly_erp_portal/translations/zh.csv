@@ -88,6 +88,9 @@ Admins only,仅管理员
 Against Payment,关联付款
 All,全部
 All Items,所有物料
+All Warehouses,合并全部仓
+All Warehouses Rows  {0}  Products  {1}  Warehouses  {2},全部仓库明细  {0}  笔  {1}  个物料  {2}  个仓库
+All Warehouses Total,全部仓库合计
 All companies,全部公司
 All labels,全部标签
 All record only,全部只记账
@@ -141,6 +144,7 @@ Back,返回
 Back to entries,返回记录
 Back to summary,返回汇总
 Balance,结存
+Balance Value,结存金额
 Bank,银行
 Bank Transfer,银行转账
 Barcode,条码
@@ -178,6 +182,7 @@ Branch Number,分支机构编号
 Branch Office,分支机构
 Branch Type,分支机构类型
 Branch {0},分支机构 {0}
+Brought Forward,上期结转
 Bucket,号段
 Buy,采购
 Buyer,买方名称
@@ -186,6 +191,7 @@ Buyer address,买方地址
 Buyer branch,买方分支机构
 Buyer tax ID,买方税号
 By Payment Method,按收款方式
+By Warehouse,分仓
 By location,按位置
 By product,按物料
 CC Desktop could not read this invoice. Check the fields and submit again,CC 桌面版无法读取此发票，请核对字段后重新提交
@@ -404,6 +410,7 @@ Cyan,青
 Daily,每天
 Damaged / written off,报损
 Date,日期
+Date  {0}  to  {1},日期  {0}  至  {1}
 Date (BE),日期（佛历）
 Date created (newest first),创建时间（最新优先）
 Date created (oldest first),创建时间（最早优先）
@@ -609,13 +616,16 @@ Focus on search input,定位到搜索框
 Following fields have missing values:,以下字段缺少值：
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",拍摄提示：请将单据摆正，文字朝上，完整入镜。
 Foreigner,外国人
+Format,格式
 Found,已找到
 Found {0}. Tap the number to choose:,找到 {0} 个，请点击序号选择：
 Found: {0},已查到：{0}
 "Free note kept with the collection record (who took the money, reference).",收款记录备注（收款人、参考号）。
 From Date,开始日期
 From Location,调出仓位
+From Product,起始物料
 From Warehouse,调出仓库
+From Warehouse Code,起始仓库
 From the document,按票面识别
 Full Name,姓名
 Full Screen,全屏
@@ -625,6 +635,7 @@ Generated,已生成
 Generated automatically,自动生成
 Goods,货物
 Grand Total,总计
+Grand Total  {0}  products,总计  {0}  个物料
 Gray,灰
 Green,绿
 Gross,毛额
@@ -680,8 +691,10 @@ Invoice Status,单据状态
 Is Paid,已付款
 Is Reversal,冲销
 Is this company VAT registered,该公司是增值税登记户吗
+Issue Value,发出金额
 Issue documents and deduct stock,开单并出库
 Issued,出库数量
+Issues,发出
 Item,物料
 Item / Description,品名/说明
 Item Cart,购物车
@@ -839,6 +852,7 @@ No terminal yet,还没有收银台
 No units of this product are registered in this warehouse,此仓库未登记该商品的台
 No warehouse is available for this company,该公司无可用仓库
 No warehouse matches that name,该仓库名不存在
+No.,单号
 Non-cash payment cannot exceed the amount due,非现金付款不能超过应付金额
 Non-claimable VAT,不可抵扣的增值税
 None,无
@@ -1019,9 +1033,13 @@ Private,私有
 Product,产品
 Product / position / counted by / time,物料 / 仓位 / 盘点人 / 时间
 Product Adjustment,物料调整
+Product Code,物料代码
+Product Code  {0}  to  {1},物料代码  {0}  至  {1}
 Product ID,物料标识
 Product Name,物料名称
 Product Ref,物料外部标识
+Product Rows  {0},物料明细  {0}  笔
+Product Total,物料小计
 Product code,系统编码
 Product is disabled,物料已停用
 Product name,物料名称
@@ -1078,6 +1096,7 @@ Reason for Cancellation,取消原因
 Receipt,收据
 Receipt No,小票号
 Receipt Status,小票状态
+Receipt Value,收入金额
 Receipt {0} · Change {1},小票 {0} · 找零 {1}
 Receipts,小票张数
 Receipts and simplified tax invoices are usually not claimed,小票、简易税票的税额一般不抵进项
@@ -1139,6 +1158,7 @@ Remove template,取消模板
 Remove this company note?,确定要删除此公司说明吗？
 Removed a company note,删除了公司说明
 Replace the entered rows with the imported file?,确定要用导入文件替换已填写的明细吗？
+Report,报表
 Request Hash,请求哈希
 Request ID already exists,请求编号已存在
 Request id,请求 ID
@@ -1288,6 +1308,9 @@ Stock Account Group,存货科目组
 Stock Count,盘点
 Stock Posted At,库存过账时间
 Stock Posting,库存过账
+Stock Receipt-Issue Report,收发存报表
+Stock Receipt-Issue Report - Summary,收发存报表 - 汇总
+Stock Receipt-Issue Report: By Warehouse,收发存报表：分仓
 Stock Token,库存令牌
 Stock Transfer,调拨
 Stock UOM,库存单位
@@ -1347,6 +1370,7 @@ Task Management,任务管理
 Tax Amount,税额
 Tax Exclusive,不含税
 Tax ID,税号
+Tax ID  {0},纳税人识别号  {0}
 Tax ID exists but is not VAT registered,该税号未进行增值税登记
 Tax ID must be 13 digits,税号必须是 13 位数字
 Tax Inclusive,含税
@@ -1542,11 +1566,14 @@ Time left {0},剩余 {0}
 Title,标题
 To Date,结束日期
 To Location,调入仓位
+To Product,截止物料
 To Warehouse,调入仓库
+To Warehouse Code,截止仓库
 To do,待办
 Too many items,项目过多
 Too many matches; type a few more letters to narrow it down,匹配结果过多，请输入更多关键字缩小范围
 Total,总计
+Total  {0}  rows,合计  {0}  笔
 Total Amount,总金额
 Total Due,应收金额
 Total Items,总数量
@@ -1578,6 +1605,7 @@ Unbind LINE,解绑 LINE
 Unbind Pearnly ERP LINE?,确定要解绑 Pearnly ERP LINE 吗？
 Unbound,未绑定
 Unit,单位
+Unit : {0},单位：{0}
 Unit Cost,单位成本
 Unit Cost (net of VAT),单位成本（不含 VAT）
 Unit Cost Entered,单价已填写
@@ -1656,10 +1684,14 @@ Void {0} selected,作废选中的 {0} 张
 Voided,已作废
 Voided {0},已作废 {0} 张
 "Voided, not in the total",已撤销，不计入合计
+Voucher,单据
 WHT amount,预扣税额
 Waiting for the original day summary to be written,等待原日汇总写入
 Walk-in customer,散客
 Warehouse,仓库
+Warehouse Code  {0}  to  {1},仓库代码  {0}  至  {1}
+Warehouse Rows  {0}  Products  {1},仓库明细  {0}  笔  {1}  个物料
+Warehouse Total,仓库合计
 Warehouse code,仓库编号
 Warehouse name,仓库名称
 Warehouse not found,未找到仓库
@@ -2753,6 +2785,47 @@ trade.editCart,返回购物车
 trade.enterAmount,输入{0}金额
 trade.expectedAmount,预期金额
 trade.expectedCash,应有现金
+trade.export.action,导出
+trade.export.all,合并全部仓
+trade.export.allDetail,全部仓库明细  {0}  笔  {1}  个物料  {2}  个仓库
+trade.export.allTotal,全部仓库合计
+trade.export.amount,金额
+trade.export.balance,结存
+trade.export.balanceValue,结存金额
+trade.export.byWarehouse,分仓
+trade.export.carried,上期结转
+trade.export.code,物料代码
+trade.export.date,日期
+trade.export.dateRange,日期  {0}  至  {1}
+trade.export.format,格式
+trade.export.grand,总计  {0}  个物料
+trade.export.issueValue,发出金额
+trade.export.issues,发出
+trade.export.name,物料名称
+trade.export.number,单号
+trade.export.productDetail,物料明细  {0}  笔
+trade.export.productFrom,起始物料
+trade.export.productRange,物料代码  {0}  至  {1}
+trade.export.productTo,截止物料
+trade.export.productTotal,物料小计
+trade.export.qty,数量
+trade.export.receiptValue,收入金额
+trade.export.receipts,收入
+trade.export.report,报表
+trade.export.rows,合计  {0}  笔
+trade.export.summary,汇总
+trade.export.taxId,纳税人识别号  {0}
+trade.export.title.all,收发存报表
+trade.export.title.byWarehouse,收发存报表：分仓
+trade.export.title.summary,收发存报表 - 汇总
+trade.export.unit,单位：{0}
+trade.export.unitPrice,单价
+trade.export.voucher,单据
+trade.export.warehouseDetail,仓库明细  {0}  笔  {1}  个物料
+trade.export.warehouseFrom,起始仓库
+trade.export.warehouseRange,仓库代码  {0}  至  {1}
+trade.export.warehouseTo,截止仓库
+trade.export.warehouseTotal,仓库合计
 trade.exportNotice,已导出 {0} 个班次
 trade.float,备用现金
 trade.from,开始日期

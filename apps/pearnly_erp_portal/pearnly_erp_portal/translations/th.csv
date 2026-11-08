@@ -88,6 +88,9 @@ Admins only,เฉพาะผู้ดูแล
 Against Payment,อ้างอิงการชำระเงิน
 All,ทั้งหมด
 All Items,สินค้าทั้งหมด
+All Warehouses,รวมทุกคลัง
+All Warehouses Rows  {0}  Products  {1}  Warehouses  {2},รายละเอียดรวมทุกคลัง  {0}  รายการ  {1}  สินค้า  {2}  คลัง
+All Warehouses Total,รวมทุกคลัง
 All companies,ทุกบริษัท
 All labels,ป้ายกำกับทั้งหมด
 All record only,ลงบัญชีอย่างเดียวหมด
@@ -141,6 +144,7 @@ Back,กลับ
 Back to entries,กลับไปหน้ารายการ
 Back to summary,กลับไปหน้าสรุป
 Balance,คงเหลือ
+Balance Value,มูลค่าคงเหลือ
 Bank,ธนาคาร
 Bank Transfer,โอนเงินผ่านธนาคาร
 Barcode,บาร์โค้ด
@@ -178,6 +182,7 @@ Branch Number,เลขที่สาขา
 Branch Office,สาขา
 Branch Type,ประเภทสาขา
 Branch {0},สาขา {0}
+Brought Forward,ยอดยกมา
 Bucket,ช่วงเลขที่
 Buy,ซื้อ
 Buyer,ชื่อผู้ซื้อ
@@ -186,6 +191,7 @@ Buyer address,ที่อยู่ผู้ซื้อ
 Buyer branch,สาขาผู้ซื้อ
 Buyer tax ID,เลขประจำตัวผู้เสียภาษีของผู้ซื้อ
 By Payment Method,แยกตามวิธีรับเงิน
+By Warehouse,แยกคลัง
 By location,ตามตำแหน่ง
 By product,ตามสินค้า
 CC Desktop could not read this invoice. Check the fields and submit again,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
@@ -404,6 +410,7 @@ Cyan,ฟ้า
 Daily,ทุกวัน
 Damaged / written off,ตัดชำรุด / เสียหาย
 Date,วันที่
+Date  {0}  to  {1},วันที่  {0}  ถึง  {1}
 Date (BE),วันที่ พ.ศ.
 Date created (newest first),วันที่สร้าง (ใหม่สุดก่อน)
 Date created (oldest first),วันที่สร้าง (เก่าสุดก่อน)
@@ -609,13 +616,16 @@ Focus on search input,ไปที่ช่องค้นหา
 Following fields have missing values:,ฟิลด์ต่อไปนี้ยังไม่ได้กรอก:
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",คำแนะนำในการถ่ายภาพ: กรุณาวางเอกสารให้ตรง ตัวอักษรหันขึ้นด้านบน และถ่ายให้เห็นครบทั้งแผ่น
 Foreigner,ชาวต่างชาติ
+Format,รูปแบบ
 Found,พบ
 Found {0}. Tap the number to choose:,พบ {0} รายการ กรุณาแตะหมายเลขเพื่อเลือก:
 Found: {0},พบข้อมูล: {0}
 "Free note kept with the collection record (who took the money, reference).",หมายเหตุของรายการรับเงิน (ผู้รับเงิน เลขที่อ้างอิง)
 From Date,จากวันที่
 From Location,ตำแหน่งต้นทาง
+From Product,รหัสสินค้า
 From Warehouse,คลังต้นทาง
+From Warehouse Code,รหัสคลังสินค้า
 From the document,อ่านจากเอกสาร
 Full Name,ชื่อ-นามสกุล
 Full Screen,เต็มหน้าจอ
@@ -625,6 +635,7 @@ Generated,สร้างแล้ว
 Generated automatically,สร้างอัตโนมัติ
 Goods,สินค้า
 Grand Total,ยอดรวมทั้งสิ้น
+Grand Total  {0}  products,รวมทั้งสิ้น  {0}  สินค้า
 Gray,เทา
 Green,เขียว
 Gross,ยอดขายรวม
@@ -680,8 +691,10 @@ Invoice Status,สถานะเอกสาร
 Is Paid,ชำระแล้ว
 Is Reversal,กลับรายการ
 Is this company VAT registered,บริษัทนี้จดทะเบียนภาษีมูลค่าเพิ่มหรือไม่
+Issue Value,มูลค่าจ่าย
 Issue documents and deduct stock,ออกเอกสารและตัดสินค้าออกจากสต็อก
 Issued,จ่ายออก
+Issues,รายการจ่าย
 Item,สินค้า
 Item / Description,ชื่อสินค้า/คำอธิบาย
 Item Cart,ตะกร้าสินค้า
@@ -839,6 +852,7 @@ No terminal yet,ยังไม่มีเครื่องขาย
 No units of this product are registered in this warehouse,คลังนี้ยังไม่มีชิ้นที่ลงทะเบียนของสินค้านี้
 No warehouse is available for this company,บริษัทนี้ไม่มีคลังสินค้าที่ใช้งานได้
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
+No.,เลขที่
 Non-cash payment cannot exceed the amount due,การชำระที่ไม่ใช่เงินสดต้องไม่เกินยอดที่ต้องชำระ
 Non-claimable VAT,ภาษีซื้อที่ขอคืนไม่ได้
 None,ไม่มี
@@ -1019,9 +1033,13 @@ Private,ส่วนตัว
 Product,สินค้า
 Product / position / counted by / time,สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา
 Product Adjustment,ปรับปรุงสินค้า
+Product Code,รหัสสินค้า
+Product Code  {0}  to  {1},รหัสสินค้า  {0}  ถึง  {1}
 Product ID,รหัสระบุสินค้า
 Product Name,ชื่อสินค้า
 Product Ref,รหัสอ้างอิงสินค้า
+Product Rows  {0},รายละเอียดรวมสินค้า  {0}  รายการ
+Product Total,รวมสินค้า
 Product code,รหัสสินค้า
 Product is disabled,สินค้าถูกปิดใช้งาน
 Product name,ชื่อสินค้า
@@ -1078,6 +1096,7 @@ Reason for Cancellation,เหตุผลในการยกเลิก
 Receipt,ใบเสร็จรับเงิน
 Receipt No,เลขที่ใบเสร็จ
 Receipt Status,สถานะใบเสร็จ
+Receipt Value,มูลค่ารับ
 Receipt {0} · Change {1},ใบเสร็จ {0} · เงินทอน {1}
 Receipts,จำนวนใบเสร็จ
 Receipts and simplified tax invoices are usually not claimed,ใบเสร็จและใบกำกับภาษีอย่างย่อโดยทั่วไปไม่ขอคืนภาษีซื้อ
@@ -1139,6 +1158,7 @@ Remove template,ยกเลิกเทมเพลต
 Remove this company note?,ลบบันทึกบริษัทนี้ไหม
 Removed a company note,ลบบันทึกบริษัท
 Replace the entered rows with the imported file?,ต้องการแทนที่รายการที่กรอกไว้ด้วยไฟล์นำเข้าใช่หรือไม่
+Report,รายงาน
 Request Hash,แฮชของคำขอ
 Request ID already exists,รหัสคำขอมีอยู่แล้ว
 Request id,รหัสคำขอ
@@ -1288,6 +1308,9 @@ Stock Account Group,กลุ่มบัญชีสินค้าคงเห
 Stock Count,ตรวจนับสต็อก
 Stock Posted At,วันเวลาที่ลงบัญชีสต็อก
 Stock Posting,การบันทึกสต็อก
+Stock Receipt-Issue Report,รายงานรับ-จ่ายสินค้า
+Stock Receipt-Issue Report - Summary,รายงานรับ-จ่ายสินค้า - สรุป
+Stock Receipt-Issue Report: By Warehouse,รายงานรับ-จ่ายสินค้า:แยกคลัง
 Stock Token,โทเคนสต็อก
 Stock Transfer,โอนย้ายระหว่างคลัง
 Stock UOM,หน่วยวัดสต็อก
@@ -1347,6 +1370,7 @@ Task Management,จัดการงาน
 Tax Amount,จำนวนภาษี
 Tax Exclusive,ไม่รวมภาษี
 Tax ID,เลขประจำตัวผู้เสียภาษี
+Tax ID  {0},เลขประจำตัวผู้เสียภาษี  {0}
 Tax ID exists but is not VAT registered,เลขประจำตัวผู้เสียภาษีนี้ไม่ได้จดทะเบียนภาษีมูลค่าเพิ่ม
 Tax ID must be 13 digits,เลขประจำตัวผู้เสียภาษีต้องมี 13 หลัก
 Tax Inclusive,รวมภาษี
@@ -1542,11 +1566,14 @@ Time left {0},เหลือเวลา {0}
 Title,ชื่อ
 To Date,ถึงวันที่
 To Location,ตำแหน่งปลายทาง
+To Product,ถึงรหัสสินค้า
 To Warehouse,คลังปลายทาง
+To Warehouse Code,ถึงรหัสคลังสินค้า
 To do,รอดำเนินการ
 Too many items,รายการมากเกินไป
 Too many matches; type a few more letters to narrow it down,ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์
 Total,ยอดรวม
+Total  {0}  rows,รวม  {0}  รายการ
 Total Amount,จำนวนเงินรวม
 Total Due,ยอดชำระ
 Total Items,จำนวนชิ้น
@@ -1578,6 +1605,7 @@ Unbind LINE,ยกเลิกการเชื่อมต่อ LINE
 Unbind Pearnly ERP LINE?,ต้องการยกเลิกการเชื่อมต่อ Pearnly ERP LINE ใช่หรือไม่
 Unbound,ยังไม่ผูก
 Unit,หน่วย
+Unit : {0},หน่วย : {0}
 Unit Cost,ต้นทุนต่อหน่วย
 Unit Cost (net of VAT),ต้นทุนต่อหน่วย (ไม่รวม VAT)
 Unit Cost Entered,กรอกราคาต่อหน่วยแล้ว
@@ -1656,10 +1684,14 @@ Void {0} selected,ยกเลิก {0} รายการที่เลือ
 Voided,ยกเลิกแล้ว
 Voided {0},ยกเลิก {0} รายการแล้ว
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
+Voucher,ใบสำคัญ
 WHT amount,จำนวนภาษีหัก ณ ที่จ่าย
 Waiting for the original day summary to be written,รอบันทึกสรุปยอดขายรายวันต้นทาง
 Walk-in customer,ลูกค้าทั่วไป
 Warehouse,คลังสินค้า
+Warehouse Code  {0}  to  {1},รหัสคลังสินค้า  {0}  ถึง  {1}
+Warehouse Rows  {0}  Products  {1},รายละเอียดรวมคลัง  {0}  รายการ  {1}  สินค้า
+Warehouse Total,รวมคลัง
 Warehouse code,รหัสคลัง
 Warehouse name,ชื่อคลังสินค้า
 Warehouse not found,ไม่พบคลังสินค้า
@@ -2753,6 +2785,47 @@ trade.editCart,กลับไปที่ตะกร้า
 trade.enterAmount,กรอกจำนวนเงิน {0}
 trade.expectedAmount,ยอดที่ควรมี
 trade.expectedCash,เงินสดที่ควรมี
+trade.export.action,ส่งออก
+trade.export.all,รวมทุกคลัง
+trade.export.allDetail,รายละเอียดรวมทุกคลัง  {0}  รายการ  {1}  สินค้า  {2}  คลัง
+trade.export.allTotal,รวมทุกคลัง
+trade.export.amount,จำนวนเงิน
+trade.export.balance,คงเหลือ
+trade.export.balanceValue,มูลค่าคงเหลือ
+trade.export.byWarehouse,แยกคลัง
+trade.export.carried,ยอดยกมา
+trade.export.code,รหัสสินค้า
+trade.export.date,วันที่
+trade.export.dateRange,วันที่  {0}  ถึง  {1}
+trade.export.format,รูปแบบ
+trade.export.grand,รวมทั้งสิ้น  {0}  สินค้า
+trade.export.issueValue,มูลค่าจ่าย
+trade.export.issues,รายการจ่าย
+trade.export.name,ชื่อสินค้า
+trade.export.number,เลขที่
+trade.export.productDetail,รายละเอียดรวมสินค้า  {0}  รายการ
+trade.export.productFrom,รหัสสินค้า
+trade.export.productRange,รหัสสินค้า  {0}  ถึง  {1}
+trade.export.productTo,ถึงรหัสสินค้า
+trade.export.productTotal,รวมสินค้า
+trade.export.qty,จำนวน
+trade.export.receiptValue,มูลค่ารับ
+trade.export.receipts,รายการรับ
+trade.export.report,รายงาน
+trade.export.rows,รวม  {0}  รายการ
+trade.export.summary,สรุป
+trade.export.taxId,เลขประจำตัวผู้เสียภาษี  {0}
+trade.export.title.all,รายงานรับ-จ่ายสินค้า
+trade.export.title.byWarehouse,รายงานรับ-จ่ายสินค้า:แยกคลัง
+trade.export.title.summary,รายงานรับ-จ่ายสินค้า - สรุป
+trade.export.unit,หน่วย : {0}
+trade.export.unitPrice,ราคาต่อหน่วย
+trade.export.voucher,ใบสำคัญ
+trade.export.warehouseDetail,รายละเอียดรวมคลัง  {0}  รายการ  {1}  สินค้า
+trade.export.warehouseFrom,รหัสคลังสินค้า
+trade.export.warehouseRange,รหัสคลังสินค้า  {0}  ถึง  {1}
+trade.export.warehouseTo,ถึงรหัสคลังสินค้า
+trade.export.warehouseTotal,รวมคลัง
 trade.exportNotice,ส่งออก {0} กะแล้ว
 trade.float,เงินสดเริ่มต้น
 trade.from,ตั้งแต่วันที่

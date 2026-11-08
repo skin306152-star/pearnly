@@ -1653,10 +1653,10 @@ files = ["apps/pearnly_cowork/pearnly_cowork/history/api.py", "apps/pearnly_cowo
 id = "erp.exports"
 product = "ERP"
 where = "ERP 下载"
-steps = "班次导出、任务管理导出、采购 / 销售 / 库存导出、盘点导出 / 模板、期初模板、商品导入模板、收银小票"
+steps = "班次导出、任务管理导出、采购 / 销售 / 库存导出、收发存导出（三种 × Excel / PDF）、盘点导出 / 模板、期初模板、商品导入模板、收银小票"
 expect = "文件名中文 / 泰文不乱码，能打开"
 check = "manual"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/output.py", "apps/pearnly_erp_portal/pearnly_erp_portal/work/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/work/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/output.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/output.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/output.py", "apps/pearnly_erp_portal/pearnly_erp_portal/work/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/work/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/output.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/output.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/card_export.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py"]
 
 [[entry]]
 id = "shared.exports"

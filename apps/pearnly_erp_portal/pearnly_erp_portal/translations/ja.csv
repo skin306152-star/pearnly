@@ -88,6 +88,9 @@ Admins only,管理者のみ
 Against Payment,関連支払
 All,すべて
 All Items,すべての商品
+All Warehouses,全倉庫合計
+All Warehouses Rows  {0}  Products  {1}  Warehouses  {2},全倉庫明細  {0}  件  {1}  品目  {2}  倉庫
+All Warehouses Total,全倉庫合計
 All companies,全社
 All labels,すべてのラベル
 All record only,すべて記帳のみ
@@ -141,6 +144,7 @@ Back,戻る
 Back to entries,記録へ戻る
 Back to summary,集計へ戻る
 Balance,残高
+Balance Value,残高金額
 Bank,銀行
 Bank Transfer,銀行振込
 Barcode,バーコード
@@ -178,6 +182,7 @@ Branch Number,支店番号
 Branch Office,支店
 Branch Type,支店区分
 Branch {0},支店 {0}
+Brought Forward,前期繰越
 Bucket,採番区分
 Buy,仕入
 Buyer,買い手
@@ -186,6 +191,7 @@ Buyer address,買い手住所
 Buyer branch,買い手支店
 Buyer tax ID,買い手税番号
 By Payment Method,支払方法別
+By Warehouse,倉庫別
 By location,保管場所別
 By product,商品別
 CC Desktop could not read this invoice. Check the fields and submit again,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
@@ -404,6 +410,7 @@ Cyan,水色
 Daily,毎日
 Damaged / written off,破損・廃棄
 Date,日付
+Date  {0}  to  {1},日付  {0}  ～  {1}
 Date (BE),日付（仏暦）
 Date created (newest first),作成日（新しい順）
 Date created (oldest first),作成日（古い順）
@@ -609,13 +616,16 @@ Focus on search input,検索欄にフォーカス
 Following fields have missing values:,次の項目が未入力です:
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。
 Foreigner,外国人
+Format,形式
 Found,検出
 Found {0}. Tap the number to choose:,{0} 件見つかりました。番号をタップして選択してください：
 Found: {0},取得: {0}
 "Free note kept with the collection record (who took the money, reference).",入金記録に残す自由記入（受け取った人、参照番号）。
 From Date,開始日
 From Location,移動元保管場所
+From Product,開始品目
 From Warehouse,移動元倉庫
+From Warehouse Code,開始倉庫
 From the document,書類から読み取る
 Full Name,氏名
 Full Screen,全画面
@@ -625,6 +635,7 @@ Generated,生成済み
 Generated automatically,自動生成
 Goods,商品
 Grand Total,税込合計
+Grand Total  {0}  products,総計  {0}  品目
 Gray,グレー
 Green,緑
 Gross,売上総額
@@ -680,8 +691,10 @@ Invoice Status,伝票ステータス
 Is Paid,支払済み
 Is Reversal,取消仕訳
 Is this company VAT registered,この会社は VAT 登録事業者ですか
+Issue Value,払出金額
 Issue documents and deduct stock,伝票を登録して出庫
 Issued,出庫数量
+Issues,払出
 Item,品目
 Item / Description,品名・説明
 Item Cart,カート
@@ -839,6 +852,7 @@ No terminal yet,レジはまだありません
 No units of this product are registered in this warehouse,この倉庫にこの商品の登録済み個体はありません
 No warehouse is available for this company,この会社に使用できる倉庫がありません
 No warehouse matches that name,その倉庫名は存在しません
+No.,番号
 Non-cash payment cannot exceed the amount due,現金以外の支払いは支払額を超えられません
 Non-claimable VAT,控除できない消費税
 None,なし
@@ -1019,9 +1033,13 @@ Private,非公開
 Product,製品
 Product / position / counted by / time,商品・位置・担当者・日時
 Product Adjustment,商品調整
+Product Code,品目コード
+Product Code  {0}  to  {1},品目コード  {0}  ～  {1}
 Product ID,商品ID
 Product Name,商品名
 Product Ref,商品の外部参照
+Product Rows  {0},品目明細  {0}  件
+Product Total,品目小計
 Product code,品目コード
 Product is disabled,商品は無効になっています
 Product name,商品名
@@ -1078,6 +1096,7 @@ Reason for Cancellation,取消理由
 Receipt,領収書
 Receipt No,レシート番号
 Receipt Status,レシート状態
+Receipt Value,受入金額
 Receipt {0} · Change {1},レシート {0} · お釣り {1}
 Receipts,レシート枚数
 Receipts and simplified tax invoices are usually not claimed,レシートと簡易税票は通常控除しません
@@ -1139,6 +1158,7 @@ Remove template,テンプレートを解除
 Remove this company note?,この会社メモを削除しますか？
 Removed a company note,会社メモを削除
 Replace the entered rows with the imported file?,入力済みの明細を取込ファイルで置き換えますか？
+Report,レポート
 Request Hash,リクエストハッシュ
 Request ID already exists,リクエスト ID は既に存在します
 Request id,リクエストID
@@ -1288,6 +1308,9 @@ Stock Account Group,在庫勘定グループ
 Stock Count,棚卸
 Stock Posted At,在庫転記日時
 Stock Posting,在庫計上
+Stock Receipt-Issue Report,入出庫レポート
+Stock Receipt-Issue Report - Summary,入出庫レポート - 集計
+Stock Receipt-Issue Report: By Warehouse,入出庫レポート：倉庫別
 Stock Token,在庫トークン
 Stock Transfer,倉庫間移動
 Stock UOM,在庫単位
@@ -1347,6 +1370,7 @@ Task Management,タスク管理
 Tax Amount,税額
 Tax Exclusive,税抜
 Tax ID,納税者番号
+Tax ID  {0},納税者番号  {0}
 Tax ID exists but is not VAT registered,番号は存在しますがVAT登録がありません
 Tax ID must be 13 digits,納税者番号は13桁です
 Tax Inclusive,税込
@@ -1542,11 +1566,14 @@ Time left {0},残り {0}
 Title,タイトル
 To Date,終了日
 To Location,移動先保管場所
+To Product,終了品目
 To Warehouse,移動先倉庫
+To Warehouse Code,終了倉庫
 To do,未着手
 Too many items,項目が多すぎます
 Too many matches; type a few more letters to narrow it down,候補が多すぎます。文字を追加して絞り込んでください
 Total,請求額
+Total  {0}  rows,合計  {0}  件
 Total Amount,合計金額
 Total Due,請求額
 Total Items,合計点数
@@ -1578,6 +1605,7 @@ Unbind LINE,LINE 連携を解除
 Unbind Pearnly ERP LINE?,Pearnly ERP LINE の連携を解除しますか？
 Unbound,未連携
 Unit,単位
+Unit : {0},単位：{0}
 Unit Cost,単位原価
 Unit Cost (net of VAT),単価（VAT除く）
 Unit Cost Entered,単価入力済み
@@ -1656,10 +1684,14 @@ Void {0} selected,選択した{0}件を取り消す
 Voided,取消済み
 Voided {0},{0}件を取り消しました
 "Voided, not in the total",取消済み（合計に含まない）
+Voucher,伝票
 WHT amount,源泉税額
 Waiting for the original day summary to be written,元の日次集計の書き込み待ち
 Walk-in customer,一般客
 Warehouse,倉庫
+Warehouse Code  {0}  to  {1},倉庫コード  {0}  ～  {1}
+Warehouse Rows  {0}  Products  {1},倉庫明細  {0}  件  {1}  品目
+Warehouse Total,倉庫合計
 Warehouse code,倉庫コード
 Warehouse name,倉庫名
 Warehouse not found,倉庫が見つかりません
@@ -2753,6 +2785,47 @@ trade.editCart,カートに戻る
 trade.enterAmount,{0}の金額を入力
 trade.expectedAmount,あるべき金額
 trade.expectedCash,現金予定額
+trade.export.action,エクスポート
+trade.export.all,全倉庫合計
+trade.export.allDetail,全倉庫明細  {0}  件  {1}  品目  {2}  倉庫
+trade.export.allTotal,全倉庫合計
+trade.export.amount,金額
+trade.export.balance,残高
+trade.export.balanceValue,残高金額
+trade.export.byWarehouse,倉庫別
+trade.export.carried,前期繰越
+trade.export.code,品目コード
+trade.export.date,日付
+trade.export.dateRange,日付  {0}  ～  {1}
+trade.export.format,形式
+trade.export.grand,総計  {0}  品目
+trade.export.issueValue,払出金額
+trade.export.issues,払出
+trade.export.name,品目名
+trade.export.number,番号
+trade.export.productDetail,品目明細  {0}  件
+trade.export.productFrom,開始品目
+trade.export.productRange,品目コード  {0}  ～  {1}
+trade.export.productTo,終了品目
+trade.export.productTotal,品目小計
+trade.export.qty,数量
+trade.export.receiptValue,受入金額
+trade.export.receipts,受入
+trade.export.report,レポート
+trade.export.rows,合計  {0}  件
+trade.export.summary,集計
+trade.export.taxId,納税者番号  {0}
+trade.export.title.all,入出庫レポート
+trade.export.title.byWarehouse,入出庫レポート：倉庫別
+trade.export.title.summary,入出庫レポート - 集計
+trade.export.unit,単位：{0}
+trade.export.unitPrice,単価
+trade.export.voucher,伝票
+trade.export.warehouseDetail,倉庫明細  {0}  件  {1}  品目
+trade.export.warehouseFrom,開始倉庫
+trade.export.warehouseRange,倉庫コード  {0}  ～  {1}
+trade.export.warehouseTo,終了倉庫
+trade.export.warehouseTotal,倉庫合計
 trade.exportNotice,{0}件のシフトを出力しました
 trade.float,釣銭準備金
 trade.from,開始日

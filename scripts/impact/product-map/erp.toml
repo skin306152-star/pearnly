@@ -970,6 +970,16 @@ where = "pearnly-inventory 页头「stock.action.export」"
 tests = ["flow:erp.exports"]
 
 [[row]]
+id = "erp.desk.pearnly-stock-card.action.trade.export.action"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-stock-card:trade.export.action"
+where = "pearnly-stock-card 页头「导出」（收发存报表：合并全部仓 / 汇总 / 分仓 × Excel / PDF，照 MR.ERP）"
+tests = ["flow:erp.stock-card.export", "unit:tests/test_erp_stock_card_export.py"]
+
+[[row]]
 id = "erp.desk.pearnly-inventory.action.stock.opening.title"
 product = "ERP"
 channel = "desk"

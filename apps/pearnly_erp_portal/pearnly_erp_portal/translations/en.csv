@@ -88,6 +88,9 @@ Admins only,Admins only
 Against Payment,Against Payment
 All,All
 All Items,All Items
+All Warehouses,All Warehouses
+All Warehouses Rows  {0}  Products  {1}  Warehouses  {2},All Warehouses Rows  {0}  Products  {1}  Warehouses  {2}
+All Warehouses Total,All Warehouses Total
 All companies,All companies
 All labels,All labels
 All record only,All record only
@@ -141,6 +144,7 @@ Back,Back
 Back to entries,Back to entries
 Back to summary,Back to summary
 Balance,Balance
+Balance Value,Balance Value
 Bank,Bank
 Bank Transfer,Bank Transfer
 Barcode,Barcode
@@ -178,6 +182,7 @@ Branch Number,Branch Number
 Branch Office,Branch Office
 Branch Type,Branch Type
 Branch {0},Branch {0}
+Brought Forward,Brought Forward
 Bucket,Bucket
 Buy,Buy
 Buyer,Buyer
@@ -186,6 +191,7 @@ Buyer address,Buyer address
 Buyer branch,Buyer branch
 Buyer tax ID,Buyer tax ID
 By Payment Method,By Payment Method
+By Warehouse,By Warehouse
 By location,By location
 By product,By product
 CC Desktop could not read this invoice. Check the fields and submit again,CC Desktop could not read this invoice. Check the fields and submit again
@@ -404,6 +410,7 @@ Cyan,Cyan
 Daily,Daily
 Damaged / written off,Damaged / written off
 Date,Date
+Date  {0}  to  {1},Date  {0}  to  {1}
 Date (BE),Date (BE)
 Date created (newest first),Date created (newest first)
 Date created (oldest first),Date created (oldest first)
@@ -609,13 +616,16 @@ Focus on search input,Focus on search input
 Following fields have missing values:,Following fields have missing values:
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.","For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."
 Foreigner,Foreigner
+Format,Format
 Found,Found
 Found {0}. Tap the number to choose:,Found {0}. Tap the number to choose:
 Found: {0},Found: {0}
 "Free note kept with the collection record (who took the money, reference).","Free note kept with the collection record (who took the money, reference)."
 From Date,From Date
 From Location,From Location
+From Product,From Product
 From Warehouse,From Warehouse
+From Warehouse Code,From Warehouse Code
 From the document,From the document
 Full Name,Full Name
 Full Screen,Full Screen
@@ -625,6 +635,7 @@ Generated,Generated
 Generated automatically,Generated automatically
 Goods,Goods
 Grand Total,Grand Total
+Grand Total  {0}  products,Grand Total  {0}  products
 Gray,Gray
 Green,Green
 Gross,Gross
@@ -680,8 +691,10 @@ Invoice Status,Invoice Status
 Is Paid,Is Paid
 Is Reversal,Is Reversal
 Is this company VAT registered,Is this company VAT registered
+Issue Value,Issue Value
 Issue documents and deduct stock,Issue documents and deduct stock
 Issued,Issued
+Issues,Issues
 Item,Item
 Item / Description,Item / Description
 Item Cart,Item Cart
@@ -839,6 +852,7 @@ No terminal yet,No terminal yet
 No units of this product are registered in this warehouse,No units of this product are registered in this warehouse
 No warehouse is available for this company,No warehouse is available for this company
 No warehouse matches that name,No warehouse matches that name
+No.,No.
 Non-cash payment cannot exceed the amount due,Non-cash payment cannot exceed the amount due
 Non-claimable VAT,Non-claimable VAT
 None,None
@@ -1019,9 +1033,13 @@ Private,Private
 Product,Product
 Product / position / counted by / time,Product / position / counted by / time
 Product Adjustment,Product Adjustment
+Product Code,Product Code
+Product Code  {0}  to  {1},Product Code  {0}  to  {1}
 Product ID,Product ID
 Product Name,Product Name
 Product Ref,Product Ref
+Product Rows  {0},Product Rows  {0}
+Product Total,Product Total
 Product code,Product code
 Product is disabled,Product is disabled
 Product name,Product name
@@ -1078,6 +1096,7 @@ Reason for Cancellation,Reason for Cancellation
 Receipt,Receipt
 Receipt No,Receipt No
 Receipt Status,Receipt Status
+Receipt Value,Receipt Value
 Receipt {0} · Change {1},Receipt {0} · Change {1}
 Receipts,Receipts
 Receipts and simplified tax invoices are usually not claimed,Receipts and simplified tax invoices are usually not claimed
@@ -1139,6 +1158,7 @@ Remove template,Remove template
 Remove this company note?,Remove this company note?
 Removed a company note,Removed a company note
 Replace the entered rows with the imported file?,Replace the entered rows with the imported file?
+Report,Report
 Request Hash,Request Hash
 Request ID already exists,Request ID already exists
 Request id,Request id
@@ -1288,6 +1308,9 @@ Stock Account Group,Stock Account Group
 Stock Count,Stock Count
 Stock Posted At,Stock Posted At
 Stock Posting,Stock Posting
+Stock Receipt-Issue Report,Stock Receipt-Issue Report
+Stock Receipt-Issue Report - Summary,Stock Receipt-Issue Report - Summary
+Stock Receipt-Issue Report: By Warehouse,Stock Receipt-Issue Report: By Warehouse
 Stock Token,Stock Token
 Stock Transfer,Stock Transfer
 Stock UOM,Stock UOM
@@ -1347,6 +1370,7 @@ Task Management,Task Management
 Tax Amount,Tax Amount
 Tax Exclusive,Tax Exclusive
 Tax ID,Tax ID
+Tax ID  {0},Tax ID  {0}
 Tax ID exists but is not VAT registered,Tax ID exists but is not VAT registered
 Tax ID must be 13 digits,Tax ID must be 13 digits
 Tax Inclusive,Tax Inclusive
@@ -1542,11 +1566,14 @@ Time left {0},Time left {0}
 Title,Title
 To Date,To Date
 To Location,To Location
+To Product,To Product
 To Warehouse,To Warehouse
+To Warehouse Code,To Warehouse Code
 To do,To do
 Too many items,Too many items
 Too many matches; type a few more letters to narrow it down,Too many matches; type a few more letters to narrow it down
 Total,Total
+Total  {0}  rows,Total  {0}  rows
 Total Amount,Total Amount
 Total Due,Total Due
 Total Items,Total Items
@@ -1578,6 +1605,7 @@ Unbind LINE,Unbind LINE
 Unbind Pearnly ERP LINE?,Unbind Pearnly ERP LINE?
 Unbound,Unbound
 Unit,Unit
+Unit : {0},Unit : {0}
 Unit Cost,Unit Cost
 Unit Cost (net of VAT),Unit Cost (net of VAT)
 Unit Cost Entered,Unit Cost Entered
@@ -1656,10 +1684,14 @@ Void {0} selected,Void {0} selected
 Voided,Voided
 Voided {0},Voided {0}
 "Voided, not in the total","Voided, not in the total"
+Voucher,Voucher
 WHT amount,WHT amount
 Waiting for the original day summary to be written,Waiting for the original day summary to be written
 Walk-in customer,Walk-in customer
 Warehouse,Warehouse
+Warehouse Code  {0}  to  {1},Warehouse Code  {0}  to  {1}
+Warehouse Rows  {0}  Products  {1},Warehouse Rows  {0}  Products  {1}
+Warehouse Total,Warehouse Total
 Warehouse code,Warehouse code
 Warehouse name,Warehouse name
 Warehouse not found,Warehouse not found
@@ -2753,6 +2785,47 @@ trade.editCart,Edit Cart
 trade.enterAmount,Enter {0} amount
 trade.expectedAmount,Expected Amount
 trade.expectedCash,Expected Cash
+trade.export.action,Export
+trade.export.all,All Warehouses
+trade.export.allDetail,All Warehouses Rows  {0}  Products  {1}  Warehouses  {2}
+trade.export.allTotal,All Warehouses Total
+trade.export.amount,Amount
+trade.export.balance,Balance
+trade.export.balanceValue,Balance Value
+trade.export.byWarehouse,By Warehouse
+trade.export.carried,Brought Forward
+trade.export.code,Product Code
+trade.export.date,Date
+trade.export.dateRange,Date  {0}  to  {1}
+trade.export.format,Format
+trade.export.grand,Grand Total  {0}  products
+trade.export.issueValue,Issue Value
+trade.export.issues,Issues
+trade.export.name,Product Name
+trade.export.number,No.
+trade.export.productDetail,Product Rows  {0}
+trade.export.productFrom,From Product
+trade.export.productRange,Product Code  {0}  to  {1}
+trade.export.productTo,To Product
+trade.export.productTotal,Product Total
+trade.export.qty,Quantity
+trade.export.receiptValue,Receipt Value
+trade.export.receipts,Receipts
+trade.export.report,Report
+trade.export.rows,Total  {0}  rows
+trade.export.summary,Summary
+trade.export.taxId,Tax ID  {0}
+trade.export.title.all,Stock Receipt-Issue Report
+trade.export.title.byWarehouse,Stock Receipt-Issue Report: By Warehouse
+trade.export.title.summary,Stock Receipt-Issue Report - Summary
+trade.export.unit,Unit : {0}
+trade.export.unitPrice,Unit Price
+trade.export.voucher,Voucher
+trade.export.warehouseDetail,Warehouse Rows  {0}  Products  {1}
+trade.export.warehouseFrom,From Warehouse Code
+trade.export.warehouseRange,Warehouse Code  {0}  to  {1}
+trade.export.warehouseTo,To Warehouse Code
+trade.export.warehouseTotal,Warehouse Total
 trade.exportNotice,Exported {0} shifts
 trade.float,Opening Cash
 trade.from,From Date

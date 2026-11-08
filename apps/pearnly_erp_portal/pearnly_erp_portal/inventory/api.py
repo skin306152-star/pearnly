@@ -834,6 +834,21 @@ def api_stock_summary_page(**kwargs):
 
 
 @frappe.whitelist(methods=["POST"])
+def api_stock_card_export(**kwargs):
+    """收发存报表导出（照 MR.ERP 三种：合并全部仓 / 汇总 / 分仓；Excel / PDF）。业务在 `card_export`，CC 工具调同一组函数。
+    小的当场回文件，大的排后台、做完推送下载（`pearnly_core.exports`）。"""
+    from pearnly_core.exports import service as exports
+    from pearnly_erp_portal.inventory import card_export
+
+    kwargs = _clean(kwargs)
+    args = {key: kwargs.get(key) for key in card_export.ARGS if kwargs.get(key) not in (None, "")}
+    return exports.deliver(count="pearnly_erp_portal.inventory.card_export.size",
+                           build="pearnly_erp_portal.inventory.card_export.build", args=args,
+                           filename=f"stock-card.{args.get('format') or 'xlsx'}",
+                           content_type=card_export.content_type(args.get("format")))
+
+
+@frappe.whitelist(methods=["POST"])
 def api_preview_stock_opening(warehouse, as_of_date, rows, note=None):
     return opening_batch.preview(warehouse=warehouse, as_of_date=as_of_date, rows=rows, note=note)
 

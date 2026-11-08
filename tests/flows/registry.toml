@@ -1063,6 +1063,22 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.stock-card.export"
+title = "ERP 收发存导出：页头导出 → 汇总 Excel、合并全部仓 Excel、分仓 PDF 各一次，走 POST、文件有报表名与物料代码、期末数量对得上账面（照 MR.ERP 三种，11-08）"
+module = "scripts/flows/erp_stock_card_export.py"
+start = "/desk/pearnly-stock-card"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-card.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/card_export.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/card_rows.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/report.py",
+]
+
+[[flow]]
 id = "erp.inventory.by-product"
 title = "ERP 库存一览按物料：两仓合计、低库存按公司合计判、导出跟看法、点开回各仓（多仓闭环 P4）"
 module = "scripts/flows/erp_inventory_by_product.py"

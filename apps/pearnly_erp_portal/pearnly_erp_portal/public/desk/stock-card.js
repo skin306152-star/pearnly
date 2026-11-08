@@ -228,6 +228,8 @@
 					location: picked.location === undefined ? undefined : picked.location,
 					conditions: p.filter_conditions(list, ["location"])};
 			};
+			page.add_inner_button(t("trade.export.action"), () => void export_dialog(
+				fields.date_from.get_value(), fields.date_to.get_value()));
 			// 这是报表：每行是一个"商品×仓库×仓位"的收发汇总，没有可删的东西。选中一行时给的是
 			// 对应的那一步 —— 打开这条汇总背后的明细（**二级页面**，这个视图字段多）。
 			// 沿用这一页自己的 `trade.` 词表（`t` 就是这个命名空间；写 stock.* 会露出键名）。
@@ -265,6 +267,36 @@
 					{ fieldname: "closing_qty", width: 90, min_width: 80, fieldtype: "Float", label: t("trade.closing"), format: value => p.number(value) },
 				],
 			});
+		}
+
+		// 导出（照 MR.ERP「รายงานรับ-จ่ายสินค้า」三种：合并全部仓逐笔 / 汇总一物料一行 / 按仓分开逐笔；Excel / PDF）。
+		// 文件由服务端 `inventory.card_export` 出（CC 调同一个）；物料、仓库的「从 / 到」留空 = 不限，日期带入页面当前区间。
+		function export_dialog(date_from, date_to) {
+			const warehouse = { filters: { company: frappe.boot.pearnly_company || "" } };
+			const d = p.dialog(t("trade.export.action"), [
+				{ fieldtype: "Select", fieldname: "report", label: t("trade.export.report"), reqd: 1, default: "all",
+					options: [{ value: "all", label: t("trade.export.all") }, { value: "summary", label: t("trade.export.summary") },
+						{ value: "by_warehouse", label: t("trade.export.byWarehouse") }] },
+				{ fieldtype: "Select", fieldname: "format", label: t("trade.export.format"), reqd: 1, default: "xlsx",
+					options: [{ value: "xlsx", label: "Excel" }, { value: "pdf", label: "PDF" }] },
+				{ fieldtype: "Column Break" },
+				{ fieldtype: "Date", fieldname: "date_from", label: t("trade.from"), reqd: 1,
+					default: date_from || frappe.datetime.month_start() },
+				{ fieldtype: "Date", fieldname: "date_to", label: t("trade.to"), reqd: 1,
+					default: date_to || frappe.datetime.get_today() },
+				{ fieldtype: "Section Break" },
+				{ fieldtype: "Link", fieldname: "product_from", options: "ERP Product", label: t("trade.export.productFrom") },
+				{ fieldtype: "Link", fieldname: "warehouse_from", options: "ERP Warehouse", label: t("trade.export.warehouseFrom"),
+					get_query: () => warehouse, depends_on: "eval:doc.report==='by_warehouse'" },
+				{ fieldtype: "Column Break" },
+				{ fieldtype: "Link", fieldname: "product_to", options: "ERP Product", label: t("trade.export.productTo") },
+				{ fieldtype: "Link", fieldname: "warehouse_to", options: "ERP Warehouse", label: t("trade.export.warehouseTo"),
+					get_query: () => warehouse, depends_on: "eval:doc.report==='by_warehouse'" },
+			], t("trade.export.action"), async values => {
+				const result = await p.export_file(api + "api_stock_card_export", values);
+				if (result?.status === "done") d.hide();
+			});
+			return d;
 		}
 
 		function open_ledger(row, dates) {

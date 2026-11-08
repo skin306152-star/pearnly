@@ -1923,3 +1923,44 @@ Created an adjustment from a stock count	按盘点结果生成了物料调整单
 Creating an adjustment from a stock count	正在按盘点结果生成物料调整单	กำลังสร้างใบปรับปรุงสินค้าจากผลการตรวจนับ	棚卸結果から調整伝票を作成しています
 Some lines have no product yet	部分行未选物料	บางบรรทัดยังไม่ได้เลือกสินค้า	商品が未選択の行があります
 Direction Guessed	方向为推断	ทิศทางจากการคาดคะเน	方向は推定
+Export	导出	ส่งออก	エクスポート	trade.export.action
+Report	报表	รายงาน	レポート	trade.export.report
+All Warehouses	合并全部仓	รวมทุกคลัง	全倉庫合計	trade.export.all
+Summary	汇总	สรุป	集計	trade.export.summary
+By Warehouse	分仓	แยกคลัง	倉庫別	trade.export.byWarehouse
+Format	格式	รูปแบบ	形式	trade.export.format
+From Product	起始物料	รหัสสินค้า	開始品目	trade.export.productFrom
+To Product	截止物料	ถึงรหัสสินค้า	終了品目	trade.export.productTo
+From Warehouse Code	起始仓库	รหัสคลังสินค้า	開始倉庫	trade.export.warehouseFrom
+To Warehouse Code	截止仓库	ถึงรหัสคลังสินค้า	終了倉庫	trade.export.warehouseTo
+Stock Receipt-Issue Report	收发存报表	รายงานรับ-จ่ายสินค้า	入出庫レポート	trade.export.title.all
+Stock Receipt-Issue Report - Summary	收发存报表 - 汇总	รายงานรับ-จ่ายสินค้า - สรุป	入出庫レポート - 集計	trade.export.title.summary
+Stock Receipt-Issue Report: By Warehouse	收发存报表：分仓	รายงานรับ-จ่ายสินค้า:แยกคลัง	入出庫レポート：倉庫別	trade.export.title.byWarehouse
+Tax ID  {0}	纳税人识别号  {0}	เลขประจำตัวผู้เสียภาษี  {0}	納税者番号  {0}	trade.export.taxId
+Date  {0}  to  {1}	日期  {0}  至  {1}	วันที่  {0}  ถึง  {1}	日付  {0}  ～  {1}	trade.export.dateRange
+Product Code  {0}  to  {1}	物料代码  {0}  至  {1}	รหัสสินค้า  {0}  ถึง  {1}	品目コード  {0}  ～  {1}	trade.export.productRange
+Warehouse Code  {0}  to  {1}	仓库代码  {0}  至  {1}	รหัสคลังสินค้า  {0}  ถึง  {1}	倉庫コード  {0}  ～  {1}	trade.export.warehouseRange
+Voucher	单据	ใบสำคัญ	伝票	trade.export.voucher
+Receipts	收入	รายการรับ	受入	trade.export.receipts
+Issues	发出	รายการจ่าย	払出	trade.export.issues
+Balance	结存	คงเหลือ	残高	trade.export.balance
+Date	日期	วันที่	日付	trade.export.date
+No.	单号	เลขที่	番号	trade.export.number
+Quantity	数量	จำนวน	数量	trade.export.qty
+Unit Price	单价	ราคาต่อหน่วย	単価	trade.export.unitPrice
+Receipt Value	收入金额	มูลค่ารับ	受入金額	trade.export.receiptValue
+Issue Value	发出金额	มูลค่าจ่าย	払出金額	trade.export.issueValue
+Balance Value	结存金额	มูลค่าคงเหลือ	残高金額	trade.export.balanceValue
+Amount	金额	จำนวนเงิน	金額	trade.export.amount
+Brought Forward	上期结转	ยอดยกมา	前期繰越	trade.export.carried
+Product Code	物料代码	รหัสสินค้า	品目コード	trade.export.code
+Product Name	物料名称	ชื่อสินค้า	品目名	trade.export.name
+Unit : {0}	单位：{0}	หน่วย : {0}	単位：{0}	trade.export.unit
+Total  {0}  rows	合计  {0}  笔	รวม  {0}  รายการ	合計  {0}  件	trade.export.rows
+Grand Total  {0}  products	总计  {0}  个物料	รวมทั้งสิ้น  {0}  สินค้า	総計  {0}  品目	trade.export.grand
+Product Total	物料小计	รวมสินค้า	品目小計	trade.export.productTotal
+Product Rows  {0}	物料明细  {0}  笔	รายละเอียดรวมสินค้า  {0}  รายการ	品目明細  {0}  件	trade.export.productDetail
+Warehouse Total	仓库合计	รวมคลัง	倉庫合計	trade.export.warehouseTotal
+Warehouse Rows  {0}  Products  {1}	仓库明细  {0}  笔  {1}  个物料	รายละเอียดรวมคลัง  {0}  รายการ  {1}  สินค้า	倉庫明細  {0}  件  {1}  品目	trade.export.warehouseDetail
+All Warehouses Total	全部仓库合计	รวมทุกคลัง	全倉庫合計	trade.export.allTotal
+All Warehouses Rows  {0}  Products  {1}  Warehouses  {2}	全部仓库明细  {0}  笔  {1}  个物料  {2}  个仓库	รายละเอียดรวมทุกคลัง  {0}  รายการ  {1}  สินค้า  {2}  คลัง	全倉庫明細  {0}  件  {1}  品目  {2}  倉庫	trade.export.allDetail
