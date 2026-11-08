@@ -431,9 +431,11 @@ function Connections({ api }: { api: Desktop }) {
   // 每个位置给哪几种成员读（CC 桌面版 1.12.17，11-07 共用电脑隔离）：只有桌面端说要摆（show）时才出现
   const placeChannels = state.features?.includes(PLACE_CHANNELS) && state.place_channels?.show ? state.place_channels : null;
   const byPlace = (path: string) => placeChannels?.places.find((row) => row.path === path)?.channels ?? (placeChannels ? [] : null);
-  // 某种成员仅剩的这一个位置：不能勾掉（勾掉它就一个账套都没有了；桌面端同样拒）
+  // 默认就读的成员（defaults，1.12.18 起桌面端给；旧版没有时当所有成员）仅剩的这一个位置：不能勾掉（勾掉它就一个账套都没有了；
+  // 桌面端同样拒）。默认不读、后来勾上的（共用电脑上的 ERP）可以勾回 0 个位置，同初始状态（11-08）
   const onlyPlaceOf = (name: string, path: string) =>
-    (placeChannels?.places ?? []).filter((row) => row.channels.includes(name)).every((row) => row.path === path);
+    (placeChannels?.defaults ?? [name]).includes(name)
+    && (placeChannels?.places ?? []).filter((row) => row.channels.includes(name)).every((row) => row.path === path);
   const pickRoots = async () => {
     const result = await run("roots", placesFeature ? "add_place" : "pick_roots");
     if (result.ok && !members.length) connect(); // 找到 Express 就接着连上

@@ -124,14 +124,17 @@ def test_ticking_erp_in_settings_and_the_last_place_rule(tmp_path, monkeypatch):
     settings = _settings(store)
 
     snap = settings.snapshot()["place_channels"]
-    assert snap == {"show": True, "members": ["cowork", "core"], "places": [
+    assert snap == {"show": True, "members": ["cowork", "core"], "defaults": ["cowork"], "places": [
         {"path": FIRM, "channels": ["cowork"]}, {"path": CLIENT, "channels": ["cowork"]}]}
 
     assert settings.set_place_channels(CLIENT.lower(), ["cowork", "core"]) == {"ok": True, "profiles_changed": True}
     assert worker.member_places(_load(store.path).runtime_config(erp)) == [CLIENT]
     assert settings.set_place_channels(CLIENT, ["cowork", "core"]) == {"ok": True}   # 没变
-    # ERP 仅剩的这个位置不能勾掉；Cowork 还有别的位置时可以只给 ERP
-    assert settings.set_place_channels(CLIENT, ["cowork"]) == {"ok": False}
+    # 共用电脑上的 ERP 默认不读：仅剩的这个位置也能勾回去（回到 0 个位置，同初始状态，11-08）
+    assert settings.set_place_channels(CLIENT, ["cowork"]) == {"ok": True, "profiles_changed": True}
+    assert worker.member_places(_load(store.path).runtime_config(erp)) == []
+    assert settings.set_place_channels(CLIENT, ["cowork", "core"]) == {"ok": True, "profiles_changed": True}
+    # Cowork 还有别的位置时可以只给 ERP
     assert settings.set_place_channels(CLIENT, ["core"]) == {"ok": True, "profiles_changed": True}
     assert settings.set_place_channels(FIRM, []) == {"ok": False}   # Cowork 仅剩的
     assert settings.set_place_channels(r"Z:\NOPE", ["core"]) == {"ok": False}
@@ -153,3 +156,41 @@ def test_the_selected_book_outside_the_member_places_is_not_named():
     assert worker._in_member_places(cfg, FIRM + r"\70EXP\ACME") is False
     assert worker._member_or_all_places(cfg) == [CLIENT]
     assert worker._in_member_places(types.SimpleNamespace(), FIRM) is True   # 还没有位置清单：同以前
+
+
+def test_erp_ticked_by_hand_on_a_shared_computer_can_be_unticked_again(tmp_path, monkeypatch):
+    # 11-08 测试机：共用电脑只有 70EXP 一个位置，默认只给 Cowork；有人在设置页勾上 ERP 后，ERP 只剩这一个位置，按旧规则
+    # 「仅剩的位置不能勾掉」再也勾不回去（两个勾都灰），ERP 一直读事务所的账套。回到「ERP 0 个位置」就是初始状态，要能勾掉；
+    # 默认就该读这个位置的成员（这里是 Cowork）仅剩的位置照旧不能勾掉（勾掉它就什么都读不到了）。
+    monkeypatch.setenv("PEARNLY_FOLDER_STATE_DIR", str(tmp_path / "folders"))
+    monkeypatch.setattr(desktop_settings.master_refresh, "rescan_soon", lambda: None)
+    store = _load(tmp_path / "companion.json")
+    _member(store, COWORK_TOKEN, "https://testcowork.pearnly.com")
+    erp = _member(store, ERP_TOKEN, "https://testerp.pearnly.com")
+    store.set_places([FIRM])
+    settings = _settings(store)
+    snap = settings.snapshot()["place_channels"]
+    assert snap["places"] == [{"path": FIRM, "channels": ["cowork"]}]
+    assert snap["defaults"] == ["cowork"]   # 页面据此只锁默认就读的成员仅剩的位置
+
+    assert settings.set_place_channels(FIRM, ["cowork", "core"]) == {"ok": True, "profiles_changed": True}
+    assert worker.member_places(_load(store.path).runtime_config(erp)) == [FIRM]
+    # 勾回去：ERP 回到 0 个位置（同初始状态），不再读这个位置
+    assert settings.set_place_channels(FIRM, ["cowork"]) == {"ok": True, "profiles_changed": True}
+    assert worker.member_places(_load(store.path).runtime_config(erp)) == []
+    assert _load(store.path).global_settings.place_channels == ((FIRM, ("cowork",)),)
+    # Cowork 默认就读、仅剩这一个位置：照旧不能勾掉
+    assert settings.set_place_channels(FIRM, []) == {"ok": False}
+    assert settings.set_place_channels(FIRM, ["core"]) == {"ok": False}
+
+
+def test_an_erp_only_computer_still_keeps_its_last_place(tmp_path, monkeypatch):
+    # 只有 ERP 成员的电脑：位置默认两种都给，ERP 就是默认读的，仅剩的位置照旧不能勾掉
+    monkeypatch.setenv("PEARNLY_FOLDER_STATE_DIR", str(tmp_path / "folders"))
+    monkeypatch.setattr(desktop_settings.master_refresh, "rescan_soon", lambda: None)
+    store = _load(tmp_path / "companion.json")
+    _member(store, ERP_TOKEN, "https://testerp.pearnly.com", root=CLIENT + r"\70EXP")
+    store.set_places([CLIENT])
+    settings = _settings(store)
+    assert settings.snapshot()["place_channels"]["defaults"] == ["cowork", "core"]
+    assert settings.set_place_channels(CLIENT, ["cowork"]) == {"ok": False}

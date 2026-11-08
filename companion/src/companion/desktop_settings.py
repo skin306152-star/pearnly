@@ -236,13 +236,16 @@ class DesktopSettings:
         return {
             "show": place_channels.shows_channels(places, pairs, present),
             "members": present,
+            # 位置默认给谁（express_places.default_channels）：页面只锁这几种成员仅剩的位置，同 set_place_channels
+            "defaults": list(place_channels.default_channels(present)),
             "places": [{"path": place, "channels": list(place_channels.channels_of(place, pairs))} for place in places],
         }
 
     def set_place_channels(self, path: str, kinds: list) -> dict:
-        """设置页一个位置后面的「Cowork / ERP」勾（11-07 共用电脑隔离）：这个位置给哪几种成员读。勾掉某种成员仅剩的那个位置
-        不行（它就一个账套都没有了）；本来就一个都没给它（升级后 ERP 还没勾）时照常可以勾上。改完重启取任务线程，
-        下一拍心跳按新范围整份上报（服务端那边的账套名单随之换掉）。"""
+        """设置页一个位置后面的「Cowork / ERP」勾（11-07 共用电脑隔离）：这个位置给哪几种成员读。默认就该读的成员
+        （`default_channels`：有 Cowork 成员时是 Cowork，只有 ERP 时两种都是）仅剩的那个位置不能勾掉（它就一个账套都没有了）；
+        默认不读、后来勾上的（共用电脑上的 ERP）可以勾回 0 个位置，同初始状态（11-08 测试机：勾上 ERP 后两个勾都灰、再也勾不回去）。
+        改完重启取任务线程，下一拍心跳按新范围整份上报（服务端那边的账套名单随之换掉）。"""
         store = self._store()
         places = list(store.global_settings.express_places)
         place = next((item for item in places if same_root(item, path)), "")
@@ -251,8 +254,10 @@ class DesktopSettings:
         wanted = [name for name in place_channels.CHANNELS if name in set(kinds or ())]
         pairs = store.global_settings.place_channels
         before = list(place_channels.channels_of(place, pairs))
+        present = self._present_channels(store)
+        keep = place_channels.default_channels(present)
         for name in before:
-            if name not in wanted and name in self._present_channels(store) \
+            if name not in wanted and name in present and name in keep \
                     and place_channels.places_for(places, pairs, name) == [place]:
                 return {"ok": False}
         if wanted == before:

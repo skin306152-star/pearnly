@@ -185,7 +185,8 @@ export type DesktopMember = {
   site?: string; channel?: string;
 };
 /** 位置给谁读：channels 里是成员的通道（cowork / core，同 DesktopMember.channel）。 */
-export type PlaceChannels = { show: boolean; members: string[]; places: { path: string; channels: string[] }[] };
+// defaults：位置默认给哪几种成员读（1.12.18 起；只有这几种的最后一个位置勾不掉）
+export type PlaceChannels = { show: boolean; members: string[]; defaults?: string[]; places: { path: string; channels: string[] }[] };
 export type DesktopState = {
   version: string;
   site: string; // 这台电脑连的公司（站点域名），没连是空

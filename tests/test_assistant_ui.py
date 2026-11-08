@@ -2667,7 +2667,9 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertIn("state.features?.includes(PLACE_CHANNELS) && state.place_channels?.show ? state.place_channels : null", settings)
         menu = settings.split("function PlaceMenu(", 1)[1].split("\nfunction ", 1)[0]
         self.assertIn("<DropdownMenu.CheckboxItem", menu)
-        self.assertIn("disabled={locked(name)}", menu)   # 某种成员仅剩的位置勾不掉（桌面端同样拒）
+        self.assertIn("disabled={locked(name)}", menu)   # 默认就读的成员仅剩的位置勾不掉（桌面端同样拒）
+        # 11-08：共用电脑上手动勾上的 ERP 可以勾回 0 个位置，只锁 defaults 里的成员（旧桌面端没给 defaults 时照旧全锁）
+        self.assertIn("(placeChannels?.defaults ?? [name]).includes(name)", settings)
         self.assertIn("onSelect={(event) => event.preventDefault()}", menu)   # 点了菜单不关，两个勾可以连着点
         self.assertIn('void run("roots", "place_channels", {', settings)
         self.assertIn('const channelName = (name: string) => (name === "core" ? "ERP" : "Cowork");', settings)
