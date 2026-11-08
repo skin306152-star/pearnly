@@ -99,3 +99,7 @@ reason = "CC 引擎回调入口：引擎控制台登记的公网回调地址发�
 [[file]]
 file = "apps/pearnly_core/pearnly_core/line.py"
 reason = "LINE 收发与收件人语言（user_language 问 LINE profile 接口）：回归实验室没有 LINE 通道、不连外网，没有流程能走到。语言规则（跟手机 LINE 语言；不在四种里或问不到时绑定账号的语言优先）由候选离线 pearnly_erp_portal.integrations.test_line_intake.Language 守住；真机由三星走 testerp / testcowork 的 LINE 入口验收"
+
+[[file]]
+file = "apps/pearnly_core/pearnly_core/line_binding.py"
+reason = "LINE 用户与账号的绑定（LINE 收件人语言回落到绑定账号的语言时经 line.py 读它）：回归实验室没有 LINE 通道，绑定码只能从 LINE 聊天发来，没有流程能走到。绑定 / 解绑由各产品 LINE 离线测试（test_line_intake、test_cowork_line_intake）守住"
