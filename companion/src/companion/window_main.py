@@ -24,7 +24,7 @@ from typing import Callable, Optional
 
 from PySide6.QtCore import QEvent, QEventLoop, QObject, QTimer, Signal, Slot
 
-from . import tomo_links, window_link
+from . import render_safety, tomo_links, window_link
 from .logger import get_logger
 from .visibility_watch import VisibilityWatch
 
@@ -88,7 +88,8 @@ class RemoteBridge(QObject):
 class WindowController(QObject):
     """建 CC 窗口、接托盘的命令、报窗口状态、关窗口时决定什么时候退。"""
 
-    def __init__(self, link, *, lang: str, quit_app: Callable[[], None], make_window=None, system=None) -> None:
+    def __init__(self, link, *, lang: str, quit_app: Callable[[], None], make_window=None, system=None,
+                 render_level: int = 0, render_state=None, probes=render_safety.PROBES_MS) -> None:
         super().__init__()
         self._link = link
         self._quit_app = quit_app
@@ -116,8 +117,32 @@ class WindowController(QObject):
                                           on_change=lambda _reason: QTimer.singleShot(0, self._report))
         self.window.installEventFilter(self)
         self.window.page.urlChanged.connect(lambda _url: self._report())
+        # 网页内核画不出来（老显卡、显卡驱动）：自动换软件绘制并重开窗口（render_safety.py）
+        self._render_level = render_level
+        self._render_state = render_state
+        self.render_watch = render_safety.RenderWatch(
+            self.window.page, grab=self._grab_view, visible=self._seen, own=tomo_links.is_own,
+            on_blank=self._blank, probes=probes, level=render_level)
         link.set_handler(self.handle)
         link.lost.connect(self.finish)
+
+    def _grab_view(self):
+        return self.window.view.grab().toImage()
+
+    def _seen(self) -> bool:
+        window = self.window
+        return bool(window.isVisible() and not window.isMinimized() and not self.visibility.reason)
+
+    def _blank(self, url: str) -> None:
+        if self._finished:
+            return
+        level = render_safety.escalate("blank", self._render_state, current=self._render_level)
+        if level is None:
+            log.error("CC 窗口用%s也画不出页面，不再重开", render_safety.LEVEL_NAMES[-1])
+            return
+        log.warning("CC 窗口改用%s，重开窗口", render_safety.LEVEL_NAMES[level])
+        self._link.send("restart")   # 托盘等这个进程退出后重新拉起窗口进程（新进程按新档位起网页内核）
+        self.finish()
 
     def _page_url(self) -> str:
         window = getattr(self, "window", None)
@@ -283,6 +308,12 @@ def run() -> int:
     if not name or not token:
         return 2   # 不是托盘拉起的：CC 窗口只由托盘打开（再点一次桌面图标走单实例那条路）
     setup_window_logging()
+    # 绘制档位与 Qt 日志都要在建 QApplication / 网页内核之前定
+    render_level = render_safety.load_level()
+    applied = render_safety.apply(render_level)
+    render_safety.install_qt_log()
+    if applied:
+        log.info("CC 窗口绘制：%s · %s", render_safety.LEVEL_NAMES[render_level], applied)
     _register_app_user_model_id()   # 任务栏按钮与开始菜单的 CC 归在一起（同 main.APP_USER_MODEL_ID）
     from .gui_font import qt_app
     from .gui_icon import pearnly_icon
@@ -315,7 +346,7 @@ def run() -> int:
     from .i18n import default_lang, normalize
 
     controller = WindowController(link, lang=normalize(os.environ.get(window_link.ENV_LANG, "") or default_lang()),
-                                  quit_app=app.quit)
+                                  quit_app=app.quit, render_level=render_level)
     for message in early or [{"op": "show"}]:
         controller.handle(message)
     log.info("CC 窗口进程已启动 · pid=%s", os.getpid())

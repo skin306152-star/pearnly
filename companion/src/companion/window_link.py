@@ -11,7 +11,7 @@ CC 窗口（网页内核、对话页，gui_tomo.py）在另一个进程里：打
 
 - 窗口 → 托盘：``hello``；``state`` / ``call``（对话页经桥调本机设置，tomo_bridge.py 在托盘这边照旧应答，带 ``id``
   的等 ``reply``）；``status``（窗口看得见没、在不在最前面、当前地址、对话页为什么停画）；``notify``（窗口里要弹的系统通知，
-  托盘弹）；``bye``。
+  托盘弹）；``restart``（换了绘制方式，退出后请托盘重新拉起，render_safety.py）；``bye``。
 - 托盘 → 窗口：``show`` / ``ask`` / ``open_conversation`` / ``open_settings``（打开窗口做什么）；``changed`` / ``done``
   （桥的两个信号）；``pick``（弹选择文件夹框，带 ``id`` 等 ``reply``）；``click``（点了窗口转来的通知）；``lang``；``quit``。
 
@@ -48,6 +48,8 @@ SPAWN_GRACE = 30.0                  # 拉起窗口进程后这么久还没连上
 MAX_PENDING = 8                     # 窗口进程连上前排着的打开命令最多留几条（只留最新的）
 REQUEST_TIMEOUT_MS = 120_000        # 等对方回复的上限（弹选择文件夹框的不限时）
 # ``status`` 里的 ``paused``：对话页为什么停画（空串 = 在画；visibility_watch.py）。托盘按它在 companion.log 记一行
+RESTART_POLL_MS = 200               # 窗口进程要重开：每隔这么久看一次旧进程退了没有
+RESTART_WAIT_MS = 15_000            # 最多等这么久
 PAUSE_HIDDEN, PAUSE_MINIMIZED = "hidden", "minimized"
 PAUSE_LABELS = {PAUSE_HIDDEN: "窗口关着", PAUSE_MINIMIZED: "最小化", "locked": "锁屏", "display_off": "屏幕关了",
                 "occluded": "被别的窗口完全挡住"}
@@ -224,6 +226,31 @@ def _exited(process) -> bool:
         return False
 
 
+def pid_alive(pid) -> bool:
+    """这个进程还在不在（等旧的窗口进程退出再重开用）。不知道就当不在。"""
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            kernel32 = ctypes.windll.kernel32
+            handle = kernel32.OpenProcess(0x00100000, False, pid)   # SYNCHRONIZE
+            if not handle:
+                return False
+            try:
+                return kernel32.WaitForSingleObject(handle, 0) == 0x102   # WAIT_TIMEOUT：还在跑
+            finally:
+                kernel32.CloseHandle(handle)
+        except Exception:
+            return False
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
 def allow_foreground(pid) -> None:
     """让窗口进程能把 CC 窗口拿到最前面（Windows 只许前台进程抢前台：托盘刚被点、快捷键刚按下时托盘有这个权利，
     交给窗口进程）。原来窗口在托盘进程里，不需要这一步。"""
@@ -245,7 +272,8 @@ class WindowHost(QObject):
     def __init__(self, *, on_request: Callable[[dict], object], on_notify: Callable[[dict], None],
                  lang: Callable[[], str] = lambda: "", spawn: Callable[[list, str, dict], object] = _spawn,
                  name: Optional[str] = None, clock: Callable[[], float] = time.monotonic,
-                 foreground: Callable[[object], None] = allow_foreground) -> None:
+                 foreground: Callable[[object], None] = allow_foreground,
+                 alive: Optional[Callable[[object], bool]] = None) -> None:
         super().__init__()
         self._on_request = on_request
         self._on_notify = on_notify
@@ -261,6 +289,8 @@ class WindowHost(QObject):
         self._channel: Optional[_Channel] = None
         self._pending: list = []
         self._spawned_at: Optional[float] = None
+        self._restart = False   # 窗口进程说要重开（换了绘制档位，render_safety.py）：它退出后重新拉起
+        self._alive = alive
         self.visible = self.active = False
         self.url = ""
         self.paused = PAUSE_HIDDEN
@@ -366,12 +396,27 @@ class WindowHost(QObject):
     def _lost(self, channel) -> None:
         if channel is not self._channel:
             return
+        pid = self._pid
         self._channel = None
         self._pid = None
         self.visible = self.active = False
         self.url = ""
         self.paused = PAUSE_HIDDEN
         self.gone.emit()
+        if self._restart:
+            self._restart = False
+            self._relaunch(pid, RESTART_WAIT_MS // RESTART_POLL_MS)
+
+    def _relaunch(self, pid, tries: int) -> None:
+        """等旧的窗口进程真正退出（两个进程不同时打开同一份网页存储）再拉起新的；等太久也照样拉起。"""
+        if self._quitting or self.connected:
+            return
+        alive = self._alive or pid_alive
+        if tries > 0 and alive(pid):
+            QTimer.singleShot(RESTART_POLL_MS, lambda: self._relaunch(pid, tries - 1))
+            return
+        log.info("重开 CC 窗口（换了绘制方式）")
+        self.open({"op": "show"})
 
     def _paused(self, paused: str) -> None:
         """对话页停画 / 恢复记一行（窗口开着时锁屏、关屏、最小化、被挡住；开 / 关窗口另有日志）。"""
@@ -394,6 +439,9 @@ class WindowHost(QObject):
             return None
         if op == "notify":
             self._on_notify(message)
+            return None
+        if op == "restart":
+            self._restart = True
             return None
         if op == "bye":
             self._lost(self._channel)   # 窗口进程正在退出：之后再打开就重新拉起，不往要退的进程里发命令

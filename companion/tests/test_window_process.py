@@ -294,6 +294,8 @@ def test_the_tray_answers_window_requests_and_routes_notification_clicks():
 class _Page(QObject):
     urlChanged = Signal(object)
     visibleChanged = Signal(bool)
+    loadStarted = Signal()
+    loadFinished = Signal(bool)
 
     def __init__(self, url="https://acme.pearnly.com/assistant"):
         super().__init__()

@@ -173,6 +173,12 @@
   - 销货单的收入照 Express 原生按物料科目组记（`docs/work/2026-11-07-cc-sales-revenue-native-评估.md`；载荷不变）：每行物料科目组的收入科目
     `ISACC.ACCNUM03` 能记账、不是费用类 → 这一行记它（同科目一条、SEQIT 5），没配 / 不能记账 / 费用类照载荷（`dbf_sales.revenue_journal`）；
     回执 `meta.revenue` 带实际记的收入，服务端读回按它比分录。**先部署服务端再发**（旧服务端滤掉 `revenue`，读回会把照科目组记的收入报成改过）。
+- 1.12.19（未发布；`docs/work/2026-11-08-cc-blank-window-old-pc.md`）：
+  - 老电脑上 CC 窗口一整片空白、登录页不出来（11-08 办公室一台老 Acer 一体机）：网页内核用显卡画不出页面时自动改用软件绘制（`render_safety.py`）。
+    自己的页面加载成功、窗口看得见、页面里已经有字，加载完成后 3 / 6 / 10 秒截图都是一整片同一种颜色，就记下「软件绘制」档
+    （`%APPDATA%\Pearnly\tomo\render.json`，之后照它；CC 升了 1.x 版或记下满 30 天回到显卡重新试一次，还画不出来再换回；网页内核 `--disable-gpu --disable-gpu-compositing`，Qt 合成用 D3D11 WARP），
+    请托盘等旧窗口进程退出后重开窗口（管道新消息 `restart`）；已是软件绘制还画不出来只记日志不再重开。窗口进程的 Qt / 网页内核消息
+    （含 `qt.webenginecontext` 启动信息：显卡、绘制方式）写进 `logs/window.log`，页面控制台不写，同一句只写一次。没有新文案。
 
 ## 本机测试
 
