@@ -66,22 +66,6 @@ erp.desk.pearnly-stock-count.action.Express@desktop
 erp.desk.pearnly-stock-count.action.Express@mobile
 erp.desk.pearnly-stock-count.action.stock.count.new@desktop
 erp.desk.pearnly-stock-count.action.stock.count.new@mobile
-erp.desk.pearnly-stock-in.action.trade.newOut@desktop
-erp.desk.pearnly-stock-in.action.trade.newOut@mobile
-erp.desk.pearnly-stock-in.action.trade.newTransfer@desktop
-erp.desk.pearnly-stock-in.action.trade.newTransfer@mobile
-erp.desk.pearnly-stock-out.action.trade.action.submit@desktop
-erp.desk.pearnly-stock-out.action.trade.action.submit@mobile
-erp.desk.pearnly-stock-out.action.trade.newIn@desktop
-erp.desk.pearnly-stock-out.action.trade.newIn@mobile
-erp.desk.pearnly-stock-out.action.trade.newOut@desktop
-erp.desk.pearnly-stock-out.action.trade.newOut@mobile
-erp.desk.pearnly-stock-out.action.trade.newTransfer@desktop
-erp.desk.pearnly-stock-out.action.trade.newTransfer@mobile
-erp.desk.pearnly-stock-transfer.action.trade.newIn@desktop
-erp.desk.pearnly-stock-transfer.action.trade.newIn@mobile
-erp.desk.pearnly-stock-transfer.action.trade.newOut@desktop
-erp.desk.pearnly-stock-transfer.action.trade.newOut@mobile
 erp.desk.pearnly-warehouses.action.company.newWarehouse@desktop
 erp.desk.pearnly-warehouses.action.company.newWarehouse@mobile
 erp.desk.query-report-erp stock count variance.action.Export@desktop

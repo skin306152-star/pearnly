@@ -395,3 +395,33 @@ reason = "银行 / 收入 / 销项三页共用 recon.js（check-entries 按文�
 anchor = "action:cowork:pearnly-recon-vat:cowork.recon.questions"
 kind = "internal"
 reason = "银行 / 收入 / 销项三页共用 recon.js；「提问 (n)」只在结果带问题时出，服务端只有银行、收入出问题（sheets._build 的 questions），销项页不出现"
+
+[[anchor]]
+anchor = "action:erp:pearnly-stock-in:trade.newOut"
+kind = "internal"
+reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头那颗新建按钮按方向只出本页那一个（title_new）；这个码只是同一行代码的别的方向，这一页不出现"
+
+[[anchor]]
+anchor = "action:erp:pearnly-stock-in:trade.newTransfer"
+kind = "internal"
+reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头那颗新建按钮按方向只出本页那一个（title_new）；这个码只是同一行代码的别的方向，这一页不出现"
+
+[[anchor]]
+anchor = "action:erp:pearnly-stock-out:trade.newIn"
+kind = "internal"
+reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头那颗新建按钮按方向只出本页那一个（title_new）；这个码只是同一行代码的别的方向，这一页不出现"
+
+[[anchor]]
+anchor = "action:erp:pearnly-stock-out:trade.newTransfer"
+kind = "internal"
+reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头那颗新建按钮按方向只出本页那一个（title_new）；这个码只是同一行代码的别的方向，这一页不出现"
+
+[[anchor]]
+anchor = "action:erp:pearnly-stock-transfer:trade.newIn"
+kind = "internal"
+reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头那颗新建按钮按方向只出本页那一个（title_new）；这个码只是同一行代码的别的方向，这一页不出现"
+
+[[anchor]]
+anchor = "action:erp:pearnly-stock-transfer:trade.newOut"
+kind = "internal"
+reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头那颗新建按钮按方向只出本页那一个（title_new）；这个码只是同一行代码的别的方向，这一页不出现"

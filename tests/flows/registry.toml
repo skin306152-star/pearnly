@@ -1555,3 +1555,16 @@ viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_core/pearnly_core/public/desk/actions.js",
 ]
+
+[[flow]]
+id = "erp.stock-out.new"
+title = "ERP 出库：列表页头新建出库开弹窗、输码认物料、提交，查出库单与库存流水（清存量基线 11-08）"
+module = "scripts/flows/erp_stock_out_new.py"
+start = "/desk/pearnly-stock-out"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py",
+]

@@ -106,6 +106,14 @@
 - 我的资料「保存」（原生 `Form/User`）：新流程 `erp.profile.save`（采购岗）/ `cowork.profile.save`（录入岗），在名那一格输入新名 → 表单变未保存 → 页头「保存」→
   表单不再未保存；库里 `first_name` 是新的、`full_name` 跟着拼。cleanup 改回原名。8/8，基线删 4 条（94 → 86）。
 
+## 第七组：出入库页头（`pearnly/baseline-home` 同一分支，11-08）
+
+- 出库列表「新建出库」：新流程 `erp.stock-out.new`（库管）——页头按钮开原生弹窗 → 选仓 → 明细输物料编码回车认出 → 数量 1 →「提交」。prepare 按正式接口先入 1 件。
+  库里只认本次这张：出库单已提交、明细就是这件 1 个、在这个仓；库存流水（`ERP Stock Movement`）这张单这件 -1。4/4。
+- 出库整页新建页头「提交」：现有 `erp.stock-entry.scan` 就是在出库整页新建页点这颗、核账面与领料单打印，挂上。
+- 入库 / 出库 / 调拨页上互相的新建码（入库页 newOut / newTransfer、出库页 newIn / newTransfer、调拨页 newIn / newOut）：`stock-entry.js` 一行按方向只出本页那颗
+  （同物料调整页已有的先例），登记 `not_entries`、地图删这 6 行。基线删 16 条（86 → 70）。
+
 ## 下一组
 
 只开页面的几页、Cowork 录入与盘点（第一份交接第 4 节）。

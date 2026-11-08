@@ -1226,24 +1226,6 @@ where = "pearnly-stock-in 页头「trade.newIn」"
 tests = ["flow:erp.stock-in.units"]
 
 [[row]]
-id = "erp.desk.pearnly-stock-in.action.trade.newOut"
-product = "ERP"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page-action"
-anchor = "action:erp:pearnly-stock-in:trade.newOut"
-where = "pearnly-stock-in 页头「trade.newOut」"
-
-[[row]]
-id = "erp.desk.pearnly-stock-in.action.trade.newTransfer"
-product = "ERP"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page-action"
-anchor = "action:erp:pearnly-stock-in:trade.newTransfer"
-where = "pearnly-stock-in 页头「trade.newTransfer」"
-
-[[row]]
 id = "erp.desk.pearnly-stock-out.action.trade.action.submit"
 product = "ERP"
 channel = "desk"
@@ -1251,15 +1233,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-out:trade.action.submit"
 where = "pearnly-stock-out 页头「trade.action.submit」"
-
-[[row]]
-id = "erp.desk.pearnly-stock-out.action.trade.newIn"
-product = "ERP"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page-action"
-anchor = "action:erp:pearnly-stock-out:trade.newIn"
-where = "pearnly-stock-out 页头「trade.newIn」"
+tests = ["flow:erp.stock-entry.scan"]
 
 [[row]]
 id = "erp.desk.pearnly-stock-out.action.trade.newOut"
@@ -1269,15 +1243,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-out:trade.newOut"
 where = "pearnly-stock-out 页头「trade.newOut」"
-
-[[row]]
-id = "erp.desk.pearnly-stock-out.action.trade.newTransfer"
-product = "ERP"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page-action"
-anchor = "action:erp:pearnly-stock-out:trade.newTransfer"
-where = "pearnly-stock-out 页头「trade.newTransfer」"
+tests = ["flow:erp.stock-out.new"]
 
 [[row]]
 id = "erp.desk.pearnly-stock-transfer.action.trade.action.submit"
@@ -1288,24 +1254,6 @@ kind = "page-action"
 anchor = "action:erp:pearnly-stock-transfer:trade.action.submit"
 where = "pearnly-stock-transfer 页头「trade.action.submit」"
 tests = ["flow:erp.stock-transfer"]
-
-[[row]]
-id = "erp.desk.pearnly-stock-transfer.action.trade.newIn"
-product = "ERP"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page-action"
-anchor = "action:erp:pearnly-stock-transfer:trade.newIn"
-where = "pearnly-stock-transfer 页头「trade.newIn」"
-
-[[row]]
-id = "erp.desk.pearnly-stock-transfer.action.trade.newOut"
-product = "ERP"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page-action"
-anchor = "action:erp:pearnly-stock-transfer:trade.newOut"
-where = "pearnly-stock-transfer 页头「trade.newOut」"
 
 [[row]]
 id = "erp.desk.pearnly-stock-transfer.action.trade.newTransfer"
