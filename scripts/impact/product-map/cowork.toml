@@ -1164,6 +1164,7 @@ kind = "page-action"
 anchor = "action:cowork:pearnly-home:Delete"
 group = "desk.pearnly-home.Delete"
 where = "pearnly-home 页头「Delete」"
+tests = ["flow:cowork.home.billing"]
 
 [[row]]
 id = "cowork.desk.pearnly-home.action.home.billing"
@@ -1174,6 +1175,7 @@ kind = "page-action"
 anchor = "action:cowork:pearnly-home:home.billing"
 group = "desk.pearnly-home.home.billing"
 where = "pearnly-home 页头「home.billing」"
+tests = ["flow:cowork.home.billing"]
 
 [[row]]
 id = "cowork.desk.pearnly-home.action.home.ledger.export"
@@ -1195,6 +1197,7 @@ kind = "page-action"
 anchor = "action:cowork:pearnly-home:home.plans.title"
 group = "desk.pearnly-home.home.plans.title"
 where = "pearnly-home 页头「home.plans.title」"
+tests = ["flow:cowork.home.billing"]
 
 [[row]]
 id = "cowork.desk.pearnly-home.action.home.topup"
@@ -1205,6 +1208,7 @@ kind = "page-action"
 anchor = "action:cowork:pearnly-home:home.topup"
 group = "desk.pearnly-home.home.topup"
 where = "pearnly-home 页头「home.topup」"
+tests = ["flow:cowork.home.billing"]
 
 [[row]]
 id = "cowork.desk.pearnly-intake.action.Export"

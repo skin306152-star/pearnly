@@ -824,6 +824,7 @@ kind = "page-action"
 anchor = "action:erp:pearnly-home:Delete"
 group = "desk.pearnly-home.Delete"
 where = "pearnly-home 页头「Delete」"
+tests = ["flow:erp.home.billing"]
 
 [[row]]
 id = "erp.desk.pearnly-home.action.home.billing"
@@ -834,6 +835,7 @@ kind = "page-action"
 anchor = "action:erp:pearnly-home:home.billing"
 group = "desk.pearnly-home.home.billing"
 where = "pearnly-home 页头「home.billing」"
+tests = ["flow:erp.home.billing"]
 
 [[row]]
 id = "erp.desk.pearnly-home.action.home.ledger.export"
@@ -855,6 +857,7 @@ kind = "page-action"
 anchor = "action:erp:pearnly-home:home.plans.title"
 group = "desk.pearnly-home.home.plans.title"
 where = "pearnly-home 页头「home.plans.title」"
+tests = ["flow:erp.home.billing"]
 
 [[row]]
 id = "erp.desk.pearnly-home.action.home.topup"
@@ -865,6 +868,7 @@ kind = "page-action"
 anchor = "action:erp:pearnly-home:home.topup"
 group = "desk.pearnly-home.home.topup"
 where = "pearnly-home 页头「home.topup」"
+tests = ["flow:erp.home.billing"]
 
 [[row]]
 id = "erp.desk.pearnly-inventory.action.Cancel"

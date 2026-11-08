@@ -1501,3 +1501,32 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/public/desk/work.js",
   "apps/pearnly_cowork/pearnly_cowork/work/*.py",
 ]
+
+[[flow]]
+id = "erp.home.billing"
+title = "ERP 首页订阅与充值逐个实点：余额与计费服务一致、选择套餐扣月费、充值落待审核申请、明细勾选删除，查计费服务（清存量基线 11-08）"
+module = "scripts/flows/home_billing.py"
+start = "/desk/pearnly-home"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/public/desk/home.js",
+  "apps/pearnly_core/pearnly_core/billing_www.py",
+  "apps/pearnly_core/pearnly_core/payments/history.py",
+]
+
+[[flow]]
+id = "cowork.home.billing"
+title = "Cowork 首页订阅与充值：同 ERP"
+module = "scripts/flows/home_billing.py"
+product = "cowork"
+start = "/desk/pearnly-home"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/public/desk/home.js",
+  "apps/pearnly_core/pearnly_core/billing_www.py",
+  "apps/pearnly_core/pearnly_core/payments/history.py",
+]
