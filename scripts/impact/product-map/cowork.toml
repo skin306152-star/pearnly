@@ -1251,6 +1251,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-intake:cowork.folder.new"
 where = "pearnly-intake 页头「cowork.folder.new」"
+note = "11-08 没补：Express 卡要池里有能写的电脑（带登录用户、3 分钟内报过到）才可选，实验室只能按正式函数登记电脑和它报的文件夹，模拟不了带登录用户的心跳；需要真 CC 桌面版，放进 CC 1.12.18 发版后测试机验收清单"
 
 [[row]]
 id = "cowork.desk.pearnly-intake.action.intake.action.new"

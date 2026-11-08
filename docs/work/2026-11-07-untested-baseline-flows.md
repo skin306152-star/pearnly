@@ -199,6 +199,15 @@
   回列表这一行是红色「失败」、悬浮就是这句（框架把 `title` 接管成原生悬浮，挪到 `data-original-title`）。有电脑时的真写入由代录 / 推送实验脚本守。
   电脑 / 手机 2/2，`cowork.express.warehouse` 同跑 2/2。基线 5 → 3。
 
+## 剩下 3 条与原因（11-08 收尾）
+
+| 行 | 端 | 原因 | 何时补 |
+|---|---|---|---|
+| `cowork.desk.pearnly-intake.action.cowork.folder.new` | 电脑 / 手机 | 试过按正式函数造：给合成 Express 连接登记一台电脑（`companion.credentials.register`）、记下它报的授权文件夹（`folder_intake.agent.remember`），选项接口能列出「flow folder pc · D:\\FlowScans」；但弹窗里 Express 卡要池里有**能写的**电脑（带登录用户、3 分钟内报过到，`agent.writers_known` / `online`）才可选，这要模拟机器通道带登录用户的心跳载荷，实验室没有这一套 | 需要真 CC 桌面版：放进 CC 1.12.18 发版后测试机验收清单（录入 → 定时任务 → 新建文件夹 → 选电脑报的文件夹 → 保存 → 列表里启用中） |
+| `erp.cc.action.company-open-in-product` | 手机 | 电脑端已由 `cc.companies` 真点；手机宽度试跑时点开这一项本身对（地址对），但 `cc.companies` 其余几步按电脑布局写 | 等 `cc.companies` 手机布局整条改时一起补 |
+
+两行的地图都写了 `note`。录入「提交」已在第十七组补上（无电脑那条路）；有电脑时的真写入同样放进 CC 1.12.18 验收清单。
+
 ## 下一组
 
-Cowork 录入页「新建文件夹」（要 CC 桌面版选文件夹，2 条）、ERP「在浏览器中打开」手机端（1 条）。
+这条线收尾：基线 3 条，原因见上表。
