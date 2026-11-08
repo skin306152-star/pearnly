@@ -206,7 +206,9 @@
 | `cowork.desk.pearnly-intake.action.cowork.folder.new` | 电脑 / 手机 | 试过按正式函数造：给合成 Express 连接登记一台电脑（`companion.credentials.register`）、记下它报的授权文件夹（`folder_intake.agent.remember`），选项接口能列出「flow folder pc · D:\\FlowScans」；但弹窗里 Express 卡要池里有**能写的**电脑（带登录用户、3 分钟内报过到，`agent.writers_known` / `online`）才可选，这要模拟机器通道带登录用户的心跳载荷，实验室没有这一套 | 需要真 CC 桌面版：放进 CC 1.12.18 发版后测试机验收清单（录入 → 定时任务 → 新建文件夹 → 选电脑报的文件夹 → 保存 → 列表里启用中） |
 | `erp.cc.action.company-open-in-product` | 手机 | 电脑端已由 `cc.companies` 真点；手机宽度试跑时点开这一项本身对（地址对），但 `cc.companies` 其余几步按电脑布局写 | 等 `cc.companies` 手机布局整条改时一起补 |
 
-两行的地图都写了 `note`。录入「提交」已在第十七组补上（无电脑那条路）；有电脑时的真写入同样放进 CC 1.12.18 验收清单。
+两行的地图都写了 `note`。
+
+CC 线（11-08 回复，详表在共享笔记「回复-清欠基线窗口-CC入口会不会改-11-08.md」）：添加文件、删除对话、组头「在 ERP 打开」、`cowork.mrerp-login` 手机宽度近期都不改界面；「添加文件」在 ERP 对话 / 代录里服务端会多一步交 ERP 识别，附件进会话、`session_files`、`download` 的形状不变。ERP 不加 tasks 分区、Cowork 不加 desk 分区，那两条「不算入口」不变；真要改时它在合入说明里点名 `cc.attach-delete`。录入「提交」已在第十七组补上（无电脑那条路）；有电脑时的真写入同样放进 CC 1.12.18 验收清单。
 
 ## 下一组
 
