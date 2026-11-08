@@ -96,3 +96,27 @@
   - 销货侧（科目组收入科目不能记账 / 不在科目表）同样一张原生单都没有。
 - 结论：维持现在的兜底（科目组科目不能记账或不在科目表 → 账套默认，永续 ACCNUM04、定期 ACCNUM18）；「不在科目表」那种等 accserver 在线后
   在 TEST 原生补录一张核（给一件品挂不存在的科目组科目），结果补在这里。
+
+## 10. 合入前复核（11-08）
+
+- 离线回归重跑（测试机 101 本 T 账套副本，`express-stock-balance-regression.py --scenario same --service`，比对 `--gl`；
+  旧 = main 2ead204d5，新 = 本分支 ad94617b0；结果 `C:\PearnlyStress\_stockbal1107\g4\cmp.log` / `result.jsonl`）：
+  ok 3、跳过 16（无 ISPRD / 主仓没有品）、报差 82，逐条分开看：
+  - **79 本只差「销货收入」一项**（REG-SVC / 个别 REG-IV、REG-HS 的收入科目 ≠ 物料科目组 ACCNUM03）：这项检查是给销货收入分支加的，
+    新旧两边都还照载荷记收入，报差是预期——留给销货分支那组（g5）验。这 79 本的进货部分（库存、科目净额、凭证平）新旧一致。
+  - **3 本 T7 / T8 / T9ASIAFC**：除上面那项外只差进货科目，正是第 9 节的边角——旧写法把库存行重分类进科目表里没有的 1140-02，
+    新写法退回账套默认存货 11-04-02-00；单据合计、进项税、应付 / 现金不变。
+  - 进货相关**没有其他报差**；没有 SEQIT 7 / 8。
+- 共用件影响清单（`python3 scripts/check-impact.py`，命中 `cc-dbf-write`，9 个入口）：本次只改 `dbf_writer` 进货写入（`purchase_lines.stock_journal`
+  / `stock_purchase.write_stock_in_lines` 的 groups），调用点只有 `dbf_writer` 的进货 `_write_all`。
+
+| 入口 | 结果 |
+|---|---|
+| `cc.desktop.write` | 通过：离线回归 101 本（上面）+ 11-07 TEST 直写 RR691107-005 / 006（第 8 节）。Cowork / ERP 端到端推一张没测到：服务端未改，回执与读回不变 |
+| `erp.cc.write` | 通过（采购）：ERP 采购走同一个 `dbf_writer` 进货写入，覆盖同上；ERP 网页提交一张没测到（服务端未改） |
+| `cowork.cc.channel` | 没测到：本次不改回执、心跳、按需请求；Cowork 读回对带库存行的单只比表头，分录科目变化不影响 |
+| `cc.desktop.operator` | 没测到：代录走 Express 界面录单，只借用 `dbf_writer` 的备份 / 还原 / 重建索引，不经进货分录 |
+| `erp.cc.stock-entry` / `stock-void` / `pos-day` / `pos-refund` / `stock-transfer` | 没测到：这几类写 OU / JU / TK / HS / SR / RL，各走自己的写入，不调 `stock_journal`；CC 全量单测通过 |
+
+- 受影响流程：`scripts/flows` 没有覆盖 Express 写账 / 读回的流程，无流程可跑。
+- 闸门：变基到最新 origin/main 后重跑完整闸门；GitHub ad94617b0 Development checks、Companion checks 都已通过。
