@@ -57,11 +57,25 @@
   登记进 `not_entries.toml`（同出入库页互相的新建按钮），地图删这两行。
 - 挂 25 行（三页本身 + 23 颗按钮），基线删 52 条（207 → 155）。两套数据 × 电脑 / 手机 4 格全过（本机实验栈 `pearnly-reconflow-lab`）。
 
-### 发现的问题（未在本组修，已报主会话）：手机宽度「进行中」菜单项不跟着变
+### 修的缺陷：手机宽度「进行中」不带件数、没有进行中也挂着（`pearnly/recon-running-mobile`，主会话 11-08 定修）
 
-- 电脑宽度列表页头「进行中（n）」只在有进行中的对账时出、带件数（`recon.js` `show_list` 里 `running.text(...).toggle(...)`）。
-- 手机宽度框架把页头按钮另放进「…」菜单（`frappe/ui/page.js` `add_inner_button`「Add actions as menu item in Mobile View」），菜单项是加按钮时的原字「进行中」，
-  不跟着改字、不跟着隐藏：没有进行中的对账时手机上也有这一项，点进去是空的进行中一页。流程在手机宽度点的是这个菜单项。
+- **现象**：电脑宽度列表页头「进行中（n）」只在有进行中的对账时出、带件数（`recon.js` `show_list` 里 `running.text(...).toggle(...)`）。
+  手机宽度框架把页头按钮另放进「…」菜单（`frappe/ui/page.js` `add_inner_button`「Add actions as menu item in Mobile View」），那一项是加按钮时的原字「进行中」，
+  不跟着改字、不跟着隐藏：没有进行中的对账时手机上也有，点进去是空的进行中一页。框架的 `remove_inner_button` 不删这一项，自带的按名查找
+  （`is_in_group_button_dropdown` 找 `span[data-label]`）也找不到它（菜单项的 span 没有 `data-label`）。
+- **红**（提交 `test:`，修前代码）：`cowork.recon.tasks` 加「进行中入口与本人进行中的对账一致」、`cowork.recon.run` 加「看得见的进行中入口只有一个、带件数」，
+  电脑宽度 4 格绿、手机宽度 4 格红：没有进行中时看到 `["进行中"]`，有一份时只有不带件数的菜单项（找不到「进行中（1）」）。日志在共享笔记「对账进行中手机入口-修前红-11-08.log」。
+- **修法**（提交 `fix:`，只改 `recon.js`）：件数一变，用原生 `remove_inner_button` 去掉按钮，连同加按钮时框架顺带加的那份菜单项（加之前后比对 `page.menu` 的子节点拿到）一起去掉；
+  有件数就按新文字 `add_inner_button` 重新加；菜单空了用原生 `clear_menu` 收起。不另做一套入口。
+- **绿**：对账四条流程（tasks / run / presets / exports）× 新老 × 电脑手机 16/16；`cowork.recon.run` 走收入、销项、银行三页。候选离线检查 102 组、LANE EXIT 0（生产镜像 `sha256:26a2b0e8…`）。
+- **共用件连带回归**（`check-impact.py`，对账页脚本）：
+
+| 入口 | 结果 | 依据 |
+|---|---|---|
+| `cowork.page.recon-bank` | 通过 | `cowork.recon.run` / `tasks` / `presets` / `exports` 在银行页点遍页头按钮，控制台无报错 |
+| `cowork.page.recon-income` | 通过 | `cowork.recon.run` 收入页点遍页头按钮、`exports` 收入导出 |
+| `cowork.page.recon-vat` | 通过 | `cowork.recon.run` 销项页点遍页头按钮与导出 |
+| `cowork.recon.upload`（manual） | 通过 | `cowork.recon.run` 三页各选两份文件 → 开始 → 结果页，库里多一份任务 |
 
 ## 第四组：团队页、任务看板菜单（`pearnly/baseline-team`，11-08）
 
