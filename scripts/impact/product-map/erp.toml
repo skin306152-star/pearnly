@@ -779,6 +779,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-company:Cancel"
 where = "pearnly-company 页头「Cancel」"
+tests = ["flow:erp.company.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-company.action.company.new"
@@ -798,6 +799,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-company:company.save"
 where = "pearnly-company 页头「company.save」"
+tests = ["flow:erp.company.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-company.action.company.setCurrent"
@@ -807,6 +809,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-company:company.setCurrent"
 where = "pearnly-company 页头「company.setCurrent」"
+tests = ["flow:erp.company.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-company.action.company.syncExpress"
@@ -816,6 +819,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-company:company.syncExpress"
 where = "pearnly-company 页头「company.syncExpress」"
+tests = ["flow:erp.company.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-home.action.Delete"
@@ -1442,6 +1446,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-warehouses:company.newWarehouse"
 where = "pearnly-warehouses 页头「company.newWarehouse」"
+tests = ["flow:erp.company.actions"]
 
 [[row]]
 id = "erp.desk.query-report-erp stock count variance.action.Export"

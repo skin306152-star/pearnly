@@ -1581,3 +1581,18 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
 ]
+
+[[flow]]
+id = "erp.company.actions"
+title = "ERP 公司页：新建后取消、改备注保存、同步 Express（接了的）、设为当前公司（两家的）、仓库页新建仓库，查库（清存量基线 11-08）"
+module = "scripts/flows/erp_company_actions.py"
+start = "/desk/pearnly-company"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company-menu.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/warehouses.js",
+]
