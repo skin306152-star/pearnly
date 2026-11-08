@@ -46,5 +46,9 @@
 - 测试机（Windows 10/11，Intel Iris Xe，D3D11）用分支源码 + 同版本 PySide6 开真 CC 窗口打开真 fatcc.com（单独的 APPDATA，不碰已装的 CC）：
   正常显卡 3 秒判「已画出」，没写 render.json，截图是完整登录页，window.log 记到显卡信息；离线平台（无显卡输出）
   10 秒判空白 → 记 level 1 → 发 restart；第二次按软件档（Chromium GPU disabled、Qt 用 Microsoft Basic Render Driver）3 秒画出。
+- 测试机装分支安装包（1.12.19，889828371 的试打包）：正常显卡打开对话页 3 秒判「已画出」、render.json 不生成，
+  开窗 20 秒内窗口进程 CPU 只涨 0.7 秒、网页内核 0.4 秒；托盘以离线平台起（强制画不出来）时，真托盘 + 真窗口进程
+  10 秒判空白 → 窗口进程发 restart 退出 → 托盘 0.4 秒后重开 → 软件绘制 3 秒画出。测完删测试的 render.json，装回 1.12.17
+  正式版（skin3 普通权限 --background），companion.json 哈希、开机自启项不变，9333 不监听，心跳正常。
 - 加载状态：macOS 真窗口 0.4 秒时显示 CC 图标 + 进度条，加载完收起、露出登录页。
 - 现场那台：待取证结果；1.12.19 发布后在那台上验。
