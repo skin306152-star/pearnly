@@ -160,11 +160,29 @@
 			if (spec.presets) page.add_inner_button(t("cowork.recon.presets"), open_presets);
 			// 进行中的对账不再摆在列表上方（用户 2026-09-30）：一颗官方按钮「进行中 · N」通往单独一页；
 			// 有对账做完（件数变少）就刷新列表，结果自动落进来。
-			const running = page.add_inner_button(t("cowork.recon.running"), () => frappe.set_route(root, "running")).hide();
+			// 只在有进行中的对账时出、带件数。窄屏上框架把页头按钮另放一份进「…」菜单（`add_inner_button` 顺带
+			// `add_menu_item`），那一份不跟着改字、`remove_inner_button` 也不删它（11-08：手机上一直挂着不带件数的「进行中」，
+			// 没有进行中的也点得进空页）：件数一变就把按钮连同它那份菜单项一起去掉、按新件数重新加；菜单空了用原生 `clear_menu` 收起。
+			let running = null;
+			const show_running = count => {
+				const label = count ? t("cowork.recon.runningCount", count) : "";
+				if ((running?.label || "") === label) return;
+				if (running) {
+					page.remove_inner_button(running.label);
+					running.item.remove();
+					if (!page.menu.find(".dropdown-item").length) page.clear_menu();
+				}
+				running = null;
+				if (!label) return;
+				const known = new Set(page.menu.children().toArray());
+				// entry: cowork.recon.running
+				page.add_inner_button(label, () => frappe.set_route(root, "running"));
+				running = { label, item: page.menu.children().filter((_index, node) => !known.has(node)).not(".dropdown-divider") };
+			};
 			let before = null;
 			watch(async () => {
 				const items = await p.call(api + "active", { kind });
-				running.text(t("cowork.recon.runningCount", items.length)).toggle(items.length > 0);
+				show_running(items.length);
 				if (before !== null && items.length < before) await list?.reload();
 				before = items.length;
 			}, () => before > 0);
