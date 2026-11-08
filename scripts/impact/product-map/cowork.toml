@@ -1526,6 +1526,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-stocktake:cowork.stock.count.close"
 where = "pearnly-stocktake 页头「cowork.stock.count.close」"
+tests = ["flow:cowork.stocktake.actions"]
 
 [[row]]
 id = "cowork.desk.pearnly-stocktake.action.cowork.stock.count.new"
@@ -1535,6 +1536,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-stocktake:cowork.stock.count.new"
 where = "pearnly-stocktake 页头「cowork.stock.count.new」"
+tests = ["flow:cowork.stocktake.actions"]
 
 [[row]]
 id = "cowork.desk.pearnly-stocktake.action.cowork.stock.count.start"
@@ -1544,6 +1546,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-stocktake:cowork.stock.count.start"
 where = "pearnly-stocktake 页头「cowork.stock.count.start」"
+tests = ["flow:cowork.stocktake.entry"]
 
 [[row]]
 id = "cowork.desk.pearnly-team.action.Cancel"

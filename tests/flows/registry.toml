@@ -1596,3 +1596,17 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/warehouses.js",
 ]
+
+[[flow]]
+id = "cowork.stocktake.actions"
+title = "Cowork 盘点：列表新建盘点（原生上传框传表格）、盘点页结束盘点，查库（清存量基线 11-08）"
+module = "scripts/flows/cowork_stocktake_actions.py"
+product = "cowork"
+start = "/desk/pearnly-stocktake"
+user = "stocktake"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake.js",
+  "apps/pearnly_cowork/pearnly_cowork/stocktake/*.py",
+]

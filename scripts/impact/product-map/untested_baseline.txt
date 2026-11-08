@@ -16,12 +16,6 @@ cowork.desk.pearnly-intake.action.cowork.folder.new@desktop
 cowork.desk.pearnly-intake.action.cowork.folder.new@mobile
 cowork.desk.pearnly-intake.action.intake.action.new@desktop
 cowork.desk.pearnly-intake.action.intake.action.new@mobile
-cowork.desk.pearnly-stocktake.action.cowork.stock.count.close@desktop
-cowork.desk.pearnly-stocktake.action.cowork.stock.count.close@mobile
-cowork.desk.pearnly-stocktake.action.cowork.stock.count.new@desktop
-cowork.desk.pearnly-stocktake.action.cowork.stock.count.new@mobile
-cowork.desk.pearnly-stocktake.action.cowork.stock.count.start@desktop
-cowork.desk.pearnly-stocktake.action.cowork.stock.count.start@mobile
 erp.cc.action.attach@desktop
 erp.cc.action.attach@mobile
 erp.cc.action.company-open-in-product@desktop
