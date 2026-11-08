@@ -262,9 +262,11 @@ class Downloads(unittest.TestCase):
         location = re.search(r"location \^~ /downloads/companion/ \{\s*alias ([^;]+);", conf)
         self.assertEqual(location.group(1), str(receiver["ROOT"]) + "/")
         self.assertIn("location = /static/companion/latest.json", conf)  # 旧版小助手查更新的地址
-        api = module_constants(SERVER / "api.py")
-        self.assertEqual(api["INSTALLER_URL"],
+        # 安装包地址共用一份（`pearnly_core.cc_desktop.release`，盘点 2026-11-08 P2-2），Cowork 的接口引用它
+        release = module_constants(ROOT / "apps/pearnly_core/pearnly_core/cc_desktop/release.py")
+        self.assertEqual(release["INSTALLER_URL"],
                          updater["DOWNLOAD_SITE"] + receiver["URL"] + "/" + receiver["NAME"])
+        self.assertIn("INSTALLER_URL = release.INSTALLER_URL", (SERVER / "api.py").read_text(encoding="utf-8"))
 
 
 def method_source(path, cls, name):
@@ -1203,9 +1205,9 @@ class UpdateBlocked(unittest.TestCase):
 
     def test_download_new_version_opens_the_same_installer_as_the_website(self):
         updater = module_constants(COMPANION / "updater.py")
-        api = module_constants(SERVER / "api.py")
+        release = module_constants(ROOT / "apps/pearnly_core/pearnly_core/cc_desktop/release.py")
         website = module_constants(ROOT / "website" / "content.py")
-        self.assertEqual(updater["DOWNLOAD_PAGE"], api["INSTALLER_URL"])
+        self.assertEqual(updater["DOWNLOAD_PAGE"], release["INSTALLER_URL"])
         self.assertEqual(updater["DOWNLOAD_PAGE"], updater["DOWNLOAD_SITE"] + website["COMPANION_URL"])
 
     def test_the_settings_page_and_the_desktop_agree_on_the_state_and_the_button(self):

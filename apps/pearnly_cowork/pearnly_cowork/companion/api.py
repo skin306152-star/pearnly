@@ -6,9 +6,11 @@ import frappe
 from pearnly_cowork.connections import access
 from pearnly_core.transaction import conflicts
 
+from pearnly_core.cc_desktop import release
+
 from . import credentials, pool
 
-INSTALLER_URL = 'https://pearnly.com/downloads/companion/CC-Setup.exe'
+INSTALLER_URL = release.INSTALLER_URL  # 共用一份（`pearnly_core.cc_desktop.release`），这里留名给旧引用
 
 
 def _local_transaction(function, *args, **kwargs):
@@ -51,12 +53,11 @@ def installer():
 
     2026-09-27 起小助手源码在本仓 `companion/`，安装包由发布流水线放到我们自己的服务器
     `pearnly.com/downloads/companion/`（固定名始终是最新正式版），全平台一个地址，默认就用它；
-    站点配置 `pearnly_cowork_agent_installer` 只在要临时指向别处时覆盖。
+    站点配置 `pearnly_cowork_agent_installer` 只在要临时指向别处时覆盖。地址与配置共用一份（`pearnly_core.cc_desktop.release.installer`，
+    ERP 等走共用通道的站点调 `pearnly_core.cc_desktop.api.installer`，盘点 2026-11-08 P2-2）。
     """
     access.require_actor()
-    url = str(frappe.conf.get('pearnly_cowork_agent_installer') or '').strip() or INSTALLER_URL
-    version = str(frappe.conf.get('pearnly_cowork_agent_version') or '').strip()
-    return {'url': url, 'version': version, 'configured': bool(url)}
+    return release.installer(frappe.conf)
 
 
 @frappe.whitelist(methods=['POST'])

@@ -102,7 +102,8 @@ export function useInstallTarget(product: string | undefined): InstallTarget {
     };
   }, []);
   if (isDesktopApp() || standalone() || installed) return null;
-  if (isWindows() && product === "cowork") return "desktop";
+  // Windows 浏览器里装 CC 桌面版：Cowork 与 ERP（ADR-025 起 ERP 员工也用 CC 桌面版）一样；安装包地址走共用通道（盘点 2026-11-08 P2-2）
+  if (isWindows() && (product === "cowork" || product === "erp")) return "desktop";
   if (inLine()) return "browser";
   // Safari 17（macOS 14）起才有「添加到程序坞」
   if (isMac()) return deferred || (isSafari() && safariVersion() >= 17) ? "mac" : null;
@@ -119,7 +120,7 @@ export function canPrompt(): boolean {
 /** 按设备装：下载桌面版安装包 / 弹浏览器的安装确认 / 跳出 LINE。iPhone、Mac Safari 由调用方显示步骤。 */
 export async function install(target: InstallTarget): Promise<void> {
   if (target === "desktop") {
-    const info = await getMethod<{ url?: string }>("pearnly_cowork.companion.api.installer").catch(withReport(() => null, "install"));
+    const info = await getMethod<{ url?: string }>("pearnly_core.cc_desktop.api.installer").catch(withReport(() => null, "install"));
     if (info?.url) window.open(info.url, "_blank", "noopener,noreferrer");
   } else if (target === "browser") {
     const url = new URL(location.href);

@@ -818,7 +818,7 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
             type="button"
             className="cc-btn"
             onClick={() =>
-              void getJson<{ url?: string }>("pearnly_cowork.companion.api.installer").then(
+              void getJson<{ url?: string }>("pearnly_core.cc_desktop.api.installer").then(
                 (info) => info?.url && window.open(info.url, "_blank", "noopener,noreferrer"),
               )
             }

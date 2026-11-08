@@ -9,6 +9,9 @@ import os
 import re
 
 RELEASE_FILE = "/opt/pearnly/companion-release/latest.json"
+# 安装包地址（多产品共用，盘点 2026-11-08 P2-2）：发布流水线把正式版放在我们自己的服务器，固定名始终是最新正式版，全平台一个地址；
+# 站点配置 `pearnly_cowork_agent_installer` / `pearnly_cowork_agent_version`（名字沿用，已登记）只在要临时指向别处时覆盖。
+INSTALLER_URL = "https://pearnly.com/downloads/companion/CC-Setup.exe"
 _VERSION = re.compile(r"^\d{1,4}(\.\d{1,4}){1,3}$")
 _cache = {"mtime": None, "value": None}
 
@@ -32,3 +35,10 @@ def latest(path=RELEASE_FILE):
                                                  and len(url) <= 300) else None
     _cache.update(mtime=mtime, path=path, value=value)
     return value
+
+
+def installer(conf) -> dict:
+    """CC 桌面版安装包在哪里：``{url, version, configured}``（``conf`` 是站点配置，Cowork 与共用通道的接口各自传 ``frappe.conf``）。"""
+    url = str(conf.get("pearnly_cowork_agent_installer") or "").strip() or INSTALLER_URL
+    version = str(conf.get("pearnly_cowork_agent_version") or "").strip()
+    return {"url": url, "version": version, "configured": bool(url)}

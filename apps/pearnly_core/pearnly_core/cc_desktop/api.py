@@ -1,6 +1,8 @@
 """CC 桌面版共用机器通道给对话页的入口（多产品共用，ADR-025）：人在 CC 窗口里登录了站点，对话页带本机设备密钥登记这台电脑。
 
   POST /api/method/pearnly_core.cc_desktop.api.register   {request_key, device_key, device_name, rekey?, rejoin?}
+  GET  /api/method/pearnly_core.cc_desktop.api.installer   CC 桌面版安装包地址（`release.installer`；Cowork 的同名接口是同一份），
+       登录了的人都能取（只是公开的下载地址），ERP 员工在 Windows 浏览器里的「下载 CC 桌面版」用它（盘点 2026-11-08 P2-2）。
   POST /api/method/pearnly_core.cc_desktop.api.mrerp_login_ticket   {connection, device_key}
        MR.ERP 登录在 CC 桌面版里授权的一次性票（ADR-026 第 7 条，`login_tickets`）：产品给出这个人的范围（管理员 site 写站点、
        使用成员 local 只存本机）、对话页交来的本机设备密钥认得出这台电脑，才发票；产品没接回 ``{ok: false, code: "unsupported"}``（ERP 在第 6 步接 MR.ERP 连接之前）。
@@ -10,7 +12,7 @@ Frappe 会话 + CSRF（对话页本来就带）；令牌只在 ``created`` 时�
 """
 import frappe
 
-from pearnly_core.cc_desktop import devices, login_tickets, products
+from pearnly_core.cc_desktop import devices, login_tickets, products, release
 from pearnly_core.transaction import conflicts
 
 
@@ -22,6 +24,13 @@ def register(request_key=None, device_key=None, device_name=None, rekey=False, r
         frappe.throw(frappe._("cc_desktop.busy"))
     frappe.db.commit()
     return result
+
+
+@frappe.whitelist(methods=["GET"])
+def installer():
+    if frappe.session.user in ("Guest", "", None):
+        frappe.throw(frappe._("Not Permitted"), frappe.PermissionError)
+    return release.installer(frappe.conf)
 
 
 @frappe.whitelist(methods=["POST"])

@@ -506,5 +506,31 @@ class OperatorReasonTests(unittest.TestCase):
 
 
 
+
+class Installer(unittest.TestCase):
+    """安装包地址共用一份（盘点 2026-11-08 P2-2）：共用通道与 Cowork 的接口出同一个结果；对话页（Windows 浏览器的「下载 CC 桌面版」、
+    设置里没有电脑时的下载按钮）一律调共用通道的，ERP 员工也看得到。"""
+
+    def test_one_installer_for_both_products(self):
+        from pearnly_core.cc_desktop import release
+
+        self.assertEqual(release.installer({}), {"url": release.INSTALLER_URL, "version": "", "configured": True})
+        self.assertEqual(release.installer({"pearnly_cowork_agent_installer": " https://x/y.exe ",
+                                            "pearnly_cowork_agent_version": "1.2.3"}),
+                         {"url": "https://x/y.exe", "version": "1.2.3", "configured": True})
+        core = (ROOT / "apps/pearnly_core/pearnly_core/cc_desktop/api.py").read_text(encoding="utf-8")
+        self.assertIn('@frappe.whitelist(methods=["GET"])\ndef installer():', core)
+        self.assertIn("return release.installer(frappe.conf)", core)
+        cowork = (ROOT / "apps/pearnly_cowork/pearnly_cowork/companion/api.py").read_text(encoding="utf-8")
+        self.assertIn("return release.installer(frappe.conf)", cowork)
+        self.assertNotIn("conf.get('pearnly_cowork_agent_installer')", cowork)  # 不再各读一份配置
+        src = ROOT / "frontend/assistant/src"
+        install = (src / "lib/install.ts").read_text(encoding="utf-8")
+        self.assertIn('(isWindows() && (product === "cowork" || product === "erp")) return "desktop"', install)
+        for path in ("lib/install.ts", "components/settings.tsx"):
+            text = (src / path).read_text(encoding="utf-8")
+            self.assertIn('"pearnly_core.cc_desktop.api.installer"', text)
+            self.assertNotIn("pearnly_cowork.companion.api.installer", text)
+
 if __name__ == "__main__":
     unittest.main()
