@@ -204,6 +204,7 @@ def attach(name, results, groups=None, computer: str = "", start_at=None) -> dic
         rows.append({"doc_id": doc_id, "doc_group": groups.get(doc_id) or None, "state": "queued" if sent else "not_done",
                      "reason": "" if sent else str(item.get("reason") or item.get("status") or "")[:REASON_MAX]})
     doc.set("documents", rows)
+    _name_rows(doc, doc.get("documents"))
     doc.computer = str(computer or "")
     doc.start_at = start_at or None
     doc.started_at = now_datetime()
@@ -219,6 +220,20 @@ def mark_running(name) -> dict:
         doc.status = "running"
         _save(doc)
     return view(doc)
+
+
+def _name_rows(doc, rows) -> None:
+    """单据行的单号与对方（页面把单据写成「单号 · 对方」）：交单时就向产品要一次（``status`` 钩子同时给），还没有的才填。
+    11-08 生产：当场停下等人选的 24 张一直没有单号与对方，任务卡与问题卡只能写内部编号（CWH-…）。"""
+    missing = [row for row in rows or [] if not row.get("ref") and not row.get("party")]
+    if not missing:
+        return
+    found = {str(r.get("doc_id")): r for r in products.status(doc.company, [row.doc_id for row in missing])}
+    for row in missing:
+        r = found.get(row.doc_id) or {}
+        for key in ("ref", "party"):
+            if r.get(key):
+                row.set(key, str(r[key])[:140])
 
 
 def _refresh(doc, rows) -> None:

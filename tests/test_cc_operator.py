@@ -505,7 +505,9 @@ class SourceRules(unittest.TestCase):
 SAME_PARTY = r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { docAnswers, itemQuestion, itemsOfNeeded } from "@/components/tool-uis/ask-shared";
+import { docAnswers, itemQuestion, itemsOfNeeded, kindName } from "@/components/tool-uis/ask-shared";
+import { docTitle } from "@/components/tool-uis/operator-words";
+import { op } from "@/i18n";
 
 const options = [{ code: "BIGC", name: "BIG C" }, { code: "BIGC-002", name: "BIG C-002 (ซอยประชุม)" }];
 const docs = Array.from({ length: 24 }, (_v, i) => ({ doc_id: `H${i + 1}`, state: "choose",
@@ -519,6 +521,14 @@ const answer = { answers: [{ header: "x", question: questions[0]!.question, labe
 const perDoc = docAnswers(items, questions, answer);
 assert.equal(Object.keys(perDoc).length, 24);        // 一个答案交给 24 张（站点记住，后面的单不再问）
 assert.deepEqual(perDoc.H7, [{ kind: "party", subject: "sales|0107536000633|00000|บิ๊กซี", value: "BIGC-002", label: "บมจ.บิ๊กซี ซูเปอร์เซ็นเตอร์" }]);
+// 题目的分类名：对方按方向写客户 / 供应商，不写「其他」（生产照片：「อื่นๆ · บมจ.บิ๊กซี…」）
+assert.ok(questions[0]!.question.startsWith(op.precheck.kind.customer! + " · "));
+assert.equal(kindName({ kind: "party", subject: "purchase|0105|00000" }), op.precheck.kind.supplier);
+assert.equal(kindName({ kind: "party", subject: "x" }), op.kind.party);
+// 标题不给内部编号（生产照片：任务卡列了 24 行 CWH-哈希）
+assert.equal(docTitle({}, "CWH-af181ee25a4fb64fbe6c26a506a97959df4eb66bc140b112"), op.untitled);
+assert.equal(docTitle({}, "P:PUR-0001"), op.untitled);
+assert.equal(docTitle({ ref: "IV69/00751", party: "Big C" }, "CWH-x"), "IV69/00751 · Big C");
 console.log("HARNESS OK");
 """
 

@@ -27,10 +27,14 @@ export function reasonText(code: string | undefined, message?: string): string {
   return op.unknownReason;
 }
 
-/** 一张单的标题：单号 · 对方（没有的不写；都没有写 fallback）。 */
+/** 一张单的标题：单号 · 对方（没有的不写）；都没有写 fallback，fallback 像内部编号（CWH-…、P:…、64 位哈希）就写「单据」，
+ *  内部编号不给用户看（11-08 生产：任务卡列了 24 行 CWH-哈希）。 */
 export function docTitle(doc: { ref?: string | undefined; party?: string | undefined }, fallback = ""): string {
-  return [doc.ref, doc.party].filter(Boolean).join(" · ") || fallback;
+  return [doc.ref, doc.party].filter(Boolean).join(" · ") || (fallback && isInternalId(fallback) ? op.untitled : fallback);
 }
+
+/** 站点内部的单据编号（不给用户看）：Cowork 识别单 CWH-…、ERP 的 P: / S: / I:…、哈希。 */
+export const isInternalId = (text: string) => /^(CWH-|[PSI]:)|^[0-9a-f]{24,}$/i.test(text.trim());
 
 export const NEW_CODE = "__new__";
 /** 存货对照的「记费用」：这一行不建存货、写成费用 / 服务行（11-06 按行选物料与库存）。 */

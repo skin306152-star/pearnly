@@ -127,6 +127,15 @@ export type AskItem = {
 };
 
 const NEW = "__new__";
+/** 一项的分类名：对方按方向写客户 / 供应商（主题以 sales| / purchase| 开头），判不出写「供应商 / 客户」；没有译名的才写「其他」
+ *  （11-08 生产：对方一项的题目写成「อื่นๆ · บมจ.บิ๊กซี…」）。 */
+export function kindName(item: { kind: string; subject?: string }): string {
+  if (item.kind === "party") {
+    const side = String(item.subject ?? "").split("|")[0];
+    return side === "sales" ? op.precheck.kind.customer! : side === "purchase" ? op.precheck.kind.supplier! : op.kind.party!;
+  }
+  return op.precheck.kind[item.kind] ?? op.kind.other!;
+}
 /** 选项按钮上的字：预选值排第一、带「(推荐)」；再列别的几个（最多 4 个），其余进「其他」。 */
 export function itemQuestion(item: AskItem, company: string): AskQuestion {
   const name = (code: string) => {
@@ -143,9 +152,10 @@ export function itemQuestion(item: AskItem, company: string): AskQuestion {
     label: i === 0 && item.value ? ask.recommended(name(code)) : name(code),
     description: "",
   }));
+  const kind = kindName(item);
   return {
-    question: item.label ? `${op.precheck.kind[item.kind] ?? op.kind.other} · ${item.label}` : op.precheck.kind[item.kind] ?? op.kind.other!,
-    header: (op.precheck.kind[item.kind] ?? op.kind.other!).slice(0, 12),
+    question: item.label ? `${kind} · ${item.label}` : kind,
+    header: kind.slice(0, 12),
     multiSelect: false,
     options,
     ...(item.search ? { search: { company, doc_id: item.docs[0] ?? "", kind: item.search } } : {}),

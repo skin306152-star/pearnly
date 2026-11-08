@@ -331,6 +331,13 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(self.submitted, [("CO-1", ["h3"], {"id": name, "total": 1, "start_at": 0}, "CCD-1", {"h3": choice})])
         self.assertEqual((out["status"], out["documents"][2]["state"], out["finished_at"]), ("queued", "queued", ""))
 
+    def test_starting_names_every_document_even_those_held_on_the_spot(self):
+        """11-08 生产：当场停下等人选的单一直没有单号与对方，任务卡只能写内部编号。交单时就向产品要一次单号与对方。"""
+        self.statuses = {f"h{i}": {"state": "not_done", "ref": f"IV69/0075{i}", "party": "Big C"} for i in (1, 2, 3)}
+        name = self._started()
+        rows = {row["doc_id"]: (row.get("ref"), row.get("party")) for row in self.tasks.read(name)["documents"]}
+        self.assertEqual(rows, {f"h{i}": (f"IV69/0075{i}", "Big C") for i in (1, 2, 3)})
+
     def test_one_answer_sends_back_every_document_waiting_for_a_choice(self):
         """11-08 生产事故：同一客户在 24 张上各停一次、要答 24 遍。答了其中一张：这张带答案交回（产品记下），同一任务里别的
         「要人选」的一起交回（不重带答案，照记下的用），别的原因停下的不动。"""

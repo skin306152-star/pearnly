@@ -239,7 +239,10 @@ class SourceRules(unittest.TestCase):
     def test_operator_cards_use_the_question_card(self):
         start = read("components/tool-uis/operator-start.tsx")
         self.assertNotIn("<select", start)
-        self.assertIn("operatorActions.start(input, docIds, {}, groupsToStart(", start)
+        # 没定的项开始前在这张卡里用提问卡一次问完、答案随「开始」交（11-08 生产事故）；都定了照旧不带答案
+        self.assertIn("operatorActions.start(input, docIds, answers, groupsToStart(", start)
+        self.assertIn("const start = () => begin({});", start)
+        self.assertIn("<AskCard questions={questions}", start)
         choose = read("components/tool-uis/operator-choose.tsx")
         self.assertIn("<AskCard questions={questions}", choose)
         self.assertNotIn("<select", choose)
