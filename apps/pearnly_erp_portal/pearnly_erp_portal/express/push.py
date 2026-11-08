@@ -378,7 +378,8 @@ def release_operator(doctype, name) -> bool:
     撤旧件的做法，只是之后仍交代录）。不是代录的件、或件还在排队 / 在写，什么都不做。"""
     current = frappe.db.get_value(doctype, name, "ledger_job")
     job = jobs.find_by_name(current) if current else None
-    if not job or job.get("status") != "manual" or not str(job.get("request_key") or "").startswith(OPERATOR_KEY):
+    if not job or job.get("status") != "manual" or not str(job.get("request_key") or "").startswith(OPERATOR_KEY) or \
+            job.get("reason") == jobs.LOST:  # 结果不明的不撤：可能已写进 Express，撤了重交会重复入账（ADR-027 §6）
         return False
     jobs.cancel(job["job"], "replaced")
     _set(doctype, name, {"ledger_state": contracts.QUEUED, "ledger_job": None, "ledger_reason": "", "ledger_needed": None})
@@ -612,8 +613,10 @@ def job_changed(view):
     if doctype == STOCK and state in (contracts.WRITTEN, contracts.MISMATCH) and \
             frappe.db.get_value(doctype, name, "status") == "void":
         void(doctype, name)  # 电脑写的时候 ERP 这边已作废：写完立刻照 Express 原生作废原单
+    # 人核对后报「已入账」的（原电脑核对不了，`jobs.BY_PERSON`）：没有对方档码与存货码，先不挂码、不排主档同步（按码认不上，
+    # 同步回来会多建一条，10-24 验收），等电脑上线按单号读回补码（待补码，ADR-027 §6 第 ③ 条）
     if state in (contracts.WRITTEN, contracts.MISMATCH) and (before.ledger_state, before.ledger_docnum or "") != (
-            state, values["ledger_docnum"]) and before.company:
+            state, values["ledger_docnum"]) and before.company and view.get("stage") != jobs.BY_PERSON:
         from pearnly_erp_portal.express import masters
 
         link_party(doctype, name, before.company, view.get("party_code"))

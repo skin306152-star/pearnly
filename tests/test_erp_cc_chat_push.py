@@ -178,7 +178,9 @@ sys.modules["pearnly_erp_portal.access.guard"] = guard
 
 LOST = "cc_desktop.result_unknown"
 JOBS = {}
-jobs = _module("pearnly_core.cc_desktop.jobs", LOST=LOST, find_by_name=lambda name: dict(JOBS[name]) if name in JOBS else None)
+GONE = set()  # 原电脑已核对不了（移除 / 断开）的写账件（ADR-027 §6）
+jobs = _module("pearnly_core.cc_desktop.jobs", LOST=LOST, find_by_name=lambda name: dict(JOBS[name]) if name in JOBS else None,
+               needs_person=lambda job: bool(job) and job.get("reason") == LOST and job.get("job") in GONE)
 importlib.import_module("pearnly_core.cc_desktop").jobs = jobs
 
 CALLS = []
@@ -236,8 +238,17 @@ def _retry(doctype, name):
     job = JOBS.get(row.ledger_job)
     if not job or job["status"] != "manual":
         raise PermissionError_("Not Permitted")
-    job.update(status="queued", reason="")
+    job.update(status="queued", reason=LOST if job.get("reason") == LOST else "")  # 钉回原电脑的仍记结果不明（同 `jobs.retry`）
     STATE.db.table(doctype)[name].update(ledger_state="queued", ledger_reason="")
+
+
+def _resolve_unknown(doctype, name, entered, docnum=""):
+    CALLS.append(("resolve", doctype, name, entered, docnum))
+    if entered:
+        STATE.db.table(doctype)[name].update(ledger_state="written", ledger_docnum=docnum, ledger_reason="")
+    else:
+        JOBS[STATE.db.table(doctype)[name]["ledger_job"]].update(status="queued", reason="")
+        STATE.db.table(doctype)[name].update(ledger_state="queued", ledger_reason="")
 
 
 def _answer(doctype, name, answers):
@@ -253,7 +264,7 @@ def _answer(doctype, name, answers):
 
 
 api = _module("pearnly_erp_portal.express.api", CAPABILITIES=CAPABILITIES, _document=_document, _view=_view,
-              retry=_retry, answer=_answer)
+              retry=_retry, answer=_answer, resolve_unknown=_resolve_unknown)
 _module("pearnly_erp_portal.inventory.warehouses",
         names_of=lambda company=None: [name for name, owner in WAREHOUSES.items() if owner == company])
 
@@ -366,7 +377,8 @@ class DeclarationTests(unittest.TestCase):
         self.assertEqual(by_name["erp_resolve_push_result"]["input_schema"]["required"],
                          direct_push.RESOLVE_SCHEMA["required"])
         self.assertTrue(by_name["erp_resolve_push_result"]["description"].startswith(
-            "When a push result is unknown (Express may or may not have it), record what the user found"))
+            "When a push result is unknown (Express may or may not have it). The computer that was writing it "
+            "checks first"))
         self.assertIn(direct_push.unconfirmed_rule("Express", "erp_resolve_push_result"),
                       by_name["erp_push_documents"]["description"])
         props = by_name["erp_list_documents"]["input_schema"]["properties"]
@@ -637,8 +649,19 @@ class ResolveTests(unittest.TestCase):
         doc(PURCHASE, "PUR-7", reason=LOST, ledger_job="J7")
         JOBS["J7"] = {"job": "J7", "status": "manual", "request_key": "erp:purchase:PUR-7", "reason": LOST}
         out = call(tools.resolve_push_result, document="P:PUR-7", entered=True, docnum="RR6910-007")
+        # 原电脑还能核对（ADR-027 §6）：交回它核对（同「再写一次」），不收人报
         self.assertEqual(out, {"document": "P:PUR-7", "status": "saved", "push": {"status": "queued"}})
         self.assertEqual(CALLS, [("retry", PURCHASE, "PUR-7")])
+        out = call(tools.resolve_push_result, document="P:PUR-7", entered=True)
+        self.assertEqual(out, {"document": "P:PUR-7", "status": direct_push.COMPUTER_CHECKS})  # 已钉回、关着：等它
+        # 原电脑核对不了：收人报。已入账 → 记成功（单号）；没有入账 → 从头排
+        doc(PURCHASE, "PUR-8", reason=LOST, ledger_job="J8")
+        JOBS["J8"] = {"job": "J8", "status": "manual", "request_key": "erp:purchase:PUR-8", "reason": LOST}
+        GONE.add("J8")
+        out = call(tools.resolve_push_result, document="P:PUR-8", entered=True, docnum="RR6910-008")
+        self.assertEqual(out, {"document": "P:PUR-8", "status": "saved",
+                               "push": {"status": "entered", "docnum": "RR6910-008"}})
+        self.assertEqual(CALLS[-1], ("resolve", PURCHASE, "PUR-8", True, "RR6910-008"))
         self.assertEqual(call(tools.resolve_push_result, document="P:NOPE", entered=True),
                          direct_push.not_found("P:NOPE"))
 

@@ -289,3 +289,17 @@ def retry(doctype, name):
         frappe.db.commit()
         push.send(doctype, name)
     return _view(doctype, _document(doctype, name))
+
+
+def resolve_unknown(doctype, name, entered, docnum=""):
+    """结果不明、原电脑核对不了（移除、断开、开单的人不在它上面了，`jobs.needs_person`）时，人在 Express 里核对后报结论
+    （ADR-027 §6，同 Cowork 复核页「核对」）：已入账 → 记成功（人报的单号），登记待补码（`push.job_changed` 不排主档同步，
+    电脑上线后按单号读回补挂对方档码与存货码）；没有入账 → 解开钉住、从头排。原电脑还能核对的不收人报（交它核对：:func:`retry`）。"""
+    row = _document(doctype, name, write=True)
+    _require_enabled(row)
+    job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
+    if not jobs.needs_person(job):
+        frappe.throw(_(jobs.COMPUTER_CHECKS))
+    jobs.settle_by_person(job["job"], bool(entered), docnum)
+    frappe.db.commit()
+    return _view(doctype, _document(doctype, name))

@@ -1016,3 +1016,4 @@ Checking push choices	正在查看推送前要选的项	กำลังตรว
 Saved push choices	保存了推送选项	บันทึกตัวเลือกการส่งแล้ว	送信の選択を保存しました
 Saving push choices	正在保存推送选项	กำลังบันทึกตัวเลือกการส่ง	送信の選択を保存しています
 This conversation could not be changed; please try again	对话修改失败，请重试	แก้ไขบทสนทนาไม่สำเร็จ กรุณาลองใหม่	会話を変更できませんでした。もう一度お試しください
+The computer that was writing it checks it when it is on	由原来写入的电脑开机后核对	เครื่องที่บันทึกอยู่จะตรวจสอบเมื่อเปิดเครื่อง	書き込んでいたパソコンが起動したときに確認します	cc_desktop.computer_checks

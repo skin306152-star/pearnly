@@ -754,6 +754,7 @@ The bind code has expired — please regenerate,รหัสผูกหมด�
 "The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again.",เปิดกล้องใน LINE ไม่ได้ กรุณาแตะ เปิดในเบราว์เซอร์ หรืออนุญาตให้ LINE ใช้กล้องในการตั้งค่าโทรศัพท์แล้วลองอีกครั้ง
 "The camera could not start. Try again, or enter the code.",ไม่สามารถเปิดกล้องได้ กรุณาลองอีกครั้ง หรือป้อนรหัสด้วยตนเอง
 The camera is being used by another app. Close that app and try again.,กล้องกำลังถูกใช้งานโดยแอปอื่น กรุณาปิดแอปนั้นแล้วลองอีกครั้ง
+The computer that was writing it checks it when it is on,เครื่องที่บันทึกอยู่จะตรวจสอบเมื่อเปิดเครื่อง
 The control plane is not affected,คอนโทรลเพลนไม่ได้รับผลกระทบ
 The current password is wrong,รหัสผ่านปัจจุบันไม่ถูกต้อง
 "The details are not confirmed yet, so it cannot be pushed to DMS",ข้อมูลยังไม่ได้ยืนยัน จึงไม่สามารถส่งไปยัง DMS ได้
@@ -946,6 +947,7 @@ assistant.tool.declined,ปฏิเสธการเปลี่ยนแป�
 assistant.tool.refused,คำขอถูกปฏิเสธ
 assistant.tool.unavailable,เว็บไซต์นี้ไม่รองรับการดำเนินการนี้
 cc_desktop.busy,บริการ CC เดสก์ท็อปไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง
+cc_desktop.computer_checks,เครื่องที่บันทึกอยู่จะตรวจสอบเมื่อเปิดเครื่อง
 cc_desktop.job_busy,กำลังบันทึกลง Express อยู่
 cc_desktop.job_invalid,ข้อมูลที่จะบันทึกลง Express ไม่ถูกต้อง
 cc_desktop.request_invalid,คำขอของ CC เดสก์ท็อปไม่ถูกต้อง

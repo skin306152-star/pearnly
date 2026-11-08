@@ -25,4 +25,3 @@ stocktake_list:params:company  # 见 stocktake_create:params:company
 stocktake_list:params:offset  # ERP 服务端分页；Cowork 只给条数上限。段 3 统一成分页
 stocktake_list:params:status  # ERP 按状态筛；Cowork 没有。段 3 统一
 operator:pearnly_express_operator:regroup  # 有意不同：ERP 采购单、销售单是两种单据，方向由单据定（网页也不能改），放文件时卖方是本公司就按销售读；资料区的单不带 moves、不能拖（A 批 2）
-operator:pearnly_express_operator:resolve  # ERP 结果不明由原电脑核对、Cowork 由人报：A 批 3 按 ADR-027 §6 统一后删

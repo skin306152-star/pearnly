@@ -412,6 +412,7 @@ Completion Evidence,หลักฐานการเสร็จสิ้น
 Computer,คอมพิวเตอร์
 Computer Name,ชื่อคอมพิวเตอร์
 Computer Owner,ผู้ลงทะเบียนคอมพิวเตอร์
+Computer Removed,เครื่องเดิมถูกนำออกแล้ว
 Computer offline,คอมพิวเตอร์ออฟไลน์
 Computer removed,นำคอมพิวเตอร์ออกแล้ว
 Condition,เงื่อนไข

@@ -295,6 +295,13 @@ def submit(company, doc_ids, batch, computer, answers=None) -> list:
     return results
 
 
+def _needs_person(record) -> bool:
+    """结果不明的这条推送记录原电脑核对不了（`push.native.service.needs_person`）：出人核对卡。"""
+    from pearnly_cowork.push.native import service as native
+
+    return native.needs_person(record)
+
+
 def status(company, doc_ids) -> list:
     """CC 重启后恢复出来的任务，以站点为准收尾（共用层 ``status``）：按推送记录在票上的结论说这张单现在怎样——成功 → 已入账
     （带 Express 单号）、在途 → 仍在队列、停下等人 / 失败 → 未完成（带原因）、没推过或已撤回 → 已取消；读不到（不是本人能看的、
@@ -320,8 +327,10 @@ def status(company, doc_ids) -> list:
         sales = str((_primary_fields([name]).get(name) or {}).get("direction") or "") == "sales"
         # 单号与对方一起回：CC 重启后页面没有这一页的资料清单，靠它把单据写成「单号 · 对方」
         reason = str(doc.get("last_push_reason") or "") if state == "not_done" else ""
-        if lifecycle.result_unknown(pushed, reason):
-            reason = RESULT_UNKNOWN  # 推送结果不明：同开始前确认一个原因码，页面给「已入账」「没有入账」（10-29 测试机）
+        if lifecycle.result_unknown(pushed, reason) and not _needs_person(doc.get("last_push_record")):
+            state, reason = "queued", ""  # 结果不明、原电脑还能核对：等它开机核对（ADR-027 §6），页面照排队显示
+        elif lifecycle.result_unknown(pushed, reason):
+            reason = RESULT_UNKNOWN  # 原电脑核对不了：同开始前确认一个原因码，页面给「已入账」「没有入账」（10-29 测试机）
         row = {"doc_id": name, "state": state, "docnum": docnum, "reason": reason,
                "ref": str(doc.get("invoice_no") or ""),
                "party": str(doc.get("buyer_name" if sales else "seller_name") or "")}

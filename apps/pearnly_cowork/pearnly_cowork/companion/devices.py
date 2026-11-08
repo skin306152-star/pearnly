@@ -99,6 +99,10 @@ def retire(doc, actor):
         # 它够得到的账套不再算进池目录（下一次发布时），待认定的别的电脑也不再等它（ADR-021，方案 2.4 第 5 条）。
         # 经 `retire_orphan` 来的，可达行在锁电脑行之前已经删了，这里什么都不删
         pool.forget_device(doc.name)
+        # 它手上结果不明的单从此由人核对（ADR-027 §6）：记在推送记录上，推送那边据此出核对卡
+        from pearnly_cowork.push.native import service as push_service
+
+        push_service.device_gone(doc.name)
 
 
 def owners(names):

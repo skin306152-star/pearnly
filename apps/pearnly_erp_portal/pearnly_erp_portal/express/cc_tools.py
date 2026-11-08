@@ -510,7 +510,9 @@ def push_documents(tool_input) -> str:
 
 
 def resolve_push_result(tool_input) -> str:
-    """结果不明的单：照单据页对这种情形的「再写一次」交回原来那台电脑核对（有就报回单号，没有才写一次）。"""
+    """结果不明的单（ADR-027 §6，同 Cowork 一套）：原电脑还能核对的照单据页「再写一次」交回它核对（有就报回单号，没有才写一次；
+    关着就排队等它，结论 ``computer_checks``）；原电脑核对不了（移除、断开、开单的人不在它上面了，`jobs.needs_person`）才收人在
+    Express 里核对后报的结论（`express.api.resolve_unknown`：已入账记成功并登记待补码，没有入账从头排）。"""
     document = str(tool_input.get("document") or "")
     kind, name = _parse(document)
     row = _row(kind, name, write=True) if kind else None
@@ -521,8 +523,22 @@ def resolve_push_result(tool_input) -> str:
     if _other_company(row, tool_input):
         return direct_push.dumps({**direct_push.not_saved(document, OTHER_COMPANY), "company": row.company,
                                   "company_title": _company_title(row.company)})
-    if row.ledger_state != contracts.HELD or not _unknown(_job(row)):
+    job = _job(row)
+    if not (job and job.get("reason") == jobs.LOST and job.get("status") in ("queued", "manual")):
         return direct_push.dumps(direct_push.not_saved(document, direct_push.NO_PUSH_TO_CONFIRM))
+    if jobs.needs_person(job):
+        try:
+            api.resolve_unknown(kind.doctype, name, bool(tool_input.get("entered")), str(tool_input.get("docnum") or ""))
+        except (frappe.ValidationError, frappe.PermissionError) as error:
+            frappe.db.rollback()
+            frappe.clear_messages()
+            return direct_push.dumps(direct_push.not_saved(document, str(error)[:300] or NOT_PERMITTED))
+        results = [{"document": document, "status": "sent"}] if not tool_input.get("entered") else []
+        _settle(results)
+        outcome = results[0] if results else _outcome(kind, name)
+        return direct_push.dumps(direct_push.resolved(document, {key: outcome.get(key) for key in ("status", "docnum", "reason")}))
+    if job.get("status") == "queued":  # 已钉回原电脑排着（关着）：等它开机核对，不收人报
+        return direct_push.dumps({"document": document, "status": direct_push.COMPUTER_CHECKS})
     try:
         api.retry(kind.doctype, name)
     except (frappe.ValidationError, frappe.PermissionError) as error:

@@ -45,6 +45,7 @@ NEEDS_CHOICE = "needs_choice"  # 要人选一次（先看要选的项、记下�
 WAITING_FOR_CC = "waiting_for_cc"  # 电脑还在读这份账套的资料：稍后再推
 ALREADY_SUCCESS = "already_success"  # 早已入账：不再推
 ALREADY_PENDING = "already_pending"  # 已在路上：不再推
+COMPUTER_CHECKS = "computer_checks"  # 结果不明、原电脑还能核对：交它按本机记录核对（关着就等它开机），不收人报（ADR-027 §6）
 NOT_FOUND = "not_found"  # 没有这张，或本人看不到
 # 记下（选择、核对结论）的结论
 SAVED = "saved"
@@ -76,9 +77,11 @@ RESOLVE_SCHEMA = {"type": "object", "properties": {
 
 def resolve_description(programs: str, then: str = "so it can be pushed again.") -> str:
     """核对工具给模型的说明：``programs`` 是账本程序的叫法（"Express or MR.ERP" / "Express"），``then`` 说记下之后怎样。"""
-    return (f"When a push result is unknown ({programs} may or may not have it), record what the user "
-            "found after checking there: entered true (with its document number there if they have it) or "
-            f"false, {then} Only with the user's own answer; never guess.")
+    return (f"When a push result is unknown ({programs} may or may not have it). The computer that was writing it "
+            "checks first by its own record: status computer_checks means it does (now, or when it is next on), so "
+            "tell the user that and record nothing. Only when that computer can no longer check (removed or "
+            "disconnected) is the user's answer taken: ask them to check there, then record entered true (with its "
+            f"document number there if they have it) or false, {then} Only with the user's own answer; never guess.")
 
 
 def unconfirmed_rule(programs: str, resolve_tool: str) -> str:

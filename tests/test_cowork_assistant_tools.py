@@ -131,7 +131,8 @@ def _install():
     _stub_person_names()
     names = ["pearnly_cowork", "pearnly_cowork.access", "pearnly_cowork.assistant", "pearnly_cowork.connections",
              "pearnly_cowork.folder_intake",
-             "pearnly_cowork.history", "pearnly_cowork.push", "pearnly_cowork.push.application"]
+             "pearnly_cowork.history", "pearnly_cowork.push", "pearnly_cowork.push.application",
+             "pearnly_cowork.push.native"]
     for name in names:
         sys.modules[name] = types.ModuleType(name)
     leaf = {
@@ -155,6 +156,8 @@ def _install():
         "pearnly_cowork.history.storage": dict(read=lambda name: None, declare_direction=lambda names, direction: []),
         "pearnly_cowork.push.application.service": dict(),
         "pearnly_cowork.push.application.api": dict(),
+        # 结果不明先交原电脑核对（ADR-027 §6）：替身里原电脑都已核对不了，照旧收人报；还能核对的另有一条测试
+        "pearnly_cowork.push.native.service": dict(computer_checks=lambda record: record == "PR-ON"),
         # 推送原因按用户语言给模型（真的 reason_text 要查翻译表，这里标出「翻过了」）
         "pearnly_cowork.push.export_facts": dict(reason_text=lambda reason: "said:" + reason),
     }

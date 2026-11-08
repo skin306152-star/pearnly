@@ -2298,7 +2298,8 @@ def _not_chosen(name, stop, **extra) -> dict:
 
 
 def resolve_push_result(tool_input) -> str:
-    """推送结果不明：用户在 ERP 里核对后告诉 CC 已入账（可带 ERP 单号）或未入账（之后可重推）。"""
+    """推送结果不明（ADR-027 §6，同 ERP 一套）：原电脑还能核对的交它核对（``computer_checks``）；核对不了的才收用户在账本里
+    核对后报的已入账（可带单号）或未入账（之后可重推）。"""
     scope.require("intake")
     name = str(tool_input.get("document") or "")
     try:
@@ -2308,6 +2309,11 @@ def resolve_push_result(tool_input) -> str:
         return _json({"document": name, "status": "not_found"})
     if not doc.last_push_record:
         return _json(direct_push.not_saved(name, direct_push.NO_PUSH_TO_CONFIRM))
+    from pearnly_cowork.push.native import service as native
+
+    if native.computer_checks(doc.last_push_record):
+        # 原电脑还能核对（ADR-027 §6，同 ERP）：它开机来领单时按本机记录核对，不收人报
+        return _json({"document": name, "status": direct_push.COMPUTER_CHECKS})
     try:
         result = application_api.resolve_unknown(doc.last_push_record, 1 if tool_input.get("entered") else 0,
                                                  str(tool_input.get("docnum") or "") or None)

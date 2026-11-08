@@ -1023,6 +1023,39 @@ def mark_unknown(name, *, context, adapter, fence, attempt_token, reason='ERP_CO
         return {**project(row), 'replayed': False}
 
 
+COMPUTER_CHECKS = 'cc_desktop.computer_checks'  # 原电脑还能核对时不收人报（同 ERP，`pearnly_core.cc_desktop.jobs`）
+
+
+def rechecks(row):
+    """结果不明的这条，原电脑还能自己核对（ADR-027 §6，同 ERP `cc_desktop.devices.can_recheck`）：领它的是一台 CC 桌面版
+    （服务端 MR.ERP 执行器没有本机记录，不算）、那台没被移除（移除时电脑那边经 :func:`device_gone` 记在记录上）、丢的次数没到
+    上限。关着也算——它开机来领单时重发、按本机记录核对（`companion.transport._redeliver`，用户 10-16「电脑关了就排队」）。"""
+    device = row.get('written_by_device') or ''
+    return bool(device) and not row.get('device_gone') and _lost_attempts(row) < MAX_REDELIVERIES
+
+
+def device_gone(device):
+    """这台电脑被移除了（`companion.devices.retire` 叫）：它手上还没了结的记录（领取中、结果不明）记上「原电脑已移除」，
+    之后结果不明的出人核对卡（:func:`needs_person`）。只改这一列，状态不动。"""
+    if device:
+        frappe.db.sql(f"""UPDATE `tab{RECORD}` SET device_gone = 1 WHERE written_by_device = %s
+            AND (status = 'leased' OR (status = 'manual' AND result_unknown = 1))""", (device,))
+
+
+def needs_person(name):
+    """这条推送记录结果不明、原电脑核对不了（:func:`rechecks`）：出人核对卡（开始前确认、代录状态、对话工具同一判法）。"""
+    row = frappe.db.get_value(RECORD, name, ['name', 'status', 'result_unknown', 'written_by_device', 'device_gone'],
+                              as_dict=True) if name else None
+    return bool(row) and row.status == 'manual' and bool(row.result_unknown) and not rechecks(row)
+
+
+def computer_checks(name):
+    """这条推送记录结果不明、原电脑还能核对（:func:`rechecks`）：交它核对，不收人报（对话工具回 ``computer_checks``）。"""
+    row = frappe.db.get_value(RECORD, name, ['name', 'status', 'result_unknown', 'written_by_device', 'device_gone'],
+                              as_dict=True) if name else None
+    return bool(row) and row.status == 'manual' and bool(row.result_unknown) and rechecks(row)
+
+
 def resolve_unknown(name, *, context, entered, docnum=None, now=None):
     """结果不明（写入已发出、没拿到结果；或修复前推进了没关联日记账的 MR.ERP 菜单）由人去 ERP 核对后解除。
 
@@ -1042,6 +1075,8 @@ def resolve_unknown(name, *, context, entered, docnum=None, now=None):
         row = _record(name, context)
         if row.status != 'manual' or not row.result_unknown:
             fail('push.native_state_invalid')
+        if rechecks(row):
+            fail(COMPUTER_CHECKS)  # 先交原电脑核对；核对不了（移除、不再归它、丢满 3 次、MR.ERP）才收人报
         timestamp = now_utc(now)
         _release(row, [lock for lock in locks if lock.holder == row.name])
         if row.active_attempt:

@@ -1971,11 +1971,16 @@ class OperatorSourceTests(unittest.TestCase):
             return types.SimpleNamespace(connection="C1", account_key="k1") if isinstance(field, list) else "HS0000014"
 
         unknown = []   # 同一份账套里结果不明、持着写者锁的那张（ADR-021 11-02 修订）
+        gone = [True]  # 原电脑核对不了（ADR-027 §6）才给核对按钮；还能核对的照排队
         with mock.patch.object(frappe.db, "get_value", value, create=True), \
-                mock.patch.object(frappe.db, "sql", lambda q, v=(), as_dict=False: list(unknown), create=True):
+                mock.patch.object(frappe.db, "sql", lambda q, v=(), as_dict=False: list(unknown), create=True), \
+                mock.patch.object(module, "_needs_person", lambda record: gone[0]):
             out = module.status("CO1", ["h1", "h2", "h3", "h4", "h5", "gone"])
             unknown.append(types.SimpleNamespace(history="h5"))
             held = module.status("CO1", ["h2"])[0]
+            gone[0] = False
+            waiting = module.status("CO1", ["h5"])[0]
+        self.assertEqual((waiting["state"], waiting["reason"]), ("queued", ""))
         self.assertEqual([(r["state"], r["docnum"], r["reason"]) for r in out],
                          [("saved", "HS0000014", ""), ("queued", "", ""), ("not_done", "", "[OPERATOR_PARTY_MISSING]"),
                           ("cancelled", "", ""), ("not_done", "", "push.result_unknown"), ("unknown", "", "")])

@@ -2309,6 +2309,39 @@ class OperatorPrecheck(PushModule):
         fake.STATE.hooks.pop(products.HOOK, None)  # 没声明的产品：一律 unknown，页面照旧按排队显示、不收尾
         self.assertEqual([r["state"] for r in products.status("CO-1", ["P:1"])], ["unknown"])
 
+    def test_a_result_unknown_goes_to_a_person_only_when_its_computer_cannot_check(self):
+        """ADR-027 §6（A 批 3，同 Cowork）：结果不明的单原电脑还能核对 → 任务里照排队、不收人报；核对不了 → 页面给「已入账 /
+        没有入账」，人报走单据页同一条 `api.resolve_unknown`。结果不明的代录件不进资料区、不撤旧件重交（可能已写进 Express）。"""
+        from pearnly_erp_portal.express import api
+
+        lost = {"job": "J1", "status": "manual", "reason": self.operator.jobs.LOST, "request_key": "erp-operator:x",
+                "device": "PC-1", "actor": "a@x"}
+        row = types.SimpleNamespace(ledger_state="held", ledger_docnum="", ledger_reason=self.operator.jobs.LOST,
+                                    ledger_job="J1", system_no="PE-1", supplier_name="ISUZU")
+        calls = []
+        for gone in (False, True):
+            with mock.patch.object(self.operator.guard, "has", lambda capability, user=None: True), \
+                    mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
+                    mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                    mock.patch.object(frappe.db, "get_value", lambda doctype, name, fields=None, as_dict=False:
+                                      row if as_dict else "J1", create=True), \
+                    mock.patch.object(self.operator.jobs, "find_by_name", lambda name: lost), \
+                    mock.patch.object(self.operator.jobs, "needs_person", lambda job: gone), \
+                    mock.patch.object(api, "resolve_unknown", lambda *args: calls.append(args)):
+                found = self.operator.status("CO-1", ["P:PI-1"])[0]
+                answer = self.operator.resolve("CO-1", "P:PI-1", True, "RR9")
+                self.assertFalse(self.operator._operator_held("J1"))  # 不进资料区再录
+                self.assertFalse(self.push.release_operator(self.push.PURCHASE, "PI-1"))  # 不撤旧件
+            if gone:
+                self.assertEqual((found["state"], found["reason"], found["ref"]), ("not_done", "push.result_unknown", "PE-1"))
+                self.assertEqual(answer, {"ok": True})
+            else:
+                self.assertEqual((found["state"], found["reason"]), ("queued", ""))
+                self.assertEqual(answer, {"ok": False, "reason": "computer_checks"})
+        self.assertEqual(calls, [(self.push.PURCHASE, "PI-1", True, "RR9")])
+        hooks = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")
+        self.assertIn('"resolve": "pearnly_erp_portal.express.operator.resolve"', hooks)
+
     def test_a_product_without_a_precheck_treats_every_document_as_ready(self):
         from pearnly_core.express_operator import products
 

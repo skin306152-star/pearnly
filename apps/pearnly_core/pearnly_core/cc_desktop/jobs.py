@@ -122,10 +122,56 @@ def retry(name) -> dict:
     if doc.status != "manual":
         frappe.throw(_("cc_desktop.job_busy"))
     pinned = doc.route_device if doc.reason == LOST else None
-    doc.update({"status": "queued", "attempt": 0, "reason": "", "stage": "", "route_device": pinned})
+    # 钉回原电脑的仍记「结果不明」（同租约收回那条，:func:`_recover`）：原电脑后来移除了，`needs_person` 才认得出它、出人核对卡
+    doc.update({"status": "queued", "attempt": 0, "reason": LOST if pinned else "", "stage": "", "route_device": pinned})
     documents.persist(doc)
     products.job_changed(view(doc.as_dict()))
     return view(doc.as_dict())
+
+
+# 人核对后报「已入账」记成功的那件（ADR-027 §6 第 ③ 条）：stage 记成它，产品据此登记「待补码」（人报的没有对方档码与存货码，
+# 电脑上线后按单号读回补挂）
+BY_PERSON = "resolved_by_person"
+# 原电脑还能核对时不收人报（先交它按本机记录核对；关着就排队等它）：两产品同一句
+COMPUTER_CHECKS = "cc_desktop.computer_checks"
+
+
+def needs_person(job) -> bool:
+    """结果不明（钉在原电脑上排着，或丢满 3 次转了人工），而原电脑已核对不了（移除、断开、开单的人不在它上面了，
+    `devices.can_recheck`）：出人核对卡。原电脑只是关着的照旧排队等它（用户 10-16）。"""
+    return bool(job) and job.get("status") in ("queued", "manual") and job.get("reason") == LOST and \
+        not devices.can_recheck(job.get("device"), job.get("actor"))
+
+
+def settle_by_person(name, entered, docnum="", user="") -> dict:
+    """人核对卡的结论（原电脑核对不了时才收，:func:`needs_person`）：「已入账」记成功（人报的单号，``stage`` = :data:`BY_PERSON`，
+    产品登记待补码）；「没有入账」解开钉住、从头排，谁的电脑能写谁写。原电脑还能核对的照旧交它核对，不收人报。"""
+    doc = frappe.get_doc(JOB, name, for_update=True)
+    if not needs_person(view(doc.as_dict())):
+        frappe.throw(_(COMPUTER_CHECKS))
+    if entered:
+        doc.update({"status": "success", "docnum": str(docnum or "")[:40], "reason": "", "stage": BY_PERSON,
+                    "route_device": None, "written_at": _now(),
+                    "meta_json": json.dumps({"resolved_by": str(user or frappe.session.user)}, ensure_ascii=False)})
+    else:
+        doc.update({"status": "queued", "attempt": 0, "reason": "", "stage": "", "route_device": None})
+    documents.persist(doc)
+    products.job_changed(view(doc.as_dict()))
+    return view(doc.as_dict())
+
+
+def orphan(device) -> int:
+    """电脑从 CC 断开这个站点（`devices.leave`）：钉在它上面排着等核对的结果不明件转人工（仍记结果不明），进产品的「待处理」、
+    出人核对卡（:func:`needs_person`）；不然它们一直显示排队、没人看得到（ADR-027 §6）。回转了几件。"""
+    names = frappe.get_all(JOB, filters={"status": "queued", "route_device": device, "reason": LOST}, pluck="name",
+                           limit_page_length=HEAD_SCAN)
+    for name in names:
+        doc = frappe.get_doc(JOB, name, for_update=True)
+        if doc.status == "queued" and doc.route_device == device and doc.reason == LOST:
+            doc.update({"status": "manual", "stage": "needs_review"})
+            documents.persist(doc)
+            products.job_changed(view(doc.as_dict()))
+    return len(names)
 
 
 def writers(actor, book_key) -> dict:

@@ -754,6 +754,7 @@ The bind code has expired — please regenerate,連携コードの期限が切�
 "The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again.",LINE 内ではカメラを開けません。「ブラウザで開く」をタップするか、スマートフォンの設定で LINE のカメラを許可してから再試行してください。
 "The camera could not start. Try again, or enter the code.",カメラを起動できません。もう一度お試しいただくか、コードを入力してください。
 The camera is being used by another app. Close that app and try again.,カメラが他のアプリで使用中です。そのアプリを閉じてから、もう一度お試しください。
+The computer that was writing it checks it when it is on,書き込んでいたパソコンが起動したときに確認します
 The control plane is not affected,コントロールプレーンは影響を受けません
 The current password is wrong,現在のパスワードが正しくありません
 "The details are not confirmed yet, so it cannot be pushed to DMS",情報が未確定のためDMSへ送信できません
@@ -946,6 +947,7 @@ assistant.tool.declined,この変更は拒否されました
 assistant.tool.refused,リクエストが拒否されました
 assistant.tool.unavailable,このサイトではこの操作に対応していません
 cc_desktop.busy,CC デスクトップのサービスは一時的に利用できません。しばらくしてからもう一度お試しください。
+cc_desktop.computer_checks,書き込んでいたパソコンが起動したときに確認します
 cc_desktop.job_busy,この Express への書き込みは処理中です。
 cc_desktop.job_invalid,Express への書き込み内容が無効です。
 cc_desktop.request_invalid,CC デスクトップのリクエストが無効です。

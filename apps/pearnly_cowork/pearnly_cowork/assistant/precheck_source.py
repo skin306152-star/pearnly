@@ -71,8 +71,17 @@ def document(history, posting_kind=None, hint=None) -> dict:
     doc = storage.read(history)
     fields = primary_page_fields(json.loads(doc.pages or "[]"))
     base = {"doc_id": doc.name, "ref": str(getattr(doc, "invoice_no", "") or ""), "party": _party(doc, fields), "items": []}
-    if lifecycle.result_unknown(doc.last_push_status, doc.last_push_reason):
-        # 上次领单途中断了、结果不明：先在 Express 里核对（流程锁，防重复入账），不问别的
+    unknown = lifecycle.result_unknown(doc.last_push_status, doc.last_push_reason)
+    if unknown:
+        from pearnly_cowork.push.native import service as native
+    if unknown and not native.needs_person(doc.last_push_record):
+        # 结果不明、原电脑还能核对（ADR-027 §6）：等它开机按本机记录核对，不问人、不重交
+        legacy = {"state": "blocked", "reason": native.COMPUTER_CHECKS, "record": doc.last_push_record or "",
+                  "message": _(native.COMPUTER_CHECKS)}
+        return {**base, "state": card.WAITING, "reason": native.COMPUTER_CHECKS, "record": legacy["record"],
+                "legacy": legacy}
+    if unknown:
+        # 上次领单途中断了、结果不明，原电脑核对不了：人在 Express 里核对（流程锁，防重复入账），不问别的
         legacy = {"state": "blocked", "reason": service.RESULT_UNKNOWN, "record": doc.last_push_record or "",
                   "message": _("intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN")}
         return {**base, "state": card.UNKNOWN, "reason": service.RESULT_UNKNOWN, "record": legacy["record"],

@@ -302,6 +302,47 @@ class Queue(Base):
         self.assertEqual((found["status"], found["reason"], found["route_device"]), ("manual", jobs.LOST, self.office.device))
         self.assertEqual(self.ack(self.office, job["job"])["status"], "success")  # 迟到的回执照收
 
+    def test_a_person_checks_a_result_unknown_only_when_its_computer_cannot(self):
+        """ADR-027 §6（A 批 3）：结果不明先交原电脑按本机记录核对；它只是关着就排队等它（用户 10-16），不收人报。它被移除、
+        从 CC 断开这个站点、开单的人不在它上面了，才由人报：已入账记成功（stage = BY_PERSON，产品登记待补码），没有入账解开
+        钉住、谁的电脑能写谁写。"""
+        job = self.enqueue()
+        for _ in range(4):  # 领一次、重发两次、第 3 次丢转人工（同上一条）
+            self.lease(self.office)
+        view = jobs.find_by_name(job["job"])
+        self.assertEqual((view["status"], view["reason"]), ("manual", jobs.LOST))
+        self.offline(self.office)
+        self.assertFalse(jobs.needs_person(view))  # 关着：等它
+        with self.assertRaises(frappe.ValidationError):
+            jobs.settle_by_person(job["job"], True, "RR001")
+        devices_row = fake.STATE.db.table(documents.DEVICE)[self.office.device]
+        devices_row["token_digest"] = None  # 从 CC 断开这个站点（`devices.leave`）
+        self.assertTrue(jobs.needs_person(jobs.find_by_name(job["job"])))
+        done = jobs.settle_by_person(job["job"], True, "RR001", "owner@x")
+        self.assertEqual((done["status"], done["docnum"], done["stage"]), ("success", "RR001", jobs.BY_PERSON))
+        self.assertEqual(self.changes[-1]["stage"], jobs.BY_PERSON)  # 产品照常收到这次改动
+
+        again = self.enqueue(name="SD-2")
+        fake.STATE.db.table(documents.JOB)[again["job"]].update(status="manual", reason=jobs.LOST,
+                                                                 route_device=self.office.device)
+        devices_row["retired_at"] = devices.now()  # 移除
+        found = jobs.settle_by_person(again["job"], False)
+        self.assertEqual((found["status"], found["reason"]), ("queued", ""))
+        self.assertIsNone(fake.STATE.db.table(documents.JOB)[again["job"]]["route_device"])  # 不再钉着
+
+    def test_leaving_turns_its_pinned_unknown_jobs_over_to_a_person(self):
+        """电脑从 CC 断开：钉在它上面排着等核对的结果不明件转人工（仍记结果不明），进待处理、出人核对卡（ADR-027 §6）。"""
+        job = self.enqueue()
+        fake.STATE.db.table(documents.JOB)[job["job"]].update(status="queued", reason=jobs.LOST,
+                                                               route_device=self.office.device)
+        other = self.enqueue(name="SD-3")
+        devices.leave(self.office)
+        found = jobs.find_by_name(job["job"])
+        self.assertEqual((found["status"], found["reason"]), ("manual", jobs.LOST))
+        self.assertTrue(jobs.needs_person(found))
+        self.assertEqual(self.changes[-1]["job"], job["job"])  # 产品收到改动（单据进待处理）
+        self.assertEqual(jobs.find_by_name(other["job"])["status"], "queued")  # 别的照排
+
     def test_old_cc_desktop_does_not_take_a_newer_payload(self):
         self.report(self.office, payload_version=2)
         job = self.enqueue(payload_version=4)

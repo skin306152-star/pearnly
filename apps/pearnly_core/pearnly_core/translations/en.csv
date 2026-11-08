@@ -752,6 +752,7 @@ The bind code has expired — please regenerate,The bind code has expired — pl
 "The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again.","The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again."
 "The camera could not start. Try again, or enter the code.","The camera could not start. Try again, or enter the code."
 The camera is being used by another app. Close that app and try again.,The camera is being used by another app. Close that app and try again.
+The computer that was writing it checks it when it is on,The computer that was writing it checks it when it is on
 The control plane is not affected,The control plane is not affected
 The current password is wrong,The current password is wrong
 "The details are not confirmed yet, so it cannot be pushed to DMS","The details are not confirmed yet, so it cannot be pushed to DMS"
@@ -944,6 +945,7 @@ assistant.tool.declined,Change declined
 assistant.tool.refused,Request refused
 assistant.tool.unavailable,This action is not supported on this site
 cc_desktop.busy,The CC Desktop service is temporarily unavailable. Try again shortly.
+cc_desktop.computer_checks,The computer that was writing it checks it when it is on
 cc_desktop.job_busy,This Express write is in progress.
 cc_desktop.job_invalid,The Express write is invalid.
 cc_desktop.request_invalid,The CC Desktop request is invalid.

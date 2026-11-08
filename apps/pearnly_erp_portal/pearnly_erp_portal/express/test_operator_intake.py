@@ -214,7 +214,8 @@ class Submit(Base):
             self.rows.get(name) if doctype == intake.DOCTYPE else
             SimpleNamespace(ledger_state=operator.contracts.WRITTEN, ledger_docnum="RR001", ledger_reason="", ledger_job="J1",
                             system_no="PE-7", supplier_name="ISUZU"))
-        row = operator.status("CO-1", ["I:LI-1"])[0]
+        with patch.object(operator.jobs, "find_by_name", return_value={"job": "J1", "status": "success", "reason": ""}):
+            row = operator.status("CO-1", ["I:LI-1"])[0]
         self.assertEqual((row["state"], row["docnum"], row["ref"], row["party"]), ("saved", "RR001", "PE-7", "ISUZU"))
 
 

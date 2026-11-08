@@ -123,12 +123,13 @@ def revalidate(context: Context) -> Context:
 def leave(context: Context) -> dict:
     """电脑自己断开（CC 桌面版删掉这个成员）：作废这把令牌、删掉它报的账套名单（再连上时心跳整份重报），电脑行与登录记录留着。
     名单留着的话产品还会按它挑账套、建公司（10-23：断开的电脑名单里的账套被挑中，读主档一直「电脑离线」）。"""
-    from pearnly_core.cc_desktop import books
+    from pearnly_core.cc_desktop import books, jobs
 
     doc = frappe.get_doc(DEVICE, context.device, for_update=True)
     doc.update({"token_digest": None, "last_seen_at": None})
     documents.persist(doc)
     books.drop_device(context.device)
+    jobs.orphan(context.device)  # 钉在它上面等核对的结果不明件转人工、出人核对卡（ADR-027 §6）
     return {"status": "left"}
 
 
@@ -189,6 +190,17 @@ def touch(context: Context):
 
 def signed_in(device) -> frozenset:
     return frozenset(contracts.users(frappe.db.get_value(DEVICE, device, "signed_in_users")))
+
+
+def can_recheck(device, actor) -> bool:
+    """结果不明钉住的那台电脑还能不能自己核对（ADR-027 §6，两产品同一口径）：电脑记录在、没移除（``retired_at``）、没从 CC 断开
+    这个站点（令牌在，`leave` 会清掉）、开单的人还在它上面登录过（还归它写，`route_contracts.serves`）。关着（离线）也算能——
+    排队等它开机（用户 10-16「电脑关了就排队」）；核对不了的才出人核对卡。"""
+    if not device:
+        return False
+    row = frappe.db.get_value(DEVICE, device, ["retired_at", "token_digest", "signed_in_users"], as_dict=True)
+    return bool(row) and not row.retired_at and bool(row.token_digest) and \
+        route_contracts.serves(contracts.users(row.signed_in_users), actor)
 
 
 def peers() -> dict:

@@ -530,6 +530,53 @@ class SharedUploadStateTests(unittest.TestCase):
         self.assertNotIn("ENTRY_GROUPS", page)  # 页面不再自己定哪几组能拖
 
 
+class CoworkRecheckTests(unittest.TestCase):
+    """A 批 3（ADR-027 §6，同 ERP）：Cowork 结果不明先交原电脑核对；原电脑被移除（电脑那边经 ``device_gone`` 记在推送记录上）、
+    丢满上限、没有本机记录（MR.ERP 服务端执行器）才出人核对卡。推送域只看自己的记录，不反过来依赖电脑域（架构检查）。"""
+
+    @classmethod
+    def setUpClass(cls):
+        import ast
+
+        path = ROOT / "apps/pearnly_cowork/pearnly_cowork/push/native/service.py"
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        wanted = {"rechecks", "device_gone", "needs_person"}
+        body = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in wanted]
+        cls.sql, cls.lost = [], {"R2": 3}
+        rows = {"R1": types.SimpleNamespace(name="R1", status="manual", result_unknown=1, written_by_device="PC-1",
+                                            device_gone=0),
+                "R2": types.SimpleNamespace(name="R2", status="manual", result_unknown=1, written_by_device="PC-1",
+                                            device_gone=0),
+                "R3": types.SimpleNamespace(name="R3", status="manual", result_unknown=1, written_by_device="",
+                                            device_gone=0),
+                "R4": types.SimpleNamespace(name="R4", status="manual", result_unknown=1, written_by_device="PC-1",
+                                            device_gone=1)}
+        for row in rows.values():
+            row.get = lambda key, default=None, row=row: getattr(row, key, default)
+        frappe_stub = types.SimpleNamespace(db=types.SimpleNamespace(
+            get_value=lambda doctype, name, fields, as_dict=False: rows.get(name),
+            sql=lambda query, values=(): cls.sql.append((query, values))))
+        cls.ns = {"frappe": frappe_stub, "RECORD": "Cowork Push Record", "MAX_REDELIVERIES": 3,
+                  "_lost_attempts": lambda row: cls.lost.get(row.name, 0)}
+        exec(compile(ast.Module(body=body, type_ignores=[]), str(path), "exec"), cls.ns)
+        cls.source = path.read_text(encoding="utf-8")
+
+    def test_the_computer_checks_first_and_a_person_only_when_it_cannot(self):
+        needs = self.ns["needs_person"]
+        self.assertFalse(needs("R1"))  # 原电脑在（关着也算）：等它
+        self.assertTrue(needs("R2"))  # 丢满 3 次
+        self.assertTrue(needs("R3"))  # 没有本机记录（MR.ERP 服务端执行器）
+        self.assertTrue(needs("R4"))  # 原电脑已移除
+        self.assertFalse(needs(""))
+        self.ns["device_gone"]("PC-1")
+        query, values = self.sql[-1]
+        self.assertIn("SET device_gone = 1", query)
+        self.assertEqual(values, ("PC-1",))
+        self.assertIn("if rechecks(row):\n            fail(COMPUTER_CHECKS)", self.source)  # 人报先过这道
+        devices = (ROOT / "apps/pearnly_cowork/pearnly_cowork/companion/devices.py").read_text(encoding="utf-8")
+        self.assertIn("push_service.device_gone(doc.name)", devices)  # 移除电脑时通知推送那边
+
+
 class ProgressEventTests(unittest.TestCase):
     """B5：识别排队、开始读、读到第几页、有结论都已推给提交人（同一个事件，`reference` 是识别任务号 = 上传的 `batch`），
     这次不另加推送。"""

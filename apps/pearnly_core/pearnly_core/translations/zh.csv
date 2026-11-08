@@ -754,6 +754,7 @@ The bind code has expired — please regenerate,绑定码已过期，请重新�
 "The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again.",在 LINE 里打不开相机。请点「用浏览器打开」，或在手机设置里允许 LINE 使用相机后重试。
 "The camera could not start. Try again, or enter the code.",相机无法启动。请重试，或手动输入编码。
 The camera is being used by another app. Close that app and try again.,相机正被其他应用占用。请关闭该应用后重试。
+The computer that was writing it checks it when it is on,由原来写入的电脑开机后核对
 The control plane is not affected,控制面不受影响
 The current password is wrong,当前密码不正确
 "The details are not confirmed yet, so it cannot be pushed to DMS",资料未确认，无法推送到 DMS
@@ -946,6 +947,7 @@ assistant.tool.declined,已拒绝此更改
 assistant.tool.refused,请求被拒绝
 assistant.tool.unavailable,本站不支持此操作
 cc_desktop.busy,CC 桌面版服务暂时不可用，请稍后重试。
+cc_desktop.computer_checks,由原来写入的电脑开机后核对
 cc_desktop.job_busy,此 Express 写入正在进行中。
 cc_desktop.job_invalid,Express 写入内容无效。
 cc_desktop.request_invalid,CC 桌面版请求无效。

@@ -460,8 +460,11 @@ def book_target(book) -> dict | None:
 
 
 def _operator_held(job_name) -> bool:
+    """上一件是代录交的、停在要人处理（代录可以再录）。结果不明的不算：可能已经写进 Express，再录会重复入账；它照
+    ADR-027 §6 先交原电脑核对，核对不了才由人在任务里报「已入账 / 没有入账」（:func:`resolve`）。"""
     job = jobs.find_by_name(job_name)
-    return bool(job) and job.get("status") == "manual" and str(job.get("request_key") or "").startswith(push.OPERATOR_KEY)
+    return bool(job) and job.get("status") == "manual" and job.get("reason") != jobs.LOST and \
+        str(job.get("request_key") or "").startswith(push.OPERATOR_KEY)
 
 
 def _remember(company, doctype, name, given, seen=None) -> None:
@@ -529,6 +532,27 @@ def _submit_intake(company, doc_id, answers=None):
     return (*done, rest) if done else None
 
 
+RESULT_UNKNOWN = "push.result_unknown"  # 同共用层 `express_operator.tasks.RESULT_UNKNOWN`：页面认它给核对按钮
+
+
+def resolve(company, doc_id, entered, docnum="") -> dict:
+    """任务里「结果不明」的单，原电脑核对不了时人在 Express 核对后报结论（共用层 ``resolve``）：走单据页同一条
+    `express.api.resolve_unknown`（已入账记成功、登记待补码；没有入账从头排）。原电脑还能核对的回 ``computer_checks``。"""
+    from pearnly_erp_portal.express import api
+
+    target = _target(company, doc_id)
+    if target is None and str(doc_id).startswith(INTAKE + ":"):
+        found = _intake(company, doc_id)
+        target = _submitted(found) if found else None
+    if target is None:
+        return {"ok": False, "reason": "not_found"}
+    job_name = frappe.db.get_value(target[0], target[1], "ledger_job")
+    if not jobs.needs_person(jobs.find_by_name(job_name) if job_name else None):
+        return {"ok": False, "reason": "computer_checks"}
+    api.resolve_unknown(target[0], target[1], bool(entered), docnum)
+    return {"ok": True}
+
+
 def status(company, doc_ids) -> list:
     """CC 重启后恢复出来的任务，以站点为准收尾（共用层 ``status``）：按单据的 Express 写账状态——已写入 → 已入账（带单号）、
     排着写账件 → 仍在队列、停住 / 失败 / 对不上 → 未完成（带原因）、没排或已撤回、人标了手工处理 → 已取消；不是这家公司、
@@ -552,6 +576,14 @@ def status(company, doc_ids) -> list:
                                   as_dict=True) if target else None
         if not row:
             out.append({"doc_id": doc_id, "state": "unknown", "docnum": "", "reason": ""})
+            continue
+        job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
+        if job and job.get("reason") == jobs.LOST and job.get("status") in ("queued", "manual"):
+            # 结果不明（ADR-027 §6，同 Cowork）：原电脑核对不了 → 页面给「已入账」「没有入账」；还能核对 → 照排队等它开机
+            unknown = jobs.needs_person(job)
+            out.append({"doc_id": doc_id, "state": "not_done" if unknown else "queued", "docnum": "",
+                        "reason": RESULT_UNKNOWN if unknown else "", "ref": str(getattr(row, "system_no", None) or target[1]),
+                        "party": str(getattr(row, PARTY_FIELD[target[0]], None) or "")})
             continue
         if row.ledger_state == contracts.WRITTEN:
             state = "saved"

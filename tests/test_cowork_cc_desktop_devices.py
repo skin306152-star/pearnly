@@ -434,6 +434,14 @@ def _install_connections(frappe):
     reports.MAPPING_KEYS = frozenset(("revenue_acc", "ar_acc", "vat_output_acc", "fallback_acc", "ap_acc",
                                       "vat_input_acc"))
     connections.pool, connections.member, connections.reports = pool, member, reports
+    # A 批 3（ADR-027 §6）：电脑移除时通知推送那边，它手上结果不明的单改由人核对（`push.native.service.device_gone`）
+    push_service = types.ModuleType("pearnly_cowork.push.native.service")
+    push_service.GONE = []
+    push_service.device_gone = push_service.GONE.append
+    for name in ("pearnly_cowork.push", "pearnly_cowork.push.native"):
+        sys.modules.setdefault(name, types.ModuleType(name))
+    sys.modules["pearnly_cowork.push.native"].service = push_service
+    sys.modules["pearnly_cowork.push.native.service"] = push_service
     sys.modules.update({"pearnly_cowork.connections": connections, "pearnly_cowork.connections.access": access,
                         "pearnly_cowork.connections.model": model, "pearnly_cowork.connections.service": service,
                         "pearnly_cowork.connections.pool": pool, "pearnly_cowork.connections.member": member,

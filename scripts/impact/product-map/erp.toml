@@ -35,6 +35,16 @@ where = "代录 uploads"
 tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/express/test_operator_intake.py::test_uploads_maps_states_and_lists_the_documents_of_the_file"]
 
 [[row]]
+id = "erp.cc.operator.resolve"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:erp:resolve"
+where = "代录 resolve（结果不明、原电脑核对不了时人报已入账 / 没有入账）"
+tests = ["unit:tests/test_erp_express_direct.py::test_a_result_unknown_goes_to_a_person_only_when_its_computer_cannot_check"]
+
+[[row]]
 id = "erp.cc.operator.target"
 product = "ERP"
 channel = "cc-operator"

@@ -633,6 +633,8 @@ pearnly_express_operator = {
     "target": "pearnly_erp_portal.express.operator.target",
     "submit": "pearnly_erp_portal.express.operator.submit",
     "status": "pearnly_erp_portal.express.operator.status",
+    # 结果不明、原电脑核对不了时人报结论（ADR-027 §6，A 批 3：两产品同一张核对卡）
+    "resolve": "pearnly_erp_portal.express.operator.resolve",
     "pending": "pearnly_erp_portal.express.operator.pending_documents",
 }
 # 写账前置判定（共用层 pearnly_core.write_precheck，开始前确认卡片，评估 docs/work/2026-11-04-precheck-card.md W3）：一批单写进

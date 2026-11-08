@@ -92,6 +92,8 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
         if mismatch:
             raise Stop(mismatch)
 
+    # 推送记录 PR-ON 的原电脑还能核对（ADR-027 §6），其余核对不了
+    native = ns(needs_person=lambda record: record != "PR-ON", COMPUTER_CHECKS="cc_desktop.computer_checks")
     service = ns(
         RESULT_UNKNOWN="push.result_unknown", _document_block=lambda d: block, _express_context=lambda *a: dict(found),
         _operator_target=lambda *a: dict(target), _require_matching_account=matching, _choices=choices,
@@ -132,6 +134,9 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
         "pearnly_cowork.push.application.service": service,
         "pearnly_cowork.push.application.goods_posting": ns(choose=lambda name, value: calls.append(("goods", name, value))),
         "pearnly_cowork.push.application.provenance": ns(original_history=lambda d: None),
+        # 结果不明的单原电脑核对不了（ADR-027 §6）：照旧出核对卡；还能核对的另有一条测试
+        "pearnly_cowork.push.native": ns(service=native),
+        "pearnly_cowork.push.native.service": native,
         "pearnly_cowork.push.express": ns(goods_posting=goods_posting),
         "pearnly_cowork.push.express.goods_posting": goods_posting,
         "pearnly_cowork.history": ns(storage=storage, document_policy=ns(
@@ -254,6 +259,9 @@ class Collect(unittest.TestCase):
         found, _calls, _m = self.run_document(document(last_push_reason="UNKNOWN", last_push_record="PR-1"))
         self.assertEqual((found["state"], found["record"]), (card.UNKNOWN, "PR-1"))
         self.assertEqual(found["legacy"]["state"], "blocked")
+        # 原电脑还能核对：等它开机按本机记录核对，不出核对卡、不问人（ADR-027 §6）
+        found, _calls, _m = self.run_document(document(last_push_reason="UNKNOWN", last_push_record="PR-ON"))
+        self.assertEqual((found["state"], found["reason"]), (card.WAITING, "cc_desktop.computer_checks"))
         found, _calls, _m = self.run_document(mismatch="push.date_outside_period")
         self.assertEqual((found["state"], found["reason"]), (card.NOT_WRITABLE, "push.date_outside_period"))
         self.assertEqual(found["legacy"]["message"], "push.date_outside_period")
