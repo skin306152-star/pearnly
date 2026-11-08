@@ -1241,6 +1241,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-intake:Submit"
 where = "pearnly-intake 页头「Submit」"
+tests = ["flow:cowork.intake.submit"]
 
 [[row]]
 id = "cowork.desk.pearnly-intake.action.cowork.folder.new"

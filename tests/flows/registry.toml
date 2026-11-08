@@ -1697,3 +1697,17 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-choices.js",
   "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js",
 ]
+
+[[flow]]
+id = "cowork.intake.submit"
+title = "Cowork 录入编辑页「提交」：推向 Express（合成连接与账套），库里有推送记录、票上录入中（清存量基线 11-08）"
+module = "scripts/flows/cowork_intake_submit.py"
+product = "cowork"
+start = "/desk/pearnly-intake"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js",
+  "apps/pearnly_cowork/pearnly_cowork/push/application/*.py",
+]
