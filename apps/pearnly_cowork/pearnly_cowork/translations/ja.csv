@@ -47,7 +47,7 @@ A required text field is empty. Fill it in and try again,必須の文字項目�
 A review workbook must contain between 1 and 500 invoices.,確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。
 A rule cannot move to another PC. Turn it off and create a new one.,ルールは別の PC に移せません。停止して新しく作成してください。
 A same-day reminder must be earlier than the run time.,当日のリマインドは実行時刻より前にしてください
-A scheduled task cannot move to another PC. Turn it off and create a new one.,定期タスクは別の PC に移せません。停止して新しく作成してください。
+A scheduled task cannot move to another PC. Turn it off and create a new one.,定期タスクは別のパソコンに移せません。停止して新しく作成してください。
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer",Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 A step failed and will be retried in ten minutes.,この手順が失敗しました。10 分後に再試行します。
@@ -127,7 +127,7 @@ An option in the ERP data report is invalid.,ERP データレポート内の選�
 An original file is already stored for this source.,この参照元には既に元ファイルが保存されています。
 Anchor Date,基準日
 Another active rule already uses this folder or a folder containing it.,有効なルールがこのフォルダー、またはそれを含むフォルダーを使っています。
-Another computer is writing to this account set. It is sent automatically once it is done,別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します
+Another computer is writing to this account set. It is sent automatically once it is done,別のパソコンがこの会計データに書き込み中です。完了後に自動で送信します
 Another push holds the writer lock.,別の送信が書き込みロックを保持しています。
 Answered a reconciliation question,照合の質問に回答しました
 Answered a withholding tax question,源泉徴収税の質問に回答しました
@@ -247,9 +247,9 @@ CC Desktop Version,CC デスクトップのバージョン
 CC Desktop authentication failed.,CC デスクトップの認証に失敗しました。
 CC Desktop could not read this invoice. Check the fields and submit again,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 CC Desktop could not write this invoice. It is retried automatically,CC デスクトップが書き込めませんでした。自動で再試行します
-CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC デスクトップにこの帳簿が許可されていません。CC デスクトップの帳簿を確認してください
+CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC デスクトップにこの会計データが許可されていません。CC デスクトップの会計データを確認してください
 CC Desktop has not finished.,CC デスクトップの処理が完了していません。
-CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
+CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC デスクトップはこの会計データに書き込めません。CC デスクトップの会計データ設定を確認してください
 "CC Desktop is offline, so this account set's chart of accounts cannot be read. Make sure CC Desktop is running, then try again.",CC デスクトップがオフラインのため、この会計データの勘定科目表を読み込めません。CC デスクトップが起動していることを確認してからもう一度お試しください。
 CC Desktop is out of date. Update CC Desktop and submit again,CC デスクトップが古いバージョンです。更新して再送信してください
 CC Desktop is reading this account set's chart of accounts from the computer. Try again shortly.,CC デスクトップがこの会計データの勘定科目表をパソコンから読み込んでいます。しばらくしてからもう一度お試しください。
@@ -257,8 +257,8 @@ CC Desktop is reading this account set's chart of accounts; the invoice will be 
 CC Desktop needs update,CC デスクトップの更新が必要
 CC Desktop offline,CC デスクトップがオフライン
 CC Desktop offline or needs update,CC デスクトップがオフラインか更新が必要
-"CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",この PC の CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください
-CC Desktop on this PC has not synced recently. Update it to the latest version.,この PC の CC デスクトップが同期していません。最新版に更新してください。
+"CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",このパソコンの CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください
+CC Desktop on this PC has not synced recently. Update it to the latest version.,このパソコンの CC デスクトップが同期していません。最新版に更新してください。
 CC Desktop sent back data that cannot be read.,CC デスクトップから返されたデータを読み取れません。
 CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.,CC デスクトップが接続されていなかったため、10 分後にもう一度送信します。
 "CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again",送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください
@@ -339,32 +339,32 @@ Checks,チェック
 Checks Json,検証結果JSON
 Cheque,小切手
 Chinese Name,中国語名
-Choose a connection and account set.,接続と帳簿を選んでください。
+Choose a connection and account set.,接続と会計データを選んでください。
 Choose a day and time for the monthly run.,毎月の実行日と時刻を選んでください。
 Choose a file,ファイルを選択
 "Choose a folder inside the allowed root, without system folders.",許可されたルート内の、システム以外のフォルダーを選んでください。
-Choose an Express account set first,先に Express の帳簿を選んでください
+Choose an Express account set first,先に Express の会計データを選んでください
 Choose an allowed root reported by CC Desktop.,CC デスクトップが報告したルートを選んでください。
 Choose an image attached to this card,このカードに添付した画像を選んでください
 Choose at least one job role,機能権限を1つ以上選んでください
 Choose both files first,先に2つのファイルを選択してください
 Choose file,ファイルを選択
-Choose once for this account set,この帳簿で一度だけ選択
+Choose once for this account set,この会計データで一度だけ選択
 Choose purchase or sales for this invoice and submit again,この伝票が仕入か売上かを選んで再送信してください
 Choose service or stock for this invoice and submit again,この伝票がサービスか在庫かを選んで再送信してください
 "Choose the Express records for this invoice first, then submit again",先にこの伝票の Express 側の項目を選んでから再送信してください
 Choose the columns of this POS export once,この POS エクスポートの列を一度指定してください
 Choose the company,会社を選択
 Choose the destination for these documents,この書類の送信先を選択
-Choose the inventory account group for this account set first.,先にこの帳簿の在庫勘定グループを選んでください。
+Choose the inventory account group for this account set first.,先にこの会計データの在庫勘定グループを選んでください。
 Choose the inventory account group for this account set. Tap the number:,この会計データの在庫勘定グループを選択してください。番号をタップ：
 Choose the payment method,支払方法を選択
 Choose the receiving account of each payment method,支払方法ごとの入金勘定を選んでください
 Choose the sales returns account,売上返品勘定を選んでください
-Choose the service input VAT for this supplier and submit again,この仕入先のサービスの仮払消費税を選んで再送信してください
+Choose the service input VAT for this supplier and submit again,この仕入先のサービスの仮払付加価値税を選んで再送信してください
 Choose the sheet to import,取り込むシートを選択してください
 Choose the year,年度を選択
-Choose the year and account set first,先に年度と帳簿を選んでください
+Choose the year and account set first,先に年度と会計データを選んでください
 Choose the year and account set first.,先に年度と会計データを選択してください。
 Choose what to do,操作を選択
 Chosen At,選択日時
@@ -410,11 +410,11 @@ Completed At,完了日時
 Completed At (UTC),完了日時（UTC）
 Completed By,完了者
 Completion Evidence,完了証跡
-Computer,コンピューター
-Computer Name,コンピューター名
-Computer Owner,コンピューターの登録者
-Computer offline,コンピューターがオフライン
-Computer removed,コンピューターは削除済み
+Computer,パソコン
+Computer Name,パソコン名
+Computer Owner,パソコンの登録者
+Computer offline,パソコンがオフライン
+Computer removed,パソコンは削除済み
 Condition,条件
 Condition code not allowed,条件コードが無効
 Confirmation Request,確認リクエスト
@@ -470,7 +470,7 @@ Cover File,カバーファイル
 Cowork,Cowork
 Cowork Bank Evidence,Cowork 銀行取引の根拠
 Cowork CC Desktop Delivery,Cowork CC デスクトップのタスク受領記録
-Cowork CC Desktop Device,Cowork CC デスクトップのコンピューター
+Cowork CC Desktop Device,Cowork CC デスクトップのパソコン
 Cowork CC Desktop Request,Cowork CC デスクトップへのリクエスト
 Cowork Client,Cowork 買い手顧客
 Cowork Companion Delivery,Cowork CC デスクトップのタスク受領記録
@@ -756,7 +756,7 @@ Express Root Key,Express プログラムフォルダーキー
 "Express could not index the invoice, so it was undone. It is retried automatically",Express の索引を作れず元に戻しました。自動で再試行します
 "Express did not read back what was written, so it was undone. It is retried automatically",書き込み後の確認が合わず元に戻しました。自動で再試行します
 Express document,Express 伝票番号
-Express has this account set open. It is sent automatically once Express is closed,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
+Express has this account set open. It is sent automatically once Express is closed,Express でこの会計データが開かれています。Express を閉じると自動で送信されます
 Express record,Express の取引先
 External Docnum,ERP伝票番号
 Factor to Base,基準単位換算係数
@@ -956,13 +956,13 @@ Last Request Key,最終要求キー
 Last Seen Generation,最終確認世代
 Last Used At,最終使用日時
 Last Written At (UTC),最終書き込み日時 (UTC)
-Last Written By Computer,最後に書き込んだコンピューター
+Last Written By Computer,最後に書き込んだパソコン
 Last day of the month,月末
 Last modified by,最終更新者
 Last month to claim,控除の最終月
 Last name,姓
 Last used,前回使用
-Lease Computer,受け取ったコンピューター
+Lease Computer,受け取ったパソコン
 Leased At (UTC),取得日時（UTC）
 Leave board,ボードから退出
 Ledger account,総勘定元帳の科目
@@ -995,7 +995,7 @@ Listing folder files,フォルダーのファイルを一覧しています
 Listing reconciliations,照合の一覧を確認しています
 Listing stock counts,棚卸の一覧を確認しています
 Listing task boards,タスクボードを確認しています
-Local To Computer,限定コンピューター
+Local To Computer,限定パソコン
 Location,場所
 Location check,棚番照合結果
 Location mismatch,棚番不一致
@@ -1086,20 +1086,20 @@ No ERP is ready to use,使用できるERPがありません
 No POS sales export headers were found in this file,このファイルに POS 売上エクスポートの見出しがありません
 No account set matches “{0}”,「{0}」に一致する会計データがありません
 No account set of this company covers the document date.,この会社には書類の日付を含む会計データがありません。
-No account set of this company covers this month,この会社（または支店）には今月の帳簿がありません
+No account set of this company covers this month,この会社（または支店）には今月の会計データがありません
 No account sets yet. Use Reload in New Intake first.,帳簿一覧がまだありません。先に新規取込で再読み込みしてください。
 No attachments were given.,添付ファイルが指定されていません。
 No cards are assigned to you,割り当てられたカードはありません
 No changes were given.,変更内容が指定されていません。
-No computer can reach the account set for the document date.,書類の日付の会計データにアクセスできるコンピューターがありません。
-No computer can write,書き込めるコンピューターがありません
-No computer with CC Desktop can write to this account set,この会計データに書き込める CC デスクトップのコンピューターがありません
+No computer can reach the account set for the document date.,書類の日付の会計データにアクセスできるパソコンがありません。
+No computer can write,書き込めるパソコンがありません
+No computer with CC Desktop can write to this account set,この会計データに書き込める CC デスクトップのパソコンがありません
 No documents were given.,書類が指定されていません。
 No due date,期日なし
 No files were given.,ファイルが指定されていません。
 No folder rules yet. Create one and put the documents into its folder.,ルールはまだありません。作成して、そのフォルダーに書類を入れてください。
-No folders on this PC yet. Add them in CC Desktop on that PC.,この PC にはまだ選べるフォルダーがありません。その PC の CC デスクトップで追加してください。
-No folders to choose yet. Add them in CC Desktop on the PC.,選べるフォルダーがまだありません。PC の CC デスクトップで追加してください。
+No folders on this PC yet. Add them in CC Desktop on that PC.,このパソコンにはまだ選べるフォルダーがありません。そのパソコンの CC デスクトップで追加してください。
+No folders to choose yet. Add them in CC Desktop on the PC.,選べるフォルダーがまだありません。パソコンの CC デスクトップで追加してください。
 No invoice could be read.,請求書を1件も読み取れませんでした。
 No invoice summary found,請求書の概要情報なし
 No invoice was found in this document.,この書類から請求書が見つかりませんでした。
@@ -1163,7 +1163,7 @@ One by one,1件ずつ選ぶ
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",1 フォルダー = 1 ルール = 1 社 + 1 年度の帳簿 + 仕入または売上 + サービスまたは在庫
 One folder per rule. PDF and image files only.,1 フォルダーに 1 ルール。PDF と画像のみ。
 One folder per scheduled task. PDF and image files only.,1 フォルダーに 1 定期タスク。PDF と画像のみ。
-One of the default choices is not valid for this account set.,既定の処理の一部がこの帳簿では使えません。
+One of the default choices is not valid for this account set.,既定の処理の一部がこの会計データでは使えません。
 Only Express account sets can be read back.,読み戻しできるのは Express の会計データだけです。
 Only PDF and image files are read.,読み取るのは PDF と画像だけです。
 Only POS exports in Excel (.xlsx) or CSV can be imported,取り込めるのは Excel（.xlsx）か CSV の POS エクスポートだけです
@@ -1323,7 +1323,7 @@ Rate not confirmed for this date,この日付の税率は未確認
 Reach State,アクセス状態
 Read,読み取り済み
 Read At (UTC),読み取り日時（UTC）
-Read By Computer,読み取ったコンピューター
+Read By Computer,読み取ったパソコン
 Read VAT report,売上税報告の読み取り
 Read again,再読み込み
 Read back the accounting books,会計データを読み戻しました
@@ -1335,8 +1335,8 @@ Read general ledger,総勘定元帳の読み取り
 Read tax invoices,請求書の読み取り
 Readback,読み戻し
 Readback ID,読み戻し ID
-Reader,読み取り端末
-Reader Device,フォルダーを読み取るコンピューター
+Reader,読み取りパソコン
+Reader Device,フォルダーを読み取るパソコン
 Reading back the accounting books,会計データを読み戻しています
 Reading files,ファイルを読み込み中
 Reading the MR.ERP menus…,MR.ERP のメニューを読み込み中…
@@ -1392,7 +1392,7 @@ Recurring,繰り返し
 Red,赤
 Reference,参照番号
 Refresh Error Code,更新エラーコード
-Refresh Lease Computer,更新を受け取ったコンピューター
+Refresh Lease Computer,更新を受け取ったパソコン
 Refresh Lock Expires At (UTC),更新リース有効期限（UTC）
 Refresh Lock Generation,更新リースの世代
 Refresh Lock Handle,更新リース識別子
@@ -1401,8 +1401,8 @@ Refresh Request Aliases,更新要求の冪等索引
 Refresh Started At (UTC),更新開始日時（UTC）
 Refresh Status,更新状態
 Refresh the account directory before continuing.,先に会計データのディレクトリを更新してください。
-Refreshed account sets,帳簿を更新しました
-Refreshing account sets,帳簿を更新しています
+Refreshed account sets,会計データを更新しました
+Refreshing account sets,会計データを更新しています
 Registered At,登録日時
 Registered At (UTC),登録日時 (UTC)
 Registered By,登録者
@@ -1568,11 +1568,11 @@ Send,送信
 Send anyway,このまま送信
 Send documents to ERP,書類をERPへ送信
 Send the code from the Cowork page to bind,Cowork 画面のコードを送信して連携してください
-Sending was cancelled because the account set was in use. Close Express and send again,帳簿が使用中のため送信を中止しました。Express を閉じてから再送信してください
+Sending was cancelled because the account set was in use. Close Express and send again,会計データが使用中のため送信を中止しました。Express を閉じてから再送信してください
 Service,サービス
 Service fees,サービス料
-Service input VAT,サービスの仮払消費税
-Service input VAT basis not set,サービスの仮払消費税の基準が未設定です
+Service input VAT,サービスの仮払付加価値税
+Service input VAT basis not set,サービスの仮払付加価値税の基準が未設定です
 Service or stock?,サービスですか、在庫品ですか？
 Set At,設定日時
 Set By,設定者
@@ -1685,7 +1685,7 @@ Suspected misreading on these VAT report pages; lines not agreeing with the ledg
 Table,テーブル
 Tap Send documents to ERP in the menu first,先にメニューの「書類をERPへ送信」を押してください
 Tap the menu to start,メニューを押して始めてください
-Target Computer,指定のコンピューター
+Target Computer,指定のパソコン
 Target Json,固定送信先JSON
 Task,タスク
 Task Management,タスク管理
@@ -1739,7 +1739,7 @@ The ERP report observation time is invalid.,ERP レポートの収集日時が�
 The ERP report refresh status is invalid.,ERP レポートの更新状態が無効です。
 The ERP report uses an unsupported system type.,ERP レポートに対応していないシステム種別が指定されています。
 The ERP target context is inconsistent.,ERP送信先の情報が一致しません。
-The Express index tool is missing on this computer. Reinstall CC Desktop,このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください
+The Express index tool is missing on this computer. Reinstall CC Desktop,このパソコンに Express インデックスツールがありません。CC デスクトップを再インストールしてください
 The MR.ERP import page shows no menu (setup incomplete or no permission).,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
 The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,MR.ERP のメニュー設定が変わりました（選択したメニューがないか、仕訳帳に連携されていません）。選び直してください。
 The OCR connection changed after this task was accepted.,このタスクの受け付け後に認識サービスの接続設定が変更されました。
@@ -1748,15 +1748,15 @@ The PDF file cannot be read.,この PDF ファイルを読み取れません。
 The POS daily total is not in the expected form. Import the POS export again,POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください
 The POS daily totals of this document are damaged. Import the POS export again,この書類の POS 日計データが壊れています。POS エクスポートを取り込み直してください
 The POS export columns are incomplete,POS エクスポートの列の設定が不完全です
-The VAT column is more than 7% of a day's sales,消費税の列がその日の売上の 7% を超えています
+The VAT column is more than 7% of a day's sales,付加価値税の列がその日の売上の 7% を超えています
 The VAT report content is invalid.,税報告の内容が無効です。
 "The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.",税報告を読み取れません。Excel、CSV、またはテキスト付き PDF を使ってください。
 The VAT report has no rows.,税報告に明細行がありません。
 The account balance could not be checked right now. Try again in a moment.,現在、残高を確認できません。しばらくしてからもう一度お試しください。
 The account codes are invalid.,勘定科目コードが無効です。
 The account directory is out of date. Refresh it again.,会計データのディレクトリが古くなっています。再度更新してください。
-The account set cannot be reached right now. It will be sent automatically once connected.,現在この帳簿にアクセスできません。接続後に自動で送信します
-The account set on this computer is not the registered one. Waiting for another computer.,このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています
+The account set cannot be reached right now. It will be sent automatically once connected.,現在この会計データにアクセスできません。接続後に自動で送信します
+The account set on this computer is not the registered one. Waiting for another computer.,このパソコンの会計データは登録されたものではありません。別のパソコンを待っています
 The accounting period is closed in Express,会計期間は Express で締め済みです
 The acknowledgement conflicts with the recorded result.,確認応答が記録済みの結果と矛盾しています。
 The amounts do not add up. Correct them and submit again,金額が合いません。直して再送信してください
@@ -1767,10 +1767,10 @@ The buyer on these invoices is this company: {0},次の請求書の買い手は�
 The camera could not start,カメラを起動できません
 The card is already in that list,カードはすでにそのリストにあります
 The card no longer exists,カードはもうありません
-The cash customer could not be copied from the original year,前年度の帳簿から現金顧客を複製できません
+The cash customer could not be copied from the original year,前年度の会計データから現金顧客を複製できません
 The chosen Express stock item no longer exists. Choose again,選んだ Express の在庫品目はもうありません。選び直してください
-The chosen account set belongs to another company. Check the account set,選んだ帳簿は別の会社のものです。帳簿を確認してください
-The chosen value is not in this account set. Choose again,選んだ値はこの帳簿にありません。選び直してください
+The chosen account set belongs to another company. Check the account set,選んだ会計データは別の会社のものです。会計データを確認してください
+The chosen value is not in this account set. Choose again,選んだ値はこの会計データにありません。選び直してください
 The client fields are invalid.,顧客の項目が正しくありません。
 "The company, client and type of a connection cannot be changed.",接続の会社、顧客、タイプは変更できません。
 The completed recognition result cannot be replaced.,完了済みの認識結果は置き換えられません。
@@ -1920,7 +1920,7 @@ The system is busy and the reconciliation was not finished. Please try again sho
 The task owner can no longer enter documents with this connection.,定期タスクの担当者はこの接続で登録できなくなっています。
 The tax month is not valid.,課税月が無効です。
 The unsent preparation was cancelled.,未送信の準備を取り消しました。
-The uploaded file does not match the file on the PC.,アップロード内容が PC のファイルと一致しません。
+The uploaded file does not match the file on the PC.,アップロード内容がパソコンのファイルと一致しません。
 The uploaded file exceeds the 100 MiB limit.,アップロードしたファイルは上限の 100 MiB を超えています。
 The uploaded file is empty.,アップロードしたファイルは空です。
 The uploaded file was not received. It will be sent again.,アップロードされたファイルを受信できませんでした。再送します。
@@ -1944,13 +1944,13 @@ These worksheets repeat another worksheet in the same file line for line and wer
 This ERP connection is disabled.,このERP接続は無効です。
 This MR.ERP menu cannot be chosen for this account set.,この会計データではこの MR.ERP メニューを選択できません。
 This PC already has the maximum number of folder rules.,この PC のルール数が上限に達しています。
-This PC already has the maximum number of scheduled tasks.,この PC の定期タスク数が上限に達しています。
+This PC already has the maximum number of scheduled tasks.,このパソコンの定期タスク数が上限に達しています。
 This POS export has a status value that is not chosen yet,この POS エクスポートにまだ指定していない状態の値があります
 This account cannot send documents,このアカウントは書類を送信できません
 This account code is already a stock item code in Express,この勘定コードは Express の在庫品コードです
-This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,この帳簿には振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください
-This account set is not in the catalog,この帳簿は一覧にありません
-This account set is not in the connection's list. Reload the list in New Intake.,この帳簿は一覧にありません。新規取込で再読み込みしてください。
+This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,この会計データには振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください
+This account set is not in the catalog,この会計データは一覧にありません
+This account set is not in the connection's list. Reload the list in New Intake.,この会計データは一覧にありません。新規取込で再読み込みしてください。
 This account set is not on the computer's list of account sets.,パソコンの会計データ一覧にこの会計データがありません。
 This account set is not on this connection.,この接続にこの会計データはありません。
 This account set is unavailable.,この会計データは利用できません。
@@ -1959,8 +1959,8 @@ This board no longer exists,このボードはもう存在しません
 This channel is not open yet,このチャンネルはまだ開放していません
 This choice cannot be saved,この選択は保存できません
 This client still has {0} invoice record(s). Reassign them first.,この顧客には請求書の記録が {0} 件残っています。先に別の顧客へ付け替えてください。
-This computer can no longer handle this document,このコンピューターではこの書類を処理できなくなりました
-This computer cannot enter documents into Express,このコンピューターでは Express の代行入力ができません
+This computer can no longer handle this document,このパソコンではこの書類を処理できなくなりました
+This computer cannot enter documents into Express,このパソコンでは Express の代行入力ができません
 This connection does not support an Express CC Desktop credential.,この接続は Express 用の CC デスクトップ認証情報に対応していません。
 This connection does not support scheduled tasks.,この接続は定期タスクに対応していません。
 This connection is disabled.,この接続は無効です。
@@ -2019,7 +2019,7 @@ This rule no longer exists for this PC.,この PC にこのルールはありま
 This saved choice no longer exists,この保存した選択はもうありません
 This scanned or photographed document could not be read. Check the file and try again.,このスキャンや写真の書類は読み取れませんでした。ファイルを確認してもう一度お試しください。
 This scheduled task is turned off.,この定期タスクは停止中です。
-This scheduled task no longer exists for this PC.,この PC にこの定期タスクはありません。
+This scheduled task no longer exists for this PC.,このパソコンにこの定期タスクはありません。
 "This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF.",この表は銀行からエクスポートした明細ではありません（残高列がありません）。ネットバンキングから出力した Excel/CSV または明細 PDF をアップロードしてください。
 "This statement shows no running balance, so balances cannot be checked line by line.",この明細書には各行の残高がないため、残高を1行ずつ確認できません。
 This stock count task is closed.,この棚卸タスクはクローズ済みです。
@@ -2027,8 +2027,8 @@ This supplier is not in Express and could not be created. Check the supplier nam
 This task uses the previous count format and cannot accept scan entries.,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
 This tax ID is already used by another company.,この納税者番号は既に別の会社で使用されています。
 This tax id is already used by another client.,この納税者番号は既に別の顧客で使用されています。
-This value cannot be chosen for this account set.,この帳簿ではこの値を選択できません。
-This value is not in this month's account set,この値は今月の帳簿のマスタにありません
+This value cannot be chosen for this account set.,この会計データではこの値を選択できません。
+This value is not in this month's account set,この値は今月の会計データのマスタにありません
 This warehouse is not in the Express account set,この Express 会計データにこの倉庫はありません
 Tier,レベル
 Tier Since (UTC),レベル開始日時（UTC）
@@ -2200,13 +2200,13 @@ Withholding tax certificates (50 Tawi) are not entered; this one is not sent,源
 Work Coordination,業務連携
 Work Name,バックグラウンドタスク識別子
 Workbook Revision,ワークブック改訂番号
-Workspace,会社帳簿
+Workspace,会社会計データ
 Writable,書き込み可
 Write Check,書き込み確認
 Write Check Detail,書き込み確認の詳細
 Write Route,書き込みの割り当て
 Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
-Written By Computer,書き込んだコンピューター
+Written By Computer,書き込んだパソコン
 Yearly,毎年
 Yellow,黄
 "Yes, keep reconciling it",照合に含める
@@ -2243,7 +2243,7 @@ companion.on_demand_invalid,CC デスクトップへのリクエストが無効�
 companion.on_demand_missing,CC デスクトップへのリクエストが見つかりません。
 companion.on_demand_not_ready,CC デスクトップの処理が完了していません。
 companion.on_demand_unsupported,この接続のパソコンはこの操作に対応していません。
-companion.queue_access_revoked,このコンピューターではこの書類を処理できなくなりました
+companion.queue_access_revoked,このパソコンではこの書類を処理できなくなりました
 companion.queue_conflict,この受領結果はタスクの現在の状態と矛盾しています。
 companion.queue_request_invalid,CC デスクトップのキューリクエストが無効です。
 companion.queue_response_invalid,CC デスクトップのキューレスポンスが無効です。
@@ -2259,7 +2259,7 @@ connection.adapter_invalid,このERP接続タイプはサポートされてい�
 connection.config_invalid,ERP接続設定を確認してください。
 connection.disabled,この接続は無効です。
 connection.lock_required,送信先を読み取る前に接続をロックしてください。
-connection.mrerp_default_invalid,この帳簿ではこの値を選択できません。
+connection.mrerp_default_invalid,この会計データではこの値を選択できません。
 connection.mrerp_menu_invalid,この会計データではこの MR.ERP メニューを選択できません。
 connection.not_found,接続またはディレクトリの記録が見つかりません。
 connection.preparation_incomplete,この会計データの送信準備情報が不足しています。
@@ -2283,17 +2283,17 @@ cowork.choice.credit,掛仕入
 cowork.choice.department,部門
 cowork.choice.expense,控除せず費用に含める
 cowork.choice.expenseLine,経費に計上
-cowork.choice.invalid,選んだ値はこの帳簿にありません。選び直してください
+cowork.choice.invalid,選んだ値はこの会計データにありません。選び直してください
 cowork.choice.item,在庫品目
 cowork.choice.location,倉庫
 cowork.choice.new,伝票どおり新規作成
 cowork.choice.party,Express の取引先
 cowork.choice.payment,支払方法
 cowork.choice.receipt,入金勘定
-cowork.choice.service_vat,サービスの仮払消費税
+cowork.choice.service_vat,サービスの仮払付加価値税
 cowork.choice.subject_missing,記憶する対象がありません
 cowork.choice.task_default,この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください
-cowork.choice.title,この帳簿で一度だけ選択
+cowork.choice.title,この会計データで一度だけ選択
 cowork.choice.vat,この領収書の税額
 cowork.company.branch_n,支店 {0}
 cowork.company.choice.fiscal_year,{0} 年度
@@ -2303,15 +2303,15 @@ cowork.company.choice.group.purchase,仕入
 cowork.company.choice.group.sales,売上
 cowork.company.choice.service,費用に計上
 cowork.company.choice.stock,在庫に計上
-cowork.company.choice_invalid,この値は今月の帳簿のマスタにありません
+cowork.company.choice_invalid,この値は今月の会計データのマスタにありません
 cowork.company.choice_not_editable,ここで変更できるのは支払方法と仕入税額控除だけです
 cowork.company.choice_not_found,この保存した選択はもうありません
-cowork.company.choice_scope_invalid,この会社（または支店）には今月の帳簿がありません
+cowork.company.choice_scope_invalid,この会社（または支店）には今月の会計データがありません
 cowork.company.choice_unsupported,この選択は保存できません
 cowork.company.choices_full,会社の選択が上限です
 cowork.company.head_office,本店
 cowork.company.not_found,会社が見つかりません
-cowork.company.not_in_catalog,この帳簿は一覧にありません
+cowork.company.not_in_catalog,この会計データは一覧にありません
 cowork.company.note_invalid,ノートが空か長すぎます
 cowork.company.note_not_found,ノートが見つかりません
 cowork.company.notes,ノート
@@ -2328,11 +2328,11 @@ cowork.company.title_invalid,140 文字以内で名前を入力してくださ�
 cowork.company.too_many,会社数が上限です
 cowork.company.whole_company,会社全体
 cowork.folder.account_set_ambiguous,この会社には書類の日付を含む会計データが複数あります。
-cowork.folder.account_set_invalid,この帳簿は一覧にありません。新規取込で再読み込みしてください。
+cowork.folder.account_set_invalid,この会計データは一覧にありません。新規取込で再読み込みしてください。
 cowork.folder.account_set_none,この会社には書類の日付を含む会計データがありません。
-cowork.folder.account_set_unreachable,書類の日付の会計データにアクセスできるコンピューターがありません。
+cowork.folder.account_set_unreachable,書類の日付の会計データにアクセスできるパソコンがありません。
 cowork.folder.agentStale,CC デスクトップがオフラインか更新が必要
-cowork.folder.agentStaleHint,この PC の CC デスクトップが同期していません。最新版に更新してください。
+cowork.folder.agentStaleHint,このパソコンの CC デスクトップが同期していません。最新版に更新してください。
 cowork.folder.batch_missing,読み取りタスクが見つかりません。
 cowork.folder.billing_pending,課金の完了待ち
 cowork.folder.brief.failed,失敗 {0}
@@ -2362,8 +2362,8 @@ cowork.folder.col.result,結果
 cowork.folder.col.schedule,実行日時
 cowork.folder.companion_offline,CC デスクトップが接続されていなかったため、10 分後にもう一度送信します。
 cowork.folder.connectHelper,CC デスクトップを接続
-cowork.folder.connection_fixed,定期タスクは別の PC に移せません。停止して新しく作成してください。
-cowork.folder.content_mismatch,アップロード内容が PC のファイルと一致しません。
+cowork.folder.connection_fixed,定期タスクは別のパソコンに移せません。停止して新しく作成してください。
+cowork.folder.content_mismatch,アップロード内容がパソコンのファイルと一致しません。
 cowork.folder.continues,定期タスク「{0}」を引き継ぎ、今後追加されたファイルのみ処理します
 cowork.folder.counts,登録済み {0} · 要確認 {1}
 cowork.folder.day,{0} 日
@@ -2374,7 +2374,7 @@ cowork.folder.default.item,Express に在庫品目がない場合
 cowork.folder.default.payment,現金・掛けが書類から分からない場合
 cowork.folder.default.vat,領収書・簡易税請求書の税額
 cowork.folder.defaultsHint,一度設定すれば同じ種類の書類はこれに従います。空欄なら一度だけ確認します。
-cowork.folder.defaults_invalid,既定の処理の一部がこの帳簿では使えません。
+cowork.folder.defaults_invalid,既定の処理の一部がこの会計データでは使えません。
 cowork.folder.disable,停止
 cowork.folder.disableConfirm,この定期タスクを停止しますか？登録済みの書類はそのままです。
 cowork.folder.disabled,このサイトではフォルダー自動取込が有効になっていません。
@@ -2420,8 +2420,8 @@ cowork.folder.line,{0}：{1}
 cowork.folder.more,ほか {0} 件
 cowork.folder.moving,処理中 {0}
 cowork.folder.new,定期タスクを作成
-cowork.folder.noRoots,この PC にはまだ選べるフォルダーがありません。その PC の CC デスクトップで追加してください。
-cowork.folder.noRootsAny,選べるフォルダーがまだありません。PC の CC デスクトップで追加してください。
+cowork.folder.noRoots,このパソコンにはまだ選べるフォルダーがありません。そのパソコンの CC デスクトップで追加してください。
+cowork.folder.noRootsAny,選べるフォルダーがまだありません。パソコンの CC デスクトップで追加してください。
 cowork.folder.noRuns,実行履歴はまだありません
 cowork.folder.no_number_prefix,番号なし_
 cowork.folder.off,停止中
@@ -2432,7 +2432,7 @@ cowork.folder.owner_not_ready,定期タスクの担当者はこの接続で登�
 cowork.folder.pair,{0}：{1}
 cowork.folder.path_invalid,許可されたルート内の、システム以外のフォルダーを選んでください。
 cowork.folder.pending,未処理 {0} 件、実行時刻に処理します
-cowork.folder.readerGone,コンピューターは削除済み
+cowork.folder.readerGone,パソコンは削除済み
 cowork.folder.reading_masters,CC デスクトップがこの会計データの勘定科目表を読み込んでいます。読み込み後に送信します。
 cowork.folder.remind.add,時間を追加
 cowork.folder.remind.count,未処理のファイルが {0} 件あります。
@@ -2455,7 +2455,7 @@ cowork.folder.remind_same_day,当日のリマインドは実行時刻より前�
 cowork.folder.rootItself,（ルートフォルダー自体）
 cowork.folder.root_invalid,CC デスクトップが報告したルートを選んでください。
 cowork.folder.rule_disabled,この定期タスクは停止中です。
-cowork.folder.rule_missing,この PC にこの定期タスクはありません。
+cowork.folder.rule_missing,このパソコンにこの定期タスクはありません。
 cowork.folder.runNow,今すぐ実行
 cowork.folder.runRequested,実行を依頼しました。数分以内に開始します。
 cowork.folder.runScan,検出 {0} · 新規 {1} · スキップ {2} · アップロード失敗 {3}
@@ -2474,10 +2474,10 @@ cowork.folder.state.source_ready,読み取り待ち
 cowork.folder.state.submitted,読み取り中
 cowork.folder.state.uploaded,アップロード済み
 cowork.folder.step_error,この手順が失敗しました。10 分後に再試行します。
-cowork.folder.stock_group_needed,先にこの帳簿の在庫勘定グループを選んでください。
+cowork.folder.stock_group_needed,先にこの会計データの在庫勘定グループを選んでください。
 cowork.folder.title,定期タスク
 cowork.folder.too_large,このファイルは大きすぎて送信できません。
-cowork.folder.too_many,この PC の定期タスク数が上限に達しています。
+cowork.folder.too_many,このパソコンの定期タスク数が上限に達しています。
 cowork.folder.trigger.catch_up,起動後の追い実行
 cowork.folder.trigger.manual,今すぐ実行
 cowork.folder.trigger.schedule,スケジュール
@@ -3382,16 +3382,16 @@ history.source_not_public,この画面からは手入力のレコードのみ作
 image,画像
 in,入金
 intake.agent.state.needsUpdate,CC デスクトップの更新が必要
-intake.agent.state.noWriter,書き込めるコンピューターがありません
-intake.agent.state.offline,コンピューターがオフライン
+intake.agent.state.noWriter,書き込めるパソコンがありません
+intake.agent.state.offline,パソコンがオフライン
 intake.catalog.reload,再読み込み
-intake.error.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
+intake.error.ACCOUNT_BUSY_LOCKED,Express でこの会計データが開かれています。Express を閉じると自動で送信されます
 intake.error.ACCOUNT_CODE_IS_STOCK_ITEM,この勘定コードは Express の在庫品コードです
-intake.error.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
-intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
+intake.error.ACCOUNT_COMPANY_MISMATCH,選んだ会計データは別の会社のものです。会計データを確認してください
+intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの会計データに書き込めません。CC デスクトップの会計データ設定を確認してください
 intake.error.ACCOUNT_NOT_POSTABLE,この入金勘定は Express で記帳できません。別の勘定を選んでください
-intake.error.ACCOUNT_SET_UNREACHABLE,現在この帳簿にアクセスできません。接続後に自動で送信します
-intake.error.ACCOUNT_WRITER_BUSY,別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します
+intake.error.ACCOUNT_SET_UNREACHABLE,現在この会計データにアクセスできません。接続後に自動で送信します
+intake.error.ACCOUNT_WRITER_BUSY,別のパソコンがこの会計データに書き込み中です。完了後に自動で送信します
 intake.error.BAD_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
 intake.error.BAD_SALES_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
 intake.error.CDX_REINDEX_FAILED,Express の索引を作れず元に戻しました。自動で再試行します
@@ -3402,7 +3402,7 @@ intake.error.DBF_WRITE_FAILED,Express への書き込みに失敗し、元に戻
 intake.error.DUPLICATE_CONTENT_DIFFERS,Express に同じ番号で内容の違う伝票があります。確認するか「このまま送信」を選んでください
 intake.error.EMPTY_ITEMS,この請求書には明細がありません。追加して再送信してください
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,結果が確認できません。Express で確認してから再送信してください
-intake.error.ERR_ACCOUNT_UID_MISMATCH,このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています
+intake.error.ERR_ACCOUNT_UID_MISMATCH,このパソコンの会計データは登録されたものではありません。別のパソコンを待っています
 intake.error.ERR_LOCATION,この Express 会計データにこの倉庫はありません
 intake.error.ERR_MRERP_DEFAULT_CHANGED,選択した値は MR.ERP に存在しません。選び直してください。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP の既定値を選択してから送信してください。
@@ -3421,39 +3421,39 @@ intake.error.INVALID_INVOICE_DATE,書類の日付が無効です。修正して�
 intake.error.INVALID_QUANTITY,明細の数量が無効です。修正して再送信してください
 intake.error.ITEMS_INVALID,明細を Express に書き込めません。確認して再送信してください
 intake.error.ITEM_GROUP_ACCOUNT_MISSING,品目グループの勘定が Express の勘定科目表にありません
-intake.error.JOURNAL_BOOK_NOT_FOUND,この帳簿には振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください
+intake.error.JOURNAL_BOOK_NOT_FOUND,この会計データには振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください
 intake.error.MAPPING_MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
 intake.error.MAPPING_MISSING_ITEM,対応する在庫品目がありません。選択して再送信してください
 intake.error.MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
 intake.error.MISSING_REF_NO,請求書番号がありません。追加して再送信してください
 intake.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
-intake.error.NO_ACCOUNT_SELECTION,この PC の CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください
-intake.error.OPERATOR_UNAVAILABLE,このコンピューターでは Express の代行入力ができません
+intake.error.NO_ACCOUNT_SELECTION,このパソコンの CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください
+intake.error.OPERATOR_UNAVAILABLE,このパソコンでは Express の代行入力ができません
 intake.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 intake.error.PERIOD_LOCKED,会計期間は Express で締め済みです
 intake.error.POS_INVALID,POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください
 intake.error.PRIOR_DOC_STILL_IN_ERP,この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください
 intake.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
-intake.error.REFUND_CUSTOMER_NOT_COPIED,前年度の帳簿から現金顧客を複製できません
+intake.error.REFUND_CUSTOMER_NOT_COPIED,前年度の会計データから現金顧客を複製できません
 intake.error.REFUND_EXCEEDS_ORIGINAL,返品数量が販売数量を超えています
 intake.error.REFUND_INVALID,返品伝票のデータ形式が正しくありません
 intake.error.REFUND_LINE_NOT_FOUND,元の現金売上にこの商品がありません
 intake.error.REFUND_ORIGINAL_CHANGED,元の現金売上が Express で変更されています
 intake.error.REFUND_ORIGINAL_NOT_FOUND,元の現金売上が Express にありません
-intake.error.REINDEX_UNAVAILABLE,このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください
-intake.error.SERVICE_VAT_BASIS_CHOICE,サービスの仮払消費税の基準が未設定です
-intake.error.STOCK_ACC_GROUP_UNFIT,先にこの帳簿の在庫勘定グループを選んでください。
+intake.error.REINDEX_UNAVAILABLE,このパソコンに Express インデックスツールがありません。CC デスクトップを再インストールしてください
+intake.error.SERVICE_VAT_BASIS_CHOICE,サービスの仮払付加価値税の基準が未設定です
+intake.error.STOCK_ACC_GROUP_UNFIT,先にこの会計データの在庫勘定グループを選んでください。
 intake.error.STOCK_INSUFFICIENT,Express の在庫が足りません
 intake.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
 intake.error.STOCK_ITEM_NOT_FOUND,選んだ Express の在庫品目はもうありません。選び直してください
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 intake.error.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 intake.error.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
-intake.error.USER_ABORTED_BUSY,帳簿が使用中のため送信を中止しました。Express を閉じてから再送信してください
+intake.error.USER_ABORTED_BUSY,会計データが使用中のため送信を中止しました。Express を閉じてから再送信してください
 intake.error.VOID_DOCUMENT_CHANGED,この伝票は Express で変更されています。Express で確認してください
 intake.error.VOID_DOCUMENT_NOT_FOUND,この伝票は Express にありません
 intake.error.account_not_in_chart,使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください
-intake.error.account_set_not_allowed,CC デスクトップにこの帳簿が許可されていません。CC デスクトップの帳簿を確認してください
+intake.error.account_set_not_allowed,CC デスクトップにこの会計データが許可されていません。CC デスクトップの会計データを確認してください
 intake.error.agent_failed,CC デスクトップが書き込めませんでした。自動で再試行します
 intake.error.already_success,この伝票は送信済みです
 intake.error.amounts_not_consistent,金額が合いません。直して再送信してください
@@ -3474,7 +3474,7 @@ intake.error.entry_not_balanced,仕訳の貸借が合いません。金額を確
 intake.error.items_incomplete,品名または金額のない明細があります。直して再送信してください
 intake.error.items_mismatch,明細の合計が伝票の金額と合いません。明細を直して再送信してください
 intake.error.low_confidence,不確かな項目があります。原本と照合して再送信してください
-intake.error.no_account_set,先に年度と帳簿を選んでください
+intake.error.no_account_set,先に年度と会計データを選んでください
 intake.error.no_ap_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
 intake.error.no_ar_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
 intake.error.no_input_vat_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
@@ -3579,13 +3579,13 @@ pos.no_rows,この POS エクスポートに売上がありません
 pos.not_express,POS エクスポートは Express にのみ入力できます
 pos.payment_negative,現金以外の支払方法の日計がマイナスの日があります
 pos.status_unknown,この POS エクスポートにまだ指定していない状態の値があります
-pos.target_required,先に Express の帳簿を選んでください
+pos.target_required,先に Express の会計データを選んでください
 pos.too_many_days,1 つの POS エクスポートは 100 日分までです
 pos.too_many_items,1 日の品目が 999 行を超えています
 pos.too_many_payments,1 日の支払方法が 20 種類を超えています
 pos.total_mismatch,レシートの合計がこの POS エクスポートの合計行と一致しません
 pos.type_unsupported,取り込めるのは Excel（.xlsx）か CSV の POS エクスポートだけです
-pos.vat_out_of_range,消費税の列がその日の売上の 7% を超えています
+pos.vat_out_of_range,付加価値税の列がその日の売上の 7% を超えています
 pos.xls_not_supported,旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください
 probably {0},おそらく {0}
 push.adapter_not_connected,この ERP への送信には対応していません。
@@ -3605,7 +3605,7 @@ push.native_stale_attempt,この送信試行は無効になっています。
 push.native_state_invalid,現在の送信状態ではこの操作はできません。
 push.native_target_changed,送信先が変更されました。伝票を再度準備してください。
 push.native_target_mismatch,固定された送信先が許可された送信先と一致しません。
-push.no_writer,この会計データに書き込める CC デスクトップのコンピューターがありません
+push.no_writer,この会計データに書き込める CC デスクトップのパソコンがありません
 push.operator_owned,この書類は Express の代行入力中です
 push.original_reference_invalid,元の伝票の参照が無効か、アクセスできません。
 push.posting_kind_invalid,転記タイプが無効です。
@@ -3784,7 +3784,7 @@ tax.answer_invalid,回答が無効です。
 tax.company_invalid,会社の 13 桁の納税者番号を入力してください。
 tax.option_invalid,オプションが無効です。
 tax.period_invalid,課税月が無効です。
-tax.request_invalid,接続と帳簿を選んでください。
+tax.request_invalid,接続と会計データを選んでください。
 today at {0},今日 {0}
 tomorrow at {0},明日 {0}
 total,税込

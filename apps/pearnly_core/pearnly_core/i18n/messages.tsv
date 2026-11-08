@@ -57,11 +57,11 @@ Product home: current plan, usage and billing	当前订阅套餐、用量与账�
 Upload receipts and sheets, extract fields, review each item, then push	上传票据与表格、识别字段、逐项核对与推送	อัปโหลดเอกสารและตาราง อ่านฟิลด์ ตรวจทานทีละรายการ แล้วส่งข้อมูล	領収書と表をアップロードし、項目を抽出、1件ずつ確認して連携
 Batches and results of every recognition run	每次识别批次的记录与结果	บันทึกและผลลัพธ์ของการอ่านเอกสารแต่ละชุด	各認識バッチの記録と結果
 How each push to the external ERP went	推送到外部 ERP 的过程与结果	ขั้นตอนและผลลัพธ์ของการส่งไป ERP ภายนอก	外部ERPへの連携過程と結果
-Reconcile documents against the ledger	单据与账套的对账	กระทบยอดเอกสารกับชุดบัญชี	伝票と帳簿の照合
+Reconcile documents against the ledger	单据与账套的对账	กระทบยอดเอกสารกับชุดบัญชี	伝票と会計データの照合
 Customers, suppliers, accounts and other reference data	客户、供应商、科目等基础资料	ข้อมูลพื้นฐาน เช่น ลูกค้า ผู้จำหน่าย และรหัสบัญชี	顧客、仕入先、勘定科目などの基礎データ
 Count tasks and variance records	盘点任务与差异记录	งานตรวจนับและบันทึกส่วนต่าง	棚卸タスクと差異記録
 A board instance is created only when this is on	启用后创建看板实例	สร้างกระดานเมื่อเปิดใช้งานเท่านั้น	有効にした時だけボードを作成します
-Windows app on the merchant's accounting PC: installer, pairing, outbound pull	安装在商家会计电脑上的 Windows 程序，提供安装、配对与任务拉取	โปรแกรม Windows ที่ติดตั้งบนเครื่องคอมพิวเตอร์บัญชีของร้านค้า สำหรับติดตั้ง จับคู่ และดึงงาน	加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
+Windows app on the merchant's accounting PC: installer, pairing, outbound pull	安装在商家会计电脑上的 Windows 程序，提供安装、配对与任务拉取	โปรแกรม Windows ที่ติดตั้งบนเครื่องคอมพิวเตอร์บัญชีของร้านค้า สำหรับติดตั้ง จับคู่ และดึงงาน	加盟店の経理パソコンに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
 Install, pair, upgrade and uninstall guide for CC Desktop	CC 桌面版的安装、配对、升级与卸载说明	คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้ง CC เดสก์ท็อป	CC デスクトップのインストール・ペアリング・更新・アンインストールガイド	
 VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks	增值税申报（ภ.พ.30）与预扣税申报（ภ.ง.ด.3 / ภ.ง.ด.53）草稿及进项核查	ร่างแบบ ภ.พ.30 และ ภ.ง.ด.3 / ภ.ง.ด.53 พร้อมตรวจภาษีซื้อ	付加価値税申告（ภ.พ.30）と源泉徴収税申告（ภ.ง.ด.3 / ภ.ง.ด.53）の下書きと仕入税チェック
 Product master data	物料主数据	ข้อมูลหลักของสินค้า	商品マスタ
@@ -249,7 +249,7 @@ FX Rate	汇率	อัตราแลกเปลี่ยน	為替レート
 VAT Included	含增值税	รวมภาษีมูลค่าเพิ่ม	税込
 Subtotal	小计	ยอดรวมย่อย	小計
 Order Discount	整单折扣	ส่วนลดทั้งใบ	伝票全体の値引
-VAT	增值税	ภาษีมูลค่าเพิ่ม	消費税
+VAT	增值税	ภาษีมูลค่าเพิ่ม	付加価値税（VAT）
 Withholding Tax	预扣税	ภาษีหัก ณ ที่จ่าย	源泉税
 Rounding	尾差	ส่วนต่างปัดเศษ	端数調整
 Net Payable	应付净额	ยอดสุทธิที่ต้องชำระ	支払純額
@@ -785,7 +785,7 @@ Nothing to show	没有可显示的内容	ไม่มีข้อมูลให
 Click to sort by {0}	点击按 {0} 排序	คลิกเพื่อเรียงตาม {0}	{0} で並べ替え
 Change your password and sign out other devices on the account page of the identity service	请在身份服务的账户页修改密码并退出其他设备	กรุณาเปลี่ยนรหัสผ่านและออกจากระบบอุปกรณ์อื่นในหน้าบัญชีของบริการยืนยันตัวตน	パスワードの変更と他の端末からのログアウトは、ID サービスのアカウントページで行ってください
 Target ERP	目标 ERP	ERP ปลายทาง	連携先 ERP	intake.target.title
-No computer connected	未连接电脑	ยังไม่ได้เชื่อมต่อคอมพิวเตอร์	コンピューター未接続	intake.agent.state.missing
+No computer connected	未连接电脑	ยังไม่ได้เชื่อมต่อคอมพิวเตอร์	パソコン未接続	intake.agent.state.missing
 Download CC Desktop	下载 CC 桌面版	ดาวน์โหลด CC เดสก์ท็อป	CC デスクトップをダウンロード	intake.target.download
 Install it, then sign in with this account to connect.	安装后用本账号登录即可连接。	ติดตั้งแล้วเข้าสู่ระบบด้วยบัญชีนี้เพื่อเชื่อมต่อ	インストール後、このアカウントでログインすると接続されます。	intake.agent.loginHint
 This site has no CC Desktop installer address yet.	本站点未配置 CC 桌面版安装包地址。	ไซต์นี้ยังไม่ได้ตั้งค่าที่อยู่ไฟล์ติดตั้ง CC เดสก์ท็อป	このサイトには CC デスクトップのインストーラーのアドレスがまだありません。	intake.installerMissing
@@ -909,30 +909,30 @@ Camera access is turned off. Go to iPhone Settings → Safari → Camera and cho
 LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.	LINE 的相机权限已关闭。请前往手机「设置 → 应用程序 → LINE → 权限 → 相机」选择「允许」，返回 LINE 后将自动重试。	การเข้าถึงกล้องของ LINE ถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → แอปพลิเคชัน → LINE → การอนุญาต → กล้อง แล้วเลือก อนุญาต กลับมาที่ LINE แล้วระบบจะลองใหม่เอง	LINE のカメラへのアクセスがオフになっています。「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選んでください。LINE に戻ると自動で再試行します。	common.scan.in_line_android
 LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn on Camera. Come back to LINE and it tries again by itself.	LINE 的相机权限已关闭。请前往 iPhone「设置 → LINE」开启「相机」，返回 LINE 后将自动重试。	การเข้าถึงกล้องของ LINE ถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → LINE แล้วเปิด กล้อง กลับมาที่ LINE แล้วระบบจะลองใหม่เอง	LINE のカメラへのアクセスがオフになっています。iPhone の「設定 → LINE」で「カメラ」をオンにしてください。LINE に戻ると自動で再試行します。	common.scan.in_line_ios
 This is not a product barcode	这不是商品条码	นี่ไม่ใช่บาร์โค้ดสินค้า	これは商品バーコードではありません
-Book Key	账套键	คีย์ชุดบัญชี	帳簿キー
-Device Digest	电脑摘要	รหัสย่อเครื่อง	端末ダイジェスト
+Book Key	账套键	คีย์ชุดบัญชี	会計データキー
+Device Digest	电脑摘要	รหัสย่อเครื่อง	パソコンダイジェスト
 Express Document Number	Express 单号	เลขที่เอกสาร Express	Express 伝票番号
-Last Computer	最近的电脑	เครื่องล่าสุด	最後の端末
+Last Computer	最近的电脑	เครื่องล่าสุด	最後のパソコン
 Last Signed In User	最近登录的用户	ผู้ใช้ที่เข้าสู่ระบบล่าสุด	最後にログインしたユーザー
 Lease Expires At	租约到期时间	เวลาหมดสัญญาเช่า	リース期限
 Lease Handle	租约标识	รหัสสัญญาเช่า	リースハンドル
 Leased At	领取时间	เวลารับงาน	取得日時
-Leased By	领取的电脑	เครื่องที่รับงาน	取得した端末
+Leased By	领取的电脑	เครื่องที่รับงาน	取得したパソコン
 Max Payload Version	最高载荷版本	เวอร์ชันข้อมูลสูงสุด	最大ペイロードバージョン
 Next Period End	次年期末	สิ้นงวดปีถัดไป	翌期末
 Payload Version	载荷版本	เวอร์ชันข้อมูล	ペイロードバージョン
 Period End	期末	สิ้นงวด	期末
 Period Start	期初	ต้นงวด	期首
-Pinned Computer	指定的电脑	เครื่องที่กำหนด	指定端末
+Pinned Computer	指定的电脑	เครื่องที่กำหนด	指定パソコン
 Receipt Meta	回执信息	ข้อมูลผลตอบกลับ	受領メタ
 Seen At	上报时间	เวลารายงาน	報告日時
 Signed In Users	登录过的用户	ผู้ใช้ที่เคยเข้าสู่ระบบ	ログインしたユーザー
 Stage	阶段	ขั้นตอน	段階
 Token Last 4	密钥末 4 位	4 ตัวท้ายของคีย์	キー末尾 4 桁
 Verify State	核对结果	ผลการตรวจสอบ	照合結果
-Writing Key	写入中的账套	ชุดบัญชีที่กำลังบันทึก	書き込み中の帳簿
+Writing Key	写入中的账套	ชุดบัญชีที่กำลังบันทึก	書き込み中の会計データ
 Written At	写入时间	เวลาบันทึก	書き込み日時
-Written By	写入的电脑	เครื่องที่บันทึก	書き込んだ端末
+Written By	写入的电脑	เครื่องที่บันทึก	書き込んだパソコン
 CC Desktop authentication failed.	CC 桌面版认证失败。	การยืนยันตัวตน CC เดสก์ท็อปไม่สำเร็จ	CC デスクトップの認証に失敗しました。	cc_desktop.unauthorized
 The CC Desktop service is temporarily unavailable. Try again shortly.	CC 桌面版服务暂时不可用，请稍后重试。	บริการ CC เดสก์ท็อปไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง	CC デスクトップのサービスは一時的に利用できません。しばらくしてからもう一度お試しください。	cc_desktop.busy
 The CC Desktop request is invalid.	CC 桌面版请求无效。	คำขอของ CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのリクエストが無効です。	cc_desktop.request_invalid
@@ -981,7 +981,7 @@ Party not in Express	Express 中没有此对方	ไม่มีคู่ค้�
 Item not in Express	Express 中没有此商品	ไม่มีสินค้านี้ใน Express	Express に商品がありません	operator.report.reason.item_missing
 Party VAT setting differs from the invoice	对方税务设置与票面不符	การตั้งค่าภาษีของคู่ค้าไม่ตรงกับใบกำกับ	取引先の税設定が請求書と異なります	operator.report.reason.tax_setting_mismatch
 Period closed	期间已关账	งวดปิดบัญชีแล้ว	期間は締め済みです	operator.report.reason.period_locked
-Date outside the account set period	日期不在账套期间内	วันที่อยู่นอกงวดของชุดบัญชี	日付が帳簿の期間外です	operator.report.reason.period_outside
+Date outside the account set period	日期不在账套期间内	วันที่อยู่นอกงวดของชุดบัญชี	日付が会計データの期間外です	operator.report.reason.period_outside
 Not enough stock	库存不够	สต็อกไม่พอ	在庫が足りません	operator.report.reason.negative_stock
 Express sign-in failed	Express 登录失败	เข้าสู่ระบบ Express ไม่สำเร็จ	Express のログインに失敗しました	operator.report.reason.login_failed
 Express sign-in not set	Express 登录未设置	ยังไม่ได้ตั้งค่าการเข้าสู่ระบบ Express	Express のログインが未設定です	operator.report.reason.login_missing
@@ -989,7 +989,7 @@ Express license limit reached	Express 授权名额已满	สิทธิ์ใ�
 Company does not match the task	公司与任务不符	บริษัทไม่ตรงกับงาน	会社がタスクと一致しません	operator.report.reason.company_mismatch
 Choose the company in Express	请在 Express 中选择公司	เลือกบริษัทใน Express	Express で会社を選択してください	operator.report.reason.company_pick
 Account signed in elsewhere	账号已在别处登录	บัญชีเข้าสู่ระบบที่อื่นอยู่	アカウントは別の場所でログイン中です	operator.report.reason.account_in_use
-Account set unavailable	账套无法打开	เปิดชุดบัญชีไม่ได้	帳簿を開けません	operator.report.reason.account_set_unavailable
+Account set unavailable	账套无法打开	เปิดชุดบัญชีไม่ได้	会計データを開けません	operator.report.reason.account_set_unavailable
 Document type not supported yet	此类单据暂不支持	ยังไม่รองรับเอกสารประเภทนี้	この種類の伝票はまだ対応していません	operator.report.reason.recipe_mismatch
 Document type not supported yet	此类单据暂不支持	ยังไม่รองรับเอกสารประเภทนี้	この種類の伝票はまだ対応していません	operator.report.reason.unsupported
 Amount and VAT differ	金额和税不一致	ยอดเงินและภาษีไม่ตรงกัน	金額と税が不一致	operator.report.reason.readback_mismatch
@@ -1004,10 +1004,10 @@ Duplicate party reference	对方单号重复	เลขที่อ้างอ�
 Voided	已作废	ยกเลิกแล้ว	取消済み	operator.report.reason.voided
 Unexpected screen handled	已处理意外画面	จัดการหน้าจอที่ไม่คาดคิดแล้ว	想定外の画面を処理しました	operator.report.reason.ai_resolved
 Express reopened	Express 已重新打开	เปิด Express ใหม่แล้ว	Express を再度開きました	operator.report.reason.express_restarted
-Computer locked	电脑已锁屏	คอมพิวเตอร์ล็อกหน้าจอ	コンピューターはロック中です	operator.report.reason.screen_locked
-Computer in use	电脑正在使用	มีผู้ใช้คอมพิวเตอร์อยู่	コンピューターは使用中です	operator.report.reason.user_active
+Computer locked	电脑已锁屏	คอมพิวเตอร์ล็อกหน้าจอ	パソコンはロック中です	operator.report.reason.screen_locked
+Computer in use	电脑正在使用	มีผู้ใช้คอมพิวเตอร์อยู่	パソコンは使用中です	operator.report.reason.user_active
 Waiting for the server	正在等待服务器	กำลังรอเซิร์ฟเวอร์	サーバーを待っています	operator.report.reason.network_wait
-Account set in use	账套正在使用	ชุดบัญชีกำลังถูกใช้งาน	帳簿は使用中です	operator.report.reason.account_busy
+Account set in use	账套正在使用	ชุดบัญชีกำลังถูกใช้งาน	会計データは使用中です	operator.report.reason.account_busy
 Waiting for start time	等待开始时刻	รอเวลาเริ่ม	開始時刻を待っています	operator.report.reason.waiting_start
 Asked questions	已提问	ถามคำถามแล้ว	質問しました	
 Waiting for answers	等待作答	รอคำตอบ	回答待ち	

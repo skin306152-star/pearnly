@@ -224,7 +224,7 @@ This recognition service currently accepts PDF and image originals.	此识别服
 Use the Cowork OCR service to access recognition tasks.	请通过 Cowork 识别服务访问识别任务。	กรุณาเข้าถึงงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork	認識タスクへのアクセスには Cowork 認識サービスを使用してください。	
 Use the Cowork OCR service to change recognition tasks.	请通过 Cowork 识别服务修改识别任务。	กรุณาแก้ไขงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork	認識タスクの変更には Cowork 認識サービスを使用してください。	
 Work Name	后台任务标识	รหัสงานเบื้องหลัง	バックグラウンドタスク識別子	
-Workspace	公司账套	ชุดบัญชีบริษัท	会社帳簿	
+Workspace	公司账套	ชุดบัญชีบริษัท	会社会計データ	
 admitted	已受理	รับงานแล้ว	受け付け済み	
 charged	已计费	เรียกเก็บเงินแล้ว	課金済み	
 not_billable	无需计费	ไม่ต้องเรียกเก็บเงิน	課金対象外	
@@ -415,18 +415,18 @@ Issued At (UTC)	签发时间（UTC）	เวลาออก (UTC)	発行日時 (
 Revoked At (UTC)	撤销时间（UTC）	เวลายกเลิก (UTC)	失効日時 (UTC)	Revoked At (UTC)
 Revoked By	撤销人	ผู้ยกเลิก	失効者	Revoked By
 Revocation Reason	撤销原因	เหตุผลที่ยกเลิก	失効理由	Revocation Reason
-Cowork CC Desktop Device	Cowork CC 桌面版电脑	คอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปของ Cowork	Cowork CC デスクトップのコンピューター
+Cowork CC Desktop Device	Cowork CC 桌面版电脑	คอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปของ Cowork	Cowork CC デスクトップのパソコン
 Registered By	登记人	ผู้ลงทะเบียน	登録者
 Signed-in User	当前登录账号	ผู้ใช้ที่ลงชื่อเข้าใช้อยู่	サインイン中のユーザー
 Signed-in Users	登录过的账号	ผู้ใช้ที่เคยลงชื่อเข้าใช้	サインインしたことのあるユーザー
-Computer Name	电脑名称	ชื่อคอมพิวเตอร์	コンピューター名
+Computer Name	电脑名称	ชื่อคอมพิวเตอร์	パソコン名
 Device Key Digest	设备密钥摘要	แฮชคีย์อุปกรณ์	デバイスキーのダイジェスト
 Max Push Data Version	最高推送数据版本	เวอร์ชันข้อมูลงานสูงสุด	送信データの最大バージョン
 Host Names	主机名	ชื่อโฮสต์	ホスト名
 Index Rebuild Pending	索引待重建	รอสร้างดัชนีใหม่	インデックス再構築待ち
 Retired At (UTC)	移除时间（UTC）	เวลานำออก (UTC)	削除日時 (UTC)
 Retired By	移除人	ผู้นำออก	削除者
-Computer	电脑	คอมพิวเตอร์	コンピューター
+Computer	电脑	คอมพิวเตอร์	パソコン
 Full Report Due	待整份上报	รอรายงานฉบับเต็ม	全件報告待ち
 Cowork Express Account Set	Cowork Express 账套登记	การลงทะเบียนชุดบัญชี Express ของ Cowork	Cowork Express 会計データ登録
 Cowork Express Reach	Cowork Express 账套可达	การเข้าถึงชุดบัญชี Express ของ Cowork	Cowork Express 会計データへのアクセス
@@ -438,8 +438,8 @@ Account Set Details	账套详情	รายละเอียดชุดบั�
 Folder ID	文件夹编号	รหัสโฟลเดอร์	フォルダー ID
 Network Path	网络路径	พาธเครือข่าย	ネットワークパス
 Content Key	内容键	คีย์เนื้อหา	内容キー
-Local To Computer	仅限电脑	เฉพาะคอมพิวเตอร์	限定コンピューター
-Last Written By Computer	最近写入的电脑	คอมพิวเตอร์ที่เขียนล่าสุด	最後に書き込んだコンピューター
+Local To Computer	仅限电脑	เฉพาะคอมพิวเตอร์	限定パソコン
+Last Written By Computer	最近写入的电脑	คอมพิวเตอร์ที่เขียนล่าสุด	最後に書き込んだパソコン
 Last Written At (UTC)	最近写入时间（UTC）	เวลาเขียนล่าสุด (UTC)	最終書き込み日時 (UTC)
 Registered At (UTC)	登记时间（UTC）	เวลาลงทะเบียน (UTC)	登録日時 (UTC)
 Registry Row	登录列表行号	แถวในรายการเข้าสู่ระบบ	ログイン一覧の行番号
@@ -448,20 +448,20 @@ Reach State	可达状态	สถานะการเข้าถึง	アクセ
 Seen At (UTC)	上报时间（UTC）	เวลารายงาน (UTC)	報告日時 (UTC)
 Account Set Masters	账套主档	ข้อมูลหลักของชุดบัญชี	会計データのマスター
 From Routine Report	来自定期上报	จากรายงานตามรอบ	定期報告から
-Read By Computer	读取的电脑	คอมพิวเตอร์ที่อ่าน	読み取ったコンピューター
-Refresh Lease Computer	领取刷新的电脑	คอมพิวเตอร์ที่ถือสิทธิ์การรีเฟรช	更新を受け取ったコンピューター
+Read By Computer	读取的电脑	คอมพิวเตอร์ที่อ่าน	読み取ったパソコン
+Refresh Lease Computer	领取刷新的电脑	คอมพิวเตอร์ที่ถือสิทธิ์การรีเฟรช	更新を受け取ったパソコン
 Parent Refresh Request	上级刷新请求	คำขอรีเฟรชหลัก	親の更新リクエスト
 Selected Account Set	所选账套	ชุดบัญชีที่เลือก	選択した会計データ
 Entered By	录入人	ผู้บันทึก	入力者
 Push Data Version	推送数据版本	เวอร์ชันข้อมูลงาน	送信データのバージョン
-Written By Computer	写入的电脑	คอมพิวเตอร์ที่เขียน	書き込んだコンピューター
+Written By Computer	写入的电脑	คอมพิวเตอร์ที่เขียน	書き込んだパソコン
 Write Route	写入分派	การมอบหมายการเขียน	書き込みの割り当て
-Computer Owner	电脑登记人	ผู้ลงทะเบียนคอมพิวเตอร์	コンピューターの登録者
+Computer Owner	电脑登记人	ผู้ลงทะเบียนคอมพิวเตอร์	パソコンの登録者
 Index Rebuild Pending Folder IDs	索引待重建的文件夹编号	รหัสโฟลเดอร์ที่รอสร้างดัชนีใหม่	インデックス再構築待ちのフォルダー ID
 All Members	全所可用	ทุกคนในสำนักงานใช้ได้	事務所全員が利用可
-Reader Device	读文件夹的电脑	คอมพิวเตอร์ที่อ่านโฟลเดอร์	フォルダーを読み取るコンピューター
-Target Computer	指定电脑	คอมพิวเตอร์ที่ระบุ	指定のコンピューター
-Lease Computer	领取的电脑	คอมพิวเตอร์ที่รับงาน	受け取ったコンピューター
+Reader Device	读文件夹的电脑	คอมพิวเตอร์ที่อ่านโฟลเดอร์	フォルダーを読み取るパソコン
+Target Computer	指定电脑	คอมพิวเตอร์ที่ระบุ	指定のパソコン
+Lease Computer	领取的电脑	คอมพิวเตอร์ที่รับงาน	受け取ったパソコン
 Use the CC Desktop credential service to access credentials.	请通过 CC 桌面版凭据服务访问凭据。	กรุณาเข้าถึงข้อมูลรับรองผ่านบริการข้อมูลรับรองของ CC เดสก์ท็อป	CC デスクトップの認証情報サービスから認証情報にアクセスしてください。	Use the Cowork Companion credential service to access credentials.
 The credential request is invalid.	凭据请求无效。	คำขอข้อมูลรับรองไม่ถูกต้อง	認証情報のリクエストが無効です。	companion.request_invalid
 This request key was used for another credential operation.	此请求标识已用于其他凭据操作。	คีย์คำขอนี้ถูกใช้กับการดำเนินการข้อมูลรับรองอื่นแล้ว	このリクエストキーは別の認証情報操作に使用されています。	companion.request_conflict
@@ -540,7 +540,7 @@ The CC Desktop queue request is invalid.	CC 桌面版队列请求无效。	ค�
 The CC Desktop queue response is invalid.	CC 桌面版队列响应无效。	การตอบกลับคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのキューレスポンスが無効です。	companion.queue_response_invalid
 The CC Desktop delivery record is invalid.	CC 桌面版任务领取记录无效。	บันทึกการรับงานของ CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのタスク受領記録が無効です。	companion.delivery_invalid
 The CC Desktop delivery record was not found.	未找到 CC 桌面版任务领取记录。	ไม่พบบันทึกการรับงานของ CC เดสก์ท็อป	CC デスクトップのタスク受領記録が見つかりません。	companion.delivery_not_found
-This computer can no longer handle this document	此电脑已不能处理该单据	คอมพิวเตอร์เครื่องนี้ไม่สามารถดำเนินการเอกสารนี้ได้แล้ว	このコンピューターではこの書類を処理できなくなりました	companion.queue_access_revoked
+This computer can no longer handle this document	此电脑已不能处理该单据	คอมพิวเตอร์เครื่องนี้ไม่สามารถดำเนินการเอกสารนี้ได้แล้ว	このパソコンではこの書類を処理できなくなりました	companion.queue_access_revoked
 This delivery conflicts with the current task state.	此回执与任务当前状态冲突。	ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน	この受領結果はタスクの現在の状態と矛盾しています。	companion.queue_conflict
 The request to CC Desktop is invalid.	发给 CC 桌面版的请求无效。	คำขอถึง CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップへのリクエストが無効です。	companion.on_demand_invalid
 The computer on this connection does not support this action.	此连接的电脑不支持该操作。	คอมพิวเตอร์ของการเชื่อมต่อนี้ไม่รองรับรายการนี้	この接続のパソコンはこの操作に対応していません。	companion.on_demand_unsupported
@@ -1076,7 +1076,7 @@ Dividends	股息	เงินปันผล	配当	cowork.tax.income.dividend
 Commission	佣金	ค่านายหน้า	手数料	cowork.tax.income.commission
 Other	其他	อื่นๆ	その他	cowork.tax.income.other
 The tax month is not valid.	税期无效。	เดือนภาษีไม่ถูกต้อง	課税月が無効です。	tax.period_invalid
-Choose a connection and account set.	请选择连接与账套。	กรุณาเลือกการเชื่อมต่อและชุดบัญชี	接続と帳簿を選んでください。	tax.request_invalid
+Choose a connection and account set.	请选择连接与账套。	กรุณาเลือกการเชื่อมต่อและชุดบัญชี	接続と会計データを選んでください。	tax.request_invalid
 The option is not valid.	选项无效。	ตัวเลือกไม่ถูกต้อง	オプションが無効です。	tax.option_invalid
 Enter the company's 13-digit tax ID.	请输入公司的 13 位税号。	กรุณาระบุเลขประจำตัวผู้เสียภาษี 13 หลักของบริษัท	会社の 13 桁の納税者番号を入力してください。	tax.company_invalid
 The answer is not valid.	回答无效。	คำตอบไม่ถูกต้อง	回答が無効です。	tax.answer_invalid
@@ -1456,21 +1456,21 @@ Several Express suppliers have this tax ID. Choose the supplier and submit again
 A similar customer already exists in Express. Choose it, or confirm this is a new customer	Express 中已存在相似客户，请选择该客户或确认为新客户	มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่	Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください	intake.error.CUSTOMER_DUP_SUSPECTED
 A similar supplier already exists in Express. Choose it, or confirm this is a new supplier	Express 中已存在相似供应商，请选择该供应商或确认为新供应商	มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่	Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください	intake.error.SUPPLIER_DUP_SUSPECTED
 A field is longer than Express allows. Shorten it and submit again	部分字段超出 Express 允许的长度，请缩短后重新提交	มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่	Express の上限を超える長さの項目があります。短くして再送信してください	intake.error.FIELD_TOO_LONG
-This account set has no general journal book for the transfer vouchers. Add one in Express and submit again	此账套没有可用于转账凭证的普通日记账单据簿，请在 Express 中设置后重新提交	ชุดบัญชีนี้ไม่มีสมุดรายวันทั่วไปสำหรับใบสำคัญโอน กรุณาตั้งค่าใน Express แล้วส่งใหม่	この帳簿には振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください	intake.error.JOURNAL_BOOK_NOT_FOUND
+This account set has no general journal book for the transfer vouchers. Add one in Express and submit again	此账套没有可用于转账凭证的普通日记账单据簿，请在 Express 中设置后重新提交	ชุดบัญชีนี้ไม่มีสมุดรายวันทั่วไปสำหรับใบสำคัญโอน กรุณาตั้งค่าใน Express แล้วส่งใหม่	この会計データには振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください	intake.error.JOURNAL_BOOK_NOT_FOUND
 The receiving account cannot be posted to in Express. Choose another account	收款科目在 Express 中不能记账，请重新选择	บัญชีรับเงินนี้บันทึกรายการใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น	この入金勘定は Express で記帳できません。別の勘定を選んでください	intake.error.ACCOUNT_NOT_POSTABLE
 The payment methods do not add up to the day's total. Import the POS export again	各付款方式之和与当天合计不符，请重新导入 POS 导出	ยอดตามวิธีชำระเงินรวมกันไม่เท่ากับยอดรวมของวัน กรุณานำเข้าไฟล์ส่งออก POS ใหม่	支払方法の合計がその日の合計と一致しません。POS エクスポートを取り込み直してください	intake.error.pos_payments_mismatch
 Choose the receiving account of each payment method	请为每种付款方式选择收款科目	กรุณาเลือกบัญชีรับเงินของแต่ละวิธีชำระเงิน	支払方法ごとの入金勘定を選んでください	intake.error.pos_receipt_account_missing
 The POS daily totals of this document are damaged. Import the POS export again	此单据的 POS 日汇总数据已损坏，请重新导入 POS 导出文件	ข้อมูลยอดรวมรายวัน POS ของเอกสารนี้เสียหาย กรุณานำเข้าไฟล์ส่งออก POS ใหม่	この書類の POS 日計データが壊れています。POS エクスポートを取り込み直してください	intake.error.pos_facts_invalid
 POS daily sales can only be sent to Express	POS 日汇总只能推送到 Express	ยอดขายรายวันจาก POS ส่งได้เฉพาะไปยัง Express	POS の日計は Express にのみ送信できます	intake.error.pos_express_only
 The POS daily total is not in the expected form. Import the POS export again	POS 日汇总的数据格式不对，请重新导入 POS 导出	ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่	POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください	intake.error.POS_INVALID
-Express has this account set open. It is sent automatically once Express is closed	Express 正在使用此账套，关闭后将自动推送	Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express	Express でこの帳簿が開かれています。Express を閉じると自動で送信されます	intake.error.ACCOUNT_BUSY_LOCKED
-The account set cannot be reached right now. It will be sent automatically once connected.	暂时无法访问此账套，连接后将自动推送	ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้	現在この帳簿にアクセスできません。接続後に自動で送信します	intake.error.ACCOUNT_SET_UNREACHABLE
-Another computer is writing to this account set. It is sent automatically once it is done	另一台电脑正在写入此账套，完成后将自动推送	เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ	別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します	intake.error.ACCOUNT_WRITER_BUSY
-Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの帳簿の在庫勘定グループを選んでください。	intake.error.STOCK_ACC_GROUP_UNFIT
-Service input VAT basis not set	服务品进项税口径未定	ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ	サービスの仮払消費税の基準が未設定です	intake.error.SERVICE_VAT_BASIS_CHOICE
+Express has this account set open. It is sent automatically once Express is closed	Express 正在使用此账套，关闭后将自动推送	Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express	Express でこの会計データが開かれています。Express を閉じると自動で送信されます	intake.error.ACCOUNT_BUSY_LOCKED
+The account set cannot be reached right now. It will be sent automatically once connected.	暂时无法访问此账套，连接后将自动推送	ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้	現在この会計データにアクセスできません。接続後に自動で送信します	intake.error.ACCOUNT_SET_UNREACHABLE
+Another computer is writing to this account set. It is sent automatically once it is done	另一台电脑正在写入此账套，完成后将自动推送	เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ	別のパソコンがこの会計データに書き込み中です。完了後に自動で送信します	intake.error.ACCOUNT_WRITER_BUSY
+Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの会計データの在庫勘定グループを選んでください。	intake.error.STOCK_ACC_GROUP_UNFIT
+Service input VAT basis not set	服务品进项税口径未定	ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ	サービスの仮払付加価値税の基準が未設定です	intake.error.SERVICE_VAT_BASIS_CHOICE
 The accounting period is closed in Express	会计期间已在 Express 关账	งวดบัญชีนี้ปิดแล้วใน Express	会計期間は Express で締め済みです	intake.error.PERIOD_LOCKED
 Not enough stock in Express	Express 库存不足	สินค้าคงเหลือใน Express ไม่พอ	Express の在庫が足りません	intake.error.STOCK_INSUFFICIENT
-The account set on this computer is not the registered one. Waiting for another computer.	此电脑上的账套与登记的不一致，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています	intake.error.ERR_ACCOUNT_UID_MISMATCH
+The account set on this computer is not the registered one. Waiting for another computer.	此电脑上的账套与登记的不一致，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このパソコンの会計データは登録されたものではありません。別のパソコンを待っています	intake.error.ERR_ACCOUNT_UID_MISMATCH
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	intake.error.BAD_DOCTYPE
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	intake.error.BAD_SALES_DOCTYPE
 This invoice has no lines. Add them and submit again.	此发票没有明细，请补充后重新提交	เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่	この請求書には明細がありません。追加して再送信してください	intake.error.EMPTY_ITEMS
@@ -1485,8 +1485,8 @@ The invoice number is missing. Add it and submit again.	缺少发票号，请补
 The supplier is missing. Add it and submit again.	缺少供应商，请补充后重新提交	ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่	仕入先がありません。追加して再送信してください	intake.error.MISSING_SUPPLIER
 Express already has this invoice number with different content. Check it, or choose Send anyway	Express 中已有相同单号但内容不同，请核对；如需另记一张，请点击「仍然推送」	ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หากต้องการบันทึกเป็นอีกรายการ กรุณาเลือก "ยืนยันการส่ง"	Express に同じ番号で内容の違う伝票があります。確認するか「このまま送信」を選んでください	intake.error.DUPLICATE_CONTENT_DIFFERS
 The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway	此发票的上一版本仍在 Express 中，请先在 Express 中删除，或点击「仍然推送」	เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express ก่อน หรือเลือก "ยืนยันการส่ง"	この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください	intake.error.PRIOR_DOC_STILL_IN_ERP
-The chosen account set belongs to another company. Check the account set	所选账套属于其他公司，请核对账套	ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี	選んだ帳簿は別の会社のものです。帳簿を確認してください	intake.error.ACCOUNT_COMPANY_MISMATCH
-CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop	CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套	CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป	CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください	intake.error.ACCOUNT_DIR_NOT_ALLOWED
+The chosen account set belongs to another company. Check the account set	所选账套属于其他公司，请核对账套	ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี	選んだ会計データは別の会社のものです。会計データを確認してください	intake.error.ACCOUNT_COMPANY_MISMATCH
+CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop	CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套	CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป	CC デスクトップはこの会計データに書き込めません。CC デスクトップの会計データ設定を確認してください	intake.error.ACCOUNT_DIR_NOT_ALLOWED
 CC Desktop could not read this invoice. Check the fields and submit again	CC 桌面版无法读取此发票，请核对字段后重新提交	CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่	CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください	intake.error.PAYLOAD_INVALID
 This supplier is not in Express and could not be created. Check the supplier name and tax ID	Express 中不存在此供应商且无法创建，请核对供应商名称和税号	ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี	Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください	intake.error.SUPPLIER_NOT_IN_APMAS
 This customer is not in Express and could not be created. Check the customer name and tax ID	Express 中不存在此客户且无法创建，请核对客户名称和税号	ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี	Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください	intake.error.CUSTOMER_NOT_IN_ARMAS
@@ -1509,12 +1509,12 @@ The invoice date is missing or unreadable. Fill it in and submit again	票面日
 The amounts do not add up. Correct them and submit again	金额合计不一致，请更正后重新提交	ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่	金額が合いません。直して再送信してください	intake.error.amounts_not_consistent
 Credit notes need a person to post them in Express	贷项通知单需在 Express 中人工处理	ใบลดหนี้ต้องบันทึกใน Express ด้วยตนเอง	返品・値引伝票は Express で手動で処理してください	intake.error.credit_note
 Choose service or stock for this invoice and submit again	请为此发票选择服务或存货后重新提交	กรุณาเลือกว่าเอกสารนี้เป็นบริการหรือสินค้าคงเหลือ แล้วส่งใหม่	この伝票がサービスか在庫かを選んで再送信してください	intake.error.posting_kind_needed
-Choose the year and account set first	请先选年度和账套	กรุณาเลือกปีและชุดบัญชีก่อน	先に年度と帳簿を選んでください	intake.error.no_account_set
+Choose the year and account set first	请先选年度和账套	กรุณาเลือกปีและชุดบัญชีก่อน	先に年度と会計データを選んでください	intake.error.no_account_set
 The entry does not balance. Check the amounts	分录借贷不平，请核对金额	ยอดเดบิตและเครดิตไม่เท่ากัน กรุณาตรวจสอบยอดเงิน	仕訳の貸借が合いません。金額を確認してください	intake.error.entry_not_balanced
 An account used for this invoice is not in the Express chart of accounts. Check the account settings	所用科目不在 Express 科目表中，请检查科目设置	มีรหัสบัญชีที่ไม่อยู่ในผังบัญชีของ Express กรุณาตรวจการตั้งค่าบัญชี	使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください	intake.error.account_not_in_chart
 Choose purchase or sales for this invoice and submit again	请选择此发票为进项或销项后重新提交	กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่	この伝票が仕入か売上かを選んで再送信してください	intake.error.direction_unknown
 CC Desktop is out of date. Update CC Desktop and submit again	CC 桌面版版本过旧，请更新后重新提交	CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่	CC デスクトップが古いバージョンです。更新して再送信してください	intake.error.payload_version_outdated
-CC Desktop has not been given this account set. Check the account sets in CC Desktop	CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置	CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป	CC デスクトップにこの帳簿が許可されていません。CC デスクトップの帳簿を確認してください	intake.error.account_set_not_allowed
+CC Desktop has not been given this account set. Check the account sets in CC Desktop	CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置	CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป	CC デスクトップにこの会計データが許可されていません。CC デスクトップの会計データを確認してください	intake.error.account_set_not_allowed
 An account needed for this invoice is not set. Check the account settings	缺少此发票所需的科目，请检查科目设置	ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี	この伝票に必要な勘定科目が設定されていません。科目設定を確認してください	intake.error.no_ap_account
 An account needed for this invoice is not set. Check the account settings	缺少此发票所需的科目，请检查科目设置	ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี	この伝票に必要な勘定科目が設定されていません。科目設定を確認してください	intake.error.no_ar_account
 An account needed for this invoice is not set. Check the account settings	缺少此发票所需的科目，请检查科目设置	ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี	この伝票に必要な勘定科目が設定されていません。科目設定を確認してください	intake.error.no_input_vat_account
@@ -1522,7 +1522,7 @@ An account needed for this invoice is not set. Check the account settings	缺少
 An account needed for this invoice is not set. Check the account settings	缺少此发票所需的科目，请检查科目设置	ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี	この伝票に必要な勘定科目が設定されていません。科目設定を確認してください	intake.error.no_purchase_account
 An account needed for this invoice is not set. Check the account settings	缺少此发票所需的科目，请检查科目设置	ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี	この伝票に必要な勘定科目が設定されていません。科目設定を確認してください	intake.error.no_revenue_account
 Send anyway	仍然推送	ยืนยันการส่ง	このまま送信	cowork.review.send_anyway
-Choose once for this account set	此账套仅需选择一次	เลือกครั้งเดียวสำหรับชุดบัญชีนี้	この帳簿で一度だけ選択	cowork.choice.title
+Choose once for this account set	此账套仅需选择一次	เลือกครั้งเดียวสำหรับชุดบัญชีนี้	この会計データで一度だけ選択	cowork.choice.title
 Express record	Express 对应档案	ข้อมูลคู่ค้าใน Express	Express の取引先	cowork.choice.party
 Stock item	存货	สินค้าคงเหลือ	在庫品目	cowork.choice.item
 Expense account	费用科目	บัญชีค่าใช้จ่าย	費用勘定	cowork.choice.account
@@ -1544,10 +1544,10 @@ Cash purchase	现购	ซื้อเงินสด	現金仕入	cowork.choice.c
 Credit purchase	赊购	ซื้อเงินเชื่อ	掛仕入	cowork.choice.credit
 Claim as input VAT	抵扣进项税	ใช้สิทธิ์ภาษีซื้อ	仕入税額控除する	cowork.choice.claim
 Count as expense	不抵扣，计入费用	ไม่ใช้สิทธิ์ภาษีซื้อ บันทึกเป็นค่าใช้จ่าย	控除せず費用に含める	cowork.choice.expense
-Service input VAT	服务品进项税	ภาษีซื้อของสินค้าบริการ	サービスの仮払消費税	cowork.choice.service_vat
+Service input VAT	服务品进项税	ภาษีซื้อของสินค้าบริการ	サービスの仮払付加価値税	cowork.choice.service_vat
 Accrual basis	权责制	เกณฑ์สิทธิ	発生主義	cowork.choice.accrual
 Cash basis	收付实现制	เกณฑ์เงินสด	現金主義	cowork.choice.cash_basis
-The chosen value is not in this account set. Choose again	所选项不在此账套中，请重新选择	รายการที่เลือกไม่มีอยู่ในชุดบัญชีนี้ กรุณาเลือกใหม่	選んだ値はこの帳簿にありません。選び直してください	cowork.choice.invalid
+The chosen value is not in this account set. Choose again	所选项不在此账套中，请重新选择	รายการที่เลือกไม่มีอยู่ในชุดบัญชีนี้ กรุณาเลือกใหม่	選んだ値はこの会計データにありません。選び直してください	cowork.choice.invalid
 This is set by the scheduled task's default handling. Change it in the task	此项由定时任务的默认处理决定，请在定时任务中修改	รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา	この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください	cowork.choice.task_default
 The subject of the choice is missing	缺少要记住的对象	ไม่ได้ระบุรายการที่ต้องจดจำ	記憶する対象がありません	cowork.choice.subject_missing
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again	不支持旧版 Excel（.xls）文件，请另存为 .xlsx 或 .csv 后重新发送	ไม่รองรับไฟล์ Excel รุ่นเก่า (.xls) กรุณาบันทึกเป็น .xlsx หรือ .csv แล้วส่งใหม่	旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください	pos.xls_not_supported
@@ -1562,7 +1562,7 @@ A date in this POS export cannot be read	此 POS 导出中有日期无法读取	
 An amount in this POS export cannot be read	此 POS 导出中有金额无法读取	อ่านจำนวนเงินในไฟล์ส่งออก POS นี้ไม่ได้	この POS エクスポートの金額が読み取れません	pos.amount_unreadable
 This POS export has a status value that is not chosen yet	此 POS 导出有尚未确认的状态值	ไฟล์ส่งออก POS นี้มีค่าสถานะที่ยังไม่ได้กำหนด	この POS エクスポートにまだ指定していない状態の値があります	pos.status_unknown
 A day's sales total is zero or less	有一天的销售合计为零或负数	ยอดขายรวมของบางวันเป็นศูนย์หรือติดลบ	売上合計がゼロ以下の日があります	pos.day_not_positive
-The VAT column is more than 7% of a day's sales	增值税一栏超过当天销售额的 7%	คอลัมน์ภาษีมูลค่าเพิ่มเกิน 7% ของยอดขายในวันนั้น	消費税の列がその日の売上の 7% を超えています	pos.vat_out_of_range
+The VAT column is more than 7% of a day's sales	增值税一栏超过当天销售额的 7%	คอลัมน์ภาษีมูลค่าเพิ่มเกิน 7% ของยอดขายในวันนั้น	付加価値税の列がその日の売上の 7% を超えています	pos.vat_out_of_range
 A non-cash payment method has a negative total for a day	有一天某种非现金付款方式的合计为负数	มีวิธีชำระเงินที่ไม่ใช่เงินสดซึ่งยอดรวมของวันติดลบ	現金以外の支払方法の日計がマイナスの日があります	pos.payment_negative
 A day has more than 20 payment methods	一天的付款方式超过 20 种	มีวิธีชำระเงินเกิน 20 แบบในหนึ่งวัน	1 日の支払方法が 20 種類を超えています	pos.too_many_payments
 A POS export can cover at most 100 days	一份 POS 导出最多 100 天	ไฟล์ส่งออก POS หนึ่งไฟล์มีได้ไม่เกิน 100 วัน	1 つの POS エクスポートは 100 日分までです	pos.too_many_days
@@ -1570,7 +1570,7 @@ The item lines do not add up to the day's total	商品明细之和与当天合�
 After refunds, an item's quantity for a day is zero or less, or its amount is negative	退款后有商品当天的数量为零或负数，或金额为负数	หลังหักการคืน มีสินค้าที่จำนวนของวันเป็นศูนย์หรือติดลบ หรือยอดเงินติดลบ	返品後、数量がゼロ以下か金額がマイナスの品目がある日があります	pos.items_not_positive
 A day has more than 999 item lines	一天的商品明细超过 999 行	มีรายการสินค้าเกิน 999 บรรทัดในหนึ่งวัน	1 日の品目が 999 行を超えています	pos.too_many_items
 The receipts do not add up to the total row of this POS export	收据之和与此 POS 导出的合计行不符	ยอดรวมใบเสร็จไม่เท่ากับแถวยอดรวมในไฟล์ส่งออก POS นี้	レシートの合計がこの POS エクスポートの合計行と一致しません	pos.total_mismatch
-Choose an Express account set first	请先选择 Express 账套	กรุณาเลือกชุดบัญชี Express ก่อน	先に Express の帳簿を選んでください	pos.target_required
+Choose an Express account set first	请先选择 Express 账套	กรุณาเลือกชุดบัญชี Express ก่อน	先に Express の会計データを選んでください	pos.target_required
 POS exports can only be entered into Express	POS 导出只能录入 Express	ไฟล์ส่งออก POS บันทึกได้เฉพาะใน Express	POS エクスポートは Express にのみ入力できます	pos.not_express
 Choose the Express records for this invoice first, then submit again	请先为此发票选择 Express 中的对应项，再重新提交	กรุณาเลือกข้อมูลใน Express สำหรับเอกสารนี้ก่อน แล้วส่งใหม่	先にこの伝票の Express 側の項目を選んでから再送信してください	intake.error.choice_needed
 This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice	此单据为转账凭条。选择是否录入，所有同类单据将按此处理	เอกสารนี้เป็นสลิปโอนเงิน เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้	これは振込明細です。入力するかを選ぶと、同じ種類のすべてに適用されます	intake.error.document_policy_needed_payment_evidence
@@ -1600,9 +1600,9 @@ It was not entered	未入账	ยังไม่ลงบัญชี	計上さ�
 ERP document number	ERP 单号	เลขที่เอกสารใน ERP	ERP の伝票番号	cowork.unknown.docnum
 Checked in the ERP: not entered. It can be sent again	已在 ERP 核对：未入账，可重新推送	ตรวจสอบใน ERP แล้ว: ยังไม่ลงบัญชี สามารถส่งใหม่ได้	ERP で確認済み：未計上。再送信できます	intake.error.confirmed_not_entered
 Recognition was interrupted (not charged). Upload this file again	识别已中断（未扣费），请重新上传此文件	การอ่านถูกขัดจังหวะ (ไม่มีการเรียกเก็บเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง	読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください	cowork.intake.interrupted
-CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop	此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套	CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป	この PC の CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください	intake.error.NO_ACCOUNT_SELECTION
+CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop	此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套	CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป	このパソコンの CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください	intake.error.NO_ACCOUNT_SELECTION
 CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again	准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送	ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่	送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください	push.companion_account_unreported
-No computer with CC Desktop can write to this account set	没有可写入该账套的电脑	ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้	この会計データに書き込める CC デスクトップのコンピューターがありません	push.no_writer
+No computer with CC Desktop can write to this account set	没有可写入该账套的电脑	ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้	この会計データに書き込める CC デスクトップのパソコンがありません	push.no_writer
 CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again	准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送	ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่	送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください	The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again
 Add Row	添加行	เพิ่มรายการ	行を追加	
 Review document	复核单据	ตรวจทานเอกสาร	書類を確認	
@@ -1775,7 +1775,7 @@ Turn this scheduled task off? Documents already entered stay as they are.	确定
 Rule is on	启用中	เปิดใช้งานอยู่	有効	cowork.folder.on
 Rule is off	已停用	ปิดใช้งานแล้ว	停止中	cowork.folder.off
 CC Desktop offline or needs update	CC 桌面版不在线或需升级	CC เดสก์ท็อปออฟไลน์หรือต้องอัปเดต	CC デスクトップがオフラインか更新が必要	cowork.folder.agentStale
-CC Desktop on this PC has not synced recently. Update it to the latest version.	此电脑的 CC 桌面版近期未同步，请升级至最新版本。	CC เดสก์ท็อปบนเครื่องนี้ไม่ได้ซิงค์มาระยะหนึ่ง กรุณาอัปเดตเป็นเวอร์ชันล่าสุด	この PC の CC デスクトップが同期していません。最新版に更新してください。	cowork.folder.agentStaleHint
+CC Desktop on this PC has not synced recently. Update it to the latest version.	此电脑的 CC 桌面版近期未同步，请升级至最新版本。	CC เดสก์ท็อปบนเครื่องนี้ไม่ได้ซิงค์มาระยะหนึ่ง กรุณาอัปเดตเป็นเวอร์ชันล่าสุด	このパソコンの CC デスクトップが同期していません。最新版に更新してください。	cowork.folder.agentStaleHint
 Entered {0} · to check {1}	已推送 {0} · 待处理 {1}	ส่งแล้ว {0} · รอดำเนินการ {1}	登録済み {0} · 要確認 {1}	cowork.folder.counts
 In progress {0}	处理中 {0}	กำลังดำเนินการ {0}	処理中 {0}	cowork.folder.moving
 {0} files in the folder now, processed at the run time	文件夹里现有 {0} 份，到点一起处理	ขณะนี้มี {0} ไฟล์ในโฟลเดอร์ จะประมวลผลพร้อมกันเมื่อถึงเวลา	フォルダーに現在 {0} 件、実行時刻にまとめて処理します	cowork.folder.waiting
@@ -1826,13 +1826,13 @@ The scheduled task is incomplete or invalid.	定时任务内容不完整或不�
 Choose a folder inside the allowed root, without system folders.	请选择允许读取的根目录下的文件夹，不能选择系统文件夹。	กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ	許可されたルート内の、システム以外のフォルダーを選んでください。	cowork.folder.path_invalid
 Choose an allowed root reported by CC Desktop.	请选择 CC 桌面版上报的根目录。	กรุณาเลือกโฟลเดอร์หลักที่ CC เดสก์ท็อปรายงานไว้	CC デスクトップが報告したルートを選んでください。	cowork.folder.root_invalid
 Choose a day and time for the monthly run.	请选择每月运行的日期和时间。	กรุณาเลือกวันและเวลาที่จะทำงานทุกเดือน	毎月の実行日と時刻を選んでください。	cowork.folder.schedule_invalid
-One of the default choices is not valid for this account set.	部分默认处理在此账套中不可用。	มีค่าเริ่มต้นบางรายการที่ไม่สามารถใช้กับชุดบัญชีนี้ได้	既定の処理の一部がこの帳簿では使えません。	cowork.folder.defaults_invalid
-This account set is not in the connection's list. Reload the list in New Intake.	此账套不在该连接的账套列表中，请在新建录入中重新读取。	ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่	この帳簿は一覧にありません。新規取込で再読み込みしてください。	cowork.folder.account_set_invalid
-Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの帳簿の在庫勘定グループを選んでください。	cowork.folder.stock_group_needed
-A scheduled task cannot move to another PC. Turn it off and create a new one.	定时任务无法转移至其他电脑，请停用后新建定时任务。	ไม่สามารถย้ายงานตามกำหนดเวลาไปยังเครื่องอื่นได้ กรุณาปิดใช้งานนี้แล้วสร้างงานใหม่	定期タスクは別の PC に移せません。停止して新しく作成してください。	cowork.folder.connection_fixed
-This PC already has the maximum number of scheduled tasks.	此电脑的定时任务数量已达上限。	เครื่องนี้มีจำนวนงานตามกำหนดเวลาถึงขีดจำกัดแล้ว	この PC の定期タスク数が上限に達しています。	cowork.folder.too_many
+One of the default choices is not valid for this account set.	部分默认处理在此账套中不可用。	มีค่าเริ่มต้นบางรายการที่ไม่สามารถใช้กับชุดบัญชีนี้ได้	既定の処理の一部がこの会計データでは使えません。	cowork.folder.defaults_invalid
+This account set is not in the connection's list. Reload the list in New Intake.	此账套不在该连接的账套列表中，请在新建录入中重新读取。	ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่	この会計データは一覧にありません。新規取込で再読み込みしてください。	cowork.folder.account_set_invalid
+Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの会計データの在庫勘定グループを選んでください。	cowork.folder.stock_group_needed
+A scheduled task cannot move to another PC. Turn it off and create a new one.	定时任务无法转移至其他电脑，请停用后新建定时任务。	ไม่สามารถย้ายงานตามกำหนดเวลาไปยังเครื่องอื่นได้ กรุณาปิดใช้งานนี้แล้วสร้างงานใหม่	定期タスクは別のパソコンに移せません。停止して新しく作成してください。	cowork.folder.connection_fixed
+This PC already has the maximum number of scheduled tasks.	此电脑的定时任务数量已达上限。	เครื่องนี้มีจำนวนงานตามกำหนดเวลาถึงขีดจำกัดแล้ว	このパソコンの定期タスク数が上限に達しています。	cowork.folder.too_many
 This scheduled task is turned off.	此定时任务已停用。	งานตามกำหนดเวลานี้ปิดใช้งานอยู่	この定期タスクは停止中です。	cowork.folder.rule_disabled
-This scheduled task no longer exists for this PC.	此电脑上不存在该定时任务。	ไม่พบงานตามกำหนดเวลานี้ในเครื่องนี้	この PC にこの定期タスクはありません。	cowork.folder.rule_missing
+This scheduled task no longer exists for this PC.	此电脑上不存在该定时任务。	ไม่พบงานตามกำหนดเวลานี้ในเครื่องนี้	このパソコンにこの定期タスクはありません。	cowork.folder.rule_missing
 The task owner can no longer enter documents with this connection.	定时任务负责人已无权使用此连接录入。	ผู้รับผิดชอบงานตามกำหนดเวลาไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว	定期タスクの担当者はこの接続で登録できなくなっています。	cowork.folder.owner_not_ready
 This file record was not found.	文件记录不存在。	ไม่พบรายการไฟล์นี้	このファイル記録が見つかりません。	cowork.folder.entry_missing
 Only PDF and image files are read.	仅支持 PDF 和图片文件。	รองรับเฉพาะไฟล์ PDF และรูปภาพ	読み取るのは PDF と画像だけです。	cowork.folder.type_invalid
@@ -1840,7 +1840,7 @@ Give a file path inside this folder.	请提供此文件夹中的文件路径。	
 This file type cannot be brought into the chat.	这种类型的文件不能取进对话。	ไม่สามารถนำไฟล์ประเภทนี้เข้ามาในแชตได้	この種類のファイルはチャットに取り込めません。	cowork.folder.fetch_type_invalid
 The file is empty or too large.	文件为空或过大。	ไฟล์ว่างหรือใหญ่เกินไป	ファイルが空か大きすぎます。	cowork.folder.size_invalid
 This file is too large to send from this PC.	文件过大，无法从此电脑上传。	ไฟล์มีขนาดใหญ่เกินไป ไม่สามารถอัปโหลดจากเครื่องนี้ได้	このファイルは大きすぎて送信できません。	cowork.folder.too_large
-The uploaded file does not match the file on the PC.	上传的内容与电脑上的文件不一致。	ไฟล์ที่อัปโหลดไม่ตรงกับไฟล์ในเครื่อง	アップロード内容が PC のファイルと一致しません。	cowork.folder.content_mismatch
+The uploaded file does not match the file on the PC.	上传的内容与电脑上的文件不一致。	ไฟล์ที่อัปโหลดไม่ตรงกับไฟล์ในเครื่อง	アップロード内容がパソコンのファイルと一致しません。	cowork.folder.content_mismatch
 The uploaded file was not received. It will be sent again.	未收到上传的文件，将重新上传。	ไม่ได้รับไฟล์ที่อัปโหลด ระบบจะอัปโหลดใหม่	アップロードされたファイルを受信できませんでした。再送します。	cowork.folder.upload_lost
 Waiting for the recognition charge to complete.	正在等待扣费完成。	กำลังรอการตัดค่าบริการให้เสร็จสิ้น	課金の完了待ち	cowork.folder.billing_pending
 The recognition task was not found.	识别任务不存在。	ไม่พบงานอ่านเอกสาร	読み取りタスクが見つかりません。	cowork.folder.batch_missing
@@ -1856,11 +1856,11 @@ This account set is not on the computer's list of account sets.	电脑上报的�
 CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.	CC 桌面版正在读取此账套的科目表，读完后推送。	CC เดสก์ท็อปกำลังอ่านผังบัญชีของชุดบัญชีนี้ จะส่งเมื่ออ่านเสร็จ	CC デスクトップがこの会計データの勘定科目表を読み込んでいます。読み込み後に送信します。	cowork.folder.reading_masters
 No account set of this company covers the document date.	该公司没有覆盖单据日期的账套	ไม่มีชุดบัญชีของบริษัทนี้ที่ครอบคลุมวันที่ในเอกสาร	この会社には書類の日付を含む会計データがありません。	cowork.folder.account_set_none
 More than one account set of this company covers the document date.	该公司有多份账套覆盖单据日期	มีชุดบัญชีของบริษัทนี้มากกว่าหนึ่งชุดที่ครอบคลุมวันที่ในเอกสาร	この会社には書類の日付を含む会計データが複数あります。	cowork.folder.account_set_ambiguous
-No computer can reach the account set for the document date.	没有电脑能访问单据日期所在的账套。	ไม่มีคอมพิวเตอร์เครื่องใดเข้าถึงชุดบัญชีของวันที่ในเอกสารได้	書類の日付の会計データにアクセスできるコンピューターがありません。	cowork.folder.account_set_unreachable
-Computer offline	电脑离线	คอมพิวเตอร์ออฟไลน์	コンピューターがオフライン	intake.agent.state.offline
-No computer can write	没有能写的电脑	ไม่มีคอมพิวเตอร์ที่บันทึกได้	書き込めるコンピューターがありません	intake.agent.state.noWriter
+No computer can reach the account set for the document date.	没有电脑能访问单据日期所在的账套。	ไม่มีคอมพิวเตอร์เครื่องใดเข้าถึงชุดบัญชีของวันที่ในเอกสารได้	書類の日付の会計データにアクセスできるパソコンがありません。	cowork.folder.account_set_unreachable
+Computer offline	电脑离线	คอมพิวเตอร์ออฟไลน์	パソコンがオフライン	intake.agent.state.offline
+No computer can write	没有能写的电脑	ไม่มีคอมพิวเตอร์ที่บันทึกได้	書き込めるパソコンがありません	intake.agent.state.noWriter
 CC Desktop needs update	CC 桌面版需更新	CC เดสก์ท็อปต้องอัปเดต	CC デスクトップの更新が必要	intake.agent.state.needsUpdate
-Computer removed	电脑已移除	นำคอมพิวเตอร์ออกแล้ว	コンピューターは削除済み	cowork.folder.readerGone
+Computer removed	电脑已移除	นำคอมพิวเตอร์ออกแล้ว	パソコンは削除済み	cowork.folder.readerGone
 Follows the company's account set for the year	跟随公司当年账套	ตามชุดบัญชีของบริษัทในแต่ละปี	会社のその年の会計データに従う	cowork.folder.followCompany
 Company Branch	公司分店	สาขาของบริษัท	会社の支店
 The result sheet is not ready yet.	结果表格尚未生成。	ตารางผลยังไม่พร้อม	結果表はまだ準備できていません。	cowork.folder.workbook_not_ready
@@ -1870,7 +1870,7 @@ Why it is not in the review sheet	未生成复核表的原因	สาเหตุ
 Schedule	每月运行	กำหนดการ	実行日時	cowork.folder.col.schedule
 Folder results	结果	ผลลัพธ์	結果	cowork.folder.col.result
 One folder per scheduled task. PDF and image files only.	每个文件夹对应一个定时任务，仅支持 PDF 和图片文件。	หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ	1 フォルダーに 1 定期タスク。PDF と画像のみ。	cowork.folder.folderHint
-No folders on this PC yet. Add them in CC Desktop on that PC.	此电脑暂无可选文件夹，请在此电脑的 CC 桌面版中添加。	เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่องนั้น	この PC にはまだ選べるフォルダーがありません。その PC の CC デスクトップで追加してください。	cowork.folder.noRoots
+No folders on this PC yet. Add them in CC Desktop on that PC.	此电脑暂无可选文件夹，请在此电脑的 CC 桌面版中添加。	เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่องนั้น	このパソコンにはまだ選べるフォルダーがありません。そのパソコンの CC デスクトップで追加してください。	cowork.folder.noRoots
 View the ones to check	查看待处理	ดูรายการรอดำเนินการ	要確認を見る	cowork.folder.viewAttention
 Scheduled task reminder	定时任务提醒	แจ้งเตือนงานตามกำหนดเวลา	定期タスクのリマインダー	cowork.folder.remind.title
 today at {0}	今天 {0}	วันนี้ เวลา {0} น.	今日 {0}	cowork.folder.remind.today
@@ -2082,7 +2082,7 @@ Workbook Revision	工作簿版本	รุ่นของเวิร์กบุ�
 The import file is too large.	导入文件过大。	ไฟล์ที่นำเข้ามีขนาดใหญ่เกินไป	インポートファイルが大きすぎます。	client_import.file_too_large
 Too many rows to import.	导入行数过多。	จำนวนแถวที่นำเข้ามากเกินไป	インポートする行が多すぎます。	client_import.too_many_rows
 This tax ID is already used by another company.	该税号已被其他公司使用。	เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับบริษัทอื่นแล้ว	この納税者番号は既に別の会社で使用されています。	workspace.tax_id_duplicate
-Sending was cancelled because the account set was in use. Close Express and send again	账套正被占用，已终止推送，请关闭 Express 后重新推送	ยกเลิกการส่งแล้วเนื่องจากชุดบัญชีกำลังถูกใช้งาน กรุณาปิด Express แล้วส่งใหม่	帳簿が使用中のため送信を中止しました。Express を閉じてから再送信してください	intake.error.USER_ABORTED_BUSY
+Sending was cancelled because the account set was in use. Close Express and send again	账套正被占用，已终止推送，请关闭 Express 后重新推送	ยกเลิกการส่งแล้วเนื่องจากชุดบัญชีกำลังถูกใช้งาน กรุณาปิด Express แล้วส่งใหม่	会計データが使用中のため送信を中止しました。Express を閉じてから再送信してください	intake.error.USER_ABORTED_BUSY
 CC Desktop is out of date. Update CC Desktop and submit again	CC 桌面版版本过旧，请更新后重新提交	CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่	CC デスクトップが古いバージョンです。更新して再送信してください	intake.error.ERR_PAYLOAD_VERSION
 No number_	无发票号_	ไม่มีเลขที่_	番号なし_	cowork.folder.no_number_prefix
 Result Folder	结果文件夹	โฟลเดอร์ผลลัพธ์	結果フォルダー
@@ -2105,17 +2105,17 @@ Expense account	费用科目	บัญชีค่าใช้จ่าย	費�
 MR.ERP default values are needed for this account set. Choose them before pushing.	需要选择 MR.ERP 默认值，请选择后再推送。	กรุณาเลือกค่าเริ่มต้นของ MR.ERP สำหรับชุดบัญชีนี้ก่อนส่ง	MR.ERP の既定値を選択してから送信してください。	intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED
 A chosen MR.ERP value no longer exists in MR.ERP. Choose again.	所选的值在 MR.ERP 中已不存在，请重新选择。	ค่าที่เลือกไม่มีใน MR.ERP แล้ว กรุณาเลือกใหม่	選択した値は MR.ERP に存在しません。選び直してください。	intake.error.ERR_MRERP_DEFAULT_CHANGED
 Could not read the MR.ERP master data.	无法读取 MR.ERP 主档。	ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้	MR.ERP のマスターデータを読み取れません。	intake.error.ERR_MRERP_MASTER_UNREADABLE
-This value cannot be chosen for this account set.	此账套不能选择该值。	ไม่สามารถเลือกค่านี้สำหรับชุดบัญชีนี้ได้	この帳簿ではこの値を選択できません。	connection.mrerp_default_invalid
+This value cannot be chosen for this account set.	此账套不能选择该值。	ไม่สามารถเลือกค่านี้สำหรับชุดบัญชีนี้ได้	この会計データではこの値を選択できません。	connection.mrerp_default_invalid
 MR.ERP Master Defaults per Account Set	各账套的 MR.ERP 默认值	ค่าเริ่มต้น MR.ERP ของแต่ละชุดบัญชี	会計データ別 MR.ERP 既定値
 MR.ERP Master Options Seen	已读取的 MR.ERP 主档	ข้อมูลหลัก MR.ERP ที่พบ	取得済みの MR.ERP マスター
 Folder not available	文件夹不可用	ไม่พบโฟลเดอร์	フォルダーが見つかりません	cowork.folder.folderMissing
 This folder overlaps the folder of scheduled task «{0}».	与定时任务「{0}」的文件夹重叠	โฟลเดอร์ซ้อนกับงานตามกำหนดเวลา «{0}»	定期タスク「{0}」のフォルダーと重なっています	cowork.folder.overlap_with
 This connection does not support scheduled tasks.	此连接不支持定时任务。	การเชื่อมต่อนี้ไม่รองรับงานตามกำหนดเวลา	この接続は定期タスクに対応していません。	cowork.folder.unsupported_connection
-No folders to choose yet. Add them in CC Desktop on the PC.	暂无可选文件夹，请在电脑的 CC 桌面版中添加。	ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่อง	選べるフォルダーがまだありません。PC の CC デスクトップで追加してください。	cowork.folder.noRootsAny
+No folders to choose yet. Add them in CC Desktop on the PC.	暂无可选文件夹，请在电脑的 CC 桌面版中添加。	ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่อง	選べるフォルダーがまだありません。パソコンの CC デスクトップで追加してください。	cowork.folder.noRootsAny
 Connect CC Desktop	连接 CC 桌面版	เชื่อมต่อ CC เดสก์ท็อป	CC デスクトップを接続	cowork.folder.connectHelper
 {0}: {1}	{0}：{1}	{0}: {1}	{0}：{1}	cowork.folder.pair
 Checked CC Desktop	查看了 CC 桌面版	ตรวจสอบ CC เดสก์ท็อปแล้ว	CC デスクトップを確認しました	
-Refreshed account sets	刷新了账套	รีเฟรชชุดบัญชีแล้ว	帳簿を更新しました
+Refreshed account sets	刷新了账套	รีเฟรชชุดบัญชีแล้ว	会計データを更新しました
 Listed documents	查看了单据	ดูรายการเอกสารแล้ว	書類を一覧しました
 Recognized documents	识别了单据	อ่านเอกสารแล้ว	書類を読み取りました
 Checked recognition results	查看了识别结果	ตรวจสอบผลการอ่านเอกสารแล้ว	読み取り結果を確認しました
@@ -2207,7 +2207,7 @@ Checking recognition results	正在查看识别结果	กำลังตรว�
 Importing POS sales	正在导入 POS 销售	กำลังนำเข้ายอดขาย POS	POS の売上を取り込んでいます
 Setting the POS export columns	正在设定 POS 导出的列	กำลังกำหนดคอลัมน์ไฟล์ส่งออก POS	POS エクスポートの列を設定しています
 Checking CC Desktop	正在查看 CC 桌面版	กำลังตรวจสอบ CC เดสก์ท็อป	CC デスクトップを確認しています
-Refreshing account sets	正在刷新账套	กำลังรีเฟรชชุดบัญชี	帳簿を更新しています
+Refreshing account sets	正在刷新账套	กำลังรีเฟรชชุดบัญชี	会計データを更新しています
 Listing documents	正在查看单据	กำลังดูรายการเอกสาร	書類を一覧しています
 Pushing documents	正在推送单据	กำลังส่งเอกสาร	書類を送信しています
 Checking push choices	正在查看推送前要选的项	กำลังตรวจสอบสิ่งที่ต้องเลือกก่อนส่ง	送信前の選択項目を確認しています
@@ -2259,7 +2259,7 @@ Checking scheduled tasks	正在查看定时任务	กำลังตรวจส
 Starting a scheduled task	正在启动定时任务	กำลังเริ่มงานตามกำหนดเวลา	定期タスクを開始しています
 Checking scheduled task runs	正在查看定时任务记录	กำลังตรวจสอบประวัติงานตามกำหนดเวลา	定期タスクの実行履歴を確認しています
 Company not found	未找到公司	ไม่พบบริษัท	会社が見つかりません	cowork.company.not_found
-This account set is not in the catalog	账套目录中没有此账套	ไม่พบชุดบัญชีนี้ในรายการ	この帳簿は一覧にありません	cowork.company.not_in_catalog
+This account set is not in the catalog	账套目录中没有此账套	ไม่พบชุดบัญชีนี้ในรายการ	この会計データは一覧にありません	cowork.company.not_in_catalog
 Too many companies	公司数量已达上限	บริษัทเกินจำนวนที่กำหนด	会社数が上限です	cowork.company.too_many
 Notes are full	知识库已满	บันทึกเต็มแล้ว	ノートが上限です	cowork.company.notes_full
 Note is empty or too long	说明为空或过长	บันทึกว่างหรือยาวเกินไป	ノートが空か長すぎます	cowork.company.note_invalid
@@ -2305,9 +2305,9 @@ Value Label	值名称	ชื่อค่า	値の名称
 Evidence	依据	หลักฐาน	根拠
 Whole company	全公司	ทั้งบริษัท	会社全体	cowork.company.whole_company
 Branch {0}	分店 {0}	สาขา {0}	支店 {0}	cowork.company.branch_n
-This value is not in this month's account set	该值不在本月账套主档中	ค่านี้ไม่มีในชุดบัญชีของเดือนนี้	この値は今月の帳簿のマスタにありません	cowork.company.choice_invalid
+This value is not in this month's account set	该值不在本月账套主档中	ค่านี้ไม่มีในชุดบัญชีของเดือนนี้	この値は今月の会計データのマスタにありません	cowork.company.choice_invalid
 Company choices are full	公司选择已满	ตัวเลือกของบริษัทเต็มแล้ว	会社の選択が上限です	cowork.company.choices_full
-No account set of this company covers this month	该公司或分店没有覆盖本月的账套	บริษัท (หรือสาขา) นี้ไม่มีชุดบัญชีของเดือนนี้	この会社（または支店）には今月の帳簿がありません	cowork.company.choice_scope_invalid
+No account set of this company covers this month	该公司或分店没有覆盖本月的账套	บริษัท (หรือสาขา) นี้ไม่มีชุดบัญชีของเดือนนี้	この会社（または支店）には今月の会計データがありません	cowork.company.choice_scope_invalid
 This choice cannot be saved	无法保存此选择	บันทึกตัวเลือกนี้ไม่ได้	この選択は保存できません	cowork.company.choice_unsupported
 Saved a company choice	记下了公司选择	บันทึกตัวเลือกของบริษัทแล้ว	会社の選択を保存しました
 Removed a company choice	删除了公司选择	ลบตัวเลือกของบริษัทแล้ว	会社の選択を削除しました
@@ -2332,7 +2332,7 @@ Seed Connection	来源连接	การเชื่อมต่อต้นทา
 Seed Account Set	来源账套	ชุดบัญชีต้นทาง	元の会計データ
 MR.ERP Company	MR.ERP 公司	บริษัท MR.ERP	MR.ERP 会社
 Combined VAT Filing	合并申报增值税	ยื่นภาษีมูลค่าเพิ่มรวม	付加価値税の一括申告
-Reader	读取电脑	เครื่องที่อ่าน	読み取り端末
+Reader	读取电脑	เครื่องที่อ่าน	読み取りパソコン
 Binding Key	绑定键	คีย์การผูก	連携キー
 Display Path	显示路径	พาธที่แสดง	表示パス
 Origin	来源	ที่มา	作成元
@@ -2347,13 +2347,13 @@ As printed on the report	按报告原样保留	ตามที่พิมพ์
 Up to six decimal places; empty actual quantity means not counted	最多 6 位小数；实盘数量为空表示未盘点	ทศนิยมไม่เกิน 6 ตำแหน่ง จำนวนนับจริงว่างหมายถึงยังไม่ได้นับ	小数点以下6桁まで。実数量が空欄の場合は未棚卸
 This warehouse is not in the Express account set	Express 账套中无此仓库	ไม่มีคลังสินค้านี้ในชุดบัญชี Express	この Express 会計データにこの倉庫はありません	intake.error.ERR_LOCATION
 Express Index Tool	Express 索引程序	โปรแกรมดัชนี Express	Express インデックスツール
-The Express index tool is missing on this computer. Reinstall CC Desktop	此电脑缺少 Express 索引程序，请重新安装 CC 桌面版	คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่	このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください	intake.error.REINDEX_UNAVAILABLE
-This computer cannot enter documents into Express	此电脑不能代录 Express	คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้	このコンピューターでは Express の代行入力ができません	intake.error.OPERATOR_UNAVAILABLE
+The Express index tool is missing on this computer. Reinstall CC Desktop	此电脑缺少 Express 索引程序，请重新安装 CC 桌面版	คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่	このパソコンに Express インデックスツールがありません。CC デスクトップを再インストールしてください	intake.error.REINDEX_UNAVAILABLE
+This computer cannot enter documents into Express	此电脑不能代录 Express	คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้	このパソコンでは Express の代行入力ができません	intake.error.OPERATOR_UNAVAILABLE
 This document is in an Express operator entry	单据在代录中	เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express	この書類は Express の代行入力中です	push.operator_owned
 This document was changed in Express. Check it in Express	此单在 Express 中已被修改，请在 Express 中核对	เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express	この伝票は Express で変更されています。Express で確認してください	intake.error.VOID_DOCUMENT_CHANGED
 This document is not in Express	Express 中找不到此单	ไม่พบเอกสารนี้ใน Express	この伝票は Express にありません	intake.error.VOID_DOCUMENT_NOT_FOUND
 The original cash sale is not in Express	Express 中没有原现销单	ไม่พบใบขายเงินสดต้นฉบับใน Express	元の現金売上が Express にありません	intake.error.REFUND_ORIGINAL_NOT_FOUND
-The cash customer could not be copied from the original year	原年度账套的现金客户档没能复制过来	คัดลอกลูกค้าเงินสดจากชุดบัญชีปีเดิมไม่ได้	前年度の帳簿から現金顧客を複製できません	intake.error.REFUND_CUSTOMER_NOT_COPIED
+The cash customer could not be copied from the original year	原年度账套的现金客户档没能复制过来	คัดลอกลูกค้าเงินสดจากชุดบัญชีปีเดิมไม่ได้	前年度の会計データから現金顧客を複製できません	intake.error.REFUND_CUSTOMER_NOT_COPIED
 The original cash sale was changed in Express	原现销单在 Express 中已被修改	ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว	元の現金売上が Express で変更されています	intake.error.REFUND_ORIGINAL_CHANGED
 This item is not on the original cash sale	原现销单上没有此商品	ไม่มีสินค้านี้ในใบขายเงินสดต้นฉบับ	元の現金売上にこの商品がありません	intake.error.REFUND_LINE_NOT_FOUND
 The returned quantity is more than the quantity sold	退货数量超过原单销售数量	จำนวนที่รับคืนมากกว่าจำนวนที่ขาย	返品数量が販売数量を超えています	intake.error.REFUND_EXCEEDS_ORIGINAL

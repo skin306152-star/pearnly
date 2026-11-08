@@ -13,7 +13,7 @@ A board needs at least one list,ボードには少なくとも1つのリスト�
 A category needs a name,カテゴリ名を入力してください
 A company needs a name,会社には名前が必要です
 A company needs at least one warehouse,会社には倉庫が 1 つ以上必要です
-A computer can write it,書き込める端末があります
+A computer can write it,書き込めるパソコンがあります
 A confirmed document cannot be edited,確定済みの伝票は編集できません
 A confirmed draft must point at the purchase record it created,確認済みの下書きは作成した仕入記録を指している必要があります
 A confirmed draft must point at the record it created,確定した下書きは、それが作成した伝票を指している必要があります
@@ -41,7 +41,7 @@ A warehouse must belong to a company,倉庫は必ず会社に属します
 A warehouse needs a name,倉庫には名前が必要です
 A warehouse with stock cannot be turned off,在庫のある倉庫は無効にできません
 Abbreviated Tax Invoice,簡易税務請求書
-Account Set,帳簿
+Account Set,会計データ
 Account name matches,勘定科目名が一致
 Accrual basis,発生主義
 Actual position,実際の棚番
@@ -110,7 +110,7 @@ Amounts,金額
 An item group's account is not in the Express chart of accounts,品目グループの勘定が Express の勘定科目表にありません
 Anonymous,匿名
 Anonymous buyers get no tax id; only companies have branches,匿名の買い手には税番号がなく、支店があるのは法人だけです
-Another computer is writing to this account set. It is sent automatically once it is done,別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します
+Another computer is writing to this account set. It is sent automatically once it is done,別のパソコンがこの会計データに書き込み中です。完了後に自動で送信します
 Any due date,すべての期日
 Apply,適用
 Approval Status,承認状況
@@ -156,7 +156,7 @@ Base Unit,基準単位
 Base unit,基準単位
 Basis Qty,基準数量
 Basis Set,基準設定済み
-Basis used in this account set,この帳簿の基準
+Basis used in this account set,この会計データの基準
 Bind this account first,先に ERP アカウントを連携してください
 Binding code,連携コード
 Block Duplicate Documents,重複伝票をブロック
@@ -196,7 +196,7 @@ By Warehouse,倉庫別
 By location,保管場所別
 By product,商品別
 CC Desktop could not read this invoice. Check the fields and submit again,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
-CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
+CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC デスクトップはこの会計データに書き込めません。CC デスクトップの会計データ設定を確認してください
 CC Desktop needs an update,CC デスクトップの更新が必要です
 CC Desktop not connected,CC デスクトップが接続されていません
 Calculation Version,計算バージョン
@@ -266,10 +266,10 @@ Choose file,ファイルを選択
 Choose purchase or sales first,先に仕入か売上を選んでください
 Choose the company,会社を選んでください
 Choose the customer,顧客を選んでください
-Choose the inventory account group for this account set first.,先にこの帳簿の在庫勘定グループを選んでください。
+Choose the inventory account group for this account set first.,先にこの会計データの在庫勘定グループを選んでください。
 Choose the location,保管場所を選んでください
 Choose the payment method,支払方法を選んでください
-Choose the service input VAT for this supplier and submit again,この仕入先のサービスの仮払消費税を選んで再送信してください
+Choose the service input VAT for this supplier and submit again,この仕入先のサービスの仮払付加価値税を選んで再送信してください
 Choose the sheet to import,取り込むシートを選択してください
 Choose the supplier,仕入先を選んでください
 Choose the warehouse,倉庫を選んでください
@@ -322,7 +322,7 @@ Complete,完了
 Complete Order,会計を確定
 Complete Payment,支払完了
 Completed,完了
-Computer offline,端末オフライン
+Computer offline,パソコンがオフライン
 Confirm,確認
 Confirm and record,確定して記録
 Confirm opening stock,期首在庫を確定
@@ -567,7 +567,7 @@ Exported the stock receipt-issue report,入出庫レポートを出力しまし�
 Exported {0} shifts,{0}件のシフトを出力しました
 Exporting the stock receipt-issue report,入出庫レポートを出力しています
 Express,Express
-Express Account Set,Express 帳簿
+Express Account Set,Express 会計データ
 Express Choices Needed,Express の選択待ち
 Express Code,Express コード
 Express Company,Express 会社
@@ -587,7 +587,7 @@ Express Void Reason,Express 取消の理由
 Express code,Express コード
 "Express could not index the invoice, so it was undone. It is retried automatically",Express の索引を作れず元に戻しました。自動で再試行します
 "Express did not read back what was written, so it was undone. It is retried automatically",書き込み後の確認が合わず元に戻しました。自動で再試行します
-Express has this account set open. It is sent automatically once Express is closed,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
+Express has this account set open. It is sent automatically once Express is closed,Express でこの会計データが開かれています。Express を閉じると自動で送信されます
 External System Reference,外部システム参照
 Factor to Base Unit,基準単位への換算係数
 Failed,失敗
@@ -671,7 +671,7 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,無効
 Initial Password,初期パスワード
 Input Tax,仕入税額
-Input VAT,仮払消費税
+Input VAT,仮払付加価値税
 Insert,挿入
 Internal code,社内コード
 Internal use,社内使用
@@ -797,7 +797,7 @@ Mode of Payment,支払方法
 Modes of Payment,支払方法
 Monthly,毎月
 More Filters,追加フィルタ
-Most used fitting group in the account set,帳簿で最も使われている適合グループ
+Most used fitting group in the account set,会計データで最も使われている適合グループ
 Move,移動
 Move all cards in this list,このリストのカードをすべて移動
 Move list,リストを移動
@@ -805,7 +805,7 @@ My cards,自分のカード
 Name,名前
 Net,純額
 Net Total,正味合計
-Net total - discount + VAT must equal the total,金額が合いません：税抜合計 − 割引 + 消費税 = 合計 にしてください
+Net total - discount + VAT must equal the total,金額が合いません：税抜合計 − 割引 + 付加価値税 = 合計 にしてください
 Never,なし
 New,新規
 New Category,カテゴリ作成
@@ -830,12 +830,12 @@ New · Out,新規 · 出庫
 Next,次へ
 Next Number,次の番号
 No,番号
-No Express account set covers this date,この日付を含む Express 帳簿がありません
+No Express account set covers this date,この日付を含む Express 会計データがありません
 No Open Shift,未開店
 No attachments,添付ファイルなし
 No cards are assigned to you,割り当てられたカードはありません
 No company is available for this account,このアカウントで使える会社がありません
-No computer can write this account set,この帳簿に書き込める端末がありません
+No computer can write this account set,この会計データに書き込めるパソコンがありません
 No due date,期日なし
 No item matches the scanned code {0},スキャンしたコード {0} に一致する商品がありません
 No items found. Scan barcode again.,商品が見つかりません。バーコードを再スキャンしてください
@@ -857,7 +857,7 @@ No warehouse is available for this company,この会社に使用できる倉庫�
 No warehouse matches that name,その倉庫名は存在しません
 No.,番号
 Non-cash payment cannot exceed the amount due,現金以外の支払いは支払額を超えられません
-Non-claimable VAT,控除できない消費税
+Non-claimable VAT,控除できない付加価値税
 None,なし
 Normal,正常
 Not Available,在庫なし
@@ -868,7 +868,7 @@ Not enough stock in Express,Express の在庫が足りません
 Not enough stock on hand,在庫が足りません
 Not found in the Revenue Department records,税務局に登録がありません
 Not found on the document,書類に記載がありません
-Not in the account set yet,帳簿にまだありません
+Not in the account set yet,会計データにまだありません
 Not in the list,一覧にありません
 Not permitted,権限がありません
 Not written to Express (disconnected),Express 未書き込み（接続解除済み）
@@ -942,7 +942,7 @@ Origin,由来
 Origin document,由来伝票
 Original Item and Location,元伝票の商品と保管場所
 Original Line,元の明細行
-Original and refund are in different account set years,元伝票と返品が別年度の帳簿にあります
+Original and refund are in different account set years,元伝票と返品が別年度の会計データにあります
 Other,その他
 Other companies have unregistered stock,他の会社に未登録の在庫があります
 Out,出庫
@@ -1092,7 +1092,7 @@ Reactivated,再有効化
 Reactivated by stock count {0},棚卸で再有効化 · {0}
 Read company details,会社情報を確認
 Reading,読み込み中
-Reading the Express account set,Express 帳簿を読み取り中
+Reading the Express account set,Express 会計データを読み取り中
 Ready to post,登録可能
 Reason,理由
 Reason for Cancellation,取消理由
@@ -1255,8 +1255,8 @@ Serial No,シリアル番号
 Serial No: {0} has already been transacted into another POS Invoice.,シリアル番号 {0} は他のレジ伝票で使用済みです
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,商品 {0} は倉庫 {1} にシリアル番号がありません。倉庫を変更してください
 Service,サービス
-Service input VAT,サービスの仮払消費税
-Service input VAT basis not set,サービスの仮払消費税の基準が未設定です
+Service input VAT,サービスの仮払付加価値税
+Service input VAT basis not set,サービスの仮払付加価値税の基準が未設定です
 Service or stock item?,サービスですか、在庫品ですか？
 Set as current,現在の会社にする
 Set due date,期日を N 日後に設定
@@ -1381,7 +1381,7 @@ Tax Invoice,税務請求書
 Tax Withholding Amount,源泉徴収税額
 Tax Withholding Rate,源泉徴収税率
 Tax number and branch match,税番号と支店が一致
-Tax the whole document as the account set does,帳簿の設定どおり全体に課税
+Tax the whole document as the account set does,会計データの設定どおり全体に課税
 Taxes,税
 Taxes and Charges,税金および諸費用
 Team board,チームボード
@@ -1403,11 +1403,11 @@ That row is not part of this stock count,この行はこの棚卸に含まれて
 That submission was already used for a different entry,この送信は別の明細で使用済みです
 That warehouse belongs to another company,この倉庫は別会社のものです
 That warehouse is turned off,この倉庫は無効です
-The Express index tool is missing on this computer. Reinstall CC Desktop,このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください
+The Express index tool is missing on this computer. Reinstall CC Desktop,このパソコンに Express インデックスツールがありません。CC デスクトップを再インストールしてください
 The LINE account that sent the document,この書類を送ってきたLINEアカウント
 The Revenue Department replied in an unreadable format,税務局の応答形式を解釈できません
-The account set cannot be reached right now. It will be sent automatically once connected.,現在この帳簿にアクセスできません。接続後に自動で送信します
-The account set on this computer is not the registered one. Waiting for another computer.,このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています
+The account set cannot be reached right now. It will be sent automatically once connected.,現在この会計データにアクセスできません。接続後に自動で送信します
+The account set on this computer is not the registered one. Waiting for another computer.,このパソコンの会計データは登録されたものではありません。別のパソコンを待っています
 The account you give customers for transfers,入金時に相手へ伝える口座
 The accounting period is closed in Express,会計期間は Express で締め済みです
 The amount is invalid,金額が無効です
@@ -1418,11 +1418,11 @@ The balance could not be checked right now. Please try again in a minute.,現在
 The card is already in that list,カードはすでにそのリストにあります
 The card no longer exists,カードはもうありません
 The cart is empty,カートは空です
-The cash customer could not be copied from the original year,前年度の帳簿から現金顧客を複製できません
+The cash customer could not be copied from the original year,前年度の会計データから現金顧客を複製できません
 The cashier assets did not load (official-*.js).,レジのファイルが読み込めませんでした（official-*.js）
 The cashier is not enabled for this company,この会社ではレジが有効になっていません
 The chosen account cannot be posted in Express. Choose another account,選んだ勘定は Express で記帳できません。別の勘定を選んでください
-The chosen account set belongs to another company. Check the account set,選んだ帳簿は別の会社のものです。帳簿を確認してください
+The chosen account set belongs to another company. Check the account set,選んだ会計データは別の会社のものです。会計データを確認してください
 The company has no 13-digit tax ID,会社に 13 桁の納税者番号がありません
 The company on your documents,書類に使う自社情報
 The company used for new documents and for the company profile page,新しい伝票と会社プロフィール画面で使う会社
@@ -1481,7 +1481,7 @@ Then,実行
 There are no lines,明細がありません
 There is nothing to save,保存する行がありません
 There were errors while sending email. Please try again.,メール送信中にエラーが発生しました。再試行してください
-This Express account set has no book for this kind of stock document. Set it up in Express,この Express 帳簿にはこの種類の在庫伝票の伝票帳がありません。Express で設定してください
+This Express account set has no book for this kind of stock document. Set it up in Express,この Express 会計データにはこの種類の在庫伝票の伝票帳がありません。Express で設定してください
 This LINE account is not bound to an ERP user,この LINE アカウントは ERP ユーザーに紐付いていません
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.",この LINE アカウントは担当者に紐づいていません。LINE から開くか、先にWebでログインしてください。
 This Month,今月
@@ -1489,7 +1489,7 @@ This PDF has more than {0} pages,PDF が {0} ページを超えています
 This Quarter,今四半期
 This account cannot send documents,このアカウントは書類を送信できません
 This account code is already a stock item code in Express,この勘定コードは Express の在庫品コードです
-This account set has no book for this kind of document. Set it up in Express,この帳簿にはこの種類の伝票帳がありません。Express で設定してください
+This account set has no book for this kind of document. Set it up in Express,この会計データにはこの種類の伝票帳がありません。Express で設定してください
 This barcode already exists,このバーコードは既に存在します
 This board no longer exists,このボードはもう存在しません
 This browser cannot scan with the camera,このブラウザーはカメラでスキャンできません
@@ -1659,7 +1659,7 @@ User,ユーザー
 User Settings,ユーザーメニュー
 Username,ユーザー名
 Username can only have letters and numbers,ユーザー名は英数字のみ使用できます
-VAT,消費税
+VAT,付加価値税（VAT）
 VAT Applicable,VAT 対象
 VAT Applies,課税対象
 VAT Rate,付加価値税率
@@ -1707,7 +1707,7 @@ When a card enters,カードがリストに入ったとき
 Who bought this receipt; empty means a walk-in customer,このレシートの購入者。空欄は一般客（通りがかり）です
 Who can add and remove members,メンバーを追加・削除できる人
 Who can comment,コメントできる人
-Whole document taxed,帳簿の設定どおり全体に課税
+Whole document taxed,会計データの設定どおり全体に課税
 With differences,差異あり
 Withholding Tax,源泉税
 Withholding Tax Certificate,源泉徴収証明書
@@ -2184,7 +2184,7 @@ express.code.CUSTOMER_DUP_SUSPECTED,Express に似た得意先があります。
 express.code.CUSTOMER_NOT_IN_ARMAS,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
 express.code.DBF_WRITE_FAILED,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 express.code.EMPTY_ITEMS,この請求書には明細がありません。追加して再送信してください
-express.code.ERR_ACCOUNT_UID_MISMATCH,このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています
+express.code.ERR_ACCOUNT_UID_MISMATCH,このパソコンの会計データは登録されたものではありません。別のパソコンを待っています
 express.code.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください
 express.code.INVALID_DOC_DATE,書類の日付が無効です。修正して再送信してください
 express.code.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
@@ -2200,13 +2200,13 @@ express.code.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数
 express.code.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 express.code.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 express.code.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
-express.error.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
+express.error.ACCOUNT_BUSY_LOCKED,Express でこの会計データが開かれています。Express を閉じると自動で送信されます
 express.error.ACCOUNT_CODE_IS_STOCK_ITEM,この勘定コードは Express の在庫品コードです
-express.error.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
-express.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
+express.error.ACCOUNT_COMPANY_MISMATCH,選んだ会計データは別の会社のものです。会計データを確認してください
+express.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの会計データに書き込めません。CC デスクトップの会計データ設定を確認してください
 express.error.ACCOUNT_NOT_POSTABLE,選んだ勘定は Express で記帳できません。別の勘定を選んでください
-express.error.ACCOUNT_SET_UNREACHABLE,現在この帳簿にアクセスできません。接続後に自動で送信します
-express.error.ACCOUNT_WRITER_BUSY,別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します
+express.error.ACCOUNT_SET_UNREACHABLE,現在この会計データにアクセスできません。接続後に自動で送信します
+express.error.ACCOUNT_WRITER_BUSY,別のパソコンがこの会計データに書き込み中です。完了後に自動で送信します
 express.error.BAD_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
 express.error.BAD_SALES_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
 express.error.CDX_REINDEX_FAILED,Express の索引を作れず元に戻しました。自動で再試行します
@@ -2215,28 +2215,28 @@ express.error.CUSTOMER_DUP_SUSPECTED,Express に似た得意先があります�
 express.error.CUSTOMER_NOT_IN_ARMAS,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
 express.error.DBF_WRITE_FAILED,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 express.error.EMPTY_ITEMS,この請求書には明細がありません。追加して再送信してください
-express.error.ERR_ACCOUNT_UID_MISMATCH,このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています
+express.error.ERR_ACCOUNT_UID_MISMATCH,このパソコンの会計データは登録されたものではありません。別のパソコンを待っています
 express.error.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください
 express.error.INVALID_DOC_DATE,書類の日付が無効です。修正して再送信してください
 express.error.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
 express.error.INVALID_QUANTITY,明細の数量が無効です。修正して再送信してください
 express.error.ITEMS_INVALID,明細を Express に書き込めません。確認して再送信してください
 express.error.ITEM_GROUP_ACCOUNT_MISSING,品目グループの勘定が Express の勘定科目表にありません
-express.error.JOURNAL_BOOK_NOT_FOUND,この帳簿にはこの種類の伝票帳がありません。Express で設定してください
+express.error.JOURNAL_BOOK_NOT_FOUND,この会計データにはこの種類の伝票帳がありません。Express で設定してください
 express.error.MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
 express.error.MISSING_REF_NO,請求書番号がありません。追加して再送信してください
 express.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
 express.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 express.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
-express.error.REFUND_CUSTOMER_NOT_COPIED,前年度の帳簿から現金顧客を複製できません
+express.error.REFUND_CUSTOMER_NOT_COPIED,前年度の会計データから現金顧客を複製できません
 express.error.REFUND_EXCEEDS_ORIGINAL,返品数量が販売数量を超えています
 express.error.REFUND_INVALID,返品伝票のデータ形式が正しくありません
 express.error.REFUND_LINE_NOT_FOUND,元の現金売上にこの商品がありません
 express.error.REFUND_ORIGINAL_CHANGED,元の現金売上が Express で変更されています
 express.error.REFUND_ORIGINAL_NOT_FOUND,元の現金売上が Express にありません
-express.error.REINDEX_UNAVAILABLE,このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください
-express.error.SERVICE_VAT_BASIS_CHOICE,サービスの仮払消費税の基準が未設定です
-express.error.STOCK_ACC_GROUP_UNFIT,先にこの帳簿の在庫勘定グループを選んでください。
+express.error.REINDEX_UNAVAILABLE,このパソコンに Express インデックスツールがありません。CC デスクトップを再インストールしてください
+express.error.SERVICE_VAT_BASIS_CHOICE,サービスの仮払付加価値税の基準が未設定です
+express.error.STOCK_ACC_GROUP_UNFIT,先にこの会計データの在庫勘定グループを選んでください。
 express.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
 express.error.STOCK_ITEM_NOT_FOUND,この品目は Express の在庫品目ではありません。別の品目を選んでください
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
@@ -2248,41 +2248,41 @@ express.kind.account,費用勘定
 express.kind.exemptMode,免税品の記帳
 express.kind.receipt,入金勘定
 express.kind.refundAccount,売上返品勘定
-express.kind.serviceVat,サービスの仮払消費税
+express.kind.serviceVat,サービスの仮払付加価値税
 express.kind.stockGroup,在庫勘定グループ
-express.kind.vat,仮払消費税
+express.kind.vat,仮払付加価値税
 express.kind.vatRegistered,この会社は VAT 登録事業者ですか
 express.option.accrual,発生主義
 express.option.cashBasis,現金主義
 express.option.claim,控除
 express.option.exemptSplit,免税品を分けて記帳（推奨）
-express.option.exemptWhole,帳簿の設定どおり全体に課税
+express.option.exemptWhole,会計データの設定どおり全体に課税
 express.option.expense,費用計上
 express.option.no,いいえ
 express.option.yes,はい
 express.pendingRefunds,書き込み待ちの返品
 express.precheck.note.accountName,勘定科目名が一致
-express.precheck.note.bookBasis,この帳簿の基準
-express.precheck.note.mostUsedGroup,帳簿で最も使われている適合グループ
-express.precheck.note.notInBook,帳簿にまだありません
+express.precheck.note.bookBasis,この会計データの基準
+express.precheck.note.mostUsedGroup,会計データで最も使われている適合グループ
+express.precheck.note.notInBook,会計データにまだありません
 express.precheck.note.onlyRecord,この税番号はこの1件のみ
 express.precheck.note.sameBranch,税番号と支店が一致
 express.precheck.note.splitExempt,免税商品は行ごとに非課税
 express.precheck.note.vatExpense,レシートと簡易税票は通常控除しません
 express.precheck.note.vatSales,課税売上あり
-express.precheck.note.writable,書き込める端末があります
+express.precheck.note.writable,書き込めるパソコンがあります
 express.reason.itemUnmapped,この商品は Express にありません
-express.reason.noBook,この日付を含む Express 帳簿がありません
-express.reason.noStockBook,この Express 帳簿にはこの種類の在庫伝票の伝票帳がありません。Express で設定してください
-express.reason.noWriter,この帳簿に書き込める端末がありません
-express.reason.offline,端末オフライン
+express.reason.noBook,この日付を含む Express 会計データがありません
+express.reason.noStockBook,この Express 会計データにはこの種類の在庫伝票の伝票帳がありません。Express で設定してください
+express.reason.noWriter,この会計データに書き込めるパソコンがありません
+express.reason.offline,パソコンがオフライン
 express.reason.operatorOwned,この書類は Express の代行入力中です
 express.reason.periodLocked,会計期間は Express で締め済みです
 express.reason.posNetNegative,この日は返品が売上を上回っています
 express.reason.printedTotalMismatch,合計が伝票の合計と一致しません
 express.reason.printedTotalMissing,伝票の合計がありません
-express.reason.reading,Express 帳簿を読み取り中
-express.reason.refundCrossYear,元伝票と返品が別年度の帳簿にあります
+express.reason.reading,Express 会計データを読み取り中
+express.reason.refundCrossYear,元伝票と返品が別年度の会計データにあります
 express.reason.refundItems,返品明細は Express の在庫品である必要があります
 express.reason.refundOriginalManual,元の日次集計は Express で手動処理済みです
 express.reason.refundWaiting,元の日次集計の書き込み待ち

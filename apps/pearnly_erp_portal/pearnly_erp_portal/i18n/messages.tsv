@@ -632,7 +632,7 @@ Unit Price	单价	ราคาต่อหน่วย	単価
 Unpaid	未付	ยังไม่ได้ชำระ	未払
 Update Stock	更新库存	อัปเดตสต็อก	在庫更新
 User	用户	ผู้ใช้	ユーザー
-VAT	增值税	ภาษีมูลค่าเพิ่ม	消費税
+VAT	增值税	ภาษีมูลค่าเพิ่ม	付加価値税（VAT）
 VAT Rate	增值税率	อัตราภาษีมูลค่าเพิ่ม	付加価値税率
 VAT Rate %	税率%	อัตราภาษี %	税率%
 Void the payments before voiding the document	作废单据前请先冲销付款	กรุณากลับรายการชำระเงินก่อนยกเลิกเอกสาร	伝票を取り消す前に支払を取り消してください
@@ -679,8 +679,8 @@ A confirmed document cannot be edited	已提交的单据不能修改	ไม่�
 This document cannot be recorded yet	该单据暂无法入账	ยังไม่สามารถลงบัญชีเอกสารนี้ได้	この伝票はまだ記録できません
 Quantity must be greater than zero	数量必须大于 0	จำนวนต้องมากกว่า 0	数量は 0 より大きい必要があります
 Discount cannot exceed the amount	折扣不能超过金额	ส่วนลดต้องไม่เกินยอดเงิน	割引は金額を超えられません
-Net total - discount + VAT must equal the total	金额不一致：净总计 − 折扣 + 增值税必须等于总计	ยอดไม่ตรงกัน: ยอดก่อนภาษี − ส่วนลด + ภาษีมูลค่าเพิ่ม ต้องเท่ากับยอดรวม	金額が合いません：税抜合計 − 割引 + 消費税 = 合計 にしてください
-Non-claimable VAT	不可抵扣的增值税	ภาษีซื้อที่ขอคืนไม่ได้	控除できない消費税
+Net total - discount + VAT must equal the total	金额不一致：净总计 − 折扣 + 增值税必须等于总计	ยอดไม่ตรงกัน: ยอดก่อนภาษี − ส่วนลด + ภาษีมูลค่าเพิ่ม ต้องเท่ากับยอดรวม	金額が合いません：税抜合計 − 割引 + 付加価値税 = 合計 にしてください
+Non-claimable VAT	不可抵扣的增值税	ภาษีซื้อที่ขอคืนไม่ได้	控除できない付加価値税
 This is a credit note. Credit notes cannot be recorded as a purchase yet.	该单据为贷项通知单，暂不支持作为采购单录入。	เอกสารนี้เป็นใบลดหนี้ ยังไม่รองรับการบันทึกเป็นเอกสารซื้อ	これは返品・値引伝票です。仕入としてはまだ登録できません。
 Paid amount cannot exceed the total	收款金额不能超过合计	ยอดรับเงินต้องไม่เกินยอดรวม	入金額は合計を超えられません
 Customer is required	客户不能为空	กรุณาระบุลูกค้า	顧客は必須です
@@ -1341,7 +1341,7 @@ Failed	失败	ไม่สำเร็จ	失敗
 Mismatch	不一致	ไม่ตรงกัน	不一致
 Express	Express	Express	Express
 Express Code	Express 编码	รหัส Express	Express コード
-Express Account Set	Express 账套	ชุดบัญชี Express	Express 帳簿
+Express Account Set	Express 账套	ชุดบัญชี Express	Express 会計データ
 Express Stock Item	Express 库存品	สินค้าคงคลัง Express	Express 在庫品
 Express Synced At	Express 同步时间	ซิงค์ Express เมื่อ	Express 同期日時
 Express Sync State	Express 同步状态	สถานะการซิงค์ Express	Express 同期状態
@@ -1350,7 +1350,7 @@ Express Mark	Express 标记	เครื่องหมาย Express	Express �
 Express Status	Express 状态	สถานะ Express	Express 状態
 Express No.	Express 单号	เลขที่ Express	Express 番号
 Express Note	Express 备注	หมายเหตุ Express	Express メモ
-Whole document taxed	按账套设置整张计税	คิดภาษีทั้งใบตามชุดบัญชี	帳簿の設定どおり全体に課税
+Whole document taxed	按账套设置整张计税	คิดภาษีทั้งใบตามชุดบัญชี	会計データの設定どおり全体に課税
 Express Sent At	Express 发送时间	ส่ง Express เมื่อ	Express 送信日時
 Sync Express	同步 Express	ซิงค์ Express	Express と同期	company.syncExpress
 Synced	已同步	ซิงค์แล้ว	同期しました	company.syncExpress.ready
@@ -1365,10 +1365,10 @@ Queued	排队中	อยู่ในคิว	待機中	company.syncExpress.queue
 Maintained in Express	由 Express 维护	จัดการใน Express	Express で管理
 Express Company	Express 公司	บริษัท Express	Express 会社
 The company has no 13-digit tax ID	公司没有 13 位税号	บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก	会社に 13 桁の納税者番号がありません	express.reason.taxMissing
-No Express account set covers this date	没有覆盖此日期的 Express 账套	ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้	この日付を含む Express 帳簿がありません	express.reason.noBook
-No computer can write this account set	没有能写此账套的电脑	ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้	この帳簿に書き込める端末がありません	express.reason.noWriter
-Reading the Express account set	正在读取 Express 账套	กำลังอ่านชุดบัญชี Express	Express 帳簿を読み取り中	express.reason.reading
-Computer offline	电脑离线	เครื่องออฟไลน์	端末オフライン	express.reason.offline
+No Express account set covers this date	没有覆盖此日期的 Express 账套	ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้	この日付を含む Express 会計データがありません	express.reason.noBook
+No computer can write this account set	没有能写此账套的电脑	ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้	この会計データに書き込めるパソコンがありません	express.reason.noWriter
+Reading the Express account set	正在读取 Express 账套	กำลังอ่านชุดบัญชี Express	Express 会計データを読み取り中	express.reason.reading
+Computer offline	电脑离线	เครื่องออฟไลน์	パソコンがオフライン	express.reason.offline
 The accounting period is closed in Express	会计期间已在 Express 关账	งวดบัญชีนี้ปิดแล้วใน Express	会計期間は Express で締め済みです	express.reason.periodLocked
 Not enough stock in Express	Express 库存不足	สินค้าคงเหลือใน Express ไม่พอ	Express の在庫が足りません	express.reason.stockInsufficient
 {0} · Warehouse {1}: need {2}, have {3}	{0} · 仓 {1}：需要 {2}，现有 {3}	{0} · คลัง {1}: ต้องการ {2} มี {3}	{0} · 倉庫 {1}：必要 {2}、在庫 {3}	express.reason.stockShort
@@ -1384,26 +1384,26 @@ Several Express suppliers have this tax ID. Choose the supplier and submit again
 A similar customer already exists in Express. Choose it, or confirm this is a new customer	Express 中已存在相似客户，请选择该客户或确认为新客户	มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่	Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください	express.error.CUSTOMER_DUP_SUSPECTED
 A similar supplier already exists in Express. Choose it, or confirm this is a new supplier	Express 中已存在相似供应商，请选择该供应商或确认为新供应商	มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่	Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください	express.error.SUPPLIER_DUP_SUSPECTED
 A field is longer than Express allows. Shorten it and submit again	部分字段超出 Express 允许的长度，请缩短后重新提交	มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่	Express の上限を超える長さの項目があります。短くして再送信してください	express.error.FIELD_TOO_LONG
-Express has this account set open. It is sent automatically once Express is closed	Express 正在使用此账套，关闭后将自动推送	Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express	Express でこの帳簿が開かれています。Express を閉じると自動で送信されます	express.error.ACCOUNT_BUSY_LOCKED
-The account set cannot be reached right now. It will be sent automatically once connected.	暂时无法访问此账套，连接后将自动推送	ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้	現在この帳簿にアクセスできません。接続後に自動で送信します	express.error.ACCOUNT_SET_UNREACHABLE
-Another computer is writing to this account set. It is sent automatically once it is done	另一台电脑正在写入此账套，完成后将自动推送	เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ	別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します	express.error.ACCOUNT_WRITER_BUSY
+Express has this account set open. It is sent automatically once Express is closed	Express 正在使用此账套，关闭后将自动推送	Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express	Express でこの会計データが開かれています。Express を閉じると自動で送信されます	express.error.ACCOUNT_BUSY_LOCKED
+The account set cannot be reached right now. It will be sent automatically once connected.	暂时无法访问此账套，连接后将自动推送	ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้	現在この会計データにアクセスできません。接続後に自動で送信します	express.error.ACCOUNT_SET_UNREACHABLE
+Another computer is writing to this account set. It is sent automatically once it is done	另一台电脑正在写入此账套，完成后将自动推送	เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ	別のパソコンがこの会計データに書き込み中です。完了後に自動で送信します	express.error.ACCOUNT_WRITER_BUSY
 Sales returns account	销货退回科目	บัญชีรับคืนสินค้า	売上返品勘定	express.kind.refundAccount
 Exempt items	免税商品写法	สินค้ายกเว้นภาษี	免税品の記帳	express.kind.exemptMode
 Split exempt items (recommended)	按商品免税拆开写（建议）	แยกสินค้ายกเว้นภาษี (แนะนำ)	免税品を分けて記帳（推奨）	express.option.exemptSplit
-Tax the whole document as the account set does	照账套现在的设置整张计税	คิดภาษีทั้งใบตามชุดบัญชี	帳簿の設定どおり全体に課税	express.option.exemptWhole
-Service input VAT	服务品进项税	ภาษีซื้อของสินค้าบริการ	サービスの仮払消費税	express.kind.serviceVat
+Tax the whole document as the account set does	照账套现在的设置整张计税	คิดภาษีทั้งใบตามชุดบัญชี	会計データの設定どおり全体に課税	express.option.exemptWhole
+Service input VAT	服务品进项税	ภาษีซื้อของสินค้าบริการ	サービスの仮払付加価値税	express.kind.serviceVat
 Accrual basis	权责制	เกณฑ์สิทธิ	発生主義	express.option.accrual
 Cash basis	收付实现制	เกณฑ์เงินสด	現金主義	express.option.cashBasis
 Each returned line must be an Express stock item	退货明细须为 Express 库存商品	รายการรับคืนต้องเป็นสินค้าคงคลังใน Express	返品明細は Express の在庫品である必要があります	express.reason.refundItems
 The original cash sale is not in Express	Express 中没有原现销单	ไม่พบใบขายเงินสดต้นฉบับใน Express	元の現金売上が Express にありません	express.error.REFUND_ORIGINAL_NOT_FOUND
-The cash customer could not be copied from the original year	原年度账套的现金客户档没能复制过来	คัดลอกลูกค้าเงินสดจากชุดบัญชีปีเดิมไม่ได้	前年度の帳簿から現金顧客を複製できません	express.error.REFUND_CUSTOMER_NOT_COPIED
+The cash customer could not be copied from the original year	原年度账套的现金客户档没能复制过来	คัดลอกลูกค้าเงินสดจากชุดบัญชีปีเดิมไม่ได้	前年度の会計データから現金顧客を複製できません	express.error.REFUND_CUSTOMER_NOT_COPIED
 The original cash sale was changed in Express	原现销单在 Express 中已被修改	ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว	元の現金売上が Express で変更されています	express.error.REFUND_ORIGINAL_CHANGED
 This item is not on the original cash sale	原现销单上没有此商品	ไม่มีสินค้านี้ในใบขายเงินสดต้นฉบับ	元の現金売上にこの商品がありません	express.error.REFUND_LINE_NOT_FOUND
 The returned quantity is more than the quantity sold	退货数量超过原单销售数量	จำนวนที่รับคืนมากกว่าจำนวนที่ขาย	返品数量が販売数量を超えています	express.error.REFUND_EXCEEDS_ORIGINAL
 The return is not in the expected form	退货单数据格式不对	ข้อมูลใบรับคืนอยู่ในรูปแบบที่ไม่ถูกต้อง	返品伝票のデータ形式が正しくありません	express.error.REFUND_INVALID
-Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの帳簿の在庫勘定グループを選んでください。	express.error.STOCK_ACC_GROUP_UNFIT
-Service input VAT basis not set	服务品进项税口径未定	ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ	サービスの仮払消費税の基準が未設定です	express.error.SERVICE_VAT_BASIS_CHOICE
-The account set on this computer is not the registered one. Waiting for another computer.	此电脑上的账套与登记的不一致，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています	express.error.ERR_ACCOUNT_UID_MISMATCH
+Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの会計データの在庫勘定グループを選んでください。	express.error.STOCK_ACC_GROUP_UNFIT
+Service input VAT basis not set	服务品进项税口径未定	ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ	サービスの仮払付加価値税の基準が未設定です	express.error.SERVICE_VAT_BASIS_CHOICE
+The account set on this computer is not the registered one. Waiting for another computer.	此电脑上的账套与登记的不一致，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このパソコンの会計データは登録されたものではありません。別のパソコンを待っています	express.error.ERR_ACCOUNT_UID_MISMATCH
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	express.error.BAD_DOCTYPE
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	express.error.BAD_SALES_DOCTYPE
 This invoice has no lines. Add them and submit again.	此发票没有明细，请补充后重新提交	เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่	この請求書には明細がありません。追加して再送信してください	express.error.EMPTY_ITEMS
@@ -1414,8 +1414,8 @@ The lines cannot be written to Express. Check them and submit again.	明细无�
 The customer is missing. Choose the customer and submit again.	缺少客户，请选择客户后重新提交	ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่	顧客がありません。顧客を選択して再送信してください	express.error.MISSING_CUSTOMER
 The invoice number is missing. Add it and submit again.	缺少发票号，请补充后重新提交	ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่	請求書番号がありません。追加して再送信してください	express.error.MISSING_REF_NO
 The supplier is missing. Add it and submit again.	缺少供应商，请补充后重新提交	ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่	仕入先がありません。追加して再送信してください	express.error.MISSING_SUPPLIER
-The chosen account set belongs to another company. Check the account set	所选账套属于其他公司，请核对账套	ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี	選んだ帳簿は別の会社のものです。帳簿を確認してください	express.error.ACCOUNT_COMPANY_MISMATCH
-CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop	CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套	CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป	CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください	express.error.ACCOUNT_DIR_NOT_ALLOWED
+The chosen account set belongs to another company. Check the account set	所选账套属于其他公司，请核对账套	ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี	選んだ会計データは別の会社のものです。会計データを確認してください	express.error.ACCOUNT_COMPANY_MISMATCH
+CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop	CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套	CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป	CC デスクトップはこの会計データに書き込めません。CC デスクトップの会計データ設定を確認してください	express.error.ACCOUNT_DIR_NOT_ALLOWED
 CC Desktop could not read this invoice. Check the fields and submit again	CC 桌面版无法读取此发票，请核对字段后重新提交	CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่	CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください	express.error.PAYLOAD_INVALID
 This supplier is not in Express and could not be created. Check the supplier name and tax ID	Express 中不存在此供应商且无法创建，请核对供应商名称和税号	ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี	Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください	express.error.SUPPLIER_NOT_IN_APMAS
 This customer is not in Express and could not be created. Check the customer name and tax ID	Express 中不存在此客户且无法创建，请核对客户名称和税号	ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี	Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください	express.error.CUSTOMER_NOT_IN_ARMAS
@@ -1427,11 +1427,11 @@ An item group's account is not in the Express chart of accounts	物料科目组�
 Written	已写入	บันทึกแล้ว	書き込み済み	express.state.written
 Expense Account	费用科目	บัญชีค่าใช้จ่าย	費用勘定	express.kind.account
 Receiving Account	收款科目	บัญชีรับเงิน	入金勘定	express.kind.receipt
-Input VAT	进项税	ภาษีซื้อ	仮払消費税	express.kind.vat
+Input VAT	进项税	ภาษีซื้อ	仮払付加価値税	express.kind.vat
 Stock Account Group	存货科目组	กลุ่มบัญชีสินค้าคงเหลือ	在庫勘定グループ	express.kind.stockGroup
 Claim	抵扣	ขอคืน	控除	express.option.claim
 Expense	计入费用	บันทึกเป็นค่าใช้จ่าย	費用計上	express.option.expense
-Account Set	账套	ชุดบัญชี	帳簿
+Account Set	账套	ชุดบัญชี	会計データ
 Department	部门	แผนก	部門
 Credit	赊账	เงินเชื่อ	掛け
 Reason	原因	เหตุผล	理由
@@ -1694,9 +1694,9 @@ Enter a board name	请输入看板名称	กรุณากรอกชื่อ
 Only board admins can do this	仅看板管理员可执行此操作	เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ดำเนินการนี้ได้	ボード管理者のみ実行できます	erp.work.error.board_rights
 A board needs at least one admin	看板至少需要一位管理员	บอร์ดต้องมีผู้ดูแลอย่างน้อยหนึ่งคน	ボードには管理者が少なくとも1人必要です	erp.work.error.last_admin
 The default board cannot be archived	默认看板不能归档	ไม่สามารถเก็บถาวรบอร์ดเริ่มต้นได้	既定のボードはアーカイブできません	erp.work.error.default_board
-The Express index tool is missing on this computer. Reinstall CC Desktop	此电脑缺少 Express 索引程序，请重新安装 CC 桌面版	คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่	このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください	express.error.REINDEX_UNAVAILABLE
-This Express account set has no book for this kind of stock document. Set it up in Express	此 Express 账套没有这种库存单的单据簿，请在 Express 中设置	ชุดบัญชี Express นี้ไม่มีสมุดสำหรับเอกสารสินค้าประเภทนี้ กรุณาตั้งค่าใน Express	この Express 帳簿にはこの種類の在庫伝票の伝票帳がありません。Express で設定してください	express.reason.noStockBook
-This account set has no book for this kind of document. Set it up in Express	此账套没有这种单据的单据簿，请在 Express 中设置	ชุดบัญชีนี้ไม่มีสมุดสำหรับเอกสารประเภทนี้ กรุณาตั้งค่าใน Express	この帳簿にはこの種類の伝票帳がありません。Express で設定してください	express.error.JOURNAL_BOOK_NOT_FOUND
+The Express index tool is missing on this computer. Reinstall CC Desktop	此电脑缺少 Express 索引程序，请重新安装 CC 桌面版	คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่	このパソコンに Express インデックスツールがありません。CC デスクトップを再インストールしてください	express.error.REINDEX_UNAVAILABLE
+This Express account set has no book for this kind of stock document. Set it up in Express	此 Express 账套没有这种库存单的单据簿，请在 Express 中设置	ชุดบัญชี Express นี้ไม่มีสมุดสำหรับเอกสารสินค้าประเภทนี้ กรุณาตั้งค่าใน Express	この Express 会計データにはこの種類の在庫伝票の伝票帳がありません。Express で設定してください	express.reason.noStockBook
+This account set has no book for this kind of document. Set it up in Express	此账套没有这种单据的单据簿，请在 Express 中设置	ชุดบัญชีนี้ไม่มีสมุดสำหรับเอกสารประเภทนี้ กรุณาตั้งค่าใน Express	この会計データにはこの種類の伝票帳がありません。Express で設定してください	express.error.JOURNAL_BOOK_NOT_FOUND
 The chosen account cannot be posted in Express. Choose another account	所选科目在 Express 中不能记账，请另选科目	บัญชีที่เลือกบันทึกใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น	選んだ勘定は Express で記帳できません。別の勘定を選んでください	express.error.ACCOUNT_NOT_POSTABLE
 This item is not a stock item in Express. Choose another item	此商品在 Express 中不是库存品，请另选商品	สินค้านี้ไม่ใช่สินค้าคงคลังใน Express กรุณาเลือกสินค้าอื่น	この品目は Express の在庫品目ではありません。別の品目を選んでください	express.error.STOCK_ITEM_NOT_FOUND
 Cashier Sales to Express From	收银写 Express 起始日	เริ่มส่งยอดขายหน้าร้านเข้า Express ตั้งแต่	Express へのレジ売上の開始日
@@ -1711,7 +1711,7 @@ This receipt is in a daily summary. Refund it instead	此小票已计入收银�
 Entries from a stock count cannot be voided alone	此单由盘点生成，不能单独作废	รายการนี้สร้างจากการตรวจนับ ยกเลิกแยกไม่ได้	この入出庫は棚卸から作られたため、単独で取り消せません	stock.countEntryVoid
 Refunds exceed sales for this day after netting	当天退货冲减后为负数	ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ	この日は返品が売上を上回っています	express.reason.posNetNegative
 Waiting for the original day summary to be written	等待原日汇总写入	รอบันทึกสรุปยอดขายรายวันต้นทาง	元の日次集計の書き込み待ち	express.reason.refundWaiting
-Original and refund are in different account set years	原单与退货在不同年度账套	ใบต้นฉบับและการคืนอยู่ในชุดบัญชีคนละปี	元伝票と返品が別年度の帳簿にあります	express.reason.refundCrossYear
+Original and refund are in different account set years	原单与退货在不同年度账套	ใบต้นฉบับและการคืนอยู่ในชุดบัญชีคนละปี	元伝票と返品が別年度の会計データにあります	express.reason.refundCrossYear
 The warehouse has no matching Express warehouse	仓库在 Express 里没有对应的仓库	คลังนี้ไม่มีคลังที่ตรงกันใน Express	この倉庫に対応する Express の倉庫がありません	express.reason.warehouseUnmapped
 This document is in an Express operator entry	单据在代录中	เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express	この書類は Express の代行入力中です	express.reason.operatorOwned
 The original day summary was handled manually in Express	原日汇总已在 Express 手工处理	สรุปยอดรายวันต้นฉบับจัดการด้วยมือใน Express แล้ว	元の日次集計は Express で手動処理済みです	express.reason.refundOriginalManual
@@ -1877,12 +1877,12 @@ Set the printed total	改了票面合计	แก้ยอดรวมตามเ
 Setting the printed total	正在改票面合计	กำลังแก้ยอดรวมตามเอกสาร	伝票の合計を設定しています
 Tax number and branch match	税号和分店都对得上	เลขผู้เสียภาษีและสาขาตรงกัน	税番号と支店が一致	express.precheck.note.sameBranch
 Only one with this tax number	此税号仅此一家	เลขผู้เสียภาษีนี้มีเพียงรายเดียว	この税番号はこの1件のみ	express.precheck.note.onlyRecord
-Not in the account set yet	账套中未建	ยังไม่มีในชุดบัญชี	帳簿にまだありません	express.precheck.note.notInBook
+Not in the account set yet	账套中未建	ยังไม่มีในชุดบัญชี	会計データにまだありません	express.precheck.note.notInBook
 Receipts and simplified tax invoices are usually not claimed	小票、简易税票的税额一般不抵进项	ใบเสร็จและใบกำกับภาษีอย่างย่อโดยทั่วไปไม่ขอคืนภาษีซื้อ	レシートと簡易税票は通常控除しません	express.precheck.note.vatExpense
-A computer can write it	有电脑能写入	มีเครื่องที่บันทึกได้	書き込める端末があります	express.precheck.note.writable
+A computer can write it	有电脑能写入	มีเครื่องที่บันทึกได้	書き込めるパソコンがあります	express.precheck.note.writable
 Account name matches	科目名称对得上	ชื่อบัญชีตรงกัน	勘定科目名が一致	express.precheck.note.accountName
-Most used fitting group in the account set	账套里用得最多的合格组	กลุ่มที่ใช้มากที่สุดในชุดบัญชี	帳簿で最も使われている適合グループ	express.precheck.note.mostUsedGroup
-Basis used in this account set	此账套的口径	เกณฑ์ที่ชุดบัญชีนี้ใช้	この帳簿の基準	express.precheck.note.bookBasis
+Most used fitting group in the account set	账套里用得最多的合格组	กลุ่มที่ใช้มากที่สุดในชุดบัญชี	会計データで最も使われている適合グループ	express.precheck.note.mostUsedGroup
+Basis used in this account set	此账套的口径	เกณฑ์ที่ชุดบัญชีนี้ใช้	この会計データの基準	express.precheck.note.bookBasis
 Has taxed sales	有含税销售	มียอดขายที่มีภาษี	課税売上あり	express.precheck.note.vatSales
 Exempt items without VAT per line	免税商品按行不计税	สินค้ายกเว้นภาษีไม่คิด VAT รายบรรทัด	免税商品は行ごとに非課税	express.precheck.note.splitExempt
 Product Adjustment	物料调整	ปรับปรุงสินค้า	商品調整	nav.stockAdjust
