@@ -483,6 +483,8 @@ jobs:
         run: python3 tests/test_check_product_map.py && python3 scripts/check-product-map.py --markdown --out "${GITHUB_STEP_SUMMARY:-/dev/null}"
       - name: Post-login end-to-end runner keeps passwords out of output, never retries a rejected login and reports a test tenant on the test PC as not tested
         run: python3 tests/test_e2e_runner.py
+      - name: Production stress runner books spend, skips cells over budget or that would write Express tonight, and reads tool calls and model usage from session events
+        run: python3 tests/test_e2e_stress.py
       - name: Verify the shared scanner shows the camera picture and reads a test barcode in a real browser
         env:
           SMOKE_CHROME: /usr/bin/google-chrome
