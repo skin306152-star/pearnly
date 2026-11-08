@@ -456,6 +456,150 @@ def submit(name, payload) -> dict:
     return entry.post(payload, request_id="line-intake:" + doc.name, finalize=finish, allow_duplicate=True)
 
 
+# ── CC 对话收单（盘点 2026-11-08 P0-2，ADR-027 段 2）────────────────────────
+#
+# CC 对话（直写、代录）里的附件走 LINE 收单同一条链路：留底 → 一条收单记录（来源 cc）→ 共用识别队列 → 每张票一条待提交记录
+# （一个文件几张票各一条，同 LINE 卡片）→ 用户说「录入 / 入账 / 提交」才用网页同一个入账函数提交。只说「识别 / 发内容」时不提交。
+# 识别、计费、按行预选物料都是 LINE 那一份；不回 LINE、不推卡片。
+
+SOURCE_LINE, SOURCE_CC = "line", "cc"
+CC_OCR_KIND = "erp.cc_intake"
+
+
+def receive_chat(*, company, direction, filename, content, request_key, session_id="") -> dict:
+    """CC 对话里的一个附件交识别。同一个人同一个请求键（对话附件编号）回原来那条：不重复识别、不重复收费；上次失败的才重来。"""
+    if direction not in DIRECTION_CAPABILITY:
+        frappe.throw(_("Choose purchase or sales first"))
+    guard.require(DIRECTION_CAPABILITY[direction])
+    from pearnly_erp_portal.masters import company as companies
+
+    company = companies.document_company(company)
+    user = frappe.session.user
+    key = str(request_key or "")[:140]
+    found = frappe.db.get_value(DOCTYPE, {"source": SOURCE_CC, "sent_by": user, "request_key": key},
+                                ["name", "status"], as_dict=True, order_by="creation desc") if key else None
+    if found and found.status != FAILED:
+        return {"name": found.name, "status": found.status, "reused": True}
+    file = _store(content, filename)
+    doc = frappe.get_doc({
+        "doctype": DOCTYPE, "status": QUEUED, "direction": direction, "owner": user, "sent_by": user,
+        "source": SOURCE_CC, "session_id": str(session_id or "")[:140], "request_key": key,
+        "language": getattr(frappe.local, "lang", None) or channel_language(),
+        "media_type": "pdf" if str(filename or "").lower().endswith(".pdf") else "image",
+        "file_hash": hashlib.sha256(content).hexdigest(), "source_file": file.file_url, "source_file_name": file.name,
+        "received_at": now(), "company": company, "party": line_flow.FROM_DOCUMENT,
+        # 网页采购 / 销售默认「已付、现金」（`api_purchase_defaults` / `api_sales_defaults`）；要改的在开始前卡片里改
+        "is_paid": 1, "payment_method": "cash",
+    }).insert(ignore_permissions=True)
+    frappe.db.commit()
+    from pearnly_core.execution.errors import Deferred, QueueFull
+    from pearnly_core.execution.work import submit
+
+    try:
+        submit(CC_OCR_KIND, doc.name, {"intake": doc.name}, user)
+    except (QueueFull, Deferred):
+        _drop(doc, FAILED, "queue_busy")
+        return {"name": doc.name, "status": FAILED, "reason": "queue_busy"}
+    return {"name": doc.name, "status": QUEUED}
+
+
+def run_chat(intake):
+    """登记在 `pearnly_ocr_handlers`（``erp.cc_intake``）的识别入口：以发起人身份识别，几张票各落一条待提交记录，每行预选物料。
+    识别失败（不是单据、余额不足、贷项通知单……）落定失败、原因记在记录上，对话里由 CC 照原话说。"""
+    doc = frappe.get_doc(DOCTYPE, intake)
+    if doc.status != QUEUED or doc.get("source") != SOURCE_CC:
+        return {"cancelled": "not_queued"}
+    previous, previous_lang = frappe.session.user, getattr(frappe.local, "lang", None)
+    frappe.set_user(doc.sent_by)
+    frappe.local.lang = doc.get("language") or previous_lang
+    try:
+        try:
+            result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}],
+                                                          billing_reference=CC_OCR_KIND + ":" + doc.name,
+                                                          company=doc.company, prefill=False)
+        except frappe.ValidationError as exc:
+            _drop(doc, FAILED, str(exc))
+            return {"failed": "recognition_failed"}
+        extras = result.pop("additional", None) or []
+        doc.reload()
+        doc.result = json.dumps(result, ensure_ascii=False, default=str)
+        doc.status = READY
+        doc.save(ignore_permissions=True)
+        records = [(doc, result)] + [(_sibling(doc, extra), extra) for extra in extras]
+        for record, data in records:
+            line_items.prepare(record, data)  # 每行对哪件物料、入不入库（同 LINE；定不了的留到开始前卡片问）
+        frappe.db.commit()
+        return {"records": [record.name for record, _data in records]}
+    finally:
+        frappe.set_user(previous)
+        frappe.local.lang = previous_lang
+
+
+def chat_failed(arguments, code):
+    """队列本身失败（排队超时、结果不确定）：记录落定失败，原因记上（对话里由 CC 说）。"""
+    doc = frappe.db.get_value(DOCTYPE, arguments.get("intake"), ["name", "status", "source_file_name"], as_dict=True)
+    if doc and doc.status == QUEUED:
+        _drop(doc, FAILED, code)
+
+
+def chat_records(names) -> list:
+    """本人在对话里交的收单记录此刻怎样（同一文件拆出的几张一起列）：状态、识别出的单头与合计（网页同一套算法）、提交后的单据。
+    别人的、不是对话来的不列。"""
+    user = frappe.session.user
+    wanted = [str(name) for name in names or () if name][:50]
+    rows = frappe.get_all(DOCTYPE, filters={"name": ["in", wanted or [""]], "sent_by": user, "source": SOURCE_CC},
+                          pluck="name", limit_page_length=50)
+    hashes = {frappe.db.get_value(DOCTYPE, name, "file_hash") for name in rows}
+    siblings = frappe.get_all(DOCTYPE, filters={"file_hash": ["in", [h for h in hashes if h] or [""]], "sent_by": user,
+                                                "source": SOURCE_CC, "name": ["not in", rows or [""]]},
+                              pluck="name", limit_page_length=200) if hashes else []
+    out = []
+    for name in rows + siblings:
+        doc = frappe.get_doc(DOCTYPE, name)
+        result = json.loads(doc.result or "{}")
+        item = {"record": doc.name, "status": doc.status, "direction": doc.direction, "company": doc.company}
+        if doc.status == FAILED:
+            item["reason"] = doc.error or ""
+        if doc.status in (READY, CONFIRMED):
+            party = result.get("supplier_name") if doc.direction == "purchase" else result.get("buyer_name")
+            item.update(doc_no=result.get("doc_no"), doc_date=result.get("doc_date"), party=party,
+                        party_tax_id=result.get("supplier_tax_id") if doc.direction == "purchase" else result.get("buyer_tax_id"),
+                        lines=[{key: row.get(key) for key in ("description", "qty", "unit", "unit_price", "amount")
+                                if row.get(key) not in (None, "")} for row in result.get("lines") or []],
+                        totals={key: value for key, value in totals(doc, result).items()
+                                if key in ("subtotal", "vat_amount", "grand_total", "net_payable")},
+                        is_paid=bool(doc.is_paid), payment_method=doc.payment_method)
+        if doc.status == CONFIRMED:
+            item["document"] = doc.purchase if doc.direction == "purchase" else doc.sales_document
+        out.append(item)
+    return out
+
+
+def submit_chat(name) -> dict:
+    """用户说「录入 / 入账 / 提交」：按记录上的选择与识别字段拼网页同一个入参（`build_payload`），走网页同一个入账函数提交
+    （库存、付款照手工录入；接了 Express 的公司提交后照规则排写账）。请求号按记录固定（同 LINE），同一张只入一次。"""
+    doc = _owned(name, lock=True)
+    if doc.get("source") != SOURCE_CC:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    recorded = doc.purchase if doc.direction == "purchase" else doc.sales_document
+    if doc.status == CONFIRMED and recorded:
+        return {"name": recorded, "duplicate": True}
+    if doc.status != READY:
+        frappe.throw(_("This document is no longer available"), frappe.DoesNotExistError)
+    payload = build_payload(doc)
+    payload["source"] = SOURCE_CC
+
+    def finish(created):
+        link = "purchase" if doc.direction == "purchase" else "sales_document"
+        frappe.db.set_value(DOCTYPE, doc.name, {link: created["name"], "status": CONFIRMED, "decided_at": now()})
+
+    if doc.direction == "purchase":
+        from pearnly_erp_portal.purchasing import entry
+    else:
+        from pearnly_erp_portal.sales import entry
+    return entry.post(payload, request_id="cc-intake:" + doc.name, finalize=finish, allow_duplicate=True)
+
+
 # ── 清理 ────────────────────────────────────────────────────────────────────
 
 

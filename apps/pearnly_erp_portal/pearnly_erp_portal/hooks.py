@@ -341,8 +341,11 @@ pearnly_line_handlers = ["pearnly_erp_portal.integrations.handlers.handle"]
 # 开通时（`pearnly_core.provisioning.ensure_product_workspace`）建好默认公司：没有公司，取当前公司会报错。
 pearnly_tenant_ready = ["pearnly_erp_portal.masters.company.ensure_default"]
 # LINE 收单的识别走共用 OCR 队列（容量、计费与不重复扣费都在共用层）。
-pearnly_ocr_handlers = {"erp.line_intake": "pearnly_erp_portal.integrations.intake.run"}
-pearnly_ocr_failure_handlers = {"erp.line_intake": "pearnly_erp_portal.integrations.intake.ocr_failed"}
+pearnly_ocr_handlers = {"erp.line_intake": "pearnly_erp_portal.integrations.intake.run",
+                        # CC 对话收单（盘点 2026-11-08 P0-2）：同 LINE 收单一条链路，不回 LINE
+                        "erp.cc_intake": "pearnly_erp_portal.integrations.intake.run_chat"}
+pearnly_ocr_failure_handlers = {"erp.line_intake": "pearnly_erp_portal.integrations.intake.ocr_failed",
+                                "erp.cc_intake": "pearnly_erp_portal.integrations.intake.chat_failed"}
 # 过期没点的预览卡连源文件一起清掉（不做草稿）。
 scheduler_events = {
     "hourly": ["pearnly_erp_portal.integrations.intake.expire_stale",

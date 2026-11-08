@@ -12,6 +12,9 @@
   "column_break_media",
   "media_type",
   "line_message_id",
+  "source",
+  "session_id",
+  "request_key",
   "file_hash",
   "source_file",
   "source_file_name",
@@ -92,6 +95,27 @@
    "fieldtype": "Data",
    "label": "LINE Message",
    "length": 100
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "label": "Source",
+   "options": "line\ncc",
+   "default": "line",
+   "read_only": 1
+  },
+  {
+   "fieldname": "session_id",
+   "fieldtype": "Data",
+   "label": "Conversation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "request_key",
+   "fieldtype": "Data",
+   "label": "Request Key",
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "file_hash",

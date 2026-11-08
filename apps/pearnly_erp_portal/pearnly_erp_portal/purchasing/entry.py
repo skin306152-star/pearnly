@@ -188,8 +188,8 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
     # 单据开始时刻（草稿按建草稿、「修改」按原单，`push.started`）：随单建的供应商归不归这家公司按它
     started = express_push.started("Purchase Document", amended_from or name) if (amended_from or name) else None
     supplier, supplier_name = _supplier(payload, company, started)
-    if payload.get("source") == "line":
-        # LINE 录单没有选分类的地方：按这个供应商记住的分类补上空着的行（网页在识别时已预填，人可以改）。
+    if payload.get("source") in ("line", "cc"):
+        # LINE 录单、CC 对话收单没有选分类的地方：按这个供应商记住的分类补上空着的行（网页在识别时已预填，人可以改）。
         category_memory.fill(supplier, totals["lines"])
     reference = contracts.duplicate_key(supplier, payload.get("doc_no"))
     if reference and settings.read_settings()["dedupe_block"] and not allow_duplicate:
