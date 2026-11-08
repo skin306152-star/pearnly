@@ -121,8 +121,17 @@ print(json.dumps({{}}))
 """)
 
 
+# 看得见的、以 base 开头的页头入口文字：页头按钮 + 展开「…」菜单后看得见的项（手机宽度页头按钮也在那里）
+RUNNING_ENTRIES = (
+    "const running_entries=async(base)=>{const pick=els=>[...els].filter(e=>e.offsetParent&&e.innerText.trim().startsWith(base)).map(e=>e.innerText.trim());"
+    "const out=pick(document.querySelectorAll('.page-head button:not(.dropdown-toggle)'));"
+    "const m=[...document.querySelectorAll('.page-head .menu-btn-group > button')].find(e=>e.offsetParent);"
+    "if(m){m.click();await new Promise(r=>setTimeout(r,300));out.push(...pick(document.querySelectorAll('.page-head .menu-btn-group .dropdown-item')));"
+    "m.click();await new Promise(r=>setTimeout(r,200));}return out;};")
+
+
 # 页面公用：对账术语（`p.texts`）、等页面路由、点一颗页头按钮（手机宽度在「…」里）
-SETUP = JS + ACTION + "const t=await frappe.pearnly.texts('cowork.recon.');" \
+SETUP = JS + ACTION + RUNNING_ENTRIES + "const t=await frappe.pearnly.texts('cowork.recon.');" \
     "const at=(root,sub)=>{const r=frappe.get_route();return r[0]===root&&(sub===undefined?r.length===1:r[1]===sub);};" \
     "const go=async(...route)=>{frappe.set_route(...route);await sleep(600);await idle();};"
 
@@ -211,16 +220,17 @@ const via=await action(t('cowork.recon.export')); if(!via) return {{error:'no Ex
 """ + AWAIT_EXPORT + "return got?{via, ...got}:{error:'no export response'};"})
         out.append({"name": f"进行中 {kind}", "js": SETUP + _list(root) + f"""
 const label=t('cowork.recon.runningCount', 1);
-const shown=await until(()=>all('.page-head button, .page-head .dropdown-item').some(b=>b.innerText.trim()===label)||document.querySelector('.page-head .menu-btn-group > button'), 15000);
+await until(()=>all('.page-head button').some(b=>b.innerText.trim()===label)||document.querySelector('.page-head .menu-btn-group > button'), 15000);
 await sleep(1500); await idle();
-// 电脑宽度是页头按钮「进行中（1）」；手机宽度框架另放的菜单项是加按钮时的原字「进行中」（框架不跟着改字、不跟着隐藏）
-let used=label, via=await action(label); if(!via){{used=t('cowork.recon.running'); via=await action(used);}}
+// 看得见的「进行中」入口：电脑宽度是页头按钮，手机宽度在「…」菜单里；两边都应只有一个、带件数
+const entries=await running_entries(t('cowork.recon.running'));
+const via=await action(label);
 if(!via) return {{error:'no running button '+label}};
 const opened=await until(()=>at({r},'running'), 15000); await idle();
 const listed=await until(()=>all('.result .list-row-container').some(e=>e.innerText.includes({js_value(waiting['title'])})), 15000);
 const back=await action(t('cowork.recon.live.back')); if(!back) return {{error:'no Back button on the running page'}};
 const returned=await until(()=>at({r}), 15000); await idle();
-return {{via, used, opened: !!opened, listed: !!listed, back, returned: !!returned}};"""})
+return {{via, label, entries, opened: !!opened, listed: !!listed, back, returned: !!returned}};"""})
         out.append({"name": f"看板返回 {kind}", "js": SETUP + f"""
 await go({r}, 'run', {js_value(waiting['job'])});
 const titled=await until(()=>(frappe.pages[{r}]?.page?.title||'').trim()==={js_value(waiting['title'])}, 20000); await idle();
@@ -245,9 +255,11 @@ def judge(params, results, camera_code=None):
             {"case": f"{kind}: an edit shows Save and Save clears it", "seen": save,
              "ok": bool(save.get("via")) and save.get("saved") is True and not save.get("msg")},
             {"case": f"{kind}: the running button lists the waiting reconciliation and Back returns", "seen": running,
-             "ok": (running.get("via") == "button" and "1" in (running.get("used") or "") or running.get("via") == "menu")
-             and running.get("opened") is True and running.get("listed") is True
+             "ok": bool(running.get("via")) and running.get("opened") is True and running.get("listed") is True
              and bool(running.get("back")) and running.get("returned") is True},
+            # 11-08 手机宽度「…」里的「进行中」不带件数、没有进行中的也不藏（框架为页头按钮另加的菜单项不跟着改）
+            {"case": f"{kind}: the only running entry on screen carries the count", "seen": running.get("entries"),
+             "ok": bool(running.get("label")) and running.get("entries") == [running.get("label")]},
             {"case": f"{kind}: the board shows the waiting reconciliation and Back returns", "seen": board,
              "ok": board.get("titled") is True and bool(board.get("back")) and board.get("returned") is True},
         ]
