@@ -2207,8 +2207,11 @@ class OperatorPrecheck(PushModule):
                                   create=True), \
                 mock.patch.object(frappe, "session", types.SimpleNamespace(user="a@x"), create=True):
             out = self.operator.sources("CO-9", "2026-10", 0, 50)
-            self.assertEqual(self.operator.sources("CO-1", "2026-10", 0, 50), {"documents": [], "next_offset": None})
+            self.assertEqual(self.operator.sources("CO-1", "2026-10", 0, 50),
+                             {"documents": [], "next_offset": None, "total": 0})
         self.assertEqual([d["doc_id"] for d in out["documents"]], ["P:PI-1"])
+        self.assertEqual(out["total"], 1)  # 资料一行写「资料 N 张」用（同 Cowork）
+        self.assertNotIn("moves", out["documents"][0])  # ERP 不声明改分组：资料区的单不能拖（共用层补成空）
         self.assertEqual((seen[0]["company"], seen[0]["owner"]), ("CO-9", "a@x"))  # 员工只看本人录入的
 
     def test_a_document_already_queued_elsewhere_is_not_offered(self):
@@ -2283,7 +2286,8 @@ class OperatorPrecheck(PushModule):
 
     def test_after_a_restart_the_site_says_where_each_document_stands(self):
         # CC 重启后恢复出来的任务以站点为准收尾：已写入 / 排着写账件 / 停住 / 没排或撤回 / 别家的单
-        rows = {"PI-1": {"ledger_state": "written", "ledger_docnum": "RR0000005", "ledger_reason": "", "ledger_job": "J1"},
+        rows = {"PI-1": {"ledger_state": "written", "ledger_docnum": "RR0000005", "ledger_reason": "", "ledger_job": "J1",
+                         "system_no": "PE-1", "supplier_name": "ISUZU"},
                 "PI-2": {"ledger_state": "queued", "ledger_docnum": "", "ledger_reason": "", "ledger_job": "J2"},
                 "PI-3": {"ledger_state": "held", "ledger_docnum": "", "ledger_reason": "express.warehouse_unmapped",
                          "ledger_job": None},
@@ -2297,6 +2301,9 @@ class OperatorPrecheck(PushModule):
         self.assertEqual([(r["state"], r["docnum"], r["reason"]) for r in out],
                          [("saved", "RR0000005", ""), ("queued", "", ""), ("not_done", "", "express.warehouse_unmapped"),
                           ("cancelled", "", ""), ("unknown", "", "")])
+        # 单号与对方一起回（同 Cowork）：CC 重启后页面把单据写成「单号 · 对方」；没有单号的用单据名
+        self.assertEqual([(r.get("ref"), r.get("party")) for r in out],
+                         [("PE-1", "ISUZU"), ("PI-2", ""), ("PI-3", ""), ("PI-4", ""), (None, None)])
         from pearnly_core.express_operator import products
 
         fake.STATE.hooks.pop(products.HOOK, None)  # 没声明的产品：一律 unknown，页面照旧按排队显示、不收尾

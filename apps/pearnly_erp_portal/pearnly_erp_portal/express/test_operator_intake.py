@@ -205,13 +205,17 @@ class Submit(Base):
         self.assertEqual(results, [{"doc_id": "I:LI-1", "status": "failed", "reason": "Supplier is required"}])
 
     def test_status_of_records(self):
-        self.assertEqual(operator.status("CO-1", ["I:LI-1"])[0]["state"], "cancelled")  # 没提交
+        with patch.object(intake, "chat_records", return_value=[{"record": "LI-1", "doc_no": "IV-9", "party": "ISUZU"}]):
+            row = operator.status("CO-1", ["I:LI-1"])[0]
+        # 没提交：单号、对方按识别出的（CC 重启后页面写成「单号 · 对方」，同 Cowork）
+        self.assertEqual((row["state"], row["ref"], row["party"]), ("cancelled", "IV-9", "ISUZU"))
         self.rows["LI-1"].purchase = "PO-7"
         self.db.get_value.side_effect = lambda doctype, name, fields=None, as_dict=False, **kw: (
             self.rows.get(name) if doctype == intake.DOCTYPE else
-            SimpleNamespace(ledger_state=operator.contracts.WRITTEN, ledger_docnum="RR001", ledger_reason="", ledger_job="J1"))
+            SimpleNamespace(ledger_state=operator.contracts.WRITTEN, ledger_docnum="RR001", ledger_reason="", ledger_job="J1",
+                            system_no="PE-7", supplier_name="ISUZU"))
         row = operator.status("CO-1", ["I:LI-1"])[0]
-        self.assertEqual((row["state"], row["docnum"]), ("saved", "RR001"))
+        self.assertEqual((row["state"], row["docnum"], row["ref"], row["party"]), ("saved", "RR001", "PE-7", "ISUZU"))
 
 
 if __name__ == "__main__":

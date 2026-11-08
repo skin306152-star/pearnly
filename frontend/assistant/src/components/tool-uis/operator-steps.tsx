@@ -111,17 +111,14 @@ export function sourcesLine(total: number, counts: Partial<Record<string, number
   return [op.sources(total), ...groups].join(" · ");
 }
 
-/** 按组排好（组的先后按 DOC_GROUPS，组内按日期、单号）；all = 空组也列出（拖动时当落点）。 */
-export function groupDocs(docs: readonly DocRef[], all = false): Array<[DocGroup, DocRef[]]> {
+/** 按组排好（组的先后按 DOC_GROUPS，组内按日期、单号）；also = 这几组空着也列出（拖动时当落点：被拖那张能去的组）。 */
+export function groupDocs(docs: readonly DocRef[], also: readonly string[] = []): Array<[DocGroup, DocRef[]]> {
   const byDate = (a: DocRef, b: DocRef) =>
     String(a.date ?? "").localeCompare(String(b.date ?? "")) || String(a.ref ?? a.doc_id).localeCompare(String(b.ref ?? b.doc_id));
   return DOC_GROUPS.map((group) => [group, docs.filter((doc) => groupOf(doc) === group).sort(byDate)] as [DocGroup, DocRef[]]).filter(
-    ([, rows]) => all || rows.length > 0,
+    ([group, rows]) => rows.length > 0 || also.includes(group),
   );
 }
-
-// 只在入账的三组之间拖（站点按公司记住）
-const ENTRY_GROUPS = new Set<string>(["purchase", "expense", "sales"]);
 
 const docTexts = (): DragTexts => ({
   instructions: co.card.instructions,
@@ -135,12 +132,15 @@ const docTexts = (): DragTexts => ({
 
 type Listed = { docs: DocRef[]; next: number | null; total: number };
 
+const movesOf = (docs: readonly DocRef[], id: string): readonly string[] => docs.find((d) => d.doc_id === id)?.moves ?? [];
+
 export const OperatorSourcesStep: ToolCallMessagePartComponent = ({ args, result }) => {
   const input = (args ?? {}) as unknown as SourcesInput;
   const done = resultOf<SourcesResult>(result);
   const [listed, setListed] = useState<Listed | null>(null);
   const [open, setOpen] = useState(false);
-  const [dragging, setDragging] = useState(false);
+  // 正在拖的那张能去的组（站点给的 moves；产品没声明改分组的单不能拖）
+  const [dragging, setDragging] = useState<readonly string[]>([]);
   const texts = useMemo(docTexts, []);
   const load = async (offset: number) => {
     try {
@@ -156,7 +156,9 @@ export const OperatorSourcesStep: ToolCallMessagePartComponent = ({ args, result
   };
   const regroup = (docId: string, group: DocGroup) => {
     const before = listed;
-    setListed((l) => (l ? { ...l, docs: l.docs.map((d) => (d.doc_id === docId ? { ...d, group } : d)) } : l));
+    // 挪过去以后能去的组 = 原来能去的组换掉新组、补上原来那组
+    const moved = (d: DocRef): DocRef => ({ ...d, group, moves: [...(d.moves ?? []).filter((g) => g !== group), groupOf(d)] });
+    setListed((l) => (l ? { ...l, docs: l.docs.map((d) => (d.doc_id === docId ? moved(d) : d)) } : l));
     void operatorActions.regroup(input.company, docId, group).catch((caughtError: unknown) => {
       reportCaught(caughtError, "operator-regroup");
       setListed(before);
@@ -176,9 +178,8 @@ export const OperatorSourcesStep: ToolCallMessagePartComponent = ({ args, result
         <div className="cc-step-detail cc-step-text" data-slot="cc-op-sources-list">
           <DragArea
             texts={texts}
-            accepts={(active, target) =>
-              !!target.zone && target.list !== active.list && ENTRY_GROUPS.has(String(active.list)) && ENTRY_GROUPS.has(String(target.list))}
-            onActive={(active) => setDragging(!!active)}
+            accepts={(active, target) => !!target.zone && target.list !== active.list && movesOf(listed.docs, String(active.id)).includes(String(target.list))}
+            onActive={(active) => setDragging(active ? movesOf(listed.docs, String(active.id)) : [])}
             onDrop={(active, target) => {
               if (target.list && target.list !== active.list) regroup(String(active.id), target.list as DocGroup);
             }}
@@ -218,7 +219,7 @@ const DocGroupList: FC<{ group: DocGroup; rows: DocRef[] }> = ({ group, rows }) 
 const DocItem: FC<{ doc: DocRef; group: DocGroup }> = ({ doc, group }) => {
   const title = docTitle(doc, doc.doc_id);
   const data: DragData = { id: doc.doc_id, kind: "doc", label: title, list: group };
-  const sortable = useSortableItem(data);
+  const sortable = useSortableItem(data, { disabled: !doc.moves?.length });
   return (
     <div {...sortable.node} className="cc-op-doc" data-slot="cc-op-doc">
       <span {...sortable.handle} className="cc-op-doc-handle">

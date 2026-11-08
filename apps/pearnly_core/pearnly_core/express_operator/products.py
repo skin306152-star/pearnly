@@ -3,17 +3,21 @@
     pearnly_express_operator = {
         "allowed": "<点路径>",   # (user, company) -> bool：谁能对这家公司发起代录（各用自己的权限：Cowork 收单权限 + 能用这条
                                  # Express 连接；ERP 单据写权限 + 本人可见公司）
-        "sources": "<点路径>",   # (company, period, offset, limit) -> {"documents": [{"doc_id", "kind", "date", "party", "ref",
-                                 # "total"}], "next_offset"}：可代录的单据（Cowork 识别草稿、ERP 采购 / 销售单据），服务端分页
+        "sources": "<点路径>",   # (company, period, offset, limit) -> {"documents": [{"doc_id", "kind", "group", "moves", "date",
+                                 # "party", "ref", "total"}], "next_offset", "total"}：可代录的单据（Cowork 识别草稿、ERP 采购 /
+                                 # 销售单据与放文件识别出的收单记录），服务端分页；``total`` 是这个月一共几张。``moves``：这张能拖到
+                                 # 哪几组（产品声明了 ``regroup`` 才算数，没有的不能拖）
         "precheck": "<点路径>",  # (company, doc_ids) -> {"documents": [{"doc_id", "state": ready / choose / waiting / blocked,
                                  # "reason", "message", "needed": [{kind, subject, label, options}]}]}：按产品自己的准备逐张判
                                  # （与直写同一条路，不排写账件），要人选的一次问完
         "intake": "<点路径>",    # 可选：(company, filename, content, request_key) -> {"accepted", ...}：资料区上传一张，交识别并归到这家
-                                 # 公司（Cowork）；没声明的产品（ERP：单据在 ERP 里开好）资料区不给上传
+                                 # 公司（Cowork 识别草稿、ERP 对话收单记录）；没声明的产品资料区不给上传
         "uploads": "<点路径>",   # 声明了 intake 就要声明：(company, period, batches) -> {batch: {"state": queued / reading / done /
                                  # failed, "pages_done", "page_count", "code", "documents": [{"doc_id", "ref", "date", "party",
                                  # "waiting"}]}}：任务里上传的那几份此刻识别到哪了（只读，照产品原来的识别记录现读；读不到的不回）
-        "regroup": "<点路径>",   # 可选：(company, doc_id, group) -> {"ok"}：资料区拖到别的组
+        "regroup": "<点路径>",   # 可选：(company, doc_id, group) -> {"ok"}：资料区拖到别的组（只会收到这张单 ``moves`` 里的组）。
+                                 # ERP 不声明：采购单、销售单是两种单据，方向由单据本身定（网页也不能改），放文件识别时卖方是本公司
+                                 # 就按销售读
         "submit": "<点路径>",    # (company, doc_ids, batch, computer, answers) -> [{"doc_id", "status", "reason"}]：先记下预检里
                                  # 人定的（answers = {doc_id: [{kind, subject, value, label}]}），再按产品自己的准备出直写同一份
                                  # 载荷，经 ``contracts.for_operator`` 加代录标记，交进产品自己的写账队列（选定的电脑写）。
@@ -84,6 +88,10 @@ def uploads(company, period: str, batches) -> dict:
         return {}
     found = frappe.get_attr(path)(company, period, list(batches))
     return found if isinstance(found, dict) else {}
+
+
+def can_regroup() -> bool:
+    return bool(_path("regroup"))
 
 
 def regroup(company, doc_id: str, group: str) -> dict:

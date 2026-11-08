@@ -135,7 +135,8 @@ export function answersFor(questions: readonly Question[], picked: Readonly<Reco
 
 // ── 事件形状（方案 14.10，U1 定稿）────────────────────────────────────────────
 /** 一张单（资料清单、开始前框、单据行）。 */
-export type DocRef = { doc_id: string; ref?: string; party?: string; total?: string; date?: string; group?: string; kind?: string };
+/** moves：这张能拖到哪几组（站点按产品声明给，没有 = 不能拖）。 */
+export type DocRef = { doc_id: string; ref?: string; party?: string; total?: string; date?: string; group?: string; kind?: string; moves?: string[] };
 
 /** operator_sources 的 input；交单后的结果是按组的张数（"" = 未分组）。准备中没有结果，展开时调 documents（服务端分页）。 */
 export type SourcesInput = { task: string; company: string; company_title?: string; period: string };

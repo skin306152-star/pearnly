@@ -33,7 +33,12 @@ def _require(company):
 def documents(company, period, offset=0, limit=50):
     _require(company)
     limit = max(1, min(int(limit or 50), PAGE_MAX))
-    return products.sources(company, str(period or ""), max(0, int(offset or 0)), limit)
+    found = products.sources(company, str(period or ""), max(0, int(offset or 0)), limit)
+    movable = products.can_regroup()
+    for row in found.get("documents") or []:
+        if isinstance(row, dict):
+            row["moves"] = shapes.moves(row, movable)
+    return found
 
 
 def _ids(doc_ids) -> list:
@@ -75,7 +80,7 @@ def resolve(company, doc_id, entered, docnum=""):
 
 UPLOAD_MAX = 30 * 1024 * 1024
 UPLOAD_DEFERRED = "upload.deferred"  # 暂时无法上传，请稍后重试。
-GROUPS = ("purchase", "sales", "expense", "payment", "skip")
+GROUPS = shapes.GROUPS
 
 
 @frappe.whitelist(methods=["POST"])

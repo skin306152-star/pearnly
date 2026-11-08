@@ -515,6 +515,20 @@ class SharedUploadStateTests(unittest.TestCase):
         self.assertIn("shapes.upload_state(", source)  # Cowork 也走共用的判法
         self.assertEqual(cowork.upload_state({"state": "uncertain", "page_count": 1}), work("queued", "uncertain") | {"page_count": 1})
 
+    def test_only_a_product_that_declares_regroup_lets_a_document_be_dragged(self):
+        """A 批 2：资料区能不能拖、能拖到哪几组由站点给（``moves``）；产品没声明改分组（ERP）一律不能拖（原来页面照样让拖，
+        放下才报错弹回）。只认已知的组、去掉自己这组。"""
+        moves = self.shapes.moves
+        row = {"group": "purchase", "moves": ["expense", "sales", "purchase", "nowhere", "sales"]}
+        self.assertEqual(moves(row, True), ["expense", "sales"])
+        self.assertEqual(moves(row, False), [])
+        self.assertEqual(moves({"group": "purchase"}, True), [])
+        api = (ROOT / "apps/pearnly_core/pearnly_core/express_operator/api.py").read_text(encoding="utf-8")
+        self.assertIn("shapes.moves(row, movable)", api)
+        page = (ROOT / "frontend/assistant/src/components/tool-uis/operator-steps.tsx").read_text(encoding="utf-8")
+        self.assertIn("disabled: !doc.moves?.length", page)
+        self.assertNotIn("ENTRY_GROUPS", page)  # 页面不再自己定哪几组能拖
+
 
 class ProgressEventTests(unittest.TestCase):
     """B5：识别排队、开始读、读到第几页、有结论都已推给提交人（同一个事件，`reference` 是识别任务号 = 上传的 `batch`），

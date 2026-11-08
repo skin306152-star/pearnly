@@ -22,6 +22,7 @@ from pearnly_erp_portal.masters import company as companies
 
 KINDS = {"P": (push.PURCHASE, "purchase.write"), "S": (push.SALES, "sales.write")}
 INTAKE = "I"  # 代录放文件识别出、还没提交的收单记录（``I:<记录>``）
+PARTY_FIELD = {push.PURCHASE: "supplier_name", push.SALES: "customer"}  # 资料区、恢复任务时写的对方
 
 
 def _company_ok(user, company) -> bool:
@@ -38,25 +39,30 @@ def _month(period: str):
     return f"{year:04d}-{month:02d}-01", f"{year:04d}-{month:02d}-{calendar.monthrange(year, month)[1]:02d}"
 
 
+# 一家公司一个月还没交进写账队列的单（每类最多取这么多，整月一次取齐再分页：按台号码、写账件状态在取出后才筛，按页取会让
+# 张数与「显示更多」对不上；ERP 的单提交时就排直写，留在这里的通常只有几张）
+SOURCES_MAX = 500
+
+
 def sources(company, period, offset, limit) -> dict:
     """任务选的这家公司这个月的单。按任务给的公司取，不走单据列表的权限条件：那条只认本人「当前公司」，任务选的公司不是当前公司时
     一张都取不到（10-29 测试机）。同一套判据在这里自己守：公司在本人可见公司里、有开单权，员工只看本人录入的（``guard.scope_filters``）。"""
     if not _company_ok(frappe.session.user, company):
-        return {"documents": [], "next_offset": None}
+        return {"documents": [], "next_offset": None, "total": 0}
     first, last = _month(period)
     scope = guard.scope_filters()
     rows = []
     for prefix, (doctype, capability) in KINDS.items():
         if not guard.has(capability):
             continue
-        party = "customer" if doctype == push.SALES else "supplier_name"
+        party = PARTY_FIELD[doctype]
         # 还没交进写账队列的；加上代录交过、停在要人处理的（上一件是代录的、转人工了：代录可以再录，`push.release_operator`）
         found = frappe.get_all(doctype, filters={"company": company, "doc_date": ["between", [first, last]],
                                                  "status": push.ready(doctype),
                                                  "ledger_state": ["in", [*contracts.OPEN_STATES, contracts.FAILED]], **scope},
                                fields=["name", "doc_date", "grand_total", "system_no", party, "ledger_reason",
                                        "ledger_job"],
-                               order_by="doc_date asc, name asc", limit_start=0, limit_page_length=offset + limit)
+                               order_by="doc_date asc, name asc", limit_start=0, limit_page_length=SOURCES_MAX)
         # 带按台号码的单不交代录（代录还不会在 Express 里点 Note 录行说明，主会话 11-02）：照直写，号码写进附加说明
         units = set(frappe.db.sql_list("""SELECT DISTINCT parent FROM `tabERP Line Serial`
             WHERE parenttype = %s AND parent IN %s""", (doctype, tuple(row.name for row in found)))) if found else set()
@@ -69,7 +75,7 @@ def sources(company, period, offset, limit) -> dict:
     rows += _intake_rows(company, first, last)
     rows.sort(key=lambda r: (r["date"], r["doc_id"]))
     page = rows[offset:offset + limit]
-    return {"documents": page, "next_offset": offset + limit if len(rows) > offset + limit else None}
+    return {"documents": page, "next_offset": offset + limit if len(rows) > offset + limit else None, "total": len(rows)}
 
 
 # ---------------- 放文件：收单记录（``I:``）----------------
@@ -532,12 +538,17 @@ def status(company, doc_ids) -> list:
         if str(doc_id).startswith(INTAKE + ":"):
             found = _intake(company, doc_id)
             target = _submitted(found) if found else None
-            if found and not target:
-                out.append({"doc_id": doc_id, "state": "cancelled", "docnum": "", "reason": ""})  # 还没提交、没交代录
+            if found and not target:  # 还没提交、没交代录：单号、对方按识别出的
+                from pearnly_erp_portal.integrations import intake as chat_intake
+
+                read = next((r for r in chat_intake.chat_records([found.name]) if r["record"] == found.name), {})
+                out.append({"doc_id": doc_id, "state": "cancelled", "docnum": "", "reason": "",
+                            "ref": str(read.get("doc_no") or ""), "party": str(read.get("party") or "")})
                 continue
         else:
             target = _target(company, doc_id)
-        row = frappe.db.get_value(target[0], target[1], ["ledger_state", "ledger_docnum", "ledger_reason", "ledger_job"],
+        row = frappe.db.get_value(target[0], target[1], ["ledger_state", "ledger_docnum", "ledger_reason", "ledger_job",
+                                                         "system_no", PARTY_FIELD[target[0]]],
                                   as_dict=True) if target else None
         if not row:
             out.append({"doc_id": doc_id, "state": "unknown", "docnum": "", "reason": ""})
@@ -550,6 +561,9 @@ def status(company, doc_ids) -> list:
             state = "not_done"
         else:
             state = "cancelled"
+        # 单号与对方一起回（同 Cowork）：CC 重启后页面没有这一页的资料清单，靠它把单据写成「单号 · 对方」
         out.append({"doc_id": doc_id, "state": state, "docnum": (row.ledger_docnum or "") if state == "saved" else "",
-                    "reason": (row.ledger_reason or "") if state == "not_done" else ""})
+                    "reason": (row.ledger_reason or "") if state == "not_done" else "",
+                    "ref": str(getattr(row, "system_no", None) or target[1]),
+                    "party": str(getattr(row, PARTY_FIELD[target[0]], None) or "")})
     return out

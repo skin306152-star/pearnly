@@ -54,6 +54,17 @@ def upload_view(row, found, period: str) -> dict:
             "page_count": page_count, "code": code if state in ("failed", "queued") else "", "documents": documents}
 
 
+GROUPS = ("purchase", "sales", "expense", "payment", "skip")  # 资料区的组（页面 DOC_GROUPS 同一份）
+
+
+def moves(row, movable: bool) -> list:
+    """资料区这张单能拖到哪几组：产品没声明 ``regroup`` 的一律不能拖；声明了的只认已知的组、去掉它自己这组。"""
+    if not movable or not isinstance(row.get("moves"), (list, tuple)):
+        return []
+    own = str(row.get("group") or "")
+    return [group for group in dict.fromkeys(str(item) for item in row["moves"]) if group in GROUPS and group != own]
+
+
 FAILED_WORK = ("failed", "uncertain", "cancelled")  # 共用识别队列落定没出结果的状态
 
 

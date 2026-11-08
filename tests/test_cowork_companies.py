@@ -1939,6 +1939,8 @@ class OperatorSourceTests(unittest.TestCase):
         sys.modules["pearnly_cowork.assistant.tools"].list_documents = lambda _q: json.dumps(listed)
         out = module.sources("CO1", "2026-10", 0, 50)
         self.assertEqual([d["group"] for d in out["documents"]], ["expense", "purchase"])
+        # 能拖到哪几组（只在入账的三组之间，去掉自己这组；共用层按 regroup 声明认）
+        self.assertEqual([d["moves"] for d in out["documents"]], [["purchase", "sales"], ["expense", "sales"]])
         module.precheck("CO1", ["h1", "h2"])
         self.assertEqual([c for c in calls if c[0] == "check"], [("check", "h1", "service"), ("check", "h2", "")])
         self.assertEqual(self.pages["h1"][0]["fields"]["posting_kind"], "service")  # 记住的分组落到单据上

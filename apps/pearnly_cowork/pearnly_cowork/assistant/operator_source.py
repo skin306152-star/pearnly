@@ -51,8 +51,9 @@ def sources(company, period, offset, limit) -> dict:
     for row in rows:
         direction = row.get("direction") or ""
         fields = pages.get(row.get("name")) or {}
-        documents.append({"doc_id": row.get("name"), "kind": direction,
-                          "group": _group(row, fields, row.get("posting_kind"), memory)[0],
+        group = _group(row, fields, row.get("posting_kind"), memory)[0]
+        documents.append({"doc_id": row.get("name"), "kind": direction, "group": group,
+                          "moves": [other for other in ENTRY_GROUPS if other != group] if group in ENTRY_GROUPS else [],
                           "date": str(row.get("invoice_date") or ""),
                           "party": row.get("buyer_name") if direction == "sales" else row.get("seller_name"),
                           "ref": row.get("invoice_no") or "", "total": str(row.get("total_amount") or ""),
