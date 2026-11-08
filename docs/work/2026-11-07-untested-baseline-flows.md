@@ -148,6 +148,24 @@
 - 踩到的：`desk_list.READ_LIST` 用整页 `document.querySelector` 读表头计数，连开几页时会读到前一页藏着的列表；本流程按 `data-page-route` 的页面容器读。
 - guide / history / push-logs / reconcile 四页是「未建成」占位页（`frappe.pearnly.notBuilt`，不在侧栏），没补测试，删不删已问主会话。
 
+## 删四个占位页、报表导出声明（`pearnly/drop-placeholder-pages`，主会话 11-08 定）
+
+**占位页（A：删）**：使用教程 / 识别记录 / 推送日志 / 对账中心（`pearnly-guide` / `-history` / `-push-logs` / `-reconcile`）都是 `frappe.pearnly.notBuilt` 占位、不在任何产品侧栏。
+全仓搜过路由名与词条：没有菜单、页内链接、CC 工具、LINE 消息指向它们。一并处理：
+- 删 core 页面目录；core 补丁 `v0_0_11_drop_placeholder_pages` 删站点上的 Page 记录（连同角色行）；
+- 旧书签映射（`www/pearnly-app.html`）去掉四项（回首页）；旧 Vue 对照清单 `frontend/src/lib/nav.ts` / `icons.ts` 不动：两个文件已经没有任何地方引用（路由只剩 DMS 三页），改它们反而要往 `not_flows.toml` 加条目（只许减少）；
+- 一次性实验校验脚本 `scripts/cowork-preparation-upgrade-verify.py` 的页面名单去掉四项；共用件登记删 `erp.page.never.{push-logs,reconcile,guide,history}`；
+- 页面快照基线（`tests/baseline/page-entries/*.json`）删这四个路由；地图删四行、基线删 8 条；`tests/test_product_map.py` 的真实样例去掉 `page:` 一类（仓库里已没有不在侧栏的页面）。
+- 词条 `nav.guide` / `nav.history` / `nav.pushLogs` / `nav.reconcile` 不删：术语表那几行的英文原文（Recognition Records、Push Log、Reconciliation）别处还在用。
+- `notBuilt` 本身保留：团队、公司、仓库、Cowork 盘点页在产品没提供渲染时还用它兜底。
+
+**盘点差异报表原生「导出」（B：删声明）**：核过盘点单页自己的「导出」（`_count_workbook`）汇总表有账面、实盘、差异、差异金额、仓库、仓位、仓位编码；报表的原生导出
+没有租户账号看得到（`can_export(ERP Stock Count Item)` 只有 System Manager）。ERP `hooks.py` 删 `query-report/ERP Stock Count Variance` 的 `Export` 声明，地图删这一行、基线删 2 条。
+
+**验证**（本机实验栈 `pearnly-reconflow-lab`，挂本分支迁移）：补丁在 erp-old / erp-new / cowork-new / cowork-old / dms-new 五个站点执行，四条 Page 记录与角色行都没了；
+浏览器直接输四个 `/desk/...` 地址、旧书签 `/pearnly-app#/history`、`#/guide` 都回到 `/desk/pearnly-home`，`#/purchase` 照旧到采购页。
+`check-entries` 111 个调用点、153 个声明码完整；`check-copy` 无增删改；架构检查通过；地图基线 34 → 24。
+
 ## 下一组
 
 只开页面的几页、Cowork 录入与盘点（第一份交接第 4 节）。
