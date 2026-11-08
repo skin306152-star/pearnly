@@ -52,10 +52,6 @@ erp.desk.pearnly-push-logs@desktop
 erp.desk.pearnly-push-logs@mobile
 erp.desk.pearnly-reconcile@desktop
 erp.desk.pearnly-reconcile@mobile
-erp.desk.pearnly-stock-count.action.Express@desktop
-erp.desk.pearnly-stock-count.action.Express@mobile
-erp.desk.pearnly-stock-count.action.stock.count.new@desktop
-erp.desk.pearnly-stock-count.action.stock.count.new@mobile
 erp.desk.pearnly-warehouses.action.company.newWarehouse@desktop
 erp.desk.pearnly-warehouses.action.company.newWarehouse@mobile
 erp.desk.query-report-erp stock count variance.action.Export@desktop

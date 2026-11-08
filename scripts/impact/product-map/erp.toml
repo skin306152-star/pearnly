@@ -1160,6 +1160,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-count:Express"
 where = "pearnly-stock-count 页头「Express」"
+tests = ["flow:erp.stocktake.new"]
 
 [[row]]
 id = "erp.desk.pearnly-stock-count.action.Print"
@@ -1199,6 +1200,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-count:stock.count.new"
 where = "pearnly-stock-count 页头「stock.count.new」"
+tests = ["flow:erp.stocktake.new"]
 
 [[row]]
 id = "erp.desk.pearnly-stock-count.action.stock.count.start"

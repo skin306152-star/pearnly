@@ -1568,3 +1568,16 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py",
 ]
+
+[[flow]]
+id = "erp.stocktake.new"
+title = "ERP 盘点：列表新建盘点（弹窗、打开、快照行）、旧盘点的 Express 弹窗（单号与库里一致、POST、只看）（清存量基线 11-08）"
+module = "scripts/flows/erp_stocktake_new.py"
+start = "/desk/pearnly-stock-count"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
+]
