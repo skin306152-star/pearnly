@@ -255,7 +255,7 @@
           var draft = param("draft");
           var editor = ["customer", "scan", "page_sent", "review"].includes(param("editor")) ? param("editor") : "booking";
           var accountAction = ["portal", "credentials"].includes(param("action")) ? param("action") : "";
-          await loadTexts(["dms.edit.loading", "dms.edit.failed", "dms.edit.liffUnavailable", "dms.edit.scanSent"]);
+          await loadTexts(["dms.edit.loading", "dms.edit.failed", "dms.edit.liffUnavailable", "dms.edit.scanSent", "dms.edit.expired"]);
           msg.textContent = text("dms.edit.loading");
           if (editor === "page_sent") return finishPage();
           if (!draft && !accountAction && editor !== "scan") return showError("dms.edit.expired");
