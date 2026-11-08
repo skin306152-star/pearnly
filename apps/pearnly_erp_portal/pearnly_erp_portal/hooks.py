@@ -384,8 +384,9 @@ pearnly_navigation = [{'product': 'erp',
   # 字段说明收进标题旁的说明图标（共用层 `pearnly_core/public/desk/field-help.js`，用户 11-02）
   'field_help': 'icon',
   "profile_label": "My Profile",
+  # 仓库不写在这里（岳父 11-08）：它在侧栏「物料与库存」组，岗位勾选跟着侧栏归到同一组
   "permission_groups": [("General", ["pearnly-home", "pearnly-tasks"]),
-                        ("User Settings", ["user", "pearnly-team", "pearnly-company", "pearnly-warehouses"])],
+                        ("User Settings", ["user", "pearnly-team", "pearnly-company"])],
   # 产品自己的**页面过滤器**（共用层只负责调）：收银台是公司级开关，这家公司没开收银，
   # 那三个收银页与收银岗位都不出现。见 `masters/nav.py` 与 ADR-009 的声明约定。
   'page_filter': 'pearnly_erp_portal.masters.nav.filter_pages',
@@ -456,8 +457,10 @@ pearnly_navigation = [{'product': 'erp',
                   'pearnly-team': {'any_role': ['ERP Admin']}},
   'groups': [('nav.group.goodsStock',
               'boxes',
-              # 顺序（岳父 11-06）：库存、物料、入库、出库、调拨、物料调整、收发存报表、盘点
+              # 顺序（岳父 11-06）：库存、物料、入库、出库、调拨、物料调整、收发存报表、盘点；
+              # 仓库（岳父 11-08）：从左下角用户菜单移进这一组，放在库存与物料之间（"仓库属于物料相关"）
               ['pearnly-inventory',
+               'pearnly-warehouses',
                'pearnly-products',
                'pearnly-stock-in',
                'pearnly-stock-out',
@@ -496,8 +499,8 @@ pearnly_navigation = [{'product': 'erp',
   # 的菜单里会出现「团队管理」。
   # 公司带 `before_profile`：用户 2026-09-23 口径"公司……做在个人信息上方"，
   # 所以它排在「个人信息」上面，团队管理仍排在下面。
+  # 仓库原来也在这里，岳父 11-08 移到侧栏「物料与库存」组（移，不复制）。
   'user_menu': [{'route': 'pearnly-company', 'before_profile': True},
-                {'route': 'pearnly-warehouses', 'before_profile': True},
                 'pearnly-team'],
   # 页头入口声明（回归方案 A 节，10-26）：每页页头允许出现的入口（语义码）。我们自己的页面由 scripts/check-entries.py 核对代码里
   # 加的每个按钮都在这里；框架原生视图（Form/User、报表）运行时只放行这里列的（core desk/actions.js）；"*" 是各页共用的。

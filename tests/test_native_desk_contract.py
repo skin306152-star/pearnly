@@ -170,11 +170,21 @@ class ProductNavigationAccess(unittest.TestCase):
         # 「主数据」组只装「集成」一页，2026-10-27 随它一起删。
         self.assertEqual([g[0] for g in groups], ['nav.group.goodsStock', 'nav.group.purchasing',
                                                  'nav.group.sales', None])
-        # 「物料与库存」的顺序（岳父 11-06）：库存、物料、入库、出库、调拨、物料调整、收发存报表、盘点
-        declared = next(item for item in DECLARATIONS if item['product'] == 'erp')['groups']
-        self.assertEqual(declared[0][2], ['pearnly-inventory', 'pearnly-products', 'pearnly-stock-in', 'pearnly-stock-out',
-                                          'pearnly-stock-transfer', 'pearnly-stock-adjust', 'pearnly-stock-card',
-                                          'pearnly-stock-count'])
+        # 「物料与库存」的顺序（岳父 11-06）：库存、物料、入库、出库、调拨、物料调整、收发存报表、盘点；
+        # 岳父 11-08：仓库从左下角用户菜单移进这一组，放在库存与物料之间
+        erp = next(item for item in DECLARATIONS if item['product'] == 'erp')
+        declared = erp['groups']
+        self.assertEqual(declared[0][2], ['pearnly-inventory', 'pearnly-warehouses', 'pearnly-products', 'pearnly-stock-in',
+                                          'pearnly-stock-out', 'pearnly-stock-transfer', 'pearnly-stock-adjust',
+                                          'pearnly-stock-card', 'pearnly-stock-count'])
+        # 是「移」不是复制：左下角只剩公司与团队管理
+        menu_routes = [spec['route'] if isinstance(spec, dict) else spec for spec in erp['user_menu']]
+        self.assertEqual(menu_routes, ['pearnly-company', 'pearnly-team'])
+        # 团队管理的岗位勾选按侧栏分组归组（team/service.py role_catalog：先侧栏组、再 permission_groups 覆盖），
+        # 仓库跟着侧栏归到「物料与库存」，不再留在「用户设置」
+        role_groups = {route: label for label, _icon, routes in declared if label for route in routes}
+        role_groups.update({route: label for label, routes in erp['permission_groups'] for route in routes})
+        self.assertEqual(role_groups['pearnly-warehouses'], 'nav.group.goodsStock')
         boot = self.boot()
         boot.workspace_sidebar_item = {'pearnly erp': {'items': [
             {'link_to': route} for route in self.namespace['available_pages']('erp')]}}
@@ -192,8 +202,11 @@ class ProductNavigationAccess(unittest.TestCase):
         self.frappe.get_roles.return_value = ['ERP Admin']
         self.frappe.has_permission.side_effect = lambda doctype, perm: doctype == 'ERP Sales Document'
         shared = self.namespace['_sidebar_items']('erp', {'sales', 'tasks'})
+        # 仓库页不挂功能码（开单选仓要用），11-08 起在「物料与库存」组：管理员即使只开了销售也看得到这一组只剩仓库
+        # （正式开通是 ERP 功能全开，见 features.json，实际不会出现这种只开销售的租户）
         self.assertEqual([(row.get('link_to') or row['label'], row.get('child', 0)) for row in shared],
-                         [('pearnly-home', 0), ('nav.group.sales', 0), ('pearnly-sales', 1), ('pearnly-tasks', 0)])
+                         [('pearnly-home', 0), ('nav.group.goodsStock', 0), ('pearnly-warehouses', 1),
+                          ('nav.group.sales', 0), ('pearnly-sales', 1), ('pearnly-tasks', 0)])
         self.assertEqual(shared[-1]['icon'], 'square-kanban')
         boot = self.boot()
         boot.workspace_sidebar_item = {'pearnly erp': {'items': [
@@ -344,7 +357,8 @@ class ProductNavigationAccess(unittest.TestCase):
         self.shell.entitlements.return_value = ['products']
         self.frappe.has_permission.side_effect = lambda doctype, perm: doctype in {
             'ERP Product', 'ERP Company', 'ERP Warehouse'}
-        routes = ['pearnly-products', 'pearnly-home']
+        # 仓库 11-08 起在侧栏（物料与库存组），排序保存的是侧栏那一份，要带上它；公司、团队管理仍走左下角
+        routes = ['pearnly-products', 'pearnly-warehouses', 'pearnly-home']
         self.assertEqual(self.namespace['save_sidebar_order'](routes),
                          {'routes': routes, 'pages': ['pearnly-home', 'pearnly-products',
                                                       'pearnly-company', 'pearnly-warehouses', 'pearnly-team']})

@@ -141,9 +141,14 @@ class EntryPermissions(unittest.TestCase):
         self.assertTrue(team.list_members())
         self.denied(billing_www.home)
         self.assertFalse(user_permission(frappe.get_doc("User", self.users["team"])))
-        keys = {row["name"] for row in team.role_catalog()}
+        catalog = team.role_catalog()
+        keys = {row["name"] for row in catalog}
         # LINE 的开关也在团队权限里（用户 2026-09-25：和个人信息、团队管理放在同一组）。
         self.assertEqual(keys, set(menu.roles()) | {rules.LINE_ROLE})
+        # 仓库的勾选跟侧栏一起归到「物料与库存」（岳父 11-08），不在「用户设置」
+        groups = {row["name"]: row["group"] for row in catalog}
+        self.assertEqual(groups[menu.role("warehouses")], frappe._("nav.group.goodsStock"))
+        self.assertEqual(groups[menu.role("company")], frappe._("User Settings"))
 
     def test_profile_revocation_and_other_product_default(self):
         from pearnly_core.desk.permissions import user_permission
