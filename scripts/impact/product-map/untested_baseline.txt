@@ -34,13 +34,6 @@ cowork.desk.pearnly-stocktake.action.cowork.stock.count.new@desktop
 cowork.desk.pearnly-stocktake.action.cowork.stock.count.new@mobile
 cowork.desk.pearnly-stocktake.action.cowork.stock.count.start@desktop
 cowork.desk.pearnly-stocktake.action.cowork.stock.count.start@mobile
-cowork.desk.pearnly-team.action.Cancel@desktop
-cowork.desk.pearnly-team.action.Cancel@mobile
-cowork.desk.pearnly-team.action.Save@desktop
-cowork.desk.pearnly-team.action.Save@mobile
-cowork.desk.pearnly-team.action.cowork.team.new@desktop
-cowork.desk.pearnly-team.action.cowork.team.new@mobile
-cowork.desk.pearnly-team@mobile
 cowork.desk.pearnly-work.action.cowork.work.archived.title@desktop
 cowork.desk.pearnly-work.action.cowork.work.archived.title@mobile
 cowork.desk.pearnly-work.action.cowork.work.board.create@desktop
@@ -145,12 +138,6 @@ erp.desk.pearnly-tasks.action.erp.work.notify.title@desktop
 erp.desk.pearnly-tasks.action.erp.work.notify.title@mobile
 erp.desk.pearnly-tasks.action.erp.work.rules.manage@desktop
 erp.desk.pearnly-tasks.action.erp.work.rules.manage@mobile
-erp.desk.pearnly-team.action.Cancel@desktop
-erp.desk.pearnly-team.action.Cancel@mobile
-erp.desk.pearnly-team.action.Save@desktop
-erp.desk.pearnly-team.action.Save@mobile
-erp.desk.pearnly-team.action.team.new@desktop
-erp.desk.pearnly-team.action.team.new@mobile
 erp.desk.pearnly-warehouses.action.company.newWarehouse@desktop
 erp.desk.pearnly-warehouses.action.company.newWarehouse@mobile
 erp.desk.query-report-erp stock count variance.action.Export@desktop

@@ -1122,7 +1122,7 @@ kind = "nav-page"
 anchor = "nav:cowork:pearnly-team"
 group = "desk.pearnly-team"
 where = "侧栏「pearnly-team」"
-tests = ["flow:cowork.team.full-name", "flow:cowork.team.bulk-disable", "impact:cowork.page.team"]
+tests = ["flow:cowork.team.full-name", "flow:cowork.team.bulk-disable", "impact:cowork.page.team", "flow:cowork.team.actions"]
 
 [[row]]
 id = "cowork.desk.pearnly-work"
@@ -1548,6 +1548,7 @@ kind = "page-action"
 anchor = "action:cowork:pearnly-team:Cancel"
 group = "desk.pearnly-team.Cancel"
 where = "pearnly-team 页头「Cancel」"
+tests = ["flow:cowork.team.actions"]
 
 [[row]]
 id = "cowork.desk.pearnly-team.action.Save"
@@ -1558,6 +1559,7 @@ kind = "page-action"
 anchor = "action:cowork:pearnly-team:Save"
 group = "desk.pearnly-team.Save"
 where = "pearnly-team 页头「Save」"
+tests = ["flow:cowork.team.actions"]
 
 [[row]]
 id = "cowork.desk.pearnly-team.action.cowork.team.new"
@@ -1567,6 +1569,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-team:cowork.team.new"
 where = "pearnly-team 页头「cowork.team.new」"
+tests = ["flow:cowork.team.actions"]
 
 [[row]]
 id = "cowork.desk.pearnly-work.action.cowork.work.archived.title"

@@ -647,7 +647,7 @@ kind = "nav-page"
 anchor = "nav:erp:pearnly-team"
 group = "desk.pearnly-team"
 where = "侧栏「pearnly-team」"
-tests = ["flow:erp.team.add-member", "flow:erp.team.full-name", "flow:erp.team.bulk-disable", "impact:erp.page.team"]
+tests = ["flow:erp.team.add-member", "flow:erp.team.full-name", "flow:erp.team.bulk-disable", "impact:erp.page.team", "flow:erp.team.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-warehouses"
@@ -1442,6 +1442,7 @@ kind = "page-action"
 anchor = "action:erp:pearnly-team:Cancel"
 group = "desk.pearnly-team.Cancel"
 where = "pearnly-team 页头「Cancel」"
+tests = ["flow:erp.team.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-team.action.Save"
@@ -1452,6 +1453,7 @@ kind = "page-action"
 anchor = "action:erp:pearnly-team:Save"
 group = "desk.pearnly-team.Save"
 where = "pearnly-team 页头「Save」"
+tests = ["flow:erp.team.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-team.action.team.new"
@@ -1461,6 +1463,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-team:team.new"
 where = "pearnly-team 页头「team.new」"
+tests = ["flow:erp.team.actions"]
 
 [[row]]
 id = "erp.desk.pearnly-warehouses.action.company.newWarehouse"

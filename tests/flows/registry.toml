@@ -1445,3 +1445,32 @@ camera = false
 covers = [
   "apps/pearnly_cowork/pearnly_cowork/companion/operator_api.py",
 ]
+
+[[flow]]
+id = "erp.team.actions"
+title = "ERP 团队页：列表新建弹窗、整页新建、整页编辑保存与取消逐个实点，查库里用户、角色与姓名（清存量基线 11-08）"
+module = "scripts/flows/team_actions.py"
+start = "/desk/pearnly-team"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/team/service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/team/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/team.js",
+]
+
+[[flow]]
+id = "cowork.team.actions"
+title = "Cowork 团队页：同 ERP（列表新建弹窗、整页新建、整页编辑保存与取消）"
+module = "scripts/flows/team_actions.py"
+product = "cowork"
+start = "/desk/pearnly-team"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/team/service.py",
+  "apps/pearnly_cowork/pearnly_cowork/team/api.py",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/team.js",
+]
