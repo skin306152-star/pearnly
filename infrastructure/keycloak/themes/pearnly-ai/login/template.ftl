@@ -1,6 +1,6 @@
 <#-- 生成文件：改设计请改 scripts/build-ai-entry.py 后重新生成，不要直接改这里。 -->
 <#macro pnIco name><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><#if name == "eye"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/><#elseif name == "user"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/><#elseif name == "lock"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><#elseif name == "mail"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></#if></svg></#macro>
-<#function pnLangShort tag><#if tag?starts_with("zh")><#return "中文"><#elseif tag == "th"><#return "ไทย"><#elseif tag == "en"><#return "English"><#else><#return tag></#if></#function>
+<#function pnLangShort tag><#if tag?starts_with("zh")><#return "中文"><#elseif tag == "th"><#return "ไทย"><#elseif tag == "en"><#return "English"><#elseif tag == "ja"><#return "日本語"><#else><#return tag></#if></#function>
 <#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false resetResult=false>
 <!doctype html>
 <html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -15,7 +15,7 @@
 <div class="page">
   <header class="top">
     <#if realm.internationalizationEnabled && locale.supported?size gt 1>
-    <nav class="langs" aria-label="Language"><#list ["th", "zh-CN", "en"] as want><#list locale.supported as l><#if l.languageTag == want><a href="${l.url}" class="<#if l.languageTag == locale.currentLanguageTag>on</#if>">${pnLangShort(l.languageTag)}</a></#if></#list></#list></nav>
+    <nav class="langs" aria-label="Language"><#list ["th", "zh-CN", "en", "ja"] as want><#list locale.supported as l><#if l.languageTag == want><a href="${l.url}" class="<#if l.languageTag == locale.currentLanguageTag>on</#if>">${pnLangShort(l.languageTag)}</a></#if></#list></#list></nav>
     </#if>
   </header>
   <section class="hero">
@@ -37,7 +37,7 @@
       <#nested "form">
       <#if displayInfo><div class="pn-info"><#nested "info"></div></#if>
       <div class="contacts"><a href="https://line.me/R/ti/p/@pearnly" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="#06c755" aria-hidden="true"><path d="M12 3C6.5 3 2 6.6 2 11c0 3.9 3.5 7.2 8.3 7.9.3.1.8.2.9.5.1.3.1.7 0 .9l-.1.9c0 .3-.2 1 .9.6 1.1-.5 5.9-3.5 8-6C21.4 14.2 22 12.7 22 11c0-4.4-4.5-8-10-8Z"/></svg>@pearnly</a><a href="mailto:hello@pearnly.com"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5f5e5a" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg>hello@pearnly.com</a><a href="https://www.youtube.com/@pearnlyth" target="_blank" rel="noopener"><svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="4.5" fill="#ff0033"/><path d="M10 9v6l5.2-3z" fill="#fff"/></svg>YouTube</a></div>
-      <#assign site = "https://pearnly.com" + (locale.currentLanguageTag?starts_with("zh"))?then("/zh", (locale.currentLanguageTag == "en")?then("/en", ""))>
+      <#assign site = "https://pearnly.com" + (locale.currentLanguageTag?starts_with("zh"))?then("/zh", (locale.currentLanguageTag == "en" || locale.currentLanguageTag == "ja")?then("/en", ""))>
       <p class="legal">${kcSanitize(msg("pearnlyAiLegal", '<a href="' + site + '/terms/" target="_blank" rel="noopener">' + msg("pearnlyAiTerms") + '</a>', '<a href="' + site + '/privacy/" target="_blank" rel="noopener">' + msg("pearnlyAiPrivacy") + '</a>'))?no_esc}</p>
     </div>
   </section>

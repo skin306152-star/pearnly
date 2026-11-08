@@ -362,7 +362,7 @@ THEME_PROPERTIES = """# Pearnly 智能体入口（fatcc.com）的登录主题，
 parent=pearnly
 import=common/keycloak
 styles=
-locales=th,zh-CN,en
+locales=th,zh-CN,en,ja
 # 不显示内容的过渡页（退出后自动跳回，info.ftl 在 pearnly 主题）用本主题的样式表和标题，底色与登录页一致。
 pearnlyBlankCss=css/""" + CSS_NAME + """
 pearnlyBlankTitle=CC
@@ -370,7 +370,7 @@ pearnlyBlankTitle=CC
 
 TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
 <#macro pnIco name><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><#if name == "eye"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/><#elseif name == "user"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/><#elseif name == "lock"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><#elseif name == "mail"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></#if></svg></#macro>
-<#function pnLangShort tag><#if tag?starts_with("zh")><#return "中文"><#elseif tag == "th"><#return "ไทย"><#elseif tag == "en"><#return "English"><#else><#return tag></#if></#function>
+<#function pnLangShort tag><#if tag?starts_with("zh")><#return "中文"><#elseif tag == "th"><#return "ไทย"><#elseif tag == "en"><#return "English"><#elseif tag == "ja"><#return "日本語"><#else><#return tag></#if></#function>
 <#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false resetResult=false>
 <!doctype html>
 <html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -385,7 +385,7 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
 <div class="page">
   <header class="top">
     <#if realm.internationalizationEnabled && locale.supported?size gt 1>
-    <nav class="langs" aria-label="Language"><#list ["th", "zh-CN", "en"] as want><#list locale.supported as l><#if l.languageTag == want><a href="${l.url}" class="<#if l.languageTag == locale.currentLanguageTag>on</#if>">${pnLangShort(l.languageTag)}</a></#if></#list></#list></nav>
+    <nav class="langs" aria-label="Language"><#list ["th", "zh-CN", "en", "ja"] as want><#list locale.supported as l><#if l.languageTag == want><a href="${l.url}" class="<#if l.languageTag == locale.currentLanguageTag>on</#if>">${pnLangShort(l.languageTag)}</a></#if></#list></#list></nav>
     </#if>
   </header>
   <section class="hero">
@@ -397,7 +397,7 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
       <#nested "form">
       <#if displayInfo><div class="pn-info"><#nested "info"></div></#if>
       """ + CONTACTS + """
-      <#assign site = "https://pearnly.com" + (locale.currentLanguageTag?starts_with("zh"))?then("/zh", (locale.currentLanguageTag == "en")?then("/en", ""))>
+      <#assign site = "https://pearnly.com" + (locale.currentLanguageTag?starts_with("zh"))?then("/zh", (locale.currentLanguageTag == "en" || locale.currentLanguageTag == "ja")?then("/en", ""))>
       <p class="legal">${kcSanitize(msg("pearnlyAiLegal", '<a href="' + site + '/terms/" target="_blank" rel="noopener">' + msg("pearnlyAiTerms") + '</a>', '<a href="' + site + '/privacy/" target="_blank" rel="noopener">' + msg("pearnlyAiPrivacy") + '</a>'))?no_esc}</p>
     </div>
   </section>
@@ -469,6 +469,10 @@ MESSAGES = {
     "en": {"pearnlyAiChange": "Change", "pearnlyAiLogin": "Username or email", "pearnlyAiRemember": "Remember me",
            "pearnlyAiLegal": "By logging in, you agree to Pearnly''s {0} and {1}.", "pearnlyAiTerms": "Terms of Service",
            "pearnlyAiPrivacy": "Privacy Policy"},
+    # 日文（用户 2026-11-08）：只加这一种，现有文字与布局不动；用词同入口页（pearnly_control 术语表）
+    "ja": {"pearnlyAiChange": "変更", "pearnlyAiLogin": "ユーザー名またはメールアドレス", "pearnlyAiRemember": "ログイン状態を保持",
+           "pearnlyAiLegal": "ログインすると、Pearnly の{0}と{1}に同意したものとみなされます。", "pearnlyAiTerms": "利用規約",
+           "pearnlyAiPrivacy": "プライバシーポリシー"},
 }
 
 
