@@ -32,6 +32,9 @@ class DbfWriteResult:
     # 写完顺手核对(数字会计员第 3 期第 6 条,write_verify):{state: ok|mismatch, fields, party}。只报不回滚,
     # 随 ack meta.verify 回云端;失败路径恒 None。
     verify: Optional[dict] = None
+    # 销货单实际记的收入贷方 [{acc, amount}](``dbf_sales.revenue_entries``):收入照物料科目组记了别的科目时载荷里没有,
+    # 随 ack meta.revenue 回云端,读回比分录按它。进货 / 失败路径恒 None。
+    revenue: Optional[list] = None
 
     @property
     def written(self) -> bool:

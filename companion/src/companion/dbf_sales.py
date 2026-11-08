@@ -392,7 +392,7 @@ def write_sale(
         # 写完顺手核对(第 3 期第 6 条):只报不回滚,随回执 meta.verify 交回
         verify = write_verify.check(account_dir, write_verify.Expected(
             side="sales", docnum=docnum, party_code=entry.customer_code, docdat=docdat,
-            rectyp=S.SALES_RECTYP[entry.doctype], refnum=entry.ref_no, lines=gl_rows,
+            rectyp=S.SALES_RECTYP[entry.doctype], refnum=entry.ref_no, lines=[row[:3] for row in gl_rows],
             tax_id=entry.customer_tax_id, branch=entry.customer_branch, has_vat=has_vat, since=since),
             extra=pos_differ)
         clock.lap("write_check")
@@ -409,6 +409,7 @@ def write_sale(
             line_modes=line_modes,
             notes=notes,
             verify=verify,
+            revenue=revenue_entries(gl_rows),
         )
     except Exception as e:
         clock.lap("failed_step")
@@ -458,7 +459,7 @@ def _write_all(
     locations=None,
     moves=None,
 ) -> tuple:
-    """写完销项六表,返回 (凭证号, 逐行 mode, 有无库存行, 诚实标注, 实际写的分录 [(SEQIT, ACCNUM, 借贷)])。"""
+    """写完销项六表,返回 (凭证号, 逐行 mode, 有无库存行, 诚实标注, 实际写的分录 [(SEQIT, ACCNUM, 借贷, 金额)])。"""
     prefix = entry.doctype  # IV / HS
     cash = prefix == "HS"
     # 按这套账自己的设置(2026-10-08):单据簿的日记账 / 默认部门;赊销的应收行记客户档上的科目、到期日按客户档
@@ -632,7 +633,7 @@ def _write_all(
     if prefix == "IV":
         # 赊销加客户余额（原生；现销 HS 不动，``master_create.move_party_balance``）
         master_create.move_party_balance(account_dir, "ARMAS", entry.customer_code, total)
-    return docnum, line_modes, stock_sale.has_stock_lines(line_modes), notes, [row[:3] for row in gl_rows]
+    return docnum, line_modes, stock_sale.has_stock_lines(line_modes), notes, gl_rows
 
 
 def _write_stcrd_detail(
@@ -655,10 +656,13 @@ def _write_stcrd_detail(
     )
 
 
+EXPENSE_GROUP = "5"  # GLACC.GROUP:1 资产、2 负债、3 权益、4 收入、5 费用
+
+
 def revenue_journal(account_dir, gl_rows, items, line_modes, items_account: str = ""):
     """收入照 Express 原生按物料科目组记(11-08,S 盘 95 本取证,``docs/work/2026-11-07-cc-sales-revenue-native-评估.md``):
     明细行的物料科目组配了收入科目 ``ISACC.ACCNUM03`` 且能记账 → 这一行的税前额从它原来那条收入贷方里扣出、改记 ACCNUM03
-    (SEQIT 5,同科目合成一条);科目组没配 / 不能记账照载荷(原生库存品几乎都没配,记账套默认收入 ACCNUM11,载荷本来就是它)。
+    (SEQIT 5,同科目合成一条);科目组没配 / 不能记账 / 是费用类照载荷(原生库存品几乎都没配,记账套默认收入 ACCNUM11,载荷本来就是它)。
 
     - 一行原来记在哪条收入:载荷收入有几条(ERP 按行科目拆)时找科目 = 这一行 ``account`` 的那条,再找 ``items_account`` 的那条,
       都没有用第一条;
@@ -683,7 +687,10 @@ def revenue_journal(account_dir, gl_rows, items, line_modes, items_account: str 
         if gl_rows[source][1] == target:
             continue
         if target not in postable:
-            postable[target] = account_rules.postable_account(account_dir, target)
+            # 能记账、且不是费用类(GLACC.GROUP 5):S 盘 95 本原生非库存行贷科目组收入科目的,收入类 8.9 万行、负债类(预收定金)5,184、
+            # 资产类 1,528、费用类只有 51 行——按品名配到采购侧建的费用品时照载荷记收入,不贷进费用科目(主会话 11-08)
+            postable[target] = account_rules.postable_account(account_dir, target) \
+                and account_rules.account_group(account_dir, target) != EXPENSE_GROUP
         if not postable[target]:
             continue
         bucket = moves.setdefault(source, {})
@@ -704,6 +711,12 @@ def revenue_journal(account_dir, gl_rows, items, line_modes, items_account: str 
         if rest:
             out.append((seqit, acc, side, rest))
     return merge_gl_rows(out)
+
+
+def revenue_entries(gl_rows) -> list:
+    """实际记的收入贷方(SEQIT 5)[{acc, amount}]:随回执 ``meta.revenue`` 交回服务端,读回比分录按它(收入按科目组拆了科目,载荷里没有)。"""
+    return [{"acc": str(acc).strip(), "amount": f"{Decimal(str(amount)):.2f}"} for seqit, acc, side, amount in gl_rows
+            if seqit == S.SALES_SEQIT["revenue"] and side == S.TRNTYP_CREDIT]
 
 
 def _revenue_row(gl_rows, revenue, account: str, items_account: str) -> int:

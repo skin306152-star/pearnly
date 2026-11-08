@@ -477,6 +477,10 @@ POS_VOUCHERS = "pos_vouchers"
 # 子菜单（原因 menu_choice）时带这张单的单据种类与子菜单里的候选命令文字，站点据此问一次走哪个、记住（评估 2026-11-05 修法 D）。
 # 只放行这两项，其余 operator 键照旧丢掉；可选：不带时净化结果与以前逐字节相同，超长 / 超条数截掉不报错。
 OPERATOR_META = "operator"
+# 销货单实际记的收入贷方（CC 桌面版 1.12.18 起，``companion dbf_sales.revenue_entries``）：收入照物料科目组记，科目可能与载荷不同；
+# 读回比分录按它（`push.express.pushed`）。[{acc, amount}]，科目 ≤ 15 字、金额两位小数、≤ 40 条；有一条认不出就整项不留（照载荷比）。
+REVENUE_META = "revenue"
+REVENUE_ACC_MAX = 15
 OPERATOR_DOC_TYPE_MAX = 10
 OPERATOR_OPTIONS_MAX = 10
 OPERATOR_OPTION_LEN = 120
@@ -496,6 +500,25 @@ def clean_operator_meta(raw: Any) -> Dict[str, Any]:
         kept = [item for item in kept if item][:OPERATOR_OPTIONS_MAX]
         if kept:
             out["menu_options"] = kept
+    return out
+
+
+def clean_revenue_meta(raw: Any) -> List[Dict[str, str]]:
+    """``meta.revenue`` → [{acc, amount}]；不是列表、空、超条数或有一条认不出（科目空 / 超长、金额不是非负数）回空列表。"""
+    if not isinstance(raw, list) or not raw or len(raw) > _META_MAX_LIST:
+        return []
+    out = []
+    for item in raw:
+        if not isinstance(item, dict):
+            return []
+        acc = str(item.get("acc") or "").strip()
+        try:
+            amount = Decimal(str(item.get("amount")))
+        except (InvalidOperation, ValueError):
+            return []
+        if not acc or len(acc) > REVENUE_ACC_MAX or not amount.is_finite() or amount < 0:
+            return []
+        out.append({"acc": acc, "amount": f"{amount.quantize(Decimal('0.01')):.2f}"})
     return out
 
 
@@ -528,6 +551,9 @@ def sanitize_push_meta(raw: Any) -> Dict[str, Any]:
     operator = clean_operator_meta(raw.get(OPERATOR_META))
     if operator:
         out[OPERATOR_META] = operator
+    revenue = clean_revenue_meta(raw.get(REVENUE_META))
+    if revenue:
+        out[REVENUE_META] = revenue
     return out
 
 

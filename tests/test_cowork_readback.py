@@ -484,6 +484,51 @@ class PushedRecords(unittest.TestCase):
         self.assertEqual(pushed_rules.project("CWP-2", "H", "IV1", sale, {})["ref_no"], "IV-2026-05-000001")
 
 
+class SalesRevenueByItemGroup(unittest.TestCase):
+    """CC 桌面版 1.12.18 起销货收入照物料科目组记：回执 ``meta.revenue`` 是实际记的收入贷方，推送记录据此换掉载荷的收入行，
+    读回不把它报成「会计改过」；没有它的旧记录照载荷比。"""
+
+    WRITTEN = [{"acc": "41-02-00-00", "amount": "60"}, {"acc": "41-01-00-00", "amount": "40.00"}]
+
+    def _sale(self, lines, revenue):
+        from pearnly_core.express_rules.push import common as push_common
+
+        payload = {"direction": "sales", "doctype": "IV", "docdate_be": "690512", "ref_no": "A-77",
+                   "customer": {"code": "P001"}, "lines": lines}
+        meta = push_common.sanitize_push_meta({"party_code": "P001", "revenue": revenue})
+        return pushed_rules.project("CWP-9", "H-9", "IV690512-001", payload, {"meta": meta})
+
+    def test_the_push_meta_keeps_a_clean_revenue_list_only(self):
+        from pearnly_core.express_rules.push import common as push_common
+
+        self.assertEqual(push_common.sanitize_push_meta({"revenue": self.WRITTEN})["revenue"],
+                         [{"acc": "41-02-00-00", "amount": "60.00"}, {"acc": "41-01-00-00", "amount": "40.00"}])
+        for bad in ([{"acc": "", "amount": "1"}], [{"acc": "41", "amount": "x"}], [{"acc": "41", "amount": "-1"}],
+                    [{"acc": "4" * 16, "amount": "1"}], "41", [], [{"acc": "41", "amount": "1"}] * 41):
+            self.assertNotIn("revenue", push_common.sanitize_push_meta({"revenue": bad}))
+
+    def test_the_written_revenue_replaces_the_payload_revenue_line(self):
+        old = [{"acc": acc, "side": side, "amount": amount} for acc, side, amount in SALE]
+        item = self._sale(old, self.WRITTEN)
+        self.assertEqual([(line["acc"], line["side"], line["amount"]) for line in item["lines"]],
+                         [(AR, "D", "107.00"), ("41-02-00-00", "C", "60.00"), ("41-01-00-00", "C", "40.00"),
+                          (OUTPUT_VAT, "C", "7.00")])
+        roles = [{"acc": AR, "side": "D", "role": "asset", "amount": "107"},
+                 {"acc": "41-01-00-00", "side": "C", "role": "revenue", "amount": "70"},
+                 {"acc": "41-03-00-00", "side": "C", "role": "revenue", "amount": "30"},
+                 {"acc": OUTPUT_VAT, "side": "C", "role": "output_vat", "amount": "7"}]
+        self.assertEqual([line["acc"] for line in self._sale(roles, self.WRITTEN)["lines"]],
+                         [AR, "41-02-00-00", "41-01-00-00", OUTPUT_VAT])
+        self.assertEqual([line["acc"] for line in self._sale(old, [])["lines"]], [line[0] for line in SALE])
+
+    def test_a_sale_written_by_item_group_is_not_a_change_but_without_the_meta_it_would_be(self):
+        now = [(AR, 107), ("41-02-00-00", -60), ("41-01-00-00", -40), (OUTPUT_VAT, -7)]
+        old = [{"acc": acc, "side": side, "amount": amount} for acc, side, amount in SALE]
+        written = [(line["acc"], line["side"], line["amount"]) for line in self._sale(old, self.WRITTEN)["lines"]]
+        self.assertEqual(entry_case("IV", written, now), [])
+        self.assertEqual([row[0] for row in entry_case("IV", SALE, now)], ["entries"])
+
+
 POS_QR, POS_CARD, REVENUE = "11-01-03-06", "11-01-03-07", "41-01-00-00"
 
 

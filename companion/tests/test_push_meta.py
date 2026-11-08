@@ -111,3 +111,14 @@ class FailurePathTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RevenueTests(unittest.TestCase):
+    """销货单实际记的收入（1.12.18 收入照物料科目组记）随 meta.revenue 回云端，读回比分录按它；没有就不报。"""
+
+    def test_sales_revenue_reported(self):
+        revenue = [{"acc": "41-02-00-00", "amount": "300.00"}]
+        self.assertEqual(_push_meta(_res(revenue=revenue), "sales", ACCT)["revenue"], revenue)
+
+    def test_absent_revenue_is_omitted(self):
+        self.assertNotIn("revenue", _push_meta(_res(), "purchase", ACCT))

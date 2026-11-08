@@ -60,7 +60,7 @@ def main(argv=None) -> int:
                         help="compare：分录口径改了（进货库存行照原生直接记科目组科目、销货收入照科目组 ACCNUM03）——凭证明细不逐行比，"
                              "改核每个科目的净额与写法")
     parser.add_argument("--service", action="store_true",
-                        help="write：另写一张现销 HS（步骤名 SVC），一行挂这本账里 Express 原有的服务品（科目组配了能记账的收入科目的优先）")
+                        help="write：另写一张现销 HS（步骤名 SVC），一行挂这本账里 Express 原有的服务品（科目组配了能记账、不是费用类的收入科目的优先）")
     args = parser.parse_args(argv)
     sys.path.insert(0, args.companion)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -232,12 +232,14 @@ def write_book(acct: Path, scenario: str, userid: str = "", service: bool = Fals
 
 def _service_item(acct, revenue_acc):
     """这本账里 Express 原有的一件服务品（STKTYP 3 / 4 / 5，有品名）：科目组的收入科目 ACCNUM03 能记账且 ≠ 载荷默认收入的优先。"""
-    postable = {r["ACCNUM"] for r in rows(acct, "GLACC", ("ACCNUM", "ACCTYP")) if str(r["ACCTYP"] or "") == "0"}
+    chart = {r["ACCNUM"]: str(r.get("GROUP") or "") for r in rows(acct, "GLACC", ("ACCNUM", "ACCTYP", "GROUP"))
+             if str(r["ACCTYP"] or "") == "0"}
     groups = {r["ACCCOD"]: r.get("ACCNUM03") or "" for r in rows(acct, "ISACC", ("ACCCOD", "ACCNUM03"))}
     items = [r for r in rows(acct, "STMAS", ("STKCOD", "STKDES", "STKTYP", "ACCCOD"))
              if str(r["STKTYP"]) in ("3", "4", "5") and r["STKCOD"] and r["STKDES"]]
-    return next((r for r in items if groups.get(r["ACCCOD"]) in postable and groups.get(r["ACCCOD"]) != revenue_acc),
-                items[0] if items else None)
+    other = [r for r in items if groups.get(r["ACCCOD"]) in chart and groups.get(r["ACCCOD"]) != revenue_acc]
+    # 先挑不是费用类的（会改记科目组科目），没有再挑费用类的（照载荷），都没有挑任意一件
+    return next((r for r in other if chart[groups[r["ACCCOD"]]] != "5"), other[0] if other else (items[0] if items else None))
 
 
 def payload_for(doctype, docdate, ref, accounts, cash, name, code, qty, amount, *, supplier, customer):
@@ -334,12 +336,14 @@ def _gl_problems(old: Path, new: Path, new_run: dict) -> list:
 
 
 def _revenue_problems(old: Path, new: Path, new_run: dict) -> list:
-    """销货收入照科目组（11-08）：新写法每张销货单的收入贷方（SEQIT 5）= 逐行「物料科目组的 ACCNUM03（能记账时）否则载荷收入科目」
+    """销货收入照科目组（11-08）：新写法每张销货单的收入贷方（SEQIT 5）= 逐行「物料科目组的 ACCNUM03（能记账、不是费用类时）否则载荷收入科目」
     按科目合计；收入合计与旧写法相同。"""
     problems = []
     vouchers = {s.get("docnum") for s in new_run.get("steps", []) if s.get("ok") and s.get("doctype") in ("IV", "HS", "SVC")}
     payload_acc = new_run.get("revenue_acc") or ""
-    postable = {r["ACCNUM"] for r in rows(new, "GLACC", ("ACCNUM", "ACCTYP")) if str(r["ACCTYP"] or "") == "0"}
+    # 能记账、不是费用类（GLACC.GROUP 5）的科目组收入科目才照科目组记（11-08 主会话定）
+    postable = {r["ACCNUM"] for r in rows(new, "GLACC", ("ACCNUM", "ACCTYP", "GROUP"))
+                if str(r["ACCTYP"] or "") == "0" and str(r.get("GROUP") or "") != "5"}
     groups = {r["ACCCOD"]: r.get("ACCNUM03") or "" for r in rows(new, "ISACC", ("ACCCOD", "ACCNUM03"))}
     item_group = {r["STKCOD"]: r["ACCCOD"] for r in rows(new, "STMAS", ("STKCOD", "ACCCOD"))}
     expected = {}

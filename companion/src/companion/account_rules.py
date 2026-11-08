@@ -120,6 +120,26 @@ def postable_account(account_dir, acc: str) -> bool:
     return False
 
 
+def account_group(account_dir, acc: str) -> str:
+    """科目在科目表里的类别 GLACC.GROUP(1 资产、2 负债、3 权益、4 收入、5 费用);不在表里 / 读不到回空。"""
+    acc = str(acc or "").strip()
+    if not acc:
+        return ""
+    try:
+        t = _open(account_dir, "GLACC")
+    except Exception:  # noqa: BLE001
+        return ""
+    if t is None:
+        return ""
+    try:
+        for r in S.live_rows(t):
+            if str(_gv(r, "ACCNUM")) == acc:
+                return str(_gv(r, "GROUP"))
+    finally:
+        t.close()
+    return ""
+
+
 def item_group_accounts(account_dir, codes, slot: str) -> Dict[str, str]:
     """物料码 → 它科目组（``STMAS.ACCCOD → ISACC``）的 ``slot`` 科目（ACCNUM01 存货 / 02 购货·成本 / 03 收入）。
     没有这件物料、科目组没配这一栏的码不在结果里；读档失败回空字典（调用方照载荷）。"""

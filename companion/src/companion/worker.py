@@ -618,6 +618,9 @@ def _push_meta(res, direction: str, account_dir: str, *, writer: str = "") -> di
         # 写完顺手核对(数字会计员第 3 期第 6 条):{state, fields, party}。随 meta 进 task_journal,重发时照样带回。
         if getattr(res, "verify", None):
             m["verify"] = dict(res.verify)
+        # 销货单实际记的收入（收入照物料科目组记，可能与载荷科目不同，1.12.18）：服务端读回比分录按它
+        if getattr(res, "revenue", None):
+            m["revenue"] = list(res.revenue)
         # 这张单实际记的录入人（授权的 Express 账户名或 PEARNLY）：服务端存进推送记录 / 写账件，查得到是谁的名义写的
         if writer:
             m["writer"] = writer

@@ -3,7 +3,10 @@
 
 - 日期取载荷的 ``docdate_be``（佛历 YYMMDD，写进 Express 的单据日期）；
 - 对方：载荷里的 supplier / customer，Express 里实际用的码以回执 ``meta.party_code`` 为准（新建的档载荷里没有码）；
-- 存货单（回执 ``line_modes`` 有存货行）：小助手会另写重分类分录，比对只比表头，不比分录。
+- 存货单（回执 ``line_modes`` 有存货行）：库存行的分录照原生记物料科目组的科目（进货借存货 / 购货、销货另有成本分录），
+  载荷里没有，比对只比表头，不比分录。
+- 销货的收入（CC 桌面版 1.12.18 起照物料科目组记）：回执 ``meta.revenue`` 有实际记的收入贷方时，用它换掉载荷里的收入行
+  （有 ``role`` 的载荷是 role = revenue 的几行，旧载荷是第一条贷方）；没有的旧记录照载荷。
 - 进项票号取写进 Express 时缩短后的（``fit_ref_no``）。
 - POS 日汇总票（载荷 3 的 ``pos`` 块，现销 HS、单号由小助手自编）：同一次写入的付款方式转账凭证号在回执
   ``meta.pos_vouchers``（`common.sanitize_push_meta` 从小助手的 ``notes.pos_vouchers`` 留下），与 ``pos.transfers``
@@ -96,6 +99,8 @@ def project(name: str, history: Any, docnum: Any, payload: Any, response: Any) -
     for line in payload.get("lines") if isinstance(payload.get("lines"), list) else []:
         if isinstance(line, dict) and str(line.get("acc") or "").strip() and line.get("side") in ("D", "C"):
             lines.append({"acc": str(line["acc"]).strip(), "side": line["side"], "amount": _amount(line.get("amount"))})
+    if direction == "sales":
+        lines = _written_revenue(payload, lines, meta.get("revenue"))
     return {"record": name, "history": str(history or ""), "docnum": docnum, "direction": direction,
             "doctype": str(payload.get("doctype") or "").upper(), "date": day.isoformat() if day else "",
             "ref_no": fit_ref_no(ref) if direction == "purchase" else ref,
@@ -105,6 +110,35 @@ def project(name: str, history: Any, docnum: Any, payload: Any, response: Any) -
             "total": _amount(payload.get("total_amount")), "lines": lines,
             "stock": any(isinstance(mode, dict) and str(mode.get("mode") or "").startswith("stock") for mode in modes),
             "vouchers": _vouchers(payload, meta) if direction == "sales" else []}
+
+
+def _written_revenue(payload: Dict[str, Any], lines: List[Dict[str, str]], written: Any) -> List[Dict[str, str]]:
+    """销货：回执里有实际记的收入（``meta.revenue``，已经 `common.sanitize_push_meta` 净化）就换掉载荷的收入行，放在第一条收入行的位置；
+    回执没有、认不出，或载荷里找不到收入行，原样返回。"""
+    if not isinstance(written, list) or not written:
+        return lines
+    entries = []
+    for item in written:
+        acc = str(item.get("acc") or "").strip() if isinstance(item, dict) else ""
+        amount = _amount(item.get("amount")) if isinstance(item, dict) else ""
+        if not acc or not amount:
+            return lines
+        entries.append({"acc": acc, "side": "C", "amount": amount})
+    raw = [line for line in payload.get("lines") or [] if isinstance(line, dict)
+           and str(line.get("acc") or "").strip() and line.get("side") in ("D", "C")]
+    if any(line.get("role") for line in raw):
+        revenue = [i for i, line in enumerate(raw) if line.get("role") == "revenue"]
+    else:  # 旧载荷：第一条贷方是收入（``companion dbf_sales._gl_rows``）
+        revenue = next(([i] for i, line in enumerate(raw) if line["side"] == "C"), [])
+    if not revenue:
+        return lines
+    out = []
+    for i, line in enumerate(lines):
+        if i == revenue[0]:
+            out.extend(entries)
+        elif i not in revenue:
+            out.append(line)
+    return out
 
 
 def in_window(item: Dict[str, Any], first: Optional[dt.date], last: Optional[dt.date]) -> bool:
