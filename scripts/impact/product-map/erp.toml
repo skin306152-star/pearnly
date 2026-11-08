@@ -473,7 +473,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:erp:pearnly-clients"
 where = "侧栏「pearnly-clients」"
-tests = ["impact:erp.page.clients"]
+tests = ["impact:erp.page.clients", "flow:erp.page-lists"]
 
 [[row]]
 id = "erp.desk.pearnly-company"
@@ -514,7 +514,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:erp:pearnly-pos-receipts"
 where = "侧栏「pearnly-pos-receipts」"
-tests = ["impact:erp.page.pos-receipts"]
+tests = ["impact:erp.page.pos-receipts", "flow:erp.page-lists"]
 
 [[row]]
 id = "erp.desk.pearnly-pos-shifts"
@@ -524,7 +524,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:erp:pearnly-pos-shifts"
 where = "侧栏「pearnly-pos-shifts」"
-tests = ["impact:erp.page.pos-shifts"]
+tests = ["impact:erp.page.pos-shifts", "flow:erp.page-lists"]
 
 [[row]]
 id = "erp.desk.pearnly-products"

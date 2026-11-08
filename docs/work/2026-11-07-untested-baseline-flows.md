@@ -141,6 +141,13 @@
 - 「开始盘点」：现有 `cowork.stocktake.entry` 就是点它进连续录入、库里每件一条记录，挂上。基线删 6 条（46 → 40）。
 - 踩到的时序：确认框淡入过程中点「是」，回调照跑（库里已结束）、但关闭被 bootstrap 忽略，框一直开着。人手点不了这么快，流程等 0.6 秒再点（不是缺陷）。
 
+## 第十二组：客户、收银小票、班次三个列表页（`pearnly/baseline-home` 同一分支，11-08）
+
+- 新流程 `erp.page-lists`（管理员）：依次打开三页，列表行数与表头计数等于服务端按同一份权限与当前公司数出来的（`count_customers` / `count_sales` / `count_shifts`）；
+  客户页还要列得出 prepare 按正式函数新建的那一位。4/4，基线删 6 条（40 → 34）。
+- 踩到的：`desk_list.READ_LIST` 用整页 `document.querySelector` 读表头计数，连开几页时会读到前一页藏着的列表；本流程按 `data-page-route` 的页面容器读。
+- guide / history / push-logs / reconcile 四页是「未建成」占位页（`frappe.pearnly.notBuilt`，不在侧栏），没补测试，删不删已问主会话。
+
 ## 下一组
 
 只开页面的几页、Cowork 录入与盘点（第一份交接第 4 节）。

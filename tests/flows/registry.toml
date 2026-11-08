@@ -1610,3 +1610,17 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake.js",
   "apps/pearnly_cowork/pearnly_cowork/stocktake/*.py",
 ]
+
+[[flow]]
+id = "erp.page-lists"
+title = "ERP 客户 / 收银小票 / 班次列表：行数与表头计数等于服务端同一份权限数出来的、新建客户列得出（清存量基线 11-08）"
+module = "scripts/flows/erp_page_lists.py"
+start = "/desk/pearnly-clients"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/clients.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-receipts.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-shifts.js",
+]
