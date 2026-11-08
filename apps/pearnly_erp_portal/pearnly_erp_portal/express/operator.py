@@ -221,7 +221,6 @@ def precheck(company, doc_ids) -> dict:
     return {"documents": documents}
 
 
-UNDECIDED_LINES = "erp.intake.lines_undecided"
 UNDECIDED_LINES_TEXT = "Some lines have no product yet"
 
 
@@ -243,19 +242,164 @@ def _intake_precheck(company, doc_id) -> dict:
     if row.status != chat_intake.READY:
         return {"doc_id": doc_id, "state": "blocked", "reason": "not_ready", "message": _("This document is no longer available")}
     doc = frappe.get_doc(chat_intake.DOCTYPE, row.name)
-    chosen = json.loads(doc.line_choices or "null") or {}
-    view = {"doc_id": doc_id, "ref": json.loads(doc.result or "{}").get("doc_no") or row.name, "direction": row.direction}
-    if any(line and not line.get("decided") for line in chosen.get("lines") or []):
-        return {"doc_id": doc_id, "state": "blocked", "reason": UNDECIDED_LINES, "message": _(UNDECIDED_LINES_TEXT),
-                "precheck": {**view, "state": "not_writable", "reason": UNDECIDED_LINES}}
+    result = json.loads(doc.result or "{}")
+    party = result.get("supplier_name") if row.direction == "purchase" else result.get("buyer_name")
+    view = {"doc_id": doc_id, "ref": result.get("doc_no") or row.name, "direction": row.direction,
+            **({"party": party} if party else {})}
+    asked = intake_items(company, doc, result)
     doctype = push.PURCHASE if row.direction == "purchase" else push.SALES
     found = write_precheck.collect_form(doctype, chat_intake.build_payload(doc), company)
     state, reason = write_precheck._state(found["result"])
     shown = book_target(found["result"].get("book"))
     view = {**view, **({"target": shown} if shown else {})}
     check = {**view, "state": state, **({"reason": reason} if reason else {}),
-             **({"items": found["items"]} if state == "check" else {})}
-    return {**legacy_row(doc_id, found), **({"target": shown} if shown else {}), "precheck": check}
+             **({"items": [*asked, *found["items"]]} if state == "check" else {})}
+    legacy = legacy_row(doc_id, found)
+    if legacy["state"] == "ready" and asked:
+        legacy = {"doc_id": doc_id, "state": "choose", "reason": contracts.CHOICE + ":payment",
+                  "needed": [{"kind": item["kind"], "subject": item["subject"], "label": item["label"],
+                              "options": item.get("options") or [], "current": item.get("value") or ""} for item in asked]}
+    return {**legacy, **({"target": shown} if shown else {}), "precheck": check}
+
+
+# ---------------- 收单记录在开始前卡片里要人定的（A 批 1b）----------------
+#
+# 开始前一张卡片问完（主会话 11-08 定案）：付款（已付哪种方式 / 未付；预选网页默认「已付、现金」）、识别时定不了的行（选已有物料 /
+# 新建 / 只记账；搜 ERP 物料）、有入库 / 出库行又没定仓时的仓库。归类键带记录名（``erp-intake:<记录>[:<行>]``），只管这一张，
+# 不和 Express 那些项合并。答案在交单时写回收单记录（:func:`apply_intake_answers`），再用网页同一个入账函数提交。
+
+INTAKE_SUBJECT = "erp-intake:"
+UNPAID = "credit"
+RECORD_ONLY = "@record"
+METHOD_LABELS = {"cash": "Cash", "transfer": "Transfer", "promptpay": "PromptPay", "bank": "Bank", "cheque": "Cheque",
+                 "other": "Other"}
+
+
+def _methods(direction):
+    from pearnly_erp_portal.integrations import line_flow
+
+    return line_flow.PURCHASE_METHODS if direction == "purchase" else line_flow.SALES_METHODS
+
+
+def _new_label(direction):
+    return _("Add and receive") if direction == "purchase" else _("Add and issue")
+
+
+def intake_items(company, doc, result) -> list:
+    """这条收单记录在开始前卡片里的几项（卡片项的形状，共用层 `write_precheck.contracts.normalize_item`）。纯读，不写。"""
+    import json
+
+    from pearnly_core.write_precheck import contracts as card
+    from pearnly_erp_portal.inventory import warehouses
+
+    subject = INTAKE_SUBJECT + doc.name
+    label = (result.get("supplier_name") if doc.direction == "purchase" else result.get("buyer_name")) \
+        or result.get("doc_no") or doc.name
+    value = (doc.payment_method or "cash") if doc.is_paid else UNPAID
+    items = [{"kind": "payment", "subject": subject, "label": label, "value": value, "source": card.RULE,
+              "direction": doc.direction,
+              "options": [{"code": code, "name": _(METHOD_LABELS[code])} for code in _methods(doc.direction)]
+              + [{"code": UNPAID, "name": _("Unpaid")}]}]
+    chosen = json.loads(doc.line_choices or "null") or {}
+    lines = result.get("lines") or []
+    for index, line in enumerate(chosen.get("lines") or []):
+        if not line or line.get("decided"):
+            continue
+        current = line.get("product") or (RECORD_ONLY if line.get("item_type") == "service" else card_new())
+        name = (_new_label(doc.direction) if current == card_new() else _("Record only") if current == RECORD_ONLY
+                else frappe.db.get_value("ERP Product", current, "product_name") or current)
+        items.append({"kind": "item", "subject": f"{subject}:{index}", "direction": doc.direction,
+                      "label": str((lines[index] if index < len(lines) else {}).get("description") or ""),
+                      "value": current, "value_label": name, "source": card.RULE, "search": "own_products"})
+    moving = any(line and line.get("item_type", "goods") == "goods" for line in chosen.get("lines") or [])
+    if moving and not chosen.get("warehouse"):
+        places = warehouses.names_of(company, include_inactive=False)
+        options = [{"code": place, "name": frappe.db.get_value("ERP Warehouse", place, "warehouse_name") or place}
+                   for place in places]
+        only = options[0]["code"] if len(options) == 1 else ""
+        items.append({"kind": "location", "subject": f"{subject}:warehouse", "label": _("Warehouse"), "value": only,
+                      "source": card.RULE if only else "", "direction": doc.direction, "options": options})
+    return items
+
+
+def card_new():
+    from pearnly_core.express_rules.push import choices as choice_rules
+
+    return choice_rules.NEW
+
+
+def apply_intake_answers(company, name, answers) -> list:
+    """开始前卡片对这条收单记录答的（归类键 ``erp-intake:<记录>…``）写回记录：付款、各行物料、仓库。只认卡片给过的值（付款方式在
+    可选范围里、物料是这家公司能用的、仓库是这家公司启用的）；其余答案（Express 要选的项）原样回给调用方，提交出单据后照旧记。"""
+    import json
+
+    from pearnly_erp_portal.integrations import intake as chat_intake
+    from pearnly_erp_portal.inventory import warehouses
+
+    doc = frappe.get_doc(chat_intake.DOCTYPE, name)
+    subject = INTAKE_SUBJECT + name
+    chosen = json.loads(doc.line_choices or "null") or {"lines": []}
+    values, rest = {}, []
+    for answer in answers or ():
+        if not isinstance(answer, dict) or not str(answer.get("subject") or "").startswith(subject):
+            rest.append(answer)
+            continue
+        kind, value, tail = answer.get("kind"), str(answer.get("value") or ""), str(answer["subject"])[len(subject):]
+        if kind == "payment" and not tail:
+            if value == UNPAID:
+                values.update(is_paid=0)
+            elif value in _methods(doc.direction):
+                values.update(is_paid=1, payment_method=value)
+            else:
+                frappe.throw(_("Invalid request"))
+        elif kind == "item" and tail[1:].isdigit():
+            index = int(tail[1:])
+            if index >= len(chosen.get("lines") or []) or not chosen["lines"][index]:
+                frappe.throw(_("Invalid request"))
+            if value == RECORD_ONLY:
+                line = {"item_type": "service", "product": None, "new": False}
+            elif value == card_new():
+                line = {"item_type": "goods", "product": None, "new": True}
+            elif frappe.db.exists("ERP Product", value):
+                line = {"item_type": "goods", "product": value, "new": False}
+            else:
+                frappe.throw(_("Invalid request"))
+            chosen["lines"][index] = {**chosen["lines"][index], **line, "decided": True}
+        elif kind == "location" and tail == ":warehouse":
+            if value not in warehouses.names_of(company, include_inactive=False):
+                frappe.throw(_("Invalid request"))
+            chosen["warehouse"] = value
+        else:
+            frappe.throw(_("Invalid request"))
+    values["line_choices"] = json.dumps(chosen, ensure_ascii=False)
+    frappe.db.set_value(chat_intake.DOCTYPE, name, values)
+    return rest
+
+
+def intake_search(company, doc_id, search, txt="", start=0, page_length=20) -> dict:
+    """卡片里收单记录那几行的物料搜索（``own_products``）：这家公司能用的 ERP 物料（同物料页列表，服务端分页），第一页前面是「新建」
+    「只记账」。Express 那些搜索（存货、科目、对方）按这条记录提交时会写进的账套搜（同已存的单，`precheck.search`）。"""
+    from pearnly_erp_portal.express import precheck as write_precheck
+    from pearnly_erp_portal.integrations import intake as chat_intake
+    from pearnly_erp_portal.products import service as products
+
+    row = _intake(company, doc_id)
+    if row is None:
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    start, size = max(0, int(start or 0)), max(1, min(int(page_length or 20), write_precheck.SEARCH_MAX))
+    if search == "own_products":
+        with companies.acting(company):
+            rows = products.list_products(search=str(txt or "").strip() or None, is_active=1, start=start, limit=size + 1)
+        options = [{"code": item["name"], "name": " ".join(str(part) for part in (item.get("code"), item.get("product_name"))
+                                                            if part)} for item in rows]
+        fixed = [{"code": card_new(), "name": _new_label(row.direction)}, {"code": RECORD_ONLY, "name": _("Record only")}] \
+            if not start and not str(txt or "").strip() else []
+        return {"options": fixed + options[:size], "more": len(options) > size}
+    doctype = push.PURCHASE if row.direction == "purchase" else push.SALES
+    doc = frappe.get_doc(chat_intake.DOCTYPE, row.name)
+    found = write_precheck.collect_form(doctype, chat_intake.build_payload(doc), company)
+    key = (found["result"].get("book") or {}).get("key") or ""
+    return write_precheck.search_rows(key, row.direction, search, txt, start, size)
 
 
 def legacy_needed(found) -> list:
@@ -328,19 +472,22 @@ def _remember(company, doctype, name, given, seen=None) -> None:
 def submit(company, doc_ids, batch, computer, answers=None) -> list:
     results = []
     for index, doc_id in enumerate(doc_ids, start=1):
+        given = (answers or {}).get(doc_id)
         if str(doc_id).startswith(INTAKE + ":"):
-            target = _submit_intake(company, doc_id)
+            target = _submit_intake(company, doc_id, given)
             if isinstance(target, dict):
                 results.append(target)
                 continue
+            if target:
+                target, given = target[:2], target[2]  # 收单记录那几项已写回记录；Express 的项记到提交出的单据上
         else:
             target = _target(company, doc_id)
         if target is None:
             results.append({"doc_id": doc_id, "status": "not_permitted", "reason": ""})
             continue
         doctype, name = target
-        if (answers or {}).get(doc_id):
-            _remember(company, doctype, name, answers[doc_id])
+        if given:
+            _remember(company, doctype, name, given)
             frappe.db.commit()
         push.release_operator(doctype, name)
         result = push.send(doctype, name, operator={**batch, "index": index, "doc": doc_id, "company": company}) or {}
@@ -348,23 +495,32 @@ def submit(company, doc_ids, batch, computer, answers=None) -> list:
     return results
 
 
-def _submit_intake(company, doc_id):
-    """开录时把收单记录提交成 ERP 单据（网页同一个入账函数，请求号按记录固定、只入一次），回 ``(doctype, 名)`` 交代录；提交不了回
-    这一张的结果行（原因原样）。"""
+def _submit_intake(company, doc_id, answers=None):
+    """开录时把收单记录提交成 ERP 单据（网页同一个入账函数，请求号按记录固定、只入一次），回 ``(doctype, 名, 其余答案)`` 交代录；
+    开始前卡片对这条记录答的先写回记录（:func:`apply_intake_answers`），还有定不了的行不提交；提交不了回这一张的结果行（原因原样）。"""
+    import json
+
     from pearnly_erp_portal.integrations import intake as chat_intake
 
     row = _intake(company, doc_id)
     if row is None:
         return {"doc_id": doc_id, "status": "not_permitted", "reason": ""}
+    rest = answers or []
     if not _submitted(row):
         try:
+            rest = apply_intake_answers(company, row.name, answers)
+            chosen = json.loads(frappe.db.get_value(chat_intake.DOCTYPE, row.name, "line_choices") or "null") or {}
+            if any(line and not line.get("decided") for line in chosen.get("lines") or []):
+                frappe.db.commit()
+                return {"doc_id": doc_id, "status": "failed", "reason": _(UNDECIDED_LINES_TEXT)}
             chat_intake.submit_chat(row.name)
         except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
             frappe.db.rollback()
             frappe.clear_messages()
             return {"doc_id": doc_id, "status": "failed", "reason": str(error)[:300]}
         row = _intake(company, doc_id)
-    return _submitted(row) if row else None
+    done = _submitted(row) if row else None
+    return (*done, rest) if done else None
 
 
 def status(company, doc_ids) -> list:

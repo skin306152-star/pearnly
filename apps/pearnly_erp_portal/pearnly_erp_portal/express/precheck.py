@@ -553,6 +553,13 @@ def search(company, doc_id, search, txt="", start=0, page_length=20) -> dict:
     """大列表的项服务端分页搜索（共用层 ``write_precheck.api.search`` 调的钩子）：``search`` 是项上给的搜索类型（``accounts`` /
     ``products`` / ``parties``），``doc_id`` 定账套（这张单写进的那份）；按编码或名称包含 ``txt``，回 ``{options: [{code, name}], more}``，
     存货、对方第一条是「新建」。这张单本人要能写（同 :func:`check`）。"""
+    if str(doc_id or "").startswith("I:") and _company_ok(company):
+        # 代录放文件识别出、还没提交的收单记录（A 批 1b）：物料按 ERP 物料搜，Express 那些按它会写进的账套搜
+        from pearnly_erp_portal.express import operator
+
+        if search not in {*SEARCH.values(), "own_products"}:
+            frappe.throw(_("Invalid request"))
+        return operator.intake_search(company, doc_id, search, txt, start, page_length)
     found = resolve_target(company, doc_id) if _company_ok(company) else None
     if found is None:
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
@@ -564,8 +571,13 @@ def search(company, doc_id, search, txt="", start=0, page_length=20) -> dict:
         frappe.throw(_("Invalid request"))
     doctype, name = found
     key = _book_of(doctype, name, company)
+    return search_rows(key, "sales" if push.DIRECTIONS[doctype] == "sales" else "purchase", search, txt, start, page_length)
+
+
+def search_rows(key, direction, search, txt="", start=0, page_length=20) -> dict:
+    """账套 ``key`` 里能选的值按 ``txt`` 过滤、分页（单据与代录的收单记录同一条）。"""
     data = facts.load(key) if key else None
-    rows = _search_rows(search, "sales" if push.DIRECTIONS[doctype] == "sales" else "purchase", data)
+    rows = _search_rows(search, direction, data)
     needle = " ".join(str(txt or "").split()).casefold()
     if needle:
         rows = [row for row in rows if row["code"] != choice_rules.NEW

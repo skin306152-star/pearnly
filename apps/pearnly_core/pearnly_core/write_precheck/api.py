@@ -17,7 +17,9 @@ from pearnly_core.write_precheck import contracts, products
 
 BATCH_MAX = 200  # 一次判几张（代录一批的上限）：每张都跑一遍产品的写账准备
 MODES = ("operator", "direct", "pending")
-SEARCH_KINDS = ("accounts", "products", "products_all", "parties")  # products_all：没声明过账类型的行，库存品与非库存品都列
+# products_all：没声明过账类型的行，库存品与非库存品都列；own_products：产品自己的物料档（ERP 代录放文件识别出、还没提交的收单记录里
+# 定不了的行，选已有 ERP 物料 / 新建 / 只记账，A 批 1b）
+SEARCH_KINDS = ("accounts", "products", "products_all", "parties", "own_products")
 PAGE_MAX = 50
 
 
