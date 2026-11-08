@@ -1369,6 +1369,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-tasks:erp.work.archived.title"
 where = "pearnly-tasks 页头「erp.work.archived.title」"
+tests = ["flow:erp.work.board-settings"]
 
 [[row]]
 id = "erp.desk.pearnly-tasks.action.erp.work.board.create"
@@ -1378,6 +1379,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-tasks:erp.work.board.create"
 where = "pearnly-tasks 页头「erp.work.board.create」"
+tests = ["flow:erp.work.board-settings"]
 
 [[row]]
 id = "erp.desk.pearnly-tasks.action.erp.work.board.members"
@@ -1387,6 +1389,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-tasks:erp.work.board.members"
 where = "pearnly-tasks 页头「erp.work.board.members」"
+tests = ["flow:erp.work.board-settings"]
 
 [[row]]
 id = "erp.desk.pearnly-tasks.action.erp.work.board.settings"
@@ -1396,6 +1399,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-tasks:erp.work.board.settings"
 where = "pearnly-tasks 页头「erp.work.board.settings」"
+tests = ["flow:erp.work.board-settings"]
 
 [[row]]
 id = "erp.desk.pearnly-tasks.action.erp.work.fields.manage"
@@ -1405,6 +1409,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-tasks:erp.work.fields.manage"
 where = "pearnly-tasks 页头「erp.work.fields.manage」"
+tests = ["flow:erp.work.board-settings"]
 
 [[row]]
 id = "erp.desk.pearnly-tasks.action.erp.work.labels.manage"
@@ -1414,6 +1419,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-tasks:erp.work.labels.manage"
 where = "pearnly-tasks 页头「erp.work.labels.manage」"
+tests = ["flow:erp.work.board-settings"]
 
 [[row]]
 id = "erp.desk.pearnly-tasks.action.erp.work.notify.title"
@@ -1423,6 +1429,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-tasks:erp.work.notify.title"
 where = "pearnly-tasks 页头「erp.work.notify.title」"
+tests = ["flow:erp.work.board-settings"]
 
 [[row]]
 id = "erp.desk.pearnly-tasks.action.erp.work.rules.manage"
@@ -1432,6 +1439,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-tasks:erp.work.rules.manage"
 where = "pearnly-tasks 页头「erp.work.rules.manage」"
+tests = ["flow:erp.work.board-settings"]
 
 [[row]]
 id = "erp.desk.pearnly-team.action.Cancel"

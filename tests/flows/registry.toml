@@ -1474,3 +1474,30 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/team/api.py",
   "apps/pearnly_cowork/pearnly_cowork/public/desk/team.js",
 ]
+
+[[flow]]
+id = "erp.work.board-settings"
+title = "ERP 任务管理看板菜单逐项实点：提醒全部已读、已归档恢复、新建看板、看板设置、标签、自定义字段、自动化、成员，查库（清存量基线 11-08）"
+module = "scripts/flows/work_board_settings.py"
+start = "/desk/pearnly-tasks"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/work.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/work/*.py",
+]
+
+[[flow]]
+id = "cowork.work.board-settings"
+title = "Cowork 任务看板菜单：同 ERP（提醒、已归档、新建看板、看板设置、标签、自定义字段、自动化、成员）"
+module = "scripts/flows/work_board_settings.py"
+product = "cowork"
+start = "/desk/pearnly-work"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/work.js",
+  "apps/pearnly_cowork/pearnly_cowork/work/*.py",
+]

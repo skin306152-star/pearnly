@@ -1579,6 +1579,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-work:cowork.work.archived.title"
 where = "pearnly-work 页头「cowork.work.archived.title」"
+tests = ["flow:cowork.work.board-settings"]
 
 [[row]]
 id = "cowork.desk.pearnly-work.action.cowork.work.board.create"
@@ -1588,6 +1589,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-work:cowork.work.board.create"
 where = "pearnly-work 页头「cowork.work.board.create」"
+tests = ["flow:cowork.work.board-settings"]
 
 [[row]]
 id = "cowork.desk.pearnly-work.action.cowork.work.board.members"
@@ -1597,6 +1599,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-work:cowork.work.board.members"
 where = "pearnly-work 页头「cowork.work.board.members」"
+tests = ["flow:cowork.work.board-settings"]
 
 [[row]]
 id = "cowork.desk.pearnly-work.action.cowork.work.board.settings"
@@ -1606,6 +1609,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-work:cowork.work.board.settings"
 where = "pearnly-work 页头「cowork.work.board.settings」"
+tests = ["flow:cowork.work.board-settings"]
 
 [[row]]
 id = "cowork.desk.pearnly-work.action.cowork.work.fields.manage"
@@ -1615,6 +1619,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-work:cowork.work.fields.manage"
 where = "pearnly-work 页头「cowork.work.fields.manage」"
+tests = ["flow:cowork.work.board-settings"]
 
 [[row]]
 id = "cowork.desk.pearnly-work.action.cowork.work.labels.manage"
@@ -1624,6 +1629,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-work:cowork.work.labels.manage"
 where = "pearnly-work 页头「cowork.work.labels.manage」"
+tests = ["flow:cowork.work.board-settings"]
 
 [[row]]
 id = "cowork.desk.pearnly-work.action.cowork.work.notify.title"
@@ -1633,6 +1639,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-work:cowork.work.notify.title"
 where = "pearnly-work 页头「cowork.work.notify.title」"
+tests = ["flow:cowork.work.board-settings"]
 
 [[row]]
 id = "cowork.desk.pearnly-work.action.cowork.work.rules.manage"
@@ -1642,6 +1649,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-work:cowork.work.rules.manage"
 where = "pearnly-work 页头「cowork.work.rules.manage」"
+tests = ["flow:cowork.work.board-settings"]
 
 [[row]]
 id = "cowork.cc.action.switch-account"
