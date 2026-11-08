@@ -706,36 +706,53 @@ def user_language(user_id: str, default: str | None = None) -> str:
     """这个 LINE 用户手机上 LINE App 的语言（用户 2026-09-26：LINE 里的字段与按钮跟着手机语言走）。
 
     问 LINE 的 profile（没同意隐私政策的用户不给这个字段），按一小时缓存，免得每个事件都多一次
-    外部请求；问不到或不是平台有翻译的语言，就退回 `default`（再没有就用站点系统语言）。
+    外部请求。问不到或不是平台有翻译的语言（如韩文）：已绑定账号的用账号语言（网页个人资料里选的，
+    用户 2026-11-08），没绑定的退回 `default`，再没有就用站点系统语言。
     """
-    fallback = default or frappe.db.get_single_value("System Settings", "language") or "th"
     if not user_id:
-        return fallback
+        return _fallback_language("", default)
     key = f"pearnly:line:user-language:{user_id}"
     try:
         cached = frappe.cache.get_value(key)
         if cached:
-            return cached if cached in USER_LANGUAGES else fallback
+            return cached if cached in USER_LANGUAGES else _fallback_language(user_id, default)
     except Exception:
         cached = None
     try:
         response = requests.get(f"https://api.line.me/v2/bot/profile/{user_id}",
                                 headers=_headers(), timeout=TIMEOUT)
     except Exception:
-        return fallback
+        return _fallback_language(user_id, default)
     if response.status_code != 200:
-        return fallback  # 没问到（限流、网络）不记缓存，下一次再问。
+        return _fallback_language(user_id, default)  # 没问到（限流、网络）不记缓存，下一次再问。
     try:
         tag = str(response.json().get("language") or "").strip().lower()
     except ValueError:
-        return fallback
+        return _fallback_language(user_id, default)
     code = tag.split("-")[0]
     language = code if code in USER_LANGUAGES else ""
     try:
         frappe.cache.set_value(key, language or "-", expires_in_sec=_LANGUAGE_TTL)
     except Exception:
         pass
-    return language or fallback
+    return language or _fallback_language(user_id, default)
+
+
+def _fallback_language(user_id: str, default: str | None) -> str:
+    """手机语言用不上时：绑定账号的语言 → `default` → 站点系统语言 → 泰文。"""
+    if user_id:
+        try:
+            from pearnly_core import line_binding
+
+            account = line_binding.user_of(user_id)
+            language = frappe.db.get_value("User", account, "language") if account else ""
+        except Exception:
+            logger.warning("[line] 读绑定账号的语言失败", exc_info=True)
+            language = ""
+        code = str(language or "").strip().lower().split("-")[0]
+        if code in USER_LANGUAGES:
+            return code
+    return default or frappe.db.get_single_value("System Settings", "language") or "th"
 
 
 def public_account() -> dict:

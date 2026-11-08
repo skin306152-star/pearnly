@@ -205,6 +205,7 @@ paths = ["apps/pearnly_core/pearnly_core/line_binding.py"]
 markers = ["pearnly_core.line_binding", "import line_binding", ", line_binding", "pearnly_line_binding_changed"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
 entries = ["erp.line.binding", "cowork.line.binding", "dms.line.binding", "shared.line.login"]
+not_entries = { "apps/pearnly_core/pearnly_core/line.py" = "共用 LINE 模块：收件人语言（user_language）在手机 LINE 语言用不上时读绑定账号的语言；入口见共用件 line（各产品 LINE 事件）" }
 
 [[part]]
 id = "cc-desktop"

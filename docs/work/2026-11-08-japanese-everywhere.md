@@ -49,6 +49,7 @@
 - 术语不一致：统一（见上）。
 - LINE 开通手册（管理员看）：不补。
 - 对账存档预生成 `recon_center/view_store.backfill`：不加日文（每次部署多算三分之一；日文用户首次打开现算、结果正确）。
+- LINE 语言规则（用户选 C）：照旧跟手机 LINE 的语言（用户 09-26 / 09-27 口径）；只改回落——手机语言不在四种里（如韩文）或问不到时，已绑定的用网页个人资料语言，没绑定的才回落站点语言。改在共用层 `pearnly_core/line.py` `user_language` 一处，ERP / Cowork / DMS 回复与从 LINE 打开的编辑页同一规则；先写红的测试 `test_line_intake.Language.test_unsupported_phone_language_uses_the_bound_account_language`（韩文手机 + 资料日语 → 日文），改后变绿。
 - LINE 单独当一大项（DMS / ERP / Cowork 回复、Flex 卡片、快捷按钮 ≤ 20 字、LIFF、出错提示、绑定 / 登录、富菜单图上的字），见第 4 节。
 
 中文原文问题：CC 桌面版两条用了半角逗号「,」，用户 11-08 确认（主会话转）改全角；`lang_toggle` 没有地方用（只报）。
@@ -83,6 +84,10 @@
 | 三产品 | 富菜单图 | ERP / Cowork `public/images/line-menu/tiles/*-ja.png`；DMS `rich-{basic,query}-ja.png` | 四种图 | 0 | 跟手机语言挂对应那套 | 日文图（字来自术语表） |
 | 三产品 | 富菜单 chatBarText（≤ 14） | 各 `menu.py` / `rich_menu.py` | 四种 | 0 | 同上 | 「メニュー」「ERPメニュー」「Coworkメニュー」，都不超 |
 | 三产品 | 还没绑定的人看到的默认菜单 | — | 只有泰文图 | — | — | 泰文 |
+
+### 语言回落规则（用户选 C）
+
+照旧跟手机 LINE 的语言（用户 09-26 / 09-27 口径）；只改回落——手机语言不在四种里（如韩文）或问不到时，已绑定的用网页个人资料语言，没绑定的才回落站点语言。改在共用层 `pearnly_core/line.py` `user_language` 一处，ERP / Cowork / DMS 回复与从 LINE 打开的编辑页同一规则；先写红的测试 `test_line_intake.Language.test_unsupported_phone_language_uses_the_bound_account_language`（韩文手机 + 资料日语 → 日文），改后变绿。
 
 ### 按钮超 20 字：改短（主会话：截断属缺陷）
 

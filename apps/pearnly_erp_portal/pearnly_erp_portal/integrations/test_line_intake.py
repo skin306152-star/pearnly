@@ -566,6 +566,38 @@ class Language(Base):
             self.assertEqual(line.user_language("U1", default="th"), "th")
             self.assertEqual(profile.call_count, 2)  # 没问到不记缓存
 
+    def test_unsupported_phone_language_uses_the_bound_account_language(self):
+        # 用户 2026-11-08（主会话转）：跟手机 LINE 语言不变；手机语言不在四种里（韩文）或问不到时，
+        # 已绑定的用网页个人资料的语言，未绑定的才回落站点语言
+        from pearnly_core import line, line_binding
+
+        cache = {}
+        self.enterContext(patch.object(frappe, "cache", Mock(**{"get_value.side_effect": cache.get,
+            "set_value.side_effect": lambda key, value, expires_in_sec=None: cache.__setitem__(key, value)}), create=True))
+        self.enterContext(patch.object(line, "_headers", return_value={}))
+        bound = {"U1": "somchai@example.com"}
+        self.enterContext(patch.object(line_binding, "user_of", side_effect=bound.get))
+        self.enterContext(patch.object(frappe.db, "get_value", side_effect=lambda doctype, name, field=None, *a, **k:
+                                       "ja" if (doctype, name, field) == ("User", "somchai@example.com", "language") else None))
+
+        def phone(tag):
+            cache.clear()
+            body = {"language": tag} if tag else {}
+            return patch("requests.get", return_value=Mock(status_code=200, json=Mock(return_value=body)))
+
+        with phone("ko"):
+            self.assertEqual(line.user_language("U1", default="th"), "ja")
+            self.assertEqual(line.user_language("U1", default="th"), "ja")  # 走缓存也一样
+        with phone(None):
+            self.assertEqual(line.user_language("U1", default="th"), "ja")
+        with phone("zh-Hant"):
+            self.assertEqual(line.user_language("U1", default="th"), "zh")  # 手机语言在四种里：照旧跟手机
+        with phone("ko"):
+            self.assertEqual(line.user_language("U2", default="th"), "th")  # 没绑定：回落
+        cache.clear()
+        with patch("requests.get", return_value=Mock(status_code=429, json=Mock(return_value={}))):
+            self.assertEqual(line.user_language("U1", default="th"), "ja")  # 问不到 LINE 也先用账号语言
+
     def test_the_card_uses_the_language_recorded_when_the_document_arrived(self):
         from pearnly_core import line
 
