@@ -284,14 +284,17 @@
 					default: date_from || frappe.datetime.month_start() },
 				{ fieldtype: "Date", fieldname: "date_to", label: t("trade.to"), reqd: 1,
 					default: date_to || frappe.datetime.get_today() },
+				// 「从 / 到」一节两栏：手机上一栏排下来是 从、到（物料一节、仓库一节），不交错
 				{ fieldtype: "Section Break" },
 				{ fieldtype: "Link", fieldname: "product_from", options: "ERP Product", label: t("trade.export.productFrom") },
-				{ fieldtype: "Link", fieldname: "warehouse_from", options: "ERP Warehouse", label: t("trade.export.warehouseFrom"),
-					get_query: () => warehouse, depends_on: "eval:doc.report==='by_warehouse'" },
 				{ fieldtype: "Column Break" },
 				{ fieldtype: "Link", fieldname: "product_to", options: "ERP Product", label: t("trade.export.productTo") },
+				{ fieldtype: "Section Break", depends_on: "eval:doc.report==='by_warehouse'" },
+				{ fieldtype: "Link", fieldname: "warehouse_from", options: "ERP Warehouse", label: t("trade.export.warehouseFrom"),
+					get_query: () => warehouse },
+				{ fieldtype: "Column Break" },
 				{ fieldtype: "Link", fieldname: "warehouse_to", options: "ERP Warehouse", label: t("trade.export.warehouseTo"),
-					get_query: () => warehouse, depends_on: "eval:doc.report==='by_warehouse'" },
+					get_query: () => warehouse },
 			], t("trade.export.action"), async values => {
 				const result = await p.export_file(api + "api_stock_card_export", values);
 				if (result?.status === "done") d.hide();
