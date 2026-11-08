@@ -1,8 +1,8 @@
 """流程用例：ERP 录入期初 —— 明细商品格按码认商品（手机宽度另用假摄像头点商品格的扫码按钮）→ 预览 → 提交 → 期初入账。
 
 产品地图 erp.scan.inventory.opening.item-scan（11-04 相机入口逐个成行后补的测试）。
-库存岗：库存 → 录入期初（`/desk/pearnly-inventory/opening`）；表头选这一遍现建的空仓、日期今天；明细第一行商品格输条码选中那件
-（相机那遍点格子右边的扫码按钮，由假摄像头读条码）→ 数量 5、成本 10 → 预览 → 提交。库里：这个仓这件的账面 +5。
+库存岗：库存页页头「录入期初」（`/desk/pearnly-inventory/opening`）先开一次点「取消」回库存页；再进来表头选这一遍现建的空仓、日期今天；明细第一行商品格输条码选中那件
+（相机那遍点格子右边的扫码按钮，由假摄像头读条码）→ 数量 5、成本 10 → 预览 →「编辑」回到可改 → 再预览 → 提交。库里：这个仓这件的账面 +5。
 只跑老数据：接了 Express 的公司库存来自 Express，没有「录入期初」（inventory.js 的 can_open），新开户那套接了 Express。
 """
 from __future__ import annotations
@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from desk_list import ACTION  # noqa: E402
 from erp_lib import JS, codes, company, js_value, stock_of  # noqa: E402
 
 TITLE = "ERP 录入期初：明细商品格按码认商品、预览、提交入账"
@@ -44,8 +45,21 @@ def steps(params, camera_code=None):
             f"if(!await pick(row.querySelector('[data-fieldname=\"product\"] input'), {js_value(params['scan'])}, {js_value(params['name'])}))"
             " return {error:'no match in the product picker'};")
     return [
-        {"name": "填表头", "js": JS + CAPTURE + f"""
-frappe.set_route('pearnly-inventory', 'opening');
+        # 先开一次就「取消」：回到库存页、什么也不入账（11-08 清基线：期初页头的取消）
+        {"name": "开了取消", "js": JS + ACTION + """
+const t=await frappe.pearnly.texts('stock.');
+frappe.set_route('pearnly-inventory'); await until(()=>frappe.get_route().length===1&&pageOf('pearnly-inventory'), 20000); await idle();
+const via=await action(t('stock.opening.title')); if(!via) return {error:'no opening button'};
+const opened=await until(()=>frappe.get_route()[1]==='opening'&&pageOf('pearnly-inventory')?.querySelector('[data-fieldname="warehouse"] input'), 20000); await idle();
+const back=await action(__('Cancel')); if(!back) return {error:'no Cancel button'};
+const returned=await until(()=>frappe.get_route().join('/')==='pearnly-inventory', 15000); await idle();
+return {via, opened: !!opened, back, returned: !!returned};"""},
+        {"name": "填表头", "js": JS + CAPTURE + ACTION + f"""
+// 从库存页页头「录入期初」进（这颗按钮本身是入口）
+const t=await frappe.pearnly.texts('stock.');
+frappe.set_route('pearnly-inventory'); await until(()=>frappe.get_route().length===1&&pageOf('pearnly-inventory'), 20000); await idle();
+if(!await action(t('stock.opening.title'))) return {{error:'no opening button'}};
+await until(()=>frappe.get_route()[1]==='opening', 15000);
 const page=await until(()=>pageOf('pearnly-inventory'), 20000); if(!page) return {{error:'page did not open'}};
 const head=await until(()=>page.querySelector('[data-fieldname="warehouse"] input'), 15000); if(!head) return {{error:'no warehouse field'}};
 // 表头仓按本人上次用的仓异步预填：等页面请求都回来再设，不然会被盖回去
@@ -70,16 +84,26 @@ let btn=primary(); if(!btn) return {error:'no preview button'}; const first=btn.
 await until(()=>primary()&&primary().textContent.trim()!==first, 20000); await idle();
 const status=()=>(window.__fgs||[]).filter(f=>f.fields_dict&&f.fields_dict.status_text).map(f=>f.get_value('status_text')).filter(Boolean).join(' | ');
 if(primary()&&primary().textContent.trim()===first) return {error:'preview did not pass: '+status()+' '+msg()};
+// 预览过了点「编辑」回到可改，再预览一次（期初页头的编辑）
+const edit=all('.page-actions .btn-secondary, .page-actions .secondary-action', page.closest('.page-container')||document).find(b=>b.textContent.trim()===__('Edit'));
+if(!edit) return {error:'no Edit button after preview'}; edit.click();
+const editing=await until(()=>primary()&&primary().textContent.trim()===first, 15000); await idle();
+if(!editing) return {error:'Edit did not go back to the preview step'};
+primary().click(); await until(()=>primary()&&primary().textContent.trim()!==first, 20000); await idle();
 btn=primary(); if(!btn) return {error:'no submit button'}; const second=btn.textContent.trim(); btn.click();
 const back=await until(()=>frappe.get_route().join('/')==='pearnly-inventory', 25000); await idle();
-return {preview: first, submit: second, back: !!back, msg: msg()};"""},
+return {preview: first, submit: second, edited: !!editing, back: !!back, msg: msg()};"""},
     ]
 
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): (r.get("value") or {}) for r in results}
     line, sent = by.get("明细", {}), by.get("预览提交", {})
-    return [{"case": "按码认出商品、带出单位", "seen": line, "ok": bool(line.get("unit")) and bool(line.get("product"))},
+    cancel = by.get("开了取消", {})
+    return [{"case": "库存页「录入期初」进期初页，「取消」回库存页", "seen": cancel,
+             "ok": bool(cancel.get("via")) and cancel.get("opened") is True and bool(cancel.get("back")) and cancel.get("returned") is True},
+            {"case": "预览后「编辑」回到可改、再预览", "seen": sent, "ok": sent.get("edited") is True},
+            {"case": "按码认出商品、带出单位", "seen": line, "ok": bool(line.get("unit")) and bool(line.get("product"))},
             {"case": "预览后提交、回到库存页", "seen": sent, "ok": bool(sent.get("back")) and sent.get("preview") != sent.get("submit")}]
 
 

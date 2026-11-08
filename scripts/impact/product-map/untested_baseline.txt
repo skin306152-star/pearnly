@@ -44,16 +44,6 @@ erp.desk.pearnly-guide@desktop
 erp.desk.pearnly-guide@mobile
 erp.desk.pearnly-history@desktop
 erp.desk.pearnly-history@mobile
-erp.desk.pearnly-inventory.action.Cancel@desktop
-erp.desk.pearnly-inventory.action.Cancel@mobile
-erp.desk.pearnly-inventory.action.Edit@desktop
-erp.desk.pearnly-inventory.action.Edit@mobile
-erp.desk.pearnly-inventory.action.preview@desktop
-erp.desk.pearnly-inventory.action.preview@mobile
-erp.desk.pearnly-inventory.action.stock.opening.title@desktop
-erp.desk.pearnly-inventory.action.stock.opening.title@mobile
-erp.desk.pearnly-inventory.action.submit@desktop
-erp.desk.pearnly-inventory.action.submit@mobile
 erp.desk.pearnly-pos-receipts@desktop
 erp.desk.pearnly-pos-receipts@mobile
 erp.desk.pearnly-pos-shifts@desktop

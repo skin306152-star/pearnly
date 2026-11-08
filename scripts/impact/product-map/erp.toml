@@ -880,6 +880,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-inventory:Cancel"
 where = "pearnly-inventory 页头「Cancel」"
+tests = ["flow:erp.stock-opening.scan"]
 
 [[row]]
 id = "erp.desk.pearnly-inventory.action.Edit"
@@ -889,6 +890,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-inventory:Edit"
 where = "pearnly-inventory 页头「Edit」"
+tests = ["flow:erp.stock-opening.scan"]
 
 [[row]]
 id = "erp.desk.pearnly-inventory.action.preview"
@@ -898,6 +900,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-inventory:preview"
 where = "pearnly-inventory 页头「preview」"
+tests = ["flow:erp.stock-opening.scan"]
 
 [[row]]
 id = "erp.desk.pearnly-inventory.action.stock.action.export"
@@ -917,6 +920,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-inventory:stock.opening.title"
 where = "pearnly-inventory 页头「stock.opening.title」"
+tests = ["flow:erp.stock-opening.scan"]
 
 [[row]]
 id = "erp.desk.pearnly-inventory.action.submit"
@@ -926,6 +930,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-inventory:submit"
 where = "pearnly-inventory 页头「submit」"
+tests = ["flow:erp.stock-opening.scan"]
 
 [[row]]
 id = "erp.desk.pearnly-products.action.product.action.import"
