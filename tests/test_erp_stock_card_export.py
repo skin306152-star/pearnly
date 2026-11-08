@@ -38,13 +38,36 @@ def load(name, path):
     return module
 
 
-def thai_texts() -> dict:
+LANGUAGES = ("en", "zh", "th", "ja")
+
+
+def glossary() -> dict:
+    """术语表里 `trade.export.*` 每条四种语言的写法：{键: {语言: 文字}}。"""
     texts = {}
     for line in (DOMAIN.parent / "i18n/messages.tsv").read_text(encoding="utf-8").splitlines()[1:]:
         parts = line.split("\t")
         if len(parts) >= 5 and parts[4].startswith("trade.export."):
-            texts[parts[4]] = parts[2]
+            texts[parts[4]] = dict(zip(LANGUAGES, parts[:4]))
     return texts
+
+
+# MR.ERP 模板里的泰文原文（report/50/all/57.php、51/59.php、52/198.php；评估 §A-7 ~ §A-9）
+MRERP_THAI = {
+    "trade.export.title.all": "รายงานรับ-จ่ายสินค้า", "trade.export.title.summary": "รายงานรับ-จ่ายสินค้า - สรุป",
+    "trade.export.title.byWarehouse": "รายงานรับ-จ่ายสินค้า:แยกคลัง", "trade.export.taxId": "เลขประจำตัวผู้เสียภาษี  {0}",
+    "trade.export.dateRange": "วันที่  {0}  ถึง  {1}", "trade.export.productRange": "รหัสสินค้า  {0}  ถึง  {1}",
+    "trade.export.warehouseRange": "รหัสคลังสินค้า  {0}  ถึง  {1}", "trade.export.voucher": "ใบสำคัญ",
+    "trade.export.receipts": "รายการรับ", "trade.export.issues": "รายการจ่าย", "trade.export.balance": "คงเหลือ",
+    "trade.export.date": "วันที่", "trade.export.number": "เลขที่", "trade.export.qty": "จำนวน",
+    "trade.export.unitPrice": "ราคาต่อหน่วย", "trade.export.receiptValue": "มูลค่ารับ", "trade.export.issueValue": "มูลค่าจ่าย",
+    "trade.export.balanceValue": "มูลค่าคงเหลือ", "trade.export.amount": "จำนวนเงิน", "trade.export.carried": "ยอดยกมา",
+    "trade.export.code": "รหัสสินค้า", "trade.export.name": "ชื่อสินค้า", "trade.export.unit": "หน่วย : {0}",
+    "trade.export.rows": "รวม  {0}  รายการ", "trade.export.grand": "รวมทั้งสิ้น  {0}  สินค้า",
+    "trade.export.productTotal": "รวมสินค้า", "trade.export.productDetail": "รายละเอียดรวมสินค้า  {0}  รายการ",
+    "trade.export.warehouseTotal": "รวมคลัง", "trade.export.warehouseDetail": "รายละเอียดรวมคลัง  {0}  รายการ  {1}  สินค้า",
+    "trade.export.allTotal": "รวมทุกคลัง",
+    "trade.export.allDetail": "รายละเอียดรวมทุกคลัง  {0}  รายการ  {1}  สินค้า  {2}  คลัง",
+}
 
 
 class Rows(unittest.TestCase):
@@ -104,9 +127,10 @@ class Export(unittest.TestCase):
         modules.start()
         self.addCleanup(modules.stop)
         self.contracts = load("card_export_contracts", DOMAIN / "contracts.py")
-        texts = thai_texts()
+        texts = glossary()
         frappe = ModuleType("frappe")
-        self.texts = lambda value: texts.get(value, value)
+        # 按导出那一刻的语言取词（与 Frappe 的 `_()` 一样读 `frappe.local.lang`）
+        self.texts = lambda value: texts.get(value, {}).get((frappe.local.lang or "")[:2], value)
         frappe._ = self.texts
         frappe._dict = SimpleNamespace
         frappe.local = SimpleNamespace(lang="th")
@@ -306,16 +330,126 @@ class Export(unittest.TestCase):
         self.assertEqual(self.export.size(report="all", format="pdf", date_from="2026-10-01", date_to="2026-10-31",
                                           product_from="P1", product_to="P1"), 6 + 1)
 
-    def test_gregorian_dates_outside_thai(self):
-        self.export.frappe.local.lang = "zh"
-        self.assertEqual(self.layout("all", product_from="P1", product_to="P1")["body"][2]["cells"][0]["value"], "03/10/2026")
-        self.assertEqual(self.export._filename("all", "pdf"), "รายงานรับ-จ่ายสินค้า [08112026_143005].pdf")
-        self.export._ = lambda value: {"trade.export.title.byWarehouse": "Stock Receipt-Issue Report: By Warehouse"}.get(value, value)
-        self.assertEqual(self.export._filename("by_warehouse", "pdf"), "Stock Receipt-Issue Report - By Warehouse [08112026_143005].pdf")
-        self.export._ = self.texts
-        self.export.frappe.local.lang = "th"
-        self.assertEqual(self.export._filename("by_warehouse", "xlsx"),
-                         "รายงานรับ-จ่ายสินค้า - แยกคลัง [08112569_143005].xlsx")
+    # ── 语言：文件跟导出人的网页语言（10-08 口径；主会话 11-08 要锁住）──
+    def test_glossary_has_every_language_and_thai_is_mrerp(self):
+        texts = glossary()
+        self.assertEqual(set(MRERP_THAI) - set(texts), set())
+        for key, row in texts.items():
+            for lang in LANGUAGES:
+                self.assertTrue(row[lang].strip() and row[lang] != key, (key, lang))   # 不落回键名
+            self.assertNotEqual(row["zh"], row["th"], key)
+            self.assertNotEqual(row["en"], row["th"], key)
+        for key, thai in MRERP_THAI.items():
+            self.assertEqual(texts[key]["th"], thai, key)
+
+    def export_texts(self, lang, report="all"):
+        self.export.frappe.local.lang = lang
+        layout = self.layout(report, product_from="P1", product_to="P1")
+        return {"title": layout["lines"][1][0], "tax": layout["lines"][1][1], "dates": layout["lines"][2][0],
+                "head": [cell["value"] for cell in layout["head"][1]["cells"]],
+                "carried": next(r for r in layout["body"] if r["kind"] == "carried")["cells"][0]["value"],
+                "day": next(r for r in layout["body"] if r["kind"] == "line")["cells"][0]["value"],
+                "file": self.export._filename(report, "xlsx")}
+
+    def test_chinese_and_thai_exports_differ_in_text_and_year(self):
+        zh, th = self.export_texts("zh"), self.export_texts("th")
+        self.assertEqual(th, {"title": "รายงานรับ-จ่ายสินค้า", "tax": "เลขประจำตัวผู้เสียภาษี  0105555000001",
+                              "dates": "วันที่  01/10/2569  ถึง  31/10/2569",
+                              "head": ["วันที่", "เลขที่", "จำนวน", "ราคาต่อหน่วย", "มูลค่ารับ", "จำนวน", "ราคาต่อหน่วย",
+                                       "มูลค่าจ่าย", "จำนวน", "ราคาต่อหน่วย", "มูลค่าคงเหลือ"],
+                              "carried": "ยอดยกมา", "day": "03/10/2569", "file": "รายงานรับ-จ่ายสินค้า [08112569_143005].xlsx"})
+        self.assertEqual(zh, {"title": "收发存报表", "tax": "纳税人识别号  0105555000001", "dates": "日期  01/10/2026  至  31/10/2026",
+                              "head": ["日期", "单号", "数量", "单价", "收入金额", "数量", "单价", "发出金额", "数量", "单价", "结存金额"],
+                              "carried": "上期结转", "day": "03/10/2026", "file": "收发存报表 [08112026_143005].xlsx"})
+        en = self.export_texts("en", "by_warehouse")
+        self.assertEqual((en["title"], en["day"][-4:], en["file"]),
+                         ("Stock Receipt-Issue Report: By Warehouse", "2026",
+                          "Stock Receipt-Issue Report - By Warehouse [08112026_143005].xlsx"))
+        self.assertEqual(self.export_texts("th", "by_warehouse")["file"], "รายงานรับ-จ่ายสินค้า - แยกคลัง [08112569_143005].xlsx")
+
+    def test_background_export_keeps_the_requesters_language(self):
+        """走后台的那条路：真的 `pearnly_core.exports.service`（发起时记下语言，后台任务按它跑），换成内存里的假站点。"""
+        import json as jsonlib
+        import os
+        import tempfile
+
+        frappe = self.export.frappe
+        jobs, folder, queued = {}, tempfile.mkdtemp(), []
+
+        class Row(dict):
+            __getattr__ = dict.get
+
+        def get_value(doctype, name, fields, as_dict=False, **kwargs):
+            if doctype != "Pearnly Export":
+                return self.get_value(doctype, name, fields, as_dict=as_dict)
+            row = jobs.get(name)
+            return Row({field: row.get(field) for field in fields}) if row and as_dict else (row or {}).get(fields)
+
+        def set_value(doctype, name, field, value=None, **kwargs):
+            jobs[name].update(field if isinstance(field, dict) else {field: value})
+
+        class Doc(dict):
+            def insert(self, **kwargs):
+                jobs[self["name"]] = dict(self)
+
+        modules = {"pearnly_erp_portal.inventory.card_export": self.export}
+        frappe.conf = {"pearnly_export_sync_rows": 0}                     # 每个导出都排后台
+        frappe.session = SimpleNamespace(user="stock@example.com")
+        frappe.get_doc = Doc
+        frappe.get_attr = lambda path: getattr(modules[path.rpartition(".")[0]], path.rpartition(".")[2])
+        frappe.enqueue = lambda method, **kwargs: queued.append(kwargs["job"])
+        frappe.db = SimpleNamespace(get_value=get_value, set_value=set_value, count=self.count, commit=lambda: None,
+                                    rollback=lambda **kwargs: None)
+        frappe.set_user = lambda user: setattr(frappe.session, "user", user)
+        frappe.get_site_path = lambda *parts: os.path.join(folder, *parts[1:])
+        frappe.publish_realtime = lambda *args, **kwargs: None
+        frappe.log_error = lambda **kwargs: None
+        frappe.ValidationError = frappe.PermissionError = frappe.DoesNotExistError = type("Refused", (Exception,), {})
+        frappe.local.response, frappe.local.message_log = {}, []
+        utils = sys.modules["frappe.utils"]
+        utils.add_to_date = lambda value, seconds=0: value
+        utils.get_datetime = lambda value: value
+        core = DOMAIN.parents[2] / "pearnly_core/pearnly_core/exports"
+        load("pearnly_core.exports.disposition", core / "disposition.py")
+        service = load("pearnly_core.exports.service", core / "service.py")
+        # Excel 读回要 openpyxl（生产镜像里有）；本机没有时把版面文字原样写成 JSON 代替表格
+        try:
+            from openpyxl import load_workbook
+        except ImportError:
+            load_workbook = None
+            self.export._xlsx = lambda layout: jsonlib.dumps(layout, default=str, ensure_ascii=False).encode()
+
+        def texts(content):
+            if load_workbook is None:
+                return jsonlib.dumps(jsonlib.loads(content), ensure_ascii=False)
+            from io import BytesIO
+            return jsonlib.dumps([[cell.value for cell in row] for row in load_workbook(BytesIO(content)).active.iter_rows()],
+                                 default=str, ensure_ascii=False)
+
+        args = {"report": "all", "format": "xlsx", "date_from": "2026-10-01", "date_to": "2026-10-31",
+                "product_from": "P1", "product_to": "P1"}
+        seen = {}
+        for asked, worker in (("zh", "th"), ("th", "zh")):
+            frappe.local.lang = asked                                       # 发起人的网页语言
+            job = service.deliver(count="pearnly_erp_portal.inventory.card_export.size",
+                                  build="pearnly_erp_portal.inventory.card_export.build", args=args,
+                                  filename="stock-card.xlsx", content_type=self.export.content_type("xlsx"))["export_job"]
+            self.assertEqual(jobs[job]["lang"], asked)
+            frappe.local.lang = worker                                      # 后台进程原本是别的语言
+            service.run(job)
+            row = jobs[job]
+            self.assertEqual(row["status"], "done", row.get("error"))
+            with open(service.path_of(row["file_key"]), "rb") as handle:
+                seen[asked] = (row["filename"], texts(handle.read()))
+        self.assertEqual(seen["zh"][0], "收发存报表 [08112026_143005].xlsx")
+        self.assertEqual(seen["th"][0], "รายงานรับ-จ่ายสินค้า [08112569_143005].xlsx")
+        for text in ("收发存报表", "上期结转", "日期  01/10/2026  至  31/10/2026", "03/10/2026"):
+            self.assertIn(text, seen["zh"][1])
+        for text in ("รายงานรับ-จ่ายสินค้า", "ยอดยกมา", "วันที่  01/10/2569  ถึง  31/10/2569", "03/10/2569"):
+            self.assertIn(text, seen["th"][1])
+        self.assertNotIn("ยอดยกมา", seen["zh"][1])
+        self.assertNotIn("上期结转", seen["th"][1])
+        self.assertEqual(len(queued), 2)
 
     def test_pdf_html_repeats_header_and_escapes(self):
         self.products["P1"] = ("A001", "<b>ปากกา</b>", "ด้าม")
