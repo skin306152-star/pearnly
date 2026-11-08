@@ -42,7 +42,10 @@
 
 ## 3. 主会话的决定（11-08）
 
-- CC 入口登录页 Keycloak 主题 pearnly-ai、宣传页 pearnly.com：主会话问用户，定了再做；先不动。入口页（fatcc.com，不是 Keycloak 主题）已加日文，给 Keycloak 的 `ui_locales` 是「ja en」，主题没有日文时用英文。
+- CC 入口登录页 Keycloak 主题 pearnly-ai：用户「行」，**只加日文一种**，现有文字和布局一字不动。源头 `scripts/build-ai-entry.py`：`locales` 加 ja、6 个键的日文（用词同 pearnly_control 术语表）、语言切换条多「日本語」一项（与入口页 fatcc.com 一致）、日文点服务条款 / 隐私政策跳英文版宣传页；其余键继承 pearnly 主题已有的日文。**部署时主题随镜像生效**（Keycloak 主题在镜像里，不用控制台操作）。验收按身份页规矩：部署后日语浏览器打开 fatcc.com 截图。
+- 入口页 fatcc.com（站点页面，不是 Keycloak 主题）：语言切换加「日本語」，给 Keycloak 的 `ui_locales` 为 ja。
+- 宣传页 pearnly.com：这次不做日文；CC 网页、入口页、登录主题里日文用户点宣传页链接跳英文版。
+- LINE 语言规则（用户选 C）：照旧跟手机 LINE 的语言；只改回落（手机语言不在四种里或问不到时，已绑定的用网页个人资料语言）。实现见第 4 节，在单独分支。
 - 术语不一致：统一（见上）。
 - LINE 开通手册（管理员看）：不补。
 - 对账存档预生成 `recon_center/view_store.backfill`：不加日文（每次部署多算三分之一；日文用户首次打开现算、结果正确）。
