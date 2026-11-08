@@ -616,7 +616,8 @@ def _write_all(
         gj.close()
 
     departmental = _department_accounts(account_dir) if depcod else frozenset()
-    gl_rows = _gl_rows(entry) + cogs_rows
+    gl_rows = revenue_journal(account_dir, _gl_rows(entry), entry.items if write_detail else [], line_modes,
+                              entry.items_account) + cogs_rows
     gi = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
     try:
         for seqit, accnum, trntyp, amt in gl_rows:
@@ -652,6 +653,66 @@ def _write_stcrd_detail(
         **_located(locations),
         **({"seqs": seqs} if seqs is not None else {}),
     )
+
+
+def revenue_journal(account_dir, gl_rows, items, line_modes, items_account: str = ""):
+    """收入照 Express 原生按物料科目组记(11-08,S 盘 95 本取证,``docs/work/2026-11-07-cc-sales-revenue-native-评估.md``):
+    明细行的物料科目组配了收入科目 ``ISACC.ACCNUM03`` 且能记账 → 这一行的税前额从它原来那条收入贷方里扣出、改记 ACCNUM03
+    (SEQIT 5,同科目合成一条);科目组没配 / 不能记账照载荷(原生库存品几乎都没配,记账套默认收入 ACCNUM11,载荷本来就是它)。
+
+    - 一行原来记在哪条收入:载荷收入有几条(ERP 按行科目拆)时找科目 = 这一行 ``account`` 的那条,再找 ``items_account`` 的那条,
+      都没有用第一条;
+    - 扣出的合计超过原来那条收入(行额与收入对不上,如整单折扣)→ 那一条整条照载荷,不改、不报错(以前就是照载荷写的)。
+    """
+    revenue_seq = S.SALES_SEQIT["revenue"]
+    revenue = [i for i, row in enumerate(gl_rows) if row[0] == revenue_seq and row[2] == S.TRNTYP_CREDIT]
+    lines = [(m.get("seq"), str(m.get("stkcod") or "").strip()) for m in line_modes or [] if isinstance(m, dict)]
+    lines = [(seq, code) for seq, code in lines if code and isinstance(seq, int) and 1 <= seq <= len(items)]
+    if not revenue or not lines:
+        return gl_rows
+    groups = account_rules.item_group_accounts(account_dir, [code for _seq, code in lines], "ACCNUM03")
+    postable: Dict[str, bool] = {}
+    moves: Dict[int, Dict[str, Decimal]] = {}
+    for seq, code in lines:
+        target = groups.get(code, "")
+        item = items[seq - 1]
+        amount = Decimal(str(item.get("amount") or "0"))
+        if not target or amount <= 0:
+            continue
+        source = _revenue_row(gl_rows, revenue, str(item.get("account") or ""), items_account)
+        if gl_rows[source][1] == target:
+            continue
+        if target not in postable:
+            postable[target] = account_rules.postable_account(account_dir, target)
+        if not postable[target]:
+            continue
+        bucket = moves.setdefault(source, {})
+        bucket[target] = bucket.get(target, Decimal("0")) + amount
+    out = []
+    for i, row in enumerate(gl_rows):
+        moved = sum(moves.get(i, {}).values(), Decimal("0"))
+        if not moved:
+            out.append(row)
+            continue
+        seqit, acc, side, amount = row
+        rest = Decimal(str(amount)) - moved
+        if rest < 0:
+            log.warning("收入科目组改记跳过:行额 %s 超出收入 %s(%s)", moved, amount, acc)
+            out.append(row)
+            continue
+        out += [(seqit, target, side, value) for target, value in moves[i].items()]
+        if rest:
+            out.append((seqit, acc, side, rest))
+    return merge_gl_rows(out)
+
+
+def _revenue_row(gl_rows, revenue, account: str, items_account: str) -> int:
+    """这一行原来记在哪条收入(下标):科目 = 行科目的那条 → 科目 = ``items_account`` 的那条 → 第一条。"""
+    for wanted in (account.strip(), str(items_account or "").strip()):
+        hit = next((i for i in revenue if wanted and str(gl_rows[i][1]).strip() == wanted), None)
+        if hit is not None:
+            return hit
+    return revenue[0]
 
 
 def merge_gl_rows(rows):

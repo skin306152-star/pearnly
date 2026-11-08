@@ -39,7 +39,7 @@ ALWAYS = {("STMAS", "TOTBAL"), ("STMAS", "TOTVAL"), ("STMAS", "UNITPR"), ("APMAS
 COST = {("STCRD", "XUNITPR"), ("STCRD", "XTRNVAL"), ("STCRD", "MREMVAL"), ("STCRD", "UNITPR"), ("STCRD", "TRNVAL"),
         ("STCRD", "NETVAL"), ("STCRD", "LUNITPR"), ("STMAS", "MREMVAL"), ("GLJNLIT", "AMOUNT"), ("STTRN", "TRNVAL")}
 STEPS = (("RR", 5, "50.00"), ("HP", 1, "10.00"), ("IV", 2, "40.00"), ("HS", 1, "20.00"), ("OU", 1, ""))
-NET_QTY = {"RR": 5, "HP": 1, "IV": -2, "HS": -1, "OU": -1}
+NET_QTY = {"RR": 5, "HP": 1, "IV": -2, "HS": -1, "OU": -1, "SVC": 0}
 
 
 def main(argv=None) -> int:
@@ -57,7 +57,10 @@ def main(argv=None) -> int:
     parser.add_argument("--userid", default="", help="write：这次写单的录入人（不给 = 写入函数默认的 PEARNLY）")
     parser.add_argument("--allow", default="", help="compare：另外许可不同的栏，逗号分隔 TABLE.FIELD（如录入人 APTRN.USERID）")
     parser.add_argument("--gl", action="store_true",
-                        help="compare：分录口径改了（进货库存行照原生直接记科目组科目）——凭证明细不逐行比，改核每个科目的净额与写法")
+                        help="compare：分录口径改了（进货库存行照原生直接记科目组科目、销货收入照科目组 ACCNUM03）——凭证明细不逐行比，"
+                             "改核每个科目的净额与写法")
+    parser.add_argument("--service", action="store_true",
+                        help="write：另写一张现销 HS（步骤名 SVC），一行挂这本账里 Express 原有的服务品（科目组配了能记账的收入科目的优先）")
     args = parser.parse_args(argv)
     sys.path.insert(0, args.companion)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -123,7 +126,7 @@ def write_all(args) -> int:
             shutil.rmtree(copy, ignore_errors=True)
             try:
                 shutil.copytree(book, copy)
-                result = write_book(copy, args.scenario, args.userid)
+                result = write_book(copy, args.scenario, args.userid, args.service)
             except Exception:
                 result = {"state": "fail", "why": traceback.format_exc()[-600:]}
             result["book"] = book.name
@@ -169,7 +172,7 @@ def _seed(acct, main, scenario):
     return pick["STKCOD"], pick["STKDES"] or pick["STKCOD"]
 
 
-def write_book(acct: Path, scenario: str, userid: str = "") -> dict:
+def write_book(acct: Path, scenario: str, userid: str = "", service: bool = False) -> dict:
     info = rows(acct, "ISINFO", ("MAINLOC", "ACCNUM00"))
     main = (info[0]["MAINLOC"] if info else "") or ""
     calendar = fiscal_period.load(acct)
@@ -211,9 +214,30 @@ def write_book(acct: Path, scenario: str, userid: str = "") -> dict:
             res = writer(body, acct, allowed_sets=("DATAT",), selected_dir=str(acct), make_backup=False,
                          **({"userid": userid} if userid else {}))
         steps.append({"doctype": doctype, "ok": res.ok, "docnum": res.docnum, "error": res.error_code or res.error})
-    return {"state": "written", "item": code, "apart": scenario == "apart", "supplier": suppliers[0], "customer": customers[0],
+    picked = _service_item(acct, accounts["revenue_acc"]) if service else None
+    if service and picked is None:
+        steps.append({"doctype": "SVC", "skip": "no service item"})
+    elif picked:
+        body = payload_for("HS", be(day), "REG-SVC", accounts, cash, picked["STKDES"], "", 1, Decimal("30.00"),
+                           supplier=suppliers[0], customer=customers[0])
+        body["items"][0].update({"item_mode": "non_stock_item", "code": ""})
+        res = WS.write_sale(body, acct, allowed_sets=("DATAT",), selected_dir=str(acct), make_backup=False,
+                            **({"userid": userid} if userid else {}))
+        steps.append({"doctype": "SVC", "ok": res.ok, "docnum": res.docnum, "error": res.error_code or res.error,
+                      "service": picked["STKCOD"]})
+    return {"state": "written", "item": code, "revenue_acc": accounts["revenue_acc"], "apart": scenario == "apart", "supplier": suppliers[0], "customer": customers[0],
             "main": main, "steps": steps, "party_before": party_before,
             "before": {k: float(num(before[k])) for k in ("TOTBAL", "TOTVAL", "MREMBAL", "MREMVAL")}}
+
+
+def _service_item(acct, revenue_acc):
+    """这本账里 Express 原有的一件服务品（STKTYP 3 / 4 / 5，有品名）：科目组的收入科目 ACCNUM03 能记账且 ≠ 载荷默认收入的优先。"""
+    postable = {r["ACCNUM"] for r in rows(acct, "GLACC", ("ACCNUM", "ACCTYP")) if str(r["ACCTYP"] or "") == "0"}
+    groups = {r["ACCCOD"]: r.get("ACCNUM03") or "" for r in rows(acct, "ISACC", ("ACCCOD", "ACCNUM03"))}
+    items = [r for r in rows(acct, "STMAS", ("STKCOD", "STKDES", "STKTYP", "ACCCOD"))
+             if str(r["STKTYP"]) in ("3", "4", "5") and r["STKCOD"] and r["STKDES"]]
+    return next((r for r in items if groups.get(r["ACCCOD"]) in postable and groups.get(r["ACCCOD"]) != revenue_acc),
+                items[0] if items else None)
 
 
 def payload_for(doctype, docdate, ref, accounts, cash, name, code, qty, amount, *, supplier, customer):
@@ -309,6 +333,41 @@ def _gl_problems(old: Path, new: Path, new_run: dict) -> list:
     return problems
 
 
+def _revenue_problems(old: Path, new: Path, new_run: dict) -> list:
+    """销货收入照科目组（11-08）：新写法每张销货单的收入贷方（SEQIT 5）= 逐行「物料科目组的 ACCNUM03（能记账时）否则载荷收入科目」
+    按科目合计；收入合计与旧写法相同。"""
+    problems = []
+    vouchers = {s.get("docnum") for s in new_run.get("steps", []) if s.get("ok") and s.get("doctype") in ("IV", "HS", "SVC")}
+    payload_acc = new_run.get("revenue_acc") or ""
+    postable = {r["ACCNUM"] for r in rows(new, "GLACC", ("ACCNUM", "ACCTYP")) if str(r["ACCTYP"] or "") == "0"}
+    groups = {r["ACCCOD"]: r.get("ACCNUM03") or "" for r in rows(new, "ISACC", ("ACCCOD", "ACCNUM03"))}
+    item_group = {r["STKCOD"]: r["ACCCOD"] for r in rows(new, "STMAS", ("STKCOD", "ACCCOD"))}
+    expected = {}
+    for r in rows(new, "STCRD", ("DOCNUM", "STKCOD", "NETVAL")):
+        voucher = str(r["DOCNUM"] or "").strip()
+        if voucher not in vouchers:
+            continue
+        acc = groups.get(item_group.get(r["STKCOD"], ""), "")
+        acc = acc if acc in postable else payload_acc
+        expected.setdefault(voucher, {})[acc] = expected.get(voucher, {}).get(acc, Decimal(0)) + num(r["NETVAL"])
+    def credits(acct):
+        out = {}
+        for r in rows(acct, "GLJNLIT", ("VOUCHER", "ACCNUM", "TRNTYP", "AMOUNT", "SEQIT")):
+            voucher = str(r["VOUCHER"] or "").strip()
+            if voucher in vouchers and str(r["SEQIT"] or "").strip() == "5" and str(r["TRNTYP"] or "").strip() == "1":
+                acc = str(r["ACCNUM"] or "").strip()
+                out.setdefault(voucher, {})[acc] = out.get(voucher, {}).get(acc, Decimal(0)) + num(r["AMOUNT"])
+        return out
+    a, b = credits(old), credits(new)
+    for voucher in vouchers:
+        x, y, want = a.get(voucher, {}), b.get(voucher, {}), expected.get(voucher, {})
+        if abs(sum(x.values(), Decimal(0)) - sum(y.values(), Decimal(0))) >= Decimal("0.005"):
+            problems.append(f"{voucher} revenue total differs: {dict(x)} vs {dict(y)}")
+        if set(y) != set(want) or any(abs(y[k] - want[k]) >= Decimal("0.005") for k in y):
+            problems.append(f"{voucher} revenue {dict(y)} != item groups {dict(want)}")
+    return problems
+
+
 def compare_book(old: Path, new: Path, old_run: dict, new_run: dict, extra=frozenset(), gl=False) -> dict:
     if new_run.get("state") != "written":
         return {"state": "skip", "why": new_run.get("why", "")}
@@ -348,6 +407,7 @@ def compare_book(old: Path, new: Path, old_run: dict, new_run: dict, extra=froze
         problems.append(f"unexpected differences: {sorted(set(unexpected))[:8]}")
     if gl:
         problems.extend(_gl_problems(old, new, new_run))
+        problems.extend(_revenue_problems(old, new, new_run))
     # 新写法的不变量
     code = new_run["item"]
     master = [r for r in rows(new, "STMAS", ("STKCOD", "TOTBAL", "TOTVAL", "UNITPR")) if r["STKCOD"] == code][0]

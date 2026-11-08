@@ -120,6 +120,32 @@ def postable_account(account_dir, acc: str) -> bool:
     return False
 
 
+def item_group_accounts(account_dir, codes, slot: str) -> Dict[str, str]:
+    """物料码 → 它科目组（``STMAS.ACCCOD → ISACC``）的 ``slot`` 科目（ACCNUM01 存货 / 02 购货·成本 / 03 收入）。
+    没有这件物料、科目组没配这一栏的码不在结果里；读档失败回空字典（调用方照载荷）。"""
+    wanted = {str(code or "").strip() for code in codes} - {""}
+    if not wanted:
+        return {}
+    try:
+        items = _open(account_dir, "STMAS")
+        if items is None:
+            return {}
+        try:
+            groups = {str(_gv(r, "STKCOD")): str(_gv(r, "ACCCOD")) for r in S.live_rows(items) if str(_gv(r, "STKCOD")) in wanted}
+        finally:
+            items.close()
+        table = _open(account_dir, "ISACC")
+        if table is None:
+            return {}
+        try:
+            accounts = {str(_gv(r, "ACCCOD")): str(_gv(r, slot)) for r in S.live_rows(table)}
+        finally:
+            table.close()
+    except Exception:  # noqa: BLE001 — 读不到：照载荷
+        return {}
+    return {code: accounts[group] for code, group in groups.items() if accounts.get(group)}
+
+
 # ── 对方档 ──────────────────────────────────────────────────────────────────
 
 _PARTY = {"APMAS": "SUPCOD", "ARMAS": "CUSCOD"}
