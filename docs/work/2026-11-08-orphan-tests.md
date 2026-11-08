@@ -136,3 +136,13 @@
 - `test_opening_report.py`
 - `test_opening_workbook.py`
 - `test_release_member_identity.py`
+
+## 4. 暂停交接（11-08 20:2x，本机 21:00 睡眠）
+
+已做（本地提交，未推送）：第 1 步分类、第 4 步闸门 + 两张表 + 自测 + CI 一步、本记录。本地 `python3 scripts/check-test-coverage.py` 通过、自测 6 个通过；还没跑 gate.sh。
+静态预查：110 个导入的本仓模块都还在；只有 `test_cowork_companion_release.py` 引用的 `companion/heartbeat.py` 已不存在，疑似作废，第 2 步实跑确认。
+
+下一步（11-09 白天，按主会话）：
+1. 先看 `pearnly/opening-report-test`（bd144b92b，已推送未合）合了没有。它合入后 `test_opening_report.py` 已由 CI 执行，本分支变基时要从 `orphan-baseline.txt` 和上面清单里删掉这一行（闸门会提示）。
+2. 第 2 步：110 个在本机 `python3` 和生产镜像（`ghcr.io/skin306152-star/pearnly/frappe@sha256:26a2b0e8dfeec93a10560e2be8b6ea15aea27b9725b68547a5dc2b362b829add`，`docker run --rm --network none`，只读挂工作树）各跑一遍，按「能过 / 过期 / 作废 / 真缺陷」分类；先确认本机没有别的窗口在跑全套流程。分类清单先发主会话，真缺陷只列不改业务代码。
+3. 分 3 批合：第 1 批 = 闸门 + 能过的直接接进 CI（同一提交从基线删掉）；第 2 批 = 修好的过期测试；第 3 批 = 删作废测试（写原因）+ 剩余登记。每批 gate.sh、推分支等 CI（推完 15 分钟以上再查）、按排号快进合入。
