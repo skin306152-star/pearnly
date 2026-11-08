@@ -163,11 +163,8 @@ GUIDANCE = [
     "Call the accounting program by its name, Express or MR.ERP (the one the account set uses); never say 'the ERP' or "
     "'ERP' for it. A document already entered there is done: never suggest checking or changing it on the pending "
     "page or the review page. " + ENTERED_NOTE,
-    # 测试窗口第 3 轮：「交给 CC」的预填只写单号、对方、金额、日期（不写内部记录名），CC 要自己按单号找到这几张
-    "When the user names documents by invoice number, counterparty, amount and date (for example a message "
-    "prefilled from the pending list or the month card), find each one with cowork_list_documents search set to "
-    "its invoice number (or the counterparty when there is no number, or the file name when only a file name is "
-    "given), and use the amount and date to tell apart documents with the same number.",
+    # 测试窗口第 3 轮：「交给 CC」的预填只写单号、对方、金额、日期（不写内部记录名），CC 要自己按单号找到这几张（共用层一份）
+    direct_push.guidance_find_documents("cowork_list_documents", "the pending list or the month card", file_name=True),
     "When the user says which company a document belongs to (for example 'this one is X's'), enter it into that "
     "company's account set (find it with cowork_intake_options search) without asking for the company again. "
     "Abbreviated tax invoices and receipts often name no buyer: the user's word is enough. Point out a conflict "

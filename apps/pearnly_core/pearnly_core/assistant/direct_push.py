@@ -197,6 +197,18 @@ def guidance_troubleshooting(pending_tool: str) -> str:
             f"pending items once with {pending_tool} and, if there are any, mention them briefly.")
 
 
+# 测试窗口第 3 轮：「交给 CC」的预填只写单号、对方、金额、日期（不写内部记录名），CC 要自己按单号找到这几张；ERP 用户同样会这么说
+# （盘点 2026-11-08 P1-3 下沉共用）。``list_tool``：本产品的列单工具；``prefilled``：本产品哪里会预填这样的消息（没有就不写例子）；
+# ``file_name``：列单的搜索认不认文件名（Cowork 认，ERP 单据没有文件名可搜）。
+def guidance_find_documents(list_tool: str, prefilled: str = "", file_name: bool = False) -> str:
+    example = f" (for example a message prefilled from {prefilled})" if prefilled else ""
+    fallback = ("(or the counterparty when there is no number, or the file name when only a file name is given)" if file_name
+                else "(or the counterparty when there is no number)")
+    return (f"When the user names documents by invoice number, counterparty, amount and date{example}, find each one with "
+            f"{list_tool} search set to its invoice number {fallback}, and use the amount and date to tell apart "
+            "documents with the same number.")
+
+
 def cc_desktop(does: str) -> str:
     """Windows 端的正式名字，给模型说一次（四种语言；中文、泰文两段登记在 scripts/i18n/keep-cjk.tsv）：模型照用户的语言说
     这个名字，不自己意译（第 7 批 B8）。``does`` 说它在这个产品里做什么（"reads their folders and writes into Express"）。"""

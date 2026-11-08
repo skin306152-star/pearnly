@@ -376,10 +376,16 @@ class DeclarationTests(unittest.TestCase):
         for line in (direct_push.GUIDANCE_TIMES, direct_push.GUIDANCE_BAHT, direct_push.GUIDANCE_THIS_MONTH,
                      direct_push.GUIDANCE_TABLE_ROWS):
             self.assertIn(line, tools.GUIDANCE)
+        # 按单号、对方、金额、日期找单：与 Cowork 同一句的 ERP 版（盘点 2026-11-08 P1-3），ERP 单据没有文件名可搜
+        find = direct_push.guidance_find_documents("erp_list_documents")
+        self.assertIn(find, tools.GUIDANCE)
+        self.assertIn("erp_list_documents search set to its invoice number (or the counterparty when there is no number)",
+                      find)
+        self.assertNotIn("file name", find)
         cowork = (COWORK / "assistant/tools.py").read_text(encoding="utf-8")
         for used in ("direct_push.resolve_description(", "direct_push.unconfirmed_rule(", "direct_push.scope_props(",
                      "direct_push.RESOLVE_SCHEMA", "direct_push.GUIDANCE_TIMES",
-                     "direct_push.cc_desktop(", "_json = direct_push.dumps"):
+                     "direct_push.cc_desktop(", "_json = direct_push.dumps", "direct_push.guidance_find_documents("):
             self.assertIn(used, cowork)  # Cowork 引用同一份（字节一致由 test_cowork_push_tools_golden 锁住）
 
     def test_the_erp_tool_list_only_has_tools_erp_declares(self):

@@ -561,6 +561,8 @@ GUIDANCE = [
     direct_push.GUIDANCE_THIS_MONTH,
     direct_push.GUIDANCE_BAHT,
     direct_push.GUIDANCE_TABLE_ROWS,
+    # 用户按单号、对方、金额、日期说是哪几张（与 Cowork 同一句，盘点 2026-11-08 P1-3）：ERP 列单的搜索认单号、对方、税号、Express 单号
+    direct_push.guidance_find_documents("erp_list_documents"),
     direct_push.cc_desktop("writes ERP documents into Express"),
     "Call the accounting program by its name, Express. A document already entered into Express is done: CC cannot "
     "change it (its account, cash or credit, amounts or anything else); say so plainly with its number in Express "
