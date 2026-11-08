@@ -345,3 +345,94 @@ def test_close_signals_and_closes_every_started_profile_even_if_one_fails():
 def test_duplicate_profile_ids_fail_closed():
     with pytest.raises(ValueError, match="duplicate Companion profile_id"):
         MultiProfileWorker([_cfg("A"), _cfg("A")])
+
+
+# ── 密钥失效（401）退避：不每 3 秒打服务器（11-08 erpcowork 日志：一台电脑 3 分半里 401 约 70 次） ──
+
+def _status_error(code: int):
+    import httpx
+
+    request = httpx.Request("POST", "https://erpcowork.pearnly.com/api/method/pearnly_cowork.companion.queue_api.lease")
+    return httpx.HTTPStatusError(str(code), request=request, response=httpx.Response(code, request=request))
+
+
+class _Clock:
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
+class _Rejections:
+    def __init__(self):
+        self.calls = []
+
+    def rejected(self, cfg):
+        self.calls.append(("rejected", cfg.profile_id))
+
+    def ok(self, cfg):
+        self.calls.append(("ok", cfg.profile_id))
+
+
+def _poll_times(worker, clock, made, profile_id, seconds, step=1.0):
+    """每 ``step`` 秒跑一轮（跟 run_forever 每轮睡 3 秒等价但更细），记下真正打到服务器的时刻。"""
+    times, last = [], 0
+    end = clock.now + seconds
+    while clock.now < end:
+        worker.run_round()
+        client = made.get(profile_id)
+        if client is not None and client.poll_count != last:
+            last = client.poll_count
+            times.append(clock.now)
+        clock.now += step
+    return times
+
+
+def test_a_key_the_server_refuses_backs_off_exponentially_up_to_ten_minutes():
+    clock = _Clock()
+    made, rejections = {}, _Rejections()
+    cfg = _cfg("A")
+    cfg.poll_interval_ms = 3000
+    worker = MultiProfileWorker(
+        [cfg], queue_factory=_factory({"A": [_status_error(401)] * 100}, made),
+        periodic_runner=_no_periodic, clock=clock, rejections=rejections,
+    )
+    times = _poll_times(worker, clock, made, "A", 3000)
+    gaps = [b - a for a, b in zip(times, times[1:])]
+    assert gaps[:6] == [3.0, 6.0, 12.0, 24.0, 48.0, 96.0]
+    assert max(gaps) == 600.0 and gaps[-1] == 600.0
+    assert len(times) < 15                      # 原来 3000 秒里打 1000 次
+    assert worker.state("A").status == "offline"   # 托盘按 401 显示「连接已失效，请在设置中重新连接」
+    assert rejections.calls and all(call == ("rejected", "A") for call in rejections.calls)
+
+
+def test_one_success_resets_the_back_off_and_other_errors_keep_the_normal_pace():
+    clock = _Clock()
+    made, rejections = {}, _Rejections()
+    cfg = _cfg("A")
+    cfg.poll_interval_ms = 3000
+    script = [_status_error(401)] * 4 + [None] + [_status_error(502)] * 5
+    worker = MultiProfileWorker(
+        [cfg], queue_factory=_factory({"A": script}, made),
+        periodic_runner=_no_periodic, clock=clock, rejections=rejections,
+    )
+    times = _poll_times(worker, clock, made, "A", 200)
+    gaps = [b - a for a, b in zip(times, times[1:])]
+    assert gaps[:4] == [3.0, 6.0, 12.0, 24.0]      # 4 次 401，第 5 次成功
+    # 成功后回到每轮都领（节奏由 run_forever 每轮睡 poll_interval 定）；网络 / 5xx 不按密钥失效退避
+    assert gaps[4:9] == [1.0, 1.0, 1.0, 1.0, 1.0]
+    assert ("ok", "A") in rejections.calls
+
+
+def test_a_backed_off_profile_does_not_hold_up_the_others():
+    clock = _Clock()
+    made = {}
+    a, b = _cfg("A"), _cfg("B")
+    a.poll_interval_ms = b.poll_interval_ms = 3000
+    worker = MultiProfileWorker(
+        [a, b], queue_factory=_factory({"A": [_status_error(401)] * 100}, made),
+        periodic_runner=_no_periodic, clock=clock, rejections=_Rejections(),
+    )
+    _poll_times(worker, clock, made, "A", 60)
+    assert made["A"].poll_count <= 5 and made["B"].poll_count == 60

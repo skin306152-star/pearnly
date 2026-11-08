@@ -22,6 +22,11 @@ from .worker import OFFLINE_AFTER_FAILS, _run_periodic, route_task
 
 log = get_logger(__name__)
 
+# 取任务被服务端拒绝（401：这把密钥服务端不认）时按连续次数退避：poll_interval（3 秒）起每次翻倍，最多 10 分钟一次；
+# 成功一次就回到正常节奏。原来 401 也每 3 秒领一次（11-08 erpcowork 日志：一台电脑 3 分半里 401 约 70 次）。
+# 退避期间这个成员整轮跳过（心跳、认电脑也不发）；重新连接 / 配对会重起取任务线程，新密钥马上照正常节奏。
+AUTH_BACKOFF_MAX_S = 600.0
+
 QueueFactory = Callable[[QueueClientConfig], QueueClient]
 PeriodicRunner = Callable[
     [CompanionConfig, QueueClient, dict, Optional[Callable]], None
@@ -63,6 +68,8 @@ class ProfileRuntimeState:
     last_exception: Optional[Exception] = None
     processed_in_batch: int = 0
     index_batch: object = None
+    auth_streak: int = 0          # 连续几次取任务回 401
+    retry_at: float = 0.0         # 退避到这个时刻（clock）之前不再领
 
     @property
     def paused(self) -> bool:
@@ -94,10 +101,15 @@ class MultiProfileWorker:
         sleeper: Callable[[float], None] = time.sleep,
         announce: Optional[Callable[[CompanionConfig], object]] = None,
         uid_of: Callable[[str], str] = device_facts.cached_uid,
+        clock: Callable[[], float] = time.monotonic,
+        rejections=None,
     ) -> None:
         # announce(cfg)：每轮先给这个成员认一次电脑（device_link.Announcer，到时候才真发）；uid_of：账套目录 → 文件号
         self._announce = announce
         self._uid_of = uid_of
+        self._clock = clock
+        # 连续 401 记到 device_link.REJECTIONS（够条件就把这把密钥标成不能再用，等对话页重新登记）；测试换成假的
+        self._rejections = rejections
         self._queue_factory = queue_factory
         self._periodic_runner = periodic_runner
         self._task_handler = task_handler
@@ -175,7 +187,42 @@ class MultiProfileWorker:
         if state.fail_streak >= OFFLINE_AFTER_FAILS:
             self._emit_status(state, "offline", state.last_error)
 
+    def _rejections_book(self):
+        if self._rejections is None:
+            from . import device_link
+
+            return device_link.REJECTIONS
+        return self._rejections
+
+    def _backing_off(self, state: ProfileRuntimeState) -> bool:
+        return bool(state.retry_at) and self._clock() < state.retry_at
+
+    def _note_poll_error(self, state: ProfileRuntimeState, exc: Exception) -> None:
+        """取任务失败：401 按连续次数退避并记到 REJECTIONS；别的错误（网络、5xx）照正常节奏，退避清零。"""
+        code = getattr(getattr(exc, "response", None), "status_code", None)
+        if code != 401:
+            state.auth_streak = 0
+            state.retry_at = 0.0
+            return
+        state.auth_streak += 1
+        interval = max(1, int(getattr(state.cfg, "poll_interval_ms", 3000) or 3000)) / 1000.0
+        delay = min(interval * (2 ** (state.auth_streak - 1)), AUTH_BACKOFF_MAX_S)
+        state.retry_at = self._clock() + delay
+        log.warning("取任务被服务端拒绝（401，第 %d 次），%.0f 秒后再试 · profile=%s",
+                    state.auth_streak, delay, state.profile_id)
+        try:
+            self._rejections_book().rejected(state.cfg)
+        except Exception:
+            log.exception("记录 401 失败 · profile=%s", state.profile_id)
+
     def _mark_poll_ok(self, state: ProfileRuntimeState) -> None:
+        if state.auth_streak:
+            state.auth_streak = 0
+            state.retry_at = 0.0
+            try:
+                self._rejections_book().ok(state.cfg)
+            except Exception:
+                log.exception("记录 401 恢复失败 · profile=%s", state.profile_id)
         recovered = state.fail_streak > 0
         state.fail_streak = 0
         state.last_error = ""
@@ -232,7 +279,7 @@ class MultiProfileWorker:
         polled = handled = failed = 0
         update_owner = next((s.profile_id for s in self._states if not s.paused), None)
         for state in self._states:
-            if self._skip(state):
+            if self._skip(state) or self._backing_off(state):
                 continue
             if self._announce is not None:
                 try:
@@ -267,6 +314,7 @@ class MultiProfileWorker:
                 polled += 1
             except Exception as exc:
                 failed += 1
+                self._note_poll_error(state, exc)
                 self._mark_failure(state, exc)
                 continue
 
