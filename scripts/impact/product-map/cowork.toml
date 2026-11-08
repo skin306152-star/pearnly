@@ -1080,7 +1080,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:cowork:pearnly-recon-bank"
 where = "侧栏「pearnly-recon-bank」"
-tests = ["flow:cowork.recon.tasks", "flow:cowork.recon.presets", "flow:cowork.recon.exports", "impact:cowork.page.recon-bank"]
+tests = ["flow:cowork.recon.tasks", "flow:cowork.recon.presets", "flow:cowork.recon.exports", "impact:cowork.page.recon-bank", "flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-income"
@@ -1090,7 +1090,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:cowork:pearnly-recon-income"
 where = "侧栏「pearnly-recon-income」"
-tests = ["impact:cowork.page.recon-income"]
+tests = ["impact:cowork.page.recon-income", "flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-vat"
@@ -1100,7 +1100,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:cowork:pearnly-recon-vat"
 where = "侧栏「pearnly-recon-vat」"
-tests = ["impact:cowork.page.recon-vat"]
+tests = ["impact:cowork.page.recon-vat", "flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-stocktake"
@@ -1260,6 +1260,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:Cancel"
 where = "pearnly-recon-bank 页头「Cancel」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-bank.action.Save"
@@ -1269,6 +1270,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:Save"
 where = "pearnly-recon-bank 页头「Save」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-bank.action.cowork.recon.export"
@@ -1288,6 +1290,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:cowork.recon.live.back"
 where = "pearnly-recon-bank 页头「cowork.recon.live.back」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-bank.action.cowork.recon.new"
@@ -1297,6 +1300,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:cowork.recon.new"
 where = "pearnly-recon-bank 页头「cowork.recon.new」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-bank.action.cowork.recon.presets"
@@ -1316,6 +1320,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:cowork.recon.questions"
 where = "pearnly-recon-bank 页头「cowork.recon.questions」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-bank.action.cowork.recon.running"
@@ -1325,6 +1330,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:cowork.recon.running"
 where = "pearnly-recon-bank 页头「cowork.recon.running」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-bank.action.cowork.recon.start"
@@ -1334,6 +1340,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:cowork.recon.start"
 where = "pearnly-recon-bank 页头「cowork.recon.start」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-income.action.Cancel"
@@ -1343,6 +1350,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:Cancel"
 where = "pearnly-recon-income 页头「Cancel」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-income.action.Save"
@@ -1352,6 +1360,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:Save"
 where = "pearnly-recon-income 页头「Save」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-income.action.cowork.recon.export"
@@ -1371,6 +1380,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:cowork.recon.live.back"
 where = "pearnly-recon-income 页头「cowork.recon.live.back」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-income.action.cowork.recon.new"
@@ -1380,6 +1390,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:cowork.recon.new"
 where = "pearnly-recon-income 页头「cowork.recon.new」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-income.action.cowork.recon.presets"
@@ -1389,6 +1400,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:cowork.recon.presets"
 where = "pearnly-recon-income 页头「cowork.recon.presets」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-income.action.cowork.recon.questions"
@@ -1398,6 +1410,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:cowork.recon.questions"
 where = "pearnly-recon-income 页头「cowork.recon.questions」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-income.action.cowork.recon.running"
@@ -1407,6 +1420,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:cowork.recon.running"
 where = "pearnly-recon-income 页头「cowork.recon.running」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-income.action.cowork.recon.start"
@@ -1416,6 +1430,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:cowork.recon.start"
 where = "pearnly-recon-income 页头「cowork.recon.start」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-vat.action.Cancel"
@@ -1425,6 +1440,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-vat:Cancel"
 where = "pearnly-recon-vat 页头「Cancel」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-vat.action.Save"
@@ -1434,6 +1450,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-vat:Save"
 where = "pearnly-recon-vat 页头「Save」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.export"
@@ -1443,6 +1460,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-vat:cowork.recon.export"
 where = "pearnly-recon-vat 页头「cowork.recon.export」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.live.back"
@@ -1452,6 +1470,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-vat:cowork.recon.live.back"
 where = "pearnly-recon-vat 页头「cowork.recon.live.back」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.new"
@@ -1461,24 +1480,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-vat:cowork.recon.new"
 where = "pearnly-recon-vat 页头「cowork.recon.new」"
-
-[[row]]
-id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.presets"
-product = "Cowork"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page-action"
-anchor = "action:cowork:pearnly-recon-vat:cowork.recon.presets"
-where = "pearnly-recon-vat 页头「cowork.recon.presets」"
-
-[[row]]
-id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.questions"
-product = "Cowork"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page-action"
-anchor = "action:cowork:pearnly-recon-vat:cowork.recon.questions"
-where = "pearnly-recon-vat 页头「cowork.recon.questions」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.running"
@@ -1488,6 +1490,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-vat:cowork.recon.running"
 where = "pearnly-recon-vat 页头「cowork.recon.running」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-vat.action.cowork.recon.start"
@@ -1497,6 +1500,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-vat:cowork.recon.start"
 where = "pearnly-recon-vat 页头「cowork.recon.start」"
+tests = ["flow:cowork.recon.run"]
 
 [[row]]
 id = "cowork.desk.pearnly-stocktake.action.cowork.stock.action.export"

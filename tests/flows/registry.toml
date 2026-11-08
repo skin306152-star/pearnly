@@ -854,6 +854,24 @@ covers = [
 ]
 
 [[flow]]
+id = "cowork.recon.run"
+title = "Cowork 对账三类从头做一遍：新建→取消、选文件→开始→结果页、改格保存、提问记预设、预设改答案、进行中→返回、看板→返回、销项导出，逐个核库（清存量基线 11-08）"
+module = "scripts/flows/cowork_recon_run.py"
+product = "cowork"
+start = "/desk/pearnly-recon-income"
+user = "recon"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/recon.js",
+  "apps/pearnly_cowork/pearnly_cowork/recon_center/api.py",
+  "apps/pearnly_cowork/pearnly_cowork/recon_center/jobs.py",
+  "apps/pearnly_cowork/pearnly_cowork/recon_center/sheets.py",
+  "apps/pearnly_cowork/pearnly_cowork/recon_center/presets.py",
+  "apps/pearnly_cowork/pearnly_cowork/recon_center/vat_check.py",
+]
+
+[[flow]]
 id = "erp.stocktake.gs1"
 title = "ERP 盘点：GS1 Data Matrix 按条码认出、没有的 GTIN 当场新建条码记 GTIN（10-30 码制一次覆盖全）"
 module = "scripts/flows/erp_stocktake_gs1.py"

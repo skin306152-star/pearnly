@@ -385,3 +385,13 @@ reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头�
 anchor = "action:erp:pearnly-stock-transfer:trade.newAdjust"
 kind = "internal"
 reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头那颗新建按钮按方向只出本页那一个（title_new）；这个码只是同一行代码的别的方向，这一页不出现"
+
+[[anchor]]
+anchor = "action:cowork:pearnly-recon-vat:cowork.recon.presets"
+kind = "internal"
+reason = "银行 / 收入 / 销项三页共用 recon.js（check-entries 按文件要求三页都声明）；「对账预设」只在有预设规则的银行、收入页出（KINDS.vat 没有 presets），销项页不出现"
+
+[[anchor]]
+anchor = "action:cowork:pearnly-recon-vat:cowork.recon.questions"
+kind = "internal"
+reason = "银行 / 收入 / 销项三页共用 recon.js；「提问 (n)」只在结果带问题时出，服务端只有银行、收入出问题（sheets._build 的 questions），销项页不出现"
