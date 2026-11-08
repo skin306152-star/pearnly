@@ -194,3 +194,25 @@ def test_an_erp_only_computer_still_keeps_its_last_place(tmp_path, monkeypatch):
     settings = _settings(store)
     assert settings.snapshot()["place_channels"]["defaults"] == ["cowork", "core"]
     assert settings.set_place_channels(CLIENT, ["cowork"]) == {"ok": False}
+
+
+def test_changing_a_place_tick_writes_who_changed_what(tmp_path, monkeypatch, caplog):
+    # 11-08 测试机：ERP 被谁、什么时候勾上的只能靠文件时间猜；改勾记一行日志（位置、改前 → 改后、入口与 Windows 登录名）
+    import logging
+
+    from companion import profile_store
+
+    monkeypatch.setenv("PEARNLY_FOLDER_STATE_DIR", str(tmp_path / "folders"))
+    monkeypatch.setattr(desktop_settings.master_refresh, "rescan_soon", lambda: None)
+    monkeypatch.setattr(profile_store, "_login_name", lambda: "skin3")
+    store = _load(tmp_path / "companion.json")
+    _member(store, COWORK_TOKEN, "https://testcowork.pearnly.com")
+    _member(store, ERP_TOKEN, "https://testerp.pearnly.com")
+    store.set_places([FIRM])
+    settings = _settings(store)
+    with caplog.at_level(logging.INFO, logger="companion.profile_store"):
+        settings.set_place_channels(FIRM, ["cowork", "core"])
+        settings.set_place_channels(FIRM, ["cowork", "core"])   # 没变不记
+    lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("Express 位置 " + FIRM)]
+    assert lines == [f"Express 位置 {FIRM} 给哪几种成员：['cowork'] → ['cowork', 'core']（设置页，skin3）"]
+

@@ -420,19 +420,23 @@ class ProfileStore:
         self._write(settings, self._profiles)
         self.global_settings = settings
 
-    def set_place_channels(self, path: str, kinds) -> None:
-        """一个位置给哪几种成员读（设置页的「Cowork / ERP」勾，place_channels）。位置不在清单里抛 :class:`ProfileStoreError`。"""
-        from .express_places import CHANNELS, same_root
+    def set_place_channels(self, path: str, kinds, *, by: str = "设置页") -> None:
+        """一个位置给哪几种成员读（设置页的「Cowork / ERP」勾，place_channels）。位置不在清单里抛 :class:`ProfileStoreError`。
+        改了就记一行日志：哪个位置、从什么改成什么、谁改的（入口 + Windows 登录名；11-08 测试机查「谁勾上了 ERP」只能靠文件时间）。"""
+        from .express_places import CHANNELS, channels_of, same_root
 
         place = next((item for item in self.global_settings.express_places if same_root(item, path)), "")
         if not place:
             raise ProfileStoreError("place not found")
         wanted = tuple(name for name in CHANNELS if name in set(kinds or ()))
+        before = tuple(channels_of(place, self.global_settings.place_channels))
         pairs = tuple(item for item in self.global_settings.place_channels if not same_root(item[0], place))
         # 别的位置照旧；万一还有没登记的，按成员补（_settled），不因为改了这一个就给出去
         settings = self._settled(replace(self.global_settings, place_channels=((place, wanted), *pairs)), self._profiles)
         self._write(settings, self._profiles)
         self.global_settings = settings
+        if before != wanted:
+            log.info("Express 位置 %s 给哪几种成员：%s → %s（%s，%s）", place, list(before), list(wanted), by, _login_name())
 
     @staticmethod
     def _settled(settings: GlobalSettings, profiles) -> GlobalSettings:
@@ -680,3 +684,13 @@ __all__ = [
     "UnavailableProtector",
     "WindowsCurrentUserProtector",
 ]
+
+
+def _login_name() -> str:
+    """这台电脑当前登录的 Windows 用户名（记日志用）；取不到写「未知」。"""
+    try:
+        import getpass
+
+        return getpass.getuser() or "未知"
+    except Exception:
+        return "未知"
