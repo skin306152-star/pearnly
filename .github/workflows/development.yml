@@ -165,6 +165,8 @@ jobs:
         run: python3 scripts/check-http-methods.py && python3 tests/test_check_http_methods.py && node --test tests/test-intake-targets-online.cjs
       - name: A ternary's else branch that uses || or ?? is parenthesised (unit registration lost scanned numbers to this precedence)
         run: python3 scripts/check-mixed-ternary.py && python3 tests/test_check_mixed_ternary.py && node --test tests/test-serials-register.cjs
+      - name: LINE button labels are at most 20 characters in every language (LINE cuts longer ones; a cut word is a defect)
+        run: python3 scripts/check-line-labels.py && python3 tests/test_check_line_labels.py
       - name: Verify MR.ERP master defaults are read from the company, never hard-coded
         run: python3 tests/test_cowork_mrerp_masters.py
       - name: MR.ERP rules shared in pearnly_core import no product and reach the network only from the session and the import; Cowork push preparation stays pure

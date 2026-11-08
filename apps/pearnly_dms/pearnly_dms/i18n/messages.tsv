@@ -152,7 +152,7 @@ Type menu to bring up this menu any time	随时输入 菜单 即可调出此菜�
 Customer data	客户资料	จัดทำข้อมูลลูกค้า	顧客データ	dms.card.TXT_MENU_ITEM1
 Car booking	订车	จัดทำใบจอง	車の予約	dms.card.TXT_MENU_ITEM2
 Open DMS	进入 DMS	เข้าสู่ระบบ DMS	DMS を開く	dms.card.TXT_MENU_ITEM3
-Account & password	修改账号密码	เปลี่ยนบัญชีและรหัสผ่าน	アカウントとパスワード	dms.card.TXT_MENU_ITEM4
+Account & password	修改账号密码	บัญชีและรหัสผ่าน	アカウントとパスワード	dms.card.TXT_MENU_ITEM4
 Search data	查询资料	ค้นหาข้อมูล	データ検索	dms.card.TXT_MENU_ITEM5
 Manual	使用手册	คู่มือ	マニュアル	dms.card.TXT_MENU_ITEM6
 Please choose a menu	请选择需要的菜单	กรุณาเลือกเมนูที่ต้องการ	メニューを選んでください	dms.card.TXT_MENU_PICK
@@ -355,7 +355,7 @@ Contract opened	已签合同	เปิดสัญญาแล้ว	契約締�
 Draft	草稿	แบบร่าง	下書き	dms.card.query.ST_DRAFT
 Finance approved	贷款已批	ไฟแนนซ์อนุมัติแล้ว	ローン承認済み	dms.card.query.ST_FINANCE_APPROVED
 Finance pending	贷款待批	ไฟแนนซ์รออนุมัติ	ローン審査中	dms.card.query.ST_FINANCE_PENDING
-Awaiting manager	待销售经理审批	รอผู้จัดการฝ่ายขายอนุมัติ	営業マネージャー待ち	dms.card.query.ST_MANAGER_PENDING
+Awaiting manager	待销售经理审批	รอผจก.ฝ่ายขายอนุมัติ	営業マネージャー待ち	dms.card.query.ST_MANAGER_PENDING
 Ready for pickup	可提车	พร้อมรับรถ	納車準備完了	dms.card.query.ST_READY
 Not allocated yet	尚未配车	ยังไม่จัดสรรรถ	未割当	dms.card.query.ST_UNALLOCATED
 Top sales	销售排行	อันดับยอดขาย	販売ランキング	dms.card.query.TITLE_TOP

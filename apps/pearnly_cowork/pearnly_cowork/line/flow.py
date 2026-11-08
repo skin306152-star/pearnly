@@ -77,7 +77,7 @@ def _ask(reply_token, text, items):
 
 def menu(reply_token):
     """手打「เมนู」：给「发单据进 ERP」一个原生按钮（与富菜单同一个 postback）。"""
-    _ask(reply_token, _("Choose what to do"), [_button(_("Send documents to ERP"), START)])
+    _ask(reply_token, _("Choose what to do"), [_button(_("Send to ERP"), START)])
 
 
 # ── 各步 ────────────────────────────────────────────────────────────────────

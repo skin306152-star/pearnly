@@ -30,7 +30,7 @@ Approve,อนุมัติ
 As confirmed,ตามที่ยืนยัน
 As in DMS,ตามข้อมูลใน DMS
 Attached,แนบแล้ว
-Awaiting manager,รอผู้จัดการฝ่ายขายอนุมัติ
+Awaiting manager,รอผจก.ฝ่ายขายอนุมัติ
 Back to chat,กลับไปที่แชท
 Bank transfer,เงินโอน
 Booking,ใบจอง
@@ -546,7 +546,7 @@ dms.card.TXT_MENU_HINT,พิมพ์ เมนู เพื่อเรีย�
 dms.card.TXT_MENU_ITEM1,จัดทำข้อมูลลูกค้า
 dms.card.TXT_MENU_ITEM2,จัดทำใบจอง
 dms.card.TXT_MENU_ITEM3,เข้าสู่ระบบ DMS
-dms.card.TXT_MENU_ITEM4,เปลี่ยนบัญชีและรหัสผ่าน
+dms.card.TXT_MENU_ITEM4,บัญชีและรหัสผ่าน
 dms.card.TXT_MENU_ITEM5,ค้นหาข้อมูล
 dms.card.TXT_MENU_ITEM6,คู่มือ
 dms.card.TXT_MENU_PICK,กรุณาเลือกเมนูที่ต้องการ
@@ -756,7 +756,7 @@ dms.card.query.ST_CONTRACT_OPENED,เปิดสัญญาแล้ว
 dms.card.query.ST_DRAFT,แบบร่าง
 dms.card.query.ST_FINANCE_APPROVED,ไฟแนนซ์อนุมัติแล้ว
 dms.card.query.ST_FINANCE_PENDING,ไฟแนนซ์รออนุมัติ
-dms.card.query.ST_MANAGER_PENDING,รอผู้จัดการฝ่ายขายอนุมัติ
+dms.card.query.ST_MANAGER_PENDING,รอผจก.ฝ่ายขายอนุมัติ
 dms.card.query.ST_READY,พร้อมรับรถ
 dms.card.query.ST_UNALLOCATED,ยังไม่จัดสรรรถ
 dms.card.query.TITLE_TOP,อันดับยอดขาย

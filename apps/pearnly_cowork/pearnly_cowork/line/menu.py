@@ -84,8 +84,9 @@ def payload(variant, language) -> dict:
             action = {"type": "uri", "label": _("Task Management", lang=language)[:20],
                       "uri": line_login.entry_url(WORK_ROUTE)}
         else:
+            # 按钮 label 最多 20 字：用短说法；点了在聊天里显示的仍是菜单图上的全称
             label = _("Send documents to ERP", lang=language)
-            action = {"type": "postback", "data": flow.START, "displayText": label, "label": label[:20]}
+            action = {"type": "postback", "data": flow.START, "displayText": label, "label": _("Send to ERP", lang=language)[:20]}
         areas.append({"bounds": _cell(index), "action": action})
     return {"size": {"width": SIZE[0], "height": SIZE[1]}, "selected": False,
             "chatBarText": _("Cowork menu", lang=language)[:14], "areas": areas}
