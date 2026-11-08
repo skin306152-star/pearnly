@@ -169,6 +169,9 @@
     `ISACC.ACCNUM01`、定期盘存借 `ACCNUM02`，同科目一条、SEQIT 0，不再追加「借存货 / 贷购货」重分类（SEQIT 7 / 8）；定期账套的购货不再全记进
     账套默认 ACCNUM18（`purchase_lines.stock_journal`）。科目组的科目不能记账或不在科目表 → 记账套默认（永续 ACCNUM04、定期 ACCNUM18；
     11-08 用 614 本真账副本核过：不能记账的那组原生 296 张里 259 张记账套默认）。
+  - 销货单的收入照 Express 原生按物料科目组记（`docs/work/2026-11-07-cc-sales-revenue-native-评估.md`；载荷不变）：每行物料科目组的收入科目
+    `ISACC.ACCNUM03` 能记账、不是费用类 → 这一行记它（同科目一条、SEQIT 5），没配 / 不能记账 / 费用类照载荷（`dbf_sales.revenue_journal`）；
+    回执 `meta.revenue` 带实际记的收入，服务端读回按它比分录。**先部署服务端再发**（旧服务端滤掉 `revenue`，读回会把照科目组记的收入报成改过）。
 
 ## 本机测试
 
