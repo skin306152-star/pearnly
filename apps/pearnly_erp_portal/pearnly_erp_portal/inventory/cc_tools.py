@@ -1,4 +1,4 @@
-"""ERP 版 CC 的盘点工具（盘点 2026-11-08 P1-1）：在对话里列盘点、看差异、新建、按码记实盘数、结束、按结果生成物料调整单草稿。
+"""ERP 版 CC 的盘点工具（盘点 2026-11-08 P1-1）与收发存报表导出（``erp_stock_card_export``，同网页导出）：在对话里列盘点、看差异、新建、按码记实盘数、结束、按结果生成物料调整单草稿。
 
 - 形状照 Cowork 的 ``cowork_stocktake_*``（列表、结果、记数、结束），ERP 自己在 ``hooks.py`` 的 ``pearnly_assistant_tools`` 声明（ADR-009）；
   两份盘点代码不在这里合并，工具只调 ERP 盘点页同一组服务函数（``inventory.count``），权限、仓库可见、锁与审阅令牌都由它们核。
@@ -152,6 +152,32 @@ def stocktake_adjust(tool_input) -> str:
     return _json({**out, "state": "draft"})
 
 
+FILE_NOTE = ("Added to this conversation: the user opens it in the chat. It was not saved to any folder on the user's "
+             "computer.")  # 同 Cowork ``FILES_ADDED_NOTE``（10-13 测试机：CC 说放进了「结果文件夹」，用户去电脑上找）
+
+
+def stock_card_export(tool_input) -> str:
+    """收发存报表（照 MR.ERP 三种：合并全部仓 / 汇总 / 分仓；Excel / PDF），调网页导出同一个 ``card_export.build``（权限、成本可见、
+    范围都由它核），文件放进对话。工具跑在对话的后台任务里（30 分钟时限，不受网页请求 120 秒限制），大的也当场生成，同 Cowork
+    的导出工具；不排网页的后台导出（那条做完只在网页上提示下载，对话里拿不到）。"""
+    from pearnly_core.assistant import files as chat_files
+    from pearnly_erp_portal.inventory import card_export
+
+    company, reason = _company(tool_input)
+    if reason:
+        return _json({"status": "not_exported", "reason": reason})
+    args = {key: tool_input.get(key) for key in card_export.ARGS if tool_input.get(key) not in (None, "")}
+    with _in(company):
+        try:
+            built = card_export.build(**args)
+            path = chat_files.add_to_conversation(built["filename"], built["content"],
+                                                  card_export.content_type(args.get("format")))
+        except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+            frappe.clear_messages()
+            return _json({"status": "not_exported", "reason": str(error)[:300]})
+    return _json({"status": "exported", "file": path, "files_added_to_chat": True, "files_note": FILE_NOTE})
+
+
 COMPANY_PROP = {"type": "string", "description": "Only when the stock count is for another company than the one this "
                                                  "conversation is filed under: that company's id, after checking with "
                                                  "the user."}
@@ -203,6 +229,20 @@ TOOLS = [
                     "(give the user its number). If the count already has one, that one is returned.",
      "input_schema": {"type": "object", "properties": {"count": {"type": "string"}}, "required": ["count"]},
      "handler": "pearnly_erp_portal.inventory.cc_tools.stocktake_adjust"},
+    {"name": "erp_stock_card_export", "label": "Exported the stock receipt-issue report",
+     "description": "The stock receipt-issue report as a file in this conversation, like Export on the stock page (the "
+                    "MR.ERP layouts): report all = every warehouse together, summary = one line per product, "
+                    "by_warehouse = each warehouse separately; format xlsx or pdf. Dates are YYYY-MM-DD. Product and "
+                    "warehouse ranges are codes, both ends included; leave them out for everything (warehouse range only "
+                    "for by_warehouse). Ask the user which report, format and dates when they did not say.",
+     "input_schema": {"type": "object", "properties": {
+         "report": {"type": "string", "enum": ["all", "summary", "by_warehouse"]},
+         "format": {"type": "string", "enum": ["xlsx", "pdf"]},
+         "date_from": {"type": "string"}, "date_to": {"type": "string"},
+         "product_from": {"type": "string"}, "product_to": {"type": "string"},
+         "warehouse_from": {"type": "string"}, "warehouse_to": {"type": "string"}, "company": COMPANY_PROP},
+         "required": ["report", "format", "date_from", "date_to"]},
+     "handler": "pearnly_erp_portal.inventory.cc_tools.stock_card_export"},
 ]
 
 STEP_NAMES = {
@@ -212,4 +252,5 @@ STEP_NAMES = {
     "erp_stocktake_count": "Recording a count",
     "erp_stocktake_close": "Finishing a stock count",
     "erp_stocktake_adjust": "Creating an adjustment from a stock count",
+    "erp_stock_card_export": "Exporting the stock receipt-issue report",
 }

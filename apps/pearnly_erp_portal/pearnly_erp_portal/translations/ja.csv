@@ -562,7 +562,9 @@ Expense Count,経費件数
 Export,エクスポート
 Export Excel,Excel に出力
 Export {0},{0}件をエクスポート
+Exported the stock receipt-issue report,入出庫レポートを出力しました
 Exported {0} shifts,{0}件のシフトを出力しました
+Exporting the stock receipt-issue report,入出庫レポートを出力しています
 Express,Express
 Express Account Set,Express 帳簿
 Express Choices Needed,Express の選択待ち

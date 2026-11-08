@@ -562,7 +562,9 @@ Expense Count,จำนวนรายการค่าใช้จ่าย
 Export,ส่งออก
 Export Excel,ส่งออก Excel
 Export {0},ส่งออก {0} กะ
+Exported the stock receipt-issue report,ส่งออกรายงานรับ-จ่ายสินค้าแล้ว
 Exported {0} shifts,ส่งออก {0} กะแล้ว
+Exporting the stock receipt-issue report,กำลังส่งออกรายงานรับ-จ่ายสินค้า
 Express,Express
 Express Account Set,ชุดบัญชี Express
 Express Choices Needed,รายการที่ต้องเลือกสำหรับ Express

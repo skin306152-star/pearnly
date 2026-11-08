@@ -98,6 +98,19 @@ sys.modules["pearnly_erp_portal.masters"].company = companies
 sys.modules["pearnly_erp_portal.inventory"].count = count
 sys.modules["pearnly_erp_portal.masters"].cc_tools = cc_masters
 
+# 收发存导出（``erp_stock_card_export``）：网页导出同一个 ``card_export.build``、对话附件 ``assistant.files``
+card_export = types.ModuleType("pearnly_erp_portal.inventory.card_export")
+card_export.ARGS = ("report", "format", "date_from", "date_to", "product_from", "product_to", "warehouse_from",
+                    "warehouse_to")
+card_export.content_type = lambda output: {"xlsx": "application/xlsx", "pdf": "application/pdf"}.get(output)
+sys.modules["pearnly_erp_portal.inventory.card_export"] = card_export
+sys.modules["pearnly_erp_portal.inventory"].card_export = card_export
+chat_files = types.ModuleType("pearnly_core.assistant.files")
+for name in ("pearnly_core", "pearnly_core.assistant"):
+    sys.modules.setdefault(name, types.ModuleType(name))
+sys.modules["pearnly_core.assistant.files"] = chat_files
+sys.modules["pearnly_core.assistant"].files = chat_files
+
 import importlib.util  # noqa: E402
 
 spec = importlib.util.spec_from_file_location("pearnly_erp_portal.inventory.cc_tools", ERP / "inventory/cc_tools.py")
@@ -202,6 +215,39 @@ class Behaviour(unittest.TestCase):
         self.assertEqual(DB.rollbacks, before + 1)
 
 
+class StockCardExport(unittest.TestCase):
+    """收发存导出：调网页导出同一个 ``build``（权限、范围由它核），在对话挂的那家公司下生成，文件放进对话；拒绝回原因不抛。"""
+
+    def setUp(self):
+        CALLS.clear()
+        cc_masters.FILED = "C-1"
+        card_export.build = _record("build", {"filename": "stock-card.pdf", "content": b"%PDF"})
+        chat_files.add_to_conversation = _record("add", "/mnt/session/outputs/stock-card.pdf")
+
+    def test_the_web_export_runs_under_the_filed_company_and_the_file_lands_in_the_chat(self):
+        out = run("stock_card_export", report="by_warehouse", format="pdf", date_from="2026-10-01",
+                  date_to="2026-10-31", product_from="", warehouse_from="W01")
+        self.assertEqual(out["status"], "exported")
+        self.assertTrue(out["files_added_to_chat"])
+        build, add = CALLS
+        self.assertEqual(build[2], {"report": "by_warehouse", "format": "pdf", "date_from": "2026-10-01",
+                                    "date_to": "2026-10-31", "warehouse_from": "W01", "_acting": "C-1"})  # 空的不传
+        self.assertEqual(add[1], ("stock-card.pdf", b"%PDF", "application/pdf"))
+
+    def test_refusals_and_unknown_companies_come_back_as_reasons(self):
+        card_export.build = _record("build", error=ValidationError("Invalid value"))
+        self.assertEqual(run("stock_card_export", report="all", format="xlsx", date_from="x", date_to="y"),
+                         {"status": "not_exported", "reason": "Invalid value"})
+        out = run("stock_card_export", report="all", format="xlsx", date_from="2026-10-01", date_to="2026-10-31",
+                  company="C-9")
+        self.assertEqual(out["status"], "not_exported")
+        self.assertEqual([c[0] for c in CALLS], ["build"])  # 认不出的公司不生成
+        card_export.build = _record("build", {"filename": "stock-card.xlsx", "content": b"PK"})
+        out = run("stock_card_export", report="summary", format="xlsx", date_from="2026-10-01", date_to="2026-10-31",
+                  company="C-2")
+        self.assertEqual((out["status"], CALLS[-1][2]["_acting"]), ("exported", "C-2"))
+
+
 class Declaration(unittest.TestCase):
     def test_erp_declares_them_with_cowork_s_shape_words_and_no_allow_card(self):
         hooks = (ERP / "hooks.py").read_text(encoding="utf-8")
@@ -210,11 +256,13 @@ class Declaration(unittest.TestCase):
         names = [tool["name"] for tool in tools.TOOLS]
         self.assertEqual(sorted(names), sorted(tools.STEP_NAMES))
         self.assertEqual(set(names), {"erp_stocktake_list", "erp_stocktake_report", "erp_stocktake_create",
-                                      "erp_stocktake_count", "erp_stocktake_close", "erp_stocktake_adjust"})
+                                      "erp_stocktake_count", "erp_stocktake_close", "erp_stocktake_adjust",
+                                      "erp_stock_card_export"})
         by_name = {tool["name"]: tool["handler"].rpartition(".")[2] for tool in tools.TOOLS}
         self.assertEqual(by_name, {"erp_stocktake_list": "stocktake_list", "erp_stocktake_report": "stocktake_report",
                                    "erp_stocktake_create": "stocktake_create", "erp_stocktake_count": "stocktake_count",
-                                   "erp_stocktake_close": "stocktake_close", "erp_stocktake_adjust": "stocktake_adjust"})
+                                   "erp_stocktake_close": "stocktake_close", "erp_stocktake_adjust": "stocktake_adjust",
+                                   "erp_stock_card_export": "stock_card_export"})
 
         def terms(path):
             return {line.split("\t")[0]: line.split("\t")[1:4]
@@ -228,8 +276,8 @@ class Declaration(unittest.TestCase):
             self.assertTrue(callable(getattr(tools, func)))
             for text in (tool["label"], tools.STEP_NAMES[tool["name"]]):
                 self.assertTrue(all(erp.get(text, [""])[:3]), f"{text} needs zh / th / ja")
-            if tool["name"] == "erp_stocktake_adjust":
-                continue  # 只有 ERP 有（Cowork 盘点不生成调整单）
+            if tool["name"] in ("erp_stocktake_adjust", "erp_stock_card_export"):
+                continue  # 只有 ERP 有（Cowork 盘点不生成调整单；收发存报表是 ERP 库存的）
             twin = "cowork_" + tool["name"][len("erp_"):]
             start = source.index(f'{{"name": "{twin}", "label": "{tool["label"]}"')  # 同名工具、同一个步骤名
             end = source.find('{"name": "cowork_', start + 10)

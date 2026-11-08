@@ -562,7 +562,9 @@ Expense Count,费用笔数
 Export,导出
 Export Excel,导出 Excel
 Export {0},导出选中的 {0} 个班次
+Exported the stock receipt-issue report,导出了收发存报表
 Exported {0} shifts,已导出 {0} 个班次
+Exporting the stock receipt-issue report,正在导出收发存报表
 Express,Express
 Express Account Set,Express 账套
 Express Choices Needed,Express 待选项
