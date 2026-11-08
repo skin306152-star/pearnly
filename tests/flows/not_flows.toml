@@ -95,3 +95,7 @@ reason = "对话页的安装提示只按设备出（Windows 浏览器下载 CC �
 [[file]]
 file = "apps/pearnly_core/pearnly_core/assistant/webhook.py"
 reason = "CC 引擎回调入口：引擎控制台登记的公网回调地址发来、带引擎签名的空闲通知，回归实验室收不到也签不了；验签、去重、排后台任务、对话已删时静默收手由 tests/test_assistant.py 离线守住"
+
+[[file]]
+file = "apps/pearnly_core/pearnly_core/line.py"
+reason = "LINE 收发与收件人语言（user_language 问 LINE profile 接口）：回归实验室没有 LINE 通道、不连外网，没有流程能走到。语言规则（跟手机 LINE 语言；不在四种里或问不到时绑定账号的语言优先）由候选离线 pearnly_erp_portal.integrations.test_line_intake.Language 守住；真机由三星走 testerp / testcowork 的 LINE 入口验收"
