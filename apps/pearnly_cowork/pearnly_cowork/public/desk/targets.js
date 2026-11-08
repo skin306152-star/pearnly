@@ -64,7 +64,8 @@
 	 *  `needs_update`，与推送记录上的 `payload_version_outdated` 同一判据）→「CC 桌面版需更新」；否则空串。读不出也是空串。 */
 	async function account_note(connection, account_set_key) {
 		if (connection?.adapter !== "express" || !account_set_key) return "";
-		const found = await frappe.xcall(API.companion + "online", {connection: connection.name, account_set_key})
+		// `online` 只收 GET：用产品壳 p.call（默认 GET），不用 frappe.xcall（默认 POST，回 403 弹「没有权限」，11-08）
+		const found = await p.call(API.companion + "online", {connection: connection.name, account_set_key})
 			.catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "targets"); return (() => null)(caughtError); });
 		return found?.needs_update ? __("intake.agent.state.needsUpdate") : "";
 	}
@@ -127,7 +128,7 @@
 				connection = main_of(rows, adapter);
 			}
 			if (!connection) return paint(false);
-			const result = await frappe.xcall(API.companion + "online", {connection: connection.name}).catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "targets"); return (() => null)(caughtError); });
+			const result = await p.call(API.companion + "online", {connection: connection.name}).catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "targets"); return (() => null)(caughtError); });
 			paint(Boolean(result?.online));
 		};
 		const timer = setInterval(() => void check(), 3000);

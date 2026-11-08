@@ -147,6 +147,8 @@ jobs:
         run: node tests/test-link-options.cjs
       - name: Endpoints reachable by GET do not write (Frappe does not commit GET requests; the mobile stocktake lookup lost its rows this way)
         run: python3 scripts/check-get-writes.py && python3 tests/test_check_get_writes.py
+      - name: Pages call whitelisted endpoints with the HTTP method the endpoint declares (the Express connect dialog posted to a GET-only endpoint and popped no-permission every 3 seconds)
+        run: python3 scripts/check-http-methods.py && python3 tests/test_check_http_methods.py && node --test tests/test-intake-targets-online.cjs
       - name: A ternary's else branch that uses || or ?? is parenthesised (unit registration lost scanned numbers to this precedence)
         run: python3 scripts/check-mixed-ternary.py && python3 tests/test_check_mixed_ternary.py && node --test tests/test-serials-register.cjs
       - name: Verify MR.ERP master defaults are read from the company, never hard-coded
