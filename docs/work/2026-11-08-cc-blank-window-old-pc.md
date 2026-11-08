@@ -56,7 +56,11 @@
 ## 附：取任务 401 每 3 秒重试（11-08 erpcowork 19:20–19:23，主会话转来）
 - 老接口 + 旧更新地址 404 符合搬进本仓前的 Pearnly Companion ≤1.1.77：领任务 `POST /api/erp/agent/lease`、更新查
   `<连接站点>/static/companion/latest.json`；实测 erpcowork 错密钥分别回 401、404。那时的循环出错就睡 3 秒再试、没有上限。
-  （日志的路径、User-Agent、来源 IP、首末时刻待线上压测窗口转来后核实补记。）
+  日志核实（线上压测窗口只读查生产 nginx 计时日志 `pearnly-timing.log`，泰国时间）：`POST /api/erp/agent/lease` 63 次全 401、
+  19:20:31–19:23:52 约每 3 秒；`/api/erp/agent/heartbeat` 4 次全 401、约每 60 秒；`GET /static/companion/latest.json` 2 次全 404
+  （19:20:30、19:21:34）；19:23:52 后不再出现。老路径由服务端 `pearnly_cowork/companion/legacy_wire.py` 转到新接口，401 是密钥失效。
+  同段新接口：19:24:11、19:45:13 各一次 `folder_intake.machine.sync`（200），19:34:54 一次 `queue_api.lease`（499，长轮询被断开）——
+  老版停下 19 秒后出现新接口，符合「装新版时安装包按文件名结束了老版」；来源 IP 与 User-Agent 计时日志没有，待下次必要的只读查询补。
 - 当前 1.12.x：取任务 401 也照样每 3 秒领；只有心跳的 401 记进 `device_link.REJECTIONS`，满 60 秒才把这把密钥标成不能再用、停止取任务，
   所以每台密钥失效的电脑停下前要打 20–40 次。
 - 1.12.19 修（主会话 11-08 审定）：取任务 401 按连续次数退避（3、6、12……秒，最多 10 分钟），成功即复原；退避期间整轮跳过（心跳、认电脑也不发）；
