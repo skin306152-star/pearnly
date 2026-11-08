@@ -1409,15 +1409,6 @@ where = "pearnly-warehouses 页头「company.newWarehouse」"
 tests = ["flow:erp.company.actions"]
 
 [[row]]
-id = "erp.desk.query-report-erp stock count variance.action.Export"
-product = "ERP"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page-action"
-anchor = "action:erp:query-report/ERP Stock Count Variance:Export"
-where = "query-report/ERP Stock Count Variance 页头「Export」"
-
-[[row]]
 id = "erp.desk.report.erp_stock_count_variance"
 product = "ERP"
 channel = "desk"

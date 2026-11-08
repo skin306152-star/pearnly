@@ -522,7 +522,8 @@ pearnly_navigation = [{'product': 'erp',
     "pearnly-team": ["team.new", "Save", "Cancel"],
     "pearnly-warehouses": ["company.newWarehouse"],
     "Form/User": ["Save"],
-    "query-report/ERP Stock Count Variance": ["Export"],
+    # 盘点差异报表页头不放原生「导出」（主会话 11-08）：租户账号本来就没有它的导出权限、看不到；导出走盘点单页自己的「导出」
+    # （账面 / 实盘 / 差异 / 差异金额 / 仓库 / 仓位都在）。
   },
   # 允许的全局快捷键：Ctrl+S 保存 / 主按钮。其余原生全局快捷键（搜索栏、全局搜索、快捷键表、清缓存重载、控制台、换主题……）不注册；
   # 挂在我们自己页面上的（收银台）照常。

@@ -24,5 +24,3 @@ erp.cc.action.delete-chats@desktop
 erp.cc.action.delete-chats@mobile
 erp.cc.view.tasks@desktop
 erp.cc.view.tasks@mobile
-erp.desk.query-report-erp stock count variance.action.Export@desktop
-erp.desk.query-report-erp stock count variance.action.Export@mobile
