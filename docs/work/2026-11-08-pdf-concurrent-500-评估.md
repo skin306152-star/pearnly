@@ -222,6 +222,7 @@
 | `cowork.transaction`（Cowork CC 成员通道） | 没测到：同上 |
 | `cc.mrerp-login` | 没测到：要 CC 桌面版与 MR.ERP 账号 |
 | `cc.assistant` | 通过：`cc.chat`、`cc.settings` 新老两套、电脑与手机 |
+| `erp.exports`（`purchasing/output.py` 也出采购导出表） | 通过：`erp.exports` 新老两套、电脑与手机 |
 | `shared.exports` | 通过：`erp.exports`、`cowork.exports`（CC 附件下载没测到：要测试机） |
 | `shared.navigation` | 通过：各流程都从侧栏页面进入（`erp.company.settings` 等）；用户菜单逐项没单测 |
 | `shared.upload.shrink-photo` | 通过：`shared.upload.take-photo` |
