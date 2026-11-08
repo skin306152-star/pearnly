@@ -2339,6 +2339,20 @@ class OperatorPrecheck(PushModule):
                 self.assertEqual((found["state"], found["reason"]), ("queued", ""))
                 self.assertEqual(answer, {"ok": False, "reason": "computer_checks"})
         self.assertEqual(calls, [(self.push.PURCHASE, "PI-1", True, "RR9")])
+        # 单据页的 Express 弹窗同一套：核对不了 → 给「在 Express 里的结果」，不给「再写一次」（会钉回核对不了的电脑）
+        doc = types.SimpleNamespace(name="PI-1", company="CO-1", ledger_state="held", ledger_job="J1", ledger_book=None,
+                                    ledger_docnum="", ledger_reason=self.operator.jobs.LOST, get=lambda key: None)
+        for gone in (False, True):
+            with mock.patch.object(api.push, "enabled", lambda company: True), \
+                    mock.patch.object(api.jobs, "find_by_name", lambda name: lost), \
+                    mock.patch.object(api.jobs, "needs_person", lambda job: gone), \
+                    mock.patch.object(api, "_party_blocked", lambda *args: None), \
+                    mock.patch.object(api, "_needed", lambda row: []), \
+                    mock.patch.object(api.guard, "has", lambda capability, user=None: True):
+                view = api._view(self.push.PURCHASE, doc)
+            self.assertEqual((view["can_resolve"], view["can_retry"]), (gone, not gone))
+        page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js").read_text(encoding="utf-8")
+        self.assertIn('api + "resolve_unknown"', page)
         hooks = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")
         self.assertIn('"resolve": "pearnly_erp_portal.express.operator.resolve"', hooks)
 

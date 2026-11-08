@@ -230,6 +230,12 @@
 			...(info.vat_whole ? [{fieldtype: "Check", fieldname: "vat_whole", label: __("Whole document taxed"),
 				read_only: 1, default: 1}] : []),
 			...needed_fields(info.needed, direction),
+			// 结果不明、原电脑核对不了（ADR-027 §6，同 Cowork 复核页「核对」）：人在 Express 里核对后报结论
+			...(info.can_resolve ? [
+				{fieldtype: "Select", fieldname: "outcome", label: __("express.unknown.outcome"), reqd: 1,
+					options: [{value: "entered", label: __("It was entered")}, {value: "not_entered", label: __("It was not entered")}]},
+				{fieldtype: "Data", fieldname: "entered_docnum", label: __("Express No."),
+					depends_on: "eval:doc.outcome === 'entered'"}] : []),
 			// 收银日汇总 / 退货单停住时的出口：人在 Express 里手工处理好了，标一下就不再写（主会话 10-26）
 			...(info.can_mark_handled ? [{fieldtype: "Button", fieldname: "mark_handled", label: __("express.action.markHandled"),
 				click: () => frappe.prompt([{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), reqd: 1}], async values => {
@@ -239,17 +245,21 @@
 					await reload?.();
 				}, __("express.action.markHandled"))}] : []),
 		];
-		const action = info.can_answer ? __("Save") : info.can_retry ? __("Retry") : __("Close");
+		const action = info.can_answer || info.can_resolve ? __("Save") : info.can_retry ? __("Retry") : __("Close");
 		p.dialog(__("Express"), fields, action, async (values, dialog) => {
 			if (info.can_answer) {
 				await p.call(api + "answer", {doctype, name, answers: JSON.stringify(answers_of(info.needed, values))}, "POST");
+				p.success(__("Saved"), "click");
+			} else if (info.can_resolve) {
+				await p.call(api + "resolve_unknown", {doctype, name, entered: values.outcome === "entered" ? 1 : 0,
+					docnum: values.entered_docnum || ""}, "POST");
 				p.success(__("Saved"), "click");
 			} else if (info.can_retry) {
 				await p.call(api + "retry", {doctype, name}, "POST");
 				p.success(__("Queued"), "submit");
 			}
 			dialog.hide();
-			if (info.can_answer || info.can_retry) await reload?.();
+			if (info.can_answer || info.can_retry || info.can_resolve) await reload?.();
 		});
 	};
 	p.trade = {

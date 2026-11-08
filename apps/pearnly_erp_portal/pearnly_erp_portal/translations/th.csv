@@ -697,6 +697,8 @@ Issue Value,มูลค่าจ่าย
 Issue documents and deduct stock,ออกเอกสารและตัดสินค้าออกจากสต็อก
 Issued,จ่ายออก
 Issues,รายการจ่าย
+It was entered,ลงบัญชีแล้ว
+It was not entered,ยังไม่ลงบัญชี
 Item,สินค้า
 Item / Description,ชื่อสินค้า/คำอธิบาย
 Item Cart,ตะกร้าสินค้า
@@ -1168,6 +1170,7 @@ Requested By,ผู้ขอ
 Reset,รีเซ็ต
 Reset Password,ตั้งรหัสผ่านใหม่
 Restore,กู้คืน
+Result in Express,ผลใน Express
 Retry,ลองใหม่
 Return,คืนสินค้า
 Return to stock,รับคืนเข้าคลัง
@@ -2293,6 +2296,7 @@ express.state.handled,จัดการด้วยมือใน Express แ�
 express.state.refundPending,รอบันทึกการคืน
 express.state.written,บันทึกแล้ว
 express.summary.extra,ใบเพิ่มเติม
+express.unknown.outcome,ผลใน Express
 express.void,ยกเลิกใน Express
 goods,สินค้า
 hq,สำนักงานใหญ่

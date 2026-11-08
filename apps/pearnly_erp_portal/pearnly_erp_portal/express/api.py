@@ -128,11 +128,14 @@ def _view(doctype, row):
                 "void": row.ledger_void_state, "needed": [], "can_answer": False,
                 "can_retry": bool(void_job and void_job["status"] == "manual") and guard.has(CAPABILITIES[doctype][1])}
     stuck = _pos_stuck(doctype, row, job)
+    # 结果不明、原电脑核对不了（ADR-027 §6）：人在 Express 核对后报结论，不给「再写一次」（会钉回一台核对不了的电脑）
+    resolve = jobs.needs_person(job) and guard.has(CAPABILITIES[doctype][1])
     return {"state": row.ledger_state or "", "docnum": row.ledger_docnum or "", "reason": row.ledger_reason or "",
             "needed": needed, "can_answer": bool(needed) and guard.has(CAPABILITIES[doctype][1]),
-            "can_retry": bool((job and job["status"] == "manual" and not blocked)
-                              or (stuck and not needed and (not job or job["status"] in ("manual", "cancelled"))))
+            "can_retry": not resolve and bool((job and job["status"] == "manual" and not blocked)
+                                              or (stuck and not needed and (not job or job["status"] in ("manual", "cancelled"))))
             and guard.has(CAPABILITIES[doctype][1]),
+            "can_resolve": resolve,
             # 收银日汇总 / 退货单停住（定不了、跨年、原单是手工处理的…）的出口：人标记「已在 Express 手工处理」（主会话 10-26）
             "can_mark_handled": bool(stuck) and guard.has(CAPABILITIES[doctype][1]),
             "vat_whole": bool(row.get("vat_whole_document"))}
@@ -291,6 +294,7 @@ def retry(doctype, name):
     return _view(doctype, _document(doctype, name))
 
 
+@frappe.whitelist(methods=["POST"])
 def resolve_unknown(doctype, name, entered, docnum=""):
     """结果不明、原电脑核对不了（移除、断开、开单的人不在它上面了，`jobs.needs_person`）时，人在 Express 里核对后报结论
     （ADR-027 §6，同 Cowork 复核页「核对」）：已入账 → 记成功（人报的单号），登记待补码（`push.job_changed` 不排主档同步，
@@ -300,6 +304,7 @@ def resolve_unknown(doctype, name, entered, docnum=""):
     job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
     if not jobs.needs_person(job):
         frappe.throw(_(jobs.COMPUTER_CHECKS))
-    jobs.settle_by_person(job["job"], bool(entered), docnum)
+    entered = entered if isinstance(entered, bool) else str(entered).lower() in ("1", "true")  # 网页传的是字符串
+    jobs.settle_by_person(job["job"], entered, str(docnum or "")[:40])
     frappe.db.commit()
     return _view(doctype, _document(doctype, name))

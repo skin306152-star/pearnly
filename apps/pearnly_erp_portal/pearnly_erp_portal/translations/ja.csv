@@ -697,6 +697,8 @@ Issue Value,払出金額
 Issue documents and deduct stock,伝票を登録して出庫
 Issued,出庫数量
 Issues,払出
+It was entered,計上されている
+It was not entered,計上されていない（再送信可）
 Item,品目
 Item / Description,品名・説明
 Item Cart,カート
@@ -1168,6 +1170,7 @@ Requested By,申請者
 Reset,リセット
 Reset Password,パスワードを再設定
 Restore,復元
+Result in Express,Express での結果
 Retry,再試行
 Return,返品・返金
 Return to stock,戻り入庫
@@ -2293,6 +2296,7 @@ express.state.handled,Express で手動処理済み
 express.state.refundPending,返品書き込み待ち
 express.state.written,書き込み済み
 express.summary.extra,追加分
+express.unknown.outcome,Express での結果
 express.void,Express で取消
 goods,物品
 hq,本店

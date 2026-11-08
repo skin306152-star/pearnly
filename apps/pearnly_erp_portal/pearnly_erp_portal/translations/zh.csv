@@ -697,6 +697,8 @@ Issue Value,发出金额
 Issue documents and deduct stock,开单并出库
 Issued,出库数量
 Issues,发出
+It was entered,已入账
+It was not entered,未入账
 Item,物料
 Item / Description,品名/说明
 Item Cart,购物车
@@ -1168,6 +1170,7 @@ Requested By,申请人
 Reset,重置
 Reset Password,重置密码
 Restore,恢复
+Result in Express,在 Express 里的结果
 Retry,重试
 Return,退货退款
 Return to stock,退库
@@ -2293,6 +2296,7 @@ express.state.handled,已在 Express 手工处理
 express.state.refundPending,待写退货
 express.state.written,已写入
 express.summary.extra,补单
+express.unknown.outcome,在 Express 里的结果
 express.void,Express 作废
 goods,货物
 hq,总部

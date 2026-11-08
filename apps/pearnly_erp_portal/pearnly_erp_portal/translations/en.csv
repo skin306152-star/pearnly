@@ -697,6 +697,8 @@ Issue Value,Issue Value
 Issue documents and deduct stock,Issue documents and deduct stock
 Issued,Issued
 Issues,Issues
+It was entered,It was entered
+It was not entered,It was not entered
 Item,Item
 Item / Description,Item / Description
 Item Cart,Item Cart
@@ -1168,6 +1170,7 @@ Requested By,Requested By
 Reset,Reset
 Reset Password,Reset Password
 Restore,Restore
+Result in Express,Result in Express
 Retry,Retry
 Return,Return
 Return to stock,Return to stock
@@ -2293,6 +2296,7 @@ express.state.handled,Handled manually in Express
 express.state.refundPending,Refund to write
 express.state.written,Written
 express.summary.extra,Late receipts
+express.unknown.outcome,Result in Express
 express.void,Cancel in Express
 goods,goods
 hq,hq
