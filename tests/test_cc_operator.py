@@ -501,7 +501,37 @@ class SourceRules(unittest.TestCase):
             self.assertNotRegex(out if isinstance(out, str) else "", OLD_WORDS)
 
 
+# 11-08 生产事故（Sincere Ice 代录 24 张 Big C 销售发票）：同一客户在 24 张上要选，开始前只问一题，一个答案交给 24 张
+SAME_PARTY = r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { docAnswers, itemQuestion, itemsOfNeeded } from "@/components/tool-uis/ask-shared";
+
+const options = [{ code: "BIGC", name: "BIG C" }, { code: "BIGC-002", name: "BIG C-002 (ซอยประชุม)" }];
+const docs = Array.from({ length: 24 }, (_v, i) => ({ doc_id: `H${i + 1}`, state: "choose",
+  needed: [{ kind: "party", subject: "sales|0107536000633|00000|บิ๊กซี", label: "บมจ.บิ๊กซี ซูเปอร์เซ็นเตอร์", options }] }));
+docs.push({ doc_id: "R1", state: "ready" } as any);
+const items = itemsOfNeeded(docs);
+assert.equal(items.length, 1);                       // 24 张同一题只问一次
+assert.equal(items[0]!.docs.length, 24);
+const questions = items.map((item) => itemQuestion(item, "CO-1"));
+const answer = { answers: [{ header: "x", question: questions[0]!.question, labels: [questions[0]!.options[1]!.label] }] };
+const perDoc = docAnswers(items, questions, answer);
+assert.equal(Object.keys(perDoc).length, 24);        // 一个答案交给 24 张（站点记住，后面的单不再问）
+assert.deepEqual(perDoc.H7, [{ kind: "party", subject: "sales|0107536000633|00000|บิ๊กซี", value: "BIGC-002", label: "บมจ.บิ๊กซี ซูเปอร์เซ็นเตอร์" }]);
+console.log("HARNESS OK");
+"""
+
+
 class OperatorTests(unittest.TestCase):
+    def test_one_question_for_every_document_that_needs_the_same_answer(self):
+        self.assertIn("HARNESS OK", run_ts(SAME_PARTY, stubs=STUBS, lang="th"))
+        # 开始卡有没定的项就在卡里一次问完、答案随「开始」交（不靠 CC 先问；11-08 生产：没问就开始，24 张各停一次）
+        start = read("components/tool-uis/operator-start.tsx")
+        self.assertIn("const items = useMemo(() => itemsOfNeeded(prechecks), [prechecks]);", start)
+        self.assertIn("if (asking && questions.length && !result) {", start)
+        self.assertIn("begin(docAnswers(items, questions, answered), () => setSent(answered))", start)
+
     def test_events_fold_into_the_same_conversation(self):
         for lang in ("zh", "th", "en"):
             run_ts(FEED, stubs=STUBS, lang=lang)

@@ -37,15 +37,19 @@ def _tools_shape(brief) -> str:
     return _digest(json.dumps(brief["tools"], sort_keys=True), 16)
 
 
-def tools_current(conversation: str) -> None:
-    """刚按当前说明建的会话：记下它的工具已是最新，第一条消息不必再换。"""
-    frappe.cache.set_value(f"pearnly_assistant:tools:{conversation}", _tools_shape(definition.brief(config.product())),
-                           expires_in_sec=TOOLS_TTL)
+def tools_current(conversation: str, mode: str = "chat") -> None:
+    """刚按当前说明建的会话：智能体的全套工具正好就是这种会话该有的，记下已是最新，第一条消息不必再换；不是（有只属于另一种
+    会话的工具）就不记，第一条消息前按模式整组换（:func:`keep_tools_current`）。"""
+    product = config.product()
+    wanted = _tools_shape(definition.brief(product, mode))
+    if wanted == _tools_shape(definition.brief(product)):
+        frappe.cache.set_value(f"pearnly_assistant:tools:{conversation}", wanted, expires_in_sec=TOOLS_TTL)
 
 
-def keep_tools_current(api, conversation: str) -> None:
-    """老对话用上新工具：这段远端会话上次换上的工具与当前说明不同（或没记过）就整组换一次。换不了不影响发消息。"""
-    brief = definition.brief(config.product())
+def keep_tools_current(api, conversation: str, mode: str = "chat") -> None:
+    """这段远端会话的工具按它的模式（直写 / 代录，工具声明的 ``modes``）与当前说明对齐：上次换上的与此刻该有的不同（或没记过）
+    就整组换一次（老对话用上新工具、代录会话不给直写工具，11-08 生产事故）。换不了不影响发消息，运行时仍按模式拒（`toolrun`）。"""
+    brief = definition.brief(config.product(), mode)
     key = f"pearnly_assistant:tools:{conversation}"
     if frappe.cache.get_value(key) == _tools_shape(brief):
         return

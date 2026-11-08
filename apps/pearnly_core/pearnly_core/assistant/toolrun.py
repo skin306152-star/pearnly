@@ -33,11 +33,14 @@ DENIED_INSTRUCTION = "Do not try it again unless the user asks."
 # 会话主人已停用时交回模型的结果（`owner_disabled`）：只给模型读，不经 _()（主人已登录不了，对话页也不会再打开）
 # 工具不属于这段会话的模式（直写 / 代录，工具声明的 ``modes``）：只给模型读，不经 _()（11-05 测试机：代录会话里 CC 调了直写推送）
 WRONG_MODE = {
+    # 11-08 生产：CC 把「operator」这类词照着转述给了用户。说明里只写下一步，不给内部名词（工具清单本来就按模式给，这里是兜底）
     "operator": json.dumps({"status": "failed", "reason": "wrong_mode", "instruction":
-                            "This is a hands-on (operator) conversation: documents are entered in Express through the "
-                            "hands-on start card, never by direct push. Do not call direct-write tools here."}),
+                            "Not available in this conversation. Documents here are entered when the user presses Start "
+                            "on the card in this conversation: tell the user that in plain words, without naming tools, "
+                            "modes or this refusal."}),
     "chat": json.dumps({"status": "failed", "reason": "wrong_mode", "instruction":
-                        "This is a direct-write conversation: hands-on task tools work only in a hands-on conversation."}),
+                        "Not available in this conversation. Tell the user in plain words what you can do here, without "
+                        "naming tools, modes or this refusal."}),
 }
 SESSION = "Pearnly Assistant Session"
 OWNER_DISABLED = json.dumps({"status": "failed", "reason": "user_disabled",

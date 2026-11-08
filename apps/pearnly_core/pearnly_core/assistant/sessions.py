@@ -53,7 +53,8 @@ LIST_FIELDS = ["name", "session_id", "title", "starred", "archived", "creation",
 UNFILED = ["is", "not set"]  # 「最近」：project 为空（新加的字段，旧行是 NULL）
 FILED = ["is", "set"]
 # 两种模式（统一对话框架 14.8）：代录会话 = operator_task 不为空；列表按 mode 筛（chat / operator，不带 = 全部）
-MODES = ("chat", "operator")
+CHAT, OPERATOR = "chat", "operator"
+MODES = (CHAT, OPERATOR)
 LOCAL_PREFIX = "op_"  # 代录会话在本站先建、远端会话第一次发话时才开（`_remote_ready`）：编号 op_<任务号>
 SEGMENT_READERS = 4  # 整段重放时同时读几段远端会话的事件（`_segment_events`）
 
@@ -100,7 +101,8 @@ def _remote_ready(row, api) -> None:
         return
     fresh, _status = api.open(engine.prepared(api), {**_metadata(_user(), config.product()),
                                                      "pearnly_conversation": row.session_id})
-    engine.tools_current(fresh)
+    engine.tools_current(fresh, OPERATOR)
+    engine.keep_tools_current(api, fresh, OPERATOR)  # 代录会话一开就只给代录的工具，不等第一条消息
     _route(fresh)
     remote_ids = json.dumps([fresh])
     frappe.db.set_value(SESSION, row.name, {"remote_ids": remote_ids, "context_tokens": 0}, update_modified=False)
@@ -658,9 +660,10 @@ def segment_for_turn(row, api) -> str:
     _remote_ready(row, api)
     s = config.settings()
     limit = engines.context_limit(s.engine.code, s.model)
+    mode = OPERATOR if row.get("operator_task") else CHAT
     if not limit or int(row.get("context_tokens") or 0) < limit:
         remote = current(row)
-        engine.keep_tools_current(api, remote)
+        engine.keep_tools_current(api, remote, mode)
         return remote
     with frappe.cache.lock(f"{frappe.local.site}:pearnly_assistant:segment:{row.name}", timeout=SEGMENT_LOCK_SECONDS,
                            blocking_timeout=SEGMENT_LOCK_SECONDS):
@@ -669,12 +672,13 @@ def segment_for_turn(row, api) -> str:
                                        as_dict=True) or {})
         remote = current(row)
         if int(row.get("context_tokens") or 0) < limit:
-            engine.keep_tools_current(api, remote)
+            engine.keep_tools_current(api, remote, mode)
             return remote
         carry = contracts.carry_note(contracts.carry_over(api.events(remote)), *_worked_on(row))
         fresh, _status = api.open(engine.prepared(api), {**_metadata(_user(), config.product()),
                                                          "pearnly_conversation": row.session_id})
-        engine.tools_current(fresh)
+        engine.tools_current(fresh, mode)
+        engine.keep_tools_current(api, fresh, mode)
         _route(fresh)
         remote_ids = json.dumps(segments(row) + [fresh])
         # 新的一段不知道前面带过的公司说明：清空，下一批重带

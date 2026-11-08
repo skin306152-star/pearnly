@@ -7,11 +7,13 @@
 // {sent, not_sent[]}）到了，点完那一行下面列没收的单与原因。不调对话的 confirm / run_tool。
 
 import { type ToolCallMessagePartComponent, useAuiState } from "@assistant-ui/react";
-import { type FC, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type FC, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Marquee } from "@/components/ui/marquee";
 import { co, lang, op } from "@/i18n";
 import type { CardPart } from "@/lib/approval-card";
 import { reportCaught } from "@/lib/caught";
+import { AskCard } from "./ask-card";
+import { type AskResult, docAnswers, itemQuestion, itemsOfNeeded } from "./ask-shared";
 import { settleCard } from "./card-phase";
 import { OperatorCard, useCardAction, useSessionId } from "./operator-card";
 import { uploadStateOf } from "./operator-steps";
@@ -137,17 +139,24 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
   const stopped = prechecks.filter((p) => (p.state === "blocked" || p.state === "waiting") && p.reason !== RESULT_UNKNOWN);
   const result = resultOf<StartResult>(props.result);
   const shown = rowsShown(unknown, stopped, allRows);
+  // 还没定的项（11-08 生产事故：CC 没先问就点了开始，同一客户在 24 张上各停一次、问 24 遍）：开始前在这张卡里一次问完，
+  // 几张单的同一题（同一类、同一对象）只问一次（`itemsOfNeeded`），答案随「开始」交给站点记住，后面的单不再问
+  const items = useMemo(() => itemsOfNeeded(prechecks), [prechecks]);
+  const questions = useMemo(() => items.map((item) => itemQuestion(item, input.company)), [items, input.company]);
+  const [sent, setSent] = useState<AskResult | null>(null);
 
   // 点「开始」前再取一次资料（卡片出现后才上传、识别完的单也交上去）
-  const start = () =>
+  const begin = (answers: Parameters<typeof operatorActions.start>[2], done?: () => void) =>
     void action.run(async () => {
       const fresh = await refresh();
       const docIds = docsToStart(fresh.docs, fresh.prechecks);
       setNotice(docIds.length ? "" : op.noDocs);
       if (!docIds.length) return;
-      await operatorActions.start(input, docIds, {}, groupsToStart(fresh.docs, docIds));
+      await operatorActions.start(input, docIds, answers, groupsToStart(fresh.docs, docIds));
+      done?.();  // 交出去了才把题定成已答（交不出去还能改了再点）
       settleCard(sessionId, props.toolCallId);
     }, false);
+  const start = () => begin({});
   const resolve = (docId: string, entered: boolean) =>
     void action.run(async () => {
       await operatorActions.resolve(input.company, docId, entered);
@@ -203,6 +212,16 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
       ))}
     </div>
   ) : null;
+
+  if (asking && questions.length && !result) {
+    const submit = (answered: AskResult) => begin(docAnswers(items, questions, answered), () => setSent(answered));
+    return (
+      <div data-slot="cc-op-before-ask">
+        <AskCard questions={questions} phase={sent ? "answered" : "ask"} result={sent} busy={action.busy || !prep}
+          failure={notice || action.failure} onSubmit={submit} />
+      </div>
+    );
+  }
 
   return (
     <OperatorCard

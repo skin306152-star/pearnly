@@ -51,11 +51,14 @@ def guidance() -> list[str]:
     return found
 
 
-def brief(product: str) -> dict:
+def brief(product: str, mode: str | None = None) -> dict:
+    """``mode``（chat / operator）：只给这种会话能用的工具（工具声明的 ``modes``，`tools.mode_allowed`）。智能体本身按全套建，
+    每段会话再按自己的模式整组换上（`engine.keep_tools_current`；11-08 生产：代录会话里看得到直写推送，CC 去调、被拒，再把拒绝
+    说明里的内部名词转述给了用户）。"""
     return {
         "product": product,
         "name": f"CC (Pearnly {product})",
         "system": SYSTEM.format(product=product) + "".join(f"\n- {line}" for line in guidance()),
         "tools": [{"name": t["name"], "description": t["description"], "input_schema": t["input_schema"]}
-                  for t in tools.declared()],
+                  for t in tools.declared() if not mode or tools.mode_allowed(t["name"], mode)],
     }

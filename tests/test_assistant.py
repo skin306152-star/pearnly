@@ -765,9 +765,16 @@ class RelayTests(unittest.TestCase):
         # 会话绑定建时的智能体版本；工具可在会话中整组替换：每轮先核对，旧对话也能用新工具；新建的直接记为最新
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
         turn = source.split("def segment_for_turn(", 1)[1].split("\ndef ", 1)[0]
-        self.assertIn("engine.keep_tools_current(api, remote)", turn)
-        self.assertIn("engine.tools_current(fresh)", turn)
+        self.assertIn("engine.keep_tools_current(api, remote, mode)", turn)
+        self.assertIn("engine.tools_current(fresh, mode)", turn)
         self.assertIn("engine.tools_current(sid)", source)
+        # 11-08 生产事故：代录会话里看得到直写推送。工具按会话模式给：代录会话一开就整组换成代录的
+        ready = source.split("def _remote_ready(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("engine.keep_tools_current(api, fresh, OPERATOR)", ready)
+        definition = (CORE / "assistant/definition.py").read_text(encoding="utf-8")
+        self.assertIn('if not mode or tools.mode_allowed(t["name"], mode)', definition)
+        engine = (CORE / "assistant/engine.py").read_text(encoding="utf-8")
+        self.assertIn("brief = definition.brief(config.product(), mode)", engine.split("def keep_tools_current(", 1)[1])
         adapter = (CORE / "assistant/engines/anthropic_managed_agents.py").read_text(encoding="utf-8")
         self.assertIn('sessions.update(conversation, agent={"tools": spec(brief, self.model)["tools"]})', adapter)
         base = (CORE / "assistant/engines/base.py").read_text(encoding="utf-8")
@@ -1199,8 +1206,8 @@ class RelayTests(unittest.TestCase):
                 mock.patch.object(sessions.config, "settings", return_value=settings), \
                 mock.patch.object(sessions.config, "product", return_value="erp"), \
                 mock.patch.object(sessions.engine, "prepared", return_value="agent"), \
-                mock.patch.object(sessions.engine, "tools_current", lambda sid: None), \
-                mock.patch.object(sessions.engine, "keep_tools_current", lambda api, remote: kept_tools.append(remote)), \
+                mock.patch.object(sessions.engine, "tools_current", lambda sid, *a: None), \
+                mock.patch.object(sessions.engine, "keep_tools_current", lambda api, remote, *a: kept_tools.append(remote)), \
                 mock.patch.object(sessions, "_route", lambda remote: None), \
                 mock.patch.object(sessions.frappe, "db", db, create=True), \
                 mock.patch.object(sessions.frappe, "get_all", get_all, create=True), \
@@ -1275,8 +1282,8 @@ class RelayTests(unittest.TestCase):
         with mock.patch.object(sessions.config, "settings", return_value=settings), \
                 mock.patch.object(sessions.config, "product", return_value="cowork"), \
                 mock.patch.object(sessions.engine, "prepared", return_value="agent"), \
-                mock.patch.object(sessions.engine, "tools_current", lambda sid: None), \
-                mock.patch.object(sessions.engine, "keep_tools_current", lambda api, remote: None), \
+                mock.patch.object(sessions.engine, "tools_current", lambda sid, *mode: None), \
+                mock.patch.object(sessions.engine, "keep_tools_current", lambda api, remote, *mode: None), \
                 mock.patch.object(sessions, "_route", lambda remote: None), \
                 mock.patch.object(sessions, "_worked_on", lambda row: ("", "")), \
                 mock.patch.object(sessions.frappe, "db", db, create=True), \
@@ -1546,6 +1553,16 @@ class ToolAndDefinitionTests(unittest.TestCase):
         self.assertIn("pearnly_whoami", names)
         brief = definition.brief("erp")
         self.assertEqual([t["name"] for t in brief["tools"]], names)  # 给模型看的工具表与服务端派发同源
+        # 11-08 生产事故：按会话模式给工具（只属于另一种会话的不给）
+        product.TOOLS += [{"name": "erp_push", "modes": ["chat"], "description": "d", "input_schema": {"type": "object"},
+                           "handler": "fake_product_tools.ping"},
+                          {"name": "erp_task", "modes": ["operator"], "description": "d", "input_schema": {"type": "object"},
+                           "handler": "fake_product_tools.ping"}]
+        operator = {t["name"] for t in definition.brief("erp", "operator")["tools"]}
+        chat = {t["name"] for t in definition.brief("erp", "chat")["tools"]}
+        self.assertTrue({"erp_task", "erp_ping"} <= operator and "erp_push" not in operator)
+        self.assertTrue({"erp_push", "erp_ping"} <= chat and "erp_task" not in chat)
+        self.assertTrue({"erp_push", "erp_task"} <= {t["name"] for t in definition.brief("erp")["tools"]})  # 智能体按全套建
         spec = claude.spec(brief, "claude-opus-5-5")
         self.assertEqual([t["name"] for t in spec["tools"] if t["type"] == "custom"], names)
         self.assertEqual(tools.run("erp_ping", {}), ("pong", False))
@@ -2384,7 +2401,7 @@ class NoticeTests(unittest.TestCase):
         with mock.patch.object(sessions, "owned", return_value=row), \
                 mock.patch.object(sessions, "segment_for_turn", return_value="sesn_seg2"), \
                 mock.patch.object(sessions.engine, "adapter", return_value=api), \
-                mock.patch.object(sessions.toolrun, "remember_lang", lambda sid: None), \
+                mock.patch.object(sessions.toolrun, "remember_lang", lambda sid, *a: None), \
                 mock.patch.object(sessions.toolrun, "interface_language", lambda sid: "Chinese"), \
                 mock.patch.object(sessions.relay, "ensure", lambda *a: None), \
                 mock.patch.object(sessions.notices, "uncarried", lambda sid, user: list(shown)), \
@@ -4631,8 +4648,8 @@ class SidebarSyncTests(unittest.TestCase):
 
         with mock.patch.object(sessions.engine, "adapter", return_value=api), \
                 mock.patch.object(sessions.engine, "prepared", lambda api: {}), \
-                mock.patch.object(sessions.engine, "tools_current", lambda sid: None), \
-                mock.patch.object(sessions, "_route", lambda sid: None), \
+                mock.patch.object(sessions.engine, "tools_current", lambda sid, *a: None), \
+                mock.patch.object(sessions, "_route", lambda sid, *a: None), \
                 mock.patch.object(sessions.frappe, "get_doc", lambda data: Doc(data), create=True):
             summary = sessions.create()
         self.assertEqual((summary["id"], len(inserted)), ("sesn_new001", 1))
@@ -5002,8 +5019,8 @@ class ProjectTests(unittest.TestCase):
 
         with mock.patch.object(self.sessions.engine, "adapter", return_value=api), \
                 mock.patch.object(self.sessions.engine, "prepared", lambda api: {}), \
-                mock.patch.object(self.sessions.engine, "tools_current", lambda sid: None), \
-                mock.patch.object(self.sessions, "_route", lambda sid: None), \
+                mock.patch.object(self.sessions.engine, "tools_current", lambda sid, *a: None), \
+                mock.patch.object(self.sessions, "_route", lambda sid, *a: None), \
                 mock.patch.object(self.sessions.frappe, "get_doc", lambda data: Doc(data), create=True):
             summary = self.sessions.create(**kwargs)
         return summary, inserted[0]
@@ -5095,7 +5112,7 @@ class ProjectTests(unittest.TestCase):
         with mock.patch.object(self.sessions, "owned", return_value=row), \
                 mock.patch.object(self.sessions, "segment_for_turn", return_value=row.session_id), \
                 mock.patch.object(self.sessions.engine, "adapter", return_value=api), \
-                mock.patch.object(self.sessions.toolrun, "remember_lang", lambda sid: None), \
+                mock.patch.object(self.sessions.toolrun, "remember_lang", lambda sid, *a: None), \
                 mock.patch.object(self.sessions.toolrun, "interface_language", lambda sid: "English"), \
                 mock.patch.object(self.sessions.relay, "ensure", lambda *a: None), \
                 mock.patch.object(self.sessions.notices, "uncarried", lambda sid, user: []), \
@@ -5151,8 +5168,8 @@ class ProjectTests(unittest.TestCase):
         with mock.patch.object(self.sessions.config, "settings", return_value=settings), \
                 mock.patch.object(self.sessions.engines, "context_limit", lambda code, model: 1000), \
                 mock.patch.object(self.sessions.engine, "prepared", lambda api: {}), \
-                mock.patch.object(self.sessions.engine, "tools_current", lambda sid: None), \
-                mock.patch.object(self.sessions, "_route", lambda sid: None), \
+                mock.patch.object(self.sessions.engine, "tools_current", lambda sid, *a: None), \
+                mock.patch.object(self.sessions, "_route", lambda sid, *a: None), \
                 mock.patch.object(self.sessions, "_worked_on", lambda row: ("", "")):
             self.assertEqual(self.sessions.segment_for_turn(row, api), "sesn_seg002")
         self.assertEqual(row.project_noted, "")
@@ -5265,8 +5282,8 @@ class OperatorSessionTests(unittest.TestCase):
         self.api.open.return_value = ("sesn_remote01", "idle")
         row = self.sessions.owned("op_task0001")
         with mock.patch.object(self.sessions.engine, "prepared", lambda api: {}), \
-                mock.patch.object(self.sessions.engine, "tools_current", lambda sid: None), \
-                mock.patch.object(self.sessions.engine, "keep_tools_current", lambda api, sid: None), \
+                mock.patch.object(self.sessions.engine, "tools_current", lambda sid, *a: None), \
+                mock.patch.object(self.sessions.engine, "keep_tools_current", lambda api, sid, *a: None), \
                 mock.patch.object(self.sessions, "_route", lambda sid: None):
             self.assertEqual(self.sessions.segment_for_turn(row, self.api), "sesn_remote01")
         self.assertEqual(json.loads(row.remote_ids), ["sesn_remote01"])
@@ -6027,7 +6044,8 @@ class ModeGateTests(unittest.TestCase):
         self.assertEqual(runs["run1"]["status"], "error")
         result = json.loads(posted[0]["content"][0]["text"])
         self.assertEqual(result["reason"], "wrong_mode")
-        self.assertIn("hands-on", result["instruction"])
+        self.assertIn("Start", result["instruction"])
+        self.assertNotIn("operator", result["instruction"].lower())  # 不给模型可转述给用户的内部名词（11-08 生产）
         self.assertTrue(posted[0]["is_error"])
 
     def test_a_direct_conversation_refuses_hands_on_task_tools(self):

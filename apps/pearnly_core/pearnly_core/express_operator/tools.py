@@ -28,9 +28,20 @@ def status(tool_input) -> str:
     counts: dict = {}
     for row in docs:
         counts[row["state"]] = counts.get(row["state"], 0) + 1
-    return json.dumps({"task": view["name"], "company": view["company_title"] or view["company"], "period": view["period"],
-                       "status": view["status"], "computer": view["computer"], "counts": counts, "documents": docs},
-                      ensure_ascii=False, default=str)
+    out = {"task": view["name"], "company": view["company_title"] or view["company"], "period": view["period"],
+           "status": view["status"], "computer": view["computer"], "counts": counts, "documents": docs}
+    if view["status"] == "preparing":
+        out["next"] = NEXT_PREPARING  # 11-08 生产：CC 只说了「准备中、没有单据」，没说要人做什么
+    elif view["status"] == "attention":
+        out["next"] = NEXT_ATTENTION
+    return json.dumps(out, ensure_ascii=False, default=str)
+
+
+# 状态之外给模型的下一步（只给模型读，不是界面文案）：不提内部名词
+NEXT_PREPARING = ("Nothing has been entered yet: the documents in this conversation are entered when the user presses "
+                  "Start on the card in this conversation, after answering its questions there. Tell the user exactly that.")
+NEXT_ATTENTION = ("Some documents need the user: the cards in this conversation ask what is missing (one question covers "
+                  "every document that needs the same answer). Point the user to them; do not ask the same thing again.")
 
 
 def control(tool_input) -> str:
@@ -55,16 +66,17 @@ def control(tool_input) -> str:
 TOOLS = [
     {"name": "express_operator_status", "modes": ["operator"],
      "label": "Checked the hands-on task",
-     "description": "Read the Express operator task this conversation belongs to: overall status, the computer doing it, "
+     "description": "Read the Express entry task this conversation belongs to: overall status, the computer doing it, "
                     "and every document numbered from 1 in task order with its state (queued, saved, not_done, cancelled, "
                     "skipped), the Express document number once saved, and the reason it was not entered. Use it to answer "
                     "questions such as how many were entered today or why document 2 was not entered. task is the id given "
-                    "in the operator_task note.",
+                    "in the express_task note. next, when present, is what the user has to do now: tell them in plain "
+                    "words.",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]},
      "handler": "pearnly_core.express_operator.tools.status"},
     {"name": "express_operator_control", "modes": ["operator"],
      "label": "Updated the hands-on task",
-     "description": "Skip or redo documents of the Express operator task this conversation belongs to. action skip leaves "
+     "description": "Skip or redo documents of the Express entry task this conversation belongs to. action skip leaves "
                     "the documents out of this run; action redo (retry) enters them again. documents are the numbers from "
                     "express_operator_status (1, 2, ...) or their doc_id. The computer doing the task carries it out when it "
                     "is online; say so if it is not. Only call it when the user asked for it.",
