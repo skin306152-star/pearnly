@@ -268,3 +268,30 @@ erp_stock_card_export(
 | 产品地图 / 共用件登记 | `erp.desk.pearnly-stock-card.action.trade.export.action`；`erp.exports` 入口补收发存导出 |
 
 CC 工具（ADR-027）：形状已发「CC 一套」窗口 local_fd1ef94e（11-08），调 `card_export.build` / `size`，同批上线。
+
+## F. 验收与连带回归（11-08，实验栈 pearnly-cardexport-lab，线上同版镜像 26a2b0e8，分支 13ac2c490 起）
+
+- 手算比对：不接 Express 的测试公司、两个仓；采购、销售、出库、入库、调拨、物料调整 ±、期初；三种报表 Excel 逐栏 0 处不符，PDF 三种生成（脚本与成品在共享笔记「收发存导出-验收-11-08/」）。
+- 本地闸门 gate.sh 206 步全过；候选离线检查 cand-local 105 组 LANE EXIT 0；受影响流程 10 条 × 新旧数据 × 电脑 / 手机 37/37（已回写 `pearnly/flows`）。
+- 修过的三处：PDF 明细格子边框与日期折行；手机弹窗物料 / 仓库「从、到」交错；英文文件名冒号替换多一个空格。
+
+影响清单（`check-impact.py --base origin/main`；命中原因：改到登记文件 `hooks.py`、`inventory/api.py`、翻译包）：
+
+| 入口 | 结果 | 依据 / 原因 |
+|---|---|---|
+| erp.page.stock-card | 通过 | 流程 erp.stock-card、erp.stock-card.export 新旧 × 电脑 / 手机全过 |
+| erp.report.stock-summary-qty-sort | 通过 | 实验栈老数据按期末数量倒序一页 0.02 秒（`report.py` 未改） |
+| erp.stock-in.attach / erp.stock-out.attach | 没测到 | 只因 `inventory/api.py` 登记命中；本次只在文件里新增一个导出接口，附件接口未动；离线 `test_erp_stock_attachments` 在 CI 过 |
+| erp.line.chat | 没测到 | 要三星真机；本次不改 LINE 代码，只因 `inventory/api.py` 登记命中 |
+| erp.cc.connect | 没测到 | 要动测试机 CC（任务书不碰测试机）；本次不改连接代码 |
+| erp.cc.write | 没测到 | 写 Express 要测试机；本次不改写账代码 |
+| erp.cc.chat-push | 通过 | 离线检查（候选离线 105 组内）过 |
+| cc.operator.thread | 通过（离线） | gate 里 `test_express_operator_*`、`test_cc_operator` 过；实机没测，本次不改代录 |
+| erp.exports | 通过 | 流程 erp.exports 新旧 × 电脑 / 手机全过 |
+| shared.navigation | 通过 | `hooks.py` 只在页头入口声明加 `pearnly-stock-card: trade.export.action`（`check-entries.py` 过）；侧栏 / 菜单项未改，10 条流程打开各页正常 |
+| erp.masters.scope | 没测到 | 只因 `hooks.py` 登记命中；本次不涉主档 |
+| erp.stock-count.new-product | 通过 | 流程 erp.stocktake.new-product 全过 |
+| erp.stock-count.code | 没测到 | 扫码要真机；盘点代码未改 |
+| erp.execution | 没测到 | 付费识别不进默认回归；识别代码未改 |
+| erp.provisioning | 没测到 | 要控制面开测试户；`hooks.py` 只加页头入口声明，菜单、权限、功能码未改 |
+| erp.browser-text | 通过 | 翻译包只新增 41 条、未删改；导出文字泰文（单测）、中文（流程）、英文 / 日文（实验栈出表头与文件名）核过 |

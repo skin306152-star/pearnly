@@ -501,7 +501,7 @@ def _filename(kind, output) -> str:
     """MR.ERP 的命名：「报表名 [日月年_时分秒]」；年份泰文界面佛历。去掉文件名里不能用的字符。"""
     now = now_datetime()
     year = now.year + 543 if (frappe.local.lang or "").startswith("th") else now.year
-    title = re.sub(r'[\\/:*?"<>|]+', " - ", _(TITLES[kind])).strip()
+    title = re.sub(r'\s*[\\/:*?"<>|]+\s*', " - ", _(TITLES[kind])).strip()
     return f"{title} [{now.day:02d}{now.month:02d}{year}_{now:%H%M%S}].{output}"
 
 

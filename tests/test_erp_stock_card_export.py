@@ -106,7 +106,8 @@ class Export(unittest.TestCase):
         self.contracts = load("card_export_contracts", DOMAIN / "contracts.py")
         texts = thai_texts()
         frappe = ModuleType("frappe")
-        frappe._ = lambda value: texts.get(value, value)
+        self.texts = lambda value: texts.get(value, value)
+        frappe._ = self.texts
         frappe._dict = SimpleNamespace
         frappe.local = SimpleNamespace(lang="th")
         frappe.throw = self.throw
@@ -309,6 +310,9 @@ class Export(unittest.TestCase):
         self.export.frappe.local.lang = "zh"
         self.assertEqual(self.layout("all", product_from="P1", product_to="P1")["body"][2]["cells"][0]["value"], "03/10/2026")
         self.assertEqual(self.export._filename("all", "pdf"), "รายงานรับ-จ่ายสินค้า [08112026_143005].pdf")
+        self.export._ = lambda value: {"trade.export.title.byWarehouse": "Stock Receipt-Issue Report: By Warehouse"}.get(value, value)
+        self.assertEqual(self.export._filename("by_warehouse", "pdf"), "Stock Receipt-Issue Report - By Warehouse [08112026_143005].pdf")
+        self.export._ = self.texts
         self.export.frappe.local.lang = "th"
         self.assertEqual(self.export._filename("by_warehouse", "xlsx"),
                          "รายงานรับ-จ่ายสินค้า - แยกคลัง [08112569_143005].xlsx")
