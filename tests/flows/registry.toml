@@ -1102,6 +1102,7 @@ datasets = ["new"]
 viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js",
+  "apps/pearnly_cowork/pearnly_cowork/connections/api.py",
   "apps/pearnly_cowork/pearnly_cowork/connections/service.py",
   "apps/pearnly_cowork/pearnly_cowork/push/application/service.py",
   "apps/pearnly_core/pearnly_core/express_rules/push/choices.py",

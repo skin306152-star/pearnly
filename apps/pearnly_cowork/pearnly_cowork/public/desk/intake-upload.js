@@ -493,11 +493,12 @@
 			const line_form = p.layout(outer.fields_dict.item.$wrapper, [
 				{fieldtype: "Data", fieldname: "name", label: t("intake.item.name"), read_only: !reviewable},
 				{fieldtype: "Data", fieldname: "qty", label: __("Quantity"), read_only: !reviewable},
+				// 过账类型与仓库成对同一行（两栏各三格：名称｜单价、数量｜金额、过账类型｜仓库）
+				{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"), options: KIND_OPTIONS,
+					hidden: no_kind, read_only: !reviewable},
 				{fieldtype: "Column Break"},
 				{fieldtype: "Data", fieldname: "price", label: __("Unit Price"), read_only: !reviewable},
 				{fieldtype: "Data", fieldname: "subtotal", label: __("Amount"), read_only: !reviewable},
-				{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"), options: KIND_OPTIONS,
-					hidden: no_kind, read_only: !reviewable},
 				{fieldtype: "Select", fieldname: "location", label: __("Warehouse"),
 					options: [{value: "", label: ""}, ...warehouse_options], hidden: warehouse_options.length ? 0 : 1,
 					read_only: !reviewable},
