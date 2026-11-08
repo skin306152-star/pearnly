@@ -1152,8 +1152,17 @@ class Escalation(unittest.TestCase):
     def test_pdf_page_limit(self):
         from pearnly_erp_portal.recognition import inputs
 
-        pages = SimpleNamespace(pages=[SimpleNamespace(extract_text=lambda: "x")] * 21)
-        with patch("pypdf.PdfReader", return_value=pages, create=True), \
+        # 上限是三产品原件上传的共用上限（50，盘点 2026-11-08 P0-3；旧线上 20）：50 页照常读，51 页拒
+        from pearnly_core.originals import rules
+
+        self.assertEqual(inputs.MAX_PAGES, rules.MAX_PDF_PAGES)
+        within = SimpleNamespace(pages=[SimpleNamespace(extract_text=lambda: "x")] * inputs.MAX_PAGES)
+        over = SimpleNamespace(pages=[SimpleNamespace(extract_text=lambda: "x")] * (inputs.MAX_PAGES + 1))
+        with patch("pypdf.PdfReader", return_value=within, create=True), \
+                patch.object(frappe, "throw", side_effect=frappe.ValidationError, create=True), \
+                patch.object(frappe, "_", _same, create=True):
+            self.assertEqual(inputs.pdf_text(b"%PDF")[0], inputs.MAX_PAGES)
+        with patch("pypdf.PdfReader", return_value=over, create=True), \
                 patch.object(frappe, "throw", side_effect=frappe.ValidationError, create=True), \
                 patch.object(frappe, "_", _same, create=True):
             with self.assertRaises(frappe.ValidationError):

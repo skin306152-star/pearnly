@@ -333,6 +333,40 @@ class Erp(unittest.TestCase):
             claude.read_all([(b"x", "application/pdf")], structured=dict, review=lambda r: [], label="purchase")
         self.assertIn("23", str(refused.exception))
 
+    def test_google_route_page_limit_is_the_shared_upload_limit(self):
+        """谷歌路线拆页 / 文字层的页数上限就是三产品原件上传的共用上限（50），不再自己写 20（盘点 2026-11-08 P0-3）：
+        30 页照常拆开读，超过上限照旧拒。"""
+        import pypdf
+
+        from pearnly_core.originals import rules
+        from pearnly_erp_portal.recognition import inputs
+
+        if not hasattr(frappe, "ValidationError"):
+            frappe.ValidationError = type("ValidationError", (Exception,), {})
+            self.addCleanup(delattr, frappe, "ValidationError")
+
+        class Refused(frappe.ValidationError):
+            pass
+
+        def throw(message, *a, **k):
+            raise Refused(message)
+
+        def pdf(pages):
+            writer = pypdf.PdfWriter()
+            for _page in range(pages):
+                writer.add_blank_page(width=200, height=200)
+            out = io.BytesIO()
+            writer.write(out)
+            return out.getvalue()
+
+        self.assertEqual((inputs.MAX_PAGES, rules.MAX_PDF_PAGES), (50, 50))
+        with patch.object(frappe, "throw", throw, create=True):
+            self.assertEqual(len(inputs.pdf_pages(pdf(30))), 30)
+            self.assertEqual(inputs.pdf_text(pdf(30))[0], 30)
+            with self.assertRaises(Refused) as refused:
+                inputs.pdf_pages(pdf(51))
+        self.assertIn("50", str(refused.exception))
+
 
 class Cowork(unittest.TestCase):
     def pipeline(self, read, pages):

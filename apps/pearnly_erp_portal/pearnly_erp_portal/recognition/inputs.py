@@ -1,6 +1,7 @@
 """识别输入：PDF 页数上限与文字层快路（照旧线上 `pearnly-app@ec2e5c95`）。
 
-- 页数：旧线上直读最多 20 页（`direct_read.py:67-72`，`OCR_IMAGE_DIRECT_MAX_PAGES`），这里超过就拒。
+- 页数：与三产品原件上传同一个上限（共用 `pearnly_core.originals.rules.MAX_PDF_PAGES`，50 页），这里超过就拒。旧线上直读是 20 页
+  （`direct_read.py:67-72`）；Claude 路线（生产全部租户）本来就按共用上限，谷歌路线 11-08 起跟上，不再各写一个数（盘点 2026-11-08 P0-3）。
 - 文字层：旧线上 `OCR_FAST_PATH_ENABLED=true`（运行配置取证见
   docs/work/cowork-backend/ocr-runtime-policy.md），PDF 平均每页至少 200 个字符就先用文字读，
   不传原件（更便宜也更准）；文字读出来过不了检查，再由升级模型直接读 PDF 原件（`policy.read`）。
@@ -10,7 +11,9 @@ import io
 import frappe
 from frappe import _
 
-MAX_PAGES = 20
+from pearnly_core.originals.rules import MAX_PDF_PAGES
+
+MAX_PAGES = MAX_PDF_PAGES
 MIN_CHARS_PER_PAGE = 200
 
 
