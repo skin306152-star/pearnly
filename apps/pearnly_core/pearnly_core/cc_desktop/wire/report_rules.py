@@ -92,6 +92,9 @@ SUPPLIER_KEYS = ("code", "name", "tax_id", "branch", "srv")
 
 DEPARTMENT_KEYS = ("code", "name")
 
+# 仓库（ISTAB 21 + 主仓，CC 桌面版 1.12.18 起报）：main / used 是 "1"（主仓 / 本账动库存用过的仓），Cowork 多仓账套选仓用
+WAREHOUSE_KEYS = ("code", "name", "main", "used")
+
 FINGERPRINT_INT_KEYS = ("stock_master_count", "stcrd_lines", "stcrd_lines_moving_stock")
 
 MAX_CATALOG = 20000

@@ -188,7 +188,8 @@ def _push_to(entry, rule, history, row, account_set, fixed, attempt, final):
     # POS 导出建的票按票上自己的口径（带商品明细的天是存货，其余按金额记、不动库存）
     posting_kind = None if contracts.is_table(entry.filename) else (rule.posting_kind or None)
     try:
-        view = application.choices_view(history, rule.connection, account_set, posting_kind, fixed=fixed)
+        # 多仓账套没记过默认仓不停：定时任务照写主仓（11-08，同自动推）
+        view = application.choices_view(history, rule.connection, account_set, posting_kind, fixed=fixed, ask_location=False)
     except (frappe.ValidationError, frappe.PermissionError) as error:
         # 与网页「提交」失败同一做法：原因记在票上（列表照常显示「失败」+ 原因），这份文件照样往下走、出表格。
         reason = str(error)[:300]

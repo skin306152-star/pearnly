@@ -97,7 +97,8 @@ class Push:
         self.submitted, self.failures, self.retargeted, self.views = [], [], [], []
         self.writer_state = "ready"
 
-    def choices_view(self, history, connection, account_set, posting_kind, fixed=None):
+    def choices_view(self, history, connection, account_set, posting_kind, fixed=None, ask_location=True):
+        assert ask_location is False  # 定时任务推之前不为仓库停下（多仓账套照写主仓，11-08）
         self.views.append(account_set)
         return {"needed": [], "account_set": account_set}
 

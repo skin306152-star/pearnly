@@ -2284,6 +2284,7 @@ cowork.choice.expense,ไม่ใช้สิทธิ์ภาษีซื้�
 cowork.choice.expenseLine,บันทึกเป็นค่าใช้จ่าย
 cowork.choice.invalid,รายการที่เลือกไม่มีอยู่ในชุดบัญชีนี้ กรุณาเลือกใหม่
 cowork.choice.item,สินค้าคงเหลือ
+cowork.choice.location,คลังสินค้า
 cowork.choice.new,สร้างใหม่ตามเอกสาร
 cowork.choice.party,ข้อมูลคู่ค้าใน Express
 cowork.choice.payment,วิธีชำระเงิน

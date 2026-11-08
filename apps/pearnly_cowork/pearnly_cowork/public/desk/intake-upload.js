@@ -93,7 +93,9 @@
 	const ANONYMOUS_BUYER = new Set(["simplified_tax_invoice", "receipt"]);
 	// 明细四列照旧版（名称 / 数量 / 单价 / 金额，键是 `price` / `subtotal`），能改、不能增删行；
 	// 行级过账类型是新平台加的（Express 行级判据 `item_posting_kinds`），MR.ERP 批次不摆。
-	const ITEM_COLUMNS = ["name", "qty", "price", "subtotal", "posting_kind"];
+	// 仓库（11-08）：推往多仓 Express 账套（在用的仓 ≥ 2，CC 桌面版 1.12.18 起报）的票每行可选进哪个仓；空＝记住的 / 默认仓 / 主仓。
+	const ITEM_COLUMNS = ["name", "qty", "price", "subtotal", "posting_kind", "location"];
+	const OPTIONAL_COLUMNS = new Set(["posting_kind", "location"]);  // 选回空＝不声明，从记录里去掉这一键
 	// 过账类型是 `service` / `stock`（DocType 的 Select）：下拉的选项文案按术语表来。
 	const KIND_OPTIONS = [{value: "", label: ""}, {value: "service", label: __("Service")},
 		{value: "stock", label: __("Stock")}];
@@ -363,22 +365,31 @@
 			const kept = lines.filter(line => !line.removed);
 			if (!kept.length) return;
 			const label = value => KIND_OPTIONS.find(row => row.value === (value || ""))?.label || "";
-			const rows = kept.map(line => ({name: line.form.get_value("name") || "", posting_kind: line.form.get_value("posting_kind") || ""}));
+			const places = warehouse_options.length ? [{value: "", label: ""}, ...warehouse_options] : null;
+			const place_label = value => places?.find(row => row.value === (value || ""))?.label || "";
+			const rows = kept.map(line => ({name: line.form.get_value("name") || "", posting_kind: line.form.get_value("posting_kind") || "",
+				location: line.form.get_value("location") || ""}));
+			const set_all = (column, value) => {
+				for (const row of d.fields_dict.rows.df.data) row[column] = value;
+				d.fields_dict.rows.grid.refresh();
+			};
 			const d = p.dialog(__("Bulk Edit"), [
-				{fieldtype: "Select", fieldname: "all", label: __("Posting Kind"), options: KIND_OPTIONS, onchange: () => {
-					const value = d.get_value("all") || "";
-					for (const row of d.fields_dict.rows.df.data) row.posting_kind = value;
-					d.fields_dict.rows.grid.refresh();
-				}},
+				{fieldtype: "Select", fieldname: "all", label: __("Posting Kind"), options: KIND_OPTIONS,
+					onchange: () => set_all("posting_kind", d.get_value("all") || "")},
+				...(places ? [{fieldtype: "Select", fieldname: "all_location", label: __("Warehouse"), options: places,
+					onchange: () => set_all("location", d.get_value("all_location") || "")}] : []),
 				{fieldtype: "Table", fieldname: "rows", label: t("intake.nav.items"), cannot_add_rows: 1, cannot_delete_rows: 1,
 					in_place_edit: 1, data: rows, fields: [
-						{fieldtype: "Data", fieldname: "name", label: t("intake.item.name"), read_only: 1, in_list_view: 1, columns: 6},
+						{fieldtype: "Data", fieldname: "name", label: t("intake.item.name"), read_only: 1, in_list_view: 1, columns: places ? 4 : 6},
 						{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"), options: KIND_OPTIONS,
-							in_list_view: 1, columns: 4, formatter: value => p.escape(label(value))},
+							in_list_view: 1, columns: places ? 3 : 4, formatter: value => p.escape(label(value))},
+						...(places ? [{fieldtype: "Select", fieldname: "location", label: __("Warehouse"), options: places,
+							in_list_view: 1, columns: 3, formatter: value => p.escape(place_label(value))}] : []),
 					]},
 			], __("Save"), async () => {
 				const data = d.fields_dict.rows.df.data || [];
 				await Promise.all(kept.map((line, index) => line.form.set_value("posting_kind", data[index]?.posting_kind || "")));
+				if (places) await Promise.all(kept.map((line, index) => line.form.set_value("location", data[index]?.location || "")));
 				d.hide();
 				sync_save();  // 值都写上之后再重算要不要「保存」
 			});
@@ -426,6 +437,7 @@
 
 		// 没读到记录之前没有可复核的东西：字段一律只读（不给人改空气）。
 		let reviewable = false, lines = [];
+		let warehouse_options = [];  // 这张票推往的多仓账套在用的仓（`load_warehouses`），没有就不摆每行的「仓库」
 		const set_reviewable = editable => {
 			reviewable = editable;
 			for (const field of EDITABLE) form.set_df_property(field, "read_only", !editable);
@@ -486,6 +498,9 @@
 				{fieldtype: "Data", fieldname: "subtotal", label: __("Amount"), read_only: !reviewable},
 				{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"), options: KIND_OPTIONS,
 					hidden: no_kind, read_only: !reviewable},
+				{fieldtype: "Select", fieldname: "location", label: __("Warehouse"),
+					options: [{value: "", label: ""}, ...warehouse_options], hidden: warehouse_options.length ? 0 : 1,
+					read_only: !reviewable},
 				// 删除单独一行（同 ERP 采购单物料行），不占右栏
 				{fieldtype: "Section Break"},
 				{fieldtype: "Button", fieldname: "remove", label: __("Delete"), hidden: !reviewable, click: () => {
@@ -499,14 +514,14 @@
 			line_form.sections[0].body.addClass("mt-0 pt-0");
 			line_form.set_values(row);
 			outer.sections[0].collapse(index > 0 && source !== null);
-			const line = {wrapper, form: line_form, source, removed: false};
+			const line = {wrapper, form: line_form, source, removed: false, location: row?.location || ""};
 			return line;
 		};
 		const show_items = items => {
 			const list = Array.isArray(items) ? items : [];
 			shown_items = list.map(row => ({name: row?.name ?? "", qty: row?.qty ?? "", price: row?.price ?? "",
 				// 旧版：金额没有 `subtotal` 时显示 `amount`，改过就写回 `subtotal`。
-				subtotal: row?.subtotal ?? row?.amount ?? "", posting_kind: row?.posting_kind || ""}));
+				subtotal: row?.subtotal ?? row?.amount ?? "", posting_kind: row?.posting_kind || "", location: row?.location || ""}));
 			items_form.fields_dict.lines.$wrapper.empty();
 			lines = shown_items.map((row, index) => add_line({...row}, index));
 			items_region.toggle(Boolean(lines.length) || reviewable);
@@ -528,7 +543,7 @@
 				for (const column of ITEM_COLUMNS) {
 					const value = line.form.get_value(column) ?? "";
 					if (String(value) === String(shown_row[column] ?? "")) continue;
-					if (value === "" && column === "posting_kind") delete next[column];
+					if (value === "" && OPTIONAL_COLUMNS.has(column)) delete next[column];
 					else next[column] = value;
 				}
 				return next;
@@ -626,6 +641,28 @@
 		// 推到 ERP 的两张目标卡片（用户 2026-09-27：账套上传前由用户选定，编辑页不再选）。
 		const PUSH_TARGETS = ["express", "mrerp"];
 
+		/** 这张票推往的 Express 账套在用的仓（两个以上才有，服务端 `connections.warehouses`）：每行「仓库」的选项；同一份账套只取一次。
+		 *  取回来时已换了别的票就不动。 */
+		const warehouse_views = new Map();
+		const paint_location = line => {
+			line.form.set_df_property("location", "options", [{value: "", label: ""}, ...warehouse_options]);
+			line.form.set_df_property("location", "hidden", warehouse_options.length ? 0 : 1);
+			if (line.location) line.form.set_value("location", line.location);  // 选项晚到：把这一行记着的值补回控件
+		};
+		const load_warehouses = async record => {
+			const connection = record?.push_connection, account = record?.push_account_set;
+			const key = record?.intake_target === "express" && connection && account ? `${connection}\n${account}` : "";
+			if (key && !warehouse_views.has(key)) {
+				warehouse_views.set(key, p.call("pearnly_cowork.connections.api.warehouses", {name: connection, account_set_key: account})
+					.then(view => view?.warehouses || [])
+					.catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "intake-upload"); return []; }));
+			}
+			const rows = key ? await warehouse_views.get(key) : [];
+			if (current?.name !== record?.name) return;
+			warehouse_options = rows.map(row => ({value: row.code, label: [row.code, row.name].filter(Boolean).join(" · ")}));
+			for (const line of lines) paint_location(line);
+		};
+
 		/** 把一张票摆到左边（识别回填、换票、保存后重读都走这里）。 */
 		const fill = record => {
 			const pages = Array.isArray(record.pages) ? record.pages : [];
@@ -637,6 +674,7 @@
 			show_fields(working, direction);
 			show_notice(record);
 			set_reviewable(index >= 0);
+			void load_warehouses(record);
 		};
 		const detail = async record_name => {
 			const record = await p.call(HISTORY + "detail", {name: record_name});

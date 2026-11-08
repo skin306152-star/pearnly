@@ -20,7 +20,8 @@ NOTES_CHARS = team_notes.NOTES_CHARS  # 知识库的转义与字数上限在共�
 TOTAL_CHARS = 9000
 RULES_MAX = 40
 RULE_KINDS = {"party": "party record", "item": "stock item", "account": "expense account", "payment": "payment",
-              "vat": "tax on receipts", "department": "department", "receipt": "receiving account"}
+              "vat": "tax on receipts", "department": "department", "receipt": "receiving account",
+              "location": "warehouse"}
 RULE_VALUES = {("payment", "cash"): "cash", ("payment", "credit"): "credit", ("vat", "claim"): "claim the VAT",
                ("vat", "expense"): "expense the VAT"}
 MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October",

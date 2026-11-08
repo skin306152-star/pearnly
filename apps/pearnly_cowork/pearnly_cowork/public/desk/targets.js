@@ -356,7 +356,7 @@
 
 	/* ── Express 账套里系统猜不准的决定：选一次、记住后同类自动套用（用户 2026-09-28）──
 	 * 对方档（同税号几个档 / 分店号对不上）、存货（票面叫法对不上 Express 存货名）、服务类费用科目、
-	 * 现购 / 赊购、小票税额抵不抵进项、部门。判定在服务端（`push/express/choices.py`），这里只把
+	 * 现购 / 赊购、小票税额抵不抵进项、部门、多仓账套的默认仓（预选主仓）。判定在服务端（`push/express/choices.py`），这里只把
 	 * 要问的一次问齐。选好存下返回 true；关掉弹窗返回 false（这张票这次先不推）。 */
 	const PUSH_API = "pearnly_cowork.push.application.api.";
 	const NEW_CHOICE = "__new__";
@@ -371,7 +371,7 @@
 				label: [row.code, row.name, row.branch && row.branch !== "00000" ? row.branch : ""].filter(Boolean).join(" · ")})),
 				{value: NEW_CHOICE, label: __("cowork.choice.new")}]};
 		}
-		if (item.kind === "department") {
+		if (item.kind === "department" || item.kind === "location") {
 			return {...base, fieldtype: "Select", options: (item.options || []).map(row => ({value: row.code,
 				label: [row.code, row.name].filter(Boolean).join(" · ")}))};
 		}

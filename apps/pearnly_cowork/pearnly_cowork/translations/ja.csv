@@ -2284,6 +2284,7 @@ cowork.choice.expense,控除せず費用に含める
 cowork.choice.expenseLine,経費に計上
 cowork.choice.invalid,選んだ値はこの帳簿にありません。選び直してください
 cowork.choice.item,在庫品目
+cowork.choice.location,倉庫
 cowork.choice.new,伝票どおり新規作成
 cowork.choice.party,Express の取引先
 cowork.choice.payment,支払方法

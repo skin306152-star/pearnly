@@ -28,7 +28,7 @@ from pearnly_core.write_precheck import preselect
 from pearnly_cowork.access import scope
 
 # 写账规则问的类（记在账套记忆，`service.save_choices` 认得的那几类）
-CHOICE_KINDS = ("party", "item", "account", "receipt", "department", "payment", "vat", "service_vat")
+CHOICE_KINDS = ("party", "item", "account", "receipt", "department", "payment", "vat", "service_vat", "location")
 DIRECTION = "direction"
 DOCUMENT_POLICY = "document_policy"
 GOODS_POSTING = "goods_posting"
@@ -309,6 +309,8 @@ def _preselect(item, rows, fields, direction, shared):
         value = preselect.receipt_account(item.get("label"), shared.get("accounts") or rows)
     elif kind == pos_contract.REFUND_KIND:
         value = preselect.refund_account(shared.get("accounts") or rows)
+    elif kind == "location":
+        value = str(item.get("current") or "")  # 多仓账套的默认仓：预选主仓（`choices.resolve`）
     else:
         value = ""
     return (value, card.RULE) if value else ("", "")

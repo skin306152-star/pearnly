@@ -7,6 +7,11 @@
   (动库存行占比高 = 永续)。moving = not stcrd_no_stock_impact(见 dbf_schema · MREMBAL/LOTBAL 等非零)。
 - 存货科目组候选(ISACC):账套没配存货科目组是「选库存」唯一还会 escalate 的口子,云端要能就地
   渲染下拉让会计选一个,本机就得先把候选连同科目名/在用品数报上去,否则那个 escalate 是死胡同。
+- 仓库(1.12.18 起,评估 docs/work/2026-11-07-cowork-express-warehouse-评估.md):代码表 ISTAB(TABTYP=21)的全部仓 + 主仓
+  ISINFO.MAINLOC,{code,name,main,used}。used = 这套账 STCRD 里动库存的进货 / 销货行(POSOPR 0 / 9,Cowork 推的就是这两种)
+  出现过的仓(与记账指纹同一遍扫,不多读一次)或主仓;只做调拨、领用、调整用到的仓不算(11-08 测试机 615 本副本:按全部动库存行
+  算 275 本两个以上,只按进货 / 销货算 175 本)。云端只在「在用的仓」有两个以上时才让人选仓(Express 模板自带 01、02,按代码表判
+  等于每家都问)。main / used 是 "1",否则不带。
 
 全程只读;任何读档异常都吞掉、返已得部分(心跳隔离 · 绝不拖垮直写)。目录可上万条 → 限量。
 """
@@ -161,15 +166,67 @@ def probe_departments(account_dir) -> List[Dict[str, str]]:
 
 def probe_stcrd_fingerprint(account_dir) -> Tuple[int, int]:
     """STCRD → (stcrd_lines, stcrd_lines_moving_stock)。moving = 有真实库存影响的明细行。"""
+    lines, moving, _locations = _scan_stcrd(account_dir)
+    return lines, moving
+
+
+# 算「在用的仓」只看这两种行:进货(0)、销货(9),同 dbf_schema 写这两种单时的 POSOPR
+_TRADE_POSOPR = (S.STCRD_POSOPR_PURCHASE, S.STCRD_POSOPR)
+
+
+def _scan_stcrd(account_dir) -> Tuple[int, int, set]:
+    """STCRD 一遍 → (行数, 动库存的行数, 动库存的进货 / 销货行用过的仓码)。同记账指纹限量 `_MAX_STCRD_SCAN`。"""
     lines = 0
     moving = 0
+    locations: set = set()
     for r in _iter_records(account_dir, "STCRD"):
         lines += 1
         if not S.stcrd_no_stock_impact(r):
             moving += 1
+            code = _gv(r, "LOCCOD")
+            if code and _gv(r, "POSOPR") in _TRADE_POSOPR:
+                locations.add(code)
         if lines >= _MAX_STCRD_SCAN:
             break
-    return lines, moving
+    return lines, moving, locations
+
+
+# Express 仓库代码表:ISTAB 里 TABTYP='21' 的行(同 stock_location.warehouses / express_masters)。
+_WAREHOUSE_TABTYP = "21"
+_MAX_WAREHOUSES = 200
+
+
+def probe_warehouses(account_dir, used=()) -> List[Dict[str, str]]:
+    """ISTAB(TABTYP=21)+ 主仓 → [{code,name,main?,used?}]。``used``:STCRD 动库存的进货 / 销货行出现过的仓码(`_scan_stcrd`)。
+    主仓不在代码表里(少见)也列上、标 main / used:写入时不带仓码就是写它。"""
+    from . import account_rules
+
+    main = account_rules.main_location(account_dir, fallback="")
+    used = set(used or ()) | ({main} if main else set())
+    out: List[Dict[str, str]] = []
+    seen = set()
+    for r in _iter_records(account_dir, "ISTAB"):
+        if _gv(r, "TABTYP") != _WAREHOUSE_TABTYP:
+            continue
+        code = _gv(r, "TYPCOD")
+        if not code or code in seen:
+            continue
+        seen.add(code)
+        out.append(_warehouse(code, _plain(_gv(r, "TYPDES") or _gv(r, "SHORTNAM")), main, used))
+        if len(out) >= _MAX_WAREHOUSES:
+            break
+    if main and main not in seen:
+        out.insert(0, _warehouse(main, "", main, used))
+    return out
+
+
+def _warehouse(code: str, name: str, main: str, used: set) -> Dict[str, str]:
+    row = {"code": code, "name": name}
+    if code == main:
+        row["main"] = "1"
+    if code in used:
+        row["used"] = "1"
+    return row
 
 
 def probe_isacc_candidates(account_dir) -> List[Dict[str, Any]]:
@@ -290,13 +347,23 @@ def master_catalog_payload(account_dir) -> Dict[str, Any]:
 
 
 def catalog_payload(account_dir) -> Dict[str, Any]:
-    """best-effort:{products, customers, fingerprint, isacc_candidates}。逐块隔离,任一失败不影响其余。"""
+    """best-effort:{products, customers, suppliers, departments, warehouses, fingerprint, isacc_candidates}。逐块隔离,
+    任一失败不影响其余;仓库读坏了不带这个键(云端当旧版、照写主仓),不报空表冒充「没有仓」。"""
     products, customers, stock_n = _catalog_masters(account_dir)
     lines = moving = 0
+    locations: set = set()
+    stcrd_read = False
     try:
-        lines, moving = probe_stcrd_fingerprint(account_dir)
+        lines, moving, locations = _scan_stcrd(account_dir)
+        stcrd_read = True
     except Exception:
         log.exception("probe_stcrd_fingerprint failed: %s", account_dir)
+    warehouses = None
+    if stcrd_read:
+        try:
+            warehouses = probe_warehouses(account_dir, locations)
+        except Exception:
+            log.exception("probe_warehouses failed: %s", account_dir)
     candidates: List[Dict[str, Any]] = []
     try:
         ranked = probe_isacc_candidates(account_dir)
@@ -313,6 +380,7 @@ def catalog_payload(account_dir) -> Dict[str, Any]:
         "customers": customers,
         "suppliers": _optional(probe_suppliers, account_dir),
         "departments": _optional(probe_departments, account_dir),
+        **({"warehouses": warehouses} if warehouses is not None else {}),
         "fingerprint": {
             "stock_master_count": stock_n,
             "stcrd_lines": lines,

@@ -1386,6 +1386,26 @@ class ServiceVatBasis(unittest.TestCase):
 
 
 
+class CatalogWarehouses(unittest.TestCase):
+    """仓库表随心跳目录报（CC 桌面版 1.12.18，11-08 Cowork 推单选 Express 仓库）：CC 报的键 = 服务端净化留下的键；
+    主仓 / 在用用 "1" 标（服务端只认 "1"）；代码表段与 CC 写入校验的仓库表同一段（ISTAB 21）。"""
+
+    def test_the_catalog_reports_warehouses_with_the_keys_the_server_keeps(self):
+        probe = (COMPANION / "catalog_probe.py").read_text(encoding="utf-8")
+        self.assertIn('"warehouses": warehouses', probe)
+        for key in module_constants(WIRE / "report_rules.py")["WAREHOUSE_KEYS"]:
+            self.assertIn(f'"{key}"', probe, key)
+        self.assertIn('row["main"] = "1"', probe)
+        self.assertIn('row["used"] = "1"', probe)
+        rules = (RULES / "choices.py").read_text(encoding="utf-8")
+        self.assertIn('str(row.get("used") or "") == "1"', rules)
+        self.assertIn('str(row.get("main") or "") == "1"', rules)
+        self.assertEqual(module_constants(COMPANION / "catalog_probe.py")["_WAREHOUSE_TABTYP"],
+                         module_constants(COMPANION / "stock_location.py")["WAREHOUSE_TABTYP"])
+        self.assertIn('("warehouses", _WAREHOUSE_KEYS)',
+                      (ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/reports.py").read_text(encoding="utf-8"))
+
+
 class OperatorReceiptDetail(unittest.TestCase):
     """代录回执（写账回执 ``ack_failure``，CC 桌面版 1.12.15 起）：说明（detail）以 AI 接手的结论原文开头
     （``ai: <结论> · <步骤>: <固定流程问题>``）、最多 2000 字，**不再以截图路径开头**；转人工那一刻的截图本机路径放在

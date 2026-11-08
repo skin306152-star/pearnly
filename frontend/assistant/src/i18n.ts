@@ -570,7 +570,7 @@ const COMPANY = {
     proposal: { accountSet: "Account set", date: "Date", docNo: "Document no.", party: "Counterparty", beforeVat: "Before VAT", vat: "VAT", total: "Total" },
     kind: {
       group: "Document groups", party: "Party", item: "Stock item", account: "Expense account", payment: "Payment", vat: "Tax on receipts",
-      department: "Department", receipt: "Receiving account", pos: "POS layout", income: "Income reconciliation",
+      department: "Department", location: "Warehouse", receipt: "Receiving account", pos: "POS layout", income: "Income reconciliation",
       vatCheck: "VAT reconciliation", history: "Express history", posting: "Posting", current_book: "Account set in use",
       posting_history: "Posting history", mrerp_menu: "MR.ERP import menu", mrerp_default: "MR.ERP settings", operator_form: "Document menu",
     } as Record<string, string>,
@@ -655,7 +655,7 @@ const COMPANY = {
     proposal: { accountSet: "账套", date: "日期", docNo: "单号", party: "对方", beforeVat: "税前", vat: "税额", total: "合计" },
     kind: {
       group: "资料分组", party: "对方档", item: "存货", account: "费用科目", payment: "付款方式", vat: "票面税额",
-      department: "部门", receipt: "收款科目", pos: "POS 版式", income: "收入对账",
+      department: "部门", location: "仓库", receipt: "收款科目", pos: "POS 版式", income: "收入对账",
       vatCheck: "增值税核对", history: "Express 历史", posting: "入账方式", current_book: "现用账套", posting_history: "入账方式历史",
       mrerp_menu: "MR.ERP 导入菜单", mrerp_default: "MR.ERP 设置", operator_form: "单据菜单",
     } as Record<string, string>,
@@ -740,7 +740,7 @@ const COMPANY = {
     proposal: { accountSet: "ชุดบัญชี", date: "วันที่", docNo: "เลขที่เอกสาร", party: "คู่ค้า", beforeVat: "ยอดก่อนภาษี", vat: "ภาษีมูลค่าเพิ่ม", total: "ยอดรวม" },
     kind: {
       group: "กลุ่มเอกสาร", party: "คู่ค้า", item: "สินค้าคงเหลือ", account: "บัญชีค่าใช้จ่าย", payment: "วิธีชำระเงิน", vat: "จำนวนภาษีตามเอกสาร",
-      department: "แผนก", receipt: "บัญชีรับเงิน", pos: "รูปแบบ POS", income: "กระทบยอดรายได้",
+      department: "แผนก", location: "คลังสินค้า", receipt: "บัญชีรับเงิน", pos: "รูปแบบ POS", income: "กระทบยอดรายได้",
       vatCheck: "กระทบยอดภาษีมูลค่าเพิ่ม", history: "ประวัติ Express", posting: "วิธีลงบัญชี", current_book: "ชุดบัญชีที่ใช้อยู่",
       posting_history: "ประวัติวิธีลงบัญชี", mrerp_menu: "เมนูนำเข้า MR.ERP", mrerp_default: "การตั้งค่า MR.ERP", operator_form: "เมนูเอกสาร",
     } as Record<string, string>,
@@ -838,7 +838,7 @@ const OPERATOR = {
     group: { purchase: "Purchases", sales: "Sales", expense: "Expenses", payment: "Receipts and payments", skip: "Not posted" } as Record<string, string>,
     kind: {
       item: "Items", party: "Suppliers / customers", supplier: "Suppliers", customer: "Customers", account: "Expense account",
-      payment: "Payment", vat: "VAT rate differs from the invoice", receipt: "Receiving account", department: "Department", other: "Other",
+      payment: "Payment", vat: "VAT rate differs from the invoice", receipt: "Receiving account", department: "Department", location: "Warehouse", other: "Other",
     } as Record<string, string>,
     option: {
       newItem: "New stock item", new: "New", expense: "Expense",
@@ -846,7 +846,7 @@ const OPERATOR = {
     precheck: {
       kind: {
         account_set: "Account set", current_book: "Account set in use", direction: "Document groups", document_policy: "Post or not",
-        department: "Department", mrerp_menu: "MR.ERP import menu", mrerp_default: "MR.ERP settings", vat: "Input VAT",
+        department: "Department", location: "Warehouse", mrerp_menu: "MR.ERP import menu", mrerp_default: "MR.ERP settings", vat: "Input VAT",
         refund: "Sales returns account", vat_registered: "VAT registered", exempt_mode: "Exempt items", item: "Stock item",
         stock_group: "Stock account group", goods_posting: "Posting", service_vat: "Service input VAT", posting_kind: "Service or stock",
         payment: "Payment", receipt: "Receiving account", supplier: "Supplier", customer: "Customer", expense: "Expense account",
@@ -913,7 +913,7 @@ const OPERATOR = {
     group: { purchase: "采购", sales: "销售", expense: "费用", payment: "收付款", skip: "不入账" } as Record<string, string>,
     kind: {
       item: "商品", party: "供应商 / 客户", supplier: "供应商", customer: "客户", account: "费用科目",
-      payment: "付款方式", vat: "税率与票面不符", receipt: "收款科目", department: "部门", other: "其他",
+      payment: "付款方式", vat: "税率与票面不符", receipt: "收款科目", department: "部门", location: "仓库", other: "其他",
     } as Record<string, string>,
     option: {
       newItem: "库存（新建）", new: "新建", expense: "记费用",
@@ -921,7 +921,7 @@ const OPERATOR = {
     precheck: {
       kind: {
         account_set: "账套", current_book: "现用账套", direction: "资料分组", document_policy: "是否入账",
-        department: "部门", mrerp_menu: "MR.ERP 导入菜单", mrerp_default: "MR.ERP 设置", vat: "进项税",
+        department: "部门", location: "仓库", mrerp_menu: "MR.ERP 导入菜单", mrerp_default: "MR.ERP 设置", vat: "进项税",
         refund: "销货退回科目", vat_registered: "增值税登记户", exempt_mode: "免税商品写法", item: "存货",
         stock_group: "存货科目组", goods_posting: "入账方式", service_vat: "服务品进项税", posting_kind: "服务或存货",
         payment: "付款方式", receipt: "收款科目", supplier: "供应商", customer: "客户", expense: "费用科目",
@@ -988,7 +988,7 @@ const OPERATOR = {
     group: { purchase: "ซื้อ", sales: "ขาย", expense: "ค่าใช้จ่าย", payment: "รับ-จ่ายเงิน", skip: "ไม่บันทึกบัญชี" } as Record<string, string>,
     kind: {
       item: "สินค้า", party: "ผู้จำหน่าย / ลูกค้า", supplier: "ผู้จำหน่าย", customer: "ลูกค้า", account: "บัญชีค่าใช้จ่าย",
-      payment: "การชำระเงิน", vat: "อัตราภาษีไม่ตรงกับใบกำกับ", receipt: "บัญชีรับเงิน", department: "แผนก", other: "อื่นๆ",
+      payment: "การชำระเงิน", vat: "อัตราภาษีไม่ตรงกับใบกำกับ", receipt: "บัญชีรับเงิน", department: "แผนก", location: "คลังสินค้า", other: "อื่นๆ",
     } as Record<string, string>,
     option: {
       newItem: "สินค้าคงคลัง (สร้างใหม่)", new: "สร้างใหม่", expense: "บันทึกเป็นค่าใช้จ่าย",
@@ -996,7 +996,7 @@ const OPERATOR = {
     precheck: {
       kind: {
         account_set: "ชุดบัญชี", current_book: "ชุดบัญชีที่ใช้อยู่", direction: "กลุ่มเอกสาร", document_policy: "บันทึกหรือไม่",
-        department: "แผนก", mrerp_menu: "เมนูนำเข้า MR.ERP", mrerp_default: "การตั้งค่า MR.ERP", vat: "ภาษีซื้อ",
+        department: "แผนก", location: "คลังสินค้า", mrerp_menu: "เมนูนำเข้า MR.ERP", mrerp_default: "การตั้งค่า MR.ERP", vat: "ภาษีซื้อ",
         refund: "บัญชีรับคืนสินค้า", vat_registered: "จดทะเบียนภาษีมูลค่าเพิ่ม", exempt_mode: "สินค้ายกเว้นภาษี", item: "สินค้า",
         stock_group: "กลุ่มบัญชีสินค้าคงเหลือ", goods_posting: "วิธีลงบัญชี", service_vat: "ภาษีซื้อของสินค้าบริการ", posting_kind: "บริการหรือสินค้า",
         payment: "วิธีชำระเงิน", receipt: "บัญชีรับเงิน", supplier: "ผู้จำหน่าย", customer: "ลูกค้า", expense: "บัญชีค่าใช้จ่าย",

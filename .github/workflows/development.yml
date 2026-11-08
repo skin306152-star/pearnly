@@ -255,6 +255,8 @@ jobs:
         run: python3 tests/test_cowork_delete_everything.py
       - name: Verify re-pushed scheduled-task documents carry the task defaults and leave the account set memory alone
         run: python3 tests/test_cowork_push_fixed.py
+      - name: Verify the Express choices (party, item, account, payment, VAT, department, warehouse) are asked once and remembered
+        run: PYTHONPATH=apps/pearnly_core python3 tests/test_cowork_express_choices.py
       - name: Verify each purchase or sales line can be decided on its own (stock item, new stock item or expense) and mixed documents ask the expense account
         run: python3 tests/test_express_rules_line_choice.py
       - name: Verify Cowork LINE asks the undecided lines after recognition (all new, all expense, one by one with a typed search, cancel)

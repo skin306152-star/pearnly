@@ -433,6 +433,21 @@ def stock_acc_group(name, account_set_key):
                              reported_stock_groups(doc, account))
 
 
+def warehouses(name, account_set_key):
+    """这份账套在用的仓（CC 桌面版 1.12.18 起报，代码表 + 本账动库存用过的仓 + 主仓）：``{warehouses: [{code, name, main?}],
+    main}``；不到两个（或旧版没报、没读过）回空表，复核页就不出每行的仓库选择（11-08，评估 2026-11-07 Cowork 选 Express 仓库）。只读。"""
+    from pearnly_core.express_rules.push import choices as choice_rules
+
+    doc = _read(CONNECTION, name, lock=False)
+    access.require_connection(doc, lock=False)
+    account = _stock_group_account(doc, account_set_key)
+    rows = (pool.facts(doc.name, account) or {}).get("reported_warehouses")
+    used = choice_rules.warehouses_in_use(rows)
+    return {"warehouses": [{"code": row["code"], "name": row.get("name") or "",
+                            **({"main": 1} if row.get("main") == "1" else {})} for row in used],
+            "main": choice_rules.main_warehouse(rows) if used else ""}
+
+
 def choose_stock_acc_group(name, account_set_key, acccod):
     """记下这份账套的存货科目组，以后在这份账套新建的库存品都挂它（每个账套选一次，用户 2026-09-28）。
 

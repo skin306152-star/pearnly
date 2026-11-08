@@ -161,6 +161,10 @@
   - 直写的录入人记这台电脑授权的 Express 账户名（`docs/work/2026-11-07-cc-direct-writer-userid-评估.md`，`writer_id`）：单头 USERID 与新建主档
     建档人记它（大写、≤ 8 个字符、在账套的 SCUSER 用户表里，否则仍记 PEARNLY）；凭证头 `GLJNL.CREBY` 仍记 PEARNLY 当机器标记，认自己写的单
     改看它；回执 meta 带 `writer`，桥 `operator_state` 多回 `login_user`（代录开始卡片显示授权的账号）。
+- 1.12.18（未发布）：
+  - 心跳目录多报仓库表 `warehouses`（`catalog_probe.probe_warehouses`，`docs/work/2026-11-07-cowork-express-warehouse-评估.md`）：代码表
+    ISTAB 21 的全部仓 + 主仓 `ISINFO.MAINLOC`，主仓与本账 STCRD 动库存的进货 / 销货行（POSOPR 0 / 9）用过的仓标 `"1"`（与记账指纹同一遍扫）；Cowork 只在在用的仓有两个
+    以上时让人选仓。写入不变（载荷 4 的行 `loccod` 早就会写）；旧服务端忽略这个键。服务端先部署也无妨（没报仓库表时什么都不变）。
 
 ## 本机测试
 

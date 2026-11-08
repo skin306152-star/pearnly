@@ -6,7 +6,9 @@
   供应商 · 单号 / 新物料：1. … 2. …   [全部新建存货] [全部记费用] [逐项选择] [取消]
 
 「逐项选择」一项一问：[新建存货] [记费用] [选已有存货] [取消]；「选已有存货」请打名称或编码，在这份账套的存货（库存品与非库存品）里找，
-列序号按钮。答案经推送服务 `save_choices` 记进账套记忆（同复核页、CC 卡片；推送侧经钩子 ``cowork_line_items``），之后推送照它走。一批几张票一次只问一张，问完一张接下一张。
+列序号按钮。多仓账套（在用的仓 ≥ 2）还没记过默认仓时，这些行问完（或点了「全部…」）接着问一次仓：快捷回复列在用的仓（主仓在前），
+答案记成这份账套的默认仓（11-08，评估 docs/work/2026-11-07-cowork-express-warehouse-评估.md；一张票一个仓，不逐行问，要分仓去网页复核页改）。
+没有要问的行就不单为仓问。答案经推送服务 `save_choices` 记进账套记忆（同复核页、CC 卡片；推送侧经钩子 ``cowork_line_items``），之后推送照它走。一批几张票一次只问一张，问完一张接下一张。
 取消只停这张的提问，不改上传前的选择；没答的行照推送时的规则（停在待处理里等人选，不硬拦）。
 
 追问的进度存在本人的 LINE 会话里（与上传前的选择同一个会话、同样 30 分钟，键 ``ASKING``）；按钮只认当前在问的这一项。
@@ -50,7 +52,8 @@ def _side(name):
 
 
 def rows_of(history) -> list:
-    """这张票推往的 Express 账套里定不了的行 ``[{subject, label}]``（推送侧 `push.application.line_items.rows`）。"""
+    """这张票推往的 Express 账套里定不了的行 ``[{kind, subject, label}]``，多仓账套末尾可跟一项仓库（``kind = location``，带
+    ``options``）（推送侧 `push.application.line_items.rows`）。"""
     rows = _side("rows")
     return rows(history) if rows else []
 
@@ -60,9 +63,14 @@ def _title(history) -> str:
     return title(history) if title else ""
 
 
+def _items(rows) -> list:
+    return [row for row in rows if row.get("kind", "item") == "item"]
+
+
 def first_question(history, rows) -> dict:
     """整张的提问：新物料列全（文字没有按钮个数的限制），按钮固定四个。"""
-    lines = [_title(history), _("cowork.line.items.new")] + [f"{index}. {row['label']}" for index, row in enumerate(rows, 1)]
+    lines = [_title(history), _("cowork.line.items.new")] + [f"{index}. {row['label']}"
+                                                             for index, row in enumerate(_items(rows), 1)]
     return _message("\n".join(part for part in lines if part), [
         _button(_("cowork.line.items.allNew"), v="all_new"),
         _button(_("cowork.line.items.allExpense"), v="all_expense"),
@@ -71,10 +79,24 @@ def first_question(history, rows) -> dict:
 
 def _row_question(asking) -> dict:
     row = asking["rows"][asking["i"]]
-    head = f"{asking['i'] + 1}/{len(asking['rows'])} · {row['label']}"
+    if row.get("kind") == "location":
+        return _location_question(asking)
+    head = f"{asking['i'] + 1}/{len(_items(asking['rows']))} · {row['label']}"
     return _message(head, [_button(_("cowork.line.items.newOne"), v="new", i=asking["i"]),
                            _button(_("cowork.choice.expenseLine"), v="expense", i=asking["i"]),
                            _button(_("cowork.line.items.pick"), v="pick", i=asking["i"])])
+
+
+def _option_label(option) -> str:
+    return " ".join(part for part in (option.get("code"), option.get("name")) if part)
+
+
+def _location_question(asking) -> dict:
+    """问仓：列在用的仓（主仓在前），点一个记成这份账套的默认仓。"""
+    options = asking["rows"][asking["i"]].get("options") or []
+    lines = [_("Warehouse")] + [f"{index}. {_option_label(row)}" for index, row in enumerate(options, 1)]
+    return _message("\n".join(lines), [_button(_option_label(row), v="loc", i=asking["i"], k=index)
+                                       for index, row in enumerate(options[:MAX_RESULTS])])
 
 
 def queue(line_user_id, history) -> dict | None:
@@ -100,8 +122,8 @@ def queue(line_user_id, history) -> dict | None:
 
 def _save(history, answers):
     """记进这张票推往的账套的记忆（同复核页「要选的项」）：``answers`` = ``[(row, value)]``。"""
-    _side("save")(history, [{"kind": "item", "subject": row["subject"], "value": value, "label": row["label"]}
-                            for row, value in answers])
+    _side("save")(history, [{"kind": row.get("kind", "item"), "subject": row["subject"], "value": value,
+                             "label": row["label"]} for row, value in answers])
 
 
 def _next_doc(line_user_id, payload, reply_token, done_text=True):
@@ -144,16 +166,28 @@ def answer(line_user_id, data, reply_token):
             asking["i"] = 0
             flow.keep(line_user_id, payload)
             return _reply(reply_token, _row_question(asking))
-        _save(asking["history"], [(row, NEW if value == "all_new" else EXPENSE) for row in rows])
+        _save(asking["history"], [(row, NEW if value == "all_new" else EXPENSE) for row in _items(rows)])
+        place = next((index for index, row in enumerate(rows) if row.get("kind") == "location"), None)
+        if place is not None:  # 多仓账套：接着问一次仓
+            asking["i"] = place
+            flow.keep(line_user_id, payload)
+            return _reply(reply_token, _location_question(asking))
         return _next_doc(line_user_id, payload, reply_token)
     if current is None or str(params.get("i", "")) != str(current):
         return _reply(reply_token, {"type": "text", "text": _("This option is no longer current")})
-    if value == "pick":
+    if value == "pick" and rows[current].get("kind", "item") == "item":
         asking["search"] = True
         flow.keep(line_user_id, payload)
         return _reply(reply_token, _message(_("cowork.line.items.type"), []))
-    if value in ("new", "expense"):
+    if value in ("new", "expense") and rows[current].get("kind", "item") == "item":
         return _answered(line_user_id, payload, reply_token, NEW if value == "new" else EXPENSE)
+    if value == "loc" and rows[current].get("kind") == "location":
+        options = rows[current].get("options") or []
+        try:
+            code = options[int(params.get("k", ""))]["code"]
+        except (ValueError, IndexError, KeyError):
+            return _reply(reply_token, {"type": "text", "text": _("This option is no longer current")})
+        return _answered(line_user_id, payload, reply_token, code)
     if value == "o":
         offered = asking.get("offered") or []
         try:

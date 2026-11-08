@@ -16,6 +16,10 @@
   2026-10-13）。每天按付款方式另记一张日记账凭证「借 这个科目 / 贷 现金」（`contracts/pos.py`）。
 - `service_vat`：赊购单服务品的进项税口径（เกณฑ์สิทธิ / เกณฑ์เงินสด，按供应商；10-29）。这本账套的历史定得了的不问
   （`push/service_vat.py`，CC 桌面版随供应商主档报上来每家的口径串 ``srv``），定不了才问一次。
+- `location`：库存行进 Express 哪个仓（11-08，评估 docs/work/2026-11-07-cowork-express-warehouse-评估.md）。只在这份账套「在用的仓」
+  （CC 桌面版 1.12.18 起随目录报 ``reported_warehouses``：代码表全部仓，本账 STCRD 动库存的进货 / 销货行用过的仓与主仓标 ``used``）有两个以上时才定；
+  逐行：行上人选的（复核页 ``location``）> 这一行记过的（归类键同存货对照 `item_subject`）> 这份账套的默认仓（``subject = "*"``）>
+  主仓。都没有时 ``ask_location`` 才问一次默认仓（预选主仓）；不问的入口（自动推 / 定时任务）照写主仓、不拦。主仓不写仓码（载荷同以前）。
 - `refund`：收银退货单 SR 的退货科目（借方，税前；ERP B3b）。Express 实录 SR0000001 记在 41-02 一类「รับคืน / ลดหนี้」科目，
   账套里查不到原生的取法（ISRUN / ISINFO 都没有这一栏），所以按公司问一次、记住（整家公司一个，归类键 ``pos_refund``）。
 
@@ -36,7 +40,11 @@ from pearnly_core.express_rules.push.payment import payment_verdict, payment_wri
 NEW = "__new__"
 # 存货对照的一个值：这一行不建存货、写成费用 / 服务行（不动库存；11-06 按行选）
 EXPENSE = "__expense__"
-KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt", "service_vat")  # 末项 = service_vat.KIND
+KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt", "service_vat",  # 第 8 项 = service_vat.KIND
+         "location")
+LOCATION = "location"
+# 整份账套的默认仓（同部门）
+LOCATION_DEFAULT = "*"
 # 只在 ERP 的收银退货单上出现的一类（不进 KINDS：Cowork 按 KINDS 存取、列出账套记忆，加进去会改 Cowork 现有输出）
 REFUND = pos_contract.REFUND_KIND
 PAYMENT_VALUES = ("cash", "credit")
@@ -150,7 +158,7 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             account_resolved: bool = False, fixed: Optional[Mapping[str, str]] = None,
             receipts: Iterable = (), trace: Optional[Dict[str, List[Optional[str]]]] = None,
             refund: bool = False, book: str = "", ask_service_vat: bool = False,
-            undeclared_lines: bool = False) -> Dict[str, Any]:
+            undeclared_lines: bool = False, ask_location: bool = False) -> Dict[str, Any]:
     """这张票在这份账套里的决定 → `{"applied": {...}, "needed": [...]}`。
 
     `config`：推送准备用的账套配置（含小助手上报的 `reported_customers / reported_suppliers / reported_products /
@@ -168,6 +176,9 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     记过的照用，定不了由 CC 桌面版拒写转人工）。
     `undeclared_lines`：没声明过账类型的行要不要按行问（11-06）：调用方在这张单推往这份账套「没声明就会交人」时给（永续 / 混合库存账套的
     商品单，Cowork `goods_posting.blocked`）；不给（默认）没声明的行照旧不问，交映射器按记账画像定。记过的、Express 同名的照样定下。
+    `ask_location`：多仓账套（在用的仓 ≥ 2）的库存行定不了仓时要不要问一次默认仓（人在场的入口给：复核页、CC 卡片、人点的推送）；
+    不给（默认）照写主仓，不问（自动推 / 定时任务，评估第 12 节 #4）。选定的仓放进 ``applied["locations"]`` ``{规范品名: 仓码}``
+    （只放非主仓）；行上人选的、与这一行记过的不同的放进 ``applied["remember_locations"]`` ``{归类键: {value, label}}``，由调用方记下。
     `trace`：给了就就地记下「每一类用了哪几个归类键」`{kind: [subject | None]}`（None = 任务默认定的），
     `company_choices.decided_by` 据此说清按什么定的（第 2 期公司规则）；不给不记，结果不变。
     """
@@ -313,6 +324,9 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
         applied["kinds"] = kinds
     lines = _stock_lines(fields, posting_kind, kinds)
 
+    # ── 仓库：多仓账套的库存行进哪个仓 ──
+    _locations(config, lines, direction, tax, name, remembered, chosen, used, applied, needed, ask_location)
+
     # ── 服务类进项的费用科目：没有库存行的单；有库存行时只要有一行定为费用 / 服务（混行单，11-06）也问 ──
     effective = line_kinds(rows_all, posting_kind, kinds)
     expense_lines = any(kind == "service" for kind in effective)
@@ -359,6 +373,61 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
         else:
             needed.append({"kind": kind, "subject": subject, "label": "", "current": value or ""})
     return {"applied": applied, "needed": needed}
+
+
+def warehouses_in_use(rows) -> List[Dict[str, Any]]:
+    """这份账套报来的仓里在用的（``used``，含主仓）；不到两个回空 = 不让人选仓、照写主仓。旧版 CC 桌面版不报 → 空。"""
+    found = [row for row in _rows(rows) if str(row.get("used") or "") == "1"]
+    return found if len(found) >= 2 else []
+
+
+def main_warehouse(rows) -> str:
+    """主仓码（报来的仓里标 ``main`` 的）；没有回空。"""
+    return next((str(row["code"]).strip() for row in _rows(rows) if str(row.get("main") or "") == "1"), "")
+
+
+def _locations(config, lines, direction, tax, name, remembered, chosen, used, applied, needed, ask) -> None:
+    """库存行各进哪个仓（见文件头 `location`）。只放非主仓：主仓不带仓码，CC 桌面版照旧写 ISINFO.MAINLOC。"""
+    rows = warehouses_in_use(config.get("reported_warehouses"))
+    # 这一张还在问存货对照的行（答了可能成库存行）：默认仓并进同一问，不等答完再另问一轮（评估第 12 节 #7）
+    pending = any(item.get("kind") == "item" for item in needed)
+    if not rows or not (lines or pending):
+        return
+    codes = _codes(rows)
+    main = main_warehouse(config.get("reported_warehouses"))
+    default = chosen(LOCATION, LOCATION_DEFAULT)
+    default = default if default in codes else ""
+    picked: Dict[str, str] = {}
+    remember: Dict[str, Dict[str, str]] = {}
+    unsettled = pending and not default
+    for line in lines:
+        label = str(line.get("name") or "").strip()[:50]
+        norm = norm_name(label)
+        own = str(line.get("location") or "").strip()
+        key = item_subject(direction, tax, name, label)
+        line_value = str((remembered.get(LOCATION) or {}).get(key) or "").strip()
+        if own in codes:
+            value = own
+            if own != line_value:
+                remember[key] = {"value": own, "label": label}  # 行上人选的仓按这一行记下（同票上人改的付款方式），下回同一样东西照它
+        elif line_value in codes:
+            value = line_value
+            used(LOCATION, key)
+        elif default:
+            value = default
+            used(LOCATION, LOCATION_DEFAULT)
+        else:
+            unsettled = True
+            continue
+        if value != main:
+            picked[norm] = value
+    if picked:
+        applied["locations"] = picked
+    if remember:
+        applied["remember_locations"] = remember
+    if unsettled and ask:
+        needed.append({"kind": LOCATION, "subject": LOCATION_DEFAULT, "label": "", "current": main if main in codes else "",
+                       "options": [{"code": row["code"], "name": row.get("name") or ""} for row in rows]})
 
 
 def service_vat_subject(direction, tax, name, book: str = "") -> str:
@@ -435,6 +504,13 @@ def apply_to_payload(payload: Dict[str, Any], applied: Mapping[str, Any]) -> Dic
     if applied.get("department"):
         payload["depcod"] = str(applied["department"])[:4]
         version = 2
+    locations = applied.get("locations") or {}
+    if locations:
+        # 多仓账套选定的仓（只放了非主仓）：写在库存行上，`finalize_payload` 见行上 ``loccod`` 盖载荷 4（CC 校验在仓库代码表里）
+        for item in payload.get("items") or []:
+            code = locations.get(norm_name(item.get("name")))
+            if code and not item.get("loccod") and str(item.get("item_mode") or "") in ("stock_item", "stock_sale"):
+                item["loccod"] = str(code)[:4]
     value = service_vat.chosen_value(applied.get(service_vat.KIND))
     if value and payload.get("direction") in (None, "", "purchase"):
         # 人选的服务品进项税口径（这本账套的历史定不了时用）：旧版 CC 桌面版不认这个键、恒写 1，盖版本号让它诚实拒收
@@ -458,5 +534,5 @@ def borrow_receipts(remembered: Dict[str, Dict[str, str]], receipts: Iterable, b
             mine[subject] = value
 
 
-__all__ = ["EXPENSE", "KINDS", "NEW", "PAYMENT_VALUES", "REFUND", "VAT_VALUES", "apply_to_payload", "borrow_receipts", "item_subject", "norm_name",
+__all__ = ["EXPENSE", "KINDS", "LOCATION", "LOCATION_DEFAULT", "NEW", "main_warehouse", "warehouses_in_use", "PAYMENT_VALUES", "REFUND", "VAT_VALUES", "apply_to_payload", "borrow_receipts", "item_subject", "norm_name",
            "line_kinds", "party_subject", "resolve", "service_vat_subject", "supplier_subject", "with_line_kinds"]

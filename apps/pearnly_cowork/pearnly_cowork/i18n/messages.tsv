@@ -1528,6 +1528,7 @@ Expense account	费用科目	บัญชีค่าใช้จ่าย	費�
 Payment	付款方式	วิธีชำระเงิน	支払方法	cowork.choice.payment
 Tax on this receipt	票面税额	จำนวนภาษีตามเอกสาร	この領収書の税額	cowork.choice.vat
 Department	部门	แผนก	部門	cowork.choice.department
+Warehouse	仓库	คลังสินค้า	倉庫	cowork.choice.location
 Receiving account	收款科目	บัญชีรับเงิน	入金勘定	cowork.choice.receipt
 New, as on the invoice	新建（按票面）	สร้างใหม่ตามเอกสาร	伝票どおり新規作成	cowork.choice.new
 Expense	记费用	บันทึกเป็นค่าใช้จ่าย	経費に計上	cowork.choice.expenseLine

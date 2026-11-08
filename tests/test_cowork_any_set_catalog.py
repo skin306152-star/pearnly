@@ -169,6 +169,19 @@ class AnySetCatalog(unittest.TestCase):
         self.doc.report_credential = "NEW"
         self.assertEqual(len(preparation.reported_masters(self.doc, KEYS["DEMO02"])["reported_accounts"]), 37)
 
+    def test_warehouses_are_stored_with_the_account_set_and_an_old_desktop_leaves_them_alone(self):
+        """仓库表（CC 桌面版 1.12.18 起随目录报，11-08 Cowork 选仓）：存进这份账套的账套资料，只留已知键；旧版不报这个键时不写空表。"""
+        rows = [{"code": "01", "name": "Main", "main": "1", "used": "1", "extra": "x"}, {"code": "30", "name": "Branch", "used": "1"}]
+        self.heartbeat(catalog={"products": [], "customers": [], "warehouses": rows})
+        stored = pool.facts("CONN", KEYS["DEMO01"])["reported_warehouses"]
+        self.assertEqual(stored, [{"code": "01", "name": "Main", "main": "1", "used": "1"},
+                                  {"code": "30", "name": "Branch", "used": "1"}])
+        self.now += timedelta(minutes=30)
+        self.heartbeat(catalog={"products": [], "customers": []})  # 旧版不报：保留上次读到的
+        self.assertEqual(pool.facts("CONN", KEYS["DEMO01"])["reported_warehouses"], stored)
+        self.assertEqual(preparation.reported_masters(self.doc, KEYS["DEMO01"], keys=preparation.ALL_MASTER_LISTS)
+                         ["reported_warehouses"], stored)
+
     def test_push_preparation_for_a_set_the_computer_did_not_select_uses_its_own_masters(self):
         account_masters.ensure(self.doc, KEYS["DEMO02"], "owner@example.com", self.now)
         self.read_demo02()

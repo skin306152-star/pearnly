@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))
 
 import _synth_account  # noqa: E402
+from account_rules_fixture import isinfo  # noqa: E402
 
 from companion import catalog_probe as CP  # noqa: E402
 from companion import dbf_schema as S  # noqa: E402
@@ -120,7 +121,8 @@ def test_catalog_payload_shape(acct):
     _add(acct, "STMAS", STKCOD="0001", STKDES="x", STKTYP="0")
     _add(acct, "STCRD", STKCOD="0001", MREMBAL=1.0)
     pay = CP.catalog_payload(acct)
-    assert set(pay) == {"products", "customers", "suppliers", "departments", "fingerprint", "isacc_candidates"}
+    assert set(pay) == {"products", "customers", "suppliers", "departments", "warehouses", "fingerprint",
+                        "isacc_candidates"}
     assert pay["fingerprint"] == {
         "stock_master_count": 1,
         "stcrd_lines": 1,
@@ -253,3 +255,40 @@ def test_the_last_scanned_account_sets_are_used_until_this_start_finishes_scanni
     fresh = {}
     projection_refresh.load_account_sets(fresh, "other")
     assert "reported_account_sets" not in fresh
+
+
+def test_warehouses_mark_main_and_the_ones_in_use(acct):
+    # 1.12.18 Cowork 选仓：代码表全部仓 + 主仓；STCRD 动库存的行出现过的仓与主仓标 used（只有它们 ≥ 2 才让人选）
+    isinfo(acct, MAINLOC="01")
+    _add(acct, "ISTAB", TABTYP="21", TYPCOD="01", TYPDES="คลังหลัก")
+    _add(acct, "ISTAB", TABTYP="21", TYPCOD="02", TYPDES="คลัง 2")
+    _add(acct, "ISTAB", TABTYP="21", TYPCOD="30", TYPDES="\xa0สาขา")
+    _add(acct, "ISTAB", TABTYP="50", TYPCOD="SUTI", TYPDES="แผนก")
+    _add(acct, "STCRD", STKCOD="0001", LOCCOD="30", POSOPR="0", MREMBAL=5.0)  # 进货动库存、进了 30 仓
+    _add(acct, "STCRD", STKCOD="PN001", LOCCOD="02", POSOPR="9", MREMBAL=0)  # 不动库存的行不算 02 在用
+    _add(acct, "STCRD", STKCOD="0001", LOCCOD="40", POSOPR="3", MREMBAL=2.0)  # 只调拨进过的 40 仓不算（Cowork 不推调拨）
+    _add(acct, "ISTAB", TABTYP="21", TYPCOD="40", TYPDES="โอน")
+    pay = CP.catalog_payload(acct)
+    assert pay["warehouses"] == [
+        {"code": "01", "name": "คลังหลัก", "main": "1", "used": "1"},
+        {"code": "02", "name": "คลัง 2"},
+        {"code": "30", "name": "สาขา", "used": "1"},
+        {"code": "40", "name": "โอน"},
+    ]
+
+
+def test_warehouses_list_a_main_location_missing_from_the_code_table(acct):
+    # 主仓不在代码表里（少见）：照样列上，写入不带仓码就是写它
+    isinfo(acct, MAINLOC="1001")
+    _add(acct, "ISTAB", TABTYP="21", TYPCOD="01", TYPDES="A")
+    assert CP.probe_warehouses(acct) == [{"code": "1001", "name": "", "main": "1", "used": "1"},
+                                         {"code": "01", "name": "A"}]
+
+
+def test_warehouses_left_out_when_stcrd_cannot_be_read(acct, monkeypatch):
+    # 读坏了不报空表冒充「没有仓」：不带这个键，云端当旧版照写主仓
+    def broken(_dir):
+        raise OSError("locked")
+
+    monkeypatch.setattr(CP, "_scan_stcrd", broken)
+    assert "warehouses" not in CP.catalog_payload(acct)

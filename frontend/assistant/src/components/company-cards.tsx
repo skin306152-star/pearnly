@@ -106,7 +106,7 @@ export function choiceSection(choice: Pick<Choice, "source" | "kind">): string {
   return choice.source;
 }
 
-const SECTION_ORDER = ["party", "account", "payment", "vat", "posting", "group", "item", "department", "receipt", "current_book", "pos", "income",
+const SECTION_ORDER = ["party", "account", "payment", "vat", "posting", "group", "item", "department", "location", "receipt", "current_book", "pos", "income",
   "vatCheck", "history", "posting_history", "mrerp_menu", "mrerp_default", "operator_form"];
 
 // ---------------------------------------------------------------- 卡片外框
@@ -666,7 +666,7 @@ export const toggleChoice = (open: string, key: string) => (open === key ? "" : 
 
 /** 值是主档代码的几类：科目（含 Express 历史）、收款科目、对方档、存货、部门。收起时只写代码（280 宽右侧栏里「代码 名称」长串会把
  *  左边的对方名挤得看不见，对方档的名称又常就是对方名本身），完整的「代码 名称」在点开后的说明里（第 10 轮审查）。 */
-const CODE_KINDS = new Set(["account", "receipt", "party", "item", "department", "mrerp_default"]);
+const CODE_KINDS = new Set(["account", "receipt", "party", "item", "department", "location", "mrerp_default"]);
 
 /** 行尾的值（收起时 12px 淡色、不换行，放不下渐隐）：能改的写选项名（现购 / 赊购），代码类只写代码，POS 版式不写（值是内部的
  *  auto / person，没有给人看的说法），其余写显示名。 */

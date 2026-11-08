@@ -2284,6 +2284,7 @@ cowork.choice.expense,Count as expense
 cowork.choice.expenseLine,Expense
 cowork.choice.invalid,The chosen value is not in this account set. Choose again
 cowork.choice.item,Stock item
+cowork.choice.location,Warehouse
 cowork.choice.new,"New, as on the invoice"
 cowork.choice.party,Express record
 cowork.choice.payment,Payment

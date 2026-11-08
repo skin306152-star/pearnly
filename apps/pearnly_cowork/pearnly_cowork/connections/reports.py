@@ -12,7 +12,7 @@ from typing import Any, Dict, Iterable, List, Mapping
 
 from pearnly_core.cc_desktop.wire.report_rules import (  # 上报内容的净化规则在共用层（ADR-025）
     CUSTOMER_KEYS as _CUSTOMER_KEYS, DEPARTMENT_KEYS as _DEPARTMENT_KEYS, PRODUCT_KEYS as _PRODUCT_KEYS,
-    SUPPLIER_KEYS as _SUPPLIER_KEYS,
+    SUPPLIER_KEYS as _SUPPLIER_KEYS, WAREHOUSE_KEYS as _WAREHOUSE_KEYS,
     account_sets as _account_sets, options as _options, sanitize_accounts as _sanitize_accounts,
     sanitize_catalog as _sanitize_catalog, sanitize_fingerprint as _sanitize_fingerprint,
     sanitize_stock_acc_groups as _sanitize_stock_acc_groups)
@@ -277,7 +277,7 @@ MAPPING_KEYS = frozenset(_MAPPING_KEYS)
 CACHE_KEYS = frozenset((
     "reported_account_sets", "account_sets_seen_at", "reported_accounts", "accounts_seen_at",
     "reported_products", "reported_customers", "reported_suppliers", "reported_departments",
-    "catalog_seen_at", "catalog_fingerprint",
+    "reported_warehouses", "catalog_seen_at", "catalog_fingerprint",
     "reported_stock_acc_groups", "stock_acc_groups_seen_at", "max_payload_version",
     "companion_version", "agent_device_name", "agent_last_seen_at", "reindex_runner", "operator_targets",
     # 自动更新被 Windows 拦下（`desktop_update`，教程问题第 1 条）：只在变了时进补丁，上报记录不为它每拍重写
@@ -350,8 +350,9 @@ def plan_report(body: Mapping, previous: Mapping, observed_at: datetime) -> Repo
         patch.update(reported_products=_sanitize_catalog(catalog.get("products") or [], _PRODUCT_KEYS),
                      reported_customers=_sanitize_catalog(catalog.get("customers") or [], _CUSTOMER_KEYS),
                      catalog_seen_at=timestamp)
-        # 旧版小助手不报这两份：不写空表冒充「这份账套没有供应商 / 部门」。
-        for key, keys in (("suppliers", _SUPPLIER_KEYS), ("departments", _DEPARTMENT_KEYS)):
+        # 旧版小助手不报这几份：不写空表冒充「这份账套没有供应商 / 部门 / 仓库」（仓库 CC 桌面版 1.12.18 起报）。
+        for key, keys in (("suppliers", _SUPPLIER_KEYS), ("departments", _DEPARTMENT_KEYS),
+                          ("warehouses", _WAREHOUSE_KEYS)):
             if catalog.get(key) is not None:
                 patch[f"reported_{key}"] = _sanitize_catalog(catalog.get(key) or [], keys)
         fingerprint = _sanitize_fingerprint(catalog.get("fingerprint"))

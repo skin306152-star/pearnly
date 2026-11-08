@@ -86,6 +86,11 @@ def used_masters(payload: Mapping[str, Any], masters: Mapping[str, Any]) -> dict
     department = _text(payload.get("depcod"))
     result["departments"] = _pick(_rows(masters, "reported_departments"),
                                   lambda row: bool(department) and _text(row.get("code")) == department)
+    locations = {_text(item.get("loccod")) for item in payload.get("items") or []
+                 if isinstance(item, Mapping) and _text(item.get("loccod"))}
+    if locations:
+        # 库存行带了仓码（多仓账套选的仓，11-08）才加这一类：不带的单键与以前相同，已准备好的单领取时的指纹不变
+        result["warehouses"] = _pick(_rows(masters, "reported_warehouses"), lambda row: _text(row.get("code")) in locations)
     stock = _text(payload.get("stock_acccod"))
     result["stock_acc_groups"] = _pick(_rows(masters, "reported_stock_acc_groups"),
                                        lambda row: bool(stock) and _text(row.get("acccod")) == stock)

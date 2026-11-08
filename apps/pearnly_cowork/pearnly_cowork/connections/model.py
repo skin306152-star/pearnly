@@ -15,7 +15,7 @@ CONFIG_KEYS = frozenset((
     "method", "posting_profile", "stock_acccod", "seed_customer_code", "seed_product_code", "generic_product_code",
 ))
 REPORTED_KEYS = frozenset(("reported_accounts", "reported_products", "reported_customers",
-    "reported_suppliers", "reported_departments",
+    "reported_suppliers", "reported_departments", "reported_warehouses",
     "reported_stock_acc_groups", "catalog_fingerprint", "max_payload_version", "companion_version"))
 SECRET_FIELDS = ("credential_username", "credential_password", "credential_token")
 # 池里没有连接级的默认账套（ADR-021，方案 2.3 第 7 条）：旧心跳写进 Express 连接配置的所选账套与 6 个科目映射属于当时

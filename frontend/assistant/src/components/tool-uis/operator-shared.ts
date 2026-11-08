@@ -97,7 +97,7 @@ export function groupOf(doc: { group?: string; kind?: string }): DocGroup {
 export type Question = { kind: string; subject: string; label: string; options: ChoiceOption[]; doc_ids: string[]; groups?: DocGroup[] };
 
 /** 类的先后。 */
-export const KIND_ORDER = ["item", "party", "account", "payment", "vat", "receipt", "department"] as const;
+export const KIND_ORDER = ["item", "location", "party", "account", "payment", "vat", "receipt", "department"] as const;
 
 /** 按类分组：[类, 问题们]，先后按 KIND_ORDER。 */
 export function questionGroups(questions: readonly Question[]): Array<[string, Question[]]> {

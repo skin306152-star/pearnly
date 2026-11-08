@@ -3,7 +3,8 @@
 - 识别完有定不了的行：随卡片一起发一条提问（新物料列全、四个按钮）；没有就不问；正在问别的票时排队；
 - 全部新建存货 / 全部记费用：一次记进账套记忆，接着问排队的下一张；
 - 逐项：一项一问，「选已有存货」打字找（库存品与非库存品），点序号记下；旧按钮、别的项的按钮不生效；
-- 取消只停这张的提问，不记任何选择。
+- 取消只停这张的提问，不记任何选择；
+- 多仓账套还没记过默认仓（推送侧在行后面跟一项仓库，11-08）：行问完 / 点了「全部…」接着问一次仓，点一个记成默认仓。
 """
 import json
 import sys
@@ -38,7 +39,10 @@ class LineItemsTest(unittest.TestCase):
                               {"kind": "account", "subject": "purchase|t", "label": "Shop"},
                               {"kind": "item", "subject": "purchase|t|ice", "label": "Ice", "expense": False}],
                        "H2": [{"kind": "item", "subject": "purchase|t|cup", "label": "Cup", "expense": True}],
-                       "H3": []}
+                       "H3": [],
+                       "H4": [{"kind": "item", "subject": "purchase|t|box", "label": "Box", "expense": True},
+                              {"kind": "location", "subject": "*", "label": "",
+                               "options": [{"code": "01", "name": "Main"}, {"code": "30", "name": "Branch"}]}]}
         session = self.session
         flow = types.ModuleType("pearnly_cowork.line.flow")
         flow.choices = lambda user: json.loads(json.dumps(session.get(user, {})))
@@ -47,7 +51,8 @@ class LineItemsTest(unittest.TestCase):
         # 推送侧（钩子 ``cowork_line_items`` → `push.application.line_items`）的替身
         side = types.SimpleNamespace(
             rows=lambda history: [{"subject": row["subject"], "label": row["label"]} for row in self.needed[history]
-                                  if row["kind"] == "item" and row.get("expense")],
+                                  if row["kind"] == "item" and row.get("expense")]
+            + [row for row in self.needed[history] if row["kind"] == "location"],
             title=lambda history: "Shop · IV" + history,
             save=lambda history, items: self.saved.append((history, items)),
             search=lambda history, text, limit: [row for row in products
@@ -134,6 +139,28 @@ class LineItemsTest(unittest.TestCase):
         reply = self.tap(first, "Cancel")
         self.assertEqual((reply["text"], self.saved), ("Cancelled", []))
         self.assertNotIn("items", self.session["U1"])
+
+    def test_a_multi_warehouse_book_asks_the_warehouse_once_after_the_lines(self):
+        first = self.items.queue("U1", "H4")
+        self.assertEqual(first["text"].splitlines(), ["Shop · IVH4", "new", "1. Box"])  # 仓库不进新物料清单
+        ask = self.tap(first, "allNew")
+        self.assertEqual(ask["text"].splitlines(), ["Warehouse", "1. 01 Main", "2. 30 Branch"])
+        self.assertEqual(self.labels(ask), ["01 Main", "30 Branch", "Cancel"])
+        done = self.tap(ask, "30 Branch")
+        self.assertEqual(self.saved[-1], ("H4", [{"kind": "location", "subject": "*", "value": "30", "label": ""}]))
+        self.assertEqual(done["text"], "Saved")
+        self.assertNotIn("items", self.session["U1"])
+
+    def test_one_by_one_reaches_the_warehouse_question_last(self):
+        first = self.items.queue("U1", "H4")
+        row = self.tap(first, "each")
+        self.assertEqual(row["text"], "1/1 · Box")
+        ask = self.tap(row, "expenseLine")
+        self.assertEqual(ask["text"].splitlines()[0], "Warehouse")
+        self.tap(row, "newOne")  # 物料那一项的旧按钮：不生效
+        self.assertEqual(self.replies[-1][-1]["text"], "This option is no longer current")
+        self.tap(ask, "01 Main")
+        self.assertEqual(self.saved[-1][1], [{"kind": "location", "subject": "*", "value": "01", "label": ""}])
 
 
 if __name__ == "__main__":

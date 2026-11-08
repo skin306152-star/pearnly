@@ -820,7 +820,7 @@ def full_path(*parts: Any) -> str:
 # 等人的「待处理」：要人选一次（choice）、人已经动过这张票（human）、任务停用或负责人无权（task_off）、
 # 跟随公司当年账套时这张票的账套定不下来（account_set：取不到、多于一份、没有电脑够得到，T1）。
 # 票在录入工作台删了（deleted）与成功一样算有了结论，不计数。
-CHOICE_KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt", "service_vat")
+CHOICE_KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt", "service_vat", "location")
 IN_FLIGHT = ("prepared", "pending", "leased")
 COMPANION_OFFLINE = "cowork.folder.companion_offline"
 ACCOUNT_SET_NONE = "cowork.folder.account_set_none"

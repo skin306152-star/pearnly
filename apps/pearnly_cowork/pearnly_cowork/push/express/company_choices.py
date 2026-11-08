@@ -27,7 +27,7 @@ from pearnly_core.express_rules.push.choices import KINDS, NEW, PAYMENT_VALUES, 
 SOURCES = ("task_default", "remembered", "company_rule", "express_history")  # 与 `pushed.ACCOUNT_FROM` 同一套词
 # 每一类的值来自这份账套的哪张主档（付款、抵进项是固定值）
 MASTERS = {"item": "reported_products", "account": "reported_accounts", "receipt": "reported_accounts",
-           "department": "reported_departments"}
+           "department": "reported_departments", "location": "reported_warehouses"}
 VALUE_MAX = 60
 # 靠科目表的几类（同推送准备的 `CHART_KINDS`，要选时会等电脑读科目表）：主档没报上来时不套用公司规则
 WAIT_KINDS = ("account", "receipt")

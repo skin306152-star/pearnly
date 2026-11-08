@@ -1092,6 +1092,22 @@ covers = [
 ]
 
 [[flow]]
+id = "cowork.express.warehouse"
+title = "Cowork 复核页多仓账套选仓库：明细行与批量编辑出仓库、只列在用的仓，保存后载荷库存行带仓码、行上选的仓记住；没选过的问一次默认仓（11-08）"
+module = "scripts/flows/cowork_express_warehouse.py"
+product = "cowork"
+start = "/desk/pearnly-intake/new/{record}"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js",
+  "apps/pearnly_cowork/pearnly_cowork/connections/service.py",
+  "apps/pearnly_cowork/pearnly_cowork/push/application/service.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/choices.py",
+]
+
+[[flow]]
 id = "cowork.intake.bulk-kind"
 title = "Cowork 复核页批量编辑：全部设成存货、保存后两行都落库（11-06 按行选物料）"
 module = "scripts/flows/cowork_intake_bulk_kind.py"

@@ -96,8 +96,10 @@ def group_of(kind, subject) -> str:
 def subject_name(kind, subject, label) -> str:
     if label:
         return str(label)
+    if kind == "location" and subject == "*":
+        return ""  # 整份账套的默认仓：没有对象，类别名就说清了
     parts = str(subject or "").split("|")
-    name = parts[-1] if kind in ("item",) else (parts[1] if len(parts) > 1 else parts[0])
+    name = parts[-1] if kind in ("item", "location") else (parts[1] if len(parts) > 1 else parts[0])
     return name[5:] if name.startswith("name:") else name
 
 
@@ -731,6 +733,7 @@ def master_name(kind, value, masters) -> str:
     """值在主档里的名称（科目、部门、存货、对方档；「代码 · 名称」由页面拼），没有就空串。"""
     keys = {"account": ("reported_accounts",), "receipt": ("reported_accounts",),
             "department": ("reported_departments",), "item": ("reported_products",),
+            "location": ("reported_warehouses",),
             "party": ("reported_suppliers", "reported_customers")}.get(kind, ())
     for key in keys:
         for row in (masters or {}).get(key) or []:

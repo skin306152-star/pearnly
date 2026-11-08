@@ -66,7 +66,7 @@ KIND_GROUPS = {
     "operator_form": BOOK,
     "vat": PURCHASE,
     "refund": SALES, "vat_registered": SALES, "exempt_mode": SALES,
-    "item": STOCK, "stock_group": STOCK, "goods_posting": STOCK,
+    "item": STOCK, "stock_group": STOCK, "goods_posting": STOCK, "location": STOCK,
     "service_vat": SERVICE, "posting_kind": SERVICE,
     "payment": PAYMENT, "receipt": PAYMENT,
 }

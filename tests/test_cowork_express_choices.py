@@ -167,5 +167,70 @@ class PaymentWrittenOnTheInvoice(unittest.TestCase):
         self.assertEqual(result["applied"].get("payment"), "cash")
 
 
+WAREHOUSES = [{"code": "01", "name": "คลังหลัก", "main": "1", "used": "1"}, {"code": "02", "name": "คลัง 2"},
+              {"code": "30", "name": "สาขา", "used": "1"}]
+ICE = "น้ำแข็งแพ็ค"
+
+
+class Locations(unittest.TestCase):
+    """多仓账套的库存行进哪个仓（11-08，评估 docs/work/2026-11-07-cowork-express-warehouse-评估.md 第 6 节 0–4 条）。"""
+
+    def resolve(self, config_extra=None, remembered=None, ask=True, location="", **fields):
+        config = {**CONFIG, "reported_warehouses": WAREHOUSES, **(config_extra or {})}
+        items = [{"name": ICE, "qty": "2", "price": "10", "subtotal": "20", **({"location": location} if location else {})}]
+        return C.resolve(purchase(posting_payment_manual="credit", items=items, **fields), direction="purchase",
+                         posting_kind="stock", config=config, remembered=remembered or {}, ask_location=ask)
+
+    def subject(self):
+        return C.item_subject("purchase", SUPPLIER, "BANGCHAK GREENNET CO.,LTD.", ICE)
+
+    def test_one_warehouse_in_use_or_an_old_cc_asks_nothing(self):
+        # 第 0 条：在用的仓（代码表模板自带的 02 没动过）不到两个、旧版 CC 不报仓库 → 不问、不带仓码
+        for extra in ({"reported_warehouses": WAREHOUSES[:2]}, {"reported_warehouses": None}):
+            result = self.resolve(extra)
+            self.assertNotIn("location", kinds(result))
+            self.assertNotIn("locations", result["applied"])
+
+    def test_an_unset_default_is_asked_once_preselecting_the_main_warehouse(self):
+        # 第 4 条：问一次默认仓，预选主仓，只列在用的仓
+        item = next(item for item in self.resolve()["needed"] if item["kind"] == "location")
+        self.assertEqual((item["subject"], item["current"]), ("*", "01"))
+        self.assertEqual([row["code"] for row in item["options"]], ["01", "30"])
+
+    def test_unattended_pushes_go_to_the_main_warehouse_without_asking(self):
+        # 自动推 / 定时任务（不给 ask_location）：照写主仓、不拦
+        result = self.resolve(ask=False)
+        self.assertEqual((kinds(result), result["applied"].get("locations")), ([], None))
+
+    def test_order_is_line_pick_then_line_memory_then_default(self):
+        line_memory = {"location": {self.subject(): "30", "*": "01"}}
+        self.assertEqual(self.resolve(remembered={"location": {"*": "30"}})["applied"]["locations"], {C.norm_name(ICE): "30"})
+        self.assertEqual(self.resolve(remembered=line_memory)["applied"]["locations"], {C.norm_name(ICE): "30"})
+        picked = self.resolve(remembered={"location": {"*": "30"}}, location="01")
+        # 人在这一行选了主仓：不带仓码（载荷同以前），并按这一行记下
+        self.assertNotIn("locations", picked["applied"])
+        self.assertEqual(picked["applied"]["remember_locations"], {self.subject(): {"value": "01", "label": ICE}})
+        self.assertEqual(picked["needed"], [])
+
+    def test_a_remembered_warehouse_that_left_express_is_asked_again(self):
+        result = self.resolve(remembered={"location": {"*": "99"}})
+        self.assertIn("location", kinds(result))
+
+    def test_the_payload_carries_the_code_on_stock_lines_only(self):
+        applied = self.resolve(remembered={"location": {"*": "30"}})["applied"]
+        payload = {"direction": "purchase", "supplier": {"code": "B004"}, "payload_version": 1,
+                   "items": [{"name": ICE, "item_mode": "stock_item"}, {"name": ICE, "item_mode": "expense"}]}
+        C.apply_to_payload(payload, applied)
+        self.assertEqual([item.get("loccod") for item in payload["items"]], ["30", None])
+
+    def test_the_default_question_rides_with_an_open_item_question(self):
+        # 存货对照还在问（行没声明、名字对不上）：默认仓并进同一问，不等答完再另问一轮
+        items = [{"name": "ของใหม่", "qty": "1", "price": "5", "subtotal": "5"}]
+        result = C.resolve(purchase(posting_payment_manual="credit", items=items), direction="purchase", posting_kind=None,
+                           config={**CONFIG, "reported_warehouses": WAREHOUSES}, remembered={}, account_resolved=True,
+                           undeclared_lines=True, ask_location=True)
+        self.assertEqual(kinds(result), ["item", "location"])
+
+
 if __name__ == "__main__":
     unittest.main()

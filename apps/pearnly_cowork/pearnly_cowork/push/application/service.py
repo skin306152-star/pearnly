@@ -199,7 +199,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
     posting_kind, _posting_from, decision = _posting_decision(
         doc, loaded.doc.name, lambda: _account_row(loaded, target), posting_kind, flat, direction, selected['config'],
         today, lambda kind, **more: _decisions(loaded.doc.name, target.account_set, flat, fields, direction, kind,
-                                       selected['config'], preparation, fixed, **more,
+                                       selected['config'], preparation, fixed, **more, ask_location=not automation,
                                        siblings=lambda: _same_company(loaded, target.account_set),
                                        account_row=lambda: _account_row(loaded, target),
                                        since=getattr(doc, "creation", None)))
@@ -438,7 +438,7 @@ def _company_rules(connection, account_set, account_row):
 
 
 def _decisions(connection, account_set, flat, fields, direction, posting_kind, config, preparation, fixed=None,
-               siblings=None, account_row=None, *, since=None, undeclared_lines=False):
+               siblings=None, account_row=None, *, since=None, undeclared_lines=False, ask_location=False):
     """这张票在这份账套里的选择（规则见 `push/express/choices.py`）：记过的套用，缺的列出来要人选。
 
     票上会计明确改过的付款方式按对方记下（「按对方记住会计第一次的选择」，用户 2026-09-28）。
@@ -449,7 +449,8 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
     `push.express.company_choices.overlay`），再往下才是 Express 历史已定；取不到规则（钩子出错）这一张不用历史已定；
     公司规则因这份账套科目表没读到先没用的那一项也不用历史已定（等电脑读到科目表再按规则定）。
     结果带 ``decided_by`` ``{kind: source}`` 与用上的公司规则 ``company_rules``（准备推送时冻结进目标，CC 据此说清按什么定的、
-    按哪一条）。"""
+    按哪一条）。``ask_location``：多仓账套定不了仓时问一次默认仓（人在场的入口给，自动推不给、照写主仓，11-08）；
+    行上人选的仓按这一行记下（同付款方式，`remember_locations`）。"""
     category = str(flat.get("category") or (flat.get("fields") or {}).get("category") or "").strip()
     _, source = resolve_account_sourced((preparation.get("mappings") or {}).get("accounts") or [], category, None)
     company, rules_read = _company_rules(connection, account_set, account_row)
@@ -458,7 +459,7 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
         fields, direction=direction, posting_kind=resolve_posting_kind(posting_kind, flat), config=config,
         remembered=choice_store.remembered(connection, account_set), rules=(company or {}).get("rules") or (),
         branch=(company or {}).get("branch") or "", rules_read=rules_read, account_resolved=source == SRC_CATEGORY,
-        fixed=fixed, receipts=_pos_receipts(flat), undeclared_lines=undeclared_lines,
+        fixed=fixed, receipts=_pos_receipts(flat), undeclared_lines=undeclared_lines, ask_location=ask_location,
         borrow=lambda remembered, receipts: _borrow_receipts(remembered, connection, siblings, receipts, config),
         settle=lambda needed: _settled_account(needed, connection, account_set, fields, config, fixed))
     applied = decision["applied"]
@@ -471,6 +472,9 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
                      else (fields.get("buyer_name"), fields.get("buyer_tax")))
         choice_store.record(connection, account_set, "payment",
                             choice_rules.supplier_subject(direction, tax, name), remember, name)
+    for subject, picked in (applied.pop("remember_locations", None) or {}).items():
+        # 复核页这一行人选的仓：按这一行（同存货对照的键）记下，同一家同一样东西下回照它；整笔回滚的「只看」不落
+        choice_store.record(connection, account_set, choice_rules.LOCATION, subject, picked["value"], picked["label"])
     return decision
 
 
@@ -550,11 +554,12 @@ def _borrow_receipts(remembered, connection, siblings, receipts, config):
     choice_rules.borrow_receipts(remembered, receipts, borrowed, config.get("reported_accounts"))
 
 
-def choices_view(history, connection, account_set_key=None, posting_kind=None, *, fixed=None, hint=None):
+def choices_view(history, connection, account_set_key=None, posting_kind=None, *, fixed=None, hint=None, ask_location=True):
     """复核页提交前 / 退回后要人选的项与可选值（与准备同一套判定，不建推送记录）。
 
     要人选费用科目时那一项带 ``suggested``（最多 2 个，见 `_suggest`）；``hint`` 是会计员在对话里明说的费用类别（CC 传），
-    命中的科目排第一。这本账套近 12 个月的常用科目正在由电脑读时回 ``history: "reading"``。"""
+    命中的科目排第一。这本账套近 12 个月的常用科目正在由电脑读时回 ``history: "reading"``。
+    ``ask_location``：多仓账套没记过默认仓时列不列「仓库」（人看的入口列；定时任务推之前的判定不列，照写主仓不停，11-08）。"""
     scope.require("intake")
     doc = storage.read(history)
     loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)
@@ -563,10 +568,10 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
         return {"needed": [], "options": {}}
     found = _express_context(doc, loaded, account_set_key)
     fixed = _fixed(doc.name, loaded.doc.name, found["target"].account_set, fixed)
-    return _choices(doc, loaded, found, posting_kind, fixed=fixed, hint=hint)[0]
+    return _choices(doc, loaded, found, posting_kind, fixed=fixed, hint=hint, ask_location=ask_location)[0]
 
 
-def _choices(doc, loaded, found, posting_kind, *, fixed=None, hint=None):
+def _choices(doc, loaded, found, posting_kind, *, fixed=None, hint=None, ask_location=True):
     """`choices_view` 取完数之后的那一段（写账前置判定 `assistant.precheck_source.document` 同一段）→
     (回包, 判定, (入账类型, 来源, 今天))。``fixed`` 是调用方已按 `_fixed` 取好的这张票已定的选择。"""
     target, flat, fields, direction, preparation = (found["target"], found["flat"], found["fields"],
@@ -577,7 +582,7 @@ def _choices(doc, loaded, found, posting_kind, *, fixed=None, hint=None):
         doc, loaded.doc.name, lambda: _account_row(loaded, target), posting_kind, flat, direction, config,
         today,
         lambda kind, **more: _decisions(loaded.doc.name, target.account_set, flat, fields, direction, kind, config,
-                                preparation, fixed, **more, siblings=lambda: _same_company(loaded, target.account_set),
+                                preparation, fixed, **more, ask_location=ask_location, siblings=lambda: _same_company(loaded, target.account_set),
                                 account_row=lambda: _account_row(loaded, target)))
     planned = None if decision["needed"] else _planned(doc, loaded, found, posting_kind, decision, today)
     frappe.db.rollback()  # 只是看：记付款方式的那一笔不在这里落
@@ -726,6 +731,7 @@ def save_choices(history, connection, account_set_key, items):
         "account": {r.get("code") for r in config.get("reported_accounts") or [] if isinstance(r, dict)},
         "receipt": {r.get("code") for r in config.get("reported_accounts") or [] if isinstance(r, dict)},
         "department": {r.get("code") for r in config.get("reported_departments") or [] if isinstance(r, dict)},
+        choice_rules.LOCATION: {r.get("code") for r in choice_rules.warehouses_in_use(config.get("reported_warehouses"))},
         "payment": set(choice_rules.PAYMENT_VALUES), "vat": set(choice_rules.VAT_VALUES),
         service_vat.KIND: set(service_vat.OPTIONS)}
     parties = {r.get("code") for key in ("reported_customers", "reported_suppliers")
@@ -740,7 +746,7 @@ def save_choices(history, connection, account_set_key, items):
             pass
         elif kind == "item" and value == choice_rules.EXPENSE:
             pass  # 这一行记费用（不建存货，11-06 按行选）
-        elif not value or (options and value not in options) or (kind in ("payment", "vat", service_vat.KIND)
+        elif not value or (options and value not in options) or (kind in ("payment", "vat", service_vat.KIND, choice_rules.LOCATION)
                                                                  and value not in options):
             frappe.throw(_("cowork.choice.invalid"))
         subject = str(item.get("subject") or "").strip() or _own_subject(kind, fields, direction)

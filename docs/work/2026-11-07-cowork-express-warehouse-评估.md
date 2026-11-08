@@ -1,6 +1,6 @@
 # 需求影响评估：Cowork 推单选 Express 仓库
 
-> **审定：主会话 11-07 审过，第 12 节 7 条全部按建议定。** 排在 CC 连接 / 公司选择 D 步合入 `main` 之后由本窗口施工（主会话通知开工）；CC 部分与共用电脑隔离同一版（1.12.17）发。
+> **审定：主会话 11-07 审过，第 12 节 7 条全部按建议定。** 排在 CC 连接 / 公司选择 D 步合入 `main` 之后由本窗口施工（主会话通知开工）；~~CC 部分与共用电脑隔离同一版（1.12.17）发~~ → 11-08 改随 CC 1.12.18 发（施工记录见文末）。
 
 > 按 [需求影响评估模板](../development/templates/impact-assessment.md) 填写；**只写评估，不改代码**，交主会话审定。
 > 基线 `origin/main` = `8e5cb5724`（11-07，已含 Cowork 按行选物料 `5cfe2abb3`）；分支 `pearnly/deferred-three-assess-42d230`。
@@ -191,3 +191,20 @@ CC 心跳目录（新版多报 warehouses：全部仓 + 主仓 + 在用的仓）
 | W5 验证 | 流程用例、产品地图、冒烟；测试机 CC staging 实写读回 | 约 1.5 小时 | 测试机约 1 小时（主会话排） |
 
 合计写码约 9 小时 + 机器跑约 2.5 小时。顺序：W1 可先单独做（旧服务端忽略新字段）；W2 → W3 → W4 → W5。部署：服务端先上（没有仓库表时什么都不变），CC 新版后发，发了以后多仓账套才出现仓库选择。
+
+
+## 14. 施工记录（11-08，分支 `pearnly/cowork-express-warehouse`，基线 `origin/main` = `2ead204d5`）
+
+按第 13 节 W1–W5 一次做完；第 12 节 7 条照建议。
+
+| 步 | 落点 | 说明 |
+|---|---|---|
+| W1 CC | `cc/catalog_probe.py`（`probe_warehouses`、`_scan_stcrd`）、`companion/README.md`、`version.py` 1.12.18 | 目录多报 `warehouses`：ISTAB 21 全部仓 + 主仓；主仓与本账 STCRD 动库存的**进货 / 销货行（POSOPR 0 / 9）**用过的仓标 `"1"`（与记账指纹同一遍扫，同 10 万行上限；口径见下「测试机只读实测」）；STCRD 读坏了不带这个键（不报空表冒充「没有仓」）。写入不改 |
+| W2 共用层 | `K/express_rules/push/choices.py`（`location` 类、`warehouses_in_use`、`main_warehouse`、`_locations`、`apply_to_payload` 写行 `loccod`）、`referenced.py`、`cc_desktop/wire/report_rules.py`（`WAREHOUSE_KEYS`）、`write_precheck/contracts.py`（`location` 归物料组） | 判定见第 6 节；只放非主仓（主仓不带仓码，载荷与今天逐字节相同）；`finalize_payload` 见行上 `loccod` 盖载荷 4。领取指纹只在载荷带了仓码时多一类 `warehouses`（已准备好的旧单指纹不变）。`ask_location` 只有人在场的入口给 |
+| W3 Cowork 服务端 | `connections/{model,reports,preparation,service,api}.py`、`Cowork Express Choice` / `Cowork Company Choice` 的 `kind` 加 `location`（DocType 原生迁移）、`push/application/service.py`、`push/express/{decide,company_choices}.py`、`companies/{choices,context}.py`、`folder_intake/{contracts,push,briefs}.py` | 心跳存 `reported_warehouses`（旧版不报不写空表）；`save_choices` 只收在用的仓；行上人选的仓按存货对照的键记下（`remember_locations`）；公司规则可垫默认仓；新只读接口 `connections.api.warehouses`（复核页取在用的仓）。**定时任务推之前的判定不问仓**（`choices_view(ask_location=False)`），自动推（`assess` / `automation`）不问 |
+| W4 入口 | 复核页 `intake-upload.js`（每行「仓库」、批量编辑「仓库」栏，只在多仓账套出现）、`targets.js`（「要选的项」弹窗的默认仓）、CC 开始前卡片（`precheck_source` 预选主仓）、CC 公司卡「记住的选择」（`company-cards.tsx`、`operator-shared.ts`、`i18n.ts`）、LINE（`line/items.py`、`push/application/line_items.py`） | LINE：有按行追问时末尾接一问仓（快捷回复列在用的仓、主仓在前），答案记成默认仓；没有要问的行不单为仓问 |
+| W5 验证 | 新流程 `cowork.express.warehouse`（`scripts/flows/cowork_express_warehouse.py`）、产品地图两行补测试、单测 | 见下 |
+
+文案：只新增「仓库 / Warehouse / คลังสินค้า / 倉庫」4 处（`cowork.choice.location` 与 CC 三处类名，沿用术语表现成的 Warehouse），不改已有文案（`check-copy.py --report`：新增 4、改动 0）。
+
+**发版**：服务端随下一批部署（没有仓库表时什么都不变）；CC 部分（W1）随 **CC 1.12.18** 发，发了以后多仓账套才出现选仓。

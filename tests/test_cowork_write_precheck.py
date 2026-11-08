@@ -414,6 +414,18 @@ class BigLists(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.assertIn("goods_posting", [i["kind"] for i in module.document("h1")["items"]])
 
+    def test_a_multi_warehouse_book_asks_its_default_warehouse_preselecting_the_main_one(self):
+        """多仓账套还没记过默认仓（11-08）：卡片在物料组里列「仓库」，预选主仓，点「开始」即记住（同其他写账规则的类）。"""
+        location = {"kind": "location", "subject": "*", "label": "", "current": "01",
+                    "options": [{"code": "01", "name": "Main"}, {"code": "30", "name": "Branch"}]}
+        module, _calls, patcher = load(needed=(ITEM, location))
+        self.addCleanup(patcher.stop)
+        entry = {i["kind"]: i for i in module.document("h1")["items"]}["location"]
+        self.assertEqual((entry["value"], entry["source"]), ("01", card.RULE))
+        self.assertEqual([row["code"] for row in entry["options"]], ["01", "30"])
+        self.assertEqual(card.KIND_GROUPS["location"], card.STOCK)
+        self.assertIn("location", module.CHOICE_KINDS)
+
     def test_a_line_without_a_posting_kind_offers_the_expense_option(self):
         item = {"kind": "item", "subject": "purchase|0105555000011|box", "label": "Box", "current": "", "expense": True}
         module, _calls, patcher = load(needed=(item,))

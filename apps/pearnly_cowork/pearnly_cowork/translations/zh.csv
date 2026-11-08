@@ -2284,6 +2284,7 @@ cowork.choice.expense,不抵扣，计入费用
 cowork.choice.expenseLine,记费用
 cowork.choice.invalid,所选项不在此账套中，请重新选择
 cowork.choice.item,存货
+cowork.choice.location,仓库
 cowork.choice.new,新建（按票面）
 cowork.choice.party,Express 对应档案
 cowork.choice.payment,付款方式

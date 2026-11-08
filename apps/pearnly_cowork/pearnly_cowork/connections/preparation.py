@@ -48,7 +48,7 @@ def reported_stock_groups(doc, account):
 MASTER_LISTS = ('reported_accounts', 'reported_departments')
 # 公司规则（第 2 期）存之前按这份账套的全部主档核值
 ALL_MASTER_LISTS = ('reported_accounts', 'reported_departments', 'reported_products', 'reported_customers',
-                    'reported_suppliers')
+                    'reported_suppliers', 'reported_warehouses')
 
 
 def reported_masters(doc, account, keys=MASTER_LISTS):

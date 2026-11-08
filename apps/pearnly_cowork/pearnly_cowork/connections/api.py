@@ -79,6 +79,11 @@ def stock_acc_group(name, account_set_key):
     return _call(service.stock_acc_group, name, account_set_key)
 
 
+@frappe.whitelist()
+def warehouses(name, account_set_key):
+    return _call(service.warehouses, name, account_set_key)
+
+
 @frappe.whitelist(methods=["POST"])
 def choose_stock_acc_group(name, account_set_key, acccod):
     return _call(service.choose_stock_acc_group, name, account_set_key, acccod)
