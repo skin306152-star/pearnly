@@ -185,6 +185,12 @@
 - Cowork 版 CC 没有这一项（要产品声明 desk 分区，只有 ERP 声明了 `masters/cc_projects.SECTIONS`），共用公司菜单带出来的 `ccaction:cowork:company-open-in-product`
   登记 `not_entries`、删 Cowork 行，ERP 行写 `na = { Cowork = … }`。基线 12 → 9。
 
+## 第十六组：Cowork 录入「新建录入」「导出」（`pearnly/baseline-rest`，11-08）
+
+- 新流程 `cowork.intake.actions`（录入岗）：列表「新建录入」→ 弹窗点「仅识别」卡、选进项 →「继续」→ 上传页，这一批口径（目标 none、方向 purchase）对；
+  prepare 用手工录入同一个函数建票、照新建录入的做法把目标记成仅识别（`set_push_targets`），打开它页头是「导出」→ 走 POST、复核工作簿里有这张票的单号。
+  不跑识别（付费）。4/4，`cowork.intake.review` 同跑 4/4。基线 9 → 5。
+
 ## 下一组
 
-Cowork 录入页 new / Submit / Export / folder.new（8 条：牵涉推送连接与账套，新建文件夹要 CC 桌面版）、ERP「在浏览器中打开」手机端（1 条）。
+Cowork 录入页「提交」（推送，要 Express 连接 + 在线 CC 桌面版）与「新建文件夹」（要 CC 桌面版选文件夹）各 2 条、ERP「在浏览器中打开」手机端（1 条）。

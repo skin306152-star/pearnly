@@ -1221,6 +1221,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-intake:Export"
 where = "pearnly-intake 页头「Export」"
+tests = ["flow:cowork.intake.actions"]
 
 [[row]]
 id = "cowork.desk.pearnly-intake.action.Save"
@@ -1258,6 +1259,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-intake:intake.action.new"
 where = "pearnly-intake 页头「intake.action.new」"
+tests = ["flow:cowork.intake.actions"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-bank.action.Cancel"

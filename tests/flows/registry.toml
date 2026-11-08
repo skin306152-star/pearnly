@@ -1682,3 +1682,18 @@ covers = [
   "frontend/assistant/src/lib/managed-agents/attachments.ts",
   "apps/pearnly_core/pearnly_core/assistant/files.py",
 ]
+
+[[flow]]
+id = "cowork.intake.actions"
+title = "Cowork 录入：新建录入选仅识别进上传页（这一批口径对）、仅识别的票导出复核工作簿（POST、表里有单号）（清存量基线 11-08）"
+module = "scripts/flows/cowork_intake_actions.py"
+product = "cowork"
+start = "/desk/pearnly-intake"
+user = "intake"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/intake.js",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-choices.js",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js",
+]
