@@ -78,7 +78,7 @@ def resume_url(saved: str, saved_entry=None, env=None) -> str:
 def accept_language(ui_languages) -> str:
     """Windows 的显示语言（按用户排的先后，Qt 的 ``QLocale.system().uiLanguages()``）写成网页的 Accept-Language：
     每个带地区的标签后面补上它的语言（th-TH → th-TH,th），去重；一个都不合形状给空串（照用网页内核自己的）。
-    不跟「区域格式」（泰文格式的英文系统仍是英文），也不跟 CC 托盘自己的语言（托盘只有泰文、中文）。"""
+    不跟「区域格式」（泰文格式的英文系统仍是英文），也不跟 CC 托盘自己的语言（托盘随对话页同步）。"""
     tags: list[str] = []
     for value in ui_languages or ():
         tag = str(value or "").strip().replace("_", "-")

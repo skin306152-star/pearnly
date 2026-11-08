@@ -33,9 +33,9 @@ def _fields(template: str) -> set[str]:
 
 def test_every_translation_keeps_the_same_placeholders():
     mismatched = {
-        key: (_fields(chinese), _fields(thai))
-        for key, (chinese, thai) in _M.items()
-        if _fields(chinese) != _fields(thai)
+        key: [_fields(text) for text in texts]
+        for key, texts in _M.items()
+        if any(_fields(text) != _fields(texts[0]) for text in texts)
     }
     assert mismatched == {}
 

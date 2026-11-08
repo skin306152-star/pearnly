@@ -15,7 +15,7 @@ from logging.handlers import RotatingFileHandler
 from .config import LOG_DIR, CompanionConfig
 
 LOG_FILE = LOG_DIR / "companion.log"
-# 面向客户的「活动记录」:只记人话事件(随 ui_lang 出泰/中),与技术日志分离。
+# 面向客户的「活动记录」:只记人话事件(随 ui_lang 出泰/中/英/日),与技术日志分离。
 # 客户点托盘「打开日志文件夹」主要看它;companion.log 留给技术排错。
 ACTIVITY_FILE = LOG_DIR / "activity.log"
 
@@ -80,7 +80,7 @@ def _setup_activity() -> logging.Logger:
 
 
 def activity(key: str, lang: str | None = None, **fmt) -> None:
-    """记一条人话活动事件到 activity.log(随 ui_lang 出泰/中)。低频事件 · 失败不抛。"""
+    """记一条人话活动事件到 activity.log(随 ui_lang 出泰/中/英/日)。低频事件 · 失败不抛。"""
     from .i18n import default_lang, normalize, t
 
     if not lang:

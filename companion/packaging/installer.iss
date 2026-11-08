@@ -68,6 +68,8 @@ RestartApplications=no
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "thai"; MessagesFile: "languages\Thai.isl"
 Name: "chinesesimplified"; MessagesFile: "languages\ChineseSimplified.isl"
+; 日文：Inno Setup 6.7.1 官方译文，随编译器安装（compiler:Languages），不另拷
+Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 
 [Messages]
 SetupWindowTitle=%1

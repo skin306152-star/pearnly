@@ -55,6 +55,9 @@ GLOSSARY = re.compile(r"^apps/([^/]+)/[^/]+/i18n/messages\.tsv$")
 TRANSLATION = re.compile(r"^apps/([^/]+)/[^/]+/translations/(en|zh|th|ja)\.csv$")
 ASSISTANT_I18N = "frontend/assistant/src/i18n.ts"
 COMPANION_I18N = "companion/src/companion/i18n.py"
+COMPANION_COLUMNS = ("zh", "th", "en", "ja")  # i18n.py 的 _M 每条的列
+# 四种语言每条都要有的字典（R-LANG）：CC 网页与 CC 桌面版（术语表四列由 check-i18n.py 守）
+FULL_LANGUAGE_SOURCES = ("assistant", "companion")
 KEYCLOAK = re.compile(r"^infrastructure/keycloak/themes/([^/]+)/login/messages/messages_([A-Za-z_]+)\.properties$")
 DOCTYPE_JSON = re.compile(r"^apps/.*/(doctype|workspace|report)/[^/]+/[^/]+\.json$")
 PYTHON = re.compile(r"^apps/.*\.py$")
@@ -471,11 +474,12 @@ def companion_entries(path: str, text: str) -> list:
                 continue
             if isinstance(v, ast.Tuple) and len(v.elts) >= 2:
                 try:
-                    zh, th = ast.literal_eval(v.elts[0]), ast.literal_eval(v.elts[1])
+                    texts = [ast.literal_eval(elt) for elt in v.elts[: len(COMPANION_COLUMNS)]]
                 except ValueError:
                     continue
-                if isinstance(zh, str) and isinstance(th, str):
-                    out.append(Entry("companion", k.value, {"zh": zh, "th": th}, loc="%s:%d" % (path, k.lineno)))
+                if all(isinstance(text, str) for text in texts):
+                    out.append(Entry("companion", k.value, dict(zip(COMPANION_COLUMNS, texts)),
+                                     loc="%s:%d" % (path, k.lineno)))
     return out
 
 

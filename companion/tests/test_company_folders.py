@@ -497,9 +497,9 @@ def test_every_pick_failure_code_has_a_message_in_both_languages():
 
     assert set(PICK_MESSAGES) == set(plan.PICK_CODES)
     for key in PICK_MESSAGES.values():
-        zh, th = _M[key]
-        assert zh and th and "小助手" not in zh
-    assert "{path}" in _M["folders_contains"][0] and "{path}" in _M["folders_contains"][1]
+        zh, *others = _M[key]
+        assert zh and all(others) and "小助手" not in zh
+    assert all("{path}" in text for text in _M["folders_contains"])
 
 
 def test_threads_are_not_left_running(tmp_path):

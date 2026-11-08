@@ -37,7 +37,7 @@ from PySide6.QtWidgets import QFileDialog
 from . import folder_plan as plan
 from .desktop_settings import DesktopSettings, inside, picker_start, program_folder
 from .gui_pairing_support import Probes
-from .i18n import normalize, t
+from .i18n import LANGS, normalize, t
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -105,7 +105,7 @@ class TomoBridge(QObject):
         s = self._settings
         member = str(args.get("id") or "")
         if method == "lang":
-            if lang in ("zh", "th"):
+            if lang in LANGS:
                 self._set_lang(lang)
             return {"ok": True}
         if method == "pair":

@@ -814,7 +814,7 @@ class TrayApp(QObject):
             bridge.changed.emit()
 
     def _set_lang(self, lang: str) -> None:
-        """对话页的语言（中文 / 泰文）同步给托盘与通知文案。"""
+        """对话页的语言（泰 / 中 / 英 / 日）同步给托盘与通知文案。"""
         from .i18n import persist_ui_lang
         from .profile_store import ProfileStore
 

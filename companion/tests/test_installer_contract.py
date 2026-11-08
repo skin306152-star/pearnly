@@ -165,7 +165,8 @@ def test_installer_follows_the_windows_language_with_english_as_fallback():
     assert "ShowLanguageDialog=no" in setup and "LanguageDetectionMethod=uilanguage" in setup
     languages = [line for line in _section(script, "[Languages]").splitlines() if line.startswith("Name:")]
     names = [re.search(r'Name: "([^"]+)"', line).group(1) for line in languages]
-    assert names == ["english", "thai", "chinesesimplified"]  # 认不出的语言用第一个
+    assert names == ["english", "thai", "chinesesimplified", "japanese"]  # 认不出的语言用第一个
+    assert 'MessagesFile: "compiler:Languages\\Japanese.isl"' in languages[3]  # 日文随编译器安装
     assert 'MessagesFile: "compiler:Default.isl"' in languages[0]
     for name, digest in LANGUAGE_FILES.items():
         path = PACKAGING / "languages" / name
