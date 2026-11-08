@@ -35,6 +35,17 @@ def _session() -> str:
     return (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or ""
 
 
+def acting_filed():
+    """hooks ``pearnly_assistant_tool_context``（共用层 `assistant.tools`）：CC 工具执行期间，ERP 的「当前公司」是本对话挂的那家
+    （`company.acting`，盘点 2026-11-08 ①）；没挂公司、或这家已不在本人可用公司里，照本人当前公司（工具自己的公司核对照旧拒）。"""
+    from contextlib import nullcontext
+
+    from pearnly_erp_portal.masters import company as companies
+
+    company = filed()
+    return companies.acting(company) if company and company in companies.allowed_companies() else nullcontext()
+
+
 def filed() -> str:
     """本对话挂的公司（没挂回空串）；对话直写工具（`express.cc_tools`）也按它取缺省公司。"""
     session = _session()

@@ -69,7 +69,8 @@ class _Frappe(types.ModuleType):
             lock=lambda name, timeout=None: _Lock())
 
     def get_hooks(self, name):
-        return {"pearnly_assistant_tools": self.hooks, "pearnly_assistant_guidance": self.guidance}.get(name, [])
+        return {"pearnly_assistant_tools": self.hooks, "pearnly_assistant_guidance": self.guidance,
+                "pearnly_assistant_tool_context": getattr(self, "contexts", [])}.get(name, [])
 
     def get_attr(self, path):
         module, _, attr = path.rpartition(".")
@@ -1356,6 +1357,54 @@ class ToolAndDefinitionTests(unittest.TestCase):
         self.assertEqual([t["name"] for t in spec["tools"] if t["type"] == "custom"], names)
         self.assertEqual(tools.run("erp_ping", {}), ("pong", False))
         self.assertTrue(tools.run("not_declared", {})[1])
+
+    def test_tools_run_inside_the_contexts_products_declare(self):
+        # 盘点 2026-11-08 ①：ERP 声明 `pearnly_assistant_tool_context`，工具执行、出卡片前核对、卡片预览都在里面跑（当前公司 = 对话挂的那家），
+        # 出来一定还原；工具出错也还原
+        import contextlib
+
+        product = types.ModuleType("fake_context_tools")
+        state = {"inside": False, "seen": []}
+
+        @contextlib.contextmanager
+        def scope():
+            state["inside"] = True
+            try:
+                yield
+            finally:
+                state["inside"] = False
+
+        def go(_input):
+            state["seen"].append(("run", state["inside"]))
+            return "ok"
+
+        def boom(_input):
+            state["seen"].append(("boom", state["inside"]))
+            raise frappe.PermissionError("no")
+
+        def check(_input):
+            state["seen"].append(("refuse", state["inside"]))
+            return None
+
+        def preview(_input):
+            state["seen"].append(("preview", state["inside"]))
+            return [{"field": "x", "before": "", "after": "y"}]
+
+        product.scope, product.go, product.boom, product.check, product.preview = scope, go, boom, check, preview
+        product.TOOLS = [{"name": "ctx_go", "description": "d", "input_schema": {"type": "object"}, "handler": "fake_context_tools.go",
+                          "approval": True, "refuse": "fake_context_tools.check", "preview": "fake_context_tools.preview"},
+                         {"name": "ctx_boom", "description": "d", "input_schema": {"type": "object"},
+                          "handler": "fake_context_tools.boom"}]
+        sys.modules["fake_context_tools"] = product
+        frappe.hooks = ["fake_context_tools.TOOLS"]
+        frappe.contexts = ["fake_context_tools.scope"]
+        self.addCleanup(setattr, frappe, "contexts", [])
+        self.assertEqual(tools.run("ctx_go", {}), ("ok", False))
+        self.assertEqual(tools.run("ctx_boom", {}), ("no", True))
+        self.assertIsNone(tools.refusal("ctx_go", {}))
+        tools.approval_view("ctx_go", {})
+        self.assertEqual(state["seen"], [("run", True), ("boom", True), ("refuse", True), ("preview", True)])
+        self.assertFalse(state["inside"])
 
     def test_refusals_become_error_results(self):
         product = types.ModuleType("fake_refuse")

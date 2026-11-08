@@ -12,6 +12,8 @@
 默认公司不存在时自动建一条，否则新租户一来就先看到空页面。
 """
 
+from contextlib import contextmanager
+
 import frappe
 from frappe import _
 
@@ -115,14 +117,41 @@ def allowed_companies(user=None) -> list:
     return [row["name"] for row in rows]
 
 
+# 请求内的临时当前公司（盘点 2026-11-08 ①，主会话选 A）：CC 工具执行时按对话挂的那家（`masters.cc_tools.acting_filed`，共用层
+# `pearnly_assistant_tool_context`），ERP 所有按当前公司取数的服务（库存、物料、盘点、单据……）自动跟着走，不再逐个函数加参数。
+# 只放在 frappe.local（这一个请求 / 任务里），只认这个人可用的公司，`acting` 退出时一定还原；排到后台的任务另起 frappe.local，带不过去。
+_ACTING = "pearnly_erp_acting_company"
+
+
+@contextmanager
+def acting(company, user=None):
+    """这段代码里 ``user`` 的当前公司临时当成 ``company``（空 = 不改）；不在本人可用公司里的拒（PermissionError）。可嵌套，退出还原上一层。"""
+    user = user or frappe.session.user
+    company = str(company or "").strip()
+    if company and company not in allowed_companies(user):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    previous = getattr(frappe.local, _ACTING, None)
+    if company:
+        setattr(frappe.local, _ACTING, (user, company))
+    try:
+        yield company or None
+    finally:
+        setattr(frappe.local, _ACTING, previous)
+
+
 def active_company(user=None) -> str:
     """当前公司。官方口径：用户默认值 `company`（没设就看 User Permission 的默认那条），
-    再回落租户的默认公司；都不行就报错，不猜一个出来。
+    再回落租户的默认公司；都不行就报错，不猜一个出来。CC 工具执行期间是对话挂的那家（`acting`）。
     """
     user = user or frappe.session.user
     allowed = allowed_companies(user)
     if not allowed:
         frappe.throw(_("No company is available for this account"), frappe.PermissionError)
+    acting_now = getattr(frappe.local, _ACTING, None)
+    if acting_now and acting_now[0] == user:
+        if acting_now[1] in allowed:
+            return acting_now[1]
+        frappe.throw(_("Not permitted"), frappe.PermissionError)  # 中途被收回了这家公司：不回落到别家
     from frappe.defaults import get_user_default
     chosen = get_user_default("company", user) or frappe.db.get_default("company")
     if chosen in allowed:

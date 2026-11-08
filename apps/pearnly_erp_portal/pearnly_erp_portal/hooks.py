@@ -640,6 +640,8 @@ pearnly_write_precheck = {
 pearnly_assistant_tools = ["pearnly_core.express_operator.tools.TOOLS", "pearnly_erp_portal.masters.cc_tools.TOOLS",
                            "pearnly_erp_portal.express.cc_tools.TOOLS", "pearnly_erp_portal.inventory.cc_tools.TOOLS"]
 pearnly_assistant_guidance = ["pearnly_erp_portal.masters.cc_tools.GUIDANCE", "pearnly_erp_portal.express.cc_tools.GUIDANCE"]
+# CC 工具执行期间「当前公司」是对话挂的那家（`masters.company.acting`，盘点 2026-11-08 ①）：库存、物料、盘点等按当前公司取数的服务都跟着走
+pearnly_assistant_tool_context = ["pearnly_erp_portal.masters.cc_tools.acting_filed"]
 pearnly_assistant_step_names = ["pearnly_core.express_operator.tools.STEP_NAMES",
                                 "pearnly_erp_portal.express.cc_tools.STEP_NAMES", "pearnly_erp_portal.inventory.cc_tools.STEP_NAMES"]
 # 对话按 ERP 公司归组：provider 交给共用层（`pearnly_core.assistant.projects`），公司接口前缀与分区也在它上面声明

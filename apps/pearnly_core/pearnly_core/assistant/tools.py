@@ -14,10 +14,13 @@
   不执行工具，直接把那段结果交回模型（`refusal`；2026-10-16：存公司规则时模型说给用户的对方与单据对不上，不该先让人点「允许」）。
 - 进行中的说法（对话底部的工作状态行、正在执行的那一步，如「正在识别单据」）另在 `pearnly_assistant_step_names`
   声明 `{工具名: 英文原文}`（共用工具在 `CORE_STEP_NAMES`），译文同样进声明它的 App 的术语表；没声明的显示 `label`。
+- 产品可以声明工具执行时的上下文 `pearnly_assistant_tool_context = ["<点路径>"]`（无参函数，回一个 context manager），
+  执行工具、出卡片前核对、卡片预览都套在里面（ERP：工具执行期间「当前公司」是对话挂的那家，`masters.company.acting`）。
 - 工具一律在本站服务端、以当前登录用户身份执行：权限、租户、套账与数据范围沿用各产品现有服务的
   校验，工具只调已有服务，不绕过它们读库。业务拒绝用 `frappe.throw`，作为 `is_error` 结果交回模型。
 """
 import json
+from contextlib import ExitStack
 
 import frappe
 from frappe import _
@@ -150,6 +153,14 @@ CORE_STEP_NAMES = {
 }
 
 
+def _context() -> ExitStack:
+    """产品声明的执行上下文（见文件头）叠在一起；没声明就是空的。"""
+    stack = ExitStack()
+    for path in frappe.get_hooks("pearnly_assistant_tool_context") or []:
+        stack.enter_context(frappe.get_attr(path)())
+    return stack
+
+
 def declared() -> list[dict]:
     found = {tool["name"]: tool for tool in CORE_TOOLS}
     for path in frappe.get_hooks("pearnly_assistant_tools") or []:
@@ -219,7 +230,8 @@ def approval_view(name: str, tool_input) -> dict:
     rows = None
     if tool.get("preview"):
         try:
-            rows = frappe.get_attr(tool["preview"])(values)
+            with _context():
+                rows = frappe.get_attr(tool["preview"])(values)
         except Exception:
             frappe.db.rollback()
             frappe.clear_messages()
@@ -241,7 +253,8 @@ def refusal(name: str, tool_input) -> str | None:
     if not tool.get("refuse"):
         return None
     try:
-        text = frappe.get_attr(tool["refuse"])(tool_input if isinstance(tool_input, dict) else {})
+        with _context():
+            text = frappe.get_attr(tool["refuse"])(tool_input if isinstance(tool_input, dict) else {})
     except Exception:
         frappe.db.rollback()
         frappe.clear_messages()
@@ -282,7 +295,8 @@ def run(name: str, tool_input) -> tuple[str, bool]:
     if not tool:
         return _("assistant.tool.unavailable"), True
     try:
-        text = str(frappe.get_attr(tool["handler"])(tool_input if isinstance(tool_input, dict) else {}))
+        with _context():
+            text = str(frappe.get_attr(tool["handler"])(tool_input if isinstance(tool_input, dict) else {}))
         return text, _refused(text)
     except (frappe.ValidationError, frappe.PermissionError) as err:
         frappe.db.rollback()
