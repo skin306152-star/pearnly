@@ -873,7 +873,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-view"
 anchor = "ccview:cowork:operator"
 where = "CC 代录（任务会话）"
-tests = ["flow:cowork.operator.unknown", "unit:tests/test_cc_operator.py::test_events_fold_into_the_same_conversation", "unit:tests/test_cc_operator.py::test_cards_bridge_and_sidebar_modes"]
+tests = ["flow:cowork.operator.unknown", "unit:tests/test_cc_operator.py::test_events_fold_into_the_same_conversation", "unit:tests/test_cc_operator.py::test_cards_bridge_and_sidebar_modes", "e2e:e2e.cowork.operator-new"]
 group = "cc.view.operator"
 
 [[row]]
@@ -1660,7 +1660,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:cowork:company-picker"
 where = "CC 新对话下巴（手机问候行、代录新建页）点「公司」→ 选择公司弹窗（MR.ERP / Express 标签，没建的选中即建）；定时任务「＋」先选公司"
-tests = ["flow:cowork.cc.sidebar-modes", "unit:tests/test_cc_company_picker.py::PickerBehaviourTests"]
+tests = ["flow:cowork.cc.sidebar-modes", "unit:tests/test_cc_company_picker.py::PickerBehaviourTests", "e2e:e2e.cowork.pick-company"]
 group = "cc.action.company-picker"
 incidents = ["2026-11-03 ERP 版 CC 添加公司跳系统浏览器、要重新登录"]
 

@@ -27,6 +27,7 @@ id = "e2e.erp.pick-company"
 product = "ERP"
 runs = ["desktop", "mobile"]
 where = "新对话下巴（手机在问候下面）点「公司」→ 选择公司弹窗 → 点一家已建的（不新建公司）"
+since = "2026-11-07 2ead204d5"
 asserts = ["在本页弹窗，一次都不开新窗口", "列表由服务端 choices 返回", "弹窗关掉、下巴换成这家，仍在本站、没有登录页"]
 
 [[scenario]]
@@ -58,6 +59,7 @@ id = "e2e.erp.operator-new"
 product = "ERP"
 runs = ["desktop", "mobile"]
 where = "切到「代录」，新建页下巴点「公司」在选择公司弹窗里选第一家已建的（不点开始，不派给电脑；这一步还不建任务，不用清理）"
+since = "2026-11-07 2ead204d5"
 asserts = ["仍在这家的代录新建任务页：公司胶囊是这家，月份胶囊默认上个月", "仍在代录模式（11-03 事故 3 第 3 项）", "没有在跑的代录任务"]
 
 [[scenario]]
@@ -89,6 +91,7 @@ id = "e2e.cowork.pick-company"
 product = "Cowork"
 runs = ["desktop", "mobile"]
 where = "新对话下巴（手机在问候下面）点「公司」→ 选择公司弹窗 → 点一家已建的（不新建公司）"
+since = "2026-11-07 2ead204d5"
 asserts = ["在本页弹窗，一次都不开新窗口", "列表由服务端 choices 返回", "弹窗关掉、下巴换成这家，仍在本站、没有登录页"]
 
 [[scenario]]
@@ -120,4 +123,5 @@ id = "e2e.cowork.operator-new"
 product = "Cowork"
 runs = ["desktop", "mobile"]
 where = "切到「代录」，新建页下巴点「公司」在选择公司弹窗里选第一家已建的（不点开始，不派给电脑；这一步还不建任务，不用清理）"
+since = "2026-11-07 2ead204d5"
 asserts = ["仍在这家的代录新建任务页：公司胶囊是这家，月份胶囊默认上个月", "仍在代录模式（11-03 事故 3 第 3 项）", "没有在跑的代录任务"]
