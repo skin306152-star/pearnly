@@ -48,4 +48,9 @@
 - 对账存档预生成 `recon_center/view_store.backfill`：不加日文（每次部署多算三分之一；日文用户首次打开现算、结果正确）。
 - LINE 单独当一大项（DMS / ERP / Cowork 回复、Flex 卡片、快捷按钮 ≤ 20 字、LIFF、出错提示、绑定 / 登录、富菜单图上的字），见第 4 节。
 
-中文原文问题（只报不改）：CC 桌面版 `pair_err_probe_fail`「未能读取 Express 账套,请检查所选文件夹。」与 `pair_err_unexpected`「操作未完成,请重试。」用了半角逗号「,」；`lang_toggle` 没有地方用。
+中文原文问题：CC 桌面版两条用了半角逗号「,」，用户 11-08 确认（主会话转）改全角；`lang_toggle` 没有地方用（只报）。
+
+| 词条 | 原文 | 新文 |
+|---|---|---|
+| companion:pair_err_probe_fail | 未能读取 Express 账套,请检查所选文件夹。 | 未能读取 Express 账套，请检查所选文件夹。 |
+| companion:pair_err_unexpected | 操作未完成,请重试。 | 操作未完成，请重试。 |

@@ -216,3 +216,5 @@ pearnly_erp_portal:stock.location.list	zh	仓位清单	2026-11-06	docs/work/2026
 pearnly_erp_portal:stock.workbench.finishConfirm	zh	确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项，结束后不能再修改。	2026-11-06	docs/work/2026-11-06-erp-stock-adjust-评估.md
 assistant:STEPS.thinking	zh	正在执行…	2026-11-06	docs/work/2026-11-06-cc-thread-polish.md
 assistant:STEPS.thinkingNow	zh	执行中	2026-11-06	docs/work/2026-11-06-cc-thread-polish.md
+companion:pair_err_probe_fail	zh	未能读取 Express 账套，请检查所选文件夹。	2026-11-08	docs/work/2026-11-08-japanese-everywhere.md（用户 11-08 确认，主会话转）
+companion:pair_err_unexpected	zh	操作未完成，请重试。	2026-11-08	docs/work/2026-11-08-japanese-everywhere.md（用户 11-08 确认，主会话转）
