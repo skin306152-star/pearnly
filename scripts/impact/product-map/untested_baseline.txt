@@ -8,10 +8,6 @@ cowork.cc.action.delete-chats@desktop
 cowork.cc.action.delete-chats@mobile
 cowork.cc.action.mrerp-auth@mobile
 cowork.cc.view.tasks@mobile
-cowork.desk.all.action.selection@desktop
-cowork.desk.all.action.selection@mobile
-cowork.desk.form-user.action.Save@desktop
-cowork.desk.form-user.action.Save@mobile
 cowork.desk.pearnly-intake.action.Export@desktop
 cowork.desk.pearnly-intake.action.Export@mobile
 cowork.desk.pearnly-intake.action.Submit@desktop
@@ -34,10 +30,6 @@ erp.cc.action.delete-chats@desktop
 erp.cc.action.delete-chats@mobile
 erp.cc.view.tasks@desktop
 erp.cc.view.tasks@mobile
-erp.desk.all.action.selection@desktop
-erp.desk.all.action.selection@mobile
-erp.desk.form-user.action.Save@desktop
-erp.desk.form-user.action.Save@mobile
 erp.desk.pearnly-clients@desktop
 erp.desk.pearnly-clients@mobile
 erp.desk.pearnly-company.action.Cancel@desktop

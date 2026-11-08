@@ -972,7 +972,7 @@ product = "cowork"
 start = "/desk/pearnly-team"
 user = "admin"
 datasets = ["new", "old"]
-viewports = ["desktop"]
+viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_cowork/pearnly_cowork/team/service.py",
   "apps/pearnly_cowork/pearnly_cowork/team/api.py",
@@ -1529,4 +1529,29 @@ covers = [
   "apps/pearnly_core/pearnly_core/public/desk/home.js",
   "apps/pearnly_core/pearnly_core/billing_www.py",
   "apps/pearnly_core/pearnly_core/payments/history.py",
+]
+
+[[flow]]
+id = "erp.profile.save"
+title = "ERP 我的资料：改名后点页头保存，库里姓名跟着变（清存量基线 11-08）"
+module = "scripts/flows/profile_save.py"
+start = "/desk/pearnly-purchase"
+user = "purchase"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/public/desk/actions.js",
+]
+
+[[flow]]
+id = "cowork.profile.save"
+title = "Cowork 我的资料：同 ERP"
+module = "scripts/flows/profile_save.py"
+product = "cowork"
+start = "/desk/pearnly-intake"
+user = "intake"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/public/desk/actions.js",
 ]

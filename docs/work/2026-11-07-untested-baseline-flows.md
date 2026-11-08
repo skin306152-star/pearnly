@@ -99,6 +99,13 @@
 - 充值服务端必收凭证（`payments.proof.payload`）；余额显示不带小数（`p.money`），按数值比；明细金额列按页面同一个 `p.money` 找行。
 - 两产品各 4 格 8/8。挂两产品首页 4 颗按钮，基线删 16 条（110 → 94）。
 
+## 第六组：列表多选、我的资料保存（`pearnly/baseline-home` 同一分支，11-08）
+
+- 列表多选（`*` 页头「selection」，`pearnly_core/public/desk/list.js` 勾选后的批量按钮）：`erp.team.bulk-disable` / `cowork.team.bulk-disable` 就是勾一行后点这颗批量按钮、
+  断言提示、按钮恢复、行当场显示停用、库里 `enabled = 0`。Cowork 那条原来只跑电脑宽度，补上手机宽度（4/4），两产品挂上，基线删 4 条。
+- 我的资料「保存」（原生 `Form/User`）：新流程 `erp.profile.save`（采购岗）/ `cowork.profile.save`（录入岗），在名那一格输入新名 → 表单变未保存 → 页头「保存」→
+  表单不再未保存；库里 `first_name` 是新的、`full_name` 跟着拼。cleanup 改回原名。8/8，基线删 4 条（94 → 86）。
+
 ## 下一组
 
-个人资料保存、列表多选、只开页面的几页、Cowork 录入与盘点（第一份交接第 4 节）。
+只开页面的几页、Cowork 录入与盘点（第一份交接第 4 节）。

@@ -1144,6 +1144,7 @@ kind = "page-action"
 anchor = "action:cowork:*:selection"
 group = "desk.*.selection"
 where = "* 页头「selection」"
+tests = ["flow:cowork.team.bulk-disable"]
 
 [[row]]
 id = "cowork.desk.form-user.action.Save"
@@ -1154,6 +1155,7 @@ kind = "page-action"
 anchor = "action:cowork:Form/User:Save"
 group = "desk.Form/User.Save"
 where = "Form/User 页头「Save」"
+tests = ["flow:cowork.profile.save"]
 
 [[row]]
 id = "cowork.desk.pearnly-home.action.Delete"

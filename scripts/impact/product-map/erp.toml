@@ -708,6 +708,7 @@ kind = "page-action"
 anchor = "action:erp:*:selection"
 group = "desk.*.selection"
 where = "* 页头「selection」"
+tests = ["flow:erp.team.bulk-disable"]
 
 [[row]]
 id = "erp.desk.form-user.action.Save"
@@ -718,6 +719,7 @@ kind = "page-action"
 anchor = "action:erp:Form/User:Save"
 group = "desk.Form/User.Save"
 where = "Form/User 页头「Save」"
+tests = ["flow:erp.profile.save"]
 
 [[row]]
 id = "erp.desk.pearnly-cashier.action.trade.closeShift"
