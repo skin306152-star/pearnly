@@ -22,6 +22,8 @@ run() { local start=$SECONDS; "$@"; echo "  (+$((SECONDS - start))s) ${*: -1}"; 
 offline_py() { run docker run --rm --network none --entrypoint "$PY" "$@"; }
 
 offline() {
+  # CC 工具一致检查（ADR-027 标准二）：要导入两个产品的工具声明，只能在镜像里跑
+  offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/scripts/check-cc-tools.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_cloud_onboarding.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_channel_setup.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_menu_publish_lock.py

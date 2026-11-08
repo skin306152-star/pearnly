@@ -1,0 +1,26 @@
+# CC 工具一致检查的存量差异（ADR-027 标准二，2026-11-08，scripts/check-cc-tools.py）：两产品同类工具去前缀后不一致的项。
+# 只许减少：段 3 按工具模板统一时逐条删；确属产品差异的保留并写清原因。格式：<去前缀的工具>:<项>  # 原因
+list_documents:params:account_set_key  # Cowork 按账套筛（账套是 Cowork 的单据维度）；ERP 单据按公司，账套由公司定。段 3 单据模板定成「产品声明的筛选维度」
+list_documents:params:connection  # 同上：Cowork 的连接（Express / MR.ERP）
+list_documents:params:date_from  # ERP 按单据日期筛；Cowork 用 invoice_date_from。段 3 统一参数名
+list_documents:params:date_to  # 同上
+list_documents:params:direction  # Cowork 进项 / 销项；ERP 按单据种类（kind）。段 3 统一
+list_documents:params:invoice_date_from  # 见 date_from
+list_documents:params:invoice_date_to  # 见 date_to
+list_documents:params:kind  # 见 direction
+list_documents:params:totals  # Cowork 可只要按账套的合计；ERP 没有。段 3 补齐或写产品差异
+list_documents:params:uploaded_from  # Cowork 按上传时间筛；ERP 单据没有上传时间。段 3 定
+pending:params:all_companies  # ERP 可看全部公司的待处理；Cowork 只看对话挂的那家。段 3 统一
+push_documents:params:account_set_key  # Cowork 推送可指定账套；ERP 按公司自动选（同期两份在确认卡里选）。产品差异，段 3 复核
+push_documents:params:company  # ERP 写别家公司的单要显式给 company；Cowork 按账套。段 3 统一
+push_documents:params:connection  # 见 account_set_key
+push_documents:params:posting_kind  # Cowork 的服务 / 存货记法在推送时选；ERP 在单据上定。产品差异，段 3 复核
+push_results:params:kind  # 见 list_documents:params:kind
+resolve_push_result:params:company  # 见 push_documents:params:company
+stocktake_create:params:company  # ERP 盘点可指定别家公司；Cowork 盘点按工作区。段 3 统一
+stocktake_create:params:file  # Cowork 盘点从上传表建；ERP 按仓库现存快照建（上传表另有入口）。段 3 盘点模板补齐
+stocktake_create:params:warehouse  # ERP 盘点按仓库；Cowork 盘点不分仓。产品差异
+stocktake_create:required  # 同上（Cowork 必填 file，ERP 必填 title）
+stocktake_list:params:company  # 见 stocktake_create:params:company
+stocktake_list:params:offset  # ERP 服务端分页；Cowork 只给条数上限。段 3 统一成分页
+stocktake_list:params:status  # ERP 按状态筛；Cowork 没有。段 3 统一

@@ -213,6 +213,31 @@ class Rules(unittest.TestCase):
         self.assertTrue(any("重复" in e for e in errors))
         self.assertEqual(gate.check_siblings(gaps, sorted(gaps)), [])
 
+    def test_cc_coverage_every_web_action_has_a_cc_tool_or_a_reason(self):
+        """ADR-027 标准一：ERP / Cowork 的网页动作（页面、页头按钮）对上 CC 工具（cc）或写不适用（cc_na）；两个都没写的要在
+        cc_baseline.txt（只许减少）；写的工具要是这个产品地图里真有的 CC 工具；cc 与 cc_na 只写一个；只写在网页动作行上。"""
+        tool = row("tool:erp:erp_list_documents", id="erp.cc.tool.erp_list_documents", kind="cc-tool", channel="cc-chat")
+        covered = row("nav:erp:purchase", id="erp.purchase", cc=["erp_list_documents"])
+        reason = row("nav:erp:cashier", id="erp.cashier", cc_na="当面收款")
+        missing = row("nav:erp:sales", id="erp.sales")
+        wrong = row("nav:erp:stock", id="erp.stock", cc=["cowork_list_documents"])
+        both = row("nav:erp:team", id="erp.team", cc=["erp_list_documents"], cc_na="x")
+        misplaced = row("tool:erp:erp_pending", id="erp.cc.tool.erp_pending", kind="cc-tool", channel="cc-chat", cc_na="x")
+        dms = row("nav:dms:home", id="dms.home", product="DMS")  # 只管 ERP、Cowork
+        rows = [tool, covered, reason, missing, wrong, both, misplaced, dms]
+        product_map = pm.Map({r.id: r for r in rows}, {}, {}, [], [])
+        errors = gate.check_cc(product_map, [])
+        self.assertTrue(any("erp.sales" in e and "cc_na" in e for e in errors))  # 新加的网页动作没配就拦
+        self.assertTrue(any("cowork_list_documents" in e and "erp.stock" in e for e in errors))
+        self.assertTrue(any("erp.team" in e and "只写一个" in e for e in errors))
+        self.assertTrue(any("erp.cc.tool.erp_pending" in e and "只写在网页动作行" in e for e in errors))
+        self.assertFalse(any(name in e for e in errors for name in ("erp.purchase", "erp.cashier", "dms.home")))
+        product_map = pm.Map({r.id: r for r in (tool, covered, reason, missing)}, {}, {}, [], [])
+        self.assertEqual(gate.check_cc(product_map, ["erp.sales"]), [])
+        errors = gate.check_cc(product_map, ["erp.sales", "erp.purchase", "erp.purchase"])
+        self.assertTrue(any("基线该删" in e and "erp.purchase" in e for e in errors))
+        self.assertTrue(any("重复" in e for e in errors))
+
     def test_rule_4_lists_the_siblings_of_a_changed_row(self):
         rows = [row("nav:erp:a", group="g"), row("nav:cowork:a", id="cowork.a", product="Cowork", tests=["flow:f.desk"], group="g")]
         product_map = pm.Map({r.id: r for r in rows}, {}, {}, [], [])

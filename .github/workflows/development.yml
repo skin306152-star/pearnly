@@ -251,6 +251,8 @@ jobs:
         run: python3 tests/test_erp_cc_stocktake.py
       - name: ERP CC tools run with the chat's company as the current company, only companies the user may use, restored afterwards
         run: python3 tests/test_erp_acting_company.py
+      - name: CC tools of the same kind match across Cowork and ERP (names, steps, words, parameters, approval, modes); registered differences only shrink
+        run: python3 tests/test_check_cc_tools.py
       - name: ERP MR.ERP ledger stays switched off in code, every entry refused and Express unchanged; switched on in the test the direct import goes through
         run: python3 tests/test_erp_mrerp_direct.py
       - name: Verify scheduled tasks follow the company's account set for each document date

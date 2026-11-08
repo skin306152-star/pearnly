@@ -513,6 +513,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:erp:pearnly-cashier"
 where = "侧栏「pearnly-cashier」"
+cc_na = "收银台是当面收款的界面（ADR-027 不适用）；班次与小票查询在班次、小票两页"
 tests = ["flow:erp.cashier.first-sale", "flow:erp.pos.shift", "impact:erp.page.cashier"]
 
 [[row]]
@@ -533,6 +534,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:erp:pearnly-company"
 where = "侧栏「pearnly-company」"
+cc = ["erp_companies"]
 tests = ["flow:erp.company.settings", "flow:erp.company.create", "impact:erp.page.company"]
 
 [[row]]
@@ -594,6 +596,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:erp:pearnly-purchase"
 where = "侧栏「pearnly-purchase」"
+cc = ["erp_list_documents"]
 tests = ["flow:erp.document.express", "flow:erp.purchase.create", "flow:erp.express.service_vat", "impact:erp.page.purchase", "impact:erp.detail.purchase.draft", "impact:erp.detail.purchase.submitted", "impact:erp.detail.purchase.void", "impact:erp.purchase.detail.not-permitted"]
 
 [[row]]
@@ -604,6 +607,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:erp:pearnly-sales"
 where = "侧栏「pearnly-sales」"
+cc = ["erp_list_documents"]
 tests = ["flow:erp.sales.scan", "impact:erp.page.sales", "impact:erp.detail.sales.draft", "impact:erp.detail.sales.submitted", "impact:erp.detail.sales.void", "impact:erp.sales.detail.not-permitted"]
 
 [[row]]
@@ -625,6 +629,7 @@ kind = "nav-page"
 anchor = "nav:erp:pearnly-stock-count"
 group = "desk.pearnly-stocktake"
 where = "侧栏「pearnly-stock-count」"
+cc = ["erp_stocktake_list"]
 tests = ["flow:erp.stocktake.scan", "flow:erp.stocktake.new-product", "flow:erp.stocktake.places", "flow:erp.stocktake.web-code", "flow:erp.stocktake.report", "flow:erp.stock.excel-units", "flow:erp.stocktake.gs1", "impact:erp.page.stock-count", "impact:erp.stock-count.switch.posted-to-active", "impact:erp.stock-count.switch.active-to-posted"]
 
 [[row]]
@@ -718,6 +723,7 @@ kind = "page-action"
 anchor = "action:erp:*:selection"
 group = "desk.*.selection"
 where = "* 页头「selection」"
+cc_na = "列表多选（框架通用），由所选单据的动作工具承接"
 tests = ["flow:erp.team.bulk-disable"]
 
 [[row]]
@@ -739,6 +745,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-cashier:trade.closeShift"
 where = "pearnly-cashier 页头「trade.closeShift」"
+cc_na = "收银台当面开班 / 收款 / 关班，要人在柜台（ADR-027 不适用）"
 tests = ["flow:erp.pos.shift-buttons"]
 
 [[row]]
@@ -749,6 +756,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-cashier:trade.newInvoice"
 where = "pearnly-cashier 页头「trade.newInvoice」"
+cc_na = "收银台当面开班 / 收款 / 关班，要人在柜台（ADR-027 不适用）"
 tests = ["flow:erp.pos.shift-buttons"]
 
 [[row]]
@@ -759,6 +767,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-cashier:trade.openShift"
 where = "pearnly-cashier 页头「trade.openShift」"
+cc_na = "收银台当面开班 / 收款 / 关班，要人在柜台（ADR-027 不适用）"
 tests = ["flow:erp.pos.shift-buttons"]
 
 [[row]]
@@ -819,6 +828,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-company:company.setCurrent"
 where = "pearnly-company 页头「company.setCurrent」"
+cc_na = "CC 里换对话挂的公司（公司选择弹窗）即可，不改网页的当前公司"
 tests = ["flow:erp.company.actions"]
 
 [[row]]
@@ -851,6 +861,7 @@ kind = "page-action"
 anchor = "action:erp:pearnly-home:home.billing"
 group = "desk.pearnly-home.home.billing"
 where = "pearnly-home 页头「home.billing」"
+cc_na = "账单、套餐、充值涉及付款：CC 不经手付款（安全规矩），说明去页面"
 tests = ["flow:erp.home.billing"]
 
 [[row]]
@@ -873,6 +884,7 @@ kind = "page-action"
 anchor = "action:erp:pearnly-home:home.plans.title"
 group = "desk.pearnly-home.home.plans.title"
 where = "pearnly-home 页头「home.plans.title」"
+cc_na = "账单、套餐、充值涉及付款：CC 不经手付款（安全规矩），说明去页面"
 tests = ["flow:erp.home.billing"]
 
 [[row]]
@@ -884,6 +896,7 @@ kind = "page-action"
 anchor = "action:erp:pearnly-home:home.topup"
 group = "desk.pearnly-home.home.topup"
 where = "pearnly-home 页头「home.topup」"
+cc_na = "账单、套餐、充值涉及付款：CC 不经手付款（安全规矩），说明去页面"
 tests = ["flow:erp.home.billing"]
 
 [[row]]
@@ -1024,6 +1037,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-purchase:Express"
 where = "pearnly-purchase 页头「Express」"
+cc = ["erp_push_documents"]
 tests = ["flow:erp.document.express", "flow:erp.express.service_vat"]
 
 [[row]]
@@ -1134,6 +1148,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-sales:Express"
 where = "pearnly-sales 页头「Express」"
+cc = ["erp_push_documents"]
 tests = ["flow:erp.sales.actions"]
 
 [[row]]
@@ -1174,6 +1189,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-count:Express"
 where = "pearnly-stock-count 页头「Express」"
+cc = ["erp_push_documents"]
 tests = ["flow:erp.stocktake.new"]
 
 [[row]]
@@ -1204,6 +1220,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-count:stock.count.close"
 where = "pearnly-stock-count 页头「stock.count.close」"
+cc = ["erp_stocktake_close"]
 tests = ["flow:erp.stocktake.adjust"]
 
 [[row]]
@@ -1214,6 +1231,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-count:stock.count.new"
 where = "pearnly-stock-count 页头「stock.count.new」"
+cc = ["erp_stocktake_create"]
 tests = ["flow:erp.stocktake.new"]
 
 [[row]]
@@ -1224,6 +1242,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-count:stock.count.start"
 where = "pearnly-stock-count 页头「stock.count.start」"
+cc = ["erp_stocktake_create"]
 tests = ["flow:erp.stocktake.scan"]
 
 [[row]]
@@ -1314,6 +1333,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-count:stock.count.adjust"
 where = "pearnly-stock-count 页头「stock.count.adjust」"
+cc = ["erp_stocktake_adjust"]
 tests = ["flow:erp.stocktake.adjust"]
 
 [[row]]
@@ -1324,6 +1344,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-stock-count:nav.stockAdjust"
 where = "pearnly-stock-count 页头「nav.stockAdjust」"
+cc_na = "跳到物料调整页的链接，没有业务动作（调整单由 erp_stocktake_adjust 生成）"
 tests = ["flow:erp.stocktake.adjust"]
 
 [[row]]

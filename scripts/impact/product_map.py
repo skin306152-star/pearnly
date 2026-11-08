@@ -38,7 +38,7 @@ PROBES = {"liff", "http", "assistant-gate"}
 ENDPOINT_KINDS = {"dynamic", "compat", "internal", "delete"}
 CONFIG_CLASSES = {"same", "shape", "presence", "varies", "infra"}
 ROW_FIELDS = {"id", "product", "products", "channel", "ends", "kind", "anchor", "where", "parts", "config", "tests",
-              "device", "device_only", "must_verify", "probe", "group", "na", "incidents", "note"}
+              "device", "device_only", "must_verify", "probe", "group", "na", "incidents", "note", "cc", "cc_na"}
 CONFIG_REF = re.compile(r"^(site|liff|line|feature|kc|ext|dns|tls):\S+$")
 FLOW_VIEWPORTS = {"desktop": "desktop", "mobile": "mobile"}
 # 站外设置（config.toml 的 [ext."<引用>"]，11-05 G 块）：只有三类，读法在部署前对比（scripts/production/check-external-config.py）
@@ -486,6 +486,9 @@ class Row:
     na: dict = field(default_factory=dict)
     incidents: list = field(default_factory=list)
     note: str = ""
+    # CC 覆盖（ADR-027 标准一）：网页动作行对上的 CC 工具名，或不适用的原因（两个都没写 = 缺，`check-product-map.py` 按 cc_baseline 拦）
+    cc: list = field(default_factory=list)
+    cc_na: str = ""
     source: str = ""
 
 

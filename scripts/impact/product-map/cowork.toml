@@ -1071,6 +1071,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:cowork:pearnly-intake"
 where = "侧栏「pearnly-intake」"
+cc = ["cowork_list_documents"]
 tests = ["flow:cowork.intake.review", "flow:cowork.keyboard.intake", "flow:cowork.field-help", "flow:cowork.express.warehouse", "impact:cowork.page.intake"]
 
 [[row]]
@@ -1081,6 +1082,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:cowork:pearnly-recon-bank"
 where = "侧栏「pearnly-recon-bank」"
+cc = ["cowork_recon_list"]
 tests = ["flow:cowork.recon.tasks", "flow:cowork.recon.presets", "flow:cowork.recon.exports", "impact:cowork.page.recon-bank", "flow:cowork.recon.run"]
 
 [[row]]
@@ -1091,6 +1093,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:cowork:pearnly-recon-income"
 where = "侧栏「pearnly-recon-income」"
+cc = ["cowork_recon_list"]
 tests = ["impact:cowork.page.recon-income", "flow:cowork.recon.run"]
 
 [[row]]
@@ -1101,6 +1104,7 @@ ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:cowork:pearnly-recon-vat"
 where = "侧栏「pearnly-recon-vat」"
+cc = ["cowork_recon_list"]
 tests = ["impact:cowork.page.recon-vat", "flow:cowork.recon.run"]
 
 [[row]]
@@ -1112,6 +1116,7 @@ kind = "nav-page"
 anchor = "nav:cowork:pearnly-stocktake"
 group = "desk.pearnly-stocktake"
 where = "侧栏「pearnly-stocktake」"
+cc = ["cowork_stocktake_list"]
 tests = ["flow:cowork.stocktake.list", "flow:cowork.stocktake.web-code", "flow:cowork.stocktake.entry", "impact:cowork.page.stocktake"]
 
 [[row]]
@@ -1134,6 +1139,7 @@ kind = "nav-page"
 anchor = "nav:cowork:pearnly-work"
 group = "desk.pearnly-work"
 where = "侧栏「pearnly-work」"
+cc = ["cowork_work_boards"]
 tests = ["flow:cowork.work.board", "impact:cowork.page.work"]
 
 [[row]]
@@ -1145,6 +1151,7 @@ kind = "page-action"
 anchor = "action:cowork:*:selection"
 group = "desk.*.selection"
 where = "* 页头「selection」"
+cc_na = "列表多选（框架通用），由所选单据的动作工具承接"
 tests = ["flow:cowork.team.bulk-disable"]
 
 [[row]]
@@ -1178,6 +1185,7 @@ kind = "page-action"
 anchor = "action:cowork:pearnly-home:home.billing"
 group = "desk.pearnly-home.home.billing"
 where = "pearnly-home 页头「home.billing」"
+cc_na = "账单、套餐、充值涉及付款：CC 不经手付款（安全规矩），说明去页面"
 tests = ["flow:cowork.home.billing"]
 
 [[row]]
@@ -1200,6 +1208,7 @@ kind = "page-action"
 anchor = "action:cowork:pearnly-home:home.plans.title"
 group = "desk.pearnly-home.home.plans.title"
 where = "pearnly-home 页头「home.plans.title」"
+cc_na = "账单、套餐、充值涉及付款：CC 不经手付款（安全规矩），说明去页面"
 tests = ["flow:cowork.home.billing"]
 
 [[row]]
@@ -1211,6 +1220,7 @@ kind = "page-action"
 anchor = "action:cowork:pearnly-home:home.topup"
 group = "desk.pearnly-home.home.topup"
 where = "pearnly-home 页头「home.topup」"
+cc_na = "账单、套餐、充值涉及付款：CC 不经手付款（安全规矩），说明去页面"
 tests = ["flow:cowork.home.billing"]
 
 [[row]]
@@ -1222,6 +1232,7 @@ kind = "page-action"
 anchor = "action:cowork:pearnly-intake:Export"
 where = "pearnly-intake 页头「Export」"
 tests = ["flow:cowork.intake.actions"]
+cc = ["cowork_export_review_workbook"]
 
 [[row]]
 id = "cowork.desk.pearnly-intake.action.Save"
@@ -1231,6 +1242,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-intake:Save"
 where = "pearnly-intake 页头「Save」"
+cc = ["cowork_edit_document"]
 tests = ["flow:cowork.intake.review"]
 
 [[row]]
@@ -1242,6 +1254,7 @@ kind = "page-action"
 anchor = "action:cowork:pearnly-intake:Submit"
 where = "pearnly-intake 页头「Submit」"
 tests = ["flow:cowork.intake.submit"]
+cc = ["cowork_push_documents"]
 
 [[row]]
 id = "cowork.desk.pearnly-intake.action.cowork.folder.new"
@@ -1252,6 +1265,7 @@ kind = "page-action"
 anchor = "action:cowork:pearnly-intake:cowork.folder.new"
 where = "pearnly-intake 页头「cowork.folder.new」"
 note = "11-08 没补：Express 卡要池里有能写的电脑（带登录用户、3 分钟内报过到）才可选，实验室只能按正式函数登记电脑和它报的文件夹，模拟不了带登录用户的心跳；需要真 CC 桌面版，放进 CC 1.12.18 发版后测试机验收清单"
+cc = ["cowork_save_folder_task"]
 
 [[row]]
 id = "cowork.desk.pearnly-intake.action.intake.action.new"
@@ -1262,6 +1276,7 @@ kind = "page-action"
 anchor = "action:cowork:pearnly-intake:intake.action.new"
 where = "pearnly-intake 页头「intake.action.new」"
 tests = ["flow:cowork.intake.actions"]
+cc = ["cowork_recognize_attachments"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-bank.action.Cancel"
@@ -1291,6 +1306,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:cowork.recon.export"
 where = "pearnly-recon-bank 页头「cowork.recon.export」"
+cc = ["cowork_recon_export"]
 tests = ["flow:cowork.recon.exports"]
 
 [[row]]
@@ -1301,6 +1317,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:cowork.recon.live.back"
 where = "pearnly-recon-bank 页头「cowork.recon.live.back」"
+cc_na = "返回对账列表的导航，没有业务动作"
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1311,6 +1328,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:cowork.recon.new"
 where = "pearnly-recon-bank 页头「cowork.recon.new」"
+cc = ["cowork_recon_start"]
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1321,6 +1339,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:cowork.recon.presets"
 where = "pearnly-recon-bank 页头「cowork.recon.presets」"
+cc = ["cowork_recon_presets"]
 tests = ["flow:cowork.recon.presets"]
 
 [[row]]
@@ -1331,6 +1350,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:cowork.recon.questions"
 where = "pearnly-recon-bank 页头「cowork.recon.questions」"
+cc = ["cowork_recon_answer"]
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1341,6 +1361,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:cowork.recon.running"
 where = "pearnly-recon-bank 页头「cowork.recon.running」"
+cc = ["cowork_recon_status"]
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1351,6 +1372,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-bank:cowork.recon.start"
 where = "pearnly-recon-bank 页头「cowork.recon.start」"
+cc = ["cowork_recon_start"]
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1381,6 +1403,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:cowork.recon.export"
 where = "pearnly-recon-income 页头「cowork.recon.export」"
+cc = ["cowork_recon_export"]
 tests = ["flow:cowork.recon.exports"]
 
 [[row]]
@@ -1391,6 +1414,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:cowork.recon.live.back"
 where = "pearnly-recon-income 页头「cowork.recon.live.back」"
+cc_na = "返回对账列表的导航，没有业务动作"
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1401,6 +1425,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:cowork.recon.new"
 where = "pearnly-recon-income 页头「cowork.recon.new」"
+cc = ["cowork_recon_start"]
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1411,6 +1436,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:cowork.recon.presets"
 where = "pearnly-recon-income 页头「cowork.recon.presets」"
+cc = ["cowork_recon_presets"]
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1421,6 +1447,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:cowork.recon.questions"
 where = "pearnly-recon-income 页头「cowork.recon.questions」"
+cc = ["cowork_recon_answer"]
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1431,6 +1458,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:cowork.recon.running"
 where = "pearnly-recon-income 页头「cowork.recon.running」"
+cc = ["cowork_recon_status"]
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1441,6 +1469,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-income:cowork.recon.start"
 where = "pearnly-recon-income 页头「cowork.recon.start」"
+cc = ["cowork_recon_start"]
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1471,6 +1500,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-vat:cowork.recon.export"
 where = "pearnly-recon-vat 页头「cowork.recon.export」"
+cc = ["cowork_recon_export"]
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1481,6 +1511,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-vat:cowork.recon.live.back"
 where = "pearnly-recon-vat 页头「cowork.recon.live.back」"
+cc_na = "返回对账列表的导航，没有业务动作"
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1491,6 +1522,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-vat:cowork.recon.new"
 where = "pearnly-recon-vat 页头「cowork.recon.new」"
+cc = ["cowork_recon_start"]
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1501,6 +1533,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-vat:cowork.recon.running"
 where = "pearnly-recon-vat 页头「cowork.recon.running」"
+cc = ["cowork_recon_status"]
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1511,6 +1544,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-recon-vat:cowork.recon.start"
 where = "pearnly-recon-vat 页头「cowork.recon.start」"
+cc = ["cowork_recon_start"]
 tests = ["flow:cowork.recon.run"]
 
 [[row]]
@@ -1521,6 +1555,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-stocktake:cowork.stock.action.export"
 where = "pearnly-stocktake 页头「cowork.stock.action.export」"
+cc = ["cowork_stocktake_export"]
 tests = ["flow:cowork.exports"]
 
 [[row]]
@@ -1531,6 +1566,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-stocktake:cowork.stock.count.close"
 where = "pearnly-stocktake 页头「cowork.stock.count.close」"
+cc = ["cowork_stocktake_close"]
 tests = ["flow:cowork.stocktake.actions"]
 
 [[row]]
@@ -1541,6 +1577,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-stocktake:cowork.stock.count.new"
 where = "pearnly-stocktake 页头「cowork.stock.count.new」"
+cc = ["cowork_stocktake_create"]
 tests = ["flow:cowork.stocktake.actions"]
 
 [[row]]
@@ -1551,6 +1588,7 @@ ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:cowork:pearnly-stocktake:cowork.stock.count.start"
 where = "pearnly-stocktake 页头「cowork.stock.count.start」"
+cc = ["cowork_stocktake_create"]
 tests = ["flow:cowork.stocktake.entry"]
 
 [[row]]

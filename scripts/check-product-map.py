@@ -177,6 +177,50 @@ def check_siblings(gaps: dict, baseline: list) -> list[str]:
     return errors
 
 
+# CC 覆盖（ADR-027 标准一，2026-11-08）：ERP、Cowork 的网页动作（页头按钮、侧栏页面）每一行对上一个 CC 工具（`cc`），
+# 或写明不适用（`cc_na`，如收银台当面收款、改成员密码）。两个都没写的进 cc_baseline.txt（只许减少）；新加的网页动作没配就拦。
+CC_KINDS = {"page-action", "nav-page"}
+CC_PRODUCTS = {"ERP": "erp", "Cowork": "cowork"}
+CC_BASELINE = ROOT / "scripts" / "impact" / "product-map" / "cc_baseline.txt"
+
+
+def cc_baseline(path=CC_BASELINE) -> list:
+    if not Path(path).exists():
+        return []
+    return [line.strip() for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip() and not line.startswith("#")]
+
+
+def check_cc(product_map, baseline: list) -> list[str]:
+    """网页动作 ↔ CC 工具：写了的工具要真有（地图里这个产品的 cc-tool 行），`cc` 与 `cc_na` 只写一个；两个都没写的要在基线里。"""
+    errors, gaps = [], set()
+    tools = {}
+    for row in product_map.rows.values():
+        if row.kind == "cc-tool" and row.anchor.startswith("tool:"):
+            _tag, product, name = row.anchor.split(":", 2)
+            tools.setdefault(product, set()).add(name)
+    for row in product_map.rows.values():
+        if row.cc and row.cc_na.strip():
+            errors.append(f"CC 覆盖：行 {row.id} 的 cc 与 cc_na 只写一个")
+        product = CC_PRODUCTS.get(row.product)
+        for name in row.cc:
+            if name not in tools.get(product or "", set()):
+                errors.append(f"CC 覆盖：行 {row.id} 写的工具 {name} 不在地图里（{row.product} 没有这个 CC 工具）")
+        if row.kind in CC_KINDS and product and not row.cc and not row.cc_na.strip():
+            gaps.add(row.id)
+        elif (row.cc or row.cc_na) and row.kind not in CC_KINDS:
+            errors.append(f"CC 覆盖：cc / cc_na 只写在网页动作行（{sorted(CC_KINDS)}），行 {row.id} 是 {row.kind}")
+    known = set(baseline)
+    if len(known) != len(baseline):
+        errors.append("cc_baseline.txt 有重复条目")
+    for row_id in sorted(gaps - known):
+        row = product_map.rows[row_id]
+        errors.append(f"CC 覆盖：{row.product} {row.where}（行 {row_id}）没有对上 CC 工具 —— 在行上写 cc = [\"<工具>\"]，"
+                      "确实不适合对话的写 cc_na = \"<原因>\"（ADR-027）")
+    for row_id in sorted(known - gaps):
+        errors.append(f"基线该删：cc_baseline.txt 里的 {row_id} 已经对上 CC 工具或写了不适用、或行已不在，删掉这一条（基线只许减少）")
+    return errors
+
+
 RECORD_SHA = re.compile(r"\b[0-9a-f]{7,40}\b")
 RECORD_DATE = re.compile(r"\b20\d\d-\d\d-\d\d\b")
 
@@ -441,6 +485,7 @@ def main(argv=None) -> int:
     errors = check(product_map, repo, found, keys, families, flows, impact, parts, endpoints)
     errors += pm.validate_e2e(pm.e2e_scenarios())
     errors += check_siblings(sibling_gaps(product_map, flows, impact), sibling_baseline())
+    errors += check_cc(product_map, cc_baseline())
     errors += enforce_hits(product_map, hits, flows, impact, changes)
     report = render(product_map, hits, flows, impact, args.markdown)
     print(report)

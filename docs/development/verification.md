@@ -181,7 +181,12 @@ App 下虽然有 `.pre-commit-config.yaml`，但它们不是根级统一检查�
    同一功能在 ERP / Cowork（以及对话 / 代录、电脑 / 手机）的几行用同一个 `group`（同名页面、同码页头动作、同名 CC 工具与代录钩子自动成组，
    同功能不同名的手写）。规则 5：一组里 ERP / Cowork 缺一边又没写 `na`，或同一端某行的测试比组里最强的兄弟弱 → 失败，
    除非在 `sibling_baseline.txt`（只许减少）。改到组里一行时，影响清单列出同组兄弟入口与各自的测试强弱。
-8. 部署接线（11-04 E 块）：
+8. CC 覆盖与一致（ADR-027，11-08）：CC = 产品网页能做的事 + 代录。
+   - 覆盖：ERP / Cowork 的网页动作行（`page-action`、`nav-page`）写 `cc = ["<CC 工具>"]`，确实不适合对话的写 `cc_na = "<原因>"`；
+     两个都没写 → `check-product-map.py` 失败，除非在 `cc_baseline.txt`（存量，只许减少）。新加网页功能没配 CC 工具就拦在这里。
+   - 一致：`scripts/check-cc-tools.py`（候选离线车道，要导入两个产品的工具声明）比对两产品同类工具去前缀后的步骤名、译文、参数、必填、
+     「允许」卡片与 modes；确属产品差异的登记在 `cc-tools-baseline.txt` 并写原因（只许减少）。比对规则的单测 `tests/test_check_cc_tools.py`。
+9. 部署接线（11-04 E 块）：
    - 镜像构建时 `check-product-map.py --export` 生成 `scripts/production/product-map.json`（配置分类、上线必验行与探针、只能真机的行），随部署工具同步到生产机。
    - **部署前租户配置对比**（`scripts/production/check-tenant-config.py`）：`deploy.sh --dry-run` 与正式部署构建前各经一次 SSH 跑一次，
      服务器激活前（`deploy-run.sh` 的 config 步骤）用镜像里那份再跑一次。在各产品 web 容器里读站点配置（不进数据库容器），
