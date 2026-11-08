@@ -398,9 +398,11 @@ TOOL_RUN_PREFIX = "ptoolrun_"
 TOOL_RUN_STATES = ("awaiting_approval", "running", "done", "error", "denied", "cancelled")
 
 
-def tool_run_event(tool_use_id, status, processed_at, settled=False) -> dict:
+def tool_run_event(tool_use_id, status, processed_at, settled=False, waiting=False) -> dict:
     """一次调用在本站的执行状态（同执行记录的 status）。`settled`：挂着的调用刚交回引擎（`waits`）：会话这时由本站叫醒、
-    没有推送线程在跟，对话页收到就马上补拉一次（读到在跑就接上推送，`sessions._follow`）。"""
+    没有推送线程在跟，对话页收到就马上补拉一次（读到在跑就接上推送，`sessions._follow`）。
+    `waiting`：这次调用挂在服务端等后台的结论（`waits`，例如识别）：模型这时不在工作，对话页算空闲、只显示发送，
+    状态行照常显示这一步的进度（用户 11-08 定：模型空闲显示发送、在工作显示停止）。"""
     use_id = event_id(tool_use_id)
     if status not in TOOL_RUN_STATES:
         raise ContractError("unknown tool run status")
@@ -408,6 +410,10 @@ def tool_run_event(tool_use_id, status, processed_at, settled=False) -> dict:
              "status": status, "processed_at": processed_at}
     if settled:
         event["settled"] = True
+    if waiting and status == "running":
+        # 编号另带 _waiting：挂起前这次调用已经推过 / 读到过一条同状态的 running，同编号会被对话页当重复的丢掉
+        event["waiting"] = True
+        event["id"] += "_waiting"
     return event
 
 
@@ -666,9 +672,10 @@ def parked_ids(event) -> list[str]:
     return [str(i) for i in stop.get("event_ids") or []]
 
 
-def run_state(engine_status, latest=None, runs=None, as_of=None):
+def run_state(engine_status, latest=None, runs=None, as_of=None, waiting=None):
     """交给对话页的运行状态：`{"status": idle | running | requires_action | terminated, "parked": [停着等的调用],
-    "awaiting_approval": [其中等用户点「允许」的], "executing": [其中本站正在执行的], "as_of": 时间}`。
+    "awaiting_approval": [其中等用户点「允许」的], "executing": [其中本站正在执行的], "waiting": [其中挂在服务端等后台结论的],
+    "as_of": 时间}`。`waiting` 是本站挂着等的调用编号（`waits`，见 `tool_run_event`）：对话页把它们算作模型空闲。
 
     `engine_status` 是引擎读回的会话状态；`latest` 是事件记录里最新一条会话状态事件（引擎空闲时据它分出「等待处理」）；
     `runs` 是本站执行记录 `{调用编号: 状态}`；`as_of` 是读状态之前读到的最新一条事件的时间（对话页据此不让这份状态盖过
@@ -681,6 +688,7 @@ def run_state(engine_status, latest=None, runs=None, as_of=None):
     return {"status": "requires_action" if parked else state, "parked": parked,
             "awaiting_approval": [i for i in parked if runs.get(i) == "awaiting_approval"],
             "executing": [i for i in parked if runs.get(i) == "running"],
+            "waiting": [i for i in parked if runs.get(i) == "running" and i in set(waiting or ())],
             "as_of": as_of or None}
 
 

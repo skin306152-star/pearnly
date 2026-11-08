@@ -133,6 +133,18 @@ def _tool_runs(row, ids) -> dict:
     return {run.tool_use_id: run.status for run in _run_rows(row, ids)}
 
 
+def _run_status(status, row, latest, as_of):
+    """引擎状态 + 停着等的调用在本站的执行状态与挂着等的（`waits`）→ `contracts.run_state`。"""
+    event = latest() if status == "idle" else None
+    rows = _run_rows(row, contracts.parked_ids(event))
+    return contracts.run_state(status, event, {run.tool_use_id: run.status for run in rows}, as_of,
+                               waiting=[run.tool_use_id for run in rows if _parked_wait(run)])
+
+
+def _parked_wait(run) -> bool:
+    return run.status == "running" and bool(run.get("wait_until"))
+
+
 def _run_rows(row, ids, since=None) -> list:
     """这几次调用在本站的执行记录（编号、状态、最后改动时间），一次查询；没有编号不查。
     `since`（带时区的锚点时间）：再带上锚点之后改过的（前推 `notices.FEED_SLACK`，换算同 `notices.feed`），同一次查询，
@@ -144,12 +156,12 @@ def _run_rows(row, ids, since=None) -> list:
     filters = {"session_id": row.session_id, "user": _user()}
     if since is None:
         return frappe.get_all(toolrun.TOOL_RUN, filters={**filters, "tool_use_id": ["in", ids]},
-                              fields=["tool_use_id", "status", "modified"])
+                              fields=["tool_use_id", "status", "modified", "wait_until"])
     or_filters = [["modified", ">=", contracts.local_time(since, frappe.utils.get_system_timezone()) - notices.FEED_SLACK]]
     if ids:
         or_filters.append(["tool_use_id", "in", ids])
     rows = frappe.get_all(toolrun.TOOL_RUN, filters=filters, or_filters=or_filters,
-                          fields=["tool_use_id", "status", "modified"])
+                          fields=["tool_use_id", "status", "modified", "wait_until"])
     return list({run.tool_use_id: run for run in rows}.values())
 
 
@@ -159,7 +171,8 @@ def _with_tool_runs(events, row, since=None) -> list:
     改过的记录一并带上（`_run_rows`）。读不出来就不带，不挡取事件。"""
     try:
         runs = _run_rows(row, contracts.tool_use_ids(events), since)
-        events = events + [contracts.tool_run_event(run.tool_use_id, run.status, _when(run.modified) if run.modified else None)
+        events = events + [contracts.tool_run_event(run.tool_use_id, run.status, _when(run.modified) if run.modified else None,
+                                                    waiting=_parked_wait(run))
                            for run in runs if run.status in contracts.TOOL_RUN_STATES]
     except Exception:
         frappe.log_error(title="Assistant tool runs read failed")
@@ -177,11 +190,10 @@ def run_state(row, api, latest, as_of=None, operator=None):
         return _operator_run(row, api, latest, as_of, operator)
     try:
         status = api.status(current(row))
-        event = latest() if status == "idle" else None
+        return _run_status(status, row, latest, as_of)
     except Exception:
         frappe.log_error(title="Assistant status read failed")
         return None
-    return contracts.run_state(status, event, _tool_runs(row, contracts.parked_ids(event)), as_of)
 
 
 def _operator_run(row, api, latest, as_of, operator):
@@ -196,8 +208,7 @@ def _operator_run(row, api, latest, as_of, operator):
         if status in ("running", "rescheduling"):
             return contracts.run_state(status, None, None, as_of)
         if status == "idle":
-            event = latest()
-            engine_run = contracts.run_state(status, event, _tool_runs(row, contracts.parked_ids(event)), as_of)
+            engine_run = _run_status(status, row, latest, as_of)
             if engine_run and engine_run["status"] == "requires_action":
                 return engine_run
     try:

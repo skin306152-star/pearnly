@@ -194,6 +194,9 @@ export type Projection = {
   toolRuns: ReadonlyMap<string, ToolRunStatus>;
   /** 进行到哪（pearnly.progress），按调用编号（"" = 整段对话），每步只留最新一条。 */
   progress: ReadonlyMap<string, ProgressEvent>;
+  /** 挂在服务端等后台结论的调用（pearnly.tool_run 的 waiting、运行状态的 waiting）：模型不在工作，不算在忙（输入框只显示
+   *  发送、能发），状态行照常显示这一步与进度（turn.ts）。引擎重新开跑、这一步有了结果、停止、会话结束时清掉。 */
+  waitingIds: string[];
 };
 
 export const initialProjection = (): Projection => ({
@@ -204,6 +207,7 @@ export const initialProjection = (): Projection => ({
   parkedIds: [],
   pendingCustomTools: [],
   answeredCustomTools: new Set(),
+  waitingIds: [],
   confirmedIds: new Set(),
   echoedOptimistic: new Set(),
   seen: new Set(),
@@ -572,6 +576,7 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
         ...state,
         messages: stripUnresolvedApprovals(state.messages),
         isRunning: true,
+        waitingIds: [],
         parkedIds: [],
         pendingApprovals: [],
         lastError: null,
@@ -601,6 +606,7 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
           pendingApprovals: [],
           parkedIds: [],
           pendingCustomTools: [],
+          waitingIds: [],
           cutPreviews: [],
           lastError: clearRetrying(state.lastError),
         };
@@ -613,8 +619,11 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       const pendingCustomTools: string[] = [];
       const parkedIds = [...stop.event_ids];
       let working = false;
+      const waiting = new Set(state.waitingIds);
       for (const id of stop.event_ids) {
         const toolUse = state.toolUses.get(id);
+        // 挂在服务端等后台结论的：模型不在工作，不算在跑（只显示发送）
+        if (waiting.has(id)) continue;
         if (!toolUse || answered(state, id)) {
           working = true;
           continue;
@@ -638,6 +647,7 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
         pendingApprovals,
         parkedIds,
         pendingCustomTools,
+        waitingIds: state.waitingIds.filter((id) => parkedIds.includes(id)),
         // Parking on a gate proves a mid-turn "retrying" recovered too.
         lastError: clearRetrying(state.lastError),
       };
@@ -653,6 +663,7 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
         pendingApprovals: [],
         parkedIds: [],
         pendingCustomTools: [],
+        waitingIds: [],
         cutPreviews: [],
       };
 
@@ -869,7 +880,9 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
         answeredCustomTools,
         pendingCustomTools,
         pendingApprovals,
-        isRunning: state.isRunning || resumes(state, id, pendingApprovals, pendingCustomTools),
+        waitingIds: state.waitingIds.filter((x) => x !== id),
+        isRunning: state.isRunning || resumes({ ...state, waitingIds: state.waitingIds.filter((x) => x !== id) }, id,
+          pendingApprovals, pendingCustomTools),
       };
     }
 
@@ -885,7 +898,7 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       return settleConfirmation(state, event.tool_use_id, event.result === "allow", undefined, false);
 
     case "pearnly.tool_run":
-      return applyToolRun(state, event.tool_use_id, event.status);
+      return applyToolRun(state, event.tool_use_id, event.status, event.waiting === true);
 
     case "user.interrupt":
       return cancelOpenGates(state);
@@ -976,6 +989,7 @@ function cancelOpenGates(state: Projection): Projection {
     pendingCustomTools: state.pendingCustomTools.filter((id) => !cancelled.has(id)),
     // 服务端不再停在这几步：随后补来的结果不算「答完接着跑」（resumes），确认没送到也不放回（restoreGates）
     parkedIds: state.parkedIds.filter((id) => !cancelled.has(id)),
+    waitingIds: [],
   };
 }
 
@@ -998,9 +1012,10 @@ function dropPending(state: Projection, id: string): Pick<Projection, "pendingAp
 /** 本站执行记录到了（pearnly.tool_run，或点「允许 / 拒绝」时 confirm 回的状态）：卡片照它定下。允许过（running / done / error）
  *  定成「允许」，拒绝定成「拒绝」，作废撤掉门、标 cancelled；还在等的只记下。状态只往前走（RUN_RANK）。还没有这一步时先记在 toolRuns，
  *  建这一步时补上。 */
-function applyToolRun(state: Projection, id: string, status: ToolRunStatus): Projection {
+function applyToolRun(state: Projection, id: string, status: ToolRunStatus, waiting = false): Projection {
   const known = state.toolRuns.get(id);
   if (known && RUN_RANK[known] > RUN_RANK[status]) return state;
+  if (waiting && status === "running") return parkWaiting(state, id);
   const toolRuns = new Map(state.toolRuns).set(id, status);
   const found = findToolPart(state.messages, id);
   const part = found ? state.messages[found.mi]!.content[found.pi] : undefined;
@@ -1022,6 +1037,7 @@ function applyToolRun(state: Projection, id: string, status: ToolRunStatus): Pro
   });
   if (status === "awaiting_approval") return { ...state, messages, toolRuns };
   const pending = dropPending(state, id);
+  if (runSettled(status)) state = { ...state, waitingIds: state.waitingIds.filter((x) => x !== id) };
   if (status === "cancelled") {
     // 引擎不再停在这一步（这一轮已被停止）：随后补来的结果不算「答完接着跑」，确认没送到也不放回
     return { ...state, messages, toolRuns, ...pending, parkedIds: state.parkedIds.filter((x) => x !== id) };
@@ -1031,6 +1047,25 @@ function applyToolRun(state: Projection, id: string, status: ToolRunStatus): Pro
     ...state, messages, toolRuns, ...pending,
     isRunning: state.isRunning || resumes(state, id, pending.pendingApprovals, pending.pendingCustomTools),
   };
+}
+
+/** 这次调用挂在服务端等后台的结论（pearnly.tool_run 带 waiting）：记成本站正在执行、不再欠结果，并记进 waitingIds。
+ *  服务端正停在它上面、停着等的其余调用也都不用这边做什么时，模型不在工作：不算在跑（输入框只显示发送）。 */
+function parkWaiting(state: Projection, id: string): Projection {
+  const toolRuns = new Map(state.toolRuns).set(id, "running");
+  const found = findToolPart(state.messages, id);
+  const part = found ? state.messages[found.mi]!.content[found.pi] : undefined;
+  let messages = state.messages;
+  if (found && part?.type === "tool-call" && part.run !== "running" && !(part.run && RUN_RANK[part.run] > 1)) {
+    const next = draft(messages);
+    updatePart(next, found.mi, found.pi, () => ({ ...part, run: "running" as ToolRunStatus }));
+    messages = next;
+  }
+  const pending = dropPending(state, id);
+  const waitingIds = state.waitingIds.includes(id) ? state.waitingIds : [...state.waitingIds, id];
+  const idle = state.parkedIds.includes(id) && pending.pendingApprovals.length === 0 && pending.pendingCustomTools.length === 0 &&
+    state.parkedIds.every((x) => waitingIds.includes(x));
+  return { ...state, messages, toolRuns, ...pending, waitingIds, isRunning: idle ? false : state.isRunning };
 }
 
 /** 自定义工具收到 agent.tool_result：只能是点了停止时引擎代发的中断结果（本站的结果走 user.custom_tool_result）。结果留着给
@@ -1106,6 +1141,7 @@ export function applyRunStatus(state: Projection, run: RunStatus): Projection {
     pendingApprovals: [] as string[],
     parkedIds: [] as string[],
     pendingCustomTools: [] as string[],
+    waitingIds: [] as string[],
     statusAt,
   };
   switch (run.status) {
@@ -1123,6 +1159,8 @@ export function applyRunStatus(state: Projection, run: RunStatus): Projection {
   const parked = [...(run.parked ?? [])];
   const awaiting = new Set(run.awaiting_approval ?? []);
   const executing = new Set(run.executing ?? []);
+  // 挂在服务端等后台结论的（本站正在执行、在等）：模型不在工作，不算在跑
+  const waitingIds = parked.filter((id) => executing.has(id) && (run.waiting ?? []).includes(id));
   const isCustom = (id: string) => state.toolUses.get(id)?.type === "agent.custom_tool_use";
   // 还能点的门只留服务端真在等用户的：自带工具的确认、本站拦下等「允许」的 Pearnly 工具
   const gates = new Set(parked.filter((id) => !isCustom(id) || awaiting.has(id)));
@@ -1139,6 +1177,7 @@ export function applyRunStatus(state: Projection, run: RunStatus): Projection {
   const pendingCustomTools: string[] = [];
   let working = false;
   for (const id of parked) {
+    if (waitingIds.includes(id)) continue;
     const found = findToolPart(messages, id);
     const part = found ? messages[found.mi]!.content[found.pi] : undefined;
     if (!found || part?.type !== "tool-call" || !state.toolUses.has(id)) {
@@ -1170,6 +1209,7 @@ export function applyRunStatus(state: Projection, run: RunStatus): Projection {
     pendingApprovals,
     parkedIds: parked,
     pendingCustomTools,
+    waitingIds,
     lastError: clearRetrying(state.lastError),
     statusAt,
   });

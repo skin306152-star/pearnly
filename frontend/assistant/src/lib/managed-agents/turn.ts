@@ -24,6 +24,8 @@ export type TurnActivity =
   | { kind: "input" };
 
 type TurnState = Pick<Projection, "messages" | "isRunning" | "pendingApprovals" | "pendingCustomTools"> & {
+  /** 挂在服务端等后台结论的调用（reducer 的 waitingIds）：不算在忙，状态行照常说这一步。 */
+  waitingIds?: readonly string[];
   /** 运行中很久收不到服务端任何消息（session-controller）。 */
   stalled?: boolean;
 };
@@ -37,13 +39,24 @@ const INPUT: TurnActivity = { kind: "input" };
 
 /** 此刻状态行显示什么。sending：按下发送、正式气泡还没画出来（新对话建会话、附件还在上传，pending-send.ts）。 */
 export function turnActivity(state: TurnState, sending = false): TurnActivity {
-  if (!sending && !isBusy(state)) return HIDDEN;
+  if (!sending && !isBusy(state)) return waitingActivity(state) ?? HIDDEN;
   // 轮到用户：卡片在对话里等点，状态行说「需要您的输入」
   if (!sending && state.pendingApprovals.length > 0) return INPUT;
   if (state.stalled) return { kind: "reconnecting" };
   const last = state.messages.at(-1);
   if (sending || !last || last.role !== "assistant") return THINKING;
   return partActivity(last);
+}
+
+/** 模型不在工作、但有一步挂在服务端等后台结论（例如识别）：状态行照常说这一步（进度由 liveProgress 按它的编号取）。 */
+function waitingActivity(state: TurnState): TurnActivity | null {
+  for (const id of state.waitingIds ?? []) {
+    for (const message of state.messages) {
+      const part = message.content.find((p) => p.type === "tool-call" && p.toolCallId === id);
+      if (part?.type === "tool-call" && !settled(part)) return toolActivity(part);
+    }
+  }
+  return null;
 }
 
 function partActivity(message: ThreadMessage): TurnActivity {

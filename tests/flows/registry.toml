@@ -1624,3 +1624,30 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-receipts.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-shifts.js",
 ]
+
+[[flow]]
+id = "cowork.cc.send-while-waiting"
+title = "Cowork CC 直写对话：识别挂在服务端等时模型空闲，输入框右边是发送、状态行照常说识别这一步；在界面上打一句点发送，服务端先交回挂着的调用再收这句，CC 回这一句（用户 11-08 方案 B）"
+module = "scripts/flows/cc_send_while_waiting.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/assistant/waits.py",
+  "frontend/assistant/src/lib/managed-agents/turn.ts",
+]
+
+[[flow]]
+id = "cowork.operator.send-while-waiting"
+title = "Cowork CC 代录对话：识别挂在服务端等时模型空闲，输入框右边是发送；在界面上打一句点发送，CC 回这一句（同直写，代录新建页选公司说一句建的会话）"
+module = "scripts/flows/cc_send_while_waiting_operator.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/assistant/waits.py",
+]

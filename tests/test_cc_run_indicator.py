@@ -184,6 +184,64 @@ assert.equal(turnActivity(s).kind, "tool");
 assert.equal(isBusy(s), true);
 """)
 
+    def test_a_call_waiting_on_the_server_is_idle_but_the_line_still_says_the_step(self):
+        # 11-08 线上验收（用户定方案 B）：识别挂在服务端等时模型不在工作，算空闲（输入框只显示发送、能发），状态行照常说
+        # 「识别中 · 共 N 页」；模型真在回复或执行步骤时照旧算在忙（只显示停止）。挂起推来带 waiting 的执行记录、运行状态读回带 waiting
+        # 两条路一样；引擎重新开跑（发了消息、识别交回）就回到在忙。
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { isBusy, applyRunStatus } from "@/lib/managed-agents/reducer";
+import { liveProgress, progressText } from "@/lib/managed-agents/progress";
+import { turnActivity } from "@/lib/managed-agents/turn";
+---
+const S = "sesn_wait1";
+site.echo = false;
+site.toolReply = () => new Promise(() => {});
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+await c.sendMessage("识别并录入", []);
+push(S, ev("u1", "user.message", 1, { content: text("识别并录入") }));
+push(S, ev("r1", "session.status_running", 2));
+push(S, ev("t1", "agent.custom_tool_use", 3, { name: "cowork_recognize_attachments", input: { files: ["a.pdf"] } }));
+push(S, ev("i1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["t1"] } }));
+await g.sleep(5);
+assert.equal(isBusy(c.getSnapshot()), true);                              // 本站在执行：在忙（停止）
+// 挂起前本站开始执行时已经来过一条 running（同调用、同状态）；挂起那条编号另带 _waiting（contracts.tool_run_event），不被当重复丢掉
+dispatchTo(S, { type: "pearnly.tool_run", id: "ptoolrun_t1_running", tool_use_id: "t1", status: "running",
+                processed_at: "2026-11-08T04:59:00Z" });
+await g.sleep(5);
+assert.equal(isBusy(c.getSnapshot()), true);
+dispatchTo(S, { type: "pearnly.tool_run", id: "ptoolrun_t1_running_waiting", tool_use_id: "t1", status: "running",
+                processed_at: "2026-11-08T05:00:00Z", waiting: true });
+dispatchTo(S, { type: "pearnly.progress", id: "pwait_t1", processed_at: "2026-11-08T05:00:00Z", tool_use_id: "t1",
+                done: 0, total: 12, label: "reading_pages" });
+await g.sleep(5);
+let s: any = c.getSnapshot();
+assert.equal(isBusy(s), false);                                           // 挂在服务端等：模型空闲（发送）
+let a: any = turnActivity(s);
+assert.equal(a.kind, "tool");
+assert.equal(a.toolCallId, "t1");
+assert.equal(progressText(liveProgress(s, a.toolCallId)!), "识别中 · 共 12 页");
+// 运行状态读回（重开、回到前台）同样算空闲
+const read = applyRunStatus({ ...s, waitingIds: [] }, { status: "requires_action", parked: ["t1"], awaiting_approval: [],
+                                                     executing: ["t1"], waiting: ["t1"], as_of: "2026-11-08T05:00:01Z" });
+assert.equal(isBusy(read), false);
+assert.deepEqual([...read.waitingIds], ["t1"]);
+// 没标 waiting 的本站执行（真在执行步骤）：照旧在忙
+const doing = applyRunStatus({ ...s, waitingIds: [] }, { status: "requires_action", parked: ["t1"], awaiting_approval: [],
+                                                      executing: ["t1"], as_of: "2026-11-08T05:00:01Z" });
+assert.equal(isBusy(doing), true);
+// 挂着时能发：服务端先把挂着的调用按「还在识别」交回、再收这条，引擎接着跑 → 回到在忙
+await c.sendMessage("现在识别到哪了？", []);
+assert.ok(g.calls.some((x: any) => x.method === "send" && String(x.body.text).includes("现在识别到哪了")));
+push(S, ev("res1", "user.custom_tool_result", 9, { custom_tool_use_id: "t1", content: text("still reading") }));
+push(S, ev("r2", "session.status_running", 10));
+s = c.getSnapshot();
+assert.equal(isBusy(s), true);
+assert.deepEqual([...s.waitingIds], []);
+""")
+
     def test_a_parallel_step_that_answered_first_does_not_hide_the_one_still_reading(self):
         # 11-07 本机实验栈真引擎：代录里 CC 并行调「识别」与「查待处理」，后者当场有结果、识别挂在服务端；状态行只看最后一步，
         # 一直「执行中…」，看不到识别页数。整批都有结论才算引擎在看结果。

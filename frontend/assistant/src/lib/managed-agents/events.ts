@@ -58,6 +58,9 @@ export type ToolRunEvent = {
   status: ToolRunStatus;
   /** 挂着的调用刚由本站交回引擎（pearnly_core.assistant.waits）：会话被叫醒、没有推送线程在跟，收到就补拉一次接上。 */
   settled?: boolean;
+  /** 这次调用挂在服务端等后台的结论（waits，例如识别）：模型这时不在工作，页面算空闲、只显示发送，状态行照常显示这一步
+   *  （用户 11-08 定：模型空闲显示发送、在工作显示停止）。 */
+  waiting?: boolean;
 };
 
 /** 一步（或整段对话）进行到哪（方案 14.10，服务端 assistant/contracts.py 的 progress_event，只在站点与页面之间）：
@@ -155,6 +158,8 @@ export type RunStatus = {
   parked: string[];
   awaiting_approval: string[];
   executing: string[];
+  /** 其中挂在服务端等后台结论的（同 ToolRunEvent.waiting）。旧服务端不给。 */
+  waiting?: string[];
   as_of: string | null;
 };
 

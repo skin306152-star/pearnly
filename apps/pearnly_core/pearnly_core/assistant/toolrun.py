@@ -258,11 +258,13 @@ def _announce(conversation: str, use_id: str, allow: bool) -> None:
         print(f"assistant answer {conversation}: {type(err).__name__}", flush=True)
 
 
-def _publish_run(conversation: str, use_id: str, status: str, user: str | None = None, settled: bool = False) -> None:
+def _publish_run(conversation: str, use_id: str, status: str, user: str | None = None, settled: bool = False,
+                 waiting: bool = False) -> None:
     """执行记录的状态变了（执行完 / 出错、拒绝、作废，`contracts.tool_run_event`）：推给会话主人自己的房间，开着这段对话的
     设备当场按本站记录定下那张卡（第 11 轮 A 段）。推不出去不影响主流程：那边重开、补拉时随事件并进来（`sessions.events`）。"""
     try:
-        event = contracts.tool_run_event(use_id, status, datetime.now(timezone.utc).isoformat(), settled=settled)
+        event = contracts.tool_run_event(use_id, status, datetime.now(timezone.utc).isoformat(), settled=settled,
+                                         waiting=waiting)
         frappe.publish_realtime(contracts.REALTIME_EVENT, {"session_id": conversation, "event": event},
                                 user=user or frappe.session.user)
     except Exception as err:
@@ -338,6 +340,8 @@ def _finish(conversation, remote, run_name, use_id, tool, tool_input) -> str:
         frappe.db.set_value(TOOL_RUN, run_name, "result", text[:60000])
         waits.hold(run_name, remote, wait)
         frappe.db.commit()
+        # 挂着：模型这时不在工作，对话页算空闲（只显示发送、状态行照常显示进度），推给它当场换过来
+        _publish_run(conversation, use_id, "running", waiting=True)
         waits.announce(run_name)
         return "running"
     # 留记录：谁（user）、何时（modified）、调了什么（tool / tool_input）、结果（result，含改后的状态）。先落库、推给对话页，

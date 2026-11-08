@@ -886,7 +886,8 @@ function DesktopBridge() {
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
   const push = usePush();
   const { view } = useView();
-  useDesktopBridge(isBusy(snapshot), snapshot.messages, title, push.state === "on", snapshot.sessionId);
+  // 挂在服务端等识别时模型空闲（只显示发送），但这一轮没完：不当成「回复完了」去发桌面通知
+  useDesktopBridge(isBusy(snapshot) || snapshot.waitingIds.length > 0, snapshot.messages, title, push.state === "on", snapshot.sessionId);
   useAutoConnect(useProfile()?.product);
   // 一打开就接上实时通道：侧栏才看得到后台对话在跑、跑完（lib/managed-agents/activity.ts）
   useEffect(() => listen(), []);

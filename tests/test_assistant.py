@@ -2381,11 +2381,16 @@ class RunStatusTests(unittest.TestCase):
         self.assertEqual(run("rescheduling")["status"], "running")
         self.assertEqual(run("terminated")["status"], "terminated")
         self.assertEqual(run("idle", self.IDLE, as_of="t"),
-                         {"status": "idle", "parked": [], "awaiting_approval": [], "executing": [], "as_of": "t"})
+                         {"status": "idle", "parked": [], "awaiting_approval": [], "executing": [], "waiting": [], "as_of": "t"})
         self.assertEqual(run("idle", None)["status"], "idle")
         state = run("idle", self.PARKED, {"sevt_tool1": "awaiting_approval", "sevt_tool2": "running", "sevt_tool3": "done"})
         self.assertEqual((state["status"], state["parked"], state["awaiting_approval"], state["executing"]),
                          ("requires_action", ["sevt_tool1", "sevt_tool2", "sevt_tool3"], ["sevt_tool1"], ["sevt_tool2"]))
+        self.assertEqual(state["waiting"], [])
+        # 挂在服务端等后台结论的（`waits`，例如识别）：只认本站正在执行的那几个，对话页把它们算作模型空闲
+        state = run("idle", self.PARKED, {"sevt_tool1": "awaiting_approval", "sevt_tool2": "running", "sevt_tool3": "done"},
+                    waiting=["sevt_tool2", "sevt_tool3", "sevt_other"])
+        self.assertEqual((state["executing"], state["waiting"]), (["sevt_tool2"], ["sevt_tool2"]))
         self.assertIsNone(run("something-new"))  # 认不出就不给（对话页这次不改）
         # 最新一条会话状态事件：只往回看有限几条
         events = [{"id": "e3", "type": "agent.message"}, self.IDLE, self.PARKED]
@@ -2455,7 +2460,7 @@ class RunStatusTests(unittest.TestCase):
             calls["events"] = 0
             full = sessions.events("sesn_mine1", status=True)
             self.assertEqual(full["run"], {"status": "idle", "parked": [], "awaiting_approval": [], "executing": [],
-                                           "as_of": "2026-10-13T08:24:00.123456Z"})
+                                           "waiting": [], "as_of": "2026-10-13T08:24:00.123456Z"})
             self.assertEqual((calls["status"], calls["events"]), (1, 1))
             # 增量：漏了「结束」也照样知道已空闲；状态事件从这次读过的事件里取，不再读一遍
             calls.update(status=0, events=0)
@@ -5177,7 +5182,7 @@ class ToolRunRecordTests(unittest.TestCase):
             self.assertEqual(len(full["events"]), 6)
             self.assertEqual(asked, [(sessions.toolrun.TOOL_RUN, {"session_id": row.session_id, "user": "a@example.com",
                                       "tool_use_id": ["in", ["sevt_01UDVUzpwDom3EXfH9XEWYJm"]]}, None,
-                                      ["tool_use_id", "status", "modified"])])
+                                      ["tool_use_id", "status", "modified", "wait_until"])])
             # 增量：这页事件里出现过的调用（这里是那条中断结果引用的调用），加上锚点之后改过的，同一次查询、按调用去重
             asked.clear()
             page = sessions.events(row.session_id, after="sevt_idle_park")
@@ -5188,7 +5193,7 @@ class ToolRunRecordTests(unittest.TestCase):
             self.assertEqual(asked, [(sessions.toolrun.TOOL_RUN, {"session_id": row.session_id, "user": "a@example.com"},
                                       [["modified", ">=", datetime.datetime(2026, 10, 17, 17, 52, 45, 308000)],
                                        ["tool_use_id", "in", ["sevt_01UDVUzpwDom3EXfH9XEWYJm"]]],
-                                      ["tool_use_id", "status", "modified"])])
+                                      ["tool_use_id", "status", "modified", "wait_until"])])
             # 这页没有调用：仍带上锚点之后改过的记录（这条 17:57:54 才改成 done，在锚点 53.110 之后）
             asked.clear()
             self.assertEqual([e["id"] for e in sessions.events(row.session_id, after="sevt_interrupt")["events"]],
@@ -6482,7 +6487,11 @@ class WaitTests(unittest.TestCase):
         self.assertIn('"saved"', results[0]["content"][0]["text"])
         self.assertEqual((row["status"], row["wait_until"]), ("done", None))
         pushed = [a[1]["event"] for a, k in self.published if a[1]["event"].get("type") == "pearnly.tool_run"]
-        self.assertEqual([(e["status"], e.get("settled")) for e in pushed], [("done", True)])
+        # 挂起时推一次「挂着等」（对话页算模型空闲、只显示发送）；交回时推 done（带 settled）
+        self.assertEqual([(e["status"], e.get("settled"), e.get("waiting")) for e in pushed],
+                         [("running", None, True), ("done", True, None)])
+        # 挂起那条编号另带 _waiting：之前同状态的 running 已推 / 读过，同编号会被对话页当重复丢掉
+        self.assertEqual(pushed[0]["id"], "ptoolrun_sevt_run1_running_waiting")
         # 同一个键再来一次（重复提醒、巡检）：不再交
         self.waits.settle_key("ocr:cowork.invoice:B1")
         self.waits.sweep()
