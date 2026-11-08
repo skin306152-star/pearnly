@@ -338,3 +338,33 @@ def test_the_window_process_sets_the_level_and_qt_logging_before_the_application
     run = source.split("def run()", 1)[1]
     assert run.index("render_safety.apply(") < run.index("qt_app()")
     assert run.index("render_safety.install_qt_log()") < run.index("qt_app()")
+
+
+# ── 冷启动加载状态 ──
+
+def test_the_loading_state_covers_the_web_area_until_the_first_load_ends():
+    _app()
+    from src.companion import gui_tomo
+    from PySide6.QtGui import QIcon, QPixmap
+
+    view = QWidget()
+    view.resize(800, 600)
+    pixmap = QPixmap(64, 64)
+    pixmap.fill(QColor("#f08c2c"))
+    loading = gui_tomo._Loading(view, QIcon(pixmap))
+    view.show()
+    assert loading.isVisible() and loading.geometry() == view.rect()
+    assert loading.bar.minimum() == loading.bar.maximum() == 0 and not loading.bar.isTextVisible()
+    assert not any(label.text() for label in loading.findChildren(gui_tomo.QLabel))   # 不写字
+    view.resize(1000, 700)
+    QApplication.processEvents()
+    assert loading.geometry() == view.rect()
+    loading.finish()
+    assert not loading.isVisible()
+    # 窗口第一次加载结束（成功或失败）就收起，并在画不出来的判断截图之前
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "src" / "companion" / "gui_tomo.py").read_text(encoding="utf-8")
+    loaded = source.split("def _loaded(self, ok: bool)", 1)[1].split("\n    def ", 1)[0]
+    assert loaded.index("self.loading.finish()") < loaded.index("self._ready")
+    assert min(render_safety.PROBES_MS) >= 1000

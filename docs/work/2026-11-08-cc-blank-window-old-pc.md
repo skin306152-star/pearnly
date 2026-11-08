@@ -20,10 +20,31 @@
 - Qt 消息（含 `qt.webenginecontext` 启动信息：显卡、绘制方式）写进 `window.log`；页面控制台不写，同一句只写一次，每进程最多 300 行。
 - 没有新增或改动界面文案。
 
+## 现场机器与两条追问（主会话 11-08 转来）
+现场：Acer Aspire Z1-601，Intel Pentium N3540（Bay Trail，约 2014 年），8 GB DDR3，Intel HD Graphics（Bay Trail 核显），机械硬盘。
+
+1. 老核显能不能直接走软件档（不等 10 秒）：**不按型号写名单**。
+   - Chrome / Edge 在这类电脑上能显示，是因为 GPU 在单独的进程里：出问题会被 Chromium 自己的显卡黑名单挡掉，
+     GPU 进程崩了几次也会自动退回软件绘制。
+   - CC 的网页内核里 Chromium 的 GPU 跑在本进程里（测试机 window.log 的启动参数有 `in-process-gpu`），页面最后由 Qt 自己的
+     D3D11 合成，这一层不在 Chromium 黑名单管辖之内，所以 Chromium 的自动退回在 CC 里不一定起作用。
+   - Bay Trail 核显在不在 Chromium 黑名单、具体是哪一层画不出来，没有真机证据，按名单猜容易漏判或误判
+     （同叫「Intel(R) HD Graphics」的核显跨好几代）。截图判空白按现象认，不管是哪块显卡、哪一层出的问题都覆盖。
+   - 代价：每台这样的电脑第一次多等约 10 秒，之后一直用软件档；每 30 天或升 1.x 版回试一次，各多等一次。
+   - 若现场 window.log 显示某类显卡有固定的启动报错，再按那句报错直接换档，不按型号。
+2. 冷启动别一整片灰：已做加载状态（CC 图标 + 原生进度条，不写字，第一次加载结束就收起）。
+   - N3540 + 机械硬盘冷启动要多久：没有同类机器，**未实测**。网页内核文件约两百 MB（打包说明），按机械硬盘与这颗 CPU 估计
+     要十几到几十秒。
+   - 现场照片里的「整片浅灰」有可能就是冷启动还没出页面（窗口底色 #fcfcfb），也可能是显卡画不出；第 5 步取证能分开这两种情况。
+   - 两种情况 1.12.19 都覆盖：加载中显示加载状态；加载完了画不出来就自动换软件档。
+
 ## 验证
 - 单元测试 `companion/tests/test_render_safety.py`（档位、重新试、环境变量合并、空白判断、看不见 / 没有字 / 别的网站不判、
   窗口进程升档重开、托盘等旧进程退出再拉起、Qt 日志）；companion 全量测试本机（macOS、offscreen）通过。
 - 本机真网页内核：macOS 正常显卡打开真 fatcc.com 判「已画出」不误判；offscreen 下真 TomoWindow 10 秒判空白 → 记软件档 →
   第二次启动画出登录页。
-- 测试机（Windows、Intel Iris Xe）：见下方结果。
+- 测试机（Windows 10/11，Intel Iris Xe，D3D11）用分支源码 + 同版本 PySide6 开真 CC 窗口打开真 fatcc.com（单独的 APPDATA，不碰已装的 CC）：
+  正常显卡 3 秒判「已画出」，没写 render.json，截图是完整登录页，window.log 记到显卡信息；离线平台（无显卡输出）
+  10 秒判空白 → 记 level 1 → 发 restart；第二次按软件档（Chromium GPU disabled、Qt 用 Microsoft Basic Render Driver）3 秒画出。
+- 加载状态：macOS 真窗口 0.4 秒时显示 CC 图标 + 进度条，加载完收起、露出登录页。
 - 现场那台：待取证结果；1.12.19 发布后在那台上验。

@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QProgressBar,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -141,6 +142,49 @@ class _SiteWindow(QMainWindow):
         self.view.setPage(None)
         self.page.deleteLater()
         super().closeEvent(event)
+
+
+class _Loading(QWidget):
+    """网页内核还没交出第一页时盖在网页区域上的加载状态（CC 图标 + 系统原生的进度条，不写字）。
+
+    老电脑（2014 年前后的赛扬 / 奔腾、机械硬盘）冷启动网页内核要几十秒，原来这段时间只露出页面底色，看着像整片空白
+    （11-08 办公室老 Acer 一体机）。第一次加载结束（成功或失败都算：失败时要露出网页内核自己的错误页）就收起，之后不再出现；
+    画不出来的判断（render_safety）在加载结束 3 秒后才截图，那时它已经收起。"""
+
+    def __init__(self, view: QWidget, icon) -> None:
+        super().__init__(view)
+        self.setAutoFillBackground(True)
+        column = QVBoxLayout(self)
+        column.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        column.setSpacing(16)
+        mark = QLabel(self)
+        mark.setPixmap(icon.pixmap(48, 48))
+        mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        column.addWidget(mark, 0, Qt.AlignmentFlag.AlignCenter)
+        self.bar = QProgressBar(self)
+        self.bar.setRange(0, 0)            # 不知道要多久：来回走的那种
+        self.bar.setTextVisible(False)
+        self.bar.setFixedWidth(160)
+        column.addWidget(self.bar, 0, Qt.AlignmentFlag.AlignCenter)
+        view.installEventFilter(self)
+        self.setGeometry(view.rect())
+        self.raise_()
+
+    def recolor(self, color: QColor) -> None:
+        palette = self.palette()
+        palette.setColor(QPalette.ColorRole.Window, color)
+        self.setPalette(palette)
+
+    def eventFilter(self, watched, event) -> bool:
+        if watched is self.parent() and event.type() == QEvent.Type.Resize:
+            self.setGeometry(watched.rect())
+            self.raise_()
+        return False
+
+    def finish(self) -> None:
+        self.parent().removeEventFilter(self)
+        self.hide()
+        self.deleteLater()
 
 
 RESIZE_MARGIN = 4    # 无边框窗口四周留给系统拉伸的宽度（像素，最大化时为 0）
@@ -288,6 +332,7 @@ class TomoWindow(QMainWindow):
         self.page.urlChanged.connect(self._remember)
         self.page.urlChanged.connect(self._chrome_for)
         self.page.loadFinished.connect(self._loaded)
+        self.loading: _Loading | None = _Loading(self.view, icon)
         self.frame = _Frame(self)
         column = QVBoxLayout(self.frame)
         column.setSpacing(0)
@@ -346,6 +391,8 @@ class TomoWindow(QMainWindow):
         self.frame.setAutoFillBackground(True)
         self.frame.setPalette(palette)
         self.page.setBackgroundColor(QColor(APP_BG[_scheme()]))
+        if self.loading is not None:
+            self.loading.recolor(QColor(APP_BG[_scheme()]))
         self.chrome.restyle()
 
     def _chrome_for(self, url: QUrl) -> None:
@@ -416,6 +463,9 @@ class TomoWindow(QMainWindow):
             self._pending_settings = script
 
     def _loaded(self, ok: bool) -> None:
+        if self.loading is not None:   # 第一次加载结束：收起加载状态（失败也收，露出网页内核的错误页）
+            self.loading.finish()
+            self.loading = None
         self._ready = self._ready or ok
         zoom = float(self._settings.value("zoom", 1.0) or 1.0)
         if abs(self.view.zoomFactor() - zoom) > 0.001:

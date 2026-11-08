@@ -179,6 +179,8 @@
     （`%APPDATA%\Pearnly\tomo\render.json`，之后照它；CC 升了 1.x 版或记下满 30 天回到显卡重新试一次，还画不出来再换回；网页内核 `--disable-gpu --disable-gpu-compositing`，Qt 合成用 D3D11 WARP），
     请托盘等旧窗口进程退出后重开窗口（管道新消息 `restart`）；已是软件绘制还画不出来只记日志不再重开。窗口进程的 Qt / 网页内核消息
     （含 `qt.webenginecontext` 启动信息：显卡、绘制方式）写进 `logs/window.log`，页面控制台不写，同一句只写一次。没有新文案。
+  - 冷启动时网页区域显示 CC 图标 + 系统原生的进度条（`gui_tomo._Loading`，不写字），第一次加载结束（成功或失败）就收起；
+    老电脑（Bay Trail 奔腾 / 赛扬 + 机械硬盘）冷启动网页内核要几十秒，原来这段时间只露出页面底色、看着像整片空白。
 
 ## 本机测试
 
