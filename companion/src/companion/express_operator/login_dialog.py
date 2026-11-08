@@ -28,6 +28,9 @@ def ask(lang: str = "zh", parent=None, *, title_key: str = "op_login_title",
     form.addRow(t("op_login_user", lang), user_box)
     form.addRow(t("op_login_password", lang), password)
     buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel, dialog)
+    # 没装 Qt 自带译文：标准按钮的字按界面语言写，不然各语言都是英文
+    buttons.button(QDialogButtonBox.StandardButton.Save).setText(t("btn_save", lang))
+    buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(t("btn_cancel", lang))
     buttons.accepted.connect(dialog.accept)
     buttons.rejected.connect(dialog.reject)
     form.addRow(buttons)

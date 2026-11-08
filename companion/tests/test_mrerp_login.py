@@ -263,3 +263,24 @@ def test_operator_login_for_mrerp_goes_to_the_step_two_module_or_says_unsupporte
     assert json.loads(bridge.call("operator_authorize", args)) == {"ok": True}
     assert json.loads(bridge.call("operator_forget", args)) == {"ok": True}
     assert calls == [("ask", MRERP, "CWEC-1"), ("forget", MRERP, "CWEC-1")]
+
+
+def test_login_window_buttons_speak_the_chosen_language(monkeypatch):
+    # 11-08 日语窗口截图发现：没装 Qt 自带译文，标准按钮在泰 / 中 / 日界面也是英文「Save / Cancel」
+    from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox
+
+    from companion.express_operator import login_dialog
+
+    QApplication.instance() or QApplication([])
+    seen = {}
+
+    def fake_exec(dialog):
+        box = dialog.findChild(QDialogButtonBox)
+        seen["save"] = box.button(QDialogButtonBox.StandardButton.Save).text()
+        seen["cancel"] = box.button(QDialogButtonBox.StandardButton.Cancel).text()
+        return QDialog.DialogCode.Rejected
+
+    monkeypatch.setattr(QDialog, "exec", fake_exec)
+    for lang, save, cancel in (("ja", "保存", "キャンセル"), ("th", "บันทึก", "ยกเลิก"), ("zh", "保存", "取消"), ("en", "Save", "Cancel")):
+        assert login_dialog.ask(lang, title_key="mrerp_login_title") is None
+        assert seen == {"save": save, "cancel": cancel}, lang
