@@ -203,3 +203,34 @@
   主会话 11-08 交本窗口另修，记录见 [采购凭证两处缺陷](2026-11-08-purchase-voucher-fixes.md)。
 - 顺带看到（不在本项）：凭证 PDF 公司地址为空时印出「None」（`purchasing/voucher.html` 的 `company.get('address', '')` 取到 `None`）；
   实验栈里凭证标签是英文（实验账号界面语言下的翻译缺口，未核）。
+
+## 施工结果（11-08）
+
+- 提交：`f17aa1d34`（PDF 并发修法 + 测试）、`5cccaf15d` 与 `c41b6025a`（另两件，见 [采购凭证两处缺陷](2026-11-08-purchase-voucher-fixes.md)）。
+- 本地闸门：`gate.sh` 203 项全过（GATE EXIT 0）；候选离线检查 `cand-local.sh offline` 104 组（原 102 + 本次新增 2 组）、LANE EXIT 0。
+- 受影响流程（实验栈 `pearnly-pdflock-lab`，新老两套数据，38 格全过）：`erp.purchase.actions`、`erp.purchase.voucher-concurrent`、`erp.print.all`、
+  `erp.stocktake.report`、`erp.exports`、`cowork.exports`、`cc.chat`、`cc.settings`、`cowork.intake.review`、`shared.upload.take-photo`、`erp.company.settings`。
+- 打印页「PDF」/ 盘点「PDF」（原生 `download_pdf`，流程里没有这条）：实验栈每轮重启网页进程后并发出 7 个格式的 PDF ×2，3 轮 42 份全部 200、都是 PDF。
+  （实验栈的 wkhtmltopdf 要在容器 `/etc/hosts` 补站点名才连得上本站，只是实验栈的事，生产不涉及。）
+
+### 共用件连带回归（`python3 scripts/check-impact.py`）
+
+| 入口 | 结果 |
+|---|---|
+| `erp.purchase.voucher`（transaction 新调用方） | 通过：`erp.purchase.voucher-concurrent`、`erp.purchase.actions` 新老两套 |
+| `shared.transaction`（CC 登记电脑、回执） | 没测到：要 CC 桌面版与测试机，按任务书不碰；本次没改 `transaction` 本身，只新加调用方 |
+| `cowork.transaction`（Cowork CC 成员通道） | 没测到：同上 |
+| `cc.mrerp-login` | 没测到：要 CC 桌面版与 MR.ERP 账号 |
+| `cc.assistant` | 通过：`cc.chat`、`cc.settings` 新老两套、电脑与手机 |
+| `shared.exports` | 通过：`erp.exports`、`cowork.exports`（CC 附件下载没测到：要测试机） |
+| `shared.navigation` | 通过：各流程都从侧栏页面进入（`erp.company.settings` 等）；用户菜单逐项没单测 |
+| `shared.upload.shrink-photo` | 通过：`shared.upload.take-photo` |
+| `shared.originals.download` | 通过：`cowork.intake.review`（录入复核开原件）；ERP「下载原件」没单测 |
+| `shared.login` | 部分：实验栈用会话票据登录，所有流程登录后照常；OIDC 登录 / 退出 / 改密码没测到（实验栈没有 Keycloak 走查流程） |
+| `shared.execution` | 部分：登录会话照常；LINE 交互、上传识别没测到（不碰 LINE、不付费识别） |
+| `shared.assistant` | 通过：`cc.chat` |
+| `shared.browser-text` | 通过：所有流程页面正常打开 |
+| `shared.line.login` | 没测到：要真 LINE |
+| `erp.cc.connect` | 没测到：要测试机 CC |
+
+`hooks.py` 只在 `before_request` 最前面加了一条、在文件末尾加了 `before_job`，原有钩子的内容与顺序没变；上面「没测到」的入口都只是因为它们的调用方写在同一个 `hooks.py` 里。
