@@ -1,0 +1,45 @@
+# 长期不进 CI 的测试（scripts/check-test-coverage.py）：文件名<TAB>原因。原因写清为什么 CI 跑不了、什么时候用它。
+test_cowork_bank_arbitration_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_bank_recon_export_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_bank_review_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_bank_sheets_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_bank_warnings_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_buyer_resolve_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_classification_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_client_import_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_client_records_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_companion_reports_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_companion_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_document_model_path_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_document_tier_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_duplicates_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_engine_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_enterprise_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_export_actions_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_gl_text_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_income_parse_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_income_recon_export_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_invoice_feedback.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_invoice_group_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_invoice_policy_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_invoice_schema_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_invoice_validation_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_ocr_chain_repair_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_ocr_document_validation_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_ocr_error_format_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_ocr_magnitude_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_ocr_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_product_units_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_provider_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_push_contract.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_push_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_reconciliation_income_vat_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_reconciliation_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_roundtrip_export_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_roundtrip_parser_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_stocktake_export_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_supplier_posting_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_table_engine_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_table_input_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_vat_parse_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_cowork_workspace_import_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑

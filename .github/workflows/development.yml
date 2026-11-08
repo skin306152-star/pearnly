@@ -67,6 +67,8 @@ jobs:
         run: python3 tests/test_erp_stock_attachments.py
       - name: Stock summary and card fold initialization into the opening, roll costs per position and show category and attribute after the name
         run: python3 tests/test_opening_report.py
+      - name: Every test under tests/ is run by CI or registered with a reason (orphan baseline only shrinks)
+        run: python3 scripts/check-test-coverage.py && python3 tests/test_check_test_coverage.py
       - name: Stock card export follows the MR.ERP receipt-issue reports (all warehouses, summary, by warehouse)
         run: python3 tests/test_erp_stock_card_export.py
       - name: CC Desktop shared machine channel (register, routing, writer lock, receipts, on-demand requests)
