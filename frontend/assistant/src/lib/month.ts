@@ -161,7 +161,7 @@ export function exceptionSubject(item: MonthException, branchLabel: (branch: str
   return "";
 }
 
-const LOCALE: Record<string, string> = { th: "th-TH-u-ca-buddhist", zh: "zh-CN", en: "en-US" };
+const LOCALE: Record<string, string> = { th: "th-TH-u-ca-buddhist", zh: "zh-CN", en: "en-US", ja: "ja-JP" };
 
 /** 「15 ต.ค.」「10月15日」「Oct 15」：只有日期的（YYYY-MM-DD）按日期，带时间的按这台设备的时区；认不出原样。 */
 export function dayShort(value: string | null | undefined): string {

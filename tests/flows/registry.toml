@@ -1287,6 +1287,8 @@ covers = [
   "frontend/assistant/src/components/pending.tsx",
   # 待处理里停在要人定的单是一张提问卡（用户 11-05）；公司页月结台账里同一张（收着的一行，点开才判定）
   "frontend/assistant/src/components/month-ledger.tsx",
+  # 月结台账的日期写法（按界面语言的区域，11-08 加日文 ja-JP）
+  "frontend/assistant/src/lib/month.ts",
   "frontend/assistant/src/components/tool-uis/ask-*.ts",
   "frontend/assistant/src/components/tool-uis/ask-*.tsx",
 ]

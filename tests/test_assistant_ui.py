@@ -1289,10 +1289,16 @@ assert.equal(reloaded, 1);
         self.assertEqual(ui_language.interface(device="th", account="th", accept_language="zh-CN,zh"), "th")
 
     def test_languages_the_page_does_not_have_show_english(self):
-        self.page_language("ja", r"""
+        self.page_language("ko", r"""
 assert.equal(lang, "en");
 assert.equal(t("newChat"), "New chat");
 assert.equal((await everyRequest())[0].lang, "en");
+""")
+        # 日文（11-08 起对话页有）：日文界面，请求也带 ja
+        self.page_language("ja", r"""
+assert.equal(lang, "ja");
+assert.equal(t("newChat"), "新規作成");
+assert.equal((await everyRequest())[0].lang, "ja");
 """)
         self.page_language("zh-CN", 'assert.equal(lang, "zh");')
 

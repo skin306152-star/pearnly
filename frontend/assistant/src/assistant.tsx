@@ -185,7 +185,7 @@ function Welcome() {
   const profile = useProfile();
   const name = firstName(profile);
   const mascot = assistantMascot();
-  const hello = name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting();
+  const hello = name ? `${greeting()}${lang === "zh" ? "，" : lang === "ja" ? "、" : ", "}${name}` : greeting();
   return (
     <div className="flex flex-col items-center gap-(--cc-welcome-gap)">
       {/* 在哪儿打开就引导装到哪儿（电脑下载桌面版、手机装成应用），关掉后不再出现 */}

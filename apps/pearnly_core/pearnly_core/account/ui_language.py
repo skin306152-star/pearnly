@@ -12,12 +12,12 @@
 对话页自己的请求带着页面当前的语言，服务端这次请求的文案按它（`preferences.use_page_language`）；
 后台、异步的文案仍按账号语言。
 """
-UI_LANGUAGES = ("th", "zh", "en")  # 对话页有的语言（frontend/assistant/src/i18n.ts）
+UI_LANGUAGES = ("th", "zh", "en", "ja")  # 对话页有的语言（frontend/assistant/src/i18n.ts）
 FALLBACK = "en"
 
 
 def normalize(tag) -> str:
-    """一个语言标签归到对话页的语言：th-TH → th，zh-CN / zh-TW / zh_Hant → zh，en-US → en；别的给空串。"""
+    """一个语言标签归到对话页的语言：th-TH → th，zh-CN / zh-TW / zh_Hant → zh，en-US → en，ja-JP → ja；别的给空串。"""
     code = str(tag or "").strip().replace("_", "-").split("-")[0].lower()
     return code if code in UI_LANGUAGES else ""
 

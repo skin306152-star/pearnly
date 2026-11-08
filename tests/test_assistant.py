@@ -2950,10 +2950,11 @@ class LayoutPrefsTests(unittest.TestCase):
 class InterfaceLanguageTests(unittest.TestCase):
     def test_tags_map_to_the_page_languages(self):
         for tag, want in (("th-TH", "th"), ("TH", "th"), ("zh-CN", "zh"), ("zh_TW", "zh"), ("zh-Hant-HK", "zh"),
-                          ("en-US", "en"), ("ja-JP", ""), ("", ""), (None, "")):
+                          ("en-US", "en"), ("ja-JP", "ja"), ("ko-KR", ""), ("", ""), (None, "")):
             self.assertEqual(ui_language.normalize(tag), want, tag)
         self.assertEqual(ui_language.from_accept_language("th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7"), "th")
-        self.assertEqual(ui_language.from_accept_language("ja-JP,ja;q=0.9,zh-CN;q=0.5"), "zh")
+        self.assertEqual(ui_language.from_accept_language("ja-JP,ja;q=0.9,zh-CN;q=0.5"), "ja")
+        self.assertEqual(ui_language.from_accept_language("ko-KR,ko;q=0.9,zh-CN;q=0.5"), "zh")
         self.assertEqual(ui_language.from_accept_language("fr-FR,de"), "")
 
     def test_the_rule(self):
@@ -2969,8 +2970,9 @@ class InterfaceLanguageTests(unittest.TestCase):
         self.assertEqual(ui_language.sign_in_choice(device="", shown="fr"), "")
         # 兜底：账号语言 → 系统语言 → 英文
         self.assertEqual(ui_language.interface("", "zh", "th-TH"), "zh")
-        self.assertEqual(ui_language.interface("", "ja", "th-TH,th"), "th")  # 账号是对话页没有的语言
-        self.assertEqual(ui_language.interface("ja", "", "fr-FR,de"), "en")
+        self.assertEqual(ui_language.interface("", "ko", "th-TH,th"), "th")  # 账号是对话页没有的语言
+        self.assertEqual(ui_language.interface("ko", "", "fr-FR,de"), "en")
+        self.assertEqual(ui_language.interface("", "ja", "th-TH,th"), "ja")  # 日文（11-08 起对话页有）
         self.assertEqual(ui_language.interface(None, None, None), "en")
 
     def test_first_sign_in_with_a_thai_system_and_a_chinese_account(self):
@@ -3014,6 +3016,8 @@ class InterfaceLanguageTests(unittest.TestCase):
         prefs, _ = _preferences(native)
         self.assertEqual(prefs.interface_language(), "zh")
         native.user.language = "ja"
+        self.assertEqual(prefs.interface_language(), "ja")
+        native.user.language = "ko"
         self.assertEqual(prefs.interface_language(), "th")
         native.request.headers = {}
         self.assertEqual(prefs.interface_language(), "en")
@@ -3021,7 +3025,7 @@ class InterfaceLanguageTests(unittest.TestCase):
     def test_page_requests_follow_the_page_not_the_account(self):
         native = _AccountFrappe(account="zh")
         prefs, _ = _preferences(native)
-        for header, want in (("th", "th"), ("en", "en"), ("ja", "zh"), ("zh-CN", "zh"), ("", "zh")):
+        for header, want in (("th", "th"), ("en", "en"), ("ja", "ja"), ("ko", "zh"), ("zh-CN", "zh"), ("", "zh")):
             native.local.lang = "zh"
             native.request.headers = {"X-Pearnly-Lang": header}
             prefs.use_page_language()
@@ -3066,7 +3070,7 @@ class InterfaceLanguageTests(unittest.TestCase):
         # 对话页的语言与这里一致；页面调本站接口都经 siteFetch 带上语言（开户电脑密钥的请求不出文案，例外）
         src = ROOT / "frontend/assistant/src"
         i18n = (src / "i18n.ts").read_text(encoding="utf-8")
-        self.assertIn('const SUPPORTED = ["th", "zh", "en"];', i18n)
+        self.assertIn('const SUPPORTED = ["th", "zh", "en", "ja"];', i18n)
         menu = i18n.split("export const LANGUAGES = [", 1)[1].split("];", 1)[0]
         self.assertEqual(sorted(re.findall(r'code: "(\w+)"', menu)), sorted(ui_language.UI_LANGUAGES))
         self.assertIn('export const LANG_HEADER = "X-Pearnly-Lang";', (src / "lib/frappe.ts").read_text(encoding="utf-8"))

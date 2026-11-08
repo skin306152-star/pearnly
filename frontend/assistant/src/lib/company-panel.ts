@@ -317,7 +317,7 @@ export function useMinuteClock(): number {
   return now;
 }
 
-const RELATIVE_LOCALE: Record<string, string> = { th: "th-TH", zh: "zh-CN", en: "en-US" };
+const RELATIVE_LOCALE: Record<string, string> = { th: "th-TH", zh: "zh-CN", en: "en-US", ja: "ja-JP" };
 const RELATIVE_STEPS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ["second", 60], ["minute", 60], ["hour", 24], ["day", 7], ["week", 4.35], ["month", 12], ["year", Infinity],
 ];

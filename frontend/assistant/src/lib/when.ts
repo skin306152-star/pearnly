@@ -2,7 +2,7 @@
 // 单放一个小模块：设置页、MR.ERP 授权这类不需要公司数据的地方用它，不必连带加载 lib/companies 的实时连接。
 import { lang } from "@/i18n";
 
-export const LOCALE: Record<string, string> = { th: "th-TH-u-ca-buddhist", zh: "zh-CN", en: "en-US" };
+export const LOCALE: Record<string, string> = { th: "th-TH-u-ca-buddhist", zh: "zh-CN", en: "en-US", ja: "ja-JP" };
 
 export function formatWhen(value: string | undefined | null): string {
   if (!value) return "";
