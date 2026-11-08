@@ -39,6 +39,7 @@ offline() {
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_stock_count_workbook.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_printing.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_print_security.py
+  offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_pdf_css_threads.py
   offline_py -v "$PWD:/candidate:ro" \
     -e PYTHONPATH=/candidate/apps/pearnly_dms:/candidate/apps/pearnly_core:/candidate/apps/pearnly_control \
     "$IMAGE" /candidate/tests/test_dms_entrypoints.py

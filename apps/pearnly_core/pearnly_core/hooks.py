@@ -25,6 +25,8 @@ on_logout = "pearnly_core.assistant.push.forget_session"
 # 统一登录入口：业务站点的 `/`、`/login`、`/app`、`/desk` 对未登录访客一律
 # 送去身份服务 —— 站点上没有业务账号的密码，用 Frappe 自带登录页必然失败。
 before_request = [
+    # 出 PDF 解析样式时别的线程不能让这份抛错（cssutils 进程级开关；放第一个，后面的钩子可能直接跳转 / 抛出）
+    "pearnly_core.desk.print_css.lenient_css_parsing",
     # CC 桌面版共用机器通道（ADR-025）：带 ``pcc_`` 令牌的精确机器请求，在 Frappe 的 OAuth 校验之前收走令牌（不是机器请求原样放过）
     "pearnly_core.cc_desktop.http_auth.before_request",
     # LINE 的 LIFF 深链先落站点根 `/?liff.state=<站内路径>`：跳到那个站内地址（放在登录拦截之前，路径才不会丢）
@@ -396,6 +398,9 @@ scheduler_events = {"cron": {"* * * * *": ["pearnly_core.execution.work.sweep", 
 # 导出文件的下载响应不进缓存（与 Cowork 原件下载同一做法）；所有原生下载的中文 / 泰文文件名按 RFC 5987 写进响应头。
 after_request = ["pearnly_core.exports.service.protect_response", "pearnly_core.exports.service.encode_filename",
                  "pearnly_core.cc_desktop.http_auth.after_request"]
+
+# 后台任务里出 PDF 同样先把样式解析改成出错不抛（同 before_request 第一个）
+before_job = ["pearnly_core.desk.print_css.lenient_css_parsing"]
 
 # LINE 绑定即登录：绑定变化 → 作废失效的 LINE 会话、同步身份服务里的关联（多产品共用）。
 pearnly_line_binding_changed = ["pearnly_core.account.line_login.binding_changed"]
