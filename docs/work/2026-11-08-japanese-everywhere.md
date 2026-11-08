@@ -54,3 +54,80 @@
 |---|---|---|
 | companion:pair_err_probe_fail | 未能读取 Express 账套,请检查所选文件夹。 | 未能读取 Express 账套，请检查所选文件夹。 |
 | companion:pair_err_unexpected | 操作未完成,请重试。 | 操作未完成，请重试。 |
+
+## 4. LINE（主会话 11-08：单独当一大项）
+
+**合入安排（主会话 11-08 选 C）**：本节的 LINE 改动（回落规则、按钮改短与 check-line-labels、日文手打词）在单独分支 `pearnly/japanese-line`，不随本分支合；部署前主会话安排测试机 lab-start（testerp / testcowork 切到合好的 main 实时源码），用三星真测产品地图上只能真机的两行（`cowork.scan.line.stocktake.liff-camera`、`erp.line.postback.erp_item`），结果写进本记录后再合、随同一批部署。
+
+数法：五份术语表 ja 列逐行查（空 0 条）；LINE 代码里实际用到的词条逐个对翻译包（ERP 122 处、Cowork 114 处、DMS 212 个 `dms.*` 键，日文全有）；按钮由 `scripts/check-line-labels.py` 静态认出（61 条）。
+
+| 产品 | 来源 | 文件 | 现有语言 | 缺 ja | 语言判定 | 日文用户看到 |
+|---|---|---|---|---|---|---|
+| ERP | 文字回复 / 出错 | `integrations/handlers.py`、`line_flow.py`、`line_items.py`、`intake.py` | 四种（`_()`） | 0 | `line.user_language`；后台识别用单子上记的语言 | 日文 |
+| ERP | Flex 卡片 | `integrations/line_cards.py` | 四种 | 0 | 同上 | 日文（币种缺省 `THB` 是代码） |
+| Cowork | 文字回复 / 出错 | `line/handlers.py`、`flow.py`、`items.py`、`intake.py` | 四种 | 0 | 同上 | 日文 |
+| Cowork | Flex 卡片 | `line/cards.py` | 四种 | 0 | 同上 | 日文（`THB`、MR.ERP、Express 是专名） |
+| DMS | 文字回复 / 卡片 / 出错 | `line/*`、`booking/conversation/*`、`query/*`、`menu/*`、`intake/*`（`i18n.t`） | 四种 | 0 | `i18n.line_language` 包住入口与后台任务 | 日文 |
+| DMS | 识别失败提示 | `line/out.py` `ocr_failed` | 四种 | 0 | 绑定账号的语言 | 账号语言 |
+| 三产品 | 快捷按钮 / Flex 按钮 / 富菜单格子 label（≤ 20） | 见上 | 四种 | 0 | 同回复 | 日文最长 13 字，无超长 |
+| 三产品 | 加好友欢迎语、绑定成功 / 失败、解绑 | 三个 handlers | 四种 | 0 | 跟手机 LINE 语言 | 日文（LINE 后台自配的欢迎语不在代码里） |
+| core | LINE 登录 | `account/line_login.py` | 四种 | 0 | 访客按请求 / 系统语言 | 日文 |
+| ERP / Cowork | 从 LINE 打开的 Desk 页（编辑、盘点、工作协调） | `line_login.enter` → `/desk` | Desk 四种 | 0 | Frappe 账号语言 | 账号语言 |
+| DMS | LIFF 交接页 | `www/liff/dms-booking.html` | 四种 | 0 | 本地记住的 / `navigator.language`，换票后用服务端给的（手机语言 → 账号） | 日文（`<html lang="th">` 写死） |
+| DMS | 编辑 / 复核 / 账号页 | `frontend/src/pages/dms/*.vue` | 四种 | 0 | 交接页写入的语言 | 日文 |
+| DMS | 扫身份证页 | `ScanPage.vue` | 四种 | 0 | 只看缓存与浏览器语言 | 浏览器语言 |
+| ERP | 手机盘点页（疑似旧页，菜单已去 /desk） | `www/stocktake.html` | 四种 | 0 | `navigator.language` | 日文 |
+| 三产品 | 富菜单图 | ERP / Cowork `public/images/line-menu/tiles/*-ja.png`；DMS `rich-{basic,query}-ja.png` | 四种图 | 0 | 跟手机语言挂对应那套 | 日文图（字来自术语表） |
+| 三产品 | 富菜单 chatBarText（≤ 14） | 各 `menu.py` / `rich_menu.py` | 四种 | 0 | 同上 | 「メニュー」「ERPメニュー」「Coworkメニュー」，都不超 |
+| 三产品 | 还没绑定的人看到的默认菜单 | — | 只有泰文图 | — | — | 泰文 |
+
+### 按钮超 20 字：改短（主会话：截断属缺陷）
+
+日文没有超长的；其他语言 3 条，改成合规的正式说法：
+
+| 词条 | 语言 | 旧 | 新 | 说明 |
+|---|---|---|---|---|
+| Cowork「发送单据至 ERP」按钮（`line/flow.py` 快捷按钮、`line/menu.py` 富菜单格子 label） | en | Send documents to ERP（21） | Send to ERP（11） | 新起一条英文原文 `Send to ERP`，中泰日照原样；菜单图上的全称与「请先点击菜单中的…」提示不变，点格子后聊天里显示的仍是全称 |
+| `dms.card.query.ST_MANAGER_PENDING` | th | รอผู้จัดการฝ่ายขายอนุมัติ（25） | รอผจก.ฝ่ายขายอนุมัติ（20） | ผจก. 是泰文「经理」的通用缩写 |
+| `dms.card.TXT_MENU_ITEM4` | th | เปลี่ยนบัญชีและรหัสผ่าน（23） | บัญชีและรหัสผ่าน（16） | 同英文 Account & password、日文 アカウントとパスワード；菜单图上的字（`dms.card.rich.credentials.title`）不变 |
+
+防再犯：`scripts/check-line-labels.py`（Development checks）在 LINE 模块里认出按钮标签用到的词条，四种语言任一超 20 字就拦；由数据拼成的按钮（公司、供应商、仓库名）不归它管，运行时照旧截短。
+
+### 其他发现（日文用户受影响，待主会话定是否做）
+
+1. ERP 打字「メニュー」不认（Cowork、DMS 认）：`integrations/line_flow.py` 的菜单词。
+2. ERP、Cowork 打字「連携解除」不认（DMS 认），日文用户只能打 `unbind`：两个 `handlers.py` 的解绑词。
+3. ERP 打字选采购 / 销售不认「仕入」「売上」：`line_flow.py` 的方向词只有泰文、英文、数字。
+4. DMS LIFF 交接页 `dms-booking.html` 预取的文案键里没有 `dms.edit.expired`，草稿过期时页面显示键名（所有语言都受影响，不是日文专属）。
+5. DMS 卡片里 `_btn` / `_qr_item` 等没截断（词条已由新检查守住，动态数据目前没有用到这些函数）。
+
+## 5. 验收（本机实验栈 pearnly-japanese-lab，2026-11-08）
+
+截图与样例在共享笔记 `side-session-notes/…/日语验收-11-08/`（不进仓库）。账号：实验站 Administrator，网页个人资料语言设为日语（实验数据，用完随实验栈删除）。
+
+| 项 | 结果 | 证据 |
+|---|---|---|
+| CC 网页 ERP 直写 / 代录，电脑 + 手机 | 通过：`<html lang="ja">`，问候「こんにちは、Administrator」、侧栏、输入框、公司胶囊都是日文，页面无报错 | `CC直写-erp-电脑.png` 等 8 张 |
+| CC 网页 Cowork 直写 / 代录，电脑 + 手机 | 通过：同上 | 同上 |
+| Desk 首页 ERP / Cowork / DMS | 通过：`frappe.boot.lang = ja`，菜单与首页日文 | `Desk首页-*.png` |
+| LINE 消息样例（ERP，打「メニュー」「仕入」） | 通过：日文提问与按钮；日文手打词被认出 | `LINE样例与导出.md` |
+| 导出（ERP 库存导出） | 通过：日语账号表头日文，泰语对照泰文 | `LINE样例与导出.md` |
+| CC 桌面版 Qt 窗口（托盘菜单、MR.ERP 登录小窗、账套占用提示） | 通过：本机临时 venv（PySide6 6.11.1，同锁定版本）用真实代码出窗截图，截完删 venv；发现并修了登录小窗 Save / Cancel 不跟语言 | `托盘菜单-ja.png` 等 6 张 |
+| CC 桌面版通知、真机效果 | 没测到：主会话定放进 1.12.18 发版后测试机验收清单（装正式版时用日本語看一遍） | — |
+| LINE 真机（三星） | 没测到：主会话定部署后线上验收时做 | — |
+| fatcc.com 登录主题 pearnly-ai 日文 | 没测到：实验栈没有 Keycloak；主题随镜像生效，部署后用日语浏览器打开 fatcc.com 截图 | — |
+
+受影响流程（`scripts/flows/run.py --changed --base origin/main --migrate`，本机实验栈）：cc.chat、cc.companies、cc.person-names、cc.sidebar-modes、cowork.cc.sidebar-modes、cowork.mrerp-login、cowork.pending.operator，19/19 格通过（base e608efefb，源码为 ae5e95f67 之前的工作树）。
+
+### 共用件连带闸门（第一批 2bce6d357 命中 login-session、cc-desktop-bridge 等 8 个入口）
+
+| 入口 | 结果 | 说明 |
+|---|---|---|
+| cc.assistant | 通过 | cc.chat 等流程 19/19；日文截图无报错 |
+| cc.settings.connection | 通过 | cc.sidebar-modes 流程打开设置；日文截图无报错 |
+| shared.login | 没测到 | 实验栈没有 Keycloak。改动只让语言规则多认 ja，登录回调里语言的取舍由离线 `tests/test_assistant.py` InterfaceLanguageTests（9 条，含日文）守住 |
+| control.issue-and-entry | 没测到 | 实验栈没有控制面站点；入口约定由 `tests/test_assistant_entry.py`（33 条，含日文 ui_locales）守住 |
+| shared.shell-gate | 没测到 | 改动不碰开通闸；Desk 三产品首页日文打开正常 |
+| shared.team.members | 没测到 | 改动不碰团队页；团队页改语言写的是同一个 User.language，对话页按它显示 |
+| shared.line.login | 没测到 | 实验栈无 LINE 通道 |
+| cc.desktop.bridge | 没测到 | 要 Windows 测试机；第一批不含桌面版改动 |
