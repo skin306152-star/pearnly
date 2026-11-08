@@ -222,7 +222,115 @@ P0 合计约 **写码 9–12 小时 + 机器 5–6 小时**（另加用户试用
 4. **ERP 收付款、作废、改单这类写操作，CC 做时要不要「允许」卡片？** Cowork 现在只有改全公司设置、定时安排才出卡片，推送不出。
 5. （可选）要不要我只读查 testcowork 近期会话事件，确认 Cowork 有没有发生过沙箱自读？
 
-## 8. 本记录的状态
+## 8. 本记录的状态（初稿时）
 
 - 本工作树 `.claude/worktrees/stoic-hugle-e7ba17`，分支 `pearnly/stoic-hugle-e7ba17`（桌面 App 自动建），只加了本文档。
 - 审定后按批施工；施工另开 `pearnly/<主题>` 分支。本分支与工作树在本步收尾时按「收工清理」处理（文档随第一批施工带入或单独合入，由主会话定）。
+
+---
+
+## 9. 11-08 下午新口径（主会话转用户，以这一节为准）
+
+- **CC = 这个产品网页上能做的事 + 代录。** 对照对象从「ERP 比 Cowork 的工具表」改成「ERP 的 CC 比 ERP 网页本身」（Cowork 同理）。网页能做的 CC 都能做，
+  权限和网页一样（同一组服务端函数），不加确认卡；只有确实不适合对话的（如收银台现场收款）写明原因。
+- **代录是 CC 独有的，两个产品做成一份实现**：intake / uploads / regroup 下沉共用层；resolve 两边一套（先查清 11-02 定不同的理由）；target 接口两边都有，
+  MR.ERP 执行层一起等岳父账号；代录界面逐项核一致。
+- **P0-1 不单独上**：只上「不许自读票据」而 ERP 还没有识别，比现在退步。P0-1 改和 P0-2 同批。
+- **P0-2 口径修正**：用户只说「识别 / 把内容发给我」时，CC 走产品识别、把识别出的内容回给用户（可导出表格），每张票先落成**待提交记录**（同 LINE 卡片），
+  不自动入账；用户说「录入 / 入账 / 提交」或开始前卡片选了入账才提交。与 Cowork「识别完进工作台、推送另做」一致。（覆盖 §7 第 1 条与 P0-2 评估 §12 的「每张票建成已提交单据」。）
+- 正式标准写成 [ADR-027 CC 能力架构与标准](../adr/0027-cc-capability-architecture.md)；本窗口是 CC 这条线（工具层、代录接法、共用规矩）的唯一负责窗口。
+
+## 10. 场景清单（验收用，两个产品各跑一遍，电脑 + 手机，真模型）
+
+「期望」写用户看到的结果；「—」表示该产品没有这项业务（不适用）。
+
+| # | 用户对 CC 说 | ERP 期望 | Cowork 期望 |
+|---|---|---|---|
+| 1 | 传一张票据：「帮我看看这张写了什么」 | 调识别，回识别出的对方、单号、日期、合计、明细；落成一条待提交记录，不入账；不自己读图 | 调识别，回识别值；进录入工作台（识别记录），不推送 |
+| 2 | 传 27 页 PDF：「把内容整理成表格给我」 | 识别（分段读、挂着时有页数进度），每张票一行，产出 Excel 放进对话 | 同左，识别记录各一条，产出复核工作簿 |
+| 3 | 传票据：「识别并录入」 | 识别 → 开始前一张卡问完要定的（对方认不到照票面新建、已付未付按记忆预选）→ 提交成采购 / 销售单 → 照规则排 Express，报单号 | 识别 → 卡片 → 推送进 Express / MR.ERP，报单号 |
+| 4 | 「把这几张推到 Express」 | 推送；结果入账带 Express 单号；电脑离线说清排队 | 同左 |
+| 5 | 「这个月还有哪些单卡着？」 | 列待处理与原因（`erp_pending`） | 同左（`cowork_pending`） |
+| 6 | 「IV001 那张供应商读错了，应该是 X 公司」 | 采购单（没进 Express、没另记收付款）走网页「修改」：作废原单、按改后新开一张，带依据；销售单说明去网页作废重开 | 改识别记录字段，带依据，再推 |
+| 7 | 「这张采购单付了 5,000 现金」 | 记一笔付款（同网页「付款」） | —（Cowork 不管收付款，说明在 Express 里做） |
+| 8 | 「把 SI-0005 作废」 | 作废（同网页）；已进 Express 的照现有规则排 Express 作废 | 删识别记录 / 说明已入账的不能在 CC 改 |
+| 9 | 「A001 还有多少库存？在哪个仓？」 | 按物料合计 + 分仓 / 仓位 | — |
+| 10 | 「A001 这个月进出明细」 | 单品收发存明细（期初、逐笔、期末） | — |
+| 11 | 「开一份主仓的盘点」→「A001 数到 12」→「结束」→「按结果调库存」 | 新建、记数、结束（不动库存）、生成调整单草稿并说出单号 | 盘点工作台对应动作（Cowork 盘点不生成调整单） |
+| 12 | 「新建物料：A 牌纸巾，单位包，进价 20」 | 建物料（同网页，按码查重） | — |
+| 13 | 「新加一个供应商，税号 0105…」 | 查税号公开登记 → 建供应商 | 记进公司规则 / 说明在 Express 主档建 |
+| 14 | 「导出这个月的采购表」 | 产出 Excel（同网页导出） | 导出复核工作簿 / 推送记录 |
+| 15 | 「打印 PO-0003 的凭证」 | 产出 PDF 放进对话（同网页打印） | — |
+| 16 | 代录：「把这一批录进 Express」+ 拖进 3 个文件 | 放进输入框即识别、资料区按单分组、开始前卡片、电脑一张张录、状态与结果 | 完全相同的界面与流程 |
+| 17 | 代录中：「第 2 张跳过」「为什么第 3 张没录」 | 跳过、按任务真实进度回答 | 同左 |
+| 18 | 「给张三建个任务卡：明天对账」 | 任务看板建卡（负责人、到期） | 同左 |
+| 19 | 「办公室电脑在线吗？重读一下账套」 | 列这家的电脑与在线状态；重读账套 | 同左 |
+| 20 | 「记住：这家公司的油费都记 53-01」 | 记进团队备注 / 记住的选择 | 同左 |
+| 21 | 用泰文问任何一条 | 用泰文回答（跟着这句话的语言），工具出错也不换成英文 | 同左（11-08 真模型复测 Cowork 出错时答成英文，段 2 修） |
+| 22 | 「帮我在收银台收这笔钱」 | 说明收银要在收银台当面做（不适用） | — |
+
+## 11. ERP 网页动作对照表（每页每个动作：CC 已有 / 在做 / 缺）
+
+「在做」= 已有分支（盘点 P1-1、库存 P2-1、改单 P1-2、识别 P0-2）。「缺」给做法（按 ADR-027 模板）与写码估时（小时，机器另计约 30%）。
+接口名是 ERP 网页实际调用的服务端函数（`apps/pearnly_erp_portal/pearnly_erp_portal/<域>/api.py` 等），CC 工具调同一组。
+
+| 页 | 动作 | 网页接口 | CC | 做法 / 原因 | 估时 |
+|---|---|---|---|---|---|
+| 首页 | 看概况、账单、充值、套餐 | `api_summary`、计费页 | 缺 / 不适用 | 概况可查（单据模板「汇总」）；充值、套餐涉及付款，CC 不碰（安全规矩），说明去页面 | 1 |
+| 物料 | 列表 / 搜索 / 看 | `list_products` `count_products` `get_product` `find_product` | 缺 | 主档模板「列 / 看」 | 1.5 |
+| 物料 | 新建（含编码、单位、价格、条码） | `create_product` `next_product_code` | 缺 | 主档模板「建」，按码查重同网页 | 1.5 |
+| 物料 | 改 / 停用启用 | `update_product` `set_active` | 缺 | 主档模板「改 / 停用」 | 1 |
+| 物料 | 导入（Excel） | `import_template` `import_products` | 缺 | 对话附件 → 同一导入函数；模板放进对话 | 1.5 |
+| 物料 | 分类建改 | `create_category` `update_category` | 缺 | 主档模板 | 0.5 |
+| 物料 | 按台管理开关、期初、台查询导出 | `serials.*` | 缺 | 只读查询先做；开关属设置，管理员可做 | 2 |
+| 库存 | 在库一览 / 按物料合计 | `stock` `stock_count` `stock_totals` `stock_summary` | 在做 | `erp_stock_lookup`（P2-1） | — |
+| 库存 | 导出 | `stock_export` | 缺 | 单据模板「导出」（产出文件放进对话） | 0.5 |
+| 库存 | 期初（预览 / 提交 / 模板 / 读文件） | `preview_stock_opening` 等 | 缺 | 对话附件 → 同一函数；先预览给人看再提交（同网页两步） | 2 |
+| 仓库 | 建 / 改仓库、仓位 | `create_warehouse` `update_warehouse` `get_locations` `save_locations` | 缺 | 设置类，管理员；主档模板 | 1.5 |
+| 入库 / 出库 / 调拨 / 物料调整 | 列 / 看 | `list_stock_entries` `get_stock_entry` `stock_entry_total` | 部分（`erp_list_documents` 只看写 Express 的状态） | 单据模板「列 / 看」覆盖四种 | 1.5 |
+| 同上 | 建草稿 / 改草稿 / 提交 / 删草稿 | `create_stock_entry` `update_stock_entry` `submit_stock_entry` `delete_stock_entry_draft` `receive` `issue` `adjust` | 缺 | 单据模板「建 / 改 / 提交」；按行物料与仓位照网页 | 3 |
+| 同上 | 作废 | `void_stock_entry` | 缺 | 单据模板「作废」；已进 Express 的照现有规则排作废 | 1 |
+| 同上 | 附件 | `stock_upload*` `add_stock_entry_files` `remove_stock_entry_file` | 缺 | 对话附件挂到单据 | 1 |
+| 收发存报表 | 单品明细 | `stock_card` | 在做 | `erp_stock_card`（P2-1） | — |
+| 盘点 | 列 / 看差异 / 新建 / 记数 / 重盘 / 结束 / 生成调整单 | `list_stock_counts` `stock_count_review` `create_stock_count` `stock_count_add_entry` `stock_count_recount` `stock_count_close` `stock_count_adjust` | 在做 | P1-1 六个工具 | — |
+| 盘点 | 导出差异表、删除、改 / 作废一条记数、就地新建物料、上传表导入 | `stock_count_export` `stock_count_delete` `stock_count_edit_entry` `stock_count_create_product` `create_stock_count(file_url)` | 缺 | 盘点模板补全 | 2.5 |
+| 采购 | 列 / 看 / 看原件 | `purchase_records` `purchase_document` `purchase_file_page` | 已有 | `erp_list_documents` `erp_document_detail` `erp_document_original` | — |
+| 采购 | 上传识别 | `recognise_purchase` | 在做 | P0-2（待提交记录 → 用户说录入才提交） | — |
+| 采购 | 新建并提交（手录） | `post_purchase` `purchase_defaults` `purchase_amounts` | 缺 | 单据模板「提交」，开始前卡片问完要定的 | 2 |
+| 采购 | 修改（作废原单 + 新开） | `post_purchase(amended_from)` | 在做 | P1-2：只挡已进 Express、提交后另记过收付款的；带依据 | — |
+| 采购 | 作废 | `cancel_purchase` | 缺 | 单据模板「作废」 | 1 |
+| 采购 | 付款 | `purchase_payment` | 缺 | 单据模板「收付款」，金额 Decimal、幂等请求号 | 1.5 |
+| 采购 | 删草稿、附件 | `delete_purchase_drafts` `purchase_attachments` `remove_purchase_attachment` | 缺 | 单据模板 | 1 |
+| 采购 | 导出 / 打印（凭证、代收据、预扣税凭证） | `purchase_export` `purchase_voucher` | 缺 | 单据模板「导出 / 打印」，文件放进对话 | 1.5 |
+| 采购 | Express（推送、选一次、再写一次、票面合计） | `express.api.*` | 已有 | `erp_push_documents` 等 + 确认卡 | — |
+| 供应商 | 列 / 建 / 改 | `list_suppliers` `create_supplier` `update_supplier` | 缺 | 主档模板；税号查用已有 `pearnly_tax_id_lookup` | 1.5 |
+| 销售 | 列 / 看 / 看原件 / Express | `sales_records` `sales_document` `sale_file_page` | 已有 | 同采购 | — |
+| 销售 | 上传识别 | `recognise_sales` | 在做 | P0-2 | — |
+| 销售 | 新建并提交 | `post_sale` `sales_defaults` `sales_amounts` | 缺 | 单据模板「提交」 | 2 |
+| 销售 | 作废 / 收款 / 删草稿 / 附件 / 导出 / 打印 | `cancel_sale` `sale_payment` `delete_sale_drafts` `sale_attachments` `sales_export` 打印 | 缺 | 单据模板（销售没有「修改」，同网页） | 3 |
+| 收银台 | 开班 / 收款 / 关班 | `open_shift` `create_sale` `close_shift` | 不适用 | 现场收现金、点钱，要人在柜台；CC 说明去收银台 | — |
+| 收银台 | 当前班次、班次汇总 | `current_shift` `shift_summary` | 缺 | 只读查询 | 1 |
+| 小票 | 列 / 看 / 合计 | `list_sales` `get_sale` `sale_total` | 缺 | 单据模板「列 / 看」 | 1 |
+| 小票 | 退款 / 作废 | `refund_sale` `void_sale` | 待定 | 网页能做，但通常在柜台当面退钱；先问主会话（ADR-027 §6） | 1 |
+| 班次 | 列 / 导出 | `list_shifts` `count_shifts` `shifts_export` | 缺 | 只读 + 导出 | 1 |
+| 收银设置 | 终端建改、付款方式 | `create_terminal` `update_terminal` `set_payment_methods` `save_company_terminals` | 缺 | 设置类，管理员 | 1 |
+| 客户 | 列 / 看 / 建 / 改、税号查 | `list_customers` `get_customer` `create_customer` `update_customer` `lookup_tax` | 缺 | 主档模板 | 1.5 |
+| 任务 | 看板 / 卡片全部动作（含成员、标签、字段、规则、归档、导出） | `work.api.*` | 缺 | 看板先下沉共用层（P2-3），任务看板模板一份两产品用 | 随 P2-3 |
+| 公司 | 列 / 资料 / 团队备注 / 待处理 | `masters.cc_companies.*` | 已有 | `erp_companies` `erp_company_profile` `erp_company_note_*` `erp_pending` | — |
+| 公司 | 新建 / 改资料 / 切换当前公司 | `create_company` `update_company` `update_profile` `set_active_company` | 缺 | 公司模板；切换当前公司在 CC 里就是换对话挂的公司 | 1.5 |
+| 公司 | 同步 Express、断开 Express、MR.ERP 设置 | `sync_company` `disconnect_express` `mrerp.api.*` | 缺 | 电脑与连接模板；断开属危险操作但网页能做，照做；MR.ERP 等岳父账号 | 1.5 |
+| 团队 | 列成员 / 加人 / 改角色 / 停用 | `list_members` `add_member` `set_member_roles` `set_member_active` | 缺 | 管理员；团队模板 | 1.5 |
+| 团队 | 改成员密码 | `set_member_password` | 不适用 | CC 不经手密码（安全规矩），说明去页面 | — |
+| 个人资料 | 姓名、语言、通知 | 官方 User 页、`pearnly_core.account.preferences` | 缺 | 只改语言 / 通知等偏好；密码不碰 | 0.5 |
+| LINE | 绑定码 / 解绑 | `line_binding_code` `line_unbind` | 缺 | 绑定码放进对话；解绑照网页 | 0.5 |
+| 电脑 | 列电脑 / 在线 / 移除（浏览器设置里「连接」） | 共用机器通道（P2-2b 新做） | 在做 | P2-2b | — |
+
+合计「缺」约 48–52 小时写码（多数是同一模板换声明，越往后越快）；与 ADR-027 段 3 的估时一致。
+
+## 12. 防跑偏检查（网页动作 ↔ CC 工具对上号）可行性
+
+- 产品地图已经自动发现网页动作：ERP 81 行 `page-action`（页头按钮）+ 20 行 `nav-page`，Cowork 同类若干；CC 工具 94 行 `cc-tool`（锚点 `tool:<产品>:<工具>`）。
+- 做法：`page-action` / `nav-page` 行加一个字段 `cc = ["<工具>"]` 或 `cc_na = "<原因>"`；`scripts/check-product-map.py` 加一项：网页动作行两个都没写就拦（「新加网页功能没配 CC 工具」）；
+  `cc` 里写的工具必须真有（锚点存在）。存量 101 行一次补齐（照 §11 表），补不齐的先进基线文件、只许减少（同现有 `untested_baseline.txt` 做法）。
+- 只看页头按钮会漏掉列表里的行内动作（如「付款」在单据详情里）：行内动作已在产品地图的 `scan` / `cc-action` 类里的一并登记；后续新加的页面动作照现有锚点发现规则会自动出现。
+- 成本：检查脚本 2–3 小时、存量 101 行补字段 3–4 小时、测试 1 小时；机器检查每次 CI 多约 1 秒。不引入新服务、零运行费。
