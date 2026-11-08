@@ -38,4 +38,4 @@
 - [ADR-021 事务所多台电脑各用 CC 桌面版（连接是池、电脑是成员；D1 录入角色登记自己的电脑）](0021-cc-desktop-multiple-computers.md)
 - [ADR-025 CC 桌面版直连产品站点（共用机器通道 + 共用 Express 写账规则），ERP 前台不经 Cowork](0025-cc-desktop-direct-product-sites.md)
 - [ADR-026 代录：执行目标与边界（Express 桌面程序 / MR.ERP 网页）](0026-operator-targets.md)
-- [ADR-027 CC 能力架构与标准（CC = 网页能做的事 + 代录；三层、工具模板、覆盖 / 一致 / 行为 / 验收四条标准）（提议）](0027-cc-capability-architecture.md)
+- [ADR-027 CC 能力架构与标准（CC = 网页能做的事 + 代录；三层、工具模板、覆盖 / 一致 / 行为 / 验收四条标准）（已采纳 11-08）](0027-cc-capability-architecture.md)
