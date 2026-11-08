@@ -15,8 +15,8 @@ from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.integrations import intake, line_flow, line_items, line_menu
 
 # 解绑指令词是**用户手打的词**，所以按通道语言认，并容错中英泰三套写法：
-# 认不出就等于这个功能对用户不存在。
-UNBIND_WORDS = ("ยกเลิกการผูก", "ยกเลิกการเชื่อมต่อ", "解绑", "unbind")
+# 认不出就等于这个功能对用户不存在。日文同 DMS（連携解除，11-08）。
+UNBIND_WORDS = ("ยกเลิกการผูก", "ยกเลิกการเชื่อมต่อ", "解绑", "unbind", "連携解除")
 
 
 def _is_unbind(text: str) -> bool:

@@ -11,8 +11,8 @@ from pearnly_core import line, line_binding
 
 from pearnly_cowork.line import binding, flow, intake, menu
 
-# 解绑词是用户手打的，按中英泰三套写法都认（与 ERP 同一组）。
-UNBIND_WORDS = ("ยกเลิกการผูก", "ยกเลิกการเชื่อมต่อ", "解绑", "unbind")
+# 解绑词是用户手打的，按中英泰日四套写法都认（与 ERP 同一组）。
+UNBIND_WORDS = ("ยกเลิกการผูก", "ยกเลิกการเชื่อมต่อ", "解绑", "unbind", "連携解除")
 
 
 def _reply(reply_token: str, text: str) -> None:

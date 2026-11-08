@@ -566,6 +566,12 @@ class Language(Base):
             self.assertEqual(line.user_language("U1", default="th"), "th")
             self.assertEqual(profile.call_count, 2)  # 没问到不记缓存
 
+    def test_japanese_typed_words_are_understood(self):
+        # 11-08 补日文：手打的菜单、解绑、采购 / 销售词也认日文（同按钮上的字与 DMS、Cowork）
+        self.assertTrue(handlers._is_unbind("連携解除"))
+        self.assertIn("メニュー", line_flow.MENU_WORDS)
+        self.assertEqual((line_flow.DIRECTION_WORDS["仕入"], line_flow.DIRECTION_WORDS["売上"]), ("purchase", "sales"))
+
     def test_unsupported_phone_language_uses_the_bound_account_language(self):
         # 用户 2026-11-08（主会话转）：跟手机 LINE 语言不变；手机语言不在四种里（韩文）或问不到时，
         # 已绑定的用网页个人资料的语言，未绑定的才回落站点语言

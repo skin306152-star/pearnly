@@ -40,9 +40,10 @@ SALES_METHODS = ("cash", "transfer", "promptpay", "other")
 METHOD_LABELS = {"cash": "Cash", "transfer": "Transfer", "promptpay": "PromptPay",
                  "bank": "Bank", "cheque": "Cheque", "other": "Other"}
 # 手打也能选方向（旧线上：1 / 2 与菜单等价）。用户手打的词不翻译。
-DIRECTION_WORDS = {"1": "purchase", "ซื้อ": "purchase", "purchase": "purchase", "buy": "purchase",
-                   "2": "sales", "ขาย": "sales", "sales": "sales", "sell": "sales"}
-MENU_WORDS = ("เมนู", "menu", "菜单")
+# 日文同按钮上的字（仕入 / 売上，11-08）。
+DIRECTION_WORDS = {"1": "purchase", "ซื้อ": "purchase", "purchase": "purchase", "buy": "purchase", "仕入": "purchase",
+                   "2": "sales", "ขาย": "sales", "sales": "sales", "sell": "sales", "売上": "sales"}
+MENU_WORDS = ("เมนู", "menu", "菜单", "メニュー")
 # LINE 按钮最多 20 字：几家都叫「บริษัท …」时截断后只剩「2. บริษัท เดโม่ เทร」，分不清（录制问题 #26）。
 # 提问里列出带编号的全名；按钮上去掉这些通用的公司类型词，留下能区分的那段。
 _GENERIC_NAME_WORDS = re.compile("|".join(re.escape(word) for word in sorted((

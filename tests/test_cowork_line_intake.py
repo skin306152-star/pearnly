@@ -238,6 +238,11 @@ class LineHandlerTest(unittest.TestCase):
         unbind.assert_called_once_with("U1")
         handlers.menu.request_sync.assert_called_with("U1")
 
+    def test_japanese_unbind_word_is_understood(self):
+        # 11-08 补日文：DMS 早就认「連携解除」，Cowork 同一组
+        self.assertIn("連携解除", handlers.UNBIND_WORDS)
+        self.assertIn("メニュー", handlers.flow.MENU_WORDS)
+
     def test_item_buttons_and_words_go_to_the_item_questions_first(self):
         """11-06 按行选物料：识别后按行追问的按钮（a=cowork_item）交 `line.items`；在「选已有存货」这一步打的字先给它找存货。"""
         from pearnly_cowork.line import items
