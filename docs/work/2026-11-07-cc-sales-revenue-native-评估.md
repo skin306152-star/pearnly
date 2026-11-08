@@ -75,3 +75,48 @@
   `tests/test_push_meta.py` 2 条。业务代码还原后 6 条失败。CC 全量 1574 通过。
 - 服务端：`tests/test_cowork_readback.py` 新 3 条（白名单只留干净的 revenue、投影替换收入行、照科目组记的单读回不报改过 / 没有 meta 时会报）；
   去掉投影替换后 2 条失败。
+
+### 离线回归（测试机 101 本 T 账套副本，11-08）
+
+- `express-stock-balance-regression.py --scenario same --service`，比对 `--gl`；另加现销服务品一步 SVC（挑 Express 原有服务品，优先科目组收入科目
+  可记账、≠ 载荷、不是费用类），期望值由脚本按 Express 表自己算（科目组 ACCNUM03 能记账且 GROUP ≠ 5，否则载荷收入），收入合计新旧一致。
+  - g4（main 对 进货分支，两边都还照载荷记收入）：79 本收入 ≠ 期望——就是本改动要改的情形（含 T8POLYM 库存品配了 ACCNUM03 的 IV / HS）。
+  - **g5（进货分支 对 本分支）：85 本通过、0 报差**、16 本跳过（无 ISPRD / 主仓没有品）；上面 79 本全部照科目组记对，其余表与库存一栏不差。
+  结果在测试机 `C:\PearnlyStress\_stockbal1107\g5\cmp.log`、`result.jsonl`。
+
+### TEST 实测（11-08 13:18–13:25，accserver 在线）
+
+- 写前整本快照（`C:\PearnlyStress\_stockbal1107\t8\before`）。TEST 的账套默认收入 41-01-00-00；挑三件 Express 原有服务品：
+  42-11-00-00（科目组收入科目 42-11-00-00，收入类）、14-01-08-00（14-01-08-00，资产类）、53-01-06-00（53-01-06-00，费用类）；库存品 500603（ST10，没配收入科目）。
+- 原生（代录引擎后台开服务器版 Express，用户 BIT9）与 CC 本分支代码（安装版 `cdx_reindex_runner`）各录同样两张，比 GLJNLIT 收入行（SEQIT 5）：
+
+| 单 | 原生 | CC 本分支 |
+|---|---|---|
+| 现销 HS（三件服务品各 100） | HS0000044：42-11-00-00 100、14-01-08-00 100、**53-01-06-00 100** | REV1108C：42-11-00-00 100、14-01-08-00 100、**41-01-00-00 100** |
+| 赊销 IV（500603 ×1 @300 + 42-11-00-00 100） | IV0000042：41-01-00-00 300、42-11-00-00 100 | REV1108D：41-01-00-00 300、42-11-00-00 100 |
+
+  收入、资产类照科目组、库存品没配照默认，与原生一致；费用类那一行按主会话定照载荷（原生记费用科目），是有意的偏离。现金 / 应收、销项税两边相同。
+  CC 回执 `revenue` = 实际收入贷方（HS 三条、IV 两条），与 GLJNLIT 一致。赊销库存品 CC 另有成本分录（SEQIT 8 / 9，既有设计 V2-b），原生 IV 存档时没有，不在本次范围。
+- 原生作废：IV0000042、HS0000044 在 Express 里原生作废干净（单头 C、分录金额清空）。REV1108C / REV1108D 单号是载荷单号、不带单别前缀，
+  Express 的单据窗口按前缀翻页翻不到（11-07 的 BAL1107B 也一样），代录引擎没法原生作废。
+- 收尾：确认快照之后 TEST 只有本窗口这几张单（另有进货 ASIAFC 那张，见进货记录 10.1）的改动，当前版本另存 `t8\after`，19 个变了的文件按快照放回，
+  逐文件哈希与快照一致、无残留单据。
+- 没测到：Cowork 推一张销货 → CC → 读回不报改过的端到端（要 lab-start 带本分支服务端 + 换装 CC，问主会话）；服务端与 CC 的对接由单元测试覆盖。
+
+### 共用件影响清单（`check-impact.py`：`express-rules` 15 + `cc-dbf-write` 9，去重 22 个入口）
+
+| 入口 | 结果 |
+|---|---|
+| `cc.desktop.write` | 通过：离线回归 101 本 + TEST 直写 REV1108C / D（上面） |
+| `erp.cc.write` | 通过（销售走同一个 `dbf_sales.write_sale`，覆盖同上）；ERP 网页提交一张没测到（ERP 服务端未改） |
+| `cowork.express.push` / `cowork.history` | 单元测试通过（白名单、投影替换、读回不报改过；旧记录照载荷）；端到端没测到（见上） |
+| `cowork.cc.channel` | 单元测试通过（`test_push_meta`：成功回执带 `revenue`）；端到端没测到 |
+| `erp.cc.pos-day` | 没测到：日汇总 HS 走同一个 `write_sale`，收入行照同一规则；收银小票的物料多是库存品、科目组多没配收入科目（照默认），离线回归 HS 步骤已覆盖写法 |
+| `erp.cc.pos-refund` | 没测到：退货 SR 走 `dbf_refund`，本次不改（收入冲回仍照载荷，见「没做」） |
+| `erp.cc.stock-entry` / `stock-void` / `stock-transfer` | 没测到：写 OU / JU / TK / RL，不经 `revenue_journal` |
+| `cc.desktop.operator` / `cc.operator.page` | 没测到：代录走 Express 界面录单，收入科目由 Express 自己定，不经本改动 |
+| `cc.desktop.places` / `cowork.connections` / `cowork.companies` | 没测到：不读写回执 meta 的收入 |
+| `cowork.mrerp.push` | 没测到：MR.ERP 推送不经 `sanitize_push_meta` 的收入字段（新字段缺省为空，旧行为不变） |
+| `cowork.cc-chat.push` / `cowork.cc.troubleshooting` / `cowork.line.item-questions` / `erp.trade.line-stock` | 没测到：只经过推送载荷生成，不读回执收入；载荷未改 |
+
+- 受影响流程：`scripts/flows` 没有覆盖 Express 写账 / 读回的流程，无流程可跑。
