@@ -178,6 +178,13 @@
   本会话文件列表（`assistant.api.session_files`）里有这份、下载回来内容一致；标题栏「对话选项」→「删除」→ 确认 → 侧栏接口里没有这段、库里这段会话没了。
   两产品 × 电脑手机 4/4，老的 `cc.chat` 同跑 4/4。基线删 8 条（20 → 12）。
 
+## 第十五组：CC 公司「在浏览器中打开」（`pearnly/baseline-rest`，11-08）
+
+- 扩 `cc.companies`（ERP 老数据、电脑宽度）「组头菜单」一步：真点「在浏览器中打开」，截下新窗口地址，断言是这家在 ERP 里的公司页（`/desk/pearnly-company/<公司>`）。
+  挂 ERP 行电脑端；手机端仍在基线：`cc.companies` 的侧栏 / 右侧栏几步按电脑布局写，试跑手机宽度点开这一项本身对（地址对），但其余几步要整条改，这次没做。
+- Cowork 版 CC 没有这一项（要产品声明 desk 分区，只有 ERP 声明了 `masters/cc_projects.SECTIONS`），共用公司菜单带出来的 `ccaction:cowork:company-open-in-product`
+  登记 `not_entries`、删 Cowork 行，ERP 行写 `na = { Cowork = … }`。基线 12 → 9。
+
 ## 下一组
 
-只开页面的几页、Cowork 录入与盘点（第一份交接第 4 节）。
+Cowork 录入页 new / Submit / Export / folder.new（8 条：牵涉推送连接与账套，新建文件夹要 CC 桌面版）、ERP「在浏览器中打开」手机端（1 条）。

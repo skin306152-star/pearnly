@@ -1701,16 +1701,6 @@ tests = ["unit:tests/test_cc_company_menu.py::CompanyMenuSourceTests"]
 group = "cc.action.company-menu"
 
 [[row]]
-id = "cowork.cc.action.company-open-in-product"
-product = "Cowork"
-channel = "cc-chat"
-ends = ["desktop", "mobile"]
-kind = "cc-action"
-anchor = "ccaction:cowork:company-open-in-product"
-where = "CC 侧栏公司组头「···」/ 对话右侧栏公司卡「···」→ 在浏览器中打开（ERP：这家的 ERP 公司页）"
-group = "cc.action.company-open-in-product"
-
-[[row]]
 id = "cowork.cc.action.settings"
 product = "Cowork"
 channel = "cc-chat"

@@ -430,3 +430,8 @@ reason = "入库 / 出库 / 调拨 / 物料调整共用 stock-entry.js，页头�
 anchor = "ccview:erp:tasks"
 kind = "internal"
 reason = "CC 视图类型 View 是 ERP / Cowork 共用的一份（lib/nav.ts）；定时任务只在声明了 tasks 分区的产品出现（assistant.tsx hasScheduledTasks），ERP 没有声明，ERP 版 CC 里没有这个入口"
+
+[[anchor]]
+anchor = "ccaction:cowork:company-open-in-product"
+kind = "internal"
+reason = "公司菜单是 ERP / Cowork 共用的一份（company-menu.tsx / lib/companies.ts）；「在浏览器中打开」只在声明了 desk 分区的产品出现，只有 ERP 声明了（masters/cc_projects.SECTIONS），Cowork 版 CC 里没有这一项"

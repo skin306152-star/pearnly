@@ -1515,7 +1515,9 @@ ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:erp:company-open-in-product"
 where = "CC 侧栏公司组头「···」/ 对话右侧栏公司卡「···」→ 在浏览器中打开（ERP：这家的 ERP 公司页）"
+tests = ["flow:cc.companies"]
 group = "cc.action.company-open-in-product"
+na = { Cowork = "Cowork 版 CC 没有「在浏览器中打开」：公司卡的这一项要产品声明 desk 分区，只有 ERP 声明了（masters/cc_projects.SECTIONS）" }
 
 [[row]]
 id = "erp.cc.action.settings"

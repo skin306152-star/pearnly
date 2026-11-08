@@ -117,8 +117,12 @@ def steps(params, camera_code=None):
          "const head=qa('[data-slot=\"cc-project\"]').find(e=>e.innerText.includes(A)); if(!head) return {error:'no group header'}; "
          "const more=head.querySelector('.cc-group-more'); press(more); await until(()=>q('[data-slot=\"cc-group-sort-menu\"] [data-slot^=\"cc-company-\"]'),40); await sleep(300); "
          "const menu=q('[data-slot=\"cc-group-sort-menu\"]'); const items=[...menu.querySelectorAll('[data-slot^=\"cc-company-\"]')].map(e=>e.dataset.slot); "
-         "const sort=!!menu.querySelector('[aria-haspopup]'); document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); await sleep(300); "
-         "return {items, sort};"},
+         "const sort=!!menu.querySelector('[aria-haspopup]'); "
+         # 点「在浏览器中打开」（11-08 清基线）：截下新窗口地址，核是这家在 ERP 里的公司页
+         "const opened=[]; const real=window.open; window.open=(u)=>{opened.push(String(u)); return null;}; "
+         "menu.querySelector('[data-slot=\"cc-company-desk\"]')?.click(); await sleep(400); window.open=real; "
+         "if(q('[data-slot=\"cc-group-sort-menu\"]')) document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); await sleep(300); "
+         "return {items, sort, opened};"},
         {"name": "知识库新增", "js": WAIT + "document.querySelector('[data-card=\"notes\"] button[aria-label=\"添加\"]').click(); "
          "await until(()=>document.querySelector('[data-slot=\"cc-note-editor\"] textarea'),40); "
          f"set(document.querySelector('[data-slot=\"cc-note-editor\"] textarea'), {json.dumps(params['note'])}); "
@@ -164,6 +168,8 @@ def judge(params, results, camera_code=None):
          and chat.get("items") == ["cc-company-desk"]},
         {"case": "组头「···」上半段是这家的在浏览器中打开，下半段照旧分组和排序", "seen": group,
          "ok": group.get("items") == ["cc-company-desk"] and bool(group.get("sort"))},
+        {"case": "点「在浏览器中打开」开的是这家在 ERP 里的公司页", "seen": group.get("opened"),
+         "ok": len(group.get("opened") or []) == 1 and group["opened"][0].endswith(f"/desk/pearnly-company/{params['a']}")},
         {"case": "知识库新增一条（右侧栏知识库卡）", "seen": note, "ok": bool(note.get("got"))},
         {"case": "提醒链接打开这家这个月的对话：末尾「需要处理」框与右侧栏待处理卡；点开到 ERP 单据页、不交给 CC", "seen": pending,
          "ok": bool(pending.get("box")) and pending.get("opened") == f"/desk/pearnly-purchase/{params['document']}" and not pending.get("hand")
