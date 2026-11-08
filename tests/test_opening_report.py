@@ -45,8 +45,15 @@ class OpeningReport(unittest.TestCase):
         inventory.contracts = self.contracts
         inventory.warehouses = SimpleNamespace(resolve=lambda value, **kwargs: value,
             scope_filter=lambda: {"warehouse": ["in", ["W1", "W2"]]})
-        sys.modules.update({"frappe": frappe, "frappe.utils": utils,
-                            "pearnly_erp_portal.access": access, "pearnly_erp_portal.inventory": inventory})
+        # 品名后接「分类 · 特性」（岳父 11-01，`report._product_names` 用真的 `products.categories`）：分类主档查询换成内存里的
+        frappe.whitelist = lambda *args, **kwargs: (lambda function: function)
+        frappe.get_all = self.get_all
+        self.categories = {}
+        products = ModuleType("pearnly_erp_portal.products")
+        sys.modules.update({"frappe": frappe, "frappe.utils": utils, "pearnly_erp_portal.access": access,
+                            "pearnly_erp_portal.inventory": inventory, "pearnly_erp_portal.products": products})
+        products.categories = load("pearnly_erp_portal.products.categories", DOMAIN.parent / "products/categories.py")
+        self.product_specs = {}
         self.report = load("opening_report_service", DOMAIN / "report.py")
         # 分组求和在库里由 frappe.qb 的 CASE 查询做（实验栈 30 万行核对过）；这里换成按逐笔流水独立算的对照实现
         self.report._position_sums = self.position_sums
@@ -56,7 +63,7 @@ class OpeningReport(unittest.TestCase):
         if doctype == "ERP Product":
             wanted = filters["name"][1]
             return [{"name": name, "product_name": "Product " + name if name != "P1" else "Product", "unit": "pcs",
-                     "base_unit": "pcs"} for name in sorted(wanted)]
+                     "base_unit": "pcs", **self.product_specs.get(name, {})} for name in sorted(wanted)]
         self.assertEqual(doctype, "ERP Stock Movement")
         conditions = [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()] \
             if isinstance(filters, dict) else filters
@@ -89,6 +96,11 @@ class OpeningReport(unittest.TestCase):
                 grouped[key] += row["qty_base"]
             return [{"product": p, "warehouse": w, "location": l, "qty": q} for (p, w, l), q in grouped.items()]
         return sorted(rows, key=lambda row: (str(row["posting_date"]), row["posting_time"], row["index"]))
+
+    def get_all(self, doctype, filters=None, fields=None, as_list=False, **kwargs):
+        self.assertEqual(doctype, "ERP Product Category")
+        wanted = filters["name"][1]
+        return [(name, self.categories[name]) for name in wanted if name in self.categories]
 
     def position_sums(self, query, date_from):
         before = len(self.queries)
@@ -135,6 +147,18 @@ class OpeningReport(unittest.TestCase):
             self.assertEqual(row["bal_value"], value)
         self.assertEqual(Decimal(str(card["closing"]["qty"])), qty)
         self.assertEqual(Decimal(str(card["closing"]["value"])), value)
+
+    def test_product_names_carry_category_and_attribute(self):
+        """收发存汇总与单品明细的品名后接「分类 · 特性」（岳父 11-01）；没填的格不印。"""
+        self.categories["CAT-1"] = "เครื่องเขียน"
+        self.product_specs["P1"] = {"category": "CAT-1", "attribute": "แดง"}
+        self.add("in", "2026-09-02", 3, 10)
+        self.assertEqual(self.summary()[0]["spec"], "เครื่องเขียน · แดง")
+        self.assertEqual(self.card()["spec"], "เครื่องเขียน · แดง")
+        self.product_specs["P1"] = {"attribute": "แดง"}
+        self.assertEqual(self.card()["spec"], "แดง")
+        self.product_specs.pop("P1")
+        self.assertEqual(self.card()["spec"], "")
 
     def test_opening_on_first_day_is_baseline_and_not_period_receipt(self):
         self.add("opening", "2026-09-01", 10, 10, kind="opening")
