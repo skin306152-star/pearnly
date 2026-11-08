@@ -978,6 +978,7 @@ kind = "page-action"
 anchor = "action:erp:pearnly-stock-card:trade.export.action"
 where = "pearnly-stock-card 页头「导出」（收发存报表：合并全部仓 / 汇总 / 分仓 × Excel / PDF，照 MR.ERP）"
 tests = ["flow:erp.stock-card.export", "unit:tests/test_erp_stock_card_export.py"]
+cc_na = "CC 工具 erp_stock_card_export 随下一条接上"
 
 [[row]]
 id = "erp.desk.pearnly-inventory.action.stock.opening.title"
