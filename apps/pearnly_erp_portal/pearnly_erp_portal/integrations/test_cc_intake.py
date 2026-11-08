@@ -7,6 +7,7 @@
 - 提交：只认本人对话来的待提交记录，用网页同一个入账函数（请求号按记录固定，同一张只入一次），来源记 cc；已提交的回原单。
 """
 import json
+from pathlib import Path
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
@@ -161,6 +162,45 @@ class Run(Base):
         self.doc.source = "line"
         self.doc.status = intake.QUEUED
         self.assertEqual(intake.run_chat("LI-00001"), {"cancelled": "not_queued"})
+
+
+class Billing(unittest.TestCase):
+    """主会话 11-08（A 批 1 合入前）：CC 对话 / 代录放文件的识别与网页同一个识别函数、同一套按页计费；一条收单记录只扣一次。
+    同一份上传（同一个请求键：重试、刷新、重复提交）不重读不重扣（``Receive.test_the_same_attachment_is_not_recognised_or_charged_twice``）；
+    另放一次同内容的文件是一次新上传，照常识别、照常扣费（用户 10-02 定，同网页与 Cowork）。"""
+
+    def test_the_web_recognition_and_its_page_billing_are_used(self):
+        from pearnly_erp_portal.purchasing import recognition as purchase
+        from pearnly_erp_portal.sales import recognition as sales
+
+        self.assertIs(intake._recogniser("purchase"), purchase)  # 网页采购页「识别」调的就是它
+        self.assertIs(intake._recogniser("sales"), sales)
+        for module in (purchase, sales):
+            text = Path(module.__file__).read_text(encoding="utf-8")
+            self.assertIn("units = billing.pages(images)", text)  # 按物理页计
+            # 识别成功才报账：不是单据的在扣费前拒收
+            self.assertLess(text.index("This is not a purchase or sales document"), text.index("billing.charge("))
+        text = Path(purchase.__file__).read_text(encoding="utf-8")
+        # 方向猜成采购、票是本公司开出的：采购那遍在扣费前拒收，改按销售读的那遍才扣（租户只付一次）
+        self.assertLess(text.index("issued by this company, not a purchase document"), text.index("billing.charge("))
+        source = Path(intake.__file__).read_text(encoding="utf-8")
+        self.assertEqual(source.count('billing_reference=CC_OCR_KIND + ":" + doc.name'), 2)  # 两遍同一个报账号
+
+    def test_pages_count_like_the_web(self):
+        from pearnly_erp_portal.recognition import billing, inputs
+
+        with patch.object(inputs, "pdf_page_count", return_value=3):
+            self.assertEqual(billing.pages([(b"%PDF", "application/pdf"), (b"img", "image/jpeg")]), 4)
+
+    def test_the_same_record_is_charged_once(self):
+        from pearnly_core import billing_client
+        from pearnly_erp_portal.recognition import billing
+
+        with patch.object(billing_client, "charge", return_value={"ok": True}) as charge:
+            billing.charge(2, "erp.cc_intake:LI-1", "ERP purchase recognition")
+        # 报账号按记录固定：重试同一个号，控制面同一个 reference 只扣一次（`recognition.billing` 文件头）
+        self.assertEqual(charge.call_args.kwargs["reference"], "erp.cc_intake:LI-1")
+        self.assertEqual(charge.call_args.args[:3], ("erp", "pdf", 2))
 
 
 class Submit(Base):
