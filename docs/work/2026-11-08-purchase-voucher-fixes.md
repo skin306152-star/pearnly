@@ -29,3 +29,11 @@
     InnoDB 最近一次死锁时间落在绿色运行期间（死锁仍在发生，被整笔重来接住）。
   - `tests/test_erp_purchase_voucher.py::AttachIsRetried`：只有挂附件那一步经整笔重来、出 PDF 在重来之外且只出一次、每次重来都重新锁单核状态查已挂。
 - 共用件：`transaction` 的新调用方，登记入口 `erp.purchase.voucher`（`scripts/impact/shared-parts.toml`）。
+
+## 2. 凭证抬头公司地址为空时印出「None」
+
+- 现象：实验栈公司没填地址，补开收据 / 预扣税凭证抬头第三行印出「None」（截图 `voucher-pdf-before-after.png`）。
+- 根因：`purchasing/voucher.html` 用 `company.get('address', '')`，主档里这一栏是 `None`（有键、值为空），默认值不起作用；税号同理。
+- 修法：抬头三行（公司名、税号、地址）只印有值的，按行用 `<br>` 隔开；不加任何文案。
+- 测试：`tests/test_erp_purchase_voucher.py::Header`（生产镜像里渲染真模板）：地址、税号为空时抬头只有公司名、没有「None」；
+  三项都有时逐行印出并转义。修前红（印出 `None`），修后绿。

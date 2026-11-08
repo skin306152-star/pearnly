@@ -2,7 +2,7 @@
 <html><head><meta charset="utf-8"><style>{{ print_style }}</style></head>
 <body><div class="print-format">
 <h2>{{ title | e }}</h2>
-<p>{{ company.get('company_name', '') | e }}<br>{{ company.get('tax_id', '') | e }}<br>{{ company.get('address', '') | e }}</p>
+<p>{% for line in [company.get('company_name'), company.get('tax_id'), company.get('address')] if line %}{% if not loop.first %}<br>{% endif %}{{ line | e }}{% endfor %}</p>
 <table class="table table-bordered">
 <tr><th>{{ _('ID') }}</th><td>{{ (doc.system_no or doc.name) | e }}</td><th>{{ _('Posting Date') }}</th><td>{{ doc.doc_date }}</td></tr>
 <tr><th>{{ _('Supplier') }}</th><td>{{ doc.supplier_name | e }}</td><th>{{ _('Supplier Invoice No') }}</th><td>{{ (doc.doc_no or '') | e }}</td></tr>

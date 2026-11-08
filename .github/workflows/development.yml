@@ -57,7 +57,7 @@ jobs:
         run: python3 tests/test_print_formats_pdf.py
       - name: Two PDFs made at once in one web process no longer fail on the framework default print font (hook registered here, the concurrent parse in the candidate checks)
         run: python3 tests/test_pdf_css_threads.py
-      - name: Purchase vouchers attach in a retried short transaction with the PDF made once outside it
+      - name: Purchase vouchers attach in a retried short transaction with the PDF made once outside it, and an empty company line prints nothing (layout in the candidate checks)
         run: python3 tests/test_erp_purchase_voucher.py
       - name: ERP purchases have no purchase order kind any more; old callers land on a kept kind
         run: python3 tests/test_erp_purchase_order_retired.py
