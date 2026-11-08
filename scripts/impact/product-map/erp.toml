@@ -660,46 +660,6 @@ where = "侧栏「pearnly-warehouses」"
 tests = ["flow:erp.warehouses.codes", "flow:erp.warehouses.rules", "impact:erp.page.warehouses"]
 
 [[row]]
-id = "erp.desk.pearnly-guide"
-product = "ERP"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page"
-anchor = "page:erp:pearnly-guide"
-where = "页面 /desk/pearnly-guide（不在侧栏）"
-tests = ["impact:erp.page.never.guide"]
-
-[[row]]
-id = "erp.desk.pearnly-history"
-product = "ERP"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page"
-anchor = "page:erp:pearnly-history"
-where = "页面 /desk/pearnly-history（不在侧栏）"
-tests = ["impact:erp.page.never.history"]
-
-[[row]]
-id = "erp.desk.pearnly-push-logs"
-product = "ERP"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page"
-anchor = "page:erp:pearnly-push-logs"
-where = "页面 /desk/pearnly-push-logs（不在侧栏）"
-tests = ["impact:erp.page.never.push-logs"]
-
-[[row]]
-id = "erp.desk.pearnly-reconcile"
-product = "ERP"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page"
-anchor = "page:erp:pearnly-reconcile"
-where = "页面 /desk/pearnly-reconcile（不在侧栏）"
-tests = ["impact:erp.page.never.reconcile"]
-
-[[row]]
 id = "erp.desk.all.action.selection"
 product = "ERP"
 channel = "desk"

@@ -27,7 +27,7 @@ class Discovery(unittest.TestCase):
     def test_every_kind_on_the_real_repo(self):
         found = pm.discover()
         for anchor, kind in (("nav:erp:pearnly-sales", "nav-page"), ("nav:cowork:pearnly-intake", "nav-page"),
-                             ("action:erp:pearnly-sales:Export", "page-action"), ("page:erp:pearnly-push-logs", "page"),
+                             ("action:erp:pearnly-sales:Export", "page-action"),
                              ("report:erp:erp_stock_count_variance", "report"),
                              ("line:erp:menu:stocktake", "line-menu"), ("line:erp:postback:mode", "line-postback"),
                              ("line:cowork:postback:cowork_erp_start", "line-postback"),

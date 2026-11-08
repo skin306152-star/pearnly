@@ -373,14 +373,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "none"
@@ -451,10 +443,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [
      "cowork.recon.new",
@@ -477,10 +465,6 @@
      "cowork.recon.running"
     ],
     "state": "open"
-   },
-   "desk/pearnly-reconcile": {
-    "codes": [],
-    "state": "home"
    },
    "desk/pearnly-records": {
     "codes": [],
@@ -975,14 +959,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "none"
@@ -1053,10 +1029,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [],
     "state": "denied"
@@ -1068,10 +1040,6 @@
    "desk/pearnly-recon-vat": {
     "codes": [],
     "state": "denied"
-   },
-   "desk/pearnly-reconcile": {
-    "codes": [],
-    "state": "home"
    },
    "desk/pearnly-records": {
     "codes": [],
@@ -1553,14 +1521,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "none"
@@ -1629,10 +1589,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [],
     "state": "denied"
@@ -1644,10 +1600,6 @@
    "desk/pearnly-recon-vat": {
     "codes": [],
     "state": "denied"
-   },
-   "desk/pearnly-reconcile": {
-    "codes": [],
-    "state": "home"
    },
    "desk/pearnly-records": {
     "codes": [],
@@ -2127,14 +2079,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "none"
@@ -2203,10 +2147,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [
      "cowork.recon.new",
@@ -2229,10 +2169,6 @@
      "cowork.recon.running"
     ],
     "state": "open"
-   },
-   "desk/pearnly-reconcile": {
-    "codes": [],
-    "state": "home"
    },
    "desk/pearnly-records": {
     "codes": [],
@@ -2714,14 +2650,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "none"
@@ -2790,10 +2718,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [],
     "state": "denied"
@@ -2805,10 +2729,6 @@
    "desk/pearnly-recon-vat": {
     "codes": [],
     "state": "denied"
-   },
-   "desk/pearnly-reconcile": {
-    "codes": [],
-    "state": "home"
    },
    "desk/pearnly-records": {
     "codes": [],
@@ -3292,14 +3212,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "none"
@@ -3368,10 +3280,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [],
     "state": "denied"
@@ -3383,10 +3291,6 @@
    "desk/pearnly-recon-vat": {
     "codes": [],
     "state": "denied"
-   },
-   "desk/pearnly-reconcile": {
-    "codes": [],
-    "state": "home"
    },
    "desk/pearnly-records": {
     "codes": [],

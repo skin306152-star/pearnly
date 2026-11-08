@@ -256,14 +256,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "none"
@@ -341,10 +333,6 @@
     ],
     "state": "open"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [],
     "state": "home"
@@ -354,10 +342,6 @@
     "state": "home"
    },
    "desk/pearnly-recon-vat": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-reconcile": {
     "codes": [],
     "state": "home"
    },
@@ -750,14 +734,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "denied"
@@ -826,10 +802,6 @@
     "codes": [],
     "state": "denied"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [],
     "state": "home"
@@ -839,10 +811,6 @@
     "state": "home"
    },
    "desk/pearnly-recon-vat": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-reconcile": {
     "codes": [],
     "state": "home"
    },
@@ -1206,14 +1174,6 @@
     "codes": [],
     "state": "denied"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "denied"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "denied"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "none"
@@ -1282,10 +1242,6 @@
     "codes": [],
     "state": "denied"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "denied"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [],
     "state": "denied"
@@ -1295,10 +1251,6 @@
     "state": "denied"
    },
    "desk/pearnly-recon-vat": {
-    "codes": [],
-    "state": "denied"
-   },
-   "desk/pearnly-reconcile": {
     "codes": [],
     "state": "denied"
    },
@@ -1660,14 +1612,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "denied"
@@ -1739,10 +1683,6 @@
     "codes": [],
     "state": "denied"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [],
     "state": "home"
@@ -1752,10 +1692,6 @@
     "state": "home"
    },
    "desk/pearnly-recon-vat": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-reconcile": {
     "codes": [],
     "state": "home"
    },
@@ -2119,14 +2055,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "denied"
@@ -2198,10 +2126,6 @@
     ],
     "state": "open"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [],
     "state": "home"
@@ -2211,10 +2135,6 @@
     "state": "home"
    },
    "desk/pearnly-recon-vat": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-reconcile": {
     "codes": [],
     "state": "home"
    },
@@ -2582,14 +2502,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "denied"
@@ -2658,10 +2570,6 @@
     "codes": [],
     "state": "denied"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [],
     "state": "home"
@@ -2671,10 +2579,6 @@
     "state": "home"
    },
    "desk/pearnly-recon-vat": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-reconcile": {
     "codes": [],
     "state": "home"
    },
@@ -3041,14 +2945,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "denied"
@@ -3120,10 +3016,6 @@
     "codes": [],
     "state": "denied"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [],
     "state": "home"
@@ -3133,10 +3025,6 @@
     "state": "home"
    },
    "desk/pearnly-recon-vat": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-reconcile": {
     "codes": [],
     "state": "home"
    },
@@ -3508,14 +3396,6 @@
     "codes": [],
     "state": "home"
    },
-   "desk/pearnly-guide": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-history": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-home": {
     "codes": [],
     "state": "denied"
@@ -3584,10 +3464,6 @@
     "codes": [],
     "state": "denied"
    },
-   "desk/pearnly-push-logs": {
-    "codes": [],
-    "state": "home"
-   },
    "desk/pearnly-recon-bank": {
     "codes": [],
     "state": "home"
@@ -3597,10 +3473,6 @@
     "state": "home"
    },
    "desk/pearnly-recon-vat": {
-    "codes": [],
-    "state": "home"
-   },
-   "desk/pearnly-reconcile": {
     "codes": [],
     "state": "home"
    },

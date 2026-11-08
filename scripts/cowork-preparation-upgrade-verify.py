@@ -47,11 +47,10 @@ try:
         current = {r.name: {k: str(v) if hasattr(v, 'isoformat') else v for k,v in r.items()} for r in role_rows}
         changed = [name for name in set(previous) | set(current) if previous.get(name) != current.get(name)]
         parents = {str((previous.get(name) or current[name]).get('parent')) for name in changed}
-        page_names = {'pearnly-company', 'pearnly-suppliers', 'pearnly-guide',
-            'pearnly-inventory', 'pearnly-products', 'pearnly-sales',
-            'pearnly-stock-in', 'pearnly-push-logs', 'pearnly-work', 'pearnly-clients',
-            'pearnly-home', 'pearnly-stock-out', 'pearnly-reconcile', 'pearnly-team',
-            'pearnly-intake', 'pearnly-stocktake', 'pearnly-history', 'pearnly-stock-card'}
+        page_names = {'pearnly-company', 'pearnly-suppliers', 'pearnly-inventory', 'pearnly-products', 'pearnly-sales',
+            'pearnly-stock-in', 'pearnly-work', 'pearnly-clients',
+            'pearnly-home', 'pearnly-stock-out', 'pearnly-team',
+            'pearnly-intake', 'pearnly-stocktake', 'pearnly-stock-card'}
         assert not (parents - page_names), 'Unexpected role-row rewrite outside installed Pages'
         assert all((previous.get(name) or current[name])['parenttype'] == 'Page' for name in changed)
         assert all(name not in previous or name not in current for name in changed), 'Existing role row changed'
