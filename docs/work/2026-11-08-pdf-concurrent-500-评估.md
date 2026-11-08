@@ -200,6 +200,6 @@
 - **不同采购单同时生成凭证会数据库死锁 500**（`QueryDeadlockError`）。实验栈每轮 12 张不同的单同时点「补开收据」，大部分轮次 12 份里 5–11 份死锁。
   `SHOW ENGINE INNODB STATUS`：两笔都在 `INSERT INTO tabERP Purchase Attachment`，各自持有子表 `parent` 索引末尾（supremum）的 X 间隙锁、又等对方的插入意向锁——
   框架保存子表时先按 parent 删旧行、拿了间隙锁，最新的几张单的附件都落在索引末尾。真实场景是两个人同时给最新的两张采购单出凭证。
-  可能的修法：凭证生成套共用层已有的 `pearnly_core.transaction.conflicts.retried`（1213 整笔回滚重来），或附件不经保存整单而直接插子表行；需另开一项评估。
+  主会话 11-08 交本窗口另修，记录见 [采购凭证两处缺陷](2026-11-08-purchase-voucher-fixes.md)。
 - 顺带看到（不在本项）：凭证 PDF 公司地址为空时印出「None」（`purchasing/voucher.html` 的 `company.get('address', '')` 取到 `None`）；
   实验栈里凭证标签是英文（实验账号界面语言下的翻译缺口，未核）。

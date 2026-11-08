@@ -280,6 +280,21 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.purchase.voucher-concurrent"
+title = "ERP 采购凭证并发：8 张单 × 补开收据 / 预扣税凭证同时出、外加重复点，全部成功、每张每种只挂一份、文件不重复（11-08 凭证并发死锁与 PDF 并发 500）"
+module = "scripts/flows/erp_purchase_voucher_concurrent.py"
+start = "/desk/pearnly-purchase"
+user = "purchase"
+datasets = ["new", "old"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/output.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/voucher.html",
+  "apps/pearnly_core/pearnly_core/desk/print_css.py",
+]
+
+[[flow]]
 id = "erp.trade.line-stock"
 title = "ERP 采购：明细按行勾入库、批量编辑设整张，只有入库行动库存、随单新建的物料记来源单据（11-06 按行选物料与库存）"
 module = "scripts/flows/erp_trade_line_stock.py"

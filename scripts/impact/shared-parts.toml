@@ -458,7 +458,8 @@ paths = ["apps/pearnly_core/pearnly_core/transaction/**"]
 markers = ["pearnly_core.transaction", "pearnly_core import transaction"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
 # CC 对话的本站写（改名、星标、移月份、归档、删除）撞上快照冲突整笔重来（11-05 删对话 500，`assistant.sessions._write`）
-entries = ["shared.transaction", "cowork.transaction", "cc.mrerp-login", "cc.assistant"]
+# ERP 采购凭证挂附件撞上死锁整笔重来（11-08 两张单同时出凭证 QueryDeadlockError，`purchasing.output.voucher`）
+entries = ["shared.transaction", "cowork.transaction", "cc.mrerp-login", "cc.assistant", "erp.purchase.voucher"]
 
 [[part]]
 id = "provisioning"
@@ -2169,6 +2170,15 @@ steps = "CC 登记电脑、回执"
 expect = "并发时自动重试"
 check = "manual"
 files = ["apps/pearnly_core/pearnly_core/cc_desktop/api.py", "apps/pearnly_core/pearnly_core/cc_desktop/machine.py"]
+
+[[entry]]
+id = "erp.purchase.voucher"
+product = "ERP"
+where = "采购单「…」→「补开收据」「预扣税凭证」"
+steps = "已提交的采购单点补开收据 / 预扣税凭证；几张单同时点、同一张同时点两次"
+expect = "每张单每种凭证只挂一份 PDF、文件在；同时点不报错（流程 erp.purchase.voucher-concurrent、erp.purchase.actions）"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/output.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js"]
 
 [[entry]]
 id = "cowork.transaction"

@@ -93,16 +93,39 @@ def workbook(params=None):
 
 
 def voucher(name, kind):
-    doc = access.get_document(name, write=True, lock=True)
+    """补开收据 / 预扣税凭证：先出 PDF（不写库、不占锁），再在短事务里锁单、挂上。
+
+    挂附件那一步，两张单同时挂会死锁（框架保存子表先按 parent 删旧行，两笔事务各持 `tabERP Purchase Attachment` 的 parent 索引末尾的
+    间隙锁、再等对方的插入意向锁，11-08 实验栈实测），所以经共用层 `transaction.conflicts.retried` 撞上 1213 / 1020 整笔回滚、退避重来。
+    重来是幂等的：每次重新锁单、重新核状态、先看这份凭证是不是已经挂上（同一份被同时点了两次时，后到的直接拿先挂上的那份）；
+    被回滚那次新写到磁盘的文件由框架 File 的回滚回调删掉（`File.on_rollback`），单据号不动。"""
+    from pearnly_core.transaction import conflicts
+
+    doc = access.get_document(name, write=True)
+    _voucher_allowed(doc, kind)
+    existing = _generated(doc, kind)
+    if existing:
+        return existing
+    content = _voucher_pdf(doc, kind)
+    frappe.db.commit()  # 到这里只读过：结束读快照，挂附件那笔事务从新快照开始（同 assistant.sessions._fresh_retried）
+    return conflicts.retried(_attach_voucher, name, kind, content)
+
+
+def _voucher_allowed(doc, kind):
     if kind not in ("substitute_receipt", "wht_cert"):
         frappe.throw(_("Invalid value"))
     if doc.status != "submitted":
         frappe.throw(_("Document must be submitted"))
     if kind == "wht_cert" and amounts.money(doc.wht_amount) <= 0:
         frappe.throw(_("Withholding Tax must be greater than zero"))
-    existing = next((row for row in doc.attachments if row.kind == kind and row.generated), None)
-    if existing:
-        return {"file": existing.file, "file_url": existing.file_url}
+
+
+def _generated(doc, kind):
+    row = next((row for row in doc.attachments if row.kind == kind and row.generated), None)
+    return {"file": row.file, "file_url": row.file_url} if row else None
+
+
+def _voucher_pdf(doc, kind):
     from frappe.utils.pdf import get_pdf
     from frappe.www.printview import get_print_style
 
@@ -114,7 +137,15 @@ def voucher(name, kind):
         "title": _("Withholding Tax Certificate") if kind == "wht_cert" else _("Substitute Receipt"),
         "print_style": get_print_style(),
     })
-    content = get_pdf(body)
+    return get_pdf(body)
+
+
+def _attach_voucher(name, kind, content):
+    doc = access.get_document(name, write=True, lock=True)
+    _voucher_allowed(doc, kind)  # 出 PDF 的这一两秒里单可能被作废了
+    existing = _generated(doc, kind)
+    if existing:
+        return existing
     file = frappe.get_doc({"doctype": "File", "file_name": f"{doc.name}-{kind}.pdf",
         "is_private": 1, "content": content, "attached_to_doctype": doc.doctype,
         "attached_to_name": doc.name}).insert(ignore_permissions=True)
