@@ -366,6 +366,8 @@ after_migrate = [
     "pearnly_core.account.layout.ensure_profile_fields",
     "pearnly_core.account.session_length.ensure_session_expiry",
     "pearnly_core.desk.error_detail.ensure_traceback_hidden",
+    # 部署迁移后在后台先备好 CC 智能体资源（只排一次，备不上不挡迁移，批 A ②）
+    "pearnly_core.assistant.engine.prewarm",
 ]
 
 # Keep the native user form; do not add a second account settings page.

@@ -449,6 +449,10 @@ def main():
         config(pearnly_assistant_engine=engine, pearnly_assistant_model=model, pearnly_assistant_api_key=key,
                # 引擎回调的签名密钥（入口 fatcc.com 统一接收后转来，本站再验）；未开通就清空
                pearnly_assistant_webhook_secret=str(p.get("webhook_secret") or "") if engine else "")
+        # 换了引擎 / 密钥 / 模型：后台先把智能体资源备好（只排一次，备不上不挡这一步，批 A ②）
+        from pearnly_core.assistant import engine as assistant_engine
+
+        assistant_engine.prewarm()
     elif action == "finalize_site":
         from pearnly_core.provisioning import finalize_site
         finalize_site()

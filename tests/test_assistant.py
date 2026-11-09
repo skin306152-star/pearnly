@@ -4059,6 +4059,51 @@ class ControlPlaneSettingsTests(unittest.TestCase):
         self.assertIn('pearnly_assistant_webhook_secret=str(p.get("webhook_secret") or "") if engine else ""', branch)
         self.assertNotIn("restart", branch)
 
+    def test_the_agent_is_prepared_in_the_background_after_a_migrate_and_after_the_key_changes(self):
+        """批 A ②（11-09 主会话批）：部署后或换密钥后第一个新对话要先在厂商那边备智能体（实验栈 2.4 秒，生产冷的一次 13.7 秒）。
+        迁移后（after_migrate）、下发智能体设置后（site-step 的 set_assistant）各在后台排一次 `prepared`；不做定时、不循环、
+        不常驻；没开通 CC 的站点不排；排不上、备失败只记日志，不挡部署，第一个用户来了照常现备。"""
+        hooks = (CORE / "hooks.py").read_text(encoding="utf-8")
+        after = hooks.split("after_migrate = [", 1)[1].split("]", 1)[0]
+        self.assertIn('"pearnly_core.assistant.engine.prewarm"', after)
+        self.assertNotIn("prewarm", hooks.split("\nscheduler_events = ", 1)[1].split("\n\n", 1)[0])  # 不进定时任务
+        step = (ROOT / "infrastructure/production/site-step.py").read_text(encoding="utf-8")
+        branch = step.split('elif action == "set_assistant":', 1)[1].split("elif action", 1)[0]
+        self.assertLess(branch.index("config(pearnly_assistant_engine="), branch.index("assistant_engine.prewarm()"))
+
+        queued, errors, prepared = [], [], []
+        saved = dict(frappe.conf)
+        try:
+            frappe.conf.update(pearnly_product="cowork", pearnly_assistant_engine=CLAUDE, pearnly_assistant_api_key=KEY)
+            with mock.patch.object(engine.frappe, "enqueue", lambda method, **kw: queued.append((method, kw)), create=True), \
+                    mock.patch.object(engine.frappe, "log_error", lambda *a, **k: errors.append(k.get("title")), create=True):
+                engine.prewarm()
+                self.assertEqual([m for m, _ in queued], ["pearnly_core.assistant.engine.prewarm_now"])
+                kw = queued[0][1]
+                self.assertEqual((kw["queue"], kw["deduplicate"], kw["enqueue_after_commit"]), ("short", True, True))
+                self.assertTrue(kw["job_id"].startswith("assistant-prewarm-"))
+                # 没开通 CC（没配密钥）的站点：不排
+                frappe.conf.pop("pearnly_assistant_api_key")
+                engine.prewarm()
+                self.assertEqual(len(queued), 1)
+                frappe.conf["pearnly_assistant_api_key"] = KEY
+                # 排不上（队列连不上）：不抛，只记日志
+                with mock.patch.object(engine.frappe, "enqueue", mock.Mock(side_effect=ConnectionError("redis")), create=True):
+                    engine.prewarm()
+                self.assertEqual(errors, ["Assistant prewarm not queued"])
+                # 后台那一次：备好资源；厂商一时不通也不抛
+                with mock.patch.object(engine, "prepared", lambda api: prepared.append(api) or {}), \
+                        mock.patch.object(engine, "adapter", lambda: "api"):
+                    engine.prewarm_now()
+                self.assertEqual(prepared, ["api"])
+                with mock.patch.object(engine, "prepared", mock.Mock(side_effect=TimeoutError("slow"))), \
+                        mock.patch.object(engine, "adapter", lambda: "api"):
+                    engine.prewarm_now()
+                self.assertEqual(errors[-1], "Assistant prewarm failed")
+        finally:
+            frappe.conf.clear()
+            frappe.conf.update(saved)
+
     def test_plan_uses_the_platform_setting_and_forms_no_longer_carry_it(self):
         plan = (CONTROL / "provisioning.py").read_text(encoding="utf-8")
         self.assertLess(plan.index('f"{dep.name}:set_assistant"'), plan.index('f"{dep.name}:bind_user"'))

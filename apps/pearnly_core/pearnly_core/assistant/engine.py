@@ -30,6 +30,32 @@ def _digest(value: str, size: int) -> str:
     return hashlib.sha256(value.encode()).hexdigest()[:size]
 
 
+PREWARM_JOB = "pearnly_core.assistant.engine.prewarm_now"
+PREWARM_TIMEOUT = 120
+
+
+def prewarm() -> None:
+    """后台先把本站产品的智能体资源备好（批 A ②，2026-11-09）：部署后或换密钥后第一个新对话要先在厂商那边备一次（实验栈
+    2.4 秒，生产冷的一次 13.7 秒），这一步提前到这两个时刻各做一次——迁移后（hooks 的 after_migrate）、下发智能体设置后
+    （site-step 的 set_assistant）。只排一次、不做定时、不循环、不常驻（空闲零花费）；备资源只调厂商的管理接口，不花模型钱。
+    没开通 CC 的站点不排；排不上只记日志，不挡迁移、不挡部署，第一个用户来了照常现备（`prepared`）。"""
+    try:
+        if config.unavailable():
+            return
+        frappe.enqueue(PREWARM_JOB, queue="short", timeout=PREWARM_TIMEOUT, deduplicate=True, enqueue_after_commit=True,
+                       job_id=f"assistant-prewarm-{frappe.local.site}")
+    except Exception:
+        frappe.log_error(title="Assistant prewarm not queued")
+
+
+def prewarm_now() -> None:
+    """后台那一次：按当前设置备好资源、写进缓存（同 `prepared`）。厂商一时不通只记日志。"""
+    try:
+        prepared(adapter())
+    except Exception:
+        frappe.log_error(title="Assistant prewarm failed")
+
+
 TOOLS_TTL = 30 * 86400
 
 
