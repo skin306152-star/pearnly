@@ -339,8 +339,15 @@ class ProviderTests(unittest.TestCase):
         mrerp = importlib.import_module("pearnly_erp_portal.mrerp")
         self.assertFalse(mrerp.MRERP_LEDGER_ENABLED)
         self.assertEqual(cc_projects.connect(), {})
-        with mock.patch.object(mrerp, "MRERP_LEDGER_ENABLED", True):
+        roles = lambda user=None: ["ERP Admin"] if (user or frappe.session.user) == "boss@x" else []  # noqa: E731
+        with mock.patch.object(mrerp, "MRERP_LEDGER_ENABLED", True), mock.patch.object(frappe, "get_roles", roles, create=True):
             self.assertEqual(cc_projects.connect(), {"mrerp": "pearnly_erp_portal.mrerp.api."})
+            # 开着也只给 ERP 管理员：这一行调的接口只限管理员，别人不出这一行
+            frappe.session.user = "staff@x"
+            try:
+                self.assertEqual(cc_projects.connect(), {})
+            finally:
+                frappe.session.user = "boss@x"
         hooks = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")
         self.assertIn('pearnly_assistant_projects = ["pearnly_erp_portal.masters.cc_projects"]', hooks)
         self.assertIn('"pearnly_erp_portal.masters.cc_tools.TOOLS"', hooks)

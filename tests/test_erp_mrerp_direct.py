@@ -193,6 +193,7 @@ class SwitchedOff(unittest.TestCase):
         from pearnly_erp_portal.mrerp import catalog, choices
 
         for call in (lambda: connection.configure("https://www.mrerp4sme.com"), connection.require_admin,
+                     lambda: connection.records(), lambda: connection.configure_once("https://www.mrerp4sme.com", None, "k1"),
                      lambda: catalog.refresh("C1"), lambda: catalog.account_sets("C1"),
                      lambda: catalog.choose("CO-1", "C1", "15:1"), lambda: catalog.detach("CO-1"),
                      lambda: choices.request_read("CO-1"), lambda: choices.choose("CO-1", "mrerp_menu", "purchase", "68")):
@@ -369,6 +370,130 @@ class SwitchedOn(unittest.TestCase):
         self.assertEqual(connection.login_scope("clerk@x", "C1"), "")
         self.assertEqual(connection.view("C1").get("credential", {}).get("username"), "u1")
         self.assertNotIn("secret", json.dumps(connection.view("C1")))
+
+
+class _Doc(Row):
+    """`frappe.get_doc` 的最小替身：连接表的读、改、存、新建（名字按 C1、C2… 顺排）。"""
+
+    __setattr__ = dict.__setitem__
+
+    def save(self, ignore_permissions=False):
+        DB.table(self["doctype"])[self["name"]] = {k: v for k, v in self.items() if k != "doctype"}
+
+    def insert(self, ignore_permissions=False):
+        table = DB.table(self["doctype"])
+        self["name"] = f"C{len(table) + 1}"
+        self.setdefault("creation", datetime.datetime(2026, 11, 9, 10, len(table)))
+        self.save()
+        return self
+
+
+def _get_doc(doctype, name=None, for_update=False):
+    if isinstance(doctype, dict):
+        return _Doc(doctype)
+    return _Doc({"doctype": doctype, **DB.table(doctype)[name]})
+
+
+def _get_all_paged(doctype, filters=None, fields=None, order_by=None, limit_start=0, limit_page_length=None):
+    rows = [Row(row) for row in DB.table(doctype).values()
+            if all(row.get(k) == v for k, v in (filters or {}).items() if not isinstance(v, list))]
+    if order_by == "creation asc":
+        rows.sort(key=lambda row: row.get("creation") or datetime.datetime.min)
+    rows = rows[limit_start:]
+    return rows[:limit_page_length] if limit_page_length else rows
+
+
+class _Cache:
+    def __init__(self):
+        self.values = {}
+
+    def get_value(self, key):
+        return self.values.get(key)
+
+    def set_value(self, key, value, expires_in_sec=None):
+        self.values[key] = value
+
+
+@patch.object(mrerp, "MRERP_LEDGER_ENABLED", True)
+class ConnectRow(unittest.TestCase):
+    """CC 设置 → 连接的 MR.ERP 一行（`frontend/assistant/src/components/mrerp-connect.tsx`）调的接口：ERP 要有、形状对、只限管理员、
+    不回密码、建连接按请求号幂等；旧的 ``configure(system_url)`` 调法照旧（实验栈脚本在用）。"""
+
+    def setUp(self):
+        reset()
+        DB.table("ERP MRERP Connection")["C1"]["creation"] = datetime.datetime(2026, 11, 1)
+        self.cache = _Cache()
+        self.patches = [patch.object(frappe, "whitelist", lambda **kw: (lambda fn: fn), create=True),
+                        patch.object(frappe, "get_doc", _get_doc, create=True),
+                        patch.object(frappe, "get_all", _get_all_paged),
+                        patch.object(frappe, "cache", self.cache, create=True)]
+        for item in self.patches:
+            item.start()
+        from pearnly_erp_portal.mrerp import api
+        self.api = api
+
+    def tearDown(self):
+        for item in self.patches:
+            item.stop()
+        frappe.session.user = "boss@x"
+
+    def test_every_method_the_settings_row_calls_exists_and_is_whitelisted(self):
+        import re
+
+        source = (ROOT / "frontend/assistant/src/components/mrerp-connect.tsx").read_text(encoding="utf-8")
+        called = set(re.findall(r'api \+ "(\w+)"', source))
+        self.assertEqual(called, {"records", "configure", "request_refresh"})
+        tree = ast.parse((ERP / "mrerp/api.py").read_text(encoding="utf-8"))
+        whitelisted = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)
+                       and any("whitelist" in ast.unparse(d) for d in node.decorator_list)}
+        self.assertLessEqual(called, whitelisted)
+
+    def test_records_has_the_row_shape_marks_the_main_one_and_never_the_password(self):
+        rows = self.api.records(limit=100)
+        self.assertEqual(rows, [{"name": "C1", "adapter": "mrerp", "enabled": 1, "main": True,
+                                 "config": {"system_url": "https://www.mrerp4sme.com"},
+                                 "credential": {"username": "u1", "device": "", "at": ""}}])
+        self.assertNotIn("secret", json.dumps(rows))
+        DB.table("ERP MRERP Connection")["C0"] = {"name": "C0", "system_url": "https://a.example", "enabled": 0,
+                                                 "creation": datetime.datetime(2026, 10, 1)}
+        rows = self.api.records(start=0, limit=1)
+        self.assertEqual([(row["name"], row["main"]) for row in rows], [("C0", False)])  # 停用的不是主连接
+        self.assertEqual([row["name"] for row in self.api.records(start=1, limit=500)], ["C1"])
+
+    def test_only_erp_admins_get_any_of_the_three(self):
+        frappe.session.user = "staff@x"
+        for call in (lambda: self.api.records(), lambda: self.api.request_refresh("C1", "k1"),
+                     lambda: self.api.configure(adapter="mrerp", request_key="k1", config={"system_url": "https://x.example"})):
+            with self.subTest(call=call):
+                with self.assertRaises(PermissionError_):
+                    call()
+        self.assertEqual(ENQUEUED, [])
+
+    def test_configure_from_the_settings_row_creates_once_per_request_key(self):
+        DB.table("ERP MRERP Connection").clear()
+        body = {"adapter": "mrerp", "request_key": "k1", "label": "MR.ERP",
+                "config": json.dumps({"system_url": "https://www.mrerp4sme.com"})}
+        first = self.api.configure(**body)
+        again = self.api.configure(**body)  # 双击 / 网络重试：同一个请求号
+        self.assertEqual(first["name"], again["name"])
+        self.assertEqual(len(DB.table("ERP MRERP Connection")), 1)
+        self.assertEqual((first["adapter"], first["main"], first["config"], first["connection"]),
+                         ("mrerp", True, {"system_url": "https://www.mrerp4sme.com"}, first["name"]))
+        changed = self.api.configure(adapter="mrerp", request_key="k2", name=first["name"], expected_revision=None,
+                                     config={"system_url": "https://erp.example.co.th"})
+        self.assertEqual((changed["name"], changed["system_url"]), (first["name"], "https://erp.example.co.th"))
+        with self.assertRaises(ValueError):
+            self.api.configure(adapter="express", request_key="k3", config={"system_url": "https://x.example"})
+
+    def test_the_old_configure_call_keeps_its_view(self):
+        view = self.api.configure(system_url="https://www.mrerp4sme.com", connection_name="C1")
+        self.assertEqual((view["connection"], view["system_url"], view["enabled"]), ("C1", "https://www.mrerp4sme.com", True))
+
+    def test_request_refresh_reads_the_catalog_once(self):
+        out = self.api.request_refresh("C1", "k1")
+        self.assertEqual(out["connection"], "C1")
+        self.assertEqual([call[0] for call in ENQUEUED], ["pearnly_erp_portal.mrerp.catalog.run"])
+        self.assertTrue(ENQUEUED[0][1]["deduplicate"])
 
 
 class PureRules(unittest.TestCase):

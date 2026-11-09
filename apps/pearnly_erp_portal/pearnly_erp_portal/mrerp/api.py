@@ -3,15 +3,43 @@
 都只限 ERP 管理员；功能关着时一律 403。没有任何入口收或回 MR.ERP 密码：登录只在 CC 桌面版里授权（共用通道
 `pearnly_core.cc_desktop.api.mrerp_login_ticket` → `machine.mrerp_login`，经本产品的钩子写进连接）。
 """
+import json
+
 import frappe
 
 from pearnly_erp_portal.mrerp import catalog, choices, connection
 
 
 @frappe.whitelist(methods=["POST"])
-def configure(system_url=None, connection_name=None):
-    """建 / 改连接网址 → 连接视图（不含密码）。"""
-    return connection.view(connection.configure(system_url, connection_name))
+def configure(system_url=None, connection_name=None, adapter=None, request_key=None, label=None, config=None,
+              name=None, expected_revision=None):
+    """建 / 改连接网址 → 连接（不含密码）。两种调法同一个入口：
+    - 旧：``system_url`` / ``connection_name``；
+    - CC 设置 → 连接的 MR.ERP 一行（`frontend/assistant/src/components/mrerp-connect.tsx`，同 Cowork 连接接口）：
+      ``adapter="mrerp"``、``config={"system_url": …}``、``name``、``request_key``（没给 ``name`` 时同一请求号重发回同一条）。
+    回 CC 那一行的形状（name / adapter / main / config / credential）并带旧视图的键（connection / system_url / enabled）。"""
+    if adapter not in (None, "", "mrerp"):
+        frappe.throw(frappe._("Invalid request"))
+    if isinstance(config, str):
+        try:
+            config = json.loads(config or "{}")
+        except ValueError:
+            frappe.throw(frappe._("Invalid request"))
+    url = system_url if system_url is not None else (config or {}).get("system_url") if isinstance(config, dict) else None
+    saved = connection.configure_once(url, connection_name or name, request_key)
+    return {**connection.record(saved, connection.main_name()), **connection.view(saved)}
+
+
+@frappe.whitelist()
+def records(start=0, limit=50):
+    """CC 设置 → 连接的 MR.ERP 一行读的连接列表（只限管理员，服务端分页；主连接标 ``main``）。"""
+    return connection.records(start, limit)
+
+
+@frappe.whitelist(methods=["POST"])
+def request_refresh(name, request_key=None):
+    """CC 设置里存下网址或授权后读一次这条连接的账套目录（同 :func:`refresh_catalog`；同一连接只排一件）。"""
+    return catalog.refresh(name)
 
 
 @frappe.whitelist()

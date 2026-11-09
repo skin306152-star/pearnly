@@ -55,6 +55,60 @@ def configure(system_url, name=None) -> str:
     return doc.name
 
 
+PAGE_MAX = 100
+CONFIGURE_KEY_SECONDS = 3600
+
+
+def main_name():
+    """主连接：最早建的那条启用的连接（ERP 每站点一般只有一条；CC 设置 → 连接的 MR.ERP 一行认它）。"""
+    rows = frappe.get_all(CONNECTION, filters={"enabled": 1}, fields=["name"], order_by="creation asc",
+                          limit_page_length=1)
+    return rows[0].name if rows else None
+
+
+def record(name, main=None) -> dict:
+    """CC 设置 → 连接的 MR.ERP 一行要的形状（同 Cowork `connections.records` 的那几项：name / adapter / enabled / main /
+    config.system_url / credential）；从不含密码。"""
+    row = frappe.db.get_value(CONNECTION, name, ["name", "system_url", "enabled", "credential_username",
+                                                 "credential_device", "credential_authorized_at"], as_dict=True)
+    if not row:
+        return {}
+    out = {"name": row.name, "adapter": "mrerp", "enabled": int(bool(row.enabled)), "main": row.name == main,
+           "config": {"system_url": row.system_url or DEFAULT_URL}}
+    if row.credential_username:
+        out["credential"] = {"username": row.credential_username, "device": row.credential_device or "",
+                             "at": str(row.credential_authorized_at or "")}
+    return out
+
+
+def records(start=0, limit=50) -> list:
+    """连接列表（只限管理员，服务端分页）。"""
+    require_admin()
+    try:
+        start, limit = max(0, int(start or 0)), max(1, min(PAGE_MAX, int(limit or 50)))
+    except (TypeError, ValueError):
+        frappe.throw(_("Invalid request"))
+    rows = frappe.get_all(CONNECTION, fields=["name"], order_by="creation asc", limit_start=start,
+                          limit_page_length=limit)
+    main = main_name()
+    return [record(row.name, main) for row in rows]
+
+
+def configure_once(system_url, name=None, request_key=None) -> str:
+    """CC 设置里的「连接」：同 :func:`configure`，另按 ``request_key`` 幂等——没给连接号时同一个请求号重发（双击、网络重试）
+    回同一条，不重复建。"""
+    require_admin()
+    key = f"erp-mrerp-configure::{frappe.session.user}::{str(request_key or '')[:80]}" if request_key else ""
+    if not name and key:
+        known = frappe.cache.get_value(key)
+        if known and frappe.db.exists(CONNECTION, known):
+            name = known
+    out = configure(system_url, name)
+    if key:
+        frappe.cache.set_value(key, out, expires_in_sec=CONFIGURE_KEY_SECONDS)
+    return out
+
+
 def view(name) -> dict:
     """给页面 / 对话看的：网址、「已授权：用户名 · 电脑 · 时间」；从不含密码。"""
     row = frappe.db.get_value(CONNECTION, name, ["name", "system_url", "enabled", "credential_username",
@@ -109,4 +163,5 @@ def lease(name) -> dict:
             "password": get_decrypted_password(CONNECTION, row.name, "credential_password", raise_exception=False) or ""}
 
 
-__all__ = ["configure", "is_admin", "lease", "login_scope", "login_store", "require_admin", "require_enabled", "view"]
+__all__ = ["configure", "configure_once", "is_admin", "lease", "login_scope", "login_store", "main_name", "record",
+           "records", "require_admin", "require_enabled", "view"]

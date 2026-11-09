@@ -29,10 +29,12 @@ def sections() -> tuple:
 
 
 def connect() -> dict:
-    """设置 → 连接的 MR.ERP 一行只在 MR.ERP 账本开着时出（`MRERP_LEDGER_ENABLED`，主会话 11-07 定案 #13）；关着不声明，页面就不出。"""
+    """设置 → 连接的 MR.ERP 一行只在 MR.ERP 账本开着时出（`MRERP_LEDGER_ENABLED`，主会话 11-07 定案 #13）；关着不声明，页面就不出。
+    开着也只给 ERP 管理员（这一行调的连接接口只限管理员，服务端判；别人不出这一行）。"""
     from pearnly_erp_portal import mrerp
+    from pearnly_erp_portal.mrerp import connection
 
-    return {"mrerp": "pearnly_erp_portal.mrerp.api."} if mrerp.enabled() else {}
+    return {"mrerp": "pearnly_erp_portal.mrerp.api."} if mrerp.enabled() and connection.is_admin() else {}
 
 
 def _visible(user) -> set:

@@ -288,7 +288,17 @@ reason = "同上：ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.configure"
 kind = "compat"
-reason = "同上：ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能）"
+reason = "11-09 P0-⑤：CC 设置 → 连接的 MR.ERP 一行（frontend/assistant/src/components/mrerp-connect.tsx，入口 mrerp-connect@cowork）按产品声明的接口前缀拼名调用（ERP 的前缀由 masters/cc_projects.connect 在开关开着、本人是 ERP 管理员时声明），扫描器认不出；开关 MRERP_LEDGER_ENABLED 关着。旧调法（system_url）实验栈脚本 scripts/erp-mrerp-direct-lab-verify.py 在用"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.mrerp.api.records"
+kind = "compat"
+reason = "同 configure：CC 设置 → 连接的 MR.ERP 一行按声明前缀拼名读连接列表（11-09 P0-⑤ 补，原来 ERP 没有这个接口、开关一开这一行就坏）；开关关着"
+
+[[anchor]]
+anchor = "endpoint:pearnly_erp_portal.mrerp.api.request_refresh"
+kind = "compat"
+reason = "同 configure：CC 设置 → 连接的 MR.ERP 一行存下网址或授权后按声明前缀拼名请服务端读一次账套目录（11-09 P0-⑤ 补）；开关关着"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.connection_view"
