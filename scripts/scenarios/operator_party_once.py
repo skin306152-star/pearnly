@@ -669,6 +669,10 @@ def run_one(lab, product, viewport, shots, reuse):
     started = time.monotonic()
     params = prepare(lab, product, viewport, reuse)
     found = preflight(lab, product, params, real=True)
+    # 只有真引擎才用到、干跑查不到的：识别进程与派发进程都活着（11-09 第 5 次：识别进程起不来，24 页排着没人取）
+    running = lab.exec("sh", "-c", "ps -eo args").stdout
+    found["processes"] = {name: name in running for name in ("pearnly_core.execution.worker", "pearnly_core.execution.dispatch")}
+    found["ok"] = found["ok"] and all(found["processes"].values())
     if not found["ok"]:  # 配置不齐不开跑（不白花钱）
         raise SystemExit(f"{product}: 前置检查没过，不开跑：{found}")
     site, user = SITES[product], USERS[product]
