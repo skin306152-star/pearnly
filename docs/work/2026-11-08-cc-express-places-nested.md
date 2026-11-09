@@ -42,7 +42,7 @@
 
 | 入口 | 结果 |
 |---|---|
-| cc.settings.connection（auto，流程 cc.settings） | 没测到：本机已有三套实验栈在跑（上限三套），未起第四套，待主会话安排；该流程走浏览器、不经桌面桥，本改动只在桥给 `place_years` 时出现 |
-| cc.desktop.bridge（manual） | 部分：假桥设置页截图核过位置行；Windows 测试机 CC 实机没测（要先问主会话） |
+| cc.settings.connection（auto，流程 cc.settings） | 通过：11-09 变基到 `96731e911` 后在本窗口自己的实验栈 `pearnly-places-lab` 跑 `run.py --changed`，3 个流程（cc.settings、cc.operator、cowork.mrerp-login）12/12 过，cc.settings 新 / 旧数据 × 电脑 / 手机 4/4；跑完已 stop |
+| cc.desktop.bridge（manual） | 部分：假桥设置页截图核过位置行；Windows 测试机 CC 实机放到 1.12.19 发版后测试机验收（主会话 11-08 定）：真设置页加 P:\69EXP 两条都在、删外层只读一年、小字列年度 |
 | cc.desktop.places（manual） | 部分：离线单测覆盖添加 / 移除 / 嵌套 / 按成员筛；测试机实机没测 |
 | cc.mrerp-login、cc.operator.page、cc.desktop.operator、cc.desktop.requests、erp.cc.connect | 没测到：本改动不碰这些路径（只改位置清单存法、主根取法、设置页位置行） |
