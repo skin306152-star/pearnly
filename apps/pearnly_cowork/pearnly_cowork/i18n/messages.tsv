@@ -2349,6 +2349,7 @@ This warehouse is not in the Express account set	Express 账套中无此仓库	�
 Express Index Tool	Express 索引程序	โปรแกรมดัชนี Express	Express インデックスツール
 The Express index tool is missing on this computer. Reinstall CC Desktop	此电脑缺少 Express 索引程序，请重新安装 CC 桌面版	คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่	このパソコンに Express インデックスツールがありません。CC デスクトップを再インストールしてください	intake.error.REINDEX_UNAVAILABLE
 This computer cannot enter documents into Express	此电脑不能代录 Express	คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้	このパソコンでは Express の代行入力ができません	intake.error.OPERATOR_UNAVAILABLE
+Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express	此账套的单据不能同时有免税行和应税行，请在 Express 中录入	ชุดบัญชีนี้ใส่รายการยกเว้นภาษีและรายการที่มีภาษีในเอกสารเดียวกันไม่ได้ กรุณาบันทึกใน Express	この会計データでは免税明細と課税明細を同じ伝票に入れられません。Express で入力してください	intake.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT
 This document is in an Express operator entry	单据在代录中	เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express	この書類は Express の代行入力中です	push.operator_owned
 This document was changed in Express. Check it in Express	此单在 Express 中已被修改，请在 Express 中核对	เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express	この伝票は Express で変更されています。Express で確認してください	intake.error.VOID_DOCUMENT_CHANGED
 This document is not in Express	Express 中找不到此单	ไม่พบเอกสารนี้ใน Express	この伝票は Express にありません	intake.error.VOID_DOCUMENT_NOT_FOUND
@@ -2390,7 +2391,6 @@ The invoice date is missing or unreadable. Fill it in and submit again	票面日
 The invoice number is missing. Add it and submit again.	缺少发票号，请补充后重新提交	ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่	請求書番号がありません。追加して再送信してください	intake.error.ERR_NO_INVOICE_NO
 Credit notes need a person to post them in MR.ERP	贷项通知单需在 MR.ERP 中人工处理	ใบลดหนี้ต้องบันทึกใน MR.ERP ด้วยตนเอง	返品・値引伝票は MR.ERP で手動で処理してください	intake.error.mrerp_credit_note
 Only invoices in Thai baht can be sent to MR.ERP	仅泰铢发票可推送至 MR.ERP	ส่งเข้า MR.ERP ได้เฉพาะเอกสารสกุลเงินบาท	MR.ERP に送れるのはタイバーツの伝票だけです	intake.error.mrerp_currency_not_thb
-Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express	此账套的单据不能同时有免税行和应税行，请在 Express 中录入	ชุดบัญชีนี้ใส่รายการยกเว้นภาษีและรายการที่มีภาษีในเอกสารเดียวกันไม่ได้ กรุณาบันทึกใน Express	この会計データでは免税明細と課税明細を同じ伝票に入れられません。Express で入力してください	intake.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT
 Operator Ledgers	实操账本	ระบบบัญชีที่บันทึกแทนได้	代行入力先の帳簿
 Checked pending items	查看了待处理	ตรวจสอบรายการรอดำเนินการแล้ว	処理待ちの項目を確認しました
 Checking pending items	正在查看待处理	กำลังตรวจสอบรายการรอดำเนินการ	処理待ちの項目を確認しています
