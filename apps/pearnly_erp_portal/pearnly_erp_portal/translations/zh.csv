@@ -424,6 +424,7 @@ Date  {0}  to  {1},日期  {0}  至  {1}
 Date (BE),日期（佛历）
 Date created (newest first),创建时间（最新优先）
 Date created (oldest first),创建时间（最早优先）
+Date must be in ascending order,“日期”必须从小到大
 Dates,日期
 Days later,天后
 Decided At,处理时间
@@ -1060,6 +1061,7 @@ Product / position / counted by / time,物料 / 仓位 / 盘点人 / 时间
 Product Adjustment,物料调整
 Product Code,物料代码
 Product Code  {0}  to  {1},物料代码  {0}  至  {1}
+Product Code must be in ascending order,“物料代码”必须从小到大
 Product ID,物料标识
 Product Name,物料名称
 Product Ref,物料外部标识
@@ -1253,6 +1255,7 @@ Select a receipt to load its summary,选择小票以加载汇总
 Select a stock count,选择盘点
 Select a warehouse and opening date first,请先选择仓库和期初日期
 Select an invoice to load summary data,选择一张单据以查看汇总
+"Select both ""Date"" values",请选齐“日期”
 Select item group,选择物料组
 Select one receipt to refund,每次只能对一张小票退款
 Select one row to open its ledger,请仅选择一行以查看流水
@@ -1738,6 +1741,7 @@ Waiting for the original day summary to be written,等待原日汇总写入
 Walk-in customer,散客
 Warehouse,仓库
 Warehouse Code  {0}  to  {1},仓库代码  {0}  至  {1}
+Warehouse Code must be in ascending order,“仓库代码”必须从小到大
 Warehouse Rows  {0}  Products  {1},仓库明细  {0}  笔  {1}  个物料
 Warehouse Total,仓库合计
 Warehouse code,仓库编号
@@ -2894,6 +2898,10 @@ trade.export.carried,上期结转
 trade.export.code,物料代码
 trade.export.date,日期
 trade.export.dateRange,日期  {0}  至  {1}
+trade.export.error.dateOrder,“日期”必须从小到大
+trade.export.error.dateRequired,请选齐“日期”
+trade.export.error.productOrder,“物料代码”必须从小到大
+trade.export.error.warehouseOrder,“仓库代码”必须从小到大
 trade.export.format,格式
 trade.export.grand,总计  {0}  个物料
 trade.export.issueValue,发出金额

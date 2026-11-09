@@ -646,5 +646,44 @@ class Export(unittest.TestCase):
         self.assertEqual(sheet.oddHeader.right.text, "&P/&N")
 
 
+class WarehouseCode(unittest.TestCase):
+    """② 仓库编号服务端统一取（主会话 11-09）：仓库页「รหัสคลัง」那一栏与收发存导出用同一个值 `warehouses.display_code`。"""
+
+    def setUp(self):
+        modules = patch.dict(sys.modules)
+        modules.start()
+        self.addCleanup(modules.stop)
+        rows = [{"name": "WH-00001", "warehouse_name": "คลัง Express", "warehouse_code": "", "express_code": "EXP1",
+                 "company": "CO1", "is_active": 1, "note": ""},
+                {"name": "WH-00002", "warehouse_name": "คลังมีรหัส", "warehouse_code": "WH01 ", "express_code": "",
+                 "company": "CO1", "is_active": 1, "note": ""},
+                {"name": "WH-00003", "warehouse_name": "Test repository", "warehouse_code": "", "express_code": "",
+                 "company": "CO1", "is_active": 1, "note": ""}]
+        frappe = ModuleType("frappe")
+        frappe._ = lambda text: text
+        frappe.get_list = lambda doctype, **kwargs: [dict(row) for row in rows]
+        frappe.get_all = lambda doctype, **kwargs: [{"name": "CO1", "company_name": "บริษัท ทดสอบ จำกัด"}]
+        frappe.whitelist = lambda *args, **kwargs: (lambda function: function)
+        access = ModuleType("pearnly_erp_portal.access")
+        access.guard = SimpleNamespace(require=lambda capability: None)
+        masters = ModuleType("pearnly_erp_portal.masters")
+        masters.company = SimpleNamespace(document_company=lambda company=None: "CO1", active_company=lambda: "CO1")
+        sys.modules.update({"frappe": frappe, "pearnly_erp_portal.access": access, "pearnly_erp_portal.masters": masters,
+                            "pearnly_erp_portal.masters.company": masters.company})
+        self.warehouses = load("card_export_warehouses", DOMAIN / "warehouses.py")
+
+    def test_the_list_carries_the_code_the_page_and_the_export_use(self):
+        listed = self.warehouses.list_warehouses(include_inactive=True, limit=0)
+        self.assertEqual([row["display_code"] for row in listed], ["EXP1", "WH01", "WH-00003"])   # 没填编号 → 系统号，不是仓名
+        self.assertEqual([self.warehouses.display_code(row) for row in listed], ["EXP1", "WH01", "WH-00003"])
+
+    def test_the_page_shows_the_server_value_and_the_export_calls_the_same_function(self):
+        page = (DOMAIN.parent / "public/desk/warehouses.js").read_text(encoding="utf-8")
+        column = page.split('fieldname: "display_code"', 1)
+        self.assertEqual(len(column), 2, "仓库页编号那一栏要显示服务端的 display_code")
+        self.assertNotIn("row?.name", column[1].split("}", 1)[0])                                # 前端不再自己拼
+        self.assertIn("warehouses.display_code(row)", (DOMAIN / "card_export.py").read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()

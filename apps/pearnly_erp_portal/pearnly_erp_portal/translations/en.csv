@@ -424,6 +424,7 @@ Date  {0}  to  {1},Date  {0}  to  {1}
 Date (BE),Date (BE)
 Date created (newest first),Date created (newest first)
 Date created (oldest first),Date created (oldest first)
+Date must be in ascending order,Date must be in ascending order
 Dates,Dates
 Days later,Days later
 Decided At,Decided At
@@ -1060,6 +1061,7 @@ Product / position / counted by / time,Product / position / counted by / time
 Product Adjustment,Product Adjustment
 Product Code,Product Code
 Product Code  {0}  to  {1},Product Code  {0}  to  {1}
+Product Code must be in ascending order,Product Code must be in ascending order
 Product ID,Product ID
 Product Name,Product Name
 Product Ref,Product Ref
@@ -1253,6 +1255,7 @@ Select a receipt to load its summary,Select a receipt to load its summary
 Select a stock count,Select a stock count
 Select a warehouse and opening date first,Select a warehouse and opening date first
 Select an invoice to load summary data,Select an invoice to load summary data
+"Select both ""Date"" values","Select both ""Date"" values"
 Select item group,Select item group
 Select one receipt to refund,Select one receipt to refund
 Select one row to open its ledger,Select one row to open its ledger
@@ -1738,6 +1741,7 @@ Waiting for the original day summary to be written,Waiting for the original day 
 Walk-in customer,Walk-in customer
 Warehouse,Warehouse
 Warehouse Code  {0}  to  {1},Warehouse Code  {0}  to  {1}
+Warehouse Code must be in ascending order,Warehouse Code must be in ascending order
 Warehouse Rows  {0}  Products  {1},Warehouse Rows  {0}  Products  {1}
 Warehouse Total,Warehouse Total
 Warehouse code,Warehouse code
@@ -2894,6 +2898,10 @@ trade.export.carried,Brought Forward
 trade.export.code,Product Code
 trade.export.date,Date
 trade.export.dateRange,Date  {0}  to  {1}
+trade.export.error.dateOrder,Date must be in ascending order
+trade.export.error.dateRequired,"Select both ""Date"" values"
+trade.export.error.productOrder,Product Code must be in ascending order
+trade.export.error.warehouseOrder,Warehouse Code must be in ascending order
 trade.export.format,Format
 trade.export.grand,Grand Total  {0}  products
 trade.export.issueValue,Issue Value

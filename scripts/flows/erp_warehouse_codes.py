@@ -3,6 +3,7 @@
 每套数据在仓库页打开数据清单里第一个仓：
 - 新开户（接了 Express 的仓）：编号一格就是 Express 仓库码、只读；
 - 老数据（本地仓）：填一个编号保存，库里记下、仓库列表那一列显示它。
+- 仓库列表「รหัสคลัง」那一栏是服务端给的 `display_code`（主会话 11-09，与收发存导出同一个值）：没填编号的仓显示系统号。
 两套都给第一个库位写说明与仓位编码（11-07）保存：库里记下；库位选择框的选项显示「编码 · 仓位 · 说明」，按编码搜得到这个仓位。
 没有库位清单的仓先建一个库位再写。
 """
@@ -50,7 +51,8 @@ def steps(params, camera_code=None):
          "return {code: d.get_value('warehouse_code')||'', code_read_only: !!d.fields_dict.warehouse_code.df.read_only,"
          " columns: (d.fields_dict.locations.grid.docfields||[]).map(f=>f.fieldname),"
          # 仓库列表有「仓库编号」这一列：按列表格子的字段名认（整页文字里找列名，开着的弹窗自己就有这个标签，判不出列）
-         " list_has_code_column: !!document.querySelector('.result .list-row-container [data-fieldname=\"warehouse_code\"]')};"},
+         " list_has_code_column: !!document.querySelector('.result .list-row-container [data-fieldname=\"display_code\"]'),"
+         " list_codes: [...document.querySelectorAll('.result .list-row-container [data-fieldname=\"display_code\"]')].map(e=>e.textContent.trim())};"},
         {"name": "填编号与库位说明保存", "js": IDLE +
          "const d=window.__dlgs[window.__dlgs.length-1]; if(!d) return {error:'no dialog'};"
          f"if(!d.fields_dict.warehouse_code.df.read_only) await d.set_value('warehouse_code', {code});"
@@ -75,9 +77,12 @@ def judge(params, results, camera_code=None):
     else:
         code_ok = not opened.get("code_read_only")
     label = next((o.get("label") for o in options if o.get("value") == params["location"]), None)
+    # prepare 清了手填编号：列表那一栏应是 Express 仓库码，没有就是系统号（不是仓名）
+    shown = params["express_code"] or params["warehouse"]
     return [
         {"case": "code field", "seen": opened, "ok": bool(code_ok) and {"description", "location_code"} <= set(opened.get("columns") or [])
          and opened.get("list_has_code_column")},
+        {"case": "list shows the server code", "seen": opened.get("list_codes"), "ok": shown in (opened.get("list_codes") or [])},
         {"case": "saved", "seen": by.get("填编号与库位说明保存"), "ok": (by.get("填编号与库位说明保存") or {}).get("closed") is True},
         {"case": "location option shows code, name and description", "seen": options,
          "ok": label == f"{params['location_code']} · {params['location']} · {params['note']}"},

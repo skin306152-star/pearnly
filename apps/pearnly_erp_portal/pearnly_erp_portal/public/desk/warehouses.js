@@ -50,9 +50,9 @@
 					// 当前公司的仓库：服务端按 `company` 过滤（`api_company_warehouses`）。
 					{fieldname: "warehouse_name", label: t("company.col.warehouse"),
 						width: 220, min_width: 150},
-					// 仓库编号（用户 10-29 批复 #3）：接了 Express 的仓就是 Express 仓库码；没填显示系统号
-					{fieldname: "warehouse_code", label: t("company.col.warehouseCode"), width: 120, min_width: 90,
-						format: (value, row) => row?.express_code || value || row?.name},
+					// 仓库编号（用户 10-29 批复 #3）：接了 Express 的仓就是 Express 仓库码；没填显示系统号。
+					// 值由服务端给（`warehouses.display_code`，主会话 11-09），收发存导出用的是同一个
+					{fieldname: "display_code", label: t("company.col.warehouseCode"), width: 120, min_width: 90},
 					// 仓库**属于公司**：这一列把绑定关系摆在面上（用户 2026-09-24：
 					// "现在的仓库和公司数据是否联动"）。这一页列的是**当前公司**的仓，
 					// 换公司（左上角那颗）整页跟着换。
@@ -70,12 +70,12 @@
 				on_open: row => (can_manage() ? editor(row) : null),
 				// 行内那颗「设为默认」跟着"默认仓"一起删了（它写的就是 `is_default`）。
 				// 列头点一下排序：一次取全，在本地排（同 core `p.sort_rows`）。
-				sort_fields: ["warehouse_name", "warehouse_code", "company_name", "note", "is_active"],
+				sort_fields: ["warehouse_name", "display_code", "company_name", "note", "is_active"],
 				load: async ({sort_by, sort_order}) => {
 					const rows = await p.call(api + "api_company_warehouses",
 						{company_name: frappe.boot.pearnly_company, include_inactive: 1});
 					const items = p.sort_rows(rows, {sort_by, sort_order,
-						fields: ["warehouse_name", "warehouse_code", "company_name", "note", "is_active"]});
+						fields: ["warehouse_name", "display_code", "company_name", "note", "is_active"]});
 					return {items, total: items.length};
 				},
 				empty_action: can_create()

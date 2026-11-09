@@ -424,6 +424,7 @@ Date  {0}  to  {1},日付  {0}  ～  {1}
 Date (BE),日付（仏暦）
 Date created (newest first),作成日（新しい順）
 Date created (oldest first),作成日（古い順）
+Date must be in ascending order,「日付」は昇順で指定してください
 Dates,日付
 Days later,日後
 Decided At,判定日時
@@ -1060,6 +1061,7 @@ Product / position / counted by / time,商品・位置・担当者・日時
 Product Adjustment,商品調整
 Product Code,品目コード
 Product Code  {0}  to  {1},品目コード  {0}  ～  {1}
+Product Code must be in ascending order,「品目コード」は昇順で指定してください
 Product ID,商品ID
 Product Name,商品名
 Product Ref,商品の外部参照
@@ -1253,6 +1255,7 @@ Select a receipt to load its summary,レシートを選ぶと集計を表示
 Select a stock count,棚卸を選択
 Select a warehouse and opening date first,先に倉庫と期首日を選択してください
 Select an invoice to load summary data,伝票を選択すると概要が表示されます
+"Select both ""Date"" values",「日付」を両方選択してください
 Select item group,品目グループを選択
 Select one receipt to refund,返品できるレシートは1件ずつです
 Select one row to open its ledger,明細は1行ずつ開きます
@@ -1738,6 +1741,7 @@ Waiting for the original day summary to be written,元の日次集計の書き�
 Walk-in customer,一般客
 Warehouse,倉庫
 Warehouse Code  {0}  to  {1},倉庫コード  {0}  ～  {1}
+Warehouse Code must be in ascending order,「倉庫コード」は昇順で指定してください
 Warehouse Rows  {0}  Products  {1},倉庫明細  {0}  件  {1}  品目
 Warehouse Total,倉庫合計
 Warehouse code,倉庫コード
@@ -2894,6 +2898,10 @@ trade.export.carried,前期繰越
 trade.export.code,品目コード
 trade.export.date,日付
 trade.export.dateRange,日付  {0}  ～  {1}
+trade.export.error.dateOrder,「日付」は昇順で指定してください
+trade.export.error.dateRequired,「日付」を両方選択してください
+trade.export.error.productOrder,「品目コード」は昇順で指定してください
+trade.export.error.warehouseOrder,「倉庫コード」は昇順で指定してください
 trade.export.format,形式
 trade.export.grand,総計  {0}  品目
 trade.export.issueValue,払出金額

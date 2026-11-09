@@ -424,6 +424,7 @@ Date  {0}  to  {1},วันที่  {0}  ถึง  {1}
 Date (BE),วันที่ พ.ศ.
 Date created (newest first),วันที่สร้าง (ใหม่สุดก่อน)
 Date created (oldest first),วันที่สร้าง (เก่าสุดก่อน)
+Date must be in ascending order,วันที่ ต้องเรียงลำดับจากน้อยไปมาก
 Dates,วันที่
 Days later,วันหลังจากนั้น
 Decided At,เวลาดำเนินการ
@@ -1060,6 +1061,7 @@ Product / position / counted by / time,สินค้า / ตำแหน่�
 Product Adjustment,ปรับปรุงสินค้า
 Product Code,รหัสสินค้า
 Product Code  {0}  to  {1},รหัสสินค้า  {0}  ถึง  {1}
+Product Code must be in ascending order,รหัสสินค้า ต้องเรียงลำดับจากน้อยไปมาก
 Product ID,รหัสระบุสินค้า
 Product Name,ชื่อสินค้า
 Product Ref,รหัสอ้างอิงสินค้า
@@ -1253,6 +1255,7 @@ Select a receipt to load its summary,เลือกใบเสร็จเพ�
 Select a stock count,เลือกการตรวจนับ
 Select a warehouse and opening date first,กรุณาเลือกคลังและวันที่ยกมาก่อน
 Select an invoice to load summary data,เลือกเอกสารเพื่อดูข้อมูลสรุป
+"Select both ""Date"" values","กรุณาเลือก ""วันที่"" ให้ครบ"
 Select item group,เลือกกลุ่มสินค้า
 Select one receipt to refund,คืนเงินได้ครั้งละหนึ่งใบเสร็จเท่านั้น
 Select one row to open its ledger,กรุณาเลือกเพียงหนึ่งรายการเพื่อดูบัญชีสต็อก
@@ -1738,6 +1741,7 @@ Waiting for the original day summary to be written,รอบันทึกส�
 Walk-in customer,ลูกค้าทั่วไป
 Warehouse,คลังสินค้า
 Warehouse Code  {0}  to  {1},รหัสคลังสินค้า  {0}  ถึง  {1}
+Warehouse Code must be in ascending order,รหัสคลังสินค้า ต้องเรียงลำดับจากน้อยไปมาก
 Warehouse Rows  {0}  Products  {1},รายละเอียดรวมคลัง  {0}  รายการ  {1}  สินค้า
 Warehouse Total,รวมคลัง
 Warehouse code,รหัสคลัง
@@ -2894,6 +2898,10 @@ trade.export.carried,ยอดยกมา
 trade.export.code,รหัสสินค้า
 trade.export.date,วันที่
 trade.export.dateRange,วันที่  {0}  ถึง  {1}
+trade.export.error.dateOrder,วันที่ ต้องเรียงลำดับจากน้อยไปมาก
+trade.export.error.dateRequired,"กรุณาเลือก ""วันที่"" ให้ครบ"
+trade.export.error.productOrder,รหัสสินค้า ต้องเรียงลำดับจากน้อยไปมาก
+trade.export.error.warehouseOrder,รหัสคลังสินค้า ต้องเรียงลำดับจากน้อยไปมาก
 trade.export.format,รูปแบบ
 trade.export.grand,รวมทั้งสิ้น  {0}  สินค้า
 trade.export.issueValue,มูลค่าจ่าย

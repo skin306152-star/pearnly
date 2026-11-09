@@ -296,6 +296,8 @@ def list_warehouses(*, include_inactive=False, limit=50, company=None) -> list[d
         fields=["name", "company_name"], limit_page_length=0)} if names else {}
     for row in rows:
         row["company_name"] = titles.get(row.get("company")) or row.get("company") or ""
+        # 仓库页「รหัสคลัง」那一栏显示的编号由服务端给（主会话 11-09），与收发存导出同一个值
+        row["display_code"] = display_code(row)
     return rows
 
 
