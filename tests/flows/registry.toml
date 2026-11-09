@@ -439,6 +439,22 @@ covers = [
 ]
 
 [[flow]]
+id = "cowork.ticket-once"
+title = "Cowork 同一张票只写一次：24 张里 4 张已从直写写进 Express，代录开始前卡片标出 4 张已写入、只交 20 张，站点交单同样跳过（复核 5 批之第 1 批）"
+module = "scripts/flows/cowork_ticket_once.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/ledger_tickets/*.py",
+  "apps/pearnly_core/pearnly_core/express_rules/contracts/ticket_identity.py",
+  "apps/pearnly_cowork/pearnly_cowork/history/tickets.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py",
+]
+
+[[flow]]
 id = "cc.ticket-once"
 title = "同一张票只写一次：24 张里 4 张已从直写写进 Express，代录开始前卡片标出 4 张已写入、只交 20 张，站点交单同样跳过 4 张（复核 5 批之第 1 批）"
 module = "scripts/flows/cc_ticket_once.py"
