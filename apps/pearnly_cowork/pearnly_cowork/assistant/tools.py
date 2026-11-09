@@ -930,7 +930,27 @@ def _submit_one(name, connection, account_set_key, posting_kind, route_device, o
     return {"submitted": (adapter, target, key, result)}
 
 
-def _push_one(name, connection=None, account_set_key=None, posting_kind=None, route_device="", operator=None) -> dict:
+def _push_one(name, connection=None, account_set_key=None, posting_kind=None, route_device="", operator=None, again=()) -> dict:
+    """推一张票前先判同一张票（复核 5 批之第 1 批，`pearnly_core.ledger_tickets`）：另一条写的同一张票已写成或正在写的默认不推，
+    回 ``skipped``（带它在账本里的单号）；``again`` 里的（人说了再写一次）照推。同一张票同一时刻只一个写者：拿到按身份的短锁后
+    再判一次再推，两条路同时交同一张时后到的读到前一条的结果。只看我们自己的推送记录（账本里手录的同号照写）。"""
+    from pearnly_core import ledger_tickets
+
+    def skipped(found):
+        return {"document": name, "status": direct_push.SKIPPED, "docnum": found.get("docnum") or "",
+                "twin_state": found.get("state") or ""}
+
+    found = ledger_tickets.entered(name, again)
+    if found:
+        return skipped(found)
+    with ledger_tickets.one_writer(name):
+        found = ledger_tickets.entered(name, again)
+        if found:
+            return skipped(found)
+        return _push_one_unguarded(name, connection, account_set_key, posting_kind, route_device, operator)
+
+
+def _push_one_unguarded(name, connection=None, account_set_key=None, posting_kind=None, route_device="", operator=None) -> dict:
     """推一张票（CC 的 `cowork_push_documents` 每一张、待处理页当场推 / 当场选后重推 / 换账套推都走这里）。``route_device``：
     定时任务的票由读文件夹的那台电脑写（待处理页按 `folder_intake.push.reader_of` 给，ADR-021 第 51 条）；空 = 录入人自己的电脑写。
 
@@ -1068,8 +1088,9 @@ def push_documents(tool_input) -> str:
     names = [str(n) for n in (tool_input.get("documents") or [])][:PUSH_MAX]
     if not names:
         frappe.throw(_("No documents were given."))
+    again = tuple(str(n) for n in (tool_input.get("enter_again") or []))[:PUSH_MAX]
     results = [_push_listed(name, tool_input.get("connection") or None, tool_input.get("account_set_key") or None,
-                            tool_input.get("posting_kind") or None) for name in names]
+                            tool_input.get("posting_kind") or None, again) for name in names]
     _settle(results)
     for item in results:
         if item.get("status") == "needs_choice" and item.get("note") == MRERP_SETUP_NOTE and not item.get("mrerp_setup"):
@@ -1086,7 +1107,7 @@ def push_documents(tool_input) -> str:
     return _json(out)
 
 
-def _push_listed(name, connection, account_set_key, posting_kind) -> dict:
+def _push_listed(name, connection, account_set_key, posting_kind, again=()) -> dict:
     """`cowork_push_documents` 的一张。停在「待选账套」的单（推往票上那条连接）不按票上那份账套推：这次说了账套、或这一组记住了
     现用的那份，走待处理当场换账套同一条（`pending_api.push_to_account_set`：只收候选里的，推成了才抄去向，推不成放回「待选
     账套」，多份同期时选的那份记成这家公司现用的）；都没有、或说的不在候选里回 ``needs_choice``（``account_set_not_chosen``，
@@ -1098,7 +1119,7 @@ def _push_listed(name, connection, account_set_key, posting_kind) -> dict:
         return {"document": name, "status": "not_found"}
     stop = _stop_target(doc) if connection in (None, _field(doc, "push_connection")) else None
     if not stop:
-        return _push_one(name, connection, account_set_key, posting_kind)
+        return _push_one(name, connection, account_set_key, posting_kind, again=again)
     key = account_set_key or (stop.get("push_account_set") if stop.get("account_set_remembered") else None)
     if not key:
         return _not_chosen(name, stop, status="needs_choice")
@@ -4445,7 +4466,7 @@ TOOLS = [
                     "(no result yet, or CC Desktop is offline: it is entered later; check with cowork_push_results "
                     "when the user asks; last_attempt_failed means a try did not go through and it is tried again), "
                     "failed with a reason, " + direct_push.unconfirmed_rule("Express or MR.ERP", "cowork_resolve_push_result")
-                    + ", needs_choice "
+                    + ", " + direct_push.skipped_rule("Express or MR.ERP") + ", needs_choice "
                     "(call pearnly_precheck for those documents, ask with ask_user, save with pearnly_precheck_answer "
                     "and push again; for MR.ERP it comes with mrerp_setup, the import menus or default values that "
                     "account set still needs: choose them with cowork_mrerp_setup instead), "
@@ -4466,7 +4487,8 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {
          "documents": direct_push.documents_prop(PUSH_MAX),
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},
-         "posting_kind": {"type": "string", "enum": ["service", "stock"], "description": "Express."}},
+         "posting_kind": {"type": "string", "enum": ["service", "stock"], "description": "Express."},
+         "enter_again": {"type": "array", "items": {"type": "string"}, "maxItems": PUSH_MAX}},
          "required": ["documents"]},
      "handler": "pearnly_cowork.assistant.tools.push_documents"},
     {"name": "cowork_resolve_push_result", "label": "Confirmed a push result",

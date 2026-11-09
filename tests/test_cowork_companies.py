@@ -19,6 +19,7 @@ from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
+CORE = ROOT / "apps/pearnly_core/pearnly_core"
 for path in (ROOT / "apps/pearnly_cowork", ROOT / "apps/pearnly_core"):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
@@ -1790,6 +1791,16 @@ class DocumentPolicySettleTests(unittest.TestCase):
         self.assertEqual(calls, [("cert", "")])
 
 
+def _real_ledger_tickets():
+    """共用层「同一张票只写一次」的真模块（只依赖 frappe 的 hooks / 缓存，测试里换掉 ``lookup``）。"""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("pearnly_core.ledger_tickets", CORE / "ledger_tickets/__init__.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class OperatorSourceTests(unittest.TestCase):
     """代录的 Cowork 一侧（`assistant.operator_source`，主会话 10-27 必修 ① ②、资料区分组按公司记住）：预检逐张走推送准备同一套
     判断（`assistant.precheck_source.operator_check`，替身仍记在 service 上）；开录时先把预检里人定的按复核页同一条路记下，再按代录交（带代录标记），不经待处理、不按直写
@@ -1807,8 +1818,8 @@ class OperatorSourceTests(unittest.TestCase):
                                                               push_account_set="P:\\69EXP\\TEST",
                                                               **((docs or {}).get(name) or {})))
 
-        def push_one(name, posting_kind=None, route_device="", operator=None):
-            calls.append(("push", name, route_device, operator, posting_kind))
+        def push_one(name, posting_kind=None, route_device="", operator=None, again=()):
+            calls.append(("push", name, route_device, operator, posting_kind) + ((("again", again),) if again else ()))
             return {"status": "sent"}
 
         def save(name, value, version):
@@ -1949,36 +1960,63 @@ class OperatorSourceTests(unittest.TestCase):
         self.assertEqual([c[4] for c in calls if c[0] == "push"], ["service"])  # 入账类型明传，单据列不再盖过它
 
     def test_a_ticket_already_written_by_direct_push_is_found(self):
-        """用户 11-09：同一张票已写进 Express 的，代录默认跳过。按身份键（复核 5 批之第 1 批）在同一工作区、同一客户公司、同一条
-        连接与账套里、已推送成功的认；别的客户公司、别的账套的不算；只算近似的（一方没有税号）不跳。只看我们自己的推送记录。"""
-        module, _calls = self.load()
+        """用户 11-09：同一张票已写进 Express 的，代录默认跳过。Cowork 的声明（`history.tickets.twin`，复核 5 批之第 1 批）按身份键
+        在同一工作区、同一客户公司、同一条连接与账套里认：写成了是 entered（带单号）、正在写是 queued；别的客户公司、别的账套
+        的不算；只算近似的（一方没有税号）、认不出身份的不判。只看我们自己的推送记录（识别单上的推送状态），不查账本里有没有同号。"""
+        import importlib.util
+
+        sys.modules.setdefault("pearnly_core.ledger_tickets", _real_ledger_tickets())
+        spec = importlib.util.spec_from_file_location("pearnly_cowork.history.tickets", APP / "history/tickets.py")
+        tickets = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(tickets)
 
         class _Rowd(dict):
             __getattr__ = dict.get
         mine = _Rowd(name="h1", workspace="W1", client="CL1", ticket_key="k" * 40, ticket_level="exact",
                      push_connection="C1", push_account_set="k1")
-        twins = [_Rowd(name="h7", client="CL2", push_account_set="k1", last_push_record="PR-7"),  # 别的客户公司
-                 _Rowd(name="h8", client="CL1", push_account_set="k2", last_push_record="PR-8"),  # 别的账套
-                 _Rowd(name="h9", client="CL1", push_account_set="k1", last_push_record="PR-9")]
-        seen = []
+        twins = [_Rowd(name="h7", client="CL2", push_account_set="k1", last_push_status="success", last_push_record="PR-7"),
+                 _Rowd(name="h8", client="CL1", push_account_set="k2", last_push_status="success", last_push_record="PR-8"),
+                 _Rowd(name="h9", client="CL1", push_account_set="k1", last_push_status="success", last_push_record="PR-9")]
+        seen, asked = [], []
 
         def value(doctype, name, fields=None, *a, **k):
-            return mine if doctype == module.HISTORY else "IV/69/0753"
+            asked.append(doctype)
+            return mine if doctype == tickets.HISTORY else "IV/69/0753"
 
         def listed(doctype, filters=None, **k):
-            seen.append(filters)
+            seen.append((doctype, filters))
             return twins
 
-        with mock.patch.object(frappe.db, "get_value", value, create=True), \
-                mock.patch.object(frappe, "get_all", listed, create=True):
-            self.assertEqual(module.written_twin("h1"), {"doc_id": "h9", "docnum": "IV/69/0753"})
+        with mock.patch.object(tickets.frappe.db, "get_value", value, create=True), \
+                mock.patch.object(tickets.frappe, "get_all", listed, create=True):
+            found = tickets.twin("h1")
+            self.assertEqual((found["doc_id"], found["docnum"], found["state"]), ("h9", "IV/69/0753", "entered"))
+            self.assertTrue(found["key"].endswith("k" * 40) and found["key"].startswith("W1:CL1:C1:k1:"))
+            twins[2]["last_push_status"] = "pending"
+            self.assertEqual((tickets.twin("h1")["state"], tickets.twin("h1")["docnum"]), ("queued", ""))
+            twins.pop()
+            self.assertEqual(set(tickets.twin("h1")), {"key"})  # 认出身份、没写过：只回锁用的键
             mine["ticket_level"] = "near"
-            self.assertEqual(module.written_twin("h1"), {})
-            mine.update(ticket_level="exact", ticket_key=None)  # 认不出身份（单号、日期、金额缺一项）：不判
-            self.assertEqual(module.written_twin("h1"), {})
-        self.assertEqual((seen[0]["ticket_key"], seen[0]["last_push_status"], seen[0]["push_connection"], seen[0]["workspace"]),
-                         ("k" * 40, "success", "C1", "W1"))
-        self.assertEqual(len(seen), 1)
+            self.assertEqual(tickets.twin("h1"), {})
+            mine.update(ticket_level="exact", ticket_key=None)
+            self.assertEqual(tickets.twin("h1"), {})
+        self.assertEqual({doctype for doctype, _ in seen}, {tickets.HISTORY})  # 只读我们自己的识别单，不碰账本主档
+        self.assertEqual(set(asked), {tickets.HISTORY, tickets.PUSH_RECORD})
+        filters = seen[0][1]
+        self.assertEqual((filters["ticket_key"], filters["last_push_status"], filters["push_connection"], filters["workspace"]),
+                         ("k" * 40, ["in", ["success", "pending"]], "C1", "W1"))
+
+    def test_hands_on_entry_skips_a_ticket_entered_elsewhere_unless_entered_again(self):
+        module, calls = self.load()
+        ledger = sys.modules.setdefault("pearnly_core.ledger_tickets", _real_ledger_tickets())
+        written = {"h1": {"doc_id": "h9", "docnum": "IV/69/0753", "state": "entered", "key": "K"}}
+        with mock.patch.object(ledger, "lookup", lambda name: written.get(name, {"key": "K2"})):
+            results = module.submit("CO1", ["h1", "h2"], {"id": "b1", "total": 2, "start_at": 0}, "CCD-1")
+            self.assertEqual(results[0], {"doc_id": "h1", "status": "written", "reason": "IV/69/0753"})
+            self.assertEqual([c[1] for c in calls if c[0] == "push"], ["h2"])
+            module.submit("CO1", ["h1"], {"id": "b2", "total": 1, "start_at": 0, "again": ["h1"]}, "CCD-1")
+        pushed = [c for c in calls if c[0] == "push"]
+        self.assertEqual((pushed[-1][1], pushed[-1][-1]), ("h1", ("again", ("h1",))))  # 再写一次：照交，推送那一步也放行
 
     def test_after_a_restart_the_site_says_where_each_document_stands(self):
         docs = {"h1": {"last_push_status": "success", "last_push_record": "PR-1"},
@@ -2065,7 +2103,7 @@ class PendingAnswerTests(unittest.TestCase):
         document_policy = types.SimpleNamespace(record=lambda workspace, key, value, seen="": (
             self.seen.append(seen), calls.append(("remember", workspace, key.rsplit("|", 1)[0], value))))
 
-        def push_one(*args, route_device=""):
+        def push_one(*args, route_device="", again=()):
             calls.append(("push",) + args + ((("route_device", route_device),) if route_device else ()))
             return dict(pushed)
 
