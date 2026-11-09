@@ -1322,6 +1322,52 @@ assert.equal(s.messages.filter((m: any) => m.role === "user").length, 1);
 assert.equal(isBusy(s), false);
 """)
 
+    def test_a_message_typed_during_a_reply_waits_and_goes_out_when_the_turn_ends(self):
+        # 批 A ⑤（对照文档第 2 项，11-09 实测：Claude 回复中回车 = 排队，那句先显示、可撤回，本轮完了自动发；CC 回车只换行）。
+        # 发送排队：空闲时照旧马上发；在忙（发送中、回复中、等允许）时收下排着；可撤回；本轮结束放下一条；发不出去也不卡住后面的
+        self.run_page(r"""
+import { createSendQueue } from "@/lib/managed-agents/send-queue";
+---
+const sent: string[] = [];
+let fail = false;
+const msg = (text: string) => ({ role: "user", content: [{ type: "text", text }], parentId: null, sourceId: null, runConfig: {}, attachments: [] }) as any;
+const q = createSendQueue(async (m: any) => {
+  const text = m.content[0].text;
+  if (fail && text === "四") throw new Error("offline");
+  sent.push(text);
+});
+// 空闲：马上发
+q.adapter.enqueue(msg("一"), { steer: false });
+await g.sleep(5);
+assert.deepEqual(sent, ["一"]);
+q.setBusy(true);          // 这一轮开跑
+q.adapter.enqueue(msg("二"), { steer: false });
+q.adapter.enqueue(msg("三"), { steer: false });
+await g.sleep(5);
+assert.deepEqual(sent, ["一"]);
+assert.deepEqual(q.adapter.items.map((i: any) => i.prompt), ["二", "三"]);
+q.adapter.remove(q.adapter.items[1].id);   // 撤回一条
+assert.deepEqual(q.adapter.items.map((i: any) => i.prompt), ["二"]);
+q.setBusy(false);         // 这一轮结束：放下一条
+await g.sleep(5);
+assert.deepEqual(sent, ["一", "二"]);
+assert.equal(q.adapter.items.length, 0);
+// 发不出去（断网）：不卡住，后面排着的照样能发
+q.setBusy(true);
+q.adapter.enqueue(msg("四"), { steer: false });
+q.adapter.enqueue(msg("五"), { steer: false });
+fail = true;
+q.setBusy(false);
+await g.sleep(5);
+assert.deepEqual(sent, ["一", "二", "五"]);
+""")
+        provider = (SRC / "lib/managed-agents/runtime-provider.tsx").read_text(encoding="utf-8")
+        self.assertIn("queue: sendQueue.adapter", provider)
+        self.assertIn("sendQueue.setBusy(", provider)
+        thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
+        self.assertIn("<ComposerPrimitive.Queue", thread)
+        self.assertIn("<QueueItemPrimitive.Remove", thread)
+
     def test_the_top_line_stays_while_the_network_is_down_past_the_stall(self):
         # 第 11 轮重测 E 段（g34）：断网超过 30 秒，第 5–25 秒顶部「正在重新连接…」，第 30 秒起这一行自己消失、网络其实还断着。
         # 原因：这一轮卡住（stalled）时顶部那一行按设计不说（让给状态行的「连接中断，正在重连…」），看门重开尾巴本身没清掉出错状态。
@@ -1851,7 +1897,8 @@ g.setTimeout = realSetTimeout;
     def test_send_failure_wiring(self):
         # onNew 经 attemptSend（不抛出）；原因写在输入框上方，同对话里出错那一行的样子；放回的图片按会话位置取本页预览
         provider = (SRC / "lib/managed-agents/runtime-provider.tsx").read_text(encoding="utf-8")
-        on_new = provider.split("onNew: async (message: AppendMessage) => {", 1)[1].split("\n    // Stop button", 1)[0]
+        # 批 A ⑤：发出一条的函数提到外面（输入框发送、排队的那句轮到时都走它，send-queue.ts）
+        on_new = provider.split("const onNew = async (message: AppendMessage) => {", 1)[1].split("\n  onNewRef.current = onNew;", 1)[0]
         self.assertIn("ok = await attemptSend(threadId, restore, async (sent) => {", on_new)
         self.assertIn("const restore = { composer: composer.current, text, attachments: message.attachments };", on_new)
         self.assertIn("if (!ok) return;", on_new)

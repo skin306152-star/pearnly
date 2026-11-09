@@ -32,6 +32,7 @@ import { createAttachmentAdapter, filesToSend } from "./attachments";
 import { beginPendingText, clearPending, pendingShownAs } from "./pending-send";
 import { watchList } from "./list-sync";
 import { NewChatSend } from "./new-chat-send";
+import { createSendQueue } from "./send-queue";
 import { attemptSend, attemptStop, clearStopFailure, type ComposerLike, noteUnavailable, sendLanded } from "./send-failure";
 import { registerStop } from "./stop-run";
 import { sessionListAdapter } from "./session-list-adapter";
@@ -158,6 +159,57 @@ function useSessionThreadRuntime() {
   useEffect(() => {
     if (!running) clearStopFailure(threadId);
   }, [running, threadId]);
+  // 回复中先打下一句：输入框的发送先进排队，在忙时排着、本轮结束自动发、可撤回（批 A ⑤，send-queue.ts）
+  const onNewRef = useRef<((message: AppendMessage) => Promise<void>) | null>(null);
+  const sendQueue = useMemo(() => createSendQueue((message) => onNewRef.current?.(message) ?? Promise.resolve()), []);
+  useSyncExternalStore(sendQueue.subscribe, () => sendQueue.adapter.items);
+  useEffect(() => {
+    sendQueue.setBusy(running);
+  }, [sendQueue, running]);
+
+  // 发出一条（输入框发送、排队的那句轮到时都走这里，send-queue.ts）
+  const onNew = async (message: AppendMessage) => {
+    // 按「还没有用户消息」判断首条：先加附件时会话在上传那一刻就建好了，按「有没有会话」判断会漏掉取标题，
+    // 侧栏一直是「新对话」（2026-10-10 测试）。
+    const isFirst = !snapshot.messages.some((m) => m.role === "user");
+    const text = textOf(message);
+    // 按下发送立刻出现气泡（新对话要先建会话，约 1 秒）；真正的气泡放进对话、并且画出来了才撤（thread.tsx 的
+    // PendingSendBubble），不会两个都在，也不会两个都不在。发送请求结束时（至少一次往返，早已画出）兜底撤掉。
+    beginPendingText(text);
+    // 建会话或发出没成功（没设置 CC、没有权限、断网、服务端出错）：组件库不接这个错、也不放回输入框。attemptSend 把原因写在
+    // 输入框上方、没发出去的字和附件放回输入框，不抛出（send-failure.ts）；临时气泡与「思考中」由下面 finally 撤掉
+    // （已有对话的乐观气泡会话控制器已撤回）。
+    const restore = { composer: composer.current, text, attachments: message.attachments };
+    let ok = false;
+    try {
+      ok = await attemptSend(threadId, restore, async (sent) => {
+        // 有附件没传上（发送时已重传过一次）：整条不发，先于建会话、发出（attachments.ts 的 filesToSend）
+        const files = filesToSend(message.attachments);
+        const send = async (id: string) => {
+          await getSessionController(id).sendMessage(text, files, pendingShownAs);
+          sent();
+        };
+        // 还没有会话（新对话、没先加附件）：建会话期间就是在跑，期间点停止就在发出后打断（new-chat-send.ts）。打断没成功
+        // 同停止键：只写原因（attemptStop），消息已发出，不当发送失败、不放回输入框（第 10 轮 E30）
+        if (controller) await send(await ensureSession());
+        // 新对话：会话是这一下刚建的，历史本来是空的——第一句不等整段补拉就发（批 A ②，session-controller 的 created）
+        else await newChat.run(async () => {
+          const id = await ensureSession();
+          getSessionController(id).created();
+          return id;
+        }, send, async (id) => {
+          await attemptStop(threadId, () => getSessionController(id).interrupt());
+        });
+      });
+    } finally {
+      clearPending();
+    }
+    if (!ok) return;
+    // 会话由我们自己建（initialize 在发送前），组件库「首轮结束后取标题」的钩子不会触发；
+    // 这里自己取：先是首条消息（服务端的临时标题），第一轮结束后服务端起好主题标题推过来，侧栏就地换上（list-sync.ts）。
+    if (isFirst) void aui.threadListItem().generateTitle();
+  };
+  onNewRef.current = onNew;
 
   const runtime = useExternalStoreRuntime<ThreadMessageLike>({
     // Cast is safe: the reducer's message model is a structural subset of
@@ -171,48 +223,9 @@ function useSessionThreadRuntime() {
     isDisabled: snapshot.isDead,
     isSendDisabled: operator && !sessionId && !draftReady,
     adapters: { attachments },
+    queue: sendQueue.adapter,
 
-    onNew: async (message: AppendMessage) => {
-      // 按「还没有用户消息」判断首条：先加附件时会话在上传那一刻就建好了，按「有没有会话」判断会漏掉取标题，
-      // 侧栏一直是「新对话」（2026-10-10 测试）。
-      const isFirst = !snapshot.messages.some((m) => m.role === "user");
-      const text = textOf(message);
-      // 按下发送立刻出现气泡（新对话要先建会话，约 1 秒）；真正的气泡放进对话、并且画出来了才撤（thread.tsx 的
-      // PendingSendBubble），不会两个都在，也不会两个都不在。发送请求结束时（至少一次往返，早已画出）兜底撤掉。
-      beginPendingText(text);
-      // 建会话或发出没成功（没设置 CC、没有权限、断网、服务端出错）：组件库不接这个错、也不放回输入框。attemptSend 把原因写在
-      // 输入框上方、没发出去的字和附件放回输入框，不抛出（send-failure.ts）；临时气泡与「思考中」由下面 finally 撤掉
-      // （已有对话的乐观气泡会话控制器已撤回）。
-      const restore = { composer: composer.current, text, attachments: message.attachments };
-      let ok = false;
-      try {
-        ok = await attemptSend(threadId, restore, async (sent) => {
-          // 有附件没传上（发送时已重传过一次）：整条不发，先于建会话、发出（attachments.ts 的 filesToSend）
-          const files = filesToSend(message.attachments);
-          const send = async (id: string) => {
-            await getSessionController(id).sendMessage(text, files, pendingShownAs);
-            sent();
-          };
-          // 还没有会话（新对话、没先加附件）：建会话期间就是在跑，期间点停止就在发出后打断（new-chat-send.ts）。打断没成功
-          // 同停止键：只写原因（attemptStop），消息已发出，不当发送失败、不放回输入框（第 10 轮 E30）
-          if (controller) await send(await ensureSession());
-          // 新对话：会话是这一下刚建的，历史本来是空的——第一句不等整段补拉就发（批 A ②，session-controller 的 created）
-          else await newChat.run(async () => {
-            const id = await ensureSession();
-            getSessionController(id).created();
-            return id;
-          }, send, async (id) => {
-            await attemptStop(threadId, () => getSessionController(id).interrupt());
-          });
-        });
-      } finally {
-        clearPending();
-      }
-      if (!ok) return;
-      // 会话由我们自己建（initialize 在发送前），组件库「首轮结束后取标题」的钩子不会触发；
-      // 这里自己取：先是首条消息（服务端的临时标题），第一轮结束后服务端起好主题标题推过来，侧栏就地换上（list-sync.ts）。
-      if (isFirst) void aui.threadListItem().generateTitle();
-    },
+    onNew,
 
     // 不给组件库 onCancel：停止键与 Esc 走 stopRun（stop-run.ts），组件库自己的 cancelRun 会删掉最后那条用户消息、字放回输入框
 

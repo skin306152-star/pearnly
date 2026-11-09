@@ -1317,6 +1317,15 @@
     color: var(--cc-bubble-ink); box-shadow: var(--cc-bubble-shadow); font-size: var(--cc-body-size); line-height: var(--cc-body-lh);
     max-width: var(--cc-bubble-max); padding: var(--cc-space-8) var(--cc-space-12); overflow-wrap: anywhere; white-space: pre-wrap; transform-origin: bottom right;
   }
+  /* 回复中先打的下一句（批 A ⑤，thread.tsx 的 ComposerQueue）：输入框上方一句一行，样子同自己的气泡、靠右，右边 × 撤回 */
+  .cc-queue-item {
+    display: flex; align-items: center; justify-content: flex-end; gap: var(--cc-space-6);
+    margin: 0 0 var(--cc-space-6) auto; max-width: var(--cc-bubble-max);
+    border-radius: var(--cc-radius-bubble); background: var(--cc-bubble-bg); color: var(--cc-bubble-ink);
+    font-size: var(--cc-body-size); line-height: var(--cc-body-lh); padding: var(--cc-space-6) var(--cc-space-6) var(--cc-space-6) var(--cc-space-12);
+  }
+  .cc-queue-text { overflow-wrap: anywhere; white-space: pre-wrap; }
+  .cc-queue-remove { flex: none; }
   /* 发出：从右下角轻轻弹出 */
   .cc-bubble-user[data-enter] { animation: cc-send-pop var(--cc-dur-pop) var(--cc-ease-spring) both; }
   /* 回复正文：电脑 14/20、手机 16/24（--cc-body-*，变体切）；字体按设置「对话字体」 */

@@ -8707,9 +8707,9 @@ assert.deepEqual(users(), ["earlier", "hello"]);
         # 新对话发出后补的打断没成功：同停止键，只写停止的原因，不当发送失败、不放回输入框
         provider = read("lib/managed-agents/runtime-provider.tsx")
         self.assertIn("}, send, async (id) => {\n"
-                      "            await attemptStop(threadId, () => getSessionController(id).interrupt());", provider)
+                      "          await attemptStop(threadId, () => getSessionController(id).interrupt());", provider)
         # 批 A ②：新对话的会话是这一下刚建的，标成历史为空（第一句不等整段补拉）
-        self.assertIn("const id = await ensureSession();\n            getSessionController(id).created();", provider)
+        self.assertIn("const id = await ensureSession();\n          getSessionController(id).created();", provider)
         controller = read("lib/managed-agents/session-controller.ts")
         self.assertIn("if (!this.state.echoedOptimistic.has(optimisticId)) {", controller)
 

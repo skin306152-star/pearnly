@@ -25,6 +25,7 @@ import {
   ErrorPrimitive,
   groupPartByType,
   MessagePrimitive,
+  QueueItemPrimitive,
   ThreadPrimitive,
   type ToolCallMessagePartComponent,
   useAuiState,
@@ -38,6 +39,7 @@ import {
   DownloadIcon,
   FileSpreadsheetIcon,
   SquareIcon,
+  XIcon,
 } from "lucide-react";
 import { fileUrl } from "@/lib/managed-agents/api";
 import { clearPending, lastSendAt, pendingLanded, setDraft, takeHandoff, usePendingSend } from "@/lib/managed-agents/pending-send";
@@ -422,6 +424,7 @@ export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: Compon
           className="cc-composer cc-composer-inline"
           data-collapsed={!typing && empty ? "" : undefined}
         >
+          <ComposerQueue />
           <ComposerAttachments />
           {draft && <DraftWatcher />}
           <ComposerPrimitive.Input
@@ -470,8 +473,9 @@ const ComposerAction: FC<{ onSend: () => void; stop?: ComposerStop | undefined }
           stop.running ? <StopButton onStop={stop.onStop} /> : send
         ) : (
           <>
-            <AuiIf condition={(s) => !s.thread.isRunning}>{send}</AuiIf>
-            <AuiIf condition={(s) => s.thread.isRunning}>
+            {/* 回复中输入框里有字：发送键（这一句先排着，本轮完了自动发，批 A ⑤）；空着才是停止键（同 Claude 11-09 实测） */}
+            <AuiIf condition={(s) => !s.thread.isRunning || !s.composer.isEmpty}>{send}</AuiIf>
+            <AuiIf condition={(s) => s.thread.isRunning && s.composer.isEmpty}>
               <StopButton />
             </AuiIf>
           </>
@@ -480,6 +484,23 @@ const ComposerAction: FC<{ onSend: () => void; stop?: ComposerStop | undefined }
     </div>
   );
 };
+
+/** 回复中先打的下一句（批 A ⑤，lib/managed-agents/send-queue.ts）：排在输入框上方，一句一行，右边 × 撤回；本轮完了自动发出、
+ *  从这里消失。只在本页（刷新就没了，同 Claude）。 */
+const ComposerQueue: FC = () => (
+  <ComposerPrimitive.Queue>
+    {({ queueItem }) => (
+      <div className="cc-queue-item" data-slot="cc-queue-item">
+        <span className="cc-queue-text">{queueItem.prompt}</span>
+        <QueueItemPrimitive.Remove asChild>
+          <TooltipIconButton tooltip={t("removeFile")} className="cc-queue-remove">
+            <XIcon />
+          </TooltipIconButton>
+        </QueueItemPrimitive.Remove>
+      </div>
+    )}
+  </ComposerPrimitive.Queue>
+);
 
 /** 停止键：真正的打断，消息留在对话里、字不放回输入框（不经组件库的 cancelRun，stop-run.ts）。onStop：调用方自己的停止（实操停这一批）。 */
 const StopButton: FC<{ onStop?: () => void }> = ({ onStop }) => {

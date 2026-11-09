@@ -31,7 +31,7 @@ def prepare(lab, manifest):
     lab.python(manifest["site"], 'frappe.db.set_value("User", "admin@erp.regression", "language", "zh")\nfrappe.db.commit()\nprint("{}")')
     tag = "flow" + uuid.uuid4().hex[:6]
     before = lab.python(manifest["site"], 'print(json.dumps({"n": frappe.db.count("Pearnly Assistant Session", {"user": "admin@erp.regression"})}))')
-    return {"tag": tag, "first": f"{tag} 盘点一下三号仓", "second": f"{tag} second turn", "draft": f"{tag} 还没发的一句",
+    return {"tag": tag, "first": f"{tag} 盘点一下三号仓", "second": f"{tag} second turn", "draft": f"{tag} 还没发的一句", "queued": f"{tag} queued next",
             "sessions_before": before["n"], "cases": []}
 
 
@@ -43,6 +43,15 @@ def steps(params, camera_code=None):
          "return {got, user: roles('user'), assistant: roles('assistant')};"},
         {"name": "第二轮", "js": WAIT + f"await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),40); await say({json.dumps(second)}); "
          f"const got=await until(()=>{want(second)}); return {{got, user: roles('user'), assistant: roles('assistant')}};"},
+        # 批 A ⑤（11-09 对照文档第 2 项）：回复中再发一句——先排在输入框上方（发送键、不是停止键），本轮完了自动发出、也得到回复
+        {"name": "回复中排队", "js": WAIT + f"await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),40); "
+         f"await say({json.dumps(tag + ' [lab-slow]4[/lab-slow] 慢一点')}); "
+         "await until(()=>!!document.querySelector('button[aria-label=\"停止\"]'),40); await new Promise(r=>setTimeout(r,300)); "
+         f"await say({json.dumps(params['queued'])}); await new Promise(r=>setTimeout(r,400)); "
+         "const queuedShown=[...document.querySelectorAll('[data-slot=\"cc-queue-item\"] .cc-queue-text')].map(e=>e.innerText.trim()); "
+         f"const early=roles('user').includes({json.dumps(params['queued'])}); "
+         f"const got=await until(()=>{want(params['queued'])},120); "
+         "return {shown: queuedShown, early, got, left: document.querySelectorAll('[data-slot=\"cc-queue-item\"]').length};"},
         # 批 A ③：刷新前在输入框打一句不发（草稿按对话存本机，稍等它存下）
         {"name": "刷新", "js": f"const ta=document.querySelector('textarea[aria-label]'); "
          "Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(ta," + json.dumps(params["draft"]) + "); "
@@ -81,14 +90,17 @@ def steps(params, camera_code=None):
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
     first, second = params["first"], params["second"]
-    one, two, back, found, long, reopened = (by.get(k) or {} for k in ("第一轮", "第二轮", "从侧栏找回", "搜索", "长回复",
-                                                                       "刷新后直接回到原对话"))
+    one, two, back, found, long, reopened, queued = (by.get(k) or {} for k in ("第一轮", "第二轮", "从侧栏找回", "搜索", "长回复",
+                                                                               "刷新后直接回到原对话", "回复中排队"))
     return [
         {"case": "第一轮收到回复", "seen": one, "ok": bool(one.get("got")) and first in (one.get("user") or [])},
         # F13（10-15 夜间批遗留）：页面刚加载（输入框一出现）就发的第一条不能丢——第一步就是就绪即发，刷新后还要在
         {"case": "F13：页面刚加载就发的第一条不丢", "seen": (back.get("user") or [])[:1],
          "ok": bool(one.get("got")) and first in (back.get("user") or [])},
         {"case": "第二轮收到回复（同一段对话）", "seen": two, "ok": bool(two.get("got")) and len(two.get("assistant") or []) >= 2},
+        {"case": "回复中再发一句：先排在输入框上方，本轮完了自动发出并得到回复", "seen": queued,
+         "ok": params["queued"] in (queued.get("shown") or []) and not queued.get("early") and bool(queued.get("got"))
+         and queued.get("left") == 0},
         {"case": "刷新后直接回到原对话（地址带对话编号）", "seen": reopened,
          "ok": bool(reopened.get("got")) and "c=sesn_" in (reopened.get("search") or "")
          and first in (reopened.get("user") or []) and second in (reopened.get("user") or [])},
