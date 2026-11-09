@@ -99,3 +99,26 @@
 | 合计 | | 约 18 + A3 修 | 约 11 | |
 
 文件归属已与 CC 线窗口（local_fd1ef94e）对齐（11-09）：上面各文件它的分支都没改；提问卡浮起归本批；`attachments.ts` 本批先合、它的 U 系列后变基；它若要动 `thread.tsx` / `reducer.ts` 先找本窗口。
+
+## 施工记录（主会话 11-09 审定后）
+
+审定结论：照第 13 栏顺序施工；侧栏顺序不改，新建 / 切换对话时侧栏滚到这一行并高亮；本批只把普通提问卡浮起；重试 = 把被停的那句再发一次；
+卡开着打字 = 交当前题的「其他」（依据：对照文档 card-claude-20）。
+
+| 项 | 分支 | 提交 | 测试（旧代码红 → 绿） | 闸门 / 候选 / 流程 | 状态 |
+|---|---|---|---|---|---|
+| ① 电脑跟随滚动 | `pearnly/cc-a6-follow-scroll` | ddb7c5f51 | `test_cc_mobile_content` 视口 `autoScroll={!phone}`；cc.chat 加「长回复」步骤（电脑离底 0、手机提问离上沿 20 像素） | 闸门 213 过；流程 cc.chat / attach-delete / operator.replay 过 | 排号待合 |
+| cc.operator.replay 缺单 | `pearnly/flows-replay-own-purchases` | a5319d743 | 新实验栈复现「need two submitted purchase documents」→ 流程自备两张服务费采购单，缺前置开跑即报 | 新老 × 电脑手机 4/4 过 | 排号待合 |
+| ② 计时 | `pearnly/cc-a2-turn-timing` | a35962615 | `test_creating_and_sending_log_how_long_each_step_took` | 闸门过；候选离线 107 组 LANE EXIT 0 | 排号待合，随下一批上线读生产真数 |
+| ② 第 3、4 条 | `pearnly/cc-a2-first-turn` | e74cf833f | `test_a_new_chat_streams_its_first_reply_while_the_backfill_is_slow`、`test_a_backfill_landing_after_the_streamed_words_keeps_one_reply` | 闸门过；流程 14/14 过 | 排号待合 |
+| ② 预热 | `pearnly/cc-a2-prewarm` | 9de7ac6c0 | `test_the_agent_is_prepared_in_the_background_after_a_migrate_and_after_the_key_changes` | 闸门过；候选离线 LANE EXIT 0；实验栈实测后台任务备好缓存；cc.chat 4/4 | 排号待合 |
+
+② 实测与结论见共享笔记「已知问题与结论.md」11-09 两条：热的时候建对话 0.6–0.8 秒、发送 1.0–1.3 秒、发出后 2.4–2.8 秒出第一条回复；
+那次 30 秒 = 冷的建对话 + 首次整段补拉串在发送前 + 补拉慢时逐字压着。第 2 条（首句才开远端会话）主会话改成预热；第 5 条（发送里等推送
+通道最多 3 秒）等生产计时数据再定。
+
+预热挂的钩子（主会话要求记下）：
+- 部署迁移后：`apps/pearnly_core/pearnly_core/hooks.py` 的 `after_migrate` 加 `pearnly_core.assistant.engine.prewarm`（每个站点 migrate 完排一次）。
+- 换密钥 / 引擎 / 模型后：`infrastructure/production/site-step.py` 的 `set_assistant` 分支写完站点配置后调 `engine.prewarm()`。
+- 两处都只是排一个后台任务（short 队列、按站点去重），任务里调 `engine.prepared` 备好资源写进缓存；没开通 CC 的站点不排；排不上、备失败只记 Error Log
+  （「Assistant prewarm not queued / failed」），不挡迁移和部署；不进定时任务、不循环、不常驻。缓存照旧 6 小时过期（过期后第一个新对话现备约 2 秒，未改）。
