@@ -12,6 +12,11 @@ SCAN = 20
 STATES = {"success": "entered", "pending": "queued"}
 
 
+def _book(value) -> str:
+    """账套键按同一个比（推送前存的是选的写法 ``FLOWOP``，推送后存规范化的 ``flowop``，11-09 实验栈）。"""
+    return str(value or "").strip().casefold()
+
+
 def twin(doc_id) -> dict:
     """``{"doc_id", "docnum", "state", "key"}``：同一张票已由另一条写成（entered）或正在写（queued）；认出身份但没写过的只回
     ``{"key"}``（写之前按它加锁）；认不出身份的回 {}。"""
@@ -22,14 +27,14 @@ def twin(doc_id) -> dict:
     if not isinstance(row, dict) or not row.get("ticket_key") or row.get("ticket_level") != EXACT \
             or not row.get("push_connection"):
         return {}
-    key = ":".join(str(part or "") for part in (row.workspace, row.client, row.push_connection, row.push_account_set,
+    key = ":".join(str(part or "") for part in (row.workspace, row.client, row.push_connection, _book(row.push_account_set),
                                                 row.ticket_key))
     for other in frappe.get_all(HISTORY, filters={"workspace": row.workspace, "ticket_key": row.ticket_key, "name": ["!=", row.name],
                                                   "push_connection": row.push_connection,
                                                   "last_push_status": ["in", list(STATES)]},
                                 fields=["name", "client", "push_account_set", "last_push_status", "last_push_record"],
                                 order_by="modified desc", limit_page_length=SCAN):
-        if (other.client or "") != (row.client or "") or (other.push_account_set or "") != (row.push_account_set or ""):
+        if (other.client or "") != (row.client or "") or _book(other.push_account_set) != _book(row.push_account_set):
             continue
         state = STATES[other.last_push_status]
         docnum = frappe.db.get_value(PUSH_RECORD, other.last_push_record, "external_docnum") \

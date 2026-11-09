@@ -1976,7 +1976,8 @@ class OperatorSourceTests(unittest.TestCase):
                      push_connection="C1", push_account_set="k1")
         twins = [_Rowd(name="h7", client="CL2", push_account_set="k1", last_push_status="success", last_push_record="PR-7"),
                  _Rowd(name="h8", client="CL1", push_account_set="k2", last_push_status="success", last_push_record="PR-8"),
-                 _Rowd(name="h9", client="CL1", push_account_set="k1", last_push_status="success", last_push_record="PR-9")]
+                 _Rowd(name="h9", client="CL1", push_account_set=" K1 ", last_push_status="success", last_push_record="PR-9")]
+        # 推送后账套键存的是规范化写法（11-09 实验栈：推送前 FLOWOP、推送后 flowop）：按同一个比
         seen, asked = [], []
 
         def value(doctype, name, fields=None, *a, **k):
