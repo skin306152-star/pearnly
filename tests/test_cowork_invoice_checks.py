@@ -62,6 +62,7 @@ class Checks(unittest.TestCase):
                                   return_value=SimpleNamespace(engine="engine")), \
                 mock.patch.object(workflow, "prepare_history_batch", return_value={"groups": [], "requires_review": False}), \
                 mock.patch.object(workflow, "_announce"), \
+                mock.patch.object(workflow.replay, "active", return_value=False), \
                 mock.patch.object(workflow.frappe, "db", mock.MagicMock()):
             try:
                 result = workflow.run("B1")

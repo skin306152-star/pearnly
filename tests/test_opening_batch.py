@@ -76,7 +76,7 @@ class OpeningBatch(unittest.TestCase):
         inventory.stock = SimpleNamespace(lock_products=self.lock_products, apply_movement=self.apply_movement)
         inventory.warehouses = SimpleNamespace(required=self.warehouse, remember=lambda kind, warehouse, company=None: None)
         # 库位清单（`positions.check`）：W3 建了清单只有 A-01，其余仓不限
-        inventory.positions = SimpleNamespace(check=self.check_location)
+        inventory.positions = SimpleNamespace(check=self.check_location, resolve=lambda warehouse, value: value)
         inventory.serials = SimpleNamespace(
             DOCTYPE="ERP Serial No", OPENING_REF="serial_opening", MAX_NO=40, MAX_COLOR=60,
             DUPLICATE="This unit number is already registered", QTY_MISMATCH="The number of units does not match the quantity",

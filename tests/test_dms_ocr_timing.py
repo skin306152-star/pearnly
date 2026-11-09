@@ -192,7 +192,10 @@ class WorkflowTimingTests(TimingHarness):
         self.service_fakes()
         self.replace(flow, "_image_draft", return_value={"payload": {"mode": "customer"}})
         self.replace(flow.store, "replace_session_snapshot", return_value=True)
-        self.replace(flow.out, "start_loading", side_effect=lambda *a: setattr(self, "clock", self.clock + 0.2))
+        def loading(*args):
+            self.clock += 0.2
+            return lambda: None  # 发回复前要等的 wait()
+        self.replace(flow.out, "start_loading_background", side_effect=loading)
         self.replace(flow.out, "push_or_reply_text", side_effect=lambda *a: setattr(self, "clock", self.clock + 0.5))
         def download(*args):
             self.clock += 1

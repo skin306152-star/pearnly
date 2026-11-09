@@ -4,7 +4,8 @@ from copy import deepcopy
 from types import SimpleNamespace
 import unittest
 
-from pearnly_cowork.ocr import inputs, pages
+from pearnly_core.originals import rules as inputs
+from pearnly_cowork.ocr import pages
 
 
 class Invoice:
