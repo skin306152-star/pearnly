@@ -542,6 +542,15 @@ class OperatorTests(unittest.TestCase):
         self.assertIn("if (asking && questions.length && !result) {", start)
         self.assertIn("begin(docAnswers(items, questions, answered), () => setSent(answered))", start)
 
+    def test_a_made_up_tool_is_not_shown_as_a_step(self):
+        # 11-08 生产：CC 调了站点没有的工具 pdftotext_placeholder，页面多一个看不懂的出错步骤；出处是引擎沙箱说明里举的工具名
+        page = read("components/tool-uis/steps.tsx")
+        self.assertIn('return part.toolKind === "custom" && !!labels.ready && !(String(part.toolName ?? "") in labels.done);', page)
+        self.assertIn("if (unknownOwnTool(props as { toolName?: string; toolKind?: string }, labels)) return null;", page)
+        engine = (Path(ROOT) / "apps/pearnly_core/pearnly_core/assistant/engines/anthropic_managed_agents.py").read_text(encoding="utf-8")
+        self.assertNotIn("pdftotext", engine)
+        self.assertIn("were given; there are no other tools.", engine)
+
     def test_events_fold_into_the_same_conversation(self):
         for lang in ("zh", "th", "en"):
             run_ts(FEED, stubs=STUBS, lang=lang)

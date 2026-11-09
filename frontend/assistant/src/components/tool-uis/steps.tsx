@@ -170,8 +170,15 @@ const StepDetail: FC<{ input?: string | undefined; output: string; errored: bool
   </div>
 );
 
+/** 模型调了站点没有的本站工具（11-08 生产：pdftotext_placeholder，空参数）：页面不画成步骤（站点照常把「没有这个工具」交回模型）。
+ *  标签表还没取回时照常画（取回后再定）。 */
+export function unknownOwnTool(part: { toolName?: string; toolKind?: string }, labels: ToolLabels): boolean {
+  return part.toolKind === "custom" && !!labels.ready && !(String(part.toolName ?? "") in labels.done);
+}
+
 export const StepRow: ToolCallMessagePartComponent = (props) => {
   const labels = useToolLabels();
+  if (unknownOwnTool(props as { toolName?: string; toolKind?: string }, labels)) return null;
   const card = approvalCard(props as Parameters<typeof approvalCard>[0], labels);
   return card ? <AskStep {...props} card={card} labels={labels} /> : <PlainStep {...props} labels={labels} />;
 };
@@ -276,7 +283,7 @@ export const StepsGroup: FC<PropsWithChildren<{ group: Group }>> = ({ group, chi
   const labels = useToolLabels();
   const parts = useAuiState((s) => s.message.parts);
   const inGroup = group.indices.map((i) => parts[i]).filter(Boolean);
-  const tools = inGroup.filter((p) => p!.type === "tool-call");
+  const tools = inGroup.filter((p) => p!.type === "tool-call" && !unknownOwnTool(p as { toolName?: string; toolKind?: string }, labels));
   if (!tools.length) return null;
   const title = groupLive(group.status)
     ? steps.running
