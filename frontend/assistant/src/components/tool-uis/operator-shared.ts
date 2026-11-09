@@ -260,6 +260,8 @@ export const operatorActions = {
     }),
   answer: (task: string, docId: string, answers: Answers) =>
     site.post(API + "task_answer", { name: task, doc_id: docId, answers: JSON.stringify(answers[docId] ?? []) }),
+  /** 几张合成一张卡后的一次作答（{单据: [{kind, subject, value, label}]}）。 */
+  answerMany: (task: string, answers: Answers) => site.post(API + "task_answer_many", { name: task, answers: JSON.stringify(answers) }),
   resume: (task: string) => site.post(API + "task_resume", { name: task }),
   settle: (task: string) => site.post(API + "task_settle", { name: task }),
   resolve: async (company: string, docId: string, entered: boolean) => {

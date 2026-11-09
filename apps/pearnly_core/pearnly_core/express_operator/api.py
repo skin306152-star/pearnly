@@ -210,6 +210,15 @@ def task_answer(name, doc_id, answers):
 
 
 @frappe.whitelist(methods=["POST"])
+def task_answer_many(name, answers):
+    """同一题合成一张卡后的一次作答：``{单据: [{kind, subject, value, label}]}``，几张一起交回这个任务。不调模型。"""
+    answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
+    if not isinstance(answers, dict) or len(answers) > BATCH_MAX or any(not isinstance(v, list) for v in answers.values()):
+        frappe.throw(_("Invalid request"))
+    return tasks.answer_many(name, {str(k): v for k, v in answers.items()})
+
+
+@frappe.whitelist(methods=["POST"])
 def task_resume(name):
     """整批停下以后的「继续」：因整批停而没录成的单按原批次号交回原来那台电脑。"""
     return tasks.resume(name)

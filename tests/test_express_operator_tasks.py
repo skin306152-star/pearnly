@@ -352,6 +352,21 @@ class TaskTests(unittest.TestCase):
         self.assertEqual([(c[1], c[4]) for c in self.submitted], [(["h1"], {"h1": choice}), (["h2"], {})])
         self.assertEqual([d["state"] for d in out["documents"]], ["queued", "queued", "not_done"])
 
+    def test_one_card_answers_several_documents_at_once(self):
+        """11-08：同一题的几张合成一张卡，一次交来各张的答案（answer_many）；别的原因停下的不动，不认识的单整批拒。"""
+        name = self._started()
+        self.statuses = {"h1": {"state": "not_done", "reason": "choice_needed:party"},
+                         "h2": {"state": "not_done", "reason": "choice_needed:party"},
+                         "h3": {"state": "not_done", "reason": "[OPERATOR_STOPPED] stopped"}}
+        self.tasks.settle(name)
+        self.submitted.clear()
+        choice = [{"kind": "party", "subject": "sales|0107536000633|00000", "value": "BIGC-002", "label": "Big C"}]
+        out = self.tasks.answer_many(name, {"h1": choice, "h2": choice})
+        self.assertEqual([(c[1], c[4]) for c in self.submitted], [(["h1", "h2"], {"h1": choice, "h2": choice})])
+        self.assertEqual([d["state"] for d in out["documents"]], ["queued", "queued", "not_done"])
+        with self.assertRaises(_Throw):
+            self.tasks.answer_many(name, {"zz": choice})
+
     def test_a_retry_resubmits_a_document_the_computer_skipped_or_held_with_no_answers(self):
         # 单张「重试」走作答同一条路（answers 空）：CC 停止跳过的单在站点上是「未完成」（原因 [OPERATOR_STOPPED]）；任务还记着
         # 排队的先问产品一次（CC 回执了、任务还没收尾）；结果不明的不重交（要人先在 Express 核对）

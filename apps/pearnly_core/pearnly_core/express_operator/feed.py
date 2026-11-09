@@ -220,10 +220,11 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
         if cards:
             out.run(start, "awaiting_approval", anchor, bump=1)
     else:
-        not_sent = [{**_doc_view(item), "reason": reason_code(item["raw"])} for item in docs
-                    if item["state"] == "not_done" and _get(item["row"], "queued_at")
-                    and _moment(_get(item["row"], "queued_at")) == _moment(_get(item["row"], "done_at"))]
-        out.answer(start, {"sent": len(docs) - len(not_sent), "not_sent": not_sent,
+        # 交单结论只写张数，不把没收的单回填进这张卡（11-08 生产：卡从「开始」原地变成 24 行，同一批单在这里、各自的卡、结尾各出一遍）：
+        # 没录成的只在它自己那一步（与要人处理的卡）出现一次
+        held = sum(1 for item in docs if item["state"] == "not_done" and _get(item["row"], "queued_at")
+                   and _moment(_get(item["row"], "queued_at")) == _moment(_get(item["row"], "done_at")))
+        out.answer(start, {"sent": len(docs) - held, "held": held, "not_sent": [],
                            "computer": str(_get(task, "computer") or ""), "start_at": str(_get(task, "start_at") or "")},
                    max(started, anchor), bump=2)
 

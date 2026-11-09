@@ -433,6 +433,15 @@ class ProjectionTests(unittest.TestCase):
         start = next(e for e in replay if e["id"] == "pop_tk0001_start")
         self.assertGreater(start["processed_at"], self.feed._iso(engine, TZ))
 
+    def test_the_start_card_keeps_its_own_line_after_start(self):
+        """11-08 生产：点开始后没收的 24 张原地回填进开始前卡片，同一批单在这里、各自的卡、结尾各出一遍。改：交单结论只写张数，
+        没录成的只在它自己那一步出现。"""
+        held = [_doc(n, "not_done", "choice_needed:party", done_at=T0 + datetime.timedelta(minutes=5)) for n in (1, 2)]
+        answer = next(e for e in self.project(_task("attention", held))
+                      if e["type"] == "user.custom_tool_result" and e.get("custom_tool_use_id") == "pop_tk0001_start")
+        body = json.loads(answer["content"][0]["text"])
+        self.assertEqual((body.get("not_sent"), body.get("held")), ([], 2))
+
     def test_upload_steps_follow_the_recognition_state(self):
         up = {"name": "up1", "request_key": "k1", "filename": "a.pdf", "size": 10, "batch": "OCR-1", "source": "f1",
               "uploaded_at": T0 + datetime.timedelta(minutes=1)}
@@ -610,6 +619,8 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(self.tasks.read(name)["status"], "finished")
         # 改造前（3d46f2ae0 的 tasks.py）同一过程逐字记下的调用；改造只加时间与事件，不改交单与回执
         self.assertEqual(self.state["calls"], [
+            # 11-08 生产事故起：交单时先问一次单号与对方（当场停下的单原来一直没有，任务卡只能写内部编号），只读，不交单
+            ("status", "CO-1", ["H-1", "H-2", "H-3"]),
             ("status", "CO-1", ["H-1", "H-2"]),
             ("submit", "CO-1", ["H-3"], {"id": name, "total": 1, "start_at": 0}, "CCD-1",
              {"H-3": [{"kind": "party", "subject": "S", "value": "new", "label": "S"}]}),

@@ -507,6 +507,7 @@ import "cc-test-setup";
 import assert from "node:assert/strict";
 import { docAnswers, itemQuestion, itemsOfNeeded, kindName } from "@/components/tool-uis/ask-shared";
 import { docTitle } from "@/components/tool-uis/operator-words";
+import { choiceRun } from "@/components/tool-uis/operator-choose";
 import { op } from "@/i18n";
 
 const options = [{ code: "BIGC", name: "BIG C" }, { code: "BIGC-002", name: "BIG C-002 (ซอยประชุม)" }];
@@ -529,6 +530,16 @@ assert.equal(kindName({ kind: "party", subject: "x" }), op.kind.party);
 assert.equal(docTitle({}, "CWH-af181ee25a4fb64fbe6c26a506a97959df4eb66bc140b112"), op.untitled);
 assert.equal(docTitle({}, "P:PUR-0001"), op.untitled);
 assert.equal(docTitle({ ref: "IV69/00751", party: "Big C" }, "CWH-x"), "IV69/00751 · Big C");
+// 中途几张同一任务、都停在「要人选」的卡：挑出来合成一张（排第一的那张画），别的任务、已答的、别的原因的不算
+const part = (id: string, args: any, result?: unknown) => ({ type: "tool-call", toolName: "operator_choose", toolCallId: id, args, result });
+const messages = [{ content: [
+  part("c1", { task: "T", doc_id: "H1", reason: "choice_needed:party" }),
+  part("c2", { task: "T", doc_id: "H2", reason: "choice_needed:party" }),
+  part("c3", { task: "T", doc_id: "H3", reason: "operator_login_missing" }),
+  part("c4", { task: "T", doc_id: "H4", reason: "choice_needed:party" }, { answered: true }),
+  part("c5", { task: "U", doc_id: "H5", reason: "choice_needed:party" }),
+] }];
+assert.equal(choiceRun(messages as any, "T"), "c1\tH1\nc2\tH2");
 console.log("HARNESS OK");
 """
 

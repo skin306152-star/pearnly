@@ -406,6 +406,27 @@ def answer(name, doc_id, answers) -> dict:
     return view(doc)
 
 
+def answer_many(name, answers) -> dict:
+    """几张停下等人选的单一次作答（``{单据: [{kind, subject, value, label}]}``，页面把同一题合成一张卡后一次交来，11-08 生产：24 张
+    同一客户的卡各查一次、各答一次）：同 :func:`answer` 的判据逐张核，一起交回同一个任务；同一任务里别的「要人选」的单也一起交回
+    （照刚记下的用）。"""
+    doc = _own(name, for_update=True)
+    _require_company(doc.company)
+    if doc.status == "preparing" or not isinstance(answers, dict) or not answers:
+        frappe.throw(_("Invalid request"))
+    rows = {r.doc_id: r for r in doc.get("documents") or []}
+    picked = [rows.get(str(doc_id)) for doc_id in answers]
+    if any(r is None or r.state != "not_done" or r.reason == RESULT_UNKNOWN for r in picked):
+        frappe.throw(_("Invalid request"))
+    _resubmit(doc, picked, {r.doc_id: list(answers[r.doc_id] or []) for r in picked})
+    others = [r for r in doc.get("documents") or []
+              if r not in picked and r.state == "not_done" and str(r.reason or "").startswith(CHOICE_NEEDED)]
+    if others:
+        _resubmit(doc, others)
+    _save(doc)
+    return view(doc)
+
+
 # CC 回执的原因写在单据上是 ``[OPERATOR_<原因>] 原文``（CC 桌面版 ``worker._ack_operator``，产品照抄到推送记录 / 单据上）
 _ACK_REASON = re.compile(r"^\[OPERATOR_([A-Z0-9_]+)\]")
 # 因整批停而没录成：卡住的那张（整批停的原因）+ 因停止被跳过的
@@ -431,6 +452,6 @@ def resume(name) -> dict:
     return view(doc)
 
 
-__all__ = ["CONTROL_ACTIONS", "DOCTYPE", "STOP", "EVENT", "RESUMABLE", "STATUSES", "answer", "attach", "attention", "create", "delete", "listing",
+__all__ = ["CONTROL_ACTIONS", "DOCTYPE", "STOP", "EVENT", "RESUMABLE", "STATUSES", "answer", "answer_many", "attach", "attention", "create", "delete", "listing",
            "mark_running", "message_sent", "push_control", "read", "resume", "settle", "site_product", "take_controls", "thread", "thread_note",
            "update", "view"]
