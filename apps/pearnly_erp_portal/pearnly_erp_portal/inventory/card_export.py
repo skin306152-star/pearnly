@@ -4,8 +4,10 @@
 
 - 网页（收发存页「导出」，`api.api_stock_card_export` → `pearnly_core.exports.deliver`）与 CC（ADR-027，`erp_stock_card_export`）
   调同一组函数：`size` 数行数（同时做权限检查），`build` 出文件。
-- 取数：当前公司的仓库（`warehouses.scope_filter`）；行金额由成本引擎按「物料 × 仓 × 仓位」逐笔滚出（`report._project_position`，
-  初始化并入上期结转，同收发存页面）；结余、小计、合计按 MR.ERP 报表算法（`card_rows`）。按物料分批读流水，内存不随全量涨。
+- 取数：当前公司的仓库（`warehouses.scope_filter`）。行上的单价、金额照 MR.ERP 成本引擎算（`card_rows.pool_costs`：一个物料
+  全公司一个移动平均池，主会话 11-09 定，不再用页面那套「物料 × 仓 × 仓位」、也不再留空）；初始化并入上期结转（同收发存页面）；
+  结余、小计、合计按 MR.ERP 报表算法（`card_rows.block`）。按物料分批读流水，内存不随全量涨。
+  所以多仓 / 多仓位、负库存的物料，导出的单价金额会和收发存页面、库存货值不同（页面与成本引擎没改）。
 - 版式：表头内容、栏位、分组、小计照 MR.ERP 模板；样式一套中性灰（主会话 11-08）。文字跟界面语言，泰文是 MR.ERP 原文；
   日期 dd/mm/yyyy，泰文界面佛历、其他公历。
 """
@@ -171,34 +173,58 @@ def size(**kwargs) -> int:
 
 # ── 取数：逐批物料 → 块 ─────────────────────────────────────────────────────────────
 
+def _doc(row) -> str:
+    return str(row.get("doc_no") or row.get("ref_id") or row.get("reason") or row.get("movement_type") or "")
+
+
+def _own_cost(row):
+    """这笔收自带的单价（MR.ERP 的收按单据金额）；调拨入不带（在同一个池里，按池均价入、与调出相抵，同 MR.ERP 照抄调出那笔）。"""
+    if not row.get("cost_known") or row.get("movement_type") == contracts.TRANSFER_IN:
+        return None
+    return contracts.d(row.get("unit_cost"))
+
+
 def _blocks(params, selection, costs):
     """按物料代码顺序逐批产出 `(物料, 仓库或 None, Block)`：合并 / 汇总一个物料一块，分仓一个「仓 × 物料」一块。"""
     wanted = set(selection["positions"])
     by_warehouse = params["report"] == "by_warehouse"
+    date_from = params["date_from"]
     for start in range(0, len(selection["products"]), BATCH):
         batch = selection["products"][start:start + BATCH]
         movements = report._movements(products=set(batch), date_to=params["date_to"])
-        grouped: dict = {}
+        by_product: dict = {}
         for index, row in enumerate(movements):
-            key = (row["product"], row["warehouse"], row.get("location") or "")
-            if key in wanted:
-                grouped.setdefault(key, []).append(dict(row, posting_date=report._date(row["posting_date"]), seq=index))
+            by_product.setdefault(row["product"], []).append(
+                dict(row, posting_date=report._date(row["posting_date"]), seq=index))
         parts: dict = {}
-        for (product, store, location), rows in grouped.items():
-            opening, _final, period = report._project_position(rows, params["date_from"])
-            position = (store, location)
-            target = parts.setdefault((product, store if by_warehouse else None), ([], []))
-            target[0].append(card_rows.Opening(position, contracts.d(opening.qty), opening.value))
-            target[1].extend(card_rows.Movement(
-                date=row["posting_date"], doc=str(row.get("doc_no") or row.get("ref_id") or row.get("reason")
-                                                  or row.get("movement_type") or ""),
-                qty=contracts.d(row["qty_base"]), unit_price=row.get("unit_price"), amount=row.get("amount"),
-                seq=row["seq"], position=position) for row in period)
+        for product, rows in by_product.items():
+            # 池 = 这个物料在当前公司所有仓、仓位的全部流水（不受仓范围限制，MR.ERP 也是全公司一个价）
+            priced = card_rows.pool_costs(card_rows.PoolMove(
+                date=row["posting_date"], doc=_doc(row), qty=contracts.d(row["qty_base"]), seq=row["seq"],
+                cost=_own_cost(row)) for row in rows)
+            for row in rows:
+                store, location = row["warehouse"], row.get("location") or ""
+                if (product, store, location) not in wanted:
+                    continue
+                position = (store, location)
+                unit_price, amount = priced[row["seq"]]
+                quantity = contracts.d(row["qty_base"])
+                target = parts.setdefault((product, store if by_warehouse else None), ({}, []))
+                if row["posting_date"] < date_from or report._initialization(row):
+                    # 上期结转 = 起始日前各笔收加发减（57.php），初始化并进结转（评估 §C-2）
+                    held = target[0].setdefault(position, [contracts.d(0), contracts.d(0)])
+                    held[0] += quantity
+                    held[1] += amount if quantity >= 0 else -amount
+                    continue
+                target[1].append(card_rows.Movement(date=row["posting_date"], doc=_doc(row), qty=quantity,
+                                                    unit_price=unit_price, amount=amount, seq=row["seq"],
+                                                    position=position))
         for product in batch:
             stores = selection["warehouses"] if by_warehouse else [None]
             for store in stores:
                 if (product, store) in parts:
-                    openings, rows = parts[(product, store)]
+                    held, rows = parts[(product, store)]
+                    openings = [card_rows.Opening(position, qty, amount) for position, (qty, amount) in held.items()]
                     yield product, store, card_rows.block(openings, rows, costs=costs)
 
 

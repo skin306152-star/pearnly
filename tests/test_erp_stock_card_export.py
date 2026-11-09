@@ -4,16 +4,15 @@
 结余由报表逐笔滚（数量、金额相加减），结余单价 = 数量 0 → 0，否则 round(金额 / 数量, 2)；汇总收 / 发单价 = round(和金额 / 和数量, 2)；
 小计合计不带单价；同一天先收后发；结转 ≠ 0 或期内有行的物料才出现。
 
-账（物料 P1 = 代码 A001，两个仓 W1 / W2；期间 2026-10-01 ~ 2026-10-31），成本引擎按仓位滚移动平均：
-  09-10 W1 采购入 10 @5.00 = 50.00；09-20 W1 销售出 4（@5.00 = 20.00）→ 期初 W1 6 / 30.00
-  10-03 09:00 W1 出库 2（@5.00 = 10.00）；10-03 10:00 W1 采购入 6 @6.00 = 36.00（W1 均价 → 5.60）
-  10-10 调拨 TR-1：W1 调出 5（@5.60 = 28.00）、W2 调入 5 @5.60 = 28.00
-  10-15 W2 销售出 2（@5.60 = 11.20）；10-20 W2 采购入 3 @7.00 = 21.00；11-02 W1 采购入（区间外）
-合并（手算）：期初 6 / 5.00 / 30.00
-  10-03 收 6 @6.00 36.00 → 12 / 5.50 / 66.00；10-03 发 2 @5.00 10.00 → 10 / 5.60 / 56.00（同一天先收后发）
-  10-10 收 5 @5.60 28.00 → 15 / 5.60 / 84.00；10-10 发 5 @5.60 28.00 → 10 / 5.60 / 56.00
-  10-15 发 2 @5.60 11.20 → 8 / 5.60 / 44.80；10-20 收 3 @7.00 21.00 → 11 / 5.98 / 65.80（65.80 / 11 = 5.9818）
-  收 14 / 85.00，发 9 / 49.20；汇总单价 收 85 / 14 = 6.07、发 49.2 / 9 = 5.47
+账（物料 P1 = 代码 A001，两个仓 W1 / W2；期间 2026-10-01 ~ 2026-10-31）。行上的单价、金额照 MR.ERP 成本引擎
+（component/php/stkcardpc.php，主会话 11-09）：一个物料全公司一个移动平均池，按报表顺序（日期 → 同日先收后发 → 单号）滚：
+  09-10 W1 采购入 10 @5.00 = 50.00 → 池 10 / 50.00 / 5.00；09-20 W1 销售出 4 @5.00 = 20.00 → 6 / 30.00 / 5.00（期初）
+  10-03 W1 采购入 6 @6.00 = 36.00 → 12 / 66.00 / 5.50；10-03 W1 出库 2 @5.50 = 11.00 → 10 / 55.00 / 5.50
+  （真实时间是先出后进，MR.ERP 同一天先收后发，出库按 5.50）
+  10-10 调拨 TR-1：W2 调入 5 按池均价 @5.50 = 27.50 → 15 / 82.50；W1 调出 5 @5.50 = 27.50 → 10 / 55.00（同池相抵）
+  10-15 W2 销售出 2 @5.50 = 11.00 → 8 / 44.00；10-20 W2 采购入 3 @7.00 = 21.00 → 11 / 65.00 / 5.91；11-02（区间外）
+合并：期初 6 / 5.00 / 30.00；收 14 / 84.50，发 9 / 49.50，期末 11 / 5.91 / 65.00；汇总单价 收 84.5 / 14 = 6.04、发 49.5 / 9 = 5.50
+分仓：W1 期初 6 / 30.00，收 6 / 36.00，发 7 / 38.50，期末 5 / 27.50；W2 收 8 / 48.50，发 2 / 11.00，期末 6 / 6.25 / 37.50
 """
 from datetime import date, datetime
 from decimal import Decimal
@@ -268,16 +267,16 @@ class Export(unittest.TestCase):
         lines = [self.values(row) for row in body[2:8]]
         self.assertEqual(lines, [
             ["03/10/2569", "PI-02", D(6), D("6.00"), D("36.00"), None, None, None, D(12), D("5.50"), D("66.00")],
-            ["03/10/2569", "IS-01", None, None, None, D(2), D("5.00"), D("10.00"), D(10), D("5.60"), D("56.00")],
-            ["10/10/2569", "TR-1", D(5), D("5.60"), D("28.00"), None, None, None, D(15), D("5.60"), D("84.00")],
-            ["10/10/2569", "TR-1", None, None, None, D(5), D("5.60"), D("28.00"), D(10), D("5.60"), D("56.00")],
-            ["15/10/2569", "SI-02", None, None, None, D(2), D("5.60"), D("11.20"), D(8), D("5.60"), D("44.80")],
-            ["20/10/2569", "PI-03", D(3), D("7.00"), D("21.00"), None, None, None, D(11), D("5.98"), D("65.80")]])
-        self.assertEqual(self.values(body[8]), ["รวม  6  รายการ", D(14), None, D("85.00"), D(9), None, D("49.20"),
+            ["03/10/2569", "IS-01", None, None, None, D(2), D("5.50"), D("11.00"), D(10), D("5.50"), D("55.00")],
+            ["10/10/2569", "TR-1", D(5), D("5.50"), D("27.50"), None, None, None, D(15), D("5.50"), D("82.50")],
+            ["10/10/2569", "TR-1", None, None, None, D(5), D("5.50"), D("27.50"), D(10), D("5.50"), D("55.00")],
+            ["15/10/2569", "SI-02", None, None, None, D(2), D("5.50"), D("11.00"), D(8), D("5.50"), D("44.00")],
+            ["20/10/2569", "PI-03", D(3), D("7.00"), D("21.00"), None, None, None, D(11), D("5.91"), D("65.00")]])
+        self.assertEqual(self.values(body[8]), ["รวม  6  รายการ", D(14), None, D("84.50"), D(9), None, D("49.50"),
                                                 None, None, None])
         self.assertEqual(body[9]["kind"], "gap")
-        self.assertEqual(self.values(body[10]), ["รวมทั้งสิ้น  1  สินค้า", D(14), None, D("85.00"), D(9), None,
-                                                 D("49.20"), D(11), None, D("65.80")])
+        self.assertEqual(self.values(body[10]), ["รวมทั้งสิ้น  1  สินค้า", D(14), None, D("84.50"), D(9), None,
+                                                 D("49.50"), D(11), None, D("65.00")])
 
     def test_all_warehouses_lists_products_by_code_and_skips_empty(self):
         body = self.layout("all")["body"]
@@ -285,15 +284,15 @@ class Export(unittest.TestCase):
         self.assertEqual(titles, ["A001  ปากกา", "A002  ดินสอ", "B001  ไม้บรรทัด"])  # A003 结转 0、期内无行
         grand = body[-1]
         self.assertEqual(self.values(grand)[0], "รวมทั้งสิ้น  3  สินค้า")
-        self.assertIsNone(self.values(grand)[3])       # A002 成本未知：合计收金额留空，不当 0
+        self.assertEqual(self.values(grand)[3], D("84.50"))   # A002 没有自带成本的收：按池均价 0 入，记 0，不留空
 
     # ── 汇总（59.php）──
     def test_summary_one_row_per_product(self):
         body = self.layout("summary")["body"]
-        self.assertEqual(self.values(body[0]), ["A001", "ปากกา", D(6), D("5.00"), D("30.00"), D(14), D("6.07"), D("85.00"),
-                                                D(9), D("5.47"), D("49.20"), D(11), D("5.98"), D("65.80")])
-        self.assertEqual(self.values(body[1]), ["A002", "ดินสอ", D(0), D(0), D("0.00"), D(3), None, None,
-                                                D(0), D(0), D("0.00"), D(3), None, None])
+        self.assertEqual(self.values(body[0]), ["A001", "ปากกา", D(6), D("5.00"), D("30.00"), D(14), D("6.04"), D("84.50"),
+                                                D(9), D("5.50"), D("49.50"), D(11), D("5.91"), D("65.00")])
+        self.assertEqual(self.values(body[1]), ["A002", "ดินสอ", D(0), D(0), D("0.00"), D(3), D(0), D("0.00"),
+                                                D(0), D(0), D("0.00"), D(3), D(0), D("0.00")])
         self.assertEqual(self.values(body[2]), ["B001", "ไม้บรรทัด", D(5), D("2.00"), D("10.00"), D(0), D(0), D("0.00"),
                                                 D(0), D(0), D("0.00"), D(5), D("2.00"), D("10.00")])
         self.assertEqual(self.values(body[3])[:2], ["รวมทั้งสิ้น  3  สินค้า", D(11)])
@@ -307,16 +306,16 @@ class Export(unittest.TestCase):
                                  "note", "gap", "store", "product", "carried", "line", "line", "line", "subtotal", "note",
                                  "store-total", "note", "gap", "grand", "note"])
         self.assertEqual(self.values(body[0]), ["WH01  คลังใหญ่"])
-        self.assertEqual(self.values(body[5])[8:], [D(5), D("5.60"), D("28.00")])
-        self.assertEqual(self.values(body[6]), ["รวมสินค้า", D(6), None, D("36.00"), D(7), None, D("38.00"), None, None, None])
+        self.assertEqual(self.values(body[5])[8:], [D(5), D("5.50"), D("27.50")])
+        self.assertEqual(self.values(body[6]), ["รวมสินค้า", D(6), None, D("36.00"), D(7), None, D("38.50"), None, None, None])
         self.assertEqual(self.values(body[7]), ["รายละเอียดรวมสินค้า  3  รายการ"])
-        self.assertEqual(self.values(body[8]), ["รวมคลัง", D(6), None, D("36.00"), D(7), None, D("38.00"), D(5), None,
-                                                D("28.00")])
+        self.assertEqual(self.values(body[8]), ["รวมคลัง", D(6), None, D("36.00"), D(7), None, D("38.50"), D(5), None,
+                                                D("27.50")])
         self.assertEqual(self.values(body[9]), ["รายละเอียดรวมคลัง  3  รายการ  1  สินค้า"])
         self.assertEqual(self.values(body[13]), ["ยอดยกมา", None, D(0), D(0), D("0.00")])
-        self.assertEqual(self.values(body[16])[8:], [D(6), D("6.30"), D("37.80")])
-        self.assertEqual(self.values(body[22]), ["รวมทุกคลัง", D(14), None, D("85.00"), D(9), None, D("49.20"), D(11), None,
-                                                 D("65.80")])
+        self.assertEqual(self.values(body[16])[8:], [D(6), D("6.25"), D("37.50")])
+        self.assertEqual(self.values(body[22]), ["รวมทุกคลัง", D(14), None, D("84.50"), D(9), None, D("49.50"), D(11), None,
+                                                 D("65.00")])
         self.assertEqual(self.values(body[23]), ["รายละเอียดรวมทุกคลัง  6  รายการ  2  สินค้า  2  คลัง"])
 
     def test_by_warehouse_range_keeps_one_store(self):
@@ -525,6 +524,53 @@ class Export(unittest.TestCase):
         self.assertIn(">2.13<", text)
         self.assertNotIn(">2.12<", text)
 
+    # ── 发出成本照 MR.ERP（stkcardpc.php）：不再留空（11-09 testerp 沐浴露、瓶装水）──
+    def summary_of(self, code):
+        row = next(r for r in self.layout("summary")["body"] if r["cells"][0]["value"] == code)
+        return self.values(row)[2:]
+
+    def test_issue_from_a_location_that_never_had_cost_takes_the_pool_price(self):
+        """沐浴露：有成本的货在空仓位，卖却从从没进过货的仓位 A 出（A 负库存）。MR.ERP 全公司一个价：按池均价发，不空。"""
+        self.products["P6"] = ("C006", "ครีมอาบน้ำ", "ขวด")
+        self.add("2026-09-01", "10:00:00", "P6", "W1", 66, "121.21", "purchase_in", "PI-60")
+        self.add("2026-10-01", "10:00:00", "P6", "W1", -1, None, "sale_out", "SI-61")
+        self.movements[-1]["location"] = "A"
+        self.add("2026-10-07", "10:00:00", "P6", "W1", 158, 80, "adjust", "IA-62")
+        self.assertEqual(self.summary_of("C006"), [
+            D(66), D("121.21"), D("7999.86"), D(158), D("80.00"), D("12640.00"), D(1), D("121.21"), D("121.21"),
+            D(223), D("92.01"), D("20518.65")])     # 7999.86 − 121.21 + 12640.00 = 20518.65；÷ 223 = 92.01
+
+    def test_same_day_issue_before_receipt_is_priced_receipt_first(self):
+        """瓶装水：同一天真实时间先从仓位 B（从没进过货）发 63，再往 B 收 53 @20。原来按仓位算：发出空着、结余却按 0 扣，
+        结余单价被抬到 34.00（3060 / 90）。MR.ERP 全公司一个池、同日先收后发：发按 20.00。"""
+        self.products["P7"] = ("C007", "น้ำดื่ม", "ขวด")
+        self.add("2026-09-01", "10:00:00", "P7", "W1", 100, 20, "purchase_in", "PI-70")
+        self.add("2026-10-04", "09:00:00", "P7", "W1", -63, None, "adjust", "AD-05")
+        self.movements[-1]["location"] = "B"
+        self.add("2026-10-04", "10:00:00", "P7", "W1", 53, 20, "adjust", "AD-07")
+        self.movements[-1]["location"] = "B"
+        body = self.layout("all", product_from="P7", product_to="P7")["body"]
+        self.assertEqual([self.values(row) for row in body[2:4]], [
+            ["04/10/2569", "AD-07", D(53), D("20.00"), D("1060.00"), None, None, None, D(153), D("20.00"), D("3060.00")],
+            ["04/10/2569", "AD-05", None, None, None, D(63), D("20.00"), D("1260.00"), D(90), D("20.00"), D("1800.00")]])
+
+    def test_issue_past_zero_takes_everything_left_and_first_issue_is_zero(self):
+        """发到 ≤ 0：金额 = 发出前剩下的全部金额、单价 = 金额 / 数量，池归 0；之前没有结余就发 0 / 0（stkcardpc.php）。"""
+        self.products["P8"] = ("C008", "สบู่", "ก้อน")
+        self.add("2026-10-02", "10:00:00", "P8", "W1", -2, None, "sale_out", "SI-80")      # 没有前结余
+        self.add("2026-10-03", "10:00:00", "P8", "W1", 7, 10, "purchase_in", "PI-81")     # 池 5 / 70.00 / 14.00
+        self.add("2026-10-04", "10:00:00", "P8", "W1", -8, None, "sale_out", "SI-82")     # 发完 -3：转出 70.00
+        self.add("2026-10-05", "10:00:00", "P8", "W1", 4, None, "stock_in", "RT-83")      # 退货入、没自带价：池均价 0
+        body = self.layout("all", product_from="P8", product_to="P8")["body"]
+        self.assertEqual([self.values(row)[2:8] for row in body[2:6]], [
+            [None, None, None, D(2), D("0.00"), D("0.00")],
+            [D(7), D("10.00"), D("70.00"), None, None, None],
+            [None, None, None, D(8), D("8.75"), D("70.00")],
+            [D(4), D("0.00"), D("0.00"), None, None, None]])
+        self.assertEqual([self.values(row)[8:] for row in body[2:6]], [
+            [D(-2), D("0.00"), D("0.00")], [D(5), D("14.00"), D("70.00")], [D(-3), D("0.00"), D("0.00")],
+            [D(1), D("0.00"), D("0.00")]])
+
     def test_pdf_html_repeats_header_and_escapes(self):
         self.products["P1"] = ("A001", "<b>ปากกา</b>", "ด้าม")
         printing = ModuleType("pearnly_erp_portal.printing")
@@ -534,7 +580,7 @@ class Export(unittest.TestCase):
         self.assertIn("<thead>", text)
         self.assertIn("รายงานรับ-จ่ายสินค้า", text.split("<tbody>")[0])   # 表头在 thead 里，每页重复
         self.assertIn("&lt;b&gt;ปากกา&lt;/b&gt;", text)
-        self.assertIn("65.80", text)
+        self.assertIn("65.00", text)
 
     @unittest.skipUnless(importlib.util.find_spec("openpyxl"), "openpyxl 在生产镜像里（候选检查跑）")
     def test_xlsx_cells_read_back(self):
@@ -546,7 +592,7 @@ class Export(unittest.TestCase):
         self.assertEqual(sheet["K2"].value, "เลขประจำตัวผู้เสียภาษี  0105555000001")
         self.assertEqual((sheet["C5"].value, sheet["F5"].value, sheet["C6"].value), ("ยอดยกมา", "มูลค่ารับ", "จำนวน"))
         self.assertEqual([sheet.cell(7, column).value for column in range(1, 15)],
-                         ["A001", "ปากกา", 6, 5, 30, 14, 6.07, 85, 9, 5.47, 49.2, 11, 5.98, 65.8])
+                         ["A001", "ปากกา", 6, 5, 30, 14, 6.04, 84.5, 9, 5.5, 49.5, 11, 5.91, 65])
         self.assertEqual(sheet["G7"].number_format, "#,##0.00")
         self.assertIn("A5:A6", {str(merged) for merged in sheet.merged_cells.ranges})
         self.assertEqual(sheet.page_setup.orientation, "portrait")

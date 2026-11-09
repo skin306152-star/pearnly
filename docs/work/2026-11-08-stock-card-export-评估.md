@@ -296,3 +296,21 @@ CC 工具（ADR-027）：形状已发「CC 一套」窗口 local_fd1ef94e（11-0
 | erp.execution | 没测到 | 付费识别不进默认回归；识别代码未改 |
 | erp.provisioning | 没测到 | 要控制面开测试户；`hooks.py` 只加页头入口声明，菜单、权限、功能码未改 |
 | erp.browser-text | 通过 | 翻译包只新增 41 条、未删改；导出文字泰文（单测）、中文（流程）、英文 / 日文（实验栈出表头与文件名）核过 |
+
+## G. 11-09 照 MR.ERP 再对齐（主会话 11-09 定；分支 `pearnly/stock-card-export-parity`）
+
+起因：11-09 上线后在 testerp 出给岳父的图里，分仓版印成「Test repository Test repository」，汇总版发出成本空着、结余单价被抬高（沐浴露、瓶装水）。岳父是 MR.ERP 作者，这些一眼能看出。短评估在共享笔记「收发存导出-照MR.ERP补发出成本与6处不一致-短评估-待审-11-09.md」。
+
+| 项 | 改成 | 依据 |
+|---|---|---|
+| 发出成本（原 §C-1、§C-3 作废） | 导出自己照 MR.ERP 成本引擎算：一个物料全公司一个移动平均池，顺序同报表；收按自带单价（没有就按池均价，调拨入按池均价与调出相抵）；发按发出前结余单价，发到 ≤ 0 转出剩余全部金额、池归 0，之前没结余记 0。永远有数，不留空（无成本权限照旧留空） | `component/php/stkcardpc.php:69-320`；`card_rows.pool_costs` |
+| ① 校验文字 | 说出是哪一栏，泰文逐字 MR.ERP：日期没选齐、日期 / 物料代码 / 仓库代码不是从小到大 | `rpstkmm/component/javascript/rpstkmmform.js:6-14`、`rpstkmmstore/.../rpstkmmstoreform.js:6-18`；词条 `trade.export.error.*` |
+| ② 仓库编号 | 与仓库页「รหัสคลัง」同一个：Express 码 → 手填编号 → 系统号（`warehouses.display_code`），不拿仓名顶替 | 仓库页 `warehouses.js` 那一栏 |
+| ③ 表头从～到 | 留空时写主档首末代码（物料：当前公司看得到的本地档 + 本公司 Express 档；仓库：当前公司的仓） | MR.ERP 筛选页默认值 |
+| ④ PDF 数量 | 居中；单价、金额靠右；Excel 不变 | `58.php:161-200`、`60.php:330-341` |
+| ⑥ 舍入 | 数字格一律两位四舍五入，Excel 与 PDF 同值 | PHP `number_format` / decimal(12,2) |
+| ⑤ 字体 | 不动：MR.ERP 用 EucrosiaUPC（微软 Windows 字体，无再分发授权） | `component/php/fpdf/font/eucro*` |
+
+影响：只改导出文件里的数和字，不写、不迁移数据。收发存页面、库存货值、推 Express 的成本仍是「物料 × 仓 × 仓位」引擎，多仓 / 多仓位、负库存物料的导出金额会与页面不同（主会话知情）。
+
+测试（先红后绿）：`tests/test_erp_stock_card_export.py` 新增 8 条——①②③④⑥ 各一条、发出成本 3 条（空仓位发出取池价、同日先收后发不抬价、发到 ≤ 0 转出全部 / 无前结余记 0），都在旧代码上失败；原有用例的期望值按 stkcardpc.php 重算（文件头手算过程）。

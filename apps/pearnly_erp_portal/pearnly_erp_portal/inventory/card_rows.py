@@ -37,7 +37,7 @@ def price(amount: Optional[Decimal], qty: Decimal) -> Optional[Decimal]:
     """MR.ERP 的单价：数量 0 → 0，否则 round(金额 / 数量, 2)；金额未知 → 未知。"""
     if amount is None:
         return None
-    return ZERO if qty == 0 else q2(amount / qty)
+    return ZERO if qty == 0 else q2(amount / qty) + 0   # + 0：负数量、金额 0 时不出「-0.00」
 
 
 def add(total: Optional[Decimal], value: Optional[Decimal]) -> Optional[Decimal]:
@@ -124,6 +124,53 @@ class Block:
 
 def order_key(movement: Movement):
     return (movement.date, 0 if movement.qty >= 0 else 1, movement.doc or "", movement.seq)
+
+
+@dataclass
+class PoolMove:
+    """算成本用的一笔流水。`cost` = 这笔收自带的单价（采购、入库单、期初、有价调整）；None = 没有自带单价
+    （退货入、盘点调增、调拨入），按当时池里的均价入。发出不看 `cost`。"""
+
+    date: str
+    doc: str
+    qty: Decimal            # 带符号：> 0 收、< 0 发
+    seq: int
+    cost: Optional[Decimal] = None
+
+
+def pool_costs(moves) -> dict:
+    """照 MR.ERP 成本引擎（component/php/stkcardpc.php，移动平均那一路）给每一笔定单价、金额：`{seq: (单价, 金额)}`。
+
+    - 一个物料全公司一个池（所有仓、仓位合在一起），顺序同报表：日期 → 同一天先收后发 → 单号 → 录入先后；
+    - 收：金额 = 数量 × 单价（自带单价，没有就用池里当时的结余单价）；结余数量、金额相加，结余单价 = round(金额 / 数量, 2)，
+      数量 ≤ 0 时 0；
+    - 发：发完结余 > 0 → 单价 = 发出前的结余单价、金额 = 单价 × 数量；发完结余 ≤ 0 → 金额 = 发出前剩下的全部金额、
+      单价 = round(金额 / 数量, 2)，结余金额、单价归 0（之前没有结余就是 0 / 0）。
+    永远有数，不留空（主会话 11-09：岳父的 MR.ERP 就是这样，不能出现空格）。
+    """
+    qty, amount, unit = ZERO, ZERO, ZERO
+    out = {}
+    for move in sorted(moves, key=order_key):
+        quantity = abs(d(move.qty))
+        if d(move.qty) >= 0:
+            each = q2(move.cost) if move.cost is not None else unit
+            value = q2(quantity * each)
+            qty, amount = qty + quantity, amount + value
+            unit = ZERO if qty <= 0 else q2(amount / qty)
+            out[move.seq] = (each, value)
+            continue
+        left = qty - quantity
+        if left <= 0:
+            value = amount
+            each = ZERO if quantity == 0 else q2(value / quantity)
+            amount, unit = ZERO, ZERO
+        else:
+            each, value = unit, q2(unit * quantity)
+            amount = amount - value
+            unit = q2(amount / left)
+        qty = left
+        out[move.seq] = (each, value)
+    return out
 
 
 class _Running:
