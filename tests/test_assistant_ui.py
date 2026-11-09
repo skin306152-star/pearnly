@@ -3582,6 +3582,15 @@ assert.deepEqual(calls("create").at(-1).body, {});
 # ── CC 外壳第 1 批 · 左侧栏（docs/work/2026-10-16-cc-shell-design.md 3.1–3.8、3.16、4.2）──────────────────────────────────
 
 class SidebarShellSourceTests(unittest.TestCase):
+    def test_the_open_conversation_scrolls_into_view_in_the_sidebar(self):
+        # 批 A ⑦（主会话 11-09）：新建、切换对话时侧栏滚到这一行（当前行本来就有选中底色）；顺序不改（10-17）；手机抽屉打开时再滚
+        shell = read("components/assistant-ui/thread-list.tsx").split("export function RowShell(", 1)[1].split("\nexport function ", 1)[0]
+        self.assertIn("const shown = !isMobile || openMobile;", shell)
+        self.assertIn("if (!current || !shown) return;", shell)
+        self.assertIn('[data-slot="aui_thread-list-item"][data-row-id="${CSS.escape(localId)}"]`)?.scrollIntoView({ block: "nearest" })', shell)
+        self.assertIn("}, [current, shown, localId]);", shell)
+        self.assertIn('data-active={current ? "true" : undefined}', shell)
+
     def test_only_the_current_page_is_selected_in_the_nav(self):
         app = read("assistant.tsx")
         nav = app.split("function SidebarNav(", 1)[1].split("\nfunction ", 1)[0]

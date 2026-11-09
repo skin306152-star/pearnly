@@ -1244,7 +1244,14 @@ export function RowShell({
   label: ReactNode;
   menu: ReactNode;
 }) {
-  const { isMobile } = useSidebar();
+  const { isMobile, openMobile } = useSidebar();
+  // 新建、切换到这段对话时侧栏滚到这一行（主会话 11-09，同 Claude：刚开的对话在侧栏里看得见；顺序不改，10-17 定）。
+  // 手机上侧栏是抽屉，抽屉打开时再滚
+  const shown = !isMobile || openMobile;
+  useEffect(() => {
+    if (!current || !shown) return;
+    document.querySelector(`[data-slot="aui_thread-list-item"][data-row-id="${CSS.escape(localId)}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [current, shown, localId]);
   const pick = (event: ReactMouseEvent<HTMLElement>) => {
     if (isMobile || !companies || (event.target as HTMLElement).closest('[data-slot="aui_thread-list-item-more"], [role="menu"], input')) return;
     if (!(event.shiftKey || event.metaKey || event.ctrlKey)) return clearSelection();
