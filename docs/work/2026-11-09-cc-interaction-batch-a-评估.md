@@ -112,6 +112,9 @@
 | ② 计时 | `pearnly/cc-a2-turn-timing` | a35962615 | `test_creating_and_sending_log_how_long_each_step_took` | 闸门过；候选离线 107 组 LANE EXIT 0 | 排号待合，随下一批上线读生产真数 |
 | ② 第 3、4 条 | `pearnly/cc-a2-first-turn` | e74cf833f | `test_a_new_chat_streams_its_first_reply_while_the_backfill_is_slow`、`test_a_backfill_landing_after_the_streamed_words_keeps_one_reply` | 闸门过；流程 14/14 过 | 排号待合 |
 | ② 预热 | `pearnly/cc-a2-prewarm` | 9de7ac6c0 | `test_the_agent_is_prepared_in_the_background_after_a_migrate_and_after_the_key_changes` | 闸门过；候选离线 LANE EXIT 0；实验栈实测后台任务备好缓存；cc.chat 4/4 | 排号待合 |
+| ① 后续：打开后马上发不跟到底 | `pearnly/cc-a1-follow-after-open` | f74b87ed3 | `test_on_desktop_sending_right_after_opening_hands_the_scroll_to_follow`（旧代码红） | 闸门 214 过；cc.chat 电脑两格连跑 3 遍过 | 排号待合 |
+| ④ 停止保留半段 + 已停止 + 重试 | `pearnly/cc-a4-stopped-reply` | 795f3979e | test_assistant 停止记一次 / 只留 20 段 / 删对话一起删；test_assistant_ui reducer 停止标记与刷新重放 | cc.chat 4/4（停止 → 刷新 → 找回、落库只一条）；候选离线 LANE EXIT 0 | 排号待合；部署时核 DocType `Pearnly Assistant Stopped Reply` |
+| ⑦ 第一段：标题写回 1020、删开着对话报错、侧栏滚到当前行 | `pearnly/cc-a7-titles` | 20e446783 | `test_the_summary_title_is_written_after_the_row_changed_during_the_model_call`、`test_a_deadlock_writing_the_title_is_retried_and_running_out_is_logged_not_raised`、`test_deleting_here_then_the_deleted_echo_reports_nothing`、`test_the_open_conversation_scrolls_into_view_in_the_sidebar`（均旧代码红） | `--changed` 3 条流程 8/8 | 排号待合 |
 
 ② 实测与结论见共享笔记「已知问题与结论.md」11-09 两条：热的时候建对话 0.6–0.8 秒、发送 1.0–1.3 秒、发出后 2.4–2.8 秒出第一条回复；
 那次 30 秒 = 冷的建对话 + 首次整段补拉串在发送前 + 补拉慢时逐字压着。第 2 条（首句才开远端会话）主会话改成预热；第 5 条（发送里等推送
@@ -122,3 +125,12 @@
 - 换密钥 / 引擎 / 模型后：`infrastructure/production/site-step.py` 的 `set_assistant` 分支写完站点配置后调 `engine.prewarm()`。
 - 两处都只是排一个后台任务（short 队列、按站点去重），任务里调 `engine.prepared` 备好资源写进缓存；没开通 CC 的站点不排；排不上、备失败只记 Error Log
   （「Assistant prewarm not queued / failed」），不挡迁移和部署；不进定时任务、不循环、不常驻。缓存照旧 6 小时过期（过期后第一个新对话现备约 2 秒，未改）。
+
+共用件连带回归（`scripts/check-impact.py`，④ 与 ⑦ 命中 assistant、cc-sidebar-list、transaction）：
+- cc.assistant（新建对话、发消息、附件、切会话、侧栏排序）：通过——cc.chat 流程 4 格（新建、两轮、刷新从侧栏找回、搜索、停止找回、长回复）与 `--changed` 流程。
+- cc.operator.page / cc.operator.thread：没测到实机——④ 只在推送线程收线时多记一次、读事件时并入本站事件，代录事件源不经这两处；离线 test_cc_operator、test_express_operator_* 在闸门里过。
+- erp.cc.* / cowork.cc-* / cowork.assistant / control.assistant / shared.assistant：没测到实机——改动不碰工具、公司页、外壳；闸门与候选离线覆盖。
+- shared.transaction / cowork.transaction / cc.mrerp-login / erp.purchase.voucher：未改 transaction 本身，只多一个调用方（titles 写回）。
+
+⑦ 第二段（标题提速）：前端临时标题随 ② 首句不等补拉已变快；摘要标题慢的分段没有数据，等 ② 计时合入后给标题任务记一行（排队、模型、写回各多久），部署后按真数再改。
+⑥ 提问卡浮起：电脑宽度实测已在对照文档第六节（card-claude-19、20），等 ⑤ 合入后在输入框这一片施工。
