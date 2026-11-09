@@ -743,6 +743,31 @@ class RelayTests(unittest.TestCase):
             self.assertEqual(webhook.receive(), {"status": "rejected"})
             self.assertEqual(response.http_status_code, 401)
 
+    def test_pending_tools_stop_quietly_when_the_conversation_was_deleted_meanwhile(self):
+        # 11-09 部署后 e2e：回复一出来就删对话，引擎的空闲通知排的后台任务晚一步去读事件，远端会话已跟着删掉（404）。
+        # 本站这段对话已经没了：静默收手、不记错误（同 titles 的删对话竞争）；对话还在的照旧报错，不吞真问题。
+        webhook = _load("pearnly_core.assistant.webhook", CORE / "assistant/webhook.py")
+
+        def missing(conversation, newest_first=False):
+            raise sdk.APIStatusError("Session not found")
+
+        for exists, quiet in ((False, True), (True, False)):
+            calls = []
+            fake = types.SimpleNamespace(
+                set_user=lambda user: None,
+                db=types.SimpleNamespace(rollback=lambda: calls.append("rollback"),
+                                         exists=lambda doctype, filters: calls.append(filters) or exists))
+            with mock.patch.object(webhook, "frappe", fake), \
+                    mock.patch.object(webhook.engine, "adapter", return_value=types.SimpleNamespace(events=missing)):
+                if quiet:
+                    self.assertIsNone(webhook.run_pending("sesn_gone1", "sesn_gone1", "owner@example.com"))
+                else:
+                    with self.assertRaises(sdk.APIStatusError):
+                        webhook.run_pending("sesn_here1", "sesn_here1", "owner@example.com")
+            # 先结束任务的读快照再看此刻的表；按对话编号找本站那一行
+            self.assertEqual(calls[0], "rollback")
+            self.assertEqual(calls[1], {"session_id": "sesn_gone1" if quiet else "sesn_here1"})
+
     def test_tools_can_reach_this_conversations_attachments_and_only_those(self):
         # 引擎不让下载用户上传的文件：原件在本站留一份挂在会话上；工具执行时知道是哪个对话，只取这个对话的附件。
         files = (CORE / "assistant/files.py").read_text(encoding="utf-8")
@@ -3815,6 +3840,21 @@ class DocumentPreviewTests(unittest.TestCase):
         # 老会话：挂载位置不是这个写法时照旧用挂载记录上的编号
         odd = [item(type="file", file_id="file_old", mount_path="/somewhere/old.pdf", created_at="")]
         self.assertEqual([f["id"] for f in adapter(odd, []).files("sesn_remote")], ["file_old"])
+        # 11-09 e2e：删对话先删远端会话、再删本站那一行，中间页面来取文件列表撞 404 记了错。远端会话已不存在 = 没有文件
+        gone = sdk.APIStatusError("Session not found")
+        gone.status_code = 404
+
+        def missing(conversation):
+            raise gone
+
+        sdk.api = types.SimpleNamespace(beta=types.SimpleNamespace(
+            sessions=types.SimpleNamespace(resources=types.SimpleNamespace(list=missing)),
+            files=types.SimpleNamespace(list=lambda scope_id, betas: [])))
+        self.assertEqual(claude.Adapter(KEY, "claude-opus-5-5").files("sesn_remote"), [])
+        down = sdk.APIStatusError("overloaded")  # 别的错照旧抛
+        sdk.api.beta.sessions.resources.list = lambda conversation: (_ for _ in ()).throw(down)
+        with self.assertRaises(sdk.APIStatusError):
+            claude.Adapter(KEY, "claude-opus-5-5").files("sesn_remote")
 
         # 经会话文件列表：刷新后附件按上传时的编号列出，带本站留存那份的大小与页数（卡片据此显示第一页与「PDF · N 页」）
         sessions = types.SimpleNamespace(owned=lambda sid, allow_archived=False: types.SimpleNamespace(name="row1"),

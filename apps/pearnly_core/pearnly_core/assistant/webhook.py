@@ -99,6 +99,17 @@ def _forward(remote: str, body: str, headers: dict) -> str:
 def run_pending(conversation: str, remote: str, user: str) -> None:
     """后台：读事件列表，把还在等的 Pearnly 工具调用以会话主人的身份执行（已执行过的由执行记录挡住）。"""
     frappe.set_user(user)
-    # 要用户在对话里点「允许」的，执行记录登记成等待、不执行，等他点（`toolrun.execute`）
-    for call in contracts.pending_calls(engine.adapter().events(remote, newest_first=True)):
-        toolrun.execute(conversation, remote, call)
+    try:
+        # 要用户在对话里点「允许」的，执行记录登记成等待、不执行，等他点（`toolrun.execute`）
+        for call in contracts.pending_calls(engine.adapter().events(remote, newest_first=True)):
+            toolrun.execute(conversation, remote, call)
+    except Exception:
+        if _gone(conversation):
+            return  # 排队期间对话被删了（远端会话跟着删、读不到）：静默收手，不记错误（11-09 e2e，同 `titles._gone`）
+        raise
+
+
+def _gone(conversation) -> bool:
+    """本站这段对话已经删掉了。先结束任务的读快照，看的是此刻的表（失败的这笔本来就整笔回滚）。"""
+    frappe.db.rollback()
+    return not frappe.db.exists(SESSION, {"session_id": conversation})

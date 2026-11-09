@@ -254,7 +254,14 @@ class Adapter(base.Adapter):
         第 5 轮测试：刷新后附件被列成 kind = output、编号对不上消息里记的，卡片没有缩略图和页数。这些另存的一份不列成结果：
         挂载记录上的编号就是它（引擎把挂载记录指向另存的那份时），或同名、不可下载、还没认领的（挂载记录仍是原编号时）。"""
         uploads, copies = {}, {}
-        for r in self.api.beta.sessions.resources.list(conversation):
+        try:
+            resources = list(self.api.beta.sessions.resources.list(conversation))
+        except Exception as err:
+            # 会话已不存在 = 没有文件（删对话先删远端、再删本站那一行，中间页面来取列表；11-09 e2e 撞 404 记了错）
+            if _gone(err):
+                return []
+            raise
+        for r in resources:
             if getattr(r, "type", "") != "file":
                 continue
             mount = getattr(r, "mount_path", None) or ""
