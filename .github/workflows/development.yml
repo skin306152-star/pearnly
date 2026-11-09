@@ -65,7 +65,7 @@ jobs:
         run: python3 tests/test_erp_system_paths_company_scope.py
       - name: Stock entry attachments take only the clerk's own fresh uploads, at most ten, kept once submitted
         run: python3 tests/test_erp_stock_attachments.py
-      - name: Stock summary and card fold initialization into the opening, roll costs per position and show category and attribute after the name
+      - name: Stock summary and card fold initialization into the opening, price lines like MR.ERP from one company pool and show category and attribute after the name
         run: python3 tests/test_opening_report.py
       - name: Every test under tests/ is run by CI or registered with a reason (orphan baseline only shrinks)
         run: python3 scripts/check-test-coverage.py && python3 tests/test_check_test_coverage.py
