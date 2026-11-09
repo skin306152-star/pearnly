@@ -647,26 +647,42 @@ def _worked_on(row) -> tuple[str, str]:
         return "", ""
 
 
+# 同一对话同时来几个请求、都到了界线（CC 桌面版一次传 5–9 份附件）：按对话排队，只接续一次。11-08 晚 erpcowork 各自开了
+# 新的一段、同时写对话记录，只有一份写成，其余 500「Record has changed since last read」，还多开了远端会话。
+SEGMENT_LOCK_SECONDS = 120
+
+
 def segment_for_turn(row, api) -> str:
-    """新一轮（发消息、传附件）用哪段远端会话：输入量到了所选模型的计价界线就接续到新的一段。"""
+    """新一轮（发消息、传附件）用哪段远端会话：输入量到了所选模型的计价界线就接续到新的一段。接续按对话排队：拿到锁先结束
+    本事务（读到的是请求开始时的快照）、重读对话记录，排在前面的已经接续过就直接用新的那段；接续完先提交再放锁。"""
     _remote_ready(row, api)
     s = config.settings()
     limit = engines.context_limit(s.engine.code, s.model)
-    remote = current(row)
     if not limit or int(row.get("context_tokens") or 0) < limit:
+        remote = current(row)
         engine.keep_tools_current(api, remote)
         return remote
-    carry = contracts.carry_note(contracts.carry_over(api.events(remote)), *_worked_on(row))
-    fresh, _status = api.open(engine.prepared(api), {**_metadata(_user(), config.product()),
-                                                     "pearnly_conversation": row.session_id})
-    engine.tools_current(fresh)
-    _route(fresh)
-    remote_ids = json.dumps(segments(row) + [fresh])
-    # 新的一段不知道前面带过的公司说明：清空，下一批重带
-    fresh_row = {"remote_ids": remote_ids, "context_tokens": 0, "pending_carry": carry, "project_noted": ""}
-    frappe.db.set_value(SESSION, row.name, fresh_row)
-    row.update(fresh_row)
-    return fresh
+    with frappe.cache.lock(f"{frappe.local.site}:pearnly_assistant:segment:{row.name}", timeout=SEGMENT_LOCK_SECONDS,
+                           blocking_timeout=SEGMENT_LOCK_SECONDS):
+        frappe.db.commit()
+        row.update(frappe.db.get_value(SESSION, row.name, ["remote_ids", "context_tokens", "pending_carry", "project_noted"],
+                                       as_dict=True) or {})
+        remote = current(row)
+        if int(row.get("context_tokens") or 0) < limit:
+            engine.keep_tools_current(api, remote)
+            return remote
+        carry = contracts.carry_note(contracts.carry_over(api.events(remote)), *_worked_on(row))
+        fresh, _status = api.open(engine.prepared(api), {**_metadata(_user(), config.product()),
+                                                         "pearnly_conversation": row.session_id})
+        engine.tools_current(fresh)
+        _route(fresh)
+        remote_ids = json.dumps(segments(row) + [fresh])
+        # 新的一段不知道前面带过的公司说明：清空，下一批重带
+        fresh_row = {"remote_ids": remote_ids, "context_tokens": 0, "pending_carry": carry, "project_noted": ""}
+        frappe.db.set_value(SESSION, row.name, fresh_row)
+        frappe.db.commit()
+        row.update(fresh_row)
+        return fresh
 
 
 def events(session_id, after=None, status=False) -> dict:

@@ -66,7 +66,7 @@ class _Frappe(types.ModuleType):
         self.cache = types.SimpleNamespace(
             get_value=lambda key: outer.store.get(key),
             set_value=lambda key, value, expires_in_sec=None: outer.store.__setitem__(key, value),
-            lock=lambda name, timeout=None: _Lock())
+            lock=lambda name, timeout=None, **kw: _Lock())
 
     def get_hooks(self, name):
         return {"pearnly_assistant_tools": self.hooks, "pearnly_assistant_guidance": self.guidance,
@@ -1186,8 +1186,15 @@ class RelayTests(unittest.TestCase):
             return [row_type(run) for run in runs]
 
         settings = types.SimpleNamespace(engine=types.SimpleNamespace(code=CLAUDE), model="claude-haiku-5-5")
-        db = types.SimpleNamespace(set_value=lambda dt, name, values: writes.append((name, values)))
+        stored = {}  # 库里此刻的样子：接续前按锁重读（同一对话同时几个请求只接续一次，见下一个测试）
+        db = types.SimpleNamespace(set_value=lambda dt, name, values: writes.append((name, values)) or stored.update(values),
+                                   commit=lambda: None,
+                                   get_value=lambda dt, name, fields, as_dict=False: {k: stored.get(k, row.get(k)) for k in fields})
+        import contextlib
+
+        cache = types.SimpleNamespace(lock=lambda *a, **k: contextlib.nullcontext())
         with mock.patch.object(sys.modules["pearnly_core.assistant"], "files", files, create=True), \
+                mock.patch.object(sessions.frappe, "cache", cache, create=True), \
                 mock.patch.dict(sys.modules, {"pearnly_core.assistant.files": files}), \
                 mock.patch.object(sessions.config, "settings", return_value=settings), \
                 mock.patch.object(sessions.config, "product", return_value="erp"), \
@@ -1225,9 +1232,66 @@ class RelayTests(unittest.TestCase):
             # 清单读不出来：照样接续，只带前文
             files.kept = mock.Mock(side_effect=OSError("disk"))
             row.update(remote_ids=json.dumps(["sesn_first"]), context_tokens=10 ** 6)
+            stored.clear()
             self.assertEqual(sessions.segment_for_turn(row, api), "sesn_third")
             self.assertEqual(writes[-1][1]["pending_carry"], contracts.carry_note("User: reconcile May\n\nAssistant: Started."))
             self.assertEqual(logged[-1]["title"], "Assistant carry list failed")
+
+    def test_requests_arriving_together_at_the_limit_open_one_new_segment(self):
+        """11-08 晚 erpcowork：CC 桌面版一次往同一对话传 5–9 份，对话已到界线，每份各开新的一段、同时写对话记录，
+        只有一份写成，其余 500（1020「Record has changed since last read」），还多开了远端会话。接续按对话排队：后到的拿到锁
+        重读记录，看见已经接续过就用新的那段。改回不排队就开出两段。"""
+        import threading
+        import time
+
+        sessions = _load("pearnly_core.assistant.sessions", CORE / "assistant/sessions.py")
+        row_type = type("Row", (dict,), {"__getattr__": dict.get})
+        limit = engines.context_limit(CLAUDE, "claude-haiku-5-5")
+        stored = {"remote_ids": json.dumps(["sesn_first"]), "context_tokens": limit, "pending_carry": "", "project_noted": ""}
+        opened, writes, guard = [], [], threading.Lock()
+
+        def open_(prepared, metadata):
+            time.sleep(0.2)  # 开远端会话要一会儿：两个请求都在这之前读过记录
+            opened.append(1)
+            return f"sesn_new{len(opened)}", "idle"
+
+        api = types.SimpleNamespace(events=lambda remote: [], open=open_)
+
+        def set_value(dt, name, values):
+            writes.append(values)
+            stored.update(values)
+
+        import contextlib
+
+        @contextlib.contextmanager
+        def lock(key, timeout=None, blocking_timeout=None):
+            with guard:
+                yield
+
+        db = types.SimpleNamespace(set_value=set_value, commit=lambda: None,
+                                   get_value=lambda dt, name, fields, as_dict=False: {k: stored[k] for k in fields})
+        settings = types.SimpleNamespace(engine=types.SimpleNamespace(code=CLAUDE), model="claude-haiku-5-5")
+        got = []
+        with mock.patch.object(sessions.config, "settings", return_value=settings), \
+                mock.patch.object(sessions.config, "product", return_value="cowork"), \
+                mock.patch.object(sessions.engine, "prepared", return_value="agent"), \
+                mock.patch.object(sessions.engine, "tools_current", lambda sid: None), \
+                mock.patch.object(sessions.engine, "keep_tools_current", lambda api, remote: None), \
+                mock.patch.object(sessions, "_route", lambda remote: None), \
+                mock.patch.object(sessions, "_worked_on", lambda row: ("", "")), \
+                mock.patch.object(sessions.frappe, "db", db, create=True), \
+                mock.patch.object(sessions.frappe, "cache", types.SimpleNamespace(lock=lock), create=True):
+            frappe.local.site = "t.localhost"
+            # 两个请求开始时读到的都是到了界线的样子（各自一份）
+            rows = [row_type(name="row1", session_id="sesn_first", **stored) for _ in range(2)]
+            threads = [threading.Thread(target=lambda r=r: got.append(sessions.segment_for_turn(r, api))) for r in rows]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+        self.assertEqual((len(opened), len(writes)), (1, 1))
+        self.assertEqual(got, ["sesn_new1", "sesn_new1"])
+        self.assertEqual(json.loads(stored["remote_ids"]), ["sesn_first", "sesn_new1"])
 
     def test_session_files_are_listed_oldest_first_so_the_panel_opens_the_newest(self):
         # 引擎列文件新的在前；面板默认打开最后一个（2026-10-10 测试：新导出出来面板停在旧的那份）
@@ -4633,6 +4697,8 @@ class _ProjectDb:
         return [_Row({field: row.get(field) for field in fields}) if fields else row for row in found]
 
     def get_value(self, doctype, filters, fields, as_dict=False, for_update=False):
+        if isinstance(filters, str):  # 同 Frappe：给记录名就按名字找
+            filters = {"name": filters}
         found = [row for row in self.rows if self._ok(row, filters)]
         if not found:
             return None
