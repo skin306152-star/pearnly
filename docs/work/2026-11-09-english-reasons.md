@@ -45,7 +45,7 @@
 
 ## 验证
 
-- gate 全过；文案闸门新增 11 · 拦截 0；候选离线见下。
+- gate 全过；文案闸门新增 11 · 拦截 0；候选离线 105 组 LANE EXIT 0（d25e99d88，镜像 sha256:9fef288f…）。
 - 连带入口（共用件 Cowork 推送 / CC 工具）：改动只在「电脑读不到这份账套」那一个失败分支换了说法、术语表加行、闸门规则与补丁。
   `cowork.express.push`（auto，测试机推送冒烟）、`cowork.cc-chat.push`、`cowork.cc.mrerp-setup`、`cowork.ocr`、`cowork.execution`、`cowork.assistant`、
   `cowork.tax-documents` —— 没测到（今晚测试机不动；推送主路径未改，失败分支由单测覆盖）。部署后在测试机让 CC 推一张读不到账套的单，看待处理卡片按中文显示。
