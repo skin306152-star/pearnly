@@ -155,8 +155,9 @@ def pool_costs(moves) -> dict:
     for move in sorted(moves, key=order_key):
         quantity = abs(d(move.qty))
         if d(move.qty) >= 0:
+            # 自带单价的收：金额 = 单据上的数量 × 单价再舍入（MR.ERP 的 amtstd 就是单据金额），单价显示两位
             each = q2(move.cost) if move.cost is not None else unit
-            value = q2(quantity * each)
+            value = q2(quantity * (d(move.cost) if move.cost is not None else unit))
             qty, amount = qty + quantity, amount + value
             unit = ZERO if qty <= 0 else q2(amount / qty)
             out[move.seq] = (each, value)

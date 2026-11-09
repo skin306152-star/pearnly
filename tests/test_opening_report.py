@@ -1,4 +1,7 @@
-"""Real report/valuation code with read-only fake Site queries; no runtime or writes."""
+"""Real report/valuation code with read-only fake Site queries; no runtime or writes.
+
+收发存报表（页面）11-09 起照 MR.ERP 算（与导出共用 `card_rows.product_blocks`，见 docs/work/2026-11-08-stock-card-export-评估.md §G）：
+一个物料全公司一个移动平均池、同日先收后发、结余单价 = 金额 / 数量、成本未知记 0；初始化仍并进期初。"""
 from datetime import date
 from decimal import Decimal
 import importlib.util
@@ -54,6 +57,7 @@ class OpeningReport(unittest.TestCase):
                             "pearnly_erp_portal.inventory": inventory, "pearnly_erp_portal.products": products})
         products.categories = load("pearnly_erp_portal.products.categories", DOMAIN.parent / "products/categories.py")
         self.product_specs = {}
+        inventory.card_rows = load("pearnly_erp_portal.inventory.card_rows", DOMAIN / "card_rows.py")
         self.report = load("opening_report_service", DOMAIN / "report.py")
         # 分组求和在库里由 frappe.qb 的 CASE 查询做（实验栈 30 万行核对过）；这里换成按逐笔流水独立算的对照实现
         self.report._position_sums = self.position_sums
@@ -223,7 +227,9 @@ class OpeningReport(unittest.TestCase):
         self.assert_continuous(card)
         self.assert_continuous(self.card(start="2026-09-03"))
 
-    def test_positions_and_warehouses_keep_separate_weighted_costs(self):
+    def test_positions_share_one_company_pool_like_mrerp(self):
+        """收发存报表照 MR.ERP（主会话 11-09）：一个物料全公司一个移动平均池，不再按仓 / 仓位各算各的。
+        池：A 10@10 → 卖 2 @10 → B 5@20（13 / 180 / 13.85）→ 卖 1 @13.85 → W2 2@70（14 / 306.15 / 21.87）→ 卖 1 @21.87。"""
         self.add("open-A", "2026-09-01", 10, 10, kind="opening", location="A")
         self.add("sale-A", "2026-09-02", -2, kind="sale_out", location="A")
         self.add("open-B", "2026-09-05", 5, 20, kind="opening", location="B")
@@ -233,9 +239,9 @@ class OpeningReport(unittest.TestCase):
         self.add("out-of-scope", "2026-09-01", 100, 100, kind="opening", warehouse="OTHER")
         card = self.card()
         self.assertEqual((card["opening"]["qty"], card["opening"]["value"]), (17, 340))
-        self.assertEqual((card["closing"]["qty"], card["closing"]["value"]), (13, 230))
+        self.assertEqual((card["closing"]["qty"], card["closing"]["value"]), (13, 284.28))
         self.assertEqual([(row["name"], row["bal_qty"], row["unit_price"]) for row in card["rows"]],
-                         [("sale-A", 8, Decimal(10)), ("sale-B", 4, Decimal(20)), ("sale-W2", 1, Decimal(70))])
+                         [("sale-A", 15, Decimal(10)), ("sale-B", 14, Decimal("13.85")), ("sale-W2", 13, Decimal("21.87"))])
         summary = self.summary()
         self.assertEqual(len(summary), 3)
         self.assertEqual(sum(row["opening_qty"] for row in summary), 17)
@@ -244,14 +250,16 @@ class OpeningReport(unittest.TestCase):
         self.assertEqual(self.card(end="2026-09-03")["opening"]["qty"], 10)
         self.assert_continuous(self.card(warehouse="W1", location="A"))
 
-    def test_trailing_revision_keeps_exact_closing_cost_despite_rounding_residue(self):
+    def test_trailing_revision_folds_into_opening_and_balance_price_is_amount_over_qty(self):
+        """初始化修订并进期初；结余单价照 MR.ERP 报表 = round(结余金额 / 结余数量, 2)（57.php），不沿用引擎的滚动单价。
+        池：3@10.01 = 30.03 → 收 1@10 → 卖 1 @10.01 → 修订 -2 @10.01 = 20.02；期初 1 / 10.01，期末 1 / 10.00。"""
         self.add("opening", "2026-09-01", 3, Decimal("10.01"), kind="opening")
         self.add("purchase", "2026-09-02", 1, 10, kind="purchase_in")
         self.add("sale", "2026-09-03", -1, kind="sale_out")
         self.add("revision", "2026-09-04", -2, kind="adjust", ref="opening")
         card = self.card()
-        self.assertEqual(card["closing"], {"qty": 1, "unit_cost": 10.01, "value": 10})
-        self.assertEqual(card["rows"][-1]["bal_unit_cost"], Decimal("10.01"))
+        self.assertEqual(card["closing"], {"qty": 1, "unit_cost": 10, "value": 10})
+        self.assertEqual(card["rows"][-1]["bal_unit_cost"], Decimal("10.00"))
         self.assert_continuous(card)
 
     def test_only_initialization_is_hidden_other_adjustments_and_returns_remain(self):
@@ -264,7 +272,8 @@ class OpeningReport(unittest.TestCase):
                    ("out", "stock_out", "stock_entry", -1, None))
         for name, kind, ref, qty, cost in sources:
             self.add(name, "2026-09-02", qty, cost, kind=kind, ref=ref)
-        self.assertEqual([row["name"] for row in self.card()["rows"]], [row[0] for row in sources])
+        # 同一天照 MR.ERP 排：先收后发，各自按单号（57.php ORDER BY trandate, statustran, trandocno）
+        self.assertEqual([row["name"] for row in self.card()["rows"]], ["in", "purchase", "return", "count", "out", "sale"])
         summary = self.summary()[0]
         self.assertEqual((summary["opening_qty"], summary["in_qty"], summary["out_qty"]), (10, 4, 4))
         self.assert_continuous(self.card())
@@ -289,7 +298,7 @@ class OpeningReport(unittest.TestCase):
         self.assertEqual(card["opening"], {"date": "2026-09-01", "qty": 10, "unit_cost": 10, "value": 100})
         self.assertEqual((card["closing"]["qty"], card["closing"]["value"]), (15, 200))
 
-    def test_cost_masking_and_unknown_cost_still_hold(self):
+    def test_cost_masking_holds_and_unknown_cost_is_zero_like_mrerp(self):
         self.add("opening", "2026-09-01", 10, 10, kind="opening")
         self.add("sale", "2026-09-02", -1, kind="sale_out")
         self.cost_visible = False
@@ -307,18 +316,22 @@ class OpeningReport(unittest.TestCase):
         self.add("zero-opening", "2026-09-01", 0, kind="opening")
         self.add("unknown-out", "2026-09-02", -2, kind="stock_out")
         card = self.card()
-        self.assertIsNone(card["opening"]["value"])
-        self.assertIsNone(card["rows"][0]["amount"])
-        self.assertIsNone(card["closing"]["unit_cost"])
+        # 没有前结余就发出：MR.ERP 记 0 / 0（stkcardpc.php），不留空（主会话 11-09）
+        self.assertEqual(card["opening"]["value"], 0)
+        self.assertEqual(card["rows"][0]["amount"], Decimal("0.00"))
+        self.assertEqual(card["closing"]["unit_cost"], 0)
         self.assertEqual(card["closing"]["qty"], -2)
 
-    def test_no_initialization_does_not_rederive_rounded_running_unit_cost(self):
+    def test_receipt_amount_is_the_document_total_and_balance_price_is_rederived(self):
+        """收：金额 = 数量 × 单据单价再舍入（3 × 33.333333 = 100.00）；发按池价 33.33；结余单价照 MR.ERP 报表重算 = 33.34。"""
         self.add("receive", "2026-09-01", 3, Decimal("33.333333"))
         self.add("issue", "2026-09-02", -2, kind="stock_out")
         card = self.card()
+        self.assertEqual(card["rows"][0]["amount"], Decimal("100.00"))
+        self.assertEqual(card["rows"][-1]["amount"], Decimal("66.66"))
         self.assertEqual(card["rows"][-1]["bal_value"], Decimal("33.34"))
-        self.assertEqual(card["rows"][-1]["bal_unit_cost"], Decimal("33.33"))
-        self.assertEqual(card["closing"]["unit_cost"], 33.33)
+        self.assertEqual(card["rows"][-1]["bal_unit_cost"], Decimal("33.34"))
+        self.assertEqual(card["closing"]["unit_cost"], 33.34)
         self.assert_continuous(card)
 
 

@@ -586,22 +586,23 @@ class Export(unittest.TestCase):
         dates = {"date_from": "2026-10-01", "date_to": "2026-10-31"}
         card = self.report.card(product="P1", **dates)
         self.assertEqual((card["opening"]["qty"], card["opening"]["unit_cost"], card["opening"]["value"]), (6, 5, 30))
-        self.assertEqual([(row["doc_no"], row["qty"], row["unit_price"], row["amount"], row["bal_qty"], row["bal_unit_cost"],
-                           row["bal_value"]) for row in card["rows"]], [
+        number = lambda value: None if value is None else float(value)  # noqa: E731
+        self.assertEqual([(row["doc_no"], row["qty"], number(row["unit_price"]), number(row["amount"]), row["bal_qty"],
+                           number(row["bal_unit_cost"]), number(row["bal_value"])) for row in card["rows"]], [
             ("PI-02", 6, 6, 36, 12, 5.5, 66), ("IS-01", -2, 5.5, 11, 10, 5.5, 55), ("TR-1", 5, 5.5, 27.5, 15, 5.5, 82.5),
             ("TR-1", -5, 5.5, 27.5, 10, 5.5, 55), ("SI-02", -2, 5.5, 11, 8, 5.5, 44), ("PI-03", 3, 7, 21, 11, 5.91, 65)])
         self.assertEqual((card["closing"]["qty"], card["closing"]["unit_cost"], card["closing"]["value"]), (11, 5.91, 65))
         exported = [row for row in self.layout("all", product_from="P1", product_to="P1")["body"] if row["kind"] == "line"]
         self.assertEqual([[float(v) for v in self.values(row)[2:] if v is not None] for row in exported],
-                         [[abs(r["qty"]), r["unit_price"], r["amount"], r["bal_qty"], r["bal_unit_cost"], r["bal_value"]]
-                          for r in card["rows"]])
+                         [[abs(r["qty"]), *map(number, (r["unit_price"], r["amount"])), r["bal_qty"],
+                           *map(number, (r["bal_unit_cost"], r["bal_value"]))] for r in card["rows"]])
         store = self.report.card(product="P1", warehouse="W2", **dates)
         by_store = self.layout("by_warehouse", product_from="P1", product_to="P1")["body"]
         w2 = by_store[by_store.index(next(r for r in by_store if r["kind"] == "store" and r["cells"][0]["value"].startswith("WH02"))):]
         lines = [row for row in w2 if row["kind"] == "line"][:3]
         self.assertEqual([[float(v) for v in self.values(row)[2:] if v is not None] for row in lines],
-                         [[abs(r["qty"]), r["unit_price"], r["amount"], r["bal_qty"], r["bal_unit_cost"], r["bal_value"]]
-                          for r in store["rows"]])
+                         [[abs(r["qty"]), *map(number, (r["unit_price"], r["amount"])), r["bal_qty"],
+                           *map(number, (r["bal_unit_cost"], r["bal_value"]))] for r in store["rows"]])
         self.assertEqual((store["closing"]["qty"], store["closing"]["value"]), (6, 37.5))
 
     def test_page_summary_list_closing_matches_the_export(self):

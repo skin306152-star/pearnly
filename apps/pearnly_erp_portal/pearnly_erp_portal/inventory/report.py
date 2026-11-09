@@ -316,9 +316,9 @@ def card(*, product, warehouse=None, location=None, date_from=None, date_to=None
                      "warehouse_name": warehouse_names.get(r["warehouse"]),
                      "date": r["posting_date"], "kind": r["movement_type"], "doc_no": r["doc_no"],
                      "desc": r["ref_id"] or r["reason"] or r["movement_type"],
-                     "qty": float(r["qty_base"]), "unit_price": _number(line.unit_price),
-                     "amount": _number(line.amount), "bal_qty": float(line.bal_qty),
-                     "bal_unit_cost": _number(line.bal_price), "bal_value": _number(line.bal_amount)},
+                     "qty": float(r["qty_base"]), "unit_price": line.unit_price,
+                     "amount": line.amount, "bal_qty": float(line.bal_qty),
+                     "bal_unit_cost": line.bal_price, "bal_value": line.bal_amount},
                     cost_visible=visible)
             for line, r in rolled],
         "closing": {"qty": float(item.closing_qty),
