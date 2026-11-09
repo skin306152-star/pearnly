@@ -26,6 +26,8 @@ offline() {
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/scripts/check-cc-tools.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_cloud_onboarding.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_channel_setup.py
+  # 11-09 清点出没人跑、要镜像依赖的存量单测（清单在脚本里）
+  offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/scripts/run-offline-tests.py --image
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_menu_publish_lock.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_core_line_token.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_search_and_loading.py
