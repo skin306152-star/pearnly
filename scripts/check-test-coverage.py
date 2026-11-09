@@ -54,9 +54,14 @@ def run_blocks(path: Path) -> list[str]:
     return blocks
 
 
+TOKEN = re.compile(r"(?<![\w.])(test_\w+)\b")
+
+
 def names_in(text: str, tests: list[str]) -> set[str]:
-    return {name for name in tests
-            if re.search(rf"(?<![\w.]){re.escape(name)}\b", text) or re.search(rf"(?<![\w.]){name[:-3]}\b", text)}
+    """文本里点名的测试：文件名或模块名，前面不能紧跟字母数字、下划线或 `.`（`pkg.test_x` 是别的包里的同名模块）。
+    一遍扫出全部 `test_…` 词再对清单（逐个测试各编一个正则时，四百多个超出 re 的缓存，CI 上要 20 多秒）。"""
+    found = {token + ".py" for token in TOKEN.findall(text)}
+    return found & set(tests)
 
 
 def executed(root: Path, tests: list[str]) -> dict[str, str]:
