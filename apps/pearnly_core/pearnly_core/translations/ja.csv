@@ -1428,6 +1428,10 @@ shell.wait.pages,{0}/{1} ページ読み取り済み · {2}%
 state is invalid or has expired,state が無効か期限切れです
 upload.deferred,現在アップロードできません。後でもう一度お試しください。
 username / password are required,username / password は必須です
+{0} is entered in {1},{0} は {1} に入力済み
+{0} is entered in {1}: {2},{0} は {1} に入力済み：{2}
+{0} is not entered in {1},{0} は {1} に未入力
+{0} is not entered in {1}: {2},{0} は {1} に未入力：{2}
 {0} of {1} pages used this cycle; {2} remaining.,今期{0}/{1}ページ使用、残り{2}ページ。
 {0} pages per cycle,1期間あたり{0}ページ
 {0} record(s) deleted.,{0}件を削除しました。

@@ -1428,6 +1428,10 @@ shell.wait.pages,已识别 {0}/{1} 页 · {2}%
 state is invalid or has expired,state 无效或已过期
 upload.deferred,暂时无法上传，请稍后重试。
 username / password are required,username / password 必填
+{0} is entered in {1},{0} 已写入 {1}
+{0} is entered in {1}: {2},{0} 已写入 {1}：{2}
+{0} is not entered in {1},{0} 未写入 {1}
+{0} is not entered in {1}: {2},{0} 未写入 {1}：{2}
 {0} of {1} pages used this cycle; {2} remaining.,本周期已用 {0}/{1} 页，剩余 {2} 页。
 {0} pages per cycle,每周期 {0} 页
 {0} record(s) deleted.,已删除 {0} 条记录。

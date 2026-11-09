@@ -1426,6 +1426,10 @@ shell.wait.pages,Recognized {0}/{1} pages · {2}%
 state is invalid or has expired,state is invalid or has expired
 upload.deferred,Unable to upload right now. Please try again later.
 username / password are required,username / password are required
+{0} is entered in {1},{0} is entered in {1}
+{0} is entered in {1}: {2},{0} is entered in {1}: {2}
+{0} is not entered in {1},{0} is not entered in {1}
+{0} is not entered in {1}: {2},{0} is not entered in {1}: {2}
 {0} of {1} pages used this cycle; {2} remaining.,{0} of {1} pages used this cycle; {2} remaining.
 {0} pages per cycle,{0} pages per cycle
 {0} record(s) deleted.,{0} record(s) deleted.

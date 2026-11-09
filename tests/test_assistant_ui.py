@@ -4529,7 +4529,7 @@ assert.equal(useTaskOverview.getState().loaded, true);
 import { listGrouped } from "@/lib/managed-agents/api";
 g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { sessions: [], nextCursor: null } }) });
 await listGrouped({ group: "comp_abc", after: "x|y" });
-assert.deepEqual(g.calls.at(-1).args, { grouped: "1", group: "comp_abc", after: "x|y", mode: "chat" });
+assert.deepEqual(g.calls.at(-1).args, { grouped: "1", group: "comp_abc", after: "x|y" });  // 两种模式列同一批对话（11-08）
 """)
 
     def test_new_tasks_start_from_a_company(self):
