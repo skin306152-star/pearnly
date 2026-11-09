@@ -455,3 +455,8 @@ reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过�
 file = "frontend/assistant/src/lib/managed-agents/drafts.ts"
 match = "draft = JSON.parse(raw) as Partial<Draft>;"
 reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/managed-agents/list-sync.ts"
+match = "return threads.getItemById(id);"
+reason = "组件库按编号取不到这一行（同一段对话两行并存、删掉后剩下那行不在它的映射里）是预期情况：当已经不在，跳过并整表重拉，不上报（11-09 e2e 报过 Entry not available 噪声）"
