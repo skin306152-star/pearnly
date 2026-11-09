@@ -202,6 +202,14 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     rows = _rows(config.get("reported_customers" if direction == "sales" else "reported_suppliers"))
     subject = party_subject(direction, tax, branch, name)
     value = chosen("party", subject)
+    if not value and len(digits(tax)) == 13:
+        # 同税号同分店记过、名称写法不同（识别把同一个名字读出一两个字不同，11-08 生产：「ซูเปอร์」/「ซุเปอร์」又问了一遍）：
+        # 那里记的值只有一个就照用；记过几个不同的照常问。键本身不改，已记下的照样认
+        prefix = f"{direction}|{digits(tax)}|{branch5(branch)}|"
+        found = {key: str(v).strip() for key, v in (remembered.get("party") or {}).items()
+                 if str(key).startswith(prefix) and str(v or "").strip()}
+        if len(set(found.values())) == 1:
+            subject, value = next(iter(found.items()))
     pinned = str(fields.get("party_code") or "").strip()
     if pinned and (not rows or pinned in _codes(rows)):
         # 来源已给出 Express 的对方档编码（ERP 前台从 Express 回读的主档里选的，ADR-025）：照码，不问、不记

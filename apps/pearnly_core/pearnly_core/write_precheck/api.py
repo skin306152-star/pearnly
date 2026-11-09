@@ -55,10 +55,24 @@ def card(company, doc_ids, hint="") -> dict:
 
 @frappe.whitelist(methods=["POST"])
 def check(company, doc_ids, mode="direct"):
+    """只读的判定：撞上快照冲突（1020，产品锁着连接读时别的请求刚改了它）或死锁就整笔回滚、退避重来（11-08 生产：一次 500），
+    重来几次仍不行回一句「请稍后重试」，不是 500。"""
     _require(company)
     if mode not in MODES:
         frappe.throw(_("Invalid request"))
-    return {**card(str(company or ""), _ids(doc_ids)), "mode": mode}
+    ids = _ids(doc_ids)
+    for _attempt in range(CHECK_ATTEMPTS):
+        try:
+            found = card(str(company or ""), ids)
+            break
+        except frappe.QueryDeadlockError:
+            frappe.db.rollback()  # 结束这次的读快照，重来时读到别的请求刚提交的
+    else:
+        frappe.throw(_("Please try again later"))
+    return {**found, "mode": mode}
+
+
+CHECK_ATTEMPTS = 3
 
 
 @frappe.whitelist(methods=["GET"])

@@ -723,6 +723,27 @@ class SweepAndShared(unittest.TestCase):
             first = api.check("CO1", json.dumps(["h1", "h2"]), mode="operator")
             self.assertTrue(first["needs_card"])
             self.assertEqual(first["mode"], "operator")
+            # 11-08 生产：判定时撞上快照冲突（1020，产品锁着连接读、别的请求刚改了它）回 500。回滚、重读一次
+            class Deadlock(Exception):
+                pass
+            frappe.QueryDeadlockError = Deadlock
+            frappe.db.rollback = lambda: calls.append(("rollback",))
+            real, tries = product.check, []
+
+            def flaky(company, ids):
+                tries.append(1)
+                if len(tries) == 1:
+                    raise Deadlock("1020")
+                return real(company, ids)
+
+            product.check = flaky
+            self.assertTrue(api.check("CO1", ["h1"])["needs_card"])
+            self.assertEqual((len(tries), calls[-1]), (2, ("rollback",)))
+            product.check = lambda company, ids: (_ for _ in ()).throw(Deadlock("1020"))
+            with self.assertRaises(Stop):
+                api.check("CO1", ["h1"])  # 重来几次仍冲突：回一句请稍后重试，不是 500
+            product.check = real
+            calls.clear()
             with self.assertRaises(Stop):
                 api.check("CO1", ["h1"], mode="later")  # 认不出的模式拒收
             with self.assertRaises(Stop):

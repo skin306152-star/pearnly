@@ -48,6 +48,21 @@ class Choices(unittest.TestCase):
         self.assertEqual(payload["customer"], {"code": "BIG C -002", "customer_new": False})
         self.assertEqual((payload["items"][0]["code"], payload["payload_version"]), ("น้ำแข็งแพ็ค", 2))
 
+    def test_the_same_customer_read_with_a_slightly_different_name_is_not_asked_again(self):
+        """11-08 生产：同一个 Big C 总部，识别一张读成「ซูเปอร์」、一张读成「ซุเปอร์」，归类键带名称就成了两个，又问了一遍。
+        同税号同分店记过、只有一个值就照用；记过两个不同的照常问。"""
+        first = C.resolve(sale(), direction="sales", posting_kind="stock", config=CONFIG, remembered={})
+        party = next(item for item in first["needed"] if item["kind"] == "party")
+        remembered = {"party": {party["subject"]: "BIG C -002"}}
+        variant = sale(buyer_name="บมจ.บิ๊กซี ซุเปอร์เซ็นเตอร์ (สาขา-ซอยประชุม)")
+        again = C.resolve(variant, direction="sales", posting_kind="stock", config=CONFIG, remembered=remembered)
+        self.assertNotIn("party", kinds(again))
+        self.assertEqual(again["applied"]["party"], "BIG C -002")
+        mixed = {"party": {party["subject"]: "BIG C -002",
+                           party["subject"].rsplit("|", 1)[0] + "|other": "BIG C -001"}}
+        unsure = C.resolve(variant, direction="sales", posting_kind="stock", config=CONFIG, remembered=mixed)
+        self.assertIn("party", kinds(unsure))  # 同税号同分店记过两个不同的：照常问，不猜
+
     def test_a_branch_the_record_does_not_have_asks_instead_of_creating_a_duplicate(self):
         # 压测：分店 00113 读成 00013，小助手按分店找不到就新建了 B010
         result = C.resolve(purchase(seller_branch="00013", posting_payment_manual="credit"), direction="purchase",
