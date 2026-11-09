@@ -323,7 +323,7 @@ const add=qa('button.cc-attach').find(seen); if(!add) return {{error:'no attach 
 
 # 对话里弹出的提问卡（ask_user，直写）：选 Big C 总部那个客户（名字里没有 -00 的那个）、别的题照预选，一题题点下一题
 ANSWER_ASK = f"""
-const box=qa('[data-slot="cc-askq"][data-phase="ask"]').pop(); if(!box) return {{asked:false}};
+const box=qa('.cc-askq[data-phase="ask"]').pop(); if(!box) return {{asked:false}};
 const picked=[];
 for(let k=0;k<30;k++){{
   const opts=[...box.querySelectorAll('[data-slot="cc-askq-option"]')];
@@ -350,11 +350,11 @@ def direct_steps(params, viewport):
          + "const shown=await until(()=>document.body.innerText.includes('party-once-screenshot-04'),80); "
          "const ready=await until(()=>{const b=q('button.aui-composer-send'); return b&&!b.disabled;},240); "
          f"const sent=await say({json.dumps(DIRECT_LINES[viewport])}); "
-         f"const got=await until(()=>replies().length>0&&({idle}||q('[data-slot=\"cc-askq\"][data-phase=\"ask\"]')),220); "
+         f"const got=await until(()=>replies().length>0&&({idle}||q('.cc-askq[data-phase=\"ask\"]')),220); "
          "return {picked, shown, ready, sent, got, replies: replies()};"},
         # 识别 4 张、要选客户、推送：一步一分钟内，有提问卡就答，没有就等这一轮结束
         *[{"name": f"直写答题{k}", "js": JS + _texts_js() + ANSWER_ASK.replace("return {asked:false};",
-           f"{{ const done=await until(()=>{idle}&&!q('[data-slot=\"cc-askq\"][data-phase=\"ask\"]'),200); "
+           f"{{ const done=await until(()=>{idle}&&!q('.cc-askq[data-phase=\"ask\"]'),200); "
            "return {asked:false, done, replies: replies().slice(-3)}; }")} for k in range(1, 7)],
         {"name": "直写结束", "file": "0b-直写推送后", "shot": True, "js": JS + _texts_js()
          + f"const done=await until(()=>{idle},200); return {{done, replies: replies()}};"},
@@ -387,9 +387,11 @@ const ready=await until(()=>{{const b=q('button.aui-composer-send'); return b&&!
          "const got=await until(()=>replies().length>0&&!q('[data-slot=\"cc-run-indicator\"]'),220); "
          "return {shown, ready, sent, got, replies: replies()};"},
         # 识别 24 页、开始卡出来要几分钟：分几步等（每步一次页面求值不超过一分钟）
-        *[{"name": f"等开始卡{k}", "js": JS + "if(q('[data-slot=\"cc-op-before-ask\"] [data-slot=\"cc-askq-question\"]')||"
-           "q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-start\"]')) return {got:true, ask: !!q('[data-slot=\"cc-op-before-ask\"]')}; "
-           + wait_card} for k in range(1, 13)],
+        # 开始卡出来、而且这份 PDF 的 24 张都识别完（上传那一步写出张数）才算等到：11-09 第 6 次开始得太早，资料里只有直写那 4 张
+        *[{"name": f"等开始卡{k}", "js": JS + f"const all=()=>qa('[data-slot=\"cc-op-upload\"]').some(e=>new RegExp('\\\\b{PAGES}\\\\b').test(e.innerText)); "
+           "if(all()&&(q('[data-slot=\"cc-op-before-ask\"] [data-slot=\"cc-askq-question\"]')||"
+           "q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-start\"]'))) return {got:true, ask: !!q('[data-slot=\"cc-op-before-ask\"]')}; "
+           "await until(all,200); " + wait_card} for k in range(1, 13)],
         {"name": "开始卡问题", "file": "2-开始卡里的问题", "shot": True, "js": JS + _texts_js() + """
 for(let k=0;k<5;k++){const more=q('[data-slot="cc-op-before"] .cc-show-more'); if(!more) break; more.click(); await sleep(500);}
 const written=qa('[data-slot="cc-op-before"] [data-slot="cc-op-written"]').map(e=>e.innerText.trim());
