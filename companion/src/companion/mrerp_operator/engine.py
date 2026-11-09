@@ -96,9 +96,9 @@ class Engine:
             self.form_open = None
             if self._saving:  # 点了存档才被踢：存没存不知道，留「正在录」、本机记下，续录前先查
                 self.book.mark_unsure(draft.doc_id)
-                self.rec.update(outcome="crash", reason="login_failed", detail=f"kicked after save: {error}"[:300])
+                self.rec.update(outcome="crash", reason="account_in_use", detail=f"kicked after save: {error}"[:300])
             else:
-                self.rec.update(outcome="need_human", reason="login_failed", detail=f"kicked: {error}"[:300])
+                self.rec.update(outcome="need_human", reason="account_in_use", detail=f"kicked: {error}"[:300])
         except (NetworkDown, DeskGone) as error:
             self.form_open = None
             if self._saving:

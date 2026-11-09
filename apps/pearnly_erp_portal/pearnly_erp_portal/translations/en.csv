@@ -107,6 +107,8 @@ Amount,Amount
 Amount Payable,Amount Payable
 Amount Received,Amount Received
 Amounts,Amounts
+An account used is not in the MR.ERP chart of accounts. Check the account settings,An account used is not in the MR.ERP chart of accounts. Check the account settings
+An error occurred while sending to MR.ERP,An error occurred while sending to MR.ERP
 An item group's account is not in the Express chart of accounts,An item group's account is not in the Express chart of accounts
 Anonymous,Anonymous
 Anonymous buyers get no tax id; only companies have branches,Anonymous buyers get no tax id; only companies have branches
@@ -264,6 +266,7 @@ Choose an image attached to this card,Choose an image attached to this card
 Choose at least one job role,Choose at least one job role
 Choose file,Choose file
 Choose purchase or sales first,Choose purchase or sales first
+Choose purchase or sales for this invoice and submit again,Choose purchase or sales for this invoice and submit again
 Choose the company,Choose the company
 Choose the customer,Choose the customer
 Choose the inventory account group for this account set first.,Choose the inventory account group for this account set first.
@@ -345,9 +348,12 @@ Correct entry,Correct entry
 Cost,Cost
 Cost Is Set,Cost Is Set
 Cost Known,Cost Known
+Could not connect to MR.ERP,Could not connect to MR.ERP
+Could not read the MR.ERP master data.,Could not read the MR.ERP master data.
 Could not read this document. Please send it again.,Could not read this document. Please send it again.
 Could not record this document. Please try again.,Could not record this document. Please try again.
 Could not record: {0},Could not record: {0}
+Could not sign in to MR.ERP. Check the connection's username and password,Could not sign in to MR.ERP. Check the connection's username and password
 Could not store this document,Could not store this document
 Count at least one item before finishing,Count at least one item before finishing
 Count by,Count by
@@ -393,6 +399,7 @@ Creating an adjustment from a stock count,Creating an adjustment from a stock co
 Creation,Creation
 Credit,Credit
 Credit Note,Credit Note
+Credit notes need a person to post them in MR.ERP,Credit notes need a person to post them in MR.ERP
 Currency,Currency
 Current,Current
 Custom,Custom
@@ -660,6 +667,7 @@ Import result,Import result
 Imported,Imported
 Imported {0} product(s),Imported {0} product(s)
 "Imported {0} rows, {1} with a counted quantity","Imported {0} rows, {1} with a counted quantity"
+Importing into MR.ERP,Importing into MR.ERP
 In,In
 In Date,In Date
 In Reference,In Reference
@@ -774,6 +782,13 @@ Low stock,Low stock
 Low stock alert,Low stock alert
 Loyalty Points,Loyalty Points
 Loyalty Program,Loyalty Program
+"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.","MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
+"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.","MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
+MR.ERP does not support this tax rate. Check it and submit again,MR.ERP does not support this tax rate. Check it and submit again
+MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.
+MR.ERP purchases can only be entered on credit.,MR.ERP purchases can only be entered on credit.
+MR.ERP returned an error. Check in MR.ERP,MR.ERP returned an error. Check in MR.ERP
+MR.ERP sign-in is not authorized,MR.ERP sign-in is not authorized
 Main,Main
 Maintained in Express,Maintained in Express
 Make template,Make template
@@ -831,6 +846,7 @@ Next,Next
 Next Number,Next Number
 No,No
 No Express account set covers this date,No Express account set covers this date
+No MR.ERP import result was returned. Check in MR.ERP,No MR.ERP import result was returned. Check in MR.ERP
 No Open Shift,No Open Shift
 No attachments,No attachments
 No cards are assigned to you,No cards are assigned to you
@@ -894,6 +910,7 @@ Only a submitted document can be voided,Only a submitted document can be voided
 Only an active count can be deleted,Only an active count can be deleted
 Only an image or a PDF can be recognised,Only an image or a PDF can be recognised
 Only board admins can do this,Only board admins can do this
+Only invoices in Thai baht can be sent to MR.ERP,Only invoices in Thai baht can be sent to MR.ERP
 Only low or out of stock,Only low or out of stock
 Only one with this tax number,Only one with this tax number
 Only purchase documents can be sent in for now,Only purchase documents can be sent in for now
@@ -1406,7 +1423,11 @@ That warehouse belongs to another company,That warehouse belongs to another comp
 That warehouse is turned off,That warehouse is turned off
 The Express index tool is missing on this computer. Reinstall CC Desktop,The Express index tool is missing on this computer. Reinstall CC Desktop
 The LINE account that sent the document,The LINE account that sent the document
+The MR.ERP customer code is too long. Choose the customer again,The MR.ERP customer code is too long. Choose the customer again
+The MR.ERP import failed. Nothing was posted,The MR.ERP import failed. Nothing was posted
+The MR.ERP import page shows no menu (setup incomplete or no permission).,The MR.ERP import page shows no menu (setup incomplete or no permission).
 The Revenue Department replied in an unreadable format,The Revenue Department replied in an unreadable format
+The VAT does not match the 7% rate. Check it and submit again,The VAT does not match the 7% rate. Check it and submit again
 The account set cannot be reached right now. It will be sent automatically once connected.,The account set cannot be reached right now. It will be sent automatically once connected.
 The account set on this computer is not the registered one. Waiting for another computer.,The account set on this computer is not the registered one. Waiting for another computer.
 The account you give customers for transfers,The account you give customers for transfers
@@ -1415,6 +1436,7 @@ The amount is invalid,The amount is invalid
 The amount payable cannot be negative,The amount payable cannot be negative
 The amount received is less than the total,The amount received is less than the total
 The amount received is short,The amount received is short
+The amounts do not add up. Correct them and submit again,The amounts do not add up. Correct them and submit again
 The balance could not be checked right now. Please try again in a minute.,The balance could not be checked right now. Please try again in a minute.
 The card is already in that list,The card is already in that list
 The card no longer exists,The card no longer exists
@@ -1425,6 +1447,7 @@ The cashier is not enabled for this company,The cashier is not enabled for this 
 The chosen account cannot be posted in Express. Choose another account,The chosen account cannot be posted in Express. Choose another account
 The chosen account set belongs to another company. Check the account set,The chosen account set belongs to another company. Check the account set
 The company has no 13-digit tax ID,The company has no 13-digit tax ID
+The company has no MR.ERP account set,The company has no MR.ERP account set
 The company on your documents,The company on your documents
 The company used for new documents and for the company profile page,The company used for new documents and for the company profile page
 The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
@@ -1438,6 +1461,10 @@ The file could not be saved. Please try again shortly.,The file could not be sav
 The file is larger than 25 MB,The file is larger than 25 MB
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
 The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
+The invoice date is in the future. Correct it and submit again,The invoice date is in the future. Correct it and submit again
+The invoice date is missing or unreadable. Fill it in and submit again,The invoice date is missing or unreadable. Fill it in and submit again
+The invoice date looks wrong. Correct it and submit again,The invoice date looks wrong. Correct it and submit again
+The invoice number is longer than MR.ERP allows. Shorten it and submit again,The invoice number is longer than MR.ERP allows. Shorten it and submit again
 The invoice number is missing. Add it and submit again.,The invoice number is missing. Add it and submit again.
 The item is not in Express,The item is not in Express
 The item is not in Express yet,The item is not in Express yet
@@ -1461,6 +1488,7 @@ The quantity on line {0} is invalid,The quantity on line {0} is invalid
 The recognition queue is busy. Please send the document again shortly.,The recognition queue is busy. Please send the document again shortly.
 The recognition result needs checking. Please do not resend this document yet.,The recognition result needs checking. Please do not resend this document yet.
 The recognition service did not answer in time. Please try again.,The recognition service did not answer in time. Please try again.
+The result is not confirmed. Check in MR.ERP before sending again,The result is not confirmed. Check in MR.ERP before sending again
 The return is not in the expected form,The return is not in the expected form
 The returned quantity is more than the quantity sold,The returned quantity is more than the quantity sold
 The row has no product code or barcode,The row has no product code or barcode
@@ -1472,6 +1500,8 @@ The stock count changed. Review the differences again.,The stock count changed. 
 The supplier is missing. Add it and submit again.,The supplier is missing. Add it and submit again.
 The total does not match the printed total,The total does not match the printed total
 The total is invalid,The total is invalid
+The total is missing. Add it and submit again,The total is missing. Add it and submit again
+The total is negative. Correct it and submit again,The total is negative. Correct it and submit again
 The total is zero,The total is zero
 The units must match the stock of each warehouse,The units must match the stock of each warehouse
 The value is not a number,The value is not a number
@@ -1485,6 +1515,9 @@ There were errors while sending email. Please try again.,There were errors while
 This Express account set has no book for this kind of stock document. Set it up in Express,This Express account set has no book for this kind of stock document. Set it up in Express
 This LINE account is not bound to an ERP user,This LINE account is not bound to an ERP user
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.","This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first."
+This MR.ERP account is in an operator entry,This MR.ERP account is in an operator entry
+This MR.ERP account is in an operator entry. It is sent automatically when done,This MR.ERP account is in an operator entry. It is sent automatically when done
+This MR.ERP account is in use. Send again later,This MR.ERP account is in use. Send again later
 This Month,This Month
 This PDF has more than {0} pages,This PDF has more than {0} pages
 This Quarter,This Quarter
@@ -1505,6 +1538,7 @@ This code is already taken,This code is already taken
 This code is already used by {0} ({1}),This code is already used by {0} ({1})
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.","This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these."
 This counter sells for this company; stock leaves its warehouse,This counter sells for this company; stock leaves its warehouse
+This customer has no match in MR.ERP. Choose the customer and submit again,This customer has no match in MR.ERP. Choose the customer and submit again
 This customer is not in Express and could not be created. Check the customer name and tax ID,This customer is not in Express and could not be created. Check the customer name and tax ID
 This device cannot scan,This device cannot scan
 This device has no camera to scan with,This device has no camera to scan with
@@ -1517,6 +1551,7 @@ This document is not in Express,This document is not in Express
 This document is too large,This document is too large
 This document is void,This document is void
 This document type cannot be written to Express. Check it and submit again.,This document type cannot be written to Express. Check it and submit again.
+This document type cannot be written to MR.ERP,This document type cannot be written to MR.ERP
 This document was already recorded,This document was already recorded
 This document was changed in Express. Check it in Express,This document was changed in Express. Check it in Express
 "This document was issued by this company, not a purchase document","This document was issued by this company, not a purchase document"
@@ -1554,6 +1589,8 @@ This stock entry comes from a stock count. It cannot be voided on its own,This s
 This stock position already has stock movements; use a stock adjustment,This stock position already has stock movements; use a stock adjustment
 This stock position is already initialized; use a stock adjustment,This stock position is already initialized; use a stock adjustment
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,This supplier is not in Express and could not be created. Check the supplier name and tax ID
+This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID,This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID
+This supplier is not in MR.ERP. Check the supplier name and tax ID,This supplier is not in MR.ERP. Check the supplier name and tax ID
 This terminal already has an open shift,This terminal already has an open shift
 This terminal has no warehouse; set one in the terminal settings,This terminal has no warehouse; set one in the terminal settings
 This unit has been counted,This unit has been counted
@@ -2303,6 +2340,44 @@ hq,hq
 issued,issued
 keyword,keyword
 member,member
+mrerp.error.ERR_ACCOUNT_NEEDS_REVIEW,An account used is not in the MR.ERP chart of accounts. Check the account settings
+mrerp.error.ERR_AMOUNTS_NOT_CLOSED,The amounts do not add up. Correct them and submit again
+mrerp.error.ERR_AUTH,Could not sign in to MR.ERP. Check the connection's username and password
+mrerp.error.ERR_BUSINESS,MR.ERP returned an error. Check in MR.ERP
+mrerp.error.ERR_CUSTOMER_CODE_TOO_LONG,The MR.ERP customer code is too long. Choose the customer again
+mrerp.error.ERR_DATE_FUTURE,The invoice date is in the future. Correct it and submit again
+mrerp.error.ERR_DIRECTION_UNKNOWN,Choose purchase or sales for this invoice and submit again
+mrerp.error.ERR_INVOICE_NO_TOO_LONG,The invoice number is longer than MR.ERP allows. Shorten it and submit again
+mrerp.error.ERR_MRERP_IMPORT_ERROR,The MR.ERP import failed. Nothing was posted
+mrerp.error.ERR_MRERP_MASTER_UNREADABLE,Could not read the MR.ERP master data.
+mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.
+mrerp.error.ERR_MRERP_MENU_UNREADABLE,The MR.ERP import page shows no menu (setup incomplete or no permission).
+mrerp.error.ERR_MRERP_MODULE_UNAVAILABLE,This document type cannot be written to MR.ERP
+mrerp.error.ERR_MRERP_READBACK_NOT_FOUND,"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
+mrerp.error.ERR_MRERP_READBACK_NOT_LINKED,"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
+mrerp.error.ERR_NEGATIVE_AMOUNT,The total is negative. Correct it and submit again
+mrerp.error.ERR_NO_CLIENT,The customer is missing. Choose the customer and submit again.
+mrerp.error.ERR_NO_CUSTOMER_MAPPING,This customer has no match in MR.ERP. Choose the customer and submit again
+mrerp.error.ERR_NO_INVOICE_DATE,The invoice date is missing or unreadable. Fill it in and submit again
+mrerp.error.ERR_NO_INVOICE_NO,The invoice number is missing. Add it and submit again.
+mrerp.error.ERR_NO_SUPPLIER,This supplier is not in MR.ERP. Check the supplier name and tax ID
+mrerp.error.ERR_NO_TOTAL_AMOUNT,The total is missing. Add it and submit again
+mrerp.error.ERR_SESSION_LOCK,This MR.ERP account is in use. Send again later
+mrerp.error.ERR_TAX_RATE_INVALID,MR.ERP does not support this tax rate. Check it and submit again
+mrerp.error.ERR_TECHNICAL,Could not connect to MR.ERP
+mrerp.error.ERR_UNEXPECTED,An error occurred while sending to MR.ERP
+mrerp.error.ERR_UNKNOWN_UPLOAD_OUTCOME,No MR.ERP import result was returned. Check in MR.ERP
+mrerp.error.ERR_VAT_RATE_ANOMALY,The VAT does not match the 7% rate. Check it and submit again
+mrerp.error.date_future,The invoice date is in the future. Correct it and submit again
+mrerp.error.date_implausible,The invoice date looks wrong. Correct it and submit again
+mrerp.error.mrerp_credit_note,Credit notes need a person to post them in MR.ERP
+mrerp.error.mrerp_currency_not_thb,Only invoices in Thai baht can be sent to MR.ERP
+mrerp.reason.accountBusy,This MR.ERP account is in an operator entry
+mrerp.reason.importing,Importing into MR.ERP
+mrerp.reason.loginMissing,MR.ERP sign-in is not authorized
+mrerp.reason.notConfigured,The company has no MR.ERP account set
+mrerp.reason.purchaseCash,MR.ERP purchases can only be entered on credit.
+mrerp.reason.resultUnknown,The result is not confirmed. Check in MR.ERP before sending again
 nav.posReceipts,Cashier Records
 nav.posShifts,Shift Records
 nav.stockAdjust,Product Adjustment

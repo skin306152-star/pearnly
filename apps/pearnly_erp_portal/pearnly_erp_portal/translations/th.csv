@@ -107,6 +107,8 @@ Amount,จำนวนเงิน
 Amount Payable,ยอดที่ต้องชำระ
 Amount Received,รับชำระ
 Amounts,จำนวนเงิน
+An account used is not in the MR.ERP chart of accounts. Check the account settings,รหัสบัญชีที่ใช้ไม่มีในผังบัญชี MR.ERP กรุณาตรวจสอบการตั้งค่าบัญชี
+An error occurred while sending to MR.ERP,เกิดข้อผิดพลาดขณะส่งไปยัง MR.ERP
 An item group's account is not in the Express chart of accounts,บัญชีของกลุ่มสินค้าไม่มีในผังบัญชี Express
 Anonymous,ลูกค้าทั่วไป
 Anonymous buyers get no tax id; only companies have branches,ลูกค้าทั่วไปไม่มีเลขประจำตัวผู้เสียภาษี และมีเพียงบริษัทเท่านั้นที่มีสาขา
@@ -264,6 +266,7 @@ Choose an image attached to this card,กรุณาเลือกรูปภ
 Choose at least one job role,กรุณาเลือกสิทธิ์การใช้งานอย่างน้อยหนึ่งรายการ
 Choose file,เลือกไฟล์
 Choose purchase or sales first,กรุณาเลือก ซื้อ หรือ ขาย ก่อน
+Choose purchase or sales for this invoice and submit again,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
 Choose the company,เลือกบริษัท
 Choose the customer,กรุณาเลือกลูกค้า
 Choose the inventory account group for this account set first.,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
@@ -345,9 +348,12 @@ Correct entry,แก้ไขรายการ
 Cost,ต้นทุน
 Cost Is Set,ตั้งต้นทุนแล้ว
 Cost Known,ทราบต้นทุนแล้ว
+Could not connect to MR.ERP,เชื่อมต่อ MR.ERP ไม่ได้
+Could not read the MR.ERP master data.,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 Could not read this document. Please send it again.,ไม่สามารถอ่านเอกสารได้ กรุณาส่งใหม่อีกครั้ง
 Could not record this document. Please try again.,บันทึกเอกสารไม่สำเร็จ กรุณาลองใหม่
 Could not record: {0},บันทึกไม่สำเร็จ: {0}
+Could not sign in to MR.ERP. Check the connection's username and password,เข้าสู่ระบบ MR.ERP ไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านของการเชื่อมต่อ
 Could not store this document,บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่
 Count at least one item before finishing,กรุณาตรวจนับอย่างน้อยหนึ่งรายการก่อนสิ้นสุดการตรวจนับ
 Count by,วิธีตรวจนับ
@@ -393,6 +399,7 @@ Creating an adjustment from a stock count,กำลังสร้างใบ�
 Creation,วันที่สร้าง
 Credit,เงินเชื่อ
 Credit Note,ใบลดหนี้
+Credit notes need a person to post them in MR.ERP,ใบลดหนี้ต้องบันทึกใน MR.ERP ด้วยตนเอง
 Currency,สกุลเงิน
 Current,ปัจจุบัน
 Custom,กำหนดเอง
@@ -660,6 +667,7 @@ Import result,ผลการนำเข้า
 Imported,นำเข้า
 Imported {0} product(s),นำเข้า {0} รายการแล้ว
 "Imported {0} rows, {1} with a counted quantity",นำเข้าแล้ว {0} แถว โดยมี {1} แถวที่มีจำนวนที่นับได้
+Importing into MR.ERP,กำลังนำเข้า MR.ERP
 In,รับเข้า
 In Date,วันที่รับเข้า
 In Reference,เอกสารรับเข้า
@@ -774,6 +782,13 @@ Low stock,สต็อกต่ำ
 Low stock alert,แจ้งเตือนสต็อกต่ำ
 Loyalty Points,คะแนนสะสม
 Loyalty Program,โปรแกรมสะสมคะแนน
+"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
+"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ
+MR.ERP does not support this tax rate. Check it and submit again,MR.ERP ไม่รองรับอัตราภาษีนี้ กรุณาตรวจสอบแล้วส่งใหม่
+MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
+MR.ERP purchases can only be entered on credit.,รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบซื้อเงินเชื่อเท่านั้น
+MR.ERP returned an error. Check in MR.ERP,MR.ERP แจ้งข้อผิดพลาด กรุณาตรวจสอบใน MR.ERP
+MR.ERP sign-in is not authorized,ยังไม่ได้อนุญาตการเข้าสู่ระบบ MR.ERP
 Main,คลังหลัก
 Maintained in Express,จัดการใน Express
 Make template,ตั้งเป็นเทมเพลต
@@ -831,6 +846,7 @@ Next,ถัดไป
 Next Number,เลขถัดไป
 No,ลำดับ
 No Express account set covers this date,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
+No MR.ERP import result was returned. Check in MR.ERP,ไม่ได้รับผลการนำเข้าจาก MR.ERP กรุณาตรวจสอบใน MR.ERP
 No Open Shift,ยังไม่เปิดกะ
 No attachments,ไม่มีไฟล์แนบ
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
@@ -894,6 +910,7 @@ Only a submitted document can be voided,ยกเลิกได้เฉพา�
 Only an active count can be deleted,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
 Only an image or a PDF can be recognised,รองรับการอ่านเฉพาะรูปภาพหรือ PDF
 Only board admins can do this,เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ดำเนินการนี้ได้
+Only invoices in Thai baht can be sent to MR.ERP,ส่งเข้า MR.ERP ได้เฉพาะเอกสารสกุลเงินบาท
 Only low or out of stock,เฉพาะใกล้หมดหรือหมด
 Only one with this tax number,เลขผู้เสียภาษีนี้มีเพียงรายเดียว
 Only purchase documents can be sent in for now,ขณะนี้รับเฉพาะเอกสารจัดซื้อเท่านั้น
@@ -1406,7 +1423,11 @@ That warehouse belongs to another company,คลังสินค้านี�
 That warehouse is turned off,คลังนี้ปิดใช้งานแล้ว
 The Express index tool is missing on this computer. Reinstall CC Desktop,คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่
 The LINE account that sent the document,บัญชี LINE ที่ส่งเอกสารนี้
+The MR.ERP customer code is too long. Choose the customer again,รหัสลูกค้า MR.ERP ยาวเกินกำหนด กรุณาเลือกลูกค้าใหม่
+The MR.ERP import failed. Nothing was posted,การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี
+The MR.ERP import page shows no menu (setup incomplete or no permission).,ไม่สามารถอ่านเมนูจากหน้านำเข้าของ MR.ERP ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
 The Revenue Department replied in an unreadable format,ไม่สามารถอ่านรูปแบบข้อมูลที่ได้รับจากกรมสรรพากรได้
+The VAT does not match the 7% rate. Check it and submit again,ภาษีมูลค่าเพิ่มไม่ตรงกับอัตรา 7% กรุณาตรวจสอบแล้วส่งใหม่
 The account set cannot be reached right now. It will be sent automatically once connected.,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
 The account set on this computer is not the registered one. Waiting for another computer.,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น
 The account you give customers for transfers,บัญชีที่ให้ลูกค้าโอนเข้า
@@ -1415,6 +1436,7 @@ The amount is invalid,จำนวนเงินไม่ถูกต้อง
 The amount payable cannot be negative,ยอดที่ต้องชำระต้องไม่ติดลบ
 The amount received is less than the total,รับเงินน้อยกว่ายอดที่ต้องชำระ
 The amount received is short,ยอดรับชำระไม่พอ
+The amounts do not add up. Correct them and submit again,ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่
 The balance could not be checked right now. Please try again in a minute.,ไม่สามารถตรวจสอบยอดคงเหลือได้ในขณะนี้ กรุณาลองอีกครั้งในภายหลัง
 The card is already in that list,การ์ดอยู่ในรายการนั้นแล้ว
 The card no longer exists,ไม่พบการ์ดนี้
@@ -1425,6 +1447,7 @@ The cashier is not enabled for this company,บริษัทนี้ยัง
 The chosen account cannot be posted in Express. Choose another account,บัญชีที่เลือกบันทึกใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น
 The chosen account set belongs to another company. Check the account set,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 The company has no 13-digit tax ID,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
+The company has no MR.ERP account set,บริษัทยังไม่ได้ตั้งค่าชุดบัญชี MR.ERP
 The company on your documents,ข้อมูลบริษัทที่ใช้บนเอกสาร
 The company used for new documents and for the company profile page,บริษัทที่ใช้กับเอกสารใหม่และหน้าข้อมูลบริษัท
 The current POS opening entry is outdated. Please close it and create a new one.,รายการเปิดกะปัจจุบันหมดอายุ กรุณาปิดกะแล้วเปิดกะใหม่
@@ -1438,6 +1461,10 @@ The file could not be saved. Please try again shortly.,บันทึกไฟ�
 The file is larger than 25 MB,ไฟล์ใหญ่เกิน 25 MB
 The first row must be the column headings; the sheet needs at least a product name column,แถวแรกต้องเป็นหัวคอลัมน์ และต้องมีคอลัมน์ชื่อสินค้าอย่างน้อยหนึ่งคอลัมน์
 The fiscal year start month must be between 1 and 12,เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12
+The invoice date is in the future. Correct it and submit again,วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่
+The invoice date is missing or unreadable. Fill it in and submit again,ไม่มีวันที่เอกสารหรืออ่านไม่ได้ กรุณากรอกแล้วส่งใหม่
+The invoice date looks wrong. Correct it and submit again,วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่
+The invoice number is longer than MR.ERP allows. Shorten it and submit again,เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 The invoice number is missing. Add it and submit again.,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
 The item is not in Express,ไม่มีสินค้านี้ใน Express
 The item is not in Express yet,สินค้านี้ยังไม่มีใน Express
@@ -1461,6 +1488,7 @@ The quantity on line {0} is invalid,จำนวนในบรรทัดท�
 The recognition queue is busy. Please send the document again shortly.,ระบบอ่านเอกสารมีคิวหนาแน่น กรุณาส่งเอกสารใหม่อีกครั้งในภายหลัง
 The recognition result needs checking. Please do not resend this document yet.,ผลการอ่านอยู่ระหว่างรอตรวจสอบ กรุณาอย่าส่งเอกสารนี้ซ้ำ
 The recognition service did not answer in time. Please try again.,ระบบอ่านเอกสารไม่ตอบสนองภายในเวลาที่กำหนด กรุณาลองอีกครั้ง
+The result is not confirmed. Check in MR.ERP before sending again,ยังไม่ยืนยันผล กรุณาตรวจสอบใน MR.ERP ก่อนตัดสินใจส่งใหม่
 The return is not in the expected form,ข้อมูลใบรับคืนอยู่ในรูปแบบที่ไม่ถูกต้อง
 The returned quantity is more than the quantity sold,จำนวนที่รับคืนมากกว่าจำนวนที่ขาย
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
@@ -1472,6 +1500,8 @@ The stock count changed. Review the differences again.,ข้อมูลตร�
 The supplier is missing. Add it and submit again.,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
 The total does not match the printed total,ยอดรวมไม่ตรงกับยอดรวมตามเอกสาร
 The total is invalid,ยอดรวมไม่ถูกต้อง
+The total is missing. Add it and submit again,ไม่มียอดรวม กรุณาเพิ่มแล้วส่งใหม่
+The total is negative. Correct it and submit again,ยอดรวมติดลบ กรุณาแก้ไขแล้วส่งใหม่
 The total is zero,ยอดรวมเป็นศูนย์
 The units must match the stock of each warehouse,จำนวนรายชิ้นต้องเท่ากับยอดคงคลังของแต่ละคลัง
 The value is not a number,ค่านี้ไม่ใช่ตัวเลข
@@ -1485,6 +1515,9 @@ There were errors while sending email. Please try again.,เกิดข้อ�
 This Express account set has no book for this kind of stock document. Set it up in Express,ชุดบัญชี Express นี้ไม่มีสมุดสำหรับเอกสารสินค้าประเภทนี้ กรุณาตั้งค่าใน Express
 This LINE account is not bound to an ERP user,บัญชี LINE นี้ยังไม่ได้ผูกกับผู้ใช้ ERP
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.",บัญชี LINE นี้ยังไม่ได้ผูกกับบัญชีพนักงาน กรุณาเปิดจาก LINE หรือเข้าสู่ระบบเว็บก่อน
+This MR.ERP account is in an operator entry,บัญชี MR.ERP นี้กำลังบันทึกแทนอยู่
+This MR.ERP account is in an operator entry. It is sent automatically when done,บัญชี MR.ERP นี้กำลังบันทึกแทนอยู่ เสร็จแล้วจะส่งอัตโนมัติ
+This MR.ERP account is in use. Send again later,บัญชี MR.ERP นี้กำลังใช้งานอยู่ กรุณาส่งใหม่ภายหลัง
 This Month,เดือนนี้
 This PDF has more than {0} pages,PDF มีมากกว่า {0} หน้า
 This Quarter,ไตรมาสนี้
@@ -1505,6 +1538,7 @@ This code is already taken,รหัสนี้ถูกใช้ไปแล�
 This code is already used by {0} ({1}),รหัสนี้ใช้กับ {0} แล้ว ({1})
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้
 This counter sells for this company; stock leaves its warehouse,จุดขายนี้ออกเอกสารขายในนามบริษัทนี้ และจ่ายสินค้าออกจากคลังสินค้าของบริษัทนี้
+This customer has no match in MR.ERP. Choose the customer and submit again,ไม่มีข้อมูลลูกค้านี้ใน MR.ERP กรุณาเลือกลูกค้าแล้วส่งใหม่
 This customer is not in Express and could not be created. Check the customer name and tax ID,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
 This device cannot scan,อุปกรณ์นี้สแกนไม่ได้
 This device has no camera to scan with,อุปกรณ์นี้ไม่มีกล้องที่ใช้งานได้
@@ -1517,6 +1551,7 @@ This document is not in Express,ไม่พบเอกสารนี้ใน
 This document is too large,ไฟล์นี้ใหญ่เกินไป
 This document is void,เอกสารนี้ถูกยกเลิกแล้ว
 This document type cannot be written to Express. Check it and submit again.,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+This document type cannot be written to MR.ERP,เอกสารประเภทนี้บันทึกลง MR.ERP ไม่ได้
 This document was already recorded,เอกสารนี้บันทึกแล้ว
 This document was changed in Express. Check it in Express,เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express
 "This document was issued by this company, not a purchase document",เอกสารนี้ออกโดยบริษัทนี้ ไม่ใช่เอกสารซื้อ
@@ -1554,6 +1589,8 @@ This stock entry comes from a stock count. It cannot be voided on its own,รา
 This stock position already has stock movements; use a stock adjustment,สินค้านี้ในตำแหน่งจัดเก็บนี้มีรายการรับ-จ่ายแล้ว กรุณาใช้การปรับปรุงสต็อก
 This stock position is already initialized; use a stock adjustment,สินค้านี้ในตำแหน่งจัดเก็บนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับปรุงสต็อก
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
+This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายนี้ใน MR.ERP และสร้างไม่ได้ กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี
+This supplier is not in MR.ERP. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายนี้ใน MR.ERP กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี
 This terminal already has an open shift,จุดขายนี้มีกะที่ยังเปิดอยู่แล้ว
 This terminal has no warehouse; set one in the terminal settings,จุดขายนี้ยังไม่ได้กำหนดคลังสินค้า กรุณาเลือกคลังสินค้าในการตั้งค่าจุดขาย
 This unit has been counted,รายการนี้นับแล้ว
@@ -2303,6 +2340,44 @@ hq,สำนักงานใหญ่
 issued,ออกเอกสารแล้ว
 keyword,ค้นหาการ์ด
 member,สมาชิก
+mrerp.error.ERR_ACCOUNT_NEEDS_REVIEW,รหัสบัญชีที่ใช้ไม่มีในผังบัญชี MR.ERP กรุณาตรวจสอบการตั้งค่าบัญชี
+mrerp.error.ERR_AMOUNTS_NOT_CLOSED,ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่
+mrerp.error.ERR_AUTH,เข้าสู่ระบบ MR.ERP ไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านของการเชื่อมต่อ
+mrerp.error.ERR_BUSINESS,MR.ERP แจ้งข้อผิดพลาด กรุณาตรวจสอบใน MR.ERP
+mrerp.error.ERR_CUSTOMER_CODE_TOO_LONG,รหัสลูกค้า MR.ERP ยาวเกินกำหนด กรุณาเลือกลูกค้าใหม่
+mrerp.error.ERR_DATE_FUTURE,วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่
+mrerp.error.ERR_DIRECTION_UNKNOWN,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
+mrerp.error.ERR_INVOICE_NO_TOO_LONG,เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
+mrerp.error.ERR_MRERP_IMPORT_ERROR,การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี
+mrerp.error.ERR_MRERP_MASTER_UNREADABLE,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
+mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
+mrerp.error.ERR_MRERP_MENU_UNREADABLE,ไม่สามารถอ่านเมนูจากหน้านำเข้าของ MR.ERP ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
+mrerp.error.ERR_MRERP_MODULE_UNAVAILABLE,เอกสารประเภทนี้บันทึกลง MR.ERP ไม่ได้
+mrerp.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ
+mrerp.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
+mrerp.error.ERR_NEGATIVE_AMOUNT,ยอดรวมติดลบ กรุณาแก้ไขแล้วส่งใหม่
+mrerp.error.ERR_NO_CLIENT,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
+mrerp.error.ERR_NO_CUSTOMER_MAPPING,ไม่มีข้อมูลลูกค้านี้ใน MR.ERP กรุณาเลือกลูกค้าแล้วส่งใหม่
+mrerp.error.ERR_NO_INVOICE_DATE,ไม่มีวันที่เอกสารหรืออ่านไม่ได้ กรุณากรอกแล้วส่งใหม่
+mrerp.error.ERR_NO_INVOICE_NO,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
+mrerp.error.ERR_NO_SUPPLIER,ไม่มีผู้จำหน่ายนี้ใน MR.ERP กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี
+mrerp.error.ERR_NO_TOTAL_AMOUNT,ไม่มียอดรวม กรุณาเพิ่มแล้วส่งใหม่
+mrerp.error.ERR_SESSION_LOCK,บัญชี MR.ERP นี้กำลังใช้งานอยู่ กรุณาส่งใหม่ภายหลัง
+mrerp.error.ERR_TAX_RATE_INVALID,MR.ERP ไม่รองรับอัตราภาษีนี้ กรุณาตรวจสอบแล้วส่งใหม่
+mrerp.error.ERR_TECHNICAL,เชื่อมต่อ MR.ERP ไม่ได้
+mrerp.error.ERR_UNEXPECTED,เกิดข้อผิดพลาดขณะส่งไปยัง MR.ERP
+mrerp.error.ERR_UNKNOWN_UPLOAD_OUTCOME,ไม่ได้รับผลการนำเข้าจาก MR.ERP กรุณาตรวจสอบใน MR.ERP
+mrerp.error.ERR_VAT_RATE_ANOMALY,ภาษีมูลค่าเพิ่มไม่ตรงกับอัตรา 7% กรุณาตรวจสอบแล้วส่งใหม่
+mrerp.error.date_future,วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่
+mrerp.error.date_implausible,วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่
+mrerp.error.mrerp_credit_note,ใบลดหนี้ต้องบันทึกใน MR.ERP ด้วยตนเอง
+mrerp.error.mrerp_currency_not_thb,ส่งเข้า MR.ERP ได้เฉพาะเอกสารสกุลเงินบาท
+mrerp.reason.accountBusy,บัญชี MR.ERP นี้กำลังบันทึกแทนอยู่
+mrerp.reason.importing,กำลังนำเข้า MR.ERP
+mrerp.reason.loginMissing,ยังไม่ได้อนุญาตการเข้าสู่ระบบ MR.ERP
+mrerp.reason.notConfigured,บริษัทยังไม่ได้ตั้งค่าชุดบัญชี MR.ERP
+mrerp.reason.purchaseCash,รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบซื้อเงินเชื่อเท่านั้น
+mrerp.reason.resultUnknown,ยังไม่ยืนยันผล กรุณาตรวจสอบใน MR.ERP ก่อนตัดสินใจส่งใหม่
 nav.posReceipts,บันทึกการรับเงิน
 nav.posShifts,ประวัติกะ
 nav.stockAdjust,ปรับปรุงสินค้า

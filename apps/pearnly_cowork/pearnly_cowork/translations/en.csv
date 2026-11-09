@@ -118,9 +118,11 @@ Amount paid,Amount paid
 Amounts and invoice numbers are misaligned on these VAT report pages; correct against the original: {0},Amounts and invoice numbers are misaligned on these VAT report pages; correct against the original: {0}
 An account needed for this invoice is not set. Check the account settings,An account needed for this invoice is not set. Check the account settings
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,An account used for this invoice is not in the Express chart of accounts. Check the account settings
+An account used is not in the MR.ERP chart of accounts. Check the account settings,An account used is not in the MR.ERP chart of accounts. Check the account settings
 An amount could not be read. Check the amount format in the file,An amount could not be read. Check the amount format in the file
 An amount has too many decimal places. Check the file,An amount has too many decimal places. Check the file
 An amount in this POS export cannot be read,An amount in this POS export cannot be read
+An error occurred while sending to MR.ERP,An error occurred while sending to MR.ERP
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,An invoice line has no amount or complete quantity and unit price. Complete it before exporting.
 An item group's account is not in the Express chart of accounts,An item group's account is not in the Express chart of accounts
 An option in the ERP data report is invalid.,An option in the ERP data report is invalid.
@@ -441,10 +443,12 @@ Copy list,Copy list
 Copy to,Copy to
 Correct entry,Correct entry
 Corrected Value,Corrected Value
+Could not connect to MR.ERP,Could not connect to MR.ERP
 Could not finish,Could not finish
 Could not read the MR.ERP master data.,Could not read the MR.ERP master data.
 Could not read the MR.ERP menus. Try again later.,Could not read the MR.ERP menus. Try again later.
 Could not read this document. Please send it again.,Could not read this document. Please send it again.
+Could not sign in to MR.ERP. Check the connection's username and password,Could not sign in to MR.ERP. Check the connection's username and password
 Could not store this document,Could not store this document
 Count Mode,Count Mode
 Count as expense,Count as expense
@@ -534,6 +538,7 @@ Credential ID,Credential ID
 Credit,Credit
 Credit Note,Credit Note
 Credit notes need a person to post them in Express,Credit notes need a person to post them in Express
+Credit notes need a person to post them in MR.ERP,Credit notes need a person to post them in MR.ERP
 Credit purchase,Credit purchase
 Credit sales,Credit sales
 Currency,Currency
@@ -1017,10 +1022,12 @@ MR.ERP Master Options Seen,MR.ERP Master Options Seen
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.","MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.","MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
 MR.ERP default values are needed for this account set. Choose them before pushing.,MR.ERP default values are needed for this account set. Choose them before pushing.
+MR.ERP does not support this tax rate. Check it and submit again,MR.ERP does not support this tax rate. Check it and submit again
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.
 MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.
 MR.ERP import menu,MR.ERP import menu
 MR.ERP purchases can only be entered on credit.,MR.ERP purchases can only be entered on credit.
+MR.ERP returned an error. Check in MR.ERP,MR.ERP returned an error. Check in MR.ERP
 MR.ERP settings,MR.ERP settings
 Make template,Make template
 Manual,Manual
@@ -1083,6 +1090,7 @@ New task,New task
 Next Attempt At,Next Attempt At
 No CC Desktop credential has been issued for this connection.,No CC Desktop credential has been issued for this connection.
 No ERP is ready to use,No ERP is ready to use
+No MR.ERP import result was returned. Check in MR.ERP,No MR.ERP import result was returned. Check in MR.ERP
 No POS sales export headers were found in this file,No POS sales export headers were found in this file
 No account set matches “{0}”,No account set matches “{0}”
 No account set of this company covers the document date.,No account set of this company covers the document date.
@@ -1170,6 +1178,7 @@ Only POS exports in Excel (.xlsx) or CSV can be imported,Only POS exports in Exc
 Only an active count can be deleted,Only an active count can be deleted
 Only board admins can do this,Only board admins can do this
 Only invoices in Thai baht can be sent to Express,Only invoices in Thai baht can be sent to Express
+Only invoices in Thai baht can be sent to MR.ERP,Only invoices in Thai baht can be sent to MR.ERP
 Only manual records can be created through this entry.,Only manual records can be created through this entry.
 Only one sell unit can be the default.,Only one sell unit can be the default.
 Only payment and VAT choices can be changed here,Only payment and VAT choices can be changed here
@@ -1740,6 +1749,8 @@ The ERP report refresh status is invalid.,The ERP report refresh status is inval
 The ERP report uses an unsupported system type.,The ERP report uses an unsupported system type.
 The ERP target context is inconsistent.,The ERP target context is inconsistent.
 The Express index tool is missing on this computer. Reinstall CC Desktop,The Express index tool is missing on this computer. Reinstall CC Desktop
+The MR.ERP customer code is too long. Choose the customer again,The MR.ERP customer code is too long. Choose the customer again
+The MR.ERP import failed. Nothing was posted,The MR.ERP import failed. Nothing was posted
 The MR.ERP import page shows no menu (setup incomplete or no permission).,The MR.ERP import page shows no menu (setup incomplete or no permission).
 The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.
 The OCR connection changed after this task was accepted.,The OCR connection changed after this task was accepted.
@@ -1749,6 +1760,7 @@ The POS daily total is not in the expected form. Import the POS export again,The
 The POS daily totals of this document are damaged. Import the POS export again,The POS daily totals of this document are damaged. Import the POS export again
 The POS export columns are incomplete,The POS export columns are incomplete
 The VAT column is more than 7% of a day's sales,The VAT column is more than 7% of a day's sales
+The VAT does not match the 7% rate. Check it and submit again,The VAT does not match the 7% rate. Check it and submit again
 The VAT report content is invalid.,The VAT report content is invalid.
 "The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.","The VAT report could not be read. Use Excel, CSV or a PDF with a text layer."
 The VAT report has no rows.,The VAT report has no rows.
@@ -1836,6 +1848,7 @@ The invoice date is missing or unreadable. Fill it in and submit again,The invoi
 The invoice date looks wrong. Correct it and submit again,The invoice date looks wrong. Correct it and submit again
 The invoice fields have an invalid format.,The invoice fields have an invalid format.
 The invoice has changed. Prepare it again.,The invoice has changed. Prepare it again.
+The invoice number is longer than MR.ERP allows. Shorten it and submit again,The invoice number is longer than MR.ERP allows. Shorten it and submit again
 The invoice number is missing. Add it and submit again.,The invoice number is missing. Add it and submit again.
 The invoice page data has an invalid format.,The invoice page data has an invalid format.
 The item lines do not add up to the day's total,The item lines do not add up to the day's total
@@ -1919,6 +1932,8 @@ The supplier is missing. Add it and submit again.,The supplier is missing. Add i
 The system is busy and the reconciliation was not finished. Please try again shortly.,The system is busy and the reconciliation was not finished. Please try again shortly.
 The task owner can no longer enter documents with this connection.,The task owner can no longer enter documents with this connection.
 The tax month is not valid.,The tax month is not valid.
+The total is missing. Add it and submit again,The total is missing. Add it and submit again
+The total is negative. Correct it and submit again,The total is negative. Correct it and submit again
 The unsent preparation was cancelled.,The unsent preparation was cancelled.
 The uploaded file does not match the file on the PC.,The uploaded file does not match the file on the PC.
 The uploaded file exceeds the 100 MiB limit.,The uploaded file exceeds the 100 MiB limit.
@@ -1942,6 +1957,7 @@ These statements look like another account (a different bank or account number) 
 These statements look like another account and were left out of this reconciliation: {0},These statements look like another account and were left out of this reconciliation: {0}
 These worksheets repeat another worksheet in the same file line for line and were counted once: {0},These worksheets repeat another worksheet in the same file line for line and were counted once: {0}
 This ERP connection is disabled.,This ERP connection is disabled.
+This MR.ERP account is in use. Send again later,This MR.ERP account is in use. Send again later
 This MR.ERP menu cannot be chosen for this account set.,This MR.ERP menu cannot be chosen for this account set.
 This PC already has the maximum number of folder rules.,This PC already has the maximum number of folder rules.
 This PC already has the maximum number of scheduled tasks.,This PC already has the maximum number of scheduled tasks.
@@ -1965,6 +1981,7 @@ This connection does not support an Express CC Desktop credential.,This connecti
 This connection does not support scheduled tasks.,This connection does not support scheduled tasks.
 This connection is disabled.,This connection is disabled.
 This count entry has changed. Refresh it and try again.,This count entry has changed. Refresh it and try again.
+This customer has no match in MR.ERP. Choose the customer and submit again,This customer has no match in MR.ERP. Choose the customer and submit again
 This customer is not in Express and could not be created. Check the customer name and tax ID,This customer is not in Express and could not be created. Check the customer name and tax ID
 This delivery conflicts with the current task state.,This delivery conflicts with the current task state.
 This document does not need this choice,This document does not need this choice
@@ -1972,6 +1989,7 @@ This document format is not supported.,This document format is not supported.
 This document is in an Express operator entry,This document is in an Express operator entry
 This document is not in Express,This document is not in Express
 This document type cannot be written to Express. Check it and submit again.,This document type cannot be written to Express. Check it and submit again.
+This document type cannot be written to MR.ERP,This document type cannot be written to MR.ERP
 This document was changed in Express. Check it in Express,This document was changed in Express. Check it in Express
 This file cannot be read,This file cannot be read
 This file does not match the review workbook format.,This file does not match the review workbook format.
@@ -2024,6 +2042,8 @@ This scheduled task no longer exists for this PC.,This scheduled task no longer 
 "This statement shows no running balance, so balances cannot be checked line by line.","This statement shows no running balance, so balances cannot be checked line by line."
 This stock count task is closed.,This stock count task is closed.
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,This supplier is not in Express and could not be created. Check the supplier name and tax ID
+This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID,This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID
+This supplier is not in MR.ERP. Check the supplier name and tax ID,This supplier is not in MR.ERP. Check the supplier name and tax ID
 This task uses the previous count format and cannot accept scan entries.,This task uses the previous count format and cannot accept scan entries.
 This tax ID is already used by another company.,This tax ID is already used by another company.
 This tax id is already used by another client.,This tax id is already used by another client.
@@ -3402,19 +3422,42 @@ intake.error.DBF_WRITE_FAILED,Writing to Express failed and was undone. It is re
 intake.error.DUPLICATE_CONTENT_DIFFERS,"Express already has this invoice number with different content. Check it, or choose Send anyway"
 intake.error.EMPTY_ITEMS,This invoice has no lines. Add them and submit again.
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,The result is not confirmed. Check in Express before sending again
+intake.error.ERR_ACCOUNT_NEEDS_REVIEW,An account used is not in the MR.ERP chart of accounts. Check the account settings
 intake.error.ERR_ACCOUNT_UID_MISMATCH,The account set on this computer is not the registered one. Waiting for another computer.
+intake.error.ERR_AMOUNTS_NOT_CLOSED,The amounts do not add up. Correct them and submit again
+intake.error.ERR_AUTH,Could not sign in to MR.ERP. Check the connection's username and password
+intake.error.ERR_BUSINESS,MR.ERP returned an error. Check in MR.ERP
+intake.error.ERR_CUSTOMER_CODE_TOO_LONG,The MR.ERP customer code is too long. Choose the customer again
+intake.error.ERR_DATE_FUTURE,The invoice date is in the future. Correct it and submit again
+intake.error.ERR_DIRECTION_UNKNOWN,Choose purchase or sales for this invoice and submit again
+intake.error.ERR_INVOICE_NO_TOO_LONG,The invoice number is longer than MR.ERP allows. Shorten it and submit again
 intake.error.ERR_LOCATION,This warehouse is not in the Express account set
 intake.error.ERR_MRERP_DEFAULT_CHANGED,A chosen MR.ERP value no longer exists in MR.ERP. Choose again.
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP default values are needed for this account set. Choose them before pushing.
+intake.error.ERR_MRERP_IMPORT_ERROR,The MR.ERP import failed. Nothing was posted
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,Pushed to MR.ERP before the menu fix; it may be in a menu without a journal and not posted. Check in MR.ERP before pushing again.
 intake.error.ERR_MRERP_MASTER_UNREADABLE,Could not read the MR.ERP master data.
 intake.error.ERR_MRERP_MENU_CHANGED,The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.
 intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.
 intake.error.ERR_MRERP_MENU_UNREADABLE,The MR.ERP import page shows no menu (setup incomplete or no permission).
+intake.error.ERR_MRERP_MODULE_UNAVAILABLE,This document type cannot be written to MR.ERP
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
+intake.error.ERR_NEGATIVE_AMOUNT,The total is negative. Correct it and submit again
+intake.error.ERR_NO_CLIENT,The customer is missing. Choose the customer and submit again.
+intake.error.ERR_NO_CUSTOMER_MAPPING,This customer has no match in MR.ERP. Choose the customer and submit again
+intake.error.ERR_NO_INVOICE_DATE,The invoice date is missing or unreadable. Fill it in and submit again
+intake.error.ERR_NO_INVOICE_NO,The invoice number is missing. Add it and submit again.
+intake.error.ERR_NO_SUPPLIER,This supplier is not in MR.ERP. Check the supplier name and tax ID
+intake.error.ERR_NO_TOTAL_AMOUNT,The total is missing. Add it and submit again
 intake.error.ERR_PAYLOAD_VERSION,CC Desktop is out of date. Update CC Desktop and submit again
+intake.error.ERR_SESSION_LOCK,This MR.ERP account is in use. Send again later
+intake.error.ERR_TAX_RATE_INVALID,MR.ERP does not support this tax rate. Check it and submit again
+intake.error.ERR_TECHNICAL,Could not connect to MR.ERP
+intake.error.ERR_UNEXPECTED,An error occurred while sending to MR.ERP
+intake.error.ERR_UNKNOWN_UPLOAD_OUTCOME,No MR.ERP import result was returned. Check in MR.ERP
+intake.error.ERR_VAT_RATE_ANOMALY,The VAT does not match the 7% rate. Check it and submit again
 intake.error.FIELD_TOO_LONG,A field is longer than Express allows. Shorten it and submit again
 intake.error.INVALID_DOC_DATE,The document date is invalid. Correct it and submit again.
 intake.error.INVALID_INVOICE_DATE,The document date is invalid. Correct it and submit again.
@@ -3474,6 +3517,8 @@ intake.error.entry_not_balanced,The entry does not balance. Check the amounts
 intake.error.items_incomplete,Some line items have no name or amount. Fix the lines and submit again
 intake.error.items_mismatch,The line items do not add up to the invoice amount. Fix the lines and submit again
 intake.error.low_confidence,Some fields are uncertain. Check them against the original and submit again
+intake.error.mrerp_credit_note,Credit notes need a person to post them in MR.ERP
+intake.error.mrerp_currency_not_thb,Only invoices in Thai baht can be sent to MR.ERP
 intake.error.no_account_set,Choose the year and account set first
 intake.error.no_ap_account,An account needed for this invoice is not set. Check the account settings
 intake.error.no_ar_account,An account needed for this invoice is not set. Check the account settings

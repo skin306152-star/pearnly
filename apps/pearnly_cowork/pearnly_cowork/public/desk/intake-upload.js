@@ -124,7 +124,7 @@
 	p.intake_push_reason = reason => {
 		const text = String(reason || "").trim();
 		const code = text.match(/^\[([A-Z0-9_]+)\]/)?.[1] || text.match(/^EXPRESS_MANUAL:\s*([a-z_]+)/)?.[1]
-			|| text.match(/^([A-Za-z][A-Za-z0-9_]*)(?=$|:)/)?.[1];
+			|| text.match(/^([A-Za-z][A-Za-z0-9_]*)(?=$|[:;])/)?.[1];  // 「码; 原文」同「码:细节」（同 export_facts.reason_code）
 		if (!code) return text ? __(text) : text;
 		// 小助手回报的码是大写（`[ENTRY_NOT_BALANCED]`），词条有的是小写（`intake.error.entry_not_balanced`）：两种都认。
 		for (const key of [`intake.error.${code}`, `intake.error.${code.toLowerCase()}`]) {

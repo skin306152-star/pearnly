@@ -15,7 +15,7 @@ from pearnly_cowork.push.export_actions import parse_actions
 
 
 _REASON_CODES = (re.compile(r"^\[([A-Z0-9_]+)\]"), re.compile(r"^EXPRESS_MANUAL:\s*([a-z_]+)"),
-                 re.compile(r"^([A-Za-z][A-Za-z0-9_]*)(?=$|:)"))
+                 re.compile(r"^([A-Za-z][A-Za-z0-9_]*)(?=$|[:;])"))  # 「码」「码:细节」「码; 原文」（MR.ERP 导入回报存成「码; 原文」）
 _REASON_KEY = re.compile(r"[a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+")
 
 

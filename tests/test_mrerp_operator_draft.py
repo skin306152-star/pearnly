@@ -244,7 +244,7 @@ class Stage(unittest.TestCase):
         importer = FakeImporter(stop={other["id"]})
         blocks, failed = stage(importer, [goods, other, foreign])
         self.assertEqual(list(blocks), [goods["id"]])
-        self.assertEqual(failed, {other["id"]: ["ERR_NO_SUPPLIER"], foreign["id"]: ["currency_not_thb:usd"]})
+        self.assertEqual(failed, {other["id"]: ["ERR_NO_SUPPLIER"], foreign["id"]: ["mrerp_currency_not_thb:usd"]})
         self.assertEqual(importer.calls, [("purchase", [goods["id"], other["id"]])])  # 防呆挡下的不进准备
 
     def test_a_module_not_verified_on_a_real_site_is_held_as_a_whole_group(self):

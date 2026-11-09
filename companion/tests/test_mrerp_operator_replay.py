@@ -114,11 +114,11 @@ def test_kicked_after_save_pauses_without_logging_in_again_and_the_next_try_does
     jobs = [payload(site.url, index=1, total=2, doc="D1", docnum="K-0001"),
             payload(site.url, index=2, total=2, doc="D2", docnum="K-0002", ref="IV-2")]
     out = _handle(host, "t1", jobs[0])
-    assert out["status"] == "human" and out["reason"] == "login_failed"
+    assert out["status"] == "human" and out["reason"] == "account_in_use"
     assert site.logins == 1 and site.logouts == 0  # 不自动重登；关窗也不退出登录（会把正在用的人踢掉）
     assert len(site.saved()) == 1 and all(d.closed for d in maker.drivers)
     snap = host.snapshots()[0]
-    assert snap["status"] == "stopped" and snap["reason"] == "login_failed"
+    assert snap["status"] == "stopped" and snap["reason"] == "account_in_use"
     # 结果不明（main 的统一口径，batch.park）：记等人 + recheck，再交来时先查存没存
     assert [d["status"] for d in snap["docs"]] == ["waiting"]
     from companion.express_operator.batch import BatchStore
@@ -147,7 +147,7 @@ def test_kicked_before_saving_stops_the_batch_and_nothing_is_written(app, site, 
     site.on_request = kick_when_form_opens
     host = _host(tmp_path, Maker())
     out = _handle(host, "t1", payload(site.url, docnum="F-0001"))
-    assert out["status"] == "human" and out["reason"] == "login_failed"
+    assert out["status"] == "human" and out["reason"] == "account_in_use"
     assert site.saved() == [] and site.logins == 1 and site.logouts == 0
 
 
@@ -284,7 +284,7 @@ def test_an_account_set_whose_database_is_missing_stops_the_batch(app, site, tmp
     site.missing_db = True
     host = _host(tmp_path, Maker())
     out = _handle(host, "t1", payload(site.url))
-    assert out["status"] == "human" and out["reason"] == "company_mismatch"
+    assert out["status"] == "human" and out["reason"] == "account_set_unavailable"
     assert "unknown database mrerp_12" in out["detail"] and site.saved() == []
     assert host.snapshots()[0]["status"] == "stopped"
 

@@ -118,9 +118,11 @@ Amount paid,支付金额
 Amounts and invoice numbers are misaligned on these VAT report pages; correct against the original: {0},以下销项税报告页金额与单号错行，请对照原件更正：{0}
 An account needed for this invoice is not set. Check the account settings,缺少此发票所需的科目，请检查科目设置
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,所用科目不在 Express 科目表中，请检查科目设置
+An account used is not in the MR.ERP chart of accounts. Check the account settings,所用科目不在 MR.ERP 科目表中，请检查科目设置
 An amount could not be read. Check the amount format in the file,部分金额无法读取，请检查文件中的金额格式
 An amount has too many decimal places. Check the file,部分金额小数位数过多，请检查文件
 An amount in this POS export cannot be read,此 POS 导出中有金额无法读取
+An error occurred while sending to MR.ERP,推送至 MR.ERP 时出错
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,发票明细缺少金额，且数量和单价不完整，请补全后再导出。
 An item group's account is not in the Express chart of accounts,物料科目组的科目不在 Express 科目表中
 An option in the ERP data report is invalid.,ERP 数据报告中的选项无效。
@@ -441,10 +443,12 @@ Copy list,复制列表
 Copy to,复制到
 Correct entry,修改记录
 Corrected Value,修正值
+Could not connect to MR.ERP,无法连接 MR.ERP
 Could not finish,失败
 Could not read the MR.ERP master data.,无法读取 MR.ERP 主档。
 Could not read the MR.ERP menus. Try again later.,无法读取 MR.ERP 菜单，请稍后重试。
 Could not read this document. Please send it again.,无法识别此单据，请重新发送。
+Could not sign in to MR.ERP. Check the connection's username and password,MR.ERP 登录失败，请检查连接的账号和密码
 Could not store this document,无法保存此单据
 Count Mode,盘点方式
 Count as expense,不抵扣，计入费用
@@ -534,6 +538,7 @@ Credential ID,凭据 ID
 Credit,赊账
 Credit Note,贷项通知单
 Credit notes need a person to post them in Express,贷项通知单需在 Express 中人工处理
+Credit notes need a person to post them in MR.ERP,贷项通知单需在 MR.ERP 中人工处理
 Credit purchase,赊购
 Credit sales,赊销
 Currency,货币
@@ -1017,10 +1022,12 @@ MR.ERP Master Options Seen,已读取的 MR.ERP 主档
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP 已受理导入，但所选菜单中未找到此单据，结果未知。请先在 MR.ERP 中核对，请勿直接重新推送。
 MR.ERP default values are needed for this account set. Choose them before pushing.,需要选择 MR.ERP 默认值，请选择后再推送。
+MR.ERP does not support this tax rate. Check it and submit again,MR.ERP 不支持此税率，请核对税率后重新提交
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP 中此类单据本年度没有已关联日记账的导入菜单，请先在 MR.ERP 中关联。
 MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP 中此类单据有多个已关联日记账的导入菜单，请选择一个后再推送。
 MR.ERP import menu,MR.ERP 导入菜单
 MR.ERP purchases can only be entered on credit.,MR.ERP 的进项只能按赊购录入。
+MR.ERP returned an error. Check in MR.ERP,MR.ERP 返回错误，请在 MR.ERP 中核对
 MR.ERP settings,MR.ERP 设置
 Make template,设为模板
 Manual,手工
@@ -1083,6 +1090,7 @@ New task,新建任务
 Next Attempt At,下次重试时间
 No CC Desktop credential has been issued for this connection.,此连接尚未签发 CC 桌面版凭据。
 No ERP is ready to use,暂无可用的 ERP
+No MR.ERP import result was returned. Check in MR.ERP,未取得 MR.ERP 导入结果，请在 MR.ERP 中核对
 No POS sales export headers were found in this file,文件中找不到 POS 销售导出的表头
 No account set matches “{0}”,没有找到包含「{0}」的账套
 No account set of this company covers the document date.,该公司没有覆盖单据日期的账套
@@ -1170,6 +1178,7 @@ Only POS exports in Excel (.xlsx) or CSV can be imported,只能导入 Excel（.x
 Only an active count can be deleted,只能删除进行中的盘点
 Only board admins can do this,仅看板管理员可执行此操作
 Only invoices in Thai baht can be sent to Express,仅泰铢发票可推送至 Express
+Only invoices in Thai baht can be sent to MR.ERP,仅泰铢发票可推送至 MR.ERP
 Only manual records can be created through this entry.,此入口只能创建手工录入记录。
 Only one sell unit can be the default.,只能设置一个默认销售单位。
 Only payment and VAT choices can be changed here,此处只能修改付款方式和进项抵扣
@@ -1740,6 +1749,8 @@ The ERP report refresh status is invalid.,ERP 报告的刷新状态无效。
 The ERP report uses an unsupported system type.,ERP 报告使用了不支持的系统类型。
 The ERP target context is inconsistent.,ERP 目标上下文不一致。
 The Express index tool is missing on this computer. Reinstall CC Desktop,此电脑缺少 Express 索引程序，请重新安装 CC 桌面版
+The MR.ERP customer code is too long. Choose the customer again,MR.ERP 客户代码超出允许长度，请重新选择客户
+The MR.ERP import failed. Nothing was posted,MR.ERP 导入出错，未入账
 The MR.ERP import page shows no menu (setup incomplete or no permission).,无法读取 MR.ERP 导入页的菜单（设置未完成或账号无权限）。
 The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,MR.ERP 菜单设置已变更（所选菜单不存在或未关联日记账），请重新选择。
 The OCR connection changed after this task was accepted.,任务受理后识别服务连接已变更。
@@ -1749,6 +1760,7 @@ The POS daily total is not in the expected form. Import the POS export again,POS
 The POS daily totals of this document are damaged. Import the POS export again,此单据的 POS 日汇总数据已损坏，请重新导入 POS 导出文件
 The POS export columns are incomplete,POS 导出的列设定不完整
 The VAT column is more than 7% of a day's sales,增值税一栏超过当天销售额的 7%
+The VAT does not match the 7% rate. Check it and submit again,增值税额与 7% 税率不符，请核对后重新提交
 The VAT report content is invalid.,销项税报告内容无效。
 "The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.",无法读取销项税报告，请使用 Excel、CSV 或带文字层的 PDF。
 The VAT report has no rows.,销项税报告中没有明细行。
@@ -1836,6 +1848,7 @@ The invoice date is missing or unreadable. Fill it in and submit again,票面日
 The invoice date looks wrong. Correct it and submit again,票面日期可能有误，请核对后重新提交
 The invoice fields have an invalid format.,发票字段格式不正确。
 The invoice has changed. Prepare it again.,票据已修改，请重新准备。
+The invoice number is longer than MR.ERP allows. Shorten it and submit again,发票号超出 MR.ERP 允许的长度，请缩短后重新提交
 The invoice number is missing. Add it and submit again.,缺少发票号，请补充后重新提交
 The invoice page data has an invalid format.,发票页面数据格式不正确。
 The item lines do not add up to the day's total,商品明细之和与当天合计不符
@@ -1919,6 +1932,8 @@ The supplier is missing. Add it and submit again.,缺少供应商，请补充后
 The system is busy and the reconciliation was not finished. Please try again shortly.,系统繁忙，对账未完成，请稍后重试。
 The task owner can no longer enter documents with this connection.,定时任务负责人已无权使用此连接录入。
 The tax month is not valid.,税期无效。
+The total is missing. Add it and submit again,缺少合计金额，请补充后重新提交
+The total is negative. Correct it and submit again,合计金额为负数，请更正后重新提交
 The unsent preparation was cancelled.,尚未发送的推送准备已撤销。
 The uploaded file does not match the file on the PC.,上传的内容与电脑上的文件不一致。
 The uploaded file exceeds the 100 MiB limit.,上传文件超过 100 MiB 上限。
@@ -1942,6 +1957,7 @@ These statements look like another account (a different bank or account number) 
 These statements look like another account and were left out of this reconciliation: {0},以下账单疑似属于其他账户，未计入本次对账：{0}
 These worksheets repeat another worksheet in the same file line for line and were counted once: {0},以下工作表与同一文件中的另一工作表逐行相同，仅计算一次：{0}
 This ERP connection is disabled.,此 ERP 连接已停用。
+This MR.ERP account is in use. Send again later,此 MR.ERP 账号正在使用中，请稍后重新推送
 This MR.ERP menu cannot be chosen for this account set.,此账套不能选择该 MR.ERP 菜单。
 This PC already has the maximum number of folder rules.,此电脑的规则数量已达上限。
 This PC already has the maximum number of scheduled tasks.,此电脑的定时任务数量已达上限。
@@ -1965,6 +1981,7 @@ This connection does not support an Express CC Desktop credential.,此连接不�
 This connection does not support scheduled tasks.,此连接不支持定时任务。
 This connection is disabled.,此连接已停用。
 This count entry has changed. Refresh it and try again.,此盘点记录已更改，请刷新后重试。
+This customer has no match in MR.ERP. Choose the customer and submit again,MR.ERP 中没有此客户的对应档案，请选择客户后重新提交
 This customer is not in Express and could not be created. Check the customer name and tax ID,Express 中不存在此客户且无法创建，请核对客户名称和税号
 This delivery conflicts with the current task state.,此回执与任务当前状态冲突。
 This document does not need this choice,此单据无需选择是否录入
@@ -1972,6 +1989,7 @@ This document format is not supported.,不支持此文档格式。
 This document is in an Express operator entry,单据在代录中
 This document is not in Express,Express 中找不到此单
 This document type cannot be written to Express. Check it and submit again.,此单据类型无法写入 Express，请核对后重新提交
+This document type cannot be written to MR.ERP,此单据类型无法写入 MR.ERP
 This document was changed in Express. Check it in Express,此单在 Express 中已被修改，请在 Express 中核对
 This file cannot be read,无法读取此文件
 This file does not match the review workbook format.,此文件不符合复核工作簿格式。
@@ -2024,6 +2042,8 @@ This scheduled task no longer exists for this PC.,此电脑上不存在该定时
 "This statement shows no running balance, so balances cannot be checked line by line.",此账单没有逐笔余额，无法逐行核对余额。
 This stock count task is closed.,此盘点任务已关闭。
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
+This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID,MR.ERP 中不存在此供应商且无法创建，请核对供应商名称和税号
+This supplier is not in MR.ERP. Check the supplier name and tax ID,MR.ERP 中没有此供应商，请核对供应商名称和税号
 This task uses the previous count format and cannot accept scan entries.,此任务使用旧版盘点格式，不能接收扫描记录。
 This tax ID is already used by another company.,该税号已被其他公司使用。
 This tax id is already used by another client.,该税号已被其他客户使用。
@@ -3402,19 +3422,42 @@ intake.error.DBF_WRITE_FAILED,写入 Express 失败，已撤回，将自动重�
 intake.error.DUPLICATE_CONTENT_DIFFERS,Express 中已有相同单号但内容不同，请核对；如需另记一张，请点击「仍然推送」
 intake.error.EMPTY_ITEMS,此发票没有明细，请补充后重新提交
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,结果未确认，请先在 Express 中核对，再决定是否重新推送
+intake.error.ERR_ACCOUNT_NEEDS_REVIEW,所用科目不在 MR.ERP 科目表中，请检查科目设置
 intake.error.ERR_ACCOUNT_UID_MISMATCH,此电脑上的账套与登记的不一致，等待其他电脑
+intake.error.ERR_AMOUNTS_NOT_CLOSED,金额合计不一致，请更正后重新提交
+intake.error.ERR_AUTH,MR.ERP 登录失败，请检查连接的账号和密码
+intake.error.ERR_BUSINESS,MR.ERP 返回错误，请在 MR.ERP 中核对
+intake.error.ERR_CUSTOMER_CODE_TOO_LONG,MR.ERP 客户代码超出允许长度，请重新选择客户
+intake.error.ERR_DATE_FUTURE,票面日期晚于当前日期，请更正后重新提交
+intake.error.ERR_DIRECTION_UNKNOWN,请选择此发票为进项或销项后重新提交
+intake.error.ERR_INVOICE_NO_TOO_LONG,发票号超出 MR.ERP 允许的长度，请缩短后重新提交
 intake.error.ERR_LOCATION,Express 账套中无此仓库
 intake.error.ERR_MRERP_DEFAULT_CHANGED,所选的值在 MR.ERP 中已不存在，请重新选择。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,需要选择 MR.ERP 默认值，请选择后再推送。
+intake.error.ERR_MRERP_IMPORT_ERROR,MR.ERP 导入出错，未入账
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,此单据在菜单修复前已推送至 MR.ERP，可能在未关联日记账的菜单中未入账，请在 MR.ERP 核对后再推送。
 intake.error.ERR_MRERP_MASTER_UNREADABLE,无法读取 MR.ERP 主档。
 intake.error.ERR_MRERP_MENU_CHANGED,MR.ERP 菜单设置已变更（所选菜单不存在或未关联日记账），请重新选择。
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP 中此类单据有多个已关联日记账的导入菜单，请选择一个后再推送。
 intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP 中此类单据本年度没有已关联日记账的导入菜单，请先在 MR.ERP 中关联。
 intake.error.ERR_MRERP_MENU_UNREADABLE,无法读取 MR.ERP 导入页的菜单（设置未完成或账号无权限）。
+intake.error.ERR_MRERP_MODULE_UNAVAILABLE,此单据类型无法写入 MR.ERP
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP 已受理导入，但所选菜单中未找到此单据，结果未知。请先在 MR.ERP 中核对，请勿直接重新推送。
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。
+intake.error.ERR_NEGATIVE_AMOUNT,合计金额为负数，请更正后重新提交
+intake.error.ERR_NO_CLIENT,缺少客户，请选择客户后重新提交
+intake.error.ERR_NO_CUSTOMER_MAPPING,MR.ERP 中没有此客户的对应档案，请选择客户后重新提交
+intake.error.ERR_NO_INVOICE_DATE,票面日期缺失或无法识别，请补填后重新提交
+intake.error.ERR_NO_INVOICE_NO,缺少发票号，请补充后重新提交
+intake.error.ERR_NO_SUPPLIER,MR.ERP 中没有此供应商，请核对供应商名称和税号
+intake.error.ERR_NO_TOTAL_AMOUNT,缺少合计金额，请补充后重新提交
 intake.error.ERR_PAYLOAD_VERSION,CC 桌面版版本过旧，请更新后重新提交
+intake.error.ERR_SESSION_LOCK,此 MR.ERP 账号正在使用中，请稍后重新推送
+intake.error.ERR_TAX_RATE_INVALID,MR.ERP 不支持此税率，请核对税率后重新提交
+intake.error.ERR_TECHNICAL,无法连接 MR.ERP
+intake.error.ERR_UNEXPECTED,推送至 MR.ERP 时出错
+intake.error.ERR_UNKNOWN_UPLOAD_OUTCOME,未取得 MR.ERP 导入结果，请在 MR.ERP 中核对
+intake.error.ERR_VAT_RATE_ANOMALY,增值税额与 7% 税率不符，请核对后重新提交
 intake.error.FIELD_TOO_LONG,部分字段超出 Express 允许的长度，请缩短后重新提交
 intake.error.INVALID_DOC_DATE,单据日期无效，请修改后重新提交
 intake.error.INVALID_INVOICE_DATE,单据日期无效，请修改后重新提交
@@ -3474,6 +3517,8 @@ intake.error.entry_not_balanced,分录借贷不平，请核对金额
 intake.error.items_incomplete,部分明细缺少品名或金额，请补全后重新提交
 intake.error.items_mismatch,明细合计与票面金额不一致，请修改明细后重新提交
 intake.error.low_confidence,部分字段无法确认，请对照原件核对后重新提交
+intake.error.mrerp_credit_note,贷项通知单需在 MR.ERP 中人工处理
+intake.error.mrerp_currency_not_thb,仅泰铢发票可推送至 MR.ERP
 intake.error.no_account_set,请先选年度和账套
 intake.error.no_ap_account,缺少此发票所需的科目，请检查科目设置
 intake.error.no_ar_account,缺少此发票所需的科目，请检查科目设置

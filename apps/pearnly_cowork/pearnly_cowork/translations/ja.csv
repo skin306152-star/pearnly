@@ -118,9 +118,11 @@ Amount paid,今回の支払額
 Amounts and invoice numbers are misaligned on these VAT report pages; correct against the original: {0},次の税務報告のページで金額と番号の行がずれています。原本に合わせて修正してください：{0}
 An account needed for this invoice is not set. Check the account settings,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください
+An account used is not in the MR.ERP chart of accounts. Check the account settings,使用する勘定科目が MR.ERP の勘定科目表にありません。科目設定を確認してください
 An amount could not be read. Check the amount format in the file,読み取れない金額があります。ファイルの金額の書式を確認してください
 An amount has too many decimal places. Check the file,小数点以下の桁が多すぎる金額があります。ファイルを確認してください
 An amount in this POS export cannot be read,この POS エクスポートの金額が読み取れません
+An error occurred while sending to MR.ERP,MR.ERP への送信中にエラーが発生しました
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,請求書の明細に金額がなく、数量と単価も揃っていません。入力を補ってからエクスポートしてください。
 An item group's account is not in the Express chart of accounts,品目グループの勘定が Express の勘定科目表にありません
 An option in the ERP data report is invalid.,ERP データレポート内の選択肢が無効です。
@@ -441,10 +443,12 @@ Copy list,リストをコピー
 Copy to,コピー先
 Correct entry,記録を修正
 Corrected Value,修正値
+Could not connect to MR.ERP,MR.ERP に接続できません
 Could not finish,失敗
 Could not read the MR.ERP master data.,MR.ERP のマスターデータを読み取れません。
 Could not read the MR.ERP menus. Try again later.,MR.ERP のメニューを読み込めませんでした。後でもう一度お試しください。
 Could not read this document. Please send it again.,書類を読み取れませんでした。もう一度送信してください。
+Could not sign in to MR.ERP. Check the connection's username and password,MR.ERP にログインできません。接続のユーザー名とパスワードを確認してください
 Could not store this document,書類を保存できませんでした
 Count Mode,棚卸方式
 Count as expense,控除せず費用に含める
@@ -534,6 +538,7 @@ Credential ID,認証情報 ID
 Credit,掛け
 Credit Note,返品・値引伝票
 Credit notes need a person to post them in Express,返品・値引伝票は Express で手動で処理してください
+Credit notes need a person to post them in MR.ERP,返品・値引伝票は MR.ERP で手動で処理してください
 Credit purchase,掛仕入
 Credit sales,掛売上
 Currency,通貨
@@ -1017,10 +1022,12 @@ MR.ERP Master Options Seen,取得済みの MR.ERP マスター
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
 MR.ERP default values are needed for this account set. Choose them before pushing.,MR.ERP の既定値を選択してから送信してください。
+MR.ERP does not support this tax rate. Check it and submit again,MR.ERP はこの税率に対応していません。確認して再送信してください
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。
 MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP にはこの種類の伝票で仕訳帳に連携済みの取込メニューが複数あります。送信前に一つ選択してください。
 MR.ERP import menu,MR.ERP 取込メニュー
 MR.ERP purchases can only be entered on credit.,MR.ERP の仕入は掛けでのみ登録できます。
+MR.ERP returned an error. Check in MR.ERP,MR.ERP がエラーを返しました。MR.ERP で確認してください
 MR.ERP settings,MR.ERP 設定
 Make template,テンプレートにする
 Manual,手入力
@@ -1083,6 +1090,7 @@ New task,新規タスク
 Next Attempt At,次回再試行日時
 No CC Desktop credential has been issued for this connection.,この接続には CC デスクトップの認証情報がまだ発行されていません。
 No ERP is ready to use,使用できるERPがありません
+No MR.ERP import result was returned. Check in MR.ERP,MR.ERP の取込結果を取得できません。MR.ERP で確認してください
 No POS sales export headers were found in this file,このファイルに POS 売上エクスポートの見出しがありません
 No account set matches “{0}”,「{0}」に一致する会計データがありません
 No account set of this company covers the document date.,この会社には書類の日付を含む会計データがありません。
@@ -1170,6 +1178,7 @@ Only POS exports in Excel (.xlsx) or CSV can be imported,取り込めるのは E
 Only an active count can be deleted,進行中の棚卸のみ削除できます
 Only board admins can do this,ボード管理者のみ実行できます
 Only invoices in Thai baht can be sent to Express,Express に送れるのはタイバーツの伝票だけです
+Only invoices in Thai baht can be sent to MR.ERP,MR.ERP に送れるのはタイバーツの伝票だけです
 Only manual records can be created through this entry.,この画面からは手入力のレコードのみ作成できます。
 Only one sell unit can be the default.,既定の販売単位は 1 つだけ設定できます。
 Only payment and VAT choices can be changed here,ここで変更できるのは支払方法と仕入税額控除だけです
@@ -1740,6 +1749,8 @@ The ERP report refresh status is invalid.,ERP レポートの更新状態が無�
 The ERP report uses an unsupported system type.,ERP レポートに対応していないシステム種別が指定されています。
 The ERP target context is inconsistent.,ERP送信先の情報が一致しません。
 The Express index tool is missing on this computer. Reinstall CC Desktop,このパソコンに Express インデックスツールがありません。CC デスクトップを再インストールしてください
+The MR.ERP customer code is too long. Choose the customer again,MR.ERP の顧客コードが長すぎます。顧客を選び直してください
+The MR.ERP import failed. Nothing was posted,MR.ERP の取込でエラーが発生しました。計上されていません
 The MR.ERP import page shows no menu (setup incomplete or no permission).,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
 The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,MR.ERP のメニュー設定が変わりました（選択したメニューがないか、仕訳帳に連携されていません）。選び直してください。
 The OCR connection changed after this task was accepted.,このタスクの受け付け後に認識サービスの接続設定が変更されました。
@@ -1749,6 +1760,7 @@ The POS daily total is not in the expected form. Import the POS export again,POS
 The POS daily totals of this document are damaged. Import the POS export again,この書類の POS 日計データが壊れています。POS エクスポートを取り込み直してください
 The POS export columns are incomplete,POS エクスポートの列の設定が不完全です
 The VAT column is more than 7% of a day's sales,付加価値税の列がその日の売上の 7% を超えています
+The VAT does not match the 7% rate. Check it and submit again,付加価値税額が 7% と合いません。確認して再送信してください
 The VAT report content is invalid.,税報告の内容が無効です。
 "The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.",税報告を読み取れません。Excel、CSV、またはテキスト付き PDF を使ってください。
 The VAT report has no rows.,税報告に明細行がありません。
@@ -1836,6 +1848,7 @@ The invoice date is missing or unreadable. Fill it in and submit again,伝票日
 The invoice date looks wrong. Correct it and submit again,伝票日付がおかしいようです。確認して再送信してください
 The invoice fields have an invalid format.,請求書の項目データの形式が正しくありません。
 The invoice has changed. Prepare it again.,伝票が変更されました。再度準備してください。
+The invoice number is longer than MR.ERP allows. Shorten it and submit again,請求書番号が MR.ERP の上限を超えています。短くして再送信してください
 The invoice number is missing. Add it and submit again.,請求書番号がありません。追加して再送信してください
 The invoice page data has an invalid format.,請求書のページデータの形式が正しくありません。
 The item lines do not add up to the day's total,品目の合計がその日の合計と一致しません
@@ -1919,6 +1932,8 @@ The supplier is missing. Add it and submit again.,仕入先がありません。
 The system is busy and the reconciliation was not finished. Please try again shortly.,システムが混み合っているため照合を完了できませんでした。しばらくしてからもう一度お試しください。
 The task owner can no longer enter documents with this connection.,定期タスクの担当者はこの接続で登録できなくなっています。
 The tax month is not valid.,課税月が無効です。
+The total is missing. Add it and submit again,合計がありません。追加して再送信してください
+The total is negative. Correct it and submit again,合計がマイナスです。直して再送信してください
 The unsent preparation was cancelled.,未送信の準備を取り消しました。
 The uploaded file does not match the file on the PC.,アップロード内容がパソコンのファイルと一致しません。
 The uploaded file exceeds the 100 MiB limit.,アップロードしたファイルは上限の 100 MiB を超えています。
@@ -1942,6 +1957,7 @@ These statements look like another account (a different bank or account number) 
 These statements look like another account and were left out of this reconciliation: {0},次の明細書は別の口座のものと思われるため、今回の照合に含めていません：{0}
 These worksheets repeat another worksheet in the same file line for line and were counted once: {0},次のワークシートは同じファイル内の別のワークシートと行ごとに同一のため、1 回だけ数えました：{0}
 This ERP connection is disabled.,このERP接続は無効です。
+This MR.ERP account is in use. Send again later,この MR.ERP アカウントは使用中です。後で再送信してください
 This MR.ERP menu cannot be chosen for this account set.,この会計データではこの MR.ERP メニューを選択できません。
 This PC already has the maximum number of folder rules.,この PC のルール数が上限に達しています。
 This PC already has the maximum number of scheduled tasks.,このパソコンの定期タスク数が上限に達しています。
@@ -1965,6 +1981,7 @@ This connection does not support an Express CC Desktop credential.,この接続�
 This connection does not support scheduled tasks.,この接続は定期タスクに対応していません。
 This connection is disabled.,この接続は無効です。
 This count entry has changed. Refresh it and try again.,この棚卸記録は変更されています。再読み込みしてから再試行してください。
+This customer has no match in MR.ERP. Choose the customer and submit again,この顧客は MR.ERP に対応する顧客がありません。顧客を選んで再送信してください
 This customer is not in Express and could not be created. Check the customer name and tax ID,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
 This delivery conflicts with the current task state.,この受領結果はタスクの現在の状態と矛盾しています。
 This document does not need this choice,この伝票ではこの選択は不要です
@@ -1972,6 +1989,7 @@ This document format is not supported.,この文書形式には対応してい�
 This document is in an Express operator entry,この書類は Express の代行入力中です
 This document is not in Express,この伝票は Express にありません
 This document type cannot be written to Express. Check it and submit again.,この書類の種類は Express に書き込めません。確認して再送信してください
+This document type cannot be written to MR.ERP,この種類の伝票は MR.ERP に書き込めません
 This document was changed in Express. Check it in Express,この伝票は Express で変更されています。Express で確認してください
 This file cannot be read,このファイルは読み取れません
 This file does not match the review workbook format.,このファイルは確認用ワークブックの形式と一致しません。
@@ -2024,6 +2042,8 @@ This scheduled task no longer exists for this PC.,このパソコンにこの定
 "This statement shows no running balance, so balances cannot be checked line by line.",この明細書には各行の残高がないため、残高を1行ずつ確認できません。
 This stock count task is closed.,この棚卸タスクはクローズ済みです。
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
+This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID,この仕入先は MR.ERP になく、作成できませんでした。仕入先名と税番号を確認してください
+This supplier is not in MR.ERP. Check the supplier name and tax ID,この仕入先は MR.ERP にありません。仕入先名と税番号を確認してください
 This task uses the previous count format and cannot accept scan entries.,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
 This tax ID is already used by another company.,この納税者番号は既に別の会社で使用されています。
 This tax id is already used by another client.,この納税者番号は既に別の顧客で使用されています。
@@ -3402,19 +3422,42 @@ intake.error.DBF_WRITE_FAILED,Express への書き込みに失敗し、元に戻
 intake.error.DUPLICATE_CONTENT_DIFFERS,Express に同じ番号で内容の違う伝票があります。確認するか「このまま送信」を選んでください
 intake.error.EMPTY_ITEMS,この請求書には明細がありません。追加して再送信してください
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,結果が確認できません。Express で確認してから再送信してください
+intake.error.ERR_ACCOUNT_NEEDS_REVIEW,使用する勘定科目が MR.ERP の勘定科目表にありません。科目設定を確認してください
 intake.error.ERR_ACCOUNT_UID_MISMATCH,このパソコンの会計データは登録されたものではありません。別のパソコンを待っています
+intake.error.ERR_AMOUNTS_NOT_CLOSED,金額が合いません。直して再送信してください
+intake.error.ERR_AUTH,MR.ERP にログインできません。接続のユーザー名とパスワードを確認してください
+intake.error.ERR_BUSINESS,MR.ERP がエラーを返しました。MR.ERP で確認してください
+intake.error.ERR_CUSTOMER_CODE_TOO_LONG,MR.ERP の顧客コードが長すぎます。顧客を選び直してください
+intake.error.ERR_DATE_FUTURE,伝票日付が未来です。直して再送信してください
+intake.error.ERR_DIRECTION_UNKNOWN,この伝票が仕入か売上かを選んで再送信してください
+intake.error.ERR_INVOICE_NO_TOO_LONG,請求書番号が MR.ERP の上限を超えています。短くして再送信してください
 intake.error.ERR_LOCATION,この Express 会計データにこの倉庫はありません
 intake.error.ERR_MRERP_DEFAULT_CHANGED,選択した値は MR.ERP に存在しません。選び直してください。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP の既定値を選択してから送信してください。
+intake.error.ERR_MRERP_IMPORT_ERROR,MR.ERP の取込でエラーが発生しました。計上されていません
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,メニュー修正前に MR.ERP へ送信した伝票で、仕訳帳に連携されていないメニューにあり記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。
 intake.error.ERR_MRERP_MASTER_UNREADABLE,MR.ERP のマスターデータを読み取れません。
 intake.error.ERR_MRERP_MENU_CHANGED,MR.ERP のメニュー設定が変わりました（選択したメニューがないか、仕訳帳に連携されていません）。選び直してください。
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP にはこの種類の伝票で仕訳帳に連携済みの取込メニューが複数あります。送信前に一つ選択してください。
 intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。
 intake.error.ERR_MRERP_MENU_UNREADABLE,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
+intake.error.ERR_MRERP_MODULE_UNAVAILABLE,この種類の伝票は MR.ERP に書き込めません
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
+intake.error.ERR_NEGATIVE_AMOUNT,合計がマイナスです。直して再送信してください
+intake.error.ERR_NO_CLIENT,顧客がありません。顧客を選択して再送信してください
+intake.error.ERR_NO_CUSTOMER_MAPPING,この顧客は MR.ERP に対応する顧客がありません。顧客を選んで再送信してください
+intake.error.ERR_NO_INVOICE_DATE,伝票日付がないか読み取れません。入力して再送信してください
+intake.error.ERR_NO_INVOICE_NO,請求書番号がありません。追加して再送信してください
+intake.error.ERR_NO_SUPPLIER,この仕入先は MR.ERP にありません。仕入先名と税番号を確認してください
+intake.error.ERR_NO_TOTAL_AMOUNT,合計がありません。追加して再送信してください
 intake.error.ERR_PAYLOAD_VERSION,CC デスクトップが古いバージョンです。更新して再送信してください
+intake.error.ERR_SESSION_LOCK,この MR.ERP アカウントは使用中です。後で再送信してください
+intake.error.ERR_TAX_RATE_INVALID,MR.ERP はこの税率に対応していません。確認して再送信してください
+intake.error.ERR_TECHNICAL,MR.ERP に接続できません
+intake.error.ERR_UNEXPECTED,MR.ERP への送信中にエラーが発生しました
+intake.error.ERR_UNKNOWN_UPLOAD_OUTCOME,MR.ERP の取込結果を取得できません。MR.ERP で確認してください
+intake.error.ERR_VAT_RATE_ANOMALY,付加価値税額が 7% と合いません。確認して再送信してください
 intake.error.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください
 intake.error.INVALID_DOC_DATE,書類の日付が無効です。修正して再送信してください
 intake.error.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
@@ -3474,6 +3517,8 @@ intake.error.entry_not_balanced,仕訳の貸借が合いません。金額を確
 intake.error.items_incomplete,品名または金額のない明細があります。直して再送信してください
 intake.error.items_mismatch,明細の合計が伝票の金額と合いません。明細を直して再送信してください
 intake.error.low_confidence,不確かな項目があります。原本と照合して再送信してください
+intake.error.mrerp_credit_note,返品・値引伝票は MR.ERP で手動で処理してください
+intake.error.mrerp_currency_not_thb,MR.ERP に送れるのはタイバーツの伝票だけです
 intake.error.no_account_set,先に年度と会計データを選んでください
 intake.error.no_ap_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
 intake.error.no_ar_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください

@@ -1867,6 +1867,44 @@ Checking push results	正在查看推送结果	กำลังตรวจสอ
 Printed Total	票面合计	ยอดรวมตามเอกสาร	伝票の合計
 The printed total is missing	没有票面合计	ไม่มียอดรวมตามเอกสาร	伝票の合計がありません	express.reason.printedTotalMissing
 The total does not match the printed total	合计与票面合计不一致	ยอดรวมไม่ตรงกับยอดรวมตามเอกสาร	合計が伝票の合計と一致しません	express.reason.printedTotalMismatch
+The company has no MR.ERP account set	公司未设置 MR.ERP 账套	บริษัทยังไม่ได้ตั้งค่าชุดบัญชี MR.ERP	会社に MR.ERP の会計データが設定されていません	mrerp.reason.notConfigured
+MR.ERP sign-in is not authorized	MR.ERP 登录未授权	ยังไม่ได้อนุญาตการเข้าสู่ระบบ MR.ERP	MR.ERP のログインが未許可です	mrerp.reason.loginMissing
+MR.ERP purchases can only be entered on credit.	MR.ERP 的进项只能按赊购录入。	รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบซื้อเงินเชื่อเท่านั้น	MR.ERP の仕入は掛けでのみ登録できます。	mrerp.reason.purchaseCash
+This MR.ERP account is in an operator entry	此 MR.ERP 账号正在代录	บัญชี MR.ERP นี้กำลังบันทึกแทนอยู่	この MR.ERP アカウントは代行入力中です	mrerp.reason.accountBusy
+Importing into MR.ERP	正在导入 MR.ERP	กำลังนำเข้า MR.ERP	MR.ERP に取込中	mrerp.reason.importing
+The result is not confirmed. Check in MR.ERP before sending again	结果未确认，请先在 MR.ERP 中核对，再决定是否重新推送	ยังไม่ยืนยันผล กรุณาตรวจสอบใน MR.ERP ก่อนตัดสินใจส่งใหม่	結果は未確認です。再送信する前に MR.ERP で確認してください	mrerp.reason.resultUnknown
+An account used is not in the MR.ERP chart of accounts. Check the account settings	所用科目不在 MR.ERP 科目表中，请检查科目设置	รหัสบัญชีที่ใช้ไม่มีในผังบัญชี MR.ERP กรุณาตรวจสอบการตั้งค่าบัญชี	使用する勘定科目が MR.ERP の勘定科目表にありません。科目設定を確認してください	mrerp.error.ERR_ACCOUNT_NEEDS_REVIEW
+The amounts do not add up. Correct them and submit again	金额合计不一致，请更正后重新提交	ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่	金額が合いません。直して再送信してください	mrerp.error.ERR_AMOUNTS_NOT_CLOSED
+Could not sign in to MR.ERP. Check the connection's username and password	MR.ERP 登录失败，请检查连接的账号和密码	เข้าสู่ระบบ MR.ERP ไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านของการเชื่อมต่อ	MR.ERP にログインできません。接続のユーザー名とパスワードを確認してください	mrerp.error.ERR_AUTH
+MR.ERP returned an error. Check in MR.ERP	MR.ERP 返回错误，请在 MR.ERP 中核对	MR.ERP แจ้งข้อผิดพลาด กรุณาตรวจสอบใน MR.ERP	MR.ERP がエラーを返しました。MR.ERP で確認してください	mrerp.error.ERR_BUSINESS
+The MR.ERP customer code is too long. Choose the customer again	MR.ERP 客户代码超出允许长度，请重新选择客户	รหัสลูกค้า MR.ERP ยาวเกินกำหนด กรุณาเลือกลูกค้าใหม่	MR.ERP の顧客コードが長すぎます。顧客を選び直してください	mrerp.error.ERR_CUSTOMER_CODE_TOO_LONG
+The invoice date is in the future. Correct it and submit again	票面日期晚于当前日期，请更正后重新提交	วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่	伝票日付が未来です。直して再送信してください	mrerp.error.ERR_DATE_FUTURE
+Choose purchase or sales for this invoice and submit again	请选择此发票为进项或销项后重新提交	กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่	この伝票が仕入か売上かを選んで再送信してください	mrerp.error.ERR_DIRECTION_UNKNOWN
+The invoice number is longer than MR.ERP allows. Shorten it and submit again	发票号超出 MR.ERP 允许的长度，请缩短后重新提交	เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่	請求書番号が MR.ERP の上限を超えています。短くして再送信してください	mrerp.error.ERR_INVOICE_NO_TOO_LONG
+The MR.ERP import failed. Nothing was posted	MR.ERP 导入出错，未入账	การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี	MR.ERP の取込でエラーが発生しました。計上されていません	mrerp.error.ERR_MRERP_IMPORT_ERROR
+This document type cannot be written to MR.ERP	此单据类型无法写入 MR.ERP	เอกสารประเภทนี้บันทึกลง MR.ERP ไม่ได้	この種類の伝票は MR.ERP に書き込めません	mrerp.error.ERR_MRERP_MODULE_UNAVAILABLE
+The total is negative. Correct it and submit again	合计金额为负数，请更正后重新提交	ยอดรวมติดลบ กรุณาแก้ไขแล้วส่งใหม่	合計がマイナスです。直して再送信してください	mrerp.error.ERR_NEGATIVE_AMOUNT
+The customer is missing. Choose the customer and submit again.	缺少客户，请选择客户后重新提交	ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่	顧客がありません。顧客を選択して再送信してください	mrerp.error.ERR_NO_CLIENT
+This customer has no match in MR.ERP. Choose the customer and submit again	MR.ERP 中没有此客户的对应档案，请选择客户后重新提交	ไม่มีข้อมูลลูกค้านี้ใน MR.ERP กรุณาเลือกลูกค้าแล้วส่งใหม่	この顧客は MR.ERP に対応する顧客がありません。顧客を選んで再送信してください	mrerp.error.ERR_NO_CUSTOMER_MAPPING
+The invoice date is missing or unreadable. Fill it in and submit again	票面日期缺失或无法识别，请补填后重新提交	ไม่มีวันที่เอกสารหรืออ่านไม่ได้ กรุณากรอกแล้วส่งใหม่	伝票日付がないか読み取れません。入力して再送信してください	mrerp.error.ERR_NO_INVOICE_DATE
+The invoice number is missing. Add it and submit again.	缺少发票号，请补充后重新提交	ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่	請求書番号がありません。追加して再送信してください	mrerp.error.ERR_NO_INVOICE_NO
+This supplier is not in MR.ERP. Check the supplier name and tax ID	MR.ERP 中没有此供应商，请核对供应商名称和税号	ไม่มีผู้จำหน่ายนี้ใน MR.ERP กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี	この仕入先は MR.ERP にありません。仕入先名と税番号を確認してください	mrerp.error.ERR_NO_SUPPLIER
+The total is missing. Add it and submit again	缺少合计金额，请补充后重新提交	ไม่มียอดรวม กรุณาเพิ่มแล้วส่งใหม่	合計がありません。追加して再送信してください	mrerp.error.ERR_NO_TOTAL_AMOUNT
+This MR.ERP account is in use. Send again later	此 MR.ERP 账号正在使用中，请稍后重新推送	บัญชี MR.ERP นี้กำลังใช้งานอยู่ กรุณาส่งใหม่ภายหลัง	この MR.ERP アカウントは使用中です。後で再送信してください	mrerp.error.ERR_SESSION_LOCK
+MR.ERP does not support this tax rate. Check it and submit again	MR.ERP 不支持此税率，请核对税率后重新提交	MR.ERP ไม่รองรับอัตราภาษีนี้ กรุณาตรวจสอบแล้วส่งใหม่	MR.ERP はこの税率に対応していません。確認して再送信してください	mrerp.error.ERR_TAX_RATE_INVALID
+Could not connect to MR.ERP	无法连接 MR.ERP	เชื่อมต่อ MR.ERP ไม่ได้	MR.ERP に接続できません	mrerp.error.ERR_TECHNICAL
+An error occurred while sending to MR.ERP	推送至 MR.ERP 时出错	เกิดข้อผิดพลาดขณะส่งไปยัง MR.ERP	MR.ERP への送信中にエラーが発生しました	mrerp.error.ERR_UNEXPECTED
+No MR.ERP import result was returned. Check in MR.ERP	未取得 MR.ERP 导入结果，请在 MR.ERP 中核对	ไม่ได้รับผลการนำเข้าจาก MR.ERP กรุณาตรวจสอบใน MR.ERP	MR.ERP の取込結果を取得できません。MR.ERP で確認してください	mrerp.error.ERR_UNKNOWN_UPLOAD_OUTCOME
+The VAT does not match the 7% rate. Check it and submit again	增值税额与 7% 税率不符，请核对后重新提交	ภาษีมูลค่าเพิ่มไม่ตรงกับอัตรา 7% กรุณาตรวจสอบแล้วส่งใหม่	付加価値税額が 7% と合いません。確認して再送信してください	mrerp.error.ERR_VAT_RATE_ANOMALY
+Could not read the MR.ERP master data.	无法读取 MR.ERP 主档。	ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้	MR.ERP のマスターデータを読み取れません。	mrerp.error.ERR_MRERP_MASTER_UNREADABLE
+MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.	MR.ERP 中此类单据本年度没有已关联日记账的导入菜单，请先在 MR.ERP 中关联。	MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน	MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。	mrerp.error.ERR_MRERP_MENU_NOT_LINKED
+The MR.ERP import page shows no menu (setup incomplete or no permission).	无法读取 MR.ERP 导入页的菜单（设置未完成或账号无权限）。	ไม่สามารถอ่านเมนูจากหน้านำเข้าของ MR.ERP ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)	MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。	mrerp.error.ERR_MRERP_MENU_UNREADABLE
+MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.	MR.ERP 已受理导入，但所选菜单中未找到此单据，结果未知。请先在 MR.ERP 中核对，请勿直接重新推送。	MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ	MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。	mrerp.error.ERR_MRERP_READBACK_NOT_FOUND
+MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.	MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。	MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP	MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。	mrerp.error.ERR_MRERP_READBACK_NOT_LINKED
+Credit notes need a person to post them in MR.ERP	贷项通知单需在 MR.ERP 中人工处理	ใบลดหนี้ต้องบันทึกใน MR.ERP ด้วยตนเอง	返品・値引伝票は MR.ERP で手動で処理してください	mrerp.error.mrerp_credit_note
+Only invoices in Thai baht can be sent to MR.ERP	仅泰铢发票可推送至 MR.ERP	ส่งเข้า MR.ERP ได้เฉพาะเอกสารสกุลเงินบาท	MR.ERP に送れるのはタイバーツの伝票だけです	mrerp.error.mrerp_currency_not_thb
+The invoice date is in the future. Correct it and submit again	票面日期晚于当前日期，请更正后重新提交	วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่	伝票日付が未来です。直して再送信してください	mrerp.error.date_future
+The invoice date looks wrong. Correct it and submit again	票面日期可能有误，请核对后重新提交	วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่	伝票日付がおかしいようです。確認して再送信してください	mrerp.error.date_implausible
 Checked pending items	查看了待处理	ตรวจสอบรายการรอดำเนินการแล้ว	処理待ちの項目を確認しました
 Checking pending items	正在查看待处理	กำลังตรวจสอบรายการรอดำเนินการ	処理待ちの項目を確認しています
 Viewed a document	查看了单据详情	ดูเอกสารแล้ว	書類を確認しました

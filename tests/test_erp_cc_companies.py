@@ -803,6 +803,34 @@ class PendingTests(unittest.TestCase):
         self.assertEqual(pending.reason_label(E.FAILED, "[SOMETHING_ELSE] raw text"), "[SOMETHING_ELSE] raw text")
         self.assertEqual(pending.reason_label(E.HELD, "plain words"), "plain words")
 
+    def test_mrerp_reasons_get_their_text_in_four_languages(self):
+        """账本是 MR.ERP 的单（11-09 P0-④）：本域原因、结果不明、共用层的「码」「码:细节」「码; 原文」与防呆码都有词条，
+        不再原样露码；单据页（transactions.js）同一套规则。"""
+        rows = [line.split("\t") for line in
+                (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv").read_text(encoding="utf-8").splitlines()]
+        keys = {row[4]: row[:4] for row in rows if len(row) >= 5}
+        for key in [value for name, value in pending.REASONS.items() if name.startswith("mrerp.")] + ["mrerp.reason.resultUnknown"]:
+            with self.subTest(key=key):
+                self.assertTrue(all(keys.get(key, ["", "", "", ""])), key)
+        for code in ("ERR_AUTH", "ERR_MRERP_IMPORT_ERROR", "ERR_TECHNICAL", "ERR_MRERP_MENU_NOT_LINKED", "mrerp_credit_note",
+                     "mrerp_currency_not_thb", "date_future"):
+            with self.subTest(code=code):
+                self.assertTrue(all(keys.get(f"mrerp.error.{code}", ["", "", "", ""])), code)
+        table = {key: values[0] for key, values in keys.items()}
+        with mock.patch.object(pending, "_", lambda text: table.get(text, text)):
+            label = lambda reason: pending.reason_label(E.FAILED, reason)  # noqa: E731
+            self.assertEqual(label("mrerp.purchase_cash"), table["mrerp.reason.purchaseCash"])
+            self.assertEqual(label("mrerp.result_unknown: ERR_TECHNICAL"), table["mrerp.reason.resultUnknown"])
+            self.assertEqual(label("ERR_MRERP_IMPORT_ERROR; Error : Duplicate entry"), table["mrerp.error.ERR_MRERP_IMPORT_ERROR"])
+            self.assertEqual(label("ERR_AUTH: credentials rejected on mainmenu"), table["mrerp.error.ERR_AUTH"])
+            self.assertEqual(label("mrerp_currency_not_thb:usd"), table["mrerp.error.mrerp_currency_not_thb"])
+            self.assertEqual(label("ERR_NOT_A_KNOWN_ONE; x"), "ERR_NOT_A_KNOWN_ONE; x")  # 没有词条的原样
+            self.assertEqual(label("[PERIOD_LOCKED] closed"), table["express.reason.periodLocked"])  # Express 的照旧
+        page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js").read_text(encoding="utf-8")
+        self.assertIn('match(/^(ERR_[A-Z0-9_]+|[a-z][a-z0-9_]*)(?=$|[:;])/)', page)
+        self.assertIn('startsWith("mrerp.result_unknown") ? "mrerp.reason.resultUnknown"', page)
+        self.assertEqual(pending._MRERP_CODE.pattern, r"^(ERR_[A-Z0-9_]+|[a-z][a-z0-9_]*)(?=$|[:;])")
+
     def test_needs_person_skips_states_that_retry_by_themselves(self):
         self.assertTrue(E.needs_person(E.HELD, "choice_needed:party"))
         self.assertTrue(E.needs_person(E.HELD, E.WAREHOUSE_UNMAPPED))

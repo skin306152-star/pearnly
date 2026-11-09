@@ -114,7 +114,7 @@ def test_after_a_kick_or_a_refused_login_the_session_never_logs_in_again():
     session.kicked = True
     with pytest.raises(NeedHuman) as kicked:
         session.ensure_open()
-    assert kicked.value.reason == "login_failed" and "kicked" in kicked.value.detail
+    assert kicked.value.reason == "account_in_use" and "kicked" in kicked.value.detail
     session.kicked, session.refused = False, True
     with pytest.raises(NeedHuman):
         session.ensure_open()
@@ -174,6 +174,19 @@ def test_without_a_baseline_nothing_can_have_been_saved():
     book = B.MrerpBook(SimpleNamespace(conn={}), RECIPE)
     assert book.find_saved(D.from_payload("x", block()), {}) == {"docnum": "", "placeholders": []}
     assert book.find_saved(D.from_payload("x", block()), {B.BASELINE: 0})["docnum"] == ""
+
+
+def test_a_kick_while_checking_the_list_before_resuming_is_the_account_in_use_reason(monkeypatch):
+    """续录前查列表时被踢：整批停，原因是专用的 ``account_in_use``（旧版只报 ``login_failed``，界面上说成「登录失败」）。"""
+    book = B.MrerpBook(SimpleNamespace(conn={}), RECIPE)
+
+    def kicked(*_a, **_k):
+        raise S.Kicked("alert then logoutkick")
+
+    monkeypatch.setattr(book, "find_new", kicked)
+    with pytest.raises(NeedHuman) as stop:
+        book.find_saved(D.from_payload("x", block()), {B.BASELINE: 1})
+    assert stop.value.reason == "account_in_use" and "kicked" in stop.value.detail
 
 
 def test_an_unsupported_kind_opens_no_page_before_entering():
