@@ -19,7 +19,6 @@ from __future__ import annotations
 import ctypes
 import glob
 import json
-import logging
 import ntpath
 import os
 import shutil
@@ -29,6 +28,8 @@ import time
 from collections import deque
 from pathlib import Path
 from typing import List, Mapping, Optional, Sequence, Tuple
+
+from .logger import get_logger
 
 # Express 年度数据根文件夹惯例:68EXP / EXP68 / 70exp …(Windows glob 大小写不敏感)。
 _EXP_GLOB = "*EXP*"
@@ -50,7 +51,7 @@ _SKIP_DIR_NAMES = frozenset({
     "$windows.~bt", "$windows.~ws", "windowsapps", "secure",
 })
 
-log = logging.getLogger("pearnly_companion.express_locate")
+log = get_logger(__name__)
 
 
 def _safe_path_label(path: str | Path) -> str:
