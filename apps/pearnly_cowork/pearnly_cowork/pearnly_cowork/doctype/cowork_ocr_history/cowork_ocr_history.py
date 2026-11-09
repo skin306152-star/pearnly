@@ -34,6 +34,9 @@ INDEXES = {
     "workspace_invoice_no_index": ["workspace", "invoice_no", "creation"],      # 重复检查（单号）
     # 录入工作台的总数：权限条件只用到工作区和客户，计数只扫这个窄索引、不读表（2026-10-02 m7：1.3 万行每次 0.6–1.1 秒）
     "workspace_client_index": ["workspace", "client"],
+    # 同一张票的身份（复核 5 批之第 1 批）：判「已写过」按身份键，查重提醒按规范化单号
+    "workspace_ticket_key_index": ["workspace", "ticket_key", "creation"],
+    "workspace_ticket_number_index": ["workspace", "ticket_number", "creation"],
 }
 
 

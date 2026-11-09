@@ -227,6 +227,7 @@ Brief Status,サマリーの状態
 Bringing files from a folder,フォルダーからファイルを取り込んでいます
 Brought files from a folder,フォルダーからファイルを取り込みました
 Buyer,購入者
+Buyer Branch,買い手の支店
 Buyer Client,買い手顧客
 Buyer Name,買い手名
 Buyer Tax ID,購入者の納税者番号
@@ -1556,6 +1557,7 @@ Select valid files to download.,ダウンロードする有効なファイルを
 Selected Account Set,選択した会計データ
 Sell Units,販売単位
 Seller,販売者
+Seller Branch,売り手の支店
 Seller Name,売り手名
 Seller Tax ID,売り手の納税者番号
 Seller address,売り手住所
@@ -2030,6 +2032,9 @@ This tax id is already used by another client.,この納税者番号は既に別
 This value cannot be chosen for this account set.,この会計データではこの値を選択できません。
 This value is not in this month's account set,この値は今月の会計データのマスタにありません
 This warehouse is not in the Express account set,この Express 会計データにこの倉庫はありません
+Ticket Key,伝票識別キー
+Ticket Level,識別レベル
+Ticket Number,正規化伝票番号
 Tier,レベル
 Tier Since (UTC),レベル開始日時（UTC）
 Time left {0},残り {0}
