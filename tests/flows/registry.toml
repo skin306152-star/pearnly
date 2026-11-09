@@ -1064,6 +1064,9 @@ viewports = ["desktop", "mobile"]
 camera = false
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-card.js",
+  # 页面的汇总列表与单品明细取数（11-09 起与导出共用 card_rows 的 MR.ERP 算法）
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/report.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/card_rows.py",
 ]
 
 [[flow]]
