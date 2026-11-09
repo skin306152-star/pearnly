@@ -328,3 +328,19 @@ CC 工具（ADR-027）：形状已发「CC 一套」窗口 local_fd1ef94e（11-0
 6. 生产上多仓 / 多仓位且进价不同的物料有多少：做引擎统一时用一次只读 SSH 统计。
 
 已定（主会话 11-09，第 5 点）：物料调整里人改过的价为准，CC 写盘盈（TK）时用它；人没改价才按现规则（最近一批进货成本或均价）。另开 companion 分支改 `dbf_stock`，随下一版 CC 发。
+
+### G-验收（11-09，本机实验栈 pearnly-cardparity-lab，挂本分支源码，线上同版镜像 9fef288f）
+
+- 单测：`tests/test_erp_stock_card_export.py` 30 条（1 条 Excel 读回本机缺 openpyxl 跳过，候选检查里跑）、`tests/test_opening_report.py` 16 条（收发存页面，期望值按 MR.ERP 规则改写）；全量离线 65/65。
+- 本地闸门 gate.sh 214 步全过；生产镜像候选离线检查见下。
+- 流程（`run.py --changed`，新旧数据 × 电脑 / 手机）18/18：erp.stock-card、erp.stock-card.export、erp.warehouses.codes（新加「列表显示服务端编号」断言）、erp.warehouses.rules、erp.company.actions。`erp.stock-card` 原来只登记了 stock-card.js，补登记 report.py / card_rows.py（取数改了它也要跑）。
+
+影响清单（`check-impact.py --base origin/main`）：
+
+| 入口 | 结果 | 依据 / 原因 |
+|---|---|---|
+| erp.page.warehouses | 通过 | 冒烟 `smoke/run.py --target local --diff` 1.2 秒；流程 erp.warehouses.codes / rules 全过 |
+| erp.report.stock-summary-qty-sort | 没测到（大数据量） | 冒烟探针只认 test 开头的测试租户、造数脚本只在测试机实验栈跑；本机实验栈手工计时（同参数、预热后）erp-old 15 ms、erp-new 10 ms。每页读的流水与改前相同（只读这一页物料的流水，`report.pool_rows`），无新增查询 |
+| erp.exports | 通过（收发存部分） | 流程 erp.stock-card.export 三种 × 新旧 × 电脑 / 手机；其他导出未改 |
+| erp.company-menu | 没测到（人工） | 只因 warehouses.py 登记命中；本次只在仓库列表多回一个字段 |
+| erp.warehouses.express-new-hidden | 没测到（人工） | 同上；新建按钮逻辑未改 |
