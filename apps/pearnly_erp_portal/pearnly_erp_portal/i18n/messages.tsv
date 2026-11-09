@@ -1967,3 +1967,4 @@ All Warehouses Total	全部仓库合计	รวมทุกคลัง	全倉庫
 All Warehouses Rows  {0}  Products  {1}  Warehouses  {2}	全部仓库明细  {0}  笔  {1}  个物料  {2}  个仓库	รายละเอียดรวมทุกคลัง  {0}  รายการ  {1}  สินค้า  {2}  คลัง	全倉庫明細  {0}  件  {1}  品目  {2}  倉庫	trade.export.allDetail
 Exported the stock receipt-issue report	导出了收发存报表	ส่งออกรายงานรับ-จ่ายสินค้าแล้ว	入出庫レポートを出力しました
 Exporting the stock receipt-issue report	正在导出收发存报表	กำลังส่งออกรายงานรับ-จ่ายสินค้า	入出庫レポートを出力しています
+Payment not chosen yet	未选付款方式	ยังไม่ได้เลือกวิธีชำระเงิน	支払方法が未選択です

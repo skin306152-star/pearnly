@@ -986,6 +986,7 @@ Payment Received,รับชำระแล้ว
 Payment Reconciliation,กระทบยอดวิธีชำระเงิน
 Payment Status,สถานะการชำระเงิน
 Payment method,วิธีชำระเงิน
+Payment not chosen yet,ยังไม่ได้เลือกวิธีชำระเงิน
 Payment of {0} received successfully.,รับชำระ {0} แล้ว
 Payment of {0} received successfully. Waiting for other requests to complete...,รับชำระ {0} แล้ว กำลังรอคำขออื่นดำเนินการให้เสร็จ…
 Payments,การชำระเงิน

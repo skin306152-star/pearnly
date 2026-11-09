@@ -96,15 +96,38 @@ class Precheck(Base):
         with patch("pearnly_erp_portal.inventory.warehouses.names_of", return_value=["WH-1", "WH-2"]):
             items = operator.intake_items("CO-1", doc, json.loads(doc.result))
         payment, line, place = items
+        # 付款按「方向 + 对方」一题（几张同一对方的票合成一题）；没记住、票面也看不出就不预选，要人定（不再默认「已付、现金」）
         self.assertEqual((payment["kind"], payment["subject"], payment["value"], payment["label"]),
-                         ("payment", "erp-intake:LI-1", "cash", "ACME"))  # 预选网页默认：已付、现金
+                         ("payment", "erp-intake-pay:purchase|name:ACME", "", "ACME"))
         self.assertEqual([o["code"] for o in payment["options"]][-1], operator.UNPAID)
         self.assertEqual((line["kind"], line["subject"], line["label"], line["search"], line["value"]),
                          ("item", "erp-intake:LI-1:0", "Paper A4", "own_products", operator.card_new()))
         self.assertEqual((place["kind"], place["subject"], place["value"]), ("location", "erp-intake:LI-1:warehouse", ""))
         decided = self.doc(lines=[{"decided": True, "item_type": "goods", "product": "P-1"}], warehouse="WH-1", is_paid=0)
-        items = operator.intake_items("CO-1", decided, json.loads(decided.result))
+        face = {**json.loads(decided.result), "doc_date": "2026-10-02", "due_date": "2026-11-01"}  # 票面赊购 30 天
+        items = operator.intake_items("CO-1", decided, face)
         self.assertEqual([(i["kind"], i["value"]) for i in items], [("payment", operator.UNPAID)])  # 定了的行、定了的仓不再问
+        with patch("pearnly_erp_portal.express.choices.chosen", return_value="transfer"):
+            self.assertEqual(operator.intake_items("CO-1", decided, face)[0]["value"], "transfer")  # 这个对方记住的优先
+
+    def test_records_of_one_party_share_one_payment_question(self):
+        """11-08：24 张同一买方的票，付款问 24 遍；按「方向 + 对方税号」只问一题。"""
+        result = {"buyer_name": "บมจ.บิ๊กซี", "buyer_tax_id": "0-1075-36000-63-3"}
+        self.assertEqual(operator.payment_subject("sales", result), "erp-intake-pay:sales|0107536000633")
+        self.assertEqual(operator.payment_subject("sales", {**result, "doc_no": "IV2"}), operator.payment_subject("sales", result))
+
+    def test_payment_is_asked_even_when_express_asks_too(self):
+        """11-08 复核（管钱）：Express 那边也要人选（例如同税号几个客户）时，原来只问 Express 那几项，付款没问、交单按默认已付现金。"""
+        doc = self.doc()
+        legacy = {"doc_id": "I:LI-1", "state": "choose", "needed": [{"kind": "party", "subject": "sales|010", "label": "Big C"}]}
+        found = {"result": {"book": {}}, "items": [], "data": None}
+        with patch.object(frappe, "get_doc", return_value=doc), \
+                patch.object(intake, "build_payload", return_value={"company": "CO-1"}), \
+                patch("pearnly_erp_portal.express.precheck.collect_form", return_value=found), \
+                patch.object(operator, "legacy_row", return_value=legacy):
+            row = operator._intake_precheck("CO-1", "I:LI-1")
+        self.assertEqual(row["state"], "choose")
+        self.assertEqual([n["kind"] for n in row["needed"]], ["payment", "party"])
 
     def test_ready_records_are_judged_on_the_same_payload_the_web_form_submits(self):
         doc = self.doc()
@@ -129,27 +152,34 @@ class Answers(Base):
         self.saved = {}
         self.db.set_value.side_effect = lambda doctype, name, values: self.saved.update(values)
         self.db.exists.side_effect = lambda doctype, name: name == "P-1"
-        self.doc = SimpleNamespace(name="LI-1", direction="purchase", line_choices=json.dumps(
-            {"lines": [{"decided": False, "item_type": "goods"}, {"decided": False, "item_type": "goods"}], "warehouse": None}))
+        self.doc = SimpleNamespace(name="LI-1", direction="purchase", result=json.dumps({"supplier_name": "ACME"}),
+                                   line_choices=json.dumps({"lines": [{"decided": False, "item_type": "goods"},
+                                                                      {"decided": False, "item_type": "goods"}], "warehouse": None}))
+        self.remembered = []
+        self.enterContext(patch("pearnly_erp_portal.express.choices.remember",
+                                side_effect=lambda *args: self.remembered.append(args)))
         self.enterContext(patch.object(frappe, "get_doc", return_value=self.doc))
         self.enterContext(patch("pearnly_erp_portal.inventory.warehouses.names_of", return_value=["WH-1"]))
 
     def test_answers_are_written_back_and_express_answers_pass_through(self):
         express = {"kind": "account", "subject": "Paper", "value": "53-01"}
         rest = operator.apply_intake_answers("CO-1", "LI-1", [
-            {"kind": "payment", "subject": "erp-intake:LI-1", "value": operator.UNPAID},
+            {"kind": "payment", "subject": "erp-intake-pay:purchase|name:ACME", "value": operator.UNPAID, "label": "ACME"},
             {"kind": "item", "subject": "erp-intake:LI-1:0", "value": "P-1"},
             {"kind": "item", "subject": "erp-intake:LI-1:1", "value": operator.RECORD_ONLY},
             {"kind": "location", "subject": "erp-intake:LI-1:warehouse", "value": "WH-1"}, express])
         self.assertEqual(rest, [express])
         self.assertEqual(self.saved["is_paid"], 0)
+        self.assertTrue(json.loads(self.saved["line_choices"])["payment_decided"])
+        # 按对方记住，同一对方下一张预选它
+        self.assertEqual(self.remembered, [("CO-1", operator.PAYMENT_KIND, "erp-intake-pay:purchase|name:ACME", operator.UNPAID, "ACME")])
         chosen = json.loads(self.saved["line_choices"])
         self.assertEqual([(l["item_type"], l["product"], l["decided"]) for l in chosen["lines"]],
                          [("goods", "P-1", True), ("service", None, True)])
         self.assertEqual(chosen["warehouse"], "WH-1")
 
     def test_values_not_offered_are_refused(self):
-        for answer in ({"kind": "payment", "subject": "erp-intake:LI-1", "value": "bitcoin"},
+        for answer in ({"kind": "payment", "subject": "erp-intake-pay:purchase|name:ACME", "value": "bitcoin"},
                        {"kind": "item", "subject": "erp-intake:LI-1:0", "value": "P-unknown"},
                        {"kind": "item", "subject": "erp-intake:LI-1:7", "value": "P-1"},
                        {"kind": "location", "subject": "erp-intake:LI-1:warehouse", "value": "WH-elsewhere"}):
@@ -171,16 +201,37 @@ class Submit(Base):
     def setUp(self):
         super().setUp()
         self.enterContext(patch.object(operator, "apply_intake_answers", side_effect=lambda company, name, answers: list(answers or [])))
-        self.db.get_value.side_effect = lambda doctype, name, fields=None, as_dict=False, **kw: (
-            json.dumps({"lines": [{"decided": True}]}) if fields == "line_choices" else self.get_value(doctype, name, fields, as_dict))
+        self.choices = {"lines": [{"decided": True}], "payment_decided": True}
+        self.db.get_value.side_effect = self.record
+
+    def record(self, doctype, name, fields=None, as_dict=False, **kw):
+        if isinstance(fields, list) and "line_choices" in fields:
+            return SimpleNamespace(line_choices=json.dumps(self.choices), direction="sales",
+                                   result=json.dumps({"buyer_name": "Big C", "buyer_tax_id": "0107536000633"}))
+        return self.get_value(doctype, name, fields, as_dict)
 
     def test_unanswered_lines_hold_the_record(self):
-        self.db.get_value.side_effect = lambda doctype, name, fields=None, as_dict=False, **kw: (
-            json.dumps({"lines": [{"decided": False}]}) if fields == "line_choices" else self.get_value(doctype, name, fields, as_dict))
+        self.choices = {"lines": [{"decided": False}], "payment_decided": True}
         with patch.object(intake, "submit_chat") as chat:
             results = operator.submit("CO-1", ["I:LI-1"], {"task": "T1"}, "PC-1")
         self.assertEqual(results, [{"doc_id": "I:LI-1", "status": "failed", "reason": operator.UNDECIDED_LINES_TEXT}])
         chat.assert_not_called()
+
+    def test_payment_nobody_chose_holds_the_record_instead_of_paid_cash(self):
+        """11-08 复核（管钱）：付款没人定、这个对方没记过、票面看不出：停下要人定，不按默认「已付、现金」提交（赊销票会记成已付）。
+        这个对方记住过的照记住的提交。"""
+        self.choices = {"lines": [{"decided": True}]}
+        with patch.object(intake, "submit_chat") as chat, \
+                patch("pearnly_erp_portal.express.choices.chosen", return_value=""):
+            results = operator.submit("CO-1", ["I:LI-1"], {"task": "T1"}, "PC-1")
+        self.assertEqual(results, [{"doc_id": "I:LI-1", "status": "failed", "reason": operator.NO_PAYMENT_TEXT}])
+        chat.assert_not_called()
+        written = []
+        self.db.set_value.side_effect = lambda doctype, name, values: written.append(values)
+        with patch.object(intake, "submit_chat", side_effect=frappe.ValidationError("stop here")), \
+                patch("pearnly_erp_portal.express.choices.chosen", return_value=operator.UNPAID):
+            operator.submit("CO-1", ["I:LI-1"], {"task": "T1"}, "PC-1")
+        self.assertIn({"is_paid": 0}, written)  # 记住的「未付」写回记录后才提交
 
     def test_submitted_once_then_handed_to_the_operator(self):
         def submit_chat(name):

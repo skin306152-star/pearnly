@@ -986,6 +986,7 @@ Payment Received,收款成功
 Payment Reconciliation,支付方式对账
 Payment Status,付款状态
 Payment method,付款方式
+Payment not chosen yet,未选付款方式
 Payment of {0} received successfully.,已成功收款 {0}
 Payment of {0} received successfully. Waiting for other requests to complete...,已成功收款 {0}，正在等待其他请求完成…
 Payments,付款

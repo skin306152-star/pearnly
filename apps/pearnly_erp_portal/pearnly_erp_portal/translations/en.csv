@@ -986,6 +986,7 @@ Payment Received,Payment Received
 Payment Reconciliation,Payment Reconciliation
 Payment Status,Payment Status
 Payment method,Payment method
+Payment not chosen yet,Payment not chosen yet
 Payment of {0} received successfully.,Payment of {0} received successfully.
 Payment of {0} received successfully. Waiting for other requests to complete...,Payment of {0} received successfully. Waiting for other requests to complete...
 Payments,Payments

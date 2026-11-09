@@ -261,10 +261,14 @@ def _intake_precheck(company, doc_id) -> dict:
     check = {**view, "state": state, **({"reason": reason} if reason else {}),
              **({"items": [*asked, *found["items"]]} if state == "check" else {})}
     legacy = legacy_row(doc_id, found)
-    if legacy["state"] == "ready" and asked:
-        legacy = {"doc_id": doc_id, "state": "choose", "reason": contracts.CHOICE + ":payment",
-                  "needed": [{"kind": item["kind"], "subject": item["subject"], "label": item["label"],
-                              "options": item.get("options") or [], "current": item.get("value") or ""} for item in asked]}
+    own = [{"kind": item["kind"], "subject": item["subject"], "label": item["label"], "options": item.get("options") or [],
+            "current": item.get("value") or ""} for item in asked]
+    if legacy["state"] == "ready" and own:
+        legacy = {"doc_id": doc_id, "state": "choose", "reason": contracts.CHOICE + ":payment", "needed": own}
+    elif legacy["state"] == "choose" and own:
+        # Express 那边也要人选（例如同税号几个客户）：这条记录自己的几项一起问（11-08 生产前复核：原来只问 Express 那几项，
+        # 付款没问，交单按默认「已付、现金」，赊销票记成了已付）
+        legacy = {**legacy, "needed": [*own, *(legacy.get("needed") or [])]}
     return {**legacy, **({"target": shown} if shown else {}), "precheck": check}
 
 
@@ -301,9 +305,9 @@ def intake_items(company, doc, result) -> list:
     subject = INTAKE_SUBJECT + doc.name
     label = (result.get("supplier_name") if doc.direction == "purchase" else result.get("buyer_name")) \
         or result.get("doc_no") or doc.name
-    value = (doc.payment_method or "cash") if doc.is_paid else UNPAID
-    items = [{"kind": "payment", "subject": subject, "label": label, "value": value, "source": card.RULE,
-              "direction": doc.direction,
+    value = payment_default(company, doc.direction, result)
+    items = [{"kind": "payment", "subject": payment_subject(doc.direction, result), "label": label, "value": value,
+              "source": card.RULE if value else "", "direction": doc.direction,
               "options": [{"code": code, "name": _(METHOD_LABELS[code])} for code in _methods(doc.direction)]
               + [{"code": UNPAID, "name": _("Unpaid")}]}]
     chosen = json.loads(doc.line_choices or "null") or {}
@@ -328,6 +332,43 @@ def intake_items(company, doc, result) -> list:
     return items
 
 
+# 付款这一项按「方向 + 对方」归类（同一对方的几张票合成一题、答一次按对方记住），不按每条记录（11-08：24 张同一买方会问 24 遍）。
+# 预选：这家公司对这个对方记住的 → 采购票面有晚于单据日期的到期日记「未付」→ 都没有就不预选，要人定；不再悄悄按「已付、现金」交单
+INTAKE_PAY = "erp-intake-pay:"
+PAYMENT_KIND = "intake_payment"
+NO_PAYMENT_TEXT = "Payment not chosen yet"
+
+
+def payment_subject(direction, result) -> str:
+    import re
+
+    side = ("supplier" if direction == "purchase" else "buyer")
+    tax = re.sub(r"\D", "", str(result.get(f"{side}_tax_id") or ""))
+    name = " ".join(str(result.get(f"{side}_name") or "").split())
+    return f"{INTAKE_PAY}{direction}|{tax or 'name:' + name}"[:140]
+
+
+def payment_default(company, direction, result) -> str:
+    """这张票的付款预选（没有把握回空）：按对方记住的，或采购票面写了晚于单据日期的到期日（赊购）。"""
+    from pearnly_erp_portal.express import choices
+
+    remembered = choices.chosen(company, PAYMENT_KIND, payment_subject(direction, result))
+    if remembered == UNPAID or remembered in _methods(direction):
+        return remembered
+    due, day = str(result.get("due_date") or ""), str(result.get("doc_date") or "")
+    if direction == "purchase" and due and day and due > day:
+        return UNPAID
+    return ""
+
+
+def _payment_values(direction, value) -> dict:
+    if value == UNPAID:
+        return {"is_paid": 0}
+    if value in _methods(direction):
+        return {"is_paid": 1, "payment_method": value}
+    frappe.throw(_("Invalid request"))
+
+
 def card_new():
     from pearnly_core.express_rules.push import choices as choice_rules
 
@@ -342,23 +383,25 @@ def apply_intake_answers(company, name, answers) -> list:
     from pearnly_erp_portal.integrations import intake as chat_intake
     from pearnly_erp_portal.inventory import warehouses
 
+    from pearnly_erp_portal.express import choices
+
     doc = frappe.get_doc(chat_intake.DOCTYPE, name)
     subject = INTAKE_SUBJECT + name
     chosen = json.loads(doc.line_choices or "null") or {"lines": []}
+    pay = payment_subject(doc.direction, json.loads(doc.result or "{}"))
     values, rest = {}, []
     for answer in answers or ():
+        if isinstance(answer, dict) and answer.get("kind") == "payment" and answer.get("subject") == pay:
+            value = str(answer.get("value") or "")
+            values.update(_payment_values(doc.direction, value))
+            chosen["payment_decided"] = True
+            choices.remember(company, PAYMENT_KIND, pay, value, str(answer.get("label") or ""))  # 按对方记住，下次预选
+            continue
         if not isinstance(answer, dict) or not str(answer.get("subject") or "").startswith(subject):
             rest.append(answer)
             continue
         kind, value, tail = answer.get("kind"), str(answer.get("value") or ""), str(answer["subject"])[len(subject):]
-        if kind == "payment" and not tail:
-            if value == UNPAID:
-                values.update(is_paid=0)
-            elif value in _methods(doc.direction):
-                values.update(is_paid=1, payment_method=value)
-            else:
-                frappe.throw(_("Invalid request"))
-        elif kind == "item" and tail[1:].isdigit():
+        if kind == "item" and tail[1:].isdigit():
             index = int(tail[1:])
             if index >= len(chosen.get("lines") or []) or not chosen["lines"][index]:
                 frappe.throw(_("Invalid request"))
@@ -515,10 +558,18 @@ def _submit_intake(company, doc_id, answers=None):
     if not _submitted(row):
         try:
             rest = apply_intake_answers(company, row.name, answers)
-            chosen = json.loads(frappe.db.get_value(chat_intake.DOCTYPE, row.name, "line_choices") or "null") or {}
+            record = frappe.db.get_value(chat_intake.DOCTYPE, row.name, ["line_choices", "result", "direction"], as_dict=True)
+            chosen = json.loads(record.line_choices or "null") or {}
             if any(line and not line.get("decided") for line in chosen.get("lines") or []):
                 frappe.db.commit()
                 return {"doc_id": doc_id, "status": "failed", "reason": _(UNDECIDED_LINES_TEXT)}
+            if not chosen.get("payment_decided"):
+                # 付款没人定：按对方记住的或票面判得出的定；都没有就停下要人定，不按默认「已付、现金」交单（管钱的底线）
+                value = payment_default(company, record.direction, json.loads(record.result or "{}"))
+                if not value:
+                    frappe.db.commit()
+                    return {"doc_id": doc_id, "status": "failed", "reason": _(NO_PAYMENT_TEXT)}
+                frappe.db.set_value(chat_intake.DOCTYPE, row.name, _payment_values(record.direction, value))
             chat_intake.submit_chat(row.name)
         except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
             frappe.db.rollback()

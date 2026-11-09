@@ -986,6 +986,7 @@ Payment Received,入金済み
 Payment Reconciliation,支払方法の照合
 Payment Status,支払状況
 Payment method,支払方法
+Payment not chosen yet,支払方法が未選択です
 Payment of {0} received successfully.,{0} の入金に成功しました
 Payment of {0} received successfully. Waiting for other requests to complete...,{0} の入金に成功しました。他の処理の完了を待っています…
 Payments,支払履歴
