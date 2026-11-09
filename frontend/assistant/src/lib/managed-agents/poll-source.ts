@@ -167,11 +167,16 @@ export class PollingSource {
   /** 推送来的事件：照常交给会话，但不拿它当补拉的锚点（补拉锚点只用从事件记录里读到的编号）。缺口里推来的先压着（见文件头）。 */
   private pushed(event: FeedEvent) {
     if (this.readyState === PollingSource.CLOSED) return;
+    // 逐字预览不压（批 A ②，11-09）：它不入事件记录、补拉补不回来，压着只会让回复答完才一次放出；顺序由同编号的正式事件收口
+    const kind = event.type as string;
+    if (kind === "event_start" || kind === "event_delta") {
+      this.emit(event, false);
+      return;
+    }
     if (this.gap) {
       this.held.push(event);
       this.onalive?.(); // 推来了就算还连着（压着不交，不是没收到）
     } else this.emit(event, false);
-    const kind = event.type as string;
     const stop = (event as { stop_reason?: { type?: string } }).stop_reason?.type;
     if ((kind === "session.status_idle" && stop !== "requires_action") || kind === "session.status_terminated") {
       this.reschedule(SETTLE_MS);
@@ -280,6 +285,10 @@ export class PollingSource {
   /** 本页刚发出消息 / 批准：回复走推送；没连上实时通道时马上补拉一次，不等慢节奏。 */
   nudge() {
     this.running = true;
-    this.reschedule(isConnected() ? PUSHED_RUNNING_MS : 300);
+    const delay = isConnected() ? PUSHED_RUNNING_MS : 300;
+    // 只提前、不推迟：已排的那次更早（刚接上尾巴、第一次补拉马上要发）就照旧（批 A ②，11-09：新对话发第一句时把马上要发的
+    // 第一次补拉推到 8 秒后）
+    if (this.timer && !this.inFlight && this.dueAt - Date.now() <= delay) return;
+    this.reschedule(delay);
   }
 }

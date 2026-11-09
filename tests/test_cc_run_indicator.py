@@ -1224,6 +1224,104 @@ assert.equal(c.getSnapshot().messages.filter((m: any) => m.role === "user").leng
 g.respond = respond;
 """)
 
+    def test_a_new_chat_streams_its_first_reply_while_the_backfill_is_slow(self):
+        # 批 A ②（11-09 testcowork 实测：新对话第一句约 30 秒才整段出，20 秒时顶上跳「正在重新连接…」）。生产 nginx：建对话后
+        # 页面先整段补拉一次（5.8 秒）才发第一句，第一次轮询补拉 11.8 秒才回来；回来之前推来的逐字全压着、顶上把「还没接上」
+        # 说成「正在重新连接」。补拉迟迟不回时：新建的对话（历史本来是空的）不等补拉就发出；推来的逐字当场显示；
+        # 顶上不说「正在重新连接」（尾巴还在第一次接上的路上，不是断了）。
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { showsReconnecting } from "@/lib/managed-agents/turn";
+---
+const S = "sesn_fresh1";
+// 引擎的「列出事件」迟迟不回（整段补拉、轮询补拉都挂着）
+const respond = g.respond;
+let release: () => void = () => {};
+const stuck = new Promise<void>((resolve) => { release = resolve; });
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events") await stuck;
+  return respond(method, args, body);
+};
+site.echo = false;
+const c = getSessionController(S);
+c.created();  // 本页刚建的对话：历史是空的
+c.attach();
+let sent = false;
+void c.sendMessage("盘点一下", []).then(() => { sent = true; });
+await g.sleep(30);
+assert.equal(sent, true, "the first message goes out without waiting for the backfill");
+assert.equal(g.calls.filter((x: any) => x.method === "send").length, 1);
+preview(S, { type: "event_start", event: { id: "m1", type: "agent.message" } });
+preview(S, { type: "event_delta", event_id: "m1", delta: { type: "content_delta", content: { type: "text", text: "好的，" } } });
+await g.sleep(10);
+const texts = (s: any) => s.messages.filter((m: any) => m.role === "assistant").flatMap((m: any) => m.content)
+  .filter((p: any) => p.type === "text").map((p: any) => p.text).join("");
+assert.equal(texts(c.getSnapshot()), "好的，", "the streamed words show while the backfill is still out");
+assert.equal(showsReconnecting(c.getSnapshot()), false, "not connected yet is not reconnecting");
+
+// 已打开的对话：推送通道断过又连上（开了缺口），补拉挂着——逐字同样当场显示（逐字只是临时预览，不怕顺序乱）
+const S2 = "sesn_gap1";
+release();
+g.respond = respond;
+site.log.push(ev("u1", "user.message", 1, { content: text("hi") }), ev("r1", "session.status_running", 2));
+site.engine = "running";
+const c2 = getSessionController(S2);
+c2.attach();
+await g.sleep(30);
+let release2: () => void = () => {};
+const stuck2 = new Promise<void>((resolve) => { release2 = resolve; });
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events") await stuck2;
+  return respond(method, args, body);
+};
+g.socket.drop();
+g.socket.back();
+await g.sleep(10);
+preview(S2, { type: "event_start", event: { id: "m2", type: "agent.message" } });
+preview(S2, { type: "event_delta", event_id: "m2", delta: { type: "content_delta", content: { type: "text", text: "在查" } } });
+await g.sleep(10);
+assert.equal(texts(c2.getSnapshot()), "在查", "words pushed inside a gap are not held behind the stuck backfill");
+release2();
+g.respond = respond;
+""")
+
+    def test_a_backfill_landing_after_the_streamed_words_keeps_one_reply(self):
+        # 批 A ②：补拉回来时逐字推送已经到了——正式的回复（同一个事件编号）收口刚才的逐字，只有一段、不重复、不丢字；
+        # 这一轮的「结束」随补拉到，发送键恢复
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { isBusy } from "@/lib/managed-agents/reducer";
+---
+const S = "sesn_fresh2";
+const respond = g.respond;
+let release: () => void = () => {};
+const stuck = new Promise<void>((resolve) => { release = resolve; });
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events") await stuck;
+  return respond(method, args, body);
+};
+const c = getSessionController(S);
+c.created();
+c.attach();
+await c.sendMessage("盘点一下", []);
+preview(S, { type: "event_start", event: { id: "m1", type: "agent.message" } });
+preview(S, { type: "event_delta", event_id: "m1", delta: { type: "content_delta", content: { type: "text", text: "好的，" } } });
+preview(S, { type: "event_delta", event_id: "m1", delta: { type: "content_delta", content: { type: "text", text: "三号仓" } } });
+await g.sleep(10);
+// 补拉这时才回来：事件记录里已有这一轮的全部（用户那句的回声、开跑、正式回复、结束）
+site.log.push(ev("r1", "session.status_running", 200), ev("m1", "agent.message", 201, { content: text("好的，三号仓已盘完") }),
+  ev("i1", "session.status_idle", 202, { stop_reason: { type: "end_turn" } }));
+release();
+g.respond = respond;
+await g.sleep(60);
+const s: any = c.getSnapshot();
+const replies = s.messages.filter((m: any) => m.role === "assistant").map((m: any) =>
+  m.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join(""));
+assert.deepEqual(replies.filter(Boolean), ["好的，三号仓已盘完"]);
+assert.equal(s.messages.filter((m: any) => m.role === "user").length, 1);
+assert.equal(isBusy(s), false);
+""")
+
     def test_the_top_line_stays_while_the_network_is_down_past_the_stall(self):
         # 第 11 轮重测 E 段（g34）：断网超过 30 秒，第 5–25 秒顶部「正在重新连接…」，第 30 秒起这一行自己消失、网络其实还断着。
         # 原因：这一轮卡住（stalled）时顶部那一行按设计不说（让给状态行的「连接中断，正在重连…」），看门重开尾巴本身没清掉出错状态。
@@ -1852,7 +1950,8 @@ assert.equal(showsReconnecting(s), true);
 assert.equal(showsReconnecting({ ...s, stalled: true }), true);
 const base = { isLoaded: true, isTailing: true, transportError: null, stalled: false, lastError: null };
 assert.equal(showsReconnecting(base), false);
-assert.equal(showsReconnecting({ ...base, isTailing: false }), true);
+assert.equal(showsReconnecting({ ...base, isTailing: false }), false);  // 第一次接上之前（还没断过）不算重连（批 A ②）
+assert.equal(showsReconnecting({ ...base, isTailing: false, tailLost: true }), true);
 const retrying = { ...base, lastError: { message: "Overloaded", retryStatus: "retrying" } } as any;
 assert.equal(showsReconnecting(retrying), true);
 assert.equal(connectionDetail(retrying), "Overloaded");

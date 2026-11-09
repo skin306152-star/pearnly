@@ -43,6 +43,9 @@ export type ControllerSnapshot = Projection & {
   isLoaded: boolean;
   /** The tail is connected. False while replaying or reconnecting. */
   isTailing: boolean;
+  /** 尾巴断过（补拉失败、通道报错）、还没再接上：顶部「正在重新连接…」只看它。第一次接上之前（新对话第一次轮询补拉
+   *  要十几秒时）不算断（批 A ②，11-09 testcowork：整段补拉先回来、轮询还在路上，顶上把「还没接上」说成「正在重新连接」）。 */
+  tailLost: boolean;
   /** Last transport-level problem (relay drop, failed action), for a banner. */
   transportError: string | null;
   /** 这一轮在跑，却超过 STALL_MS 收不到服务端任何消息（见文件头）。 */
@@ -67,6 +70,8 @@ export class SessionController {
   private listeners = new Set<Listener>();
   private source: PollingSource | null = null;
   private replayed = false;
+  // 本页刚建的对话（created）：历史本来是空的，第一句不等整段补拉（发出第一句后清掉）
+  private fresh = false;
   private disposed = false;
   // While folding stored history, a requires_action lands *before* the event
   // that answered it (both are in the same list). Answering custom tools
@@ -133,7 +138,7 @@ export class SessionController {
 
   constructor(sessionId: string) {
     this.sessionId = sessionId;
-    this.state = { ...initialProjection(), isLoaded: false, isTailing: false, transportError: null, stalled: false, isSynced: false };
+    this.state = { ...initialProjection(), isLoaded: false, isTailing: false, tailLost: false, transportError: null, stalled: false, isSynced: false };
   }
 
   // ------------------------------------------------------------ subscription
@@ -315,7 +320,7 @@ export class SessionController {
     // the persisted log — the reattach backfill refetches it.
     this.backfilling = false;
     this.pendingTail = [];
-    this.set({ isTailing: false, isSynced: false });
+    this.set({ isTailing: false, tailLost: false, isSynced: false });
     this.watchStall();
   }
 
@@ -360,7 +365,7 @@ export class SessionController {
       // auto-reconnects, which reuse the same source object).
       this.backfilling = true;
       void this.replay();
-      this.set({ isTailing: true, transportError: null });
+      this.set({ isTailing: true, tailLost: false, transportError: null });
     };
     source.onmessage = (msg) => {
       if (this.source === source) this.touch();
@@ -376,12 +381,15 @@ export class SessionController {
       }
       // Hold live events until the pending backfill has folded history, so
       // the two sources can't interleave out of order (see pendingTail).
-      if (!this.replayed || this.backfilling) this.pendingTail.push(envelope.event);
+      // 逐字预览（event_start / event_delta）不压：它不入事件记录、没有自己的位置，由同编号的正式事件收口；历史已并进来过
+      // （或本页刚建的对话，历史本来是空的）时当场显示，补拉慢也照样逐字出（批 A ②，11-09：补拉 11.8 秒，回复答完才一次放出）
+      if (this.replayed && isPreview(envelope.event)) this.fold(envelope.event);
+      else if (!this.replayed || this.backfilling) this.pendingTail.push(envelope.event);
       else this.fold(envelope.event);
     };
     source.onerror = () => {
       if (this.source !== source) return; // 已被重开替下的旧尾巴
-      this.set({ isTailing: false });
+      this.set({ isTailing: false, tailLost: true });
       if (this.disposed) return;
       // A dead session's endpoints 404 forever: reconnecting or replaying
       // would just hammer them. The projection already says so; stop here.
@@ -493,6 +501,15 @@ export class SessionController {
     }
   }
 
+  /** 本页刚建的对话（新对话第一句前，runtime-provider 建好会话时调）：服务端刚建、还没发过话，历史本来是空的——当作已并完
+   *  历史：第一句不等整段补拉就发出，推来的逐字当场显示（批 A ②，11-09）。已打开过、已并过历史的不动。 */
+  created(): void {
+    if (this.replayed) return;
+    this.fresh = true;
+    this.replayed = true;
+    this.set({ isLoaded: true });
+  }
+
   // --------------------------------------------------------------- actions
   // onShown：真正的气泡放进对话的那一刻，带上它的编号（页面等它真画出来再撤掉发送前先显示的临时气泡，pending-send.ts）
   async sendMessage(
@@ -510,7 +527,9 @@ export class SessionController {
     // Wait on the current pass (usually already finished) — and if it
     // FAILED (doReplay resolves either way), refuse the send rather than
     // fold the bubble into a projection with a hole under it.
-    if (!this.replayed || this.backfilling) {
+    // 本页刚建的对话（created）历史本来是空的，不会有旧消息并到气泡下面：不等补拉（批 A ②，11-09：新对话第一句先等整段补拉
+    // 5.8 秒才发出）
+    if ((!this.replayed || this.backfilling) && !this.fresh) {
       await (this.replayInFlight ?? this.replay());
       if (!this.replayed || this.backfilling) {
         throw new Error("The conversation history hasn't loaded yet; try again in a moment.");
@@ -539,6 +558,7 @@ export class SessionController {
     this.localChangeAt = Date.now();
     this.touch(); // 从发出计时：空闲时补拉得慢，不能把那段间隔算成断了
     onShown?.(optimisticId);
+    this.fresh = false; // 气泡已放进对话：之后再发照常等补拉
 
     this.unacked++;
     const full = messageText(text, files);
@@ -768,6 +788,12 @@ export function dropSessionController(sessionId: string): void {
 }
 
 // ---------------------------------------------------------------- helpers
+/** 逐字预览（推送线程转来的 event_start / event_delta）：不入事件记录、没有自己的编号，由同编号的正式事件收口。 */
+function isPreview(event: { type?: unknown }): boolean {
+  const kind = (event as { type?: string }).type;
+  return kind === "event_start" || kind === "event_delta";
+}
+
 function describe(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
