@@ -60,8 +60,8 @@ SHOTS = [ROOT / "tests" / "fixtures" / "scenarios" / f"party-once-screenshot-{i:
 DIRECT_LINES = {"desktop": "把这 4 张录进 Express", "mobile": "บันทึก 4 ใบนี้เข้า Express"}
 DIRECT_DOCNUM = "RR-DIRECT-{:02d}"
 # 花费硬封顶（主会话 11-09：这次 2 美元）：每遍开跑前按最坏单价估这一遍，累计超过 --budget 就不开跑。单价取设计文档文末的实测折算
-# 往高里算（识别升 Opus 约 0.02 美元 / 页，按 0.03；对话一轮按 0.15）
-PAGE_MAX, TURN_MAX = 0.03, 0.15
+# 往高里算（识别升 Opus 约 0.02 美元 / 页，按 0.025；对话一轮按 0.15）
+PAGE_MAX, TURN_MAX = 0.025, 0.15
 PAGES = 24
 FIRST_REF = "IV69/00751"
 SELLER_TAX = "0105561077332"
@@ -347,8 +347,8 @@ def direct_steps(params, viewport):
          "return {picked, shown, ready, sent, got, replies: replies()};"},
         # 识别 4 张、要选客户、推送：一步一分钟内，有提问卡就答，没有就等这一轮结束
         *[{"name": f"直写答题{k}", "js": JS + _texts_js() + ANSWER_ASK.replace("return {asked:false};",
-           f"const done=await until(()=>{idle}&&!q('[data-slot=\"cc-askq\"][data-phase=\"ask\"]'),200); "
-           "return {asked:false, done, replies: replies().slice(-3)};")} for k in range(1, 7)],
+           f"{{ const done=await until(()=>{idle}&&!q('[data-slot=\"cc-askq\"][data-phase=\"ask\"]'),200); "
+           "return {asked:false, done, replies: replies().slice(-3)}; }")} for k in range(1, 7)],
         {"name": "直写结束", "file": "0b-直写推送后", "shot": True, "js": JS + _texts_js()
          + f"const done=await until(()=>{idle},200); return {{done, replies: replies()}};"},
     ]
@@ -478,10 +478,13 @@ task = frappe.get_all(tasks.DOCTYPE, filters={{"company": {params["company"]!r}}
 task = task[0] if task else {{}}
 rows = frappe.get_all(tasks.DOCUMENT, filters={{"parent": task.get("name") or "-"}}, fields=["doc_id", "state", "reason", "ref", "party"],
                       limit_page_length=0)
-sid = frappe.db.get_value("Pearnly Assistant Session", {{"operator_task": task.get("name") or "-"}}, "session_id") or ""
+session = frappe.db.get_value("Pearnly Assistant Session", {{"operator_task": task.get("name") or "-"}}, ["session_id", "remote_ids"],
+                              as_dict=True) or {{}}
+sid = session.get("session_id") or ""
+remote = ([r for r in json.loads(session.get("remote_ids") or "[]") if r] or [""])[-1]  # 引擎那边的会话（本站编号不是它）
 tools_on, tools_error = [], ""
 try:
-    found = engine.adapter().api.beta.sessions.retrieve(sid)
+    found = engine.adapter().api.beta.sessions.retrieve(remote)
     tools_on = sorted({{getattr(t, "name", None) or (t.get("name") if isinstance(t, dict) else None) or getattr(t, "type", "")
                        for t in (found.agent.tools or [])}})
 except Exception as error:
@@ -644,7 +647,14 @@ def lab_env():
     return env
 
 
+COWORK_OCR = (("pearnly_cowork_ocr_environment", "{}"), ("pearnly_cowork_ocr_policy", '{"mode": "economy"}'))
+
+
 def set_sites(lab, key, engine):
+    site = SITES["cowork"]  # Cowork 的识别要站点上写明识别配置（`ocr.execution.settings.snapshot`），实验栈默认没有
+    for name, value in COWORK_OCR:
+        lab.bench(*(["bench", "--site", site, "set-config", "--parse", name, value] if engine else
+                    ["bench", "--site", site, "remove-from-config", name]), timeout=300)
     for site in SITES.values():
         args = ["bench", "--site", site, "set-config", "pearnly_assistant_api_key", key]
         result = lab.bench(*args, timeout=300)
