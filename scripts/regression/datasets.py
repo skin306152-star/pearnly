@@ -227,6 +227,7 @@ def build_old():
         product = frappe.db.get_value("ERP Product", {"code": f"OLD-{i:03d}"})
         if product and frappe.db.get_value("ERP Product", product, "barcode") != ean13(f"88500020{i:04d}"):
             commit(products.update_product(product, barcode=ean13(f"88500020{i:04d}")))
+    detail_states(a)
     assign_jobs(SITES["old"], [a])
     products_list = frappe.get_all("ERP Product", filters={"code": ["like", "OLD-%"]}, fields=["name", "code", "barcode"], order_by="code asc")
     return {"dataset": "old", "site": SITES["old"], "companies": [a, b],
@@ -236,6 +237,45 @@ def build_old():
             "stock_on_hand": float(frappe.db.sql("select coalesce(sum(qty_on_hand), 0) from `tabERP Stock Balance`")[0][0]),
             "documents": {doctype: frappe.db.count(doctype) for doctype in ("Purchase Document", "ERP Sales Document", "ERP Sale",
                                                                            "ERP Shift", "ERP Stock Count")}}
+
+
+def detail_states(co):
+    """单据详情冒烟（`shared-parts.toml` 的 erp.detail.*）要的每种状态各至少一张：采购 / 销售的草稿与作废、入库已提交、
+    出库作废（11-09：新实验栈缺这几种，冒烟第一遍只能记「没测到」，曾手工补过两次）。缺哪种补哪种，有了不重复建；全走正式接口。"""
+    from pearnly_erp_portal.inventory import api as stock
+    from pearnly_erp_portal.purchasing import entry as purchase, service as purchasing, suppliers
+
+    def has(doctype, status, **filters):
+        return bool(frappe.get_all(doctype, filters={"status": status, **filters}, limit_page_length=1))
+
+    wh = frappe.get_all("ERP Warehouse", filters={"company": co}, pluck="name", order_by="creation asc", limit_page_length=1)[0]
+    product = frappe.db.get_value("ERP Product", {"code": "OLD-001"})
+    if not has("Purchase Document", "draft", company=co):
+        commit(purchasing.create_purchase(supplier_name="ผู้ขายร่าง", doc_date="2026-10-06", company=co,
+                                          lines=[{"item_type": "service", "description": "ค่าบริการร่าง", "qty": 1, "unit_price": 10}]))
+    if not has("Purchase Document", "void", company=co):
+        supplier = frappe.db.get_value("ERP Supplier", {"supplier_name": "ผู้ขายเก่า"}) or \
+            commit(suppliers.create_supplier(supplier_name="ผู้ขายเก่า", tax_id=lab_tax("ผู้ขายเก่า")))["name"]
+        voided = commit(purchase.post({"company": co, "supplier": supplier, "doc_date": "2026-10-06", "currency": "THB", "fx_rate": 1,
+                                       "has_vat": 1, "price_mode": "exclusive", "doc_kind": "purchase_invoice", "update_stock": 0,
+                                       "is_paid": 0, "doc_no": "OLD-VOID-" + co, "warehouse": wh,
+                                       "lines": [{"item_type": "service", "description": "ค่าบริการยกเลิก", "qty": 1, "unit": "งาน",
+                                                  "unit_price": 100, "vat_rate": 7}]}, request_id="old-void-" + co))
+        commit(purchase.cancel(voided["name"], reason="regression"))
+    if not has("ERP Sales Document", "draft", company=co):
+        draft = frappe.get_doc({"doctype": "ERP Sales Document", "company": co, "status": "draft", "doc_kind": "quotation",
+                                "doc_date": "2026-10-06", "buyer_name": "ลูกค้าร่าง", "has_vat": 0,
+                                "lines": [{"description": "รายการร่าง", "qty": 1, "unit": "ชิ้น", "unit_price": "10", "vat_applicable": 0}]})
+        draft.flags.ignore_permissions = True
+        commit(draft.insert())
+    if not has("ERP Stock Entry", "submitted", warehouse=wh, direction="in"):
+        commit(stock.api_create_stock_entry(direction="in", posting_date="2026-10-06", warehouse=wh, submit=1,
+                                            lines=json.dumps([{"product": product, "qty": 2, "unit_cost": 10, "warehouse": wh,
+                                                               "location": ""}])))
+    if not has("ERP Stock Entry", "void", warehouse=wh, direction="out"):
+        out = commit(stock.api_create_stock_entry(direction="out", posting_date="2026-10-06", warehouse=wh, submit=1,
+                                                  lines=json.dumps([{"product": product, "qty": 1, "warehouse": wh, "location": ""}])))
+        commit(stock.api_void_stock_entry(name=out["name"] if isinstance(out, dict) else out))
 
 
 def cowork_state(site, dataset):
