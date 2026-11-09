@@ -58,19 +58,16 @@ LANGUAGE_OPTIONS = {"th": "ไทย", "zh": "中文", "en": "English", "ja": "�
 
 
 def _language_step():
-    """语言格里依次输入四种语言代码，读原生下拉（awesomplete）列出的项；最后把格子还原、重载表单，不保存。"""
+    """语言格的原生下拉（ControlLink）向 ``frappe.desk.search.search_link`` 要候选：四种语言代码各要一次，读回列出的项；只看不存。"""
     return {"name": "语言下拉", "js": JS + f"""
-const frm=await until(()=>window.cur_frm&&cur_frm.doctype==='User'&&cur_frm.fields_dict.language?.$input&&cur_frm, 25000);
+const frm=await until(()=>window.cur_frm&&cur_frm.doctype==='User'&&cur_frm.fields_dict.language&&cur_frm, 25000);
 if(!frm) return {{error:'no language field'}};
-const field=frm.fields_dict.language, input=field.$input[0], before=frm.doc.language, seen={{}};
+const seen={{}};
 for(const code of {js_value(list(LANGUAGE_OPTIONS))}){{
-  setInput(input, code);
-  const items=await until(()=>{{const ul=field.awesomplete&&field.awesomplete.ul; const li=ul?[...ul.querySelectorAll('li')]:[];
-    return li.length&&!ul.hasAttribute('hidden')?li.map(x=>x.innerText.replace(/\\s+/g,' ').trim()):null;}}, 8000);
-  seen[code]=items||[];
-  await sleep(300);
+  const r=await frappe.call({{method:'frappe.desk.search.search_link', type:'GET',
+    args:{{doctype:'Language', txt:code, reference_doctype:'User', page_length:10}}}});
+  seen[code]=(r.message||[]).map(x=>[x.value, x.label||'', x.description||''].join(' ').trim());
 }}
-setInput(input, before||''); await sleep(300); frm.reload_doc(); await sleep(800);
 return {{seen}};"""}
 
 

@@ -148,3 +148,9 @@ LINE 原设置「自动（默认）」= 系统中文；测试时改日本語，�
   停用的用原生保存启用（清启用语言缓存）。测试 `pearnly_core.account.test_languages`（先红：钩子没挂时失败）进候选离线；
   流程 `erp.profile.save` / `cowork.profile.save` 加「语言下拉四种都能选、只看不存」与库内四种启用的断言。
 - 测试账号的账号语言（testcowork 用户 pearnlyai@gmail.com）为「中文」，下拉只看未保存，未改。
+- 验证（实验栈 pearnly-language-lab，源码 = 本分支）：`erp.profile.save`、`cowork.profile.save` 各 4/4 通过（new/old × 电脑/手机）。
+  会红：把 erp-old 站点 Language ja 临时停用后同一格不通过（`ja` 搜不到、库内 ja=0，与三星上的现象一致），
+  跑 `ensure_product_languages` 后恢复启用、同格通过。gate 过；候选离线 105 组 LANE EXIT 0（镜像 sha256:9fef288f…，11-09 部署那份）。
+- 连带入口（login-session 共用件，只动迁移时的语言记录，不碰登录 / 会话代码）：
+  shared.team.members 团队页改语言 —— 同一个 Language 下拉，个人信息流程已覆盖下拉能选四种，团队页本身没测到（实验栈无团队页流程，部署后在 testerp 团队页看下拉）；
+  shared.login、control.issue-and-entry、shared.shell-gate、shared.line.login —— 没测到（不经语言表，本次改动不触及；部署后 e2e 登录 / 退出照常跑）。
