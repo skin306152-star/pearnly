@@ -535,7 +535,10 @@ def drive(site, sid, steps_, mobile, shots, timeout=1800):
            "width": 375, "video": "", "steps": steps_, "ready": "document.readyState === 'complete' && !!document.querySelector('[data-mode=\"operator\"]')",
            **({"shots": shots} if shots else {})}
     env = dict(os.environ, SMOKE_CHROME_RULES=f"MAP {site} 127.0.0.1")
-    proc = subprocess.Popen(["node", str(ROOT / "scripts/regression/ui_steps.mjs"), json.dumps(job)], stdout=subprocess.PIPE,
+    holder = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)  # 带整份 PDF 与截图，超过命令行长度上限：写文件交 @路径
+    holder.write(json.dumps(job))
+    holder.close()
+    proc = subprocess.Popen(["node", str(ROOT / "scripts/regression/ui_steps.mjs"), "@" + holder.name], stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True, env=env, start_new_session=True)
     try:
         out, _ = proc.communicate(timeout=timeout)
@@ -543,6 +546,8 @@ def drive(site, sid, steps_, mobile, shots, timeout=1800):
         os.killpg(proc.pid, signal.SIGKILL)
         proc.communicate()
         raise RuntimeError(f"page steps timed out after {timeout}s")
+    finally:
+        os.unlink(holder.name)
     return [json.loads(line) for line in out.splitlines() if line.startswith("{")]
 
 
