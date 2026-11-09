@@ -1,3 +1,2 @@
 # 清点中的存量：从来没被 CI 跑过、还没处理完的测试（2026-11-08 清点，docs/work/2026-11-08-orphan-tests.md）。
 # 只许减少：接进 CI、写进 not-in-ci.tsv 或删掉作废测试时，同一提交删掉这一行；不许新加。
-test_release_member_identity.py

@@ -40,7 +40,7 @@
 | 过期，已修，要镜像 | 3 | `test_cowork_ocr_contracts`：`ocr.inputs` 已并进 `pearnly_core.originals.rules`（ADR-024）；`test_dms_ocr_timing`：LINE 加载动画改成 `start_loading_background`；`test_cowork_invoice_checks`：识别回放 `replay.active()` 没打替身 | 测试修复随 1，接 CI 随 2 |
 | 只在镜像里过（要 frappe / pydantic / openpyxl / PIL / docx / werkzeug / PDF 库） | 40 | 候选检查 offline 道 `--image`（生产镜像合计约 35 秒） | 2 |
 | 过期，另一分支已修 | 1 | `test_opening_report`：`pearnly/opening-report-test` | 合入后删基线行 |
-| 要真实发布实验室（MariaDB + Frappe + Keycloak） | 1 | `test_release_member_identity`：离线跑不了，等主会话定豁免还是删 | 3 |
+| 要真实发布实验室（MariaDB + Frappe + Keycloak） | 1 | `test_release_member_identity`：离线跑不了，主会话 11-09 定写进豁免表不删。**待接**：`scripts/unified-release-lab-*.py` 里没有跑它的入口（10-18 身份池记录也写着「本次未运行」），接进发布实验室前一直是手动跑 | 3 |
 | 作废 | 0 | 静态预查疑似的 `test_cowork_companion_release` 是看错了路径（文件在 `apps/pearnly_cowork/.../companion/heartbeat.py`），通过 | — |
 | 真缺陷（业务断言失败） | 0 | — | — |
 

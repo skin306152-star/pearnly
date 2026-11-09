@@ -43,3 +43,4 @@ test_cowork_table_engine_source_parity.py	迁移对照工具：要用 --source �
 test_cowork_table_input_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
 test_cowork_vat_parse_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 ec2e5c957 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
 test_cowork_workspace_import_source_parity.py	迁移对照工具：要用 --source 传入旧仓 pearnly-app 固定提交 的源码，对照迁移前后同一输入的结果；CI 没有旧仓，迁移复核时按 docs/development/migration-baseline.md 手动跑
+test_release_member_identity.py	要真实 MariaDB + Keycloak 发布实验室、PEARNLY_RELEASE_LAB=1（成员身份池全链路）；发布实验室脚本（scripts/unified-release-lab-*.py）里还没有跑它的入口，待接，见 docs/work/2026-11-08-orphan-tests.md
