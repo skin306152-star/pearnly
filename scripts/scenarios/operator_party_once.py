@@ -572,7 +572,7 @@ print(json.dumps({"real_key": bool(key) and not key.startswith("sk-ant-regressio
 ''')
 
 
-def preflight(lab, product, params) -> dict:
+def preflight(lab, product, params, real=False) -> dict:
     """干跑（不调模型）：真跑前确认实验栈配置都齐了——Cowork 本人有电脑够得到这份账套（「可录」）、识别准入过得去、
     计费放行；ERP 计费放行。11-09 几次真跑白花在缺配置上（缺识别配置、没登记电脑、缺 Vertex 准入），这里先查。"""
     if product == "cowork":
@@ -586,6 +586,8 @@ try:
 except Exception as error:
     out["admission"] = "refused: " + str(error)[:120]
 out["billing"] = billing_client.status("pdf", {PAGES + len(SHOTS)}, tier="B").get("allowed")
+from frappe.utils.background_jobs import get_workers
+out["ocr_worker"] = any(q.name.endswith(":ocr") for w in get_workers() for q in w.queues)
 from pearnly_core.execution import budget
 try:
     out["capacity"] = bool(budget.redis().ping())
@@ -595,7 +597,7 @@ print(json.dumps(out, default=str))
 '''
         found = lab.python(SITES[product], body)
         found["ok"] = found["intake"] == "ready" and found["admission"] == "economy" and found["billing"] is True \
-            and found["capacity"] is True
+            and found["capacity"] is True and (found["ocr_worker"] or not real)
     else:
         found = lab.python(SITES[product], f'''
 from pearnly_core import billing_client
@@ -604,9 +606,12 @@ try:
     capacity = bool(budget.redis().ping())
 except Exception as error:
     capacity = "refused: " + str(error)[:120]
-print(json.dumps({{"billing": billing_client.status("pdf", {PAGES}, tier="B").get("allowed"), "capacity": capacity}}))
+from frappe.utils.background_jobs import get_workers
+ocr_worker = any(q.name.endswith(":ocr") for w in get_workers() for q in w.queues)
+print(json.dumps({{"billing": billing_client.status("pdf", {PAGES}, tier="B").get("allowed"), "capacity": capacity,
+                  "ocr_worker": ocr_worker}}))
 ''')
-        found["ok"] = found["billing"] is True and found["capacity"] is True
+        found["ok"] = found["billing"] is True and found["capacity"] is True and (found["ocr_worker"] or not real)
     return found
 
 
@@ -663,7 +668,7 @@ def run_one(lab, product, viewport, shots, reuse):
         raise SystemExit(f"{product}: 实验栈没接真引擎 / 真识别（{ready}），先跑 --engine-on")
     started = time.monotonic()
     params = prepare(lab, product, viewport, reuse)
-    found = preflight(lab, product, params)
+    found = preflight(lab, product, params, real=True)
     if not found["ok"]:  # 配置不齐不开跑（不白花钱）
         raise SystemExit(f"{product}: 前置检查没过，不开跑：{found}")
     site, user = SITES[product], USERS[product]
@@ -759,6 +764,9 @@ def engine_on(lab, src, key_file):
     key = Path(key_file).read_text().strip()
     if not key.startswith("sk-ant-"):
         raise SystemExit("密钥文件内容不像 Anthropic 密钥")
+    # 识别进程听的 ocr 队列要在全局配置的 workers 里登记（同生产），实验栈默认没有：不登记识别进程起不来，识别一直排着
+    # （11-09 实测：24 页排了 6 分钟没人取）
+    lab.bench("bench", "set-config", "-g", "--parse", "workers", '{"ocr": {"timeout": 1800}}', timeout=300)
     with tempfile.TemporaryDirectory() as folder:
         env_file = Path(folder) / "real.env"
         env_file.write_text(f"PEARNLY_ANTHROPIC_API_KEY={key}\n")
