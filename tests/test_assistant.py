@@ -980,14 +980,27 @@ class RelayTests(unittest.TestCase):
         frappe.cache = types.SimpleNamespace(set_value=lambda *a, **k: None,
                                              lock=lambda *a, **k: contextlib.nullcontext())
         frappe.db.rollback = frappe.db.commit = lambda *a, **k: None
-        errors = []
+        errors, logged = [], []
         frappe.log_error = lambda *a, **k: errors.append(k.get("title"))
+
+        class Logger:
+            level = 40  # 生产默认 ERROR
+
+            def setLevel(self, level):
+                self.level = level
+
+            def info(self, message):
+                if self.level <= 20:
+                    logged.append((self.level, message))
+
+        log = Logger()
         site = getattr(frappe.local, "site", None)
         frappe.local.site = "t.localhost"
         try:
             with mock.patch.dict(sys.modules, {"pearnly_core.express_operator.uploads": operator_uploads}), \
                     mock.patch.object(package, "uploads", operator_uploads, create=True), \
-                    mock.patch.object(files.engine, "adapter", return_value=adapter):
+                    mock.patch.object(files.engine, "adapter", return_value=adapter), \
+                    mock.patch.object(frappe, "logger", lambda name=None, **k: log, create=True):
                 frappe.request = types.SimpleNamespace(files={"file": Sent()})
                 fail_first = False
                 began = time.monotonic()
@@ -1002,6 +1015,11 @@ class RelayTests(unittest.TestCase):
                 self.assertEqual((out["fileId"], taken, len(sends)), ("upl_9", ["upl_9"], 2))
                 self.assertEqual(mounted, [("remote-row9", "file_engine_2", "upl_9")])
                 self.assertEqual(errors, ["Assistant attachment upload retried"])
+                # 每段耗时记一行（U0），生产日志默认只记 ERROR：这个日志自己放到 INFO，否则一行也留不下
+                self.assertEqual(logged[-1][0], 20)
+                self.assertRegex(logged[-1][1], r"^attachment upload size=8 operator=True read=[\d.]+ session=[\d.]+ task=[\d.]+ "
+                                                r"keep=[\d.]+ engine_wait=[\d.]+ engine=[\d.]+ mount=[\d.]+ total=[\d.]+$")
+                self.assertNotIn("big.pdf", logged[-1][1])  # 不带文件名
         finally:
             frappe.local.site = site
             for name, value in zip(("rollback", "commit"), db_saved):

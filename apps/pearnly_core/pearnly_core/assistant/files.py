@@ -22,6 +22,7 @@
   结果 PDF 原件留在本对话目录的 `rendered/` 里（随对话删），同一页各设备只画一次、引擎的结果只取一次（第 5 轮审查）。
 """
 import io
+import logging
 import mimetypes
 import os
 import re
@@ -145,7 +146,10 @@ class _Steps:
         total = round(time.monotonic() - self._began, 3)
         parts = [f"{key}={value}" for key, value in {**facts, **self.marks, "total": total}.items() if value is not None]
         try:
-            frappe.logger("pearnly.assistant.upload").info("attachment upload " + " ".join(parts))
+            # 站点日志默认只记 ERROR（生产 `frappe.log_level` 没设），这一路计时要记下来：只把这个日志放到 INFO
+            logger = frappe.logger("pearnly.assistant.upload")
+            logger.setLevel(logging.INFO)
+            logger.info("attachment upload " + " ".join(parts))
         except Exception:
             pass
 
