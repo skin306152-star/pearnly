@@ -14,7 +14,7 @@ jobs:
     # 仓库变量 DEV_RUNS_ON=pearnly-arm 时在自己的 free-arm-2（三个 runner，不计 GitHub 分钟数）上跑；
     # 那台出问题时删掉这个变量就回到 GitHub 的机器，不用改代码
     runs-on: ${{ vars.DEV_RUNS_ON || 'ubuntu-24.04' }}
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
