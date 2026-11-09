@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 import frappe
 
 from pearnly_core.mrerp.push import operator_draft
-from pearnly_core.mrerp.push.models import MRERPAuthError, MRERPBusinessError, MRERPTechnicalError
+from pearnly_core.mrerp.push.models import MRERPAccountInUseError, MRERPAuthError, MRERPBusinessError, MRERPTechnicalError
 from pearnly_core.mrerp.push.transport import MrErpImport
 from pearnly_core.mrerp.session import lock_key
 from pearnly_core.session_lock import SessionLockUnavailable, operator_holds
@@ -25,8 +25,9 @@ from pearnly_cowork.connections import service as connections
 from pearnly_cowork.history import storage
 
 ACCOUNT_BUSY = "account_busy"
-_ERRORS = {MRERPAuthError: "ERR_AUTH", MRERPBusinessError: "ERR_BUSINESS", MRERPTechnicalError: "ERR_TECHNICAL",
-           SessionLockUnavailable: "ERR_SESSION_LOCK"}
+# 子类在前（被踢是 MRERPAuthError 的子类）
+_ERRORS = {MRERPAccountInUseError: "ERR_MRERP_ACCOUNT_IN_USE", MRERPAuthError: "ERR_AUTH", MRERPBusinessError: "ERR_BUSINESS",
+           MRERPTechnicalError: "ERR_TECHNICAL", SessionLockUnavailable: "ERR_SESSION_LOCK"}
 
 
 def account_set_of(loaded, key) -> dict:

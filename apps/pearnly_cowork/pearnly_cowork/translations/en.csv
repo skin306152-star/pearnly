@@ -69,6 +69,7 @@ Account Set Name,Account Set Name
 Account Set Path,Account Set Path
 Account code,Account code
 Account set,Account set
+Account signed in elsewhere,Account signed in elsewhere
 Accrual basis,Accrual basis
 Ack Digest,Ack Digest
 Active,Active
@@ -3435,6 +3436,7 @@ intake.error.ERR_DATE_FUTURE,The invoice date is in the future. Correct it and s
 intake.error.ERR_DIRECTION_UNKNOWN,Choose purchase or sales for this invoice and submit again
 intake.error.ERR_INVOICE_NO_TOO_LONG,The invoice number is longer than MR.ERP allows. Shorten it and submit again
 intake.error.ERR_LOCATION,This warehouse is not in the Express account set
+intake.error.ERR_MRERP_ACCOUNT_IN_USE,Account signed in elsewhere
 intake.error.ERR_MRERP_DEFAULT_CHANGED,A chosen MR.ERP value no longer exists in MR.ERP. Choose again.
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP default values are needed for this account set. Choose them before pushing.
 intake.error.ERR_MRERP_IMPORT_ERROR,The MR.ERP import failed. Nothing was posted

@@ -88,6 +88,10 @@ class MRERPAuthError(MRERPError):
     """凭据无效 / 会话被踢回登录页：不重试，要用户改连接。"""
 
 
+class MRERPAccountInUseError(MRERPAuthError):
+    """复用的会话被踢（同一账号在别处登录了，例如用户自己在浏览器里登着）：不自动重登去抢，等人确认后再推（11-09 风险 7）。"""
+
+
 class MRERPTechnicalError(MRERPError):
     """网络、超时、5xx 等：可重试。"""
 

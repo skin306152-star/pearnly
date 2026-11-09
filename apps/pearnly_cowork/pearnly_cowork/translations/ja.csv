@@ -69,6 +69,7 @@ Account Set Name,会計データ名
 Account Set Path,会計データのパス
 Account code,勘定科目コード
 Account set,会計データ
+Account signed in elsewhere,アカウントは別の場所でログイン中です
 Accrual basis,発生主義
 Ack Digest,確認応答ダイジェスト
 Active,正常
@@ -3435,6 +3436,7 @@ intake.error.ERR_DATE_FUTURE,伝票日付が未来です。直して再送信し
 intake.error.ERR_DIRECTION_UNKNOWN,この伝票が仕入か売上かを選んで再送信してください
 intake.error.ERR_INVOICE_NO_TOO_LONG,請求書番号が MR.ERP の上限を超えています。短くして再送信してください
 intake.error.ERR_LOCATION,この Express 会計データにこの倉庫はありません
+intake.error.ERR_MRERP_ACCOUNT_IN_USE,アカウントは別の場所でログイン中です
 intake.error.ERR_MRERP_DEFAULT_CHANGED,選択した値は MR.ERP に存在しません。選び直してください。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP の既定値を選択してから送信してください。
 intake.error.ERR_MRERP_IMPORT_ERROR,MR.ERP の取込でエラーが発生しました。計上されていません

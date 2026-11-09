@@ -69,6 +69,7 @@ Account Set Name,ชื่อชุดบัญชี
 Account Set Path,พาธชุดบัญชี
 Account code,รหัสบัญชี
 Account set,ชุดบัญชี
+Account signed in elsewhere,บัญชีเข้าสู่ระบบที่อื่นอยู่
 Accrual basis,เกณฑ์สิทธิ
 Ack Digest,แฮชผลตอบรับ
 Active,ใช้งาน
@@ -3435,6 +3436,7 @@ intake.error.ERR_DATE_FUTURE,วันที่เอกสารเป็นว
 intake.error.ERR_DIRECTION_UNKNOWN,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
 intake.error.ERR_INVOICE_NO_TOO_LONG,เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 intake.error.ERR_LOCATION,ไม่มีคลังสินค้านี้ในชุดบัญชี Express
+intake.error.ERR_MRERP_ACCOUNT_IN_USE,บัญชีเข้าสู่ระบบที่อื่นอยู่
 intake.error.ERR_MRERP_DEFAULT_CHANGED,ค่าที่เลือกไม่มีใน MR.ERP แล้ว กรุณาเลือกใหม่
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,กรุณาเลือกค่าเริ่มต้นของ MR.ERP สำหรับชุดบัญชีนี้ก่อนส่ง
 intake.error.ERR_MRERP_IMPORT_ERROR,การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี

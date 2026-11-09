@@ -372,6 +372,108 @@ class SwitchedOn(unittest.TestCase):
         self.assertNotIn("secret", json.dumps(connection.view("C1")))
 
 
+class _Redis:
+    def __init__(self):
+        self.data = {}
+
+    def get(self, name):
+        return self.data.get(name)
+
+    def set(self, name, value, ex=None):
+        assert ex, "state Redis keys need an expiry"
+        self.data[name] = value
+
+
+@patch.object(mrerp, "MRERP_LEDGER_ENABLED", True)
+class KickedAccount(unittest.TestCase):
+    """11-09 风险 7（主会话定 A）：MR.ERP 账号被踢后按账号记标记（与 Cowork 同一个）；ERP 的自动路径（提交新单排上、每分钟巡检、
+    选一次后再排、默认的 send）都不清标记，导入入口快速失败进待处理；只有人点的推送入口（CC 推送工具，``manual=True``）清了再推。"""
+
+    KEY = "https://www.mrerp4sme.com|u1"  # `_Module` 里 lock_key 的替身：网址|用户名
+
+    def setUp(self):
+        from pearnly_core.mrerp import kick_mark as account_kick
+
+        reset()
+        self.kick, self.redis = account_kick, _Redis()
+        self.patch = patch.object(account_kick, "_store", lambda: self.redis)
+        self.patch.start()
+        self.kick.mark(self.KEY)
+
+    def tearDown(self):
+        self.patch.stop()
+
+    def test_a_manual_send_clears_the_mark_and_queues_the_import(self):
+        doc(ledger_state="failed", ledger_target="mrerp", ledger_reason="ERR_MRERP_ACCOUNT_IN_USE: signed in elsewhere")
+        with _Module({"status": "success"}):
+            self.assertEqual(push.send(PURCHASE, "PUR-1", manual=True), {"status": "sent"})
+        self.assertIsNone(self.kick.state(self.KEY))
+        self.assertEqual(DB.table(PURCHASE)["PUR-1"]["ledger_state"], "queued")
+
+    def test_automatic_paths_keep_the_mark(self):
+        doc(ledger_state="failed", ledger_target="mrerp", ledger_reason="ERR_MRERP_ACCOUNT_IN_USE: signed in elsewhere")
+        fresh = doc(name="PUR-2")
+        doc(name="PUR-3", ledger_state="queued", ledger_target="mrerp", ledger_reason=contracts.ACCOUNT_BUSY)
+        with _Module({"status": "success"}):
+            push.send(PURCHASE, "PUR-1")      # 默认（选一次后再排、改票面合计放行、Express 那条转过来的）
+            push.queue(PURCHASE, fresh)        # 提交新单
+            push.poll()                        # 每分钟巡检
+        self.assertTrue(self.kick.state(self.KEY))
+
+    def test_the_kicked_outcome_lands_in_pending_as_a_failure_with_its_code(self):
+        doc(ledger_state="queued", ledger_target="mrerp")
+        reason = "ERR_MRERP_ACCOUNT_IN_USE: signed in elsewhere, waiting for a manual push"
+        with _Module({"status": "failed", "reason": reason, "menus": {}, "masters": {}}):
+            push.run(PURCHASE, "PUR-1", document)
+        saved = DB.table(PURCHASE)["PUR-1"]
+        self.assertEqual((saved["ledger_state"], saved["ledger_reason"]), ("failed", reason))
+
+    def test_only_the_manual_entries_clear_the_mark(self):
+        """源码锁：清标记的调用只在人点的入口里；自动路径（Cowork 定时巡检 / 自动推档位 / 文件夹定时 / 同批后续，ERP 提交新单 /
+        每分钟巡检 / 选一次后再排）一处都没有。新加入口要在这里登记。"""
+        allowed = {
+            ("apps/pearnly_cowork/pearnly_cowork/push/application/api.py", "submit", "manual"),
+            ("apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "_submit_one", "manual"),
+            ("apps/pearnly_cowork/pearnly_cowork/push/application/service.py", "submit", "release_kick"),
+            ("apps/pearnly_cowork/pearnly_cowork/push/mrerp/runner.py", "release_kick", "clear"),
+            ("apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py", "_release_kick", "release_kick"),
+            ("apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py", "submit", "_release_kick"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py", "send", "release_kick"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py", "release_kick", "clear"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py", "_route", "manual"),
+        }
+        found = set()
+        for path in (ROOT / "apps").rglob("*.py"):
+            if "/tests/" in str(path):
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for func in [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]:
+                for call in [n for n in ast.walk(func) if isinstance(n, ast.Call)]:
+                    name = call.func.attr if isinstance(call.func, ast.Attribute) else getattr(call.func, "id", "")
+                    receiver = ast.unparse(call.func.value) if isinstance(call.func, ast.Attribute) else ""
+                    rel = str(path.relative_to(ROOT))
+                    if name in ("release_kick", "_release_kick") or (name == "clear" and receiver == "account_kick"):
+                        found.add((rel, func.name, name))
+                    if any(k.arg == "manual" and not (isinstance(k.value, ast.Constant) and k.value.value is False)
+                           for k in call.keywords):
+                        found.add((rel, func.name, "manual"))
+        self.assertEqual(found, allowed)
+
+    def test_every_mrerp_login_for_a_push_goes_through_the_import_entry(self):
+        """快速失败只在 `MrErpImport.__enter__` 里查一次：推送用的登录都得经它（``with importer``），不另开会话。"""
+        users = {}
+        for path in (ROOT / "apps").rglob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            if "MrErpImport(" in text and "class MrErpImport" not in text:
+                users[str(path.relative_to(ROOT))] = "with importer:" in text
+        self.assertEqual(users, {"apps/pearnly_core/pearnly_core/mrerp/push/execute.py": True,
+                                 "apps/pearnly_cowork/pearnly_cowork/push/mrerp/operator.py": True})
+        enter = (ROOT / "apps/pearnly_core/pearnly_core/mrerp/push/transport.py").read_text(encoding="utf-8")
+        body = enter[enter.index('def __enter__(self) -> "MrErpImport":'):enter.index("def _cache_key")]
+        self.assertLess(body.index("account_kick.state(key)"), body.index("account_lock("))
+        self.assertLess(body.index("account_kick.state(key)"), body.index("MrErpSession("))
+
+
 class _Doc(Row):
     """`frappe.get_doc` 的最小替身：连接表的读、改、存、新建（名字按 C1、C2… 顺排）。"""
 

@@ -143,6 +143,24 @@ def run(record):
     dispatch_next(row.connection)
 
 
+def release_kick(connection, workspace, client=None):
+    """人在明确的推送入口点了（网页推送 / 待处理再推 `application.api.submit`、CC 推送工具 `assistant.tools`）：清掉这个 MR.ERP
+    账号的「被踢」标记（`pearnly_core.mrerp.kick_mark`，11-09 风险 7），这次照常登录。自动推送（同批后续、定时巡检、自动推档位、
+    文件夹定时）都不调这里，有标记时在导入入口快速失败。不是 MR.ERP 连接、读不到连接或凭据的不动（推送本身照常报原因）。"""
+    from pearnly_core.mrerp import kick_mark as account_kick
+
+    if not connection or connections.adapter_of(connection) != "mrerp":
+        return False
+    try:
+        loaded = connections.read_for_push(connection, workspace, client, lock=False)
+        secrets = connections.credentials_for_use(loaded)
+    except (frappe.ValidationError, frappe.PermissionError):
+        return False  # 读不到：这次推送会照常报这个原因，标记留着
+    username = secrets.get("username") or ""
+    system_url = (loaded.endpoint.get("config") or {}).get("system_url") or ""
+    return bool(username) and account_kick.clear(lock_key(system_url, username))
+
+
 def account_busy(system_url, username):
     """这个 MR.ERP 账号此刻被 CC 桌面版的代录批次占着（与直写导入的短锁同一把，`session_lock.operator_holds`）。"""
     return bool(username) and operator_holds(lock_key(system_url, username))

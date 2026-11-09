@@ -88,6 +88,7 @@ apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa.py	*	数据：LINE 
 apps/pearnly_cowork/pearnly_cowork/roundtrip/export_mapping.py	*	数据：金额解析去货币符号，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/masters/products.py	*	数据：商品主档默认单位，按原字面比对或写入外部系统，不进界面
 apps/pearnly_core/pearnly_core/mrerp/push/transport.py	*	数据：MR.ERP 导入报告里“已存在”的判定字样，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/mrerp/session.py	มีผู้ Login ซ้ำ	数据：MR.ERP 同一账号在别处登录后页面弹出的「被踢」提示原文片段，用来认出被踢（11-09 风险 7），按原字面比对，不进界面
 apps/pearnly_cowork/pearnly_cowork/reconciliation/export/vat_check_i18n.py	*	规格：销项税核对工作簿自身的四语文案表，按导出语言取词，对账中心预览同表
 apps/pearnly_cowork/pearnly_cowork/reconciliation/normalization.py	*	数据：对账字段规范化：总部别名、泰文私用区字形映射、公司名前后缀词，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/roundtrip/spec.py	*	规格：ERP 复核工作簿按 MR.ERP 泰文格式出表，Sheet 名与列名是导出再导回的唯一合同，按名认表，翻了就导不回

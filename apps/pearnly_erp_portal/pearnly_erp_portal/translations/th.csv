@@ -43,6 +43,7 @@ A warehouse with stock cannot be turned off,คลังที่มีสต็
 Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
 Account Set,ชุดบัญชี
 Account name matches,ชื่อบัญชีตรงกัน
+Account signed in elsewhere,บัญชีเข้าสู่ระบบที่อื่นอยู่
 Accrual basis,เกณฑ์สิทธิ
 Actual position,ตำแหน่งที่พบจริง
 Actual positions and quantities,ตำแหน่งจริงและจำนวน
@@ -2369,6 +2370,7 @@ mrerp.error.ERR_CUSTOMER_CODE_TOO_LONG,รหัสลูกค้า MR.ERP ย
 mrerp.error.ERR_DATE_FUTURE,วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่
 mrerp.error.ERR_DIRECTION_UNKNOWN,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
 mrerp.error.ERR_INVOICE_NO_TOO_LONG,เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
+mrerp.error.ERR_MRERP_ACCOUNT_IN_USE,บัญชีเข้าสู่ระบบที่อื่นอยู่
 mrerp.error.ERR_MRERP_IMPORT_ERROR,การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี
 mrerp.error.ERR_MRERP_MASTER_UNREADABLE,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน

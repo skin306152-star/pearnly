@@ -19,6 +19,9 @@ STDLIB = {"__future__", "collections", "copy", "dataclasses", "datetime", "decim
 EXTRA = {
     "session.py": {"requests", "socket"},
     "push/transport.py": {"time", "pearnly_core.session_lock"},
+    # 11-09 风险 7：复用的会话存在不淘汰的状态 Redis（与账号锁同一个，键不带站点前缀，两产品共用）
+    "session_cache.py": {"pearnly_core.execution"},
+    "kick_mark.py": {"pearnly_core.execution", "sys"},
     # 2026-11-03 由 Cowork 下沉的执行与读取（纯网络，凭据由调用方交进来）：只经会话 / 导入连网，各拿账号锁
     "push/execute.py": {"pearnly_core.session_lock"},
     "menu_read.py": {"pearnly_core.session_lock"},

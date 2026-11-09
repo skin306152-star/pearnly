@@ -989,8 +989,12 @@ def confirm_server(name, expected_revision, request_key):
 
 def submit(history, connection, request_key, expected_history_version, expected_connection_revision,
            account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-           *, confirm_duplicate=False, fixed=None, route_device="", automation=None, operator=None):
+           *, confirm_duplicate=False, fixed=None, route_device="", automation=None, operator=None, manual=False):
     """复核页「提交」的一张票：准备 →（MR.ERP）确认发送并排执行任务；Express 的确认由小助手确认入口做。
+
+    ``manual``：人在明确的推送入口点的（网页推送 / 待处理再推 `api.submit`、CC 推送工具 `assistant.tools`）：MR.ERP 直写排执行任务前
+    清掉这个账号的「被踢」标记（`push.mrerp.runner.release_kick`，11-09 风险 7），这次照常登录；任务提交后才排，清在前面。
+    自动推送（定时巡检、自动推档位、文件夹定时）不传，有标记时导入入口快速失败。
 
     失败不抛给页面（用户 2026-09-26：只在列表状态图标上看原因）：整笔回滚后把原因记到这张票上
     （`push_state.record_failure`），回 `{"status": "failed", "reason"}`。推送状态本身仍只由账本投影。
@@ -1006,6 +1010,9 @@ def submit(history, connection, request_key, expected_history_version, expected_
                 # MR.ERP 代录：确认后排着等选定的那台电脑来领（`companion.transport`），不排服务端执行任务
                 result = confirm(result["name"], result["revision"], "confirm:" + str(request_key))
             else:
+                if manual:
+                    doc = storage.read(history)
+                    runner.release_kick(connection, doc.workspace, doc.client)
                 result = confirm_server(result["name"], result["revision"], "confirm:" + str(request_key))
         return result
     except (frappe.ValidationError, frappe.PermissionError) as error:

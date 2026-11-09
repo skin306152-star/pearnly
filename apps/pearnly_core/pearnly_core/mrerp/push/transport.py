@@ -32,6 +32,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from pearnly_core.session_lock import account_lock
 from pearnly_core.express_rules.contracts.push import explicit_direction
 from pearnly_core.mrerp.push.duplicates import is_already_pushed_error
+from pearnly_core.mrerp import kick_mark as account_kick
+from pearnly_core.mrerp import session_cache
 from pearnly_core.mrerp.session import MrErpSession, SessionError, lock_key
 from pearnly_core.mrerp.master_reader import MasterReader
 from pearnly_core.mrerp.push import readback, routing
@@ -40,6 +42,7 @@ from pearnly_core.mrerp.push.account_valve import ACCOUNT_REVIEW_CODE, account_g
 from pearnly_core.mrerp.push.models import (
     FailedRow,
     ImportResult,
+    MRERPAccountInUseError,
     MRERPAuthError,
     MRERPBusinessError,
     MRERPTechnicalError,
@@ -86,17 +89,36 @@ class MrErpImport:
     # ---- lifecycle ---------------------------------------------------
 
     def __enter__(self) -> "MrErpImport":
-        self._lock_cm = account_lock(lock_key(self.login_url, self._username), timeout_sec=self._lock_timeout)
+        key = lock_key(self.login_url, self._username)
+        # 11-09 风险 7：这个账号被踢过、还没人在明确的推送入口点过（`account_kick`）→ 不登录、不发任何请求，直接失败成
+        # ``ERR_MRERP_ACCOUNT_IN_USE``（记录进「待处理」）；人点了的入口先清掉标记再进来
+        if account_kick.state(key):
+            raise MRERPAccountInUseError(f"{account_kick.CODE}: signed in elsewhere, waiting for a manual push")
+        self._lock_cm = account_lock(key, timeout_sec=self._lock_timeout)
         self._lock_cm.__enter__()
         try:
             self._sess = MrErpSession(self.login_url, self._username, self._password)
         except SessionError as error:
             self.__exit__(type(error), error, None)
             raise self._mapped(error) from None
+        # 接着用上一次登录的会话（同一账号锁里取、锁里放；Cowork 与 ERP 共用），不每推一次就登录、踢掉用户自己浏览器里同一账号
+        self._sess.restore(session_cache.get(self._cache_key()))
         return self
+
+    def _cache_key(self) -> str:
+        return session_cache.key(lock_key(self.login_url, self._username), self._password)
 
     def __exit__(self, exc_type, exc, tb) -> None:
         if self._sess is not None:
+            if self._sess.kicked:
+                # 被踢：丢掉会话、记标记；之后的自动推送都快速失败，等人在明确的推送入口点了才重新登录
+                session_cache.drop(self._cache_key())
+                try:
+                    account_kick.mark(lock_key(self.login_url, self._username))
+                except Exception:  # noqa: BLE001 — 记不上标记不改这次的结论（这次照样报被踢）
+                    logger.exception("MR.ERP kicked mark not stored")
+            else:
+                session_cache.put(self._cache_key(), self._sess.cookie())
             try:
                 self._sess.close()
             except Exception:  # noqa: BLE001 — 关连接失败不影响结果
@@ -110,6 +132,8 @@ class MrErpImport:
 
     @staticmethod
     def _mapped(error: SessionError):
+        if error.code == "ERR_ACCOUNT_IN_USE":
+            return MRERPAccountInUseError(str(error))
         return MRERPAuthError(str(error)) if error.code == "ERR_AUTH" else MRERPTechnicalError(str(error))
 
     def _prepare(self, module) -> None:

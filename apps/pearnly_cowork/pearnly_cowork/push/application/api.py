@@ -54,7 +54,7 @@ def submit(history, connection, request_key, expected_history_version, expected_
     try:
         return _local_transaction(service.submit, history, connection, request_key, expected_history_version,
             expected_connection_revision, account_set_key, catalog_request_id, catalog_revision, posting_kind,
-            confirm_duplicate=_flag(confirm_duplicate))
+            confirm_duplicate=_flag(confirm_duplicate), manual=True)  # 人点的推送（11-09 风险 7：清被踢标记）
     except conflicts.Exhausted as error:
         return service.submission_failed(history, str(error))
 

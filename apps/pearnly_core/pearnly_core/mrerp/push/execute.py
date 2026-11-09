@@ -10,7 +10,7 @@ import logging
 from copy import deepcopy
 
 from pearnly_core.session_lock import SessionLockUnavailable
-from pearnly_core.mrerp.push.models import MRERPAuthError, MRERPBusinessError, MRERPTechnicalError
+from pearnly_core.mrerp.push.models import MRERPAccountInUseError, MRERPAuthError, MRERPBusinessError, MRERPTechnicalError
 from pearnly_core.mrerp.push.transport import MrErpImport
 from pearnly_core.mrerp.push.user_data import is_user_data_error
 
@@ -28,8 +28,8 @@ def execute(payload, target, secrets, system_url, today):
             result = importer.upload_routed_batch(deepcopy(payload.get("histories") or []),
                                                   deepcopy(payload.get("mappings") or {}), today=today)
     except (MRERPAuthError, MRERPBusinessError, MRERPTechnicalError, SessionLockUnavailable) as error:
-        code = {MRERPAuthError: "ERR_AUTH", MRERPBusinessError: "ERR_BUSINESS",
-                MRERPTechnicalError: "ERR_TECHNICAL"}.get(type(error), "ERR_SESSION_LOCK")
+        code = {MRERPAccountInUseError: "ERR_MRERP_ACCOUNT_IN_USE", MRERPAuthError: "ERR_AUTH",
+                MRERPBusinessError: "ERR_BUSINESS", MRERPTechnicalError: "ERR_TECHNICAL"}.get(type(error), "ERR_SESSION_LOCK")
         text = str(error)
         return _exception(importer, text if text.startswith(code) else f"{code}: {text}")
     except Exception as error:  # noqa: BLE001 — 契约：任何异常都要落到账本，不冒到队列

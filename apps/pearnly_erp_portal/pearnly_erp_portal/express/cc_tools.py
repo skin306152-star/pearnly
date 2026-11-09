@@ -197,7 +197,8 @@ def _route(kind, name, row) -> str:
     if mrerp_push.handles(row.company):
         if row.ledger_state == contracts.HELD and row.ledger_reason == mrerp_contracts.CHOICE:
             return ""  # 要人选一次：先选（pearnly_precheck_answer 带 resume 选完当场再交）
-        return "sent" if mrerp_push.send(kind.doctype, name).get("status") == "sent" else ""
+        # 用户在对话里叫推的（人点的入口）：MR.ERP 账号被踢过的标记这次清掉、照常登录（11-09 风险 7）
+        return "sent" if mrerp_push.send(kind.doctype, name, manual=True).get("status") == "sent" else ""
     view = api._view(kind.doctype, row)
     if view.get("needed"):
         return ""  # 要人选一次：先选（pearnly_precheck_answer 带 resume 选完当场再交）

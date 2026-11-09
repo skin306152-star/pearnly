@@ -6,7 +6,9 @@ hidden input 里，登录选账套后抓一次；业务请求遇 401/403 = 会�
 用户可填的系统地址只许解析到公网。
 
 与旧版的差异：跳转不许离开原站点（同采集器）；错误统一成带码的 `SessionError`
-（`ERR_AUTH` 凭据/会话 · `ERR_TECHNICAL` 网络/5xx · `ERR_URL_BLOCKED` 非公网地址），调用方各自映射。
+（`ERR_AUTH` 凭据/会话 · `ERR_ACCOUNT_IN_USE` 复用的会话被踢 · `ERR_TECHNICAL` 网络/5xx · `ERR_URL_BLOCKED` 非公网地址），
+调用方各自映射。11-09 风险 7：直写复用已登录的会话（:meth:`MrErpSession.restore`），不每推一次就登录（每登录一次都会踢掉
+用户自己浏览器里同一账号）；复用的会话被踢不自动重登，过期才重登一次。
 已知残留同旧版：DNS rebinding 不在本层覆盖。
 """
 from __future__ import annotations
@@ -25,6 +27,9 @@ TIMEOUT_SECONDS = 30
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36")
 _LOGIN_BOUNCE = ("checklogin", "/login/index", "/login/?", "/login.php", "/index.php")
+# 同一账号在别处登录后，本会话再访问任何页，MR.ERP（`component/php/checkuseruse.php`）先 alert 这句再跳 logoutkick.php：
+# 认出它 = 被踢（不是会话过期）。过期 / 没登录是另一句「กรุณา Login เข้าสู่ระบบ」，那种可以重新登录。
+KICKED_TEXT = "มีผู้ Login ซ้ำ"
 _IDUS = (re.compile(r"<input[^>]*\bname=[\"']idus[\"'][^>]*\bvalue=[\"'](\d+)[\"']", re.IGNORECASE),
          re.compile(r"<input[^>]*\bvalue=[\"'](\d+)[\"'][^>]*\bname=[\"']idus[\"']", re.IGNORECASE))
 # 选账套后用来抓 idus 的业务页（旧版默认：销项赊账导入页）。
@@ -82,6 +87,8 @@ class MrErpSession:
         self.idus = None
         self._logged_in = False
         self._selected = False
+        self._restored = False
+        self.kicked = False
 
     def _same_site(self, response, *args, **kwargs):
         target = urljoin(response.url, response.headers.get("Location", "")) if response.is_redirect else response.url
@@ -99,7 +106,24 @@ class MrErpSession:
             raise SessionError("ERR_TECHNICAL", f"{method} {path}: {type(exc).__name__}") from None
         if response.status_code >= 500:
             raise SessionError("ERR_TECHNICAL", f"{method} {path}: status {response.status_code}")
+        if KICKED_TEXT in (response.text or "")[:4000]:
+            self.kicked, self._logged_in, self._selected = True, False, False
+            raise SessionError("ERR_ACCOUNT_IN_USE", f"{method} {path}: signed in elsewhere")
         return response
+
+    def restore(self, cookie) -> bool:
+        """接着用上一次登录留下的会话（PHPSESSID）：不再 POST 登录；选账套时被踢回登录页（过期）才重登一次。"""
+        if not cookie:
+            return False
+        self.http.cookies.set("PHPSESSID", str(cookie), domain=self.host)
+        self._logged_in = self._restored = True
+        return True
+
+    def cookie(self) -> str:
+        """现在这个会话的 PHPSESSID（存起来下次接着用）；被踢过的不给。"""
+        if self.kicked or not self._logged_in:
+            return ""
+        return str(self.http.cookies.get("PHPSESSID") or "")
 
     @staticmethod
     def _bounced(response):
@@ -155,8 +179,17 @@ class MrErpSession:
             raise SessionError("ERR_AUTH", "bounced to login while switching account sets")
 
     def prepare(self, comidyear, seldb, probe=IDUS_PROBE):
-        """登录 + 选账套（幂等）：让会话就绪可发业务请求。"""
-        if not self._selected:
+        """登录 + 选账套（幂等）：让会话就绪可发业务请求。接着用的会话过期了（被跳回登录页、不是被踢）只重登一次；
+        被踢（:data:`KICKED_TEXT`）照样抛 ``ERR_ACCOUNT_IN_USE``，不重登。"""
+        if self._selected:
+            return
+        try:
+            self.select(comidyear, seldb, probe)
+        except SessionError as error:
+            if not (self._restored and error.code == "ERR_AUTH"):
+                raise
+            self._restored, self._logged_in = False, False
+            self.http.cookies.clear()
             self.select(comidyear, seldb, probe)
 
     def request(self, method, path, **kwargs):

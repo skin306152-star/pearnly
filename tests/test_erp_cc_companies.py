@@ -812,7 +812,7 @@ class PendingTests(unittest.TestCase):
         for key in [value for name, value in pending.REASONS.items() if name.startswith("mrerp.")] + ["mrerp.reason.resultUnknown"]:
             with self.subTest(key=key):
                 self.assertTrue(all(keys.get(key, ["", "", "", ""])), key)
-        for code in ("ERR_AUTH", "ERR_MRERP_IMPORT_ERROR", "ERR_TECHNICAL", "ERR_MRERP_MENU_NOT_LINKED", "mrerp_credit_note",
+        for code in ("ERR_AUTH", "ERR_MRERP_ACCOUNT_IN_USE", "ERR_MRERP_IMPORT_ERROR", "ERR_TECHNICAL", "ERR_MRERP_MENU_NOT_LINKED", "mrerp_credit_note",
                      "mrerp_currency_not_thb", "date_future"):
             with self.subTest(code=code):
                 self.assertTrue(all(keys.get(f"mrerp.error.{code}", ["", "", "", ""])), code)
@@ -823,6 +823,8 @@ class PendingTests(unittest.TestCase):
             self.assertEqual(label("mrerp.result_unknown: ERR_TECHNICAL"), table["mrerp.reason.resultUnknown"])
             self.assertEqual(label("ERR_MRERP_IMPORT_ERROR; Error : Duplicate entry"), table["mrerp.error.ERR_MRERP_IMPORT_ERROR"])
             self.assertEqual(label("ERR_AUTH: credentials rejected on mainmenu"), table["mrerp.error.ERR_AUTH"])
+            self.assertEqual(label("ERR_MRERP_ACCOUNT_IN_USE: signed in elsewhere, waiting for a manual push"),
+                             table["mrerp.error.ERR_MRERP_ACCOUNT_IN_USE"])  # 11-09 风险 7：被踢标记拦下的自动推送
             self.assertEqual(label("mrerp_currency_not_thb:usd"), table["mrerp.error.mrerp_currency_not_thb"])
             self.assertEqual(label("ERR_NOT_A_KNOWN_ONE; x"), "ERR_NOT_A_KNOWN_ONE; x")  # 没有词条的原样
             self.assertEqual(label("[PERIOD_LOCKED] closed"), table["express.reason.periodLocked"])  # Express 的照旧

@@ -1916,6 +1916,7 @@ Credit notes need a person to post them in MR.ERP	贷项通知单需在 MR.ERP �
 Only invoices in Thai baht can be sent to MR.ERP	仅泰铢发票可推送至 MR.ERP	ส่งเข้า MR.ERP ได้เฉพาะเอกสารสกุลเงินบาท	MR.ERP に送れるのはタイバーツの伝票だけです	mrerp.error.mrerp_currency_not_thb
 The invoice date is in the future. Correct it and submit again	票面日期晚于当前日期，请更正后重新提交	วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่	伝票日付が未来です。直して再送信してください	mrerp.error.date_future
 The invoice date looks wrong. Correct it and submit again	票面日期可能有误，请核对后重新提交	วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่	伝票日付がおかしいようです。確認して再送信してください	mrerp.error.date_implausible
+Account signed in elsewhere	账号已在别处登录	บัญชีเข้าสู่ระบบที่อื่นอยู่	アカウントは別の場所でログイン中です	mrerp.error.ERR_MRERP_ACCOUNT_IN_USE
 Checked pending items	查看了待处理	ตรวจสอบรายการรอดำเนินการแล้ว	処理待ちの項目を確認しました
 Checking pending items	正在查看待处理	กำลังตรวจสอบรายการรอดำเนินการ	処理待ちの項目を確認しています
 Viewed a document	查看了单据详情	ดูเอกสารแล้ว	書類を確認しました

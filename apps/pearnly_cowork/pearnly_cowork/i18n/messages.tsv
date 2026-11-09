@@ -2392,6 +2392,7 @@ The invoice date is missing or unreadable. Fill it in and submit again	票面日
 The invoice number is missing. Add it and submit again.	缺少发票号，请补充后重新提交	ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่	請求書番号がありません。追加して再送信してください	intake.error.ERR_NO_INVOICE_NO
 Credit notes need a person to post them in MR.ERP	贷项通知单需在 MR.ERP 中人工处理	ใบลดหนี้ต้องบันทึกใน MR.ERP ด้วยตนเอง	返品・値引伝票は MR.ERP で手動で処理してください	intake.error.mrerp_credit_note
 Only invoices in Thai baht can be sent to MR.ERP	仅泰铢发票可推送至 MR.ERP	ส่งเข้า MR.ERP ได้เฉพาะเอกสารสกุลเงินบาท	MR.ERP に送れるのはタイバーツの伝票だけです	intake.error.mrerp_currency_not_thb
+Account signed in elsewhere	账号已在别处登录	บัญชีเข้าสู่ระบบที่อื่นอยู่	アカウントは別の場所でログイン中です	intake.error.ERR_MRERP_ACCOUNT_IN_USE
 Operator Ledgers	实操账本	ระบบบัญชีที่บันทึกแทนได้	代行入力先の帳簿
 Checked pending items	查看了待处理	ตรวจสอบรายการรอดำเนินการแล้ว	処理待ちの項目を確認しました
 Checking pending items	正在查看待处理	กำลังตรวจสอบรายการรอดำเนินการ	処理待ちの項目を確認しています

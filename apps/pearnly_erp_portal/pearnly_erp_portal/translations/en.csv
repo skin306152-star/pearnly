@@ -43,6 +43,7 @@ A warehouse with stock cannot be turned off,A warehouse with stock cannot be tur
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
 Account Set,Account Set
 Account name matches,Account name matches
+Account signed in elsewhere,Account signed in elsewhere
 Accrual basis,Accrual basis
 Actual position,Actual position
 Actual positions and quantities,Actual positions and quantities
@@ -2369,6 +2370,7 @@ mrerp.error.ERR_CUSTOMER_CODE_TOO_LONG,The MR.ERP customer code is too long. Cho
 mrerp.error.ERR_DATE_FUTURE,The invoice date is in the future. Correct it and submit again
 mrerp.error.ERR_DIRECTION_UNKNOWN,Choose purchase or sales for this invoice and submit again
 mrerp.error.ERR_INVOICE_NO_TOO_LONG,The invoice number is longer than MR.ERP allows. Shorten it and submit again
+mrerp.error.ERR_MRERP_ACCOUNT_IN_USE,Account signed in elsewhere
 mrerp.error.ERR_MRERP_IMPORT_ERROR,The MR.ERP import failed. Nothing was posted
 mrerp.error.ERR_MRERP_MASTER_UNREADABLE,Could not read the MR.ERP master data.
 mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.

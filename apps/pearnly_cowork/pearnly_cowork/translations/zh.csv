@@ -69,6 +69,7 @@ Account Set Name,账套名称
 Account Set Path,账套路径
 Account code,科目代码
 Account set,账套
+Account signed in elsewhere,账号已在别处登录
 Accrual basis,权责制
 Ack Digest,回执摘要
 Active,正常
@@ -3435,6 +3436,7 @@ intake.error.ERR_DATE_FUTURE,票面日期晚于当前日期，请更正后重新
 intake.error.ERR_DIRECTION_UNKNOWN,请选择此发票为进项或销项后重新提交
 intake.error.ERR_INVOICE_NO_TOO_LONG,发票号超出 MR.ERP 允许的长度，请缩短后重新提交
 intake.error.ERR_LOCATION,Express 账套中无此仓库
+intake.error.ERR_MRERP_ACCOUNT_IN_USE,账号已在别处登录
 intake.error.ERR_MRERP_DEFAULT_CHANGED,所选的值在 MR.ERP 中已不存在，请重新选择。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,需要选择 MR.ERP 默认值，请选择后再推送。
 intake.error.ERR_MRERP_IMPORT_ERROR,MR.ERP 导入出错，未入账

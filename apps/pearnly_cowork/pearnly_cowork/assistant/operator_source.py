@@ -342,6 +342,24 @@ def regroup(company, doc_id, group) -> dict:
     return {"ok": True}
 
 
+def _release_kick(doc_ids):
+    """人在开始前卡片上点了「开始」：这批单要用的 MR.ERP 账号被踢过的标记清一次（`push.mrerp.runner.release_kick`，11-09
+    风险 7），同批后续被踢了照样快速失败、不再自己登录。读不到的票跳过（交单时照常报原因）。"""
+    from pearnly_cowork.history import storage
+    from pearnly_cowork.push.mrerp import runner
+
+    seen = set()
+    for name in doc_ids or ():
+        try:
+            doc = storage.read(name)
+        except (frappe.DoesNotExistError, frappe.PermissionError):
+            continue
+        place = (doc.push_connection, doc.workspace, doc.client)
+        if doc.push_connection and place not in seen:
+            seen.add(place)
+            runner.release_kick(*place)
+
+
 def submit(company, doc_ids, batch, computer, answers=None) -> list:
     """``answers``：预检里人定的（``{doc_id: [{kind, subject, value, label}]}``），先按写账前置判定同一套记法记下
     （`assistant.precheck_source.remember`：写账规则的项走复核页同一条路，值须在账套主档里或「新建」），再交代录；不经待处理、
@@ -353,6 +371,8 @@ def submit(company, doc_ids, batch, computer, answers=None) -> list:
     memory = rules.groups(company)
     results = []
     again = set((batch or {}).get("again") or ())
+    if target(company) == "mrerp":
+        _release_kick(doc_ids)
     for index, name in enumerate(doc_ids, start=1):
         twin = written_twin(name) if name not in again else {}
         if twin:

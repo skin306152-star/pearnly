@@ -118,10 +118,15 @@ class FakeMrErp:
         self.records, self.head = dict(records or {}), head  # {(模块, id): dupdata 回应}；总店分店
         self.company_tax, self.company_reads = company_tax, []  # 本公司分店档案登记的税号；读过哪几个分店 id
 
+    kick = False  # 同一账号在别处登录了：之后每一页都先回 checkuseruse 的被踢提示
+
     def __call__(self, session, method, url, **kwargs):
         path = url.replace(BASE, "").split("?")[0]
         query = url.split("?", 1)[1] if "?" in url else ""
         self.calls.append((method, path))
+        if self.kick and not path.startswith("/login/login") and path not in ("/", "/login/checklogin.php"):
+            return response(url, '<script>alert("\\"User\\" ดังกล่าวมีผู้ Login ซ้ำ จะทำการออกจากระบบโดยอัตโนมัติ");'
+                                 'location = "../login/logoutkick.php";</script>')
         if path == "/login/checklogin.php":
             session.cookies.set("PHPSESSID", "abc")
             self.accepted = kwargs["data"]["txtpasswords"] == self.password
@@ -393,6 +398,237 @@ def sheet_rows(blob, index=0):
 
 TEST2019 = ("BOI1", "กร ทดสอบ", "สุพรรณ", "TRUCK1", "1130-03", "2110-01", "5230-01", "04-SER", "03-FIG", "ผน",
             "CODE_NOAP", "1-11", "2-21")
+
+
+class FakeRedis:
+    """不淘汰的状态 Redis 的替身（`execution.state.store`）：会话缓存与被踢标记都存这里，键不带站点前缀。"""
+
+    def __init__(self):
+        self.data, self.ttl = {}, {}
+
+    def get(self, name):
+        return self.data.get(name)
+
+    def set(self, name, value, ex=None):
+        self.data[name], self.ttl[name] = value, ex
+
+    def delete(self, name):
+        self.data.pop(name, None)
+
+
+class _StateRedis(unittest.TestCase):
+    def setUp(self):
+        from pearnly_core.mrerp import kick_mark as account_kick
+        from pearnly_core.mrerp import session_cache
+
+        self.redis = FakeRedis()
+        self.kick, self.sessions = account_kick, session_cache
+        self.patches = [patch.object(account_kick, "_store", lambda: self.redis),
+                        patch.object(session_cache, "_store", lambda: self.redis)]
+        for item in self.patches:
+            item.start()
+
+    def tearDown(self):
+        for item in self.patches:
+            item.stop()
+
+    @staticmethod
+    def logins(site):
+        return [call for call in site.calls if call == ("POST", "/login/checklogin.php")]
+
+    @staticmethod
+    def account():
+        from pearnly_core.mrerp.session import lock_key
+
+        return lock_key(BASE, "test01")
+
+    def cached(self):
+        return {k: v for k, v in self.redis.data.items() if k.startswith("pearnly:mrerp-session:")}
+
+
+class SessionReuse(_StateRedis):
+    """11-09 风险 7：直写复用已登录的会话，不每推一次就登录（每登录一次都会踢掉用户自己浏览器里同一账号）；过期只重登一次；
+    被踢（MR.ERP 的「มีผู้ Login ซ้ำ」）不重登，记「账号在别处登录」，丢掉会话。"""
+
+    def test_the_second_push_reuses_the_session_without_logging_in(self):
+        site = FakeMrErp()
+        site.password_used = "test01"
+        self.assertEqual(execute(site, [sales("s1")])["status"], "success")
+        self.assertEqual(len(self.logins(site)), 1)
+        self.assertEqual(list(self.cached().values()), ["abc"])
+        # 第二张换一天：假站点按日期顺序编号，同一天两张会编出同一个号
+        self.assertEqual(execute(site, [sales("s2", date="2026-09-13")])["status"], "success")
+        self.assertEqual(len(self.logins(site)), 1)  # 第二张没再登录
+
+    def test_an_expired_session_logs_in_once_more(self):
+        site = FakeMrErp()
+        site.password_used = "test01"
+        with patch.object(self.sessions, "get", lambda name: "old"):
+            out = execute(site, [sales("s3")])
+        self.assertEqual(out["status"], "success")
+        self.assertEqual(len(self.logins(site)), 1)
+
+    def test_a_kicked_session_stops_without_logging_in_and_is_dropped(self):
+        site = FakeMrErp()
+        site.password_used = "test01"
+        execute(site, [sales("s4")])
+        self.assertTrue(self.cached())
+        site.kick = True  # 会计本人在浏览器里登录了同一账号
+        before = len(self.logins(site))
+        out = execute(site, [sales("s5")])
+        self.assertEqual(out["status"], "failed")
+        self.assertTrue(out["reason"].startswith("ERR_MRERP_ACCOUNT_IN_USE"), out["reason"])
+        self.assertEqual(len(self.logins(site)), before)  # 不自动重登去抢
+        self.assertEqual(self.cached(), {})
+
+    def test_the_session_is_shared_by_both_products_but_only_with_the_same_password(self):
+        """同一个 MR.ERP 账号在 Cowork 与 ERP 用同一个会话（各存一份会一边登录踢掉另一边）：键不带站点；
+        只填对用户名、密码不同的（别的租户）接不上。"""
+        import frappe
+
+        account = self.account()
+        with patch.object(frappe.local, "site", "cowork.test", create=True):
+            cowork = self.sessions.key(account, "test01")
+        with patch.object(frappe.local, "site", "erp.test", create=True):
+            erp = self.sessions.key(account, "test01")
+        self.assertEqual(cowork, erp)
+        self.assertNotEqual(cowork, self.sessions.key(account, "guess"))
+        self.assertNotIn("test01", cowork)  # 账号、密码原文不进键名
+        self.assertLessEqual(self.sessions.TTL_SECONDS, 24 * 60)
+
+
+class KickedMark(_StateRedis):
+    """11-09 风险 7，主会话定 A：被踢后按账号记标记（服务端、两产品共用、带时间与记录）；有标记时所有自动推送在导入入口快速失败、
+    不碰网络，原因 ``ERR_MRERP_ACCOUNT_IN_USE`` 进待处理；只有人点的推送入口清了标记，这次才重新登录。"""
+
+    def kicked_once(self, site):
+        site.password_used = "test01"
+        execute(site, [sales("k1")])
+        site.kick = True
+        return execute(site, [sales("k2", date="2026-09-13")])
+
+    def test_a_kick_marks_the_account_with_time_site_and_a_record(self):
+        import frappe
+
+        site = FakeMrErp()
+        with patch.object(frappe.local, "site", "cowork.test", create=True):
+            self.kicked_once(site)
+        mark = self.kick.state(self.account())
+        self.assertTrue(mark and mark["at"])
+        self.assertEqual(mark["site"], "cowork.test")
+        self.assertEqual([item["event"] for item in mark["history"]], ["kicked"])
+        name = next(k for k in self.redis.data if k.startswith("pearnly:mrerp-kicked:"))
+        self.assertNotIn("test01", name)
+        self.assertTrue(self.redis.ttl[name])  # 状态 Redis 的键都带过期时间
+
+    def test_a_marked_account_fails_fast_without_touching_the_network(self):
+        self.kick.mark(self.account())
+        site = FakeMrErp()
+        site.password_used = "test01"
+        locks = []
+
+        def no_dns(*args, **kwargs):
+            raise AssertionError("resolved the MR.ERP host while the account is marked")
+
+        with patch.object(transport, "account_lock", lambda *a, **k: locks.append(a) or contextlib.nullcontext(True)), \
+                patch.object(requests.Session, "request", autospec=True,
+                             side_effect=AssertionError("sent a request while the account is marked")), \
+                patch.object(socket, "getaddrinfo", side_effect=no_dns):
+            out = runner.execute({"histories": [sales("k3")], "mappings": {"_own_tax_id": OWN}},
+                                 {"account_set": "15:1"}, {"username": "test01", "password": "test01"}, BASE, TODAY)
+        self.assertEqual(out["status"], "failed")  # 没发出导入：确定没写入，进待处理（不是结果不明）
+        self.assertTrue(out["reason"].startswith("ERR_MRERP_ACCOUNT_IN_USE"), out["reason"])
+        self.assertEqual((site.calls, locks), ([], []))
+
+    def test_clearing_the_mark_lets_the_next_push_log_in_and_keeps_the_record(self):
+        site = FakeMrErp()
+        self.kicked_once(site)
+        site.kick = False  # 会计退出了浏览器里的 MR.ERP
+        self.assertTrue(self.kick.clear(self.account()))
+        self.assertIsNone(self.kick.state(self.account()))
+        before = len(self.logins(site))
+        self.assertEqual(execute(site, [sales("k4", date="2026-09-14")])["status"], "success")
+        self.assertEqual(len(self.logins(site)), before + 1)
+        name = next(k for k in self.redis.data if k.startswith("pearnly:mrerp-kicked:"))
+        import json as _json
+
+        self.assertEqual([item["event"] for item in _json.loads(self.redis.data[name])["history"]], ["kicked", "cleared"])
+        self.assertFalse(self.kick.clear(self.account()))  # 没标记时清是空操作
+
+    def test_the_mark_is_one_per_account_for_both_products(self):
+        import frappe
+
+        with patch.object(frappe.local, "site", "erp.test", create=True):
+            self.kick.mark(self.account())
+        with patch.object(frappe.local, "site", "cowork.test", create=True):
+            self.assertTrue(self.kick.state(self.account()))
+        from pearnly_core.mrerp.session import lock_key
+
+        self.assertIsNone(self.kick.state(lock_key(BASE, "someone_else")))
+
+
+class ManualEntries(unittest.TestCase):
+    """人点的推送入口（Cowork 网页推送 / 待处理再推、CC 推送工具）先清标记再推；自动推送（定时巡检、自动推档位、文件夹定时、
+    同批后续）不清。"""
+
+    def test_the_web_push_and_the_cc_tool_say_manual_and_automatic_paths_do_not(self):
+        """网页推送 / 待处理再推（`api.submit`）与 CC 推送工具（直写）带 ``manual``；定时巡检、自动推档位、文件夹定时不带。"""
+        import inspect
+
+        from pearnly_cowork.folder_intake import push as folder_push
+        from pearnly_cowork.push.application import api
+        from pearnly_cowork.push.automation import sweep
+
+        self.assertIn("manual=True", inspect.getsource(api.submit))
+        for automatic in (sweep._push, folder_push, runner.run, runner.dispatch_next, runner.sweep):
+            self.assertNotIn("manual", inspect.getsource(automatic), automatic)
+
+    def test_a_manual_mrerp_submit_clears_the_mark_before_the_job_is_queued(self):
+        from pearnly_cowork.history import storage
+        from pearnly_cowork.push.application import service
+
+        order = []
+        doc = type("Doc", (), {"workspace": "W1", "client": "C1"})()
+        with patch.object(service, "prepare", lambda *a, **k: {"status": "prepared", "name": "R1", "revision": 1}), \
+                patch.object(service.connections, "adapter_of", lambda name: "mrerp"), \
+                patch.object(storage, "read", lambda name: doc), \
+                patch.object(runner, "release_kick", lambda *a: order.append(("release", a))), \
+                patch.object(service, "confirm_server", lambda *a: order.append(("confirm", a[0])) or {"status": "pending"}):
+            service.submit("H1", "M1", "k1", 1, 1, manual=True)
+            service.submit("H2", "M1", "k2", 1, 1)  # 自动推送：不清
+        self.assertEqual(order, [("release", ("M1", "W1", "C1")), ("confirm", "R1"), ("confirm", "R1")])
+
+    def test_an_operator_batch_clears_once_at_start_and_not_per_document(self):
+        """代录一批是一次「开始」：开始时按连接清一次；逐张交单（`tools._submit_one` 带 operator）不再清，同批后续被踢照样快速失败。"""
+        import inspect
+
+        from pearnly_cowork.assistant import operator_source, tools
+        from pearnly_cowork.history import storage
+
+        docs = {name: type("Doc", (), {"push_connection": conn, "workspace": "W1", "client": ""})()
+                for name, conn in (("H1", "M1"), ("H2", "M1"), ("H3", "M2"))}
+        cleared = []
+        with patch.object(storage, "read", lambda name: docs[name]), \
+                patch.object(runner, "release_kick", lambda *a: cleared.append(a)):
+            operator_source._release_kick(["H1", "H2", "H3"])
+        self.assertEqual(cleared, [("M1", "W1", ""), ("M2", "W1", "")])
+        self.assertIn("manual=not operator", inspect.getsource(tools._submit_one))
+
+    def test_release_kick_only_touches_mrerp_connections(self):
+        from pearnly_cowork.connections import service as connections
+        from pearnly_core.mrerp import kick_mark as account_kick
+
+        cleared = []
+        loaded = type("Loaded", (), {"endpoint": {"config": {"system_url": BASE}}})()
+        with patch.object(connections, "adapter_of", lambda name: {"M": "mrerp", "E": "express"}[name]), \
+                patch.object(connections, "read_for_push", lambda *a, **k: loaded), \
+                patch.object(connections, "credentials_for_use", lambda value: {"username": "test01"}), \
+                patch.object(account_kick, "clear", lambda key: cleared.append(key) or True):
+            self.assertFalse(runner.release_kick("E", "W1"))
+            self.assertTrue(runner.release_kick("M", "W1"))
+        from pearnly_core.mrerp.session import lock_key
+
+        self.assertEqual(cleared, [lock_key(BASE, "test01")])
 
 
 class Defaults(unittest.TestCase):

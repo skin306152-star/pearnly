@@ -98,11 +98,16 @@ def prepare(doctype, name, document) -> dict:
             "company": row, "direction": body["direction"]}
 
 
-def send(doctype, name):
-    """（`express.push.send` 遇到账本是 MR.ERP 的单交过来，或「再写一次」）停下 / 失败的回到排队、排一次导入。回结论。"""
+def send(doctype, name, manual=False):
+    """（`express.push.send` 遇到账本是 MR.ERP 的单交过来，或「再写一次」）停下 / 失败的回到排队、排一次导入。回结论。
+
+    ``manual``：人在明确的推送入口点的（ERP 的 CC 推送工具 `express.cc_tools`）：这个 MR.ERP 账号被踢过的标记先清掉、这次照常登录
+    （:func:`release_kick`，11-09 风险 7）。其余（提交新单、每分钟巡检、选一次后再排、改票面合计放行）都不清，有标记时导入入口快速失败。"""
     row = frappe.db.get_value(doctype, name, ["name", "status", "company", "ledger_state", "ledger_reason"], as_dict=True)
     if not row or row.status != "submitted" or not handles(row.company):
         return {"status": "not_ready"}
+    if manual:
+        release_kick(row.company)
     if row.ledger_state == express_contracts.QUEUED and row.ledger_reason == contracts.IMPORTING:
         return {"status": "already_queued"}
     if row.ledger_state in (express_contracts.WRITTEN, express_contracts.MISMATCH):
@@ -114,6 +119,18 @@ def send(doctype, name):
     frappe.db.commit()
     dispatch(doctype, name)
     return {"status": "sent"}
+
+
+def release_kick(company) -> bool:
+    """清掉这家公司 MR.ERP 账号的「被踢」标记（`pearnly_core.mrerp.kick_mark`，与 Cowork 同一个标记）：只给人点的推送入口用。"""
+    from pearnly_core.mrerp import kick_mark as account_kick
+    from pearnly_core.mrerp.session import lock_key
+
+    row = choices.company_row(company)
+    lease = connections.lease(row.mrerp_connection) if row and row.mrerp_connection else {}
+    if not lease.get("username"):
+        return False
+    return account_kick.clear(lock_key(lease["system_url"], lease["username"]))
 
 
 def _claim(doctype, name):
@@ -222,4 +239,4 @@ def poll():
         frappe.db.commit()
 
 
-__all__ = ["answer", "dispatch", "handles", "poll", "prepare", "queue", "run", "send"]
+__all__ = ["answer", "dispatch", "handles", "poll", "prepare", "queue", "release_kick", "run", "send"]

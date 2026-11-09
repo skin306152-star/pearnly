@@ -1031,7 +1031,10 @@ def _submit_one(name, connection, account_set_key, posting_kind, route_device, o
         operator = {**operator, application.MRERP_OPERATOR_STAGE: staged["block"]}
     result = application.submit(name, target, key, doc.record_version, revision, account_set, None, None, posting_kind,
                                 route_device=route_device if adapter == "express" or mrerp_operator else "",
-                                operator=operator)
+                                operator=operator,
+                                # 用户在对话里叫推的 / 待处理当场推（人点的入口）：MR.ERP 被踢标记这次清掉（11-09 风险 7）。代录一批是一次
+                                # 「开始」逐张交单：只在开始时清一次（`operator_source.submit`），同批后续被踢了不再自己登录
+                                manual=not operator)
     frappe.db.commit()
     if result.get("status") in ("failed", "cancelled", "manual"):
         return {"document": name, "status": result.get("status"), "reason": str(result.get("reason") or "")[:300]}
