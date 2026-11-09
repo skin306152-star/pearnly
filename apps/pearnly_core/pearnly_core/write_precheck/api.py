@@ -100,6 +100,7 @@ def record(company, doc_ids, answers, resume=False) -> dict:
     if not isinstance(answers, list):
         frappe.throw(_("Invalid request"))
     before = card(company, doc_ids)
+    answers = [*answers, *_kept_proposals(before, answers)]
     expanded, errors = contracts.expand(before, answers)
     if errors:
         return {**before, "errors": errors}
@@ -113,6 +114,18 @@ def record(company, doc_ids, answers, resume=False) -> dict:
     if results:
         out["results"] = results
     return out
+
+
+# 整家公司一个口径、不随单据变的项：交答案时没单独回答、带着预选值的，就按预选值记住（照这个值写进去了，下次不再当作要确认的
+# 预选出现；11-08 生产：入账方式每次对话都出现、答了也没记住）。别的预选项（物料新建、科目建议……）只用在这一次，不记
+KEPT_PROPOSALS = ("goods_posting",)
+
+
+def _kept_proposals(before, answers) -> list:
+    answered = {str(a.get("key") or "") for a in answers if isinstance(a, dict)}
+    return [{"key": item["key"], "value": item["value"]} for item in contracts.items_of(before)
+            if item.get("kind") in KEPT_PROPOSALS and item.get("state") == "proposed" and item.get("value")
+            and item.get("key") not in answered]
 
 
 # ── CC 工具（共用层 `assistant.tools.CORE_TOOLS` 声明）：开始写账前取要人定的项、用户在提问卡片里答完后记下 ──

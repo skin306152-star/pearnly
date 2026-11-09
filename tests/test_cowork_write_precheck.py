@@ -744,6 +744,12 @@ class SweepAndShared(unittest.TestCase):
                 api.check("CO1", ["h1"])  # 重来几次仍冲突：回一句请稍后重试，不是 500
             product.check = real
             calls.clear()
+            # 11-08 生产：入账方式带着预选每次都出现、答了也没记住——交答案时没单独回答的这一项按预选值一起记住；别的预选项不记
+            posting = {"key": "gp", "kind": "goods_posting", "state": "proposed", "value": "stock"}
+            item = {"key": "it", "kind": "item", "state": "proposed", "value": "__new__"}
+            shown = {"groups": [{"items": [posting, item]}]}
+            self.assertEqual(api._kept_proposals(shown, [{"key": "pa", "value": "BIG C -002"}]), [{"key": "gp", "value": "stock"}])
+            self.assertEqual(api._kept_proposals(shown, [{"key": "gp", "value": "service"}]), [])  # 人答了的照人答的
             with self.assertRaises(Stop):
                 api.check("CO1", ["h1"], mode="later")  # 认不出的模式拒收
             with self.assertRaises(Stop):
