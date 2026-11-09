@@ -123,7 +123,7 @@ def _install_fakes():
     sys.modules["pearnly_core.assistant"].engines = engines
     for part in ("base", "anthropic_managed_agents"):
         setattr(engines, part, _load(f"pearnly_core.assistant.engines.{part}", CORE / f"assistant/engines/{part}.py"))
-    for part in ("config", "tools", "definition", "engine", "context", "ask", "waits", "toolrun", "sidebar", "titles", "relay",
+    for part in ("timing", "config", "tools", "definition", "engine", "context", "ask", "waits", "toolrun", "sidebar", "titles", "relay",
                  "projects"):
         module = _load(f"pearnly_core.assistant.{part}", CORE / f"assistant/{part}.py")
         setattr(sys.modules["pearnly_core.assistant"], part, module)
@@ -4739,6 +4739,60 @@ class SidebarSyncTests(unittest.TestCase):
             summary = sessions.create()
         self.assertEqual((summary["id"], len(inserted)), ("sesn_new001", 1))
         self.assertEqual(self.pushed, [(contracts.REALTIME_EVENT, self.change("created", "sesn_new001"), self.OWNER, True)])
+
+    def test_creating_and_sending_log_how_long_each_step_took(self):
+        """批 A ②（11-09，主会话批第 1 条）：新对话第一句约 24 秒后模型才收到（生产 nginx：建对话 13.7 秒、发送 3.9 秒）。
+        建对话与发送每段耗时记一行进 `pearnly.assistant.turn`（同上传 U0：站点日志默认只记 ERROR，这一路放到 INFO），
+        量清是准备智能体、开远端会话、登记工具、等推送通道还是发给引擎慢，再改流程。没有这一行就失败。"""
+        api = types.SimpleNamespace(open=lambda handle, metadata: ("sesn_new002", "idle"), post=lambda remote, batch: None)
+        sessions = _load("pearnly_core.assistant.sessions", CORE / "assistant/sessions.py")
+        lines = []
+
+        class Logger:
+            level = 40  # 生产默认 ERROR
+
+            def setLevel(self, level):
+                self.level = level
+
+            def info(self, message):
+                if self.level <= 20:
+                    lines.append(message)
+
+        log = Logger()
+
+        class Doc(_Row):
+            def insert(self, ignore_permissions=False):
+                self.update(creation=START, modified=START)
+                return self
+
+        row = _Row(name="row2", session_id="sesn_new002", title="", pending_carry="")
+        with mock.patch.object(sessions.engine, "adapter", return_value=api), \
+                mock.patch.object(sessions.engine, "prepared", lambda api: {}), \
+                mock.patch.object(sessions.engine, "tools_current", lambda sid: None), \
+                mock.patch.object(sessions, "_route", lambda sid: None), \
+                mock.patch.object(sessions.frappe, "get_doc", lambda data: Doc(data), create=True), \
+                mock.patch.object(sessions.frappe, "logger", lambda name, *a, **k: log if name == "pearnly.assistant.turn" else None,
+                                  create=True):
+            sessions.create()
+            with mock.patch.object(sessions, "owned", return_value=row), \
+                    mock.patch.object(sessions, "segment_for_turn", return_value="sesn_new002"), \
+                    mock.patch.object(sessions.toolrun, "remember_lang", lambda sid: None), \
+                    mock.patch.object(sessions.toolrun, "interface_language", lambda sid: "Chinese"), \
+                    mock.patch.object(sessions.relay, "ensure", lambda *a: None), \
+                    mock.patch.object(sessions.notices, "uncarried", lambda sid, user: []), \
+                    mock.patch.object(sessions.projects, "note", lambda row, user: ("", None)), \
+                    mock.patch.object(sessions.titles, "start", lambda *a, **k: None), \
+                    mock.patch.object(sessions.frappe, "db", types.SimpleNamespace(set_value=lambda *a, **k: None), create=True):
+                sessions.send("sesn_new002", "盘点一下")
+        self.assertEqual(len(lines), 2, lines)
+        created, sent = lines
+        self.assertTrue(created.startswith("conversation create "), created)
+        for step in ("prepare=", "open=", "tools=", "store=", "total="):
+            self.assertIn(step, created)
+        self.assertTrue(sent.startswith("message send "), sent)
+        for step in ("segment=", "relay=", "post=", "total="):
+            self.assertIn(step, sent)
+        self.assertNotIn("盘点", sent)  # 不带消息原文
 
     def test_reading_the_state_of_a_finished_turn_queues_a_missing_title(self):
         row = self.db.rows["row1"]

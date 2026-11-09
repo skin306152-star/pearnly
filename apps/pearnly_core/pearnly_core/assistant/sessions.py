@@ -36,9 +36,10 @@ import frappe
 from frappe import _
 
 from pearnly_core.assistant import (ask, config, context, contracts, engine, engines, notices, prefs, projects, relay,
-                                    sidebar, titles, toolrun, tools, waits)
+                                    sidebar, timing, titles, toolrun, tools, waits)
 
 SESSION = context.SESSION
+TURN_LOG = "pearnly.assistant.turn"  # 建对话、发送的分段计时（`timing.Steps`，批 A ②）
 LIST_LIMIT = 100  # 加星标的最多这么多条（都在第一页）
 PAGE_SIZE = 30  # 其余的每页条数
 SAME_TIME_SLACK = 10  # 翻页时多取几条，用来跳过与上一页最后一条同一时刻、已经给过的
@@ -395,16 +396,23 @@ def create(project=None, period=None, scope=None, mode=None) -> dict:
         frappe.throw(_("Invalid request"))
     if mode == "operator":
         return _create_operator(project, period, scope)
+    steps = timing.Steps(TURN_LOG)
     user, product = _user(), config.product()
     project, period, scope = _guard(projects.placement, project, period, scope, user)
     api = engine.adapter()
-    sid, status = api.open(engine.prepared(api), _metadata(user, product))
+    handle = engine.prepared(api)
+    steps.done("prepare")
+    sid, status = api.open(handle, _metadata(user, product))
+    steps.done("open")
     engine.tools_current(sid)
+    steps.done("tools")
     _route(sid)
     doc = frappe.get_doc({"doctype": SESSION, "session_id": sid, "user": user, "product": product,
                           "engine_code": config.engine_code(), "title": "", "project": project, "period": period,
                           "project_scope": scope}).insert(ignore_permissions=True)
     sidebar.changed(user, "created", sid)
+    steps.done("store")
+    steps.log("conversation create")
     return _summary(doc, status)
 
 
@@ -824,12 +832,15 @@ def _remember_context(row, events_of_current) -> None:
 
 
 def send(session_id, text) -> None:
+    steps = timing.Steps(TURN_LOG)
     row = owned(session_id)
     text = _guard(contracts.message_text, text)
     api = engine.adapter()
     remote = segment_for_turn(row, api)
+    steps.done("segment")
     toolrun.remember_lang(row.session_id)
     relay.ensure(row.session_id, remote, frappe.session.user)
+    steps.done("relay")
     shown = notices.uncarried(row.session_id, frappe.session.user)
     company, noted = projects.note(row, frappe.session.user)
     if row.get("operator_task"):
@@ -849,7 +860,9 @@ def send(session_id, text) -> None:
                                     contracts.now_note(frappe.utils.now_datetime(), frappe.utils.get_system_timezone()))
     if note:
         batch.append(note)
+    steps.done("prepare")
     api.post(remote, batch)
+    steps.done("post")
     if row.get("operator_task"):
         from pearnly_core.express_operator import tasks as operator_tasks
         from pearnly_core.express_operator import uploads as operator_uploads
@@ -876,13 +889,16 @@ def send(session_id, text) -> None:
     if shown:
         # 发出成功才算带过（只标这次真带上的几条）；发不出（抛错）下次再带
         notices.mark_carried(frappe.session.user, [item["name"] for item in shown])
-    if titles.provisional(row):
+    first = titles.provisional(row)
+    if first:
         # 首条消息原文先当临时标题（只写本站，会话列表读本站表），不拖慢发送；第一轮结束后才概括（`titles`）。
         # 代录会话建时放的公司名同样换掉（直写、代录同一套：标题 = 用户第一句的简要）
         titles.start(row, text, frappe.session.user)
     elif titles.due(row):
         # 上一轮结束时推送线程没排上概括（进程重启、过了时限）：这时补排
         titles.request(row.name, after_commit=True)
+    steps.done("after")
+    steps.log("message send", first=int(bool(first)), operator=int(bool(row.get("operator_task"))))
 
 
 def notices_seen(session_id) -> None:
