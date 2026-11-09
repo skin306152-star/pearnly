@@ -24,9 +24,10 @@ export type SessionPage = {
 };
 
 /** 侧栏一页（服务端 sessions.listing）：after 是上一页给的 nextCursor，空表示第一页（含全部置顶的）。
- *  check：侧栏以为还在回复的对话，服务端各读一次此刻的运行状态放进 runs（不给就不读）。 */
+ *  check：侧栏以为还在回复的对话，服务端各读一次此刻的运行状态放进 runs（不给就不读）。
+ *  两种模式列同一批对话（用户 11-07「两模式侧栏一致」；11-08 生产：代录的那段在对话模式下看不到，用户以为记录丢了）：模式只定新建哪种。 */
 export function listSessions(after?: string, check: readonly string[] = []): Promise<SessionPage> {
-  return get("listing", { after, check: check.length ? check.join(",") : undefined, mode: listMode() });
+  return get("listing", { after, check: check.length ? check.join(",") : undefined });
 }
 
 /** 按公司分组的侧栏（grouped=1）。不给 group：第一页（全部置顶 + 最近一页 + 每家公司最新几条，groups 给还有更多的公司）；
@@ -38,7 +39,6 @@ export function listGrouped(page: { group?: string; after?: string; check?: read
     group: page.group,
     after: page.group === undefined ? undefined : (page.after ?? ""),
     check: check.length ? check.join(",") : undefined,
-    mode: listMode(),
   });
 }
 

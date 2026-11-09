@@ -161,10 +161,11 @@ def judge(params, results, camera_code=None):
                   "mode_operator": [params[k] in in_operator for k in ("chat", "operator")]},
          "ok": params["chat"] in in_chat and params["operator"] not in in_chat
          and params["operator"] in in_operator and params["chat"] not in in_operator},
-        {"case": "侧栏跟着模式换：对话模式只见直写的那段，代录模式只见代录那段（同一个侧栏、公司分组）",
+        {"case": "两种模式的侧栏列同一批对话：直写那段与代录那段在对话模式、代录模式、切回对话都在（用户 11-07「两模式侧栏一致」；"
+                 "11-08 生产：代录那段在对话模式下看不到，用户以为记录丢了），同一个侧栏、公司分组",
          "seen": {"chat": chat.get("rows"), "operator": operator.get("rows"), "back": back.get("rows"), "groups": operator.get("groups")},
-         "ok": has(chat, "对话") and not has(chat, "要你处理") and has(operator, "要你处理") and not has(operator, f"{tag} 对话")
-         and has(back, "对话") and not has(back, "要你处理") and (operator.get("groups") or 0) >= 1},
+         "ok": all(has(step, f"{tag} 对话") and has(step, "要你处理") for step in (chat, operator, back))
+         and (operator.get("groups") or 0) >= 1},
         {"case": "代录模式新建页在弹窗里选一家：下巴选好这家、月份有值，仍在代录", "seen": {**picked, "want": params["title"]},
          "ok": bool(picked.get("ok")) and picked.get("mode") == "operator" and bool(picked.get("welcome"))
          and params["title"] in (picked.get("chin") or "") and bool(picked.get("period"))},

@@ -6,7 +6,7 @@
     （结果或进度）；收尾那条写一句、带报告；pop_ / local- 开头的不当补拉锚点；
   - 卡片能点 = awaiting_approval 且还没结果；卡片按钮照旧调代录接口（start / task_answer / task_resume / resolve + task_settle），不走 confirm；
   - 执行电脑上的桥：合成 pearnly.progress 并进那段会话、task_running 一次、取到 stop 走桥停下、做完以站点为准收尾；
-  - 侧栏按模式筛（listing 带 mode）、代录模式新建带 mode=operator、切模式跟着改；旧的代录任务链接按任务号找会话；
+  - 侧栏两种模式列同一批对话（listing 不带 mode，11-08）、代录模式新建带 mode=operator、切模式跟着改；旧的代录任务链接按任务号找会话；
   - 旧的代录工作区、状态模型、任务侧栏都不在了，components/operator 只留切换与桥。
 
     python3 tests/test_cc_operator.py
@@ -345,7 +345,7 @@ const g = globalThis as any;
   assert.ok(sitePosts.some((p) => p[0].endsWith("task_settle")));
   assert.ok(bridgeCalls.some(([m, a]) => m === "operator_control" && a.action === "settle" && a.results.A.state === "saved"));
 
-  // 侧栏按模式筛：listing 带 mode（跟着左上角切换），代录模式新建带 mode=operator
+  // 侧栏两种模式列同一批对话（listing 不带 mode；11-08 生产：代录那段在对话模式下看不到，用户以为记录丢了），代录模式新建带 mode=operator
   const fetched: string[] = [];
   const bodies: any[] = [];
   g.fetch = async (url: string, init: any = {}) => {
@@ -354,12 +354,12 @@ const g = globalThis as any;
     return { ok: true, status: 200, json: async () => ({ message: { sessions: [], nextCursor: null, id: "op_X", task: "X", mode: "operator" } }) };
   };
   await listSessions();
-  assert.match(fetched.at(-1)!, /mode=chat/);
+  assert.doesNotMatch(fetched.at(-1)!, /mode=/);
   switchMode("operator", "chat", () => {});
   assert.equal(useModePlace.getState().mode, "operator");
   assert.equal(useListMode.getState().mode, "operator");
   await listGrouped({});
-  assert.match(fetched.at(-1)!, /mode=operator/);
+  assert.doesNotMatch(fetched.at(-1)!, /mode=/);
   await createSession({ project: "CO-1", period: "2026-10" }, "operator");
   assert.equal(bodies.at(-1).mode, "operator");
   await createSession({ project: "CO-1" });
