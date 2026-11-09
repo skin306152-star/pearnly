@@ -91,3 +91,7 @@ reason = "Cowork 推送的原生 RPC（准备 / 确认 / 提交推送、记录�
 [[file]]
 file = "frontend/assistant/src/lib/install.ts"
 reason = "对话页的安装提示只按设备出（Windows 浏览器下载 CC 桌面版、安卓 / iPhone / Mac 把网页装到主屏幕）；回归实验室的无头 Chrome 是 Linux 桌面 / 安卓仿真，Windows 那条出不来、浏览器的安装确认也弹不出。安装包地址与 Windows 条件由 tests/test_cc_desktop_channel.py 的 Installer 离线守住（盘点 2026-11-08 P2-2）"
+
+[[file]]
+file = "apps/pearnly_core/pearnly_core/assistant/webhook.py"
+reason = "CC 引擎回调入口：引擎控制台登记的公网回调地址发来、带引擎签名的空闲通知，回归实验室收不到也签不了；验签、去重、排后台任务、对话已删时静默收手由 tests/test_assistant.py 离线守住"
