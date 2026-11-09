@@ -4,7 +4,8 @@
 
 准备（站点里用产品自己的函数）：`sessions.create(mode=operator)` 建一段 ERP 代录会话（同一事务建任务），把任务记成交过单、
 一张录成（带 Express 单号）、一张没录成要人选公司（需要你处理）——代录事件源投影出资料、开始前（已交）、两张单的步骤与结果、
-要人处理的卡片、收尾消息与报告。单据用这家真有的采购单（只读，卡片点开要按它预检）。远端会话没开过：读事件不碰引擎，不花钱。
+要人处理的卡片、收尾消息与报告。单据用这家已提交的采购单（只读，卡片点开要按它预检）；不够两张时流程自己记两张服务费采购单
+（不动库存、不推账本，11-09），不靠排在前面的流程留下的单。远端会话没开过：读事件不碰引擎，不花钱。
 「换设备」在同一个无头浏览器里另开一个页面实例（iframe，独立的页面状态与会话控制器，同一个登录）。verify 删掉会话连任务。
 """
 from __future__ import annotations
@@ -38,10 +39,38 @@ from pearnly_core.express_operator import tasks
 from pearnly_erp_portal.express import push
 frappe.set_user({USER!r})
 period = frappe.utils.add_months(frappe.utils.today(), -1)[:7]
-docs = frappe.get_all(push.PURCHASE, filters={{"company": {company!r}, "status": "submitted"}}, fields=["name", "system_no"],
-                      order_by="name asc", limit_page_length=2)
+def submitted():
+    return frappe.get_all(push.PURCHASE, filters={{"company": {company!r}, "status": "submitted"}}, fields=["name", "system_no"],
+                          order_by="name asc", limit_page_length=2)
+docs = submitted()
 if len(docs) < 2:
-    raise RuntimeError("need two submitted purchase documents")
+    # 这条流程自己备两张已提交的采购单（以前靠前面别的流程留下的单，新实验栈一起来就挂，11-09 第二个窗口撞上）：
+    # 只记服务费、不动库存；临时关掉「接 Express」再记（同 erp.purchase.create 的做法），记完还原，不往账本推；
+    # 请求编号固定，重跑认回同两张
+    from pearnly_erp_portal.masters import company as companies
+    from pearnly_erp_portal.purchasing import entry as purchase, suppliers
+    if not frappe.db.exists("ERP Company", {company!r}):
+        raise RuntimeError("数据集缺前置：没有公司 " + {company!r} + "（scripts/regression/datasets.py）")
+    companies.set_active_company({company!r})
+    supplier = frappe.db.get_value("ERP Supplier", {{"supplier_name": "flow replay supplier"}})
+    if not supplier:
+        supplier = suppliers.create_supplier(supplier_name="flow replay supplier")["name"]
+    express = frappe.db.get_value("ERP Company", {company!r}, "express_enabled")
+    frappe.db.set_value("ERP Company", {company!r}, "express_enabled", 0, update_modified=False)
+    try:
+        for i in (1, 2):
+            purchase.post({{"company": {company!r}, "supplier": supplier, "doc_date": frappe.utils.today(), "currency": "THB", "fx_rate": 1,
+                           "has_vat": 1, "price_mode": "exclusive", "doc_kind": "purchase_invoice", "update_stock": 0,
+                           "doc_no": "FLOW-REPLAY-" + str(i),
+                           "lines": [{{"item_type": "service", "description": "flow replay service " + str(i), "qty": 1, "unit": "งาน",
+                                      "unit_price": 100, "vat_rate": 7}}]}},
+                          request_id="flow-replay-po-" + {company!r} + "-" + str(i))
+    finally:
+        frappe.db.set_value("ERP Company", {company!r}, "express_enabled", express, update_modified=False)
+    frappe.db.commit()
+    docs = submitted()
+if len(docs) < 2:
+    raise RuntimeError("数据集缺前置：公司 " + {company!r} + " 记不出两张已提交的采购单")
 made = sessions.create(project={company!r}, period=period, mode="operator")
 frappe.db.set_value("Pearnly Assistant Session", {{"session_id": made["id"]}}, "title", {tag!r} + " 回放")
 doc = frappe.get_doc(tasks.DOCTYPE, made["task"])
