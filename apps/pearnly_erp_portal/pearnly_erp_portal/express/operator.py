@@ -215,6 +215,10 @@ def precheck(company, doc_ids) -> dict:
             documents.append({"doc_id": doc_id, "state": "blocked", "reason": "not_permitted", "message": _("Not Permitted")})
             continue
         doctype, name = target
+        twin = _written(doc_id)
+        if twin:
+            documents.append(twin)
+            continue
         current = frappe.db.get_value(doctype, name, "ledger_job")
         if current and not _operator_held(current):
             documents.append({"doc_id": doc_id, "state": "blocked", "reason": "already_queued"})
@@ -230,37 +234,16 @@ def precheck(company, doc_ids) -> dict:
 UNDECIDED_LINES_TEXT = "Some lines have no product yet"
 
 
-TWIN_SCAN = 20
+def _written(doc_id) -> dict:
+    """开始前卡片：同一张票已由另一张单写进 Express（直写、网页或别的收单记录）→ 默认不再交，卡片标出它在 Express 里的单号，
+    人可以勾回再写一次（同 Cowork，用户 11-09 定；共用层 `pearnly_core.ledger_tickets`，本产品的声明在 `express.tickets`）。
+    正在写的不在这里标（交单时照样跳过）。"""
+    from pearnly_core import ledger_tickets
 
-
-def written_twin(company, direction, result, grand_total) -> dict:
-    """这条收单记录是不是已经写进 Express 的那张票（11-08 生产 Cowork：代录等着的单，其中几张又被直写写进了真账）：这家公司里
-    另一张票号相同、供应商税号相同、金额相同、已写进 Express 的采购单 → ``{doc, docnum}``；没有回空。销售单上没有对方的票号
-    与税号，不判。``grand_total``：算这条记录合计的函数（同网页表单的算法，有同票号的单才算）。只读。"""
-    from decimal import Decimal, InvalidOperation
-
-    number = str(result.get("doc_no") or "").strip()
-    if direction != "purchase" or not number:
+    found = ledger_tickets.entered(doc_id)
+    if found.get("state") != ledger_tickets.ENTERED:
         return {}
-
-    def amount(value):
-        try:
-            return Decimal(str(value if value not in (None, "") else "x")).quantize(Decimal("0.01"))
-        except (InvalidOperation, ValueError):
-            return None
-
-    found = frappe.get_all(push.PURCHASE, filters={"company": company, "doc_no": number,
-                                                   "ledger_state": ["in", [contracts.WRITTEN, contracts.MISMATCH,
-                                                                           contracts.HANDLED]]},
-                           fields=["name", "supplier_tax_id", "grand_total", "ledger_docnum"], limit_page_length=TWIN_SCAN)
-    tax = str(result.get("supplier_tax_id") or "").strip()
-    total = amount(grand_total()) if found else None
-    if total is None:
-        return {}
-    for other in found:
-        if str(other.supplier_tax_id or "").strip() == tax and amount(other.grand_total) == total:
-            return {"doc": other.name, "docnum": str(other.ledger_docnum or "")}
-    return {}
+    return {"doc_id": doc_id, "state": "written", "docnum": found["docnum"], "twin": found["doc_id"]}
 
 
 def _intake_precheck(company, doc_id) -> dict:
@@ -282,10 +265,9 @@ def _intake_precheck(company, doc_id) -> dict:
         return {"doc_id": doc_id, "state": "blocked", "reason": "not_ready", "message": _("This document is no longer available")}
     doc = frappe.get_doc(chat_intake.DOCTYPE, row.name)
     result = json.loads(doc.result or "{}")
-    twin = written_twin(company, row.direction, result, lambda: chat_intake.totals(doc, result).get("grand_total"))
+    twin = _written(doc_id)
     if twin:
-        # 同一张票已写进 Express（直写或网页）：默认不再交，开始前卡片标出它在 Express 里的单号，人可以勾回再录（同 Cowork，用户 11-09 定）
-        return {"doc_id": doc_id, "state": "written", "docnum": twin["docnum"], "twin": twin["doc"]}
+        return twin
     party = result.get("supplier_name") if row.direction == "purchase" else result.get("buyer_name")
     view = {"doc_id": doc_id, "ref": result.get("doc_no") or row.name, "direction": row.direction,
             **({"party": party} if party else {})}
@@ -557,50 +539,41 @@ def _remember(company, doctype, name, given, seen=None) -> None:
 
 
 def submit(company, doc_ids, batch, computer, answers=None) -> list:
+    from pearnly_core import ledger_tickets
+
     results = []
     again = set((batch or {}).get("again") or ())
     for index, doc_id in enumerate(doc_ids, start=1):
-        given = (answers or {}).get(doc_id)
-        if str(doc_id).startswith(INTAKE + ":"):
-            twin = _intake_twin(company, doc_id) if doc_id not in again else {}
-            if twin:
-                # 同一张票已写进 Express：默认跳过（用户 11-09），原因带那张的单号；人在开始前卡片上点了「再录一次」的照交
-                results.append({"doc_id": doc_id, "status": "written", "reason": twin["docnum"]})
-                continue
-            target = _submit_intake(company, doc_id, given)
-            if isinstance(target, dict):
-                results.append(target)
-                continue
-            if target:
-                target, given = target[:2], target[2]  # 收单记录那几项已写回记录；Express 的项记到提交出的单据上
-        else:
-            target = _target(company, doc_id)
-        if target is None:
-            results.append({"doc_id": doc_id, "status": "not_permitted", "reason": ""})
-            continue
-        doctype, name = target
-        if given:
-            _remember(company, doctype, name, given)
-            frappe.db.commit()
-        push.release_operator(doctype, name)
-        result = push.send(doctype, name, operator={**batch, "index": index, "doc": doc_id, "company": company}) or {}
-        results.append({"doc_id": doc_id, "status": result.get("status") or "", "reason": result.get("reason") or ""})
+        with ledger_tickets.one_writer(doc_id):
+            results.append(_submit_one(company, doc_id, index, batch, (answers or {}).get(doc_id), again))
     return results
 
 
-def _intake_twin(company, doc_id) -> dict:
-    """还没提交的收单记录在交单这一刻是不是已写进 Express 的那张票（同 :func:`written_twin`）；已提交的、认不出的回空。"""
-    import json
+def _submit_one(company, doc_id, index, batch, given, again) -> dict:
+    """交一张（在按身份的写者锁里）：同一张票已由另一张写成或正在写的默认跳过（用户 11-09），原因带那张的单号；人在开始前卡片上
+    点了「再写一次」的照交。只看我们自己的写入：Express 里手录的同号照写。"""
+    from pearnly_core import ledger_tickets
 
-    from pearnly_erp_portal.integrations import intake as chat_intake
-
-    row = _intake(company, doc_id)
-    if row is None or _submitted(row) or row.status != chat_intake.READY:
-        return {}
-    raw = frappe.db.get_value(chat_intake.DOCTYPE, row.name, "result")
-    result = json.loads(raw) if isinstance(raw, str) and raw else {}
-    return written_twin(company, row.direction, result,
-                        lambda: chat_intake.totals(frappe.get_doc(chat_intake.DOCTYPE, row.name), result).get("grand_total"))
+    twin = ledger_tickets.entered(doc_id, again)
+    if twin:
+        return {"doc_id": doc_id, "status": "written", "reason": twin["docnum"]}
+    if str(doc_id).startswith(INTAKE + ":"):
+        target = _submit_intake(company, doc_id, given)
+        if isinstance(target, dict):
+            return target
+        if target:
+            target, given = target[:2], target[2]  # 收单记录那几项已写回记录；Express 的项记到提交出的单据上
+    else:
+        target = _target(company, doc_id)
+    if target is None:
+        return {"doc_id": doc_id, "status": "not_permitted", "reason": ""}
+    doctype, name = target
+    if given:
+        _remember(company, doctype, name, given)
+        frappe.db.commit()
+    push.release_operator(doctype, name)
+    result = push.send(doctype, name, operator={**batch, "index": index, "doc": doc_id, "company": company}) or {}
+    return {"doc_id": doc_id, "status": result.get("status") or "", "reason": result.get("reason") or ""}
 
 
 def _submit_intake(company, doc_id, answers=None):

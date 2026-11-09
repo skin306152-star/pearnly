@@ -42,8 +42,8 @@ class Base(unittest.TestCase):
         self.db = Mock(get_value=Mock(side_effect=self.get_value))
         self.enterContext(patch.object(frappe, "db", self.db, create=True))
         self.enterContext(patch.object(frappe, "clear_messages", create=True))
-        self.written = []  # 已写进 Express 的采购单（同票号的候选）
-        self.enterContext(patch.object(frappe, "get_all", create=True, side_effect=lambda doctype, **kw: list(self.written)))
+        # 同一张票的判定（`ledger_tickets`）默认都是「没写过」；要测它的用例自己换掉
+        self.enterContext(patch("pearnly_core.ledger_tickets.lookup", return_value={}))
         self.enterContext(patch.object(frappe, "throw", side_effect=lambda message, exc=frappe.ValidationError, **kw: (_ for _ in ()).throw(exc(message))))
         self.enterContext(patch("requests.sessions.Session.request", side_effect=AssertionError("External network forbidden")))
 
@@ -149,29 +149,39 @@ class Precheck(Base):
         self.assertEqual([i["kind"] for i in row["precheck"]["items"]], ["payment", "account"])  # 收单记录的项在前
 
     def test_a_ticket_already_entered_in_express_is_marked_written_and_skipped_unless_entered_again(self):
-        # 11-08 生产（Cowork）：代录等着的票被直写写进了真账；ERP 收单记录同样认：同票号、同供应商税号、同金额、已写进 Express
-        doc = self.doc()
-        self.written = [SimpleNamespace(name="PO-3", supplier_tax_id=" 0105 ", grand_total="107.00", ledger_docnum="RR-9")]
-        result = json.loads(doc.result)
-        result.update(doc_no="IV1", supplier_tax_id="0105")
-        doc.result = json.dumps(result)
-        with patch.object(frappe, "get_doc", return_value=doc), \
-                patch.object(intake, "totals", return_value={"grand_total": 107}):
+        # 11-08 生产（Cowork）：代录等着的票被直写写进了真账；ERP 同样按共用层同一张票的判定（`ledger_tickets`，复核 5 批之第 1 批）：
+        # 开始前卡片标出它在 Express 里的单号；交单默认跳过，正在写的也跳过；人勾了「再写一次」的照交。交单在按身份的锁里
+        from pearnly_core import ledger_tickets
+
+        found = {"I:LI-1": {"doc_id": "P:PO-3", "docnum": "RR-9", "state": "entered", "key": "CO-1:k"}}
+        locked = []
+
+        class Lock:
+            def __init__(self, key, **kw):
+                locked.append(key)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        with patch.object(ledger_tickets, "lookup", side_effect=lambda doc_id: found.get(doc_id, {})), \
+                patch.object(frappe, "cache", SimpleNamespace(lock=Lock), create=True), \
+                patch.object(frappe.local, "site", "t", create=True), \
+                patch.object(frappe, "get_doc", return_value=self.doc()):
             row = operator._intake_precheck("CO-1", "I:LI-1")
-            self.assertEqual((row["state"], row["docnum"], row["twin"]), ("written", "RR-9", "PO-3"))
-            with patch.object(frappe.db, "get_value", side_effect=lambda doctype, name, field=None, **kw:
-                              doc.result if field == "result" else self.get_value(doctype, name, field, **kw)), \
-                    patch.object(intake, "submit_chat") as chat, patch.object(operator.push, "release_operator"), \
-                    patch.object(operator.push, "send", return_value={"status": "queued"}):
+            self.assertEqual((row["state"], row["docnum"], row["twin"]), ("written", "RR-9", "P:PO-3"))
+            with patch.object(operator, "_submit_intake") as sub:
                 skipped = operator.submit("CO-1", ["I:LI-1"], {"task": "T1"}, "PC-1")
                 self.assertEqual(skipped, [{"doc_id": "I:LI-1", "status": "written", "reason": "RR-9"}])
-                chat.assert_not_called()
-                with patch.object(operator, "_submit_intake", return_value={"doc_id": "I:LI-1", "status": "queued"}) as sub:
-                    operator.submit("CO-1", ["I:LI-1"], {"task": "T1", "again": ["I:LI-1"]}, "PC-1")
+                sub.assert_not_called()
+                found["I:LI-1"]["state"] = "queued"  # 正在写：照样跳过
+                self.assertEqual(operator.submit("CO-1", ["I:LI-1"], {"task": "T1"}, "PC-1")[0]["status"], "written")
+                sub.return_value = {"doc_id": "I:LI-1", "status": "queued"}
+                operator.submit("CO-1", ["I:LI-1"], {"task": "T1", "again": ["I:LI-1"]}, "PC-1")
                 sub.assert_called_once()  # 人勾了「再写一次」的照交
-            self.written[0].grand_total = "108.00"  # 金额不同：不是同一张
-            self.assertEqual(operator.written_twin("CO-1", "purchase", result, lambda: 107), {})
-            self.assertEqual(operator.written_twin("CO-1", "sales", result, lambda: 108), {})  # 销售单不判
+        self.assertEqual(locked, ["t:pearnly_ledger_ticket:CO-1:k"] * 3)
 
     def test_other_peoples_records_are_not_permitted(self):
         self.assertEqual(operator._intake_precheck("CO-1", "I:LI-9")["reason"], "not_permitted")
@@ -303,3 +313,56 @@ class Submit(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TicketTwin(unittest.TestCase):
+    """ERP 在共用层「同一张票只写一次」里的声明（`express.tickets`，复核 5 批之第 1 批）：采购单按身份键在同一公司里找另一张写成 /
+    正在写的；身份要精确；买方是本公司；只读我们自己的单据（账本状态），不碰 Express 主档。"""
+
+    def test_a_purchase_finds_the_same_ticket_written_by_another_purchase(self):
+        from pearnly_erp_portal.express import tickets
+
+        rows = {"PO-1": {"company": "CO-1", "ticket_key": "k" * 40, "ticket_level": "exact"}}
+        others = [SimpleNamespace(name="PO-9", ledger_state="written", ledger_docnum="RR-9")]
+        seen = []
+
+        def value(doctype, name, fields=None, as_dict=False):
+            seen.append(doctype)
+            return rows.get(name)
+
+        def listed(doctype, filters=None, **kw):
+            seen.append(doctype)
+            self.assertEqual((filters["company"], filters["ticket_key"], filters["name"]), ("CO-1", "k" * 40, ["!=", "PO-1"]))
+            return list(others)
+
+        with patch.object(frappe, "db", SimpleNamespace(get_value=value), create=True), \
+                patch.object(frappe, "get_all", listed, create=True):
+            self.assertEqual(tickets.twin("P:PO-1"), {"doc_id": "P:PO-9", "docnum": "RR-9", "state": "entered",
+                                                       "key": "CO-1:" + "k" * 40})
+            others[0].ledger_state = "queued"
+            self.assertEqual((tickets.twin("P:PO-1")["state"], tickets.twin("P:PO-1")["docnum"]), ("queued", ""))
+            others.clear()
+            self.assertEqual(tickets.twin("P:PO-1"), {"key": "CO-1:" + "k" * 40})
+            rows["PO-1"]["ticket_level"] = "near"
+            self.assertEqual(tickets.twin("P:PO-1"), {})
+            self.assertEqual(tickets.twin("S:SD-1"), {})  # 销售单这一批不判
+        self.assertEqual(set(seen), {"Purchase Document"})
+
+    def test_the_identity_reads_the_printed_branch_and_the_own_company(self):
+        from pearnly_core.express_rules.contracts import ticket_identity
+        from pearnly_erp_portal.express import tickets
+
+        company = {"tax_id": "0315551000297", "branch": "00000"}
+        doc = frappe._dict(company="CO-1", doc_no="IV/69/00751", doc_date="2026-10-31", grand_total=1070,
+                           supplier_tax_id="0105536000633", supplier_branch_type="branch", supplier_branch_no="2",
+                           supplier_name="Big C")
+        with patch.object(frappe, "db", SimpleNamespace(get_value=lambda *a, **k: company), create=True):
+            key, level = tickets.purchase_identity(doc)
+            head = tickets.purchase_identity(frappe._dict(doc, supplier_branch_type="head_office", supplier_branch_no=""))
+            none = tickets.purchase_identity(frappe._dict(doc, supplier_branch_type="none", supplier_branch_no=""))
+        expected = ticket_identity.identity(ticket_identity.Face(
+            direction="purchase", number="IV69-00751", date="2026-10-31", total="1070.00", seller_tax="0105536000633",
+            seller_branch="00002", buyer_tax="0315551000297", buyer_branch="00000"))
+        self.assertEqual((key, level), (expected.key, "exact"))
+        self.assertEqual(len({key, head[0], none[0]}), 3)  # 分店、总公司、没写分店是三张不同的票
+
