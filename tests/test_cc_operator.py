@@ -506,7 +506,7 @@ SAME_PARTY = r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
 import { docAnswers, itemQuestion, itemsOfNeeded, kindName } from "@/components/tool-uis/ask-shared";
-import { docTitle } from "@/components/tool-uis/operator-words";
+import { docTitle, optionLabel } from "@/components/tool-uis/operator-words";
 import { choiceRun } from "@/components/tool-uis/operator-choose";
 import { docsToStart } from "@/components/tool-uis/operator-start";
 import { op } from "@/i18n";
@@ -527,6 +527,9 @@ assert.deepEqual(perDoc.H7, [{ kind: "party", subject: "sales|0107536000633|0000
 assert.ok(questions[0]!.question.startsWith(op.precheck.kind.customer! + " · "));
 assert.equal(kindName({ kind: "party", subject: "purchase|0105|00000" }), op.precheck.kind.supplier);
 assert.equal(kindName({ kind: "party", subject: "x" }), op.kind.party);
+// 入账方式的选项写四语的说法，不写原值 stock / service（生产照片：「stock (แนะนำ) / service」）
+assert.equal(optionLabel("goods_posting", { code: "stock", name: "" }), op.option.stock);
+assert.equal(optionLabel("goods_posting", { code: "service", name: "" }), op.option.expense);
 // 标题不给内部编号（生产照片：任务卡列了 24 行 CWH-哈希）
 assert.equal(docTitle({}, "CWH-af181ee25a4fb64fbe6c26a506a97959df4eb66bc140b112"), op.untitled);
 assert.equal(docTitle({}, "P:PUR-0001"), op.untitled);

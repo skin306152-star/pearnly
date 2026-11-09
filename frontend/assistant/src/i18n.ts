@@ -1086,7 +1086,7 @@ const OPERATOR = {
       payment: "Payment", vat: "VAT rate differs from the invoice", receipt: "Receiving account", department: "Department", location: "Warehouse", other: "Other",
     } as Record<string, string>,
     option: {
-      newItem: "New stock item", new: "New", expense: "Expense",
+      newItem: "New stock item", new: "New", expense: "Expense", stock: "Stock",
     } as Record<string, string>,
     precheck: {
       kind: {
@@ -1163,7 +1163,7 @@ const OPERATOR = {
       payment: "付款方式", vat: "税率与票面不符", receipt: "收款科目", department: "部门", location: "仓库", other: "其他",
     } as Record<string, string>,
     option: {
-      newItem: "库存（新建）", new: "新建", expense: "记费用",
+      newItem: "库存（新建）", new: "新建", expense: "记费用", stock: "走库存",
     } as Record<string, string>,
     precheck: {
       kind: {
@@ -1240,7 +1240,7 @@ const OPERATOR = {
       payment: "การชำระเงิน", vat: "อัตราภาษีไม่ตรงกับใบกำกับ", receipt: "บัญชีรับเงิน", department: "แผนก", location: "คลังสินค้า", other: "อื่นๆ",
     } as Record<string, string>,
     option: {
-      newItem: "สินค้าคงคลัง (สร้างใหม่)", new: "สร้างใหม่", expense: "บันทึกเป็นค่าใช้จ่าย",
+      newItem: "สินค้าคงคลัง (สร้างใหม่)", new: "สร้างใหม่", expense: "บันทึกเป็นค่าใช้จ่าย", stock: "ลงสินค้าคงคลัง",
     } as Record<string, string>,
     precheck: {
       kind: {
@@ -1317,7 +1317,7 @@ const OPERATOR = {
       payment: "支払方法", vat: "税率が請求書と一致しません", receipt: "入金勘定", department: "部門", location: "倉庫", other: "その他",
     } as Record<string, string>,
     option: {
-      newItem: "在庫（新規作成）", new: "新規作成", expense: "費用に計上",
+      newItem: "在庫（新規作成）", new: "新規作成", expense: "費用に計上", stock: "在庫に計上",
     } as Record<string, string>,
     precheck: {
       kind: {
