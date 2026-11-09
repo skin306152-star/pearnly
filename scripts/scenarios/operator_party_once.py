@@ -572,6 +572,44 @@ print(json.dumps({"real_key": bool(key) and not key.startswith("sk-ant-regressio
 ''')
 
 
+def preflight(lab, product, params) -> dict:
+    """干跑（不调模型）：真跑前确认实验栈配置都齐了——Cowork 本人有电脑够得到这份账套（「可录」）、识别准入过得去、
+    计费放行；ERP 计费放行。11-09 几次真跑白花在缺配置上（缺识别配置、没登记电脑、缺 Vertex 准入），这里先查。"""
+    if product == "cowork":
+        body = COWORK_SETUP + f'''
+from pearnly_cowork.assistant import tools
+from pearnly_cowork.ocr.execution import settings
+from pearnly_core import billing_client
+out = {{"intake": tools.destinations.intake_state("express", {params["connection"]!r})}}
+try:
+    out["admission"] = settings.snapshot().get("mode")
+except Exception as error:
+    out["admission"] = "refused: " + str(error)[:120]
+out["billing"] = billing_client.status("pdf", {PAGES + len(SHOTS)}, tier="B").get("allowed")
+from pearnly_core.execution import budget
+try:
+    out["capacity"] = bool(budget.redis().ping())
+except Exception as error:
+    out["capacity"] = "refused: " + str(error)[:120]
+print(json.dumps(out, default=str))
+'''
+        found = lab.python(SITES[product], body)
+        found["ok"] = found["intake"] == "ready" and found["admission"] == "economy" and found["billing"] is True \
+            and found["capacity"] is True
+    else:
+        found = lab.python(SITES[product], f'''
+from pearnly_core import billing_client
+from pearnly_core.execution import budget
+try:
+    capacity = bool(budget.redis().ping())
+except Exception as error:
+    capacity = "refused: " + str(error)[:120]
+print(json.dumps({{"billing": billing_client.status("pdf", {PAGES}, tier="B").get("allowed"), "capacity": capacity}}))
+''')
+        found["ok"] = found["billing"] is True and found["capacity"] is True
+    return found
+
+
 def mark_direct_written(lab) -> dict:
     """直写推出去的那几张（实验栈没有 CC 桌面版，停在排队）用合成回执记成写成、带单号（同岳父那 4 张已写进真账）。"""
     return lab.python(SITES["cowork"], COWORK_SETUP + f'''
@@ -590,8 +628,33 @@ print(json.dumps({{"pushed": [dict(r) for r in rows]}}, default=str))
 def estimate(product, viewport, reuse) -> float:
     """这一遍按最坏单价估多少美元（硬封顶用）：识别页数 × PAGE_MAX + 对话轮数 × TURN_MAX。"""
     pages = 0 if reuse else PAGES + (len(SHOTS) if product == "cowork" else 0)
-    turns = 2 + (4 if product == "cowork" and not reuse else 0)  # 代录一句 + 答题后；直写那一句、要选客户来回几轮
+    # 发给引擎的轮数：代录说一句、答开始卡（ERP 两轮）；Cowork 先直写说一句、答客户提问卡，代录那句（客户已记住、开始卡不问）
+    turns = 3 if product == "cowork" and not reuse else 2
     return round(pages * PAGE_MAX + turns * TURN_MAX, 2)
+
+
+def dry_one(lab, product, viewport, shots):
+    """干跑：假智能体、不识别、不花钱。造数据、前置检查（`preflight`），再把页面上用户做的几步走一遍（放截图说一句、切代录、放 PDF
+    说一句），确认页面不报错、文件放得上、话发得出。"""
+    ready = engine_ready(lab, product)
+    if ready["real_key"]:
+        raise SystemExit(f"{product}: 干跑要假智能体，实验栈现在接着真引擎（先 --engine-off）")
+    params = prepare(lab, product, viewport)
+    checks = preflight(lab, product, params)
+    site, user = SITES[product], USERS[product]
+    sid = lab.session(site, user)
+    try:
+        page = (drive(site, sid, direct_steps(params, viewport)[:1], viewport == "mobile", "") if product == "cowork" else []) + \
+            drive(site, sid, steps(params, viewport)[:2], viewport == "mobile", "")
+    finally:
+        lab.drop(site, user, sid)
+    seen = {r.get("step"): r.get("value") for r in page}
+    errors = [e for r in page for e in (r.get("page_errors") or []) + ([r["error"]] if r.get("error") else [])]
+    # 话发得出、假智能体回了（上传被拒时话发出去了却没有回复：11-09 干跑抓到 PDF 上传 417、识别排队缺容量配置）
+    sent = all(isinstance(v, dict) and v.get("sent") and v.get("got") for k, v in seen.items() if "说一句" in str(k))
+    ok = checks["ok"] and not errors and sent and len(seen) >= (3 if product == "cowork" else 2)
+    return {"product": product, "viewport": viewport, "dry": True, "ok": ok, "preflight": checks, "errors": errors, "steps": seen,
+            "checks": [{"case": "干跑：配置齐、页面步骤走得通", "ok": ok, "seen": {"preflight": checks, "errors": errors[:5]}}]}
 
 
 def run_one(lab, product, viewport, shots, reuse):
@@ -600,6 +663,9 @@ def run_one(lab, product, viewport, shots, reuse):
         raise SystemExit(f"{product}: 实验栈没接真引擎 / 真识别（{ready}），先跑 --engine-on")
     started = time.monotonic()
     params = prepare(lab, product, viewport, reuse)
+    found = preflight(lab, product, params)
+    if not found["ok"]:  # 配置不齐不开跑（不白花钱）
+        raise SystemExit(f"{product}: 前置检查没过，不开跑：{found}")
     site, user = SITES[product], USERS[product]
     sid = lab.session(site, user)
     folder = ""
@@ -661,11 +727,23 @@ COWORK_OCR = (("pearnly_cowork_ocr_environment", '{"OCR_LLM_BACKEND": "vertex"}'
               ("pearnly_ocr_project", '"synthetic-lab"'), ("pearnly_ocr_location", '"asia-southeast1"'))
 
 
-def set_sites(lab, key, engine):
-    site = SITES["cowork"]  # Cowork 的识别要站点上写明识别配置（`ocr.execution.settings.snapshot`），实验栈默认没有
+def set_cowork_ocr(lab, on):
+    """Cowork 的识别要站点上写明识别配置与 Vertex 准入（`ocr.execution.settings.snapshot`），实验栈默认没有。"""
+    site = SITES["cowork"]
     for name, value in COWORK_OCR:
-        lab.bench(*(["bench", "--site", site, "set-config", "--parse", name, value] if engine else
+        lab.bench(*(["bench", "--site", site, "set-config", "--parse", name, value] if on else
                     ["bench", "--site", site, "remove-from-config", name]), timeout=300)
+    # 两个产品的识别排队都要容量计数的 Redis（`execution.budget`，``capacity_not_configured``）：用站点自己的队列 Redis
+    for site in SITES.values():
+        if on:
+            url = lab.python(site, 'print(json.dumps({"url": frappe.conf.get("redis_queue") or ""}))')["url"]
+            lab.bench("bench", "--site", site, "set-config", "pearnly_ocr_budget_redis", url, timeout=300)
+        else:
+            lab.bench("bench", "--site", site, "remove-from-config", "pearnly_ocr_budget_redis", timeout=300)
+
+
+def set_sites(lab, key, engine):
+    set_cowork_ocr(lab, bool(engine))
     for site in SITES.values():
         args = ["bench", "--site", site, "set-config", "pearnly_assistant_api_key", key]
         result = lab.bench(*args, timeout=300)
@@ -713,6 +791,7 @@ def main(argv=None) -> int:
     parser.add_argument("--engine-on", metavar="密钥文件")
     parser.add_argument("--engine-off", action="store_true")
     parser.add_argument("--src", default="", help="实验栈挂的源码工作树（--engine-on / --engine-off 用它的 compose 文件重起 bench）")
+    parser.add_argument("--dry-run", action="store_true", help="干跑：假智能体、不识别、不花钱，只查配置与页面步骤")
     parser.add_argument("--budget", type=float, default=2.0, help="这次场景最多花多少美元（按最坏单价估，超了不开下一遍）")
     parser.add_argument("--spent", default="", help="记累计估价的文件（几次运行共用一个上限；不给就只算这一次）")
     args = parser.parse_args(argv)
@@ -728,6 +807,13 @@ def main(argv=None) -> int:
     for product in products:
         for viewport in viewports:
             reuse = args.reuse and viewport == "mobile" and "desktop" in viewports
+            if args.dry_run:
+                set_cowork_ocr(lab, True)
+                result = dry_one(lab, product, viewport, args.shots)
+                results.append(result)
+                print(f"{'通过' if result['ok'] else '不通过'} 干跑 {product} / {viewport} "
+                      f"{json.dumps({'preflight': result['preflight'], 'errors': result['errors'][:3]}, ensure_ascii=False)}", flush=True)
+                continue
             cost = estimate(product, viewport, reuse)
             spent = float(Path(args.spent).read_text() or 0) if args.spent and Path(args.spent).exists() else sum(
                 r.get("estimate", 0) for r in results)
