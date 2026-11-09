@@ -352,6 +352,9 @@ def build_dms(which):
     if not frappe.conf.get("pearnly_line_mirror"):
         update_site_config("pearnly_line_mirror", "1")
         frappe.local.conf.pearnly_line_mirror = "1"
+        # 网页进程的站点配置缓存 60 秒（Frappe 16 `site_cache(ttl=60)`，同 `scripts/flows/run.py` 的 `Lab.site_config`）：
+        # 只在新实验栈第一次补齐时写，等它过期，接着跑的 DMS 流程才读得到本地镜像
+        time.sleep(61)
     if line.is_configured() or not line.mirroring():
         raise SystemExit("LINE must be the local mirror in the regression laboratory")
     frappe.set_user("Administrator")

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import cc_send_while_waiting as base
-from cc_send_while_waiting import READY, USER, judge, steps, verify  # noqa: F401
+from cc_send_while_waiting import READY, USER, cleanup, judge, steps, verify  # noqa: F401
 
 TITLE = "CC 代录对话识别挂在服务端等时在界面上点发送能发（代录，方案 B：模型空闲显示发送，状态行照常说识别这一步）"
 

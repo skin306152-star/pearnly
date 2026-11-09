@@ -212,6 +212,37 @@ class RerunFailed(unittest.TestCase):
         self.assertTrue(description.endswith("…"))
 
 
+class SiteConfig(unittest.TestCase):
+    """流程临时改站点配置：Frappe 16 网页进程缓存站点配置 60 秒，写完要等它过期才往下（11-09 --jobs 3 偶发「请先配置」）。"""
+
+    def test_waits_until_web_workers_see_the_new_value_and_returns_the_old_one(self):
+        lab, ran, slept = run.Lab(), [], []
+        lab.python = lambda site, body: ran.append((site, body)) or {"k": None}
+        saved = run.time.sleep
+        run.time.sleep = slept.append
+        try:
+            before = lab.site_config("cowork-new.regression.localhost", {"k": {"mode": "economy"}})
+        finally:
+            run.time.sleep = saved
+        self.assertEqual(before, {"k": None})
+        self.assertIn("update_site_config", ran[0][1])
+        self.assertIn("'k': {'mode': 'economy'}", ran[0][1])
+        self.assertEqual(slept, [run.SITE_CONFIG_SETTLE])
+        self.assertGreater(run.SITE_CONFIG_SETTLE, 60)
+
+    def test_flows_change_site_config_only_through_the_lab_and_restore_it_in_cleanup(self):
+        for path in sorted((ROOT / "scripts/flows").glob("*.py")):
+            if path.name == "run.py":
+                continue
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("update_site_config", text, f"{path.name}：改站点配置走 lab.site_config（等网页进程缓存过期）")
+            self.assertNotIn("site_config.json", text, path.name)
+            if "lab.site_config(" in text:
+                cleanup = text.split("\ndef cleanup(", 1)
+                self.assertEqual(len(cleanup), 2, f"{path.name}：改了站点配置要在 cleanup 里还原（成功、失败、超时都跑）")
+                self.assertIn("lab.site_config(", cleanup[1].split("\ndef ", 1)[0], path.name)
+
+
 class BilledSites(unittest.TestCase):
     def test_billed_sites_are_lab_sites(self):
         init = load("scripts/regression/lab_init.py", "lab_init")

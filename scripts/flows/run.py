@@ -44,6 +44,8 @@ STATUS = "pearnly/flows"
 LAB = os.environ.get("PEARNLY_FLOWS_LAB", "pearnly-regression-lab")
 CONTAINER = os.environ.get("REGRESSION_LAB_CONTAINER", f"{LAB}-bench-1")
 PORT = int(os.environ.get("REGRESSION_LAB_PORT", "18771"))
+# 改了站点配置后等多久网页进程才都看到新值：Frappe 16 网页进程的站点配置缓存 60 秒（见 `Lab.site_config`），多等 1 秒
+SITE_CONFIG_SETTLE = 61
 
 
 def registry() -> list[dict]:
@@ -126,6 +128,24 @@ class Lab:
         if result.returncode or not lines:
             raise RuntimeError(f"lab python failed on {site}: {result.stderr[-800:]}")
         return json.loads(lines[-1])
+
+    def site_config(self, site, values):
+        """流程临时改站点配置（site_config.json）一律走这里：写入 values（值为 None = 删掉这一项），回写之前的原值，
+        等网页进程都看到新值才返回。还原也调这里、传回原值（放在流程的 cleanup 里，成功失败都还原）。
+
+        Frappe 16 网页请求读站点配置走进程内缓存（`frappe/config.py`：`site_cache(ttl=60)`），每个网页进程各一份；
+        这里在 bench 进程里改文件，网页进程最多 60 秒内还用旧值。11-09 `--jobs 3` 全套：上一格刚请求过同一站点，
+        `cowork.operator.send-while-waiting` 写好识别配置马上挂附件，碰上旧缓存报「请先配置 Cowork 发票识别参数。」，单跑时站点空闲才不出。"""
+        before = self.python(site, f"""
+from frappe.installer import update_site_config
+wanted = {values!r}
+before = {{key: frappe.conf.get(key) for key in wanted}}
+for key, value in wanted.items():
+    update_site_config(key, "None" if value is None else value)
+print(json.dumps(before))
+""")
+        time.sleep(SITE_CONFIG_SETTLE)
+        return before
 
     def dataset(self, which, product="erp"):
         """这套数据的清单（每个产品各两套：`datasets.py new|old [erp|cowork]`）。"""

@@ -23,7 +23,7 @@ TITLE = "CC 对话识别挂在服务端等时在界面上点发送能发（直�
 READY = "document.readyState === 'complete' && !!document.querySelector('textarea[aria-label]')"
 USER = "admin@cowork.regression"
 # 识别要的站点配置（同线上 `infrastructure/production/site-step.py` 的 COWORK_OCR 与预算 Redis）：没有它识别当场「请先配置」、不会挂起。
-# 凭据只填占位（实验室没有识别进程，任务一直排队、不会真去读）；prepare 记下原值，verify 还原。
+# 凭据只填占位（实验室没有识别进程，任务一直排队、不会真去读）；prepare 记下原值，cleanup 还原（成功、失败、步骤超时都还原）。
 OCR_CONFIG = {"pearnly_cowork_ocr_environment": {"OCR_LLM_BACKEND": "vertex"}, "pearnly_cowork_ocr_policy": {"mode": "economy"},
               "pearnly_ocr_credentials": "/nonexistent/flow-placeholder.json", "pearnly_ocr_budget_redis": "redis://redis:6379/6"}
 
@@ -36,15 +36,6 @@ def prepare(lab, manifest, mode=None):
     company = {}
     if mode == "operator":
         company = lab.python(site, CLEANUP + BASE + 'frappe.db.commit()\nprint(json.dumps({"company": company["id"], "title": company["title"]}))')
-    before = lab.python(site, f"""
-from frappe.installer import update_site_config
-wanted = {OCR_CONFIG!r}
-before = {{key: frappe.conf.get(key) for key in wanted}}
-before["__start"] = str(frappe.utils.now_datetime())
-for key, value in wanted.items():
-    update_site_config(key, value)
-print(json.dumps(before))
-""")
     made = lab.python(site, f"""
 from frappe.utils.pdf import get_pdf
 html = "<h1>{tag} p1</h1><div style='page-break-after: always'></div><h1>{tag} p2</h1>"
@@ -53,8 +44,12 @@ doc = frappe.get_doc({{"doctype": "File", "file_name": "{tag}.pdf", "is_private"
 frappe.db.commit()
 print(json.dumps({{"url": doc.file_url, "size": len(data)}}))
 """)
+    start = lab.python(site, 'print(json.dumps({"now": str(frappe.utils.now_datetime())}))')["now"]
+    # 改配置放在准备的最后（之后出什么错都由 cleanup 还原）。走 `lab.site_config`：等网页进程的配置缓存（60 秒）过了才往下，
+    # 否则挂附件时可能还读到「没配置」（11-09 --jobs 3）
+    before = lab.site_config(site, OCR_CONFIG)
     call = {"name": "cowork_recognize_attachments", "input": {"files": [f"{tag}.pdf"]}}
-    return {"mode": mode, "tag": tag, "url": made["url"], "file": f"{tag}.pdf", **company, "config_before": before,
+    return {"mode": mode, "tag": tag, "url": made["url"], "file": f"{tag}.pdf", **company, "config_before": before, "start": start,
             "tool": f"{tag} [lab-tool]{json.dumps(call)}[/lab-tool]", "ask": f"{tag} 现在识别到哪了？", "cases": []}
 
 
@@ -139,15 +134,17 @@ left = frappe.db.sql("select count(*) from `tabPearnly Assistant Tool Run` where
 {"cleanup()" if params["mode"] == "operator" else ""}
 frappe.db.delete("File", {{"file_name": "{params['file']}"}})
 frappe.db.commit()
-from frappe.installer import update_site_config
-saved = {params.get('config_before') or {}!r}
-start = saved.pop("__start", None)
-for key, value in saved.items():
-    update_site_config(key, "None" if value is None else value)
-# 实验室没有识别进程：这次流程交的识别一直排着，作废掉，不占后面流程的排队名额
-if start:
-    frappe.db.sql("update `tabPearnly OCR Work` set status='cancelled' where status in ('queued', 'deferred') and creation >= %s", (start,))
-    frappe.db.commit()
 print(json.dumps({{"parked_left": int(left)}}))
 """)
     return [{"case": "跑完没有留下挂着的调用、造的附件已删", "seen": out, "ok": out.get("parked_left") == 0}]
+
+
+def cleanup(lab, manifest, params):
+    """成功、失败、步骤超时都跑（`run.run_flow`）：作废这次排着的识别、还原站点配置（等网页进程都看到原值，不带给下一格）。"""
+    # 实验室没有识别进程：这次流程交的识别一直排着，作废掉，不占后面流程的排队名额
+    lab.python(manifest["site"], f"""
+frappe.db.sql("update `tabPearnly OCR Work` set status='cancelled' where status in ('queued', 'deferred') and creation >= %s", ({params['start']!r},))
+frappe.db.commit()
+print("{{}}")
+""")
+    lab.site_config(manifest["site"], params["config_before"])
