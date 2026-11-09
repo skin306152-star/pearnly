@@ -1304,6 +1304,7 @@ const OPERATOR = {
     state: { preparing: "準備中", running: "進行中", attention: "対応が必要", done: "完了" } as Record<string, string>,
     queued: "パソコンの空き待ち",
     doc: { saved: "記帳済み", notDone: "未完了", waiting: "待機中", entering: "進行中", skipped: "スキップ" } as Record<string, string>,
+    untitled: "伝票",
     match: "金額と税額が一致", mismatch: "金額と税額が一致しません",
     finish: (n: number, m: number, time: string) => `完了 ${n} 件、要対応 ${m} 件 · 所要時間 ${time}`,
     docCount: (n: number) => `${n} 件`,
