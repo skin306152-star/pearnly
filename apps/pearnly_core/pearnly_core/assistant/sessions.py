@@ -741,7 +741,9 @@ def _operator_events(row, user, api, after, status) -> dict:
     part = parts[-1] if parts else []
     if parts:
         _remember_context(row, part)
-    operator = feed.events(row)
+    # 资料与开始前卡片垫在引擎记下的第一句之后（本站记的发出时刻比引擎的早几百毫秒，整段重放按时间排时卡片会跑到第一句前面）
+    said = next((event.get("processed_at") for event in history if event.get("type") == "user.message"), None)
+    operator = feed.events(row, said=said)
     history = _with_tool_runs(contracts.merge_by_time(history, notices.feed(row.session_id, user) + operator), row)
     page = {"events": history, "full": True, "session": {"id": row.session_id, "title": row.title or "",
                                                          "archived_at": _when(row.modified) if row.archived else None}}
@@ -829,7 +831,14 @@ def send(session_id, text) -> None:
         batch.append(note)
     api.post(remote, batch)
     if row.get("operator_task"):
+        from pearnly_core.express_operator import tasks as operator_tasks
         from pearnly_core.express_operator import uploads as operator_uploads
+
+        # 代录会话的第一句发出了：记下此刻，资料与开始前卡片这时才出、排在这句后面（``feed.project``）。记不上只留日志
+        try:
+            operator_tasks.message_sent(row.operator_task)
+        except Exception:
+            frappe.log_error(title="Operator message sent mark failed")
 
         # 代录会话：这条消息带着的、输入框里已交识别的资料这时才进对话（上传卡片排在这条消息后面，files._operator_take）。
         # 消息已发出：记不上（任务刚被删等）只留日志，不当发送失败

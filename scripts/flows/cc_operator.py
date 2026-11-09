@@ -40,18 +40,19 @@ waiting = \"\"\"SELECT name, doc_date, ledger_state, ledger_reason FROM `tabPurc
     WHERE company = %s AND status = 'submitted' AND COALESCE(ledger_job, '') = ''
     AND COALESCE(ledger_state, '') IN ('', 'queued', 'held', 'failed')
     AND NOT EXISTS (SELECT 1 FROM `tabERP Line Serial` s WHERE s.parenttype = 'Purchase Document' AND s.parent = p.name)
-    ORDER BY (doc_date BETWEEN %s AND %s) DESC, name ASC LIMIT 1\"\"\"
+    ORDER BY (doc_date BETWEEN %s AND %s) DESC, name ASC LIMIT 8\"\"\"
 found = frappe.db.sql(waiting, ({company!r}, first, last), as_dict=True)
 if not found:
     raise RuntimeError("no submitted purchase document waiting to be written for {company}: the dataset needs one")
-row = found[0]
-restore = [{{"name": row.name, "doc_date": str(row.doc_date), "ledger_state": row.ledger_state or "",
-             "ledger_reason": row.ledger_reason or ""}}]
-values = {{"ledger_state": contracts.HELD, "ledger_reason": contracts.OFFLINE}}
-if not (first <= str(row.doc_date) <= last):
-    values["doc_date"] = first
-frappe.db.set_value(push.PURCHASE, row.name, values, update_modified=False)
-marked = [row.name]
+restore, marked = [], []
+for row in found:  # 最多 8 张：多过开始前卡片先列的行数，卡片要收起其余的（11-09 发布前：45 张逐行列出，把用户的话和回复挤出视口）
+    restore.append({{"name": row.name, "doc_date": str(row.doc_date), "ledger_state": row.ledger_state or "",
+                    "ledger_reason": row.ledger_reason or ""}})
+    values = {{"ledger_state": contracts.HELD, "ledger_reason": contracts.OFFLINE}}
+    if not (first <= str(row.doc_date) <= last):
+        values["doc_date"] = first
+    frappe.db.set_value(push.PURCHASE, row.name, values, update_modified=False)
+    marked.append(row.name)
 frappe.db.commit()
 docs = operator.sources({company!r}, period, 0, 500)["documents"]
 print(json.dumps({{"title": frappe.db.get_value("ERP Company", {company!r}, "company_name") or {company!r}, "period": period,
@@ -80,10 +81,15 @@ def steps(params, camera_code=None):
          f"return qa('[data-role=\"assistant\"]').some(e=>e.innerText.includes({json.dumps(REPLY)})); }},160); "
          "await until(()=>!q('[data-slot=\"cc-run-indicator\"]'),40); "
          "const card=await until(()=>q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-target\"]'),120); "
+         "await until(()=>q('[data-slot=\"cc-op-before\"] .cc-op-before-body'),80); await sleep(500); "
+         "const roles=qa('[data-role]'); const userAt=roles.findIndex(e=>e.dataset.role==='user'); "
+         "const cardAt=roles.findIndex(e=>e.querySelector('[data-slot=\"cc-op-before\"]')); "
+         "const lines=qa('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-handle\"], [data-slot=\"cc-op-before\"] [data-slot=\"cc-op-unknown\"]').length; "
+         "const moreRows=!!q('[data-slot=\"cc-op-before\"] .cc-show-more'); "
          "return {picked, period, sent, got, indicator, after: qa('[data-slot=\"cc-run-indicator\"]').length, mode: mode(), "
          "user: qa('[data-role=\"user\"]').map(e=>e.innerText.trim()), assistant: qa('[data-role=\"assistant\"]').map(e=>e.innerText.trim().slice(0,120)), "
          "card, target: q('[data-slot=\"cc-op-target\"]')?.innerText.trim()||'', "
-         "start: !!q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-start\"]')};"},
+         "start: !!q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-start\"]'), userAt, cardAt, lines, moreRows};"},
         {"name": "侧栏按模式", "js": JS + "const operator=await listed('operator'); const chat=await listed('chat'); "
          f"const mine=operator.filter(s=>s.project==={json.dumps(company)}&&s.mode==='operator'&&s.task); "
          "return {operator: operator.map(s=>({id:s.id, mode:s.mode, task:s.task, project:s.project, period:s.period, title:s.title})), "
@@ -137,6 +143,10 @@ def judge(params, results, camera_code=None):
          and new[0] not in (side.get("chat") or []) and bool(side.get("active"))},
         {"case": "代录事件源出「开始前」卡片：写入这家的 Express、有「开始」", "seen": {k: made.get(k) for k in ("card", "target", "start")},
          "ok": bool(made.get("card")) and params["title"] in (made.get("target") or "") and bool(made.get("start"))},
+        {"case": "开始前卡片排在用户这句之后，逐张的行最多先列 5 行、其余收进「显示更多」（11-09：45 张逐行列出、卡片排在前面，用户的话和回复被挤出视口）",
+         "seen": {k: made.get(k) for k in ("userAt", "cardAt", "lines", "moreRows")} | {"marked": len(params["marked"]), "site": params["docs"]},
+         "ok": 0 <= int(made.get("userAt", -1)) < int(made.get("cardAt", -1))
+         and 1 <= int(made.get("lines") or 0) <= 5 and (len(params["marked"]) <= 5 or bool(made.get("moreRows")))},
         {"case": "资料那一步点开与站点这家这个月等着录的单一致（张数相同、单号逐张在列）", "seen": {**files, "site": params["docs"], "refs": params["refs"]},
          "ok": bool(files.get("opened")) and files.get("rows") == params["docs"]
          and all(ref in (files.get("text") or "") for ref in params["refs"])},

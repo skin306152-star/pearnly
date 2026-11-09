@@ -263,6 +263,17 @@ def settle(name) -> dict:
     return view(doc)
 
 
+def message_sent(name) -> bool:
+    """这段代录对话的第一句发出了（``sessions.send`` 发出成功后）：记下此刻，资料与开始前卡片这时才出、排在这句后面
+    （``feed.project``）。记过的不改。回这次是否记了。"""
+    doc = _own(name, for_update=True)
+    if doc.get("message_at"):
+        return False
+    doc.message_at = now_datetime()
+    _save(doc)
+    return True
+
+
 # ── 任务里的对话（对话框甲，主会话 10-29 审定）：一个任务一段对话，挂在对话会话表上（``operator_task``），不进对话侧栏 ─────
 CONTROL_ACTIONS = ("skip", "retry")
 STOP = "stop"  # 停止整个任务（统一对话框架 U-Q3）：别的设备上点了停止，执行的那台电脑的 CC 页面取走后经桥停下；不针对哪张单
@@ -395,5 +406,5 @@ def resume(name) -> dict:
 
 
 __all__ = ["CONTROL_ACTIONS", "DOCTYPE", "STOP", "EVENT", "RESUMABLE", "STATUSES", "answer", "attach", "attention", "create", "delete", "listing",
-           "mark_running", "push_control", "read", "resume", "settle", "site_product", "take_controls", "thread", "thread_note",
+           "mark_running", "message_sent", "push_control", "read", "resume", "settle", "site_product", "take_controls", "thread", "thread_note",
            "update", "view"]

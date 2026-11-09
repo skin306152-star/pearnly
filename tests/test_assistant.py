@@ -5001,7 +5001,7 @@ class OperatorSessionTests(unittest.TestCase):
              "processed_at": "2026-10-15T01:00:00.000000Z"},
             {"type": "session.status_running", "id": "pop_task0001_st_run_1", "processed_at": "2026-10-15T01:00:00.000005Z"}]
         feed = types.ModuleType("pearnly_core.express_operator.feed")
-        feed.events = lambda row, moment=None: self.fed.append((row.session_id, moment)) or list(operator_events)
+        feed.events = lambda row, moment=None, said=None: self.fed.append((row.session_id, moment)) or list(operator_events)
         feed.run_state = lambda events, as_of=None: {"status": "running" if events else "idle", "parked": [],
                                                      "awaiting_approval": [], "executing": [], "as_of": as_of}
         tasks = types.ModuleType("pearnly_core.express_operator.tasks")

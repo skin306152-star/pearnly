@@ -272,6 +272,7 @@ def _task(status="preparing", docs=(), uploads=(), **extra):
     started = None if status == "preparing" else T0 + datetime.timedelta(minutes=5)
     return _Row(name="tk0001", owner="a@example.com", company="CO-1", company_title="Siam", period="2026-10",
                 status=status, creation=T0, started_at=started, finished_at=extra.pop("finished_at", None),
+                message_at=extra.pop("message_at", T0),
                 computer="CCD-1", session_id="op_tk0001", documents=[_Row(d) for d in docs],
                 uploads=[_Row(u) for u in uploads], **extra)
 
@@ -403,6 +404,34 @@ class ProjectionTests(unittest.TestCase):
         first, again = self.project(task, states), self.project(copy.deepcopy(task), copy.deepcopy(states))
         self.assertEqual(first, again)
         self.assertEqual(json.dumps(first, sort_keys=True), json.dumps(again, sort_keys=True))
+
+    def test_the_start_card_follows_the_users_first_message(self):
+        """11-08 生产：资料与开始前卡片锚在建任务那一刻，排在用户第一句之前；11-09 发布前流程：单多时卡片很高，用户的话和回复被
+        挤出视口；锚成「建任务 + 2 秒」时卡片是未来的时刻，页面先收到未来的「等你点开始」，后到的「本轮结束」被当成旧的丢掉，
+        状态行停在「正在执行」。改：第一句发出前不出这两张卡；发出后锚在第一句（与文件）之后，不用未来的时刻；整段重放再垫在
+        引擎记下的第一句之后。"""
+        ids = lambda events: [e["id"] for e in events]
+        fresh = self.project(_task("preparing", message_at=None))
+        self.assertNotIn("pop_tk0001_start", ids(fresh))
+        self.assertNotIn("pop_tk0001_sources", ids(fresh))
+        self.assertEqual(self.feed.run_state(fresh)["status"], "idle")
+        said = T0 + datetime.timedelta(seconds=7)
+        events = self.project(_task("preparing", message_at=said))
+        start = next(e for e in events if e["id"] == "pop_tk0001_start")
+        self.assertGreater(start["processed_at"], self.feed._iso(said, TZ))
+        self.assertLess(start["processed_at"], self.feed._iso(said + datetime.timedelta(seconds=1), TZ))
+        self.assertEqual(self.feed.run_state(events)["awaiting_approval"], ["pop_tk0001_start"])
+        up = {"name": "up1", "request_key": "k1", "filename": "a.pdf", "size": 10, "batch": "OCR-1",
+              "uploaded_at": said + datetime.timedelta(seconds=1)}
+        events = self.project(_task("preparing", uploads=[up], message_at=said))
+        order = ids(events)
+        self.assertLess(order.index("pop_tk0001_uup1"), order.index("pop_tk0001_start"))
+        self.assertLess(order.index("pop_tk0001_uup1"), order.index("pop_tk0001_sources"))
+        self.assertEqual(events, self.project(_task("preparing", uploads=[up], message_at=said)))
+        engine = said + datetime.timedelta(seconds=3)  # 引擎记下的第一句比本站记的晚
+        replay = self.feed.project(_task("preparing", message_at=said), None, TZ, engine)
+        start = next(e for e in replay if e["id"] == "pop_tk0001_start")
+        self.assertGreater(start["processed_at"], self.feed._iso(engine, TZ))
 
     def test_upload_steps_follow_the_recognition_state(self):
         up = {"name": "up1", "request_key": "k1", "filename": "a.pdf", "size": 10, "batch": "OCR-1", "source": "f1",
@@ -641,6 +670,9 @@ class LifecycleTests(unittest.TestCase):
     def test_only_the_owner_reads_the_task_events_and_report(self):
         name = self.tasks.create("CO-1", "2026-10")["name"]
         row = _Row(operator_task=name, user="a@example.com")
+        self.assertEqual(self.feed.events(row), [])  # 第一句还没发出：还没有卡片
+        self.assertTrue(self.tasks.message_sent(name))
+        self.assertFalse(self.tasks.message_sent(name))  # 只记第一句
         self.assertTrue(self.feed.events(row))
         self.state["frappe"].session.user = "b@example.com"
         self.assertEqual(self.feed.events(_Row(operator_task=name, user="b@example.com")), [])

@@ -17,6 +17,7 @@
   "start_at",
   "started_at",
   "finished_at",
+  "message_at",
   "session_id",
   "controls",
   "documents",
@@ -89,6 +90,12 @@
    "read_only": 1
   },
   {
+   "fieldname": "message_at",
+   "fieldtype": "Datetime",
+   "label": "Sent On",
+   "read_only": 1
+  },
+  {
    "fieldname": "session_id",
    "fieldtype": "Data",
    "label": "Conversation",
@@ -116,7 +123,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-04 16:00:00.000000",
+ "modified": "2026-11-09 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Express Operator Task",

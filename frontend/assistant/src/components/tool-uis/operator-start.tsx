@@ -54,6 +54,18 @@ export function docsToStart(docs: readonly DocRef[], prechecks: readonly Prechec
 }
 
 /** 一行单据与它能做的。 */
+// 卡片里逐张列的单（结果不明、要人处理）先列这么多行，其余收进「显示更多」（11-09 发布前流程：45 张逐行列出卡片高 2300px，
+// 把用户的话和回复挤出视口；全部的单在「资料」那一步）
+export const ROWS_SHOWN = 5;
+
+/** 先列的几行：结果不明的在前（各带按钮），再是要人处理的；`all` 时全列。 */
+export function rowsShown<T>(unknown: readonly T[], stopped: readonly T[], all: boolean): { unknown: T[]; stopped: T[]; hidden: number } {
+  if (all) return { unknown: [...unknown], stopped: [...stopped], hidden: 0 };
+  const first = unknown.slice(0, ROWS_SHOWN);
+  const rest = stopped.slice(0, ROWS_SHOWN - first.length);
+  return { unknown: first, stopped: rest, hidden: unknown.length + stopped.length - first.length - rest.length };
+}
+
 const DocLine: FC<{ title: string; detail?: string; slot: string; children?: ReactNode }> = ({ title, detail, slot, children }) => (
   <div className="cc-op-handle" data-slot={slot}>
     <Marquee className="block min-w-0 truncate text-ink">{title}</Marquee>
@@ -118,11 +130,13 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
   const uploads = useAuiState((s) => uploadsDoneKey(s.thread.messages));
   const { prep, more, reload, refresh } = usePrep(input, asking, uploads);
   const [notice, setNotice] = useState("");
+  const [allRows, setAllRows] = useState(false);
   const prechecks = prep?.prechecks ?? [];
   const titleOf = (id: string) => docTitle(prep?.docs.find((d) => d.doc_id === id) ?? {}, id);
   const unknown = prechecks.filter((p) => p.state === "blocked" && p.reason === RESULT_UNKNOWN);
   const stopped = prechecks.filter((p) => (p.state === "blocked" || p.state === "waiting") && p.reason !== RESULT_UNKNOWN);
   const result = resultOf<StartResult>(props.result);
+  const shown = rowsShown(unknown, stopped, allRows);
 
   // 点「开始」前再取一次资料（卡片出现后才上传、识别完的单也交上去）
   const start = () =>
@@ -157,7 +171,7 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
           </button>
         </div>
       )}
-      {unknown.map((d) => (
+      {shown.unknown.map((d) => (
         <DocLine key={d.doc_id} slot="cc-op-unknown" title={titleOf(d.doc_id)} detail={reasonText(d.reason, d.message)}>
           <div className="cc-card-actions">
             <button type="button" className="cc-card-btn" data-slot="cc-op-entered" disabled={action.busy} onClick={() => resolve(d.doc_id, true)}>
@@ -169,11 +183,12 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
           </div>
         </DocLine>
       ))}
-      {stopped.map((d) => (
+      {shown.stopped.map((d) => (
         <DocLine key={d.doc_id} slot="cc-op-handle" title={titleOf(d.doc_id)} detail={reasonText(d.reason, d.message)} />
       ))}
-      {prep.next !== null && (
-        <button type="button" className="cc-show-more" disabled={action.busy} onClick={() => void action.run(more, false)}>
+      {(shown.hidden > 0 || prep.next !== null) && (
+        <button type="button" className="cc-show-more" disabled={action.busy}
+          onClick={() => (shown.hidden > 0 ? setAllRows(true) : void action.run(more, false))}>
           {co.showMore}
         </button>
       )}

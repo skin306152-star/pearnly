@@ -177,9 +177,10 @@ def last_time(task):
     return max(t for t in times if t)
 
 
-def project(task, upload_states=None, tz: str = "UTC") -> list[dict]:
+def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]:
     """一个任务记录 → 统一对话事件（旧 → 新）。``upload_states``：``{上传行名: shapes.upload_view(...)}``，产品此刻的识别状态；
-    不给（实时推送）就只出上传这一步本身。纯函数：同一份记录、同一份识别状态两次投影逐条相同。"""
+    不给（实时推送）就只出上传这一步本身。``floor``：资料与开始前卡片不早于这一刻（站点时区；整段重放时取引擎记下的第一句）。
+    纯函数：同一份记录、同一份识别状态两次投影逐条相同。"""
     name = str(_get(task, "name"))
     p = f"{PREFIX}{name}_"
     out = _Out(tz)
@@ -190,9 +191,20 @@ def project(task, upload_states=None, tz: str = "UTC") -> list[dict]:
     base = {"task": name, "company": company}
     head = {**base, "company_title": str(_get(task, "company_title") or ""), "period": str(_get(task, "period") or "")}
     docs = _docs(task)
+    uploads = _uploads(task)
+    # 资料与开始前卡片排在用户这次的话与文件之后（11-08 生产：锚在建任务那一刻，卡片永远排在用户第一句前面；11-09 发布前：单多时
+    # 卡片很高，把用户的话和回复挤出视口）：取建任务、第一句发出（``message_at``，发出成功后记）与最后一份上传（同样发出后记）里
+    # 晚的那个。不往后挪成未来的时刻：页面按服务端时间取舍会话状态，先收到未来的「等你点开始」，后到的「本轮结束」就被当成旧的
+    # 丢掉、状态行停在「正在执行」。整段重放时 ``floor``（引擎记下的第一句时刻）再垫一次，引擎的时刻比本站记的晚几百毫秒。
+    # 建了任务、第一句还没发出：先不出这两张卡（发出时记上时刻、推送出来）
+    said = _moment(_get(task, "message_at"))
+    moments = [created, said, *[item["at"] for item in uploads if item["at"]], floor]
+    anchor = max(moment for moment in moments if moment) + timedelta(microseconds=10)
+    cards = bool(said or uploads) or status != "preparing"
 
     # E4 资料清单
-    out.tool(p + "sources", SOURCES, head, created)
+    if cards:
+        out.tool(p + "sources", SOURCES, head, anchor)
     if status != "preparing":
         groups = {}
         for item in docs:
@@ -202,19 +214,21 @@ def project(task, upload_states=None, tz: str = "UTC") -> list[dict]:
 
     # E5 / E6 开始前确认
     start = p + "start"
-    out.tool(start, START, head, created, custom=True, bump=1)
+    if cards:
+        out.tool(start, START, head, anchor, custom=True, bump=1)
     if status == "preparing":
-        out.run(start, "awaiting_approval", created, bump=1)
+        if cards:
+            out.run(start, "awaiting_approval", anchor, bump=1)
     else:
         not_sent = [{**_doc_view(item), "reason": reason_code(item["raw"])} for item in docs
                     if item["state"] == "not_done" and _get(item["row"], "queued_at")
                     and _moment(_get(item["row"], "queued_at")) == _moment(_get(item["row"], "done_at"))]
         out.answer(start, {"sent": len(docs) - len(not_sent), "not_sent": not_sent,
                            "computer": str(_get(task, "computer") or ""), "start_at": str(_get(task, "start_at") or "")},
-                   started, bump=2)
+                   max(started, anchor), bump=2)
 
     # E3 上传
-    for item in _uploads(task):
+    for item in uploads:
         row, use = item["row"], f"{p}u{item['key']}"
         out.tool(use, UPLOAD, {**base, **{k: _get(row, k) or ("" if k != "size" else 0)
                                           for k in ("request_key", "filename", "size", "batch", "source")}}, item["at"])
@@ -282,11 +296,12 @@ def project(task, upload_states=None, tz: str = "UTC") -> list[dict]:
         awaiting.append(card)
 
     # E7 / E14 / E17 整个会话的状态
-    last = last_time(task)
+    last = max(last_time(task), anchor)  # 排在开始前卡片之后：它的时刻取过用户这次的话
     open_docs = [item for item in docs if item["state"] in OPEN]
     concluded = len(docs) - len(open_docs)
     if status == "preparing":
-        _status(out, p, "wait", {"type": "requires_action", "event_ids": [start]}, last)
+        if cards:
+            _status(out, p, "wait", {"type": "requires_action", "event_ids": [start]}, last)
     elif status in ("queued", "running"):
         out.add({"type": "session.status_running", "id": f"{p}st_run_{_ms(last)}"}, last, 5)
         label = "waiting_computer" if status == "queued" else "entering"
@@ -406,12 +421,15 @@ def task_of(row):
     return frappe.get_doc(tasks.DOCTYPE, found) if found else None
 
 
-def events(row, moment=None) -> list[dict]:
-    """``sessions.events`` 并进来的那一路：整段（``moment`` 为空）或锚点时间之后的。"""
+def events(row, moment=None, said=None) -> list[dict]:
+    """``sessions.events`` 并进来的那一路：整段（``moment`` 为空）或锚点时间之后的。``said``：整段重放时引擎记下的第一句用户
+    消息时刻（RFC3339），卡片垫在它之后。"""
     doc = task_of(row)
     if doc is None:
         return []
-    found = project(doc, upload_states(doc), _tz())
+    tz = _tz()
+    floor = chat.local_time(chat.instant(said), tz) if said and chat.instant(said) else None
+    found = project(doc, upload_states(doc), tz, floor)
     return found if moment is None else since(found, moment, f"{PREFIX}{doc.name}_u")
 
 
