@@ -1,7 +1,7 @@
 """对话里的文件（ADR-019）：附件进会话、结果文件列出与下载。
 
 - 附件：浏览器传到本站 → 校验类型与大小（HEIC 照片先转 JPEG，与三个产品的上传口一致）→ 交给引擎放进该会话，
-  智能体按返回的位置读取。
+  智能体按返回的位置读取。字节传引擎在线程里与站点这边的活同时做（`_upload`，11-09 U2）。
 - 结果：智能体产出的文件按会话列出，可预览、下载。Excel 与 Word（.docx）由这里读成纯数据交给结果面板（`preview`），
   页面按文字渲染，文档里的脚本、外链到不了页面；读不出就给下载。
 - 文件不脱离会话存在：下载前先核对「会话属于当前用户」且「文件属于这个会话」，猜编号读不到别人的文件。
@@ -26,6 +26,9 @@ import mimetypes
 import os
 import re
 import shutil
+import threading
+import time
+import uuid
 
 import frappe
 from frappe import _
@@ -58,6 +61,12 @@ def upload(session_id) -> dict:
 
 
 def _upload(row) -> dict:
+    """一份附件进会话。字节传引擎（引擎在美国，10MB 约 2–5 秒）放在线程里，与站点这边的活同时做：开 / 接续远端会话、
+    代录交任务（存原件 + 交识别）、本站留存、读页数；两边都做完再挂进会话。11-08 晚 24 页 10.6MB 一份串着做要 13.4 秒
+    （研究 docs/work/2026-11-08-cc-upload-ux-研究.md，U2）。上传编号由本站先定（`_new_upload_id`），交任务、留存、
+    页数缓存不必等引擎回编号；挂载位置里记的也是它，会话文件列表、消息里的附件、工具取文件都按它认，与以前引擎编号的老附件同一认法。
+    每段耗时记进日志 `pearnly.assistant.upload`（U0：不带文件名、票面）。"""
+    steps = _Steps()
     sent = (frappe.request.files or {}).get("file") if frappe.request else None
     if not sent:
         frappe.throw(_("No file was received."))
@@ -66,12 +75,79 @@ def _upload(row) -> dict:
     mime = sent.mimetype or "application/octet-stream"
     if heic.is_heic(content):
         content, name, mime = heic.to_jpeg(content), heic.jpeg_name(name), "image/jpeg"
+    steps.done("read")
     api = engine.adapter()
-    stored = api.attach(sessions.segment_for_turn(row, api), name, content, mime)
-    task = _operator_take(row, stored["file_id"], name, content)
-    _keep(row, stored["file_id"], name, content)
-    meta = _remember_meta(stored["file_id"], name, content)
+    upload_id = _new_upload_id()
+    sending = _Background(lambda: api.upload(name, content, mime))
+    remote = sessions.segment_for_turn(row, api)
+    steps.done("session")
+    task = _operator_take(row, upload_id, name, content)
+    steps.done("task")
+    _keep(row, upload_id, name, content)
+    meta = _remember_meta(upload_id, name, content)
+    steps.done("keep")
+    try:
+        engine_file = sending.result()
+    except Exception:
+        # 引擎一时没收（断线、超时）：站点这边已交过任务、留存过，同一个上传编号再传一次，不让用户重传（重传会再交一次识别）
+        frappe.log_error(title="Assistant attachment upload retried")
+        engine_file = api.upload(name, content, mime)
+    steps.done("engine_wait", engine=sending.seconds)
+    stored = api.mount(remote, engine_file, upload_id, name)
+    steps.done("mount")
+    steps.log(size=len(content), pages=meta.get("pages"), operator=bool(row.get("operator_task")))
     return {"fileId": stored["file_id"], "filename": name, "mountPath": stored["path"], **meta, **task}
+
+
+def _new_upload_id() -> str:
+    """用户附件的上传编号：本站先定，挂载位置、本站留存、交任务的请求键都用它（`contracts.file_id` 认得的写法）。"""
+    return "upl_" + uuid.uuid4().hex
+
+
+class _Background:
+    """在线程里跑一件只做网络调用的事（不碰站点库、`frappe.local` 在线程里是空的），`result()` 等它做完、原样抛它的错。"""
+
+    def __init__(self, work):
+        self._work, self._value, self._error, self.seconds = work, None, None, 0.0
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def _run(self):
+        began = time.monotonic()
+        try:
+            self._value = self._work()
+        except BaseException as exc:  # noqa: BLE001 —— 原样交给 result() 抛
+            self._error = exc
+        finally:
+            self.seconds = time.monotonic() - began
+
+    def result(self):
+        self._thread.join()
+        if self._error is not None:
+            raise self._error
+        return self._value
+
+
+class _Steps:
+    """上传口每段耗时（秒）：`done(段名)` 记上一段到此刻，`log` 写一行进 `pearnly.assistant.upload`（U0）。"""
+
+    def __init__(self):
+        self._began = self._last = time.monotonic()
+        self.marks = {}
+
+    def done(self, step, **extra):
+        now = time.monotonic()
+        self.marks[step] = round(now - self._last, 3)
+        self.marks.update({key: round(value, 3) for key, value in extra.items()})
+        self._last = now
+
+    def log(self, **facts):
+        total = round(time.monotonic() - self._began, 3)
+        parts = [f"{key}={value}" for key, value in {**facts, **self.marks, "total": total}.items() if value is not None]
+        try:
+            frappe.logger("pearnly.assistant.upload").info("attachment upload " + " ".join(parts))
+        except Exception:
+            pass
 
 
 def _operator_take(row, file_id, name, content) -> dict:
@@ -246,8 +322,8 @@ def listing(session_id) -> list[dict]:
     """本会话的全部文件：挂进去的附件（只作输入）+ 智能体产出的结果（可下载）。按生成时间从早到晚排：引擎列文件是
     新的在前，结果面板默认打开最后一个，新导出的文件出来时面板却停在最早那份（2026-10-10 测试）。
     附件（kind = upload）按本站留存的那份补上大小与 PDF 页数（`pages`），对话里的附件卡片显示「PDF · N 页」/ 大小。
-    附件的编号是上传时引擎给的那个（`upload` 返回、消息的挂载位置里记的、本站留存用的同一个，引擎另存的副本不列，见适配器
-    `files`），刷新后、别的设备上卡片照样按它对上（第 5 轮测试 1）。"""
+    附件的编号是挂载位置里的那个（`upload` 返回、消息的挂载位置里记的、本站留存用的同一个：11-09 起是本站先定的上传编号，
+    更早的是引擎给的文件编号，认法相同；引擎另存的副本不列，见适配器 `files`），刷新后、别的设备上卡片照样按它对上（第 5 轮测试 1）。"""
     row = sessions.owned(session_id, allow_archived=True)
     api = engine.adapter()
     found = sorted((f for remote in sessions.segments(row) for f in api.files(remote)),

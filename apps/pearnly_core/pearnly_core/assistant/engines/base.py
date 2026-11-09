@@ -128,6 +128,15 @@ class Adapter(abc.ABC):
         """把附件交给会话，返回 `{"file_id", "path"}`：`path` 是智能体读取它的位置，会随消息告诉智能体。"""
 
     @abc.abstractmethod
+    def upload(self, filename: str, content: bytes, mime: str) -> str:
+        """只把字节传进引擎的文件库（还不挂进会话），返回引擎的文件编号。只做网络调用、不碰站点库，可以放在线程里
+        与站点这边的活同时做（用户附件上传口，`files._upload`）。"""
+
+    @abc.abstractmethod
+    def mount(self, conversation: str, engine_file: str, upload_id: str, filename: str) -> dict:
+        """把 `upload` 传上的文件挂进会话，位置按本站给的上传编号定，返回 `{"file_id": upload_id, "path"}`（同 `attach`）。"""
+
+    @abc.abstractmethod
     def files(self, conversation: str) -> list[dict]:
         """本会话的文件：`{"id", "filename", "size_bytes", "mime_type", "downloadable", "created_at",
         "kind": "upload" | "output"}`。附件（upload）的 `id` 是 `attach` 返回的那个编号（消息里记的、本站留存用的都是它），

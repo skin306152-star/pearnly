@@ -234,11 +234,18 @@ class Adapter(base.Adapter):
         self.api.beta.sessions.events.send(conversation, events=events)
 
     def attach(self, conversation: str, filename: str, content: bytes, mime: str) -> dict:
-        stored = self.api.files.upload(file=(filename, content, mime))
-        # 按文件编号分目录：同名文件不互相覆盖，最后一段保留可读的名字。
-        path = f"{UPLOADS}/{stored.id}/{filename}"
-        self.api.beta.sessions.resources.add(conversation, type="file", file_id=stored.id, mount_path=path)
-        return {"file_id": stored.id, "path": path}
+        engine_file = self.upload(filename, content, mime)
+        return self.mount(conversation, engine_file, engine_file, filename)
+
+    def upload(self, filename: str, content: bytes, mime: str) -> str:
+        return self.api.files.upload(file=(filename, content, mime)).id
+
+    def mount(self, conversation: str, engine_file: str, upload_id: str, filename: str) -> dict:
+        # 按上传编号分目录：同名文件不互相覆盖，最后一段保留可读的名字。会话文件列表、本站留存、消息里记的都认这个编号
+        # （`_mounted_id`）；用户附件的上传编号由本站先定（`files._upload`），工具放进来的文件用引擎的文件编号。
+        path = f"{UPLOADS}/{upload_id}/{filename}"
+        self.api.beta.sessions.resources.add(conversation, type="file", file_id=engine_file, mount_path=path)
+        return {"file_id": upload_id, "path": path}
 
     def files(self, conversation: str) -> list[dict]:
         """附件按挂载位置里的编号列（`attach` 返回、随消息记下、本站留存用的都是这个编号）。

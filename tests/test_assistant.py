@@ -747,7 +747,9 @@ class RelayTests(unittest.TestCase):
         # 引擎不让下载用户上传的文件：原件在本站留一份挂在会话上；工具执行时知道是哪个对话，只取这个对话的附件。
         files = (CORE / "assistant/files.py").read_text(encoding="utf-8")
         upload = files.split("def _upload(", 1)[1].split("\ndef ", 1)[0]
-        self.assertIn('_keep(row, stored["file_id"], name, content)', upload)
+        # 留存与挂进会话用同一个上传编号（U2：本站先定，消息里的挂载位置记的也是它）
+        self.assertIn("_keep(row, upload_id, name, content)", upload)
+        self.assertIn("api.mount(remote, engine_file, upload_id, name)", upload)
         kept = files.split("def _kept(", 1)[1].split("\ndef ", 1)[0]
         self.assertIn("sessions.owned(", kept)
         self.assertIn('"attached_to_name": row.name', kept)
@@ -831,11 +833,15 @@ class RelayTests(unittest.TestCase):
         operator_uploads.take = lambda task, name, content, key: taken.append((task, name, content, key)) or answer["view"]
         package = sys.modules.setdefault("pearnly_core.express_operator", types.ModuleType("pearnly_core.express_operator"))
         files = _load("pearnly_core.assistant.files", CORE / "assistant/files.py")
-        numbers = iter(["file_A", "file_B", "file_C"])
+        numbers = iter(["upl_A", "upl_B", "upl_C"])
+        files._new_upload_id = lambda: next(numbers)
+        mounted = []
 
-        def attach(remote, name, content, mime):
-            number = next(numbers)
-            return {"file_id": number, "path": f"/mnt/session/uploads/{number}/{name}"}
+        def mount(remote, engine_file, upload_id, name):
+            mounted.append((remote, engine_file, upload_id))
+            return {"file_id": upload_id, "path": f"/mnt/session/uploads/{upload_id}/{name}"}
+
+        adapter = types.SimpleNamespace(upload=lambda name, content, mime: "file_engine_" + name, mount=mount)
 
         class Sent:
             def __init__(self, name, content):
@@ -864,11 +870,15 @@ class RelayTests(unittest.TestCase):
         try:
             with mock.patch.dict(sys.modules, {"pearnly_core.express_operator.uploads": operator_uploads}), \
                     mock.patch.object(package, "uploads", operator_uploads, create=True), \
-                    mock.patch.object(files.engine, "adapter", return_value=types.SimpleNamespace(attach=attach)):
+                    mock.patch.object(files.engine, "adapter", return_value=adapter):
                 frappe.request = types.SimpleNamespace(files={"file": Sent("bill.pdf", b"%PDF-x")})
                 out = files.upload("s1")
-                self.assertEqual(taken, [("t001", "bill.pdf", b"%PDF-x", "file_A")])
-                self.assertEqual((out["fileId"], out["task"], out["upload"]["batch"]), ("file_A", "t001", "B-1"))
+                # 交任务的请求键、挂载位置、回包都是本站先定的上传编号；引擎的文件编号只用来挂进会话（U2）
+                self.assertEqual(taken, [("t001", "bill.pdf", b"%PDF-x", "upl_A")])
+                self.assertEqual((out["fileId"], out["task"], out["upload"]["batch"]), ("upl_A", "t001", "B-1"))
+                self.assertEqual(out["mountPath"], "/mnt/session/uploads/upl_A/bill.pdf")
+                self.assertEqual(mounted, [("remote-row1", "file_engine_bill.pdf", "upl_A")])
+                self.assertTrue(os.path.isfile(os.path.join(root, "private", files.KEPT, "row1", "upl_A--bill.pdf")))
                 # 同一段代录会话里同时传几份按会话排队：拿锁、丢旧读视图、交任务、先提交再放锁（11-06 一次选两份第二份 500）
                 key = "t.localhost:pearnly_assistant:upload:row1"
                 self.assertEqual(trail, [("lock", key), ("rollback",), ("take",), ("commit",), ("unlock", key)])
@@ -879,7 +889,7 @@ class RelayTests(unittest.TestCase):
                 self.assertNotIn("task", out)
                 answer["view"] = None  # 任务不收：照常只进对话，不带任务
                 out = files.upload("s1")
-                self.assertEqual((out["fileId"], "task" in out), ("file_C", False))
+                self.assertEqual((out["fileId"], "task" in out), ("upl_C", False))
                 # 产品的识别工具按附件身份拿回这次已交的识别（11-07 代录里同一份识别两次）：只有代录会话、只问它挂的任务
                 asked = []
                 operator_uploads.batch_of = lambda task, key: asked.append((task, key)) or {"file_A": "B-1"}.get(key, "")
@@ -903,6 +913,107 @@ class RelayTests(unittest.TestCase):
         send = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("def send(", 1)[1].split("\ndef ", 1)[0]
         # 这条消息发出后才把它带着的那几份记进对话（上传卡片排在消息后面）
         self.assertLess(send.index("api.post(remote, batch)"), send.index("operator_uploads.sent(row.operator_task, text)"))
+
+    def test_upload_sends_bytes_to_the_engine_while_the_site_side_works(self):
+        """U2（研究 docs/work/2026-11-08-cc-upload-ux-研究.md）：11-08 晚 24 页 10.6MB 一份，服务端串着做「传引擎 → 挂会话 →
+        存原件 + 交识别 → 留存 → 页数」花 13.4 秒。字节传引擎改在线程里，与开会话、交任务、留存同时做：耗时是两边里慢的那边，
+        不是相加。引擎一时没收时用同一个上传编号再传一次，任务只交一次（不让用户重传、不重交识别）。改回串着做就失败。"""
+        import tempfile
+        import time
+
+        root = tempfile.mkdtemp()
+        row = types.SimpleNamespace(name="row9", operator_task="t009", get=lambda k: {"operator_task": "t009"}.get(k))
+        sessions = types.ModuleType("pearnly_core.assistant.sessions")
+        sessions.SESSION = "Pearnly Assistant Session"
+        sessions.owned = lambda sid, allow_archived=False: row
+        sessions._guard = lambda fn, *a: fn(*a)
+
+        def segment_for_turn(row, api):
+            time.sleep(0.3)  # 开 / 接续远端会话（引擎往返）
+            return "remote-row9"
+
+        sessions.segment_for_turn = segment_for_turn
+        sys.modules["pearnly_core.assistant.sessions"] = sys.modules["pearnly_core.assistant"].sessions = sessions
+        sys.modules.setdefault("pearnly_core.desk", types.ModuleType("pearnly_core.desk"))
+        heic = types.ModuleType("heic")
+        heic.is_heic = lambda content: False
+        sys.modules["pearnly_core.desk.heic"] = sys.modules["pearnly_core.desk"].heic = heic
+        taken = []
+        operator_uploads = types.ModuleType("pearnly_core.express_operator.uploads")
+
+        def take(task, name, content, key):
+            time.sleep(0.4)  # 存原件 + 交识别
+            taken.append(key)
+            return {"batch": "B-9", "state": "queued"}
+
+        operator_uploads.take = take
+        package = sys.modules.setdefault("pearnly_core.express_operator", types.ModuleType("pearnly_core.express_operator"))
+        files = _load("pearnly_core.assistant.files", CORE / "assistant/files.py")
+        files._new_upload_id = lambda: "upl_9"
+        sends, mounted = [], []
+
+        def upload(name, content, mime):
+            sends.append(name)
+            time.sleep(0.6)  # 10MB 级字节传到引擎
+            if fail_first and len(sends) == 1:
+                raise ConnectionError("reset")
+            return f"file_engine_{len(sends)}"
+
+        def mount(remote, engine_file, upload_id, name):
+            mounted.append((remote, engine_file, upload_id))
+            return {"file_id": upload_id, "path": f"/mnt/session/uploads/{upload_id}/{name}"}
+
+        # 串着做的老写法（先传引擎、拿引擎编号再做别的）也给一个，改回去时本测试按耗时与编号失败，而不是缺方法
+        adapter = types.SimpleNamespace(upload=upload, mount=mount, attach=lambda remote, name, content, mime: (
+            lambda engine_file: mount(remote, engine_file, engine_file, name))(upload(name, content, mime)))
+
+        class Sent:
+            filename, mimetype = "big.pdf", "application/pdf"
+            stream = types.SimpleNamespace(read=lambda size: b"%PDF-big")
+
+        import contextlib
+
+        saved = (getattr(frappe, "get_site_path", None), getattr(frappe, "request", None), getattr(frappe, "cache", None),
+                 getattr(frappe, "log_error", None))
+        db_saved = (getattr(frappe.db, "rollback", None), getattr(frappe.db, "commit", None))
+        frappe.get_site_path = lambda *parts: os.path.join(root, *parts)
+        frappe.cache = types.SimpleNamespace(set_value=lambda *a, **k: None,
+                                             lock=lambda *a, **k: contextlib.nullcontext())
+        frappe.db.rollback = frappe.db.commit = lambda *a, **k: None
+        errors = []
+        frappe.log_error = lambda *a, **k: errors.append(k.get("title"))
+        site = getattr(frappe.local, "site", None)
+        frappe.local.site = "t.localhost"
+        try:
+            with mock.patch.dict(sys.modules, {"pearnly_core.express_operator.uploads": operator_uploads}), \
+                    mock.patch.object(package, "uploads", operator_uploads, create=True), \
+                    mock.patch.object(files.engine, "adapter", return_value=adapter):
+                frappe.request = types.SimpleNamespace(files={"file": Sent()})
+                fail_first = False
+                began = time.monotonic()
+                out = files.upload("s9")
+                spent = time.monotonic() - began
+                # 串着做是 0.3 + 0.4 + 0.6 = 1.3 秒；同时做是慢的那边（0.7 秒）
+                self.assertLess(spent, 1.05, spent)
+                self.assertEqual((out["fileId"], taken, mounted), ("upl_9", ["upl_9"], [("remote-row9", "file_engine_1", "upl_9")]))
+                # 引擎第一次没收：同一个上传编号再传一次挂上，任务只交一次，记一条错误
+                fail_first, taken[:], mounted[:], sends[:] = True, [], [], []
+                out = files.upload("s9")
+                self.assertEqual((out["fileId"], taken, len(sends)), ("upl_9", ["upl_9"], 2))
+                self.assertEqual(mounted, [("remote-row9", "file_engine_2", "upl_9")])
+                self.assertEqual(errors, ["Assistant attachment upload retried"])
+        finally:
+            frappe.local.site = site
+            for name, value in zip(("rollback", "commit"), db_saved):
+                if value is None:
+                    delattr(frappe.db, name)
+                else:
+                    setattr(frappe.db, name, value)
+            for name, value in zip(("get_site_path", "request", "cache", "log_error"), saved):
+                if value is None and hasattr(frappe, name):
+                    delattr(frappe, name)
+                elif value is not None:
+                    setattr(frappe, name, value)
 
     def test_files_tools_put_in_the_conversation_are_kept_and_can_be_used_as_input(self):
         # 2026-10 CC 闭环 L3：工具产出（以前只交给引擎、本站不留）能再交给对账等工具；从文件夹取来的同样，来源分开记，
