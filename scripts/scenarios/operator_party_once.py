@@ -162,9 +162,16 @@ connections.install_snapshot(conn["name"], observation, refresh["request_id"], c
 doc = frappe.get_doc("Cowork ERP Connection", conn["name"])
 pool.ensure_registered(doc, {COWORK_KEY!r}, root="D:\\\\PARTYONCE", now=frappe.utils.now_datetime())
 # 这份账套的主档（同 CC 桌面版心跳报的账套资料）：三个同税号的 Big C 客户、科目表
+# 这位用户的一台 CC 桌面版（合成，同 `cc_machine_operator_ai` 流程；没有电脑时 Cowork 不收单、不推送，「还没连接 CC 桌面版」）：
+# 由它报这份账套（电脑密钥挂在这条连接上，上一遍的随连接一起清掉）
+from pearnly_cowork.companion import credentials
+machine = credentials.register("scenario-party-once-" + uuid4().hex[:6], express=True, device_key="scenario-party-once-" + uuid4().hex,
+                               device_name="Scenario PC")
+from pearnly_cowork.connections.member import Member
+pool.apply_report(doc, Member(device=machine["device"], legacy=True), observation["account_sets"], frappe.utils.now_datetime())
 pool.put_facts(doc, {COWORK_KEY!r}, {{"reported_customers": {CUSTOMERS!r}, "reported_suppliers": [],
     "reported_accounts": [{{"code": c, "name": c}} for c in ("11-31", "11-61", "21-01", "21-61", "41-01", "53-01")]}},
-    device="scenario-party-once", routine=True, now=frappe.utils.now_datetime())
+    device=machine["device"], routine=True, now=frappe.utils.now_datetime())
 company = companies.create(conn["name"], "PARTYONCE")
 frappe.db.commit()
 print(json.dumps({{"gone": gone, "company": company["id"], "title": company["title"], "connection": conn["name"],
