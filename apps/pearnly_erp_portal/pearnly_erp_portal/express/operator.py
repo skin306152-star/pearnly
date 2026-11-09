@@ -230,6 +230,39 @@ def precheck(company, doc_ids) -> dict:
 UNDECIDED_LINES_TEXT = "Some lines have no product yet"
 
 
+TWIN_SCAN = 20
+WRITTEN_STATES = (contracts.WRITTEN, contracts.MISMATCH, contracts.HANDLED)
+
+
+def written_twin(company, direction, result, grand_total) -> dict:
+    """这条收单记录是不是已经写进 Express 的那张票（11-08 生产 Cowork：代录等着的单，其中几张又被直写写进了真账）：这家公司里
+    另一张票号相同、供应商税号相同、金额相同、已写进 Express 的采购单 → ``{doc, docnum}``；没有回空。销售单上没有对方的票号
+    与税号，不判。``grand_total``：算这条记录合计的函数（同网页表单的算法，有同票号的单才算）。只读。"""
+    from decimal import Decimal, InvalidOperation
+
+    number = str(result.get("doc_no") or "").strip()
+    if direction != "purchase" or not number:
+        return {}
+
+    def amount(value):
+        try:
+            return Decimal(str(value if value not in (None, "") else "x")).quantize(Decimal("0.01"))
+        except (InvalidOperation, ValueError):
+            return None
+
+    found = frappe.get_all(push.PURCHASE, filters={"company": company, "doc_no": number,
+                                                   "ledger_state": ["in", list(WRITTEN_STATES)]},
+                           fields=["name", "supplier_tax_id", "grand_total", "ledger_docnum"], limit_page_length=TWIN_SCAN)
+    tax = str(result.get("supplier_tax_id") or "").strip()
+    total = amount(grand_total()) if found else None
+    if total is None:
+        return {}
+    for other in found:
+        if str(other.supplier_tax_id or "").strip() == tax and amount(other.grand_total) == total:
+            return {"doc": other.name, "docnum": str(other.ledger_docnum or "")}
+    return {}
+
+
 def _intake_precheck(company, doc_id) -> dict:
     """一条待提交的收单记录：按它提交时的入参（`intake.build_payload`，同网页表单）判写进 Express 要人选的项（`collect_form`）。
     有定不了物料的行先停（开始前卡片问这几行在下一步加，A 批 1b）；已提交的按提交出的单据判。"""
@@ -249,6 +282,10 @@ def _intake_precheck(company, doc_id) -> dict:
         return {"doc_id": doc_id, "state": "blocked", "reason": "not_ready", "message": _("This document is no longer available")}
     doc = frappe.get_doc(chat_intake.DOCTYPE, row.name)
     result = json.loads(doc.result or "{}")
+    twin = written_twin(company, row.direction, result, lambda: chat_intake.totals(doc, result).get("grand_total"))
+    if twin:
+        # 同一张票已写进 Express（直写或网页）：默认不再交，开始前卡片标出它在 Express 里的单号，人可以勾回再录（同 Cowork，用户 11-09 定）
+        return {"doc_id": doc_id, "state": "written", "docnum": twin["docnum"], "twin": twin["doc"]}
     party = result.get("supplier_name") if row.direction == "purchase" else result.get("buyer_name")
     view = {"doc_id": doc_id, "ref": result.get("doc_no") or row.name, "direction": row.direction,
             **({"party": party} if party else {})}
@@ -521,9 +558,15 @@ def _remember(company, doctype, name, given, seen=None) -> None:
 
 def submit(company, doc_ids, batch, computer, answers=None) -> list:
     results = []
+    again = set((batch or {}).get("again") or ())
     for index, doc_id in enumerate(doc_ids, start=1):
         given = (answers or {}).get(doc_id)
         if str(doc_id).startswith(INTAKE + ":"):
+            twin = _intake_twin(company, doc_id) if doc_id not in again else {}
+            if twin:
+                # 同一张票已写进 Express：默认跳过（用户 11-09），原因带那张的单号；人在开始前卡片上点了「再录一次」的照交
+                results.append({"doc_id": doc_id, "status": "written", "reason": twin["docnum"]})
+                continue
             target = _submit_intake(company, doc_id, given)
             if isinstance(target, dict):
                 results.append(target)
@@ -543,6 +586,21 @@ def submit(company, doc_ids, batch, computer, answers=None) -> list:
         result = push.send(doctype, name, operator={**batch, "index": index, "doc": doc_id, "company": company}) or {}
         results.append({"doc_id": doc_id, "status": result.get("status") or "", "reason": result.get("reason") or ""})
     return results
+
+
+def _intake_twin(company, doc_id) -> dict:
+    """还没提交的收单记录在交单这一刻是不是已写进 Express 的那张票（同 :func:`written_twin`）；已提交的、认不出的回空。"""
+    import json
+
+    from pearnly_erp_portal.integrations import intake as chat_intake
+
+    row = _intake(company, doc_id)
+    if row is None or _submitted(row) or row.status != chat_intake.READY:
+        return {}
+    raw = frappe.db.get_value(chat_intake.DOCTYPE, row.name, "result")
+    result = json.loads(raw) if isinstance(raw, str) and raw else {}
+    return written_twin(company, row.direction, result,
+                        lambda: chat_intake.totals(frappe.get_doc(chat_intake.DOCTYPE, row.name), result).get("grand_total"))
 
 
 def _submit_intake(company, doc_id, answers=None):

@@ -42,6 +42,8 @@ class Base(unittest.TestCase):
         self.db = Mock(get_value=Mock(side_effect=self.get_value))
         self.enterContext(patch.object(frappe, "db", self.db, create=True))
         self.enterContext(patch.object(frappe, "clear_messages", create=True))
+        self.written = []  # 已写进 Express 的采购单（同票号的候选）
+        self.enterContext(patch.object(frappe, "get_all", create=True, side_effect=lambda doctype, **kw: list(self.written)))
         self.enterContext(patch.object(frappe, "throw", side_effect=lambda message, exc=frappe.ValidationError, **kw: (_ for _ in ()).throw(exc(message))))
         self.enterContext(patch("requests.sessions.Session.request", side_effect=AssertionError("External network forbidden")))
 
@@ -145,6 +147,31 @@ class Precheck(Base):
         self.assertEqual(collect.call_args.args[:2], ("Purchase Document", {"company": "CO-1"}))
         self.assertEqual((row["precheck"]["state"], row["precheck"]["ref"], row["precheck"]["party"]), ("check", "IV1", "ACME"))
         self.assertEqual([i["kind"] for i in row["precheck"]["items"]], ["payment", "account"])  # 收单记录的项在前
+
+    def test_a_ticket_already_entered_in_express_is_marked_written_and_skipped_unless_entered_again(self):
+        # 11-08 生产（Cowork）：代录等着的票被直写写进了真账；ERP 收单记录同样认：同票号、同供应商税号、同金额、已写进 Express
+        doc = self.doc()
+        self.written = [SimpleNamespace(name="PO-3", supplier_tax_id=" 0105 ", grand_total="107.00", ledger_docnum="RR-9")]
+        result = json.loads(doc.result)
+        result.update(doc_no="IV1", supplier_tax_id="0105")
+        doc.result = json.dumps(result)
+        with patch.object(frappe, "get_doc", return_value=doc), \
+                patch.object(intake, "totals", return_value={"grand_total": 107}):
+            row = operator._intake_precheck("CO-1", "I:LI-1")
+            self.assertEqual((row["state"], row["docnum"], row["twin"]), ("written", "RR-9", "PO-3"))
+            with patch.object(frappe.db, "get_value", side_effect=lambda doctype, name, field=None, **kw:
+                              doc.result if field == "result" else self.get_value(doctype, name, field, **kw)), \
+                    patch.object(intake, "submit_chat") as chat, patch.object(operator.push, "release_operator"), \
+                    patch.object(operator.push, "send", return_value={"status": "queued"}):
+                skipped = operator.submit("CO-1", ["I:LI-1"], {"task": "T1"}, "PC-1")
+                self.assertEqual(skipped, [{"doc_id": "I:LI-1", "status": "written", "reason": "RR-9"}])
+                chat.assert_not_called()
+                with patch.object(operator, "_submit_intake", return_value={"doc_id": "I:LI-1", "status": "queued"}) as sub:
+                    operator.submit("CO-1", ["I:LI-1"], {"task": "T1", "again": ["I:LI-1"]}, "PC-1")
+                sub.assert_called_once()  # 人勾了「再写一次」的照交
+            self.written[0].grand_total = "108.00"  # 金额不同：不是同一张
+            self.assertEqual(operator.written_twin("CO-1", "purchase", result, lambda: 107), {})
+            self.assertEqual(operator.written_twin("CO-1", "sales", result, lambda: 108), {})  # 销售单不判
 
     def test_other_peoples_records_are_not_permitted(self):
         self.assertEqual(operator._intake_precheck("CO-1", "I:LI-9")["reason"], "not_permitted")
