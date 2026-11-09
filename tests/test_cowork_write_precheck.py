@@ -43,6 +43,7 @@ def frappe_stub(calls):
     module.__dict__.update(
         _=lambda text, *a, **k: text, throw=throw, ValidationError=Stop, PermissionError=PermissionError,
         DoesNotExistError=LookupError, clear_messages=lambda: None,
+        get_hooks=lambda name, *a, **k: {},  # 共用层按 hooks 找产品声明（`ledger_tickets` 等）：默认没有
         db=ns(rollback=lambda: calls.append(("rollback",)), commit=lambda: calls.append(("commit",)),
               get_value=lambda *a, **k: "ABC Co"))
     return module
