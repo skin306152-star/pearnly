@@ -383,6 +383,19 @@ def acknowledge(context, body):
         return _value(queue_contracts.ack_response, result)
 
 
+def _follow_up(row, result):
+    """对话里推的这张到点没等到结论（推送工具记下了）：结论到了在那段对话里补一句（11-08 生产第 9 条，``push_followup``）。"""
+    from pearnly_core.assistant import push_followup
+    from pearnly_cowork.push import export_facts
+
+    try:  # 只是补一句：出错只记日志，不影响这次回执
+        push_followup.tell('cowork', row.name, result.get('status') == 'success', 'Express',
+                           docnum=result.get('external_docnum') or '', reason=result.get('reason') or '',
+                           explain=export_facts.reason_text)
+    except Exception:
+        frappe.log_error(title='Push follow-up failed')
+
+
 def _after_ack(row, delivery, request, result):
     """回执之后池里的两件事（池里各行在记录之后锁，同一连接上都先锁了连接行）：
 
@@ -390,6 +403,8 @@ def _after_ack(row, delivery, request, result):
     - 写前核文件号对不上（1.7.0 回 ``waiting_lock`` + ``[ERR_ACCOUNT_UID_MISMATCH]``）：这台电脑对这份账套的可达行标
       stale、要它整份重报，单子已回到排队，下次交给别的电脑。"""
     device = credentials.device_of(delivery.credential_id) or delivery.credential_id
+    if result.get('status') in ('success', 'manual'):
+        _follow_up(row, result)
     if mrerp_jobs.is_job(row):
         # MR.ERP 代录单（不论经 Express 密钥还是它自己那条 MR.ERP 连接的密钥领的）：这批再没有排着 / 领着的单就放开账号
         # （ADR-026 第 8 条）；没有 Express 账套登记要记。Express 记录从来不是 MR.ERP 代录单，走下面原来那条

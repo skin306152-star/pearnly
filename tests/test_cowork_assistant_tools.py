@@ -2448,6 +2448,26 @@ class PushWaitTests(unittest.TestCase):
         self.assertLessEqual(len(self.reads), tools.PUSH_WAIT_SECONDS // tools.PUSH_WAIT_STEP + 2)
         self.assertNotIn("record", item)
 
+    def test_a_push_still_open_at_the_limit_is_remembered_for_a_late_follow_up(self):
+        # 11-08 生产第 9 条：到点仍在排队、结果不明的记下（推送记录、单号），回执到了在这段对话里补一句；有结论的不记
+        self.timeline = [{"PR-H1": {"status": "pending"}, "PR-H2": {"status": "pending"}, "PR-H3": {"status": "pending"}},
+                         {"PR-H1": {"status": "success", "docnum": "RR1"}, "PR-H2": {"status": "pending"},
+                          "PR-H3": {"status": "manual", "reason": "UNKNOWN", "result_unknown": True}}]
+        remembered = []
+        followup = types.ModuleType("pearnly_core.assistant.push_followup")
+        followup.remember = lambda product, record, label: remembered.append((product, record, label)) or True
+        package = sys.modules["pearnly_core.assistant"]
+        original = tools.frappe.db.get_value
+        number = lambda doctype, name, field=None, *args, **kwargs: f"IV-{name}" if (doctype, field) == (tools.HISTORY, "invoice_no") \
+            else original(doctype, name, field, *args, **kwargs)
+        with mock.patch.dict(sys.modules, {"pearnly_core.assistant.push_followup": followup}), \
+                mock.patch.object(package, "push_followup", followup, create=True), \
+                mock.patch.object(tools.frappe.db, "get_value", create=True,
+                                  new=number):
+            results = self._push("H1", "H2", "H3")["results"]
+        self.assertEqual([item["status"] for item in results], ["entered", "queued", "unconfirmed"])
+        self.assertEqual(remembered, [("cowork", "PR-H2", "IV-H2"), ("cowork", "PR-H3", "IV-H3")])
+
     def test_several_documents_share_one_limit_and_only_unsettled_ones_are_read_again(self):
         self.timeline = [{"PR-H1": {"status": "pending"}, "PR-H2": {"status": "pending"}, "PR-H3": {"status": "pending"}},
                          {"PR-H1": {"status": "success", "docnum": "RR691013-001"}, "PR-H2": {"status": "leased"},

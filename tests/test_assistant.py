@@ -6824,5 +6824,53 @@ class WaitTests(unittest.TestCase):
         self.assertTrue(until.get("search_index"))
 
 
+class PushFollowUpTests(unittest.TestCase):
+    """11-08 生产事故第 9 条：推送工具到点没等到结论（说了「已排队」），几十秒后写成了，对话里却没补一句。
+    改：工具收尾时记下这一张在哪段对话推的，回执到了在那段对话发一条提醒，按收件人的语言写，同一张只发一次。"""
+
+    def setUp(self):
+        self.followup = _load("pearnly_core.assistant.push_followup", CORE / "assistant/push_followup.py")
+        self.store = {}
+        cache = types.SimpleNamespace(get_value=self.store.get, delete_value=lambda key: self.store.pop(key, None),
+                                      set_value=lambda key, value, expires_in_sec=None: self.store.__setitem__(key, value))
+        self.posted = []
+        translate = types.ModuleType("frappe.translate")
+        translate.get_user_lang = lambda user: "zh"
+        self.patches = [mock.patch.object(self.followup.frappe, "cache", cache, create=True),
+                        mock.patch.object(self.followup.frappe, "local", types.SimpleNamespace(
+                            pearnly_assistant={"session_id": "sess-1"}, lang="en"), create=True),
+                        mock.patch.object(self.followup.frappe, "session", types.SimpleNamespace(user="a@example.com"),
+                                          create=True),
+                        mock.patch.dict(sys.modules, {"frappe.translate": translate}),
+                        mock.patch.object(notices, "post", lambda *args, **kwargs: self.posted.append((args, kwargs)))]
+        for patch in self.patches:
+            patch.start()
+        self.addCleanup(lambda: [patch.stop() for patch in reversed(self.patches)])
+
+    def test_a_late_result_is_told_once_in_the_conversation_it_was_pushed_from(self):
+        self.assertTrue(self.followup.remember("cowork", "REC-1", "IV69/00751"))
+        langs = []
+        explain = lambda raw: langs.append(self.followup.frappe.local.lang) or "readable"
+        self.assertTrue(self.followup.tell("cowork", "REC-1", True, "Express", docnum="IV0001", explain=explain))
+        (args, kwargs), = self.posted
+        self.assertEqual((args[0], args[1], args[3], kwargs["conversation"]),
+                         ("a@example.com", "cc.push.result", "push-result:cowork:REC-1", "sess-1"))
+        self.assertIn("IV69/00751", args[2])
+        self.assertIn("IV0001", args[2])
+        self.assertFalse(self.followup.tell("cowork", "REC-1", True, "Express"))  # 只补一次
+        self.assertEqual(self.followup.frappe.local.lang, "en")  # 收件人的语言只在写这句时用
+        self.followup.remember("cowork", "REC-2", "")
+        self.followup.tell("cowork", "REC-2", False, "Express", reason="push.raw", explain=explain)
+        self.assertEqual(langs, ["zh"])
+        self.assertIn("readable", self.posted[-1][0][2])
+
+    def test_nothing_is_told_for_a_push_outside_a_conversation_or_never_remembered(self):
+        self.assertFalse(self.followup.tell("cowork", "REC-9", True, "Express"))
+        self.followup.frappe.local.pearnly_assistant = None
+        self.assertFalse(self.followup.remember("cowork", "REC-3", "IV1"))
+        self.assertFalse(self.followup.tell("cowork", "REC-3", True, "Express"))
+        self.assertEqual(self.posted, [])
+
+
 if __name__ == "__main__":
     unittest.main()

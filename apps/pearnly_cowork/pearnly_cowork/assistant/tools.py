@@ -1031,6 +1031,7 @@ def _settle(results) -> None:
         item["status"] = "queued"  # 到点还没结论就是这个
         if record:
             waiting[record] = item
+    sent = dict(waiting)
     live = {name for name, item in waiting.items() if item.get("cc_desktop_online", True)}
     deadline = time.monotonic() + PUSH_WAIT_SECONDS
     first = True
@@ -1045,6 +1046,21 @@ def _settle(results) -> None:
             if name in waiting and _concluded(waiting[name], outcome):
                 waiting.pop(name)
                 live.discard(name)
+    _follow_up(sent)
+
+
+def _follow_up(sent) -> None:
+    """到点仍在排队、或结果不明的几张：记下是在这段对话里推的，回执到了在对话里补一句（11-08 生产第 9 条，
+    `push_followup`；回执那头见 `companion.transport._after_ack`）。"""
+    from pearnly_core.assistant import push_followup
+
+    for record, item in sent.items():
+        if item.get("status") in ("queued", "unconfirmed"):
+            try:  # 只是补一句：记不上只记日志，不影响推送结果
+                label = frappe.db.get_value(HISTORY, item["document"], "invoice_no") or ""
+                push_followup.remember("cowork", record, label)
+            except Exception:
+                frappe.log_error(title="Push follow-up remember failed")
 
 
 def push_documents(tool_input) -> str:

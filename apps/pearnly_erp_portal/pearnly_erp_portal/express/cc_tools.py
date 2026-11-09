@@ -238,6 +238,7 @@ def _settle(results) -> None:
         if item.get("status") == "sent":
             item["status"] = direct_push.QUEUED
             waiting[index] = _parse(item["document"])
+    sent = dict(waiting)
     deadline = time.monotonic() + direct_push.PUSH_WAIT_SECONDS
     first = True
     if waiting:
@@ -252,6 +253,21 @@ def _settle(results) -> None:
             results[index] = {"document": results[index]["document"], **outcome}
             if outcome["status"] != direct_push.QUEUED or outcome.get("cc_desktop_online") is False:
                 waiting.pop(index)
+    _follow_up(results, sent)
+
+
+def _follow_up(results, sent) -> None:
+    """到点仍在排队、或结果不明的几张：记下是在这段对话里推的，电脑回报了在对话里补一句（同 Cowork，11-08 生产第 9 条，
+    ``push_followup``；回报那头见 `push.job_changed`）。"""
+    from pearnly_core.assistant import push_followup
+
+    for index, (kind, name) in sent.items():
+        if results[index].get("status") in (direct_push.QUEUED, direct_push.UNCONFIRMED):
+            try:  # 只是补一句：记不上只记日志，不影响推送结果
+                label = frappe.db.get_value(kind.doctype, name, kind.number) or name
+                push_followup.remember("erp", f"{kind.doctype}:{name}", label)
+            except Exception:
+                frappe.log_error(title="Push follow-up remember failed")
 
 
 # ---------------- 工具 ----------------

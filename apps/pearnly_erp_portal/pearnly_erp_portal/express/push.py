@@ -589,6 +589,22 @@ def _state(view):
     return contracts.HELD
 
 
+def _follow_up(doctype, name, state, values) -> None:
+    """CC 对话里推的这张到点没等到结论（`cc_tools._follow_up` 记下了）：结论到了在那段对话里补一句（11-08 生产第 9 条，
+    ``push_followup``）。只是补一句：出错只记日志。"""
+    from pearnly_core.assistant import push_followup
+
+    entered = state in (contracts.WRITTEN, contracts.MISMATCH)
+    try:
+        from pearnly_erp_portal.express import pending
+
+        push_followup.tell("erp", f"{doctype}:{name}", entered, "Express", docnum=values.get("ledger_docnum") or "",
+                           reason="" if entered else values.get("ledger_reason") or "",
+                           explain=lambda raw: pending.reason_label(state, raw))
+    except Exception:
+        frappe.log_error(title="Push follow-up failed")
+
+
 def job_changed(view):
     """共用写账队列里这张单有了新状态（同一事务里叫）：记回单据；第一次写进去后排一次主档同步（库存按 Express 对齐）。"""
     doctype, name = view.get("source_doctype"), view.get("source_name")
@@ -604,6 +620,8 @@ def job_changed(view):
               "ledger_reason": "" if state in (contracts.WRITTEN, contracts.QUEUED)
               else str(view.get("reason") or "")[:ack_rules.OPERATOR_REASON_MAX]}
     _set(doctype, name, values)
+    if state != contracts.QUEUED:
+        _follow_up(doctype, name, state, values)
     if state not in (contracts.WRITTEN, contracts.MISMATCH) and before.company and not enabled(before.company):
         # 断开时电脑正在写、结果没写成（或撤掉的那件）：不再写，标已断开（:func:`detach`）
         _set(doctype, name, {"ledger_state": contracts.DETACHED, "ledger_reason": contracts.DISCONNECTED,
