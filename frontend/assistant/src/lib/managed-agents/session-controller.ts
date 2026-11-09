@@ -697,6 +697,15 @@ export class SessionController {
             this.mergeProjection(gateCustomTool(this.state, id, { ask: reply.ask, preview: reply.preview }));
             return;
           }
+          if (reply.status === "running") {
+            // 别处（推送线程、回调任务）已在执行：不是结果。照推来的执行记录记成本站正在执行（不再欠、不再提醒），这一步仍是
+            // 进行中，挂起后状态行照常说页数（11-09 测试机：并了空结果，标题提前变「识别了单据」、挂起后状态行整行消失）
+            this.answerAttempts.delete(id);
+            this.retryAfter.delete(id);
+            this.fold(toolRunEvent(id, "running"));
+            this.source?.nudge();
+            return;
+          }
           this.source?.nudge();
           this.answerAttempts.delete(id);
           this.retryAfter.delete(id);

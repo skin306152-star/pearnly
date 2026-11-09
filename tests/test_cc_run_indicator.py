@@ -242,6 +242,59 @@ assert.equal(isBusy(s), true);
 assert.deepEqual([...s.waitingIds], []);
 """)
 
+    def test_the_page_nudge_answered_running_does_not_close_the_step_still_reading(self):
+        # 11-09 测试机验收（CC 1.12.19，testcowork 直写 BJC 12 页）：推送线程已在执行识别，页面兜底的「执行一次」（run_tool）当场回
+        # running（别处已在执行）。页面把它当成答完了、并进一条空的乐观结果：这一步提前「有结果」，标题第 28 秒变成「识别了单据」、
+        # 状态行退成「执行中…」；挂起后状态行要这一步还没结果才说它，整行消失，「识别中 · 共 12 页」一直不出。上面那条测试的兜底
+        # 永远不回，盖住了这一路。running 只说明别处在执行，不是结果：这一步照旧在执行中，挂起后照常说页数。
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { isBusy } from "@/lib/managed-agents/reducer";
+import { liveProgress, progressText } from "@/lib/managed-agents/progress";
+import { turnActivity } from "@/lib/managed-agents/turn";
+---
+const S = "sesn_wait2";
+site.echo = false;
+site.toolReply = async () => ({ status: "running" });
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+await c.sendMessage("识别这份单据", []);
+push(S, ev("u1", "user.message", 1, { content: text("识别这份单据") }));
+push(S, ev("r1", "session.status_running", 2));
+push(S, ev("t1", "agent.custom_tool_use", 3, { name: "cowork_recognize_attachments", input: { files: ["a.pdf"] } }));
+push(S, ev("i1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["t1"] } }));
+await g.sleep(30);
+assert.ok(g.calls.some((x: any) => x.method === "run_tool"));            // 页面兜底提醒过、服务端回了 running
+dispatchTo(S, { type: "pearnly.tool_run", id: "ptoolrun_t1_running", tool_use_id: "t1", status: "running",
+                processed_at: "2026-11-09T10:31:14Z" });
+await g.sleep(5);
+let s: any = c.getSnapshot();
+const step = s.messages.flatMap((m: any) => m.content).find((p: any) => p.type === "tool-call" && p.toolCallId === "t1");
+assert.equal(step.result, undefined);                                     // 还在识别：没有结果
+assert.equal(isBusy(s), true);
+let a: any = turnActivity(s);
+assert.equal(a.kind, "tool");                                             // 状态行说这一步（正在识别单据），不是「执行中…」
+assert.equal(a.toolCallId, "t1");
+// 挂起：推来带 waiting 的执行记录与此刻的进度
+dispatchTo(S, { type: "pearnly.tool_run", id: "ptoolrun_t1_running_waiting", tool_use_id: "t1", status: "running",
+                processed_at: "2026-11-09T10:32:49Z", waiting: true });
+dispatchTo(S, { type: "pearnly.progress", id: "pwait_t1", processed_at: "2026-11-09T10:32:49Z", tool_use_id: "t1",
+                done: 0, total: 12, label: "reading_pages" });
+await g.sleep(5);
+s = c.getSnapshot();
+assert.equal(isBusy(s), false);
+a = turnActivity(s);
+assert.equal(a.kind, "tool");
+assert.equal(progressText(liveProgress(s, a.toolCallId)!), "识别中 · 共 12 页");
+// 识别完交回：真结果并进来，引擎接着跑
+push(S, ev("res1", "user.custom_tool_result", 9, { custom_tool_use_id: "t1", content: text("11 documents") }));
+push(S, ev("r2", "session.status_running", 10));
+s = c.getSnapshot();
+assert.equal(isBusy(s), true);
+assert.deepEqual([...s.waitingIds], []);
+""")
+
     def test_a_parallel_step_that_answered_first_does_not_hide_the_one_still_reading(self):
         # 11-07 本机实验栈真引擎：代录里 CC 并行调「识别」与「查待处理」，后者当场有结果、识别挂在服务端；状态行只看最后一步，
         # 一直「执行中…」，看不到识别页数。整批都有结论才算引擎在看结果。
