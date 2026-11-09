@@ -43,8 +43,23 @@ CATALOG = {
 NON_BUSINESS = ("home", "profile", "team", "tasks")
 
 
+# 产品管理员（同 `rules.ADMIN_ROLE`）。它不含功能权限（rules.py），所以侧栏只在接口本身也认管理员的业务页上为它放行：
+# 任务管理（`work.access.allowed` 放行 ERP 管理员）。其余业务页按岗位 / 旧功能角色判，与接口一致（主会话 11-09）。
+ADMIN = "ERP Admin"
+ADMIN_PAGES = ("tasks",)
+
+
 def role(key):
     return "ERP Menu " + key
+
+
+def page_roles(key):
+    """这一页在侧栏 / 路由上放行的角色：本菜单岗位、旧功能角色；接口认管理员的页再加 ERP 管理员。
+    hooks 的 `pearnly_navigation` permissions 用它，与接口判据（`rules.can` / `work.access`）同一口径。"""
+    roles = [role(key), CATALOG[key][1]]
+    if key in ADMIN_PAGES and ADMIN not in roles:
+        roles.append(ADMIN)
+    return roles
 
 
 def roles():

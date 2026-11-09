@@ -540,10 +540,11 @@ pearnly_navigation = [{'product': 'erp',
   'routes': ['query-report/ERP Stock Count Variance']}]
 
 # Product-owned leaf roles; lookup reads never decide which management menu is visible.
+# 放行的角色与接口判据同一口径（`menu.page_roles`，主会话 11-09）：管理员没有岗位时不再看到点进去会被拒的业务页。
 from pearnly_erp_portal.access import menu as _menu_permissions
 for _key, _spec in _menu_permissions.CATALOG.items():
     pearnly_navigation[0]["permissions"][_menu_permissions.route(_key)] = {
-        "any_role": [_menu_permissions.role(_key), _spec[1], "ERP Admin"]}
+        "any_role": _menu_permissions.page_roles(_key)}
 # 盘点生成的物料调整单盘点员也能打开、提交（主会话 11-06 审定 #2）：有「盘点」菜单的人进得了物料调整页（列表只出他能看的单）
 pearnly_navigation[0]["permissions"][_menu_permissions.route("stock-adjust")]["any_role"].append(_menu_permissions.role("stock-count"))
 # Existing coarse-role employees retain their previously available home and profile.

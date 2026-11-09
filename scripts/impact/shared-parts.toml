@@ -262,6 +262,7 @@ paths = ["apps/pearnly_core/pearnly_core/desk/navigation.py"]
 markers = ["pearnly_core.desk.navigation", "desk import navigation", "pearnly_navigation"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
 entries = ["shared.navigation", "shared.shell-gate"]
+not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/access/menu.py" = "ERP 菜单页放行角色 page_roles 的出处（hooks 的 pearnly_navigation permissions 引用），入口见本共用件 entries 的 shared.navigation" }
 
 [[part]]
 id = "desk-upload"

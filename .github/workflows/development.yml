@@ -111,6 +111,8 @@ jobs:
         run: python3 tests/test_products_gs1.py
       - name: ERP task management (boards copied from Cowork) keeps Cowork's board rights, refuses people without it and shows only their boards
         run: python3 tests/test_erp_work.py
+      - name: ERP sidebar and routes admit only roles the page's API admits (an admin without the post no longer sees stock pages it cannot open)
+        run: python3 tests/test_erp_page_roles_match_api.py
       - name: Render the control-plane LINE setup guide with its screenshots
         run: python3 tests/test_control_line_guide.py
       - name: Verify each product declares its own feature catalog

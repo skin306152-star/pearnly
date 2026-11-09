@@ -108,6 +108,9 @@ def required_roles(capability: str) -> tuple[str, ...]:
                "receipts.read": "cashier.read", "receipts.write": "cashier.write", "shifts.read": "cashier.read"}
     capability = aliases.get(capability, capability)
     roles = [FEATURE_ROLES.get(code) for code in CAPABILITY_FEATURES.get(capability, ())]
+    if capability == "company.read":
+        # 能改公司资料的人当然读得到（主会话 11-09：只拿 ERP Admin 的账号能改公司、却打不开公司页）
+        roles += list(COMPANY_MANAGE_ROLES)
     return tuple(role for role in roles if role)
 
 
