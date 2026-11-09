@@ -185,7 +185,7 @@ class OpenAtBottomSourceTests(unittest.TestCase):
         self.assertIn("if (opened && !sending.current) settler.current?.settle();", thread)
         self.assertIn("if (openedNow.current && !sending.current) created.settle();", thread)
         # 第 11 轮审查：本页刚发出（发送中的气泡还在）时新对话第一条落进来不算打开，不贴底
-        self.assertIn("sending.current = usePendingSend() !== null;", thread)
+        self.assertIn("const sendingNow = usePendingSend() !== null;\n  sending.current = sendingNow;", thread)
         # 第 11 轮 C19 审查：在不在跑、这一轮的提问、核对过没有，都从会话控制器同一份快照读（不看组件库的标记）；状态变了重新核一次
         self.assertIn("const { turn, synced } = useOpenState();", thread)
         self.assertIn("new OpenSettler(viewport, content, () => openState.current)", thread)
@@ -460,6 +460,36 @@ assert.equal(f.settling, false);
 f.dispose();
 g.done();
 """)
+
+    def test_on_desktop_sending_right_after_opening_hands_the_scroll_to_follow(self):
+        # 11-09 批 A ④ 流程撞上：电脑上打开一段对话后马上发下一句，对位置把画面钉在新这一轮开头（状态核对完还会按新状态重新对一次），
+        # 回复出来不跟到底（① 电脑跟随滚动之后的缺陷）；组件库的 autoScroll 在它自己平滑滚动中途回复整段落下时也不跟。电脑上本页
+        # 一发出（release）就不再对打开时的位置，内容变高就贴底，用户一翻就停；手机不调 release，照旧停在这一轮开头（上一条）
+        run_ts(SETTLE_RIG + r"""
+open(null, undefined, 6000);
+assert.equal(vp.scrollTop, 5200);
+assert.equal(f.settling, true);
+f.release();                                        // 电脑：发送中的气泡出来了
+assert.equal(f.settling, false);
+questions.q20 = { offset: 6050, height: 60 };
+vp.scrollHeight += 900; state = { turn: "q20", synced: false }; f.recheck();
+state = { turn: "q20", synced: true }; f.recheck();   // 核对完：不再按新状态重新对（不钉回这一轮开头）
+vp.scrollTop = 6050;                                // 组件库把提问滚到顶上（下面是给回复留的空白）
+more(700); assert.equal(vp.scrollTop, bottom());    // 回复整段落下：贴底
+more(700); assert.equal(vp.scrollTop, bottom());
+// 用户往上翻（滚轮）：停跟
+fire("wheel"); vp.scrollTop -= 400; const up = vp.scrollTop;
+more(700); assert.equal(vp.scrollTop, up);
+// 再发一句又跟；换一段对话就不跟
+f.release(); more(300); assert.equal(vp.scrollTop, bottom());
+open(null, undefined, 6000); fire("pointerdown", { target: { closest: () => null } });
+vp.scrollTop = 1000; more(300); assert.equal(vp.scrollTop, 1000);
+f.dispose();
+g.done();
+""")
+        thread = read("components/assistant-ui/thread.tsx")
+        self.assertIn("const settle = useSettleOnOpen(!phone);", thread)
+        self.assertIn("if (sendingNow && follow) settler.current?.release();\n  }, [sendingNow, follow]);", thread)
 
     def test_the_session_state_says_when_it_was_checked_since_coming_back(self):
         # 会话控制器的 isSynced：接上后整段重放成功才置真，离开（detach）置否；置真时在不在跑已是核对后的

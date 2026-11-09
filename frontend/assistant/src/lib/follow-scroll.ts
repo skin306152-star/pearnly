@@ -89,6 +89,8 @@ export class OpenSettler {
   private synced = true;
   // 已按核对过的状态停在哪一轮开头：这一轮跑完了也接着停在这儿，不改去最底下（不跟随）
   private held: string | null = null;
+  // 电脑上本页发出了一句（release）：内容变高就贴底，直到用户碰一下或换一段对话
+  private following = false;
   private readonly off: Array<() => void> = [];
 
   constructor(
@@ -140,6 +142,7 @@ export class OpenSettler {
 
   /** 打开了一段对话（换到另一段、或这段的消息刚取回）：停到该停的位置，内容还在长就接着对回去（见文件头）。 */
   settle() {
+    this.following = false;
     this.touched = false;
     this.synced = this.state().synced;
     this.restart();
@@ -155,6 +158,15 @@ export class OpenSettler {
     else if (this.settling) this.place();
   }
 
+  /** 电脑上本页发出了新的一句：不再对打开时的位置，改成跟到底——内容变高就贴底，用户碰一下（同上面那几种碰）或换一段对话就停。
+   *  只靠组件库的 autoScroll 不够：它按滚动事件记「在不在底部」，发出时它自己把提问平滑滚到顶上，回复在这段平滑滚动里整段落下
+   *  （补拉、轮询带来的整段）时它记成不在底部、不跟（11-09 批 A ④ 流程偶发 gap 1301）；打开后马上发，对位置还会把新这一轮钉在开头
+   *  （核对完再对一次）。手机不调（不跟随，10-17 定）。 */
+  release() {
+    this.unsettle();
+    this.following = true;
+  }
+
   /** 正在打开后的对位置：用户没碰过、内容最近还在变、没超过上限。 */
   get settling(): boolean {
     const now = this.now();
@@ -168,11 +180,18 @@ export class OpenSettler {
   }
 
   private unsettle() {
+    this.following = false;
     this.touched = true;
     this.settleFrom = this.settleLast = Number.NEGATIVE_INFINITY;
   }
 
   private onResize() {
+    if (this.following) {
+      const v = this.viewport;
+      const bottom = v.scrollHeight - v.clientHeight;
+      if (v.scrollTop < bottom - 1) v.scrollTo({ top: bottom, behavior: "instant" });
+      return;
+    }
     if (!this.settling) return;
     this.settleLast = this.now();
     this.place();

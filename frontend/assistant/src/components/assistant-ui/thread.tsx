@@ -122,9 +122,9 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
 
 const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isLoading }) => {
   const { Welcome, Loading, Tail } = useContext(ThreadComponentsContext);
-  const settle = useSettleOnOpen();
   // 回复在出时：电脑跟到底、往上翻就停（11-09 实测 Claude 电脑网页；停跟随是组件库按 isAtBottom 自带的），手机不跟（10-17 定）
   const phone = useIsMobile();
+  const settle = useSettleOnOpen(!phone);
 
   return (
     <ThreadPrimitive.Root
@@ -219,7 +219,7 @@ function useShownPending() {
 
 /** 打开一段对话：已结束的停在最新一条，正在回复的停在这一轮开头（提问顶在上面），之后这一轮跑完也不改（lib/follow-scroll.ts）。
  *  回复在出时：手机不跟到底，下面有内容就出 ↓；电脑跟到底、往上翻就停（视口的 autoScroll，同 Claude 11-09 实测）。 */
-function useSettleOnOpen() {
+function useSettleOnOpen(follow: boolean) {
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
   const [content, setContent] = useState<HTMLDivElement | null>(null);
   // 打开的是哪段对话（消息取回来了才算打开）：换了一段、或这段的消息刚取回，就停到该停的位置（follow-scroll 的 settle）
@@ -228,7 +228,8 @@ function useSettleOnOpen() {
   openedNow.current = opened;
   // 本页刚发出（发送中的气泡还在）：新对话第一条落进来不算打开，位置交给组件库的「这一轮顶到上面」
   const sending = useRef(false);
-  sending.current = usePendingSend() !== null;
+  const sendingNow = usePendingSend() !== null;
+  sending.current = sendingNow;
   // 有没有在跑的一轮、状态核对过没有（会话控制器的快照，不看组件库的标记，见 follow-scroll.ts 文件头）
   const { turn, synced } = useOpenState();
   const openState = useRef<OpenState>({ turn, synced });
@@ -247,6 +248,10 @@ function useSettleOnOpen() {
   useEffect(() => {
     if (opened && !sending.current) settler.current?.settle();
   }, [opened]);
+  // 电脑上本页发出了新的一句：交还，回复由组件库跟到底（follow-scroll 的 release）；手机照旧停在这一轮开头
+  useEffect(() => {
+    if (sendingNow && follow) settler.current?.release();
+  }, [sendingNow, follow]);
   // 这一轮开始 / 结束、状态核对完：打开时的旧状态核对完要重新对一次，还在对位置就按新状态对
   useEffect(() => {
     settler.current?.recheck();
