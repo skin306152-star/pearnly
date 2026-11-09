@@ -333,7 +333,8 @@ def intake_items(company, doc, result) -> list:
 
 
 # 付款这一项按「方向 + 对方」归类（同一对方的几张票合成一题、答一次按对方记住），不按每条记录（11-08：24 张同一买方会问 24 遍）。
-# 预选：这家公司对这个对方记住的 → 采购票面有晚于单据日期的到期日记「未付」→ 都没有就不预选，要人定；不再悄悄按「已付、现金」交单
+# 预选：这家公司对这个对方记住的 → 采购票面有晚于单据日期的到期日记「未付」，没有就「已付、现金」（ERP 采购单 = 已付 + 到货，
+# 用户 10-28 / P0-2 口径；主会话 11-09）→ 销售读不到付款条件，没记住就不预选、要人定，不再悄悄按「已付、现金」交单
 INTAKE_PAY = "erp-intake-pay:"
 PAYMENT_KIND = "intake_payment"
 NO_PAYMENT_TEXT = "Payment not chosen yet"
@@ -349,16 +350,16 @@ def payment_subject(direction, result) -> str:
 
 
 def payment_default(company, direction, result) -> str:
-    """这张票的付款预选（没有把握回空）：按对方记住的，或采购票面写了晚于单据日期的到期日（赊购）。"""
+    """这张票的付款预选（没有把握回空）：按对方记住的；采购按票面（晚于单据日期的到期日 = 未付，否则已付现金）；销售没记住回空。"""
     from pearnly_erp_portal.express import choices
 
     remembered = choices.chosen(company, PAYMENT_KIND, payment_subject(direction, result))
     if remembered == UNPAID or remembered in _methods(direction):
         return remembered
+    if direction != "purchase":
+        return ""
     due, day = str(result.get("due_date") or ""), str(result.get("doc_date") or "")
-    if direction == "purchase" and due and day and due > day:
-        return UNPAID
-    return ""
+    return UNPAID if due and day and due > day else "cash"
 
 
 def _payment_values(direction, value) -> dict:

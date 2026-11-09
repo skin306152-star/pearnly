@@ -96,9 +96,14 @@ class Precheck(Base):
         with patch("pearnly_erp_portal.inventory.warehouses.names_of", return_value=["WH-1", "WH-2"]):
             items = operator.intake_items("CO-1", doc, json.loads(doc.result))
         payment, line, place = items
-        # 付款按「方向 + 对方」一题（几张同一对方的票合成一题）；没记住、票面也看不出就不预选，要人定（不再默认「已付、现金」）
+        # 付款按「方向 + 对方」一题（几张同一对方的票合成一题）；采购没记住、票面没有到期日：预选「已付、现金」
+        # （ERP 采购单 = 已付 + 到货，用户 10-28 / P0-2 口径）；人可以改
         self.assertEqual((payment["kind"], payment["subject"], payment["value"], payment["label"]),
-                         ("payment", "erp-intake-pay:purchase|name:ACME", "", "ACME"))
+                         ("payment", "erp-intake-pay:purchase|name:ACME", "cash", "ACME"))
+        # 销售读不到付款条件：没记住就不预选，要人定（不再悄悄按「已付、现金」交单）
+        sale = SimpleNamespace(**{**vars(doc), "direction": "sales"})
+        with patch("pearnly_erp_portal.inventory.warehouses.names_of", return_value=["WH-1", "WH-2"]):
+            self.assertEqual(operator.intake_items("CO-1", sale, {"buyer_name": "Big C"})[0]["value"], "")
         self.assertEqual([o["code"] for o in payment["options"]][-1], operator.UNPAID)
         self.assertEqual((line["kind"], line["subject"], line["label"], line["search"], line["value"]),
                          ("item", "erp-intake:LI-1:0", "Paper A4", "own_products", operator.card_new()))
@@ -218,8 +223,8 @@ class Submit(Base):
         chat.assert_not_called()
 
     def test_payment_nobody_chose_holds_the_record_instead_of_paid_cash(self):
-        """11-08 复核（管钱）：付款没人定、这个对方没记过、票面看不出：停下要人定，不按默认「已付、现金」提交（赊销票会记成已付）。
-        这个对方记住过的照记住的提交。"""
+        """11-08 复核（管钱）：销售付款没人定、这个对方没记过（销售读不到付款条件）：停下要人定，不按默认「已付、现金」提交
+        （赊销票会记成已付）。这个对方记住过的照记住的提交。"""
         self.choices = {"lines": [{"decided": True}]}
         with patch.object(intake, "submit_chat") as chat, \
                 patch("pearnly_erp_portal.express.choices.chosen", return_value=""):
