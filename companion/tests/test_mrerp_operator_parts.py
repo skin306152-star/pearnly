@@ -333,11 +333,11 @@ def test_the_switch_adds_mrerp_to_the_heartbeat_and_the_host_together(monkeypatc
 def test_the_host_builds_the_mrerp_draft_and_settings_from_the_payload(tmp_path):
     seen = {}
 
-    def assemble(state, store, settings, root, notify):
-        seen["settings"], seen["state"] = settings, state
-        runner = SimpleNamespace(state=state, add=lambda d: seen.setdefault("draft", d),
+    def assemble(state, store, settings, root, notify, member=None):
+        seen["settings"], seen["state"], seen["member"] = settings, state, member
+        runner = SimpleNamespace(state=state, add=lambda d, task_id=None: seen.setdefault("draft", d),
                                  run_one=lambda _id: SimpleNamespace(status=K.SAVED, docnum="PN1", voided=[], placeholders=[],
-                                                                    reports=[], seconds=1.0, reason=""),
+                                                                    reports=[], seconds=1.0, reason="", evidence=""),
                                  finish=lambda: None, snapshot=lambda: {})
         return runner, {}
 
@@ -347,12 +347,25 @@ def test_the_host_builds_the_mrerp_draft_and_settings_from_the_payload(tmp_path)
     host = host_module.Host(tmp_path, assemblers={"mrerp": assemble})
     job = block()
     job["operator"]["batch"] = {"id": "b9", "index": 1, "total": 1, "doc": "CWH-9"}
-    out = host.handle("t1", job, None)
+    member = SimpleNamespace(site="testcowork.pearnly.com")
+    out = host.handle("t1", job, None, member=member)
     assert out["status"] == "saved" and out["docnum"] == "PN1"
+    assert seen["member"] is member  # 宿主与 Express 同一个调用形状：成员配置交给装配
     assert isinstance(seen["draft"], D.Draft) and seen["draft"].doc_id == "CWH-9"
     assert (seen["settings"].account_company, seen["settings"].account_set, seen["settings"].account_dir) == \
         ("TEST Co", "TEST2569", "https://mrerp4sme.com")
     assert seen["settings"].mrerp["connection"] == "c9"
+
+
+def test_the_mrerp_factory_takes_the_member_like_express(monkeypatch):
+    from companion.mrerp_operator import host as mhost
+
+    seen = {}
+    monkeypatch.setattr(mhost, "assemble", lambda *a, **kw: seen.update(args=a, kw=kw) or ("runner", {}))
+    member = object()
+    assert host_module.mrerp_factory("s", "st", None, Path("/x"), None, member=member) == ("runner", {})
+    assert seen["kw"] == {"member": member} and seen["args"] == ("s", "st", None, Path("/x"), None)
+    assert host_module.mrerp_factory("s", "st", None, Path("/x"), None) == ("runner", {})  # 收拾残留时 member=None
 
 
 # ── 子进程与打包 ──────────────────────────────────────────────────────────

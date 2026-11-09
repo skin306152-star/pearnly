@@ -128,8 +128,8 @@ def factory(maker: Maker, *, secret=("ccbot", PASSWORD), idle_s: float = 0.6, se
             secrets_seen.append(target)
         return secret
 
-    def assemble(state, store, settings, root, notify):
-        return mhost.assemble(state, store, settings, root, notify, desk_factory=maker, read_secret=read_secret,
+    def assemble(state, store, settings, root, notify, member=None):
+        return mhost.assemble(state, store, settings, root, notify, member=member, desk_factory=maker, read_secret=read_secret,
                               load_s=20, presence_options={"idle_s": idle_s, "poll_s": 0.1},
                               runner_options={"net_poll_s": 0.3, "net_wait_s": 6})
 

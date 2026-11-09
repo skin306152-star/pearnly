@@ -466,11 +466,12 @@ def express_factory(state, store, settings, root: Path, notify, member=None):
 default_factory = express_factory  # 旧名：收拾上次留下的 Express（``recover_orphans``）与测试仍按它取
 
 
-def mrerp_factory(state, store, settings, root: Path, notify):
-    """MR.ERP 网页的装配（``mrerp_operator.host.assemble``）：领到 MR.ERP 代录单才导入那个包。"""
+def mrerp_factory(state, store, settings, root: Path, notify, member=None):
+    """MR.ERP 网页的装配（``mrerp_operator.host.assemble``）：领到 MR.ERP 代录单才导入那个包。``member`` 与 Express 同一个调用
+    形状（宿主 ``_start`` / ``recover_orphans`` 都带它），原样交给装配。"""
     from ..mrerp_operator.host import assemble
 
-    return assemble(state, store, settings, root, notify)
+    return assemble(state, store, settings, root, notify, member=member)
 
 
 def _mrerp_settings(payload: Dict):

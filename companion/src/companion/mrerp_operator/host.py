@@ -76,9 +76,10 @@ class DeskView:
             return False
 
 
-def assemble(state, store, settings, root: Path, notify, *, desk_factory=None, read_secret=None, load_s=None,
+def assemble(state, store, settings, root: Path, notify, *, member=None, desk_factory=None, read_secret=None, load_s=None,
              presence_options: Optional[Dict] = None, runner_options: Optional[Dict] = None):
-    """MR.ERP 的装配：子进程网页窗口 + 本机凭据 + 本机截图。关键字参数只给测试换（假站点、快的等待）。"""
+    """MR.ERP 的装配：子进程网页窗口 + 本机凭据 + 本机截图。关键字参数只给测试换（假站点、快的等待）。
+    ``member``（成员配置）与 Express 装配同一个调用形状收下；MR.ERP 还没接 AI 接手（Express 的 ``operator_ai``），认不出的页面照旧交人。"""
     from ..express_operator.batch import Runner, no_lock
     from ..express_operator.engine import NeedHuman
     from ..express_operator.evidence import Evidence, prune

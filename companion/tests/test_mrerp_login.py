@@ -265,6 +265,21 @@ def test_operator_login_for_mrerp_goes_to_the_step_two_module_or_says_unsupporte
     assert calls == [("ask", MRERP, "CWEC-1"), ("forget", MRERP, "CWEC-1")]
 
 
+def test_operator_login_for_mrerp_uses_the_step_two_module_only_with_the_switch_on(monkeypatch):
+    from companion import payload_contract
+    from companion.mrerp_operator import login as step_two
+
+    monkeypatch.delenv(payload_contract.MRERP_OPERATOR_ENV, raising=False)
+    assert type(_bridge(_Settings()))._mrerp_login_module() is None  # 默认：与没有执行层时一样
+    monkeypatch.setenv(payload_contract.MRERP_OPERATOR_ENV, "1")
+    assert type(_bridge(_Settings()))._mrerp_login_module() is step_two
+    asked = []
+    monkeypatch.setattr(step_two, "ask_and_store", lambda url, c, lang: asked.append((url, c, lang)) or False)
+    args = json.dumps({"target": "mrerp", "url": MRERP, "connection": "CWEC-1"})
+    assert json.loads(_bridge(_Settings()).call("operator_authorize", args)) == {"ok": False}
+    assert asked and asked[0][:2] == (MRERP, "CWEC-1")
+
+
 def test_login_window_buttons_speak_the_chosen_language(monkeypatch):
     # 11-08 日语窗口截图发现：没装 Qt 自带译文，标准按钮在泰 / 中 / 日界面也是英文「Save / Cancel」
     from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox

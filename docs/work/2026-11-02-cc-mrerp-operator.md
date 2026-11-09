@@ -267,3 +267,67 @@ Windows 的 Companion checks（`.github/workflows/companion.yml`，测试机 run
 - 第 3 步：站点按 `draft.py` 的 `mrerp` 块出载荷；同账号预检（`login.user_of` 只给用户名）、账号租约；CC 页面「MR.ERP 登录」按钮调桥
   `operator_authorize {target: "mrerp", url, connection}`；断开连接时 `operator_forget` 同参数。
 - 看文字的 AI 助手（`helper.judge_text`）随站点 CC 机器通道接；现在认不出的弹框一律必须人工。
+
+## 11-09 恢复推进：变基到最新 main 与真站点只读探路
+
+用户 11-08 晚：「之前因为 mr.erp 搁置的问题，现在已经恢复正常」；11-09 答复：是 test01 原来的测试库回来了。主会话定登录来源用站点已存的
+test01 登录（testcowork 连接 `CWEC-283edc03`）、只读；写入类实测另行送批。本分支仍不合入、开关仍不开。
+
+### 变基（基线 origin/main `96731e911`）
+
+7 个提交全部变基过去。冲突一律按 main 为准，MR.ERP 只挂在宿主按目标装配那一处：
+
+| 位置 | main 的情况 | 处理 |
+|---|---|---|
+| `i18n.py` | 已改四语，第 10 步已有 `mrerp_login_title` | 用 main 的；分支自己的 `op_mrerp_login_title` 删掉 |
+| `worker.py` 两处心跳（Express 成员、MR.ERP 成员） | 加了 `mrerp_logins` / `mrerp_users`，目标还是静态 `OPERATOR_TARGETS` | 保留 main 的上报，目标改用 `operator_targets()`（跟开关） |
+| `config.polls_queue` | 按静态 `OPERATOR_TARGETS` 判 MR.ERP 成员进不进写账线 | 改用 `operator_targets()`，开关打开时 MR.ERP 成员才进（默认行为不变） |
+| `tomo_bridge.py` | 第 10 步已留 `_mrerp_operator_login` 口子：要 `mrerp_operator.login` 的 `stored()`（无参数、回连接号清单）、`ask_and_store(url, connection, lang)`、`forget(url, connection)` | 文件回到 main 原样（分支加的重复分支删掉）；`login.py` 按这三个接口改写，小窗复用 `login_dialog.ask(title_key="mrerp_login_title")` |
+| 凭据目标名 | `credentials.mrerp_target`：主机小写、不带端口 + 连接号（第 10 步授权就存这个名） | `session.credential_target` 改为调用它（原来带端口、写法不同，授权存的登录代录会读不到）；网址或连接号不合规回空串 = 没授权 |
+| 宿主装配调用（main 6162ee74c） | `_start` / `recover_orphans` 都带 `member=` 调装配函数 | `mrerp_factory` 与 `assemble` 加 `member=None`（**原来开关一开就 TypeError**）；MR.ERP 还没接 AI 接手，认不出照旧交人 |
+
+测试随之改：凭据名期望值不带端口（有意对齐）、宿主测试的替身装配收 `member` 并断言交到；新增 `mrerp_factory` 透传 `member` 的测试。
+
+跑 CC 全套时又发现两处（本机第一遍在 `test_mrerp_login.py` 卡死 40 分钟，CPU 为 0）：
+
+- `tomo_bridge._mrerp_login_module`：main 只在「没有这个包」时回 None。执行层包一进来，开关关着时实操页的 MR.ERP 登录也会弹真的本机小窗
+  （测试里 `exec()` 等人点就卡死；Windows CI 同样会卡）。改成开关关着回 None：与没有执行层时一样回不支持、不导入执行层，main 那条测试一字不改就能过；
+  新增一条测试锁住「开关开着才用第 2 步的包」。
+- main 把 `runner.add(draft)` 改成 `add(draft, task_id)`；分支宿主测试的替身批次补上这个参数（MR.ERP 用的就是同一个真 `Runner`）。
+- 测试替身（`tests/_mrerp_harness.py` 的装配、宿主测试的替身单据）补上 main 后来加的 `member` 与 `evidence`。
+- 被踢在存档之后：main 统一了「整批停下时正在录的那张」的记法（`batch.park`：记等人 + `recheck`，再交来时先查存没存），不再停在「正在录」。
+  回放用例改按这个口径断言（从本机批次文件读回 `recheck`），后半段「再派来先查到已存、不重录、只存一张」照原样通过。
+
+CC 全套（本机 macOS，Python 3.11 + CI 同一份精确依赖，去掉 Windows 专属包）：**1620 通过、59 跳过（Windows 专属）、0 失败**；
+MR.ERP 网页回放子进程 17 / 17 通过。Windows 上的全量由分支 CI（`Companion checks`）跑。
+
+与 CC 线窗口（local_fd1ef94e）11-09 已对齐：它手上的分支不碰 companion 的 host / batch / worker / payload_contract。ADR-027 §6（结果不明，批 3a）
+对 MR.ERP 的要求：原电脑能按本机记录核对就自己核，核不了出「人核对」卡，绝不把结果不明当没写过自动重写。本执行层的本机清单
+`mrerp-unsure.json`（`book.UnsureStore`）就是这份本机记录：点了存档结果不明的单，再来时先按清单在列表里查，查到不重录。服务端 3a 接 MR.ERP
+目标时按这个口径接。
+
+### 真站点只读探路（11-09，主会话审过脚本 sha256 `0cb20dba449dfd7e` 后跑一次）
+
+做法：一次 SSH，只进 `pearnly-production-cowork-web-1`，在 testcowork 站点只读连接（`get_doc` + `get_decrypted_password`，rollback，密码不打印）；
+对 MR.ERP 共 18 个请求：GET 登录页、POST 一次 `checklogin.php`（登录本身；MR.ERP 会更新 `tbl_useruse` 在线记录，会挤掉别处的 test01），其余全是 GET。
+发送函数加了守卫，GET 与那一次登录以外的请求一律拦下；没存档、没进导入页、没退出登录。服务器与容器 /tmp 的脚本跑完删掉，读回 0。
+事先核过 MR.ERP 源码：`aptran / artran / arse` 的 `allview.php`、`allform.php` 及其引入的组件都没有写库语句。
+
+| 项 | 结果 |
+|---|---|
+| 登录 | test01 登录成功，进得了选公司页 |
+| 账套 | 2 个：`TEST2019`（comidyear 6, seldb 1）、`TEST2020`（comidyear 15, seldb 1）；公司 `TEST`「1010-01-000006 บริษัท ทดสอบการใช้ จำกัด」 |
+| TEST2019 主菜单 | 200，底栏 Company 与目录一致；菜单号 `aptran:454`、`aptran:68`、`artran:119`、`arse:126` |
+| **TEST2020 主菜单** | **仍是 Unknown database**（没有菜单、没有底栏）：这个年度库还没回来 |
+| **四个列表页** | **都打不开**：没有 `txtsearch / btnsearch / btnadd`、没有 `#showdata`。第 2 次只读（脚本 sha256 `673ffac94ecc2481`，20 个请求）查明：四个菜单提示都是「กรุณากำหนดการเชื่อมโยง "สมุดรายวัน"」，菜单设置页 `menu/menuform.php?idmenu=N`（界面叫「จัดการเมนู」）里「เชื่อมโยงสมุดรายวัน」的「สมุดรายวัน」是空的（`tbl_linkaccount` 里没有 TEST2019 + 这四个菜单的日记账）。另两种可能已排除：「ผังบัญชีอ้างอิง」29 项都填了；「ตั้งค่าระบบสินค้า」已设（允许负库存 = อนุญาต、按仓分开算 = ไม่อนุญาต、存货方式 Periodic） |
+| 新增页 | 三类都能打开：`aptran` 175 格、`artran` 179 格、`arse` 199 格；提交表单 `frm` → `allsave.php`（POST） |
+| 配方格子 | 表头 17 / 17、17 / 17、18 / 18 全在；明细 `btn-add`、`txtcode1 / txtstore1 / txtamount1 …` 全在；折扣、合计三格、`btnsave`、对方、参考号都在；现销收款 `txtcashpay`（可写、带默认）、`txttotalrec`（只读）在 |
+| 单号 | `txtdoctype` 只读带默认（单别），`txtdocnum` 可写且为空：打开新增页时**不自动编号**（与配方 `when: editable` 一致） |
+| 日期 | `txtdate` 只读、无默认（要走日历） |
+| 选择框 | 对方、商品、仓、税率、分支 / 部门 / 工作 / 员工都是只读格（经弹出清单选，与配方 `pick` 一致）；分支有默认值，部门 / 工作 / 员工没有默认 |
+
+对照「第 0 步探路要核对的清单」：第 1、2（成功一侧）、3、5 项已核；第 4 项（列表）因设置未完成核不了；第 6–15 项要在 CC 网页内核里点、或要写入，没做。
+
+**影响**：网页代录从列表页「Add」进新增页，存档后在列表里查单号、续录也在列表里查。列表打不开，执行层在 TEST2019 上**录不了也查不了**；
+服务端导入直写（`impartran/formupload.php`）是否受同样设置影响，本次没看（没进导入页）。需要 MR.ERP 那边在 TEST2019「จัดการเมนู」里给菜单 68、454（ใบซื้อ）、119（ใบขาย）、126（ใบขายเงินสด）
+各挂上日记账，TEST2020 年度库恢复，才能往下走第 0 步其余各项。已请主会话经用户转告岳父（我们不碰 MR.ERP 设置）。

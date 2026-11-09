@@ -119,7 +119,11 @@ def test_kicked_after_save_pauses_without_logging_in_again_and_the_next_try_does
     assert len(site.saved()) == 1 and all(d.closed for d in maker.drivers)
     snap = host.snapshots()[0]
     assert snap["status"] == "stopped" and snap["reason"] == "login_failed"
-    assert [d["status"] for d in snap["docs"]] == ["entering"]  # 结果不明：留「正在录」
+    # 结果不明（main 的统一口径，batch.park）：记等人 + recheck，再交来时先查存没存
+    assert [d["status"] for d in snap["docs"]] == ["waiting"]
+    from companion.express_operator.batch import BatchStore
+
+    assert BatchStore(tmp_path / "batches").load(snap["id"]).doc("D1").recheck is True
     # 人处理好账号后这张再派来（换一批、CC 重启后同样）：先查存没存，查到就记单号，不重录
     site.useruse.clear()
     again = Host(tmp_path, assemblers={"mrerp": factory(Maker())})

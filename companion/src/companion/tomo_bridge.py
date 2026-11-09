@@ -231,7 +231,12 @@ class TomoBridge(QObject):
 
     @staticmethod
     def _mrerp_login_module():
-        """第 2 步代录 MR.ERP 的本机登录（``mrerp_operator.login``）；这一版没有这个包回 None。"""
+        """第 2 步代录 MR.ERP 的本机登录（``mrerp_operator.login``）；这一版没有这个包、或 MR.ERP 代录开关没开（默认）回 None，
+        与没有执行层时一样诚实回不支持，不导入执行层。"""
+        from .payload_contract import mrerp_operator_enabled
+
+        if not mrerp_operator_enabled():
+            return None
         try:
             from .mrerp_operator import login  # type: ignore[import-not-found]
         except ImportError:
