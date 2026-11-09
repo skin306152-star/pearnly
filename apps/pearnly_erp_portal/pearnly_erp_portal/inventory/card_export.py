@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import html
 import re
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from io import BytesIO
 
 import frappe
@@ -31,6 +31,13 @@ ARGS = ("report", "format", "date_from", "date_to", "product_from", "product_to"
 BATCH = 200
 CHUNK = 500
 INVALID = "Invalid value"
+# 筛选校验照 MR.ERP 的原文（rpstkmm/component/javascript/rpstkmmform.js、rpstkmmstoreform.js）：说出是哪一栏。
+# 物料、仓库「从 / 到」留空 = 不限（评估 §C-5），所以没有它们的「请选齐」。
+DATE_REQUIRED = "trade.export.error.dateRequired"
+DATE_ORDER = "trade.export.error.dateOrder"
+PRODUCT_ORDER = "trade.export.error.productOrder"
+WAREHOUSE_ORDER = "trade.export.error.warehouseOrder"
+CENT = Decimal("0.01")
 
 
 def _t(key, *args) -> str:
@@ -49,14 +56,16 @@ def _params(report=None, format=None, date_from=None, date_to=None, product_from
             warehouse_from=None, warehouse_to=None, **_ignored) -> dict:
     kind = str(report or "").strip()
     output = str(format or "").strip()
-    if kind not in REPORTS or output not in FORMATS or not date_from or not date_to:
+    if kind not in REPORTS or output not in FORMATS:
         frappe.throw(_(INVALID))
+    if not date_from or not date_to:
+        frappe.throw(_(DATE_REQUIRED))
     try:
         start, end = getdate(date_from), getdate(date_to)
     except ValueError:
-        frappe.throw(_(INVALID))
+        frappe.throw(_(DATE_REQUIRED))
     if start > end:
-        frappe.throw(_(INVALID))
+        frappe.throw(_(DATE_ORDER))
     clean = lambda value: str(value or "").strip()  # noqa: E731
     return {"report": kind, "format": output, "date_from": str(start), "date_to": str(end),
             "product_from": clean(product_from), "product_to": clean(product_to),
@@ -70,7 +79,26 @@ def _product_code(row) -> str:
 
 
 def _warehouse_code(row) -> str:
-    return warehouses.code_of(row) or row.get("warehouse_name") or row.get("name") or ""
+    """仓的编号：与仓库页「รหัสคลัง」同一个（`warehouses.display_code`），不拿仓名顶替。"""
+    return warehouses.display_code(row)
+
+
+def _product_master_range() -> tuple:
+    """物料主档的第一个 / 最后一个代码（MR.ERP 筛选页的默认「从 ~ 到」）：当前公司看得到的物料 = 本地档 + 本公司 Express 档
+    （`products.codes._scope`），代码口径同 `_product_code`，按库的排序规则（MR.ERP 也是库里 ORDER BY）。"""
+    rows = frappe.db.sql(
+        """select min(c), max(c) from (select coalesce(nullif(express_code, ''), nullif(code, ''), name) as c
+           from `tabERP Product` where ifnull(express_company, '') in ('', %s)) as codes""",
+        [companies.active_company()])
+    first, last = (rows[0] if rows else (None, None))
+    return (first or "").strip(), (last or "").strip()
+
+
+def _warehouse_master_range() -> tuple:
+    """当前公司仓库主档的第一个 / 最后一个编号（同仓库页的编号）。"""
+    rows = _rows_by_name("ERP Warehouse", warehouses.names_of(), ["warehouse_name", "warehouse_code", "express_code"])
+    codes = sorted((_warehouse_code(row) for row in rows.values()), key=card_rows.code_key)
+    return (codes[0], codes[-1]) if codes else ("", "")
 
 
 def _rows_by_name(doctype, names, fields) -> dict:
@@ -106,9 +134,9 @@ def _selection(params) -> dict:
     store_from = _bound(params["warehouse_from"], stores, _warehouse_code)
     store_to = _bound(params["warehouse_to"], stores, _warehouse_code)
     if product_from and product_to and card_rows.code_key(product_from) > card_rows.code_key(product_to):
-        frappe.throw(_(INVALID))
+        frappe.throw(_(PRODUCT_ORDER))
     if store_from and store_to and card_rows.code_key(store_from) > card_rows.code_key(store_to):
-        frappe.throw(_(INVALID))
+        frappe.throw(_(WAREHOUSE_ORDER))
     chosen = [key for key in keys
               if key[0] in products and card_rows.in_range(_product_code(products[key[0]]), product_from, product_to)
               and (params["report"] != "by_warehouse"
@@ -117,15 +145,15 @@ def _selection(params) -> dict:
                          key=lambda name: (card_rows.code_key(_product_code(products[name])), name))
     store_ids = sorted({key[1] for key in chosen},
                        key=lambda name: (card_rows.code_key(_warehouse_code(stores[name])), name))
-    all_codes = sorted((_product_code(products[key[0]]) for key in keys if key[0] in products), key=card_rows.code_key)
-    all_stores = sorted((_warehouse_code(stores[key[1]]) for key in keys if key[1] in stores), key=card_rows.code_key)
+    # 表头的「从 ~ 到」：没选的那头写主档的第一个 / 最后一个代码（MR.ERP 筛选页默认就是主档首末，主会话 11-09）
+    first_product, last_product = _product_master_range() if not (product_from and product_to) else ("", "")
+    store_range = ("", "")
+    if params["report"] == "by_warehouse" and not (store_from and store_to):
+        store_range = _warehouse_master_range()
     return {"positions": chosen, "products": product_ids, "warehouses": store_ids, "product_rows": products,
             "warehouse_rows": stores,
-            # 表头的「从 ~ 到」：没选的那头写第一个 / 最后一个代码（MR.ERP 默认就是第一个 ~ 最后一个）
-            "product_range": (product_from or (all_codes[0] if all_codes else ""),
-                              product_to or (all_codes[-1] if all_codes else "")),
-            "warehouse_range": (store_from or (all_stores[0] if all_stores else ""),
-                                store_to or (all_stores[-1] if all_stores else ""))}
+            "product_range": (product_from or first_product, product_to or last_product),
+            "warehouse_range": (store_from or store_range[0], store_to or store_range[1])}
 
 
 def size(**kwargs) -> int:
@@ -176,12 +204,24 @@ def _blocks(params, selection, costs):
 
 # ── 版面模型（Excel 与 PDF 共用一份）────────────────────────────────────────────────
 
-def _cell(value=None, span=1, align="left", number=False, rowspan=1):
-    return {"value": value, "span": span, "align": align, "number": number, "rowspan": rowspan}
+def _cell(value=None, span=1, align="left", number=False, rowspan=1, pdf_align=None):
+    return {"value": value, "span": span, "align": align, "number": number, "rowspan": rowspan,
+            "pdf_align": pdf_align or align}
+
+
+def _round(value):
+    """两位小数、四舍五入（MR.ERP 库存卡是 decimal(12,2)、印出来用 PHP number_format，都是四舍五入）。
+    Excel 与 PDF 都取这里的值，同一份数据两种格式一模一样（不让 Python 的取偶或 Excel 的显示各自舍入）。"""
+    return None if value is None else Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)
 
 
 def _num(value):
-    return _cell(value, align="right", number=True)
+    return _cell(_round(value), align="right", number=True)
+
+
+def _qty(value):
+    """数量格：Excel 靠右（同 57.php），PDF 居中（58.php / 60.php / 199.php 的 Cell 对齐 "C"）。"""
+    return _cell(_round(value), align="right", number=True, pdf_align="center")
 
 
 def _blank(span=1):
@@ -189,7 +229,7 @@ def _blank(span=1):
 
 
 def _three(qty, unit_price, amount):
-    return [_num(qty), _num(unit_price), _num(amount)]
+    return [_qty(qty), _num(unit_price), _num(amount)]
 
 
 def _count(value) -> str:
@@ -246,9 +286,9 @@ def _product_rows(meta, item):
 
 def _flows(label, total, closing):
     """小计 / 合计行：收数量、收金额、发数量、发金额（单价空）；`closing` 时再加结余数量、结余金额。"""
-    tail = [_num(total.closing_qty), _blank(), _num(total.closing_amount)] if closing else [_blank(), _blank(), _blank()]
-    return [_cell(label, 2), _num(total.in_qty), _blank(), _num(total.in_amount),
-            _num(total.out_qty), _blank(), _num(total.out_amount), *tail]
+    tail = [_qty(total.closing_qty), _blank(), _num(total.closing_amount)] if closing else [_blank(), _blank(), _blank()]
+    return [_cell(label, 2), _qty(total.in_qty), _blank(), _num(total.in_amount),
+            _qty(total.out_qty), _blank(), _num(total.out_amount), *tail]
 
 
 def _layout(params, selection, costs) -> dict:
@@ -281,7 +321,7 @@ def _layout(params, selection, costs) -> dict:
             body.append({"kind": "grand", "cells": [_cell(_t("trade.export.grand", _count(grand.blocks)), 2)] + [
                 cell for qty, amount in ((grand.opening_qty, grand.opening_amount), (grand.in_qty, grand.in_amount),
                                          (grand.out_qty, grand.out_amount), (grand.closing_qty, grand.closing_amount))
-                for cell in (_num(qty), _blank(), _num(amount))]})
+                for cell in (_qty(qty), _blank(), _num(amount))]})
         return {"lines": lines, "columns": SUMMARY_COLUMNS, "head": _summary_head(), "body": body}
     if kind == "all":
         grand = card_rows.totals(costs)
@@ -478,7 +518,7 @@ table.r .gap td {{ border: 0; height: 3mm; padding: 0; }}
         parts.append(f'<tr class="head">{cells}</tr>')
     parts.append("</thead><tbody>")
     for row in layout["body"]:
-        cells = "".join(f'<td colspan="{spec["span"]}" class="{spec["align"]}">{_html_value(spec)}</td>'
+        cells = "".join(f'<td colspan="{spec["span"]}" class="{spec["pdf_align"]}">{_html_value(spec)}</td>'
                         for spec in row["cells"])
         parts.append(f'<tr class="{row["kind"]}">{cells}</tr>')
     parts.append("</tbody></table></body></html>")

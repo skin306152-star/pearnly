@@ -67,6 +67,11 @@ MRERP_THAI = {
     "trade.export.warehouseTotal": "รวมคลัง", "trade.export.warehouseDetail": "รายละเอียดรวมคลัง  {0}  รายการ  {1}  สินค้า",
     "trade.export.allTotal": "รวมทุกคลัง",
     "trade.export.allDetail": "รายละเอียดรวมทุกคลัง  {0}  รายการ  {1}  สินค้า  {2}  คลัง",
+    # 筛选校验（rpstkmm/component/javascript/rpstkmmform.js、rpstkmmstoreform.js 的 alert 原文）
+    "trade.export.error.dateRequired": 'กรุณาเลือก "วันที่" ให้ครบ',
+    "trade.export.error.dateOrder": '"วันที่" ต้องเรียงลำดับจากน้อยไปมาก',
+    "trade.export.error.productOrder": '"รหัสสินค้า" ต้องเรียงลำดับจากน้อยไปมาก',
+    "trade.export.error.warehouseOrder": '"รหัสคลังสินค้า" ต้องเรียงลำดับจากน้อยไปมาก',
 }
 
 
@@ -137,7 +142,7 @@ class Export(unittest.TestCase):
         frappe.throw = self.throw
         frappe.get_list = self.get_list
         frappe.get_all = self.get_all
-        frappe.db = SimpleNamespace(get_value=self.get_value, count=self.count)
+        frappe.db = SimpleNamespace(get_value=self.get_value, count=self.count, sql=self.sql)
         utils = ModuleType("frappe.utils")
         utils.getdate = lambda value: value if isinstance(value, date) else date.fromisoformat(str(value))
         utils.nowdate = lambda: "2026-11-08"
@@ -150,7 +155,10 @@ class Export(unittest.TestCase):
         inventory.contracts = self.contracts
         inventory.warehouses = SimpleNamespace(
             resolve=lambda value, **kwargs: value, scope_filter=lambda: {"warehouse": ["in", ["W1", "W2"]]},
-            code_of=lambda row: (row.get("express_code") or row.get("warehouse_code") or "").strip())
+            names_of=lambda company=None: sorted(self.stores),
+            code_of=lambda row: (row.get("express_code") or row.get("warehouse_code") or "").strip(),
+            # 与真函数同口径（仓库页「รหัสคลัง」那一栏）：Express 码 → 手填编号 → 系统号
+            display_code=lambda row: (row.get("express_code") or row.get("warehouse_code") or row.get("name") or "").strip())
         masters = ModuleType("pearnly_erp_portal.masters")
         masters.company = SimpleNamespace(active_company=lambda: "CO1")
         sys.modules.update({"frappe": frappe, "frappe.utils": utils, "pearnly_erp_portal.access": access,
@@ -198,6 +206,13 @@ class Export(unittest.TestCase):
     def get_value(self, doctype, name, fields, as_dict=False):
         self.assertEqual((doctype, name), ("ERP Company", "CO1"))
         return SimpleNamespace(company_name="บริษัท ทดสอบ จำกัด", tax_id="0105555000001")
+
+    def sql(self, query, values=None, **kwargs):
+        """物料主档的首末代码（当前公司看得到的：本地档 + 本公司 Express 档）；按库的排序规则，这里用不分大小写近似。"""
+        self.assertIn("ERP Product", query)
+        self.assertEqual(list(values), ["CO1"])
+        codes = sorted((code for code, _name, _unit in self.products.values()), key=str.casefold)
+        return [(codes[0], codes[-1])] if codes else [(None, None)]
 
     def count(self, doctype, filters):
         return len([row for row in self.movements if all(self.holds(row, c) for c in filters)])
@@ -450,6 +465,65 @@ class Export(unittest.TestCase):
         self.assertNotIn("ยอดยกมา", seen["zh"][1])
         self.assertNotIn("上期结转", seen["th"][1])
         self.assertEqual(len(queued), 2)
+
+    # ── 与 MR.ERP 对齐的几处（主会话 11-09）──
+    def test_errors_name_the_field_like_mrerp(self):
+        """① 报错说出是哪一栏（rpstkmmform.js / rpstkmmstoreform.js 的原文）。"""
+        cases = [({"date_from": "", "date_to": "2026-10-31"}, 'กรุณาเลือก "วันที่" ให้ครบ'),
+                 ({"date_from": "2026-10-31", "date_to": "2026-10-01"}, '"วันที่" ต้องเรียงลำดับจากน้อยไปมาก')]
+        for dates, message in cases:
+            with self.assertRaises(ValueError) as caught:
+                self.export._params(report="all", format="xlsx", **dates)
+            self.assertEqual(str(caught.exception), message)
+        with self.assertRaises(ValueError) as caught:
+            self.layout("all", product_from="P4", product_to="P1")
+        self.assertEqual(str(caught.exception), '"รหัสสินค้า" ต้องเรียงลำดับจากน้อยไปมาก')
+        with self.assertRaises(ValueError) as caught:
+            self.layout("by_warehouse", warehouse_from="W2", warehouse_to="W1")
+        self.assertEqual(str(caught.exception), '"รหัสคลังสินค้า" ต้องเรียงลำดับจากน้อยไปมาก')
+
+    def test_warehouse_without_code_uses_the_warehouse_page_code(self):
+        """② 仓没填编号：用仓库页「รหัสคลัง」那一栏的系统号，不拿仓名顶替（11-09 testerp 印成「Test repository Test repository」）。"""
+        self.stores["W2"] = ("", "คลังสาขา")
+        layout = self.layout("by_warehouse", warehouse_from="W2", warehouse_to="W2")
+        self.assertEqual(layout["lines"][2], ("รหัสคลังสินค้า  W2  ถึง  W2", ""))
+        stores = [row["cells"][0]["value"] for row in layout["body"] if row["kind"] == "store"]
+        self.assertEqual(stores, ["W2  คลังสาขา"])
+
+    def test_open_ranges_print_the_master_first_and_last_codes(self):
+        """③ 物料 / 仓留空：表头写主档的第一个 ~ 最后一个代码（MR.ERP 筛选页默认值），不是有流水的首末。"""
+        self.products["P9"] = ("Z999", "ไม่มีความเคลื่อนไหว", "ชิ้น")
+        self.stores["W3"] = ("WH03", "คลังว่าง")
+        self.assertEqual(self.layout("all")["lines"][3], ("รหัสสินค้า  A001  ถึง  Z999", ""))
+        lines = self.layout("by_warehouse")["lines"]
+        self.assertEqual(lines[2:4], [("รหัสคลังสินค้า  WH01  ถึง  WH03", ""), ("รหัสสินค้า  A001  ถึง  Z999", "")])
+
+    def test_pdf_centres_quantities_like_mrerp(self):
+        """④ PDF 数量居中、单价金额靠右（58.php / 60.php / 199.php 的 Cell 对齐）。"""
+        printing = ModuleType("pearnly_erp_portal.printing")
+        printing.context = SimpleNamespace(fonts_css=lambda: "", FONT_FAMILY="PearnlyPrint")
+        with patch.dict(sys.modules, {"pearnly_erp_portal.printing": printing}):
+            text = self.export._html(self.layout("summary"))
+        row = text.split('<tr class="line">')[1].split("</tr>")[0]
+        cells = row.split("<td ")[1:]
+        self.assertIn('class="center">6.00<', cells[2])      # ยอดยกมา 数量
+        self.assertIn('class="right">5.00<', cells[3])       # 单价
+        self.assertIn('class="right">30.00<', cells[4])      # 金额
+        self.assertIn('class="center">14.00<', cells[5])
+
+    def test_half_cents_round_up_in_both_formats(self):
+        """⑥ 舍入同 MR.ERP（PHP number_format，四舍五入）：2.125 → 2.13，PDF 与 Excel 一样，不取偶。"""
+        self.products["P5"] = ("C001", "น้ำตาล", "กก.")
+        self.add("2026-10-02", "10:00:00", "P5", "W1", D("2.125"), 1, "purchase_in", "PI-09")
+        layout = self.layout("all", product_from="P5", product_to="P5")
+        line = next(row for row in layout["body"] if row["kind"] == "line")
+        self.assertEqual(self.values(line)[2], D("2.13"))
+        printing = ModuleType("pearnly_erp_portal.printing")
+        printing.context = SimpleNamespace(fonts_css=lambda: "", FONT_FAMILY="PearnlyPrint")
+        with patch.dict(sys.modules, {"pearnly_erp_portal.printing": printing}):
+            text = self.export._html(layout)
+        self.assertIn(">2.13<", text)
+        self.assertNotIn(">2.12<", text)
 
     def test_pdf_html_repeats_header_and_escapes(self):
         self.products["P1"] = ("A001", "<b>ปากกา</b>", "ด้าม")

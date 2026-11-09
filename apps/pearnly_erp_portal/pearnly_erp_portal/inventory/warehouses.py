@@ -218,6 +218,13 @@ def code_of(row) -> str:
     return (row.get("express_code") or row.get("warehouse_code") or "").strip()
 
 
+def display_code(row) -> str:
+    """仓库页「รหัสคลัง」那一栏显示的编号（`warehouses.js`）：Express 码 → 手填编号 → 系统号。
+    收发存导出的仓标题、仓范围用同一个（主会话 11-09：不拿仓名顶替编号）。"""
+    row = row or {}
+    return code_of(row) or (row.get("name") or "").strip()
+
+
 def label(row) -> str:
     """「编号 · 名称」（选择框、打印、报表同一个写法）；没编号就只写名称。"""
     row = row or {}
