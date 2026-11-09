@@ -24,118 +24,27 @@
 清点中的存量在 `orphan-baseline.txt`，相对 merge-base 新加条目判失败，已被 CI 跑到 / 已删 / 已豁免的条目要同一提交删掉。
 自测 `tests/test_check_test_coverage.py`：新加没人跑的测试被拦、只被 import 不算、豁免没写原因被拦、过期登记被拦、基线新加被拦、本仓通过。
 
-## 3. 待清点的 110 个（第 2 步结果待补）
+## 3. 第 2 步：110 个逐个实跑（11-09）
 
-- `test_cc_company_menu.py`
-- `test_cc_company_picker.py`
-- `test_cc_lab_agents_ask.py`
-- `test_cc_run_ui.py`
-- `test_cowork_accounting.py`
-- `test_cowork_bank_card_fee.py`
-- `test_cowork_bank_exports.py`
-- `test_cowork_bank_groups.py`
-- `test_cowork_bank_recon_contracts.py`
-- `test_cowork_bank_recon_export.py`
-- `test_cowork_bank_review.py`
-- `test_cowork_buyer_resolve.py`
-- `test_cowork_category_memory.py`
-- `test_cowork_classification.py`
-- `test_cowork_client_import.py`
-- `test_cowork_client_records.py`
-- `test_cowork_companion_legacy_wire.py`
-- `test_cowork_companion_queue_contracts.py`
-- `test_cowork_companion_queue_http_contracts.py`
-- `test_cowork_companion_release.py`
-- `test_cowork_connections.py`
-- `test_cowork_document_ai_regions.py`
-- `test_cowork_document_policy.py`
-- `test_cowork_document_tier.py`
-- `test_cowork_duplicates.py`
-- `test_cowork_engine.py`
-- `test_cowork_engine_work_shares_patch.py`
-- `test_cowork_export_actions.py`
-- `test_cowork_express_branch.py`
-- `test_cowork_express_common_payment.py`
-- `test_cowork_express_doc_sanity.py`
-- `test_cowork_express_line_items.py`
-- `test_cowork_express_mapper.py`
-- `test_cowork_express_posting_wire.py`
-- `test_cowork_express_purchase_stock.py`
-- `test_cowork_express_sales_mapper.py`
-- `test_cowork_feedback_store.py`
-- `test_cowork_history_contract.py`
-- `test_cowork_income_parse.py`
-- `test_cowork_income_recon_contracts.py`
-- `test_cowork_income_recon_export.py`
-- `test_cowork_income_recon_parse_info.py`
-- `test_cowork_input_runtime.py`
-- `test_cowork_intake_preview.py`
-- `test_cowork_invoice_checks.py`
-- `test_cowork_invoice_grouping.py`
-- `test_cowork_invoice_policy.py`
-- `test_cowork_invoice_results.py`
-- `test_cowork_invoice_schema.py`
-- `test_cowork_invoice_validation.py`
-- `test_cowork_migration_baseline.py`
-- `test_cowork_mrerp_xlsx_source_parity.py`
-- `test_cowork_ocr_attachments.py`
-- `test_cowork_ocr_chain_repair.py`
-- `test_cowork_ocr_contracts.py`
-- `test_cowork_ocr_document_schema.py`
-- `test_cowork_ocr_document_validation.py`
-- `test_cowork_ocr_error_format.py`
-- `test_cowork_ocr_magnitude.py`
-- `test_cowork_ocr_runtime_baseline.py`
-- `test_cowork_ocr_store_save.py`
-- `test_cowork_product_units.py`
-- `test_cowork_provider_work_guard.py`
-- `test_cowork_push_lifecycle.py`
-- `test_cowork_push_runtime_baseline.py`
-- `test_cowork_push_runtime_drift.py`
-- `test_cowork_recon_export_names.py`
-- `test_cowork_recon_intake_fixes.py`
-- `test_cowork_recon_ledger_edits.py`
-- `test_cowork_recon_reread.py`
-- `test_cowork_recon_sheet_dates.py`
-- `test_cowork_reconciliation_amounts.py`
-- `test_cowork_reconciliation_bank_intake.py`
-- `test_cowork_reconciliation_bank_matching.py`
-- `test_cowork_reconciliation_bank_model_path.py`
-- `test_cowork_reconciliation_bank_parse.py`
-- `test_cowork_reconciliation_bank_reread.py`
-- `test_cowork_reconciliation_bank_statement.py`
-- `test_cowork_reconciliation_bank_text.py`
-- `test_cowork_reconciliation_contracts.py`
-- `test_cowork_reread_checks.py`
-- `test_cowork_review_reasons.py`
-- `test_cowork_roundtrip_export.py`
-- `test_cowork_roundtrip_parser.py`
-- `test_cowork_scope_queries.py`
-- `test_cowork_stock_acc_group_choice.py`
-- `test_cowork_stocktake_contracts.py`
-- `test_cowork_stocktake_export.py`
-- `test_cowork_stocktake_native_contract.py`
-- `test_cowork_stocktake_upload.py`
-- `test_cowork_supplier_posting.py`
-- `test_cowork_table_engine.py`
-- `test_cowork_table_input_runtime.py`
-- `test_cowork_targets.py`
-- `test_cowork_vat_check.py`
-- `test_cowork_vat_parse.py`
-- `test_cowork_vat_void.py`
-- `test_cowork_work_boards.py`
-- `test_cowork_work_contracts.py`
-- `test_cowork_workspace_import.py`
-- `test_dms_grouped_snapshots.py`
-- `test_dms_ocr_timing.py`
-- `test_document_numbering.py`
-- `test_erp_error_details.py`
-- `test_erp_portal_access.py`
-- `test_listing_sort.py`
-- `test_opening_batch.py`
-- `test_opening_report.py`
-- `test_opening_workbook.py`
-- `test_release_member_identity.py`
+跑了三遍，结果绑在基线 `fac13c1fa` 的工作树上：
+- 本机裸 python3，等同 Development checks：runner 不装第三方包；
+- 生产镜像 `26a2b0e8`；
+- 开发镜像 `fb1037ad`（回归实验栈默认镜像）。
+
+镜像里都是 `--network none`、只读挂工作树、逐个独立进程跑。
+
+| 类 | 个数 | 处理 | 批 |
+|---|---|---|---|
+| 裸 python3 就过 | 64 | `scripts/run-offline-tests.py --plain`（Development checks，合计约 2 秒） | 1 |
+| 过期，已修，裸 python3 可跑 | 1 | `test_opening_batch`：仓位替身缺 11-07 加的 `positions.resolve` | 1 |
+| 过期，已修，要镜像 | 3 | `test_cowork_ocr_contracts`：`ocr.inputs` 已并进 `pearnly_core.originals.rules`（ADR-024）；`test_dms_ocr_timing`：LINE 加载动画改成 `start_loading_background`；`test_cowork_invoice_checks`：识别回放 `replay.active()` 没打替身 | 测试修复随 1，接 CI 随 2 |
+| 只在镜像里过（要 frappe / pydantic / openpyxl / PIL / docx / werkzeug / PDF 库） | 40 | 候选检查 offline 道 `--image`（生产镜像合计约 35 秒） | 2 |
+| 过期，另一分支已修 | 1 | `test_opening_report`：`pearnly/opening-report-test` | 合入后删基线行 |
+| 要真实发布实验室（MariaDB + Frappe + Keycloak） | 1 | `test_release_member_identity`：离线跑不了，等主会话定豁免还是删 | 3 |
+| 作废 | 0 | 静态预查疑似的 `test_cowork_companion_release` 是看错了路径（文件在 `apps/pearnly_cowork/.../companion/heartbeat.py`），通过 | — |
+| 真缺陷（业务断言失败） | 0 | — | — |
+
+分类清单另发主会话（共享笔记「孤儿测试-第2步分类-2026-11-09.md」）。
 
 ## 4. 暂停交接（11-08 20:2x，本机 21:00 睡眠）
 
