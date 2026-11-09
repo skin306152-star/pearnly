@@ -60,8 +60,8 @@ SHOTS = [ROOT / "tests" / "fixtures" / "scenarios" / f"party-once-screenshot-{i:
 DIRECT_LINES = {"desktop": "把这 4 张录进 Express", "mobile": "บันทึก 4 ใบนี้เข้า Express"}
 DIRECT_DOCNUM = "RR-DIRECT-{:02d}"
 # 花费硬封顶（主会话 11-09：这次 2 美元）：每遍开跑前按最坏单价估这一遍，累计超过 --budget 就不开跑。单价取设计文档文末的实测折算
-# 往高里算（识别升 Opus 约 0.02 美元 / 页，按 0.025；对话一轮按 0.15）
-PAGE_MAX, TURN_MAX = 0.025, 0.15
+# 往高里算（识别升 Opus 约 0.02 美元 / 页，按 0.025；对话一轮 11-09 实测引擎账单 0.07–0.32 美元（每轮写约 5 万 token 缓存），按 0.35）
+PAGE_MAX, TURN_MAX = 0.025, 0.35
 PAGES = 24
 FIRST_REF = "IV69/00751"
 SELLER_TAX = "0105561077332"
@@ -654,7 +654,11 @@ def lab_env():
     return env
 
 
-COWORK_OCR = (("pearnly_cowork_ocr_environment", "{}"), ("pearnly_cowork_ocr_policy", '{"mode": "economy"}'))
+# Cowork 识别准入（`ocr.execution.settings.snapshot`）要写明识别配置与一套 Vertex 连接（合成值，只过准入；真读票按
+# ``pearnly_ocr_engine=claude`` 交 Claude，同 `scripts/cowork-execution-lab-verify.py`）。实验栈默认都没有
+COWORK_OCR = (("pearnly_cowork_ocr_environment", '{"OCR_LLM_BACKEND": "vertex"}'), ("pearnly_cowork_ocr_policy", '{"mode": "economy"}'),
+              ("pearnly_ocr_credentials", '"/synthetic/credential-reference.json"'), ("pearnly_ocr_backend", '"vertex"'),
+              ("pearnly_ocr_project", '"synthetic-lab"'), ("pearnly_ocr_location", '"asia-southeast1"'))
 
 
 def set_sites(lab, key, engine):
