@@ -107,11 +107,11 @@
 
 | 项 | 分支 | 提交 | 测试（旧代码红 → 绿） | 闸门 / 候选 / 流程 | 状态 |
 |---|---|---|---|---|---|
-| ① 电脑跟随滚动 | `pearnly/cc-a6-follow-scroll` | ddb7c5f51 | `test_cc_mobile_content` 视口 `autoScroll={!phone}`；cc.chat 加「长回复」步骤（电脑离底 0、手机提问离上沿 20 像素） | 闸门 213 过；流程 cc.chat / attach-delete / operator.replay 过 | 排号待合 |
-| cc.operator.replay 缺单 | `pearnly/flows-replay-own-purchases` | a5319d743 | 新实验栈复现「need two submitted purchase documents」→ 流程自备两张服务费采购单，缺前置开跑即报 | 新老 × 电脑手机 4/4 过 | 排号待合 |
+| ① 电脑跟随滚动 | `pearnly/cc-a6-follow-scroll` | ddb7c5f51 | `test_cc_mobile_content` 视口 `autoScroll={!phone}`；cc.chat 加「长回复」步骤（电脑离底 0、手机提问离上沿 20 像素） | 闸门 213 过；流程 cc.chat / attach-delete / operator.replay 过 | 已合入 main 606b88709 |
+| cc.operator.replay 缺单 | `pearnly/flows-replay-own-purchases` | a5319d743 | 新实验栈复现「need two submitted purchase documents」→ 流程自备两张服务费采购单，缺前置开跑即报 | 新老 × 电脑手机 4/4 过 | 已合入 main 73974f2c8 |
 | ② 计时 | `pearnly/cc-a2-turn-timing` | a35962615 | `test_creating_and_sending_log_how_long_each_step_took` | 闸门过；候选离线 107 组 LANE EXIT 0 | 排号待合，随下一批上线读生产真数 |
-| ② 第 3、4 条 | `pearnly/cc-a2-first-turn` | e74cf833f | `test_a_new_chat_streams_its_first_reply_while_the_backfill_is_slow`、`test_a_backfill_landing_after_the_streamed_words_keeps_one_reply` | 闸门过；流程 14/14 过 | 排号待合 |
-| ② 预热 | `pearnly/cc-a2-prewarm` | 9de7ac6c0 | `test_the_agent_is_prepared_in_the_background_after_a_migrate_and_after_the_key_changes` | 闸门过；候选离线 LANE EXIT 0；实验栈实测后台任务备好缓存；cc.chat 4/4 | 排号待合 |
+| ② 第 3、4 条 | `pearnly/cc-a2-first-turn` | e74cf833f | `test_a_new_chat_streams_its_first_reply_while_the_backfill_is_slow`、`test_a_backfill_landing_after_the_streamed_words_keeps_one_reply` | 闸门过；流程 14/14 过 | 已合入 main 21ef0f6be |
+| ② 预热 | `pearnly/cc-a2-prewarm` | 9de7ac6c0 | `test_the_agent_is_prepared_in_the_background_after_a_migrate_and_after_the_key_changes` | 闸门过；候选离线 LANE EXIT 0；实验栈实测后台任务备好缓存；cc.chat 4/4 | 已合入 main 2dc683ede |
 | ① 后续：打开后马上发不跟到底 | `pearnly/cc-a1-follow-after-open` | f74b87ed3 | `test_on_desktop_sending_right_after_opening_hands_the_scroll_to_follow`（旧代码红） | 闸门 214 过；cc.chat 电脑两格连跑 3 遍过 | 排号待合 |
 | ④ 停止保留半段 + 已停止 + 重试 | `pearnly/cc-a4-stopped-reply` | 795f3979e | test_assistant 停止记一次 / 只留 20 段 / 删对话一起删；test_assistant_ui reducer 停止标记与刷新重放 | cc.chat 4/4（停止 → 刷新 → 找回、落库只一条）；候选离线 LANE EXIT 0 | 排号待合；部署时核 DocType `Pearnly Assistant Stopped Reply` |
 | ⑦ 第一段：标题写回 1020、删开着对话报错、侧栏滚到当前行 | `pearnly/cc-a7-titles` | 20e446783 | `test_the_summary_title_is_written_after_the_row_changed_during_the_model_call`、`test_a_deadlock_writing_the_title_is_retried_and_running_out_is_logged_not_raised`、`test_deleting_here_then_the_deleted_echo_reports_nothing`、`test_the_open_conversation_scrolls_into_view_in_the_sidebar`（均旧代码红） | `--changed` 3 条流程 8/8 | 排号待合 |
