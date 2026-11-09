@@ -34,6 +34,7 @@ import { getMethod } from "@/lib/frappe";
 import { openCompanyPicker } from "@/components/company-picker";
 import { hasSection, hintTitle, projectsReady, setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { reportCaught, withReport } from "./caught";
+import { isDesktopApp } from "./desktop";
 
 export type View = "chat" | "tasks" | "operator";
 type Entry = { view: View; mode: Mode; thread: string };
@@ -187,6 +188,28 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
 }
 
 // ── 深链接 ──────────────────────────────────────────────────────────────────────────────────────
+
+/** 地址跟着正在看的对话（批 A ③，对照文档第 1 项：以前地址一直是 /assistant，刷新回到新建页）：打开一段对话就是
+ *  /assistant?c=<编号>，刷新、手机网页被回收后照下面的深链接回到它；新建页（还没有编号）、定时任务页回到 /assistant。
+ *  别的参数与 # 照留；不像对话编号的不写进地址。回的是 path + search + hash。 */
+export function addressFor(href: string, session: string | null, view: View): string {
+  const url = new URL(href, "https://site.invalid");
+  url.searchParams.delete("c");
+  if (session && view !== "tasks" && SESSION_ID.test(session)) url.searchParams.set("c", session);
+  return url.pathname + url.search + url.hash;
+}
+
+/** 让地址跟着正在看的对话（addressFor）。用 replaceState 改、不进浏览器历史（页面内的后退 / 前进另有记法），带着现有的
+ *  history.state（手机返回键的弹层记数 lib/back-stack.ts 用它）。要排在 useDeepLinks 之后：打开页面时深链接先读 ?c=。
+ *  CC 桌面版地址由外壳管（外壳记住的地址是干净的），不改。 */
+export function useAddressTracksConversation(view: View): void {
+  const session = useAuiState((s) => s.threadListItem.externalId ?? s.threadListItem.remoteId ?? null);
+  useEffect(() => {
+    if (isDesktopApp()) return;
+    const next = addressFor(location.href, session, view);
+    if (next !== location.pathname + location.search + location.hash) history.replaceState(history.state, "", next);
+  }, [session, view]);
+}
 
 /** 要打开的东西：c 是对话编号；view 是 tasks 时开那一页，companies、pending 是兼容入口；company：只看这家（定时任务）；
  *  task：旧的代录任务链接（兼容入口，按任务号查到会话）。 */

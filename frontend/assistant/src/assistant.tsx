@@ -83,6 +83,7 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { clearDrafts } from "@/lib/managed-agents/drafts";
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
 import { connectionDetail, showsReconnecting } from "@/lib/managed-agents/turn";
 import { openSettings, openSite, useAutoConnect, useConnectedSites, useDesktopBridge, useFramelessWindow, windowAction } from "@/lib/desktop";
@@ -92,7 +93,7 @@ import type { SessionFile } from "@/lib/managed-agents/api";
 import { onNotice, setActiveSession, setChatView } from "@/lib/managed-agents/activity";
 import { noticeReloader } from "@/lib/managed-agents/notice-reload";
 import { listen } from "@/lib/managed-agents/realtime";
-import { modeForKey, noteViewMode, openOperator, switchMode, useCurrentMode, useDeepLinks, useNavHistory, useThreadExit, useView, ViewContext, type Mode, type View } from "@/lib/nav";
+import { modeForKey, noteViewMode, openOperator, switchMode, useAddressTracksConversation, useCurrentMode, useDeepLinks, useNavHistory, useThreadExit, useView, ViewContext, type Mode, type View } from "@/lib/nav";
 import { OPEN_LAYERS } from "@/lib/layers";
 import { useBackLayer } from "@/lib/back-stack";
 import { useSidebarKeys } from "@/lib/sidebar-keys";
@@ -231,6 +232,8 @@ function SessionStatusBar() {
 async function signOut() {
   // 先让本站不再往这台设备推这个人的提醒（lib/push.ts；最多等 3 秒，不挡退出）
   await forgetDevice().catch(withReport(() => undefined, "assistant"));
+  // 这台设备上本人的输入框草稿（drafts.ts）一并清掉
+  clearDrafts();
   // 走本站原生的统一登出（pearnly_core.identity.sign_out：结束站点会话并在身份服务登出），退出后回到智能体入口。
   const res = await siteFetch("/api/method/pearnly_core.identity.sign_out?to=assistant", {
     method: "POST",
@@ -920,10 +923,12 @@ function useNoticeReload() {
   }, [aui]);
 }
 
-// 深链接：/assistant?c=<对话>、?view=tasks，推送通知与桌面端托盘通知点开（lib/nav.ts）
+// 深链接：/assistant?c=<对话>、?view=tasks，推送通知与桌面端托盘通知点开（lib/nav.ts）；之后地址跟着正在看的对话（批 A ③：
+// 刷新回到原对话。排在深链接之后：打开页面时它先读 ?c=）
 function DeepLinks() {
-  const { setView } = useView();
+  const { view, setView } = useView();
   useDeepLinks(setView, () => loadProfile().then(hasScheduledTasks));
+  useAddressTracksConversation(view);
   return null;
 }
 

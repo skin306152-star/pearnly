@@ -424,6 +424,7 @@ covers = [
   "frontend/assistant/src/i18n.ts",
   "frontend/assistant/src/components/assistant-ui/thread.tsx",
   "frontend/assistant/src/components/assistant-ui/thread-list.tsx",
+  "frontend/assistant/src/lib/nav.ts",
   "frontend/assistant/src/components/tool-uis/steps.tsx",
   "frontend/assistant/src/lib/follow-scroll.ts",
   "frontend/assistant/src/lib/managed-agents/*.ts",

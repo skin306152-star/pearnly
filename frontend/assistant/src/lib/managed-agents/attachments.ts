@@ -40,6 +40,17 @@ export function uploadFileId(mountPath: string): string | null {
   return /\/uploads\/([A-Za-z0-9_.:-]+)\/[^/]+$/.exec(mountPath)?.[1] ?? null;
 }
 
+/** 这一项已传进会话的信息（输入框草稿存它，drafts.ts）。 */
+export function uploadedInfo(attachmentId: string): UploadedFile | undefined {
+  return uploaded.get(attachmentId);
+}
+
+/** 刷新后从草稿拿回的附件：记回已传好的（服务端位置不变），发送时照常带上、不重传（drafts.ts，批 A ③）。 */
+export function rememberUploaded(attachmentId: string, info: UploadedFile): void {
+  uploaded.set(attachmentId, info);
+  metas.set(info.mountPath, { size: info.size_bytes, ...(info.pages ? { pages: info.pages } : {}) });
+}
+
 /** 这一项已传进会话（发送没成功放回输入框时，传过的原样放回，没传上的重新传，send-failure.ts）。 */
 export function isUploaded(attachmentId: string): boolean {
   return uploaded.has(attachmentId);

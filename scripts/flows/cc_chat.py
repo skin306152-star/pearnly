@@ -1,4 +1,4 @@
-"""流程用例：CC 对话页 `/assistant`——新建对话、两轮收发、刷新后从侧栏找回、搜索筛出、落库。
+"""流程用例：CC 对话页 `/assistant`——新建对话、两轮收发、刷新后直接回到原对话（地址带编号、草稿还在）、从侧栏找回、搜索筛出、落库。
 
 模型调用这一层换成实验室的假智能体服务（`scripts/flows/lab_agents.py`，编排把 bench 的 ANTHROPIC_BASE_URL 指过去）：
 站点接口、会话记录、转发线程、真实的 Managed Agents 适配器照真的跑；假服务的回复是「[lab-agent] + 用户原文前 40 个字」，
@@ -31,7 +31,8 @@ def prepare(lab, manifest):
     lab.python(manifest["site"], 'frappe.db.set_value("User", "admin@erp.regression", "language", "zh")\nfrappe.db.commit()\nprint("{}")')
     tag = "flow" + uuid.uuid4().hex[:6]
     before = lab.python(manifest["site"], 'print(json.dumps({"n": frappe.db.count("Pearnly Assistant Session", {"user": "admin@erp.regression"})}))')
-    return {"tag": tag, "first": f"{tag} 盘点一下三号仓", "second": f"{tag} second turn", "sessions_before": before["n"], "cases": []}
+    return {"tag": tag, "first": f"{tag} 盘点一下三号仓", "second": f"{tag} second turn", "draft": f"{tag} 还没发的一句",
+            "sessions_before": before["n"], "cases": []}
 
 
 def steps(params, camera_code=None):
@@ -42,7 +43,15 @@ def steps(params, camera_code=None):
          "return {got, user: roles('user'), assistant: roles('assistant')};"},
         {"name": "第二轮", "js": WAIT + f"await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),40); await say({json.dumps(second)}); "
          f"const got=await until(()=>{want(second)}); return {{got, user: roles('user'), assistant: roles('assistant')}};"},
-        {"name": "刷新", "js": "location.reload(); return 1;", "wait_ms": 4000},
+        # 批 A ③：刷新前在输入框打一句不发（草稿按对话存本机，稍等它存下）
+        {"name": "刷新", "js": f"const ta=document.querySelector('textarea[aria-label]'); "
+         "Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(ta," + json.dumps(params["draft"]) + "); "
+         "ta.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,1200)); location.reload(); return 1;",
+         "wait_ms": 4000},
+        # 批 A ③（11-09 对照文档第 1 项）：地址带着对话编号，刷新后不用去侧栏找，直接回到这段（两轮都在），没发的那句还在输入框里
+        {"name": "刷新后直接回到原对话", "js": WAIT + f"const got=await until(()=>{want(second)},80); "
+         f"await until(()=>document.querySelector('textarea[aria-label]')?.value==={json.dumps(params['draft'])},40); "
+         "return {got, search: location.search, user: roles('user'), draft: document.querySelector('textarea[aria-label]')?.value};"},
         {"name": "从侧栏找回", "js": WAIT + "await until(()=>items()); await openSide(); "
          f"await until(()=>items().innerText.includes({json.dumps(tag)}),60); "
          f"const row=[...items().querySelectorAll('a, button, [role]')].find(e=>e.innerText.includes({json.dumps(tag)})); "
@@ -72,13 +81,18 @@ def steps(params, camera_code=None):
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
     first, second = params["first"], params["second"]
-    one, two, back, found, long = (by.get(k) or {} for k in ("第一轮", "第二轮", "从侧栏找回", "搜索", "长回复"))
+    one, two, back, found, long, reopened = (by.get(k) or {} for k in ("第一轮", "第二轮", "从侧栏找回", "搜索", "长回复",
+                                                                       "刷新后直接回到原对话"))
     return [
         {"case": "第一轮收到回复", "seen": one, "ok": bool(one.get("got")) and first in (one.get("user") or [])},
         # F13（10-15 夜间批遗留）：页面刚加载（输入框一出现）就发的第一条不能丢——第一步就是就绪即发，刷新后还要在
         {"case": "F13：页面刚加载就发的第一条不丢", "seen": (back.get("user") or [])[:1],
          "ok": bool(one.get("got")) and first in (back.get("user") or [])},
         {"case": "第二轮收到回复（同一段对话）", "seen": two, "ok": bool(two.get("got")) and len(two.get("assistant") or []) >= 2},
+        {"case": "刷新后直接回到原对话（地址带对话编号）", "seen": reopened,
+         "ok": bool(reopened.get("got")) and "c=sesn_" in (reopened.get("search") or "")
+         and first in (reopened.get("user") or []) and second in (reopened.get("user") or [])},
+        {"case": "刷新后没发的那句还在输入框里", "seen": reopened.get("draft"), "ok": reopened.get("draft") == params["draft"]},
         {"case": "刷新后从侧栏找回、两轮都在", "seen": back,
          "ok": bool(back.get("got")) and first in (back.get("user") or []) and second in (back.get("user") or [])},
         {"case": "搜索按标题筛出、别的对话筛掉", "seen": found, "ok": bool(found.get("hit")) and not found.get("others")},

@@ -47,6 +47,7 @@ import { useActiveSessionSnapshot, useOpenState } from "@/lib/managed-agents/run
 import { statusText, ThinkingClock, turnActivity, turnStartedAt } from "@/lib/managed-agents/turn";
 import { OpenSettler, type OpenState } from "@/lib/follow-scroll";
 import { holdImeEnter } from "@/lib/ime";
+import { useDraftKeeper } from "@/lib/managed-agents/drafts";
 import { KEYBOARD_CLOSED } from "@/lib/viewport";
 import { useToolLabels } from "@/lib/tool-labels";
 import { approvalCard, type CardPart } from "@/lib/approval-card";
@@ -370,6 +371,8 @@ const ThreadScrollToBottom: FC = () => {
 export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: ComponentType; stop?: ComposerStop }> = ({ placeholder: fixed, draft = true, chin, stop }) => {
   const { Chin: threadChin } = useContext(ThreadComponentsContext);
   const Chin = chin ?? threadChin;
+  // 没发的字、已传好的附件按对话存本机，刷新、换回来都还在（批 A ③，lib/managed-agents/drafts.ts）
+  useDraftKeeper();
   // 新对话问「今天能帮你做什么」，对话里就是「回复…」（同 Claude）；打开已有对话、消息还在加载时也已经是「回复…」
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0 || !!s.threadListItem.remoteId);
   const placeholder = fixed ?? (hasMessages ? t("reply") : t("placeholder"));

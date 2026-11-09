@@ -229,7 +229,90 @@ class PushTests(unittest.TestCase):
         self.assertIn('t("reload")', boundary)
 
 
+class DraftTests(unittest.TestCase):
+    def test_a_draft_survives_a_reload_per_person_and_conversation(self):
+        # 批 A ③（对照文档第 1 项，11-09 实测）：以前输入框里没发的字、已传好的附件刷新就没了；Claude 刷新后都还在。
+        # 现在按「这台设备上的人 + 对话」存本机：字和已传进会话的附件（服务端位置，刷新后不用重传）；发出或清空就删；放了 7 天的不再拿回；
+        # 换人登录读不到别人的；退出登录清掉本人的
+        if not (NODE and ESBUILD.is_file()):
+            self.skipTest("要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { clearDrafts, loadDraft, saveDraft } from "@/lib/managed-agents/drafts";
+const store: Record<string, string> = {};
+(globalThis as any).localStorage = { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = String(v); },
+  removeItem: (k: string) => { delete store[k]; }, key: (i: number) => Object.keys(store)[i] ?? null, get length() { return Object.keys(store).length; } };
+store["cc.sidebar.user"] = "a@x.com";
+const file = { id: "att-1", type: "document" as const, name: "bill.pdf", contentType: "application/pdf",
+  info: { fileId: "upl_1", filename: "bill.pdf", mountPath: "/mnt/session/uploads/upl_1/bill.pdf", size_bytes: 10, pages: 2 } };
+saveDraft("sesn_one111", "盘点一下三号", [file]);
+assert.deepEqual(loadDraft("sesn_one111")?.text, "盘点一下三号");
+assert.equal(loadDraft("sesn_one111")?.files[0].info.mountPath, "/mnt/session/uploads/upl_1/bill.pdf");
+assert.equal(loadDraft("sesn_two222"), null);              // 别的对话没有
+saveDraft("new:chat", "还没发的新对话", []);
+assert.equal(loadDraft("new:chat")?.text, "还没发的新对话");
+// 换人：读不到
+store["cc.sidebar.user"] = "b@x.com";
+assert.equal(loadDraft("sesn_one111"), null);
+store["cc.sidebar.user"] = "a@x.com";
+// 清空（发出后输入框空了）就删
+saveDraft("new:chat", "  ", []);
+assert.equal(loadDraft("new:chat"), null);
+// 放了 7 天以上的不拿回
+const key = Object.keys(store).find((k) => k.endsWith(":sesn_one111"))!;
+store[key] = JSON.stringify({ ...JSON.parse(store[key]), at: Date.now() - 8 * 86400e3 });
+assert.equal(loadDraft("sesn_one111"), null);
+// 坏数据不抛
+store[key] = "{not json";
+assert.equal(loadDraft("sesn_one111"), null);
+// 退出登录：只清本人的
+saveDraft("sesn_one111", "x", []);
+store["cc.draft:b@x.com:sesn_9"] = JSON.stringify({ text: "y", files: [], at: Date.now() });
+clearDrafts();
+assert.equal(loadDraft("sesn_one111"), null);
+assert.ok(store["cc.draft:b@x.com:sesn_9"]);
+(globalThis as any).done();
+""")
+        thread = read("components/assistant-ui/thread.tsx")
+        self.assertIn("useDraftKeeper();", thread)
+        keeper = read("lib/managed-agents/drafts.ts")
+        self.assertIn("rememberUploaded(", keeper)         # 拿回的附件记回已传好的，发送时不重传
+        self.assertIn("composer.addAttachment({", keeper)
+        app = read("assistant.tsx")
+        self.assertIn("clearDrafts();", app[app.index("async function signOut"):])
+
+
 class DeepLinkTests(unittest.TestCase):
+    def test_the_address_follows_the_open_conversation(self):
+        # 批 A ③（对照文档第 1 项，11-09 实测）：以前地址一直是 /assistant，刷新回到新建页、刚才那段要去侧栏找；Claude 是 /chat/<编号>。
+        # 现在打开一段对话地址就是 /assistant?c=<编号>（刷新、手机网页被回收后照现有深链接回到它），新建页、定时任务页地址回到
+        # /assistant；别的参数与 # 照留。CC 桌面版地址由外壳管（外壳记住的地址是干净的），不改
+        if not (NODE and ESBUILD.is_file()):
+            self.skipTest("要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { addressFor } from "@/lib/nav";
+const base = "https://t.example/assistant";
+assert.equal(addressFor(base, "sesn_abc123", "chat"), "/assistant?c=sesn_abc123");
+assert.equal(addressFor(base + "?c=sesn_old111", "sesn_abc123", "operator"), "/assistant?c=sesn_abc123");
+assert.equal(addressFor(base + "?c=sesn_abc123", null, "chat"), "/assistant");      // 新建页
+assert.equal(addressFor(base + "?c=sesn_abc123", "sesn_abc123", "tasks"), "/assistant");  // 定时任务页
+assert.equal(addressFor(base + "?lang=th#x", "sesn_abc123", "chat"), "/assistant?lang=th&c=sesn_abc123#x");
+assert.equal(addressFor(base, "bad id/../x", "chat"), "/assistant");  // 不像对话编号的不写进地址
+(globalThis as any).done();
+""", stubs={"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
+            "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'})
+        nav = read("lib/nav.ts")
+        hook = nav[nav.index("export function useAddressTracksConversation"):]
+        hook = hook[:hook.index("\n}\n") + 3]
+        self.assertIn("if (isDesktopApp()) return;", hook)
+        self.assertIn("history.replaceState(history.state, \"\", next)", hook)
+        app = read("assistant.tsx")
+        # 深链接先读地址（?c= 打开那段），地址跟随在它之后：不能在深链接读之前把 ?c= 抹掉
+        self.assertLess(app.index("useDeepLinks(setView"), app.index("useAddressTracksConversation(view)"))
+
     def test_nav_reads_c_and_view_then_cleans_the_address(self):
         nav = read("lib/nav.ts")
         self.assertIn('parsed.searchParams.get("c")', nav)
