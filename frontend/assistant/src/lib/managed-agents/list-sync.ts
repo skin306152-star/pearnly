@@ -71,28 +71,47 @@ function rowsOf(threads: ListThreads, remoteId: string): ItemData[] {
   );
 }
 
+/** 组件库里这一行（按编号取）。本页新建的对话删除时（本页那一行 + 重拉后服务端给的那一行），服务端那一行的数据留在组件库的
+ *  列表快照里、编号已不在它的映射里，按编号取就抛「Entry not available in the store」（11-09 e2e 删开着的对话）：
+ *  当已经不在，跳过、接着处理别的行。 */
+function itemOf(threads: ListThreads, id: string) {
+  try {
+    return threads.getItemById(id);
+  } catch {
+    return null;
+  }
+}
+
 function retitle(threads: ListThreads, rows: ItemData[], title: string) {
   for (const row of rows) {
-    if (row.title !== title) void quietly("rename", row.remoteId!, () => threads.getItemById(row.id).rename(title));
+    const item = row.title !== title ? itemOf(threads, row.id) : null;
+    if (item) void quietly("rename", row.remoteId!, () => item.rename(title));
   }
 }
 
 function restar(threads: ListThreads, rows: ItemData[], starred: boolean) {
   for (const row of rows) {
     if (!!row.custom?.starred !== starred) {
+      const item = itemOf(threads, row.id);
+      if (!item) continue;
       // 别的设备上取消置顶：回到它那一组的最上面，只改本机显示（以那一台存的为准，sidebar-order.ts 的 noteUnpinned）。归档的不在侧栏，不记
       if (!starred && row.remoteId && row.status === "regular") noteUnpinned(row.remoteId, false);
-      void quietly("custom", row.remoteId!, () => threads.getItemById(row.id).updateCustom({ ...row.custom, starred }));
+      void quietly("custom", row.remoteId!, () => item.updateCustom({ ...row.custom, starred }));
     }
   }
 }
 
+/** 归档、删除的那几行去掉。有按编号取不到的（见 itemOf）：它还排在侧栏里、组件库又删不动它，服务端已经去掉了，整表重拉一次
+ *  （重拉的列表里没有它），免得删掉的对话留在侧栏。 */
 function drop(threads: ListThreads, rows: ItemData[], archived: boolean) {
+  let lost = false;
   for (const row of rows) {
     if (archived && row.status !== "regular") continue;
-    const item = threads.getItemById(row.id);
-    void quietly(archived ? "archive" : "delete", row.remoteId!, () => (archived ? item.archive() : item.delete()));
+    const item = itemOf(threads, row.id);
+    if (item) void quietly(archived ? "archive" : "delete", row.remoteId!, () => (archived ? item.archive() : item.delete()));
+    else lost = true;
   }
+  if (lost) void threads.reload().catch(withReport(() => undefined, "list-sync"));
 }
 
 type Reloader = { note: (session: string) => void; stop: () => void };

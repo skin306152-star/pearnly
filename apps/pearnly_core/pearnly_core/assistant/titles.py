@@ -19,7 +19,7 @@
   开出来的对话标题全是公司名）：首条消息发出时同直写一样换成原文、第一轮结束后概括（`sessions.send`）。只发了附件的，概括素材是
   附件名与 CC 第一段回复（`contracts.title_parts`），标题按回复里说的单据内容起。
 - 概括期间对话被删了（用户回复一出来就删）：任务静默收手，不记错误、不写回（`_finish` 行没了也不动）；删除本身不等这个任务
-  （`sessions._write` 的说明）。
+  （`sessions._write` 的说明）。概括期间这一行被别的请求改过（发消息、推送线程）：写回前先结束读快照，撞 1020 / 死锁整笔重来。
 """
 import frappe
 
@@ -165,6 +165,19 @@ def _claim(name, legacy_title):
 
 
 def _finish(row, title: str) -> None:
+    """写回标题。`_claim` 提交后读语言、调模型的这几秒里，发消息 / 推送线程可能改了这一行并提交：先结束本任务的读快照
+    （这期间只读、没有要丢的写）再加锁读，撞上 1020 / 死锁按 `transaction.conflicts` 整笔重来；用尽只记一条错误、标题留原文
+    （11-09 部署后 e2e 两条 1020，栈都在这里）。行没了（删掉了）静默收手。"""
+    from pearnly_core.transaction import conflicts
+
+    frappe.db.rollback()
+    try:
+        conflicts.retried(_write_back, row, title)
+    except (conflicts.Exhausted, conflicts.RollbackFailed):
+        frappe.log_error(title="Assistant title write busy")
+
+
+def _write_back(row, title: str) -> None:
     now = frappe.db.get_value(SESSION, row.name, ["title", "title_source"], as_dict=True, for_update=True)
     if not now or now.title_source != SUMMARIZING:
         # 删掉了，或用户在概括期间改了名：不动

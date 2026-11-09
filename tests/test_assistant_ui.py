@@ -2539,6 +2539,57 @@ await core.delete("sesn_bbb001");
 assert.deepEqual(writes().at(-1).body, { session_id: "sesn_bbb001" });
 """)
 
+    def test_deleting_here_then_the_deleted_echo_reports_nothing(self):
+        # 11-09 部署后 e2e（testcowork）：删开着的对话，Browser error「Entry not available in the store」两条。本页新建的对话
+        # 有两行（本页那一行 + 重拉后服务端给的那一行），删掉后服务端那一行的数据还在组件库的列表快照里、编号已不在它的映射里，
+        # 服务端推回的「deleted」、晚到的改名星标按编号去取就抛（修前 5 条上报），删不动的那一行还排在侧栏里
+        self.run_page(r"""
+const reports: string[] = [];
+(window as any).pearnlyCaught = (error: any, kind: string) => reports.push(`${kind}: ${error?.message ?? error}`);
+const onError = (event: any) => reports.push(`uncaught: ${event?.reason?.message ?? event?.message ?? event}`);
+process.on("unhandledRejection", onError);
+site.sessions = [row("sesn_aaa001", "Old title", 1), row("sesn_bbb001", "Second", 2)];
+const { core, threads } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+watchList(() => threads);
+// 本页新建的对话：本页一行（本页编号）+ 重拉列表后服务端给的一行，两行并存（list-sync 文件头）
+await core.switchToNewThread();
+const local = core.mainThreadId;
+site.created = "sesn_mine01";
+await core.initialize(local);
+site.sessions = [row("sesn_mine01", "Mine", 0), ...site.sessions];
+await core.reload?.();
+await g.sleep(20);
+const rows = () => Object.values(threads.getState().threadItems).filter((i: any) => i.remoteId === "sesn_mine01");
+const before = rows().length;
+// 删除请求要一会儿（线上约 1 秒）：服务端删完先推回「deleted」，请求的回复后到
+const respond = g.respond;
+let release: () => void = () => undefined;
+g.respond = async (method: string, ...rest: any[]) => {
+  if (method === "delete") await new Promise<void>((done) => { release = done; });
+  return respond(method, ...rest);
+};
+const deleting = core.delete(local);
+await g.sleep(5);
+site.sessions = site.sessions.filter((s: any) => s.id !== "sesn_mine01");  // 服务端已删
+push("deleted", "sesn_mine01");
+await g.sleep(5);
+push("titled", "sesn_mine01", { title: "Late title" });
+push("starred", "sesn_mine01", { starred: true });
+await g.sleep(5);
+release();
+await deleting.catch((error: any) => reports.push(`delete: ${error?.message ?? error}`));
+g.respond = respond;
+push("deleted", "sesn_mine01");
+push("titled", "sesn_mine01", { title: "Later title" });
+await g.sleep(50);
+assert.equal(before, 2);
+assert.deepEqual([...core.threadIds], ["sesn_aaa001", "sesn_bbb001"]);  // 修前删掉的对话还排在侧栏里
+assert.deepEqual(reports, []);
+process.off("unhandledRejection", onError);
+""")
+
     def test_the_open_conversation_follows_its_titles_and_leaves_when_deleted_elsewhere(self):
         self.run_page(r"""
 site.sessions = [row("sesn_aaa001", "Old title", 5)];

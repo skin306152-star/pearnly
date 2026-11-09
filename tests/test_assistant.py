@@ -6685,6 +6685,42 @@ class SessionWriteRaceTests(unittest.TestCase):
         self.assertEqual(self.db.rows["row1"]["archived"], 1)
         self.assertEqual([kind for kind, _sid in self.pushed], ["titled", "starred", "archived"])
 
+    def _finish_title(self, title="สรุปภาษีเดือนนี้"):
+        titles = sys.modules["pearnly_core.assistant.titles"]
+        logged = []
+        row = _Row({"name": "row1", "session_id": "sesn_race1", "user": self.OWNER, "title": "hi"})
+        with mock.patch.object(titles.frappe, "db", self.db, create=True), \
+                mock.patch.object(titles.frappe, "QueryDeadlockError", _Deadlock, create=True), \
+                mock.patch.object(titles.frappe, "log_error", lambda **kw: logged.append(kw), create=True), \
+                mock.patch("time.sleep", lambda s: None):
+            titles._finish(row, title)
+        return logged
+
+    def test_the_summary_title_is_written_after_the_row_changed_during_the_model_call(self):
+        """11-09 部署后 e2e（testerp / testcowork 各一条 1020，栈在 `titles._finish`）：`_claim` 提交后读语言又开了读快照，调模型
+        几秒期间发消息 / 推送线程改了这一行并提交，`_finish` 加锁读撞 1020，标题没写回、侧栏停在原文。修后写回前先结束读快照。"""
+        self.db.get_value("Pearnly Assistant Session", "row1", "user")  # language(row)：读快照从这里开始
+        self.db.commit_elsewhere("row1", modified="later")  # 调模型期间别处改了这一行
+        self.assertEqual(self._finish_title(), [])
+        self.assertEqual((self.db.rows["row1"]["title"], self.db.rows["row1"]["title_source"]), ("สรุปภาษีเดือนนี้", "summary"))
+        self.assertEqual(self.pushed, [("titled", "sesn_race1")])
+
+    def test_a_deadlock_writing_the_title_is_retried_and_running_out_is_logged_not_raised(self):
+        self.db.boom = 2
+        self.assertEqual(self._finish_title(), [])
+        self.assertEqual(self.db.rows["row1"]["title_source"], "summary")
+        self.db.rows["row1"].update(title_source="summarizing")
+        self.db.boom, self.pushed[:] = 10, []
+        logged = self._finish_title("อีกชื่อ")
+        self.assertEqual([kw.get("title") for kw in logged], ["Assistant title write busy"])
+        self.assertEqual((self.db.rows["row1"]["title_source"], self.pushed), ("summarizing", []))
+
+    def test_the_title_write_stops_quietly_when_the_row_is_gone(self):
+        self.db.get_value("Pearnly Assistant Session", "row1", "user")
+        self.db.rows.pop("row1")
+        self.assertEqual(self._finish_title(), [])
+        self.assertEqual(self.pushed, [])
+
     def test_the_title_job_stops_quietly_when_the_conversation_was_deleted(self):
         titles = sys.modules["pearnly_core.assistant.titles"]
         logged, finished = [], []
