@@ -195,7 +195,7 @@ class OpenAtBottomSourceTests(unittest.TestCase):
         self.assertIn("runningTurn(isBusy(read()), read().messages)", hook)
         self.assertIn("read().isSynced", hook)
         controller = read("lib/managed-agents/session-controller.ts")
-        self.assertIn("this.set({ isTailing: false, isSynced: false });", controller)
+        self.assertIn("this.set({ isTailing: false, tailLost: false, isSynced: false });", controller)
         # 第 11 轮合并审查 3：只认这次接上以后发出的重放（attachEpoch），离开前发出、回来后才落地的不算核对过
         self.assertIn("const synced = this.source !== null && epoch === this.attachEpoch && !this.rerunNeeded;", controller)
         self.assertIn("isSynced: synced || (this.source !== null && this.state.isSynced)", controller)
