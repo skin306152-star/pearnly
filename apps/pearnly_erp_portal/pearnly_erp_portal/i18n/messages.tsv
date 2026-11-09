@@ -1841,6 +1841,16 @@ Pick a destination warehouse	请选择调入仓库	กรุณาเลือ�
 Not written to Express (disconnected)	未写入 Express（已断开）	ไม่ได้บันทึก Express (ยกเลิกเชื่อมต่อ)	Express 未書き込み（接続解除済み）	express.state.detached
 Linked to Express At	接上 Express 时刻	เวลาที่เชื่อมต่อ Express	Express 接続日時
 This account code is already a stock item code in Express	此科目码已是 Express 库存品的编码	รหัสบัญชีนี้เป็นรหัสสินค้าคงคลังใน Express แล้ว	この勘定コードは Express の在庫品コードです	express.error.ACCOUNT_CODE_IS_STOCK_ITEM
+CC Desktop has not been given this account set. Check the account sets in CC Desktop	CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置	CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป	CC デスクトップにこの会計データが許可されていません。CC デスクトップの会計データを確認してください	express.error.ACCOUNT_SET_NOT_ALLOWED
+The amounts do not add up. Correct them and submit again	金额合计不一致，请更正后重新提交	ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่	金額が合いません。直して再送信してください	express.error.AMOUNTS_NOT_CONSISTENT
+The entry does not balance. Check the amounts	分录借贷不平，请核对金额	ยอดเดบิตและเครดิตไม่เท่ากัน กรุณาตรวจสอบยอดเงิน	仕訳の貸借が合いません。金額を確認してください	express.error.ENTRY_NOT_BALANCED
+This warehouse is not in the Express account set	Express 账套中无此仓库	ไม่มีคลังสินค้านี้ในชุดบัญชี Express	この Express 会計データにこの倉庫はありません	express.error.ERR_LOCATION
+CC Desktop is out of date. Update CC Desktop and submit again	CC 桌面版版本过旧，请更新后重新提交	CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่	CC デスクトップが古いバージョンです。更新して再送信してください	express.error.ERR_PAYLOAD_VERSION
+The customer is missing. Choose the customer and submit again.	缺少客户，请选择客户后重新提交	ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่	顧客がありません。顧客を選択して再送信してください	express.error.MAPPING_MISSING_CUSTOMER
+The matching stock item is missing. Choose it and submit again.	缺少对应存货，请选择后重新提交	ไม่มีสินค้าที่จับคู่ไว้ กรุณาเลือกแล้วส่งใหม่	対応する在庫品目がありません。選択して再送信してください	express.error.MAPPING_MISSING_ITEM
+This computer cannot enter documents into Express	此电脑不能代录 Express	คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้	このパソコンでは Express の代行入力ができません	express.error.OPERATOR_UNAVAILABLE
+The POS daily total is not in the expected form. Import the POS export again	POS 日汇总的数据格式不对，请重新导入 POS 导出	ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่	POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください	express.error.POS_INVALID
+Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express	此账套的单据不能同时有免税行和应税行，请在 Express 中录入	ชุดบัญชีนี้ใส่รายการยกเว้นภาษีและรายการที่มีภาษีในเอกสารเดียวกันไม่ได้ กรุณาบันทึกใน Express	この会計データでは免税明細と課税明細を同じ伝票に入れられません。Express で入力してください	express.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT
 Notes are full	知识库已满	บันทึกเต็มแล้ว	ノートが上限です
 Note is empty or too long	说明为空或过长	บันทึกว่างหรือยาวเกินไป	ノートが空か長すぎます
 Note not found	未找到该说明	ไม่พบบันทึกนี้	ノートが見つかりません

@@ -1077,8 +1077,8 @@ class PushFollowUpTests(unittest.TestCase):
                 tools._choices_view("H1", "EXP1", "K", None)
         finally:
             tools.time.sleep = saved_sleep
-        self.assertIn("account_set_missing", str(caught.exception))
-        self.assertIn("Choose another account set", str(caught.exception))
+        # 走词条（与网页「要选的项」同一句），记成原因后按看的人的语言显示；读的代码不进界面（11-09 中文界面显示英文原因）
+        self.assertEqual(str(caught.exception), "cowork.masters.failed")
 
     def test_unknown_result_is_confirmed_only_with_a_push_to_confirm(self):
         tools.resolve_push_result({"document": "H1", "entered": True, "docnum": "RR001"})

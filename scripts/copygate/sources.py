@@ -691,11 +691,15 @@ def _joined_text(node) -> str:
 
 
 def _literal_text(node):
-    """字符串常量或 f-string 的文字；别的返回 None。"""
+    """字符串常量、f-string 或 ``"…".format(…)`` 的文字；别的返回 None。
+    ``.format`` 也算（11-09 测试机：``frappe.throw("…({0})…".format(code))`` 没包 _()，中文界面待处理卡片显示英文原因，闸门没认出）。"""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
     if isinstance(node, ast.JoinedStr):
         return _joined_text(node)
+    if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "format"
+            and isinstance(node.func.value, (ast.Constant, ast.JoinedStr))):
+        return _literal_text(node.func.value)
     return None
 
 

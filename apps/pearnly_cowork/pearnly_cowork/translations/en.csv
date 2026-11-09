@@ -733,6 +733,7 @@ Examples Json,Examples Json
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again
 Excel/CSV from online banking or electronic PDF,Excel/CSV from online banking or electronic PDF
 Excess tax brought forward,Excess tax brought forward
+Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express
 Existing item,Existing item
 Expected VAT,Expected VAT
 Expense,Expense
@@ -1786,6 +1787,7 @@ The chosen value is not in this account set. Choose again,The chosen value is no
 The client fields are invalid.,The client fields are invalid.
 "The company, client and type of a connection cannot be changed.","The company, client and type of a connection cannot be changed."
 The completed recognition result cannot be replaced.,The completed recognition result cannot be replaced.
+"The computer could not read this account set ({0}). It may have been removed or renamed in Express, or its folder is offline. Choose another account set.","The computer could not read this account set ({0}). It may have been removed or renamed in Express, or its folder is offline. Choose another account set."
 The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.,The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.
 The computer on this connection does not support this action.,The computer on this connection does not support this action.
 The connection has changed. Reload and try again.,The connection has changed. Reload and try again.
@@ -3471,6 +3473,7 @@ intake.error.MISSING_CUSTOMER,The customer is missing. Choose the customer and s
 intake.error.MISSING_REF_NO,The invoice number is missing. Add it and submit again.
 intake.error.MISSING_SUPPLIER,The supplier is missing. Add it and submit again.
 intake.error.NO_ACCOUNT_SELECTION,"CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop"
+intake.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT,Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express
 intake.error.OPERATOR_UNAVAILABLE,This computer cannot enter documents into Express
 intake.error.PAYLOAD_INVALID,CC Desktop could not read this invoice. Check the fields and submit again
 intake.error.PERIOD_LOCKED,The accounting period is closed in Express

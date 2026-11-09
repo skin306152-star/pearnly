@@ -198,7 +198,9 @@ By Warehouse,倉庫別
 By location,保管場所別
 By product,商品別
 CC Desktop could not read this invoice. Check the fields and submit again,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
+CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC デスクトップにこの会計データが許可されていません。CC デスクトップの会計データを確認してください
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC デスクトップはこの会計データに書き込めません。CC デスクトップの会計データ設定を確認してください
+CC Desktop is out of date. Update CC Desktop and submit again,CC デスクトップが古いバージョンです。更新して再送信してください
 CC Desktop needs an update,CC デスクトップの更新が必要です
 CC Desktop not connected,CC デスクトップが接続されていません
 Calculation Version,計算バージョン
@@ -558,6 +560,7 @@ Excel file,Excel ファイル
 Exchange Rate,為替レート
 Exchange Rate is required,為替レートを入力してください
 Exchange Rate must be greater than zero,為替レートはゼロより大きい値にしてください
+Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,この会計データでは免税明細と課税明細を同じ伝票に入れられません。Express で入力してください
 Exempt items,免税品の記帳
 Exempt items without VAT per line,免税商品は行ごとに非課税
 Existing item,既存の品目
@@ -1426,6 +1429,7 @@ The LINE account that sent the document,この書類を送ってきたLINEアカ
 The MR.ERP customer code is too long. Choose the customer again,MR.ERP の顧客コードが長すぎます。顧客を選び直してください
 The MR.ERP import failed. Nothing was posted,MR.ERP の取込でエラーが発生しました。計上されていません
 The MR.ERP import page shows no menu (setup incomplete or no permission).,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
+The POS daily total is not in the expected form. Import the POS export again,POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください
 The Revenue Department replied in an unreadable format,税務局の応答形式を解釈できません
 The VAT does not match the 7% rate. Check it and submit again,付加価値税額が 7% と合いません。確認して再送信してください
 The account set cannot be reached right now. It will be sent automatically once connected.,現在この会計データにアクセスできません。接続後に自動で送信します
@@ -1457,6 +1461,7 @@ The destination warehouse must differ from the source warehouse,移動先倉庫�
 The discount exceeds the line amount,割引が行の金額を超えています
 The discount exceeds the total,割引が合計を超えています
 The document date is invalid. Correct it and submit again.,書類の日付が無効です。修正して再送信してください
+The entry does not balance. Check the amounts,仕訳の貸借が合いません。金額を確認してください
 The file could not be saved. Please try again shortly.,ファイルを保存できませんでした。しばらくしてからもう一度お試しください
 The file is larger than 25 MB,ファイルが 25 MB を超えています
 The first row must be the column headings; the sheet needs at least a product name column,1行目は見出し行です。少なくとも商品名の列が必要です
@@ -1469,6 +1474,7 @@ The invoice number is missing. Add it and submit again.,請求書番号があり
 The item is not in Express,この商品は Express にありません
 The item is not in Express yet,この商品はまだ Express にありません
 The lines cannot be written to Express. Check them and submit again.,明細を Express に書き込めません。確認して再送信してください
+The matching stock item is missing. Choose it and submit again.,対応する在庫品目がありません。選択して再送信してください
 The number of units does not match the quantity,個体数が数量と一致しません
 The opening stock amount is too large,期首在庫金額が大きすぎます
 The opening stock file is too large,期首在庫ファイルが大きすぎます
@@ -1516,7 +1522,6 @@ This Express account set has no book for this kind of stock document. Set it up 
 This LINE account is not bound to an ERP user,この LINE アカウントは ERP ユーザーに紐付いていません
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.",この LINE アカウントは担当者に紐づいていません。LINE から開くか、先にWebでログインしてください。
 This MR.ERP account is in an operator entry,この MR.ERP アカウントは代行入力中です
-This MR.ERP account is in an operator entry. It is sent automatically when done,この MR.ERP アカウントは代行入力中です。完了後に自動で送信します
 This MR.ERP account is in use. Send again later,この MR.ERP アカウントは使用中です。後で再送信してください
 This Month,今月
 This PDF has more than {0} pages,PDF が {0} ページを超えています
@@ -1537,6 +1542,7 @@ This code is already in use,このコードは使用されています
 This code is already taken,このコードは既に使われています
 This code is already used by {0} ({1}),このコードは {0} で使用されています（{1}）
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",この会社の倉庫です。複数追加できます。入出庫・棚卸・レジはすべてこの倉庫で記帳されます。
+This computer cannot enter documents into Express,このパソコンでは Express の代行入力ができません
 This counter sells for this company; stock leaves its warehouse,このレジはこの会社の販売を行い、その倉庫から在庫が出ます
 This customer has no match in MR.ERP. Choose the customer and submit again,この顧客は MR.ERP に対応する顧客がありません。顧客を選んで再送信してください
 This customer is not in Express and could not be created. Check the customer name and tax ID,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
@@ -1589,7 +1595,6 @@ This stock entry comes from a stock count. It cannot be voided on its own,この
 This stock position already has stock movements; use a stock adjustment,この保管場所の商品には入出庫履歴があります。在庫調整を使用してください
 This stock position is already initialized; use a stock adjustment,この保管場所の商品は期首登録済みです。在庫調整を使用してください
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
-This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID,この仕入先は MR.ERP になく、作成できませんでした。仕入先名と税番号を確認してください
 This supplier is not in MR.ERP. Check the supplier name and tax ID,この仕入先は MR.ERP にありません。仕入先名と税番号を確認してください
 This terminal already has an open shift,このレジにはすでに開いているシフトがあります
 This terminal has no warehouse; set one in the terminal settings,このレジには倉庫が未設定です。レジ設定で倉庫を選んでください
@@ -1601,6 +1606,7 @@ This warehouse already exists,この倉庫は既に存在します
 This warehouse belongs to the company above,この倉庫は上の会社に属します
 This warehouse code already exists,この倉庫コードは既に存在します
 This warehouse has no active location,この倉庫には有効なロケーションがありません
+This warehouse is not in the Express account set,この Express 会計データにこの倉庫はありません
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",有効にするとこの会社にレジ・レジ記録・シフト記録・「レジ担当」が表示されます。無効ならどれも表示されません。
 Time,時刻
 Time left {0},残り {0}
@@ -2243,8 +2249,10 @@ express.error.ACCOUNT_CODE_IS_STOCK_ITEM,この勘定コードは Express の在
 express.error.ACCOUNT_COMPANY_MISMATCH,選んだ会計データは別の会社のものです。会計データを確認してください
 express.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの会計データに書き込めません。CC デスクトップの会計データ設定を確認してください
 express.error.ACCOUNT_NOT_POSTABLE,選んだ勘定は Express で記帳できません。別の勘定を選んでください
+express.error.ACCOUNT_SET_NOT_ALLOWED,CC デスクトップにこの会計データが許可されていません。CC デスクトップの会計データを確認してください
 express.error.ACCOUNT_SET_UNREACHABLE,現在この会計データにアクセスできません。接続後に自動で送信します
 express.error.ACCOUNT_WRITER_BUSY,別のパソコンがこの会計データに書き込み中です。完了後に自動で送信します
+express.error.AMOUNTS_NOT_CONSISTENT,金額が合いません。直して再送信してください
 express.error.BAD_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
 express.error.BAD_SALES_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
 express.error.CDX_REINDEX_FAILED,Express の索引を作れず元に戻しました。自動で再試行します
@@ -2253,7 +2261,10 @@ express.error.CUSTOMER_DUP_SUSPECTED,Express に似た得意先があります�
 express.error.CUSTOMER_NOT_IN_ARMAS,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
 express.error.DBF_WRITE_FAILED,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 express.error.EMPTY_ITEMS,この請求書には明細がありません。追加して再送信してください
+express.error.ENTRY_NOT_BALANCED,仕訳の貸借が合いません。金額を確認してください
 express.error.ERR_ACCOUNT_UID_MISMATCH,このパソコンの会計データは登録されたものではありません。別のパソコンを待っています
+express.error.ERR_LOCATION,この Express 会計データにこの倉庫はありません
+express.error.ERR_PAYLOAD_VERSION,CC デスクトップが古いバージョンです。更新して再送信してください
 express.error.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください
 express.error.INVALID_DOC_DATE,書類の日付が無効です。修正して再送信してください
 express.error.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
@@ -2261,10 +2272,15 @@ express.error.INVALID_QUANTITY,明細の数量が無効です。修正して再�
 express.error.ITEMS_INVALID,明細を Express に書き込めません。確認して再送信してください
 express.error.ITEM_GROUP_ACCOUNT_MISSING,品目グループの勘定が Express の勘定科目表にありません
 express.error.JOURNAL_BOOK_NOT_FOUND,この会計データにはこの種類の伝票帳がありません。Express で設定してください
+express.error.MAPPING_MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
+express.error.MAPPING_MISSING_ITEM,対応する在庫品目がありません。選択して再送信してください
 express.error.MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
 express.error.MISSING_REF_NO,請求書番号がありません。追加して再送信してください
 express.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
+express.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT,この会計データでは免税明細と課税明細を同じ伝票に入れられません。Express で入力してください
+express.error.OPERATOR_UNAVAILABLE,このパソコンでは Express の代行入力ができません
 express.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
+express.error.POS_INVALID,POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください
 express.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
 express.error.REFUND_CUSTOMER_NOT_COPIED,前年度の会計データから現金顧客を複製できません
 express.error.REFUND_EXCEEDS_ORIGINAL,返品数量が販売数量を超えています

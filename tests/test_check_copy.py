@@ -732,6 +732,15 @@ class NarrowingRound(unittest.TestCase):
         bare = {text for kind, text in refs_of("apps/x/x/y.py", code) if kind == "py-bare"}
         self.assertEqual(bare, {"Only a DMS admin may refresh shared data"})
 
+    def test_formatted_messages_without_translation_are_hard_coded(self):
+        # 11-09 测试机：frappe.throw("…({0})…".format(code)) 没包 _()，中文界面待处理卡片显示英文原因，闸门没认出
+        code = ("import frappe\nfrom frappe import _\n"
+                "def a(code):\n    frappe.throw(\"The computer could not read this account set ({0}).\".format(code))\n"
+                "def b(code):\n    frappe.throw(_(\"Account set {0} is closed\").format(code))\n"
+                "def c(code):\n    raise frappe.ValidationError(\"Book {0} is offline\".format(code))\n")
+        bare = {text for kind, text in refs_of("apps/x/x/y.py", code) if kind == "py-bare"}
+        self.assertEqual(bare, {"The computer could not read this account set ({0}).", "Book {0} is offline"})
+
     def test_frappe_msgid_english_is_not_ours(self):
         tree = FakeTree({"apps/pearnly_core/pearnly_core/i18n/messages.tsv": TSV_HEAD
                          + "Guests are not allowed to upload files for {0} Doctype\t访客不能为 {0} 上传文件\tก\tก\t\n"

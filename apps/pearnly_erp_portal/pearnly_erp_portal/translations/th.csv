@@ -198,7 +198,9 @@ By Warehouse,แยกคลัง
 By location,ตามตำแหน่ง
 By product,ตามสินค้า
 CC Desktop could not read this invoice. Check the fields and submit again,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
+CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
+CC Desktop is out of date. Update CC Desktop and submit again,CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
 CC Desktop needs an update,CC เดสก์ท็อปต้องอัปเดต
 CC Desktop not connected,CC เดสก์ท็อปไม่ได้เชื่อมต่อ
 Calculation Version,เวอร์ชันการคำนวณ
@@ -558,6 +560,7 @@ Excel file,ไฟล์ Excel
 Exchange Rate,อัตราแลกเปลี่ยน
 Exchange Rate is required,กรุณาระบุอัตราแลกเปลี่ยน
 Exchange Rate must be greater than zero,อัตราแลกเปลี่ยนต้องมากกว่าศูนย์
+Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,ชุดบัญชีนี้ใส่รายการยกเว้นภาษีและรายการที่มีภาษีในเอกสารเดียวกันไม่ได้ กรุณาบันทึกใน Express
 Exempt items,สินค้ายกเว้นภาษี
 Exempt items without VAT per line,สินค้ายกเว้นภาษีไม่คิด VAT รายบรรทัด
 Existing item,เลือกสินค้าที่มี
@@ -1426,6 +1429,7 @@ The LINE account that sent the document,บัญชี LINE ที่ส่ง�
 The MR.ERP customer code is too long. Choose the customer again,รหัสลูกค้า MR.ERP ยาวเกินกำหนด กรุณาเลือกลูกค้าใหม่
 The MR.ERP import failed. Nothing was posted,การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี
 The MR.ERP import page shows no menu (setup incomplete or no permission).,ไม่สามารถอ่านเมนูจากหน้านำเข้าของ MR.ERP ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
+The POS daily total is not in the expected form. Import the POS export again,ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่
 The Revenue Department replied in an unreadable format,ไม่สามารถอ่านรูปแบบข้อมูลที่ได้รับจากกรมสรรพากรได้
 The VAT does not match the 7% rate. Check it and submit again,ภาษีมูลค่าเพิ่มไม่ตรงกับอัตรา 7% กรุณาตรวจสอบแล้วส่งใหม่
 The account set cannot be reached right now. It will be sent automatically once connected.,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
@@ -1457,6 +1461,7 @@ The destination warehouse must differ from the source warehouse,คลังป�
 The discount exceeds the line amount,ส่วนลดเกินยอดของบรรทัด
 The discount exceeds the total,ส่วนลดเกินยอดรวม
 The document date is invalid. Correct it and submit again.,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+The entry does not balance. Check the amounts,ยอดเดบิตและเครดิตไม่เท่ากัน กรุณาตรวจสอบยอดเงิน
 The file could not be saved. Please try again shortly.,บันทึกไฟล์ไม่สำเร็จ กรุณาลองใหม่ภายหลัง
 The file is larger than 25 MB,ไฟล์ใหญ่เกิน 25 MB
 The first row must be the column headings; the sheet needs at least a product name column,แถวแรกต้องเป็นหัวคอลัมน์ และต้องมีคอลัมน์ชื่อสินค้าอย่างน้อยหนึ่งคอลัมน์
@@ -1469,6 +1474,7 @@ The invoice number is missing. Add it and submit again.,ไม่มีเลข
 The item is not in Express,ไม่มีสินค้านี้ใน Express
 The item is not in Express yet,สินค้านี้ยังไม่มีใน Express
 The lines cannot be written to Express. Check them and submit again.,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+The matching stock item is missing. Choose it and submit again.,ไม่มีสินค้าที่จับคู่ไว้ กรุณาเลือกแล้วส่งใหม่
 The number of units does not match the quantity,จำนวนรายชิ้นไม่ตรงกับจำนวน
 The opening stock amount is too large,มูลค่าสต็อกยกมามากเกินไป
 The opening stock file is too large,ไฟล์สต็อกยกมาใหญ่เกินไป
@@ -1516,7 +1522,6 @@ This Express account set has no book for this kind of stock document. Set it up 
 This LINE account is not bound to an ERP user,บัญชี LINE นี้ยังไม่ได้ผูกกับผู้ใช้ ERP
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.",บัญชี LINE นี้ยังไม่ได้ผูกกับบัญชีพนักงาน กรุณาเปิดจาก LINE หรือเข้าสู่ระบบเว็บก่อน
 This MR.ERP account is in an operator entry,บัญชี MR.ERP นี้กำลังบันทึกแทนอยู่
-This MR.ERP account is in an operator entry. It is sent automatically when done,บัญชี MR.ERP นี้กำลังบันทึกแทนอยู่ เสร็จแล้วจะส่งอัตโนมัติ
 This MR.ERP account is in use. Send again later,บัญชี MR.ERP นี้กำลังใช้งานอยู่ กรุณาส่งใหม่ภายหลัง
 This Month,เดือนนี้
 This PDF has more than {0} pages,PDF มีมากกว่า {0} หน้า
@@ -1537,6 +1542,7 @@ This code is already in use,รหัสนี้ถูกใช้แล้ว
 This code is already taken,รหัสนี้ถูกใช้ไปแล้ว
 This code is already used by {0} ({1}),รหัสนี้ใช้กับ {0} แล้ว ({1})
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้
+This computer cannot enter documents into Express,คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้
 This counter sells for this company; stock leaves its warehouse,จุดขายนี้ออกเอกสารขายในนามบริษัทนี้ และจ่ายสินค้าออกจากคลังสินค้าของบริษัทนี้
 This customer has no match in MR.ERP. Choose the customer and submit again,ไม่มีข้อมูลลูกค้านี้ใน MR.ERP กรุณาเลือกลูกค้าแล้วส่งใหม่
 This customer is not in Express and could not be created. Check the customer name and tax ID,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
@@ -1589,7 +1595,6 @@ This stock entry comes from a stock count. It cannot be voided on its own,รา
 This stock position already has stock movements; use a stock adjustment,สินค้านี้ในตำแหน่งจัดเก็บนี้มีรายการรับ-จ่ายแล้ว กรุณาใช้การปรับปรุงสต็อก
 This stock position is already initialized; use a stock adjustment,สินค้านี้ในตำแหน่งจัดเก็บนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับปรุงสต็อก
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
-This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายนี้ใน MR.ERP และสร้างไม่ได้ กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี
 This supplier is not in MR.ERP. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายนี้ใน MR.ERP กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี
 This terminal already has an open shift,จุดขายนี้มีกะที่ยังเปิดอยู่แล้ว
 This terminal has no warehouse; set one in the terminal settings,จุดขายนี้ยังไม่ได้กำหนดคลังสินค้า กรุณาเลือกคลังสินค้าในการตั้งค่าจุดขาย
@@ -1601,6 +1606,7 @@ This warehouse already exists,คลังสินค้านี้มีอ�
 This warehouse belongs to the company above,คลังนี้อยู่ในบริษัทด้านบน
 This warehouse code already exists,รหัสคลังนี้มีอยู่แล้ว
 This warehouse has no active location,คลังนี้ไม่มีตำแหน่งที่เปิดใช้งาน
+This warehouse is not in the Express account set,ไม่มีคลังสินค้านี้ในชุดบัญชี Express
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",เมื่อเปิดใช้แล้วบริษัทนี้จึงมีเครื่องขาย บันทึกการรับเงิน บันทึกกะ และตำแหน่งพนักงานเก็บเงิน ถ้าไม่เปิดจะไม่แสดงรายการเหล่านี้
 Time,เวลา
 Time left {0},เหลือเวลา {0}
@@ -2243,8 +2249,10 @@ express.error.ACCOUNT_CODE_IS_STOCK_ITEM,รหัสบัญชีนี้เ
 express.error.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 express.error.ACCOUNT_DIR_NOT_ALLOWED,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
 express.error.ACCOUNT_NOT_POSTABLE,บัญชีที่เลือกบันทึกใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น
+express.error.ACCOUNT_SET_NOT_ALLOWED,CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป
 express.error.ACCOUNT_SET_UNREACHABLE,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
 express.error.ACCOUNT_WRITER_BUSY,เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ
+express.error.AMOUNTS_NOT_CONSISTENT,ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่
 express.error.BAD_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 express.error.BAD_SALES_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 express.error.CDX_REINDEX_FAILED,Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
@@ -2253,7 +2261,10 @@ express.error.CUSTOMER_DUP_SUSPECTED,มีลูกค้าที่คล้�
 express.error.CUSTOMER_NOT_IN_ARMAS,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
 express.error.DBF_WRITE_FAILED,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 express.error.EMPTY_ITEMS,เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่
+express.error.ENTRY_NOT_BALANCED,ยอดเดบิตและเครดิตไม่เท่ากัน กรุณาตรวจสอบยอดเงิน
 express.error.ERR_ACCOUNT_UID_MISMATCH,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น
+express.error.ERR_LOCATION,ไม่มีคลังสินค้านี้ในชุดบัญชี Express
+express.error.ERR_PAYLOAD_VERSION,CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
 express.error.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 express.error.INVALID_DOC_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 express.error.INVALID_INVOICE_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
@@ -2261,10 +2272,15 @@ express.error.INVALID_QUANTITY,จำนวนในรายการไม่�
 express.error.ITEMS_INVALID,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 express.error.ITEM_GROUP_ACCOUNT_MISSING,บัญชีของกลุ่มสินค้าไม่มีในผังบัญชี Express
 express.error.JOURNAL_BOOK_NOT_FOUND,ชุดบัญชีนี้ไม่มีสมุดสำหรับเอกสารประเภทนี้ กรุณาตั้งค่าใน Express
+express.error.MAPPING_MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
+express.error.MAPPING_MISSING_ITEM,ไม่มีสินค้าที่จับคู่ไว้ กรุณาเลือกแล้วส่งใหม่
 express.error.MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
 express.error.MISSING_REF_NO,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
 express.error.MISSING_SUPPLIER,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
+express.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT,ชุดบัญชีนี้ใส่รายการยกเว้นภาษีและรายการที่มีภาษีในเอกสารเดียวกันไม่ได้ กรุณาบันทึกใน Express
+express.error.OPERATOR_UNAVAILABLE,คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้
 express.error.PAYLOAD_INVALID,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
+express.error.POS_INVALID,ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่
 express.error.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 express.error.REFUND_CUSTOMER_NOT_COPIED,คัดลอกลูกค้าเงินสดจากชุดบัญชีปีเดิมไม่ได้
 express.error.REFUND_EXCEEDS_ORIGINAL,จำนวนที่รับคืนมากกว่าจำนวนที่ขาย

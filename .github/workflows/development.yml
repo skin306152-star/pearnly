@@ -473,6 +473,8 @@ jobs:
           node tests/test-desk-errors.cjs
       - name: The DMS LINE hand-off page loads every text it shows, in all four languages (an expired draft showed the key dms.edit.expired)
         run: python3 tests/test_dms_booking_page_texts.py
+      - name: Every reason code CC Desktop reports has words in all four languages in Cowork and ERP (a Chinese pending card showed an English reason)
+        run: python3 tests/test_reason_codes_have_words.py
       - name: Check frontend translation keys
         run: python3 scripts/check-frontend-i18n.py --strict
       - name: Check whitespace

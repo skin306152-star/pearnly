@@ -665,12 +665,16 @@ def _choices_view(name, connection, account_set, posting_kind, hint=None):
         frappe.clear_messages()
         if not _catalog_stale(error):
             raise
-        status, code = _refresh_account(connection, account_set)
+        status = _refresh_account(connection, account_set)[0]
         if status != "succeeded":
-            # 小助手也读不到（账套在 Express 里删了 / 改名了、所在的共享盘连不上）：说清楚，别让用户再去「刷新」
-            frappe.throw("The computer could not read this account set ({0}). It may have been removed or renamed in "
-                         "Express, or its folder is offline. Choose another account set.".format(code or status))
+            # 小助手也读不到（账套在 Express 里删了 / 改名了、所在的共享盘连不上）：说清楚，别让用户再去「刷新」。
+            # 与网页「要选的项」同一套词条（`push.application.service.MASTERS_TEXT`）：记成原因后按看的人的语言显示
+            # （11-09 测试机：原来是没走词条的英文句子，中文界面待处理卡片显示英文）。
+            frappe.throw(_(MASTERS_FAILED if status == "failed" else MASTERS_READING))
     return application.choices_view(name, connection, account_set, posting_kind, **extra)
+
+
+MASTERS_FAILED, MASTERS_READING = "cowork.masters.failed", "cowork.masters.reading"  # 读不到 / 一分钟内没读完
 
 
 # 这份账套的科目表还没读到时（`push.application.service.masters_wait`）给模型的说法：已请电脑读，别拿空的科目表请人选。

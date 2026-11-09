@@ -733,6 +733,7 @@ Examples Json,ข้อมูลตัวอย่างการแก้ไข
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,ไม่รองรับไฟล์ Excel รุ่นเก่า (.xls) กรุณาบันทึกเป็น .xlsx หรือ .csv แล้วส่งใหม่
 Excel/CSV from online banking or electronic PDF,Excel/CSV จากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์
 Excess tax brought forward,ภาษีที่ชำระเกินยกมา
+Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,ชุดบัญชีนี้ใส่รายการยกเว้นภาษีและรายการที่มีภาษีในเอกสารเดียวกันไม่ได้ กรุณาบันทึกใน Express
 Existing item,เลือกสินค้าที่มี
 Expected VAT,ภาษีที่ควรเป็น
 Expense,บันทึกเป็นค่าใช้จ่าย
@@ -1786,6 +1787,7 @@ The chosen value is not in this account set. Choose again,รายการท�
 The client fields are invalid.,ข้อมูลลูกค้าไม่ถูกต้อง
 "The company, client and type of a connection cannot be changed.",ไม่สามารถเปลี่ยนบริษัท ลูกค้า และประเภทของการเชื่อมต่อได้
 The completed recognition result cannot be replaced.,ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้
+"The computer could not read this account set ({0}). It may have been removed or renamed in Express, or its folder is offline. Choose another account set.",คอมพิวเตอร์อ่านชุดบัญชีนี้ไม่ได้ ({0}) อาจถูกลบหรือเปลี่ยนชื่อใน Express หรือโฟลเดอร์ออฟไลน์อยู่ กรุณาเลือกชุดบัญชีอื่น
 The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.,คอมพิวเตอร์อ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่าเปิดชุดบัญชีนี้ใน Express บนคอมพิวเตอร์เครื่องนั้นได้
 The computer on this connection does not support this action.,คอมพิวเตอร์ของการเชื่อมต่อนี้ไม่รองรับรายการนี้
 The connection has changed. Reload and try again.,การเชื่อมต่อมีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง
@@ -3471,6 +3473,7 @@ intake.error.MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้�
 intake.error.MISSING_REF_NO,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
 intake.error.MISSING_SUPPLIER,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
 intake.error.NO_ACCOUNT_SELECTION,CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
+intake.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT,ชุดบัญชีนี้ใส่รายการยกเว้นภาษีและรายการที่มีภาษีในเอกสารเดียวกันไม่ได้ กรุณาบันทึกใน Express
 intake.error.OPERATOR_UNAVAILABLE,คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้
 intake.error.PAYLOAD_INVALID,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
 intake.error.PERIOD_LOCKED,งวดบัญชีนี้ปิดแล้วใน Express

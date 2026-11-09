@@ -733,6 +733,7 @@ Examples Json,修正例データ（JSON）
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください
 Excel/CSV from online banking or electronic PDF,ネットバンキングの Excel/CSV または電子版 PDF
 Excess tax brought forward,繰越超過納付額
+Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,この会計データでは免税明細と課税明細を同じ伝票に入れられません。Express で入力してください
 Existing item,既存の品目
 Expected VAT,想定税額
 Expense,経費に計上
@@ -1786,6 +1787,7 @@ The chosen value is not in this account set. Choose again,選んだ値はこの�
 The client fields are invalid.,顧客の項目が正しくありません。
 "The company, client and type of a connection cannot be changed.",接続の会社、顧客、タイプは変更できません。
 The completed recognition result cannot be replaced.,完了済みの認識結果は置き換えられません。
+"The computer could not read this account set ({0}). It may have been removed or renamed in Express, or its folder is offline. Choose another account set.",パソコンでこの会計データを読み取れません（{0}）。Express で削除・名前変更されたか、フォルダーがオフラインの可能性があります。別の会計データを選んでください。
 The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.,パソコンでこの会計データの勘定科目表を読み込めませんでした。そのパソコンの Express でこの会計データを開けるか確認してください。
 The computer on this connection does not support this action.,この接続のパソコンはこの操作に対応していません。
 The connection has changed. Reload and try again.,接続が更新されました。再読み込みしてお試しください。
@@ -3471,6 +3473,7 @@ intake.error.MISSING_CUSTOMER,顧客がありません。顧客を選択して�
 intake.error.MISSING_REF_NO,請求書番号がありません。追加して再送信してください
 intake.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
 intake.error.NO_ACCOUNT_SELECTION,このパソコンの CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください
+intake.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT,この会計データでは免税明細と課税明細を同じ伝票に入れられません。Express で入力してください
 intake.error.OPERATOR_UNAVAILABLE,このパソコンでは Express の代行入力ができません
 intake.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 intake.error.PERIOD_LOCKED,会計期間は Express で締め済みです

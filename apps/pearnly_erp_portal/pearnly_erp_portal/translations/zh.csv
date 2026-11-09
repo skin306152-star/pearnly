@@ -198,7 +198,9 @@ By Warehouse,分仓
 By location,按位置
 By product,按物料
 CC Desktop could not read this invoice. Check the fields and submit again,CC 桌面版无法读取此发票，请核对字段后重新提交
+CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
+CC Desktop is out of date. Update CC Desktop and submit again,CC 桌面版版本过旧，请更新后重新提交
 CC Desktop needs an update,CC 桌面版需更新
 CC Desktop not connected,CC 桌面版未连接
 Calculation Version,计算版本
@@ -558,6 +560,7 @@ Excel file,Excel 文件
 Exchange Rate,汇率
 Exchange Rate is required,汇率不能为空
 Exchange Rate must be greater than zero,汇率必须大于零
+Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,此账套的单据不能同时有免税行和应税行，请在 Express 中录入
 Exempt items,免税商品写法
 Exempt items without VAT per line,免税商品按行不计税
 Existing item,选已有物料
@@ -1426,6 +1429,7 @@ The LINE account that sent the document,发送此文件的 LINE 账号
 The MR.ERP customer code is too long. Choose the customer again,MR.ERP 客户代码超出允许长度，请重新选择客户
 The MR.ERP import failed. Nothing was posted,MR.ERP 导入出错，未入账
 The MR.ERP import page shows no menu (setup incomplete or no permission).,无法读取 MR.ERP 导入页的菜单（设置未完成或账号无权限）。
+The POS daily total is not in the expected form. Import the POS export again,POS 日汇总的数据格式不对，请重新导入 POS 导出
 The Revenue Department replied in an unreadable format,税务局返回的数据格式无法解析
 The VAT does not match the 7% rate. Check it and submit again,增值税额与 7% 税率不符，请核对后重新提交
 The account set cannot be reached right now. It will be sent automatically once connected.,暂时无法访问此账套，连接后将自动推送
@@ -1457,6 +1461,7 @@ The destination warehouse must differ from the source warehouse,调入仓库不�
 The discount exceeds the line amount,折扣超过该行金额
 The discount exceeds the total,折扣超过合计
 The document date is invalid. Correct it and submit again.,单据日期无效，请修改后重新提交
+The entry does not balance. Check the amounts,分录借贷不平，请核对金额
 The file could not be saved. Please try again shortly.,文件保存失败，请稍后重试
 The file is larger than 25 MB,文件超过 25 MB
 The first row must be the column headings; the sheet needs at least a product name column,第一行须为表头，且表格中至少包含物料名称列
@@ -1469,6 +1474,7 @@ The invoice number is missing. Add it and submit again.,缺少发票号，请补
 The item is not in Express,Express 中没有这件商品
 The item is not in Express yet,这件商品 Express 里还没有
 The lines cannot be written to Express. Check them and submit again.,明细无法写入 Express，请核对后重新提交
+The matching stock item is missing. Choose it and submit again.,缺少对应存货，请选择后重新提交
 The number of units does not match the quantity,台数与数量不符
 The opening stock amount is too large,期初库存金额过大
 The opening stock file is too large,期初库存文件过大
@@ -1516,7 +1522,6 @@ This Express account set has no book for this kind of stock document. Set it up 
 This LINE account is not bound to an ERP user,该 LINE 账号未绑定 ERP 用户
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.",该 LINE 账号尚未绑定员工账号。请从 LINE 中打开，或先在网页登录。
 This MR.ERP account is in an operator entry,此 MR.ERP 账号正在代录
-This MR.ERP account is in an operator entry. It is sent automatically when done,此 MR.ERP 账号正在代录，完成后将自动推送
 This MR.ERP account is in use. Send again later,此 MR.ERP 账号正在使用中，请稍后重新推送
 This Month,本月
 This PDF has more than {0} pages,PDF 超过 {0} 页
@@ -1537,6 +1542,7 @@ This code is already in use,该码已被占用
 This code is already taken,该条码已被占用
 This code is already used by {0} ({1}),该码已被 {0} 使用（{1}）
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",这家公司的仓，可以加多个；出入库、盘点与收银都按这些仓记账。
+This computer cannot enter documents into Express,此电脑不能代录 Express
 This counter sells for this company; stock leaves its warehouse,此收银台以该公司名义开单，并从该公司仓库出库
 This customer has no match in MR.ERP. Choose the customer and submit again,MR.ERP 中没有此客户的对应档案，请选择客户后重新提交
 This customer is not in Express and could not be created. Check the customer name and tax ID,Express 中不存在此客户且无法创建，请核对客户名称和税号
@@ -1589,7 +1595,6 @@ This stock entry comes from a stock count. It cannot be voided on its own,此单
 This stock position already has stock movements; use a stock adjustment,该物料在此仓位已有出入库记录，请使用库存调整
 This stock position is already initialized; use a stock adjustment,该物料在此仓位已录入期初，请使用库存调整
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
-This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID,MR.ERP 中不存在此供应商且无法创建，请核对供应商名称和税号
 This supplier is not in MR.ERP. Check the supplier name and tax ID,MR.ERP 中没有此供应商，请核对供应商名称和税号
 This terminal already has an open shift,该收银台已有未交班的班次
 This terminal has no warehouse; set one in the terminal settings,该收银台未设置仓库，请在收银台设置中选择仓库
@@ -1601,6 +1606,7 @@ This warehouse already exists,该仓库已存在
 This warehouse belongs to the company above,这个仓挂在上面那家公司名下
 This warehouse code already exists,仓库编号已存在
 This warehouse has no active location,此仓库没有启用的仓位
+This warehouse is not in the Express account set,Express 账套中无此仓库
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。
 Time,时间
 Time left {0},剩余 {0}
@@ -2243,8 +2249,10 @@ express.error.ACCOUNT_CODE_IS_STOCK_ITEM,此科目码已是 Express 库存品的
 express.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
 express.error.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
 express.error.ACCOUNT_NOT_POSTABLE,所选科目在 Express 中不能记账，请另选科目
+express.error.ACCOUNT_SET_NOT_ALLOWED,CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置
 express.error.ACCOUNT_SET_UNREACHABLE,暂时无法访问此账套，连接后将自动推送
 express.error.ACCOUNT_WRITER_BUSY,另一台电脑正在写入此账套，完成后将自动推送
+express.error.AMOUNTS_NOT_CONSISTENT,金额合计不一致，请更正后重新提交
 express.error.BAD_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
 express.error.BAD_SALES_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
 express.error.CDX_REINDEX_FAILED,Express 索引重建失败，已撤回，将自动重试
@@ -2253,7 +2261,10 @@ express.error.CUSTOMER_DUP_SUSPECTED,Express 中已存在相似客户，请选�
 express.error.CUSTOMER_NOT_IN_ARMAS,Express 中不存在此客户且无法创建，请核对客户名称和税号
 express.error.DBF_WRITE_FAILED,写入 Express 失败，已撤回，将自动重试
 express.error.EMPTY_ITEMS,此发票没有明细，请补充后重新提交
+express.error.ENTRY_NOT_BALANCED,分录借贷不平，请核对金额
 express.error.ERR_ACCOUNT_UID_MISMATCH,此电脑上的账套与登记的不一致，等待其他电脑
+express.error.ERR_LOCATION,Express 账套中无此仓库
+express.error.ERR_PAYLOAD_VERSION,CC 桌面版版本过旧，请更新后重新提交
 express.error.FIELD_TOO_LONG,部分字段超出 Express 允许的长度，请缩短后重新提交
 express.error.INVALID_DOC_DATE,单据日期无效，请修改后重新提交
 express.error.INVALID_INVOICE_DATE,单据日期无效，请修改后重新提交
@@ -2261,10 +2272,15 @@ express.error.INVALID_QUANTITY,明细数量无效，请修改后重新提交
 express.error.ITEMS_INVALID,明细无法写入 Express，请核对后重新提交
 express.error.ITEM_GROUP_ACCOUNT_MISSING,物料科目组的科目不在 Express 科目表中
 express.error.JOURNAL_BOOK_NOT_FOUND,此账套没有这种单据的单据簿，请在 Express 中设置
+express.error.MAPPING_MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
+express.error.MAPPING_MISSING_ITEM,缺少对应存货，请选择后重新提交
 express.error.MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
 express.error.MISSING_REF_NO,缺少发票号，请补充后重新提交
 express.error.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
+express.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT,此账套的单据不能同时有免税行和应税行，请在 Express 中录入
+express.error.OPERATOR_UNAVAILABLE,此电脑不能代录 Express
 express.error.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段后重新提交
+express.error.POS_INVALID,POS 日汇总的数据格式不对，请重新导入 POS 导出
 express.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
 express.error.REFUND_CUSTOMER_NOT_COPIED,原年度账套的现金客户档没能复制过来
 express.error.REFUND_EXCEEDS_ORIGINAL,退货数量超过原单销售数量
