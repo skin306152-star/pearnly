@@ -169,6 +169,16 @@ class NotesSourceTests(unittest.TestCase):
 
 
 class OpenAtBottomSourceTests(unittest.TestCase):
+    def test_desktop_follows_the_reply_and_phones_do_not(self):
+        # 批 A ①（对照文档第 10 项，11-09 主会话定）：电脑网页照 Claude 实测，回复在出时跟到底、往上翻就停（组件库 autoScroll，
+        # 停跟随是它自带的 isAtBottom 判断）；手机保持 10-17 定的不跟（组件库 turnAnchor="top" 时 autoScroll 默认关）
+        thread = read("components/assistant-ui/thread.tsx")
+        root = thread[thread.index("const ThreadRoot"):thread.index("<ThreadPrimitive.Viewport")]
+        self.assertIn("const phone = useIsMobile();", root)
+        viewport = thread[thread.index("<ThreadPrimitive.Viewport"):thread.index("data-slot=\"aui_thread-viewport\"")]
+        self.assertIn('turnAnchor="top"', viewport)
+        self.assertIn("autoScroll={!phone}", viewport)
+
     def test_thread_settles_when_a_conversation_is_opened(self):
         thread = read("components/assistant-ui/thread.tsx")
         self.assertIn("s.thread.messages.length > 0 ? s.threadListItem.id : \"\"", thread)

@@ -122,6 +122,8 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
 const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isLoading }) => {
   const { Welcome, Loading, Tail } = useContext(ThreadComponentsContext);
   const settle = useSettleOnOpen();
+  // 回复在出时：电脑跟到底、往上翻就停（11-09 实测 Claude 电脑网页；停跟随是组件库按 isAtBottom 自带的），手机不跟（10-17 定）
+  const phone = useIsMobile();
 
   return (
     <ThreadPrimitive.Root
@@ -130,6 +132,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
       <ThreadPrimitive.Viewport
         ref={settle.viewport}
         turnAnchor="top"
+        autoScroll={!phone}
         data-slot="aui_thread-viewport"
         className="relative flex flex-1 flex-col overflow-x-auto overflow-y-auto [scrollbar-gutter:stable] scroll-smooth"
       >
@@ -214,7 +217,7 @@ function useShownPending() {
 }
 
 /** 打开一段对话：已结束的停在最新一条，正在回复的停在这一轮开头（提问顶在上面），之后这一轮跑完也不改（lib/follow-scroll.ts）。
- *  回复在出时不跟到底，下面有内容就出 ↓（同 Claude，三端一样）。 */
+ *  回复在出时：手机不跟到底，下面有内容就出 ↓；电脑跟到底、往上翻就停（视口的 autoScroll，同 Claude 11-09 实测）。 */
 function useSettleOnOpen() {
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
   const [content, setContent] = useState<HTMLDivElement | null>(null);
