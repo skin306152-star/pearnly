@@ -254,6 +254,29 @@ def extract_party_fields(pages: list[dict]) -> dict:
 	return {key: _summary_text(fields.get(key)) for key in PARTY_FIELDS}
 
 
+TICKET_FIELDS = ("seller_branch", "buyer_branch", "ticket_number", "ticket_key", "ticket_level")
+
+
+def extract_ticket_fields(pages: list[dict]) -> dict:
+	"""同一张票的身份列（`ticket_identity`，复核 5 批之第 1 批）：与摘要同一主页面，随每次写入重算。单号、日期、金额缺一项时
+	身份为空（不能判同一张）。分店是票面印的（没印为空，总公司 00000）。"""
+	from pearnly_core.express_rules.contracts import ticket_identity
+	from pearnly_core.express_rules.targets.account_match import printed_branch
+
+	fields = primary_page_fields(pages)
+	summary = extract_summary_fields(pages)
+	face = ticket_identity.Face(
+		direction=str(fields.get("direction") or ""), number=str(fields.get("invoice_number") or ""),
+		date=summary["invoice_date"] or "", total=summary["total_amount"] if summary["total_amount"] is not None else "",
+		seller_tax=str(fields.get("seller_tax") or ""), seller_branch=str(fields.get("seller_branch") or ""),
+		buyer_tax=str(fields.get("buyer_tax") or ""), buyer_branch=str(fields.get("buyer_branch") or ""),
+		seller_name=str(fields.get("seller_name") or ""), buyer_name=str(fields.get("buyer_name") or ""))
+	found = ticket_identity.identity(face)
+	return {"seller_branch": printed_branch(face.seller_branch), "buyer_branch": printed_branch(face.buyer_branch),
+		"ticket_number": ticket_identity.number(face.number)[:140] or None,
+		"ticket_key": found.key if found else None, "ticket_level": found.level if found else None}
+
+
 def list_status(confidence, summary: dict) -> str:
 	"""Recognition quality only; does not attest review, posting or push success."""
 	if all(summary.get(key) is None for key in ("total_amount", "invoice_no", "seller_name")):

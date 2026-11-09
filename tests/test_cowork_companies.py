@@ -1949,18 +1949,17 @@ class OperatorSourceTests(unittest.TestCase):
         self.assertEqual([c[4] for c in calls if c[0] == "push"], ["service"])  # 入账类型明传，单据列不再盖过它
 
     def test_a_ticket_already_written_by_direct_push_is_found(self):
-        """用户 11-09：同一张票已写进 Express 的，代录默认跳过。按同一工作区、同一条连接与账套、同票号、同对方税号、同金额、
-        已推送成功认；金额对不上的不算。"""
+        """用户 11-09：同一张票已写进 Express 的，代录默认跳过。按身份键（复核 5 批之第 1 批）在同一工作区、同一客户公司、同一条
+        连接与账套里、已推送成功的认；别的客户公司、别的账套的不算；只算近似的（一方没有税号）不跳。只看我们自己的推送记录。"""
         module, _calls = self.load()
 
         class _Rowd(dict):
             __getattr__ = dict.get
-        mine = _Rowd(name="h1", workspace="W1", invoice_no="IV69/00753", seller_tax="0105", buyer_tax="0107",
-                            total_amount="286.76", push_connection="C1", push_account_set="k1")
-        twins = [_Rowd(name="h7", seller_tax="0105", buyer_tax="0107", total_amount="286.70",
-                              push_account_set="k1", last_push_record="PR-7"),
-                 _Rowd(name="h9", seller_tax="0105", buyer_tax="0107", total_amount="286.760",
-                              push_account_set="k1", last_push_record="PR-9")]
+        mine = _Rowd(name="h1", workspace="W1", client="CL1", ticket_key="k" * 40, ticket_level="exact",
+                     push_connection="C1", push_account_set="k1")
+        twins = [_Rowd(name="h7", client="CL2", push_account_set="k1", last_push_record="PR-7"),  # 别的客户公司
+                 _Rowd(name="h8", client="CL1", push_account_set="k2", last_push_record="PR-8"),  # 别的账套
+                 _Rowd(name="h9", client="CL1", push_account_set="k1", last_push_record="PR-9")]
         seen = []
 
         def value(doctype, name, fields=None, *a, **k):
@@ -1973,8 +1972,13 @@ class OperatorSourceTests(unittest.TestCase):
         with mock.patch.object(frappe.db, "get_value", value, create=True), \
                 mock.patch.object(frappe, "get_all", listed, create=True):
             self.assertEqual(module.written_twin("h1"), {"doc_id": "h9", "docnum": "IV/69/0753"})
-        self.assertEqual((seen[0]["invoice_no"], seen[0]["last_push_status"], seen[0]["push_connection"]),
-                         ("IV69/00753", "success", "C1"))
+            mine["ticket_level"] = "near"
+            self.assertEqual(module.written_twin("h1"), {})
+            mine.update(ticket_level="exact", ticket_key=None)  # 认不出身份（单号、日期、金额缺一项）：不判
+            self.assertEqual(module.written_twin("h1"), {})
+        self.assertEqual((seen[0]["ticket_key"], seen[0]["last_push_status"], seen[0]["push_connection"], seen[0]["workspace"]),
+                         ("k" * 40, "success", "C1", "W1"))
+        self.assertEqual(len(seen), 1)
 
     def test_after_a_restart_the_site_says_where_each_document_stands(self):
         docs = {"h1": {"last_push_status": "success", "last_push_record": "PR-1"},

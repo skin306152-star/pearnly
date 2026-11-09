@@ -61,7 +61,10 @@ def _find(workspace, client, summary):
         # 完全相同，却能用上发票号 / 日期索引（2026-10-01 生产压测：套了函数就只能沿创建时间把本公司记录逐行过一遍，
         # 每存一张票扫一遍全表，记录越多越慢）。最终是否相同仍由下面 Python 逐字核对。
         if level == "exact":
-            clause, values = "invoice_no=%s", [current["invoice_no"]]
+            # 原写法或规范化后的单号相同都取出来（`ticket_number` 随写入维护），再由下面逐张按同一份规范化核对
+            from pearnly_core.express_rules.contracts.ticket_identity import number as ticket_number
+
+            clause, values = "(invoice_no=%s OR ticket_number=%s)", [current["invoice_no"], ticket_number(current["invoice_no"])]
         else:
             clause = "invoice_date=%s AND seller_name=%s"
             values = [current["invoice_date"], current["seller_name"]]

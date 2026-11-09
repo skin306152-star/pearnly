@@ -12,7 +12,7 @@ from pearnly_cowork.access import scope
 from .push_state import FIELDS as PUSH_FIELDS
 from . import categories, duplicates, names, review
 from pearnly_core.express_rules.contracts.history import (HistoryContractError, PARTY_FIELDS, initial_history, prepare_pages,
-    extract_party_fields, extract_summary_fields, list_status, normalize_posting_kind, primary_page, primary_page_fields)
+    extract_party_fields, extract_summary_fields, extract_ticket_fields, list_status, normalize_posting_kind, primary_page, primary_page_fields)
 from pearnly_core.express_rules.contracts.push import declared_direction_pages
 
 DOCTYPE = "Cowork OCR History"
@@ -112,6 +112,9 @@ def validate_document(doc):
         doc.set(field, summary[field])
     # 列表的买卖方与税号列：与摘要同一主页面，随每次写入重算，才能在服务端排序。
     for field, value in extract_party_fields(pages).items():
+        doc.set(field, value)
+    # 同一张票的身份（复核 5 批之第 1 批：两模式、所有入口判「已写过」与查重提醒都按它）
+    for field, value in extract_ticket_fields(pages).items():
         doc.set(field, value)
     doc.quality_status = list_status(doc.confidence, summary)
     doc.review_reasons = encode(review_reasons(doc, pages))

@@ -6,6 +6,8 @@ Amounts use finite Decimal values, never floating point approximations.
 """
 from decimal import Decimal, InvalidOperation
 
+from pearnly_core.express_rules.contracts.ticket_identity import number as ticket_number
+
 MATCH_FIELDS = {"exact": ["invoice_no"],
                 "likely": ["invoice_date", "seller_name", "total_amount"],
                 # 有意新增（2026-09-28 Express 压测：同一张油票在两三张照片里、单号读得不一样就查不出）：
@@ -41,7 +43,8 @@ def matches(current, previous, level):
     if not eligible(current, level):
         return False
     if level == "exact":
-        return (previous.get("invoice_no") or "").lower() == current["invoice_no"]
+        # 单号按同一张票的规范化比（复核 5 批之第 1 批，`ticket_identity.number`）：IV/69/00751 与 IV69-00751 是同一个号
+        return ticket_number(previous.get("invoice_no")) == ticket_number(current["invoice_no"])
     return (str(previous.get("invoice_date") or "") == current["invoice_date"]
             and (previous.get("seller_name") or "").lower() == current["seller_name"]
             and amount(previous.get("total_amount")) == current["total_amount"])

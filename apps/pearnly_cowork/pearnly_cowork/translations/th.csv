@@ -227,6 +227,7 @@ Brief Status,สถานะสรุปผล
 Bringing files from a folder,กำลังนำไฟล์จากโฟลเดอร์มา
 Brought files from a folder,นำไฟล์จากโฟลเดอร์มาแล้ว
 Buyer,ชื่อผู้ซื้อสินค้า/ผู้รับบริการ
+Buyer Branch,สาขาผู้ซื้อ
 Buyer Client,ลูกค้าผู้ซื้อ
 Buyer Name,ชื่อผู้ซื้อ
 Buyer Tax ID,เลขประจำตัวผู้เสียภาษีของผู้ซื้อ
@@ -1556,6 +1557,7 @@ Select valid files to download.,กรุณาเลือกไฟล์ที
 Selected Account Set,ชุดบัญชีที่เลือก
 Sell Units,หน่วยขาย
 Seller,ชื่อผู้ขายสินค้า/ผู้ให้บริการ
+Seller Branch,สาขาผู้ขาย
 Seller Name,ชื่อผู้ขาย
 Seller Tax ID,เลขประจำตัวผู้เสียภาษีของผู้ขาย
 Seller address,ที่อยู่ผู้ขาย
@@ -2030,6 +2032,9 @@ This tax id is already used by another client.,เลขประจำตัว
 This value cannot be chosen for this account set.,ไม่สามารถเลือกค่านี้สำหรับชุดบัญชีนี้ได้
 This value is not in this month's account set,ค่านี้ไม่มีในชุดบัญชีของเดือนนี้
 This warehouse is not in the Express account set,ไม่มีคลังสินค้านี้ในชุดบัญชี Express
+Ticket Key,รหัสระบุเอกสาร
+Ticket Level,ระดับการระบุเอกสาร
+Ticket Number,เลขที่เอกสารที่จัดรูปแบบ
 Tier,ระดับ
 Tier Since (UTC),ระดับนี้ตั้งแต่ (UTC)
 Time left {0},เหลือเวลา {0}

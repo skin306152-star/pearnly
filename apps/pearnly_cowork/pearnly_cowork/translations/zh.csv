@@ -227,6 +227,7 @@ Brief Status,简报状态
 Bringing files from a folder,正在从文件夹取文件
 Brought files from a folder,从文件夹取来了文件
 Buyer,买方
+Buyer Branch,买方分店
 Buyer Client,买方客户
 Buyer Name,买方名称
 Buyer Tax ID,买方税号
@@ -1556,6 +1557,7 @@ Select valid files to download.,请选择有效文件进行下载。
 Selected Account Set,所选账套
 Sell Units,销售单位
 Seller,卖方
+Seller Branch,卖方分店
 Seller Name,卖方名称
 Seller Tax ID,卖方税号
 Seller address,卖方地址
@@ -2030,6 +2032,9 @@ This tax id is already used by another client.,该税号已被其他客户使用
 This value cannot be chosen for this account set.,此账套不能选择该值。
 This value is not in this month's account set,该值不在本月账套主档中
 This warehouse is not in the Express account set,Express 账套中无此仓库
+Ticket Key,票据身份
+Ticket Level,身份级别
+Ticket Number,规范单号
 Tier,档位
 Tier Since (UTC),档位起始时间（UTC）
 Time left {0},剩余 {0}

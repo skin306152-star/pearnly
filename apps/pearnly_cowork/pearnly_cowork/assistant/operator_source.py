@@ -81,33 +81,21 @@ def precheck(company, doc_ids) -> dict:
 
 
 def written_twin(name) -> dict:
-    """这张识别单是不是已经写进 Express 的那张票（11-08 生产：同一份 PDF 的 24 张在代录里等着，岳父又逐张截图直写了其中 4 张）：
-    同一工作区、同一条连接与账套里，另一张票号相同、对方税号相同、金额相同、已推送成功的识别单 → ``{doc_id, docnum}``（它在
-    Express 里的单号）；没有回空。只读。"""
-    from decimal import Decimal, InvalidOperation
+    """这张识别单是不是已经写进 Express / MR.ERP 的那张票（11-08 生产：同一份 PDF 的 24 张在代录里等着，岳父又逐张截图直写了其中
+    4 张）：同一工作区、同一客户公司、同一条连接与账套里，另一张身份相同（`ticket_identity`：方向、双方税号与分店、规范化单号、
+    日期、金额，复核 5 批之第 1 批）、已推送成功的识别单 → ``{doc_id, docnum}``（它在账本里的单号）；没有回空。只认精确的身份
+    （一方没有税号的只算近似，不跳）。只看我们自己的推送记录：会计在 Express 里手录的同号照写（「推送不查重不拦」）。只读。"""
+    from pearnly_core.express_rules.contracts import ticket_identity
 
-    row = frappe.db.get_value(HISTORY, name, ["name", "workspace", "invoice_no", "seller_tax", "buyer_tax", "total_amount",
-                                              "push_connection", "push_account_set"], as_dict=True)
-    if not isinstance(row, dict):
+    row = frappe.db.get_value(HISTORY, name, ["name", "workspace", "client", "ticket_key", "ticket_level", "push_connection",
+                                              "push_account_set"], as_dict=True)
+    if not isinstance(row, dict) or not row.get("ticket_key") or row.get("ticket_level") != ticket_identity.EXACT \
+            or not row.get("push_connection"):
         return {}
-    number = str(row.get("invoice_no") or "").strip()
-    if not number or not row.get("push_connection"):
-        return {}
-
-    def amount(value):
-        try:
-            return Decimal(str(value or "0")).quantize(Decimal("0.01"))
-        except (InvalidOperation, ValueError):
-            return None
-
-    for other in frappe.get_all(HISTORY, filters={"workspace": row.workspace, "invoice_no": number, "name": ["!=", row.name],
+    for other in frappe.get_all(HISTORY, filters={"workspace": row.workspace, "ticket_key": row.ticket_key, "name": ["!=", row.name],
                                                   "push_connection": row.push_connection, "last_push_status": "success"},
-                                fields=["name", "seller_tax", "buyer_tax", "total_amount", "push_account_set", "last_push_record"],
-                                limit_page_length=TWIN_SCAN):
-        same = ((other.seller_tax or "") == (row.seller_tax or "") and (other.buyer_tax or "") == (row.buyer_tax or "")
-                and amount(other.total_amount) == amount(row.total_amount)
-                and (other.push_account_set or "") == (row.push_account_set or ""))
-        if same:
+                                fields=["name", "client", "push_account_set", "last_push_record"], limit_page_length=TWIN_SCAN):
+        if (other.client or "") == (row.client or "") and (other.push_account_set or "") == (row.push_account_set or ""):
             docnum = frappe.db.get_value("Cowork Push Record", other.last_push_record, "external_docnum") \
                 if other.last_push_record else ""
             return {"doc_id": other.name, "docnum": str(docnum or "")}

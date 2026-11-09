@@ -7,7 +7,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-20 00:00:00.000000",
- "modified": "2026-10-23 12:00:00.000000",
+ "modified": "2026-11-09 16:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -31,6 +31,11 @@
   "buyer_name",
   "buyer_tax",
   "total_amount",
+  "seller_branch",
+  "buyer_branch",
+  "ticket_number",
+  "ticket_key",
+  "ticket_level",
   "record_version",
   "edit_count",
   "fields_edited_at",
@@ -211,6 +216,41 @@
    "fieldtype": "Data",
    "label": "Invoice Total",
    "length": 200,
+   "read_only": 1
+  },
+  {
+   "fieldname": "seller_branch",
+   "fieldtype": "Data",
+   "label": "Seller Branch",
+   "length": 5,
+   "read_only": 1
+  },
+  {
+   "fieldname": "buyer_branch",
+   "fieldtype": "Data",
+   "label": "Buyer Branch",
+   "length": 5,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ticket_number",
+   "fieldtype": "Data",
+   "label": "Ticket Number",
+   "length": 140,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ticket_key",
+   "fieldtype": "Data",
+   "label": "Ticket Key",
+   "length": 40,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ticket_level",
+   "fieldtype": "Data",
+   "label": "Ticket Level",
+   "length": 10,
    "read_only": 1
   },
   {
