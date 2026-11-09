@@ -16,6 +16,7 @@ const ALWAYS_EDITABLE = {
   'apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js#to_location': '调拨单编辑器明细行的调入仓位（同上一条；只读的明细表这一列是 Data）',
   'apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js#pick_': 'Express 要人选的对话框，始终可编辑',
   'apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company-menu.js#company': '切换公司的搜索对话框，始终可编辑',
+  'apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company.js#account_set': '公司页 MR.ERP 一节「选择」账套的搜索对话框，始终可编辑',
   // 字段名来自上面的共用 base（c0、c1…），扫不到字段名，按文件登记
   'apps/pearnly_cowork/pearnly_cowork/public/desk/targets.js#?': 'Cowork 推送前要人选的对话框，始终可编辑',
 };
