@@ -364,6 +364,8 @@ after_migrate = [
     "pearnly_core.desk.branding.ensure_site_favicon",
     "pearnly_core.desk.branding.ensure_site_app_name",
     "pearnly_core.account.layout.ensure_profile_fields",
+    # 四种界面语言在 Frappe 语言表里启用（框架自带表把日语标成停用，网页语言下拉里没有日本語）
+    "pearnly_core.account.languages.ensure_product_languages",
     "pearnly_core.account.session_length.ensure_session_expiry",
     "pearnly_core.desk.error_detail.ensure_traceback_hidden",
     # 部署迁移后在后台先备好 CC 智能体资源（只排一次，备不上不挡迁移，批 A ②）

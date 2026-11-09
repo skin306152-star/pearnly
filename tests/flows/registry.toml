@@ -1554,7 +1554,7 @@ covers = [
 
 [[flow]]
 id = "erp.profile.save"
-title = "ERP 我的资料：改名后点页头保存，库里姓名跟着变（清存量基线 11-08）"
+title = "ERP 我的资料：改名后点页头保存，库里姓名跟着变（清存量基线 11-08）；语言下拉四种语言都能选（11-09）"
 module = "scripts/flows/profile_save.py"
 start = "/desk/pearnly-purchase"
 user = "purchase"
@@ -1562,6 +1562,7 @@ datasets = ["new", "old"]
 viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_core/pearnly_core/public/desk/actions.js",
+  "apps/pearnly_core/pearnly_core/account/languages.py",
 ]
 
 [[flow]]
@@ -1575,6 +1576,7 @@ datasets = ["new", "old"]
 viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_core/pearnly_core/public/desk/actions.js",
+  "apps/pearnly_core/pearnly_core/account/languages.py",
 ]
 
 [[flow]]

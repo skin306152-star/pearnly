@@ -1,4 +1,5 @@
 """流程用例：「我的资料」（框架原生 User 表单）改名后点页头「保存」，库里跟着变（ERP、Cowork 各一条，同一模块；清存量基线 11-08）。
+语言下拉（11-09 三星真机：搜 ja 什么都没有，框架自带语言表把日语标成停用）：四种界面语言各搜一次都能选到，只看不存。
 
 岗位员工打开自己的资料：名改成新的（在名那一格里输入）→ 页头「保存」→ 表单不再是未保存、页头标题跟着变 → 库里 `User.first_name` 是新的、
 `full_name` 跟着拼好。cleanup 把名改回原来的（实验室，直接写库）。
@@ -23,9 +24,10 @@ def _who(manifest):
 def prepare(lab, manifest):
     user = _who(manifest)
     row = lab.python(manifest["site"], f"""
-print(json.dumps(frappe.db.get_value("User", {user!r}, ["first_name", "last_name"], as_dict=True) or {{}}))
+print(json.dumps(frappe.db.get_value("User", {user!r}, ["first_name", "last_name", "language"], as_dict=True) or {{}}))
 """)
     return {"user": user, "first": row.get("first_name") or "", "last": row.get("last_name") or "",
+            "language": row.get("language"),
             "renamed": "Flow" + uuid.uuid4().hex[:6], "cases": []}
 
 
@@ -49,18 +51,49 @@ const input=frm.fields_dict.first_name.$input[0]; setInput(input, {js_value(para
 const dirty=!!frm.is_dirty();
 const via=await action(__('Save')); if(!via) return {{error:'no Save button'}};
 const saved=await until(()=>!frm.is_dirty()&&frm.doc.first_name==={js_value(params['renamed'])}&&$.active===0, 20000); await idle();
-return {{dirty, via, saved: !!saved, msg: msg()}};"""}]
+return {{dirty, via, saved: !!saved, msg: msg()}};"""}, _language_step()]
+
+
+LANGUAGE_OPTIONS = {"th": "ไทย", "zh": "中文", "en": "English", "ja": "日本語"}
+
+
+def _language_step():
+    """语言格里依次输入四种语言代码，读原生下拉（awesomplete）列出的项；最后把格子还原、重载表单，不保存。"""
+    return {"name": "语言下拉", "js": JS + f"""
+const frm=await until(()=>window.cur_frm&&cur_frm.doctype==='User'&&cur_frm.fields_dict.language?.$input&&cur_frm, 25000);
+if(!frm) return {{error:'no language field'}};
+const field=frm.fields_dict.language, input=field.$input[0], before=frm.doc.language, seen={{}};
+for(const code of {js_value(list(LANGUAGE_OPTIONS))}){{
+  setInput(input, code);
+  const items=await until(()=>{{const ul=field.awesomplete&&field.awesomplete.ul; const li=ul?[...ul.querySelectorAll('li')]:[];
+    return li.length&&!ul.hasAttribute('hidden')?li.map(x=>x.innerText.replace(/\\s+/g,' ').trim()):null;}}, 8000);
+  seen[code]=items||[];
+  await sleep(300);
+}}
+setInput(input, before||''); await sleep(300); frm.reload_doc(); await sleep(800);
+return {{seen}};"""}
 
 
 def judge(params, results, camera_code=None):
     seen = next((r.get("value") for r in results if r.get("step") == "改名保存"), None) or {}
+    options = (next((r.get("value") for r in results if r.get("step") == "语言下拉"), None) or {}).get("seen") or {}
     return [{"case": "typing the name dirties the form and the head Save button saves it", "seen": seen,
-             "ok": seen.get("dirty") is True and bool(seen.get("via")) and seen.get("saved") is True and not seen.get("msg")}]
+             "ok": seen.get("dirty") is True and bool(seen.get("via")) and seen.get("saved") is True and not seen.get("msg")},
+            {"case": "the language dropdown offers all four product languages (ja was disabled by the framework list)",
+             "seen": options,
+             "ok": all(any(name in item and code in item for item in options.get(code) or [])
+                       for code, name in LANGUAGE_OPTIONS.items())}]
 
 
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
-print(json.dumps(frappe.db.get_value("User", {params['user']!r}, ["first_name", "full_name"], as_dict=True) or {{}}))
+got = frappe.db.get_value("User", {params['user']!r}, ["first_name", "full_name", "language"], as_dict=True) or {{}}
+got["enabled"] = {{code: frappe.db.get_value("Language", code, "enabled") for code in ("th", "zh", "en", "ja")}}
+print(json.dumps(got))
 """)
     return [{"case": "the user's first name and full name are saved", "saved": got,
-             "ok": got.get("first_name") == params["renamed"] and (got.get("full_name") or "").startswith(params["renamed"])}]
+             "ok": got.get("first_name") == params["renamed"] and (got.get("full_name") or "").startswith(params["renamed"])},
+            {"case": "the four product languages are enabled in the Language table", "enabled": got.get("enabled"),
+             "ok": got.get("enabled") == {"th": 1, "zh": 1, "en": 1, "ja": 1}},
+            {"case": "looking through the language dropdown does not change the user's language",
+             "language": got.get("language"), "ok": got.get("language") == params.get("language")}]
