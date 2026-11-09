@@ -231,7 +231,6 @@ UNDECIDED_LINES_TEXT = "Some lines have no product yet"
 
 
 TWIN_SCAN = 20
-WRITTEN_STATES = (contracts.WRITTEN, contracts.MISMATCH, contracts.HANDLED)
 
 
 def written_twin(company, direction, result, grand_total) -> dict:
@@ -251,7 +250,8 @@ def written_twin(company, direction, result, grand_total) -> dict:
             return None
 
     found = frappe.get_all(push.PURCHASE, filters={"company": company, "doc_no": number,
-                                                   "ledger_state": ["in", list(WRITTEN_STATES)]},
+                                                   "ledger_state": ["in", [contracts.WRITTEN, contracts.MISMATCH,
+                                                                           contracts.HANDLED]]},
                            fields=["name", "supplier_tax_id", "grand_total", "ledger_docnum"], limit_page_length=TWIN_SCAN)
     tax = str(result.get("supplier_tax_id") or "").strip()
     total = amount(grand_total()) if found else None

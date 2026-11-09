@@ -385,10 +385,10 @@ def acknowledge(context, body):
 
 def _follow_up(row, result):
     """对话里推的这张到点没等到结论（推送工具记下了）：结论到了在那段对话里补一句（11-08 生产第 9 条，``push_followup``）。"""
-    from pearnly_core.assistant import push_followup
-    from pearnly_cowork.push import export_facts
-
     try:  # 只是补一句：出错只记日志，不影响这次回执
+        from pearnly_core.assistant import push_followup
+        from pearnly_cowork.push import export_facts
+
         push_followup.tell('cowork', row.name, result.get('status') == 'success', 'Express',
                            docnum=result.get('external_docnum') or '', reason=result.get('reason') or '',
                            explain=export_facts.reason_text)

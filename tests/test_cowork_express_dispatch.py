@@ -355,6 +355,7 @@ class Transport(unittest.TestCase):
         frappe.QueryDeadlockError = type("QueryDeadlockError", (Exception,), {})
         frappe.throw = lambda message, exc=Exception: (_ for _ in ()).throw(exc(message))
         frappe.parse_json = json.loads
+        frappe.log_error = lambda *args, **kwargs: None  # 回执后补一句推送结论（push_followup）失败只记日志
         frappe.db = types.SimpleNamespace(savepoint=lambda name: None, rollback=lambda **kw: None, sql=self.sql,
                                           get_value=lambda doctype, name, field, as_dict=False: types.SimpleNamespace(
                                               device_owner="owner@example.com", companion_version=self.version))
