@@ -26,6 +26,7 @@ STATUSES = ("preparing", "queued", "running", "attention", "finished", "stopped"
 OPEN_STATES = ("pending", "queued")
 # 推送结果不明（产品回的原因码，同开始前确认）：人在 Express 核对后会变成已入账 / 没有入账，收尾时照样再问（10-29 测试机）
 RESULT_UNKNOWN = "push.result_unknown"
+WRITTEN = "written"  # 产品交单回执：同一张票已写进 Express，默认跳过（``api.start`` 的 again 放行）
 CHOICE_NEEDED = "choice_needed"  # 两产品「要人选一次」的原因前缀（Cowork 推送准备、ERP `express.contracts.CHOICE`）
 FINAL = ("finished", "stopped")
 LIST_MAX = 100
@@ -200,9 +201,12 @@ def attach(name, results, groups=None, computer: str = "", start_at=None) -> dic
     rows = []
     for item in results or []:
         doc_id = str(item.get("doc_id") or "")
-        sent = str(item.get("status") or "") in ("sent", "queued")
-        rows.append({"doc_id": doc_id, "doc_group": groups.get(doc_id) or None, "state": "queued" if sent else "not_done",
-                     "reason": "" if sent else str(item.get("reason") or item.get("status") or "")[:REASON_MAX]})
+        status = str(item.get("status") or "")
+        sent = status in ("sent", "queued")
+        # 同一张票已写进 Express（产品回 written，原因带那张的单号）：跳过，不是要人处理的「未完成」
+        state = "queued" if sent else "skipped" if status == WRITTEN else "not_done"
+        rows.append({"doc_id": doc_id, "doc_group": groups.get(doc_id) or None, "state": state,
+                     "reason": "" if sent else str(item.get("reason") or status or "")[:REASON_MAX]})
     doc.set("documents", rows)
     _name_rows(doc, doc.get("documents"))
     doc.computer = str(computer or "")

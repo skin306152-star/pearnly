@@ -179,7 +179,8 @@ export type ResumeInput = { task: string; company: string; reason: string; detai
 
 /** 站点 precheck 一张单的结论（开始前、中途选都用）。 */
 export type PrecheckNeed = { kind: string; subject: string; label: string; options: ChoiceOption[] };
-export type PrecheckDoc = { doc_id: string; state: "ready" | "choose" | "waiting" | "blocked"; reason?: string; message?: string; needed?: PrecheckNeed[] };
+/** state written：同一张票已写进 Express（docnum 是它在 Express 里的单号），默认不交，人可以点「再录一次」（用户 11-09）。 */
+export type PrecheckDoc = { doc_id: string; state: "ready" | "choose" | "waiting" | "blocked" | "written"; reason?: string; message?: string; needed?: PrecheckNeed[]; docnum?: string };
 /** 这次写进哪儿（B4，precheck 回包的 target / targets，取值同 start 实际用的那一份）。count：几张单写进这份（targets 里才有）。 */
 export type WriteTarget = { account_set?: string; account_set_title?: string; connection_title?: string; computer?: string; count?: number };
 
@@ -248,7 +249,8 @@ export const operatorActions = {
     return { documents: (reply?.documents ?? []).map((d) => ({ ...d, doc_id: String(d.doc_id) })), targets, card: reply?.card };
   },
   /** groups：交出的每张单的资料分组（{doc_id: purchase / sales / …}，服务端记进任务的单据行，资料那一步的按组张数与报告用它）。 */
-  start: (input: StartInput, docIds: readonly string[], answers: Answers, groups: Readonly<Record<string, DocGroup>> = {}) =>
+  start: (input: StartInput, docIds: readonly string[], answers: Answers, groups: Readonly<Record<string, DocGroup>> = {},
+    again: readonly string[] = []) =>
     site.post(API + "start", {
       company: input.company,
       doc_ids: JSON.stringify(docIds),
@@ -257,6 +259,7 @@ export const operatorActions = {
       answers: JSON.stringify(answers),
       task: input.task,
       groups: JSON.stringify(groups),
+      ...(again.length ? { again: JSON.stringify(again) } : {}),
     }),
   answer: (task: string, docId: string, answers: Answers) =>
     site.post(API + "task_answer", { name: task, doc_id: docId, answers: JSON.stringify(answers[docId] ?? []) }),

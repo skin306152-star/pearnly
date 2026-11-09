@@ -49,10 +49,11 @@ export function groupsToStart(docs: readonly DocRef[], docIds: readonly string[]
   return Object.fromEntries(docs.filter((d) => wanted.has(d.doc_id)).map((d) => [d.doc_id, groupOf(d)]));
 }
 
-/** 交给 start 的单：不入账的不交，结果不明还没标的不交。 */
-export function docsToStart(docs: readonly DocRef[], prechecks: readonly PrecheckDoc[]): string[] {
+/** 交给 start 的单：不入账的不交，结果不明还没标的不交，同一张票已写进 Express 的不交——除非人点了「再录一次」（again）。 */
+export function docsToStart(docs: readonly DocRef[], prechecks: readonly PrecheckDoc[], again: ReadonlySet<string> = new Set()): string[] {
   const unknown = new Set(prechecks.filter((p) => p.state === "blocked" && p.reason === RESULT_UNKNOWN).map((p) => p.doc_id));
-  return docs.filter((d) => groupOf(d) !== "skip" && !unknown.has(d.doc_id)).map((d) => d.doc_id);
+  const written = new Set(prechecks.filter((p) => p.state === "written" && !again.has(p.doc_id)).map((p) => p.doc_id));
+  return docs.filter((d) => groupOf(d) !== "skip" && !unknown.has(d.doc_id) && !written.has(d.doc_id)).map((d) => d.doc_id);
 }
 
 /** 一行单据与它能做的。 */
@@ -60,12 +61,15 @@ export function docsToStart(docs: readonly DocRef[], prechecks: readonly Prechec
 // 把用户的话和回复挤出视口；全部的单在「资料」那一步）
 export const ROWS_SHOWN = 5;
 
-/** 先列的几行：结果不明的在前（各带按钮），再是要人处理的；`all` 时全列。 */
-export function rowsShown<T>(unknown: readonly T[], stopped: readonly T[], all: boolean): { unknown: T[]; stopped: T[]; hidden: number } {
-  if (all) return { unknown: [...unknown], stopped: [...stopped], hidden: 0 };
-  const first = unknown.slice(0, ROWS_SHOWN);
-  const rest = stopped.slice(0, ROWS_SHOWN - first.length);
-  return { unknown: first, stopped: rest, hidden: unknown.length + stopped.length - first.length - rest.length };
+/** 先列的几行：几组按先后占这几行（结果不明的在前、各带按钮，再是要人处理的、已写进 Express 的）；`all` 时全列。 */
+export function rowsShown<T>(groups: readonly (readonly T[])[], all: boolean): { groups: T[][]; hidden: number } {
+  let left = all ? Infinity : ROWS_SHOWN;
+  const shown = groups.map((group) => {
+    const taken = group.slice(0, Math.max(0, left));
+    left -= taken.length;
+    return taken;
+  });
+  return { groups: shown, hidden: groups.reduce((n, group, i) => n + group.length - shown[i]!.length, 0) };
 }
 
 const DocLine: FC<{ title: string; detail?: string; slot: string; children?: ReactNode }> = ({ title, detail, slot, children }) => (
@@ -138,21 +142,31 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
   const unknown = prechecks.filter((p) => p.state === "blocked" && p.reason === RESULT_UNKNOWN);
   const stopped = prechecks.filter((p) => (p.state === "blocked" || p.state === "waiting") && p.reason !== RESULT_UNKNOWN);
   const result = resultOf<StartResult>(props.result);
-  const shown = rowsShown(unknown, stopped, allRows);
   // 还没定的项（11-08 生产事故：CC 没先问就点了开始，同一客户在 24 张上各停一次、问 24 遍）：开始前在这张卡里一次问完，
   // 几张单的同一题（同一类、同一对象）只问一次（`itemsOfNeeded`），答案随「开始」交给站点记住，后面的单不再问
   const items = useMemo(() => itemsOfNeeded(prechecks), [prechecks]);
   const questions = useMemo(() => items.map((item) => itemQuestion(item, input.company)), [items, input.company]);
   const [sent, setSent] = useState<AskResult | null>(null);
+  // 同一张票已写进 Express 的（默认跳过）：人点了「再录一次」的放进 again
+  const written = prechecks.filter((p) => p.state === "written");
+  const shown = rowsShown([unknown, stopped, written], allRows);
+  const [shownUnknown, shownStopped, shownWritten] = shown.groups as [PrecheckDoc[], PrecheckDoc[], PrecheckDoc[]];
+  const [again, setAgain] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleAgain = (docId: string) =>
+    setAgain((before) => {
+      const next = new Set(before);
+      if (!next.delete(docId)) next.add(docId);
+      return next;
+    });
 
   // 点「开始」前再取一次资料（卡片出现后才上传、识别完的单也交上去）
   const begin = (answers: Parameters<typeof operatorActions.start>[2], done?: () => void) =>
     void action.run(async () => {
       const fresh = await refresh();
-      const docIds = docsToStart(fresh.docs, fresh.prechecks);
+      const docIds = docsToStart(fresh.docs, fresh.prechecks, again);
       setNotice(docIds.length ? "" : op.noDocs);
       if (!docIds.length) return;
-      await operatorActions.start(input, docIds, answers, groupsToStart(fresh.docs, docIds));
+      await operatorActions.start(input, docIds, answers, groupsToStart(fresh.docs, docIds), [...again].filter((id) => docIds.includes(id)));
       done?.();  // 交出去了才把题定成已答（交不出去还能改了再点）
       settleCard(sessionId, props.toolCallId);
     }, false);
@@ -180,7 +194,7 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
           </button>
         </div>
       )}
-      {shown.unknown.map((d) => (
+      {shownUnknown.map((d) => (
         <DocLine key={d.doc_id} slot="cc-op-unknown" title={titleOf(d.doc_id)} detail={reasonText(d.reason, d.message)}>
           <div className="cc-card-actions">
             <button type="button" className="cc-card-btn" data-slot="cc-op-entered" disabled={action.busy} onClick={() => resolve(d.doc_id, true)}>
@@ -192,8 +206,18 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
           </div>
         </DocLine>
       ))}
-      {shown.stopped.map((d) => (
+      {shownStopped.map((d) => (
         <DocLine key={d.doc_id} slot="cc-op-handle" title={titleOf(d.doc_id)} detail={reasonText(d.reason, d.message)} />
+      ))}
+      {shownWritten.map((d) => (
+        <DocLine key={d.doc_id} slot="cc-op-written" title={titleOf(d.doc_id)} detail={[op.doc.saved, d.docnum].filter(Boolean).join(" · ")}>
+          <div className="cc-card-actions">
+            <button type="button" className="cc-card-btn" data-slot="cc-op-again" aria-pressed={again.has(d.doc_id)} disabled={action.busy}
+              onClick={() => toggleAgain(d.doc_id)}>
+              {op.enterAgain}
+            </button>
+          </div>
+        </DocLine>
       ))}
       {(shown.hidden > 0 || prep.next !== null) && (
         <button type="button" className="cc-show-more" disabled={action.busy}

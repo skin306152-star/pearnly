@@ -69,8 +69,53 @@ def precheck(company, doc_ids) -> dict:
     from pearnly_cowork.assistant import precheck_source as checking
 
     memory = rules.groups(company)
-    return {"documents": [{"doc_id": name, **checking.operator_check(name, posting_kind=_settle(name, memory))}
-                          for name in doc_ids]}
+    out = []
+    for name in doc_ids:
+        twin = written_twin(name)
+        if twin:
+            # 同一张票已由直写（或别的识别单）写进 Express：默认不再交，开始前卡片标出已写入的单号，人可以勾回再录（用户 11-09 定）
+            out.append({"doc_id": name, "state": "written", "docnum": twin["docnum"], "twin": twin["doc_id"]})
+            continue
+        out.append({"doc_id": name, **checking.operator_check(name, posting_kind=_settle(name, memory))})
+    return {"documents": out}
+
+
+def written_twin(name) -> dict:
+    """这张识别单是不是已经写进 Express 的那张票（11-08 生产：同一份 PDF 的 24 张在代录里等着，岳父又逐张截图直写了其中 4 张）：
+    同一工作区、同一条连接与账套里，另一张票号相同、对方税号相同、金额相同、已推送成功的识别单 → ``{doc_id, docnum}``（它在
+    Express 里的单号）；没有回空。只读。"""
+    from decimal import Decimal, InvalidOperation
+
+    row = frappe.db.get_value(HISTORY, name, ["name", "workspace", "invoice_no", "seller_tax", "buyer_tax", "total_amount",
+                                              "push_connection", "push_account_set"], as_dict=True)
+    if not isinstance(row, dict):
+        return {}
+    number = str(row.get("invoice_no") or "").strip()
+    if not number or not row.get("push_connection"):
+        return {}
+
+    def amount(value):
+        try:
+            return Decimal(str(value or "0")).quantize(Decimal("0.01"))
+        except (InvalidOperation, ValueError):
+            return None
+
+    for other in frappe.get_all(HISTORY, filters={"workspace": row.workspace, "invoice_no": number, "name": ["!=", row.name],
+                                                  "push_connection": row.push_connection, "last_push_status": "success"},
+                                fields=["name", "seller_tax", "buyer_tax", "total_amount", "push_account_set", "last_push_record"],
+                                limit_page_length=TWIN_SCAN):
+        same = ((other.seller_tax or "") == (row.seller_tax or "") and (other.buyer_tax or "") == (row.buyer_tax or "")
+                and amount(other.total_amount) == amount(row.total_amount)
+                and (other.push_account_set or "") == (row.push_account_set or ""))
+        if same:
+            docnum = frappe.db.get_value("Cowork Push Record", other.last_push_record, "external_docnum") \
+                if other.last_push_record else ""
+            return {"doc_id": other.name, "docnum": str(docnum or "")}
+    return {}
+
+
+HISTORY = "Cowork OCR History"
+TWIN_SCAN = 20
 
 
 # 资料区分组（设计稿右栏「资料」）：只用识别已有的字段，不另判
@@ -283,7 +328,13 @@ def submit(company, doc_ids, batch, computer, answers=None) -> list:
 
     memory = rules.groups(company)
     results = []
+    again = set((batch or {}).get("again") or ())
     for index, name in enumerate(doc_ids, start=1):
+        twin = written_twin(name) if name not in again else {}
+        if twin:
+            # 同一张票已写进 Express：默认跳过（用户 11-09），原因带那张的单号；人在开始前卡片上点了「再录一次」的照交
+            results.append({"doc_id": name, "status": "written", "reason": twin["docnum"]})
+            continue
         given = (answers or {}).get(name)
         if given:
             checking.remember(company, {name: given})

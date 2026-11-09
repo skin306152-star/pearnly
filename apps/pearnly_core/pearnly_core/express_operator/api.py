@@ -126,20 +126,24 @@ def regroup(company, doc_id, group):
 
 
 @frappe.whitelist(methods=["POST"])
-def start(company, doc_ids, computer="", start_at=0, answers=None, task="", groups=None):
+def start(company, doc_ids, computer="", start_at=0, answers=None, task="", groups=None, again=None):
     """``answers``：预检里人定的（``{doc_id: [{kind, subject, value, label}]}``），产品先记下再交代录。``task``：服务端的任务号
-    （``tasks``，批次号就用它，CC 本机进度按它对上），交单结论写进任务、状态转等电脑空闲；``groups``：各张的资料分组（汇报用）。"""
+    （``tasks``，批次号就用它，CC 本机进度按它对上），交单结论写进任务、状态转等电脑空闲；``groups``：各张的资料分组（汇报用）。
+    ``again``：开始前卡片上人点了「再录一次」的单（同一张票已写进 Express 的默认跳过，用户 11-09 定；产品交单时按 ``batch["again"]``
+    放行，别的照样跳过）。"""
     _require(company)
     doc_ids = _ids(doc_ids)
     answers = frappe.parse_json(answers) if isinstance(answers, str) else (answers or {})
     groups = frappe.parse_json(groups) if isinstance(groups, str) else (groups or {})
-    if not isinstance(answers, dict) or not isinstance(groups, dict):
+    again = frappe.parse_json(again) if isinstance(again, str) and again else (again or [])
+    if not isinstance(answers, dict) or not isinstance(groups, dict) or not isinstance(again, list):
         frappe.throw(_("Invalid request"))
     if task:
         found = tasks.read(task)
         if found["company"] != company or found["status"] != "preparing":
             frappe.throw(_("Invalid request"))
-    batch = {"id": str(task) if task else uuid.uuid4().hex[:12], "total": len(doc_ids), "start_at": float(start_at or 0)}
+    batch = {"id": str(task) if task else uuid.uuid4().hex[:12], "total": len(doc_ids), "start_at": float(start_at or 0),
+             "again": [str(doc_id) for doc_id in again if str(doc_id) in doc_ids]}
     results = products.submit(company, doc_ids, batch, str(computer or ""), answers)
     if task:
         tasks.attach(task, results, groups, str(computer or ""),

@@ -352,6 +352,13 @@ class TaskTests(unittest.TestCase):
         self.assertEqual([(c[1], c[4]) for c in self.submitted], [(["h1"], {"h1": choice}), (["h2"], {})])
         self.assertEqual([d["state"] for d in out["documents"]], ["queued", "queued", "not_done"])
 
+    def test_a_document_already_in_express_is_skipped_not_held(self):
+        """用户 11-09：同一张票已写进 Express 的默认跳过——产品交单回 written（原因带单号），任务里记「已跳过」，不是要人处理的。"""
+        made = self.tasks.create("CO-1", "2026-10")
+        out = self.tasks.attach(made["name"], [{"doc_id": "h1", "status": "sent"},
+                                               {"doc_id": "h2", "status": "written", "reason": "IV69/00753"}], {}, "", None)
+        self.assertEqual([(d["state"], d["reason"]) for d in out["documents"]], [("queued", ""), ("skipped", "IV69/00753")])
+
     def test_one_card_answers_several_documents_at_once(self):
         """11-08：同一题的几张合成一张卡，一次交来各张的答案（answer_many）；别的原因停下的不动，不认识的单整批拒。"""
         name = self._started()

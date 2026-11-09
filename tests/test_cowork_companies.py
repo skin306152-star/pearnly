@@ -1948,6 +1948,34 @@ class OperatorSourceTests(unittest.TestCase):
         module.submit("CO1", ["h1"], {"id": "b1", "total": 1, "start_at": 0}, "CCD-1")
         self.assertEqual([c[4] for c in calls if c[0] == "push"], ["service"])  # 入账类型明传，单据列不再盖过它
 
+    def test_a_ticket_already_written_by_direct_push_is_found(self):
+        """用户 11-09：同一张票已写进 Express 的，代录默认跳过。按同一工作区、同一条连接与账套、同票号、同对方税号、同金额、
+        已推送成功认；金额对不上的不算。"""
+        module, _calls = self.load()
+
+        class _Rowd(dict):
+            __getattr__ = dict.get
+        mine = _Rowd(name="h1", workspace="W1", invoice_no="IV69/00753", seller_tax="0105", buyer_tax="0107",
+                            total_amount="286.76", push_connection="C1", push_account_set="k1")
+        twins = [_Rowd(name="h7", seller_tax="0105", buyer_tax="0107", total_amount="286.70",
+                              push_account_set="k1", last_push_record="PR-7"),
+                 _Rowd(name="h9", seller_tax="0105", buyer_tax="0107", total_amount="286.760",
+                              push_account_set="k1", last_push_record="PR-9")]
+        seen = []
+
+        def value(doctype, name, fields=None, *a, **k):
+            return mine if doctype == module.HISTORY else "IV/69/0753"
+
+        def listed(doctype, filters=None, **k):
+            seen.append(filters)
+            return twins
+
+        with mock.patch.object(frappe.db, "get_value", value, create=True), \
+                mock.patch.object(frappe, "get_all", listed, create=True):
+            self.assertEqual(module.written_twin("h1"), {"doc_id": "h9", "docnum": "IV/69/0753"})
+        self.assertEqual((seen[0]["invoice_no"], seen[0]["last_push_status"], seen[0]["push_connection"]),
+                         ("IV69/00753", "success", "C1"))
+
     def test_after_a_restart_the_site_says_where_each_document_stands(self):
         docs = {"h1": {"last_push_status": "success", "last_push_record": "PR-1"},
                 "h2": {"last_push_status": "pending", "last_push_record": "PR-2"},

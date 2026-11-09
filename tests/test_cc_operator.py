@@ -508,6 +508,7 @@ import assert from "node:assert/strict";
 import { docAnswers, itemQuestion, itemsOfNeeded, kindName } from "@/components/tool-uis/ask-shared";
 import { docTitle } from "@/components/tool-uis/operator-words";
 import { choiceRun } from "@/components/tool-uis/operator-choose";
+import { docsToStart } from "@/components/tool-uis/operator-start";
 import { op } from "@/i18n";
 
 const options = [{ code: "BIGC", name: "BIG C" }, { code: "BIGC-002", name: "BIG C-002 (ซอยประชุม)" }];
@@ -540,6 +541,11 @@ const messages = [{ content: [
   part("c5", { task: "U", doc_id: "H5", reason: "choice_needed:party" }),
 ] }];
 assert.equal(choiceRun(messages as any, "T"), "c1\tH1\nc2\tH2");
+// 同一张票已写进 Express 的（用户 11-09 定）：默认不交；点了「再录一次」的照交
+const docs2 = [{ doc_id: "A", group: "sales" }, { doc_id: "B", group: "sales" }] as any;
+const checks = [{ doc_id: "A", state: "written", docnum: "IV69/00753" }, { doc_id: "B", state: "ready" }] as any;
+assert.deepEqual(docsToStart(docs2, checks), ["B"]);
+assert.deepEqual(docsToStart(docs2, checks, new Set(["A"])), ["A", "B"]);
 console.log("HARNESS OK");
 """
 

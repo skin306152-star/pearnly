@@ -2415,6 +2415,8 @@
   .cc-choice-seg > .cc-card-btn { background: transparent; color: var(--cc-ink-3); }
   .cc-choice-seg > .cc-card-btn:hover { color: var(--cc-ink); }
   .cc-choice-seg > .cc-card-btn[aria-pressed="true"] { background: var(--cc-bg-selected); color: var(--cc-ink); }
+  /* 卡片里可以按下 / 再按取消的按钮（开始前卡片「再写一次」）：按下时同分段选择的选中底色 */
+  .cc-card-btn[aria-pressed="true"] { background: var(--cc-bg-selected); color: var(--cc-ink); }
   .cc-card-btn[data-ghost] { background: transparent; }
   .cc-card-btn[data-ghost]:hover { background: var(--cc-bg-subtle); }
   .cc-card-btn[data-danger] { color: var(--cc-danger); }
