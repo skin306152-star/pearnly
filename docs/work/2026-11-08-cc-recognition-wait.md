@@ -64,3 +64,21 @@
 - 施工中踩到的一处：挂起那条执行记录与挂起前那条同调用同状态的 running 编号相同，页面按编号去重把它丢了（第一遍修后仍红）。编号另带
   `_waiting` 后通过；前端测试改成按服务端真实编号先来一条 running、再来挂着等的那条。
 - 口径说明：调用挂起之前，推送线程同步等识别最多约 90 秒，这段模型在执行这一步、服务端也收不了消息，照方案 B 显示停止；挂起后才算空闲。
+
+## 11-09 测试机验收 ② 仍没过：页面兜底把「别处在执行」当成了结果
+
+现象（CC 1.12.19，testcowork 直写 BJC 12 页，执行记录 ibonkc1do9，17:31:14 开始、17:32:49 挂起、17:34:43 完成；截图
+`~/pearnly-devtools/release-1108/shots/06–10`）：第 28 秒工具标题就成了过去时「识别了单据」，状态行一直「x 秒 · 执行中…」；挂起后状态行整行消失，
+「识别中 · 共 12 页」一直没出。
+
+取证：
+- 线上那段会话的引擎事件（只读取回）：17:31:13 `agent.custom_tool_use` → `status_idle`（requires_action）→ 17:34:48 本站交回
+  `user.custom_tool_result` → CC 回话。中间引擎什么都没发，第 28 秒的变化不是引擎来的。
+- 服务端：推送线程已在执行这次调用时，页面兜底的 `run_tool` 当场回 `{status: "running"}`（`toolrun.execute`：别处已在执行）。
+- 页面：`session-controller.ts` 的 `answerPendingCustomTools` 除 `awaiting_approval` 外一律并一条空的乐观 `user.custom_tool_result`。这一步
+  提前「有结果」：标题按有结果说过去时；状态行认为这一步已有结论，退成「执行中…」；挂起后 `turn.ts` 的 `waitingActivity` 要这一步
+  还没结果才说它 → 整行消失，进度推送到了也显示不出来。11-08 那条前端测试把兜底设成永不返回，正好盖住了这一路。
+
+修法（分支 `pearnly/cc-wait-progress-shown`）：兜底回 `running` 时不并结果，照推来的执行记录并一条 `pearnly.tool_run` running（不再欠、
+不再提醒），这一步仍是进行中。测试 `tests/test_cc_run_indicator.py::test_the_page_nudge_answered_running_does_not_close_the_step_still_reading`
+（兜底当场回 running；修前红在「这一步有了结果」，修后挂起前状态行说这一步、挂起后「识别中 · 共 12 页」）。服务端不改。
