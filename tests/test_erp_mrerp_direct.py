@@ -414,10 +414,8 @@ class _Cache:
         self.values[key] = value
 
 
-@patch.object(mrerp, "MRERP_LEDGER_ENABLED", True)
-class ConnectRow(unittest.TestCase):
-    """CC 设置 → 连接的 MR.ERP 一行（`frontend/assistant/src/components/mrerp-connect.tsx`）调的接口：ERP 要有、形状对、只限管理员、
-    不回密码、建连接按请求号幂等；旧的 ``configure(system_url)`` 调法照旧（实验栈脚本在用）。"""
+class _SiteFakes(unittest.TestCase):
+    """连接表、公司表的最小站点替身（get_doc / 分页 get_all / cache / whitelist）。"""
 
     def setUp(self):
         reset()
@@ -436,6 +434,12 @@ class ConnectRow(unittest.TestCase):
         for item in self.patches:
             item.stop()
         frappe.session.user = "boss@x"
+
+
+@patch.object(mrerp, "MRERP_LEDGER_ENABLED", True)
+class ConnectRow(_SiteFakes):
+    """CC 设置 → 连接的 MR.ERP 一行（`frontend/assistant/src/components/mrerp-connect.tsx`）调的接口：ERP 要有、形状对、只限管理员、
+    不回密码、建连接按请求号幂等；旧的 ``configure(system_url)`` 调法照旧（实验栈脚本在用）。"""
 
     def test_every_method_the_settings_row_calls_exists_and_is_whitelisted(self):
         import re
@@ -494,6 +498,52 @@ class ConnectRow(unittest.TestCase):
         self.assertEqual(out["connection"], "C1")
         self.assertEqual([call[0] for call in ENQUEUED], ["pearnly_erp_portal.mrerp.catalog.run"])
         self.assertTrue(ENQUEUED[0][1]["deduplicate"])
+
+
+@patch.object(mrerp, "MRERP_LEDGER_ENABLED", True)
+class CompanySection(_SiteFakes):
+    """公司页的 MR.ERP 一节（11-09 P0-⑤b）：只在开关开着、ERP 管理员、公司没接 Express、站点有主连接时给；现在的账套与它在目录里的名字；
+    页面用官方对话框与 Autocomplete、按输入在服务端按页搜，只调已有的选账套 / 断开接口。"""
+
+    def setUp(self):
+        super().setUp()
+        DB.table("ERP MRERP Connection")["C1"]["catalog_json"] = json.dumps(
+            [{"source_id": "15:1", "label": "TEST2019"}, {"source_id": "16:1", "label": "TEST2020"}])
+        from pearnly_erp_portal.mrerp import catalog
+        self.catalog = catalog
+
+    def test_a_linked_company_shows_its_account_set_by_name(self):
+        self.assertEqual(self.catalog.company_view("CO-1"),
+                         {"connection": "C1", "account_set": "15:1", "label": "TEST2019", "linked": True})
+
+    def test_an_unlinked_company_offers_the_main_connection(self):
+        DB.table("ERP Company")["CO-1"]["mrerp_enabled"] = 0
+        self.assertEqual(self.catalog.company_view("CO-1"),
+                         {"connection": "C1", "account_set": "", "label": "", "linked": False})
+
+    def test_no_section_for_express_companies_staff_or_a_site_without_a_connection(self):
+        DB.table("ERP Company")["CO-1"]["express_enabled"] = 1
+        self.assertIsNone(self.catalog.company_view("CO-1"))
+        DB.table("ERP Company")["CO-1"]["express_enabled"] = 0
+        frappe.session.user = "staff@x"
+        self.assertIsNone(self.catalog.company_view("CO-1"))
+        frappe.session.user = "boss@x"
+        DB.table("ERP MRERP Connection")["C1"]["enabled"] = 0
+        self.assertIsNone(self.catalog.company_view("CO-1"))
+        with patch.object(mrerp, "MRERP_LEDGER_ENABLED", False):
+            DB.table("ERP MRERP Connection")["C1"]["enabled"] = 1
+            self.assertIsNone(self.catalog.company_view("CO-1"))
+
+    def test_the_page_section_uses_official_controls_and_the_existing_entries(self):
+        page = (ERP / "public/desk/company.js").read_text(encoding="utf-8")
+        section = page[page.index("const MRERP = "):page.index("// 还没写进 Express 的退货小票")]
+        for part in ('new frappe.ui.Dialog(', 'fieldtype: "Autocomplete"', 'MRERP + "account_sets"', 'search: text || ""',
+                     'MRERP + "choose_ledger"', 'MRERP + "detach"', "frappe.confirm(", "frappe.utils.debounce("):
+            self.assertIn(part, section)
+        self.assertNotIn('__("Change")', section)  # ERP 术语表里 Change 是收银「找零」
+        self.assertIn("...mrerp_section(data, name),", page)
+        profile = (ERP / "masters/company.py").read_text(encoding="utf-8")
+        self.assertIn("mrerp_view = mrerp_catalog.company_view(doc.name)", profile)
 
 
 class PureRules(unittest.TestCase):

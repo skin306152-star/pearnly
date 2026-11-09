@@ -89,10 +89,28 @@ def choose(company, connection, account_set):
     return values
 
 
+def company_view(company):
+    """公司页的 MR.ERP 一节（`masters.company.get_profile` → ``mrerp``）。只在开关开着、本人是 ERP 管理员、公司没接 Express、
+    站点有主连接（CC 设置 → 连接的 MR.ERP 一行建的）时给，否则 ``None``（页面不出这一节）：
+    ``{connection, account_set, label, linked}``——现在用的账套（没用 MR.ERP 时空）与它在目录里的名字。"""
+    if not connections.mrerp.enabled() or not connections.is_admin():
+        return None
+    row = frappe.db.get_value(COMPANY, company, ["express_enabled", "mrerp_enabled", "mrerp_connection",
+                                                 "mrerp_account_set"], as_dict=True)
+    main = connections.main_name()
+    if not row or row.express_enabled or not main:
+        return None
+    linked = bool(row.mrerp_enabled)
+    connection = (row.mrerp_connection or main) if linked else main
+    key = str(row.mrerp_account_set or "") if linked else ""
+    label = next((item.get("label") or key for item in _sets(connection) if item["source_id"] == key), key) if key else ""
+    return {"connection": connection, "account_set": key, "label": label, "linked": linked}
+
+
 def detach(company):
     """这家公司不再用 MR.ERP 当账本（只限管理员）：之后提交的单不导入；已导入的不动。"""
     connections.require_admin()
     frappe.db.set_value(COMPANY, company, {"mrerp_enabled": 0, "mrerp_linked_at": None})
 
 
-__all__ = ["account_sets", "choose", "detach", "refresh", "run"]
+__all__ = ["account_sets", "choose", "company_view", "detach", "refresh", "run"]

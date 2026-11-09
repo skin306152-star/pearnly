@@ -785,6 +785,7 @@ Low stock,在庫少
 Low stock alert,低在庫アラート
 Loyalty Points,ロイヤルティポイント
 Loyalty Program,ロイヤルティプログラム
+MR.ERP,MR.ERP
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP はこの税率に対応していません。確認して再送信してください

@@ -442,6 +442,12 @@ def get_profile(name=None) -> dict:
         from pearnly_erp_portal.express import pos_day
 
         payload["express"]["pending_refunds"] = pos_day.pending_refunds(doc.name)
+    # MR.ERP 一节（开关开着、ERP 管理员、没接 Express、站点有 MR.ERP 主连接才有；`mrerp.catalog.company_view`）
+    from pearnly_erp_portal.mrerp import catalog as mrerp_catalog
+
+    mrerp_view = mrerp_catalog.company_view(doc.name)
+    if mrerp_view is not None:
+        payload["mrerp"] = mrerp_view
     return payload
 
 

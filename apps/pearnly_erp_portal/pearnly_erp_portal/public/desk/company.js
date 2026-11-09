@@ -280,6 +280,47 @@
 					})}));
 			return out;
 		};
+		// ── MR.ERP 账本（服务端 `mrerp.catalog.company_view` 给了才有：开关开着、ERP 管理员、没接 Express、站点有 MR.ERP 主连接）──
+		// 现在用的账套只读；「选择」开官方对话框（不用 "Change"：ERP 术语表里那是收银的「找零」），一颗可输入搜索的下拉（官方 Autocomplete），按输入在服务端按页搜这条连接的账套；
+		// 用着 MR.ERP 的给「断开」（之后提交的单不导入，已导入的不动；服务端同样只限管理员）。
+		const MRERP = "pearnly_erp_portal.mrerp.api.";
+		const choose_mrerp = (data, name) => {
+			const view = data.mrerp;
+			const label_of = row => [row.label, row.company].filter(Boolean).join(" · ");
+			const dialog = new frappe.ui.Dialog({title: __("Account Set"),
+				fields: [{fieldtype: "Autocomplete", fieldname: "account_set", label: __("Search"), options: []}],
+				primary_action_label: __("Select"),
+				async primary_action(values) {
+					if (!values.account_set) return;
+					await p.call(MRERP + "choose_ledger", {company: name || data.name, connection_name: view.connection,
+						account_set: values.account_set}, "POST");
+					dialog.hide();
+					p.success(t("company.notice.saved"), "click");
+					await show();
+				}});
+			const fill = async text => {
+				const page = await p.call(MRERP + "account_sets",
+					{connection_name: view.connection, start: 0, page_length: 50, search: text || ""});
+				dialog.fields_dict.account_set.set_data((page.rows || []).map(row => ({value: row.key, label: label_of(row)})));
+			};
+			dialog.fields_dict.account_set.$input.on("input", frappe.utils.debounce(
+				() => void fill(dialog.fields_dict.account_set.$input.val()), 300));
+			dialog.show();
+			void fill("");
+		};
+		const mrerp_section = (data, name) => {
+			const view = data.mrerp;
+			if (!view) return [];
+			return [{fieldtype: "Section Break", label: __("MR.ERP")},
+				{fieldname: "mrerp_account_set", label: __("Account Set"), fieldtype: "Data", read_only: 1, default: view.label || ""},
+				{fieldname: "mrerp_choose", label: __("Select"), fieldtype: "Button", click: () => choose_mrerp(data, name)},
+				...(view.linked ? [f("mrerp_detach", "company.express.disconnect", "Button", {click: () => frappe.confirm(
+					__("Are you sure you want to proceed?"), async () => {
+						await p.call(MRERP + "detach", {company: name || data.name}, "POST");
+						p.success(t("company.notice.saved"), "click");
+						await show();
+					})})] : [])];
+		};
 		// 还没写进 Express 的退货小票（退货单在排队、等原日汇总写入或停下）
 		const pending_refunds = express => (express.pending_refunds ? [{fieldname: "express_pending_refunds",
 			label: __("express.pendingRefunds"), fieldtype: "Int", read_only: 1, default: express.pending_refunds}] : []);
@@ -403,6 +444,7 @@
 				...express_section(data, name),
 				// 接了 Express：最近一次同步（后台落库，见 `express.masters._record`）的账套、时间、状态与失败原因，只读
 				...(data.express ? express_fields(data.express) : []),
+				...mrerp_section(data, name),
 			]);
 			if (data.express) show_stock_differences(data.express);
 			if (data.can_write) {

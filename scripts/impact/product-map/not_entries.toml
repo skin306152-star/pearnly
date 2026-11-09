@@ -266,24 +266,14 @@ kind = "compat"
 reason = "11-04 核实：前端没有拼名调用，产品里没有调用方；文档 docs/work/2026-09-22-stocktake-workbench.md 提到（兼容保留候选，待核实）"
 
 [[anchor]]
-anchor = "endpoint:pearnly_erp_portal.mrerp.api.account_sets"
-kind = "compat"
-reason = "11-05 复核：ERP 接 MR.ERP 账套域（c2159f8bb，11-03 合入）的管理入口，代码开关 MRERP_LEDGER_ENABLED 关着、页面未接，等岳父的 MR.ERP 账号实测后接页面；是待接功能不是废弃，开关打开时页面接上的同一提交删掉本条"
-
-[[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.choose"
 kind = "compat"
-reason = "同上：ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.mrerp.api.choose_ledger"
-kind = "compat"
-reason = "产品里没有调用方；文档 docs/work/2026-11-03-mrerp-operator-server.md 提到（兼容保留候选，待核实）"
+reason = "11-05 复核：ERP 接 MR.ERP 账套域的管理入口（c2159f8bb，11-03 合入），代码开关 MRERP_LEDGER_ENABLED 关着；公司页 MR.ERP 一节（11-09 P0-⑤b）只用选账套 / 断开，按单预选菜单与默认值的这个入口还没接页面，是待接功能不是废弃"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.company_choices"
 kind = "compat"
-reason = "同上：ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能）"
+reason = "ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能；11-05 复核，11-09 P0-⑤b 公司页只接了选账套 / 断开）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.configure"
@@ -303,12 +293,7 @@ reason = "同 configure：CC 设置 → 连接的 MR.ERP 一行存下网址或�
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.connection_view"
 kind = "compat"
-reason = "同上：ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能）"
-
-[[anchor]]
-anchor = "endpoint:pearnly_erp_portal.mrerp.api.detach"
-kind = "compat"
-reason = "同上：ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能）"
+reason = "ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能；11-05 复核，11-09 P0-⑤b 公司页只接了选账套 / 断开）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.read_choices"
@@ -318,7 +303,7 @@ reason = "产品里没有调用方；文档 docs/work/2026-11-03-mrerp-operator-
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.mrerp.api.refresh_catalog"
 kind = "compat"
-reason = "同上：ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能）"
+reason = "ERP 接 MR.ERP 账套域的管理入口（开关 MRERP_LEDGER_ENABLED 关着、页面未接，待接功能；11-05 复核，11-09 P0-⑤b 公司页只接了选账套 / 断开）"
 
 [[anchor]]
 anchor = "endpoint:pearnly_erp_portal.work.api.boards_list"

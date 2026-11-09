@@ -785,6 +785,7 @@ Low stock,低库存
 Low stock alert,低库存提醒
 Loyalty Points,忠诚度积分
 Loyalty Program,忠诚度计划
+MR.ERP,MR.ERP
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP 已受理导入，但所选菜单中未找到此单据，结果未知。请先在 MR.ERP 中核对，请勿直接重新推送。
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP 不支持此税率，请核对税率后重新提交
