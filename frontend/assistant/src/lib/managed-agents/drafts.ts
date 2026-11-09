@@ -31,7 +31,8 @@ function storage(): Storage | null {
 function who(): string {
   try {
     return storage()?.getItem("cc.sidebar.user") ?? "";
-  } catch {
+  } catch (caughtError) {
+    reportCaught(caughtError, "drafts");
     return "";
   }
 }
@@ -51,16 +52,23 @@ export function saveDraft(thread: string, text: string, files: DraftFile[]): voi
 
 /** 这段对话存着的草稿；没有、过期、坏数据都回 null。 */
 export function loadDraft(thread: string): Draft | null {
+  let raw: string | null;
   try {
-    const raw = storage()?.getItem(keyOf(thread));
-    if (!raw) return null;
-    const draft = JSON.parse(raw) as Partial<Draft>;
-    if (typeof draft.text !== "string" || !Array.isArray(draft.files) || typeof draft.at !== "number") return null;
-    if (Date.now() - draft.at > MAX_AGE) return null;
-    return { text: draft.text, files: draft.files.filter((f) => f && typeof f.id === "string" && f.info?.mountPath), at: draft.at };
+    raw = storage()?.getItem(keyOf(thread)) ?? null;
+  } catch (caughtError) {
+    reportCaught(caughtError, "drafts");
+    return null;
+  }
+  if (!raw) return null;
+  let draft: Partial<Draft>;
+  try {
+    draft = JSON.parse(raw) as Partial<Draft>;
   } catch {
     return null;
   }
+  if (!draft || typeof draft.text !== "string" || !Array.isArray(draft.files) || typeof draft.at !== "number") return null;
+  if (Date.now() - draft.at > MAX_AGE) return null;
+  return { text: draft.text, files: draft.files.filter((f) => f && typeof f.id === "string" && f.info?.mountPath), at: draft.at };
 }
 
 /** 退出登录：清掉这台设备上本人的全部草稿。 */

@@ -445,3 +445,13 @@ reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过�
 file = "frontend/assistant/src/components/scheduled-tasks.tsx"
 match = "return name ? localStorage.getItem(`pearnly.intake.account_set.${name}`) || \"\" : \"\";"
 reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/managed-agents/drafts.ts"
+match = "return typeof localStorage === \"undefined\" ? null : localStorage;"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/managed-agents/drafts.ts"
+match = "draft = JSON.parse(raw) as Partial<Draft>;"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
