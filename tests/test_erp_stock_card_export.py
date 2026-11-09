@@ -158,15 +158,18 @@ class Export(unittest.TestCase):
             code_of=lambda row: (row.get("express_code") or row.get("warehouse_code") or "").strip(),
             # 与真函数同口径（仓库页「รหัสคลัง」那一栏）：Express 码 → 手填编号 → 系统号
             display_code=lambda row: (row.get("express_code") or row.get("warehouse_code") or row.get("name") or "").strip())
+        products = ModuleType("pearnly_erp_portal.products")
+        products.categories = SimpleNamespace(names=lambda values: {}, spec=lambda label, attribute: "")
         masters = ModuleType("pearnly_erp_portal.masters")
         masters.company = SimpleNamespace(active_company=lambda: "CO1")
         sys.modules.update({"frappe": frappe, "frappe.utils": utils, "pearnly_erp_portal.access": access,
                             "pearnly_erp_portal.inventory": inventory, "pearnly_erp_portal.masters": masters,
-                            "pearnly_erp_portal.masters.company": masters.company})
+                            "pearnly_erp_portal.masters.company": masters.company,
+                            "pearnly_erp_portal.products": products})
+        inventory.card_rows = load("pearnly_erp_portal.inventory.card_rows", DOMAIN / "card_rows.py")
         self.report = load("pearnly_erp_portal.inventory.report", DOMAIN / "report.py")
         self.report._position_sums = self.position_sums
         inventory.report = self.report
-        inventory.card_rows = load("pearnly_erp_portal.inventory.card_rows", DOMAIN / "card_rows.py")
         self.export = load("pearnly_erp_portal.inventory.card_export", DOMAIN / "card_export.py")
         self.products = {"P1": ("A001", "ปากกา", "ด้าม"), "P2": ("A002", "ดินสอ", "แท่ง"),
                          "P3": ("A003", "ยางลบ", "ก้อน"), "P4": ("B001", "ไม้บรรทัด", "อัน")}
@@ -188,6 +191,10 @@ class Export(unittest.TestCase):
             if isinstance(filters, dict) else filters
 
     def get_list(self, doctype, filters, fields, **kwargs):
+        if doctype == "ERP Product":   # 页面的商品名（`report._product_names`）
+            return [{"name": n, "product_name": self.products[n][1], "unit": self.products[n][2],
+                     "base_unit": self.products[n][2], "category": None, "attribute": None}
+                    for n in filters["name"][1] if n in self.products]
         self.assertEqual(doctype, "ERP Stock Movement")
         rows = [row for row in self.movements if all(self.holds(row, c) for c in self.conditions(filters))]
         return sorted(rows, key=lambda row: (str(row["posting_date"]), row["posting_time"], row["index"]))
@@ -203,6 +210,8 @@ class Export(unittest.TestCase):
                 for n in names if n in self.stores]
 
     def get_value(self, doctype, name, fields, as_dict=False):
+        if doctype == "ERP Warehouse":   # 页面顶部的仓库名
+            return self.stores[name][1]
         self.assertEqual((doctype, name), ("ERP Company", "CO1"))
         return SimpleNamespace(company_name="บริษัท ทดสอบ จำกัด", tax_id="0105555000001")
 
@@ -570,6 +579,44 @@ class Export(unittest.TestCase):
         self.assertEqual([self.values(row)[8:] for row in body[2:6]], [
             [D(-2), D("0.00"), D("0.00")], [D(5), D("14.00"), D("70.00")], [D(-3), D("0.00"), D("0.00")],
             [D(1), D("0.00"), D("0.00")]])
+
+    # ── 收发存页面与导出同一份数（主会话 11-09：同一个功能不能出两套数）──
+    def test_page_card_shows_the_same_numbers_as_the_export(self):
+        """单品明细（全部仓）= 合并全部仓导出；点某个仓 = 分仓导出里那个仓。逐笔单价、金额、结余都一样，且是 MR.ERP 的数。"""
+        dates = {"date_from": "2026-10-01", "date_to": "2026-10-31"}
+        card = self.report.card(product="P1", **dates)
+        self.assertEqual((card["opening"]["qty"], card["opening"]["unit_cost"], card["opening"]["value"]), (6, 5, 30))
+        self.assertEqual([(row["doc_no"], row["qty"], row["unit_price"], row["amount"], row["bal_qty"], row["bal_unit_cost"],
+                           row["bal_value"]) for row in card["rows"]], [
+            ("PI-02", 6, 6, 36, 12, 5.5, 66), ("IS-01", -2, 5.5, 11, 10, 5.5, 55), ("TR-1", 5, 5.5, 27.5, 15, 5.5, 82.5),
+            ("TR-1", -5, 5.5, 27.5, 10, 5.5, 55), ("SI-02", -2, 5.5, 11, 8, 5.5, 44), ("PI-03", 3, 7, 21, 11, 5.91, 65)])
+        self.assertEqual((card["closing"]["qty"], card["closing"]["unit_cost"], card["closing"]["value"]), (11, 5.91, 65))
+        exported = [row for row in self.layout("all", product_from="P1", product_to="P1")["body"] if row["kind"] == "line"]
+        self.assertEqual([[float(v) for v in self.values(row)[2:] if v is not None] for row in exported],
+                         [[abs(r["qty"]), r["unit_price"], r["amount"], r["bal_qty"], r["bal_unit_cost"], r["bal_value"]]
+                          for r in card["rows"]])
+        store = self.report.card(product="P1", warehouse="W2", **dates)
+        by_store = self.layout("by_warehouse", product_from="P1", product_to="P1")["body"]
+        w2 = by_store[by_store.index(next(r for r in by_store if r["kind"] == "store" and r["cells"][0]["value"].startswith("WH02"))):]
+        lines = [row for row in w2 if row["kind"] == "line"][:3]
+        self.assertEqual([[float(v) for v in self.values(row)[2:] if v is not None] for row in lines],
+                         [[abs(r["qty"]), r["unit_price"], r["amount"], r["bal_qty"], r["bal_unit_cost"], r["bal_value"]]
+                          for r in store["rows"]])
+        self.assertEqual((store["closing"]["qty"], store["closing"]["value"]), (6, 37.5))
+
+    def test_page_summary_list_closing_matches_the_export(self):
+        """汇总列表一行一个仓位：期初 / 收 / 发 / 期末数量与期末金额，和分仓导出里同一个仓的数一样。"""
+        rows = {(r["product"], r["warehouse"]): r for r in self.report.summary(date_from="2026-10-01", date_to="2026-10-31")}
+        w1, w2 = rows[("P1", "W1")], rows[("P1", "W2")]
+        self.assertEqual((w1["opening_qty"], w1["in_qty"], w1["out_qty"], w1["closing_qty"], w1["closing_value"]),
+                         (6, 6, 7, 5, 27.5))
+        self.assertEqual((w2["opening_qty"], w2["in_qty"], w2["out_qty"], w2["closing_qty"], w2["closing_value"],
+                          w2["closing_unit_cost"]), (0, 8, 2, 6, 37.5, 6.25))
+        body = self.layout("by_warehouse", product_from="P1", product_to="P1")["body"]
+        totals = [self.values(row) for row in body if row["kind"] == "store-total"]
+        self.assertEqual([(float(t[7]), float(t[9])) for t in totals],
+                         [(w1["closing_qty"], w1["closing_value"]), (w2["closing_qty"], w2["closing_value"])])
+        self.assertEqual(rows[("P2", "W1")]["closing_value"], 0)     # 没自带成本的收：记 0，不留空
 
     def test_pdf_html_repeats_header_and_escapes(self):
         self.products["P1"] = ("A001", "<b>ปากกา</b>", "ด้าม")

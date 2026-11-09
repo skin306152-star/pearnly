@@ -1,18 +1,19 @@
-"""收发存导出的行模型（纯函数，不依赖 Frappe / IO）：照 MR.ERP「รายงานรับ-จ่ายสินค้า」三种报表的算法。
+"""收发存报表的行模型（纯函数，不依赖 Frappe / IO）：照 MR.ERP「รายงานรับ-จ่ายสินค้า」的成本引擎与三种报表的算法。
+收发存页面（汇总列表、单品明细）与三种导出共用这一份（主会话 11-09：同一个功能不能出两套数），入口 `product_blocks`。
 
-来源（只读参考 `~/mrerp-source/src`，对照见 docs/work/2026-11-08-stock-card-export-评估.md §A）：
-合并全部仓 `report/50/all/57.php`、汇总 `report/51/all/59.php`、分仓 `report/52/all/198.php`。
+来源（只读参考 `~/mrerp-source/src`，对照见 docs/work/2026-11-08-stock-card-export-评估.md §A、§G）：
+成本引擎 `component/php/stkcardpc.php`；合并全部仓 `report/50/all/57.php`、汇总 `report/51/all/59.php`、分仓 `report/52/all/198.php`。
 
 - 收 / 发只看方向（我们是带符号数量：> 0 收、< 0 发；MR.ERP 是 statustran 1 / 2），单据类型不参与。
-- 行上的单价、金额取我们成本引擎逐笔算出的值（MR.ERP 取它成本引擎写进库存卡的 ustd / amtstd）。
+- 行上的单价、金额照 MR.ERP 成本引擎算（`pool_costs`：一个物料全公司一个移动平均池）。库存引擎（库存货值、单据成本、
+  推 Express）仍按「物料 × 仓 × 仓位」算，这次不动，所以报表和库存货值暂时会有差别（§G）。
 - 结余由报表自己滚：结余数量 ± 行数量、结余金额 ± 行金额；结余单价 = 数量为 0 时 0，否则 round(金额 / 数量, 2)。
 - 汇总的收 / 发单价 = round(金额合计 / 数量合计, 2)，数量合计为 0 时 0。
 - 小计、合计只合计数量与金额，单价格留空。
 - 明细排序：日期 → 同一天先收后发 → 单号 → 录入先后。
 
-我们多出的一条（评估 §C-3，主会话 11-08 定）：成本从未确立的流水金额为 None（MR.ERP 记 0）。行上留空；所在小计 / 合计的
-金额只要有一笔未知就留空；结余金额在这个仓位成本确立之前留空（确立之后与成本引擎一样，未知那几笔按 0 计）。
-没有成本权限的人（`costs=False`）单价、金额一律留空，数量照算。
+成本照 MR.ERP 永远有数（原 §C-3「成本未确立留空」11-09 作废）。只有没有成本权限的人（`costs=False`）单价、金额一律留空，
+数量照算——这是我们多的一层权限。下面「金额未知」的分支只为它保留。
 """
 
 from dataclasses import dataclass, field
@@ -78,6 +79,7 @@ class Line:
     bal_qty: Decimal
     bal_price: Optional[Decimal]
     bal_amount: Optional[Decimal]
+    seq: int = -1           # 来自哪一笔流水（页面明细按它取回单据号、仓、类型）
 
 
 @dataclass
@@ -219,7 +221,7 @@ def block(openings, movements, *, costs=True) -> Block:
         running.apply(movement)
         bal_qty, bal_price, bal_amount = running.balance()
         result.lines.append(Line(movement.date, movement.doc, side, quantity, unit_price, amount,
-                                 bal_qty, bal_price, bal_amount))
+                                 bal_qty, bal_price, bal_amount, movement.seq))
         if side == "in":
             result.in_qty += quantity
             result.in_amount = add(result.in_amount, amount)
@@ -274,6 +276,36 @@ class Totals:
 def totals(costs=True) -> Totals:
     empty = ZERO if costs else None
     return Totals(opening_amount=empty, in_amount=empty, out_amount=empty, closing_amount=empty)
+
+
+def product_blocks(rows, *, date_from, include, group, own_cost, is_initialization, doc_of, costs=True) -> dict:
+    """一个物料的收发存块（页面与导出共用的唯一算法）：`{分组: Block}`。
+
+    `rows` = 这个物料在当前公司**所有**仓、仓位截止日前的全部流水（池要全公司，不受页面 / 导出的仓、仓位范围限制），每笔是
+    dict：`posting_date`（YYYY-MM-DD 字符串）、`qty_base`、`warehouse`、`location`、`seq`（录入先后）。
+    `include(仓位)` 挑要出现在报表里的仓位，`group(仓位)` 定分到哪一块（合并 / 汇总 / 单品明细 → None；分仓 → 仓；汇总列表 → 仓位）。
+    上期结转 = 起始日前各笔收加发减（57.php），初始化并进结转（评估 §C-2，同收发存页面口径）；`date_from` 为空则全部算期内。
+    """
+    rows = list(rows)
+    priced = pool_costs(PoolMove(date=row["posting_date"], doc=doc_of(row), qty=d(row["qty_base"]), seq=row["seq"],
+                                 cost=own_cost(row)) for row in rows)
+    parts: dict = {}
+    for row in rows:
+        position = (row["warehouse"], row.get("location") or "")
+        if not include(position):
+            continue
+        held, moves = parts.setdefault(group(position), ({}, []))
+        unit_price, amount = priced[row["seq"]]
+        quantity = d(row["qty_base"])
+        if (date_from is not None and row["posting_date"] < date_from) or is_initialization(row):
+            carried = held.setdefault(position, [ZERO, ZERO])
+            carried[0] += quantity
+            carried[1] += amount if quantity >= 0 else -amount
+            continue
+        moves.append(Movement(date=row["posting_date"], doc=doc_of(row), qty=quantity, unit_price=unit_price,
+                              amount=amount, seq=row["seq"], position=position))
+    return {key: block([Opening(position, qty, amount) for position, (qty, amount) in held.items()], moves, costs=costs)
+            for key, (held, moves) in parts.items()}
 
 
 def code_key(code) -> str:

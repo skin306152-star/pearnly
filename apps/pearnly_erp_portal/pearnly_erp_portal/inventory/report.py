@@ -1,8 +1,10 @@
 """收发存报表与进销存看板。
 
-- **期初**由同一份库存流水投影：初始化归入期初，不计本期收发；截止日之后的初始化不提前计入。
-- 初始化的历史修订仍按真实顺序滚动成本，再归入期初；不前移修订重算业务成交成本。
-- **成本未知就留空**：报表不会把没确立成本的结存写成 0，宁可为空也不给一个假数字。
+- **单价、金额照 MR.ERP 算**（主会话 11-09）：页面（汇总列表、单品明细）与导出（`card_export`）共用 `card_rows.product_blocks`——
+  一个物料全公司一个移动平均池（`card_rows.pool_costs`，照 MR.ERP `stkcardpc.php`），按 MR.ERP 顺序（日期 → 同日先收后发 → 单号），
+  结余由报表自己滚。永远有数，不留空；没有成本权限的人单价、金额留空。库存引擎（库存货值、单据成本、推 Express）仍按
+  「物料 × 仓 × 仓位」算、这次不动，所以报表和库存货值暂时会有差别（评估 §G）。
+- **期初**：截止起始日前各笔收加发减；初始化归入期初，不计本期收发；截止日之后的初始化不提前计入。
 - **汇总按页算**（2026-10-25，大租户上万商品×仓库）：按商品 / 仓库 / 仓位排序（默认）时先取全部"商品×仓库×仓位"键
   （只有三列），排好切出这一页，只读这一页商品的流水去滚成本；按数量列排序必须先算出每一行，才整批算、再切片。
   两种都按键一次分组，不再每个键扫一遍全部流水、每行单查一次仓库名。
@@ -17,7 +19,7 @@ from frappe.utils import getdate, nowdate
 
 from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing
-from pearnly_erp_portal.inventory import contracts, warehouses
+from pearnly_erp_portal.inventory import card_rows, contracts, warehouses
 
 MOVEMENT = "ERP Stock Movement"
 PRODUCT = "ERP Product"
@@ -123,76 +125,47 @@ def _initialization(row):
     return row.get("movement_type") == contracts.OPENING or row.get("ref_type") == "opening"
 
 
-def _with_hidden(balance, qty, value, known):
-    """Restate a displayed balance with already-valued hidden initialization deltas."""
-    if not qty and not value and not known:
-        return balance
-    quantity = balance.qty + qty
-    amount = (balance.value or contracts.d(0)) + value if balance.value is not None or known else None
-    unit = (contracts.q2(amount / quantity) if quantity else balance.unit) if amount is not None else None
-    return contracts.Balance(quantity, amount, unit)
+def movement_doc(row) -> str:
+    """报表上的「เลขที่」：单号，没有就来源号 / 原因 / 类型。"""
+    return str(row.get("doc_no") or row.get("ref_id") or row.get("reason") or row.get("movement_type") or "")
 
 
-def _project_position(movements, date_from):
-    """Value one position chronologically; only then fold initialization into its opening.
-
-    A current initialization precedes that position's business movements. Legacy
-    revisions may follow business rows, so moving those revisions before sales
-    would change their weighted cost. Keep those real row amounts, and add the
-    remaining hidden deltas to displayed balances to reconcile with the restated
-    opening. Nothing here changes the persisted ledger or its valuation order.
-    """
-    before, period = contracts.movements_before(movements, date_from, after=True)
-    carried, _ = contracts.roll(contracts.ZERO_BALANCE, before)
-    final, rolled = contracts.roll(carried, period)
-    hidden_qty, hidden_value, hidden_known = contracts.d(0), contracts.d(0), False
-    visible = []
-    for row in reversed(rolled):
-        quantity = contracts.d(row["qty_base"])
-        if _initialization(row):
-            hidden_qty += quantity
-            if quantity and row["amount"] is not None:
-                hidden_value += row["amount"] if quantity > 0 else -row["amount"]
-                hidden_known = True
-            continue
-        # The last visible row also absorbs every trailing revision. Retain the
-        # real closing unit cost: rounding residuals need not equal value / qty.
-        balance = final if not visible else _with_hidden(
-            contracts.Balance(row["bal_qty"], row["bal_value"], row["bal_unit_cost"]),
-            hidden_qty, hidden_value, hidden_known)
-        visible.append({**row, "bal_qty": balance.qty, "bal_value": balance.value,
-                        "bal_unit_cost": balance.unit})
-    opening = _with_hidden(carried, hidden_qty, hidden_value, hidden_known)
-    return opening, final, list(reversed(visible))
+def _own_cost(row):
+    """这笔收自带的单价（MR.ERP 的收按单据金额）；调拨入不带（同一个池里按池均价入、与调出相抵，同 MR.ERP 照抄调出那笔）。"""
+    if not row.get("cost_known") or row.get("movement_type") == contracts.TRANSFER_IN:
+        return None
+    return contracts.d(row.get("unit_cost"))
 
 
-def _aggregate(balances):
-    # A position first used during this period has no carried balance. It must
-    # not erase known opening costs belonging to another warehouse or location.
-    balances = [balance for balance in balances
-                if balance.qty or balance.value is not None or balance.unit is not None]
-    if len(balances) == 1:
-        return balances[0]
-    qty = sum((balance.qty for balance in balances), contracts.d(0))
-    known = bool(balances) and all(balance.unit is not None for balance in balances)
-    value = sum((balance.value for balance in balances), contracts.d(0)) if known else None
-    unit = contracts.q2(value / qty) if known and qty else None
-    return contracts.Balance(qty, value, unit)
+def blocks(rows, *, date_from, include, group, costs) -> dict:
+    """收发存页面与导出共用的唯一算法（`card_rows.product_blocks`）：一个物料全公司的流水 → `{分组: Block}`。"""
+    return card_rows.product_blocks(rows, date_from=date_from, include=include, group=group, own_cost=_own_cost,
+                                    is_initialization=_initialization, doc_of=movement_doc, costs=costs)
 
 
-def _summary_rows(keys, movements, *, date_from, visible, names, warehouse_names) -> list[dict]:
-    grouped: dict = {}
-    for movement in movements:
-        key = (movement["product"], movement["warehouse"], movement.get("location") or "")
-        grouped.setdefault(key, []).append(dict(movement, posting_date=_date(movement["posting_date"])))
+def pool_rows(products, date_to) -> dict:
+    """这些物料在**当前公司所有仓、仓位**截止日前的全部流水（MR.ERP 一个物料全公司一个池，不受页面的仓 / 仓位筛选限制）：
+    `{物料: [行]}`，行带归一后的日期和录入先后 `seq`。"""
+    out: dict = {}
+    for index, row in enumerate(_movements(products=set(products), date_to=date_to) if products else []):
+        out.setdefault(row["product"], []).append(dict(row, posting_date=_date(row["posting_date"]), seq=index))
+    return out
+
+
+def _number(value):
+    return None if value is None else float(value)
+
+
+def _summary_rows(keys, pool, *, date_from, visible, names, warehouse_names) -> list[dict]:
+    """汇总列表的行（一个「商品 × 仓库 × 仓位」一行）：数字取自与导出同一份算法（分组 = 仓位）。"""
+    wanted = set(keys)
+    computed = {product: blocks(pool.get(product) or [], date_from=date_from,
+                                include=lambda position, product=product: (product, *position) in wanted,
+                                group=lambda position: position, costs=visible)
+                for product in {key[0] for key in keys}}
     rows = []
     for product_id, warehouse_id, location_id in keys:
-        carried, final, period = _project_position(grouped.get((product_id, warehouse_id, location_id), []), date_from)
-
-        in_qty = sum((contracts.d(r["qty_base"]) for r in period
-                      if contracts.d(r["qty_base"]) > 0), contracts.d(0))
-        out_qty = sum((-contracts.d(r["qty_base"]) for r in period
-                       if contracts.d(r["qty_base"]) < 0), contracts.d(0))
+        item = computed[product_id].get((warehouse_id, location_id)) or card_rows.Block(contracts.d(0), contracts.d(0))
         rows.append({
             "product": product_id, "product_name": (names.get(product_id) or {}).get("product_name"),
             "spec": (names.get(product_id) or {}).get("spec") or "",
@@ -200,11 +173,11 @@ def _summary_rows(keys, movements, *, date_from, visible, names, warehouse_names
             "warehouse_name": warehouse_names.get(warehouse_id),
             "name": contracts.position_name("BAL", product_id, warehouse_id, location_id),
             "unit": (names.get(product_id) or {}).get("base_unit") or (names.get(product_id) or {}).get("unit"),
-            "opening_qty": float(carried.qty), "in_qty": float(in_qty), "out_qty": float(out_qty),
-            "closing_qty": float(final.qty),
-            "closing_unit_cost": None if (not visible or final.unit is None) else float(final.unit),
-            "closing_value": None if (not visible or final.value is None) else float(final.value),
-            "cost_known": final.unit is not None,
+            "opening_qty": float(item.opening_qty), "in_qty": float(item.in_qty), "out_qty": float(item.out_qty),
+            "closing_qty": float(item.closing_qty),
+            "closing_unit_cost": _number(item.closing_price) if visible else None,
+            "closing_value": _number(item.closing_amount) if visible else None,
+            "cost_known": item.closing_amount is not None,
         })
     return rows
 
@@ -216,7 +189,8 @@ def summary(*, date_from=None, date_to=None, product=None, warehouse=None, locat
     date_to = _date(date_to)
     movements = _movements(product=product, warehouse=warehouse, location=location, date_to=date_to)
     keys = sorted({(m["product"], m["warehouse"], m.get("location") or "") for m in movements})
-    return _summary_rows(keys, movements, date_from=date_from, visible=guard.cost_visible(),
+    pool = pool_rows({key[0] for key in keys}, date_to)
+    return _summary_rows(keys, pool, date_from=date_from, visible=guard.cost_visible(),
                          names=_product_names({key[0] for key in keys}),
                          warehouse_names=_warehouse_names(key[1] for key in keys))
 
@@ -296,15 +270,15 @@ def summary_page(*, date_from=None, date_to=None, product=None, warehouse=None, 
         ordered = listing.sort_rows([{"key": key, **quantities.get(key, {})} for key in keys],
                                     sort_key, sort_order, SUMMARY_SORTS)
         page = [row["key"] for row in ordered[start:start + limit]]
-        movements = _movements(**query, products={key[0] for key in page}) if page else []
-        return {"items": _summary_rows(page, movements, date_from=date_from, visible=visible, names=names,
+        pool = pool_rows({key[0] for key in page}, date_to)
+        return {"items": _summary_rows(page, pool, date_from=date_from, visible=visible, names=names,
                                        warehouse_names=warehouse_names), "total": len(keys)}
     labels = [{"key": key, "product_name": (names.get(key[0]) or {}).get("product_name"),
                "warehouse_name": warehouse_names.get(key[1]), "location": key[2]} for key in keys]
     page = [row["key"] for row in listing.sort_rows(labels, sort_key, sort_order, SUMMARY_SORTS)[start:start + limit]]
-    movements = _movements(**query, products={key[0] for key in page}) if page else []
+    pool = pool_rows({key[0] for key in page}, date_to)
     names = names or _product_names({key[0] for key in page})
-    rows = _summary_rows(page, movements, date_from=date_from, visible=visible, names=names,
+    rows = _summary_rows(page, pool, date_from=date_from, visible=visible, names=names,
                          warehouse_names=warehouse_names)
     return {"items": rows, "total": len(keys)}
 
@@ -315,42 +289,40 @@ def card(*, product, warehouse=None, location=None, date_from=None, date_to=None
     date_from = _date(date_from)
     date_to = _date(date_to)
     visible = guard.cost_visible()
-    movements = [dict(m, posting_date=_date(m["posting_date"]))
-                 for m in _movements(product=product, warehouse=warehouse, location=location, date_to=date_to)]
-    positions = {}
-    for movement in movements:
-        key = (movement["warehouse"], movement.get("location") or "")
-        positions.setdefault(key, []).append(movement)
-    projections = [_project_position(rows, date_from) for rows in positions.values()]
-    carried = _aggregate([opening for opening, _final, _rows in projections])
-    final = _aggregate([closing for _opening, closing, _rows in projections])
-    displayed = {row["name"]: row for _opening, _closing, rows in projections for row in rows}
-    rolled = [displayed[row["name"]] for row in movements if row["name"] in displayed]
+    # 池要全公司（MR.ERP 一个物料一个价）；页面点的是哪个仓 / 仓位，就只显示那里的行、结余按那里的行滚（同分仓版 198.php）
+    rows = pool_rows({product}, date_to).get(product) or []
+    store = (warehouses.resolve(warehouse, create=False) or "__missing__") if warehouse else None
+    place = None if location is None else str(location or "").strip()
+    include = lambda position: (store is None or position[0] == store) and (place is None or position[1] == place)  # noqa: E731
+    item = blocks(rows, date_from=date_from, include=include, group=lambda position: None, costs=visible).get(None) \
+        or card_rows.Block(contracts.d(0), contracts.d(0))
+    by_seq = {row["seq"]: row for row in rows}
+    rolled = [(line, by_seq[line.seq]) for line in item.lines]
 
     names = _product_names({product})
     meta = names.get(product) or {}
-    warehouse_names = _warehouse_names(r["warehouse"] for r in rolled)
+    warehouse_names = _warehouse_names(r["warehouse"] for _line, r in rolled)
     return {
         "product": product, "product_name": meta.get("product_name"), "spec": meta.get("spec") or "",
         "unit": meta.get("base_unit") or meta.get("unit"),
         "warehouse": warehouse, "location": location, "date_from": date_from, "date_to": date_to,
         # 页面顶部显示仓库名，不是内部编号（录制问题 #17）。
         "warehouse_name": frappe.db.get_value("ERP Warehouse", warehouse, "warehouse_name") if warehouse else None,
-        "opening": {"date": date_from, "qty": float(carried.qty),
-                    "unit_cost": None if (not visible or carried.unit is None) else float(carried.unit),
-                    "value": None if (not visible or carried.value is None) else float(carried.value)},
+        "opening": {"date": date_from, "qty": float(item.opening_qty),
+                    "unit_cost": _number(item.opening_price) if visible else None,
+                    "value": _number(item.opening_amount) if visible else None},
         "rows": [
             _public({"name": r["name"], "warehouse": r["warehouse"], "location": r.get("location") or "",
                      "warehouse_name": warehouse_names.get(r["warehouse"]),
                      "date": r["posting_date"], "kind": r["movement_type"], "doc_no": r["doc_no"],
                      "desc": r["ref_id"] or r["reason"] or r["movement_type"],
-                     "qty": float(r["qty_base"]), "unit_price": r["unit_price"],
-                     "amount": r["amount"], "bal_qty": float(r["bal_qty"]),
-                     "bal_unit_cost": r["bal_unit_cost"], "bal_value": r["bal_value"]},
+                     "qty": float(r["qty_base"]), "unit_price": _number(line.unit_price),
+                     "amount": _number(line.amount), "bal_qty": float(line.bal_qty),
+                     "bal_unit_cost": _number(line.bal_price), "bal_value": _number(line.bal_amount)},
                     cost_visible=visible)
-            for r in rolled],
-        "closing": {"qty": float(final.qty),
-                    "unit_cost": None if (not visible or final.unit is None) else float(final.unit),
-                    "value": None if (not visible or final.value is None) else float(final.value)},
-        "cost_known": final.unit is not None,
+            for line, r in rolled],
+        "closing": {"qty": float(item.closing_qty),
+                    "unit_cost": _number(item.closing_price) if visible else None,
+                    "value": _number(item.closing_amount) if visible else None},
+        "cost_known": item.closing_amount is not None,
     }
