@@ -74,6 +74,26 @@ def steps(params, camera_code=None):
          # 筛掉了别的同类对话（之前几轮留下的、标题同样以「盘点一下三号仓」结尾）才算搜索起作用
          f"const others=text.split('\\n').filter(l=>l.includes('盘点一下三号仓')&&!l.includes({json.dumps(tag)})); "
          f"return {{hit: text.includes({json.dumps(tag)}), others, text: text.slice(0,200)}};"},
+        # 批 A ④（11-09）：回到一半点停止，那半段留在对话里、标「已停止」、带「重试」；刷新后从侧栏找回照样在（服务端记下的）。
+        # 回归实验室没有实时通道，逐字预览到不了页面（页面靠轮询）：等这一轮在跑、推送线程收到半段（1.5 秒）再点停止，
+        # 停下后页面上的半段就是服务端记下、轮询带来的那段（假引擎被停就不出正式回复）
+        {"name": "回到一半停止", "js": WAIT + "await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),40); "
+         f"await say({json.dumps(tag + ' [lab-cut]')}); "
+         "const running=await until(()=>!!document.querySelector('button[aria-label=\"停止\"]'),40); "
+         "await new Promise(r=>setTimeout(r,1500)); "
+         "const stop=document.querySelector('button[aria-label=\"停止\"]'); if(stop) stop.click(); "
+         "const marked=await until(()=>!!document.querySelector('[data-slot=\"cc-stopped\"]'),60); "
+         "const half=await until(()=>roles('assistant').some(t=>t.includes('[lab-cut-half]')),40); "
+         "return {running, half, clicked: !!stop, marked, note: document.querySelector('[data-slot=\"cc-stopped\"]')?.innerText||''};"},
+        {"name": "停止后刷新", "js": "location.reload(); return 1;", "wait_ms": 4000},
+        {"name": "停止后找回", "js": WAIT + "await until(()=>items()); await openSide(); "
+         f"await until(()=>items().innerText.includes({json.dumps(tag)}),60); "
+         f"const row=[...items().querySelectorAll('a, button, [role]')].find(e=>e.innerText.includes({json.dumps(tag)})); "
+         "if(!row) return {error:'conversation not listed'}; row.click(); "
+         "const marked=await until(()=>!!document.querySelector('[data-slot=\"cc-stopped\"]'),80); "
+         "const note=document.querySelector('[data-slot=\"cc-stopped\"]'); "
+         "return {marked, note: note?.innerText||'', retry: !!note?.querySelector('button'), "
+         "half: roles('assistant').some(t=>t.includes('[lab-cut-half]')), end: roles('assistant').some(t=>t.includes('[lab-cut-end]'))};"},
         # 批 A ①（11-09 主会话定，照 Claude 实测）：回复超出一屏时电脑跟到底、手机停在这一轮开头（提问顶在上面）。
         # 放在最后：长回复把前面的消息挤到屏外，屏外消息按需渲染、读不到文字，会搅乱前面几步的断言
         {"name": "长回复", "js": WAIT + f"await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),40); "
@@ -92,6 +112,7 @@ def judge(params, results, camera_code=None):
     first, second = params["first"], params["second"]
     one, two, back, found, long, reopened, queued = (by.get(k) or {} for k in ("第一轮", "第二轮", "从侧栏找回", "搜索", "长回复",
                                                                                "刷新后直接回到原对话", "回复中排队"))
+    cut, kept = (by.get(k) or {} for k in ("回到一半停止", "停止后找回"))
     return [
         {"case": "第一轮收到回复", "seen": one, "ok": bool(one.get("got")) and first in (one.get("user") or [])},
         # F13（10-15 夜间批遗留）：页面刚加载（输入框一出现）就发的第一条不能丢——第一步就是就绪即发，刷新后还要在
@@ -108,6 +129,11 @@ def judge(params, results, camera_code=None):
         {"case": "刷新后从侧栏找回、两轮都在", "seen": back,
          "ok": bool(back.get("got")) and first in (back.get("user") or []) and second in (back.get("user") or [])},
         {"case": "搜索按标题筛出、别的对话筛掉", "seen": found, "ok": bool(found.get("hit")) and not found.get("others")},
+        {"case": "回到一半停止：半段留着、标「已停止」", "seen": cut,
+         "ok": bool(cut.get("half")) and bool(cut.get("marked")) and "已停止" in (cut.get("note") or "")},
+        {"case": "停止后刷新找回：半段还在、「已停止」「重试」都在、没有补出正式回复", "seen": kept,
+         "ok": bool(kept.get("marked")) and bool(kept.get("half")) and bool(kept.get("retry")) and not kept.get("end")
+         and "已停止" in (kept.get("note") or "") and "重试" in (kept.get("note") or "")},
         # 长回复超出一屏（overflow 远大于一屏）：电脑停在最底下（gap 近 0）；手机不跟，停在这一轮开头（提问在视口上沿附近、下面还有很多）
         {"case": "长回复：电脑跟到底、手机停在这一轮开头", "seen": long,
          "ok": bool(long.get("got")) and (long.get("overflow") or 0) > 600 and (
@@ -123,10 +149,18 @@ rows = frappe.get_all("Pearnly Assistant Session", filters={{"user": "admin@erp.
 print(json.dumps({{"rows": rows, "n": frappe.db.count("Pearnly Assistant Session", {{"user": "admin@erp.regression"}})}}))
 """)
     found = rows["rows"]
+    stopped = lab.python(manifest["site"], f"""
+ids = [r.session_id for r in frappe.get_all("Pearnly Assistant Session", filters={{"user": "admin@erp.regression", "title": ["like", "%{params['tag']}%"]}},
+                                              fields=["session_id"], limit_page_length=5)]
+rows = frappe.get_all("Pearnly Assistant Stopped Reply", filters={{"session_id": ["in", ids or ["-"]]}}, fields=["event_id", "text"], limit_page_length=5)
+print(json.dumps({{"rows": rows}}))
+""")["rows"]
     return [
         {"case": "落库一段对话（标题、产品、引擎）", "saved": found,
          "ok": len(found) == 1 and found[0]["product"] == "erp" and found[0]["engine_code"] == "anthropic-managed-agents"
          and not found[0]["archived"] and found[0]["session_id"].startswith("sesn_")},
+        {"case": "停掉的半段只记了一次（只追加的那张表）", "saved": stopped,
+         "ok": len(stopped) == 1 and "[lab-cut-half]" in stopped[0]["text"]},
         {"case": "只多出这一段对话", "saved": {"before": params["sessions_before"], "after": rows["n"]},
          "ok": rows["n"] == params["sessions_before"] + 1},
     ]

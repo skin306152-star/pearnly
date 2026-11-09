@@ -1326,6 +1326,8 @@
   }
   .cc-queue-text { overflow-wrap: anywhere; white-space: pre-wrap; }
   .cc-queue-remove { flex: none; }
+  /* 被停掉的回复下面那一行（批 A ④，thread.tsx 的 StoppedNote）：淡色「已停止」+「重试」 */
+  .cc-stopped { display: flex; align-items: center; gap: var(--cc-space-8); color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); }
   /* 发出：从右下角轻轻弹出 */
   .cc-bubble-user[data-enter] { animation: cc-send-pop var(--cc-dur-pop) var(--cc-ease-spring) both; }
   /* 回复正文：电脑 14/20、手机 16/24（--cc-body-*，变体切）；字体按设置「对话字体」 */

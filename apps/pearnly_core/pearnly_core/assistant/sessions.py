@@ -36,7 +36,7 @@ import frappe
 from frappe import _
 
 from pearnly_core.assistant import (ask, config, context, contracts, engine, engines, notices, prefs, projects, relay,
-                                    sidebar, timing, titles, toolrun, tools, waits)
+                                    sidebar, stopped, timing, titles, toolrun, tools, waits)
 
 SESSION = context.SESSION
 TURN_LOG = "pearnly.assistant.turn"  # 建对话、发送的分段计时（`timing.Steps`，批 A ②）
@@ -615,6 +615,7 @@ def delete(session_id) -> None:
         from pearnly_core.assistant import files
 
         notices.detach(locked.session_id, _user())
+        stopped.forget(locked.session_id)
         frappe.delete_doc(SESSION, locked.name, ignore_permissions=True)
         files.forget(locked.name)
         return True
@@ -723,14 +724,16 @@ def events(session_id, after=None, status=False) -> dict:
             _remember_context(row, newer)
             since = contracts.instant(found[0].get("processed_at"))
             page = {"events": _with_tool_runs(newer, row, since) + notices.feed(row.session_id, user, since=since,
-                                                                          recent=since is None),
+                                                                          recent=since is None)
+                    + stopped.feed(row.session_id, since=since),  # 被停掉的半段回复（批 A ④）
                     "full": False}
             return _with_run(page, row, api, tap.latest, found[-1].get("processed_at")) if status else page
     parts = _segment_events(api, segments(row))
     history = [event for part in parts for event in part]
     part = parts[-1]
     _remember_context(row, part)
-    history = _with_tool_runs(contracts.merge_by_time(history, notices.feed(row.session_id, user)), row)
+    history = _with_tool_runs(contracts.merge_by_time(history, notices.feed(row.session_id, user)
+                                                      + stopped.feed(row.session_id)), row)
     page = {"events": history, "full": True, "session": {"id": row.session_id, "title": row.title or "",
                                                          "archived_at": _when(row.modified) if row.archived else None}}
     if not status:

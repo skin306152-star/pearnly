@@ -29,6 +29,7 @@ import {
   ThreadPrimitive,
   type ToolCallMessagePartComponent,
   useAuiState,
+  useThreadRuntime,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -634,6 +635,7 @@ const AssistantMessage: FC = () => {
         data-slot="aui_assistant-message-footer"
         className={cn("ms-(--cc-space-8) flex items-center", ACTION_BAR_HEIGHT)}
       >
+        <StoppedNote />
         <AssistantActionBar />
       </div>
     </MessagePrimitive.Root>
@@ -792,6 +794,34 @@ const MessageFiles: FC = () => {
 
 // 回复下的操作（同 Claude）：只放引擎真能做到的「复制」——会话记录改不了，重试 / 编辑做不到原样替换，就不摆个点了没反应的按钮。
 // 电脑上悬停这条回复时淡入（设计文档 3.10，.cc-reply-actions）；手机、平板没有悬停，每条都显示（同 Claude 手机端）。
+
+/** 被停掉的回复（批 A ④，同 Claude「您已停止 Claude 的回复」+ 重试）：下面一行淡色「已停止」，旁边「重试」把被停的那句再发一次
+ *  （新的一轮；编辑后重答放批 B）。刷新、换设备后照样有（服务端记下的那段，reducer 的 pearnly.stopped）。 */
+const StoppedNote: FC = () => {
+  const stopped = useAuiState((s) => !!(s.message.metadata?.custom as { stopped?: boolean } | undefined)?.stopped);
+  const asked = useAuiState((s) => {
+    if (!stopped) return "";
+    const list = s.thread.messages;
+    const at = list.findIndex((m) => m.id === s.message.id);
+    for (let i = at - 1; i >= 0; i--) {
+      const m = list[i]!;
+      if (m.role === "user") return m.content.map((p) => (p.type === "text" ? p.text : "")).join("").trim();
+    }
+    return "";
+  });
+  const thread = useThreadRuntime();
+  if (!stopped) return null;
+  return (
+    <div data-slot="cc-stopped" className="cc-stopped">
+      <span>{t("stopped")}</span>
+      {asked && (
+        <button type="button" className="cc-card-btn" onClick={() => thread.append({ role: "user", content: [{ type: "text", text: asked }] })}>
+          {t("retry")}
+        </button>
+      )}
+    </div>
+  );
+};
 
 const AssistantActionBar: FC = () => {
   return (

@@ -123,14 +123,19 @@ def _install_fakes():
     sys.modules["pearnly_core.assistant"].engines = engines
     for part in ("base", "anthropic_managed_agents"):
         setattr(engines, part, _load(f"pearnly_core.assistant.engines.{part}", CORE / f"assistant/engines/{part}.py"))
-    for part in ("timing", "config", "tools", "definition", "engine", "context", "ask", "waits", "toolrun", "sidebar", "titles", "relay",
-                 "projects"):
+    for part in ("timing", "config", "tools", "definition", "engine", "context", "ask", "waits", "toolrun", "sidebar", "titles", "stopped",
+                 "relay", "projects"):
         module = _load(f"pearnly_core.assistant.{part}", CORE / f"assistant/{part}.py")
         setattr(sys.modules["pearnly_core.assistant"], part, module)
     return frappe, sdk
 
 
 frappe, sdk = _install_fakes()
+# 被停掉的半段回复（批 A ④，assistant/stopped.py）：会话读写的各个替身库不认它那张表，统一换成空的；它自己的测试用真函数
+_stopped = sys.modules["pearnly_core.assistant.stopped"]
+STOPPED_FEED, STOPPED_FORGET = _stopped.feed, _stopped.forget
+_stopped.feed = lambda conversation, since=None: []
+_stopped.forget = lambda conversation: None
 engines = sys.modules["pearnly_core.assistant.engines"]
 claude = sys.modules["pearnly_core.assistant.engines.anthropic_managed_agents"]
 config = sys.modules["pearnly_core.assistant.config"]
@@ -4143,6 +4148,70 @@ class ControlPlaneSettingsTests(unittest.TestCase):
         finally:
             frappe.conf.clear()
             frappe.conf.update(saved)
+
+    def test_a_stopped_reply_is_kept_once_and_read_back_with_the_conversation(self):
+        """批 A ④（11-09 主会话定只追加的存法）：点停止后那半段逐字只在页面内存，刷新、换设备就没了。推送线程在内存里收着逐字，
+        这一轮确实被停、那段又没有正式回复时，结束时记一行（只插入、不改；同一段只记一次；每段对话留最近 20 段，多的顺手删）；
+        读事件时并成本站事件 pearnly.stopped；删对话一起删；不碰对话那一行。"""
+        stopped = sys.modules["pearnly_core.assistant.stopped"]
+        start = lambda i: {"type": "event_start", "event": {"id": i, "type": "agent.message"}}
+        delta = lambda i, s: {"type": "event_delta", "event_id": i, "delta": {"type": "content_delta", "content": {"type": "text", "text": s}}}
+        # 正常结束（有正式回复）：什么都不记
+        p = stopped.Previews()
+        for e in (start("m1"), delta("m1", "好的"), {"type": "agent.message", "id": "m1"}):
+            p.see(e)
+        self.assertEqual(p.leftover(), [])
+        # 出错没写完、但没点停止：不算「已停止」
+        p = stopped.Previews()
+        for e in (start("m2"), delta("m2", "盘点")):
+            p.see(e)
+        self.assertEqual(p.leftover(), [])
+        # 点了停止：没收掉的那段（空的不算）
+        p = stopped.Previews()
+        for e in (start("m3"), delta("m3", "盘点"), delta("m3", "三号仓"), start("m4"), {"type": "user.interrupt", "id": "u9"}):
+            p.see(e)
+        self.assertEqual(p.leftover(), [("m3", "盘点三号仓")])
+
+        inserted, deleted, existing = [], [], set()
+
+        class Doc(_Row):
+            def insert(self, ignore_permissions=False):
+                self.update(name=f"row{len(inserted) + 1}", creation=START)
+                inserted.append(self)
+                existing.add(self.event_id)
+                return self
+
+        def get_all(doctype, filters=None, order_by=None, pluck=None, limit_start=0, limit_page_length=0, fields=None):
+            names = [d.name for d in reversed(inserted)]
+            return names[limit_start:limit_start + limit_page_length] if pluck else []
+
+        with mock.patch.object(stopped.frappe, "get_doc", lambda data: Doc(data), create=True), \
+                mock.patch.object(stopped.frappe.db, "exists", lambda dt, f: f["event_id"] in existing, create=True), \
+                mock.patch.object(stopped.frappe, "get_all", get_all, create=True), \
+                mock.patch.object(stopped.frappe.db, "delete", lambda dt, f: deleted.append(f), create=True), \
+                mock.patch.object(stopped.frappe.utils, "get_system_timezone", lambda: "Asia/Bangkok", create=True):
+            made = stopped.record("sesn_a1", "a@example.com", "m3", "  盘点三号仓 ")
+            self.assertEqual((made["type"], made["event_id"], made["content"][0]["text"]), ("pearnly.stopped", "m3", "盘点三号仓"))
+            self.assertTrue(made["id"].startswith("pstop_"))
+            self.assertIsNone(stopped.record("sesn_a1", "a@example.com", "m3", "again"))   # 同一段只记一次
+            self.assertIsNone(stopped.record("sesn_a1", "a@example.com", "m5", "   "))     # 空的不记
+            for i in range(25):
+                stopped.record("sesn_a1", "a@example.com", f"x{i}", "t")
+        self.assertEqual(len(inserted), 26)
+        self.assertTrue(deleted and all(len(f["name"][1]) <= 100 for f in deleted))     # 超过 20 段：最旧的删掉
+        source = (CORE / "assistant/stopped.py").read_text(encoding="utf-8")
+        self.assertNotIn("set_value", source)                                             # 只插入、不改
+        self.assertNotIn("SESSION", source)                                               # 不碰对话那一行
+        relay_src = (CORE / "assistant/relay.py").read_text(encoding="utf-8")
+        self.assertIn("previews.see(event)", relay_src)
+        self.assertLess(relay_src.index("_keep_stopped(conversation, user, previews)"), relay_src.index("_turn_ended(conversation)\n                        return"))
+        sessions_src = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
+        self.assertIn("stopped.feed(row.session_id, since=since)", sessions_src)
+        self.assertIn("+ stopped.feed(row.session_id)), row)", sessions_src)
+        self.assertIn("stopped.forget(locked.session_id)", sessions_src)
+        meta = json.loads((CORE / "pearnly_core/doctype/pearnly_assistant_stopped_reply/pearnly_assistant_stopped_reply.json")
+                          .read_text(encoding="utf-8"))
+        self.assertEqual([f["fieldname"] for f in meta["fields"]], ["session_id", "user", "event_id", "text"])
 
     def test_plan_uses_the_platform_setting_and_forms_no_longer_carry_it(self):
         plan = (CONTROL / "provisioning.py").read_text(encoding="utf-8")

@@ -88,7 +88,17 @@ export type OperatorEnd = {
 };
 
 /** 对话页收到的全部事件：引擎事件 + 本站事件（类型以 pearnly. 开头）。 */
-export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent | ProgressEvent;
+/** 被停掉的半段回复（批 A ④，服务端 assistant/stopped.py）：点了停止、引擎没出正式回复时推送线程记下的那段，刷新、换设备后
+ *  照样画成一条「已停止」的回复。本站事件，编号带 pstop_ 前缀；event_id 是原来那条回复的编号。 */
+export type StoppedEvent = {
+  type: "pearnly.stopped";
+  id: string;
+  event_id: string;
+  processed_at: string;
+  content: Array<{ type: "text"; text: string }>;
+};
+
+export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent | ProgressEvent | StoppedEvent;
 
 /** 代录的工具（方案 14.10：站点内部的显示用名，不交给模型、不进工具表）：由代录事件源投影进同一段对话。卡片（operator_start /
  *  operator_choose / operator_resume）的结果由站点以 user.custom_tool_result 交来；停着等它们时页面不走自动答复、run_tool、confirm

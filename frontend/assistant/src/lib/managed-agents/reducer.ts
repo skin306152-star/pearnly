@@ -146,7 +146,7 @@ const IMAGE_EXT = /\.(png|jpe?g|gif|webp)$/i;
 // ---------------------------------------------------------------------------
 
 /** In-flight token preview: which text part it's writing into. */
-type Preview = { messageIndex: number; partIndex: number };
+type Preview = { messageIndex: number; partIndex: number; /** 它收口进的那条回复的事件编号（出错收口、停止后要按它认） */ id?: string };
 
 export type ProjectionError = {
   message: string;
@@ -182,6 +182,8 @@ export type Projection = {
   /** 出错的模型请求收口时补了「 …」的预览：随后的重试（status_rescheduled）把它们清空，不留半句；本轮结束、会话终止时照旧留着。
    *  span 结束与 rescheduled 谁先到都一样（第 8 轮审查）。 */
   cutPreviews: readonly Preview[];
+  /** 点了停止时还在出的逐字（批 A ④）：按事件编号记它写在哪一段，服务端记下的那段（pearnly.stopped）到了按它就地定文字。 */
+  halted: ReadonlyMap<string, Preview>;
   /** All tool-use events seen, keyed by event id (drives requires_action). */
   toolUses: ReadonlyMap<string, ToolUseEvent>;
   /** Most recent session.error, cleared by the next running/message. */
@@ -213,6 +215,7 @@ export const initialProjection = (): Projection => ({
   seen: new Set(),
   previews: new Map(),
   cutPreviews: [],
+  halted: new Map(),
   toolUses: new Map(),
   lastError: null,
   notices: [],
@@ -797,7 +800,8 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
           part.type === "text" ? { ...part, text: `${part.text} …` } : part,
         );
       }
-      return { ...state, messages, previews: new Map(), cutPreviews: [...state.cutPreviews, ...state.previews.values()] };
+      return { ...state, messages, previews: new Map(),
+        cutPreviews: [...state.cutPreviews, ...[...state.previews].map(([id, preview]) => ({ ...preview, id }))] };
     }
 
     // ------------------------------------------------------------- tools
@@ -901,7 +905,10 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       return applyToolRun(state, event.tool_use_id, event.status, event.waiting === true);
 
     case "user.interrupt":
-      return cancelOpenGates(state);
+      return haltPreviews(cancelOpenGates(state));
+
+    case "pearnly.stopped":
+      return keepStopped(state, event);
 
     // ------------------------------------------------------------- errors
     case "session.error": {
@@ -957,6 +964,57 @@ function settleConfirmation(state: Projection, id: string, allow: boolean, denyM
     pendingApprovals,
     isRunning: state.isRunning || resumes(state, id, pendingApprovals, state.pendingCustomTools),
   };
+}
+
+/** 点了停止（user.interrupt，批 A ④）：还在出的逐字停在那里、这条回复标「已停止」（同 Claude「您已停止 Claude 的回复」），
+ *  不补「…」；出错收口时补过「 …」的同一段去掉「 …」也标上。记下写在哪一段，服务端记下的那段（pearnly.stopped）到了就地定文字。 */
+function haltPreviews(state: Projection): Projection {
+  const cut = state.cutPreviews.filter((p) => p.id);
+  if (state.previews.size === 0 && cut.length === 0) return state;
+  const messages = draft(state.messages);
+  const halted = new Map(state.halted);
+  for (const [id, preview] of state.previews) {
+    markStopped(messages, preview.messageIndex);
+    halted.set(id, preview);
+  }
+  for (const preview of cut) {
+    updatePart(messages, preview.messageIndex, preview.partIndex, (part) =>
+      part.type === "text" ? { ...part, text: part.text.replace(/ …$/, "") } : part,
+    );
+    markStopped(messages, preview.messageIndex);
+    halted.set(preview.id!, preview);
+  }
+  return { ...state, messages, previews: new Map(), cutPreviews: state.cutPreviews.filter((p) => !p.id), halted };
+}
+
+/** 服务端记下的被停掉的那段（pearnly.stopped，assistant/stopped.py）：本页还留着那段（halted、还在出的、出错收口的）就按它就地定
+ *  文字；刷新后整段重放里只有「打断 + 记下的那段」：在这一轮的回复里补上这段。都标「已停止」。 */
+function keepStopped(state: Projection, event: { event_id?: string; processed_at?: string | null; content?: unknown }): Projection {
+  const text = textOfBlocks(event.content as never);
+  const id = String(event.event_id ?? "");
+  const messages = draft(state.messages);
+  const spot = (id && (state.halted.get(id) ?? state.previews.get(id) ?? state.cutPreviews.find((p) => p.id === id))) || null;
+  if (spot) {
+    updatePart(messages, spot.messageIndex, spot.partIndex, (part) => (part.type === "text" ? { ...part, text } : part));
+    markStopped(messages, spot.messageIndex);
+    const previews = new Map(state.previews);
+    previews.delete(id);
+    const halted = new Map(state.halted);
+    halted.delete(id);
+    return { ...state, messages, previews, halted, cutPreviews: state.cutPreviews.filter((p) => p.id !== id) };
+  }
+  if (!text) return state;
+  const mi = currentAssistantIndex(messages, event.processed_at);
+  const msg = messages[mi]!;
+  messages[mi] = withContent(msg, [...msg.content, { type: "text", text }]);
+  markStopped(messages, mi);
+  return { ...state, messages };
+}
+
+function markStopped(messages: ThreadMessage[], mi: number) {
+  const msg = messages[mi];
+  if (!msg || msg.role !== "assistant") return;
+  messages[mi] = { ...msg, metadata: { ...msg.metadata, custom: { ...(msg.metadata?.custom ?? {}), stopped: true } } } as ThreadMessage;
 }
 
 /** 点了停止（user.interrupt）：还开着、没有结果的门撤掉并标 cancelled，卡片写「已取消」；中断后引擎补来的结果不再把它

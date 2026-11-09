@@ -26,7 +26,7 @@ import uuid
 
 import frappe
 
-from pearnly_core.assistant import context, contracts, engine, titles, toolrun
+from pearnly_core.assistant import context, contracts, engine, stopped, titles, toolrun
 
 EVENT = contracts.REALTIME_EVENT
 LOCK_TTL = 120
@@ -95,6 +95,20 @@ def _turn_ended(conversation):
         print(f"assistant relay {conversation}: title {type(err).__name__}", flush=True)
 
 
+def _keep_stopped(conversation, user, previews):
+    """这一轮被停了：没有正式回复的那几段逐字记下来（`stopped.record`，只插入），推给开着的页面。附带的：出错不影响收线。"""
+    try:
+        made = [stopped.record(conversation, user, key, text) for key, text in previews.leftover()]
+        if made:
+            frappe.db.commit()
+        for item in made:
+            if item:
+                frappe.publish_realtime(EVENT, {"session_id": conversation, "event": item}, user=user)
+    except Exception as err:
+        frappe.db.rollback()
+        print(f"assistant relay {conversation}: stopped {type(err).__name__}", flush=True)
+
+
 def _fresh():
     """结束这条线程的读快照：线程里的事务每步都已提交，这里没有要丢的写。之后的写按当前数据来，不撞别的请求在这期间
     提交的改动（见文件头）。"""
@@ -145,12 +159,14 @@ def _run(site, sites_path, conversation, remote, user, key, token, ready):
         name = frappe.db.get_value(context.SESSION, {"session_id": conversation}, "name")  # 记最后活动时间用
         deadline = time.monotonic() + MAX_SECONDS
         calls = {}
+        previews = stopped.Previews()  # 这一轮的逐字（只在内存），停了又没有正式回复的那段在结束时记一次（批 A ④）
         for _attempt in range(RECONNECTS + 1):
             try:
                 for event in api.stream(remote, ready.set):
                     if not _hold(key, token):
                         return  # 别的一路已经接手这段会话：这一路不再推（`_hold`）
                     frappe.publish_realtime(EVENT, {"session_id": conversation, "event": event}, user=user)
+                    previews.see(event)
                     if event.get("type") == "span.model_request_end":
                         _note(conversation, event)
                     if event.get("type") == "agent.message":
@@ -161,6 +177,7 @@ def _run(site, sites_path, conversation, remote, user, key, token, ready):
                         if use_id in calls:
                             _execute(conversation, remote, calls.pop(use_id))
                     if finished(event):
+                        _keep_stopped(conversation, user, previews)
                         _turn_ended(conversation)
                         return
                     if time.monotonic() > deadline:

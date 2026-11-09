@@ -37,6 +37,8 @@
 
 - 任意工具（11-06，识别完自动继续的实测）：``[lab-tool]{"name": 工具名, "input": {…}}[/lab-tool]`` 同上发这个工具的调用、
   收到结果后回「[lab-agent] <工具名> <结果原文>」。停在等工具结果时收到 ``user.message`` 照真实引擎回 400。
+- 停在半段（批 A ④，11-09）：原文带 ``[lab-cut]`` 时只推 `event_start` / `event_delta` 预览（``[lab-cut-half]`` 开头），不出正式 `agent.message`，
+  等页面点停止（`user.interrupt`）；最多等 60 秒，没人停就照常出正式回复（末尾 ``[lab-cut-end]``）。流程 `cc.chat` 用它量停止后半段还在。
 - 长回复（批 A ①，11-09）：``[lab-long]N[/lab-long]`` 回 N 段文字、末尾 ``[lab-long-end]``，流程 `cc.chat` 用它量回复超出一屏时跟不跟到底。
 - 慢回复（批 A ⑤，11-09）：``[lab-slow]N[/lab-slow]`` 照普通的一句回，只是多等 N 秒，流程 `cc.chat` 用它在回复中再发一句、看排队。
 - 通用提问卡片（主会话 11-05，只为流程 `cc.ask`）：用户原文里有 ``[lab-ask]{…}[/lab-ask]`` 时不回文字，照真实引擎发一条
@@ -72,6 +74,9 @@ TOOL_OPEN, TOOL_CLOSE = "[lab-tool]", "[/lab-tool]"
 LONG_OPEN, LONG_CLOSE = "[lab-long]", "[/lab-long]"  # 用户原文里这一段 = 回一段 N 段长的文字（流程 cc.chat 量跟随滚动）
 LONG_END = "[lab-long-end]"
 SLOW_OPEN, SLOW_CLOSE = "[lab-slow]", "[/lab-slow]"  # 用户原文里这一段 = 这一条多等 N 秒再回（流程 cc.chat 量回复中排队）
+CUT = "[lab-cut]"  # 用户原文里有它 = 这一轮只推逐字预览、等着被停（批 A ④，流程 cc.chat 量停止后半段还在）
+CUT_HALF, CUT_END = "[lab-cut-half]", "[lab-cut-end]"
+CUT_WAIT = 60  # 一直没人停：这么多秒后照常出正式回复（末尾带 CUT_END）
 REPLY_CHARS = 40
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 1000
@@ -297,14 +302,48 @@ def _turns(state: dict) -> None:
                 state["_pending"].clear()
                 state["_worker"] = None
                 return
-            reply = item["say"] if isinstance(item, dict) else f"{OPTIONS['prefix']} {item[:REPLY_CHARS]}"
-            publish(state, {"id": new_id("sevt"), "type": "agent.message",
-                            "content": [{"type": "text", "text": reply}]}, preview=True)
+            if not (isinstance(item, dict) and "cut" in item):
+                reply = item["say"] if isinstance(item, dict) else f"{OPTIONS['prefix']} {item[:REPLY_CHARS]}"
+                publish(state, {"id": new_id("sevt"), "type": "agent.message",
+                                "content": [{"type": "text", "text": reply}]}, preview=True)
+                continue
+            state["_cut"] = False
+        _cut_turn(state, item["cut"])
+
+
+def _preview(state: dict, ident: str, text: str) -> None:
+    """只推一条 agent.message 的逐字预览（不记事件，同真实引擎：预览不落进事件记录）。"""
+    with LOCK:
+        subscribers = list(state["_streams"])
+    for wanted, inbox in subscribers:
+        if "agent.message" in wanted:
+            inbox.put({"type": "event_start", "event": {"id": ident, "type": "agent.message"}})
+            for start in range(0, len(text), DELTA_CHARS):
+                inbox.put({"type": "event_delta", "event_id": ident,
+                           "delta": {"type": "content_delta", "index": 0,
+                                     "content": {"type": "text", "text": text[start:start + DELTA_CHARS]}}})
+
+
+def _cut_turn(state: dict, text: str) -> None:
+    """[lab-cut] 这一轮：推完预览等停止；被停（receive 里的 user.interrupt）就不出正式回复，等满 CUT_WAIT 秒没人停才出。"""
+    ident = new_id("sevt")
+    _preview(state, ident, text)
+    deadline = time.time() + CUT_WAIT
+    while time.time() < deadline:
+        with LOCK:
+            if state.get("_cut") or state["_deleted"]:
+                return
+        time.sleep(0.1)
+    with LOCK:
+        if not state.get("_cut") and not state["_deleted"]:
+            publish(state, {"id": ident, "type": "agent.message", "content": [{"type": "text", "text": f"{text} {CUT_END}"}]})
 
 
 def _asked(text: str):
     """用户原文里有 ``[lab-ask]{…}[/lab-ask]``：这一轮发 ask_user（入参是中间的 JSON）；有 ``[lab-tool]{"name", "input"}[/lab-tool]``：
     发这个工具的调用；有 ``[lab-long]N[/lab-long]``：回 N 段文字（最多 200 段，末尾 ``[lab-long-end]``）；有 ``[lab-slow]N[/lab-slow]``：照普通的一句回，只是多等 N 秒（最多 30）；都没有就是普通的一句。"""
+    if CUT in text:
+        return {"cut": f"{OPTIONS['prefix']} {CUT_HALF} 先盘点三号仓，再对一遍上个月的进货单"}
     start = text.find(LONG_OPEN)
     end = text.find(LONG_CLOSE, start + len(LONG_OPEN)) if start >= 0 else -1
     if start >= 0 and end >= 0 and text[start + len(LONG_OPEN):end].strip().isdigit():
@@ -348,6 +387,7 @@ def receive(state: dict, events: list) -> list:
             kind = event["type"]
             if kind == "user.interrupt":
                 state["_pending"].clear()
+                state["_cut"] = True
                 publish(state, event)
                 set_status(state, "idle")
             elif kind == "user.message" and state.get("_asked") and state.get("_asked_name") != "ask_user":

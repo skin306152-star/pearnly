@@ -78,7 +78,7 @@ class FeedTests(unittest.TestCase):
         self.assertIn('return typeof id === "string" && (id.startsWith("pop_") || id.startsWith("local-"));', events)
         # 卡片的回答（pearnly.answer，第 11 轮 C22）同样是本站事件：只走推送，不当锚点
         # 执行记录（pearnly.tool_run，第 11 轮 A 段）也是：推来、并在读事件那页最后，都不当锚点
-        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent | ProgressEvent;", events)
+        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent | ProgressEvent | StoppedEvent;", events)
         self.assertIn('type: "pearnly.answer";', events)
         self.assertIn('type: "pearnly.tool_run";', events)
         poll = read("lib/managed-agents/poll-source.ts")
@@ -7405,6 +7405,54 @@ assert.deepEqual(focused, []);
         self.assertIn("@media (prefers-reduced-motion: reduce) { .cc-drag-lift, .cc-drag-lift > * { animation: none; transition: none; } }", css)
         overlay = read("components/ui/drag.tsx").split("function liftOverlay(", 1)[1].split("\n}\n", 1)[0]
         self.assertIn('if ((data.count ?? 0) > 1) {\n    const count = document.createElement("span");\n    count.className = "cc-drag-count";', overlay)
+
+    def test_a_stopped_reply_keeps_its_half_and_says_stopped_after_a_reload(self):
+        # 批 A ④（对照文档第 4 项，11-09 实测：CC 停止后只补「…」，刷新后半段整个消失；Claude 保留半段 + 「您已停止」+ 重试）。
+        # 点停止（user.interrupt）：逐字出到哪就停在哪、标「已停止」，不补「…」；服务端记下的那段（pearnly.stopped）到了就按它定文字；
+        # 刷新后整段重放里只有「打断 + 记下的那段」也画成一条「已停止」的回复；出错收口（…）之后再到的同一段不重复
+        self.run_page(r"""
+import { applyEvent, project } from "@/lib/managed-agents/reducer";
+const at = (s: number) => `2026-11-09T10:00:${String(s).padStart(2, "0")}Z`;
+const replies = (state: any) => state.messages.filter((m: any) => m.role === "assistant").map((m: any) => ({
+  text: m.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join(""), stopped: !!m.metadata?.custom?.stopped }));
+const start = (id: string) => ({ type: "event_start", event: { id, type: "agent.message" } }) as any;
+const delta = (id: string, text: string) => ({ type: "event_delta", event_id: id, delta: { type: "content_delta", content: { type: "text", text } } }) as any;
+const user = { id: "u1", type: "user.message", processed_at: at(1), content: [{ type: "text", text: "盘点" }] } as any;
+const run = { id: "r1", type: "session.status_running", processed_at: at(2) } as any;
+const stop = { id: "x1", type: "user.interrupt", processed_at: at(5) } as any;
+const idle = { id: "i1", type: "session.status_idle", processed_at: at(6), stop_reason: { type: "end_turn" } } as any;
+const kept = (eventId: string, text: string, s = 7) => ({ id: `pstop_${eventId}`, type: "pearnly.stopped", event_id: eventId, processed_at: at(s),
+  content: [{ type: "text", text }] }) as any;
+// 当场点停止
+let s = project([user, run] as any);
+s = applyEvent(s, start("m1"));
+s = applyEvent(s, delta("m1", "盘点三号"));
+s = applyEvent(s, stop);
+s = applyEvent(s, idle);
+assert.deepEqual(replies(s), [{ text: "盘点三号", stopped: true }]);
+s = applyEvent(s, kept("m1", "盘点三号仓"));
+assert.deepEqual(replies(s), [{ text: "盘点三号仓", stopped: true }]);
+// 刷新后整段重放
+const back = project([user, run, stop, idle, kept("m1", "盘点三号仓")] as any);
+assert.deepEqual(replies(back), [{ text: "盘点三号仓", stopped: true }]);
+// 打断时引擎先报模型请求出错（补「 …」收口），记下的那段到了：同一条，不重复、不留「…」
+let e = project([user, run] as any);
+e = applyEvent(e, start("m2"));
+e = applyEvent(e, delta("m2", "对账"));
+e = applyEvent(e, { id: "sp1", type: "span.model_request_end", is_error: true, processed_at: at(4) } as any);
+e = applyEvent(e, stop);
+e = applyEvent(e, kept("m2", "对账一下"));
+assert.deepEqual(replies(e), [{ text: "对账一下", stopped: true }]);
+// 正常答完的回复不标
+const done = project([user, run, { id: "m3", type: "agent.message", processed_at: at(3), content: [{ type: "text", text: "好" }] }, idle] as any);
+assert.deepEqual(replies(done), [{ text: "好", stopped: false }]);
+""")
+        thread = read("components/assistant-ui/thread.tsx")
+        self.assertIn('data-slot="cc-stopped"', thread)
+        self.assertIn('t("stopped")', thread)
+        self.assertIn('t("retry")', thread)
+        for code in ("en", "zh", "th", "ja"):
+            self.assertIn("stopped:", read("i18n.ts"))
 
     def test_a_repeated_preview_start_reuses_its_part_and_a_retry_drops_half_lines(self):
         # 第 4 项「การ」残句：同一条回复的预览从头再推一遍（推送线程重接）时，原来那段接着用、清空重写，不另开一段留下前几个字；
