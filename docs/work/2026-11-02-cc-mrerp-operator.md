@@ -331,3 +331,20 @@ MR.ERP 网页回放子进程 17 / 17 通过。Windows 上的全量由分支 CI�
 **影响**：网页代录从列表页「Add」进新增页，存档后在列表里查单号、续录也在列表里查。列表打不开，执行层在 TEST2019 上**录不了也查不了**；
 服务端导入直写（`impartran/formupload.php`）是否受同样设置影响，本次没看（没进导入页）。需要 MR.ERP 那边在 TEST2019「จัดการเมนู」里给菜单 68、454（ใบซื้อ）、119（ใบขาย）、126（ใบขายเงินสด）
 各挂上日记账，TEST2020 年度库恢复，才能往下走第 0 步其余各项。已请主会话经用户转告岳父（我们不碰 MR.ERP 设置）。
+
+### 11-09 闸门与入口实测（分支 `pearnly/cc-mrerp-operator`，变基后 HEAD 见提交记录；不合入、开关不开）
+
+- 本地全闸门 `gate.sh`（照 `development.yml` 全跑）：211 步全部通过。本分支没改 `pearnly_core`，不需要跑生产镜像的候选离线检查。
+- `check-architecture.py`：PASS（0 违规）。`check-impact.py --base origin/main`：登记表完整。登记缺的一处已补：
+  `mrerp_operator/login.py` 只在说明里提到 `tomo_bridge`（它是被桥调用的一方），写进 cc-desktop-bridge 的 `not_entries` 并注明原因。
+- 命中的共用件：cc-desktop-bridge、cc-dbf-write、cc-operator-target。入口结果：
+
+| 入口 | 结果 |
+|---|---|
+| `cc.desktop.operator.mrerp` | 通过（离线）：CC 全套里的 MR.ERP 部分、回放子进程 17 / 17、`test_mrerp_operator_readback_parity`；真站点只读核了表单格子（见上节），列表页因 TEST2019 没挂日记账核不了 |
+| `cc.desktop.operator` | 通过（离线）：CC 全套 1620 通过；Express 代录路径的代码在本分支只多了「按目标装配」的口子，开关关着时与 main 一致 |
+| `cc.operator.page` | 通过（离线）：`tests/test_cc_operator.py` 在全闸门内 |
+| `cc.mrerp-login` | 离线通过（`test_mrerp_login.py`，含新加的「开关开着才用第 2 步的包」）；实机没测到（原因：不动测试机，开关默认关，实操页 MR.ERP 登录对用户不出现） |
+| `cc.desktop.bridge`、`cc.settings.connection`、`cc.desktop.write`、`cowork.cc.channel`、`erp.cc.*`、`cc.desktop.places` | 没测到（原因：要测试机 CC 与 Express；本分支对这些路径的改动只有开关关着时不生效的分支，默认行为与 main 相同，由 `test_worker_payload_gate`、`test_mrerp_operator_parts` 的默认开关用例锁住） |
+
+- 没推送：分支变基后与 `origin/pearnly/cc-mrerp-operator` 分叉，推送要带租约强推任务分支，等主会话定。

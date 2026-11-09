@@ -344,6 +344,7 @@ paths = ["frontend/assistant/src/lib/desktop.ts", "companion/src/companion/tomo_
 markers = ["from \"@/lib/desktop\"", "tomo_bridge"]
 search = ["frontend/assistant/src/**", "companion/src/**"]
 entries = ["cc.desktop.bridge", "cc.settings.connection", "cc.operator.page", "cc.desktop.operator", "cc.mrerp-login"]
+not_entries = { "companion/src/companion/mrerp_operator/login.py" = "只在说明里提到 tomo_bridge：它是桥调用的一方（实操页 MR.ERP 登录 operator_authorize / operator_forget，开关打开才用），不调用桥；入口 cc.mrerp-login、cc.desktop.operator.mrerp 已登记" }
 
 [[part]]
 id = "cc-sidebar-list"
