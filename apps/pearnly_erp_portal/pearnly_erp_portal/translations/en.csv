@@ -1565,6 +1565,8 @@ This warehouse belongs to the company above,This warehouse belongs to the compan
 This warehouse code already exists,This warehouse code already exists
 This warehouse has no active location,This warehouse has no active location
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.","Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear."
+Ticket Key,Ticket Key
+Ticket Level,Ticket Level
 Time,Time
 Time left {0},Time left {0}
 Title,Title

@@ -1968,3 +1968,5 @@ All Warehouses Rows  {0}  Products  {1}  Warehouses  {2}	全部仓库明细  {0}
 Exported the stock receipt-issue report	导出了收发存报表	ส่งออกรายงานรับ-จ่ายสินค้าแล้ว	入出庫レポートを出力しました
 Exporting the stock receipt-issue report	正在导出收发存报表	กำลังส่งออกรายงานรับ-จ่ายสินค้า	入出庫レポートを出力しています
 Payment not chosen yet	未选付款方式	ยังไม่ได้เลือกวิธีชำระเงิน	支払方法が未選択です
+Ticket Key	票据身份	รหัสระบุเอกสาร	伝票識別キー
+Ticket Level	身份级别	ระดับการระบุเอกสาร	識別レベル
