@@ -437,6 +437,22 @@ covers = [
 ]
 
 [[flow]]
+id = "cc.ticket-once"
+title = "同一张票只写一次：24 张里 4 张已从直写写进 Express，代录开始前卡片标出 4 张已写入、只交 20 张，站点交单同样跳过 4 张（复核 5 批之第 1 批）"
+module = "scripts/flows/cc_ticket_once.py"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]  # old 那套公司没接 Express：这条要有税号、接了 Express 的公司
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/ledger_tickets/*.py",
+  "apps/pearnly_core/pearnly_core/express_rules/contracts/ticket_identity.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/tickets.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py",
+]
+
+[[flow]]
 id = "cc.operator"
 title = "CC 代录（统一对话框架）：新建页没选公司发不出、选公司说一句建代录会话与任务、侧栏按模式列、开始前卡片与资料与站点一致、对话一轮与状态行、侧栏删除（假智能体后端，网页无桥不开录）"
 module = "scripts/flows/cc_operator.py"
