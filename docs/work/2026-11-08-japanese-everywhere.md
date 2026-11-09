@@ -134,3 +134,17 @@
 | shared.team.members | 没测到 | 改动不碰团队页；团队页改语言写的是同一个 User.language，对话页按它显示 |
 | shared.line.login | 没测到 | 实验栈无 LINE 通道 |
 | cc.desktop.bridge | 没测到 | 要 Windows 测试机；第一批不含桌面版改动 |
+
+## 6. 11-09 部署后真机与语言表缺陷
+
+部署 release-20261109-0845（45701eabd）后用三星（LINE 账号 Skin，绑 testerp / testcowork 的用户本人账号，只读操作）实测。
+LINE 原设置「自动（默认）」= 系统中文；测试时改日本語，测完改回。
+
+- **网页语言下拉缺日本語（缺陷，已修）**：testcowork「个人信息 → 语言」搜 th 有 ไทย，搜 ja 无结果。
+  原因：锁定 Frappe 的 `frappe/geo/languages.csv` 把 `ja,日本語` 标为停用（en / th / zh 为 1）；下拉与
+  `frappe.translate.get_all_languages` 只列启用的。四种语言在 Frappe 里的代码是 th / zh / en / ja（中文是 `zh`，`zh-CN` 只是身份服务的写法），名字都对，只有 ja 停用。
+  修法（分支 `pearnly/language-records-enabled`）：`pearnly_core.account.languages.ensure_product_languages` 挂 `after_migrate`
+  （已有站点随部署迁移，新开户收尾回跑 `after_migrate`，补丁在新站点不执行所以不用补丁），四种缺记录先按框架表补、补完仍缺就让迁移失败；
+  停用的用原生保存启用（清启用语言缓存）。测试 `pearnly_core.account.test_languages`（先红：钩子没挂时失败）进候选离线；
+  流程 `erp.profile.save` / `cowork.profile.save` 加「语言下拉四种都能选、只看不存」与库内四种启用的断言。
+- 测试账号的账号语言（testcowork 用户 pearnlyai@gmail.com）为「中文」，下拉只看未保存，未改。
