@@ -187,7 +187,8 @@ def test_with_connection_reuse_the_browser_sends_the_save_twice_and_it_is_report
     host = _host(tmp_path, Maker())
     out = _handle(host, "t1", payload(site.url, docnum="T-0002"))
     saves = [x for x in site.sockets if x["path"].endswith("/allsave.php")]
-    assert len(saves) == 2 and saves[0]["nth"] > 1 and saves[1]["nth"] == 1  # 复用的连接断了，新连接上重发
+    # 复用的连接断了，浏览器在别的连接上重发；走新开的还是另一条已开的长连接由浏览器连接池定（Windows 上见过后者），不作断言
+    assert len(saves) == 2 and saves[0]["nth"] > 1
     assert len(site.saved()) == 2
     assert out["status"] == "human" and out["reason"] == "readback_mismatch" and "more than once" in out["detail"]
 
