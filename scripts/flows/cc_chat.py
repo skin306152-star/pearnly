@@ -56,13 +56,23 @@ def steps(params, camera_code=None):
          # 筛掉了别的同类对话（之前几轮留下的、标题同样以「盘点一下三号仓」结尾）才算搜索起作用
          f"const others=text.split('\\n').filter(l=>l.includes('盘点一下三号仓')&&!l.includes({json.dumps(tag)})); "
          f"return {{hit: text.includes({json.dumps(tag)}), others, text: text.slice(0,200)}};"},
+        # 批 A ①（11-09 主会话定，照 Claude 实测）：回复超出一屏时电脑跟到底、手机停在这一轮开头（提问顶在上面）。
+        # 放在最后：长回复把前面的消息挤到屏外，屏外消息按需渲染、读不到文字，会搅乱前面几步的断言
+        {"name": "长回复", "js": WAIT + f"await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),40); "
+         f"await say({json.dumps(tag + ' [lab-long]60[/lab-long]')}); "
+         "const got=await until(()=>roles('assistant').some(t=>t.includes('[lab-long-end]')),120); await new Promise(r=>setTimeout(r,1500)); "
+         "const v=document.querySelector('[data-slot=\"aui_thread-viewport\"]'); if(!v) return {got, error:'no viewport'}; "
+         "const users=[...document.querySelectorAll('[data-role=\"user\"]')]; const ask=users[users.length-1]; "
+         "const top=ask?Math.round(ask.getBoundingClientRect().top-v.getBoundingClientRect().top):null; "
+         "return {got, gap: Math.round(v.scrollHeight-v.scrollTop-v.clientHeight), overflow: v.scrollHeight-v.clientHeight, ask_top: top, "
+         "phone: window.innerWidth<768};"},
     ]
 
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
     first, second = params["first"], params["second"]
-    one, two, back, found = (by.get(k) or {} for k in ("第一轮", "第二轮", "从侧栏找回", "搜索"))
+    one, two, back, found, long = (by.get(k) or {} for k in ("第一轮", "第二轮", "从侧栏找回", "搜索", "长回复"))
     return [
         {"case": "第一轮收到回复", "seen": one, "ok": bool(one.get("got")) and first in (one.get("user") or [])},
         # F13（10-15 夜间批遗留）：页面刚加载（输入框一出现）就发的第一条不能丢——第一步就是就绪即发，刷新后还要在
@@ -72,6 +82,11 @@ def judge(params, results, camera_code=None):
         {"case": "刷新后从侧栏找回、两轮都在", "seen": back,
          "ok": bool(back.get("got")) and first in (back.get("user") or []) and second in (back.get("user") or [])},
         {"case": "搜索按标题筛出、别的对话筛掉", "seen": found, "ok": bool(found.get("hit")) and not found.get("others")},
+        # 长回复超出一屏（overflow 远大于一屏）：电脑停在最底下（gap 近 0）；手机不跟，停在这一轮开头（提问在视口上沿附近、下面还有很多）
+        {"case": "长回复：电脑跟到底、手机停在这一轮开头", "seen": long,
+         "ok": bool(long.get("got")) and (long.get("overflow") or 0) > 600 and (
+             (not long.get("phone") and (long.get("gap") if long.get("gap") is not None else 999) <= 8)
+             or (bool(long.get("phone")) and (long.get("gap") or 0) > 300 and (long.get("ask_top") if long.get("ask_top") is not None else 999) < 200))},
     ]
 
 

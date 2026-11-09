@@ -37,6 +37,7 @@
 
 - 任意工具（11-06，识别完自动继续的实测）：``[lab-tool]{"name": 工具名, "input": {…}}[/lab-tool]`` 同上发这个工具的调用、
   收到结果后回「[lab-agent] <工具名> <结果原文>」。停在等工具结果时收到 ``user.message`` 照真实引擎回 400。
+- 长回复（批 A ①，11-09）：``[lab-long]N[/lab-long]`` 回 N 段文字、末尾 ``[lab-long-end]``，流程 `cc.chat` 用它量回复超出一屏时跟不跟到底。
 - 通用提问卡片（主会话 11-05，只为流程 `cc.ask`）：用户原文里有 ``[lab-ask]{…}[/lab-ask]`` 时不回文字，照真实引擎发一条
   ``agent.custom_tool_use``（name ``ask_user``，input 就是中间那段 JSON），再记 ``session.status_idle``（stop_reason
   requires_action，event_ids 是这一条）；之后收到这一条的 ``user.custom_tool_result``，记 running、回一条
@@ -67,6 +68,8 @@ REPLY_PREFIX = "[lab-agent]"
 ASK_OPEN, ASK_CLOSE = "[lab-ask]", "[/lab-ask]"  # 用户原文里这一段 = 让「模型」调 ask_user 的入参（JSON）
 # 用户原文里这一段 = 让「模型」调任意一个 Pearnly 工具（JSON：{"name": 工具名, "input": 入参}；识别完自动继续 11-06）
 TOOL_OPEN, TOOL_CLOSE = "[lab-tool]", "[/lab-tool]"
+LONG_OPEN, LONG_CLOSE = "[lab-long]", "[/lab-long]"  # 用户原文里这一段 = 回一段 N 段长的文字（流程 cc.chat 量跟随滚动）
+LONG_END = "[lab-long-end]"
 REPLY_CHARS = 40
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 1000
@@ -294,7 +297,13 @@ def _turns(state: dict) -> None:
 
 def _asked(text: str):
     """用户原文里有 ``[lab-ask]{…}[/lab-ask]``：这一轮发 ask_user（入参是中间的 JSON）；有 ``[lab-tool]{"name", "input"}[/lab-tool]``：
-    发这个工具的调用；都没有就是普通的一句。"""
+    发这个工具的调用；有 ``[lab-long]N[/lab-long]``：回 N 段文字（最多 200 段，末尾 ``[lab-long-end]``）；都没有就是普通的一句。"""
+    start = text.find(LONG_OPEN)
+    end = text.find(LONG_CLOSE, start + len(LONG_OPEN)) if start >= 0 else -1
+    if start >= 0 and end >= 0 and text[start + len(LONG_OPEN):end].strip().isdigit():
+        count = min(int(text[start + len(LONG_OPEN):end]), 200)
+        return {"say": "\n\n".join(f"{OPTIONS['prefix']} 第 {i} 段：盘点、对账、入库、出库都按顺序记一遍。" for i in range(1, count + 1))
+                + "\n\n" + LONG_END}
     for opening, closing, key in ((ASK_OPEN, ASK_CLOSE, "ask"), (TOOL_OPEN, TOOL_CLOSE, "tool")):
         start = text.find(opening)
         end = text.find(closing, start + len(opening)) if start >= 0 else -1

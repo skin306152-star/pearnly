@@ -412,7 +412,7 @@ covers = [
 
 [[flow]]
 id = "cc.chat"
-title = "CC 对话页：新建对话、两轮收发、刷新从侧栏找回、搜索、落库（实验室假智能体后端，不调付费模型）"
+title = "CC 对话页：新建对话、两轮收发、长回复电脑跟到底手机不跟、刷新从侧栏找回、搜索、落库（实验室假智能体后端，不调付费模型）"
 module = "scripts/flows/cc_chat.py"
 start = "/assistant"
 user = "admin"
@@ -425,6 +425,7 @@ covers = [
   "frontend/assistant/src/components/assistant-ui/thread.tsx",
   "frontend/assistant/src/components/assistant-ui/thread-list.tsx",
   "frontend/assistant/src/components/tool-uis/steps.tsx",
+  "frontend/assistant/src/lib/follow-scroll.ts",
   "frontend/assistant/src/lib/managed-agents/*.ts",
   "frontend/assistant/src/lib/managed-agents/*.tsx",
   "apps/pearnly_core/pearnly_core/www/assistant.html",
