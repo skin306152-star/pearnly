@@ -297,7 +297,7 @@ class CompanyOwnTax(Base):
         from pearnly_erp_portal.masters import company as companies
 
         doc = Mock(**{"get.side_effect": lambda key, d=None: existing if key == "tax_id" else d})
-        with patch.object(companies, "_get", return_value=doc), \
+        with patch.object(companies, "_get", return_value=doc), patch.object(companies, "_", _same), \
                 patch.object(companies, "document_company", side_effect=lambda name, user=None: name), \
                 patch.object(companies.guard, "has", side_effect=lambda capability, user=None: capability in rights), \
                 patch.object(companies.guard, "require", side_effect=lambda capability, user=None: None if capability in rights

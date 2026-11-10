@@ -621,9 +621,6 @@ def _own_party_answered(company, doc_ids, answers) -> dict:
     import json
 
     from pearnly_core.write_precheck import own_party
-    from pearnly_erp_portal.integrations import intake as chat_intake
-    from pearnly_erp_portal.masters import company as companies
-    from pearnly_erp_portal.recognition import checks
 
     picked = ""
     for doc_id in doc_ids:
@@ -636,6 +633,10 @@ def _own_party_answered(company, doc_ids, answers) -> dict:
             picked = picked or str(mine[0].get("value") or "")
     if not picked:
         return {}
+    from pearnly_erp_portal.integrations import intake as chat_intake
+    from pearnly_erp_portal.masters import company as companies
+    from pearnly_erp_portal.recognition import checks
+
     found = own_party.parse(picked)
     if not found:
         frappe.throw(_("Invalid request"))
