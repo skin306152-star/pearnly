@@ -2500,7 +2500,7 @@ class NoticeTests(unittest.TestCase):
         row = _Row(name="row1", session_id="sesn_mine1", user="a@example.com", title="t", pending_carry="")
         posted, turns = [], {}
         api = types.SimpleNamespace(post=lambda remote, batch: posted.append(batch))
-        db = types.SimpleNamespace(set_value=lambda *a, **k: None,
+        db = types.SimpleNamespace(set_value=lambda *a, **k: None, sql=lambda *a, **k: None,
                                    get_value=lambda doctype, name, field: "th" if doctype == "User" else None)
         with mock.patch.object(sessions, "owned", return_value=row), \
                 mock.patch.object(sessions, "segment_for_turn", return_value="sesn_mine1"), \
