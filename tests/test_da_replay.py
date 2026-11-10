@@ -666,11 +666,12 @@ class GoodsAndUpload(unittest.TestCase):
         self.assertEqual(none["G08"]["scored"]["posting"], "wrong:stock")
         # 档位时间线不因入账方式把走库存的单记成「被改」（`_row_ok`，审查处理 10-17）
         self.assertTrue(all(replay._row_ok(none[number]) for number in ("G03", "G04", "G05", "G06")))
-        # 造了明细（stkdes）：走库存的单写进库存行，入账方式与存货都对；只有运费明细的那张要人选存货（主档没有同名库存品）
+        # 造了明细（stkdes）：走库存的单写进库存行，入账方式与存货都对；只有运费明细的那张，品名与 Express 的非库存品 SV1
+        # 同名，就是那件非库存品（不动库存，同 Express 里的写法），不再问存货（测试机 11-09：同名非库存品问成「没有商品资料」）
         self.assertEqual((answer["G03"]["scored"]["posting"], answer["G03"]["scored"]["item"]), ("ok", "ok"))
         self.assertEqual(answer["G03"]["items"]["item"], "A")
-        self.assertEqual(answer["G07"]["class"], "C")
-        self.assertIn("item", answer["G07"]["needed"])
+        self.assertNotIn("item", answer["G07"]["needed"])
+        self.assertEqual((answer["G07"]["class"], answer["G07"]["scored"]["posting"]), ("B", "ok"))
         self.assertEqual(answer["G08"]["scored"]["posting"], "ok")
 
     def test_items_are_scored_and_learned_per_line(self):
