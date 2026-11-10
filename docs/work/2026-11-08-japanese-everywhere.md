@@ -62,6 +62,7 @@
 ## 4. LINE（主会话 11-08：单独当一大项）
 
 **合入安排（主会话 11-08 选 C）**：本节的 LINE 改动（回落规则、按钮改短与 check-line-labels、日文手打词）在单独分支 `pearnly/japanese-line`，不随本分支合；部署前主会话安排测试机 lab-start（testerp / testcowork 切到合好的 main 实时源码），用三星真测产品地图上只能真机的两行（`cowork.scan.line.stocktake.liff-camera`、`erp.line.postback.erp_item`），结果写进本记录后再合、随同一批部署。
+**11-10 改定（主会话）**：不再等真机，排号合入、随下一批部署。真机没测到（LINE 资料语言不跟手机 / LINE 设置变，见第 6 节 11-10 三次只读查询，三星发出的消息服务端仍按中文回）；回落规则、日文手打词、按钮 20 字由 `test_line_intake`、`tests/test_cowork_line_intake.py`、`tests/test_check_line_labels.py` 与 `check-line-labels` 覆盖。用词统一（会計データ / 付加価値税 / パソコン）已随前面日语批次进 main，本分支变基时该提交为空、已跳过；本分支没有改动任何中文原文（新英文原文 Send to ERP 沿用原中文「发送单据至 ERP」，DMS 两条只改泰文）。
 
 数法：五份术语表 ja 列逐行查（空 0 条）；LINE 代码里实际用到的词条逐个对翻译包（ERP 122 处、Cowork 114 处、DMS 212 个 `dms.*` 键，日文全有）；按钮由 `scripts/check-line-labels.py` 静态认出（61 条）。
 
@@ -122,7 +123,7 @@
 | 导出（ERP 库存导出） | 通过：日语账号表头日文，泰语对照泰文 | `LINE样例与导出.md` |
 | CC 桌面版 Qt 窗口（托盘菜单、MR.ERP 登录小窗、账套占用提示） | 通过：本机临时 venv（PySide6 6.11.1，同锁定版本）用真实代码出窗截图，截完删 venv；发现并修了登录小窗 Save / Cancel 不跟语言 | `托盘菜单-ja.png` 等 6 张 |
 | CC 桌面版通知、真机效果 | 没测到：主会话定放进 1.12.18 发版后测试机验收清单（装正式版时用日本語看一遍） | — |
-| LINE 真机（三星） | 没测到：主会话定部署后线上验收时做 | — |
+| LINE 真机（三星） | 没测到：11-09 / 11-10 在线上试过，LINE 资料语言一直是 zh-Hans、不跟设置变，日文回复触发不了（第 6 节） | — |
 | fatcc.com 登录主题 pearnly-ai 日文 | 没测到：实验栈没有 Keycloak；主题随镜像生效，部署后用日语浏览器打开 fatcc.com 截图 | — |
 
 受影响流程（`scripts/flows/run.py --changed --base origin/main --migrate`，本机实验栈）：cc.chat、cc.companies、cc.person-names、cc.sidebar-modes、cowork.cc.sidebar-modes、cowork.mrerp-login、cowork.pending.operator，19/19 格通过（base e608efefb，源码为 ae5e95f67 之前的工作树）。
