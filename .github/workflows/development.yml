@@ -321,6 +321,8 @@ jobs:
         run: python3 tests/test_assistant_entry.py
       - name: Verify the Cowork assistant tools (declarations, translations, push request keys, filters)
         run: python3 tests/test_cowork_assistant_tools.py
+      - name: CC writes only the account sets of the company its conversation is filed under (direct push, stopped account set, current book, recognition target, POS import, folder tasks, operator)
+        run: python3 tests/test_cc_write_scope.py
       - name: The Cowork chat push tools stay byte-identical to their golden sample (declarations, guidance, results)
         run: python3 tests/test_cowork_push_tools_golden.py
       - name: Verify human pushes retry a writer lock conflict (MariaDB 1020 / 1213) as one whole transaction, then give the formal reason

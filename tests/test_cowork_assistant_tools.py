@@ -216,6 +216,11 @@ def _install():
     checks = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = sys.modules["pearnly_cowork.assistant"].document_checks = checks
     spec.loader.exec_module(checks)
+    # 只写本对话公司的账套（`assistant.write_scope`）另有专门的测试（test_cc_write_scope）：这里放行一切，测的是别的行为
+    scope_stub = types.ModuleType("pearnly_cowork.assistant.write_scope")
+    scope_stub.check = lambda connection, account_set_key, company=None: None
+    scope_stub.keep = lambda options, connection_of=None, company=None: list(options or ())
+    sys.modules[scope_stub.__name__] = sys.modules["pearnly_cowork.assistant"].write_scope = scope_stub
     spec = importlib.util.spec_from_file_location("cowork_assistant_tools", COWORK / "assistant/tools.py")
     tools = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tools)

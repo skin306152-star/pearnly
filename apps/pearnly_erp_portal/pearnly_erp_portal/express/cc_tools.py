@@ -48,6 +48,7 @@ PUSH_MAX = direct_push.PUSH_MAX
 WITH_OPERATOR = "with_operator"  # 交给代录、还没录成：直写不接
 NOT_PERMITTED = "not_permitted"
 OTHER_COMPANY = "other_company"
+NO_COMPANY = "no_company"
 # 单据上的 Express 状态 → 推送状态（Cowork 的 last_push_status 同一组词）
 LAST_STATUS = {contracts.QUEUED: "pending", contracts.WRITTEN: "success", contracts.MISMATCH: "success",
                contracts.HANDLED: "success", contracts.HELD: "manual", contracts.FAILED: "failed",
@@ -112,10 +113,21 @@ def _row(kind, name, write=False):
     return row
 
 
-def _other_company(row, tool_input) -> bool:
-    """写别家的单要显式点名：本对话挂了公司、单据是别家的、又没给 company = 那家时不动。"""
+def _other_company(row, tool_input) -> str:
+    """CC 只写本对话公司的单（用户 11-10：「CC 或模型录进别的账套就是产品缺陷」，同 Cowork `assistant.write_scope`）：
+    单据是别家的回 ``other_company``——点名别家也不写（旧口径「显式给 company 就放行」作废）；对话没挂公司回 ``no_company``；
+    是本对话公司的回空串。ERP 写哪份账套由单据的公司在服务端算（`express.target.pick`），公司对了账套就对。"""
     filed = _filed()
-    return bool(filed) and row.company != filed and str(tool_input.get("company") or "") != row.company
+    if not filed:
+        return NO_COMPANY
+    return OTHER_COMPANY if row.company != filed else ""
+
+
+def _refused(document, row, reason) -> dict:
+    out = {"document": document, "status": direct_push.FAILED, "reason_code": reason}
+    if reason == OTHER_COMPANY:
+        out.update(company=row.company, company_title=_company_title(row.company))
+    return out
 
 
 def _company_title(company) -> str:
@@ -205,9 +217,9 @@ def _push_one(document, tool_input) -> dict:
         return direct_push.not_found(document)
     if row == NOT_PERMITTED:
         return {"document": document, "status": direct_push.FAILED, "reason_code": NOT_PERMITTED}
-    if _other_company(row, tool_input):
-        return {"document": document, "status": direct_push.FAILED, "reason_code": OTHER_COMPANY,
-                "company": row.company, "company_title": _company_title(row.company)}
+    refused = _other_company(row, tool_input)
+    if refused:
+        return _refused(document, row, refused)
     state = row.ledger_state or ""
     if state in (contracts.WRITTEN, contracts.MISMATCH, contracts.HANDLED):
         return {"document": document, "status": direct_push.ALREADY_SUCCESS, "docnum": row.ledger_docnum or ""}
@@ -534,9 +546,12 @@ def resolve_push_result(tool_input) -> str:
         return direct_push.dumps(direct_push.not_found(document))
     if row == NOT_PERMITTED:
         return direct_push.dumps(direct_push.not_saved(document, NOT_PERMITTED))
-    if _other_company(row, tool_input):
-        return direct_push.dumps({**direct_push.not_saved(document, OTHER_COMPANY), "company": row.company,
-                                  "company_title": _company_title(row.company)})
+    refused = _other_company(row, tool_input)
+    if refused:
+        out = direct_push.not_saved(document, refused)
+        if refused == OTHER_COMPANY:
+            out.update(company=row.company, company_title=_company_title(row.company))
+        return direct_push.dumps(out)
     if row.ledger_state != contracts.HELD or not _unknown(_job(row)):
         return direct_push.dumps(direct_push.not_saved(document, direct_push.NO_PUSH_TO_CONFIRM))
     try:
@@ -617,9 +632,12 @@ TOOLS = [
                     "company's account set yet, is still reading it, or no computer can write it now; ERP tries again "
                     "every minute by itself), with_operator (handed to operator entry and not entered yet: operator "
                     "entry enters it, a push from here does not), or already_success / already_pending (already "
-                    "entered or on its way; it is not sent again and CC cannot change it). A document of another "
-                    "company than the one this conversation is filed under comes back failed with reason_code "
-                    "other_company: check with the user, then pass company.",
+                    "entered or on its way; it is not sent again and CC cannot change it). CC writes only the "
+                    "documents of the company this conversation is filed under: a document of another company comes "
+                    "back failed with reason_code other_company and is not written even when company names it (say "
+                    "so in one sentence; the user writes it from that company's own conversation); in a conversation "
+                    "not filed under a company it comes back failed with reason_code no_company (ask the user to "
+                    "choose the company first).",
      "input_schema": {"type": "object", "properties": {
          "documents": direct_push.documents_prop(PUSH_MAX), "company": COMPANY_PROP}, "required": ["documents"]},
      "handler": "pearnly_erp_portal.express.cc_tools.push_documents"},

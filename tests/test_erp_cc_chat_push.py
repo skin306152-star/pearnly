@@ -613,8 +613,18 @@ class PushTests(unittest.TestCase):
         frappe.session.user = "boss@x"
         other = call(tools.push_documents, documents=["P:PUR-9"])["results"][0]
         self.assertEqual((other["status"], other["reason_code"], other["company"]), ("failed", "other_company", "CO-2"))
-        self.assertEqual(call(tools.push_documents, documents=["P:PUR-9"], company="CO-2")["results"][0]["status"],
-                         "queued")
+        # CC 只写本对话公司的单（用户 11-10）：点名别家也不写（旧口径「显式给 company 就放行」作废）
+        sent = list(CALLS)
+        named = call(tools.push_documents, documents=["P:PUR-9"], company="CO-2")["results"][0]
+        self.assertEqual((named["status"], named["reason_code"]), ("failed", "other_company"))
+        self.assertEqual(CALLS, sent)
+
+    def test_a_conversation_without_a_company_writes_nothing(self):
+        doc(PURCHASE, "PUR-2", reason=E.NO_BOOK)
+        FILED["company"] = ""
+        item = call(tools.push_documents, documents=["P:PUR-2"], company="CO-1")["results"][0]
+        self.assertEqual((item["status"], item["reason_code"]), ("failed", "no_company"))
+        self.assertEqual(CALLS, [])
 
     def test_a_disconnected_company_is_not_written(self):
         doc(PURCHASE, "PUR-2", reason=E.NO_BOOK)

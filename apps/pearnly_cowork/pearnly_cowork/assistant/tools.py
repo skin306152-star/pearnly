@@ -892,6 +892,21 @@ def _operator_target(operator) -> str:
     return operator_contracts.TARGET_EXPRESS
 
 
+def _in_conversation() -> bool:
+    return bool((getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id"))
+
+
+def _scope_refusal(connection, account_set_key, operator=None) -> dict | None:
+    """CC 只写对话选中的公司与账套（`assistant.write_scope`，用户 11-10）：代录按任务的公司、直写按本对话挂的公司核；
+    不在 CC 对话里执行（网页由人点的推送）回 None 不限。拒的回给模型的原因（``reason`` / ``note`` / 可写的账套）。"""
+    company = str((operator or {}).get("company") or "")
+    if not company and not _in_conversation():
+        return None
+    from pearnly_cowork.assistant import write_scope
+
+    return write_scope.check(connection, account_set_key, company=company or None)
+
+
 def _submit_one(name, connection, account_set_key, posting_kind, route_device, operator=None) -> dict:
     """:func:`_push_one` 的准备那一步：停下 / 推不成回给页面的结论；交出去准备好了的回 ``{"submitted": (adapter, 连接, 请求号,
     准备结果)}``。重来时从头读票（撞上冲突的那次整笔回滚了）。"""
@@ -926,12 +941,16 @@ def _submit_one(name, connection, account_set_key, posting_kind, route_device, o
         return {"document": name, "status": "failed", "reason": reason}
     needed = view.get("needed") or []
     wait = view.get("wait")
+    # 停下时把这次要推往的连接与账套抄到票上（账套用推送服务解析出的那份），待处理页才能当场选（验收 F17）
+    going = {"connection": target, "account_set": view.get("account_set") or account_set}
+    refused = _scope_refusal(target, going["account_set"], operator)
+    if refused:
+        # 不是这家公司的账套：不写、不在票上留别家的去向（否则待处理页把它当成这张单的去向）
+        return {"document": name, "status": "failed", **refused}
     if wait and wait.get("state") in ("reading", "offline"):
         # 要选的科目还没有可选值（已请电脑读这份账套的科目表）：不记成「要人选」，读到后再推
         return {"document": name, "status": "waiting_for_cc", "reason": wait["state"],
                 "note": _masters_note(wait["state"])}
-    # 停下时把这次要推往的连接与账套抄到票上（账套用推送服务解析出的那份），待处理页才能当场选（验收 F17）
-    going = {"connection": target, "account_set": view.get("account_set") or account_set}
     if wait:
         push_state.record_failure(name, wait["message"], **going)
         frappe.db.commit()
@@ -1150,6 +1169,9 @@ def _push_listed(name, connection, account_set_key, posting_kind) -> dict:
     key = account_set_key or (stop.get("push_account_set") if stop.get("account_set_remembered") else None)
     if not key:
         return _not_chosen(name, stop, status="needs_choice")
+    refused = _scope_refusal(_field(doc, "push_connection"), key)
+    if refused:
+        return {"document": name, "status": "failed", **refused}
     from pearnly_cowork.assistant import pending_api
 
     out, result = pending_api.push_to_account_set(name, key, posting_kind)
@@ -1383,6 +1405,14 @@ def _stop_target(doc, cache=None) -> dict | None:
         books = [{"key": item["key"], "label": item.get("label") or item["key"]}
                  for item in options.get("account_sets") or []]
         current = str(options.get("current") or "")
+        if _in_conversation():
+            # 候选按单据归属（票上税号）算，可能是别家的：CC 只给、只用本对话公司的（`assistant.write_scope`）
+            from pearnly_cowork.assistant import write_scope
+
+            connection = _field(doc, "push_connection")
+            books = write_scope.keep(books, lambda item: connection)
+            if current and not write_scope.keep([{"key": current}], lambda item: connection):
+                current = ""
         if current:
             label = next((item["label"] for item in books if _account_key(item["key"]) == _account_key(current)), "")
             found = {**({"account_label": label} if label else {}), "push_account_set": current,
@@ -1518,6 +1548,11 @@ def recognize_attachments(tool_input) -> str:
         return _json({"results": [{"file": f, "status": "not_started", "reason": "account_set_unavailable: this account "
                                    "set is not in the current list; choose one from cowork_intake_options"}
                                   for f in file_ids]})
+    refused = _scope_refusal(choices.get("connection"), choices.get("account_set_key")) \
+        if choices.get("account_set_key") else None
+    if refused:
+        return _json({"results": [{"file": f, "status": "not_started", "reason": refused["note"],
+                                   "allowed_account_sets": refused["allowed_account_sets"]} for f in file_ids]})
     if choices.get("target") == "express" and choices.get("account_set_key"):
         # 同网页选定 Express 账套后：请小助手趁识别时读这份账套，推送前就有它的目录与主档（读不到不拦识别）
         try:
@@ -1738,6 +1773,10 @@ def pos_import(tool_input) -> str:
     if not connection or not account_set or not _selectable(choices):
         return _json({"results": [{"file": f, "status": "failed", "reason": "account_set_unavailable: choose an "
                                    "Express account set from cowork_intake_options"} for f in file_ids]})
+    refused = _scope_refusal(connection, account_set)
+    if refused:
+        return _json({"results": [{"file": f, "status": "failed", "reason": refused["note"],
+                                   "allowed_account_sets": refused["allowed_account_sets"]} for f in file_ids]})
     try:
         # 同识别：请小助手趁这时读这份账套，推送前就有它的科目（收款科目要从里面选）
         connections_api.ensure_account_masters(connection, account_set)
@@ -1904,6 +1943,12 @@ def intake_options(tool_input) -> str:
                 frappe.clear_messages()
                 catalog = {}
             usable = account_search.usable(adapter, catalog.get("account_sets") or [])
+            if _in_conversation():
+                # 公司对话里只给本对话公司的账套（`assistant.write_scope`）：别家的不列、上次用的是别家的不推荐
+                from pearnly_cowork.assistant import write_scope
+
+                kept = write_scope.keep([{"key": r["source_id"], "row": r} for r in usable], lambda item: row["name"])
+                usable = [item["row"] for item in kept]
             # 上次用的那份也按清单里的名字说（2026-10-13 录屏：只给了键，CC 说成文件夹名「demo02」）
             names[row["name"]] = {_account_key(r["source_id"]): account_search.label(adapter, r)
                                   for r in catalog.get("account_sets") or [] if r.get("source_id") and r.get("label")}
@@ -2336,6 +2381,9 @@ def _choose_current_book(name, key) -> str:
 
     try:
         doc = storage.read(name)
+        refused = _scope_refusal(_field(doc, "push_connection"), key)
+        if refused:
+            return _json({"document": name, "status": "not_saved", **refused})
         if pending.account_set_stop(storage.project(doc)):
             options = _current_book_options(storage.project(doc))  # 推完就不再停下：名称按选之前的候选
             pushed = pending_api.push_to_account_set(name, key)[0]
@@ -3620,8 +3668,17 @@ def _task_mrerp_setup(values) -> dict | None:
     return {"connection": connection, "account_set_key": values.get("account_set_key"), **setup} if setup else None
 
 
+def _task_scope(values) -> dict | None:
+    """文件夹任务以后自己写账：公司对话里存 / 改的任务只能指向本对话公司的账套（同推送，`assistant.write_scope`）。"""
+    return _scope_refusal(values.get("connection"), values.get("account_set_key"))
+
+
 def folder_task_refusal(tool_input) -> str | None:
-    setup = _task_mrerp_setup(_task_values(tool_input, _task_rows([tool_input])))
+    values = _task_values(tool_input, _task_rows([tool_input]))
+    refused = _task_scope(values)
+    if refused:
+        return _json({"status": "not_saved", **refused})
+    setup = _task_mrerp_setup(values)
     if not setup:
         return None
     return _json({"status": "not_saved", "reason": TASK_MRERP_REFUSED, "mrerp_setup": setup, "note": MRERP_SETUP_NOTE})
@@ -3632,7 +3689,12 @@ def folder_tasks_refusal(tool_input) -> str | None:
     rows = _task_rows(items)
     failed = []
     for number, item in enumerate(items, 1):
-        setup = _task_mrerp_setup(_task_values(item, rows))
+        values = _task_values(item, rows)
+        refused = _task_scope(values)
+        if refused:
+            failed.append({"task": number, "title": str(item.get("title") or item.get("name") or "")[:140], **refused})
+            continue
+        setup = _task_mrerp_setup(values)
         if setup:
             failed.append({"task": number, "title": str(item.get("title") or item.get("name") or "")[:140],
                            "reason": TASK_MRERP_REFUSED, "mrerp_setup": setup})
@@ -3648,6 +3710,9 @@ def save_folder_task(tool_input) -> str:
     if refused:
         return _json(refused)
     values = _task_values(tool_input, _task_rows([tool_input]))
+    refused = _task_scope(values)
+    if refused:
+        return _json({"status": "not_saved", **refused})
     row = _task_call(rules.save, values, cc_session=_conversation())
     return _json(row if row.get("status") == "not_saved" else {"status": "saved", **_saved_task(row, values)})
 
@@ -3666,6 +3731,11 @@ def save_folder_tasks(tool_input) -> str:
         return _json(refused)
     rows = _task_rows(items)
     values = [_task_values(item, rows) for item in items]
+    outside = [{"task": number, "title": str(item.get("title") or item.get("name") or "")[:140], **refused}
+               for number, (item, value) in enumerate(zip(items, values), 1) if (refused := _task_scope(value))]
+    if outside:
+        return _json({"status": "not_saved", "reason": "Nothing was saved. Fix the tasks listed in failed and call "
+                                                       "again with the whole list.", "failed": outside})
     try:
         result = rules.save_many(values, cc_session=_conversation())
     except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
