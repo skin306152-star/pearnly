@@ -88,6 +88,48 @@ print(datetime.datetime.fromtimestamp(int(sys.argv[1]), zoneinfo.ZoneInfo(sys.ar
   done <<< "$sites"
 done
 
+echo "-- upload limits: one file of originals.rules.UPLOAD_MAX_BYTES gets through tenant nginx, frontend nginx and Frappe"
+# 11-10 压测：Frappe 没配 max_file_size 只收 25MB 请求体，CC 一份 27.7MB 的 50 页扫描件被回 413。数从镜像里的共用层取，
+# bench 配置、宿主机租户站 nginx 各核一次；再对三个测试租户本机直连 nginx 不登录交一份正好上限大小的文件：
+# 表单解析过了才轮到验登录（回 403），回 413 就是哪一层没跟上。只读：不登录什么都不写。
+NGINX_CONF=${PEARNLY_NGINX_CONF_DIR:-/etc/nginx/conf.d}
+read_limits='import json
+from pearnly_core.originals.rules import UPLOAD_MAX_BYTES, UPLOAD_REQUEST_MAX_BYTES
+conf = json.load(open("sites/common_site_config.json"))
+print(UPLOAD_MAX_BYTES, UPLOAD_REQUEST_MAX_BYTES, conf.get("max_file_size") or 0)'
+upload_max=
+for product in erp cowork dms; do
+  web=pearnly-production-$product-web-1
+  limits=$(docker exec -w /home/frappe/frappe-bench "$web" env/bin/python -c "$read_limits" </dev/null) \
+    || { problem "$web: cannot read upload limits"; continue; }
+  read -r file_max request_max bench_max <<< "$limits"
+  upload_max=$file_max
+  echo "  $product file_max=$file_max request_max=$request_max bench max_file_size=$bench_max"
+  [[ "$bench_max" == "$request_max" ]] || problem "$product bench max_file_size=$bench_max, expected $request_max"
+done
+if [[ -n "${request_max:-}" ]]; then
+  want_mib=$((request_max / 1048576))
+  for conf in "$NGINX_CONF"/pearnly-tenant-*.conf; do
+    [[ -e "$conf" ]] || continue
+    got=$(sed -n 's/.*client_max_body_size \([0-9]*\)m;.*/\1/p' "$conf" | head -1)
+    [[ "${got:-0}" -ge "$want_mib" ]] || problem "$(basename "$conf") client_max_body_size ${got:-none}m < ${want_mib}m"
+  done
+fi
+if [[ -n "$upload_max" ]]; then
+  probe=$(mktemp)
+  head -c "$upload_max" /dev/zero > "$probe"
+  # 测试租户（站名以 test 开头）的租户站配置：在宿主机上有配置的才探（切到测试机的不在这台）
+  for conf in "$NGINX_CONF"/pearnly-tenant-test*.conf; do
+    [[ -e "$conf" ]] || continue
+    site=$(basename "$conf" .conf); site=${site#pearnly-tenant-}
+    code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 --resolve "$site:443:127.0.0.1" -F session_id=readback \
+      -F "file=@$probe;filename=readback.pdf;type=application/pdf" "https://$site/api/method/pearnly_core.assistant.api.upload")
+    echo "  $site upload of $upload_max bytes as a guest: HTTP $code (403 = body accepted, then sign-in refused)"
+    [[ "$code" == 403 ]] || problem "$site refused a $upload_max-byte upload body with HTTP $code"
+  done
+  rm -f "$probe"
+fi
+
 echo "-- domains"
 for url in https://mrerp.pearnly.com/api/method/ping https://erpcowork.pearnly.com/api/method/ping \
            https://ris.pearnly.com/api/method/ping https://fatcc.com/; do

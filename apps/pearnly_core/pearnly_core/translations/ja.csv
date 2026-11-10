@@ -327,6 +327,7 @@ Failure reason,失敗理由
 Failures,失敗回数
 File,ファイル
 File Key,ファイルキー
+File is larger than {0} MB,ファイルが {0} MB を超えています
 Filed Note Digest,保存メモの要約
 Filed Under,保存先
 Filed the conversation under a company,会話を会社に紐付けました
@@ -1431,6 +1432,7 @@ shell.wait.elapsed,経過 {0} 秒
 shell.wait.pages,{0}/{1} ページ読み取り済み · {2}%
 state is invalid or has expired,state が無効か期限切れです
 upload.deferred,現在アップロードできません。後でもう一度お試しください。
+upload.tooLarge,ファイルが {0} MB を超えています
 username / password are required,username / password は必須です
 {0} is entered in {1},{0} は {1} に入力済み
 {0} is entered in {1}: {2},{0} は {1} に入力済み：{2}

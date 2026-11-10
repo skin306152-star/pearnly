@@ -3,5 +3,6 @@
 - ``store``：唯一入口，按租户路线选存放（Claude → 甲骨文，谷歌 → 谷歌存储，没配 → 本机）；
 - ``rules`` / ``checks``：文件规则与核对、预览渲染（纯计算；生产、Cloud Run、甲骨文同一份）；
 - ``links``：甲骨文签名地址（纯计算）；``oracle`` / ``gcs`` / ``cloud_run``：两种存放的站点侧调用；
-- ``server``：甲骨文上的原件服务（不依赖 Frappe）。
+- ``server``：甲骨文上的原件服务（不依赖 Frappe）；
+- ``upload_limits``：人交来的一份最多多大落到 bench 配置（Frappe 请求体上限）与超限时的那句话。
 """

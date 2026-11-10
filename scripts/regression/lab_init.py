@@ -69,6 +69,9 @@ def main(only):
     config.update(db_host="db", redis_cache="redis://redis:6379/0", redis_queue="redis://redis:6379/1",
                   redis_socketio="redis://redis:6379/2", pause_scheduler=1, disable_scheduler=1, mute_emails=1,
                   serve_default_site=False)
+    from pearnly_core.originals import upload_limits
+
+    config = upload_limits.bench_values(config)  # 请求体上限同线上（activate-product.sh）
     config_file.write_text(json.dumps(config, indent=2) + "\n")
     (sites / "apps.txt").write_text("frappe\npearnly_core\npearnly_control\npearnly_erp_portal\npearnly_cowork\npearnly_dms\n")
     assets = sites / "assets"

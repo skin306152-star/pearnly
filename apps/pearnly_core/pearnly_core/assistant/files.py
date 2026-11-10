@@ -72,6 +72,10 @@ def _upload(row) -> dict:
     if not sent:
         frappe.throw(_("No file was received."))
     content = sent.stream.read(contracts.UPLOAD_MAX_BYTES + 1)
+    if len(content) > contracts.UPLOAD_MAX_BYTES:
+        from pearnly_core.originals import upload_limits
+
+        frappe.throw(upload_limits.too_large())
     name = sessions._guard(contracts.upload_name, sent.filename, len(content))
     mime = sent.mimetype or "application/octet-stream"
     if heic.is_heic(content):

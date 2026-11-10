@@ -57,6 +57,8 @@ if [[ "$product" == cowork ]]; then workers+=(cowork-long-worker); fi
 "${compose[@]}" stop -t 660 "${workers[@]}"
 PEARNLY_IMAGE="$previous_image" "${compose[@]}" run --rm --no-deps "$product-web" bench --site all backup --with-files
 "${compose[@]}" run --rm --no-deps "$product-web" env/bin/python -m pearnly_core.execution.configuration --redis-url redis://redis-queue:6379/6
+# 请求体上限（Frappe 没配时 25MB，CC 一份 30MB 的附件在约 25MB 处被回 413；11-10）：三个产品同一个值，幂等
+"${compose[@]}" run --rm --no-deps "$product-web" env/bin/python -m pearnly_core.originals.upload_limits
 if [[ "$product" == dms ]]; then
   "${compose[@]}" run --rm --no-deps dms-web env/bin/python /opt/pearnly/deploy-src/scripts/production/configure-dms-runtime.py
 fi

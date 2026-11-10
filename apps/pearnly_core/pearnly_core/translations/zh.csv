@@ -327,6 +327,7 @@ Failure reason,失败原因
 Failures,失败次数
 File,文件
 File Key,文件键
+File is larger than {0} MB,文件超过 {0} MB
 Filed Note Digest,归档摘要
 Filed Under,归档位置
 Filed the conversation under a company,已将对话归入公司
@@ -1431,6 +1432,7 @@ shell.wait.elapsed,已用 {0} 秒
 shell.wait.pages,已识别 {0}/{1} 页 · {2}%
 state is invalid or has expired,state 无效或已过期
 upload.deferred,暂时无法上传，请稍后重试。
+upload.tooLarge,文件超过 {0} MB
 username / password are required,username / password 必填
 {0} is entered in {1},{0} 已写入 {1}
 {0} is entered in {1}: {2},{0} 已写入 {1}：{2}

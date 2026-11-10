@@ -223,6 +223,11 @@ def ensure_timing_format(path=None):
         path.write_text(TIMING_FORMAT_TEXT)
 
 
+# 租户站请求体上限：同 Frappe 的 bench 配置 `max_file_size`（`pearnly_core.originals.rules.UPLOAD_REQUEST_MAX_BYTES`，
+# 一份文件 30MB + multipart 外壳；本脚本在宿主机上跑、不导入应用代码，写同一个数，tests/test_upload_limits.py 核对）。
+REQUEST_BODY_MIB = 31
+
+
 def nginx(site, group, tls=False):
     acme = "location ^~ /.well-known/acme-challenge/ { root /var/www/letsencrypt; }"
     http = f"server {{ listen 80; server_name {site}; {acme} location / {{ return 301 https://$host$request_uri; }} }}\n"
@@ -233,7 +238,7 @@ def nginx(site, group, tls=False):
     server_name {site};
     ssl_certificate /etc/letsencrypt/live/{site}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{site}/privkey.pem;
-    client_max_body_size 30m;
+    client_max_body_size {REQUEST_BODY_MIB}m;
     access_log /var/log/nginx/access.log;
     access_log /var/log/nginx/pearnly-timing.log pearnly_timing;
     location / {{

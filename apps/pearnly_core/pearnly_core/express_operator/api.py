@@ -19,6 +19,8 @@ from frappe import _
 
 from pearnly_core.execution.errors import Deferred
 from pearnly_core.express_operator import products, shapes, tasks, uploads
+from pearnly_core.originals import upload_limits
+from pearnly_core.originals.rules import UPLOAD_MAX_BYTES
 
 PAGE_MAX = 100
 BATCH_MAX = 200
@@ -78,7 +80,7 @@ def resolve(company, doc_id, entered, docnum=""):
     return products.resolve(company, str(doc_id or ""), str(entered) in ("1", "true", "True"), str(docnum or "")[:40])
 
 
-UPLOAD_MAX = 30 * 1024 * 1024
+UPLOAD_MAX = UPLOAD_MAX_BYTES
 UPLOAD_DEFERRED = "upload.deferred"  # 暂时无法上传，请稍后重试。
 GROUPS = shapes.GROUPS
 
@@ -96,7 +98,7 @@ def intake(company, request_key, task=""):
         frappe.throw(_("Select a file to upload."))
     content = incoming.stream.read(UPLOAD_MAX + 1)
     if len(content) > UPLOAD_MAX:
-        frappe.throw(_("Invalid request"))
+        frappe.throw(upload_limits.too_large())
     try:
         result = products.intake(company, incoming.filename, content, str(request_key or ""))
     except Deferred:

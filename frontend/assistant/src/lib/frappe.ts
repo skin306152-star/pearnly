@@ -9,6 +9,8 @@ const BASE = "/api/method/pearnly_core.assistant.api.";
 declare global {
   interface Window {
     csrf_token?: string;
+    /** 一份附件最多多大（字节）：页面由服务端写进来（`www/assistant.py`，共用层 `originals.rules.UPLOAD_MAX_BYTES`）。 */
+    pearnly_upload_max_bytes?: number;
   }
 }
 
@@ -126,8 +128,23 @@ export async function upload<T>(method: string, args: Record<string, string>, fi
   return postForm<T>(`${BASE}${method}`, args, file);
 }
 
-/** 上传一个文件（字段 file，其余参数同表单一起交）：附件与「实操」资料都走这里。 */
+/** 人交来的一份文件最多多大：服务端写进页面的那个数（同 Frappe 请求体上限、租户站 nginx 一个来源）；页面没写就是 0，不在页面先拦。 */
+export function uploadMaxBytes(): number {
+  const max = Number(window.pearnly_upload_max_bytes);
+  return Number.isFinite(max) && max > 0 ? max : 0;
+}
+
+/** 超限时给人看的那句（同服务端词条 upload.tooLarge）。 */
+export function tooLargeText(): string {
+  const max = uploadMaxBytes();
+  return max ? t("fileTooLarge").replace("{0}", String(Math.floor(max / (1024 * 1024)))) : t("uploadFailed");
+}
+
+/** 上传一个文件（字段 file，其余参数同表单一起交）：附件与「实操」资料都走这里。超限的先在页面拦下、不白传；
+ *  网关或站点回 413（请求体超限，回的是网页、没有原文）也照实说超限，不说「出了点问题」（11-10 压测）。 */
 async function postForm<T>(url: string, args: Record<string, string>, file: File): Promise<T> {
+  const max = uploadMaxBytes();
+  if (max && file.size > max) throw new SiteError(tooLargeText());
   const form = new FormData();
   for (const [k, v] of Object.entries(args)) form.set(k, v);
   form.set("file", file, file.name);
@@ -136,6 +153,7 @@ async function postForm<T>(url: string, args: Record<string, string>, file: File
     headers: { "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
     body: form,
   });
+  if (res.status === 413) throw new SiteError(tooLargeText());
   return parse<T>(res);
 }
 

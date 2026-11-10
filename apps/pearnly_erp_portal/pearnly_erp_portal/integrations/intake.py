@@ -20,6 +20,7 @@ from frappe import _
 from frappe.utils import add_to_date, now, now_datetime
 
 from pearnly_core import line, line_binding
+from pearnly_core.originals.rules import UPLOAD_MAX_BYTES
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.integrations import line_cards, line_flow, line_items
@@ -29,7 +30,8 @@ QUEUED, READY, FAILED, CONFIRMED = "queued", "ready", "failed", "confirmed"
 OCR_KIND = "erp.line_intake"
 MEDIA_TYPES = {"image": "image", "file": "pdf"}
 DIRECTION_CAPABILITY = {"purchase": "purchase.write", "sales": "sales.write"}
-MAX_BYTES = 20 * 1024 * 1024
+# 同 CC 对话附件（共用层一个数）：原来 20MB，对话里收下的 20–30MB 文件交识别时被拒（11-10）；LINE 下载另有自己的上限
+MAX_BYTES = UPLOAD_MAX_BYTES
 
 
 # ── 收件 ────────────────────────────────────────────────────────────────────

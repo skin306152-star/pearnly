@@ -166,7 +166,7 @@ class RunnerSelfCheck(unittest.TestCase):
 class Readback(unittest.TestCase):
     def run_readback(self, containers=None, maintenance=0, errors=0, codes=None, record=IMAGE, rejected='NULL', browser='NULL',
                      browser_before=0, liff='2010411313-aaaa1111', liff_exit=0, liff_seen=None, entries_exit=0,
-                     export=True, unmarked=()):
+                     export=True, unmarked=(), bench_max=32505856, nginx_mib=31, upload_code=403):
         containers = containers or {
             'pearnly-production-erp-web-1': IMAGE, 'pearnly-production-erp-ocr-worker-1': IMAGE,
             'pearnly-production-mariadb-1': 'mariadb:11', 'pearnly-production-billing-web-1': IMAGE}
@@ -203,6 +203,8 @@ elif args[0] == "inspect":
 elif args[0] == "exec" and "python3" in args:
     product = args[3].split("-")[2]
     print(f"site-a-{{product}}.pearnly.com {maintenance} {liff}\\nsite-b-{{product}}.pearnly.com 0 -")
+elif args[0] == "exec" and "UPLOAD_MAX_BYTES" in args[-1]:
+    print("31457280 32505856 {bench_max}")
 elif args[0] == "exec" and "time_zone" in args[-1]:
     print("Asia/Bangkok")
 elif args[0] == "exec" and "sum(error" in args[-1]:
@@ -214,12 +216,16 @@ elif args[0] == "stats":
 EOF
 ''')
             stub(bin_dir / 'curl', f'''url="${{@: -1}}"
-case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*) printf 200 ;; esac
+case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*assistant.api.upload) printf {upload_code} ;; *) printf 200 ;; esac
 ''')
+            nginx = root / 'nginx'
+            nginx.mkdir()
+            for site in ('testcowork.pearnly.com', 'erpcowork.pearnly.com'):
+                (nginx / f'pearnly-tenant-{site}.conf').write_text(f'server {{ client_max_body_size {nginx_mib}m; }}\n')
             state = root / 'state'
             state.mkdir()
             env = dict(os.environ, PATH=f'{bin_dir}{os.pathsep}{os.environ["PATH"]}', PEARNLY_DEPLOY_ROOT=str(deploy),
-                       PEARNLY_DEPLOY_PING_WAIT_SECONDS='0', PEARNLY_STATE_DIR=str(state))
+                       PEARNLY_DEPLOY_PING_WAIT_SECONDS='0', PEARNLY_STATE_DIR=str(state), PEARNLY_NGINX_CONF_DIR=str(nginx))
             result = subprocess.run(['bash', str(READBACK), IMAGE, '1761600000'], env=env, text=True,
                                     capture_output=True, timeout=60)
             marker = state / 'last-readback-ok'
@@ -228,6 +234,19 @@ case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*) pri
                 seen = root / 'liff-stdin'
                 liff_seen.append(seen.read_text() if seen.exists() else None)
             return result
+
+    def test_every_upload_layer_takes_one_file_of_the_upload_limit(self):
+        # 11-10 压测：Frappe 没配 max_file_size 只收 25MB，CC 一份 27.7MB 的 50 页扫描件被回 413
+        clean = self.run_readback()
+        self.assertEqual(clean.returncode, 0, clean.stdout + clean.stderr)
+        self.assertIn('testcowork.pearnly.com upload of 31457280 bytes as a guest: HTTP 403', clean.stdout)
+        self.assertNotIn('erpcowork.pearnly.com upload of', clean.stdout, '正式租户不探')
+        for kwargs, said in (({'bench_max': 0}, 'bench max_file_size=0, expected 32505856'),
+                             ({'nginx_mib': 30}, 'pearnly-tenant-erpcowork.pearnly.com.conf client_max_body_size 30m < 31m'),
+                             ({'upload_code': 413}, 'testcowork.pearnly.com refused a 31457280-byte upload body with HTTP 413')):
+            result = self.run_readback(**kwargs)
+            self.assertEqual(result.returncode, 1, kwargs)
+            self.assertIn(said, result.stdout + result.stderr)
 
     def test_clean_readback_passes(self):
         result = self.run_readback()

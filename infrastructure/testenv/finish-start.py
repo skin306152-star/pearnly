@@ -78,6 +78,12 @@ def configure() -> None:
             workers[queue] = {**entry, "timeout": timeout}
             changed.append(f"workers.{queue}.timeout")
     data["workers"] = workers
+    # 请求体上限同线上（`pearnly_core.originals.upload_limits`，激活时写；没配时 Frappe 只收 25MB）
+    from pearnly_core.originals import upload_limits
+
+    if upload_limits.bench_values(data) != data:
+        data = upload_limits.bench_values(data)
+        changed.append("max_file_size")
     if changed:
         path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
         log("· 运行配置：" + "、".join(changed) + " 已写入")

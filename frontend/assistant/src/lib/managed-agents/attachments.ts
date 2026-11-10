@@ -9,7 +9,7 @@ import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@
 import { uploadFile, type UploadedFile } from "./api";
 import { beginPending } from "./pending-send";
 import { stopRecognition, watchRecognition } from "./attachment-recognition";
-import { shownError } from "@/lib/frappe";
+import { shownError, tooLargeText, uploadMaxBytes } from "@/lib/frappe";
 import { reportCaught, withReport } from "../caught";
 
 export const ACCEPT = "image/*,.heic,.heif,.pdf,.xlsx,.xls,.csv,.tsv,.docx,.txt,.md,.json";
@@ -96,6 +96,12 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>): At
       const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const type = file.type.startsWith("image/") ? ("image" as const) : ("document" as const);
       const base = { id, type, name: file.name, contentType: file.type, file };
+      // 超过上限的不传（传 30 秒再被拒）：当场说多大
+      const max = uploadMaxBytes();
+      if (max && file.size > max) {
+        yield { ...base, status: { type: "incomplete", reason: "error", message: tooLargeText() } };
+        return;
+      }
       const upload = store(id, file);
       uploading.set(id, upload);
       yield { ...base, status: { type: "running", reason: "uploading", progress: 0.3 } };
