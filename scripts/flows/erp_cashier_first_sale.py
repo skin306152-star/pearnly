@@ -17,12 +17,13 @@ def prepare(lab, manifest):
     company = manifest.get("company") or manifest["companies"][0]
     first = manifest["dataset"] == "new"
     product = manifest["products"]["by_barcode"]["product"] if first else manifest["products"][0]["name"]
+    # 这一格开着收银；格结束时 run_flow 还原原值（`Lab.set_fields`，成功、失败、超时都还原）
+    lab.set_fields(manifest["site"], "ERP Company", company, {"pos_enabled": 1})
     out = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.inventory import documents, warehouses
 from pearnly_erp_portal.masters import company as companies
 frappe.set_user("admin@erp.regression")
 companies.set_active_company({company!r})
-frappe.db.set_value("ERP Company", {company!r}, "pos_enabled", 1, update_modified=False)
 if {first!r}:
     # 模拟新客户第一次用收银：清掉这家公司现有的收银台（与它们的班次）
     terminals = frappe.get_all("ERP POS Terminal", filters={{"company": {company!r}}}, pluck="name")

@@ -18,10 +18,6 @@ CAPTURE = ("window.__dlgs=window.__dlgs||[];if(!frappe.ui.Dialog.prototype.__cap
            "window.__msgs=window.__msgs||[];if(!frappe.__msgcap){const m=frappe.msgprint;frappe.msgprint=function(x){window.__msgs.push(typeof x==='string'?x:(x&&x.message)||'');return m.apply(this,arguments)};frappe.__msgcap=1;}")
 
 
-# 手机宽度两遍（手填、相机）在开跑之前各准备一次：公司类型由最后一遍核完才还原成普通，不然相机那遍不弹登记框
-_SEQ = {}
-
-
 def _ean13() -> str:
     first12 = "8856" + str(uuid.uuid4().int)[:8]
     return first12 + str((10 - sum(int(d) * (3 if i % 2 else 1) for i, d in enumerate(first12)) % 10) % 10)
@@ -31,13 +27,14 @@ def prepare(lab, manifest):
     company = manifest.get("company") or manifest["companies"][0]
     products = manifest.get("products")
     unit = products.get("by_unit", {}) if isinstance(products, dict) else {}  # 老数据的清单是列表，没有按台商品
+    # 这一格把公司临时改成按台（汽车）类型；格结束时 run_flow 还原原值（`Lab.set_fields`，成功、失败、超时都还原）
+    lab.set_fields(manifest["site"], "ERP Company", company, {"company_type": "vehicle"})
     out = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.inventory import serials
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.products import service as products
 frappe.set_user("admin@erp.regression")
 companies.set_active_company({company!r})
-frappe.db.set_value("ERP Company", {company!r}, "company_type", "vehicle", update_modified=False)
 product = {unit.get('product')!r}
 code = {unit.get('scan')!r}
 if not product:
@@ -50,9 +47,8 @@ wh = frappe.get_all("ERP Warehouse", filters={{"company": {company!r}, "is_activ
 frappe.db.commit()
 print(json.dumps({{"product": product, "code": code, "warehouse": wh}}))
 """)
-    _SEQ[manifest["site"]] = _SEQ.get(manifest["site"], 0) + 1
     vin = _ean13()
-    return {**out, "company": company, "vin": vin, "seq": _SEQ[manifest["site"]], "cases": [{"key": "by_barcode", "scan": vin}]}
+    return {**out, "company": company, "vin": vin, "cases": [{"key": "by_barcode", "scan": vin}]}
 
 
 def steps(params, camera_code=None):
@@ -108,9 +104,6 @@ def judge(params, results, camera_code=None):
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 unit = frappe.db.get_value("ERP Serial No", {{"serial_no": {params['vin']!r}}}, ["product", "warehouse", "status"], as_dict=True) or {{}}
-if {params.get('seq') == _SEQ.get(manifest['site'])}:
-    frappe.db.set_value("ERP Company", {params['company']!r}, "company_type", "general", update_modified=False)  # 最后一遍核完才还原
-frappe.db.commit()
 print(json.dumps(unit))
 """)
     return [{"case": "unit registered in the warehouse", "saved": got,

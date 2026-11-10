@@ -18,11 +18,8 @@ CAPTURE = ("window.__fgs=window.__fgs||[];if(!frappe.ui.FieldGroup.prototype.__c
 
 def prepare(lab, manifest):
     company = manifest.get("company") or manifest["companies"][0]
-    lab.python(manifest["site"], f"""
-frappe.db.set_value("ERP Company", {company!r}, "company_type", "general", update_modified=False)
-frappe.db.commit()
-print(json.dumps({{}}))
-""")
+    # 页面上把公司类型改成按台：从普通开始，格结束时 run_flow 还原原值（`Lab.set_fields`，页面步骤超时也还原，别影响别的流程）
+    lab.set_fields(manifest["site"], "ERP Company", company, {"company_type": "general"})
     return {"company": company, "express": manifest["dataset"] == "new", "cases": []}
 
 
@@ -68,8 +65,6 @@ def judge(params, results, camera_code=None):
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 row = frappe.db.get_value("ERP Company", {params['company']!r}, ["company_type", "express_enabled"], as_dict=True)
-frappe.db.set_value("ERP Company", {params['company']!r}, "company_type", "general", update_modified=False)  # 还原，别影响别的流程
-frappe.db.commit()
 print(json.dumps(row))
 """)
     return [{"case": "company type saved", "saved": got, "ok": got["company_type"] == "vehicle"

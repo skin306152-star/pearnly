@@ -23,14 +23,13 @@ KINDS = ("substitute_receipt", "wht_cert")
 def prepare(lab, manifest):
     co = company(manifest)
     tag = uuid.uuid4().hex[:6]
+    # 这一格关掉「接 Express」，单子不排进账本；格结束时 run_flow 还原（`Lab.set_fields`，成功、失败、超时都还原）
+    lab.set_fields(manifest["site"], "ERP Company", co, {"express_enabled": 0})
     out = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.purchasing import entry, suppliers
 frappe.set_user({USER!r})
 companies.set_active_company({co!r})
-express = frappe.db.get_value("ERP Company", {co!r}, "express_enabled")
-frappe.db.set_value("ERP Company", {co!r}, "express_enabled", 0, update_modified=False)
-frappe.db.commit()
 supplier = frappe.db.get_value("ERP Supplier", {{"supplier_name": "ผู้ขายโฟลว์ปุ่ม"}}) or \\
     suppliers.create_supplier(supplier_name="ผู้ขายโฟลว์ปุ่ม")["name"]
 frappe.db.commit()
@@ -43,17 +42,9 @@ for i in range(8):
                                   "unit_price": 1000, "vat_rate": 7, "wht_rate": 3}}]}}, request_id=f"flow-vch-{tag}-{{i}}")
     frappe.db.commit()
     docs.append(frappe.db.get_value("Purchase Document", made["name"], ["name", "system_no", "status"], as_dict=True))
-print(json.dumps({{"express": int(express or 0), "docs": docs}}, default=str))
+print(json.dumps({{"docs": docs}}, default=str))
 """)
-    return {"company": co, "express": out["express"], "docs": out["docs"]}
-
-
-def cleanup(lab, manifest, params):
-    lab.python(manifest["site"], f"""
-frappe.db.set_value("ERP Company", {params['company']!r}, "express_enabled", {params['express']}, update_modified=False)
-frappe.db.commit()
-print(json.dumps({{}}))
-""")
+    return {"company": co, "docs": out["docs"]}
 
 
 def steps(params, camera_code=None):

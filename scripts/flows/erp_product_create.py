@@ -26,13 +26,12 @@ def ean13(first12: str) -> str:
 def prepare(lab, manifest):
     company = manifest.get("company") or manifest["companies"][0]
     synced = (manifest.get("products") or {}).get("by_express", {}).get("product") if manifest["dataset"] == "new" else None
+    # 这里核的是普通公司：以防公司是别的类型，这一格临时改成普通，格结束时 run_flow 还原原值（`Lab.set_fields`）
+    lab.set_fields(manifest["site"], "ERP Company", company, {"company_type": "general"})
     lab.python(manifest["site"], f"""
 from pearnly_erp_portal.masters import company as companies
 frappe.set_user("products@erp.regression")
 companies.set_active_company({company!r})
-# 按台流程（erp.stock-in.units）把同一套数据的公司改成汽车类型、不还原；这里核的是普通公司
-frappe.db.set_value("ERP Company", {company!r}, "company_type", "general", update_modified=False)
-frappe.db.commit()
 print(json.dumps({{}}))
 """)
     tag = str(uuid.uuid4().int)[:8]

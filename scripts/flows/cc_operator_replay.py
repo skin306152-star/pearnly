@@ -32,6 +32,8 @@ def prepare(lab, manifest):
     lab.python(manifest["site"], f'frappe.db.set_value("User", {USER!r}, "language", "zh")\nfrappe.db.commit()\nprint("{{}}")')
     company = manifest.get("company") or manifest["companies"][0]
     tag = "flow" + uuid.uuid4().hex[:6]
+    # 下面自备采购单时临时关「接 Express」、记完当场还原；这里先记原值，准备中途进程没了也由 run_flow 在格结束时还原（`Lab.keep_fields`）
+    lab.keep_fields(manifest["site"], "ERP Company", company, ["express_enabled"])
     out = lab.python(manifest["site"], f"""
 from datetime import timedelta
 from pearnly_core.assistant import sessions

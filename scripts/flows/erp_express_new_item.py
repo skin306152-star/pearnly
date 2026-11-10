@@ -22,6 +22,8 @@ TITLE = "ERP 出入库单遇 Express 里没有的物料：问一次选新建、�
 
 def prepare(lab, manifest):
     tag = uuid.uuid4().hex[:6]
+    # 推送回执会写公司的 Express 同步状态：先记原值，格结束时 run_flow 还原（`Lab.keep_fields`，成功、失败、超时都还原）
+    lab.keep_fields(manifest["site"], "ERP Company", dataset_company(manifest), ["express_sync_state"])
     return lab.python(manifest["site"], f"""
 import os
 from pearnly_core.cc_desktop import jobs
@@ -49,7 +51,6 @@ else:
     key = picked["book"]["key"]
     path = facts._path(key)
     kept = open(path, "rb").read() if os.path.exists(path) else None
-    sync = frappe.db.get_value("ERP Company", company, "express_sync_state")
     account = choices._name(company, "account", stock_entry.account_subject("JU"))
     had_account = frappe.db.exists(choices.CHOICE, account)
     job = None
@@ -100,7 +101,6 @@ else:
             frappe.delete_doc(choices.CHOICE, account, ignore_permissions=True, force=True)
         if job and frappe.db.get_value("Pearnly CC Job", job, "status") in ("queued", "leased"):
             jobs.cancel(job, "replaced")
-        frappe.db.set_value("ERP Company", company, "express_sync_state", sync, update_modified=False)
         frappe.db.commit()
 print(json.dumps(out, default=str))
 """)

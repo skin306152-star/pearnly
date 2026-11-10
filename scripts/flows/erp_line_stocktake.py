@@ -24,6 +24,8 @@ def prepare(lab, manifest):
     company = manifest.get("company") or manifest["companies"][0]
     products = manifest.get("products")
     unit_code = products.get("by_unit", {}).get("scan", "") if isinstance(products, dict) else ""
+    # 这一格把公司临时改成按台（汽车）类型；格结束时 run_flow 还原原值（`Lab.set_fields`，成功、失败、超时都还原）
+    lab.set_fields(manifest["site"], "ERP Company", company, {"company_type": "vehicle"})
     out = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.inventory import count, locations
 from pearnly_erp_portal.masters import company as companies
@@ -33,7 +35,6 @@ if not frappe.db.exists("Pearnly LINE Binding", {{"user": user, "status": "activ
                     "status": "active"}}).insert(ignore_permissions=True)
 frappe.set_user(user)
 companies.set_active_company({company!r})
-frappe.db.set_value("ERP Company", {company!r}, "company_type", "vehicle", update_modified=False)
 unit_code = {unit_code!r}
 if not unit_code:
     from pearnly_erp_portal.inventory import serials
@@ -153,7 +154,6 @@ rows = frappe.get_all("ERP Stock Count Entry", filters={{"count": {params['count
                       order_by="creation asc")
 unit_rows = frappe.db.count("ERP Stock Count Item", {{"count": {params['count']!r}, "product": {params['unit_product']!r},
                                                      "row_origin": ["is", "set"]}})  # 查码补登的行（账上快照行不算）
-frappe.db.set_value("ERP Company", {params['company']!r}, "company_type", "general", update_modified=False)  # 还原
 frappe.db.commit()
 print(json.dumps({{"product": p, "entries": [dict(r, qty=float(r.qty), location=r.location or "") for r in rows], "unit_rows": unit_rows}}, default=str))
 """)

@@ -30,14 +30,15 @@ def prepare(lab, manifest):
         product, scan = products["by_code"]["product"], products["by_code"]["scan"]
     else:
         product, scan = products[0]["name"], products[0].get("scan") or ""
+    # 这一格关掉「接 Express」，核对时还把公司临时改成按台；格结束时 run_flow 都还原原值（`Lab.set_fields`，成功、失败、超时都还原）
+    lab.set_fields(manifest["site"], "ERP Company", company, {"express_enabled": 0})
+    lab.keep_fields(manifest["site"], "ERP Company", company, ["company_type"])
     out = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.access import menu
 from pearnly_erp_portal.inventory import documents, stock
 from pearnly_erp_portal.masters import company as companies
 frappe.set_user("admin@erp.regression")
 companies.set_active_company({company!r})
-express = frappe.db.get_value("ERP Company", {company!r}, "express_enabled")
-frappe.db.set_value("ERP Company", {company!r}, "express_enabled", 0, update_modified=False)
 user = "stock@erp.regression"
 if not frappe.db.exists("Has Role", {{"parent": user, "role": menu.role("stock-transfer")}}):  # 老数据建库时还没有调拨菜单
     frappe.get_doc("User", user).add_roles(menu.role("stock-transfer"))
@@ -53,8 +54,7 @@ def place(w):
     row = frappe.db.get_value("ERP Stock Balance", {{"product": p.name, "warehouse": w, "location": ""}}, ["qty_on_hand", "value"], as_dict=True) or {{}}
     return [float(row.get("qty_on_hand") or 0), float(row.get("value") or 0)]
 frappe.db.commit()
-print(json.dumps({{"product": p.name, "scan": {scan!r} or p.code, "a": a, "b": b, "before_a": place(a), "before_b": place(b),
-                  "express": int(express or 0)}}))
+print(json.dumps({{"product": p.name, "scan": {scan!r} or p.code, "a": a, "b": b, "before_a": place(a), "before_b": place(b)}}))
 """)
     return {**out, "company": company, "token": "flow-tf-" + uuid.uuid4().hex[:8], "cases": []}
 
@@ -148,8 +148,6 @@ moved = documents.create_entry(direction="transfer", posting_date=frappe.utils.n
 at_b = frappe.db.get_value("ERP Serial No", unit, ["warehouse", "status"], as_dict=True)
 documents.void_entry(moved["name"])
 at_a = frappe.db.get_value("ERP Serial No", unit, ["warehouse", "status"], as_dict=True)
-frappe.db.set_value("ERP Company", {params['company']!r}, "company_type", "general", update_modified=False)  # 还原
-frappe.db.set_value("ERP Company", {params['company']!r}, "express_enabled", {params['express']}, update_modified=False)
 frappe.db.commit()
 print(json.dumps({{"entry": entry, "moves": [dict(m, qty_base=float(m.qty_base), unit_cost=float(m.unit_cost), value_delta=float(m.value_delta)) for m in moves],
                   "after": after, "voided": voided, "back": back, "same": same, "at_b": at_b, "at_a": at_a, "b_name": b}}, default=str))

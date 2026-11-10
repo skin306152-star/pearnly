@@ -21,32 +21,23 @@ CAPTURE = ("window.__fgs=window.__fgs||[];if(!frappe.ui.FieldGroup.prototype.__c
            "frappe.ui.FieldGroup.prototype.make=function(){window.__fgs.push(this);return o.apply(this,arguments)};frappe.ui.FieldGroup.prototype.__cap=1;}")
 
 
-# 手机宽度两遍（手输、假摄像头）在开跑之前各准备一次：「接 Express」第一遍准备时关掉、记下原值，最后一遍核对完才还原
-_PENDING, _SEQ = {}, {}
-
-
 def prepare(lab, manifest):
     company = manifest.get("company") or manifest["companies"][0]
     # 带条码的那件（两套数据同一个取法，假摄像头读的就是它的条码）
     item = codes(manifest)["by_barcode"]
     product = item["product"]
+    # 这一遍关掉「接 Express」，单子不排进账本；格结束时 run_flow 还原（`Lab.set_fields`）
+    lab.set_fields(manifest["site"], "ERP Company", company, {"express_enabled": 0})
     out = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.masters import company as companies
 frappe.set_user("purchase@erp.regression")
 companies.set_active_company({company!r})
-express = frappe.db.get_value("ERP Company", {company!r}, "express_enabled")
-frappe.db.set_value("ERP Company", {company!r}, "express_enabled", 0, update_modified=False)
 p = frappe.db.get_value("ERP Product", {product!r}, ["name", "product_name", "barcode", "code"], as_dict=True)
 wh = frappe.get_all("ERP Warehouse", filters={{"company": {company!r}, "is_active": 1}}, pluck="name", order_by="creation asc", limit=1)[0]
 qty = frappe.db.get_value("ERP Stock Balance", {{"product": p.name, "warehouse": wh, "location": ""}}, "qty_on_hand") or 0
 frappe.db.commit()
-print(json.dumps({{"product": p.name, "product_name": p.product_name, "scan": p.barcode or p.code, "warehouse": wh, "before": float(qty),
-                  "express": int(express or 0)}}))
+print(json.dumps({{"product": p.name, "product_name": p.product_name, "scan": p.barcode or p.code, "warehouse": wh, "before": float(qty)}}))
 """)
-    site = manifest["site"]
-    _PENDING.setdefault(site, out["express"])
-    _SEQ[site] = _SEQ.get(site, 0) + 1
-    out["express"], out["seq"] = _PENDING[site], _SEQ[site]
     return {**out, "company": company, "supplier": "flow supplier " + uuid.uuid4().hex[:5],
             "cases": [{"key": "by_barcode", "scan": item["scan"]}]}
 
@@ -98,7 +89,6 @@ def judge(params, results, camera_code=None):
 
 
 def verify(lab, manifest, params, camera_code=None):
-    last = params.get("seq") == _SEQ.get(manifest["site"])
     got = lab.python(manifest["site"], f"""
 doc = frappe.db.get_value("Purchase Document", {{"supplier_name": {params['supplier']!r}}}, ["name", "status"], as_dict=True) or {{}}
 lines = frappe.get_all("Purchase Line", filters={{"parent": doc.get("name")}}, fields=["product", "qty"]) if doc else []
@@ -107,13 +97,8 @@ gone = [c for c in ("batch_no", "expiry_date") if frappe.db.has_column("Purchase
 # 这张单自己的库存流水（两遍各开一张单，账面先后都在变，按单核入库数）
 moved = sum(r.qty_base or 0 for r in frappe.get_all("ERP Stock Movement", filters={{"ref_id": doc.get("name"), "product": {params['product']!r},
             "warehouse": {params['warehouse']!r}}}, fields=["qty_base"])) if doc else 0
-if {last}:
-    frappe.db.set_value("ERP Company", {params['company']!r}, "express_enabled", {params['express']}, update_modified=False)  # 还原
-frappe.db.commit()
 print(json.dumps({{"doc": doc, "lines": [dict(r, qty=float(r.qty)) for r in lines], "moved": float(moved), "batch_columns": gone}}, default=str))
 """)
-    if last:
-        _PENDING.pop(manifest["site"], None)
     line = (got["lines"] or [{}])[0]
     return [
         {"case": "purchase submitted without batch or expiry", "saved": got,

@@ -23,24 +23,21 @@ CONFIG = {"purchase": {"route": "pearnly-purchase", "user": "purchase@erp.regres
                     "doctype": "ERP Sales Document", "line": "ERP Sales Document Line", "head": "buyer_name"}}
 CAPTURE = ("window.__fgs=window.__fgs||[];if(!frappe.ui.FieldGroup.prototype.__cap){const o=frappe.ui.FieldGroup.prototype.make;"
            "frappe.ui.FieldGroup.prototype.make=function(){window.__fgs.push(this);return o.apply(this,arguments)};frappe.ui.FieldGroup.prototype.__cap=1;}")
-_EXPRESS = {}
 
 
 def prepare(lab, manifest, direction=None):
     direction = direction or DIRECTION
     item = codes(manifest)["by_barcode"]
     co = company(manifest)
+    # 这一格关掉「接 Express」，单子不排进账本；格结束时 run_flow 还原（`Lab.set_fields`，成功、失败、超时都还原）
+    lab.set_fields(manifest["site"], "ERP Company", co, {"express_enabled": 0})
     out = lab.python(manifest["site"], f"""
-express = frappe.db.get_value("ERP Company", {co!r}, "express_enabled")
-frappe.db.set_value("ERP Company", {co!r}, "express_enabled", 0, update_modified=False)
-frappe.db.commit()
-print(json.dumps({{"express": int(express or 0), "name": frappe.db.get_value("ERP Product", {item['product']!r}, "product_name")}}))
+print(json.dumps({{"name": frappe.db.get_value("ERP Product", {item['product']!r}, "product_name")}}))
 """)
-    _EXPRESS.setdefault((manifest["site"], direction), out["express"])
     tag = uuid.uuid4().hex[:6]
     return {"direction": direction, "company": co, "warehouse": warehouses(manifest)[0]["name"], "product": item["product"],
             "scan": item["scan"], "name": out["name"], "party": f"flow party {tag}", "freight": f"ค่าขนส่ง {tag}",
-            "fresh": f"ของใหม่ {tag}", "express": _EXPRESS[(manifest["site"], direction)], "cases": []}
+            "fresh": f"ของใหม่ {tag}", "cases": []}
 
 
 def steps(params, camera_code=None):
@@ -119,8 +116,6 @@ moved = frappe.get_all("ERP Stock Movement", filters={{"ref_id": name}}, pluck="
 fresh = next((row.product for row in lines if row.description == {params['fresh']!r}), None)
 origin = frappe.db.get_value("ERP Product", fresh, ["origin_doctype", "origin_name"], as_dict=True) if fresh else None
 remembered = frappe.db.count("ERP Line Item Memory", {{"company": {params['company']!r}, "last_document": name}}) if name else 0
-frappe.db.set_value("ERP Company", {params['company']!r}, "express_enabled", {params['express']}, update_modified=False)  # 还原
-frappe.db.commit()
 print(json.dumps({{"lines": [dict(r) for r in lines], "moved": sorted(set(moved)), "fresh": fresh, "origin": origin,
                   "remembered": remembered}}, default=str))
 """)

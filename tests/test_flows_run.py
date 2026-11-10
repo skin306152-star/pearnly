@@ -4,6 +4,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import tempfile
 import time
 import unittest
@@ -241,6 +242,126 @@ class SiteConfig(unittest.TestCase):
                 cleanup = text.split("\ndef cleanup(", 1)
                 self.assertEqual(len(cleanup), 2, f"{path.name}：改了站点配置要在 cleanup 里还原（成功、失败、超时都跑）")
                 self.assertIn("lab.site_config(", cleanup[1].split("\ndef ", 1)[0], path.name)
+
+
+class CompanyFields(unittest.TestCase):
+    """流程临时改公司等设置：经 `Lab.set_fields` / `keep_fields` 记原值，格结束时 run_flow 统一还原。
+    11-09 全套：erp.purchase.create 页面步骤 900 秒超时，写在 verify 里的「接 Express」还原没跑到，同一站点后面 6 个流程跟着失败。"""
+
+    SETTINGS = ("ERP Company", "Cowork Company", "Cowork Workspace")
+
+    def lab(self, befores):
+        lab, ran = run.Lab(), []
+        answers = iter(befores)
+        lab.python = lambda site, body: ran.append((site, body)) or next(answers, {})
+        return lab, ran
+
+    def test_set_fields_writes_and_returns_the_old_values_keep_fields_only_reads(self):
+        lab, ran = self.lab([{"express_enabled": 1}, {"note": "n"}])
+        self.assertEqual(lab.set_fields("erp-new", "ERP Company", "CO-1", {"express_enabled": 0}), {"express_enabled": 1})
+        self.assertEqual(lab.keep_fields("erp-new", "ERP Company", "CO-1", ["note"]), {"note": "n"})
+        self.assertIn("{'express_enabled': 0}", ran[0][1])
+        self.assertIn("fields, values = ['note'], None", ran[1][1])
+        self.assertEqual(len(lab.changed()), 2)
+
+    def test_restore_writes_back_the_earliest_value_once_per_record(self):
+        lab, ran = self.lab([{"express_enabled": 1}, {"express_enabled": 0, "company_type": "general"}, {"pos_enabled": 0}])
+        lab.set_fields("erp-new", "ERP Company", "CO-1", {"express_enabled": 0})
+        lab.set_fields("erp-new", "ERP Company", "CO-1", {"express_enabled": 1, "company_type": "vehicle"})
+        lab.set_fields("erp-old", "ERP Company", "CO-9", {"pos_enabled": 1})
+        ran.clear()
+        lab.restore_fields()
+        self.assertEqual([site for site, _ in ran], ["erp-new", "erp-old"])
+        self.assertIn("{'express_enabled': 1, 'company_type': 'general'}", ran[0][1])
+        self.assertIn("{'pos_enabled': 0}", ran[1][1])
+        self.assertEqual(lab.changed(), [])
+
+    def test_one_failed_restore_does_not_skip_the_others(self):
+        lab, ran = self.lab([{"a": 1}, {"b": 2}])
+        lab.set_fields("s1", "ERP Company", "CO-1", {"a": 0})
+        lab.set_fields("s2", "ERP Company", "CO-2", {"b": 0})
+
+        def python(site, body):
+            ran.append(site)
+            if site == "s1":
+                raise RuntimeError("lab python failed")
+            return {}
+        lab.python, ran[:] = python, []
+        with self.assertRaises(RuntimeError):
+            lab.restore_fields()
+        self.assertEqual(ran, ["s1", "s2"])
+
+    def run_cell(self, prepare_fails=False):
+        lab, ran = self.lab([{"express_enabled": 1}, {}])
+        lab.dataset = lambda which, product="erp": {"site": "erp-new"}
+        lab.client_errors = lambda site: set()
+        order = []
+
+        class Module:
+            @staticmethod
+            def prepare(lab_, manifest):
+                lab_.set_fields("erp-new", "ERP Company", "CO-1", {"express_enabled": 0})
+                if prepare_fails:
+                    raise RuntimeError("prepare failed")
+                return {"n": len(order)}
+
+            @staticmethod
+            def cleanup(lab_, manifest, params):
+                order.append(("cleanup", params["n"]))
+
+        saved = run.load_module, run._run_prepared
+        run.load_module = lambda path: Module
+
+        def timed_out(*args):
+            args[-1].append({"n": 1})  # 相机那一遍的准备
+            raise RuntimeError("page steps timed out after 900s")
+        run._run_prepared = timed_out
+        try:
+            with self.assertRaises(RuntimeError):
+                run.run_flow(lab, {"id": "x", "module": "x.py"}, "new", "mobile")
+        finally:
+            run.load_module, run._run_prepared = saved
+        return ran, order
+
+    def test_steps_timing_out_still_restores_and_cleans_up_the_later_preparation_first(self):
+        ran, order = self.run_cell()
+        self.assertIn("{'express_enabled': 1}", ran[-1][1])
+        self.assertEqual(order, [("cleanup", 1), ("cleanup", 0)])
+
+    def test_preparation_failing_halfway_still_restores(self):
+        ran, order = self.run_cell(prepare_fails=True)
+        self.assertIn("{'express_enabled': 1}", ran[-1][1])
+        self.assertEqual(order, [])
+
+    def test_flows_write_company_settings_only_after_the_lab_recorded_the_original(self):
+        names = "|".join(map(re.escape, self.SETTINGS))
+        write = re.compile(r'set_value\(\s*"(?P<dt>%s)"\s*,\s*[^,]+,\s*(?:\{+(?P<many>[^}]*)\}+|"(?P<field>\w+)")' % names)
+        record = re.compile(r'lab\.(?:set_fields|keep_fields)\([^,]+,\s*"(?P<dt>[^"]+)"\s*,\s*[^,]+,\s*(?P<what>\{[^}]*\}|\[[^\]]*\])')
+        for path in sorted((ROOT / "scripts/flows").glob("*.py")):
+            if path.name == "run.py":
+                continue
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("set_single_value", text, f"{path.name}：改单例设置要先经 lab 记原值（加 Lab 方法），格结束才能还原")
+            self.assertNotRegex(text, r"(?i)update\s+`tab(%s)`" % names, f"{path.name}：改公司设置走 lab.set_fields，不写 SQL")
+            self.assertNotRegex(text, r'get_doc\(\s*"(%s)"' % names, f"{path.name}：改公司设置走 lab.set_fields，不 get_doc 再 save")
+            kept = set()
+            for m in record.finditer(text):
+                keys = re.findall(r'"(\w+)"\s*:', m["what"]) if m["what"].startswith("{") else re.findall(r'"(\w+)"', m["what"])
+                kept |= {(m["dt"], key) for key in keys}
+            for m in write.finditer(text):
+                fields = [m["field"]] if m["field"] else re.findall(r'"(\w+)"\s*:', m["many"])
+                for field in fields:
+                    self.assertIn((m["dt"], field), kept,
+                                  f"{path.name}：直接改了 {m['dt']}.{field}，先用 lab.set_fields / keep_fields 记原值（格结束时 run_flow 还原，"
+                                  "成功、失败、超时都还原），不在 verify / cleanup 里自己还原")
+
+    def test_the_check_catches_a_restore_left_in_verify(self):
+        names = "|".join(map(re.escape, self.SETTINGS))
+        write = re.compile(r'set_value\(\s*"(?P<dt>%s)"\s*,\s*[^,]+,\s*(?:\{+(?P<many>[^}]*)\}+|"(?P<field>\w+)")' % names)
+        old = '''frappe.db.set_value("ERP Company", {company!r}, "express_enabled", 0, update_modified=False)'''
+        many = '''frappe.db.set_value("ERP Company", {t!r}, {{"express_sync_state": None, "express_sync_note": None}}, update_modified=False)'''
+        self.assertEqual(write.search(old)["field"], "express_enabled")
+        self.assertEqual(re.findall(r'"(\w+)"\s*:', write.search(many)["many"]), ["express_sync_state", "express_sync_note"])
 
 
 class BilledSites(unittest.TestCase):

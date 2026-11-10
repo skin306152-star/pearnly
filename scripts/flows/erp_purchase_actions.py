@@ -39,14 +39,13 @@ def prepare(lab, manifest):
     product = codes(manifest)["by_code"]["product"]
     tag = uuid.uuid4().hex[:6]
     before = stock_of(lab, manifest["site"], product, wh)
+    # 这一格关掉「接 Express」，单子不排进账本；格结束时 run_flow 还原（`Lab.set_fields`，成功、失败、超时都还原）
+    lab.set_fields(manifest["site"], "ERP Company", co, {"express_enabled": 0})
     out = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.purchasing import entry, service, suppliers
 frappe.set_user({USER!r})
 companies.set_active_company({co!r})
-express = frappe.db.get_value("ERP Company", {co!r}, "express_enabled")
-frappe.db.set_value("ERP Company", {co!r}, "express_enabled", 0, update_modified=False)
-frappe.db.commit()
 supplier = frappe.db.get_value("ERP Supplier", {{"supplier_name": "ผู้ขายโฟลว์ปุ่ม"}}) or \\
     suppliers.create_supplier(supplier_name="ผู้ขายโฟลว์ปุ่ม")["name"]
 frappe.db.commit()
@@ -65,22 +64,14 @@ draft = service.create_purchase(supplier_name="flow draft {tag}", doc_date=frapp
 frappe.db.commit()
 rows = {{key: frappe.db.get_value("Purchase Document", name, ["name", "system_no", "wht_amount", "net_payable", "status"], as_dict=True)
         for key, name in (("paying", paying["name"]), ("voiding", voiding["name"]), ("draft", draft["name"]))}}
-print(json.dumps({{"express": int(express or 0), "rows": rows}}, default=str))
+print(json.dumps({{"rows": rows}}, default=str))
 """)
     rows = out["rows"]
-    return {"company": co, "warehouse": wh, "product": product, "before": before, "express": out["express"], "tag": tag,
+    return {"company": co, "warehouse": wh, "product": product, "before": before, "tag": tag,
             "paying": rows["paying"]["name"], "paying_no": rows["paying"]["system_no"], "wht": float(rows["paying"]["wht_amount"] or 0),
             "voiding": rows["voiding"]["name"], "voiding_no": rows["voiding"]["system_no"],
             "draft": rows["draft"]["name"], "draft_supplier": f"flow draft {tag}",
             "reason": f"flow void {tag}", "cases": []}
-
-
-def cleanup(lab, manifest, params):
-    lab.python(manifest["site"], f"""
-frappe.db.set_value("ERP Company", {params['company']!r}, "express_enabled", {params['express']}, update_modified=False)
-frappe.db.commit()
-print(json.dumps({{}}))
-""")
 
 
 def steps(params, camera_code=None):

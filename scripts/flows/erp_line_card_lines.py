@@ -27,14 +27,14 @@ def prepare(lab, manifest):
     co, tag = company(manifest), uuid.uuid4().hex[:6]
     item = codes(manifest)["by_barcode"]
     warehouse = warehouses(manifest)[0]["name"]
+    # 这一格关掉「接 Express」，单子不排进账本；格结束时 run_flow 还原（`Lab.set_fields`，成功、失败、超时都还原）
+    lab.set_fields(manifest["site"], "ERP Company", co, {"express_enabled": 0})
     out = lab.python(manifest["site"], f"""
 import base64, hashlib
 from pearnly_erp_portal.integrations import intake, line_items
 from pearnly_erp_portal.masters import company as companies
 frappe.set_user("purchase@erp.regression")
 companies.set_active_company({co!r})
-express = frappe.db.get_value("ERP Company", {co!r}, "express_enabled")
-frappe.db.set_value("ERP Company", {co!r}, "express_enabled", 0, update_modified=False)
 name = frappe.db.get_value("ERP Product", {item['product']!r}, "product_name")
 file = frappe.get_doc({{"doctype": "File", "file_name": "line-{tag}.png", "is_private": 1,
                         "content": base64.b64decode({base64.b64encode(PIXEL).decode()!r})}}).insert()
@@ -54,7 +54,7 @@ if not value.get("warehouse"):
     value["warehouse"] = {warehouse!r}  # 同 LINE 里选仓那一步
     frappe.db.set_value(intake.DOCTYPE, doc.name, "line_choices", json.dumps(value))
 frappe.db.commit()
-print(json.dumps({{"intake": doc.name, "express": int(express or 0), "preset": preset, "warehouse": value["warehouse"]}}))
+print(json.dumps({{"intake": doc.name, "preset": preset, "warehouse": value["warehouse"]}}))
 """)
     return {**out, "company": co, "product": item["product"], "tag": tag, "cases": []}
 
@@ -97,8 +97,6 @@ lines = frappe.get_all("Purchase Line", filters={{"parent": row.purchase, "paren
                        fields=["item_type", "product"], order_by="idx asc") if row.purchase else []
 moved = frappe.get_all("ERP Stock Movement", filters={{"ref_id": row.purchase}}, pluck="product") if row.purchase else []
 remembered = frappe.db.count("ERP Line Item Memory", {{"last_document": row.purchase}}) if row.purchase else 0
-frappe.db.set_value("ERP Company", {params['company']!r}, "express_enabled", {params['express']}, update_modified=False)  # 还原
-frappe.db.commit()
 print(json.dumps({{"status": row.status, "lines": [dict(r) for r in lines], "moved": sorted(set(moved)), "remembered": remembered}}))
 """)
     kinds = [row["item_type"] for row in got["lines"]]

@@ -27,15 +27,15 @@ def prepare(lab, manifest):
     companies = manifest.get("companies") or [manifest["company"]]
     linked = bool(manifest.get("express_linked"))
     target = companies[1] if len(companies) > 1 else companies[0]
+    # 页面上改备注、点同步 Express（写同步状态）：先记原值，格结束时 run_flow 还原（`Lab.set_fields` / `keep_fields`，成功、失败、超时都还原）
+    lab.keep_fields(manifest["site"], "ERP Company", target, ["note"])
+    if linked:
+        lab.set_fields(manifest["site"], "ERP Company", target, {"express_sync_state": None, "express_sync_note": None})
     out = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.masters import company as companies
 frappe.set_user({ADMIN!r})
 current = companies.active_company()
-if {linked!r}:
-    frappe.db.set_value("ERP Company", {target!r}, {{"express_sync_state": None, "express_sync_note": None}}, update_modified=False)
-    frappe.db.commit()
-print(json.dumps({{"current": current or "", "count": frappe.db.count("ERP Company"),
-                  "note": frappe.db.get_value("ERP Company", {target!r}, "note") or ""}}))
+print(json.dumps({{"current": current or "", "count": frappe.db.count("ERP Company")}}))
 """)
     return {**out, "target": target, "linked": linked, "switch": len(companies) > 1,
             "new_note": "flow note " + uuid.uuid4().hex[:6], "warehouse": "คลังโฟลว์ปุ่ม " + uuid.uuid4().hex[:6], "cases": []}
@@ -47,7 +47,6 @@ from pearnly_erp_portal.masters import company as companies
 frappe.set_user({ADMIN!r})
 if {params['current']!r}:
     companies.set_active_company({params['current']!r})
-frappe.db.set_value("ERP Company", {params['target']!r}, "note", {params['note']!r}, update_modified=False)
 frappe.db.commit()
 print(json.dumps({{}}))
 """)

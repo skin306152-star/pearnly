@@ -115,6 +115,7 @@ class Lab:
 
     def __init__(self):
         self.manifests = {}  # 每套数据一次运行只补齐一遍
+        self._cell = threading.local()  # 并行时每个线程一次只跑一格：这一格临时改过的设置（`set_fields`）记在这里
 
     def exec(self, *args, timeout=900):
         return subprocess.run(["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", CONTAINER, *args],
@@ -146,6 +147,61 @@ print(json.dumps(before))
 """)
         time.sleep(SITE_CONFIG_SETTLE)
         return before
+
+    def set_fields(self, site, doctype, name, values):
+        """流程临时改公司等设置（ERP Company 的接 Express、公司类型、收银开关等）一律走这里：写入 values（不改 modified），
+        回之前的原值，并记在这一格上；这一格结束时（成功、失败、步骤超时、准备中途出错）`run_flow` 统一还原成第一次改之前的值
+        （`restore_fields`），流程自己不再写还原。同一格里可以多次改同一项（例如先关后开），还原只认最早的原值。
+
+        11-09 全套：erp.purchase.create 页面步骤 900 秒超时，它写在 verify 里的还原没跑到，公司一直「没接 Express」，
+        同一站点后面 6 个流程跟着失败。"""
+        return self._record(site, doctype, name, list(values), values)
+
+    def keep_fields(self, site, doctype, name, fields):
+        """只记原值、不写：这一格要由页面或产品代码去改的设置（例如页面上改公司备注、同步 Express 写的同步状态），
+        或流程在同一段代码里先改后还原的，先记在这一格上，格结束时同样还原（见 `set_fields`）。"""
+        return self._record(site, doctype, name, list(fields), None)
+
+    def _record(self, site, doctype, name, fields, values):
+        before = self.python(site, f"""
+fields, values = {fields!r}, {values!r}
+row = frappe.db.get_value({doctype!r}, {name!r}, fields, as_dict=True)
+if row is None:
+    raise RuntimeError("数据集缺前置：没有 " + {doctype!r} + " " + {name!r} + "（scripts/regression/datasets.py）")
+if values is not None:
+    frappe.db.set_value({doctype!r}, {name!r}, values, update_modified=False)
+    frappe.db.commit()
+print(json.dumps({{key: row.get(key) for key in fields}}, default=str))
+""")
+        self.changed().append((site, doctype, name, before))
+        return before
+
+    def changed(self):
+        """这一格到现在临时改过的设置：[(站点, DocType, 名称, 改之前的值)]，按改的先后。"""
+        if not hasattr(self._cell, "changed"):
+            self._cell.changed = []
+        return self._cell.changed
+
+    def restore_fields(self):
+        """把这一格 `set_fields` 改过的设置还原成最早的原值（每条记录一次写回）；一条还原失败也接着还原其余的，最后报错。"""
+        changed, self._cell.changed = self.changed(), []
+        original = {}
+        for site, doctype, name, before in changed:
+            fields = original.setdefault((site, doctype, name), {})
+            for field, value in before.items():
+                fields.setdefault(field, value)
+        failed = []
+        for (site, doctype, name), values in original.items():
+            try:
+                self.python(site, f"""
+frappe.db.set_value({doctype!r}, {name!r}, {values!r}, update_modified=False)
+frappe.db.commit()
+print("{{}}")
+""")
+            except Exception as error:  # noqa: BLE001 - 一条没还原上也要接着还原其余的
+                failed.append(f"{doctype} {name}: {error}")
+        if failed:
+            raise RuntimeError("restore_fields failed: " + "; ".join(failed)[:600])
 
     def dataset(self, which, product="erp"):
         """这套数据的清单（每个产品各两套：`datasets.py new|old [erp|cowork]`）。"""
@@ -272,16 +328,23 @@ def run_flow(lab, flow, dataset, viewport):
     manifest = lab.dataset(dataset, product)
     site, user = manifest["site"], f"{flow.get('user', 'admin')}@{product}.regression"
     before = lab.client_errors(site)
-    params = module.prepare(lab, manifest)
-    prepared = [params]
+    lab.changed().clear()
+    prepared = []
     try:
+        params = module.prepare(lab, manifest)
+        prepared.append(params)
         return _run_prepared(lab, flow, module, manifest, dataset, viewport, site, user, before, params, prepared)
     finally:
-        # 流程临时改了站点数据的（例如把一张单挪进这个月），声明 cleanup：成功、失败、步骤本身出错都还原（11-05 cc.operator）
-        cleanup = getattr(module, "cleanup", None)
-        if cleanup:
-            for one in prepared:
-                cleanup(lab, manifest, one)
+        try:
+            # 流程临时改了站点数据的（例如把一张单挪进这个月），声明 cleanup：成功、失败、步骤本身出错都还原（11-05 cc.operator）。
+            # 后准备的先收（相机那一遍的准备在第一遍之后，它记的「原值」是第一遍改过的）
+            cleanup = getattr(module, "cleanup", None)
+            if cleanup:
+                for one in reversed(prepared):
+                    cleanup(lab, manifest, one)
+        finally:
+            # 临时改的公司等设置（`Lab.set_fields`）：准备中途出错、步骤超时也还原，不带给同一站点的下一格
+            lab.restore_fields()
 
 
 def _run_prepared(lab, flow, module, manifest, dataset, viewport, site, user, before, params, prepared):

@@ -25,6 +25,8 @@ def prepare(lab, manifest):
     warehouse = warehouses(manifest)[0]["name"]
     tag = uuid.uuid4().hex[:6].upper()
     vins = [f"XLS{tag}{suffix}" for suffix in ("A", "B", "C")]
+    # 这一格把公司临时改成按台（汽车）类型；格结束时 run_flow 还原原值（`Lab.set_fields`，成功、失败、超时都还原）
+    lab.set_fields(manifest["site"], "ERP Company", co, {"company_type": "vehicle"})
     out = lab.python(manifest["site"], f"""
 import io, openpyxl
 from pearnly_erp_portal.inventory import serials
@@ -32,7 +34,6 @@ from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.products import service as products
 frappe.set_user("admin@erp.regression")
 companies.set_active_company({co!r})
-frappe.db.set_value("ERP Company", {co!r}, "company_type", "vehicle", update_modified=False)
 product = products.create_product(product_name="รถ Excel {tag}", unit="คัน", unit_price=500000, default_cost=400000)["name"]
 serials.turn_on(product, kind="vehicle")
 book = openpyxl.Workbook()
@@ -98,7 +99,6 @@ if task:  # 这份盘点的模板表头：号码三列要是译好的词，不�
     from pearnly_erp_portal.inventory import api
     api.api_stock_count_template(name=task)
     heads = [c.value for c in openpyxl.load_workbook(io.BytesIO(frappe.local.response.filecontent)).active[1]]
-frappe.db.set_value("ERP Company", {params['company']!r}, "company_type", "general", update_modified=False)  # 还原
 frappe.db.commit()
 print(json.dumps({{"units": units, "entries": entries, "kind": kind, "heads": heads,
                   "template": [{{"serial_no": r["serial_no"], "counted": r["counted_qty"]}} for r in template]}}, default=str))

@@ -28,14 +28,14 @@ def prepare(lab, manifest):
     products = manifest.get("products")
     product = products["by_code"]["product"] if isinstance(products, dict) else products[0]["name"]
     title = "flow-ia-count-" + uuid.uuid4().hex[:8]
+    # 这一格关掉「接 Express」；格结束时 run_flow 还原原值（`Lab.set_fields`，成功、失败、超时都还原）
+    lab.set_fields(manifest["site"], "ERP Company", company, {"express_enabled": 0})
     out = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.access import menu
 from pearnly_erp_portal.inventory import count, documents, warehouses
 from pearnly_erp_portal.masters import company as companies
 frappe.set_user("admin@erp.regression")
 companies.set_active_company({company!r})
-express = frappe.db.get_value("ERP Company", {company!r}, "express_enabled")
-frappe.db.set_value("ERP Company", {company!r}, "express_enabled", 0, update_modified=False)
 user = "stock@erp.regression"
 for key in ("stock-adjust", "stock-count"):
     if not frappe.db.exists("Has Role", {{"parent": user, "role": menu.role(key)}}):
@@ -48,7 +48,7 @@ documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), ware
 task = count.create_count(title={title!r}, warehouse=a)["name"]
 count.add_entry(count=task, product={product!r}, qty=3, warehouse=a, location="", request_id="flow-ia-count-" + task)
 frappe.db.commit()
-print(json.dumps({{"a": a, "task": task, "express": int(express or 0), "unit": documents.stock_units([{product!r}])[{product!r}]}}))
+print(json.dumps({{"a": a, "task": task, "unit": documents.stock_units([{product!r}])[{product!r}]}}))
 """)
     return {**out, "company": company, "product": product, "title": title, "cases": []}
 
@@ -112,7 +112,6 @@ again_state = frappe.db.get_value("ERP Stock Count", task, ["status", "adjustmen
 documents.delete_draft(again["name"])
 after_delete = [frappe.db.get_value("ERP Stock Count", task, "status"), frappe.db.get_value("ERP Stock Count", task, "adjustment"),
                 bool(frappe.db.exists("ERP Stock Entry", again["name"]))]
-frappe.db.set_value("ERP Company", {params['company']!r}, "express_enabled", {params['express']}, update_modified=False)  # 还原
 frappe.db.commit()
 print(json.dumps({{"state": state, "entry": entry, "moves": [dict(m, qty_base=float(m.qty_base)) for m in moves], "posted": posted,
                   "after_void": after_void, "again": again, "again_state": again_state, "after_delete": after_delete}}, default=str))

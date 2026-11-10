@@ -29,13 +29,14 @@ CART = "const cart=()=>all('.cart-items-section .cart-item-wrapper, .cart-contai
 def prepare(lab, manifest):
     co = company(manifest)
     item = codes(manifest)["by_barcode"]
+    # 这一格开着收银；格结束时 run_flow 还原原值（`Lab.set_fields`，成功、失败、超时都还原）
+    lab.set_fields(manifest["site"], "ERP Company", co, {"pos_enabled": 1})
     out = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.cashier import shifts, terminals
 from pearnly_erp_portal.inventory import documents
 from pearnly_erp_portal.masters import company as companies
 frappe.set_user("admin@erp.regression")
 companies.set_active_company({co!r})
-frappe.db.set_value("ERP Company", {co!r}, "pos_enabled", 1, update_modified=False)
 till = terminals.ensure_default(company={co!r})
 if not frappe.db.get_value("ERP POS Terminal", till, "warehouse"):  # 接 Express 的公司默认那台不带仓：同 erp_pos_shift 挂第一个仓
     first = frappe.get_all("ERP Warehouse", filters={{"company": {co!r}, "is_active": 1}}, pluck="name", order_by="express_code asc, creation asc")[0]
