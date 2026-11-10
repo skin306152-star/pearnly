@@ -461,6 +461,9 @@ class CoworkUploadStateTests(unittest.TestCase):
         ocr.detail = detail
         tools = types.ModuleType("pearnly_cowork.assistant.tools")
         tools.PUSHED_OR_ON_ITS_WAY = ["pending", "success"]
+        # 方向按 `tools.judged_direction`（声明的优先，没声明按推送同一套税号判据；判据本身在 test_cowork_assistant_tools）
+        tools.direction_anchors = lambda: None
+        tools.judged_direction = lambda page, *args, **kwargs: str((page or {}).get("direction") or "")
         history = types.ModuleType("pearnly_core.express_rules.contracts.history")
         history.primary_page_fields = lambda pages: pages[0]["fields"] if pages else {}
         STATE["tables"] = {"Cowork OCR History": [
