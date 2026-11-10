@@ -134,7 +134,9 @@ INTAKE_DOCTYPE = "ERP LINE Intake"  # 同 `integrations.intake.DOCTYPE`；先查
 
 
 def _intake_rows(company, first, last) -> list:
-    """资料区里还等着提交的收单记录（本人、这家公司、单据日期在这个月）。"""
+    """资料区里还等着提交的收单记录（本人、这家公司放进来的）。单据日期不在这个月的照样列出，带 ``other_month``（票的年月）：
+    11-10 线上压测 S5b，11 月的代录放了 25 页 8 月的票，只列本月的那版一张都不出现，CC 让用户「放进系统再说」；
+    不是本月的由 CC 在对话里说清、再问怎么处理（主会话 11-10），不悄悄丢掉。"""
     names = frappe.get_all(INTAKE_DOCTYPE, filters={"source": "cc", "sent_by": frappe.session.user, "company": company,
                                                     "status": "ready"},
                            pluck="name", order_by="creation desc", limit_page_length=INTAKE_MAX)
@@ -144,12 +146,15 @@ def _intake_rows(company, first, last) -> list:
 
     out = []
     for row in chat_intake.chat_records(names):
-        if row["status"] != chat_intake.READY or not (first <= str(row.get("doc_date") or "") <= last):
+        if row["status"] != chat_intake.READY:
             continue
-        kind = row.get("direction") or "purchase"
-        out.append({"doc_id": f"{INTAKE}:{row['record']}", "kind": kind, "group": kind, "date": str(row.get("doc_date") or ""),
-                    "party": row.get("party") or "", "ref": row.get("doc_no") or "",
-                    "total": str((row.get("totals") or {}).get("grand_total") or ""), "stopped": ""})
+        kind, day = row.get("direction") or "purchase", str(row.get("doc_date") or "")
+        item = {"doc_id": f"{INTAKE}:{row['record']}", "kind": kind, "group": kind, "date": day,
+                "party": row.get("party") or "", "ref": row.get("doc_no") or "",
+                "total": str((row.get("totals") or {}).get("grand_total") or ""), "stopped": ""}
+        if day and not (first <= day <= last):
+            item["other_month"] = day[:7]
+        out.append(item)
     return out
 
 

@@ -76,14 +76,18 @@ class Intake(Base):
         self.assertEqual(found["LI-1"]["state"], "done")
         self.assertEqual([d["doc_id"] for d in found["LI-1"]["documents"]], ["I:LI-1", "I:LI-2"])
 
-    def test_sources_list_pending_records_of_the_month(self):
+    def test_sources_list_every_pending_record_put_in_and_mark_other_months(self):
+        # 11-10 线上压测 S5b：11 月的代录放了 25 页 8 月的票，资料只列单据日期在本月的，25 张都没出现，CC 让用户「放进系统再说」。
+        # 放进来的照样列出，不是本月的带 other_month（票是几月的），由 CC 在对话里说清再问（主会话 11-10）
         rows = [{"record": "LI-1", "status": "ready", "direction": "purchase", "doc_no": "IV1", "doc_date": "2026-11-03",
                  "party": "A", "totals": {"grand_total": "107.00"}},
-                {"record": "LI-3", "status": "ready", "direction": "sales", "doc_no": "S1", "doc_date": "2026-10-30"}]
-        with patch.object(frappe, "get_all", return_value=["LI-1", "LI-3"]), \
+                {"record": "LI-3", "status": "ready", "direction": "sales", "doc_no": "S1", "doc_date": "2026-08-30"},
+                {"record": "LI-4", "status": "queued", "direction": "purchase", "doc_no": "", "doc_date": ""}]
+        with patch.object(frappe, "get_all", return_value=["LI-1", "LI-3", "LI-4"]), \
                 patch.object(intake, "chat_records", return_value=rows):
             found = operator._intake_rows("CO-1", "2026-11-01", "2026-11-30")
-        self.assertEqual([(r["doc_id"], r["total"]) for r in found], [("I:LI-1", "107.00")])
+        self.assertEqual([(r["doc_id"], r["total"], r.get("other_month")) for r in found],
+                         [("I:LI-1", "107.00", None), ("I:LI-3", "", "2026-08")])
 
 
 class Precheck(Base):
