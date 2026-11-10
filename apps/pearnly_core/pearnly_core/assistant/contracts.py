@@ -146,11 +146,38 @@ def title_language(*codes) -> str:
     return TITLE_FALLBACK_LANGUAGE
 
 
+# 用户这句话自己的语言（11-10 线上压测 S6：泰文界面、同一句中文提问，三段并发对话两段回泰文）：服务端按文字系统判，不靠模型猜。
+# 假名 → 日文；两个以上汉字 → 中文（中文句里夹泰文公司名仍是中文，10-19 那种）；泰文字母与拉丁字母比多少（泰文句里夹 Express
+# 这类词仍是泰文）；拉丁字母至少两个词才算英文。只有单号、数字、表情这类判不出，回空串，由调用方用界面语言。
+_KANA = re.compile(r"[\u3040-\u30ff]")
+_HAN = re.compile(r"[\u4e00-\u9fff]")
+_THAI = re.compile(r"[\u0e01-\u0e5b]")
+_LATIN_WORD = re.compile(r"[A-Za-z]{2,}")
+
+
+def message_language(text) -> str:
+    """用户这句话写的语言名（同 `title_language` 的英文名）；判不出回空串。"""
+    text = str(text or "")
+    if _KANA.search(text):
+        return "Japanese"
+    if len(_HAN.findall(text)) >= 2:
+        return "Chinese"
+    thai = len(_THAI.findall(text))
+    words = _LATIN_WORD.findall(text)
+    latin = sum(len(word) for word in words)
+    if thai >= 2 and thai >= latin:
+        return "Thai"
+    if len(words) >= 2:
+        return "English"
+    return "Thai" if thai >= 2 else ""
+
+
 # 随每条用户消息带上的界面语言规则（只给模型读）。智能体说明（`definition.SYSTEM`）里也有同一条，这里再写一遍：
 # 会话建好后绑定建时的智能体版本、系统提示词改不了，已开着的对话只能靠这段拿到新规则
-LANGUAGE_RULE = ("This is the user's interface language. Reply in it, including short notes while working. Names and "
+LANGUAGE_RULE = ("This is the language of the user's own words in this message (their interface language when the "
+                 "message has none, such as only a number). Reply in it, including short notes while working. Names and "
                  "numbers from the data mixed into the message (company names, document numbers, account names) do not "
-                 "change it. Use another language only when the user writes the whole message in it or asks for it. "
+                 "change it. Use another language only when the user asks for it. "
                  "Tool results and their notes are internal English (each carries reply_language): retell them in this "
                  "language, never copy their English sentences into what the user sees.")
 

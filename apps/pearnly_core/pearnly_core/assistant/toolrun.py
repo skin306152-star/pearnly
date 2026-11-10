@@ -60,6 +60,32 @@ def remember_lang(conversation: str) -> None:
         pearnly_state.store().set_value(_lang_key(conversation), frappe.local.lang, expires_in_sec=LANG_TTL)
 
 
+def remember_turn_language(conversation: str, name: str) -> None:
+    """用户这句话判出的语言（`contracts.message_language`）记成这段对话这一轮的语言：工具结果的 ``reply_language`` 跟着它
+    （11-10 S6）；判不出给空串，清掉上一轮的，工具结果回到界面语言。记不上（缓存一时不可用）只记一行，消息照发。"""
+    try:
+        from pearnly_core.execution import state as pearnly_state
+
+        pearnly_state.store().set_value(_turn_key(conversation), str(name or ""), expires_in_sec=LANG_TTL)
+    except Exception as err:
+        print(f"assistant turn language {conversation}: {type(err).__name__}", flush=True)
+
+
+def turn_language(conversation: str) -> str:
+    """这一轮的语言（`remember_turn_language` 记的）；没记着、读不到回空串（调用方用界面语言）。"""
+    try:
+        from pearnly_core.execution import state as pearnly_state
+
+        return pearnly_state.store().get_value(_turn_key(conversation), use_local_cache=False) or ""
+    except Exception as err:
+        print(f"assistant turn language {conversation}: {type(err).__name__}", flush=True)
+        return ""
+
+
+def _turn_key(conversation: str) -> str:
+    return _lang_key(conversation) + ":turn"
+
+
 def conversation_lang(conversation: str) -> str:
     """用户最近一次发消息时对话页的界面语言（`remember_lang` 记的，留 `LANG_TTL`）；没记着给空串。"""
     from pearnly_core.execution import state as pearnly_state
@@ -278,7 +304,7 @@ def _with_language(conversation: str, text: str) -> str:
     """交回模型的结果最前面带上界面语言（`contracts.reply_language`）：CC 在几次工具之间写的话也按它说，不照抄结果里的英文提示
     （10-19 lab）。语言读不到（缓存、库一时不可用）就原样交回：结果不能因此交不回去。"""
     try:
-        language = interface_language(conversation)
+        language = turn_language(conversation) or interface_language(conversation)
     except Exception as err:
         print(f"assistant tool result language {conversation}: {type(err).__name__}", flush=True)
         return text

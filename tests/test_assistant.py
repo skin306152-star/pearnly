@@ -1743,11 +1743,13 @@ class ToolAndDefinitionTests(unittest.TestCase):
         # 10-19 测试：中文提问夹着泰文公司名、单号，CC 按「最新消息的语言」整段答成泰文。改按 <language>（界面语言）回复
         system = definition.brief("cowork")["system"]
         self.assertNotIn("language of the user's latest message", system)
-        for words in ("Reply in the user's interface language, given in <language> tags with each user message",
+        # 11-10 线上压测 S6 起：<language> 是用户这句话自己的语言（服务端判），判不出才是界面语言
+        for words in ("Reply in the language given in <language> tags with each user message",
+                      "the language of the user's own words in that message, or their interface language when it has none",
                       "including any short notes you write while working",
                       "\"the user's language\" below means this language",
                       "(company names, document numbers, account names) do not change it",
-                      "Follow another language only when the user writes the whole message in it or asks you to use it"):
+                      "Follow another language only when the user asks you to use it"):
             self.assertIn(words, " ".join(system.split()), words)
         # 语言标记的写法与说明里说的一致
         self.assertIn("<language>Chinese</language>", contracts.language_note("Chinese"))
@@ -2478,6 +2480,49 @@ class NoticeTests(unittest.TestCase):
                                                                           contracts.now_note(self.now, BANGKOK))])
             self.assertEqual(carried, [])
 
+    def test_the_language_of_the_users_own_words_is_judged_on_the_server(self):
+        # 11-10 线上压测 S6：泰文界面、三段对话同一句中文提问，两段回泰文。改按这句话自己的文字判，判不出才用界面语言
+        judge = contracts.message_language
+        self.assertEqual(judge("这些票帮我录进去，合计多少？"), "Chinese")
+        self.assertEqual(judge("P3-DEP-H 用 T.7 推送，公司 นิภา เอ็กซ์เชนจ์"), "Chinese")  # 夹泰文公司名仍是中文（10-19）
+        self.assertEqual(judge("บันทึกไฟล์ PDF นี้เข้า Express ให้หน่อย"), "Thai")
+        self.assertEqual(judge("取り込んで、どの帳簿に入力するか教えて"), "Japanese")
+        self.assertEqual(judge("Please enter these invoices into Express"), "English")
+        for none in ("IV69/00628", "12", "ok", "", "👍", "RR6910-007 7,169.00"):
+            self.assertEqual(judge(none), "", none)
+
+    def test_send_follows_the_language_of_this_message_and_tool_results_follow_it(self):
+        sessions = self._sessions()
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        row = _Row(name="row1", session_id="sesn_mine1", user="a@example.com", title="t", pending_carry="")
+        posted, turns = [], {}
+        api = types.SimpleNamespace(post=lambda remote, batch: posted.append(batch))
+        db = types.SimpleNamespace(set_value=lambda *a, **k: None,
+                                   get_value=lambda doctype, name, field: "th" if doctype == "User" else None)
+        with mock.patch.object(sessions, "owned", return_value=row), \
+                mock.patch.object(sessions, "segment_for_turn", return_value="sesn_mine1"), \
+                mock.patch.object(sessions.engine, "adapter", return_value=api), \
+                mock.patch.object(sessions.toolrun, "remember_lang", lambda sid: None), \
+                mock.patch.object(sessions.toolrun, "conversation_lang", lambda sid: "th"), \
+                mock.patch.object(sessions.toolrun, "remember_turn_language", lambda sid, name: turns.__setitem__(sid, name)), \
+                mock.patch.object(sessions.relay, "ensure", lambda *a: None), \
+                mock.patch.object(sessions.notices, "uncarried", lambda sid, user: []), \
+                mock.patch.object(sessions.titles, "start", lambda row, text, user: None), \
+                mock.patch.object(sessions.frappe, "db", db, create=True):
+            sessions.send("sesn_mine1", "这几张票合计多少？")
+            self.assertIn("<language>Chinese</language>", posted[-1][-1]["content"][0]["text"])
+            self.assertEqual(turns["sesn_mine1"], "Chinese")
+            sessions.send("sesn_mine1", "IV69/00628")  # 判不出：界面语言，这一轮的语言清掉
+            self.assertIn("<language>Thai</language>", posted[-1][-1]["content"][0]["text"])
+            self.assertEqual(turns["sesn_mine1"], "")
+        # 工具结果的 reply_language 先取这一轮的语言，没有才用界面语言
+        with mock.patch.object(toolrun, "turn_language", lambda conversation: "Chinese"), \
+                mock.patch.object(toolrun, "interface_language", lambda conversation, user=None: "Thai"):
+            self.assertTrue(toolrun._with_language("conv", '{"status": "saved"}').startswith('{"reply_language": "Chinese"'))
+        with mock.patch.object(toolrun, "turn_language", lambda conversation: ""), \
+                mock.patch.object(toolrun, "interface_language", lambda conversation, user=None: "Thai"):
+            self.assertTrue(toolrun._with_language("conv", '{"status": "saved"}').startswith('{"reply_language": "Thai"'))
+
     def test_send_tells_cc_the_interface_language_out_of_sight(self):
         # 10-19 测试：中文界面、中文提问夹着泰文公司名和单号（「P3-DEP-H 用 T.7 推送」），CC 整段答成泰文。
         # 每条消息随批末系统消息带上界面语言（同标题一个来源）；用户消息原文、临时标题都不带它
@@ -2532,7 +2577,7 @@ class NoticeTests(unittest.TestCase):
         self.assertEqual(contracts.language_note(""), "")
         # 已开着的对话绑定建时的智能体说明（旧规则「按最新消息的语言」），标记自己带上同一条规则
         for words in ("Reply in it, including short notes while working", "(company names, document numbers, account names) do not change it",
-                      "only when the user writes the whole message in it or asks for it"):
+                      "the language of the user's own words in this message", "Use another language only when the user asks for it"):
             self.assertIn(words, contracts.LANGUAGE_RULE)
 
     def test_events_bring_this_conversations_notices(self):
