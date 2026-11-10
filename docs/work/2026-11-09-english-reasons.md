@@ -3,7 +3,7 @@
 主会话派：测试机中文界面右侧「待处理」卡片里 CC11214-0002 的原因显示英文
 「The computer could not read this account…」（截图 `~/pearnly-devtools/release-1108/shots/05-before-send-english-pending.png`）。
 按类找出 CC 桌面版、服务端送到界面上的原因与状态文字里没走四语词条、原样显示英文的，补成四语词条，加检查拦以后新冒出来的。
-已有文案一条不改。MR.ERP 的原因码由 MR.ERP 线 `pearnly/mrerp-p0-reason-codes`（5bc2be283，未合入）补，这里不重复（已与该窗口对过：
+已有文案一条不改。MR.ERP 的原因码由 MR.ERP 线 `pearnly/mrerp-p0-reason-codes`（11-10 已合入 main 64c128a88）补，这里不重复（已与该窗口对过：
 它只改 `export_facts._REASON_CODES` 第三条、`intake-upload.js` 同一条、ERP `pending.reason_label` / `transactions.js` 认 `mrerp.*`，
 术语表追加在 intake.error / mrerp.error 块末尾；本分支不碰这些，新增行不放块末尾）。
 
