@@ -29,6 +29,11 @@
   上下文里没有调用编号）；`test_cowork_assistant_tools.RecognitionWaitTests.test_waiting_in_place_reports_the_pages_read_so_far_each_time_they_change`
   （旧代码一次进度都没报）。改后两份全绿（test_assistant、test_cowork_assistant_tools 250 条）。
 - 两条老断言按字面核对执行上下文，跟着加上 `tool_use_id`。
+- 本地闸门过；候选离线（生产镜像 fb1037ad）107 组 LANE EXIT 0。
+- 流程 `--changed`（cowork.cc.send-while-waiting、cowork.operator.send-while-waiting）：当场等那段状态行从「正在识别单据」变成「排队中」
+  （补拉带回来的进度；实验栈没有 socketio，只能靠轮询）。手机格「挂起后 4 秒内切成发送键」9 次里红 3 次，其中一次在纯 main
+  2f8e2643a 上；四个前端版本单跑都过，本分支变基到 2f8e2643a 后冷跑（--migrate）、热跑都过。判定为流程只等 4 秒、靠轮询偏紧的
+  偶发，与本分支无关，已写进共享「已知问题与结论」。
 
 ## 上线后要人验
 两个分支（本分支与 `cc-wait-progress-shown`）都上线后，在 testcowork 放一份 20 页以上的扫描 PDF：直写说「录进 Express」、代录同样放一份。
