@@ -39,6 +39,20 @@ def _lock(site: str, remote: str) -> str:
     return f"pearnly_assistant:relay:{site}:{remote}"
 
 
+def _hold(key: str, token: str) -> bool:
+    """推一个事件前核对这一路还是不是这段会话唯一的转发。锁只在收到事件时续期，工具在这条线程里同步执行（识别 102 页
+    2 分 20 秒）、模型想得久时，锁会过期，页面一个请求就又起一路；两路都推，每个事件推两遍——正式事件按编号去重看不出来，
+    逐字预览没有编号，回复写的时候字字叠两遍（11-10 线上压测 S1）。还是自己的：续期；过期了没人接：拿回来接着推；
+    别的一路已经接手：停下，由它推。"""
+    held = frappe.cache.get(key)
+    if held is None:
+        return bool(frappe.cache.set(key, token, nx=True, ex=LOCK_TTL))
+    if (held.decode() if isinstance(held, bytes) else str(held)) != token:
+        return False
+    frappe.cache.expire(key, LOCK_TTL)
+    return True
+
+
 def ensure(conversation: str, remote: str, user: str) -> None:
     """确保这段远端会话有一路转发在跑；新起的一路等接上事件流（最多几秒）再返回，之后发出的事件不会漏推。"""
     site = frappe.local.site
@@ -134,8 +148,9 @@ def _run(site, sites_path, conversation, remote, user, key, token, ready):
         for _attempt in range(RECONNECTS + 1):
             try:
                 for event in api.stream(remote, ready.set):
+                    if not _hold(key, token):
+                        return  # 别的一路已经接手这段会话：这一路不再推（`_hold`）
                     frappe.publish_realtime(EVENT, {"session_id": conversation, "event": event}, user=user)
-                    frappe.cache.expire(key, LOCK_TTL)
                     if event.get("type") == "span.model_request_end":
                         _note(conversation, event)
                     if event.get("type") == "agent.message":

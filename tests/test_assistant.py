@@ -4534,6 +4534,46 @@ class SidebarSyncTests(unittest.TestCase):
                 relay._run("t1.example", "/sites", "sesn_first1", "sesn_first1", self.OWNER, "k", "tok",
                            __import__("threading").Event())
 
+    def test_only_one_relay_pushes_a_conversation_after_its_lock_lapsed(self):
+        """11-10 线上压测 S1：识别 102 页在推送线程里跑了 2 分 20 秒，锁（120 秒、收到事件才续期）过期，页面一个请求又起了一路；
+        两路都推，每个事件推两遍——正式事件按编号去重看不出来，逐字预览没有编号，回复写的时候字字叠两遍（「ผู้ซผู้ซื้อใน…」），
+        写完才恢复。修后：推每个事件前核对锁——还是自己的续期；过期了没人接就拿回接着推；别的一路已经接手就停，也不删别人的锁。"""
+        relay = sys.modules["pearnly_core.assistant.relay"]
+        stream = [{"type": "session.status_running"}, {"type": "event_delta", "event_id": "m1"},
+                  {"type": "event_delta", "event_id": "m1"}, {"type": "event_delta", "event_id": "m1"},
+                  {"type": "session.status_idle", "stop_reason": {"type": "end_turn"}}]
+        api = types.SimpleNamespace(stream=lambda remote, opened: (opened(), iter(stream))[1], status=lambda remote: "idle")
+        held = {"k": b"tok"}
+        deleted = []
+
+        def get(key):
+            if len(self.pushed) == 2 and taken_over:
+                held[key] = b"other"  # 推了两条之后，锁过期、别的一路接手
+            return held.get(key)
+
+        def set_(key, value, nx=False, ex=None):
+            if nx and key in held:
+                return False
+            held[key] = value.encode() if isinstance(value, str) else value
+            return True
+
+        cache = types.SimpleNamespace(expire=lambda *a: None, get=get, set=set_, delete=lambda key: deleted.append(key))
+        with mock.patch.object(relay.frappe, "init", lambda **kw: None, create=True), \
+                mock.patch.object(relay.frappe, "connect", lambda: None, create=True), \
+                mock.patch.object(relay.frappe, "set_user", lambda user: None, create=True), \
+                mock.patch.object(relay.frappe, "destroy", lambda: None, create=True), \
+                mock.patch.object(relay.frappe, "cache", cache, create=True), \
+                mock.patch.object(relay.engine, "adapter", return_value=api), \
+                mock.patch.object(relay.titles, "turn_ended", lambda sid: None):
+            taken_over = True
+            relay._run("t1.example", "/sites", "sesn_first1", "sesn_first1", self.OWNER, "k", "tok", __import__("threading").Event())
+            self.assertEqual(len(self.pushed), 2)  # 别的一路接手之后这一路一条都不再推
+            self.assertEqual((held["k"], deleted), (b"other", []))  # 也不删别人的锁
+            # 锁过期了、没有别的一路：拿回来接着推完
+            taken_over, held, self.pushed[:] = False, {}, []
+            relay._run("t1.example", "/sites", "sesn_first1", "sesn_first1", self.OWNER, "k", "tok", __import__("threading").Event())
+            self.assertEqual(len(self.pushed), 5)
+
     def _sessions(self, row, api):
         sessions = _load("pearnly_core.assistant.sessions", CORE / "assistant/sessions.py")
         files = types.ModuleType("files")
