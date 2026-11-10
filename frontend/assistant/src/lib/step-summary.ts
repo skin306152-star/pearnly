@@ -1,13 +1,13 @@
 // 一组连续工具调用的摘要（同 Claude Code，设计文档 3.11）：按类计数、带失败数，各类按首次出现的顺序连成一行，
 // 例「已运行 2 个命令（1 个失败），已读取 3 个文件」。纯函数：不碰 React、不读页面语言，文案由调用方传进来（i18n.ts 的 steps.summary）。
 //
-//   命令 bash · 读取 read · 编辑 write / edit · 搜索 glob / grep / web_search · 获取页面 web_fetch
+//   处理文件 bash / read / write / edit / glob / grep · 搜索 web_search · 获取页面 web_fetch
 //   本站工具（服务端声明了做完的说法，lib/tool-labels.ts）用它自己的说法，多次时「× n」；其余工具合成「已使用 N 个工具」
 //   点了「拒绝」的一步（没做）不用做完的说法：写卡片上那句问话（去掉问号）加「已拒绝」（第 8 轮测试机：拒绝存公司规则后
 //   摘要仍写「记下了公司选择」）；结果说没存上（status 为 not_saved / failed）的算失败，要点「允许」的工具同样写问话、加「失败」
 //   （第 8 轮审查：不能先读到「记下了」）。问话去掉疑问的写法：问号，中文的「要…吗」，泰文句末的 ไหม / หรือไม่，日文句末的「か」
 
-export type StepKind = "command" | "read" | "edit" | "search" | "fetch" | "tool";
+export type StepKind = "work" | "command" | "read" | "edit" | "search" | "fetch" | "tool";
 
 export type SummaryCopy = Record<StepKind, (n: number) => string> & {
   failed: (n: number) => string;
@@ -26,12 +26,14 @@ export type Denial = { word?: string; asks: Readonly<Record<string, string>>; fa
 export type SummaryEntry = { kind: string; count: number; failed: number };
 
 const KINDS: Readonly<Record<string, StepKind>> = {
-  bash: "command",
-  read: "read",
-  write: "edit",
-  edit: "edit",
-  glob: "search",
-  grep: "search",
+  // 模型在工作区里的步骤（命令、读写改文件、找文件）合成一类「处理文件」，不分开数命令、文件（11-10 线上压测：命令、路径、
+  // 文件名不给用户看）
+  bash: "work",
+  read: "work",
+  write: "work",
+  edit: "work",
+  glob: "work",
+  grep: "work",
   web_search: "search",
   web_fetch: "fetch",
 };

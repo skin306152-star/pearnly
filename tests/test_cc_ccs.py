@@ -1134,11 +1134,10 @@ import assert from "node:assert/strict";
 import { stepFailed, stepKind, summarize, summaryText } from "@/lib/step-summary";
 import { steps } from "@/i18n";
 const done = { pearnly_save_draft: "__SAVED__" };
-// 分类：内置工具按类，本站工具（有做完的说法）各一类，其余「工具」
-assert.equal(stepKind("bash", done), "command");
-assert.equal(stepKind("write", done), "edit");
-assert.equal(stepKind("edit", done), "edit");
-for (const name of ["glob", "grep", "web_search"]) assert.equal(stepKind(name, done), "search");
+// 分类：模型在工作区里的步骤（命令、读写改文件、找文件）合成一类「处理文件」（11-10 线上压测：状态行原样露出命令、路径、
+// 文件名），网页搜索、打开网页各一类，本站工具（有做完的说法）各一类，其余「工具」
+for (const name of ["bash", "read", "write", "edit", "glob", "grep"]) assert.equal(stepKind(name, done), "work");
+assert.equal(stepKind("web_search", done), "search");
 assert.equal(stepKind("web_fetch", done), "fetch");
 assert.equal(stepKind("pearnly_save_draft", done), "own:pearnly_save_draft");
 assert.equal(stepKind("mcp__x__y", done), "tool");
@@ -1161,23 +1160,53 @@ const parts = [
 ];
 const entries = summarize(parts, done);
 assert.deepEqual(entries.map((e) => [e.kind, e.count, e.failed]), [
-  ["command", 2, 1], ["read", 1, 0], ["own:pearnly_save_draft", 2, 0], ["tool", 1, 1], ["search", 2, 0], ["fetch", 1, 1], ["edit", 2, 0],
+  ["work", 6, 1], ["own:pearnly_save_draft", 2, 0], ["tool", 1, 1], ["search", 1, 0], ["fetch", 1, 1],
 ]);
 assert.equal(summaryText(entries, steps.summary, done), __WANT__);
 assert.equal(summaryText(summarize([{ toolName: "pearnly_save_draft", failed: true }], done), steps.summary, done), __ONE__);
 (globalThis as any).done();
 """
         cases = {
-            "en": ("Ran 2 commands (1 failed), Read 1 file, __SAVED__ ×2, Used 1 tool (1 failed), Searched 2 times, "
-                   "Fetched 1 page (1 failed), Edited 2 files", "__SAVED__ (1 failed)"),
+            "en": ("Worked with files ×6 (1 failed), __SAVED__ ×2, Used 1 tool (1 failed), Searched once, "
+                   "Fetched 1 page (1 failed)", "__SAVED__ (1 failed)"),
             # 中文连接符照 Claude Code 实测（「已获取 6 个页面（6 个失败）, 已浏览 网页」）
-            "zh": ("已运行 2 个命令（1 个失败）, 已读取 1 个文件, __SAVED__ ×2, 已使用 1 个工具（1 个失败）, 已搜索 2 次, "
-                   "已获取 1 个页面（1 个失败）, 已编辑 2 个文件", "__SAVED__（1 个失败）"),
-            "th": ("รันคำสั่ง 2 รายการ (ไม่สำเร็จ 1), อ่าน 1 ไฟล์, __SAVED__ ×2, ใช้เครื่องมือ 1 รายการ (ไม่สำเร็จ 1), ค้นหา 2 ครั้ง, "
-                   "เปิด 1 หน้า (ไม่สำเร็จ 1), แก้ไข 2 ไฟล์", "__SAVED__ (ไม่สำเร็จ 1)"),
+            "zh": ("已处理文件 ×6（1 个失败）, __SAVED__ ×2, 已使用 1 个工具（1 个失败）, 已搜索 1 次, "
+                   "已获取 1 个页面（1 个失败）", "__SAVED__（1 个失败）"),
+            "th": ("จัดการไฟล์แล้ว ×6 (ไม่สำเร็จ 1), __SAVED__ ×2, ใช้เครื่องมือ 1 รายการ (ไม่สำเร็จ 1), ค้นหา 1 ครั้ง, "
+                   "เปิด 1 หน้า (ไม่สำเร็จ 1)", "__SAVED__ (ไม่สำเร็จ 1)"),
         }
         for lang, (want, one) in cases.items():
             run_ts(script.replace("__WANT__", repr(want)).replace("__ONE__", repr(one)), lang=lang)
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_workspace_steps_never_show_commands_paths_or_file_names(self):
+        # 11-10 线上压测：状态行原样露出「กำลังรันคำสั่ง cd /tmp && mkdir -p ocr && pdftoppm …」「ls -la /mnt/session/uploads/…」
+        # 「กำลังอ่าน hi-10.png」。模型在工作区里的步骤只写一句「处理文件」：状态行、卡片问法都不带命令、路径、文件名
+        script = r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { askText, runningStepLabel } from "@/components/tool-uis/steps";
+import { steps } from "@/i18n";
+const labels: any = { done: {}, running: {}, ask: {}, askWhen: {} };
+const calls: Array<[string, Record<string, unknown>]> = [
+  ["bash", { command: "cd /tmp && mkdir -p ocr && pdftoppm -r 150 /mnt/session/uploads/inv.pdf ocr/p" }],
+  ["bash", { command: "ls -la /mnt/session/uploads/" }],
+  ["read", { file_path: "/mnt/session/uploads/hi-10.png" }],
+  ["write", { file_path: "/tmp/out.json", content: "{}" }],
+  ["edit", { file_path: "/tmp/a.py", new_string: "x" }],
+  ["glob", { pattern: "**/*.pdf" }],
+  ["grep", { pattern: "TAX ID" }],
+];
+for (const [name, args] of calls) {
+  assert.equal(runningStepLabel(name, args, labels), steps.work[0], name);
+  assert.equal(askText(name, args, undefined, labels), steps.work[2], name);
+}
+for (const label of calls.map(([name, args]) => runningStepLabel(name, args, labels)))
+  for (const bit of ["/tmp", "/mnt", "pdftoppm", "ls -la", "hi-10.png", "**/*.pdf", "TAX ID"]) assert.ok(!label.includes(bit), label);
+(globalThis as any).done();
+"""
+        for lang in ("en", "zh", "th", "ja"):
+            run_ts(script, lang=lang)
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
     def test_a_denied_step_reads_as_not_done(self):

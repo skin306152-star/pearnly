@@ -422,6 +422,7 @@ const STEPS = {
   en: {
     thinking: "Working…", thinkingNow: "Working", seconds: (n: number) => `${n}s`, thought: "Thought process", usedTool: "Used a tool", cancelled: "Cancelled", error: "Error",
     showOutput: "Show output", hideOutput: "Hide output",
+    work: ["Working with files", "Worked with files", "Work with files"],
     bash: ["Running a command", "Ran a command", "Run a command"],
     read: ["Reading", "Read", "Read file"], write: ["Writing", "Wrote", "Write file"], edit: ["Editing", "Edited", "Edit file"],
     glob: ["Finding files", "Found files", "Find files"], grep: ["Searching files", "Searched files", "Search files"],
@@ -433,6 +434,7 @@ const STEPS = {
     thoughtFor: (time: string) => `Thought for ${time}`, connectionLost: "Connection lost, reconnecting…", running: "Running",
     // 跑完的步骤组摘要（lib/step-summary.ts，同 Claude Code：按类计数、带失败数）
     summary: {
+      work: (n: number) => (n === 1 ? "Worked with files" : `Worked with files ×${n}`),
       command: (n: number) => `Ran ${n} ${n === 1 ? "command" : "commands"}`, read: (n: number) => `Read ${n} ${n === 1 ? "file" : "files"}`,
       edit: (n: number) => `Edited ${n} ${n === 1 ? "file" : "files"}`, search: (n: number) => (n === 1 ? "Searched once" : `Searched ${n} times`),
       fetch: (n: number) => `Fetched ${n} ${n === 1 ? "page" : "pages"}`, tool: (n: number) => `Used ${n} ${n === 1 ? "tool" : "tools"}`,
@@ -442,6 +444,7 @@ const STEPS = {
   zh: {
     thinking: "正在执行…", thinkingNow: "执行中", seconds: (n: number) => `${n}秒`, thought: "思考过程", usedTool: "已使用工具", cancelled: "已取消", error: "错误",
     showOutput: "显示输出", hideOutput: "收起输出",
+    work: ["正在处理文件", "已处理文件", "处理文件"],
     bash: ["正在运行命令", "已运行命令", "运行命令"],
     read: ["正在读取", "已读取", "读取文件"], write: ["正在写入", "已写入", "写入文件"], edit: ["正在编辑", "已编辑", "编辑文件"],
     glob: ["正在查找文件", "已查找文件", "查找文件"], grep: ["正在搜索文件内容", "已搜索文件内容", "搜索文件内容"],
@@ -450,6 +453,7 @@ const STEPS = {
     elapsed: (n: number) => (n < 60 ? `${n}秒` : `${Math.floor(n / 60)}分${n % 60}秒`),
     thoughtFor: (time: string) => `思考了 ${time}`, connectionLost: "连接中断，正在重连…", running: "正在运行",
     summary: {
+      work: (n: number) => (n === 1 ? "已处理文件" : `已处理文件 ×${n}`),
       command: (n: number) => `已运行 ${n} 个命令`, read: (n: number) => `已读取 ${n} 个文件`,
       edit: (n: number) => `已编辑 ${n} 个文件`, search: (n: number) => `已搜索 ${n} 次`,
       fetch: (n: number) => `已获取 ${n} 个页面`, tool: (n: number) => `已使用 ${n} 个工具`,
@@ -459,6 +463,7 @@ const STEPS = {
   th: {
     thinking: "กำลังดำเนินการ…", thinkingNow: "กำลังดำเนินการ", seconds: (n: number) => `${n} วินาที`, thought: "กระบวนการคิด", usedTool: "ใช้เครื่องมือแล้ว", cancelled: "ยกเลิกแล้ว", error: "ข้อผิดพลาด",
     showOutput: "แสดงผลลัพธ์", hideOutput: "ซ่อนผลลัพธ์",
+    work: ["กำลังจัดการไฟล์", "จัดการไฟล์แล้ว", "จัดการไฟล์"],
     bash: ["กำลังรันคำสั่ง", "รันคำสั่งแล้ว", "รันคำสั่ง"],
     read: ["กำลังอ่าน", "อ่านแล้ว", "อ่านไฟล์"], write: ["กำลังเขียน", "เขียนแล้ว", "เขียนไฟล์"], edit: ["กำลังแก้ไข", "แก้ไขแล้ว", "แก้ไขไฟล์"],
     glob: ["กำลังค้นหาไฟล์", "ค้นหาไฟล์แล้ว", "ค้นหาไฟล์"], grep: ["กำลังค้นหาในไฟล์", "ค้นหาในไฟล์แล้ว", "ค้นหาในไฟล์"],
@@ -467,6 +472,7 @@ const STEPS = {
     elapsed: (n: number) => (n < 60 ? `${n} วินาที` : `${Math.floor(n / 60)} นาที ${n % 60} วินาที`),
     thoughtFor: (time: string) => `ใช้เวลาคิด ${time}`, connectionLost: "การเชื่อมต่อขาดหาย กำลังเชื่อมต่อใหม่…", running: "กำลังทำงาน",
     summary: {
+      work: (n: number) => (n === 1 ? "จัดการไฟล์แล้ว" : `จัดการไฟล์แล้ว ×${n}`),
       command: (n: number) => `รันคำสั่ง ${n} รายการ`, read: (n: number) => `อ่าน ${n} ไฟล์`,
       edit: (n: number) => `แก้ไข ${n} ไฟล์`, search: (n: number) => `ค้นหา ${n} ครั้ง`,
       fetch: (n: number) => `เปิด ${n} หน้า`, tool: (n: number) => `ใช้เครื่องมือ ${n} รายการ`,
@@ -476,6 +482,7 @@ const STEPS = {
   ja: {
     thinking: "実行しています…", thinkingNow: "実行中", seconds: (n: number) => `${n}秒`, thought: "思考プロセス", usedTool: "ツールを使用しました", cancelled: "キャンセルしました", error: "エラー",
     showOutput: "出力を表示", hideOutput: "出力を非表示",
+    work: ["ファイルを処理しています", "ファイルを処理しました", "ファイルを処理"],
     bash: ["コマンドを実行しています", "コマンドを実行しました", "コマンドを実行"],
     read: ["読み込んでいます", "読み込みました", "ファイルを読み込む"], write: ["書き込んでいます", "書き込みました", "ファイルに書き込む"], edit: ["編集しています", "編集しました", "ファイルを編集"],
     glob: ["ファイルを探しています", "ファイルを探しました", "ファイルを探す"], grep: ["ファイル内を検索しています", "ファイル内を検索しました", "ファイル内を検索"],
@@ -484,6 +491,7 @@ const STEPS = {
     elapsed: (n: number) => (n < 60 ? `${n}秒` : `${Math.floor(n / 60)}分${n % 60}秒`),
     thoughtFor: (time: string) => `${time}考えました`, connectionLost: "接続が切れました。再接続しています…", running: "実行中",
     summary: {
+      work: (n: number) => (n === 1 ? "ファイルを処理しました" : `ファイルを処理しました ×${n}`),
       command: (n: number) => `${n} 件のコマンドを実行しました`, read: (n: number) => `${n} 件のファイルを読み込みました`,
       edit: (n: number) => `${n} 件のファイルを編集しました`, search: (n: number) => `${n} 回検索しました`,
       fetch: (n: number) => `${n} 件のページを取得しました`, tool: (n: number) => `${n} 件のツールを使用しました`,

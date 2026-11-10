@@ -30,7 +30,6 @@ type Args = Record<string, unknown> | undefined;
 type Step = { verb: string; target?: string; input?: string; showOutput: boolean; own?: boolean };
 
 const str = (value: unknown) => (typeof value === "string" ? value : "");
-const base = (path: unknown) => str(path).split("/").pop() ?? "";
 /** 步骤详情先显示几行（多了点「… N 行」展开）、最多几个字（一整行很长的 JSON 也不会把对话撑得很高）。 */
 export const CLIP_LINES = 12;
 export const CLIP_CHARS = 1500;
@@ -62,11 +61,6 @@ const Clipped: FC<{ text: string; className?: string }> = ({ text, className }) 
   );
 };
 
-const firstLine = (text: string) => {
-  const line = text.trim().split("\n")[0] ?? "";
-  return line.length > 90 ? `${line.slice(0, 88)}…` : line;
-};
-
 /** 说法：0 进行中、1 做完、2 卡片上的问法（内置工具的「运行命令」这类）。 */
 type Form = 0 | 1 | 2;
 
@@ -74,20 +68,15 @@ type Form = 0 | 1 | 2;
 function describe(toolName: string, args: Args, form: Form, labels: ToolLabels): Step {
   const pick = (triple: readonly string[]) => triple[form] ?? "";
   switch (toolName) {
-    case "bash": {
-      const command = str(args?.command);
-      return { verb: pick(steps.bash), target: firstLine(command), input: command, showOutput: true };
-    }
+    // 模型在工作区里的步骤（运行命令、读写改文件、找文件）：只写一句「处理文件」，不带命令、路径、文件名，点开也不显示命令与
+    // 输出（11-10 线上压测：状态行原样露出「กำลังรันคำสั่ง cd /tmp && … pdftoppm」「ls -la /mnt/session/uploads/…」）
+    case "bash":
     case "read":
-      return { verb: pick(steps.read), target: base(args?.file_path), showOutput: true };
     case "write":
-      return { verb: pick(steps.write), target: base(args?.file_path), input: str(args?.content), showOutput: false };
     case "edit":
-      return { verb: pick(steps.edit), target: base(args?.file_path), input: str(args?.new_string), showOutput: false };
     case "glob":
-      return { verb: pick(steps.glob), target: str(args?.pattern), showOutput: true };
     case "grep":
-      return { verb: pick(steps.grep), target: str(args?.pattern), showOutput: true };
+      return { verb: pick(steps.work), showOutput: false };
     case "web_search":
       return { verb: pick(steps.search), target: str(args?.query), showOutput: true };
     case "web_fetch": {
