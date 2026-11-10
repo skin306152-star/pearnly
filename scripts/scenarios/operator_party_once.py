@@ -63,6 +63,9 @@ DIRECT_DOCNUM = "RR-DIRECT-{:02d}"
 # 往高里算（识别升 Opus 约 0.02 美元 / 页，按 0.025；对话一轮 11-09 实测引擎账单 0.07–0.32 美元（每轮写约 5 万 token 缓存），按 0.35）
 PAGE_MAX, TURN_MAX = 0.025, 0.35
 PAGES = 24
+# ERP 「公司先不给税号」那一遍（A 线 11-10，ERP 销售票小批）：认不出卖方是本公司，24 张先按采购读；开始卡问一次「本公司是票上哪一方」
+# 选卖方 → 公司税号记下（留修改记录）、整份按销售重读、这次不交。`--erp-no-tax` 打开（只影响 ERP）
+NO_TAX = {"on": False}
 FIRST_REF = "IV69/00751"
 
 
@@ -267,6 +270,12 @@ def prepare(lab, product, viewport, reuse=False):
     out = lab.python(site, COWORK_PREPARE if product == "cowork" else ERP_PREPARE)
     if out["choices"]:
         raise RuntimeError(f"{product}: the buyer already has a remembered customer: {out}")
+    if product == "erp" and NO_TAX["on"]:
+        out["since"] = lab.python(site, f'''
+frappe.db.set_value("ERP Company", {out["company"]!r}, {{"tax_id": "", "branch": ""}}, update_modified=False)
+frappe.db.commit()
+print(json.dumps({{"now": str(frappe.utils.now_datetime())}}))
+''')["now"]
     return out
 
 
@@ -492,6 +501,57 @@ def judge(product, params, results):
     ]
 
 
+def judge_no_tax(params, results) -> list:
+    """「公司先不给税号」那一遍的页面断言：开始卡里「本公司」只问一次（一批 24 张合成一题，选项第一个是卖方即本公司）。
+    实验栈前端是镜像里的旧版，这一题的分类名显示「其他」（新词条 `op.precheck.kind.own_party` 随前端发布），这里只认题目里有公司名。"""
+    by = {r.get("step"): r.get("value") or {} for r in results}
+    questions = (by.get("开始卡问题") or {}).get("questions") or []
+    picked = (by.get("答题开始") or {}).get("picked") or []
+    own = [q for q in questions if SELLER in str(q.get("question") if isinstance(q, dict) else q)]
+    return [
+        {"case": "N① 开始卡里「本公司是票上哪一方」只问一次，选的是卖方（本公司）", "seen": {"questions": questions, "picked": picked},
+         "ok": len(own) == 1 and any(SELLER_TAX in p for p in picked)},
+        {"case": "N② 答完开始：卡片定下、没有报错", "seen": by.get("答题开始"),
+         "ok": bool((by.get("答题开始") or {}).get("settled")) and not (by.get("答题开始") or {}).get("failure")},
+    ]
+
+
+def verify_no_tax(lab, params) -> list:
+    """「公司先不给税号」那一遍的站点断言：公司税号记成卖方税号、留了修改记录；整份文件按销售重读完（24 张销售、没建采购单）；
+    任务里这次一张都没交给电脑（原因：本公司开出的票）。重读最多等 6 分钟。"""
+    body = f'''
+from pearnly_erp_portal.integrations import intake
+co = {params["company"]!r}
+since = {params["since"]!r}
+rows = frappe.get_all(intake.DOCTYPE, filters={{"company": co, "creation": [">", since]}}, fields=["name", "status", "direction"],
+                      limit_page_length=200)
+versions = frappe.get_all("Version", filters={{"ref_doctype": "ERP Company", "docname": co, "creation": [">", since]}},
+                          fields=["data"], limit_page_length=10)
+from pearnly_core.express_operator import tasks
+task = frappe.get_all(tasks.DOCTYPE, filters={{"company": co, "creation": [">", since]}}, pluck="name", limit_page_length=1)
+rows_t = frappe.get_all(tasks.ROW_DOCTYPE, filters={{"parent": task[0]}}, fields=["state", "reason"], limit_page_length=200) if task and hasattr(tasks, "ROW_DOCTYPE") else []
+print(json.dumps({{"tax": frappe.db.get_value("ERP Company", co, "tax_id"), "intakes": rows,
+                  "versions": [v.data for v in versions], "purchases": frappe.db.count("Purchase Document", {{"company": co, "creation": [">", since]}}),
+                  "task_rows": rows_t}}, default=str))
+'''
+    found = {}
+    for _ in range(36):
+        found = lab.python(SITES["erp"], body)
+        intakes = found["intakes"]
+        if intakes and all(r["status"] == "ready" for r in intakes) and len(intakes) >= PAGES:
+            break
+        time.sleep(10)
+    intakes = found.get("intakes") or []
+    return [
+        {"case": "N③ 公司税号记成本公司（卖方）税号，留了修改记录", "saved": {"tax": found.get("tax"), "versions": found.get("versions")},
+         "ok": found.get("tax") == SELLER_TAX and any(SELLER_TAX in str(v) for v in found.get("versions") or [])},
+        {"case": f"N④ 整份按销售重读完：{PAGES} 张都是销售、待录；没有建出采购单",
+         "saved": {"n": len(intakes), "states": sorted({(r["status"], r["direction"]) for r in intakes}), "purchases": found.get("purchases")},
+         "ok": len(intakes) == PAGES and all(r["status"] == "ready" and r["direction"] == "sales" for r in intakes)
+               and not found.get("purchases")},
+    ]
+
+
 def verify(lab, product, params):
     site = SITES[product]
     common = f'''
@@ -703,7 +763,8 @@ def run_one(lab, product, viewport, shots, reuse):
         os.rmdir(folder)
     page_errors = [e for r in results for e in (r.get("page_errors") or []) + ([r["error"]] if r.get("error") else [])
                    + ([f"{r.get('step')}: {r['value']['error']}"] if isinstance(r.get("value"), dict) and r["value"].get("error") else [])]
-    checks = judge(product, params, results) + verify(lab, product, params)
+    checks = (judge_no_tax(params, results) + verify_no_tax(lab, params)) if product == "erp" and NO_TAX["on"] else \
+        judge(product, params, results) + verify(lab, product, params)
     checks.append({"case": "页面没有报错、步骤没有出错", "seen": page_errors, "ok": not page_errors})
     return {"product": product, "viewport": viewport, "reuse": reuse, "ok": all(c["ok"] for c in checks),
             "seconds": round(time.monotonic() - started), "company": params.get("company"), "checks": checks,
@@ -725,8 +786,10 @@ def main(argv=None) -> int:
     parser.add_argument("--src", default="", help="实验栈挂的源码工作树（--engine-on / --engine-off 用它的 compose 文件重起 bench）")
     parser.add_argument("--dry-run", action="store_true", help="干跑：假智能体、不识别、不花钱，只查配置与页面步骤")
     parser.add_argument("--budget", type=float, default=2.0, help="这次场景最多花多少美元（按最坏单价估，超了不开下一遍）")
+    parser.add_argument("--erp-no-tax", action="store_true", help="ERP 那遍公司先不给税号（问一次本公司 → 记税号 → 整份按销售重读）")
     parser.add_argument("--spent", default="", help="记累计估价的文件（几次运行共用一个上限；不给就只算这一次）")
     args = parser.parse_args(argv)
+    NO_TAX["on"] = bool(args.erp_no_tax)
     lab = RUN.Lab()
     if args.engine_on or args.engine_off or args.engine_fake:
         if not args.src:

@@ -333,6 +333,10 @@ def _intake_precheck(company, doc_id) -> dict:
         asked = [own, *asked]
     doctype = push.PURCHASE if row.direction == "purchase" else push.SALES
     found = write_precheck.collect_form(doctype, _judged_payload(doc, row.direction), company)
+    if own and found["result"].get("hold") == contracts.NO_TAX:
+        # 停在「公司没税号」：正是「本公司是哪一方」这一题要补的信息（没接 Express、接 MR.ERP 的公司都会到这里，主会话 11-10
+        # 核过两条路）。照样问，答了记下税号再判；其余照原来的判法
+        found = {**found, "result": {key: value for key, value in found["result"].items() if key != "hold"}}
     state, reason = write_precheck._state(found["result"])
     shown = book_target(found["result"].get("book"))
     view = {**view, **({"target": shown} if shown else {})}

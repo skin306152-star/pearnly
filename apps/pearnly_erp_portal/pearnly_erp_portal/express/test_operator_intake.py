@@ -15,7 +15,7 @@ from unittest.mock import Mock, patch
 
 import frappe
 
-from pearnly_erp_portal.express import operator
+from pearnly_erp_portal.express import contracts, operator
 from pearnly_erp_portal.integrations import intake
 
 
@@ -233,7 +233,8 @@ class OwnParty(Base):
     「本公司是票上的哪一方」，答案记成公司税号（留修改记录）；卖方是本公司的整份文件改按销售重读（识别费不再扣），这次不交。"""
 
     def guessed(self, name="LI-1", seller=ME, buyer=BIGC):
-        return SimpleNamespace(name=name, direction="purchase", direction_guessed=1,
+        return SimpleNamespace(name=name, direction="purchase", direction_guessed=1, is_paid=1, payment_method="cash",
+                               line_choices=json.dumps({"lines": [{"decided": True, "item_type": "service"}]}),
                                result=json.dumps({"supplier_name": "ชินเซียร์ ไอซ์", "supplier_tax_id": seller,
                                                   "buyer_name": "บิ๊กซี", "buyer_tax_id": buyer}))
 
@@ -246,6 +247,18 @@ class OwnParty(Base):
             self.assertIsNone(operator._own_party_item("CO-1", doc, json.loads(doc.result)))
         said = SimpleNamespace(**{**vars(doc), "direction_guessed": 0})
         self.assertIsNone(operator._own_party_item("CO-1", said, json.loads(doc.result)))  # 人说了方向：不问
+
+    def test_a_record_held_for_the_missing_company_tax_id_still_asks_which_side(self):
+        """主会话 11-10 核两条路：没接 Express 的公司（代录对它也开放）、接 MR.ERP 的公司（不要求税号），没税号时预检停在
+        「公司没税号」写不了。这正是这一题要补的信息：照样问（卡片与原来回包的 needed 都有），答了再判。"""
+        doc = self.guessed()
+        found = {"result": {"hold": contracts.NO_TAX}, "items": [], "data": None}
+        with patch.object(frappe, "get_doc", return_value=doc), \
+                patch.object(intake, "build_payload", return_value={"company": "CO-1"}), \
+                patch("pearnly_erp_portal.express.precheck.collect_form", return_value=found):
+            row = operator._intake_precheck("CO-1", "I:LI-1")
+        self.assertEqual((row["state"], [n["kind"] for n in row["needed"]][:1]), ("choose", ["own_party"]))
+        self.assertEqual((row["precheck"]["state"], [i["kind"] for i in row["precheck"]["items"]][:1]), ("check", ["own_party"]))
 
     def test_a_batch_asks_one_question_with_the_tax_id_on_every_ticket_preselected(self):
         item = lambda codes: {"kind": "own_party", "subject": "CO-1", "label": "CO", "options": [{"code": c, "name": c} for c in codes]}

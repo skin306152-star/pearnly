@@ -10,3 +10,9 @@ A 线第 3 棒，2026-11-10。评估与审定见主会话共享笔记「A线-ERP
 
 依赖：叠在 `pearnly/cc-ticket-identity-2`、`pearnly/erp-cc-intake-siblings`、`pearnly/cc-own-tax-once` 之上（临时合并提交），三者合入后变基到 main。
 待做：gate + 候选离线 + 受影响流程；真模型补跑 ERP 场景（公司先不给税号，≤0.5 美元）。
+
+## 主会话 11-10 核两条路（ERP 第 2 件留不留）
+- 补跑时发现：ERP 公司没 13 位税号就连不上 Express（`push.connected`、`cc_desktop.books.for_company` 都要税号，`target.pick` 判 `NO_TAX`）。
+- 但两条路走得到：①代录对没接 Express 的公司也开放（`operator.allowed` 不看 Express），没税号时旧代码点开始照样建出 ERP 单据——销售票成了采购单（ERP 自己的账错，与 Express 无关）；②接 MR.ERP（`mrerp_push.handles`）不要求税号，D 线开关打开后同样会到。
+- 所以留着，并补：预检停在「公司没税号」（`NO_TAX`）且这一题出得来时，照样问（卡片与原回包 needed 都有），答了记下税号再判（`OwnParty::test_a_record_held_for_the_missing_company_tax_id_still_asks_which_side`）。
+- 场景：「公司先不给税号」那一遍要在没接 Express（或 MR.ERP）的公司上跑；没接 Express 的公司答完后仍写不了（没有账本可写），断言到「问一次 → 记税号留修改记录 → 整份按销售重读、没建采购单」为止。还没跑，交下一棒。
