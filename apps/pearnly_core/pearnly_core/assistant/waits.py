@@ -25,6 +25,8 @@ TOOL_RUN = "Pearnly Assistant Tool Run"
 # 挂着的上限：按识别实际最长耗时定（一份 12 页约 3–4 分钟，排队高峰再加几分钟），到了就把「还在做」交回、结束这一轮
 WAIT_MINUTES = 15
 KEYS_MAX = 20
+# 当场等时报的最近一条进度留多久（对话页重开、补拉时并进来，`report`）：比当场等的上限长、比挂着的上限短
+INLINE_TTL = 5 * 60
 SWEEP_ROWS = 100
 SETTLE_JOB = "pearnly_core.assistant.waits.settle_key"
 # 交回时的原因（核对函数据此写给模型的说明）：上限到了 / 用户在挂着时又发了消息 / 收尾时等的事还没结束（巡检核对用）
@@ -261,16 +263,24 @@ def _event(use_id, progress) -> dict | None:
 def report(progress) -> None:
     """工具当场等后台的事时（推送线程里先等一会儿再决定挂不挂，例如识别）：按这次调用推一条此刻的进度，`progress` 同核对函数
     回的 ``{"done", "total", "label"}``。11-10 线上压测：识别挂起前当场等的 90 秒没有进度，状态行只写「识别中」。
+    最近一条另记在缓存里（`INLINE_TTL`）：对话页重开、实时通道断了靠补拉时由 `progress_events` 并进来。
     不在对话的工具执行里（没有这次调用的编号）、数不对就不推；只作展示，出错不影响工具。"""
     try:
         context = getattr(frappe.local, "pearnly_assistant", None) or {}
         use_id, conversation = context.get("tool_use_id"), context.get("session_id")
         event = _event(use_id, progress) if use_id and conversation else None
-        if event:
-            frappe.publish_realtime(contracts.REALTIME_EVENT, {"session_id": conversation, "event": event},
-                                    user=frappe.session.user, after_commit=False)
+        if not event:
+            return
+        frappe.publish_realtime(contracts.REALTIME_EVENT, {"session_id": conversation, "event": event},
+                                user=frappe.session.user, after_commit=False)
+        kept = frappe.cache.get_value(_inline_key(conversation)) or {}
+        frappe.cache.set_value(_inline_key(conversation), {**kept, use_id: event}, expires_in_sec=INLINE_TTL)
     except Exception:
         pass
+
+
+def _inline_key(conversation: str) -> str:
+    return f"pearnly_assistant:inline_progress:{conversation}"
 
 
 def touch(key: str) -> None:
@@ -303,7 +313,8 @@ def _push_progress(name: str) -> None:
 
 
 def progress_events(conversation: str) -> list:
-    """对话页重开、补拉：这段对话里挂着的调用此刻的进度（现算，不存）。读不出就不带，不挡取事件。"""
+    """对话页重开、补拉：这段对话里挂着的调用此刻的进度（现算，不存），加上还在当场等、没挂起的调用最近报的那一条
+    （`report`）。读不出就不带，不挡取事件。"""
     return quietly("Assistant wait progress failed", _progress_events, conversation, default=[])
 
 
@@ -316,5 +327,10 @@ def _progress_events(conversation: str) -> list:
         with _as_owner(row.user):
             event = _progress(row)
         if event:
+            out.append(event)
+    covered = {event["tool_use_id"] for event in out}
+    for use_id, event in (frappe.cache.get_value(_inline_key(conversation)) or {}).items():
+        if use_id not in covered and frappe.db.get_value(TOOL_RUN, {"tool_use_id": use_id, "session_id": conversation},
+                                                         "status") == "running":
             out.append(event)
     return out

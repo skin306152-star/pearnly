@@ -6937,6 +6937,8 @@ class _WaitDb:
     def get_value(self, doctype, name, fields, as_dict=False):
         if doctype == "User":
             return 1  # 会话主人在用
+        if isinstance(name, dict):  # 按字段筛（调用编号 + 会话）
+            name = next((n for n, row in self.rows.items() if all(row.get(k) == v for k, v in name.items())), None)
         if not isinstance(name, str) or name not in self.rows:
             return None
         row = _Row({"name": name, **self.rows[name]})
@@ -7146,6 +7148,12 @@ class WaitTests(unittest.TestCase):
                          [("conv", "sevt_run1", 0, 102, "queued"), ("conv", "sevt_run1", 27, 102, "reading_pages")])
         self.assertEqual({k.get("user") for a, k in pushed}, {"owner@x.test"})
         self.assertEqual(len({a[1]["event"]["id"] for a, k in pushed}), 2, "每次进度一个编号，对话页不当重复丢掉")
+        # 对话页重开、实时通道断了靠补拉：还在执行（没挂起）的这次调用，最近报的那一条并进来；做完了就不再带
+        self.assertEqual(self.db.rows["run1"]["status"], "done")
+        self.assertEqual(self.waits.progress_events("conv"), [])
+        self.db.rows["run1"]["status"] = "running"  # 回到工具还在当场等的那一刻
+        self.assertEqual([(e["tool_use_id"], e["done"]) for e in self.waits.progress_events("conv")], [("sevt_run1", 27)])
+        self.assertEqual(self.waits.progress_events("other"), [])
         # 不在对话的工具执行里（没有这次调用的编号）就不推；数不对也不推（只用真实数字）
         self.published.clear()
         self.waits.report({"done": 1, "total": 2, "label": "reading_pages"})
