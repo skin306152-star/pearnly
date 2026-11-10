@@ -8,10 +8,9 @@ const dark = params.get("theme") === "dark";
 document.documentElement.lang = lang;
 document.documentElement.classList.toggle("dark", dark);
 
-const [{ createRoot }, { installVariant }, { Gallery }] = await Promise.all([
-  import("react-dom/client"),
-  import("@/lib/variant"),
-  import("./gallery"),
-]);
-installVariant();
-createRoot(document.getElementById("root") as HTMLElement).render(<Gallery lang={lang} dark={dark} />);
+void Promise.all([import("react-dom/client"), import("@/lib/variant"), import("./gallery")]).then(
+  ([{ createRoot }, { installVariant }, { Gallery }]) => {
+    installVariant();
+    createRoot(document.getElementById("root") as HTMLElement).render(<Gallery lang={lang} dark={dark} />);
+  },
+);
