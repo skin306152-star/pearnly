@@ -161,7 +161,11 @@ function useSessionThreadRuntime() {
   }, [running, threadId]);
   // 回复中先打下一句：输入框的发送先进排队，在忙时排着、本轮结束自动发、可撤回（批 A ⑤，send-queue.ts）
   const onNewRef = useRef<((message: AppendMessage) => Promise<void>) | null>(null);
-  const sendQueue = useMemo(() => createSendQueue((message) => onNewRef.current?.(message) ?? Promise.resolve()), []);
+  // 回复进行中只说一句「停」：当按了停止键（说停就停，stop-words.ts）
+  const sendQueue = useMemo(
+    () => createSendQueue((message) => onNewRef.current?.(message) ?? Promise.resolve(), () => void stop.current()),
+    [],
+  );
   useSyncExternalStore(sendQueue.subscribe, () => sendQueue.adapter.items);
   useEffect(() => {
     sendQueue.setBusy(running);

@@ -9,10 +9,20 @@
 
 import { type AppendMessage, createMessageQueue } from "@assistant-ui/react";
 import { reportCaught } from "../caught";
+import { isStopWord } from "../stop-words";
 
 export type SendQueue = ReturnType<typeof createSendQueue>;
 
-export function createSendQueue(run: (message: AppendMessage) => Promise<unknown>) {
+/** 这条消息只有一句停止词（没有附件、没有别的内容），见 stop-words.ts。 */
+function onlyStopWord(message: AppendMessage): boolean {
+  if (message.attachments?.length) return false;
+  const parts = message.content ?? [];
+  if (parts.some((part) => part.type !== "text")) return false;
+  return isStopWord(parts.map((part) => (part.type === "text" ? part.text : "")).join(""));
+}
+
+/** `stop`：在忙时收到只有一句停止词的消息，当按了停止键（说停就停，A 线 11-10）；不给就照旧排队。 */
+export function createSendQueue(run: (message: AppendMessage) => Promise<unknown>, stop?: () => void) {
   let busy = false; // 这段对话在忙（由外面告诉）
   let starting = false; // 正在发出一条（还没开跑或刚开跑）
   const queue = createMessageQueue({
@@ -27,6 +37,12 @@ export function createSendQueue(run: (message: AppendMessage) => Promise<unknown
         });
     },
   });
+  // 回复进行中说「停」：不进排队，直接停（同停止键，stop-run.ts）
+  const enqueue = queue.adapter.enqueue;
+  queue.adapter.enqueue = (message, options) => {
+    if (busy && stop && onlyStopWord(message)) return stop();
+    return enqueue(message, options);
+  };
   return {
     adapter: queue.adapter,
     subscribe: queue.subscribe,

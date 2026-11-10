@@ -1375,6 +1375,35 @@ assert.equal(s.messages.filter((m: any) => m.role === "user").length, 1);
 assert.equal(isBusy(s), false);
 """)
 
+    def test_a_stop_word_typed_during_a_reply_stops_it_instead_of_queueing(self):
+        # A 线（主会话 11-10，「一句话下令开始」的第三道保险）：回复进行中，整条消息只是停止词（去掉空格和标点后与四语词表
+        # 完全一样）就当按了停止键，不进排队、不发出；带别的内容照旧排队；空闲时照常发出（是一句普通的话）
+        self.run_page(r"""
+import { createSendQueue } from "@/lib/managed-agents/send-queue";
+import { isStopWord } from "@/lib/stop-words";
+---
+for (const word of ["停", "停下", " 停！", "Stop", "stop.", "หยุด", "止めて", "やめて", "ストップ"]) assert.equal(isStopWord(word), true, word);
+for (const word of ["停一下再看第 3 张", "stop at row 3", "หยุดที่ใบที่ 3", "", "继续"]) assert.equal(isStopWord(word), false, word);
+const sent: string[] = [];
+let stops = 0;
+const msg = (text: string, attachments: any[] = []) => ({ role: "user", content: [{ type: "text", text }], parentId: null, sourceId: null, runConfig: {}, attachments }) as any;
+const q = createSendQueue(async (m: any) => { sent.push(m.content[0].text); }, () => { stops++; });
+q.setBusy(true);
+q.adapter.enqueue(msg("停！"), { steer: false });
+assert.equal(stops, 1);
+assert.equal(q.adapter.items.length, 0);           // 不进排队
+q.adapter.enqueue(msg("停一下再看第 3 张"), { steer: false });
+q.adapter.enqueue(msg("stop", [{ id: "a1" }]), { steer: false });   // 带了附件：不是只有停止词
+assert.equal(stops, 1);
+assert.deepEqual(q.adapter.items.map((i: any) => i.prompt), ["停一下再看第 3 张", "stop"]);
+q.setBusy(false);
+await g.sleep(5);
+q.adapter.enqueue(msg("停"), { steer: false });    // 空闲：照常发出
+await g.sleep(5);
+assert.equal(stops, 1);
+assert.ok(sent.includes("停"));
+""")
+
     def test_a_message_typed_during_a_reply_waits_and_goes_out_when_the_turn_ends(self):
         # 批 A ⑤（对照文档第 2 项，11-09 实测：Claude 回复中回车 = 排队，那句先显示、可撤回，本轮完了自动发；CC 回车只换行）。
         # 发送排队：空闲时照旧马上发；在忙（发送中、回复中、等允许）时收下排着；可撤回；本轮结束放下一条；发不出去也不卡住后面的
