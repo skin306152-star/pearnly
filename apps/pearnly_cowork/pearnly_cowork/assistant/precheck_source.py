@@ -133,13 +133,21 @@ def document(history, posting_kind=None, hint=None) -> dict:
                           "options": [{"code": code} for code in ("purchase", "expense", "sales")]})
         return _with_menu({**out, "state": card.CHECK, "items": items}, menu)
     goods = _goods_item(doc, loaded, found, decision, kind, posting_from, today)
+    asked_before = None
     if goods:
         items.append(goods)
         # 预选「走库存」时还要定的项（存货对照等）一并列出：按预选的入账类型重新取数再判一次（只看不记）
+        asked_before = {(item.get("kind"), item.get("subject")) for item in view.get("needed") or ()}
         found = service._express_context(doc, loaded, doc.push_account_set or None)
         view, decision, _posting = service._choices(doc, loaded, found, goods["value"], fixed=fixed, hint=hint or None)
         frappe.db.rollback()
-    items.extend(choice_items(view, found["fields"], found["direction"]))
+    asked = choice_items(view, found["fields"], found["direction"])
+    if asked_before is not None:
+        # 按预选重判才多出来的项（存货对照、出库仓）只在入账方式答成预选值时才问、才算数（测试机 11-09：选了按服务录入还问出库仓）
+        when = {"kind": GOODS_POSTING, "subject": goods["subject"], "value": goods["value"]}
+        asked = [{**item, "when": dict(when)} if (item["kind"], item["subject"]) not in asked_before else item
+                 for item in asked]
+    items.extend(asked)
     items.extend(decided_items(decision, found["fields"], found["direction"]))
     own = document_payment_item(doc, found["fields"], found["direction"])
     if own:
@@ -281,11 +289,21 @@ def _goods_item(doc, loaded, found, decision, kind, posting_from, today):
         return None
     if any(item.get("kind") == "item" and item.get("expense") for item in decision.get("needed") or ()):
         return None  # 已按行问存货对照（存货 / 新建存货 / 记费用，11-06）：不再整张问「走库存 / 记费用」
+    if _lines_settled(found["fields"], (decision.get("applied") or {}).get("kinds")):
+        return None  # 每一行都已按行定下（记过的、Express 同名的库存品 / 非库存品）：整张问「走库存 / 记费用」没有意义（测试机 11-09）
     company = goods_posting.company_key(loaded.doc.name, service._account_row(loaded, found["target"]))
     if not company:
         return None
     return {"kind": GOODS_POSTING, "subject": company, "value": "stock", "source": card.RULE,
             "options": [{"code": "stock"}, {"code": "service"}]}
+
+
+def _lines_settled(fields, kinds) -> bool:
+    """这张单每一行的过账类型都已按行定下（写账规则的 ``applied["kinds"]``）。"""
+    from pearnly_core.express_rules.push import choices as choice_rules
+
+    rows = [item for item in (fields or {}).get("items") or () if isinstance(item, dict)]
+    return bool(rows and kinds) and all(choice_rules.line_kinds(rows, None, kinds))
 
 
 def _preselect(item, rows, fields, direction, shared):

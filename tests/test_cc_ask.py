@@ -46,8 +46,8 @@ PURE = r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
 import {
-  answered, answeredLine, askActions, confirmAnswers, docAnswers, initialStates, isRecommended, itemQuestion, itemsOfCheck, itemsOfNeeded,
-  keyAnswers, PRECHECK_API, questionsOf, resultFrom, SEARCH_PAGE, setAskSite, toggle, toggleOther,
+  answered, answeredLine, askActions, confirmAnswers, docAnswers, initialStates, isRecommended, itemQuestion, itemQuestions, itemsOfCheck,
+  itemsOfNeeded, keyAnswers, PRECHECK_API, questionsOf, resultFrom, SEARCH_PAGE, setAskSite, shownQuestions, toggle, toggleOther,
 } from "@/components/tool-uis/ask-shared";
 import { ask } from "@/i18n";
 
@@ -123,6 +123,36 @@ const g = globalThis as any;
   assert.deepEqual(docAnswers(needed, nq, { answers: [{ header: "", question: "", labels: [nq[0]!.options[1]!.label] }] }), {
     A: [{ kind: "item", subject: "S1", value: "P1", label: "Paper" }], B: [{ kind: "item", subject: "S1", value: "P1", label: "Paper" }] });
 
+  // 测试机 11-09（shots/12）：选了「按服务录入」还问从哪个仓库出库。show_if：前面那一题选中其中之一才问，否则藏起、交回 not_asked
+  const cond = questionsOf({ questions: [
+    { question: "Stock or service?", header: "Entry", options: [{ label: "Stock (推荐)" }, { label: "Service" }] },
+    { question: "Which warehouse?", header: "Warehouse", options: [{ label: "01" }, { label: "02" }], show_if: { question: 1, labels: ["Stock (推荐)"] } },
+    { question: "Which customer?", header: "Customer", options: [{ label: "C1" }, { label: "C2" }] },
+  ] });
+  assert.deepEqual(cond[1]!.showIf, { question: 1, labels: ["Stock (推荐)"] });
+  let cs = initialStates(cond);
+  assert.deepEqual(shownQuestions(cond, cs), [0, 1, 2]);              // 预选走库存：出库仓照问
+  cs[0] = toggle(cond[0]!, cs[0]!, "Service");
+  cs[1] = toggle(cond[1]!, cs[1]!, "01");
+  cs[2] = toggle(cond[2]!, cs[2]!, "C2");
+  assert.deepEqual(shownQuestions(cond, cs), [0, 2]);                 // 改成按服务：出库仓收起
+  const condResult = resultFrom(cond, cs);
+  assert.deepEqual(condResult.answers[1], { header: "Warehouse", question: "Which warehouse?", labels: [], not_asked: true });
+  assert.deepEqual(confirmAnswers(condResult)[1], { labels: [], not_asked: true });
+  assert.ok(!answeredLine(condResult).includes("Warehouse"), answeredLine(condResult));
+  // 页面自己出题：带 when 的项排到它依赖的那一项后面，题目带 show_if；依赖的那一项答成别的值，这一项不交
+  const conditional = itemsOfCheck({ groups: [{ group: "stock", items: [
+    { key: "loc", kind: "location", subject: "*", label: "", state: "open", value: "", docs: ["D1"], when: { key: "gp", value: "stock" },
+      options: [{ code: "01", name: "Main" }, { code: "02", name: "Branch" }] },
+    { key: "gp", kind: "goods_posting", subject: "tax:1", label: "", state: "proposed", value: "stock", docs: ["D1"],
+      options: [{ code: "stock", name: "" }, { code: "service", name: "" }] },
+  ] }] });
+  assert.deepEqual(conditional.map((i) => i.key), ["gp", "loc"]);
+  const cq = itemQuestions(conditional, "CO-1");
+  assert.deepEqual(cq[1]!.showIf, { question: 1, labels: [cq[0]!.options[0]!.label] });
+  const serviceAnswer = resultFrom(cq, [toggle(cq[0]!, initialStates(cq)[0]!, cq[0]!.options[1]!.label), { labels: [cq[1]!.options[0]!.label], other: null }]);
+  assert.deepEqual(keyAnswers(conditional, cq, serviceAnswer), [{ key: "gp", value: "service" }]);
+
   // 站点请求
   const calls: any[] = [];
   setAskSite({
@@ -178,6 +208,13 @@ const one = html([qs[2]]);
 assert.ok(!one.includes("cc-askq-pager"));
 assert.match(one, new RegExp(`data-slot="cc-askq-next" disabled="">${ask.submit}<`));   // 没选不能提交
 assert.equal([...one.matchAll(/role="checkbox"/g)].length, 3);                       // 多选题：复选框（含「其他」）
+// 带 show_if 的题不占位置：第二题只在第一题选 Stock 时问，第一题预选 Service → 只剩两题
+const gated = questionsOf({ questions: [
+  { question: "Stock or service?", header: "Entry", options: [{ label: "Service (推荐)" }, { label: "Stock" }] },
+  { question: "Which warehouse?", header: "Warehouse", options: [{ label: "01" }, { label: "02" }], show_if: { question: 1, labels: ["Stock"] } },
+  { question: "Which customer?", header: "Customer", options: [{ label: "C1" }, { label: "C2" }] },
+] });
+assert.ok(html(gated).includes(ask.nth(1, 2)), "hidden question does not count");
 // 嵌在列表里（不带框）时不出「需要您的输入」；ask_user 在电脑上由对话的工作状态行画（status=false）
 assert.ok(!html(qs, { framed: false }).includes(t("needsInput")));
 assert.ok(!html(qs, { status: false }).includes(t("needsInput")));

@@ -50,7 +50,7 @@ import { shownError } from "@/lib/frappe";
 import { Marquee } from "@/components/ui/marquee";
 import { reportCaught, withReport } from "../lib/caught";
 import { AskCard } from "./tool-uis/ask-card";
-import { askActions, type AskItem, type AskResult, itemQuestion, itemsOfCheck, keyAnswers } from "./tool-uis/ask-shared";
+import { askActions, type AskItem, type AskResult, itemQuestions, itemsOfCheck, keyAnswers } from "./tool-uis/ask-shared";
 import { useAction } from "./tool-uis/operator-card";
 
 const FIXED: () => Record<string, string> = () => ({ cash: co.payCash, credit: co.payCredit, claim: co.vatClaim, expense: co.vatExpense });
@@ -420,7 +420,7 @@ export const PendingAsk: FC<{
       alive = false;
     };
   }, [open, company, ids]);
-  const questions = useMemo(() => (found ?? []).map((item) => itemQuestion(item, company)), [found, company]);
+  const questions = useMemo(() => itemQuestions(found ?? [], company), [found, company]);
   const remember = (answers: ReadonlyArray<{ key: string; value: string }>, result: AskResult | null) =>
     void action.run(async () => {
       await askActions.remember(company, docs, answers);

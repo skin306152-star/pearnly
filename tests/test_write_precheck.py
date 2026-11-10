@@ -351,5 +351,50 @@ class Preselect(unittest.TestCase):
         self.assertEqual(item["state"], c.PROPOSED)
 
 
+
+class Conditional(unittest.TestCase):
+    """测试机 11-09（shots/12）：「录入设置」选了按服务录入，后面还问从哪个仓库出库。只在某一项答成某个值时才成立的项带 ``when``：
+    那一项答成别的值时它不留单、它的答案不展开。"""
+
+    GOODS = {"kind": "goods_posting", "subject": "tax:0105556000001", "label": "", "value": "stock", "source": c.RULE,
+             "options": [{"code": "stock"}, {"code": "service"}]}
+    WHEN = {"kind": "goods_posting", "subject": "tax:0105556000001", "value": "stock"}
+    LOCATION = {"kind": "location", "subject": "*", "label": "", "value": "", "when": WHEN,
+                "options": [{"code": "01"}, {"code": "02"}]}
+    ITEM = {"kind": "item", "subject": "sales|1|fee", "label": "Fee", "value": "__new__", "source": c.RULE, "when": WHEN}
+
+    def card(self):
+        return c.merge([doc("D1", self.GOODS, self.LOCATION, self.ITEM)])
+
+    def test_the_condition_names_the_other_item_by_its_key(self):
+        found = {item["kind"]: item for item in c.items_of(self.card())}
+        self.assertEqual(found["location"]["when"], {"key": found["goods_posting"]["key"], "value": "stock"})
+        self.assertNotIn("when", found["goods_posting"])
+
+    def test_answering_the_other_value_drops_the_dependent_items(self):
+        card = self.card()
+        goods_key = c.item_key("goods_posting", self.GOODS["subject"])
+        answers = [{"key": goods_key, "value": "service"},
+                   {"key": c.item_key("location", "*"), "value": "01"},
+                   {"key": c.item_key("item", self.ITEM["subject"]), "value": "__new__"}]
+        result, errors = c.expand(card, answers)
+        self.assertEqual(errors, [])
+        self.assertEqual([row["kind"] for row in result["D1"]], ["goods_posting"])
+        self.assertEqual(c.held_back(card, answers[:1]), [])  # 出库仓没答也不留单：这张不走库存
+        self.assertEqual(c.writable(card, answers[:1]), ["D1"])
+
+    def test_keeping_the_preselected_value_keeps_them(self):
+        card = self.card()
+        self.assertEqual(c.held_back(card), ["D1"])  # 预选走库存、出库仓未定：留下
+        answers = [{"key": c.item_key("location", "*"), "value": "02"}]
+        result, errors = c.expand(card, answers)
+        self.assertEqual((errors, [row["kind"] for row in result["D1"]]), ([], ["location"]))
+        self.assertEqual(c.held_back(card, answers), [])
+
+    def test_a_malformed_condition_is_a_programming_error(self):
+        with self.assertRaises(c.PrecheckError):
+            c.normalize_item({**self.LOCATION, "when": {"kind": "nope", "subject": "x", "value": "y"}})
+
+
 if __name__ == "__main__":
     unittest.main()

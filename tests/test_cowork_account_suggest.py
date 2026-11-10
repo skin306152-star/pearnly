@@ -902,6 +902,30 @@ class CompanyRuleDecisions(unittest.TestCase):
         hooks = (APP / "hooks.py").read_text(encoding="utf-8")
         self.assertIn('cowork_push_company_choices_saved = ["pearnly_cowork.companies.rules.values_now"]', hooks)
 
+    def test_written_takes_the_revenue_cc_desktop_actually_posted(self):
+        """测试机 11-09（TST691031-01）：CC 说「收入科目 41-01-00-00（账套默认）」，CC 桌面版照物料科目组实际记的是 42-10-00-00。
+        回执带回实际记的收入（``meta.revenue``）时，written 照回执说科目与金额，不照载荷；回执没有的旧记录照载荷。"""
+        from pearnly_cowork.push.express import pushed
+
+        payload = {"direction": "sales", "doctype": "IV", "doctype_src": "config_default", "items_account": "41-01-00-00",
+                   "account_source": "config_default"}
+        response = {"ok": True, "meta": {"revenue": [{"acc": "42-10-00-00", "amount": "5000.00"}]}}
+        found = pushed.written(payload, response=response)
+        self.assertEqual(found["revenue_account"], "42-10-00-00")
+        self.assertEqual(found["revenue"], [{"account": "42-10-00-00", "amount": "5000.00"}])
+        self.assertEqual(found["account_from"], "item_group")  # 物料自己的科目组定的，不是账套默认
+        split = {"ok": True, "meta": {"revenue": [{"acc": "42-10-00-00", "amount": "3000.00"},
+                                                  {"acc": "41-01-00-00", "amount": "2000.00"}]}}
+        found = pushed.written(payload, response=split)
+        self.assertNotIn("revenue_account", found)  # 几个科目：只按 revenue 逐条说
+        self.assertEqual([row["account"] for row in found["revenue"]], ["42-10-00-00", "41-01-00-00"])
+        self.assertNotIn("account_from", found)
+        same = {"ok": True, "meta": {"revenue": [{"acc": "41-01-00-00", "amount": "5000.00"}]}}
+        self.assertEqual(pushed.written(payload, response=same)["account_from"], "default")  # 与载荷相同：来源照旧
+        self.assertEqual(pushed.written(payload)["revenue_account"], "41-01-00-00")  # 旧记录、推前试算：照载荷
+        service = (APP / "push/application/service.py").read_text(encoding="utf-8")
+        self.assertIn("rules_now, response=response)", service.split("def _entered", 1)[1].split("\ndef ", 1)[0])
+
     def test_written_tells_cc_what_decided_it(self):
         from pearnly_cowork.push.express import pushed
 

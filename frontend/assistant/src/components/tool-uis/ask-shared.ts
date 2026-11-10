@@ -6,6 +6,7 @@
 //   - 每题此刻的答（选了哪几个 label、「其他」打的字或选的值、跳过）；整理成 {answers: [{header, question, labels, other?, skipped?}]}，
 //     按题序，没答的题算跳过。ask_user 的作答随对话的「允许」交给服务端（confirm 的确认项带 answers：[{labels, other?, skipped?}]，
 //     W2 定稿），服务端记下、以 user.custom_tool_result 交回模型。
+//   - show_if（11-09 测试机：选了「按服务录入」还问出库仓）：{question: 前面第几题, labels}，那一题选中其中之一才问，否则藏起、交回 not_asked。
 //   - 页面自己出题的两处（对话末尾的待处理框按共用判定的回包、代录中途那一张按站点 precheck 的要选项）：一项一题；答案再换回
 //     判定接口的 [{key, value}] 或代录 task_answer 的 {单据: [{kind, subject, value, label}]}。
 // 字走 i18n（ask.*）。
@@ -27,6 +28,8 @@ export type AskQuestion = {
   search?: AskSearch;
   /** 「其他」里可选的全部值（页面自己出题时给；编码 → 说法）；不给就是打字。 */
   choices?: ChoiceOption[];
+  /** 前面第几题（从 1 起）选中这几个之一才问（工具入参 show_if）。 */
+  showIf?: { question: number; labels: string[] };
 };
 export type AskInput = { questions: AskQuestion[] };
 
@@ -34,7 +37,7 @@ export type AskInput = { questions: AskQuestion[] };
 export type AskState = { labels: string[]; other: string | null; otherCode?: string; skipped?: boolean };
 /** 交回的一题。other：选「其他」时打的字，或选的条目「编码 名称」（给模型看的，W2 约定）；code：选的条目的编码（页面自己出题时
  *  存答案用，不交给模型）；skipped：跳过（含没答的）。 */
-export type AskAnswer = { header: string; question: string; labels: string[]; other?: string; code?: string; skipped?: true };
+export type AskAnswer = { header: string; question: string; labels: string[]; other?: string; code?: string; skipped?: true; not_asked?: true };
 export type AskResult = { answers: AskAnswer[] };
 
 /** 「(推荐)」：推荐项排第一、名字带它（三语，大小写不论）。 */
@@ -58,7 +61,25 @@ export function questionsOf(input: unknown): AskQuestion[] {
         .map((o) => ({ label: o.label, description: typeof o.description === "string" ? o.description : "" })),
       ...(q.search && typeof q.search === "object" ? { search: q.search as AskSearch } : {}),
       ...(Array.isArray(q.choices) ? { choices: q.choices as ChoiceOption[] } : {}),
+      ...showIfOf(q.show_if),
     }));
+}
+
+function showIfOf(raw: unknown): { showIf?: { question: number; labels: string[] } } {
+  if (!raw || typeof raw !== "object") return {};
+  const { question, labels } = raw as { question?: unknown; labels?: unknown };
+  if (typeof question !== "number" || !Array.isArray(labels)) return {};
+  return { showIf: { question, labels: labels.filter((l): l is string => typeof l === "string") } };
+}
+
+/** 此刻要问的题（下标）：没有 show_if 的都问；有的看前面那一题此刻选中的（那一题自己被藏起来就当没选）。 */
+export function shownQuestions(questions: readonly AskQuestion[], states: readonly (AskState | undefined)[]): number[] {
+  const shown: boolean[] = [];
+  questions.forEach((q, i) => {
+    const at = q.showIf ? q.showIf.question - 1 : -1;
+    shown[i] = !q.showIf || (at >= 0 && at < i && !!shown[at] && !states[at]?.skipped && (states[at]?.labels ?? []).some((l) => q.showIf!.labels.includes(l)));
+  });
+  return questions.map((_, i) => i).filter((i) => shown[i]);
 }
 
 /** 初始的答：推荐项（第一个、带「(推荐)」）默认选中，其余空着。 */
@@ -84,10 +105,12 @@ export const answered = (state: AskState | undefined) => !!state && !state.skipp
 
 /** 提交：按题序，没答的算跳过。 */
 export function resultFrom(questions: readonly AskQuestion[], states: readonly AskState[]): AskResult {
+  const shown = new Set(shownQuestions(questions, states));
   return {
     answers: questions.map((q, i) => {
       const s = states[i];
       const base = { header: q.header ?? "", question: q.question };
+      if (!shown.has(i)) return { ...base, labels: [], not_asked: true as const };
       if (!answered(s)) return { ...base, labels: [], skipped: true as const };
       const other = (s!.other ?? "").trim();
       const code = (s!.otherCode ?? "").trim();
@@ -97,13 +120,16 @@ export function resultFrom(questions: readonly AskQuestion[], states: readonly A
 }
 
 /** 随「允许」交给服务端的作答（confirm 的 answers）：按题序，每题只留选的、「其他」、跳过。 */
-export function confirmAnswers(result: AskResult): Array<{ labels: string[]; other?: string; skipped?: true }> {
-  return result.answers.map((a) => (a.skipped ? { labels: [], skipped: true as const } : { labels: a.labels, ...(a.other ? { other: a.other } : {}) }));
+export function confirmAnswers(result: AskResult): Array<{ labels: string[]; other?: string; skipped?: true; not_asked?: true }> {
+  return result.answers.map((a) =>
+    a.not_asked ? { labels: [], not_asked: true as const } : a.skipped ? { labels: [], skipped: true as const } : { labels: a.labels, ...(a.other ? { other: a.other } : {}) },
+  );
 }
 
 /** 点完那一行（同允许卡片点完只剩一行淡色所选）：每题「标签：所选」，跳过的写「跳过」。 */
 export function answeredLine(result: AskResult | null | undefined): string {
   return (result?.answers ?? [])
+    .filter((a) => !a.not_asked)
     .map((a) => {
       const shown = a.skipped ? ask.skip : [...a.labels, ...(a.other ? [a.other] : [])].join("、");
       return a.header ? `${a.header}：${shown}` : shown;
@@ -124,6 +150,8 @@ export type AskItem = {
   options?: ChoiceOption[];
   search?: string;
   docs: string[];
+  /** 只在 key 那一项最后选成 value 时才成立（共用判定的 when）。 */
+  when?: { key: string; value: string };
 };
 
 const NEW = "__new__";
@@ -163,9 +191,21 @@ export function itemQuestion(item: AskItem, company: string): AskQuestion {
   };
 }
 
+/** 一组项 → 一组题：带 when 的项的题带 show_if（依赖的那一项在它前面出题、选项里有那个值时；依赖的项没出题就照问）。 */
+export function itemQuestions(items: readonly AskItem[], company: string): AskQuestion[] {
+  const questions = items.map((item) => itemQuestion(item, company));
+  return questions.map((q, i) => {
+    const when = items[i]!.when;
+    const at = when ? items.findIndex((other) => other.key === when.key) : -1;
+    if (!when || at < 0 || at >= i) return q;
+    const label = questions[at]!.options.find((_o, n) => itemValue(items[at]!, questions[at]!, { header: "", question: "", labels: [questions[at]!.options[n]!.label] }) === when.value)?.label;
+    return label ? { ...q, showIf: { question: at + 1, labels: [label] } } : q;
+  });
+}
+
 /** 一题的答 → 这一项选的值（编码）：选项按出题时的顺序对回编码；「其他」用选的编码或打的字；跳过回空。 */
 export function itemValue(item: AskItem, question: AskQuestion, answer: AskAnswer | undefined): string {
-  if (!answer || answer.skipped) return "";
+  if (!answer || answer.skipped || answer.not_asked) return "";
   if (answer.other) return answer.code ?? answer.other;
   const at = question.options.findIndex((o) => o.label === answer.labels[0]);
   if (at < 0) return "";
@@ -206,7 +246,22 @@ export function itemsOfCheck(reply: unknown): AskItem[] {
       value: i.state === "proposed" ? String(i.value ?? "") : "", value_label: String(i.value_label ?? ""),
       options: Array.isArray(i.options) ? (i.options as ChoiceOption[]) : [], ...(i.search ? { search: String(i.search) } : {}),
       docs: Array.isArray(i.docs) ? (i.docs as unknown[]).map(String) : [],
-    }));
+      ...whenOf(i.when),
+    }))
+    .reduce<AskItem[]>(afterWhatTheyNeed, []);
+}
+
+function whenOf(raw: unknown): { when?: { key: string; value: string } } {
+  const w = raw as { key?: unknown; value?: unknown } | null | undefined;
+  return w && typeof w.key === "string" && typeof w.value === "string" ? { when: { key: w.key, value: w.value } } : {};
+}
+
+/** 排序：带 when 的项排在它依赖的那一项后面（卡片按组内状态排，未定的出库仓会排在预选的入账方式前面）。 */
+function afterWhatTheyNeed(out: AskItem[], item: AskItem, _i: number, all: readonly AskItem[]): AskItem[] {
+  if (out.includes(item)) return out;
+  const waiting = all.filter((other) => other.when?.key === item.key && !out.includes(other));
+  if (item.when && !out.some((other) => other.key === item.when!.key) && all.some((other) => other.key === item.when!.key)) return out; // 等依赖的那一项
+  return [...out, item, ...waiting];
 }
 
 /** 代录 precheck 一张单要选的（needed：同一类同一对象只问一次）。 */

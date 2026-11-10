@@ -65,7 +65,7 @@ def document(**extra):
 
 def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_book=None, direction="purchase",
          mismatch=None, config=None, accounts=None, planned=None, hinted=None,
-         menu_memory=None, record_book=("C9", "K9"), menu=None):
+         menu_memory=None, record_book=("C9", "K9"), menu=None, stock_needed=None):
     """真加载判定模块；``needed``：写账规则要选的项；``block``：录不录的原因码；``goods``：商品单要选入账方式；``planned``：
     没有要选的项时推送服务给的「会怎么写」；``hinted``：带了用户说的费用类别时科目建议换成的顺序（同 `service._suggest`）。"""
     calls = []
@@ -77,7 +77,8 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
 
     def choices(_doc, _loaded, _found, posting_kind, **kw):
         calls.append(("choices", posting_kind) + ((kw["hint"],) if kw.get("hint") else ()))
-        view = {"needed": [dict(item) for item in needed],
+        wanted = stock_needed if stock_needed is not None and posting_kind == "stock" else needed
+        view = {"needed": [dict(item) for item in wanted],
                 "options": {"accounts": accounts or [{"code": "5100", "name": "ค่าใช้จ่าย"}]}}
         if kw.get("hint") and hinted:
             for item in view["needed"]:
@@ -413,6 +414,32 @@ class BigLists(unittest.TestCase):
         module, _calls, patcher = load(needed=(dict(item, expense=False),), goods=True)
         self.addCleanup(patcher.stop)
         self.assertIn("goods_posting", [i["kind"] for i in module.document("h1")["items"]])
+
+    def test_lines_already_settled_by_express_same_names_do_not_ask_stock_or_expense(self):
+        """测试机 11-09（shots/12）：明细与 Express 的非库存品同名，写账规则已按行定成「不动库存」，卡片仍整张问「走库存 / 记费用」、
+        预选走库存，再按走库存问出库仓与新建物料。每一行都已定下时不问这一项。"""
+        from pearnly_core.express_rules.push import choices as choice_rules
+
+        items = [{"name": "ค่าบริการหน้าร้าน 7-11", "qty": "1", "price": "5000"}]
+        decided = {"applied": {"kinds": {choice_rules.norm_name("ค่าบริการหน้าร้าน 7-11"): "service"}}}
+        fields = {"direction": "sales", "buyer_name": "ร้าน B", "buyer_tax": "0105555000022", "items": items}
+        module, _calls, patcher = load(document(pages=json.dumps([{"fields": fields}])), decided=decided, goods=True,
+                                       direction="sales")
+        self.addCleanup(patcher.stop)
+        self.assertNotIn("goods_posting", [i["kind"] for i in module.document("h1")["items"]])
+
+    def test_items_found_only_under_the_preselected_stock_answer_depend_on_it(self):
+        """测试机 11-09（shots/12）：选了「按服务录入」，后面还问从哪个仓库出库。按预选「走库存」重判才多出来的项（存货对照、
+        出库仓）带上条件：只在入账方式答成走库存时才问、才算数。两次都有的项不带条件。"""
+        location = {"kind": "location", "subject": "*", "label": "", "current": "01",
+                    "options": [{"code": "01", "name": "Main"}, {"code": "30", "name": "Branch"}]}
+        module, _calls, patcher = load(needed=(PARTY,), stock_needed=(PARTY, ITEM, location), goods=True)
+        self.addCleanup(patcher.stop)
+        found = {item["kind"]: item for item in module.document("h1")["items"]}
+        goods = found["goods_posting"]
+        expected = {"kind": "goods_posting", "subject": goods["subject"], "value": "stock"}
+        self.assertEqual((found["item"].get("when"), found["location"].get("when")), (expected, expected))
+        self.assertNotIn("when", found["party"])
 
     def test_a_multi_warehouse_book_asks_its_default_warehouse_preselecting_the_main_one(self):
         """多仓账套还没记过默认仓（11-08）：卡片在物料组里列「仓库」，预选主仓，点「开始」即记住（同其他写账规则的类）。"""

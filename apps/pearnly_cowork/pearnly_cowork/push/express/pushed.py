@@ -13,7 +13,8 @@
   逐张对应（同一顺序写）：``vouchers`` = [{voucher, acc, amount}]，回读据此不把它们算成直接录入、并比它们的分录。
 
 另有 ``written``：同一份冻结载荷 → 现购 / 赊购、哪层定的、记的科目及其来源，交给 CC 照实告诉用户（验收 F19）；第 2 期起
-再带冻结目标里的 ``decided_by``（每一类按什么定的：账套记忆 / 公司规则 / Express 历史 / 任务默认）。
+再带冻结目标里的 ``decided_by``（每一类按什么定的：账套记忆 / 公司规则 / Express 历史 / 任务默认）。销货的收入科目与金额照回执
+``meta.revenue``（CC 桌面版实际记的，测试机 11-09：说 41-01-00-00、实际记 42-10-00-00），回执没有的照载荷。
 """
 from __future__ import annotations
 
@@ -141,6 +142,30 @@ def _written_revenue(payload: Dict[str, Any], lines: List[Dict[str, str]], writt
     return out
 
 
+def _posted_revenue(out: Dict[str, Any], sent: str, response: Any) -> None:
+    """销货回执里实际记的收入贷方换掉载荷的收入科目（见 `written`）。回执没有 / 认不出的不动。"""
+    meta = response.get("meta") if isinstance(response, dict) else None
+    raw = meta.get("revenue") if isinstance(meta, dict) else None  # 已经 `common.sanitize_push_meta` 净化
+    rows = []
+    for item in raw if isinstance(raw, list) else ():
+        acc = str(item.get("acc") or "").strip() if isinstance(item, dict) else ""
+        amount = _amount(item.get("amount")) if isinstance(item, dict) else ""
+        if not acc or not amount:
+            return  # 有一条认不出：整项不用，照载荷（同 `_written_revenue`）
+        rows.append({"account": acc, "amount": amount})
+    if not rows:
+        return
+    out["revenue"] = rows
+    accounts = list(dict.fromkeys(row["account"] for row in rows))
+    if len(accounts) == 1:
+        out["revenue_account"] = accounts[0]
+        if accounts[0] != sent:
+            out["account_from"] = ITEM_GROUP
+    else:
+        out.pop("revenue_account", None)
+        out.pop("account_from", None)
+
+
 def in_window(item: Dict[str, Any], first: Optional[dt.date], last: Optional[dt.date]) -> bool:
     """单据日期落在 [first, last]；没给期间（只按单据号找）就都不算。"""
     if first is None or last is None:
@@ -164,6 +189,8 @@ DECIDED_SOURCES = ("task_default", "remembered", "company_rule", "express_histor
 ACCOUNT_FROM = {"chosen": "chosen", "remembered": "remembered", "task_default": "task_default",
                 "express_history": "express_history", "company_rule": "company_rule", "category_map": "matched",
                 "config_default": "default"}
+# 回执里实际记的收入科目与载荷不同：CC 桌面版照物料自己的科目组记的（`companion dbf_sales.revenue_entries`）
+ITEM_GROUP = "item_group"
 
 
 # 推前的「会怎么写」（`planned`）里，现 / 赊由这几层定时，票面本身指向的现 / 赊另给（票面没写 / 票种推不出来的不给）
@@ -245,12 +272,14 @@ def _rules_used(company_rules: Any, rules_now: Any) -> list:
 
 
 def written(payload: Any, decided_by: Any = None, company_rules: Any = None,
-            rules_now: Any = None) -> Optional[Dict[str, Any]]:
+            rules_now: Any = None, *, response: Any = None) -> Optional[Dict[str, Any]]:
     """推送记录里冻结的 Express 载荷 → 这张单是怎么写进 Express 的几项事实（验收 F19：CC 只知道单号，答不出现购还是
     赊购，叫用户去 Express 核对）：{payment, payment_from?, debit_account | revenue_account, account_from?, vat?,
     decided_by?, company_rules?}。``decided_by`` 是冻结目标里的「每一类按什么定的」（第 2 期），与 ``account_from`` 同一套词；
     ``company_rules`` 是冻结目标里用上的是哪几条公司规则（`_rules_used`，``rules_now`` 核现在还在不在）。
-    不是 Express 进 / 销项载荷（MR.ERP 等）回 None。不带单号、对方、金额等别的东西，结果要小。"""
+    ``response`` 是推送回执（入账后才有）：销货回执带实际记的收入（``meta.revenue``）时，收入科目与金额照它（``revenue`` 逐条
+    ``[{account, amount}]``，只有一个科目时也给 ``revenue_account``；与载荷不同的 ``account_from`` 是 ``item_group``）。
+    不是 Express 进 / 销项载荷（MR.ERP 等）回 None。不带单号、对方等别的东西，结果要小。"""
     payload = payload if isinstance(payload, dict) else {}
     direction = payload.get("direction")
     payment = PAYMENT_OF.get((direction, str(payload.get("doctype") or "").strip().upper()))
@@ -269,6 +298,8 @@ def written(payload: Any, decided_by: Any = None, company_rules: Any = None,
         account_from = ACCOUNT_FROM.get(str(payload.get("account_source") or "").strip())
         if account_from:
             out["account_from"] = account_from
+    if direction == "sales":
+        _posted_revenue(out, account, response)
     if direction == "purchase":
         vat = _amount(payload.get("vat_amount"))
         if payload.get("doc_lane") == "expense":

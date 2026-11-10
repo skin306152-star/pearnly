@@ -6,6 +6,7 @@
 //   - 底部靠右「跳过」（次要）与「下一步 ⌘↵」（主要），最后一题主按钮是「提交 ⌘↵」（快捷键提示经共用的 Shortcut：Windows 写 Ctrl↵、触屏不写），⌘ / Ctrl + 回车同主按钮；
 //   - 卡片下方橙色小点 +「需要您的输入」（等人的时候）。
 // 点完（交回了答案）：同「允许」卡片点完只剩问话与一行淡色所选；没答就没了写「已取消」。
+// 带 show_if 的题（前面那一题选中某几个才问）随前面的回答收起 / 放出：翻页与「第 n 项，共 m 项」只算此刻要问的题（测试机 11-09）。
 // 「跳过」= 这一题不定（交回时标 skipped），依赖它的单这次不写、留在对话里，其余照写（由 CC / 服务端处理）。
 // 三处复用：ask_user 工具卡片（AskUserCard，答案交回这段会话）、代录中途那一张（operator-choose.tsx）、对话末尾的待处理框（pending.tsx），
 // 后两处页面自己出题（ask-shared.ts 的 itemQuestion）。样式只用 globals.css 的 .cc-askq-* 与变量。
@@ -33,6 +34,7 @@ import {
   initialStates,
   questionsOf,
   resultFrom,
+  shownQuestions,
   toggle,
   toggleOther,
 } from "./ask-shared";
@@ -150,16 +152,22 @@ export const AskCard: FC<{
   status?: boolean;
   slot?: string;
 }> = ({ questions, phase, result, busy, failure, onSubmit, framed = true, status = framed, slot = "cc-askq" }) => {
-  const [at, setAt] = useState(0);
+  // pos：此刻要问的题里的第几题（带 show_if 的题随前面的回答收起，不占位置）
+  const [pos, setPos] = useState(0);
   const [states, setStates] = useState<AskState[]>(() => initialStates(questions));
   useEffect(() => setStates((before) => (before.length === questions.length ? before : initialStates(questions))), [questions]);
-  const q = questions[Math.min(at, questions.length - 1)];
+  const shown = shownQuestions(questions, states);
+  const place = Math.min(pos, Math.max(shown.length - 1, 0));
+  const at = shown[place] ?? 0;
+  const q = questions[at];
   const state = states[at] ?? { labels: [], other: null };
-  const last = at >= questions.length - 1;
+  const last = place >= shown.length - 1;
   const set = (next: AskState) => setStates((all) => all.map((s, i) => (i === at ? next : s)));
   const forward = (next: AskState[]) => {
-    if (last) onSubmit(resultFrom(questions, next));
-    else setAt(at + 1);
+    const visible = shownQuestions(questions, next);
+    const now = visible.indexOf(at);
+    if (now < 0 || now >= visible.length - 1) onSubmit(resultFrom(questions, next));
+    else setPos(now + 1);
   };
   const primary = () => forward(states);
   const skip = () => {
@@ -180,7 +188,9 @@ export const AskCard: FC<{
   if (phase !== "ask") {
     return frame(
       <div className="aui-step cc-ask" data-phase={phase}>
-        <div className="cc-ask-q">{questions.length === 1 ? q.question : questions.map((x) => x.header || x.question).join(" · ")}</div>
+        <div className="cc-ask-q">
+          {questions.length === 1 ? q.question : questions.filter((_x, i) => !result?.answers[i]?.not_asked).map((x) => x.header || x.question).join(" · ")}
+        </div>
         <div data-slot="cc-ask-answer" className="cc-ask-answer">
           {phase === "answered" ? answeredLine(result) : steps.cancelled}
         </div>
@@ -194,13 +204,13 @@ export const AskCard: FC<{
         <div className="cc-askq" data-phase="ask">
           <div className="cc-askq-head">
             <div className="cc-askq-q" data-slot="cc-askq-question">{q.question}</div>
-            {questions.length > 1 && (
+            {shown.length > 1 && (
               <div className="cc-askq-pager" data-slot="cc-askq-pager">
-                <button type="button" className="cc-row-btn cc-tap" aria-label={ask.prev} disabled={at === 0} onClick={() => setAt(at - 1)}>
+                <button type="button" className="cc-row-btn cc-tap" aria-label={ask.prev} disabled={place === 0} onClick={() => setPos(place - 1)}>
                   <ChevronLeftIcon />
                 </button>
-                <span className="cc-askq-nth">{ask.nth(at + 1, questions.length)}</span>
-                <button type="button" className="cc-row-btn cc-tap" aria-label={ask.after} disabled={last} onClick={() => setAt(at + 1)}>
+                <span className="cc-askq-nth">{ask.nth(place + 1, shown.length)}</span>
+                <button type="button" className="cc-row-btn cc-tap" aria-label={ask.after} disabled={last} onClick={() => setPos(place + 1)}>
                   <ChevronRightIcon />
                 </button>
               </div>
