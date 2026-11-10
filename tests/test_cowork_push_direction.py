@@ -73,7 +73,7 @@ def operator_check(service, name):
         return module.document(name)["legacy"]
 
 
-def wired(fields, *, book_tax=BOOK_TAX, own_tax=FIRM, direction=None, branches=None):
+def wired(fields, *, book_tax=BOOK_TAX, own_tax=FIRM, direction=None, branches=None, company_tax=""):
     """推送服务按真实导入加载（`test_cowork_push_fixed._service`），方向与账套核对用真的纯规则，其余换成替身。
     ``branches``：同一税号各分店的账套 ``{账套键: 分店号}``（推往 BOOK）。``seen["hooks"]``：推送问过的钩子名。"""
     service, frappe, _calls = _service()
@@ -81,7 +81,9 @@ def wired(fields, *, book_tax=BOOK_TAX, own_tax=FIRM, direction=None, branches=N
     frappe.conf = {"pearnly_cowork_erp_push_enabled": True}
     frappe.db.get_value = lambda *a, **k: own_tax
     hooks = seen.setdefault("hooks", [])
-    frappe.get_hooks = lambda name: hooks.append(name) or []
+    frappe.get_hooks = lambda name: hooks.append(name) or (["companies.rules.tax_for_push"]
+                                                           if company_tax and name == "cowork_push_company_tax" else [])
+    frappe.get_attr = lambda path: (lambda connection, row: seen.setdefault("company_tax_asked", (connection, row)) and company_tax)
     doc = types.SimpleNamespace(name="CWH-9151", workspace="W1", client="", record_version=3, pages="[]")
     period = {"period_start": "2025-11-01", "period_end": "2026-10-31", "next_end": "2027-10-31"}
     snapshot = {"account_sets": [{"source_id": key, "attributes": {"tax_id": book_tax, "branch": branch, **period}}
@@ -196,6 +198,19 @@ class PrepareDirection(unittest.TestCase):
         self.assertIsNone(seen["direction"])  # 预检照旧停在「方向判不出」，不猜
         self.assertNotIn("direction", seen["history"])
         self.assertEqual(seen["context"]["account_tax_id"], "")
+
+    def test_without_a_book_tax_id_the_tax_id_remembered_on_the_company_decides(self):
+        """A 线 11-10：工作空间、账套目录都没税号时，用这份账套所属公司记下的税号（CC 卡片问过一次「本公司是票上哪一方」）。"""
+        seen = self.prepare(courier(buyer_name="ซินเซียร์ไอซ์", buyer_tax=BOOK_TAX), book_tax="", own_tax="",
+                            company_tax=BOOK_TAX)
+        self.assertEqual(seen["direction"], "purchase")
+        self.assertEqual(seen["context"]["account_tax_id"], BOOK_TAX)
+        self.assertEqual(seen["company_tax_asked"][0], "C1")
+        sale = self.prepare(courier(seller_tax=BOOK_TAX), book_tax="", own_tax="", company_tax=BOOK_TAX)
+        self.assertEqual(sale["direction"], "sales")
+        # 目录报了税号就用目录的，不问公司
+        listed = self.prepare(courier(buyer_tax=BOOK_TAX), company_tax=OTHER)
+        self.assertNotIn("company_tax_asked", listed)
 
     def test_a_misread_own_seller_tax_id_is_not_taken_for_another_company(self):
         """审查 2026-10-15：自开的无买方简易税票卖方税号读错一位，不能当别家开来的票按进项记。"""

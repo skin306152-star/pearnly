@@ -826,6 +826,37 @@ class CompanyTests(unittest.TestCase):
         self.assertEqual(provider.sections(), provider.SECTIONS)
         self.assertEqual(service.rename(made["id"], "ABC ใหม่")["title"], "ABC ใหม่")
 
+    def test_the_own_tax_answer_is_remembered_on_the_company_with_a_change_record(self):
+        """A 线 11-10（线上 testcowork 公司 r4qq1vnne6）：公司、工作空间、账套目录都没税号，CC 卡片问「本公司是票上哪一方」，
+        答案记成公司税号与分店；推送判方向经钩子取它；改动留原生修改记录；不合法、撞号不写。"""
+        made = make("C1", "S:\\69EXP\\NOTAX")
+        row = frappe.db.tables["Cowork Company"][made["id"]]
+        identity_key = row["identity"]
+        self.assertEqual(row.get("tax_id") or "", "")
+        catalog_row = next(r for r in connections.catalogs["C1"] if r["source_id"] == "S:\\69EXP\\NOTAX")
+        self.assertEqual(rules.tax_for_push("C1", catalog_row), "")
+        saved = {}
+        original = company_access.write
+
+        def spy(doc, **kwargs):
+            saved.update(kwargs)
+            return original(doc, **kwargs)
+
+        with mock.patch.object(service, "write", spy):
+            service.set_own_tax(made["id"], "0107536999991:00002")
+        self.assertEqual((row["tax_id"], row["branch"]), ("0107536999991", "00002"))
+        self.assertEqual(saved, {"versioned": True})  # 这一笔留 Version（谁、什么时候、从什么改成什么）
+        self.assertEqual(row["identity"], identity_key)  # 身份键不变
+        self.assertEqual(rules.tax_for_push("C1", catalog_row), "0107536999991")
+        for bad in ("12345", "0107536999990", ""):
+            with self.subTest(bad=bad), self.assertRaises(frappe.ValidationError):
+                service.set_own_tax(made["id"], bad)
+        abc = make()  # 按税号建的另一家（TAX）
+        with self.assertRaises(frappe.ValidationError):
+            service.set_own_tax(made["id"], TAX)
+        self.assertEqual(row["tax_id"], "0107536999991")
+        self.assertEqual(frappe.db.tables["Cowork Company"][abc["id"]]["tax_id"], TAX)
+
     def test_create_reads_the_catalog_itself_and_is_idempotent(self):
         made = make()
         self.assertTrue(made["created"])

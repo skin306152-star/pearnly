@@ -30,11 +30,12 @@ def guard(doc):
         deny()
 
 
-def write(doc):
-    """建或存一行（调用方已按当前身份核过权限）。"""
+def write(doc, *, versioned=False):
+    """建或存一行（调用方已按当前身份核过权限）。``versioned``：这次改动留原生修改记录（Version：谁、什么时候、从什么改成
+    什么；只给要追溯的改动用，例如公司税号 `service.set_own_tax`），其余照旧不留。"""
     doc.flags.cowork_company_write = _WRITE
     doc.flags.ignore_permissions = True
-    doc.flags.ignore_version = True
+    doc.flags.ignore_version = not versioned
     if doc.is_new():
         doc.insert(ignore_permissions=True)
     else:

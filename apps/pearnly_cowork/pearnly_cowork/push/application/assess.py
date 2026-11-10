@@ -106,7 +106,7 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
         service._apply_stock_group(config, loaded.doc, account_set)
         prepared = prepare_express(selected, found["history_value"], posting_kind=posting_kind,
             context=ExpressContext(enabled=True, today=today, own_tax_id=found["own_tax"],
-                account_tax_id=service._account_tax(account_row), tenant_id=loaded.access.tenant_id,
+                account_tax_id=found["account_tax"], tenant_id=loaded.access.tenant_id,
                 mappings=preparation["mappings"],
                 supplier_profile=preparation["supplier_profiles"].get(
                     clean_tax_id(fields.get("seller_tax") or fields.get("seller_tax_id"))),

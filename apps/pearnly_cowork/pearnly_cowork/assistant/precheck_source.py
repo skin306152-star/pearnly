@@ -24,6 +24,7 @@ import frappe
 from frappe import _
 
 from pearnly_core.write_precheck import contracts as card
+from pearnly_core.write_precheck import own_party
 from pearnly_core.write_precheck import preselect
 from pearnly_cowork.access import scope
 
@@ -34,6 +35,7 @@ DOCUMENT_POLICY = "document_policy"
 GOODS_POSTING = "goods_posting"
 CURRENT_BOOK = "current_book"
 PAYMENT = "payment"
+OWN_PARTY = own_party.KIND  # 本公司是票上的哪一方：公司、工作空间、账套目录都没税号时问一次，答案记成公司税号（A 线 11-10）
 OPERATOR_FORM = "operator_form"  # 代录停在定制菜单的子菜单（原因 menu_choice）：这家这本账套这种单走哪个命令（评估 2026-11-05 修法 D）
 # 写账规则记下的来源（`push.express.decide` 的 ``decided_by``）→ 卡片的来源
 DECIDED_BY = {"remembered": card.REMEMBERED, "company_rule": card.COMPANY_RULE,
@@ -122,6 +124,11 @@ def document(history, posting_kind=None, hint=None) -> dict:
         # 要选的科目还没有可选值（科目表还没读到）：读到后重判，不问人
         return {**out, "state": card.WAITING, "reason": str(view["wait"].get("message") or "")}
     if not found["direction"]:
+        own = _own_party_item(doc, found)
+        if own:
+            # 本公司一个税号都没有（公司、工作空间、账套目录）：先问本公司是票上哪一方，记成公司税号后方向按它判
+            items.append(own)
+            return _with_menu({**out, "state": card.CHECK, "items": items}, menu)
         # 判不出进项还是销项：先定方向（按对方记住，同代录资料区的分组），后面的项按方向才算得出
         from pearnly_cowork.assistant.operator_source import party_key
 
@@ -147,6 +154,38 @@ def document(history, posting_kind=None, hint=None) -> dict:
         # 什么都不用定（全部已定）才给：还有预选 / 未定的项时写法要等人答完、重判后再看
         out["planned"] = view["planned"]
     return _with_menu({**out, "state": card.CHECK, "items": items}, menu)
+
+
+def _own_party_item(doc, found):
+    """「本公司是票上的哪一方」这一项（`write_precheck.own_party`）：工作空间、账套目录、推往账套所属公司都没有税号
+    （`service._express_context` 的 ``own_tax`` / ``account_tax``，后者已含公司记下的税号），票能归到一家公司，票上至少一方
+    税号有效时才出；归类键是公司（一批只问一次，选项由 :func:`check` 按整批合成）。否则回 None（照旧按对方问分组）。"""
+    if found.get("own_tax") or found.get("account_tax"):
+        return None
+    from pearnly_cowork.companies import rules
+
+    company, _branch = rules.account_company(doc.push_connection, found.get("account_row"))
+    options = own_party.options(found["fields"])
+    if not company or not options:
+        return None
+    title = frappe.db.get_value("Cowork Company", company, "title") or ""
+    return {"kind": OWN_PARTY, "subject": company, "label": str(title), "options": options}
+
+
+def _own_party_batch(documents) -> None:
+    """一批里「本公司是哪一方」按公司合成一题：选项是这批票上出现过的税号（按张数排），每张都有的那个预选
+    （来源 ``rule``，要人点开始才算数；主会话 11-10 审定）。原地改每张单的这一项。"""
+    by_company = {}
+    for found in documents:
+        for item in found.get("items") or ():
+            if item.get("kind") == OWN_PARTY:
+                by_company.setdefault(item["subject"], []).append(item)
+    for rows in by_company.values():
+        options, value = own_party.merge([row.get("options") or [] for row in rows])
+        for row in rows:
+            row["options"] = [dict(option) for option in options]
+            if value:
+                row.update(value=value, source=card.RULE)
 
 
 def _menu_stop(doc) -> dict:
@@ -461,6 +500,7 @@ def check(company, doc_ids, hint=None) -> dict:
             continue
         found.pop("legacy", None)
         documents.append(found)
+    _own_party_batch(documents)
     title = frappe.db.get_value("Cowork Company", company, "title") if company else ""
     return {"company_title": title or "", "documents": documents}
 
@@ -509,6 +549,16 @@ def remember(company, answers) -> dict:
             if kind == DIRECTION:
                 operator_source.regroup(company, name, value)  # 每张单都改方向；按公司记住同一对方
                 saved += 1
+                continue
+            if kind == OWN_PARTY:
+                if str(row.get("subject") or "") != str(company or ""):
+                    frappe.throw(_("cowork.choice.invalid"))  # 只记这段对话所挂的这家公司
+                if once not in done:
+                    done.add(once)
+                    from pearnly_cowork.companies import service as companies
+
+                    companies.set_own_tax(company, value)
+                    saved += 1
                 continue
             if once in done:
                 continue
