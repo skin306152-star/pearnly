@@ -495,6 +495,30 @@ def rename(company, title) -> dict:
     return summary(company)
 
 
+def set_own_tax(company, value) -> dict:
+    """CC 卡片「本公司是票上的哪一方」的答案（`write_precheck.own_party`：选项编码 ``税号:分店``，或手输的 13 位税号）→ 这家
+    公司的税号与分店，推送判进项 / 销项用它（`rules.tax_for_push`），这家不再问（A 线 11-10，主会话审定）。记错了由 CC 用同一
+    接口改；每次改动留原生修改记录（DocType 开 track_changes、这一笔写入不跳过 Version：谁、什么时候、从什么改成什么）。身份键不变（仍按建档时的认法）。
+    税号不合法回 ``tax.company_invalid``；这个税号已在别的主档上（多半选到了本所另一家客户）回 ``workspace.tax_id_duplicate``。"""
+    from pearnly_core.write_precheck import own_party
+
+    require_write()
+    found = own_party.parse(value)
+    if not found:
+        _error("tax.company_invalid")
+    tax, branch = found
+    _company_row(company)
+    if any(name != company for name in with_tax_id(tax)):
+        _error("workspace.tax_id_duplicate")
+    doc = read(COMPANY, company, for_update=True)
+    if (doc.tax_id or "", doc.branch or "") != (tax, branch):
+        doc.tax_id, doc.branch = tax, branch
+        write(doc, versioned=True)
+        forget_cache()
+        announce("upsert", company, part="master")
+    return summary(company)
+
+
 def set_combined_vat(company, combined) -> dict:
     """合并申报（ยื่นรวม，已获批的公司才勾）：这一批只做显示与说明，不改草稿算法。"""
     require_write()

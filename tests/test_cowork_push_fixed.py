@@ -303,7 +303,7 @@ class ServiceEntrypoints(unittest.TestCase):
         fields = {"seller_tax": "0105599220205", "document_type": "tax_invoice"}
         context = {"target": types.SimpleNamespace(account_set=BOOK), "flat": {"total_amount": "30013.50"},
                    "fields": fields, "direction": "purchase", "selected": {"config": {}}, "history_value": {},
-                   "own_tax": "", "account_row": {},
+                   "own_tax": "", "account_row": {}, "account_tax": "",
                    "preparation": {"supplier_profiles": {}, "bank_index": [], "mappings": {}}}
         payload = {"direction": "purchase", "doctype": "HP", "doctype_src": "remembered", "items_account": "51-03-01-00",
                    "account_source": "chosen", "doc_lane": "goods", "vat_amount": "1963.50"}

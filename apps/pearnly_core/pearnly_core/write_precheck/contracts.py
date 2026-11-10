@@ -64,6 +64,8 @@ KIND_GROUPS = {
     "mrerp_menu": BOOK, "mrerp_default": BOOK,
     # 代录：这家定制过的 Express 菜单里这种单走哪个子菜单命令（归类键 = 单据种类，`express_operator.menu_choice`）
     "operator_form": BOOK,
+    # 本公司是票上的哪一方（所选公司、工作空间、账套目录都没税号，判不出进项 / 销项；归类键 = 公司，`own_party`）
+    "own_party": BOOK,
     "vat": PURCHASE,
     "refund": SALES, "vat_registered": SALES, "exempt_mode": SALES,
     "item": STOCK, "stock_group": STOCK, "goods_posting": STOCK, "location": STOCK,

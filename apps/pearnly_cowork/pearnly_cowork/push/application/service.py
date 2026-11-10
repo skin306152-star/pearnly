@@ -182,7 +182,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
     seller_tax = clean_tax_id(fields.get("seller_tax") or fields.get("seller_tax_id"))
     flat = flatten_history_for_mrerp(history_value)
     invoice_date = parse_invoice_date(flat.get('invoice_date') or (flat.get('fields') or {}).get('date'))
-    account_tax = _account_tax(_account_row(loaded, target))
+    account_tax = _book_tax(loaded.doc.name, _account_row(loaded, target))
     direction = resolve_account_direction(flat, history_value, own_tax_id=own_tax, account_tax_id=account_tax)
     _require_matching_account(loaded, target, fields, invoice_date)
     if direction and not explicit_direction(flat, history_value):
@@ -394,6 +394,20 @@ def _account_row(loaded, target):
 def _account_tax(account):
     attributes = (account or {}).get("attributes")
     return clean_tax_id(attributes.get("tax_id")) if isinstance(attributes, dict) else ""
+
+
+def _book_tax(connection, account):
+    """推往的这份账套的税号（判进项 / 销项的锚点之一，`contracts.push.resolve_account_direction` 的 ``account_tax_id``）：账套目录
+    报的；没报时用这份账套所属公司记下的税号（CC 卡片问过一次「本公司是票上哪一方」，A 线 11-10；钩子
+    ``cowork_push_company_tax``，push 域不导入 companies）。都没有是空串。"""
+    found = _account_tax(account)
+    if found:
+        return found
+    for path in frappe.get_hooks("cowork_push_company_tax") or []:
+        found = clean_tax_id(frappe.get_attr(path)(connection, account))
+        if found:
+            return found
+    return ""
 
 
 def _require_matching_account(loaded, target, fields, invoice_date):
@@ -645,7 +659,7 @@ def _planned(doc, loaded, found, posting_kind, decision, today):
     try:
         prepared = prepare_express(selected, history_value, posting_kind=posting_kind,
             context=ExpressContext(enabled=True, today=today, own_tax_id=found["own_tax"],
-                account_tax_id=_account_tax(found["account_row"]), tenant_id=loaded.access.tenant_id,
+                account_tax_id=found["account_tax"], tenant_id=loaded.access.tenant_id,
                 mappings=preparation["mappings"], supplier_profile=profile, bank_index=preparation["bank_index"]))
     except (frappe.ValidationError, ValueError, KeyError, TypeError):
         frappe.clear_messages()
@@ -813,7 +827,7 @@ def _express_facts(doc, loaded, account_set_key):
 def _express_context(doc, loaded, account_set_key):
     """`_express_facts` 的全部取数（自动推送的判定 `push.application.assess` 还要整个选定的端点、票的投影、本方税号与
     目录这一行）：``{target, flat, fields, direction, preparation, selected, history_value, own_tax, account_row,
-    invoice_date}``。"""
+    account_tax, invoice_date}``（``account_tax`` 见 `_book_tax`）。"""
     try:
         target = freeze_target(loaded.endpoint, access=loaded.access, evidence=loaded.evidence,
                                account_set_key=account_set_key, request_id=None, revision=None)
@@ -833,8 +847,8 @@ def _express_context(doc, loaded, account_set_key):
     flat = flatten_history_for_mrerp(history_value)
     invoice_date = parse_invoice_date(flat.get('invoice_date') or (flat.get('fields') or {}).get('date'))
     account_row = _account_row(loaded, target)
-    direction = resolve_account_direction(flat, history_value, own_tax_id=own_tax,
-                                          account_tax_id=_account_tax(account_row))
+    account_tax = _book_tax(loaded.doc.name, account_row)
+    direction = resolve_account_direction(flat, history_value, own_tax_id=own_tax, account_tax_id=account_tax)
     seller_tax = clean_tax_id(fields.get("seller_tax") or fields.get("seller_tax_id"))
     preparation, _evidence = preparation_sources.collect(loaded, target,
         seller_tax=seller_tax if direction == 'purchase' else '',
@@ -842,7 +856,7 @@ def _express_context(doc, loaded, account_set_key):
     selected['config'].update(deepcopy(preparation['reported_config']))
     return {"target": target, "flat": flat, "fields": fields, "direction": direction, "preparation": preparation,
             "selected": selected, "history_value": history_value, "own_tax": own_tax, "account_row": account_row,
-            "invoice_date": invoice_date}
+            "account_tax": account_tax, "invoice_date": invoice_date}
 
 
 def mrerp_basis(doc, loaded, account_set_key, catalog_request_id=None, catalog_revision=None, *, lock=True):

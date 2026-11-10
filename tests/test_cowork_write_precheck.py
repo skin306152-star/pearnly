@@ -66,7 +66,8 @@ def document(**extra):
 
 def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_book=None, direction="purchase",
          mismatch=None, config=None, accounts=None, planned=None, hinted=None,
-         menu_memory=None, record_book=("C9", "K9"), menu=None):
+         menu_memory=None, record_book=("C9", "K9"), menu=None, own_tax="", book_tax="0105555000099",
+         company=("CO1", "00000"), taken=False):
     """真加载判定模块；``needed``：写账规则要选的项；``block``：录不录的原因码；``goods``：商品单要选入账方式；``planned``：
     没有要选的项时推送服务给的「会怎么写」；``hinted``：带了用户说的费用类别时科目建议换成的顺序（同 `service._suggest`）。"""
     calls = []
@@ -74,7 +75,8 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
     fields = json.loads(doc.pages)[0]["fields"]
     target = {"account_set": BOOK, "account_set_title": "TEST 2026", "connection": "C1"}
     found = {"target": ns(account_set=BOOK), "fields": fields, "direction": direction, "invoice_date": None,
-             "selected": {"config": dict(config or {})}, "flat": {}, "preparation": {}}
+             "selected": {"config": dict(config or {})}, "flat": {}, "preparation": {}, "own_tax": own_tax,
+             "account_tax": book_tax, "account_row": {"source_id": BOOK, "attributes": {}}}
 
     def choices(_doc, _loaded, _found, posting_kind, **kw):
         calls.append(("choices", posting_kind) + ((kw["hint"],) if kw.get("hint") else ()))
@@ -110,6 +112,15 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
                  current_book_choice=lambda row, key: {"workspace": "W1", "key": "cb", "value": key})
     storage = ns(read=lambda name: doc)
     memory = dict(menu_memory or {})  # {(连接, 账套, 单种): 菜单文字}
+    rules = ns(groups=lambda company_: {}, account_company=lambda connection, row: company)
+
+    def set_own_tax(company_, value, *, label=""):
+        calls.append(("own_tax", company_, value))
+        if taken:
+            raise Stop("workspace.tax_id_duplicate")
+        return {"tax_id": value.split(":")[0]}
+
+    companies = ns(set_own_tax=set_own_tax)
 
     def record(connection, account_set, kind, subject, value, label=""):
         calls.append(("record", connection, account_set, kind, subject, value, label))
@@ -146,8 +157,9 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
         "pearnly_cowork.connections.service": ns(read_for_push=lambda *a, **k: ns(
             endpoint={"adapter": "express"}, doc=ns(name="C1"))),
         "pearnly_cowork.contracts": ns(document_policy=policy), "pearnly_cowork.contracts.document_policy": policy,
-        "pearnly_cowork.companies": ns(pending=pending, rules=ns(groups=lambda company: {})),
-        "pearnly_cowork.companies.pending": pending, "pearnly_cowork.companies.rules": ns(groups=lambda company: {}),
+        "pearnly_cowork.companies": ns(pending=pending, rules=rules, service=companies),
+        "pearnly_cowork.companies.pending": pending, "pearnly_cowork.companies.rules": rules,
+        "pearnly_cowork.companies.service": companies,
         "pearnly_cowork.assistant": ns(
             operator_source=ns(regroup=lambda company, name, value: calls.append(("regroup", company, name, value)),
                                _settle=lambda name, memory: None,
@@ -250,6 +262,43 @@ class Collect(unittest.TestCase):
         self.assertEqual([item["kind"] for item in found["items"]], ["direction"])
         self.assertEqual(found["items"][0]["subject"], "party|0105555000011|0")
         self.assertEqual(card.merge([found])["counts"]["open"], 1)
+
+    def test_with_no_tax_id_anywhere_it_asks_which_side_is_the_company(self):
+        """A 线 11-10（线上 testcowork 公司 r4qq1vnne6）：公司、工作空间、账套目录都没税号 → 方向判不出；问「本公司是票上
+        哪一方」（选项是票上两方，名称 · 税号），不按对方问资料分组。"""
+        doc = document(pages=json.dumps([{"fields": {"seller_name": "บริษัท ชินเซียร์ ไอซ์ จำกัด", "seller_tax": "0105561077332",
+                                                     "buyer_name": "บมจ.บิ๊กซี", "buyer_tax": "0107536999991"}}]))
+        found, _calls, _m = self.run_document(doc, direction="", book_tax="", needed=(ACCOUNT,))
+        self.assertEqual([item["kind"] for item in found["items"]], ["own_party"])
+        item = found["items"][0]
+        self.assertEqual((item["subject"], item["label"]), ("CO1", "ABC Co"))
+        self.assertEqual([row["code"] for row in item["options"]], ["0105561077332:00000", "0107536999991:00000"])
+        self.assertEqual(card.group_of(item["kind"], item["subject"]), card.BOOK)
+
+    def test_a_batch_asks_once_with_every_tax_id_seen_and_preselects_the_one_on_every_ticket(self):
+        module, _calls, patcher = load()
+        self.addCleanup(patcher.stop)
+        me, bigc, other = "0105561077332:00000", "0107536999991:00000", "0105559999996:00000"
+        own = lambda doc_id, *codes: {"doc_id": doc_id, "state": card.CHECK, "items": [
+            {"kind": "own_party", "subject": "CO1", "label": "ABC Co",
+             "options": [{"code": code, "name": code} for code in codes]}]}
+        found = {"h1": own("h1", me, bigc), "h2": own("h2", other, me), "h3": own("h3", me, bigc)}
+        module.document = lambda name, posting=None, hint=None: found[name]
+        out = module.check("CO1", ["h1", "h2", "h3"])
+        merged = card.merge(out["documents"])
+        items = card.items_of(merged)
+        self.assertEqual(len(items), 1)  # 一批只问一次
+        self.assertEqual(items[0]["docs"], ["h1", "h2", "h3"])
+        self.assertEqual([row["code"] for row in items[0]["options"]], [me, bigc, other])
+        self.assertEqual((items[0]["value"], items[0]["state"]), (me, card.PROPOSED))  # 每张都有：预选，点开始才算数
+
+    def test_a_known_own_tax_id_keeps_the_group_question(self):
+        # 有锚点（工作空间或账套目录有税号）却判不出：别家的票，照旧按对方问分组；单据不归哪家公司也照旧
+        for kwargs in ({"own_tax": "0105555000099", "book_tax": ""}, {"book_tax": "0105555000099"},
+                       {"book_tax": "", "company": (None, "")}):
+            with self.subTest(**{k: str(v) for k, v in kwargs.items()}):
+                found, _calls, _m = self.run_document(direction="", needed=(ACCOUNT,), **kwargs)
+                self.assertEqual([item["kind"] for item in found["items"]], ["direction"])
 
     def test_facts_are_not_choices(self):
         found, _calls, _m = self.run_document(document(last_push_reason="UNKNOWN", last_push_record="PR-1"))
@@ -478,6 +527,27 @@ class Remember(unittest.TestCase):
         self.assertEqual([c for c in calls if c[0] in ("current_book", "retarget")],
                          [("current_book", "K2"), ("retarget", "h1", "C1", "K2")])
         self.assertEqual(out["saved"], 6)
+
+    def test_the_own_party_answer_becomes_the_company_tax_id_once(self):
+        module, calls, patcher = load()
+        self.addCleanup(patcher.stop)
+        row = {"kind": "own_party", "subject": "CO1", "value": "0105561077332:00000", "label": "ABC Co", "remember": True}
+        out = module.remember("CO1", {"h1": [row], "h2": [row]})
+        self.assertEqual([c for c in calls if c[0] == "own_tax"], [("own_tax", "CO1", "0105561077332:00000")])
+        self.assertEqual(out["saved"], 1)
+
+    def test_the_own_party_answer_only_writes_the_conversation_company(self):
+        module, calls, patcher = load()
+        self.addCleanup(patcher.stop)
+        with self.assertRaises(Stop):
+            module.remember("CO1", {"h1": [{"kind": "own_party", "subject": "CO2", "value": "0105561077332:00000",
+                                            "remember": True}]})
+        self.assertFalse([c for c in calls if c[0] == "own_tax"])
+        module, _calls, patcher = load(taken=True)
+        self.addCleanup(patcher.stop)
+        with self.assertRaises(Stop):  # 撞号（选到了本所另一家客户）：原因照回、不写
+            module.remember("CO1", {"h1": [{"kind": "own_party", "subject": "CO1", "value": "0105561077332:00000",
+                                            "remember": True}]})
 
     def test_an_unknown_kind_is_refused(self):
         module, _calls, patcher = load()
