@@ -1,12 +1,11 @@
 // 上游：shadcn-ui/ui@8ab27715 apps/v4/registry/bases/radix/ui/dropdown-menu.tsx（MIT，见 components/NOTICE.md）。
 // 导出名照 shadcn；弹出层用 components/ui/menu.tsx 的 Content（按完整高度翻边、点外面关闭不穿透、窄屏子菜单换页），
 // 外观是现有菜单类 .cc-menu / .cc-menu-item / .cc-menu-sep / .cc-menu-label / .cc-menu-key（ccs「菜单」）。
-// 子菜单只用 DropdownMenuSubMenu（= menu.tsx 的 SubMenu）：窄屏上它在同一块菜单里换页，shadcn 的 Sub / SubTrigger / SubContent 不导出。
+// 底层件一律经 menu.tsx 的包装取（tests/test_cc_mobile_overlays.py）。子菜单只用 DropdownMenuSubMenu（= menu.tsx 的 SubMenu）：窄屏上它在同一块菜单里换页，shadcn 的 Sub / SubTrigger / SubContent 不导出。
 import type * as React from "react";
 import { CheckIcon, CircleIcon } from "lucide-react";
-import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 
-import { DropdownMenu as Menu, menuOffset, SubMenu } from "@/components/ui/menu";
+import { DropdownMenu as DropdownMenuPrimitive, menuOffset, SubMenu } from "@/components/ui/menu";
 import { cn } from "@/lib/utils";
 
 function DropdownMenu(props: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
@@ -28,7 +27,7 @@ function DropdownMenuContent({
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (
     <DropdownMenuPrimitive.Portal>
-      <Menu.Content
+      <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset ?? menuOffset()}
         className={cn("cc-menu", className)}
