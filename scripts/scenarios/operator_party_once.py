@@ -563,58 +563,22 @@ def drive(site, sid, steps_, mobile, shots, timeout=1800):
     return [json.loads(line) for line in out.splitlines() if line.startswith("{")]
 
 
-def engine_ready(lab, product):
-    site = SITES[product]
-    return lab.python(site, '''
-import os
-key = str(frappe.conf.get("pearnly_assistant_api_key") or "")
-print(json.dumps({"real_key": bool(key) and not key.startswith("sk-ant-regression-lab-"),
-                  "base_url": os.environ.get("ANTHROPIC_BASE_URL", ""), "ocr_key": bool(os.environ.get("PEARNLY_ANTHROPIC_API_KEY", "").strip()),
-                  "ocr_engine": frappe.conf.get("pearnly_ocr_engine") or ""}))
-''')
+def _preflight_module():
+    spec = importlib.util.spec_from_file_location("real_run_preflight", ROOT / "scripts" / "scenarios" / "real_run_preflight.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+PREFLIGHT = _preflight_module()
 
 
 def preflight(lab, product, params, real=False) -> dict:
-    """干跑（不调模型）：真跑前确认实验栈配置都齐了——Cowork 本人有电脑够得到这份账套（「可录」）、识别准入过得去、
-    计费放行；ERP 计费放行。11-09 几次真跑白花在缺配置上（缺识别配置、没登记电脑、缺 Vertex 准入），这里先查。"""
-    if product == "cowork":
-        body = COWORK_SETUP + f'''
-from pearnly_cowork.assistant import tools
-from pearnly_cowork.ocr.execution import settings
-from pearnly_core import billing_client
-out = {{"intake": tools.destinations.intake_state("express", {params["connection"]!r})}}
-try:
-    out["admission"] = settings.snapshot().get("mode")
-except Exception as error:
-    out["admission"] = "refused: " + str(error)[:120]
-out["billing"] = billing_client.status("pdf", {PAGES + len(SHOTS)}, tier="B").get("allowed")
-from frappe.utils.background_jobs import get_workers
-out["ocr_worker"] = any(q.name.endswith(":ocr") for w in get_workers() for q in w.queues)
-from pearnly_core.execution import budget
-try:
-    out["capacity"] = bool(budget.redis().ping())
-except Exception as error:
-    out["capacity"] = "refused: " + str(error)[:120]
-print(json.dumps(out, default=str))
-'''
-        found = lab.python(SITES[product], body)
-        found["ok"] = found["intake"] == "ready" and found["admission"] == "economy" and found["billing"] is True \
-            and found["capacity"] is True and (found["ocr_worker"] or not real)
-    else:
-        found = lab.python(SITES[product], f'''
-from pearnly_core import billing_client
-from pearnly_core.execution import budget
-try:
-    capacity = bool(budget.redis().ping())
-except Exception as error:
-    capacity = "refused: " + str(error)[:120]
-from frappe.utils.background_jobs import get_workers
-ocr_worker = any(q.name.endswith(":ocr") for w in get_workers() for q in w.queues)
-print(json.dumps({{"billing": billing_client.status("pdf", {PAGES}, tier="B").get("allowed"), "capacity": capacity,
-                  "ocr_worker": ocr_worker}}))
-''')
-        found["ok"] = found["billing"] is True and found["capacity"] is True and (found["ocr_worker"] or not real)
-    return found
+    """真跑前置自检（`real_run_preflight.check`，两个产品同一套）：识别配置、识别进程与队列、计费放行、合成电脑连接、引擎指向。
+    干跑查 ``fake``（假智能体 + 假识别），真跑查 ``real``；缺一项不开跑。"""
+    return PREFLIGHT.check(lab, product, "real" if real else "fake", connection=params.get("connection", ""),
+                           company=params.get("company", "") if product == "erp" else "", pages=PAGES + len(SHOTS),
+                           user=USERS[product])
 
 
 def mark_direct_written(lab) -> dict:
@@ -640,14 +604,27 @@ def estimate(product, viewport, reuse) -> float:
     return round(pages * PAGE_MAX + turns * TURN_MAX, 2)
 
 
+def recognized_since(lab, product, params, since) -> int:
+    """``since`` 之后这家公司识别存下了几张（Cowork 识别单、ERP 对话收单记录）：干跑看假识别走没走完。"""
+    if product == "cowork":
+        body = (f'print(json.dumps({{"n": frappe.db.count("Cowork OCR History", {{"push_connection": {params["connection"]!r}, '
+                f'"creation": [">", {since!r}]}})}}))')
+    else:
+        body = (f'print(json.dumps({{"n": frappe.db.count("ERP LINE Intake", {{"company": {params["company"]!r}, '
+                f'"creation": [">", {since!r}]}})}}))')
+    return int(lab.python(SITES[product], body)["n"])
+
+
 def dry_one(lab, product, viewport, shots):
-    """干跑：假智能体、不识别、不花钱。造数据、前置检查（`preflight`），再把页面上用户做的几步走一遍（放截图说一句、切代录、放 PDF
-    说一句），确认页面不报错、文件放得上、话发得出。"""
-    ready = engine_ready(lab, product)
-    if ready["real_key"]:
-        raise SystemExit(f"{product}: 干跑要假智能体，实验栈现在接着真引擎（先 --engine-off）")
+    """干跑：假智能体 + 假识别（`lab_agents` 照识别 schema 回空白票），不花钱，走与真跑同一条配置路径。造数据、前置自检
+    （``fake``），把页面上用户做的几步走一遍（放截图说一句、切代录、放 PDF 说一句），再等假识别存下单据：识别进程、队列、
+    准入、计费、电脑连接任何一项不齐，这里就停在没有单据（11-09 真跑那几次的样子），不用花钱才发现。"""
     params = prepare(lab, product, viewport)
     checks = preflight(lab, product, params)
+    if not checks["ok"]:
+        return {"product": product, "viewport": viewport, "dry": True, "ok": False, "preflight": checks, "errors": [],
+                "steps": {}, "checks": [{"case": "干跑：前置自检", "ok": False, "seen": checks["missing"]}]}
+    since = lab.python(SITES[product], 'print(json.dumps({"now": str(frappe.utils.now_datetime())}))')["now"]
     site, user = SITES[product], USERS[product]
     sid = lab.session(site, user)
     try:
@@ -655,30 +632,28 @@ def dry_one(lab, product, viewport, shots):
             drive(site, sid, steps(params, viewport)[:2], viewport == "mobile", "")
     finally:
         lab.drop(site, user, sid)
+    found = 0
+    for _ in range(36):  # 最多 6 分钟
+        found = recognized_since(lab, product, params, since)
+        if found:
+            break
+        time.sleep(10)
     seen = {r.get("step"): r.get("value") for r in page}
     errors = [e for r in page for e in (r.get("page_errors") or []) + ([r["error"]] if r.get("error") else [])]
-    # 话发得出、假智能体回了（上传被拒时话发出去了却没有回复：11-09 干跑抓到 PDF 上传 417、识别排队缺容量配置）
     sent = all(isinstance(v, dict) and v.get("sent") and v.get("got") for k, v in seen.items() if "说一句" in str(k))
-    ok = checks["ok"] and not errors and sent and len(seen) >= (3 if product == "cowork" else 2)
+    ok = not errors and sent and bool(found) and len(seen) >= (3 if product == "cowork" else 2)
     return {"product": product, "viewport": viewport, "dry": True, "ok": ok, "preflight": checks, "errors": errors, "steps": seen,
-            "checks": [{"case": "干跑：配置齐、页面步骤走得通", "ok": ok, "seen": {"preflight": checks, "errors": errors[:5]}}]}
+            "recognized": found,
+            "checks": [{"case": "干跑：配置齐、页面步骤走得通、假识别存下单据", "ok": ok,
+                        "seen": {"missing": checks["missing"], "errors": errors[:5], "recognized": found}}]}
 
 
 def run_one(lab, product, viewport, shots, reuse):
-    ready = engine_ready(lab, product)
-    if not (ready["real_key"] and "api.anthropic.com" in ready["base_url"] and ready["ocr_key"] and ready["ocr_engine"] == "claude"):
-        raise SystemExit(f"{product}: 实验栈没接真引擎 / 真识别（{ready}），先跑 --engine-on")
     started = time.monotonic()
     params = prepare(lab, product, viewport, reuse)
     found = preflight(lab, product, params, real=True)
-    # 只有真引擎才用到、干跑查不到的：识别进程与派发进程都活着（11-09 第 5 次：识别进程起不来，24 页排着没人取）
-    running = lab.exec("sh", "-c", 'for f in /proc/[0-9]*/cmdline; do tr "\\0" " " < "$f"; echo; done 2>/dev/null').stdout  # 容器里没有 ps
-    lines = [line for line in running.splitlines() if "python" in line and "bash" not in line]  # 启动它们的那行 bash 命令不算
-    found["processes"] = {name: any(f"-m {name}" in line for line in lines)
-                          for name in ("pearnly_core.execution.worker", "pearnly_core.execution.dispatch")}
-    found["ok"] = found["ok"] and all(found["processes"].values())
     if not found["ok"]:  # 配置不齐不开跑（不白花钱）
-        raise SystemExit(f"{product}: 前置检查没过，不开跑：{found}")
+        raise SystemExit(f"{product}: 前置自检没过，不开跑，缺：{found['missing']}")
     site, user = SITES[product], USERS[product]
     sid = lab.session(site, user)
     folder = ""
@@ -707,96 +682,6 @@ def run_one(lab, product, viewport, shots, reuse):
 
 # ───────────────────────────── 接 / 断真引擎（只在实验栈）─────────────────────────────
 
-OVERRIDE = """services:
-  bench:
-    env_file: [{env}]
-    environment:
-      ANTHROPIC_BASE_URL: https://api.anthropic.com
-      FRAPPE_BACKGROUND_WORKERS_NOFORK: "1"
-      PEARNLY_OCR_THREADS: "1"
-    command: [bash, -lc, "for p in 8000 8001 8002; do bench serve --port $$p --noreload & done; bench worker --queue short,default,long & (cd sites && ../env/bin/python -m pearnly_core.execution.worker --queue ocr --num-workers 1) & (cd sites && ../env/bin/python -m pearnly_core.execution.dispatch) & wait"]
-"""
-
-
-def compose(src, *extra, env=None):
-    files = ["-f", str(Path(src) / "infrastructure/compose/regression-lab.yml"), *extra]
-    return subprocess.run(["docker", "compose", "-p", RUN.LAB, *files, "up", "-d", "--wait", "bench"], cwd=src, env=env,
-                          capture_output=True, text=True, timeout=900)
-
-
-def lab_env():
-    # 实验栈建时的端口（REGRESSION_LAB_PORT / _COWORK / _DMS）原样带上，重起不换口
-    env = dict(os.environ)
-    env.setdefault("REGRESSION_LAB_PORT", str(RUN.PORT))
-    for suffix, offset in (("_COWORK", 1), ("_DMS", 2)):
-        env.setdefault("REGRESSION_LAB_PORT" + suffix, str(RUN.PORT + offset))
-    return env
-
-
-# Cowork 识别准入（`ocr.execution.settings.snapshot`）要写明识别配置与一套 Vertex 连接（合成值，只过准入；真读票按
-# ``pearnly_ocr_engine=claude`` 交 Claude，同 `scripts/cowork-execution-lab-verify.py`）。实验栈默认都没有
-COWORK_OCR = (("pearnly_cowork_ocr_environment", '{"OCR_LLM_BACKEND": "vertex"}'), ("pearnly_cowork_ocr_policy", '{"mode": "economy"}'),
-              ("pearnly_ocr_credentials", '"/synthetic/credential-reference.json"'), ("pearnly_ocr_backend", '"vertex"'),
-              ("pearnly_ocr_project", '"synthetic-lab"'), ("pearnly_ocr_location", '"asia-southeast1"'))
-
-
-def set_cowork_ocr(lab, on):
-    """Cowork 的识别要站点上写明识别配置与 Vertex 准入（`ocr.execution.settings.snapshot`），实验栈默认没有。"""
-    site = SITES["cowork"]
-    for name, value in COWORK_OCR:
-        lab.bench(*(["bench", "--site", site, "set-config", "--parse", name, value] if on else
-                    ["bench", "--site", site, "remove-from-config", name]), timeout=300)
-    # 两个产品的识别排队都要容量计数的 Redis（`execution.budget`，``capacity_not_configured``）：用站点自己的队列 Redis
-    for site in SITES.values():
-        if on:
-            url = lab.python(site, 'print(json.dumps({"url": frappe.conf.get("redis_queue") or ""}))')["url"]
-            lab.bench("bench", "--site", site, "set-config", "pearnly_ocr_budget_redis", url, timeout=300)
-        else:
-            lab.bench("bench", "--site", site, "remove-from-config", "pearnly_ocr_budget_redis", timeout=300)
-
-
-def set_sites(lab, key, engine):
-    set_cowork_ocr(lab, bool(engine))
-    for site in SITES.values():
-        args = ["bench", "--site", site, "set-config", "pearnly_assistant_api_key", key]
-        result = lab.bench(*args, timeout=300)
-        if result.returncode:
-            raise SystemExit(f"{site}: set-config failed")
-        if engine:
-            lab.bench("bench", "--site", site, "set-config", "pearnly_ocr_engine", engine, timeout=300)
-        else:
-            lab.bench("bench", "--site", site, "remove-from-config", "pearnly_ocr_engine", timeout=300)
-
-
-def engine_on(lab, src, key_file):
-    key = Path(key_file).read_text().strip()
-    if not key.startswith("sk-ant-"):
-        raise SystemExit("密钥文件内容不像 Anthropic 密钥")
-    # 识别进程听的 ocr 队列要在全局配置的 workers 里登记（同生产），实验栈默认没有：不登记识别进程起不来，识别一直排着
-    # （11-09 实测：24 页排了 6 分钟没人取）
-    lab.bench("bench", "set-config", "-g", "--parse", "workers", '{"ocr": {"timeout": 1800}}', timeout=300)
-    with tempfile.TemporaryDirectory() as folder:
-        env_file = Path(folder) / "real.env"
-        env_file.write_text(f"PEARNLY_ANTHROPIC_API_KEY={key}\n")
-        env_file.chmod(0o600)
-        override = Path(folder) / "real.override.yml"
-        override.write_text(OVERRIDE.format(env=env_file))
-        result = compose(src, "-f", str(override), env=lab_env())
-        if result.returncode:
-            raise SystemExit(f"重起 bench 失败：{result.stderr[-600:]}")
-    set_sites(lab, key, "claude")
-    RUN.Lab.restart(lab)
-    print("真引擎已接上（站点密钥、识别引擎 claude、识别进程）")
-
-
-def engine_off(lab, src):
-    set_sites(lab, FAKE_KEY, "")
-    result = compose(src, env=lab_env())
-    if result.returncode:
-        raise SystemExit(f"重起 bench 失败：{result.stderr[-600:]}")
-    print("已回到假智能体（站点密钥换回假值、识别引擎配置去掉、bench 不带覆盖文件）")
-
-
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--product", choices=["cowork", "erp", "all"], default="all")
@@ -805,6 +690,7 @@ def main(argv=None) -> int:
     parser.add_argument("--shots", default="", help="截图目录（文件名带产品、宽度、步骤）")
     parser.add_argument("--out", default="")
     parser.add_argument("--engine-on", metavar="密钥文件")
+    parser.add_argument("--engine-fake", action="store_true", help="接假引擎（假智能体 + 假识别），干跑前用")
     parser.add_argument("--engine-off", action="store_true")
     parser.add_argument("--src", default="", help="实验栈挂的源码工作树（--engine-on / --engine-off 用它的 compose 文件重起 bench）")
     parser.add_argument("--dry-run", action="store_true", help="干跑：假智能体、不识别、不花钱，只查配置与页面步骤")
@@ -812,10 +698,13 @@ def main(argv=None) -> int:
     parser.add_argument("--spent", default="", help="记累计估价的文件（几次运行共用一个上限；不给就只算这一次）")
     args = parser.parse_args(argv)
     lab = RUN.Lab()
-    if args.engine_on or args.engine_off:
+    if args.engine_on or args.engine_off or args.engine_fake:
         if not args.src:
-            parser.error("--engine-on / --engine-off 要 --src")
-        engine_on(lab, args.src, args.engine_on) if args.engine_on else engine_off(lab, args.src)
+            parser.error("--engine-on / --engine-fake / --engine-off 要 --src")
+        mode = "real" if args.engine_on else "fake" if args.engine_fake else "off"
+        PREFLIGHT.engine(lab, args.src, mode, args.engine_on or "")
+        print({"real": "真引擎已接上（站点密钥、识别引擎 claude、识别进程）", "fake": "假引擎已接上（假智能体 + 假识别、识别进程）",
+               "off": "已回到流程用的样子（假智能体、识别配置去掉、bench 不带覆盖文件）"}[mode])
         return 0
     products = ["cowork", "erp"] if args.product == "all" else [args.product]
     viewports = ["desktop", "mobile"] if args.viewport == "all" else [args.viewport]
@@ -824,7 +713,6 @@ def main(argv=None) -> int:
         for viewport in viewports:
             reuse = args.reuse and viewport == "mobile" and "desktop" in viewports
             if args.dry_run:
-                set_cowork_ocr(lab, True)
                 result = dry_one(lab, product, viewport, args.shots)
                 results.append(result)
                 print(f"{'通过' if result['ok'] else '不通过'} 干跑 {product} / {viewport} "

@@ -74,5 +74,28 @@ class AskUserScript(unittest.TestCase):
         self.assertFalse(any(e["type"] == "agent.custom_tool_use" for e in events))
 
 
+
+class FakeRecognition(unittest.TestCase):
+    """假识别（A 线 11-10，真跑前置自检的干跑）：识别引擎的 json_schema 读法回一份照 schema 的空白票，引擎照常解析，不花钱。"""
+
+    def test_every_recognition_schema_gets_a_parseable_blank(self):
+        spec_of = importlib.util.spec_from_file_location("claude_ocr_spec", ROOT / "apps/pearnly_core/pearnly_core/claude_ocr/spec.py")
+        specs = importlib.util.module_from_spec(spec_of)
+        spec_of.loader.exec_module(specs)
+        for kind, (_system, schema, _ask) in specs.SPECS.items():
+            body = {"model": "claude-haiku", "messages": [{"role": "user", "content": [{"type": "text", "text": "Page 1"}]}],
+                    "output_config": {"effort": "low", "format": {"type": "json_schema", "schema": schema}}}
+            reply = lab.message_reply(body)
+            with self.subTest(kind=kind):
+                self.assertEqual(reply["stop_reason"], "end_turn")
+                read = json.loads(reply["content"][0]["text"])
+                self.assertIsInstance(read, dict)
+                self.assertEqual(set(schema.get("required") or schema.get("properties") or ()), set(read))
+
+    def test_a_title_request_still_gets_a_short_title(self):
+        reply = lab.message_reply({"messages": [{"role": "user", "content": "<message>录这张票</message>"}]})
+        self.assertEqual(reply["content"][0]["text"], "录这张票")
+
+
 if __name__ == "__main__":
     unittest.main()
