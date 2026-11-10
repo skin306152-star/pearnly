@@ -82,9 +82,9 @@ def refusal(found, reason) -> dict:
 
 def keep(options, connection_of=None, company=None) -> list | None:
     """候选账套里只留允许的（``options``：``[{key, ...}]``，连接取 ``connection_of(item)`` 或 item 的 ``connection``）；
-    不受限回 None（调用方照旧用原候选）。"""
+    不受限、或对话没挂公司（写入照样由 `check` 拒，候选只是给人看的，不清空）回 None，调用方照旧用原候选。"""
     found = allowed(company)
-    if found is None:
+    if found is None or not found["company"]:
         return None
     pick = connection_of or (lambda item: item.get("connection"))
     return [item for item in options or () if (str(pick(item) or ""), key_of(item.get("key"))) in found["pairs"]]

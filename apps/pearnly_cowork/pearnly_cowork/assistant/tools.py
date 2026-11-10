@@ -1410,9 +1410,11 @@ def _stop_target(doc, cache=None) -> dict | None:
             from pearnly_cowork.assistant import write_scope
 
             connection = _field(doc, "push_connection")
-            books = write_scope.keep(books, lambda item: connection)
-            if current and not write_scope.keep([{"key": current}], lambda item: connection):
-                current = ""
+            kept = write_scope.keep(books, lambda item: connection)
+            if kept is not None:
+                books = kept
+                if current and not write_scope.keep([{"key": current}], lambda item: connection):
+                    current = ""
         if current:
             label = next((item["label"] for item in books if _account_key(item["key"]) == _account_key(current)), "")
             found = {**({"account_label": label} if label else {}), "push_account_set": current,
@@ -1948,7 +1950,7 @@ def intake_options(tool_input) -> str:
                 from pearnly_cowork.assistant import write_scope
 
                 kept = write_scope.keep([{"key": r["source_id"], "row": r} for r in usable], lambda item: row["name"])
-                usable = [item["row"] for item in kept]
+                usable = usable if kept is None else [item["row"] for item in kept]
             # 上次用的那份也按清单里的名字说（2026-10-13 录屏：只给了键，CC 说成文件夹名「demo02」）
             names[row["name"]] = {_account_key(r["source_id"]): account_search.label(adapter, r)
                                   for r in catalog.get("account_sets") or [] if r.get("source_id") and r.get("label")}

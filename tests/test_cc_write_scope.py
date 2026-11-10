@@ -116,6 +116,10 @@ class NoCompanyTests(_Conversation):
         self.assertEqual(out["reason"], write_scope.NO_COMPANY)
         self.assertEqual(self.submitted, [])
 
+    def test_candidates_are_still_shown_there_since_writing_is_refused_anyway(self):
+        options = [{"key": B_REAL}, {"key": A_TEST}]
+        self.assertIsNone(write_scope.keep(options, lambda item: "EXP1"))
+
 
 class OutsideConversationTests(_Conversation):
     filed = None
