@@ -876,7 +876,7 @@ def _remember_context(row, events_of_current) -> None:
         frappe.log_error(title="Assistant context note failed")
 
 
-def send(session_id, text) -> None:
+def send(session_id, text) -> dict:
     steps = timing.Steps(TURN_LOG)
     row = owned(session_id)
     text = _guard(contracts.message_text, text)
@@ -929,6 +929,7 @@ def send(session_id, text) -> None:
             frappe.log_error(title="Operator upload sent mark failed")
     # 发出成功才算这段对话有了动静：最后活动时间记成现在（侧栏「上次更新」按它排；CC 回复时由 relay 再记）
     context.active(row.name)
+    turn = _count_turn(row.name)
     if row.get("pending_carry"):
         frappe.db.set_value(SESSION, row.name, "pending_carry", "")
     if noted is not None:
@@ -947,6 +948,20 @@ def send(session_id, text) -> None:
         titles.request(row.name, after_commit=True)
     steps.done("after")
     steps.log("message send", first=int(bool(first)), operator=int(bool(row.get("operator_task"))))
+    return {"user_turn": turn}
+
+
+def _count_turn(name: str) -> int:
+    """这段对话发出成功的用户消息序号（只增不减，A 线复核卡 11-10：确认工具只认卡片出现之后用户发的消息；本站不存用户消息）。
+    原子加一（不先读再写），读回本事务里的新值。"""
+    frappe.db.sql(f"update `tab{SESSION}` set user_turn = ifnull(user_turn, 0) + 1 where name = %s", name)
+    return int(frappe.db.get_value(SESSION, name, "user_turn") or 0)
+
+
+def user_turn(session_id) -> int:
+    """本人这段对话到此刻发出了几条用户消息（`send` 每发出一条加一）。只读；归档的也能读。"""
+    row = owned(session_id, allow_archived=True)
+    return int(frappe.db.get_value(SESSION, row.name, "user_turn") or 0)
 
 
 def notices_seen(session_id) -> None:

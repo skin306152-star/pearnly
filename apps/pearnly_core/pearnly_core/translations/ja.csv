@@ -875,6 +875,7 @@ Used {0} pages this month · pay-as-you-go,今月 {0} 枚使用 · 未登録の�
 "Used {0} pages this month · plan {1}, {2} left this cycle",今月 {0} 枚使用 · プラン {1}、今サイクル残り {2} 枚
 User,ユーザー
 User Agent,ユーザーエージェント
+User Turn,ユーザーメッセージ番号
 "Username must contain 3–30 letters, digits, dots, underscores or hyphens.",ユーザー名は英数字・ピリオド・アンダースコア・ハイフンの3〜30文字で入力してください。
 VAT,付加価値税（VAT）
 VAT %,税率%

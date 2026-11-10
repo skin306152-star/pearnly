@@ -2432,7 +2432,7 @@ class NoticeTests(unittest.TestCase):
         posted, carried, writes = [], [], []
         shown = [{"name": "n1", "at": "2026-10-12 08:01", "title": "Folder <A>", "text": "3 files", "creation": START}]
         api = types.SimpleNamespace(post=lambda remote, batch: posted.append((remote, batch)))
-        db = types.SimpleNamespace(set_value=lambda *a, **k: writes.append(a))
+        db = types.SimpleNamespace(set_value=lambda *a, **k: writes.append(a), sql=lambda *a, **k: None, get_value=lambda *a, **k: 1)
         with mock.patch.object(sessions, "owned", return_value=row), \
                 mock.patch.object(sessions, "segment_for_turn", return_value="sesn_seg2"), \
                 mock.patch.object(sessions.engine, "adapter", return_value=api), \
@@ -2535,7 +2535,7 @@ class NoticeTests(unittest.TestCase):
         api = types.SimpleNamespace(post=lambda remote, batch: (order.append("post"), posted.append(batch)))
         page = {"sesn_mine1": "zh-CN"}
         accounts = {"a@example.com": "th"}
-        db = types.SimpleNamespace(set_value=lambda *a, **k: None,
+        db = types.SimpleNamespace(set_value=lambda *a, **k: None, sql=lambda *a, **k: None,
                                    get_value=lambda doctype, name, field: accounts.get(name) if doctype == "User" else None)
         text = "P3-DEP-H 用 T.7 推送，公司 นิภา เอ็กซ์เชนจ์"
         with mock.patch.object(sessions, "owned", return_value=row), \
@@ -4939,7 +4939,7 @@ class SidebarSyncTests(unittest.TestCase):
                     mock.patch.object(sessions.notices, "uncarried", lambda sid, user: []), \
                     mock.patch.object(sessions.projects, "note", lambda row, user: ("", None)), \
                     mock.patch.object(sessions.titles, "start", lambda *a, **k: None), \
-                    mock.patch.object(sessions.frappe, "db", types.SimpleNamespace(set_value=lambda *a, **k: None), create=True):
+                    mock.patch.object(sessions.frappe, "db", types.SimpleNamespace(set_value=lambda *a, **k: None, sql=lambda *a, **k: None, get_value=lambda *a, **k: 1), create=True):
                 sessions.send("sesn_new002", "盘点一下")
         self.assertEqual(len(lines), 2, lines)
         created, sent = lines
@@ -5015,6 +5015,8 @@ class _ProjectDb:
         found = [row for row in self.rows if self._ok(row, filters)]
         if not found:
             return None
+        if isinstance(fields, str):
+            return found[0].get(fields)
         return _Row({field: found[0].get(field) for field in fields})
 
     def commit(self):
@@ -5033,6 +5035,11 @@ class _ProjectDb:
     def sql(self, query, values=None, as_dict=False):
         query = " ".join(query.split())
         self.sql_seen.append((query, values))
+        if "set user_turn = ifnull(user_turn, 0) + 1" in query:  # sessions._count_turn：原子加一
+            for row in self.rows:
+                if row.name == values:
+                    row["user_turn"] = (row.get("user_turn") or 0) + 1
+            return []
         if query.startswith("UPDATE"):
             for row in self.rows:
                 if row.project == values[0]:
@@ -5487,7 +5494,18 @@ class ProjectTests(unittest.TestCase):
                 mock.patch.object(self.sessions.relay, "ensure", lambda *a: None), \
                 mock.patch.object(self.sessions.notices, "uncarried", lambda sid, user: []), \
                 mock.patch.object(self.sessions.titles, "due", lambda row: False):
-            self.sessions.send(row.session_id, "this month's purchases")
+            return self.sessions.send(row.session_id, "this month's purchases")
+
+    def test_each_sent_user_message_counts_one_turn_and_the_count_reads_back(self):
+        # A 线复核卡（主会话 11-10）：确认工具只认卡片出现之后用户发的消息；本站不存用户消息，会话上记一个只增不减的序号。
+        # 发出成功才加（原子加一，不先读再写），发送的返回带新值；只读函数按本人这段对话读
+        row, posted = self.db.rows[1], []
+        self.assertEqual((self._send(row, posted), self._send(row, posted)), ({"user_turn": 1}, {"user_turn": 2}))
+        self.assertTrue(any("set user_turn = ifnull(user_turn, 0) + 1" in q for q, _v in self.db.sql_seen))
+        with self.assertRaises(RuntimeError):  # 没发出去：不加
+            self._send(row, posted, fail=True)
+        with mock.patch.object(self.sessions, "owned", lambda sid, allow_archived=False: row):
+            self.assertEqual(self.sessions.user_turn(row.session_id), 2)
 
     def test_the_company_note_is_carried_once_and_again_when_it_changes(self):
         row = self.db.rows[1]

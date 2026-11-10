@@ -85,7 +85,7 @@ def notices_seen(session_id):
 
 @frappe.whitelist(methods=["POST"])
 def send(session_id, text):
-    sessions.send(session_id, text)
+    return sessions.send(session_id, text)
 
 
 @frappe.whitelist(methods=["POST"])

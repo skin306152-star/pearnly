@@ -875,6 +875,7 @@ Used {0} pages this month · pay-as-you-go,本月已用 {0} 页 · 按量计费
 "Used {0} pages this month · plan {1}, {2} left this cycle",本月已用 {0} 页 · 套餐 {1} 本周期剩余 {2} 页
 User,用户
 User Agent,浏览器标识
+User Turn,用户消息序号
 "Username must contain 3–30 letters, digits, dots, underscores or hyphens.",用户名须为 3–30 位字母、数字、点、下划线或短横线。
 VAT,增值税
 VAT %,税率%

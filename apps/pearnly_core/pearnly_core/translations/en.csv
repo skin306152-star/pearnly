@@ -873,6 +873,7 @@ Used {0} pages this month · pay-as-you-go,Used {0} pages this month · pay-as-y
 "Used {0} pages this month · plan {1}, {2} left this cycle","Used {0} pages this month · plan {1}, {2} left this cycle"
 User,User
 User Agent,User Agent
+User Turn,User Turn
 "Username must contain 3–30 letters, digits, dots, underscores or hyphens.","Username must contain 3–30 letters, digits, dots, underscores or hyphens."
 VAT,VAT
 VAT %,VAT %
