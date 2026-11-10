@@ -12,6 +12,7 @@ import json
 import uuid
 
 from desk_list import ACTION, IDLE
+from erp_lib import void_documents
 
 TITLE = "ERP 采购单服务品进项税口径：电脑拦下后在 Express 弹窗选一次"
 CODE = "SERVICE_VAT_BASIS_CHOICE"
@@ -60,6 +61,12 @@ frappe.db.commit()
 print(json.dumps({{"name": name, "job": job, "company": {company!r}}}, default=str))
 """)
     return {"doc": out["name"], "job": out["job"], "company": out["company"], "linked": True}
+
+
+def cleanup(lab, manifest, params):
+    """自己开的那张采购单（上个月）：作废、撤掉没写的任务（成功、失败、超时都跑，`run.run_flow`）。"""
+    if params["linked"]:
+        void_documents(lab, manifest["site"], [params["doc"]])
 
 
 def steps(params, camera_code=None):

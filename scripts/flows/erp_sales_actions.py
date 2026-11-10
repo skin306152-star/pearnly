@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from desk_list import ACTION  # noqa: E402
-from erp_lib import JS, codes, company, js_value, stock_of, warehouses  # noqa: E402
+from erp_lib import JS, codes, company, js_value, stock_of, void_documents, warehouses  # noqa: E402
 
 TITLE = "ERP 销售单页头动作：新建、删草稿、收款、作废、Express 弹窗"
 USER = "sales@erp.regression"
@@ -85,6 +85,11 @@ print(json.dumps({{"rows": rows, "draft": draft.name}}, default=str))
             "state": rows["viewing"].get("ledger_state") or "", "job": rows["viewing"].get("ledger_job") or "",
             "voiding": rows["voiding"]["name"], "voiding_no": rows["voiding"]["system_no"],
             "draft": out["draft"], "draft_buyer": f"flow draft {tag}", "reason": f"flow void {tag}", "cases": []}
+
+
+def cleanup(lab, manifest, params):
+    """这一遍开的销售单：作废（成功、失败、超时都跑，`run.run_flow`），不积成这个月等着录的单。"""
+    void_documents(lab, manifest["site"], [params["collecting"], params["viewing"], params["voiding"]], "ERP Sales Document")
 
 
 def steps(params, camera_code=None):

@@ -85,6 +85,38 @@ def js_value(value) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def void_documents(lab, site, names, doctype="Purchase Document", reason="flow cleanup") -> dict:
+    """流程造的采购 / 销售单在 cleanup 里作废（冲回库存与付款），连同页面上「修改」出来的新单（`corrected_from` 一路跟下去），
+    没写的写账任务撤掉：不留成后面流程「这个月等着录」的单（11-10 全套：erp.document.express 每遍在上个月留两张，积到 51 张，
+    越过 cc.operator 开始前卡片一页 50 张，那格跟着失败）。草稿、已作废的跳过。"""
+    names = [name for name in names if name]
+    if not names:
+        return {}
+    module = {"Purchase Document": "pearnly_erp_portal.purchasing.entry", "ERP Sales Document": "pearnly_erp_portal.sales.entry"}[doctype]
+    return lab.python(site, f"""
+import importlib
+from pearnly_core.cc_desktop import jobs
+entry = importlib.import_module({module!r})
+frappe.set_user("Administrator")
+todo, seen, done = list({names!r}), set(), []
+while todo:
+    name = todo.pop(0)
+    if name in seen or not frappe.db.exists({doctype!r}, name):
+        continue
+    seen.add(name)
+    if frappe.get_meta({doctype!r}).has_field("corrected_from"):
+        todo += frappe.get_all({doctype!r}, filters={{"corrected_from": name}}, pluck="name", limit_page_length=20)
+    for job in frappe.get_all("Pearnly CC Job", filters={{"source_doctype": {doctype!r}, "source_name": name,
+                              "status": ["in", ["queued", "manual"]]}}, pluck="name", limit_page_length=20):
+        jobs.cancel(job, "flow cleanup")
+    if frappe.db.get_value({doctype!r}, name, "status") == "submitted":
+        entry.cancel(name, {reason!r})
+        done.append(name)
+frappe.db.commit()
+print(json.dumps({{"voided": done}}))
+""")
+
+
 def ensure_documents(lab, manifest) -> dict:
     """这家公司七类单据（入库、出库、入了库的采购单、销售单、已过账盘点、收银小票、已交班的班次）各保证有一张：已有就不动，
     没有就按正式函数建（请求号按公司固定，可重复跑）。打印、导出这类「拿库里已有单据」的流程先调它，不靠别的流程先建单。"""

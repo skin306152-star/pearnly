@@ -14,7 +14,7 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from erp_lib import JS, codes, company, warehouses  # noqa: E402
+from erp_lib import JS, codes, company, void_documents, warehouses  # noqa: E402
 
 TITLE = "LINE 卡片打开的采购页：每行预选带到页面，提交后按行入库"
 # 1×1 的 PNG：只当这张票的原件，不识别
@@ -57,6 +57,14 @@ frappe.db.commit()
 print(json.dumps({{"intake": doc.name, "preset": preset, "warehouse": value["warehouse"]}}))
 """)
     return {**out, "company": co, "product": item["product"], "tag": tag, "cases": []}
+
+
+def cleanup(lab, manifest, params):
+    """LINE 收单这一遍录成的采购单：作废、撤掉没写的任务，不积成那个月等着录的单（成功、失败、超时都跑，`run.run_flow`）。"""
+    made = lab.python(manifest["site"], f"""
+print(json.dumps({{"purchase": frappe.db.get_value("ERP LINE Intake", {params['intake']!r}, "purchase") or ""}}))
+""")
+    void_documents(lab, manifest["site"], [made["purchase"]])
 
 
 def steps(params, camera_code=None):

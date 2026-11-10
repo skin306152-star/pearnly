@@ -364,6 +364,25 @@ class CompanyFields(unittest.TestCase):
         self.assertEqual(re.findall(r'"(\w+)"\s*:', write.search(many)["many"]), ["express_sync_state", "express_sync_note"])
 
 
+class FlowDocuments(unittest.TestCase):
+    """流程每遍新开的采购 / 销售单会一直算作那个月「等着录」的单，每遍都留就越积越多（11-10 全套：erp.document.express 每遍在
+    上个月留两张，积到 51 张越过 cc.operator 开始前卡片一页 50 张，那格跟着失败）。这类流程在 cleanup 里作废
+    （`erp_lib.void_documents`）；请求号固定、重跑认回同一张的（`erp_lib.ensure_documents`、cc.operator.replay）不积，不用收。"""
+
+    POSTS = re.compile(r"\b(?:entry|purchase|sales)\.post\(|line_items\.prepare\(")
+    # 开单用固定请求号、重跑认回同几张的（不积）
+    REUSED = {"cc_operator_replay.py": "自备两张已提交的服务采购单，请求号按公司固定（flow-replay-po-<公司>-1/2）"}
+
+    def test_flows_that_open_documents_each_run_void_them_in_cleanup(self):
+        for path in sorted((ROOT / "scripts/flows").glob("*.py")):
+            text = path.read_text(encoding="utf-8")
+            if path.name == "erp_lib.py" or path.name in self.REUSED or "uuid.uuid4" not in text or not self.POSTS.search(text):
+                continue
+            cleanup = text.split("\ndef cleanup(", 1)
+            self.assertEqual(len(cleanup), 2, f"{path.name}：每遍新开单据，要在 cleanup 里作废（成功、失败、超时都跑）")
+            self.assertIn("void_documents(", cleanup[1].split("\ndef ", 1)[0], path.name)
+
+
 class BilledSites(unittest.TestCase):
     def test_billed_sites_are_lab_sites(self):
         init = load("scripts/regression/lab_init.py", "lab_init")

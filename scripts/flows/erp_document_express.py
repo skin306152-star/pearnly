@@ -11,6 +11,7 @@ import json
 import uuid
 
 from desk_list import ACTION, IDLE
+from erp_lib import void_documents
 
 TITLE = "ERP 单据 Express 弹窗：取状态走 POST、只看不改"
 API = "pearnly_erp_portal.express.api.document_express"
@@ -55,6 +56,12 @@ row = frappe.get_all("Purchase Document", filters={"status": "submitted"}, field
 print(json.dumps(row, default=str))
 """)
     return {"doc": out["name"], "linked": linked, "state": out.get("ledger_state") or "", "job": out.get("ledger_job") or ""}
+
+
+def cleanup(lab, manifest, params):
+    """接了 Express 的那遍自己开的采购单（上个月）：作废、撤掉没写的任务（成功、失败、超时都跑，`run.run_flow`）。"""
+    if params["linked"]:
+        void_documents(lab, manifest["site"], [params["doc"]])
 
 
 def steps(params, camera_code=None):

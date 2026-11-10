@@ -18,7 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from desk_list import ACTION  # noqa: E402
-from erp_lib import JS, codes, company, js_value, stock_of, warehouses  # noqa: E402
+from erp_lib import JS, codes, company, js_value, stock_of, void_documents, warehouses  # noqa: E402
 
 TITLE = "ERP 采购单页头动作：新建、删草稿、付款、补开收据、预扣税凭证、修改、作废"
 USER = "purchase@erp.regression"
@@ -72,6 +72,11 @@ print(json.dumps({{"rows": rows}}, default=str))
             "voiding": rows["voiding"]["name"], "voiding_no": rows["voiding"]["system_no"],
             "draft": rows["draft"]["name"], "draft_supplier": f"flow draft {tag}",
             "reason": f"flow void {tag}", "cases": []}
+
+
+def cleanup(lab, manifest, params):
+    """这一遍开的采购单（含页面上「修改」出来的那张）：作废（成功、失败、超时都跑，`run.run_flow`），不积成这个月等着录的单。"""
+    void_documents(lab, manifest["site"], [params["paying"], params["voiding"]])
 
 
 def steps(params, camera_code=None):

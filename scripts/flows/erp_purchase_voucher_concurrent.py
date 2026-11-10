@@ -13,7 +13,7 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from erp_lib import JS, company, js_value  # noqa: E402
+from erp_lib import JS, company, js_value, void_documents  # noqa: E402
 
 TITLE = "ERP 采购凭证并发：8 张单 × 两种凭证 + 重复点，同时出、各挂一份"
 USER = "purchase@erp.regression"
@@ -45,6 +45,11 @@ for i in range(8):
 print(json.dumps({{"docs": docs}}, default=str))
 """)
     return {"company": co, "docs": out["docs"]}
+
+
+def cleanup(lab, manifest, params):
+    """这一遍开的 8 张采购单：作废（成功、失败、超时都跑，`run.run_flow`），不积成这个月等着录的单。"""
+    void_documents(lab, manifest["site"], [row["name"] for row in params["docs"]])
 
 
 def steps(params, camera_code=None):
