@@ -455,12 +455,12 @@ g.done();
 
     def test_components_use_the_focus_shadow_and_body_tokens(self):
         read = lambda rel: (SRC / rel).read_text(encoding="utf-8")
-        # 标准化 B2 删了没人用的组件库部件（输入框、抽屉 Sheet、头像、分隔线，侧栏里的菜单、分组、搜索框、拖边条），
-        # B8 删了 Button（B4 / B6 / B7 把设置页、会话行「···」、「复制」换成 cc-* 类后没有调用方）：
-        # 留下的侧栏只有容器，自己没有可聚焦的控件（侧栏里的按钮都是 cc-* 类，聚焦见 globals.css）
-        for rel in ("input", "sheet", "avatar", "separator", "button"):
-            self.assertFalse((SRC / f"components/ui/{rel}.tsx").exists(), rel)
+        # 侧栏只有容器，自己没有可聚焦的控件（侧栏里的按钮都是 cc-* 类，聚焦见 globals.css）。
+        # 用户 11-10 定 shadcn/ui 整套搬进来作唯一标准组件库（docs/development/cc-ui-kit.md）：B2 / B8 删掉的输入框、Sheet、头像、
+        # 分隔线、Button 回到库里，聚焦一律 --cc-shadow-focus（组件里不写 ring，闸门与本文件 ring 检查照旧拦）
         self.assertNotIn("focus-visible:", read("components/ui/sidebar.tsx"))
+        for rel in ("input", "sheet", "avatar", "separator", "button"):
+            self.assertNotRegex(read(f"components/ui/{rel}.tsx"), r"focus-visible:ring|\bring-\[", rel)
         # 弹窗默认的 × 第 11 轮起是图标按钮（.cc-icon-btn 的聚焦就是 --cc-shadow-focus）
         self.assertIn('className="cc-icon-btn cc-tap absolute end-(--cc-space-12) top-(--cc-space-12)"', read("components/ui/dialog.tsx"))
         self.assertIn(".cc-icon-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }", self.css)
@@ -602,10 +602,12 @@ g.done();
 
     def test_dependencies_left_by_the_migration_are_gone(self):
         # B8：tw-animate-css（遮罩、弹层、提示框进出场已换 .cc-overlay / .cc-pop）、tw-shimmer（从没用过）、
-        # class-variance-authority（只有删掉的 Button 用）不再是依赖；减少动效的例外不再认 Tailwind 的 animate-spin（转圈都是 .cc-spinner）
+        # 减少动效的例外不再认 Tailwind 的 animate-spin（转圈都是 .cc-spinner）。class-variance-authority 11-10 随标准组件库回来
+        # （shadcn 的变体写法，版本锁死，见 docs/development/cc-ui-kit.md）
         package = json.loads((ROOT / "frontend/assistant/package.json").read_text(encoding="utf-8"))
         lock = json.loads((ROOT / "frontend/assistant/package-lock.json").read_text(encoding="utf-8"))
-        for dep in ("tw-animate-css", "tw-shimmer", "class-variance-authority"):
+        self.assertEqual(package["dependencies"]["class-variance-authority"], "0.7.1")
+        for dep in ("tw-animate-css", "tw-shimmer"):
             self.assertNotIn(dep, package["dependencies"])
             self.assertNotIn(dep, lock["packages"][""]["dependencies"])
             self.assertNotIn(f"node_modules/{dep}", lock["packages"])
@@ -905,14 +907,17 @@ class ComponentLibraryTests(unittest.TestCase):
         self.assertIn('import { cssMs, fixedPx } from "@/lib/css-var";', drag)
         self.assertNotIn("@/lib/hover-scroll", drag)
 
-    def test_only_the_parts_in_use_are_left(self):
+    def test_the_component_library_is_the_registered_set(self):
+        # 11-10 起 components/ui 是唯一标准组件库：文件清单 = components/NOTICE.md 的登记表（tests/test_cc_ui_kit.py 逐项核对上游与提交）
         ui = SRC / "components/ui"
-        self.assertEqual(sorted(p.name for p in ui.glob("*.tsx")),
-                         ["dialog.tsx", "drag.tsx", "marquee.tsx", "menu.tsx", "sidebar.tsx", "skeleton.tsx", "tooltip.tsx"])
+        notice = self.read("components/NOTICE.md")
+        listed = sorted(set(re.findall(r"^\| `([\w-]+\.tsx)` \|", notice, re.M)))
+        self.assertEqual(sorted(p.name for p in ui.glob("*.tsx")), listed)
         exports = lambda rel: sorted(re.findall(r"^  (\w+),$", self.read(rel).split("\nexport {\n", 1)[1].split("};", 1)[0], re.M))
         self.assertEqual(exports("components/ui/sidebar.tsx"),
                          ["Sidebar", "SidebarContent", "SidebarFooter", "SidebarHeader", "SidebarInset", "SidebarProvider", "useSidebar"])
-        self.assertEqual(exports("components/ui/dialog.tsx"), ["Dialog", "DialogClose", "DialogContent", "DialogTitle", "DialogTrigger"])
+        self.assertEqual(exports("components/ui/dialog.tsx"), ["Dialog", "DialogClose", "DialogContent", "DialogDescription", "DialogFooter",
+                                                               "DialogHeader", "DialogOverlay", "DialogPortal", "DialogTitle", "DialogTrigger"])
         # V9：图片预览（唯一用组件库弹窗的地方）同整窗弹窗圆角 16（--cc-radius-dialog，外壳实测），原来 10
         dialog = self.read("components/ui/dialog.tsx")
         self.assertIn(" rounded-dialog border ", dialog)
@@ -921,10 +926,11 @@ class ComponentLibraryTests(unittest.TestCase):
         self.assertIn('"cc-overlay z-(--cc-z-sheet)"', dialog)
         self.assertIn('"cc-pop bg-background cc-modal fixed', dialog)
         self.assertNotRegex(dialog, r"animate-(?:in|out)\b|\b(?:fade|zoom)-(?:in|out)|duration-\d")
-        # 组件库的 Button 在 B8 整个删掉（B2 只删了没人用的档位，在用的几处随调用方所在批次换成 cc-* 类）
-        self.assertFalse((SRC / "components/ui/button.tsx").exists())
-        for path in sorted(SRC.rglob("*.ts*")):
-            self.assertNotIn("@/components/ui/button", path.read_text(encoding="utf-8"), path)
+        # Button：B8 删掉、11-10 随标准组件库回来；它自己不带外观，只落到现有按钮类（换上之后看不出变化）
+        button = self.read("components/ui/button.tsx")
+        for cls in ('"cc-btn"', '"cc-btn-sm"', '"cc-card-btn"', '"cc-icon-btn"', '"cc-row-btn"', '"cc-link-btn"'):
+            self.assertIn(cls, button)
+        self.assertNotRegex(button, r"\b(?:h|px|py|gap|text|bg|rounded)-[\w(]")
         # 侧栏没有随机宽度的骨架（比对工具要稳定），也没有手机分支（手机是 mobile-shell 的抽屉）
         sidebar = self.read("components/ui/sidebar.tsx")
         self.assertNotIn("Math.random", sidebar)

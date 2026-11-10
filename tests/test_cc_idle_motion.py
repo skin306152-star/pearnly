@@ -51,12 +51,15 @@ WORKING_CSS = {
     ".cc-spinner": ("cc-spin", "按钮里、行内的转圈：只在忙时挂载（B2 起替换 animate-spin）"),
     ".cc-spin i": ("cc-spin-dot", "四点转圈（components/typing-dots.tsx）：只在等待回复、步骤进行中挂载"),
     "@theme --animate-cc-pulse": ("cc-pulse", "骨架的明暗呼吸（animate-cc-pulse）：只在加载占位时挂载"),
+    '.cc-ui-trace-line[data-status="running"] .cc-ui-trace-title': ("cc-pulse", "标准组件库的工具步骤（components/ui/trace.tsx）：只有在跑的那一步 data-status=running"),
 }
 
 # 组件里的「在忙」动画：(文件, 标记, 只在工作时挂载的条件——在标记所在行或往上 window 行内出现的原文, window)
 BUSY_MARKER = re.compile(r"animate-(?:spin|pulse|ping|bounce)\b|\banimate-cc-pulse\b|\bcc-spinner\b|<TypingDots\b|<Skeleton\b|\"cc-loading\"")
 BUSY_SITES = [
     ("assistant.tsx", '"cc-loading"', "function ThreadLoading()", 3),
+    # 标准组件库的转圈：组件本身就是「在忙」的标记，调用方只在忙时挂（docs/development/cc-ui-kit.md）
+    ("components/ui/spinner.tsx", "cc-spinner", "function Spinner(", 8),
     ("components/results-panel.tsx", "cc-spinner", "function Loading()", 3),
     ("components/company-cards.tsx", "<Skeleton", "export const PanelSkeleton", 3),
     ("components/company-cards.tsx", "cc-spinner", "busy ?", 0),

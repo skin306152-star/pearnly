@@ -1447,3 +1447,13 @@ const ASK = {
 };
 
 export const ask = (ASK as Record<string, (typeof ASK)["en"]>)[lang] ?? ASK.en;
+
+// 标准组件库（components/ui，docs/development/cc-ui-kit.md）里组件自带的字；能用上面已有词条的组件直接用已有的（close、copy、removeFile、ask.*）
+const UI = {
+  en: { copied: "Copied", loading: "Loading", chooseAnswer: "Choose an answer" },
+  zh: { copied: "已复制", loading: "正在加载", chooseAnswer: "请选择一项" },
+  th: { copied: "คัดลอกแล้ว", loading: "กำลังโหลด", chooseAnswer: "กรุณาเลือกคำตอบ" },
+  ja: { copied: "コピーしました", loading: "読み込み中", chooseAnswer: "回答を選択してください" },
+};
+
+export const ui = (UI as Record<string, (typeof UI)["en"]>)[lang] ?? UI.en;

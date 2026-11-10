@@ -2732,3 +2732,351 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
 @media (hover: none) { [data-slot="aui_thread-list-item"] { -webkit-touch-callout: none; user-select: none; } }
 
 [data-cc-resizing] [data-slot="sidebar-gap"], [data-cc-resizing] [data-slot="sidebar-container"] { transition: none; }
+
+/* ── 标准组件库（components/ui，shadcn/ui 搬入，docs/development/cc-ui-kit.md）：组件上的槽类名 .cc-ui-* 只在这里定外观，
+   数值只引用上面的变量，不另立档位。能用现有类的组件直接挂现有类（按钮 .cc-btn / .cc-card-btn / .cc-icon-btn / .cc-row-btn / .cc-link-btn、
+   输入 .cc-input、开关 .cc-switch、表格 .cc-table、页签 .cc-tabs、出错框 .cc-alert、空状态 .cc-empty、键 .cc-kbd、卡片 .cc-card、
+   头像 .cc-avatar、徽章 .cc-chip、分段 .cc-op-seg、菜单 .cc-menu / .cc-menu-item、弹窗 .cc-dialog、遮罩 .cc-overlay），这里只补它们没有的部分 */
+@layer components {
+  /* 按钮：shadcn 的 secondary / ghost 落到文字按钮上（卡片按钮已有 data-ghost） */
+  .cc-btn[data-secondary] { border-color: transparent; background: var(--cc-alpha-2); }
+  .cc-btn[data-secondary]:hover { background: var(--cc-alpha-3); }
+  .cc-btn[data-ghost] { border-color: transparent; background: transparent; }
+  .cc-btn[data-ghost]:hover { background: var(--cc-bg-hover); }
+  .cc-icon-btn:hover, .cc-row-btn:hover { background: var(--cc-bg-hover); color: var(--cc-ink); }
+  .cc-ui-button:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-ui-button:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }
+  .cc-ui-button-group { gap: var(--cc-space-2); }
+  .cc-ui-button-group-text { gap: var(--cc-space-6); padding-inline: var(--cc-space-8); color: var(--cc-ink-2); font-size: var(--cc-text-footnote); }
+  .cc-ui-button-group-separator { width: var(--cc-hairline); background: var(--cc-line); }
+
+  /* 分段 / 开关按钮（toggle、toggle-group）：外框 .cc-op-seg，按下的一项浮起 */
+  .cc-ui-toggle {
+    gap: var(--cc-space-6); height: var(--cc-control-sm); padding-inline: var(--cc-space-8); border-radius: var(--cc-radius-row-ctl);
+    color: var(--cc-ink-3); font-size: var(--cc-text-footnote); font-weight: var(--cc-weight-medium);
+  }
+  .cc-ui-toggle[data-variant="outline"] { border: var(--cc-hairline) solid var(--cc-line); }
+  .cc-ui-toggle:hover { color: var(--cc-ink); }
+  .cc-ui-toggle[data-state="on"] { background: var(--cc-bg-surface); color: var(--cc-ink); box-shadow: var(--cc-shadow-hairline); }
+  .cc-ui-toggle:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-ui-toggle:disabled { opacity: var(--cc-disabled-opacity); }
+  .cc-ui-toggle svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
+  :root[data-cc-touch] .cc-ui-toggle { min-height: var(--cc-tap); }
+
+  /* 输入：.cc-input 之外的多行、带前后缀、原生下拉 */
+  .cc-ui-input::placeholder, .cc-ui-textarea::placeholder { color: var(--cc-ink-4); }
+  .cc-ui-input:disabled, .cc-ui-textarea:disabled, .cc-ui-native-select:disabled { opacity: var(--cc-disabled-opacity); }
+  .cc-ui-input[aria-invalid="true"], .cc-ui-textarea[aria-invalid="true"], .cc-ui-select-trigger[aria-invalid="true"] { border-color: var(--cc-danger); }
+  .cc-input.cc-ui-textarea { height: auto; min-height: var(--cc-control-lg); padding-block: var(--cc-space-6); line-height: var(--cc-row-lh); }
+  .cc-ui-input-group {
+    position: relative; display: flex; width: 100%; min-width: 0; align-items: center; border: var(--cc-hairline) solid var(--cc-line);
+    border-radius: var(--cc-radius-md); background: var(--cc-bg-popover); transition: box-shadow var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-ui-input-group:has([data-slot="input-group-control"]:focus-visible) { box-shadow: var(--cc-shadow-focus); }
+  .cc-ui-input-group:has(> [data-align="block-start"], > [data-align="block-end"]) { flex-direction: column; align-items: stretch; }
+  .cc-ui-input-group > .cc-input { border: 0; background: transparent; box-shadow: none; }
+  .cc-ui-input-group-addon { gap: var(--cc-space-6); padding-inline: var(--cc-space-8); color: var(--cc-ink-3); font-size: var(--cc-text-footnote); }
+  .cc-ui-input-group-addon svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
+  .cc-ui-input-group-addon-align-block-start, .cc-ui-input-group-addon-align-block-end { padding-block: var(--cc-space-6); }
+  .cc-ui-input-group-text { gap: var(--cc-space-4); }
+  .cc-ui-native-select-wrapper { display: inline-flex; }
+  .cc-input.cc-ui-native-select { appearance: none; padding-inline-end: var(--cc-control); }
+  .cc-ui-native-select-icon { inset-inline-end: var(--cc-space-8); top: 50%; translate: 0 -50%; width: var(--cc-icon-sm); height: var(--cc-icon-sm); color: var(--cc-ink-3); }
+
+  /* 下拉选择（select）：触发器同输入框，弹出同菜单 */
+  .cc-input.cc-ui-select-trigger { display: inline-flex; gap: var(--cc-space-8); padding-inline: var(--cc-space-12) var(--cc-space-8); }
+  .cc-ui-select-trigger[data-placeholder] { color: var(--cc-ink-4); }
+  .cc-ui-select-trigger-icon { width: var(--cc-icon-sm); height: var(--cc-icon-sm); color: var(--cc-ink-3); }
+  .cc-ui-select-content { max-height: var(--radix-select-content-available-height); }
+  .cc-ui-select-item { padding-inline-end: var(--cc-control); }
+  .cc-ui-select-item-indicator { position: absolute; inset-inline-end: var(--cc-space-8); display: flex; }
+  .cc-ui-select-scroll-up-button, .cc-ui-select-scroll-down-button { display: flex; justify-content: center; padding-block: var(--cc-space-2); color: var(--cc-ink-3); }
+  .cc-ui-select-scroll-up-button svg, .cc-ui-select-scroll-down-button svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
+
+  /* 菜单里的勾选 / 单选项：勾放在行尾（同现有 .cc-menu-value 的位置） */
+  .cc-ui-menu-indicator { display: inline-flex; width: var(--cc-icon-sm); height: var(--cc-icon-sm); margin-inline-start: auto; color: var(--cc-ink-2); }
+  .cc-ui-menu-dot { fill: currentColor; scale: 0.5; }
+
+  /* 勾选、单选：16 的框，选中反色实心；触屏点按区补到 44（外观不变，同开关） */
+  .cc-ui-checkbox, .cc-ui-radio-group-item {
+    width: var(--cc-icon-sm); height: var(--cc-icon-sm); border: var(--cc-hairline) solid var(--cc-line-strong); border-radius: var(--cc-radius-xs);
+    background: var(--cc-bg-popover); color: var(--cc-bg-app); transition: background-color var(--cc-dur-fast) var(--cc-ease), border-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-ui-radio-group-item { border-radius: var(--cc-radius-full); }
+  .cc-ui-checkbox:is([data-state="checked"], [data-state="indeterminate"]), .cc-ui-radio-group-item[data-state="checked"] { border-color: var(--cc-ink); background: var(--cc-ink); }
+  .cc-ui-checkbox:focus-visible, .cc-ui-radio-group-item:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-ui-checkbox:disabled, .cc-ui-radio-group-item:disabled { opacity: var(--cc-disabled-opacity); }
+  .cc-ui-checkbox[aria-invalid="true"], .cc-ui-radio-group-item[aria-invalid="true"] { border-color: var(--cc-danger); }
+  .cc-ui-checkbox-indicator svg { width: var(--cc-icon-xs); height: var(--cc-icon-xs); }
+  .cc-ui-radio-group { display: grid; gap: var(--cc-space-8); }
+  .cc-ui-radio-group-indicator { display: flex; height: 100%; align-items: center; justify-content: center; }
+  .cc-ui-radio-group-indicator-icon { width: 50%; height: 50%; fill: currentColor; stroke: none; }
+  :root[data-cc-touch] :is(.cc-ui-checkbox, .cc-ui-radio-group-item)::before {
+    content: ""; position: absolute; inset: calc((var(--cc-icon-sm) - var(--cc-tap)) / 2);
+  }
+
+  /* 标签、字段：标签 14/20 次要色，说明 13 淡色，出错红 */
+  .cc-ui-label { gap: var(--cc-space-8); color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: var(--cc-weight-medium); }
+  .cc-ui-label:is(.peer:disabled ~ *) { opacity: var(--cc-disabled-opacity); }
+  .cc-ui-field-set { gap: var(--cc-space-16); }
+  .cc-ui-field-legend { margin-bottom: var(--cc-space-8); color: var(--cc-ink); font-size: var(--cc-row-font); font-weight: var(--cc-weight-medium); }
+  .cc-ui-field-group { gap: var(--cc-space-16); }
+  .cc-ui-field { gap: var(--cc-space-6); }
+  .cc-ui-field-orientation-horizontal { gap: var(--cc-space-12); }
+  .cc-ui-field-content { gap: var(--cc-space-2); }
+  .cc-ui-field-label, .cc-ui-field-title { gap: var(--cc-space-8); color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: var(--cc-weight-medium); }
+  .cc-ui-field-description { color: var(--cc-ink-3); font-size: var(--cc-text-footnote); line-height: var(--cc-text-footnote-lh); }
+  .cc-ui-field-error { color: var(--cc-danger); font-size: var(--cc-text-footnote); line-height: var(--cc-text-footnote-lh); }
+  .cc-ui-field-separator { height: var(--cc-space-16); }
+  .cc-ui-field-separator::before { content: ""; position: absolute; inset-inline: 0; top: 50%; border-top: var(--cc-hairline) solid var(--cc-line); }
+  .cc-ui-field-separator-content { padding-inline: var(--cc-space-8); color: var(--cc-ink-3); font-size: var(--cc-text-footnote); }
+
+  /* 分隔线、进度条、骨架之外的展示件 */
+  [data-slot="separator"] { flex-shrink: 0; background: var(--cc-line); }
+  [data-slot="separator"][data-orientation="horizontal"] { width: 100%; height: var(--cc-hairline); }
+  [data-slot="separator"][data-orientation="vertical"] { width: var(--cc-hairline); align-self: stretch; }
+  .cc-ui-progress { height: var(--cc-space-4); border-radius: var(--cc-radius-full); background: var(--cc-fill-muted); }
+  .cc-ui-progress-indicator { background: var(--cc-ink); transition: transform var(--cc-dur) var(--cc-ease); }
+
+  /* 卡片（.cc-card 之上的头、正文、脚） */
+  .cc-ui-card { gap: var(--cc-space-12); padding-block: var(--cc-space-16); color: var(--cc-ink); }
+  .cc-ui-card[data-size="sm"] { gap: var(--cc-space-8); padding-block: var(--cc-space-12); }
+  .cc-ui-card-header { gap: var(--cc-space-4); padding-inline: var(--cc-space-16); }
+  .cc-ui-card-title { font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: var(--cc-weight-semibold); }
+  .cc-ui-card-description { color: var(--cc-ink-3); font-size: var(--cc-text-footnote); line-height: var(--cc-text-footnote-lh); }
+  .cc-ui-card-content { padding-inline: var(--cc-space-16); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); }
+  .cc-ui-card-footer { gap: var(--cc-space-8); justify-content: flex-end; padding-inline: var(--cc-space-16); }
+
+  /* 徽章（.cc-chip 之上的语气） */
+  .cc-ui-badge { gap: var(--cc-space-4); font-weight: var(--cc-weight-medium); }
+  .cc-ui-badge svg { width: var(--cc-icon-xs); height: var(--cc-icon-xs); }
+  .cc-ui-badge[data-variant="default"] { background: var(--cc-ink); color: var(--cc-bg-app); }
+  .cc-ui-badge[data-variant="destructive"] { background: var(--cc-danger-soft); color: var(--cc-danger); }
+  .cc-ui-badge[data-variant="outline"] { border: var(--cc-hairline) solid var(--cc-line); background: transparent; }
+  .cc-ui-badge[data-variant="ghost"], .cc-ui-badge[data-variant="link"] { background: transparent; }
+  .cc-ui-badge[data-variant="link"] { color: var(--cc-link); }
+  .cc-ui-badge:focus-visible { box-shadow: var(--cc-shadow-focus); }
+
+  /* 提示框：.cc-alert 本是出错样式；default 是中性的一条 */
+  .cc-ui-alert { display: grid; grid-template-columns: auto 1fr; column-gap: var(--cc-space-8); }
+  .cc-ui-alert:not(:has(> svg)) { grid-template-columns: 1fr; }
+  .cc-ui-alert > svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); margin-top: var(--cc-space-2); }
+  .cc-alert.cc-ui-alert[data-variant="default"] { border-color: var(--cc-line); background: var(--cc-bg-surface); color: var(--cc-ink); }
+  .cc-ui-alert-title { font-weight: var(--cc-weight-medium); }
+  .cc-ui-alert[data-variant="default"] .cc-ui-alert-description { color: var(--cc-ink-2); }
+  .cc-ui-alert-action { grid-column: 1 / -1; justify-self: end; }
+
+  /* 空状态（.cc-empty 之上） */
+  .cc-ui-empty-header { gap: var(--cc-space-6); }
+  .cc-ui-empty-media { color: var(--cc-ink-3); }
+  .cc-ui-empty-media svg { width: var(--cc-icon-xl); height: var(--cc-icon-xl); }
+  .cc-ui-empty-title { color: var(--cc-ink); font-size: var(--cc-text-subhead); line-height: var(--cc-text-subhead-lh); font-weight: var(--cc-weight-medium); }
+  .cc-ui-empty-description { color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); }
+  .cc-ui-empty-content { gap: var(--cc-space-12); }
+
+  /* 列表项（item）：同会话栏卡片里的一行 */
+  .cc-ui-item-group { gap: var(--cc-space-2); }
+  .cc-ui-item { gap: var(--cc-space-12); padding: var(--cc-space-8) var(--cc-space-12); border: var(--cc-hairline) solid transparent; border-radius: var(--cc-radius-md); }
+  .cc-ui-item[data-size="sm"] { gap: var(--cc-space-8); padding: var(--cc-space-6) var(--cc-space-8); }
+  .cc-ui-item[data-size="xs"] { gap: var(--cc-space-6); padding: var(--cc-space-4) var(--cc-space-6); }
+  .cc-ui-item[data-variant="outline"] { border-color: var(--cc-line); }
+  .cc-ui-item[data-variant="muted"] { background: var(--cc-bg-subtle); }
+  :is(a, button).cc-ui-item:hover { background: var(--cc-bg-hover); }
+  .cc-ui-item:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-ui-item-media { gap: var(--cc-space-8); color: var(--cc-ink-2); }
+  .cc-ui-item-media svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
+  .cc-ui-item-media-variant-icon { width: var(--cc-control); height: var(--cc-control); border-radius: var(--cc-radius-sm); background: var(--cc-bg-subtle); }
+  .cc-ui-item-media-variant-image { width: var(--cc-control-lg); height: var(--cc-control-lg); overflow: hidden; border-radius: var(--cc-radius-sm); }
+  .cc-ui-item-content { gap: var(--cc-space-2); min-width: 0; }
+  .cc-ui-item-title { gap: var(--cc-space-8); color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: var(--cc-weight-medium); }
+  .cc-ui-item-description { color: var(--cc-ink-3); font-size: var(--cc-text-footnote); line-height: var(--cc-text-footnote-lh); }
+  .cc-ui-item-actions { gap: var(--cc-space-8); }
+  .cc-ui-item-separator { margin-block: var(--cc-space-2); }
+
+  /* 头像（.cc-avatar 之上） */
+  .cc-ui-avatar { overflow: hidden; }
+  .cc-ui-avatar[data-size="sm"] { width: var(--cc-control-xs); height: var(--cc-control-xs); }
+  .cc-ui-avatar[data-size="lg"] { width: var(--cc-control-lg); height: var(--cc-control-lg); }
+  .cc-ui-avatar-badge { width: var(--cc-space-8); height: var(--cc-space-8); background: var(--cc-success); box-shadow: 0 0 0 var(--cc-space-2) var(--cc-bg-app); }
+  .cc-ui-avatar-group { gap: 0; }
+  .cc-ui-avatar-group > [data-slot="avatar"] + [data-slot="avatar"] { margin-inline-start: calc(var(--cc-space-8) * -1); box-shadow: 0 0 0 var(--cc-space-2) var(--cc-bg-app); }
+  .cc-ui-avatar-group-count { width: var(--cc-control); height: var(--cc-control); border-radius: var(--cc-radius-full); background: var(--cc-bg-subtle); color: var(--cc-ink-2); font-size: var(--cc-text-xs); }
+
+  /* 键（.cc-kbd 之上） */
+  .cc-ui-kbd-group { gap: var(--cc-space-2); }
+
+  /* 表格（.cc-table 之上）：外框、表头淡色、行线 */
+  .cc-ui-table-container { position: relative; width: 100%; overflow-x: auto; }
+  .cc-ui-table { width: 100%; border-collapse: collapse; font-size: var(--cc-row-font); line-height: var(--cc-row-lh); }
+  .cc-ui-table-head { color: var(--cc-ink-3); font-size: var(--cc-text-footnote); white-space: nowrap; }
+  .cc-ui-table-row { border-bottom: var(--cc-hairline) solid var(--cc-line); }
+  .cc-ui-table-body .cc-ui-table-row:last-child { border-bottom: 0; }
+  .cc-ui-table-row[data-state="selected"] { background: var(--cc-bg-selected); }
+  .cc-ui-table-footer { border-top: var(--cc-hairline) solid var(--cc-line); font-weight: var(--cc-weight-medium); }
+  .cc-ui-table-caption { margin-top: var(--cc-space-8); color: var(--cc-ink-3); font-size: var(--cc-text-footnote); }
+  .cc-ui-table-cell:has([role="checkbox"]), .cc-ui-table-head:has([role="checkbox"]) { width: var(--cc-control); }
+
+  /* 页签（.cc-tabs 之上） */
+  .cc-ui-tabs { gap: var(--cc-space-8); }
+  .cc-ui-tabs-list { border-bottom: var(--cc-hairline) solid var(--cc-line); }
+  .cc-ui-tabs-trigger { gap: var(--cc-space-6); flex: none; }
+  .cc-ui-tabs-trigger:disabled { opacity: var(--cc-disabled-opacity); }
+  .cc-ui-tabs-trigger svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
+
+  /* 弹窗（dialog 的头脚说明、确认弹窗 alert-dialog） */
+  .cc-ui-dialog-header { gap: var(--cc-space-8); }
+  .cc-ui-dialog-footer { gap: var(--cc-space-8); }
+  .cc-ui-dialog-description, .cc-ui-alert-dialog-description, .cc-ui-sheet-description, .cc-ui-popover-description {
+    color: var(--cc-ink-2); font-size: var(--cc-row-font); line-height: var(--cc-row-lh);
+  }
+  .cc-ui-alert-dialog-overlay { z-index: var(--cc-z-confirm); }
+  .cc-ui-alert-dialog-content { z-index: var(--cc-z-confirm); width: calc(100% - var(--cc-dialog-gutter) * 2); max-width: var(--cc-dialog-w-sm); }
+  .cc-ui-alert-dialog-header { display: flex; flex-direction: column; gap: var(--cc-space-8); padding: var(--cc-dialog-head-pt) var(--cc-dialog-px) var(--cc-space-16); }
+  .cc-ui-alert-dialog-media { color: var(--cc-ink-3); }
+  .cc-ui-alert-dialog-media svg { width: var(--cc-icon-xl); height: var(--cc-icon-xl); }
+  .cc-ui-alert-dialog-footer { flex-direction: row; }
+
+  /* 侧拉面板（sheet）：同手机抽屉的弹层底、弹出阴影 */
+  .cc-ui-sheet-overlay { z-index: var(--cc-z-sheet); }
+  .cc-ui-sheet-content {
+    position: fixed; z-index: var(--cc-z-sheet); display: flex; flex-direction: column; gap: var(--cc-space-16); background: var(--cc-bg-surface);
+    color: var(--cc-ink); box-shadow: var(--cc-shadow-pop); outline: none; animation: cc-fade-in var(--cc-dur) var(--cc-ease) both;
+  }
+  .cc-ui-sheet-content[data-side="right"], .cc-ui-sheet-content[data-side="left"] { inset-block: 0; width: min(100% - var(--cc-control-lg), var(--cc-dialog-w-sm)); }
+  .cc-ui-sheet-content[data-side="right"] { inset-inline-end: 0; border-inline-start: var(--cc-hairline) solid var(--cc-line); }
+  .cc-ui-sheet-content[data-side="left"] { inset-inline-start: 0; border-inline-end: var(--cc-hairline) solid var(--cc-line); }
+  .cc-ui-sheet-content[data-side="top"], .cc-ui-sheet-content[data-side="bottom"] { inset-inline: 0; max-height: 100%; }
+  .cc-ui-sheet-content[data-side="top"] { top: 0; border-bottom: var(--cc-hairline) solid var(--cc-line); }
+  .cc-ui-sheet-content[data-side="bottom"] { bottom: 0; border-top: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-dialog) var(--cc-radius-dialog) 0 0; }
+  .cc-ui-sheet-close { position: absolute; top: var(--cc-space-12); inset-inline-end: var(--cc-space-12); }
+  .cc-ui-sheet-header { gap: var(--cc-space-6); padding: var(--cc-space-16) var(--cc-space-16) 0; }
+  .cc-ui-sheet-footer { gap: var(--cc-space-8); padding: 0 var(--cc-space-16) var(--cc-space-16); }
+  .cc-ui-sheet-title, .cc-ui-popover-title { color: var(--cc-ink); font-size: var(--cc-text-subhead); line-height: var(--cc-text-subhead-lh); font-weight: var(--cc-weight-medium); }
+
+  /* 气泡弹层（popover）：同菜单外壳，内边距放大 */
+  .cc-menu.cc-ui-popover-content { padding: var(--cc-space-12); min-width: var(--cc-menu-w-md); }
+  .cc-ui-popover-header { display: flex; flex-direction: column; gap: var(--cc-space-4); }
+
+  /* 折叠（collapsible）不需要外观；trace（工具步骤）同现有步骤行 .cc-step-row 的字与色 */
+  .cc-ui-trace { gap: var(--cc-space-6); }
+  .cc-ui-trace-line { gap: var(--cc-space-8); color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); }
+  :is(a, button) > .cc-ui-trace-line:hover, .cc-ui-trace-collapsible-trigger:hover { color: var(--cc-ink); }
+  .cc-ui-trace-line[data-status="error"] { color: var(--cc-danger); }
+  .cc-ui-trace-line[data-status="pending"] { opacity: var(--cc-disabled-opacity); }
+  .cc-ui-trace-line[data-status="running"] .cc-ui-trace-title { animation: cc-pulse var(--cc-pulse) var(--cc-ease-pulse) infinite; }
+  .cc-ui-trace-icon svg, .cc-ui-trace-icon { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
+  .cc-ui-trace-description { color: var(--cc-ink-4); }
+  .cc-ui-trace-collapsible-trigger { gap: var(--cc-space-4); border-radius: var(--cc-radius-sm); color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); }
+  .cc-ui-trace-collapsible-trigger:focus-visible, .cc-ui-trace > :is(a, button):focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-ui-trace-collapsible-trigger svg { width: var(--cc-step-chevron); height: var(--cc-step-chevron); transition: transform var(--cc-dur-fast) var(--cc-ease); }
+  .cc-ui-trace-collapsible-trigger[data-state="open"] svg { transform: rotate(90deg); }
+  .cc-ui-trace-collapsible-content-inner {
+    margin: var(--cc-space-6) 0 var(--cc-space-4) var(--cc-space-6); padding-inline: var(--cc-space-12) var(--cc-space-4);
+    border-inline-start: var(--cc-hairline) solid var(--cc-line); color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh);
+  }
+
+  /* 对话消息（message、bubble）：你发的一句用现有用户气泡的底色与圆角，回复不加气泡 */
+  .cc-ui-message-group, .cc-ui-bubble-group { gap: var(--cc-space-8); }
+  .cc-ui-message { gap: var(--cc-space-8); font-size: var(--cc-body-size); line-height: var(--cc-body-lh); }
+  .cc-ui-message[data-align="end"] { flex-direction: row-reverse; }
+  .cc-ui-message-content { gap: var(--cc-space-8); }
+  .cc-ui-message[data-align="end"] .cc-ui-message-content { align-items: flex-end; }
+  .cc-ui-message-header, .cc-ui-message-footer { color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
+  .cc-ui-bubble { gap: var(--cc-space-4); max-width: var(--cc-bubble-max); }
+  .cc-ui-bubble[data-align="end"] { align-self: flex-end; }
+  .cc-ui-bubble[data-variant="ghost"] { max-width: 100%; }
+  .cc-ui-bubble-content { padding: var(--cc-space-8) var(--cc-space-12); border: var(--cc-hairline) solid transparent; border-radius: var(--cc-radius-bubble); overflow-wrap: anywhere; }
+  .cc-ui-bubble[data-variant="default"] > .cc-ui-bubble-content { background: var(--cc-bubble-bg); color: var(--cc-bubble-ink); box-shadow: var(--cc-bubble-shadow); }
+  .cc-ui-bubble[data-variant="secondary"] > .cc-ui-bubble-content, .cc-ui-bubble[data-variant="muted"] > .cc-ui-bubble-content,
+  .cc-ui-bubble[data-variant="tinted"] > .cc-ui-bubble-content { background: var(--cc-bg-subtle); }
+  .cc-ui-bubble[data-variant="outline"] > .cc-ui-bubble-content { border-color: var(--cc-line); }
+  .cc-ui-bubble[data-variant="ghost"] > .cc-ui-bubble-content { padding: 0; border-radius: 0; }
+  .cc-ui-bubble[data-variant="destructive"] > .cc-ui-bubble-content { background: var(--cc-danger-soft); color: var(--cc-danger); }
+  .cc-ui-bubble-content:is(a, button):focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-ui-bubble-reactions {
+    position: absolute; gap: var(--cc-space-2); padding: var(--cc-space-2) var(--cc-space-6); border-radius: var(--cc-radius-full);
+    background: var(--cc-bg-subtle); box-shadow: 0 0 0 var(--cc-space-2) var(--cc-bg-app); font-size: var(--cc-text-footnote);
+  }
+  .cc-ui-bubble-reactions-side-top { top: 0; translate: 0 -50%; }
+  .cc-ui-bubble-reactions-side-bottom { bottom: 0; translate: 0 50%; }
+  .cc-ui-bubble-reactions-align-start { inset-inline-start: var(--cc-space-12); }
+  .cc-ui-bubble-reactions-align-end { inset-inline-end: var(--cc-space-12); }
+
+  /* 附件（attachment）：同现有附件卡的外框（.cc-attach-card 的圆角与环线） */
+  .cc-ui-attachment { position: relative; border-radius: var(--cc-radius-panel); box-shadow: var(--cc-panel-ring); color: var(--cc-ink); }
+  .cc-ui-attachment:focus-within { box-shadow: var(--cc-panel-ring), var(--cc-shadow-focus); }
+  .cc-ui-attachment-size-default { gap: var(--cc-space-8); padding: var(--cc-space-8); font-size: var(--cc-row-font); }
+  .cc-ui-attachment-size-sm, .cc-ui-attachment-size-xs { gap: var(--cc-space-6); padding: var(--cc-space-6); font-size: var(--cc-text-footnote); }
+  .cc-ui-attachment-orientation-horizontal { min-width: var(--cc-attach-w); }
+  .cc-ui-attachment-orientation-vertical { width: var(--cc-attach-w); }
+  .cc-ui-attachment-media { width: var(--cc-control-lg); aspect-ratio: 1; overflow: hidden; border-radius: var(--cc-radius-sm); background: var(--cc-bg-subtle); color: var(--cc-ink-2); }
+  .cc-ui-attachment-media svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
+  .cc-ui-attachment-media-variant-image { opacity: var(--cc-disabled-opacity); }
+  .cc-ui-attachment:is([data-state="idle"], [data-state="done"]) .cc-ui-attachment-media-variant-image { opacity: 1; }
+  .cc-ui-attachment-content { line-height: var(--cc-text-footnote-lh); }
+  .cc-ui-attachment-title { font-weight: var(--cc-weight-medium); }
+  .cc-ui-attachment-description { color: var(--cc-ink-3); font-size: var(--cc-text-caption); }
+  .cc-ui-attachment-actions { position: relative; z-index: var(--cc-z-float); gap: var(--cc-space-2); }
+  .cc-ui-attachment-orientation-vertical .cc-ui-attachment-actions { position: absolute; top: var(--cc-space-6); inset-inline-end: var(--cc-space-6); }
+  .cc-ui-attachment-group { gap: var(--cc-space-12); padding-block: var(--cc-space-2); }
+  .cc-ui-attachment-trigger { z-index: var(--cc-z-raise); border-radius: inherit; }
+
+  /* 代码块（code-block）：同回复里的代码块（.cc-code-block 的框、底与字号） */
+  .cc-ui-code-block { position: relative; border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-code-block); font-size: var(--cc-text-sm); }
+  .cc-ui-code-block-variant-destructive { border-color: var(--cc-danger-line); color: var(--cc-danger); }
+  .cc-ui-code-block-header, .cc-ui-code-block-footer {
+    gap: var(--cc-space-8); padding: var(--cc-space-6) var(--cc-code-pad); background: var(--cc-bg-subtle); color: var(--cc-ink-3);
+    font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
+  }
+  .cc-ui-code-block-header { border-bottom: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-code-block) var(--cc-radius-code-block) 0 0; }
+  .cc-ui-code-block-footer { border-top: var(--cc-hairline) solid var(--cc-line); }
+  .cc-ui-code-block-title { gap: var(--cc-space-6); color: var(--cc-ink-2); font-family: var(--cc-font-sans); font-weight: var(--cc-weight-medium); }
+  .cc-ui-code-block-content { padding: var(--cc-code-pad); line-height: var(--cc-code-lh); }
+  .cc-ui-code-block-content:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-ui-code-block-line[data-variant="highlighted"], .cc-ui-code-block-line[data-variant="added"] { background: var(--cc-bg-subtle); }
+  .cc-ui-code-block-line[data-variant="removed"] { background: var(--cc-danger-soft); }
+  [data-slot="code-block"] > .cc-ui-code-block-actions {
+    position: absolute; top: var(--cc-space-6); inset-inline-end: var(--cc-space-6); opacity: 0; transition: opacity var(--cc-reveal) var(--cc-ease);
+  }
+  [data-slot="code-block"]:is(:hover, :focus-within) > .cc-ui-code-block-actions, :root[data-cc-touch] [data-slot="code-block"] > .cc-ui-code-block-actions { opacity: 1; }
+
+  /* 标记（marker）：对话里一行淡色的说明（如「已停止」），分隔线式两边带线 */
+  .cc-ui-marker { gap: var(--cc-space-8); color: var(--cc-ink-3); font-size: var(--cc-text-footnote); line-height: var(--cc-text-footnote-lh); }
+  .cc-ui-marker svg, .cc-ui-marker-icon { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
+  .cc-ui-marker-variant-separator::before, .cc-ui-marker-variant-separator::after { content: ""; min-width: 0; flex: 1; border-top: var(--cc-hairline) solid var(--cc-line); }
+  .cc-ui-marker-variant-border { padding-bottom: var(--cc-space-8); border-bottom: var(--cc-hairline) solid var(--cc-line); }
+
+  /* 提问卡（questionnaire）：同现有提问卡的字与选项行（卡片按钮 .cc-card-btn 由 Button 给） */
+  .cc-ui-questionnaire { gap: var(--cc-space-16); color: var(--cc-ink); }
+  .cc-ui-questionnaire-progress { color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
+  .cc-ui-questionnaire-item { gap: var(--cc-space-12); }
+  .cc-ui-questionnaire-item:not([data-active]) { display: none; }
+  .cc-ui-questionnaire-title { font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: var(--cc-weight-medium); }
+  .cc-ui-questionnaire-description, .cc-ui-questionnaire-choice-description { color: var(--cc-ink-3); font-size: var(--cc-text-footnote); line-height: var(--cc-text-footnote-lh); }
+  .cc-ui-questionnaire-choices { gap: var(--cc-space-6); }
+  .cc-ui-questionnaire-choice {
+    position: relative; gap: var(--cc-space-12); padding: var(--cc-space-8) var(--cc-space-12); border: var(--cc-hairline) solid var(--cc-line);
+    border-radius: var(--cc-radius-md); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); transition: background-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-ui-questionnaire-choice:hover { background: var(--cc-bg-hover); }
+  .cc-ui-questionnaire-choice[data-checked] { border-color: var(--cc-line-strong); background: var(--cc-bg-selected); }
+  .cc-ui-questionnaire-choice[data-invalid] { border-color: var(--cc-danger); }
+  .cc-ui-questionnaire-choice:has(> input:focus-visible) { box-shadow: var(--cc-shadow-focus); }
+  .cc-ui-questionnaire-choice[data-disabled] { opacity: var(--cc-disabled-opacity); }
+  .cc-ui-questionnaire-choice-indicator {
+    width: var(--cc-icon-sm); height: var(--cc-icon-sm); margin-top: var(--cc-space-2); border-color: var(--cc-line-strong); border-radius: var(--cc-radius-xs);
+    background: var(--cc-bg-popover); color: var(--cc-bg-app);
+  }
+  .cc-ui-questionnaire-choice[data-checked] .cc-ui-questionnaire-choice-indicator { border-color: var(--cc-ink); background: var(--cc-ink); }
+  .cc-ui-questionnaire-choice-indicator-dot { width: var(--cc-space-6); height: var(--cc-space-6); background: var(--cc-bg-app); }
+  .cc-ui-questionnaire-choice-indicator-check { width: var(--cc-icon-xs); height: var(--cc-icon-xs); }
+  .cc-ui-questionnaire-choice-content { gap: var(--cc-space-2); }
+  .cc-ui-questionnaire-shortcut {
+    min-width: var(--cc-icon); height: var(--cc-icon); padding-inline: var(--cc-space-4); align-items: center; justify-content: center;
+    border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-xs); color: var(--cc-ink-3); font-size: var(--cc-text-caption);
+  }
+  .cc-input.cc-ui-questionnaire-input { width: 100%; }
+  .cc-ui-questionnaire-error { color: var(--cc-danger); font-size: var(--cc-text-footnote); }
+  .cc-ui-questionnaire-actions { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--cc-space-8); }
+  .cc-ui-questionnaire-actions > [data-hidden] { display: none; }
+}

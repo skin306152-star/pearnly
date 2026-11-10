@@ -93,10 +93,37 @@ function DialogTitle({
   );
 }
 
+// shadcn 的 Header / Footer / Description（标准组件库补齐，docs/development/cc-ui-kit.md）：外观在 globals.css 的 .cc-ui-dialog-*
+function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return <div data-slot="dialog-header" className={cn("cc-ui-dialog-header flex flex-col", className)} {...props} />;
+}
+
+function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return <div data-slot="dialog-footer" className={cn("cc-ui-dialog-footer flex flex-wrap items-center justify-end", className)} {...props} />;
+}
+
+function DialogDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+  return (
+    <DialogPrimitive.Description
+      data-slot="dialog-description"
+      className={cn("cc-ui-dialog-description", className)}
+      {...props}
+    />
+  );
+}
+
 export {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
   DialogTitle,
   DialogTrigger,
 };
