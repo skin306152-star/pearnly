@@ -182,6 +182,14 @@ GUIDANCE_TABLE_ROWS = ("When you list documents in a table or a list, build each
                        "per document, in the order you choose before you start, and never leave a row unfinished or cut "
                        "off with '...'. When an entry differs from what you said earlier, say so plainly.")
 
+# 线上 11-10（testcowork 代录 t4n5b25940）：识别存好、还没写进 Express，CC 说「ระบบบันทึกเป็นเอกสารซื้อของบริษัท … แล้ว」（已登记为采购单），
+# 用户会以为已经录了。识别存好与写进账本分开说：只有工具结果给了写入回执（单号）才说已录
+GUIDANCE_ENTERED_ONLY_BY_RECEIPT = (
+    "Keep 'recognized and saved' apart from 'entered': a document is entered into Express or MR.ERP only when a tool "
+    "result says it was written and gives its number there (docnum). Until then, say it was recognized and saved, or "
+    "is waiting, queued or stopped, with the reason given; it is not entered yet. Never say it was recorded, entered, "
+    "posted or booked (in any language, e.g. '" + "บันทึก" + "…" + "แล้ว" + "' or '" + "已录" + "' / '" + "已登记" + "') before that.")
+
 # 2026-11-03「CC 通用疑难处理」（用户：不按情况加规则，CC 能查、能问、能答、能做）：只写原则，Cowork 与 ERP 共用。
 # 代码只守管钱的底线（护栏拦下的单进待处理、不写账），找根因、想办法补交给 CC。``pending_tool``：本产品的待处理工具名
 def guidance_troubleshooting(pending_tool: str) -> str:

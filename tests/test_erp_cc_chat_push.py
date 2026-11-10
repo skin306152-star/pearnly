@@ -375,8 +375,13 @@ class DeclarationTests(unittest.TestCase):
                          {**direct_push.scope_props("erp_companies", "documents", "documents"),
                           **direct_push.page_props(direct_push.LIST_MAX)})
         for line in (direct_push.GUIDANCE_TIMES, direct_push.GUIDANCE_BAHT, direct_push.GUIDANCE_THIS_MONTH,
-                     direct_push.GUIDANCE_TABLE_ROWS):
+                     direct_push.GUIDANCE_TABLE_ROWS, direct_push.GUIDANCE_ENTERED_ONLY_BY_RECEIPT):
             self.assertIn(line, tools.GUIDANCE)
+        # 线上 11-10（testcowork 代录 t4n5b25940）：识别存好、还没写进 Express，CC 说「已登记为 Pearnly 的采购单」。只有拿到写入回执
+        # （单号）才说已录，两个产品同一句
+        self.assertIn("direct_push.GUIDANCE_ENTERED_ONLY_BY_RECEIPT", (COWORK / "assistant/tools.py").read_text(encoding="utf-8"))
+        for words in ("docnum", "recognized", "not entered"):
+            self.assertIn(words, direct_push.GUIDANCE_ENTERED_ONLY_BY_RECEIPT)
         # 按单号、对方、金额、日期找单：与 Cowork 同一句的 ERP 版（盘点 2026-11-08 P1-3），ERP 单据没有文件名可搜
         find = direct_push.guidance_find_documents("erp_list_documents")
         self.assertIn(find, tools.GUIDANCE)
