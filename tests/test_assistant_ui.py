@@ -487,7 +487,8 @@ class ShortcutTests(unittest.TestCase):
                     continue
                 self.assertRegex(line, r'<Shortcut keys="[^"]+"( kbd)? />', f"{name}:{number} 快捷键提示要经 <Shortcut>")
                 hints.append(re.search(r'keys="([^"]+)"', line).group(1))
-            if name != "components/shortcut.tsx":
+            # 快捷键提示只经 <Shortcut>；标准组件库的 Kbd（components/ui/kbd.tsx，11-10 起）是它底下的通用键帽件
+            if name not in ("components/shortcut.tsx", "components/ui/kbd.tsx"):
                 self.assertNotIn("<kbd", text, name)
         # 用户菜单的设置，桌面端应用菜单的新建 / 对话 / 代录 / 设置 / 重新加载 / 缩放，设置里快捷提问的组合键。
         # 对话 / 代录用 Ctrl + Shift + 1 / 2（2026-10-27 主会话定）：Ctrl / ⌘ + 1–9 在桌面窗口已是「打开第 n 条对话」
@@ -7110,7 +7111,8 @@ class Round5SmallFixesTests(unittest.TestCase):
                      # 知识库表单的「取消」等文字按钮本来就有（.cc-btn）；组件库的 Button 已删（标准化 B8：迁完后没有调用方）
                      ".cc-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }"):
             self.assertIn(rule, css)
-        self.assertFalse((SRC / "components/ui/button.tsx").exists())
+        # 组件库的 Button 在 B8 删掉、11-10 随标准组件库回来（docs/development/cc-ui-kit.md）：它只挂现有按钮类，聚焦同上面的 .cc-btn
+        self.assertIn('default: "cc-btn"', read("components/ui/button.tsx"))
         # 侧栏宽度拖把（分隔条）：键盘聚焦时那根线换成聚焦蓝、1px
         self.assertIn(".cc-split:focus-visible::before { background: var(--cc-focus-ring); width: var(--cc-ring-w); }", css)
         # 兜底去掉 outline:auto 后，自带阴影（盖过兜底的 box-shadow）的按钮要自己写聚焦描边，否则一点都看不见：

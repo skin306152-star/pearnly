@@ -1,7 +1,7 @@
 // 标准组件库展示页（只在开发环境：vite 开发服务器，或构建时设 CC_KIT=1；生产构建没有它，docs/development/cc-ui-kit.md）。
 // 每个组件摆几种状态；字一律取自现有词条，切语言就能看四语。标题只写组件名（开发用页，不进产品文案）。
 import { useState, type ReactNode } from "react";
-import { CopyIcon, FileTextIcon, InboxIcon, MoonIcon, SearchIcon, SunIcon, TriangleAlertIcon, WrenchIcon, XIcon } from "lucide-react";
+import { ArrowBigUpIcon, CommandIcon, CopyIcon, CornerDownLeftIcon, FileTextIcon, InboxIcon, MoonIcon, SearchIcon, SunIcon, TriangleAlertIcon, WrenchIcon, XIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -132,7 +132,7 @@ export function Gallery({ lang, dark }: { lang: string; dark: boolean }) {
           <Badge variant="secondary">{t("uploading")}</Badge>
           <Badge variant="destructive">{t("uploadFailed")}</Badge>
           <Badge variant="outline">{t("question")}</Badge>
-          <KbdGroup><Kbd>⌘</Kbd><Kbd>⇧</Kbd><Kbd>↵</Kbd></KbdGroup>
+          <KbdGroup><Kbd><CommandIcon /></Kbd><Kbd><ArrowBigUpIcon /></Kbd><Kbd><CornerDownLeftIcon /></Kbd></KbdGroup>
           <Avatar><AvatarFallback>CC</AvatarFallback></Avatar>
           <Spinner />
           <Skeleton className="h-(--cc-control) w-(--cc-attach-w)" />
@@ -291,7 +291,7 @@ export function Gallery({ lang, dark }: { lang: string; dark: boolean }) {
             <DropdownMenuTrigger asChild><Button variant="outline">{t("more")}</Button></DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuLabel>{t("conversationMenu")}</DropdownMenuLabel>
-              <DropdownMenuItem>{t("rename")}<DropdownMenuShortcut>⌘↵</DropdownMenuShortcut></DropdownMenuItem>
+              <DropdownMenuItem>{t("rename")}<DropdownMenuShortcut><CommandIcon /></DropdownMenuShortcut></DropdownMenuItem>
               <DropdownMenuCheckboxItem checked>{t("star")}</DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive">{t("delete")}</DropdownMenuItem>

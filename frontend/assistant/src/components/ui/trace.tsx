@@ -1,6 +1,7 @@
 import * as React from "react"
 import { ChevronRightIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Marquee } from "@/components/ui/marquee"
 
 import {
   Collapsible,
@@ -57,14 +58,7 @@ function TraceIcon({ className, ...props }: React.ComponentProps<"span">) {
 
 function TraceTitle({ className, ...props }: React.ComponentProps<"span">) {
   return (
-    <span
-      data-slot="trace-title"
-      className={cn(
-        "cc-ui-trace-title min-w-0 truncate motion-reduce:shimmer-none",
-        className
-      )}
-      {...props}
-    />
+    <Marquee as="span" data-slot="trace-title" className={cn("cc-ui-trace-title min-w-0 max-w-full truncate", className)} {...props} />
   )
 }
 

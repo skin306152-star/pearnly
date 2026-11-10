@@ -1,6 +1,7 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
+import { Marquee } from "@/components/ui/marquee"
 import { Slot } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
@@ -96,14 +97,7 @@ function AttachmentTitle({
   ...props
 }: React.ComponentProps<"span">) {
   return (
-    <span
-      data-slot="attachment-title"
-      className={cn(
-        "cc-ui-attachment-title block max-w-full min-w-0 truncate group-data-[state=processing]/attachment:shimmer group-data-[state=uploading]/attachment:shimmer",
-        className
-      )}
-      {...props}
-    />
+    <Marquee as="span" data-slot="attachment-title" className={cn("cc-ui-attachment-title block max-w-full min-w-0 truncate", className)} {...props} />
   )
 }
 
@@ -112,15 +106,7 @@ function AttachmentDescription({
   ...props
 }: React.ComponentProps<"span">) {
   return (
-    <span
-      data-slot="attachment-description"
-      className={cn(
-        "cc-ui-attachment-description block min-w-0 truncate text-muted-foreground group-data-[state=error]/attachment:text-destructive/80",
-        "max-w-full",
-        className
-      )}
-      {...props}
-    />
+    <Marquee as="span" data-slot="attachment-description" className={cn("cc-ui-attachment-description block min-w-0 text-muted-foreground max-w-full truncate", className)} {...props} />
   )
 }
 

@@ -1,6 +1,4 @@
 @import "tailwindcss";
-/* 展示页 src/kit 只在开发环境（docs/development/cc-ui-kit.md）：Tailwind 不扫它，它用到的工具类不进产品样式 */
-@source not "./kit";
 /* 回复与问候语的衬线字体：随包自带，数字是等高的（系统里的 Georgia 数字高低不齐，2026-10-12 用户反馈看着奇怪） */
 @import "@fontsource-variable/source-serif-4";
 /* 衬线栈里的中日文字与全角标点固定用本机的中日文字体（只覆盖下列 CJK 区段，拉丁字母、泰文、“”—… 等通用标点不变）：
@@ -2913,6 +2911,7 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
 
   /* 键（.cc-kbd 之上） */
   .cc-ui-kbd-group { gap: var(--cc-space-2); }
+  .cc-ui-kbd svg, .cc-menu-key svg { width: var(--cc-icon-xs); height: var(--cc-icon-xs); }
 
   /* 表格（.cc-table 之上）：外框、表头淡色、行线 */
   .cc-ui-table-container { position: relative; width: 100%; overflow-x: auto; }

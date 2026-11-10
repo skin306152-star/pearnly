@@ -60,6 +60,8 @@ BUSY_SITES = [
     ("assistant.tsx", '"cc-loading"', "function ThreadLoading()", 3),
     # 标准组件库的转圈：组件本身就是「在忙」的标记，调用方只在忙时挂（docs/development/cc-ui-kit.md）
     ("components/ui/spinner.tsx", "cc-spinner", "function Spinner(", 8),
+    # 开发用展示页（只在开发服务器与 CC_KIT=1 构建里）：骨架摆出来看样子
+    ("kit/gallery.tsx", "<Skeleton", '<Section name="Badge / Kbd / Avatar / Spinner / Skeleton">', 10),
     ("components/results-panel.tsx", "cc-spinner", "function Loading()", 3),
     ("components/company-cards.tsx", "<Skeleton", "export const PanelSkeleton", 3),
     ("components/company-cards.tsx", "cc-spinner", "busy ?", 0),

@@ -2,7 +2,9 @@ import * as React from "react"
 import { CheckIcon, CopyIcon } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
+import { Marquee } from "@/components/ui/marquee"
 import { t, ui } from "@/i18n"
+import { withReport } from "@/lib/caught"
 
 import { Button } from "@/components/ui/button"
 
@@ -54,14 +56,7 @@ function CodeBlockHeader({ className, ...props }: React.ComponentProps<"div">) {
 
 function CodeBlockTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <div
-      data-slot="code-block-title"
-      className={cn(
-        "cc-ui-code-block-title min-w-0 truncate [&_svg]:pointer-events-none [&_svg]:inline-block [&_svg]:align-middle",
-        className
-      )}
-      {...props}
-    />
+    <Marquee as="div" data-slot="code-block-title" className={cn("cc-ui-code-block-title min-w-0 [&_svg]:pointer-events-none [&_svg]:inline-block [&_svg]:align-middle max-w-full truncate", className)} {...(props as object)} />
   )
 }
 
@@ -114,7 +109,7 @@ function CodeBlockCopyButton({
           navigator.clipboard
             .writeText(value)
             .then(() => setCopied(true))
-            .catch(() => {})
+            .catch(withReport(undefined, "code-block.copy"))
         }}
         {...props}
       >

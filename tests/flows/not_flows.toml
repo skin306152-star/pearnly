@@ -103,3 +103,166 @@ reason = "LINE 收发与收件人语言（user_language 问 LINE profile 接口�
 [[file]]
 file = "apps/pearnly_core/pearnly_core/line_binding.py"
 reason = "LINE 用户与账号的绑定（LINE 收件人语言回落到绑定账号的语言时经 line.py 读它）：回归实验室没有 LINE 通道，绑定码只能从 LINE 聊天发来，没有流程能走到。绑定 / 解绑由各产品 LINE 离线测试（test_line_intake、test_cowork_line_intake）守住"
+
+file = "frontend/assistant/src/components/ui/alert-dialog.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/alert.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/attachment.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/avatar.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/badge.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/bubble.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/button-group.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/button.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/card.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/checkbox.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/code-block.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/collapsible.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/dialog.tsx"
+reason = "组件库弹窗：产品里只有附件的图片预览用它，流程不开预览；11-10 只追加 Header / Footer / Description / Overlay / Portal 导出，原有导出与外壳不变（tests/test_cc_ccs.py 核对外壳类名与导出清单）"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/dropdown-menu.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/empty.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/field.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/input-group.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/input.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/item.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/kbd.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/label.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/marker.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/message.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/native-select.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/popover.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/progress.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/questionnaire.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/radio-group.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/select.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/separator.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/sheet.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/spinner.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/switch.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/table.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/tabs.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/textarea.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/toggle-group.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/toggle.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/ui/trace.tsx"
+reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/kit/gallery.tsx"
+reason = "标准组件库的开发用展示页（kit.html）：只在开发服务器与 CC_KIT=1 构建里，生产构建没有（tests/test_cc_ui_kit.py 核对）"
+
+[[file]]
+file = "frontend/assistant/src/kit/main.tsx"
+reason = "标准组件库的开发用展示页（kit.html）：只在开发服务器与 CC_KIT=1 构建里，生产构建没有（tests/test_cc_ui_kit.py 核对）"
