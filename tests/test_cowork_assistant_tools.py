@@ -639,6 +639,40 @@ class RecognitionWaitTests(unittest.TestCase):
             tools.recognize_attachments({"files": ["file_abc"]})
             self.assertIsNone(frappe.local.pearnly_assistant.get("wait"))
 
+    def test_waiting_in_place_reports_the_pages_read_so_far_each_time_they_change(self):
+        # 11-10 线上压测 S1（直写 7 份 102 页）/ S5a（代录 25 页）：推送线程先当场等 90 秒才挂起，这段状态行只有「识别中」。
+        # 当场等的每一轮按挂起后核对同一个算法（识别完的按整份、还在读的按已读页）算一次，有变化就报给这次调用。
+        self._store()
+        timeline = [dict(B1=("queued", 0, 12, False), B2=("queued", 0, 3, False)),
+                    dict(B1=("recognizing", 4, 12, True), B2=("queued", 0, 3, False)),
+                    dict(B1=("recognizing", 4, 12, True), B2=("queued", 0, 3, False)),
+                    dict(B1=("recognizing", 9, 12, True), B2=("saved", 3, 3, False)),
+                    dict(B1=("saved", 12, 12, False), B2=("saved", 3, 3, False))]
+        clock, reports = [0.0], []
+        self._states(**timeline[0])
+        batches = iter(["B1", "B2"])
+
+        def sleep(seconds):
+            clock[0] += seconds
+            self._states(**timeline[min(int(clock[0] // 3), len(timeline) - 1)])
+
+        with mock.patch.object(frappe, "local", types.SimpleNamespace(lang="en", site="s1", message_log=[],
+                                                                       pearnly_assistant={"session_id": "conv",
+                                                                                          "may_wait": True})), \
+                mock.patch.object(tools.time, "sleep", sleep), mock.patch.object(tools.time, "monotonic", lambda: clock[0]), \
+                mock.patch.object(tools, "_submit", lambda *a, **k: ({"name": next(batches), "state": "queued"}, None)), \
+                mock.patch.object(tools.waits, "report", reports.append, create=True):
+            out = json.loads(tools.recognize_attachments({"files": ["file_abc", "file_two"]}))["results"]
+            self.assertIsNone(frappe.local.pearnly_assistant.get("wait"))  # 当场等到了，不挂
+        self.assertEqual([item["state"] for item in out], ["saved", "saved"])
+        self.assertEqual(reports, [{"done": 0, "total": 15, "label": "queued"},
+                                   {"done": 4, "total": 15, "label": "reading_pages"},
+                                   {"done": 12, "total": 15, "label": "reading_pages"}])
+        # 与挂起后的核对同一个数
+        interim = json.dumps({"results": [{"file": "file_abc", "batch": "B1"}, {"file": "file_two", "batch": "B2"}]})
+        self._states(**timeline[3])
+        self.assertEqual(tools.recognition_wait({}, interim, None)["progress"], reports[-1])
+
     def test_an_operator_upload_still_reading_is_the_one_waited_for(self):
         # 代录会话放进输入框时已交识别、还在读：工具不另交，挂着等的就是那一份（结束提醒按它的识别号找回来），进度与上传卡片同一份数
         self._store()

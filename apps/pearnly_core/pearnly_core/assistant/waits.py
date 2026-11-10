@@ -11,7 +11,7 @@
   （引擎停在等工具结果时不收用户消息）；到上限（`WAIT_MINUTES`）按 `deadline` 交回；共用的每分钟巡检（`sweep`）把结束了却
   没交回的（结束提醒漏了、进程重启）补交。点停止、这一轮结束：作废（`cancel`），之后结束了也不再交。
 - 进度：等的事有了新进度时产品调 `touch(键)`，按核对函数回的 `progress` 推一条 `pearnly.progress`（按调用编号）；对话页
-  重开、补拉时由 `progress_events` 现算并进来。只用真实数字。
+  重开、补拉时由 `progress_events` 现算并进来。挂起之前工具当场等的那段，工具自己按同一形状调 `report(progress)`。只用真实数字。
 - 核对函数由声明工具的产品给（点路径），共用层不认识产品的等待内容。
 """
 import json
@@ -242,17 +242,35 @@ def sweep() -> None:
 # ── 进度 ────────────────────────────────────────────────────────────────────
 def _progress(row) -> dict | None:
     found = _check(row, None)
-    progress = (found or {}).get("progress")
+    return _event(row.tool_use_id, (found or {}).get("progress"))
+
+
+def _event(use_id, progress) -> dict | None:
+    """一次调用此刻的进度事件（挂着时与当场等时同一个写法、同一个编号：同样的数页面只收一次）。数不对回 None。"""
     if not isinstance(progress, dict):
         return None
     try:
         at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         done, total = int(progress.get("done") or 0), int(progress.get("total") or 0)
         label = str(progress.get("label") or "")
-        return contracts.progress_event(f"pwait_{row.tool_use_id}_{label}_{done}_{total}"[:120], at, row.tool_use_id,
-                                        done, total, label)
+        return contracts.progress_event(f"pwait_{use_id}_{label}_{done}_{total}"[:120], at, use_id, done, total, label)
     except (contracts.ContractError, ValueError, TypeError):
         return None
+
+
+def report(progress) -> None:
+    """工具当场等后台的事时（推送线程里先等一会儿再决定挂不挂，例如识别）：按这次调用推一条此刻的进度，`progress` 同核对函数
+    回的 ``{"done", "total", "label"}``。11-10 线上压测：识别挂起前当场等的 90 秒没有进度，状态行只写「识别中」。
+    不在对话的工具执行里（没有这次调用的编号）、数不对就不推；只作展示，出错不影响工具。"""
+    try:
+        context = getattr(frappe.local, "pearnly_assistant", None) or {}
+        use_id, conversation = context.get("tool_use_id"), context.get("session_id")
+        event = _event(use_id, progress) if use_id and conversation else None
+        if event:
+            frappe.publish_realtime(contracts.REALTIME_EVENT, {"session_id": conversation, "event": event},
+                                    user=frappe.session.user, after_commit=False)
+    except Exception:
+        pass
 
 
 def touch(key: str) -> None:

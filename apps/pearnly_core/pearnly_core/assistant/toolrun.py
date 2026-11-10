@@ -345,8 +345,9 @@ def may_wait() -> bool:
 
 
 def _finish(conversation, remote, run_name, use_id, tool, tool_input) -> str:
-    # 工具要用到的对话信息（例如取本对话的附件原件，`files.attachment`）与能不能等（`may_wait`）；工具函数本身只收模型给的参数。
-    frappe.local.pearnly_assistant = {"session_id": conversation, "may_wait": may_wait()}
+    # 工具要用到的对话信息（例如取本对话的附件原件，`files.attachment`）、能不能等（`may_wait`）与这次调用的编号（当场等时按它
+    # 报进度，`waits.report`）；工具函数本身只收模型给的参数。
+    frappe.local.pearnly_assistant = {"session_id": conversation, "may_wait": may_wait(), "tool_use_id": use_id}
     fresh()
     _use_lang(conversation)
     wait = None

@@ -1530,7 +1530,7 @@ def recognize_attachments(tool_input) -> str:
     waiting = [a for a in admitted if a.get("batch")]
     # 推送线程里先等一会儿（短的当场拿到结果）；别处执行（页面兜底、引擎回调）不占进程，看一眼就挂起
     deadline = time.monotonic() + (RECOGNIZE_WAIT_SECONDS if direct_push.may_wait() else 0)
-    names = {}
+    names, shown = {}, None
     while waiting:
         frappe.db.rollback()  # 识别在队列里另一进程做：每次重新读，看得到它刚提交的结果
         for item in waiting:
@@ -1538,6 +1538,11 @@ def recognize_attachments(tool_input) -> str:
         waiting = [a for a in waiting if a.get("state") not in FINISHED + BROKEN]
         if not waiting or time.monotonic() >= deadline:
             break
+        # 当场等的这段也报读到第几页（同挂起后的核对），状态行马上有「第 x / y 页」（11-10 线上压测 S1 / S5a）
+        progress = _reading(admitted)
+        if progress != shown:
+            waits.report(progress)
+            shown = progress
         time.sleep(3)
     if waiting:
         # 还有没识别完的：这次调用挂着，识别都有结论时再交回，CC 接着做原本要做的事（`pearnly_core.assistant.waits`，
@@ -1572,27 +1577,19 @@ def recognition_wait(tool_input, interim, final=None) -> dict | None:
         admitted = json.loads(interim or "{}").get("results") or []
     except (ValueError, AttributeError):
         return None
-    names, pages, done, reading = {}, 0, 0, False
-    waiting = []
+    names, waiting = {}, []
     for item in admitted:
         if not item.get("batch"):
             continue
         try:
             item.update(_result(item["batch"], names))
-            detail = _recognition().detail(item["batch"])
         except (frappe.DoesNotExistError, frappe.PermissionError):
             frappe.clear_messages()
             item.update(state="not_found")
             continue
-        count = int(detail.get("page_count") or 0)
-        pages += count
-        if item.get("state") in FINISHED + BROKEN:
-            done += count
-        else:
+        if item.get("state") not in FINISHED + BROKEN:
             waiting.append(item)
-            done += int(detail.get("pages_done") or 0)
-            reading = reading or bool(detail.get("reading"))
-    progress = {"done": done, "total": pages, "label": "reading_pages" if reading or done else "queued"}
+    progress = _reading(admitted)
     if waiting and not final:
         return {"done": False, "progress": progress}
     for item in admitted:
@@ -1601,6 +1598,27 @@ def recognition_wait(tool_input, interim, final=None) -> dict | None:
     if waiting:
         out["note"] = STILL_RUNNING.get(final) or STILL_RUNNING[waits.DEADLINE]
     return {"done": True, "text": _json(out), "is_error": False, "progress": progress}
+
+
+def _reading(items) -> dict:
+    """这几份此刻一共读了几页（挂起后的核对与当场等时同一个算法）：有结论的按整份算、还在读的按已读页；都还没开始读是排队中。"""
+    pages, done, reading = 0, 0, False
+    for item in items:
+        if not item.get("batch") or item.get("state") == "not_found":
+            continue
+        try:
+            detail = _recognition().detail(item["batch"])
+        except (frappe.DoesNotExistError, frappe.PermissionError):
+            frappe.clear_messages()
+            continue
+        count = int(detail.get("page_count") or 0)
+        pages += count
+        if item.get("state") in FINISHED + BROKEN:
+            done += count
+        else:
+            done += int(detail.get("pages_done") or 0)
+            reading = reading or bool(detail.get("reading"))
+    return {"done": done, "total": pages, "label": "reading_pages" if reading or done else "queued"}
 
 
 def recognition_finished(name, kind, status, code):

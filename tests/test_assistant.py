@@ -502,7 +502,7 @@ class RelayTests(unittest.TestCase):
                         dict(toolrun.frappe.local.pearnly_assistant)) or ("{}", False)):
                 self.assertEqual(toolrun._finish("conv", "sesn", "run1", "sevt_1", "cowork_push_documents", {}), "done")
                 self.assertIsNone(local.pearnly_assistant)
-            self.assertEqual(seen[-1], {"session_id": "conv", "may_wait": expected})
+            self.assertEqual(seen[-1], {"session_id": "conv", "may_wait": expected, "tool_use_id": "sevt_1"})
         self.assertEqual(len(posted), 2)
 
     def test_settings_tools_wait_for_allow_and_run_once_as_the_user(self):
@@ -786,7 +786,8 @@ class RelayTests(unittest.TestCase):
         for name in ("attachment(", "attachments("):
             self.assertIn("_kept(", files.split("def " + name, 1)[1].split("\ndef ", 1)[0])
         run = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8")
-        self.assertIn('frappe.local.pearnly_assistant = {"session_id": conversation, "may_wait": may_wait()}', run)
+        self.assertIn('frappe.local.pearnly_assistant = {"session_id": conversation, "may_wait": may_wait(), "tool_use_id": use_id}',
+                      run)
         self.assertIn("frappe.local.pearnly_assistant = None", run.split("finally:", 1)[1])
         self.assertIn("frappe.UniqueValidationError", run)  # 推送线程与页面同时执行：唯一冲突不弹到页面上
         self.assertIn("frappe.clear_messages()", run.split("UniqueValidationError", 1)[1].split("return", 1)[0])
@@ -7122,6 +7123,37 @@ class WaitTests(unittest.TestCase):
                          [("sevt_run1", 0, 12, "reading_pages")])
         self.assertEqual(self.published[-1][1].get("user"), "owner@x.test")
         self.assertEqual(self._results(), [])  # 只推进度，不交回
+
+    def test_a_tool_waiting_in_place_reports_the_pages_read_so_far_for_its_own_call(self):
+        # 11-10 线上压测 S1 / S5a：推送线程里识别工具先当场等 90 秒才挂起，这 90 秒进度只推给挂着的记录、没人收，
+        # 状态行只写「识别中」。工具当场等时按自己这次调用推进度，状态行马上有「第 x / y 页」。
+        self.db.rows["run1"] = {"tool_use_id": "sevt_run1", "session_id": "conv", "user": "owner@x.test",
+                                "tool": "cowork_recognize_attachments", "status": "running", "tool_input": "{}"}
+        context = []
+
+        def run(tool, data):
+            context.append(dict(frappe.local.pearnly_assistant))
+            self.waits.report({"done": 0, "total": 102, "label": "queued"})
+            self.waits.report({"done": 27, "total": 102, "label": "reading_pages"})
+            return '{"results": []}', False
+
+        with mock.patch.object(self.toolrun.tools, "run", run):
+            self.toolrun._finish("conv", "sesn_remote", "run1", "sevt_run1", "cowork_recognize_attachments", {})
+        self.assertEqual(context[0]["tool_use_id"], "sevt_run1")
+        pushed = [(a, k) for a, k in self.published if a[1]["event"].get("type") == "pearnly.progress"]
+        self.assertEqual([(a[1]["session_id"], a[1]["event"]["tool_use_id"], a[1]["event"]["done"], a[1]["event"]["total"],
+                           a[1]["event"]["label"]) for a, k in pushed],
+                         [("conv", "sevt_run1", 0, 102, "queued"), ("conv", "sevt_run1", 27, 102, "reading_pages")])
+        self.assertEqual({k.get("user") for a, k in pushed}, {"owner@x.test"})
+        self.assertEqual(len({a[1]["event"]["id"] for a, k in pushed}), 2, "每次进度一个编号，对话页不当重复丢掉")
+        # 不在对话的工具执行里（没有这次调用的编号）就不推；数不对也不推（只用真实数字）
+        self.published.clear()
+        self.waits.report({"done": 1, "total": 2, "label": "reading_pages"})
+        frappe.local.pearnly_assistant = {"session_id": "conv", "tool_use_id": "sevt_run1"}
+        self.waits.report({"done": 1, "total": 2, "label": "Not a label!"})
+        self.waits.report(None)
+        frappe.local.pearnly_assistant = None
+        self.assertEqual(self.published, [])
 
     def test_progress_is_pushed_and_replayed_with_real_numbers_only(self):
         self._park()
