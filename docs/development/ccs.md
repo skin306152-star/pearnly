@@ -1,6 +1,6 @@
 # ccs：CC 的样式与交互规范
 
-CC 对话页（`frontend/assistant`）固定用这一套。新界面先套这份，再写组件；与它冲突的旧做法按这里改。
+CC 对话页（`frontend/assistant`）固定用这一套。新界面先套这份，再写组件；与它冲突的旧做法按这里改。通用控件一律用 [标准组件库](cc-ui-kit.md)。
 
 ccs = **Anthropic 官方公开的 Claude 样式变量** + **Claude 设计系统实测值**（Claude Code 本身，2026-10-15 夜实测）+ **CC 品牌强调色** + **已收集的 Claude 交互清单**。
 
@@ -61,8 +61,8 @@ ccs = **Anthropic 官方公开的 Claude 样式变量** + **Claude 设计系统�
 - 只做舒适档，不加紧凑档。
 - JS 里用到的值（菜单离触发器、子菜单离父菜单、离屏幕边，提示框延时，拖动浮层层级，列表预取距离）同样只在 globals.css 定值，**用的时候读**（打开菜单、提示框出现、拿起拖动那一刻），不在导入或首次渲染时读（生产页动态插入样式表，太早读到空串）：`lib/css-var.ts` 的 `fixedPx / fixedMs`（不随变体变的值，读到就记住）与 `cssVar / cssPx / cssMs`（现读现算），各处的回退常量与 globals.css 同值、测试核对。菜单离触发器写 `sideOffset={menuOffset()}`（`components/ui/menu.tsx`），不写数。
 - 菜单（B3 起）：主菜单离触发器一律 `menuOffset()`，子菜单 `SubMenu` 不写 `sideOffset`（用包装的默认 `--cc-menu-sub-offset`）；最小宽用宽档 `min-w-(--cc-menu-w-sm / -md / -lg)`，不用 `!min-w-*` 压 `.cc-menu`；菜单里不能点的说明行（如用户菜单顶上的账号）`.cc-menu-label`；快捷键提示只经 `<Shortcut>`：菜单项右边是 `.cc-menu-key`（与会话行菜单的单字母同一类），设置里那一格是 `.cc-kbd`。
-- 组件库（`components/ui`）只留在用的部件，外观同样只走变量与 `cc-*` 类；没有 shadcn 的 Button，按钮一律 `.cc-btn / .cc-icon-btn / .cc-row-btn / .cc-card-btn`；提示框、弹窗的进出场用 `.cc-pop` / `.cc-overlay`，骨架用 `animate-cc-pulse`，按钮与行内转圈用 `.cc-spinner`（tw-animate、tw-shimmer 已不是依赖）。
-- 拷进来的第三方组件（assistant-ui、shadcn）先改写到标准（`cc-*` 类和 globals.css 的变量）才能进 `src`，不用命令整份重新生成（`components/NOTICE.md`）。
+- 组件库（`components/ui`）是 CC 唯一的标准组件库（2026-11-10 起 shadcn/ui 整套搬入，规则见 [标准组件库](cc-ui-kit.md)）：通用控件从这里取，外观同样只走变量与 `cc-*` 类；`Button` 等组件挂的就是 `.cc-btn / .cc-icon-btn / .cc-row-btn / .cc-card-btn` 这些现有类，存量手写的改到哪换到哪；提示框、弹窗的进出场用 `.cc-pop` / `.cc-overlay`，骨架用 `animate-cc-pulse`，按钮与行内转圈用 `.cc-spinner`（tw-animate、tw-shimmer 已不是依赖）。
+- 拷进来的第三方组件（assistant-ui、shadcn）先改写到标准（`cc-*` 类和 globals.css 的变量）才能进 `src`，不用命令整份重新生成（`components/NOTICE.md`；往库里加件的步骤见 [标准组件库](cc-ui-kit.md) 第 4 节）。
 - 面板与预览里同一类东西用同一个类（B5 起）：页签 `.cc-tabs`（指示线贴内容一侧，内容在上面时写 `data-edge="top"`），表格单元格 `.cc-table`（`data-kind="sheet" / "doc"` 只换最宽与最窄），出错框 `.cc-alert`，面板头的图标钮 `.cc-icon-btn cc-tap`、文字按钮 `.cc-btn`；会话栏还没取到时用 `PanelSkeleton`（`components/company-cards.tsx`，两条骨架），按钮里、行内的转圈用 `.cc-spinner`。会话栏卡片里的字不另写字号，继承卡片的 13/19。结果面板的 Word 预览块距、正文行高、列表缩进同对话里的 Markdown（`--cc-md-heading / -block`、`--cc-body-*`、`--cc-md-list-indent`）。
 - 对话区（`components/assistant-ui` 的 thread、attachment、markdown-text，B7 起）用共用类：你发的消息与发送中的气泡 `.cc-user-row`，提醒卡与结果文件卡 `.cc-file-card` / `.cc-file-card-icon`，出错那一行 `.cc-alert`，滚到底 `.cc-scroll-btn`，代码块 `.cc-code-block-head` + `.cc-code-block`，回复里的表格 `.cc-table`，回复与代码块的「复制」`.cc-row-btn cc-tap`；发送中的附件同发出后的 `.cc-attach-card`，缩略图位置是骨架。`TooltipIconButton` 只是带提示框的普通 `<button>`，外观全由调用方的 `cc-*` 类给，不套 shadcn 的 Button。
 - 弹窗与列表页（B4 起）：居中弹窗的外壳只用 `.cc-dialog`（`data-size` sm / md / lg；设置的两栏整窗是 `data-size="settings"`，宽高读 `--cc-settings-*`）+ `.cc-dialog-head / -title / -body / -foot`，遮罩 `.cc-overlay`，层级在调用处给（普通 `--cc-z-sheet`、删除确认 `--cc-z-confirm`）；出错框 `.cc-alert`、空状态卡 `.cc-empty`、无结果与加载占位行 `.cc-empty-line`、底部提示条 `.cc-toast`、转圈 `.cc-spinner`、加载卡片 `animate-cc-pulse`；设置左栏同侧栏导航行（`.cc-nav-item` + `.cc-nav-icon`、组标题 `.cc-section-label`），开关 `.cc-switch`，连接状态 `.cc-status-line[data-status]` + `.cc-status-dot`，文字按钮 `.cc-btn`、只有图标的 `.cc-icon-btn`、行尾小图标钮 `.cc-row-btn`（文字按钮、卡片按钮、小按钮同 Claude 一行不换行、不被挤窄，放不下时由布局让位：值列截断、整组换行，不靠按钮折字）；卡片按钮里的图标不写尺寸（`.cc-card-btn svg` 决定，手机 22），也不加装饰图标。

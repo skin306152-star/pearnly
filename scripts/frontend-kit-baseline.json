@@ -1,0 +1,139 @@
+{
+  "assistant.tsx": {
+    "K1": 20,
+    "K4": 8
+  },
+  "components/assistant-ui/attachment.tsx": {
+    "K1": 2,
+    "K4": 3
+  },
+  "components/assistant-ui/markdown-text.tsx": {
+    "K1": 1,
+    "K4": 2
+  },
+  "components/assistant-ui/projects.tsx": {
+    "K1": 5,
+    "K4": 1
+  },
+  "components/assistant-ui/sidebar-group.tsx": {
+    "K1": 3,
+    "K4": 2
+  },
+  "components/assistant-ui/thread-list.tsx": {
+    "K1": 5,
+    "K4": 2
+  },
+  "components/assistant-ui/thread.tsx": {
+    "K1": 4,
+    "K4": 4
+  },
+  "components/assistant-ui/tooltip-icon-button.tsx": {
+    "K1": 1
+  },
+  "components/company-cards.tsx": {
+    "K1": 22,
+    "K4": 16
+  },
+  "components/company-picker.tsx": {
+    "K1": 6,
+    "K2": 1,
+    "K4": 10
+  },
+  "components/delete-chats.tsx": {
+    "K1": 2,
+    "K2": 1,
+    "K4": 7
+  },
+  "components/document-view.tsx": {
+    "K1": 1,
+    "K4": 1
+  },
+  "components/error-boundary.tsx": {
+    "K1": 1,
+    "K4": 1
+  },
+  "components/install-prompt.tsx": {
+    "K1": 2,
+    "K2": 1,
+    "K4": 3
+  },
+  "components/mobile-shell.tsx": {
+    "K1": 1
+  },
+  "components/month-ledger.tsx": {
+    "K1": 2
+  },
+  "components/mrerp-connect.tsx": {
+    "K1": 4,
+    "K2": 1,
+    "K4": 10
+  },
+  "components/mrerp-login.tsx": {
+    "K1": 2,
+    "K4": 3
+  },
+  "components/operator/mode-switch.tsx": {
+    "K1": 1,
+    "K3": 1
+  },
+  "components/pending.tsx": {
+    "K1": 7,
+    "K4": 10
+  },
+  "components/period-chip.tsx": {
+    "K1": 2
+  },
+  "components/results-panel.tsx": {
+    "K1": 3,
+    "K2": 1,
+    "K4": 8
+  },
+  "components/run/upload-card.tsx": {
+    "K1": 1,
+    "K4": 1
+  },
+  "components/scheduled-tasks.tsx": {
+    "K1": 23,
+    "K2": 1,
+    "K4": 30
+  },
+  "components/session-panel.tsx": {
+    "K1": 3,
+    "K4": 2
+  },
+  "components/settings.tsx": {
+    "K1": 19,
+    "K2": 1,
+    "K3": 1,
+    "K4": 21
+  },
+  "components/shortcut.tsx": {
+    "K4": 1
+  },
+  "components/tool-uis/approval-bar.tsx": {
+    "K1": 2,
+    "K4": 3
+  },
+  "components/tool-uis/approval-sheet.tsx": {
+    "K1": 2,
+    "K4": 2
+  },
+  "components/tool-uis/ask-card.tsx": {
+    "K1": 8,
+    "K4": 6
+  },
+  "components/tool-uis/operator-card.tsx": {
+    "K1": 1,
+    "K4": 2
+  },
+  "components/tool-uis/operator-start.tsx": {
+    "K1": 5,
+    "K4": 4
+  },
+  "components/tool-uis/operator-steps.tsx": {
+    "K1": 2
+  },
+  "components/tool-uis/steps.tsx": {
+    "K1": 3
+  }
+}

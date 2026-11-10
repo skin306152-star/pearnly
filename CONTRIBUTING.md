@@ -47,6 +47,8 @@ python3 scripts/check-copy.py
 
 # 改动 CC 对话页（frontend/assistant）的界面时：颜色、圆角、阴影只引用 globals.css 的变量
 python3 scripts/check-frontend-tokens.py
+# 通用控件只从标准组件库 components/ui 取，手写的存量只许减少（docs/development/cc-ui-kit.md）
+python3 scripts/check-frontend-kit.py
 
 # 改动涉及前端时；依赖首次安装或锁文件变化后才需要 npm ci
 npm --prefix frontend ci

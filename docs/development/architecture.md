@@ -262,7 +262,7 @@ Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr
 
 只有 LINE 票据编辑器保留独立 Vue + Frappe UI，因为它使用一次性票据而非 Desk 登录。Keycloak 与邮件分别保留自己的原生认证主题、邮件兼容模板。此例外不得扩展成第二套产品 Web 壳。
 
-智能体对话页 `/assistant` 是第二个限定例外（[ADR-019](../adr/0019-assistant-foundation.md)）：React + assistant-ui，只在 `frontend/assistant/`，只服务这一个入口。
+智能体对话页 `/assistant` 是第二个限定例外（[ADR-019](../adr/0019-assistant-foundation.md)）：React + assistant-ui，只在 `frontend/assistant/`，只服务这一个入口。它的样式只走 [ccs](ccs.md)，通用控件只从 `frontend/assistant/src/components/ui` 这一套标准组件库（shadcn/ui 搬入，[标准组件库](cc-ui-kit.md)）取，`scripts/check-frontend-kit.py` 拦新的手写控件，存量只许减少。
 
 ### 列表、选择与搜索：先用 Frappe 原生的服务端分页（2026-10-25）
 
