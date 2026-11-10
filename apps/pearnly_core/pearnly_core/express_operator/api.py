@@ -125,6 +125,41 @@ def regroup(company, doc_id, group):
     return products.regroup(company, str(doc_id), str(group))
 
 
+SOURCES_MAX = 1000  # 一个月的待录单交一次的上限（超过照实拒，不悄悄截断）
+
+
+def _waiting(company, period, again) -> tuple[list, dict]:
+    """这家公司这个月此刻该交的全部单（按产品的资料顺序）与各自的分组：资料分页取全，去掉人移到「不入账」（skip）的、
+    结果不明还没标的、同一张票已写进 Express 的（``again`` 里人点了「再录一次」的照交）——同开始卡 `docsToStart` 的规则，
+    但不看页面加载了几页。"""
+    rows, offset = [], 0
+    while True:
+        found = products.sources(company, str(period or ""), offset, PAGE_MAX)
+        page = [row for row in found.get("documents") or [] if isinstance(row, dict) and row.get("doc_id")]
+        rows += page
+        following = found.get("next_offset")
+        if not page or following is None or int(following) <= offset or len(rows) > SOURCES_MAX:
+            break
+        offset = int(following)
+    if len(rows) > SOURCES_MAX:
+        frappe.throw(_("Invalid request"))
+    rows = list({str(row["doc_id"]): row for row in rows}.values())
+    candidates = [str(row["doc_id"]) for row in rows if row.get("group") != "skip"]
+    held = set()
+    for start_at in range(0, len(candidates), BATCH_MAX):
+        for doc in products.precheck(company, candidates[start_at:start_at + BATCH_MAX]).get("documents") or []:
+            if not isinstance(doc, dict):
+                continue
+            unknown = doc.get("state") == "blocked" and doc.get("reason") == tasks.RESULT_UNKNOWN
+            written = doc.get("state") == "written" and str(doc.get("doc_id")) not in again
+            if unknown or written:
+                held.add(str(doc.get("doc_id")))
+    doc_ids = [doc_id for doc_id in candidates if doc_id not in held]
+    groups = {str(row["doc_id"]): str(row.get("group") or row.get("kind") or "") for row in rows
+              if str(row["doc_id"]) in doc_ids and (row.get("group") or row.get("kind"))}
+    return doc_ids, groups
+
+
 @frappe.whitelist(methods=["POST"])
 def start(company, doc_ids, computer="", start_at=0, answers=None, task="", groups=None, again=None):
     """``answers``：预检里人定的（``{doc_id: [{kind, subject, value, label}]}``），产品先记下再交代录。``task``：服务端的任务号
@@ -142,6 +177,11 @@ def start(company, doc_ids, computer="", start_at=0, answers=None, task="", grou
         found = tasks.read(task)
         if found["company"] != company or found["status"] != "preparing":
             frappe.throw(_("Invalid request"))
+        # 交哪些单由服务端按这家公司这个月的完整待录清单定（第 4 项，主会话 11-10：页面只交已加载的那几页，第 51 张起漏掉）
+        doc_ids, server_groups = _waiting(company, found["period"], [str(doc_id) for doc_id in again])
+        if not doc_ids:
+            frappe.throw(_("Invalid request"))
+        groups = {**server_groups, **{key: value for key, value in groups.items() if key in server_groups}}
     batch = {"id": str(task) if task else uuid.uuid4().hex[:12], "total": len(doc_ids), "start_at": float(start_at or 0),
              "again": [str(doc_id) for doc_id in again if str(doc_id) in doc_ids]}
     results = products.submit(company, doc_ids, batch, str(computer or ""), answers)

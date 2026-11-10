@@ -740,5 +740,54 @@ class PendingMonthTests(unittest.TestCase):
         self.assertEqual(STATE["queries"], [])
 
 
+class StartTakesTheWholeListTests(Base):
+    """第 4 项（主会话 11-10）：开始卡的资料一页 50 张，点开始只交页面已加载的那几页，第 51 张起悄悄漏掉（发布窗口全量流程
+    实验栈积到 51 张、只交 50）。开始由服务端按这家公司这个月的完整待录清单交：去掉人移到「不入账」的、结果不明还没标的、
+    同一张票已写进 Express 的（人点了「再录一次」的照交），不看页面加载了几页。"""
+
+    TOTAL = 120
+
+    def setUp(self):
+        super().setUp()
+        self.submitted = []
+        rows = [{"doc_id": f"D{n:03d}", "group": "skip" if n == 7 else "purchase"} for n in range(1, self.TOTAL + 1)]
+        states = {"D010": {"state": "blocked", "reason": tasks.RESULT_UNKNOWN}, "D060": {"state": "written", "docnum": "RR1"},
+                  "D061": {"state": "written", "docnum": "RR2"}}
+
+        def sources(company, period, offset, limit):
+            page = rows[offset:offset + limit]
+            following = offset + len(page)
+            return {"documents": [dict(row) for row in page], "next_offset": following if following < len(rows) else None,
+                    "total": len(rows)}
+
+        def submit(company, doc_ids, batch, computer, answers):
+            self.submitted.append((company, list(doc_ids), dict(batch)))
+            return [{"doc_id": doc_id, "status": "sent"} for doc_id in doc_ids]
+
+        STATE["hooks"]["pearnly_express_operator"].update(sources="p.sources", submit="p.submit", precheck="p.precheck")
+        STATE["attrs"].update({"p.sources": sources, "p.submit": submit,
+                               "p.precheck": lambda company, ids: {"documents": [
+                                   {"doc_id": doc_id, **states.get(doc_id, {"state": "ready"})} for doc_id in ids]}})
+        self.task = tasks.create("CO-1", "2026-10")["name"]
+
+    def test_every_document_waiting_this_month_is_handed_in_not_only_the_loaded_page(self):
+        loaded = [f"D{n:03d}" for n in range(1, 51) if n not in (7, 10)]  # 页面第一页、按页面规则去掉的
+        out = api.start("CO-1", loaded, task=self.task, again=["D061"])
+        company, handed, batch = self.submitted[-1]
+        wanted = [f"D{n:03d}" for n in range(1, self.TOTAL + 1) if n not in (7, 10, 60)]
+        self.assertEqual(handed, wanted)  # 第 51 张起也交了；D061 人点了再录一次照交
+        self.assertEqual(batch["total"], len(wanted))
+        self.assertEqual(batch["again"], ["D061"])
+        self.assertEqual(len(out["results"]), len(wanted))
+        doc = frappe.get_doc("Pearnly Express Operator Task", self.task)
+        self.assertEqual(len(doc.documents), len(wanted))
+
+    def test_nothing_waiting_is_refused_instead_of_starting_an_empty_task(self):
+        STATE["attrs"]["p.sources"] = lambda company, period, offset, limit: {"documents": [], "next_offset": None}
+        with self.assertRaises(ValidationError_):
+            api.start("CO-1", ["D001"], task=self.task)
+        self.assertEqual(self.submitted, [])
+
+
 if __name__ == "__main__":
     unittest.main()
