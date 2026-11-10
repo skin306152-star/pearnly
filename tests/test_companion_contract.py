@@ -1115,7 +1115,8 @@ class PoolRequests(unittest.TestCase):
         server = number_constants(WIRE / "request_contracts.py", ("LOCATION_KEYS", "ACCOUNT_KINDS", "FOLDER_KINDS",
                                                                      "KINDS"))
         self.assertEqual(set(server["LOCATION_KEYS"]), {"account_set", "account_root"})
-        self.assertEqual(set(server["ACCOUNT_KINDS"]), {"express_read", "account_history", "express_masters", "express_marks"})
+        self.assertEqual(set(server["ACCOUNT_KINDS"]), {"express_read", "account_history", "express_masters", "express_marks",
+                                                       "express_doc_check"})
         self.assertEqual(set(server["ACCOUNT_KINDS"]) | set(server["FOLDER_KINDS"]), set(server["KINDS"]))
         for path, function in ((self.READBACK / "contracts.py", "read_params"),
                                (self.READBACK / "history_rules.py", "read_params")):

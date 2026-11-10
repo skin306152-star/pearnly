@@ -369,7 +369,7 @@ pearnly_cc_desktop = {
     "job_changed": "pearnly_erp_portal.express.desktop.job_changed",
     # 电脑报来的账套名单变了：按账套自动建公司、排主档同步（`express.companies`）
     "books_changed": "pearnly_erp_portal.express.companies.books_changed",
-    "kinds": ["express_masters", "express_marks"],
+    "kinds": ["express_masters", "express_marks", "express_doc_check"],
 }
 # MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7 条）：ERP 接 MR.ERP 当账本（`mrerp`）开着才声明；关着时与以前一样回 unsupported
 from pearnly_erp_portal import mrerp as _mrerp  # noqa: E402
