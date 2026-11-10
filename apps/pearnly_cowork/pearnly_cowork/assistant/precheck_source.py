@@ -117,7 +117,9 @@ def document(history, posting_kind=None, hint=None) -> dict:
                                                                    hint=hint or None)
     if legacy is None:
         legacy = _legacy(view, target)
-    out = {**base, "target": target, "direction": found["direction"] or "", "legacy": legacy}
+    # 对方按推送判出的方向说（票上没声明方向的销项票，对方是买方，11-09）
+    out = {**base, "party": _party(doc, {"direction": found["direction"] or fields.get("direction")}), "target": target,
+           "direction": found["direction"] or "", "legacy": legacy}
     if view.get("wait"):
         # 要选的科目还没有可选值（科目表还没读到）：读到后重判，不问人
         return {**out, "state": card.WAITING, "reason": str(view["wait"].get("message") or "")}

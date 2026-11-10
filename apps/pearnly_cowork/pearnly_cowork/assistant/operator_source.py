@@ -201,6 +201,30 @@ def _primary_fields(names) -> dict:
     return out
 
 
+def _directions(names) -> dict:
+    """这些单各自的方向（`tools.judged_direction`：票上声明的，没声明按推送同一套税号判据；判不出是空串）。资料区分组、交单前
+    落分组、对方说买方还是卖方都用它（11-09：本公司开出的销售票截图没声明方向，资料区归进了「采购」）。"""
+    from pearnly_core.express_rules.contracts.history import primary_page_fields
+    from pearnly_cowork.assistant import tools
+
+    names = [name for name in names if name]
+    if not names:
+        return {}
+    rows = frappe.db.get_all("Cowork OCR History", filters={"name": ["in", names]},
+                             fields=["name", "pages", "workspace", "push_connection", "push_account_set"],
+                             limit_page_length=len(names))
+    anchors, out = tools.direction_anchors(), {}
+    for row in rows:
+        try:
+            pages = json.loads(row.pages) if isinstance(row.pages, str) else row.pages
+        except ValueError:
+            pages = None
+        fields = primary_page_fields(pages if isinstance(pages, list) else [])
+        out[row.name] = tools.judged_direction(fields, row.get("workspace"), row.get("push_connection"),
+                                               row.get("push_account_set"), anchors)
+    return out
+
+
 def _write_group(doc_id, group) -> dict:
     """把这一组的方向与入账类型写到单据各页（同复核页改方向 / 过账类型，`history.api.save` 那条路）。回写之前的主页面字段。"""
     from pearnly_core.express_rules.contracts.history import primary_page_fields
@@ -221,7 +245,8 @@ def _settle(doc_id, memory) -> str:
 
     doc = storage.read(doc_id)
     fields = _primary_fields([doc_id]).get(doc_id) or {}
-    row = {"document_type": fields.get("document_type"), "is_not_invoice": fields.get("is_not_invoice"),
+    row = {"direction": _directions([doc_id]).get(doc_id) or "",
+           "document_type": fields.get("document_type"), "is_not_invoice": fields.get("is_not_invoice"),
            "seller_name": doc.get("seller_name"), "seller_tax": doc.get("seller_tax"),
            "buyer_name": doc.get("buyer_name"), "buyer_tax": doc.get("buyer_tax")}
     group, own = _group(row, fields, doc.get("posting_kind"), memory)
@@ -285,14 +310,14 @@ def uploads(company, period, batches) -> dict:
         "Cowork OCR History", filters={"name": ["in", names]},
         fields=["name", "invoice_no", "invoice_date", "seller_name", "buyer_name", "last_push_status"],
         limit_page_length=len(names))} if names else {}
-    pages = _primary_fields(names)
+    directions = _directions(names)
     for batch, found in records.items():
         documents = []
         for name in found:
             row = rows.get(name)
             if not row:
                 continue
-            sales = str((pages.get(name) or {}).get("direction") or "") == "sales"
+            sales = directions.get(name) == "sales"
             documents.append({"doc_id": name, "ref": row.invoice_no or "", "date": str(row.invoice_date or ""),
                               "party": (row.buyer_name if sales else row.seller_name) or "",
                               "waiting": str(row.last_push_status or "") not in tools.PUSHED_OR_ON_ITS_WAY})
@@ -307,10 +332,9 @@ def regroup(company, doc_id, group) -> dict:
 
     if group not in ENTRY_GROUPS:
         return {"ok": False, "reason": "unsupported"}
-    from pearnly_core.express_rules.contracts.push import normalize_direction
-
+    judged = _directions([doc_id]).get(doc_id) or "purchase"  # 拖之前这张单的方向（键是那时的对方）
     before = _write_group(doc_id, group)
-    subject, name = party_key(before, normalize_direction(before.get("direction")) or "purchase")
+    subject, name = party_key(before, judged)
     if subject:
         workspace = frappe.db.get_value("Cowork Company", company, "workspace")
         rules.save(company, workspace=workspace, kind=rules.GROUP, subject=subject, value=group, subject_label=name,
@@ -368,7 +392,7 @@ def status(company, doc_ids) -> list:
             docnum = frappe.db.get_value("Cowork Push Record", doc.get("last_push_record"), "external_docnum") or ""
         state = {"success": "saved", "pending": "queued", "manual": "not_done", "failed": "not_done",
                  "blocked": "not_done"}.get(pushed, "cancelled")
-        sales = str((_primary_fields([name]).get(name) or {}).get("direction") or "") == "sales"
+        sales = _directions([name]).get(name) == "sales"
         # 单号与对方一起回：CC 重启后页面没有这一页的资料清单，靠它把单据写成「单号 · 对方」
         reason = str(doc.get("last_push_reason") or "") if state == "not_done" else ""
         if lifecycle.result_unknown(pushed, reason):
@@ -402,7 +426,7 @@ def _blocker(record) -> dict:
     except (frappe.DoesNotExistError, frappe.PermissionError):
         frappe.clear_messages()
         return {}
-    sales = str((_primary_fields([doc.name]).get(doc.name) or {}).get("direction") or "") == "sales"
+    sales = _directions([doc.name]).get(doc.name) == "sales"
     return {"doc_id": doc.name, "ref": str(doc.get("invoice_no") or ""),
             "party": str(doc.get("buyer_name" if sales else "seller_name") or "")}
 

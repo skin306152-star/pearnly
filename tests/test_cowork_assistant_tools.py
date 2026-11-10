@@ -2942,6 +2942,33 @@ class ListAndRunsTests(unittest.TestCase):
         last = json.loads(tools.list_documents({"offset": 4, "limit": 2}))
         self.assertEqual(([d["name"] for d in last["documents"]], last["total"], last["next_offset"]), (["D5"], 5, None))
 
+    def test_an_undeclared_direction_is_judged_like_the_push(self):
+        """Cowork 代录真模型场景第 6 次（11-09）：本公司开出的销售票截图没声明方向，资料区分组与 CC 的单据列表都当成进项（「采购 4」）。
+        票上没声明时按推送同一套判据：本方（工作空间）税号是卖方 → 销项、是买方 → 进项；判不出照旧空着。"""
+        def resolve(flat, history, *, own_tax_id, account_tax_id):  # 判据本身另有测试（contracts.push）；这里核接线
+            fields = flat["fields"]
+            for anchor in (own_tax_id, account_tax_id):
+                if anchor and fields.get("seller_tax") == anchor:
+                    return "sales"
+                if anchor and fields.get("buyer_tax") == anchor:
+                    return "purchase"
+            return None
+        sys.modules["pearnly_core.express_rules.contracts.push"].resolve_account_direction = resolve
+        own, other = "0105555000011", "0107536000633"
+        sold = {"direction": "", "document_type": "tax_invoice", "seller_tax": own, "buyer_tax": other}
+        bought = {"direction": "", "document_type": "tax_invoice", "seller_tax": other, "buyer_tax": own}
+        frappe.rows = [{"name": "S1", "workspace": "W1", "push_connection": "EXP1", "pages": json.dumps([{"fields": sold}])},
+                       {"name": "P1", "workspace": "W1", "push_connection": "EXP1", "pages": json.dumps([{"fields": bought}])},
+                       _history_row("D4", "", "receipt", "10", "", "10")]
+        taxes = {("Cowork Workspace", "W1"): own}
+        with mock.patch.object(frappe.db, "get_value", lambda doctype, name, *a, **k: taxes.get((doctype, name), "")):
+            out = json.loads(tools.list_documents({}))
+            self.assertEqual({d["name"]: d["direction"] for d in out["documents"]}, {"S1": "sales", "P1": "purchase",
+                                                                                     "D4": None})
+            self.assertNotIn("workspace", out["documents"][0])
+            self.assertEqual([d["name"] for d in json.loads(tools.list_documents({"direction": "sales"}))["documents"]],
+                             ["S1"])
+
     def test_direction_and_totals_are_summed_with_decimal(self):
         out = json.loads(tools.list_documents({"direction": "purchase", "totals": True, "limit": 1}))
         self.assertEqual(([d["name"] for d in out["documents"]], out["total"], out["next_offset"]), (["D1"], 3, 1))

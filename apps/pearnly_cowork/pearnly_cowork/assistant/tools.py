@@ -294,20 +294,62 @@ def _number(value):
     return number if number.is_finite() else None
 
 
-def _with_page(row) -> dict:
-    """列表一行补上主页面的单据类型、方向、税前额、税额（识别结果；同复核页读的那一页），去掉整份页面原文。"""
+def _with_page(row, anchors=None) -> dict:
+    """列表一行补上主页面的单据类型、方向、税前额、税额（识别结果；同复核页读的那一页），去掉整份页面原文。方向见
+    :func:`judged_direction`（``anchors`` 是 :func:`direction_anchors` 给的取税号函数，不给只看票上声明的）。"""
     from pearnly_core.express_rules.contracts import history as history_contracts
-    from pearnly_core.express_rules.contracts.push import normalize_direction
 
     pages = row.pop("pages", None)
+    workspace = row.pop("workspace", None)
     try:
         pages = json.loads(pages) if isinstance(pages, str) else pages
     except ValueError:
         pages = None
     page = history_contracts.primary_page_fields(pages if isinstance(pages, list) else [])
     row.update({key: page.get(key) for key in PAGE_SHOWN})
-    row["direction"] = normalize_direction(page.get("direction"))
+    row["direction"] = judged_direction(page, workspace, row.get("push_connection"), row.get("push_account_set"),
+                                        anchors) or None
     return row
+
+
+def direction_anchors():
+    """判方向用的本方税号：``(工作空间, 连接, 账套) → (工作空间税号, 这份账套目录里的税号)``，一次列表 / 一批单内缓存。"""
+    cache = {}
+
+    def anchors(workspace, connection, account_set):
+        key = (str(workspace or ""), str(connection or ""), _account_key(account_set))
+        if key not in cache:
+            own = frappe.db.get_value("Cowork Workspace", key[0], "tax_id") if key[0] else ""
+            cache[key] = (own if isinstance(own, str) else "", None)
+        own, account = cache[key]
+        if account is None and key[1] and account_set:
+            account = _catalog_tax(key[1], account_set)
+            cache[key] = (own, account)
+        return own, account or ""
+
+    return anchors
+
+
+def judged_direction(page, workspace, connection, account_set, anchors=None) -> str:
+    """一张票的方向（列表、代录资料区分组、单据的对方说法共用）：票上声明的优先；没声明的按推送同一套判据
+    （`contracts.push.resolve_account_direction`：工作空间税号，再按这份账套目录里的税号）。判不出是空串。
+    Cowork 代录真模型场景 11-09：本公司开出的销售票截图没声明方向，资料区只看声明、当成进项归进「采购」。"""
+    from pearnly_core.express_rules.contracts.push import normalize_direction
+
+    page = page if isinstance(page, dict) else {}
+    declared = normalize_direction(page.get("direction"))
+    if declared or anchors is None:
+        return declared or ""
+    if not any(str(page.get(key) or "").strip() for key in ("seller_tax", "seller_tax_id", "buyer_tax", "buyer_tax_id")):
+        return ""  # 票上没有税号：税号判据判不出，不去读账套目录
+    from pearnly_core.express_rules.contracts.push import resolve_account_direction
+
+    own, _account = anchors(workspace, connection, account_set)
+    found = resolve_account_direction({"fields": page}, {}, own_tax_id=own, account_tax_id="")
+    if not found and connection and account_set:
+        found = resolve_account_direction({"fields": page}, {}, own_tax_id=own,
+                                          account_tax_id=anchors(workspace, connection, account_set)[1])
+    return found if found in ("purchase", "sales") else ""
 
 
 def _totals(rows) -> dict:
@@ -552,11 +594,13 @@ def list_documents(tool_input) -> str:
             or_filters += [[field, "like", f"%{digits}%"] for field in ("seller_tax", "buyer_tax", "invoice_no")]
     # 走 DocType 自己的权限查询条件（与录入列表同一判据），看不见的行取不到。
     query = {"filters": filters, "or_filters": or_filters,
-             "fields": DOC_FIELDS + ["pages", "last_push_record", *STOP_FIELDS],
+             "fields": DOC_FIELDS + ["pages", "workspace", "last_push_record", *STOP_FIELDS],
              "order_by": "modified desc, name desc"}
+    anchors = direction_anchors()
     out, matched, complete = {}, None, True
     if exact and not (search and failed_only) and not direction and not tool_input.get("totals"):
-        rows = [_with_page(r) for r in frappe.get_list(HISTORY, limit_start=offset, limit_page_length=limit, **query)]
+        rows = [_with_page(r, anchors) for r in frappe.get_list(HISTORY, limit_start=offset, limit_page_length=limit,
+                                                                 **query)]
         if len(rows) < limit and (rows or not offset):
             total = offset + len(rows)
         else:
@@ -574,7 +618,7 @@ def list_documents(tool_input) -> str:
                 if not exact and (str(row.get("push_connection") or ""),
                                   _account_key(row.get("push_account_set"))) not in pairs:
                     continue
-                row = _with_page(row)
+                row = _with_page(row, anchors)
                 if search and failed_only and not (row.get("last_push_status") == "manual"
                                                    or row.get("last_push_reason")):
                     continue
@@ -1140,7 +1184,6 @@ def _same_group_document(name) -> dict | None:
     """同组接着判了的一张：单据名（CC 之后要推用）、单号、对方（进项是卖方、销项是买方）、现在停在哪一步（英文短句，给 CC 转述，
     不是界面文案）。读不到（没有读取范围）不列。"""
     from pearnly_core.express_rules.contracts import history as history_contracts
-    from pearnly_core.express_rules.contracts.push import normalize_direction
 
     try:
         doc = storage.read(name)
@@ -1153,7 +1196,8 @@ def _same_group_document(name) -> dict | None:
     except ValueError:
         pages = None
     page = history_contracts.primary_page_fields(pages if isinstance(pages, list) else [])
-    sales = normalize_direction(page.get("direction")) == "sales"
+    sales = judged_direction(page, _field(doc, "workspace"), _field(doc, "push_connection"),
+                             _field(doc, "push_account_set"), direction_anchors()) == "sales"
     party = ((_field(doc, "buyer_name") or page.get("buyer_name")) if sales
              else (_field(doc, "seller_name") or page.get("seller_name")))
     return _filled({"document": name, "invoice_no": _field(doc, "invoice_no") or page.get("invoice_number"),

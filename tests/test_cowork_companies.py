@@ -24,6 +24,9 @@ for path in (ROOT / "apps/pearnly_cowork", ROOT / "apps/pearnly_core"):
         sys.path.insert(0, str(path))
 
 
+OWN_TAX = "0105561000011"  # 代录测试里本公司的税号
+
+
 class Row(dict):
     __getattr__ = dict.get
 
@@ -1821,7 +1824,14 @@ class OperatorSourceTests(unittest.TestCase):
             GROUP="group", groups=lambda company: dict(self.memory),
             save=lambda company, **kw: calls.append(("remember", company, kw)) or self.memory.update(
                 {kw["subject"]: kw["value"]}))
-        tools = types.SimpleNamespace(_push_one=push_one)
+        # 方向：票上声明的；没声明时卖方是本公司（OWN_TAX）→ 销项、买方是本公司 → 进项（真的判据见 tools.judged_direction 的测试）
+        def judged(page, workspace, connection, account_set, anchors=None):
+            declared = str(page.get("direction") or "")
+            if declared in ("purchase", "sales"):
+                return declared
+            return {OWN_TAX: "sales"}.get(page.get("seller_tax"), "purchase" if page.get("buyer_tax") == OWN_TAX else "")
+
+        tools = types.SimpleNamespace(_push_one=push_one, judged_direction=judged, direction_anchors=lambda: None)
 
         def remember(company, answers):
             # 真的 `assistant.precheck_source.remember` 把写账规则的项照原样交 `service.save_choices`（见 PrecheckTests）
@@ -1975,6 +1985,20 @@ class OperatorSourceTests(unittest.TestCase):
             self.assertEqual(module.written_twin("h1"), {"doc_id": "h9", "docnum": "IV/69/0753"})
         self.assertEqual((seen[0]["invoice_no"], seen[0]["last_push_status"], seen[0]["push_connection"]),
                          ("IV69/00753", "success", "C1"))
+
+    def test_a_sale_without_a_declared_direction_is_named_and_grouped_as_a_sale(self):
+        """Cowork 代录真模型场景第 6 次（11-09）：本公司开出的销售票截图没声明方向，资料区归进「采购」、对方写成卖方（本公司自己）。
+        方向按推送同一套判据判（tools.judged_direction）：对方是买方，交单前落分组也按销售。"""
+        sold = {"document_type": "tax_invoice", "seller_tax": OWN_TAX, "seller_name": "ซินเซียร์ไอซ์",
+                "buyer_tax": "0107536000633", "buyer_name": "BIGC"}
+        module, calls = self.load(pages={"h1": [{"fields": sold}]},
+                                  docs={"h1": {"last_push_status": "", "seller_name": "ซินเซียร์ไอซ์", "buyer_name": "BIGC",
+                                               "buyer_tax": "0107536000633", "seller_tax": OWN_TAX}},
+                                  memory={"party|0107536000633|0": "sales"})
+        self.assertEqual(module.status("CO1", ["h1"])[0]["party"], "BIGC")
+        module.submit("CO1", ["h1"], {"id": "b1", "total": 1, "start_at": 0}, "CCD-1")
+        self.assertEqual([c for c in calls if c[0] == "history"], [])  # 记住的「销售」与判出的相同：不改单据
+        self.assertNotIn("direction", self.pages["h1"][0]["fields"])
 
     def test_after_a_restart_the_site_says_where_each_document_stands(self):
         docs = {"h1": {"last_push_status": "success", "last_push_record": "PR-1"},
