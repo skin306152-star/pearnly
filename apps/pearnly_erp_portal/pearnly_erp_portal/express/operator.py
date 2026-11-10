@@ -246,6 +246,20 @@ def _written(doc_id) -> dict:
     return {"doc_id": doc_id, "state": "written", "docnum": found["docnum"], "twin": found["doc_id"]}
 
 
+def _judged_payload(doc, direction) -> dict:
+    """开始前预检判的表单（`intake.build_payload`，同网页表单交的入参）。销售单号建单时才编（`sales.entry` 的
+    `numbering.allocate`）：判之前按编号规则**预看**下一个号（`numbering.preview`，不占号）填进这一份，免得写账护栏按「没有单号」
+    判整张写不了（A 线 11-10）。只用于判定：不落到收单记录上、不进交单的入参；交单时照常现编，写入与回执以实际编出的为准
+    （中间有人用掉了这个号也一样）。采购照票面印的单号。"""
+    from pearnly_erp_portal.integrations import intake as chat_intake
+    from pearnly_erp_portal.numbering import service as numbering
+
+    payload = dict(chat_intake.build_payload(doc))
+    if direction == "sales" and not payload.get("system_no"):
+        payload["system_no"] = numbering.preview("sales", on=payload.get("doc_date"))
+    return payload
+
+
 def _intake_precheck(company, doc_id) -> dict:
     """一条待提交的收单记录：按它提交时的入参（`intake.build_payload`，同网页表单）判写进 Express 要人选的项（`collect_form`）。
     有定不了物料的行先停（开始前卡片问这几行在下一步加，A 批 1b）；已提交的按提交出的单据判。"""
@@ -273,7 +287,7 @@ def _intake_precheck(company, doc_id) -> dict:
             **({"party": party} if party else {})}
     asked = intake_items(company, doc, result)
     doctype = push.PURCHASE if row.direction == "purchase" else push.SALES
-    found = write_precheck.collect_form(doctype, chat_intake.build_payload(doc), company)
+    found = write_precheck.collect_form(doctype, _judged_payload(doc, row.direction), company)
     state, reason = write_precheck._state(found["result"])
     shown = book_target(found["result"].get("book"))
     view = {**view, **({"target": shown} if shown else {})}
@@ -466,7 +480,7 @@ def intake_search(company, doc_id, search, txt="", start=0, page_length=20) -> d
         return {"options": fixed + options[:size], "more": len(options) > size}
     doctype = push.PURCHASE if row.direction == "purchase" else push.SALES
     doc = frappe.get_doc(chat_intake.DOCTYPE, row.name)
-    found = write_precheck.collect_form(doctype, chat_intake.build_payload(doc), company)
+    found = write_precheck.collect_form(doctype, _judged_payload(doc, row.direction), company)
     key = (found["result"].get("book") or {}).get("key") or ""
     return write_precheck.search_rows(key, row.direction, search, txt, start, size)
 

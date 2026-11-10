@@ -188,6 +188,43 @@ class Precheck(Base):
         self.assertEqual(operator._intake_precheck("CO-2", "I:LI-1")["reason"], "not_permitted")
 
 
+class SalesNumber(Base):
+    """A 线 11-10（ERP 销售票小批，主会话审定）：销售单号建单时才编，开始前预检按收单记录拼表单没有单号，写账护栏判
+    ``invoice_no_missing`` → 整张「写不了」、问题也不出。预检按编号规则预看下一个号（不占号）再判；真正建单照常编号，写入与回执
+    以实际编出的为准（预看号不落到记录上、不进交单入参）。"""
+
+    def test_a_sales_record_is_judged_with_the_next_number_previewed_not_taken(self):
+        doc = SimpleNamespace(name="LI-1", direction="sales", is_paid=1, payment_method="cash",
+                              line_choices=json.dumps({"lines": [{"decided": True, "item_type": "service"}]}),
+                              result=json.dumps({"doc_no": "IV69/00751", "doc_date": "2026-10-15", "buyer_name": "Big C"}))
+        self.rows["LI-1"].direction = "sales"
+        found = {"result": {"book": {}}, "items": [], "data": None}
+        built = {"company": "CO-1", "doc_date": "2026-10-15"}
+        with patch.object(frappe, "get_doc", return_value=doc), \
+                patch.object(intake, "build_payload", return_value=built), \
+                patch("pearnly_erp_portal.numbering.service.preview", return_value="IV2569-000007") as preview, \
+                patch("pearnly_erp_portal.numbering.service.allocate", side_effect=AssertionError("a precheck takes no number")), \
+                patch("pearnly_erp_portal.express.precheck.collect_form", return_value=found) as collect:
+            operator._intake_precheck("CO-1", "I:LI-1")
+        self.assertEqual(collect.call_args.args[0], "ERP Sales Document")
+        self.assertEqual(collect.call_args.args[1]["system_no"], "IV2569-000007")
+        self.assertEqual(preview.call_args.kwargs, {"on": "2026-10-15"})
+        self.assertNotIn("system_no", built)  # 交单时照网页同一入账函数现编（`sales.entry`），写入与回执以那个号为准
+        self.db.set_value.assert_not_called()
+
+    def test_a_purchase_record_keeps_its_printed_number(self):
+        doc = SimpleNamespace(name="LI-1", direction="purchase", is_paid=1, payment_method="cash",
+                              line_choices=json.dumps({"lines": [{"decided": True, "item_type": "service"}]}),
+                              result=json.dumps({"doc_no": "IV1", "supplier_name": "ACME"}))
+        found = {"result": {"book": {}}, "items": [], "data": None}
+        with patch.object(frappe, "get_doc", return_value=doc), \
+                patch.object(intake, "build_payload", return_value={"company": "CO-1", "doc_no": "IV1"}), \
+                patch("pearnly_erp_portal.numbering.service.preview", side_effect=AssertionError("purchases print their number")), \
+                patch("pearnly_erp_portal.express.precheck.collect_form", return_value=found) as collect:
+            operator._intake_precheck("CO-1", "I:LI-1")
+        self.assertNotIn("system_no", collect.call_args.args[1])
+
+
 class Answers(Base):
     def setUp(self):
         super().setUp()
