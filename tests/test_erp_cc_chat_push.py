@@ -23,6 +23,7 @@ import pathlib
 import sys
 import types
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ERP = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal"
@@ -494,6 +495,32 @@ class PrintedTotalToolTests(unittest.TestCase):
 class ListTests(unittest.TestCase):
     def setUp(self):
         reset()
+
+    def test_this_conversation_lists_the_documents_recognized_from_its_files_whatever_their_date(self):
+        # 11-10 线上压测 S1（同 Cowork）：本对话附件识别出的单不按工作月份筛、还没推过的也列；别的对话、别人传的不列
+        doc(PURCHASE, "PUR-1", state=None, day="2026-06-03")
+        doc(SALES, "SAL-1", state=tools.contracts.WRITTEN, day="2026-07-09")
+        doc(PURCHASE, "PUR-2", day="2026-10-20")
+        intake = STATE.db.table("ERP LINE Intake")
+        intake.update({
+            "LI-1": {"name": "LI-1", "source": "cc", "session_id": "s1", "sent_by": "boss@x", "purchase": "PUR-1"},
+            "LI-2": {"name": "LI-2", "source": "cc", "session_id": "s1", "sent_by": "boss@x", "sales_document": "SAL-1"},
+            "LI-3": {"name": "LI-3", "source": "cc", "session_id": "s2", "sent_by": "boss@x", "purchase": "PUR-2"},
+            "LI-4": {"name": "LI-4", "source": "line", "session_id": "s1", "sent_by": "boss@x", "purchase": "PUR-2"}})
+        stub = types.ModuleType("pearnly_erp_portal.integrations.intake")
+        stub.DOCTYPE, stub.SOURCE_CC = "ERP LINE Intake", "cc"
+        patcher = mock.patch.dict(sys.modules, {"pearnly_erp_portal.integrations.intake": stub})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        out = call(tools.list_documents, this_conversation=True)
+        self.assertEqual(sorted(row["name"] for row in out["documents"]), ["P:PUR-1", "S:SAL-1"])
+        self.assertTrue(out["scope"]["this_conversation"])
+        self.assertEqual([row["name"] for row in call(tools.list_documents, this_conversation=True,
+                                                        push_state="success")["documents"]], ["S:SAL-1"])
+        intake.clear()
+        self.assertEqual(call(tools.list_documents, this_conversation=True)["documents"], [])
+        listed = next(t for t in tools.TOOLS if t["name"] == "erp_list_documents")
+        self.assertIn("this_conversation", listed["input_schema"]["properties"])
 
     def test_lists_this_conversation_s_company_paged_on_the_server(self):
         doc(PURCHASE, "PUR-1", state="written", ledger_docnum="RR6910-001", day="2026-10-21")

@@ -305,8 +305,30 @@ def _list_row(kind, row) -> dict:
     return {**direct_push.filled(out), "last_push_status": out["last_push_status"]}
 
 
-def _filters(kind, companies, tool_input) -> tuple:
-    """一类单据这次的库内条件：(filters, or_filters)；这家公司没有这类单据（没有仓库）回 (None, None)。"""
+CONVERSATION_DOCUMENTS_MAX = 500
+
+
+def _conversation_documents() -> dict:
+    """本对话附件识别出的单（``erp_list_documents`` 的 ``this_conversation``，同 Cowork，11-10 线上压测 S1）：本人在这段对话里
+    上传、识别成的采购单与销售单（`integrations.intake.receive_chat` 记的 ``session_id``）。``{单据类型: [单号]}``。"""
+    from pearnly_erp_portal.integrations import intake
+
+    session = str((getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or "")
+    if not session:
+        return {}
+    rows = frappe.get_all(intake.DOCTYPE, filters={"source": intake.SOURCE_CC, "session_id": session,
+                                                   "sent_by": frappe.session.user},
+                          fields=["purchase", "sales_document"], order_by="creation desc",
+                          limit_page_length=CONVERSATION_DOCUMENTS_MAX)
+    return {push.PURCHASE: sorted({row.purchase for row in rows if row.get("purchase")}),
+            push.SALES: sorted({row.sales_document for row in rows if row.get("sales_document")})}
+
+
+def _filters(kind, companies, tool_input, only=None) -> tuple:
+    """一类单据这次的库内条件：(filters, or_filters)；这家公司没有这类单据（没有仓库）回 (None, None)。``only``：只看这几张
+    （本对话识别的单，`_conversation_documents`；不按日期以外的默认条件筛、没推过的也列），没有这一类回 (None, None)。"""
+    if only is not None and not only.get(kind.doctype):
+        return None, None
     if kind.by_warehouse:
         from pearnly_erp_portal.inventory import warehouses
 
@@ -318,7 +340,12 @@ def _filters(kind, companies, tool_input) -> tuple:
         filters = {"company": ["in", list(companies)]}
     filters["status"] = push.ready(kind.doctype)
     state = tool_input.get("push_state")
-    filters["ledger_state"] = ["in", list(PUSH_STATES[state])] if state in PUSH_STATES else ["is", "set"]
+    if state in PUSH_STATES:
+        filters["ledger_state"] = ["in", list(PUSH_STATES[state])]
+    elif only is None:
+        filters["ledger_state"] = ["is", "set"]
+    if only is not None:
+        filters["name"] = ["in", only[kind.doctype]]
     filters.update(guard.scope_filters())
     since, until = tool_input.get("date_from"), tool_input.get("date_to")
     if since or until:
@@ -336,11 +363,14 @@ def list_documents(tool_input) -> str:
     limit = max(1, min(int(tool_input.get("limit") or 20), LIST_MAX))
     offset = max(0, int(tool_input.get("offset") or 0))
     wanted = [KINDS[tool_input["kind"]]] if tool_input.get("kind") in KINDS else list(KINDS.values())
+    only = _conversation_documents() if tool_input.get("this_conversation") else None
+    if only is not None:
+        scope = {"this_conversation": True, "company": scope}
     rows, total = [], 0
     for kind in wanted:
         if not companies or not guard.has(api.CAPABILITIES[kind.doctype][0]):
             continue
-        filters, or_filters = _filters(kind, companies, tool_input)
+        filters, or_filters = _filters(kind, companies, tool_input, only)
         if filters is None:
             continue
         fields = ["name", kind.date, "ledger_state", "ledger_reason", "ledger_docnum", "ledger_job",
@@ -610,12 +640,18 @@ TOOLS = [
                     "Express yet and not on its way: stopped or failed; pending; success; failed = stopped, failed or "
                     "disconnected), kind, document date or search (number, counterparty, tax ID or Express number). Up "
                     f"to {LIST_MAX} per call: total is how many match; pass next_offset as offset for the next page. "
+                    "To answer where the documents recognized in this conversation are (entered or not, what happened "
+                    "to them), pass this_conversation true: they are listed whatever their date and even before any "
+                    "push, so never filter them by the work month; when some are dated outside the month this "
+                    "conversation is about, say so in one sentence (which months) and ask the user how to handle them. "
                     + ROW_NOTE,
      "input_schema": {"type": "object", "properties": {
          "search": {"type": "string"}, "push_state": {"type": "string", "enum": list(PUSH_STATES)},
          "kind": KIND_PROP, "date_from": {"type": "string", "description": "YYYY-MM-DD"},
-         "date_to": {"type": "string", "description": "YYYY-MM-DD"}, **direct_push.page_props(LIST_MAX),
-         **SCOPE_PROPS}},
+         "date_to": {"type": "string", "description": "YYYY-MM-DD"},
+         "this_conversation": {"type": "boolean", "description": "Only the documents recognized from this "
+                                                                 "conversation's files, whatever their date."},
+         **direct_push.page_props(LIST_MAX), **SCOPE_PROPS}},
      "handler": "pearnly_erp_portal.express.cc_tools.list_documents"},
     {"name": "erp_push_documents", "label": "Pushed documents", "modes": ["chat"],
      "description": "Send ERP documents to Express again, the same as Retry in the document's Express window: only when "
