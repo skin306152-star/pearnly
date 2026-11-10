@@ -104,6 +104,7 @@ reason = "LINE 收发与收件人语言（user_language 问 LINE profile 接口�
 file = "apps/pearnly_core/pearnly_core/line_binding.py"
 reason = "LINE 用户与账号的绑定（LINE 收件人语言回落到绑定账号的语言时经 line.py 读它）：回归实验室没有 LINE 通道，绑定码只能从 LINE 聊天发来，没有流程能走到。绑定 / 解绑由各产品 LINE 离线测试（test_line_intake、test_cowork_line_intake）守住"
 
+[[file]]
 file = "frontend/assistant/src/components/ui/alert-dialog.tsx"
 reason = "标准组件库的件（11-10 由 shadcn/ui 搬入，docs/development/cc-ui-kit.md）：现在没有产品界面引用，只在开发用展示页里摆出；谁在产品界面换上它，同一提交给覆盖那个界面的流程加 covers 并删掉这一条。离线由 tests/test_cc_ui_kit.py、tests/test_cc_ccs.py 守住"
 
