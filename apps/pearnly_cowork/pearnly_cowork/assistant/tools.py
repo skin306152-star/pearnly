@@ -172,6 +172,7 @@ GUIDANCE = [
     # 2026-10-20 教程录制：问「ส่งครบทั้ง 8 ใบหรือยัง」，工具回了 8 张完整的单号与现赊，CC 的表格却多出一行只有「HP690901...」的
     # 残行，还把 RR690903-001（赊购）照自己先前的说法写成 HP690903-001 现购。表格、清单里的每一格都从这一轮工具结果里这张单的那一项抄
     direct_push.GUIDANCE_TABLE_ROWS,
+    direct_push.GUIDANCE_ENTERED_ONLY_BY_RECEIPT,
     CC_DESKTOP,
     MRERP_GUIDANCE,
     direct_push.guidance_troubleshooting("cowork_pending"),
