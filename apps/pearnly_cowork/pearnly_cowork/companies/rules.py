@@ -164,6 +164,13 @@ def for_push(connection, account_set, account_row) -> dict | None:
                        "at": str(row.modified or "")} for row in rows]}
 
 
+def tax_for_push(connection, account_row) -> str:
+    """推送判方向的钩子（``cowork_push_company_tax``，`push.application.service._book_tax`）：账套目录没报税号时，这份账套所属
+    公司记下的税号（CC 卡片问过一次「本公司是票上哪一方」，`service.set_own_tax`）；没建主档、没记过回空串。只读。"""
+    name, _branch = account_company(connection, account_row)
+    return str(frappe.db.get_value(COMPANY, name, "tax_id") or "") if name else ""
+
+
 def groups(company) -> dict:
     """这家公司记住的分组 ``{归类键: purchase / expense / sales}``（一次查询，代录资料区与预检用）。"""
     rows = frappe.get_all(CHOICE, filters={"company": company, "kind": GROUP}, fields=["subject", "value"],
@@ -186,4 +193,4 @@ def values_now(ids) -> dict:
 
 __all__ = ["CONTEXT_MAX", "GROUP", "GROUP_VALUES", "KIND_WORDS", "RULES_MAX", "account_company", "context_rows", "delete", "for_push",
            "forget_company", "groups", "listing",
-           "one", "rule_key", "save", "values_now"]
+           "one", "rule_key", "save", "tax_for_push", "values_now"]

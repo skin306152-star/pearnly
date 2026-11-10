@@ -1102,7 +1102,7 @@ const OPERATOR = {
     } as Record<string, string>,
     precheck: {
       kind: {
-        account_set: "Account set", current_book: "Account set in use", direction: "Document groups", document_policy: "Post or not",
+        account_set: "Account set", current_book: "Account set in use", direction: "Document groups", own_party: "This company", document_policy: "Post or not",
         department: "Department", location: "Warehouse", mrerp_menu: "MR.ERP import menu", mrerp_default: "MR.ERP settings", vat: "Input VAT",
         refund: "Sales returns account", vat_registered: "VAT registered", exempt_mode: "Exempt items", item: "Stock item",
         stock_group: "Stock account group", goods_posting: "Posting", service_vat: "Service input VAT", posting_kind: "Service or stock",
@@ -1179,7 +1179,7 @@ const OPERATOR = {
     } as Record<string, string>,
     precheck: {
       kind: {
-        account_set: "账套", current_book: "现用账套", direction: "资料分组", document_policy: "是否入账",
+        account_set: "账套", current_book: "现用账套", direction: "资料分组", own_party: "本公司", document_policy: "是否入账",
         department: "部门", location: "仓库", mrerp_menu: "MR.ERP 导入菜单", mrerp_default: "MR.ERP 设置", vat: "进项税",
         refund: "销货退回科目", vat_registered: "增值税登记户", exempt_mode: "免税商品写法", item: "存货",
         stock_group: "存货科目组", goods_posting: "入账方式", service_vat: "服务品进项税", posting_kind: "服务或存货",
@@ -1256,7 +1256,7 @@ const OPERATOR = {
     } as Record<string, string>,
     precheck: {
       kind: {
-        account_set: "ชุดบัญชี", current_book: "ชุดบัญชีที่ใช้อยู่", direction: "กลุ่มเอกสาร", document_policy: "บันทึกหรือไม่",
+        account_set: "ชุดบัญชี", current_book: "ชุดบัญชีที่ใช้อยู่", direction: "กลุ่มเอกสาร", own_party: "บริษัทนี้", document_policy: "บันทึกหรือไม่",
         department: "แผนก", location: "คลังสินค้า", mrerp_menu: "เมนูนำเข้า MR.ERP", mrerp_default: "การตั้งค่า MR.ERP", vat: "ภาษีซื้อ",
         refund: "บัญชีรับคืนสินค้า", vat_registered: "จดทะเบียนภาษีมูลค่าเพิ่ม", exempt_mode: "สินค้ายกเว้นภาษี", item: "สินค้า",
         stock_group: "กลุ่มบัญชีสินค้าคงเหลือ", goods_posting: "วิธีลงบัญชี", service_vat: "ภาษีซื้อของสินค้าบริการ", posting_kind: "บริการหรือสินค้า",
@@ -1333,7 +1333,7 @@ const OPERATOR = {
     } as Record<string, string>,
     precheck: {
       kind: {
-        account_set: "会計データ", current_book: "使用中の会計データ", direction: "資料のグループ", document_policy: "記帳するかどうか",
+        account_set: "会計データ", current_book: "使用中の会計データ", direction: "資料のグループ", own_party: "自社", document_policy: "記帳するかどうか",
         department: "部門", location: "倉庫", mrerp_menu: "MR.ERP の取込メニュー", mrerp_default: "MR.ERP の設定", vat: "仮払付加価値税",
         refund: "売上返品勘定", vat_registered: "付加価値税登録事業者", exempt_mode: "免税品の記帳", item: "在庫品目",
         stock_group: "在庫勘定グループ", goods_posting: "計上方法", service_vat: "サービスの仮払付加価値税", posting_kind: "サービスか在庫か",

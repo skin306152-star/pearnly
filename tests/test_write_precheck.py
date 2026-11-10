@@ -351,7 +351,6 @@ class Preselect(unittest.TestCase):
         self.assertEqual(item["state"], c.PROPOSED)
 
 
-
 class Conditional(unittest.TestCase):
     """测试机 11-09（shots/12）：「录入设置」选了按服务录入，后面还问从哪个仓库出库。只在某一项答成某个值时才成立的项带 ``when``：
     那一项答成别的值时它不留单、它的答案不展开。"""
@@ -394,6 +393,52 @@ class Conditional(unittest.TestCase):
     def test_a_malformed_condition_is_a_programming_error(self):
         with self.assertRaises(c.PrecheckError):
             c.normalize_item({**self.LOCATION, "when": {"kind": "nope", "subject": "x", "value": "y"}})
+
+
+class OwnParty(unittest.TestCase):
+    """「本公司是票上的哪一方」（``own_party``，A 线 11-10）：所选公司、工作空间、账套目录都没税号时问一次，答案记成公司税号。"""
+
+    SELLER, BUYER, OTHER = "0105561077332", "0107536999991", "0105559999996"  # 校验位都对
+
+    def fields(self, seller=SELLER, buyer=BUYER, **extra):
+        return {"seller_name": "บริษัท ชินเซียร์ ไอซ์ จำกัด", "seller_tax": seller, "seller_branch": "00000",
+                "buyer_name": "บมจ.บิ๊กซี", "buyer_tax": buyer, "buyer_branch": "151", **extra}
+
+    def test_it_is_a_book_item(self):
+        self.assertEqual(c.group_of("own_party", "COMP-1"), c.BOOK)
+
+    def test_options_are_the_two_sides_with_a_valid_tax_id(self):
+        from pearnly_core.write_precheck import own_party as o
+
+        self.assertEqual(o.options(self.fields()), [
+            {"code": f"{self.SELLER}:00000", "name": f"บริษัท ชินเซียร์ ไอซ์ จำกัด · {self.SELLER}"},
+            {"code": f"{self.BUYER}:00151", "name": f"บมจ.บิ๊กซี · {self.BUYER} · 00151"}])
+        # 校验位不对、位数不够的一方不列；两方都没有就没有可选的
+        self.assertEqual([row["code"] for row in o.options(self.fields(buyer="0107536999990"))], [f"{self.SELLER}:00000"])
+        self.assertEqual(o.options(self.fields(seller="", buyer="12345")), [])
+
+    def test_a_batch_puts_the_tax_id_on_every_ticket_first_and_preselects_it(self):
+        from pearnly_core.write_precheck import own_party as o
+
+        batch = [o.options(self.fields()), o.options(self.fields(buyer=self.OTHER)), o.options(self.fields())]
+        options, value = o.merge(batch)
+        self.assertEqual([row["code"] for row in options],
+                         [f"{self.SELLER}:00000", f"{self.BUYER}:00151", f"{self.OTHER}:00151"])
+        self.assertEqual(value, f"{self.SELLER}:00000")
+        # 只有一张票：两方都「每张都有」，拿不准，不预选
+        self.assertEqual(o.merge([o.options(self.fields())])[1], "")
+        self.assertEqual(o.merge([]), ([], ""))
+
+    def test_the_answer_is_an_option_code_or_a_typed_tax_id(self):
+        from pearnly_core.write_precheck import own_party as o
+
+        self.assertEqual(o.parse(f"{self.BUYER}:00151"), (self.BUYER, "00151"))
+        self.assertEqual(o.parse("0-1075-36999-99-1"), (self.BUYER, "00000"))
+        self.assertEqual(o.parse(f"{self.BUYER} / 1"), (self.BUYER, "00001"))
+        self.assertEqual(o.parse(f"{self.BUYER}00002"), (self.BUYER, "00002"))
+        for bad in ("", "0107536999990", "12345", f"{self.BUYER}:abc", f"{self.BUYER}:1234567", "ร้าน A"):
+            with self.subTest(bad=bad):
+                self.assertIsNone(o.parse(bad))
 
 
 if __name__ == "__main__":

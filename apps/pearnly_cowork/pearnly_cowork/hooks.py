@@ -624,6 +624,8 @@ cowork_company_month_readback = ["pearnly_cowork.readback.service.month_status"]
 # 推送准备的公司规则（第 2 期统一客户规则）：这份账套所属公司的规则垫在账套记忆之下（`push/application/service.py` 的
 # `_decisions`）；按目录这一行的身份直接查公司、不缓存。push 域不导入 companies（companies 依赖 push）。
 cowork_push_company_choices = ["pearnly_cowork.companies.rules.for_push"]
+# 推送判进项 / 销项：账套目录没报税号时用这份账套所属公司记下的税号（CC 卡片问过一次「本公司是票上哪一方」，A 线 11-10）
+cowork_push_company_tax = ["pearnly_cowork.companies.rules.tax_for_push"]
 # 自动推送档位（数字会计员第 3 期第 3、5 条）：这份账套所属公司此刻的档位与最近一次合格回读覆盖的期间；按这张单日期该推往哪份
 # 账套（T1 同一判据，自动推前的核对用）。push 域不导入 companies；取不到按 L0、按「选不出」。
 cowork_push_company_tier = ["pearnly_cowork.companies.automation.tier_for_push"]
