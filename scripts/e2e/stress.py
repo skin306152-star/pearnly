@@ -220,8 +220,32 @@ def login_cc(page, s: Scenario, product: str, accounts: dict):
     scenarios.start(page, ctx)
 
 
+def reuse_login(state: Path):
+    """并发格：父进程每个产品只登录一次存下登录状态，各路带着它直接开 /assistant（同一个人开几个标签页）。
+    Keycloak 对同一账号 1 秒内连续登录按失败算（11-10 实测 6 路同时登 4 路被拒「密码不对」），失败多了会锁号。"""
+    def login(page, s, product, accounts):
+        scenarios.goto(page, f"https://{e2e.SITES[product]}/assistant")
+        scenarios.expect(page.url.startswith(f"https://{e2e.SITES[product]}/assistant"), f"带登录状态打开后不在 CC：{page.url.split('?')[0]}")
+        scenarios.ready(page)
+    return login
+
+
+def save_login(product: str, accounts: dict, path: Path):
+    """登录一次、存下登录状态（权限 600，跑完删）。登录被拒抛 LoginRejected，不重试。"""
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as driver:
+        browser = driver.chromium.launch(headless=True)
+        context = browser.new_context(viewport=e2e.VIEWPORTS["desktop"])
+        page = context.new_page()
+        scenarios.start(page, scenarios.Context(product=product, run="desktop", sites=e2e.SITES, entry=e2e.ENTRY, accounts=accounts))
+        context.storage_state(path=str(path))
+        os.chmod(path, 0o600)
+        browser.close()
+
+
 def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts: dict, lane: int = 0,
-            login=login_cc, hook=None, shot_every: int = SHOT_EVERY, idle_after: int = 40) -> dict:
+            login=login_cc, hook=None, shot_every: int = SHOT_EVERY, idle_after: int = 40, state: Path | None = None) -> dict:
     """跑一格。``login`` / ``hook``（建好页面后先调，自测用来接假接口）可换，线上用默认的真登录。"""
     from playwright.sync_api import sync_playwright
 
@@ -233,6 +257,9 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
     driver = sync_playwright().start()
     browser = driver.chromium.launch(headless=True)
     options = {**driver.devices["Pixel 7"], "viewport": e2e.VIEWPORTS["mobile"]} if s.run == "mobile" else {"viewport": e2e.VIEWPORTS["desktop"]}
+    if state:
+        options["storage_state"] = str(state)
+        login = reuse_login(state)
     context = browser.new_context(**options)
     page = context.new_page()
     if hook:
@@ -348,6 +375,7 @@ def main(argv=None) -> int:
     parser.add_argument("--allow-tomorrow", action="store_true", help="允许跑要写 Express / 修复后才跑的格")
     parser.add_argument("--lane", type=int, default=-1, help=argparse.SUPPRESS)   # 并发格的子进程
     parser.add_argument("--lane-product", default="", help=argparse.SUPPRESS)
+    parser.add_argument("--state", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--out", type=Path)
     args = parser.parse_args(argv)
     if args.list:
@@ -363,7 +391,7 @@ def main(argv=None) -> int:
 
     if args.lane >= 0:   # 并发格的一路
         s = BY_ID[args.scenario[0]]
-        print(json.dumps(run_one(s, args.lane_product, args.files, out_dir, accounts, args.lane), ensure_ascii=False))
+        print(json.dumps(run_one(s, args.lane_product, args.files, out_dir, accounts, args.lane, state=args.state), ensure_ascii=False))
         return 0
 
     e2e.check_playwright()
@@ -385,8 +413,19 @@ def main(argv=None) -> int:
             continue
         if s.lanes > 1:
             products = (["cowork", "erp"] * s.lanes)[:s.lanes] if s.product == "both" else [s.product] * s.lanes
+            states = {}
+            try:
+                for p in dict.fromkeys(products):
+                    states[p] = out_dir / f".login-{p}.json"
+                    save_login(p, accounts, states[p])
+            except scenarios.LoginRejected as error:
+                for f in states.values():
+                    f.unlink(missing_ok=True)
+                results.append({"scenario": sid, "skipped": f"登录被拒，不重试：{error}"})
+                code = max(code, 3)
+                continue
             procs = [subprocess.Popen([sys.executable, __file__, "--scenario", sid, "--files", str(args.files), "--out", str(out_dir),
-                                       "--lane", str(i), "--lane-product", p], stdout=subprocess.PIPE, text=True)
+                                       "--lane", str(i), "--lane-product", p, "--state", str(states[p])], stdout=subprocess.PIPE, text=True)
                      for i, p in enumerate(products)]
             lanes = []
             for proc in procs:
@@ -395,7 +434,10 @@ def main(argv=None) -> int:
                     lanes.append(json.loads(out.strip().splitlines()[-1]))
                 except (ValueError, IndexError):
                     lanes.append({"error": "这一路没有输出", "raw": (out or "")[-300:]})
-            usd = round(sum(x.get("cc_usd", 0) for x in lanes) + s.pages * OCR_PER_PAGE, 3)
+            for f in states.values():
+                f.unlink(missing_ok=True)   # 登录状态里有会话 Cookie：用完就删
+            read = sum(1 for x in lanes if any(("recogn" in t["name"]) or t["name"] == "operator_upload" for t in x.get("tools", [])))
+            usd = round(sum(x.get("cc_usd", 0) for x in lanes) + read * (s.pages // s.lanes) * OCR_PER_PAGE, 3)
             results.append({"scenario": sid, "lanes": lanes, "usd_est": usd})
         else:
             r = run_one(s, s.product, args.files, out_dir, accounts)
