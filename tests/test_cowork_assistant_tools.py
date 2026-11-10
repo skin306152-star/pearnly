@@ -3385,6 +3385,67 @@ def _filed_row(name, connection, account_set):
             "last_push_status": "success", "pages": json.dumps([{"fields": {"direction": "purchase"}}])}
 
 
+class ConversationDocumentsTests(unittest.TestCase):
+    """11-10 线上压测 S1：10 月的公司对话里放 6–7 月的 4 份 PDF、识别出 90 张，再问「到哪了」，CC 按对话月份筛日期，说「查不到」。
+    ``this_conversation`` 只列本对话附件识别出的单（各次重试、代录放进输入框交给任务的那份都算），不加日期、不按公司账套筛。"""
+
+    def setUp(self):
+        chat = types.ModuleType("pearnly_core.assistant.files")
+        chat.attachments = lambda: [{"file_id": "file_a", "filename": "june.pdf"}, {"file_id": "file_b", "filename": "july.pdf"},
+                                    {"file_id": "file_t", "filename": "page.png", "origin": "tool"}]
+        chat.taken = lambda fid: "B-TASK" if fid == "file_b" else ""
+        self.asked = []
+        ocr = types.SimpleNamespace(detail=lambda batch: {"history_records": {"B-A": ["D1", "D2"], "B-A2": ["D3"],
+                                                                              "B-TASK": ["D4"]}.get(batch, [])})
+        batches = [{"name": "B-A", "request_key": "assistant:file_a"}, {"name": "B-A2", "request_key": "assistant:file_a:2"},
+                   {"name": "B-X", "request_key": "assistant:file_x"}]
+
+        def get_all(doctype, filters=None, **kwargs):
+            self.asked.append((doctype, filters))
+            keys = set((filters or {}).get("request_key", ["in", []])[1])
+            return [row["name"] for row in batches if row["request_key"] in keys]
+
+        access = types.ModuleType("pearnly_cowork.ocr.execution.access")
+        access.DOCTYPE = "Cowork OCR Batch"
+        execution = types.ModuleType("pearnly_cowork.ocr.execution")
+        execution.access = access
+        patches = [mock.patch.dict(sys.modules, {"pearnly_core.assistant.files": chat,
+                                                 "pearnly_cowork.ocr": types.ModuleType("pearnly_cowork.ocr"),
+                                                 "pearnly_cowork.ocr.execution": execution,
+                                                 "pearnly_cowork.ocr.execution.access": access}),
+                   mock.patch.object(sys.modules["pearnly_core.assistant"], "files", chat, create=True),
+                   mock.patch.object(tools, "_recognition", lambda: ocr),
+                   mock.patch.object(frappe, "get_all", get_all, create=True),
+                   mock.patch.object(tools, "_company_scope", lambda *a, **k: self.fail("this_conversation is not company-scoped"))]
+        for patcher in patches:
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        frappe.rows = [_filed_row("D1", "EXP1", ""), _filed_row("D2", "EXP1", ""), _filed_row("D3", "EXP1", ""),
+                       _filed_row("D4", "EXP1", "")]
+        self.addCleanup(setattr, frappe, "rows", [])
+        frappe.calls.clear()
+        frappe.local.pearnly_assistant = {"session_id": "sesn_1"}
+        self.addCleanup(setattr, frappe.local, "pearnly_assistant", None)
+
+    def test_documents_recognized_in_this_conversation_are_found_whatever_their_date(self):
+        out = json.loads(tools.list_documents({"this_conversation": True}))
+        filters = frappe.calls[0]["filters"]
+        self.assertEqual(filters["name"], ["in", ["D1", "D2", "D3", "D4"]])
+        self.assertNotIn("invoice_date", filters)
+        self.assertEqual(self.asked[0][1]["actor"], frappe.session.user)  # 只看本人的识别批次
+        self.assertNotIn("assistant:file_t", self.asked[0][1]["request_key"][1])  # 工具生成的文件不是票
+        self.assertEqual(out["scope"], {"this_conversation": True})
+        declared = next(t for t in tools.TOOLS if t["name"] == "cowork_list_documents")
+        self.assertIn("this_conversation", declared["input_schema"]["properties"])
+        self.assertIn("never filter them by the work month", declared["description"])
+
+    def test_nothing_recognized_here_lists_nothing(self):
+        frappe.calls.clear()
+        with mock.patch.object(tools, "_recognition", lambda: types.SimpleNamespace(detail=lambda batch: {})):
+            out = json.loads(tools.list_documents({"this_conversation": True}))
+        self.assertEqual((out["documents"], out["total"]), ([], 0))
+
+
 class CompanyScopeTests(unittest.TestCase):
     """2026-10-15 测试机：在公司主档「T.8 ซินเซียร์ไอซ์」的 9 月对话里问「这个月哪些单进了 Express」，CC 调 cowork_list_documents
     没带账套，答出整个工作空间 9 月推送的 128 张（别家三份账套的）。公司对话里不带账套 / 连接 / 公司的调用，服务端默认只取

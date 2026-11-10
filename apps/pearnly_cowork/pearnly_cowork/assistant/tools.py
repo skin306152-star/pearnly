@@ -537,12 +537,52 @@ def _attach_written(rows) -> None:
             row["written"] = found[record]
 
 
+CONVERSATION_DOCUMENTS_MAX = 500
+
+
+def _conversation_documents() -> list:
+    """本对话附件识别出的单（``cowork_list_documents`` 的 ``this_conversation``，11-10 线上压测 S1）：每个用户附件按识别时的
+    请求号（``assistant:<附件>``，重试的 ``:2``…）找本人的识别批次，代录放进输入框交给任务的那份（`files.taken`）也算；
+    工具生成的文件不是票，不算。"""
+    from pearnly_core.assistant import files as chat_files
+    from pearnly_cowork.ocr.execution import access
+
+    keys, batches = [], []
+    for item in chat_files.attachments():
+        if item.get("origin") == "tool":
+            continue
+        base = "assistant:" + str(item["file_id"])
+        keys += [base] + [f"{base}:{attempt}" for attempt in range(2, RECOGNIZE_ATTEMPTS + 1)]
+        taken = chat_files.taken(item["file_id"])
+        if taken:
+            batches.append(taken)
+    if keys:
+        batches += frappe.get_all(access.DOCTYPE, filters={"actor": frappe.session.user, "request_key": ["in", keys]},
+                                  pluck="name", limit_page_length=len(keys))
+    names = []
+    for batch in dict.fromkeys(batches):
+        try:
+            names += _recognition().detail(batch).get("history_records") or []
+        except (frappe.DoesNotExistError, frappe.PermissionError):
+            frappe.clear_messages()
+    return list(dict.fromkeys(names))[:CONVERSATION_DOCUMENTS_MAX]
+
+
 def list_documents(tool_input) -> str:
     scope.require_read()
-    company = _company_scope(tool_input)
+    filters, or_filters = {}, None
+    if tool_input.get("this_conversation"):
+        # 本对话识别的单：不按公司账套、不按工作月份筛（给了日期等条件照常筛）
+        names = _conversation_documents()
+        if not names:
+            return _json({"documents": [], "count": 0, "total": 0, "offset": 0, "next_offset": None,
+                          "scope": {"this_conversation": True}})
+        filters["name"] = ["in", sorted(names)]
+        company = {"scope": {"this_conversation": True}, "sets": None}
+    else:
+        company = _company_scope(tool_input)
     if company and company.get("failed"):
         return _json({"status": "failed", "reason": company["failed"]})
-    filters, or_filters = {}, None
     # waiting_review 是旧版工具说明的参数（按「草稿」筛，推送成功的也算在内）：已开着的对话仍按旧说明调，true 按「等着录入」办
     state = tool_input.get("push_state") or ("waiting" if tool_input.get("waiting_review") else None)
     if state == "not_pushed":
@@ -4564,7 +4604,11 @@ TOOLS = [
                     "filed under a company, a call without account_set_key or company covers only that "
                     "company's account sets (scope names it); all_companies true lifts that. Amounts are as "
                     "recognized, not the figures in Express or MR.ERP. " + ACCOUNT_SET_STOP_NOTE + " In "
-                    "by_account_set such documents are counted on their own row, not under any account set.",
+                    "by_account_set such documents are counted on their own row, not under any account set. "
+                    "To answer where the documents recognized in this conversation are (entered or not, what happened "
+                    "to them), pass this_conversation true: they are found whatever their date, so never filter them "
+                    "by the work month; when some are dated outside the month this conversation is about, say so in "
+                    "one sentence (which months) and ask the user how to handle them.",
      "input_schema": {"type": "object", "properties": {
          "search": {"type": "string"},
          "push_state": {"type": "string", "enum": ["waiting", "not_pushed", "pending", "success", "failed"]},
@@ -4573,6 +4617,8 @@ TOOLS = [
          "invoice_date_to": {"type": "string", "description": "YYYY-MM-DD"},
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},
          "direction": {"type": "string", "enum": ["purchase", "sales"]},
+         "this_conversation": {"type": "boolean", "description": "Only the documents recognized from this "
+                                                                 "conversation's files, whatever their date."},
          "totals": {"type": "boolean"}, **direct_push.page_props(LIST_MAX), **SCOPE_PROPS}},
      "handler": "pearnly_cowork.assistant.tools.list_documents"},
     {"name": "cowork_push_documents", "label": "Pushed documents", "modes": ["chat"],
