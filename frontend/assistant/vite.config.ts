@@ -93,6 +93,11 @@ export default defineConfig({
     outDir: "../../apps/pearnly_core/pearnly_core/public/assistant",
     emptyOutDir: true,
     rollupOptions: {
+      // 标准组件库展示页 kit.html 只在开发环境：vite 开发服务器直接能开；构建时只有设了 CC_KIT=1（测试机实时源码）才一起打包，
+      // 从 main 构建的生产镜像里没有它（tests/test_cc_ui_kit.py 核对，docs/development/cc-ui-kit.md）
+      ...(process.env.CC_KIT === "1"
+        ? { input: { main: fileURLToPath(new URL("./index.html", import.meta.url)), kit: fileURLToPath(new URL("./kit.html", import.meta.url)) } }
+        : {}),
       output: {
         entryFileNames: "assets/[name].[hash].js",
         chunkFileNames: "assets/[name].[hash].js",

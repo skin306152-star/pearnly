@@ -26,8 +26,8 @@ const tabsListVariants = cva(
   {
     variants: {
       variant: {
-        default: "cc-ui-tabs-list-variant-default bg-muted",
-        line: "cc-ui-tabs-list-variant-line bg-transparent",
+        default: "cc-ui-tabs-list-variant-default",
+        line: "cc-ui-tabs-list-variant-line",
       },
     },
     defaultVariants: {
