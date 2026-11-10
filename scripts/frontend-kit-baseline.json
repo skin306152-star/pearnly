@@ -24,8 +24,8 @@
     "K4": 2
   },
   "components/assistant-ui/thread.tsx": {
-    "K1": 4,
-    "K4": 4
+    "K1": 5,
+    "K4": 5
   },
   "components/assistant-ui/tooltip-icon-button.tsx": {
     "K1": 1
