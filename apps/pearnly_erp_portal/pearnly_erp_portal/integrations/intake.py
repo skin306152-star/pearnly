@@ -124,12 +124,14 @@ def _fetch(doc, filename):
 
 def _sibling(doc, result):
     """同一文件里的另一张单（多页 / 一张图几张票）：同样的选择，自己一份源文件（内容相同；入账时
-    各挂各的，不抢同一个 File），自己一张卡、自己入账。"""
+    各挂各的，不抢同一个 File），自己一张卡、自己入账。来源与对话编号随第一条（CC 对话来的拆出来仍是 CC 的，对话资料列表
+    `chat_records` 只认 cc；A 线 11-10 实验栈：拆出的 23 条落成默认的 LINE、对话里只看到第 1 张）；请求键只归第一条（同一附件
+    再交回原来那条，`receive_chat`）。"""
     from pearnly_core.originals import registered
 
     file = registered.copy(_file_name(doc))  # 原件在原件层的复制登记（同一份原件，不再存一次）
     fields = ("direction", "sent_by", "line_user_id", "language", "media_type", "line_message_id", "file_hash",
-              "company", "party", "is_paid", "payment_method", "item_kind", "warehouse")
+              "company", "party", "is_paid", "payment_method", "item_kind", "warehouse", "source", "session_id")
     return frappe.get_doc({"doctype": DOCTYPE, "status": READY, "owner": doc.sent_by, "received_at": doc.get("received_at"),
                            **{key: doc.get(key) for key in fields},
                            "source_file": file.file_url, "source_file_name": file.name,
