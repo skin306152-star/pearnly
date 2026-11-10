@@ -26,6 +26,9 @@ STATUSES = ("preparing", "queued", "running", "attention", "finished", "stopped"
 OPEN_STATES = ("pending", "queued")
 # 推送结果不明（产品回的原因码，同开始前确认）：人在 Express 核对后会变成已入账 / 没有入账，收尾时照样再问（10-29 测试机）
 RESULT_UNKNOWN = "push.result_unknown"
+# 产品交单回执：电脑还没读到这份账套的资料（科目表 / 主档）、或电脑不在线，现在交不了。照「电脑关了就排队」：记成排队、原因是这个，
+# 任务等着；之后每次收尾先再交一次（线上 11-10 testcowork 代录：当场记「未完成」收尾，之后没人再交）
+WAITING_FOR_CC = "waiting_for_cc"
 WRITTEN = "written"  # 产品交单回执：同一张票已写进 Express，默认跳过（``api.start`` 的 again 放行）
 CHOICE_NEEDED = "choice_needed"  # 两产品「要人选一次」的原因前缀（Cowork 推送准备、ERP `express.contracts.CHOICE`）
 FINAL = ("finished", "stopped")
@@ -203,10 +206,10 @@ def attach(name, results, groups=None, computer: str = "", start_at=None) -> dic
         doc_id = str(item.get("doc_id") or "")
         status = str(item.get("status") or "")
         sent = status in ("sent", "queued")
-        # 同一张票已写进 Express（产品回 written，原因带那张的单号）：跳过，不是要人处理的「未完成」
-        state = "queued" if sent else "skipped" if status == WRITTEN else "not_done"
-        rows.append({"doc_id": doc_id, "doc_group": groups.get(doc_id) or None, "state": state,
-                     "reason": "" if sent else str(item.get("reason") or status or "")[:REASON_MAX]})
+        # 同一张票已写进 Express（产品回 written，原因带那张的单号）：跳过，不是要人处理的「未完成」；等电脑的排着（见 WAITING_FOR_CC）
+        state = "queued" if sent or status == WAITING_FOR_CC else "skipped" if status == WRITTEN else "not_done"
+        reason = "" if sent else WAITING_FOR_CC if status == WAITING_FOR_CC else str(item.get("reason") or status or "")
+        rows.append({"doc_id": doc_id, "doc_group": groups.get(doc_id) or None, "state": state, "reason": reason[:REASON_MAX]})
     doc.set("documents", rows)
     _name_rows(doc, doc.get("documents"))
     doc.computer = str(computer or "")
@@ -260,10 +263,17 @@ def _refresh(doc, rows) -> None:
                 row.set(key, str(r[key])[:140])
 
 
+def _waiting(row) -> bool:
+    return row.state == "queued" and row.reason == WAITING_FOR_CC
+
+
 def _conclude(doc) -> None:
-    """没定下来的单问产品，写回子表；都有结论了推出任务状态。"""
-    _refresh(doc, [row for row in doc.get("documents") or []
-                   if row.state in OPEN_STATES or (row.state == "not_done" and row.reason == RESULT_UNKNOWN)])
+    """没定下来的单问产品，写回子表；都有结论了推出任务状态。等电脑的单（还没推出去，产品会说「已取消」）不问，先再交一次。"""
+    waiting = [row for row in doc.get("documents") or [] if _waiting(row)]
+    if waiting:
+        _resubmit(doc, waiting)
+    _refresh(doc, [row for row in doc.get("documents") or [] if row not in waiting and
+                   (row.state in OPEN_STATES or (row.state == "not_done" and row.reason == RESULT_UNKNOWN))])
     rows = doc.get("documents") or []
     if rows and all(row.state not in OPEN_STATES for row in rows) and doc.status not in FINAL + ("preparing",):
         if any(row.state == "not_done" for row in rows):
@@ -381,7 +391,10 @@ def _resubmit(doc, rows, answers=None) -> None:
         result = results.get(row.doc_id) or {}
         if str(result.get("status") or "") in ("sent", "queued"):
             row.state, row.reason = "queued", ""
+        elif str(result.get("status") or "") == WAITING_FOR_CC:
+            row.state, row.reason = "queued", WAITING_FOR_CC
         else:
+            row.state = "not_done"  # 等电脑的那张再交时停下了（要人选等）：同交单当场没收
             row.reason = str(result.get("reason") or result.get("status") or "")[:REASON_MAX]
     if any(row.state == "queued" for row in rows) and doc.status in ("attention", "finished", "stopped"):
         doc.status, doc.finished_at = "queued", None
@@ -442,6 +455,35 @@ def _batch_stopped(reason) -> bool:
     return bool(found) and found.group(1).lower() in RESUMABLE
 
 
+# ── 等电脑的单（:data:`WAITING_FOR_CC`）：电脑读到账套资料后叫醒任务再交 ────────────────────────────────────
+WAITING_MAX = 200
+REFRESH_JOB = "pearnly_core.express_operator.feed.refresh"  # 以任务主人身份 settle（同产品回执写回后的刷新）
+
+
+def waiting_documents() -> list:
+    """还开着的代录任务里等电脑的单（``[{"task", "doc_id"}]``，最多 :data:`WAITING_MAX` 条）：产品每分钟重试直写停下的单时
+    跳过它们（归代录，不按直写推）。只读。"""
+    rows = frappe.get_all(DOCUMENT, filters={"parenttype": DOCTYPE, "state": "queued", "reason": WAITING_FOR_CC},
+                          fields=["parent", "doc_id"], limit_page_length=WAITING_MAX)
+    if not rows:
+        return []
+    open_tasks = set(frappe.get_all(DOCTYPE, filters={"name": ["in", sorted({r.parent for r in rows})],
+                                                     "status": ["in", ["queued", "running"]]},
+                                    pluck="name", limit_page_length=WAITING_MAX))
+    return [{"task": r.parent, "doc_id": r.doc_id} for r in rows if r.parent in open_tasks]
+
+
+def wake_waiting(*_args, **_kwargs) -> None:
+    """电脑读到账套资料了（Cowork 主档写进来、ERP 每分钟那一轮）：有等电脑的单的任务各排一次提交后的刷新（``feed.refresh`` →
+    :func:`settle` 先把等电脑的单再交一次）。出错只记日志，不影响调用方。"""
+    try:
+        for name in dict.fromkeys(item["task"] for item in waiting_documents()):
+            frappe.enqueue(REFRESH_JOB, queue="short", enqueue_after_commit=True, job_id=f"pearnly-operator-feed:{name}",
+                           deduplicate=True, task=name)
+    except Exception:
+        frappe.log_error(title="Operator waiting wake failed")
+
+
 def resume(name) -> dict:
     """整批停下以后的「继续」（登录类先在 CC 授权）：先以站点为准收尾一次，再把这个任务里因整批停而没录成的单（卡住的那张 + 因停止
     被跳过的）按原批次号交回原来那台电脑；别的未完成的单不动。只给本人、任务在「需要你处理 / 已停止」。"""
@@ -456,6 +498,6 @@ def resume(name) -> dict:
     return view(doc)
 
 
-__all__ = ["CONTROL_ACTIONS", "DOCTYPE", "STOP", "EVENT", "RESUMABLE", "STATUSES", "answer", "answer_many", "attach", "attention", "create", "delete", "listing",
+__all__ = ["CONTROL_ACTIONS", "DOCTYPE", "STOP", "EVENT", "RESUMABLE", "STATUSES", "WAITING_FOR_CC", "answer", "answer_many", "attach", "attention", "wake_waiting", "waiting_documents", "create", "delete", "listing",
            "mark_running", "message_sent", "push_control", "read", "resume", "settle", "site_product", "take_controls", "thread", "thread_note",
            "update", "view"]

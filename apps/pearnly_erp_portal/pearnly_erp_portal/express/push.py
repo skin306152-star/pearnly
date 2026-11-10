@@ -811,6 +811,11 @@ def requeue_unmapped(company) -> int:
 def poll():
     """每分钟：停下的单里会自己好的再准备一次；排队中还没交进队列的交一次；排队中的记下此刻为什么还没写。没有要看的就只是
     一条带索引的查询。"""
+    from pearnly_core.express_operator import tasks as hands_on_tasks
+    from pearnly_erp_portal.express import operator
+
+    # 交给代录、在任务里等电脑的单不按直写重试（归代录；原来会被这一轮当成直写写进去），由任务自己再交（11-10）
+    hands_on = operator.waiting_targets()
     for doctype in DIRECTIONS:
         rows = frappe.get_all(doctype, filters={"ledger_state": ["in", contracts.OPEN_STATES], "status": ready(doctype)},
                               fields=["name", "owner", "ledger_state", "ledger_reason", "ledger_job", "ledger_book",
@@ -819,6 +824,8 @@ def poll():
         for row in rows:
             if row.ledger_target == mrerp_contracts.LEDGER_MRERP:
                 continue  # MR.ERP 的单由 `mrerp.push.poll` 看
+            if (doctype, row.name) in hands_on:
+                continue
             if not row.ledger_job and (row.ledger_state == contracts.QUEUED
                                         or (row.ledger_reason or "") in contracts.RETRY_REASONS):
                 send(doctype, row.name)
@@ -827,4 +834,5 @@ def poll():
                 if note != (row.ledger_reason or ""):
                     _set(doctype, row.name, {"ledger_reason": note})
         frappe.db.commit()
+    hands_on_tasks.wake_waiting()  # 代录任务里等电脑的单：叫醒任务再按代录交一次（电脑没好就继续等）
     mrerp_push.poll()  # 功能关着时直接返回

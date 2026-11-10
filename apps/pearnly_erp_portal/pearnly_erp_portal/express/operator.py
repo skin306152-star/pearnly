@@ -584,8 +584,34 @@ def submit(company, doc_ids, batch, computer, answers=None) -> list:
             frappe.db.commit()
         push.release_operator(doctype, name)
         result = push.send(doctype, name, operator={**batch, "index": index, "doc": doc_id, "company": company}) or {}
-        results.append({"doc_id": doc_id, "status": result.get("status") or "", "reason": result.get("reason") or ""})
+        status, reason = result.get("status") or "", result.get("reason") or ""
+        if status == "held" and reason in contracts.RETRY_REASONS:
+            # 电脑还没报这家的账套 / 主档还在读 / 没有电脑能写：任务排着等电脑（共用层 WAITING_FOR_CC），电脑那边好了再交（11-10）
+            from pearnly_core.express_operator.tasks import WAITING_FOR_CC
+
+            status = WAITING_FOR_CC
+        results.append({"doc_id": doc_id, "status": status, "reason": reason})
     return results
+
+
+def waiting_targets() -> set:
+    """代录任务里等电脑的单对应的 ERP 单据 ``{(doctype, 名)}``：每分钟那一轮（`push.poll`）不按直写重试它们（归代录）。
+    收单记录（``I:``）按它提交出的单据认。"""
+    from pearnly_core.express_operator import tasks
+
+    out = set()
+    for item in tasks.waiting_documents():
+        prefix, _sep, name = str(item["doc_id"]).partition(":")
+        if prefix in KINDS and name:
+            out.add((KINDS[prefix][0], name))
+        elif prefix == INTAKE and name:
+            from pearnly_erp_portal.integrations import intake as chat_intake
+
+            row = frappe.db.get_value(chat_intake.DOCTYPE, name, ["purchase", "sales_document", "direction"], as_dict=True)
+            found = _submitted(row) if row else None
+            if found:
+                out.add(found)
+    return out
 
 
 def _intake_twin(company, doc_id) -> dict:

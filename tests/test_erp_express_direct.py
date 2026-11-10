@@ -1262,6 +1262,30 @@ class LinkStates(PushModule):
         self.assertEqual(len(self.enqueued), 5)
         self.assertTrue(self.push.started_linked("ERP Stock Count", "STC-1"))
 
+    def test_the_minute_retry_leaves_a_document_waiting_in_a_hands_on_task_to_that_task(self):
+        """每分钟那一轮（`poll`）只重试直写停下的单：交给代录、在任务里等电脑的那张不按直写推（原来会被当成直写写进去，
+        串了模式），改为叫醒那个任务再按代录交一次（共用层 `tasks.wake_waiting`）。"""
+        F = ledger_columns()
+        self.company()
+        self.documents(self.AFTER)
+        self.push.queue("Purchase Document", "PUR-1")
+        row = fake.STATE.db.table("Purchase Document")["PUR-1"]
+        row.update({F["state"]: "held", F["reason"]: E.NO_BOOK, F["job"]: None})
+        from pearnly_core.express_operator import tasks
+        from pearnly_erp_portal.express import operator
+
+        sent, woken = [], []
+        with mock.patch.object(operator, "waiting_targets", lambda: {("Purchase Document", "PUR-1")}), \
+                mock.patch.object(tasks, "wake_waiting", lambda: woken.append(1)), \
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: sent.append(name)):
+            self.push.poll()
+        self.assertEqual((sent, woken), ([], [1]))
+        with mock.patch.object(operator, "waiting_targets", lambda: set()), \
+                mock.patch.object(tasks, "wake_waiting", lambda: None), \
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: sent.append(name)):
+            self.push.poll()
+        self.assertEqual(sent, ["PUR-1"])  # 不归代录的照旧每分钟再试
+
     def test_documents_started_before_the_link_are_never_written(self):
         """④a：开始早于接上时刻（草稿接上前建、接上后提交；接上前开盘点、接上后过账）：不写，也不补。"""
         self.company()
@@ -2247,6 +2271,22 @@ class OperatorPrecheck(PushModule):
             with self.assertRaises(frappe.ValidationError):  # 不是这一项能选的值：不记、不交
                 self.operator.submit("CO-1", ["P:PI-1"], {"id": "b1", "total": 1}, "",
                                      {"P:PI-1": [{"kind": "item", "subject": "x|bulb", "value": "ZZ"}]})
+
+    def test_a_document_waiting_for_the_computer_goes_back_to_the_task_as_waiting(self):
+        """线上 11-10（Cowork 代录同一类）：交单时电脑还没报这家的账套 / 主档还在读，写账准备停在「过一会儿自己会好」的原因
+        （`RETRY_REASONS`）。交回共用层的是 waiting_for_cc（任务排着等电脑），不是「未完成」；别的停下照旧。"""
+        from unittest import mock
+
+        held = iter([{"status": "held", "reason": E.READING}, {"status": "held", "reason": E.NO_BOOK},
+                     {"status": "held", "reason": E.WAREHOUSE_UNMAPPED}])
+        with mock.patch.object(self.operator.guard, "has", lambda capability, user=None: True), \
+                mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                mock.patch.object(self.push, "release_operator", lambda doctype, name: None), \
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: next(held)):
+            out = self.operator.submit("CO-1", ["P:PI-1", "P:PI-2", "P:PI-3"], {"id": "b1", "total": 3}, "", {})
+        self.assertEqual([(row["status"], row["reason"]) for row in out],
+                         [("waiting_for_cc", E.READING), ("waiting_for_cc", E.NO_BOOK), ("held", E.WAREHOUSE_UNMAPPED)])
 
     def test_a_question_shared_by_several_documents_is_remembered_once_and_all_are_sent(self):
         """10-30 实机：三张同问「这家公司这一年用哪套账」，前端每张都带同一个答案；记下第一张后后面两张不再问，原来整批报

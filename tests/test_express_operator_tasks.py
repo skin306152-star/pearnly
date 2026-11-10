@@ -236,6 +236,33 @@ class TaskTests(unittest.TestCase):
         self.assertTrue(done["finished_at"])
         self.assertEqual(self.tasks.delete(made["name"]), {"deleted": made["name"]})
 
+    def test_a_document_waiting_for_the_computer_waits_in_the_queue_and_goes_in_once_it_can(self):
+        """线上 11-10（testcowork 代录 t4n5b25940）：点开始时电脑还没读到这份账套的科目表，产品回 waiting_for_cc，任务当场记
+        「未完成」收尾成需要你处理，之后再没人交它。照「电脑关了就排队」：记成排队、原因是等电脑，任务等着；之后每次收尾
+        （页面、CC 查状态、电脑读完账套资料后的刷新）先把这几张再交一次，交上了照常排队，还在等就继续等。"""
+        made = self.tasks.create("CO-1", "2026-10")
+        out = self.tasks.attach(made["name"], [{"doc_id": "h1", "status": "waiting_for_cc", "reason": "reading"},
+                                               {"doc_id": "h2", "status": "sent"}], {}, "", None)
+        self.assertEqual(out["status"], "queued")
+        self.assertEqual([(d["doc_id"], d["state"], d["reason"]) for d in out["documents"]],
+                         [("h1", "queued", "waiting_for_cc"), ("h2", "queued", "")])
+        # 产品此刻对没推过的单会说「已取消」：等电脑的不拿这个结论，先再交一次
+        self.statuses = {"h1": {"state": "cancelled"}, "h2": {"state": "saved", "docnum": "RR1"}}
+        waiting = self.tasks.products.submit
+        self.tasks.products.submit = lambda company, ids, batch, computer, answers: self.submitted.append(
+            (company, list(ids), batch, computer, answers)) or [{"doc_id": i, "status": "waiting_for_cc", "reason": "offline"}
+                                                                for i in ids]
+        still = self.tasks.settle(made["name"])
+        self.assertEqual(self.submitted[-1][1], ["h1"])
+        self.assertEqual(still["status"], "queued")
+        self.assertEqual([(d["state"], d["reason"]) for d in still["documents"]], [("queued", "waiting_for_cc"), ("saved", "")])
+        self.tasks.products.submit = waiting  # 电脑读到了：交上
+        moved = self.tasks.settle(made["name"])
+        self.assertEqual(self.submitted[-1][1:3], (["h1"], {"id": made["name"], "total": 1, "start_at": 0}))
+        self.assertEqual([(d["state"], d["reason"]) for d in moved["documents"]][0], ("queued", ""))
+        self.statuses["h1"] = {"state": "saved", "docnum": "RR2"}
+        self.assertEqual(self.tasks.settle(made["name"])["status"], "finished")
+
     def test_a_queued_document_records_which_unknown_one_blocks_it_until_it_moves(self):
         # 同一份账套里一张结果不明的单持着写者锁、人还没核对：排着的这张记下是哪张（「单号 · 对方」），页面照它写；
         # 不再被挡、或已定下来，就清掉（ADR-021 11-02 修订）

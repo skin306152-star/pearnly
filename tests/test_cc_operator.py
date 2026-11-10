@@ -184,6 +184,9 @@ assert.deepEqual(documentRow(docA.result, !!docA.isError, stepProgress(state.pro
 const blocked = documentRow(docB.result, !!docB.isError, stepProgress(state.progress, docB));
 assert.equal(blocked.tone, "queued");
 assert.equal(blocked.detail, `INV-0 · X · ${co.ledger.code.result_unknown}`);
+// 等电脑（科目表还没读到 / 电脑不在线，线上 11-10）：步骤行写明在等 CC 桌面版，不是「未完成」
+assert.equal(progressText({ done: 0, total: 0, label: "waiting_for_cc", detail: "" }), op.reason.waiting_for_cc);
+assert.ok(op.reason.waiting_for_cc && op.reason.waiting_for_cc !== "waiting_for_cc");
 // 整段对话的进度在状态行：正在第 2/2 张
 assert.equal(progressText(liveProgress(state)!), op.nth(2, 2));
 // 重交的单：更新的进度盖过旧结果（同一步认 processed_at 最新的）

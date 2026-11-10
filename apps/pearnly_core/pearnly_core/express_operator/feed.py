@@ -256,7 +256,10 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
         out.tool(use, DOCUMENT, {**base, "n": item["n"], **view, "group": str(_get(row, "doc_group") or "")}, item["queued"])
         if item["state"] in OPEN:
             blocked = str(_get(row, "blocked_by") or "")
-            out.progress(f"{use}_q{_ms(item['queued'])}", use, 0, 0, "blocked" if blocked else "queued", item["queued"],
+            # 等电脑（科目表还没读到 / 电脑不在线，`tasks.WAITING_FOR_CC`）：步骤行写明在等什么，交上以后换回「排队」
+            waiting = item["raw"] == tasks.WAITING_FOR_CC
+            label = "blocked" if blocked else tasks.WAITING_FOR_CC if waiting else "queued"
+            out.progress(f"{use}_q{_ms(item['queued'])}" + ("_w" if waiting else ""), use, 0, 0, label, item["queued"],
                          detail=blocked, bump=1)
             if item["done"] and item["done"] < item["queued"]:
                 requeued.append(item)
@@ -478,6 +481,11 @@ def receipt(doc_ids, *_args, **_kwargs) -> None:
                            deduplicate=True, task=name)
     except Exception:
         frappe.log_error(title="Operator receipt hook failed")
+
+
+# 等电脑的单（`tasks.WAITING_FOR_CC`）：查与叫醒放在 `tasks`（产品导入它较轻），这里照名字转一下
+waiting_documents = tasks.waiting_documents
+wake_waiting = tasks.wake_waiting
 
 
 def refresh(task) -> None:

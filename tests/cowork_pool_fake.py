@@ -324,7 +324,9 @@ def install(*, push_inputs=None, bank_window=None):
                            local=types.SimpleNamespace(site="testcowork.pearnly.com"),
                            session=types.SimpleNamespace(user="owner@example.com"), _dict=Doc,
                            get_hooks=lambda name: list(_HOOKS.get(name, [])), get_attr=lambda path: _ATTRS[path],
-                           get_meta=_get_meta)
+                           get_meta=_get_meta,
+                           # 主档写进来后叫醒代录任务里等电脑的单（`express_operator.tasks.wake_waiting`）：这里没有代录任务
+                           get_all=lambda *args, **kwargs: [], log_error=lambda *args, **kwargs: None)
     utils = types.ModuleType("frappe.utils")
     utils.now_datetime = datetime.now
     frappe.utils = utils

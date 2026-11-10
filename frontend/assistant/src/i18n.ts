@@ -1146,7 +1146,7 @@ const OPERATOR = {
       placeholder_left: "Blank document left to void", network_down: "Server unreachable", budget: "Task cost limit reached",
       duplicate_ref: "Duplicate party reference", voided: "Voided", ai_resolved: "Unexpected screen handled", express_restarted: "Express reopened",
       screen_locked: "Computer locked", user_active: "Computer in use", network_wait: "Waiting for the server", account_busy: "Account set in use",
-      waiting_start: "Waiting for start time",
+      waiting_start: "Waiting for start time", waiting_for_cc: "Waiting for CC Desktop",
     } as Record<string, string>,
     refused: {
       not_found: "Document not found", not_permitted: "Not permitted", needs_choice: "Choice needed", failed: "Not submitted",
@@ -1223,7 +1223,7 @@ const OPERATOR = {
       placeholder_left: "Express 留有空单待作废", network_down: "服务器无法连接", budget: "已达本任务费用上限",
       duplicate_ref: "对方单号重复", voided: "已作废", ai_resolved: "已处理意外画面", express_restarted: "Express 已重新打开",
       screen_locked: "电脑已锁屏", user_active: "电脑正在使用", network_wait: "正在等待服务器", account_busy: "账套正在使用",
-      waiting_start: "等待开始时刻",
+      waiting_start: "等待开始时刻", waiting_for_cc: "等待 CC 桌面版",
     } as Record<string, string>,
     refused: {
       not_found: "未找到单据", not_permitted: "无权限", needs_choice: "需要选择", failed: "未提交",
@@ -1300,7 +1300,7 @@ const OPERATOR = {
       placeholder_left: "มีเอกสารว่างรอยกเลิก", network_down: "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้", budget: "ถึงวงเงินค่าใช้จ่ายของงานแล้ว",
       duplicate_ref: "เลขที่อ้างอิงซ้ำ", voided: "ยกเลิกแล้ว", ai_resolved: "จัดการหน้าจอที่ไม่คาดคิดแล้ว", express_restarted: "เปิด Express ใหม่แล้ว",
       screen_locked: "คอมพิวเตอร์ล็อกหน้าจอ", user_active: "มีผู้ใช้คอมพิวเตอร์อยู่", network_wait: "กำลังรอเซิร์ฟเวอร์", account_busy: "ชุดบัญชีกำลังถูกใช้งาน",
-      waiting_start: "รอเวลาเริ่ม",
+      waiting_start: "รอเวลาเริ่ม", waiting_for_cc: "รอ CC เดสก์ท็อป",
     } as Record<string, string>,
     refused: {
       not_found: "ไม่พบเอกสาร", not_permitted: "ไม่มีสิทธิ์", needs_choice: "ต้องเลือก", failed: "ยังไม่ได้ส่ง",
@@ -1377,7 +1377,7 @@ const OPERATOR = {
       placeholder_left: "Express に取消待ちの空の伝票があります", network_down: "サーバーに接続できません", budget: "このタスクの費用上限に達しました",
       duplicate_ref: "取引先の伝票番号が重複しています", voided: "取消済み", ai_resolved: "予期しない画面を処理しました", express_restarted: "Express を開き直しました",
       screen_locked: "パソコンがロックされています", user_active: "パソコンが使用中です", network_wait: "サーバーを待っています", account_busy: "会計データが使用中です",
-      waiting_start: "開始時刻を待っています",
+      waiting_start: "開始時刻を待っています", waiting_for_cc: "CC デスクトップを待っています",
     } as Record<string, string>,
     refused: {
       not_found: "伝票が見つかりません", not_permitted: "権限がありません", needs_choice: "選択が必要です", failed: "提出されていません",

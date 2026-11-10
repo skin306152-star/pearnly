@@ -124,6 +124,10 @@ def ingest(doc, plan, *, credential_id, token_generation, issuer, member, protec
     if values and account:
         pool.put_facts(doc, account, values, device=member.device, routine=account == selected, now=now,
                        protected=protected)
+        # 电脑读到了这份账套的主档：代录任务里等电脑（科目表还没读到 / 电脑不在线）的单叫醒任务再交（11-10 testcowork 代录）
+        from pearnly_core.express_operator import tasks as hands_on_tasks
+
+        hands_on_tasks.wake_waiting()
     for observation in plan.observations:
         if not observation.get('account_set_key'):
             continue  # 这台电脑自己的名单不单独发布：目录是池的并集（上面）

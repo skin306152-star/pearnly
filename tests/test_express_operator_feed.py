@@ -395,6 +395,18 @@ class ProjectionTests(unittest.TestCase):
                         self.assertEqual(ends[0]["operator"]["report"]["url"],
                                          "/api/method/pearnly_core.express_operator.feed.report?name=tk0001")
 
+    def test_a_document_waiting_for_the_computer_says_so_on_its_step(self):
+        """线上 11-10：等电脑（科目表还没读到 / 电脑不在线）的单排着，步骤行写明在等 CC 桌面版；交上以后换回「排队」（编号不同，
+        页面认最新的那条）。"""
+        def progress(rows):
+            events = self.project(_task("queued", rows))
+            return [(e["id"], e["label"]) for e in events if e.get("type") == "pearnly.progress" and "_d" in e["id"]]
+        waiting = progress([_doc(1, "queued", "waiting_for_cc")])
+        self.assertEqual([label for _id, label in waiting], ["waiting_for_cc"])
+        sent = progress([_doc(1, "queued")])
+        self.assertEqual([label for _id, label in sent], ["queued"])
+        self.assertNotEqual(waiting[0][0], sent[0][0])
+
     def test_the_same_record_projects_to_the_same_events_twice(self):
         task = _task("attention", [_doc(1, "saved", docnum="HP01"), _doc(2, "not_done", REASONS["batch"]),
                                    _doc(3, "not_done", REASONS["human"]), _doc(4, "queued", blocked_by="IV9 · X")],
