@@ -29,7 +29,7 @@ TOOL_RESULT_MAX = 50_000
 TAIL_MAX = 500
 # 附件：票据照片、PDF、表格、文档。限制类型和大小，不让可执行文件或大视频进沙箱和文件额度。
 # 大小同共用层 `originals.rules.UPLOAD_MAX_BYTES`（本文件零依赖，写同一个数，tests/test_upload_limits.py 核对）。
-UPLOAD_MAX_BYTES = 30 * 1024 * 1024
+UPLOAD_MAX_BYTES = 40 * 1024 * 1024
 UPLOAD_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif", ".pdf",
                                ".xlsx", ".xls", ".csv", ".tsv", ".docx", ".txt", ".md", ".json"})
 

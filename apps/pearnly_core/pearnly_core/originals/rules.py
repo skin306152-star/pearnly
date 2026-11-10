@@ -14,10 +14,11 @@ TABLE_EXTENSIONS = frozenset({".xlsx", ".xls", ".xlsm", ".csv", ".tsv", ".docx",
 SUPPORTED_EXTENSIONS = PDF_EXTENSIONS | IMAGE_EXTENSIONS | TABLE_EXTENSIONS
 MAX_FILE_BYTES = 100 * 1024 * 1024
 MAX_PDF_PAGES = 50
-# 人从页面 / CC 对话交来的一份文件最多这么大（CC 附件、代录资料区、ERP 对话收单同一个；50 页扫描 PDF 约 28MB，11-10 压测）。
+# 人从页面 / CC 对话交来的一份文件最多这么大（CC 附件、代录资料区、ERP 对话收单同一个；50 页扫描 PDF 约 28MB，11-10 压测，
+# 主会话 11-10 定 40MB 给密扫描留余量）。再往上的硬限是甲骨文原件服务 60MB 的 JSON 请求体（base64 后约 4/3），文件约 44MB。
 # 请求体还多一层 multipart 外壳：Frappe（bench 配置 `max_file_size`，`upload_limits`）与租户站 nginx 按
 # UPLOAD_REQUEST_MAX_BYTES 收。零依赖的 CC 契约、前端、宿主机开户脚本各写一份同样的数，tests/test_upload_limits.py 核对。
-UPLOAD_MAX_BYTES = 30 * 1024 * 1024
+UPLOAD_MAX_BYTES = 40 * 1024 * 1024
 UPLOAD_REQUEST_MAX_BYTES = UPLOAD_MAX_BYTES + 1024 * 1024
 
 

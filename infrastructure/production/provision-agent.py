@@ -224,8 +224,8 @@ def ensure_timing_format(path=None):
 
 
 # 租户站请求体上限：同 Frappe 的 bench 配置 `max_file_size`（`pearnly_core.originals.rules.UPLOAD_REQUEST_MAX_BYTES`，
-# 一份文件 30MB + multipart 外壳；本脚本在宿主机上跑、不导入应用代码，写同一个数，tests/test_upload_limits.py 核对）。
-REQUEST_BODY_MIB = 31
+# 一份文件 40MB + multipart 外壳；本脚本在宿主机上跑、不导入应用代码，写同一个数，tests/test_upload_limits.py 核对）。
+REQUEST_BODY_MIB = 41
 
 
 def nginx(site, group, tls=False):

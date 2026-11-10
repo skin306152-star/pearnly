@@ -9,7 +9,7 @@
 - 接口自己：一份文件最多 `originals.rules.UPLOAD_MAX_BYTES`。
 请求体比文件多一层 multipart 外壳（分隔行、字段名、文件名），所以 Frappe 与 nginx 按 `UPLOAD_REQUEST_MAX_BYTES` 收。
 放不进共用层的几处（零依赖的 CC 契约、前端、宿主机脚本）各写一份数字，这里逐个核对等于共用层那一个。
-超限时页面照实说「文件超过 30 MB」（四语词条 `upload.tooLarge`），浏览器先比一次大小、不白传 30 秒。
+超限时页面照实说「文件超过 40 MB」（四语词条 `upload.tooLarge`），浏览器先比一次大小、不白传 30 秒。
 """
 import importlib.util
 import json
@@ -52,7 +52,7 @@ def _multipart_overhead(fields: dict, filename: str) -> int:
 
 class SharedLimitTests(unittest.TestCase):
     def test_one_limit_for_a_file_people_hand_in(self):
-        self.assertEqual(rules.UPLOAD_MAX_BYTES, 30 * MIB)
+        self.assertEqual(rules.UPLOAD_MAX_BYTES, 40 * MIB)
         contracts = _load("upload_limits_contracts", CORE / "assistant/contracts.py")
         self.assertEqual(contracts.UPLOAD_MAX_BYTES, rules.UPLOAD_MAX_BYTES)
         # 代录资料区与 ERP 对话收单直接用共用层那一个（ERP 原来 20MB：对话里收下的 20–30MB 文件交识别时被拒）
@@ -128,6 +128,113 @@ class ProxyTests(unittest.TestCase):
         self.assertLessEqual(rules.UPLOAD_MAX_BYTES, rules.MAX_FILE_BYTES, "识别收得下的才让传")
 
 
+class OriginalPutMemoryTests(unittest.TestCase):
+    """11-10 实测（生产镜像，40MB 一份）：存原件交甲骨文时 base64 文本、json.dumps、编码成字节各复制一份，网页进程瞬时多 132MB；
+    代录上传时与传引擎（+74MB）同时发生。Cowork 网页容器平时就在上限的 99%。请求体改成读的时候才按段编码。"""
+
+    def setUp(self):
+        self.sent = []
+        client = types.ModuleType("pearnly_core.claude_ocr.client")
+        client.internal = lambda path, body, timeout=None: self.sent.append((path, body, timeout)) or {"status": "ok"}
+        package = types.ModuleType("pearnly_core.claude_ocr")
+        package.client = client
+        self.saved = {name: sys.modules.get(name) for name in ("pearnly_core.claude_ocr", "pearnly_core.claude_ocr.client")}
+        sys.modules.update({"pearnly_core.claude_ocr": package, "pearnly_core.claude_ocr.client": client})
+        self.oracle = _load("upload_limits_oracle", CORE / "originals/oracle.py")
+
+    def tearDown(self):
+        for name, module in self.saved.items():
+            if module is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = module
+
+    def _drain(self, body, size=8192):
+        parts = []
+        while True:
+            part = body.read(size)
+            if not part:
+                return b"".join(parts)
+            parts.append(part)
+
+    def test_the_original_goes_to_oracle_as_a_stream_with_the_same_json(self):
+        import base64
+        import os
+
+        for size in (0, 1, 2, 3, 3 * MIB - 1, 3 * MIB, 3 * MIB + 1, 7 * MIB + 5):
+            content = os.urandom(size)
+            self.sent.clear()
+            self.oracle.put("t1/ab/cd.pdf", "ใบกำกับ.pdf", content)
+            path, body, timeout = self.sent[0]
+            self.assertEqual(path, "/v1/originals/put")
+            self.assertTrue(hasattr(body, "read"), "交出去的是可读的流，不是装着整份 base64 的 dict")
+            raw = self._drain(body)
+            self.assertEqual(len(body), len(raw), "长度准确，requests 照常带 Content-Length")
+            self.assertEqual(json.loads(raw), {"object": "t1/ab/cd.pdf", "filename": "ใบกำกับ.pdf",
+                                               "data": base64.b64encode(content).decode()}, size)
+            self.assertEqual(timeout, (5, 180))
+
+    def test_a_forty_megabyte_original_is_sent_without_holding_its_base64(self):
+        import os
+        import tracemalloc
+
+        content = os.urandom(40 * MIB)
+        self.oracle.put("t1/ab/cd.pdf", "a.pdf", content)
+        body = self.sent[0][1]
+        tracemalloc.start()
+        try:
+            total = 0
+            while True:
+                part = body.read(8192)
+                if not part:
+                    break
+                total += len(part)
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+        self.assertGreater(total, 53 * MIB)
+        self.assertLess(peak, 16 * MIB, "原来整份 base64 + JSON 要多占 130MB 以上")
+
+    def test_the_oracle_client_sends_a_stream_as_the_request_body(self):
+        posted = []
+        stubs = {}
+        for name in ("engine", "pages", "segments"):
+            stubs[name] = types.ModuleType(f"pearnly_core.claude_ocr.{name}")
+        package = sys.modules["pearnly_core.claude_ocr"]
+        for name, module in stubs.items():
+            setattr(package, name, module)
+            sys.modules[f"pearnly_core.claude_ocr.{name}"] = module
+        frappe = sys.modules.get("frappe") or types.ModuleType("frappe")
+        frappe.logger = getattr(frappe, "logger", lambda *a, **k: types.SimpleNamespace(warning=lambda *a, **k: None))
+        saved = sys.modules.get("frappe")
+        saved_requests = sys.modules.get("requests")
+        requests = types.ModuleType("requests")
+        requests.RequestException = type("RequestException", (Exception,), {})
+        sys.modules["frappe"], sys.modules["requests"] = frappe, requests
+        try:
+            client = _load("upload_limits_client", CORE / "claude_ocr/client.py")
+            session = types.SimpleNamespace(post=lambda url, **kwargs: posted.append((url, kwargs)) or types.SimpleNamespace(
+                status_code=200, json=lambda: {"status": "ok"}))
+            client._session = lambda: (session, "https://oracle.test")
+            body = self.oracle.JsonUpload({"object": "o"}, b"abc")
+            client.internal("/v1/originals/put", body, timeout=(5, 180))
+            client.internal("/v1/originals/inspect", {"object": "o"})
+        finally:
+            for name in stubs:
+                sys.modules.pop(f"pearnly_core.claude_ocr.{name}", None)
+            for name, module in (("frappe", saved), ("requests", saved_requests)):
+                if module is None:
+                    sys.modules.pop(name, None)
+                else:
+                    sys.modules[name] = module
+        (url, stream), (_, plain) = posted
+        self.assertEqual(url, "https://oracle.test/v1/originals/put")
+        self.assertIs(stream["data"], body)
+        self.assertEqual(stream["headers"], {"Content-Type": "application/json"})
+        self.assertNotIn("json", stream)
+        self.assertEqual(plain["json"], {"object": "o"})  # 其余内部调用照旧
+
+
 class MessageTests(unittest.TestCase):
     def test_too_large_says_the_limit_in_four_languages(self):
         rows = [line.split("\t") for line in (CORE / "i18n/messages.tsv").read_text(encoding="utf-8").splitlines()]
@@ -144,7 +251,7 @@ class MessageTests(unittest.TestCase):
         sys.modules["frappe"] = frappe
         try:
             limits = _load("upload_limits_message", CORE / "originals/upload_limits.py")
-            self.assertEqual(limits.too_large(), "File is larger than 30 MB")
+            self.assertEqual(limits.too_large(), "File is larger than 40 MB")
         finally:
             if saved is None:
                 sys.modules.pop("frappe", None)
@@ -171,7 +278,7 @@ import { createAttachmentAdapter } from "@/lib/managed-agents/attachments";
 import { uploadMethod } from "@/lib/frappe";
 
 const g = globalThis as any;
-const UPLOAD_MAX_BYTES = 30 * 1024 * 1024;
+const UPLOAD_MAX_BYTES = 40 * 1024 * 1024;
 g.pearnly_upload_max_bytes = UPLOAD_MAX_BYTES;  // 服务端写进页面的那个数
 g.URL.createObjectURL = () => "blob:local";
 const calls: string[] = [];
@@ -202,13 +309,13 @@ class PageTests(unittest.TestCase):
 g.fetch = async (url: string) => { calls.push(String(url)); throw new Error("must not upload"); };
 const steps = await run(big(UPLOAD_MAX_BYTES + 1));
 assert.deepEqual(steps.map((s: any) => s.type), ["incomplete"]);
-assert.equal(steps[0].message, "File is larger than 30 MB");
+assert.equal(steps[0].message, "File is larger than 40 MB");
 assert.deepEqual(calls, []);
 g.done();
 """)
         self.run_page(r"""
 g.fetch = async () => { throw new Error("must not upload"); };
-assert.equal((await run(big(UPLOAD_MAX_BYTES + 1)))[0].message, "文件超过 30 MB");
+assert.equal((await run(big(UPLOAD_MAX_BYTES + 1)))[0].message, "文件超过 40 MB");
 g.done();
 """, lang="zh")
 
@@ -228,9 +335,9 @@ g.done();
 g.fetch = async () => ({ ok: false, status: 413, json: async () => { throw new SyntaxError("html"); } });
 const steps = await run(big(1024));
 assert.equal(steps.at(-1).type, "incomplete");
-assert.equal(steps.at(-1).message, "File is larger than 30 MB");
+assert.equal(steps.at(-1).message, "File is larger than 40 MB");
 await assert.rejects(uploadMethod("pearnly_core.express_operator.api.intake", { company: "c" }, big(1024)),
-                     (err: any) => err.message === "File is larger than 30 MB");
+                     (err: any) => err.message === "File is larger than 40 MB");
 g.done();
 """)
 

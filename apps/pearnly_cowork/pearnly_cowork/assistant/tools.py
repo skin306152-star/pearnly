@@ -4711,7 +4711,7 @@ TOOLS = [
      "description": "Bring up to 5 files from a folder the user's computer opened to the website into this chat "
                     "(reader, root_id and paths as listed by cowork_folder_files). Use each returned file like a user "
                     "attachment: for cowork_recon_start (a bank statement, ledger or VAT report), "
-                    "cowork_recognize_attachments or cowork_stocktake_create. Up to 30 MB each, the same types as chat "
+                    "cowork_recognize_attachments or cowork_stocktake_create. Up to 40 MB each, the same types as chat "
                     "attachments. Bringing a file in does not recognize it and is not charged. waiting_for_cc as in "
                     "cowork_folder_files; reading means that file is still coming: call again with the same input "
                     "(files already added are not brought in twice), never wait with sleep.",
