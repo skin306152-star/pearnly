@@ -419,9 +419,10 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
     perpetual = _perpetual(account_dir)  # 定期盘存账套不过账，也就不查存货科目组（验收 10-25：缺组时原来报笼统的写盘失败）
     balances: Dict[str, Tuple[Decimal, Decimal]] = {}  # 批次链结存（STCRD 行上的结存栏，既有写法）
     totals: Dict[str, Tuple[Decimal, Decimal]] = {}  # 总结存（判成本、PHYBAL；主档按增减改，``stock_sale.move_stmas``）
-    # 盘点调整 TK 照 Express 原生（实录第 9 条 TK0000001）：单价不取载荷的，盘盈挂这个仓最近一次进货的那一批、取那一批的成本
+    # 盘点调整 TK 照 Express 原生（实录第 9 条 TK0000001）：盘盈挂这个仓最近一次进货的那一批、取那一批的成本
     # （S 盘先进先出 2,836 行、平均成本 96 行如此；实录 TK0000001 在平均成本账套也是批成本 45，不是这个仓的均价 50）；挂不上批次的
-    # 先进先出账套记 0（同原生），平均成本账套按商品均价（待核）。明细带 PHYBAL（写后这个仓的结存）
+    # 先进先出账套记 0（同原生），平均成本账套按商品均价（待核）。载荷带了单价就用它：ERP 只在人亲手填 / 改过单价时才带
+    # （`stock_entry._net`，11-06 审定 #5；盘点直写不带价），以人改过的价为准（主会话 11-10 定第 5 点）。明细带 PHYBAL（写后这个仓的结存）
     main = account_rules.main_location(account_dir)
     places = [(match["stkcod"], stock_location.location_at(locations, index) or main) for index, match in enumerate(found)]
     gains = {place for place, item in zip(places, items) if _dec(item.get("qty")) > 0}
@@ -445,7 +446,7 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             unit_cost = given if (signed > 0 and given > 0) else _cost(account_dir, now)
             place = places[seq - 1]
             lot = lots.get(place) if count and signed > 0 else None
-            if count and signed > 0:
+            if count and signed > 0 and given <= 0:
                 unit_cost = lot[0] if lot else Decimal(0) if fifo else _cost(account_dir, now)
             value = _q2(abs(qty) * unit_cost)
             signed_value = -value if signed < 0 else value

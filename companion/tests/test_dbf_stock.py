@@ -154,13 +154,13 @@ def _receipt(acct, docnum, day, qty, value, code="ICE01", loc="01", seq="  1"):
 
 
 def test_a_count_gain_in_a_fifo_book_takes_the_cost_of_the_latest_receipt_and_links_that_lot(book):
-    """实录第 9 条：先进先出账套的盘盈单价取这个仓最近一次进货那一批的成本（S 盘 2,836 行），MLOTNUM / RDOCNUM 指向那一行，
-    不取载荷给的单价；别的仓的进货不算。"""
+    """实录第 9 条：先进先出账套的盘盈（载荷没带单价）取这个仓最近一次进货那一批的成本（S 盘 2,836 行），MLOTNUM / RDOCNUM
+    指向那一行；别的仓的进货不算。"""
     isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F")
     _receipt(book, "RR0000009", dt.date(2026, 3, 1), 10, 400)
     _receipt(book, "RR0000010", dt.date(2026, 3, 5), 10, 450)
     _receipt(book, "RR0000011", dt.date(2026, 3, 9), 10, 600, loc="02")
-    res = _write(book, _entry("TK", [_line("ICE01", 15, unit_cost="99")]))
+    res = _write(book, _entry("TK", [_line("ICE01", 15)]))
     assert res.ok, res.error
     line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
     assert (line["UNITPR"], line["XUNITPR"], line["XTRNVAL"], line["NETVAL"]) == (45.0, 45.0, 675.0, 675.0)
@@ -168,6 +168,31 @@ def test_a_count_gain_in_a_fifo_book_takes_the_cost_of_the_latest_receipt_and_li
     assert (line["LOTBAL"], line["LOTVAL"], line["LUNITPR"], line["PHYBAL"]) == (15.0, 675.0, 45.0, 20.0)
     _heads, lines = _journal(book, res.docnum)
     assert lines == [("0", INVENTORY_ACC, Decimal("675.00"), "1"), ("1", OFFSET_ACC, Decimal("675.00"), "1")]
+
+
+def test_a_count_gain_uses_the_price_a_person_edited(book):
+    """主会话 11-10 定（引擎评估第 5 点）：物料调整单上人亲手填 / 改过的单价 ERP 才带进载荷（`stock_entry._net`），CC 写盘盈就用它，
+    不再换成批成本；仍挂这个仓最近那一批。"""
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F")
+    _receipt(book, "RR0000010", dt.date(2026, 3, 5), 10, 450)
+    res = _write(book, _entry("TK", [_line("ICE01", 15, unit_cost="99")]))
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["UNITPR"], line["XUNITPR"], line["XTRNVAL"], line["NETVAL"]) == (99.0, 99.0, 1485.0, 1485.0)
+    assert (line["RDOCNUM"], line["LOTVAL"], line["LUNITPR"]) == ("RR0000010     1", 1485.0, 99.0)
+    _heads, lines = _journal(book, res.docnum)
+    assert lines == [("0", INVENTORY_ACC, Decimal("1485.00"), "1"), ("1", OFFSET_ACC, Decimal("1485.00"), "1")]
+
+
+def test_a_count_gain_without_a_lot_uses_the_price_a_person_edited(book):
+    """同上：挂不上批次的先进先出账套原来记 0；人改过单价时按人填的价记、照常过账。"""
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F")
+    res = _write(book, _entry("TK", [_line("ICE01", 3, unit_cost="12")]))
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["UNITPR"], line["XTRNVAL"], line["MLOTNUM"].strip()) == (12.0, 36.0, "")
+    _heads, lines = _journal(book, res.docnum)
+    assert lines == [("0", INVENTORY_ACC, Decimal("36.00"), "1"), ("1", OFFSET_ACC, Decimal("36.00"), "1")]
 
 
 def test_a_count_gain_linked_to_an_old_cc_receipt_spells_its_line_number_as_stored(book):
@@ -205,7 +230,7 @@ def test_without_stloc_the_count_physical_balance_is_the_product_balance(book):
 def test_a_count_gain_without_a_lot_in_a_fifo_book_is_costed_at_zero(book):
     """实录第 9 条：挂不上批次的盘盈 Express 记 0 成本（6412NLT TK2000001），以后靠「计算成本」重排；零金额不过账。"""
     isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F")
-    res = _write(book, _entry("TK", [_line("ICE01", 3, unit_cost="12")]))
+    res = _write(book, _entry("TK", [_line("ICE01", 3)]))
     assert res.ok, res.error
     line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
     assert (line["UNITPR"], line["XTRNVAL"], line["MLOTNUM"].strip()) == (0.0, 0.0, "")
