@@ -28,4 +28,6 @@
 | 旧代码 | test_express_operator_tasks（等电脑挂起、再交、交上后收尾）、test_erp_express_direct（submit 映射、poll 不按直写推）、test_express_operator_feed（步骤标签）、test_cc_operator（前端说法） | 红 |
 | fb426b9d7 | 上述 + 受影响单测 | 过 |
 
-gate、候选离线、受影响流程的结果合入前补在下面。
+| 0b985d0bc | gate（development.yml 全部步骤） | 214 步全过 |
+| 0b985d0bc | 候选离线（生产镜像 fb1037ad） | 107 组，LANE EXIT 0 |
+| 0b985d0bc | 受影响流程（parity-lab，`--changed`） | 7 条流程 × 两套数据，20/20 过 |
