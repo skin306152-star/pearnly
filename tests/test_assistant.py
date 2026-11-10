@@ -6330,6 +6330,26 @@ class AskUserTests(unittest.TestCase):
             with self.subTest(answers=answers), self.assertRaises(ask.AnswerError):
                 ask.result(self.QUESTIONS, answers)
 
+    def test_a_question_shown_only_for_an_earlier_answer(self):
+        """测试机 11-09（shots/12）：选了「按服务录入」还问从哪个仓库出库。题目可带 show_if（前面第几题选了哪几个才问）：
+        条件不成立时那一题标 not_asked 交回，页面交来的答案不算数；题号只能指前面的题、标签要在那一题里。"""
+        ask = self.ask()
+        questions = {"questions": [
+            {"question": "Stock or service?", "header": "Entry", "options": [{"label": "Stock"}, {"label": "Service"}]},
+            {"question": "Which warehouse?", "header": "Warehouse", "options": [{"label": "01"}, {"label": "02"}],
+             "show_if": {"question": 1, "labels": ["Stock"]}}]}
+        self.assertIsNone(ask.problem(questions))
+        out = json.loads(ask.result(questions, [{"labels": ["Service"]}, {"labels": ["01"]}]))
+        self.assertEqual(out["answers"][1], {"header": "Warehouse", "question": "Which warehouse?", "labels": [],
+                                             "not_asked": True})
+        out = json.loads(ask.result(questions, [{"labels": ["Stock"]}, {"labels": ["02"]}]))
+        self.assertEqual(out["answers"][1]["labels"], ["02"])
+        for show_if in ({"question": 2, "labels": ["Stock"]}, {"question": 1, "labels": ["Later"]},
+                        {"question": 1, "labels": []}, {"question": "1", "labels": ["Stock"]}):
+            bad = {"questions": [questions["questions"][0], {**questions["questions"][1], "show_if": show_if}]}
+            with self.subTest(show_if=show_if):
+                self.assertIsInstance(ask.problem(bad), str)
+
     def _decide(self, user="owner@x.test", allow=True, answers=None, tool="ask_user"):
         rows = {"r1": {"session_id": "conv", "tool_use_id": "sevt_1", "user": "owner@x.test", "status": "awaiting_approval",
                        "version": 1, "tool": tool, "tool_input": json.dumps(self.QUESTIONS)}}

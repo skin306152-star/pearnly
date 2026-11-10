@@ -5,7 +5,9 @@
 - 走本站「等人作答」那一套（`toolrun`）：工具声明 ``approval``，调用登记成 awaiting_approval，答案随对话里的确认
   （`api.confirm` 的确认项带 ``answers``）交回，落进执行记录、跨设备一致，页面重开还在；结果经 ``user.custom_tool_result`` 交回模型。
 - 出卡片前按 :func:`problem` 核题目形状（`tools.refusal`），不合的直接把原因交回模型，不出卡片。
-- 交回模型的结果 :func:`result`：``{"answers": [{header, question, labels, other?, skipped?}]}``，按题目顺序。
+- 交回模型的结果 :func:`result`：``{"answers": [{header, question, labels, other?, skipped?, not_asked?}]}``，按题目顺序。
+- 题目可带 ``show_if`` ``{question: 前面第几题（从 1 起）, labels: [那一题的选项]}``：那一题选中其中之一才问（测试机 11-09：选了
+  「按服务录入」还问从哪个仓库出库）；不成立时这一题标 ``not_asked``，页面交来的答案不算数。
 
 纯函数（不导入 Frappe）。
 """
@@ -49,6 +51,17 @@ def problem(tool_input: Mapping[str, Any]) -> Optional[str]:
         labels = [_text(option.get("label"), 100) if isinstance(option, Mapping) else "" for option in options]
         if not all(labels) or len(set(labels)) != len(labels):
             return f"Question {index} needs distinct option labels."
+        condition = question.get("show_if")
+        if condition is not None:
+            earlier = condition.get("question") if isinstance(condition, Mapping) else None
+            wanted = condition.get("labels") if isinstance(condition, Mapping) else None
+            if (not isinstance(earlier, int) or isinstance(earlier, bool) or not 1 <= earlier < index
+                    or not isinstance(wanted, list) or not wanted):
+                return f"Question {index}: show_if needs question (an earlier question number) and labels."
+            offered = [_text(option.get("label"), 100) for option in questions[earlier - 1].get("options") or ()
+                       if isinstance(option, Mapping)]
+            if any(_text(label, 100) not in offered for label in wanted):
+                return f"Question {index}: show_if labels must be options of question {earlier}."
         search = question.get("search")
         if search is not None and (not isinstance(search, Mapping) or search.get("kind") not in SEARCH_KINDS
                                    or not _text(search.get("company")) or not _text(search.get("doc_id"))):
@@ -69,6 +82,10 @@ def result(tool_input: Mapping[str, Any], answers) -> str:
     for question, answer in zip(questions, answers):
         if not isinstance(answer, Mapping):
             raise AnswerError("each answer must be an object")
+        if not _shown(question, out):
+            out.append({"header": _text(question.get("header"), HEADER_MAX), "question": _text(question.get("question")),
+                        "labels": [], "not_asked": True})
+            continue
         offered = [_text(option.get("label"), 100) for option in question.get("options") or ()]
         labels = [_text(label, 100) for label in answer.get("labels") or () if _text(label, 100)]
         if any(label not in offered for label in labels) or len(set(labels)) != len(labels):
@@ -85,6 +102,18 @@ def result(tool_input: Mapping[str, Any], answers) -> str:
             row.pop("other", None)
         out.append(row)
     return json.dumps({"answers": out}, ensure_ascii=False)
+
+
+def _shown(question: Mapping[str, Any], earlier: List[dict]) -> bool:
+    """``show_if`` 成立没有（按已整理好的前面几题）；没有条件的总问。"""
+    condition = question.get("show_if")
+    if not isinstance(condition, Mapping):
+        return True
+    at = condition.get("question")
+    if not isinstance(at, int) or not 1 <= at <= len(earlier):
+        return True
+    wanted = {_text(label, 100) for label in condition.get("labels") or ()}
+    return bool(wanted & set(earlier[at - 1].get("labels") or ()))
 
 
 def unanswered(tool_input: Mapping[str, Any]) -> str:

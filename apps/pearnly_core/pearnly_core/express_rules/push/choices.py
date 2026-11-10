@@ -317,6 +317,11 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
                     continue
             # 库存行（行上或整批声明了存货）：照旧——选过的（含任务默认的「新建」）> Express 同名不问 > 问
             value = chosen("item", key)
+            if not own and not value and norm in other_names and norm not in names:
+                # 整批走库存（卡片预选 / 公司选的），这一行却与 Express 的非库存品同名：Express 有这件、写入照名取它（不动库存），
+                # 不问「没有商品资料」、不建重复物料，也不为它问出库仓（测试机 11-09 shots/13）。行上逐行声明了存货的照旧问
+                kinds[norm] = "service"
+                continue
             if value and (value == NEW or value in codes):
                 items[norm] = value
                 used("item", key)

@@ -87,7 +87,10 @@ CORE_TOOLS = [
                     "unknown (last write result unknown: the user must check Express first), not_writable (facts, not "
                     "choices), waiting and ready. needs_card false means everything is decided: write without asking. "
                     "Otherwise turn the proposed and open items into ask_user questions, then save the answers with "
-                    "pearnly_precheck_answer. planned, when present, maps a document id to how that document will be "
+                    "pearnly_precheck_answer. An item with when {key, value} only applies if the item with that key "
+                    "ends up with that value (e.g. the warehouse and the stock items asked only when the entry is by "
+                    "stock): ask it after that item's question with show_if naming that question and the label of that "
+                    "value, and never save an answer for it when the user picked another value. planned, when present, maps a document id to how that document will be "
                     "entered if it is written now (only for documents with nothing left to decide): before writing, "
                     "whenever you tell the user cash or credit or which account, take it from planned, never from the "
                     "document type. When the user said in the chat what kind of expense the documents are (e.g. "
@@ -151,9 +154,11 @@ CORE_TOOLS = [
                     "buyer on a document is not this company). Each question: question (full sentence ending with ?), "
                     "header (at most 12 characters), multiSelect, options 2-4 each with label and description; the card "
                     "adds Other by itself. For big lists set search {company, doc_id, kind: accounts|products|parties} so "
-                    "Other can search them. The result is {answers: [{header, question, labels, other?, skipped?}]} in "
+                    "Other can search them. show_if {question, labels} asks a question only when an earlier question (its "
+                    "number, from 1) got one of those labels; otherwise it is hidden and comes back as not_asked. The "
+                    "result is {answers: [{header, question, labels, other?, skipped?, not_asked?}]} in "
                     "question order; skipped means the user left it undecided, so documents that depend on it are not "
-                    "written this time. Map the labels back to option codes and save them with pearnly_precheck_answer.",
+                    "written this time; not_asked means it did not apply, so save nothing for it. Map the labels back to option codes and save them with pearnly_precheck_answer.",
      "input_schema": {"type": "object", "properties": {
          "questions": {"type": "array", "minItems": 1, "maxItems": 4, "items": {"type": "object", "properties": {
              "question": {"type": "string"},
@@ -163,7 +168,11 @@ CORE_TOOLS = [
                  "label": {"type": "string"}, "description": {"type": "string"}}, "required": ["label"]}},
              "search": {"type": "object", "properties": {
                  "company": {"type": "string"}, "doc_id": {"type": "string"},
-                 "kind": {"type": "string", "enum": ["accounts", "products", "parties"]}}}},
+                 "kind": {"type": "string", "enum": ["accounts", "products", "parties"]}}},
+             "show_if": {"type": "object", "properties": {
+                 "question": {"type": "integer", "minimum": 1},
+                 "labels": {"type": "array", "items": {"type": "string"}, "minItems": 1}},
+                 "required": ["question", "labels"]}},
              "required": ["question", "header", "options"]}}},
          "required": ["questions"]},
      "handler": "pearnly_core.assistant.ask.unanswered"},

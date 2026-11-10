@@ -10,6 +10,9 @@
   未定（没有值，排在本组最前；依赖它的单留下，其余照写，不硬拦）。
 - 值不在可选范围里（选过的档在 Express 里被删 / 改了）当没有值，不静默换别的（同 `resolve`）。
 
+- **有条件的项**（``when``）：只在另一项最后答成某个值时才成立（例：按预选「走库存」才要问的出库仓、存货对照）；那一项答成别的值，
+  它不留单、它的答案不展开（测试机 11-09：选了按服务录入，后面还问从哪个仓库出库）。
+
 卡片点「开始」交回的答案经 :func:`expand` 展开到每张单 ``[{kind, subject, value, label, remember}]``，产品按自己现有的
 记法存（记在哪、谁能选都在产品里）。:func:`held_back` / :func:`writable` 算哪些单因未定项留下、哪些照写。
 
@@ -167,7 +170,36 @@ def normalize_item(raw: Mapping[str, Any], direction: str = "") -> Dict[str, Any
         item["options"] = options
     if raw.get("search"):
         item["search"] = _text(raw.get("search"), 40)
+    when = raw.get("when")
+    if when is not None:
+        item["when"] = _when(when)
     return item
+
+
+def _when(raw) -> Dict[str, str]:
+    """``{kind, subject, value}``（产品交来的：另一项的类与归类键、要它答成的值）→ ``{key, value}``。"""
+    if not isinstance(raw, Mapping) or str(raw.get("kind") or "") not in KINDS:
+        raise PrecheckError("bad condition")
+    subject, value = raw.get("subject"), _text(raw.get("value"), VALUE_MAX)
+    if not isinstance(subject, str) or not subject or len(subject) > SUBJECT_MAX or not value:
+        raise PrecheckError("bad condition")
+    return {"key": item_key(str(raw["kind"]), subject), "value": value}
+
+
+def applies(item: Mapping[str, Any], by_key: Mapping[str, Mapping[str, Any]],
+            answers: Iterable[Mapping[str, Any]] = ()) -> bool:
+    """这一项此刻成不成立：没有 ``when`` 的总成立；有的看它依赖的那一项最后的值（答了按答的，没答按它现在的值）。依赖的项不在卡片上
+    （别的单判出的、已经不在）当成立，宁可多问一项。"""
+    when = item.get("when")
+    if not when:
+        return True
+    other = by_key.get(when["key"])
+    if other is None:
+        return True
+    value = next((_text(answer.get("value"), VALUE_MAX) for answer in answers or ()
+                  if isinstance(answer, Mapping) and str(answer.get("key") or "") == when["key"]
+                  and not _text(answer.get("doc_id"), 200) and str(answer.get("value") or "").strip()), other["value"])
+    return value == when["value"]
 
 
 def state_of(item: Mapping[str, Any]) -> str:
@@ -338,6 +370,8 @@ def expand(card: Mapping[str, Any], answers: Iterable[Mapping[str, Any]]
         if codes is not None and not item.get("search") and value not in codes:
             errors.append({"key": key, "code": ERR_NOT_OFFERED})
             continue
+        if not applies(item, by_key, answers):
+            continue  # 依赖的那一项答成了别的值：这一项不成立，答了也不展开（不算错）
         document = bool(one) or item["source"] == DOCUMENT
         for doc_id in ([one] if one else item["docs"]):
             row = {"kind": item["kind"], "subject": item["subject"], "value": value, "label": item["label"],
@@ -356,10 +390,12 @@ def _answered(answers) -> set:
 
 def held_back(card: Mapping[str, Any], answers: Iterable[Mapping[str, Any]] = ()) -> List[str]:
     """答了这些以后，还因为未定项留下的单（有未定项没答）。预选项没答也照预选写，不留。只答给其中一张的，别的几张照旧留下。"""
+    answers = list(answers or ())
     answered = _answered(answers)
+    by_key = {item["key"]: item for item in items_of(card)}
     held: List[str] = []
     for item in items_of(card):
-        if item["state"] != OPEN or (item["key"], "") in answered:
+        if item["state"] != OPEN or (item["key"], "") in answered or not applies(item, by_key, answers):
             continue
         held.extend(doc_id for doc_id in item["docs"] if doc_id not in held and (item["key"], doc_id) not in answered)
     return held
@@ -389,6 +425,6 @@ __all__ = ["BOOK", "BOOK_SETTING", "CC", "CHECK", "COMPANY_RULE", "DECIDED", "DE
            "EXPRESS_HISTORY", "FACE", "GROUPS", "HISTORY", "KINDS", "KIND_GROUPS", "MAX_ANSWERS", "MAX_DOCUMENTS",
            "NOT_WRITABLE", "OPEN", "PAYMENT", "PER_DOCUMENT_KINDS", "PINNED", "PROPOSED", "PROPOSED_SOURCES",
            "PURCHASE", "PrecheckError", "REMEMBERED", "RULE", "SALES", "SERVICE", "SMALL_LIST", "SOURCES", "STATES", "STOCK",
-           "STOCK_ACCOUNT_PREFIX", "SUGGESTED", "TASK_DEFAULT", "UNKNOWN", "WAITING", "defaults", "expand", "group_of",
+           "STOCK_ACCOUNT_PREFIX", "SUGGESTED", "TASK_DEFAULT", "UNKNOWN", "WAITING", "applies", "defaults", "expand", "group_of",
            "held_back", "item_key", "items_of", "merge", "needs_card", "normalize_item", "preview", "state_of",
            "writable"]

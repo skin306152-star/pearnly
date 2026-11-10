@@ -247,5 +247,37 @@ class Locations(unittest.TestCase):
         self.assertEqual(kinds(result), ["item", "location"])
 
 
+class NonStockSameName(unittest.TestCase):
+    """测试机 11-09（shots/13）：销货明细「ค่าบริการหน้าร้าน 7-11」与 Express 的非库存品（码 ค่าบริการ）同名，卡片预选「走库存」
+    重判后却问「Express 中尚无商品资料」、推荐新建（会建出重复物料）。同名比对只看了库存品；非库存品同名同样是「Express 有这件」。"""
+
+    CATALOG = PRODUCTS + [{"code": "ค่าบริการ", "name": "ค่าบริการหน้าร้าน 7-11", "kind": "non_stock"}]
+    WAREHOUSES = [{"code": "01", "name": "คลังสำนักงานใหญ่", "used": "1", "main": "1"},
+                  {"code": "02", "name": "คลังขายส่ง", "used": "1"}]
+
+    def resolve(self, posting_kind, **more):
+        items = [{"name": "ค่าบริการหน้าร้าน 7-11", "qty": "1", "price": "5000", "subtotal": "5000"}]
+        config = {**CONFIG, "reported_products": self.CATALOG, "reported_warehouses": self.WAREHOUSES}
+        return C.resolve(sale(items=items), direction="sales", posting_kind=posting_kind, config=config,
+                         remembered={"party": {}}, ask_location=True, **more)
+
+    def test_a_preselected_stock_batch_does_not_ask_for_a_non_stock_item_express_already_has(self):
+        result = self.resolve("stock")
+        self.assertNotIn("item", kinds(result))
+        self.assertNotIn("location", kinds(result))  # 这一行不动库存：不问出库仓
+        self.assertEqual(result["applied"]["kinds"], {C.norm_name("ค่าบริการหน้าร้าน 7-11"): "service"})
+
+    def test_undeclared_lines_settle_the_same_way(self):
+        result = self.resolve(None, undeclared_lines=True)
+        self.assertEqual([kind for kind in kinds(result) if kind != "party"], [])
+        self.assertEqual(result["applied"]["kinds"], {C.norm_name("ค่าบริการหน้าร้าน 7-11"): "service"})
+
+    def test_a_line_the_user_declared_stock_still_asks(self):
+        items = [{"name": "ค่าบริการหน้าร้าน 7-11", "qty": "1", "price": "5000", "subtotal": "5000", "posting_kind": "stock"}]
+        config = {**CONFIG, "reported_products": self.CATALOG}
+        result = C.resolve(sale(items=items), direction="sales", posting_kind=None, config=config, remembered={})
+        self.assertIn("item", kinds(result))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1084,8 +1084,9 @@ def _entered(row, rules_now=None):
     MR.ERP 的给单号与 `_mrerp_entered`（单据类型、现 / 赊、导入菜单）；什么都没有回 None。"""
     target = _loads(getattr(row, "target_json", None))
     target = target if isinstance(target, dict) else {}
+    response = _loads(getattr(row, "response_json", None))
     item = dict(pushed_rules.written(_loads(row.payload_json), target.get("decided_by"), target.get("company_rules"),
-                                     rules_now) or {})
+                                     rules_now, response=response) or {})
     docnum = str(getattr(row, "external_docnum", None) or "").strip()
     if docnum:
         item["docnum"] = docnum
@@ -1093,7 +1094,7 @@ def _entered(row, rules_now=None):
             # 票面号没原样进 Express（销项超出单号宽度改用自编号、进项参考号被缩写）：两个号都给，CC 说清楚
             item.update(pushed_rules.numbers(_loads(row.payload_json), docnum))
     if target.get("adapter") == "mrerp":
-        item.update(_mrerp_entered(_loads(getattr(row, "response_json", None))))
+        item.update(_mrerp_entered(response))
     # 数字会计员第 3 期第 13 条：自动推的单说清是哪一类、按哪一档、谁触发的；写完核对的结论（只防写入走样与挂错对方）
     automation = target.get("automation") if isinstance(target, dict) else None
     if isinstance(automation, dict):
