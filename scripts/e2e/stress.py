@@ -304,8 +304,10 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
                 idle_since = None
                 continue
             # 停下来等人（有提问卡 / 开始卡）或空闲 40 秒：这一格看完
-            waiting_user = look["send"] and not look["stop"] and (look["asks"] or look["start_card"])
-            idle = look["send"] and not look["stop"] and not look["line"]
+            # 还有工具在本站执行（识别挂着等）就不算停下：页面那时可能没有状态行（11-10 代录实测），照等
+            busy = any(t.get("status") == "running" for t in result["tools"])
+            waiting_user = look["send"] and not look["stop"] and (look["asks"] or look["start_card"]) and not busy
+            idle = look["send"] and not look["stop"] and not look["line"] and not busy
             if waiting_user or idle:
                 idle_since = idle_since or now
                 if now - idle_since >= idle_after and not follow:
