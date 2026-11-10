@@ -282,12 +282,25 @@ class Submit(Base):
         self.enterContext(patch.object(operator, "apply_intake_answers", side_effect=lambda company, name, answers: list(answers or [])))
         self.choices = {"lines": [{"decided": True}], "payment_decided": True}
         self.db.get_value.side_effect = self.record
+        # 交之前再判一次（写不了的不交）：默认判得出、能写；要测写不了的用例自己换掉
+        self.enterContext(patch.object(operator, "_intake_precheck", return_value={"doc_id": "I:LI-1", "state": "choose"}))
 
     def record(self, doctype, name, fields=None, as_dict=False, **kw):
         if isinstance(fields, list) and "line_choices" in fields:
             return SimpleNamespace(line_choices=json.dumps(self.choices), direction="sales",
                                    result=json.dumps({"buyer_name": "Big C", "buyer_tax_id": "0107536000633"}))
         return self.get_value(doctype, name, fields, as_dict)
+
+    def test_a_record_the_check_finds_unwritable_is_not_submitted_and_says_why(self):
+        """A 线 11-10：预检判「写不了」的票，点开始仍交了出去，再失败成不相干的原因（「部分行未选物料」）。交之前再判一次：
+        写不了的不提交、不交电脑，原因照预检写。"""
+        self.choices = {"lines": [{"decided": False}], "payment_decided": False}
+        blocked = {"doc_id": "I:LI-1", "state": "blocked", "reason": "no_revenue_account", "message": "No revenue account"}
+        with patch.object(operator, "_intake_precheck", return_value=blocked) as checked, \
+                patch.object(intake, "submit_chat", side_effect=AssertionError("an unwritable record is not submitted")):
+            out = operator._submit_intake("CO-1", "I:LI-1", [])
+        checked.assert_called_once_with("CO-1", "I:LI-1")
+        self.assertEqual(out, {"doc_id": "I:LI-1", "status": "failed", "reason": "No revenue account"})
 
     def test_unanswered_lines_hold_the_record(self):
         self.choices = {"lines": [{"decided": False}], "payment_decided": True}

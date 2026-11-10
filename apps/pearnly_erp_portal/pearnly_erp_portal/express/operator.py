@@ -604,6 +604,13 @@ def _submit_intake(company, doc_id, answers=None):
     if not _submitted(row):
         try:
             rest = apply_intake_answers(company, row.name, answers)
+            checked = _intake_precheck(company, doc_id)
+            if checked.get("state") == "blocked":
+                # 开始前预检判了写不了（缺收入科目、期间外……）：不提交、不交电脑，原因照预检写（A 线 11-10：以前照交，
+                # 再失败成「部分行未选物料」这种不相干的原因）
+                frappe.db.commit()
+                return {"doc_id": doc_id, "status": "failed",
+                        "reason": str(checked.get("message") or checked.get("reason") or "")[:300]}
             record = frappe.db.get_value(chat_intake.DOCTYPE, row.name, ["line_choices", "result", "direction"], as_dict=True)
             chosen = json.loads(record.line_choices or "null") or {}
             if any(line and not line.get("decided") for line in chosen.get("lines") or []):
