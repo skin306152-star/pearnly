@@ -280,6 +280,8 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
                 page.wait_for_timeout(400)
             scenarios.expect(switched, "切不到代录模式")
         company = "*" if (s.product == "both" and product == "erp") else s.company
+        if company:   # 带登录状态直接打开时，下巴的「公司」稍后才出来
+            page.wait_for_selector('[data-slot="cc-chin-company"]', state="visible", timeout=scenarios.NAV_TIMEOUT)
         if company == "*":
             result["company"] = pick_first(page)
         elif company:
