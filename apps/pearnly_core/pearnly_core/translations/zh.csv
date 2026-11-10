@@ -329,6 +329,8 @@ File,文件
 File Key,文件键
 Filed Note Digest,归档摘要
 Filed Under,归档位置
+Filed the conversation under a company,已将对话归入公司
+Filing the conversation under a company,正在将对话归入公司
 "Fill in the display name, DMS username and password",请填写显示名、DMS 用户名和密码
 "Filters must be four-value rows with string doctypes, fields, and operators.",筛选条件必须为四个值的行，且文档类型、字段和运算符为字符串
 First Name,名

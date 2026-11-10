@@ -329,6 +329,8 @@ File,ไฟล์
 File Key,คีย์ไฟล์
 Filed Note Digest,สรุปที่จัดเก็บ
 Filed Under,จัดเก็บไว้ที่
+Filed the conversation under a company,ผูกบทสนทนากับบริษัทแล้ว
+Filing the conversation under a company,กำลังผูกบทสนทนากับบริษัท
 "Fill in the display name, DMS username and password",กรุณากรอกชื่อที่แสดง ชื่อผู้ใช้ DMS และรหัสผ่าน
 "Filters must be four-value rows with string doctypes, fields, and operators.",ตัวกรองต้องเป็นแถวที่มี 4 ค่า และประเภทเอกสาร ฟิลด์ และตัวดำเนินการต้องเป็นสตริง
 First Name,ชื่อ

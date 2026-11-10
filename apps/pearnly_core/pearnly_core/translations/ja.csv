@@ -329,6 +329,8 @@ File,ファイル
 File Key,ファイルキー
 Filed Note Digest,保存メモの要約
 Filed Under,保存先
+Filed the conversation under a company,会話を会社に紐付けました
+Filing the conversation under a company,会話を会社に紐付けています
 "Fill in the display name, DMS username and password",表示名、DMSユーザー名、パスワードを入力してください
 "Filters must be four-value rows with string doctypes, fields, and operators.",フィルタはドキュメントタイプ・フィールド・演算子の4値行である必要があります
 First Name,名
