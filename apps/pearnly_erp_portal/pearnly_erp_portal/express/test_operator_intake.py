@@ -225,6 +225,100 @@ class SalesNumber(Base):
         self.assertNotIn("system_no", collect.call_args.args[1])
 
 
+ME, BIGC = "0105561077332", "0107536999991"  # 校验位都对
+
+
+class OwnParty(Base):
+    """A 线 11-10（ERP 销售票小批，主会话审定）：公司没税号时认不出「卖方是本公司」，本公司开出的销售票被当采购建档。开始卡问一次
+    「本公司是票上的哪一方」，答案记成公司税号（留修改记录）；卖方是本公司的整份文件改按销售重读（识别费不再扣），这次不交。"""
+
+    def guessed(self, name="LI-1", seller=ME, buyer=BIGC):
+        return SimpleNamespace(name=name, direction="purchase", direction_guessed=1,
+                               result=json.dumps({"supplier_name": "ชินเซียร์ ไอซ์", "supplier_tax_id": seller,
+                                                  "buyer_name": "บิ๊กซี", "buyer_tax_id": buyer}))
+
+    def test_a_company_without_a_tax_id_is_asked_once_which_side_it_is(self):
+        doc = self.guessed()
+        item = operator._own_party_item("CO-1", doc, json.loads(doc.result))
+        self.assertEqual((item["kind"], item["subject"]), ("own_party", "CO-1"))
+        self.assertEqual([o["code"] for o in item["options"]], [f"{ME}:00000", f"{BIGC}:00000"])
+        with patch.object(operator, "_own_tax", return_value=ME):  # 有税号：认得出，不问
+            self.assertIsNone(operator._own_party_item("CO-1", doc, json.loads(doc.result)))
+        said = SimpleNamespace(**{**vars(doc), "direction_guessed": 0})
+        self.assertIsNone(operator._own_party_item("CO-1", said, json.loads(doc.result)))  # 人说了方向：不问
+
+    def test_a_batch_asks_one_question_with_the_tax_id_on_every_ticket_preselected(self):
+        item = lambda codes: {"kind": "own_party", "subject": "CO-1", "label": "CO", "options": [{"code": c, "name": c} for c in codes]}
+        documents = [{"doc_id": "I:LI-1", "precheck": {"items": [item([f"{ME}:00000", f"{BIGC}:00000"])]},
+                      "needed": [{**item([f"{ME}:00000", f"{BIGC}:00000"]), "current": ""}]},
+                     {"doc_id": "I:LI-2", "precheck": {"items": [item([f"{ME}:00000", "0105559999996:00000"])]},
+                      "needed": [{**item([f"{ME}:00000", "0105559999996:00000"]), "current": ""}]}]
+        operator._own_party_batch(documents)
+        first = documents[0]["precheck"]["items"][0]
+        self.assertEqual((first["value"], [o["code"] for o in first["options"]][0]), (f"{ME}:00000", f"{ME}:00000"))
+        self.assertEqual(documents[1]["needed"][0]["current"], f"{ME}:00000")
+        self.assertNotIn("value", documents[1]["needed"][0])
+
+    def test_the_answer_becomes_the_company_tax_id_and_its_own_sales_file_is_read_again(self):
+        rows = {"I:LI-1": self.guessed("LI-1"), "I:LI-2": self.guessed("LI-2", seller="0105559999996", buyer=ME)}
+        files = {"LI-1": "h1", "LI-2": "h2"}
+        record = lambda doctype, name, fields=None, as_dict=False, **kw: SimpleNamespace(
+            result=rows["I:" + name].result, file_hash=files[name], direction_guessed=1)
+        self.db.get_value.side_effect = record
+        submitted = []
+        answer = {"kind": "own_party", "subject": "CO-1", "value": f"{ME}:00000", "label": "CO"}
+        with patch.object(operator, "_intake", side_effect=lambda company, doc_id: SimpleNamespace(
+                    name=doc_id[2:], direction="purchase", status="ready")), \
+                patch.object(operator, "_submitted", return_value=None), \
+                patch.object(frappe, "get_all", side_effect=lambda doctype, filters=None, **kw: [
+                    SimpleNamespace(result=rows["I:LI-1"].result)] if filters.get("file_hash") == "h1" else []), \
+                patch("pearnly_erp_portal.masters.company.set_own_tax") as remembered, \
+                patch.object(intake, "reread_as_sales", return_value=True) as reread, \
+                patch.object(operator, "_submit_one", side_effect=lambda company, doc_id, index, batch, given, again:
+                             submitted.append((doc_id, given)) or {"doc_id": doc_id, "status": "queued", "reason": ""}), \
+                patch("pearnly_core.ledger_tickets.one_writer"):
+            out = operator.submit("CO-1", ["I:LI-1", "I:LI-2"], {}, "PC-1", {"I:LI-1": [answer], "I:LI-2": [answer]})
+        remembered.assert_called_once_with("CO-1", ME, "00000")
+        reread.assert_called_once_with("LI-1")
+        self.assertEqual(out[0], {"doc_id": "I:LI-1", "status": "failed", "reason": intake.ISSUED_HERE})
+        self.assertEqual(submitted, [("I:LI-2", [])])  # 买方是本公司的照交；「本公司」这一题不交给 Express 的记法
+
+    def test_an_answer_for_another_company_is_refused(self):
+        answer = {"kind": "own_party", "subject": "CO-2", "value": f"{ME}:00000"}
+        with self.assertRaises(frappe.ValidationError):
+            operator._own_party_answered("CO-1", ["I:LI-1"], {"I:LI-1": [answer]})
+
+
+class CompanyOwnTax(Base):
+    """`masters.company.set_own_tax`（开始卡「本公司」答案的记法）：没税号时有开单权就能补一次；已有税号要改要管理公司的权限；
+    走公司页同一校验；存的时候不跳过修改记录（ERP Company 开着 track_changes）。"""
+
+    def run_it(self, existing="", rights=("sales.write",)):
+        from pearnly_erp_portal.masters import company as companies
+
+        doc = Mock(**{"get.side_effect": lambda key, d=None: existing if key == "tax_id" else d})
+        with patch.object(companies, "_get", return_value=doc), \
+                patch.object(companies, "document_company", side_effect=lambda name, user=None: name), \
+                patch.object(companies.guard, "has", side_effect=lambda capability, user=None: capability in rights), \
+                patch.object(companies.guard, "require", side_effect=lambda capability, user=None: None if capability in rights
+                             else (_ for _ in ()).throw(frappe.PermissionError(capability))), \
+                patch.object(companies, "_apply") as applied:
+            companies.set_own_tax("CO-1", ME, "00000")
+        applied.assert_called_once_with(doc, {"tax_id": ME, "branch": "00000"})
+        doc.save.assert_called_once_with(ignore_permissions=True)
+        self.assertNotEqual(getattr(doc.flags, "ignore_version", None), True)
+
+    def test_filling_a_missing_tax_id_needs_only_the_right_to_issue_documents(self):
+        self.run_it()
+        with self.assertRaises(frappe.PermissionError):
+            self.run_it(rights=())
+
+    def test_changing_an_existing_tax_id_needs_company_management(self):
+        self.run_it(existing=BIGC, rights=("company.manage",))
+        with self.assertRaises(frappe.PermissionError):
+            self.run_it(existing=BIGC, rights=("sales.write",))
+
+
 class Answers(Base):
     def setUp(self):
         super().setUp()

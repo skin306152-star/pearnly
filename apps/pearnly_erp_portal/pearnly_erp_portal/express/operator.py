@@ -228,7 +228,21 @@ def precheck(company, doc_ids) -> dict:
         target = book_target(found["result"].get("book"))
         row = {**row, "target": target} if target else row
         documents.append({**row, "precheck": write_precheck.document_view(doc_id, doctype, name, found)})
+    _own_party_batch(documents)
     return {"documents": documents}
+
+
+def _own_party_batch(documents) -> None:
+    """一批里「本公司是哪一方」按公司合成一题（共用 `own_party.unify`）：卡片里的项与代录预检原来回包的 ``needed`` 同一份选项与预选。"""
+    from pearnly_core.write_precheck import contracts as card
+    from pearnly_core.write_precheck import own_party
+
+    own_party.unify([item for row in documents for item in (row.get("precheck") or {}).get("items") or ()], card.RULE)
+    needed = [item for row in documents for item in row.get("needed") or () if item.get("kind") == own_party.KIND]
+    own_party.unify(needed, card.RULE)
+    for item in needed:
+        item["current"] = item.pop("value", "") or item.get("current") or ""
+        item.pop("source", None)
 
 
 UNDECIDED_LINES_TEXT = "Some lines have no product yet"
@@ -260,6 +274,34 @@ def _judged_payload(doc, direction) -> dict:
     return payload
 
 
+def _face(result) -> dict:
+    """识别结果 → 票面两方（`write_precheck.own_party.options` 认的 ``seller_* / buyer_*``）：采购读法的卖方叫 supplier。"""
+    return {"seller_name": result.get("supplier_name") or result.get("seller_name"),
+            "seller_tax_id": result.get("supplier_tax_id") or result.get("seller_tax_id"),
+            "seller_branch_no": result.get("supplier_branch_no") or result.get("seller_branch_no"),
+            "buyer_name": result.get("buyer_name"), "buyer_tax_id": result.get("buyer_tax_id"),
+            "buyer_branch_no": result.get("buyer_branch_no")}
+
+
+def _own_tax(company) -> str:
+    return "".join(ch for ch in str(frappe.db.get_value("ERP Company", company, "tax_id") or "") if ch.isdigit())
+
+
+def _own_party_item(company, doc, result):
+    """「本公司是票上的哪一方」（A 线 11-10，主会话审定，同 Cowork）：这家公司没有税号、这张票的方向是猜的（对话里没说采购还是
+    销售）时问一次——没税号就认不出「卖方是本公司」，本公司开出的销售票会被当采购建档。选项是票上两方（名称 · 税号），归类键
+    是公司（一批只问一次，:func:`precheck` 合成）；票上两方税号都无效的不问。"""
+    from pearnly_core.write_precheck import own_party
+
+    if not getattr(doc, "direction_guessed", 0) or _own_tax(company):
+        return None
+    options = own_party.options(_face(result))
+    if not options:
+        return None
+    label = frappe.db.get_value("ERP Company", company, "company_name") or company
+    return {"kind": own_party.KIND, "subject": company, "label": str(label), "options": options}
+
+
 def _intake_precheck(company, doc_id) -> dict:
     """一条待提交的收单记录：按它提交时的入参（`intake.build_payload`，同网页表单）判写进 Express 要人选的项（`collect_form`）。
     有定不了物料的行先停（开始前卡片问这几行在下一步加，A 批 1b）；已提交的按提交出的单据判。"""
@@ -286,6 +328,9 @@ def _intake_precheck(company, doc_id) -> dict:
     view = {"doc_id": doc_id, "ref": result.get("doc_no") or row.name, "direction": row.direction,
             **({"party": party} if party else {})}
     asked = intake_items(company, doc, result)
+    own = _own_party_item(company, doc, result)
+    if own:
+        asked = [own, *asked]
     doctype = push.PURCHASE if row.direction == "purchase" else push.SALES
     found = write_precheck.collect_form(doctype, _judged_payload(doc, row.direction), company)
     state, reason = write_precheck._state(found["result"])
@@ -557,10 +602,66 @@ def submit(company, doc_ids, batch, computer, answers=None) -> list:
 
     results = []
     again = set((batch or {}).get("again") or ())
+    issued = _own_party_answered(company, doc_ids, answers or {})
     for index, doc_id in enumerate(doc_ids, start=1):
+        if doc_id in issued:
+            # 本公司开出的销售票被按采购读了：这份文件已转按销售重读（重读完回到资料里再录），这次不交（A 线 11-10）
+            results.append({"doc_id": doc_id, "status": "failed", "reason": _(issued[doc_id])})
+            continue
         with ledger_tickets.one_writer(doc_id):
             results.append(_submit_one(company, doc_id, index, batch, (answers or {}).get(doc_id), again))
     return results
+
+
+def _own_party_answered(company, doc_ids, answers) -> dict:
+    """开始卡答了「本公司是票上的哪一方」（A 线 11-10，主会话审定）：先把答案记成这家公司的税号与分店（`masters.company.set_own_tax`，
+    留修改记录），再看这批猜成采购的收单记录：卖方是本公司（`checks.issued_by`）的整份文件转按销售重读一次（`intake.reread_as_sales`，
+    识别费不再扣）；同一文件里有别家开来的票时不重读，只把本公司开出的那几张留下不交。回 ``{单: 原因}``（这次不交的）；答案从
+    各张的答案里拿掉（不是 Express 的项）。没答这一题回空。"""
+    import json
+
+    from pearnly_core.write_precheck import own_party
+    from pearnly_erp_portal.integrations import intake as chat_intake
+    from pearnly_erp_portal.masters import company as companies
+    from pearnly_erp_portal.recognition import checks
+
+    picked = ""
+    for doc_id in doc_ids:
+        given = answers.get(doc_id) or []
+        mine = [a for a in given if isinstance(a, dict) and a.get("kind") == own_party.KIND]
+        if mine:
+            answers[doc_id] = [a for a in given if a not in mine]
+            if str(mine[0].get("subject") or "") != str(company):
+                frappe.throw(_("Invalid request"))
+            picked = picked or str(mine[0].get("value") or "")
+    if not picked:
+        return {}
+    found = own_party.parse(picked)
+    if not found:
+        frappe.throw(_("Invalid request"))
+    companies.set_own_tax(company, *found)
+    frappe.db.commit()
+    own, out, files = found[0], {}, {}
+    for doc_id in doc_ids:
+        row = _intake(company, doc_id) if str(doc_id).startswith(INTAKE + ":") else None
+        if row is None or _submitted(row) or row.direction != "purchase":
+            continue
+        record = frappe.db.get_value(chat_intake.DOCTYPE, row.name, ["result", "file_hash", "direction_guessed"], as_dict=True)
+        if not record or not record.direction_guessed:
+            continue
+        if checks.issued_by(json.loads(record.result or "{}"), own):
+            files.setdefault(record.file_hash or "", []).append((doc_id, row.name))
+    for file_hash, issued in files.items():
+        # 整份文件（库里同一文件拆出的全部记录，不只这一批交上来的）都是本公司开出的才整份重读
+        rows = frappe.get_all(chat_intake.DOCTYPE, filters={"file_hash": file_hash, "source": chat_intake.SOURCE_CC,
+                                                            "sent_by": frappe.session.user},
+                              fields=["result"], limit_page_length=200) if file_hash else []
+        if rows and all(checks.issued_by(json.loads(r.result or "{}"), own) for r in rows) \
+                and chat_intake.reread_as_sales(issued[0][1]):
+            frappe.db.commit()
+        for doc_id, _name in issued:
+            out[doc_id] = chat_intake.ISSUED_HERE
+    return out
 
 
 def _submit_one(company, doc_id, index, batch, given, again) -> dict:

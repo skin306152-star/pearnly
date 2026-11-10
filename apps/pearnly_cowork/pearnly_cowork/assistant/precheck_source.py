@@ -173,19 +173,8 @@ def _own_party_item(doc, found):
 
 
 def _own_party_batch(documents) -> None:
-    """一批里「本公司是哪一方」按公司合成一题：选项是这批票上出现过的税号（按张数排），每张都有的那个预选
-    （来源 ``rule``，要人点开始才算数；主会话 11-10 审定）。原地改每张单的这一项。"""
-    by_company = {}
-    for found in documents:
-        for item in found.get("items") or ():
-            if item.get("kind") == OWN_PARTY:
-                by_company.setdefault(item["subject"], []).append(item)
-    for rows in by_company.values():
-        options, value = own_party.merge([row.get("options") or [] for row in rows])
-        for row in rows:
-            row["options"] = [dict(option) for option in options]
-            if value:
-                row.update(value=value, source=card.RULE)
+    """一批里「本公司是哪一方」按公司合成一题（共用 `own_party.unify`；主会话 11-10 审定）。原地改每张单的这一项。"""
+    own_party.unify([item for found in documents for item in found.get("items") or ()], card.RULE)
 
 
 def _menu_stop(doc) -> dict:

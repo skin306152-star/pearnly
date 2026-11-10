@@ -66,6 +66,21 @@ def merge(per_document: Sequence[Sequence[Mapping[str, Any]]]) -> Tuple[List[dic
     return [first[key] for key in ordered], (everywhere[0] if len(per_document) and len(everywhere) == 1 else "")
 
 
+def unify(items: Sequence[dict], proposed: str) -> None:
+    """一批里「本公司是哪一方」按公司（归类键）合成一题，原地改：选项是这批票上出现过的税号（:func:`merge`），每张都有的那个
+    预选（来源 ``proposed``，要人点开始才算数）。Cowork、ERP 的开始卡同用。"""
+    by_company: dict = {}
+    for item in items:
+        if item.get("kind") == KIND:
+            by_company.setdefault(item.get("subject"), []).append(item)
+    for rows in by_company.values():
+        options, value = merge([row.get("options") or [] for row in rows])
+        for row in rows:
+            row["options"] = [dict(option) for option in options]
+            if value:
+                row.update(value=value, source=proposed)
+
+
 def parse(value: Any) -> Optional[Tuple[str, str]]:
     """答案 → ``(税号, 分店)``：选项编码 ``税号:分店``，或手输「13 位税号」可带分店（``0105555012345/00001``、空格横线随意）。"""
     text = str(value or "").strip().replace("/", ":")
@@ -78,4 +93,4 @@ def parse(value: Any) -> Optional[Tuple[str, str]]:
     return tax, branch(tail) if digits(tail) else HEAD_OFFICE
 
 
-__all__ = ["HEAD_OFFICE", "KIND", "SIDES", "branch", "code", "merge", "options", "parse", "tax_id"]
+__all__ = ["HEAD_OFFICE", "KIND", "SIDES", "branch", "code", "merge", "options", "parse", "tax_id", "unify"]

@@ -572,6 +572,38 @@ def _read_chat(doc):
                                           prefill=False)
 
 
+def reread_as_sales(name) -> bool:
+    """CC 开始卡答了「本公司是票上的卖方」（A 线 11-10，主会话审定）：按采购读的这份文件其实是本公司开出的销售票。整份按销售
+    重读一次：同一文件拆出的其余几条（还没提交）连同各自那份源文件删掉，文件的第一条回到排队、方向改销售，交共用识别队列
+    （同一个工作单名、同一个计费编号 `CC_OCR_KIND:<第一条>`：识别费只收一次，重读不再扣）。有一条已提交成单据的不动、回 False。"""
+    from pearnly_core.execution import work
+
+    head = frappe.db.get_value(DOCTYPE, name, ["name", "file_hash", "sent_by", "source", "status"], as_dict=True)
+    if not head or head.source != SOURCE_CC:
+        return False
+    group = frappe.get_all(DOCTYPE, filters={"file_hash": head.file_hash, "sent_by": head.sent_by, "source": SOURCE_CC},
+                           fields=["name", "status", "request_key", "source_file_name", "creation"], order_by="creation asc",
+                           limit_page_length=200) if head.file_hash else [head]
+    if any(row.status not in (READY, QUEUED) for row in group):
+        return False
+    first = next((row for row in group if row.get("request_key")), group[0])
+    for row in group:
+        if row.name == first.name:
+            continue
+        file_name = row.get("source_file_name")
+        if file_name and frappe.db.exists("File", file_name) and not frappe.db.get_value("File", file_name, "attached_to_name"):
+            frappe.delete_doc("File", file_name, ignore_permissions=True, force=True)
+        frappe.delete_doc(DOCTYPE, row.name, ignore_permissions=True, force=True)
+    frappe.db.set_value(DOCTYPE, first.name, {"status": QUEUED, "direction": "sales", "direction_guessed": 0, "result": None,
+                                              "line_choices": None, "error": None})
+    done = work.name_for(CC_OCR_KIND, first.name)
+    if frappe.db.get_value(work.DT, done, "status") not in (None, "queued", "running"):
+        frappe.delete_doc(work.DT, done, ignore_permissions=True, force=True)  # 跑完的那份工作单：同名才能再排（页面按这个名认进度）
+    frappe.db.commit()
+    work.submit(CC_OCR_KIND, first.name, {"intake": first.name}, head.sent_by)
+    return True
+
+
 def chat_failed(arguments, code):
     """队列本身失败（排队超时、结果不确定）：记录落定失败，原因记上（对话里由 CC 说）。"""
     doc = frappe.db.get_value(DOCTYPE, arguments.get("intake"), ["name", "status", "source_file_name"], as_dict=True)

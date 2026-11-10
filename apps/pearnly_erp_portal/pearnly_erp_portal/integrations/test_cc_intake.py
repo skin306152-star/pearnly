@@ -200,6 +200,35 @@ class Siblings(Base):
         self.assertEqual(fields - set(intake.SIBLING_SHARED) - set(intake.SIBLING_OWN), set())  # 新加的栏要归一类
 
 
+class ReadAgainAsSales(Base):
+    """A 线 11-10：开始卡答了「本公司是卖方」，按采购读的那份文件整份按销售重读：拆出的其余几条连源文件删掉，第一条回排队、改销售，
+    交同名工作单（页面按它认进度）、同一个计费编号（识别费不再扣）。有一条已提交的不动。"""
+
+    def test_the_file_goes_back_to_the_queue_once_as_sales(self):
+        from pearnly_core.execution import work
+
+        head = SimpleNamespace(name="LI-1", file_hash="h1", sent_by="buyer@x", source=intake.SOURCE_CC, status=intake.READY)
+        group = [SimpleNamespace(name="LI-1", status=intake.READY, request_key="upl_1", source_file_name="F-1", get=lambda k, d=None: {"request_key": "upl_1", "source_file_name": "F-1"}.get(k, d)),
+                 SimpleNamespace(name="LI-2", status=intake.READY, request_key=None, source_file_name="F-2", get=lambda k, d=None: {"source_file_name": "F-2"}.get(k, d))]
+        self.db.get_value.side_effect = lambda doctype, name, fields=None, as_dict=False, **kw: (
+            head if doctype == intake.DOCTYPE else "succeeded" if doctype == work.DT else None)
+        self.db.exists.return_value = True
+        deleted = []
+        with patch.object(frappe, "get_all", return_value=group), \
+                patch.object(frappe, "delete_doc", side_effect=lambda doctype, name, **kw: deleted.append((doctype, name))), \
+                patch.object(work, "submit") as queued:
+            self.assertTrue(intake.reread_as_sales("LI-1"))
+        self.assertEqual(deleted, [("File", "F-2"), (intake.DOCTYPE, "LI-2"), (work.DT, work.name_for(intake.CC_OCR_KIND, "LI-1"))])
+        self.db.set_value.assert_any_call(intake.DOCTYPE, "LI-1", {"status": intake.QUEUED, "direction": "sales",
+                                                                    "direction_guessed": 0, "result": None,
+                                                                    "line_choices": None, "error": None})
+        queued.assert_called_once_with(intake.CC_OCR_KIND, "LI-1", {"intake": "LI-1"}, "buyer@x")
+        group[1].status = intake.CONFIRMED  # 有一条已提交成单据：不动
+        with patch.object(frappe, "get_all", return_value=group), patch.object(work, "submit") as queued:
+            self.assertFalse(intake.reread_as_sales("LI-1"))
+        queued.assert_not_called()
+
+
 class Billing(unittest.TestCase):
     """主会话 11-08（A 批 1 合入前）：CC 对话 / 代录放文件的识别与网页同一个识别函数、同一套按页计费；一条收单记录只扣一次。
     同一份上传（同一个请求键：重试、刷新、重复提交）不重读不重扣（``Receive.test_the_same_attachment_is_not_recognised_or_charged_twice``）；

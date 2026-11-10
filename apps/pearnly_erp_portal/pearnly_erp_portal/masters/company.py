@@ -548,6 +548,19 @@ def _detach(name):
     express_push.detach(name)
 
 
+def set_own_tax(name, tax_id, branch) -> None:
+    """CC 开始卡「本公司是票上的哪一方」的答案（A 线 11-10，主会话审定）：这家公司的税号与分店。公司还没税号时，有这家开单权
+    （采购或销售）的人可以补一次（缺信息问一次）；已有税号要改，同公司页要管理公司的权限。走公司页同一校验（`_apply`：13 位、
+    校验位、泰国税号）；ERP Company 开着 track_changes，这一笔留修改记录（谁、什么时候、从什么改成什么）。"""
+    doc = _get(document_company(name))
+    if doc.get("tax_id"):
+        guard.require("company.manage")
+    elif not (guard.has("purchase.write") or guard.has("sales.write")):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    _apply(doc, {"tax_id": tax_id, "branch": branch})
+    doc.save(ignore_permissions=True)
+
+
 def update_company(name, **fields) -> dict:
     guard.require("company.manage")
     doc = _get(document_company(name))
