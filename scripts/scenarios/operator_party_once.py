@@ -64,6 +64,12 @@ DIRECT_DOCNUM = "RR-DIRECT-{:02d}"
 PAGE_MAX, TURN_MAX = 0.025, 0.35
 PAGES = 24
 FIRST_REF = "IV69/00751"
+
+
+def _ref(i: int) -> str:
+    """PDF 第 i 页（从 0 起）的单号：IV69/00751 起逐页加一（`make_party_once_pdf.py`）。"""
+    head, number = FIRST_REF.split("/")
+    return f"{head}/{int(number) + i:05d}"
 SELLER_TAX = "0105561077332"
 SELLER = "บริษัท ชินเซียร์ ไอซ์ จำกัด"
 BUYER_TAX = "0107536999991"
@@ -364,6 +370,8 @@ def direct_steps(params, viewport, suffix=""):
 def steps(params, viewport, reuse=False, suffix=""):
     title, (_, line) = params["title"], LINES[viewport]
     line += suffix
+    # 直写已写进 Express 的几张在开始卡上标「已入账」、默认不勾，不交进任务（设计 1.3）：任务行 = 24 − 那几张
+    expect = PAGES - len((params.get("direct") or {}).get("pushed") or [])
     pdf = "" if reuse else base64.b64encode(PDF.read_bytes()).decode()
     attach = "" if reuse else f"""
 if(!window.__fileHook){{window.__fileHook=1; const orig=HTMLInputElement.prototype.click;
@@ -426,7 +434,7 @@ const settled=await until(()=>q('[data-slot="cc-op-before-ask"] [data-slot="cc-a
 return {{picked, settled, answer: q('[data-slot="cc-op-before-ask"] [data-slot="cc-ask-answer"]')?.innerText.trim()||'',
         failure: q('[data-slot="cc-ask-failure"]')?.innerText.trim()||''}};"""},
         *[{"name": f"等交单{k}", "js": JS + _texts_js() + f"""
-const enough=()=>{{ for(const b of qa('.cc-steps-summary[aria-expanded="false"]')) b.click(); return rowsText().length>={PAGES}; }};
+const enough=()=>{{ for(const b of qa('.cc-steps-summary[aria-expanded="false"]')) b.click(); return rowsText().length>={expect}; }};
 const got=await until(enough,200); return {{got, rows: rowsText().length}};"""} for k in range(1, 5)],
         {"name": "交单后任务卡", "file": "3-交单后任务卡", "shot": True, "full": True, "js": JS + _texts_js() + """
 for(let k=0;k<10;k++){ const b=qa('.cc-steps-summary[aria-expanded="false"]')[0]; if(!b) break; b.click(); await sleep(200);}
@@ -458,6 +466,8 @@ def judge(product, params, results):
     rows = done.get("rows") or []
     replies = "\n".join(done.get("replies") or said.get("replies") or [])
     shape = re.compile(r"^IV69/\d{5} · .+")
+    refs = [_ref(i) for i in range(len(pushed))]  # 直写写过的那几张（PDF 前几页）
+    again = [r for r in rows if r.split(" · ")[0] in refs]
     return [
         {"case": "① CC 的回话里没有内部词（operator、wrong_mode、CWH-、哈希）", "seen": {"replies": (done.get("replies") or said.get("replies") or [])[:6],
          "leaks": leaks(replies)}, "ok": bool(said.get("got")) and not leaks(replies)},
@@ -470,8 +480,10 @@ def judge(product, params, results):
           if direct else []),
         {"case": "③ 答完开始：卡片定下、没有报错；页面上没有逐张提问卡", "seen": {**answered, "choose_cards": done.get("choose"),
          "question_cards": done.get("asks")}, "ok": bool(answered.get("settled")) and not answered.get("failure") and not done.get("choose")},
-        {"case": f"④ 任务行 {PAGES} 行，每行「单号 · 对方」，没有内部编号", "seen": {"rows": rows[:30], "ids": internal_ids("\n".join(rows))},
-         "ok": len(rows) == PAGES and all(shape.match(r.split("\n")[0]) for r in rows) and not internal_ids("\n".join(rows))},
+        {"case": f"④ 任务行 {PAGES} − 已入账张数，每行「单号 · 对方」，直写写过的不在里面，没有内部编号",
+         "seen": {"rows": rows[:30], "ids": internal_ids("\n".join(rows)), "again": again},
+         "ok": len(rows) == PAGES - len(pushed) and all(shape.match(r.split("\n")[0]) for r in rows) and not again
+               and not internal_ids("\n".join(rows))},
         {"case": "页面上任何地方都不出现内部编号与内部词", "seen": {"ids": internal_ids(done.get("page") or ""), "leaks": leaks(done.get("page") or "")},
          "ok": not internal_ids(done.get("page") or "") and not leaks(done.get("page") or "")},
     ]
@@ -530,12 +542,13 @@ print(json.dumps({{"task": task, "rows": rows, "sid": sid, "tools": tools_on, "t
         {"case": "① 代录会话的远端工具里没有直写推送（cowork_push_documents / erp_push_documents）",
          "saved": {"sid": found["sid"], "tools": found["tools"], "error": found["tools_error"]},
          "ok": bool(found["tools"]) and not any(t in found["tools"] for t in PUSH_TOOLS)},
-        {"case": f"③ 任务里 {PAGES} 张都交出去（排队；直写已写进 Express 的跳过），没有一张停在要选客户",
+        {"case": f"③ 任务里 {PAGES} − 已入账张数都交出去（排队），没有一张停在要选客户",
          "saved": {"task": found["task"], "states": sorted({r.get('state') for r in rows}), "skipped": len(skipped),
                    "held": held[:3], "documents": len(found["documents"]), "sample": found["documents"][:3]},
-         "ok": len(rows) == PAGES and len(sent) == PAGES - want_skipped and len(skipped) == want_skipped and not held},
+         # 已入账的在开始卡上默认不勾、不交进任务；任务里只有交出去的（勾回「再写一次」的才会交进来、由站点按身份跳过）
+         "ok": len(rows) == PAGES - want_skipped and len(sent) == PAGES - want_skipped and not skipped and not held},
         {"case": "④ 站点任务行都有单号与对方", "saved": {"missing": [r for r in rows if not r.get("ref") or not r.get("party")][:3]},
-         "ok": len(rows) == PAGES and all(r.get("ref") and r.get("party") for r in rows)},
+         "ok": len(rows) == PAGES - want_skipped and all(r.get("ref") and r.get("party") for r in rows)},
         {"case": f"⑤ 站点记住了这个买方的对应（选的是 {PICK}）", "saved": found["choices"],
          "ok": any(ch.get("value") == PICK and BUYER_TAX in str(ch.get("subject") or "") for ch in found["choices"])},
     ]
