@@ -383,6 +383,21 @@ class FlowDocuments(unittest.TestCase):
             self.assertIn("void_documents(", cleanup[1].split("\ndef ", 1)[0], path.name)
 
 
+class BorrowedPreparation(unittest.TestCase):
+    """借另一个流程的准备（`from x import prepare` / `import x as base`）就要连它的 cleanup 一起借：准备里改的、造的，收尾在那边
+    （11-10：erp.trade.line-stock-sales 借了采购那份的准备和步骤，没借 cleanup，每遍开的两张销售单一直留着）。"""
+
+    def test_flows_that_borrow_a_preparation_also_borrow_its_cleanup(self):
+        flows = ROOT / "scripts/flows"
+        for path in sorted(flows.glob("*.py")):
+            text = path.read_text(encoding="utf-8")
+            for other in re.findall(r"^(?:import (\w+) as base|from (\w+) import [^\n]*\bprepare\b)", text, re.M):
+                name = other[0] or other[1]
+                source = flows / f"{name}.py"
+                if source.exists() and "\ndef cleanup(" in source.read_text(encoding="utf-8"):
+                    self.assertRegex(text, r"\bcleanup\b", f"{path.name} 借了 {name} 的准备，要连它的 cleanup 一起借")
+
+
 class BilledSites(unittest.TestCase):
     def test_billed_sites_are_lab_sites(self):
         init = load("scripts/regression/lab_init.py", "lab_init")

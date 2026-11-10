@@ -13,7 +13,7 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from erp_lib import JS, codes, company, js_value, warehouses  # noqa: E402
+from erp_lib import JS, codes, company, js_value, void_documents, warehouses  # noqa: E402
 
 TITLE = "ERP 采购：明细按行勾入库、批量编辑设整张，只有入库行动库存"
 DIRECTION = "purchase"
@@ -38,6 +38,15 @@ print(json.dumps({{"name": frappe.db.get_value("ERP Product", {item['product']!r
     return {"direction": direction, "company": co, "warehouse": warehouses(manifest)[0]["name"], "product": item["product"],
             "scan": item["scan"], "name": out["name"], "party": f"flow party {tag}", "freight": f"ค่าขนส่ง {tag}",
             "fresh": f"ของใหม่ {tag}", "cases": []}
+
+
+def cleanup(lab, manifest, params):
+    """页面上这一遍建的采购 / 销售单（按这遍的对方名认）：作废（成功、失败、超时都跑，`run.run_flow`），不积成这个月等着录的单。"""
+    cfg = CONFIG[params["direction"]]
+    names = lab.python(manifest["site"], f"""
+print(json.dumps(frappe.get_all({cfg['doctype']!r}, filters={{{cfg['head']!r}: {params['party']!r}}}, pluck="name", limit_page_length=10)))
+""")
+    void_documents(lab, manifest["site"], names, cfg["doctype"])
 
 
 def steps(params, camera_code=None):

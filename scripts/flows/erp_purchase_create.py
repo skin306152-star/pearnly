@@ -13,7 +13,7 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from erp_lib import codes, ledger_case  # noqa: E402
+from erp_lib import codes, ledger_case, void_documents  # noqa: E402
 
 TITLE = "ERP 采购：新建采购单（无批号 / 失效日期）入库"
 IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
@@ -40,6 +40,14 @@ print(json.dumps({{"product": p.name, "product_name": p.product_name, "scan": p.
 """)
     return {**out, "company": company, "supplier": "flow supplier " + uuid.uuid4().hex[:5],
             "cases": [{"key": "by_barcode", "scan": item["scan"]}]}
+
+
+def cleanup(lab, manifest, params):
+    """页面上这一遍建的采购单（按这遍的供应商名认）：作废（成功、失败、超时都跑，`run.run_flow`），不积成这个月等着录的单。"""
+    names = lab.python(manifest["site"], f"""
+print(json.dumps(frappe.get_all("Purchase Document", filters={{"supplier_name": {params['supplier']!r}}}, pluck="name", limit_page_length=10)))
+""")
+    void_documents(lab, manifest["site"], names)
 
 
 def steps(params, camera_code=None):

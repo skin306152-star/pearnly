@@ -15,4 +15,4 @@ def prepare(lab, manifest):
     return base.prepare(lab, manifest, direction="sales")
 
 
-steps, judge, verify = base.steps, base.judge, base.verify
+steps, judge, verify, cleanup = base.steps, base.judge, base.verify, base.cleanup
