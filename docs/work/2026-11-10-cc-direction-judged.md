@@ -26,7 +26,6 @@
 |---|---|---|
 | 旧代码 | `test_cowork_assistant_tools` ListAndRuns「没声明方向按推送判」、`test_cowork_companies` OperatorSource「销售票按销售命名分组」 | 红（列表方向为空；对方写成卖方本公司） |
 | bd03d0cee | 同上 + 受影响单测文件 | 过 |
-
 | c2e56e57d | gate（development.yml 全部步骤） | 只红 test_express_operator_code_cc（替身缺新函数，c2e56e57d 修；该测试单跑过） |
 | c2e56e57d | 候选离线（生产镜像 fb1037ad） | 107 组，LANE EXIT 0 |
 | c2e56e57d | 受影响流程（parity-lab，`--changed`） | 3 条流程 × 两套数据 6/6 过；cowork.cc.sidebar-modes old/desktop 首跑页面步骤 900 秒超时、补跑 19 秒过（环境） |
