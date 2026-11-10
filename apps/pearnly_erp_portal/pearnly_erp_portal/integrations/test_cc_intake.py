@@ -164,6 +164,33 @@ class Run(Base):
         self.assertEqual(intake.run_chat("LI-00001"), {"cancelled": "not_queued"})
 
 
+class Siblings(Base):
+    """一个文件里几张票（多页 PDF）：拆出来的每张和第一张同样是对话来的那一种（A 线 11-10 实验栈 ERP 代录 24 页 PDF：拆出的 23 条
+    来源落成默认的 LINE，对话资料列表只认 cc，只看到第 1 张、另 23 张跑进 LINE 收单）。请求键只归第一条（同一附件再交回原来那条）。"""
+
+    def test_a_sibling_from_a_chat_file_stays_a_chat_record_of_the_same_conversation(self):
+        made = []
+
+        def get_doc(values):
+            made.append(dict(values))
+            return Doc(**values)
+
+        self.enterContext(patch.object(frappe, "get_doc", side_effect=get_doc))
+        self.enterContext(patch("pearnly_core.originals.registered.copy",
+                                return_value=SimpleNamespace(file_url="/private/files/copy.pdf", name="F-2")))
+        first = Doc(name="LI-00001", status=intake.READY, source=intake.SOURCE_CC, session_id="sesn_1", request_key="upl_1",
+                    direction="sales", sent_by="buyer@x", company="CO-1", language="th", source_file_name="F-1",
+                    file_hash="h1", line_user_id=None)
+        intake._sibling(first, {"doc_no": "IV2"})
+        self.assertEqual((made[0]["source"], made[0]["session_id"]), (intake.SOURCE_CC, "sesn_1"))
+        self.assertNotIn("request_key", made[0])
+        self.assertEqual((made[0]["file_hash"], made[0]["company"], made[0]["direction"]), ("h1", "CO-1", "sales"))
+        # LINE 来的照旧是 LINE
+        made.clear()
+        intake._sibling(Doc(**{**vars(first), "source": intake.SOURCE_LINE, "session_id": None}), {"doc_no": "IV3"})
+        self.assertEqual(made[0]["source"], intake.SOURCE_LINE)
+
+
 class Billing(unittest.TestCase):
     """主会话 11-08（A 批 1 合入前）：CC 对话 / 代录放文件的识别与网页同一个识别函数、同一套按页计费；一条收单记录只扣一次。
     同一份上传（同一个请求键：重试、刷新、重复提交）不重读不重扣（``Receive.test_the_same_attachment_is_not_recognised_or_charged_twice``）；
