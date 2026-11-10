@@ -24,7 +24,7 @@ from typing import Callable, Iterable, Optional
 
 import httpx
 
-from . import account_history, device_link, express_masters, express_read, folder_fetch
+from . import account_history, device_link, express_doc_check, express_masters, express_read, folder_fetch
 from .config import member_active
 from .logger import get_logger
 from .queue_client import _device_name
@@ -42,6 +42,7 @@ HANDLERS: dict = {
     "account_history": account_history.read_history,
     "express_masters": express_masters.read_masters,
     "express_marks": express_masters.read_marks,
+    "express_doc_check": express_doc_check.check_docs,
 }
 # 交一块失败（网络断了一下）最多重试几次；续传（服务端说已收到多少）也算在内。
 RETRIES = 3

@@ -42,10 +42,11 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 MIB = 1024 * 1024
-KINDS = ("express_read", "folder_list", "folder_fetch", "account_history", "express_masters", "express_marks")
+KINDS = ("express_read", "folder_list", "folder_fetch", "account_history", "express_masters", "express_marks",
+         "express_doc_check")
 FOLDER_KINDS = ("folder_list", "folder_fetch")
 # 读一本账套的种类：按账套的规范键分派，参数里的位置换成领取电脑的写法
-ACCOUNT_KINDS = ("express_read", "account_history", "express_masters", "express_marks")
+ACCOUNT_KINDS = ("express_read", "account_history", "express_masters", "express_marks", "express_doc_check")
 # 参数里的通用位置键：账套文件夹、所在的 Express 根目录（`readback.contracts.read_params` / `history_rules.read_params`）
 LOCATION_KEYS = ("account_set", "account_root")
 # 结果属于连接与账套（谁先来谁读、能用这条连接的人都能取）：科目历史；整套主档（ERP 的主档同步由后台发起，发起人不一定在哪台
@@ -58,9 +59,9 @@ OPEN = ("requested", "leased")
 CHUNK_BYTES = 4 * MIB
 # express_masters：gzip 后的大小（商品上万、STLOC 十几万行时实测远小于它）；超了 CC 回 too_large，不截断
 MAX_BYTES = {"express_read": 50 * MIB, "folder_list": 2 * MIB, "folder_fetch": 40 * MIB, "account_history": 5 * MIB,
-             "express_masters": 16 * MIB, "express_marks": 64 * 1024}
+             "express_masters": 16 * MIB, "express_marks": 64 * 1024, "express_doc_check": 256 * 1024}
 LEASE_SECONDS = {"express_read": 900, "folder_list": 180, "folder_fetch": 600, "account_history": 900,
-                 "express_masters": 900, "express_marks": 120}
+                 "express_masters": 900, "express_marks": 120, "express_doc_check": 120}
 # 这么久没有电脑来领就算过期（code not_claimed）；领了以后每交一块续一次租约。
 CLAIM_SECONDS = 600
 # 小助手空闲时每 POLL_SECONDS 来领一次：SEEN_SECONDS 之内来过才算此刻在线。
@@ -76,7 +77,8 @@ META_MAX = 4 * 1024
 MIN_COMPANION = "1.5.0"
 # 后加的种类要更新的 CC 桌面端才会领（旧版领请求时不声明它，请求只会等到过期）：发起前按 :func:`minimum` 判。
 # express_marks：一本账套主档几张表的大小与修改时间（只看文件属性），ERP 比一比变了才请整套读（1.12.0）
-KIND_MIN_COMPANION = {"express_masters": "1.10.0", "express_marks": "1.12.0"}
+# express_doc_check：录过的票先核账本里还在不在（只读单头，录过的票先核账本，11-10，1.12.20）
+KIND_MIN_COMPANION = {"express_masters": "1.10.0", "express_marks": "1.12.0", "express_doc_check": "1.12.20"}
 _KEY = re.compile(r"^[A-Za-z0-9_.:-]{1,140}$")
 _HEX32 = re.compile(r"^[0-9a-f]{32}$")
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
