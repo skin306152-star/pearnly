@@ -244,7 +244,10 @@ picked = target.pick(push._company(co), "2026-10-15")
 key = picked["book"]["key"]
 data = {{"version": 2, "customers": {CUSTOMERS!r}, "suppliers": [], "departments": [], "products": [],
         "facts": {{"accounts": [{{"code": c, "name": c, "type": c[0]}} for c in ("11-31", "11-61", "21-01", "21-61", "41-01", "53-01")],
-                  "mapping": {{}}, "catalog": {{"isacc_candidates": []}}}}}}
+                  # 账套默认科目（同真 Express 回读的映射；没有收入科目时销售票判「写不了」，11-10 ERP 遍卡在这里）
+                  "mapping": {{"revenue_acc": "41-01", "ar_acc": "11-31", "vat_output_acc": "21-61", "ap_acc": "21-01",
+                               "vat_input_acc": "11-61", "fallback_acc": "53-01"}},
+                  "catalog": {{"isacc_candidates": []}}}}}}
 facts.save(key, data)
 masters.apply(co, "PARTYONCE", {{"customers": {CUSTOMERS!r}, "suppliers": [], "products": [], "stock": [], "warehouses": []}})
 frappe.db.commit()
