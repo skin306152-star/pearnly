@@ -338,7 +338,7 @@ return {{asked:true, picked}};
 """
 
 
-def direct_steps(params, viewport):
+def direct_steps(params, viewport, suffix=""):
     """Cowork 先在直写里放前 4 页的截图、说一句（同岳父 11-08 逐张截图直写）：CC 识别、要选客户时弹提问卡（脚本选 Big C 总部）、
     推送。实验栈没有 CC 桌面版：推出去停在排队，`run_one` 随后用合成回执记成写成（带单号）。"""
     files = [(path.name, "image/jpeg", base64.b64encode(path.read_bytes()).decode()) for path in SHOTS]
@@ -349,7 +349,7 @@ def direct_steps(params, viewport):
          f"const picked=await pickCompany({json.dumps(params['title'])}); " + _attach_js(files)
          + "const shown=await until(()=>document.body.innerText.includes('party-once-screenshot-04'),80); "
          "const ready=await until(()=>{const b=q('button.aui-composer-send'); return b&&!b.disabled;},240); "
-         f"const sent=await say({json.dumps(DIRECT_LINES[viewport])}); "
+         f"const sent=await say({json.dumps(DIRECT_LINES[viewport] + suffix)}); "
          f"const got=await until(()=>replies().length>0&&({idle}||q('.cc-askq[data-phase=\"ask\"]')),220); "
          "return {picked, shown, ready, sent, got, replies: replies()};"},
         # 识别 4 张、要选客户、推送：一步一分钟内，有提问卡就答，没有就等这一轮结束
@@ -361,8 +361,9 @@ def direct_steps(params, viewport):
     ]
 
 
-def steps(params, viewport, reuse=False):
+def steps(params, viewport, reuse=False, suffix=""):
     title, (_, line) = params["title"], LINES[viewport]
+    line += suffix
     pdf = "" if reuse else base64.b64encode(PDF.read_bytes()).decode()
     attach = "" if reuse else f"""
 if(!window.__fileHook){{window.__fileHook=1; const orig=HTMLInputElement.prototype.click;
@@ -604,15 +605,25 @@ def estimate(product, viewport, reuse) -> float:
     return round(pages * PAGE_MAX + turns * TURN_MAX, 2)
 
 
-def recognized_since(lab, product, params, since) -> int:
-    """``since`` 之后这家公司识别存下了几张（Cowork 识别单、ERP 对话收单记录）：干跑看假识别走没走完。"""
-    if product == "cowork":
-        body = (f'print(json.dumps({{"n": frappe.db.count("Cowork OCR History", {{"push_connection": {params["connection"]!r}, '
-                f'"creation": [">", {since!r}]}})}}))')
-    else:
-        body = (f'print(json.dumps({{"n": frappe.db.count("ERP LINE Intake", {{"company": {params["company"]!r}, '
-                f'"creation": [">", {since!r}]}})}}))')
-    return int(lab.python(SITES[product], body)["n"])
+def recognized_since(lab, product, params, since) -> dict:
+    """``since`` 之后这个站点的识别工作单（`Pearnly OCR Work`）：``{"done": 跑完的张数, "codes": 各单结果码}``。干跑看假识别真跑没跑：
+    排上队、识别进程领走、经 claude 引擎回来（成功或按票面判失败都算走通了配置路径）；只建了收单记录、工作单还排着或没建，
+    都不算（11-10：ERP 第一遍收单记录建了、识别其实没成，旧判据按收单记录数当成通过）。"""
+    del params
+    out = lab.python(SITES[product], f'''
+rows = frappe.get_all("Pearnly OCR Work", filters={{"creation": [">", {since!r}]}}, fields=["status", "last_code"],
+                      limit_page_length=200)
+done = [r for r in rows if r.status not in ("queued", "running")]
+print(json.dumps({{"done": len(done), "codes": sorted({{str(r.last_code or r.status) for r in done}}), "all": len(rows)}}))
+''')
+    return out
+
+
+# 干跑（假智能体）时让「模型」调识别工具：Cowork 的附件要模型调 cowork_recognize_attachments 才识别（假智能体只回声，
+# `scripts/flows/lab_agents.py` 认 ``[lab-tool]``）；ERP 代录放文件页面自己交识别，不用
+def _lab_recognize(names) -> str:
+    call = {"name": "cowork_recognize_attachments", "input": {"files": list(names)}}
+    return " [lab-tool]" + json.dumps(call) + "[/lab-tool]"
 
 
 def dry_one(lab, product, viewport, shots):
@@ -627,24 +638,27 @@ def dry_one(lab, product, viewport, shots):
     since = lab.python(SITES[product], 'print(json.dumps({"now": str(frappe.utils.now_datetime())}))')["now"]
     site, user = SITES[product], USERS[product]
     sid = lab.session(site, user)
+    cowork = product == "cowork"
     try:
-        page = (drive(site, sid, direct_steps(params, viewport)[:1], viewport == "mobile", "") if product == "cowork" else []) + \
-            drive(site, sid, steps(params, viewport)[:2], viewport == "mobile", "")
+        page = (drive(site, sid, direct_steps(params, viewport, _lab_recognize(p.name for p in SHOTS))[:1],
+                      viewport == "mobile", "") if cowork else []) + \
+            drive(site, sid, steps(params, viewport, suffix=_lab_recognize([PDF.name]) if cowork else "")[:2],
+                  viewport == "mobile", "")
     finally:
         lab.drop(site, user, sid)
-    found = 0
+    found = {"done": 0}
     for _ in range(36):  # 最多 6 分钟
         found = recognized_since(lab, product, params, since)
-        if found:
+        if found["done"] and found["done"] == found.get("all"):
             break
         time.sleep(10)
     seen = {r.get("step"): r.get("value") for r in page}
     errors = [e for r in page for e in (r.get("page_errors") or []) + ([r["error"]] if r.get("error") else [])]
     sent = all(isinstance(v, dict) and v.get("sent") and v.get("got") for k, v in seen.items() if "说一句" in str(k))
-    ok = not errors and sent and bool(found) and len(seen) >= (3 if product == "cowork" else 2)
+    ok = not errors and sent and bool(found["done"]) and len(seen) >= (3 if product == "cowork" else 2)
     return {"product": product, "viewport": viewport, "dry": True, "ok": ok, "preflight": checks, "errors": errors, "steps": seen,
             "recognized": found,
-            "checks": [{"case": "干跑：配置齐、页面步骤走得通、假识别存下单据", "ok": ok,
+            "checks": [{"case": "干跑：配置齐、页面步骤走得通、识别工作单经假识别跑完", "ok": ok,
                         "seen": {"missing": checks["missing"], "errors": errors[:5], "recognized": found}}]}
 
 
