@@ -2865,11 +2865,13 @@ class PageTests(unittest.TestCase):
         self.assertIn("pearnly_core.assistant.api.service_worker", install)
         self.assertIn("!isDesktopApp()", install)  # 桌面版里不注册
 
-    def test_jinja_page_only_renders_its_two_variables(self):
+    def test_jinja_page_only_renders_its_own_variables(self):
         html = (CORE / "www/assistant.html").read_text(encoding="utf-8")
         self.assertEqual(sorted(re.findall(r"\{\{\s*(\w+)\s*\}\}", html)), ["csrf_token", "lang"])
-        # 第三处是报错回传脚本的带指纹地址（hooks.jinja 的 versioned_asset，2026-10-25）
-        self.assertEqual(html.count("{{"), 3)
+        # 一份附件最多多大（11-10）：服务端给的数，过 int 只能渲染成数字
+        self.assertEqual(re.findall(r"\{\{\s*(\w+)\s*\|\s*int\s*\}\}", html), ["upload_max_bytes"])
+        # 还有一处是报错回传脚本的带指纹地址（hooks.jinja 的 versioned_asset，2026-10-25）
+        self.assertEqual(html.count("{{"), 4)
         self.assertIn("{{ versioned_asset('pearnly_core', 'desk/errors.js') }}", html)
         self.assertNotIn("{%", html)
         # 注释用 Jinja 的 {# #}，渲染时去掉；HTML 注释会原样发给浏览器（查看源代码就能看到）
