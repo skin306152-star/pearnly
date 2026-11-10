@@ -110,7 +110,7 @@ document.addEventListener('click', e=>{ if(e.target.id!=='send') return; window.
   setTimeout(()=>{ line.textContent=''; b.className='aui-composer-send';
     const m=document.createElement('div'); m.setAttribute('data-slot','aui_assistant-message-content');
     m.textContent='已读 5 张，Express operator 需要选客户'; log.append(m);
-    const a=document.createElement('div'); a.setAttribute('data-slot','cc-ask-card'); a.textContent='BIG C / BIG C-001 / BIG C-002'; log.append(a);
+    const a=document.createElement('div'); a.className='cc-askq'; a.textContent='BIG C / BIG C-001 / BIG C-002'; log.append(a);
   }, 2500); });
 </script>"""
 EVENTS = [{"type": "agent.custom_tool_use", "id": "u1", "name": "cowork_recognize_attachments", "processed_at": "t"},

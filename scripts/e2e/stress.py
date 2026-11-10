@@ -159,10 +159,12 @@ def tool_calls(events: list) -> list:
 LOOK = """
 const text=e=>(e?.innerText||'').trim();
 const last=[...document.querySelectorAll('[data-slot="aui_assistant-message-content"]')].pop();
-const asks=[...document.querySelectorAll('[data-slot*="ask"], [data-slot*="choose"], [data-slot*="question"]')].filter(seen);
+// 等人答的卡：通用提问卡（.cc-askq，翻页时一题一页）、批准条（cc-ask-sheet）、代录每张单的选择卡（cc-op-reason 每张一个）
+const asks=[...document.querySelectorAll('.cc-askq, [data-slot="cc-ask-sheet"], [data-slot="cc-op-reason"]')].filter(seen);
+const pager=[...document.querySelectorAll('[data-slot="cc-askq-pager"]')].filter(seen).map(e=>text(e)).slice(0, 3);
 return {line: text(q('[data-slot="cc-run-indicator"]')), send: !!q('button.aui-composer-send'), stop: !!q('button.aui-composer-cancel'),
-  reply: text(last).slice(-600), asks: asks.length, ask_text: asks.slice(0, 3).map(e => text(e).slice(0, 160)),
-  start_card: !!q('[data-slot*="operator-start"], [data-slot*="precheck"]'),
+  reply: text(last).slice(-600), asks: asks.length, pager, ask_text: asks.slice(0, 3).map(e => text(e).slice(0, 160)),
+  start_card: !!q('[data-slot="cc-op-target"], [data-slot="cc-op-before-ask"]'),
   page_text: text(q('[data-slot="aui_thread-viewport"]') || document.body).slice(-20000)};
 """
 
@@ -243,7 +245,7 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
             result["cc_usd"] = usage_usd(events)
             result["tools"] = tool_calls(events)
             bad = sorted(set(m.group(0) for m in INTERNAL.finditer(look.pop("page_text"))))
-            row = {"s": now, **{k2: look[k2] for k2 in ("line", "send", "stop", "asks", "start_card")}, "internal": bad,
+            row = {"s": now, **{k2: look[k2] for k2 in ("line", "send", "stop", "asks", "pager", "start_card")}, "internal": bad,
                    "reply": look["reply"][-200:], "ask_text": look["ask_text"]}
             if not result["trail"] or {k2: v for k2, v in row.items() if k2 != "s"} != {k2: v for k2, v in result["trail"][-1].items() if k2 != "s"}:
                 result["trail"].append(row)
