@@ -179,16 +179,25 @@ class Siblings(Base):
         self.enterContext(patch("pearnly_core.originals.registered.copy",
                                 return_value=SimpleNamespace(file_url="/private/files/copy.pdf", name="F-2")))
         first = Doc(name="LI-00001", status=intake.READY, source=intake.SOURCE_CC, session_id="sesn_1", request_key="upl_1",
-                    direction="sales", sent_by="buyer@x", company="CO-1", language="th", source_file_name="F-1",
+                    direction="sales", direction_guessed=1, sent_by="buyer@x", company="CO-1", language="th", source_file_name="F-1",
                     file_hash="h1", line_user_id=None)
         intake._sibling(first, {"doc_no": "IV2"})
         self.assertEqual((made[0]["source"], made[0]["session_id"]), (intake.SOURCE_CC, "sesn_1"))
         self.assertNotIn("request_key", made[0])
         self.assertEqual((made[0]["file_hash"], made[0]["company"], made[0]["direction"]), ("h1", "CO-1", "sales"))
+        self.assertEqual(made[0]["direction_guessed"], first.get("direction_guessed"))
         # LINE 来的照旧是 LINE
         made.clear()
         intake._sibling(Doc(**{**vars(first), "source": intake.SOURCE_LINE, "session_id": None}), {"doc_no": "IV3"})
         self.assertEqual(made[0]["source"], intake.SOURCE_LINE)
+
+
+    def test_every_intake_field_is_either_shared_with_the_first_record_or_its_own(self):
+        meta = json.loads((Path(intake.__file__).parents[1] / "pearnly_erp_portal" / "doctype" / "erp_line_intake"
+                           / "erp_line_intake.json").read_text(encoding="utf-8"))
+        fields = {f["fieldname"] for f in meta["fields"] if f["fieldtype"] not in ("Section Break", "Column Break", "Tab Break")}
+        self.assertFalse(set(intake.SIBLING_SHARED) & set(intake.SIBLING_OWN))
+        self.assertEqual(fields - set(intake.SIBLING_SHARED) - set(intake.SIBLING_OWN), set())  # 新加的栏要归一类
 
 
 class Billing(unittest.TestCase):

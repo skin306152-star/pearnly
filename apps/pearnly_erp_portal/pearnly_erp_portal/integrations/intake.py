@@ -122,6 +122,15 @@ def _fetch(doc, filename):
     return True
 
 
+# 同一文件拆出的另一张（:func:`_sibling`）：哪些栏随第一条、哪些每条自己的。收单记录每一栏都要归到其中一类
+# （`test_cc_intake.Siblings` 按 DocType 定义核，新加栏没归类就红；11-10 拆出的记录漏了来源与对话编号，只看到第 1 张）
+SIBLING_SHARED = ("direction", "direction_guessed", "sent_by", "line_user_id", "language", "media_type", "line_message_id",
+                  "file_hash", "company", "party", "is_paid", "payment_method", "item_kind", "warehouse", "source",
+                  "session_id", "received_at")
+SIBLING_OWN = ("status", "request_key", "source_file", "source_file_name", "result", "line_choices", "decided_at", "purchase",
+               "sales_document", "discard_reason", "note", "error")
+
+
 def _sibling(doc, result):
     """同一文件里的另一张单（多页 / 一张图几张票）：同样的选择，自己一份源文件（内容相同；入账时
     各挂各的，不抢同一个 File），自己一张卡、自己入账。来源与对话编号随第一条（CC 对话来的拆出来仍是 CC 的，对话资料列表
@@ -130,10 +139,8 @@ def _sibling(doc, result):
     from pearnly_core.originals import registered
 
     file = registered.copy(_file_name(doc))  # 原件在原件层的复制登记（同一份原件，不再存一次）
-    fields = ("direction", "sent_by", "line_user_id", "language", "media_type", "line_message_id", "file_hash",
-              "company", "party", "is_paid", "payment_method", "item_kind", "warehouse", "source", "session_id")
-    return frappe.get_doc({"doctype": DOCTYPE, "status": READY, "owner": doc.sent_by, "received_at": doc.get("received_at"),
-                           **{key: doc.get(key) for key in fields},
+    return frappe.get_doc({"doctype": DOCTYPE, "status": READY, "owner": doc.sent_by,
+                           **{key: doc.get(key) for key in SIBLING_SHARED},
                            "source_file": file.file_url, "source_file_name": file.name,
                            "result": json.dumps(result, ensure_ascii=False, default=str)}).insert(ignore_permissions=True)
 
