@@ -896,7 +896,7 @@ def _in_conversation() -> bool:
     return bool((getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id"))
 
 
-def _scope_refusal(connection, account_set_key, operator=None) -> dict | None:
+def _scope_refusal(connection, account_set_key, operator=None, day="") -> dict | None:
     """CC 只写对话选中的公司与账套（`assistant.write_scope`，用户 11-10）：代录按任务的公司、直写按本对话挂的公司核；
     不在 CC 对话里执行（网页由人点的推送）回 None 不限。拒的回给模型的原因（``reason`` / ``note`` / 可写的账套）。"""
     company = str((operator or {}).get("company") or "")
@@ -904,7 +904,7 @@ def _scope_refusal(connection, account_set_key, operator=None) -> dict | None:
         return None
     from pearnly_cowork.assistant import write_scope
 
-    return write_scope.check(connection, account_set_key, company=company or None)
+    return write_scope.check(connection, account_set_key, company=company or None, day=str(day or "")[:10])
 
 
 def _submit_one(name, connection, account_set_key, posting_kind, route_device, operator=None) -> dict:
@@ -943,7 +943,7 @@ def _submit_one(name, connection, account_set_key, posting_kind, route_device, o
     wait = view.get("wait")
     # 停下时把这次要推往的连接与账套抄到票上（账套用推送服务解析出的那份），待处理页才能当场选（验收 F17）
     going = {"connection": target, "account_set": view.get("account_set") or account_set}
-    refused = _scope_refusal(target, going["account_set"], operator)
+    refused = _scope_refusal(target, going["account_set"], operator, _field(doc, "invoice_date"))
     if refused:
         # 不是这家公司的账套：不写、不在票上留别家的去向（否则待处理页把它当成这张单的去向）
         return {"document": name, "status": "failed", **refused}
@@ -1412,7 +1412,8 @@ def _stop_target(doc, cache=None) -> dict | None:
             connection = _field(doc, "push_connection")
             kept = write_scope.keep(books, lambda item: connection)
             if kept is not None:
-                books = kept
+                # 别家的候选不出现；一份本公司的都没有（票的双方都不是本公司）就给本公司覆盖单据日期的账套
+                books = kept or write_scope.this_company_options(connection, _field(doc, "invoice_date")) or []
                 if current and not write_scope.keep([{"key": current}], lambda item: connection):
                     current = ""
         if current:

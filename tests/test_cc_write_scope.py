@@ -14,9 +14,11 @@ from test_cowork_assistant_tools import COWORK, frappe, tools
 
 A_TEST = "\\\\accserver\\d$\\account\\69exp\\test"
 A_TEST2 = "\\\\accserver\\d$\\account\\69exp\\test2"
+A_OLD = "\\\\accserver\\d$\\account\\68exp\\test"  # 本公司上一年度
 B_REAL = "\\\\192.168.0.212\\pas212\\2569\\exp69\\69sincer"  # 别家（卖方 SINCERE）的真账套
-SETS = {"CO-A": [{"connection": "EXP1", "key": A_TEST, "label": "9.บริษัท Pearnly จำกัด"},
-                 {"connection": "EXP1", "key": A_TEST2, "label": "9.บริษัท Pearnly จำกัด TEST2"}],
+SETS = {"CO-A": [{"connection": "EXP1", "key": A_TEST, "label": "9.บริษัท Pearnly จำกัด", "period": "2026"},
+                 {"connection": "EXP1", "key": A_TEST2, "label": "9.บริษัท Pearnly จำกัด TEST2", "period": "2026"},
+                 {"connection": "EXP1", "key": A_OLD, "label": "8.บริษัท Pearnly จำกัด", "period": "2025"}],
         "CO-B": [{"connection": "EXP1", "key": B_REAL, "label": "69SINCER SINCERE ICE 2569"}]}
 
 
@@ -46,13 +48,23 @@ class _Conversation(unittest.TestCase):
                    mock.patch.object(sys.modules["pearnly_cowork.assistant"], "write_scope", write_scope, create=True),
                    mock.patch.object(write_scope.projects, "of_session",
                                      lambda session: (self.filed or "", "2026-10", ""))]
+        identity = types.SimpleNamespace(covering=lambda sets, period: [
+            item for item in sets if str(item.get("period")) == period[:4]])
+        service = types.SimpleNamespace(listing=lambda search, start, limit: [
+            {"id": "CO-A", "title": "บริษัท Pearnly จำกัด", "tax_id": "0105555000001"},
+            {"id": "CO-C", "title": "Gamma", "tax_id": ""}])
+        companies = types.SimpleNamespace(identity=identity, service=service)
+        patches += [mock.patch.dict(sys.modules, {"pearnly_cowork.companies": companies,
+                                                  "pearnly_cowork.companies.identity": identity,
+                                                  "pearnly_cowork.companies.service": service})]
         for patcher in patches:
             patcher.start()
             self.addCleanup(patcher.stop)
         frappe.local.pearnly_assistant = {"session_id": "sesn_1"} if self.filed is not None else None
         self.addCleanup(setattr, frappe.local, "pearnly_assistant", None)
         self.submitted, self.failures = [], []
-        self.doc = types.SimpleNamespace(name="H1", last_push_status="", push_connection="EXP1", push_account_set=B_REAL,
+        self.doc = types.SimpleNamespace(name="H1", invoice_date="2026-08-25", last_push_status="", push_connection="EXP1",
+                                         push_account_set=B_REAL,
                                          posting_kind="service", record_version=1, last_push_record="",
                                          last_push_reason="")
         for target, value in ((tools.storage, "read"), (tools.push_state, "record_failure"),
@@ -74,8 +86,16 @@ class DirectPushTests(_Conversation):
         self.assertEqual((out["status"], out["reason"]), ("failed", write_scope.NOT_THIS_COMPANY))
         self.assertEqual(self.submitted, [])
         self.assertEqual(self.failures, [])  # 单据上不留别家去向（否则待处理页把它当这张单的去向）
+        # 可写的只列本公司覆盖单据日期（2026-08）的两本，上一年度的、别家的都不列
         self.assertEqual({item["key"] for item in out["allowed_account_sets"]}, {A_TEST, A_TEST2})
         self.assertNotIn(B_REAL, json.dumps(out["allowed_account_sets"]))
+        self.assertIn("neither side of the document is this company", out["note"])
+
+    def test_a_ticket_of_neither_side_goes_into_this_companys_book_once_named(self):
+        # 用户 11-10：「买方不是本公司」照实说明、用户选「照样录进」后，写进本对话公司的账套
+        out = tools._push_listed("H1", "EXP1", A_TEST, None)
+        self.assertNotEqual(out.get("reason"), write_scope.NOT_THIS_COMPANY)
+        self.assertEqual(len(self.submitted), 1)
 
     def test_the_model_naming_another_companys_book_is_refused(self):
         self.doc.push_account_set = ""
@@ -115,6 +135,9 @@ class NoCompanyTests(_Conversation):
         out = tools._push_listed("H1", None, None, None)
         self.assertEqual(out["reason"], write_scope.NO_COMPANY)
         self.assertEqual(self.submitted, [])
+        # 提问卡用：本人能用的公司
+        self.assertEqual([item["id"] for item in out["companies"]], ["CO-A", "CO-C"])
+        self.assertIn("ask_user", out["note"])
 
     def test_candidates_are_still_shown_there_since_writing_is_refused_anyway(self):
         options = [{"key": B_REAL}, {"key": A_TEST}]
@@ -161,7 +184,9 @@ class StoppedAccountSetTests(_Conversation):
                     "last_push_reason": "cowork.folder.account_set_ambiguous", "invoice_date": "2026-09-08",
                     "pages": [{"fields": {}}], "record_version": 1}
         tools.storage.read = lambda name: self.doc
-        patches = [mock.patch.dict(sys.modules, {"pearnly_cowork.companies": types.SimpleNamespace(pending=pending),
+        companies = types.SimpleNamespace(pending=pending, identity=sys.modules["pearnly_cowork.companies.identity"],
+                                          service=sys.modules["pearnly_cowork.companies.service"])
+        patches = [mock.patch.dict(sys.modules, {"pearnly_cowork.companies": companies,
                                                  "pearnly_cowork.companies.pending": pending,
                                                  "pearnly_cowork.assistant.pending_api": pending_api}),
                    mock.patch.object(sys.modules["pearnly_cowork.assistant"], "pending_api", pending_api, create=True),
@@ -174,6 +199,12 @@ class StoppedAccountSetTests(_Conversation):
     def test_only_this_companys_books_are_offered(self):
         stop = tools._stop_target(self.doc)
         self.assertEqual([item["key"] for item in stop["account_set_options"]], [A_TEST])
+
+    def test_a_ticket_of_neither_side_still_offers_this_companys_books(self):
+        # 票按税号归别家，候选全是别家的：给本公司覆盖单据日期的账套，别家的不出现
+        self.options["account_sets"] = [{"key": B_REAL, "label": "69SINCER"}]
+        stop = tools._stop_target(self.doc)
+        self.assertEqual([item["key"] for item in stop["account_set_options"]], [A_TEST, A_TEST2])
 
     def test_a_remembered_book_of_another_company_is_not_used(self):
         self.options["current"] = B_REAL
@@ -231,6 +262,25 @@ class RecognizeAndOptionsTests(_Conversation):
     def test_pos_import_into_another_companys_book_is_refused(self):
         out = json.loads(tools.pos_import({"files": ["file_pos"], "connection": "EXP1", "account_set_key": B_REAL}))
         self.assertIn(write_scope.NOT_THIS_COMPANY, out["results"][0]["reason"])
+
+
+class FolderTaskTests(_Conversation):
+    """文件夹任务以后自己写账：公司对话里存 / 改的任务只能指向本对话公司的账套（用户 11-10 第 2 条）；不出「允许」卡片、不存。
+    跑任务时按任务记下的公司在它的账套里挑（`folder_intake.follow.choose`），别家的不会被选到。"""
+
+    def test_a_task_aimed_at_another_companys_book_is_not_saved(self):
+        saved = []
+        task = {"title": "SINCERE", "connection": "EXP1", "account_set_key": B_REAL, "direction": "sales",
+                "reader": "PC|EXP1", "root_id": "r1", "folder": "x", "run_day": "1", "run_time": "08:00"}
+        with mock.patch.object(tools.rules, "save", lambda *a, **k: saved.append(a) or {"name": "T1"}, create=True), \
+                mock.patch.object(tools.rules, "save_many", lambda *a, **k: saved.append(a) or {"saved": []}, create=True):
+            refused = json.loads(tools.folder_task_refusal(dict(task)))
+            self.assertEqual((refused["status"], refused["reason"]), ("not_saved", write_scope.NOT_THIS_COMPANY))
+            self.assertEqual(json.loads(tools.save_folder_task(dict(task)))["reason"], write_scope.NOT_THIS_COMPANY)
+            many = json.loads(tools.save_folder_tasks({"tasks": [dict(task)]}))
+            self.assertEqual(many["failed"][0]["reason"], write_scope.NOT_THIS_COMPANY)
+            self.assertEqual(saved, [])
+            self.assertIsNone(json.loads(tools.folder_task_refusal({**task, "account_set_key": A_TEST}) or "null"))
 
 
 if __name__ == "__main__":
