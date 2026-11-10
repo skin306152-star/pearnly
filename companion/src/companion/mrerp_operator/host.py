@@ -123,7 +123,7 @@ def assemble(state, store, settings, root: Path, notify, *, member=None, desk_fa
         try:
             result = engine.probe(sample)
         except Kicked as error:
-            raise NeedHuman("login_failed", f"kicked: {error}"[:300]) from None
+            raise NeedHuman("account_in_use", f"kicked: {error}"[:300]) from None
         except (NetworkDown, DeskGone) as error:
             raise NeedHuman("network_down", str(error)[:300]) from None
         except PageError as error:

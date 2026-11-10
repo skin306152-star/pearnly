@@ -7,7 +7,7 @@ the runtime ``CompanionConfig`` objects handed to the scheduler.
 from __future__ import annotations
 
 import json
-import logging
+
 import ntpath
 import os
 import tempfile
@@ -19,7 +19,6 @@ from typing import Optional
 
 from . import channel as channels
 
-log = logging.getLogger(__name__)
 from .config import CONFIG_FILE, CompanionConfig
 from .logger import get_logger
 from .token_protector import (
@@ -31,6 +30,7 @@ from .token_protector import (
 )
 
 _log = get_logger(__name__)
+log = _log   # 日志文件只挂在 pearnly_companion 下：原来按模块名另建的日志器写的行哪个文件里都没有（11-09）
 
 SCHEMA_VERSION = 4
 SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 3, SCHEMA_VERSION})

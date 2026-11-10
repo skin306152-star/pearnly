@@ -99,10 +99,19 @@ def choose_doc_type(
 _PURCHASE_DOC_TYPES = ("purchase", "purchase_expense")
 
 
+# 共用防呆的原因里写到账本名字的两种（词条「需在 Express 中处理」「仅…推送至 Express」）：MR.ERP 这边换成自己的码，
+# 词条说 MR.ERP（直写与代录草稿都经这里）；其余（日期）照原码
+MRERP_SANITY_CODES = {"credit_note": "mrerp_credit_note", "currency_not_thb": "mrerp_currency_not_thb"}
+
+
 def _doc_sanity_reason(history: Dict[str, Any], *, today: date) -> Optional[str]:
-    """单据防呆(外币/贷项/未来日期)· 复用 Express doc_sanity · 命中返 reason。"""
+    """单据防呆(外币/贷项/未来日期)· 复用 Express doc_sanity · 命中返 reason（账本名字相关的换 MR.ERP 码）。"""
     fields = history.get("fields") if isinstance(history.get("fields"), dict) else {}
-    return check_document(fields, history, today=today)
+    reason = check_document(fields, history, today=today)
+    if not reason:
+        return reason
+    code, sep, rest = reason.partition(":")
+    return MRERP_SANITY_CODES.get(code, code) + sep + rest
 
 
 def _sanity_fail_row(history: Dict[str, Any], reason: str) -> FailedRow:

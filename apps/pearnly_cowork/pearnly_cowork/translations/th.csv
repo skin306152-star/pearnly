@@ -118,9 +118,11 @@ Amount paid,จำนวนเงินที่จ่ายในครั้�
 Amounts and invoice numbers are misaligned on these VAT report pages; correct against the original: {0},หน้าต่อไปนี้ของรายงานภาษีขายมียอดเงินกับเลขที่เอกสารเหลื่อมแถว กรุณาแก้ไขตามต้นฉบับ: {0}
 An account needed for this invoice is not set. Check the account settings,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,มีรหัสบัญชีที่ไม่อยู่ในผังบัญชีของ Express กรุณาตรวจการตั้งค่าบัญชี
+An account used is not in the MR.ERP chart of accounts. Check the account settings,รหัสบัญชีที่ใช้ไม่มีในผังบัญชี MR.ERP กรุณาตรวจสอบการตั้งค่าบัญชี
 An amount could not be read. Check the amount format in the file,มีจำนวนเงินที่อ่านไม่ได้ กรุณาตรวจสอบรูปแบบจำนวนเงินในไฟล์
 An amount has too many decimal places. Check the file,มีจำนวนเงินที่มีทศนิยมมากเกินไป กรุณาตรวจสอบไฟล์
 An amount in this POS export cannot be read,อ่านจำนวนเงินในไฟล์ส่งออก POS นี้ไม่ได้
+An error occurred while sending to MR.ERP,เกิดข้อผิดพลาดขณะส่งไปยัง MR.ERP
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,รายการในใบกำกับภาษีไม่มีจำนวนเงิน และข้อมูลจำนวนกับราคาต่อหน่วยไม่ครบ กรุณากรอกให้ครบก่อนส่งออก
 An item group's account is not in the Express chart of accounts,บัญชีของกลุ่มสินค้าไม่มีในผังบัญชี Express
 An option in the ERP data report is invalid.,ตัวเลือกในรายงานข้อมูล ERP ไม่ถูกต้อง
@@ -442,10 +444,12 @@ Copy list,คัดลอกรายการ
 Copy to,คัดลอกไปที่
 Correct entry,แก้ไขรายการ
 Corrected Value,ค่าที่แก้ไข
+Could not connect to MR.ERP,เชื่อมต่อ MR.ERP ไม่ได้
 Could not finish,ไม่สำเร็จ
 Could not read the MR.ERP master data.,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 Could not read the MR.ERP menus. Try again later.,ไม่สามารถอ่านเมนู MR.ERP ได้ กรุณาลองใหม่ภายหลัง
 Could not read this document. Please send it again.,ไม่สามารถอ่านเอกสารนี้ได้ กรุณาส่งใหม่
+Could not sign in to MR.ERP. Check the connection's username and password,เข้าสู่ระบบ MR.ERP ไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านของการเชื่อมต่อ
 Could not store this document,ไม่สามารถบันทึกเอกสารนี้ได้
 Count Mode,วิธีตรวจนับ
 Count as expense,ไม่ใช้สิทธิ์ภาษีซื้อ บันทึกเป็นค่าใช้จ่าย
@@ -535,6 +539,7 @@ Credential ID,รหัสข้อมูลรับรอง
 Credit,เงินเชื่อ
 Credit Note,ใบลดหนี้
 Credit notes need a person to post them in Express,ใบลดหนี้ต้องบันทึกใน Express ด้วยตนเอง
+Credit notes need a person to post them in MR.ERP,ใบลดหนี้ต้องบันทึกใน MR.ERP ด้วยตนเอง
 Credit purchase,ซื้อเงินเชื่อ
 Credit sales,ขายเชื่อ
 Currency,สกุลเงิน
@@ -1018,10 +1023,12 @@ MR.ERP Master Options Seen,ข้อมูลหลัก MR.ERP ที่พบ
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ
 MR.ERP default values are needed for this account set. Choose them before pushing.,กรุณาเลือกค่าเริ่มต้นของ MR.ERP สำหรับชุดบัญชีนี้ก่อนส่ง
+MR.ERP does not support this tax rate. Check it and submit again,MR.ERP ไม่รองรับอัตราภาษีนี้ กรุณาตรวจสอบแล้วส่งใหม่
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
 MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันแล้วหลายเมนูสำหรับเอกสารประเภทนี้ กรุณาเลือกหนึ่งเมนูก่อนส่ง
 MR.ERP import menu,เมนูนำเข้า MR.ERP
 MR.ERP purchases can only be entered on credit.,รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบซื้อเงินเชื่อเท่านั้น
+MR.ERP returned an error. Check in MR.ERP,MR.ERP แจ้งข้อผิดพลาด กรุณาตรวจสอบใน MR.ERP
 MR.ERP settings,การตั้งค่า MR.ERP
 Make template,ตั้งเป็นเทมเพลต
 Manual,กรอกเอง
@@ -1084,6 +1091,7 @@ New task,สร้างงานใหม่
 Next Attempt At,เวลาลองใหม่ครั้งถัดไป
 No CC Desktop credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรอง CC เดสก์ท็อปสำหรับการเชื่อมต่อนี้
 No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใช้งาน
+No MR.ERP import result was returned. Check in MR.ERP,ไม่ได้รับผลการนำเข้าจาก MR.ERP กรุณาตรวจสอบใน MR.ERP
 No POS sales export headers were found in this file,ไม่พบหัวคอลัมน์ของไฟล์ส่งออกยอดขาย POS ในไฟล์นี้
 No account set matches “{0}”,ไม่พบชุดบัญชีที่ตรงกับ “{0}”
 No account set of this company covers the document date.,ไม่มีชุดบัญชีของบริษัทนี้ที่ครอบคลุมวันที่ในเอกสาร
@@ -1171,6 +1179,7 @@ Only POS exports in Excel (.xlsx) or CSV can be imported,นำเข้าไ�
 Only an active count can be deleted,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
 Only board admins can do this,เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ดำเนินการนี้ได้
 Only invoices in Thai baht can be sent to Express,ส่งเข้า Express ได้เฉพาะเอกสารสกุลเงินบาท
+Only invoices in Thai baht can be sent to MR.ERP,ส่งเข้า MR.ERP ได้เฉพาะเอกสารสกุลเงินบาท
 Only manual records can be created through this entry.,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
 Only one sell unit can be the default.,กำหนดหน่วยขายเริ่มต้นได้เพียงหน่วยเดียว
 Only payment and VAT choices can be changed here,แก้ไขได้เฉพาะวิธีชำระเงินและการขอคืนภาษีซื้อ
@@ -1742,6 +1751,8 @@ The ERP report refresh status is invalid.,สถานะการรีเฟ�
 The ERP report uses an unsupported system type.,รายงาน ERP ใช้ประเภทระบบที่ไม่รองรับ
 The ERP target context is inconsistent.,บริบทของปลายทาง ERP ไม่สอดคล้องกัน
 The Express index tool is missing on this computer. Reinstall CC Desktop,คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่
+The MR.ERP customer code is too long. Choose the customer again,รหัสลูกค้า MR.ERP ยาวเกินกำหนด กรุณาเลือกลูกค้าใหม่
+The MR.ERP import failed. Nothing was posted,การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี
 The MR.ERP import page shows no menu (setup incomplete or no permission).,ไม่สามารถอ่านเมนูจากหน้านำเข้าของ MR.ERP ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
 The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,การตั้งค่าเมนูใน MR.ERP เปลี่ยนไป (เมนูที่เลือกไม่มีแล้วหรือไม่ได้เชื่อมโยงสมุดรายวัน) กรุณาเลือกใหม่
 The OCR connection changed after this task was accepted.,การเชื่อมต่อบริการอ่านเอกสารเปลี่ยนไปหลังรับงานนี้
@@ -1751,6 +1762,7 @@ The POS daily total is not in the expected form. Import the POS export again,ข
 The POS daily totals of this document are damaged. Import the POS export again,ข้อมูลยอดรวมรายวัน POS ของเอกสารนี้เสียหาย กรุณานำเข้าไฟล์ส่งออก POS ใหม่
 The POS export columns are incomplete,การกำหนดคอลัมน์ของไฟล์ส่งออก POS ไม่ครบ
 The VAT column is more than 7% of a day's sales,คอลัมน์ภาษีมูลค่าเพิ่มเกิน 7% ของยอดขายในวันนั้น
+The VAT does not match the 7% rate. Check it and submit again,ภาษีมูลค่าเพิ่มไม่ตรงกับอัตรา 7% กรุณาตรวจสอบแล้วส่งใหม่
 The VAT report content is invalid.,ข้อมูลรายงานภาษีขายไม่ถูกต้อง
 "The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.","ไม่สามารถอ่านรายงานภาษีขายได้ กรุณาใช้ Excel, CSV หรือ PDF ที่มีชั้นข้อความ"
 The VAT report has no rows.,รายงานภาษีขายไม่มีรายการ
@@ -1838,6 +1850,7 @@ The invoice date is missing or unreadable. Fill it in and submit again,ไม่
 The invoice date looks wrong. Correct it and submit again,วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่
 The invoice fields have an invalid format.,รูปแบบข้อมูลในช่องใบกำกับภาษีไม่ถูกต้อง
 The invoice has changed. Prepare it again.,เอกสารมีการเปลี่ยนแปลง กรุณาเตรียมใหม่
+The invoice number is longer than MR.ERP allows. Shorten it and submit again,เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 The invoice number is missing. Add it and submit again.,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
 The invoice page data has an invalid format.,รูปแบบข้อมูลหน้าใบกำกับภาษีไม่ถูกต้อง
 The item lines do not add up to the day's total,ยอดรวมรายการสินค้าไม่เท่ากับยอดรวมของวัน
@@ -1921,6 +1934,8 @@ The supplier is missing. Add it and submit again.,ไม่มีข้อมู
 The system is busy and the reconciliation was not finished. Please try again shortly.,ระบบไม่ว่าง การกระทบยอดยังไม่เสร็จสมบูรณ์ กรุณาลองใหม่อีกครั้งภายหลัง
 The task owner can no longer enter documents with this connection.,ผู้รับผิดชอบงานตามกำหนดเวลาไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
 The tax month is not valid.,เดือนภาษีไม่ถูกต้อง
+The total is missing. Add it and submit again,ไม่มียอดรวม กรุณาเพิ่มแล้วส่งใหม่
+The total is negative. Correct it and submit again,ยอดรวมติดลบ กรุณาแก้ไขแล้วส่งใหม่
 The unsent preparation was cancelled.,ยกเลิกการเตรียมส่งที่ยังไม่ได้ส่งแล้ว
 The uploaded file does not match the file on the PC.,ไฟล์ที่อัปโหลดไม่ตรงกับไฟล์ในเครื่อง
 The uploaded file exceeds the 100 MiB limit.,ไฟล์ที่อัปโหลดมีขนาดเกินขีดจำกัด 100 MiB
@@ -1944,6 +1959,7 @@ These statements look like another account (a different bank or account number) 
 These statements look like another account and were left out of this reconciliation: {0},รายการเดินบัญชีต่อไปนี้น่าจะเป็นของบัญชีอื่น จึงไม่ได้นำมากระทบยอดครั้งนี้: {0}
 These worksheets repeat another worksheet in the same file line for line and were counted once: {0},แผ่นงานต่อไปนี้ซ้ำกับแผ่นงานอื่นในไฟล์เดียวกันทุกบรรทัด จึงนับเพียงครั้งเดียว: {0}
 This ERP connection is disabled.,การเชื่อมต่อ ERP นี้ปิดใช้งานแล้ว
+This MR.ERP account is in use. Send again later,บัญชี MR.ERP นี้กำลังใช้งานอยู่ กรุณาส่งใหม่ภายหลัง
 This MR.ERP menu cannot be chosen for this account set.,ไม่สามารถเลือกเมนู MR.ERP นี้สำหรับชุดบัญชีนี้ได้
 This PC already has the maximum number of folder rules.,เครื่องนี้มีจำนวนกฎถึงขีดจำกัดแล้ว
 This PC already has the maximum number of scheduled tasks.,เครื่องนี้มีจำนวนงานตามกำหนดเวลาถึงขีดจำกัดแล้ว
@@ -1967,6 +1983,7 @@ This connection does not support an Express CC Desktop credential.,การเ�
 This connection does not support scheduled tasks.,การเชื่อมต่อนี้ไม่รองรับงานตามกำหนดเวลา
 This connection is disabled.,การเชื่อมต่อนี้ปิดใช้งานแล้ว
 This count entry has changed. Refresh it and try again.,รายการตรวจนับนี้เปลี่ยนแปลงแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง
+This customer has no match in MR.ERP. Choose the customer and submit again,ไม่มีข้อมูลลูกค้านี้ใน MR.ERP กรุณาเลือกลูกค้าแล้วส่งใหม่
 This customer is not in Express and could not be created. Check the customer name and tax ID,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
 This delivery conflicts with the current task state.,ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน
 This document does not need this choice,เอกสารนี้ไม่ต้องเลือกว่าจะบันทึกหรือไม่
@@ -1974,6 +1991,7 @@ This document format is not supported.,ไม่รองรับรูปแ�
 This document is in an Express operator entry,เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express
 This document is not in Express,ไม่พบเอกสารนี้ใน Express
 This document type cannot be written to Express. Check it and submit again.,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+This document type cannot be written to MR.ERP,เอกสารประเภทนี้บันทึกลง MR.ERP ไม่ได้
 This document was changed in Express. Check it in Express,เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express
 This file cannot be read,ไม่สามารถอ่านไฟล์นี้ได้
 This file does not match the review workbook format.,ไฟล์นี้ไม่ตรงกับรูปแบบสมุดงานตรวจทาน
@@ -2026,6 +2044,8 @@ This scheduled task no longer exists for this PC.,ไม่พบงานตา
 "This statement shows no running balance, so balances cannot be checked line by line.",รายการเดินบัญชีนี้ไม่มียอดคงเหลือรายรายการ จึงไม่สามารถตรวจสอบยอดคงเหลือทีละรายการได้
 This stock count task is closed.,งานตรวจนับสินค้านี้ปิดแล้ว
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
+This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายนี้ใน MR.ERP และสร้างไม่ได้ กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี
+This supplier is not in MR.ERP. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายนี้ใน MR.ERP กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี
 This task uses the previous count format and cannot accept scan entries.,งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้
 This tax ID is already used by another company.,เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับบริษัทอื่นแล้ว
 This tax id is already used by another client.,เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับลูกค้ารายอื่นแล้ว
@@ -3407,19 +3427,42 @@ intake.error.DBF_WRITE_FAILED,บันทึกลง Express ไม่สำ�
 intake.error.DUPLICATE_CONTENT_DIFFERS,"ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หากต้องการบันทึกเป็นอีกรายการ กรุณาเลือก ""ยืนยันการส่ง"""
 intake.error.EMPTY_ITEMS,เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,ยังไม่ยืนยันผลการส่ง กรุณาตรวจสอบใน Express ก่อนตัดสินใจส่งใหม่
+intake.error.ERR_ACCOUNT_NEEDS_REVIEW,รหัสบัญชีที่ใช้ไม่มีในผังบัญชี MR.ERP กรุณาตรวจสอบการตั้งค่าบัญชี
 intake.error.ERR_ACCOUNT_UID_MISMATCH,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น
+intake.error.ERR_AMOUNTS_NOT_CLOSED,ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่
+intake.error.ERR_AUTH,เข้าสู่ระบบ MR.ERP ไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านของการเชื่อมต่อ
+intake.error.ERR_BUSINESS,MR.ERP แจ้งข้อผิดพลาด กรุณาตรวจสอบใน MR.ERP
+intake.error.ERR_CUSTOMER_CODE_TOO_LONG,รหัสลูกค้า MR.ERP ยาวเกินกำหนด กรุณาเลือกลูกค้าใหม่
+intake.error.ERR_DATE_FUTURE,วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่
+intake.error.ERR_DIRECTION_UNKNOWN,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
+intake.error.ERR_INVOICE_NO_TOO_LONG,เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 intake.error.ERR_LOCATION,ไม่มีคลังสินค้านี้ในชุดบัญชี Express
 intake.error.ERR_MRERP_DEFAULT_CHANGED,ค่าที่เลือกไม่มีใน MR.ERP แล้ว กรุณาเลือกใหม่
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,กรุณาเลือกค่าเริ่มต้นของ MR.ERP สำหรับชุดบัญชีนี้ก่อนส่ง
+intake.error.ERR_MRERP_IMPORT_ERROR,การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,เอกสารนี้ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู อาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP ก่อนส่งซ้ำ
 intake.error.ERR_MRERP_MASTER_UNREADABLE,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 intake.error.ERR_MRERP_MENU_CHANGED,การตั้งค่าเมนูใน MR.ERP เปลี่ยนไป (เมนูที่เลือกไม่มีแล้วหรือไม่ได้เชื่อมโยงสมุดรายวัน) กรุณาเลือกใหม่
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันแล้วหลายเมนูสำหรับเอกสารประเภทนี้ กรุณาเลือกหนึ่งเมนูก่อนส่ง
 intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
 intake.error.ERR_MRERP_MENU_UNREADABLE,ไม่สามารถอ่านเมนูจากหน้านำเข้าของ MR.ERP ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
+intake.error.ERR_MRERP_MODULE_UNAVAILABLE,เอกสารประเภทนี้บันทึกลง MR.ERP ไม่ได้
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
+intake.error.ERR_NEGATIVE_AMOUNT,ยอดรวมติดลบ กรุณาแก้ไขแล้วส่งใหม่
+intake.error.ERR_NO_CLIENT,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
+intake.error.ERR_NO_CUSTOMER_MAPPING,ไม่มีข้อมูลลูกค้านี้ใน MR.ERP กรุณาเลือกลูกค้าแล้วส่งใหม่
+intake.error.ERR_NO_INVOICE_DATE,ไม่มีวันที่เอกสารหรืออ่านไม่ได้ กรุณากรอกแล้วส่งใหม่
+intake.error.ERR_NO_INVOICE_NO,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
+intake.error.ERR_NO_SUPPLIER,ไม่มีผู้จำหน่ายนี้ใน MR.ERP กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี
+intake.error.ERR_NO_TOTAL_AMOUNT,ไม่มียอดรวม กรุณาเพิ่มแล้วส่งใหม่
 intake.error.ERR_PAYLOAD_VERSION,CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
+intake.error.ERR_SESSION_LOCK,บัญชี MR.ERP นี้กำลังใช้งานอยู่ กรุณาส่งใหม่ภายหลัง
+intake.error.ERR_TAX_RATE_INVALID,MR.ERP ไม่รองรับอัตราภาษีนี้ กรุณาตรวจสอบแล้วส่งใหม่
+intake.error.ERR_TECHNICAL,เชื่อมต่อ MR.ERP ไม่ได้
+intake.error.ERR_UNEXPECTED,เกิดข้อผิดพลาดขณะส่งไปยัง MR.ERP
+intake.error.ERR_UNKNOWN_UPLOAD_OUTCOME,ไม่ได้รับผลการนำเข้าจาก MR.ERP กรุณาตรวจสอบใน MR.ERP
+intake.error.ERR_VAT_RATE_ANOMALY,ภาษีมูลค่าเพิ่มไม่ตรงกับอัตรา 7% กรุณาตรวจสอบแล้วส่งใหม่
 intake.error.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 intake.error.INVALID_DOC_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 intake.error.INVALID_INVOICE_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
@@ -3479,6 +3522,8 @@ intake.error.entry_not_balanced,ยอดเดบิตและเครดิ
 intake.error.items_incomplete,บางรายการไม่มีชื่อหรือจำนวนเงิน กรุณาแก้ไขแล้วส่งใหม่
 intake.error.items_mismatch,ยอดรวมรายการไม่ตรงกับยอดในเอกสาร กรุณาแก้รายการแล้วส่งใหม่
 intake.error.low_confidence,ข้อมูลบางช่องยังยืนยันไม่ได้ กรุณาตรวจสอบกับต้นฉบับแล้วส่งใหม่
+intake.error.mrerp_credit_note,ใบลดหนี้ต้องบันทึกใน MR.ERP ด้วยตนเอง
+intake.error.mrerp_currency_not_thb,ส่งเข้า MR.ERP ได้เฉพาะเอกสารสกุลเงินบาท
 intake.error.no_account_set,กรุณาเลือกปีและชุดบัญชีก่อน
 intake.error.no_ap_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
 intake.error.no_ar_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี

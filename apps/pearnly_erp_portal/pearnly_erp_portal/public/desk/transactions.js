@@ -134,6 +134,9 @@
 		"express.printed_total_missing": "express.reason.printedTotalMissing",
 		"express.printed_total_mismatch": "express.reason.printedTotalMismatch",
 		"express.cc_desktop_not_connected": "CC Desktop not connected", "express.cc_desktop_offline": "express.reason.offline",
+		"mrerp.not_configured": "mrerp.reason.notConfigured", "mrerp.login_missing": "mrerp.reason.loginMissing",
+		"mrerp.purchase_cash": "mrerp.reason.purchaseCash", "mrerp.account_busy": "mrerp.reason.accountBusy",
+		"mrerp.importing": "mrerp.reason.importing",
 	};
 	const EXPRESS_KINDS = {
 		party: {sales: "Customer", purchase: "Supplier"}, item: "Item", account: "express.kind.account",
@@ -210,13 +213,17 @@
 		const code = (info.reason || "").match(/^\[([A-Z0-9_]+)\]/)?.[1];
 		// 其余电脑回报的码照 Cowork 同一套文案（`express.error.<码>`），没有译文的才原样
 		const coded = code && __(`express.error.${code}`) !== `express.error.${code}` ? `express.error.${code}` : "";
+		// MR.ERP 账本的单（同 `express.pending.reason_label`）：结果不明一句；共用层的「码」「码:细节」「码; 原文」用 `mrerp.error.<码>`
+		const bare = (info.reason || "").match(/^(ERR_[A-Z0-9_]+|[a-z][a-z0-9_]*)(?=$|[:;])/)?.[1];
+		const mrerp = (info.reason || "").startsWith("mrerp.result_unknown") ? "mrerp.reason.resultUnknown"
+			: bare && __(`mrerp.error.${bare}`) !== `mrerp.error.${bare}` ? `mrerp.error.${bare}` : "";
 		const shortages = code === "STOCK_INSUFFICIENT"
 			// 库存不足按仓列出（CC `stock_guard.message`：「物料@仓 need 要 have 有」；没有分仓结存的账套仓记 all）
 			? [...info.reason.matchAll(/(\S+)@(\S+) need (\S+) have (\S+)/g)].map(([, item, loc, need, have]) =>
 				__("express.reason.stockShort", [item, loc === "all" ? __("All") : loc, need, have])) : [];
 		// 已断开的单：状态本身就说明了（「未写入 Express（已断开）」），不再重复原因
 		const reason = info.reason && !info.reason.startsWith("choice_needed") && info.state !== "detached"
-			? [__(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || coded || info.reason), ...shortages].join("\n") : "";
+			? [__(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || coded || mrerp || info.reason), ...shortages].join("\n") : "";
 		const fields = [
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,
 				default: __({queued: "Queued", written: "express.state.written", mismatch: "Mismatch", held: "Pending",

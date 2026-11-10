@@ -37,6 +37,15 @@ class SameContract(unittest.TestCase):
                      "BATCH_PAUSED", "BATCH_STOPPED", "BATCH_FINISHED", "AUTO", "AUTO_REPORTED", "HUMAN"):
             self.assertEqual(getattr(SERVER, name), getattr(CLIENT, name), name)
 
+    def test_mrerp_stop_reasons_and_what_an_older_or_newer_cc_sends(self):
+        """MR.ERP 被踢 / 账套打不开有专用原因（11-09 P0-④ 起 CC 发 account_in_use / account_set_unavailable）：都要人看、整批停。
+        旧版 CC 还报 login_failed / company_mismatch，照样认；服务端不认识的码（更新的 CC）也按要人看处理，不报错。"""
+        for reason in ("account_in_use", "account_set_unavailable", "login_failed", "company_mismatch"):
+            with self.subTest(reason=reason):
+                self.assertEqual(SERVER.level(reason), SERVER.HUMAN)
+                self.assertIn(reason, SERVER.BATCH_STOPPERS)
+        self.assertEqual(SERVER.level("a_reason_only_a_newer_cc_knows"), SERVER.HUMAN)
+
     def test_targets_match_the_desktop_and_the_routing_rule(self):
         """执行目标（ADR-026）：两端同值；派单纯规则认的 Express 与契约同一个；载荷 18 两端同号、CC 认得（11-06 起最高是混行 19）。"""
         self.assertEqual((SERVER.TARGET_EXPRESS, SERVER.TARGET_MRERP), ("express", "mrerp"))

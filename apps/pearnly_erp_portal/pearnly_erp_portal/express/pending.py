@@ -17,6 +17,7 @@
 """
 from __future__ import annotations
 
+import re
 from typing import NamedTuple
 
 import frappe
@@ -69,9 +70,18 @@ REASONS = {
     "express.printed_total_missing": "express.reason.printedTotalMissing",
     "express.printed_total_mismatch": "express.reason.printedTotalMismatch",
     "express.cc_desktop_not_connected": "CC Desktop not connected", "express.cc_desktop_offline": "express.reason.offline",
+    # 账本是 MR.ERP 的公司（`mrerp.contracts`；开关 MRERP_LEDGER_ENABLED 关着时不会出现）
+    "mrerp.not_configured": "mrerp.reason.notConfigured", "mrerp.login_missing": "mrerp.reason.loginMissing",
+    "mrerp.purchase_cash": "mrerp.reason.purchaseCash", "mrerp.account_busy": "mrerp.reason.accountBusy",
+    "mrerp.importing": "mrerp.reason.importing",
 }
 # 电脑回报的「[错误码] 原文」里认得的码（同单据页 EXPRESS_CODES）；其余码用 `express.error.<码>`，没有译文的原样
 CODES = {"PERIOD_LOCKED": "express.reason.periodLocked", "STOCK_INSUFFICIENT": "express.reason.stockInsufficient"}
+# MR.ERP 导入结论存的原因：结果不明是「mrerp.result_unknown: <码>」；失败是共用层的「码」「码:细节」「码; 原文」（不带方括号；
+# 大写 ERR_ 码与小写防呆码），
+# 译文在 `mrerp.error.<码>`（同 Cowork `intake.error.<码>` 的四语），没有译文的原样
+MRERP_UNKNOWN = "mrerp.result_unknown"
+_MRERP_CODE = re.compile(r"^(ERR_[A-Z0-9_]+|[a-z][a-z0-9_]*)(?=$|[:;])")  # 共用层的 ERR_ 码与防呆码（mrerp_credit_note、date_future…）
 STATES = {contracts.HELD: "Pending", contracts.FAILED: "Failed", contracts.MISMATCH: "Mismatch"}
 
 
@@ -101,6 +111,14 @@ def reason_label(state, reason) -> str:
         return _(STATES.get(state, "Pending"))
     if reason in REASONS:
         return _(REASONS[reason])
+    if reason.startswith(MRERP_UNKNOWN):
+        return _("mrerp.reason.resultUnknown")
+    bare = _MRERP_CODE.match(reason)
+    if bare:
+        key = f"mrerp.error.{bare.group(1)}"
+        text = _(key)
+        if text != key:
+            return text
     code = _error_code(reason)
     if code in CODES:
         return _(CODES[code])

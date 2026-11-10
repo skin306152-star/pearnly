@@ -83,7 +83,11 @@ class ReasonText(unittest.TestCase):
                              ("EXPRESS_MANUAL: party_missing", "party_missing"),
                              ("choice_needed:party,vat", "choice_needed"), ("account_period_mismatch", "account_period_mismatch"),
                              ("push.companion_account_unreported", "push.companion_account_unreported"),
-                             ("The document date is outside the fiscal period.", ""), ("", ""), (None, "")):
+                             ("The document date is outside the fiscal period.", ""), ("", ""), (None, ""),
+                             # MR.ERP 导入回报存成「码; 原文」（11-09 前认不出，界面原样露出）
+                             ("ERR_MRERP_IMPORT_ERROR; Error : Duplicate entry", "err_mrerp_import_error"),
+                             ("ERR_ACCOUNT_NEEDS_REVIEW;ไม่พบรหัสบัญชี", "err_account_needs_review"),
+                             ("mrerp_currency_not_thb:usd", "mrerp_currency_not_thb")):
             self.assertEqual(reason_code(reason), code, reason)
 
 
@@ -93,6 +97,9 @@ class Sources(unittest.TestCase):
         body = source[source.index("p.intake_push_reason = reason =>"):source.index("const RESULT_UNKNOWN")]
         self.assertIn("if (!code) return text ? __(text) : text;", body)
         self.assertIn("`intake.error.${code.toLowerCase()}`", body)
+        # 「码; 原文」同「码:细节」：网页列表与服务端（export_facts）同一条规则
+        self.assertIn("(?=$|[:;])/)?.[1];", body)
+        self.assertIn('(?=$|[:;])"))', (APP / "push/export_facts.py").read_text())
 
     def test_the_review_page_offers_account_sets_for_two_books_of_the_same_dates(self):
         """数字会计员第 3 期（10-17）复核页：自动推判出 book_many（C、没人推过）同定时任务「多于一份」显示同一句、列候选账套；
@@ -139,3 +146,32 @@ class HelperCodesHaveText(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MrerpCodesHaveText(unittest.TestCase):
+    """MR.ERP 写账会落到推送记录 / 待处理 / CC 回包的原因码，四语都有 `intake.error.<码>`（11-09 前 23 个原样露码）。
+    清单里每个码都要真在共用层或 Cowork 的 MR.ERP 代码里出现（防清单过期）。"""
+
+    SHOWN = ("ERR_ACCOUNT_NEEDS_REVIEW", "ERR_AMOUNTS_NOT_CLOSED", "ERR_AUTH", "ERR_BUSINESS", "ERR_CUSTOMER_CODE_TOO_LONG",
+             "ERR_DATE_FUTURE", "ERR_DIRECTION_UNKNOWN", "ERR_INVOICE_NO_TOO_LONG", "ERR_MRERP_IMPORT_ERROR",
+             "ERR_MRERP_MODULE_UNAVAILABLE", "ERR_NEGATIVE_AMOUNT", "ERR_NO_CLIENT", "ERR_NO_CUSTOMER_MAPPING",
+             "ERR_NO_INVOICE_DATE", "ERR_NO_INVOICE_NO", "ERR_NO_SUPPLIER", "ERR_NO_TOTAL_AMOUNT", "ERR_SESSION_LOCK",
+             "ERR_TAX_RATE_INVALID", "ERR_TECHNICAL", "ERR_UNEXPECTED", "ERR_UNKNOWN_UPLOAD_OUTCOME", "ERR_VAT_RATE_ANOMALY",
+             "mrerp_credit_note", "mrerp_currency_not_thb")
+
+    def test_every_shown_mrerp_code_has_four_languages_and_still_exists(self):
+        import csv
+
+        source = "".join(path.read_text(encoding="utf-8") for base in (
+            ROOT / "apps/pearnly_core/pearnly_core/mrerp", ROOT / "apps/pearnly_core/pearnly_core/express_rules/push",
+            APP / "push/mrerp") for path in base.rglob("*.py"))
+        for lang in ("zh", "th", "en", "ja"):
+            with (APP / f"translations/{lang}.csv").open(encoding="utf-8", newline="") as handle:
+                keys = {row[0] for row in csv.reader(handle) if row}
+            for code in self.SHOWN:
+                with self.subTest(lang=lang, code=code):
+                    self.assertIn(f"intake.error.{code}", keys)
+        for code in self.SHOWN:
+            with self.subTest(code=code):
+                self.assertIn(f'"{code}"', source)
+

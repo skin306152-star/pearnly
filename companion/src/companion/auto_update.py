@@ -20,10 +20,10 @@
 """
 from __future__ import annotations
 
-import logging
 import time
 from typing import Callable, Optional
 
+from .logger import get_logger
 from .update_block import UpdateMemory, blocked_code
 
 RETRY_SECONDS = 600  # 下载失败后隔多久再下
@@ -31,7 +31,7 @@ INSTALL_TIMEOUT_SECONDS = 300  # 安装包启动后这么久本进程还在 = �
 INSTALL_RETRY_SECONDS = 24 * 3600  # 没装上的同一版本第一次隔多久再试
 INSTALL_RETRY_MAX_SECONDS = 7 * 24 * 3600  # 之后每次翻倍，最多隔这么久
 
-log = logging.getLogger("pearnly_companion.auto_update")
+log = get_logger(__name__)
 
 
 def retry_delay(attempts: int) -> float:

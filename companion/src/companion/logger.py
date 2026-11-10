@@ -97,8 +97,10 @@ def activity(key: str, lang: str | None = None, **fmt) -> None:
 def get_logger(name: str = "pearnly_companion") -> logging.Logger:
     """方便子模块拿到已配置的 logger"""
     clean = str(name or "").strip()
-    if clean.startswith("src.companion."):
-        clean = "pearnly_companion." + clean.removeprefix("src.companion.")
-    elif clean == "src.companion":
-        clean = "pearnly_companion"
+    # 打包后模块叫 src.companion.<模块>，测试里也有按 companion.<模块> 导入的：都挂到 pearnly_companion 下（日志文件只挂在它上面）
+    for prefix in ("src.companion", "companion"):
+        if clean == prefix:
+            clean = "pearnly_companion"
+        elif clean.startswith(prefix + "."):
+            clean = "pearnly_companion." + clean.removeprefix(prefix + ".")
     return logging.getLogger(clean or "pearnly_companion")

@@ -11,12 +11,12 @@
 """
 from __future__ import annotations
 
-import logging
 import re
 import time
 from decimal import Decimal
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from ..logger import get_logger
 from . import book as B
 from . import contract as K
 from . import menu as M
@@ -25,7 +25,7 @@ from .draft import Draft
 from .helper import NoHelper, png_block
 
 # 写进 companion.log（托盘进程的日志）：AI 接不上时的错误码，不含截图与请求体
-log = logging.getLogger("pearnly_companion.express_operator")
+log = get_logger(__name__)
 from .recipe import Form, Recipe
 
 MAX_TAKEOVERS_PER_DOC = 3

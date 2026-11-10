@@ -12,9 +12,10 @@
 """
 from __future__ import annotations
 
-import logging
 import time
 from typing import Callable, Dict, List, Optional, Protocol, Tuple
+
+from ..logger import get_logger
 
 HAIKU = "claude-haiku-5-5"
 OPUS = "claude-opus-5-5"
@@ -25,7 +26,7 @@ SHOT = (1280, 720)
 # 一段对话最多带这么多张截图；再多就另起一段新对话（目标 + 已做过的事 + 最新一张截图），旧对话整段丢弃。
 # 已发出的消息绝不改写：模型的 thinking 块带签名，前面的内容变了 Anthropic 回 400（11-05 测试机：把旧截图换成文字后第 5 轮 400）
 SEGMENT_SHOTS = 5
-log = logging.getLogger("pearnly_companion.express_operator")
+log = get_logger(__name__)
 GA_FIELDS = frozenset({"model", "max_tokens", "system", "messages", "tools", "thinking", "output_config", "cache_control"})
 
 CHECK_SCHEMA = {

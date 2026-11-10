@@ -210,9 +210,24 @@ def test_changing_a_place_tick_writes_who_changed_what(tmp_path, monkeypatch, ca
     _member(store, ERP_TOKEN, "https://testerp.pearnly.com")
     store.set_places([FIRM])
     settings = _settings(store)
-    with caplog.at_level(logging.INFO, logger="companion.profile_store"):
+    # 日志文件只挂在 pearnly_companion 下（logger.setup_logging）：在那儿接，才证明这行真的写进 companion.log
+    # （11-09 发布窗口验收：原来用 logging.getLogger(__name__)，这行哪个日志文件里都没有，旧测试按模块名接照样过）
+    records = []
+
+    class _Keep(logging.Handler):
+        def emit(self, record):
+            records.append(record)
+
+    root = logging.getLogger("pearnly_companion")
+    keep, level = _Keep(level=logging.INFO), root.level
+    root.addHandler(keep)
+    root.setLevel(logging.INFO)
+    try:
         settings.set_place_channels(FIRM, ["cowork", "core"])
         settings.set_place_channels(FIRM, ["cowork", "core"])   # 没变不记
-    lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("Express 位置 " + FIRM)]
+    finally:
+        root.removeHandler(keep)
+        root.setLevel(level)
+    lines = [r.getMessage() for r in records if r.getMessage().startswith("Express 位置 " + FIRM)]
     assert lines == [f"Express 位置 {FIRM} 给哪几种成员：['cowork'] → ['cowork', 'core']（设置页，skin3）"]
 

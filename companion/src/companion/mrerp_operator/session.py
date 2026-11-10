@@ -10,10 +10,10 @@
 - **选账套**：在选账套页找这个账套（``mainmenu.php?comidyear=…&seldb=1`` 那条链接，文字就是账套名，11-02 真站点实测），
   核链接文字后点进去（页面原本的方式）；主菜单页正文是「Connect Database Server Error : Unknown database …」= 账套库不存在、
   打不开；再读页面底栏的公司全称与「Database Name」（待探路核对，读得到才核）。不符、这个账号看不到这个账套、账套打不开 →
-  ``company_mismatch`` 整批停（账套打不开暂复用这个原因，细节写明）；
+  ``company_mismatch`` 整批停；账套打不开（库不存在）是 ``account_set_unavailable``，同样整批停；
 - **被踢**：MR.ERP 一个账号同时只能一处登录（``checkuseruse.php``：会话号对不上就 alert 后跳 ``logoutkick.php``；11-02 真站点实测
   旧会话下一次打开页面弹「"User" ดังกล่าวมีผู้ Login ซ้ำ…」后回到 ``login/login.php``，按这段文字加「回到登录页」判定）。录到一半
-  被踢回登录页 → 这一批暂停、必须人工（暂用 ``login_failed``，细节写 ``kicked``），**不自动重新登录**（重登会把人踢掉，来回互踢）；
+  被踢回登录页 → 这一批暂停、必须人工（专用原因 ``account_in_use``，细节写 ``kicked``），**不自动重新登录**（重登会把人踢掉，来回互踢）；
   被踢后关窗时也**不走退出登录**（``logout.php`` 会删掉这个账号的在用记录，把正在用的人也踢掉）；
 - **录完**：正常退出登录（``login/logout.php``），关窗，子进程退出。
 """
@@ -101,7 +101,7 @@ class MrerpSession:
     def ensure_open(self) -> None:
         """批次开始 / 网络恢复后：被踢过、登录被拒过的不再登录（必须人工）。真正登录等到要用页面时（``live``）。"""
         if self.kicked:
-            raise NeedHuman("login_failed", f"{KICKED}: MR.ERP account is in use elsewhere; not logging in again")
+            raise NeedHuman("account_in_use", f"{KICKED}: MR.ERP account is in use elsewhere; not logging in again")
         if self.refused:
             raise NeedHuman("login_failed", "MR.ERP refused the stored login")
         if not self.base:
@@ -268,10 +268,10 @@ class MrerpSession:
         missing = str(login.get("account_set_missing") or "")
         if missing and missing in body:
             # 账套库不存在（11-02 真站点实测：主菜单页正文「Connect Database Server Error : Unknown database '<库名>'」）：
-            # 这个账套打不开，整批停。暂用已有的 company_mismatch（整批停、要人看），细节写清楚
+            # 这个账套打不开，整批停（专用原因 account_set_unavailable；旧版服务端不认也按「要人看」处理）
             self.ready = False
             found = re.search(r"Unknown database '([^']*)'", body)
-            raise NeedHuman("company_mismatch", f"account set cannot be opened: unknown database {found.group(1)[:60] if found else ''}")
+            raise NeedHuman("account_set_unavailable", f"account set cannot be opened: unknown database {found.group(1)[:60] if found else ''}")
         facts = footer_facts(page.text(login["footer"]))
         company = str(self.conn.get("company_name") or "")
         # 底栏（待探路核对）：读得到才核；读不到不拦（账套名已按链接文字核过）

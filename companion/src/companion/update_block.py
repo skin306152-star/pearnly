@@ -15,7 +15,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 import threading
 from dataclasses import asdict, dataclass
@@ -23,6 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from .logger import get_logger
 from .version import VERSION, version_tuple
 
 # 启动安装包时这些错误码 = 系统按策略拒绝运行这个文件（CreateProcess 的 GetLastError，Python 放在 OSError.winerror）
@@ -37,7 +37,7 @@ BLOCKED_ERRORS = frozenset({
     *range(4550, 4560), 4580, 4581, 4582,
 })
 
-log = logging.getLogger("pearnly_companion.update_block")
+log = get_logger(__name__)
 
 STATES = ("launched", "blocked", "failed")
 STATE_FILE = "update_state.json"

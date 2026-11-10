@@ -299,7 +299,7 @@ class SamePreparation(unittest.TestCase):
         _importer, blocks, failed = self.stage(site, [goods, cash, foreign])
         self.assertEqual({key: (b["doc_type"], b["menu"]) for key, b in blocks.items()},
                          {goods["id"]: ("purchase", "68"), cash["id"]: ("sales_cash", "126")})
-        self.assertEqual(failed, {foreign["id"]: ["currency_not_thb:usd"]})
+        self.assertEqual(failed, {foreign["id"]: ["mrerp_currency_not_thb:usd"]})
         self.assertFalse([upload for upload in site.uploads if upload[0] in ("impaptran", "impartran", "imparse")])
 
 

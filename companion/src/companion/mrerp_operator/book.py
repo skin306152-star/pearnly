@@ -218,7 +218,7 @@ class MrerpBook:
         except NeedHuman:
             raise
         except Kicked as error:
-            raise NeedHuman("login_failed", f"kicked: {error}"[:300]) from None
+            raise NeedHuman("account_in_use", f"kicked: {error}"[:300]) from None
         except Exception as error:  # noqa: BLE001
             raise NeedHuman("network_down", f"cannot check MR.ERP list: {type(error).__name__}") from None
         if found and found.get("others"):
