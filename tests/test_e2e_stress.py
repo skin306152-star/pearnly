@@ -56,7 +56,7 @@ class SkipTest(unittest.TestCase):
         e2e.load_accounts = lambda: {}
         e2e.check_playwright = lambda: None
         self.ran = []
-        stress.run_one = lambda s, *a, **k: self.ran.append(s.id) or {"cc_usd": 0.1, "tools": []}
+        stress.run_one = lambda s, *a, **k: self.ran.append(s.id) or {"cc_usd": 0.1, "tools": [{"name": "cowork_recognize_attachments"}] if s.id == "S4" else []}
 
     def tearDown(self):
         stress.SPENT_FILE, stress.LEDGER, e2e.load_accounts, e2e.check_playwright, stress.run_one = self.saved
