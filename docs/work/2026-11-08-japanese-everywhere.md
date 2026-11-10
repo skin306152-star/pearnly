@@ -63,6 +63,7 @@
 
 **合入安排（主会话 11-08 选 C）**：本节的 LINE 改动（回落规则、按钮改短与 check-line-labels、日文手打词）在单独分支 `pearnly/japanese-line`，不随本分支合；部署前主会话安排测试机 lab-start（testerp / testcowork 切到合好的 main 实时源码），用三星真测产品地图上只能真机的两行（`cowork.scan.line.stocktake.liff-camera`、`erp.line.postback.erp_item`），结果写进本记录后再合、随同一批部署。
 **11-10 改定（主会话）**：不再等真机，排号合入、随下一批部署。真机没测到（LINE 资料语言不跟手机 / LINE 设置变，见第 6 节 11-10 三次只读查询，三星发出的消息服务端仍按中文回）；回落规则、日文手打词、按钮 20 字由 `test_line_intake`、`tests/test_cowork_line_intake.py`、`tests/test_check_line_labels.py` 与 `check-line-labels` 覆盖。用词统一（会計データ / 付加価値税 / パソコン）已随前面日语批次进 main，本分支变基时该提交为空、已跳过；本分支没有改动任何中文原文（新英文原文 Send to ERP 沿用原中文「发送单据至 ERP」，DMS 两条只改泰文）。
+11-10 合前验证（变基到 main 4492641df 后）：gate 216 过；候选离线 107 组 LANE EXIT 0（镜像 sha256:9fef288f…）；本机实验栈 pearnly-jaline-lab 流程 `erp.line.card-lines` 4/4 过；共用件 line 的三个自动入口 `erp/cowork/dms.line.webhook-sim`（`scripts/smoke/line_flow.py` 在实验栈容器里跑，站点配假令牌、出站全截住）全过：每条都回、三个点不在回复之后。其余 15 个 manual 入口（真 LINE、LIFF 相机、绑定）—— 没测到：要线上真号与真机，部署后按验收清单跑。
 
 数法：五份术语表 ja 列逐行查（空 0 条）；LINE 代码里实际用到的词条逐个对翻译包（ERP 122 处、Cowork 114 处、DMS 212 个 `dms.*` 键，日文全有）；按钮由 `scripts/check-line-labels.py` 静态认出（61 条）。
 
