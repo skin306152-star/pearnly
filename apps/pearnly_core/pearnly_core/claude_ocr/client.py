@@ -73,7 +73,8 @@ def _session():
 
 
 def internal(path, body, timeout=(5, 60)):
-    """调甲骨文服务的内部接口（只放行生产 IP）：回 JSON。没配、连不上、对方出错都抛 ``Deferred``（调用方让页面 / 队列稍后再来）。"""
+    """调甲骨文服务的内部接口（只放行生产 IP）：回 JSON。没配、连不上、对方出错都抛 ``Deferred``（调用方让页面 / 队列稍后再来）。
+    ``body`` 是 dict 就按 JSON 发；是可读的流（知道长度，例如存原件的 ``originals.oracle.JsonUpload``）就原样边读边发。"""
     import requests
     from pearnly_core.execution.errors import Deferred
 
@@ -82,7 +83,9 @@ def internal(path, body, timeout=(5, 60)):
         raise Deferred("oracle_not_configured", 30)
     session, base = found
     try:
-        response = session.post(base + path, json=body, timeout=timeout)
+        sending = ({"data": body, "headers": {"Content-Type": "application/json"}} if hasattr(body, "read")
+                   else {"json": body})
+        response = session.post(base + path, timeout=timeout, **sending)
     except requests.RequestException as error:
         frappe.logger("pearnly.ocr").warning("oracle edge unreachable (%s) %s", type(error).__name__, path)
         raise Deferred("oracle_unreachable", 10) from error

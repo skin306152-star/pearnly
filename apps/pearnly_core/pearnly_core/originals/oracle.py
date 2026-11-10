@@ -9,6 +9,7 @@
 """
 import base64
 import hashlib
+import json
 import os
 
 from pearnly_core.originals import links
@@ -42,11 +43,54 @@ def inspect(name, filename):
 
 def put(name, filename, content):
     """生产手上已有字节的原件（LINE、CC 对话交来的文件，ADR-024）：经内部通道交给甲骨文存，存完同一份检查核对。
-    回 ``inspect`` 同样的结果；连不上抛 ``Deferred``。"""
+    回 ``inspect`` 同样的结果；连不上抛 ``Deferred``。请求体边读边编码（`JsonUpload`），网页进程不另存整份 base64。"""
     from pearnly_core.claude_ocr import client
 
-    return client.internal("/v1/originals/put", {"object": name, "filename": filename,
-                                                 "data": base64.b64encode(content).decode()}, timeout=(5, 180))
+    return client.internal("/v1/originals/put", JsonUpload({"object": name, "filename": filename}, content),
+                           timeout=(5, 180))
+
+
+class JsonUpload:
+    """存原件的请求体 ``{"object": …, "filename": …, "data": "<base64>"}``：读的时候才按段做 base64，整份 base64 文本不进内存。
+    11-10 实测一份 40MB 原件原来要多占约 130MB（base64 文本、json.dumps、编码成字节各一份）。知道总长度（``__len__``），
+    requests 照常带 Content-Length，甲骨文按长度读，收到的与原来逐字节相同。只能读一遍（客户端不重试）。"""
+
+    STEP = 3 * 1024 * 1024  # 3 的倍数：分段编码拼起来与整份编码相同
+
+    def __init__(self, head: dict, content: bytes):
+        self._prefix = (json.dumps(head)[:-1] + ', "data": "').encode()
+        self._suffix = b'"}'
+        self._content = memoryview(content)
+        self._length = len(self._prefix) + 4 * ((len(content) + 2) // 3) + len(self._suffix)
+        self._next = 0  # 下一段原件从哪里编码
+        self._buffer, self._at = self._prefix, 0
+        self._ended = False
+
+    def __len__(self):
+        return self._length
+
+    def _refill(self) -> bool:
+        if self._next < len(self._content):
+            piece = self._content[self._next:self._next + self.STEP]
+            self._next += len(piece)
+            self._buffer, self._at = base64.b64encode(piece), 0
+            return True
+        if not self._ended:
+            self._buffer, self._at, self._ended = self._suffix, 0, True
+            return True
+        return False
+
+    def read(self, size=-1):
+        out = []
+        wanted = self._length if size is None or size < 0 else size
+        while wanted > 0:
+            if self._at >= len(self._buffer) and not self._refill():
+                break
+            take = self._buffer[self._at:self._at + wanted]
+            self._at += len(take)
+            wanted -= len(take)
+            out.append(take)
+        return b"".join(out)
 
 
 def download_url(stored, filename):
