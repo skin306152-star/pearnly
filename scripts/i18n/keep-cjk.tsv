@@ -192,6 +192,10 @@ apps/pearnly_core/pearnly_core/assistant/direct_push.py	ทุกเจ้า, �
 apps/pearnly_core/pearnly_core/assistant/direct_push.py	บาท	给模型的口径（共用层，Cowork 与 ERP 版 CC 同用一份；不进界面）：金额是泰铢，泰文里说 บาท
 apps/pearnly_core/pearnly_core/assistant/direct_push.py	泰铢	给模型的口径（共用层，Cowork 与 ERP 版 CC 同用一份；不进界面）：金额是泰铢，中文里说泰铢
 apps/pearnly_core/pearnly_core/assistant/direct_push.py	元	给模型的口径（共用层，Cowork 与 ERP 版 CC 同用一份；不进界面）：点名不许说「元」
+apps/pearnly_core/pearnly_core/assistant/direct_push.py	บันทึก	给模型的口径（共用层，Cowork 与 ERP 版 CC 同用一份；不进界面）：识别存好不等于已录，列出各语言「已录」的说法（线上 11-10 testcowork 代录 t4n5b25940 原话）让模型没有写入回执时不说
+apps/pearnly_core/pearnly_core/assistant/direct_push.py	แล้ว	给模型的口径（共用层，Cowork 与 ERP 版 CC 同用一份；不进界面）：识别存好不等于已录，列出各语言「已录」的说法（线上 11-10 testcowork 代录 t4n5b25940 原话）让模型没有写入回执时不说
+apps/pearnly_core/pearnly_core/assistant/direct_push.py	已录	给模型的口径（共用层，Cowork 与 ERP 版 CC 同用一份；不进界面）：识别存好不等于已录，列出各语言「已录」的说法（线上 11-10 testcowork 代录 t4n5b25940 原话）让模型没有写入回执时不说
+apps/pearnly_core/pearnly_core/assistant/direct_push.py	已登记	给模型的口径（共用层，Cowork 与 ERP 版 CC 同用一份；不进界面）：识别存好不等于已录，列出各语言「已录」的说法（线上 11-10 testcowork 代录 t4n5b25940 原话）让模型没有写入回执时不说
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	去 Express 改	给模型的口径：同上，中文反例（不进界面）
 apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py	ทุกเจ้า, เจ้าอื่น	给模型的口径：会计员说「所有公司 / 别家」的泰文说法，公司对话里据此传 all_companies（不进界面）
 apps/pearnly_cowork/pearnly_cowork/push/express/account_suggest.py	*	输入词：票面、会计员的话与 Express 科目名里的泰文费用关键词与泛词，按原字面认，翻了就认不出；不进界面（建议理由给模型，是英文）
