@@ -68,33 +68,43 @@ class Scenario:
 SINCERE_MULTI = ["bigc-jun-soi.pdf", "bigc-jun-plab.pdf", "bigc-jul-soi.pdf", "bigc-jul-plab.pdf",
                  "void-jun-plab.pdf", "void-jun-soi.pdf", "void-jul-plab.pdf"]   # 27+15+23+25+5+1+6 = 102 页
 
+TEST_COMPANY = "บริษัท Pearnly จำกัด"   # testcowork 里挂 \\accserver\d$\account\69exp\test 的那家（11-10 只读核过）
+REAL_BOOK = re.compile(r"69sincer|pas212|192\.168\.0\.212", re.I)   # 真账套的特征：出现在目标里就停
+
 SCENARIOS = [
+    Scenario("S0a", "第 0 格（代录）：选 69EXP\\TEST 那家，放 SINCERE 25 页，只到开始前卡片，看目标是哪本", "cowork", "desktop",
+             "operator", "บันทึกไฟล์ PDF นี้เข้า Express", ["bigc-aug-soi.pdf"], 25,
+             "开始前卡片与工具调用里的目标都是 69exp\\test；不点开始", company=TEST_COMPANY, minutes=12, cc_cap=1.0),
+    Scenario("S0b", "第 0 格（直写）：选同一家，放 1 页 SINCERE，只识别不录，再问会录到哪本", "cowork", "desktop", "chat",
+             "ช่วยอ่านเอกสารนี้ก่อน ยังไม่ต้องบันทึกเข้า Express", ["void-jun-soi.pdf"], 1,
+             "识别时的账套键与 CC 说的目标都是 69exp\\test；不调推送", company=TEST_COMPANY,
+             follow=[(90, "ถ้าจะบันทึกเข้า Express จะลงสมุดบัญชีไหน บอกชื่อสมุดบัญชีและที่เก็บ ยังไม่ต้องบันทึก")], minutes=8, cc_cap=0.6),
     Scenario("S3", "单个 PDF 53 页（超过 50 页上限）", "cowork", "desktop", "chat",
-             "บันทึกเอกสารนี้เข้า Express ให้หน่อย", ["bigc-aug-53p.pdf"], 53,
-             "识别前就拒、说清超过 50 页、给能做的下一步（拆分）；不扣识别费；不露内部名词", minutes=6, cc_cap=0.6, charged=False),
+             "ช่วยรับเอกสารนี้เข้าระบบ ยังไม่ต้องบันทึกเข้า Express", ["bigc-aug-53p.pdf"], 53,
+             "识别前就拒、说清超过 50 页、给能做的下一步（拆分）；不扣识别费；不露内部名词", company=TEST_COMPANY, minutes=6, cc_cap=0.6, charged=False),
     Scenario("S4", "ERP 直写对话放 PDF 说录进 Express（线上 ERP 对话还没识别工具）", "erp", "desktop", "chat",
-             "把这份 PDF 录进 Express", ["bigc-jun-plab.pdf"], 0,
-             "如实说现在能做什么、不编造已录入；不露内部名词", minutes=6, cc_cap=0.6),
+             "把这份 PDF 收进系统，告诉我会录到哪本 Express 账套，先不要录", ["bigc-jun-plab.pdf"], 15,
+             "如实说现在能做什么、不编造已录入；说的账套是选中公司的；不推送；不露内部名词", company="*", minutes=10, cc_cap=0.8),
     Scenario("S2", "只看内容：50 页单 PDF", "cowork", "mobile", "chat",
              "这份 PDF 里有几张票？每张的买方和合计是多少？只看内容，不要录进 Express", ["bigc-aug-50p.pdf"], 50,
-             "读出约 50 张、按买方分店列出合计；不调推送；有进度；不露内部名词", minutes=25, cc_cap=2.0),
+             "读出约 50 张、按买方分店列出合计；不调推送；有进度；不露内部名词", company=TEST_COMPANY, minutes=25, cc_cap=2.0),
     Scenario("S1", "直写：多文件 102 页说录进 Express（事故形状：同税号 Big C 多分店、从没记过对应）", "cowork", "desktop", "chat",
-             "บันทึกเอกสารทั้งหมดนี้เข้า Express", SINCERE_MULTI, 102,
-             "识别完自动继续；同一买方只问一次（不是逐张问）；作废票单独说；到开始前卡片 / 推送确认为止（不点）；不露内部名词",
-             follow=[(240, "ตอนนี้ถึงไหนแล้ว")], minutes=35, cc_cap=3.0),
+             "ช่วยรับเอกสารทั้งหมดนี้เข้าระบบ แล้วบอกว่าจะบันทึกเข้าสมุดบัญชี Express เล่มไหน ยังไม่ต้องบันทึกเข้า Express", SINCERE_MULTI, 102,
+             "识别完自动继续；目标账套是选中公司的（不是按票上卖方税号配到 69SINCER）；同一买方只问一次；作废票单独说；不推送；不露内部名词",
+             company=TEST_COMPANY, follow=[(240, "ตอนนี้ถึงไหนแล้ว")], minutes=35, cc_cap=3.0),
     Scenario("S7", "日文抽查：5 页", "cowork", "desktop", "chat",
-             "このPDFをExpressに入力してください", ["void-jun-plab.pdf"], 5,
-             "日文回复；作废票说清；到确认为止（不点）；不露内部名词", minutes=10, cc_cap=0.8),
+             "このPDFをシステムに取り込んで、どのExpress帳簿に入力するか教えてください。まだ入力しないでください", ["void-jun-plab.pdf"], 5,
+             "日文回复；作废票说清；说的账套是选中公司的；不推送；不露内部名词", company=TEST_COMPANY, minutes=10, cc_cap=0.8),
     Scenario("S5a", "代录基线（Cowork 电脑 泰文）：24 页 PDF 说录进 Express", "cowork", "desktop", "operator",
              "บันทึกไฟล์ PDF นี้เข้า Express", ["bigc-aug-soi.pdf"], 25,
-             "开始前卡片一次问完同一买方；不调直写推送；状态不卡「准备中」；不露内部名词（修复前预期复现事故）", company="*",
+             "开始前卡片一次问完同一买方；不调直写推送；状态不卡「准备中」；目标是选中公司的账套；不露内部名词", company=TEST_COMPANY,
              minutes=15, cc_cap=1.2),
     Scenario("S5b", "代录基线（ERP 手机 中文）：24 页 PDF 说录进 Express", "erp", "mobile", "operator",
              "把这份 PDF 录进 Express", ["bigc-aug-soi.pdf"], 25,
              "同 S5a（ERP 代录）", company="*", minutes=15, cc_cap=1.2),
     Scenario("S6", "并发：每路一个 10 页混合 PDF「识别并录入」（两租户各 3 路同时）", "both", "desktop", "chat",
-             "识别这份 PDF 并录进 Express", ["mix-10p.pdf"], 60,
-             "各路都出结果、没有 500 / 卡死；记每路耗时与排队；不点推送", minutes=20, cc_cap=0.8, lanes=6),
+             "识别这份 PDF，告诉我有几张、合计多少、会录到哪本 Express 账套，先不要录", ["mix-10p.pdf"], 60,
+             "各路都出结果、没有 500 / 卡死；记每路耗时与排队与选的账套；不推送", company=TEST_COMPANY, minutes=20, cc_cap=0.8, lanes=6),
     Scenario("S8", "直写真推送（明天，accserver 在线、TEST 写前快照）", "cowork", "desktop", "chat",
              "บันทึกเอกสารทั้งหมดนี้เข้า Express", SINCERE_MULTI, 102,
              "推送进 TEST、回读一致；同税号分店选一次；重复 / 作废票不重复写", click="start", minutes=45, cc_cap=3.0, tonight=False),
@@ -122,6 +132,15 @@ def add_spent(usd: float):
     SPENT_FILE.write_text(json.dumps({"usd": round(spent() + usd, 4), "at": datetime.datetime.now().isoformat()}), encoding="utf-8")
 
 
+def month_total() -> float:
+    """台账里最后一个「N 月累计约 X」（本月已花，含别的窗口）；读不到回 0。"""
+    try:
+        found = re.findall(r"\d+ 月累计约 ([0-9.]+)", LEDGER.read_text(encoding="utf-8"))
+        return float(found[-1]) if found else 0.0
+    except (OSError, ValueError):
+        return 0.0
+
+
 def ledger(line: str):
     with LEDGER.open("a", encoding="utf-8") as fh:
         fh.write(line.rstrip() + "\n")
@@ -143,6 +162,10 @@ def tool_calls(events: list) -> list:
         kind = event.get("type") or ""
         if kind.endswith("tool_use") and event.get("name"):
             call = {"at": event.get("processed_at"), "name": event["name"]}
+            given = event.get("input") if isinstance(event.get("input"), dict) else {}
+            for key in ("account_set_key", "connection", "target", "direction", "company", "mode"):   # 推往哪本账套由这几项定
+                if given.get(key):
+                    call[key] = str(given[key])[:120]
             out.append(call)
             if event.get("id"):
                 by_id[event["id"]] = call
@@ -165,6 +188,7 @@ const pager=[...document.querySelectorAll('[data-slot="cc-askq-pager"]')].filter
 return {line: text(q('[data-slot="cc-run-indicator"]')), send: !!q('button.aui-composer-send'), stop: !!q('button.aui-composer-cancel'),
   reply: text(last).slice(-600), asks: asks.length, pager, ask_text: asks.slice(0, 3).map(e => text(e).slice(0, 160)),
   start_card: !!q('[data-slot="cc-op-target"], [data-slot="cc-op-before-ask"]'),
+  target: [...document.querySelectorAll('[data-slot="cc-op-target"]')].map(e=>text(e)).slice(-2),
   page_text: text(q('[data-slot="aui_thread-viewport"]') || document.body).slice(-20000)};
 """
 
@@ -221,11 +245,12 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
         before = {x["id"] for x in scenarios.cc(page, f"return await listed('{listing}');")}
         if s.mode == "operator":
             scenarios.expect(scenarios.cc(page, "return await toMode('operator');"), "切不到代录模式")
-        if s.company == "*":
+        company = "*" if (s.product == "both" and product == "erp") else s.company
+        if company == "*":
             result["company"] = pick_first(page)
-        elif s.company:
-            result["company"] = s.company
-            scenarios.expect(scenarios.cc(page, f"return await pickCompany({json.dumps(s.company)});"), f"选不到公司 {s.company}")
+        elif company:
+            result["company"] = company
+            scenarios.expect(scenarios.cc(page, f"return await pickCompany({json.dumps(company)});"), f"选不到公司 {company}")
         attach(page, [files_dir / name for name in s.files])
         page.screenshot(path=str(shots / "00-attached.png"))
         scenarios.expect(scenarios.cc(page, f"return await say({json.dumps(s.say)});"), "输入框发不出去")
@@ -245,11 +270,19 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
             result["cc_usd"] = usage_usd(events)
             result["tools"] = tool_calls(events)
             bad = sorted(set(m.group(0) for m in INTERNAL.finditer(look.pop("page_text"))))
-            row = {"s": now, **{k2: look[k2] for k2 in ("line", "send", "stop", "asks", "pager", "start_card")}, "internal": bad,
+            row = {"s": now, **{k2: look[k2] for k2 in ("line", "send", "stop", "asks", "pager", "start_card", "target")}, "internal": bad,
                    "reply": look["reply"][-200:], "ask_text": look["ask_text"]}
             if not result["trail"] or {k2: v for k2, v in row.items() if k2 != "s"} != {k2: v for k2, v in result["trail"][-1].items() if k2 != "s"}:
                 result["trail"].append(row)
             page.screenshot(path=str(shots / f"{k:03d}-{now}s.png"))
+            hit = [t for t in result["tools"] if REAL_BOOK.search(t.get("account_set_key", ""))] + \
+                  ([look["target"]] if any(REAL_BOOK.search(x) for x in look.get("target") or []) else [])
+            if hit:
+                result["real_book"] = hit
+                page.screenshot(path=str(shots / f"REAL-BOOK-{now}s.png"), full_page=True)
+                if page.locator("button.aui-composer-cancel").count():
+                    page.locator("button.aui-composer-cancel").first.click()
+                break
             if result["cc_usd"] > s.cc_cap:
                 result["stopped"] = f"模型费 {result['cc_usd']} 超本格上限 {s.cc_cap}，点停止"
                 if page.locator("button.aui-composer-cancel").count():
@@ -277,6 +310,7 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
         result["internal_seen"] = sorted({w for row in result["trail"] for w in row["internal"]})
         result["max_asks"] = max([row["asks"] for row in result["trail"]] or [0])
         result["direct_push_in_operator"] = s.mode == "operator" and any("push" in t["name"] for t in result["tools"])
+        result["pushed"] = [t for t in result["tools"] if t["name"] == "cowork_push_documents"]
     except Exception as error:  # noqa: BLE001  一格出错记下来，不中断别的格
         result["error"] = f"{type(error).__name__}: {str(error)[:300]}"
         result["seconds"] = round(time.time() - t0, 1)
@@ -358,7 +392,7 @@ def main(argv=None) -> int:
             results.append(r)
         add_spent(usd)
         ledger(f"| {time.strftime('%m-%d %H:%M')} | 线上压测窗口 | 压测 {sid}：{s.title}（testcowork/testerp，e2e 账号，生产密钥） | {s.pages} | "
-               f"估 {usd}（模型按用量 + 识别按页 {OCR_PER_PAGE}） | 本轮累计约 {spent()} |")
+               f"估 {usd}（模型按用量 + 识别按页 {OCR_PER_PAGE}） | 本轮累计约 {spent()}；**{time.localtime().tm_mon} 月累计约 {round(month_total() + usd, 2)}** |")
         (out_dir / "results.json").write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
         if any(x.get("error") for x in ([results[-1]] + results[-1].get("lanes", []))):
             code = max(code, 1)

@@ -84,7 +84,7 @@ class SkipTest(unittest.TestCase):
             (self.tmp / name).write_bytes(b"%PDF-1.4")
         self.assertEqual(self.run_main("--scenario", "S4", "--budget", "25"), 0)
         self.assertEqual(self.ran, ["S4"])
-        self.assertAlmostEqual(stress.spent(), 0.1)
+        self.assertAlmostEqual(stress.spent(), 0.1 + stress.BY_ID["S4"].pages * stress.OCR_PER_PAGE)
         self.assertIn("压测 S4", stress.LEDGER.read_text(encoding="utf-8"))
 
     def test_rejected_upload_not_charged(self):
