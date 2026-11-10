@@ -53,6 +53,14 @@ def steps(params, camera_code=None):
          f"const got=await until(()=>{want(params['queued'])},120); "
          "return {shown: queuedShown, early, got, left: document.querySelectorAll('[data-slot=\"cc-queue-item\"]').length};"},
         # 批 A ③：刷新前在输入框打一句不发（草稿按对话存本机，稍等它存下）
+        # 说停就停（A 线 11-10）：回复进行中只发一个「停」，等于按停止键——这一轮停下，「停」不进排队、不发成一条消息
+        {"name": "回复中说停", "js": WAIT + f"await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),40); "
+         f"await say({json.dumps(tag + ' [lab-slow]8[/lab-slow] 慢慢来')}); "
+         "await until(()=>!!document.querySelector('button[aria-label=\"停止\"]'),40); await new Promise(r=>setTimeout(r,300)); "
+         "const t0=Date.now(); await say('停'); "
+         "const stopped=await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),16); "
+         "return {stopped, ms: Date.now()-t0, queued: document.querySelectorAll('[data-slot=\"cc-queue-item\"]').length, "
+         "sentStop: roles('user').some(t=>t.trim()==='停')};"},
         {"name": "刷新", "js": f"const ta=document.querySelector('textarea[aria-label]'); "
          "Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(ta," + json.dumps(params["draft"]) + "); "
          "ta.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,1200)); location.reload(); return 1;",
@@ -110,6 +118,7 @@ def steps(params, camera_code=None):
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
     first, second = params["first"], params["second"]
+    halted = by.get("回复中说停") or {}
     one, two, back, found, long, reopened, queued = (by.get(k) or {} for k in ("第一轮", "第二轮", "从侧栏找回", "搜索", "长回复",
                                                                                "刷新后直接回到原对话", "回复中排队"))
     cut, kept = (by.get(k) or {} for k in ("回到一半停止", "停止后找回"))
@@ -134,6 +143,8 @@ def judge(params, results, camera_code=None):
         {"case": "停止后刷新找回：半段还在、「已停止」「重试」都在、没有补出正式回复", "seen": kept,
          "ok": bool(kept.get("marked")) and bool(kept.get("half")) and bool(kept.get("retry")) and not kept.get("end")
          and "已停止" in (kept.get("note") or "") and "重试" in (kept.get("note") or "")},
+        {"case": "回复中只说「停」：这一轮停下，不进排队、不发成消息", "seen": halted,
+         "ok": bool(halted.get("stopped")) and halted.get("queued") == 0 and not halted.get("sentStop")},
         # 长回复超出一屏（overflow 远大于一屏）：电脑停在最底下（gap 近 0）；手机不跟，停在这一轮开头（提问在视口上沿附近、下面还有很多）
         {"case": "长回复：电脑跟到底、手机停在这一轮开头", "seen": long,
          "ok": bool(long.get("got")) and (long.get("overflow") or 0) > 600 and (
