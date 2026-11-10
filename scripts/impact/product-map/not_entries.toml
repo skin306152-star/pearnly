@@ -322,6 +322,11 @@ kind = "internal"
 reason = "设置里「此电脑」没有电脑时的下载 CC 桌面版：同上，安装引导"
 
 [[anchor]]
+anchor = 'ccnav:kit/gallery.tsx:location.href = url.toString();'
+kind = "internal"
+reason = "标准组件库展示页（kit.html，只在开发服务器与 CC_KIT=1 构建里）切语言、深浅色：重新载入本页，不是产品入口，不进生产（docs/development/cc-ui-kit.md）"
+
+[[anchor]]
 anchor = 'ccnav:lib/frappe.ts:location.href = "/assistant";'
 kind = "internal"
 reason = "接口回报会话已过期时回到对话页重新登录：被动跳转，不是用户点的入口；登录入口由 switch-account / logout 两行与 assistant-gate 探针覆盖"
