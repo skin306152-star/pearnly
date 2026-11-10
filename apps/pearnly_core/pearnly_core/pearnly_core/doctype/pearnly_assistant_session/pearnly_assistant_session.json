@@ -22,7 +22,8 @@
   "project_scope",
   "project_noted",
   "operator_task",
-  "user_turn"
+  "user_turn",
+  "last_stop_at"
  ],
  "fields": [
   {
@@ -144,11 +145,17 @@
    "fieldtype": "Int",
    "label": "User Turn",
    "read_only": 1
+  },
+  {
+   "fieldname": "last_stop_at",
+   "fieldtype": "Datetime",
+   "label": "Last Stop At",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-10 14:00:00.000000",
+ "modified": "2026-11-10 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Session",

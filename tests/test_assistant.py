@@ -5035,6 +5035,11 @@ class _ProjectDb:
     def sql(self, query, values=None, as_dict=False):
         query = " ".join(query.split())
         self.sql_seen.append((query, values))
+        if "set last_stop_at = greatest(" in query:  # sessions._mark_stop：只增不减
+            for row in self.rows:
+                if row.name == values["name"]:
+                    row["last_stop_at"] = max(filter(None, [row.get("last_stop_at"), values["at"]]))
+            return []
         if "set user_turn = ifnull(user_turn, 0) + 1" in query:  # sessions._count_turn：原子加一
             for row in self.rows:
                 if row.name == values:
@@ -5657,6 +5662,19 @@ class OperatorSessionTests(unittest.TestCase):
         self.assertEqual(self.api.method_calls, [])
         with self.assertRaises(frappe.DoesNotExistError):
             self.sessions.run_tool("op_task0001", "pop_task0001_start")
+
+    def test_each_stop_marks_the_conversation_and_the_mark_only_moves_forward(self):
+        # A 线写入计划（主会话 11-10）：停止键、说停就停都记下这一刻（UTC），只增不减；last_stop 只读本人这段对话，没停过是 None
+        row = next(r for r in self.db.rows if r.session_id == "op_task0001")
+        with mock.patch.object(self.sessions, "owned", lambda sid, allow_archived=False: row):
+            self.assertIsNone(self.sessions.last_stop("op_task0001"))
+        later = __import__("datetime").datetime(2026, 11, 10, 9, 0)
+        with mock.patch.object(self.sessions, "_utc_now", lambda: later):
+            self.sessions.interrupt("op_task0001")
+        with mock.patch.object(self.sessions, "_utc_now", lambda: later.replace(hour=8)):  # 时钟往回拨也不倒退
+            self.sessions.interrupt("op_task0001")
+        with mock.patch.object(self.sessions, "owned", lambda sid, allow_archived=False: row):
+            self.assertEqual(self.sessions.last_stop("op_task0001"), later)
 
     def test_stop_records_a_task_control_while_queued_or_running(self):
         self.sessions.interrupt("op_task0001")
@@ -6562,7 +6580,8 @@ class StopRaceTests(unittest.TestCase):
         row = _Row(name="row1", session_id="sesn_01X2K4vJBNvR361Cvjxap2Nw", remote_ids="")
         posted, logged, rolled = [], [], []
         api = types.SimpleNamespace(post=lambda remote, batch: posted.append((remote, batch)))
-        db = types.SimpleNamespace(rollback=lambda: rolled.append(1))
+        marked = []
+        db = types.SimpleNamespace(rollback=lambda: rolled.append(1), sql=lambda query, values=None: marked.append(values["name"]))
         with mock.patch.object(sessions, "owned", lambda sid: row), \
                 mock.patch.object(sessions.engine, "adapter", return_value=api), \
                 mock.patch.object(sessions.toolrun, "cancel_waiting", mock.Mock(side_effect=_Deadlock("1020"))), \
@@ -6571,6 +6590,7 @@ class StopRaceTests(unittest.TestCase):
             self.assertIsNone(sessions.interrupt(row.session_id))
         self.assertEqual(posted, [(row.session_id, [{"type": "user.interrupt"}])])
         self.assertEqual((rolled, [kw.get("title") for kw in logged]), ([1], ["Assistant cancel waiting failed"]))
+        self.assertEqual(marked, ["row1"])  # 停止的时刻照记（A 线写入计划核它）
 
     def test_lock_order_one_tool_run_row_at_a_time(self):
         """源码：改执行记录的几处都先结束调用方的快照；作废每条一个短事务、SKIP LOCKED 不等锁；抢占撞上算没抢到；执行时工具的写

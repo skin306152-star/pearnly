@@ -955,6 +955,7 @@ Checking the hands-on task	正在查看实操任务	กำลังตรวจ�
 Updating the hands-on task	正在更新实操任务	กำลังอัปเดตงานทำใน Express	代行入力タスクを更新しています
 Operator Task	实操任务	งานทำใน Express	代行入力タスク
 User Turn	用户消息序号	ลำดับข้อความผู้ใช้	ユーザーメッセージ番号
+Last Stop At	最近一次停止	หยุดล่าสุดเมื่อ	最終停止日時
 Pending Controls	待执行的操作	การดำเนินการที่รออยู่	保留中の操作
 Request Key	请求键	คีย์คำขอ	リクエストキー
 Recognition Task	识别任务	งานอ่านเอกสาร	認識タスク

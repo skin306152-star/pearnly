@@ -1012,7 +1012,11 @@ def confirm(session_id, confirmations) -> dict:
 def interrupt(session_id) -> None:
     """停止。代录会话（E13）：远端会话开过就照旧打断引擎（CC 在回话）；任务交出去还在排、在录时记一条任务控制 stop，执行的
     那台电脑的 CC 页面取走后经桥停下。"""
+    from pearnly_core.transaction import conflicts
+
     row = owned(session_id)
+    # 记下这一刻用户下令停了（停止键、说停就停都走这里；A 线写入计划逐段写时核它，变了就停）。这之前只有读：撞上冲突整笔重来
+    conflicts.retried(_mark_stop, row.name)
     if row.get("operator_task"):
         _operator_stop(row)
         if not segments(row):
@@ -1027,6 +1031,25 @@ def interrupt(session_id) -> None:
     except Exception:
         frappe.db.rollback()
         frappe.log_error(title="Assistant cancel waiting failed")
+
+
+def _utc_now():
+    import datetime
+
+    return datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+
+
+def _mark_stop(name: str) -> None:
+    """这段对话最近一次停止的时刻（UTC，只增不减，原子写：不先读再写）。"""
+    frappe.db.sql(f"update `tab{SESSION}` set last_stop_at = greatest(ifnull(last_stop_at, %(at)s), %(at)s) "
+                  "where name = %(name)s", {"at": _utc_now(), "name": name})
+
+
+def last_stop(session_id):
+    """本人这段对话最近一次停止的时刻（UTC 的裸时间；从没停过回 None）。只读；归档的也能读。A 线写入计划建时记下，
+    逐段写时核对，变了就停。"""
+    row = owned(session_id, allow_archived=True)
+    return frappe.db.get_value(SESSION, row.name, "last_stop_at") or None
 
 
 def _operator_stop(row) -> None:
