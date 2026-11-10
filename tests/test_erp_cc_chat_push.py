@@ -625,6 +625,9 @@ class PushTests(unittest.TestCase):
         item = call(tools.push_documents, documents=["P:PUR-2"], company="CO-1")["results"][0]
         self.assertEqual((item["status"], item["reason_code"]), ("failed", "no_company"))
         self.assertEqual(CALLS, [])
+        # 说明里告诉 CC：问用户录到哪家、把对话挂到用户选的那家再推（主会话 11-10，同 Cowork）
+        push = next(t for t in tools.TOOLS if t["name"] == "erp_push_documents")
+        self.assertIn("pearnly_file_conversation", push["description"])
 
     def test_a_disconnected_company_is_not_written(self):
         doc(PURCHASE, "PUR-2", reason=E.NO_BOOK)

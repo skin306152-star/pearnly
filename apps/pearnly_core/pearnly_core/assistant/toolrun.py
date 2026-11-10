@@ -337,6 +337,16 @@ def work_list(conversation: str) -> str:
                                 "status": run.get("status")} for run in runs)
 
 
+def last_answers(conversation: str) -> list[str] | None:
+    """本人在这段对话里最近一张提问卡（``ask_user``）上选的与打的字（`ask.picked`）；最近那张还没答、被关掉（每题跳过）、
+    或这段对话没出过提问卡回 None。给「只认用户自己选的」那几处核对用（`sessions.file_chosen`），CC 自己说的不算。"""
+    runs = frappe.get_all(TOOL_RUN, filters={"session_id": conversation, "user": frappe.session.user, "tool": ask.TOOL},
+                          fields=["status", "result"], order_by="creation desc", limit=1)
+    if not runs or runs[0].get("status") != "done":
+        return None
+    return ask.picked(runs[0].get("result")) or None
+
+
 def may_wait() -> bool:
     """这次执行能不能在工具里有界地等一会儿别处的结论（例如推送后等写账结果，用户 2026-10-13 第 9 条）：只有推送线程
     （`relay`）能等 —— 那是本轮对话专有、以等网络为主的线程，等着不占别人的名额。网页请求（页面兜底 `run_tool`、点「允许」）

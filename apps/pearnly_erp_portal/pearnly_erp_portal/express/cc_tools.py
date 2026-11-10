@@ -636,8 +636,9 @@ TOOLS = [
                     "documents of the company this conversation is filed under: a document of another company comes "
                     "back failed with reason_code other_company and is not written even when company names it (say "
                     "so in one sentence; the user writes it from that company's own conversation); in a conversation "
-                    "not filed under a company it comes back failed with reason_code no_company (ask the user to "
-                    "choose the company first).",
+                    "not filed under a company it comes back failed with reason_code no_company (ask the user with "
+                    "ask_user which company, options from erp_companies labelled with the company name, file the "
+                    "conversation under the one they chose with pearnly_file_conversation, then push again).",
      "input_schema": {"type": "object", "properties": {
          "documents": direct_push.documents_prop(PUSH_MAX), "company": COMPANY_PROP}, "required": ["documents"]},
      "handler": "pearnly_erp_portal.express.cc_tools.push_documents"},

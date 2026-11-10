@@ -579,6 +579,48 @@ def move(session_id, project, period=None, scope=None) -> dict:
     return {"id": row.session_id, "project": target, "period": period, "scope": scope}
 
 
+FILED_UNDER = "filed"
+# 挂不上的原因（只给模型，`file_chosen`）
+ALREADY_FILED = "already_filed"
+NOT_CHOSEN = "not_chosen_by_user"
+NOT_AVAILABLE = "company_not_available"
+
+
+def file_chosen(session_id, project) -> dict:
+    """CC 把「最近」里的这段对话挂到用户刚在提问卡上选的那家（用户 11-10「CC 严格只写对话里选中的公司」；主会话 11-10 定）。
+    只给 CC 的工具用（`tools.file_conversation`），页面没有这个口子（页面照旧走 `move`，不能换公司）。只开这一个口子：
+    - 只能从「最近」挂、只挂一次：已挂公司的（含代录会话）照旧不能换（10-17），回 ``already_filed``；
+    - 只认用户自己在本对话最近一张提问卡上选的、或在「其他」里打的那家（`toolrun.last_answers` + `ask.names_one_of`，
+      比编号、名称、税号），CC 自己挑的不算，回 ``not_chosen_by_user``；
+    - 产品要认这家、本人能用（`projects.placement`），不然回 ``company_not_available``。
+    挂上时不带月份、范围（之后照常 `move` 改）；不改最后活动时间。挂上后推给本人：先 upsert 这家（侧栏还没有这一组时有名字），
+    再 move（侧栏把这一行移进去）。回 ``{"status": "filed", "project", "title"}`` 或 ``{"status": "refused", "reason"}``。"""
+    row = owned(session_id)
+    user = _user()
+    if row.get("project") or row.get("operator_task"):
+        return {"status": "refused", "reason": ALREADY_FILED, "project": row.get("project") or ""}
+    target = _guard(projects.placement, str(project or "").strip(), None, None, user)[0]
+    shown = projects.shown(target, user) if target else None
+    if not target or not shown:
+        return {"status": "refused", "reason": NOT_AVAILABLE}
+    if not ask.names_one_of(toolrun.last_answers(row.session_id), (target, shown.get("title"), shown.get("subtitle"))):
+        return {"status": "refused", "reason": NOT_CHOSEN}
+
+    def write(locked):
+        if locked.get("project") or locked.get("operator_task"):
+            return False
+        frappe.db.set_value(SESSION, locked.name, {"project": target, "period": "", "project_scope": ""},
+                            update_modified=False)
+        return True
+
+    if not _write(session_id, write):
+        return {"status": "refused", "reason": ALREADY_FILED}
+    sidebar.project(user, "upsert", project={"id": target, "title": shown.get("title") or "",
+                                             "subtitle": shown.get("subtitle") or ""})
+    sidebar.project(user, "move", session=row.session_id, project=target, period="", scope="")
+    return {"status": FILED_UNDER, "project": target, "title": shown.get("title") or ""}
+
+
 def archive(session_id) -> None:
     """归档：先停下、归档引擎那边的会话（已经归档 / 不存在算成功，重来不失败），再在短事务里标本站（`_write`）。"""
     row = owned(session_id)

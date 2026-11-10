@@ -1700,7 +1700,9 @@ class ToolAndDefinitionTests(unittest.TestCase):
                                             "pearnly_tax_id_lookup": "Looking up a tax ID",
                                             "pearnly_precheck": "Checking push choices",
                                             "pearnly_precheck_answer": "Saving push choices",
-                                            "ask_user": "Waiting for answers", "p_read": "Reading it"})
+                                            "ask_user": "Waiting for answers",
+                                            "pearnly_file_conversation": "Filing the conversation under a company",
+                                            "p_read": "Reading it"})
         self.assertEqual((steps["done"]["p_read"], steps["done"]["p_plain"]), ("Read it", "Did it"))
         # 要点「允许」的工具：卡片上的问话（没写问话用步骤名）；点了拒绝的那一步照它写（第 8 轮）
         # 共用的提问工具 ask_user 也要等人作答（卡片由它自己的题目画，这一项只给重开时认步骤）
@@ -5384,6 +5386,80 @@ class ProjectTests(unittest.TestCase):
         line = next(row for row in tsv.splitlines() if row.startswith("A conversation cannot be moved to another company.\t"))
         self.assertEqual(len([cell for cell in line.split("\t")[:4] if cell]), 4)
         self.assertIn('_("A conversation cannot be moved to another company.")', (ROOT / "apps/pearnly_core/pearnly_core/assistant/sessions.py").read_text(encoding="utf-8"))
+
+    def test_cc_files_a_recent_conversation_only_under_the_company_the_user_picked(self):
+        # 用户 11-10「CC 严格只写对话里选中的公司」+ 主会话 11-10：没挂公司要写时 CC 用提问卡问录到哪家，答完由 CC 把对话挂过去——
+        # 只给 CC 用、只能从「最近」挂一次、只认用户在最近一张提问卡上选的（或在「其他」里打的），已挂公司的照旧不能换
+        recent, filed = self.db.rows[0], self.db.rows[1]  # r1 在「最近」；r2 挂在 co_abc1
+        answers = {"value": ["ABC"]}
+
+        def file(row, project):
+            with mock.patch.object(self.sessions, "owned", lambda sid, allow_archived=False: row), \
+                    mock.patch.object(self.sessions.toolrun, "last_answers", lambda sid: answers["value"]):
+                return self.sessions.file_chosen(row.session_id, project)
+
+        writes, pushed = len(self.db.writes), len(self.pushed)
+        # 不是用户选的：选的是另一家、名字只是前缀、没答 / 关掉卡片、这一家不在产品里
+        for value, project, reason in ((["XYZ"], "co_abc1", "not_chosen_by_user"),
+                                       (["ABCD"], "co_abc1", "not_chosen_by_user"),
+                                       (None, "co_abc1", "not_chosen_by_user"),
+                                       (["ABC"], "co_gone1", "company_not_available"),
+                                       (["ABC"], "", "company_not_available")):
+            answers["value"] = value
+            self.assertEqual(file(recent, project), {"status": "refused", "reason": reason})
+        # 已挂公司的：换到别家、挂同一家都拒（10-17 口径不变）
+        answers["value"] = ["XYZ"]
+        self.assertEqual(file(filed, "co_xyz1")["reason"], "already_filed")
+        self.assertEqual((len(self.db.writes), len(self.pushed)), (writes, pushed))
+        self.assertEqual(recent.project, "")
+        # 用户在卡片上选了「ABC · 税号」：挂上，不带月份范围、不改最后活动时间，先推这家（侧栏没有这一组时有名字）再推移动
+        answers["value"] = ["ABC · 0105536082808"]
+        before = str(recent.modified)
+        self.assertEqual(file(recent, "co_abc1"), {"status": "filed", "project": "co_abc1", "title": "ABC"})
+        self.assertEqual(self.db.writes[-1], ("r1", {"project": "co_abc1", "period": "", "project_scope": ""}, False))
+        self.assertEqual(str(recent.modified), before)
+        self.assertEqual([event for event, _user, _after in self.pushed[-2:]],
+                         [{"type": "pearnly.project", "op": "upsert",
+                           "project": {"id": "co_abc1", "title": "ABC", "subtitle": "0105536082808"}},
+                          {"type": "pearnly.project", "op": "move", "session_id": "sesn_rec001", "project": "co_abc1",
+                           "period": "", "scope": ""}])
+        # 挂第二次（哪怕用户又选了别家）：拒
+        answers["value"] = ["XYZ"]
+        self.assertEqual(file(recent, "co_xyz1")["reason"], "already_filed")
+        self.assertEqual(recent.project, "co_abc1")
+        # 代录会话（任务定了公司）同样不能经这里挂
+        operator = _Row({**self.db.rows[0], "project": "", "operator_task": "OPT-1"})
+        self.assertEqual(file(operator, "co_abc1")["reason"], "already_filed")
+        # 页面没有这个口子：对外接口不调它；工具只在直写会话里给
+        api = (CORE / "assistant/api.py").read_text(encoding="utf-8")
+        self.assertNotIn("file_chosen", api)
+        tool = next(item for item in self.sessions.tools.CORE_TOOLS if item["name"] == "pearnly_file_conversation")
+        self.assertEqual(tool["modes"], ["chat"])
+        self.assertNotIn("approval", tool)
+
+    def test_the_users_pick_is_read_from_the_latest_answered_card_only(self):
+        ask = sys.modules["pearnly_core.assistant.ask"]
+        card = json.dumps({"answers": [{"header": "Company", "question": "Which?", "labels": ["ABC"]},
+                                       {"header": "Note", "question": "?", "labels": [], "other": "XYZ จำกัด"},
+                                       {"header": "Skip", "question": "?", "labels": [], "skipped": True}]})
+        self.assertEqual(ask.picked(card), ["ABC", "XYZ จำกัด"])
+        self.assertEqual(ask.picked("not json"), [])
+        for text in ("ABC", " abc ", "ABC · 0105536082808", "ABC (สำนักงานใหญ่)", "ABC（总公司）", "co_abc1",
+                     "0105536082808"):
+            self.assertTrue(ask.names_one_of([text], ("co_abc1", "ABC", "0105536082808")), text)
+        for text in ("ABCD", "บริษัท ABC", "AB", ""):
+            self.assertFalse(ask.names_one_of([text], ("co_abc1", "ABC", "0105536082808")), text)
+        toolrun = self.sessions.toolrun
+        runs = []
+        with mock.patch.object(toolrun.frappe, "get_all", lambda doctype, **kw: list(runs)), \
+                mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user=self.OWNER), create=True):
+            self.assertIsNone(toolrun.last_answers("sesn_rec001"))  # 没出过卡片
+            runs[:] = [_Row(status="awaiting_approval", result="")]
+            self.assertIsNone(toolrun.last_answers("sesn_rec001"))  # 最近一张还没答
+            runs[:] = [_Row(status="done", result=json.dumps({"answers": [{"labels": [], "skipped": True}]}))]
+            self.assertIsNone(toolrun.last_answers("sesn_rec001"))  # 关掉卡片
+            runs[:] = [_Row(status="done", result=card)]
+            self.assertEqual(toolrun.last_answers("sesn_rec001"), ["ABC", "XYZ จำกัด"])
 
     def test_release_files_everyones_conversations_back_under_recent(self):
         users = self.projects.release("co_abc1")

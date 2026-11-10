@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, List, Mapping, Optional
 
 TOOL = "ask_user"
@@ -96,5 +97,40 @@ def skipped(tool_input: Mapping[str, Any]) -> str:
     return result(tool_input, [{"skipped": True} for _ in tool_input.get("questions") or ()])
 
 
+def picked(result_text) -> List[str]:
+    """一张答完的卡片（`result` 的 JSON 文本）里用户选的与在「其他」里打的字，按题目顺序；跳过的题不算。读不出回空表。"""
+    try:
+        data = json.loads(result_text or "{}")
+    except (TypeError, ValueError):
+        return []
+    out: List[str] = []
+    for row in (data.get("answers") or []) if isinstance(data, Mapping) else []:
+        if not isinstance(row, Mapping) or row.get("skipped"):
+            continue
+        out.extend(_text(label, 100) for label in row.get("labels") or () if _text(label, 100))
+        if _text(row.get("other"), OTHER_MAX):
+            out.append(_text(row.get("other"), OTHER_MAX))
+    return out
+
+
+def _fold(value) -> str:
+    return " ".join(str(value if value is not None else "").split()).casefold()
+
+
+# 选项写成「名称 · 税号」「名称（税号）」「名称 - 分店」时只取名称那一段比
+_HEAD = re.compile(r"\s+[·|\-–—]\s+|\s*[(（]")
+
+
+def names_one_of(texts, names) -> bool:
+    """用户的作答（`picked`）里有没有一条就是这一项：整条（或前面的名称段）等于 ``names`` 里的某一个（编号、名称、税号），
+    比较时不分大小写、空白归一。只认整段相等，不认包含（名称是另一家的前缀时不会认错）。"""
+    wanted = {_fold(name) for name in names or () if _fold(name)}
+    for text in texts or ():
+        heads = {_fold(text), _fold(_HEAD.split(str(text), 1)[0])}
+        if heads & wanted:
+            return True
+    return False
+
+
 __all__ = ["AnswerError", "HEADER_MAX", "OPTIONS_MAX", "OPTIONS_MIN", "QUESTIONS_MAX", "QUESTIONS_MIN", "SEARCH_KINDS",
-           "TOOL", "problem", "result", "skipped", "unanswered"]
+           "TOOL", "names_one_of", "picked", "problem", "result", "skipped", "unanswered"]

@@ -1011,6 +1011,8 @@ Account set in use	账套正在使用	ชุดบัญชีกำลังถ
 Waiting for start time	等待开始时刻	รอเวลาเริ่ม	開始時刻を待っています	operator.report.reason.waiting_start
 Asked questions	已提问	ถามคำถามแล้ว	質問しました	
 Waiting for answers	等待作答	รอคำตอบ	回答待ち	
+Filed the conversation under a company	已将对话归入公司	ผูกบทสนทนากับบริษัทแล้ว	会話を会社に紐付けました	
+Filing the conversation under a company	正在将对话归入公司	กำลังผูกบทสนทนากับบริษัท	会話を会社に紐付けています	
 Checked push choices	查看了推送前要选的项	ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว	送信前の選択項目を確認しました
 Checking push choices	正在查看推送前要选的项	กำลังตรวจสอบสิ่งที่ต้องเลือกก่อนส่ง	送信前の選択項目を確認しています
 Saved push choices	保存了推送选项	บันทึกตัวเลือกการส่งแล้ว	送信の選択を保存しました

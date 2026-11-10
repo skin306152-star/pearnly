@@ -97,6 +97,11 @@ def _view(refs, user) -> dict:
         return {}
 
 
+def shown(ref, user) -> dict | None:
+    """这一项给人看的名字 ``{title, subtitle}``（产品的 `view`）；不认、本人不能用回 None。"""
+    return _view([ref], user).get(ref) if ref else None
+
+
 def mine(user, refs=None) -> dict:
     """本人当前引擎、没归档的对话按项统计：`{编号: {"last_active", "count"}}`（一条 GROUP BY）；`refs` 只看这些项。"""
     values = {"user": user, "engine": config.engine_code()}

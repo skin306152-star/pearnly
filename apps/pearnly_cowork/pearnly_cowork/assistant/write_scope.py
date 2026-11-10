@@ -25,8 +25,9 @@ NOTES = {
                        "if the user then clearly agrees to enter it into this company's books anyway, push again with "
                        "one of allowed_account_sets. Two of them covering the same date: ask the user which one."),
     NO_COMPANY: ("no_company: this conversation is not filed under a company, so nothing was written. Ask the user "
-                 "with ask_user which company to enter it into, offering the companies listed here, and continue "
-                 "once they answer."),
+                 "with ask_user which company to enter it into, offering the companies listed here (each option label "
+                 "exactly the company's title), then file this conversation under the one they chose with "
+                 "pearnly_file_conversation and push again."),
 }
 COMPANIES_SHOWN = 20
 

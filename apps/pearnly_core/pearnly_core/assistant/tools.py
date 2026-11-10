@@ -48,6 +48,17 @@ def tax_id_lookup(tool_input) -> str:
     return json.dumps(result, ensure_ascii=False, default=str)
 
 
+def file_conversation(tool_input) -> str:
+    """CC 把「最近」里的这段对话挂到用户刚在提问卡上选的公司（`sessions.file_chosen`，服务端核：只从「最近」、只一次、
+    只认用户选的）。之后这段对话的写入只进这家的账套（`write_scope`）。"""
+    from pearnly_core.assistant import sessions
+
+    session = str((getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or "")
+    if not session:
+        return json.dumps({"status": "refused", "reason": "no_conversation"})
+    return json.dumps(sessions.file_chosen(session, tool_input.get("company")), ensure_ascii=False)
+
+
 CORE_TOOLS = [
     {"name": "pearnly_whoami",
      "label": "Checked your account",
@@ -111,6 +122,22 @@ CORE_TOOLS = [
          "resume": {"type": "boolean"}},
          "required": ["company", "doc_ids", "answers"]},
      "handler": "pearnly_core.write_precheck.api.tool_answer"},
+    {"name": "pearnly_file_conversation",
+     "label": "Filed the conversation under a company",
+     "modes": ["chat"],
+     "description": "File this conversation under the company the user just chose, when it is not filed under one yet "
+                    "(a write came back with reason no_company). Ask first with ask_user: one question listing the "
+                    "user's companies, each option label exactly the company's name (at most 4; Other lets the user "
+                    "type another). Then call this with company = that company's id. The server accepts only the "
+                    "company the user picked or typed on the latest ask_user card, only once, and only while the "
+                    "conversation is not filed: refused reasons are already_filed (a filed conversation never moves "
+                    "to another company), not_chosen_by_user (ask again; never choose for the user) and "
+                    "company_not_available. After status filed, this conversation writes only to that company's "
+                    "account sets: continue with the write the user asked for.",
+     "input_schema": {"type": "object", "properties": {
+         "company": {"type": "string", "description": "The id of the company the user chose."}},
+         "required": ["company"]},
+     "handler": "pearnly_core.assistant.tools.file_conversation"},
     {"name": "ask_user",
      "label": "Asked questions",
      "approval": True,
@@ -150,6 +177,7 @@ CORE_STEP_NAMES = {
     "pearnly_precheck": "Checking push choices",
     "pearnly_precheck_answer": "Saving push choices",
     "ask_user": "Waiting for answers",
+    "pearnly_file_conversation": "Filing the conversation under a company",
 }
 
 

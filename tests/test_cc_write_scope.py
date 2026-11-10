@@ -138,6 +138,8 @@ class NoCompanyTests(_Conversation):
         # 提问卡用：本人能用的公司
         self.assertEqual([item["id"] for item in out["companies"]], ["CO-A", "CO-C"])
         self.assertIn("ask_user", out["note"])
+        # 答完由 CC 把对话挂到用户选的那家再写（主会话 11-10；服务端只认用户在卡片上选的，见 test_assistant ProjectTests）
+        self.assertIn("pearnly_file_conversation", out["note"])
 
     def test_candidates_are_still_shown_there_since_writing_is_refused_anyway(self):
         options = [{"key": B_REAL}, {"key": A_TEST}]
