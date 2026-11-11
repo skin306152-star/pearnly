@@ -41,10 +41,13 @@ if(!window.__fileHook){{window.__fileHook=1; const orig=HTMLInputElement.prototy
   HTMLInputElement.prototype.click=function(){{ if(this.type==='file'&&window.__nextFile){{const dt=new DataTransfer(); dt.items.add(window.__nextFile);
     window.__nextFile=null; this.files=dt.files; this.dispatchEvent(new Event('change',{{bubbles:true}})); return;}} return orig.apply(this,arguments);}};}}
 window.__nextFile=new File([{content}], {name}, {{type:'text/plain'}});
+// 新对话先加文件：上传给它建会话，这期间对话区不能换成「正在加载消息」（.cc-loading，输入框会掉到最底下再跳回来，11-11 testcowork）
+let loading=false; const watch=setInterval(()=>{{ if(q('.cc-loading')) loading=true; }},10);
 const add=qa('button.cc-attach').find(seen); if(!add) return {{error:'no attach button'}}; add.click();
 const shown=await until(()=>document.body.innerText.includes({name}),80);
 // 等附件传完：发送钮可用
 await until(()=>{{const b=q('button.aui-composer-send'); return b&&!b.disabled;}},120);
+await sleep(1000); clearInterval(watch);
 const sent=await say({tag}+' 看一下附件'); if(!sent) return {{error:'could not send', shown}};
 const got=await until(()=>qa('[data-role="assistant"]').some(e=>e.innerText.includes({json.dumps(REPLY)})),240);
 const row=(await listed('chat')).find(s=>(s.title||'').includes({tag}));
@@ -52,7 +55,7 @@ let files=[], body='';
 if(row){{ files=(await call('pearnly_core.assistant.api.session_files',{{session_id: row.id}}))||[];
   const hit=files.find(f=>(f.filename||f.name||'')==={name});
   if(hit){{ const r=await fetch('/api/method/pearnly_core.assistant.api.download?'+new URLSearchParams({{session_id: row.id, file_id: hit.id}})); body=await r.text(); }} }}
-return {{shown, got, session: row&&row.id, files: files.map(f=>f.filename||f.name), body: body.slice(0,200)}};"""},
+return {{shown, got, loading, session: row&&row.id, files: files.map(f=>f.filename||f.name), body: body.slice(0,200)}};"""},
         {"name": "删除对话", "js": JS + f"""
 const menu=qa('button[aria-label="对话选项"]').find(seen); if(!menu) return {{error:'no conversation menu'}};
 press(menu); await until(()=>qa('[role="menuitem"]').some(e=>seen(e)&&e.innerText.trim()==='删除'),20);
@@ -71,6 +74,8 @@ def judge(params, results, camera_code=None):
     return [
         {"case": "the attached file shows in the composer, the message goes out and gets a reply", "seen": {k: att.get(k) for k in ("shown", "got")},
          "ok": att.get("shown") is True and att.get("got") is True},
+        {"case": "attaching the file to a new chat never flips it to Loading messages", "seen": {"loading": att.get("loading")},
+         "ok": att.get("loading") is False},
         {"case": "the session's file list holds the file and its download is what was sent", "seen": {k: att.get(k) for k in ("files", "body")},
          "ok": params["file"] in (att.get("files") or []) and params["content"] in (att.get("body") or "")},
         {"case": "the conversation menu deletes the chat after the confirm", "seen": drop,
