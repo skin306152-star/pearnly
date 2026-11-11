@@ -23,6 +23,7 @@ DOCTYPE = "Pearnly Assistant Write Plan"
 SESSION = "Pearnly Assistant Session"
 TYPE = "pearnly.write_plan"
 AWAITING, STARTED, REPLACED = "awaiting", "started", "replaced"
+READY = "ready"  # 工具结果：有要写的（页面据此在输入框上方出「录吧」）
 STATUSES = (AWAITING, STARTED, REPLACED)
 CHECK_MAX = 200  # 一次交给写账前置判定几张（同 `write_precheck.api.BATCH_MAX`）
 DIRECT_MAX = 200  # 直写一份计划最多几张
@@ -184,7 +185,8 @@ def make(tool_input) -> dict:
            "skipped_count": len(skipped), "skipped": skipped[:SKIPPED_SHOWN]}
     if not write:
         return {**out, "status": "nothing_to_write", "note": NOTHING_NOTE}
-    return {**out, "status": AWAITING, "note": PLAN_NOTE}
+    # 工具结果的状态与 B 线「录吧」的约定（主会话 11-11）：有要写的回 ready，做不了回 nothing_to_write（带原因）；计划表里自己记 awaiting
+    return {**out, "status": READY, "note": PLAN_NOTE}
 
 
 def _replace_open(session_id: str) -> None:

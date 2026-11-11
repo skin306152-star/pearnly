@@ -161,7 +161,7 @@ def judge(params, results, camera_code=None):
         {"case": "说一句：CC 建写入计划，按服务端完整待录清单算（写的 + 跳过的 = 站点这家这个月等着录的），要先复述、等用户回话，"
                  "还没开始；之后输入框照常是发送",
          "seen": {**planned, "site": params["docs"]},
-         "ok": bool(planned.get("replied")) and planned.get("status") in ("awaiting", "nothing_to_write")
+         "ok": bool(planned.get("replied")) and planned.get("status") in ("ready", "nothing_to_write")
          and int(planned.get("count") or 0) + int(planned.get("skipped") or 0) == params["docs"]
          and (planned.get("status") == "nothing_to_write" or "say back" in (planned.get("note") or ""))
          and bool(planned.get("send"))},

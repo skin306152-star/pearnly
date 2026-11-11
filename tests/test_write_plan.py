@@ -176,7 +176,7 @@ class WritePlanTests(unittest.TestCase):
     def test_an_operator_plan_takes_the_whole_waiting_list_not_only_a_loaded_page(self):
         # 第 4 项同一个口子：代录的单由服务端按完整待录清单定，51 张起也在；跳过的列原因
         out = self.plan()
-        self.assertEqual(out["status"], "awaiting")
+        self.assertEqual(out["status"], "ready")  # 与 B 线「录吧」的约定：有要写的回 ready
         self.assertEqual(out["count"], 58)
         self.assertIn("D051", out["documents"])
         self.assertEqual({item["doc_id"]: item["reason"] for item in out["skipped"]},
