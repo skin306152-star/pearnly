@@ -198,6 +198,7 @@ By Payment Method,By Payment Method
 By Warehouse,By Warehouse
 By location,By location
 By product,By product
+CC,CC
 CC Desktop could not read this invoice. Check the fields and submit again,CC Desktop could not read this invoice. Check the fields and submit again
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC Desktop has not been given this account set. Check the account sets in CC Desktop
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
@@ -312,6 +313,8 @@ Collection Date,Collection Date
 Collection Method,Collection Method
 Collection Remarks,Collection Remarks
 Collection Status,Collection Status
+Collections,Collections
+Collector,Collector
 Color,Color
 Colour Tag,Colour Tag
 Columns,Columns
@@ -1020,6 +1023,7 @@ Payment of {0} received successfully.,Payment of {0} received successfully.
 Payment of {0} received successfully. Waiting for other requests to complete...,Payment of {0} received successfully. Waiting for other requests to complete...
 Payments,Payments
 Pending,Pending
+Pending write,Pending write
 Period,Period
 Person,Person
 Phone,Phone
@@ -1769,10 +1773,12 @@ Who can add and remove members,Who can add and remove members
 Who can comment,Who can comment
 Whole document taxed,Whole document taxed
 With differences,With differences
+Withdrawn,Withdrawn
 Withholding Tax,Withholding Tax
 Withholding Tax Certificate,Withholding Tax Certificate
 Withholding Tax Rate,Withholding Tax Rate
 Withholding Tax must be greater than zero,Withholding Tax must be greater than zero
+Writing,Writing
 Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
 Written,Written
 "Year, year-month or ALL, per the reset policy","Year, year-month or ALL, per the reset policy"
@@ -1935,6 +1941,14 @@ count,count
 discount applied,discount applied
 draft,draft
 due,due
+erp.collection.source.cc,CC
+erp.collection.source.line,LINE
+erp.collection.status.draft,Draft
+erp.collection.status.failed,Failed
+erp.collection.status.queued,Pending write
+erp.collection.status.withdrawn,Withdrawn
+erp.collection.status.writing,Writing
+erp.collection.status.written,Written
 erp.company.notes,Company notes
 erp.detail.amount,The amount is invalid
 erp.detail.discount,The discount exceeds the total
@@ -1973,6 +1987,7 @@ erp.line.tag.newOut,New · Out
 erp.line.tag.none,Record only
 erp.line.unbind,Unbind LINE
 erp.line.unbindConfirm,Unbind Pearnly ERP LINE?
+erp.nav.collections,Collections
 erp.nav.work,Task Management
 erp.trade.allLines,All
 erp.work.activity.archive,{who} archived this card
@@ -2835,6 +2850,7 @@ team.notice.toggled,Updated {0} user(s)
 team.password,Initial Password
 team.resetPassword,Reset Password
 team.role.cashier,Cashier
+team.role.collector,Collector
 team.role.products,Products
 team.role.purchase,Purchasing
 team.role.sales,Sales

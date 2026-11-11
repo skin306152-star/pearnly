@@ -31,7 +31,11 @@ FEATURE_ROLES = {
     "cashier": "ERP Cashier",
     # 任务管理（看板，2026-10-23 从 Cowork 复制）：开通时发给租户管理员；员工在团队管理里逐人勾「任务管理」菜单。
     "tasks": "ERP Tasks",
+    # 收款员（2026-11-11，收款写进 Express RE）：只能在 LINE / CC 录收款（`collection.write`），看不到销售开单；
+    # 团队管理里逐人勾（同 LINE 那一格，不是侧栏页）。网页收款页另由销售岗位与管理员看（`collection.view`）。
+    "collection": "ERP Collector",
 }
+COLLECTOR_ROLE = FEATURE_ROLES["collection"]
 
 # 能力 → 允许的功能码（可多个）。能力码属于 ERP 自己，不复用旧平台的
 # pos.* / accounting.* / workorder.* 码（`product_manifest.py` 的 must_not 仍禁止那些）。
@@ -62,6 +66,9 @@ CAPABILITY_FEATURES = {
     "tax.lookup": ("purchase", "clients", "sales"),
     # 用任务管理（进页面、调看板接口）。能看 / 改哪块看板再按看板成员与可见范围判（`work.access`）。
     "tasks.use": ("tasks",),
+    # 收款：录（LINE / CC）只给收款员；看（网页「销售 → 收款」、导出、凭证）给销售岗位与管理员（见 required_roles）
+    "collection.write": ("collection",),
+    "collection.view": ("sales",),
 }
 
 # 只有管理员能用的能力（不经功能角色发放）。
@@ -108,6 +115,8 @@ def required_roles(capability: str) -> tuple[str, ...]:
                "receipts.read": "cashier.read", "receipts.write": "cashier.write", "shifts.read": "cashier.read"}
     capability = aliases.get(capability, capability)
     roles = [FEATURE_ROLES.get(code) for code in CAPABILITY_FEATURES.get(capability, ())]
+    if capability == "collection.view":
+        roles += [ADMIN_ROLE]  # 主会话 11-11 审定：收款页给 ERP 管理员与销售岗位
     if capability == "company.read":
         # 能改公司资料的人当然读得到（主会话 11-09：只拿 ERP Admin 的账号能改公司、却打不开公司页）
         roles += list(COMPANY_MANAGE_ROLES)
