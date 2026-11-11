@@ -20,6 +20,9 @@ apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py	解绑	输�
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py	ยกเลิกการผูก	输入词：同上，ERP 的 LINE 通道收同一组解绑词
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py	ยกเลิกการเชื่อมต่อ	输入词：同上，ERP 的 LINE 通道收同一组解绑词
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py	連携解除	输入词：同上，ERP 的 LINE 通道收同一组解绑词
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py	ยืนยัน	输入词：收款员在确认卡停着时手打的确认词（ยืนยัน / 确认 / 確認 / ok），按原字面比对，不进界面
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py	确认	输入词：收款员在确认卡停着时手打的确认词（ยืนยัน / 确认 / 確認 / ok），按原字面比对，不进界面
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py	確認	输入词：收款员在确认卡停着时手打的确认词（ยืนยัน / 确认 / 確認 / ok），按原字面比对，不进界面
 apps/pearnly_dms/pearnly_dms/line/handlers.py	解绑	输入词：用户手打的解绑指令，翻了就打不出来（四种写法都收）
 apps/pearnly_dms/pearnly_dms/line/handlers.py	ยกเลิกการผูก	输入词：用户手打的解绑指令，翻了就打不出来（四种写法都收）
 apps/pearnly_dms/pearnly_dms/line/handlers.py	ยกเลิกการเชื่อมต่อ	输入词：用户手打的解绑指令，翻了就打不出来（四种写法都收）
