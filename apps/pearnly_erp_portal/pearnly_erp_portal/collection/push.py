@@ -5,7 +5,10 @@
   CC 的员工）。电脑不在线就排着，上线后补写。
 - 回执（共用通道在同一事务里经 `express.desktop.job_changed` 交来）：排队 / 领走 → 待写入 / 写入中；成功 → 已写入 + RE 号，
   回执里每张发票写后的余额改进快照，再按客户读一次；转人工 → 失败 + 原因（``[ALREADY_COLLECTED]`` 时电脑重读到的各张余额记在
-  记录上、改进快照）；撤掉 → 撤回的保持已撤回，其余记失败。
+  记录上、改进快照；``[CASH_BASIS_VAT]`` 服务品现金制的发票同属「不能收」，照原因记失败；这三种都按客户再读一次）；
+  撤掉 → 撤回的保持已撤回，其余记失败。
+- 写成 / 失败后告诉录入的人：LINE 录的经 `integrations.line_collection.notify`（提交之后排的短任务；放行后在后台等结果的那一个
+  还在等就由它回复，否则推送给收款员本人）。
 """
 import json
 
@@ -21,6 +24,8 @@ DOCTYPE = "ERP Collection"
 COMPANY = "ERP Company"
 REQUEST = "erp:receipt:"
 CANCELLED = "collection.withdrawn"
+# 写成 / 失败后按来源告诉录入的人（提交之后才排：任务读到的是已提交的结果）
+TELL = {"line": "pearnly_erp_portal.integrations.line_collection.notify"}
 
 
 def send(name):
@@ -91,7 +96,8 @@ def job_changed(view):
     name = view.get("source_name")
     if view.get("source_doctype") != DOCTYPE or not name or not frappe.db.exists(DOCTYPE, name):
         return
-    doc = frappe.db.get_value(DOCTYPE, name, ["name", "status", "book_key", "company", "customer"], as_dict=True)
+    doc = frappe.db.get_value(DOCTYPE, name, ["name", "status", "book_key", "company", "customer", "source"],
+                              as_dict=True)
     if doc.status == contracts.WITHDRAWN:
         _set(name, {"job": view.get("job")})
         return  # 撤回在先，撤掉作业的回执不改它
@@ -104,21 +110,29 @@ def job_changed(view):
         _set(name, values)
         snapshot.apply_balances(doc.book_key, found, values["written_at"])
         _refresh(doc)
+        _tell(doc)
         return
     if state == contracts.FAILED:
         reason = str(view.get("reason") or "")[:ack_rules.OPERATOR_REASON_MAX] or view.get("status") or ""
         values["reason"] = reason
-        found = contracts.balances(_meta(view)) if ack_rules.error_code(reason) in (
-            "ALREADY_COLLECTED", "INVOICE_NOT_FOUND") else {}
+        uncollectable = ack_rules.error_code(reason) in contracts.UNCOLLECTABLE  # 已被收 / 不存在 / 服务品现金制
+        found = contracts.balances(_meta(view)) if uncollectable else {}
         if found:
             values["balances"] = json.dumps({key: contracts.text(value) for key, value in found.items()})
             snapshot.apply_balances(doc.book_key, found)
         _set(name, values)
-        if found:
+        if uncollectable:
             _refresh(doc)
+        _tell(doc)
         return
     values["reason"] = str(view.get("reason") or "")[:500]  # 排队里的原因（等账套、CC 桌面版要更新……）照实记
     _set(name, values)
+
+
+def _tell(doc):
+    path = TELL.get(doc.source)
+    if path:
+        frappe.enqueue(path, queue="short", enqueue_after_commit=True, name=doc.name)
 
 
 def _refresh(doc):

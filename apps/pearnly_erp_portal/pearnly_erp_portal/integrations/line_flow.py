@@ -92,10 +92,12 @@ def _text(reply_token, text):
 
 
 def menu(user, reply_token):
-    """手打「เมนู」：按岗位给 ซื้อ / ขาย 两个原生按钮（与富菜单同一口径）。"""
+    """手打「เมนู」：按岗位给 ซื้อ / ขาย / 收款几个原生按钮（与富菜单同一口径）。"""
     items = [_button(_(DIRECTION_LABELS[direction]), "a=mode:" + direction)
              for direction in DIRECTIONS
              if guard.has(direction + ".write", user=user)]
+    if guard.has("collection.write", user=user):
+        items.append(_button(_("Collections"), "a=col&s=start"))  # 收款（同富菜单第 4 格，`line_collection`）
     if not items:
         return _text(reply_token, _("This account cannot send documents"))
     _ask(reply_token, _("Choose what to record"), items)

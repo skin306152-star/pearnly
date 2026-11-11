@@ -53,3 +53,48 @@ def api_collection_voucher_page(file, page=1):
         return {"page": int(page), "pages": found["pages"], "image": registered.page_image(attached, int(page))}
     except (ValueError, TypeError):
         frappe.throw(_("Invalid value"))
+
+
+# ── 收款员自己的收款（「我的收款」页；LINE 确认卡【编辑】打开的就是这一页的弹窗）──────────────────
+
+
+def _explained(function, *args, **kwargs):
+    """规则不过照码给一句话（同 LINE 里的说法）。"""
+    from pearnly_erp_portal.collection import contracts, texts
+
+    try:
+        return function(*args, **kwargs)
+    except contracts.CollectionError as error:
+        frappe.throw(texts.explain(error))
+
+
+@frappe.whitelist()
+def api_my_collections(start=0, limit=20):
+    from pearnly_erp_portal.collection import service
+
+    return service.mine(start=start, limit=limit)
+
+
+@frappe.whitelist()
+def api_my_collection(name):
+    """一笔本人的收款：确认卡内容；草稿另带可改的范围（各张此刻能收多少、这本账套的收款方式）。"""
+    from pearnly_erp_portal.collection import contracts, service
+
+    card = service.card(name)
+    if card["status"] != contracts.DRAFT:
+        return {"card": card}
+    found = _explained(service.open_invoices, card["company"], card["customer"], day=card["doc_date"], refresh=False,
+                       exclude=name)
+    available = {row["docnum"]: row["available"] for row in found["items"]}
+    return {"card": card, "available": {row["docnum"]: available.get(row["docnum"], "0.00") for row in card["invoices"]},
+            "methods": _explained(service.methods, card["company"], card["doc_date"]), "staff": service.staff_choices(name)}
+
+
+@frappe.whitelist(methods=["POST"])
+def api_my_collection_save(name, version, invoices, cash=0, methods=None, salesman=None, department=None):
+    """改草稿（各张本次收、现金、各方式与折扣、销售员、部门）：只认打开时的版本（LINE 里刚改过回原因），存好回新的确认卡。"""
+    from pearnly_erp_portal.collection import service
+
+    invoices, methods = _payload(invoices), _payload(methods) or []
+    return _explained(service.update_draft, name, version, invoices if isinstance(invoices, list) else [], cash,
+                      methods if isinstance(methods, list) else [], salesman=salesman, department=department)

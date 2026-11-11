@@ -1,8 +1,8 @@
 """ERP 官方号的富菜单：**按岗位、按手机语言**给每个绑定用户挂一套（用户 2026-09-25 / 09-26）。
 
 6 格，照旧线上 `pearnly-erp-v1`（旧线上 `services/line_erp/rich_menu.py`）的版式：左上采购、中上销售、
-右上盘点（09-26 新增，点下去在 LINE 内置浏览器打开网页端原生盘点页）；没有那项权限的格子只画锁、
-不可点，其余三格一直是锁（09-26：不写「เร็ว ๆ นี้」）。采购 / 销售按钮数据仍是 `a=mode:purchase|sales`，
+右上盘点（09-26 新增，点下去在 LINE 内置浏览器打开网页端原生盘点页）、左下收款（11-11，收款员录收款写进 Express RE，
+`line_collection`）；没有那项权限的格子只画锁、不可点，其余两格一直是锁（09-26：不写「เร็ว ๆ นี้」）。采购 / 销售按钮数据仍是 `a=mode:purchase|sales`，
 所以旧菜单（官方号上仍是默认菜单，未绑定的人看到它）点下去也照样走新流程。
 
 图由 `scripts/render-line-menu-tiles.py` 预先画好的格子在发布时拼成（产品镜像里不需要字体）；
@@ -27,15 +27,18 @@ from pearnly_core import line, line_binding
 from pearnly_core.account import line_login
 
 CONFIG = "pearnly_erp_line_menus"
-# 格子顺序即位置（3 列 2 行，左上起）；后三格恒为锁。
-FUNCTIONS = ("purchase", "sales", "stocktake")
-CAPABILITY = {"purchase": "purchase.write", "sales": "sales.write", "stocktake": "count.write"}
+# 格子顺序即位置（3 列 2 行，左上起）；后两格恒为锁。
+FUNCTIONS = ("purchase", "sales", "stocktake", "collection")
+CAPABILITY = {"purchase": "purchase.write", "sales": "sales.write", "stocktake": "count.write",
+              "collection": "collection.write"}
 VARIANTS = tuple("+".join(combo) for size in range(1, len(FUNCTIONS) + 1)
                  for combo in itertools.combinations(FUNCTIONS, size))
 LANGUAGES = line.USER_LANGUAGES
 SIZE, CELL = (2500, 1686), (833, 843)
 BACKGROUND = "#FAF9FC"
-LABELS = {"purchase": "Buy", "sales": "Sell"}
+LABELS = {"purchase": "Buy", "sales": "Sell", "collection": "Collections"}
+# 收款那格点下去的按钮数据（`line_collection.answer` 的第一步）
+COLLECTION_DATA = "a=col&s=start"
 STOCKTAKE_ROUTE = "/desk/pearnly-stock-count"
 _APPLIED = "pearnly:erp:line-menu:"
 
@@ -81,7 +84,8 @@ def payload(variant, language) -> dict:
                       "uri": line_login.entry_url(STOCKTAKE_ROUTE)}
         else:
             label = _(LABELS[name], lang=language)
-            action = {"type": "postback", "data": "a=mode:" + name, "displayText": label, "label": label[:20]}
+            data = COLLECTION_DATA if name == "collection" else "a=mode:" + name
+            action = {"type": "postback", "data": data, "displayText": label, "label": label[:20]}
         areas.append({"bounds": _cell(index), "action": action})
     return {"size": {"width": SIZE[0], "height": SIZE[1]}, "selected": False,
             "chatBarText": _("ERP menu", lang=language)[:14], "areas": areas}
@@ -140,7 +144,7 @@ def publish() -> dict:
 
 
 def wanted_variant(user) -> str:
-    """这个账号该看到哪套：按「LINE 开了没有」+ 采购 / 销售录入岗位 + 盘点录入。"""
+    """这个账号该看到哪套：按「LINE 开了没有」+ 采购 / 销售录入岗位 + 盘点录入 + 收款员。"""
     from pearnly_erp_portal.access import guard
 
     if not user or not guard.has("integration.read", user=user):

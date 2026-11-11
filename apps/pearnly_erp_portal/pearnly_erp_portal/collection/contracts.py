@@ -68,6 +68,11 @@ CONSENT_MISSING = "collection.consent_missing"
 NOT_DRAFT = "collection.not_draft"
 NOT_WITHDRAWABLE = "collection.not_withdrawable"
 BUSY = "collection.busy"
+SALESMAN_INVALID = "collection.salesman_invalid"
+DEPARTMENT_INVALID = "collection.department_invalid"
+# 电脑写入时说「这张不能收」的回执码（转人工，不重试）：已被收 / 不存在 / 服务品现金制（SRV_VATTYP=2，CC 不列进未收清发票）。
+# 前两种带每张发票此刻的余额；三种都按客户再读一次未收清发票
+UNCOLLECTABLE = ("ALREADY_COLLECTED", "INVOICE_NOT_FOUND", "CASH_BASIS_VAT")
 
 
 class CollectionError(ValueError):
@@ -282,6 +287,31 @@ def summaries(checked) -> dict:
     """列表与导出用的几栏：发票与各收多少、各方式（不含现金）。"""
     return {"invoice_summary": "; ".join(f"{row['docnum']} {text(row['amount'])}" for row in checked["invoices"])[:1000],
             "method_summary": "; ".join(f"{row['prefix']} {text(row['amount'])}" for row in checked["methods"])[:1000]}
+
+
+# ── 销售员与部门 ─────────────────────────────────────────────────────────────
+
+
+def staff(first, run_department="", salesman=None, department=None, previous=None) -> dict:
+    """写进 RE 抬头的销售员与部门（不留空交给 CC 回退单据簿，主会话 11-11）：收款员改过（给了值）就用改的；没给时默认第一张发票的
+    销售员 / 部门，那张发票没有部门再用这本账套 RE 单据簿的默认部门（ISRUN ``DOCTYP=RE`` 的 ``DEPCOD``）。
+
+    ``previous``（改草稿时）：``{"salesman", "department", "default_salesman", "default_department"}``——原来的值与按原来第一张发票
+    算出的默认；原来的值与默认不同（收款员改过）就沿用，否则跟着新的第一张发票走。"""
+    first = first or {}
+    default = {"salesman": str(first.get("salesman") or "").strip(),
+               "department": str(first.get("department") or "").strip() or str(run_department or "").strip()}
+    out = {}
+    for key, given in (("salesman", salesman), ("department", department)):
+        if given is not None:
+            out[key] = str(given or "").strip()
+        elif previous and str(previous.get(key) or "") != str(previous.get("default_" + key) or ""):
+            out[key] = str(previous.get(key) or "")
+        else:
+            out[key] = default[key]
+    if not out["department"]:
+        out["department"] = default["department"]
+    return out
 
 
 # ── 放行 ─────────────────────────────────────────────────────────────────────

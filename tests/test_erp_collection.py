@@ -812,6 +812,18 @@ class Receipts(Base):
         self.as_user("a@x")
         self.assertEqual(service.status(name)["balances"], {"IV1": "0.00"})
 
+    def test_a_cash_basis_service_invoice_is_an_uncollectable_failure_and_reread(self):
+        """主会话 11-11：CC 不列服务品现金制发票（SRV_VATTYP=2），写入时遇到回 ``[CASH_BASIS_VAT]`` 转人工——同「已被收」一类：
+        照原因记失败，按客户再读一次未收清发票；没有余额就不记余额。"""
+        name, job = self.released()
+        self.assertNotIn("erp_ar_open:" + BOOK["key"] + ":2100883", self.requests.made)
+        self.jobs.report(job, "manual", reason="[CASH_BASIS_VAT] IV1 is a cash-basis service invoice")
+        row = frappe.db.get_value("ERP Collection", name, ["status", "reason", "balances"], as_dict=True)
+        self.assertEqual((row.status, row.reason, row.balances),
+                         (C.FAILED, "[CASH_BASIS_VAT] IV1 is a cash-basis service invoice", None))
+        self.assertIn("erp_ar_open:" + BOOK["key"] + ":2100883", self.requests.made)
+        self.assertIn("CASH_BASIS_VAT", C.UNCOLLECTABLE)
+
     def test_other_failures_and_queue_states(self):
         name, job = self.released()
         self.jobs.report(job, "queued", reason="payload_version_outdated")
@@ -826,6 +838,66 @@ class Receipts(Base):
         with mock.patch.object(express_push, "job_changed", create=True) as document_push:
             desktop.job_changed({"source_doctype": "ERP Sales Document", "source_name": "SD-1", "status": "queued"})
         document_push.assert_called_once()
+
+
+class Staff(Base):
+    """RE 抬头的销售员与部门不留空给 CC 回退单据簿（主会话 11-11）：默认第一张发票的，那张没有部门用 RE 单据簿的默认部门；
+    收款员在编辑里改了就用改的（改过的之后改金额、补凭证都沿用），给的值要在这本账套里。"""
+
+    def setUp(self):
+        super().setUp()
+        FACTS.update(receipt_run={"prefix": "RE", "next": "2403080", "department": "HQ"},
+                     salesmen=[{"code": "S1", "name": "A"}, {"code": "S2", "name": "B"}, {"code": "S9", "name": "C"},
+                               {"code": "S0", "name": "old", "inactive": True}],
+                     departments=[{"code": "CPI", "name": "CPI"}, {"code": "HQ", "name": "HQ"}, {"code": "BKK", "name": "BKK"}])
+        self.addCleanup(lambda: [FACTS.pop(key, None) for key in ("receipt_run", "salesmen", "departments")])
+
+    def payload(self, name, version=None):
+        service.release(name, version or service.card(name)["version"], "line:evt")
+        return self.jobs.rows["J-" + name]["payload"]
+
+    def test_defaults_come_from_the_first_invoice(self):
+        made = self.draft("600")  # IV1：销售员 S1、部门 CPI
+        payload = self.payload(made["name"])
+        self.assertEqual((payload["salesman"], payload["department"]), ("S1", "CPI"))
+
+    def test_a_first_invoice_without_a_department_takes_the_receipt_book_default(self):
+        made = self.draft(invoices=[{"docnum": "IV2", "amount": "500"}], cash="500")  # IV2：S2，没有部门
+        self.assertEqual((made["salesman"], made["department"]), ("S2", "HQ"))
+        payload = self.payload(made["name"])
+        self.assertEqual((payload["salesman"], payload["department"]), ("S2", "HQ"))
+
+    def test_edited_values_are_kept_through_later_changes_and_unedited_ones_follow_the_first_invoice(self):
+        made = self.draft("600")
+        changed = service.update_draft(made["name"], 1, [{"docnum": "IV1", "amount": "600"}], cash="600",
+                                       salesman="S9")
+        self.assertEqual((changed["salesman"], changed["department"]), ("S9", "CPI"))
+        # 换成先收 IV2：没改过的部门跟着新的第一张（IV2 没有部门 → 单据簿默认），改过的销售员沿用
+        again = service.update_draft(made["name"], 2, [{"docnum": "IV2", "amount": "500"}, {"docnum": "IV1", "amount": "100"}],
+                                     cash="600")
+        self.assertEqual((again["salesman"], again["department"]), ("S9", "HQ"))
+        payload = self.payload(made["name"])
+        self.assertEqual((payload["salesman"], payload["department"]), ("S9", "HQ"))
+
+    def test_edited_values_must_be_in_the_account_set(self):
+        made = self.draft("600")
+        for kwargs, code in (({"salesman": "S0"}, C.SALESMAN_INVALID), ({"salesman": "NOPE"}, C.SALESMAN_INVALID),
+                             ({"department": "XX"}, C.DEPARTMENT_INVALID)):
+            with self.subTest(kwargs=kwargs), self.assertRaises(C.CollectionError) as caught:
+                service.update_draft(made["name"], 1, [{"docnum": "IV1", "amount": "600"}], cash="600", **kwargs)
+            self.assertEqual(caught.exception.code, code)
+        self.assertEqual(service.update_draft(made["name"], 1, [{"docnum": "IV1", "amount": "600"}], cash="600",
+                                              department="BKK")["department"], "BKK")
+        self.assertEqual(service.staff_choices(made["name"])["salesmen"],
+                         [{"code": "S1", "name": "A"}, {"code": "S2", "name": "B"}, {"code": "S9", "name": "C"}])
+
+    def test_the_rule_on_its_own(self):
+        self.assertEqual(C.staff({"salesman": "S1", "department": ""}, "HQ"), {"salesman": "S1", "department": "HQ"})
+        self.assertEqual(C.staff({"salesman": "S1", "department": "CPI"}, "HQ", department=""),
+                         {"salesman": "S1", "department": "CPI"})  # 清空部门也不留空
+        previous = {"salesman": "S9", "department": "CPI", "default_salesman": "S1", "default_department": "CPI"}
+        self.assertEqual(C.staff({"salesman": "S2", "department": "BKK"}, "HQ", previous=previous),
+                         {"salesman": "S9", "department": "BKK"})
 
 
 class Snapshot(Base):
