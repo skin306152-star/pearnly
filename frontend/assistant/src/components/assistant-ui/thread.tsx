@@ -55,6 +55,8 @@ import { KEYBOARD_CLOSED } from "@/lib/viewport";
 import { useToolLabels } from "@/lib/tool-labels";
 import { approvalCard, type CardPart } from "@/lib/approval-card";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
+import { offersRecord } from "@/lib/record-reply";
 import {
   createContext,
   useContext,
@@ -183,6 +185,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
             <ThreadScrollToBottom />
             <SendFailure />
             <ApprovalSheet />
+            <RecordQuickReply />
             <Composer />
           </ThreadPrimitive.ViewportFooter>
         </div>
@@ -352,6 +355,23 @@ const NoticeMessage: FC = () => {
         )}
       </div>
     </MessagePrimitive.Root>
+  );
+};
+
+/** 「录吧」快捷回复（总表二 11-10「去掉开始按钮」；什么时候出现见 lib/record-reply.ts）：输入框上方一颗，点了等同打出这句发出——
+ *  走同一个发送（runtime-provider 的 onNew：服务端的用户消息序号照加，放不放行由服务端判）。字随界面语言。 */
+// map: record-reply
+const RecordQuickReply: FC = () => {
+  const thread = useThreadRuntime();
+  const shown = useAuiState((s) => offersRecord(s.thread.messages, s.thread.isRunning));
+  if (!shown) return null;
+  const text = t("recordNow");
+  return (
+    <div data-slot="cc-quick-replies" className="flex flex-wrap gap-(--cc-space-8)">
+      <Button variant="outline" size="sm" onClick={() => thread.append({ role: "user", content: [{ type: "text", text }] })}>
+        {text}
+      </Button>
+    </div>
   );
 };
 

@@ -1802,6 +1802,17 @@ tests = ["flow:cowork.pending.operator"]
 group = "cc.action.deep-link"
 
 [[row]]
+id = "cowork.cc.action.record-reply"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:record-reply"
+where = "CC 输入框上方「录吧」快捷回复（CC 复述完写入计划、等用户点头时出现；点了等同打出这句发出）"
+tests = ["unit:tests/test_cc_record_reply.py::test_it_shows_only_while_a_ready_write_plan_waits_for_the_user", "unit:tests/test_cc_record_reply.py::test_tapping_it_sends_the_words_like_typing", "unit:tests/test_cc_record_reply.py::test_it_sits_above_the_composer_as_a_kit_button"]
+group = "cc.action.record-reply"
+
+[[row]]
 id = "cowork.cc.action.attach"
 product = "Cowork"
 channel = "cc-chat"
