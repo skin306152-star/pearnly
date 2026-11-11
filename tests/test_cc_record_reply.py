@@ -55,6 +55,12 @@ assert.equal(offersRecord([user("第 3 张不要"), said(plan(JSON.stringify({ s
 // 别的工具、上一轮的计划：都不算
 assert.equal(offersRecord([user("看看"), said({ type: "tool-call", toolName: "operator_start", result: ready })], false), false);
 assert.equal(offersRecord([user("帮我录"), said(plan(ready)), user("先别录"), said()], false), false);
+// 用户改了票（下一轮）、CC 重新调计划：又是 ready 就重新出现；这回没有要写的、或报错就不出现
+const changed = [user("帮我录"), said(plan(ready)), user("第 3 张不要")];
+assert.equal(offersRecord(changed, false), false);
+assert.equal(offersRecord([...changed, said(plan(ready))], false), true);
+assert.equal(offersRecord([...changed, said(plan(JSON.stringify({ status: "nothing_to_write" })))], false), false);
+assert.equal(offersRecord([...changed, said(plan(ready, { isError: true }))], false), false);
 // 空对话
 assert.equal(offersRecord([], false), false);
 console.log("HARNESS OK");
