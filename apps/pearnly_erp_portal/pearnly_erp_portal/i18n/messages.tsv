@@ -2086,3 +2086,23 @@ CC Desktop is writing this collection	CC 桌面版正在写入此收款	CC เ�
 Salesman	销售员	พนักงานขาย	営業担当
 This salesman is not available	此销售员不可用	พนักงานขายนี้ใช้ไม่ได้	この営業担当は使えません
 This department is not available	此部门不可用	แผนกนี้ใช้ไม่ได้	この部門は使えません
+Searched customers for a collection	查找了收款客户	ค้นหาลูกค้าสำหรับรับชำระแล้ว	入金の顧客を検索しました
+Listed open invoices	查看了未收清的发票	ดูใบแจ้งหนี้ค้างชำระแล้ว	未入金の請求書を確認しました
+Listed collection methods	查看了收款方式	ดูวิธีรับชำระแล้ว	入金方法を確認しました
+Saved a collection draft	保存了收款草稿	บันทึกฉบับร่างรับชำระแล้ว	入金の下書きを保存しました
+Attached a transfer slip	附上了转账凭证	แนบสลิปการโอนแล้ว	振込明細を添付しました
+Viewed a collection	查看了收款	ดูรายการรับชำระแล้ว	入金を確認しました
+Recorded a collection	录入了收款	บันทึกรับชำระแล้ว	入金を記録しました
+Checked a collection	查看了收款结果	ดูผลการรับชำระแล้ว	入金の結果を確認しました
+Listed collections	查看了收款列表	ดูรายการรับชำระทั้งหมดแล้ว	入金の一覧を確認しました
+Withdrew a collection	撤回了收款	ถอนรายการรับชำระแล้ว	入金を取り下げました
+Searching customers for a collection	正在查找收款客户	กำลังค้นหาลูกค้าสำหรับรับชำระ	入金の顧客を検索しています
+Listing open invoices	正在查看未收清的发票	กำลังดูใบแจ้งหนี้ค้างชำระ	未入金の請求書を確認しています
+Listing collection methods	正在查看收款方式	กำลังดูวิธีรับชำระ	入金方法を確認しています
+Saving a collection draft	正在保存收款草稿	กำลังบันทึกฉบับร่างรับชำระ	入金の下書きを保存しています
+Attaching a transfer slip	正在附上转账凭证	กำลังแนบสลิปการโอน	振込明細を添付しています
+Viewing a collection	正在查看收款	กำลังดูรายการรับชำระ	入金を確認しています
+Recording a collection	正在录入收款	กำลังบันทึกรับชำระ	入金を記録しています
+Checking a collection	正在查看收款结果	กำลังดูผลการรับชำระ	入金の結果を確認しています
+Listing collections	正在查看收款列表	กำลังดูรายการรับชำระทั้งหมด	入金の一覧を確認しています
+Withdrawing a collection	正在撤回收款	กำลังถอนรายการรับชำระ	入金を取り下げています

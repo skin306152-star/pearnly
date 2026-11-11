@@ -241,6 +241,27 @@ class Access(Precheck):
             with mock.patch.object(self.precheck.guard, "has", lambda capability, user=None: capability == "purchase.read"):
                 self.assertFalse(self.precheck.allowed("staff@x", "CO-1"))
 
+    def test_collections_go_to_the_collection_plan_and_collectors_may_plan(self):
+        # 收款第 4 步：CC 里录的收款（R:<记录>@<版本>）进写入计划，由 `collection.plan` 判；只有收款岗位的人也能建计划
+        from pearnly_erp_portal.collection import plan
+
+        self.rows()
+        seen = []
+        with mock.patch.object(self.precheck.guard, "has", lambda capability, user=None: True), \
+                mock.patch.object(self.precheck.guard, "scope_filters", lambda user=None: {}), \
+                mock.patch.object(self.precheck.companies, "allowed_companies", lambda user=None: ["CO-1"]), \
+                mock.patch.object(plan, "check", lambda company, ids: seen.append((company, ids)) or {
+                    "documents": [{"doc_id": ids[0], "state": "check", "items": []}]}), \
+                mock.patch.object(self.precheck, "document_view",
+                                  lambda doc_id, doctype, name, found=None: {"doc_id": doc_id}):
+            out = self.precheck.check("CO-1", ["R:COL261111-AB12@2", "P:PI-1"])
+        self.assertEqual(seen, [("CO-1", ["R:COL261111-AB12@2"])])
+        self.assertEqual([doc["doc_id"] for doc in out["documents"]], ["R:COL261111-AB12@2", "P:PI-1"])
+        with mock.patch.object(self.precheck.companies, "allowed_companies", lambda user=None: ["CO-1"]), \
+                mock.patch.object(self.precheck.guard, "has", lambda capability, user=None: capability == "collection.write"):
+            self.assertTrue(self.precheck.allowed("collector@x", "CO-1"))
+            self.assertFalse(self.precheck.allowed("collector@x", "CO-2"))
+
     def test_a_disconnected_company_writes_nothing(self):
         self.rows()
         fake.STATE.db.table("ERP Company")["CO-1"]["express_enabled"] = 0
