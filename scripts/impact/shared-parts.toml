@@ -246,6 +246,7 @@ paths = ["apps/pearnly_core/pearnly_core/mrerp/**"]
 markers = ["pearnly_core.mrerp", "pearnly_core import mrerp"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
 entries = ["cowork.mrerp.push", "cowork.mrerp.catalog", "cowork.cc.mrerp-setup", "erp.mrerp.direct"]
+not_entries = { "apps/pearnly_cowork/pearnly_cowork/push/mrerp/ledger_check.py" = "录过的票先核账本的 MR.ERP 通道（hooks pearnly_ledger_check[\"mrerp\"]），还没有调用方；「录过的票」判定接入时登记入口（D 线 11-11，P0 记录「核账本的 MR.ERP 一侧」）", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/ledger_check.py" = "录过的票先核账本的 MR.ERP 通道（hooks pearnly_ledger_check[\"mrerp\"]，MR.ERP 账本开关关着时回空），还没有调用方；「录过的票」判定接入时登记入口（D 线 11-11）" }
 
 [[part]]
 id = "exports"

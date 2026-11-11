@@ -4,6 +4,7 @@
 锁住：每张都有一项（缺的、认不出的、产品抛错的都是 unknown，不报错）；没有电脑能做（不在线、CC 桌面版太旧还不认这种请求）不建请求、
 整批 unknown；电脑读好了按单号回 present / gone；等到上限还没读好整批 unknown，并删掉请求；参数照 CC 桌面版的规格。
 """
+import ast
 import gzip
 import importlib.util
 import json
@@ -227,7 +228,12 @@ class DeclarationTests(unittest.TestCase):
     def test_both_products_declare_their_channel_and_cowork_stores_the_kind(self):
         for path, target in (("apps/pearnly_cowork/pearnly_cowork/hooks.py", "pearnly_cowork.readback.ledger_check.check"),
                              ("apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "pearnly_erp_portal.express.ledger_check.check")):
-            self.assertIn(f'pearnly_ledger_check = {{"express": "{target}"}}', (ROOT / path).read_text(encoding="utf-8"))
+            # 一个字典里各账本一项（11-11 D 线同一字典加了 "mrerp"）：这里只核 Express 这一项
+            tree = ast.parse((ROOT / path).read_text(encoding="utf-8"))
+            hooks = [ast.literal_eval(node.value) for node in ast.walk(tree) if isinstance(node, ast.Assign)
+                     and any(getattr(name, "id", "") == "pearnly_ledger_check" for name in node.targets)]
+            self.assertEqual(len(hooks), 1)
+            self.assertEqual(hooks[0]["express"], target)
         doctype = json.loads((ROOT / "apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_companion_request/"
                                       "cowork_companion_request.json").read_text(encoding="utf-8"))
         kind = next(f for f in doctype["fields"] if f["fieldname"] == "kind")
