@@ -4,7 +4,7 @@
 数据只给新开户那套（`datasets.py` new：公司按正式方式接上 Express、有一本账套）：
 - 收款员 `collector@erp.regression`：岗位「收款员」+ LINE，只开这家公司（团队管理同一函数 `team.set_member_roles`）；
 - 账套主档里补收款类型（NLTTEST 的几行：现金、两种转账、折扣）、现金科目、两位销售员、RE 单据簿默认部门，原值记下由 cleanup 还原；
-- 一位本次专用的客户（Express 客户码 `CF<tag>`）与它的两张未收清发票（快照，同电脑读回落表的函数 `snapshot.replace`）。
+- 一位本次专用的客户（Express 客户码 `CF<tag>`，cleanup 删掉）与它的两张未收清发票（快照，同电脑读回落表的函数 `snapshot.replace`）。
 """
 from __future__ import annotations
 
@@ -72,14 +72,17 @@ print(json.dumps({{"company": co, "book": book["key"], "customer": code, "invoic
 
 
 def restore(lab, manifest, params):
-    """还原账套主档（收款类型）、停用本次的客户；本次录的收款没写完的撤回（撤掉写账作业，不留在队列里）。"""
+    """还原账套主档（收款类型）、删掉本次的客户；本次录的收款没写完的撤回（撤掉写账作业，不留在队列里）。"""
     lab.python(manifest["site"], f"""
 from pearnly_erp_portal.collection import contracts, service
 from pearnly_erp_portal.express import facts
 before = json.loads({json.dumps(params.get("facts_before"), ensure_ascii=False)!r})
 if before is not None:
     facts.save({params["book"]!r}, before)
-frappe.db.set_value("ERP Customer", {{"express_company": {params["company"]!r}, "express_code": {params["customer"]!r}}}, "is_active", 0)
+# 本次的客户删掉（不留给别的流程：客户页的列表与计数按当前公司算，留下的 Express 客户会让 erp.page-lists 对不上）
+for customer in frappe.get_all("ERP Customer", filters={{"express_company": {params["company"]!r}, "express_code": {params["customer"]!r}}},
+                               pluck="name"):
+    frappe.delete_doc("ERP Customer", customer, ignore_permissions=True, force=True)
 from pearnly_core import line_session
 line_session.clear_session({COLLECTOR_LINE!r})
 frappe.set_user({COLLECTOR!r})
