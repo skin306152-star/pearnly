@@ -66,6 +66,27 @@ Frappe 在调任何钩子之前（`before_request` 在第 244 行，解析表单
 - 流程 `--changed`（7 个流程，new / old 两套数据 × 电脑 / 手机）：24 / 24 过。
 - 候选离线（生产镜像 fb1037ad，`cand-local.sh offline`）：107 组，LANE EXIT 0（含要 Frappe 环境的 test_heic_uploads 等）。
 
+## 11-11 补：CC 桌面版文件夹与 LINE 也是 40MB（C 线新窗口）
+
+主会话定：用户能交文件的地方一律同一个上限（文件夹选 A、LINE 选 A）。
+
+| 入口 | 上限 | 超限表现 | 落点 |
+|---|---|---|---|
+| 网页（Cowork / ERP 页面上传、代录资料区） | 40MB | 页面当场拦下；接口回「文件超过 40 MB」（`upload.tooLarge`） | 上面「改法」 |
+| CC 对话（电脑、手机同一个页面） | 40MB | 同上，页面读服务端给的同一个数 | `www/assistant.py`、`assistant/files.py` |
+| LINE 发单据（ERP、Cowork） | 40MB（原来是下载函数默认的 20MB） | 回同一句 `upload.tooLarge`（原来只说「没能保存这份文件」）；ERP 这条记 `too_large`、不记错误日志 | `erp_portal/integrations/intake.py` `_fetch`、`cowork/line/intake.py` `_admit` |
+| CC 桌面版「从文件夹取文件」 | 40MB（原来 30MB），随 CC 桌面版 1.12.20 | 电脑回 `too_large`，CC 对模型说取不成、原因太大 | `cc_desktop/wire/request_contracts.py` 与 `companion/request_contract.py` 同值（`test_companion_contract` 绑定对话附件上限） |
+
+- DMS 的 LINE 下载有自己的上限（身份证图片），不变；下载函数默认值仍是 20MB，只有 ERP、Cowork 两处显式传 40MB。
+- 旧版 CC 桌面版（1.12.19 及以前）仍按 30MB 拦：服务端每件请求带 `max_bytes`，电脑取两者较小的，30–40MB 的文件回 `too_large`，不会半截；心跳带新版本号，CC 桌面版自动更新后就是 40MB。
+- 测试（先红后绿）：ERP `test_line_intake`、Cowork `tests/test_cowork_line_intake.py` 各两条——正好 40MB 收下并交存原件；多 1 字节（带 / 不带 Content-Length 两种）不存、回 `upload.tooLarge`。旧代码上正好 40MB 那条红（回「没能保存这份文件」）。CC 桌面版 `test_folder_fetch` 与 `test_companion_contract` 跟着 40MB。
+
+### 内存（主会话要求按减拷贝口径核）
+
+- LINE 下载原来 `bytearray` 再转 `bytes`，两份；改成 `BytesIO` 取值不再复制。生产镜像实测 40MB：**峰值 +81MB → +41MB**。下游（ERP 存原件 `registered.put`、Cowork `files.service.create`）都只收字节，没法直接流式写盘；存原件那一步已是流式（+9MB）。
+- 文件夹取文件在服务端：电脑按 4MB 一块交回、逐块写站点私有目录；取进对话时整份读一次（40MB），再交引擎（SDK 复制，约 +75MB，同对话附件），留存直接写盘。没有 base64 / JSON 再拷贝，一份约 +115MB，与对话附件同量级。
+- 并发最坏情况写进容器内存那份记录（`docs/work/2026-11-11-web-container-memory.md` 第 7 节）。
+
 ## 共用件连带回归清单
 命中共用件 `ocr`（原件层：`rules.py` 只新增两个常量，新增 `upload_limits.py`，原有函数没改）和 `assistant`（只改附件上传的大小检查，页面多写一个数）。
 
