@@ -1,9 +1,10 @@
-"""流程用例：ERP 客户、收银小票、班次三个列表页照库里列出（清存量基线 11-08）。
+"""流程用例：ERP 客户、收银小票、班次、收款四个列表页照库里列出（清存量基线 11-08；收款 11-11）。
 
 管理员依次打开三页：
 - 客户：prepare 按正式函数建一位客户；列表的行数与表头计数等于服务端按同一份权限与公司范围数出来的客户数（`count_customers`），
   列表里找得到新建的这一位；
-- 收银小票、班次：列表的行数与表头计数等于服务端数出来的条数（`count_sales` / `count_shifts`，同一份权限与当前公司范围）。
+- 收银小票、班次：列表的行数与表头计数等于服务端数出来的条数（`count_sales` / `count_shifts`，同一份权限与当前公司范围）；
+- 收款（只读页）：列表的行数与表头计数等于服务端同一份条件数出来的条数（`collection.records.total`，当前公司）。
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from desk_list import FIND_ROWS, IDLE, list_matches  # noqa: E402
 
 TITLE = "ERP 客户 / 收银小票 / 班次列表：照库里列出"
-PAGES = ["pearnly-clients", "pearnly-pos-receipts", "pearnly-pos-shifts"]
+PAGES = ["pearnly-clients", "pearnly-pos-receipts", "pearnly-pos-shifts", "pearnly-collections"]
 
 
 def prepare(lab, manifest):
@@ -24,6 +25,7 @@ def prepare(lab, manifest):
     out = lab.python(manifest["site"], f"""
 from pearnly_erp_portal.masters import customers
 from pearnly_erp_portal.cashier import sales, shifts
+from pearnly_erp_portal.collection import records as collections
 counts = {{}}
 frappe.set_user("admin@erp.regression")
 made = customers.create_customer(customer_name="flow client {tag}")
@@ -31,6 +33,7 @@ frappe.db.commit()
 counts["pearnly-clients"] = customers.count_customers()
 counts["pearnly-pos-receipts"] = sales.count_sales()
 counts["pearnly-pos-shifts"] = shifts.count_shifts()
+counts["pearnly-collections"] = collections.total({{}})
 print(json.dumps({{"counts": counts, "client": made.get("name") if isinstance(made, dict) else made}}))
 """)
     return {**out, "pages": PAGES, "client_name": f"flow client {tag}", "cases": []}
