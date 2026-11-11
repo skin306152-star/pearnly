@@ -232,7 +232,7 @@ paths = ["apps/pearnly_core/pearnly_core/ledger_tickets/**"]
 markers = ["pearnly_core.ledger_tickets", "pearnly_core import ledger_tickets", "pearnly_ledger_tickets"]
 search = ["apps/**/*.py"]
 entries = ["cowork.cc-chat.push", "erp.cc.chat-push", "cc.operator.thread", "cc.operator.page"]
-not_entries = { "apps/pearnly_cowork/pearnly_cowork/hooks.py" = "声明 Cowork 的 twin（hooks），入口见 cowork.cc-chat.push 与 cc.operator.thread", "apps/pearnly_cowork/pearnly_cowork/history/tickets.py" = "Cowork 的声明本身：按身份键找写过的同一张票，入口同上", "apps/pearnly_erp_portal/pearnly_erp_portal/express/tickets.py" = "ERP 的声明本身：按身份键找写过的同一张采购单，入口见 erp.cc.chat-push 与 cc.operator.thread", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py" = "声明 ERP 的 twin（hooks），入口同上" }
+not_entries = { "apps/pearnly_cowork/pearnly_cowork/readback/ledger_check.py" = "录过的票先核账本的产品通道（express_doc_check）：由「录过的票」判定（写入计划）调用，入口见 cowork.cc-chat.push 与 cc.operator.page", "apps/pearnly_erp_portal/pearnly_erp_portal/express/ledger_check.py" = "录过的票先核账本的产品通道（express_doc_check）：由「录过的票」判定（写入计划）调用，入口见 cowork.cc-chat.push 与 cc.operator.page", "apps/pearnly_cowork/pearnly_cowork/hooks.py" = "声明 Cowork 的 twin（hooks），入口见 cowork.cc-chat.push 与 cc.operator.thread", "apps/pearnly_cowork/pearnly_cowork/history/tickets.py" = "Cowork 的声明本身：按身份键找写过的同一张票，入口同上", "apps/pearnly_erp_portal/pearnly_erp_portal/express/tickets.py" = "ERP 的声明本身：按身份键找写过的同一张采购单，入口见 erp.cc.chat-push 与 cc.operator.thread", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py" = "声明 ERP 的 twin（hooks），入口同上" }
 
 [[part]]
 id = "write-precheck"

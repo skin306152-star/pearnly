@@ -570,6 +570,7 @@ def push_documents(tool_input) -> str:
     if not names:
         frappe.throw(_("Invalid request"))
     names, refused = direct_push.permitted(names)  # 只推用户同意了的写入计划里的单（一句话下令，A 线 11-11）
+    tool_input = direct_push.with_plan_again(tool_input, names)  # 计划里标了再录的（录过的票先核账本）
     results = [_push_one(name, tool_input) for name in names]
     _settle(results)
     out = {"results": results + refused}

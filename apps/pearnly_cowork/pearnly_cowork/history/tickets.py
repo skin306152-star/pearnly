@@ -19,7 +19,8 @@ def _book(value) -> str:
 
 def twin(doc_id) -> dict:
     """``{"doc_id", "docnum", "state", "key"}``：同一张票已由另一条写成（entered）或正在写（queued）；认出身份但没写过的只回
-    ``{"key"}``（写之前按它加锁）；认不出身份的回 {}。"""
+    ``{"key"}``（写之前按它加锁）；认不出身份的回 {}。写成的另带核账本要的 ``ledger`` / ``connection`` / ``account_set`` /
+    ``direction``（那条推送记录写进的账本、连接、账套与进销方向；``docnum`` 是账本里的单号，录过的票先核账本，A 线 11-11）。"""
     from pearnly_core import ledger_tickets
 
     row = frappe.db.get_value(HISTORY, doc_id, ["name", "workspace", "client", "ticket_key", "ticket_level", "push_connection",
@@ -37,7 +38,25 @@ def twin(doc_id) -> dict:
         if (other.client or "") != (row.client or "") or _book(other.push_account_set) != _book(row.push_account_set):
             continue
         state = STATES[other.last_push_status]
-        docnum = frappe.db.get_value(PUSH_RECORD, other.last_push_record, "external_docnum") \
-            if state == ledger_tickets.ENTERED and other.last_push_record else ""
-        return {"doc_id": other.name, "docnum": str(docnum or ""), "state": state, "key": key}
+        found = {"doc_id": other.name, "docnum": "", "state": state, "key": key}
+        if state == ledger_tickets.ENTERED and other.last_push_record:
+            found.update(_ledger(other.last_push_record))
+        return found
     return {"key": key}
+
+
+def _ledger(record) -> dict:
+    """那条推送记录写进哪里：账本里的单号、连接、账套、进销方向（载荷里写的）、账本类型（按连接的适配器）。"""
+    import json
+
+    row = frappe.db.get_value(PUSH_RECORD, record, ["external_docnum", "connection", "account_key", "payload_json"], as_dict=True)
+    if not row:
+        return {}
+    try:
+        payload = json.loads(row.payload_json or "{}")
+    except ValueError:
+        payload = {}
+    adapter = frappe.db.get_value("Cowork ERP Connection", row.connection, "adapter") if row.connection else ""
+    return {"docnum": str(row.external_docnum or ""), "connection": str(row.connection or ""),
+            "account_set": str(row.account_key or ""), "direction": str((payload or {}).get("direction") or ""),
+            "ledger": "mrerp" if adapter == "mrerp" else "express"}

@@ -31,14 +31,18 @@ SKIPPED_SHOWN = 50  # 回给 CC 的跳过清单最多列几张（其余只给张
 
 # 跳过的原因（给模型，不经 _()）
 SKIP_GROUP = "moved_to_not_entered"       # 人在卡片上移到了「不入账」
-SKIP_ENTERED = "already_entered"          # 同一张票已写进账本（代录预检 written）
+SKIP_ENTERED = "already_entered"          # 我们写过这张票、账本里还在（in_ledger yes）或核不了（could_not_check）：问跳过还是再录
+SKIP_WRITING = "being_written"            # 另一条正在写同一张票
 SKIP_UNKNOWN = "last_write_result_unknown"  # 上次写入结果不明：先让人核对已入账 / 没入账
 SKIP_UNDECIDED = "undecided_items"        # 还有没定的项（ask_user 问完、pearnly_precheck_answer 存下后再建计划）
 SKIP_WAITING = "waiting_for_computer"     # 等电脑读账套
 SKIP_NOT_FOUND = "not_found"              # 不是本人能写的单 / 找不到
 
 PLAN_NOTE = ("Before writing, say back to the user in one sentence: the company, the account set(s), how many documents "
-             "will be written, and which are skipped with the reason for each (skipped). Then ask whether to go ahead and "
+             "will be written, and which are skipped with the reason for each (skipped). For already_entered say it was "
+             "entered before (docnum) and whether it is still in the ledger (in_ledger yes) or could not be checked now "
+             "(could_not_check), and ask whether to skip it or enter it again; if the user wants it again, make the plan "
+             "again with again listing those documents. Then ask whether to go ahead and "
              "wait for the user's reply. Only after the user answers in a new message call pearnly_write_start with this "
              "plan. If the user changes something (e.g. drop one), make a new plan and say it back again. Never start on "
              "your own, never say anything was written before pearnly_write_start reports it.")
@@ -158,18 +162,21 @@ def make(tool_input) -> dict:
     _contracts, precheck_products = _precheck()
     if not precheck_products.allowed(frappe.session.user, company):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
-    skipped_first, again = [], []
+    skipped_first = []
+    again = [str(doc_id) for doc_id in tool_input.get("again") or () if doc_id]
     if mode == "operator":
         from pearnly_core.express_operator import api as operator_api
 
-        again = [str(doc_id) for doc_id in tool_input.get("again") or () if doc_id]
         doc_ids, _groups, held = operator_api.waiting(company, period, again)
-        again = [doc_id for doc_id in again if doc_id in doc_ids]
-        skipped_first = held
+        entered = [item["doc_id"] for item in held if item.get("reason") == SKIP_ENTERED]
+        skipped_first = [item for item in held if item.get("reason") != SKIP_ENTERED]
+        candidates = doc_ids + entered
     else:
-        doc_ids = list(dict.fromkeys(str(doc_id) for doc_id in tool_input.get("documents") or () if doc_id))
-        if not doc_ids or len(doc_ids) > DIRECT_MAX:
+        candidates = list(dict.fromkeys(str(doc_id) for doc_id in tool_input.get("documents") or () if doc_id))
+        if not candidates or len(candidates) > DIRECT_MAX:
             frappe.throw(_("Invalid request"))
+    doc_ids, again, ledger_skipped = _ledger_checked(candidates, again)
+    skipped_first += ledger_skipped
     card, versions = _judge(company, doc_ids) if doc_ids else ({}, {})
     write, skipped = _sorted_out(card, doc_ids, versions)
     skipped = skipped_first + skipped
@@ -190,6 +197,31 @@ def make(tool_input) -> dict:
            "skipped_count": len(skipped), "skipped": skipped[:SKIPPED_SHOWN]}
     # 工具结果的状态与 B 线「录吧」的约定（主会话 11-11）：有要写的回 ready，做不了回 nothing_to_write（带原因）；计划表里自己记 awaiting
     return {**out, "status": READY, "note": PLAN_NOTE}
+
+
+def _ledger_checked(candidates: list, again: list) -> tuple[list, list, list]:
+    """录过的票先核账本再问（用户 11-10，主会话批复）：候选里我们写过的（`ledger_tickets.check_entered`）——账本里删了 / 作废了的
+    当没录过照写（记成再录，交单时不再按「写过」跳过）；还在的、核不了的这次不写，进跳过清单带单号与核对结果，由 CC 在复述里问
+    跳过还是再录（用户说再录就带 ``again`` 重建计划）；另一条正在写的不写。``again`` 里的不核、照写。
+    回 (要写的候选, 再录的, 跳过的)。"""
+    from pearnly_core import ledger_tickets
+
+    again = [doc_id for doc_id in again if doc_id in candidates]
+    checked = ledger_tickets.check_entered(candidates, again)
+    keep, skipped = [], []
+    for doc_id in candidates:
+        found = checked.get(doc_id)
+        if not found:
+            keep.append(doc_id)
+        elif found["state"] == ledger_tickets.GONE:
+            keep.append(doc_id)
+            again.append(doc_id)
+        elif found["state"] == ledger_tickets.QUEUED_STATE:
+            skipped.append({"doc_id": doc_id, "reason": SKIP_WRITING})
+        else:
+            skipped.append({"doc_id": doc_id, "reason": SKIP_ENTERED, "docnum": found["docnum"],
+                            "in_ledger": "yes" if found["state"] == ledger_tickets.PRESENT else "could_not_check"})
+    return keep, list(dict.fromkeys(again)), skipped
 
 
 def _replace_open(session_id: str) -> None:
@@ -274,6 +306,19 @@ def permit(doc_ids) -> tuple[list, dict]:
         return [], {doc_id: "stopped" for doc_id in ids}
     allowed = set(json.loads(plan.started or "[]"))
     return [doc_id for doc_id in ids if doc_id in allowed], {doc_id: "not_in_plan" for doc_id in ids if doc_id not in allowed}
+
+
+def again_of(doc_ids) -> list:
+    """直写推送用：本对话最近一份已开始的计划里标了再录的单（用户说了再录、或核账本时账本里已删掉的），推送时按「再录一次」交，
+    不再按「写过」跳过。不在 CC 对话里执行回空。"""
+    sid = _session_id()
+    if not sid:
+        return []
+    found = frappe.get_all(DOCTYPE, filters={"session_id": sid, "status": STARTED}, fields=["documents"],
+                           order_by="started_at desc", limit_page_length=1)
+    marked = {str(item.get("doc_id")) for item in json.loads(found[0].documents or "[]") if isinstance(item, dict)
+              and item.get("again")} if found else set()
+    return [str(doc_id) for doc_id in doc_ids or () if str(doc_id) in marked]
 
 
 PERMIT_NOTES = {

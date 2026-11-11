@@ -1200,6 +1200,7 @@ def push_documents(tool_input) -> str:
     if not names:
         frappe.throw(_("No documents were given."))
     names, refused = direct_push.permitted(names)  # 只推用户同意了的写入计划里的单（一句话下令，A 线 11-11）
+    tool_input = direct_push.with_plan_again(tool_input, names)  # 计划里标了再录的（录过的票先核账本）
     again = tuple(str(n) for n in (tool_input.get("enter_again") or []))[:PUSH_MAX]
     results = [_push_listed(name, tool_input.get("connection") or None, tool_input.get("account_set_key") or None,
                             tool_input.get("posting_kind") or None, again) for name in names]

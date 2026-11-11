@@ -150,6 +150,17 @@ class WritePlanTests(unittest.TestCase):
             return {"batch": task}
 
         operator_api.hand_in = hand_in
+        # 录过的票先核账本（`ledger_tickets.check_entered`）：D010 是我们写过的，默认账本里还在
+        self.ledger = {"D010": {"state": "present", "docnum": "RR6911-010", "twin": "D099"}}
+        self.checked = []
+        ledger = types.ModuleType("pearnly_core.ledger_tickets")
+        ledger.GONE, ledger.PRESENT, ledger.QUEUED_STATE = "gone", "present", "queued"
+
+        def check_entered(doc_ids, again=()):
+            self.checked.append((list(doc_ids), list(again)))
+            return {d: dict(v) for d, v in self.ledger.items() if d in doc_ids and d not in again}
+
+        ledger.check_entered = check_entered
         tasks = types.ModuleType("pearnly_core.express_operator.tasks")
         tasks.read = lambda name: {"company": "CO-1", "period": "2026-10"}
         assistant = types.ModuleType("pearnly_core.assistant")
@@ -163,7 +174,7 @@ class WritePlanTests(unittest.TestCase):
                    "pearnly_core.assistant.sessions": sessions, "pearnly_core.assistant.contracts": assistant.contracts,
                    "pearnly_core.write_precheck": write_precheck, "pearnly_core.write_precheck.products": products,
                    "pearnly_core.express_operator": express_operator, "pearnly_core.express_operator.api": operator_api,
-                   "pearnly_core.express_operator.tasks": tasks}
+                   "pearnly_core.express_operator.tasks": tasks, "pearnly_core.ledger_tickets": ledger}
         patcher = mock.patch.dict(sys.modules, modules)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -236,6 +247,41 @@ class WritePlanTests(unittest.TestCase):
         self.turn[0] += 1
         self.start(out["plan"])
         self.assertEqual(self.handed[0][3], ["D010"])
+
+    def test_a_ticket_entered_before_is_checked_in_the_ledger_before_it_is_asked(self):
+        # 用户 11-10「万一 exp 那边删了呢」：录过的票先核账本——还在：不写、进跳过清单带单号，CC 复述时问跳过还是再录
+        out = self.plan()
+        entered = next(item for item in out["skipped"] if item["doc_id"] == "D010")
+        self.assertEqual(entered, {"doc_id": "D010", "reason": "already_entered", "docnum": "RR6911-010", "in_ledger": "yes"})
+        self.assertIn("in_ledger", out["note"])
+        # 核不了（电脑不在线、太旧、超时）：同样不写，照实说核不了
+        self.ledger["D010"]["state"] = "unknown"
+        self.assertEqual(next(i for i in self.plan()["skipped"] if i["doc_id"] == "D010")["in_ledger"], "could_not_check")
+        # 账本里删了 / 作废了：当没录过照写，记成再录（交单时不再按「写过」跳过）
+        self.ledger["D010"]["state"] = "gone"
+        out = self.plan()
+        self.assertIn("D010", out["documents"])
+        self.turn[0] += 1
+        self.start(out["plan"])
+        self.assertEqual(self.handed[-1][3], ["D010"])
+        # 另一条正在写同一张票：这次不写
+        self.ledger["D010"]["state"] = "queued"
+        self.assertIn({"doc_id": "D010", "reason": "being_written"}, self.plan()["skipped"])
+
+    def test_the_user_saying_enter_again_skips_the_check(self):
+        self.plan(again=["D010"])
+        self.assertEqual(self.checked[-1][1], ["D010"])  # 再录的不核
+
+    def test_direct_push_enters_again_what_the_plan_marked(self):
+        self.conversation(operator_task="")
+        self.ledger = {"D002": {"state": "gone", "docnum": "RR-2", "twin": "D090"},
+                       "D003": {"state": "present", "docnum": "RR-3", "twin": "D091"}}
+        out = self.plan(documents=["D001", "D002", "D003"])
+        self.assertEqual(out["documents"], ["D001", "D002"])
+        self.assertEqual([i["doc_id"] for i in out["skipped"]], ["D003"])
+        self.turn[0] += 1
+        self.start(out["plan"])
+        self.assertEqual(self.plan_module.again_of(["D001", "D002", "D003"]), ["D002"])
 
     def test_a_new_plan_replaces_the_one_not_started(self):
         first = self.plan()

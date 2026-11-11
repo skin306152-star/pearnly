@@ -64,6 +64,18 @@ def permitted(names) -> tuple[list, list]:
                      for name, reason in refused.items()]
 
 
+def with_plan_again(tool_input, names) -> dict:
+    """推送的入参并上已开始计划里标了再录的单（`write_plan.again_of`：用户说了再录、或核账本时账本里已删掉的），交单时按「再录
+    一次」交、不再按「写过」跳过。没有就原样回。"""
+    from pearnly_core.assistant import write_plan
+
+    extra = write_plan.again_of(names)
+    if not extra:
+        return tool_input
+    given = [str(item) for item in (tool_input or {}).get("enter_again") or ()]
+    return {**(tool_input or {}), "enter_again": list(dict.fromkeys(given + extra))}
+
+
 def not_found(document) -> dict:
     return {"document": document, "status": NOT_FOUND}
 

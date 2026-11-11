@@ -97,9 +97,15 @@ def twin(doc_id) -> dict:
                "ledger_state": ["in", list(ENTERED_STATES + QUEUED_STATES)]}
     if own:
         filters["name"] = ["!=", own]
-    for other in frappe.get_all(push.PURCHASE, filters=filters, fields=["name", "ledger_state", "ledger_docnum"],
+    for other in frappe.get_all(push.PURCHASE, filters=filters, fields=["name", "ledger_state", "ledger_docnum", "ledger_book",
+                                                                        "ledger_target"],
                                 order_by="modified desc", limit_page_length=SCAN):
         state = "entered" if other.ledger_state in ENTERED_STATES else "queued"
-        return {"doc_id": f"{PURCHASE_PREFIX}:{other.name}", "docnum": str(other.ledger_docnum or "") if state == "entered" else "",
-                "state": state, "key": lock}
+        found = {"doc_id": f"{PURCHASE_PREFIX}:{other.name}", "docnum": str(other.ledger_docnum or "") if state == "entered" else "",
+                 "state": state, "key": lock}
+        if state == "entered":
+            # 核账本要的（录过的票先核账本，A 线 11-11）：写进哪本账、哪份账套；ERP 代录只写采购单
+            found.update(connection=company, account_set=str(other.ledger_book or ""), direction="purchase",
+                         ledger="mrerp" if other.ledger_target == "mrerp" else "express")
+        return found
     return {"key": lock}
