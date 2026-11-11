@@ -42,8 +42,12 @@ NEEDS_PERSON_CODES = frozenset({
     "REFUND_CUSTOMER_NOT_COPIED",
     # 赊购单服务品的进项税口径这本账套的历史定不了、载荷里也没有人选的（CC 桌面版写进货单，10-29）：要人选一次
     "SERVICE_VAT_BASIS_CHOICE",
+    # 收款单 RE（载荷 20，CC 桌面版 dbf_receipt，码照契约小写）：发票余额不够 / 已被收清、发票找不到（不在 / 别的客户 / 作废）、
+    # 收款方式没有可用科目、收了现金但账套没设现金科目，整单没写，要人处理
+    "already_collected", "invoice_not_found", "receipt_type_invalid", "cash_account_missing",
 })
-_ERROR_CODE = re.compile(r"^\[([A-Z0-9_]+)\]")
+# 码多为大写；收款单的四个码照契约小写（11-11），一并认
+_ERROR_CODE = re.compile(r"^\[([A-Za-z0-9_]+)\]")
 REASON_MAX = 500
 # 代录回执（`[OPERATOR_<原因>] <说明>`，CC 桌面版 1.12.15 起说明以 AI 接手的结论原文开头、最多 2000 字）：原因整段留下，
 # 站点卡片要显示完整结论（11-05 真机：截到 500 / 140 / 80 后只剩「无法识别的 Express 画面」）。其它回报仍截 500。

@@ -67,7 +67,15 @@ def view(row) -> dict:
             # 电脑写这张单实际用的客户 / 供应商码（新建的、复用的都报）：产品据此把单上的对方档挂上 Express 码
             "party_code": str((meta if isinstance(meta, dict) else {}).get("party_code") or "")[:40],
             # 逐行实际用的存货码（{seq, name, code}）：产品据此把随单新建的本地商品挂上 Express 码
-            "line_codes": (meta.get("line_codes") if isinstance(meta, dict) else None) or []}
+            "line_codes": (meta.get("line_codes") if isinstance(meta, dict) else None) or [],
+            # 收款单 RE（载荷 20）：电脑回报的单号与每张发票写后余额 {docnum, invoices: [{docnum, remaining_after}]}，原样带出；别的单为空
+            "receipt": _receipt(meta)}
+
+
+def _receipt(meta) -> dict:
+    """回执 meta 里的 ``receipt``（CC 桌面版 ``dbf_receipt``）；不是对象或没有就是空字典。"""
+    value = meta.get("receipt") if isinstance(meta, dict) else None
+    return value if isinstance(value, dict) else {}
 
 
 def find(request_key) -> dict:

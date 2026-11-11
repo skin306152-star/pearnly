@@ -189,6 +189,18 @@ class Queue(Base):
             {"seq": 2, "name": "ค่าขนส่ง", "mode": "direct_account", "stkcod": ""}])
         self.assertEqual(self.changes[-1]["line_codes"], [{"seq": 1, "name": "น้ำแข็ง", "code": "ST-0099"}])
 
+    def test_a_receipts_balances_reach_the_product_and_other_jobs_carry_none(self):
+        """收款单 RE（载荷 20，11-11）：电脑回执 meta.receipt 原样带到产品的作业视图；别的单是空字典。"""
+        receipt = {"docnum": "RE2403080", "invoices": [{"docnum": "IVP42400239", "remaining_after": "0.00"}]}
+        job = self.enqueue()
+        self.lease(self.office)
+        self.ack(self.office, job["job"], express_docnum="RE2403080",
+                 meta={"verify": {"state": "ok"}, "doc_type": "receipt", "receipt": receipt})
+        self.assertEqual(self.changes[-1]["receipt"], receipt)
+        self.assertEqual(jobs.find_by_name(job["job"])["receipt"], receipt)
+        self.assertEqual(jobs.view({"name": "x", "meta_json": '{"receipt": "bad"}'})["receipt"], {})
+        self.assertEqual(jobs.view({"name": "x"})["receipt"], {})
+
     def test_a_colleagues_computer_never_writes_my_job(self):
         other = self.register("other@x", KEY_B)
         colleague = self.context(other["device"], "other@x")
@@ -483,6 +495,18 @@ class OperatorReasonTests(unittest.TestCase):
                                                        error=other).reason, other[:500])
             self.assertEqual(ack_rules.acknowledgement(branch="legacy", attempt=3, success=False, error=other).reason,
                              other[:500])
+
+    def test_the_receipt_refusals_go_to_a_person_without_retries(self):
+        """收款单 RE 的四个拒收码（契约小写）：带 needs_review 或只带码（老写法）都直接转人工，不按普通失败重试。"""
+        for code in ("already_collected", "invoice_not_found", "receipt_type_invalid", "cash_account_missing"):
+            self.assertIn(code, ack_rules.NEEDS_PERSON_CODES)
+            reason = f"[{code}] receipt ERC-1 refused"
+            self.assertEqual(ack_rules.error_code(reason), code)
+            for outcome in ("needs_review", None):
+                state = ack_rules.acknowledgement(branch="legacy", attempt=1, success=False, outcome=outcome, error=reason)
+                self.assertEqual((state.status, state.retry, state.attempt), ("manual", False, 1))
+        state = ack_rules.acknowledgement(branch="legacy", attempt=1, success=False, error="[DBF_WRITE_FAILED] x")
+        self.assertEqual((state.status, state.retry), ("pending", True))  # 普通失败照旧重试
 
     def test_every_store_on_the_way_to_the_card_holds_the_whole_receipt(self):
         operator = _operator_contracts()
