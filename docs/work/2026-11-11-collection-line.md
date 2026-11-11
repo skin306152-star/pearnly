@@ -15,7 +15,7 @@
 
 第 2 步服务端按主会话 11-11 补的两处（同分支）：
 - RE 抬头销售员 / 部门不留空交 CC 回退：默认第一张发票的，没有部门用 RE 单据簿默认部门（`receipt_run.department`）；收款员在编辑里改了就用改的，之后改金额、补凭证沿用；给的值要在这本账套里（停用销售员、不存在的部门拒）。`contracts.staff`、`service._staff / staff_choices`，`create_draft / update_draft` 加 `salesman / department`。
-- 回执 `[CASH_BASIS_VAT]`（服务品现金制）与已被收 / 不存在同属「不能收」：照原因记失败、按客户再读一次未收清发票（`contracts.UNCOLLECTABLE`）；文案沿用失败原因的说法，不加说明句。
+- 服务品现金制发票：CC 不列进未收清发票，写入时遇到回 `[INVOICE_NOT_FOUND]`（证据 `problem="cash_basis_vat"`，主会话更正：没有新码）；服务端照 invoice_not_found 处理——记失败、照原因说，并且（不论带不带余额）按客户再读一次未收清发票（`contracts.UNCOLLECTABLE`）；不加说明句。
 
 ## 新文案（四语，check-copy 拦截 0）
 

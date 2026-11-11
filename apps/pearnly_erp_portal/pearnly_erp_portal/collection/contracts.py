@@ -70,9 +70,10 @@ NOT_WITHDRAWABLE = "collection.not_withdrawable"
 BUSY = "collection.busy"
 SALESMAN_INVALID = "collection.salesman_invalid"
 DEPARTMENT_INVALID = "collection.department_invalid"
-# 电脑写入时说「这张不能收」的回执码（转人工，不重试）：已被收 / 不存在 / 服务品现金制（SRV_VATTYP=2，CC 不列进未收清发票）。
-# 前两种带每张发票此刻的余额；三种都按客户再读一次未收清发票
-UNCOLLECTABLE = ("ALREADY_COLLECTED", "INVOICE_NOT_FOUND", "CASH_BASIS_VAT")
+# 电脑写入时说「这张不能收」的回执码（转人工，不重试）：已被收 / 不存在。服务品现金制的发票（SRV_VATTYP=2，CC 不列进未收清发票）
+# 写入时遇到也回 INVOICE_NOT_FOUND（回执证据里 ``problem="cash_basis_vat"``，主会话 11-11 更正：没有新码）。带每张发票此刻的
+# 余额的记下余额；都按客户再读一次未收清发票
+UNCOLLECTABLE = ("ALREADY_COLLECTED", "INVOICE_NOT_FOUND")
 
 
 class CollectionError(ValueError):
