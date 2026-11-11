@@ -77,3 +77,30 @@
 - CC 对话的最后一轮若既没有推送线程（进程重启、超 15 分钟）又没配引擎回调，要等这段会话下一轮才补记；累计数不丢，只是晚记。
 - `list_cost` 是官方按牌价算、四舍五入到分的累计数，是牌价不是合同价（目前无折扣，两者相同）。
 - 谷歌识别（Document AI / Gemini）不经 Anthropic，不在这本账里。
+
+## 验证（2026-11-11）
+
+- 测试：`tests/test_ai_usage.py` 20 条（旧代码上识别 / 代录接入点 3 条红）；`tests/test_assistant.py` 237 条、`test_express_operator_ai.py`、
+  `test_claude_ocr_*` 通过（`test_claude_ocr_products.py` 32 条在生产镜像里跑）。本地全套闸门（照 development.yml）224 步通过。
+- 候选检查：`cand-local.sh offline`（生产镜像 `frappe@sha256:4b2fa572…`）108 组通过，LANE EXIT 0（变基前的 `f38b6ee04`）。
+- 实验栈 `pearnly-ccusage-lab`（本分支源码，假智能体后端，不调付费模型）：
+  - 迁移后各站点建出 `tabPearnly AI Usage` 与两个索引。
+  - 真站点（erp-new、cowork-old）跑核对脚本：昨天一行 0.50 美元 → 今天写三次（官方累计 1.37、1.37、2.00）只留一行 1.50 美元、输入 3000；
+    标题 / 识别各插一行；`report.summary` 按日 × 用途求和对得上（合计 2.012482 美元）；脚本写的行已删。
+  - 端到端：`cc.chat` 跑完，账本里自动出现这段对话的 `cc_chat` 行（`cc-<远端会话>-<日期>`，产品 erp、主人对）和两行 `cc_title`。
+    `cc.chat` 的落库断言已加「用量记进账本」，并登记覆盖 `assistant/usage.py`。
+  - 流程：`cc.chat` new/old × desktop/mobile 4 格、`cc.machine.operator-ai` 1 格通过。
+
+### 共用件连带回归（`scripts/check-impact.py`：ocr 12 个入口、assistant 10 个入口）
+
+改动对这些入口的作用只有一处：调用完成后多排一个记账任务（入队失败只记日志）；识别只在真付费的读之后排，检查点复用不排。
+
+| 入口 | 结果 |
+| --- | --- |
+| cc.assistant | 通过（流程 cc.chat 4 格，含账本断言） |
+| cc.operator.page / cc.operator.thread | 通过（离线 test_cc_operator / test_express_operator_feed / tasks 在候选检查里跑） |
+| erp.cc.chat-push、erp.cc.stocktake | 通过（离线，候选检查） |
+| shared.assistant | 通过（cc.chat 打开对话页无报错） |
+| control.assistant、cowork.assistant、erp.cc.companies、cowork.cc-chat.push、cowork.cc.troubleshooting、erp.cc.troubleshooting | 没测到：要真模型或真 Express；本次只在对话一轮结束处排任务、不改工具与推送，离线测试覆盖了这条路径 |
+| erp.ocr、cowork.ocr、shared.ocr.pipeline | 没测到真识别（付费）：`claude_ocr.client` 的检查点 / 记账由 test_claude_ocr_products（32 条，镜像）+ test_ai_usage 锁住，识别结果不变 |
+| dms.ocr.id-card、shared.originals.download、erp.stock-count.upload、erp.stock-in.attach、erp.stock-out.attach、cowork.line.chat | 没测到（真识别要付费）：经过识别的那几个只在付费读之后多排一个记账任务，识别结果、原件与流程不变 |
