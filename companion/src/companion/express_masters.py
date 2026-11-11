@@ -250,13 +250,17 @@ def collect(folder: Path) -> tuple:
     return data, diag
 
 
+# 停用：状态 I（Express 主档的停用记法；NLTTEST ARMAS 4904 行 A、1309 行 I、3253 行空）或有停用日期。A / 空都是在用
+INACTIVE_STATUS = "I"
+
+
 def _salesman(rec, columns, _gone):
     get, text = express_read._get, express_read._text
     code = _code(get(rec, columns, "SLMCOD"))
     if not code:
         return None
     return {"code": code, "name": text(get(rec, columns, "SLMNAM")),
-            "inactive": bool(text(get(rec, columns, "STATUS")) or get(rec, columns, "INACTDAT"))}
+            "inactive": text(get(rec, columns, "STATUS")).upper() == INACTIVE_STATUS or bool(get(rec, columns, "INACTDAT"))}
 
 
 def _receipt_masters(folder: Path, diag: dict, infos: list) -> dict:

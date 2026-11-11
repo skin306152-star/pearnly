@@ -40,7 +40,8 @@ def receipts(books):
     _delete(acct / "ISRUN.DBF", 7)  # 软删的类型不给
     seed(acct, "BKMAS", [{"BNKACC": "B1", "ACCNUM": "1112-01"}, {"BNKACC": "S1", "ACCNUM": "1113-02"}])
     seed(acct, "OESLM", [{"SLMCOD": "NLTP4", "SLMNAM": "อาคม\xa0083"}, {"SLMCOD": "OLD1", "SLMNAM": "ลาออก", "STATUS": "I"},
-                         {"SLMCOD": "OLD2", "SLMNAM": "พัก", "INACTDAT": dt.date(2026, 1, 1)}])
+                         {"SLMCOD": "OLD2", "SLMNAM": "พัก", "INACTDAT": dt.date(2026, 1, 1)},
+                         {"SLMCOD": "ACT", "SLMNAM": "ใช้งาน", "STATUS": "A"}])
     seed(acct, "ARTRN", [
         _inv("IV001", "C01", 9972.0, 0.0), _inv("IV002", "C01", 185347.0, 155351.0), _inv("IV003", "C01", 500.0, 500.0),
         _inv("IV004", "C09", 120.5, 0.0), {**_inv("IV005", "C01", 50.0, 0.0), "DOCSTAT": "C"},
@@ -70,7 +71,8 @@ def test_the_masters_carry_receipt_types_book_salesmen_and_cash_account(receipts
     assert data["receipt_run"] == {"prefix": "RE", "next": "2403080", "department": "CPI"}
     assert data["salesmen"] == [{"code": "NLTP4", "name": "อาคม 083", "inactive": False},
                                 {"code": "OLD1", "name": "ลาออก", "inactive": True},
-                                {"code": "OLD2", "name": "พัก", "inactive": True}]
+                                {"code": "OLD2", "name": "พัก", "inactive": True},
+                                {"code": "ACT", "name": "ใช้งาน", "inactive": False}]  # 状态 A 是在用（同 ARMAS 的记法）
     assert data["cash_account"] == "1111-00"
 
 
