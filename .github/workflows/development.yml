@@ -485,6 +485,8 @@ jobs:
         run: python3 tests/test_e2e_runner.py
       - name: Production stress runner books spend, skips cells over budget or that would write Express tonight, and reads tool calls and model usage from session events
         run: python3 tests/test_e2e_stress.py
+      - name: Production 40 MB concurrent upload stress makes a valid PDF under the limit, finds each upload's session, counts lost files and keeps the server sampler read-only
+        run: python3 tests/test_e2e_stress_upload.py
       - name: Verify the shared scanner shows the camera picture and reads a test barcode in a real browser
         env:
           SMOKE_CHROME: /usr/bin/google-chrome

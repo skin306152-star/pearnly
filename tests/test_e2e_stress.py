@@ -87,6 +87,37 @@ class SkipTest(unittest.TestCase):
         self.assertAlmostEqual(stress.spent(), 0.1 + stress.BY_ID["S4"].pages * stress.OCR_PER_PAGE)
         self.assertIn("压测 S4", stress.LEDGER.read_text(encoding="utf-8"))
 
+    def test_write_cell_needs_company(self):
+        for name in stress.BY_ID["S8"].files:
+            (self.tmp / name).write_bytes(b"%PDF-1.4")
+        saved = os.environ.pop("PEARNLY_STRESS_WRITE_COMPANY", None)
+        try:
+            self.assertEqual(self.run_main("--scenario", "S8", "--allow-tomorrow"), 3)
+            self.assertEqual(self.ran, [])
+            os.environ["PEARNLY_STRESS_WRITE_COMPANY"] = "TEST"
+            self.assertEqual(self.run_main("--scenario", "S8", "--allow-tomorrow", "--budget", "32"), 0)
+            self.assertEqual(self.ran, ["S8"])
+        finally:
+            os.environ.pop("PEARNLY_STRESS_WRITE_COMPANY", None)
+            if saved is not None:
+                os.environ["PEARNLY_STRESS_WRITE_COMPANY"] = saved
+
+    def test_month_cap_stops_new_cells(self):
+        for name in stress.BY_ID["S4"].files:
+            (self.tmp / name).write_bytes(b"%PDF-1.4")
+        stress.LEDGER.write_text("| x | 别的窗口 | … | 0 | 1 | **11 月累计约 119.5** |\n", encoding="utf-8")
+        self.assertEqual(self.run_main("--scenario", "S4", "--budget", "32"), 3)
+        self.assertEqual(self.ran, [])
+        self.assertEqual(self.run_main("--scenario", "S4", "--budget", "32", "--month-cap", "200"), 0)
+
+    def test_write_cells_resolve_and_answer(self):
+        for s in stress.SCENARIOS:
+            if not s.tonight:
+                self.assertTrue(s.company in (stress.WRITE, stress.ERP_WRITE), f"{s.id} 写入格的公司要等主会话定")
+                self.assertTrue(s.auto or s.probe_real, f"{s.id} 写入格要替用户答卡")
+        self.assertTrue(stress.BY_ID["S8a"].probe_real)
+        self.assertFalse(stress.BY_ID["S8a"].auto, "P0 实证格不替用户批准推送")
+
     def test_rejected_upload_not_charged(self):
         for name in stress.BY_ID["S3"].files:
             (self.tmp / name).write_bytes(b"%PDF-1.4")
@@ -113,12 +144,25 @@ document.addEventListener('click', e=>{ if(e.target.id!=='send') return; window.
     const a=document.createElement('div'); a.className='cc-askq'; a.textContent='BIG C / BIG C-001 / BIG C-002'; log.append(a);
   }, 2500); });
 </script>"""
+# 写入格：发话后出一张提问卡（两项，要选一项再点下一步），答完出开始卡，点开始后助手说开始录了
+FAKE_WRITE = FAKE.replace("""    const a=document.createElement('div'); a.className='cc-askq'; a.textContent='BIG C / BIG C-001 / BIG C-002'; log.append(a);""",
+"""    const a=document.createElement('div'); a.className='cc-askq';
+    a.innerHTML='<div data-slot="cc-askq-question">ลูกค้าคือใคร</div><button data-slot="cc-askq-option" aria-checked="false">BIG C-001</button>'
+      +'<button data-slot="cc-askq-option" aria-checked="false">BIG C-002</button><button data-slot="cc-askq-next" disabled>ถัดไป</button>';
+    log.append(a);
+    a.querySelectorAll('[data-slot=cc-askq-option]').forEach(o=>o.onclick=()=>{o.setAttribute('aria-checked','true'); a.querySelector('[data-slot=cc-askq-next]').disabled=false;});
+    a.querySelector('[data-slot=cc-askq-next]').onclick=()=>{a.remove();
+      const c=document.createElement('div'); c.innerHTML='<span data-slot="cc-op-target">บันทึกลง Express ของ TEST</span><button data-slot="cc-op-start">เริ่ม</button>';
+      log.append(c); c.querySelector('button').onclick=()=>{c.remove(); const m=document.createElement('div');
+        m.setAttribute('data-slot','aui_assistant-message-content'); m.textContent='เริ่มบันทึกแล้ว'; log.append(m);};};""")
 EVENTS = [{"type": "agent.custom_tool_use", "id": "u1", "name": "cowork_recognize_attachments", "processed_at": "t"},
           {"type": "pearnly.tool_run", "tool_use_id": "u1", "status": "completed"},
           {"type": "span.model_request_end", "model_usage": {"input_tokens": 10000, "output_tokens": 1000}}]
 
 
-def fake_api(page):
+def fake_api(page, html=None):
+    html = html or FAKE
+
     def handle(route):
         url = route.request.url
         if "/api/method/pearnly_core.assistant.api.listing" in url:
@@ -127,7 +171,7 @@ def fake_api(page):
         elif "/api/method/pearnly_core.assistant.api.events" in url:
             body = {"message": {"events": EVENTS}}
         elif url.startswith("https://fake.test/assistant"):
-            return route.fulfill(status=200, content_type="text/html", body=FAKE)
+            return route.fulfill(status=200, content_type="text/html", body=html)
         else:
             body = {"message": None}
         route.fulfill(status=200, content_type="application/json", body=json.dumps(body))
@@ -160,6 +204,20 @@ class FakePageTest(unittest.TestCase):
         self.assertEqual(r["max_asks"], 1)
         self.assertTrue(any(row["line"] == "识别中 · 共 5 页" and row["stop"] for row in r["trail"]))
         self.assertTrue(list(Path(r["shots"]).glob("*.png")))
+
+
+    def test_write_cell_answers_cards_and_starts(self):
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "a.pdf").write_bytes(b"%PDF-1.4 fake")
+        cell = stress.Scenario("T2", "自测写入", "cowork", "desktop", "chat", "录进 Express", ["a.pdf"], 5, "自测",
+                               click="start", auto=True, minutes=1)
+        r = stress.run_one(cell, "cowork", tmp, tmp / "out", {}, login=lambda page, *a: page.goto("https://fake.test/assistant"),
+                           hook=lambda page: fake_api(page, FAKE_WRITE), shot_every=1, idle_after=3)
+        self.assertNotIn("error", r, r.get("error"))
+        did = [a["did"].split(":")[0] for a in r.get("acted", [])]
+        self.assertEqual(did, ["pick", "next", "start"], r.get("acted"))
+        self.assertIn("BIG C-001", r["acted"][0]["did"])
+        self.assertIn("TEST", r["acted"][2]["did"])
 
 
 if __name__ == "__main__":

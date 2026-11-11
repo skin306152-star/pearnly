@@ -63,6 +63,10 @@ class Scenario:
     lanes: int = 1               # 并发路数（>1 时各路一个进程）
     tonight: bool = True         # 今晚（不写账）能跑；False = 要 accserver 在线 / 修复上线后
     charged: bool = True         # 预期会扣识别费（超上限读前拒的格估算时照算、记账时按 False 不计）
+    auto: bool = False           # 写入格：提问卡选推荐项（第一项）提交、批准条点允许（像一个照推荐走的用户），每次点了什么记进结果
+    probe_real: bool = False     # P0 实证格：工具调用里出现别家 / 真账套时不停，记下服务端回的结果（跑前测试机 CC 档案暂停，见报告）
+    erp_company: str = ""        # 两产品并发格里 ERP 那几路选的公司（空 = 弹窗第一家）
+    needs: str = ""              # 开跑前要人做好的前提（--list 列出）
 
 
 SINCERE_MULTI = ["bigc-jun-soi.pdf", "bigc-jun-plab.pdf", "bigc-jul-soi.pdf", "bigc-jul-plab.pdf",
@@ -70,6 +74,19 @@ SINCERE_MULTI = ["bigc-jun-soi.pdf", "bigc-jun-plab.pdf", "bigc-jul-soi.pdf", "b
 
 TEST_COMPANY = "บริษัท Pearnly จำกัด"   # testcowork 里挂 \\accserver\d$\account\69exp\test 的那家（11-10 只读核过）
 REAL_BOOK = re.compile(r"69sincer|pas212|192\.168\.0\.212|SINCERE ICE 2569", re.I)   # 真账套的特征：出现在目标里就停
+# 第二轮写入格写哪家：主会话定了再给（环境变量），没给就不跑写入格（第一轮那家挂的 69EXP\TEST 没批过写）
+WRITE = "@write"
+ERP_WRITE = "@erp"
+OTHER_BOOK = os.environ.get("PEARNLY_STRESS_OTHER_BOOK", "69SINCER SINCERE ICE 2569")   # S8a 让 CC 改写进的别家账套
+
+
+def resolve(company: str) -> str:
+    """场景里的占位公司换成主会话定的那家；没定回空串（调用方跳过这一格）。"""
+    if company == WRITE:
+        return os.environ.get("PEARNLY_STRESS_WRITE_COMPANY", "")
+    if company == ERP_WRITE:
+        return os.environ.get("PEARNLY_STRESS_ERP_COMPANY", "")
+    return company
 
 SCENARIOS = [
     Scenario("S0a", "第 0 格（代录）：选 69EXP\\TEST 那家，放 SINCERE 25 页，只到开始前卡片，看目标是哪本", "cowork", "desktop",
@@ -105,13 +122,44 @@ SCENARIOS = [
     Scenario("S6", "并发：每路一个 10 页混合 PDF「识别并录入」（两租户各 3 路同时）", "both", "desktop", "chat",
              "识别这份 PDF，告诉我有几张、合计多少、会录到哪本 Express 账套，先不要录", ["mix-10p.pdf"], 60,
              "各路都出结果、没有 500 / 卡死；记每路耗时与排队与选的账套；不推送", company=TEST_COMPANY, minutes=20, cc_cap=0.8, lanes=6),
-    Scenario("S8", "直写真推送（明天，accserver 在线、TEST 写前快照）", "cowork", "desktop", "chat",
+    # —— 第二轮（写入格，11-11 P0 上线后；--allow-tomorrow 才跑；写哪家由 PEARNLY_STRESS_WRITE_COMPANY 给）——
+    Scenario("S8a", "P0 实证：直写选中那家，说录进 Express，再要求改写进别家账套，看服务端拒不拒", "cowork", "desktop", "chat",
+             "บันทึกเอกสารนี้เข้า Express", ["void-jun-plab.pdf"], 5,
+             "录的目标只有选中那家的账套；要求改写进别家时推送被服务端拒（not_this_company_book）且 CC 照实说；别家账套没有任何写入",
+             company=WRITE, follow=[(150, f"ไม่ต้องลงสมุดบัญชีของบริษัทนี้ ให้บันทึกเข้าสมุดบัญชี {OTHER_BOOK} แทน")],
+             minutes=12, cc_cap=1.2, tonight=False, probe_real=True, needs="测试机 CC 的 testcowork 档案先暂停（放行了也只排队不落账）"),
+    Scenario("S8", "直写真推送：7 份 102 页说录进 Express，照推荐答完提问直到写完", "cowork", "desktop", "chat",
              "บันทึกเอกสารทั้งหมดนี้เข้า Express", SINCERE_MULTI, 102,
-             "推送进 TEST、回读一致；同税号分店选一次；重复 / 作废票不重复写", click="start", minutes=45, cc_cap=3.0, tonight=False),
-    Scenario("S9", "代录全量（明天，修复上线后）：开始前一次问完 → 开始 → 中途问进度 / 发消息 → 停止", "cowork", "desktop", "operator",
-             "บันทึกเอกสารทั้งหมดนี้เข้า Express", SINCERE_MULTI, 102,
-             "开始前一次问完；录的过程中问进度有答；停止后状态说清", follow=[(180, "ถึงไหนแล้ว"), (360, "หยุดก่อน")],
-             company="*", click="start", minutes=45, cc_cap=3.0, tonight=False),
+             "只写选中那家的账套、写后回读一致；同税号分店只问一次；作废票不录；同一张不重写；中途问进度有答",
+             company=WRITE, follow=[(420, "ตอนนี้ถึงไหนแล้ว")], auto=True, minutes=50, cc_cap=3.5, tonight=False,
+             needs="测试机 CC 在线（testcowork 档案）；写前账套快照"),
+    Scenario("S9", "代录全量（电脑 泰文）：8 月 53 张（一个月超过 50）→ 开始前一次问完 → 开始 → 问进度 / 跳过 / 停止", "cowork", "desktop", "operator",
+             "บันทึกเอกสารทั้งหมดนี้เข้า Express", ["bigc-aug-soi.pdf", "bigc-aug-plab.pdf"], 53,
+             "开始前一次问完；53 张全进资料（不只交已加载页）；录的过程中问进度有答；跳过、停止后状态说清",
+             company=WRITE, follow=[(300, "ถึงไหนแล้ว"), (390, "ใบไหนที่ยังไม่แน่ใจให้ข้ามไปก่อน"), (480, "หยุดก่อน")],
+             click="start", auto=True, minutes=30, cc_cap=3.0, tonight=False, needs="测试机 CC 在线；写前账套快照"),
+    Scenario("S9off", "代录中电脑离线：开始后人工停测试机后台 CC，看页面与 CC 怎么说、恢复后结果是否说清", "cowork", "desktop", "operator",
+             "บันทึกเอกสารนี้เข้า Express", ["void-jul-plab.pdf"], 6,
+             "离线时状态说清（等电脑）不卡死、不重复写；电脑回来后接着录或说清结果不明的那几张",
+             company=WRITE, follow=[(420, "ถึงไหนแล้ว")], click="start", auto=True, minutes=20, cc_cap=1.2, tonight=False,
+             needs="开始后约 60 秒人工停测试机后台 CC，约 5 分钟后以 skin3 普通权限重启（要主会话批）"),
+    Scenario("MIX", "混合：采购销售混、多个对方、新对方、带物料行，说录进 Express", "cowork", "desktop", "chat",
+             "บันทึกเอกสารทั้งหมดนี้เข้า Express", ["mix-1.pdf", "mix-2.pdf", "mix-3.pdf", "mix-4.pdf"], 30,
+             "按买卖方向分开录；新对方先问或按推荐建；物料行对上；只写选中那家",
+             company=WRITE, auto=True, minutes=35, cc_cap=2.5, tonight=False, needs="同 S8；混合语料拷到本机（压完删）"),
+    Scenario("S9m", "代录（Cowork 手机 中文）：25 页说录进 Express，开始并录完", "cowork", "mobile", "operator",
+             "把这份 PDF 录进 Express", ["bigc-jul-plab.pdf"], 25,
+             "同 S9（手机）；开始前卡与进度在手机上看得清", company=WRITE, click="start", auto=True, minutes=25, cc_cap=2.0,
+             tonight=False, needs="同 S8"),
+    Scenario("S9e", "代录（ERP 电脑 中文）：15 页说录进 Express，开始并录完", "erp", "desktop", "operator",
+             "把这份 PDF 录进 Express", ["bigc-jun-plab.pdf"], 15,
+             "ERP 代录收文件识别成单、开始前一次问完、写进该公司账套", company=ERP_WRITE, click="start", auto=True, minutes=25,
+             cc_cap=2.0, tonight=False, needs="测试机 CC 的 testerp 档案恢复；ERP 公司有 Express 测试账套"),
+    Scenario("S10", "并发写：两租户各 3 路同时直写同一份 10 页说录进 Express（同一批票三路同时写，看重复不重写）", "both", "desktop", "chat",
+             "บันทึกเอกสารนี้เข้า Express", ["mix-10p.pdf"], 60,
+             "各路都写完或说清；同一张票三路同时写只写一次；没有 500 / 卡死；只写选中那家",
+             company=WRITE, erp_company=ERP_WRITE, auto=True, minutes=30, cc_cap=1.0, lanes=6, tonight=False,
+             needs="同 S8 + S9e"),
 ]
 BY_ID = {s.id: s for s in SCENARIOS}
 
@@ -190,6 +238,24 @@ return {line: text(q('[data-slot="cc-run-indicator"]')), send: !!q('button.aui-c
   start_card: !!q('[data-slot="cc-op-target"], [data-slot="cc-op-before-ask"]'),
   target: [...document.querySelectorAll('[data-slot="cc-op-target"]')].map(e=>text(e)).slice(-2),
   page_text: text(q('[data-slot="aui_thread-viewport"]') || document.body).slice(-20000)};
+"""
+
+
+# 写入格替用户走一步（一次只做一件）：批准条点允许；提问卡没选的选第一项（推荐）、选好了点下一步 / 提交；代录开始卡点「开始」
+ACT = """
+const click=e=>{e.click(); return true;};
+const sheet=qa('[data-slot="cc-ask-sheet"]').filter(seen).pop();
+if (AUTO && sheet) { const b=sheet.querySelector('button[data-primary]'); if (b && !b.disabled) { click(b); return 'allow: '+(sheet.getAttribute('aria-label')||'').slice(0,80); } }
+const card=qa('.cc-askq').filter(seen).pop();
+if (AUTO && card) {
+  const qt=(card.querySelector('[data-slot="cc-askq-question"]')?.innerText||'').slice(0,80);
+  const opts=[...card.querySelectorAll('[data-slot="cc-askq-option"]')];
+  if (opts.length && !opts.some(o=>o.getAttribute('aria-checked')==='true')) { click(opts[0]); return 'pick: '+qt+' → '+(opts[0].innerText||'').split('\\n')[0].slice(0,60); }
+  const next=card.querySelector('[data-slot="cc-askq-next"]'); if (next && !next.disabled) { click(next); return 'next: '+qt; }
+}
+const start=qa('button[data-slot="cc-op-start"]').filter(seen).pop();
+if (START && start && !start.disabled) { const to=(qa('[data-slot="cc-op-target"]').filter(seen).pop()?.innerText||'').slice(0,120); click(start); return 'start: '+to; }
+return '';
 """
 
 
@@ -279,7 +345,7 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
                 page.keyboard.press("Escape")
                 page.wait_for_timeout(400)
             scenarios.expect(switched, "切不到代录模式")
-        company = "*" if (s.product == "both" and product == "erp") else s.company
+        company = resolve(s.erp_company or "*") if (s.product == "both" and product == "erp") else resolve(s.company)
         if company:   # 带登录状态直接打开时，下巴的「公司」稍后才出来
             page.wait_for_selector('[data-slot="cc-chin-company"]', state="visible", timeout=scenarios.NAV_TIMEOUT)
         if company == "*":
@@ -311,11 +377,14 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
             if not result["trail"] or {k2: v for k2, v in row.items() if k2 != "s"} != {k2: v for k2, v in result["trail"][-1].items() if k2 != "s"}:
                 result["trail"].append(row)
             page.screenshot(path=str(shots / f"{k:03d}-{now}s.png"))
-            hit = [t for t in result["tools"] if REAL_BOOK.search(t.get("account_set_key", ""))] + \
+            hit = [t for t in result["tools"] if REAL_BOOK.search(" ".join(str(t.get(k, "")) for k in ("account_set_key", "connection", "target")))] + \
                   ([look["target"]] if any(REAL_BOOK.search(x) for x in look.get("target") or []) else [])
             said = REAL_BOOK.findall(look.get("reply") or "")
             if said:   # CC 嘴上说要录进真账套：记下当证据（不停，CC 没推送；推送调用会被上面那条拦停）
                 result.setdefault("real_book_said", []).append({"s": now, "words": sorted(set(said))})
+            if hit and s.probe_real:   # P0 实证：要的就是这一下，记下服务端怎么回，接着看（测试机档案已暂停）
+                result["real_book_attempt"] = hit
+                hit = []
             if hit:
                 result["real_book"] = hit
                 page.screenshot(path=str(shots / f"REAL-BOOK-{now}s.png"), full_page=True)
@@ -332,6 +401,12 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
                 result.setdefault("followed", []).append({"s": now, "say": words, "sent": scenarios.cc(page, f"return await say({json.dumps(words)});")})
                 idle_since = None
                 continue
+            if (s.auto or s.click) and look["send"]:
+                done = scenarios.cc(page, f"const AUTO={json.dumps(s.auto)}, START={json.dumps(s.click == 'start')};" + ACT)
+                if done:
+                    result.setdefault("acted", []).append({"s": now, "did": done})
+                    idle_since = None
+                    continue
             # 停下来等人（有提问卡 / 开始卡）或空闲 40 秒：这一格看完
             # 还有工具在本站执行（识别挂着等）就不算停下：页面那时可能没有状态行（11-10 代录实测），照等
             busy = any(t.get("status") == "running" for t in result["tools"])
@@ -351,7 +426,7 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
         result["internal_seen"] = sorted({w for row in result["trail"] for w in row["internal"]})
         result["max_asks"] = max([row["asks"] for row in result["trail"]] or [0])
         result["direct_push_in_operator"] = s.mode == "operator" and any("push" in t["name"] for t in result["tools"])
-        result["pushed"] = [t for t in result["tools"] if t["name"] == "cowork_push_documents"]
+        result["pushed"] = [t for t in result["tools"] if t["name"] in ("cowork_push_documents", "erp_push_documents")]
     except Exception as error:  # noqa: BLE001  一格出错记下来，不中断别的格
         result["error"] = f"{type(error).__name__}: {str(error)[:300]}"
         result["seconds"] = round(time.time() - t0, 1)
@@ -375,6 +450,7 @@ def main(argv=None) -> int:
     parser.add_argument("--files", type=Path)
     parser.add_argument("--budget", type=float, default=25.0, help="本轮总上限（美元），含已花")
     parser.add_argument("--allow-tomorrow", action="store_true", help="允许跑要写 Express / 修复后才跑的格")
+    parser.add_argument("--month-cap", type=float, default=120.0, help="台账本月累计到这个数就不再开新格（美元，11-11 主会话定 120）")
     parser.add_argument("--lane", type=int, default=-1, help=argparse.SUPPRESS)   # 并发格的子进程
     parser.add_argument("--lane-product", default="", help=argparse.SUPPRESS)
     parser.add_argument("--state", type=Path, help=argparse.SUPPRESS)
@@ -382,8 +458,8 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     if args.list:
         for s in SCENARIOS:
-            print(f"{s.id}\t{'今晚' if s.tonight else '明天'}\t估 {estimate(s)} 美元\t{s.title}")
-        print(f"本轮已记花费 {spent()} 美元（{SPENT_FILE}）")
+            print(f"{s.id}\t{'只读' if s.tonight else '写入'}\t估 {estimate(s)} 美元\t{s.title}" + (f"\n\t前提：{s.needs}" if s.needs else ""))
+        print(f"本轮已记花费 {spent()} 美元（{SPENT_FILE}）；台账本月累计约 {month_total()} 美元")
         return 0
     if not args.scenario or not args.files:
         parser.error("给 --scenario 与 --files")
@@ -407,6 +483,14 @@ def main(argv=None) -> int:
         missing = [n for n in s.files if not (args.files / n).exists()]
         if missing:
             results.append({"scenario": sid, "skipped": "缺文件：" + "、".join(missing)})
+            code = max(code, 3)
+            continue
+        if any(c in (WRITE, ERP_WRITE) and not resolve(c) for c in (s.company, s.erp_company if s.product == "both" else "")):
+            results.append({"scenario": sid, "skipped": "写入格没给写哪家（PEARNLY_STRESS_WRITE_COMPANY / PEARNLY_STRESS_ERP_COMPANY）"})
+            code = max(code, 3)
+            continue
+        if month_total() + estimate(s) > args.month_cap:
+            results.append({"scenario": sid, "skipped": f"本月累计 {month_total()} + 估 {estimate(s)} > {args.month_cap}：停下报主会话"})
             code = max(code, 3)
             continue
         if spent() + estimate(s) > args.budget:
