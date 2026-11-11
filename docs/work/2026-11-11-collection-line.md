@@ -1,7 +1,7 @@
 # 收款第 3 步：ERP 的 LINE 收款入口（11-11）
 
 > 评估与审定：`docs/work/2026-11-11-collection-receipt-assessment.md`（在评估分支 `pearnly/collection-receipt-544a06`；§0、§6 入口表、§12-1 放行统一、审定结论、第 2 步结果）。
-> 分支 `pearnly/collection-line`，基于 `pearnly/collection-server`（`5bc7f45c8`，第 2 步服务端），第 2、3 步一起合入。未合 main、未部署、未发富菜单（`line_menu.publish()` 没跑）、没用真手机、没碰测试机。
+> 分支 `pearnly/collection-line`：第 2 步服务端（`pearnly/collection-server` 的 3 个提交）+ 第 3 步，一起变基到 origin/main `06bb2e600`，第 2、3 步一起合入。未合 main、未部署、未发富菜单（`line_menu.publish()` 没跑）、没用真手机、没碰测试机。
 
 ## 做了什么
 
@@ -24,7 +24,7 @@
 ## 真机记录：`erp.scan.line.stocktake.liff-camera`（LINE 富菜单「盘点」→ LIFF 相机）
 
 - 为什么命中：改到 `integrations/line_menu.py`（富菜单格子清单加第 4 格「收款」，组合从 7 种变 15 种）；盘点那格的动作与 LIFF 链接逐字没改，扫码、相机、LIFF 代码没动。
-- 已证明（2026-11-11，基于 5bc7f45c8 的工作树）：`test_line_intake.test_tiles_follow_permissions_and_stocktake_opens_the_native_page` 照旧核盘点格链接；实验栈流程 `erp.line.collection` 里收款员那套是「收款」一格、销售没有。
+- 已证明（2026-11-11，变基到 06bb2e600 后的本分支）：`test_line_intake.test_tiles_follow_permissions_and_stocktake_opens_the_native_page` 照旧核盘点格链接；实验栈流程 `erp.line.collection` 里收款员那套是「收款」一格、销售没有。
 - 没测到：LINE 原生相机授权与真机读码（任务书不用真手机；这次没动这一段）。
 - 上线后补（testerp，三星 LINE）：照 [11-06 记录](2026-11-06-device-erp-stocktake-liff-camera.md)「上线后补全计划」走一遍授权与读码；并按下面清单测收款。
 - 部署注意：富菜单组合变了，旧发布里没有新组合的键时 `line_menu._published()` 当没发布、不动官方号菜单；部署后要重跑一次 `publish()` 收款格才出现（写 LINE 官方号，按部署规矩做）。
