@@ -1613,6 +1613,8 @@ This warehouse code already exists,この倉庫コードは既に存在します
 This warehouse has no active location,この倉庫には有効なロケーションがありません
 This warehouse is not in the Express account set,この Express 会計データにこの倉庫はありません
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",有効にするとこの会社にレジ・レジ記録・シフト記録・「レジ担当」が表示されます。無効ならどれも表示されません。
+Ticket Key,伝票識別キー
+Ticket Level,識別レベル
 Time,時刻
 Time left {0},残り {0}
 Title,タイトル

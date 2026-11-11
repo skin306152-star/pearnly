@@ -19,6 +19,10 @@ class PurchaseDocument(Document):
         if (self.fx_rate or 0) <= 0:
             frappe.throw(_("The FX rate must be greater than 0"))
         self._recompute()
+        # 同一张票的身份（复核 5 批之第 1 批：代录、直写判「已写过」按它，`express.tickets`）
+        from pearnly_erp_portal.express import tickets
+
+        self.ticket_key, self.ticket_level = tickets.purchase_identity(self)
 
     def on_trash(self):
         if (self.calculation_version or 0) >= 2 and self.status != "draft":
@@ -77,3 +81,8 @@ class PurchaseDocument(Document):
         self.grand_total = totals["grand_total"]
         self.net_payable = totals["net_payable"]
         self.payment_status = contracts.payment_status(self.paid_amount, self.net_payable)
+
+
+def on_doctype_update():
+    # 同一张票按身份找写过的那张（`express.tickets.twin`）：本公司 → 身份键
+    frappe.db.add_index("Purchase Document", ["company", "ticket_key"], "company_ticket_key_index")

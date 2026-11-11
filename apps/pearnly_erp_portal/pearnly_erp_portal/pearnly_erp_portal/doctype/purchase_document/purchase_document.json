@@ -82,7 +82,9 @@
   "ledger_job",
   "ledger_book",
   "ledger_needed",
-  "ledger_target"
+  "ledger_target",
+  "ticket_key",
+  "ticket_level"
  ],
  "fields": [
   {
@@ -584,11 +586,29 @@
    "read_only": 1,
    "hidden": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "ticket_key",
+   "fieldtype": "Data",
+   "label": "Ticket Key",
+   "length": 40,
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "ticket_level",
+   "fieldtype": "Data",
+   "label": "Ticket Level",
+   "length": 10,
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-03 18:00:00.000000",
+ "modified": "2026-11-09 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly ERP Portal",
  "name": "Purchase Document",

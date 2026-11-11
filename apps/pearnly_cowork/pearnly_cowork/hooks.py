@@ -681,6 +681,9 @@ pearnly_worker_preload = [
 
 # 代录 Express（共用层 pearnly_core.express_operator，评估 docs/work/2026-10-26-express-operator-product-评估.md）：CC 里「代录」
 # 列这家公司「等着录入」的识别单据，交单走推送同一条路、载荷加代录标记（载荷 16），派给选定的电脑。
+# 同一张票只写一次（复核 5 批之第 1 批）：共用层 `pearnly_core.ledger_tickets` 交单 / 推送前按它判、按身份加锁
+pearnly_ledger_tickets = {"twin": "pearnly_cowork.history.tickets.twin"}
+
 pearnly_express_operator = {
     "allowed": "pearnly_cowork.assistant.operator_source.allowed",
     "sources": "pearnly_cowork.assistant.operator_source.sources",

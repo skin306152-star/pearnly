@@ -8,7 +8,9 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const job = JSON.parse(process.argv[2] || "{}");
+// 任务大的（场景脚本带整份 PDF、截图）超过命令行长度上限：``@文件路径`` 从文件读
+const arg = process.argv[2] || "{}";
+const job = JSON.parse(arg.startsWith("@") ? (await import("node:fs")).readFileSync(arg.slice(1), "utf8") : arg);
 const chromePath = process.env.SMOKE_CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const port = 9900 + Math.floor(Math.random() * 90);
 const profile = mkdtempSync(join(process.env.TMPDIR || tmpdir(), "steps-"));

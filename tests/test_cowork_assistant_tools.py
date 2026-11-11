@@ -4,6 +4,7 @@
 """
 from pathlib import Path
 import importlib.util
+import contextlib
 import json
 import pathlib
 import sys
@@ -45,6 +46,11 @@ def _core_packages():
 class _Frappe(types.ModuleType):
     class ValidationError(Exception):
         pass
+
+    hooks = {}
+
+    def get_hooks(self, name, *args, **kwargs):  # 共用层按 hooks 找产品声明（`ledger_tickets` 等）；测试里默认都没有
+        return self.hooks.get(name, {})
 
     class PermissionError(Exception):
         pass
@@ -2408,6 +2414,38 @@ class PushWaitTests(unittest.TestCase):
     def _push(self, *names):
         return json.loads(tools.push_documents({"documents": list(names)}))
 
+    def test_a_ticket_entered_from_another_document_is_skipped_unless_entered_again(self):
+        # 复核 5 批之第 1 批：同一张票已由另一条识别单写进 Express（截图直写了、代录里又有），直写默认不推，回已有的单号；
+        # 用户说了再写一次（enter_again）的照推。推之前在按身份的短锁里再判一次（`ledger_tickets.one_writer`）
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("pearnly_core.ledger_tickets", _CORE_DIR / "ledger_tickets/__init__.py")
+        ledger = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ledger)
+        locked = []
+
+        @contextlib.contextmanager
+        def lock(key, timeout=None, blocking_timeout=None):
+            locked.append(key)
+            yield
+
+        twin = {"H1": {"doc_id": "H9", "docnum": "RR691013-009", "state": "entered", "key": "W:C:k:abc"}}
+        with mock.patch.dict(sys.modules, {"pearnly_core.ledger_tickets": ledger}), \
+                mock.patch.object(sys.modules["pearnly_core"], "ledger_tickets", ledger, create=True), \
+                mock.patch.object(ledger, "lookup", lambda name: twin.get(name, {"key": "W:C:k:" + name})), \
+                mock.patch.object(ledger.frappe, "cache", types.SimpleNamespace(lock=lock), create=True), \
+                mock.patch.object(ledger.frappe, "local", types.SimpleNamespace(site="t"), create=True):
+            item, = self._push("H1")["results"]
+            self.assertEqual(item, {"document": "H1", "status": "skipped", "docnum": "RR691013-009", "twin_state": "entered"})
+            self.assertEqual(locked, [])  # 锁外先判出来的不加锁
+            self.timeline = [{"PR-H1": {"status": "success", "docnum": "RR2"}}]
+            again = tools.push_documents({"documents": ["H1"], "enter_again": ["H1"]})
+        self.assertEqual(json.loads(again)["results"][0]["status"], "entered")
+        self.assertEqual(locked, ["t:pearnly_ledger_ticket:W:C:k:abc"])
+        description = next(t for t in tools.TOOLS if t["name"] == "cowork_push_documents")["description"]
+        self.assertIn("enter_again", description)
+        self.assertIn("skipped", description)
+
     def test_entered_with_the_express_number_once_cc_desktop_reports(self):
         # 录屏同序：发出时还在排队 → 第 3 秒被 CC 桌面版取走 → 第 6 秒回报成功、带 Express 单号
         self.timeline = [{"PR-H1": {"status": "pending"}}, {"PR-H1": {"status": "leased"}},
@@ -4637,7 +4675,7 @@ class StoppedAccountSetTests(unittest.TestCase):
                     mock.patch.object(tools, "_automation_of", lambda name: None),
                     mock.patch.object(tools, "_settle", lambda results: [
                         item.pop("record", None) and item.update(status="queued") for item in results]),
-                    mock.patch.object(tools, "_push_one", lambda *args: self.pushed.append(args) or {"status": "sent"})]
+                    mock.patch.object(tools, "_push_one", lambda *args, **kwargs: self.pushed.append(args) or {"status": "sent"})]
         for patcher in patchers:
             patcher.start()
             self.addCleanup(patcher.stop)

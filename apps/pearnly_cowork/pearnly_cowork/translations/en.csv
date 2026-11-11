@@ -230,6 +230,7 @@ Brief Status,Brief Status
 Bringing files from a folder,Bringing files from a folder
 Brought files from a folder,Brought files from a folder
 Buyer,Buyer
+Buyer Branch,Buyer Branch
 Buyer Client,Buyer Client
 Buyer Name,Buyer Name
 Buyer Tax ID,Buyer Tax ID
@@ -1568,6 +1569,7 @@ Select valid files to download.,Select valid files to download.
 Selected Account Set,Selected Account Set
 Sell Units,Sell Units
 Seller,Seller
+Seller Branch,Seller Branch
 Seller Name,Seller Name
 Seller Tax ID,Seller Tax ID
 Seller address,Seller address
@@ -2058,6 +2060,9 @@ This tax id is already used by another client.,This tax id is already used by an
 This value cannot be chosen for this account set.,This value cannot be chosen for this account set.
 This value is not in this month's account set,This value is not in this month's account set
 This warehouse is not in the Express account set,This warehouse is not in the Express account set
+Ticket Key,Ticket Key
+Ticket Level,Ticket Level
+Ticket Number,Ticket Number
 Tier,Tier
 Tier Since (UTC),Tier Since (UTC)
 Time left {0},Time left {0}

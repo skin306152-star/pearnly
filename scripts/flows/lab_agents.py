@@ -23,6 +23,9 @@
 - 会话资源 `/v1/sessions/{id}/resources`：挂文件、列出、取一个、删除；
 - 文件 `/v1/files`：上传（multipart）、列出（`scope_id`、`ids` 过滤）、取元数据、下载 `/content`、删除；
 - 单次问答 `POST /v1/messages`（起侧栏标题用）：回一段 stop_reason=end_turn 的短文字。
+- 假识别（A 线 11-10，真跑前置自检的干跑）：`POST /v1/messages` 带 ``output_config.format`` 是 json_schema 时（识别引擎
+  `claude_ocr.engine` 的读法），照 schema 回一份空白但合格式的 JSON（字符串空、数字 0、数组空、可空的给 null），让干跑走完与真跑
+  同一条识别路径（站点引擎设置 claude、PEARNLY_ANTHROPIC_API_KEY、识别队列、识别进程与派发进程、计费准入），不花钱。
 
 行为：
 - 收到 `user.message`：先存这条用户事件并记 `session.status_running`（会话状态立即变 running），稍等 `--delay` 秒后
@@ -604,10 +607,36 @@ def parse_upload(content_type: str, body: bytes) -> tuple[str, str, bytes]:
     raise bad_request("file: missing")
 
 
+def blank_of(schema, depth=0):
+    """照 JSON Schema 造一份空白但合格式的值（假识别用）：对象按 required 逐个造、字符串空、数字 0、数组空、布尔 false、可空的给 null。"""
+    if not isinstance(schema, dict) or depth > 12:
+        return None
+    kind = schema.get("type")
+    if isinstance(kind, list):
+        if "null" in kind:
+            return None
+        kind = kind[0] if kind else None
+    if "enum" in schema and schema["enum"]:
+        return schema["enum"][0]
+    if "anyOf" in schema and schema["anyOf"]:
+        return blank_of(schema["anyOf"][0], depth + 1)
+    if kind == "object":
+        props = schema.get("properties") or {}
+        return {key: blank_of(props.get(key) or {}, depth + 1) for key in schema.get("required") or props}
+    return {"array": [], "string": "", "number": 0, "integer": 0, "boolean": False}.get(kind)
+
+
 def message_reply(body: dict) -> dict:
-    """侧栏标题：取 <message> 里（没有就取整条用户消息）的前 20 个字，回成一段正常结束的文字。"""
+    """侧栏标题：取 <message> 里（没有就取整条用户消息）的前 20 个字，回成一段正常结束的文字。识别引擎的 json_schema 读法回
+    :func:`blank_of` 造的空白票（假识别）。"""
     if body.get("stream"):
         raise bad_request("streaming is not supported by the lab stub")
+    shape = ((body.get("output_config") or {}).get("format") or {}) if isinstance(body.get("output_config"), dict) else {}
+    if shape.get("type") == "json_schema":
+        return {"id": new_id("msg"), "type": "message", "role": "assistant", "model": body.get("model") or "lab",
+                "content": [{"type": "text", "text": json.dumps(blank_of(shape.get("schema") or {}), ensure_ascii=False)}],
+                "stop_reason": "end_turn", "stop_sequence": None,
+                "usage": {"input_tokens": 1, "output_tokens": 1, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}}
     text = ""
     for message in body.get("messages") or []:
         if message.get("role") == "user":

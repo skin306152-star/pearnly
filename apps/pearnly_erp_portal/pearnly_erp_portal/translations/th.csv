@@ -1613,6 +1613,8 @@ This warehouse code already exists,รหัสคลังนี้มีอย
 This warehouse has no active location,คลังนี้ไม่มีตำแหน่งที่เปิดใช้งาน
 This warehouse is not in the Express account set,ไม่มีคลังสินค้านี้ในชุดบัญชี Express
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",เมื่อเปิดใช้แล้วบริษัทนี้จึงมีเครื่องขาย บันทึกการรับเงิน บันทึกกะ และตำแหน่งพนักงานเก็บเงิน ถ้าไม่เปิดจะไม่แสดงรายการเหล่านี้
+Ticket Key,รหัสระบุเอกสาร
+Ticket Level,ระดับการระบุเอกสาร
 Time,เวลา
 Time left {0},เหลือเวลา {0}
 Title,ชื่อ

@@ -1613,6 +1613,8 @@ This warehouse code already exists,仓库编号已存在
 This warehouse has no active location,此仓库没有启用的仓位
 This warehouse is not in the Express account set,Express 账套中无此仓库
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。
+Ticket Key,票据身份
+Ticket Level,身份级别
 Time,时间
 Time left {0},剩余 {0}
 Title,标题

@@ -86,6 +86,7 @@ PLAIN = [
     "tests/test_erp_portal_access.py",
     "tests/test_listing_sort.py",
     "tests/test_opening_batch.py",
+    "tests/test_real_run_preflight.py",
 ]
 
 IMAGE = [

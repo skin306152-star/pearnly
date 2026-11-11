@@ -56,3 +56,5 @@ pearnly_erp_portal.patches.v1_24_ledger_state
 pearnly_erp_portal.patches.v1_25_stock_adjust_menu
 # 销售明细按行定出不出库（item_type，11-06 按行选物料与库存）：存量行按当时有没有出库流水回填，不动库存
 pearnly_erp_portal.patches.v1_26_sales_line_item_type
+# 采购单的同一张票身份（复核 5 批之第 1 批）：旧单按同一判据回填，代录、直写判「已写过」按它
+pearnly_erp_portal.patches.v1_27_purchase_ticket_identity

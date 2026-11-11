@@ -2400,3 +2400,8 @@ Account signed in elsewhere	账号已在别处登录	บัญชีเข้า
 Operator Ledgers	实操账本	ระบบบัญชีที่บันทึกแทนได้	代行入力先の帳簿
 Checked pending items	查看了待处理	ตรวจสอบรายการรอดำเนินการแล้ว	処理待ちの項目を確認しました
 Checking pending items	正在查看待处理	กำลังตรวจสอบรายการรอดำเนินการ	処理待ちの項目を確認しています
+Seller Branch	卖方分店	สาขาผู้ขาย	売り手の支店
+Buyer Branch	买方分店	สาขาผู้ซื้อ	買い手の支店
+Ticket Number	规范单号	เลขที่เอกสารที่จัดรูปแบบ	正規化伝票番号
+Ticket Key	票据身份	รหัสระบุเอกสาร	伝票識別キー
+Ticket Level	身份级别	ระดับการระบุเอกสาร	識別レベル

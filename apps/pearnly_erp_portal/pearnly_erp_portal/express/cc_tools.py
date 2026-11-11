@@ -232,12 +232,21 @@ def _push_one(document, tool_input) -> dict:
         return {"document": document, "status": WITH_OPERATOR, **_reason(contracts.HELD, contracts.OPERATOR_OWNED)}
     if _unknown(_job(row)):
         return {"document": document, **_outcome(kind, name)}  # 结果不明：不再推，核对后记下（erp_resolve_push_result）
-    try:
-        sent = _route(kind, name, row)
-    except (frappe.ValidationError, frappe.PermissionError) as error:
-        frappe.db.rollback()
-        frappe.clear_messages()
-        return {"document": document, "status": direct_push.FAILED, "reason": str(error)[:300]}
+    from pearnly_core import ledger_tickets
+
+    # 同一张票只写一次（复核 5 批之第 1 批，同 Cowork）：另一张写的同一张票已写成或正在写的默认不推、回它的单号；用户说了再写一次的
+    # （enter_again）照推。按身份加短锁、锁里再判：两条路同时交同一张，后到的读到前一条的结果。只看我们自己的写入
+    again = tuple(str(item) for item in (tool_input.get("enter_again") or []))
+    with ledger_tickets.one_writer(document):
+        twin = ledger_tickets.entered(document, again)
+        if twin:
+            return {"document": document, "status": direct_push.SKIPPED, "docnum": twin["docnum"], "twin_state": twin["state"]}
+        try:
+            sent = _route(kind, name, row)
+        except (frappe.ValidationError, frappe.PermissionError) as error:
+            frappe.db.rollback()
+            frappe.clear_messages()
+            return {"document": document, "status": direct_push.FAILED, "reason": str(error)[:300]}
     if not sent:
         return {"document": document, **_outcome(kind, name)}
     return {"document": document, "status": "sent"}
@@ -665,7 +674,7 @@ TOOLS = [
                     "again yourself. Each result says entered (written into Express; docnum is its document number "
                     "there, tell it to the user), queued (no result yet, or CC Desktop is offline: it is entered "
                     "later; check with erp_push_results when the user asks), failed with a reason, "
-                    + direct_push.unconfirmed_rule(PROGRAM, "erp_resolve_push_result")
+                    + direct_push.unconfirmed_rule(PROGRAM, "erp_resolve_push_result") + ", " + direct_push.skipped_rule(PROGRAM)
                     + ", needs_choice (call pearnly_precheck for those documents, ask the user with ask_user and "
                     "save the answers with pearnly_precheck_answer with resume true, which sends them again: do not "
                     "push them again; for an MR.ERP company the items are its import menus and default values, chosen "
@@ -681,7 +690,8 @@ TOOLS = [
                     "ask_user which company, options from erp_companies labelled with the company name, file the "
                     "conversation under the one they chose with pearnly_file_conversation, then push again).",
      "input_schema": {"type": "object", "properties": {
-         "documents": direct_push.documents_prop(PUSH_MAX), "company": COMPANY_PROP}, "required": ["documents"]},
+         "documents": direct_push.documents_prop(PUSH_MAX), "company": COMPANY_PROP,
+         "enter_again": {"type": "array", "items": {"type": "string"}, "maxItems": PUSH_MAX}}, "required": ["documents"]},
      "handler": "pearnly_erp_portal.express.cc_tools.push_documents"},
     {"name": "erp_resolve_push_result", "label": "Confirmed a push result",
      "description": direct_push.resolve_description(

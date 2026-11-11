@@ -9,11 +9,15 @@ class DuplicateRules(unittest.TestCase):
         self.row = {"invoice_no": "INV-01", "invoice_date": "2026-09-22",
                     "seller_name": "Acme", "total_amount": "107.00"}
 
-    def test_invoice_number_ignores_case_but_not_accents_or_internal_spaces(self):
+    def test_invoice_number_is_compared_as_one_ticket_number(self):
+        # 复核 5 批之第 1 批：单号按同一张票的规范化比（`ticket_identity.number`）：大小写、空白、/ - . _ 不分（截图与 PDF
+        # 读出的 IV/69/00751、IV69-00751 是同一个号）；重音与别的字照样分开
         current = rules.terms(dict(self.row, invoice_no="  inv-01  "))
         self.assertTrue(rules.matches(current, self.row, "exact"))
-        for other in ("ÍNV-01", "INV -01", "INV-01 "):
-            self.assertFalse(rules.matches(current, dict(self.row, invoice_no=other), "exact"))
+        for same in ("INV -01", "INV-01 ", "INV/01", "inv.01", "ＩＮＶ０１"):
+            self.assertTrue(rules.matches(current, dict(self.row, invoice_no=same), "exact"), same)
+        for other in ("ÍNV-01", "INV-011", "INV-02"):
+            self.assertFalse(rules.matches(current, dict(self.row, invoice_no=other), "exact"), other)
 
     def test_likely_can_match_different_invoice_numbers(self):
         current = rules.terms(dict(self.row, invoice_no="different", seller_name=" acME "))

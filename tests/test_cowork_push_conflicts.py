@@ -215,7 +215,11 @@ class SamePlaceTests(unittest.TestCase):
 
     def test_cc_tool_and_pending_page_pushes_share_one_retried_path(self):
         functions = self._functions(COWORK / "assistant/tools.py")
-        push_one = ast.unparse(functions["_push_one"])
+        # 推一张先判同一张票、在按身份的锁里推（复核 5 批之第 1 批），真正的准备与确认在 `_push_one_unguarded`
+        guard = ast.unparse(functions["_push_one"])
+        self.assertIn("ledger_tickets.one_writer(name)", guard)
+        self.assertIn("_push_one_unguarded(", guard)
+        push_one = ast.unparse(functions["_push_one_unguarded"])
         self.assertIn("conflicts.retried(_submit_one", push_one)
         self.assertIn("conflicts.retried(destinations.of(adapter).confirm", push_one)
         submit_one = ast.unparse(functions["_submit_one"])
@@ -223,7 +227,7 @@ class SamePlaceTests(unittest.TestCase):
         self.assertNotIn("destinations.of(", submit_one)
         # 其余地方不直接调写者锁的准备 / 确认：都经 `_push_one`
         for name, node in functions.items():
-            if name not in ("_push_one", "_submit_one"):
+            if name not in ("_push_one", "_push_one_unguarded", "_submit_one"):
                 text = ast.unparse(node)
                 self.assertNotIn("application.submit(", text, name)
                 self.assertNotIn(").confirm(", text, name)

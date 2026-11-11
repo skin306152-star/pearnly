@@ -11,6 +11,8 @@ import json
 
 import frappe
 
+from pearnly_core.assistant import direct_push
+
 from pearnly_cowork.access import scope
 
 
@@ -118,37 +120,13 @@ def precheck(company, doc_ids) -> dict:
 
 
 def written_twin(name) -> dict:
-    """这张识别单是不是已经写进 Express 的那张票（11-08 生产：同一份 PDF 的 24 张在代录里等着，岳父又逐张截图直写了其中 4 张）：
-    同一工作区、同一条连接与账套里，另一张票号相同、对方税号相同、金额相同、已推送成功的识别单 → ``{doc_id, docnum}``（它在
-    Express 里的单号）；没有回空。只读。"""
-    from decimal import Decimal, InvalidOperation
+    """这张识别单是不是已经写进 Express / MR.ERP 的那张票（11-08 生产：同一份 PDF 的 24 张在代录里等着，岳父又逐张截图直写了其中
+    4 张）：共用层同一张票的判定（`pearnly_core.ledger_tickets`，本产品的声明在 `history.tickets.twin`）认出另一条写成了的
+    → ``{doc_id, docnum}``（它在账本里的单号）；没有回空。正在写的不在开始前卡片上标（交单时照样跳过）。只读。"""
+    from pearnly_core import ledger_tickets
 
-    row = frappe.db.get_value(HISTORY, name, ["name", "workspace", "invoice_no", "seller_tax", "buyer_tax", "total_amount",
-                                              "push_connection", "push_account_set"], as_dict=True)
-    if not isinstance(row, dict):
-        return {}
-    number = str(row.get("invoice_no") or "").strip()
-    if not number or not row.get("push_connection"):
-        return {}
-
-    def amount(value):
-        try:
-            return Decimal(str(value or "0")).quantize(Decimal("0.01"))
-        except (InvalidOperation, ValueError):
-            return None
-
-    for other in frappe.get_all(HISTORY, filters={"workspace": row.workspace, "invoice_no": number, "name": ["!=", row.name],
-                                                  "push_connection": row.push_connection, "last_push_status": "success"},
-                                fields=["name", "seller_tax", "buyer_tax", "total_amount", "push_account_set", "last_push_record"],
-                                limit_page_length=TWIN_SCAN):
-        same = ((other.seller_tax or "") == (row.seller_tax or "") and (other.buyer_tax or "") == (row.buyer_tax or "")
-                and amount(other.total_amount) == amount(row.total_amount)
-                and (other.push_account_set or "") == (row.push_account_set or ""))
-        if same:
-            docnum = frappe.db.get_value("Cowork Push Record", other.last_push_record, "external_docnum") \
-                if other.last_push_record else ""
-            return {"doc_id": other.name, "docnum": str(docnum or "")}
-    return {}
+    found = ledger_tickets.entered(name)
+    return {"doc_id": found["doc_id"], "docnum": found["docnum"]} if found.get("state") == ledger_tickets.ENTERED else {}
 
 
 HISTORY = "Cowork OCR History"
@@ -411,7 +389,9 @@ def submit(company, doc_ids, batch, computer, answers=None) -> list:
     if target(company) == "mrerp":
         _release_kick(doc_ids)
     for index, name in enumerate(doc_ids, start=1):
-        twin = written_twin(name) if name not in again else {}
+        from pearnly_core import ledger_tickets
+
+        twin = ledger_tickets.entered(name, again)  # 写成了的、正在写的都跳过；推送那一步在锁里再判一次（`tools._push_one`）
         if twin:
             # 同一张票已写进 Express：默认跳过（用户 11-09），原因带那张的单号；人在开始前卡片上点了「再录一次」的照交
             results.append({"doc_id": name, "status": "written", "reason": twin["docnum"]})
@@ -422,7 +402,10 @@ def submit(company, doc_ids, batch, computer, answers=None) -> list:
             frappe.db.commit()
         # 入账类型明传：单据列（识别那一批选的）在推送里比页面字段优先，拖动 / 记住的分组写在页面上，不明传就不生效
         posting = _settle(name, memory) or None
-        result = tools._push_one(name, posting_kind=posting, route_device=computer, operator={**batch, "index": index, "doc": name, "company": company})
+        result = tools._push_one(name, posting_kind=posting, route_device=computer, operator={**batch, "index": index, "doc": name, "company": company},
+                                 again=(name,) if name in again else ())
+        if result.get("status") == direct_push.SKIPPED:  # 锁里再判时另一条刚写成 / 正在写：同上面的跳过
+            result = {"status": "written", "reason": result.get("docnum") or ""}
         results.append({"doc_id": name, "status": result.get("status") or "", "reason": str(result.get("reason") or "")})
     return results
 

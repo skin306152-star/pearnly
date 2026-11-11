@@ -132,6 +132,7 @@ frappe.PermissionError = PermissionError_
 frappe.DoesNotExistError = DoesNotExistError
 frappe.ValidationError = ValidationError
 frappe.clear_messages = lambda: None
+frappe.get_hooks = lambda name, *args, **kwargs: {}  # 共用层按 hooks 找产品声明（`ledger_tickets` 等）：测试里默认没有
 frappe.utils = types.ModuleType("frappe.utils")
 frappe.utils.get_system_timezone = lambda: "Asia/Bangkok"
 frappe.utils.now_datetime = datetime.datetime.now
@@ -606,6 +607,37 @@ class PushTests(unittest.TestCase):
         self.assertEqual(by["P:NOPE"]["status"], "not_found")
         self.assertEqual(CALLS, [("retry", PURCHASE, "PUR-4"), ("send", SALES, "SD-5")])
         self.assertIn("erp_push_results", out["note"])
+
+    def test_a_ticket_entered_from_another_document_is_skipped_unless_entered_again(self):
+        # 复核 5 批之第 1 批（同 Cowork）：同一张票已由另一张采购单写进 Express（或正在写）的，直写默认不推、回它的单号；
+        # 用户说了再写一次（enter_again）的照推。推之前在按身份的短锁里再判一次。只看我们自己的写入
+        import contextlib
+
+        ledger = importlib.import_module("pearnly_core.ledger_tickets")
+        doc(SALES, "SD-5", reason=E.NO_BOOK)
+        found = {"S:SD-5": {"doc_id": "P:PUR-9", "docnum": "RR-9", "state": "entered", "key": "CO-1:k"}}
+        locked = []
+
+        @contextlib.contextmanager
+        def lock(key, timeout=None, blocking_timeout=None):
+            locked.append(key)
+            yield
+
+        frappe.local.site = "t"
+        with mock.patch.object(ledger, "lookup", lambda doc_id: found.get(doc_id, {})), \
+                mock.patch.object(frappe, "cache", types.SimpleNamespace(lock=lock, set_value=lambda *a, **k: None,
+                                                                          get_value=lambda key: None), create=True):
+            out = call(tools.push_documents, documents=["S:SD-5"])
+            self.assertEqual(out["results"][0], {"document": "S:SD-5", "status": "skipped", "docnum": "RR-9",
+                                                 "twin_state": "entered"})
+            self.assertEqual(CALLS, [])
+            out = call(tools.push_documents, documents=["S:SD-5"], enter_again=["S:SD-5"])
+        self.assertEqual(out["results"][0]["status"], "queued")
+        self.assertEqual(CALLS, [("send", SALES, "SD-5")])
+        self.assertEqual(locked, ["t:pearnly_ledger_ticket:CO-1:k"] * 2)
+        tool = next(t for t in tools.TOOLS if t["name"] == "erp_push_documents")
+        self.assertIn("enter_again", tool["input_schema"]["properties"])
+        self.assertIn("skipped", tool["description"])
 
     def test_waits_for_the_express_number(self):
         doc(SALES, "SD-5", reason=E.NO_BOOK)

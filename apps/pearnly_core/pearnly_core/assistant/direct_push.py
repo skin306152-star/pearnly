@@ -45,6 +45,7 @@ NEEDS_CHOICE = "needs_choice"  # 要人选一次（先看要选的项、记下�
 WAITING_FOR_CC = "waiting_for_cc"  # 电脑还在读这份账套的资料：稍后再推
 ALREADY_SUCCESS = "already_success"  # 早已入账：不再推
 ALREADY_PENDING = "already_pending"  # 已在路上：不再推
+SKIPPED = "skipped"  # 同一张票已由另一条写成或正在写（带 docnum、twin_state）：默认不再推；人说了再写一次的照推（复核 5 批之第 1 批）
 NOT_FOUND = "not_found"  # 没有这张，或本人看不到
 # 记下（选择、核对结论）的结论
 SAVED = "saved"
@@ -89,6 +90,14 @@ def resolve_description(programs: str, then: str = "so it can be pushed again.")
     return (f"When a push result is unknown ({programs} may or may not have it), record what the user "
             "found after checking there: entered true (with its document number there if they have it) or "
             f"false, {then} Only with the user's own answer; never guess.")
+
+
+def skipped_rule(programs: str) -> str:
+    """推送结果里「同一张票已写过」怎么说（两产品同一句；复核 5 批之第 1 批）。"""
+    return (f"skipped (the same ticket is already entered in {programs} from another document, docnum is its number there, "
+            "or that other document is being entered right now, twin_state queued; it is not entered twice: tell the user "
+            "it is already entered and its number; only when the user says to enter it again anyway, push it again with "
+            "enter_again listing it)")
 
 
 def unconfirmed_rule(programs: str, resolve_tool: str) -> str:
