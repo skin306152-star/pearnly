@@ -14,7 +14,7 @@ name = "产品外壳与页面注册（product.js；字段说明图标 field-help
 paths = ["apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/public/desk/product.css", "apps/pearnly_core/pearnly_core/public/desk/field-help.js"]
 markers = ["pearnly.register("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.stock-count.switch.posted-to-active", "erp.stock-count.switch.active-to-posted", "erp.purchase.detail.not-permitted", "erp.sales.detail.not-permitted", "cowork.stocktake.switch", "erp.page.collections"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.stock-count.switch.posted-to-active", "erp.stock-count.switch.active-to-posted", "erp.purchase.detail.not-permitted", "erp.sales.detail.not-permitted", "cowork.stocktake.switch", "erp.page.collections", "erp.page.my-collections"]
 
 [[part]]
 id = "web-entry"
@@ -83,7 +83,7 @@ name = "共用列表（勾选、排序、筛选）"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/list.js", "apps/pearnly_core/pearnly_core/desk/list_filters.py"]
 markers = [".list(", ".selection_action(", ".sort_rows(", ".filter_values(", ".filter_conditions("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.report.stock-count-variance", "erp.report.stock-summary-qty-sort", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.collections"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.report.stock-count-variance", "erp.report.stock-summary-qty-sort", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.collections", "erp.page.my-collections"]
 
 [[part]]
 id = "desk-home"
@@ -197,7 +197,7 @@ name = "LINE 收发与等待三个点（webhook、reply / push / batch）"
 paths = ["apps/pearnly_core/pearnly_core/line.py"]
 markers = ["pearnly_core.line.", "pearnly_core.line import", "pearnly_core import line\n", "pearnly_core import line,", "pearnly_core import line as", "pearnly_line_handlers", "pearnly_line_mirror"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot", "erp.line.stocktake.liff-camera", "cowork.line.stocktake.liff-camera", "cowork.line.item-questions", "erp.line.item-questions"]
+entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot", "erp.line.stocktake.liff-camera", "cowork.line.stocktake.liff-camera", "cowork.line.item-questions", "erp.line.item-questions", "erp.line.collection"]
 
 [[part]]
 id = "line-session"
@@ -205,7 +205,7 @@ name = "LINE 会话状态"
 paths = ["apps/pearnly_core/pearnly_core/line_session.py"]
 markers = ["pearnly_core.line_session", "import line_session", ", line_session", "line_session as store"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled"]
+entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "erp.line.collection"]
 
 [[part]]
 id = "line-binding"
@@ -213,7 +213,7 @@ name = "LINE 绑定"
 paths = ["apps/pearnly_core/pearnly_core/line_binding.py"]
 markers = ["pearnly_core.line_binding", "import line_binding", ", line_binding", "pearnly_line_binding_changed"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.line.binding", "cowork.line.binding", "dms.line.binding", "shared.line.login"]
+entries = ["erp.line.binding", "cowork.line.binding", "dms.line.binding", "shared.line.login", "erp.line.collection"]
 not_entries = { "apps/pearnly_core/pearnly_core/line.py" = "共用 LINE 模块：收件人语言（user_language）在手机 LINE 语言用不上时读绑定账号的语言；入口见共用件 line（各产品 LINE 事件）" }
 
 [[part]]
@@ -222,7 +222,7 @@ name = "CC 桌面版机器通道（cc_desktop）"
 paths = ["apps/pearnly_core/pearnly_core/cc_desktop/**"]
 markers = ["pearnly_core.cc_desktop", "pearnly_core import cc_desktop", "pearnly_cc_desktop"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "companion/src/**/*.py"]
-entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel", "cc.operator.page", "erp.cc.companies", "erp.cc.chat-push", "cc.mrerp-login", "erp.mrerp.direct", "cc.desktop.bridge", "cowork.cc-chat.push", "erp.collection.server"]
+entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel", "cc.operator.page", "erp.cc.companies", "erp.cc.chat-push", "cc.mrerp-login", "erp.mrerp.direct", "cc.desktop.bridge", "cowork.cc-chat.push", "erp.collection.server", "erp.line.collection"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/express/ledger_check.py" = "录过的票先核账本的产品通道（express_doc_check），还没有调用方；「录过的票」判定接入时登记入口（A 线 11-11，docs/work/2026-11-11-cc-ledger-check.md）", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py" = "只在注释里提到 cc_desktop.http_auth 的做法" }
 
 [[part]]
@@ -339,7 +339,7 @@ name = "登录、会话与开通闸（identity / sessions / shell / account）"
 paths = ["apps/pearnly_core/pearnly_core/identity.py", "apps/pearnly_core/pearnly_core/sessions.py", "apps/pearnly_core/pearnly_core/shell.py", "apps/pearnly_core/pearnly_core/account/**", "apps/pearnly_core/pearnly_core/login_redirect.py"]
 markers = ["pearnly_core.identity", "pearnly_core import identity", "pearnly_core.sessions", "pearnly_core import sessions", "import password, sessions", "pearnly_core.shell", "pearnly_core import shell", "pearnly_core.account", "pearnly_core import account", "pearnly_core.login_redirect"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue"]
-entries = ["shared.login", "control.issue-and-entry", "shared.shell-gate", "shared.team.members", "shared.line.login", "erp.collection.server"]
+entries = ["shared.login", "control.issue-and-entry", "shared.shell-gate", "shared.team.members", "shared.line.login", "erp.collection.server", "erp.line.collection"]
 not_entries = { "apps/pearnly_control/pearnly_control/patches/v0_0_1_line_login_secret_to_target.py" = "一次性迁移", "apps/pearnly_erp_portal/pearnly_erp_portal/work/boards.py" = "只用 shell.migration_skip（迁移收尾跳过时记一行日志），不碰登录、会话与开通闸", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/output.py" = "只用 account.names.display_name 显示收银员姓名（10-30），不碰登录与会话；页面由 erp.page.cashier 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/sales.py" = "只用 account.names.display_name 显示收银员姓名（10-30），不碰登录与会话；页面由 erp.page.cashier 实测", "apps/pearnly_cowork/pearnly_cowork/line/handlers.py" = "只用 account.names.display_name 写 LINE 绑定回执里的姓名（10-30），不碰登录与会话；由 cowork.line.binding 实测", "apps/pearnly_cowork/pearnly_cowork/companies/choices.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；公司卡「谁设的」，由 test_cowork_companies 守住", "apps/pearnly_cowork/pearnly_cowork/companies/rules.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；公司规则「谁设的」，由 test_cowork_companies 守住", "apps/pearnly_cowork/pearnly_cowork/readback/service.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；月结回读发起人，由 test_cowork_readback 守住", "apps/pearnly_cowork/pearnly_cowork/reconciliation/preset_store.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；对账预设「由谁设」，由 test_cowork_recon_presets 守住", "apps/pearnly_cowork/pearnly_cowork/stocktake/service.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；盘点人 / 修改人，由流程 cowork.stocktake.list 实测", "apps/pearnly_core/pearnly_core/assistant/tools.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；CC whoami 的姓名，由 test_assistant 守住", "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；CC 看板工具的负责人姓名，由 test_cowork_assistant_tools 守住", "apps/pearnly_cowork/pearnly_cowork/work/boards.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；看板成员姓名，由流程 cowork.work.board 实测", "apps/pearnly_cowork/pearnly_cowork/work/notify.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；看板提醒里「谁」的姓名，由流程 cowork.work.board 实测", "apps/pearnly_cowork/pearnly_cowork/work/service.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；卡片活动 / 评论的姓名，由流程 cowork.work.board 实测", "apps/pearnly_dms/pearnly_dms/line/handlers.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；DMS LINE 绑定回执兜底姓名（花名册名优先），由 test_dms_recording_fixes 守住", "apps/pearnly_dms/pearnly_dms/query/records.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；DMS 推送记录操作员兜底姓名，由 test_dms_recording_fixes 守住", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/shifts.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；交班记录收银员姓名，由流程 erp.pos.shift 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；ERP LINE 绑定回执的姓名，由实验栈 LINE 模拟绑定实测", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；盘点人姓名，由流程 erp.stocktake.scan 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/printing/context.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；小票 / 交班单收银员姓名，由流程 erp.pos.shift 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/work/notify.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；看板提醒里「谁」的姓名，由流程 erp.work.board 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/work/service.py" = "只用 account.names 取人的显示名（姓名全覆盖 10-31），不碰登录与会话；卡片活动 / 评论的姓名，由流程 erp.work.board 实测" }
 
 [[part]]
@@ -455,7 +455,7 @@ name = "识别队列与后台执行（execution）"
 paths = ["apps/pearnly_core/pearnly_core/execution/**"]
 markers = ["pearnly_core.execution", "pearnly_core import execution", "pearnly_ocr_handlers", "pearnly_ocr_failure_handlers", "pearnly_ocr_finished_handlers", "pearnly_ocr_resume_unknown"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["control.execution", "shared.execution", "cowork.execution", "dms.execution", "erp.execution", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "cowork.express.push", "erp.stock-count.upload", "cc.mrerp-login", "erp.cc.companies"]
+entries = ["control.execution", "shared.execution", "cowork.execution", "dms.execution", "erp.execution", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "cowork.express.push", "erp.stock-count.upload", "cc.mrerp-login", "erp.cc.companies", "erp.line.collection"]
 not_entries = { "apps/pearnly_core/pearnly_core/express_operator/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时代录上传回可重试的话，不调执行队列", "apps/pearnly_cowork/pearnly_cowork/files/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时录入上传回可重试的话，不调执行队列", "apps/pearnly_core/pearnly_core/express_operator/uploads.py" = "只取 Deferred 异常类：对话输入框里交任务识别时原件存放处一时连不上回可重试的话，不调执行队列" }
 
 [[part]]
@@ -2616,3 +2616,22 @@ steps = "离线：tests/test_erp_collection.py（收款类型只列收钱类、�
 expect = "全部通过；LINE 入口（第 3 步）与 CC 工具（第 4 步）合入时各自补实机"
 check = "offline"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/snapshot.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/records.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/output.py"]
+
+[[entry]]
+id = "erp.page.my-collections"
+product = "ERP"
+where = "pearnly-my-collections"
+steps = "收款员左下角「我的收款」：列表翻页；点一笔草稿开原生弹窗改各张本次收 / 现金 / 方式与折扣并保存；LINE 确认卡「编辑」打开 pearnly-my-collections/<记录>"
+expect = "收款员打开出内容（不是无权限页）、弹窗存好版本 +1；没有收款员岗位的人是无权限页、接口 403；控制台无报错"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_my_collections/pearnly_my_collections.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/my-collections.js"]
+smoke = "page"
+
+[[entry]]
+id = "erp.line.collection"
+product = "ERP"
+where = "LINE 录收款（富菜单第 4 格「收款」、「เมนู」里的收款按钮）"
+steps = "离线：tests/test_erp_collection_line.py（各步、搜索多于 12、多选合计、组合 / 折扣 / 部分、超收、缺凭证、确认按钮与打字确认、版本变了重出卡、撤回、权限、结果回复 vs 推送）；实验栈流程 erp.line.collection（模拟 LINE 事件走完到确认卡 → 我的收款弹窗改草稿 → 回 LINE 旧卡确认重出新卡、伪造被拒、打 ok 放行、待写入时撤回）；部署后三星真机走一遍"
+expect = "每步只认当前那一步；规则与权限都由 collection.service 判；放行只认卡片展示的版本；写成用回复给 RE 号，没写成先回待写入、结果推送给收款员本人"
+check = "offline"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection_cards.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/texts.py"]

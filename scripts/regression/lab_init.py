@@ -39,7 +39,9 @@ ROLES = {
             "purchase": ["ERP Menu purchase", "ERP Menu suppliers", "ERP Menu profile"],
             "sales": ["ERP Menu sales", "ERP Menu clients", "ERP Menu profile"],
             "cashier": ["ERP Menu cashier", "ERP Menu pos-receipts", "ERP Menu pos-shifts", "ERP Menu profile"],
-            "tasks": ["ERP Menu tasks", "ERP Menu profile"], "none": []},
+            "tasks": ["ERP Menu tasks", "ERP Menu profile"],
+            # 收款员（11-11）：只在 LINE / CC 录收款（不是侧栏岗位），LINE 要开；页面只有左下角「我的收款」
+            "collector": ["ERP Collector", "ERP LINE"], "none": []},
     "cowork": {"admin": ["Cowork Admin", "Cowork Intake", "Cowork Bank Reconciliation", "Cowork Income Reconciliation",
                          "Cowork VAT Check", "Cowork Tax Filing", "Cowork Stocktake", "Cowork Work", "Cowork Profile", "Cowork LINE"],
                "intake": ["Cowork Intake", "Cowork Profile"], "recon": ["Cowork Bank Reconciliation", "Cowork Income Reconciliation",

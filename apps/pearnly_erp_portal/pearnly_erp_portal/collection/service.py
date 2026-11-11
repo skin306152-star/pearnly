@@ -258,9 +258,45 @@ def _checked(company, book, customer, draft, record=None, *, require_vouchers=Fa
     return checked
 
 
-def _fill(doc, checked):
+def _choices(book_key) -> dict:
+    """这本账套能选的销售员（未停用）与部门、RE 单据簿的默认部门（主档读回的 ``salesmen`` / ``departments`` / ``receipt_run``）。
+    旧版 CC 桌面版没报的项是 None（不核）。"""
+    data = facts.load(book_key) or {}
+    salesmen = data.get("salesmen") if isinstance(data.get("salesmen"), list) else None
+    departments = data.get("departments") if isinstance(data.get("departments"), list) else None
+    run = data.get("receipt_run") if isinstance(data.get("receipt_run"), dict) else {}
+    return {"salesmen": None if salesmen is None else [
+                {"code": str(row.get("code") or ""), "name": str(row.get("name") or "")}
+                for row in salesmen if isinstance(row, dict) and row.get("code") and not row.get("inactive")],
+            "departments": None if departments is None else [
+                {"code": str(row.get("code") or ""), "name": str(row.get("name") or "")}
+                for row in departments if isinstance(row, dict) and row.get("code")],
+            "run_department": str(run.get("department") or "")}
+
+
+def _staff(book_key, checked, salesman=None, department=None, previous=None) -> dict:
+    """销售员与部门（`contracts.staff`）；收款员给的值要在这本账套里（停用的销售员、不存在的部门拒）。"""
+    found = _choices(book_key)
+    out = contracts.staff(checked["invoices"][0], found["run_department"], salesman, department, previous)
+    if salesman and found["salesmen"] is not None and out["salesman"] not in {row["code"] for row in found["salesmen"]}:
+        raise contracts.CollectionError(contracts.SALESMAN_INVALID, {"salesman": out["salesman"]})
+    if department and found["departments"] is not None and \
+            out["department"] not in {row["code"] for row in found["departments"]}:
+        raise contracts.CollectionError(contracts.DEPARTMENT_INVALID, {"department": out["department"]})
+    return out
+
+
+def staff_choices(name) -> dict:
+    """改草稿的弹窗里能选的销售员与部门（本人的记录）。"""
+    doc = _own(name)
+    found = _choices(doc.book_key)
+    return {"salesmen": found["salesmen"] or [], "departments": found["departments"] or []}
+
+
+def _fill(doc, checked, people=None):
     first = checked["invoices"][0]
-    doc.update({"salesman": first["salesman"], "department": first["department"], "cash": checked["cash"],
+    people = people or {"salesman": first["salesman"], "department": first["department"]}
+    doc.update({"salesman": people["salesman"], "department": people["department"], "cash": checked["cash"],
                 "transfer": checked["transfer"], "discount": checked["discount"], "total": checked["total"],
                 "voucher_count": sum(1 for row in checked["methods"] if row["voucher"]),
                 **contracts.summaries(checked)})
@@ -289,11 +325,13 @@ def _draft_input(invoices, cash, methods_value, amount, open_rows):
     return {"invoices": invoices, "cash": cash or 0, "methods": list(methods_value or [])}
 
 
-def create_draft(company, customer, invoices, cash=0, methods=None, amount=None, doc_date=None, source="line") -> dict:
+def create_draft(company, customer, invoices, cash=0, methods=None, amount=None, doc_date=None, source="line",
+                 salesman=None, department=None) -> dict:
     """建一笔收款草稿（内容完整、规则全过，凭证可以之后补）。回 :func:`card`。
 
     ``invoices``：``[{docnum, amount}]``，或只给单号再给 ``amount``（总数，早的先收满）；``methods``：``[{prefix, amount,
-    voucher?}]``（转账、折扣按前缀；``voucher`` 是 :func:`store_voucher` 回的文件）；``source``：``line`` / ``cc``。"""
+    voucher?}]``（转账、折扣按前缀；``voucher`` 是 :func:`store_voucher` 回的文件）；``source``：``line`` / ``cc``；
+    ``salesman`` / ``department``：不给就默认第一张发票的（`contracts.staff`）。"""
     guard.require(WRITE)
     row = _company(company)
     customer = str(customer or "").strip()
@@ -304,20 +342,22 @@ def create_draft(company, customer, invoices, cash=0, methods=None, amount=None,
         frappe.throw(_("Invalid value"))
     draft = _draft_input(invoices, cash, methods, amount, _open_rows(book["key"], customer))
     checked = _checked(company, book, customer, draft)
+    people = _staff(book["key"], checked, salesman, department)
     name = _new_name()
     doc = frappe.get_doc({"doctype": DOCTYPE, "name": name, "company": company, "doc_date": day,
                           "collector": frappe.session.user, "source": source, "customer": customer,
                           "customer_name": customer_name, "status": contracts.DRAFT, "draft_version": 1,
                           "book_key": book["key"], "book_label": target.option_name(book)[:140]})
-    _fill(doc, checked)
+    _fill(doc, checked, people)
     doc.flags.name_set = True
     doc.insert(ignore_permissions=True, set_name=name)
     _attach(name, checked)
     return card(name)
 
 
-def update_draft(name, version, invoices, cash=0, methods=None, amount=None) -> dict:
-    """改草稿（整笔换成新内容，规则全过）：``version`` 要是本人看到的那个版本（别处刚改过回 ``changed``），改完版本 +1。"""
+def update_draft(name, version, invoices, cash=0, methods=None, amount=None, salesman=None, department=None) -> dict:
+    """改草稿（整笔换成新内容，规则全过）：``version`` 要是本人看到的那个版本（别处刚改过回 ``changed``），改完版本 +1。
+    ``salesman`` / ``department`` 不给：收款员改过的沿用，没改过的跟着第一张发票走（`contracts.staff`）。"""
     doc = _own(name, for_update=True)
     if doc.status != contracts.DRAFT:
         raise contracts.CollectionError(contracts.NOT_DRAFT, {"status": doc.status})
@@ -325,9 +365,16 @@ def update_draft(name, version, invoices, cash=0, methods=None, amount=None) -> 
         raise contracts.CollectionError(contracts.CHANGED, {"version": int(doc.draft_version or 0)})
     book = {"key": doc.book_key}
     book.update(_book_row(doc))
-    draft = _draft_input(invoices, cash, methods, amount, _open_rows(doc.book_key, doc.customer, exclude=doc.name))
+    open_rows = _open_rows(doc.book_key, doc.customer, exclude=doc.name)
+    draft = _draft_input(invoices, cash, methods, amount, open_rows)
     checked = _checked(doc.company, book, doc.customer, draft, record=doc.name)
-    _fill(doc, checked)
+    old_first = doc.invoices[0] if doc.invoices else None
+    default = contracts.staff({"salesman": old_first.salesman if old_first else "",
+                               "department": (open_rows.get(old_first.docnum) or {}).get("department", "") if old_first else ""},
+                              _choices(doc.book_key)["run_department"])
+    previous = {"salesman": doc.salesman or "", "department": doc.department or "",
+                "default_salesman": default["salesman"], "default_department": default["department"]}
+    _fill(doc, checked, _staff(doc.book_key, checked, salesman, department, previous))
     doc.draft_version = int(doc.draft_version or 0) + 1
     doc.save(ignore_permissions=True)
     _attach(doc.name, checked)
@@ -395,6 +442,7 @@ def _view(doc) -> dict:
                          "amount": contracts.text(row.amount or 0), "voucher": row.voucher or ""} for row in doc.payments],
             "transfer": contracts.text(doc.transfer or 0), "discount": contracts.text(doc.discount or 0),
             "total": contracts.text(doc.total or 0), "docnum": doc.docnum or "", "reason": doc.reason or "",
+            "salesman": doc.salesman or "", "department": doc.department or "",
             "balances": frappe.parse_json(doc.balances) if doc.balances else {}}
 
 
@@ -439,7 +487,8 @@ def release(name, version, consent) -> dict:
         checked = _checked(doc.company, book, doc.customer, _draft_of(doc), record=doc.name, require_vouchers=True)
     except contracts.CollectionError as error:
         return {"status": "invalid", "code": error.code, "detail": error.detail}
-    _fill(doc, checked)
+    _fill(doc, checked, {"salesman": doc.salesman or "", "department": doc.department or contracts.staff(
+        checked["invoices"][0], _choices(doc.book_key)["run_department"])["department"]})
     doc.update({"status": contracts.QUEUED, "confirmed_at": now_datetime(), "consent_ref": str(consent)[:140],
                 "reason": ""})
     doc.save(ignore_permissions=True)
@@ -498,4 +547,5 @@ def mine(start=0, limit=20) -> dict:
 
 
 __all__ = ["book_for", "can_read", "card", "choose_book", "companies_for", "create_draft", "customers", "methods", "mine",
-           "open_invoices", "release", "reserved", "set_voucher", "status", "store_voucher", "update_draft", "withdraw"]
+           "open_invoices", "release", "reserved", "set_voucher", "staff_choices", "status", "store_voucher", "update_draft",
+           "withdraw"]

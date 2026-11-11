@@ -981,7 +981,7 @@ tests = ["unit:tests/test_cowork_line_intake.py::test_menu_web_pages_open_throug
 must_verify = true
 probe = { type = "liff", path = "/desk/pearnly-work" }
 group = "line.menu.work"
-na = { ERP = "ERP 官方号富菜单只有采购、销售、盘点三格，任务管理只在网页侧栏" }
+na = { ERP = "ERP 官方号富菜单是采购、销售、盘点、收款四格，任务管理只在网页侧栏" }
 
 [[row]]
 id = "cowork.line.message.file"

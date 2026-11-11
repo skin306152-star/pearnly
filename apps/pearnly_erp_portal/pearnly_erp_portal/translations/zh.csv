@@ -61,6 +61,7 @@ Add a count,新增盘点记录
 Add a count — {0},新增盘点记录 — {0}
 Add a field,新建字段
 Add a link,添加链接
+Add a method,再加一种方式
 Add all and issue,全部新建并出库
 Add all and receive,全部新建并入库
 Add an item,添加项目
@@ -96,6 +97,7 @@ All companies,全部公司
 All labels,全部标签
 All record only,全部只记账
 All the items have been already returned.,所有物料都已退货
+Already collected. Current balance:,已被收款，当前余额：
 Already exists,已存在
 Already received,该文件已接收
 Already recorded:,已记录：
@@ -203,6 +205,7 @@ CC Desktop could not read this invoice. Check the fields and submit again,CC 桌
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
 CC Desktop is out of date. Update CC Desktop and submit again,CC 桌面版版本过旧，请更新后重新提交
+CC Desktop is writing this collection,CC 桌面版正在写入此收款
 CC Desktop needs an update,CC 桌面版需更新
 CC Desktop not connected,CC 桌面版未连接
 Calculation Version,计算版本
@@ -231,6 +234,7 @@ Cash Check,现金核对
 Cash Difference,现金差额
 Cash account not set,现金科目未定
 Cash basis,收付实现制
+Cash is not set up for this account set,此账套未设置现金科目
 Cashier,收银
 Cashier (POS),收银（POS）
 Cashier Records,收银记录
@@ -268,11 +272,14 @@ Choose a file to import,请选择要导入的文件
 Choose a local opening stock file,请选择本地期初库存文件
 Choose an existing product for opening stock,请选择已有的物料录入期初
 Choose an image attached to this card,请选择此卡片的图片附件
+Choose at least one invoice,请至少选择一张发票
 Choose at least one job role,请至少勾选一个功能权限
 Choose before writing to Express,写入 Express 前需要选择
 Choose file,选择文件
+Choose invoices,选择发票
 Choose purchase or sales first,请先选择采购或销售
 Choose purchase or sales for this invoice and submit again,请选择此发票为进项或销项后重新提交
+Choose the collection method,选择收款方式
 Choose the company,选择公司
 Choose the customer,请选择客户
 Choose the inventory account group for this account set first.,请先为此账套选择存货科目组。
@@ -307,6 +314,7 @@ Code expired,绑定码已过期
 Code or barcode,编码或条码
 Codes start at {0},编码从 {0} 开始
 Collapse list,收起列表
+Collect later,下次再收
 Collected {0},已收款 {0}
 Collection,收款
 Collection Date,收款日期
@@ -336,6 +344,7 @@ Completed,已完成
 Computer offline,电脑离线
 Confirm,确认
 Confirm and record,确定入账
+Confirm collection,确认收款
 Confirm opening stock,确认入账
 Confirm the document before recording a payment,记录付款前请先提交单据
 Confirmed a push result,确认了推送结果
@@ -360,6 +369,7 @@ Cost of goods sold not set,出库成本未定
 Could not connect to MR.ERP,无法连接 MR.ERP
 Could not read the MR.ERP master data.,无法读取 MR.ERP 主档。
 Could not read this document. Please send it again.,识别失败，请重新发送
+Could not record this collection,无法录入此收款
 Could not record this document. Please try again.,入账失败，请重试
 Could not record: {0},无法入账：{0}
 Could not sign in to MR.ERP. Check the connection's username and password,MR.ERP 登录失败，请检查连接的账号和密码
@@ -512,6 +522,7 @@ Due this week,7 天内到期
 Due time,到期时间
 Due today,今天到期
 Due today or tomorrow,今明两天到期
+Due {0},未收 {0}
 Duplicate location,仓位重复
 Duplicate location code,仓位编码重复
 ERP,ERP
@@ -548,16 +559,20 @@ Enter a link that starts with http:// or https://,请输入以 http:// 或 https
 Enter a number of days from 0 to 365,请输入 0 到 365 之间的天数
 Enter a quantity,请输入数量
 Enter a tax ID first,请先填写税号
+Enter a valid amount,请输入有效金额
 Enter a valid email,请填写正确的邮箱
 Enter amount to be redeemed.,输入要抵扣的金额
 Enter customer's email,输入客户邮箱
 Enter customer's phone number,输入客户电话
 Enter discount percentage,输入折扣百分比
 Enter discount percentage.,输入折扣百分比
+Enter each,逐张输入
 Enter list name,输入列表名称
 Enter manually,手动录入
 Enter opening stock,录入期初库存
 Enter purchase details. Files are added as attachments only.,手动填写采购信息，文件仅作为附件。
+Enter the amount for {0},输入{0}的金额
+Enter the amount received,输入已收金额
 Enter the sale by hand. Files are added as attachments only.,手动填写销售内容，文件仅作为附件。
 Enter the user name,请填写用户名
 Enter {0} amount,输入{0}金额
@@ -827,11 +842,14 @@ Mode of Payment,付款方式
 Modes of Payment,付款方式
 Monthly,每月
 More Filters,更多筛选条件
+More than the amount due {0}. Enter the amount again,超过未收金额 {0}，请重新输入
+More than the amount due. Enter the amount again,超过未收金额，请重新输入
 Most used fitting group in the account set,账套里用得最多的合格组
 Move,移动
 Move all cards in this list,移动此列表中的所有卡片
 Move list,移动列表
 My cards,我的卡片
+My collections,我的收款
 Name,名称
 Net,净额
 Net Total,净总计
@@ -875,6 +893,7 @@ No items were read,未识别到明细
 No match for “{0}”,没有找到「{0}」
 No members,无成员
 No notifications,没有提醒
+No open invoices,没有未收清的发票
 No product for this code: {0},未找到该编码对应的物料：{0}
 No product matches that code,未找到该编码对应的物料
 No product matches this code,未找到与该编号匹配的物料
@@ -903,6 +922,7 @@ Not in the account set yet,账套中未建
 Not in the list,不在清单
 Not permitted,没有权限
 Not written to Express (disconnected),未写入 Express（已断开）
+Not written to Express: {0},未写入 Express：{0}
 Note,备注
 Note is empty or too long,说明为空或过长
 Note not found,未找到该说明
@@ -915,6 +935,7 @@ Number,数字
 OCR,文字识别
 Observer,观察者
 Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,未勾选表示未设置成本，金额与单位成本留空
+Oldest first,先收早的
 On Hand,现有库存
 One by one,逐项选择
 Only Draft documents can be deleted,只能删除草稿单据
@@ -1128,6 +1149,7 @@ Reactivated,停用启用
 Reactivated by stock count {0},盘点启用 · {0}
 Read company details,读取了公司资料
 Reading,读取中
+Reading from Express,正在读取 Express
 Reading the Express account set,正在读取 Express 账套
 Ready to post,待入账
 Reason,原因
@@ -1145,6 +1167,7 @@ Received Amount,已收金额
 Received At,收到时间
 Received By,收款人
 "Received from LINE, then confirmed into a purchase record or discarded",接收自 LINE，确认后生成采购记录或予以丢弃
+Received {0} · due {1},已收 {0} · 还差 {1}
 Received; confirm it on the ERP page,已接收，请在 ERP 页面确认
 Receiving Account,收款科目
 Recent Orders,最近订单
@@ -1159,12 +1182,15 @@ Recognition stopped before it finished. Please try again.,识别中断，请重�
 Recognizing...,识别中…
 Record,单据
 Record a count,录入盘点
+Record collections,收款录入
+Record customer payments,记录客户付款
 Record only,只记账
 Record purchases,采购录入
 Record sales,销售录入
 Recorded,已入账
 Recorded a count,记录了实盘数
 Recorded {0} opening row(s); skipped {1} already recorded row(s),已录入 {0} 行期初库存，已跳过 {1} 行已录入明细
+Recorded · pending write,已记录 · 待写入
 Recording a count,正在记录实盘数
 Recount this product,重新盘点该物料
 Recurring,重复性
@@ -1231,6 +1257,7 @@ Sales Count,销售笔数
 Sales Document,销售单据
 Sales Records,销售记录
 Sales returns account,销货退回科目
+Salesman,销售员
 Save,保存
 Save Draft,保存草稿
 Save and next,保存并下一项
@@ -1260,6 +1287,7 @@ Search name or barcode,搜索名称或条码
 "Search name, code or barcode",搜索名称、编码或条码
 Second No,第二个号
 Secondary No,副号
+Select,选择
 Select Loyalty Program,选择忠诚度计划
 Select a Payment Method.,请选择支付方式
 Select a product for each stock item,请为每条货物明细选择物料
@@ -1275,6 +1303,7 @@ Select serial numbers,选择序列号
 Select the original sale line,请选择原单中的物料行
 Select the product,选择商品
 Select vehicles,选择车辆
+Selected,已选
 Sell,销售
 Seller,卖方名称
 Seller address,卖方地址
@@ -1284,6 +1313,7 @@ Selling Units,销售单位
 Selling price,售价
 Selling warehouse,卖货的仓库
 Send,发送
+Send a photo of the transfer slip,请发送转账凭证照片
 Send the code from the ERP page to bind,请发送 ERP 页面上的绑定码
 Sender's LINE language when the document arrived,单据到达时发送者的 LINE 语言
 Sending the same file twice must not create two drafts,同一文件重复发送不会生成重复草稿
@@ -1466,6 +1496,7 @@ The cashier assets did not load (official-*.js).,收银台资源加载失败（o
 The cashier is not enabled for this company,该公司未启用收银
 The chosen account cannot be posted in Express. Choose another account,所选科目在 Express 中不能记账，请另选科目
 The chosen account set belongs to another company. Check the account set,所选账套属于其他公司，请核对账套
+The collection changed. Check it again,收款内容已变更，请重新确认
 The company has no 13-digit tax ID,公司没有 13 位税号
 The company has no MR.ERP account set,公司未设置 MR.ERP 账套
 The company on your documents,单据上用的本公司资料
@@ -1542,6 +1573,7 @@ This MR.ERP account is in use. Send again later,此 MR.ERP 账号正在使用中
 This Month,本月
 This PDF has more than {0} pages,PDF 超过 {0} 页
 This Quarter,本季度
+This account cannot record collections,此账号不能录收款
 This account cannot send documents,该账号无权发送单据
 This account code is already a stock item code in Express,此科目码已是 Express 库存品的编码
 This account set has no book for this kind of document. Set it up in Express,此账套没有这种单据的单据簿，请在 Express 中设置
@@ -1557,11 +1589,15 @@ This channel is not open yet,该通道尚未开放
 This code is already in use,该码已被占用
 This code is already taken,该条码已被占用
 This code is already used by {0} ({1}),该码已被 {0} 使用（{1}）
+This collection cannot be changed,此收款不能修改
+This collection cannot be withdrawn,此收款不能撤回
+This collection method is not available,此收款方式不可用
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",这家公司的仓，可以加多个；出入库、盘点与收银都按这些仓记账。
 This computer cannot enter documents into Express,此电脑不能代录 Express
 This counter sells for this company; stock leaves its warehouse,此收银台以该公司名义开单，并从该公司仓库出库
 This customer has no match in MR.ERP. Choose the customer and submit again,MR.ERP 中没有此客户的对应档案，请选择客户后重新提交
 This customer is not in Express and could not be created. Check the customer name and tax ID,Express 中不存在此客户且无法创建，请核对客户名称和税号
+This department is not available,此部门不可用
 This device cannot scan,这台设备不能扫码
 This device has no camera to scan with,当前设备没有可用的摄像头
 This document cannot be recorded yet,该单据暂无法入账
@@ -1582,6 +1618,7 @@ This entry changed underneath you; reload and try again,该单据已被修改，
 This file holds {0} documents; only the first is filled in. Upload the others separately.,该文件包含 {0} 张单据，仅填入第一张，其余请分别上传。
 This internal code already exists,该内部编码已存在
 This invoice has no lines. Add them and submit again.,此发票没有明细，请补充后重新提交
+This invoice is no longer open,此发票已收清
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,该单据为贷项通知单，暂不支持作为采购单录入。
 This is not a product barcode,这不是商品条码
 This is not a purchase or sales document,该文件不是采购或销售单据
@@ -1599,6 +1636,7 @@ This receipt is in a daily summary sent to Express. Refund it instead,此小票�
 This receipt is in a daily summary. Refund it instead,此小票已计入收银日汇总，请改用退货
 This request was already recorded,该请求已记录
 This sale is already voided,该销售单已作废
+This salesman is not available,此销售员不可用
 This shift belongs to another cashier,该班次属于其他收银员
 This shift is already closed,该班次已交班
 This shift is closed,该班次已交班
@@ -1644,6 +1682,7 @@ Total Quantity,总数量
 Total Taxes and Charges,总税费
 Total items,总件数
 Total opening value,期初总金额
+Total {0} does not match {1},合计 {0} 与已收 {1} 不符
 Total · {0} row(s),合计 · {0} 条明细
 Totals,合计
 Track by unit,按台管理
@@ -1659,6 +1698,7 @@ Type a word from the warehouse name to find it,输入仓库名称关键字查找
 Type any warehouse name; a new warehouse is created if that name is new,仓库可以自由填写，名字没见过的会自动新建一个
 Type not found in Express,Express 中没有此类型
 Type the company name or number to find it,输入公司名称或编号查找
+Type the customer code or part of the name,输入客户编号或名称
 Type the customer name or code to find it,输入客户名称或编号查找
 Type the item name or code,请输入物料名称或编码
 Type the supplier name or code to find it,输入供应商名称或编号查找
@@ -1768,11 +1808,13 @@ Watch,关注
 Weekly,每周
 When a card enters,卡片进入列表时
 "Which company this terminal belongs to, and which warehouse it sells from",收银台所属公司及出货仓库
+Which invoice keeps the balance?,哪张发票留余额？
 Who bought this receipt; empty means a walk-in customer,购买此小票的客户；留空表示散客
 Who can add and remove members,成员管理权限
 Who can comment,评论权限
 Whole document taxed,按账套设置整张计税
 With differences,有差异
+Withdraw,撤回
 Withdrawn,已撤回
 Withholding Tax,预扣税
 Withholding Tax Certificate,预扣税凭证
@@ -1781,6 +1823,7 @@ Withholding Tax must be greater than zero,预扣税额必须大于零
 Writing,写入中
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，将自动重试
 Written,已写入
+Written to Express: {0},已写入 Express：{0}
 "Year, year-month or ALL, per the reset policy",年、年月或 ALL，按重置策略
 Yearly,每年
 Yellow,黄
@@ -1988,6 +2031,7 @@ erp.line.tag.none,只记账
 erp.line.unbind,解绑 LINE
 erp.line.unbindConfirm,确定要解绑 Pearnly ERP LINE 吗？
 erp.nav.collections,收款
+erp.nav.myCollections,我的收款
 erp.nav.work,任务管理
 erp.trade.allLines,全部
 erp.work.activity.archive,{who} 归档了此卡片
@@ -3101,6 +3145,7 @@ void,已作废
 {0} moved {1} to {2},{0} 将卡片「{1}」移至 {2}
 {0} of {1} units,{0} / {1} 台
 {0} rows were not imported,{0} 行未导入
+{0} selected · total {1},已选 {0} 张 · 合计 {1}
 "{0} · Warehouse {1}: need {2}, have {3}",{0} · 仓 {1}：需要 {2}，现有 {3}
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
 {1} is due at {2},卡片「{1}」将在 {2} 到期

@@ -38,7 +38,7 @@ class NativeDeskContract(unittest.TestCase):
         # Cowork 8 项（用户 2026-09-26）：录入工作台、三个对账中心、库存盘点、工作协调 + 首页、团队管理；
         # 识别记录、推送日志、客户、公司资料、集成、使用教程不做。
         # ERP 2026-10-23 加任务管理（看板，从 Cowork 复制），20 项；2026-10-27 删「采购设置」「集成」两页（用户：「是不要的」），18 项。
-        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,8,21])  # ERP 多仓闭环 P2 加「调拨」、11-06 加「物料调整」、11-11 加「收款」
+        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,8,22])  # ERP 多仓闭环 P2 加「调拨」、11-06 加「物料调整」、11-11 加「收款」「我的收款」
         dms = {label: feature for label, _, _, feature in PAGES['dms']}
         self.assertIsNone(dms['nav.connect'])
         self.assertEqual(dms['nav.roster'], 'roster')
@@ -99,7 +99,7 @@ class NativeDeskContract(unittest.TestCase):
         self.assertEqual(available, {'pearnly-home','pearnly-connect','pearnly-roster','pearnly-records','pearnly-intake','pearnly-purchase',
             'pearnly-products', 'pearnly-inventory', 'pearnly-stock-count',
             'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-transfer', 'pearnly-stock-adjust', 'pearnly-stock-card', 'pearnly-sales',
-            'pearnly-collections', 'pearnly-cashier',
+            'pearnly-collections', 'pearnly-my-collections', 'pearnly-cashier',
             'pearnly-suppliers', 'pearnly-clients', 'pearnly-pos-receipts', 'pearnly-pos-shifts',
             'pearnly-team', 'pearnly-company', 'pearnly-warehouses',
             # Cowork 库存盘点（上传盘点，2026-09-26）。
@@ -180,7 +180,8 @@ class ProductNavigationAccess(unittest.TestCase):
                                           'pearnly-stock-card', 'pearnly-stock-count'])
         # 是「移」不是复制：左下角只剩公司与团队管理
         menu_routes = [spec['route'] if isinstance(spec, dict) else spec for spec in erp['user_menu']]
-        self.assertEqual(menu_routes, ['pearnly-company', 'pearnly-team'])
+        # 我的收款（11-11）：只给收款员岗位，放左下角菜单（收款员不是侧栏岗位）
+        self.assertEqual(menu_routes, ['pearnly-company', 'pearnly-team', 'pearnly-my-collections'])
         # 团队管理的岗位勾选按侧栏分组归组（team/service.py role_catalog：先侧栏组、再 permission_groups 覆盖），
         # 仓库跟着侧栏归到「物料与库存」，不再留在「用户设置」
         role_groups = {route: label for label, _icon, routes in declared if label for route in routes}
