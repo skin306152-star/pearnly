@@ -260,6 +260,17 @@ def test_a_cancelled_invoice_is_not_found(acct):
     assert res.error_code == R.ERR_INVOICE_NOT_FOUND and res.evidence["invoices"][0]["problem"] == "cancelled"
 
 
+def test_a_cash_basis_vat_invoice_stops_the_whole_receipt(acct):
+    """服务品现金制增值税的发票（SRV_VATTYP 2，原生收款要另记税）本批不收（主会话 11-11）：整单不写、转人工，problem cash_basis_vat。"""
+    seed(acct, "ARTRN", [{**_invoice("IVSRV", 107.0), "SRV_VATTYP": "2"}])
+    before = _state(acct)
+    res = _write(acct, _payload(invoices=(("IVP42400239", "9972.00"), ("IVSRV", "107.00")), methods=(("BB", "10079.00"),)))
+    assert not res.ok and res.error_code == R.ERR_INVOICE_NOT_FOUND
+    assert [row["problem"] for row in res.evidence["invoices"]] == ["", "cash_basis_vat"]
+    assert res.evidence["invoices"][1]["remaining"] == "107.00"
+    assert _state(acct) == before
+
+
 def test_replaying_the_same_receipt_returns_the_first_number_and_writes_nothing(acct):
     first = _write(acct, _payload())
     assert first.ok and first.written

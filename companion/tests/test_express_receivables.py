@@ -4,7 +4,7 @@
 - 主档 ``express_masters`` 多给 ``receipt_types``（ISRUN ZR 逐行，科目按 SHORTNAM→BKMAS 否则 ACCNUM01，同前缀科目不同标 conflict）、
   ``receipt_run``（RE 单据簿）、``salesmen``（OESLM）、``cash_account``（ISINFO.ACCNUM00）；
 - ``express_marks`` 另报 ``ar_mark``（单据表 ARTRN 变了才变）；
-- 新按需种类 ``express_ar_open``：未删、RECTYP 3、没作废、余额 > 0 的发票，可只读一个客户；只读、复制到本机读，账套一个字节不动。"""
+- 新按需种类 ``express_ar_open``：未删、RECTYP 3、没作废、余额 > 0、不是服务品现金制增值税（SRV_VATTYP 2）的发票，可只读一个客户；只读、复制到本机读，账套一个字节不动。"""
 
 from __future__ import annotations
 
@@ -46,6 +46,7 @@ def receipts(books):
         _inv("IV001", "C01", 9972.0, 0.0), _inv("IV002", "C01", 185347.0, 155351.0), _inv("IV003", "C01", 500.0, 500.0),
         _inv("IV004", "C09", 120.5, 0.0), {**_inv("IV005", "C01", 50.0, 0.0), "DOCSTAT": "C"},
         {**_inv("IV006", "C01", 70.0, 0.0), "RECTYP": "1"}, _inv("IV007", "C01", 10.0, 0.0),
+        {**_inv("IV008", "C01", 107.0, 0.0), "SRV_VATTYP": "2"},  # 服务品现金制增值税：本批不收，不列
         {"RECTYP": "9", "DOCNUM": "RE001", "CUSCOD": "C01", "REMAMT": 5.0},
     ])
     _delete(acct / "ARTRN.DBF", 6)  # IV007 软删
