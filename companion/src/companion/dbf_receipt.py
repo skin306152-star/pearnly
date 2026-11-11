@@ -17,7 +17,7 @@ RE2401052 多张发票）：
 - ARBAL 客户行 ``RE{期}`` 加 IVCAMT（``fiscal_period``），ARMAS.BALANCE 减 IVCAMT。
 
 管钱底线（写前，持 ``PEARNLY.LCK``，worker 已拿着）：同客户、同 YOUREF、没作废的 RE 已在 → 回原号，一行不写（幂等）；逐张重读发票，
-任一张不在 / 不是这个客户 / 已作废（:data:`ERR_INVOICE_NOT_FOUND`）或当前余额不够本次收（:data:`ERR_ALREADY_COLLECTED`，含已被别人收清）
+任一张不在 / 不是这个客户 / 已作废 / 服务品现金制增值税（:data:`ERR_INVOICE_NOT_FOUND`，本批不收）或当前余额不够本次收（:data:`ERR_ALREADY_COLLECTED`，含已被别人收清）
 → **整单不写**，证据带每张的当前余额；不自动缩小金额。方式不在 / 没科目 / 科目冲突 → :data:`ERR_RECEIPT_TYPE`；有现金但账套没设现金科目
 → :data:`ERR_CASH_ACCOUNT`。写入在一份写前备份里，任何一步失败整单回滚；写完读回单头、两张明细、凭证（借贷平）与发票余额，不符同样回滚。
 """
@@ -76,6 +76,9 @@ SEQIT_RECEIVED = "2"       # 借：现金 / 各方式
 SEQIT_RECEIVABLE = "6"     # 贷：应收
 CASH_SLOT, RECEIVABLE_SLOT = "ACCNUM00", "ACCNUM02"
 BALANCE_BUCKET = "RE"
+# 服务品现金制增值税的发票（ARTRN.SRV_VATTYP 2）：原生收款时单头另记 FLGVAT / VATDAT（NLTTEST 15 张），本批不收（主会话 11-11，
+# 需求用不到），写前遇到整单不写、按 invoice_not_found 转人工，problem cash_basis_vat；``express_ar_open`` 也不列
+CASH_BASIS_VAT = "2"
 
 # 失败码（契约原样；ERP 按它显示原因）
 ERR_ALREADY_COLLECTED = "already_collected"
@@ -299,6 +302,7 @@ def invoice_state(account_dir, customer: str, docnums) -> Dict[str, dict]:
             if state["found"] and not mine:
                 continue
             state.update(found=True, customer=_str(r, "CUSCOD"), cancelled=_str(r, "DOCSTAT") == CANCELLED,
+                         cash_basis=_str(r, "SRV_VATTYP") == CASH_BASIS_VAT,
                          remaining=_q2(_dec(r["REMAMT"])), received=_q2(_dec(r["RCVAMT"])),
                          orgnum=int(_dec(r["ORGNUM"])) if has_orgnum else 0,
                          slmcod=_str(r, "SLMCOD"), depcod=_str(r, "DEPCOD"))
@@ -324,6 +328,8 @@ def check_invoices(account_dir, receipt: Receipt) -> Dict[str, dict]:
             problem = "cancelled"
         elif state.get("mine", 0) > 1:
             problem = "duplicate"
+        elif state.get("cash_basis"):
+            problem = "cash_basis_vat"
         elif state["remaining"] < amount:
             problem = "short"
         report.append({"docnum": docnum, "amount": f"{amount:.2f}",

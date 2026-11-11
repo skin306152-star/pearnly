@@ -5,7 +5,8 @@
 - 账套判据、复制到本机再读、不碰「等账套」、不拿写者锁、Express 开着照读：与 ``express_masters`` / ``express_read`` 同一套
   （``resolve`` / ``snapshot``），只复制 ARTRN；复制途中表变了整份重读，读满次数仍在变就照交，meta 报 ``snapshot_changed``。
 - 参数：``{account_set, account_root}``（通用位置键），可选 ``customer``（只读这一个客户，给写前刷新用）；多一个键回 ``params_invalid``。
-- 条件：ARTRN 未删、``RECTYP = '3'``（发票）、``DOCSTAT != 'C'``、``REMAMT > 0``（两位小数后）。
+- 条件：ARTRN 未删、``RECTYP = '3'``（发票）、``DOCSTAT != 'C'``、``REMAMT > 0``（两位小数后）、不是服务品现金制增值税
+  （``SRV_VATTYP != '2'``，本批不收）。
 - 结果（gzip JSON）：``{"version", "account_set", "ar_mark", "read_at", "items": [{docnum, rectyp, docdat, customer, salesman, department,
   net, received, remaining}]}``；日期 ISO、金额两位小数的字符串。``ar_mark`` 同 ``express_marks`` 报的那一个（复制前取），服务端据此判快照
   新不新。超过 ``MAX_BYTES["express_ar_open"]`` 回 ``too_large``，不截断。
@@ -33,6 +34,7 @@ PARAM_KEYS = ("account_set", "account_root")
 OPTIONAL_KEYS = ("customer",)
 INVOICE_RECTYP = "3"
 CANCELLED = "C"
+CASH_BASIS_VAT = "2"   # 服务品现金制增值税的发票（SRV_VATTYP 2）本批不收，不列（主会话 11-11，同 dbf_receipt）
 CUSTOMER_MAX = 10
 
 
@@ -53,7 +55,8 @@ def _open_invoice(customer: str):
     code = express_masters._code
 
     def pick(rec, columns, _gone):
-        if code(get(rec, columns, "RECTYP")) != INVOICE_RECTYP or code(get(rec, columns, "DOCSTAT")) == CANCELLED:
+        if code(get(rec, columns, "RECTYP")) != INVOICE_RECTYP or code(get(rec, columns, "DOCSTAT")) == CANCELLED \
+                or code(get(rec, columns, "SRV_VATTYP")) == CASH_BASIS_VAT:
             return None
         who = code(get(rec, columns, "CUSCOD"))
         if customer and who != customer:
