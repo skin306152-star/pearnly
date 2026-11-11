@@ -2,6 +2,7 @@
 
 > 状态：**待主会话审定**，审定前不施工。基线 main `59799c3ca`，工作树 `.claude/worktrees/recursing-ishizaka-4441ac`，分支 `pearnly/collection-receipt-544a06`。
 > 需求唯一来源：共享笔记 `岳父新需求-收款写进Express-要点-11-10.md`（含第八节 11-10 晚用户补充）；口径对照 `CC直写代录-总表-11-09.md` 第二节。
+> 写入授权：主会话 11-11 转达用户当面确认「可以，只限 NLTTEST」——只在 `\\Accserver\d$\ACCOUNT\69EXP\NLTTEST` 写测试 RE，accserver 其他账套只读；仍须评估审定后再写，写前登记占用表，每次记 RE 号与内容、写后读回、记入本记录，白天写（约 21:00 关机）。
 > 原生证据：11-11 10:49 只读复制测试机 `\\Accserver\d$\ACCOUNT\69EXP\NLTTEST` 17 张表到本机解析（测试机已清理，占用表已登记释放），**没写任何账套**。
 
 ## 0. 需求原文与理解
