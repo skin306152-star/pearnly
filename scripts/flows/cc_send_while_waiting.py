@@ -91,9 +91,13 @@ def steps(params, camera_code=None):
          "trail.push({...n, s: Math.round((Date.now()-t0)/1000)}); "
          "const run=((await call('pearnly_core.assistant.api.events',{session_id:sid,status:1}))||{}).run||{}; "
          # 修改前的服务端不给 waiting：同步等待最多 90 秒，满 100 秒还是本站在执行的也算已挂起（by 记下按哪样认的）
-         "if((run.waiting||[]).length){ parked='waiting'; await sleep(4000); break; } "
-         "if(Date.now()-t0>=100000&&(run.executing||[]).length){ parked='100s'; await sleep(4000); break; } } "
-         "return {mode: mode(), attached, sent, sid: !!sid, parked, after: now(), trail: trail.slice(-6)};"},
+         "if((run.waiting||[]).length){ parked='waiting'; break; } "
+         "if(Date.now()-t0>=100000&&(run.executing||[]).length){ parked='100s'; break; } } "
+         # 服务端挂起后页面要等下一次补拉才知道：实验室没有实时通道，引擎停在等工具结果时页面按空闲每 6 秒补拉一次
+         # （poll-source SLOW_MS，再加这次请求的耗时）。以前固定只等 4 秒，赶上补拉相位不巧就还是停止键（11-10 拼车 #6 连红）。
+         # 改成等到页面换成发送键、最多 20 秒（超过两轮补拉）；判据不变，flip 记下挂起后多少秒换的
+         "const tp=Date.now(); let flip=null; if(parked){ if(await until(()=>!!q('button.aui-composer-send'),80)) flip=Math.round((Date.now()-tp)/100)/10; } "
+         "return {mode: mode(), attached, sent, sid: !!sid, parked, flip, after: now(), trail: trail.slice(-6)};"},
         {"name": "挂着时在界面上点发送", "js": head +
          "const before=now(); const ta=q('textarea.aui-composer-input'); if(!ta) return {error:'no composer', before}; "
          f"Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(ta,{json.dumps(params['ask'])}); "
