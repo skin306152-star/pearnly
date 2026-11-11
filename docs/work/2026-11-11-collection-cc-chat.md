@@ -5,7 +5,7 @@
 
 ## 做了什么
 
-- 工具（`collection/cc_tools.py`，hooks `pearnly_assistant_tools` / `pearnly_assistant_step_names`，两种会话都声明可用）：
+- 工具（`collection/cc_tools.py`，hooks `pearnly_assistant_tools` / `pearnly_assistant_step_names`，每个工具 `modes: ["chat"]`：只在直写对话，代录会话的工具表里没有——代录不做收款，用户 11-11 定）：
   `erp_collection_customers`、`erp_collection_invoices`、`erp_collection_methods`、`erp_collection_draft`（建 / 改，回确认卡）、
   `erp_collection_voucher`（对话附件 → `store_voucher` + `set_voucher`）、`erp_collection_card`、`erp_collection_push`（放行）、
   `erp_collection_status`、`erp_collection_list`、`erp_collection_withdraw`。只调 `collection.service`，出错 `status: not_saved` + `reason`（码）+ `message`（译好的一句）。
@@ -18,13 +18,12 @@
 - 「录吧」：计划事件由共用层发，前端不改。
 - 开始后模型若把 `R:` 单交给 `erp_push_documents`，回 `not_found` 并提示改用 `erp_collection_push`（`express/cc_tools.py`）。
 
-## 需要共用层配合（未改，交主会话）
+## 口径与交接
 
-1. **代录会话里放不了收款**（审定结论②要求两模式都能用）：`write_plan.make` 在代录会话里只取这个任务的待录清单、忽略 `documents`，
-   `start` 一律交代录。收款工具在代录会话里能查、建草稿、补凭证、查结果、撤回；`erp_collection_push` 回 `operator_conversation`（草稿留着）。
-   需要共用层：代录会话里允许建一份「直写」计划（例如 `make` 认产品声明的直写单号前缀、这类单走直写分支），或产品可声明的「直写单」接法。
-2. CC 录的收款写成后不会主动在对话里补一句结果（`collection.push.TELL` 只有 LINE）；现在靠 `erp_collection_push` 等 25 秒 + `erp_collection_status`。
-   要主动补结果需接共用层对话推送（同直写 `push_followup`）。
+- **代录不做收款，收款只在直写对话（用户 11-11 定）**：原先为代录会话写的 `operator_conversation` 拒绝分支已删（工具在代录会话里根本不出现），
+  不需要共用层为代录会话加直写计划。
+- **写成后在对话里主动补一句结果**：交 A 线明天做（接共用层对话推送，同直写 `push_followup`；`collection.push.TELL` 现在只有 LINE）。
+  在那之前靠 `erp_collection_push` 等约 25 秒 + `erp_collection_status`。
 
 ## 新文案（四语，步骤名，`i18n/messages.tsv`）
 
