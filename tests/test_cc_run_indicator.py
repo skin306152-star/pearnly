@@ -1338,6 +1338,41 @@ release2();
 g.respond = respond;
 """)
 
+    def test_a_new_chat_that_attaches_first_never_shows_loading(self):
+        # 11-11 testcowork 实测「上传后对话跳动」（电脑 1400×900）：新对话先贴一张票，上传给它建了会话，约 1.1 秒时对话区换成
+        # 「正在加载消息」、输入框从居中（391）掉到最底下（638），1.7 秒后补拉回来又回到欢迎页居中（407）。原因：加附件走的建会话
+        # 没把会话标成「本页刚建、历史为空」，控制器当成打开已有对话去整段补拉。建之前没有编号的：建好就算已并完历史，
+        # 补拉挂着也不进加载态；本来就有编号的（打开已有对话）照旧等补拉。
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { ensureSessionOf } from "@/lib/managed-agents/ensure-session";
+---
+const respond = g.respond;
+let release: () => void = () => {};
+const stuck = new Promise<void>((resolve) => { release = resolve; });
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events") await stuck;
+  return respond(method, args, body);
+};
+// 新对话：组件库这一项还没有会话编号，initialize 才建
+const fresh = { ids: {} as any, getState() { return this.ids; }, async initialize() { this.ids = { remoteId: "sesn_attach1", externalId: "sesn_attach1" }; return this.ids; } };
+const id = await ensureSessionOf(fresh, getSessionController);
+assert.equal(id, "sesn_attach1");
+await g.sleep(30);
+assert.equal(getSessionController(id).getSnapshot().isLoaded, true, "a session this page just created has no history to load");
+// 再取一次（发第一句时）：同一个编号，不重复建
+assert.equal(await ensureSessionOf(fresh, getSessionController), "sesn_attach1");
+// 打开已有对话：本来就有编号，照旧等补拉（加载中）
+const opened = { getState: () => ({ remoteId: "sesn_old1", externalId: "sesn_old1" }), initialize: async () => ({ remoteId: "sesn_old1", externalId: "sesn_old1" }) };
+await ensureSessionOf(opened, getSessionController);
+await g.sleep(30);
+assert.equal(getSessionController("sesn_old1").getSnapshot().isLoaded, false, "an existing chat still loads its history");
+release();
+g.respond = respond;
+await g.sleep(30);
+assert.equal(getSessionController("sesn_old1").getSnapshot().isLoaded, true);
+""")
+
     def test_a_backfill_landing_after_the_streamed_words_keeps_one_reply(self):
         # 批 A ②：补拉回来时逐字推送已经到了——正式的回复（同一个事件编号）收口刚才的逐字，只有一段、不重复、不丢字；
         # 这一轮的「结束」随补拉到，发送键恢复

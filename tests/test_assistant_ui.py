@@ -8816,10 +8816,13 @@ assert.deepEqual(users(), ["earlier", "hello"]);
     def test_the_new_chat_stop_failure_only_says_why(self):
         # 新对话发出后补的打断没成功：同停止键，只写停止的原因，不当发送失败、不放回输入框
         provider = read("lib/managed-agents/runtime-provider.tsx")
-        self.assertIn("}, send, async (id) => {\n"
+        self.assertIn("send, async (id) => {\n"
                       "          await attemptStop(threadId, () => getSessionController(id).interrupt());", provider)
         # 批 A ②：新对话的会话是这一下刚建的，标成历史为空（第一句不等整段补拉）
-        self.assertIn("const id = await ensureSession();\n          getSessionController(id).created();", provider)
+        # 11-11：加附件建的会话也一样，标在共用的 ensureSession 里（ensure-session.ts）
+        self.assertIn("else await newChat.run(ensureSession, send, async (id) => {", provider)
+        self.assertIn("ensureSessionOf(aui.threadListItem(), getSessionController)", provider)
+        self.assertIn("createAttachmentAdapter(ensureSession)", provider)
         controller = read("lib/managed-agents/session-controller.ts")
         self.assertIn("if (!this.state.echoedOptimistic.has(optimisticId)) {", controller)
 

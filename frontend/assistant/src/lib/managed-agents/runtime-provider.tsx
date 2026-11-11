@@ -29,6 +29,7 @@ import {
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { noticesShown } from "./activity";
 import { createAttachmentAdapter, filesToSend } from "./attachments";
+import { ensureSessionOf } from "./ensure-session";
 import { beginPendingText, clearPending, pendingShownAs } from "./pending-send";
 import { watchList } from "./list-sync";
 import { NewChatSend } from "./new-chat-send";
@@ -108,16 +109,9 @@ function useSessionThreadRuntime() {
     if (isActive && sessionId && lastNotice) noticesShown(sessionId, lastNotice);
   }, [isActive, sessionId, lastNotice]);
 
-  /** Resolve the session id, creating the session for a brand-new chat. */
+  /** Resolve the session id, creating the session for a brand-new chat（本页刚建的标成历史为空，加附件时建的也算，ensure-session.ts）. */
   const ensureSession = useMemo(
-    () => async (): Promise<string> => {
-      const { externalId, remoteId } = await aui.threadListItem().initialize();
-      const id = externalId ?? remoteId;
-      if (!id) throw new Error("session was not created");
-      // Warm the controller so the tail is up before anything happens.
-      getSessionController(id).attach();
-      return id;
-    },
+    () => (): Promise<string> => ensureSessionOf(aui.threadListItem(), getSessionController),
     [aui],
   );
 
@@ -196,12 +190,8 @@ function useSessionThreadRuntime() {
         // 还没有会话（新对话、没先加附件）：建会话期间就是在跑，期间点停止就在发出后打断（new-chat-send.ts）。打断没成功
         // 同停止键：只写原因（attemptStop），消息已发出，不当发送失败、不放回输入框（第 10 轮 E30）
         if (controller) await send(await ensureSession());
-        // 新对话：会话是这一下刚建的，历史本来是空的——第一句不等整段补拉就发（批 A ②，session-controller 的 created）
-        else await newChat.run(async () => {
-          const id = await ensureSession();
-          getSessionController(id).created();
-          return id;
-        }, send, async (id) => {
+        // 新对话：会话是这一下刚建的，历史本来是空的——第一句不等整段补拉就发（批 A ②，ensureSession 里标 created）
+        else await newChat.run(ensureSession, send, async (id) => {
           await attemptStop(threadId, () => getSessionController(id).interrupt());
         });
       });
