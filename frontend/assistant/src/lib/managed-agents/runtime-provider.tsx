@@ -48,6 +48,7 @@ import { useListMode, useSessionTask } from "./list-mode";
 import { useProjects } from "./projects";
 import { loadToolLabels } from "@/lib/tool-labels";
 import { runningTurn, type OpenState } from "@/lib/follow-scroll";
+import { offersRecord } from "@/lib/record-reply";
 
 // ------------------------------------------------------------- state hookup
 const EMPTY: ControllerSnapshot = {
@@ -289,4 +290,13 @@ export function useOpenState(): OpenState {
   const turn = useSyncExternalStore(subscribe, () => runningTurn(isBusy(read()), read().messages) ?? "", () => "");
   const synced = useSyncExternalStore(subscribe, () => read().isSynced, () => true);
   return { turn: turn || null, synced };
+}
+
+/** 输入框上方出不出「录吧」（lib/record-reply.ts）：这段对话有写入计划在等用户点头、CC 没在跑。只取这一个值，回复每来一段不重画。 */
+export function useRecordOffered(): boolean {
+  const sessionId = useShownSessionId();
+  const controller = sessionId ? getSessionController(sessionId) : null;
+  const subscribe = controller ? controller.subscribe : subscribeNothing;
+  const read = () => (controller ? controller.getSnapshot() : EMPTY);
+  return useSyncExternalStore(subscribe, () => offersRecord(read().writePlans, isBusy(read())), () => false);
 }

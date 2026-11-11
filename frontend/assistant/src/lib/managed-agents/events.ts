@@ -98,7 +98,19 @@ export type StoppedEvent = {
   content: Array<{ type: "text"; text: string }>;
 };
 
-export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent | ProgressEvent | StoppedEvent;
+/** 写入计划的状态（A 线 assistant/write_plan.py 的 event）：CC 建了计划在等用户点头（awaiting）、已开始（started）、被新的一份
+ *  替掉（replaced）。编号带状态（pplan_<计划>_<状态>），同一份计划状态变了是新的一条；推送与补拉都带。页面据此出「录吧」。 */
+export type WritePlanStatus = "awaiting" | "started" | "replaced";
+export type WritePlanEvent = {
+  type: "pearnly.write_plan";
+  id: string;
+  plan: string;
+  status: WritePlanStatus;
+  count: number;
+  processed_at: string;
+};
+
+export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent | ProgressEvent | StoppedEvent | WritePlanEvent;
 
 /** 代录的工具（方案 14.10：站点内部的显示用名，不交给模型、不进工具表）：由代录事件源投影进同一段对话。卡片（operator_start /
  *  operator_choose / operator_resume）的结果由站点以 user.custom_tool_result 交来；停着等它们时页面不走自动答复、run_tool、confirm

@@ -1,7 +1,7 @@
 """「录吧」快捷回复（总表二 11-10「去掉开始按钮」：卡片不放开始，开始由用户一句话下令；输入框上方给一个「录吧」，等同打字）。
 
-- 什么时候出现（lib/record-reply.ts）：对话最后一轮是 CC 说完的、里面调了写入计划（A 线 pearnly_write_plan）且计划有要写的
-  （status = ready）；在跑、用户已回话、没有要写的、工具报错都不出现。提醒卡片（system）排在后面不算一轮。
+- 什么时候出现（lib/record-reply.ts，主会话 11-11 按 A 线实际交付定）：对话事件 pearnly.write_plan 里有一份在等用户点头
+  （awaiting）、CC 没在跑；started / replaced / 没有计划都不出现；归并层按计划记状态，只进不退（reducer 的 writePlans）。
 - 点了等同打字（thread.tsx 的 RecordQuickReply）：组件库的 append 在本站运行时里进同一个发送排队（send-queue），
   空闲时当场交给 onNew 发出，字随界面语言；用标准组件库的 Button。
 
@@ -20,49 +20,42 @@ needs_node = unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端
 
 @needs_node
 class RecordReplyBehaviourTests(unittest.TestCase):
-    def test_it_shows_only_while_a_ready_write_plan_waits_for_the_user(self):
+    def test_it_shows_only_while_a_write_plan_awaits_the_user(self):
+        # 主会话 11-11 按 A 线实际交付定：看对话事件 pearnly.write_plan（A 线 assistant/write_plan.py 的 event：
+        # {id: pplan_<计划>_<状态>, type, plan, status: awaiting|started|replaced, count, processed_at}，推送与补拉都带）。
+        # 有一份 awaiting、CC 没在跑就出；started / replaced / 没有都不出；改票后 CC 重新算出新的 awaiting 又出。
         run_ts(r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { offersRecord, WRITE_PLAN_TOOL } from "@/lib/record-reply";
+import { project } from "@/lib/managed-agents/reducer";
+import { offersRecord } from "@/lib/record-reply";
 
-assert.equal(WRITE_PLAN_TOOL, "pearnly_write_plan");
-const user = (text: string) => ({ role: "user", content: [{ type: "text", text }] });
-const plan = (result: unknown, extra: Record<string, unknown> = {}) => ({ type: "tool-call", toolName: "pearnly_write_plan", toolCallId: "t1", args: {}, result, ...extra });
-const said = (...parts: unknown[]) => ({ role: "assistant", content: [...parts, { type: "text", text: "บริษัท A · 9.A · 3 ใบ ได้ไหม" }] });
-const ready = JSON.stringify({ status: "ready", company: "A", count: 3 });
-const notice = { role: "system", content: [{ type: "text", text: "Run finished" }] };
+let t = 0;
+const at = () => new Date(Date.UTC(2026, 10, 11, 4, 0, t++)).toISOString();
+const plan = (name: string, status: string, count = 3) => ({ id: `pplan_${name}_${status}`, type: "pearnly.write_plan", plan: name, status, count, processed_at: at() }) as any;
+const shown = (events: any[], running = false) => offersRecord(project(events).writePlans, running);
 
-// 复述完在等用户：出现（结果是一段 JSON 文字，或带 text 的对象，两种都认）
-assert.equal(offersRecord([user("帮我录"), said(plan(ready))], false), true);
-assert.equal(offersRecord([user("帮我录"), said(plan({ type: "text", text: ready }))], false), true);
-assert.equal(offersRecord([user("帮我录"), said(plan({ status: "ready" }))], false), true);
-// 回复后面又来了一张提醒卡片（system）：不算一轮，照样出现
-assert.equal(offersRecord([user("帮我录"), said(plan(ready)), notice], false), true);
-// 还在跑（复述还没说完）：不出现
-assert.equal(offersRecord([user("帮我录"), said(plan(ready))], true), false);
-// 用户已经回话（点了录吧、打了别的）：最后一条是用户的，不出现
-assert.equal(offersRecord([user("帮我录"), said(plan(ready)), user("录吧")], false), false);
-// 没有要写的、做不了：不出现（CC 用话说明，前端不出可点的开始）
-assert.equal(offersRecord([user("帮我录"), said(plan(JSON.stringify({ status: "nothing_to_write", reason: "no ledger" })))], false), false);
-// 工具报错、结果还没回来、纯文字失败码：不出现
-assert.equal(offersRecord([user("帮我录"), said(plan(ready, { isError: true }))], false), false);
-assert.equal(offersRecord([user("帮我录"), said(plan(undefined))], false), false);
-assert.equal(offersRecord([user("帮我录"), said(plan("not_allowed"))], false), false);
-// 同一轮里改过再算（用户说了修改）：按最后一次
-assert.equal(offersRecord([user("第 3 张不要"), said(plan(ready), plan(JSON.stringify({ status: "nothing_to_write" })))], false), false);
-assert.equal(offersRecord([user("第 3 张不要"), said(plan(JSON.stringify({ status: "nothing_to_write" })), plan(ready))], false), true);
-// 别的工具、上一轮的计划：都不算
-assert.equal(offersRecord([user("看看"), said({ type: "tool-call", toolName: "operator_start", result: ready })], false), false);
-assert.equal(offersRecord([user("帮我录"), said(plan(ready)), user("先别录"), said()], false), false);
-// 用户改了票（下一轮）、CC 重新调计划：又是 ready 就重新出现；这回没有要写的、或报错就不出现
-const changed = [user("帮我录"), said(plan(ready)), user("第 3 张不要")];
-assert.equal(offersRecord(changed, false), false);
-assert.equal(offersRecord([...changed, said(plan(ready))], false), true);
-assert.equal(offersRecord([...changed, said(plan(JSON.stringify({ status: "nothing_to_write" })))], false), false);
-assert.equal(offersRecord([...changed, said(plan(ready, { isError: true }))], false), false);
-// 空对话
-assert.equal(offersRecord([], false), false);
+// 没有计划
+assert.equal(shown([]), false);
+// 复述完在等用户点头：出现；CC 还在说（在跑）：不出现
+const a1 = plan("WP-1", "awaiting");
+assert.equal(shown([a1]), true);
+assert.equal(shown([a1], true), false);
+// 用户点了头、CC 开始了：不出现
+const s1 = plan("WP-1", "started");
+assert.equal(shown([a1, s1]), false);
+// 改了票：旧的被替掉、新算的一份在等 → 又出现；新的这份开始了 → 不出现
+const r1 = plan("WP-1", "replaced"), a2 = plan("WP-2", "awaiting"), s2 = plan("WP-2", "started");
+assert.equal(shown([a1, r1, a2]), true);
+assert.equal(shown([a1, r1, a2, s2]), false);
+// 开始之后用户又改（下一份）：新的 awaiting 又出现
+assert.equal(shown([a1, s1, plan("WP-3", "awaiting")]), true);
+// 只有替掉的：不出现
+assert.equal(shown([a1, r1]), false);
+// 推送与补拉乱序：开始先到、等点头的旧事件晚到，不回到出现；同一条重复到只算一次
+assert.equal(shown([s1, a1]), false);
+assert.equal(shown([r1, a1, a1]), false);
+assert.equal(shown([a1, a1]), true);
 console.log("HARNESS OK");
 """, lang="zh")
 
@@ -103,7 +96,11 @@ class RecordReplySourceTests(unittest.TestCase):
         self.assertIn("<ApprovalSheet />\n            <RecordQuickReply />\n            <Composer />", thread)
         reply = block(thread, "const RecordQuickReply: FC = () => {")
         self.assertIn('import { Button } from "@/components/ui/button";', thread)
-        self.assertIn("offersRecord(s.thread.messages, s.thread.isRunning)", reply)
+        self.assertIn("const shown = useRecordOffered();", reply)
+        # 只订阅这一个值（会话控制器的快照：写入计划状态 + 在不在忙），回复每来一段不重画
+        provider = read("lib/managed-agents/runtime-provider.tsx")
+        hook = block(provider, "export function useRecordOffered(): boolean {")
+        self.assertIn("offersRecord(read().writePlans, isBusy(read()))", hook)
         self.assertIn('const text = t("recordNow");', reply)
         self.assertIn('thread.append({ role: "user", content: [{ type: "text", text }] })', reply)
         self.assertIn("<Button", reply)

@@ -41,7 +41,7 @@
 // 还没重新开跑的那段空档，同服务端读回的状态一样算在跑（2026-10-13 iPhone：两段工具之间约 10 秒显示成已结束、出现复制按钮、
 // 发送键变回空闲）。
 
-import type { FeedEvent, NoticeEvent, OperatorEnd, ProgressEvent, RunStatus, ToolRunStatus, ToolUseEvent } from "./events";
+import type { FeedEvent, NoticeEvent, OperatorEnd, ProgressEvent, RunStatus, ToolRunStatus, ToolUseEvent, WritePlanStatus } from "./events";
 import { operatorEndText } from "./progress";
 import { isOperatorTool, isPersisted, splitAttachmentNote } from "./events";
 import { stepDenied } from "@/lib/step-summary";
@@ -199,6 +199,8 @@ export type Projection = {
   /** 挂在服务端等后台结论的调用（pearnly.tool_run 的 waiting、运行状态的 waiting）：模型不在工作，不算在忙（输入框只显示
    *  发送、能发），状态行照常显示这一步与进度（turn.ts）。引擎重新开跑、这一步有了结果、停止、会话结束时清掉。 */
   waitingIds: string[];
+  /** 写入计划的状态，按计划编号（pearnly.write_plan）：只进不退（awaiting → started / replaced），推送与补拉谁先到都一样。 */
+  writePlans: ReadonlyMap<string, WritePlanStatus>;
 };
 
 export const initialProjection = (): Projection => ({
@@ -222,6 +224,7 @@ export const initialProjection = (): Projection => ({
   statusAt: 0,
   toolRuns: new Map(),
   progress: new Map(),
+  writePlans: new Map(),
 });
 
 // ---------------------------------------------------------------------------
@@ -909,6 +912,13 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
 
     case "pearnly.stopped":
       return keepStopped(state, event);
+
+    case "pearnly.write_plan": {
+      // 一份计划只往前走：已开始 / 已替掉的不会再回到等点头（晚到的旧 awaiting 只记已见）
+      const was = state.writePlans.get(event.plan);
+      if (was && was !== "awaiting") return state;
+      return { ...state, writePlans: new Map(state.writePlans).set(event.plan, event.status) };
+    }
 
     // ------------------------------------------------------------- errors
     case "session.error": {
