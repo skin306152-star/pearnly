@@ -434,6 +434,8 @@ Locked; released in {0}s,ロック中です。{0} 秒後に解除されます
 Looked up a tax ID,税番号を照会しました
 Looking up a tax ID,税番号を照会しています
 Looking up the OIDC client failed: {0} {1},OIDCクライアントの照会に失敗: {0} {1}
+Made a write plan,書き込み計画を作成しました
+Making a write plan,書き込み計画を作成しています
 Manage purchase orders and payment details.,仕入伝票と支払明細を管理します。
 Manual,手入力
 Manual handling,手動処理
@@ -695,6 +697,8 @@ Source Attachment,元の添付ファイル
 Stage,段階
 Starred,スター付き
 Start At,開始時刻
+Started writing,書き込みを開始しました
+Starting to write,書き込みを開始しています
 State,状態
 Status,ステータス
 Status cannot go backwards: {0} → {1},ステータスを戻すことはできません: {0} → {1}

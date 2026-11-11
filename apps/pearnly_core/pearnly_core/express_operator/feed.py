@@ -212,14 +212,11 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
             groups[group] = groups.get(group, 0) + 1
         out.result(p + "sources_r", p + "sources", {"total": len(docs), "groups": groups}, started)
 
-    # E5 / E6 开始前确认
+    # E5 / E6 开始前确认（只展示；开始走写入计划 `assistant.write_plan`）
     start = p + "start"
     if cards:
         out.tool(start, START, head, anchor, custom=True, bump=1)
-    if status == "preparing":
-        if cards:
-            out.run(start, "awaiting_approval", anchor, bump=1)
-    else:
+    if status != "preparing":
         # 交单结论只写张数，不把没收的单回填进这张卡（11-08 生产：卡从「开始」原地变成 24 行，同一批单在这里、各自的卡、结尾各出一遍）：
         # 没录成的只在它自己那一步（与要人处理的卡）出现一次
         held = sum(1 for item in docs if item["state"] == "not_done" and _get(item["row"], "queued_at")
@@ -304,8 +301,9 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
     open_docs = [item for item in docs if item["state"] in OPEN]
     concluded = len(docs) - len(open_docs)
     if status == "preparing":
+        # 开始由用户在对话里一句话下令（写入计划，用户 11-10）：开始前卡片只做预选、看清，不停着等人点；模型空闲
         if cards:
-            _status(out, p, "wait", {"type": "requires_action", "event_ids": [start]}, last)
+            _status(out, p, "wait", {"type": "end_turn"}, last)
     elif status in ("queued", "running"):
         out.add({"type": "session.status_running", "id": f"{p}st_run_{_ms(last)}"}, last, 5)
         label = "waiting_computer" if status == "queued" else "entering"

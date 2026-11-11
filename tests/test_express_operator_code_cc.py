@@ -771,16 +771,33 @@ class StartTakesTheWholeListTests(Base):
         self.task = tasks.create("CO-1", "2026-10")["name"]
 
     def test_every_document_waiting_this_month_is_handed_in_not_only_the_loaded_page(self):
-        loaded = [f"D{n:03d}" for n in range(1, 51) if n not in (7, 10)]  # 页面第一页、按页面规则去掉的
-        out = api.start("CO-1", loaded, task=self.task, again=["D061"])
-        company, handed, batch = self.submitted[-1]
+        # 11-11 一句话下令：交哪些单由写入计划按 `waiting` 的完整清单定（D061 用户说了再录一次），开始时整份交给任务
         wanted = [f"D{n:03d}" for n in range(1, self.TOTAL + 1) if n not in (7, 10, 60)]
-        self.assertEqual(handed, wanted)  # 第 51 张起也交了；D061 人点了再录一次照交
+        planned, _groups, skipped = api.waiting("CO-1", "2026-10", ["D061"])
+        self.assertEqual(planned, wanted)  # 第 51 张起也在
+        self.assertEqual(sorted(item["doc_id"] for item in skipped), ["D007", "D010", "D060"])
+        out = api.hand_in("CO-1", self.task, planned, again=["D061"])
+        company, handed, batch = self.submitted[-1]
+        self.assertEqual(handed, wanted)  # 第 51 张起也交了；D061 用户说了再录一次照交
         self.assertEqual(batch["total"], len(wanted))
         self.assertEqual(batch["again"], ["D061"])
         self.assertEqual(len(out["results"]), len(wanted))
         doc = frappe.get_doc("Pearnly Express Operator Task", self.task)
         self.assertEqual(len(doc.documents), len(wanted))
+
+    def test_a_task_hands_in_only_documents_still_waiting_on_the_whole_list(self):
+        # 计划里有、开始前已不在待录清单里的（期间被移到不入账等）不交
+        api.hand_in("CO-1", self.task, ["D001", "D007", "D200"])
+        self.assertEqual(self.submitted[-1][1], ["D001"])
+
+    def test_the_page_cannot_start_writing(self):
+        # 用户 11-10 / 主会话批复②：开始只由用户在对话里一句话下令（写入计划），页面没有开始接口
+        source = (ROOT / "apps/pearnly_core/pearnly_core/express_operator/api.py").read_text(encoding="utf-8")
+        head = source[:source.index("\ndef start(")]
+        self.assertFalse(head.rstrip().endswith(")") and "@frappe.whitelist" in head.rstrip().splitlines()[-1])
+        self.assertIn("\ndef hand_in(", source)
+        shared = (ROOT / "frontend/assistant/src/components/tool-uis/operator-shared.ts").read_text(encoding="utf-8")
+        self.assertNotIn('API + "start"', shared)
 
     def test_nothing_waiting_is_refused_instead_of_starting_an_empty_task(self):
         STATE["attrs"]["p.sources"] = lambda company, period, offset, limit: {"documents": [], "next_offset": None}

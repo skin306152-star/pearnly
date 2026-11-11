@@ -35,9 +35,9 @@ DENIED_INSTRUCTION = "Do not try it again unless the user asks."
 WRONG_MODE = {
     # 11-08 生产：CC 把「operator」这类词照着转述给了用户。说明里只写下一步，不给内部名词（工具清单本来就按模式给，这里是兜底）
     "operator": json.dumps({"status": "failed", "reason": "wrong_mode", "instruction":
-                            "Not available in this conversation. Documents here are entered when the user presses Start "
-                            "on the card in this conversation: tell the user that in plain words, without naming tools, "
-                            "modes or this refusal."}),
+                            "Not available in this conversation. Documents here are entered by the write plan: make it, "
+                            "say it back and start it once the user agrees (pearnly_write_plan, pearnly_write_start). "
+                            "Do not name tools, modes or this refusal to the user."}),
     "chat": json.dumps({"status": "failed", "reason": "wrong_mode", "instruction":
                         "Not available in this conversation. Tell the user in plain words what you can do here, without "
                         "naming tools, modes or this refusal."}),

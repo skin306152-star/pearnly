@@ -434,6 +434,8 @@ Locked; released in {0}s,锁定中，{0} 秒后释放
 Looked up a tax ID,查了税号
 Looking up a tax ID,正在查税号
 Looking up the OIDC client failed: {0} {1},查询 OIDC 客户端失败：{0} {1}
+Made a write plan,已拟好写入计划
+Making a write plan,正在拟写入计划
 Manage purchase orders and payment details.,管理采购单据及付款明细。
 Manual,手工
 Manual handling,人工处理
@@ -695,6 +697,8 @@ Source Attachment,原始附件
 Stage,阶段
 Starred,已加星标
 Start At,开始时间
+Started writing,已开始写入
+Starting to write,正在开始写入
 State,状态
 Status,状态
 Status cannot go backwards: {0} → {1},状态不能回退：{0} → {1}

@@ -99,6 +99,10 @@ class DirectPushTests(_Conversation):
 
     def test_the_model_naming_another_companys_book_is_refused(self):
         self.doc.push_account_set = ""
+        # 用户已同意写入计划（计划的门由共用层 write_plan 的测试锁住）：这里看计划里的单推往别家账套照样拒
+        allowed = mock.patch.object(tools.direct_push, "permitted", lambda names: (list(names), []))
+        allowed.start()
+        self.addCleanup(allowed.stop)
         out = json.loads(tools.push_documents({"documents": ["H1"], "connection": "EXP1", "account_set_key": B_REAL}))
         self.assertEqual(out["results"][0]["reason"], write_scope.NOT_THIS_COMPANY)
         self.assertEqual(self.submitted, [])

@@ -125,6 +125,34 @@ CORE_TOOLS = [
          "resume": {"type": "boolean"}},
          "required": ["company", "doc_ids", "answers"]},
      "handler": "pearnly_core.write_precheck.api.tool_answer"},
+    {"name": "pearnly_write_plan",
+     "label": "Made a write plan",
+     "description": "Before entering any documents into Express or MR.ERP (direct push or an operator task), make the "
+                    "write plan: the server works out which documents will be written now and which are skipped with "
+                    "the reason (moved to not entered, already entered, last write result unknown, undecided items, "
+                    "waiting for the computer, not writable), and into which company and account set(s). In an operator "
+                    "conversation it always takes this task's whole waiting list (give again for documents already "
+                    "entered that the user explicitly wants entered again); in a direct-write conversation give "
+                    "documents, the ones the user wants written. Settle the questions first (pearnly_precheck, ask_user, "
+                    "pearnly_precheck_answer). Then say the plan back in one sentence and wait for the user's reply; "
+                    "writing starts only with pearnly_write_start after the user answers. A new plan replaces the one "
+                    "not yet started.",
+     "input_schema": {"type": "object", "properties": {
+         "documents": {"type": "array", "items": {"type": "string"}, "maxItems": 200,
+                       "description": "Direct write: the documents to write."},
+         "again": {"type": "array", "items": {"type": "string"},
+                   "description": "Operator: already entered documents the user wants entered again."}}},
+     "handler": "pearnly_core.assistant.write_plan.tool_plan"},
+    {"name": "pearnly_write_start",
+     "label": "Started writing",
+     "description": "Start writing by the plan from pearnly_write_plan, only after you said that plan back and the user "
+                    "answered in a new message that it can go ahead (e.g. go, yes, start, or in their words). The server "
+                    "refuses (not_confirmed) when the user has not sent a message since the plan, (stopped) when the "
+                    "user stopped after it, and leaves out documents that changed since (changed). In an operator "
+                    "conversation it hands the documents to the computer; in a direct-write conversation push exactly "
+                    "the returned documents next.",
+     "input_schema": {"type": "object", "properties": {"plan": {"type": "string"}}, "required": ["plan"]},
+     "handler": "pearnly_core.assistant.write_plan.tool_start"},
     {"name": "pearnly_file_conversation",
      "label": "Filed the conversation under a company",
      "modes": ["chat"],
@@ -187,6 +215,8 @@ CORE_STEP_NAMES = {
     "pearnly_precheck_answer": "Saving push choices",
     "ask_user": "Waiting for answers",
     "pearnly_file_conversation": "Filing the conversation under a company",
+    "pearnly_write_plan": "Making a write plan",
+    "pearnly_write_start": "Starting to write",
 }
 
 

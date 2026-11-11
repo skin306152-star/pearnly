@@ -336,8 +336,9 @@ class ProjectionTests(unittest.TestCase):
                 start = "pop_tk0001_start"
                 self.assertEqual(by_id[start]["name"], "operator_start")
                 if status == "preparing":
-                    self.assertEqual(run["stop_reason"], {"type": "requires_action", "event_ids": [start]})
-                    self.assertIn(f"ptoolrun_{start}_awaiting_approval", by_id)
+                    # 11-11 一句话下令：开始前卡片只展示，不停着等人点（开始走写入计划），模型空闲、输入框可打字
+                    self.assertEqual(run["stop_reason"], {"type": "end_turn"})
+                    self.assertNotIn(f"ptoolrun_{start}_awaiting_approval", by_id)
                     self.assertNotIn(start + "_r", by_id)
                     continue
                 self.assertEqual(by_id[start + "_r"]["type"], "user.custom_tool_result")
@@ -432,7 +433,8 @@ class ProjectionTests(unittest.TestCase):
         start = next(e for e in events if e["id"] == "pop_tk0001_start")
         self.assertGreater(start["processed_at"], self.feed._iso(said, TZ))
         self.assertLess(start["processed_at"], self.feed._iso(said + datetime.timedelta(seconds=1), TZ))
-        self.assertEqual(self.feed.run_state(events)["awaiting_approval"], ["pop_tk0001_start"])
+        self.assertEqual(self.feed.run_state(events)["awaiting_approval"], [])  # 只展示，不等人点（11-11）
+        self.assertEqual(self.feed.run_state(events)["status"], "idle")
         up = {"name": "up1", "request_key": "k1", "filename": "a.pdf", "size": 10, "batch": "OCR-1",
               "uploaded_at": said + datetime.timedelta(seconds=1)}
         events = self.project(_task("preparing", uploads=[up], message_at=said))

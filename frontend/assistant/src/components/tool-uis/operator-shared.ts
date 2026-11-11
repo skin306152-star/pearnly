@@ -248,19 +248,9 @@ export const operatorActions = {
     const targets = reply?.targets?.length ? reply.targets : reply?.target ? [reply.target] : [];
     return { documents: (reply?.documents ?? []).map((d) => ({ ...d, doc_id: String(d.doc_id) })), targets, card: reply?.card };
   },
-  /** groups：交出的每张单的资料分组（{doc_id: purchase / sales / …}，服务端记进任务的单据行，资料那一步的按组张数与报告用它）。 */
-  start: (input: StartInput, docIds: readonly string[], answers: Answers, groups: Readonly<Record<string, DocGroup>> = {},
-    again: readonly string[] = []) =>
-    site.post(API + "start", {
-      company: input.company,
-      doc_ids: JSON.stringify(docIds),
-      computer: "",
-      start_at: 0,
-      answers: JSON.stringify(answers),
-      task: input.task,
-      groups: JSON.stringify(groups),
-      ...(again.length ? { again: JSON.stringify(again) } : {}),
-    }),
+  /** 开始卡里答的题只记下（{单据: [{kind, subject, value, label}]}，同写账前置判定的记法），不开始写：开始只由用户在对话里一句话下令
+   *  （写入计划，用户 11-10；页面没有开始接口）。 */
+  remember: (company: string, answers: Answers) => site.post(API + "remember", { company, answers: JSON.stringify(answers) }),
   answer: (task: string, docId: string, answers: Answers) =>
     site.post(API + "task_answer", { name: task, doc_id: docId, answers: JSON.stringify(answers[docId] ?? []) }),
   /** 几张合成一张卡后的一次作答（{单据: [{kind, subject, value, label}]}）。 */

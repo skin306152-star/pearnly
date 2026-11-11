@@ -38,8 +38,9 @@ def status(tool_input) -> str:
 
 
 # 状态之外给模型的下一步（只给模型读，不是界面文案）：不提内部名词
-NEXT_PREPARING = ("Nothing has been entered yet: the documents in this conversation are entered when the user presses "
-                  "Start on the card in this conversation, after answering its questions there. Tell the user exactly that.")
+NEXT_PREPARING = ("Nothing has been entered yet. When the user wants them entered: settle the open questions, make the "
+                  "write plan (pearnly_write_plan), say it back in one sentence and start it (pearnly_write_start) only "
+                  "after the user agrees in a new message.")
 NEXT_ATTENTION = ("Some documents need the user: the cards in this conversation ask what is missing (one question covers "
                   "every document that needs the same answer). Point the user to them; do not ask the same thing again.")
 

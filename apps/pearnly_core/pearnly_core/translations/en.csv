@@ -433,6 +433,8 @@ Locked; released in {0}s,Locked; released in {0}s
 Looked up a tax ID,Looked up a tax ID
 Looking up a tax ID,Looking up a tax ID
 Looking up the OIDC client failed: {0} {1},Looking up the OIDC client failed: {0} {1}
+Made a write plan,Made a write plan
+Making a write plan,Making a write plan
 Manage purchase orders and payment details.,Manage purchase orders and payment details.
 Manual,Manual
 Manual handling,Manual handling
@@ -693,6 +695,8 @@ Source Attachment,Source Attachment
 Stage,Stage
 Starred,Starred
 Start At,Start At
+Started writing,Started writing
+Starting to write,Starting to write
 State,State
 Status,Status
 Status cannot go backwards: {0} → {1},Status cannot go backwards: {0} → {1}

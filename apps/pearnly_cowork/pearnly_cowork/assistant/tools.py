@@ -1179,9 +1179,11 @@ def push_documents(tool_input) -> str:
     names = [str(n) for n in (tool_input.get("documents") or [])][:PUSH_MAX]
     if not names:
         frappe.throw(_("No documents were given."))
+    names, refused = direct_push.permitted(names)  # 只推用户同意了的写入计划里的单（一句话下令，A 线 11-11）
     results = [_push_listed(name, tool_input.get("connection") or None, tool_input.get("account_set_key") or None,
                             tool_input.get("posting_kind") or None) for name in names]
     _settle(results)
+    results += refused
     for item in results:
         if item.get("status") == "needs_choice" and item.get("note") == MRERP_SETUP_NOTE and not item.get("mrerp_setup"):
             # 推送当中才发现的：同推之前那一步，一次给全这张单此刻要选的（10-19 lab：只报一句原因，CC 一项项问）

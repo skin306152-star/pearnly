@@ -53,6 +53,16 @@ NOT_SAVED = "not_saved"
 RESULT_STATES = ("pending", "success", "failed")
 
 
+def permitted(names) -> tuple[list, list]:
+    """直写推送工具推之前：(这次可以推的单, 不推的结果行)。在 CC 对话里只推用户同意了的写入计划里的单（`write_plan.permit`：
+    一句话下令开始，三道保险）；不在对话里执行（网页、定时）不管。不推的每张给原因和给模型的下一步。"""
+    from pearnly_core.assistant import write_plan
+
+    allowed, refused = write_plan.permit(names)
+    return allowed, [{"document": name, "status": "not_pushed", "reason": reason, "note": write_plan.PERMIT_NOTES[reason]}
+                     for name, reason in refused.items()]
+
+
 def not_found(document) -> dict:
     return {"document": document, "status": NOT_FOUND}
 

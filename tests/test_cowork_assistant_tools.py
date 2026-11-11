@@ -2398,7 +2398,9 @@ class PushWaitTests(unittest.TestCase):
                 (tools.time, "sleep", sleep), (tools.time, "monotonic", lambda: self.clock[0]),
                 (frappe.db, "rollback", rollback),
                 (frappe.db, "get_value", lambda *a, **k: ("express", 3)),
-                (frappe.local, "pearnly_assistant", {"session_id": "sesn_7", "may_wait": True})):
+                (frappe.local, "pearnly_assistant", {"session_id": "sesn_7", "may_wait": True}),
+                # 这里只看推后怎么等结论：用户已同意写入计划（计划的门见 WritePlanGateTests）
+                (tools.direct_push, "permitted", lambda names: (list(names), []))):
             patcher = mock.patch.object(target, name, value, create=True)
             patcher.start()
             self.addCleanup(patcher.stop)

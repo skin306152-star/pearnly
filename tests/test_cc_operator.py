@@ -293,9 +293,11 @@ const g = globalThis as any;
   const input = { task: "OPT-1", company: "CO-1", company_title: "Acme", period: "2026-10" };
   const groups = groupsToStart([{ doc_id: "A", group: "sales" }, { doc_id: "B", group: "skip" }, { doc_id: "D" }] as any, ["A", "D"]);
   assert.deepEqual(groups, { A: "sales", D: "purchase" });
-  await operatorActions.start(input, ["A", "D"], answers, groups);
-  assert.deepEqual(posts.at(-1), [API + "start", { company: "CO-1", doc_ids: '["A","D"]', computer: "", start_at: 0, answers: JSON.stringify(answers), task: "OPT-1",
-    groups: JSON.stringify({ A: "sales", D: "purchase" }) }]);
+  void input;
+  // 11-11 一句话下令：页面没有开始接口（开始走写入计划）；卡里答的题只记下
+  assert.equal((operatorActions as any).start, undefined);
+  await operatorActions.remember("CO-1", answers);
+  assert.deepEqual(posts.at(-1), [API + "remember", { company: "CO-1", answers: JSON.stringify(answers) }]);
   await operatorActions.answer("OPT-1", "A", answers);
   assert.deepEqual(posts.at(-1), [API + "task_answer", { name: "OPT-1", doc_id: "A", answers: JSON.stringify(answers.A) }]);
   await operatorActions.answer("OPT-1", "Z", {});
@@ -559,11 +561,14 @@ console.log("HARNESS OK");
 class OperatorTests(unittest.TestCase):
     def test_one_question_for_every_document_that_needs_the_same_answer(self):
         self.assertIn("HARNESS OK", run_ts(SAME_PARTY, stubs=STUBS, lang="th"))
-        # 开始卡有没定的项就在卡里一次问完、答案随「开始」交（不靠 CC 先问；11-08 生产：没问就开始，24 张各停一次）
+        # 开始卡有没定的项就在卡里一次问完、答案记下（不靠 CC 先问；11-08 生产：没问就开始，24 张各停一次）；
+        # 11-11 一句话下令：卡里答完只记下，不开始写，卡上没有「开始」
         start = read("components/tool-uis/operator-start.tsx")
         self.assertIn("const items = useMemo(() => itemsOfNeeded(prechecks), [prechecks]);", start)
         self.assertIn("if (asking && questions.length && !result) {", start)
-        self.assertIn("begin(docAnswers(items, questions, answered), () => setSent(answered))", start)
+        self.assertIn("remember(docAnswers(items, questions, answered), () => setSent(answered))", start)
+        self.assertNotIn("cc-op-start", start)
+        self.assertNotIn("operatorActions.start", start)
 
     def test_a_made_up_tool_is_not_shown_as_a_step(self):
         # 11-08 生产：CC 调了站点没有的工具 pdftotext_placeholder，页面多一个看不懂的出错步骤；出处是引擎沙箱说明里举的工具名

@@ -1,0 +1,110 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-11-11 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "session_id",
+  "user",
+  "mode",
+  "company",
+  "operator_task",
+  "user_turn",
+  "status",
+  "documents",
+  "skipped",
+  "started",
+  "started_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "session_id",
+   "fieldtype": "Data",
+   "label": "Session",
+   "read_only": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "mode",
+   "fieldtype": "Select",
+   "label": "Type",
+   "read_only": 1,
+   "options": "direct\noperator"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Data",
+   "label": "Company",
+   "read_only": 1
+  },
+  {
+   "fieldname": "operator_task",
+   "fieldtype": "Data",
+   "label": "Operator Task",
+   "read_only": 1
+  },
+  {
+   "fieldname": "user_turn",
+   "fieldtype": "Int",
+   "label": "User Turn",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "read_only": 1,
+   "options": "awaiting\nstarted\nreplaced",
+   "default": "awaiting"
+  },
+  {
+   "fieldname": "documents",
+   "fieldtype": "Long Text",
+   "label": "Documents",
+   "read_only": 1
+  },
+  {
+   "fieldname": "skipped",
+   "fieldtype": "Long Text",
+   "label": "Skipped",
+   "read_only": 1
+  },
+  {
+   "fieldname": "started",
+   "fieldtype": "Long Text",
+   "label": "Started",
+   "read_only": 1
+  },
+  {
+   "fieldname": "started_at",
+   "fieldtype": "Datetime",
+   "label": "Started At",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-11 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly Assistant Write Plan",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

@@ -575,6 +575,10 @@ class ListTests(unittest.TestCase):
 class PushTests(unittest.TestCase):
     def setUp(self):
         reset()
+        # 这里看推送本身：用户已同意写入计划（计划的门由共用层 write_plan 的测试锁住）
+        patcher = mock.patch.object(direct_push, "permitted", lambda names: (list(names), []))
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_each_state_goes_the_way_the_document_page_does(self):
         doc(PURCHASE, "PUR-1", state="written", ledger_docnum="RR6910-001")

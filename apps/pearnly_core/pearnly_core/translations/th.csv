@@ -434,6 +434,8 @@ Locked; released in {0}s,ถูกล็อกอยู่ จะปลดล็
 Looked up a tax ID,ตรวจสอบเลขประจำตัวผู้เสียภาษีแล้ว
 Looking up a tax ID,กำลังตรวจสอบเลขประจำตัวผู้เสียภาษี
 Looking up the OIDC client failed: {0} {1},ค้นหา OIDC client ไม่สำเร็จ: {0} {1}
+Made a write plan,จัดทำแผนบันทึกแล้ว
+Making a write plan,กำลังจัดทำแผนบันทึก
 Manage purchase orders and payment details.,จัดการเอกสารซื้อและรายละเอียดการชำระเงิน
 Manual,บันทึกด้วยตนเอง
 Manual handling,ดำเนินการด้วยตนเอง
@@ -695,6 +697,8 @@ Source Attachment,ไฟล์แนบต้นฉบับ
 Stage,ขั้นตอน
 Starred,ติดดาว
 Start At,เวลาเริ่ม
+Started writing,เริ่มบันทึกแล้ว
+Starting to write,กำลังเริ่มบันทึก
 State,สถานะ
 Status,สถานะ
 Status cannot go backwards: {0} → {1},ไม่สามารถย้อนสถานะกลับได้: {0} → {1}

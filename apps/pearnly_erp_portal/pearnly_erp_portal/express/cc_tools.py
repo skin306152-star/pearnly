@@ -560,9 +560,10 @@ def push_documents(tool_input) -> str:
     names = [str(n) for n in (tool_input.get("documents") or [])][:PUSH_MAX]
     if not names:
         frappe.throw(_("Invalid request"))
+    names, refused = direct_push.permitted(names)  # 只推用户同意了的写入计划里的单（一句话下令，A 线 11-11）
     results = [_push_one(name, tool_input) for name in names]
     _settle(results)
-    out = {"results": results}
+    out = {"results": results + refused}
     if any(item.get("status") == direct_push.QUEUED for item in results):
         out["note"] = QUEUED_NOTE
     return direct_push.dumps(out)

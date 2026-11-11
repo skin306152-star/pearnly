@@ -2,11 +2,12 @@
 
 - ``documents``：这家公司这个月能代录的单据（服务端分页，产品各自的来源）；
 - ``precheck``：开录前逐张按产品的写账准备判一遍，要人选的项一次列出（不排写账件）；
+- ``remember``：开始卡里答的题只记下、不开始写；
 - ``intake`` / ``regroup``：资料区上传一张、把一张拖到别的组（产品可选声明）；``task_uploads``：任务里传过的每一份此刻识别到哪
   （``uploads``）；
 - ``task_*``：实操任务的服务端记录（列表、「待处理」里需要你处理的一组、读取、新建、改名 / 置顶、删除、收尾、作答 / 单张重试、整批继续），只给本人看、改
   （``tasks``）；
-- ``start``：建一批：权限由产品判（``products.allowed``，各用自己的角色），批次号在这里发，单据逐张交给产品按直写同一份载荷
+- ``start``（不是页面接口，只经写入计划 `hand_in`）：建一批：权限由产品判（``products.allowed``，各用自己的角色），批次号在这里发，单据逐张交给产品按直写同一份载荷
   准备、加代录标记、交进产品自己的写账队列，派给选定的那台电脑。准备不了的（要人选、主档没有……）照产品原来的口径停在单据上，
   在回包里列出来，其余照交。这家公司录到哪种账本（执行目标，ADR-026）由 ``products.submit`` 按产品声明带进批次信息。
 进度在执行的那台电脑上（CC 窗口经桥看）；每张的结论照产品原来的写账回执回到单据上。
@@ -130,10 +131,23 @@ def regroup(company, doc_id, group):
 SOURCES_MAX = 1000  # 一个月的待录单交一次的上限（超过照实拒，不悄悄截断）
 
 
-def _waiting(company, period, again) -> tuple[list, dict]:
-    """这家公司这个月此刻该交的全部单（按产品的资料顺序）与各自的分组：资料分页取全，去掉人移到「不入账」（skip）的、
-    结果不明还没标的、同一张票已写进 Express 的（``again`` 里人点了「再录一次」的照交）——同开始卡 `docsToStart` 的规则，
-    但不看页面加载了几页。"""
+@frappe.whitelist(methods=["POST"])
+def remember(company, answers):
+    """开始卡里答的题只记下（``{doc_id: [{kind, subject, value, label}]}``，写账前置判定同一套记法，`write_precheck.products.remember`），
+    不开始写：开始只由用户在对话里一句话下令（写入计划）。"""
+    _require(company)
+    answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
+    if not isinstance(answers, dict) or not all(isinstance(rows, list) for rows in answers.values()):
+        frappe.throw(_("Invalid request"))
+    from pearnly_core.write_precheck import products as precheck_products
+
+    return precheck_products.remember(company, {str(doc_id): rows for doc_id, rows in answers.items() if rows})
+
+
+def waiting(company, period, again) -> tuple[list, dict, list]:
+    """这家公司这个月此刻该交的全部单（按产品的资料顺序）、各自的分组、去掉的单 ``[{doc_id, reason}]``：资料分页取全，去掉人移到
+    「不入账」（skip）的、结果不明还没标的、同一张票已写进 Express 的（``again`` 里用户说了「再录一次」的照交）。不看页面加载了几页
+    （第 4 项）。写入计划（`assistant.write_plan`）按它定代录这次写哪几张。"""
     rows, offset = [], 0
     while True:
         found = products.sources(company, str(period or ""), offset, PAGE_MAX)
@@ -147,6 +161,7 @@ def _waiting(company, period, again) -> tuple[list, dict]:
         frappe.throw(_("Invalid request"))
     rows = list({str(row["doc_id"]): row for row in rows}.values())
     candidates = [str(row["doc_id"]) for row in rows if row.get("group") != "skip"]
+    skipped = [{"doc_id": str(row["doc_id"]), "reason": "moved_to_not_entered"} for row in rows if row.get("group") == "skip"]
     held = set()
     for start_at in range(0, len(candidates), BATCH_MAX):
         for doc in products.precheck(company, candidates[start_at:start_at + BATCH_MAX]).get("documents") or []:
@@ -156,18 +171,20 @@ def _waiting(company, period, again) -> tuple[list, dict]:
             written = doc.get("state") == "written" and str(doc.get("doc_id")) not in again
             if unknown or written:
                 held.add(str(doc.get("doc_id")))
+                skipped.append({"doc_id": str(doc.get("doc_id")),
+                                "reason": "last_write_result_unknown" if unknown else "already_entered"})
     doc_ids = [doc_id for doc_id in candidates if doc_id not in held]
     groups = {str(row["doc_id"]): str(row.get("group") or row.get("kind") or "") for row in rows
               if str(row["doc_id"]) in doc_ids and (row.get("group") or row.get("kind"))}
-    return doc_ids, groups
+    return doc_ids, groups, skipped
 
 
-@frappe.whitelist(methods=["POST"])
 def start(company, doc_ids, computer="", start_at=0, answers=None, task="", groups=None, again=None):
-    """``answers``：预检里人定的（``{doc_id: [{kind, subject, value, label}]}``），产品先记下再交代录。``task``：服务端的任务号
-    （``tasks``，批次号就用它，CC 本机进度按它对上），交单结论写进任务、状态转等电脑空闲；``groups``：各张的资料分组（汇报用）。
-    ``again``：开始前卡片上人点了「再录一次」的单（同一张票已写进 Express 的默认跳过，用户 11-09 定；产品交单时按 ``batch["again"]``
-    放行，别的照样跳过）。"""
+    """建一批（不是页面接口：用户 11-10 定代录由用户在对话里一句话下令开始，页面不能直接开始；代录任务只经写入计划
+    `hand_in`，测试锁住不是 whitelist）。``answers``：预检里人定的（``{doc_id: [{kind, subject, value, label}]}``），产品先记下再交代录。
+    ``task``：服务端的任务号（``tasks``，批次号就用它，CC 本机进度按它对上），交单结论写进任务、状态转等电脑空闲；``groups``：各张的
+    资料分组（汇报用）。``again``：用户说了「再录一次」的单（同一张票已写进 Express 的默认跳过，用户 11-09 定；产品交单时按
+    ``batch["again"]`` 放行，别的照样跳过）。有 ``task`` 时交哪些单由服务端按完整待录清单定，只交 ``doc_ids`` 里也有的。"""
     _require(company)
     doc_ids = _ids(doc_ids)
     answers = frappe.parse_json(answers) if isinstance(answers, str) else (answers or {})
@@ -179,8 +196,11 @@ def start(company, doc_ids, computer="", start_at=0, answers=None, task="", grou
         found = tasks.read(task)
         if found["company"] != company or found["status"] != "preparing":
             frappe.throw(_("Invalid request"))
-        # 交哪些单由服务端按这家公司这个月的完整待录清单定（第 4 项，主会话 11-10：页面只交已加载的那几页，第 51 张起漏掉）
-        doc_ids, server_groups = _waiting(company, found["period"], [str(doc_id) for doc_id in again])
+        # 交哪些单由服务端按这家公司这个月的完整待录清单定（第 4 项，主会话 11-10：页面只交已加载的那几页，第 51 张起漏掉）；
+        # 写入计划给的单是这份清单里用户同意写的那几张（`hand_in`），清单外的不交
+        wanted = set(doc_ids)
+        doc_ids, server_groups, _skipped = waiting(company, found["period"], [str(doc_id) for doc_id in again])
+        doc_ids = [doc_id for doc_id in doc_ids if doc_id in wanted]
         if not doc_ids:
             frappe.throw(_("Invalid request"))
         groups = {**server_groups, **{key: value for key, value in groups.items() if key in server_groups}}
@@ -191,6 +211,11 @@ def start(company, doc_ids, computer="", start_at=0, answers=None, task="", grou
         tasks.attach(task, results, groups, str(computer or ""),
                      datetime.fromtimestamp(float(start_at)) if float(start_at or 0) else None)
     return {"batch": batch["id"], "results": results}
+
+
+def hand_in(company, task, doc_ids, again=None) -> dict:
+    """写入计划开始（`assistant.write_plan.start`）：把用户同意写的单交给这个代录任务（同 `start` 的任务路径）。"""
+    return start(company, list(doc_ids), task=task, again=list(again or ()))
 
 
 # ── 实操任务（服务端记录，``tasks``）：只给本人看、改 ─────────────────────────────────────────────

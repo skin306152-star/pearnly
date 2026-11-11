@@ -36,7 +36,7 @@ import frappe
 from frappe import _
 
 from pearnly_core.assistant import (ask, config, context, contracts, engine, engines, notices, prefs, projects, relay,
-                                    sidebar, stopped, timing, titles, toolrun, tools, waits)
+                                    sidebar, stopped, timing, titles, toolrun, tools, waits, write_plan)
 
 SESSION = context.SESSION
 TURN_LOG = "pearnly.assistant.turn"  # 建对话、发送的分段计时（`timing.Steps`，批 A ②）
@@ -179,6 +179,9 @@ def _with_tool_runs(events, row, since=None) -> list:
                            for run in runs if run.status in contracts.TOOL_RUN_STATES]
     except Exception:
         frappe.log_error(title="Assistant tool runs read failed")
+    # 写入计划的状态（`write_plan`：页面据此出「录吧」），增量时带锚点之后改过的（同执行记录前推 FEED_SLACK）
+    after = None if since is None else (contracts.local_time(since, frappe.utils.get_system_timezone()) - notices.FEED_SLACK)
+    events = events + write_plan.feed(row.session_id, after)
     # 挂着等后台结论的调用此刻的进度（`waits`，识别读到第几页），现算并进来
     return events + waits.progress_events(row.session_id)
 
@@ -658,6 +661,7 @@ def delete(session_id) -> None:
 
         notices.detach(locked.session_id, _user())
         stopped.forget(locked.session_id)
+        write_plan.forget(locked.session_id)
         frappe.delete_doc(SESSION, locked.name, ignore_permissions=True)
         files.forget(locked.name)
         return True

@@ -124,7 +124,7 @@ def _install_fakes():
     for part in ("base", "anthropic_managed_agents"):
         setattr(engines, part, _load(f"pearnly_core.assistant.engines.{part}", CORE / f"assistant/engines/{part}.py"))
     for part in ("timing", "config", "tools", "definition", "engine", "context", "ask", "waits", "toolrun", "sidebar", "titles", "stopped",
-                 "relay", "projects"):
+                 "write_plan", "relay", "projects"):
         module = _load(f"pearnly_core.assistant.{part}", CORE / f"assistant/{part}.py")
         setattr(sys.modules["pearnly_core.assistant"], part, module)
     return frappe, sdk
@@ -136,6 +136,11 @@ _stopped = sys.modules["pearnly_core.assistant.stopped"]
 STOPPED_FEED, STOPPED_FORGET = _stopped.feed, _stopped.forget
 _stopped.feed = lambda conversation, since=None: []
 _stopped.forget = lambda conversation: None
+# 写入计划（一句话下令，assistant/write_plan.py）：同上，会话读写的替身库不认它的表；它自己的测试用真函数
+_write_plan = sys.modules["pearnly_core.assistant.write_plan"]
+WRITE_PLAN_FEED, WRITE_PLAN_FORGET = _write_plan.feed, _write_plan.forget
+_write_plan.feed = lambda conversation, since=None: []
+_write_plan.forget = lambda conversation: None
 engines = sys.modules["pearnly_core.assistant.engines"]
 claude = sys.modules["pearnly_core.assistant.engines.anthropic_managed_agents"]
 config = sys.modules["pearnly_core.assistant.config"]
@@ -6472,7 +6477,9 @@ class ModeGateTests(unittest.TestCase):
         self.assertEqual(runs["run1"]["status"], "error")
         result = json.loads(posted[0]["content"][0]["text"])
         self.assertEqual(result["reason"], "wrong_mode")
-        self.assertIn("Start", result["instruction"])
+        # 11-11 一句话下令：代录没有「开始」按钮了，写由写入计划开始（用户同意后）
+        self.assertIn("pearnly_write_plan", result["instruction"])
+        self.assertNotIn("Start on the card", result["instruction"])
         self.assertNotIn("operator", result["instruction"].lower())  # 不给模型可转述给用户的内部名词（11-08 生产）
         self.assertTrue(posted[0]["is_error"])
 
