@@ -47,7 +47,7 @@ def steps(params, camera_code=None):
     return [
         {"name": "说一句建写入计划", "js": JS + "const switched=await toMode('chat'); await until(()=>q('[data-slot=\"cc-chin-company\"]')); "
          f"const picked=await pickCompany({json.dumps(params['title'])}); const sent=await say({json.dumps(params['plan_line'])}); "
-         f"const found=()=>{reply}.find(e=>e.innerText.includes('pearnly_write_plan {{')); await until(()=>!!found(),240); "
+         f"const found=()=>{reply}.find(e=>e.innerText.includes('pearnly_write_plan {{')); await until(()=>!!found()&&found().innerText.includes('\"status\"'),240); "
          "const bubble=found(); const text=bubble?bubble.innerText.slice(bubble.innerText.indexOf('pearnly_write_plan {')):''; "
          f"const status={_field('status')}, plan={_field('plan')}, count={_field('count')}; window.__plan=plan; "
          "await until(()=>!q('[data-slot=\"cc-run-indicator\"]'),80); "
@@ -63,7 +63,7 @@ def steps(params, camera_code=None):
         {"name": "按计划开始", "js": JS + "const plan=window.__plan||''; if(!plan) return {error:'no plan'}; "
          f"const line={json.dumps(params['tag'] + ' [lab-tool]')}+JSON.stringify({{name:'pearnly_write_start', input:{{plan}}}})+'[/lab-tool]'; "
          "const sent=await say(line); "
-         f"const found=()=>{reply}.find(e=>e.innerText.includes('pearnly_write_start {{')); await until(()=>!!found(),240); "
+         f"const found=()=>{reply}.find(e=>e.innerText.includes('pearnly_write_start {{')); await until(()=>!!found()&&found().innerText.includes('\"status\"'),240); "
          "const bubble=found(); const text=bubble?bubble.innerText.slice(bubble.innerText.indexOf('pearnly_write_start {')):''; "
          f"const status={_field('status')}; "
          "await until(()=>!q('[data-slot=\"cc-run-indicator\"]'),80); "

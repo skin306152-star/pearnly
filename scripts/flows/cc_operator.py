@@ -110,7 +110,8 @@ def steps(params, camera_code=None):
         # （网页上没有执行电脑，开始的三道保险由离线测试 tests/test_write_plan.py 锁住）
         {"name": "说一句建写入计划", "js": JS + f"const sent=await say({json.dumps(plan_line)}); "
          "const found=()=>qa('[data-role=\"assistant\"]').find(e=>e.innerText.includes('pearnly_write_plan {')); "
-         "await until(()=>!!found(),240); const bubble=found(); "
+         # 等回复里出现 status 字段再读（11-11：偶发一格读到的是还没画完的气泡，字段全空）
+         "await until(()=>!!found()&&found().innerText.includes('\"status\"'),240); const bubble=found(); "
          # 气泡里工具结果原文之后还可能跟着步骤行的字：按字段取，不整段 JSON.parse
          "const text=bubble?bubble.innerText.slice(bubble.innerText.indexOf('pearnly_write_plan {')):''; "
          "const pick=(k)=>{const m=text.match(new RegExp('\"'+k+'\": ?(\"[^\"]*\"|[0-9]+)')); return m?JSON.parse(m[1]):null;}; "
@@ -118,7 +119,8 @@ def steps(params, camera_code=None):
          "note: pick('note')}:null; "
          "await until(()=>!!q('button.aui-composer-send'),80); "
          "return {sent, replied: !!bubble, status: plan&&plan.status, count: plan&&plan.count, skipped: plan&&plan.skipped_count, "
-         "plan: plan&&plan.plan, note: plan?String(plan.note||'').slice(0,80):'', send: !!q('button.aui-composer-send')};"},
+         "plan: plan&&plan.plan, note: plan?String(plan.note||'').slice(0,80):'', send: !!q('button.aui-composer-send'), "
+         "raw: text.slice(0,160)};"},
         {"name": "删除", "js": JS + "const row=q('[data-slot=\"aui_thread-list-item\"][data-active=\"true\"]'); if(!row) return {error:'row missing'}; "
          "const text=row.innerText.trim(); row.dispatchEvent(new PointerEvent('pointerover',{bubbles:true})); "
          "const more=row.querySelector('[data-slot=\"aui_thread-list-item-more\"]'); if(!more) return {error:'no menu button'}; press(more); "
