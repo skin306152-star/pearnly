@@ -35,6 +35,9 @@ class _Db:
             return None
         raise AssertionError(doctype)
 
+    def commit(self):
+        self.committed = {name: dict(row) for name, row in self.rows.items()}
+
     def exists(self, doctype, name):
         return name in self.rows
 
@@ -140,8 +143,13 @@ class WritePlanTests(unittest.TestCase):
             [d for d in self.docs if d not in ("D007", "D010") or d in again], {},
             [{"doc_id": "D007", "reason": "moved_to_not_entered"}]
             + ([] if "D010" in again else [{"doc_id": "D010", "reason": "already_entered"}]))
-        operator_api.hand_in = lambda company, task, ids, again=(): self.handed.append((company, task, list(ids),
-                                                                                        list(again))) or {"batch": task}
+        def hand_in(company, task, ids, again=()):
+            # 产品交单途中会回滚当前事务：交单前计划的「已开始」必须已经提交（11-11 真模型场景）
+            self.committed_at_hand_in = [row["status"] for row in getattr(FAKE.db, "committed", {}).values()]
+            self.handed.append((company, task, list(ids), list(again)))
+            return {"batch": task}
+
+        operator_api.hand_in = hand_in
         tasks = types.ModuleType("pearnly_core.express_operator.tasks")
         tasks.read = lambda name: {"company": "CO-1", "period": "2026-10"}
         assistant = types.ModuleType("pearnly_core.assistant")
@@ -194,6 +202,7 @@ class WritePlanTests(unittest.TestCase):
         started = self.start(out["plan"])
         self.assertEqual(started["status"], "started")
         self.assertEqual(self.handed, [("CO-1", "OPT-1", out["documents"], [])])
+        self.assertEqual(self.committed_at_hand_in, ["started"])  # 先提交「已开始」再交单
         self.assertEqual(self.start(out["plan"])["status"], "not_awaiting")  # 同一份计划只开始一次
 
     def test_a_document_changed_after_the_plan_is_left_out(self):

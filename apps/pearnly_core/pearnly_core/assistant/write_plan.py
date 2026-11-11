@@ -228,6 +228,9 @@ def start(tool_input) -> dict:
     changed = [doc_id for doc_id in ids if doc_id not in write]
     doc.db_set({"status": STARTED, "started_at": frappe.utils.now_datetime(),
                 "started": json.dumps(write)}, update_modified=True)
+    # 先提交「已开始」再交单：产品交单途中会回滚当前事务重读（Cowork `operator_source.submit`），没提交的状态会被一起回滚，
+    # 任务交出去了、计划却还在等用户点头、「录吧」不消失（11-11 真模型场景代录那遍撞出）
+    frappe.db.commit()
     _announce(doc)
     out = {"status": "started", "plan": doc.name, "count": len(write), "documents": write}
     if changed:
