@@ -209,3 +209,4 @@ apps/pearnly_erp_portal/pearnly_erp_portal/express/contracts.py	เลขตั�
 apps/pearnly_erp_portal/pearnly_erp_portal/express/contracts.py	เลขเครื่อง	数据：按台号码写进 Express 单据行附加说明（ARTRNRM）的标签，与 ERP 打印行下印号（printing/_labels.html 宏 vehicle）同一写法，不进界面
 apps/pearnly_erp_portal/pearnly_erp_portal/express/contracts.py	สี	数据：按台号码写进 Express 单据行附加说明（ARTRNRM）的标签，与 ERP 打印行下印号（printing/_labels.html 宏 vehicle）同一写法，不进界面
 apps/pearnly_core/pearnly_core/mrerp/push/operator_draft.py	*	数据：MR.ERP 网页表单税率选项的泰文原文（与导入模板同值），按原字面交 CC 桌面版选项，不进界面
+apps/pearnly_erp_portal/pearnly_erp_portal/collection/contracts.py	*	数据：按 Express 收款类型（ISRUN ZR）名称里的泰文字判断给不给收款员选（ส่วนลดเงินสด / เช็ค / ภาษีถูกหัก / หัก ณ ที่จ่าย / โอนเข้าบัญชี / เงินสด），只用于比对，不进界面
