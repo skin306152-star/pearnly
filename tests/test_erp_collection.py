@@ -975,7 +975,7 @@ class WebPage(Base):
         hooks = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")
         self.assertIn("('erp.nav.collections', 'pearnly-collections', 'receipt-text', 'sales')", hooks)
         self.assertIn('"pearnly-collections": ["Export"],', hooks)
-        self.assertIn('"kinds": ["express_masters", "express_marks", "express_ar_open"]', hooks)
+        self.assertIn('"kinds": ["express_masters", "express_marks", "express_doc_check", "express_ar_open"]', hooks)
         page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js").read_text(encoding="utf-8")
         self.assertNotIn("set_primary_action", page)
         self.assertNotIn("limit: 0", page)
