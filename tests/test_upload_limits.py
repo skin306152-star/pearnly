@@ -111,6 +111,41 @@ class BenchConfigTests(unittest.TestCase):
         for path in (ROOT / "scripts/regression/lab_init.py", ROOT / "infrastructure/testenv/finish-start.py"):
             self.assertIn("upload_limits.bench_values(", path.read_text(encoding="utf-8"), path.name)
 
+    def _finish_start(self, with_module):
+        """测试机收尾 `finish-start.configure()`：镜像里有 / 没有 `originals.upload_limits` 时各跑一次，返回写下的配置与日志。"""
+        finish = _load("upload_limits_finish_start", ROOT / "infrastructure/testenv/finish-start.py")
+        sites = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, sites)
+        # 识别限额已在（不走写 Redis 那一段）
+        (sites / "common_site_config.json").write_text(json.dumps({"pearnly_ocr_budget": {"concurrency": 8}}))
+        finish.SITES = sites
+        package = types.ModuleType("pearnly_core.originals")
+        package.__path__ = []
+        if with_module:
+            package.upload_limits = _load("pearnly_core.originals.upload_limits", CORE / "originals/upload_limits.py")
+        saved = {name: sys.modules.get(name) for name in ("pearnly_core.originals", "pearnly_core.originals.upload_limits")}
+        sys.modules["pearnly_core.originals"] = package
+        if not with_module:
+            sys.modules.pop("pearnly_core.originals.upload_limits", None)
+        self.addCleanup(lambda: [sys.modules.pop(name, None) if module is None else sys.modules.__setitem__(name, module)
+                                 for name, module in saved.items()])
+        logged = []
+        finish.log = logged.append
+        finish.configure()
+        return json.loads((sites / "common_site_config.json").read_text()), logged
+
+    def test_the_test_machine_writes_the_limit_once_the_source_has_it(self):
+        data, _logged = self._finish_start(with_module=True)
+        self.assertEqual(data["max_file_size"], rules.UPLOAD_REQUEST_MAX_BYTES)
+
+    def test_the_test_machine_starts_on_an_image_that_predates_the_limit(self):
+        # 11-11：lab-start 先只用线上镜像起栈收尾、再挂实时源码；镜像比这个分支旧时收尾导入不到 upload_limits，整个 lab-start
+        # 失败（域名没切）。没有就跳过、照常写其余配置，挂上实时源码后的那次收尾再写（与线上没换镜像时一样是 25MB）
+        data, logged = self._finish_start(with_module=False)
+        self.assertNotIn("max_file_size", data)
+        self.assertEqual(data["pearnly_ocr_budget_redis"], "redis://redis-queue:6379/6")
+        self.assertTrue(any("upload_limits" in line for line in logged), logged)
+
 
 class ProxyTests(unittest.TestCase):
     def test_the_proxies_in_front_let_the_largest_request_through(self):

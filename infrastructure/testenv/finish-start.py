@@ -78,10 +78,15 @@ def configure() -> None:
             workers[queue] = {**entry, "timeout": timeout}
             changed.append(f"workers.{queue}.timeout")
     data["workers"] = workers
-    # 请求体上限同线上（`pearnly_core.originals.upload_limits`，激活时写；没配时 Frappe 只收 25MB）
-    from pearnly_core.originals import upload_limits
-
-    if upload_limits.bench_values(data) != data:
+    # 请求体上限同线上（`pearnly_core.originals.upload_limits`，激活时写；没配时 Frappe 只收 25MB）。
+    # lab-start 先只用镜像起栈收尾、再挂实时源码再收尾一次：镜像比源码旧时这里还没有这个模块，跳过，挂上源码那次再写
+    # （与线上还没换到这一版镜像时一样）；11-11 测试机 lab-start 就是在这里整个失败、域名没切。
+    try:
+        from pearnly_core.originals import upload_limits
+    except ImportError:
+        upload_limits = None
+        log("· 运行配置：镜像里还没有 upload_limits，请求体上限等挂上实时源码后再写")
+    if upload_limits and upload_limits.bench_values(data) != data:
         data = upload_limits.bench_values(data)
         changed.append("max_file_size")
     if changed:
