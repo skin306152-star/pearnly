@@ -137,6 +137,8 @@ At most 5 photos per entry,1記録につき写真は5枚までです
 At most {0} photos per entry,1 件あたり写真は最大 {0} 枚です
 At time of due date,期限時
 Attach,添付
+Attached a transfer slip,振込明細を添付しました
+Attaching a transfer slip,振込明細を添付しています
 Attachment,添付ファイル
 Attachment Type,添付ファイルの種類
 Attachments,添付ファイル
@@ -256,9 +258,11 @@ Chassis No,車台番号
 Check sheet,照合表
 Check the opening stock row,この期首明細を確認してください
 Checkbox,チェックボックス
+Checked a collection,入金の結果を確認しました
 Checked pending items,処理待ちの項目を確認しました
 Checked push choices,送信前の選択項目を確認しました
 Checked push results,送信結果を確認しました
+Checking a collection,入金の結果を確認しています
 Checking pending items,処理待ちの項目を確認しています
 Checking push choices,送信前の選択項目を確認しています
 Checking push results,送信結果を確認しています
@@ -792,10 +796,16 @@ List Price,表示価格
 List actions,リストの操作
 List archived,リストをアーカイブしました
 List name,リスト名
+Listed collection methods,入金方法を確認しました
+Listed collections,入金の一覧を確認しました
 Listed companies,会社一覧を表示
 Listed documents,書類を一覧しました
+Listed open invoices,未入金の請求書を確認しました
 Listed stock counts,棚卸の一覧を確認しました
+Listing collection methods,入金方法を確認しています
+Listing collections,入金の一覧を確認しています
 Listing documents,書類を一覧しています
+Listing open invoices,未入金の請求書を確認しています
 Listing stock counts,棚卸の一覧を確認しています
 Loading...,読み込み中…
 Location,保管場所
@@ -1187,9 +1197,11 @@ Record only,記帳のみ
 Record purchases,仕入入力
 Record sales,売上入力
 Recorded,記録しました
+Recorded a collection,入金を記録しました
 Recorded a count,実数を記録しました
 Recorded {0} opening row(s); skipped {1} already recorded row(s),期首在庫を{0}行登録しました。登録済みの{1}行はスキップしました
 Recorded · pending write,記録済み · 書き込み待ち
+Recording a collection,入金を記録しています
 Recording a count,実数を記録しています
 Recount this product,この商品を再棚卸
 Recurring,繰り返し
@@ -1262,10 +1274,12 @@ Save Draft,下書きを保存
 Save and next,保存して次へ
 Save this to the company's notes?,会社のノートに保存しますか？
 Saved,保存しました
+Saved a collection draft,入金の下書きを保存しました
 Saved a company note,会社メモを保存
 Saved push choices,送信の選択を保存しました
 Saved {0},{0} を保存しました
 Saved. Scan the next item.,保存しました。次の商品を読み取ってください。
+Saving a collection draft,入金の下書きを保存しています
 Saving push choices,送信の選択を保存しています
 Scan,スキャン
 Scan a code,コードをスキャン
@@ -1284,6 +1298,8 @@ Search by receipt number,レシート番号で検索
 Search cards,カードを検索
 Search name or barcode,名前・バーコードで検索
 "Search name, code or barcode",名前・コード・バーコードで検索
+Searched customers for a collection,入金の顧客を検索しました
+Searching customers for a collection,入金の顧客を検索しています
 Second No,第二番号
 Secondary No,副番号
 Select,選択
@@ -1773,8 +1789,10 @@ Value Change,金額変動
 Vehicle,車両
 Vehicles,自動車
 View,表示
+Viewed a collection,入金を確認しました
 Viewed a document,書類を確認しました
 Viewed a stock count,棚卸結果を確認しました
+Viewing a collection,入金を確認しています
 Viewing a document,書類を確認しています
 Viewing a stock count,棚卸結果を確認しています
 Visibility,公開範囲
@@ -1814,7 +1832,9 @@ Who can comment,コメントできる人
 Whole document taxed,会計データの設定どおり全体に課税
 With differences,差異あり
 Withdraw,取り下げ
+Withdrawing a collection,入金を取り下げています
 Withdrawn,取り消し済み
+Withdrew a collection,入金を取り下げました
 Withholding Tax,源泉税
 Withholding Tax Certificate,源泉徴収証明書
 Withholding Tax Rate,源泉徴収税率

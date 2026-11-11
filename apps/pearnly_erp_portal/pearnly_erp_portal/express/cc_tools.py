@@ -265,7 +265,12 @@ def _route(kind, name, row) -> str:
     return ""
 
 
+COLLECTION_NOTE = "This is a collection: record it with erp_collection_push."
+
+
 def _push_one(document, tool_input) -> dict:
+    if str(document or "").startswith("R:"):  # 写入计划里的收款（`collection.plan`）由收款工具放行
+        return {**direct_push.not_found(document), "note": COLLECTION_NOTE}
     kind, name = _parse(document)
     row = _row(kind, name, write=True) if kind else None
     if row is None:
