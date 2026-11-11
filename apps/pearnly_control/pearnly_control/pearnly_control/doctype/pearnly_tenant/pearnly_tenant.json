@@ -10,6 +10,8 @@
   "status",
   "ocr_engine",
   "column_break_main",
+  "account_username",
+  "products",
   "contact_name",
   "contact_phone",
   "section_notes",
@@ -46,6 +48,20 @@
    "fieldtype": "Column Break"
   },
   {
+   "fieldname": "account_username",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Username",
+   "read_only": 1
+  },
+  {
+   "fieldname": "products",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Product",
+   "read_only": 1
+  },
+  {
    "fieldname": "contact_name",
    "fieldtype": "Data",
    "label": "Contact Name"
@@ -67,7 +83,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-01 12:00:00.000000",
+ "modified": "2026-11-11 17:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Control",
  "name": "Pearnly Tenant",

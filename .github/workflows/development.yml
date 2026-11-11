@@ -121,6 +121,8 @@ jobs:
         run: python3 tests/test_control_line_guide.py
       - name: Onboarding readback checks the account profile layout new sites get
         run: python3 tests/test_site_step_profile_layout.py
+      - name: Control-plane tenant list shows the username and products
+        run: python3 tests/test_control_tenant_list_summary.py
       - name: Verify each product declares its own feature catalog
         run: python3 tests/test_product_feature_catalog.py
       - name: Verify LIFF IDs are stored as IDs, not URLs
