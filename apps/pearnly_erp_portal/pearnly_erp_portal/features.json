@@ -15,6 +15,7 @@
     "客户表归销售岗位（ERP Sales）：销售要能被开单侧选中，也能建/改买方；收银要能选客户开单，所以在客户表上只读。",
     "空 doctypes = 只建角色、暂不授权（表在后续批次落地）。岗位要先于表存在，否则团队管理里勾不到这个岗位。",
     "任务管理（看板，2026-10-23 从 Cowork 复制）：看板几张表对岗位一律只读，写只走 work 的专用接口；能看 / 改哪块看板再按看板成员与可见范围判。员工在团队管理里逐人勾「任务管理」。",
+    "收款（ERP Collection，11-11）：收款员只在 LINE / CC 录收款，记录在岗位上只读（写只走 collection.service），行再按本人与公司过滤；网页收款页给销售岗位与管理员看（collection.view，不经这个功能角色）。",
     "物料分类（ERP Product Category，11-01）：物料岗位与库存岗位（盘点里就地新建物料时要能建分类）给可写，采购 / 销售 / 收银只读；控制器再按能力判（新建要 products.manage 或 count.write，改名 / 停用 / 删只给 products.manage）。"
   ],
   "features": [
@@ -223,6 +224,21 @@
         "ERP Work Field",
         "ERP Work Mirror",
         "ERP Work Rule"
+      ]
+    },
+    {
+      "code": "collection",
+      "label": "Collections",
+      "default_on": true,
+      "description": "Collectors record customer payments in LINE or CC; written to Express as receipts",
+      "role": "ERP Collector",
+      "doctypes": [
+        "ERP Collection",
+        "ERP Company"
+      ],
+      "read_only": [
+        "ERP Collection",
+        "ERP Company"
       ]
     },
     {

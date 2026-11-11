@@ -300,6 +300,7 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/sales-viewer.js"),
     versioned_asset("pearnly_erp_portal", "desk/sales-form.js"),
     versioned_asset("pearnly_erp_portal", "desk/sales.js"),
+    versioned_asset("pearnly_erp_portal", "desk/collections.js"),
     versioned_asset("pearnly_erp_portal", "desk/suppliers.js"),
     versioned_asset("pearnly_erp_portal", "desk/clients.js"),
     versioned_asset("pearnly_erp_portal", "desk/cashier.js"),
@@ -354,7 +355,9 @@ scheduler_events = {
     # 写进 Express 的单：停下的、会自己好的再准备一次（结果由写账队列直接交回，不轮询；没有要看的就一条查询）
     "cron": {"* * * * *": ["pearnly_erp_portal.express.push.poll",
                            # 排着的 Express 主档同步：按顺序发起读取、读好了排后台任务落库（没有排着的就一条查询）
-                           "pearnly_erp_portal.express.masters.advance"],
+                           "pearnly_erp_portal.express.masters.advance",
+                           # 收款：发起过的未收清发票读取读好了就落进快照（没有发起过就一次缓存读）
+                           "pearnly_erp_portal.collection.snapshot.advance"],
              # Express 主档有改动就跟上：请电脑看一眼主档表的文件属性，变了才整套同步（每家一件很轻的请求）
              "*/10 * * * *": ["pearnly_erp_portal.express.masters.check_marks"],
              # 任务管理：按卡片的提醒时间发到期提醒、到期后发一次过期提醒（同一到期时刻每人各一次）
@@ -369,7 +372,8 @@ pearnly_cc_desktop = {
     "job_changed": "pearnly_erp_portal.express.desktop.job_changed",
     # 电脑报来的账套名单变了：按账套自动建公司、排主档同步（`express.companies`）
     "books_changed": "pearnly_erp_portal.express.companies.books_changed",
-    "kinds": ["express_masters", "express_marks", "express_doc_check"],
+    # express_ar_open（11-11 收款）：一本账套的未收清发票（共用层接受这一种由 CC 桌面版那一批加）
+    "kinds": ["express_masters", "express_marks", "express_doc_check", "express_ar_open"],
 }
 # MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7 条）：ERP 接 MR.ERP 当账本（`mrerp`）开着才声明；关着时与以前一样回 unsupported
 from pearnly_erp_portal import mrerp as _mrerp  # noqa: E402
@@ -406,6 +410,8 @@ pearnly_navigation = [{'product': 'erp',
             ('nav.purchase', 'pearnly-purchase', 'shopping-cart', 'purchase'),
             ('nav.suppliers', 'pearnly-suppliers', 'store', 'purchase'),
             ('nav.sales', 'pearnly-sales', 'receipt-text', 'sales'),
+            # 收款（11-11）：收款员在 LINE / CC 录、写进 Express RE；这一页只看、导出、看凭证（销售岗位与管理员）
+            ('erp.nav.collections', 'pearnly-collections', 'receipt-text', 'sales'),
             ('nav.cashier', 'pearnly-cashier', 'shopping-cart', 'cashier'),
             ('nav.posReceipts', 'pearnly-pos-receipts', 'receipt-text', 'cashier'),
             ('nav.posShifts', 'pearnly-pos-shifts', 'clipboard-list', 'cashier'),
@@ -427,6 +433,7 @@ pearnly_navigation = [{'product': 'erp',
                 'pearnly-purchase',
                 'pearnly-suppliers',
                 'pearnly-sales',
+                'pearnly-collections',
                 'pearnly-clients',
                 'pearnly-cashier',
                 'pearnly-pos-receipts',
@@ -477,6 +484,7 @@ pearnly_navigation = [{'product': 'erp',
              ('nav.group.sales',
               'receipt-text',
               ['pearnly-sales',
+               'pearnly-collections',
                'pearnly-cashier',
                'pearnly-pos-receipts',
                'pearnly-pos-shifts',
@@ -517,6 +525,7 @@ pearnly_navigation = [{'product': 'erp',
     "pearnly-products": ["product.action.new", "product.action.import", "product.action.submit"],
     "pearnly-purchase": ["Submit", "Express", "Payment", "Amend", "Cancel", "substitute_receipt", "wht_cert", "Print", "New", "Delete", "Export"],
     "pearnly-sales": ["Submit", "Express", "Collection", "Cancel", "Print", "New", "Delete", "Export"],
+    "pearnly-collections": ["Export"],
     "pearnly-stock-count": ["stock.count.new", "stock.count.start", "stock.count.close", "stock.count.adjust", "nav.stockAdjust",
                             "stock.action.export", "Express", "Print"],
     "pearnly-stock-in": ["trade.newIn", "trade.newOut", "trade.newTransfer", "trade.newAdjust", "trade.action.submit"],
@@ -554,6 +563,9 @@ for _key in ("home", "profile"):
 # LINE 只在本人的「个人信息」里绑（用户 2026-09-25），所以勾了 LINE 的人一定进得去那一页。
 from pearnly_erp_portal.access import rules as _rules
 pearnly_navigation[0]["permissions"][_menu_permissions.route("profile")]["any_role"].append(_rules.LINE_ROLE)
+# 收款页（11-11）：与接口同一判据 `collection.view`——销售岗位（菜单岗位与旧功能角色）和 ERP 管理员；收款员只录不看这一页
+pearnly_navigation[0]["permissions"]["pearnly-collections"] = {
+    "any_role": [*_menu_permissions.page_roles("sales"), _rules.ADMIN_ROLE]}
 # 任务管理的默认看板（团队可见、默认三列）在装好 / 升级后建好。
 after_install = ["pearnly_erp_portal.access.setup.sync_roles", "pearnly_erp_portal.team.login_settings.apply",
                  "pearnly_erp_portal.work.service.ensure_on_migrate"]
@@ -574,6 +586,9 @@ for _doctype in ("ERP Sale", "ERP Shift"):
     has_permission[_doctype] = "pearnly_erp_portal.cashier.access.record_permission"
     permission_query_conditions[_doctype] = "pearnly_erp_portal.cashier.access.record_query"
 has_permission["ERP POS Terminal"] = "pearnly_erp_portal.cashier.access.terminal_permission"
+# 收款记录：原生只读（收款员看自己的、能看收款的看本公司的；写只走 `collection.service`），凭证私有文件跟它判
+has_permission["ERP Collection"] = "pearnly_erp_portal.collection.access.record_permission"
+permission_query_conditions["ERP Collection"] = "pearnly_erp_portal.collection.access.record_query"
 # 主档按公司（`masters.access.master_query`）：从 Express 同步来的档只在那家公司看得到
 for _doctype, _query in (("ERP Customer", "customer_query"), ("ERP Supplier", "supplier_query"),
                          ("ERP Product", "product_query")):

@@ -22,7 +22,8 @@ CATALOG = {
                  ("Purchase Document", "ERP Purchase Attachment", "ERP Purchase Payment", "ERP LINE Intake"),
                  ("ERP Supplier", "ERP Purchase Settings", "ERP Purchase Category", *SERIALS)),
     "suppliers": ("purchase", "ERP Purchase", ("suppliers.read", "suppliers.write", "tax.lookup"), ("ERP Supplier",), ()),
-    "sales": ("sales", "ERP Sales", ("sales.read", "sales.write"),
+    # 销售岗位同时看得到「收款」页（`collection.view`，评估 2026-11-11；收款员是另一个岗位，只录不看这一页）
+    "sales": ("sales", "ERP Sales", ("sales.read", "sales.write", "collection.view"),
               ("ERP Sales Document", "ERP Sales Attachment", "ERP LINE Intake"), ("ERP Customer", *SERIALS)),
     "cashier": ("cashier", "ERP Cashier", ("cashier.read", "cashier.write", "customers.read"), ("ERP Sale", "ERP Shift"),
                 ("ERP Customer", *SERIALS)),

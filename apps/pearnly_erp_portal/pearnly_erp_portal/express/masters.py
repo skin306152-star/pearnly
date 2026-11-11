@@ -183,7 +183,8 @@ def check_marks():
         if made is not None and made["status"] != "done":
             continue  # 上一次的还在排 / 在读
         if made is not None:
-            seen = _mark(made)
+            seen, data = _mark(made)
+            _ar_changed(row.name, book, data)
             last = frappe.db.get_value(COMPANY, row.name, ["express_mark", "express_book"], as_dict=True) or {}
             if seen and (seen != last.get("express_mark") or (last.get("express_book") or "") != book["label"][:140]):
                 queue(row.name)
@@ -192,12 +193,27 @@ def check_marks():
 
 
 def _mark(made):
+    """看标记那一件的结果：``(主档标记, 整份结果)``；读不出回 ``("", {})``。"""
     content, _meta = requests.result(made["request"])
     requests.drop(made["request"])
     try:
-        return str(json.loads(gzip.decompress(content or b"")).get("mark") or "")
+        data = json.loads(gzip.decompress(content or b""))
+        return str(data.get("mark") or ""), data
     except (OSError, ValueError, AttributeError):
-        return ""
+        return "", {}
+
+
+def _ar_changed(company, book, data):
+    """同一份结果里的应收标记（``ar_mark``，收款）：变了就请电脑整本读一次未收清发票（`collection.snapshot`）。出错不影响主档；
+    旧版 CC 桌面版不报这一项，什么都不做。"""
+    if not isinstance(data, dict) or not data.get("ar_mark"):
+        return
+    try:
+        from pearnly_erp_portal.collection import snapshot
+
+        snapshot.marks_seen(company, book, data)
+    except Exception:  # noqa: BLE001  收款快照只是顺手，出错只记日志
+        frappe.log_error(title="ERP receivable mark check failed")
 
 
 def start(company):
