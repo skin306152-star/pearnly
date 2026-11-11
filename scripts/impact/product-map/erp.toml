@@ -2027,3 +2027,103 @@ anchor = "tool:erp:pearnly_write_start"
 group = "cc.tool.pearnly_write_start"
 where = "CC 工具 pearnly_write_start"
 tests = ["unit:tests/test_write_plan.py::test_writing_starts_only_after_the_user_answered_the_plan"]
+
+[[row]]
+id = "erp.cc.tool.erp_collection_customers"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_collection_customers"
+where = "CC 工具 erp_collection_customers（收款第 4 步：找收款客户）"
+tests = ["unit:tests/test_erp_collection_cc.py::test_customers_invoices_and_methods_come_from_the_service"]
+
+[[row]]
+id = "erp.cc.tool.erp_collection_invoices"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_collection_invoices"
+where = "CC 工具 erp_collection_invoices（收款第 4 步：客户未收清的发票（扣掉别人已录的））"
+tests = ["unit:tests/test_erp_collection_cc.py::test_customers_invoices_and_methods_come_from_the_service"]
+
+[[row]]
+id = "erp.cc.tool.erp_collection_methods"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_collection_methods"
+where = "CC 工具 erp_collection_methods（收款第 4 步：这本账套能用的收款方式）"
+tests = ["unit:tests/test_erp_collection_cc.py::test_customers_invoices_and_methods_come_from_the_service"]
+
+[[row]]
+id = "erp.cc.tool.erp_collection_draft"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_collection_draft"
+where = "CC 工具 erp_collection_draft（收款第 4 步：建 / 改收款草稿，回确认卡与写入计划单号）"
+tests = ["unit:tests/test_erp_collection_cc.py::test_draft_plan_answer_start_release"]
+
+[[row]]
+id = "erp.cc.tool.erp_collection_voucher"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_collection_voucher"
+where = "CC 工具 erp_collection_voucher（收款第 4 步：对话附件当转账凭证挂到草稿）"
+tests = ["unit:tests/test_erp_collection_cc.py::test_a_missing_slip_is_not_ready_until_attached"]
+
+[[row]]
+id = "erp.cc.tool.erp_collection_card"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_collection_card"
+where = "CC 工具 erp_collection_card（收款第 4 步：看一笔收款的确认卡）"
+tests = ["unit:tests/test_erp_collection_cc.py::test_the_card_reads_back_the_latest_version"]
+
+[[row]]
+id = "erp.cc.tool.erp_collection_push"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_collection_push"
+where = "CC 工具 erp_collection_push（收款第 4 步：按用户同意的写入计划放行收款（写成 Express RE））"
+tests = ["unit:tests/test_erp_collection_cc.py::test_draft_plan_answer_start_release"]
+
+[[row]]
+id = "erp.cc.tool.erp_collection_status"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_collection_status"
+where = "CC 工具 erp_collection_status（收款第 4 步：一笔收款的结果）"
+tests = ["unit:tests/test_erp_collection_cc.py::test_written_and_failed_results"]
+
+[[row]]
+id = "erp.cc.tool.erp_collection_list"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_collection_list"
+where = "CC 工具 erp_collection_list（收款第 4 步：本人最近的收款）"
+tests = ["unit:tests/test_erp_collection_cc.py::test_written_and_failed_results"]
+
+[[row]]
+id = "erp.cc.tool.erp_collection_withdraw"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_collection_withdraw"
+where = "CC 工具 erp_collection_withdraw（收款第 4 步：撤回没被电脑领走的收款）"
+tests = ["unit:tests/test_erp_collection_cc.py::test_withdraw_a_draft_and_a_released_one"]
