@@ -2041,3 +2041,47 @@ Failed	失败	ไม่สำเร็จ	失敗	erp.collection.status.failed
 Withdrawn	已撤回	ยกเลิกแล้ว	取り消し済み	erp.collection.status.withdrawn
 LINE	LINE	LINE	LINE	erp.collection.source.line
 CC	CC	CC	CC	erp.collection.source.cc
+My collections	我的收款	การรับชำระของฉัน	自分の入金	erp.nav.myCollections
+Record collections	收款录入	บันทึกรับชำระ	入金入力
+Record customer payments	记录客户付款	บันทึกเงินที่รับจากลูกค้า	顧客の入金を記録
+Type the customer code or part of the name	输入客户编号或名称	พิมพ์รหัสหรือชื่อลูกค้า	顧客コードまたは名前を入力してください
+No open invoices	没有未收清的发票	ไม่มีใบแจ้งหนี้ค้างชำระ	未入金の請求書はありません
+Reading from Express	正在读取 Express	กำลังอ่านข้อมูลจาก Express	Express から読み込み中
+Choose invoices	选择发票	เลือกใบแจ้งหนี้	請求書を選択
+Select	选择	เลือก	選択
+Selected	已选	เลือกแล้ว	選択済み
+Due {0}	未收 {0}	ค้างชำระ {0}	未入金 {0}
+{0} selected · total {1}	已选 {0} 张 · 合计 {1}	เลือก {0} ใบ · รวม {1}	{0} 件選択 · 合計 {1}
+Choose at least one invoice	请至少选择一张发票	กรุณาเลือกใบแจ้งหนี้อย่างน้อย 1 ใบ	請求書を1件以上選択してください
+Received {0} · due {1}	已收 {0} · 还差 {1}	รับแล้ว {0} · ค้าง {1}	受領 {0} · 残り {1}
+Choose the collection method	选择收款方式	เลือกวิธีรับชำระ	入金方法を選択してください
+Enter the amount for {0}	输入{0}的金额	พิมพ์จำนวนเงินของ {0}	{0} の金額を入力してください
+Enter a valid amount	请输入有效金额	กรุณาพิมพ์จำนวนเงินที่ถูกต้อง	正しい金額を入力してください
+More than the amount due {0}. Enter the amount again	超过未收金额 {0}，请重新输入	เกินยอดค้างชำระ {0} กรุณาพิมพ์ใหม่	未入金額 {0} を超えています。もう一度入力してください
+More than the amount due. Enter the amount again	超过未收金额，请重新输入	เกินยอดค้างชำระ กรุณาพิมพ์ใหม่	未入金額を超えています。もう一度入力してください
+Send a photo of the transfer slip	请发送转账凭证照片	กรุณาส่งรูปสลิปการโอน	振込明細の写真を送ってください
+Add a method	再加一种方式	เพิ่มวิธีรับชำระ	方法を追加
+Collect later	下次再收	รับครั้งหน้า	次回に回収
+Oldest first	先收早的	ใบเก่าก่อน	古い順
+Enter each	逐张输入	ระบุทีละใบ	1件ずつ入力
+Which invoice keeps the balance?	哪张发票留余额？	ใบแจ้งหนี้ใบใดเหลือยอดค้าง?	残高を残す請求書は？
+Total {0} does not match {1}	合计 {0} 与已收 {1} 不符	ยอดรวม {0} ไม่ตรงกับยอดรับ {1}	合計 {0} が受領額 {1} と一致しません
+Confirm collection	确认收款	ยืนยันการรับชำระ	入金の確認
+Withdraw	撤回	ถอนรายการ	取り下げ
+The collection changed. Check it again	收款内容已变更，请重新确认	รายการรับชำระเปลี่ยนแปลงแล้ว กรุณาตรวจสอบอีกครั้ง	入金内容が変更されました。もう一度確認してください
+Written to Express: {0}	已写入 Express：{0}	บันทึกลง Express แล้ว: {0}	Express に書き込みました：{0}
+Not written to Express: {0}	未写入 Express：{0}	ไม่ได้บันทึกลง Express: {0}	Express に書き込めませんでした：{0}
+Already collected. Current balance:	已被收款，当前余额：	มีการรับชำระแล้ว ยอดคงเหลือปัจจุบัน:	入金済みです。現在の残高：
+Recorded · pending write	已记录 · 待写入	บันทึกแล้ว · รอบันทึกลง Express	記録済み · 書き込み待ち
+This account cannot record collections	此账号不能录收款	บัญชีนี้บันทึกการรับชำระไม่ได้	このアカウントは入金を記録できません
+Could not record this collection	无法录入此收款	บันทึกการรับชำระนี้ไม่ได้	この入金を記録できません
+This invoice is no longer open	此发票已收清	ใบแจ้งหนี้นี้ชำระครบแล้ว	この請求書は入金済みです
+This collection method is not available	此收款方式不可用	วิธีรับชำระนี้ใช้ไม่ได้	この入金方法は使えません
+Cash is not set up for this account set	此账套未设置现金科目	ชุดบัญชีนี้ยังไม่ได้ตั้งบัญชีเงินสด	この帳簿には現金科目がありません
+Enter the amount received	输入已收金额	พิมพ์จำนวนเงินที่รับ	受け取った金額を入力してください
+This collection cannot be withdrawn	此收款不能撤回	ถอนรายการรับชำระนี้ไม่ได้	この入金は取り下げできません
+This collection cannot be changed	此收款不能修改	แก้ไขรายการรับชำระนี้ไม่ได้	この入金は変更できません
+CC Desktop is writing this collection	CC 桌面版正在写入此收款	CC เดสก์ท็อปกำลังบันทึกรายการนี้	CC デスクトップがこの入金を書き込み中です
+Salesman	销售员	พนักงานขาย	営業担当
+This salesman is not available	此销售员不可用	พนักงานขายนี้ใช้ไม่ได้	この営業担当は使えません
+This department is not available	此部门不可用	แผนกนี้ใช้ไม่ได้	この部門は使えません

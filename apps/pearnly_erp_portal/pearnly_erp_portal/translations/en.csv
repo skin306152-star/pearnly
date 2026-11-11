@@ -61,6 +61,7 @@ Add a count,Add a count
 Add a count — {0},Add a count — {0}
 Add a field,Add a field
 Add a link,Add a link
+Add a method,Add a method
 Add all and issue,Add all and issue
 Add all and receive,Add all and receive
 Add an item,Add an item
@@ -96,6 +97,7 @@ All companies,All companies
 All labels,All labels
 All record only,All record only
 All the items have been already returned.,All the items have been already returned.
+Already collected. Current balance:,Already collected. Current balance:
 Already exists,Already exists
 Already received,Already received
 Already recorded:,Already recorded:
@@ -203,6 +205,7 @@ CC Desktop could not read this invoice. Check the fields and submit again,CC Des
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC Desktop has not been given this account set. Check the account sets in CC Desktop
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
 CC Desktop is out of date. Update CC Desktop and submit again,CC Desktop is out of date. Update CC Desktop and submit again
+CC Desktop is writing this collection,CC Desktop is writing this collection
 CC Desktop needs an update,CC Desktop needs an update
 CC Desktop not connected,CC Desktop not connected
 Calculation Version,Calculation Version
@@ -231,6 +234,7 @@ Cash Check,Cash Check
 Cash Difference,Cash Difference
 Cash account not set,Cash account not set
 Cash basis,Cash basis
+Cash is not set up for this account set,Cash is not set up for this account set
 Cashier,Cashier
 Cashier (POS),Cashier (POS)
 Cashier Records,Cashier Records
@@ -268,10 +272,13 @@ Choose a file to import,Choose a file to import
 Choose a local opening stock file,Choose a local opening stock file
 Choose an existing product for opening stock,Choose an existing product for opening stock
 Choose an image attached to this card,Choose an image attached to this card
+Choose at least one invoice,Choose at least one invoice
 Choose at least one job role,Choose at least one job role
 Choose file,Choose file
+Choose invoices,Choose invoices
 Choose purchase or sales first,Choose purchase or sales first
 Choose purchase or sales for this invoice and submit again,Choose purchase or sales for this invoice and submit again
+Choose the collection method,Choose the collection method
 Choose the company,Choose the company
 Choose the customer,Choose the customer
 Choose the inventory account group for this account set first.,Choose the inventory account group for this account set first.
@@ -306,6 +313,7 @@ Code expired,Code expired
 Code or barcode,Code or barcode
 Codes start at {0},Codes start at {0}
 Collapse list,Collapse list
+Collect later,Collect later
 Collected {0},Collected {0}
 Collection,Collection
 Collection Date,Collection Date
@@ -335,6 +343,7 @@ Completed,Completed
 Computer offline,Computer offline
 Confirm,Confirm
 Confirm and record,Confirm and record
+Confirm collection,Confirm collection
 Confirm opening stock,Confirm opening stock
 Confirm the document before recording a payment,Confirm the document before recording a payment
 Confirmed a push result,Confirmed a push result
@@ -359,6 +368,7 @@ Cost of goods sold not set,Cost of goods sold not set
 Could not connect to MR.ERP,Could not connect to MR.ERP
 Could not read the MR.ERP master data.,Could not read the MR.ERP master data.
 Could not read this document. Please send it again.,Could not read this document. Please send it again.
+Could not record this collection,Could not record this collection
 Could not record this document. Please try again.,Could not record this document. Please try again.
 Could not record: {0},Could not record: {0}
 Could not sign in to MR.ERP. Check the connection's username and password,Could not sign in to MR.ERP. Check the connection's username and password
@@ -511,6 +521,7 @@ Due this week,Due this week
 Due time,Due time
 Due today,Due today
 Due today or tomorrow,Due today or tomorrow
+Due {0},Due {0}
 Duplicate location,Duplicate location
 Duplicate location code,Duplicate location code
 ERP,ERP
@@ -547,16 +558,20 @@ Enter a link that starts with http:// or https://,Enter a link that starts with 
 Enter a number of days from 0 to 365,Enter a number of days from 0 to 365
 Enter a quantity,Enter a quantity
 Enter a tax ID first,Enter a tax ID first
+Enter a valid amount,Enter a valid amount
 Enter a valid email,Enter a valid email
 Enter amount to be redeemed.,Enter amount to be redeemed.
 Enter customer's email,Enter customer's email
 Enter customer's phone number,Enter customer's phone number
 Enter discount percentage,Enter discount percentage
 Enter discount percentage.,Enter discount percentage.
+Enter each,Enter each
 Enter list name,Enter list name
 Enter manually,Enter manually
 Enter opening stock,Enter opening stock
 Enter purchase details. Files are added as attachments only.,Enter purchase details. Files are added as attachments only.
+Enter the amount for {0},Enter the amount for {0}
+Enter the amount received,Enter the amount received
 Enter the sale by hand. Files are added as attachments only.,Enter the sale by hand. Files are added as attachments only.
 Enter the user name,Enter the user name
 Enter {0} amount,Enter {0} amount
@@ -826,11 +841,14 @@ Mode of Payment,Mode of Payment
 Modes of Payment,Modes of Payment
 Monthly,Monthly
 More Filters,More Filters
+More than the amount due {0}. Enter the amount again,More than the amount due {0}. Enter the amount again
+More than the amount due. Enter the amount again,More than the amount due. Enter the amount again
 Most used fitting group in the account set,Most used fitting group in the account set
 Move,Move
 Move all cards in this list,Move all cards in this list
 Move list,Move list
 My cards,My cards
+My collections,My collections
 Name,Name
 Net,Net
 Net Total,Net Total
@@ -874,6 +892,7 @@ No items were read,No items were read
 No match for “{0}”,No match for “{0}”
 No members,No members
 No notifications,No notifications
+No open invoices,No open invoices
 No product for this code: {0},No product for this code: {0}
 No product matches that code,No product matches that code
 No product matches this code,No product matches this code
@@ -902,6 +921,7 @@ Not in the account set yet,Not in the account set yet
 Not in the list,Not in the list
 Not permitted,Not permitted
 Not written to Express (disconnected),Not written to Express (disconnected)
+Not written to Express: {0},Not written to Express: {0}
 Note,Note
 Note is empty or too long,Note is empty or too long
 Note not found,Note not found
@@ -914,6 +934,7 @@ Number,Number
 OCR,OCR
 Observer,Observer
 Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero
+Oldest first,Oldest first
 On Hand,On Hand
 One by one,One by one
 Only Draft documents can be deleted,Only Draft documents can be deleted
@@ -1127,6 +1148,7 @@ Reactivated,Reactivated
 Reactivated by stock count {0},Reactivated by stock count {0}
 Read company details,Read company details
 Reading,Reading
+Reading from Express,Reading from Express
 Reading the Express account set,Reading the Express account set
 Ready to post,Ready to post
 Reason,Reason
@@ -1144,6 +1166,7 @@ Received Amount,Received Amount
 Received At,Received At
 Received By,Received By
 "Received from LINE, then confirmed into a purchase record or discarded","Received from LINE, then confirmed into a purchase record or discarded"
+Received {0} · due {1},Received {0} · due {1}
 Received; confirm it on the ERP page,Received; confirm it on the ERP page
 Receiving Account,Receiving Account
 Recent Orders,Recent Orders
@@ -1158,12 +1181,15 @@ Recognition stopped before it finished. Please try again.,Recognition stopped be
 Recognizing...,Recognizing...
 Record,Record
 Record a count,Record a count
+Record collections,Record collections
+Record customer payments,Record customer payments
 Record only,Record only
 Record purchases,Record purchases
 Record sales,Record sales
 Recorded,Recorded
 Recorded a count,Recorded a count
 Recorded {0} opening row(s); skipped {1} already recorded row(s),Recorded {0} opening row(s); skipped {1} already recorded row(s)
+Recorded · pending write,Recorded · pending write
 Recording a count,Recording a count
 Recount this product,Recount this product
 Recurring,Recurring
@@ -1230,6 +1256,7 @@ Sales Count,Sales Count
 Sales Document,Sales Document
 Sales Records,Sales Records
 Sales returns account,Sales returns account
+Salesman,Salesman
 Save,Save
 Save Draft,Save Draft
 Save and next,Save and next
@@ -1259,6 +1286,7 @@ Search name or barcode,Search name or barcode
 "Search name, code or barcode","Search name, code or barcode"
 Second No,Second No
 Secondary No,Secondary No
+Select,Select
 Select Loyalty Program,Select Loyalty Program
 Select a Payment Method.,Select a Payment Method.
 Select a product for each stock item,Select a product for each stock item
@@ -1274,6 +1302,7 @@ Select serial numbers,Select serial numbers
 Select the original sale line,Select the original sale line
 Select the product,Select the product
 Select vehicles,Select vehicles
+Selected,Selected
 Sell,Sell
 Seller,Seller
 Seller address,Seller address
@@ -1283,6 +1312,7 @@ Selling Units,Selling Units
 Selling price,Selling price
 Selling warehouse,Selling warehouse
 Send,Send
+Send a photo of the transfer slip,Send a photo of the transfer slip
 Send the code from the ERP page to bind,Send the code from the ERP page to bind
 Sender's LINE language when the document arrived,Sender's LINE language when the document arrived
 Sending the same file twice must not create two drafts,Sending the same file twice must not create two drafts
@@ -1465,6 +1495,7 @@ The cashier assets did not load (official-*.js).,The cashier assets did not load
 The cashier is not enabled for this company,The cashier is not enabled for this company
 The chosen account cannot be posted in Express. Choose another account,The chosen account cannot be posted in Express. Choose another account
 The chosen account set belongs to another company. Check the account set,The chosen account set belongs to another company. Check the account set
+The collection changed. Check it again,The collection changed. Check it again
 The company has no 13-digit tax ID,The company has no 13-digit tax ID
 The company has no MR.ERP account set,The company has no MR.ERP account set
 The company on your documents,The company on your documents
@@ -1541,6 +1572,7 @@ This MR.ERP account is in use. Send again later,This MR.ERP account is in use. S
 This Month,This Month
 This PDF has more than {0} pages,This PDF has more than {0} pages
 This Quarter,This Quarter
+This account cannot record collections,This account cannot record collections
 This account cannot send documents,This account cannot send documents
 This account code is already a stock item code in Express,This account code is already a stock item code in Express
 This account set has no book for this kind of document. Set it up in Express,This account set has no book for this kind of document. Set it up in Express
@@ -1556,11 +1588,15 @@ This channel is not open yet,This channel is not open yet
 This code is already in use,This code is already in use
 This code is already taken,This code is already taken
 This code is already used by {0} ({1}),This code is already used by {0} ({1})
+This collection cannot be changed,This collection cannot be changed
+This collection cannot be withdrawn,This collection cannot be withdrawn
+This collection method is not available,This collection method is not available
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.","This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these."
 This computer cannot enter documents into Express,This computer cannot enter documents into Express
 This counter sells for this company; stock leaves its warehouse,This counter sells for this company; stock leaves its warehouse
 This customer has no match in MR.ERP. Choose the customer and submit again,This customer has no match in MR.ERP. Choose the customer and submit again
 This customer is not in Express and could not be created. Check the customer name and tax ID,This customer is not in Express and could not be created. Check the customer name and tax ID
+This department is not available,This department is not available
 This device cannot scan,This device cannot scan
 This device has no camera to scan with,This device has no camera to scan with
 This document cannot be recorded yet,This document cannot be recorded yet
@@ -1581,6 +1617,7 @@ This entry changed underneath you; reload and try again,This entry changed under
 This file holds {0} documents; only the first is filled in. Upload the others separately.,This file holds {0} documents; only the first is filled in. Upload the others separately.
 This internal code already exists,This internal code already exists
 This invoice has no lines. Add them and submit again.,This invoice has no lines. Add them and submit again.
+This invoice is no longer open,This invoice is no longer open
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,This is a credit note. Credit notes cannot be recorded as a purchase yet.
 This is not a product barcode,This is not a product barcode
 This is not a purchase or sales document,This is not a purchase or sales document
@@ -1598,6 +1635,7 @@ This receipt is in a daily summary sent to Express. Refund it instead,This recei
 This receipt is in a daily summary. Refund it instead,This receipt is in a daily summary. Refund it instead
 This request was already recorded,This request was already recorded
 This sale is already voided,This sale is already voided
+This salesman is not available,This salesman is not available
 This shift belongs to another cashier,This shift belongs to another cashier
 This shift is already closed,This shift is already closed
 This shift is closed,This shift is closed
@@ -1643,6 +1681,7 @@ Total Quantity,Total Quantity
 Total Taxes and Charges,Total Taxes and Charges
 Total items,Total items
 Total opening value,Total opening value
+Total {0} does not match {1},Total {0} does not match {1}
 Total · {0} row(s),Total · {0} row(s)
 Totals,Totals
 Track by unit,Track by unit
@@ -1658,6 +1697,7 @@ Type a word from the warehouse name to find it,Type a word from the warehouse na
 Type any warehouse name; a new warehouse is created if that name is new,Type any warehouse name; a new warehouse is created if that name is new
 Type not found in Express,Type not found in Express
 Type the company name or number to find it,Type the company name or number to find it
+Type the customer code or part of the name,Type the customer code or part of the name
 Type the customer name or code to find it,Type the customer name or code to find it
 Type the item name or code,Type the item name or code
 Type the supplier name or code to find it,Type the supplier name or code to find it
@@ -1767,11 +1807,13 @@ Watch,Watch
 Weekly,Weekly
 When a card enters,When a card enters
 "Which company this terminal belongs to, and which warehouse it sells from","Which company this terminal belongs to, and which warehouse it sells from"
+Which invoice keeps the balance?,Which invoice keeps the balance?
 Who bought this receipt; empty means a walk-in customer,Who bought this receipt; empty means a walk-in customer
 Who can add and remove members,Who can add and remove members
 Who can comment,Who can comment
 Whole document taxed,Whole document taxed
 With differences,With differences
+Withdraw,Withdraw
 Withdrawn,Withdrawn
 Withholding Tax,Withholding Tax
 Withholding Tax Certificate,Withholding Tax Certificate
@@ -1780,6 +1822,7 @@ Withholding Tax must be greater than zero,Withholding Tax must be greater than z
 Writing,Writing
 Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
 Written,Written
+Written to Express: {0},Written to Express: {0}
 "Year, year-month or ALL, per the reset policy","Year, year-month or ALL, per the reset policy"
 Yearly,Yearly
 Yellow,Yellow
@@ -1987,6 +2030,7 @@ erp.line.tag.none,Record only
 erp.line.unbind,Unbind LINE
 erp.line.unbindConfirm,Unbind Pearnly ERP LINE?
 erp.nav.collections,Collections
+erp.nav.myCollections,My collections
 erp.nav.work,Task Management
 erp.trade.allLines,All
 erp.work.activity.archive,{who} archived this card
@@ -3099,6 +3143,7 @@ void,void
 {0} moved {1} to {2},{0} moved {1} to {2}
 {0} of {1} units,{0} of {1} units
 {0} rows were not imported,{0} rows were not imported
+{0} selected · total {1},{0} selected · total {1}
 "{0} · Warehouse {1}: need {2}, have {3}","{0} · Warehouse {1}: need {2}, have {3}"
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}
 {1} is due at {2},{1} is due at {2}

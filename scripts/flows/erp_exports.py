@@ -1,4 +1,4 @@
-"""流程用例：ERP 导出 —— 销售、采购、库存、已过账盘点、班次、首页账本，各点一次「导出」，拿到的文件要对
+"""流程用例：ERP 导出 —— 销售、采购、库存、已过账盘点、班次、首页账本、收款（11-11），各点一次「导出」，拿到的文件要对
 （起因：10-29 导出可能在 GET 里建导出任务再手动 commit；改成共用的 `p.export_file` 一律 POST、13 个导出接口只收 POST）。
 
 每套数据、每个有数据可导的页面：在页面上点它自己的导出（页头按钮或「…」菜单、班次是勾选后的「导出选中」），
@@ -22,6 +22,8 @@ PAGES = {
     "stock_count": ("pearnly-stock-count/{count}", "导出", "pearnly_erp_portal.inventory.api.api_stock_count_export"),
     "shifts": ("pearnly-pos-shifts", "导出选中", "pearnly_erp_portal.cashier.api.api_shifts_export"),
     "ledger": ("pearnly-home", "导出明细", "pearnly_core.billing_www.export_records"),
+    # 收款（11-11）：只读页「…」菜单里的导出
+    "collections": ("pearnly-collections", "导出", "pearnly_erp_portal.collection.api.api_collections_export"),
 }
 
 
@@ -42,11 +44,23 @@ counted = frappe.get_all("ERP Stock Count Entry", filters={{"count": posted[0], 
                          limit_page_length=5) if posted else []
 from pearnly_erp_portal.cashier import contracts as cashier
 shifts = frappe.get_all("ERP Shift", filters={{"status": cashier.CLOSED}}, pluck="name", limit_page_length=1)
+# 收款（11-11）：这家公司一笔已写入的收款（收款只在 LINE / CC 录、电脑写回 RE 号；这里照记录的形状直接备一笔，不经写账）
+marker = "REFLOW" + frappe.generate_hash(length=6).upper()
+collection = frappe.get_all("ERP Collection", filters={{"company": company, "docnum": ["like", "REFLOW%"]}}, pluck="docnum",
+                            limit_page_length=1)
+if not collection:
+    frappe.get_doc({{"doctype": "ERP Collection", "name": "COLFLOW-" + marker, "company": company, "doc_date": frappe.utils.nowdate(),
+                    "collector": "admin@erp.regression", "source": "line", "customer": "FLOW", "customer_name": "flow export customer",
+                    "status": "written", "docnum": marker, "draft_version": 1, "cash": 100, "total": 100,
+                    "invoice_summary": "IVFLOW 100.00", "invoices": [{{"docnum": "IVFLOW", "remaining": 100, "amount": 100}}]
+                    }}).insert(ignore_permissions=True, set_name="COLFLOW-" + marker)
+    frappe.db.commit()
+    collection = [marker]
 print(json.dumps({{"company": company, "sales": sales, "purchase": [n for n in purchases if n], "inventory": codes,
                   "count": posted[0] if posted else "", "stock_count": [frappe.db.get_value("ERP Product", n, "code") for n in counted],
-                  "shifts": shifts, "jobs": frappe.db.count("Pearnly Export")}}))
+                  "shifts": shifts, "collections": collection, "jobs": frappe.db.count("Pearnly Export")}}))
 """)
-    return {**found, "pages": ["sales", "purchase", "inventory", "ledger", "stock_count", "shifts"]}
+    return {**found, "pages": ["sales", "purchase", "inventory", "ledger", "stock_count", "shifts", "collections"]}
 
 
 def _click(key, params):

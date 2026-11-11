@@ -61,6 +61,7 @@ Add a count,บันทึกการนับ
 Add a count — {0},บันทึกการนับ — {0}
 Add a field,เพิ่มช่อง
 Add a link,เพิ่มลิงก์
+Add a method,เพิ่มวิธีรับชำระ
 Add all and issue,จ่ายออกใหม่ทั้งหมด
 Add all and receive,รับเข้าใหม่ทั้งหมด
 Add an item,เพิ่มรายการ
@@ -96,6 +97,7 @@ All companies,ทุกบริษัท
 All labels,ป้ายกำกับทั้งหมด
 All record only,ลงบัญชีอย่างเดียวหมด
 All the items have been already returned.,สินค้าทั้งหมดถูกคืนแล้ว
+Already collected. Current balance:,มีการรับชำระแล้ว ยอดคงเหลือปัจจุบัน:
 Already exists,มีอยู่แล้ว
 Already received,ได้รับไฟล์นี้แล้ว
 Already recorded:,บันทึกไว้แล้ว:
@@ -203,6 +205,7 @@ CC Desktop could not read this invoice. Check the fields and submit again,CC เ
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
 CC Desktop is out of date. Update CC Desktop and submit again,CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
+CC Desktop is writing this collection,CC เดสก์ท็อปกำลังบันทึกรายการนี้
 CC Desktop needs an update,CC เดสก์ท็อปต้องอัปเดต
 CC Desktop not connected,CC เดสก์ท็อปไม่ได้เชื่อมต่อ
 Calculation Version,เวอร์ชันการคำนวณ
@@ -231,6 +234,7 @@ Cash Check,ตรวจเงินสด
 Cash Difference,ผลต่างเงินสด
 Cash account not set,ยังไม่ได้กำหนดบัญชีเงินสด
 Cash basis,เกณฑ์เงินสด
+Cash is not set up for this account set,ชุดบัญชีนี้ยังไม่ได้ตั้งบัญชีเงินสด
 Cashier,เก็บเงิน
 Cashier (POS),ขายหน้าร้าน (POS)
 Cashier Records,บันทึกการรับเงิน
@@ -268,10 +272,13 @@ Choose a file to import,กรุณาเลือกไฟล์ที่จ�
 Choose a local opening stock file,กรุณาเลือกไฟล์สต็อกยกมาจากเครื่อง
 Choose an existing product for opening stock,กรุณาเลือกสินค้าที่มีอยู่สำหรับสต็อกยกมา
 Choose an image attached to this card,กรุณาเลือกรูปภาพที่แนบในการ์ดนี้
+Choose at least one invoice,กรุณาเลือกใบแจ้งหนี้อย่างน้อย 1 ใบ
 Choose at least one job role,กรุณาเลือกสิทธิ์การใช้งานอย่างน้อยหนึ่งรายการ
 Choose file,เลือกไฟล์
+Choose invoices,เลือกใบแจ้งหนี้
 Choose purchase or sales first,กรุณาเลือก ซื้อ หรือ ขาย ก่อน
 Choose purchase or sales for this invoice and submit again,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
+Choose the collection method,เลือกวิธีรับชำระ
 Choose the company,เลือกบริษัท
 Choose the customer,กรุณาเลือกลูกค้า
 Choose the inventory account group for this account set first.,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
@@ -306,6 +313,7 @@ Code expired,รหัสหมดอายุแล้ว
 Code or barcode,รหัสหรือบาร์โค้ด
 Codes start at {0},รหัสเริ่มที่ {0}
 Collapse list,ย่อรายการ
+Collect later,รับครั้งหน้า
 Collected {0},รับชำระแล้ว {0}
 Collection,การรับเงิน
 Collection Date,วันที่รับเงิน
@@ -335,6 +343,7 @@ Completed,เสร็จสิ้น
 Computer offline,เครื่องออฟไลน์
 Confirm,ยืนยัน
 Confirm and record,ยืนยันบันทึก
+Confirm collection,ยืนยันการรับชำระ
 Confirm opening stock,ยืนยันบันทึกสต็อกยกมา
 Confirm the document before recording a payment,กรุณายืนยันเอกสารก่อนบันทึกการชำระเงิน
 Confirmed a push result,ยืนยันผลการส่งแล้ว
@@ -359,6 +368,7 @@ Cost of goods sold not set,ยังไม่ได้กำหนดต้น�
 Could not connect to MR.ERP,เชื่อมต่อ MR.ERP ไม่ได้
 Could not read the MR.ERP master data.,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 Could not read this document. Please send it again.,ไม่สามารถอ่านเอกสารได้ กรุณาส่งใหม่อีกครั้ง
+Could not record this collection,บันทึกการรับชำระนี้ไม่ได้
 Could not record this document. Please try again.,บันทึกเอกสารไม่สำเร็จ กรุณาลองใหม่
 Could not record: {0},บันทึกไม่สำเร็จ: {0}
 Could not sign in to MR.ERP. Check the connection's username and password,เข้าสู่ระบบ MR.ERP ไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านของการเชื่อมต่อ
@@ -511,6 +521,7 @@ Due this week,ครบกำหนดภายใน 7 วัน
 Due time,เวลาครบกำหนด
 Due today,ครบกำหนดวันนี้
 Due today or tomorrow,ครบกำหนดวันนี้หรือพรุ่งนี้
+Due {0},ค้างชำระ {0}
 Duplicate location,ตำแหน่งซ้ำ
 Duplicate location code,รหัสตำแหน่งซ้ำ
 ERP,ERP
@@ -547,16 +558,20 @@ Enter a link that starts with http:// or https://,กรุณาใส่ลิ
 Enter a number of days from 0 to 365,กรุณากรอกจำนวนวันระหว่าง 0 ถึง 365
 Enter a quantity,กรุณากรอกจำนวน
 Enter a tax ID first,กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน
+Enter a valid amount,กรุณาพิมพ์จำนวนเงินที่ถูกต้อง
 Enter a valid email,กรุณากรอกอีเมลให้ถูกต้อง
 Enter amount to be redeemed.,กรอกจำนวนเงินที่ต้องการใช้คะแนนสะสม
 Enter customer's email,กรอกอีเมลลูกค้า
 Enter customer's phone number,กรอกเบอร์โทรลูกค้า
 Enter discount percentage,กรอกเปอร์เซ็นต์ส่วนลด
 Enter discount percentage.,กรอกเปอร์เซ็นต์ส่วนลด
+Enter each,ระบุทีละใบ
 Enter list name,กรอกชื่อรายการ
 Enter manually,กรอกเอง
 Enter opening stock,บันทึกสต็อกยกมา
 Enter purchase details. Files are added as attachments only.,กรอกข้อมูลการซื้อด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
+Enter the amount for {0},พิมพ์จำนวนเงินของ {0}
+Enter the amount received,พิมพ์จำนวนเงินที่รับ
 Enter the sale by hand. Files are added as attachments only.,กรอกข้อมูลการขายด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Enter the user name,กรุณากรอกชื่อผู้ใช้
 Enter {0} amount,กรอกจำนวนเงิน {0}
@@ -826,11 +841,14 @@ Mode of Payment,วิธีการชำระเงิน
 Modes of Payment,วิธีชำระเงิน
 Monthly,ทุกเดือน
 More Filters,ตัวกรองเพิ่มเติม
+More than the amount due {0}. Enter the amount again,เกินยอดค้างชำระ {0} กรุณาพิมพ์ใหม่
+More than the amount due. Enter the amount again,เกินยอดค้างชำระ กรุณาพิมพ์ใหม่
 Most used fitting group in the account set,กลุ่มที่ใช้มากที่สุดในชุดบัญชี
 Move,ย้าย
 Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
 Move list,ย้ายรายการ
 My cards,การ์ดของฉัน
+My collections,การรับชำระของฉัน
 Name,ชื่อ
 Net,ยอดสุทธิ
 Net Total,ยอดรวมสุทธิ
@@ -874,6 +892,7 @@ No items were read,ไม่พบรายการในเอกสาร
 No match for “{0}”,ไม่พบ “{0}”
 No members,ไม่มีสมาชิก
 No notifications,ไม่มีการแจ้งเตือน
+No open invoices,ไม่มีใบแจ้งหนี้ค้างชำระ
 No product for this code: {0},ไม่พบสินค้าสำหรับรหัสนี้: {0}
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No product matches this code,ไม่พบสินค้าที่ตรงกับรหัสนี้
@@ -902,6 +921,7 @@ Not in the account set yet,ยังไม่มีในชุดบัญช�
 Not in the list,ไม่อยู่ในรายการ
 Not permitted,ไม่ได้รับอนุญาต
 Not written to Express (disconnected),ไม่ได้บันทึก Express (ยกเลิกเชื่อมต่อ)
+Not written to Express: {0},ไม่ได้บันทึกลง Express: {0}
 Note,หมายเหตุ
 Note is empty or too long,บันทึกว่างหรือยาวเกินไป
 Note not found,ไม่พบบันทึกนี้
@@ -914,6 +934,7 @@ Number,ตัวเลข
 OCR,อ่านเอกสาร (OCR)
 Observer,ผู้สังเกตการณ์
 Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,หากไม่ได้เลือก หมายถึงยังไม่ได้ตั้งต้นทุน มูลค่าและต้นทุนต่อหน่วยจะเว้นว่างไว้
+Oldest first,ใบเก่าก่อน
 On Hand,คงเหลือ
 One by one,เลือกทีละรายการ
 Only Draft documents can be deleted,ลบได้เฉพาะเอกสารฉบับร่าง
@@ -1127,6 +1148,7 @@ Reactivated,เปิดใช้อีกครั้ง
 Reactivated by stock count {0},เปิดใช้จากการตรวจนับ · {0}
 Read company details,อ่านข้อมูลบริษัท
 Reading,กำลังอ่าน
+Reading from Express,กำลังอ่านข้อมูลจาก Express
 Reading the Express account set,กำลังอ่านชุดบัญชี Express
 Ready to post,พร้อมบันทึก
 Reason,เหตุผล
@@ -1144,6 +1166,7 @@ Received Amount,จำนวนเงินที่ได้รับ
 Received At,เวลาที่ได้รับ
 Received By,ผู้รับเงิน
 "Received from LINE, then confirmed into a purchase record or discarded",รับจาก LINE และสร้างเป็นรายการจัดซื้อเมื่อยืนยัน หรือทิ้ง
+Received {0} · due {1},รับแล้ว {0} · ค้าง {1}
 Received; confirm it on the ERP page,ได้รับแล้ว กรุณายืนยันในหน้า ERP
 Receiving Account,บัญชีรับเงิน
 Recent Orders,คำสั่งซื้อล่าสุด
@@ -1158,12 +1181,15 @@ Recognition stopped before it finished. Please try again.,การอ่าน�
 Recognizing...,กำลังอ่านเอกสาร…
 Record,เอกสาร
 Record a count,บันทึกการตรวจนับ
+Record collections,บันทึกรับชำระ
+Record customer payments,บันทึกเงินที่รับจากลูกค้า
 Record only,ลงบัญชีอย่างเดียว
 Record purchases,บันทึกการซื้อ
 Record sales,บันทึกการขาย
 Recorded,บันทึกแล้ว
 Recorded a count,บันทึกจำนวนที่นับได้แล้ว
 Recorded {0} opening row(s); skipped {1} already recorded row(s),บันทึกสต็อกยกมา {0} แถว ข้าม {1} แถวที่บันทึกแล้ว
+Recorded · pending write,บันทึกแล้ว · รอบันทึกลง Express
 Recording a count,กำลังบันทึกจำนวนที่นับได้
 Recount this product,ตรวจนับสินค้านี้ใหม่
 Recurring,การทำซ้ำ
@@ -1230,6 +1256,7 @@ Sales Count,จำนวนรายการขาย
 Sales Document,เอกสารขาย
 Sales Records,บันทึกการขาย
 Sales returns account,บัญชีรับคืนสินค้า
+Salesman,พนักงานขาย
 Save,บันทึก
 Save Draft,บันทึกฉบับร่าง
 Save and next,บันทึกและรายการถัดไป
@@ -1259,6 +1286,7 @@ Search name or barcode,ค้นหาชื่อหรือบาร์โค
 "Search name, code or barcode",ค้นหาชื่อ รหัส หรือบาร์โค้ด
 Second No,หมายเลขที่สอง
 Secondary No,หมายเลขรอง
+Select,เลือก
 Select Loyalty Program,เลือกโปรแกรมสะสมคะแนน
 Select a Payment Method.,กรุณาเลือกวิธีชำระเงิน
 Select a product for each stock item,กรุณาเลือกสินค้าสำหรับแต่ละรายการ
@@ -1274,6 +1302,7 @@ Select serial numbers,เลือกหมายเลขซีเรียล
 Select the original sale line,กรุณาเลือกรายการจากบิลขายเดิม
 Select the product,เลือกสินค้า
 Select vehicles,เลือกรถ
+Selected,เลือกแล้ว
 Sell,ขาย
 Seller,ชื่อผู้ขาย
 Seller address,ที่อยู่ผู้ขาย
@@ -1283,6 +1312,7 @@ Selling Units,หน่วยขาย
 Selling price,ราคาขาย
 Selling warehouse,คลังที่ขาย
 Send,ส่ง
+Send a photo of the transfer slip,กรุณาส่งรูปสลิปการโอน
 Send the code from the ERP page to bind,กรุณาส่งรหัสผูกบัญชีจากหน้า ERP
 Sender's LINE language when the document arrived,ภาษา LINE ของผู้ส่งเมื่อได้รับเอกสาร
 Sending the same file twice must not create two drafts,การส่งไฟล์เดิมซ้ำจะไม่สร้างฉบับร่างซ้ำ
@@ -1465,6 +1495,7 @@ The cashier assets did not load (official-*.js).,ไม่สามารถโ�
 The cashier is not enabled for this company,บริษัทนี้ยังไม่ได้เปิดใช้งานขายหน้าร้าน (POS)
 The chosen account cannot be posted in Express. Choose another account,บัญชีที่เลือกบันทึกใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น
 The chosen account set belongs to another company. Check the account set,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
+The collection changed. Check it again,รายการรับชำระเปลี่ยนแปลงแล้ว กรุณาตรวจสอบอีกครั้ง
 The company has no 13-digit tax ID,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
 The company has no MR.ERP account set,บริษัทยังไม่ได้ตั้งค่าชุดบัญชี MR.ERP
 The company on your documents,ข้อมูลบริษัทที่ใช้บนเอกสาร
@@ -1541,6 +1572,7 @@ This MR.ERP account is in use. Send again later,บัญชี MR.ERP นี้
 This Month,เดือนนี้
 This PDF has more than {0} pages,PDF มีมากกว่า {0} หน้า
 This Quarter,ไตรมาสนี้
+This account cannot record collections,บัญชีนี้บันทึกการรับชำระไม่ได้
 This account cannot send documents,บัญชีนี้ไม่มีสิทธิ์ส่งเอกสาร
 This account code is already a stock item code in Express,รหัสบัญชีนี้เป็นรหัสสินค้าคงคลังใน Express แล้ว
 This account set has no book for this kind of document. Set it up in Express,ชุดบัญชีนี้ไม่มีสมุดสำหรับเอกสารประเภทนี้ กรุณาตั้งค่าใน Express
@@ -1556,11 +1588,15 @@ This channel is not open yet,ช่องทางนี้ยังไม่เ
 This code is already in use,รหัสนี้ถูกใช้แล้ว
 This code is already taken,รหัสนี้ถูกใช้ไปแล้ว
 This code is already used by {0} ({1}),รหัสนี้ใช้กับ {0} แล้ว ({1})
+This collection cannot be changed,แก้ไขรายการรับชำระนี้ไม่ได้
+This collection cannot be withdrawn,ถอนรายการรับชำระนี้ไม่ได้
+This collection method is not available,วิธีรับชำระนี้ใช้ไม่ได้
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้
 This computer cannot enter documents into Express,คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้
 This counter sells for this company; stock leaves its warehouse,จุดขายนี้ออกเอกสารขายในนามบริษัทนี้ และจ่ายสินค้าออกจากคลังสินค้าของบริษัทนี้
 This customer has no match in MR.ERP. Choose the customer and submit again,ไม่มีข้อมูลลูกค้านี้ใน MR.ERP กรุณาเลือกลูกค้าแล้วส่งใหม่
 This customer is not in Express and could not be created. Check the customer name and tax ID,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
+This department is not available,แผนกนี้ใช้ไม่ได้
 This device cannot scan,อุปกรณ์นี้สแกนไม่ได้
 This device has no camera to scan with,อุปกรณ์นี้ไม่มีกล้องที่ใช้งานได้
 This document cannot be recorded yet,ยังไม่สามารถลงบัญชีเอกสารนี้ได้
@@ -1581,6 +1617,7 @@ This entry changed underneath you; reload and try again,เอกสารนี
 This file holds {0} documents; only the first is filled in. Upload the others separately.,ไฟล์นี้มีเอกสาร {0} ฉบับ ระบบกรอกให้เฉพาะฉบับแรก กรุณาอัปโหลดฉบับอื่นแยกกัน
 This internal code already exists,รหัสภายในนี้มีอยู่แล้ว
 This invoice has no lines. Add them and submit again.,เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่
+This invoice is no longer open,ใบแจ้งหนี้นี้ชำระครบแล้ว
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,เอกสารนี้เป็นใบลดหนี้ ยังไม่รองรับการบันทึกเป็นเอกสารซื้อ
 This is not a product barcode,นี่ไม่ใช่บาร์โค้ดสินค้า
 This is not a purchase or sales document,ไฟล์นี้ไม่ใช่เอกสารซื้อหรือขาย
@@ -1598,6 +1635,7 @@ This receipt is in a daily summary sent to Express. Refund it instead,ใบเ�
 This receipt is in a daily summary. Refund it instead,ใบเสร็จนี้อยู่ในยอดสรุปรายวันแล้ว กรุณาใช้การคืนสินค้าแทน
 This request was already recorded,คำขอนี้ถูกบันทึกแล้ว
 This sale is already voided,เอกสารขายนี้ถูกยกเลิกแล้ว
+This salesman is not available,พนักงานขายนี้ใช้ไม่ได้
 This shift belongs to another cashier,กะนี้เป็นของพนักงานเก็บเงินคนอื่น
 This shift is already closed,กะนี้ปิดแล้ว
 This shift is closed,กะนี้ปิดแล้ว
@@ -1643,6 +1681,7 @@ Total Quantity,จำนวนรวม
 Total Taxes and Charges,รวมภาษีและค่าธรรมเนียม
 Total items,จำนวนชิ้น
 Total opening value,มูลค่ายกมารวม
+Total {0} does not match {1},ยอดรวม {0} ไม่ตรงกับยอดรับ {1}
 Total · {0} row(s),รวม · {0} รายการ
 Totals,ยอดรวม
 Track by unit,ติดตามรายชิ้น
@@ -1658,6 +1697,7 @@ Type a word from the warehouse name to find it,พิมพ์คำในชื
 Type any warehouse name; a new warehouse is created if that name is new,พิมพ์ชื่อคลังได้เอง ถ้าชื่อใหม่ระบบจะสร้างให้
 Type not found in Express,ไม่พบประเภทนี้ใน Express
 Type the company name or number to find it,พิมพ์ชื่อหรือรหัสบริษัทเพื่อค้นหา
+Type the customer code or part of the name,พิมพ์รหัสหรือชื่อลูกค้า
 Type the customer name or code to find it,พิมพ์ชื่อหรือรหัสลูกค้าเพื่อค้นหา
 Type the item name or code,พิมพ์ชื่อหรือรหัสสินค้า
 Type the supplier name or code to find it,พิมพ์ชื่อหรือรหัสผู้จำหน่ายเพื่อค้นหา
@@ -1767,11 +1807,13 @@ Watch,ติดตาม
 Weekly,ทุกสัปดาห์
 When a card enters,เมื่อการ์ดเข้ารายการ
 "Which company this terminal belongs to, and which warehouse it sells from",บริษัทที่เป็นเจ้าของจุดขายนี้ และคลังสินค้าที่ใช้จ่ายสินค้าขาย
+Which invoice keeps the balance?,ใบแจ้งหนี้ใบใดเหลือยอดค้าง?
 Who bought this receipt; empty means a walk-in customer,ลูกค้าของใบเสร็จนี้ หากเว้นว่างไว้หมายถึงลูกค้าทั่วไป
 Who can add and remove members,สิทธิ์จัดการสมาชิก
 Who can comment,สิทธิ์แสดงความคิดเห็น
 Whole document taxed,คิดภาษีทั้งใบตามชุดบัญชี
 With differences,มีผลต่าง
+Withdraw,ถอนรายการ
 Withdrawn,ยกเลิกแล้ว
 Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Withholding Tax Certificate,หนังสือรับรองการหักภาษี ณ ที่จ่าย
@@ -1780,6 +1822,7 @@ Withholding Tax must be greater than zero,ยอดภาษีหัก ณ ท
 Writing,กำลังบันทึก
 Writing to Express failed and was undone. It is retried automatically,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Written,บันทึกแล้ว
+Written to Express: {0},บันทึกลง Express แล้ว: {0}
 "Year, year-month or ALL, per the reset policy",ปี ปี-เดือน หรือ ALL ตามนโยบายการเริ่มเลขใหม่
 Yearly,ทุกปี
 Yellow,เหลือง
@@ -1987,6 +2030,7 @@ erp.line.tag.none,ลงบัญชีอย่างเดียว
 erp.line.unbind,ยกเลิกการเชื่อมต่อ LINE
 erp.line.unbindConfirm,ต้องการยกเลิกการเชื่อมต่อ Pearnly ERP LINE ใช่หรือไม่
 erp.nav.collections,รับชำระหนี้
+erp.nav.myCollections,การรับชำระของฉัน
 erp.nav.work,จัดการงาน
 erp.trade.allLines,ทั้งหมด
 erp.work.activity.archive,{who} เก็บถาวรการ์ดนี้
@@ -3099,6 +3143,7 @@ void,ยกเลิกแล้ว
 {0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่ {2}"
 {0} of {1} units,{0} / {1} รายการ
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
+{0} selected · total {1},เลือก {0} ใบ · รวม {1}
 "{0} · Warehouse {1}: need {2}, have {3}",{0} · คลัง {1}: ต้องการ {2} มี {3}
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
 {1} is due at {2},"การ์ด ""{1}"" จะครบกำหนดเมื่อ {2}"
