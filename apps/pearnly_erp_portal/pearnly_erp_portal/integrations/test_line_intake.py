@@ -163,6 +163,35 @@ class Flow(Base):
         self.assertNotIn("U1", self.sessions)
         self.assertEqual(self.last_text(), "Cancelled")
 
+    def test_collection_events_go_to_the_collection_flow_before_other_typed_words(self):
+        """收款（11-11）：按钮 ``a=col``、停在收款里打的字（含「1」这种金额，不当成选采购）、等凭证时发的图都交给 `line_collection`。"""
+        from pearnly_erp_portal.integrations import line_collection
+
+        self.roles["buyer"] = {"purchase.write", "integration.read", "collection.write"}
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"), \
+                patch.object(line_collection, "answer") as answer, \
+                patch.object(line_collection, "text", return_value=True) as typed, \
+                patch.object(line_collection, "wants_voucher", return_value=True), \
+                patch.object(line_collection, "receive_voucher") as voucher:
+            handlers.handle({"type": "postback", "source": {"userId": "U1"}, "replyToken": "r", "webhookEventId": "E1",
+                             "postback": {"data": "a=col&s=start"}})
+            handlers.handle({"type": "message", "source": {"userId": "U1"}, "replyToken": "r", "webhookEventId": "E2",
+                             "message": {"type": "text", "text": "1"}})
+            handlers.handle({"type": "message", "source": {"userId": "U1"}, "replyToken": "r",
+                             "message": {"type": "image", "id": "M1"}})
+        answer.assert_called_once_with("U1", "buyer", "a=col&s=start", "r", "E1")
+        typed.assert_called_once_with("U1", "buyer", "1", "r", "E2")
+        voucher.assert_called_once()
+        self.assertNotIn("U1", self.sessions)  # 没有进采购的选择
+
+    def test_menu_word_offers_collections_to_collectors(self):
+        self.roles["buyer"] = {"integration.read", "collection.write"}
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            handlers.handle({"type": "message", "source": {"userId": "U1"}, "replyToken": "r",
+                             "message": {"type": "text", "text": "เมนู"}})
+        self.assertEqual([(b["label"], b["data"]) for b in self.buttons()],
+                         [("Collections", "a=col&s=start"), ("Cancel", "a=erp&s=cancel")])
+
     def test_unfollow_unbinds_and_resyncs_the_menu(self):
         """删除 / 屏蔽官方号：解绑这个 LINE、按权限重挂菜单，不回消息（与 Cowork 同一做法）。"""
         self.enterContext(patch("pearnly_core.line.user_language", return_value="th"))
@@ -690,7 +719,7 @@ class RichMenu(Base):
 
         self.enterContext(patch.object(line_menu, "_", _same))
         self.enterContext(patch("frappe.utils.get_url", return_value="https://testerp.pearnly.com"))
-        self.assertEqual(len(line_menu.VARIANTS), 7)
+        self.assertEqual(len(line_menu.VARIANTS), 15)  # 11-11 第 4 格收款
         areas = line_menu.payload("purchase+stocktake", "zh")["areas"]
         self.assertEqual([area["bounds"]["x"] for area in areas], [0, 1666])  # 销售那格是锁、不可点
         self.assertEqual(areas[0]["action"]["data"], "a=mode:purchase")

@@ -37,6 +37,7 @@ FUNCTIONS = {
     "purchase": ("Record purchases", "Receive documents and add stock", "#198C6A", "#CCE6DE", (290, 184, 544, 438)),
     "sales": ("Record sales", "Issue documents and deduct stock", "#7656D6", "#E1DAF6", (1124, 184, 1378, 438)),
     "stocktake": ("Stock count", "Count stock on the web", "#D9731F", "#F6DEC8", None),
+    "collection": ("Record collections", "Record customer payments", "#2F6FCB", "#D3E2F6", None),
 }
 LOCK_BOX = (2003, 240, 2163, 435)
 LOCKED_CARD, SUBTITLE = "#ECEAF2", "#6F6A80"
@@ -74,6 +75,22 @@ def stocktake_icon(color, size=254):
     return big.resize((size, size), Image.LANCZOS)
 
 
+def collection_icon(color, size=254):
+    """Banknote with a coin, drawn at 4x and reduced (collections tile, 2026-11-11)."""
+    scale = 4
+    big = Image.new("RGBA", (size * scale, size * scale), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(big)
+    s = lambda value: int(value * scale)
+    draw.rounded_rectangle((s(6), s(6), s(248), s(248)), radius=s(58), fill=color)
+    white = "#FFFFFF"
+    draw.rounded_rectangle((s(46), s(78), s(208), s(170)), radius=s(14), outline=white, width=s(11))
+    draw.ellipse((s(102), s(99), s(152), s(149)), outline=white, width=s(10))
+    draw.ellipse((s(68), s(118), s(82), s(132)), fill=white)
+    draw.ellipse((s(172), s(118), s(186), s(132)), fill=white)
+    draw.line((s(62), s(196), s(192), s(196)), fill=white, width=s(11))
+    return big.resize((size, size), Image.LANCZOS)
+
+
 def text(draw, y, value, font, fill, stroke):
     draw.text((TILE[0] // 2 - 6, y), value, font=font, fill=fill, anchor="mm",
               stroke_width=stroke, stroke_fill=fill)
@@ -91,7 +108,7 @@ def main():
     words, source = glossary(), Image.open(ART / "line-menu-source.png").convert("RGB")
     OUT.mkdir(exist_ok=True)
     for name, (title, subtitle, accent, border, box) in FUNCTIONS.items():
-        icon = source.crop(box) if box else stocktake_icon(accent)
+        icon = source.crop(box) if box else (collection_icon(accent) if name == "collection" else stocktake_icon(accent))
         for lang in LANGS:
             bold, regular, stroke = FONTS[lang]
             image = base("#FFFFFF", border)

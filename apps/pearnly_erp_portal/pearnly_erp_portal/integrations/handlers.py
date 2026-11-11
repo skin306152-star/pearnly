@@ -12,7 +12,7 @@ from frappe import _
 from pearnly_core import line, line_binding
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.integrations import intake, line_flow, line_items, line_menu
+from pearnly_erp_portal.integrations import intake, line_collection, line_flow, line_items, line_menu
 
 # 解绑指令词是**用户手打的词**，所以按通道语言认，并容错中英泰三套写法：
 # 认不出就等于这个功能对用户不存在。日文同 DMS（連携解除，11-08）。
@@ -94,10 +94,10 @@ def _as(bound, function, *args):
         frappe.set_user(previous)
 
 
-def _postback(user_id: str, bound, data: str, reply_token: str) -> bool:
+def _postback(user_id: str, bound, data: str, reply_token: str, event_id: str = "") -> bool:
     params = {key: values[0] for key, values in parse_qs(data or "").items()}
     action = params.get("a") or ""
-    if not (action.startswith("mode:") or action in ("erp", line_items.ACTION)):
+    if not (action.startswith("mode:") or action in ("erp", line_items.ACTION, line_collection.ACTION)):
         return False
     if not bound:
         line.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
@@ -108,6 +108,9 @@ def _postback(user_id: str, bound, data: str, reply_token: str) -> bool:
     if action.startswith("mode:"):
         # 富菜单（新旧两套都是 `a=mode:purchase|sales`）与「เมนู」回的按钮。
         line_flow.start(user_id, bound, action[len("mode:"):], reply_token)
+    elif action == line_collection.ACTION:
+        # 收款（富菜单第 4 格、「เมนู」里的按钮、收款各步与确认卡）：权限与规则在 `collection.service`
+        line_collection.answer(user_id, bound, data, reply_token, event_id)
     elif action == line_items.ACTION:
         _as(bound, line_items.answer, user_id, bound, data, reply_token)  # 识别后按行追问（11-06 按行选物料与库存）
     else:
@@ -149,7 +152,8 @@ def _handle(event: dict) -> bool:
 
     bound = line_binding.user_of(user_id)
     if etype == "postback":
-        return _postback(user_id, bound, (event.get("postback") or {}).get("data") or "", reply_token)
+        return _postback(user_id, bound, (event.get("postback") or {}).get("data") or "", reply_token,
+                         event.get("webhookEventId") or "")
     if etype != "message":
         return False
     message = event.get("message") or {}
@@ -160,6 +164,8 @@ def _handle(event: dict) -> bool:
             line.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
         elif not guard.has("integration.read", user=bound):
             line.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
+        elif line_collection.wants_voucher(user_id):
+            line_collection.receive_voucher(user_id, bound, message, reply_token)  # 收款里等的转账凭证
         else:
             _receive_document(user_id, bound, message, reply_token)
         return True
@@ -187,6 +193,8 @@ def _handle(event: dict) -> bool:
     if text.casefold() in line_flow.MENU_WORDS:
         line_flow.menu(bound, reply_token)
         return True
+    if line_collection.text(user_id, bound, text, reply_token, event.get("webhookEventId") or ""):
+        return True  # 正在录收款：打的字是客户关键字、金额或确认词（在「1 / 2」选方向之前认）
     if _as(bound, line_items.search, user_id, bound, text, reply_token):
         return True  # 正停在识别后追问的「选已有物料 / 仓库 / 仓位」：打的字是名称或编码
     if line_flow.search(user_id, bound, text, reply_token):

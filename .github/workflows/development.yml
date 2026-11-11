@@ -49,6 +49,8 @@ jobs:
         run: python3 tests/test_erp_express_direct.py
       - name: ERP collections written to Express as receipts (only money-receiving kinds offered, reservations, release by the shown version, withdraw, rights, receipts, snapshot, read-only page)
         run: python3 tests/test_erp_collection.py
+      - name: ERP collections in LINE (fourth menu tile, company / customer search / invoice multi-select / methods and amounts / voucher / combined, discount and partial / confirm card, release by the shown version by button or typed word, withdraw, rights, result replied or pushed to the collector)
+        run: python3 tests/test_erp_collection_line.py
       - name: ERP write precheck gathers every pre-write choice in one pass, recommends with a reason, remembers through the document page checks and leaves the write path unchanged
         run: python3 tests/test_erp_write_precheck.py
       - name: ERP operator submenu choice, the remembered menu text and the paid route in the operator payload, the submenu item read from the stored receipt in the precheck, remembered per company, account set and document type, and the write rules unchanged
