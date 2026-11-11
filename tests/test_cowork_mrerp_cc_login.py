@@ -12,12 +12,17 @@
 - 假 MR.ERP 站点上用授权后的凭据登录成功，错误密码只登录一次（不重试，防锁账号）。
 """
 import contextlib
+import pathlib
 import socket
+import sys
 import time
 import types
 import unittest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import connection_doubles  # noqa: E402
 
 try:
     import frappe
@@ -154,7 +159,7 @@ class Store(Framework):
     def test_an_old_connection_keeps_logging_in_and_reauthorizing_replaces_it(self):
         """老连接没经过 CC 授权：直写、目录采集、主档读取取凭据的同一个入口照样拿到原来的密码；CC 里重新授权就覆盖。"""
         loaded = service.LoadedConnection(self.doc, {}, types.SimpleNamespace(user_id="staff@x"), None, 7)
-        self.enterContext(patch.object(service, "read_for_push", lambda *a, **k: loaded))
+        self.enterContext(patch.object(service, "read_for_push", connection_doubles.read_for_push_returning(loaded)))
         self.enterContext(patch.object(service, "get_decrypted_password",
                                        lambda doctype, name, field, raise_exception=False: self.secrets.get(field)))
         old = service.credentials_for_use(loaded)
@@ -350,7 +355,7 @@ class SameAccount(Framework):
                                                                       "payload": {}}), \
                 patch.object(runner.ledger, "ack", MagicMock()) as ack, \
                 patch.object(runner.ledger, "trusted_adapter_context", lambda *a, **k: None), \
-                patch.object(runner.connections, "read_for_push", lambda *a, **k: loaded), \
+                patch.object(runner.connections, "read_for_push", connection_doubles.read_for_push_returning(loaded)), \
                 patch.object(runner.connections, "credentials_for_use",
                              lambda loaded: {"username": "test01", "password": PASSWORD}), \
                 patch.object(runner, "execute", execute), patch.object(runner, "dispatch_next", MagicMock()):

@@ -10,11 +10,16 @@
 """
 import contextlib
 import io
+import pathlib
 import re
 import socket
+import sys
 import unittest
 from datetime import date
 from unittest.mock import patch
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import connection_doubles  # noqa: E402
 
 try:
     import requests
@@ -615,22 +620,14 @@ class ManualEntries(unittest.TestCase):
         self.assertIn("manual=not operator", inspect.getsource(tools._submit_one))
 
     def test_release_kick_only_touches_mrerp_connections(self):
-        import frappe
-
+        """清标记照推送的规矩加锁读连接（替身照真接口：不加锁就抛；11-11 真站点实测原来传 lock=False 被吞成读不到）。"""
         from pearnly_cowork.connections import service as connections
         from pearnly_core.mrerp import kick_mark as account_kick
 
         cleared = []
         loaded = type("Loaded", (), {"endpoint": {"config": {"system_url": BASE}}})()
-
-        def read_for_push(connection_id, workspace, client=None, actor=None, lock=True):
-            # 照真实接口的规矩（`connections.service.read_for_push`）：不加锁读直接抛（11-11 真站点实测，原来传 lock=False 被吞成读不到）
-            if lock is not True:
-                raise frappe.ValidationError("Lock the connection before reading the push target.")
-            return loaded
-
         with patch.object(connections, "adapter_of", lambda name: {"M": "mrerp", "E": "express"}[name]), \
-                patch.object(connections, "read_for_push", read_for_push), \
+                patch.object(connections, "read_for_push", connection_doubles.read_for_push_returning(loaded)), \
                 patch.object(connections, "credentials_for_use", lambda value: {"username": "test01"}), \
                 patch.object(account_kick, "clear", lambda key: cleared.append(key) or True):
             self.assertFalse(runner.release_kick("E", "W1"))
@@ -638,6 +635,23 @@ class ManualEntries(unittest.TestCase):
         from pearnly_core.mrerp.session import lock_key
 
         self.assertEqual(cleared, [lock_key(BASE, "test01")])
+
+    def test_the_strict_double_matches_the_real_read_for_push(self):
+        """MR.ERP 测试用的连接读取替身（`tests/connection_doubles.py`）与真接口同一签名、同一条「不加锁就抛」，真接口改了这里先红。"""
+        import inspect
+
+        import frappe
+
+        from pearnly_cowork.connections import service as connections
+
+        double = connection_doubles.read_for_push_returning(object())
+        self.assertEqual(str(inspect.signature(double)), str(inspect.signature(connections.read_for_push)))
+        with self.assertRaises(frappe.ValidationError):
+            double("C", "W", lock=False)
+        with patch.object(connections, "_error", side_effect=frappe.ValidationError("lock_required")) as error:
+            with self.assertRaises(frappe.ValidationError):
+                connections.read_for_push("C", "W", lock=False)
+        error.assert_called_once_with("connection.lock_required")
 
 
 class Defaults(unittest.TestCase):

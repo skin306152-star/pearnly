@@ -157,8 +157,12 @@ def release_kick(connection, workspace, client=None):
     try:
         loaded = connections.read_for_push(connection, workspace, client)
         secrets = connections.credentials_for_use(loaded)
-    except (frappe.ValidationError, frappe.PermissionError):
-        return False  # 读不到：这次推送会照常报这个原因，标记留着
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        # 读不到：这次推送会照常报这个原因，标记留着。记一条日志，别再像 11-11 那样把调用写错悄悄吞掉
+        logger.warning("[mrerp-kick] manual push could not read connection %s, mark kept: %s: %s",
+                       connection, type(error).__name__, str(error)[:200])
+        frappe.clear_messages()
+        return False
     username = secrets.get("username") or ""
     system_url = (loaded.endpoint.get("config") or {}).get("system_url") or ""
     return bool(username) and account_kick.clear(lock_key(system_url, username))

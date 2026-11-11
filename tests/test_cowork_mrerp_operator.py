@@ -14,11 +14,16 @@
 """
 import contextlib
 import json
+import pathlib
 import socket
+import sys
 import types
 import unittest
 from datetime import date
 from unittest.mock import MagicMock, patch
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import connection_doubles  # noqa: E402
 
 try:
     import frappe
@@ -192,7 +197,7 @@ class Stage(Framework):
         self.held, self.logins, self.result = False, [], ({"CWH-1": {"docnum": "690912-000001"}}, {})
         payload = {"histories": [{"id": "CWH-1"}], "mappings": {}}
         self.enterContext(patch.object(staging.storage, "read", lambda name: self.doc))
-        self.enterContext(patch.object(staging.connections, "read_for_push", lambda *a, **k: self.loaded))
+        self.enterContext(patch.object(staging.connections, "read_for_push", connection_doubles.read_for_push_returning(self.loaded)))
         self.enterContext(patch.object(staging.connections, "credentials_for_use",
                                        lambda loaded: {"username": "test01", "password": "S3cret!"}))
         self.enterContext(patch.object(service, "mrerp_basis",
