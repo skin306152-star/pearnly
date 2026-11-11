@@ -327,7 +327,8 @@ class TicketTwin(unittest.TestCase):
         from pearnly_erp_portal.express import tickets
 
         rows = {"PO-1": {"company": "CO-1", "ticket_key": "k" * 40, "ticket_level": "exact"}}
-        others = [SimpleNamespace(name="PO-9", ledger_state="written", ledger_docnum="RR-9")]
+        others = [SimpleNamespace(name="PO-9", ledger_state="written", ledger_docnum="RR-9", ledger_book="BK-1",
+                                  ledger_target="express")]
         seen = []
 
         def value(doctype, name, fields=None, as_dict=False):
@@ -341,8 +342,10 @@ class TicketTwin(unittest.TestCase):
 
         with patch.object(frappe, "db", SimpleNamespace(get_value=value), create=True), \
                 patch.object(frappe, "get_all", listed, create=True):
+            # 写成的另带核账本要的（录过的票先核账本，A 线 11-11）：哪本账、哪家公司、哪份账套、进项
             self.assertEqual(tickets.twin("P:PO-1"), {"doc_id": "P:PO-9", "docnum": "RR-9", "state": "entered",
-                                                       "key": "CO-1:" + "k" * 40})
+                                                       "key": "CO-1:" + "k" * 40, "connection": "CO-1", "account_set": "BK-1",
+                                                       "direction": "purchase", "ledger": "express"})
             others[0].ledger_state = "queued"
             self.assertEqual((tickets.twin("P:PO-1")["state"], tickets.twin("P:PO-1")["docnum"]), ("queued", ""))
             others.clear()

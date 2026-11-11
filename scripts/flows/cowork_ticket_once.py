@@ -53,28 +53,25 @@ def steps(params, camera_code=None):
          "for(let k=0;k<5;k++){const more=q('[data-slot=\"cc-op-before\"] .cc-show-more'); if(!more) break; more.click(); await sleep(600);} "
          "const written=qa('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-written\"]').map(e=>e.innerText.trim()); "
          "return {picked, sent, card, written};"},
-        {"name": "开始", "js": JS + "let body=null; const orig=window.fetch; "
-         "window.fetch=async(u,i={})=>{const m=(String(u).split('express_operator.api.')[1]||'').split('?')[0]; "
-         "if(m==='start'){ body=JSON.parse(i.body||'{}'); return new Response(JSON.stringify({message:{batch:'flow',results:{}}}),"
-         "{status:200,headers:{'Content-Type':'application/json'}}); } return orig(u,i);}; "
-         "const b=q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-start\"]'); if(!b){window.fetch=orig; return {error:'no start'};} b.click(); "
-         "await until(()=>body,160); window.fetch=orig; return {ids: body?JSON.parse(body.doc_ids||'[]'):[]};"},
+        # 11-11 一句话下令：开始前卡片没有「开始」；说一句让假智能体照真实引擎调 pearnly_write_plan，计划按完整清单算、写过的票
+        # 先核账本（实验栈没有 CC 桌面版：核不了），不在计划里、进跳过清单，CC 复述时问跳过还是再录（计划内容在 verify 里读回）
+        {"name": "说一句建写入计划", "js": JS + f"const sent=await say({json.dumps(params['tag'] + ' 录吧 [lab-tool]' + json.dumps({'name': 'pearnly_write_plan', 'input': {}}) + '[/lab-tool]')}); "
+         "const found=()=>qa('[data-role=\"assistant\"]').find(e=>e.innerText.includes('pearnly_write_plan {')); "
+         "await until(()=>!!found()&&found().innerText.includes('\"status\"'),240); "
+         "return {sent, replied: !!found()};"},
     ]
 
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
-    card, started = by.get("开始前卡片") or {}, by.get("开始") or {}
-    written, ids = card.get("written") or [], started.get("ids") or []
-    ours = set(params["waiting"])
+    card, made = by.get("开始前卡片") or {}, by.get("说一句建写入计划") or {}
+    written = card.get("written") or []
     return [
         {"case": "数据：28 张识别单身份都是精确的，写法不同的 4 对是同一张票", "seen": {"levels": params["levels"], "keys": params["keys"]},
          "ok": params["levels"] == ["exact"] and params["keys"] == len(params["waiting"])},
         {"case": "开始前卡片标出 4 张已写入，各带它在 Express 里的单号", "seen": {"written": written},
          "ok": len(written) == len(params["skipped"]) and all(f"RR-ONCE-{i:02d}" in " ".join(written) for i in range(1, len(params["skipped"]) + 1))},
-        {"case": "点「开始」只交另外 20 张（已写入的 4 张不交）", "seen": {"ids": len([i for i in ids if i in ours]),
-         "skipped_sent": [i for i in ids if i in params["skipped"]]},
-         "ok": len([i for i in ids if i in ours]) == len(ours) - len(params["skipped"]) and not [i for i in ids if i in params["skipped"]]},
+        {"case": "说一句：CC 建了写入计划", "seen": made, "ok": bool(made.get("replied"))},
     ]
 
 
@@ -92,13 +89,25 @@ with mock.patch.object(tools, "_push_one_unguarded", lambda name, *a, **k: sent.
     again = operator_source.submit({params["company"]!r}, {params["skipped"][:1]!r},
                                    {{"id": "flow", "total": 1, "start_at": 0, "again": {params["skipped"][:1]!r}}}, "PC-FLOW")
 frappe.db.rollback()
-out = {{"written": [r["doc_id"] for r in results if r["status"] == "written"],
+plan = frappe.get_all("Pearnly Assistant Write Plan", filters={{"user": {USER!r}}}, fields=["documents", "skipped"],
+                      order_by="creation desc", limit_page_length=1)
+planned = {{"documents": [d["doc_id"] for d in json.loads(plan[0].documents or "[]")] if plan else [],
+           "skipped": [s for s in json.loads(plan[0].skipped or "[]") if s.get("reason") == "already_entered"] if plan else []}}
+out = {{"planned": planned, "written": [r["doc_id"] for r in results if r["status"] == "written"],
         "docnums": [r["reason"] for r in results if r["status"] == "written"],
         "sent": len(sent) - len(again), "again": [r["status"] for r in again]}}
 out["gone"] = cleanup()
 print(json.dumps(out, default=str))
 """)
+    planned, ours = out["planned"], set(params["waiting"])
+    entered = {item["doc_id"]: item for item in planned["skipped"]}
     return [
+        {"case": "写入计划里是另外 20 张；已写入的 4 张不在计划里、进跳过清单（我们写过、账本核不了：实验栈没有 CC 桌面版），各带 Express 单号",
+         "saved": {"documents": len([d for d in planned["documents"] if d in ours]), "entered": entered},
+         "ok": sorted(d for d in planned["documents"] if d in ours) == sorted(ours - set(params["skipped"]))
+         and sorted(entered) == sorted(params["skipped"])
+         and all(item.get("in_ledger") == "could_not_check" and str(item.get("docnum") or "").startswith("RR-ONCE-")
+                 for item in entered.values())},
         {"case": "站点交单同样跳过这 4 张（带 Express 单号）、交出 20 张", "saved": out,
          "ok": out["written"] == params["skipped"] and out["sent"] == len(params["waiting"]) - len(params["skipped"])
          and all(str(n).startswith("RR-ONCE-") for n in out["docnums"])},
