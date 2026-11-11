@@ -85,7 +85,7 @@ CORE_TOOLS = [
                     "value yet), value / value_label, source, options (small lists, the recommended one first, with a note "
                     "saying why) or search (accounts / products / parties for big lists) and the documents it holds; plus "
                     "unknown (last write result unknown: the user must check Express first), not_writable (facts, not "
-                    "choices), waiting and ready. needs_card false means everything is decided: write without asking. "
+                    "choices), waiting and ready. needs_card false means everything is decided: ask nothing and go on to the write plan. "
                     "Otherwise turn the proposed and open items into ask_user questions, then save the answers with "
                     "pearnly_precheck_answer. An item with when {key, value} only applies if the item with that key "
                     "ends up with that value (e.g. the warehouse and the stock items asked only when the entry is by "

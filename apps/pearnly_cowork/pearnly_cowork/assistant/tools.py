@@ -4635,7 +4635,9 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.list_documents"},
     {"name": "cowork_push_documents", "label": "Pushed documents", "modes": ["chat"],
      "description": "Push recognized documents to their accounting target (Express through CC Desktop, or MR.ERP), "
-                    "the same as Submit on the web page. Only when the user asked to push. Up to 20 at a time. After "
+                    "the same as Submit on the web page. Only documents of the write plan the user agreed to "
+                    "(pearnly_write_plan, said back, then pearnly_write_start after the user's reply); any other comes "
+                    "back not_pushed with what to do. Up to 20 at a time. After "
                     f"sending it waits up to about {PUSH_WAIT_SECONDS} seconds for the result from Express or MR.ERP (writing "
                     "usually takes a few seconds), so do not wait or check again yourself. Each result says "
                     "entered (written into Express or MR.ERP; docnum is its document number there, tell it to the user), queued "

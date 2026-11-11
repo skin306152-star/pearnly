@@ -657,8 +657,10 @@ TOOLS = [
          **direct_push.page_props(LIST_MAX), **SCOPE_PROPS}},
      "handler": "pearnly_erp_portal.express.cc_tools.list_documents"},
     {"name": "erp_push_documents", "label": "Pushed documents", "modes": ["chat"],
-     "description": "Send ERP documents to Express again, the same as Retry in the document's Express window: only when "
-                    f"the user asked. Up to {PUSH_MAX} at a time. After sending it waits up to about "
+     "description": "Send ERP documents to Express again, the same as Retry in the document's Express window: only "
+                    "documents of the write plan the user agreed to (pearnly_write_plan, said back, then "
+                    "pearnly_write_start after the user's reply); any other comes back not_pushed with what to do. "
+                    f"Up to {PUSH_MAX} at a time. After sending it waits up to about "
                     f"{direct_push.PUSH_WAIT_SECONDS} seconds for the result from Express, so do not wait or check "
                     "again yourself. Each result says entered (written into Express; docnum is its document number "
                     "there, tell it to the user), queued (no result yet, or CC Desktop is offline: it is entered "
