@@ -15,11 +15,13 @@ from __future__ import annotations
 import os
 import frappe
 
+from pearnly_core.ai_usage import contracts as usage_contracts, ledger
+
 KINDS = ("check", "turn")
 HAIKU, OPUS = "claude-haiku-5-5", "claude-opus-5-5"
 MODELS = (HAIKU, OPUS)
-# 美元 / 百万 token：输入、输出、写缓存、读缓存（只估算费用上限用；与识别引擎 `claude_ocr.engine.PRICE` 同一份数，测试比对，
-# 机器通道不为两行价目引用整个识别引擎）
+# 美元 / 百万 token：输入、输出、写缓存、读缓存（只估算费用上限用；与识别引擎 `claude_ocr.engine.PRICE`、账本 `ai_usage.prices`
+# 同一份数，测试比对，机器通道不为两行价目引用整个识别引擎）。技术债（11-11 主会话定）：下次动识别时三份并成 `ai_usage.prices`
 PRICE = {HAIKU: (0.10, 0.50, 0.125, 0.01), OPUS: (4.0, 20.0, 5.0, 0.20)}
 # ``context_management`` 不在内：它要 beta 头，本转发不发 beta 头，带了 Anthropic 回 400（11-05 真机 anthropic_400）；
 # CC 桌面版 1.12.15 起不再发它，带了按 ``invalid_field`` 整件拒收（旧版 1.12.14 的 AI 通道没接上，走不到这里）
@@ -131,4 +133,5 @@ def forward(body, *, post=_post) -> dict:
         cost = usd(request["model"], response.get("usage"))
         frappe.cache.set_value(SPENT + batch, already + cost, expires_in_sec=SPENT_TTL)
         frappe.logger("pearnly.operator").info("operator AI %s %s batch %s usd %.4f", kind, request["model"], batch, cost)
+        ledger.record("operator", [usage_contracts.call(request["model"], response.get("usage"))], ref=f"{batch}:{kind}")
     return response

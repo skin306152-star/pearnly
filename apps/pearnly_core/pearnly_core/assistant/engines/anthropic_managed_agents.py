@@ -172,7 +172,10 @@ class Adapter(base.Adapter):
     def status(self, conversation: str) -> str:
         return self.api.beta.sessions.retrieve(conversation).status
 
-    def summarize(self, text: str, model: str) -> str | None:
+    def session_usage(self, conversation: str) -> dict | None:
+        return _plain(self.api.beta.sessions.retrieve(conversation))
+
+    def summarize(self, text: str, model: str, spent: list | None = None) -> str | None:
         ask = dict(model=model or self.model, system=base.TITLE_INSTRUCTION, messages=[{"role": "user", "content": text}])
         api = self.api.with_options(timeout=TITLE_TIMEOUT)
         try:
@@ -181,6 +184,8 @@ class Adapter(base.Adapter):
             if getattr(err, "status_code", None) != 400:
                 raise
             reply = api.messages.create(max_tokens=TITLE_THINKING_TOKENS, **ask)
+        if spent is not None:
+            spent.append((getattr(reply, "model", None) or ask["model"], getattr(reply, "usage", None)))
         if getattr(reply, "stop_reason", None) != "end_turn":
             return None
         return "".join(getattr(part, "text", "") for part in reply.content

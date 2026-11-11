@@ -13,7 +13,7 @@
 - 顺手记下每次模型请求的输入量（`context.note`），供计价分档的接续判断；CC 每回一段话（`agent.message`）把对话的最后活动
   时间记成现在（`context.active`，侧栏「上次更新」按它排）。
 - 智能体停下来等 Pearnly 工具结果时，直接在服务端以会话主人的身份执行（`toolrun`），不靠页面开着。
-- 一轮结束时告诉 `titles`：还挂着临时标题的对话这时排概括（同 Claude 在第一轮之后起标题）。
+- 一轮结束时告诉 `titles`：还挂着临时标题的对话这时排概括（同 Claude 在第一轮之后起标题）；并排一次用量记账（`usage`）。
 - 记输入量、最后活动时间、执行工具都是附带的，出错只记类型、不打断转发；每次写库前先结束这条线程的旧读快照
   （`_fresh`）。第 11 轮重测 A 段：线程一开头读会话行就有了快照，用户发消息的请求随后改了同一行（最后活动时间）并提交；
   智能体一上来就调工具（前面没有回复正文）时，第一次写库是记输入量，按旧快照改这一行撞 1020（MariaDB 11.8 快照隔离，
@@ -26,7 +26,7 @@ import uuid
 
 import frappe
 
-from pearnly_core.assistant import context, contracts, engine, stopped, titles, toolrun
+from pearnly_core.assistant import context, contracts, engine, stopped, titles, toolrun, usage
 
 EVENT = contracts.REALTIME_EVENT
 LOCK_TTL = 120
@@ -178,6 +178,7 @@ def _run(site, sites_path, conversation, remote, user, key, token, ready):
                             _execute(conversation, remote, calls.pop(use_id))
                     if finished(event):
                         _keep_stopped(conversation, user, previews)
+                        usage.request(conversation, remote, user)  # 这一轮的用量记账（只排任务）
                         _turn_ended(conversation)
                         return
                     if time.monotonic() > deadline:

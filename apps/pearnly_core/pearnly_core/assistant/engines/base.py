@@ -88,10 +88,16 @@ class Adapter(abc.ABC):
         """把已有会话的工具换成当前说明里的（新接的工具老对话也能用）。厂商不支持就不做，返回 False。"""
         return False
 
-    def summarize(self, text: str, model: str) -> str | None:
+    def summarize(self, text: str, model: str, spent: list | None = None) -> str | None:
         """按 `TITLE_INSTRUCTION` 用便宜的模型（引擎目录的 `title_model`）起侧栏标题：`text` 是站点拼好的内容
         （`contracts.title_prompt`），原样作为一条用户消息交给模型，回模型原话（由站点 `contracts.make_title` 清理、
-        卡宽度）。厂商没有单次问答接口就回 None，站点保留临时标题。"""
+        卡宽度）。厂商没有单次问答接口就回 None，站点保留临时标题。``spent``：给了就把每次付了费的调用记进去
+        （``(模型, 用量)``，记账用，`titles`）。"""
+        return None
+
+    def session_usage(self, conversation: str) -> dict | None:
+        """远端会话的累计用量（记账用，`assistant.usage`）：回会话对象的字典（带 ``usage`` 与建时的 ``agent``），
+        厂商不给就回 None（不记）。"""
         return None
 
     @abc.abstractmethod

@@ -106,8 +106,13 @@ class _Sdk(types.ModuleType):
 def _install_fakes():
     frappe, sdk = _Frappe(), _Sdk()
     sys.modules["frappe"], sys.modules["anthropic"] = frappe, sdk
-    for name in ("pearnly_core", "pearnly_core.assistant", "pearnly_core.account", "pearnly_core.transaction"):
+    for name in ("pearnly_core", "pearnly_core.assistant", "pearnly_core.account", "pearnly_core.transaction",
+                 "pearnly_core.ai_usage"):
         sys.modules[name] = types.ModuleType(name)
+    # 用量账本（`ai_usage`，11-11）：真模块（写账只排任务，替身 frappe 的 enqueue 由各测试接）
+    for part in ("prices", "contracts", "ledger"):
+        setattr(sys.modules["pearnly_core.ai_usage"], part,
+                _load(f"pearnly_core.ai_usage.{part}", CORE / f"ai_usage/{part}.py"))
     # 共用的「撞上数据库冲突整笔重来」（会话的本站写 `sessions._write` 用）：真模块，退避不真睡
     frappe.QueryDeadlockError = type("QueryDeadlockError", (Exception,), {})
     frappe.QueryTimeoutError = type("QueryTimeoutError", (Exception,), {})
@@ -123,8 +128,8 @@ def _install_fakes():
     sys.modules["pearnly_core.assistant"].engines = engines
     for part in ("base", "anthropic_managed_agents"):
         setattr(engines, part, _load(f"pearnly_core.assistant.engines.{part}", CORE / f"assistant/engines/{part}.py"))
-    for part in ("timing", "config", "tools", "definition", "engine", "context", "ask", "waits", "toolrun", "sidebar", "titles", "stopped",
-                 "write_plan", "relay", "projects"):
+    for part in ("timing", "config", "tools", "definition", "engine", "context", "ask", "waits", "toolrun", "sidebar", "usage",
+                 "titles", "stopped", "write_plan", "relay", "projects"):
         module = _load(f"pearnly_core.assistant.{part}", CORE / f"assistant/{part}.py")
         setattr(sys.modules["pearnly_core.assistant"], part, module)
     return frappe, sdk
@@ -745,10 +750,14 @@ class RelayTests(unittest.TestCase):
             enqueue=lambda method, **kw: queued.append(kw), whitelist=frappe.whitelist)
         adapter = types.SimpleNamespace(wake=lambda event: event["data"]["id"])
         with mock.patch.object(webhook, "frappe", fake), mock.patch.object(webhook.engine, "adapter", return_value=adapter), \
+                mock.patch.object(webhook.usage, "frappe", fake), \
                 mock.patch.object(webhook.config, "engine_code", return_value="anthropic-managed-agents"):
             self.assertEqual(webhook.receive(), {"status": "queued"})
             self.assertEqual(webhook.receive(), {"status": "duplicate"})  # 引擎重送同一事件
             self.assertEqual((queued[0]["user"], queued[0]["remote"]), ("owner@example.com", "sesn_abcd1234"))
+            # 会话停下了：顺带排一次用量记账（11-11，页面关着、没有推送线程时也记得上）；重送的事件不再排
+            self.assertEqual([(q["job_id"], q["user"], q["enqueue_after_commit"]) for q in queued[1:]],
+                             [("assistant-usage-sesn_abcd1234", "owner@example.com", False)])
             headers["webhook-signature"] = "v1,AAAA"
             self.assertEqual(webhook.receive(), {"status": "rejected"})
             self.assertEqual(response.http_status_code, 401)
@@ -4262,6 +4271,9 @@ class ControlPlaneSettingsTests(unittest.TestCase):
         relay_src = (CORE / "assistant/relay.py").read_text(encoding="utf-8")
         self.assertIn("previews.see(event)", relay_src)
         self.assertLess(relay_src.index("_keep_stopped(conversation, user, previews)"), relay_src.index("_turn_ended(conversation)\n                        return"))
+        # 一轮结束顺带排一次用量记账（11-11，只排任务、不在转发线程里读引擎）
+        self.assertLess(relay_src.index("if finished(event):"), relay_src.index("usage.request(conversation, remote, user)"))
+        self.assertLess(relay_src.index("usage.request(conversation, remote, user)"), relay_src.index("_turn_ended(conversation)\n                        return"))
         sessions_src = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
         self.assertIn("stopped.feed(row.session_id, since=since)", sessions_src)
         self.assertIn("+ stopped.feed(row.session_id)), row)", sessions_src)
@@ -4389,11 +4401,20 @@ class SidebarSyncTests(unittest.TestCase):
         titles, db = self.titles, self.db
         history = [{"type": "user.message", "content": [{"type": "text", "text": "เมื่อคืนเป็นยังไงบ้าง"}]},
                    {"type": "agent.message", "content": [{"type": "text", "text": "เมื่อคืนงานเสร็จ 12 บิล"}]}]
-        read, asked = [], []
+        read, asked, charged = [], [], []
+
+        def summarize(text, model, spent=None):
+            spent.append((model, {"input_tokens": 50, "output_tokens": 5}))  # 每次付了费的调用交回记账（11-11）
+            asked.append((text, model))
+            return "ผลงานเมื่อคืน"
         api = types.SimpleNamespace(events=lambda remote, newest_first=False: read.append(remote) or iter(history),
-                                    summarize=lambda text, model: asked.append((text, model)) or "ผลงานเมื่อคืน")
-        with mock.patch.object(titles.engine, "adapter", return_value=api):
+                                    summarize=summarize)
+        with mock.patch.object(titles.engine, "adapter", return_value=api), \
+                mock.patch.object(titles.ledger, "record", lambda purpose, rows, **kw: charged.append((purpose, rows, kw))):
             titles.summarize("row1")
+            # 概括的两问各记一行账（用途 cc_title、记在这段对话和主人名下）
+            self.assertEqual([(p, [r["model"] for r in rows], kw["conversation"], kw["user"]) for p, rows, kw in charged],
+                             [("cc_title", [engines.get(CLAUDE).title_model] * 2, "sesn_first1", self.OWNER)])
             self.assertEqual((db.rows["row1"].title, db.rows["row1"].title_source), ("ผลงานเมื่อคืน", titles.SUMMARY))
             self.assertEqual(read, ["sesn_first1"])  # 第一段远端会话（对话编号）里读首条消息与第一段回复
             # 回的「ผลงานเมื่อคืน」正是提示示例、首句只撑得起大半：重问一次，仍是它才收（第 7 轮审查）
@@ -4407,7 +4428,7 @@ class SidebarSyncTests(unittest.TestCase):
             self.assertEqual(len(asked), 2)  # 仍是第一次的那两问
 
             # 概括期间用户手动改了名：写回前核对，用户的名字为准，不推自动标题
-            def renamed_meanwhile(text, model):
+            def renamed_meanwhile(text, model, spent=None):
                 db.set_value("", "row2", {"title": "ชื่อที่ตั้งเอง", "title_source": titles.BY_USER})
                 return "ผลงานเมื่อคืน"
 
@@ -4428,7 +4449,7 @@ class SidebarSyncTests(unittest.TestCase):
             self.assertEqual(api.summarize.call_count, 1)
 
             # 上线前已排队的旧任务（还没有 title_source）：标题仍是排队时的原文才概括；兼容入口照旧收旧参数
-            api.summarize = lambda text, model: "Old topic"
+            api.summarize = lambda text, model, spent=None: "Old topic"
             sessions = _load("pearnly_core.assistant.sessions", CORE / "assistant/sessions.py")
             sessions.retitle("row4", "sesn_older1", "old text that is long", "something else", self.OWNER)
             self.assertEqual(db.rows["row4"].title, "old text")
@@ -4436,7 +4457,7 @@ class SidebarSyncTests(unittest.TestCase):
             self.assertEqual((db.rows["row4"].title, db.rows["row4"].title_source), ("Old topic", titles.SUMMARY))
 
             # 概括期间对话被删了：不报错、不推
-            def deleted_meanwhile(text, model):
+            def deleted_meanwhile(text, model, spent=None):
                 db.rows.pop("row5")
                 return "Gone"
 
@@ -4459,7 +4480,7 @@ class SidebarSyncTests(unittest.TestCase):
         titles, db = self.titles, self.db
         asked, read = [], []
         api = types.SimpleNamespace(events=lambda remote, newest_first=False: read.append(remote) or iter(self.history),
-                                    summarize=lambda text, model: asked.append(text) or "ภาษีเดือนนี้")
+                                    summarize=lambda text, model, spent=None: asked.append(text) or "ภาษีเดือนนี้")
         self.history = []
         with mock.patch.object(titles.engine, "adapter", return_value=api):
             titles.summarize("row1", message="ช่วยสรุปภาษีเดือนนี้ให้หน่อย")
@@ -4510,7 +4531,7 @@ class SidebarSyncTests(unittest.TestCase):
         answers = iter(["ภาษีเดือน 9 สามบริษัท is an example, not relevant. Topic: account change",
                         "เปลี่ยนบัญชี SD-6909-1010"])
         api = types.SimpleNamespace(events=lambda remote, newest_first=False: read.append(remote) or iter(histories[remote]),
-                                    summarize=lambda text, model: asked.append(text) or next(answers))
+                                    summarize=lambda text, model, spent=None: asked.append(text) or next(answers))
         with mock.patch.object(titles.engine, "adapter", return_value=api):
             titles.summarize("rowA")
         self.assertEqual(read, ["sesn_rowA01"])  # 只读这段对话自己的事件
@@ -4523,14 +4544,14 @@ class SidebarSyncTests(unittest.TestCase):
                          [(self.OWNER, "sesn_rowA01")])  # 只推给这段对话的主人
         # 别的对话本身就在说这件事：同示例的标题照收
         read.clear()
-        api.summarize = lambda text, model: "ภาษีเดือน 9 สามบริษัท"
+        api.summarize = lambda text, model, spent=None: "ภาษีเดือน 9 สามบริษัท"
         with mock.patch.object(titles.engine, "adapter", return_value=api):
             titles.summarize("rowB")
         self.assertEqual((read, db.rows["rowB"].title), (["sesn_rowB01"], "ภาษีเดือน 9 สามบริษัท"))
         # 第 7 轮审查：CC 的回复里有「เดือน 9」「บริษัท」「ภาษีซื้อ」，模型两次都抄示例：不收，保留临时标题（首句）
         db.rows["rowC"] = _Row(name="rowC", session_id="sesn_rowA01", user=self.OWNER,
                                title="SD-6909-1010 ช่วยเปลี่ยนบัญชีเป็น 53-05-28-00", title_source="message")
-        api.summarize = lambda text, model: "ภาษีเดือน 9 สามบริษัท"
+        api.summarize = lambda text, model, spent=None: "ภาษีเดือน 9 สามบริษัท"
         with mock.patch.object(titles.engine, "adapter", return_value=api):
             titles.summarize("rowC")
         self.assertEqual(db.rows["rowC"].title, "SD-6909-1010 ช่วยเปลี่ยนบัญชีเป็น 53-05-28-00")
@@ -4593,7 +4614,7 @@ class SidebarSyncTests(unittest.TestCase):
                    {"type": "agent.message", "content": [{"type": "text", "text": "两张单都在等选账套"}]}]
         asked = []
         api = types.SimpleNamespace(events=lambda remote, newest_first=False: iter(history),
-                                    summarize=lambda text, model: asked.append(text) or "两张单待选账套")
+                                    summarize=lambda text, model, spent=None: asked.append(text) or "两张单待选账套")
         db.users = {self.OWNER: {"language": "th"}}  # 账号里存的是泰文，这台设备的对话页是中文
         cases = (("rowZ1", "zh", "Chinese"),  # 对话页语言优先
                  ("rowZ2", "", "Thai"),  # 没记着（过期、缓存清了）：账号语言

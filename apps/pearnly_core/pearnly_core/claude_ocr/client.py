@@ -9,6 +9,7 @@ import os
 
 import frappe
 
+from pearnly_core.ai_usage import contracts as usage_contracts, ledger
 from pearnly_core.claude_ocr import engine as claude_engine, pages as page_prep, segments
 
 ENGINES = ("google", "claude")
@@ -139,14 +140,21 @@ def _local(kind, pages, own_tax, text=None):
     return result
 
 
+def _charge(key, result):
+    """一次真正付了费的读（甲骨文或本机直调 Anthropic，不是检查点复用）记进本站账本（`ai_usage`，用途 ``ocr``）：美元直接用结果里
+    已经记下的 ``usd``，不重算。读不出也照记（照样付了费）。只排任务，出错不影响识别。"""
+    ledger.record("ocr", usage_contracts.ocr_stages(result), ref=key)
+    return result
+
+
 def _checkpointed(key, call):
-    """同一个检查点的结果直接用（不重复付费）；没有就调 ``call()``，读出来了存下。"""
+    """同一个检查点的结果直接用（不重复付费、不再记账）；没有就调 ``call()``（记账一次），读出来了存下。"""
     from pearnly_core.execution import work
 
     done = work.checkpoint(key)
     if done and done.get("state") == "done" and done.get("body"):
         return dict(done["body"], where="checkpoint")
-    result = call()
+    result = _charge(key, call())
     if result.get("read") is not None:
         work.checkpoint(key, "done", result)
     return result
@@ -190,7 +198,7 @@ def _edge_part(key, body):
 
         result = _checkpointed(here, call)
         if "page_total" not in result and result.get("where") == "checkpoint":
-            result = call()  # 部署前存的检查点不知道一共几页：这一段重读
+            result = _charge(here, call())  # 部署前存的检查点不知道一共几页：这一段重读（又付一次费，照记）
             if result.get("read") is not None:
                 work.checkpoint(here, "done", result)
         if "page_total" not in result or (ranged and result.get("page_range") != [first, last]):

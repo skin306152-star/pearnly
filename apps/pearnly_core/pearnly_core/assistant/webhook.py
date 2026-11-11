@@ -15,7 +15,7 @@ import time
 
 import frappe
 
-from pearnly_core.assistant import config, contracts, engine, toolrun
+from pearnly_core.assistant import config, contracts, engine, toolrun, usage
 
 SESSION = "Pearnly Assistant Session"
 SEEN_TTL = 24 * 3600
@@ -61,6 +61,7 @@ def receive():
         frappe.enqueue("pearnly_core.assistant.webhook.run_pending", queue="long", timeout=JOB_TIMEOUT,
                        job_id=f"assistant-tools-{remote}", deduplicate=True,
                        conversation=row.session_id, remote=remote, user=row.user)
+        usage.request(row.session_id, remote, row.user)  # 会话停下了：顺带记这一轮的用量（页面关着、没有推送线程时）
         return {"status": "queued"}
     return {"status": _forward(remote, body, headers)}
 

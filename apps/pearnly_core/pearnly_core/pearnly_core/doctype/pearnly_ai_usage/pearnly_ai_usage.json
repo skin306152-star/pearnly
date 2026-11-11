@@ -1,0 +1,156 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-11-11 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "day",
+  "purpose",
+  "product",
+  "tenant",
+  "user",
+  "conversation",
+  "segment",
+  "ref",
+  "model",
+  "input_tokens",
+  "output_tokens",
+  "cache_write_tokens",
+  "cache_read_tokens",
+  "active_seconds",
+  "usd",
+  "usd_source"
+ ],
+ "fields": [
+  {
+   "fieldname": "day",
+   "fieldtype": "Date",
+   "label": "Day",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "purpose",
+   "fieldtype": "Select",
+   "label": "Purpose",
+   "read_only": 1,
+   "options": "cc_chat\ncc_title\noperator\nocr",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "product",
+   "fieldtype": "Data",
+   "label": "Product",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tenant",
+   "fieldtype": "Data",
+   "label": "Tenant",
+   "read_only": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "conversation",
+   "fieldtype": "Data",
+   "label": "Conversation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "segment",
+   "fieldtype": "Data",
+   "label": "Session",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ref",
+   "fieldtype": "Data",
+   "label": "Reference",
+   "read_only": 1
+  },
+  {
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "label": "Model",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "input_tokens",
+   "fieldtype": "Int",
+   "label": "Input Tokens",
+   "read_only": 1
+  },
+  {
+   "fieldname": "output_tokens",
+   "fieldtype": "Int",
+   "label": "Output Tokens",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cache_write_tokens",
+   "fieldtype": "Int",
+   "label": "Cache Write Tokens",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cache_read_tokens",
+   "fieldtype": "Int",
+   "label": "Cache Read Tokens",
+   "read_only": 1
+  },
+  {
+   "fieldname": "active_seconds",
+   "fieldtype": "Float",
+   "label": "Active Seconds",
+   "read_only": 1,
+   "precision": "3"
+  },
+  {
+   "fieldname": "usd",
+   "fieldtype": "Float",
+   "label": "USD",
+   "read_only": 1,
+   "precision": "9",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "usd_source",
+   "fieldtype": "Select",
+   "label": "USD Source",
+   "read_only": 1,
+   "options": "\nlist_cost\nprice_table\nocr_result"
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-11 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly AI Usage",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "read_only": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

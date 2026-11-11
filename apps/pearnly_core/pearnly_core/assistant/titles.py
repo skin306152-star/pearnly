@@ -23,6 +23,7 @@
 """
 import frappe
 
+from pearnly_core.ai_usage import contracts as usage_contracts, ledger
 from pearnly_core.assistant import config, context, contracts, engine, sidebar, toolrun
 from pearnly_core.assistant.engines import base as engine_base
 
@@ -82,6 +83,7 @@ def summarize(name: str, legacy_title: str | None = None, message: str | None = 
         return
     title = ""
     model = config.settings().engine.title_model
+    spent = []  # 每次付了费的概括调用（模型、用量），写完标题记账
     if model:
         try:
             api = engine.adapter()
@@ -97,12 +99,15 @@ def summarize(name: str, legacy_title: str | None = None, message: str | None = 
             message = message or row.title or ""
             target = language(row)
             title = contracts.make_title(
-                lambda too_long: api.summarize(contracts.title_prompt(message, reply, too_long, target), model),
+                lambda too_long: api.summarize(contracts.title_prompt(message, reply, too_long, target), model, spent),
                 source=message, examples=engine_base.TITLE_EXAMPLES)  # 只按用户首句判断是否照抄示例
         except Exception:
             if _gone(name):
                 return  # 概括期间对话被删了（远端会话跟着删、读不到）：静默收手，不记错误（11-05 删对话竞争）
             frappe.log_error(title="Assistant title summary failed")
+        finally:
+            ledger.record("cc_title", [usage_contracts.call(m, u) for m, u in spent], user=row.user,
+                          conversation=row.session_id)
     _finish(row, title)
 
 

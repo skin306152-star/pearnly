@@ -1029,3 +1029,10 @@ This conversation could not be changed; please try again	对话修改失败，�
 {0} is entered in {1}	{0} 已写入 {1}	{0} บันทึกลง {1} แล้ว	{0} は {1} に入力済み
 {0} is not entered in {1}: {2}	{0} 未写入 {1}：{2}	{0} ยังไม่ได้บันทึกลง {1}: {2}	{0} は {1} に未入力：{2}
 {0} is not entered in {1}	{0} 未写入 {1}	{0} ยังไม่ได้บันทึกลง {1}	{0} は {1} に未入力
+Input Tokens	输入 Token	โทเค็นขาเข้า	入力トークン
+Output Tokens	输出 Token	โทเค็นขาออก	出力トークン
+Cache Write Tokens	缓存写入 Token	โทเค็นเขียนแคช	キャッシュ書き込みトークン
+Cache Read Tokens	缓存读取 Token	โทเค็นอ่านแคช	キャッシュ読み取りトークン
+Active Seconds	运行秒数	วินาทีที่ทำงาน	稼働秒数
+USD	美元	ดอลลาร์สหรัฐ	米ドル
+USD Source	美元来源	แหล่งที่มาของยอดดอลลาร์	米ドルの出所
