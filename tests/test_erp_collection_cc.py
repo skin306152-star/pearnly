@@ -5,8 +5,8 @@ IV1 1000 / IV2 500）。写入计划用共用层真实现（`pearnly_core.assist
 只把「本对话的用户消息序号 / 最近一次停止」（`assistant.sessions`）、对话附件（`assistant.files`）换成替身；判定钩子指向
 `collection.plan`（站点上经 `express.precheck.check` 转来，源码断言见最后一组）。
 
-覆盖：工具声明（命名、步骤名四语、hooks、两种会话都能用）；建草稿 → 写入计划 → 用户下一句同意 → 开始 → 放行（同意 = 用户消息
-序号）；没有新用户消息不开始；复述后改过不写（开始前改、开始后改）；停止后不开始；没开始的计划不放行；代录会话不放行；
+覆盖：工具声明（命名、步骤名四语、hooks、只在直写对话）；建草稿 → 写入计划 → 用户下一句同意 → 开始 → 放行（同意 = 用户消息
+序号）；没有新用户消息不开始；复述后改过不写（开始前改、开始后改）；停止后不开始；没开始的计划不放行；代录会话里没有收款工具；
 凭证从对话附件来；权限（没有收款岗位、别人的收款、别家公司）；撤回；结果查询；对话没挂公司。
 """
 import importlib
@@ -49,7 +49,7 @@ class Base(T.Base):
     def setUp(self):
         super().setUp()
         self.turn, self.stopped, self.attached = [0], [None], {}
-        self.company, self.operator = ["CO-1"], [False]
+        self.company = ["CO-1"]
         frappe.local.pearnly_assistant = {"session_id": SESSION, "may_wait": False}
         sessions = types.ModuleType("pearnly_core.assistant.sessions")
         sessions.user_turn = lambda sid: self.turn[0]
@@ -69,7 +69,6 @@ class Base(T.Base):
             mock.patch.object(assistant_package, "files", files, create=True),
             mock.patch.object(frappe, "get_hooks", side_effect=lambda name: HOOKS.get(name, {})),
             mock.patch.object(cc_tools, "_company", side_effect=lambda: self.company[0]),
-            mock.patch.object(cc_tools, "_operator_conversation", side_effect=lambda sid: self.operator[0]),
         ]
         for patch in patches:
             patch.start()
@@ -240,15 +239,6 @@ class Flow(Base):
         self.agreed(made["document"])
         self.stopped[0] = T.S.tick()
         self.assertEqual(self.call(cc_tools.push, document=made["document"])["reason"], "stopped")
-        self.assertEqual(self.record(made["name"]).status, "draft")
-
-    def test_an_operator_conversation_keeps_the_draft_and_does_not_release(self):
-        self.operator[0] = True
-        made = self.make("600")
-        self.assertNotIn("document", made)
-        self.assertIn("operator conversation", made["note"])
-        pushed = self.call(cc_tools.push, document=plan.doc_id(made["name"], 1))
-        self.assertEqual((pushed["status"], pushed["reason"]), ("not_pushed", "operator_conversation"))
         self.assertEqual(self.record(made["name"]).status, "draft")
 
     def test_no_company_filed(self):

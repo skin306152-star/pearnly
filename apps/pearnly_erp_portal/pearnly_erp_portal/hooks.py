@@ -673,7 +673,7 @@ pearnly_write_precheck = {
 # ERP 版 CC 按公司组织对话（ADR-020，2026-11-02）：公司工具（列出、读资料、经「允许」记 / 删知识库）与说话规矩
 # 对话里直写（评估 2026-11-02 §13 第 9 步）：按公司列单、要选的项、记选择、交直写、推送结果、结果不明的核对（`express.cc_tools`）
 # 盘点（盘点 2026-11-08 P1-1）：列、看差异、新建、记数、结束、按结果生成调整单草稿（`inventory.cc_tools`）
-# 收款（收款第 4 步 11-11）：找客户、未收清发票、方式、草稿与凭证、按写入计划放行、结果、撤回（`collection.cc_tools`，两种会话都能用）
+# 收款（收款第 4 步 11-11）：找客户、未收清发票、方式、草稿与凭证、按写入计划放行、结果、撤回（`collection.cc_tools`，只在直写对话：代录不做收款，用户 11-11）
 pearnly_assistant_tools = ["pearnly_core.express_operator.tools.TOOLS", "pearnly_erp_portal.masters.cc_tools.TOOLS",
                            "pearnly_erp_portal.express.cc_tools.TOOLS", "pearnly_erp_portal.inventory.cc_tools.TOOLS",
                            "pearnly_erp_portal.collection.cc_tools.TOOLS"]

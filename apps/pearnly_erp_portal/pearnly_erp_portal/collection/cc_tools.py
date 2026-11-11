@@ -8,8 +8,8 @@
   `collection.plan`）→ CC 调 ``pearnly_write_plan`` 把它放进计划（服务端按确认卡再判一遍）、一句话复述（公司·账套·客户·各张发票收
   多少·方式·折扣·合计）、等用户下一句 → ``pearnly_write_start`` → :func:`push`：只放已开始计划里的那张（`direct_push.permitted`），
   按单号里的版本放（`service.release`，同意 = 本对话的用户消息序号）。复述后草稿又改过 → 计划不写、放行回 ``changed``。
-- **两种会话都能用**（审定结论②）：查、建草稿、补凭证、查结果、撤回在代录会话里一样；代录会话的写入计划只取这个任务的待录清单
-  （共用层），收款放不进去，:func:`push` 在代录会话里回 ``operator_conversation``（草稿留着），见任务记录「需要共用层配合」。
+- **只在直写对话**（用户 11-11：代录不做收款）：每个工具只声明给直写会话（modes chat），代录会话给模型的工具表里没有它们
+  （共用层 `tools.mode_allowed`），各模式只用自己的工具。
 - **凭证**：对话里的附件（`assistant.files.attachment`）存成私有凭证（`service.store_voucher`），挂到草稿的那种转账上。
 - 业务拒绝回 ``not_saved`` 与原因码（``reason``）、给人看的一句（``message``，已翻译）和数（``detail``），不抛给模型。
 """
@@ -26,7 +26,6 @@ LIST_MAX = 20
 CUSTOMERS_MAX = 50
 NO_COMPANY = "no_company"
 NOT_PERMITTED = "not_permitted"
-OPERATOR_CONVERSATION = "operator_conversation"
 NOT_IN_CONVERSATION = "not_in_conversation"
 # 放行之后的结果（同直写推送的词：entered / queued / failed）
 ENTERED, QUEUED, FAILED, WITHDRAWN = "entered", "queued", "failed", "withdrawn"
@@ -43,8 +42,6 @@ READY_NOTE = ("Ready to record. Next call pearnly_write_plan with documents [doc
               "anything, change the draft with erp_collection_draft (collection and version) and say it back again.")
 NOT_READY_NOTE = ("Not ready to record yet: problem says what is missing (voucher_missing: ask the user to attach a photo "
                   "of the transfer slip in this conversation, then erp_collection_voucher). Tell the user in plain words.")
-OPERATOR_NOTE = ("This is an operator conversation: a collection cannot be recorded from here yet. The draft is saved "
-                 "(name): tell the user it is saved and not recorded in Express.")
 CHANGED_NOTE = ("The collection changed after it was said back, so it was not recorded: show it again with "
                 "erp_collection_card, say it back again and wait for the user's reply.")
 QUEUED_NOTE = ("queued: sent, but Express has not reported a result yet (CC Desktop on the computer that writes it may "
@@ -64,12 +61,6 @@ def _company() -> str:
     from pearnly_erp_portal.masters import cc_tools
 
     return cc_tools.filed()
-
-
-def _operator_conversation(session_id) -> bool:
-    from pearnly_core.assistant import toolrun
-
-    return toolrun.session_mode(session_id) == "operator"
 
 
 def _refused(error) -> dict:
@@ -104,8 +95,6 @@ def _card(card) -> dict:
     """确认卡 → 工具结果：规则全过的草稿带写入计划的单号与下一步。"""
     out = dict(card)
     if card.get("status") == contracts.DRAFT and card.get("ready"):
-        if _operator_conversation(_session()):
-            return {**out, "note": OPERATOR_NOTE}
         return {**out, "document": plan.doc_id(card["name"], card["version"]), "note": READY_NOTE}
     if card.get("status") == contracts.DRAFT:
         out["note"] = NOT_READY_NOTE
@@ -258,9 +247,6 @@ def push(tool_input) -> str:
     session_id = _session()
     if not session_id:
         return _json({"document": document, "status": "not_pushed", "reason": NOT_IN_CONVERSATION})
-    if _operator_conversation(session_id):
-        return _json({"document": document, "status": "not_pushed", "reason": OPERATOR_CONVERSATION,
-                      "note": OPERATOR_NOTE})
     allowed, refused = direct_push.permitted([document])
     if not allowed:
         return _json(refused[0])
@@ -309,7 +295,7 @@ RESULT_NOTE = ("status is draft, queued (released, on its way to Express), writi
                "collected) or withdrawn.")
 
 TOOLS = [
-    {"name": "erp_collection_customers", "label": "Searched customers for a collection",
+    {"name": "erp_collection_customers", "label": "Searched customers for a collection", "modes": ["chat"],
      "description": "Customers of the company this conversation is filed under that a collection can be recorded for "
                     "(from Express), by code or part of the name: code and name. Up to "
                     f"{CUSTOMERS_MAX} per call; pass next_offset as offset for the next page. When several match, ask "
@@ -318,20 +304,20 @@ TOOLS = [
          "search": {"type": "string"}, "offset": {"type": "integer", "minimum": 0},
          "limit": {"type": "integer", "minimum": 1, "maximum": CUSTOMERS_MAX}}},
      "handler": "pearnly_erp_portal.collection.cc_tools.customers"},
-    {"name": "erp_collection_invoices", "label": "Listed open invoices",
+    {"name": "erp_collection_invoices", "label": "Listed open invoices", "modes": ["chat"],
      "description": "A customer's invoices that are not fully paid in Express, oldest first: docnum, date, net, received, "
                     "remaining and available (what can be collected now: remaining less what other collectors already "
                     "recorded). Only available can be collected; never work amounts out yourself.",
      "input_schema": {"type": "object", "properties": {"customer": {"type": "string", "description": "Customer code."}},
                       "required": ["customer"]},
      "handler": "pearnly_erp_portal.collection.cc_tools.invoices"},
-    {"name": "erp_collection_methods", "label": "Listed collection methods",
+    {"name": "erp_collection_methods", "label": "Listed collection methods", "modes": ["chat"],
      "description": "How a collection can be received in this company's account set: cash (true when cash can be "
                     "recorded), transfers (prefix, code, name: the account set's money-receiving transfer kinds) and "
                     "discount (the cash discount kind, or none). Only these can be used.",
      "input_schema": {"type": "object", "properties": {}},
      "handler": "pearnly_erp_portal.collection.cc_tools.methods"},
-    {"name": "erp_collection_draft", "label": "Saved a collection draft",
+    {"name": "erp_collection_draft", "label": "Saved a collection draft", "modes": ["chat"],
      "description": "Save a collection the user is recording for one customer: the invoices with the amount collected on "
                     "each (or only docnums and amount, the total, collected oldest first), cash, and methods (transfers "
                     "and the discount by prefix, with amount; for a transfer the slip photo attached in this "
@@ -347,19 +333,19 @@ TOOLS = [
          "date": {"type": "string", "description": "YYYY-MM-DD; leave out for today."}},
          "required": ["invoices"]},
      "handler": "pearnly_erp_portal.collection.cc_tools.draft"},
-    {"name": "erp_collection_voucher", "label": "Attached a transfer slip",
+    {"name": "erp_collection_voucher", "label": "Attached a transfer slip", "modes": ["chat"],
      "description": "Attach the transfer slip photo the user sent in this conversation to one transfer (prefix) of a "
                     "saved collection; returns the confirm card with the new version.",
      "input_schema": {"type": "object", "properties": {
          "collection": COLLECTION_PROP, "version": VERSION_PROP, "prefix": {"type": "string"}, "file": FILE_PROP},
          "required": ["collection", "version", "prefix", "file"]},
      "handler": "pearnly_erp_portal.collection.cc_tools.voucher"},
-    {"name": "erp_collection_card", "label": "Viewed a collection",
+    {"name": "erp_collection_card", "label": "Viewed a collection", "modes": ["chat"],
      "description": "The confirm card of one of the user's collections (the same as erp_collection_draft returns). "
                     + RESULT_NOTE,
      "input_schema": {"type": "object", "properties": {"collection": COLLECTION_PROP}, "required": ["collection"]},
      "handler": "pearnly_erp_portal.collection.cc_tools.card"},
-    {"name": "erp_collection_push", "label": "Recorded a collection",
+    {"name": "erp_collection_push", "label": "Recorded a collection", "modes": ["chat"],
      "description": "Record a collection into Express as an RE receipt: only the document of the write plan the user "
                     "agreed to (pearnly_write_plan, said back, then pearnly_write_start after the user's reply); any "
                     "other comes back not_pushed with what to do, changed when it was changed after it was said back. "
@@ -369,17 +355,17 @@ TOOLS = [
          "document": {"type": "string", "description": "The document (R:…) from erp_collection_draft and the plan."}},
          "required": ["document"]},
      "handler": "pearnly_erp_portal.collection.cc_tools.push"},
-    {"name": "erp_collection_status", "label": "Checked a collection",
+    {"name": "erp_collection_status", "label": "Checked a collection", "modes": ["chat"],
      "description": "Where one of the user's collections is now. " + RESULT_NOTE,
      "input_schema": {"type": "object", "properties": {"collection": COLLECTION_PROP}, "required": ["collection"]},
      "handler": "pearnly_erp_portal.collection.cc_tools.status"},
-    {"name": "erp_collection_list", "label": "Listed collections",
+    {"name": "erp_collection_list", "label": "Listed collections", "modes": ["chat"],
      "description": f"The user's latest collections, newest first, up to {LIST_MAX} per call; pass next_offset as offset "
                     "for the next page. " + RESULT_NOTE,
      "input_schema": {"type": "object", "properties": {
          "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX}}},
      "handler": "pearnly_erp_portal.collection.cc_tools.recent"},
-    {"name": "erp_collection_withdraw", "label": "Withdrew a collection",
+    {"name": "erp_collection_withdraw", "label": "Withdrew a collection", "modes": ["chat"],
      "description": "Withdraw one of the user's collections before CC Desktop picks it up (a draft, queued or failed "
                     "one), only when the user asks. One being written or already in Express cannot be withdrawn.",
      "input_schema": {"type": "object", "properties": {"collection": COLLECTION_PROP}, "required": ["collection"]},
