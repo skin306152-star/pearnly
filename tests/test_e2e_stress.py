@@ -120,7 +120,7 @@ class SkipTest(unittest.TestCase):
                 self.assertTrue(s.company in (stress.WRITE, stress.ERP_WRITE), f"{s.id} 写入格的公司要等主会话定")
                 self.assertTrue(s.auto or s.probe_real, f"{s.id} 写入格要替用户答卡")
         self.assertTrue(stress.BY_ID["S8a"].probe_real)
-        self.assertFalse(stress.BY_ID["S8a"].auto, "P0 实证格不替用户批准推送")
+        self.assertEqual(stress.BY_ID["S8a"].follow[0][0], 240, "要求改写进别家账套那句在第一次复述、点录吧之后再发")
 
     def test_rejected_upload_not_charged(self):
         for name in stress.BY_ID["S3"].files:
