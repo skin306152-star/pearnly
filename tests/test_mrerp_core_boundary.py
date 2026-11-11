@@ -21,6 +21,8 @@ EXTRA = {
     "push/transport.py": {"time", "contextlib"},
     # 11-11：登录 MR.ERP 的唯一入口（同账号锁、被踢标记、会话复用），推送、读菜单 / 主档、目录采集都经它
     "account.py": {"contextlib", "pearnly_core.session_lock"},
+    # 11-11 核账本的 MR.ERP 一侧：经共用会话入口读列表（拿不到锁 = 核不了）
+    "ledger_check.py": {"pearnly_core.session_lock"},
     # 11-09 风险 7：复用的会话存在不淘汰的状态 Redis（与账号锁同一个，键不带站点前缀，两产品共用）
     "session_cache.py": {"pearnly_core.execution"},
     "kick_mark.py": {"pearnly_core.execution", "sys"},

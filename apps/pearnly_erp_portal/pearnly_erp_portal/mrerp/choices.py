@@ -35,6 +35,11 @@ def _options(connection):
     return (row.menu_options, row.master_options) if row else (None, None)
 
 
+def menu_options_of(connection) -> tuple:
+    """（这条连接各账套读到过的导入页选项, 主档可用值）原始记录（核账本按方向找已关联的菜单用，`mrerp.ledger_check`）。"""
+    return _options(connection)
+
+
 def views(row) -> tuple:
     """（菜单视图, 主档视图）：共用层 `menus.view` / `masters.view` 的形状。"""
     menu_options, master_options = _options(row.mrerp_connection)
@@ -120,4 +125,5 @@ def choose(company, kind, subject, value):
     return picked
 
 
-__all__ = ["DEFAULT", "MENU", "chosen", "choose", "company_row", "observe", "request_read", "run_read", "views"]
+__all__ = ["DEFAULT", "MENU", "chosen", "choose", "company_row", "menu_options_of", "observe", "request_read", "run_read",
+           "views"]

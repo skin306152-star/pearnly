@@ -706,5 +706,6 @@ pearnly_write_precheck = {
 }
 
 # 录过的票先核账本（共用入口 `pearnly_core.ledger_tickets.check_present`，A 线 11-11）：Express 经本产品自己的 CC 桌面版请求通道；
-# MR.ERP 一侧由 D 线另加 "mrerp"
-pearnly_ledger_check = {"express": "pearnly_cowork.readback.ledger_check.check"}
+# MR.ERP 一侧按本产品的连接直读 MR.ERP 列表（D 线 11-11，`push.mrerp.ledger_check`）
+pearnly_ledger_check = {"express": "pearnly_cowork.readback.ledger_check.check",
+                        "mrerp": "pearnly_cowork.push.mrerp.ledger_check.check"}

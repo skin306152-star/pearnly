@@ -663,5 +663,6 @@ doc_events["ERP Company"] = {"on_update": "pearnly_erp_portal.masters.cc_service
                              "on_trash": "pearnly_erp_portal.masters.cc_service.company_removed"}
 
 # 录过的票先核账本（共用入口 `pearnly_core.ledger_tickets.check_present`，A 线 11-11）：Express 经本产品自己的 CC 桌面版请求通道；
-# MR.ERP 一侧由 D 线另加 "mrerp"
-pearnly_ledger_check = {"express": "pearnly_erp_portal.express.ledger_check.check"}
+# MR.ERP 一侧按公司的 MR.ERP 连接直读 MR.ERP 列表（D 线 11-11，`mrerp.ledger_check`；MR.ERP 账本开关关着时回空）
+pearnly_ledger_check = {"express": "pearnly_erp_portal.express.ledger_check.check",
+                        "mrerp": "pearnly_erp_portal.mrerp.ledger_check.check"}
