@@ -314,3 +314,13 @@ NLTTEST 的 30 行收款类型（ISRUN DOCTYP=ZR）**没有一行被这条科目
 ### 与第 1 步要对齐（已发给第 1 步子代理）
 
 `express_marks` 应收标记键名 `ar_mark`；`jobs.view` 带出回执 `receipt`；`already_collected` / `invoice_not_found` / `receipt_type_invalid` / `cash_account_missing` 直接转人工不重试；共用层接受 `express_ar_open`；CC 心跳报支持载荷 v20。
+
+## 第 1 步结果：CC 桌面版读写 RE（11-11）
+
+- 分支 `pearnly/collection-cc-write`，基线 origin/main `d22f453ee`，远端 `8d31a155e`（之后补「服务品现金制」一提交，见下）。本地 CI 同名 219/219、候选离线 107 组 LANE EXIT 0（镜像 `4b2fa572`）、Development checks 与 Companion checks（Windows 全量）绿。
+- 新文件 `dbf_receipt.py`（RE 写入）、`payment_methods.py`（方式行编号 / 科目解析 / 摘要表达式，可给 PS、HS 复用）、`express_receivables.py`（`express_ar_open`）；共用层 `request_contracts`（新种类、共享、2 MiB、180 秒）、`jobs.view` 带 `receipt`、`ack_rules` 四个码直接转人工；载荷支持到 20；心跳报 20；`express_marks` 回 `{mark, ar_mark}`，标记新加 OESLM、BKMAS。
+- **NLTTEST 副本按类重放 25 张原生 RE**（退回写入前状态，同输入重写，逐字段比）：ISRUN 下一个号、ARRCPIT、ARRCPCQ、GLJNL / GLJNLIT（科目、借贷、金额、部门、摘要）、发票 RCVAMT / REMAMT / CMPLAPP、ARBAL RE 期桶、ARMAS.BALANCE **全部一致**。剩余差异：DUEDAT（原生人填，我们写收款日）、AMTRAT0（原生零星，不写）、服务品现金制发票单头 FLGVAT / VATDAT（本批挡掉，见下）。重放中按原生修了：分录按科目合并升序；支持负数方式行（多收零头记贷方）。全本没有「现金 + 转账」组合的原生样本，只有合成测试覆盖。
+- **没测到**：自动冒烟 `cc.desktop.write` / `erp.cc.write` / `erp.cc.stock-entry`（要写测试机 C 盘账套，本步禁止）、人工项、CDX 重建与 Express 打开 RE（Windows 程序）——第 5 步 NLTTEST 实写时核。
+- 决定（本窗口）：服务品现金制发票（SRV_VATTYP=2）本批挡掉——`express_ar_open` 不列，写前重读遇到整单不写（`cash_basis_vat` 转人工），免得漏记销项税；部门 / 销售员由服务端显式传第一张发票的（可编辑），不靠 CC 回退单据簿默认。
+- 销售员停用按 Express 写法判（状态 `I` 或有停用日期；`A` 是在用），不按契约字面「STATUS 非空」。
+- `express_ar_open` 要求 CC 1.12.21 起（随 1.12.20 之后的版本发，发版前与主会话对齐 VERSION）。
