@@ -93,6 +93,12 @@ def _book(rows):
             "path": first.path, "root": first.root}
 
 
+def find(key) -> dict | None:
+    """这一份账套（按键）合成给产品看的样子（同 `for_company` 的每一项）；没有电脑报过它回 None。"""
+    rows = frappe.get_all(BOOK, filters={"book_key": str(key or "")}, fields=list(FIELDS), order_by="device asc") if key else []
+    return _book(rows) if rows else None
+
+
 def for_company(tax_id, branch=None, *, devices=None) -> list:
     """这家公司（税号 + 分店）的账套，一份一项；``devices`` 给了就只看这几台电脑报的。分店：只留这个分店的，公司只报过这一个
     分店号时没报分店号的（旧年度没税号的）也算（同 Cowork `companies.identity.for_branch`）。"""

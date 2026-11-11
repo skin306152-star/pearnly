@@ -661,3 +661,7 @@ pearnly_assistant_projects = ["pearnly_erp_portal.masters.cc_projects"]
 # 公司建、改名、停用、启用、删：推给能看这家的人，CC 侧栏即时更新（`masters.cc_service`）
 doc_events["ERP Company"] = {"on_update": "pearnly_erp_portal.masters.cc_service.company_changed",
                              "on_trash": "pearnly_erp_portal.masters.cc_service.company_removed"}
+
+# 录过的票先核账本（共用入口 `pearnly_core.ledger_tickets.check_present`，A 线 11-11）：Express 经本产品自己的 CC 桌面版请求通道；
+# MR.ERP 一侧由 D 线另加 "mrerp"
+pearnly_ledger_check = {"express": "pearnly_erp_portal.express.ledger_check.check"}
