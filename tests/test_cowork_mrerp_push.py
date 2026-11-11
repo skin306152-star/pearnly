@@ -24,6 +24,7 @@ import connection_doubles  # noqa: E402
 try:
     import requests
     from openpyxl import Workbook, load_workbook
+    from pearnly_core.mrerp import account as mrerp_account
     from pearnly_core.mrerp.push import routing, transport
     from pearnly_core.mrerp.push.models import MRERPBusinessError
     from pearnly_cowork.push.mrerp import runner
@@ -229,7 +230,7 @@ def push(site, histories, mappings=None):
 
     with patch.object(requests.Session, "request", autospec=True, side_effect=send), \
             patch.object(socket, "getaddrinfo", return_value=PUBLIC), \
-            patch.object(transport, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
+            patch.object(mrerp_account, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
         importer = transport.MrErpImport(system_url=BASE, username="test01", password="test01",
                                          comidyear="15", seldb="1")
         with importer:
@@ -246,7 +247,7 @@ def execute(site, histories):
 
     with patch.object(requests.Session, "request", autospec=True, side_effect=send), \
             patch.object(socket, "getaddrinfo", return_value=PUBLIC), \
-            patch.object(transport, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
+            patch.object(mrerp_account, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
         return runner.execute({"histories": histories, "mappings": {"_own_tax_id": OWN, "_mrerp_defaults": dict(CHOSEN)}},
                               {"account_set": "15:1"}, {"username": "test01", "password": site.password_used},
                               BASE, TODAY)
@@ -535,7 +536,7 @@ class KickedMark(_StateRedis):
         def no_dns(*args, **kwargs):
             raise AssertionError("resolved the MR.ERP host while the account is marked")
 
-        with patch.object(transport, "account_lock", lambda *a, **k: locks.append(a) or contextlib.nullcontext(True)), \
+        with patch.object(mrerp_account, "account_lock", lambda *a, **k: locks.append(a) or contextlib.nullcontext(True)), \
                 patch.object(requests.Session, "request", autospec=True,
                              side_effect=AssertionError("sent a request while the account is marked")), \
                 patch.object(socket, "getaddrinfo", side_effect=no_dns):

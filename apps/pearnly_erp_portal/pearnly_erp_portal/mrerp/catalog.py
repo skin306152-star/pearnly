@@ -20,17 +20,20 @@ JOB_TIMEOUT_SECONDS = 240
 PAGE_MAX = 100
 
 
-def refresh(name):
-    """申请重读这条连接的账套目录（只限管理员；同一连接只排一件，提交后可见）。"""
+def refresh(name, *, manual):
+    """申请重读这条连接的账套目录（只限管理员；同一连接只排一件，提交后可见）。
+
+    ``manual``：人点的（`api.request_refresh / refresh_catalog`，11-11）—— 采集时先清被踢标记、这次照常登录；由调用入口显式给。"""
     connections.require_admin()
     if not frappe.db.exists(connections.CONNECTION, name):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     frappe.enqueue("pearnly_erp_portal.mrerp.catalog.run", queue="short", job_id=f"erp-mrerp-catalog::{name}",
-                   deduplicate=True, enqueue_after_commit=True, timeout=JOB_TIMEOUT_SECONDS, connection=name)
+                   deduplicate=True, enqueue_after_commit=True, timeout=JOB_TIMEOUT_SECONDS, connection=name,
+                   manual=bool(manual))
     return {"connection": name, "requested_at": str(now_datetime())}
 
 
-def run(connection):
+def run(connection, manual=False):
     """（后台任务）登录、列账套、补期间与税号（不持行锁）→ 存目录快照或错误码。永不抛到队列。"""
     if not connections.mrerp.enabled():
         return
@@ -40,7 +43,8 @@ def run(connection):
     frappe.db.commit()
     if not lease:
         return
-    result = mrerp_collect.collect(lease)
+    # 后台任务自己不算人点的：只有排任务的入口说了是才算（旧任务没带这个参数照不算）
+    result = mrerp_collect.collect(lease, manual=bool(manual))
     if result.get("error_code"):
         frappe.db.set_value(connections.CONNECTION, connection, "catalog_error", str(result["error_code"])[:140],
                             update_modified=False)

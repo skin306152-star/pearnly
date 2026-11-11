@@ -49,8 +49,10 @@ def chosen(row) -> tuple:
     return menu_rules.chosen_map(row.mrerp_menus, account), master_rules.chosen_map(row.mrerp_defaults, account)
 
 
-def request_read(company):
-    """申请去 MR.ERP 读这家公司账套的导入菜单与主档（只限管理员；同一连接同一账套只排一件）。"""
+def request_read(company, *, manual):
+    """申请去 MR.ERP 读这家公司账套的导入菜单与主档（只限管理员；同一连接同一账套只排一件）。
+
+    ``manual``：人点的（`api.read_choices`，11-11）—— 读取时先清被踢标记、这次照常登录；由调用入口显式给。"""
     connections.require_admin()
     row = company_row(company)
     if not row or not row.mrerp_enabled or not row.mrerp_connection or not row.mrerp_account_set:
@@ -58,11 +60,11 @@ def request_read(company):
     frappe.enqueue("pearnly_erp_portal.mrerp.choices.run_read", queue="short",
                    job_id=f"erp-mrerp-menus::{row.mrerp_connection}::{row.mrerp_account_set}", deduplicate=True,
                    enqueue_after_commit=True, timeout=JOB_TIMEOUT_SECONDS, connection=row.mrerp_connection,
-                   account_set=row.mrerp_account_set)
+                   account_set=row.mrerp_account_set, manual=bool(manual))
     return {"company": company, "requested_at": str(now_datetime())}
 
 
-def run_read(connection, account_set):
+def run_read(connection, account_set, manual=False):
     """（后台任务）读导入页菜单与主档（不持行锁）→ 存回连接。永不抛到队列。"""
     if not connections.mrerp.enabled():
         return
@@ -72,7 +74,8 @@ def run_read(connection, account_set):
     frappe.db.commit()
     if not lease:
         return
-    pages, fields, error, master_error = menu_read.read(lease, account_set)
+    # 后台任务自己不算人点的：只有排任务的入口说了是才算（旧任务没带这个参数照不算）
+    pages, fields, error, master_error = menu_read.read(lease, account_set, manual=bool(manual))
     observe(connection, account_set, pages, fields, error=error, master_error=master_error)
     frappe.db.commit()
 

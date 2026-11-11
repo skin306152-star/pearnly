@@ -58,8 +58,9 @@ def records(workspace=None, client=None, start=0, limit=50):
 @frappe.whitelist(methods=["POST"])
 def request_refresh(name, request_key, account_set_key=None):
     result = _call(service.request_refresh, name, request_key, account_set_key)
-    # MR.ERP 没有小助手来领：申请落库后由服务端采集任务去读（提交后才入队）。
-    mrerp_collector.dispatch(result)
+    # MR.ERP 没有小助手来领：申请落库后由服务端采集任务去读（提交后才入队）。人点的入口（网页刷新与 CC 工具都走这里，CC 工具
+    # 只在用户这一轮执行）：读取时先清被踢标记、这次照常登录（11-11）
+    mrerp_collector.dispatch(result, manual=True)
     return result
 
 
@@ -112,6 +113,7 @@ def choose_mrerp_default(name, account_set_key, field, code):
 @frappe.whitelist(methods=["POST"])
 def request_mrerp_menu(name, account_set_key):
     request = _call(service.request_mrerp_menu, name, account_set_key)
-    # 读 MR.ERP 导入页在后台做（提交后才入队）；前端按返回的申请时刻轮询 mrerp_menu。
-    mrerp_menu_reader.dispatch(request)
+    # 读 MR.ERP 导入页在后台做（提交后才入队）；前端按返回的申请时刻轮询 mrerp_menu。人点的入口（网页与 CC 工具，CC 工具只在
+    # 用户这一轮执行）：读取时先清被踢标记、这次照常登录（11-11）
+    mrerp_menu_reader.dispatch(request, manual=True)
     return {"account_set_key": request["account_set_key"], "requested_at": request["requested_at"]}

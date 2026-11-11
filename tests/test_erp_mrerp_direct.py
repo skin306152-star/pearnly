@@ -194,9 +194,9 @@ class SwitchedOff(unittest.TestCase):
 
         for call in (lambda: connection.configure("https://www.mrerp4sme.com"), connection.require_admin,
                      lambda: connection.records(), lambda: connection.configure_once("https://www.mrerp4sme.com", None, "k1"),
-                     lambda: catalog.refresh("C1"), lambda: catalog.account_sets("C1"),
+                     lambda: catalog.refresh("C1", manual=True), lambda: catalog.account_sets("C1"),
                      lambda: catalog.choose("CO-1", "C1", "15:1"), lambda: catalog.detach("CO-1"),
-                     lambda: choices.request_read("CO-1"), lambda: choices.choose("CO-1", "mrerp_menu", "purchase", "68")):
+                     lambda: choices.request_read("CO-1", manual=True), lambda: choices.choose("CO-1", "mrerp_menu", "purchase", "68")):
             with self.subTest(call=call):
                 with self.assertRaises(PermissionError_):
                     call()
@@ -430,7 +430,11 @@ class KickedAccount(unittest.TestCase):
 
     def test_only_the_manual_entries_clear_the_mark(self):
         """源码锁：清标记的调用只在人点的入口里；自动路径（Cowork 定时巡检 / 自动推档位 / 文件夹定时 / 同批后续，ERP 提交新单 /
-        每分钟巡检 / 选一次后再排）一处都没有。新加入口要在这里登记。"""
+        每分钟巡检 / 选一次后再排）一处都没有。新加入口要在这里登记。
+
+        11-11 起读菜单 / 主档、目录采集也走同一套（`mrerp.account.use`，``manual`` 由入口显式给）：人点的只有网页与 CC 共用的申请接口
+        （Cowork `connections.api.request_refresh / request_mrerp_menu`，ERP `mrerp.api` 的三个申请）；其余是把入口说的原样往下传
+        （排任务 → 后台任务 → 共用读取），后台任务自己默认不算。"""
         allowed = {
             ("apps/pearnly_cowork/pearnly_cowork/push/application/api.py", "submit", "manual"),
             ("apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "_submit_one", "manual"),
@@ -441,6 +445,24 @@ class KickedAccount(unittest.TestCase):
             ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py", "send", "release_kick"),
             ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py", "release_kick", "clear"),
             ("apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py", "_route", "manual"),
+            # 11-11 读取：共用入口（清标记只在这一处）与把 manual 往下传的几层
+            ("apps/pearnly_core/pearnly_core/mrerp/account.py", "use", "clear"),
+            ("apps/pearnly_core/pearnly_core/mrerp/menu_read.py", "read", "manual"),
+            ("apps/pearnly_core/pearnly_core/mrerp/collect.py", "collect", "manual"),
+            ("apps/pearnly_core/pearnly_core/mrerp/collect.py", "_collect_once", "manual"),
+            ("apps/pearnly_cowork/pearnly_cowork/connections/api.py", "request_refresh", "manual"),
+            ("apps/pearnly_cowork/pearnly_cowork/connections/api.py", "request_mrerp_menu", "manual"),
+            ("apps/pearnly_cowork/pearnly_cowork/connections/mrerp_menu_reader.py", "dispatch", "manual"),
+            ("apps/pearnly_cowork/pearnly_cowork/connections/mrerp_menu_reader.py", "run", "manual"),
+            ("apps/pearnly_cowork/pearnly_cowork/connections/mrerp_collector.py", "dispatch", "manual"),
+            ("apps/pearnly_cowork/pearnly_cowork/connections/mrerp_collector.py", "run", "manual"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/api.py", "request_refresh", "manual"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/api.py", "refresh_catalog", "manual"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/api.py", "read_choices", "manual"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py", "refresh", "manual"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py", "run", "manual"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py", "request_read", "manual"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py", "run_read", "manual"),
         }
         found = set()
         for path in (ROOT / "apps").rglob("*.py"):
@@ -452,7 +474,8 @@ class KickedAccount(unittest.TestCase):
                     name = call.func.attr if isinstance(call.func, ast.Attribute) else getattr(call.func, "id", "")
                     receiver = ast.unparse(call.func.value) if isinstance(call.func, ast.Attribute) else ""
                     rel = str(path.relative_to(ROOT))
-                    if name in ("release_kick", "_release_kick") or (name == "clear" and receiver == "account_kick"):
+                    if name in ("release_kick", "_release_kick") or (name == "clear" and receiver in ("account_kick",
+                                                                                                         "kick_mark")):
                         found.add((rel, func.name, name))
                     if any(k.arg == "manual" and not (isinstance(k.value, ast.Constant) and k.value.value is False)
                            for k in call.keywords):
@@ -460,7 +483,8 @@ class KickedAccount(unittest.TestCase):
         self.assertEqual(found, allowed)
 
     def test_every_mrerp_login_for_a_push_goes_through_the_import_entry(self):
-        """快速失败只在 `MrErpImport.__enter__` 里查一次：推送用的登录都得经它（``with importer``），不另开会话。"""
+        """推送用的登录都经 `MrErpImport`（``with importer``），它从共用入口 `mrerp.account.use` 拿会话、一律不算人点的；
+        共用入口先看标记，再拿锁、再建会话（11-11 起读菜单 / 主档、目录采集也经同一入口）。"""
         users = {}
         for path in (ROOT / "apps").rglob("*.py"):
             text = path.read_text(encoding="utf-8")
@@ -469,9 +493,13 @@ class KickedAccount(unittest.TestCase):
         self.assertEqual(users, {"apps/pearnly_core/pearnly_core/mrerp/push/execute.py": True,
                                  "apps/pearnly_cowork/pearnly_cowork/push/mrerp/operator.py": True})
         enter = (ROOT / "apps/pearnly_core/pearnly_core/mrerp/push/transport.py").read_text(encoding="utf-8")
-        body = enter[enter.index('def __enter__(self) -> "MrErpImport":'):enter.index("def _cache_key")]
-        self.assertLess(body.index("account_kick.state(key)"), body.index("account_lock("))
-        self.assertLess(body.index("account_kick.state(key)"), body.index("MrErpSession("))
+        body = enter[enter.index('def __enter__(self) -> "MrErpImport":'):enter.index("def __exit__")]
+        self.assertIn("mrerp_account.use(", body)
+        self.assertIn("manual=False", body)
+        shared = (ROOT / "apps/pearnly_core/pearnly_core/mrerp/account.py").read_text(encoding="utf-8")
+        use = shared[shared.index("def use("):]
+        self.assertLess(use.index("kick_mark.state(account)"), use.index("account_lock("))
+        self.assertLess(use.index("kick_mark.state(account)"), use.index("MrErpSession("))
 
 
 class _Doc(Row):

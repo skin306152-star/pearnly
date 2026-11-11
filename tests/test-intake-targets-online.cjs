@@ -9,18 +9,19 @@ const vm = require('node:vm');
 const source = fs.readFileSync('apps/pearnly_cowork/pearnly_cowork/public/desk/targets.js', 'utf8');
 const ONLINE = 'pearnly_cowork.companion.api.online';
 
-function load() {
+function load(reply) {
   const requests = [];
-  const answer = (method) => (method === ONLINE ? {online: true, needs_update: true} : []);
+  const answer = (method, args) => (reply ? reply(method, args) : undefined)
+    ?? (method === ONLINE ? {online: true, needs_update: true} : []);
   const frappe = {
     // 框架 frappe.call 不给 type 时按 POST 发；frappe.xcall(method, args, type) 同样默认 POST
     call: async ({method, args, type}) => {
       requests.push({method, args, type: (type || 'POST').toUpperCase()});
-      return {message: answer(method)};
+      return {message: answer(method, args)};
     },
     xcall: async (method, args, type) => {
       requests.push({method, args, type: (type || 'POST').toUpperCase()});
-      return answer(method);
+      return answer(method, args);
     },
     ui: {
       Dialog: class {
@@ -35,7 +36,7 @@ function load() {
     show_alert() {},
     msgprint() {},
   };
-  const p = {};
+  const p = {dialog: () => ({hide() {}})};
   frappe.pearnly = p;
   // 产品壳 p.call 照 public/desk/product.js：默认 GET，交给 frappe.call
   p.call = async (method, args = {}, type = 'GET') => (await frappe.call({method, args, type})).message;
@@ -72,3 +73,27 @@ test('the target state asks online with GET', async () => {
   await targets.state();
   for (const call of onlineCalls(requests)) assert.equal(call.type, 'GET');
 });
+
+// 11-11 风险 7 真站点实测：推 MR.ERP 前主档默认值没选过时，网页先读一次 MR.ERP（菜单与主档），发现要选又带 fresh 再读一次，
+// 两次读取各登录一次、各踢会计一次（12:23:37 / 12:23:39）。刚读过的不再重读：整个「提交前选菜单 / 默认值」只读一次。
+test('getting the MR.ERP choices ready reads MR.ERP once, not twice', async () => {
+  let reads = 0;
+  const READ = 'pearnly_cowork.connections.api.request_mrerp_menu';
+  const VIEW = 'pearnly_cowork.connections.api.mrerp_menu';
+  const {targets, requests} = load((method) => {
+    if (method === READ) {
+      reads += 1;
+      return {account_set_key: '6:1', requested_at: `2026-11-11 12:00:0${reads}`};
+    }
+    if (method === VIEW) {
+      if (!reads) return {known: true, kinds: {}, defaults: {known: false}};  // 主档从没读过
+      return {known: true, observed_at: `2026-11-11 12:00:0${reads + 1}`, kinds: {},
+        defaults: {known: true, fields: {expense_account: {needed: true, options: [{code: '5390-09', name: 'x'}]}}}};
+    }
+    return undefined;
+  });
+  targets.mrerp_menu_ready({name: 'CWEC-1', adapter: 'mrerp'}, '6:1', 'purchase');  // 弹窗等人选，不等它
+  await new Promise((resolve) => setTimeout(resolve, 4000));
+  assert.equal(requests.filter((request) => request.method === READ).length, 1);
+});
+

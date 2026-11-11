@@ -24,16 +24,18 @@ JOB_TIMEOUT_SECONDS = 240
 _DEFAULT_URL = "https://www.mrerp4sme.com"
 
 
-def dispatch(request):
-    """`service.request_mrerp_menu` 的申请落定后排一个读取任务；同一连接同一账套只排一个，提交后可见。"""
+def dispatch(request, *, manual):
+    """`service.request_mrerp_menu` 的申请落定后排一个读取任务；同一连接同一账套只排一个，提交后可见。
+
+    ``manual``：人点的（网页 / CC 的申请接口 `api.request_mrerp_menu`，11-11）—— 读取时先清被踢标记、这次照常登录；由调用入口显式给。"""
     frappe.enqueue("pearnly_cowork.connections.mrerp_menu_reader.run", queue="short",
                    job_id=f"cowork-mrerp-menus::{request['connection']}::{request['account_set_key']}",
                    deduplicate=True, enqueue_after_commit=True, timeout=JOB_TIMEOUT_SECONDS,
                    connection=request["connection"], account_set_key=request["account_set_key"],
-                   actor=request["actor"])
+                   actor=request["actor"], manual=bool(manual))
 
 
-def run(connection, account_set_key, actor):
+def run(connection, account_set_key, actor, manual=False):
     """后台任务入口：按申请人当前的授权读凭据 → 不持锁读 MR.ERP → 存结果。永不抛到队列。"""
     frappe.set_user(actor)
     try:
@@ -50,7 +52,8 @@ def run(connection, account_set_key, actor):
         frappe.db.rollback()
         return
     frappe.db.commit()
-    pages, fields, error, master_error = read(lease, account_set_key)
+    # 后台任务自己不算人点的：只有排任务的入口说了是（``manual``）才算；旧任务没带这个参数照不算
+    pages, fields, error, master_error = read(lease, account_set_key, manual=bool(manual))
     service.observe_mrerp_menus(connection, account_set_key, pages, error=error)
     service.observe_mrerp_masters(connection, account_set_key, fields, error=error or master_error)
     frappe.db.commit()

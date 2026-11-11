@@ -38,8 +38,9 @@ def records(start=0, limit=50):
 
 @frappe.whitelist(methods=["POST"])
 def request_refresh(name, request_key=None):
-    """CC 设置里存下网址或授权后读一次这条连接的账套目录（同 :func:`refresh_catalog`；同一连接只排一件）。"""
-    return catalog.refresh(name)
+    """CC 设置里存下网址或授权后读一次这条连接的账套目录（同 :func:`refresh_catalog`；同一连接只排一件）。人点的入口：
+    采集时先清被踢标记、这次照常登录（11-11）。"""
+    return catalog.refresh(name, manual=True)
 
 
 @frappe.whitelist()
@@ -50,7 +51,7 @@ def connection_view(connection_name):
 
 @frappe.whitelist(methods=["POST"])
 def refresh_catalog(connection_name):
-    return catalog.refresh(connection_name)
+    return catalog.refresh(connection_name, manual=True)  # 人点的入口（11-11）
 
 
 @frappe.whitelist()
@@ -72,8 +73,8 @@ def detach(company):
 
 @frappe.whitelist(methods=["POST"])
 def read_choices(company):
-    """去 MR.ERP 读这家公司账套的导入菜单与主档（后台）。"""
-    return choices.request_read(company)
+    """去 MR.ERP 读这家公司账套的导入菜单与主档（后台）。人点的入口：读取时先清被踢标记、这次照常登录（11-11）。"""
+    return choices.request_read(company, manual=True)
 
 
 @frappe.whitelist()

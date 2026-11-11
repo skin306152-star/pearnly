@@ -143,7 +143,22 @@ class MrErpSession:
             raise SessionError("ERR_AUTH", "no PHPSESSID after checklogin")
         self._logged_in = True
 
+    def _once_more_if_expired(self, call):
+        """接着用的会话（:meth:`restore`）过期了（被跳回登录页、不是被踢）：清掉 cookie 重登一次再做；被踢
+        （:data:`KICKED_TEXT`）照样抛 ``ERR_ACCOUNT_IN_USE``，不重登。推送、读菜单 / 主档、目录采集同一条（11-11）。"""
+        try:
+            return call()
+        except SessionError as error:
+            if not (self._restored and error.code == "ERR_AUTH"):
+                raise
+            self._restored = self._logged_in = self._selected = False
+            self.http.cookies.clear()
+            return call()
+
     def account_sets(self):
+        return self._once_more_if_expired(self._account_sets)
+
+    def _account_sets(self):
         if not self._logged_in:
             self.login()
         response = self._send("GET", "login/selectdb.php")
@@ -152,7 +167,10 @@ class MrErpSession:
         return mrerp_catalog.parse_account_sets(response.text)
 
     def select(self, comidyear, seldb, probe=IDUS_PROBE):
-        """进一个账套并抓 idus；被踢回登录页 = 凭据错。返回 idus。"""
+        """进一个账套并抓 idus；被踢回登录页 = 凭据错（接着用的会话过期只重登一次）。返回 idus。"""
+        return self._once_more_if_expired(lambda: self._select(comidyear, seldb, probe))
+
+    def _select(self, comidyear, seldb, probe=IDUS_PROBE):
         if not self._logged_in:
             self.login()
         self._send("GET", "login/selectdb.php")
@@ -183,14 +201,7 @@ class MrErpSession:
         被踢（:data:`KICKED_TEXT`）照样抛 ``ERR_ACCOUNT_IN_USE``，不重登。"""
         if self._selected:
             return
-        try:
-            self.select(comidyear, seldb, probe)
-        except SessionError as error:
-            if not (self._restored and error.code == "ERR_AUTH"):
-                raise
-            self._restored, self._logged_in = False, False
-            self.http.cookies.clear()
-            self.select(comidyear, seldb, probe)
+        self.select(comidyear, seldb, probe)
 
     def request(self, method, path, **kwargs):
         """业务请求；401/403 = 会话失效（要重新登录）。"""

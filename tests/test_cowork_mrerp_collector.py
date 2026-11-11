@@ -12,6 +12,7 @@ from unittest.mock import patch
 try:
     import requests
     from pearnly_cowork.connections import mrerp_collector as collector
+    from pearnly_core.mrerp import account as mrerp_account
     from pearnly_core.mrerp import collect as collecting  # 网络那一半 2026-11-03 搬到共用层
 except ImportError as exc:  # 需要 Frappe 环境（bench 的 Python）
     raise unittest.SkipTest(f"needs the Frappe bench environment: {exc}")
@@ -72,8 +73,8 @@ def run(site, lease=None):
     with patch.object(requests.Session, "request", autospec=True, side_effect=send), \
             patch.object(socket, "getaddrinfo", return_value=PUBLIC), \
             patch.object(collecting.time, "sleep"), \
-            patch.object(collecting, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
-        return collecting.collect(lease)
+            patch.object(mrerp_account, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
+        return collecting.collect(lease, manual=False)
 
 
 def period_page(*spans):
@@ -152,6 +153,7 @@ class Details(unittest.TestCase):
 
 class Collect(unittest.TestCase):
     def test_collection_waits_for_the_same_account_lock_as_push(self):
+        """采集与推送从同一个入口拿会话（`mrerp.account.use`，11-11）：同一把账号锁。"""
         taken = []
 
         @contextlib.contextmanager
@@ -159,9 +161,26 @@ class Collect(unittest.TestCase):
             taken.append(key)
             yield True
 
-        with patch.object(collecting, "account_lock", lock), patch.object(collecting, "_collect_locked",
-                                                                         return_value={"rows": []}):
-            collecting._collect_once({"system_url": BASE + "/", "username": "test01", "password": "x"})
+        class Session:
+            kicked = False
+
+            def __init__(self, *args):
+                pass
+
+            def restore(self, cookie):
+                return False
+
+            def account_sets(self):
+                return []
+
+            def cookie(self):
+                return ""
+
+            def close(self):
+                pass
+
+        with patch.object(mrerp_account, "account_lock", lock), patch.object(mrerp_account, "MrErpSession", Session):
+            collecting._collect_once({"system_url": BASE + "/", "username": "test01", "password": "x"}, manual=False)
         self.assertEqual(taken, ["mrerp|https://www.mrerp4sme.com|test01"])
 
     def test_busy_account_is_a_retryable_technical_error(self):
@@ -172,8 +191,9 @@ class Collect(unittest.TestCase):
             raise SessionLockUnavailable("busy")
             yield
 
-        with patch.object(collecting, "account_lock", busy):
-            self.assertEqual(collecting._collect_once({"system_url": BASE, "username": "u", "password": "p"}),
+        with patch.object(mrerp_account, "account_lock", busy):
+            self.assertEqual(collecting._collect_once({"system_url": BASE, "username": "u", "password": "p"},
+                                                      manual=False),
                              {"error_code": "ERR_TECHNICAL"})
 
     def test_login_lists_company_years_and_verifies_by_entering_the_first(self):

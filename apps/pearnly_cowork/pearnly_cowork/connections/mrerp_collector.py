@@ -44,8 +44,10 @@ def _now():
 # ── 调度 ──────────────────────────────────────────────────────────────────
 
 
-def dispatch(result):
-    """刷新申请落库后排一个采集任务；同一申请只排一次，提交后才可见。"""
+def dispatch(result, *, manual):
+    """刷新申请落库后排一个采集任务；同一申请只排一次，提交后才可见。
+
+    ``manual``：人点的（网页 / CC 的申请接口 `api.request_refresh`，11-11）—— 采集时先清被踢标记、这次照常登录；由调用入口显式给。"""
     request_id = (result or {}).get("request_id")
     if not request_id or result.get("status") != "requested":
         return
@@ -55,17 +57,19 @@ def dispatch(result):
     frappe.enqueue("pearnly_cowork.connections.mrerp_collector.run", queue="short",
                    job_id=f"cowork-mrerp-catalog::{request_id}", deduplicate=True,
                    enqueue_after_commit=True, timeout=LEASE_SECONDS + 60,
-                   connection=row.connection, request_id=request_id)
+                   connection=row.connection, request_id=request_id, manual=bool(manual))
 
 
-def run(connection, request_id):
+def run(connection, request_id, manual=False):
     """后台任务入口：领租约 → 不持锁读 MR.ERP → 围栏校验后发布。"""
     for _ in range(CLAIM_ATTEMPTS):
         lease = _lease(connection, request_id)
         frappe.db.commit()
         if lease is None:
             return
-        result = collect(lease)
+        # 后台任务自己不算人点的：只有排任务的入口说了是才算，而且只在第一次领到时清标记（旧任务没带这个参数照不算）
+        result = collect(lease, manual=bool(manual))
+        manual = False
         again = _complete(connection, request_id, lease, result)
         frappe.db.commit()
         if not again:

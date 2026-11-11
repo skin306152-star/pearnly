@@ -29,6 +29,7 @@ try:
     import frappe
     import requests
     from pearnly_core.express_operator import contracts
+    from pearnly_core.mrerp import account as mrerp_account
     from pearnly_core.mrerp.push import operator_draft, routing, transport
     from pearnly_core.mrerp.push.models import MRERPAuthError, MRERPBusinessError, MRERPTechnicalError
     from pearnly_core.session_lock import SessionLockUnavailable
@@ -270,7 +271,7 @@ class SamePreparation(unittest.TestCase):
 
         with patch.object(requests.Session, "request", autospec=True, side_effect=send), \
                 patch.object(socket, "getaddrinfo", return_value=PUBLIC), \
-                patch.object(transport, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
+                patch.object(mrerp_account, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
             importer = transport.MrErpImport(system_url=BASE, username="test01", password="test01", comidyear="15",
                                              seldb="1")
             with importer:

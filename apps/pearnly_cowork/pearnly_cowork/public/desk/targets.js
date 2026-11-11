@@ -274,7 +274,7 @@
 	const MENU_KINDS = {purchase: ["purchase", "purchase_expense"], sales: ["sales_credit", "sales_cash"]};
 	const MENU_READ = {every_ms: 1500, give_up_ms: 90000};
 
-	/** 这份 MR.ERP 账套的菜单视图；`fresh` 为真或还没读过时，先让服务端去 MR.ERP 读一次再给。读不到返回 null。 */
+	/** 这份 MR.ERP 账套的菜单视图；`fresh` 为真或还没读过时，先让服务端去 MR.ERP 读一次再给（这时带 `read_now`）。读不到返回 null。 */
 	async function mrerp_menu(connection, account_set_key, {fresh = false} = {}) {
 		if (connection?.adapter !== "mrerp" || !account_set_key) return null;
 		const args = {name: connection.name, account_set_key};
@@ -289,7 +289,9 @@
 			await wait(MENU_READ.every_ms);
 			view = await read();
 			if (!view) return null;
-			if ((view.observed_at || "") >= request.requested_at || (view.error_at || "") >= request.requested_at) return view;
+			if ((view.observed_at || "") >= request.requested_at || (view.error_at || "") >= request.requested_at) {
+				return {...view, read_now: true};
+			}
 		}
 		return view;
 	}
@@ -315,7 +317,7 @@
 	}
 
 	/**
-	 * 推 MR.ERP 前，这份账套这张票会用到的菜单得定下来。要选时先重读一次导入页（选项可能刚变），
+	 * 推 MR.ERP 前，这份账套这张票会用到的菜单得定下来。要选时导入页不是刚读的就重读一次（选项可能刚变），
 	 * 再用原生弹窗一次选齐；选好存下返回 true，关掉弹窗返回 false（这份账套的票这次先不推）。
 	 * 读不到菜单不在这里拦（推送时服务端会核对并说明原因）。
 	 */
@@ -323,7 +325,8 @@
 		const any_needed = view => mrerp_menu_needed(view, direction).length || mrerp_default_needed(view, direction).length;
 		let view = await mrerp_menu(connection, account_set_key);
 		if (!any_needed(view)) return true;
-		view = await mrerp_menu(connection, account_set_key, {fresh: true});
+		// 刚去 MR.ERP 读过的不再重读（11-11 真站点实测：连读两次 = 登录两次、踢会计两次）
+		if (!view?.read_now) view = await mrerp_menu(connection, account_set_key, {fresh: true});
 		const needed = mrerp_menu_needed(view, direction);
 		const defaults = mrerp_default_needed(view, direction);
 		if (!needed.length && !defaults.length) return true;

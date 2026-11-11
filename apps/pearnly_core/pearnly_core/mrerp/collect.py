@@ -9,9 +9,9 @@ import logging
 import time
 from datetime import datetime, timezone
 
-from pearnly_core.session_lock import SessionLockUnavailable, account_lock
+from pearnly_core.session_lock import SessionLockUnavailable
+from pearnly_core.mrerp import account as mrerp_account
 from pearnly_core.mrerp import catalog as mrerp_catalog
-from pearnly_core.mrerp.session import MrErpSession, lock_key
 from pearnly_core.mrerp.session import SessionError as CollectError
 
 logger = logging.getLogger(__name__)
@@ -69,11 +69,14 @@ def _read_details(session, rows, *, current=None):
                 time.monotonic() - started, " budget_hit" if budget_hit else "")
 
 
-def collect(lease):
-    """登录并列账套；网络类失败隔 2 秒重试一次。永不抛：失败写成错误码。"""
+def collect(lease, *, manual):
+    """登录并列账套；网络类失败隔 2 秒重试一次。永不抛：失败写成错误码。
+
+    ``manual``：人点的（网页 / CC 的申请接口）先清被踢标记、这次照常登录；不是的有标记就不发请求，回 ``ERR_ACCOUNT_IN_USE``。
+    会话从共用入口拿（`mrerp.account.use`，11-11）：接上推送留下的会话，不每次新登录、把会计踢下线。"""
     result = {}
     for attempt in range(2):
-        result = _collect_once(lease)
+        result = _collect_once(lease, manual=manual and attempt == 0)
         if not result.get("error_code") or result["error_code"] not in mrerp_catalog.TRANSIENT_ERRORS:
             return result
         if attempt == 0:
@@ -81,35 +84,25 @@ def collect(lease):
     return result
 
 
-def _collect_once(lease):
+def _collect_once(lease, *, manual):
     if not lease.get("username") or not lease.get("password"):
         return {"error_code": "ERR_NO_CREDS"}
     # 与推送共用同一 MR.ERP 账号：老 PHP 单账号单会话，并发登录会把正在导入的推送踢掉。
-    try:
-        with account_lock(lock_key(lease["system_url"], lease["username"]), timeout_sec=LOCK_WAIT_SECONDS):
-            return _collect_locked(lease)
-    except SessionLockUnavailable:
-        return {"error_code": "ERR_TECHNICAL"}
-
-
-def _collect_locked(lease):
     observed_at = datetime.now(timezone.utc)
     try:
-        session = MrErpSession(lease["system_url"], lease["username"], lease["password"])
-    except CollectError as exc:
-        return {"error_code": exc.code}
-    try:
-        rows = session.account_sets()
-        if rows:
-            # 选公司页任何会话都能列出账套，只有真进一个账套才验得出账号密码（旧版同法）。
-            session.select(rows[0]["comidyear"], rows[0]["seldb"])
-            _read_details(session, rows, current=(rows[0]["comidyear"], rows[0]["seldb"]))
-        return {"rows": rows, "observed_at": observed_at}
+        with mrerp_account.use(lease["system_url"], lease["username"], lease["password"], manual=manual,
+                               lock_wait=LOCK_WAIT_SECONDS) as session:
+            rows = session.account_sets()
+            if rows:
+                # 选公司页任何会话都能列出账套，只有真进一个账套才验得出账号密码（旧版同法）。
+                session.select(rows[0]["comidyear"], rows[0]["seldb"])
+                _read_details(session, rows, current=(rows[0]["comidyear"], rows[0]["seldb"]))
+            return {"rows": rows, "observed_at": observed_at}
+    except SessionLockUnavailable:
+        return {"error_code": "ERR_TECHNICAL"}
     except CollectError as exc:
         logger.info("MR.ERP catalog collection failed: %s", exc)
         return {"error_code": exc.code}
     except Exception:  # noqa: BLE001 — 契约：采集失败只落错误码，不冒到任务队列
         logger.exception("MR.ERP catalog collection raised")
         return {"error_code": "ERR_UNEXPECTED"}
-    finally:
-        session.close()
