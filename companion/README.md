@@ -173,7 +173,7 @@
   - 销货单的收入照 Express 原生按物料科目组记（`docs/work/2026-11-07-cc-sales-revenue-native-评估.md`；载荷不变）：每行物料科目组的收入科目
     `ISACC.ACCNUM03` 能记账、不是费用类 → 这一行记它（同科目一条、SEQIT 5），没配 / 不能记账 / 费用类照载荷（`dbf_sales.revenue_journal`）；
     回执 `meta.revenue` 带实际记的收入，服务端读回按它比分录。**先部署服务端再发**（旧服务端滤掉 `revenue`，读回会把照科目组记的收入报成改过）。
-- 1.12.19（未发布；`docs/work/2026-11-08-cc-blank-window-old-pc.md`）：
+- 1.12.19（2026-11-09 正式发布，main 45701eabd；`docs/work/2026-11-08-cc-blank-window-old-pc.md`）：
   - 老电脑上 CC 窗口一整片空白、登录页不出来（11-08 办公室一台老 Acer 一体机）：网页内核用显卡画不出页面时自动改用软件绘制（`render_safety.py`）。
     自己的页面加载成功、窗口看得见、页面里已经有字，加载完成后 3 / 6 / 10 秒截图都是一整片同一种颜色，就记下「软件绘制」档
     （`%APPDATA%\Pearnly\tomo\render.json`，之后照它；CC 升了 1.x 版或记下满 30 天回到显卡重新试一次，还画不出来再换回；网页内核 `--disable-gpu --disable-gpu-compositing`，Qt 合成用 D3D11 WARP），
@@ -184,6 +184,16 @@
   - 取任务回 401（这把密钥服务端不认）按连续次数退避：3 秒起每次翻倍、最多 10 分钟一次，成功一次回到正常节奏；退避期间这个成员整轮跳过
     （心跳、认电脑也不发），托盘照旧显示「连接已失效，请在设置中重新连接」；取任务的 401 也记进 `device_link.REJECTIONS`（同心跳，满 60 秒标成
     密钥不能再用、等对话页重新登记）。网络断、5xx 不按这个退避。原来 401 也每 3 秒领一次（11-08 erpcowork 日志，`docs/work/2026-11-08-cc-blank-window-old-pc.md`）。
+
+- 1.12.20（未发布；**先部署服务端再发**）：
+  - 授权文件夹取文件上限 30MB → 40MB，同对话附件（`request_contract.MAX_BYTES["folder_fetch"]`，`docs/work/2026-11-10-upload-size-limits.md`）；
+    服务端每次请求自带 `max_bytes`，旧版照旧 30MB 停、报 `too_large`。
+  - 收款单 RE（载荷 20，`direction = receipt`，`dbf_receipt`；`docs/work/2026-11-11-collection-receipt-assessment.md`）：照 Express 原生写 ISRUN RE 号、
+    ARTRN 单头、每张发票一行 ARRCPIT、每种非现金收款方式一行 ARRCPCQ；按需读未收发票 `express_ar_open`。旧版不认这个方向，服务端只派给报过 20 的电脑。
+  - 按需核账本 `express_doc_check`：给出我们写过的单号，只读 APTRN / ARTRN 单头，回在、已作废或已删、读不到。
+  - 日志统一走 `logger.get_logger`（原来 `profile_store` 等 6 个模块的日志写不进 `companion.log`，含位置改勾那一行）。
+  - 盘盈用人在调整单上改的单价，不再用批次成本。
+  - MR.ERP：被踢报 `account_in_use`、账套不在报 `account_set_unavailable`；MR.ERP 网页代录（ADR-026 第 2 步）随包，默认关，站点探路后再开。
 
 ## 本机测试
 
