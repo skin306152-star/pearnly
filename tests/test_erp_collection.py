@@ -812,17 +812,16 @@ class Receipts(Base):
         self.as_user("a@x")
         self.assertEqual(service.status(name)["balances"], {"IV1": "0.00"})
 
-    def test_a_cash_basis_service_invoice_is_an_uncollectable_failure_and_reread(self):
-        """主会话 11-11：CC 不列服务品现金制发票（SRV_VATTYP=2），写入时遇到回 ``[CASH_BASIS_VAT]`` 转人工——同「已被收」一类：
-        照原因记失败，按客户再读一次未收清发票；没有余额就不记余额。"""
+    def test_a_cash_basis_service_invoice_comes_back_as_invoice_not_found_and_is_reread(self):
+        """主会话 11-11（更正）：CC 不列服务品现金制发票（SRV_VATTYP=2），写入时遇到回 ``[INVOICE_NOT_FOUND]``、证据里
+        ``problem="cash_basis_vat"``，没有新码：照原因记失败，按客户再读一次未收清发票；没带余额就不记余额。"""
         name, job = self.released()
         self.assertNotIn("erp_ar_open:" + BOOK["key"] + ":2100883", self.requests.made)
-        self.jobs.report(job, "manual", reason="[CASH_BASIS_VAT] IV1 is a cash-basis service invoice")
+        self.jobs.report(job, "manual", reason="[INVOICE_NOT_FOUND] IV1", meta={"problem": "cash_basis_vat"})
         row = frappe.db.get_value("ERP Collection", name, ["status", "reason", "balances"], as_dict=True)
-        self.assertEqual((row.status, row.reason, row.balances),
-                         (C.FAILED, "[CASH_BASIS_VAT] IV1 is a cash-basis service invoice", None))
+        self.assertEqual((row.status, row.reason, row.balances), (C.FAILED, "[INVOICE_NOT_FOUND] IV1", None))
         self.assertIn("erp_ar_open:" + BOOK["key"] + ":2100883", self.requests.made)
-        self.assertIn("CASH_BASIS_VAT", C.UNCOLLECTABLE)
+        self.assertEqual(C.UNCOLLECTABLE, ("ALREADY_COLLECTED", "INVOICE_NOT_FOUND"))
 
     def test_other_failures_and_queue_states(self):
         name, job = self.released()
