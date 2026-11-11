@@ -1,0 +1,226 @@
+"""Express 未收清发票的快照（``ERP Receivable Snapshot``）：只给收款流程读，Express 为准、ERP 不改发票。
+
+经共用机器通道的按需请求 ``express_ar_open`` 请够得到这份账套的电脑读（共享种类：账套的公共资料，谁先来谁读；参数里带
+``customer`` 时只读这一位客户），结果 ``{"read_at", "items": [{docnum, rectyp, docdat, customer, salesman, department, net,
+received, remaining}]}`` 落进快照表（一本账套一行一张发票）。
+
+什么时候读：
+- 收款员选了客户（`service.open_invoices`）：按客户即时读一次（几十行），读好了就地落；
+- Express 应收有变化（`express_marks` 结果里的 ``ar_mark`` 变了，:func:`marks_seen`，主档看标记那一轮叫）：近 30 天有人录过收款的
+  账套整本读一次；
+- 写进 Express 后：回执里每张发票写后的余额直接改快照（:func:`apply_balances`），再按客户读一次。
+
+旧的不盖新的：每行记读取时刻（``read_at``），晚到的旧读取不覆盖、不删比它新的行（整本读与按客户读交错时）。发起的读取记在缓存里，
+每分钟 :func:`advance` 把读好的落库（缓存丢了也不要紧：下一次同一请求号发起时，读好没取的那件先落）。
+"""
+import gzip
+import json
+from datetime import timedelta
+
+import frappe
+from frappe.utils import get_datetime, now_datetime
+
+from pearnly_core.cc_desktop import requests
+
+from pearnly_erp_portal.collection import contracts
+
+DOCTYPE = "ERP Receivable Snapshot"
+COLLECTION = "ERP Collection"
+KIND = "express_ar_open"
+PENDING = "erp-ar-open-pending"   # 缓存：请求号 → {company, book_key, customer}
+MARK = "erp-ar-mark:"            # 缓存：账套键 → 上次看到的 ar_mark
+ROWS_MAX = 20000                 # 一本账套的未收清发票（几千行）
+IN_USE_DAYS = 30
+
+READY, READING, OFFLINE, OUTDATED, FAILED = "ready", "reading", "offline", "outdated", "failed"
+
+
+def request_key(book_key, customer=""):
+    customer = str(customer or "").strip()
+    return "erp_ar_open:" + str(book_key) + (":" + customer if customer else "")
+
+
+def _params(book, customer=""):
+    params = {"account_set": book["path"], "account_root": book.get("root") or ""}
+    if customer:
+        params["customer"] = str(customer)
+    return params
+
+
+def request(company, book, customer=""):
+    """请电脑读一次（同一请求号在读的不重发；读好了没落的就地落）。回 ``ready`` / ``reading`` / ``offline`` / ``outdated``。
+    CC 桌面版还不认这种请求（服务端或电脑太旧）回 ``outdated``，不抛。"""
+    key = request_key(book["key"], customer)
+    try:
+        made = requests.find(KIND, key)
+        if made is not None and made["status"] == "done":
+            land(company, book["key"], made, customer)
+            return READY
+        if made is not None:
+            _remember(key, company, book["key"], customer)
+            return READING
+        waiting = requests.waiting(KIND, book["key"])
+        if waiting:
+            return OUTDATED if waiting.get("reason") == "update_needed" else OFFLINE
+        requests.create(KIND, key, _params(book, customer), book_key=book["key"], actor=frappe.session.user)
+    except (frappe.ValidationError, KeyError, ValueError):
+        # 共用通道还不认 ``express_ar_open``（另一批的改动没上）：当成要更新，不让收款流程报错
+        return OUTDATED
+    _remember(key, company, book["key"], customer)
+    return READING
+
+
+def _remember(key, company, book_key, customer):
+    frappe.cache.hset(PENDING, key, json.dumps({"company": company, "book_key": book_key, "customer": customer or ""}))
+
+
+def _decode(content):
+    raw = content or b""
+    try:
+        raw = gzip.decompress(raw)
+    except OSError:
+        pass
+    data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+        raise ValueError("invalid express_ar_open result")
+    return data
+
+
+def land(company, book_key, made, customer=""):
+    """电脑读好的一份落进快照（取走即删）。回落了几行；结果坏了回 -1（记 Error Log）。"""
+    content, _meta = requests.result(made["request"])
+    requests.drop(made["request"])
+    frappe.cache.hdel(PENDING, request_key(book_key, customer))
+    try:
+        data = _decode(content)
+    except (ValueError, UnicodeDecodeError):
+        frappe.log_error(title="ERP receivable snapshot result invalid", message=str(made.get("request")))
+        return -1
+    return replace(company, book_key, data["items"], data.get("read_at"), customer)
+
+
+def _row_values(item):
+    return {"docnum": str(item.get("docnum") or "").strip()[:40], "rectyp": str(item.get("rectyp") or "")[:4],
+            "doc_date": str(item.get("docdat") or item.get("doc_date") or "")[:10] or None,
+            "customer": str(item.get("customer") or "").strip()[:40],
+            "salesman": str(item.get("salesman") or "").strip()[:20],
+            "department": str(item.get("department") or "").strip()[:20],
+            "net": contracts.money(item.get("net") or 0), "received": contracts.money(item.get("received") or 0),
+            "remaining": contracts.money(item.get("remaining") or 0)}
+
+
+def _moment(value):
+    try:
+        moment = get_datetime(value) if value else None
+    except (TypeError, ValueError):
+        moment = None
+    if moment is not None and moment.tzinfo is not None:
+        # 电脑报的是带时区的 UTC；站点的时刻栏与 now_datetime() 同一口径（站点时区、不带时区），换过来才比得动
+        from datetime import timezone
+
+        from frappe.utils import convert_utc_to_system_timezone
+
+        moment = convert_utc_to_system_timezone(moment.astimezone(timezone.utc).replace(tzinfo=None)).replace(tzinfo=None)
+    return moment or now_datetime()
+
+
+def replace(company, book_key, items, read_at=None, customer=""):
+    """一份读取结果（整本或一位客户）对齐进快照：新的建、变的改、读到时已没有（收清 / 作废）的删；比这次读取新的行不动。"""
+    at = _moment(read_at)
+    filters = {"book_key": book_key, **({"customer": customer} if customer else {})}
+    current = {row.docnum: row for row in frappe.get_all(
+        DOCTYPE, filters=filters, fields=["name", "docnum", "remaining", "received", "net", "read_at", "customer"],
+        limit_page_length=ROWS_MAX)}
+    seen, written = set(), 0
+    for item in items[:ROWS_MAX]:
+        try:
+            values = _row_values(item)
+        except contracts.CollectionError:
+            continue
+        if not values["docnum"] or values["remaining"] <= 0 or (customer and values["customer"] != customer):
+            continue
+        seen.add(values["docnum"])
+        row = current.get(values["docnum"])
+        if row is None:
+            frappe.get_doc({"doctype": DOCTYPE, "company": company, "book_key": book_key, "read_at": at,
+                            **values}).insert(ignore_permissions=True)
+            written += 1
+        elif not row.read_at or get_datetime(row.read_at) <= at:
+            frappe.db.set_value(DOCTYPE, row.name, {**values, "company": company, "read_at": at}, update_modified=False)
+            written += 1
+    for docnum, row in current.items():
+        if docnum not in seen and (not row.read_at or get_datetime(row.read_at) <= at):
+            frappe.db.delete(DOCTYPE, {"name": row.name})
+    return written
+
+
+def apply_balances(book_key, found, at=None):
+    """写进 Express 后（或电脑重读发现已被收）每张发票此刻的余额：改快照；收清的删。``found``：``{docnum: Decimal}``。"""
+    at = _moment(at)
+    for docnum, remaining in (found or {}).items():
+        name = frappe.db.get_value(DOCTYPE, {"book_key": book_key, "docnum": docnum}, "name")
+        if not name:
+            continue
+        if remaining <= 0:
+            frappe.db.delete(DOCTYPE, {"name": name})
+            continue
+        net = contracts.money(frappe.db.get_value(DOCTYPE, name, "net") or 0)
+        frappe.db.set_value(DOCTYPE, name, {"remaining": remaining, "received": max(contracts.ZERO, net - remaining),
+                                            "read_at": at}, update_modified=False)
+
+
+def rows(book_key, customer, limit=200):
+    """一位客户在这本账套此刻的未收清发票（快照），日期早的在前。"""
+    return frappe.get_all(DOCTYPE, filters={"book_key": book_key, "customer": customer},
+                          fields=["name", "docnum", "doc_date", "salesman", "department", "net", "received", "remaining",
+                                  "read_at"], order_by="doc_date asc, docnum asc", limit_page_length=limit)
+
+
+def lock(book_key, docnums):
+    """放行时锁住这几张发票的快照行（两人同时放行同一张时排队判），回 ``{docnum: 行}``。"""
+    if not docnums:
+        return {}
+    marks = ", ".join(["%s"] * len(docnums))
+    found = frappe.db.sql(f"SELECT name, docnum, remaining FROM `tab{DOCTYPE}` WHERE book_key = %s AND docnum IN ({marks})"
+                          " FOR UPDATE", [book_key, *docnums], as_dict=True)
+    return {row["docnum"]: row for row in found}
+
+
+def in_use(book_key) -> bool:
+    """近 :data:`IN_USE_DAYS` 天这本账套有人录过收款（只给这样的账套整本刷新）。"""
+    edge = now_datetime() - timedelta(days=IN_USE_DAYS)
+    return bool(frappe.get_all(COLLECTION, filters={"book_key": book_key, "creation": [">=", edge]},  # bounded: 有没有一条
+                               limit=1))
+
+
+def marks_seen(company, book, data):
+    """主档看标记那一轮（`express.masters.check_marks`）读到的结果：``ar_mark`` 和上次看到的不同、这本账套在用 → 整本刷新一次。
+    旧版 CC 桌面版不报 ``ar_mark``：什么都不做。"""
+    mark = str((data or {}).get("ar_mark") or "") if isinstance(data, dict) else ""
+    if not mark:
+        return False
+    key = MARK + book["key"]
+    last = frappe.cache.get_value(key)
+    frappe.cache.set_value(key, mark)
+    if last == mark or not in_use(book["key"]):
+        return False
+    request(company, book)
+    return True
+
+
+def advance():
+    """（每分钟）发起过的读取：读好的落库，过期 / 失败的忘掉。没有发起过就一次缓存读。"""
+    pending = frappe.cache.hgetall(PENDING) or {}
+    for key, raw in pending.items():
+        key = key.decode() if isinstance(key, bytes) else key
+        try:
+            item = json.loads(raw.decode() if isinstance(raw, bytes) else raw)
+        except (ValueError, AttributeError):
+            frappe.cache.hdel(PENDING, key)
+            continue
+        made = requests.find(KIND, key)
+        if made is None:
+            frappe.cache.hdel(PENDING, key)
+        elif made["status"] == "done":
+            land(item["company"], item["book_key"], made, item.get("customer") or "")
+            frappe.db.commit()

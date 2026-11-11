@@ -764,16 +764,23 @@ def actor_of(doctype, row, book_key):
     """写账作业归谁（ADR-021「谁的活谁的电脑做」，电脑只领自己登录过的人的单）：人开的单归开单人。收银日汇总是每晚系统合的，
     建单人是 Administrator、名下没有电脑，原来一直排着领不走（10-25 实验栈）：归这家公司里在电脑上登录过 CC、电脑够得到这份账套
     的员工（在线的电脑优先，同一台按名字排）。一个都没有就仍归建单人（页面写「CC 桌面版未连接」）。"""
-    if doctype != POS_DAY or jobs.writers(row.owner, book_key)["state"] in ("ok", "offline"):
+    if doctype != POS_DAY:
         return row.owner
-    company = company_of(doctype, row.name)
+    return office_actor(row.owner, company_of(doctype, row.name), book_key)
+
+
+def office_actor(owner, company, book_key):
+    """不在办公室电脑上登录 CC 的人交的写账（收银日汇总的建单人、在外面收款的收款员）归谁：本人有登录过 CC 的电脑（在线或关着）
+    就归本人；否则归这家公司里在够得到这份账套的电脑上登录过 CC 的员工（在线的电脑优先，同一台按名字排）；一个都没有仍归本人。"""
+    if jobs.writers(owner, book_key)["state"] in ("ok", "offline"):
+        return owner
     peers = devices.peers()
     reach = [name for name in (books.reachers([book_key]) or {}).get(book_key) or () if name in peers]
     for name in sorted(reach, key=lambda name: (not peers[name].online, name)):
         for user in sorted(peers[name].users or ()):
             if devices.issuer_valid(user) and company in companies.allowed_companies(user):
                 return user
-    return row.owner
+    return owner
 
 
 def _queued_note(doctype, row):

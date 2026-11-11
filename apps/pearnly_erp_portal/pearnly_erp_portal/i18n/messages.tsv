@@ -2022,3 +2022,14 @@ Select both "Date" values	请选齐“日期”	กรุณาเลือก "
 Exported the stock receipt-issue report	导出了收发存报表	ส่งออกรายงานรับ-จ่ายสินค้าแล้ว	入出庫レポートを出力しました
 Exporting the stock receipt-issue report	正在导出收发存报表	กำลังส่งออกรายงานรับ-จ่ายสินค้า	入出庫レポートを出力しています
 Payment not chosen yet	未选付款方式	ยังไม่ได้เลือกวิธีชำระเงิน	支払方法が未選択です
+Collections	收款	รับชำระหนี้	入金	erp.nav.collections
+Collector	收款员	พนักงานเก็บเงิน	集金担当
+Collector	收款员	พนักงานเก็บเงิน	集金担当	team.role.collector
+Draft	草稿	ฉบับร่าง	下書き	erp.collection.status.draft
+Pending write	待写入	รอบันทึก	書き込み待ち	erp.collection.status.queued
+Writing	写入中	กำลังบันทึก	書き込み中	erp.collection.status.writing
+Written	已写入	บันทึกแล้ว	書き込み済み	erp.collection.status.written
+Failed	失败	ไม่สำเร็จ	失敗	erp.collection.status.failed
+Withdrawn	已撤回	ยกเลิกแล้ว	取り消し済み	erp.collection.status.withdrawn
+LINE	LINE	LINE	LINE	erp.collection.source.line
+CC	CC	CC	CC	erp.collection.source.cc
