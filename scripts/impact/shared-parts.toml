@@ -476,6 +476,7 @@ paths = ["apps/pearnly_core/pearnly_core/tax_documents/**"]
 markers = ["pearnly_core.tax_documents", "pearnly_core import tax_documents"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
 entries = ["shared.tax-documents", "cowork.tax-documents", "erp.tax-documents", "erp.cc.write", "cowork.express.push", "shared.claude-ocr.self-check", "shared.claude-ocr.line-fill", "erp.cc.troubleshooting"]
+not_entries = { "apps/pearnly_core/pearnly_core/write_precheck/review.py" = "复核卡校验（第 2 批，纯契约）照它算税号校验位与金额；复核卡接口与产品声明接入时随写账前置判定的入口一起登记（A 线 11-11）" }
 
 [[part]]
 id = "transaction"
