@@ -61,7 +61,16 @@
       cowork.operator.unknown 2、cc.sidebar-modes 2、cowork.cc.sidebar-modes 2、cowork.pending.operator 2、
       cowork.operator.send-while-waiting 2、cowork.cc.send-while-waiting 2，全过
 - [ ] 真模型场景（Cowork / ERP × 直写 / 代录：CC 先复述、等用户回话再开始，用户没回话时服务端拒）——待主会话定费用与场景脚本来源
-- [ ] B 线「录吧」胶囊（出现条件：最新一条 `pearnly.write_plan` 是 awaiting 且模型空闲）
+- [x] B 线「录吧」（`pearnly/cc-record-quick-reply` a62e19c65，本分支叠在它上面）：新流程 `cowork.cc.record-reply`
+      「说一句建计划 → 出现录吧 → 点了照常发出 → 按计划开始后消失」电脑、手机 2/2 过；`not_flows.toml` 里 record-reply.ts 那条已删
+- [x] 「没有可写的单」不存计划（否则页面会出「录吧」）
+- 工具结果的 status：有要写的回 `ready`、做不了回 `nothing_to_write`；计划表与 `pearnly.write_plan` 事件的状态仍是 awaiting / started / replaced（事件形状已定，不再改）
+
+## 部署回读清单
+
+- 新 DocType `Pearnly Assistant Write Plan`（Pearnly Core）：部署迁移后逐站核表在（`doctype_guard`），各产品站点都有。
+- 新接口 `pearnly_core.express_operator.api.remember`（POST）；`express_operator.api.start` 不再是页面接口。
+- 新 CC 共用工具 `pearnly_write_plan`、`pearnly_write_start`（两产品工具清单里都有，代录、直写两种会话都能用）。
 
 ## 检查影响清单
 

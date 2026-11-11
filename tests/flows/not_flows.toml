@@ -267,7 +267,3 @@ reason = "标准组件库的开发用展示页（kit.html）：只在开发服�
 [[file]]
 file = "frontend/assistant/src/kit/main.tsx"
 reason = "标准组件库的开发用展示页（kit.html）：只在开发服务器与 CC_KIT=1 构建里，生产构建没有（tests/test_cc_ui_kit.py 核对）"
-
-[[file]]
-file = "frontend/assistant/src/lib/record-reply.ts"
-reason = "「录吧」快捷回复的出现条件：只在对话事件 pearnly.write_plan（A 线 pearnly/cc-write-plan）有一份 awaiting 时出现，该分支未进 main、实验栈发不出这个事件，流程触发不了；离线由 tests/test_cc_record_reply.py 守住。A 线工具上线时把它补进 cc.operator 流程并删掉这一条"

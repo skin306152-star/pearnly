@@ -1740,3 +1740,17 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js",
   "apps/pearnly_cowork/pearnly_cowork/push/application/*.py",
 ]
+
+[[flow]]
+id = "cowork.cc.record-reply"
+title = "Cowork CC 直写：说一句建写入计划后输入框上方出「录吧」，点了照常发出，CC 按计划开始后「录吧」消失（一句话下令，写入计划 + 快捷回复 11-11）"
+module = "scripts/flows/cc_record_reply.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "frontend/assistant/src/lib/record-reply.ts",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+]

@@ -218,6 +218,8 @@ class WritePlanTests(unittest.TestCase):
         out = self.plan()
         self.assertEqual((out["status"], out["count"]), ("nothing_to_write", 0))
         self.assertIn({"doc_id": "D001", "reason": "period_locked"}, out["skipped"])
+        self.assertEqual((out["plan"], FAKE.db.rows), ("", {}))  # 不存计划：页面不出「录吧」
+        self.assertEqual(FAKE.published, [])
 
     def test_again_lets_an_entered_document_in_only_when_the_user_said_so(self):
         out = self.plan(again=["D010"])

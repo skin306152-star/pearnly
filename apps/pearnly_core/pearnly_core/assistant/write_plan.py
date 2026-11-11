@@ -174,6 +174,11 @@ def make(tool_input) -> dict:
     write, skipped = _sorted_out(card, doc_ids, versions)
     skipped = skipped_first + skipped
     _replace_open(row.session_id)
+    if not write:
+        # 做不了：不存计划（没有可开始的，页面不出「录吧」），旧的没开始的已作废
+        return {"plan": "", "company": company, "company_title": str(card.get("company_title") or ""), "account_sets": [],
+                "count": 0, "documents": [], "skipped_count": len(skipped), "skipped": skipped[:SKIPPED_SHOWN],
+                "status": "nothing_to_write", "note": NOTHING_NOTE}
     doc = frappe.get_doc({"doctype": DOCTYPE, "session_id": row.session_id, "user": frappe.session.user, "mode": mode,
                           "company": company, "operator_task": task, "user_turn": _turn(row), "status": AWAITING,
                           "documents": json.dumps([{"doc_id": doc_id, "version": versions[doc_id], **({"again": True} if doc_id in again else {})}
@@ -183,8 +188,6 @@ def make(tool_input) -> dict:
     out = {"plan": doc.name, "company": company, "company_title": str(card.get("company_title") or ""),
            "account_sets": _targets(card, write), "count": len(write), "documents": write,
            "skipped_count": len(skipped), "skipped": skipped[:SKIPPED_SHOWN]}
-    if not write:
-        return {**out, "status": "nothing_to_write", "note": NOTHING_NOTE}
     # 工具结果的状态与 B 线「录吧」的约定（主会话 11-11）：有要写的回 ready，做不了回 nothing_to_write（带原因）；计划表里自己记 awaiting
     return {**out, "status": READY, "note": PLAN_NOTE}
 
