@@ -50,10 +50,19 @@
 - 页面不能直接调 `api.start`（不是 whitelist）。
 - 直写推送工具不在已开始计划里的单拒。
 
-## 进度
+## 进度（11-11）
 
-- [ ] 服务端 DocType + 两个工具 + 单测
-- [ ] 直写推送工具接计划
-- [ ] 代录开始卡去按钮、feed 状态
-- [ ] 流程 cc.operator / cowork.operator.* 改成说「录吧」
-- [ ] 闸门、候选、流程、真模型场景
+- [x] 服务端 DocType + 两个工具 + 单测（`tests/test_write_plan.py` 11 条，新模块，旧代码上不存在 → 红）
+- [x] 直写推送工具接计划（Cowork / ERP 两边 `direct_push.permitted`）
+- [x] 代录开始卡去按钮、答题只记下（`express_operator.api.remember`）、feed 准备中算空闲；`api.start` 不是页面接口（测试锁住，旧代码红）
+- [x] 流程：cc.operator 改成说一句建计划（实验栈单据都是「等电脑读账套主档」，计划回 nothing_to_write、跳过 3 张，写 + 跳过 = 站点等着录的张数）；
+      cowork.operator.unknown 改成卡上没有「开始」
+- [x] 闸门 220 过（a41d270aa）；候选离线 LANE EXIT 0（794ac5f32）；受影响流程：cc.chat 4、cc.operator 4、cc.operator.replay 4、
+      cowork.operator.unknown 2、cc.sidebar-modes 2、cowork.cc.sidebar-modes 2、cowork.pending.operator 2、
+      cowork.operator.send-while-waiting 2、cowork.cc.send-while-waiting 2，全过
+- [ ] 真模型场景（Cowork / ERP × 直写 / 代录：CC 先复述、等用户回话再开始，用户没回话时服务端拒）——待主会话定费用与场景脚本来源
+- [ ] B 线「录吧」胶囊（出现条件：最新一条 `pearnly.write_plan` 是 awaiting 且模型空闲）
+
+## 检查影响清单
+
+`python3 scripts/check-impact.py`：命中 assistant、write-precheck 两个共用件；登记表完整（write_plan.py 登记在 cc.operator.page）。
