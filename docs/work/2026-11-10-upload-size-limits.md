@@ -81,6 +81,35 @@ Frappe 在调任何钩子之前（`before_request` 在第 244 行，解析表单
 - 旧版 CC 桌面版（1.12.19 及以前）仍按 30MB 拦：服务端每件请求带 `max_bytes`，电脑取两者较小的，30–40MB 的文件回 `too_large`，不会半截；心跳带新版本号，CC 桌面版自动更新后就是 40MB。
 - 测试（先红后绿）：ERP `test_line_intake`、Cowork `tests/test_cowork_line_intake.py` 各两条——正好 40MB 收下并交存原件；多 1 字节（带 / 不带 Content-Length 两种）不存、回 `upload.tooLarge`。旧代码上正好 40MB 那条红（回「没能保存这份文件」）。CC 桌面版 `test_folder_fetch` 与 `test_companion_contract` 跟着 40MB。
 
+### 真机记录：`erp.line.postback.erp_item`（2026-11-11，被测代码 2db4b2a08）
+
+改 `pearnly_core/line.py`（下载改 BytesIO）命中共用件 line，这一行只能真机。主会话 11-11 批借测试机与三星、识别费约 ฿1 以内。
+
+- 环境：测试机 `testenv.sh lab-start erp`，线上镜像 5078ed47 + 本分支实时源码（工作树 HEAD 2db4b2a08）；追加甲骨文 6 个变量后 `live erp`，
+  识别容器带上变量、`originals.store.where` 回 `oracle`、testerp 本来就是 Claude 引擎；testerp 解析切到测试机隧道。
+  第一次 lab-start 在收尾导入 `upload_limits` 失败（镜像比源码旧），修收尾脚本（2db4b2a08，见下）后重跑通过，bench `max_file_size` 41MB。
+- 设备：三星 SM-A146P，LINE「Skin」（绑 testerp aksarapak，只在 ERP-TEST 对话里操作，没解绑没重绑；LINE 显示语言是真机补测窗口临时设的日文，没动）。
+- 测试票：本机生成的虚构税票（卖方「ห้างหุ้นส่วนจำกัด ทดสอบยางยนต์」、税号 0313599999991，两行新物料 + 运费，合计 16,371.00），
+  加不可压缩的内嵌附件撑到正好 30MB（31,457,280 字节）与 42MB，页数 1。
+
+| 步骤 | 结果 |
+|---|---|
+| 富菜单「采购录入」→ 上传识别 → 打字 mr.erp 选公司（没接 Express）→ 按票面识别 → 已付款 → 现金 | 每步按序回，最后「请上传 PDF 或图片」 |
+| 11:30:48 经 Android 分享把 30MB PDF 发到 ERP-TEST | 11:31 回复核卡（单号 TS6911-0301、卖方与税号对、三行、合计 16,371.00、现金），随后按行追问「新物料：1、2」+ 全部新建并入库 / 全部只记账 / 逐项选择 / 取消（运费已预选只记账） |
+| 点「全部只记账」 | 回更新后的卡片：三行都是「只记账」——`erp_item` 按钮照常 |
+| 同样流程发 42MB PDF（11:34） | 回「文件超过 40 MB」（`upload.tooLarge`，资料语言中文） |
+| 只读查测试机库 | LI-158414 `ready`、原件登记 352 字节（原件在甲骨文）；LI-158415 `failed` / `too_large`；Error Log 0 条；erp-ocr-worker 11:27 起内存峰值 316MiB |
+
+- 收尾：两条收单与原件登记已删（连甲骨文原件）；env 恢复成追加前（甲骨文变量 0）；`lab-stop erp`，testerp 读回 107.155.65.74、线上调度恢复；
+  手机上推的两份 PDF 已删（文件与媒体库都读回不存在）；测试机临时脚本与任务 0；占用表已登记释放。截图在共享笔记「C线-真机-11-11」。
+- 没测到：Cowork 的 LINE（这行只要 ERP；Cowork 40MB 边界由 `tests/test_cowork_line_intake.py` 离线覆盖）；「逐项选择」「新建并入库」分支（11-11 上午真机补测已走过，这次没改那段）。
+
+### 测试机收尾脚本（真机时发现，2db4b2a08）
+
+`lab-start` 先只用线上镜像起栈收尾、再挂实时源码收尾一次。镜像比本分支旧时，第一次收尾导入 `pearnly_core.originals.upload_limits` 失败，整个
+lab-start 停下、域名没切——合入 main 后、新镜像上线前，谁用线上镜像 + main 源码起测试机都会卡在这里。改成镜像里没有这个模块就跳过并记一行，
+挂上源码那次再写（与线上没换镜像时一样是 25MB）。测试 `test_upload_limits` 两条（有 / 没有这个模块），旧代码上「没有」那条红（同一个 ImportError）。
+
 ### 内存（主会话要求按减拷贝口径核）
 
 - LINE 下载原来 `bytearray` 再转 `bytes`，两份；改成 `BytesIO` 取值不再复制。生产镜像实测 40MB：**峰值 +81MB → +41MB**。下游（ERP 存原件 `registered.put`、Cowork `files.service.create`）都只收字节，没法直接流式写盘；存原件那一步已是流式（+9MB）。
