@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import fnmatch
 import importlib.util
 import json
@@ -67,6 +68,41 @@ def changed_files(base: str) -> list[str]:
 def covers(flow, path) -> bool:
     return any(fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(path, pattern.replace("**/", ""))
                for pattern in flow.get("covers", []))
+
+
+# 跑法本身（不是哪条流程的辅助）：改它们不因「引用」把流程选进来
+RUNNER = ("run", "coverage")
+
+
+def own_scripts(flow) -> set[str]:
+    """流程自己的脚本，以及它经 `scripts/flows/` 同级模块引用到的全部脚本（cc_lib、erp_lib、desk_list…，也有引用别的流程的，
+    层层引用都算）。照语法树里的 import 找，不靠 covers 手写（11-11 第 9 车：改了 cc_send_while_waiting.py，--changed 没选中它）。"""
+    folder = ROOT / "scripts" / "flows"
+    found, todo = set(), [ROOT / flow["module"]]
+    while todo:
+        path = todo.pop()
+        name = path.relative_to(ROOT).as_posix()
+        if name in found or not path.is_file():
+            continue
+        found.add(name)
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"), filename=name)):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+                names = [node.module]
+            else:
+                continue
+            for module in names:
+                top = module.split(".")[0]
+                if top not in RUNNER and (folder / f"{top}.py").is_file():
+                    todo.append(folder / f"{top}.py")
+    return found
+
+
+def changed_flows(flows, files) -> list[dict]:
+    """改动涉及的流程：registry 的 covers，加上流程自己的脚本与它引用到的流程辅助脚本（`own_scripts`）。--changed 与补跑范围同一规则。"""
+    return [flow for flow in flows
+            if any(covers(flow, path) for path in files) or own_scripts(flow) & set(files)]
 
 
 # 前端单页：源码目录 → 构建产物。`frontend/` 是 Frappe UI 单页（DMS 的 LINE 一次性票据编辑器），`frontend/assistant` 是 CC 对话页
@@ -423,7 +459,7 @@ def scope_flows(flows, scope):
         return flows
     if scope.startswith("base ") and " " not in scope[5:]:
         files = changed_files(scope[5:])
-        return [f for f in flows if any(covers(f, path) for path in files)]
+        return changed_flows(flows, files)
     return None
 
 
@@ -484,7 +520,7 @@ def main(argv=None) -> int:
             base = merge_base(args.base)
             scope = f"base {base[:12]}"
             files = changed_files(base)
-            flows = [f for f in flows if any(covers(f, path) for path in files)]
+            flows = changed_flows(flows, files)
         elif not args.all:
             parser.error("--all, --flow, --changed or --rerun-failed")
         cells, flow_count = expand(flows, args.dataset, args.viewport), len(flows)

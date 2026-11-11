@@ -58,7 +58,7 @@ PEARNLY_REGRESSION_SRC=$PWD docker compose -p pearnly-regression-lab -f infrastr
 python3 scripts/flows/run.py --changed --base origin/main --post-status
 ```
 
-按改动文件对 `covers` 选流程；一个都没涉及也回写通过（说明里是 `0 flows`）。改到入口文件却没有登记的，CI 的覆盖闸已经拦下。
+按改动文件对 `covers` 选流程，另外流程自己的脚本、它引用到的流程辅助脚本（同目录的 `cc_lib`、`erp_lib`、`desk_list`…，也包括引用的别的流程脚本，层层引用都算；`run.py`、`coverage.py` 除外）改了也选上，按 import 自动找，`covers` 里不用写这些脚本；一个都没涉及也回写通过（说明里是 `0 flows`）。改到入口文件却没有登记的，CI 的覆盖闸已经拦下。
 
 分支上只跑受影响的流程，不跑全套；变基没有冲突就不重跑（主会话 10-30 定）。
 

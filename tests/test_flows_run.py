@@ -405,5 +405,41 @@ class BilledSites(unittest.TestCase):
         self.assertIn("lab_billing.py", (ROOT / "scripts/regression/lab_init.py").read_text())
 
 
+class ChangedFlows(unittest.TestCase):
+    """`--changed` 与补跑范围按改动选流程（11-11 第 9 车：只改了 `cc_send_while_waiting.py` 的等待，--changed 没选中那条流程，
+    靠手工 --flow 补跑）：除了 registry 的 covers，流程自己的脚本、它引用到的流程辅助脚本（同目录的 cc_lib、erp_lib…，
+    也包括引用的别的流程脚本，层层引用都算）改了，这条流程也算被改到。所有流程一律按这条规则，不逐条补 covers。"""
+
+    def setUp(self):
+        self.flows = run.registry()
+        self.saved = run.changed_files
+
+    def tearDown(self):
+        run.changed_files = self.saved
+
+    def picked(self, *files):
+        run.changed_files = lambda base: list(files)
+        return {flow["id"] for flow in run.scope_flows(self.flows, "base 0123456789ab")}
+
+    def test_every_flow_is_picked_when_only_its_own_script_changed(self):
+        missed = [flow["id"] for flow in self.flows if flow["id"] not in self.picked(flow["module"])]
+        self.assertEqual(missed, [])
+
+    def test_a_helper_change_picks_the_flows_that_use_it_directly_or_through_another_script(self):
+        # cc_send_while_waiting 用 cc_lib；cc_send_while_waiting_operator 引用 cc_send_while_waiting（两层）
+        picked = self.picked("scripts/flows/cc_lib.py")
+        self.assertTrue({"cowork.cc.send-while-waiting", "cowork.operator.send-while-waiting"} <= picked, picked)
+        self.assertNotIn("erp.stocktake.scan", picked)
+        self.assertEqual({"cowork.cc.send-while-waiting", "cowork.operator.send-while-waiting"},
+                         self.picked("scripts/flows/cc_send_while_waiting.py"))
+
+    def test_the_runner_itself_is_not_a_helper_of_any_flow(self):
+        self.assertEqual(self.picked("scripts/flows/run.py", "scripts/flows/coverage.py"), set())
+
+    def test_changed_and_rerun_pick_with_the_same_rule(self):
+        source = (ROOT / "scripts/flows/run.py").read_text(encoding="utf-8")
+        self.assertNotIn("any(covers(f, path) for path in files)", source, "两处选流程都走同一个函数")
+
+
 if __name__ == "__main__":
     unittest.main()
