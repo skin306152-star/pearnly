@@ -1,6 +1,6 @@
 # 2026-11-11 线上压测第二轮（写入格 + 40MB 并发上传）
 
-状态（11-11 准备完毕）：脚本已备好、离线干跑通过，语料已就位，5 项前提主会话已定；**还没对生产发任何请求**，等主会话「部署完成、开始压测」。
+状态（11-11 20:3x 暂停）：跑完 S0a、S0b、40MB 并发、S8a 两次；S8a 撞出直写卡死 R2-5，按主会话决定停在这里，测试机与生产名单都已还原。**写入格 S8–S10 等 R2-5 修好再跑**（P0 拒写别家账套也到那时才测得到）。
 第一轮（只读格）见 [2026-11-08-prod-stress-100.md](2026-11-08-prod-stress-100.md)「11-10 第一轮结果」。
 
 窗口：线上压测第二轮（主会话 local_74a4f119 派）。只用生产测试租户 testcowork / testerp 和 e2e 账号（e2ecowork / e2eerp）；
@@ -142,6 +142,24 @@
   - 第一次 e2eerp 登录时窗口沿用了 testerp 站点上原来的登录，显示 aksarapak；退出后重登才是 e2eerp。另有一次菜单关了导致点空，没输出任何内容（截图核过输入框为空、没有新对话）。
 - 选择公司弹窗（只读核）：Cowork「บริษัท ซินเซียร์ไอซ์ จำกัด」只一行，标 70EXP；ERP「บริษัท กีซเซ่ จำกัด (สำนักงานใหญ่)」只一行。
 - S8a 前暂停 testcowork 档案（BD9B95F7，CC 进程 9980）。别家账套用 C 盘另一家的 T9MANAC7（มานะชัย），69EXP 已不再上报。
+
+### R2-5 复现（交 A 线）
+1. testcowork，e2ecowork，直写模式，选「บริษัท ซินเซียร์ไอซ์ จำกัด」。这家在测试机上有 T.7 / T.8 / T.9 三本 C 盘副本，都是 2025 年度。放 1 页卖车税票（2026-06-09，IV69/00521），泰文说「บันทึกเอกสารนี้เข้า Express」。
+2. CC 用 ask_user 问写哪本（没有一本覆盖 2026-06），选 T.8；再问赊销还是现金，选赊销。
+3. pearnly_precheck（direct）通过 → pearnly_write_plan 回：
+   `{"status": "nothing_to_write", "skipped": [{"reason": "ยังไม่ได้เลือกปลายทางการส่ง"}], "note": "Nothing can be written now … without offering to start."}`
+4. CC 接着调 cowork_push_documents，带 account_set_key=c:\pearnlyexpress\70exp\t8sincer，服务端回：
+   `not_pushed / not_started`：「writing starts only from a plan the user agreed to. Call pearnly_write_plan …」
+5. CC 只能反问用户「要不要我把目标设成 T.8，再总结计划给你确认？」。用户在卡里选的账套没有变成单据的推送目标；计划不收没目标的单，能定目标的推送又被计划拦下，直写走不下去。
+- 会话 sesn_01XqgMQffeAyb38uf9BJrjah（testcowork），截图 `~/pearnly-devtools/e2e-runs/stress-20261111T202145/S8a-cowork-0-202145/`（zz-final.png 与逐 10 秒截图），结果 `results.json` 同目录上一级。
+- 归类：A 线。cc-write-plan 与「选账套 / 定推送目标」的衔接：答卡选的账套要成为单据的推送目标，或写入计划能带上目标。修好后用同一格（S8a）复验，再跑 S8–S10。
+
+### 收尾（11-11 20:28–20:33）
+- CC 窗口：e2eerp 从 testerp 退出；再用 e2ecowork 登一次、落在 testcowork 上后退出（站点上会单独留登录，不退会把下一个登录的人带进 e2e）。窗口停在登录页。**原来的 pearnlyai、aksarapak 在 CC 窗口里已被退出**，以后打开窗口要本人重新登录，由主会话告诉用户；本窗口不替他们登录。
+- companion.json 换回备份，哈希 7D2EE159 与改前一致。CC 以 skin3 普通权限 --background 重启（9528）。心跳与改前相同：上报 39 本、可写 39、科目 225；testerp 档案回到暂停；9333 不监听。
+- 生产名单（一次 SSH，在 web 容器里删 e2e 那条，再回读）：testcowork CCD-6f142429 回到 [pearnlyai@gmail.com]，testerp PCD-41bd1991 回到 [aksarapak.aa@gmail.com]，最近登录人也回到原值。容器与宿主机的临时脚本已删。
+- 测试机临时目录、脚本、计划任务都已删，读回 0；配置备份 `C:\PearnlyStress\_备份\cc-config-2026-11-11-stress` 照惯例保留。占用表已释放。
+- 本轮花费：S0a 1.44 + S0b 0.5 + S8a 0.49 + 1.08 ≈ 3.5 美元；本月台账累计约 69。
 
 ### 问题（按类）
 | # | 级别 | 现象 | 复现 | 归类 |
