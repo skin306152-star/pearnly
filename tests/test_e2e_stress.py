@@ -144,7 +144,7 @@ document.addEventListener('click', e=>{ if(e.target.id!=='send') return; window.
     const a=document.createElement('div'); a.className='cc-askq'; a.textContent='BIG C / BIG C-001 / BIG C-002'; log.append(a);
   }, 2500); });
 </script>"""
-# 写入格：发话后出一张提问卡（两项，要选一项再点下一步），答完出开始卡，点开始后助手说开始录了
+# 写入格：发话后出一张提问卡（两项，要选一项再点下一步），答完出旧版开始卡，点了出「录吧」快捷回复（一句话下令），点了助手说开始录了
 FAKE_WRITE = FAKE.replace("""    const a=document.createElement('div'); a.className='cc-askq'; a.textContent='BIG C / BIG C-001 / BIG C-002'; log.append(a);""",
 """    const a=document.createElement('div'); a.className='cc-askq';
     a.innerHTML='<div data-slot="cc-askq-question">ลูกค้าคือใคร</div><button data-slot="cc-askq-option" aria-checked="false">BIG C-001</button>'
@@ -153,8 +153,10 @@ FAKE_WRITE = FAKE.replace("""    const a=document.createElement('div'); a.classN
     a.querySelectorAll('[data-slot=cc-askq-option]').forEach(o=>o.onclick=()=>{o.setAttribute('aria-checked','true'); a.querySelector('[data-slot=cc-askq-next]').disabled=false;});
     a.querySelector('[data-slot=cc-askq-next]').onclick=()=>{a.remove();
       const c=document.createElement('div'); c.innerHTML='<span data-slot="cc-op-target">บันทึกลง Express ของ TEST</span><button data-slot="cc-op-start">เริ่ม</button>';
-      log.append(c); c.querySelector('button').onclick=()=>{c.remove(); const m=document.createElement('div');
-        m.setAttribute('data-slot','aui_assistant-message-content'); m.textContent='เริ่มบันทึกแล้ว'; log.append(m);};};""")
+      log.append(c); c.querySelector('button').onclick=()=>{c.remove();
+        const r=document.createElement('div'); r.setAttribute('data-slot','cc-quick-replies'); r.innerHTML='<button>บันทึกเลย</button>';
+        document.body.append(r); r.querySelector('button').onclick=()=>{r.remove(); const m=document.createElement('div');
+          m.setAttribute('data-slot','aui_assistant-message-content'); m.textContent='เริ่มบันทึกแล้ว'; log.append(m);};};};""")
 EVENTS = [{"type": "agent.custom_tool_use", "id": "u1", "name": "cowork_recognize_attachments", "processed_at": "t"},
           {"type": "pearnly.tool_run", "tool_use_id": "u1", "status": "completed"},
           {"type": "span.model_request_end", "model_usage": {"input_tokens": 10000, "output_tokens": 1000}}]
@@ -215,7 +217,7 @@ class FakePageTest(unittest.TestCase):
                            hook=lambda page: fake_api(page, FAKE_WRITE), shot_every=1, idle_after=3)
         self.assertNotIn("error", r, r.get("error"))
         did = [a["did"].split(":")[0] for a in r.get("acted", [])]
-        self.assertEqual(did, ["pick", "next", "start"], r.get("acted"))
+        self.assertEqual(did, ["pick", "next", "start", "record"], r.get("acted"))
         self.assertIn("BIG C-001", r["acted"][0]["did"])
         self.assertIn("TEST", r["acted"][2]["did"])
 

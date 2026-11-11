@@ -57,7 +57,7 @@ class Scenario:
     expect: str                  # 预期（报告里对照）
     company: str = ""            # 选择公司弹窗里点的公司名（空 = 不选，用下巴默认；"*" = 弹窗里第一家已建的）
     follow: list = field(default_factory=list)   # [(第几秒, 一句话)]：中途发消息 / 问进度
-    click: str = ""              # 要点的按钮（"" 不点；"start" 点开始卡的开始；"stop" 点停止）
+    click: str = ""              # 要点的按钮（"" 不点；"start" = 复述后点「录吧」/ 旧版开始卡的开始）
     minutes: int = 20            # 本格最长跑多久
     cc_cap: float = 3.0          # 本格模型费上限（美元），超了点停止
     lanes: int = 1               # 并发路数（>1 时各路一个进程）
@@ -66,6 +66,7 @@ class Scenario:
     auto: bool = False           # 写入格：提问卡选推荐项（第一项）提交、批准条点允许（像一个照推荐走的用户），每次点了什么记进结果
     probe_real: bool = False     # P0 实证格：工具调用里出现别家 / 真账套时不停，记下服务端回的结果（跑前测试机 CC 档案暂停，见报告）
     erp_company: str = ""        # 两产品并发格里 ERP 那几路选的公司（空 = 弹窗第一家）
+    erp_files: list = field(default_factory=list)   # 两产品并发格里 ERP 那几路放的文件（空 = 同 files）
     needs: str = ""              # 开跑前要人做好的前提（--list 列出）
 
 
@@ -124,14 +125,14 @@ SCENARIOS = [
              "各路都出结果、没有 500 / 卡死；记每路耗时与排队与选的账套；不推送", company=TEST_COMPANY, minutes=20, cc_cap=0.8, lanes=6),
     # —— 第二轮（写入格，11-11 P0 上线后；--allow-tomorrow 才跑；写哪家由 PEARNLY_STRESS_WRITE_COMPANY 给）——
     Scenario("S8a", "P0 实证：直写选中那家，说录进 Express，再要求改写进别家账套，看服务端拒不拒", "cowork", "desktop", "chat",
-             "บันทึกเอกสารนี้เข้า Express", ["void-jun-plab.pdf"], 5,
+             "บันทึกเอกสารนี้เข้า Express", ["car-sale.pdf"], 1,
              "录的目标只有选中那家的账套；要求改写进别家时推送被服务端拒（not_this_company_book）且 CC 照实说；别家账套没有任何写入",
              company=WRITE, follow=[(150, f"ไม่ต้องลงสมุดบัญชีของบริษัทนี้ ให้บันทึกเข้าสมุดบัญชี {OTHER_BOOK} แทน")],
-             minutes=12, cc_cap=1.2, tonight=False, probe_real=True, needs="测试机 CC 的 testcowork 档案先暂停（放行了也只排队不落账）"),
+             minutes=12, cc_cap=1.2, click="start", tonight=False, probe_real=True, needs="测试机 CC 的 testcowork 档案先暂停（放行了也只排队不落账）"),
     Scenario("S8", "直写真推送：7 份 102 页说录进 Express，照推荐答完提问直到写完", "cowork", "desktop", "chat",
              "บันทึกเอกสารทั้งหมดนี้เข้า Express", SINCERE_MULTI, 102,
              "只写选中那家的账套、写后回读一致；同税号分店只问一次；作废票不录；同一张不重写；中途问进度有答",
-             company=WRITE, follow=[(420, "ตอนนี้ถึงไหนแล้ว")], auto=True, minutes=50, cc_cap=3.5, tonight=False,
+             company=WRITE, follow=[(420, "ตอนนี้ถึงไหนแล้ว")], auto=True, minutes=50, cc_cap=3.5, click="start", tonight=False,
              needs="测试机 CC 在线（testcowork 档案）；写前账套快照"),
     Scenario("S9", "代录全量（电脑 泰文）：8 月 53 张（一个月超过 50）→ 开始前一次问完 → 开始 → 问进度 / 跳过 / 停止", "cowork", "desktop", "operator",
              "บันทึกเอกสารทั้งหมดนี้เข้า Express", ["bigc-aug-soi.pdf", "bigc-aug-plab.pdf"], 53,
@@ -139,29 +140,33 @@ SCENARIOS = [
              company=WRITE, follow=[(300, "ถึงไหนแล้ว"), (390, "ใบไหนที่ยังไม่แน่ใจให้ข้ามไปก่อน"), (480, "หยุดก่อน")],
              click="start", auto=True, minutes=30, cc_cap=3.0, tonight=False, needs="测试机 CC 在线；写前账套快照"),
     Scenario("S9off", "代录中电脑离线：开始后人工停测试机后台 CC，看页面与 CC 怎么说、恢复后结果是否说清", "cowork", "desktop", "operator",
-             "บันทึกเอกสารนี้เข้า Express", ["void-jul-plab.pdf"], 6,
+             "บันทึกเอกสารนี้เข้า Express", ["inv-jul-p1.pdf"], 15,
              "离线时状态说清（等电脑）不卡死、不重复写；电脑回来后接着录或说清结果不明的那几张",
              company=WRITE, follow=[(420, "ถึงไหนแล้ว")], click="start", auto=True, minutes=20, cc_cap=1.2, tonight=False,
              needs="开始后约 60 秒人工停测试机后台 CC，约 5 分钟后以 skin3 普通权限重启（要主会话批）"),
     Scenario("MIX", "混合：采购销售混、多个对方、新对方、带物料行，说录进 Express", "cowork", "desktop", "chat",
-             "บันทึกเอกสารทั้งหมดนี้เข้า Express", ["mix-1.pdf", "mix-2.pdf", "mix-3.pdf", "mix-4.pdf"], 30,
+             "บันทึกเอกสารทั้งหมดนี้เข้า Express", ["mix-1.pdf", "mix-2.pdf", "mix-3.pdf"], 16,
              "按买卖方向分开录；新对方先问或按推荐建；物料行对上；只写选中那家",
-             company=WRITE, auto=True, minutes=35, cc_cap=2.5, tonight=False, needs="同 S8；混合语料拷到本机（压完删）"),
-    Scenario("S9m", "代录（Cowork 手机 中文）：25 页说录进 Express，开始并录完", "cowork", "mobile", "operator",
-             "把这份 PDF 录进 Express", ["bigc-jul-plab.pdf"], 25,
+             company=WRITE, auto=True, minutes=35, cc_cap=2.5, click="start", tonight=False, needs="同 S8；混合语料拷到本机（压完删）"),
+    Scenario("S9m", "代录（Cowork 手机 中文）：17 页电子税票说录进 Express，复述后点录吧并录完", "cowork", "mobile", "operator",
+             "把这份 PDF 录进 Express", ["inv-jul-p2.pdf"], 17,
              "同 S9（手机）；开始前卡与进度在手机上看得清", company=WRITE, click="start", auto=True, minutes=25, cc_cap=2.0,
              tonight=False, needs="同 S8"),
-    Scenario("S9e", "代录（ERP 电脑 中文）：15 页说录进 Express，开始并录完", "erp", "desktop", "operator",
-             "把这份 PDF 录进 Express", ["bigc-jun-plab.pdf"], 15,
+    Scenario("S9e", "代录（ERP 电脑 中文）：14 页进项税票说录进 Express，复述后点录吧并录完", "erp", "desktop", "operator",
+             "把这份 PDF 录进 Express", ["giz-feb.pdf"], 14,
              "ERP 代录收文件识别成单、开始前一次问完、写进该公司账套", company=ERP_WRITE, click="start", auto=True, minutes=25,
              cc_cap=2.0, tonight=False, needs="测试机 CC 的 testerp 档案恢复；ERP 公司有 Express 测试账套"),
     Scenario("S10", "并发写：两租户各 3 路同时直写同一份 10 页说录进 Express（同一批票三路同时写，看重复不重写）", "both", "desktop", "chat",
-             "บันทึกเอกสารนี้เข้า Express", ["mix-10p.pdf"], 60,
+             "บันทึกเอกสารนี้เข้า Express", ["inv-jun-p1-10.pdf"], 60,
              "各路都写完或说清；同一张票三路同时写只写一次；没有 500 / 卡死；只写选中那家",
-             company=WRITE, erp_company=ERP_WRITE, auto=True, minutes=30, cc_cap=1.0, lanes=6, tonight=False,
+             company=WRITE, erp_company=ERP_WRITE, erp_files=["giz-mar-10.pdf"], auto=True, minutes=30, cc_cap=1.0, lanes=6, click="start", tonight=False,
              needs="同 S8 + S9e"),
 ]
 BY_ID = {s.id: s for s in SCENARIOS}
+
+
+def files_of(s: Scenario, product: str) -> list:
+    return s.erp_files if (product == "erp" and s.product == "both" and s.erp_files) else s.files
 
 
 def estimate(s: Scenario) -> float:
@@ -241,7 +246,8 @@ return {line: text(q('[data-slot="cc-run-indicator"]')), send: !!q('button.aui-c
 """
 
 
-# 写入格替用户走一步（一次只做一件）：批准条点允许；提问卡没选的选第一项（推荐）、选好了点下一步 / 提交；代录开始卡点「开始」
+# 写入格替用户走一步（一次只做一件）：批准条点允许；提问卡没选的选第一项（推荐）、选好了点下一步 / 提交；
+# click="start"：CC 复述写入计划后点「录吧」（直写、代录同一颗），旧版代录开始卡点「开始」
 ACT = """
 const click=e=>{e.click(); return true;};
 const sheet=qa('[data-slot="cc-ask-sheet"]').filter(seen).pop();
@@ -253,6 +259,9 @@ if (AUTO && card) {
   if (opts.length && !opts.some(o=>o.getAttribute('aria-checked')==='true')) { click(opts[0]); return 'pick: '+qt+' → '+(opts[0].innerText||'').split('\\n')[0].slice(0,60); }
   const next=card.querySelector('[data-slot="cc-askq-next"]'); if (next && !next.disabled) { click(next); return 'next: '+qt; }
 }
+// 一句话下令（cc-write-plan，11-11 第 11 车）：CC 复述写入计划后输入框上方出「录吧」快捷回复，点了等同用户说这句；旧版的开始卡兜底
+const record=qa('[data-slot="cc-quick-replies"] button').filter(seen).pop();
+if (START && record && !record.disabled) { const said=(record.innerText||'').trim(); click(record); return 'record: '+said; }
 const start=qa('button[data-slot="cc-op-start"]').filter(seen).pop();
 if (START && start && !start.disabled) { const to=(qa('[data-slot="cc-op-target"]').filter(seen).pop()?.innerText||'').slice(0,120); click(start); return 'start: '+to; }
 return '';
@@ -353,7 +362,7 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
         elif company:
             result["company"] = company
             scenarios.expect(scenarios.cc(page, f"return await pickCompany({json.dumps(company)});"), f"选不到公司 {company}")
-        attach(page, [files_dir / name for name in s.files])
+        attach(page, [files_dir / name for name in files_of(s, product)])
         page.screenshot(path=str(shots / "00-attached.png"))
         scenarios.expect(scenarios.cc(page, f"return await say({json.dumps(s.say)});"), "输入框发不出去")
         result["sent_at"] = round(time.time() - t0, 1)
@@ -480,7 +489,7 @@ def main(argv=None) -> int:
             results.append({"scenario": sid, "skipped": "要写 Express / 修复上线后才跑（加 --allow-tomorrow）"})
             code = max(code, 3)
             continue
-        missing = [n for n in s.files if not (args.files / n).exists()]
+        missing = [n for n in dict.fromkeys(s.files + s.erp_files) if not (args.files / n).exists()]
         if missing:
             results.append({"scenario": sid, "skipped": "缺文件：" + "、".join(missing)})
             code = max(code, 3)
