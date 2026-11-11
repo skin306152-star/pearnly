@@ -146,13 +146,16 @@ def run(record):
 def release_kick(connection, workspace, client=None):
     """人在明确的推送入口点了（网页推送 / 待处理再推 `application.api.submit`、CC 推送工具 `assistant.tools`）：清掉这个 MR.ERP
     账号的「被踢」标记（`pearnly_core.mrerp.kick_mark`，11-09 风险 7），这次照常登录。自动推送（同批后续、定时巡检、自动推档位、
-    文件夹定时）都不调这里，有标记时在导入入口快速失败。不是 MR.ERP 连接、读不到连接或凭据的不动（推送本身照常报原因）。"""
+    文件夹定时）都不调这里，有标记时在导入入口快速失败。不是 MR.ERP 连接、读不到连接或凭据的不动（推送本身照常报原因）。
+
+    连接照推送的规矩加锁读（`read_for_push` 只许加锁读，不加锁直接抛「先锁连接」；11-11 真站点实测：原来传 ``lock=False``，
+    每次都被这条吞成「读不到」，网页推送清不掉标记）。两个调用方都在推送准备的同一事务里，准备时已锁过这条连接。"""
     from pearnly_core.mrerp import kick_mark as account_kick
 
     if not connection or connections.adapter_of(connection) != "mrerp":
         return False
     try:
-        loaded = connections.read_for_push(connection, workspace, client, lock=False)
+        loaded = connections.read_for_push(connection, workspace, client)
         secrets = connections.credentials_for_use(loaded)
     except (frappe.ValidationError, frappe.PermissionError):
         return False  # 读不到：这次推送会照常报这个原因，标记留着

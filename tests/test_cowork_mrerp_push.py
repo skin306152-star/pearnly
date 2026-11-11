@@ -615,13 +615,22 @@ class ManualEntries(unittest.TestCase):
         self.assertIn("manual=not operator", inspect.getsource(tools._submit_one))
 
     def test_release_kick_only_touches_mrerp_connections(self):
+        import frappe
+
         from pearnly_cowork.connections import service as connections
         from pearnly_core.mrerp import kick_mark as account_kick
 
         cleared = []
         loaded = type("Loaded", (), {"endpoint": {"config": {"system_url": BASE}}})()
+
+        def read_for_push(connection_id, workspace, client=None, actor=None, lock=True):
+            # 照真实接口的规矩（`connections.service.read_for_push`）：不加锁读直接抛（11-11 真站点实测，原来传 lock=False 被吞成读不到）
+            if lock is not True:
+                raise frappe.ValidationError("Lock the connection before reading the push target.")
+            return loaded
+
         with patch.object(connections, "adapter_of", lambda name: {"M": "mrerp", "E": "express"}[name]), \
-                patch.object(connections, "read_for_push", lambda *a, **k: loaded), \
+                patch.object(connections, "read_for_push", read_for_push), \
                 patch.object(connections, "credentials_for_use", lambda value: {"username": "test01"}), \
                 patch.object(account_kick, "clear", lambda key: cleared.append(key) or True):
             self.assertFalse(runner.release_kick("E", "W1"))
