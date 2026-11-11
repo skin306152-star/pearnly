@@ -671,13 +671,16 @@ pearnly_write_precheck = {
 # ERP 版 CC 按公司组织对话（ADR-020，2026-11-02）：公司工具（列出、读资料、经「允许」记 / 删知识库）与说话规矩
 # 对话里直写（评估 2026-11-02 §13 第 9 步）：按公司列单、要选的项、记选择、交直写、推送结果、结果不明的核对（`express.cc_tools`）
 # 盘点（盘点 2026-11-08 P1-1）：列、看差异、新建、记数、结束、按结果生成调整单草稿（`inventory.cc_tools`）
+# 收款（收款第 4 步 11-11）：找客户、未收清发票、方式、草稿与凭证、按写入计划放行、结果、撤回（`collection.cc_tools`，两种会话都能用）
 pearnly_assistant_tools = ["pearnly_core.express_operator.tools.TOOLS", "pearnly_erp_portal.masters.cc_tools.TOOLS",
-                           "pearnly_erp_portal.express.cc_tools.TOOLS", "pearnly_erp_portal.inventory.cc_tools.TOOLS"]
+                           "pearnly_erp_portal.express.cc_tools.TOOLS", "pearnly_erp_portal.inventory.cc_tools.TOOLS",
+                           "pearnly_erp_portal.collection.cc_tools.TOOLS"]
 pearnly_assistant_guidance = ["pearnly_erp_portal.masters.cc_tools.GUIDANCE", "pearnly_erp_portal.express.cc_tools.GUIDANCE"]
 # CC 工具执行期间「当前公司」是对话挂的那家（`masters.company.acting`，盘点 2026-11-08 ①）：库存、物料、盘点等按当前公司取数的服务都跟着走
 pearnly_assistant_tool_context = ["pearnly_erp_portal.masters.cc_tools.acting_filed"]
 pearnly_assistant_step_names = ["pearnly_core.express_operator.tools.STEP_NAMES",
-                                "pearnly_erp_portal.express.cc_tools.STEP_NAMES", "pearnly_erp_portal.inventory.cc_tools.STEP_NAMES"]
+                                "pearnly_erp_portal.express.cc_tools.STEP_NAMES", "pearnly_erp_portal.inventory.cc_tools.STEP_NAMES",
+                                "pearnly_erp_portal.collection.cc_tools.STEP_NAMES"]
 # 对话按 ERP 公司归组：provider 交给共用层（`pearnly_core.assistant.projects`），公司接口前缀与分区也在它上面声明
 pearnly_assistant_projects = ["pearnly_erp_portal.masters.cc_projects"]
 # 公司建、改名、停用、启用、删：推给能看这家的人，CC 侧栏即时更新（`masters.cc_service`）
