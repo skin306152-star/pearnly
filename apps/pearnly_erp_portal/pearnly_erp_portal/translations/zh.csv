@@ -137,6 +137,8 @@ At most 5 photos per entry,每条记录最多 5 张照片
 At most {0} photos per entry,每张单据最多 {0} 张照片
 At time of due date,到期时
 Attach,添加文件
+Attached a transfer slip,附上了转账凭证
+Attaching a transfer slip,正在附上转账凭证
 Attachment,附件
 Attachment Type,附件类型
 Attachments,附件
@@ -256,9 +258,11 @@ Chassis No,车架号
 Check sheet,核对表
 Check the opening stock row,请检查此期初明细
 Checkbox,勾选
+Checked a collection,查看了收款结果
 Checked pending items,查看了待处理
 Checked push choices,查看了推送前要选的项
 Checked push results,查看了推送结果
+Checking a collection,正在查看收款结果
 Checking pending items,正在查看待处理
 Checking push choices,正在查看推送前要选的项
 Checking push results,正在查看推送结果
@@ -793,10 +797,16 @@ List Price,标价
 List actions,列表操作
 List archived,列表已归档
 List name,列表名称
+Listed collection methods,查看了收款方式
+Listed collections,查看了收款列表
 Listed companies,列出了公司
 Listed documents,查看了单据
+Listed open invoices,查看了未收清的发票
 Listed stock counts,查看了盘点列表
+Listing collection methods,正在查看收款方式
+Listing collections,正在查看收款列表
 Listing documents,正在查看单据
+Listing open invoices,正在查看未收清的发票
 Listing stock counts,正在查看盘点列表
 Loading...,加载中…
 Location,仓位
@@ -1188,9 +1198,11 @@ Record only,只记账
 Record purchases,采购录入
 Record sales,销售录入
 Recorded,已入账
+Recorded a collection,录入了收款
 Recorded a count,记录了实盘数
 Recorded {0} opening row(s); skipped {1} already recorded row(s),已录入 {0} 行期初库存，已跳过 {1} 行已录入明细
 Recorded · pending write,已记录 · 待写入
+Recording a collection,正在录入收款
 Recording a count,正在记录实盘数
 Recount this product,重新盘点该物料
 Recurring,重复性
@@ -1263,10 +1275,12 @@ Save Draft,保存草稿
 Save and next,保存并下一项
 Save this to the company's notes?,确定要将此内容记入公司知识库吗？
 Saved,已保存
+Saved a collection draft,保存了收款草稿
 Saved a company note,记下了公司说明
 Saved push choices,保存了推送选项
 Saved {0},已保存 {0}
 Saved. Scan the next item.,已保存，请扫描下一项。
+Saving a collection draft,正在保存收款草稿
 Saving push choices,正在保存推送选项
 Scan,扫码
 Scan a code,扫码
@@ -1285,6 +1299,8 @@ Search by receipt number,按小票编号搜索
 Search cards,搜索卡片
 Search name or barcode,搜索名称或条码
 "Search name, code or barcode",搜索名称、编码或条码
+Searched customers for a collection,查找了收款客户
+Searching customers for a collection,正在查找收款客户
 Second No,第二个号
 Secondary No,副号
 Select,选择
@@ -1774,8 +1790,10 @@ Value Change,金额变动
 Vehicle,车
 Vehicles,汽车
 View,显示方式
+Viewed a collection,查看了收款
 Viewed a document,查看了单据详情
 Viewed a stock count,查看了盘点结果
+Viewing a collection,正在查看收款
 Viewing a document,正在查看单据详情
 Viewing a stock count,正在查看盘点结果
 Visibility,可见范围
@@ -1815,7 +1833,9 @@ Who can comment,评论权限
 Whole document taxed,按账套设置整张计税
 With differences,有差异
 Withdraw,撤回
+Withdrawing a collection,正在撤回收款
 Withdrawn,已撤回
+Withdrew a collection,撤回了收款
 Withholding Tax,预扣税
 Withholding Tax Certificate,预扣税凭证
 Withholding Tax Rate,预扣税率
