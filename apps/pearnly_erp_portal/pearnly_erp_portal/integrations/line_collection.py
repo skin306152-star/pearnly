@@ -42,7 +42,7 @@ WAIT_SECONDS = 20
 EDIT_ROUTE = "/desk/pearnly-my-collections/"
 # 打字确认（用户手打的词不翻译；四种语言 + ok）。比较时去掉空白、不分大小写
 CONFIRM_WORDS = frozenset(("ยืนยัน", "确认", "確認", "ok", "confirm"))
-# 回执里这两种「不能收」带每张发票此刻的余额（`collection.push`）；服务品现金制（CASH_BASIS_VAT）照原因说
+# 回执里这两种「不能收」带每张发票此刻的余额（`collection.push`）；没带余额的（如服务品现金制）照原因说
 BALANCE_CODES = ("ALREADY_COLLECTED", "INVOICE_NOT_FOUND")
 _WAIT_KEY = "pearnly:erp:collection:line-wait:"
 _TOLD_KEY = "pearnly:erp:collection:line-told:"
