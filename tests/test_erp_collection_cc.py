@@ -117,7 +117,7 @@ class Declarations(unittest.TestCase):
             words.setdefault(cells[0], cells[1:4])
         for tool in cc_tools.TOOLS:
             self.assertTrue(tool["name"].startswith("erp_collection_"), tool["name"])
-            self.assertNotIn("modes", tool)  # 两种会话都能用（审定结论②）
+            self.assertEqual(tool.get("modes"), ["chat"], tool["name"])  # 只在直写对话（用户 11-11：代录不做收款）
             self.assertNotIn("approval", tool)  # 不加「允许」卡片：放行由写入计划 + 用户下一句定
             module, _dot, function = tool["handler"].rpartition(".")
             self.assertEqual(module, "pearnly_erp_portal.collection.cc_tools")
@@ -127,6 +127,18 @@ class Declarations(unittest.TestCase):
         hooks = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")
         self.assertIn('"pearnly_erp_portal.collection.cc_tools.TOOLS"]', hooks)
         self.assertIn('"pearnly_erp_portal.collection.cc_tools.STEP_NAMES"]', hooks)
+
+    def test_an_operator_conversation_has_no_collection_tool_and_a_direct_one_has_all_ten(self):
+        # 用户 11-11：代录不做收款。各模式只用自己的工具：代录会话给模型的工具表里一个 erp_collection_* 都没有（共用层
+        # `tools.mode_allowed`，同 `definition.brief` 按模式整组换上）
+        from pearnly_core.assistant import tools
+
+        with mock.patch.object(tools, "declared", lambda: list(cc_tools.TOOLS)):
+            chat = [t["name"] for t in tools.declared() if tools.mode_allowed(t["name"], "chat")]
+            operator = [t["name"] for t in tools.declared() if tools.mode_allowed(t["name"], "operator")]
+        self.assertEqual(len(chat), 10)
+        self.assertEqual(chat, [t["name"] for t in cc_tools.TOOLS])
+        self.assertEqual([name for name in operator if name.startswith("erp_collection_")], [])
 
     def test_the_plan_document_carries_the_version(self):
         self.assertEqual(plan.WRITE, service.WRITE)
