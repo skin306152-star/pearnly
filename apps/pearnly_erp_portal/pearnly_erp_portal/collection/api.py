@@ -75,9 +75,10 @@ def api_my_collections(start=0, limit=20):
     return service.mine(start=start, limit=limit)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def api_my_collection(name):
-    """一笔本人的收款：确认卡内容；草稿另带可改的范围（各张此刻能收多少、这本账套的收款方式）。"""
+    """一笔本人的收款：确认卡内容；草稿另带可改的范围（各张此刻能收多少、这本账套的收款方式）。POST：主档还没读过时
+    要排一次读取（`express.masters.ensure`），GET 里写库不提交。"""
     from pearnly_erp_portal.collection import contracts, service
 
     card = service.card(name)
