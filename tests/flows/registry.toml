@@ -1812,3 +1812,33 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/assistant/write_scope.py",
   "apps/pearnly_cowork/pearnly_cowork/companies/provider.py",
 ]
+
+[[flow]]
+id = "erp.line.collection"
+title = "LINE 录收款（富菜单第 4 格）走完各步到确认卡 → 卡片【编辑】打开「我的收款」弹窗改草稿 → 回 LINE：旧卡确认重出新卡、无岗位伪造被拒、打 ok 放行、待写入时撤回（收款第 3 步 11-11）"
+module = "scripts/flows/erp_line_collection.py"
+start = "/desk/pearnly-my-collections/{name}"
+user = "collector"
+datasets = ["new"]
+viewports = ["mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection_cards.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/texts.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/my-collections.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_my_collections/pearnly_my_collections.js",
+]
+
+[[flow]]
+id = "erp.collections.refused"
+title = "没有收款岗位的人（采购）打不开「收款」与「我的收款」两页，两页的接口也拒（收款 11-11）"
+module = "scripts/flows/erp_collections_refused.py"
+start = "/desk/pearnly-home"
+user = "purchase"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/access.py",
+]

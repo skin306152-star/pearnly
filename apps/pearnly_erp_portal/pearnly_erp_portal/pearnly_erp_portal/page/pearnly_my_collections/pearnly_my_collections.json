@@ -1,0 +1,13 @@
+{
+ "doctype": "Page",
+ "name": "pearnly-my-collections",
+ "page_name": "pearnly-my-collections",
+ "title": "erp.nav.myCollections",
+ "module": "Pearnly ERP Portal",
+ "standard": "Yes",
+ "roles": [
+  {
+   "role": "Desk User"
+  }
+ ]
+}

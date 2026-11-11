@@ -301,6 +301,7 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/sales-form.js"),
     versioned_asset("pearnly_erp_portal", "desk/sales.js"),
     versioned_asset("pearnly_erp_portal", "desk/collections.js"),
+    versioned_asset("pearnly_erp_portal", "desk/my-collections.js"),
     versioned_asset("pearnly_erp_portal", "desk/suppliers.js"),
     versioned_asset("pearnly_erp_portal", "desk/clients.js"),
     versioned_asset("pearnly_erp_portal", "desk/cashier.js"),
@@ -412,6 +413,8 @@ pearnly_navigation = [{'product': 'erp',
             ('nav.sales', 'pearnly-sales', 'receipt-text', 'sales'),
             # 收款（11-11）：收款员在 LINE / CC 录、写进 Express RE；这一页只看、导出、看凭证（销售岗位与管理员）
             ('erp.nav.collections', 'pearnly-collections', 'receipt-text', 'sales'),
+            # 我的收款（11-11）：收款员本人录的收款；LINE 确认卡【编辑】打开这一页的弹窗改草稿（只给收款员岗位；在左下角菜单，不进侧栏）
+            ('erp.nav.myCollections', 'pearnly-my-collections', 'receipt-text', 'collection'),
             ('nav.cashier', 'pearnly-cashier', 'shopping-cart', 'cashier'),
             ('nav.posReceipts', 'pearnly-pos-receipts', 'receipt-text', 'cashier'),
             ('nav.posShifts', 'pearnly-pos-shifts', 'clipboard-list', 'cashier'),
@@ -434,6 +437,7 @@ pearnly_navigation = [{'product': 'erp',
                 'pearnly-suppliers',
                 'pearnly-sales',
                 'pearnly-collections',
+                'pearnly-my-collections',
                 'pearnly-clients',
                 'pearnly-cashier',
                 'pearnly-pos-receipts',
@@ -511,8 +515,9 @@ pearnly_navigation = [{'product': 'erp',
   # 公司带 `before_profile`：用户 2026-09-23 口径"公司……做在个人信息上方"，
   # 所以它排在「个人信息」上面，团队管理仍排在下面。
   # 仓库原来也在这里，岳父 11-08 移到侧栏「物料与库存」组（移，不复制）。
+  # 我的收款（11-11）：收款员不是侧栏岗位（只在 LINE / CC 录），本人录的收款与 LINE 确认卡【编辑】打开的弹窗放在这里
   'user_menu': [{'route': 'pearnly-company', 'before_profile': True},
-                'pearnly-team'],
+                'pearnly-team', 'pearnly-my-collections'],
   # 页头入口声明（回归方案 A 节，10-26）：每页页头允许出现的入口（语义码）。我们自己的页面由 scripts/check-entries.py 核对代码里
   # 加的每个按钮都在这里；框架原生视图（Form/User、报表）运行时只放行这里列的（core desk/actions.js）；"*" 是各页共用的。
   'actions': {
@@ -566,6 +571,8 @@ pearnly_navigation[0]["permissions"][_menu_permissions.route("profile")]["any_ro
 # 收款页（11-11）：与接口同一判据 `collection.view`——销售岗位（菜单岗位与旧功能角色）和 ERP 管理员；收款员只录不看这一页
 pearnly_navigation[0]["permissions"]["pearnly-collections"] = {
     "any_role": [*_menu_permissions.page_roles("sales"), _rules.ADMIN_ROLE]}
+# 我的收款（11-11）：与录收款同一判据 `collection.write`——只有收款员岗位
+pearnly_navigation[0]["permissions"]["pearnly-my-collections"] = {"any_role": [_rules.COLLECTOR_ROLE]}
 # 任务管理的默认看板（团队可见、默认三列）在装好 / 升级后建好。
 after_install = ["pearnly_erp_portal.access.setup.sync_roles", "pearnly_erp_portal.team.login_settings.apply",
                  "pearnly_erp_portal.work.service.ensure_on_migrate"]

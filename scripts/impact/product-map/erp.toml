@@ -522,6 +522,46 @@ parts = ["line"]
 tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_cancel_clears_the_choices", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_stale_or_forged_answers_do_not_advance"]
 
 [[row]]
+id = "erp.line.menu.collection"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-menu"
+anchor = "line:erp:menu:collection"
+where = "LINE 富菜单左下「收款」（收款员岗位才有，无岗位是锁；11-11）"
+parts = ["line"]
+tests = ["unit:tests/test_erp_collection_line.py::test_the_fourth_tile_is_collections_for_collectors", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_tiles_follow_permissions_and_stocktake_opens_the_native_page", "flow:erp.line.collection"]
+group = "line.menu.collection"
+na = { Cowork = "收款写进 Express RE 只在 ERP（评估 2026-11-11：Cowork 不做收款）" }
+
+[[row]]
+id = "erp.line.postback.col"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:erp:postback:col"
+where = "LINE 录收款各步的按钮（a=col&s=…：选公司 / 客户 / 勾发票 / 方式 / 金额 / 再加一种方式 / 折扣 / 下次再收 / 确认 / 撤回 / 取消；「เมนู」里的收款）"
+parts = ["line", "line-session"]
+tests = ["unit:tests/test_erp_collection_line.py::test_each_step_is_asked_in_order_and_a_cash_collection_reaches_the_card", "unit:tests/test_erp_collection_line.py::test_cash_plus_transfer_with_a_voucher_and_a_discount", "unit:tests/test_erp_collection_line.py::test_the_confirm_button_releases_the_shown_version_with_the_event_as_consent", "unit:tests/test_erp_collection_line.py::test_a_forged_button_on_someone_else_s_collection_is_refused_by_the_server", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_collection_events_go_to_the_collection_flow_before_other_typed_words", "flow:erp.line.collection"]
+
+[[row]]
+id = "erp.line.collection-edit"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-link"
+anchor = "line:erp:link:/desk/pearnly-my-collections/{x}"
+where = "LINE 收款确认卡「编辑」→ 经 LIFF 打开「我的收款」这一笔的原生弹窗（改各张本次收、现金、方式与折扣），存好回 LINE 点确认重出新卡"
+parts = ["line", "line-session"]
+config = ["site:pearnly_line_liff_id", "liff:endpoint"]
+tests = ["flow:erp.line.collection", "unit:tests/test_erp_collection_line.py::test_a_card_changed_after_it_was_shown_is_shown_again_not_released"]
+must_verify = true
+probe = { type = "liff", path = "/desk/pearnly-my-collections" }
+group = "line.collection-edit"
+na = { Cowork = "收款写进 Express RE 只在 ERP（评估 2026-11-11：Cowork 不做收款）" }
+
+[[row]]
 id = "erp.line.postback.mode"
 product = "ERP"
 channel = "line"
@@ -575,7 +615,18 @@ kind = "nav-page"
 anchor = "nav:erp:pearnly-collections"
 where = "侧栏「销售 → 收款」（只看、导出、看凭证；收款员在 LINE / CC 录，11-11）"
 cc_na = "只读页；CC 里录收款、查结果是第 4 步的收款工具（erp_collection_*，还没合入），合入时改成 cc"
-tests = ["unit:tests/test_erp_collection.py::test_the_list_pages_on_the_server_with_a_total_and_search", "unit:tests/test_erp_collection.py::test_only_people_who_view_collections_open_the_page_and_the_export", "unit:tests/test_erp_collection.py::test_the_page_is_declared_with_the_view_roles_and_no_write_entries", "unit:tests/test_erp_collection.py::test_native_read_rights_follow_people_and_companies"]
+tests = ["unit:tests/test_erp_collection.py::test_the_list_pages_on_the_server_with_a_total_and_search", "unit:tests/test_erp_collection.py::test_only_people_who_view_collections_open_the_page_and_the_export", "unit:tests/test_erp_collection.py::test_the_page_is_declared_with_the_view_roles_and_no_write_entries", "unit:tests/test_erp_collection.py::test_native_read_rights_follow_people_and_companies", "flow:erp.page-lists", "flow:erp.collections.refused"]
+
+[[row]]
+id = "erp.desk.pearnly-my-collections"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-my-collections"
+where = "左下角「我的收款」（只给收款员：本人录的收款，草稿点开原生弹窗改；LINE 确认卡「编辑」也到这里，11-11）"
+cc_na = "收款员本人的记录与草稿弹窗；CC 里录收款是第 4 步的收款工具（erp_collection_*，还没合入），合入时改成 cc"
+tests = ["flow:erp.line.collection", "flow:erp.collections.refused"]
 
 [[row]]
 id = "erp.desk.pearnly-company"
@@ -850,7 +901,7 @@ kind = "page-action"
 anchor = "action:erp:pearnly-collections:Export"
 where = "pearnly-collections 页头「Export」"
 cc_na = "导出给财务对账用的表格；CC 里查收款结果是第 4 步的收款工具（还没合入）"
-tests = ["unit:tests/test_erp_collection.py::test_only_people_who_view_collections_open_the_page_and_the_export"]
+tests = ["unit:tests/test_erp_collection.py::test_only_people_who_view_collections_open_the_page_and_the_export", "flow:erp.exports", "flow:erp.collections.refused"]
 
 [[row]]
 id = "erp.desk.pearnly-company.action.Cancel"
