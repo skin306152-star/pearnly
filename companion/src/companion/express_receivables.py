@@ -34,7 +34,7 @@ PARAM_KEYS = ("account_set", "account_root")
 OPTIONAL_KEYS = ("customer",)
 INVOICE_RECTYP = "3"
 CANCELLED = "C"
-CASH_BASIS_VAT = "2"   # 服务品现金制增值税的发票（SRV_VATTYP 2）本批不收，不列（主会话 11-11，同 dbf_receipt）
+CASH_BASIS_VAT = "2"   # 服务品现金制增值税的发票（SRV_VATTYP 2）本批不收，不列（主会话 11-11，写入那边同样挡掉）
 CUSTOMER_MAX = 10
 
 
