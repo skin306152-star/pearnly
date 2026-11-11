@@ -1958,6 +1958,43 @@ class OperatorSourceTests(unittest.TestCase):
         module.submit("CO1", ["h1"], {"id": "b1", "total": 1, "start_at": 0}, "CCD-1")
         self.assertEqual([c[4] for c in calls if c[0] == "push"], ["service"])  # 入账类型明传，单据列不再盖过它
 
+    def test_tickets_put_into_this_companys_tasks_are_listed_even_from_another_month(self):
+        """11-10 线上压测 S5b（ERP 同类 0372c19c5）：11 月的代录里放了 8 月的票，只按月份列的资料里一张都不出现。本人在这家公司
+        的代录任务里放进来、还等着录的单不按月份丢，带 other_month；已推走的、别人的任务、第二页起不补。"""
+        module, _calls = self.load()
+        listed = {"documents": [{"name": "h1", "direction": "purchase", "invoice_date": "2026-10-03", "seller_name": "A"}]}
+        sys.modules["pearnly_cowork.assistant.tools"].list_documents = lambda _q: json.dumps(listed)
+        tools = sys.modules["pearnly_cowork.assistant.tools"]
+        tools.PUSHED_OR_ON_ITS_WAY = ("success", "pending")
+        tools._recognition = lambda: types.SimpleNamespace(detail=lambda batch: {"history_records": {
+            "B1": ["h1", "h8", "h9"], "B2": ["h7"]}[batch]})
+        asked = []
+
+        def get_all(doctype, filters=None, fields=None, pluck=None, limit_page_length=None, **_kw):
+            asked.append((doctype, filters))
+            if doctype == "Pearnly Express Operator Task":
+                return ["T1"] if filters == {"company": "CO1", "owner": frappe.session.user} else []
+            if doctype == "Pearnly Express Operator Task Upload":
+                return ["B1", "B2"]
+            history = {"h8": {"invoice_date": "2026-08-14", "invoice_no": "IV69/00751", "seller_name": "S8",
+                              "last_push_status": ""},
+                       "h9": {"invoice_date": "2026-08-15", "last_push_status": "success"},
+                       "h7": {"invoice_date": "2026-10-20", "last_push_status": ""}}
+            return [{"name": name, **row} for name, row in history.items() if name in filters["name"][1]
+                    and row["last_push_status"] not in filters["last_push_status"][1]]
+
+        operator = types.SimpleNamespace(tasks=types.SimpleNamespace(DOCTYPE="Pearnly Express Operator Task"),
+                                         uploads=types.SimpleNamespace(UPLOAD="Pearnly Express Operator Task Upload"))
+        with mock.patch.object(frappe, "get_all", get_all), mock.patch.dict(sys.modules, {
+                "pearnly_core.express_operator": operator, "pearnly_core.express_operator.tasks": operator.tasks,
+                "pearnly_core.express_operator.uploads": operator.uploads}), \
+                mock.patch.object(module, "_directions", lambda names: {name: "purchase" for name in names}):
+            out = module.sources("CO1", "2026-10", 0, 50)
+            later = module.sources("CO1", "2026-10", 50, 50)
+        self.assertEqual([(d["doc_id"], d.get("other_month")) for d in out["documents"]], [("h1", None), ("h8", "2026-08")])
+        self.assertEqual(out["documents"][1]["ref"], "IV69/00751")
+        self.assertEqual([d["doc_id"] for d in later["documents"]], ["h1"])  # 第二页起不再补
+
     def test_a_ticket_already_written_by_direct_push_is_found(self):
         """用户 11-09：同一张票已写进 Express 的，代录默认跳过。按同一工作区、同一条连接与账套、同票号、同对方税号、同金额、
         已推送成功认；金额对不上的不算。"""

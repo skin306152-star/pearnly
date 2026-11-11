@@ -45,11 +45,16 @@ def sources(company, period, offset, limit) -> dict:
     if found.get("status") == "failed":
         return {"documents": [], "next_offset": None, "failed": found.get("reason")}
     rows = found.get("documents") or []
+    # 本人在这家公司的代录任务里放进来、单据日期不在这个月的：也列出、带 other_month（只在第一页补）
+    others = _other_month(company, first, last, {row.get("name") for row in rows}) if not int(offset or 0) else []
+    rows = rows + others
     pages = _primary_fields([row.get("name") for row in rows])
     memory = rules.groups(company)
+    directions = _directions([row.get("name") for row in others]) if others else {}
+    other_names = {row.get("name") for row in others}
     documents = []
     for row in rows:
-        direction = row.get("direction") or ""
+        direction = row.get("direction") or directions.get(row.get("name")) or ""
         fields = pages.get(row.get("name")) or {}
         group = _group(row, fields, row.get("posting_kind"), memory)[0]
         documents.append({"doc_id": row.get("name"), "kind": direction, "group": group,
@@ -57,8 +62,40 @@ def sources(company, period, offset, limit) -> dict:
                           "date": str(row.get("invoice_date") or ""),
                           "party": row.get("buyer_name") if direction == "sales" else row.get("seller_name"),
                           "ref": row.get("invoice_no") or "", "total": str(row.get("total_amount") or ""),
-                          "stopped": row.get("last_push_reason") or ""})
+                          "stopped": row.get("last_push_reason") or "",
+                          **({"other_month": str(row.get("invoice_date"))[:7]} if row.get("name") in other_names else {})})
     return {"documents": documents, "next_offset": found.get("next_offset"), "total": found.get("total")}
+
+
+OTHER_TASKS_MAX, OTHER_BATCHES_MAX = 200, 500
+
+
+def _other_month(company, first, last, seen) -> list:
+    """本人在这家公司的代录任务里放进来的单（任务上传记下的识别批次，`express_operator.uploads`），单据日期不在这个月、还等着录的。
+    11-10 线上压测 S5b（ERP 同类已修 0372c19c5）：11 月的任务里放了 8 月的票，只按月份列的资料里一张都不出现，CC 让用户「放进系统
+    再说」；不是本月的由 CC 在对话里说清、再问怎么处理（主会话 11-10），不悄悄丢掉。"""
+    from pearnly_core.express_operator import tasks as operator_tasks
+    from pearnly_core.express_operator import uploads as operator_uploads
+    from pearnly_cowork.assistant import tools
+
+    owned = frappe.get_all(operator_tasks.DOCTYPE, filters={"company": company, "owner": frappe.session.user},
+                           pluck="name", limit_page_length=OTHER_TASKS_MAX)
+    batches = frappe.get_all(operator_uploads.UPLOAD, filters={"parent": ["in", owned], "batch": ["is", "set"]},
+                             pluck="batch", limit_page_length=OTHER_BATCHES_MAX) if owned else []
+    names = []
+    for batch in dict.fromkeys(batches):
+        try:
+            names += tools._recognition().detail(batch).get("history_records") or []
+        except (frappe.DoesNotExistError, frappe.PermissionError):
+            frappe.clear_messages()
+    names = [name for name in dict.fromkeys(names) if name and name not in seen]
+    if not names:
+        return []
+    rows = frappe.get_all("Cowork OCR History", filters={"name": ["in", names],
+                                                         "last_push_status": ["not in", tools.PUSHED_OR_ON_ITS_WAY]},
+                          fields=["name", "posting_kind", "invoice_date", "invoice_no", "seller_name", "buyer_name",
+                                  "total_amount", "last_push_reason"], limit_page_length=len(names))
+    return [dict(row) for row in rows if row.get("invoice_date") and not (first <= str(row.get("invoice_date")) <= last)]
 
 
 def precheck(company, doc_ids) -> dict:
