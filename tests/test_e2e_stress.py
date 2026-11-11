@@ -31,6 +31,10 @@ class PureTest(unittest.TestCase):
         self.assertEqual(calls[1]["status"], "failed")
         self.assertFalse(calls[0]["error"])
 
+    def test_session_from_address(self):
+        self.assertEqual(stress.session_in("https://testcowork.pearnly.com/assistant?c=sesn_01Lq&view=chat"), "sesn_01Lq")
+        self.assertEqual(stress.session_in("https://testcowork.pearnly.com/assistant"), "")
+
     def test_internal_words(self):
         seen = {m.group(0) for m in stress.INTERNAL.finditer("ใช้ Express operator แล้ว · CWH-24fbf585ab · 已识别 24 张")}
         self.assertEqual(seen, {"operator", "CWH-24fbf585ab"})

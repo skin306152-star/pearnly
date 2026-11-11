@@ -268,6 +268,13 @@ return '';
 """
 
 
+def session_in(url: str) -> str:
+    """页面地址里正在看的对话编号（CC 用 replaceState 把它写进 ?c=）；没有回空。"""
+    from urllib.parse import parse_qs, urlparse
+
+    return (parse_qs(urlparse(url).query).get("c") or [""])[0]
+
+
 def pick_first(page) -> str:
     """新建页下巴点「公司」，选择公司弹窗里点第一家已建的公司（同 scenarios.pick_company_step），返回公司名。"""
     page.locator('[data-slot="cc-chin-company"]:visible').first.click()
@@ -374,7 +381,12 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
             k += 1
             now = round(time.time() - t0)
             look = scenarios.cc(page, LOOK)
-            if not sid:
+            # 认这一格的对话：先看页面地址里的对话编号（?c=，nav.addressFor），再退回「侧栏里新多出来的」。
+            # 同一个 e2e 账号可能有别的窗口同时在用（11-11 S0b 认到别人的对话，用量读成 0）
+            here = session_in(page.url)
+            if here:
+                sid = here
+            elif not sid:
                 fresh = [x["id"] for x in scenarios.cc(page, f"return await listed('{listing}');") if x["id"] not in before]
                 sid = fresh[0] if fresh else ""
             events = scenarios.cc(page, f"return ((await call('pearnly_core.assistant.api.events',{{session_id:{json.dumps(sid)}}}))||{{}}).events||[];") if sid else []
@@ -410,7 +422,9 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
                 result.setdefault("followed", []).append({"s": now, "say": words, "sent": scenarios.cc(page, f"return await say({json.dumps(words)});")})
                 idle_since = None
                 continue
-            if (s.auto or s.click) and look["send"]:
+            # 提问卡 / 批准条挂着等人时，输入框显示的是「停止」不是「发送」（11-11 S0a：工具状态 awaiting_approval）
+            awaiting = any(t.get("status") == "awaiting_approval" for t in result["tools"])
+            if (s.auto or s.click) and (look["send"] or awaiting):
                 done = scenarios.cc(page, f"const AUTO={json.dumps(s.auto)}, START={json.dumps(s.click == 'start')};" + ACT)
                 if done:
                     result.setdefault("acted", []).append({"s": now, "did": done})
@@ -419,7 +433,7 @@ def run_one(s: Scenario, product: str, files_dir: Path, out_dir: Path, accounts:
             # 停下来等人（有提问卡 / 开始卡）或空闲 40 秒：这一格看完
             # 还有工具在本站执行（识别挂着等）就不算停下：页面那时可能没有状态行（11-10 代录实测），照等
             busy = any(t.get("status") == "running" for t in result["tools"])
-            waiting_user = look["send"] and not look["stop"] and (look["asks"] or look["start_card"]) and not busy
+            waiting_user = ((look["send"] and not look["stop"]) or awaiting) and (look["asks"] or look["start_card"]) and not busy
             idle = look["send"] and not look["stop"] and not look["line"] and not busy
             if waiting_user or idle:
                 idle_since = idle_since or now
