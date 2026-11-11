@@ -578,6 +578,17 @@ where = "侧栏「pearnly-clients」"
 tests = ["impact:erp.page.clients", "flow:erp.page-lists"]
 
 [[row]]
+id = "erp.desk.pearnly-collections"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "nav-page"
+anchor = "nav:erp:pearnly-collections"
+where = "侧栏「销售 → 收款」（只看、导出、看凭证；收款员在 LINE / CC 录，11-11）"
+cc_na = "只读页；CC 里录收款、查结果是第 4 步的收款工具（erp_collection_*，还没合入），合入时改成 cc"
+tests = ["unit:tests/test_erp_collection.py::test_the_list_pages_on_the_server_with_a_total_and_search", "unit:tests/test_erp_collection.py::test_only_people_who_view_collections_open_the_page_and_the_export", "unit:tests/test_erp_collection.py::test_the_page_is_declared_with_the_view_roles_and_no_write_entries", "unit:tests/test_erp_collection.py::test_native_read_rights_follow_people_and_companies"]
+
+[[row]]
 id = "erp.desk.pearnly-company"
 product = "ERP"
 channel = "desk"
@@ -840,6 +851,17 @@ kind = "page-action"
 anchor = "action:erp:pearnly-clients:client.new"
 where = "pearnly-clients 页头「client.new」"
 tests = ["flow:erp.party.dialogs"]
+
+[[row]]
+id = "erp.desk.pearnly-collections.action.Export"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-collections:Export"
+where = "pearnly-collections 页头「Export」"
+cc_na = "导出给财务对账用的表格；CC 里查收款结果是第 4 步的收款工具（还没合入）"
+tests = ["unit:tests/test_erp_collection.py::test_only_people_who_view_collections_open_the_page_and_the_export"]
 
 [[row]]
 id = "erp.desk.pearnly-company.action.Cancel"
