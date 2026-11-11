@@ -137,6 +137,8 @@ At most 5 photos per entry,บันทึกได้ไม่เกิน 5 �
 At most {0} photos per entry,หนึ่งเอกสารแนบรูปได้ไม่เกิน {0} รูป
 At time of due date,เมื่อถึงกำหนด
 Attach,แนบ
+Attached a transfer slip,แนบสลิปการโอนแล้ว
+Attaching a transfer slip,กำลังแนบสลิปการโอน
 Attachment,ไฟล์แนบ
 Attachment Type,ประเภทไฟล์แนบ
 Attachments,ไฟล์แนบ
@@ -256,9 +258,11 @@ Chassis No,เลขตัวถัง
 Check sheet,ใบตรวจสอบ
 Check the opening stock row,กรุณาตรวจสอบรายการยกมานี้
 Checkbox,ช่องทำเครื่องหมาย
+Checked a collection,ดูผลการรับชำระแล้ว
 Checked pending items,ตรวจสอบรายการรอดำเนินการแล้ว
 Checked push choices,ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว
 Checked push results,ตรวจสอบผลการส่งแล้ว
+Checking a collection,กำลังดูผลการรับชำระ
 Checking pending items,กำลังตรวจสอบรายการรอดำเนินการ
 Checking push choices,กำลังตรวจสอบสิ่งที่ต้องเลือกก่อนส่ง
 Checking push results,กำลังตรวจสอบผลการส่ง
@@ -793,10 +797,16 @@ List Price,ราคาตั้ง
 List actions,การดำเนินการของรายการ
 List archived,เก็บถาวรรายการแล้ว
 List name,ชื่อรายการ
+Listed collection methods,ดูวิธีรับชำระแล้ว
+Listed collections,ดูรายการรับชำระทั้งหมดแล้ว
 Listed companies,แสดงรายชื่อบริษัท
 Listed documents,ดูรายการเอกสารแล้ว
+Listed open invoices,ดูใบแจ้งหนี้ค้างชำระแล้ว
 Listed stock counts,ดูรายการตรวจนับสต็อกแล้ว
+Listing collection methods,กำลังดูวิธีรับชำระ
+Listing collections,กำลังดูรายการรับชำระทั้งหมด
 Listing documents,กำลังดูรายการเอกสาร
+Listing open invoices,กำลังดูใบแจ้งหนี้ค้างชำระ
 Listing stock counts,กำลังดูรายการตรวจนับสต็อก
 Loading...,กำลังโหลด…
 Location,ตำแหน่ง
@@ -1188,9 +1198,11 @@ Record only,ลงบัญชีอย่างเดียว
 Record purchases,บันทึกการซื้อ
 Record sales,บันทึกการขาย
 Recorded,บันทึกแล้ว
+Recorded a collection,บันทึกรับชำระแล้ว
 Recorded a count,บันทึกจำนวนที่นับได้แล้ว
 Recorded {0} opening row(s); skipped {1} already recorded row(s),บันทึกสต็อกยกมา {0} แถว ข้าม {1} แถวที่บันทึกแล้ว
 Recorded · pending write,บันทึกแล้ว · รอบันทึกลง Express
+Recording a collection,กำลังบันทึกรับชำระ
 Recording a count,กำลังบันทึกจำนวนที่นับได้
 Recount this product,ตรวจนับสินค้านี้ใหม่
 Recurring,การทำซ้ำ
@@ -1263,10 +1275,12 @@ Save Draft,บันทึกฉบับร่าง
 Save and next,บันทึกและรายการถัดไป
 Save this to the company's notes?,บันทึกข้อนี้ลงในบันทึกของบริษัทไหม
 Saved,บันทึกแล้ว
+Saved a collection draft,บันทึกฉบับร่างรับชำระแล้ว
 Saved a company note,บันทึกข้อมูลบริษัท
 Saved push choices,บันทึกตัวเลือกการส่งแล้ว
 Saved {0},บันทึก {0} แล้ว
 Saved. Scan the next item.,บันทึกแล้ว กรุณาสแกนรายการถัดไป
+Saving a collection draft,กำลังบันทึกฉบับร่างรับชำระ
 Saving push choices,กำลังบันทึกตัวเลือกการส่ง
 Scan,สแกน
 Scan a code,สแกนโค้ด
@@ -1285,6 +1299,8 @@ Search by receipt number,ค้นหาด้วยเลขที่ใบเ�
 Search cards,ค้นหาการ์ด
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
 "Search name, code or barcode",ค้นหาชื่อ รหัส หรือบาร์โค้ด
+Searched customers for a collection,ค้นหาลูกค้าสำหรับรับชำระแล้ว
+Searching customers for a collection,กำลังค้นหาลูกค้าสำหรับรับชำระ
 Second No,หมายเลขที่สอง
 Secondary No,หมายเลขรอง
 Select,เลือก
@@ -1774,8 +1790,10 @@ Value Change,มูลค่าที่เปลี่ยนแปลง
 Vehicle,รถยนต์
 Vehicles,รถยนต์
 View,มุมมอง
+Viewed a collection,ดูรายการรับชำระแล้ว
 Viewed a document,ดูเอกสารแล้ว
 Viewed a stock count,ดูผลการตรวจนับสต็อกแล้ว
+Viewing a collection,กำลังดูรายการรับชำระ
 Viewing a document,กำลังดูเอกสาร
 Viewing a stock count,กำลังดูผลการตรวจนับสต็อก
 Visibility,การมองเห็น
@@ -1815,7 +1833,9 @@ Who can comment,สิทธิ์แสดงความคิดเห็น
 Whole document taxed,คิดภาษีทั้งใบตามชุดบัญชี
 With differences,มีผลต่าง
 Withdraw,ถอนรายการ
+Withdrawing a collection,กำลังถอนรายการรับชำระ
 Withdrawn,ยกเลิกแล้ว
+Withdrew a collection,ถอนรายการรับชำระแล้ว
 Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Withholding Tax Certificate,หนังสือรับรองการหักภาษี ณ ที่จ่าย
 Withholding Tax Rate,อัตราภาษีหัก ณ ที่จ่าย
