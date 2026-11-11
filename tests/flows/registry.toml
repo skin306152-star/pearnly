@@ -1645,7 +1645,7 @@ covers = [
 
 [[flow]]
 id = "erp.page-lists"
-title = "ERP 客户 / 收银小票 / 班次列表：行数与表头计数等于服务端同一份权限数出来的、新建客户列得出（清存量基线 11-08）"
+title = "ERP 客户 / 收银小票 / 班次 / 收款列表：行数与表头计数等于服务端同一份权限数出来的、新建客户列得出（清存量基线 11-08；收款 11-11）"
 module = "scripts/flows/erp_page_lists.py"
 start = "/desk/pearnly-clients"
 user = "admin"
@@ -1655,6 +1655,10 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/clients.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-receipts.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-shifts.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_collections/pearnly_collections.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/records.py",
 ]
 
 [[flow]]
