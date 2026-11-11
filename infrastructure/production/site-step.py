@@ -499,9 +499,11 @@ def main():
         for fieldname in ("pearnly_company", "pearnly_domain", "pearnly_change_password"):
             assert frappe.db.exists("Custom Field", {"dt": "User", "fieldname": fieldname}), \
                 "Account profile fields must be created when the site is opened"
-        assert frappe.db.exists("Property Setter", {"doc_type": "User", "field_name": "first_name",
-                                                    "property": "label", "value": "Username"}), \
-            "The account name field must be labelled Username"
+        # 10-31（9b0aef8f0）起 first_name 就是「名」，不再改叫 Username；那条属性设定由 account/layout.py 删掉。
+        # 这里原来还断言它存在，于是之后开的每个新租户都卡在最后一步（11-11 klm 实测）。
+        assert not frappe.db.exists("Property Setter", {"doc_type": "User", "field_name": "first_name",
+                                                        "property": ["in", ["label", "read_only"]]}), \
+            "The first name field must keep its own label"
         if group == "dms" and frappe.conf.get("pearnly_line_liff_id"):
             from pearnly_dms.menu import rich_menu
 
