@@ -166,7 +166,7 @@ def test_size_and_empty_limits(root, monkeypatch):
         folder_fetch.read_file(_cfg(), {"root_id": _root_id(root), "path": "ACME\\bank\\kbank-2026-09.pdf"})
     assert caught.value.code == "too_large"
     assert folder_fetch.FILE_MAX_BYTES != MAX_BYTES["folder_fetch"]  # 上面改的是测试里的上限
-    assert MAX_BYTES["folder_fetch"] == 30 * 1024 * 1024
+    assert MAX_BYTES["folder_fetch"] == 40 * 1024 * 1024
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need extra rights on Windows")

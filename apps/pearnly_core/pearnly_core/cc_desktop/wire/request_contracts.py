@@ -10,7 +10,7 @@ ERP 前台的主档镜像与准备写账载荷的账套资料）。纯规则，�
 与推送队列（lease / ack）完全分开：自己一张表（Cowork Companion Request）、两条机器方法（``request_api``，登记在
 ``http_auth.REQUEST_METHODS``），小助手另起一条轮询线程领取；读得再慢也不挡推送、不碰推送的围栏、写者锁与看门狗。
 状态：requested（等电脑来领）→ leased（电脑在做，带一次性的 handle）→ done / failed；没人来领或做到一半超时算
-expired。结果字节分块交回（每块 ``CHUNK_BYTES``，base64 后仍在租户站点 nginx 30m 与 Frappe 25MB 请求上限之内），
+expired。结果字节分块交回（每块 ``CHUNK_BYTES``，base64 后仍在 Frappe 默认 25MB 请求上限之内，更在租户站点 nginx 41m 之内），
 存在站点私有目录，取走即删。时间一律存 UTC。
 
 加一种请求（kind）：
@@ -57,7 +57,7 @@ STATUSES = ("requested", "leased", "done", "failed", "expired")
 OPEN = ("requested", "leased")
 CHUNK_BYTES = 4 * MIB
 # express_masters：gzip 后的大小（商品上万、STLOC 十几万行时实测远小于它）；超了 CC 回 too_large，不截断
-MAX_BYTES = {"express_read": 50 * MIB, "folder_list": 2 * MIB, "folder_fetch": 30 * MIB, "account_history": 5 * MIB,
+MAX_BYTES = {"express_read": 50 * MIB, "folder_list": 2 * MIB, "folder_fetch": 40 * MIB, "account_history": 5 * MIB,
              "express_masters": 16 * MIB, "express_marks": 64 * 1024}
 LEASE_SECONDS = {"express_read": 900, "folder_list": 180, "folder_fetch": 600, "account_history": 900,
                  "express_masters": 900, "express_marks": 120}

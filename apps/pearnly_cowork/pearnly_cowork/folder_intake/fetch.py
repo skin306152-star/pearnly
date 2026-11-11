@@ -4,7 +4,7 @@
 - 判据与定时任务表单相同：录入权限 + 读文件夹那条连接的使用授权（`rules._connection`）；根目录必须是那台电脑在
   CC 桌面端里加过、随文件夹同步报上来的（`readers.state`）。读者是（电脑，成员连接）（ADR-021 第 4 批）：请求定向给那台
   电脑（``target_device``），同一个池里别的电脑领不到；只给连接的旧写法按根目录认是哪台（`readers.resolve`）。电脑那边再按本机的根目录核一次（拒绝 `..`、绝对路径、
-  符号链接 / 联接点跳出根目录），类型与大小同对话附件（`contracts.FETCH_EXTENSIONS`，30 MB）。
+  符号链接 / 联接点跳出根目录），类型与大小同对话附件（`contracts.FETCH_EXTENSIONS`，40 MB）。
 - 那台电脑此刻没来领按需请求（离线），或它的 CC 桌面端还不会领（旧于 `request_contracts.MIN_COMPANION`），就不建请求，
   回 ``{"status": "waiting_for_cc", "reason": "offline" | "update_needed"}``。
 - 同一个人、同一段对话（``scope``）对同一份文件 / 同一组条件的请求用固定请求号：还在等、在做、做完没取走时再问一次
