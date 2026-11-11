@@ -24,6 +24,7 @@ try:
     import requests  # noqa: F401
     import test_mrerp_rules_golden as golden
     from test_cowork_mrerp_push import BASE, CHOSEN, OWN, PUBLIC, SUPPLIER, CUSTOMER, FakeMrErp
+    from pearnly_core.mrerp import account as mrerp_account
     from pearnly_core.mrerp.push import execute as core_execute, transport
     from pearnly_cowork.push.mrerp import runner
     from pearnly_erp_portal.express import contracts as E
@@ -88,7 +89,7 @@ def recorded(fn, site, payload, password="test01"):
 
     with patch.object(requests.Session, "request", autospec=True, side_effect=send), \
             patch.object(socket, "getaddrinfo", return_value=PUBLIC), \
-            patch.object(transport, "account_lock", lambda *a, **k: contextlib.nullcontext(True)), golden.fixed_clock():
+            patch.object(mrerp_account, "account_lock", lambda *a, **k: contextlib.nullcontext(True)), golden.fixed_clock():
         out = fn(copy.deepcopy(payload), {"account_set": "15:1"}, {"username": "test01", "password": password},
                  BASE, golden.TODAY)
     out = golden._plain(out)

@@ -31,6 +31,7 @@ from unittest.mock import patch
 try:
     import requests  # noqa: F401
     from test_cowork_mrerp_push import BASE, CHOSEN, OWN, PUBLIC, SUPPLIER, FakeMrErp, flat, purchase, sales
+    from pearnly_core.mrerp import account as mrerp_account
     from pearnly_core.mrerp.push import routing, transport
     from pearnly_core.mrerp.push.xlsx import generator
     from pearnly_cowork.push.mrerp import runner
@@ -165,7 +166,7 @@ def run_push(site, histories, mappings=None, password="test01"):
                                                     **(mappings or {})}}
     with patch.object(requests.Session, "request", autospec=True, side_effect=send), \
             patch.object(socket, "getaddrinfo", return_value=PUBLIC), \
-            patch.object(transport, "account_lock", lambda *a, **k: contextlib.nullcontext(True)), fixed_clock():
+            patch.object(mrerp_account, "account_lock", lambda *a, **k: contextlib.nullcontext(True)), fixed_clock():
         out = runner.execute(payload, {"account_set": "15:1"}, {"username": "test01", "password": password},
                              BASE, TODAY)
     out = _plain(out)
