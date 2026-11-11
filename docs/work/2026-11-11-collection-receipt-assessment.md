@@ -324,3 +324,12 @@ NLTTEST 的 30 行收款类型（ISRUN DOCTYP=ZR）**没有一行被这条科目
 - 决定（本窗口）：服务品现金制发票（SRV_VATTYP=2）本批挡掉——`express_ar_open` 不列，写前重读遇到整单不写（`cash_basis_vat` 转人工），免得漏记销项税；部门 / 销售员由服务端显式传第一张发票的（可编辑），不靠 CC 回退单据簿默认。
 - 销售员停用按 Express 写法判（状态 `I` 或有停用日期；`A` 是在用），不按契约字面「STATUS 非空」。
 - `express_ar_open` 要求 CC 1.12.21 起（随 1.12.20 之后的版本发，发版前与主会话对齐 VERSION）。
+
+## 第 3 步结果：ERP LINE 收款入口（11-11）
+
+- 分支 `pearnly/collection-line`，远端 `e8a3ff25c`，基线 origin/main `06bb2e600`；**含第 2 步**（变基后 `fdc570e1b` / `dc5a0106a` / `ca7faafaf`），取代 `pearnly/collection-server`。施工细节与三星真机 9 项清单在该分支 `docs/work/2026-11-11-collection-line.md`。
+- 富菜单左下格由锁换成「收款」（收款员岗位才有，菜单组合 7→15 种，四语格图）；流程 `integrations/line_collection.py` / `line_collection_cards.py` 只调 `collection.service`；确认卡复述公司·账套·客户·各张本次收·方式·折扣·合计，【确认】或打「ยืนยัน / 确认 / 確認 / ok」按展示版本放行（同意 = LINE 事件号），改过就重出卡。【编辑】经 LIFF 免密打开新页「我的收款」（只给收款员，左下角菜单，不进侧栏）的原生弹窗。结果：等最多 20 秒回 RE 号，否则回「已记录 · 待写入」带【撤回】，之后写成 / 失败推送给本人一次。
+- 服务端补：销售员、部门默认第一张发票的（没有部门用 RE 单据簿默认），改的值须在账套里、停用 / 不存在拒；现金制发票照 `invoice_not_found`。
+- 测试：`test_erp_collection_line.py` 29 条、`test_erp_collection.py` 40 条、实验栈 `test_line_intake` 102 条通过；本地同名闸门 222/222；实验栈受影响流程 32/32（含新 `erp.line.collection`、`erp.collections.refused`、导出流程加收款页）；GitHub Development checks 成功。文案 44 条四语，拦截 0、标黄 5。
+- **没测到 / 不通过**：自动冒烟 `erp.line.webhook-sim` 不通过（实验栈站点没配 LINE 凭据，取令牌先失败；同样事件在 `erp.line.collection` 流程里补令牌后全通），部署后在测试租户复跑；盘点 LIFF 相机行（只能真机）上线后补。
+- 部署后要做：重跑一次 `line_menu.publish()`（写 LINE 官方号）收款格才出现；三星真机 9 项。凭证发了又取消，私有凭证文件留着不删。实验栈 `pearnly-colline-lab` 已停、数据卷保留到合入后。
