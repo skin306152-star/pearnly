@@ -15,6 +15,8 @@ from frappe import _
 from pearnly_core.execution import state as pearnly_state
 
 from pearnly_core import line, line_binding
+from pearnly_core.originals import upload_limits
+from pearnly_core.originals.rules import UPLOAD_MAX_BYTES
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.line import flow
@@ -61,9 +63,13 @@ def _admit(line_user_id, message_id, filename, choices, language, reply_token):
 
     key = "line:" + message_id
     try:
-        content = line.download_message_content(message_id)
+        # 与网页、CC 对话、CC 桌面版文件夹同一个上限（`originals.rules.UPLOAD_MAX_BYTES`，11-11）；超了照实说多大
+        content = line.download_message_content(message_id, max_bytes=UPLOAD_MAX_BYTES)
         source = originals.create(scope.default_workspace(), filename, content, key)
         frappe.db.commit()
+    except line.MediaTooLarge:
+        frappe.db.rollback()
+        return _say(line_user_id, upload_limits.too_large(), reply_token)
     except frappe.ValidationError as exc:
         frappe.db.rollback()
         return _say(line_user_id, str(exc), reply_token)

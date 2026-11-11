@@ -222,7 +222,7 @@ class Documents(Base):
         self.enterContext(patch.object(intake, "totals", return_value={}))
         self.enterContext(patch("pearnly_erp_portal.integrations.line_cards.preview", return_value={}))
         intake.run("LI-1", "U1", filename="line-M1.jpg")
-        download.assert_called_once_with("M1")
+        download.assert_called_once_with("M1", max_bytes=intake.MAX_BYTES)
         self.assertEqual((doc.source_file_name, seen["files"]), ("FILE-9", [{"file": "FILE-9", "kind": "bill"}]))
 
     def test_each_document_in_a_file_gets_its_own_record_and_card(self):
@@ -270,6 +270,66 @@ class Documents(Base):
         self.assertEqual(intake.run("LI-1", "U1"), {"failed": "download_failed", "notified": True})
         dropped.assert_called_once_with(doc, intake.FAILED, "download_failed")
         self.assertEqual(self.last_text(), "Could not store this document")
+
+    def _run_line_file(self, size, declared=True):
+        """识别任务从 LINE 取一份 `size` 字节的文件：返回 (run 的结果, 存下的字节数或 None, 失败原因或 None)。"""
+        doc = _doc(status=intake.QUEUED, language="th", source_file_name=None, source_file=None, line_message_id="M1")
+        doc.update = lambda values: [setattr(doc, key, value) for key, value in values.items()]
+        doc.get = lambda key, default=None: getattr(doc, key, default)
+        doc.save = lambda **kw: None
+        doc.reload = lambda: None
+        stored = []
+        self.enterContext(patch.object(frappe, "get_doc", return_value=doc, create=True))
+        self.enterContext(patch("pearnly_core.line_binding.user_of", return_value="buyer"))
+        self.enterContext(patch("pearnly_core.line.requests.get", return_value=_Media(size, declared)))
+        self.enterContext(patch("pearnly_core.line._headers", return_value={}))
+        self.enterContext(patch.object(intake, "_store", side_effect=lambda content, name: stored.append(len(content))
+                                       or SimpleNamespace(name="FILE-9", file_url="/private/files/x.pdf")))
+        self.enterContext(patch.object(intake, "_recogniser", return_value=SimpleNamespace(
+            recognise=lambda files, **kw: {"lines": []})))
+        self.enterContext(patch.object(intake, "totals", return_value={}))
+        self.enterContext(patch("pearnly_erp_portal.integrations.line_cards.preview", return_value={}))
+        logged = self.enterContext(patch.object(frappe, "log_error", create=True))
+        dropped = self.enterContext(patch.object(intake, "_drop"))
+        outcome = intake.run("LI-1", "U1", filename="line-M1.pdf")
+        reason = dropped.call_args.args[2] if dropped.called else None
+        return outcome, (stored[0] if stored else None), reason, logged
+
+    def test_a_line_file_of_exactly_the_shared_upload_limit_is_stored(self):
+        # 11-11：与网页、CC 对话、CC 桌面版文件夹同一个 40MB 上限（原来按下载函数默认的 20MB）
+        self.assertEqual(intake.MAX_BYTES, 40 * 1024 * 1024)
+        outcome, stored, reason, _logged = self._run_line_file(intake.MAX_BYTES)
+        self.assertEqual((stored, reason), (intake.MAX_BYTES, None), outcome)
+
+    def test_a_line_file_over_the_limit_fails_and_says_how_large(self):
+        # 原来 20MB 起只回「没能保存这份文件」；现在超 40MB 回四语词条 upload.tooLarge，记 too_large，不记错误日志
+        for declared in (True, False):
+            with self.subTest(declared=declared):
+                self.replies.clear()
+                outcome, stored, reason, logged = self._run_line_file(intake.MAX_BYTES + 1, declared)
+                self.assertEqual((outcome, stored, reason), ({"failed": "too_large", "notified": True}, None, "too_large"))
+                logged.assert_not_called()
+                self.assertEqual(self.last_text(), "upload.tooLarge")
+
+
+class _Media:
+    """LINE 下载服务器的回复替身：流式给 `size` 个字节；`declared` 为假时不带 Content-Length（逐块累加时才发现超了）。"""
+
+    def __init__(self, size, declared=True):
+        self.size, self.status_code = size, 200
+        self.headers = {"Content-Length": str(size)} if declared else {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def iter_content(self, chunk):
+        block, left = b"\0" * chunk, self.size
+        while left > 0:
+            yield block[:min(chunk, left)]
+            left -= chunk
 
 
 def _raise(message, exc=Exception):

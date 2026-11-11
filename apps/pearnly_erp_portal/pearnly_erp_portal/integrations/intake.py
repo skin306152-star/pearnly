@@ -32,6 +32,8 @@ MEDIA_TYPES = {"image": "image", "file": "pdf"}
 DIRECTION_CAPABILITY = {"purchase": "purchase.write", "sales": "sales.write"}
 # 同 CC 对话附件（共用层一个数）：原来 20MB，对话里收下的 20–30MB 文件交识别时被拒（11-10）；LINE 下载另有自己的上限
 MAX_BYTES = UPLOAD_MAX_BYTES
+# 从 LINE 取文件超过 MAX_BYTES（`_fetch` 的返回值，与取到 True / 取不到 False 分开）
+TOO_LARGE = "too_large"
 
 
 # ── 收件 ────────────────────────────────────────────────────────────────────
@@ -108,11 +110,15 @@ def _fetch(doc, filename):
     from pearnly_core.execution.errors import Deferred
 
     try:
-        content = line.download_message_content(doc.line_message_id or "")
+        # 与网页、CC 对话、CC 桌面版文件夹同一个上限（11-11；原来是下载函数默认的 20MB）
+        content = line.download_message_content(doc.line_message_id or "", max_bytes=MAX_BYTES)
         file = _store(content, filename or f"line-{doc.line_message_id or 'document'}.jpg")
     except Deferred:
         frappe.db.rollback()
         raise  # 原件层一时连不上：识别任务按队列稍后再来（LINE 的内容还能再取），不算失败
+    except line.MediaTooLarge:
+        frappe.db.rollback()
+        return TOO_LARGE
     except Exception:
         frappe.db.rollback()
         frappe.log_error(title="ERP LINE document download failed", message=frappe.get_traceback()[-1500:])
@@ -188,11 +194,15 @@ def run(intake, line_user_id, reply_token="", filename=""):
     # 不随这个账号在网页端的界面语言走 —— 否则同一段对话里前面泰文、卡片突然变中文。
     frappe.local.lang = doc.get("language") or line.user_language(line_user_id, default=channel_language())
     try:
-        if not _file_name(doc) and not _fetch(doc, filename):
-            _drop(doc, FAILED, "download_failed")
-            line.reply_or_push(line_user_id, [{"type": "text", "text": _("Could not store this document")}],
-                               reply_token)
-            return {"failed": "download_failed", "notified": True}
+        fetched = _file_name(doc) or _fetch(doc, filename)
+        if not fetched or fetched == TOO_LARGE:
+            from pearnly_core.originals import upload_limits
+
+            code = "too_large" if fetched == TOO_LARGE else "download_failed"
+            text = upload_limits.too_large() if fetched == TOO_LARGE else _("Could not store this document")
+            _drop(doc, FAILED, code)
+            line.reply_or_push(line_user_id, [{"type": "text", "text": text}], reply_token)
+            return {"failed": code, "notified": True}
         try:
             result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}],
                                                           billing_reference="erp.line_intake:" + doc.name,

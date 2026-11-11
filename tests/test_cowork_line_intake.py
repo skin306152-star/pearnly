@@ -24,6 +24,26 @@ EXPRESS_BOOKS = [
 ]
 
 
+class _Media:
+    """LINE 下载服务器的回复替身：流式给 `size` 个字节；`declared` 为假时不带 Content-Length（逐块累加时才发现超了）。"""
+
+    def __init__(self, size, declared=True):
+        self.size, self.status_code = size, 200
+        self.headers = {"Content-Length": str(size)} if declared else {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def iter_content(self, chunk):
+        block, left = b"\0" * chunk, self.size
+        while left > 0:
+            yield block[:min(chunk, left)]
+            left -= chunk
+
+
 class LineFlowTest(unittest.TestCase):
     def setUp(self):
         self.session, self.replies = {}, []
@@ -410,6 +430,38 @@ class LineAnnounceTest(unittest.TestCase):
                 mock.patch.object(intake.line, "reply_or_push") as send:
             intake.announce("CWS-2", "saved", ["H1"])
         send.assert_not_called()
+
+    def _admit_line_file(self, size, declared=True):
+        """LINE 发来一份 `size` 字节的文件走到 `_admit`：返回 (存原件收到的字节数或 None, 回给用户的话)。"""
+        stored, said = [], []
+        with mock.patch("pearnly_core.line.requests.get", return_value=_Media(size, declared)), \
+                mock.patch("pearnly_core.line._headers", return_value={}), \
+                mock.patch.object(intake.frappe, "_", side_effect=lambda text, *a, **k: text, create=True), \
+                mock.patch.object(intake.frappe, "db", mock.Mock(), create=True), \
+                mock.patch.object(intake.frappe, "log_error", create=True), \
+                mock.patch.object(intake, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch.object(intake, "_say", side_effect=lambda user, text, token: said.append(text)), \
+                mock.patch.object(intake, "_remember"), \
+                mock.patch("pearnly_cowork.access.scope.default_workspace", return_value="WS-1"), \
+                mock.patch("pearnly_cowork.files.service.create",
+                           side_effect=lambda ws, name, content, key: stored.append(len(content)) or {"name": "CWS-1"}), \
+                mock.patch("pearnly_cowork.ocr.execution.service.submit", return_value={"state": "queued"}):
+            intake._admit("U1", "m1", "a.pdf", {}, "th", "tok")
+        return (stored[0] if stored else None), said
+
+    def test_a_line_file_of_exactly_the_shared_upload_limit_is_stored(self):
+        # 11-11：与网页、CC 对话、CC 桌面版文件夹同一个上限（原来按下载函数默认的 20MB）
+        from pearnly_core.originals.rules import UPLOAD_MAX_BYTES
+
+        self.assertEqual(UPLOAD_MAX_BYTES, 40 * 1024 * 1024)
+        self.assertEqual(self._admit_line_file(UPLOAD_MAX_BYTES), (UPLOAD_MAX_BYTES, []))
+
+    def test_a_line_file_over_the_limit_is_not_stored_and_says_how_large(self):
+        # 原来 20MB 起只回「没能保存这份文件」；现在超 40MB 回四语词条 upload.tooLarge（「文件超过 40 MB」）
+        from pearnly_core.originals.rules import UPLOAD_MAX_BYTES
+
+        for declared in (True, False):
+            self.assertEqual(self._admit_line_file(UPLOAD_MAX_BYTES + 1, declared), (None, ["upload.tooLarge"]), declared)
 
     def test_changed_binding_does_not_download_or_charge(self):
         with mock.patch.object(intake.line_binding, "user_of", return_value="other@x"), \
