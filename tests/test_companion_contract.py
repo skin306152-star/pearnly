@@ -732,7 +732,7 @@ class AccountHistory(unittest.TestCase):
         server = number_constants(WIRE / "request_contracts.py", ("KINDS", "FOLDER_KINDS", "SHARED_KINDS"))
         self.assertIn("account_history", server["KINDS"])
         self.assertNotIn("account_history", server["FOLDER_KINDS"])  # MR.ERP 的文件夹成员不读账套
-        self.assertEqual(server["SHARED_KINDS"], ("account_history", "express_masters", "express_marks"))
+        self.assertEqual(server["SHARED_KINDS"], ("account_history", "express_masters", "express_marks", "express_ar_open"))
         # 推送服务按钩子取，不导入 readback（readback 依赖 push）
         hooks = (ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "hooks.py").read_text(encoding="utf-8")
         self.assertIn('cowork_push_account_history = ["pearnly_cowork.readback.history.for_push"]', hooks)
@@ -1116,7 +1116,7 @@ class PoolRequests(unittest.TestCase):
                                                                      "KINDS"))
         self.assertEqual(set(server["LOCATION_KEYS"]), {"account_set", "account_root"})
         self.assertEqual(set(server["ACCOUNT_KINDS"]), {"express_read", "account_history", "express_masters", "express_marks",
-                                                       "express_doc_check"})
+                                                       "express_doc_check", "express_ar_open"})
         self.assertEqual(set(server["ACCOUNT_KINDS"]) | set(server["FOLDER_KINDS"]), set(server["KINDS"]))
         for path, function in ((self.READBACK / "contracts.py", "read_params"),
                                (self.READBACK / "history_rules.py", "read_params")):
@@ -1426,6 +1426,51 @@ class OperatorReceiptDetail(unittest.TestCase):
         ack = method_source_of(COMPANION / "worker.py", "_ack_operator")
         self.assertIn("[:OPERATOR_DETAIL_MAX]", ack)
 
+
+
+class ReceiptContract(unittest.TestCase):
+    """收款单 RE（11-11，评估 docs/work/2026-11-11-collection-receipt-assessment.md「接口契约」）：CC 桌面版这一侧的约定。
+
+    - 载荷 20（``direction = receipt``）CC 认得、是最高版本，worker 按方向交给 ``dbf_receipt``，代录标记不改道；
+    - 写前核不过的四个码（契约原样小写）按「要人处理」回报，不白烧重试；
+    - 新按需种类 ``express_ar_open``：读账套、结果属于连接与账套（ERP 后台发起）、2 MiB、租约 180 秒，有最低版本，两端同值；
+      CC 登记了处理函数，参数只收两个位置键加可选 customer，不拿写者锁。"""
+
+    def test_payload_20_is_the_receipt_and_the_worker_routes_it(self):
+        self.assertIn(20, _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
+        self.assertEqual(_literal(COMPANION / "payload_contract.py", "RECEIPT_PAYLOAD_VERSION"), 20)
+        self.assertEqual(module_constants(COMPANION / "dbf_receipt.py")["DIRECTION"], "receipt")
+        worker = (COMPANION / "worker.py").read_text(encoding="utf-8")
+        self.assertIn('direction == "receipt"', worker)
+        self.assertIn("write_receipt(payload, st.account_dir, **common)", worker)
+
+    def test_the_refusal_codes_go_to_a_person(self):
+        codes = module_constants(COMPANION / "dbf_receipt.py")
+        names = ("ERR_ALREADY_COLLECTED", "ERR_INVOICE_NOT_FOUND", "ERR_RECEIPT_TYPE", "ERR_CASH_ACCOUNT")
+        self.assertEqual(tuple(codes[name] for name in names),
+                         ("already_collected", "invoice_not_found", "receipt_type_invalid", "cash_account_missing"))
+        outcome = method_source_of(COMPANION / "worker.py", "_outcome_for")
+        for name in names:
+            self.assertIn(f"'{codes[name]}': 'needs_review'", outcome)
+
+    def test_the_open_invoice_request_is_a_shared_account_read_on_both_sides(self):
+        server = number_constants(WIRE / "request_contracts.py", ("KINDS", "ACCOUNT_KINDS", "SHARED_KINDS", "FOLDER_KINDS",
+                                                                     "MAX_BYTES", "LEASE_SECONDS", "KIND_MIN_COMPANION",
+                                                                     "LOCATION_KEYS"))
+        for group in ("KINDS", "ACCOUNT_KINDS", "SHARED_KINDS"):
+            self.assertIn("express_ar_open", server[group], group)
+        self.assertNotIn("express_ar_open", server["FOLDER_KINDS"])
+        self.assertEqual(server["MAX_BYTES"]["express_ar_open"], 2 * 1024 * 1024)
+        self.assertEqual(server["LEASE_SECONDS"]["express_ar_open"], 180)
+        self.assertIn("express_ar_open", server["KIND_MIN_COMPANION"])
+        helper = number_constants(COMPANION / "express_receivables.py", ("PARAM_KEYS", "OPTIONAL_KEYS"))
+        self.assertEqual(set(helper["PARAM_KEYS"]), set(server["LOCATION_KEYS"]))
+        self.assertEqual(tuple(helper["OPTIONAL_KEYS"]), ("customer",))
+        self.assertIn('"express_ar_open": express_receivables.read_ar_open',
+                      (COMPANION / "request_worker.py").read_text(encoding="utf-8"))
+        tree = ast.parse((COMPANION / "express_receivables.py").read_text(encoding="utf-8"))
+        imported = {alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) for alias in node.names}
+        self.assertFalse({"account_lock", "account_write_lock", "dbf_writer", "dbf_receipt"} & imported)
 
 if __name__ == "__main__":
     unittest.main()

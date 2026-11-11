@@ -122,7 +122,10 @@ def test_reads_the_whole_master_and_stock_by_warehouse_without_touching_the_book
     result, data = _read(books)
     assert _state(books.acct) == before  # 只读：账套里每个文件都不变
     assert list(data) == ["version", "account_set", "mark", "read_at", "settings", "customers", "suppliers", "products",
-                          "units", "warehouses", "departments", "stock", "facts"]
+                          "units", "warehouses", "departments", "stock", "facts", "receipt_types", "receipt_run",
+                          "salesmen", "cash_account"]
+    # 收款单 RE 要的主档（载荷 20）：这份合成账套 ISRUN / OESLM 是空的、ISINFO 没有现金科目一栏，都给空（不省键）
+    assert (data["receipt_types"], data["receipt_run"], data["salesmen"], data["cash_account"]) == ([], None, [], "")
     assert data["version"] == 2 and data["account_set"] == express_masters.express_read._norm(books.acct)
     # facts（ERP 直连后准备写账载荷用，ADR-025）：与心跳按账套上报同形状；ISINFO 没有默认科目列、没有存货科目组就给空
     # 库存单三个单别的默认科目（出入库第一期 B 段）：这份合成账套没有 ISRUN，都给空
