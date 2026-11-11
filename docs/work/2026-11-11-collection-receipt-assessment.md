@@ -278,3 +278,39 @@ NLTTEST 的 30 行收款类型（ISRUN DOCTYP=ZR）**没有一行被这条科目
 | 31 | DL | หนี้สูญ | 5400-02 |
 | 32 | JT | เงินค้ำประกัน-รถร่วม | 2135-03 |
 | 33 | NB | เงินยืม NBP | 1220-02 |
+
+## 第 2 步结果：服务端收款域 + 网页「收款」页（11-11）
+
+- 分支 `pearnly/collection-server`，远端 `5bc7f45c8`（基于 origin/main `d22f453ee`），工作树 `.claude/worktrees/agent-a9798d1b2ea98329a`；本地 CI 同名 220 步通过，推送后 Development checks success。未合 main、未部署。
+- 新增：域包 `collection/`（contracts / service / snapshot / push / access / records / api / output）、DocType `ERP Collection` / `ERP Collection Invoice` / `ERP Collection Payment` / `ERP Receivable Snapshot`、页 `pearnly_collections`（销售组下，只读、导出、凭证查看器）、能力 `collection.write` / `collection.view`、岗位「收款员」`ERP Collector`、补丁 `v1_27`、`pearnly_cc_desktop` 声明 `express_ar_open`、回执经 `express/desktop.job_changed` 分给收款。`express/push.py` 抽出 `office_actor`（收银日汇总行为不变）。
+- 给第 3/4 步的服务函数：`collection.service` 的 `companies_for / customers / open_invoices / methods / create_draft / update_draft / set_voucher / store_voucher / card / release(name, version, consent) / withdraw / status / mine / choose_book`；`release` 回 `released / changed / not_draft / invalid`。
+- 测试 `tests/test_erp_collection.py` 34 条通过。**没测到**：影响清单里的实验栈流程与人工项（本窗口没起实验栈），部署前全套流程会跑到。
+- 凭证原件 id 前缀用 `ERO-`（不是评估写的 `ERC-`）：共用原件层与甲骨文原件服务只认 `CWS-` / `ERO-`，改前缀要动共用层并重发甲骨文。技术取舍，定为沿用 `ERO-`。
+- 「录收款」只给收款员岗位；新开通租户由控制面把收款员角色发给租户管理员，老租户管理员要被勾上收款员才能录。写账作业交给这家公司在那台电脑上登录过 CC 的员工（同收银日汇总）。
+
+### 新文案（四语，check-copy 拦截 0、标黄 1）
+
+| 中文 | 英文 | 泰文 | 日文 |
+|---|---|---|---|
+| 收款（菜单） | Collections | รับชำระหนี้ | 入金 |
+| 收款员 | Collector | พนักงานเก็บเงิน | 集金担当 |
+| 草稿 | Draft | ฉบับร่าง | 下書き |
+| 待写入 | Pending write | รอบันทึก | 書き込み待ち |
+| 写入中 | Writing | กำลังบันทึก | 書き込み中 |
+| 已写入 | Written | บันทึกแล้ว | 書き込み済み |
+| 失败 | Failed | ไม่สำเร็จ | 失敗 |
+| 已撤回 | Withdrawn | ยกเลิกแล้ว | 取り消し済み |
+
+另有来源 LINE / CC 两条（四语相同）。
+
+### NLTTEST 收款员能选的类型（「只列收钱类」规则定稿，给岳父看）
+
+- 转账（5 种，名称含「โอนเข้าบัญชี」或关联银行）：TR SCB/ออมทรัพย์、BB BBL/ออมทรัพย์、TB BBL/กระแส、SC SCB/กระแส、KB KB/CA。
+- 折扣步骤专用：DC ส่วนลดเงินสด。
+- 现金走「现金」一格（账套现金科目），CH รับเงินสด 不另列。
+- 不给选：支票 QR / QB；预扣 TX；TF 转账手续费；KA、EX、AC、EE、HA、SA、22（Credit Card）、CL、DE、25、AP、RP、SP、CC เงินสดย่อย、AB บัญชีพัก、DL、JT、NB（都不是收钱类）。
+- 规则：无科目或两处科目不一致不列；同前缀多行不列；折扣类型多于一种不给折扣。
+
+### 与第 1 步要对齐（已发给第 1 步子代理）
+
+`express_marks` 应收标记键名 `ar_mark`；`jobs.view` 带出回执 `receipt`；`already_collected` / `invoice_not_found` / `receipt_type_invalid` / `cash_account_missing` 直接转人工不重试；共用层接受 `express_ar_open`；CC 心跳报支持载荷 v20。
