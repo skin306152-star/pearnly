@@ -137,6 +137,8 @@ At most 5 photos per entry,At most 5 photos per entry
 At most {0} photos per entry,At most {0} photos per entry
 At time of due date,At time of due date
 Attach,Attach
+Attached a transfer slip,Attached a transfer slip
+Attaching a transfer slip,Attaching a transfer slip
 Attachment,Attachment
 Attachment Type,Attachment Type
 Attachments,Attachments
@@ -255,9 +257,11 @@ Chassis No,Chassis No
 Check sheet,Check sheet
 Check the opening stock row,Check the opening stock row
 Checkbox,Checkbox
+Checked a collection,Checked a collection
 Checked pending items,Checked pending items
 Checked push choices,Checked push choices
 Checked push results,Checked push results
+Checking a collection,Checking a collection
 Checking pending items,Checking pending items
 Checking push choices,Checking push choices
 Checking push results,Checking push results
@@ -787,10 +791,16 @@ List Price,List Price
 List actions,List actions
 List archived,List archived
 List name,List name
+Listed collection methods,Listed collection methods
+Listed collections,Listed collections
 Listed companies,Listed companies
 Listed documents,Listed documents
+Listed open invoices,Listed open invoices
 Listed stock counts,Listed stock counts
+Listing collection methods,Listing collection methods
+Listing collections,Listing collections
 Listing documents,Listing documents
+Listing open invoices,Listing open invoices
 Listing stock counts,Listing stock counts
 Loading...,Loading...
 Location,Location
@@ -1181,9 +1191,11 @@ Record only,Record only
 Record purchases,Record purchases
 Record sales,Record sales
 Recorded,Recorded
+Recorded a collection,Recorded a collection
 Recorded a count,Recorded a count
 Recorded {0} opening row(s); skipped {1} already recorded row(s),Recorded {0} opening row(s); skipped {1} already recorded row(s)
 Recorded · pending write,Recorded · pending write
+Recording a collection,Recording a collection
 Recording a count,Recording a count
 Recount this product,Recount this product
 Recurring,Recurring
@@ -1256,10 +1268,12 @@ Save Draft,Save Draft
 Save and next,Save and next
 Save this to the company's notes?,Save this to the company's notes?
 Saved,Saved
+Saved a collection draft,Saved a collection draft
 Saved a company note,Saved a company note
 Saved push choices,Saved push choices
 Saved {0},Saved {0}
 Saved. Scan the next item.,Saved. Scan the next item.
+Saving a collection draft,Saving a collection draft
 Saving push choices,Saving push choices
 Scan,Scan
 Scan a code,Scan a code
@@ -1278,6 +1292,8 @@ Search by receipt number,Search by receipt number
 Search cards,Search cards
 Search name or barcode,Search name or barcode
 "Search name, code or barcode","Search name, code or barcode"
+Searched customers for a collection,Searched customers for a collection
+Searching customers for a collection,Searching customers for a collection
 Second No,Second No
 Secondary No,Secondary No
 Select,Select
@@ -1764,8 +1780,10 @@ Value Change,Value Change
 Vehicle,Vehicle
 Vehicles,Vehicles
 View,View
+Viewed a collection,Viewed a collection
 Viewed a document,Viewed a document
 Viewed a stock count,Viewed a stock count
+Viewing a collection,Viewing a collection
 Viewing a document,Viewing a document
 Viewing a stock count,Viewing a stock count
 Visibility,Visibility
@@ -1805,7 +1823,9 @@ Who can comment,Who can comment
 Whole document taxed,Whole document taxed
 With differences,With differences
 Withdraw,Withdraw
+Withdrawing a collection,Withdrawing a collection
 Withdrawn,Withdrawn
+Withdrew a collection,Withdrew a collection
 Withholding Tax,Withholding Tax
 Withholding Tax Certificate,Withholding Tax Certificate
 Withholding Tax Rate,Withholding Tax Rate

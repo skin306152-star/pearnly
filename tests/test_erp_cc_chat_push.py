@@ -594,7 +594,7 @@ class PushTests(unittest.TestCase):
         doc(PURCHASE, "PUR-7", reason=LOST, ledger_job="J7")
         JOBS["J7"] = {"job": "J7", "status": "manual", "request_key": "erp:purchase:PUR-7", "reason": LOST}
         out = call(tools.push_documents, documents=["P:PUR-1", "P:PUR-2", "P:PUR-3", "P:PUR-4", "S:SD-5", "P:PUR-6",
-                                                    "P:PUR-7", "P:NOPE"])
+                                                    "P:PUR-7", "P:NOPE", "R:COL261111-AB12@1"])
         by = {item["document"]: item for item in out["results"]}
         self.assertEqual(by["P:PUR-1"], {"document": "P:PUR-1", "status": "already_success", "docnum": "RR6910-001"})
         self.assertEqual(by["P:PUR-2"]["status"], "already_pending")
@@ -604,6 +604,7 @@ class PushTests(unittest.TestCase):
         self.assertEqual((by["P:PUR-6"]["status"], by["P:PUR-6"]["reason_code"]), ("with_operator", E.OPERATOR_OWNED))
         self.assertEqual(by["P:PUR-7"]["status"], "unconfirmed")  # 结果不明：不再推
         self.assertEqual(by["P:NOPE"]["status"], "not_found")
+        self.assertIn("erp_collection_push", by["R:COL261111-AB12@1"]["note"])  # 收款由收款工具放行
         self.assertEqual(CALLS, [("retry", PURCHASE, "PUR-4"), ("send", SALES, "SD-5")])
         self.assertIn("erp_push_results", out["note"])
 
