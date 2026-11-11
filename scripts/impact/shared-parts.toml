@@ -214,7 +214,7 @@ paths = ["apps/pearnly_core/pearnly_core/cc_desktop/**"]
 markers = ["pearnly_core.cc_desktop", "pearnly_core import cc_desktop", "pearnly_cc_desktop"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "companion/src/**/*.py"]
 entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel", "cc.operator.page", "erp.cc.companies", "erp.cc.chat-push", "cc.mrerp-login", "erp.mrerp.direct", "cc.desktop.bridge"]
-not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py" = "只在注释里提到 cc_desktop.http_auth 的做法" }
+not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/express/ledger_check.py" = "录过的票先核账本的产品通道（express_doc_check），还没有调用方；「录过的票」判定接入时登记入口（A 线 11-11，docs/work/2026-11-11-cc-ledger-check.md）", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py" = "只在注释里提到 cc_desktop.http_auth 的做法" }
 
 [[part]]
 id = "express-rules"
@@ -223,7 +223,7 @@ paths = ["apps/pearnly_core/pearnly_core/express_rules/**"]
 markers = ["pearnly_core.express_rules", "pearnly_core import express_rules"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
 entries = ["erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day", "erp.cc.pos-refund", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push", "cc.operator.page", "cowork.cc.troubleshooting", "cowork.line.item-questions", "erp.trade.line-stock"]
-not_entries = { "apps/pearnly_core/pearnly_core/cc_desktop/books.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/contracts.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/report_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_20_express_account_sets.py" = "一次性迁移", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_2_backfill_history_parties.py" = "一次性迁移", "apps/pearnly_core/pearnly_core/write_precheck/preselect.py" = "写账前置判定（共用层纯函数）只取写账规则的常量、分店归一与付款判定；它的入口登记在共用件 write-precheck" }
+not_entries = { "apps/pearnly_cowork/pearnly_cowork/readback/ledger_check.py" = "录过的票先核账本的产品通道（express_doc_check），还没有调用方；「录过的票」判定接入时登记入口（A 线 11-11，docs/work/2026-11-11-cc-ledger-check.md）", "apps/pearnly_core/pearnly_core/cc_desktop/books.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/contracts.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/report_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_20_express_account_sets.py" = "一次性迁移", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_2_backfill_history_parties.py" = "一次性迁移", "apps/pearnly_core/pearnly_core/write_precheck/preselect.py" = "写账前置判定（共用层纯函数）只取写账规则的常量、分店归一与付款判定；它的入口登记在共用件 write-precheck" }
 
 [[part]]
 id = "write-precheck"
@@ -417,7 +417,7 @@ entries = ["cc.desktop.places", "cc.desktop.requests"]
 [[part]]
 id = "cc-request-worker"
 name = "CC 按需读取"
-paths = ["companion/src/companion/request_worker.py", "companion/src/companion/request_client.py", "companion/src/companion/request_contract.py", "companion/src/companion/express_read.py", "companion/src/companion/express_masters.py", "companion/src/companion/account_history.py", "companion/src/companion/folder_fetch.py"]
+paths = ["companion/src/companion/express_doc_check.py", "companion/src/companion/request_worker.py", "companion/src/companion/request_client.py", "companion/src/companion/request_contract.py", "companion/src/companion/express_read.py", "companion/src/companion/express_masters.py", "companion/src/companion/account_history.py", "companion/src/companion/folder_fetch.py"]
 markers = ["request_worker", "request_client", "request_contract", "express_read", "express_masters", "account_history", "folder_fetch"]
 search = ["companion/src/**"]
 entries = ["cc.desktop.requests", "cc.desktop.places", "cc.desktop.operator"]

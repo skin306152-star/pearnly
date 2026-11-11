@@ -95,7 +95,10 @@ def _book(rows):
 
 def find(key) -> dict | None:
     """这一份账套（按键）合成给产品看的样子（同 `for_company` 的每一项）；没有电脑报过它回 None。"""
-    rows = frappe.get_all(BOOK, filters={"book_key": str(key or "")}, fields=list(FIELDS), order_by="device asc") if key else []
+    if not key:
+        return None
+    rows = frappe.get_all(BOOK, filters={"book_key": str(key)}, fields=list(FIELDS),  # bounded: 一份账套只有报过它的几台电脑各一行
+                          order_by="device asc")
     return _book(rows) if rows else None
 
 
