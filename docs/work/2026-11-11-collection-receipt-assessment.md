@@ -176,3 +176,65 @@
 合计写码约 22–30 小时、机器约 12 小时；1 与 2 两个窗口并行时，写码墙钟约 1.5–2 天，加上等授权与部署，**2–3 天能在 NLTTEST 上演示完整流程**；客户正式试用取决于新租户材料到位时间。
 
 合入顺序：1（CC 写入，服务端还不发收款载荷，线上无感）→ 2（服务端 + 网页页，入口未开）→ 3（LINE 入口开）→ 4（CC 入口开）；每批 gate + 候选离线（动共用层）+ 受影响流程，排号合入。
+
+---
+
+# 施工记录（11-11 主会话审定通过后）
+
+## 审定结论（主会话 11-11）
+
+通过，按 §13 顺序开工。①统一放行（LINE【确认】/ 打「ยืนยัน / 确认 / ok」= CC「录吧」，同一条服务端规则；CC 收款照 B 线契约出 `status="ready"/"nothing_to_write"`；第 4 步等 A 线 `pearnly_write_plan` 合入）；②两模式都能用收款工具，执行一律直写，RE 代录配方本批不做（收款不是照票据录入；代录要占财务正在用的 Express 界面）；③④本批不做（③主会话转问岳父）；⑤未写入前可撤回；⑥新建「收款员」岗位；⑦用户当面授权「可以，只限 NLTTEST」；⑧先按 1.0.1.94 做。每批：先写旧代码红的测试 → gate → 候选离线 → 受影响流程 → 推分支 CI 绿 → 交主会话（不自己合 main）；CC 改动随 1.12.20 之后的版本发，发版前与主会话对齐。
+
+## 原件层容量（11-11 只读 SSH）
+
+free-arm `/`：193G，已用 22G，**可用 172G（11%）**；`/opt/pearnly-originals` 268M，近 30 天新增 360 个文件 267MB。收款凭证每月约 1GB，够用，不新建卷。
+
+## 第 0 步：四个待核点（用 NLTTEST 已有原生单核清，未新录）
+
+NLTTEST 里已有 2920 张 Express 原生完成的 RE（含 RE2403079 于 11-10 19:40 在 1.0.1.94 由 BIT9 原生重存），覆盖现金、转账、组合、折扣、部分收款五种场景，用它们做金标：
+
+1. **现金框借方科目** = `ISINFO.ACCNUM00`（本账套 1111-00）：209/209 张纯现金 RE 都借 1111-00。
+2. **收款类型的科目**：`ISRUN(ZR).SHORTNAM` 指向 `BKMAS.BNKACC` 时取该银行的 `ACCNUM`（TB→B1→1112-01 共 1942 张、KB→K1→1112-03 共 194 张，这两种类型 ACCNUM01 是空的），否则取 `ISRUN.ACCNUM01`（BB 1113-01、CH 1111-00、QR 1130-40、RP 2133-01 全部一致）。两处都没有 → 这种类型不列给收款员；两处都有但不同（本账套没有）→ 不列，报原因。
+3. **折扣** = ARRCPCQ 一行，类型取「ส่วนลดเงินสด」那种（本账套 DOCCOD 09、前缀 DC、科目 4100-04），抬头 `DISCAMT` 不写（全本从未用）；分录借 4100-04，贷应收含折扣。8 张带 DC 的原生单都如此。
+4. **部分收款**：发票 `RCVAMT += 本次`、`REMAMT -= 本次`、`CMPLAPP` 保持 `N`、`CMPLDAT` 空（例 IV002400487 两张 RE 收 153350 + 2001，余 29996）。
+5. 另核：`ARBAL.RE{期}` 加的是 `IVCAMT`（含折扣、不含利息），3 个客户逐月对上；贷方应收科目 = `ARMAS.ACCNUM`（500/500）。
+
+结论：不必再在 Express 里新录 5 张金标；第 5 步我们写的 5 张直接与这些原生单逐字段比，并在 Express 界面打开核对。
+
+## 接口契约（第 1、2 步共同遵守）
+
+### 读：主档补充（`express_masters` 结果新增键，旧服务端忽略）
+
+- `receipt_types`：ISRUN `DOCTYP=ZR` 未删行 → `{code: DOCCOD, prefix: PREFIX, name: POSDES, name_en: POSDES2, bank: SHORTNAM, account: 按上面第 2 条解出的科目或 "", account_issue: "" | "missing" | "conflict"}`
+- `receipt_run`：ISRUN `DOCTYP=RE` 行 → `{prefix, next: DOCNUM, department: DEPCOD}`
+- `salesmen`：OESLM → `{code: SLMCOD, name: SLMNAM, inactive: STATUS 非空或 INACTDAT 有值}`
+- `cash_account`：`ISINFO.ACCNUM00`
+- 部门沿用已读的 ISTAB `TABTYP=50`。
+
+### 读：新按需种类 `express_ar_open`（账套种类、共享种类）
+
+- 参数：账套位置（通用位置键）；可选 `customer`（只读一个客户，给写前刷新用）。
+- 结果：`{"read_at": ISO UTC, "items": [{docnum, rectyp, docdat: "YYYY-MM-DD", customer, salesman, department, net: "0.00", received: "0.00", remaining: "0.00"}]}`；条件：ARTRN 未删、`RECTYP='3'`、`DOCSTAT!='C'`、`REMAMT>0`。金额字符串两位小数。上限 2 MiB、租约 180 秒。
+- `express_marks` 结果加 ARTRN 的变化签名（同已有表的做法），服务端据此刷新快照。
+
+### 写：载荷方向 `receipt`，载荷版本 20
+
+```json
+{
+  "direction": "receipt", "payload_version": 20,
+  "ref_no": "<收款记录号，≤30，写进 ARTRN.YOUREF>",
+  "company": {"tax_id": "...", "branch": "..."},
+  "doc_date": "YYYY-MM-DD",
+  "customer": "<CUSCOD>", "salesman": "<SLMCOD|''>", "department": "<DEPCOD|''>",
+  "invoices": [{"docnum": "IVP42400239", "amount": "9972.00"}],
+  "cash": "0.00",
+  "methods": [{"code": "05", "prefix": "BB", "amount": "9972.00"}],
+  "user": "<录入人，供 USERID 截 8 字>"
+}
+```
+
+- 折扣就是 `methods` 里折扣类型那一行（服务端按「ส่วนลดเงินสด」类型选定）。`Σinvoices.amount == cash + Σmethods.amount`（Decimal，两位）。部门空 → 用 `receipt_run.department`；销售员空 → 第一张发票的 `SLMCOD`。
+- 公司、身份、账套键等外层字段照现有写账载荷的做法（施工时以 `payload_contract.py` 与 ERP `express.prepare` 现有形状为准）。
+- CC 写入（持 `PEARNLY.LCK`）：同客户 `RECTYP=9`、`YOUREF=ref_no`、未作废的 RE 已存在 → 回原号（幂等）；逐张重读发票，任一张不存在 / 不是该客户 / 已作废 / `REMAMT < amount` → **整单不写**，回 `already_collected`（或 `invoice_not_found`）+ 每张当前余额；类型不存在或无科目 → `receipt_type_invalid`；现金 > 0 但 `ISINFO.ACCNUM00` 空 → `cash_account_missing`。
+- 写的表与字段按 §4.2 + 上面第 0 步；分录 `GLJNL(JNLTYP 02)` 摘要按 ISRUN RE 行 `JNLEXP`（`'รับชำระหนี้   ' + PRENAM - ' ' - CUSNAM` 的 xBase 拼法）；`GLJNLIT` SEQIT 2 逐方式借、SEQIT 6 贷应收合计。`ARBAL.RE{期}` 加 IVCAMT（`fiscal_period`），`ARMAS.BALANCE` 减 IVCAMT。CDX 重建、读回核对、失败回滚同 `dbf_sales`。
+- 回执成功：`{docnum: "RE…", invoices: [{docnum, remaining_after}]}`；失败码如上，带人能看懂的原因。
