@@ -48,6 +48,7 @@ ROLE_KEYS = {
     "ERP Purchase": "team.role.purchase",
     "ERP Sales": "team.role.sales",
     "ERP Cashier": "team.role.cashier",
+    "ERP Collector": "team.role.collector",
 }
 
 
@@ -73,6 +74,10 @@ def role_catalog() -> list[dict]:
     if rules.LINE_ROLE in allowed:
         catalog.append({"name": rules.LINE_ROLE, "label": "LINE",
                         "group": _(groups.get("user", "User Settings"))})
+    # 收款员（11-11）：不是侧栏页，只录收款（LINE / CC）；勾选归在「销售」组
+    if rules.COLLECTOR_ROLE in allowed:
+        catalog.append({"name": rules.COLLECTOR_ROLE, "label": _(ROLE_KEYS[rules.COLLECTOR_ROLE]),
+                        "group": _(groups.get("pearnly-sales", "User Settings"))})
     return catalog
 
 
@@ -178,7 +183,8 @@ def assignable_roles() -> tuple[str, ...]:
                  if (not spec[0] or spec[0] in features)
                  and (spec[0] != "cashier" or pos)
                  and frappe.db.exists("Role", menu.role(key))) + (
-        (rules.LINE_ROLE,) if frappe.db.exists("Role", rules.LINE_ROLE) else ())
+        (rules.LINE_ROLE,) if frappe.db.exists("Role", rules.LINE_ROLE) else ()) + (
+        (rules.COLLECTOR_ROLE,) if "collection" in features and frappe.db.exists("Role", rules.COLLECTOR_ROLE) else ())
 
 
 def _clean_roles(roles, *, existing=()) -> list[str]:

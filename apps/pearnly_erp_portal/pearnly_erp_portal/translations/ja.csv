@@ -198,6 +198,7 @@ By Payment Method,支払方法別
 By Warehouse,倉庫別
 By location,保管場所別
 By product,商品別
+CC,CC
 CC Desktop could not read this invoice. Check the fields and submit again,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC デスクトップにこの会計データが許可されていません。CC デスクトップの会計データを確認してください
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC デスクトップはこの会計データに書き込めません。CC デスクトップの会計データ設定を確認してください
@@ -311,6 +312,8 @@ Collection Date,入金日
 Collection Method,入金方法
 Collection Remarks,入金備考
 Collection Status,入金状況
+Collections,入金
+Collector,集金担当
 Color,色
 Colour Tag,カラータグ
 Columns,列
@@ -1019,6 +1022,7 @@ Payment of {0} received successfully.,{0} の入金に成功しました
 Payment of {0} received successfully. Waiting for other requests to complete...,{0} の入金に成功しました。他の処理の完了を待っています…
 Payments,支払履歴
 Pending,保留中
+Pending write,書き込み待ち
 Period,期間
 Person,個人
 Phone,電話
@@ -1768,10 +1772,12 @@ Who can add and remove members,メンバーを追加・削除できる人
 Who can comment,コメントできる人
 Whole document taxed,会計データの設定どおり全体に課税
 With differences,差異あり
+Withdrawn,取り消し済み
 Withholding Tax,源泉税
 Withholding Tax Certificate,源泉徴収証明書
 Withholding Tax Rate,源泉徴収税率
 Withholding Tax must be greater than zero,源泉徴収税額はゼロより大きい値にしてください
+Writing,書き込み中
 Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 Written,書き込み済み
 "Year, year-month or ALL, per the reset policy",年・年月・ALL のいずれか（リセット方針に従う）
@@ -1934,6 +1940,14 @@ count,棚卸
 discount applied,割引を適用しました
 draft,下書き
 due,期日
+erp.collection.source.cc,CC
+erp.collection.source.line,LINE
+erp.collection.status.draft,下書き
+erp.collection.status.failed,失敗
+erp.collection.status.queued,書き込み待ち
+erp.collection.status.withdrawn,取り消し済み
+erp.collection.status.writing,書き込み中
+erp.collection.status.written,書き込み済み
 erp.company.notes,ノート
 erp.detail.amount,金額が無効です
 erp.detail.discount,割引が合計を超えています
@@ -1972,6 +1986,7 @@ erp.line.tag.newOut,新規 · 出庫
 erp.line.tag.none,記帳のみ
 erp.line.unbind,LINE 連携を解除
 erp.line.unbindConfirm,Pearnly ERP LINE の連携を解除しますか？
+erp.nav.collections,入金
 erp.nav.work,タスク管理
 erp.trade.allLines,すべて
 erp.work.activity.archive,{who} がこのカードをアーカイブしました
@@ -2833,6 +2848,7 @@ team.notice.toggled,ユーザー{0}件を更新しました
 team.password,初期パスワード
 team.resetPassword,パスワードを再設定
 team.role.cashier,レジ
+team.role.collector,集金担当
 team.role.products,商品
 team.role.purchase,購買
 team.role.sales,販売

@@ -198,6 +198,7 @@ By Payment Method,按收款方式
 By Warehouse,分仓
 By location,按位置
 By product,按物料
+CC,CC
 CC Desktop could not read this invoice. Check the fields and submit again,CC 桌面版无法读取此发票，请核对字段后重新提交
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
@@ -311,6 +312,8 @@ Collection Date,收款日期
 Collection Method,收款方式
 Collection Remarks,收款备注
 Collection Status,收款状态
+Collections,收款
+Collector,收款员
 Color,颜色
 Colour Tag,颜色标记
 Columns,列
@@ -1019,6 +1022,7 @@ Payment of {0} received successfully.,已成功收款 {0}
 Payment of {0} received successfully. Waiting for other requests to complete...,已成功收款 {0}，正在等待其他请求完成…
 Payments,付款
 Pending,待处理
+Pending write,待写入
 Period,期间
 Person,个人
 Phone,电话
@@ -1768,10 +1772,12 @@ Who can add and remove members,成员管理权限
 Who can comment,评论权限
 Whole document taxed,按账套设置整张计税
 With differences,有差异
+Withdrawn,已撤回
 Withholding Tax,预扣税
 Withholding Tax Certificate,预扣税凭证
 Withholding Tax Rate,预扣税率
 Withholding Tax must be greater than zero,预扣税额必须大于零
+Writing,写入中
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，将自动重试
 Written,已写入
 "Year, year-month or ALL, per the reset policy",年、年月或 ALL，按重置策略
@@ -1934,6 +1940,14 @@ count,盘点
 discount applied,已应用折扣
 draft,草稿
 due,到期
+erp.collection.source.cc,CC
+erp.collection.source.line,LINE
+erp.collection.status.draft,草稿
+erp.collection.status.failed,失败
+erp.collection.status.queued,待写入
+erp.collection.status.withdrawn,已撤回
+erp.collection.status.writing,写入中
+erp.collection.status.written,已写入
 erp.company.notes,知识库
 erp.detail.amount,金额无效
 erp.detail.discount,折扣超过合计
@@ -1972,6 +1986,7 @@ erp.line.tag.newOut,新建 · 出库
 erp.line.tag.none,只记账
 erp.line.unbind,解绑 LINE
 erp.line.unbindConfirm,确定要解绑 Pearnly ERP LINE 吗？
+erp.nav.collections,收款
 erp.nav.work,任务管理
 erp.trade.allLines,全部
 erp.work.activity.archive,{who} 归档了此卡片
@@ -2833,6 +2848,7 @@ team.notice.toggled,已更新 {0} 位用户
 team.password,初始密码
 team.resetPassword,重置密码
 team.role.cashier,收银
+team.role.collector,收款员
 team.role.products,物料
 team.role.purchase,采购
 team.role.sales,销售
