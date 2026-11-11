@@ -277,11 +277,22 @@ as_mib = lambda value: as_mib(str(value)[:-1]) if str(value).endswith('b') else 
 formula = sizing.recommend(8, 32095, render=lambda knobs: rendered(**{k: str(v) for k, v in knobs.items()}))
 # 2026-10-02 下一批：Cowork 识别 8 进程 × 12 线程、每线程 20 MiB（m7 实测卡在派发循环、不缺线程；总线程 96 不变），
 # 识别容器上限按 256 MiB 取整，连接上限随之 210 → 220（上线时 runtime.env 同步改成这些值）
+# 2026-11-11（11-10 生产实测：Cowork 网页匿名内存 1.51 / 1.5 GiB、撞上限 2684 次、在用 swap，ERP 网页 91%；ERP 识别 6656m 只用
+# 198 MB）：Cowork 网页每进程 256 → 512 MiB、ERP 网页 384 → 640 MiB、ERP 识别每线程 80 → 40 MiB（上线时 runtime.env 同步改）
 production = {**REAL, 'PEARNLY_MARIADB_MAX_CONNECTIONS': '220', 'PEARNLY_MARIADB_MEM': '8g', 'PEARNLY_MARIADB_BUFFER_POOL': '4G',
               'PEARNLY_COWORK_OCR_WORKERS': '8', 'PEARNLY_COWORK_OCR_THREADS': '12', 'PEARNLY_COWORK_OCR_THREAD_MB': '20',
-              'PEARNLY_COWORK_OCR_MEM': '5376m', 'PEARNLY_ERP_OCR_MEM': '6656m', 'PEARNLY_DMS_OCR_MEM': '1792m',
+              'PEARNLY_COWORK_OCR_MEM': '5376m', 'PEARNLY_ERP_OCR_MEM': '4352m', 'PEARNLY_DMS_OCR_MEM': '1792m',
+              'PEARNLY_ERP_OCR_THREAD_MB': '40', 'PEARNLY_COWORK_WEB_MEM': '3072m', 'PEARNLY_ERP_WEB_MEM': '2560m',
               'PEARNLY_ERP_WEB_THREADS': '8', 'PEARNLY_REDIS_CACHE_MAXMEMORY': '256mb', 'PEARNLY_REDIS_CACHE_MEM': '384m'}
 assert {k: as_mib(v) for k, v in formula.items()} == {k: as_mib(production[k]) for k in formula}, (formula, production)
+# 生产机（8 核 / 32095 MiB、swap 16383 MiB）按公式全开：激活 Cowork 时 DMS、ERP 在跑，整机预算 min(1.3 倍, 物理 + swap) 照过
+whole = rendered(**{k: str(v) for k, v in formula.items()})
+others = [{'project': 'pearnly-production', 'service': name, 'memory': int(row['mem_limit'])}
+          for name, row in whole.items() if set(row.get('profiles', [])) & {'dms', 'erp'}]
+fit = capacity.calculate(whole, others, 'cowork', 32095 * M, 23000 * M, swap_bytes=16383 * M)
+assert fit['container_budget_mib'] + fit['host_reserve_mib'] <= min(32095 * capacity.OVERCOMMIT, 32095 + 16383), fit
+# Cowork 网页进程同 ERP 一样处理约 2000 个请求后换新进程（11-10：没设时单进程只涨不回收，150–404 MB）
+assert '--max-requests=2000' in whole['cowork-web']['command'] and '--max-requests-jitter=200' in whole['cowork-web']['command']
 for cores, mem_mib in ((8, 32 * 1024), (12, 48 * 1024), (16, 64 * 1024), (32, 128 * 1024)):
     knobs = sizing.recommend(cores, mem_mib, render=lambda knobs: rendered(**{k: str(v) for k, v in knobs.items()}))
     target = rendered(**{k: str(v) for k, v in knobs.items()})

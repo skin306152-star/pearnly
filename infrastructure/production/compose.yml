@@ -330,7 +330,8 @@ services:
     profiles: [cowork]
     <<: *web
     mem_limit: ${PEARNLY_COWORK_WEB_MEM:-768m}
-    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_COWORK_WEB_THREADS:-4}', '--workers=${PEARNLY_COWORK_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, frappe.app:application]
+    # 同 ERP 网页：每个进程处理约 2000 个请求后换新（2026-11-11；没设时进程只涨不回收，11-10 单进程 150–404 MB、整个容器撞上限进 swap）
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_COWORK_WEB_THREADS:-4}', '--workers=${PEARNLY_COWORK_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, --max-requests=2000, --max-requests-jitter=200, frappe.app:application]
     volumes: &cowork-volumes
       - sites-cowork:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro

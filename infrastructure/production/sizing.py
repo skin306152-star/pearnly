@@ -26,8 +26,15 @@ MIB = capacity.MIB
 # （高峰每个任务 0.75–0.81 秒）。所以 Cowork 进程数跟核数走、每进程 12 线程：8 核上 8 × 12 = 96，与原来 4 × 24 总线程（= 识别名额里
 # Cowork 那一份）相同，派发循环翻倍。每线程内存按 20 MiB：m7 高峰 4 进程合计 1115 MiB（每进程 207–295 MiB、约 9 个线程在忙），
 # 折合每线程约 10–15 MiB，留 2 倍余量（原先估 30 MiB）。下一轮压测读 memory.peak 复核。
-OCR_THREADS = {"COWORK": (12, 20), "ERP": (16, 80), "DMS": (8, 60)}
+# ERP 每线程 80 → 40 MiB（2026-11-11）：生产全部走 Claude、原件放甲骨文，ERP 识别只交原件引用、由甲骨文渲染
+# （recognition/claude.py），本机线程同样只等回复；11-10 生产 ERP 识别容器上限 6656m 实际只用 198 MB。40 对 Cowork 实测的 10–15 MiB
+# 还留 2 倍以上余量。以后切回本机识别引擎或原件留本机，要重新核这个数。
+OCR_THREADS = {"COWORK": (12, 20), "ERP": (16, 40), "DMS": (8, 60)}
 ERP_WEB_THREADS = 8
+# 网页每进程内存（2026-11-11 按 11-10 生产实测重定）：Cowork 6 进程 × 4 线程、单进程常驻 150–404 MB，匿名内存 1.51 / 1.5 GiB、撞上限
+# 2684 次、在用 swap；ERP 4 进程 × 8 线程、单进程 233–442 MB，91%。一份 40 MB 的上传瞬时约再多 100–130 MB。原来的 256 / 384 依据
+# 「单进程峰值 < 200 MiB」（10-02）已经过时。DMS 不变。
+WEB_PROCESS_MB = {"COWORK": 512, "ERP": 640}
 POOL_SHARE = 0.13         # 缓冲池约占物理内存 13%（热数据 2026-10-02 约 1GB，留 4 倍增长）
 # 最小支持的机器：三个产品全开、识别线程照满时，8 核 / 31 GiB（2026-10-02 生产机）才放得下；更小的机器公式会超出整机 1.3 倍
 # 预算（容量检查会拒绝），这里直接说明，要么换机器，要么在 runtime.env 里手工写死较小的进程 / 线程数。
@@ -49,8 +56,9 @@ def base(cores, mem_mib):
     half, quarter = max(2, cores // 2), max(1, cores // 4)
     cowork_web = max(2, round(cores * 0.75))
     knobs = {
-        "PEARNLY_COWORK_WEB_WORKERS": cowork_web, "PEARNLY_COWORK_WEB_MEM": f"{256 * cowork_web}m",
-        "PEARNLY_ERP_WEB_WORKERS": half, "PEARNLY_ERP_WEB_THREADS": ERP_WEB_THREADS, "PEARNLY_ERP_WEB_MEM": f"{384 * half}m",
+        "PEARNLY_COWORK_WEB_WORKERS": cowork_web, "PEARNLY_COWORK_WEB_MEM": f"{WEB_PROCESS_MB['COWORK'] * cowork_web}m",
+        "PEARNLY_ERP_WEB_WORKERS": half, "PEARNLY_ERP_WEB_THREADS": ERP_WEB_THREADS,
+        "PEARNLY_ERP_WEB_MEM": f"{WEB_PROCESS_MB['ERP'] * half}m",
         "PEARNLY_DMS_WEB_WORKERS": half, "PEARNLY_DMS_WEB_MEM": f"{256 * half}m",
         "PEARNLY_COWORK_LONG_WORKERS": half, "PEARNLY_COWORK_LONG_MEM": f"{512 * half}m",
     }
