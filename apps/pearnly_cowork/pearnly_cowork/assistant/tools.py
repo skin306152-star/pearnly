@@ -314,7 +314,8 @@ def _with_page(row, anchors=None) -> dict:
 
 
 def direction_anchors():
-    """判方向用的本方税号：``(工作空间, 连接, 账套) → (工作空间税号, 这份账套目录里的税号)``，一次列表 / 一批单内缓存。"""
+    """判方向用的本方税号：``(工作空间, 连接, 账套) → (工作空间税号, 这份账套的税号)``（账套的见 :func:`_book_tax`），一次列表 /
+    一批单内缓存。"""
     cache = {}
 
     def anchors(workspace, connection, account_set):
@@ -324,7 +325,7 @@ def direction_anchors():
             cache[key] = (own if isinstance(own, str) else "", None)
         own, account = cache[key]
         if account is None and key[1] and account_set:
-            account = _catalog_tax(key[1], account_set)
+            account = _book_tax(key[1], account_set)
             cache[key] = (own, account)
         return own, account or ""
 
@@ -843,14 +844,32 @@ def _page_fields(doc) -> dict:
 
 def _catalog_tax(connection, account_set) -> str:
     """这份 MR.ERP 账套的公司在 MR.ERP 总店登记的有效税号（刷新账套时读进目录的 ``tax_id``）；没读到是空串。"""
+    return str(((_catalog_row(connection, account_set) or {}).get("attributes") or {}).get("tax_id") or "")
+
+
+def _catalog_row(connection, account_set) -> dict | None:
+    """账套目录里这份账套的那一行；读不到 / 没有回 None。"""
     try:
         rows = connections.account_set_facts(connection).get("account_sets") or []
     except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError):
         frappe.clear_messages()
-        return ""
+        return None
     want = _account_key(account_set)
-    row = next((r for r in rows if isinstance(r, dict) and _account_key(r.get("source_id")) == want), None)
-    return str(((row or {}).get("attributes") or {}).get("tax_id") or "")
+    return next((r for r in rows if isinstance(r, dict) and _account_key(r.get("source_id")) == want), None)
+
+
+def _book_tax(connection, account_set) -> str:
+    """判方向用的账套税号，同推送（`push.application.service._book_tax`）：目录报的；没报时这份账套所属公司记下的税号（CC 卡片
+    问过一次「本公司是票上哪一方」，钩子 ``cowork_push_company_tax``）。资料区分组、列表的方向与推送一致。都没有是空串。"""
+    row = _catalog_row(connection, account_set)
+    found = str(((row or {}).get("attributes") or {}).get("tax_id") or "")
+    if found or not row:
+        return found
+    for path in frappe.get_hooks("cowork_push_company_tax") or []:
+        found = str(frappe.get_attr(path)(connection, row) or "").strip()
+        if found:
+            return found
+    return ""
 
 
 def _mrerp_direction(doc, connection, account_set) -> str:

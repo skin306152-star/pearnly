@@ -5002,6 +5002,30 @@ class MrErpTests(unittest.TestCase):
             detail["last_push_status"] = "success"
             self.assertNotIn("mrerp_entry", json.loads(tools.document_detail({"document": "H1"})))
 
+    def test_a_book_without_a_catalog_tax_id_judges_by_the_company_tax_id_asked_once(self):
+        # A 线 11-10「本公司税号问一次」：工作空间、账套目录都没税号时，推送判方向用卡片上问过一次记下的公司税号
+        # （`push.application.service._book_tax`）。资料区分组 / 列表的方向（`judged_direction`）同一判据：本公司开出的票是销项
+        self._real_rules()
+        page = {"seller_tax": "0105561077332", "seller_name": "บริษัท เรา", "buyer_tax": "0107536999991"}
+        facts = {"account_sets": [{"source_id": "12:3", "attributes": {}}]}
+        asked = []
+        hooks = {"cowork_push_company_tax": ["pearnly_cowork.companies.rules.tax_for_push"]}
+        with mock.patch.object(tools.connections, "account_set_facts", lambda name: facts, create=True), \
+                mock.patch.object(frappe.db, "get_value", lambda *a, **k: ""), \
+                mock.patch.object(frappe, "get_hooks", lambda name: hooks.get(name, []), create=True), \
+                mock.patch.object(frappe, "get_attr", lambda path: (
+                    lambda connection, row: asked.append((connection, row["source_id"])) or "0105561077332"), create=True):
+            self.assertEqual(tools.judged_direction(page, "W1", "EX1", "12:3", tools.direction_anchors()), "sales")
+            self.assertEqual(asked, [("EX1", "12:3")])
+            # 目录报了税号的照目录，不去问公司
+            facts["account_sets"][0]["attributes"] = {"tax_id": "0107536999991"}
+            self.assertEqual(tools.judged_direction(page, "W1", "EX1", "12:3", tools.direction_anchors()), "purchase")
+            self.assertEqual(len(asked), 1)
+            # 公司也没记过：判不出
+            facts["account_sets"][0]["attributes"] = {}
+            hooks.clear()
+            self.assertEqual(tools.judged_direction(page, "W1", "EX1", "12:3", tools.direction_anchors()), "")
+
     def test_a_choice_found_while_pushing_lists_everything_the_document_still_needs(self):
         # 推送当中才发现的（执行器把这次读到的存回连接后）：同推之前那一步，一次给全
         self.view = _mrerp_view(defaults=("supplier_type", "ap_account"))
