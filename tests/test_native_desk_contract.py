@@ -38,7 +38,7 @@ class NativeDeskContract(unittest.TestCase):
         # Cowork 8 项（用户 2026-09-26）：录入工作台、三个对账中心、库存盘点、工作协调 + 首页、团队管理；
         # 识别记录、推送日志、客户、公司资料、集成、使用教程不做。
         # ERP 2026-10-23 加任务管理（看板，从 Cowork 复制），20 项；2026-10-27 删「采购设置」「集成」两页（用户：「是不要的」），18 项。
-        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,8,20])  # ERP 多仓闭环 P2 加「调拨」、11-06 加「物料调整」
+        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,8,21])  # ERP 多仓闭环 P2 加「调拨」、11-06 加「物料调整」、11-11 加「收款」
         dms = {label: feature for label, _, _, feature in PAGES['dms']}
         self.assertIsNone(dms['nav.connect'])
         self.assertEqual(dms['nav.roster'], 'roster')
@@ -98,7 +98,8 @@ class NativeDeskContract(unittest.TestCase):
         # 收银那几个入口与公司页都是前面几批加的，这里补上，别让清单停在旧版本。
         self.assertEqual(available, {'pearnly-home','pearnly-connect','pearnly-roster','pearnly-records','pearnly-intake','pearnly-purchase',
             'pearnly-products', 'pearnly-inventory', 'pearnly-stock-count',
-            'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-transfer', 'pearnly-stock-adjust', 'pearnly-stock-card', 'pearnly-sales', 'pearnly-cashier',
+            'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-transfer', 'pearnly-stock-adjust', 'pearnly-stock-card', 'pearnly-sales',
+            'pearnly-collections', 'pearnly-cashier',
             'pearnly-suppliers', 'pearnly-clients', 'pearnly-pos-receipts', 'pearnly-pos-shifts',
             'pearnly-team', 'pearnly-company', 'pearnly-warehouses',
             # Cowork 库存盘点（上传盘点，2026-09-26）。
@@ -206,7 +207,7 @@ class ProductNavigationAccess(unittest.TestCase):
         # （正式开通是 ERP 功能全开，见 features.json，实际不会出现这种只开销售的租户）
         self.assertEqual([(row.get('link_to') or row['label'], row.get('child', 0)) for row in shared],
                          [('pearnly-home', 0), ('nav.group.goodsStock', 0), ('pearnly-warehouses', 1),
-                          ('nav.group.sales', 0), ('pearnly-sales', 1), ('pearnly-tasks', 0)])
+                          ('nav.group.sales', 0), ('pearnly-sales', 1), ('pearnly-collections', 1), ('pearnly-tasks', 0)])
         self.assertEqual(shared[-1]['icon'], 'square-kanban')
         boot = self.boot()
         boot.workspace_sidebar_item = {'pearnly erp': {'items': [
@@ -214,7 +215,8 @@ class ProductNavigationAccess(unittest.TestCase):
         self.namespace['extend_boot'](boot)
         projected = boot.workspace_sidebar_item['pearnly erp']['items']
         self.assertEqual([(row.get('link_to') or row['label'], row.get('child', 0)) for row in projected],
-                         [('pearnly-home', 0), ('nav.group.sales', 0), ('pearnly-sales', 1), ('pearnly-tasks', 0)])
+                         [('pearnly-home', 0), ('nav.group.sales', 0), ('pearnly-sales', 1), ('pearnly-collections', 1),
+                          ('pearnly-tasks', 0)])
         self.assertNotIn(None, [group['label'] for group in boot.pearnly_nav_groups])
         # 没买任务管理：这一项不出现，「销售系统」照旧。
         self.shell.entitlements.return_value = ['sales']
