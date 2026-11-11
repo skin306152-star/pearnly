@@ -60,7 +60,13 @@
 - [x] 闸门 220 过（a41d270aa）；候选离线 LANE EXIT 0（794ac5f32）；受影响流程：cc.chat 4、cc.operator 4、cc.operator.replay 4、
       cowork.operator.unknown 2、cc.sidebar-modes 2、cowork.cc.sidebar-modes 2、cowork.pending.operator 2、
       cowork.operator.send-while-waiting 2、cowork.cc.send-while-waiting 2，全过
-- [ ] 真模型场景（Cowork / ERP × 直写 / 代录：CC 先复述、等用户回话再开始，用户没回话时服务端拒）——待主会话定费用与场景脚本来源
+- [x] 真模型场景 `scripts/scenarios/write_plan_real.py`（本机实验栈、6QAA 评测密钥、合成单据不识别）：
+      - Cowork 直写（d83919935 时跑）全过：CC 建计划、一句话复述并问「可以开始吗」、出「录吧」；点了之后 CC 按计划开始，推送记录晚于计划开始。
+      - Cowork 代录：第一次撞出真缺陷——交单途中产品回滚事务，把没提交的「已开始」回滚掉，任务交出去了、计划还在等、「录吧」不消失。
+        改成先提交再交单（886d91338，新测试修前红），重跑全过。
+      - ERP 实验栈的单据写不了（等电脑读账套主档），没跑 ERP；共用同一个计划模块，由离线测试覆盖。
+      - 四次合计估约 2.2 美元（上限按每轮 0.35 算），已记台账。
+- [x] 流程 cc.operator 与 cowork.cc.record-reply 改成等回复里有 status 字段再读（偶发一格读到了没画完的气泡）；cc.operator 4/4、record-reply 2/2
 - [x] B 线「录吧」（`pearnly/cc-record-quick-reply` a62e19c65，本分支叠在它上面）：新流程 `cowork.cc.record-reply`
       「说一句建计划 → 出现录吧 → 点了照常发出 → 按计划开始后消失」电脑、手机 2/2 过；`not_flows.toml` 里 record-reply.ts 那条已删
 - [x] 「没有可写的单」不存计划（否则页面会出「录吧」）
