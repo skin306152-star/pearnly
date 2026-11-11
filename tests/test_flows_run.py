@@ -371,7 +371,9 @@ class FlowDocuments(unittest.TestCase):
 
     POSTS = re.compile(r"\b(?:entry|purchase|sales)\.post\(|line_items\.prepare\(")
     # 开单用固定请求号、重跑认回同几张的（不积）
-    REUSED = {"cc_operator_replay.py": "自备两张已提交的服务采购单，请求号按公司固定（flow-replay-po-<公司>-1/2）"}
+    REUSED = {"cc_operator_replay.py": "自备两张已提交的服务采购单，请求号按公司固定（flow-replay-po-<公司>-1/2）",
+              "cc_ticket_once.py": "自备 28 张已提交的服务采购单，单号与请求号按公司固定（ticket-once-<公司>-w01…/t01…），每遍复用；"
+                                   "cleanup 把等着录的标成已在 Express 处理，不留在「这个月等着录」里"}
 
     def test_flows_that_open_documents_each_run_void_them_in_cleanup(self):
         for path in sorted((ROOT / "scripts/flows").glob("*.py")):

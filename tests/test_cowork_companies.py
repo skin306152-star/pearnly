@@ -2029,7 +2029,12 @@ class OperatorSourceTests(unittest.TestCase):
 
         def value(doctype, name, fields=None, *a, **k):
             asked.append(doctype)
-            return mine if doctype == tickets.HISTORY else "IV/69/0753"
+            if doctype == tickets.HISTORY:
+                return mine
+            if doctype == tickets.PUSH_RECORD:  # 核账本要的：账本单号、连接、账套、载荷里的进销方向
+                return _Rowd(external_docnum="IV/69/0753", connection="C1", account_key="k1",
+                             payload_json=json.dumps({"direction": "purchase"}))
+            return "express"  # 连接的适配器
 
         def listed(doctype, filters=None, **k):
             seen.append((doctype, filters))
@@ -2039,6 +2044,9 @@ class OperatorSourceTests(unittest.TestCase):
                 mock.patch.object(tickets.frappe, "get_all", listed, create=True):
             found = tickets.twin("h1")
             self.assertEqual((found["doc_id"], found["docnum"], found["state"]), ("h9", "IV/69/0753", "entered"))
+            # 录过的票先核账本（A 线 11-11）：写成的另带账本、连接、账套与进销方向
+            self.assertEqual({k: found[k] for k in ("ledger", "connection", "account_set", "direction")},
+                             {"ledger": "express", "connection": "C1", "account_set": "k1", "direction": "purchase"})
             self.assertTrue(found["key"].endswith("k" * 40) and found["key"].startswith("W1:CL1:C1:k1:"))
             twins[2]["last_push_status"] = "pending"
             self.assertEqual((tickets.twin("h1")["state"], tickets.twin("h1")["docnum"]), ("queued", ""))
@@ -2049,7 +2057,8 @@ class OperatorSourceTests(unittest.TestCase):
             mine.update(ticket_level="exact", ticket_key=None)
             self.assertEqual(tickets.twin("h1"), {})
         self.assertEqual({doctype for doctype, _ in seen}, {tickets.HISTORY})  # 只读我们自己的识别单，不碰账本主档
-        self.assertEqual(set(asked), {tickets.HISTORY, tickets.PUSH_RECORD})
+        # 写成的另读那条连接的适配器（核账本按 Express / MR.ERP 分，A 线 11-11）
+        self.assertEqual(set(asked), {tickets.HISTORY, tickets.PUSH_RECORD, "Cowork ERP Connection"})
         filters = seen[0][1]
         self.assertEqual((filters["ticket_key"], filters["last_push_status"], filters["push_connection"], filters["workspace"]),
                          ("k" * 40, ["in", ["success", "pending"]], "C1", "W1"))
