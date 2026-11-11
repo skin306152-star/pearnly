@@ -1463,6 +1463,8 @@ class ReceiptContract(unittest.TestCase):
         self.assertEqual(server["MAX_BYTES"]["express_ar_open"], 2 * 1024 * 1024)
         self.assertEqual(server["LEASE_SECONDS"]["express_ar_open"], 180)
         self.assertIn("express_ar_open", server["KIND_MIN_COMPANION"])
+        # 收款读写随 CC 1.12.20 一起发（主会话 11-11 定）：服务端只把未收清发票请求交给 1.12.20 起的电脑
+        self.assertEqual(server["KIND_MIN_COMPANION"]["express_ar_open"], "1.12.20")
         helper = number_constants(COMPANION / "express_receivables.py", ("PARAM_KEYS", "OPTIONAL_KEYS"))
         self.assertEqual(set(helper["PARAM_KEYS"]), set(server["LOCATION_KEYS"]))
         self.assertEqual(tuple(helper["OPTIONAL_KEYS"]), ("customer",))

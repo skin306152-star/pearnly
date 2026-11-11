@@ -82,7 +82,7 @@ MIN_COMPANION = "1.5.0"
 # express_doc_check：录过的票先核账本里还在不在（只读单头，录过的票先核账本，11-10，1.12.20）
 # express_ar_open：未收清发票（收款单 RE，载荷 20 同一版 CC 起；发版时本值要与带它的那一版 VERSION 对齐）
 KIND_MIN_COMPANION = {"express_masters": "1.10.0", "express_marks": "1.12.0", "express_doc_check": "1.12.20",
-                      "express_ar_open": "1.12.21"}
+                      "express_ar_open": "1.12.20"}
 _KEY = re.compile(r"^[A-Za-z0-9_.:-]{1,140}$")
 _HEX32 = re.compile(r"^[0-9a-f]{32}$")
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
