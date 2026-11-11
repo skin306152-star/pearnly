@@ -1100,6 +1100,7 @@ No account set of this company covers this month,No account set of this company 
 No account sets yet. Use Reload in New Intake first.,No account sets yet. Use Reload in New Intake first.
 No attachments were given.,No attachments were given.
 No cards are assigned to you,No cards are assigned to you
+No cash account is set in Express,No cash account is set in Express
 No changes were given.,No changes were given.
 No computer can reach the account set for the document date.,No computer can reach the account set for the document date.
 No computer can write,No computer can write
@@ -1843,6 +1844,7 @@ The import file is too large.,The import file is too large.
 The import row is invalid or has missing required values.,The import row is invalid or has missing required values.
 The import rows are invalid.,The import rows are invalid.
 "The income type of a withholding tax payee, asked once: by the payee's tax ID, or by the recognized category.","The income type of a withholding tax payee, asked once: by the payee's tax ID, or by the recognized category."
+The invoice balance is less than the amount received,The invoice balance is less than the amount received
 The invoice configuration does not match the OCR connection.,The invoice configuration does not match the OCR connection.
 The invoice contains text that Excel cannot store safely. Check its length and characters.,The invoice contains text that Excel cannot store safely. Check its length and characters.
 The invoice data is invalid and cannot be exported.,The invoice data is invalid and cannot be exported.
@@ -1852,6 +1854,7 @@ The invoice date is missing or unreadable. Fill it in and submit again,The invoi
 The invoice date looks wrong. Correct it and submit again,The invoice date looks wrong. Correct it and submit again
 The invoice fields have an invalid format.,The invoice fields have an invalid format.
 The invoice has changed. Prepare it again.,The invoice has changed. Prepare it again.
+The invoice is not in Express,The invoice is not in Express
 The invoice number is longer than MR.ERP allows. Shorten it and submit again,The invoice number is longer than MR.ERP allows. Shorten it and submit again
 The invoice number is missing. Add it and submit again.,The invoice number is missing. Add it and submit again.
 The invoice page data has an invalid format.,The invoice page data has an invalid format.
@@ -2027,6 +2030,7 @@ This original already has a recognition task with different parameters.,This ori
 This page is too large to preview safely.,This page is too large to preview safely.
 This product already has a unit called {0}.,This product already has a unit called {0}.
 This push attempt is no longer current.,This push attempt is no longer current.
+This receipt type has no usable account in Express,This receipt type has no usable account in Express
 This recognition mode is not supported.,This recognition mode is not supported.
 This recognition service currently accepts PDF and image originals.,This recognition service currently accepts PDF and image originals.
 This refresh request has expired. Request a new refresh.,This refresh request has expired. Request a new refresh.
@@ -3504,9 +3508,11 @@ intake.error.VOID_DOCUMENT_NOT_FOUND,This document is not in Express
 intake.error.account_not_in_chart,An account used for this invoice is not in the Express chart of accounts. Check the account settings
 intake.error.account_set_not_allowed,CC Desktop has not been given this account set. Check the account sets in CC Desktop
 intake.error.agent_failed,CC Desktop could not write this invoice. It is retried automatically
+intake.error.already_collected,The invoice balance is less than the amount received
 intake.error.already_success,This invoice was already sent successfully
 intake.error.amounts_not_consistent,The amounts do not add up. Correct them and submit again
 intake.error.bad_or_missing_date,The invoice date is missing or unreadable. Fill it in and submit again
+intake.error.cash_account_missing,No cash account is set in Express
 intake.error.choice_needed,"Choose the Express records for this invoice first, then submit again"
 intake.error.confirmed_not_entered,Checked in the ERP: not entered. It can be sent again
 intake.error.confirmed_push_unacked,The result is not confirmed. Check in Express before sending again
@@ -3520,6 +3526,7 @@ intake.error.document_policy_needed_withholding_certificate,This is a withholdin
 intake.error.document_policy_skip_payment_evidence,Transfer slips are not entered; this one is not sent
 intake.error.document_policy_skip_withholding_certificate,Withholding tax certificates (50 Tawi) are not entered; this one is not sent
 intake.error.entry_not_balanced,The entry does not balance. Check the amounts
+intake.error.invoice_not_found,The invoice is not in Express
 intake.error.items_incomplete,Some line items have no name or amount. Fix the lines and submit again
 intake.error.items_mismatch,The line items do not add up to the invoice amount. Fix the lines and submit again
 intake.error.low_confidence,Some fields are uncertain. Check them against the original and submit again
@@ -3541,6 +3548,7 @@ intake.error.pos_refund_account_missing,Choose the sales returns account
 intake.error.pos_refund_items_invalid,Each returned line must be an Express stock item
 intake.error.posting_kind_needed,Choose service or stock for this invoice and submit again
 intake.error.posting_needs_review,Stock or expense for this company's documents like this?
+intake.error.receipt_type_invalid,This receipt type has no usable account in Express
 intake.mrerpDefault.ap_account,Payable account
 intake.mrerpDefault.ar_account,Receivable account
 intake.mrerpDefault.area,Sales area

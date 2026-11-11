@@ -1100,6 +1100,7 @@ No account set of this company covers this month,บริษัท (หรื�
 No account sets yet. Use Reload in New Intake first.,ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน
 No attachments were given.,ไม่ได้ระบุไฟล์แนบ
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
+No cash account is set in Express,ยังไม่ได้ตั้งบัญชีเงินสดใน Express
 No changes were given.,ไม่ได้ระบุสิ่งที่จะแก้ไข
 No computer can reach the account set for the document date.,ไม่มีคอมพิวเตอร์เครื่องใดเข้าถึงชุดบัญชีของวันที่ในเอกสารได้
 No computer can write,ไม่มีคอมพิวเตอร์ที่บันทึกได้
@@ -1843,6 +1844,7 @@ The import file is too large.,ไฟล์ที่นำเข้ามีข�
 The import row is invalid or has missing required values.,แถวนำเข้าไม่ถูกต้องหรือขาดค่าที่จำเป็น
 The import rows are invalid.,ข้อมูลแถวที่นำเข้าไม่ถูกต้อง
 "The income type of a withholding tax payee, asked once: by the payee's tax ID, or by the recognized category.",ประเภทเงินได้ของผู้มีเงินได้ ถามครั้งเดียวแล้วจำไว้ ตามเลขประจำตัวผู้เสียภาษีหรือตามหมวดที่อ่านได้
+The invoice balance is less than the amount received,ยอดคงค้างของใบกำกับน้อยกว่ายอดรับชำระ
 The invoice configuration does not match the OCR connection.,การตั้งค่าการอ่านใบกำกับภาษีไม่ตรงกับการเชื่อมต่อบริการอ่านเอกสาร
 The invoice contains text that Excel cannot store safely. Check its length and characters.,ใบกำกับภาษีมีข้อความที่ Excel ไม่สามารถจัดเก็บได้ครบถ้วน กรุณาตรวจสอบความยาวและอักขระ
 The invoice data is invalid and cannot be exported.,ข้อมูลใบกำกับภาษีไม่ถูกต้อง จึงไม่สามารถส่งออกได้
@@ -1852,6 +1854,7 @@ The invoice date is missing or unreadable. Fill it in and submit again,ไม่
 The invoice date looks wrong. Correct it and submit again,วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่
 The invoice fields have an invalid format.,รูปแบบข้อมูลในช่องใบกำกับภาษีไม่ถูกต้อง
 The invoice has changed. Prepare it again.,เอกสารมีการเปลี่ยนแปลง กรุณาเตรียมใหม่
+The invoice is not in Express,ไม่พบใบกำกับนี้ใน Express
 The invoice number is longer than MR.ERP allows. Shorten it and submit again,เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 The invoice number is missing. Add it and submit again.,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
 The invoice page data has an invalid format.,รูปแบบข้อมูลหน้าใบกำกับภาษีไม่ถูกต้อง
@@ -2027,6 +2030,7 @@ This original already has a recognition task with different parameters.,ไฟ�
 This page is too large to preview safely.,หน้านี้มีขนาดใหญ่เกินกว่าจะแสดงตัวอย่างได้อย่างปลอดภัย
 This product already has a unit called {0}.,สินค้านี้มีหน่วย {0} อยู่แล้ว
 This push attempt is no longer current.,การพยายามส่งครั้งนี้ไม่มีผลแล้ว
+This receipt type has no usable account in Express,ประเภทการรับชำระนี้ไม่มีบัญชีที่ใช้ได้ใน Express
 This recognition mode is not supported.,ไม่รองรับโหมดอ่านเอกสารนี้
 This recognition service currently accepts PDF and image originals.,บริการอ่านเอกสารนี้รองรับเฉพาะไฟล์ต้นฉบับ PDF และรูปภาพในขณะนี้
 This refresh request has expired. Request a new refresh.,คำขอรีเฟรชนี้หมดอายุแล้ว กรุณาส่งคำขอใหม่
@@ -3504,9 +3508,11 @@ intake.error.VOID_DOCUMENT_NOT_FOUND,ไม่พบเอกสารนี้�
 intake.error.account_not_in_chart,มีรหัสบัญชีที่ไม่อยู่ในผังบัญชีของ Express กรุณาตรวจการตั้งค่าบัญชี
 intake.error.account_set_not_allowed,CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป
 intake.error.agent_failed,CC เดสก์ท็อปไม่สามารถบันทึกเอกสารนี้ได้ ระบบจะลองใหม่อัตโนมัติ
+intake.error.already_collected,ยอดคงค้างของใบกำกับน้อยกว่ายอดรับชำระ
 intake.error.already_success,เอกสารนี้ส่งสำเร็จแล้ว
 intake.error.amounts_not_consistent,ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่
 intake.error.bad_or_missing_date,ไม่มีวันที่เอกสารหรืออ่านไม่ได้ กรุณากรอกแล้วส่งใหม่
+intake.error.cash_account_missing,ยังไม่ได้ตั้งบัญชีเงินสดใน Express
 intake.error.choice_needed,กรุณาเลือกข้อมูลใน Express สำหรับเอกสารนี้ก่อน แล้วส่งใหม่
 intake.error.confirmed_not_entered,ตรวจสอบใน ERP แล้ว: ยังไม่ลงบัญชี สามารถส่งใหม่ได้
 intake.error.confirmed_push_unacked,ยังไม่ยืนยันผลการส่ง กรุณาตรวจสอบใน Express ก่อนตัดสินใจส่งใหม่
@@ -3520,6 +3526,7 @@ intake.error.document_policy_needed_withholding_certificate,เอกสาร�
 intake.error.document_policy_skip_payment_evidence,ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้
 intake.error.document_policy_skip_withholding_certificate,ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
 intake.error.entry_not_balanced,ยอดเดบิตและเครดิตไม่เท่ากัน กรุณาตรวจสอบยอดเงิน
+intake.error.invoice_not_found,ไม่พบใบกำกับนี้ใน Express
 intake.error.items_incomplete,บางรายการไม่มีชื่อหรือจำนวนเงิน กรุณาแก้ไขแล้วส่งใหม่
 intake.error.items_mismatch,ยอดรวมรายการไม่ตรงกับยอดในเอกสาร กรุณาแก้รายการแล้วส่งใหม่
 intake.error.low_confidence,ข้อมูลบางช่องยังยืนยันไม่ได้ กรุณาตรวจสอบกับต้นฉบับแล้วส่งใหม่
@@ -3541,6 +3548,7 @@ intake.error.pos_refund_account_missing,กรุณาเลือกบัญ�
 intake.error.pos_refund_items_invalid,รายการรับคืนต้องเป็นสินค้าคงคลังใน Express
 intake.error.posting_kind_needed,กรุณาเลือกว่าเอกสารนี้เป็นบริการหรือสินค้าคงเหลือ แล้วส่งใหม่
 intake.error.posting_needs_review,บริษัทนี้บันทึกเอกสารประเภทนี้เข้าสินค้าคงเหลือหรือเป็นค่าใช้จ่าย
+intake.error.receipt_type_invalid,ประเภทการรับชำระนี้ไม่มีบัญชีที่ใช้ได้ใน Express
 intake.mrerpDefault.ap_account,บัญชีเจ้าหนี้
 intake.mrerpDefault.ar_account,บัญชีลูกหนี้
 intake.mrerpDefault.area,พื้นที่การขาย

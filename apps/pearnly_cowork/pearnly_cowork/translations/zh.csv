@@ -1100,6 +1100,7 @@ No account set of this company covers this month,该公司或分店没有覆盖�
 No account sets yet. Use Reload in New Intake first.,还没有账套目录。请先在新建录入里点重新读取。
 No attachments were given.,没有指定附件。
 No cards are assigned to you,暂无分配给您的卡片
+No cash account is set in Express,Express 未设置现金科目
 No changes were given.,没有指定要改的内容。
 No computer can reach the account set for the document date.,没有电脑能访问单据日期所在的账套。
 No computer can write,没有能写的电脑
@@ -1843,6 +1844,7 @@ The import file is too large.,导入文件过大。
 The import row is invalid or has missing required values.,导入行无效或缺少必填值。
 The import rows are invalid.,导入行无效。
 "The income type of a withholding tax payee, asked once: by the payee's tax ID, or by the recognized category.",预扣税收款方的所得类型，问一次记住：按收款方税号，或按识别出的分类。
+The invoice balance is less than the amount received,发票余额少于本次收款
 The invoice configuration does not match the OCR connection.,发票识别配置与服务连接不一致。
 The invoice contains text that Excel cannot store safely. Check its length and characters.,发票包含 Excel 无法完整保存的文本，请检查长度和字符。
 The invoice data is invalid and cannot be exported.,发票数据无效，无法导出。
@@ -1852,6 +1854,7 @@ The invoice date is missing or unreadable. Fill it in and submit again,票面日
 The invoice date looks wrong. Correct it and submit again,票面日期可能有误，请核对后重新提交
 The invoice fields have an invalid format.,发票字段格式不正确。
 The invoice has changed. Prepare it again.,票据已修改，请重新准备。
+The invoice is not in Express,Express 中没有此发票
 The invoice number is longer than MR.ERP allows. Shorten it and submit again,发票号超出 MR.ERP 允许的长度，请缩短后重新提交
 The invoice number is missing. Add it and submit again.,缺少发票号，请补充后重新提交
 The invoice page data has an invalid format.,发票页面数据格式不正确。
@@ -2027,6 +2030,7 @@ This original already has a recognition task with different parameters.,此原�
 This page is too large to preview safely.,该页面尺寸过大，无法安全预览。
 This product already has a unit called {0}.,该物料已有名为 {0} 的单位。
 This push attempt is no longer current.,此推送尝试已失效。
+This receipt type has no usable account in Express,此收款方式在 Express 中没有可用科目
 This recognition mode is not supported.,不支持此识别模式。
 This recognition service currently accepts PDF and image originals.,此识别服务目前仅支持 PDF 和图片原件。
 This refresh request has expired. Request a new refresh.,此刷新请求已过期，请重新申请刷新。
@@ -3504,9 +3508,11 @@ intake.error.VOID_DOCUMENT_NOT_FOUND,Express 中找不到此单
 intake.error.account_not_in_chart,所用科目不在 Express 科目表中，请检查科目设置
 intake.error.account_set_not_allowed,CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置
 intake.error.agent_failed,CC 桌面版写入失败，将自动重试
+intake.error.already_collected,发票余额少于本次收款
 intake.error.already_success,此发票已推送成功
 intake.error.amounts_not_consistent,金额合计不一致，请更正后重新提交
 intake.error.bad_or_missing_date,票面日期缺失或无法识别，请补填后重新提交
+intake.error.cash_account_missing,Express 未设置现金科目
 intake.error.choice_needed,请先为此发票选择 Express 中的对应项，再重新提交
 intake.error.confirmed_not_entered,已在 ERP 核对：未入账，可重新推送
 intake.error.confirmed_push_unacked,结果未确认，请先在 Express 中核对，再决定是否重新推送
@@ -3520,6 +3526,7 @@ intake.error.document_policy_needed_withholding_certificate,此单据为预扣�
 intake.error.document_policy_skip_payment_evidence,转账凭条不录入，此单据不推送
 intake.error.document_policy_skip_withholding_certificate,预扣税凭证（50 ทวิ）不录入，此单据不推送
 intake.error.entry_not_balanced,分录借贷不平，请核对金额
+intake.error.invoice_not_found,Express 中没有此发票
 intake.error.items_incomplete,部分明细缺少品名或金额，请补全后重新提交
 intake.error.items_mismatch,明细合计与票面金额不一致，请修改明细后重新提交
 intake.error.low_confidence,部分字段无法确认，请对照原件核对后重新提交
@@ -3541,6 +3548,7 @@ intake.error.pos_refund_account_missing,请选择销货退回科目
 intake.error.pos_refund_items_invalid,退货明细须为 Express 库存商品
 intake.error.posting_kind_needed,请为此发票选择服务或存货后重新提交
 intake.error.posting_needs_review,本公司这类单据走库存还是记费用？
+intake.error.receipt_type_invalid,此收款方式在 Express 中没有可用科目
 intake.mrerpDefault.ap_account,应付科目
 intake.mrerpDefault.ar_account,应收科目
 intake.mrerpDefault.area,销售区域

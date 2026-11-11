@@ -1100,6 +1100,7 @@ No account set of this company covers this month,この会社（または支店�
 No account sets yet. Use Reload in New Intake first.,帳簿一覧がまだありません。先に新規取込で再読み込みしてください。
 No attachments were given.,添付ファイルが指定されていません。
 No cards are assigned to you,割り当てられたカードはありません
+No cash account is set in Express,Express に現金勘定が設定されていません
 No changes were given.,変更内容が指定されていません。
 No computer can reach the account set for the document date.,書類の日付の会計データにアクセスできるパソコンがありません。
 No computer can write,書き込めるパソコンがありません
@@ -1843,6 +1844,7 @@ The import file is too large.,インポートファイルが大きすぎます�
 The import row is invalid or has missing required values.,インポート行が無効か、必須項目が不足しています。
 The import rows are invalid.,インポート行が正しくありません。
 "The income type of a withholding tax payee, asked once: by the payee's tax ID, or by the recognized category.",源泉徴収の受取人の所得種類。一度だけ確認して記憶します（受取人の納税者番号、または認識したカテゴリ別）。
+The invoice balance is less than the amount received,請求書の残高が入金額より少ないです
 The invoice configuration does not match the OCR connection.,請求書の認識設定とサービスの接続設定が一致しません。
 The invoice contains text that Excel cannot store safely. Check its length and characters.,請求書に Excel で正常に保存できないテキストがあります。長さと文字を確認してください。
 The invoice data is invalid and cannot be exported.,請求書データが無効なため、エクスポートできません。
@@ -1852,6 +1854,7 @@ The invoice date is missing or unreadable. Fill it in and submit again,伝票日
 The invoice date looks wrong. Correct it and submit again,伝票日付がおかしいようです。確認して再送信してください
 The invoice fields have an invalid format.,請求書の項目データの形式が正しくありません。
 The invoice has changed. Prepare it again.,伝票が変更されました。再度準備してください。
+The invoice is not in Express,この請求書は Express にありません
 The invoice number is longer than MR.ERP allows. Shorten it and submit again,請求書番号が MR.ERP の上限を超えています。短くして再送信してください
 The invoice number is missing. Add it and submit again.,請求書番号がありません。追加して再送信してください
 The invoice page data has an invalid format.,請求書のページデータの形式が正しくありません。
@@ -2027,6 +2030,7 @@ This original already has a recognition task with different parameters.,この�
 This page is too large to preview safely.,このページは大きすぎるため、安全にプレビューできません。
 This product already has a unit called {0}.,この商品には既に単位 {0} があります。
 This push attempt is no longer current.,この送信試行は無効になっています。
+This receipt type has no usable account in Express,この入金方法には Express で使える勘定科目がありません
 This recognition mode is not supported.,この認識モードには対応していません。
 This recognition service currently accepts PDF and image originals.,この認識サービスは現在、PDF と画像の元ファイルに対応しています。
 This refresh request has expired. Request a new refresh.,この更新要求は期限切れです。再度要求してください。
@@ -3504,9 +3508,11 @@ intake.error.VOID_DOCUMENT_NOT_FOUND,この伝票は Express にありません
 intake.error.account_not_in_chart,使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください
 intake.error.account_set_not_allowed,CC デスクトップにこの会計データが許可されていません。CC デスクトップの会計データを確認してください
 intake.error.agent_failed,CC デスクトップが書き込めませんでした。自動で再試行します
+intake.error.already_collected,請求書の残高が入金額より少ないです
 intake.error.already_success,この伝票は送信済みです
 intake.error.amounts_not_consistent,金額が合いません。直して再送信してください
 intake.error.bad_or_missing_date,伝票日付がないか読み取れません。入力して再送信してください
+intake.error.cash_account_missing,Express に現金勘定が設定されていません
 intake.error.choice_needed,先にこの伝票の Express 側の項目を選んでから再送信してください
 intake.error.confirmed_not_entered,ERP で確認済み：未計上。再送信できます
 intake.error.confirmed_push_unacked,結果が確認できません。Express で確認してから再送信してください
@@ -3520,6 +3526,7 @@ intake.error.document_policy_needed_withholding_certificate,これは源泉徴�
 intake.error.document_policy_skip_payment_evidence,振込明細は入力しないため、送信しません
 intake.error.document_policy_skip_withholding_certificate,源泉徴収証明書（50 ทวิ）は入力しないため、送信しません
 intake.error.entry_not_balanced,仕訳の貸借が合いません。金額を確認してください
+intake.error.invoice_not_found,この請求書は Express にありません
 intake.error.items_incomplete,品名または金額のない明細があります。直して再送信してください
 intake.error.items_mismatch,明細の合計が伝票の金額と合いません。明細を直して再送信してください
 intake.error.low_confidence,不確かな項目があります。原本と照合して再送信してください
@@ -3541,6 +3548,7 @@ intake.error.pos_refund_account_missing,売上返品勘定を選んでくださ�
 intake.error.pos_refund_items_invalid,返品明細は Express の在庫品である必要があります
 intake.error.posting_kind_needed,この伝票がサービスか在庫かを選んで再送信してください
 intake.error.posting_needs_review,この会社のこの種類の伝票は在庫と費用のどちらに計上しますか
+intake.error.receipt_type_invalid,この入金方法には Express で使える勘定科目がありません
 intake.mrerpDefault.ap_account,買掛金勘定
 intake.mrerpDefault.ar_account,売掛金勘定
 intake.mrerpDefault.area,販売地域
