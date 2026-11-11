@@ -26,6 +26,7 @@ Account that owns this connection. Leave empty for a site-wide shared connection
 Account with admin rights,権限アカウント
 Action not found,操作が見つかりません
 Actions,操作
+Active Seconds,稼働秒数
 Add official account,公式アカウントを友だち追加
 Add operator,オペレーターを追加
 Add row,明細を追加
@@ -95,6 +96,8 @@ CC Desktop not connected,CC デスクトップ未接続
 CC is not set up for this site yet.,このサイトではまだ CC が設定されていません。
 CC is only available on product sites.,CC は製品サイトでのみ利用できます。
 CC restarted,CC デスクトップが再起動しました
+Cache Read Tokens,キャッシュ読み取りトークン
+Cache Write Tokens,キャッシュ書き込みトークン
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",カメラへのアクセスがブロックされています。ブラウザのサイト設定とスマートフォンの設定でカメラを許可してから、もう一度お試しください。
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.",カメラへのアクセスがオフになっています。アドレスバー左のアイコンからカメラを「許可」にして、もう一度お試しください。
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.",カメラへのアクセスがオフになっています。iPhone の「設定 → Safari → カメラ」で「許可」を選ぶか、アドレスバーの Web サイト設定 → カメラ から許可してください。戻ると自動で再試行します。
@@ -365,6 +368,7 @@ Identity Session,アイデンティティセッション
 Image Fingerprint,画像フィンガープリント
 In-progress state of a multi-turn conversation. One row per session.,多段対話の途中状態。1セッション1行。
 Inbound = invoices received; outbound = invoices issued,仕入＝受け取った請求書、売上＝発行した請求書
+Input Tokens,入力トークン
 "Install it, then sign in with this account to connect.",インストール後、このアカウントでログインすると接続されます。
 "Install, pair, upgrade and uninstall guide for CC Desktop",CC デスクトップのインストール・ペアリング・更新・アンインストールガイド
 Intake Workbench,取り込みワークベンチ
@@ -519,6 +523,7 @@ Operators,オペレーター
 Optional,空欄可
 Order Discount,伝票全体の値引
 Original document,原本
+Output Tokens,出力トークン
 Outstanding,未払い
 Overage: {0}/page,超過料金：{0}/ページ
 Overage: {0}/page · Expires: {1},超過料金：{0}/ページ · 有効期限：{1}
@@ -850,6 +855,8 @@ Type,種別
 Type of the connected system,接続先システムの種類
 Type {0} or more characters for results.,{0} 文字以上入力してください
 UI language,表示言語
+USD,米ドル
+USD Source,米ドルの出所
 Unable to load this page. Please reload.,このページを読み込めません。再読み込みしてください。
 Unable to read the current advisor list. Retry before changing the assignment.,現在の担当者一覧を取得できません。再試行してから帰属を変更してください。
 Unable to upload right now. Please try again later.,現在アップロードできません。後でもう一度お試しください。

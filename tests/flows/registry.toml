@@ -438,6 +438,7 @@ covers = [
   "apps/pearnly_core/pearnly_core/assistant/relay.py",
   "apps/pearnly_core/pearnly_core/assistant/titles.py",
   "apps/pearnly_core/pearnly_core/assistant/engines/anthropic_managed_agents.py",
+  "apps/pearnly_core/pearnly_core/assistant/usage.py",
 ]
 
 [[flow]]

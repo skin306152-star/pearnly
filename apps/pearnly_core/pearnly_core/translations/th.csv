@@ -26,6 +26,7 @@ Account that owns this connection. Leave empty for a site-wide shared connection
 Account with admin rights,บัญชีที่มีสิทธิ์ผู้ดูแลระบบ
 Action not found,ไม่พบการดำเนินการ
 Actions,การจัดการ
+Active Seconds,วินาทีที่ทำงาน
 Add official account,เพิ่มบัญชีทางการเป็นเพื่อน
 Add operator,เพิ่มพนักงาน
 Add row,เพิ่มรายการ
@@ -95,6 +96,8 @@ CC Desktop not connected,CC เดสก์ท็อปยังไม่เช�
 CC is not set up for this site yet.,ไซต์นี้ยังไม่ได้ตั้งค่า CC
 CC is only available on product sites.,CC ใช้ได้เฉพาะในไซต์ของผลิตภัณฑ์
 CC restarted,CC รีสตาร์ตแล้ว
+Cache Read Tokens,โทเค็นอ่านแคช
+Cache Write Tokens,โทเค็นเขียนแคช
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",การเข้าถึงกล้องถูกปิดกั้น กรุณาอนุญาตกล้องสำหรับเว็บไซต์นี้ในการตั้งค่าเบราว์เซอร์และการตั้งค่าโทรศัพท์ แล้วลองอีกครั้ง
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.",การเข้าถึงกล้องถูกปิดอยู่ กรุณาคลิกไอคอนทางซ้ายของแถบที่อยู่ เปลี่ยนกล้องเป็น อนุญาต แล้วลองอีกครั้ง
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.",การเข้าถึงกล้องถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → Safari → กล้อง แล้วเลือก อนุญาต หรือแตะการตั้งค่าเว็บไซต์ในแถบที่อยู่ → กล้อง กลับมาที่หน้านี้เพื่อลองใหม่
@@ -365,6 +368,7 @@ Identity Session,เซสชันตัวตน
 Image Fingerprint,ลายนิ้วมือภาพ
 In-progress state of a multi-turn conversation. One row per session.,สถานะระหว่างทางของบทสนทนาหลายรอบ หนึ่งแถวต่อหนึ่งเซสชัน
 Inbound = invoices received; outbound = invoices issued,ภาษีซื้อ = ใบกำกับภาษีที่ได้รับ ภาษีขาย = ใบกำกับภาษีที่ออก
+Input Tokens,โทเค็นขาเข้า
 "Install it, then sign in with this account to connect.",ติดตั้งแล้วเข้าสู่ระบบด้วยบัญชีนี้เพื่อเชื่อมต่อ
 "Install, pair, upgrade and uninstall guide for CC Desktop",คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้ง CC เดสก์ท็อป
 Intake Workbench,ศูนย์บันทึกเอกสาร
@@ -519,6 +523,7 @@ Operators,พนักงาน
 Optional,เว้นว่างได้
 Order Discount,ส่วนลดทั้งใบ
 Original document,ต้นฉบับ
+Output Tokens,โทเค็นขาออก
 Outstanding,ค้างชำระ
 Overage: {0}/page,ราคาส่วนเกิน: {0}/หน้า
 Overage: {0}/page · Expires: {1},ราคาส่วนเกิน: {0}/หน้า · วันหมดอายุ: {1}
@@ -850,6 +855,8 @@ Type,ประเภท
 Type of the connected system,ประเภทระบบปลายทาง
 Type {0} or more characters for results.,พิมพ์อย่างน้อย {0} ตัวอักษร
 UI language,ภาษาของหน้าจอ
+USD,ดอลลาร์สหรัฐ
+USD Source,แหล่งที่มาของยอดดอลลาร์
 Unable to load this page. Please reload.,ไม่สามารถโหลดหน้านี้ได้ กรุณารีเฟรช
 Unable to read the current advisor list. Retry before changing the assignment.,ไม่สามารถอ่านรายชื่อที่ปรึกษาปัจจุบันได้ กรุณาลองใหม่ก่อนเปลี่ยนผู้รับค่าคอมมิชชัน
 Unable to upload right now. Please try again later.,ยังอัปโหลดไม่ได้ในขณะนี้ กรุณาลองใหม่ภายหลัง

@@ -26,6 +26,7 @@ Account that owns this connection. Leave empty for a site-wide shared connection
 Account with admin rights,具有管理权限的账号
 Action not found,未找到该操作
 Actions,操作
+Active Seconds,运行秒数
 Add official account,添加官方账号为好友
 Add operator,新增操作员
 Add row,添加明细
@@ -95,6 +96,8 @@ CC Desktop not connected,CC 桌面版未连接
 CC is not set up for this site yet.,本站点尚未设置 CC。
 CC is only available on product sites.,CC 仅在产品站点可用。
 CC restarted,CC 桌面版已重启
+Cache Read Tokens,缓存读取 Token
+Cache Write Tokens,缓存写入 Token
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",相机权限被拒绝。请在浏览器的网站设置和手机设置里允许相机，然后重试。
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.",相机权限已关闭。请点击地址栏左侧的图标，将相机设为「允许」，然后重试。
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.",相机权限已关闭。请前往 iPhone「设置 → Safari 浏览器 → 相机」选择「允许」，或点击地址栏中的网站设置 → 相机。返回本页后将自动重试。
@@ -365,6 +368,7 @@ Identity Session,身份会话
 Image Fingerprint,影像指纹
 In-progress state of a multi-turn conversation. One row per session.,多轮对话的中间状态。每个会话一行。
 Inbound = invoices received; outbound = invoices issued,进项 = 收到的发票；销项 = 开出的发票
+Input Tokens,输入 Token
 "Install it, then sign in with this account to connect.",安装后用本账号登录即可连接。
 "Install, pair, upgrade and uninstall guide for CC Desktop",CC 桌面版的安装、配对、升级与卸载说明
 Intake Workbench,录入工作台
@@ -519,6 +523,7 @@ Operators,操作员
 Optional,可留空
 Order Discount,整单折扣
 Original document,原件
+Output Tokens,输出 Token
 Outstanding,未付
 Overage: {0}/page,超额单价：{0}/页
 Overage: {0}/page · Expires: {1},超额单价：{0}/页 · 到期时间：{1}
@@ -850,6 +855,8 @@ Type,类型
 Type of the connected system,对端系统类型
 Type {0} or more characters for results.,至少输入 {0} 个字符
 UI language,界面语言
+USD,美元
+USD Source,美元来源
 Unable to load this page. Please reload.,无法加载此页面，请刷新。
 Unable to read the current advisor list. Retry before changing the assignment.,无法读取当前顾问名册。请重试后再修改归属。
 Unable to upload right now. Please try again later.,暂时无法上传，请稍后重试。

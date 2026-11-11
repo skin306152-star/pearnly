@@ -166,7 +166,25 @@ ids = [r.session_id for r in frappe.get_all("Pearnly Assistant Session", filters
 rows = frappe.get_all("Pearnly Assistant Stopped Reply", filters={{"session_id": ["in", ids or ["-"]]}}, fields=["event_id", "text"], limit_page_length=5)
 print(json.dumps({{"rows": rows}}))
 """)["rows"]
+    # 用量记账（11-11）：每轮结束排后台任务读会话累计用量，写这段远端会话今天一行（假智能体后端不给用量，金额 0、来源价目表）
+    usage = lab.python(manifest["site"], f"""
+import time
+ids = [r.session_id for r in frappe.get_all("Pearnly Assistant Session", filters={{"user": "admin@erp.regression", "title": ["like", "%{params['tag']}%"]}},
+                                          fields=["session_id"], limit_page_length=5)]
+rows = []
+for _ in range(30):  # 记账在后台任务里，等它跑完（最多约 30 秒）
+    frappe.db.rollback()
+    rows = frappe.get_all("Pearnly AI Usage", filters={{"purpose": "cc_chat", "conversation": ["in", ids or ["-"]]}},
+                          fields=["name", "segment", "product", "user", "day"], limit_page_length=5)
+    if rows:
+        break
+    time.sleep(1)
+print(json.dumps({{"rows": rows, "ids": ids}}, default=str))
+""")
     return [
+        {"case": "这段对话的用量记进账本（每段远端会话今天一行，产品与主人对得上）", "saved": usage,
+         "ok": bool(usage["rows"]) and all(r["product"] == "erp" and r["user"] == "admin@erp.regression"
+                                           and r["name"] == f"cc-{r['segment']}-{r['day']}" for r in usage["rows"])},
         {"case": "落库一段对话（标题、产品、引擎）", "saved": found,
          "ok": len(found) == 1 and found[0]["product"] == "erp" and found[0]["engine_code"] == "anthropic-managed-agents"
          and not found[0]["archived"] and found[0]["session_id"].startswith("sesn_")},

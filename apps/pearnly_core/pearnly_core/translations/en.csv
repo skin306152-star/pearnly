@@ -26,6 +26,7 @@ Account that owns this connection. Leave empty for a site-wide shared connection
 Account with admin rights,Account with admin rights
 Action not found,Action not found
 Actions,Actions
+Active Seconds,Active Seconds
 Add official account,Add official account
 Add operator,Add operator
 Add row,Add row
@@ -95,6 +96,8 @@ CC Desktop not connected,CC Desktop not connected
 CC is not set up for this site yet.,CC is not set up for this site yet.
 CC is only available on product sites.,CC is only available on product sites.
 CC restarted,CC restarted
+Cache Read Tokens,Cache Read Tokens
+Cache Write Tokens,Cache Write Tokens
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.","Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again."
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.","Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again."
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.","Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return."
@@ -364,6 +367,7 @@ Identity Session,Identity Session
 Image Fingerprint,Image Fingerprint
 In-progress state of a multi-turn conversation. One row per session.,In-progress state of a multi-turn conversation. One row per session.
 Inbound = invoices received; outbound = invoices issued,Inbound = invoices received; outbound = invoices issued
+Input Tokens,Input Tokens
 "Install it, then sign in with this account to connect.","Install it, then sign in with this account to connect."
 "Install, pair, upgrade and uninstall guide for CC Desktop","Install, pair, upgrade and uninstall guide for CC Desktop"
 Intake Workbench,Intake Workbench
@@ -517,6 +521,7 @@ Operators,Operators
 Optional,Optional
 Order Discount,Order Discount
 Original document,Original document
+Output Tokens,Output Tokens
 Outstanding,Outstanding
 Overage: {0}/page,Overage: {0}/page
 Overage: {0}/page · Expires: {1},Overage: {0}/page · Expires: {1}
@@ -848,6 +853,8 @@ Type,Type
 Type of the connected system,Type of the connected system
 Type {0} or more characters for results.,Type {0} or more characters for results.
 UI language,UI language
+USD,USD
+USD Source,USD Source
 Unable to load this page. Please reload.,Unable to load this page. Please reload.
 Unable to read the current advisor list. Retry before changing the assignment.,Unable to read the current advisor list. Retry before changing the assignment.
 Unable to upload right now. Please try again later.,Unable to upload right now. Please try again later.
