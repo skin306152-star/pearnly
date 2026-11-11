@@ -71,7 +71,7 @@
    "label": "Kind",
    "fieldtype": "Select",
    "read_only": 1,
-   "options": "express_read\nfolder_list\nfolder_fetch\naccount_history\nexpress_masters\nexpress_marks\nexpress_doc_check",
+   "options": "express_read\nfolder_list\nfolder_fetch\naccount_history\nexpress_masters\nexpress_marks\nexpress_doc_check\nexpress_ar_open",
    "reqd": 1
   },
   {

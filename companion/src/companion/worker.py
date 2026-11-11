@@ -294,13 +294,13 @@ def _handle_dbf_task(
             error_code="NO_ACCOUNT_SELECTION",
         )
         return "failed"
-    # 代录 Express（载荷 16，入口与直写分开）：同一份载荷交给代录在 Express 界面里录，不直写 DBF
-    from .payload_contract import ENTRY_OPERATOR
-
-    if str(payload.get("entry_mode") or "").strip() == ENTRY_OPERATOR:
-        return _handle_operator_task(cfg, qc, task, st)
     # 方向第一类公民(09 铁律):标签定死表族,绝不串。
     direction = str(payload.get("direction") or "purchase").strip().lower()
+    # 代录 Express（载荷 16，入口与直写分开）：同一份载荷交给代录在 Express 界面里录，不直写 DBF。收款单 RE 一律直写（载荷 20，代录不录收款）
+    from .payload_contract import ENTRY_OPERATOR
+
+    if str(payload.get("entry_mode") or "").strip() == ENTRY_OPERATOR and direction != "receipt":
+        return _handle_operator_task(cfg, qc, task, st)
     # 三重一致性闸期望值全来自客户所选账套(配对锁定):账套名 + 目录 + 公司。
     common = dict(
         # 部门码:账套设置里选一次、随载荷下发(2026-09-28 压测:原账 SUTI、推送为空);没下发用本机配置。
@@ -338,6 +338,11 @@ def _handle_dbf_task(
                 from .dbf_stock import write_stock_entry
 
                 res = write_stock_entry(payload, st.account_dir, **common)
+            elif direction == "receipt":
+                # 收款单 RE(载荷 20):收款员录的收款,持锁后逐张重读发票余额,不够整单不写(dbf_receipt)
+                from .dbf_receipt import write_receipt
+
+                res = write_receipt(payload, st.account_dir, **common)
             else:
                 res = write_purchase(payload, st.account_dir, **common)
     except Busy:
@@ -574,6 +579,11 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         "REFUND_EXCEEDS_ORIGINAL": "needs_review",
         # 赊购单服务品进项税口径账套历史定不了、载荷没给(10-29):重试结论一样,要人选一次
         "SERVICE_VAT_BASIS_CHOICE": "needs_review",
+        # 收款单 RE(载荷 20,dbf_receipt):发票已被收 / 找不到、收款方式不能用、没设现金科目,重试结论一样,要人处理(整单没写)
+        "already_collected": "needs_review",
+        "invoice_not_found": "needs_review",
+        "receipt_type_invalid": "needs_review",
+        "cash_account_missing": "needs_review",
     }.get(error_code or "")
 
 
@@ -585,7 +595,7 @@ def _push_meta(res, direction: str, account_dir: str, *, writer: str = "") -> di
 
     m = {
         "companion_version": VERSION,
-        "doc_type": direction if direction in ("sales", "stock") else "purchase",
+        "doc_type": direction if direction in ("sales", "stock", "receipt") else "purchase",
         "account_dir": str(account_dir or ""),
     }
     # 配置里的路径若会被系统改写落点(UNC 少反斜杠→写进本机 C: 影子目录),上报真实落点。
@@ -623,6 +633,9 @@ def _push_meta(res, direction: str, account_dir: str, *, writer: str = "") -> di
         # 销货单实际记的收入（收入照物料科目组记，可能与载荷科目不同，1.12.18）：服务端读回比分录按它
         if getattr(res, "revenue", None):
             m["revenue"] = list(res.revenue)
+        # 收款单 RE（载荷 20）：单号与每张发票收后的余额 {docnum, invoices: [{docnum, remaining_after}]}
+        if getattr(res, "receipt", None):
+            m["receipt"] = dict(res.receipt)
         # 这张单实际记的录入人（授权的 Express 账户名或 PEARNLY）：服务端存进推送记录 / 写账件，查得到是谁的名义写的
         if writer:
             m["writer"] = writer

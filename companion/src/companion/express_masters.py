@@ -46,7 +46,7 @@ from .request_contract import MAX_BYTES, RequestFailed, Result
 log = get_logger(__name__)
 
 RESULT_VERSION = 2
-TABLES = ("ISINFO", "ARMAS", "APMAS", "STMAS", "ISTAB", "STLOC", "GLACC", "ISACC", "ISRUN")
+TABLES = ("ISINFO", "ARMAS", "APMAS", "STMAS", "ISTAB", "STLOC", "GLACC", "ISACC", "ISRUN", "OESLM", "BKMAS")
 MAX_STOCK_GROUPS = 20
 # 至少要有其中一张才是一份 Express 账套
 REQUIRED_ANY = ("ISINFO", "STMAS")
@@ -57,8 +57,11 @@ WAREHOUSE_TABTYP = "21"
 DEPARTMENT_TABTYP = "50"
 PRICE_SLOTS = ("SELLPR1", "SELLPR2", "SELLPR3", "SELLPR4", "SELLPR5")
 SETTINGS = {"mainloc": "MAINLOC", "negallow": "NEGALLOW", "cosmtd": "COSMTD", "usedep": "USEDEP"}
-# 主档变没变看这几张表（大小 + 修改时间）：客户、供应商、商品、代码表（单位 / 仓库 / 部门）、各仓结存、账套设置
-MARK_TABLES = ("ARMAS", "APMAS", "STMAS", "ISTAB", "STLOC", "ISINFO")
+# 主档变没变看这几张表（大小 + 修改时间）：客户、供应商、商品、代码表（单位 / 仓库 / 部门）、各仓结存、账套设置、销售员、银行主档
+# （ISRUN 不进：每写一张单计数器就变，进了会让每张单都触发整套重读；收款类型改了随下一次别的主档变化一起读到）
+MARK_TABLES = ("ARMAS", "APMAS", "STMAS", "ISTAB", "STLOC", "ISINFO", "OESLM", "BKMAS")
+# 未收清发票（按需请求 ``express_ar_open``）变没变看单据表 ARTRN：``express_marks`` 另报 ``ar_mark``，ERP 变了才重读快照
+AR_MARK_TABLES = ("ARTRN",)
 CENT = Decimal("0.01")
 FINE = Decimal("0.000001")
 
@@ -242,14 +245,55 @@ def collect(folder: Path) -> tuple:
         "departments": [row for kind, row in codes if kind == DEPARTMENT_TABTYP],
         "stock": express_read._rows(folder, "STLOC", diag, _stock),
         "facts": _facts(folder),
+        **_receipt_masters(folder, diag, infos),
     }
     return data, diag
 
 
-def mark(folder: Path) -> str:
-    """这份账套主档的变化标记：:data:`MARK_TABLES` 几张表的大小与修改时间（只看文件属性，不读内容；表不在记缺）。"""
+def _salesman(rec, columns, _gone):
+    get, text = express_read._get, express_read._text
+    code = _code(get(rec, columns, "SLMCOD"))
+    if not code:
+        return None
+    return {"code": code, "name": text(get(rec, columns, "SLMNAM")),
+            "inactive": bool(text(get(rec, columns, "STATUS")) or get(rec, columns, "INACTDAT"))}
+
+
+def _receipt_masters(folder: Path, diag: dict, infos: list) -> dict:
+    """收款单 RE 要的主档（载荷 20，评估 2026-11-11 契约「读：主档补充」）：收款类型（ISRUN ZR 逐行，科目按 SHORTNAM→BKMAS 否则
+    ACCNUM01，``payment_methods``）、RE 单据簿（前缀、下一个号、默认部门）、销售员 OESLM、现金科目 ISINFO.ACCNUM00。各块读坏了给空，不挡主档。"""
+    from . import payment_methods
+
+    out = {"receipt_types": [], "receipt_run": None, "salesmen": [], "cash_account": ""}
+    try:
+        out["receipt_types"] = payment_methods.types(folder, payment_methods.RECEIPT_TYPES)
+    except Exception:
+        log.info("收款类型读不出（没有 ISRUN？），这份不带收款类型")
+    try:
+        get = express_read._get
+        runs = express_read._rows(folder, "ISRUN", {"rows": {}, "bad_rows": {}},
+                                  lambda r, c, _g: ({"prefix": _code(get(r, c, "PREFIX")), "next": _code(get(r, c, "DOCNUM")),
+                                                     "department": _code(get(r, c, "DEPCOD"))}
+                                                    if _code(get(r, c, "DOCTYP")) == "RE" else None))
+        out["receipt_run"] = runs[0] if runs else None
+    except Exception:
+        log.info("收款单据簿读不出，这份不带 receipt_run")
+    out["salesmen"] = express_read._rows(folder, "OESLM", diag, _salesman)
+    try:
+        from .account_rules import _first
+
+        info = _first(folder, "ISINFO") or {}
+        out["cash_account"] = str(info.get("ACCNUM00") or "").strip()
+    except Exception:
+        log.info("现金科目读不出，这份不带现金科目")
+    return out
+
+
+def mark(folder: Path, tables=MARK_TABLES) -> str:
+    """这份账套主档的变化标记：:data:`MARK_TABLES`（``ar_mark`` 是 :data:`AR_MARK_TABLES`）几张表的大小与修改时间（只看文件属性，
+    不读内容；表不在记缺）。"""
     stamps = []
-    for name in MARK_TABLES:
+    for name in tables:
         for candidate in (f"{name}.DBF", f"{name.lower()}.dbf"):
             try:
                 stat = (folder / candidate).stat()
@@ -263,10 +307,11 @@ def mark(folder: Path) -> str:
 
 
 def read_marks(cfg, params: dict, **_ignored) -> Result:
-    """按需请求 ``express_marks``：{account_set, account_root} → ``{"mark"}``（gzip JSON）。账套判据同整套读（``resolve``）。"""
+    """按需请求 ``express_marks``：{account_set, account_root} → ``{"mark", "ar_mark"}``（gzip JSON）。账套判据同整套读（``resolve``）。
+    ``ar_mark``：单据表 ARTRN 的变化标记（收款单 RE 的未收清发票快照，``express_ar_open``）；旧服务端不认这个键、照旧只看 ``mark``。"""
     account_set, account_root = _params(params)
     folder = express_read.resolve(cfg, account_set, account_root)
-    content = gzip.compress(json.dumps({"mark": mark(folder)}).encode("utf-8"))
+    content = gzip.compress(json.dumps({"mark": mark(folder), "ar_mark": mark(folder, AR_MARK_TABLES)}).encode("utf-8"))
     return Result(content, {"format": "json.gz"})
 
 

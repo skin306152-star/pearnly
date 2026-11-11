@@ -50,11 +50,15 @@ from typing import Optional
 # 19：采购 / 销售明细库存行与非库存行同在一张单（混行；ERP 按行选入库 / 只记账，评估 docs/work/2026-11-06-erp-line-item-stock-choice-评估.md）：
 # 照载荷顺序分段写，每行 STCRD.SEQNUM 是它在整张单里的行号，只有库存行动库存与成本（purchase_lines / dbf_sales，`dbf_detail.runs`）。
 # 旧版整单拒收「混合库存+非库存明细行」，所以盖 19，派单只交给报过支持 19 的电脑。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19})
+# 20：收款单 RE（``direction = receipt``，收款员在 LINE / CC 录的收款，dbf_receipt；评估 docs/work/2026-11-11-collection-receipt-assessment.md）：
+# 勾的发票各收多少、现金与各收款方式（Express 收款类型的前缀）。旧版不认这个方向，会把它当进项写，所以盖 20，旧版诚实拒收、
+# 派单只交给报过支持 20 的电脑。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20})
 OPERATOR_PAYLOAD_VERSION = 16
 REMARKS_PAYLOAD_VERSION = 17
 MRERP_OPERATOR_PAYLOAD_VERSION = 18
 MIXED_LINES_PAYLOAD_VERSION = 19
+RECEIPT_PAYLOAD_VERSION = 20
 ENTRY_OPERATOR = "operator"
 # 这一版 CC 桌面版能代录到哪些目标（心跳 ``operator_targets``，与宿主 ``express_operator.host.ASSEMBLERS`` 一致）。
 # 服务端只把 Express 以外目标的代录单派给报了它的电脑；旧版不报 = 只有 Express。

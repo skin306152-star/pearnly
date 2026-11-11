@@ -57,7 +57,15 @@ TABLE_SPECS = {
     # 错位(BANKREC 真账反证:Express 原生 HP 单精确落 HP 桶、RR 桶为 0)。
     "APBAL": "SUPCOD C(10); BEGBAL B; "
     + "; ".join(_months(g) for g in ("HP", "RR", "CP", "GR", "PS")),
-    "ISRUN": "DOCTYP C(2); DOCCOD C(2); PREFIX C(2); DOCNUM C(10); JNLTYP C(2); ACCNUM01 C(15); ACCNUM02 C(15)",
+    # 单据簿 / 收付款方式(真表 41 列)。SHORTNAM 指向银行主档、POSDES 名称、JNLEXP 分录摘要表达式(收款单 RE 写入用)
+    "ISRUN": "DOCTYP C(2); DOCCOD C(2); PREFIX C(2); DOCNUM C(10); JNLTYP C(2); ACCNUM01 C(15); ACCNUM02 C(15); "
+             "SHORTNAM C(6); POSDES C(30); POSDES2 C(30); DEPCOD C(4); JNLEXP C(60)",
+    # 收款单 RE 的发票行 / 方式行(真表全部列,NLTTEST 1.0.1.94)
+    "ARRCPIT": "RCPNUM C(12); DOCNUM C(12); RECTYP C(1); RCVAMT B; VATAMT B",
+    "ARRCPCQ": "RCPNUM C(12); CHQNUM C(12); RCVAMT B",
+    # 银行主档(收款类型 SHORTNAM → BNKACC → ACCNUM)、销售员(真表各 12 / 42 列,合成只建读的)
+    "BKMAS": "BNKACC C(2); BNKNAM C(50); SHORTNAM C(10); ACCNUM C(15)",
+    "OESLM": "SLMCOD C(10); SLMNAM C(45); STATUS C(1); INACTDAT D",
     "ARTRN": (
         "RECTYP C(1); DOCNUM C(12); DOCDAT D; YOUREF C(30); VATPRD D; VATDAT D; "
         "FLGVAT C(1); CUSCOD C(10); VATRAT N(5,2); AMOUNT B; AFTDISC B; TOTAL B; "
@@ -67,7 +75,9 @@ TABLE_SPECS = {
         # 退货单 SR(RECTYP 5):CNTYP 退法(3 = 退现金)、SONUM 挂的原单号(实录 SR0000001;真表宽度待实录核对)
         "CNTYP C(1); SONUM C(12); "
         # AMTRAT0:免税金额(真表有;实录第 10 条,混合免税的现销 / 退货单单头同销项税记录也记)
-        "AMTRAT0 B"
+        "AMTRAT0 B; "
+        # 收款单 RE:销售员、其他方式合计 / 已过账、利息、修改日(真表有)
+        "SLMCOD C(10); CHQRCV B; INTRCV B; CHQPAS B; CHGDAT D"
     ),
     # 真表 122 列:HS 现销 / IV 赊销 / DR 借项 / SR 退货 / RE 收款。
     "ARBAL": "CUSCOD C(10); BEGBAL B; "

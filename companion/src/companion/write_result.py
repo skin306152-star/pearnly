@@ -35,6 +35,9 @@ class DbfWriteResult:
     # 销货单实际记的收入贷方 [{acc, amount}](``dbf_sales.revenue_entries``):收入照物料科目组记了别的科目时载荷里没有,
     # 随 ack meta.revenue 回云端,读回比分录按它。进货 / 失败路径恒 None。
     revenue: Optional[list] = None
+    # 收款单 RE(载荷 20,``dbf_receipt``)写进去的单号与每张发票收后的余额 ``{docnum, invoices: [{docnum, remaining_after}]}``,
+    # 随 ack meta.receipt 回云端;别的单与失败路径恒 None。
+    receipt: Optional[dict] = None
 
     @property
     def written(self) -> bool:

@@ -417,19 +417,19 @@ entries = ["cc.desktop.places", "cc.desktop.requests"]
 [[part]]
 id = "cc-request-worker"
 name = "CC 按需读取"
-paths = ["companion/src/companion/express_doc_check.py", "companion/src/companion/request_worker.py", "companion/src/companion/request_client.py", "companion/src/companion/request_contract.py", "companion/src/companion/express_read.py", "companion/src/companion/express_masters.py", "companion/src/companion/account_history.py", "companion/src/companion/folder_fetch.py"]
-markers = ["request_worker", "request_client", "request_contract", "express_read", "express_masters", "account_history", "folder_fetch"]
+paths = ["companion/src/companion/express_doc_check.py", "companion/src/companion/request_worker.py", "companion/src/companion/request_client.py", "companion/src/companion/request_contract.py", "companion/src/companion/express_read.py", "companion/src/companion/express_masters.py", "companion/src/companion/account_history.py", "companion/src/companion/folder_fetch.py", "companion/src/companion/express_receivables.py"]
+markers = ["request_worker", "request_client", "request_contract", "express_read", "express_masters", "account_history", "folder_fetch", "express_receivables"]
 search = ["companion/src/**"]
 entries = ["cc.desktop.requests", "cc.desktop.places", "cc.desktop.operator"]
 
 [[part]]
 id = "cc-dbf-write"
 name = "CC 写 Express（dbf 写入路径）"
-paths = ["companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py", "companion/src/companion/dbf_detail.py", "companion/src/companion/pos_journal.py", "companion/src/companion/master_create.py", "companion/src/companion/product_master.py", "companion/src/companion/stock_purchase.py", "companion/src/companion/stock_sale.py", "companion/src/companion/write_verify.py", "companion/src/companion/account_write_lock.py", "companion/src/companion/purchase_adapter.py", "companion/src/companion/sales_adapter.py", "companion/src/companion/purchase_lines.py", "companion/src/companion/stock_location.py", "companion/src/companion/stock_guard.py", "companion/src/companion/dbf_stock.py", "companion/src/companion/dbf_void.py", "companion/src/companion/dbf_refund.py", "companion/src/companion/dbf_fields.py", "companion/src/companion/dbf_schema.py", "companion/src/companion/payload_contract.py", "companion/src/companion/unit_code.py", "companion/src/companion/write_result.py", "companion/src/companion/writer_id.py"]
-markers = ["dbf_writer", "dbf_sales", "dbf_detail", "pos_journal", "master_create", "product_master", "stock_purchase", "stock_sale", "write_verify", "account_write_lock", "purchase_lines", "stock_location", "stock_guard", "dbf_stock", "dbf_void", "dbf_refund"]
+paths = ["companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py", "companion/src/companion/dbf_detail.py", "companion/src/companion/pos_journal.py", "companion/src/companion/master_create.py", "companion/src/companion/product_master.py", "companion/src/companion/stock_purchase.py", "companion/src/companion/stock_sale.py", "companion/src/companion/write_verify.py", "companion/src/companion/account_write_lock.py", "companion/src/companion/purchase_adapter.py", "companion/src/companion/sales_adapter.py", "companion/src/companion/purchase_lines.py", "companion/src/companion/stock_location.py", "companion/src/companion/stock_guard.py", "companion/src/companion/dbf_stock.py", "companion/src/companion/dbf_void.py", "companion/src/companion/dbf_refund.py", "companion/src/companion/dbf_fields.py", "companion/src/companion/dbf_schema.py", "companion/src/companion/payload_contract.py", "companion/src/companion/unit_code.py", "companion/src/companion/write_result.py", "companion/src/companion/writer_id.py", "companion/src/companion/dbf_receipt.py", "companion/src/companion/payment_methods.py"]
+markers = ["dbf_writer", "dbf_sales", "dbf_detail", "pos_journal", "master_create", "product_master", "stock_purchase", "stock_sale", "write_verify", "account_write_lock", "purchase_lines", "stock_location", "stock_guard", "dbf_stock", "dbf_void", "dbf_refund", "dbf_receipt", "payment_methods"]
 search = ["companion/src/**"]
 entries = ["cc.desktop.write", "cc.desktop.operator", "cowork.cc.channel", "erp.cc.write", "erp.cc.stock-entry", "erp.cc.stock-void", "erp.cc.pos-day", "erp.cc.pos-refund", "erp.cc.stock-transfer"]
-not_entries = { "companion/src/companion/express_read.py" = "读路径只借用写入的字段常量，入口见 cc-request-worker", "companion/src/companion/express_masters.py" = "读主档只借用库存单单据簿的读法（dbf_stock.book_row，只读），入口见 cc-request-worker" }
+not_entries = { "companion/src/companion/express_read.py" = "读路径只借用写入的字段常量，入口见 cc-request-worker", "companion/src/companion/express_masters.py" = "读主档只借用库存单单据簿的读法（dbf_stock.book_row）与收款类型的科目解析（payment_methods.types），都只读，入口见 cc-request-worker" }
 
 [[part]]
 id = "cc-operator-target"
