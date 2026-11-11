@@ -16,9 +16,10 @@ from pearnly_core.write_precheck import preselect as p  # noqa: E402
 
 PACKAGE = ROOT / "apps/pearnly_core/pearnly_core/write_precheck"
 PRODUCTS = ("frappe", "pearnly_cowork", "pearnly_erp_portal", "pearnly_dms", "pearnly_control")
-SHARED = ("pearnly_core.write_precheck", "pearnly_core.express_rules")
+# tax_documents.amounts：票面金额与税号的共用纯函数（只依赖标准库）；复核卡的校验（`review.py`）照它算税号校验位与金额
+SHARED = ("pearnly_core.write_precheck", "pearnly_core.express_rules", "pearnly_core.tax_documents")
 FRAMEWORK_LAYER = ("api.py", "products.py")
-STDLIB = {"__future__", "collections", "hashlib", "inspect", "json", "typing", "unicodedata"}
+STDLIB = {"__future__", "collections", "datetime", "decimal", "hashlib", "inspect", "json", "typing", "unicodedata"}
 
 TARGET = {"connection": "C1", "connection_title": "Office", "account_set": "T9", "account_set_title": "2026"}
 
