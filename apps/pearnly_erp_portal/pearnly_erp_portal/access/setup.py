@@ -45,6 +45,12 @@ def sync_roles():
                 _grant("ERP Product Category", role, perms)
     # LINE 开关就是这个角色（团队管理逐人勾选），不带任何单据权限。
     _ensure_role(rules.LINE_ROLE)
+    # 收款（11-11）：收款员读自己的收款记录、能看收款的读本公司的（行由 `collection.access` 再按人与公司过滤）；写只走服务层
+    _ensure_role(rules.COLLECTOR_ROLE)
+    if frappe.db.exists("DocType", "ERP Collection"):
+        for role in (rules.COLLECTOR_ROLE, rules.ADMIN_ROLE, "ERP Sales", menu.role("sales")):
+            if frappe.db.exists("Role", role):
+                _grant("ERP Collection", role, {**read, "report": 1, "export": 1})
     from pearnly_erp_portal.access.sharing import remove_legacy_shares
 
     remove_legacy_shares()
@@ -56,7 +62,8 @@ def migrate_members():
     from pearnly_core.shell import entitlements
 
     features = set(entitlements())
-    legacy = set(rules.FEATURE_ROLES.values())
+    # 收款员不是旧的粗岗位（没有对应的菜单角色），迁移不摘它
+    legacy = set(rules.FEATURE_ROLES.values()) - {rules.COLLECTOR_ROLE}
     users = set(frappe.get_all("Has Role", filters={"role": ["in", list(legacy)], "parenttype": "User"}, pluck="parent"))
     for name in users:
         user = frappe.get_doc("User", name)

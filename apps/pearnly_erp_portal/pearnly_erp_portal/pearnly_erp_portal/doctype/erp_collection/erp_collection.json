@@ -1,0 +1,290 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-11-11 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "company",
+  "doc_date",
+  "collector",
+  "source",
+  "customer",
+  "customer_name",
+  "salesman",
+  "department",
+  "column_break_main",
+  "status",
+  "docnum",
+  "reason",
+  "book_label",
+  "confirmed_at",
+  "written_at",
+  "amounts_section",
+  "total",
+  "cash",
+  "transfer",
+  "discount",
+  "invoice_summary",
+  "method_summary",
+  "voucher_count",
+  "invoices",
+  "payments",
+  "book_key",
+  "draft_version",
+  "consent_ref",
+  "job",
+  "balances",
+  "withdrawn_by",
+  "withdrawn_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "ERP Company",
+   "reqd": 1,
+   "search_index": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "doc_date",
+   "fieldtype": "Date",
+   "label": "Collection Date",
+   "reqd": 1,
+   "search_index": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "collector",
+   "fieldtype": "Link",
+   "label": "Collector",
+   "options": "User",
+   "search_index": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "label": "Source",
+   "options": "line\ncc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Data",
+   "label": "Customer Code",
+   "length": 40,
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "label": "Customer Name",
+   "length": 200,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "salesman",
+   "fieldtype": "Data",
+   "label": "Sales Person",
+   "length": 20,
+   "read_only": 1
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Data",
+   "label": "Department",
+   "length": 20,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "draft\nqueued\nwriting\nwritten\nfailed\nwithdrawn",
+   "default": "draft",
+   "search_index": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "docnum",
+   "fieldtype": "Data",
+   "label": "Express No.",
+   "length": 40,
+   "read_only": 1
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "read_only": 1
+  },
+  {
+   "fieldname": "book_label",
+   "fieldtype": "Data",
+   "label": "Account Set",
+   "length": 140,
+   "read_only": 1
+  },
+  {
+   "fieldname": "confirmed_at",
+   "fieldtype": "Datetime",
+   "label": "Confirmed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "written_at",
+   "fieldtype": "Datetime",
+   "label": "Written",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amounts_section",
+   "fieldtype": "Section Break",
+   "label": "Amount"
+  },
+  {
+   "fieldname": "total",
+   "fieldtype": "Currency",
+   "label": "Total",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cash",
+   "fieldtype": "Currency",
+   "label": "Cash",
+   "read_only": 1
+  },
+  {
+   "fieldname": "transfer",
+   "fieldtype": "Currency",
+   "label": "Bank Transfer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount",
+   "fieldtype": "Currency",
+   "label": "Discount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "invoice_summary",
+   "fieldtype": "Small Text",
+   "label": "Invoices",
+   "read_only": 1
+  },
+  {
+   "fieldname": "method_summary",
+   "fieldtype": "Small Text",
+   "label": "Collection Method",
+   "read_only": 1
+  },
+  {
+   "fieldname": "voucher_count",
+   "fieldtype": "Int",
+   "label": "Attachments",
+   "read_only": 1
+  },
+  {
+   "fieldname": "invoices",
+   "fieldtype": "Table",
+   "label": "Invoices",
+   "options": "ERP Collection Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payments",
+   "fieldtype": "Table",
+   "label": "Payments",
+   "options": "ERP Collection Payment",
+   "read_only": 1
+  },
+  {
+   "fieldname": "book_key",
+   "fieldtype": "Data",
+   "label": "Account Set",
+   "length": 40,
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "draft_version",
+   "fieldtype": "Int",
+   "label": "Version",
+   "default": "1",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "consent_ref",
+   "fieldtype": "Data",
+   "label": "Reference",
+   "length": 140,
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "job",
+   "fieldtype": "Data",
+   "label": "Express Job",
+   "length": 140,
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "balances",
+   "fieldtype": "Long Text",
+   "label": "Outstanding",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "withdrawn_by",
+   "fieldtype": "Link",
+   "label": "Modified By",
+   "options": "User",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "withdrawn_at",
+   "fieldtype": "Datetime",
+   "label": "Modified On",
+   "hidden": 1,
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-11 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP Collection",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "autoname": "Prompt",
+ "naming_rule": "Set by user"
+}

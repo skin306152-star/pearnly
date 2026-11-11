@@ -198,6 +198,7 @@ By Payment Method,แยกตามวิธีรับเงิน
 By Warehouse,แยกคลัง
 By location,ตามตำแหน่ง
 By product,ตามสินค้า
+CC,CC
 CC Desktop could not read this invoice. Check the fields and submit again,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
@@ -310,6 +311,8 @@ Collection Date,วันที่รับเงิน
 Collection Method,วิธีรับเงิน
 Collection Remarks,หมายเหตุการรับเงิน
 Collection Status,สถานะการรับเงิน
+Collections,รับชำระหนี้
+Collector,พนักงานเก็บเงิน
 Color,สี
 Colour Tag,ป้ายสี
 Columns,คอลัมน์
@@ -1014,6 +1017,7 @@ Payment of {0} received successfully.,รับชำระ {0} แล้ว
 Payment of {0} received successfully. Waiting for other requests to complete...,รับชำระ {0} แล้ว กำลังรอคำขออื่นดำเนินการให้เสร็จ…
 Payments,การชำระเงิน
 Pending,รอดำเนินการ
+Pending write,รอบันทึก
 Period,ช่วงเวลา
 Person,บุคคล
 Phone,โทรศัพท์
@@ -1759,10 +1763,12 @@ Who can add and remove members,สิทธิ์จัดการสมาช�
 Who can comment,สิทธิ์แสดงความคิดเห็น
 Whole document taxed,คิดภาษีทั้งใบตามชุดบัญชี
 With differences,มีผลต่าง
+Withdrawn,ยกเลิกแล้ว
 Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Withholding Tax Certificate,หนังสือรับรองการหักภาษี ณ ที่จ่าย
 Withholding Tax Rate,อัตราภาษีหัก ณ ที่จ่าย
 Withholding Tax must be greater than zero,ยอดภาษีหัก ณ ที่จ่ายต้องมากกว่าศูนย์
+Writing,กำลังบันทึก
 Writing to Express failed and was undone. It is retried automatically,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Written,บันทึกแล้ว
 "Year, year-month or ALL, per the reset policy",ปี ปี-เดือน หรือ ALL ตามนโยบายการเริ่มเลขใหม่
@@ -1925,6 +1931,14 @@ count,ตรวจนับ
 discount applied,ใช้ส่วนลดแล้ว
 draft,ฉบับร่าง
 due,ครบกำหนด
+erp.collection.source.cc,CC
+erp.collection.source.line,LINE
+erp.collection.status.draft,ฉบับร่าง
+erp.collection.status.failed,ไม่สำเร็จ
+erp.collection.status.queued,รอบันทึก
+erp.collection.status.withdrawn,ยกเลิกแล้ว
+erp.collection.status.writing,กำลังบันทึก
+erp.collection.status.written,บันทึกแล้ว
 erp.company.notes,บันทึก
 erp.detail.amount,จำนวนเงินไม่ถูกต้อง
 erp.detail.discount,ส่วนลดเกินยอดรวม
@@ -1963,6 +1977,7 @@ erp.line.tag.newOut,ใหม่ · จ่ายออก
 erp.line.tag.none,ลงบัญชีอย่างเดียว
 erp.line.unbind,ยกเลิกการเชื่อมต่อ LINE
 erp.line.unbindConfirm,ต้องการยกเลิกการเชื่อมต่อ Pearnly ERP LINE ใช่หรือไม่
+erp.nav.collections,รับชำระหนี้
 erp.nav.work,จัดการงาน
 erp.trade.allLines,ทั้งหมด
 erp.work.activity.archive,{who} เก็บถาวรการ์ดนี้
@@ -2816,6 +2831,7 @@ team.notice.toggled,อัปเดตผู้ใช้ {0} คนแล้ว
 team.password,รหัสผ่านเริ่มต้น
 team.resetPassword,ตั้งรหัสผ่านใหม่
 team.role.cashier,แคชเชียร์
+team.role.collector,พนักงานเก็บเงิน
 team.role.products,สินค้า
 team.role.purchase,จัดซื้อ
 team.role.sales,ขาย
