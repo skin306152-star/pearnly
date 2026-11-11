@@ -2038,7 +2038,7 @@ g.setTimeout = realSetTimeout;
         self.assertNotIn("throw err", send)                 # 发送这一步不抛：组件库不接，抛了就是未捕获的错误
         self.assertIn("info = await store(attachment.id, attachment.file);", send)
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
-        self.assertIn("<SendFailure />\n            <ApprovalSheet />\n            <Composer />", thread)
+        self.assertIn("<SendFailure />\n            <ApprovalSheet />\n            <RecordQuickReply />\n            <Composer />", thread)
         failure = thread.split("const SendFailure: FC = () => {", 1)[1].split("\n};\n", 1)[0]
         self.assertIn('<div role="alert" data-slot="cc-send-failure" className={ERROR_BOX}>', failure)
         self.assertIn('const ERROR_BOX = "cc-alert";', thread)  # 同对话里出错那一行：统一的出错框（V12）
