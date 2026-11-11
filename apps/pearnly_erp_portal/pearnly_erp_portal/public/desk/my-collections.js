@@ -14,7 +14,7 @@
 		let list = null;
 
 		async function edit(name) {
-			const data = await p.call(api + "api_my_collection", {name});
+			const data = await p.call(api + "api_my_collection", {name}, "POST");
 			const card = data.card;
 			if (card.status !== "draft") {
 				frappe.msgprint({title: card.name, message: [card.customer_name, money(card.total), card.docnum
