@@ -131,6 +131,23 @@ lab-start 停下、域名没切——合入 main 后、新镜像上线前，谁�
 | `erp.cc.chat-push` / `erp.cc.stocktake` / `erp.cc.companies` / `cowork.cc-chat.push` / `cowork.assistant` / `control.assistant` / `shared.assistant` | offline / manual | 没测到（原因：因为命中 assistant 共用件被列出，这次 assistant 只改了附件上传的大小检查，这些入口的工具与页面没改） |
 | `shared.page-errors` / `shared.login` / `shared.team.members` / `shared.execution` / `erp.execution` / `shared.exports` / `erp.entry.choices` | manual | 没测到（原因：只因同文件里的调用方被列出，本次改动不经过这些路径） |
 
+### 11-11 补：新命中的共用件 line、cc-desktop、cc-request-worker（`check-impact.py`，被测 c2c03e97b）
+
+本轮改动：`pearnly_core/line.py` 只改 `download_message_content` 的缓冲（BytesIO，返回值仍是 bytes，上限判断不变）；
+`cc_desktop/wire/request_contracts.py` 与 CC 桌面版 `request_contract.py` 只把 `folder_fetch` 的 `MAX_BYTES` 由 30 改 40 MiB；
+ERP / Cowork LINE 收单显式传 40MB、超限回 `upload.tooLarge`。流程 `--changed` 7 条 24/24（实验栈 pearnly-cline-lab，含 cc.chat 四格）。
+
+| 入口 | 方式 | 结果 |
+|---|---|---|
+| `erp.line.chat`、`erp.line.item-questions`、`erp.line.intake.submit` | manual | 通过：测试机 + 三星真机（见上「真机记录」）：30MB 出卡片、按行追问点选生效，42MB 回「文件超过 40 MB」；卡片提交那一步没点（没改） |
+| `cowork.line.chat`、`cowork.line.item-questions` | manual | 离线通过（`tests/test_cowork_line_intake.py` 32 条：正好 40MB 存原件、多 1 字节带 / 不带 Content-Length 回 `upload.tooLarge`）；真机没测到（原因：这次只借了 ERP 栈，产品地图只要求 ERP 那一行，主会话按此批的） |
+| `erp.line.webhook-sim`、`cowork.line.webhook-sim`、`dms.line.webhook-sim` | auto | 没测到（原因：回复、推送、三个点、webhook 验签都没改；下载由上面两组测试经同一个 `download_message_content` 实跑） |
+| `dms.line.chat`、`dms.line.scheduled`、`dms.roster.line-oa` | manual | 离线通过：候选离线 107 组（生产镜像 5078ed47）里的 DMS LINE 运行时、首读、身份证读法各组；DMS 的上限照旧由调用方传（`out.download_image`），默认 20MB 不变 |
+| `erp.line.stocktake`、`erp.line.stocktake.liff-camera`、`cowork.line.stocktake.liff-camera`、`shared.desk.liff-boot`、`control.line.channel`、`erp.line.binding`、`cowork.line.binding` | manual / offline | 没测到（原因：盘点 LIFF、登录、频道保存、绑定都不经过下载函数；只因同在共用件 line 被列出） |
+| `cc.desktop.requests`、`cc.desktop.bridge` | manual | 离线通过：`test_companion_contract` 90 条（两边常量相等、等于对话附件上限）、`test_cowork_companion_requests`、CC 桌面版 `test_folder_fetch` / `test_request_worker` 28 条；实机没测到（原因：要 CC 桌面版 1.12.20 安装包，随下一版发；旧版按 30MB 回 `too_large`，服务端每件带 `max_bytes`） |
+| `cc.desktop.places`、`cc.desktop.operator`、`erp.cc.connect`、`erp.cc.write`、`erp.cc.masters`、`erp.cc.stock-void`、`cowork.cc.channel`、`erp.cc.companies`、`erp.cc.chat-push`、`cc.mrerp-login`、`erp.mrerp.direct`、`cowork.express.push`、`cowork.cc.mrerp-setup`、`cowork.execution`、`cowork.tax-documents` | manual / offline / auto | 没测到（原因：只因同文件 `request_contracts.py` 被列出；只动了 `folder_fetch` 一个大小常量，其余种类的上限、租约、通道没改；闸门与候选离线全过） |
+
+
 上线后要人做的一项（主会话 11-10 交给发布窗口）：在 testcowork 真登录，放一份约 38MB 的扫描 PDF，看能收下、能识别；再放一份约 42MB 的，看页面说「ไฟล์มีขนาดเกิน 40 MB」。部署回读里的不登录探测只证明请求体能过，不代替这一项。
 
 ## 生产
