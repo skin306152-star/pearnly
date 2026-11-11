@@ -1707,6 +1707,8 @@ class ToolAndDefinitionTests(unittest.TestCase):
                                             "pearnly_precheck_answer": "Saving push choices",
                                             "ask_user": "Waiting for answers",
                                             "pearnly_file_conversation": "Filing the conversation under a company",
+                                            "pearnly_write_plan": "Making a write plan",
+                                            "pearnly_write_start": "Starting to write",
                                             "p_read": "Reading it"})
         self.assertEqual((steps["done"]["p_read"], steps["done"]["p_plain"]), ("Read it", "Did it"))
         # 要点「允许」的工具：卡片上的问话（没写问话用步骤名）；点了拒绝的那一步照它写（第 8 轮）

@@ -97,11 +97,12 @@ def judge(params, results, camera_code=None):
         {"case": "资料那一步与站点这家这个月等着录的单一致", "seen": {**files, "site": params["docs"]},
          "ok": files.get("rows") == params["docs"] and params["ref"] in (files.get("text") or "")},
         # 原因按代码出文案（统一框架的卡片，operator-shared.ts 的 reasonText：push.result_unknown →「结果不明」），不再照抄站点那一句
-        {"case": "开始前卡片列出推送结果不明的那张：单号 · 对方、原因「结果不明」、「已入账」「没有入账」两个按钮", "seen": ask,
+        {"case": "开始前卡片列出推送结果不明的那张：单号 · 对方、原因「结果不明」、「已入账」「没有入账」两个按钮；卡上没有「开始」"
+                 "（11-11 一句话下令）", "seen": ask,
          "ok": bool(ask.get("shown")) and params["ref"] in text and "Flow seller" in text and "结果不明" in text
-         and ask.get("buttons") == ["已入账", "没有入账"] and bool(ask.get("start"))},
+         and ask.get("buttons") == ["已入账", "没有入账"] and not ask.get("start")},
         {"case": "点「没有入账」后卡片重新预检，这张不再列为结果不明、没有报错", "seen": resolved,
-         "ok": bool(resolved.get("gone")) and resolved.get("unknown") == 0 and not resolved.get("failure") and bool(resolved.get("start"))},
+         "ok": bool(resolved.get("gone")) and resolved.get("unknown") == 0 and not resolved.get("failure") and not resolved.get("start")},
         {"case": "删掉这段代录会话（连任务），列表里没有了", "seen": removed, "ok": bool(removed.get("ids")) and removed.get("left") is False},
     ]
 

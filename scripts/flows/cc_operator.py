@@ -5,8 +5,9 @@
 任务与会话一起删掉。
 
 模型调用换成实验室的假智能体服务（`scripts/flows/lab_agents.py`）：回复是「[lab-agent] + 用户原文前 40 个字」，断言的是收发与落库。
-网页上没有 CC 桌面版的桥：「开始」只截下交给站点的 start（核对点「开始」前先重取资料、交的单齐全），不真交单（录单在 CC 桌面版里，
-另有离线测试 `tests/test_cc_operator.py`、`tests/test_express_operator_feed.py` 与实机验收）。
+开始前卡片没有「开始」（11-11 一句话下令）：说一句让假智能体调写入计划，核计划按完整清单算、还没开始；网页上没有 CC 桌面版的桥，
+不真开始（三道保险在 `tests/test_write_plan.py`，录单在 CC 桌面版里，另有 `tests/test_cc_operator.py`、`tests/test_express_operator_feed.py`
+与实机验收）。
 """
 from __future__ import annotations
 
@@ -66,6 +67,7 @@ print(json.dumps({{"title": frappe.db.get_value("ERP Company", {company!r}, "com
 
 def steps(params, camera_code=None):
     title, line, company = params["title"], params["line"], params["company"]
+    plan_line = params["tag"] + " 录吧 [lab-tool]" + json.dumps({"name": "pearnly_write_plan", "input": {}}) + "[/lab-tool]"
     return [
         {"name": "切到代录", "js": JS + "const switched=await toMode('operator'); const ok=await until(()=>q('[data-slot=\"cc-chin-company\"]')); "
          "const before=(await listed('operator')).map(s=>s.id); "
@@ -89,7 +91,8 @@ def steps(params, camera_code=None):
          "return {picked, period, sent, got, indicator, after: qa('[data-slot=\"cc-run-indicator\"]').length, mode: mode(), "
          "user: qa('[data-role=\"user\"]').map(e=>e.innerText.trim()), assistant: qa('[data-role=\"assistant\"]').map(e=>e.innerText.trim().slice(0,120)), "
          "card, target: q('[data-slot=\"cc-op-target\"]')?.innerText.trim()||'', "
-         "start: !!q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-start\"]'), userAt, cardAt, lines, moreRows};"},
+         "start: !!q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-start\"]'), send: !!q('button.aui-composer-send'), "
+         "stop: !!q('button.aui-composer-cancel'), userAt, cardAt, lines, moreRows};"},
         {"name": "侧栏按模式", "js": JS + "const operator=await listed('operator'); const chat=await listed('chat'); "
          f"const mine=operator.filter(s=>s.project==={json.dumps(company)}&&s.mode==='operator'&&s.task); "
          "return {operator: operator.map(s=>({id:s.id, mode:s.mode, task:s.task, project:s.project, period:s.period, title:s.title})), "
@@ -102,17 +105,16 @@ def steps(params, camera_code=None):
          "await sleep(500); const docs=qa('[data-slot=\"cc-op-sources-list\"] [data-slot=\"cc-op-doc\"]'); "
          "return {opened, rows: docs.length, line: q('[data-slot=\"cc-op-sources\"] .cc-step-row')?.innerText.trim()||'', "
          "text: docs.map(e=>e.innerText).join('\\n').slice(0,3000)};"},
-        # 点「开始」前卡片再取一次资料（测试机 11-05：卡片出现后才上传、识别完的单，第一次点「开始」报「没有要处理的单据」）。
-        # 网页上没有执行电脑：只截下交给站点的 start（记下交的单、本页回一个空结果），不真交单，实验室的单据状态不变
-        {"name": "开始前重取", "js": JS + "const calls=[]; const orig=window.fetch; let body=null; "
-         "window.fetch=async(u,i={})=>{const m=(String(u).split('express_operator.api.')[1]||'').split('?')[0]; if(m) calls.push(m); "
-         "if(m==='start'){ body=JSON.parse(i.body||'{}'); return new Response(JSON.stringify({message:{batch:'flow',results:{}}}),"
-         "{status:200,headers:{'Content-Type':'application/json'}}); } return orig(u,i);}; "
-         "const b=q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-start\"]'); if(!b){window.fetch=orig; return {error:'no start'};} b.click(); "
-         "await until(()=>body,80); window.fetch=orig; "
-         "await until(()=>q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-ask-answer\"]'),40); "
-         "return {calls, ids: body?JSON.parse(body.doc_ids||'[]'):[], notice: q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-ask-failure\"]')?.innerText.trim()||'', "
-         "answer: q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-ask-answer\"]')?.innerText.trim()||''};"},
+        # 11-11 一句话下令：开始前卡片没有「开始」，用户在对话里说一句，CC 按服务端的写入计划复述、用户同意后才开始。实验室的假智能体
+        # 认 [lab-tool]，照真实引擎调 pearnly_write_plan，回一条「[lab-agent] pearnly_write_plan <工具结果原文>」；这里只建计划不开始
+        # （网页上没有执行电脑，开始的三道保险由离线测试 tests/test_write_plan.py 锁住）
+        {"name": "说一句建写入计划", "js": JS + f"const sent=await say({json.dumps(plan_line)}); "
+         "const bubble=await until(()=>qa('[data-role=\"assistant\"]').find(e=>e.innerText.includes('pearnly_write_plan {')),240); "
+         "const text=bubble?bubble.innerText:''; let plan=null; "
+         "try{ plan=JSON.parse(text.slice(text.indexOf('pearnly_write_plan {')+'pearnly_write_plan '.length)); }catch(e){} "
+         "await until(()=>!!q('button.aui-composer-send'),80); "
+         "return {sent, replied: !!bubble, status: plan&&plan.status, count: plan&&plan.count, skipped: plan&&plan.skipped_count, "
+         "plan: plan&&plan.plan, note: plan?String(plan.note||'').slice(0,80):'', send: !!q('button.aui-composer-send')};"},
         {"name": "删除", "js": JS + "const row=q('[data-slot=\"aui_thread-list-item\"][data-active=\"true\"]'); if(!row) return {error:'row missing'}; "
          "const text=row.innerText.trim(); row.dispatchEvent(new PointerEvent('pointerover',{bubbles:true})); "
          "const more=row.querySelector('[data-slot=\"aui_thread-list-item-more\"]'); if(!more) return {error:'no menu button'}; press(more); "
@@ -127,8 +129,8 @@ def steps(params, camera_code=None):
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
-    switch, made, side, files, removed, started = (by.get(k) or {} for k in ("切到代录", "选公司说一句", "侧栏按模式", "资料", "删除", "开始前重取"))
-    calls = started.get("calls") or []
+    switch, made, side, files, removed, planned = (by.get(k) or {} for k in ("切到代录", "选公司说一句", "侧栏按模式", "资料", "删除",
+                                                                            "说一句建写入计划"))
     new = [sid for sid in side.get("mine") or [] if sid not in (switch.get("before") or [])]
     row = next((s for s in side.get("operator") or [] if s["id"] in new), {})
     return [
@@ -141,8 +143,10 @@ def judge(params, results, camera_code=None):
          "seen": {"new": new, "row": row, "chat": len(side.get("chat") or []), "period": params["period"]},
          "ok": len(new) == 1 and row.get("mode") == "operator" and bool(row.get("task")) and row.get("period") == params["period"]
          and new[0] not in (side.get("chat") or []) and bool(side.get("active"))},
-        {"case": "代录事件源出「开始前」卡片：写入这家的 Express、有「开始」", "seen": {k: made.get(k) for k in ("card", "target", "start")},
-         "ok": bool(made.get("card")) and params["title"] in (made.get("target") or "") and bool(made.get("start"))},
+        {"case": "代录事件源出「开始前」卡片：写入这家的 Express；卡片上没有「开始」，不停着等人点，输入框是发送（11-11 一句话下令）",
+         "seen": {k: made.get(k) for k in ("card", "target", "start", "send", "stop")},
+         "ok": bool(made.get("card")) and params["title"] in (made.get("target") or "") and not made.get("start")
+         and bool(made.get("send")) and not made.get("stop")},
         {"case": "开始前卡片排在用户这句之后，逐张的行最多先列 5 行、其余收进「显示更多」（11-09：45 张逐行列出、卡片排在前面，用户的话和回复被挤出视口）",
          "seen": {k: made.get(k) for k in ("userAt", "cardAt", "lines", "moreRows")} | {"marked": len(params["marked"]), "site": params["docs"]},
          "ok": 0 <= int(made.get("userAt", -1)) < int(made.get("cardAt", -1))
@@ -150,10 +154,13 @@ def judge(params, results, camera_code=None):
         {"case": "资料那一步点开与站点这家这个月等着录的单一致（张数相同、单号逐张在列）", "seen": {**files, "site": params["docs"], "refs": params["refs"]},
          "ok": bool(files.get("opened")) and files.get("rows") == params["docs"]
          and all(ref in (files.get("text") or "") for ref in params["refs"])},
-        {"case": "点「开始」先重取资料与预检（卡片出现后才有的单也交上去），再交 start：交的单与站点这家这个月等着录的一样多，卡片定下、不报「没有要处理的单据」",
-         "seen": {**started, "site": params["docs"]},
-         "ok": "start" in calls and "documents" in calls[:calls.index("start")] and "precheck" in calls[:calls.index("start")]
-         and len(started.get("ids") or []) == params["docs"] and not started.get("notice") and bool(started.get("answer"))},
+        {"case": "说一句：CC 建写入计划，按服务端完整待录清单算（写的 + 跳过的 = 站点这家这个月等着录的），要先复述、等用户回话，"
+                 "还没开始；之后输入框照常是发送",
+         "seen": {**planned, "site": params["docs"]},
+         "ok": bool(planned.get("replied")) and planned.get("status") in ("awaiting", "nothing_to_write")
+         and int(planned.get("count") or 0) + int(planned.get("skipped") or 0) == params["docs"]
+         and (planned.get("status") == "nothing_to_write" or "say back" in (planned.get("note") or ""))
+         and bool(planned.get("send"))},
         {"case": "侧栏「···」删除：先问一次，确认后这一行消失、列表里也没有了", "seen": removed,
          "ok": bool(removed.get("asked")) and bool(removed.get("gone")) and bool(new) and new[0] not in (removed.get("listed") or [])},
     ]
@@ -178,11 +185,13 @@ from pearnly_core.express_operator import tasks
 print(json.dumps({{"tasks": frappe.db.count(tasks.DOCTYPE, {{"owner": {USER!r}}}),
                   "sessions": frappe.db.count("Pearnly Assistant Session", {{"user": {USER!r}}}),
                   "orphans": frappe.db.count("Pearnly Assistant Session", {{"user": {USER!r}, "operator_task": ["is", "set"],
-                                             "title": ["like", "%{params['tag']}%"]}})}}))
+                                             "title": ["like", "%{params['tag']}%"]}}),
+                  "plans": frappe.db.count("Pearnly Assistant Write Plan", {{"user": {USER!r}}})}}))
 """)
     return [
         {"case": "删除后任务记录回到流程前的条数（建过一条、连会话一起删掉了）", "saved": {"before": params["tasks"], "after": rows["tasks"]},
          "ok": rows["tasks"] == params["tasks"]},
         {"case": "代录会话随任务一起删掉", "saved": {"before": params["sessions"], "after": rows["sessions"], "tagged": rows["orphans"]},
          "ok": rows["sessions"] == params["sessions"] and rows["orphans"] == 0},
+        {"case": "写入计划随对话一起删掉", "saved": {"plans": rows["plans"]}, "ok": rows["plans"] == 0},
     ]

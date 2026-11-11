@@ -1,7 +1,7 @@
 // 开始前（方案 14.10，工具 operator_start，input {task, company, company_title, period}）：样子同「允许」卡片（operator-card.tsx）。
 // 用户 11-05：要人定的事（账套、对方档、科目……）都由 CC 先判定（write_precheck check）再用通用提问卡片 ask_user 一题一题问（ask-card.tsx）。
 // 用户 11-10（一句话下令，A 线 11-11）：卡片只做预选、看清、就地改，没有「开始」：写之前 CC 按服务端的写入计划一句话复述，用户在对话里
-// 同意后才开始（pearnly_core.assistant.write_plan）；「再录一次」也在对话里说。卡片没有结果时（任务还在准备）自己调代录接口取数：
+// 同意后才开始（共用层 assistant/write_plan.py）；「再录一次」也在对话里说。卡片没有结果时（任务还在准备）自己调代录接口取数：
 // 资料第一页（documents，服务端分页，「显示更多」再取）→ 预检（precheck：写入目标 B4，几份账套就列几份；结果不明的单）。
 // 主体只有不是选择题的两样：Express 登录没设置的一行〔设置〕（本页就在那台电脑上时）、上次推送结果不明的单〔已入账〕〔没有入账〕
 // （resolve 后再预检，防重复入账的流程锁）；卡里答的题只记下（remember）。交单结果（user.custom_tool_result {sent, not_sent[]}）到了，

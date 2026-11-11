@@ -449,6 +449,7 @@ user = "admin"
 datasets = ["new", "old"]
 viewports = ["desktop", "mobile"]
 covers = [
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
   "frontend/assistant/src/components/operator/*.ts",
   "frontend/assistant/src/components/operator/*.tsx",
   # 统一对话框架（11-04 U2）：代录会话里的卡片与步骤、工具登记、代录步骤名
