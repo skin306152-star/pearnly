@@ -80,8 +80,17 @@ def _company_ok(company, user=None) -> bool:
 def allowed(user, company) -> bool:
     """共用层三个接口（check / answer / search）先过的守卫：这家公司在本人可见公司里，且有任一类写账本单据的开单权（采购、销售、
     收银、出入库、盘点）。每张单另在 :func:`resolve_target` 按这类单据核。"""
+    if _collection().allowed(user, company):
+        return True  # 收款员在 CC 里录的收款也进写入计划（`collection.plan`，收款第 4 步）
     return bool(user) and user not in ("Guest",) and _company_ok(company, user) \
         and any(guard.has(capability, user) for capability in WRITE.values())
+
+
+def _collection():
+    """收款的判定（``R:`` 单号，`collection.plan`）。用到时才导入：收款域依赖本包，反过来不在导入时依赖。"""
+    from pearnly_erp_portal.collection import plan
+
+    return plan
 
 
 def resolve_target(company, doc_id):
@@ -466,8 +475,11 @@ def check(company, doc_ids) -> dict:
         return {"company_title": "", "documents": []}
     title = frappe.db.get_value(push.COMPANY, company, "company_name") or company
     linked, ledger_mrerp = push.enabled(company), mrerp_push.handles(company)  # MR.ERP 总开关关着时 handles 回假
-    documents = []
+    collections = _collection()
+    documents = collections.check(company, [doc_id for doc_id in doc_ids if collections.mine(doc_id)])["documents"]
     for doc_id in doc_ids:
+        if collections.mine(doc_id):
+            continue  # 收款（``R:``）：上面已判
         found = resolve_target(company, doc_id)
         if found is None:
             continue

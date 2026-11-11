@@ -455,7 +455,7 @@ name = "CC 对话（assistant）"
 paths = ["apps/pearnly_core/pearnly_core/assistant/**"]
 markers = ["pearnly_core.assistant", "pearnly_core import assistant", "pearnly_assistant_tools", "pearnly_assistant_guidance", "pearnly_assistant_step_names", "pearnly_assistant_projects"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["control.assistant", "shared.assistant", "cowork.assistant", "cc.assistant", "cc.operator.thread", "erp.cc.companies", "erp.cc.chat-push", "erp.cc.stocktake", "cowork.cc-chat.push", "cowork.cc.troubleshooting"]
+entries = ["control.assistant", "shared.assistant", "cowork.assistant", "cc.assistant", "cc.operator.thread", "erp.cc.companies", "erp.cc.chat-push", "erp.cc.stocktake", "cowork.cc-chat.push", "cowork.cc.troubleshooting", "erp.cc.collection"]
 not_entries = { "apps/pearnly_cowork/pearnly_cowork/companion/transport.py" = "CC 桌面版回执后在推送那段对话里补一句结论（push_followup，11-08 第 9 条），用户看到的入口是 cowork.cc-chat.push", "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py" = "电脑回报后在推送那段对话里补一句结论（push_followup，11-08 第 9 条），用户看到的入口是 erp.cc.chat-push", "apps/pearnly_erp_portal/pearnly_erp_portal/express/conversation.py" = "只读本对话账套（assistant.ledger.of_session / of_task、projects.of_session，A 线 11-12），交给写账准备；用户看到的入口是 erp.cc.chat-push 与 cc.operator.thread，由 test_cc_conversation_ledger_erp 守住" }
 
 [[part]]
@@ -2626,3 +2626,12 @@ steps = "离线：tests/test_erp_collection_line.py（各步、搜索多于 12�
 expect = "每步只认当前那一步；规则与权限都由 collection.service 判；放行只认卡片展示的版本；写成用回复给 RE 号，没写成先回待写入、结果推送给收款员本人"
 check = "offline"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection_cards.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/texts.py"]
+
+[[entry]]
+id = "erp.cc.collection"
+product = "ERP"
+where = "ERP 版 CC 对话里录收款（找客户、未收清发票、方式、建 / 改草稿、对话附件当转账凭证、按写入计划放行、结果、撤回；收款第 4 步）"
+steps = "离线：tests/test_erp_collection_cc.py（草稿 → pearnly_write_plan → 用户下一句 → pearnly_write_start → erp_collection_push；没有新用户消息不开始、复述后改过不写、停止后不放、代录会话不放、凭证来自附件、权限、撤回、结果）+ tests/test_erp_write_precheck.py（R: 单号交给收款判定、收款员可建计划）；真模型场景另批"
+expect = "工具只调 collection.service；放行只认已开始计划里的那张、按单号里的版本、同意 = 用户消息序号；写成回 RE 号，没写成回 queued"
+check = "offline"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/collection/cc_tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/plan.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py"]
