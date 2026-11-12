@@ -385,7 +385,7 @@ def take_controls(name) -> list:
 
 def _resubmit(doc, rows, answers=None) -> None:
     """把这几张按原批次号（任务号）交回产品、派给原来那台电脑；交上的转「排队」、任务回「等电脑空闲」，没交上的记原因。"""
-    batch = {"id": doc.name, "total": len(rows), "start_at": 0}
+    batch = {"id": doc.name, "total": len(rows), "start_at": 0, "task": doc.name}
     results = {str(r.get("doc_id")): r for r in products.submit(doc.company, [row.doc_id for row in rows], batch,
                                                                 doc.computer or "", answers or {})}
     for row in rows:
