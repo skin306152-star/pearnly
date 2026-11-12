@@ -86,6 +86,8 @@ def _is_pin(pin, connection, account_set_key) -> bool:
         pin["connection"], key_of(pin["key"]))
 
 
+is_pin = _is_pin  # 这条连接与账套是不是本对话账套（:func:`pinned` 的结果）
+
 def allowed(company=None) -> dict | None:
     """这次写入允许的账套：``{"company", "sets", "pairs"}``；对话没挂公司 ``{"company": "", "sets": [], "pairs": set()}``；
     没给 ``company`` 又不在 CC 对话里执行回 None（不限）。账套目录由 `companies.service` 的请求内缓存兜着，这里每次现算。"""
@@ -229,4 +231,4 @@ def keep(options, connection_of=None, company=None, task="") -> list | None:
 
 
 __all__ = ["LEDGER_NEEDED", "NOT_THIS_COMPANY", "NOT_THIS_LEDGER", "NO_COMPANY", "aim", "allowed", "check", "covering",
-           "keep", "key_of", "label_of", "needed", "pinned", "refusal", "this_company_options"]
+           "is_pin", "keep", "key_of", "label_of", "needed", "pinned", "refusal", "this_company_options"]
