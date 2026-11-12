@@ -7,7 +7,8 @@
 - `SCOPE = True`：对话可以再指定一个分店（5 位分店号，空 = 不指定，补充 甲.2）。
 - `LEDGER` / `ledgers`：本对话账套（共用层 `pearnly_core.assistant.ledger`，A 线 11-12）：这家（对话指定的分店）的账套，
   覆盖本月的按 `identity.covering`，多本时按记住的现用账套 / 可写优先（`current_book.pick`，同定时任务与自动推），恰好一本即默认；
-  一本都不覆盖用最新一本可写的（同原右栏兜底）。编号 = ``"<连接>|<账套键>"``（:func:`ledger_id` / :func:`ledger_parts`）。
+  一本都不覆盖用最新一本可写的（同原右栏兜底）。编号 = 账套与电脑无关的编号（`identity.book_id`，同 ERP 的 ``book_key``，
+  A 线 11-12）；11-12 以前存下的 ``"<连接>|<账套键>"``（:func:`ledger_id` / :func:`ledger_parts`）读时经 :func:`canonical_ledger` 映射。
 - `API` / `SECTIONS`：给页面的声明（共用层 `projects.listing` 原样转交）：公司接口的方法前缀，与 Cowork 有的全部分区
   （页面只出声明了的；`sections()` 按本人收窄：改名、删除只给管理员；ERP 声明自己的一份，见 `pearnly_erp_portal.masters.cc_projects`）。
 """
@@ -100,10 +101,41 @@ def ledgers(ref, period, work_scope, user) -> dict:
         chosen = (identity.writable_first(sets) or [None])[0]  # 一本都不覆盖：最新一本可写的
     marked = {id(item) for item in covering}
     ordered = covering + [item for item in sets if id(item) not in marked and item.get("writable") is not False]
-    options = [{"id": ledger_id(item.get("connection"), item.get("key")), "label": item.get("label") or item.get("key"),
+    options = [{"id": item["identity"], "label": item.get("label") or item.get("key"),
                 "covers": id(item) in marked} for item in ordered[:LEDGER_OPTIONS_MAX]]
-    return {"options": options,
-            "default": ledger_id(chosen.get("connection"), chosen.get("key")) if chosen else ""}
+    return {"options": options, "default": chosen["identity"] if chosen else ""}
+
+
+def book_of(ref, value, work_scope="") -> dict | None:
+    """本对话账套编号（新编号，或 11-12 以前存下的「连接|键」）→ 这家的那本账套（`service` 的样子，带 ``places``）；
+    不是这家的、认不出回 None。只读。"""
+    from pearnly_cowork.companies import service
+
+    text = str(value or "")
+    if not text or not service.exists(ref):
+        return None
+    sets = service.listed_books(service.get(ref), None)
+    branch = identity.scope_value(work_scope) or ""
+    sets = (identity.scoped(sets, branch) or sets) if branch else sets
+    connection, key = ledger_parts(text)
+    for item in sets:
+        if item["identity"] == text or (key and any(
+                place[0] == connection and _same_key(place[1], key) for place in item.get("places") or ())):
+            return item
+    return None
+
+
+def canonical_ledger(ref, value) -> str:
+    """共用层读本对话账套 / 写入计划时的映射（``canonical_ledger`` 钩子）：旧编号「连接|键」换成这本现在的编号，
+    认不出照原样（按失效处理，同账套从目录消失）。"""
+    found = book_of(ref, value)
+    return found["identity"] if found else str(value or "")
+
+
+def _same_key(left, right) -> bool:
+    from pearnly_core.express_rules.targets.identity import normalize_express_account_key as norm
+
+    return norm(left).casefold() == norm(right).casefold()
 
 
 def context(ref, period, work_scope, user) -> str:

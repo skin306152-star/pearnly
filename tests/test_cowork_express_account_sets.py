@@ -319,6 +319,9 @@ class Pool(Base):
         self.assertEqual(list(union()), [self.KEY])
         self.assertEqual(union()[self.KEY]["attributes"]["root"], r"\\srv\pas\2569\exp69")
         self.assertNotIn("uid", union()[self.KEY]["attributes"])  # 每台电脑自己的写法不进池目录
+        # 登记的文件号（账套的物理身份，哪台报都一样）以 book_uid 进目录：跨连接（两台电脑各配一条连接）时公司按它认成同一本
+        # （账套身份跨电脑，A 线 11-12）
+        self.assertEqual(union()[self.KEY]["attributes"]["book_uid"], "v1:0001")
         self.assertEqual(pool.local_paths("CONN", "CCD-B"), {self.KEY: r"Z:\2569\EXP69\BOOK"})
         self.assertEqual(pool.canonical("CONN", "CCD-A", r"s:\2569\exp69\book"), self.KEY)
         self.assertEqual(len(DB.rows(pool.ACCOUNT_SET)), 1)

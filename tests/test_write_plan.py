@@ -157,7 +157,9 @@ class WritePlanTests(unittest.TestCase):
         # 本对话账套（`assistant.ledger`）：``self.book`` 是此刻的（None = 产品没有）
         self.book = None
         assistant.ledger = types.SimpleNamespace(of_session=lambda session_id=None: self.book and {
-            "status": "set" if self.book[0] else "needed", "id": self.book[0], "label": self.book[1], "options": []})
+            "status": "set" if self.book[0] else "needed", "id": self.book[0], "label": self.book[1], "options": []},
+            same=lambda project, left, right: left == right or {left, right} <= self.same_book)
+        self.same_book = set()  # 同一本的新旧两种编号（账套身份跨电脑：旧「连接|键」读时映射）
         assistant.contracts = types.SimpleNamespace(REALTIME_EVENT="pearnly_assistant")
         express_operator = types.ModuleType("pearnly_core.express_operator")
         express_operator.api, express_operator.tasks = operator_api, tasks
@@ -336,6 +338,19 @@ class WritePlanTests(unittest.TestCase):
         self.book = ("", "")  # 改成了未定
         self.assertEqual(self.plan_module.permit(["D001", "D002"]), ([], {"D001": "ledger_changed", "D002": "ledger_changed"}))
         self.assertIn("ledger_changed", self.plan_module.PERMIT_NOTES)
+
+    def test_a_plan_with_the_old_id_of_the_same_book_still_pushes(self):
+        # 账套身份跨电脑（A 线 11-12）：计划记的是旧编号「连接|键」，此刻读出的是同一本的新编号 → 不判 ledger_changed
+        self.conversation(operator_task="")
+        self.book = ("EXP1|t8", "T.8")
+        out = self.plan(documents=["D001"])
+        self.turn[0] += 1
+        self.assertEqual(self.start(out["plan"])["status"], "started")
+        self.book = ("f0d9eb730fc68b32b827ebf17cd4422e3e4fc13b", "T.8")
+        self.same_book = {"EXP1|t8", "f0d9eb730fc68b32b827ebf17cd4422e3e4fc13b"}
+        self.assertEqual(self.plan_module.permit(["D001"]), (["D001"], {}))
+        self.same_book = set()  # 不是同一本：照旧判变了
+        self.assertEqual(self.plan_module.permit(["D001"]), ([], {"D001": "ledger_changed"}))
 
     def test_a_product_without_a_conversation_account_set_is_not_affected(self):
         out = self.plan()

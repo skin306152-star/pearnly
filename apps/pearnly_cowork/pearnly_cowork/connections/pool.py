@@ -45,6 +45,9 @@ _PER_COMPUTER = frozenset(("path", "root", "uid", "share", "writable"))
 # 第 3 期 E3），每天随整套重扫变，进目录会让目录天天出新版本；只给两份同期时的重问读（:func:`entered_of`）
 ENTRY_KEY = "entry_mark"
 _NOT_IN_CATALOG = frozenset((ENTRY_KEY,))
+# 登记的文件号（账套的物理身份，哪台电脑报都一样，不是某台的写法）在目录里的键：两台电脑各配一条连接时，公司主档按它把
+# 同一本认成一本（`companies.identity.book_id`，A 线 11-12）；没认出文件号的登记没有这一项
+BOOK_UID = "book_uid"
 _REACH_FIELDS = ("path", "root", "registry_row", "writable", "state", "uid", "share", "content_key", "details_json")
 
 Q_REGISTRATIONS = (f"SELECT name, account_key, root_key, path, root, label, attributes_json, uid, location, content_key, "
@@ -324,7 +327,8 @@ def listing(connection, *, lock=False):
     result = []
     for row in rows[:MAX_ACCOUNT_SETS]:
         attributes = {**(model.parse(row.attributes_json, {}) or {}), "path": row.path or row.account_key,
-                      "root": row.root or row.root_key, "writable": bool(writable[row.account_key])}
+                      "root": row.root or row.root_key, "writable": bool(writable[row.account_key]),
+                      BOOK_UID: row.uid}
         result.append({"source_id": row.account_key, "label": row.label or row.account_key,
                        "attributes": {key: value for key, value in attributes.items()
                                       if value not in (None, "") and key not in _NOT_IN_CATALOG}})
