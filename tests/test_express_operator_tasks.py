@@ -258,7 +258,7 @@ class TaskTests(unittest.TestCase):
         self.assertEqual([(d["state"], d["reason"]) for d in still["documents"]], [("queued", "waiting_for_cc"), ("saved", "")])
         self.tasks.products.submit = waiting  # 电脑读到了：交上
         moved = self.tasks.settle(made["name"])
-        self.assertEqual(self.submitted[-1][1:3], (["h1"], {"id": made["name"], "total": 1, "start_at": 0}))
+        self.assertEqual(self.submitted[-1][1:3], (["h1"], {"id": made["name"], "total": 1, "start_at": 0, "task": made["name"]}))
         self.assertEqual([(d["state"], d["reason"]) for d in moved["documents"]][0], ("queued", ""))
         self.statuses["h1"] = {"state": "saved", "docnum": "RR2"}
         self.assertEqual(self.tasks.settle(made["name"])["status"], "finished")
@@ -355,7 +355,7 @@ class TaskTests(unittest.TestCase):
             self.tasks.answer(name, "h1", [{"kind": "account", "subject": "x", "value": "1"}])  # 已入账的不再交
         choice = [{"kind": "supplier", "subject": "Siam", "value": "S001", "label": "Siam Co"}]
         out = self.tasks.answer(name, "h3", choice)
-        self.assertEqual(self.submitted, [("CO-1", ["h3"], {"id": name, "total": 1, "start_at": 0}, "CCD-1", {"h3": choice})])
+        self.assertEqual(self.submitted, [("CO-1", ["h3"], {"id": name, "total": 1, "start_at": 0, "task": name}, "CCD-1", {"h3": choice})])
         self.assertEqual((out["status"], out["documents"][2]["state"], out["finished_at"]), ("queued", "queued", ""))
 
     def test_starting_names_every_document_even_those_held_on_the_spot(self):
@@ -407,7 +407,7 @@ class TaskTests(unittest.TestCase):
         name = self._started()
         self.statuses = {"h1": {"state": "not_done", "reason": "[OPERATOR_STOPPED] stopped"}}
         out = self.tasks.answer(name, "h1", [])
-        self.assertEqual(self.submitted, [("CO-1", ["h1"], {"id": name, "total": 1, "start_at": 0}, "CCD-1", {"h1": []})])
+        self.assertEqual(self.submitted, [("CO-1", ["h1"], {"id": name, "total": 1, "start_at": 0, "task": name}, "CCD-1", {"h1": []})])
         self.assertEqual(out["documents"][0]["state"], "queued")
         self.statuses = {"h2": {"state": "not_done", "reason": "push.result_unknown"}}
         with self.assertRaises(_Throw):
@@ -427,7 +427,7 @@ class TaskTests(unittest.TestCase):
     def test_resume_hands_back_only_the_documents_the_batch_stop_left_undone(self):
         name = self._stopped_batch()
         out = self.tasks.resume(name)                              # 没收尾也先以站点为准收尾一次
-        self.assertEqual(self.submitted, [("CO-1", ["h1", "h2"], {"id": name, "total": 2, "start_at": 0}, "CCD-1", {})])
+        self.assertEqual(self.submitted, [("CO-1", ["h1", "h2"], {"id": name, "total": 2, "start_at": 0, "task": name}, "CCD-1", {})])
         self.assertEqual([(d["doc_id"], d["state"]) for d in out["documents"]],
                          [("h1", "queued"), ("h2", "queued"), ("h3", "not_done")])
         self.assertEqual((out["status"], out["finished_at"]), ("queued", ""))
