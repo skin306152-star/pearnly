@@ -15,6 +15,9 @@ MAX_ATTEMPTS = 3
 # 以前原因清空、放回即可再领：电脑一直连着领同一张，别的账套的单领不到，界面上也看不出在等什么（11-12）。
 EXPRESS_OPEN = "ACCOUNT_BUSY_LOCKED"
 EXPRESS_OPEN_REST_SECONDS = 30
+# 给人看的「在等 Express 关闭」算到上次回报之后多久：三个间隔。过了还没有新的回报（电脑关机、CC 掉线、Express 已关还没轮到）
+# 就不再说在等 Express，回到普通的排队中——这个标志只在读的时候算，不另存，所以不会留成陈旧状态。
+EXPRESS_OPEN_SHOWN_SECONDS = 90
 # 小助手回报的这些拒绝，重试多少次结论都一样（要人改票面、选对方档或核对账套）：直接转人工，不烧重试。
 # 有意变化（旧线上按普通失败重试 3 次；2026-09-28 压测：同税号两个客户档的票在列表上一直是「录入中」）。
 # 回报格式 `[错误码] 原始信息`（小助手 `queue_client._ack`）；老版本小助手没登记 outcome 的也按码认。
@@ -92,6 +95,13 @@ def _branch(branch):
 def express_open(status, reason) -> bool:
     """这条排队中的记录是不是在等 Express 关闭（``status`` 用各自账本的叫法：Cowork ``pending``、共用通道 ``queued``）。"""
     return status in ("pending", "queued") and reason == EXPRESS_OPEN
+
+
+def waiting_for_express(status, reason, since, moment) -> bool:
+    """给人看：这条排队中的记录此刻是不是在等 Express 关闭（``since`` = 电脑上次回报「Express 开着」的时刻）。"""
+    if not express_open(status, reason) or since is None or moment is None:
+        return False
+    return 0 <= (moment - since).total_seconds() < EXPRESS_OPEN_SHOWN_SECONDS
 
 
 def resting(reason, since, moment) -> bool:

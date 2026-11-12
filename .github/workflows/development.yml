@@ -242,7 +242,7 @@ jobs:
       - name: Verify the account-set register, reach and facts of a pool (identity rules, union directory, refresh hand-out, patch, full reports written in batches)
         run: python3 tests/test_cowork_express_account_sets.py
       - name: Verify Express write dispatch across computers (routing, lease v2, lock scheme v2, evidence v2, pool state)
-        run: python3 tests/test_cowork_express_dispatch.py && PYTHONPATH=apps/pearnly_cowork:apps/pearnly_core python3 tests/test_cowork_express_preflight.py && PYTHONPATH=apps/pearnly_cowork:apps/pearnly_core python3 tests/test_cowork_push_native_contract.py
+        run: python3 tests/test_cowork_express_dispatch.py && python3 tests/test_cowork_express_wait.py && PYTHONPATH=apps/pearnly_cowork:apps/pearnly_core python3 tests/test_cowork_express_preflight.py && PYTHONPATH=apps/pearnly_cowork:apps/pearnly_core python3 tests/test_cowork_push_native_contract.py
       - name: Verify MR.ERP operator jobs on the Cowork channel (constant off never looks, chosen computer only, account lease, redelivery, receipts; Express unchanged with it on)
         run: python3 tests/test_cowork_mrerp_operator_dispatch.py
       - name: Verify heartbeats keep masters per account set and never rewrite the connection every minute
