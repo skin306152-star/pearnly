@@ -18,6 +18,9 @@
 生产 `/opt/pearnly/secrets/runtime.env` 加 `PEARNLY_WSGI_APP=frappe.app:application`，按发布流程重新激活四个产品；
 读回 `docker inspect -f '{{json .Config.Cmd}}' <网页容器>` 末尾是 `frappe.app:application`。部署记录里照抄这一段。
 
+部署后核对（同 ADR-028「部署后核对项」）：四个网页容器入口是 `pearnly_core.web.wsgi:application`；**fatcc.com 登录后 CC 附件放一份、发出、下载回来**
+（实验栈没有这个站点，合入前没测到）；正式租户放一份大于 500KB 的附件能收下、Error Log 没有新报错。
+
 ## 验证（11-12，被测 0602842ca）
 
 - 先红后绿：`tests/test_web_multipart.py`（生产镜像里跑，8 条）、`tests/test_web_entry.py`（CI，4 条）在旧代码上都红（没有新入口）。
