@@ -59,6 +59,11 @@ Frappe 16.33.0 的 `frappe.app.make_form_dict` 在 `init_request` 里、任何�
 `docker inspect -f '{{json .Config.Cmd}}' <网页容器>` 末尾是 `frappe.app:application`。本机实验栈回退：`regression-lab.yml` 那一行换回 `bench serve --port $$p --noreload`。
 回退只让上传重新多占内存，不影响业务数据。
 
+**部署后核对项**（部署记录里与上面回退那段放在一起）：
+- 四个网页容器 `docker inspect -f '{{json .Config.Cmd}}'` 末尾是 `pearnly_core.web.wsgi:application`；
+- fatcc.com（智能体入口，control.assistant）登录后在 CC 对话里放一份附件、能发出、能下载回来——本机实验栈没有这个站点，合入前没测到；
+- 正式租户各放一份大于 500KB 的附件（CC 附件或录入），能收下；Error Log 没有新的 multipart / `get_data` 相关报错。
+
 ## 后果
 
 - 每份 40MB 上传在网页进程里少约 150MB 峰值、40MB 常驻；第 2 步（各上传接口不再把文件读成 bytes）另行交付。
