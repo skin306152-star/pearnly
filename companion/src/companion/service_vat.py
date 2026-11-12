@@ -30,6 +30,19 @@ PAYLOAD_KEY = "srv_vattyp"
 NO_HISTORY = "0"
 # 口径 2 的进项税借方：账套设置里的「未到期进项税」(ภาษีซื้อยังไม่ถึงกำหนด) 科目（原生 6,690 行挂这里，10-30）
 DEFERRED_VAT_SLOT = "ACCNUM28"  # 随供应商主档上报：读过、这家没有历史（没有这个键 = 旧版没读）
+# 销项口径 2 的税贷方：账套设置里的「未到期销项税」(ภาษีขายยังไม่ถึงกำหนด) 科目（11-12 晚 S 盘副本 136 套：税额 > 0 的口径 2 销项单
+# 4124 张税那一行贷 ACCNUM27、3 张贷 ACCNUM10；开单不写销项税记录 5095 / 46 张、单头 VATDAT 空 5141 / 5141；口径 1 对照：贷 ACCNUM10、写记录）
+DEFERRED_OUTPUT_VAT_SLOT = "ACCNUM27"
+
+
+def for_sale(payload, *, has_vat: bool, service: bool) -> str:
+    """一张销货单写进 Express 的 SRV_VATTYP：载荷表头 ``srv_vattyp`` 给了 2（收付实现）且这张单有税、有服务品 → 2；
+    其余照旧（有税 1、没税 -，同以前写死的值）。口径由服务端按客户档的 ``srv``（``customer_report``）定或在引导卡上问一次。"""
+    if not has_vat:
+        return NO_VAT
+    if service and chosen_value((payload or {}).get(PAYLOAD_KEY)) == CASH_BASIS:
+        return CASH_BASIS
+    return ACCRUAL
 
 
 def verdict(values: Iterable[str]) -> str:
