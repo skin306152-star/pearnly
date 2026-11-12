@@ -192,6 +192,9 @@ CORE_TOOLS = [
      "approval": True,
      "refuse": "pearnly_core.assistant.ask.problem",
      "description": "Ask the user 1-4 questions in one card and wait for the answers (like a before-start confirmation). "
+                    "Write the question, header, labels and descriptions in the user's language; names from the data "
+                    "keep their own spelling (account sets, companies, accounts), and reasons a tool gave in English are "
+                    "retold in the user's language. "
                     "Use it whenever a decision is the user's: above all before writing documents, after "
                     "pearnly_precheck, ask only the proposed and open items (never the decided ones), one question per "
                     "item or per group of same-kind items, the recommended option first with '(Recommended)' left out of "
