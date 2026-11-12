@@ -158,7 +158,8 @@ def _install():
         # 推送原因按用户语言给模型（真的 reason_text 要查翻译表，这里标出「翻过了」）
         "pearnly_cowork.push.export_facts": dict(reason_text=lambda reason: "said:" + reason),
         # 推送记录此刻是不是在等 Express 关闭（只读查询，另有 test_cowork_express_wait）：默认没有在等的
-        "pearnly_cowork.push.express_wait": dict(many=lambda names, moment=None: {}, CODE="ACCOUNT_BUSY_LOCKED"),
+        "pearnly_cowork.push.express_wait": dict(many=lambda names, moment=None: {}, CODE="ACCOUNT_BUSY_LOCKED",
+                                                 account=lambda connection, account_key, moment=None: False),
     }
     for name, attrs in leaf.items():
         module = types.ModuleType(name)
@@ -3367,6 +3368,41 @@ class ListAndRunsTests(unittest.TestCase):
         keys = ("defaults", "remind", "remind_times", "include_existing", "waiting", "waiting_partial")
         self.assertEqual({key: listed[key] for key in keys}, {key: task[key] for key in keys})
         self.assertNotIn("rule_owner", listed)
+
+    def test_a_task_with_documents_waiting_for_express_to_close_says_so_in_its_results(self):
+        # cowork_folder_tasks：任务还有在路上的票、而它写往的账套此刻在等 Express 关闭 → 结果里另带 waiting（现成那句）。
+        # 读的时候算（任务服务给的结果有缓存，不往里写）；同一连接同一账套只问一次；没有在路上的、MR.ERP 的不问；
+        # 其余字段（含任务上原有的 waiting：文件夹里还没处理的文件数）不变，不算进 attention
+        def task(name, moving, **more):
+            return {"name": name, "adapter": "express", "connection": "EXP1", "account_set_key": "S:\\69EXP\\69SINCER",
+                    "remind": 0, "waiting": 3, "results": {"entered": 4, "attention": 1, "moving": moving}, **more}
+
+        listed = [task("R1", 2), task("R2", 1, account_set_key="s:/69exp/69sincer/"), task("R3", 0),
+                  task("R4", 1, adapter="mrerp"), task("R5", 1, account_set_key="S:\\69EXP\\DEMO01"),
+                  task("R6", 1, account_set_key="S:\\69EXP\\DEMO01"), {"name": "R7", "remind": 0}]
+        listed[5]["results"]["account_sets"] = [{"account_set_key": "S:\\70EXP\\70SINCER", "account_label": "70", "tickets": 1}]
+        before = json.loads(json.dumps(listed))
+        asked = []
+
+        def account(connection, account_key, moment=None):
+            asked.append((connection, account_key))
+            return account_key in ("s:\\69exp\\69sincer", "s:\\70exp\\70sincer")
+
+        with mock.patch.object(sys.modules["pearnly_cowork.push.express_wait"], "account", account), \
+                mock.patch.object(tools.rules, "listing", lambda: {"rules": listed}):
+            out = {row["name"]: row for row in json.loads(tools.folder_tasks({}))["tasks"]}
+        self.assertEqual(asked, [("EXP1", "s:\\69exp\\69sincer"), ("EXP1", "s:\\69exp\\demo01"),
+                                 ("EXP1", "s:\\70exp\\70sincer")])
+        self.assertEqual({name: (row["results"] or {}).get("waiting") for name, row in out.items()},
+                         {"R1": "said:ACCOUNT_BUSY_LOCKED", "R2": "said:ACCOUNT_BUSY_LOCKED", "R3": None, "R4": None,
+                          "R5": None, "R6": "said:ACCOUNT_BUSY_LOCKED", "R7": None})
+        self.assertEqual(out["R1"]["results"], {"entered": 4, "attention": 1, "moving": 2,
+                                                "waiting": "said:ACCOUNT_BUSY_LOCKED"})
+        self.assertEqual((out["R1"]["waiting"], out["R3"]["results"]), (3, before[2]["results"]))
+        self.assertEqual(listed, before)   # 任务服务给的（缓存里的）结果不被改写
+        description = next(t for t in tools.TOOLS if t["name"] == "cowork_folder_tasks")["description"]
+        self.assertIn("results.waiting", description)
+        self.assertIn(tools.EXPRESS_WAIT_NOTE, description)
 
     def test_reminder_times_are_only_given_when_the_reminder_is_on(self):
         """2026-10-13 测试机：任务服务关着提醒也回生效的时刻（默认前一天 08:00、14:00），CC 把 remind=0 的任务说成
