@@ -32,9 +32,16 @@ def listing(archived=0, after=None, check=None, grouped=0, group=None):
                             grouped=frappe.utils.cint(grouped) == 1, group=group)
 
 
+# ledger：新建页选的本对话账套（ledger_options 列的那几本，不给照函数算）
 @frappe.whitelist(methods=["POST"])
-def create(project=None, period=None, scope=None):
-    return sessions.create(project=project or None, period=period or None, scope=scope or None)
+def create(project=None, period=None, scope=None, ledger=None):
+    return sessions.create(project=project or None, period=period or None, scope=scope or None, ledger=ledger or None)
+
+
+# 新建页（还没有会话）账套行：这家这个月（该分店）的 {default, options}（只读）
+@frappe.whitelist(methods=["GET"])
+def ledger_options(project, period=None, scope=None):
+    return sessions.ledger_options(project, period=period or None, scope=scope or None)
 
 
 # 改对话的处理月份、分店、本对话账套（ledger，右栏下拉）；project 是它现在的公司（不能换公司，见 `sessions.move`）
