@@ -189,8 +189,8 @@ const DETAIL = (company) => {
   const c = COMPANIES.find((x) => x.id === company) ?? COMPANIES[0];
   return {
     company: { id: c.id, title: c.title, legal_name: c.title, tax_id: c.subtitle, branch: "00000", adapter: "express", created_by: "test@example.com", created_at: iso(10000) },
-    account_sets: [{ connection: "CONN-1", adapter: "express", key: "SET1", label: "2569", year_label: "2569", writable: true, branch: "00000" }],
-    branches: [{ branch: "00000", label: "สำนักงานใหญ่", account_sets: [{ connection: "CONN-1", adapter: "express", key: "SET1", label: "2569", year_label: "2569", writable: true }] }],
+    account_sets: [{ connection: "CONN-1", adapter: "express", key: "SET1", label: "2569", year_label: "2569", writable: true, branch: "00000", covers: true }],
+    branches: [{ branch: "00000", label: "สำนักงานใหญ่", account_sets: [{ connection: "CONN-1", adapter: "express", key: "SET1", label: "2569", year_label: "2569", writable: true, covers: true }] }],
     period_set: { key: "SET1", label: "2569" },
     folders: [{ reader: "R1", device: "OFFICE-PC", label: "D:\\Docs\\Siam", state: "ok", month_folder: "09", mine: true }],
     notes: [{ id: "N1", text: "九月起改用新的银行账户", origin: "person", updated_by: "test", updated_at: iso(2000) }],
@@ -244,6 +244,9 @@ function method(name, q, unmocked) {
       case "session_files": return FILES[q.get("session_id")] ?? [];
       case "preview": return PREVIEWS[q.get("file_id")] ?? { type: "none" };
       case "push_key": return { key: "" };
+      // 右栏公司卡「ชุดบัญชี」：本对话账套与这家这个月可选的（一本名称很长，看窄屏截断）
+      case "ledgers": return { current: "CONN-1|SET1", options: [{ id: "CONN-1|SET1", label: "2569", covers: true },
+        { id: "CONN-1|SET1B", label: "2569 สำเนา สำนักงานใหญ่ ชุดบัญชีสำหรับทดสอบชื่อยาว", covers: true }] };
       case "upload": return { fileId: "file_img", filename: "photo.png", mountPath: "/mnt/session/uploads/photo.png", size_bytes: 123 };
       case "save_layout": case "notices_seen": case "confirm": case "send": case "interrupt": return {};
       default: break;
