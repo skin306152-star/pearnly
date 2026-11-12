@@ -531,6 +531,8 @@ covers = [
   "frontend/assistant/src/components/company-picker.tsx",
   "frontend/assistant/src/lib/companies.ts",
   "frontend/assistant/src/lib/company-panel.ts",
+  "frontend/assistant/src/lib/conversation-ledger.ts",
+  "frontend/assistant/src/components/period-chip.tsx",
   "apps/pearnly_core/pearnly_core/assistant/projects.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_companies.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py",
