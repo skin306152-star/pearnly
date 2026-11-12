@@ -12,6 +12,7 @@ from pearnly_core.cc_desktop.wire import ack_rules
 
 RECORD = "Cowork Push Record"
 CODE = ack_rules.EXPRESS_OPEN
+SHOWN = "express_open"  # 票的只读字段 ``push_waiting`` 的值：网页据此显示 ``intake.error.ACCOUNT_BUSY_LOCKED``
 
 
 def _now():
@@ -28,6 +29,17 @@ def many(names, moment=None) -> dict:
     moment = moment or _now()
     return {row["name"]: row["updated_at"] for row in rows
             if ack_rules.waiting_for_express(row["status"], row["reason"] or "", row["updated_at"], moment)}
+
+
+def mark(rows, moment=None):
+    """票的行（带 ``last_push_status`` / ``last_push_record``，录入列表的一页、详情的一张）：此刻在等 Express 关闭的多带只读的
+    ``push_waiting``；别的行不带。只问「录入中」的那几张、一次查完；票上存的状态与失败原因栏都不动。"""
+    pending = [row for row in rows or () if row.get("last_push_status") == "pending" and row.get("last_push_record")]
+    waiting = many([row.get("last_push_record") for row in pending], moment) if pending else {}
+    for row in pending:
+        if row.get("last_push_record") in waiting:
+            row["push_waiting"] = SHOWN
+    return rows
 
 
 def one(name, moment=None) -> bool:

@@ -51,6 +51,42 @@ class ExpressWait(unittest.TestCase):
         self.assertFalse(express_wait.one("", NOW))
         self.assertEqual(express_wait.many([], NOW), {})
 
+    def test_ticket_rows_get_a_read_only_mark_in_one_query(self):
+        # 录入列表 / 详情：票的行按 last_push_record 一次查完，在等的多带只读的 push_waiting；票的失败原因栏不动
+        asked = []
+        real = express_wait.frappe.get_all
+
+        def counted(*args, **kwargs):
+            asked.append(kwargs["filters"]["name"][1])
+            return real(*args, **kwargs)
+
+        rows = [{"name": "H1", "last_push_status": "pending", "last_push_record": "CWP-1", "last_push_reason": None},
+                {"name": "H2", "last_push_status": "pending", "last_push_record": "CWP-2"},      # 排队中、别的原因
+                {"name": "H3", "last_push_status": "manual", "last_push_record": "CWP-3", "last_push_reason": "X"},
+                {"name": "H4", "last_push_status": "pending", "last_push_record": "CWP-4"},      # 90 秒没再回报
+                {"name": "H5", "last_push_status": "success", "last_push_record": "CWP-1"},      # 票已不是录入中：不问
+                {"name": "H6", "last_push_status": "pending", "last_push_record": ""},
+                {"name": "H7"}]
+        express_wait.frappe.get_all = counted
+        try:
+            self.assertIs(express_wait.mark(rows, NOW), rows)
+        finally:
+            express_wait.frappe.get_all = real
+        self.assertEqual(asked, [["CWP-1", "CWP-2", "CWP-4"]])
+        self.assertEqual({row["name"]: row.get("push_waiting") for row in rows},
+                         {"H1": "express_open", "H2": None, "H3": None, "H4": None, "H5": None, "H6": None, "H7": None})
+        self.assertEqual((rows[0]["last_push_reason"], rows[2]["last_push_reason"]), (None, "X"))
+
+    def test_no_pending_rows_means_no_query(self):
+        real = express_wait.frappe.get_all
+        express_wait.frappe.get_all = lambda *a, **k: self.fail("queried")
+        try:
+            self.assertEqual(express_wait.mark([{"name": "H3", "last_push_status": "manual", "last_push_record": "CWP-3"}], NOW),
+                             [{"name": "H3", "last_push_status": "manual", "last_push_record": "CWP-3"}])
+            self.assertEqual(express_wait.mark([], NOW), [])
+        finally:
+            express_wait.frappe.get_all = real
+
     def test_per_account_set(self):
         self.assertTrue(express_wait.account("CONN", "s1", NOW))
         self.assertFalse(express_wait.account("CONN", "s2", NOW))
