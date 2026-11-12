@@ -339,7 +339,7 @@ def staff(first, run_department="", salesman=None, department=None, previous=Non
 
 
 def release_check(status, current_version, shown_version, consent) -> str:
-    """放行只认「确认卡展示的那个版本」+ 明确同意（LINE【确认】/ 打「ยืนยัน / 确认 / ok」、CC「录吧」）：回空串可以放行；
+    """放行只认「确认卡展示的那个版本」+ 明确同意（LINE【确认】/ 打「ยืนยัน / 确认 / ok」、CC「写入」）：回空串可以放行；
     不是草稿回 :data:`NOT_DRAFT`；没有同意事件回 :data:`CONSENT_MISSING`；版本对不上（卡片之后又改过）回 :data:`CHANGED`。"""
     if status != DRAFT:
         return NOT_DRAFT
