@@ -94,7 +94,11 @@ def probe_products(account_dir) -> Tuple[List[Dict[str, str]], int]:
 
 
 def probe_customers(account_dir) -> List[Dict[str, str]]:
-    """ARMAS → [{code,name,tax_id,branch}]。branch=ORGNUM 归一 5 位(0/空=总店 00000)。"""
+    """ARMAS → [{code,name,tax_id,branch}]。branch=ORGNUM 归一 5 位(0/空=总店 00000)。
+    每家另带 ``srv``:这家在本账套赊销单上的服务品销项税口径串(同 probe_suppliers,11-12 晚);ARTRN 读不了就不带。"""
+    from . import service_vat
+
+    known, read = service_vat.customer_report(account_dir)
     out: List[Dict[str, str]] = []
     for r in _iter_records(account_dir, "ARMAS"):
         code = _gv(r, "CUSCOD")
@@ -107,6 +111,7 @@ def probe_customers(account_dir) -> List[Dict[str, str]]:
                 "name": name,
                 "tax_id": _gv(r, "TAXID"),
                 "branch": S.orgnum_to_branch5(_gv(r, "ORGNUM")),
+                **({"srv": known.get(code) or service_vat.NO_HISTORY} if read else {}),
             }
         )
         if len(out) >= _MAX_CATALOG:

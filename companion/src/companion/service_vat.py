@@ -74,19 +74,25 @@ def basis(*, has_vat: bool, cash: bool, service: bool, supplier: str = "", book:
 
 
 # ── 读历史 ──────────────────────────────────────────────────────────────────
-_FIELDS = ("RECTYP", "SUPCOD", "FLGVAT", "SRV_VATTYP", "DOCSTAT", "USERID", "DOCNUM")
-_CREDIT = "3"
+_FIELDS = ("RECTYP", "SUPCOD", "CUSCOD", "FLGVAT", "SRV_VATTYP", "DOCSTAT", "USERID", "DOCNUM")
+_CREDIT = "3"  # 赊购单 / 赊销单（APTRN / ARTRN 的 RECTYP 同为 3）
+PURCHASE = ("APTRN", "SUPCOD")  # 进项：按供应商
+SALES = ("ARTRN", "CUSCOD")  # 销项：按客户（11-12 晚，同一套规则）
 _lock = threading.Lock()
-# 账套路径 → (表头签名, 已读行数, {供应商: {口径}})
+# 表的路径 → (表头签名, 已读行数, {对方: {口径}})
 _cache: Dict[str, Tuple[tuple, int, Dict[str, set]]] = {}
 
 
-def _aptrn(account_dir) -> Optional[Path]:
-    for cand in ("APTRN.DBF", "aptrn.dbf"):
+def _table(account_dir, name: str = "APTRN") -> Optional[Path]:
+    for cand in (f"{name}.DBF", f"{name.lower()}.dbf"):
         path = Path(account_dir) / cand
         if path.is_file():
             return path
     return None
+
+
+def _aptrn(account_dir) -> Optional[Path]:
+    return _table(account_dir, "APTRN")
 
 
 def _layout(head: bytes, f) -> Tuple[tuple, int, int, int, dict]:
@@ -105,8 +111,9 @@ def _layout(head: bytes, f) -> Tuple[tuple, int, int, int, dict]:
     return (hlen, rlen, tuple(sorted(fields.items()))), count, hlen, rlen, fields
 
 
-def _scan(f, start: int, count: int, hlen: int, rlen: int, fields: dict, found: Dict[str, set], ours=frozenset()) -> None:
-    if "SRV_VATTYP" not in fields or "SUPCOD" not in fields:
+def _scan(f, start: int, count: int, hlen: int, rlen: int, fields: dict, found: Dict[str, set], ours=frozenset(),
+          party: str = "SUPCOD") -> None:
+    if "SRV_VATTYP" not in fields or party not in fields:
         return
     chunk = 2000
     for first in range(start, count, chunk):
@@ -125,12 +132,14 @@ def _scan(f, start: int, count: int, hlen: int, rlen: int, fields: dict, found: 
             if (value not in VALUES or get("RECTYP") != _CREDIT or get("FLGVAT") not in ("1", "2")
                     or get("DOCSTAT") == "C" or get("USERID").upper() == PEARNLY_USERID or get("DOCNUM") in ours):
                 continue
-            found.setdefault(get("SUPCOD"), set()).add(value)
+            found.setdefault(get(party), set()).add(value)
 
 
-def history(account_dir) -> Dict[str, str]:
-    """{供应商代码: 口径串}（只含有历史的）。表不在、读不了回 {}（当作整本没有历史）。"""
-    path = _aptrn(account_dir)
+def history(account_dir, side: Tuple[str, str] = PURCHASE) -> Dict[str, str]:
+    """{对方代码: 口径串}（只含有历史的）。``side``：:data:`PURCHASE`（APTRN 赊购单，按供应商）或 :data:`SALES`（ARTRN 赊销单，
+    按客户）。表不在、读不了回 {}（当作整本没有历史）。"""
+    table, party = side
+    path = _table(account_dir, table)
     if path is None:
         return {}
     key = str(path)
@@ -145,7 +154,8 @@ def history(account_dir) -> Dict[str, str]:
             else:
                 start, found = 0, {}
             # CC 写的单不算历史：旧版单头录入人记 PEARNLY，11-07 起看凭证头的机器标记（只在有新行要读时扫凭证头）
-            _scan(f, start, count, hlen, rlen, fields, found, writer_id.cc_vouchers(account_dir) if start < count else frozenset())
+            _scan(f, start, count, hlen, rlen, fields, found, writer_id.cc_vouchers(account_dir) if start < count else frozenset(),
+                  party)
     except (OSError, struct.error, IndexError):
         return {}
     with _lock:
@@ -153,15 +163,20 @@ def history(account_dir) -> Dict[str, str]:
     return {code: verdict(values) for code, values in found.items()}
 
 
-def supplier_report(account_dir) -> Tuple[Dict[str, str], bool]:
-    """随供应商主档上报用：({代码: 口径串}, 读没读成)。"""
-    path = _aptrn(account_dir)
+def supplier_report(account_dir, side: Tuple[str, str] = PURCHASE) -> Tuple[Dict[str, str], bool]:
+    """随供应商（``side`` = :data:`SALES` 时客户）主档上报用：({代码: 口径串}, 读没读成)。"""
+    path = _table(account_dir, side[0])
     if path is None:
         return {}, True
     try:
-        return history(account_dir), True
+        return history(account_dir, side), True
     except Exception:  # noqa: BLE001 — 读坏了就不报这一项，服务端按旧版对待（不问，写时再定）
         return {}, False
+
+
+def customer_report(account_dir) -> Tuple[Dict[str, str], bool]:
+    """随客户主档上报：这家在本账套赊销单上的服务品销项税口径串（ARTRN.SRV_VATTYP 出现过的 1 / 2 并集；"0" = 没有历史）。"""
+    return supplier_report(account_dir, SALES)
 
 
 def for_purchase(account_dir, *, has_vat: bool, cash: bool, service: bool, supplier_code: str,
