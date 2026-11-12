@@ -1,11 +1,13 @@
 """流程用例：代录新建页先选账套再发第一句（测试机1 11-12：新建页没有账套行，第一句之前选不了，只能等 CC 问）。
 
 同 `cc_conversation_ledger.py` 的造数据（Cowork：一条 Express 连接，同一税号两本同期账套 T.8、T.9，都没记住现用的；一张识别好的进项票，
-付款与科目两本都记住了），只是票据日期放在任务那个月（2026-10-09），代录按这家这个月的待录清单建计划。
+付款与科目两本都记住了），只是票据日期放在任务那个月（2026-10-09）、票上记的去向是同期的 T.9（代录按这家这个月的待录清单建计划，
+清单按公司的账套列）。
 
 1. 切到代录，新建页（还没建会话）选这家（月份默认上个月 2026-10）：账套胶囊未定（两本同期），点开选 T.8，再说第一句 → 建出代录会话与
    任务，接口读回的本对话账套就是 T.8，不出提问卡。
-2. 说一句建写入计划（``pearnly_write_plan``，代录按任务这个月的待录清单）→ ready、这张票、目标 T.8，不出选账套的提问卡。
+2. 说一句建写入计划（``pearnly_write_plan``，代录按任务这个月的待录清单）→ ready、这张票、目标 T.8（票上原来是 T.9，改投），
+   不出选账套的提问卡。
    只建计划不开始（网页上没有执行电脑，开始与交单由离线测试锁住）。
 3. verify：库里这段代录会话的 ``project_ledger`` = T.8、挂着任务；计划记的账套是 T.8。cleanup 删会话（任务、计划随之删）与造的数据。
 不连 Express、不调模型。
@@ -36,6 +38,9 @@ def prepare(lab, manifest):
     ref = "FLOW-OL-" + uuid.uuid4().hex[:6].upper()
     out = lab.python(site, _mine(CLEANUP) + EXTRA_CLEANUP + OCTOBER_SEED + f"""
 name = recognized({ref!r})
+# 网页 / 识别时记成了同期的 T.9（代录按公司列待录清单，要有这家的去向）：代录会话的本对话账套是 T.8，计划照 T.8 写（改投）
+frappe.db.set_value("Cowork OCR History", name, {{"push_connection": conn["name"], "push_account_set": "FLOWT9"}})
+frappe.db.commit()
 print(json.dumps({{"company": company["id"], "title": company["title"], "doc": name, "connection": conn["name"]}}))
 """)
     tag = "ol" + uuid.uuid4().hex[:6]
@@ -54,7 +59,8 @@ def steps(params, camera_code=None):
          f"const sent=await say({json.dumps(params['open_line'])}); "
          f"const replied=await until(()=>replies().some(e=>e.innerText.includes('[lab-agent]')&&e.innerText.includes({json.dumps(params['tag'])})),240); "
          "await until(()=>!q('[data-slot=\"cc-run-indicator\"]'),80); "
-         f"const row=await until(async()=>(await listed('operator')).find(s=>s.project==={company}&&s.task),80); "
+         "let row=null; for(let k=0;k<40&&!row;k++){row=(await listed('operator')).find(s=>s.project==="+company+"&&s.task)||null; "
+         "if(!row) await sleep(500);} "
          "const session=(row&&row.id)||''; "
          "const read=session?((await call('pearnly_core.assistant.api.ledgers',{session_id:session}))||{}):{}; "
          "return {switched, mode: mode(), picked, chip_found, chip_before, chip_options, chip_after, sent, replied, session, "
