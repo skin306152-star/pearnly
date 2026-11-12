@@ -205,5 +205,76 @@ class OptionsTests(_Ledger):
         self.assertNotIn("account_set_remembered", stop)
 
 
+class PlanGateTests(_Ledger):
+    """写入只走计划下沉到推送入口（A 线 B）：CC 对话里直写（非代录）的每一张都要在本对话已开始的计划里，绕过推送工具的路
+    （判定卡 resume、选现用账套当场推）也拦得住；代录交单、网页、定时任务不经这里。"""
+
+    def setUp(self):
+        super().setUp()
+        self.planned = set()
+        refused = lambda name: {"document": name, "status": "not_pushed", "reason": "not_started", "note": "plan"}
+        patcher = mock.patch.object(tools.direct_push, "permitted", lambda names: (
+            [name for name in names if name in self.planned], [refused(name) for name in names if name not in self.planned]))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_a_direct_push_in_a_conversation_needs_a_started_plan(self):
+        out = tools._push_one("H1")
+        self.assertEqual((out["status"], out["reason"]), ("not_pushed", "not_started"))
+        self.assertEqual((self.submitted, self.failures), ([], []))  # 票上什么都不留
+        self.planned.add("H1")
+        tools._push_one("H1")
+        self.assertEqual(len(self.submitted), 1)
+
+    def test_operator_hand_in_and_pages_are_not_gated(self):
+        self.task_ledgers["TK1"] = dict(CHOSEN_T8)
+        tools._push_one("H1", operator={"company": "CO-T", "task": "TK1", "index": 1, "doc": "H1"})
+        self.assertEqual(len(self.submitted), 1)
+        frappe.local.pearnly_assistant = None  # 网页待处理 / 定时任务（票上有去向）
+        vars(self.doc).update(push_connection="EXP1", push_account_set=T8)
+        tools._push_one("H1")
+        self.assertEqual(len(self.submitted), 2)
+
+
+class CurrentBookTests(_Ledger):
+    """B2：在对话里选「现用账套」只记下选择（同组接着判），不当场推；推送交回计划。网页 / 复核页照旧当场推。"""
+
+    def setUp(self):
+        super().setUp()
+        self.pushed, self.remembered = [], []
+        pending = types.SimpleNamespace(account_set_stop=lambda row: True,
+                                        current_book_options=lambda row: [{"key": T8, "label": "T.8"},
+                                                                          {"key": T9, "label": "T.9"}])
+        pending_api = types.SimpleNamespace(
+            push_to_account_set=lambda name, key, posting_kind=None: self.pushed.append(key) or (
+                {"document": name, "status": "sent", "current_book": key}, {"document": name, "status": "sent"}),
+            remember_current_book=lambda doc, key: self.remembered.append(key) or {"current_book": key, "settled": 0})
+        self.doc = {"name": "H1", "push_connection": "EXP1", "push_account_set": T9, "last_push_status": "",
+                    "last_push_reason": "cowork.folder.account_set_ambiguous", "invoice_date": "2026-06-15"}
+        tools.storage.read = lambda name: self.doc
+        companies = types.SimpleNamespace(pending=pending, identity=sys.modules["pearnly_cowork.companies.identity"],
+                                          service=sys.modules["pearnly_cowork.companies.service"],
+                                          provider=sys.modules["pearnly_cowork.companies.provider"])
+        patches = [mock.patch.dict(sys.modules, {"pearnly_cowork.companies": companies,
+                                                 "pearnly_cowork.companies.pending": pending,
+                                                 "pearnly_cowork.assistant.pending_api": pending_api}),
+                   mock.patch.object(sys.modules["pearnly_cowork.assistant"], "pending_api", pending_api, create=True),
+                   mock.patch.object(tools.storage, "project", lambda doc: doc, create=True)]
+        for patcher in patches:
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_choosing_the_current_book_in_a_conversation_only_records_it(self):
+        out = json.loads(tools._choose_current_book("H1", T8))
+        self.assertEqual((out["status"], out["current_book"]), ("saved", T8))
+        self.assertEqual((self.remembered, self.pushed), ([T8], []))
+        self.assertIn("pearnly_write_plan", out["note"])
+
+    def test_outside_a_conversation_it_still_pushes_on_the_spot(self):
+        frappe.local.pearnly_assistant = None
+        json.loads(tools._choose_current_book("H1", T8))
+        self.assertEqual((self.remembered, self.pushed), ([], [T8]))
+
+
 if __name__ == "__main__":
     unittest.main()
