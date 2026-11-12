@@ -3037,6 +3037,22 @@ class ListAndRunsTests(unittest.TestCase):
         # 筛选按库里的原值，交给模型的是按用户语言翻好的那句（同网页与结果表格）
         self.assertEqual(out["documents"][0]["last_push_reason"], "said:choice_needed:account")
 
+    def test_a_choice_found_while_pushing_reaches_the_model_in_the_users_words(self):
+        """测试机1 11-12：推送时才发现要人选，回包原样给「choice_needed:account,party」，模型照着把码说给用户。交给模型的原因换成
+        用户语言的那句（同列单），要选的几类另给 choose；票上记的仍是原码（待处理页、代录按它认）。"""
+        stopped = {"document": "D1", "status": "needs_choice", "reason": "choice_needed:account,party"}
+        with mock.patch.object(tools, "_push_listed", lambda name, *a: dict(stopped)), \
+                mock.patch.object(tools.direct_push, "permitted", lambda names: (list(names), [])):
+            item = json.loads(tools.push_documents({"documents": ["D1"]}))["results"][0]
+        self.assertEqual((item["status"], item["reason"], item["choose"]),
+                         ("needs_choice", "said:choice_needed:account,party", ["account", "party"]))
+        # 已经是话的（MR.ERP 菜单要选、账套没选）不再翻
+        stopped.update(reason="account_set_not_chosen")
+        with mock.patch.object(tools, "_push_listed", lambda name, *a: dict(stopped)), \
+                mock.patch.object(tools.direct_push, "permitted", lambda names: (list(names), [])):
+            item = json.loads(tools.push_documents({"documents": ["D1"]}))["results"][0]
+        self.assertEqual((item["reason"], "choose" in item), ("account_set_not_chosen", False))
+
     def test_push_reasons_reach_the_model_in_the_users_words(self):
         # 存的是码或 10-12 前的旧英文原句（里面还是旧称）；交给模型前翻成用户语言，模型就不会照着说旧称
         frappe.rows[0]["last_push_reason"] = "push.companion_account_unreported"
