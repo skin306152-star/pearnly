@@ -941,6 +941,11 @@ class CompanyTests(unittest.TestCase):
         self.assertEqual(found["company"]["id"], made["id"])
         self.assertEqual(found["period_set"]["label"], "ABC 69")
         self.assertEqual([b["branch"] for b in found["branches"]], ["00000", "00012"])
+        # 「全部账套」的覆盖本月高亮由服务端标（A 线 11-12，页面不按日期现算）：账套行与分店分组里同一个标记
+        covering = {item["key"] for item in service.identity.covering(found["account_sets"], "2026-09")}
+        self.assertTrue(covering)
+        self.assertEqual({item["key"] for item in found["account_sets"] if item["covers"]}, covering)
+        self.assertEqual({item["key"] for b in found["branches"] for item in b["account_sets"] if item["covers"]}, covering)
         self.assertEqual((found["folders"][0]["month_folder"], found["folders"][0]["month_candidates"]),
                          ("ABC\\2569-09", []))
         self.assertFalse({"reported", "stored_label", "stored_device"} & set(found["folders"][0]))
