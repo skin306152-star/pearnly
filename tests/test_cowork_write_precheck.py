@@ -792,6 +792,15 @@ class SweepAndShared(unittest.TestCase):
                                                    "label": "ร้าน A", "remember": True}]})
             self.assertEqual((out["writable"], out["held"]), (["h1"], ["h2"]))  # 未定的科目没答：那张留下
             self.assertEqual(calls[2], ("resume", ["h1"]))
+            # B1（A 线 11-12）：CC 对话里 resume 只记答案、不推（推送一律走写入计划），回包告诉模型去建计划
+            calls.clear()
+            frappe.local = ns(pearnly_assistant={"session_id": "sesn_1"})
+            out = json.loads(api.tool_answer({"company": "CO1", "doc_ids": ["h1", "h2"], "resume": True,
+                                              "answers": [{"key": key["payment"], "value": "credit"}]}))
+            self.assertEqual([c[0] for c in calls if c[0] in ("remember", "resume")], ["remember"])
+            self.assertNotIn("results", out)
+            self.assertIn("pearnly_write_plan", out["note"])
+            frappe.local = ns()
             page = api.search("CO1", "h1", "accounts", "", start=20, page_length=5)
             self.assertEqual(([o["code"] for o in page["options"]], page["more"]), (["A20", "A21", "A22", "A23", "A24"], True))
             for bad in ({"search": "warehouses"}, {"page_length": 500}, {"start": "x"}, {"doc_id": ""}):
