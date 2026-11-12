@@ -65,7 +65,7 @@ def invoices(payload) -> dict:
         {"type": "text", "text": _("{0} selected · total {1}").format(len(payload.get("picked") or []),
                                                                        _money(_picked_total(payload))),
          "size": "sm", "weight": "bold", "color": ACCENT, "wrap": True},
-        _clean(_postback(_("Next"), _data("invoices", "done"), "primary"))]}
+        _clean(_postback(_("Next step"), _data("invoices", "done"), "primary"))]}
     bubbles = []
     for start in range(0, len(order), PER_BUBBLE):
         rows = [_invoice_row(docnum, payload) for docnum in order[start:start + PER_BUBBLE]]

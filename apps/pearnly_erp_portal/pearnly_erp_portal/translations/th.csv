@@ -576,6 +576,7 @@ Enter opening stock,บันทึกสต็อกยกมา
 Enter purchase details. Files are added as attachments only.,กรอกข้อมูลการซื้อด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Enter the amount for {0},พิมพ์จำนวนเงินของ {0}
 Enter the amount received,พิมพ์จำนวนเงินที่รับ
+Enter the discount amount,กรอกยอดส่วนลด
 Enter the sale by hand. Files are added as attachments only.,กรอกข้อมูลการขายด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Enter the user name,กรุณากรอกชื่อผู้ใช้
 Enter {0} amount,กรอกจำนวนเงิน {0}
@@ -731,6 +732,7 @@ Invalid value: {0},ค่าไม่ถูกต้อง: {0}
 Invoice,ใบแจ้งหนี้
 Invoice Amount,ยอดตามใบแจ้งหนี้
 Invoice Status,สถานะเอกสาร
+Invoices,ใบแจ้งหนี้
 Is Paid,ชำระแล้ว
 Is Reversal,กลับรายการ
 Is this company VAT registered,บริษัทนี้จดทะเบียนภาษีมูลค่าเพิ่มหรือไม่
@@ -886,6 +888,7 @@ New · In,ใหม่ · รับเข้า
 New · Out,ใหม่ · จ่ายออก
 Next,ถัดไป
 Next Number,เลขถัดไป
+Next step,ขั้นต่อไป
 No,ลำดับ
 No Express account set covers this date,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
 No MR.ERP import result was returned. Check in MR.ERP,ไม่ได้รับผลการนำเข้าจาก MR.ERP กรุณาตรวจสอบใน MR.ERP
