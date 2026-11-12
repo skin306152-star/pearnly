@@ -26,7 +26,17 @@ CODES = {
     contracts.SALESMAN_INVALID: "This salesman is not available",
     contracts.DEPARTMENT_INVALID: "This department is not available",
     "express.masters_reading": "Reading from Express",
+    # 账套、公司、客户（服务层与选账套规则的码；11-12 前这几种只说「Could not record this collection」）
+    "express.account_set_several": "Choose the account set",
+    "ledger_needed": "Choose the account set",
+    "express.company_tax_missing": "The company has no 13-digit tax ID",
+    "express.account_set_missing": "No Express account set covers this date",
+    "collection.company_not_linked": "This company does not use Express",
+    "collection.customer_not_found": "Customer not found",
+    contracts.INVOICES_TOO_MANY: "At most {0} invoices",
+    contracts.METHODS_TOO_MANY: "At most {0} collection methods",
 }
+LIMITS = {contracts.INVOICES_TOO_MANY: contracts.MAX_INVOICES, contracts.METHODS_TOO_MANY: contracts.MAX_METHODS}
 
 
 def money(value) -> str:
@@ -37,6 +47,8 @@ def explain(error) -> str:
     code, detail = getattr(error, "code", ""), getattr(error, "detail", {}) or {}
     if code == contracts.AMOUNT_MISMATCH:
         return _(CODES[code]).format(money(detail.get("paid")), money(detail.get("invoices")))
+    if code in LIMITS:
+        return _(CODES[code]).format(LIMITS[code])
     if code in CODES:
         return _(CODES[code])
     return _("Could not record this collection")

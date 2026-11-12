@@ -134,6 +134,8 @@ As Of,ณ วันที่
 Assign to,มอบหมายให้
 Assigned to me,มอบหมายให้ฉัน
 At most 5 photos per entry,บันทึกได้ไม่เกิน 5 รูปต่อรายการ
+At most {0} collection methods,ได้สูงสุด {0} วิธีรับชำระ
+At most {0} invoices,ได้สูงสุด {0} ใบแจ้งหนี้
 At most {0} photos per entry,หนึ่งเอกสารแนบรูปได้ไม่เกิน {0} รูป
 At time of due date,เมื่อถึงกำหนด
 Attach,แนบ
@@ -282,6 +284,7 @@ Choose file,เลือกไฟล์
 Choose invoices,เลือกใบแจ้งหนี้
 Choose purchase or sales first,กรุณาเลือก ซื้อ หรือ ขาย ก่อน
 Choose purchase or sales for this invoice and submit again,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
+Choose the account set,เลือกชุดบัญชี
 Choose the collection method,เลือกวิธีรับชำระ
 Choose the company,เลือกบริษัท
 Choose the customer,กรุณาเลือกลูกค้า
@@ -1610,6 +1613,7 @@ This code is already used by {0} ({1}),รหัสนี้ใช้กับ {
 This collection cannot be changed,แก้ไขรายการรับชำระนี้ไม่ได้
 This collection cannot be withdrawn,ถอนรายการรับชำระนี้ไม่ได้
 This collection method is not available,วิธีรับชำระนี้ใช้ไม่ได้
+This company does not use Express,บริษัทนี้ไม่ได้ใช้ Express
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้
 This computer cannot enter documents into Express,คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้
 This counter sells for this company; stock leaves its warehouse,จุดขายนี้ออกเอกสารขายในนามบริษัทนี้ และจ่ายสินค้าออกจากคลังสินค้าของบริษัทนี้

@@ -134,6 +134,8 @@ As Of,基準日
 Assign to,担当に追加
 Assigned to me,自分に割り当て
 At most 5 photos per entry,1記録につき写真は5枚までです
+At most {0} collection methods,入金方法は最大 {0} 件です
+At most {0} invoices,請求書は最大 {0} 件です
 At most {0} photos per entry,1 件あたり写真は最大 {0} 枚です
 At time of due date,期限時
 Attach,添付
@@ -282,6 +284,7 @@ Choose file,ファイルを選択
 Choose invoices,請求書を選択
 Choose purchase or sales first,先に仕入か売上を選んでください
 Choose purchase or sales for this invoice and submit again,この伝票が仕入か売上かを選んで再送信してください
+Choose the account set,会計データを選択
 Choose the collection method,入金方法を選択してください
 Choose the company,会社を選んでください
 Choose the customer,顧客を選んでください
@@ -1610,6 +1613,7 @@ This code is already used by {0} ({1}),このコードは {0} で使用されて
 This collection cannot be changed,この入金は変更できません
 This collection cannot be withdrawn,この入金は取り下げできません
 This collection method is not available,この入金方法は使えません
+This company does not use Express,この会社は Express を使用していません
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",この会社の倉庫です。複数追加できます。入出庫・棚卸・レジはすべてこの倉庫で記帳されます。
 This computer cannot enter documents into Express,このパソコンでは Express の代行入力ができません
 This counter sells for this company; stock leaves its warehouse,このレジはこの会社の販売を行い、その倉庫から在庫が出ます

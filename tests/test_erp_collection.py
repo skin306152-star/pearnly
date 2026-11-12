@@ -1122,5 +1122,20 @@ class Books(TwoBooks):
                          ({"IV1": "1000.00"}, ["TR"]))
 
 
+class Explained(unittest.TestCase):
+    def test_every_refusal_a_collector_can_meet_has_its_own_words(self):
+        # 11-12 前账套、公司、客户、张数上限这几种只说「Could not record this collection」
+        from pearnly_erp_portal.collection import texts
+
+        codes = [value for key, value in vars(C).items() if key.isupper() and isinstance(value, str)
+                 and value.startswith("collection.") and value != C.CONSENT_MISSING]
+        codes += [service.NO_COMPANY, service.NO_CUSTOMER, service.CC_UPDATE, service.VOUCHER_INVALID,
+                  service.LEDGER_NEEDED, "express.account_set_several", "express.company_tax_missing",
+                  "express.account_set_missing", "express.masters_reading"]
+        for code in codes:
+            self.assertNotEqual(texts.explain(C.CollectionError(code, {})), "Could not record this collection", code)
+        self.assertEqual(texts.explain(C.CollectionError(C.INVOICES_TOO_MANY)), "At most 50 invoices")
+
+
 if __name__ == "__main__":
     unittest.main()

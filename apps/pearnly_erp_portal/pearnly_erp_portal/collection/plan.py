@@ -9,6 +9,8 @@
   （`service.release` 再核一次），不按模型另给的版本。
 - **判定**：草稿、版本对得上、确认卡规则全过（凭证齐、发票余额此刻还够）→ 照写（没有要人定的项，``planned`` 带确认卡内容，内容
   一变摘要就变）；主档还在读 → 等电脑；其余 → 写不了并给原因码（`contracts` / `service` 的码）。
+- **本对话账套**（A 线 11-12）：在 CC 对话里判时，草稿冻结的账套要就是本对话账套；之后在右栏换了账套（或这笔是 LINE 录在别的账套里的），
+  写不了（``collection.book_not_conversation``）。账套里的发票各本各的，不改投。本对话账套未定回 ``ledger_needed``。
 - **权限**：只回本人的收款记录（别人的、别家公司的不回、不报存在与否，同单据）；要 ``collection.write``。
 """
 import frappe
@@ -56,6 +58,19 @@ def _planned(card) -> dict:
     return {key: card.get(key) for key in keep}
 
 
+def _other_book(company, book_key) -> str:
+    """在 CC 对话里：草稿的账套不是本对话账套回原因码，是（或不在对话里、对话挂的不是这家）回空串。"""
+    from pearnly_erp_portal.collection import service
+    from pearnly_erp_portal.express import conversation
+
+    pin = conversation.pinned({"name": company})
+    if not pin:
+        return ""
+    if not pin["key"]:
+        return service.LEDGER_NEEDED
+    return "" if pin["key"] == book_key else service.BOOK_NOT_CONVERSATION
+
+
 def view(company, value) -> dict | None:
     """一张收款的判定（`write_precheck.contracts.merge` 的输入）；不是本人这家公司的回 None。"""
     from pearnly_erp_portal.collection import service
@@ -77,6 +92,9 @@ def view(company, value) -> dict | None:
         return {**out, "state": NOT_WRITABLE, "reason": contracts.NOT_DRAFT}
     if card["version"] != version:
         return {**out, "state": NOT_WRITABLE, "reason": contracts.CHANGED}
+    other = _other_book(company, book_key)
+    if other:
+        return {**out, "state": NOT_WRITABLE, "reason": other}
     if not card.get("ready"):
         problem = card.get("problem") or contracts.CHANGED
         return {**out, "state": WAITING if problem == express_contracts.READING else NOT_WRITABLE, "reason": problem}
