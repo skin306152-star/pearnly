@@ -14,6 +14,7 @@ received, remaining}]}`` 落进快照表（一本账套一行一张发票）。
 每分钟 :func:`advance` 把读好的落库（缓存丢了也不要紧：下一次同一请求号发起时，读好没取的那件先落）。
 """
 import gzip
+import hashlib
 import json
 from datetime import timedelta
 
@@ -36,8 +37,12 @@ READY, READING, OFFLINE, OUTDATED, FAILED = "ready", "reading", "offline", "outd
 
 
 def request_key(book_key, customer=""):
+    """按客户读一次的请求号：客户编号可能是泰文、带空格（11-12 三星实测「นาย ทดสอบ」），共用通道的请求号只认字母数字，
+    所以放编号的摘要；编号原样在请求参数里交给电脑（`_params`）。"""
     customer = str(customer or "").strip()
-    return "erp_ar_open:" + str(book_key) + (":" + customer if customer else "")
+    if not customer:
+        return "erp_ar_open:" + str(book_key)
+    return "erp_ar_open:" + str(book_key) + ":c" + hashlib.sha1(customer.encode("utf-8")).hexdigest()[:16]
 
 
 def _params(book, customer=""):
