@@ -971,9 +971,15 @@ def send(session_id, text) -> dict:
         company = "\n\n".join(p for p in (company, operator_tasks.thread_note(row.operator_task)) if p)
     # 有调用挂着等后台结论（`waits`，例如识别还没完）：引擎这时只收工具结果，先把它按「还在做」交回，再发这条消息
     waits.quietly("Assistant wait release failed", waits.release, row.session_id)
-    # 提问卡、「允许 / 拒绝」卡挂着时用户直接打字发来（11-11 压测 S8a：这句发不出）：同上，先把卡交回——提问卡写明回答在
-    # 这条消息里，要「允许」的按拒绝、不执行（`toolrun.replied`）——再发这条消息
-    waits.quietly("Assistant card reply failed", toolrun.replied, row.session_id, remote)
+    # 提问卡、「允许 / 拒绝」卡挂着时用户没点卡片、直接打字发来（11-11 压测 S8a：这句发不出）：引擎停在等卡片结果时不收用户
+    # 消息，卡片结果和消息也不能同一批发；先交结果再发消息，模型会在两者之间多说一轮（11-12 真模型实测：重复回答、先问
+    # 一遍）。所以走已有的「先停这一轮、再说话」：结束引擎那一轮（不记成用户下令停止），卡片作废——没点「允许」的调用
+    # 不执行（`toolrun.cancel_waiting`）——再发这条消息，随它告诉模型卡片没答、这句就是回答
+    typed_instead = waits.quietly("Assistant card check failed", toolrun.waiting, row.session_id, default=False)
+    if typed_instead:
+        api.post(remote, [{"type": "user.interrupt"}])
+        frappe.db.commit()  # 作废开头要结束读快照：先提交这次请求已有的写入，不被回滚掉
+        waits.quietly("Assistant card cancel failed", toolrun.cancel_waiting, row.session_id)
     batch = [{"type": "user.message", "content": [{"type": "text", "text": text}]}]
     # 接续的前文、公司说明、还没带过的提醒、界面语言、当地日期时间合成一条系统消息：引擎规定每批最多一条、只能放在最后。
     # 界面语言每条都带（同标题一个来源，`toolrun.interface_language`）：CC 按它回复，不按消息里夹的外文专名猜；
@@ -982,7 +988,7 @@ def send(session_id, text) -> dict:
     spoken = contracts.message_language(text)
     toolrun.remember_turn_language(row.session_id, spoken)
     note = contracts.system_message(contracts.carry_text(row.get("pending_carry")), company,
-                                    contracts.notices_note(shown),
+                                    contracts.notices_note(shown), toolrun.TYPED_INSTEAD_NOTE if typed_instead else "",
                                     contracts.language_note(spoken or toolrun.interface_language(row.session_id)),
                                     contracts.now_note(frappe.utils.now_datetime(), frappe.utils.get_system_timezone()))
     if note:

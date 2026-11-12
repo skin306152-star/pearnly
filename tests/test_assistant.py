@@ -1575,7 +1575,7 @@ class RelayTests(unittest.TestCase):
         self.assertIn("segment_for_turn(row, api)", send)
         # 接续的前文与提醒合成批末唯一一条系统消息（引擎规定每批最多一条、只能放在最后）；行为见 NoticeTests
         self.assertIn('contracts.system_message(contracts.carry_text(row.get("pending_carry"))', send)
-        self.assertLess(send.index("batch.append(note)"), send.index("api.post("))
+        self.assertLess(send.index("batch.append(note)"), send.index("api.post(remote, batch)"))
         self.assertIn("sessions.segment_for_turn(row, api)", (CORE / "assistant/files.py").read_text(encoding="utf-8"))
 
 
@@ -6427,90 +6427,80 @@ class AskUserTests(unittest.TestCase):
         status, row, handed, _published, ran = self._decide(tool="p_write")
         self.assertEqual((status, len(ran), handed), ("done", 1, []))
 
-    def _replied(self, rows, user="owner@x.test"):
-        db, published, handed, ran = _AskDb(rows), [], [], []
-        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
-        with contextlib.ExitStack() as stack:
-            for patch in (mock.patch.object(toolrun.frappe, "db", db, create=True),
-                          mock.patch.object(toolrun.frappe, "QueryDeadlockError", _Deadlock, create=True),
-                          mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user=user), create=True),
-                          mock.patch.object(toolrun, "_", lambda text: text, create=True),
-                          mock.patch.object(toolrun, "_publish_run", lambda c, u, status, user=None: published.append((u, status))),
-                          mock.patch.object(toolrun, "_announce", lambda *a: None),
-                          mock.patch.object(toolrun, "_hand_back", lambda c, r, u, text, err: handed.append((u, text, err))),
-                          mock.patch.object(toolrun, "_finish", lambda *a: ran.append(a) or "done"),
-                          mock.patch.object(toolrun.tools, "run", lambda *a: ran.append(a) or ("{}", False))):
-                stack.enter_context(patch)
-            count = toolrun.replied("conv", "sesn")
-        return count, handed, published, ran
-
     def _waiting(self, name, tool, **more):
         return {"session_id": "conv", "tool_use_id": f"sevt_{name}", "user": "owner@x.test", "status": "awaiting_approval",
                 "version": 1, "tool": tool, "tool_input": json.dumps(self.QUESTIONS if tool == "ask_user" else {"doc": "h1"}),
                 **more}
 
-    def test_a_message_while_the_question_card_waits_hands_the_card_back_as_replied_in_words(self):
-        """11-11 压测 S8a：提问卡挂着时用户在输入框里打的话发不出。发消息时先把卡交回：每题没选、写明用户改用文字回答
-        （下一条用户消息就是回答），再送这句话（引擎停在等卡片结果时不收用户消息）。"""
-        rows = {"r1": self._waiting("r1", "ask_user")}
-        count, handed, published, ran = self._replied(rows)
-        self.assertEqual((count, rows["r1"]["status"], published, ran), (1, "done", [("sevt_r1", "done")], []))
-        result = json.loads(handed[0][1])
-        self.assertTrue(all(a.get("skipped") for a in result["answers"]))
-        self.assertIs(result["replied_in_message"], True)
-        self.assertIn("next message", result["instruction"])
-        self.assertEqual((handed[0][0], handed[0][2], rows["r1"]["result"]), ("sevt_r1", False, handed[0][1]))
-        # 页面照旧读得出这张卡（答过、各题跳过）
-        self.assertEqual(len(result["answers"]), 2)
+    def test_a_message_while_a_card_waits_ends_that_turn_and_cancels_the_card_before_it_is_sent(self):
+        """11-11 压测 S8a：提问卡挂着时用户在输入框里打的话发不出。引擎停在等卡片结果时不收用户消息；11-12 真模型实测：先交
+        卡片结果再发消息，模型在两者之间多说一轮（重复回答 / 先问一遍），结果和消息同一批发引擎不收。所以同「先点停止再
+        打字」：结束引擎那一轮、卡片作废、再发这条消息，随消息带一句说明。"""
+        body = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("\ndef send(", 1)[1].split("\ndef ", 1)[0]
+        steps = ["toolrun.waiting, row.session_id", 'api.post(remote, [{"type": "user.interrupt"}])', "frappe.db.commit()",
+                 "toolrun.cancel_waiting, row.session_id", "api.post(remote, batch)"]
+        at = [body.index(step) for step in steps]
+        self.assertEqual(at, sorted(at))
+        self.assertIn('toolrun.TYPED_INSTEAD_NOTE if typed_instead else ""', body)
+        # 主会话 11-12 硬要求：这条路任何情况下不能变成「允许」——发消息这一步不作答、不执行，只有作废
+        for word in ("toolrun.decide", "_finish", "tools.run", '"allow"'):
+            self.assertNotIn(word, body)
+        # 只结束模型这一轮（主会话 11-12）：不走「停止」那条路——不记成用户下令停止（写入计划按那个时刻判断「用户喊停」）、
+        # 不给代录任务发停止（电脑上正在录的任务不因此停下）
+        for word in ("_mark_stop", "_operator_stop", "push_control", "interrupt(", "last_stop_at"):
+            self.assertNotIn(word, body)
+        stop = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("\ndef interrupt(", 1)[1].split("\ndef ", 1)[0]
+        for word in ("_mark_stop", "_operator_stop"):
+            self.assertIn(word, stop)  # 这两样副作用只在用户点停止 / 说停时有
 
-    def test_a_message_while_an_allow_card_waits_denies_it_and_never_runs_the_tool(self):
-        """主会话 11-12 硬要求：允许 / 拒绝卡挂着时打字发送 = 拒绝，任何情况下不能变成「允许」；那次写账工具没有执行。"""
+    def test_cancelling_the_waiting_cards_never_runs_the_tool(self):
         rows = {"r1": self._waiting("r1", "cowork_push_documents"), "r2": self._waiting("r2", "ask_user"),
-                "r3": self._waiting("r3", "p_write", user="other@x.test"),
                 "r4": self._waiting("r4", "p_write", session_id="other-conv"),
                 "r5": self._waiting("r5", "p_write", status="running")}
-        count, handed, published, ran = self._replied(rows)
-        self.assertEqual(ran, [])  # 工具一次都没执行
-        self.assertEqual(count, 2)
-        self.assertEqual((rows["r1"]["status"], rows["r2"]["status"]), ("denied", "done"))
-        denied = json.loads(rows["r1"]["result"])
-        self.assertEqual(denied["status"], "denied")
-        self.assertEqual([u for u, _text, _err in handed], ["sevt_r1", "sevt_r2"])
-        self.assertIn(("sevt_r1", "denied"), published)
-        # 别人的、别的对话的、已经在执行的都不动
-        self.assertEqual([rows[n]["status"] for n in ("r3", "r4", "r5")], ["awaiting_approval", "awaiting_approval", "running"])
-        # 代码上钉住：这条路只调拒绝，不带 allow 变量
-        body = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8").split("\ndef replied(", 1)[1].split("\ndef ", 1)[0]
-        self.assertIn("decide(conversation, remote, run.tool_use_id, False, replied=True)", body)
-        self.assertNotIn("_finish", body)
-        self.assertNotIn("tools.run", body)
-
-    def test_nothing_waiting_hands_nothing_back(self):
-        rows = {"r1": self._waiting("r1", "ask_user", status="done")}
-        self.assertEqual(self._replied(rows), (0, [], [], []))
-
-    def test_nothing_waiting_leaves_the_send_request_transaction_alone(self):
-        # 实验栈 cc.operator（11-12）：代录会话第一句要先开远端会话，这些写入还没提交；没有卡片在等时这里一回滚，
-        # 远端会话就丢了、那句话没有回复。没有卡片：不提交也不回滚。有卡片：先提交再交回
+        db, published, handed, ran = _AskDb(rows), [], [], []
         toolrun = sys.modules["pearnly_core.assistant.toolrun"]
-        for rows, commits in (({"r1": self._waiting("r1", "ask_user", status="done")}, 0),
-                              ({"r1": self._waiting("r1", "ask_user", user="other@x.test")}, 0)):
+        with contextlib.ExitStack() as stack:
+            for patch in (mock.patch.object(toolrun.frappe, "db", db, create=True),
+                          mock.patch.object(toolrun.frappe, "QueryDeadlockError", _Deadlock, create=True),
+                          mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True),
+                          mock.patch.object(toolrun.frappe.utils, "now", lambda: "2026-11-12 00:00:00", create=True),
+                          mock.patch.object(toolrun, "_publish_run", lambda c, u, status, user=None: published.append((u, status))),
+                          mock.patch.object(toolrun, "_hand_back", lambda *a: handed.append(a)),
+                          mock.patch.object(toolrun.waits, "cancel", lambda conversation: 0),
+                          mock.patch.object(toolrun, "_finish", lambda *a: ran.append(a) or "done"),
+                          mock.patch.object(toolrun.tools, "run", lambda *a: ran.append(a) or ("{}", False))):
+                stack.enter_context(patch)
+            self.assertIs(toolrun.waiting("conv"), True)
+            self.assertEqual(toolrun.cancel_waiting("conv"), 2)
+            self.assertIs(toolrun.waiting("conv"), False)
+        self.assertEqual((ran, handed), ([], []))  # 工具一次都没执行，也不往引擎交结果（那一轮已被结束）
+        self.assertEqual([rows[n]["status"] for n in ("r1", "r2", "r4", "r5")],
+                         ["cancelled", "cancelled", "awaiting_approval", "running"])
+        self.assertEqual(sorted(published), [("sevt_r1", "cancelled"), ("sevt_r2", "cancelled")])
+        # 事后在旧卡片上点「允许」也不执行：只认还在等的
+        with contextlib.ExitStack() as stack:
+            for patch in (mock.patch.object(toolrun.frappe, "db", db, create=True),
+                          mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True),
+                          mock.patch.object(toolrun, "_finish", lambda *a: ran.append(a) or "done")):
+                stack.enter_context(patch)
+            self.assertEqual(toolrun.decide("conv", "sesn", "sevt_r1", True), "not_waiting")
+        self.assertEqual(ran, [])
+
+    def test_checking_for_waiting_cards_leaves_the_send_request_transaction_alone(self):
+        # 实验栈 cc.operator（11-12）：代录会话第一句要先开远端会话，这些写入还没提交；查有没有卡片在等时不提交也不回滚。
+        # 别人的卡片不算
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        for rows, expected in (({"r1": self._waiting("r1", "ask_user", status="done")}, False),
+                               ({"r1": self._waiting("r1", "ask_user", user="other@x.test")}, False),
+                               ({"r1": self._waiting("r1", "ask_user")}, True)):
             db = _AskDb(rows)
             seen = []
             db.commit = lambda: seen.append("commit")
             db.rollback = lambda: seen.append("rollback")
             with mock.patch.object(toolrun.frappe, "db", db, create=True), \
                     mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True):
-                self.assertEqual(toolrun.replied("conv", "sesn"), 0)
+                self.assertIs(toolrun.waiting("conv"), expected)
             self.assertEqual(seen, [])
-        body = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8").split("\ndef replied(", 1)[1].split("\ndef ", 1)[0]
-        self.assertLess(body.index("if not runs:"), body.index("frappe.db.commit()"))
-        self.assertNotIn("frappe.db.rollback()", body)
-
-    def test_send_settles_waiting_cards_before_the_message(self):
-        body = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("\ndef send(", 1)[1].split("\ndef ", 1)[0]
-        self.assertIn("toolrun.replied, row.session_id, remote", body)
-        self.assertLess(body.index("toolrun.replied"), body.index("api.post(remote, batch)"))
 
     def test_confirm_carries_the_answers_to_decide(self):
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")

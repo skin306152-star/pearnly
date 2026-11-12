@@ -1758,7 +1758,7 @@ covers = [
 
 [[flow]]
 id = "cowork.cc.send-unblocked"
-title = "Cowork CC 输入框不被挂着的东西挡住：超限 / 空文件选中时拒收不留失败卡、没超限的照常发出；提问卡、允许卡挂着时打字当场发出，站点先把卡交回（允许卡 = 拒绝、不执行）（11-11 发布核查与压测 S8a）"
+title = "Cowork CC 输入框不被挂着的东西挡住：超限 / 空文件选中时拒收不留失败卡、没超限的照常发出；提问卡、允许卡挂着时打字当场发出，站点先结束那一轮、卡片作废（不执行）（11-11 发布核查与压测 S8a）"
 module = "scripts/flows/cc_send_unblocked.py"
 product = "cowork"
 start = "/assistant"

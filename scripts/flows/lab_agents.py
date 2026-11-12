@@ -388,11 +388,12 @@ def receive(state: dict, events: list) -> list:
             if kind == "user.interrupt":
                 state["_pending"].clear()
                 state["_cut"] = True
+                state["_asked"] = None  # 照真实引擎：停在等工具结果时被打断，那一轮结束，之后照常收用户消息
                 publish(state, event)
                 set_status(state, "idle")
             elif kind == "user.message" and state.get("_asked"):
                 # 照真实引擎：停在等工具结果时只收结果 / 打断，用户消息 400。提问卡 ask_user 同样（11-12 起：卡片挂着时用户
-                # 直接打字，站点先把卡交回再送这条，流程 `cc.send-unblocked` 量的就是这个顺序）
+                # 直接打字，站点先结束那一轮（user.interrupt）再送这条，流程 `cc.send-unblocked` 量的就是这个顺序）
                 raise bad_request("session is waiting on a tool result; only settle events are accepted")
             elif kind == "user.message":
                 set_status(state, "running")

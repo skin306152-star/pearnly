@@ -5,10 +5,10 @@
 1. 永远传不上的文件（超限、空文件、不收的类型）选中那一刻就拒收：不进输入框、没有附件卡，输入框上方那一行说「文件超过 40 MB」；同一次选的另一份没超限的照常
    加入并传上。接着打一句发送，发得出去、带着那份没超限的。以前超限的留一张失败卡，发送时重传必败、整条发不出，不删卡就永远发不出。
    空文件同样拒收。
-2. 提问卡 ask_user 挂着时在输入框里打字发送：当场发出（不排队），站点先把卡交回（每题没选、写明回答在下一条消息里）再送这句，
-   假智能体先回它收到的卡片结果、再回这一句；卡片变成答过的样子。以前这句排着等这一轮结束，而这一轮正等用户答卡，永远发不出。
-3. 「允许 / 拒绝」卡挂着时打字发送：同上，那张卡按拒绝交回，工具没有执行（假智能体收到的结果是 denied，站点执行记录是 denied，
-   公司备注里没有那一句）。这条路任何情况下不能变成「允许」。
+2. 提问卡 ask_user 挂着时在输入框里打字发送：当场发出（不排队），站点先结束引擎等卡片的那一轮、卡片作废，再送这句（随它告诉
+   模型卡片没答、这句就是回答），CC 只回这一句；卡片变成「已取消」。以前这句排着等这一轮结束，而这一轮正等用户答卡，永远发不出。
+3. 「允许 / 拒绝」卡挂着时打字发送：同上，那张卡作废，工具没有执行（站点执行记录是 cancelled，没有执行过）。这条路任何情况下
+   不能变成「允许」。
 
 4. 一时传不上的附件（断网）照旧（10-17「不静默丢附件」）：进了输入框的附件留一张失败卡，卡上看得出是哪份文件、为什么；带着它
    点发送整条不发、字放回输入框、上方写原因；点卡上的 × 移除后发得出去。
@@ -23,7 +23,7 @@ import uuid
 
 from cc_lib import JS
 
-TITLE = "CC 输入框不被挂着的东西挡住：超限文件选中时拒收不留失败卡；提问卡、允许卡挂着时打字当场发出，卡先交回（允许卡 = 拒绝、不执行）"
+TITLE = "CC 输入框不被挂着的东西挡住：超限文件选中时拒收不留失败卡；提问卡、允许卡挂着时打字当场发出，站点先结束那一轮、卡片作废（不执行）"
 READY = "document.readyState === 'complete' && !!document.querySelector('textarea[aria-label]')"
 NOTE_TOOL = {"cowork": "cowork_company_note_save", "erp": "erp_company_note_save"}
 QUESTIONS = {"questions": [
@@ -90,12 +90,11 @@ def steps(params, camera_code=None):
          "const before=state(); "
          f"const clicked=await type({json.dumps(words['ask'])}); await sleep(600); const queued=state().queue; "
          f"const bubble=await until(()=>has(state().users,{json.dumps(words['ask'])}),80); "
-         "const handed=await until(()=>has(state().replies,'[lab-agent] ask_user')&&has(state().replies,'replied_in_message'),240); "
          f"const replied=await until(()=>has(state().replies,{reply(words['ask'])}),240); "
-         "const settled=await until(()=>!q('[data-slot=\"cc-askq-next\"]')&&!!q('[data-slot=\"cc-ask-answer\"]'),80); "
+         "const settled=await until(()=>!q('[data-slot=\"cc-askq-next\"]'),80); "
          "const idle=await until(()=>!q('button.aui-composer-cancel'),80); "
          "q('[data-slot=\"cc-ask-answer\"]')?.scrollIntoView({block:'center'}); await sleep(400); "
-         "return {asked, card, before, clicked, queued, bubble, handed, replied, settled, idle, after: state(), "
+         "return {asked, card, before, clicked, queued, bubble, replied, settled, idle, after: state(), "
          "answer: q('[data-slot=\"cc-ask-answer\"]')?.innerText.trim()||''};"},
         open_new,
         {"name": "允许卡挂着时打字发送", "shot": True, "file": "4-typed-while-allow-card-waits", "js": head +
@@ -105,12 +104,11 @@ def steps(params, camera_code=None):
          "const before=state(); "
          f"const clicked=await type({json.dumps(words['gate'])}); await sleep(600); const queued=state().queue; "
          f"const bubble=await until(()=>has(state().users,{json.dumps(words['gate'])}),80); "
-         f"const handed=await until(()=>has(state().replies,{json.dumps('[lab-agent] ' + NOTE_TOOL[params['product']])}),240); "
          f"const replied=await until(()=>has(state().replies,{reply(words['gate'])}),240); "
          "const settled=await until(()=>buttons().length===0,80); "
          "const idle=await until(()=>!q('button.aui-composer-cancel'),80); "
          "q('[data-slot=\"cc-ask-answer\"]')?.scrollIntoView({block:'center'}); await sleep(400); "
-         "return {asked, card, before, clicked, queued, bubble, handed, replied, settled, idle, after: state(), "
+         "return {asked, card, before, clicked, queued, bubble, replied, settled, idle, after: state(), "
          "answer: qa('[data-slot=\"cc-ask-answer\"]').map(e=>e.innerText.trim())};"},
         open_new,
         {"name": "一时传不上的附件", "shot": True, "file": "5-upload-failed-card", "js": head +
@@ -145,8 +143,7 @@ def judge(params, results, camera_code=None):
     refused, mixed = picked.get("refused") or {}, picked.get("mixed") or {}
     words = params["words"]
     limit = str(int(picked.get("max") or 0) // (1024 * 1024))
-    ask_reply = next((r for r in (asked.get("after") or {}).get("replies") or [] if "[lab-agent] ask_user" in r), "")
-    gate_reply = next((r for r in (gated.get("after") or {}).get("replies") or [] if NOTE_TOOL[params["product"]] in r), "")
+    replies = lambda step: [r for r in (step.get("after") or {}).get("replies") or [] if "[lab-agent]" in r]  # noqa: E731
     return [
         {"case": "超限、空文件、不收的类型选中时拒收：没有附件卡，输入框上方那一行各说各的原因（超限的带上限 MB 数），没有因此建会话", "seen": picked,
          "ok": refused.get("cards") == 0 and picked.get("sessions") == 0 and limit != "0" and limit in (refused.get("big") or "")
@@ -160,16 +157,15 @@ def judge(params, results, camera_code=None):
          and (sent.get("after") or {}).get("cards") == 0},
         {"case": "提问卡挂着时打字点发送：当场发出、不排队，气泡出现", "seen": {k: asked.get(k) for k in ("asked", "card", "clicked", "queued", "bubble", "before")},
          "ok": bool(asked.get("card")) and bool(asked.get("clicked")) and asked.get("queued") == 0 and bool(asked.get("bubble"))},
-        {"case": "站点先把提问卡交回（每题没选、写明回答在下一条消息里）再送这句：CC 先收到卡片结果、再回这一句；卡片变成答过的样子、这一轮结束",
-         "seen": {"reply": ask_reply[:400], **{k: asked.get(k) for k in ("handed", "replied", "settled", "idle", "answer")}},
-         "ok": bool(asked.get("handed")) and bool(asked.get("replied")) and bool(asked.get("settled")) and bool(asked.get("idle"))
-         and '"skipped": true' in ask_reply},
+        {"case": "站点先结束等卡片的那一轮、卡片作废，再送这句：CC 只回这一句（没有别的回复），卡片不再能点、这一轮结束",
+         "seen": {"replies": [r[:200] for r in replies(asked)], **{k: asked.get(k) for k in ("replied", "settled", "idle", "answer")}},
+         "ok": bool(asked.get("replied")) and bool(asked.get("settled")) and bool(asked.get("idle")) and len(replies(asked)) == 1},
         {"case": "允许卡挂着时打字点发送：当场发出、不排队，气泡出现", "seen": {k: gated.get(k) for k in ("asked", "card", "clicked", "queued", "bubble", "before")},
          "ok": bool(gated.get("card")) and bool(gated.get("clicked")) and gated.get("queued") == 0 and bool(gated.get("bubble"))},
-        {"case": "那张允许卡按拒绝交回（CC 收到的结果是 denied、没有 saved），再回这一句；卡片上没有按钮了、这一轮结束",
-         "seen": {"reply": gate_reply[:400], **{k: gated.get(k) for k in ("handed", "replied", "settled", "idle", "answer")}},
-         "ok": bool(gated.get("handed")) and bool(gated.get("replied")) and bool(gated.get("settled")) and bool(gated.get("idle"))
-         and '"denied"' in gate_reply and '"saved"' not in gate_reply},
+        {"case": "那张允许卡作废、工具没执行，CC 只回这一句（回复里没有 saved）；卡片上没有按钮了、这一轮结束",
+         "seen": {"replies": [r[:200] for r in replies(gated)], **{k: gated.get(k) for k in ("replied", "settled", "idle", "answer")}},
+         "ok": bool(gated.get("replied")) and bool(gated.get("settled")) and bool(gated.get("idle")) and len(replies(gated)) == 1
+         and not any('"saved"' in r for r in replies(gated))},
         {"case": "一时传不上的附件留失败卡：卡上有文件名与原因；带着它点发送整条不发，字放回输入框、上方写原因", "seen": offline,
          "ok": bool(offline.get("failed")) and (offline.get("card") or {}).get("name") == "offline.txt"
          and bool((offline.get("card") or {}).get("reason")) and bool(offline.get("clicked")) and bool(offline.get("back"))
@@ -187,10 +183,10 @@ rows = frappe.db.sql("select tool, status, result from `tabPearnly Assistant Too
                      "and (tool_input like %s or tool = 'ask_user')", ({params['start']!r}, {tool!r}, "%{params['tag']}%"), as_dict=True)
 note = frappe.db.sql("select count(*) from `tabPearnly Assistant Tool Run` where creation >= %s and tool = %s and status in ('running', 'done', 'error') "
                      "and tool_input like %s", ({params['start']!r}, {tool!r}, "%{params['tag']}%"))[0][0]
-print(json.dumps({{"runs": [[r.tool, r.status, "replied_in_message" in (r.result or "")] for r in rows], "executed": int(note)}}))
+print(json.dumps({{"runs": [[r.tool, r.status] for r in rows], "executed": int(note)}}))
 """)
     runs = out.get("runs") or []
     return [
-        {"case": "执行记录：提问卡是答过（结果写明回答在消息里），写备注那次是 denied，没有执行过", "seen": out,
-         "ok": ["ask_user", "done", True] in runs and [tool, "denied", False] in runs and out.get("executed") == 0},
+        {"case": "执行记录：提问卡与写备注那次都是 cancelled（作废），没有执行过", "seen": out,
+         "ok": ["ask_user", "cancelled"] in runs and [tool, "cancelled"] in runs and out.get("executed") == 0},
     ]
