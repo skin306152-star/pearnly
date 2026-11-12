@@ -65,3 +65,23 @@ def test_free_when_open_succeeds(tmp_path, monkeypatch):
     monkeypatch.setattr(al.ctypes, "WinDLL", lambda *_a, **_k: _fake_kernel32(1234, closed))
     assert al.is_account_busy(tmp_path) is False
     assert closed["n"] == 1  # 探测后必须关闭句柄(只探测不持有)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows 路径 / 系统接口")
+def test_busy_tables_sees_a_real_exclusive_handle(tmp_path):
+    """真持一个独占句柄（模拟 Express 开着 ARTRNRM.CDX）：busy_tables 报这张表，别的表不报；句柄放掉后都不报。"""
+    for name in ("ISRUN.DBF", "ISRUN.CDX", "ARTRNRM.DBF", "ARTRNRM.CDX"):
+        (tmp_path / name).write_bytes(b"x")
+    kernel32 = al.ctypes.WinDLL("kernel32", use_last_error=True)
+    create = kernel32.CreateFileW
+    create.argtypes = [al.wintypes.LPCWSTR, al.wintypes.DWORD, al.wintypes.DWORD, al.wintypes.LPVOID, al.wintypes.DWORD,
+                       al.wintypes.DWORD, al.wintypes.HANDLE]
+    create.restype = al.wintypes.HANDLE
+    handle = create(str(tmp_path / "ARTRNRM.CDX"), 0x80000000, 0, None, 3, 0x80, None)
+    assert handle != al.ctypes.cast(-1, al.wintypes.HANDLE).value
+    try:
+        assert al.busy_tables(tmp_path, ("ISRUN", "ARTRNRM", "GLACC")) == ["ARTRNRM"]
+        assert al.is_account_busy(tmp_path) is False  # 只试 ISRUN 的旧判断看不出来（B8 的科目表窗口）
+    finally:
+        kernel32.CloseHandle(handle)
+    assert al.busy_tables(tmp_path, ("ISRUN", "ARTRNRM")) == []

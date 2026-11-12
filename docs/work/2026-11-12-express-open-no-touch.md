@@ -19,6 +19,22 @@
 | `3c164f8fa` | CC 桌面版：`worker._handle_dbf_task` 拿到 `PEARNLY.LCK` 之后、分派写入之前，一律 `account_lock.is_account_busy`；占用就回 `[ACCOUNT_BUSY_LOCKED]` + 等账套，不备份、不写、不重建、不回滚。采购、销售、收款、退货、库存单、调拨、作废全部经过这里；代录不经过（它要 Express 开着）；本机写过只差回执的单在更前面照旧直接回报 |
 | `1981cbef9` | 服务端：等账套里「Express 开着」这一种，原因码 `ACCOUNT_BUSY_LOCKED` 留在记录上（`ack_rules.EXPRESS_OPEN`），这本账套歇 30 秒再派（`EXPRESS_OPEN_REST_SECONDS`），期间别的账套照常领。共用通道把「这之前不派」记在排队记录的租约到期栏（同一个时钟，不加字段）；Cowork 按记录的更新时间算。别的等待（别的电脑在写、账套够不到、文件号对不上）照旧不留原因、放回即领 |
 
+**探测方式改成按表（`pearnly/express-busy-probe-2`，11-12 晚）**：B8 在正版 Express 上测了 18 种窗口（共享笔记
+「共享写入实验-11-12/b8_matrix.txt」）：主界面不占任何文件；除「科目表窗口」外的窗口都开着 ISRUN；科目表窗口开着 ARTRNRM、GLACC、GLBAL、
+ISTAB。只试 ISRUN 会漏判「科目表窗口开着 + 采购 / 销售单带行说明（写 ARTRNRM）」，以及没测到的窗口（银行、税、期末处理等）。现在：
+
+- `account_lock.busy_tables(account_dir, tables)`：本次要写的每张表的 `.DBF` 与 `.CDX` 各以「只读 + 不共享」试开一次，打开即关；共享 / 锁
+  冲突算占用，文件不存在的不试，别的错误不算；返回被占的表名。
+- `worker._write_tables(direction, payload)`：每个方向的表清单从各写路现成的常量取（采购 `S.PURCHASE_BACKUP_TABLES`、销售与退货
+  `S.SALES_BACKUP_TABLES`、收款 `dbf_receipt.BACKUP_TABLES`、库存单 `dbf_stock.TABLES`、调拨 `dbf_transfer.TABLES`、作废 `dbf_void.TABLES`），
+  加 `S.LOCATION_TABLES`（账套有 STLOC 才有文件可试）、带行说明时加 ARTRNRM、调拨带新物料时加 STMAS——与各写路 `_backup` 的表清单
+  同一个来源，重建索引独占的表是它的子集。作废照「原单可能有行说明」带上 ARTRNRM（要读账套才知道，只多试一张表；作废调拨不带）。
+- `worker._handle_dbf_task` 改调它；`is_account_busy`（只试 ISRUN）留给它原来的两处调用方：托盘询问框（`gui_tray_workers.py:208`，之后照样会走到
+  worker 里的新探测）和代录判「Express 开着这本账套」（`express_operator/session.py`，语义不同，没动）。
+- 耗时估计：网络盘上每个文件一次打开约一次 SMB 往返（局域网通常几毫秒到几十毫秒，旧 SMB1 / 慢网可到 50–100 毫秒）。采购 12 张表、
+  销售 12 张、收款 8 张，各约 20 个存在的文件 → 估计 0.1–2 秒，多数 1 秒以内；本机没有网络盘，没实测，测试机清单 B8′ 记实测秒数。
+  每张单只探一次（持 `PEARNLY.LCK` 之后、写之前）。
+
 没动的保护：`PEARNLY.LCK`、三重一致性闸、写前备份、读回、索引回查、任务日记、有人值守的询问框，全部原样。
 
 重试间隔的取舍：固定 30 秒，不做递增。Express 关掉后最迟 30 秒被再次派出，加一次正常写入；Express 开着期间每本账套每 30 秒一次「领取 + 探测（约 0.1 秒）+ 回报」，不再搬表。有人值守时点「重试」后也可能要等到这 30 秒过完才写。
@@ -51,7 +67,7 @@
 2. 同上有人值守：弹框照旧，点「重试」后写入。
 3. Express 没开：采购、销售、库存单、调拨、作废、收款各写一张，与以前一致。
 4. 一本账套在等、另一本账套的单照常写。
-5. 实机确认 Express 打开账套期间始终持着 `ISRUN.DBF`（探测的前提；代录 10-27 起已在用同一判断）。
+5. ~~实机确认 Express 打开账套期间始终持着 `ISRUN.DBF`~~：B8 已证否（科目表窗口不开 ISRUN、主界面什么都不开），探测改成按本次要写的表试开。
 
 ## 限制与没解决的
 
@@ -93,7 +109,9 @@
 - B5 有人值守：Express 开着 → 网页手动推一张 → 弹框照旧；关 Express 点「重试」→ 写入（记点击到写成的秒数，最长约 30 秒 + 写入时间）。
 - B6 Express 没开：采购、销售、库存单、调拨、作废、收款各写一张，与以前一致（单号、读回、Express 里打开）。
 - B7 「探测后 Express 才打开」：Express 关着触发一张单，日志出现 backup 后立刻用 Express 打开 `<套>`。如实记录结果（写成 / 等账套并回滚）与文件状态；这是已知未解决的窗口，不作为通过条件，只留证据。
-- B8 探测前提：Express 打开 `<套>` 停在主界面、打开单据窗口、最小化三种状态下，各用 `is_account_busy` 等价的方式试一次（PowerShell：`[IO.File]::Open("$d\ISRUN.DBF",'Open','Read','None')` 应抛共享冲突）。任何一种状态能独占打开 = 探测不可靠，**不发版**并报主会话。
+- B8 探测前提：~~只试 ISRUN~~ 已在正版 18 种窗口上核过（b8_matrix.txt），改成按表试开。真机要断言的改成 **B8′**：Express 打开 `<套>`
+  的科目表窗口（只占 ARTRNRM、GLACC、GLBAL、ISTAB）→ 推一张带行说明（按台号码）的采购单：一个字节不动、按等账套回报；同时推一张不带行说明的
+  采购单：照写。再在开着赊销单窗口时推一张，记 `[timing]` 里写前探测的秒数（网络盘上的实测耗时）。
 - B9 ERP 通道重复 B1、B3 各一次（testerp，往 `<套>` 推一张无人值守的单）。
 
 **收尾**：`testenv.sh lab-stop`、flushdns、CC 以 skin3 普通权限重启、释放占用表；记录每张写进去的单号。结果逐条填「通过 / 不通过 / 没测到（原因）」写回本文件。
