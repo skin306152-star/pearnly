@@ -205,6 +205,36 @@ class OptionsTests(_Ledger):
         self.assertNotIn("account_set_remembered", stop)
 
 
+class AskedForAnotherBookTests(_Ledger):
+    """测试机1 11-12（四条交单路按类查全，Cowork 版）：票上记着的「要人选」（choice_needed:…）是推往另一本时问的，而这段对话的
+    账套已定（T.8）：那一问对这段对话不算数（推的时候按 T.8 重新判），详情、列单都不拿它给模型看；推往 T.8 时问的照实给话。"""
+
+    def _detail(self, account_set):
+        doc = {"name": "H1", "push_connection": "EXP1", "push_account_set": account_set, "last_push_status": "manual",
+               "last_push_reason": "choice_needed:account", "invoice_date": "2026-06-15", "pages": []}
+        with mock.patch.object(tools, "_stop_target", lambda doc, cache=None: None), \
+                mock.patch.object(tools, "_current_book_options", lambda doc: []), \
+                mock.patch.object(tools, "_automation_of", lambda name: None), \
+                mock.patch.object(tools, "_written_of", lambda *a: None), \
+                mock.patch.object(tools.document_checks, "checks", lambda doc, fields: None, create=True), \
+                mock.patch.object(tools.document_checks, "recent", lambda name: [], create=True), \
+                mock.patch.object(tools, "_account_named", lambda out, *a, **k: out):
+            return tools._detail(doc)
+
+    def test_a_question_asked_for_another_book_is_not_shown_in_the_conversation(self):
+        elsewhere = self._detail(T9)
+        self.assertNotIn("push_reason", elsewhere)
+        self.assertNotIn("push_status", elsewhere)
+        here = self._detail(T8)
+        self.assertEqual((here["push_status"], here["push_reason"]), ("manual", tools._reason("choice_needed:account")))
+        self.assertTrue(tools.asked_for_another_book({"push_connection": "EXP1", "push_account_set": T9,
+                                                     "last_push_reason": "choice_needed:account"}))
+        self.assertFalse(tools.asked_for_another_book({"push_connection": "EXP1", "push_account_set": T9,
+                                                      "last_push_reason": "cowork.folder.account_set_ambiguous"}))
+        self.ledger = None  # 不在对话里 / 没有本对话账套：照旧
+        self.assertEqual(self._detail(T9)["push_reason"], tools._reason("choice_needed:account"))
+
+
 class PlanGateTests(_Ledger):
     """写入只走计划下沉到推送入口（A 线 B）：CC 对话里直写（非代录）的每一张都要在本对话已开始的计划里，绕过推送工具的路
     （判定卡 resume、选现用账套当场推）也拦得住；代录交单、网页、定时任务不经这里。"""
