@@ -50,3 +50,16 @@
   | fatcc.com（control.assistant） | — | 没测到：实验栈没有这个站点；它的 CC 附件与产品站点同一个接口，已由 CC 附件那一行覆盖 |
 
   页面控制台只有实验栈固有的报错（没有实时推送 socket.io、未登录前的 403 / 404）和我先用一份手写的坏 PDF 试出来的 3 个 500（PDF 读不出，与本改动无关）。
+
+## 变基到 702580300 后重新验证（11-12 晚，接手窗口 c-line-2）
+
+- 变基：两支干净变基到 `origin/main` 702580300（第 14 车 cc-composer-send），无冲突；同改的四个文件两边内容都在
+  （`development.yml` 两边新加的步骤都留、`shared-parts.toml` 的 `web-entry` 共用件与对方改动并存、`check-impact.py` exit 0）。
+- 本地闸门 231 步过；候选离线 110 组 LANE EXIT 0（生产镜像 b3adf474）；分支 Development checks 绿（5f24ac1f7）。
+- **重新构建镜像**：`build-production` 运行 43178363751 成功，镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:1cf98bf7882b1a9b53c52a619dc5e1eaa3971f9217ee73434a6f25fb2bda08d6`。
+- **用这个镜像本身跑全套**（`pearnly-cline-lab`，网页进程经新入口，前端产物取自同一镜像，jobs 3）：110 条 365 格，首轮 362/365；
+  `erp.purchase.create` 新数据 / 电脑 900 秒超时（无断言失败）；`cc.chat` 新旧数据 / 手机「回复中再发一句先排队」那一步 `early: true`
+  （该步只等「停止」键 10 秒，满载时时序偶发；电脑宽度两格同轮通过、单跑 4 格全过、变基前同入口那轮 4 格全过，与本支无关）。
+  `--rerun-failed` 3 格通过，合并 **365/365**，`pearnly/flows` 已回写到 5f24ac1f7。旧 SHA 那轮的三格超时（erp.products.create、erp.line.card-lines、erp.sales.scan）这轮没复现。
+- 变基前旧 SHA 94a0863f0 那轮：358/361，三格 900 秒超时、无断言失败，补跑后 361/361 已回写。补跑时曾报「迁移失败」却没有原因：
+  两个窗口同时对同一套实验栈跑 run.py、互相重启 bench 容器杀掉对方的迁移；流程工具已另修（`pearnly/flows-lab-lock`：同一实验栈加锁、失败带退出码与 stdout）。
