@@ -321,7 +321,7 @@ class WritePlanTests(unittest.TestCase):
         self.turn[0] += 1
         refused = self.start(out["plan"])
         self.assertEqual(refused["status"], "ledger_changed")
-        self.assertIn("make a new plan", refused["note"])
+        self.assertIn("Make a new plan", refused["note"])
         self.assertIn("T.9", refused["note"])
         self.assertEqual(self.handed, [])
         self.assertEqual(FAKE.db.rows[out["plan"]]["status"], "replaced")  # 页面的「录吧」随之消失
