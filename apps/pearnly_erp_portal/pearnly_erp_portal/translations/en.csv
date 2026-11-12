@@ -429,6 +429,7 @@ Custom,Custom
 Custom fields,Custom fields
 Custom fields saved,Custom fields saved
 Customer,Customer
+Customer Code,Customer Code
 Customer Name,Customer Name
 Customer Type,Customer Type
 Customer contact updated successfully.,Customer contact updated successfully.
@@ -729,6 +730,8 @@ Invalid value,Invalid value
 Invalid value: {0},Invalid value: {0}
 Invoice,Invoice
 Invoice Amount,Invoice Amount
+Invoice Date,Invoice Date
+Invoice No,Invoice No
 Invoice Status,Invoice Status
 Invoices,Invoices
 Is Paid,Is Paid
@@ -1085,6 +1088,7 @@ Posted by,Posted by
 Posted to Stock,Posted to Stock
 Posted {0} differences,Posted {0} differences
 Posting Date,Posting Date
+Prefix,Prefix
 Prefix for this company's document numbers,Prefix for this company's document numbers
 Preview,Preview
 Preview opening stock,Preview opening stock

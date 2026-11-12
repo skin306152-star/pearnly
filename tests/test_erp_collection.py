@@ -1137,6 +1137,27 @@ class Explained(unittest.TestCase):
         self.assertEqual(texts.explain(C.CollectionError(C.INVOICES_TOO_MANY)), "At most 50 invoices")
 
 
+def _wait_queries_present():
+    from pearnly_core.cc_desktop import jobs
+
+    return all(callable(getattr(jobs, name, None)) for name in ("express_wait_many", "book_express_wait"))
+
+
+class ExpressWaitContract(unittest.TestCase):
+    """约定本身（express-wait-display 11-12）：那支合入集成分支后这里才跑，钉住收款用到的两个只读查询的样子。"""
+
+    @unittest.skipUnless(_wait_queries_present(), "express-wait-display 还没合入（收款排在它后面合）")
+    def test_the_shared_channel_answers_the_two_queries_collections_use(self):
+        import inspect
+
+        from pearnly_core.cc_desktop import jobs
+
+        self.assertEqual(list(inspect.signature(jobs.express_wait_many).parameters)[:1], ["names"])
+        self.assertEqual(list(inspect.signature(jobs.book_express_wait).parameters)[:1], ["book_key"])
+        self.assertEqual(jobs.express_wait_many([]), {})
+        self.assertEqual(jobs.book_express_wait(""), {"waiting": False, "since": None})
+
+
 class ExpressWaiting(Base):
     """「我的收款」里在等 Express 关闭的那几笔（约定：`cc_desktop.jobs.express_wait_many` / `book_express_wait`，
     express-wait-display 11-12；那支未合入前用替身）。"""
