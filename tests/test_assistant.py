@@ -2886,8 +2886,10 @@ class PageTests(unittest.TestCase):
         self.assertEqual(sorted(re.findall(r"\{\{\s*(\w+)\s*\}\}", html)), ["csrf_token", "lang"])
         # 一份附件最多多大（11-10）：服务端给的数，过 int 只能渲染成数字
         self.assertEqual(re.findall(r"\{\{\s*(\w+)\s*\|\s*int\s*\}\}", html), ["upload_max_bytes"])
+        # 附件收哪些类型（11-12）：服务端给的清单，过 tojson 只能渲染成 JSON
+        self.assertEqual(re.findall(r"\{\{\s*(\w+)\s*\|\s*tojson\s*\}\}", html), ["upload_extensions"])
         # 还有一处是报错回传脚本的带指纹地址（hooks.jinja 的 versioned_asset，2026-10-25）
-        self.assertEqual(html.count("{{"), 4)
+        self.assertEqual(html.count("{{"), 5)
         self.assertIn("{{ versioned_asset('pearnly_core', 'desk/errors.js') }}", html)
         self.assertNotIn("{%", html)
         # 注释用 Jinja 的 {# #}，渲染时去掉；HTML 注释会原样发给浏览器（查看源代码就能看到）
@@ -6424,6 +6426,73 @@ class AskUserTests(unittest.TestCase):
     def test_other_tools_still_run_on_allow(self):
         status, row, handed, _published, ran = self._decide(tool="p_write")
         self.assertEqual((status, len(ran), handed), ("done", 1, []))
+
+    def _replied(self, rows, user="owner@x.test"):
+        db, published, handed, ran = _AskDb(rows), [], [], []
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        with contextlib.ExitStack() as stack:
+            for patch in (mock.patch.object(toolrun.frappe, "db", db, create=True),
+                          mock.patch.object(toolrun.frappe, "QueryDeadlockError", _Deadlock, create=True),
+                          mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user=user), create=True),
+                          mock.patch.object(toolrun, "_", lambda text: text, create=True),
+                          mock.patch.object(toolrun, "_publish_run", lambda c, u, status, user=None: published.append((u, status))),
+                          mock.patch.object(toolrun, "_announce", lambda *a: None),
+                          mock.patch.object(toolrun, "_hand_back", lambda c, r, u, text, err: handed.append((u, text, err))),
+                          mock.patch.object(toolrun, "_finish", lambda *a: ran.append(a) or "done"),
+                          mock.patch.object(toolrun.tools, "run", lambda *a: ran.append(a) or ("{}", False))):
+                stack.enter_context(patch)
+            count = toolrun.replied("conv", "sesn")
+        return count, handed, published, ran
+
+    def _waiting(self, name, tool, **more):
+        return {"session_id": "conv", "tool_use_id": f"sevt_{name}", "user": "owner@x.test", "status": "awaiting_approval",
+                "version": 1, "tool": tool, "tool_input": json.dumps(self.QUESTIONS if tool == "ask_user" else {"doc": "h1"}),
+                **more}
+
+    def test_a_message_while_the_question_card_waits_hands_the_card_back_as_replied_in_words(self):
+        """11-11 压测 S8a：提问卡挂着时用户在输入框里打的话发不出。发消息时先把卡交回：每题没选、写明用户改用文字回答
+        （下一条用户消息就是回答），再送这句话（引擎停在等卡片结果时不收用户消息）。"""
+        rows = {"r1": self._waiting("r1", "ask_user")}
+        count, handed, published, ran = self._replied(rows)
+        self.assertEqual((count, rows["r1"]["status"], published, ran), (1, "done", [("sevt_r1", "done")], []))
+        result = json.loads(handed[0][1])
+        self.assertTrue(all(a.get("skipped") for a in result["answers"]))
+        self.assertIs(result["replied_in_message"], True)
+        self.assertIn("next message", result["instruction"])
+        self.assertEqual((handed[0][0], handed[0][2], rows["r1"]["result"]), ("sevt_r1", False, handed[0][1]))
+        # 页面照旧读得出这张卡（答过、各题跳过）
+        self.assertEqual(len(result["answers"]), 2)
+
+    def test_a_message_while_an_allow_card_waits_denies_it_and_never_runs_the_tool(self):
+        """主会话 11-12 硬要求：允许 / 拒绝卡挂着时打字发送 = 拒绝，任何情况下不能变成「允许」；那次写账工具没有执行。"""
+        rows = {"r1": self._waiting("r1", "cowork_push_documents"), "r2": self._waiting("r2", "ask_user"),
+                "r3": self._waiting("r3", "p_write", user="other@x.test"),
+                "r4": self._waiting("r4", "p_write", session_id="other-conv"),
+                "r5": self._waiting("r5", "p_write", status="running")}
+        count, handed, published, ran = self._replied(rows)
+        self.assertEqual(ran, [])  # 工具一次都没执行
+        self.assertEqual(count, 2)
+        self.assertEqual((rows["r1"]["status"], rows["r2"]["status"]), ("denied", "done"))
+        denied = json.loads(rows["r1"]["result"])
+        self.assertEqual(denied["status"], "denied")
+        self.assertEqual([u for u, _text, _err in handed], ["sevt_r1", "sevt_r2"])
+        self.assertIn(("sevt_r1", "denied"), published)
+        # 别人的、别的对话的、已经在执行的都不动
+        self.assertEqual([rows[n]["status"] for n in ("r3", "r4", "r5")], ["awaiting_approval", "awaiting_approval", "running"])
+        # 代码上钉住：这条路只调拒绝，不带 allow 变量
+        body = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8").split("\ndef replied(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("decide(conversation, remote, run.tool_use_id, False, replied=True)", body)
+        self.assertNotIn("_finish", body)
+        self.assertNotIn("tools.run", body)
+
+    def test_nothing_waiting_hands_nothing_back(self):
+        rows = {"r1": self._waiting("r1", "ask_user", status="done")}
+        self.assertEqual(self._replied(rows), (0, [], [], []))
+
+    def test_send_settles_waiting_cards_before_the_message(self):
+        body = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("\ndef send(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("toolrun.replied, row.session_id, remote", body)
+        self.assertLess(body.index("toolrun.replied"), body.index("api.post(remote, batch)"))
 
     def test_confirm_carries_the_answers_to_decide(self):
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")

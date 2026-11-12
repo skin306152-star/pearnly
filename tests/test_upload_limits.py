@@ -317,8 +317,10 @@ const UPLOAD_MAX_BYTES = 40 * 1024 * 1024;
 g.pearnly_upload_max_bytes = UPLOAD_MAX_BYTES;  // 服务端写进页面的那个数
 g.URL.createObjectURL = () => "blob:local";
 const calls: string[] = [];
+const refused: string[] = [];
+const sessions: string[] = [];  // 建 / 取会话的次数：拒收的不该建会话
 const run = async (file: File) => {
-  const adapter = createAttachmentAdapter(async () => "s1");
+  const adapter = createAttachmentAdapter(async () => { sessions.push("s1"); return "s1"; }, (message) => refused.push(message));
   const steps: any[] = [];
   for await (const step of adapter.add!({ file }) as any) steps.push(step.status);
   return steps;
@@ -339,20 +341,53 @@ class PageTests(unittest.TestCase):
 
         run_ts(PAGE + body, lang=lang)
 
-    def test_a_file_over_the_limit_is_refused_on_the_page_with_the_limit(self):
+    def test_a_file_over_the_limit_is_refused_when_picked_and_never_becomes_a_card(self):
+        # 主会话 11-12（C3）：超限的选中 / 拖入 / 粘贴那一刻就拒收——不进输入框、不生成附件卡、不建会话、不上传，原因交给
+        # 输入框上方那一行。以前留一张失败卡：发送时重传必败，整条发不出，不删卡就永远发不出（11-11 发布核查）
         self.run_page(r"""
 g.fetch = async (url: string) => { calls.push(String(url)); throw new Error("must not upload"); };
 const steps = await run(big(UPLOAD_MAX_BYTES + 1));
-assert.deepEqual(steps.map((s: any) => s.type), ["incomplete"]);
-assert.equal(steps[0].message, "File is larger than 40 MB");
-assert.deepEqual(calls, []);
+assert.deepEqual(steps, []);
+assert.deepEqual(refused, ["File is larger than 40 MB"]);
+assert.deepEqual([calls, sessions], [[], []]);
 g.done();
 """)
         self.run_page(r"""
 g.fetch = async () => { throw new Error("must not upload"); };
-assert.equal((await run(big(UPLOAD_MAX_BYTES + 1)))[0].message, "文件超过 40 MB");
+assert.deepEqual(await run(big(UPLOAD_MAX_BYTES + 1)), []);
+assert.deepEqual(refused, ["文件超过 40 MB"]);
 g.done();
 """, lang="zh")
+
+    def test_files_that_can_never_upload_are_refused_when_picked(self):
+        # 按类：空文件、服务端不收的类型（清单由服务端写进页面，同上限一个来源）同样选中时拒收、不留失败卡；
+        # 一次选几个时没问题的照常加入
+        self.run_page(r"""
+g.pearnly_upload_extensions = [".pdf", ".png", ".heic"];
+g.fetch = async (url: string) => { calls.push(String(url)); return { ok: true, status: 200, json: async () => ({ message: {
+  fileId: "upl_1", filename: "ok.pdf", mountPath: "/mnt/session/uploads/upl_1/ok.pdf", size_bytes: 8 } }) }; };
+const file = (name: string, bytes = 8, type = "") => new File([new Uint8Array(bytes)], name, { type });
+assert.deepEqual(await run(file("empty.pdf", 0, "application/pdf")), []);
+assert.deepEqual(await run(file("photo.bmp", 8, "image/bmp")), []);
+assert.deepEqual(await run(file("noext", 8)), []);
+assert.deepEqual(refused, ["File is empty", "File type not supported", "File type not supported"]);
+assert.deepEqual([calls, sessions], [[], []]);
+assert.deepEqual((await run(file("OK.PDF", 8, "application/pdf"))).map((s: any) => s.type), ["running", "requires-action"]);
+assert.deepEqual((await run(file("IMG_1.HEIC", 8, "image/heic"))).map((s: any) => s.type), ["running", "requires-action"]);
+assert.equal(refused.length, 3);
+// 页面没写清单（旧页面缓存）：不在页面先拦类型
+delete g.pearnly_upload_extensions;
+assert.deepEqual((await run(file("photo.bmp", 8, "image/bmp"))).map((s: any) => s.type), ["running", "requires-action"]);
+g.done();
+""")
+
+    def test_the_page_gets_the_accepted_types_from_the_server(self):
+        page = (CORE / "www/assistant.py").read_text(encoding="utf-8")
+        self.assertIn("context.upload_extensions = sorted(contracts.UPLOAD_EXTENSIONS)", page)
+        self.assertIn("window.pearnly_upload_extensions = {{ upload_extensions | tojson }};",
+                      (CORE / "www/assistant.html").read_text(encoding="utf-8"))
+        script = (FRONTEND / "src/lib/frappe.ts").read_text(encoding="utf-8")
+        self.assertIn("window.pearnly_upload_extensions", script)
 
     def test_a_file_at_the_limit_is_sent(self):
         self.run_page(r"""

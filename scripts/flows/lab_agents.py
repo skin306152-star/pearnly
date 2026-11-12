@@ -36,7 +36,7 @@
 - 所有状态只在内存里，进程重启就清空；编号按类自增，前缀仿真实写法（agent_、env_、sesn_、sevt_、sesrsc_、file_、msg_）。
 
 - 任意工具（11-06，识别完自动继续的实测）：``[lab-tool]{"name": 工具名, "input": {…}}[/lab-tool]`` 同上发这个工具的调用、
-  收到结果后回「[lab-agent] <工具名> <结果原文>」。停在等工具结果时收到 ``user.message`` 照真实引擎回 400。
+  收到结果后回「[lab-agent] <工具名> <结果原文>」。停在等工具结果（含提问卡 ask_user）时收到 ``user.message`` 照真实引擎回 400。
 - 停在半段（批 A ④，11-09）：原文带 ``[lab-cut]`` 时只推 `event_start` / `event_delta` 预览（``[lab-cut-half]`` 开头），不出正式 `agent.message`，
   等页面点停止（`user.interrupt`）；最多等 60 秒，没人停就照常出正式回复（末尾 ``[lab-cut-end]``）。流程 `cc.chat` 用它量停止后半段还在。
 - 长回复（批 A ①，11-09）：``[lab-long]N[/lab-long]`` 回 N 段文字、末尾 ``[lab-long-end]``，流程 `cc.chat` 用它量回复超出一屏时跟不跟到底。
@@ -390,8 +390,9 @@ def receive(state: dict, events: list) -> list:
                 state["_cut"] = True
                 publish(state, event)
                 set_status(state, "idle")
-            elif kind == "user.message" and state.get("_asked") and state.get("_asked_name") != "ask_user":
-                # 照真实引擎：停在等工具结果时只收结果 / 打断，用户消息 400（提问卡片的流程照旧不管）
+            elif kind == "user.message" and state.get("_asked"):
+                # 照真实引擎：停在等工具结果时只收结果 / 打断，用户消息 400。提问卡 ask_user 同样（11-12 起：卡片挂着时用户
+                # 直接打字，站点先把卡交回再送这条，流程 `cc.send-unblocked` 量的就是这个顺序）
                 raise bad_request("session is waiting on a tool result; only settle events are accepted")
             elif kind == "user.message":
                 set_status(state, "running")

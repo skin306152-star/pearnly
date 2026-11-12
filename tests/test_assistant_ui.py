@@ -4893,6 +4893,7 @@ AUI_STUB = r"""
 import { createElement } from "react";
 const g = globalThis as any;
 export const useAuiState = (select: any) => select(g.auiState);
+export const useAui = () => ({ composer: () => ({ addAttachment: async () => {} }) });
 function Item({ a, render }: any) {
   g.auiState = { attachment: a };
   return render({ attachment: a });
@@ -8822,7 +8823,7 @@ assert.deepEqual(users(), ["earlier", "hello"]);
         # 11-11：加附件建的会话也一样，标在共用的 ensureSession 里（ensure-session.ts）
         self.assertIn("else await newChat.run(ensureSession, send, async (id) => {", provider)
         self.assertIn("ensureSessionOf(aui.threadListItem(), getSessionController)", provider)
-        self.assertIn("createAttachmentAdapter(ensureSession)", provider)
+        self.assertIn("createAttachmentAdapter(ensureSession, (message) => noteRefusedFile(threadNow.current, message))", provider)
         controller = read("lib/managed-agents/session-controller.ts")
         self.assertIn("if (!this.state.echoedOptimistic.has(optimisticId)) {", controller)
 
