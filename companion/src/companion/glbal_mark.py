@@ -11,10 +11,15 @@ Express 原生保存一张单（11-12 正版 Express，Process Monitor 抓取 + 
 做法：本年度（ISPRD 的 CY 段）第 k 期 → ``CALSTA`` 第 k 位（实证：11 月单、1 月起账的账套标第 11 位）。只把 ``'1'`` 改成 ``'0'``，
 别的字节一个不动、不追加行、不动索引键（GLBAL 不重建索引）；``'0'`` 已是待重算，不用改。
 
+照原生的另外两种情形（11-12 测试机2 正版 Express、`70EXP\\test` 原生录 RR0000025 / RR0000026，录前录后比 GLBAL 原始字节）：
+- 那一位是空格（这一期还没算过，重算时整期照算）：Express 不碰 → 我们也不写、不报；
+- 对应的「科目 + 部门」行不存在：Express **追加一行**——科目码、部门照填，项目、计算状态全空格，金额栏全 0，表头只改行数 →
+  我们照样追加（:func:`dbf_schema.append_native`），并且**只在这种情形**重建 GLBAL 的索引（追加改了 CDX；写前备份与占用探测
+  本来就含 GLBAL，回滚连 CDX 一起还原）。常见情形仍只改一个字符、不重建。
+
 还没证据、**不猜**的情形（主会话 11-12）：这几格不写，记进回执 ``meta.glbal_unmarked``（「科目|部门|期: 原因」），由人跑一次重算：
-- 对应的 GLBAL 行不存在（Express 那时怎么建行没查清）；
 - 单据日期落在下一年度（NY 段，是不是第 13–24 位没核准）或 ISPRD 判不出期间；
-- 那一位不是 ``'1'`` 也不是 ``'0'``（例如空格：这一期还没算过，Express 怎么对待没核准）；
+- 那一位不是 ``'1'``、``'0'`` 也不是空格；
 - 账套没有 GLBAL 表。
 
 写完立即读回：要标的位都是 ``'0'``，否则抛写盘的读回错误（``READBACK_VERIFY_FAILED``，同各写路的读回不符），由调用方整单回滚
@@ -47,10 +52,9 @@ log = get_logger(__name__)
 
 TABLE = "GLBAL"
 FIELD = "CALSTA"
-PENDING, DONE = "0", "1"
+PENDING, DONE, NEVER = "0", "1", " "  # 待重算 / 已算好 / 这一期还没算过
 
 REASON_NO_TABLE = "no GLBAL"
-REASON_NO_ROW = "no GLBAL row"
 REASON_PERIOD = "period not in this fiscal year"
 REASON_STATE = "calculation state not set"
 
@@ -117,6 +121,7 @@ def mark(account_dir, entries: Iterable) -> List[str]:
             continue
         wanted.setdefault((acc, dep), set()).add(period.index)
     changed = []  # (recno, 位)
+    appended = []  # (recno, 科目, 部门)
     table = dbf.Table(str(path), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     table.open(dbf.READ_WRITE)
     try:
@@ -138,17 +143,23 @@ def mark(account_dir, entries: Iterable) -> List[str]:
                     text[index - 1] = PENDING
                     touched = True
                     changed.append((dbf.recno(rec), index))
-                elif text[index - 1] != PENDING:
+                elif text[index - 1] not in (PENDING, NEVER):
                     skipped.append(f"{key[0]}|{key[1]}|{index}: {REASON_STATE}")
             if touched:
                 with rec as fields:
                     fields[FIELD] = "".join(text)
-        for (acc, dep), spots in wanted.items():
-            if (acc, dep) not in found:
-                skipped += [f"{acc}|{dep}|{index}: {REASON_NO_ROW}" for index in sorted(spots)]
+        for acc, dep in wanted:
+            if (acc, dep) not in found:  # 照原生追加一行：计算状态全空格（这一期还没算过），不用再标
+                S.append_native(table, {"ACCNUM": acc, "DEPCOD": dep})
+                appended.append((dbf.recno(table[-1]), acc, dep))
     finally:
         table.close()
     _verify(path, changed)
+    if appended:
+        _verify_appended(path, appended)
+        from .dbf_writer import _reindex  # 写盘与重建索引在 dbf_writer（它导入本模块，这里按需导入免得互相导入）
+
+        _reindex(Path(account_dir), (TABLE,))
     for text in skipped:
         _note(text)
     return skipped
@@ -166,6 +177,21 @@ def _verify(path: Path, changed: List[Tuple[int, int]]) -> None:
                 from .dbf_writer import ERR_VERIFY, _WriteError  # 写盘错误类在 dbf_writer（它导入本模块，这里按需导入免得互相导入）
 
                 raise _WriteError(f"GLBAL row {recno} {FIELD} position {index} is {state!r} after marking", ERR_VERIFY,
+                                  {"kind": "readback_verify", "table": TABLE, "recno": recno})
+    finally:
+        table.close()
+
+
+def _verify_appended(path: Path, appended: List[Tuple[int, str, str]]) -> None:
+    table = dbf.Table(str(path), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
+    table.open(dbf.READ_ONLY)
+    try:
+        for recno, acc, dep in appended:
+            rec = table[recno] if recno < len(table) else None
+            if rec is None or (_text(rec["ACCNUM"]), _text(rec["DEPCOD"]), str(rec[FIELD] or "").strip()) != (acc, dep, ""):
+                from .dbf_writer import ERR_VERIFY, _WriteError
+
+                raise _WriteError(f"GLBAL row {recno} for {acc}|{dep} not appended as expected", ERR_VERIFY,
                                   {"kind": "readback_verify", "table": TABLE, "recno": recno})
     finally:
         table.close()
