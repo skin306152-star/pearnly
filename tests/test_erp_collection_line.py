@@ -240,6 +240,18 @@ class Steps(Base):
         self.assertEqual(self.last_text(), "Reading from Express")
         self.assertEqual(self.buttons()[0]["data"], "a=col&s=customer&v=99007")
 
+    def test_a_customer_that_cannot_be_read_now_says_why_not_no_open_invoices(self):
+        # 11-12 三星实测：读不到（电脑没连 / 要更新）时说「没有未收清的发票」会误导收款员
+        T.S.table("ERP Customer")["X1"] = {"name": "X1", "express_company": "CO-1", "express_code": "99001",
+                                          "customer_name": "shop one", "is_active": 1}
+        for state, text in (("offline", "CC Desktop not connected"), ("outdated", "CC Desktop needs an update")):
+            with mock.patch.object(T.snapshot, "request", return_value=state):
+                self.tap("a=col&s=start")
+                self.type("99001")
+                self.assertIn(text, self.last_text())
+                self.assertNotIn("No open invoices", self.last_text())
+                self.tap("a=col&s=cancel")
+
     def test_picking_invoices_toggles_and_shows_the_running_total(self):
         self.tap("a=col&s=start")
         self.type(C1)
