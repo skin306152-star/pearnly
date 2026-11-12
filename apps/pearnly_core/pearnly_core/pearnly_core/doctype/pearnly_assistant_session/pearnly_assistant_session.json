@@ -20,6 +20,7 @@
   "project",
   "period",
   "project_scope",
+  "project_ledger",
   "project_noted",
   "operator_task",
   "user_turn",
@@ -125,6 +126,13 @@
    "read_only": 1
   },
   {
+   "fieldname": "project_ledger",
+   "fieldtype": "Data",
+   "label": "Account Set",
+   "length": 400,
+   "read_only": 1
+  },
+  {
    "fieldname": "project_noted",
    "fieldtype": "Data",
    "label": "Filed Note Digest",
@@ -155,7 +163,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-10 18:00:00.000000",
+ "modified": "2026-11-12 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Session",
