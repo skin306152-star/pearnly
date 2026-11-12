@@ -538,6 +538,18 @@ def _attach_written(rows) -> None:
             row["written"] = found[record]
 
 
+def _attach_waiting(rows) -> None:
+    """「录入中」的行此刻在等 Express 关闭的（有人开着这本账套，`push.express_wait`，读的时候算、一次查完）另带 `waiting`：
+    现成那句、按用户语言。票上的失败原因栏不动；要在 `_attach_written` 拿走推送记录名之前调。"""
+    from pearnly_cowork.push import express_wait
+
+    pending = [row for row in rows if row.get("last_push_status") == "pending" and row.get("last_push_record")]
+    found = express_wait.many([row.get("last_push_record") for row in pending]) if pending else {}
+    for row in pending:
+        if row.get("last_push_record") in found:
+            row["waiting"] = _reason(express_wait.CODE)
+
+
 CONVERSATION_DOCUMENTS_MAX = 500
 
 
@@ -681,6 +693,7 @@ def list_documents(tool_input) -> str:
                            "the rest. Counts in by_account_set are only what was checked: never say a company has "
                            "none from it; narrow the dates or ask about that company with its account_set_key.")
     next_offset = offset + len(rows)
+    _attach_waiting(rows)
     _attach_written(rows)
     # 停在「待选账套」的单不按票上的账套报去向（`_stop_target`）；要在原因码换成给人看的话之前认
     stopped = {row.get("name") for row in (rows if matched is None else matched) if _stopped(row)}
@@ -1099,6 +1112,10 @@ PUSH_QUEUED_NOTE = ("queued: sent, but Express or MR.ERP has not reported a resu
                     "Tell the user it is queued; check later with "
                     "cowork_push_results when they ask. Do not wait or sleep. A queued document is not entered yet: "
                     "never say it was entered or recorded into Express or MR.ERP, not even at the start of the reply.")
+# 给模型的一句（不是界面文案）：排队中 / 录入中的单带 `waiting` 时是在等 Express 关闭（`_concluded`、`_attach_waiting`）
+EXPRESS_WAIT_NOTE = ("waiting on a document that is queued or pending is why it has not been entered yet (someone has "
+                     "that account set open in Express): it is entered by itself once Express is closed there, so it "
+                     "is not a failure and the user has nothing else to do.")
 
 
 _may_wait = direct_push.may_wait  # 执行这次工具的地方能不能等（与 ERP 版 CC 同一份）
@@ -1126,8 +1143,15 @@ def _concluded(item, outcome) -> bool:
     else:
         if outcome.get("reason"):
             item["last_attempt_failed"] = _reason(outcome["reason"])  # 这一次没写成，CC 桌面版会再试
+        from pearnly_core.cc_desktop.wire import ack_rules  # 写账回执的状态口径（纯函数）
+
+        if ack_rules.express_open(status, outcome.get("reason")):
+            item["waiting"] = _reason(outcome["reason"])  # 有人开着这本账套的 Express：关了自动写（11-12）
+        else:
+            item.pop("waiting", None)
         return False
     item.pop("last_attempt_failed", None)
+    item.pop("waiting", None)
     return True
 
 
@@ -4642,7 +4666,8 @@ TOOLS = [
                     "usually takes a few seconds), so do not wait or check again yourself. Each result says "
                     "entered (written into Express or MR.ERP; docnum is its document number there, tell it to the user), queued "
                     "(no result yet, or CC Desktop is offline: it is entered later; check with cowork_push_results "
-                    "when the user asks; last_attempt_failed means a try did not go through and it is tried again), "
+                    "when the user asks; last_attempt_failed means a try did not go through and it is tried again; "
+                    + EXPRESS_WAIT_NOTE + "), "
                     "failed with a reason, " + direct_push.unconfirmed_rule("Express or MR.ERP", "cowork_resolve_push_result")
                     + ", needs_choice "
                     "(call pearnly_precheck for those documents, ask with ask_user, save with pearnly_precheck_answer "
@@ -5070,7 +5095,7 @@ TOOLS = [
                     "to Express or MR.ERP), or succeeded (entered). Documents still waiting to be entered (never pushed or "
                     "failed) are push_state waiting in cowork_list_documents. In a conversation filed under a company "
                     "it covers only that company's account sets (scope names it) unless all_companies is true. "
-                    + WRITTEN_NOTE,
+                    + EXPRESS_WAIT_NOTE + " " + WRITTEN_NOTE,
      "input_schema": {"type": "object", "properties": {
          "push_state": {"type": "string", "enum": list(direct_push.RESULT_STATES)},
          **direct_push.page_props(LIST_MAX), **SCOPE_PROPS}, "required": ["push_state"]},
