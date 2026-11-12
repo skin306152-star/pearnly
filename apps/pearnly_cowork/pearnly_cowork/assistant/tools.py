@@ -1212,6 +1212,11 @@ def push_documents(tool_input) -> str:
     _settle(results)
     results += refused
     for item in results:
+        reason = str(item.get("reason") or "")
+        if item.get("status") == "needs_choice" and reason.startswith(CHOICE_PREFIX):
+            # 推送时才发现要人选：票上记的是码（待处理页、代录按它认），交给模型的是用户语言的那句与要选的几类（测试机1 11-12：
+            # 模型把 choice_needed:… 原样说给用户）
+            item.update(reason=_reason(reason), choose=[kind for kind in reason[len(CHOICE_PREFIX):].split(",") if kind])
         if item.get("status") == "needs_choice" and item.get("note") == MRERP_SETUP_NOTE and not item.get("mrerp_setup"):
             # 推送当中才发现的：同推之前那一步，一次给全这张单此刻要选的（10-19 lab：只报一句原因，CC 一项项问）
             setup = _mrerp_setup_of(item["document"])
@@ -1224,6 +1229,9 @@ def push_documents(tool_input) -> str:
     if told:
         out["same_group_note"] = told
     return _json(out)
+
+
+CHOICE_PREFIX = "choice_needed:"  # 推送时要人选记在票上的码（`_submit_one`）
 
 
 def _push_listed(name, connection, account_set_key, posting_kind) -> dict:
