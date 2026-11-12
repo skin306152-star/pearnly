@@ -31,6 +31,16 @@ PROCEDURE Main( cAction, cDir, cTable, cRec, cOut, cScheme, ... )
    nRec := Val( cRec )
    nT := hb_MilliSeconds()
    FWrite( n, "action=" + cAction + " table=" + cTable + " rec=" + cRec + " t0=" + Time() + hb_eol() )
+   IF Upper( cAction ) == "HEADFIX"            // 恢复用：在表头锁内把年份字节、第 28 字节写成给定值（YEAR=十六进制 FLAG=十六进制）
+      cHead0 := ReadHead( cDir + "\" + cTable + ".DBF" )
+      FOR i := 1 TO Len( aVals )
+         IF aVals[ i ][ 1 ] == "YEAR" ; cHead0 := Stuff( cHead0, 2, 1, hb_HexToStr( aVals[ i ][ 2 ] ) ) ; ENDIF
+         IF aVals[ i ][ 1 ] == "FLAG" ; cHead0 := Stuff( cHead0, 29, 1, hb_HexToStr( aVals[ i ][ 2 ] ) ) ; ENDIF
+      NEXT
+      FWrite( n, "head_fix=" + PatchHead( cDir + "\" + cTable + ".DBF", cHead0 ) + hb_eol() )
+      FClose( n )
+      RETURN
+   ENDIF
    IF Upper( cAction ) == "REINDEX"           // 只用于副本：独占打开整表重建（同产品现在的做法），做比对基准
       BEGIN SEQUENCE WITH {| e | Break( e ) }
          USE ( cDir + "\" + cTable ) NEW EXCLUSIVE VIA "DBFCDX"
@@ -52,6 +62,7 @@ PROCEDURE Main( cAction, cDir, cTable, cRec, cOut, cScheme, ... )
          CloneAppend( n, nRec, aVals )
       CASE Upper( cAction ) == "SET"
          IF WaitLock( nRec )
+            dbGoto( nRec )
             Apply( aVals )
             dbCommit()
             dbRUnlock( nRec )
