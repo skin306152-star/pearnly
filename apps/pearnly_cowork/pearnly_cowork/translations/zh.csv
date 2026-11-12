@@ -764,6 +764,7 @@ Express Root Key,Express 程序目录键
 "Express did not read back what was written, so it was undone. It is retried automatically",写入后校验不一致，已撤回，将自动重试
 Express document,Express 单号
 Express has this account set open. It is sent automatically once Express is closed,Express 正在使用此账套，关闭后将自动推送
+Express has this account set open. It is written automatically once Express is closed,Express 正在使用此账套，关闭后将自动写入
 Express record,Express 对应档案
 External Docnum,ERP 凭证号
 Factor to Base,换算系数
@@ -3413,7 +3414,7 @@ intake.agent.state.needsUpdate,CC 桌面版需更新
 intake.agent.state.noWriter,没有能写的电脑
 intake.agent.state.offline,电脑离线
 intake.catalog.reload,重新读取
-intake.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
+intake.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动写入
 intake.error.ACCOUNT_CODE_IS_STOCK_ITEM,此科目码已是 Express 库存品的编码
 intake.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套

@@ -764,6 +764,7 @@ Express Root Key,Express Root Key
 "Express did not read back what was written, so it was undone. It is retried automatically","Express did not read back what was written, so it was undone. It is retried automatically"
 Express document,Express document
 Express has this account set open. It is sent automatically once Express is closed,Express has this account set open. It is sent automatically once Express is closed
+Express has this account set open. It is written automatically once Express is closed,Express has this account set open. It is written automatically once Express is closed
 Express record,Express record
 External Docnum,External Docnum
 Factor to Base,Factor to Base
@@ -3413,7 +3414,7 @@ intake.agent.state.needsUpdate,CC Desktop needs update
 intake.agent.state.noWriter,No computer can write
 intake.agent.state.offline,Computer offline
 intake.catalog.reload,Read again
-intake.error.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed
+intake.error.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is written automatically once Express is closed
 intake.error.ACCOUNT_CODE_IS_STOCK_ITEM,This account code is already a stock item code in Express
 intake.error.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another company. Check the account set
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
