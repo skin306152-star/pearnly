@@ -121,6 +121,13 @@ class LocksTest(unittest.TestCase):
                 flows.lab_lock(self.tmp.name)
             self.assertIn("正在用实验栈", str(caught.exception))
         flows.lab_lock(self.tmp.name).close()
+        # 窗口对实验栈的约期占用（人工起栈调试、真机联调），run.py 也要认：别人约着就不许开跑
+        locks.acquire(resource, "win-a", "手工调试这套栈", 30)
+        with self.assertRaises(SystemExit) as caught:
+            flows.lab_lock(self.tmp.name)
+        self.assertIn("win-a", str(caught.exception))
+        locks.release(resource, "win-a")
+        flows.lab_lock(self.tmp.name).close()
 
     def test_unknown_resource_names_are_refused(self):
         for bad in ("testpc3", "ledger:", "ledger:../x", "testenv-domain:billing", "lab:a b"):

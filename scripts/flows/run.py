@@ -440,27 +440,37 @@ def _run_prepared(lab, flow, module, manifest, dataset, viewport, site, user, be
 
 def lab_lock(folder=None):
     """同一套实验栈（`PEARNLY_FLOWS_LAB`）同一时刻只让一个 run.py 用：每次开头都重启 bench 容器再迁移，两个同时跑会互相把对方
-    正在跑的迁移、流程杀掉（11-12 两个窗口同时补跑同一套栈，报「迁移失败」却没有原因）。拿不到锁就停，说是哪个进程占着。
-    锁随进程退出自动放掉，不留残余。"""
-    import fcntl
+    正在跑的迁移、流程杀掉（11-12 两个窗口同时补跑同一套栈，报「迁移失败」却没有原因）。拿不到锁就停，说是谁占着。
+    锁随进程退出自动放掉，不留残余。
+    用的是占用锁库（`scripts/acceptance/locks.py`，资源名 `lab:<栈名>`，锁文件仍是 `~/.cache/pearnly-flows/<栈名>.lock`）：
+    别的窗口对这套栈的约期占用（人工起栈调试、真机联调）这里也认，不只认另一个 run.py。返回锁文件的句柄，关掉即放锁。"""
+    import importlib.util
 
-    # 固定放在用户目录：各窗口的 TMPDIR 不一定相同（桌面 App 会话各给一个临时目录），放临时目录就锁不住别的窗口
-    folder = Path(folder or Path.home() / ".cache" / "pearnly-flows")
-    folder.mkdir(parents=True, exist_ok=True)
-    path = folder / f"{LAB}.lock"
-    handle = open(path, "a+")
+    spec = importlib.util.spec_from_file_location("acceptance_locks", ROOT / "scripts" / "acceptance" / "locks.py")
+    locks = sys.modules.get("acceptance_locks") or importlib.util.module_from_spec(spec)
+    if "acceptance_locks" not in sys.modules:
+        sys.modules["acceptance_locks"] = locks
+        spec.loader.exec_module(locks)
+    # 锁目录固定在用户目录（各窗口的 TMPDIR 不同，放临时目录锁不住别的窗口）；folder 只给单测用
+    before = os.environ.get("PEARNLY_LOCK_DIR")
+    if folder:
+        os.environ["PEARNLY_LOCK_DIR"] = str(folder)
     try:
-        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        handle.seek(0)
-        holder = handle.read().strip() or "?"
-        handle.close()
-        raise SystemExit(f"另一个 run.py（进程 {holder}）正在用实验栈 {LAB}：等它跑完再跑，或换一套实验栈（PEARNLY_FLOWS_LAB）")
-    handle.seek(0)
-    handle.truncate()
-    handle.write(str(os.getpid()))
-    handle.flush()
-    return handle
+        held = locks.hold(f"lab:{LAB}", f"run.py（进程 {os.getpid()}）", "流程用例")
+        try:
+            held.__enter__()
+        except locks.Busy as busy:
+            record = busy.record
+            who = f"另一个 run.py（进程 {record.get('pid', '?')}）" if record.get("mode") != "lease" else f"{record.get('holder')}（约期占用：{record.get('purpose', '')}）"
+            raise SystemExit(f"{who}正在用实验栈 {LAB}：等它用完再跑，或换一套实验栈（PEARNLY_FLOWS_LAB）")
+    finally:
+        if folder:
+            if before is None:
+                os.environ.pop("PEARNLY_LOCK_DIR", None)
+            else:
+                os.environ["PEARNLY_LOCK_DIR"] = before
+    # 交回文件句柄本身：关掉它或它被回收（main 返回、进程退出）就放锁，和原来一样；不留环形引用，否则同一进程里再跑一次会被自己挡住
+    return held.handle
 
 
 def head():
