@@ -1515,10 +1515,11 @@ def _stop_target(doc, cache=None) -> dict | None:
                     current = ""
             pin = write_scope.pinned()
             if pin and pin.get("key"):
-                # 本对话账套（A 线 11-12）：这张单写进它，不再问哪份
-                found = {"account_label": pin.get("label") or pin["key"], "push_account_set": pin["key"],
+                # 本对话账套（A 线 11-12）：这张单写进它，不再问哪份（这条连接上那处的写法，账套身份跨电脑）
+                key = write_scope.place(pin, connection)[1]
+                found = {"account_label": pin.get("label") or key, "push_account_set": key,
                          "conversation_account_set": True,
-                         "account_set_options": [{"key": pin["key"], "label": pin.get("label") or pin["key"]}]}
+                         "account_set_options": [{"key": key, "label": pin.get("label") or key}]}
         if found is None and current:
             label = next((item["label"] for item in books if _account_key(item["key"]) == _account_key(current)), "")
             found = {**({"account_label": label} if label else {}), "push_account_set": current,
@@ -1642,9 +1643,10 @@ def _default_target(choices) -> None:
     pin = write_scope.pinned()
     if not pin or not pin.get("key"):
         return
-    adapter = _adapter_of(pin["connection"])
+    connection, key = write_scope.place(pin)  # 几台电脑各报一处时，取这位用户自己能写的那处
+    adapter = _adapter_of(connection)
     if adapter in ("express", "mrerp"):
-        choices.update(target=adapter, connection=pin["connection"], account_set_key=pin["key"])
+        choices.update(target=adapter, connection=connection, account_set_key=key)
 
 
 def recognize_attachments(tool_input) -> str:
@@ -2068,7 +2070,10 @@ def _book_defaults(tool_input, period=False):
         if refused:
             return values, refused
     elif pin:
-        values.update(connection=pin["connection"], account_set_key=pin["key"])
+        from pearnly_cowork.assistant import write_scope
+
+        connection, key = write_scope.place(pin)
+        values.update(connection=connection, account_set_key=key)
     if period and not values.get("period"):
         session = (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id")
         values["period"] = projects.of_session(session)[1] if session else ""

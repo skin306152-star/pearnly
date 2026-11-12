@@ -76,7 +76,8 @@ class _Conversation(unittest.TestCase):
         ledger.SET, ledger.NEEDED = "set", "needed"
         ledger.of_session = lambda session=None: self.ledger
         ledger.of_task = lambda task: self.task_ledgers.get(task)
-        provider = types.SimpleNamespace(ledger_parts=_provider().ledger_parts)
+        real = _provider()
+        provider = types.SimpleNamespace(ledger_parts=real.ledger_parts, ledger_id=real.ledger_id)
         companies = types.SimpleNamespace(identity=identity, service=service, provider=provider)
         patches += [mock.patch.dict(sys.modules, {"pearnly_cowork.companies": companies,
                                                   "pearnly_cowork.companies.identity": identity,
