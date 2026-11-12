@@ -310,6 +310,9 @@ NLTTEST 的 30 行收款类型（ISRUN DOCTYP=ZR）**没有一行被这条科目
 - 现金走「现金」一格（账套现金科目），CH รับเงินสด 不另列。
 - 不给选：支票 QR / QB；预扣 TX；TF 转账手续费；KA、EX、AC、EE、HA、SA、22（Credit Card）、CL、DE、25、AP、RP、SP、CC เงินสดย่อย、AB บัญชีพัก、DL、JT、NB（都不是收钱类）。
 - 规则：无科目或两处科目不一致不列；同前缀多行不列；折扣类型多于一种不给折扣。
+- 11-12 按类放宽（分支 `pearnly/collection-transfer-rule`）：新版 CC 给每种类型报科目类别 `account_class`，转账以科目属于银行存款类为准、
+  名称只作辅助（69EXP\TEST 的 CQ / SC / 23 储蓄存款由此可选）；NLTTEST 这 30 行结果不变。判据与 101 本离线账套统计见
+  [2026-11-12-collection-transfer-rule-stats.md](2026-11-12-collection-transfer-rule-stats.md)。
 
 ### 与第 1 步要对齐（已发给第 1 步子代理）
 
