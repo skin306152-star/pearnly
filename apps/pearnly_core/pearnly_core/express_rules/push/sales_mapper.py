@@ -382,6 +382,10 @@ def build_express_sales_payload(
     # 现销 HS / 赊销 IV:六级漏斗(common.payment_verdict)—— 人工裁决 > 票面显式字段 >
     # 票种语义(F3)> 银行佐证(F6)> 无信号默认赊销。销项 v1 不接供应商过账档案(档案锚是
     # 卖方税号,销项无此维度)。verdict_src 留痕排障用:现/赊哪层定的。
+    picked_payment = picked.get("payment") in ("cash", "credit") and not fields.get("posting_payment_manual")
+    if picked_payment:
+        # 引导卡上答的 / 这家记过的现销还是赊销（`choices.resolve` guided，覆盖表 A12）：票面没人工裁决时按它，同进项
+        fields = {**fields, "posting_payment_manual": picked["payment"]}
     paid, verdict_src = payment_verdict_for(
         history, fields, mappings, direction="sales", total=total
     )
