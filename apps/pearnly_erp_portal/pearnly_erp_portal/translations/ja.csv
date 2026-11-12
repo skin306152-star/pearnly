@@ -267,6 +267,7 @@ Choose a local opening stock file,アップロード済みの期首在庫ファ�
 Choose an existing product for opening stock,登録済みの商品を選択してください
 Choose an image attached to this card,このカードに添付した画像を選んでください
 Choose at least one job role,機能権限を1つ以上選んでください
+Choose before writing to Express,Express に書き込む前に選択が必要です
 Choose file,ファイルを選択
 Choose purchase or sales first,先に仕入か売上を選んでください
 Choose purchase or sales for this invoice and submit again,この伝票が仕入か売上かを選んで再送信してください
@@ -2332,6 +2333,7 @@ express.precheck.note.splitExempt,免税商品は行ごとに非課税
 express.precheck.note.vatExpense,レシートと簡易税票は通常控除しません
 express.precheck.note.vatSales,課税売上あり
 express.precheck.note.writable,書き込めるパソコンがあります
+express.reason.choiceNeeded,Express に書き込む前に選択が必要です
 express.reason.itemUnmapped,この商品は Express にありません
 express.reason.noBook,この日付を含む Express 会計データがありません
 express.reason.noStockBook,この Express 会計データにはこの種類の在庫伝票の伝票帳がありません。Express で設定してください

@@ -46,6 +46,17 @@ where = "代录 pending"
 tests = ["flow:cowork.operator.unknown", "flow:cowork.cc.sidebar-modes"]
 
 [[row]]
+id = "cowork.cc.operator.reason_text"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:cowork:reason_text"
+group = "cc.operator.reason_text"
+where = "代录 reason_text（express_operator_status 交给模型的没录成原因，按用户语言的一句话）"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_operator_task_reasons_reach_the_model_in_the_users_words", "unit:tests/test_express_operator_tasks.py::test_the_tools_number_documents_in_task_order_and_refuse_ones_outside_it"]
+
+[[row]]
 id = "cowork.cc.operator.precheck"
 product = "Cowork"
 channel = "cc-operator"
