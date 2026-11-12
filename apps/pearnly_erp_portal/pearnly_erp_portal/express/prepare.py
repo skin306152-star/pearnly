@@ -3,7 +3,7 @@
 
 - 票面：`contracts.pages`（方向、现 / 赊、对方档码、逐行存货码与仓库、货 / 服务都写明）；
 - 账套：`target.pick` 选出的那份（路径、Express 根目录、登记行号、公司、6 个默认科目），载荷里的位置领单时再换成领取那台电脑
-  的写法；
+  的写法；CC 对话 / 代录任务里是本对话账套（`conversation.wanted`，不按单据日期另判）；
 - 账套资料：最近一次读回的主档（`facts`，读的时候顺手请电脑读一次，读好了再准备）；
 - 要人拿主意的项：写账规则判（`express_rules.push.choices.resolve`），选过的按公司记着（`choices`）；还没选的、同期两份账套、
   建第一个库存品不知挂哪个存货科目组：停下，在 ERP 单据上选一次。
@@ -21,7 +21,7 @@ from pearnly_core.express_rules.push import service_vat, stock_acc_group
 from pearnly_core.express_rules.push.prepare import prepare_express
 from pearnly_core.express_rules.push.preflight import ExpressContext
 
-from pearnly_erp_portal.express import choices, contracts, facts, target
+from pearnly_erp_portal.express import choices, contracts, conversation, facts, target
 
 SOURCE = "erp_desk"
 _NO_MAPPINGS = {"accounts": [], "clients": []}
@@ -94,7 +94,7 @@ def service_vat_needed(doc, company_row):
     """被电脑以服务品进项税口径为由拦下后让人选的那一项（``kind = service_vat``，选项 เกณฑ์สิทธิ / เกณฑ์เงินสด）。
     归类键同写账规则问的那一项（`choices.service_vat_subject`，带账套键）；没有账套回 []。"""
     doc = contracts.checked(doc)
-    book = target.pick(company_row, doc["date"]).get("book")
+    book = target.pick(company_row, doc["date"], conversation.wanted(company_row)).get("book")
     if not book:
         return []
     party = doc["party"]
@@ -111,7 +111,7 @@ def group_needed(doc, company_row):
 
 def book_group_needed(company_row, date):
     """这家公司这个日期用的那份账套要人选的存货科目组（:func:`group_needed`；库存单在 CC 里新建存货被拦下也用它，多仓闭环 P3x）。"""
-    picked = target.pick(company_row, date)
+    picked = target.pick(company_row, date, conversation.wanted(company_row))
     book = picked.get("book")
     data = facts.load(book["key"]) if book else None
     if data is None:
@@ -124,7 +124,7 @@ def party_needed(doc, company_row):
     """写进去被电脑以对方档为由拦下后，让人选的那一项（``kind = party``）：这份账套里同税号的对方档，没税号按名称相近的，
     都没有就整张对方档表。选的值按公司记住（与写账规则问对方档同一个归类键），再准备时照选的写。读不到账套资料回 []。"""
     doc = contracts.checked(doc)
-    picked = target.pick(company_row, doc["date"])
+    picked = target.pick(company_row, doc["date"], conversation.wanted(company_row))
     data = facts.load(picked["book"]["key"]) if picked.get("book") else None
     if data is None:
         return []
@@ -175,7 +175,7 @@ def prepare(doc, company_row, ensure_masters):
         doc = contracts.checked(doc)
     except contracts.DocumentError as error:
         return {"failed": error.code}
-    picked = target.pick(company_row, doc["date"])
+    picked = target.pick(company_row, doc["date"], conversation.wanted(company_row))
     company_name = company_row.get("company_name") or company_row["name"]
     if picked["reason"] == contracts.SEVERAL_BOOKS:
         return {"hold": contracts.CHOICE + ":" + choices.ACCOUNT_SET, "needed": _needed_book(picked, company_name)}

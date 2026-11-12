@@ -7,10 +7,13 @@
 - 一份都没有：停下（``express.account_set_missing``），每分钟再看（电脑报了新年度账套就接着写）；
 - 同期两份：这家公司这个会计年度选过就用选的，没选过停下等人在 ERP 里选一次（``account_set``，记住复用）；
 - 选出的那份没有一台电脑能写：停下（``express.no_writer``），每分钟再看。
+
+CC 对话 / 代录任务里（A 线 11-12）：调用方经 `conversation.wanted` 传 ``wanted``（本对话账套的账套键）：就用这家名单里的那一本，
+不按单据日期另判（Express 自己的期间闸照旧，D3）；不在这家名单里 → 没有账套；空串（本对话账套未定）→ ``ledger_needed``。
 """
 from pearnly_core.cc_desktop import books
 
-from pearnly_erp_portal.express import choices, contracts
+from pearnly_erp_portal.express import choices, contracts, conversation
 
 
 def year_subject(day, book) -> str:
@@ -31,10 +34,25 @@ def candidates(company_row, day) -> list:
     return books.for_day(books.for_company(tax, company_row.get("branch")), day)
 
 
-def pick(company_row, day) -> dict:
-    """``{book, reason, options}``：选出的账套（`books.for_company` 那一项），或停下的原因与可选的几份。"""
+def named(company_row, wanted) -> dict | None:
+    """这家公司（税号 + 分店）名单里的那一本（``wanted`` 是账套键）；不在名单里回 None。"""
+    tax = contracts.tax13(company_row.get("tax_id"))
+    every = books.for_company(tax, company_row.get("branch")) if tax and wanted else []
+    return next((item for item in every if item["key"] == wanted), None)
+
+
+def pick(company_row, day, wanted=None) -> dict:
+    """``{book, reason, options}``：选出的账套（`books.for_company` 那一项），或停下的原因与可选的几份。``wanted``：本对话账套
+    （见文件头；None = 按日期选）。"""
     if not contracts.tax13(company_row.get("tax_id")):
         return {"book": None, "reason": contracts.NO_TAX, "options": []}
+    if wanted is not None:
+        if not wanted:
+            return {"book": None, "reason": conversation.LEDGER_NEEDED, "options": []}
+        book = named(company_row, wanted)
+        if book is None:
+            return {"book": None, "reason": contracts.NO_BOOK, "options": []}
+        return {"book": book, "reason": "" if book["writers"] else contracts.NO_WRITER, "options": []}
     found = candidates(company_row, day)
     if not found:
         return {"book": None, "reason": contracts.NO_BOOK, "options": []}
@@ -51,10 +69,12 @@ def pick(company_row, day) -> dict:
     return {"book": book, "reason": "", "options": []}
 
 
-def current(company_row, day) -> dict:
+def current(company_row, day, wanted=None) -> dict:
     """主档同步读哪一份：今天该写的那份（同期两份时按选过的，没选过取写得进的第一份，读主档不必停下）。还没有今年的账套
     （只有往年的）就读会计期间最近的那份：主档按公司认，不因为没开今年的账套就读不到（10-24 测试机：按账套自动建的公司里
-    有只剩往年账套的）。"""
+    有只剩往年账套的）。``wanted`` 给了（本对话账套）就是名单里那一本（不在名单里、未定回 None）。"""
+    if wanted is not None:
+        return named(company_row, wanted)
     found = candidates(company_row, day)
     if not found:
         tax = contracts.tax13(company_row.get("tax_id"))
@@ -70,4 +90,4 @@ def current(company_row, day) -> dict:
     return found[0]
 
 
-__all__ = ["candidates", "current", "option_name", "pick", "year_subject"]
+__all__ = ["candidates", "current", "named", "option_name", "pick", "year_subject"]
