@@ -69,6 +69,14 @@
 检查（本批）：`test_express_required_coverage.py` 10 条、`test_check_express_defaults.py` 7 条、`test_write_precheck.py` 45 条、`check-express-defaults.py`、
 `check-architecture.py`、`check-test-coverage.py` 通过；闸门见下。
 
+### 第 1 批连带回归（check-impact）
+
+命中共用件 `express-rules`（15 个入口）、`write-precheck`（8 个入口）。本批对两者的改动只有：`write_precheck.contracts` 新增题类登记
+（`KIND_GROUPS` 加五类、`new_party` 与 `party` 同样按方向分组、`PER_DOCUMENT_KINDS` 加四类），已有题类的分组、状态、展开、留单逻辑一字未改；
+登记表在运行时没有调用方。所以 23 个入口逐个记「没测到（原因：行为不变，无运行时调用方）」，以离线测试佐证：
+`test_write_precheck`（45）、`test_cowork_write_precheck`、`test_erp_write_precheck`、`test_companion_contract` 全过。
+第 2 批出题规则接进两产品判定源时，按入口逐个实测。
+
 ## 第 2 批（上半）：引导卡契约与共用出题规则
 
 做了什么：
@@ -121,3 +129,8 @@ A 类 14 条在哪一批落地：
 4. A7 第 1 期只给「只记金额不入库 / 这次不录」（已做）。
 5. 复核列第 1 期只登记列名，断言待第 2 期（文件头已写明）。
 6. 与验收衔接：照验收窗口的结构约定定稿（见第 1 批）。
+
+## B3：五个原因码直接转人工
+
+`SUPPLIER_NOT_IN_APMAS`、`CUSTOMER_NOT_IN_ARMAS`、`ERR_LOCATION`、`STOCK_IN_FAILED`、`ACCOUNT_CODE_IS_STOCK_ITEM` 进 `ack_rules.NEEDS_PERSON_CODES`：
+回执带这些码直接转人工，不再按普通失败重试 3 次。先写 `test_cc_desktop_channel.py` 一条（旧代码红），加码后绿；`test_companion_contract.py` 照过。

@@ -596,6 +596,14 @@ class OperatorReasonTests(unittest.TestCase):
         state = ack_rules.acknowledgement(branch="legacy", attempt=1, success=False, error="[DBF_WRITE_FAILED] x")
         self.assertEqual((state.status, state.retry), ("pending", True))  # 普通失败照旧重试
 
+    def test_master_and_stock_refusals_go_to_a_person_without_retries(self):
+        """覆盖表 G-B3（引导式录入第 1 期）：主档不在 / 仓不在仓库表 / 入库失败 / 科目码是库存品——重试结论一样，直接转人工，不白重试 3 次。"""
+        for code in ("SUPPLIER_NOT_IN_APMAS", "CUSTOMER_NOT_IN_ARMAS", "ERR_LOCATION", "STOCK_IN_FAILED",
+                     "ACCOUNT_CODE_IS_STOCK_ITEM"):
+            self.assertIn(code, ack_rules.NEEDS_PERSON_CODES)
+            state = ack_rules.acknowledgement(branch="legacy", attempt=1, success=False, error=f"[{code}] x")
+            self.assertEqual((state.status, state.retry, state.attempt), ("manual", False, 1), code)
+
     def test_every_store_on_the_way_to_the_card_holds_the_whole_receipt(self):
         operator = _operator_contracts()
 

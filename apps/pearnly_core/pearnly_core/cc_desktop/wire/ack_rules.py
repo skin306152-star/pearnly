@@ -56,6 +56,9 @@ NEEDS_PERSON_CODES = frozenset({
     # 引导录入（载荷 21，CC 桌面版 guided）：要人在引导卡上定一题（单位 / 出库成本 / 现金科目，回执 meta.choice 带候选）；
     # 新键的值不在这本账套里（单位码、物料分类、对方类型）、到期日早于单据日。整单没写，重试结论一样
     *common.GUIDED_CHOICE_CODES, *common.GUIDED_REFUSAL_CODES,
+    # 覆盖表 G-B3（引导式录入第 1 期）：对方档不在主档、仓码不在仓库表、采购入库失败、费用行的科目码其实是库存品——
+    # 都要人改单或在 Express 建档，重试结论一样（以前按普通失败白重试 3 次）
+    "SUPPLIER_NOT_IN_APMAS", "CUSTOMER_NOT_IN_ARMAS", "ERR_LOCATION", "STOCK_IN_FAILED", "ACCOUNT_CODE_IS_STOCK_ITEM",
 })
 # 回执转出题：这些码不是「失败」，是要人在引导卡上答一题（候选在回执 meta.choice），答完带着新键重派
 CHOICE_CODES = frozenset(common.GUIDED_CHOICE_CODES)
