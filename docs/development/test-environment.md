@@ -222,6 +222,10 @@ bash scripts/testenv.sh lab-stop cowork    # testcowork 切回线上 → 停栈�
 **同一操作员不能同时登在两台**：多电脑规则是「谁的活谁的电脑做」，同一操作员有两台电脑在线时派单落到哪台不受测试控制，
 两条验证会互相抢单、看错落点。每台各登一个测试操作员（测试机1：pearnlyai / aksarapak；测试机2：e2ecowork / e2eerp）。
 CC 登录时服务端自动把人记进这台电脑的「登录过 CC 的人」，不用事先加名单；换号后旧账号要从这台电脑的名单里去掉。
+CC 窗口登录走正式登录服务 `auth.pearnly.com`：e2e 账号的登录由用户本人在 Mac 上运行一条命令完成
+（`~/pearnly-devtools/testpc2-env/ui/login-e2e.sh cowork|erp`，从本机 `~/.config/pearnly-e2e/accounts.env` 取账号密码粘贴进 CC 登录页，
+临时文件与剪贴板用完即清）；开发窗口只负责把 CC 窗口点到登录页、对好位置。
+窗口登录只改「登录过的人」，不换 CC 档案里的连接密钥。
 e2e 账号同时给本机 e2e 跑测用：以它发起的写账会派到测试机2 真写，所以**测试机2 的 CC 档案平时保持暂停，谁用谁恢复、用完暂停**。
 测试机2 的 CC 位置只放 `P:\69EXP`（不放整个 P 盘或 S 盘），所选测试套；换位置前先清掉这个档案的旧账套清单缓存（`account_sets_<档案>.json`），否则启动时会先把旧清单报上去。
 远程操作 Express 界面要 aksar 在屏幕上登录（断开的会话不出画面）。
