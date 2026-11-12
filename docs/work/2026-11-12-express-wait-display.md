@@ -39,7 +39,7 @@
 
 手机 / 窄屏：两边列表在手机宽度都没有现成位置（状态栏 / Express 栏隐藏），不自造控件。Cowork 靠详情提示行；ERP 按弹窗交付（点进单据 → Express），不给 ERP 详情新加提示行。收银台「本班销售」不接。
 
-给收款窗口的约定（主会话转；本分支不改收款分支）：`pearnly_core.cc_desktop.jobs.express_wait(name)`、`express_wait_many(names)`（列表用）、`book_express_wait(book_key)`；只读、查不到回不在等、90 秒过期。
+给收款窗口的约定（主会话转；本分支不改收款分支）：`pearnly_core.cc_desktop.jobs.express_wait(name)` → `{"waiting": bool, "since": ISO UTC | None}`；`express_wait_many(names)`（列表用）→ `{任务名: 上次回报时刻}`，只含此刻在等的那几件（不在等的不出现，不是 `{name: bool}`，按「名字在不在里面」判）；`book_express_wait(book_key)` → 同 `express_wait`。只读、查不到回不在等、90 秒过期。（集成分支 integration-1112 核对：收款 `collection/service.py` 取 `set(express_wait_many(names))`、ERP `express/waiting.py` 与 `cc_tools.py` 用 `in` / `.get`，都按此用。）
 
 ## 限制
 
