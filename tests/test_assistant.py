@@ -8,6 +8,7 @@ import contextlib
 import datetime
 import importlib.util
 import inspect
+import io
 import json
 import os
 import pathlib
@@ -123,6 +124,9 @@ def _install_fakes():
     # 共用显示名（whoami 的 full_name）：替身原样回账号
     names = sys.modules["pearnly_core.account"].names = sys.modules["pearnly_core.account.names"] = types.ModuleType("names")
     names.display_name = lambda user: str(user or "")
+    # 原件层的「磁盘上的上传」（ADR-028 第 2 步，附件留存、交引擎按它读）：只依赖标准库，用真的
+    originals = sys.modules["pearnly_core.originals"] = types.ModuleType("pearnly_core.originals")
+    originals.local_file = _load("pearnly_core.originals.local_file", CORE / "originals/local_file.py")
     sys.modules["pearnly_core.assistant.contracts"] = sys.modules["pearnly_core.assistant"].contracts = contracts
     engines = _load("pearnly_core.assistant.engines", CORE / "assistant/engines/__init__.py")
     sys.modules["pearnly_core.assistant"].engines = engines
@@ -882,7 +886,9 @@ class RelayTests(unittest.TestCase):
         taken = []
         operator_uploads = types.ModuleType("pearnly_core.express_operator.uploads")
         answer = {"view": {"batch": "B-1", "state": "queued", "pages_done": 0, "page_count": 2}}
-        operator_uploads.take = lambda task, name, content, key: taken.append((task, name, content, key)) or answer["view"]
+        # 交给任务的是留存那份磁盘文件（ADR-028 第 2 步）：读出来比，内容就是上传的字节
+        operator_uploads.take = lambda task, name, content, key: taken.append(
+            (task, name, content.read() if hasattr(content, "read") else content, key)) or answer["view"]
         package = sys.modules.setdefault("pearnly_core.express_operator", types.ModuleType("pearnly_core.express_operator"))
         files = _load("pearnly_core.assistant.files", CORE / "assistant/files.py")
         numbers = iter(["upl_A", "upl_B", "upl_C"])
@@ -898,7 +904,7 @@ class RelayTests(unittest.TestCase):
         class Sent:
             def __init__(self, name, content):
                 self.filename, self.mimetype = name, "application/pdf"
-                self.stream = types.SimpleNamespace(read=lambda size: content)
+                self.stream = io.BytesIO(content)  # 同真的上传流（werkzeug 的临时文件，能 seek）
 
         import contextlib
 
@@ -1021,7 +1027,7 @@ class RelayTests(unittest.TestCase):
 
         class Sent:
             filename, mimetype = "big.pdf", "application/pdf"
-            stream = types.SimpleNamespace(read=lambda size: b"%PDF-big")
+            stream = io.BytesIO(b"%PDF-big")  # 同真的上传流（能 seek）
 
         import contextlib
 
