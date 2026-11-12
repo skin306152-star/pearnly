@@ -2,12 +2,17 @@
 
 金额一律 ``Decimal`` 两位小数；超过两位小数、负数、不是数字都拒（不四舍五入替人改钱）。
 
-**收款类型只列「收钱」类**（主会话 11-11：靠 Express 自带属性判断，判不出的默认不列）。一种 ZR 类型按下面的顺序判一次：
+**收款类型只列「收钱」类**（主会话 11-11：靠 Express 自带属性判断，判不出的默认不列；11-12 按类放宽：以类型关联的科目是不是
+银行存款为准，名称只作辅助）。一种 ZR 类型按下面的顺序判一次：
 
 1. 名称（泰文 POSDES）含「ส่วนลดเงินสด」或英文名含 cash discount → **折扣**（不当收款方式列，只在「折扣」那一步用）；
-2. 名称含「เช็ค」或英文名含 cheque → 支票，不列（本批不做支票）；
+2. 名称含「เช็ค」或英文名含 cheque → 支票，不列（本批不做支票；支票记进存款科目的也不列）；
 3. 名称含「ภาษีถูกหัก」「หัก ณ ที่จ่าย」或英文名含 withholding → 预扣税，不列（预扣填 0）；
-4. 名称含「โอนเข้าบัญชี」，或关联了银行（SHORTNAM 指向 BKMAS）→ **转账**，列给收款员；
+4. **转账**，列给收款员：
+   - 新版 CC 报了科目类别（``account_class``，CC 按账套自身的科目表结构判，见 ``companion.payment_methods.account_classes``）：
+     科目是银行存款类（``bank``）；或科目在现金与存款那一组里、不是现金科目也判不出存款（``cash_group``）而名称含「โอนเข้าบัญชี」。
+     名称说转账、科目却在组外（例 GISP 的「เงินโอนเข้าบัญชี GIZE」记关联公司借款）→ 不列；
+   - 老版 CC 没报类别（或这一种没有可用科目）：名称含「โอนเข้าบัญชี」，或关联了银行（SHORTNAM 指向 BKMAS）；
 5. 名称含「เงินสด」且科目就是账套的现金科目（ISINFO.ACCNUM00）→ 现金，不另列（现金走「现金」那一格，写进抬头 CSHRCV）；
 6. 其余（费用、坏账、借款、预收、礼券、信用卡、零用金、暂记……）→ 不列。
 
@@ -48,6 +53,13 @@ WITHHOLDING_WORDS = ("ภาษีถูกหัก", "หัก ณ ที่�
 WITHHOLDING_WORDS_EN = ("withholding",)
 TRANSFER_WORDS = ("โอนเข้าบัญชี",)
 CASH_WORDS = ("เงินสด",)
+# 新版 CC 报的科目类别（与 ``companion.payment_methods.ACCOUNT_CLASSES`` 同值，契约测试守住）：银行存款、现金与存款那一组里的其他科目、
+# 现金科目、组外
+ACCOUNT_BANK = "bank"
+ACCOUNT_CASH_GROUP = "cash_group"
+ACCOUNT_CASH = "cash"
+ACCOUNT_OTHER = "other"
+ACCOUNT_CLASSES = (ACCOUNT_BANK, ACCOUNT_CASH_GROUP, ACCOUNT_CASH, ACCOUNT_OTHER)
 
 # 错误码（LINE / CC 按码出文案）
 INVOICES_EMPTY = "collection.invoices_empty"
@@ -128,6 +140,14 @@ def _has_en(value, words) -> bool:
     return any(word in value for word in words)
 
 
+def _transfer(row, name) -> bool:
+    """是不是转账（规则第 4 条）：报了科目类别按类别（名称只作辅助），没报照名称与关联银行。"""
+    klass = str(row.get("account_class") or "").strip()
+    if klass in ACCOUNT_CLASSES:
+        return klass == ACCOUNT_BANK or (klass == ACCOUNT_CASH_GROUP and _has(name, TRANSFER_WORDS))
+    return _has(name, TRANSFER_WORDS) or bool(str(row.get("bank") or "").strip())
+
+
 def classify(row, cash_account="") -> dict:
     """一种 ZR 收款类型 → ``{"role": "transfer" | "discount" | "", "reason": 不列的原因码}``（规则见模块说明）。"""
     name, name_en = row.get("name"), row.get("name_en")
@@ -137,7 +157,7 @@ def classify(row, cash_account="") -> dict:
         return {"role": "", "reason": CHEQUE}
     elif _has(name, WITHHOLDING_WORDS) or _has_en(name_en, WITHHOLDING_WORDS_EN):
         return {"role": "", "reason": WITHHOLDING}
-    elif _has(name, TRANSFER_WORDS) or str(row.get("bank") or "").strip():
+    elif _transfer(row, name):
         role = TRANSFER
     elif _has(name, CASH_WORDS) and str(row.get("account") or "").strip() and \
             str(row.get("account") or "").strip() == str(cash_account or "").strip():
