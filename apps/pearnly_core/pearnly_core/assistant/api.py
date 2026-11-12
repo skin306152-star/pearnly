@@ -7,6 +7,7 @@ import frappe
 from frappe import _
 
 from pearnly_core.assistant import files, sessions, tools
+from pearnly_core.assistant import ledger as conversation_ledger  # 接口名 `ledgers` 与参数 `ledger` 不撞名
 from pearnly_core.assistant import projects as filed  # 接口名 `projects` 留给下面的方法
 
 METHODS = "/api/method/pearnly_core.assistant."
@@ -36,10 +37,17 @@ def create(project=None, period=None, scope=None):
     return sessions.create(project=project or None, period=period or None, scope=scope or None)
 
 
-# 改对话的处理月份、分店；project 是它现在的公司（不能换公司，见 `sessions.move`）
+# 改对话的处理月份、分店、本对话账套（ledger，右栏下拉）；project 是它现在的公司（不能换公司，见 `sessions.move`）
 @frappe.whitelist(methods=["POST"])
-def move(session_id, project="", period=None, scope=None):
-    return sessions.move(session_id, project or "", period=period or None, scope=scope or None)
+def move(session_id, project="", period=None, scope=None, ledger=None):
+    return sessions.move(session_id, project or "", period=period or None, scope=scope or None,
+                         ledger_id=ledger or None)
+
+
+# 右栏账套下拉：{current, options}（本对话账套，`ledger.view`；只读）
+@frappe.whitelist(methods=["GET"])
+def ledgers(session_id):
+    return conversation_ledger.view(session_id)
 
 
 # 对话归在哪家（ADR-020，Cowork 按公司主档；产品没声明时 kind 为 None）
