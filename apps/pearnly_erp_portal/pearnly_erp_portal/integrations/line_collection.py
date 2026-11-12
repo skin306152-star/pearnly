@@ -2,7 +2,8 @@
 
 一步一问（LINE 原生快捷回复 + Flex），每一步只认「当前正在问的那一步」，旧按钮点了不生效：
 
-1. 选公司（只有一家时跳过）→ 2. 打客户编号或名称的一部分（最多列 12 个，多了请再打几个字）→ 3. 勾发票（Flex 列表可多选、
+1. 选公司（只有一家时跳过；这家同期两本账套、没选过时接着选一次，按公司 × 会计年度记住，与 ERP 单据同一份记忆，
+   `collection.service.choose_book`）→ 2. 打客户编号或名称的一部分（最多列 12 个，多了请再打几个字）→ 3. 勾发票（Flex 列表可多选、
    显示合计；余额已扣别人预留）→ 4. 收款方式（现金 + 这本账套能收钱的转账类型）→ 5. 金额 → 6. 转账发一张凭证照片（每笔一张）
    → 不够时【再加一种方式】【折扣】【下次再收】（下次再收：选哪张留余额、或逐张输入）；超过未收的请重输 → 7. 确认卡
    （公司·账套·客户·各张本次收·方式·折扣·合计）带【确认】【编辑】【撤回】。
@@ -174,9 +175,8 @@ def start(line_user_id, user, reply_token):
             return _text(reply_token, _("No company is available for this account"))
         payload = {"step": "company", "companies": {row["name"]: row["company_name"] for row in rows}}
         if len(rows) == 1:
-            payload.update(company=rows[0]["name"], step="customer")
-            _save(line_user_id, payload)
-            return _ask_customer(reply_token)
+            payload["company"] = rows[0]["name"]
+            return _after_company(line_user_id, payload, reply_token)
         _save(line_user_id, payload)
         _ask_company(reply_token, payload)
 
@@ -258,9 +258,39 @@ def _ask_company(reply_token, payload, note=""):
 def _pick_company(line_user_id, payload, value, reply_token):
     if value not in payload.get("companies", {}):
         return _text(reply_token, _("This option is no longer current"))
-    payload.update(company=value, step="customer")
+    payload["company"] = value
+    _after_company(line_user_id, payload, reply_token)
+
+
+def _after_company(line_user_id, payload, reply_token):
+    """公司定了：这家今天的账套定得下来就去找客户；同期两本、没选过先选一次（A10，11-12）。"""
+    asked = _service().book_options(payload["company"])
+    if asked:
+        payload.update(step="book", books={row["code"]: row["name"] for row in asked["options"][:MAX_CHOICES]})
+        _save(line_user_id, payload)
+        return _ask_book(reply_token, payload)
+    payload.update(step="customer")
+    payload.pop("books", None)
     _save(line_user_id, payload)
     _ask_customer(reply_token)
+
+
+# ── 账套（同期两本时）───────────────────────────────────────────────────────
+
+
+def _ask_book(reply_token, payload):
+    """同名的副本与真账只有位置不同：列表写全「名称 · 位置」，按钮只放序号与名称的开头。"""
+    rows = list(payload["books"].items())
+    _ask(reply_token, "\n".join([_("Choose the account set")] + [f"{index}. {label}" for index, (_key, label)
+                                                                  in enumerate(rows, 1)]),
+         [_button(f"{index}. {label}", _data("book", key)) for index, (key, label) in enumerate(rows, 1)])
+
+
+def _answer_book(line_user_id, payload, value, reply_token):
+    if value not in (payload.get("books") or {}):
+        return _text(reply_token, _("This option is no longer current"))
+    _service().choose_book(payload["company"], value)
+    _after_company(line_user_id, payload, reply_token)
 
 
 def _type_company(line_user_id, payload, typed, reply_token):
@@ -694,6 +724,8 @@ def edit_url(name) -> str:
 def _repeat(line_user_id, payload, reply_token):
     """停在按钮那几步时打了别的字：照这一步再问一次。"""
     step = payload["step"]
+    if step == "book":
+        return _ask_book(reply_token, payload)
     if step == "invoices":
         return _show_invoices(payload, reply_token)
     if step == "method":
@@ -872,6 +904,7 @@ _STEP_OF = {"inv": "invoices"}
 
 _ANSWERS = {
     "company": _pick_company,
+    "book": _answer_book,
     "customer": _answer_customer,
     "inv": _answer_invoice,
     "invoices": _answer_invoices_done,

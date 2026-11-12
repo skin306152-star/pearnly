@@ -2055,6 +2055,7 @@ Due {0}	未收 {0}	ค้างชำระ {0}	未入金 {0}
 {0} selected · total {1}	已选 {0} 张 · 合计 {1}	เลือก {0} ใบ · รวม {1}	{0} 件選択 · 合計 {1}
 Choose at least one invoice	请至少选择一张发票	กรุณาเลือกใบแจ้งหนี้อย่างน้อย 1 ใบ	請求書を1件以上選択してください
 Received {0} · due {1}	已收 {0} · 还差 {1}	รับแล้ว {0} · ค้าง {1}	受領 {0} · 残り {1}
+Choose the account set	选择账套	เลือกชุดบัญชี	会計データを選択
 Choose the collection method	选择收款方式	เลือกวิธีรับชำระ	入金方法を選択してください
 Enter the amount for {0}	输入{0}的金额	พิมพ์จำนวนเงินของ {0}	{0} の金額を入力してください
 Enter a valid amount	请输入有效金额	กรุณาพิมพ์จำนวนเงินที่ถูกต้อง	正しい金額を入力してください
@@ -2109,3 +2110,6 @@ Recording a collection	正在录入收款	กำลังบันทึกร�
 Checking a collection	正在查看收款结果	กำลังดูผลการรับชำระ	入金の結果を確認しています
 Listing collections	正在查看收款列表	กำลังดูรายการรับชำระทั้งหมด	入金の一覧を確認しています
 Withdrawing a collection	正在撤回收款	กำลังถอนรายการรับชำระ	入金を取り下げています
+This company does not use Express	此公司未使用 Express	บริษัทนี้ไม่ได้ใช้ Express	この会社は Express を使用していません
+At most {0} invoices	最多 {0} 张发票	ได้สูงสุด {0} ใบแจ้งหนี้	請求書は最大 {0} 件です
+At most {0} collection methods	最多 {0} 种收款方式	ได้สูงสุด {0} วิธีรับชำระ	入金方法は最大 {0} 件です
