@@ -1527,7 +1527,7 @@ where = "ERP 单据写 Express"
 steps = "接 Express 的公司采购 / 销售提交（网页手录、识别、LINE 编辑页）"
 expect = "预检缺选项当场弹框；写进 C 盘 T 账套并读回一致；关账回原因弹窗"
 check = "auto"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/facts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/choices.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/contracts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/facts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/choices.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/contracts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/waiting.py", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py"]
 smoke = "express"
 site = "erp"
 args = { "company_tax" = "0105549038811", "branch" = "00012", "loccod" = "01", "kind" = "purchase" }

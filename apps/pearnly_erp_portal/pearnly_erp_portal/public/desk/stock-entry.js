@@ -274,7 +274,9 @@
 						format: (value, row) => [purpose_label(row?.purpose), value].filter(Boolean).join(" · ") },
 					// 接了事务所 Express 账本的站点：写进去了显示 Express 单号，否则显示状态（同采购 / 销售列表）
 					...(p.express_used() ? [{ fieldname: "ledger_docnum", width: 110, min_width: 76,
-						label: __("Express"), format: (value, row) => value || express_label(row?.ledger_state) }] : []),
+						label: __("Express"), format: (value, row) => value || express_label(row?.ledger_state),
+						// 排队中、在等 Express 关闭：状态不变，悬浮说明是现成那句（`p.express_waiting`）
+						title: (value, row) => p.express_waiting(row) }] : []),
 				],
 			});
 			restore_new();

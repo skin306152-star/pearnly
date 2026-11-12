@@ -3553,5 +3553,141 @@ class PrintedTotalRecognition(unittest.TestCase):
             self.assertEqual(meta.get("track_changes"), 1, slug)  # 谁、何时改了票面合计查版本记录
 
 
+class ExpressWaiting(PushModule):
+    """排队中的单此刻在等 Express 关闭（有人开着这本账套，11-12）：网页列表的这一页与单据的 Express 弹窗多带只读的
+    ``ledger_waiting`` / ``waiting``（读的时候算，`cc_desktop.jobs.express_wait_many`，一次查完）；单据上的 ``ledger_reason``
+    不写（排队中时照旧是空的）。"""
+
+    def setUp(self):
+        super().setUp()
+        # 这里第一次导入的 ERP 模块（`express.api` 及它带进来的）用完就卸掉：它们按导入时的 frappe.utils 替身绑定函数，
+        # 留着会改变后面的测试类看到的模块
+        before = set(sys.modules)
+
+        def unload():
+            for name in sorted(set(sys.modules) - before, reverse=True):
+                if name.startswith("pearnly_erp_portal."):
+                    parent, _dot, child = name.rpartition(".")
+                    sys.modules.pop(name)
+                    if getattr(sys.modules.get(parent), child, None) is not None:
+                        delattr(sys.modules[parent], child)
+        self.addCleanup(unload)
+
+    def job(self, name, *, status="queued", reason="ACCOUNT_BUSY_LOCKED", ago=10):
+        from datetime import timedelta
+        from pearnly_core.cc_desktop import devices, documents
+        from pearnly_core.cc_desktop.wire import ack_rules
+        fake.STATE.db.table(documents.JOB)[name] = {
+            "name": name, "status": status, "reason": reason, "book_key": "B",
+            "lease_expires_at": devices.now() - timedelta(seconds=ago)
+            + timedelta(seconds=ack_rules.EXPRESS_OPEN_REST_SECONDS)}
+
+    def documents(self):
+        from pearnly_core.cc_desktop.wire import ack_rules
+        table = fake.STATE.db.table("Purchase Document")
+        for name, state, job in (("PUR-1", "queued", "J1"), ("PUR-2", "queued", "J2"), ("PUR-3", "queued", None),
+                                 ("PUR-4", "held", "J4"), ("PUR-5", "queued", "J5"), ("PUR-6", "written", "J6")):
+            table[name] = {"name": name, "ledger_state": state, "ledger_job": job, "ledger_reason": ""}
+        self.job("J1")
+        self.job("J2", ago=ack_rules.EXPRESS_OPEN_SHOWN_SECONDS + 1)   # 电脑 90 秒没再回报：回到普通的排队中
+        self.job("J4", status="manual")
+        self.job("J5", reason="")                                       # 别的等待（另一台电脑在写）不算
+        self.job("J6", status="success")
+        return [Row(name=name, ledger_state=row["ledger_state"]) for name, row in table.items()]
+
+    def test_a_page_of_documents_is_marked_in_one_go(self):
+        from pearnly_erp_portal.express import waiting
+        rows = self.documents()
+        asked = []
+        real = frappe.get_all
+        with mock.patch.object(frappe, "get_all", lambda doctype, **kw: asked.append(doctype) or real(doctype, **kw)):
+            self.assertIs(waiting.mark("Purchase Document", rows), rows)
+        self.assertEqual({row["name"]: row.get("ledger_waiting") for row in rows},
+                         {"PUR-1": "express_open", "PUR-2": None, "PUR-3": None, "PUR-4": None, "PUR-5": None,
+                          "PUR-6": None})
+        self.assertEqual(asked, ["Purchase Document", "Pearnly CC Job"])   # 这一页排队中的单一次、写账件一次
+        self.assertTrue(all("ledger_job" not in row for row in rows))       # 任务名不带给页面
+        self.assertEqual(fake.STATE.db.table("Purchase Document")["PUR-1"]["ledger_reason"], "")   # 单据上不写原因
+        # 这一页没有排队中的单：不查
+        asked.clear()
+        with mock.patch.object(frappe, "get_all", lambda doctype, **kw: asked.append(doctype) or real(doctype, **kw)):
+            waiting.mark("Purchase Document", [Row(name="PUR-4", ledger_state="held"), Row(name="POS-1")])
+            waiting.mark("Purchase Document", [])
+        self.assertEqual(asked, [])
+
+    def test_receipts_are_marked_by_their_day_summary(self):
+        from pearnly_erp_portal.express import waiting
+        fake.STATE.db.table("ERP POS Day Summary")["PDS-1"] = {"name": "PDS-1", "ledger_state": "queued",
+                                                               "ledger_job": "J1"}
+        self.job("J1")
+        rows = [Row(name="POS-1", express_summary="PDS-1", ledger_state="queued"),
+                Row(name="POS-2", express_summary="PDS-1", ledger_state="queued"),
+                Row(name="POS-3", express_summary="", ledger_state="")]
+        waiting.mark("ERP POS Day Summary", rows, key="express_summary")
+        self.assertEqual([row.get("ledger_waiting") for row in rows], ["express_open", "express_open", None])
+
+    def view(self, **values):
+        utils = sys.modules["frappe.utils"]
+        for name, value in (("now", lambda: "2026-10-24 00:00:00"), ("flt", lambda v, *a: float(v or 0)),
+                            ("cint", lambda v: int(v or 0)), ("getdate", lambda v=None: v), ("add_days", lambda d, n: d)):
+            setattr(utils, name, getattr(utils, name, value))
+        from pearnly_erp_portal.express import api
+        base = {"name": "PUR-1", "company": "CO-1", "ledger_state": "queued", "ledger_job": "J1", "ledger_book": None,
+                "ledger_docnum": "", "ledger_reason": "", "ledger_needed": None}
+        row = Row({**base, **values})
+        with mock.patch.object(api.guard, "has", lambda capability, user=None: True):
+            return api._view(values.pop("doctype", "Purchase Document"), row)
+
+    def test_the_express_dialog_says_the_document_waits_for_express(self):
+        from pearnly_core.cc_desktop.wire import ack_rules
+        self.job("J1")
+        view = self.view()
+        self.assertEqual((view["state"], view["waiting"], view["reason"]), ("queued", "express_open", ""))
+        self.assertEqual((view["can_answer"], view["can_retry"]), (False, False))
+        self.job("J1", ago=ack_rules.EXPRESS_OPEN_SHOWN_SECONDS + 1)
+        self.assertEqual(self.view()["waiting"], "")           # 过期：普通的排队中
+        self.job("J1", status="leased")
+        self.assertEqual(self.view()["waiting"], "")           # 被领走在写
+        self.job("J1")
+        self.assertEqual(self.view(ledger_state="held")["waiting"], "")   # 单已经不是排队中
+        self.assertEqual(self.view(ledger_job=None)["waiting"], "")
+
+    def test_a_void_waiting_for_express_says_so_too(self):
+        # 已写进 Express 又在 ERP 作废的出入库单：Express 作废原单那一件在等 Express 关闭
+        self.job("JV")
+        view = self.view(doctype="ERP Stock Entry", ledger_state="written", ledger_docnum="OU1", ledger_job="J0",
+                         ledger_void_state="queued", ledger_void_job="JV", ledger_void_reason="")
+        self.assertEqual((view["void"], view["waiting"]), ("queued", "express_open"))
+        view = self.view(doctype="ERP Stock Entry", ledger_state="written", ledger_docnum="OU1", ledger_job="J0",
+                         ledger_void_state="held", ledger_void_job="JV", ledger_void_reason="x")
+        self.assertEqual(view["waiting"], "")
+
+    def test_a_disconnected_company_is_not_waiting(self):
+        self.job("J1")
+        fake.STATE.db.table("ERP Company")["CO-1"]["express_enabled"] = 0
+        self.assertEqual(self.view()["waiting"], "")
+
+    def test_every_list_entry_marks_its_page(self):
+        """采购、销售、出入库 / 调拨、收银小票四个列表接口都给这一页补 ``ledger_waiting``（导出与合计不走这里）。"""
+        import ast
+        erp = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal"
+        wanted = {"purchasing/api.py": {"api_purchase_records": 'waiting.mark("Purchase Document"'},
+                  "sales/api.py": {"api_sales_records": 'waiting.mark("ERP Sales Document"'},
+                  "inventory/api.py": {"api_list_stock_entries": 'waiting.mark("ERP Stock Entry"'},
+                  "cashier/api.py": {"api_list_sales": 'waiting.mark("ERP POS Day Summary"'}}
+        for path, functions in wanted.items():
+            source = (erp / path).read_text(encoding="utf-8")
+            bodies = {node.name: ast.get_source_segment(source, node) for node in ast.parse(source).body
+                      if isinstance(node, ast.FunctionDef)}
+            for name, call in functions.items():
+                self.assertIn(call, bodies[name], f"{path}:{name}")
+        cashier = (erp / "cashier/api.py").read_text(encoding="utf-8")
+        # 收银台里的「本班销售」没有 Express 一栏（`api_current_sales`）：不问
+        self.assertEqual(cashier.count('key="express_summary"'), 1)
+        # 导出、合计取数（`records.rows` / `list_entries` 本身）不补：只有列表这一页问
+        for path in ("purchasing/records.py", "sales/records.py", "inventory/documents.py", "cashier/sales.py"):
+            self.assertNotIn("waiting", (erp / path).read_text(encoding="utf-8"), path)
+
+
 if __name__ == "__main__":
     unittest.main()

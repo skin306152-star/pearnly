@@ -18,10 +18,12 @@ def api_post_purchase(payload, request_id, name=None, amended_from=None):
 
 @frappe.whitelist()
 def api_purchase_records(params=None, start=0, limit=20, sort_by=None, sort_order=None):
+    from pearnly_erp_portal.express import waiting
     from pearnly_erp_portal.purchasing import records
 
-    return {"items": records.rows(_payload(params), start=start, limit=limit,
-                                  sort_by=sort_by, sort_order=sort_order),
+    # 这一页里排队中、此刻在等 Express 关闭的单多带只读的 ``ledger_waiting``（一次查完；导出不走这里）
+    return {"items": waiting.mark("Purchase Document", records.rows(_payload(params), start=start, limit=limit,
+                                                                    sort_by=sort_by, sort_order=sort_order)),
             **records.overview(_payload(params))}
 
 
