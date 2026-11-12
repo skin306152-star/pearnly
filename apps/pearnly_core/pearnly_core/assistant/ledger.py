@@ -11,6 +11,7 @@
   provider 出错记日志、当作没有：不挡发话。
 - :func:`current`（只读版 :func:`resolved`，读接口用）：存的仍在可选里就用存的（用户选过的不被冲掉）；否则按默认补算，``store`` 时存下（不改最后活动时间），
   没有默认就是未定（``needed``）。老对话发话时（`projects.note`）补算一次。
+- :func:`offered`：新建页（还没有会话）按公司 + 月份 + 分店读默认与可选；选的随建会话交来，:func:`initial` 核对后存。
 - :func:`kept`：改月份 / 分店（`sessions.move`）时存什么：给了 ``wanted`` 就要在新的可选里；没给，存的那本仍可选就留，否则重算。
 - :func:`choose`：页面（右栏下拉经 `sessions.move`）与 CC 工具 ``pearnly_conversation_ledger``（:func:`tool_choose`，只认用户在
   本对话最近一张提问卡上选的那本，同 `sessions.file_chosen`）共用；改了推 `pearnly.project` move（带 ``ledger``）。
@@ -107,10 +108,23 @@ def current(row, store=True) -> dict | None:
     return found
 
 
-def initial(project, period, scope, user) -> str:
-    """新对话 / 新代录会话开在这家这个月时先存哪本（能定就是默认，否则空）。"""
+def initial(project, period, scope, user, wanted=None) -> str:
+    """新对话 / 新代录会话开在这家这个月时先存哪本：新建页选了（``wanted``，测试机1 11-12：第一句之前就能选）要在这家这个月
+    可选的里，不在按请求错误拒绝（同 :func:`kept`）；没选能定就是默认，否则空。"""
     found = options_of(project, period, scope, user)
+    if wanted is not None and str(wanted).strip():
+        ledger = _ledger_id(wanted)
+        if not found or ledger not in {item["id"] for item in found["options"]}:
+            raise contracts.ContractError("invalid ledger")
+        return ledger
     return found["default"] if found else ""
+
+
+def offered(project, period, scope, user) -> dict:
+    """新建页要的（还没有会话，`sessions.ledger_options`，只读）：``{"default", "options"}``；这家没有本对话账套（产品没声明、
+    provider 出错、这家不用）时都空。调用方先核过本人能用这家（`projects.placement`）。"""
+    found = options_of(project, period, scope, user)
+    return {"default": found["default"], "options": found["options"]} if found else {"default": "", "options": []}
 
 
 def kept(row, project, period, scope, wanted=None) -> str | None:
@@ -257,4 +271,4 @@ def note(found) -> str:
 
 
 __all__ = ["FIELD", "NEEDED", "NOT_AN_OPTION", "NOT_AVAILABLE", "NOT_CHOSEN", "SET", "choose", "current", "declared",
-           "initial", "kept", "note", "of_session", "of_task", "options_of", "resolved", "tool_choose", "view"]
+           "initial", "kept", "note", "of_session", "of_task", "offered", "options_of", "resolved", "tool_choose", "view"]

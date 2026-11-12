@@ -142,9 +142,10 @@ def _save(doc) -> None:
     _announce(doc)
 
 
-def create(company, period, company_title: str = "", scope: str = "") -> dict:
+def create(company, period, company_title: str = "", scope: str = "", ledger: str = "") -> dict:
     """新建一个准备中的任务（电脑、网页、手机都能建；选好公司、月份就建，不必先发一句话）。同一事务里建它的会话（统一对话框架
-    14.2：代录任务就是一段会话，``op_<任务号>``，远端会话第一次发话时才开），互相指上；``scope`` 是会话的分店（只记在会话上）。"""
+    14.2：代录任务就是一段会话，``op_<任务号>``，远端会话第一次发话时才开），互相指上；``scope`` 是会话的分店、``ledger`` 是新建页
+    选的本对话账套（调用方 `sessions._create_operator` 已核过；只记在会话上）。"""
     _require_company(company)
     doc = frappe.get_doc({"doctype": DOCTYPE, "product": site_product(), "company": str(company),
                           "company_title": str(company_title or "")[:TITLE_MAX], "period": _period(period),
@@ -153,7 +154,7 @@ def create(company, period, company_title: str = "", scope: str = "") -> dict:
     doc.insert()
     from pearnly_core.assistant import sessions
 
-    session = sessions.open_operator(doc, scope=scope)
+    session = sessions.open_operator(doc, scope=scope, ledger_id=ledger)
     if session:
         doc.session_id = session
         frappe.db.set_value(DOCTYPE, doc.name, "session_id", session, update_modified=False)
