@@ -431,6 +431,7 @@ Custom,กำหนดเอง
 Custom fields,ช่องที่กำหนดเอง
 Custom fields saved,บันทึกช่องที่กำหนดเองแล้ว
 Customer,ลูกค้า
+Customer Code,รหัสลูกค้า
 Customer Name,ชื่อลูกค้า
 Customer Type,ประเภทลูกค้า
 Customer contact updated successfully.,อัปเดตข้อมูลติดต่อลูกค้าแล้ว
@@ -734,6 +735,8 @@ Invalid value,ค่าไม่ถูกต้อง
 Invalid value: {0},ค่าไม่ถูกต้อง: {0}
 Invoice,ใบแจ้งหนี้
 Invoice Amount,ยอดตามใบแจ้งหนี้
+Invoice Date,วันที่ใบแจ้งหนี้
+Invoice No,เลขที่ใบแจ้งหนี้
 Invoice Status,สถานะเอกสาร
 Invoices,ใบแจ้งหนี้
 Is Paid,ชำระแล้ว
@@ -1090,6 +1093,7 @@ Posted by,ผู้ลงบัญชี
 Posted to Stock,บันทึกสต็อกแล้ว
 Posted {0} differences,ลงบัญชีผลต่าง {0} รายการแล้ว
 Posting Date,วันที่ลงบัญชี
+Prefix,คำนำหน้า
 Prefix for this company's document numbers,คำนำหน้าเลขเอกสารของบริษัทนี้
 Preview,ตัวอย่าง
 Preview opening stock,ตรวจสอบก่อนบันทึก
