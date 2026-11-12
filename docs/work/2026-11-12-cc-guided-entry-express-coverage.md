@@ -448,3 +448,14 @@ G-C4 不支持的五种情况表单卡不列、CC 如实说；G-C5 补 5 个原�
 **收尾**：Express 每次都正常退出（进程数回到 0）；测试机临时目录与一次性任务已删、读回不存在；CC 进程 15596 与配置哈希 7D2EE159 没变；
 没 lab-start、没切域名、没重启 CC；`69EXP\TEST` 里没有新增任何单据或主档，RE0000001–6、IV0000029 没碰。
 
+
+## 10. 第 1 期开工时要接的（CC 桌面版载荷 21 批次交来的，11-12）
+
+CC 桌面版那一批已完成：分支 `pearnly/cc-desktop-payload-3a2e3d` d98cba717（未合入），记录 `docs/work/2026-11-12-cc-desktop-payload-21.md`（在那条分支上）。归第 1 期接的四件：
+
+1. 服务端读回比对分录要认 `cash_account` 与 `due_date_be`（它没改读回）。
+2. 读成功回执 `line_modes` 里的 `unit_guessed`，记在写入结果上（G-B5）。
+3. 三个 `*_CHOICE` 原因码在 `ack_rules` 里另列为 `CHOICE_CODES`，候选在失败回执 `meta.choice`；库存不足的结构化明细在 `meta.shortages`，要批准在 `meta.approval`。服务端把它们变成引导卡上的题与库存不足的显示。
+4. 七个新原因码的 Cowork / ERP 四语词条它已补（新增 14 条）：出卡片时沿用，不重复加。
+
+它没有原生证据、等 62 套统计补的几处（对方类型码属于代码表哪一段、`STCRD.SLMCOD`、无发票号进货单的 `ISVAT.REFNUM`）列在它的记录里；下次排到测试机只读统计时一并跑。
