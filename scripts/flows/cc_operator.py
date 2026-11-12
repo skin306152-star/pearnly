@@ -67,7 +67,7 @@ print(json.dumps({{"title": frappe.db.get_value("ERP Company", {company!r}, "com
 
 def steps(params, camera_code=None):
     title, line, company = params["title"], params["line"], params["company"]
-    plan_line = params["tag"] + " 录吧 [lab-tool]" + json.dumps({"name": "pearnly_write_plan", "input": {}}) + "[/lab-tool]"
+    plan_line = params["tag"] + " 写入 [lab-tool]" + json.dumps({"name": "pearnly_write_plan", "input": {}}) + "[/lab-tool]"
     return [
         {"name": "切到代录", "js": JS + "const switched=await toMode('operator'); const ok=await until(()=>q('[data-slot=\"cc-chin-company\"]')); "
          "const before=(await listed('operator')).map(s=>s.id); "
