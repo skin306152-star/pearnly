@@ -15,7 +15,7 @@ import json
 import pytest
 
 from account_rules_fixture import seed
-from companion import express_masters, express_receivables, request_worker
+from companion import express_masters, express_receivables, payment_methods, request_worker
 from companion.request_contract import KINDS, LEASE_SECONDS, MAX_BYTES, RequestFailed
 from test_express_masters import _append, _cfg, _delete, _params, _read, _state, _table, books  # noqa: F401
 
@@ -75,6 +75,37 @@ def test_the_masters_carry_receipt_types_book_salesmen_and_cash_account(receipts
                                 {"code": "OLD2", "name": "พัก", "inactive": True},
                                 {"code": "ACT", "name": "ใช้งาน", "inactive": False}]  # 状态 A 是在用（同 ARMAS 的记法）
     assert data["cash_account"] == "1111-00"
+
+
+def test_receipt_types_carry_the_account_class_from_the_books_own_chart(receipts):
+    """11-12 按类放宽：每种带科目类别（``account_class``），按账套自己的科目表结构判，名称不参与（统计
+    docs/work/2026-11-12-collection-transfer-rule-stats.md）。现金组 = 现金科目往上第一个底下有 BKMAS 科目的上级；组里挂在下级
+    分组下的（不在现金那一支）、或在 BKMAS 里的是存款；BKMAS 里组外的（借款、退票应收）不是。"""
+    acct = receipts.acct
+    _append(acct / "GLACC.DBF", [{"ACCNUM": num, "ACCNAM": num, "PARENT": parent, "GROUP": num[0], "ACCTYP": "0", "STATUS": "A"}
+                                 for num, parent in (
+        ("1100-00", ""), ("1110-00", "1100-00"), ("1111-00", "1110-00"), ("1111-50", "1110-00"), ("1112-00", "1110-00"),
+        ("1112-01", "1112-00"), ("1113-00", "1110-00"), ("1113-01", "1113-00"), ("1113-02", "1113-00"), ("1113-09", "1113-00"),
+        ("1210-01", "1100-00"), ("2300-08", "2300-00"), ("2300-00", ""), ("2136-02", ""), ("2132-03", ""))])
+    _append(acct / "BKMAS.DBF", [{"BNKACC": "L1", "ACCNUM": "2300-08"}, {"BNKACC": "CH", "ACCNUM": "1111-00"}])
+    _append(acct / "ISRUN.DBF", [
+        {"DOCTYP": "ZR", "DOCCOD": "02", "PREFIX": "CH", "ACCNUM01": "1111-00", "POSDES": "รับเงินสด"},
+        {"DOCTYP": "ZR", "DOCCOD": "29", "PREFIX": "CC", "ACCNUM01": "1111-50", "POSDES": "เงินสดย่อย"},
+        {"DOCTYP": "ZR", "DOCCOD": "50", "PREFIX": "LN", "SHORTNAM": "L1", "POSDES": "เงินโอนเข้าบัญชี TMB"},
+        {"DOCTYP": "ZR", "DOCCOD": "51", "PREFIX": "GZ", "ACCNUM01": "1210-01", "POSDES": "เงินโอนเข้าบัญชี GIZE"},
+    ])
+    _result, data = _read(receipts)
+    assert {row["prefix"]: row["account_class"] for row in data["receipt_types"]} == {
+        "BB": "bank", "TB": "bank", "TR": "", "NA": "", "XX": "", "CH": "cash", "CC": "cash_group", "LN": "other",
+        "GZ": "other"}
+    assert set(payment_methods.ACCOUNT_CLASSES) == {"bank", "cash_group", "cash", "other"}
+
+
+def test_no_account_class_when_the_chart_cannot_place_the_cash_account(receipts):
+    # 现金科目不在科目表里（或没有现金科目、没有 PARENT 栏）判不出结构：不报这一栏，服务端照旧按名称判
+    _result, data = _read(receipts)
+    assert all("account_class" not in row for row in data["receipt_types"])
+    assert payment_methods.account_classes(receipts.acct) is None
 
 
 def test_open_invoices_are_live_unpaid_invoices_and_the_books_stay_untouched(receipts):
