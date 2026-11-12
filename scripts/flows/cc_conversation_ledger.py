@@ -13,7 +13,7 @@ R2-5（生产只读查清）：公司有两本同期账套（T.8、T.9，会计�
    （识别只排队，`cc_send_while_waiting.py`），所以用预造的已识别单，不在对话里上传识别。
 2. 在这家新建对话（月份默认上个月 2026-10），说一句开对话；右栏「ชุดบัญชี」一行值为空（两本同期、没记住），点开选 T.8 →
    右栏显示 T.8，接口读回的本对话账套是 T.8。
-3. 说一句建写入计划（``pearnly_write_plan`` 带这张单）→ ready、1 张，出「录吧」；对话里不出任何提问卡。点「录吧」，再按计划开始
+3. 说一句建写入计划（``pearnly_write_plan`` 带这张单）→ ready、1 张，出「写入」；对话里不出任何提问卡。点「写入」，再按计划开始
    （``pearnly_write_start``）→ started。
 4. 照 R2-5 真实路径：``cowork_push_documents`` 带这张单并另填 T.9 的连接与账套键 → 被拒（``not_this_conversation_book``），回包
    ``allowed_account_sets`` 只列 T.8；再推一次不填账套 → 交出去了（在路上：录入人的电脑够得到 T.8，见造数据；没有真的 CC 桌面版来
@@ -197,13 +197,13 @@ def steps(params, camera_code=None):
          f"return {{sent: turn.sent, status: r.status||'', plan: r.plan||'', count: r.count, documents: r.documents||[], "
          f"skipped: r.skipped||[], account_sets: r.account_sets||[], chip, label: q({json.dumps(CHIP)})?.innerText.trim()||'', asked: asked(), "
          "raw: r.unparsed||''};"},
-        {"name": "点录吧", "js": JS + RESULT + f"const b=q({json.dumps(CHIP)}); if(!b) return {{clicked:false}}; const label=b.innerText.trim(); "
+        {"name": "点写入", "js": JS + RESULT + f"const b=q({json.dumps(CHIP)}); if(!b) return {{clicked:false}}; const label=b.innerText.trim(); "
          "const users=()=>qa('[data-role=\"user\"]').map(e=>e.innerText.trim()); const before=users().length; b.click(); "
          "const bubble=await until(()=>users().length>before&&users().at(-1).includes(label),60); "
          "const replied=await until(()=>replies().some(e=>e.innerText.includes('[lab-agent] '+label)),240); "
          "await until(()=>!q('[data-slot=\"cc-run-indicator\"]'),80); "
          "return {clicked:true, label, bubble, replied, asked: asked()};"},
-        # 实验室的模型不会自己开始：照 CC 听到「录吧」后的做法，用原文带 [lab-tool] 让假智能体调 pearnly_write_start
+        # 实验室的模型不会自己开始：照 CC 听到「写入」后的做法，用原文带 [lab-tool] 让假智能体调 pearnly_write_start
         {"name": "按计划开始", "js": JS + RESULT + "const plan=window.__plan||''; if(!plan) return {started:false, reason:'no plan'}; "
          f"const line={json.dumps(params['tag'] + ' [lab-tool]')}+JSON.stringify({{name:'pearnly_write_start', input:{{plan}}}})+'[/lab-tool]'; "
          "const turn=await toolTurn(line,'pearnly_write_start'); const r=turn.result||{}; "
@@ -226,7 +226,7 @@ REFUSED = ("not_this_conversation_book", "not_this_company_book", "ledger_needed
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
     opened, chose, made, clicked, started, other, plain = (by.get(k) or {} for k in (
-        "这家开对话", "右栏选 T.8", "说一句建写入计划", "点录吧", "按计划开始", "另填 T.9 推送", "不填账套推送"))
+        "这家开对话", "右栏选 T.8", "说一句建写入计划", "点写入", "按计划开始", "另填 T.9 推送", "不填账套推送"))
     t8_only = [{"connection": params["connection"], "key": T8, "label": "T.8"}]
     return [
         {"case": "在这家新建对话：月份是 2026-10、CC 回了这一句", "seen": opened,
@@ -235,12 +235,12 @@ def judge(params, results, camera_code=None):
         {"case": "右栏账套一行：两本同期、没记住时值为空；点开列出 T.8、T.9，选 T.8 后显示 T.8，服务端读回本对话账套是 T.8", "seen": chose,
          "ok": chose.get("found") is True and chose.get("before") == "" and {"T.8", "T.9"} <= set(chose.get("options") or [])
          and bool(chose.get("changed")) and chose.get("after") == "T.8" and chose.get("current") == params["t8"]},
-        {"case": "说一句建写入计划：这张单要写（ready、1 张，目标 T.8），出「录吧」；不出选账套的提问卡", "seen": made,
+        {"case": "说一句建写入计划：这张单要写（ready、1 张，目标 T.8），出「写入」；不出选账套的提问卡", "seen": made,
          "ok": made.get("status") == "ready" and made.get("count") == 1 and made.get("documents") == [params["doc"]]
          and bool(made.get("chip")) and made.get("asked") == 0
          and [(item.get("account_set"), item.get("account_set_title")) for item in made.get("account_sets") or []]
          == [(T8, "T.8")]},
-        {"case": "点「录吧」= 这句话照常发出，CC 回了这一句；仍不出提问卡", "seen": clicked,
+        {"case": "点「写入」= 这句话照常发出，CC 回了这一句；仍不出提问卡", "seen": clicked,
          "ok": bool(clicked.get("bubble")) and bool(clicked.get("replied")) and clicked.get("label") == made.get("label")
          and clicked.get("asked") == 0},
         {"case": "CC 按计划开始：started、这一张", "seen": started,

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""固定场景（真模型、要花钱，部署前跑）：CC 写账由用户一句话下令开始（用户 11-10；写入计划 A 线 11-11，「录吧」B 线）。
+"""固定场景（真模型、要花钱，部署前跑）：CC 写账由用户一句话下令开始（用户 11-10；写入计划 A 线 11-11，「写入」B 线）。
 
-在本机实验栈用真模型照用户的样子做：说一句要录 → CC 先建写入计划、一句话复述、等用户点头（这时不写）→ 用户点输入框上方的「录吧」
+在本机实验栈用真模型照用户的样子做：说一句要录 → CC 先建写入计划、一句话复述、等用户点头（这时不写）→ 用户点输入框上方的「写入」
 → CC 按计划开始 → 才写。断言（任何一条不过即不过）：
 
-  ① 第一句之后 CC 调了 pearnly_write_plan，没调 pearnly_write_start；输入框上方出「录吧」（计划在等用户点头）
+  ① 第一句之后 CC 调了 pearnly_write_plan，没调 pearnly_write_start；输入框上方出「写入」（计划在等用户点头）
   ② 站点上用户点头之前什么都没写：推送记录 / 代录交单都晚于计划开始的时刻（服务端只在复述之后用户又发话才放行）
-  ③ 点「录吧」之后 CC 调了 pearnly_write_start，计划转 started；直写这张单有了推送记录，代录任务交出去（排队）；「录吧」消失
+  ③ 点「写入」之后 CC 调了 pearnly_write_start，计划转 started；直写这张单有了推送记录，代录任务交出去（排队）；「写入」消失
   ④ CC 的回话里不出现 operator、wrong_mode、内部单号这类内部词
 
 两遍（Cowork 直写、Cowork 代录），电脑宽度、界面中文。数据用 `scripts/flows/cowork_operator_lib.py` 的合成账套与一张识别好的
@@ -86,7 +86,7 @@ def steps(mode, params):
          "const sid=await sidOf(); const tools=sid?await toolsOf(sid):[]; "
          f"const chip=await until(()=>!!q({json.dumps(CHIP)}),30); "
          "return {picked, sent, done, sid, tools, chip, replies: said().map(t=>t.slice(0,600))};"},
-        {"name": "点录吧", "js": TOOLS_JS + f"const b=q({json.dumps(CHIP)}); if(!b) return {{clicked:false}}; b.click(); "
+        {"name": "点写入", "js": TOOLS_JS + f"const b=q({json.dumps(CHIP)}); if(!b) return {{clicked:false}}; b.click(); "
          "await sleep(3000); const done=await settled(300); "
          "const sid=await sidOf(); const tools=sid?await toolsOf(sid):[]; "
          f"return {{clicked:true, done, sid, tools, chip: !!q({json.dumps(CHIP)}), replies: said().map(t=>t.slice(0,600))}};"},
@@ -123,7 +123,7 @@ print(json.dumps({{"plans": plans, "records": records, "task": task, "turn": row
 
 def judge(mode, params, results, found):
     by = {r.get("step"): r.get("value") or {} for r in results}
-    first, second = by.get("说一句要录") or {}, by.get("点录吧") or {}
+    first, second = by.get("说一句要录") or {}, by.get("点写入") or {}
     started = [p for p in found["plans"] if p["status"] == "started"]
     begun = min((p["started_at"] for p in started if p.get("started_at")), default=None)
     writes = [r["creation"] for r in found["records"]] if mode == "direct" else ([found["task"]["started_at"]]
@@ -132,13 +132,13 @@ def judge(mode, params, results, found):
     text = " ".join((first.get("replies") or []) + (second.get("replies") or [])).replace("Flow operator", "").replace("Flow Operator", "")
     leaks = [p.pattern for p in LEAKS if p.search(text)]
     return [
-        {"case": "① 第一句之后 CC 建了写入计划、没开始；输入框上方出「录吧」",
+        {"case": "① 第一句之后 CC 建了写入计划、没开始；输入框上方出「写入」",
          "seen": {k: first.get(k) for k in ("tools", "chip", "replies")},
          "ok": "pearnly_write_plan" in (first.get("tools") or []) and "pearnly_write_start" not in (first.get("tools") or [])
          and bool(first.get("chip"))},
         {"case": "② 用户点头之前什么都没写（写入都晚于计划开始）", "seen": {"started": begun, "writes": writes},
          "ok": bool(begun) and all(str(w) >= str(begun) for w in writes)},
-        {"case": "③ 点「录吧」后 CC 按计划开始，计划 started，写了（直写有推送记录 / 代录任务交出去），「录吧」消失",
+        {"case": "③ 点「写入」后 CC 按计划开始，计划 started，写了（直写有推送记录 / 代录任务交出去），「写入」消失",
          "seen": {"tools": second.get("tools"), "chip": second.get("chip"), "plans": [(p["status"], p["mode"]) for p in found["plans"]],
                   "records": len(found["records"]), "task": found["task"]},
          "ok": bool(second.get("clicked")) and "pearnly_write_start" in (second.get("tools") or []) and bool(started)
@@ -157,7 +157,7 @@ def run_one(lab, mode):
     finally:
         lab.drop(SITE, USER, sid)
     by = {r.get("step"): r.get("value") or {} for r in results}
-    conversation = (by.get("点录吧") or {}).get("sid") or (by.get("说一句要录") or {}).get("sid") or ""
+    conversation = (by.get("点写入") or {}).get("sid") or (by.get("说一句要录") or {}).get("sid") or ""
     found = verify(lab, params, conversation) if conversation else {"plans": [], "records": [], "task": {}}
     checks = judge(mode, params, results, found)
     errors = [e for r in results for e in (r.get("page_errors") or [])]
