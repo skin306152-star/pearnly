@@ -1,0 +1,99 @@
+# 收款接本对话账套与等 Express 显示（11-12，收款接手窗口）
+
+- 分支 `pearnly/collection-on-ledger`，工作树 `.claude/worktrees/collection-2-de86fb`。
+- 前情：收款最终分支 `pearnly/collection-cc-chat`（d1ec8d5ca，基于 c63458f5f），交接「收款-交接-11-12.md」（共享笔记 local_74a4f119…）。
+- 任务：①变基到 main 702580300；②叠在 A 线 `pearnly/cc-conversation-ledger`（18f969a06）上接审计 A10 / A11；③接 express-wait-display
+  的只读查询显示「在等 Express 关闭」；④交接剩下的可动手项。
+
+## 1. 叠放关系（集成时照这个顺序）
+
+```
+origin/main 702580300
+ └ A 线 cc-conversation-ledger 的 20 个提交（本地变基到 702580300，冲突只在 shared-parts.toml / registry.toml 两处登记，两边都留）
+    └ 收款 collection-cc-chat 的 31 个提交（变基；registry.toml 一处冲突，两边都留；erp.exports 的 covers 补回 collection/output.py）
+       └ 本窗口的提交（录吧 → 写入注释、A10 / A11、等 Express 显示、文案、导出表头）
+```
+
+- **A 线分支本身没动**：本支里那 20 个提交是本地变基的副本。集成时 A 线自己的变基版先进集成分支，本支再 `git rebase --onto <集成分支> <A 线副本的顶>`；
+  两份同内容的提交 git 会自动跳过，只可能在两处登记表上再冲一次（两边都留即可）。
+- **等 Express 显示没叠在 express-wait-display 上**：那支建在 express-busy-probe（旧探测）上，探测正改成 busy-probe-2，CC 版本号也在变；叠上去
+  每次它们变基本支都要跟着重排。改为按约定直接调 `pearnly_core.cc_desktop.jobs.express_wait_many(names)` / `book_express_wait(book_key)`，
+  测试里用替身（`mock.patch(..., create=True)`），另有一条约定测试 `ExpressWaitContract`：那支进来后自动跑、钉住两个函数的样子。
+  **因此本支必须排在 express-wait-display 之后合入**（集成顺序本来如此）；单独上会在「我的收款」列表与 LINE 待写入回复处报 AttributeError。
+- 实际返回值与任务书的约定差一点：`express_wait_many` 回的是 `{任务名: 上次回报时刻}`（只含在等的），不是 `{name: bool}`；本支按「名字在不在里面」用，两种都对。
+
+## 2. A10 / A11：一笔收款只认一本账套
+
+| 入口 | 改前 | 改后 |
+|---|---|---|
+| CC 对话（直写） | 列发票、列方式按今天选账套，建草稿按单据日期选；跨年两本不同。同期两本抛「同期几份」，没有作答入口 | `service.book_for` 经 `express.conversation.wanted` 取本对话账套，三步同一本，不看日期。未定时回 `ledger_needed` + 可选几本 + 说明（问一次、用 `pearnly_conversation_ledger` 设，记在会话上），形状同单据推送的 `ledger_needed` |
+| CC 写入计划 | 不核账套 | `plan.view` 在对话里核：草稿冻结的账套 ≠ 本对话账套（之后在右栏换了，或 LINE 录在别的本里）→ 写不了 `collection.book_not_conversation`；未定 → `ledger_needed`。发票各本各的，不改投 |
+| LINE | 同期两本卡死（`choose_book` 没有调用方） | 选完公司（只有一家时直接）先 `service.book_options`：定得下来去找客户；同期两本、没选过 → 一步「选择账套」（列表写全「名称 · 位置」，按钮序号 + 名称），选了 `choose_book` 记住，下次不问。旧按钮 / 不在列表的值拒，打字照这一步再问 |
+| 网页「我的收款」编辑弹窗 | 按草稿日期重新选账套取「能收多少」和方式（同期又报来一本就停在「同期几份」） | `service.edit_choices`：一律用草稿冻结的那本 |
+
+- **记忆复用 ERP 现成的**：`choose_book` 写的就是 `express.choices.ACCOUNT_SET`（按公司 × 会计年度，`target.year_subject`），与网页单据「选账套」
+  （`express/api.answer`）、CC 对话本对话账套的默认（`masters.cc_projects.ledgers`）同一份。LINE 里选过，网页单据和新开的 CC 对话都按它；反之亦然。没另造一套。
+- `choose_book` 改了签名：`(company, key, day=None)`，记忆的年度由服务端按这一天算（不再信客户端给的 subject）；已定下来的那本再选一次照回。
+- 网页没有建收款的入口（只改草稿），所以网页不需要「选账套」那一步；编辑弹窗改为用冻结的那本后不会再遇到「同期几份」。
+
+## 3. 等 Express 关闭的显示（约定见 express-wait-display 记录）
+
+- `collection/push.py`：排队中 / 写入中**不再把任务原因码抄到收款记录**（原来照抄，合入 busy-probe 后记录上会挂着 `ACCOUNT_BUSY_LOCKED`，像失败了）；写成 / 失败照旧。
+- 「我的收款」：`service.mine` 每笔多带只读 `express_wait`（待写入且写账件此刻在等，`express_wait_many` 一次查完）；列表 Express 一栏悬浮说明、
+  点开已放行的那笔（手机没有悬浮）显示现成那句 `express.error.ACCOUNT_BUSY_LOCKED`，状态仍是「待写入」。
+- LINE：放行后的那条当场回复（免费的回复令牌）在「已记录 · 待写入」下面多一行那句（`service.express_waiting` → `book_express_wait`）；不另推送说原因；写成后照旧推 RE 号。
+- CC 写入：放行结果是 queued 且这本账套在等时，结果带 `express_wait: true`，给模型的说明加一句（让它告诉用户关闭 Express 后自动写入）。
+- 文案只用现成那句，不新增不改。
+- **限制（如实）**：当天第一笔放行时电脑还没去试过这本账套，不知道 Express 开着，只能回「已记录 · 待写入」；之后同一本账套的笔才在回复里带那句。
+  20 秒等待之内电脑试过并回报了的，这一笔的回复里就有。
+
+## 4. 交接剩下的可动手项
+
+| 交接 §3 | 结论 |
+|---|---|
+| 1 A10、2 A11 | 本支做完（§2） |
+| 3 等 Express 显示 | 本支做完（§3） |
+| 4 CC 对话里写成后主动补一句 | A 线做（`push_followup` + `TELL` 加 cc）；本支没动 `push.py` 的 TELL / `_tell` 与 `cc_tools.push` 的结构 |
+| 5 其他三语富菜单 | 词条核对完：收款格四张图（th / zh / en / ja）都在、字对；收款相关 105 条界面词四语齐全。真机三语没测（要改三星系统语言）→ 写进真机清单 |
+| 6 发凭证后回复变泰文 | 只记录不修（已知问题：LINE 公共取语言失败时退回账号语言） |
+| 7 部署后 publish / 发 CC / 三星补测 | 主会话排 |
+| 8、9 新租户材料、客户说明 | 要岳父 / 客户给，不是代码 |
+| 10 直写补审计列 | 建议另排，不在本支 |
+| 没文案只说「Could not record」 | 补齐：同期两本 / 本对话账套未定 →「选择账套」（新）；没有税号、没有账套、找不到客户用现成句子；公司没接 Express（新）、发票超过 50 张（新）、方式超过 10 种（新）。测试 `Explained` 钉住所有收款员会遇到的码都有自己的话 |
+| 顺手发现 | 收款导出的表头「Customer Code / Invoice No / Invoice Date / Prefix」ERP 没有译文（导出是英文）→ 补四语；「Sales Person」改用现成的「Salesman」 |
+
+新增文案（官方简短、四语，`check-copy` 无拦截）：
+
+| 英文 | 中文 | 泰文 | 日文 |
+|---|---|---|---|
+| Choose the account set | 选择账套 | เลือกชุดบัญชี | 会計データを選択 |
+| This company does not use Express | 此公司未使用 Express | บริษัทนี้ไม่ได้ใช้ Express | この会社は Express を使用していません |
+| At most {0} invoices | 最多 {0} 张发票 | ได้สูงสุด {0} ใบแจ้งหนี้ | 請求書は最大 {0} 件です |
+| At most {0} collection methods | 最多 {0} 种收款方式 | ได้สูงสุด {0} วิธีรับชำระ | 入金方法は最大 {0} 件です |
+| Customer Code | 客户编号 | รหัสลูกค้า | 顧客コード |
+| Invoice No | 发票号码 | เลขที่ใบแจ้งหนี้ | 請求書番号 |
+| Invoice Date | 发票日期 | วันที่ใบแจ้งหนี้ | 請求書の日付 |
+| Prefix | 前缀 | คำนำหน้า | 接頭辞 |
+
+改已有文案：无（注释里的「录吧」改「写入」不是界面文案）。
+
+## 5. 科目余额 CALSTA 标记
+
+CC 桌面版窗口的本地提交 4e88e559f（`pearnly/cc-desktop-payload-3a2e3d`，未推）已把 `glbal_mark.mark` 接进全部写 GLJNLIT 的路径，**含收款 `dbf_receipt.py`**。
+本支不动 `dbf_receipt.py`（本支 companion 只改 `payment_methods.py`），无冲突；收款不需要另接。集成后真机核一张 RE 写完后 GLBAL 对应格被标待重算（真机清单第 5 项）。
+
+## 6. 测试
+
+先写、在旧代码上红（提交 651c15891、本支等 Express 那一组）：
+- `test_erp_collection.py`：`Books`（同期两本 → 问 / 选 / 记住 / 与单据同一份记忆；不在列表的拒；编辑弹窗用冻结的本）、`ExpressWaiting`（列表只标在等的、原因码不抄、点开那笔、页面源码）、
+  `Explained`（每个码都有话）、`ExpressWaitContract`（约定，wait-display 进来后才跑）。
+- `test_erp_collection_line.py`：`BookStep`（选完公司问一次、记住；旧值拒、打字再问）、`Results.test_waiting_for_express_is_said_in_the_pending_reply_only`。
+- `test_erp_collection_cc.py`：`ConversationBook`（跨年三步同一本、未定在对话里问、草稿账套≠本对话账套不进计划）、`ExpressOpen`；Base 加本对话账套替身
+  （叠上 A 线后写入计划要读 `ledger.of_session`，原来 7 条因此报错）。
+- 改了一条旧断言：`Receipts.test_other_failures_and_queue_states` 排队中原因由「照抄」改为空（§3 有意变化）。
+
+检查结果与共用件入口逐项见 §7。
+
+## 7. 检查与共用件入口
+
+（交付时补：闸门、候选离线、check-impact 逐入口、流程、CI。）
