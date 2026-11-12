@@ -798,7 +798,7 @@ class Receipts(Base):
         row = frappe.db.get_value("ERP Collection", name, ["status", "docnum", "reason", "written_at"], as_dict=True)
         self.assertEqual((row.status, row.docnum, row.reason), (C.WRITTEN, "RE2403080", ""))
         self.assertEqual(frappe.db.get_value(snapshot.DOCTYPE, {"docnum": "IV1"}, "remaining"), Decimal("400.00"))
-        self.assertIn("erp_ar_open:" + BOOK["key"] + ":2100883", self.requests.made)  # 再按客户读一次
+        self.assertIn(snapshot.request_key(BOOK["key"], "2100883"), self.requests.made)  # 再按客户读一次
 
     def test_already_collected_keeps_each_current_balance(self):
         name, job = self.released()
@@ -816,11 +816,11 @@ class Receipts(Base):
         """主会话 11-11（更正）：CC 不列服务品现金制发票（SRV_VATTYP=2），写入时遇到回 ``[INVOICE_NOT_FOUND]``、证据里
         ``problem="cash_basis_vat"``，没有新码：照原因记失败，按客户再读一次未收清发票；没带余额就不记余额。"""
         name, job = self.released()
-        self.assertNotIn("erp_ar_open:" + BOOK["key"] + ":2100883", self.requests.made)
+        self.assertNotIn(snapshot.request_key(BOOK["key"], "2100883"), self.requests.made)
         self.jobs.report(job, "manual", reason="[INVOICE_NOT_FOUND] IV1", meta={"problem": "cash_basis_vat"})
         row = frappe.db.get_value("ERP Collection", name, ["status", "reason", "balances"], as_dict=True)
         self.assertEqual((row.status, row.reason, row.balances), (C.FAILED, "[INVOICE_NOT_FOUND] IV1", None))
-        self.assertIn("erp_ar_open:" + BOOK["key"] + ":2100883", self.requests.made)
+        self.assertIn(snapshot.request_key(BOOK["key"], "2100883"), self.requests.made)
         self.assertEqual(C.UNCOLLECTABLE, ("ALREADY_COLLECTED", "INVOICE_NOT_FOUND"))
 
     def test_other_failures_and_queue_states(self):
@@ -933,6 +933,16 @@ class Snapshot(Base):
         self.assertTrue(snapshot.marks_seen("CO-1", BOOK, {"ar_mark": "x2"}))
         self.assertIn(snapshot.request_key(BOOK["key"]), self.requests.made)
         self.assertFalse(snapshot.marks_seen("CO-1", BOOK, {"ar_mark": "x2"}))  # 没变
+
+    def test_a_thai_customer_code_makes_a_request_key_the_channel_accepts(self):
+        # 11-12 三星实测：客户编号「นาย ทดสอบ」（泰文 + 不换行空格）拼进请求号被共用通道拒（只认字母数字），按客户读一次永远发不出去
+        from pearnly_core.cc_desktop.wire import request_contracts
+        for code in ("นาย\xa0ทดสอบ", "DT-จ004", "ว-0001", "2100883"):
+            key = snapshot.request_key(BOOK["key"], code)
+            self.assertEqual(request_contracts.request_key(key), key)
+            self.assertEqual(snapshot.request_key(BOOK["key"], code), key)  # 同一位客户同一个号
+        self.assertNotEqual(snapshot.request_key(BOOK["key"], "DT-จ004"), snapshot.request_key(BOOK["key"], "DT-จ005"))
+        self.assertEqual(snapshot.request_key(BOOK["key"]), "erp_ar_open:" + BOOK["key"])  # 整本读不变
 
     def test_an_unknown_request_kind_reads_as_cc_update_needed(self):
         with mock.patch.object(self.requests, "create", side_effect=frappe.ValidationError("cc_desktop.request_invalid")):
