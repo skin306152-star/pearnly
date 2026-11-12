@@ -40,7 +40,7 @@ services:
     # 与生产 erp-web 同一条命令：静态资源交给前置 nginx，不让 gunicorn 兼职。
     command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites,
       --bind=0.0.0.0:8000, --threads=4, --workers=2, --worker-class=gthread,
-      --worker-tmp-dir=/dev/shm, --timeout=120, --preload, frappe.app:application]
+      --worker-tmp-dir=/dev/shm, --timeout=120, --preload, pearnly_core.web.wsgi:application]
     environment:
       DB_HOST: mariadb
       REDIS_CACHE: redis://redis-cache:6379

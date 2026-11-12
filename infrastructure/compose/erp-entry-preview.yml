@@ -7,7 +7,7 @@ services:
       service: bench
     command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites,
       --bind=0.0.0.0:8000, --threads=4, --workers=2, --worker-class=gthread,
-      --worker-tmp-dir=/dev/shm, --timeout=120, --preload, frappe.app:application]
+      --worker-tmp-dir=/dev/shm, --timeout=120, --preload, pearnly_core.web.wsgi:application]
     networks:
       default:
         aliases: [erp-pos-a.localhost, erp-pos-b.localhost]

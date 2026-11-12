@@ -54,7 +54,7 @@ OVERRIDE = """services:
       ANTHROPIC_BASE_URL: {base}
       FRAPPE_BACKGROUND_WORKERS_NOFORK: "1"
       PEARNLY_OCR_THREADS: "1"
-    command: [bash, -lc, "for p in 8000 8001 8002; do bench serve --port $$p --noreload & done; bench worker --queue short,default,long & (cd sites && ../env/bin/python -m pearnly_core.execution.worker --queue ocr --num-workers 1) & (cd sites && ../env/bin/python -m pearnly_core.execution.dispatch) & wait"]
+    command: [bash, -lc, "for p in 8000 8001 8002; do (cd sites && ../env/bin/python -m pearnly_core.web.wsgi $$p) & done; bench worker --queue short,default,long & (cd sites && ../env/bin/python -m pearnly_core.execution.worker --queue ocr --num-workers 1) & (cd sites && ../env/bin/python -m pearnly_core.execution.dispatch) & wait"]
 """
 
 
