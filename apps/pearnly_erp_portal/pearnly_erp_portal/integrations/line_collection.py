@@ -437,7 +437,10 @@ def _pending_name(payload) -> str:
 def _ask_amount(payload, reply_token, note=""):
     rest = money(_rest(payload))
     lines = [note] if note else [_status_line(payload)]
-    lines.append(_("Enter the amount for {0}").format(_pending_name(payload)))
+    if payload.get("pending") == DISCOUNT:
+        lines.append(_("Enter the discount amount"))
+    else:
+        lines.append(_("Enter the amount for {0}").format(_pending_name(payload)))
     _ask(reply_token, "\n".join(lines), [_button(rest, _data("amount", rest.replace(",", "")))])
 
 
@@ -716,8 +719,20 @@ def _release(line_user_id, name, version, reply_token, event_id):
         return _text(reply_token, _status_text(result["card"]))
     if status == "invalid":
         card = _service().card(name)
-        return _show_card(line_user_id, payload_of(line_user_id), card, reply_token,
-                          note=_explain(contracts.CollectionError(result.get("code"), result.get("detail"))))
+        code, detail = result.get("code"), result.get("detail") or {}
+        available = detail.get("available") if isinstance(detail, dict) else None
+        if code == contracts.OVER_COLLECTED and isinstance(available, dict):
+            # 11-12 三星实测：别的收款员刚收了同一张——照实说「已被收款」与每张此刻的余额，不说「请重新输入」
+            note = "\n".join([_("Already collected. Current balance:")]
+                             + [f"{docnum} {money(value)}" for docnum, value in available.items()])
+        else:
+            note = _explain(contracts.CollectionError(code, detail))
+        if card.get("problem") == code:  # 同一个原因只说一遍
+            if code == contracts.VOUCHER_MISSING:
+                note = ""  # 缺凭证由卡片接着要照片（步骤跟着走），不另说
+            else:
+                card = {**card, "problem": ""}
+        return _show_card(line_user_id, payload_of(line_user_id), card, reply_token, note=note)
     if payload_of(line_user_id).get("name") == name:
         _clear(line_user_id)
     _wait_on(name)
