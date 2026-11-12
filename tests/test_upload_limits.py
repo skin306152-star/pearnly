@@ -295,12 +295,41 @@ class MessageTests(unittest.TestCase):
 
     def test_the_upload_endpoints_say_too_large_instead_of_a_generic_refusal(self):
         upload = (CORE / "assistant/files.py").read_text(encoding="utf-8").split("def _upload(", 1)[1].split("\ndef ", 1)[0]
-        check = ("if len(content) > contracts.UPLOAD_MAX_BYTES:\n        from pearnly_core.originals import upload_limits\n\n"
+        # 11-12 起文件不读成 bytes（ADR-028 第 2 步）：先量大小，超了照样说多大，再查文件名
+        check = ("if size > contracts.UPLOAD_MAX_BYTES:\n        from pearnly_core.originals import upload_limits\n\n"
                  "        frappe.throw(upload_limits.too_large())")
         self.assertIn(check, upload)
         self.assertLess(upload.index(check), upload.index("contracts.upload_name"))
         intake = (CORE / "express_operator/api.py").read_text(encoding="utf-8").split("def intake(", 1)[1].split("\ndef ", 1)[0]
-        self.assertIn("if len(content) > UPLOAD_MAX:\n        frappe.throw(upload_limits.too_large())", intake)
+        self.assertIn("content = local_file.from_upload(incoming, UPLOAD_MAX)\n    if content is None:\n"
+                      "        frappe.throw(upload_limits.too_large())", intake)
+
+
+
+class FilesStayOnDisk(unittest.TestCase):
+    """ADR-028 第 2 步：四个上传口不再把文件整份读成 bytes，按块落盘后往下传（实测在 `tests/test_upload_files_on_disk.py`，镜像里跑）。"""
+
+    def _body(self, path, function):
+        return (ROOT / path).read_text(encoding="utf-8").split(f"def {function}(", 1)[1].split("\ndef ", 1)[0]
+
+    def test_cc_attachments_go_to_the_kept_copy_first_and_everything_reads_it(self):
+        upload = self._body("apps/pearnly_core/pearnly_core/assistant/files.py", "_upload")
+        self.assertNotIn("stream.read(contracts.UPLOAD_MAX_BYTES", upload)
+        self.assertLess(upload.index("content = _keep(row, upload_id, name, content)"), upload.index("api.upload(name, content, mime)"))
+        self.assertLess(upload.index("content = _keep("), upload.index("_operator_take(row, upload_id, name, content)"))
+
+    def test_operator_materials_and_cowork_intake_land_on_disk(self):
+        self.assertIn("content = local_file.from_upload(incoming, UPLOAD_MAX)",
+                      self._body("apps/pearnly_core/pearnly_core/express_operator/api.py", "intake"))
+        self.assertIn("content = local_file.from_upload(incoming, service.MAX_BYTES)",
+                      self._body("apps/pearnly_cowork/pearnly_cowork/files/api.py", "upload"))
+        for path, function in (("apps/pearnly_core/pearnly_core/express_operator/api.py", "intake"),
+                               ("apps/pearnly_cowork/pearnly_cowork/files/api.py", "upload")):
+            self.assertNotIn("incoming.stream.read(", self._body(path, function))
+
+    def test_a_file_from_a_folder_is_handed_on_from_disk(self):
+        self.assertIn("request_service.result_file(request)",
+                      self._body("apps/pearnly_cowork/pearnly_cowork/folder_intake/fetch.py", "content"))
 
 
 NODE = shutil.which("node")

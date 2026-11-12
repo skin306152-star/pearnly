@@ -221,6 +221,18 @@ def result(name) -> tuple:
     return content, _json(row.meta_json)
 
 
+def result_file(name) -> tuple:
+    """同 :func:`result`，但不把结果读进内存：按块核对长度与摘要后回磁盘上那份（`local_file.LocalFile`, meta）。
+    结果字节要到 :func:`drop` 之后、提交时才删（`_later`），提交前照常读得到（文件夹取文件放进对话，ADR-028 第 2 步）。"""
+    from pearnly_core.originals import local_file
+
+    row = _own(name)
+    size, sha256 = store.digest(row.name) if row.status == "done" else (None, None)
+    if row.status != "done" or size != int(row.result_bytes or 0) or sha256 != row.result_sha256 or not store.exists(row.name):
+        _error("companion.on_demand_not_ready")
+    return local_file.LocalFile(store.path(row.name)), _json(row.meta_json)
+
+
 def drop(name) -> None:
     _remove(_own(name).name)
 

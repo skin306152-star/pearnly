@@ -50,6 +50,14 @@ def digest(name):
     return size, found.hexdigest()
 
 
+def path(name):
+    return _path(name)
+
+
+def exists(name):
+    return os.path.exists(_path(name))
+
+
 def read(name):
     path = _path(name)
     if not os.path.exists(path):

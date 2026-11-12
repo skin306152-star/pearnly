@@ -57,11 +57,16 @@ class JsonUpload:
 
     STEP = 3 * 1024 * 1024  # 3 的倍数：分段编码拼起来与整份编码相同
 
-    def __init__(self, head: dict, content: bytes):
+    def __init__(self, head: dict, content):
+        from pearnly_core.originals import local_file
+
         self._prefix = (json.dumps(head)[:-1] + ', "data": "').encode()
         self._suffix = b'"}'
-        self._content = memoryview(content)
-        self._length = len(self._prefix) + 4 * ((len(content) + 2) // 3) + len(self._suffix)
+        # 磁盘上的一份（`local_file.LocalFile`）按段从文件读，bytes 照旧按段切（ADR-028 第 2 步）
+        self._file = content.reader() if local_file.is_local(content) else None
+        self._content = None if self._file else memoryview(content)
+        self._size = len(content)
+        self._length = len(self._prefix) + 4 * ((self._size + 2) // 3) + len(self._suffix)
         self._next = 0  # 下一段原件从哪里编码
         self._buffer, self._at = self._prefix, 0
         self._ended = False
@@ -70,11 +75,15 @@ class JsonUpload:
         return self._length
 
     def _refill(self) -> bool:
-        if self._next < len(self._content):
-            piece = self._content[self._next:self._next + self.STEP]
+        if self._next < self._size:
+            piece = self._file.read(self.STEP) if self._file else self._content[self._next:self._next + self.STEP]
+            if not piece:
+                raise OSError("original shorter than its size")
             self._next += len(piece)
             self._buffer, self._at = base64.b64encode(piece), 0
             return True
+        if self._file:
+            self._file.close()
         if not self._ended:
             self._buffer, self._at, self._ended = self._suffix, 0, True
             return True

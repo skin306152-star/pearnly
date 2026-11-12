@@ -100,8 +100,17 @@ def _store(content, filename):
     stored = registered.put("ERO-" + (uuid.uuid4().hex + uuid.uuid4().hex)[:48], filename, content)
     if stored is not None and not isinstance(stored, dict):
         return stored
+    from pearnly_core.originals import local_file
+
     return frappe.get_doc({"doctype": "File", "file_name": filename, "is_private": 1,
-                           "content": content}).insert(ignore_permissions=True)
+                           "content": local_file.as_bytes(content)}).insert(ignore_permissions=True)
+
+
+def _sha256(content) -> str:
+    """bytes 或磁盘上的一份（CC 附件、代录资料区交来的，`local_file.LocalFile`，按块算）。"""
+    from pearnly_core.originals import local_file
+
+    return local_file.digest(content)
 
 
 def _fetch(doc, filename):
@@ -515,7 +524,7 @@ def receive_chat(*, company, direction, filename, content, request_key, session_
         "direction_guessed": int(guessed),
         "language": getattr(frappe.local, "lang", None) or channel_language(),
         "media_type": "pdf" if str(filename or "").lower().endswith(".pdf") else "image",
-        "file_hash": hashlib.sha256(content).hexdigest(), "source_file": file.file_url, "source_file_name": file.name,
+        "file_hash": _sha256(content), "source_file": file.file_url, "source_file_name": file.name,
         "received_at": now(), "company": company, "party": line_flow.FROM_DOCUMENT,
         # 网页采购 / 销售默认「已付、现金」（`api_purchase_defaults` / `api_sales_defaults`）；要改的在开始前卡片里改
         "is_paid": 1, "payment_method": "cash",

@@ -14,7 +14,7 @@ from frappe.utils import cint
 from pearnly_cowork.access import scope
 from pearnly_cowork.files import access, guard
 from pearnly_core.originals import gcs as cloud, store
-from pearnly_core.originals import checks as originals
+from pearnly_core.originals import checks as originals, local_file
 from pearnly_core.originals.rules import IMAGE_EXTENSIONS, MAX_FILE_BYTES as MAX_BYTES, TABLE_EXTENSIONS, OcrInputError
 
 logger = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ def create(workspace, filename, content, request_key, client=None):
                                    native_content_hash=stored["md5"]))
     doc = _new_source(name, key, workspace, client, fingerprint, meta)
     file_doc = frappe.get_doc({"doctype": "File", "file_name": name + meta["suffix"],
-        "is_private": 1, "content": content, "owner": "Administrator", "folder": attachments_folder(),
+        "is_private": 1, "content": local_file.as_bytes(content), "owner": "Administrator", "folder": attachments_folder(),
         "attached_to_doctype": access.SOURCE, "attached_to_name": doc.name})
     file_doc.flags.cowork_original_write = guard.WRITE_CAPABILITY
     file_doc.insert(ignore_permissions=True)
@@ -129,11 +129,12 @@ def create(workspace, filename, content, request_key, client=None):
 
 
 def _heic_as_jpeg(filename, content):
-    """iPhone 照片（HEIC / HEIF，按文件头认）先转成 JPEG 再进原有校验与识别（`pearnly_core.desk.heic`）。"""
+    """iPhone 照片（HEIC / HEIF，按文件头认）先转成 JPEG 再进原有校验与识别（`pearnly_core.desk.heic`）。
+    ``content`` 可以是磁盘上的一份（`local_file.LocalFile`）：只看文件头，是照片才整份读出来转（照片小）。"""
     from pearnly_core.desk import heic
 
-    if heic.is_heic(content):
-        return heic.jpeg_name(filename), heic.to_jpeg(content)
+    if heic.is_heic(local_file.head(content, 16)):
+        return heic.jpeg_name(filename), heic.to_jpeg(local_file.as_bytes(content))
     return filename, content
 
 

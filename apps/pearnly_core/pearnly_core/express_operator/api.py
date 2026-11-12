@@ -20,7 +20,7 @@ from frappe import _
 
 from pearnly_core.execution.errors import Deferred
 from pearnly_core.express_operator import products, shapes, tasks, uploads
-from pearnly_core.originals import upload_limits
+from pearnly_core.originals import local_file, upload_limits
 from pearnly_core.originals.rules import UPLOAD_MAX_BYTES
 
 PAGE_MAX = 100
@@ -97,8 +97,9 @@ def intake(company, request_key, task=""):
     incoming = frappe.request.files.get("file") if frappe.request else None
     if not incoming:
         frappe.throw(_("Select a file to upload."))
-    content = incoming.stream.read(UPLOAD_MAX + 1)
-    if len(content) > UPLOAD_MAX:
+    # 按块落到磁盘，不读成 bytes（ADR-028 第 2 步）；往下的原件层、识别都按路径 / 按块读
+    content = local_file.from_upload(incoming, UPLOAD_MAX)
+    if content is None:
         frappe.throw(upload_limits.too_large())
     try:
         result = products.intake(company, incoming.filename, content, str(request_key or ""))

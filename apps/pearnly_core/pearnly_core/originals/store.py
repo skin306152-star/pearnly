@@ -79,7 +79,9 @@ def put(original_id, suffix, filename, content):
     if place == ORACLE:
         return _accepted(oracle.put(name, filename, content), place, name)
     if place == GCS:
-        gcs.upload(gcs.bucket(), name, content)
+        from pearnly_core.originals import local_file
+
+        gcs.upload(gcs.bucket(), name, local_file.as_bytes(content))  # 谷歌存储（生产已不走）仍收整份字节
         return _accepted(cloud_run.inspect(name, filename), place, name)
     return None
 

@@ -134,11 +134,11 @@ class Adapter(abc.ABC):
         """发出用户一侧的统一事件（消息、批准、工具结果、打断）。"""
 
     @abc.abstractmethod
-    def attach(self, conversation: str, filename: str, content: bytes, mime: str) -> dict:
+    def attach(self, conversation: str, filename: str, content, mime: str) -> dict:  # bytes 或 `originals.local_file.LocalFile`
         """把附件交给会话，返回 `{"file_id", "path"}`：`path` 是智能体读取它的位置，会随消息告诉智能体。"""
 
     @abc.abstractmethod
-    def upload(self, filename: str, content: bytes, mime: str) -> str:
+    def upload(self, filename: str, content, mime: str) -> str:  # bytes 或 `originals.local_file.LocalFile`
         """只把字节传进引擎的文件库（还不挂进会话），返回引擎的文件编号。只做网络调用、不碰站点库，可以放在线程里
         与站点这边的活同时做（用户附件上传口，`files._upload`）。"""
 
