@@ -2752,6 +2752,64 @@ class TaskOverviewTests(unittest.TestCase):
         self.assertEqual(choices.HISTORY_FORGET_HOOK, "cowork_company_history_forget")
 
 
+class ProviderLedgerTests(unittest.TestCase):
+    """本对话账套（A 线 11-12，R2-5）：provider 给共用层这家这个月可选的账套与默认。T.7 = 2024，T.8 / T.9 = 2025 同期
+    （次年段都到 2026-12-31）：2026-10 两本都覆盖。"""
+
+    T7, T8, T9 = "C:\\PEARNLYEXPRESS\\70EXP\\T7SINCER", "C:\\PEARNLYEXPRESS\\70EXP\\T8SINCER", \
+        "C:\\PEARNLYEXPRESS\\70EXP\\T9SINCER"
+
+    def setUp(self):
+        self.rows = [express_row(self.T7, "T.7", year="67EXP", start="2024-01-01", end="2024-12-31", next_end="2025-12-31"),
+                     express_row(self.T8, "T.8", year="68EXP", start="2025-01-01", end="2025-12-31", next_end="2026-12-31"),
+                     express_row(self.T9, "T.9", year="68EXP", start="2025-01-01", end="2025-12-31", next_end="2026-12-31")]
+        reset(C1=self.rows)
+        self.company = make(key=self.T8)["id"]
+        self.ids = {label: provider.ledger_id("C1", identity.book("express", "C1", row)["key"])
+                    for label, row in zip(("T.7", "T.8", "T.9"), self.rows)}
+
+    def _ledgers(self, period):
+        fresh_request()
+        return provider.ledgers(self.company, period, "", "a@example.com")
+
+    def test_one_book_covering_the_month_is_the_default(self):
+        found = self._ledgers("2024-05")
+        self.assertEqual(found["default"], self.ids["T.7"])
+        self.assertEqual([(item["label"], item["covers"]) for item in found["options"]][0], ("T.7", True))
+
+    def test_two_books_of_the_same_period_without_a_remembered_one_are_undecided(self):
+        found = self._ledgers("2026-10")
+        self.assertEqual(found["default"], "")
+        covering = [item["label"] for item in found["options"] if item["covers"]]
+        self.assertEqual(sorted(covering), ["T.8", "T.9"])
+        self.assertEqual([item["covers"] for item in found["options"]], [True, True, False])  # 覆盖的在前
+
+    def test_the_remembered_book_in_use_is_the_default(self):
+        current_book = importlib.import_module("pearnly_cowork.companies.current_book")
+        with mock.patch.object(current_book, "remembered",
+                               lambda workspace, company_identity, day, books: [b for b in books if b["label"] == "T.8"]):
+            found = self._ledgers("2026-10")
+        self.assertEqual(found["default"], self.ids["T.8"])
+
+    def test_no_book_covering_the_month_falls_back_to_the_newest_writable(self):
+        self.assertEqual(self._ledgers("2030-01")["default"], self.ids["T.8"])
+        self.rows[1]["attributes"]["writable"] = False  # T.8 写不进：最新一本可写的是 T.9
+        found = self._ledgers("2030-01")
+        self.assertEqual(found["default"], self.ids["T.9"])
+        self.assertNotIn(self.ids["T.8"], [item["id"] for item in found["options"]])  # 选项只给可写的（覆盖的除外）
+
+    def test_the_id_is_connection_and_key(self):
+        self.assertEqual(provider.ledger_parts(provider.ledger_id("C1", "c:\\x|y")), ("C1", "c:\\x|y"))
+        self.assertEqual(provider.ledger_parts("nothing"), ("", ""))
+        self.assertTrue(provider.LEDGER)
+        self.assertEqual(provider.ledgers("missing", "2026-10", "", "a@example.com"), {"options": [], "default": ""})
+
+    def test_the_company_note_no_longer_points_at_the_book_covering_the_month(self):
+        text = provider.context(self.company, "2026-10", "", "a@example.com")
+        self.assertNotIn("covers the work month", text)
+        self.assertIn("writes go only into this conversation's account set", text)
+
+
 class ProviderAndToolTests(unittest.TestCase):
     def setUp(self):
         reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\B12", "ABC 12", branch="00012")])
