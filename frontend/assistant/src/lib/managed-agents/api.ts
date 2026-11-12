@@ -58,9 +58,20 @@ export function createSession(filing?: Partial<Filing>, mode: ListMode = "chat")
   });
 }
 
-/** 改对话的处理月份、分店（project 是它现在的公司，服务端核对：不同即拒绝——对话不能换公司）。不改置顶、不改最后活动时间。 */
-export function moveSession(sessionId: string, filing: Filing): Promise<ListedSession & { project?: string }> {
-  return post("move", { session_id: sessionId, project: filing.project, period: filing.period, scope: filing.scope });
+/** 改对话的处理月份、分店（project 是它现在的公司，服务端核对：不同即拒绝——对话不能换公司）。不改置顶、不改最后活动时间。
+ *  ledger：本对话账套（右栏「ชุดบัญชี」选的，要在这家这个月可选的里）；不给时服务端保留选过的那本或按新月份重算，回包带 ledger。 */
+export function moveSession(sessionId: string, filing: Filing, ledger?: string): Promise<ListedSession & { project?: string; ledger?: string }> {
+  return post("move", { session_id: sessionId, project: filing.project, period: filing.period, scope: filing.scope,
+    ...(ledger ? { ledger } : {}) });
+}
+
+/** 本对话账套的一项（服务端 pearnly_core.assistant.ledger，编号由产品给、页面不拆）：covers = 覆盖这个月。 */
+export type LedgerOption = { id: string; label: string; covers: boolean };
+/** 右栏账套下拉（GET，只读）：current 是本对话账套的编号（"" = 未定）；这家没有本对话账套时 options 为空。 */
+export type LedgerView = { current: string; options: LedgerOption[] };
+
+export function getLedgers(sessionId: string): Promise<LedgerView> {
+  return get("ledgers", { session_id: sessionId });
 }
 
 export function getSession(id: string): Promise<SessionSummary> {

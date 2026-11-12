@@ -46,9 +46,10 @@ export type Candidate = {
   branches?: Array<{ branch: string; label?: string }>;
 };
 
+/** covers：覆盖详情那个月（服务端标，A 线 11-12；页面不按日期现算）。 */
 export type AccountSet = {
   connection: string; adapter?: string; key: string; label: string; year_label?: string;
-  period_start?: string; period_end?: string; writable?: boolean; branch?: string; branch_label?: string;
+  period_start?: string; period_end?: string; writable?: boolean; branch?: string; branch_label?: string; covers?: boolean;
 };
 /** 一家公司（法人）下的分店：分店号、显示名、各自的账套（服务端从目录现算，新年度在前）。 */
 export type Branch = { branch: string; label?: string; account_sets: AccountSet[] };
@@ -566,16 +567,20 @@ export function folderIsMine(folder: Pick<CompanyFolder, "mine" | "reader" | "de
   return readers.includes(folder.reader) && (!deviceName || !folder.device || folder.device === deviceName);
 }
 
-/** 新建定时任务的预填（主档页「＋」、总览「＋」先选公司）：覆盖这个月的账套；这台电脑绑了文件夹时连同文件夹，只需再选子文件夹。 */
-export function taskSeedOf(detail: Pick<Detail, "account_sets" | "folders" | "company" | "branches">, period: string, readers: readonly string[] = [],
+/** 预填用哪份：服务端标了覆盖详情那个月的（covers）取它，都不覆盖取最新可写的（服务端给的账套新年度在前）。 */
+const seedSet = (sets: readonly AccountSet[]) => sets.find((s) => s.covers) ?? sets.find((s) => s.writable !== false) ?? sets[0];
+
+/** 新建定时任务的预填（主档页「＋」、总览「＋」先选公司）：覆盖详情那个月的账套（detail 按哪个月读的就是哪个月）；这台电脑
+ *  绑了文件夹时连同文件夹，只需再选子文件夹。只是表单初值：从公司建的任务跟随公司当年账套（服务端运行时按日期定）。 */
+export function taskSeedOf(detail: Pick<Detail, "account_sets" | "folders" | "company" | "branches">, readers: readonly string[] = [],
   desktop = false, deviceName = ""): TaskSeed | null {
-  const set = setForPeriod(detail.account_sets, period);
+  const set = seedSet(detail.account_sets);
   if (!set) return null;
   const folder = desktop
     ? detail.folders.find((f) => !f.reader_gone && folderIsMine(f, readers, deviceName))
     : undefined;
   const branches = (detail.branches ?? []).flatMap((b) => {
-    const own = setForPeriod(b.account_sets, period);
+    const own = seedSet(b.account_sets);
     return own ? [{ branch: b.branch, label: b.label || b.branch, connection: own.connection, account_set_key: own.key, account_label: setLabel(own) }] : [];
   });
   return {
@@ -592,60 +597,3 @@ export function taskSeedOf(detail: Pick<Detail, "account_sets" | "folders" | "co
 
 /** 账套在表单上的写法：账套名，年度标签与名称不同时后面带上（同公司页账套行，MR.ERP 的年度标签就是账套名）。 */
 const setLabel = (s: AccountSet) => [s.label, s.year_label !== s.label ? s.year_label : ""].filter(Boolean).join(" · ");
-
-/** 账套的期间覆盖这一天（YYYY-MM-DD）。 */
-const covers = (s: AccountSet, day: string) =>
-  Boolean(s.period_start && s.period_end && s.period_start.slice(0, 10) <= day && day <= s.period_end.slice(0, 10));
-
-/** 覆盖这个月的账套（没有月份或都不覆盖时取最新可写的）。 */
-export function setForPeriod(sets: readonly AccountSet[], period: string): AccountSet | undefined {
-  const day = period ? `${period}-01` : "";
-  const covering = day ? sets.find((s) => covers(s, day)) : undefined;
-  return covering ?? sets.find((s) => s.writable !== false) ?? sets[0];
-}
-
-/** 真覆盖这个月的那份（没有月份、一份都不覆盖时没有；不像 setForPeriod 那样退到最新可写的）：账套清单的「覆盖本月」高亮。 */
-export function coveringSet(sets: readonly AccountSet[], period: string): AccountSet | undefined {
-  const day = period ? `${period}-01` : "";
-  return day ? sets.find((s) => covers(s, day)) : undefined;
-}
-
-/** 一组账套里覆盖这个月的全部（没有月份时为空）。 */
-function coveringOf(sets: readonly AccountSet[], period: string): AccountSet[] {
-  const day = period ? `${period}-01` : "";
-  return day ? sets.filter((s) => covers(s, day)) : [];
-}
-
-/** 一组账套里覆盖这个月的全部；一个都不覆盖（或没有月份）时同 setForPeriod 取一份。 */
-function coveringOrNewest(sets: readonly AccountSet[], period: string): AccountSet[] {
-  const covering = coveringOf(sets, period);
-  if (covering.length) return covering;
-  const one = setForPeriod(sets, period);
-  return one ? [one] : [];
-}
-
-/** 公司卡上「这个月用哪份账套」（会话栏，测试窗口第 2 轮：没指定分店的对话只显示了分店 00012 的那份，推送却进了总店）：
- *  对话指定了分店 → 这个分店覆盖这个月的（分店不在名单里时照旧取整家公司的一份）；没指定 → 覆盖这个月的全部，
- *  总店在前，其余照服务端的分店顺序；一份都不覆盖（或没有月份）时才每个分店各取最新可写的一份。
- *  只有一个分店（或没有分店信息）时就是整家公司覆盖这个月的。 */
-export function setsForScope(detail: Pick<Detail, "branches" | "account_sets">, period: string, scope: string): AccountSet[] {
-  const all = detail.account_sets ?? [];
-  const branches = branchesOf(detail);
-  if (scope) {
-    const chosen = branches.find((b) => b.branch === scope);
-    if (chosen) return coveringOrNewest(chosen.account_sets, period);
-    const one = setForPeriod(all, period);
-    return one ? [one] : [];
-  }
-  if (branches.length < 2) return coveringOrNewest(all, period);
-  const id = (s: AccountSet) => `${s.connection}|${s.key}`;
-  const inBranch = new Set(branches.flatMap((b) => b.account_sets.map(id)));
-  // 不属于任何分店的（旧服务端、账套上没有分店号）当总店那一组
-  const loose = all.filter((s) => !inBranch.has(id(s)));
-  const head = (b: Branch) => b.branch === HQ || !b.branch;
-  const groups = [...(loose.length ? [loose] : []), ...branches.filter(head).map((b) => b.account_sets),
-    ...branches.filter((b) => !head(b)).map((b) => b.account_sets)];
-  const covering = groups.flatMap((sets) => coveringOf(sets, period));
-  const out = covering.length ? covering : groups.flatMap((sets) => coveringOrNewest(sets, period));
-  return out.filter((s, i) => out.findIndex((other) => id(other) === id(s)) === i);
-}

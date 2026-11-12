@@ -37,12 +37,15 @@ import {
   TasksSection,
 } from "@/components/company-cards";
 import { MonthCard } from "@/components/month-ledger";
-import { branchName } from "@/components/period-chip";
+import { branchName, Choice } from "@/components/period-chip";
 import { FileTypeIcon, useResults } from "@/components/results-panel";
 import { co, t } from "@/i18n";
-import { branchesOf, branchShort, companyLine, type Detail, monthLabel, setsForScope } from "@/lib/companies";
+import { branchesOf, branchShort, companyLine, type Detail, monthLabel } from "@/lib/companies";
+import { chooseLedger, ledgerLabel, type LedgerView, useConversationLedger } from "@/lib/conversation-ledger";
+import { shownError } from "@/lib/frappe";
+import { withReport } from "@/lib/caught";
 import { moveCard, type PanelCard as CardId, setCardOrder, toggleCard, usePanel, usePanelDetail } from "@/lib/company-panel";
-import { type Filing, NO_FILING, type Section, useProjects } from "@/lib/managed-agents/projects";
+import { type Filing, NO_FILING, type Section, setError, useProjects } from "@/lib/managed-agents/projects";
 import { OPEN_LAYERS } from "@/lib/back-stack";
 import { opener, returnFocusAfterClose } from "@/lib/focus-return";
 import { isDragEscape } from "@/lib/layers";
@@ -152,7 +155,8 @@ export function declaredCards(cards: Record<CardId, ReactNode>, sections: readon
 // 会话栏开关（顶栏右侧，assistant.tsx）：关掉浮着的会话栏后焦点的去处
 const PANEL_TOGGLE = '[data-slot="cc-panel-toggle"]';
 
-export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => void }> = ({ filing, mode, onClose }) => {
+/** session：这段对话的服务端编号（右栏的本对话账套按它读、按它改）。 */
+export const SessionPanel: FC<{ session: string; filing: Filing; mode: PanelMode; onClose: () => void }> = ({ session, filing, mode, onClose }) => {
   const { project: company, period, scope } = filing;
   const { detail, error, reload } = usePanelDetail(company, period);
   const focus = usePanel((s) => s.focus);
@@ -200,12 +204,12 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
   const multi = branches.length > 1 ? branches : [];
   const sections = useProjects((s) => s.sections);
   const all: Record<CardId, ReactNode> = {
-    company: detail ? <CompanyCard detail={detail} period={period} scope={scope} reload={reload} /> : null,
+    company: detail ? <CompanyCard detail={detail} session={session} filing={filing} reload={reload} /> : null,
     month: <MonthCard company={company} period={period} />,
     pending: <PendingCard company={company} period={period} />,
     notes: detail ? <NotesSection company={company} notes={detail.notes} reload={reload} /> : null,
     folders: detail ? <FolderSection company={company} folders={detail.folders} reload={reload} hideEmpty /> : null,
-    tasks: detail ? <TasksSection company={company} detail={detail} period={period} /> : null,
+    tasks: detail ? <TasksSection company={company} detail={detail} /> : null,
     choices: detail ? <ChoicesSection company={company} choices={detail.choices} period={period} reload={reload} /> : null,
     drafts: detail?.drafts ? (
       <DraftsSection company={company} drafts={detail.drafts} branches={multi} combined={!!detail.company.combined_vat} />
@@ -245,14 +249,52 @@ const InfoRow: FC<{ icon: ReactNode; label: string; value: string }> = ({ icon, 
   </div>
 );
 
-/** 公司卡：名称、法定名、税号 · 分店，合并申报；本对话的月份、分店与覆盖这个月的账套（没指定分店时各分店的都列，总店在前，
- *  一份一行；lib/companies 的 setsForScope），下面「全部账套」展开看这家的全部账套（多分店按分店分组，覆盖这个月的高亮）。
+/** 「ชุดบัญชี」一行：本对话账套（服务端定的写入目标，lib/conversation-ledger；A 线 11-12 R2-5：原先页面按日期现算，
+ *  与服务端写入的不是同一本）。点开是这家这个月可选的几本（同月份胶囊的下拉），选了就 move 带 ledger；只有一本也照样能点开。
+ *  未定时值空着；这家没有本对话账套（产品没有、ERP 不接 Express 的公司）时不出这一行。 */
+// map: ledger-picker
+export const LedgerRow: FC<{ session: string; filing: Filing }> = ({ session, filing }) => {
+  const entry = useConversationLedger(session, filing);
+  const choose = (id: string) =>
+    void chooseLedger(session, filing, id).catch(withReport((error: unknown) => setError(shownError(error)), "ledger"));
+  return <LedgerMenu entry={entry} onChoose={choose} />;
+};
+
+/** 那一行本身（当前值与可选项都是服务端给的 LedgerRow 传进来）。 */
+export const LedgerMenu: FC<{ entry: LedgerView | null; onChoose: (id: string) => void }> = ({ entry, onChoose }) => {
+  if (!entry?.options.length) return null;
+  const label = ledgerLabel(entry);
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button type="button" className="cc-panel-row" data-slot="cc-company-ledger" title={label}>
+          <BookOpenIcon />
+          <Marquee className="min-w-0 flex-1 truncate">{co.accountSets}</Marquee>
+          <Marquee className="cc-panel-extra">{label}</Marquee>
+          <ChevronDownIcon />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
+          {entry.options.map((item) => (
+            <Choice key={item.id} chosen={item.id === entry.current} onSelect={() => item.id !== entry.current && onChoose(item.id)}>
+              {item.label}
+            </Choice>
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+};
+
+/** 公司卡：名称、法定名、税号 · 分店，合并申报；本对话的月份、分店与本对话账套（LedgerRow，服务端定的、可改），下面「全部账套」
+ *  展开看这家的全部账套（多分店按分店分组，覆盖这个月的高亮：服务端标的 covers）。
  *  卡头「···」：这家公司的改名 / 刷新账套 / 在 ERP 中打开 / 删除公司（同侧栏组头，按产品声明；一项都没有时不出）；改名就地改名称那一行。 */
-const CompanyCard: FC<{ detail: Detail; period: string; scope: string; reload: () => Promise<void> }> = ({ detail, period, scope, reload }) => {
+const CompanyCard: FC<{ detail: Detail; session: string; filing: Filing; reload: () => Promise<void> }> = ({ detail, session, filing, reload }) => {
+  const { period, scope } = filing;
   const c = detail.company;
   const branches = branchesOf(detail);
   const branch = branches.find((b) => b.branch === scope);
-  const sets = setsForScope(detail, period, scope);
   const legal = c.legal_name && c.legal_name !== c.title ? c.legal_name : "";
   const line = companyLine(c);
   const menu = useCompanyMenu();
@@ -263,7 +305,6 @@ const CompanyCard: FC<{ detail: Detail; period: string; scope: string; reload: (
     <PanelCard
       id="company"
       title={co.company}
-      summary={sets.length ? co.card.sets(sets.length) : undefined}
       slot="cc-panel-company"
       forceOpen={renaming}
       action={
@@ -302,17 +343,7 @@ const CompanyCard: FC<{ detail: Detail; period: string; scope: string; reload: (
       )}
       {period && <InfoRow icon={<CalendarIcon />} label={co.period} value={monthLabel(period)} />}
       {scope && <InfoRow icon={<StoreIcon />} label={co.branch} value={branch ? branchName(branch) : branchShort(scope)} />}
-      {sets.length === 1 && <InfoRow icon={<BookOpenIcon />} label={co.accountSets} value={sets[0]!.label} />}
-      {sets.length > 1 && (
-        <>
-          <InfoRow icon={<BookOpenIcon />} label={co.accountSets} value="" />
-          {sets.map((set) => (
-            <div key={`${set.connection}|${set.key}`} className="cc-panel-row cc-panel-indent" title={set.label}>
-              <Marquee className="min-w-0 flex-1 truncate">{set.label}</Marquee>
-            </div>
-          ))}
-        </>
-      )}
+      <LedgerRow session={session} filing={filing} />
       {detail.account_sets.length > 0 && (
         <>
           {/* 同待处理卡的展开行（.cc-pending-toggle） */}
@@ -322,7 +353,7 @@ const CompanyCard: FC<{ detail: Detail; period: string; scope: string; reload: (
             <span className="cc-panel-extra">{detail.account_sets.length}</span>
             <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
           </button>
-          {allSets && <SetsList sets={detail.account_sets} branches={branches.length > 1 ? branches : []} period={period} />}
+          {allSets && <SetsList sets={detail.account_sets} branches={branches.length > 1 ? branches : []} />}
         </>
       )}
     </PanelCard>

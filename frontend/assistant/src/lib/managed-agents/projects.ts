@@ -31,7 +31,8 @@ export type Section = "pending" | "month" | "notes" | "folders" | "tasks" | "cho
 export type ProjectChange =
   | { type: "pearnly.project"; op: "upsert"; project: { id: string; title: string; subtitle?: string }; part?: string }
   | { type: "pearnly.project"; op: "delete"; id: string }
-  | { type: "pearnly.project"; op: "move"; session_id: string; project: string; period?: string; scope?: string };
+  // ledger：本对话账套（产品有它时才带，"" = 未定；lib/conversation-ledger.ts 并进右栏）
+  | { type: "pearnly.project"; op: "move"; session_id: string; project: string; period?: string; scope?: string; ledger?: string };
 
 /** 复合游标：最近一组 + 还有更多的各家公司（"" = 这家从头翻）。 */
 export type GroupCursor = { recent: string | null; groups: Record<string, string> };
