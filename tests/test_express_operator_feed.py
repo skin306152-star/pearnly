@@ -228,7 +228,7 @@ def _env(test, tasks_path=CORE / "express_operator/tasks.py"):
     sessions = types.ModuleType("pearnly_core.assistant.sessions")
     sessions.SESSION = SESSION
 
-    def open_operator(task, scope=""):
+    def open_operator(task, scope="", ledger_id=""):
         sid = f"op_{task['name']}"
         state["sessions"].append(_Row(name=f"s{sid}", session_id=sid, user=task["owner"], operator_task=task["name"]))
         return sid

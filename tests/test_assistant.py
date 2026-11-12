@@ -5610,7 +5610,7 @@ class ProjectTests(unittest.TestCase):
                          {"project": 140, "period": 7, "project_scope": 40, "project_noted": 64})
         self.assertEqual(fields["project"].get("search_index"), 1)
         api_source = (CORE / "assistant/api.py").read_text(encoding="utf-8")
-        for snippet in ('def create(project=None, period=None, scope=None):', 'def move(session_id, project="", '
+        for snippet in ('def create(project=None, period=None, scope=None, ledger=None):', 'def move(session_id, project="", '
                         'period=None, scope=None, ledger=None):', "def projects():", "def ledgers(session_id):"):
             self.assertIn(snippet, api_source)
         imports = " ".join(re.findall(r"(?m)^from pearnly_core\.assistant import (.+)$",
@@ -5647,7 +5647,7 @@ class OperatorSessionTests(unittest.TestCase):
         tasks.push_control = lambda name, action, ids: self.stops.append((name, action, list(ids)))
         tasks.delete = lambda name: self.deleted.append(name) or self.sessions.delete("op_task0001")
         tasks.update = lambda name, period=None: self.moved.append((name, period))
-        tasks.create = lambda company, period, title, scope="": self.made.append((company, period, title, scope)) or {
+        tasks.create = lambda company, period, title, scope="", ledger="": self.made.append((company, period, title, scope)) or {
             "name": "task0001", "session_id": "op_task0001"}
         products = types.ModuleType("pearnly_core.express_operator.products")
         products.enabled = lambda: True
