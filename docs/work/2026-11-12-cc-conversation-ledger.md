@@ -206,3 +206,23 @@ R2-5 真实路径（主会话 11-12 生产只读查清，会话 sesn_01XqgMQffeA
 - `run.py --changed --base origin/main --migrate --jobs 3`：23 条 73 格，70/73；3 格「page steps timed out after 900s」（erp.document.express
   new/mobile、erp.stock-in.units old/mobile、cowork.mrerp-login new/mobile，无断言失败，同已知问题笔记第 42、84、95 条 jobs 3 负载）
   `--rerun-failed` 单格 11–31 秒通过，合并 73/73。
+
+### 最终提交复跑（11-12 19:03–19:09，HEAD 5e5c2a08a，本机新起实验栈 pearnly-aline7-lab，用完 down -v）
+
+- 原因：b49a3796a（新建页账套胶囊改用标准下拉的触发按钮）在上一轮流程之后提交，要在最终提交上再证一次。
+- `run.py --flow cowork.cc.conversation-ledger --flow erp.cc.conversation-ledger --flow cowork.cc.operator-ledger --migrate --jobs 2`
+  （结果记 sha 5e5c2a08a、dirty false，CC 前端产物按本提交重建）：6/6 通过，共 379s。
+  - `cowork.cc.conversation-ledger` new/desktop 64.6s、new/mobile 66.3s
+  - `erp.cc.conversation-ledger` new/desktop 99.6s、new/mobile 110.5s
+  - `cowork.cc.operator-ledger` new/desktop 20.0s、new/mobile 19.2s
+
+### 上次 `--changed` 的 3 格 900s 超时
+
+- 三格：`erp.document.express` new/mobile、`erp.stock-in.units` old/mobile、`cowork.mrerp-login` new/mobile；均「page steps timed out
+  after 900s」、无断言失败，`--rerun-failed` 单格 11–31 秒通过。它们被 `--changed` 选中是因为覆盖的文件本分支有改动（前两条：`pearnly_erp_portal/public/desk/transactions.js`；
+  第三条：`scheduled-tasks.tsx`、`pearnly_cowork/companies/provider.py`、`pearnly_core/assistant/projects.py`），流程脚本本身没改；
+  超时格无断言失败、单格重跑即过、同流程其余格通过，不判回归。
+- 对应已知问题笔记（`已知问题与结论.md`）第 16、38、42、84、95、96 行：同一现象，结论都是本机 Mac 模拟 amd64 + `--jobs 3` / 多路无头
+  Chrome 并行时的负载与时序问题，单格重跑即过，非代码回归。
+- 根因修复归属：笔记各条「修复」栏都是「无」，只有遇到就单格重跑的做法（第 42 行另给截图巡检加了每页 300 秒跳过）；没有窗口或分支在查
+  「为什么单格会卡满 900 秒而不是慢一点通过」——无人认领。
