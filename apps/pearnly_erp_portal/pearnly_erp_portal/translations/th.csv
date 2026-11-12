@@ -600,6 +600,7 @@ Express code,รหัส Express
 "Express could not index the invoice, so it was undone. It is retried automatically",Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
 "Express did not read back what was written, so it was undone. It is retried automatically",ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Express has this account set open. It is sent automatically once Express is closed,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
+Express has this account set open. It is written automatically once Express is closed,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะบันทึกให้อัตโนมัติเมื่อปิด Express
 External System Reference,รหัสอ้างอิงระบบภายนอก
 Factor to Base Unit,ตัวคูณแปลงเป็นหน่วยฐาน
 Failed,ไม่สำเร็จ
@@ -2250,7 +2251,7 @@ express.code.STOCK_IN_FAILED,ไม่สามารถบันทึกรา
 express.code.SUPPLIER_BRANCH_AMBIGUOUS,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
 express.code.SUPPLIER_DUP_SUSPECTED,มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
 express.code.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
-express.error.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
+express.error.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะบันทึกให้อัตโนมัติเมื่อปิด Express
 express.error.ACCOUNT_CODE_IS_STOCK_ITEM,รหัสบัญชีนี้เป็นรหัสสินค้าคงคลังใน Express แล้ว
 express.error.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 express.error.ACCOUNT_DIR_NOT_ALLOWED,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป

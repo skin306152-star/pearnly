@@ -764,6 +764,7 @@ Express Root Key,คีย์โฟลเดอร์โปรแกรม Expre
 "Express did not read back what was written, so it was undone. It is retried automatically",ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Express document,เลขที่เอกสาร Express
 Express has this account set open. It is sent automatically once Express is closed,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
+Express has this account set open. It is written automatically once Express is closed,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะบันทึกให้อัตโนมัติเมื่อปิด Express
 Express record,ข้อมูลคู่ค้าใน Express
 External Docnum,เลขที่เอกสาร ERP
 Factor to Base,อัตราแปลงเป็นหน่วยฐาน
@@ -3413,7 +3414,7 @@ intake.agent.state.needsUpdate,CC เดสก์ท็อปต้องอั�
 intake.agent.state.noWriter,ไม่มีคอมพิวเตอร์ที่บันทึกได้
 intake.agent.state.offline,คอมพิวเตอร์ออฟไลน์
 intake.catalog.reload,อ่านใหม่
-intake.error.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
+intake.error.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะบันทึกให้อัตโนมัติเมื่อปิด Express
 intake.error.ACCOUNT_CODE_IS_STOCK_ITEM,รหัสบัญชีนี้เป็นรหัสสินค้าคงคลังใน Express แล้ว
 intake.error.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป

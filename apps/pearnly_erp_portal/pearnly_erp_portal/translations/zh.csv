@@ -600,6 +600,7 @@ Express code,Express 编码
 "Express could not index the invoice, so it was undone. It is retried automatically",Express 索引重建失败，已撤回，将自动重试
 "Express did not read back what was written, so it was undone. It is retried automatically",写入后校验不一致，已撤回，将自动重试
 Express has this account set open. It is sent automatically once Express is closed,Express 正在使用此账套，关闭后将自动推送
+Express has this account set open. It is written automatically once Express is closed,Express 正在使用此账套，关闭后将自动写入
 External System Reference,外部系统引用
 Factor to Base Unit,换算到库存单位的系数
 Failed,失败
@@ -2250,7 +2251,7 @@ express.code.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量
 express.code.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此税号，请选择供应商后重新提交
 express.code.SUPPLIER_DUP_SUSPECTED,Express 中已存在相似供应商，请选择该供应商或确认为新供应商
 express.code.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
-express.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
+express.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动写入
 express.error.ACCOUNT_CODE_IS_STOCK_ITEM,此科目码已是 Express 库存品的编码
 express.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
 express.error.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套

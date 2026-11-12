@@ -600,6 +600,7 @@ Express code,Express code
 "Express could not index the invoice, so it was undone. It is retried automatically","Express could not index the invoice, so it was undone. It is retried automatically"
 "Express did not read back what was written, so it was undone. It is retried automatically","Express did not read back what was written, so it was undone. It is retried automatically"
 Express has this account set open. It is sent automatically once Express is closed,Express has this account set open. It is sent automatically once Express is closed
+Express has this account set open. It is written automatically once Express is closed,Express has this account set open. It is written automatically once Express is closed
 External System Reference,External System Reference
 Factor to Base Unit,Factor to Base Unit
 Failed,Failed
@@ -2250,7 +2251,7 @@ express.code.STOCK_IN_FAILED,"The stock lines could not be posted. Check the ite
 express.code.SUPPLIER_BRANCH_AMBIGUOUS,Several Express suppliers have this tax ID. Choose the supplier and submit again
 express.code.SUPPLIER_DUP_SUSPECTED,"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
 express.code.SUPPLIER_NOT_IN_APMAS,This supplier is not in Express and could not be created. Check the supplier name and tax ID
-express.error.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed
+express.error.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is written automatically once Express is closed
 express.error.ACCOUNT_CODE_IS_STOCK_ITEM,This account code is already a stock item code in Express
 express.error.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another company. Check the account set
 express.error.ACCOUNT_DIR_NOT_ALLOWED,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
