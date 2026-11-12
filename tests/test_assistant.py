@@ -129,7 +129,7 @@ def _install_fakes():
     for part in ("base", "anthropic_managed_agents"):
         setattr(engines, part, _load(f"pearnly_core.assistant.engines.{part}", CORE / f"assistant/engines/{part}.py"))
     for part in ("timing", "config", "tools", "definition", "engine", "context", "ask", "waits", "toolrun", "sidebar", "usage",
-                 "titles", "stopped", "write_plan", "relay", "projects"):
+                 "titles", "stopped", "write_plan", "relay", "ledger", "projects"):
         module = _load(f"pearnly_core.assistant.{part}", CORE / f"assistant/{part}.py")
         setattr(sys.modules["pearnly_core.assistant"], part, module)
     return frappe, sdk
@@ -1716,6 +1716,7 @@ class ToolAndDefinitionTests(unittest.TestCase):
                                             "pearnly_precheck_answer": "Saving push choices",
                                             "ask_user": "Waiting for answers",
                                             "pearnly_file_conversation": "Filing the conversation under a company",
+                                            "pearnly_conversation_ledger": "Setting the conversation's account set",
                                             "pearnly_write_plan": "Making a write plan",
                                             "pearnly_write_start": "Starting to write",
                                             "p_read": "Reading it"})
@@ -5610,7 +5611,7 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual(fields["project"].get("search_index"), 1)
         api_source = (CORE / "assistant/api.py").read_text(encoding="utf-8")
         for snippet in ('def create(project=None, period=None, scope=None):', 'def move(session_id, project="", '
-                        'period=None, scope=None):', "def projects():"):
+                        'period=None, scope=None, ledger=None):', "def projects():", "def ledgers(session_id):"):
             self.assertIn(snippet, api_source)
         imports = " ".join(re.findall(r"(?m)^from pearnly_core\.assistant import (.+)$",
                                       (CORE / "assistant/projects.py").read_text(encoding="utf-8")))
