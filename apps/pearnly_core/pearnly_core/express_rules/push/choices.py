@@ -48,6 +48,10 @@ LOCATION_DEFAULT = "*"
 # 只在 ERP 的收银退货单上出现的一类（不进 KINDS：Cowork 按 KINDS 存取、列出账套记忆，加进去会改 Cowork 现有输出）
 REFUND = pos_contract.REFUND_KIND
 PAYMENT_VALUES = ("cash", "credit")
+# 引导式录入（覆盖表 A7）：明细对不上时怎么录——只记金额不入库 / 这次不录（「改明细」等第 2 期复核卡）；去留类，不预选
+DETAIL_VALUES = ("amount_only", "skip")
+# 引导式录入（覆盖表 A14）：销项收入科目按账套记一个（归类键固定）
+REVENUE_SUBJECT = "revenue"
 VAT_VALUES = ("claim", "expense")
 # 票面名称里的法人前后缀：比名称时去掉（「บมจ.」上市公司缩写压测里就没去掉，匹配不上 Big C 的档）。
 _LEGAL = ("บริษัทมหาชนจำกัด", "บริษัทจำกัด", "บริษัท", "บมจ.", "บมจ", "ห้างหุ้นส่วนจำกัด", "ห้างหุ้นส่วนสามัญ",
@@ -148,6 +152,17 @@ def with_line_kinds(fields: Mapping[str, Any], kinds: Optional[Mapping[str, str]
     return {**fields, "items": [{**item, "posting_kind": kind} for item, kind in zip(rows, declared)]}
 
 
+def _payment_question(subject, label, fields, guided) -> Dict[str, Any]:
+    """付款方式那一题。引导模式下付款判断有把握（票种：收据 = 已付、完整税票 = 赊；漏斗 ``payment_verdict``）就作预选
+    （来源 ``rule``，「怎么录」类，要点了才算，主会话 11-12）；没把握不预选。"""
+    item = {"kind": "payment", "subject": subject, "label": label,
+            "options": [{"code": code} for code in PAYMENT_VALUES], "current": ""}
+    paid = payment_verdict(fields)[0] if guided else None
+    if paid is not None:
+        item.update(current="cash" if paid else "credit", source="rule")
+    return item
+
+
 def _expense_receipt(fields) -> bool:
     return (str(fields.get("document_type") or "") in _EXPENSE_DOC_TYPES
             and (_money(fields.get("vat")) or Decimal(0)) > 0 and len(digits(fields.get("seller_tax"))) == 13)
@@ -158,7 +173,8 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             account_resolved: bool = False, fixed: Optional[Mapping[str, str]] = None,
             receipts: Iterable = (), trace: Optional[Dict[str, List[Optional[str]]]] = None,
             refund: bool = False, book: str = "", ask_service_vat: bool = False,
-            undeclared_lines: bool = False, ask_location: bool = False) -> Dict[str, Any]:
+            undeclared_lines: bool = False, ask_location: bool = False, guided: bool = False,
+            items_status: str = "") -> Dict[str, Any]:
     """这张票在这份账套里的决定 → `{"applied": {...}, "needed": [...]}`。
 
     `config`：推送准备用的账套配置（含小助手上报的 `reported_customers / reported_suppliers / reported_products /
@@ -179,6 +195,10 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     `ask_location`：多仓账套（在用的仓 ≥ 2）的库存行定不了仓时要不要问一次默认仓（人在场的入口给：复核页、CC 卡片、人点的推送）；
     不给（默认）照写主仓，不问（自动推 / 定时任务，评估第 12 节 #4）。选定的仓放进 ``applied["locations"]`` ``{规范品名: 仓码}``
     （只放非主仓）；行上人选的、与这一行记过的不同的放进 ``applied["remember_locations"]`` ``{归类键: {value, label}}``，由调用方记下。
+    `guided`：人在 CC 对话里过引导卡（引导式录入第 1 期，覆盖表 docs/work/2026-11-12-cc-guided-entry-express-coverage.md 第 5 节 A 类）：
+    判不出的不再静默默认，一律出题——A1 进项付款状态是别的值、A3 服务品进项税口径、A6 多仓的仓、A7 明细对不上（``items_status``
+    是 mismatch / incomplete）、A9 没有同税号档但有同名档、A12 销项没有付款信号、A14 销项收入科目没记过（连接默认只作预选）。
+    不给（默认）与以前完全一样。
     `trace`：给了就就地记下「每一类用了哪几个归类键」`{kind: [subject | None]}`（None = 任务默认定的），
     `company_choices.decided_by` 据此说清按什么定的（第 2 期公司规则）；不给不记，结果不变。
     """
@@ -225,6 +245,15 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
                            "options": [{"code": row["code"], "name": row.get("name") or "",
                                         "branch": branch5(row.get("branch"))} for row in same_tax[:50]],
                            "current": value or ""})
+    if guided and "party" not in applied and not any(item["kind"] == "party" for item in needed) and norm_name(name):
+        # A9：没有同税号档、但 Express 里有同名档（疑似重复）：问一次选已有档还是新建，不交电脑端转人工
+        same_name = [row for row in rows if norm_name(row.get("name")) == norm_name(name)
+                     and not (len(digits(tax)) == 13 and digits(row.get("tax_id")) == digits(tax))]
+        if same_name:
+            needed.append({"kind": "party", "subject": subject, "label": name,
+                           "options": [{"code": row["code"], "name": row.get("name") or "",
+                                        "branch": branch5(row.get("branch"))} for row in same_name[:50]]
+                           + [{"code": NEW}], "current": value or ""})
 
     # ── 部门（整份账套一个）──
     # 不再问（用户 2026-10-08：62 套真实账套全都有两个以上部门，等于每套账都要问一次）：选过的照用；没选过由小助手
@@ -252,9 +281,9 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             used("payment", party_key)
             # 哪来的（写进载荷 doctype_src，CC 推送结果据此说清「按这家记过的现购」，验收 F19）
             applied["payment_from"] = "task_default" if str((fixed or {}).get("payment") or "").strip() else "remembered"
-        elif not str(fields.get("payment_status") or "").strip():
-            needed.append({"kind": "payment", "subject": party_key, "label": name,
-                           "options": [{"code": code} for code in PAYMENT_VALUES], "current": ""})
+        elif guided or not str(fields.get("payment_status") or "").strip():
+            # A1：引导模式下付款状态是别的值（判不出）也问，不落默认 RR
+            needed.append(_payment_question(party_key, name, fields, guided))
         # ── 小票 / 简易税票的税额抵不抵进项 ──
         if _expense_receipt(fields):
             value = chosen("vat", party_key)
@@ -266,8 +295,23 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
                                "options": [{"code": code} for code in VAT_VALUES], "current": ""})
 
         # ── 服务品进项税口径：赊购单有服务品、这本账套的历史定不了才问 ──
-        _service_vat(fields, posting_kind, config, applied, needed if ask_service_vat else [], chosen, used, explicit, book,
+        _service_vat(fields, posting_kind, config, applied, needed if (ask_service_vat or guided) else [], chosen, used,
+                     explicit, book,
                      name, tax, branch)
+
+    elif guided:
+        # A12：销项没有付款信号（人定的 / 票面写明的）时问现销还是赊销，不静默默认赊销；这家记过的照用
+        explicit = str(fields.get("posting_payment_manual") or "").strip()
+        value = chosen("payment", party_key)
+        if explicit in PAYMENT_VALUES or payment_written(fields):
+            pass
+        elif value in PAYMENT_VALUES:
+            applied["payment"] = value
+            used("payment", party_key)
+            applied["payment_from"] = "task_default" if str((fixed or {}).get("payment") or "").strip() else "remembered"
+        else:
+            needed.append(_payment_question(party_key, name, fields, guided))
+        _sales_service_vat(fields, posting_kind, config, applied, needed, chosen, used, explicit, book)
 
     # ── 存货对照：库存行落哪个存货；没声明过账类型的行顺带定它动不动库存（11-06 按行选）──
     catalog = _rows(config.get("reported_products"))
@@ -338,7 +382,7 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     lines = _stock_lines(fields, posting_kind, kinds)
 
     # ── 仓库：多仓账套的库存行进哪个仓 ──
-    _locations(config, lines, direction, tax, name, remembered, chosen, used, applied, needed, ask_location)
+    _locations(config, lines, direction, tax, name, remembered, chosen, used, applied, needed, ask_location or guided)
 
     # ── 服务类进项的费用科目：没有库存行的单；有库存行时只要有一行定为费用 / 服务（混行单，11-06）也问 ──
     effective = line_kinds(rows_all, posting_kind, kinds)
@@ -365,6 +409,24 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             applied["account"] = value
             applied["account_from"] = "task_default"
             used("account", party_key)
+    elif direction == "sales" and guided and not account_resolved:
+        # A14：引导模式下收入科目按账套记一个；没记过就问，连接的默认收入科目只作预选（以前静默落默认只打「待核」）
+        accounts = _rows(config.get("reported_accounts"))
+        value = chosen("account", REVENUE_SUBJECT)
+        if value and (not accounts or value in _codes(accounts)):
+            applied["account"] = value
+            applied["account_from"] = "remembered"
+            used("account", REVENUE_SUBJECT)
+        else:
+            default = str(config.get("revenue_acc") or "").strip()
+            needed.append({"kind": "account", "subject": REVENUE_SUBJECT, "label": "",
+                           "current": default if default and (not accounts or default in _codes(accounts)) else ""})
+
+    # ── 明细对不上（A7，引导模式）：怎么录由人定一次，只管这一张，不预选 ──
+    if guided and str(items_status or "") in ("mismatch", "incomplete"):
+        ref = str(fields.get("invoice_number") or fields.get("invoice_no") or "").strip()
+        needed.append({"kind": "detail", "subject": f"detail|{direction}|{digits(tax)}|{norm_name(name)}|{ref}"[:1000],
+                       "label": name, "current": "", "options": [{"code": code} for code in DETAIL_VALUES]})
 
     # ── POS 日汇总：非现金付款方式的收款科目 ──
     accounts = _rows(config.get("reported_accounts"))
@@ -447,6 +509,35 @@ def service_vat_subject(direction, tax, name, book: str = "") -> str:
     """服务品进项税口径的归类键：这家供应商（同 :func:`supplier_subject`），按公司记的前面加账套键。"""
     subject = supplier_subject(direction, tax, name)
     return f"{book}|{subject}" if book else subject
+
+
+def sales_service_vat_subject(book: str = "") -> str:
+    """销项服务品税口径按账套记一个（主会话 11-12：约一成账套历史定不了，问一次按公司记住）。"""
+    return f"sales|*|{book}"
+
+
+def _sales_service_vat(fields, posting_kind, config, applied, needed, chosen, used, explicit, book) -> None:
+    """赊销带服务品（或没有明细）、有税时的销项税口径（Express ARTRN.SRV_VATTYP；引导模式）：记过的照用；这本账套的销项历史
+    （客户档读回的口径串并集）一贯一种就不问；两种都有才问一次。客户档没带口径串（CC 桌面版还没报）不问。现销、没税、只有库存品的不问。"""
+    items = [item for item in fields.get("items") or [] if isinstance(item, Mapping)]
+    has_vat = (_money(fields.get("vat")) or Decimal(0)) > 0 or any(item.get("vat_exempt") for item in items)
+    paid = explicit == "cash" or applied.get("payment") == "cash" or payment_verdict(fields)[0] is True
+    service = not items or len(_stock_lines(fields, posting_kind)) < len(items)
+    if not has_vat or paid or not service:
+        return
+    subject = sales_service_vat_subject(book)
+    value = chosen(service_vat.KIND, subject)
+    if service_vat.chosen_value(value):
+        applied[service_vat.KIND] = value
+        used(service_vat.KIND, subject)
+        return
+    rows = [row for row in _rows(config.get("reported_customers")) if "srv" in row]
+    if not rows:
+        return
+    if service_vat.basis(has_vat=True, cash=False, service=True,
+                         book=service_vat.book_verdict(row.get("srv") for row in rows)) is None:
+        needed.append({"kind": service_vat.KIND, "subject": subject, "label": "",
+                       "options": [{"code": code} for code in service_vat.OPTIONS], "current": ""})
 
 
 def _supplier_verdict(rows, fields, applied, tax, branch) -> Optional[str]:

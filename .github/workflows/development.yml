@@ -190,7 +190,7 @@ jobs:
       - name: Block new database queries inside loops (N+1; baseline may only shrink)
         run: python3 scripts/check-loop-queries.py && python3 tests/test_check_loop_queries.py
       - name: Every Express field CC desktop writes is registered (auto / guide card / review), and no new silent defaults on the write path (baseline may only shrink)
-        run: python3 tests/test_express_required_coverage.py && python3 scripts/check-express-defaults.py && python3 tests/test_check_express_defaults.py
+        run: python3 tests/test_express_required_coverage.py && python3 scripts/check-express-defaults.py && python3 tests/test_check_express_defaults.py && python3 tests/test_express_rules_guided.py && python3 tests/test_write_precheck_guide.py
       - name: Block new code that reads a person's name itself instead of the shared display name (baseline may only shrink)
         run: python3 scripts/check-person-names.py && python3 tests/test_check_person_names.py
       - name: Form columns stay balanced, one kind per column, paired fields on one row (baseline may only shrink)
