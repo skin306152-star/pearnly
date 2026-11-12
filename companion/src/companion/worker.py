@@ -198,6 +198,38 @@ def _opening_items(payload: dict):
     return out or None
 
 
+def _write_tables(direction: str, payload: dict) -> tuple:
+    """这张单写前备份、写入、重建索引会独占的表（与各写路 ``_backup`` 的表清单同一个来源，分派同下面 ``_handle_dbf_task`` 那段 if / elif）。
+    带不带仓库表：账套有 STLOC 时进货、销货、库存单、作废都维护它（文件不存在的不试，所以统一带上）；行说明 ARTRNRM 只在这张单带了说明时写。
+    作废要不要动 ARTRNRM 看原单有没有行说明（写路里读账套才知道）：这里照「可能动」带上，只多试一张表。"""
+    from . import dbf_remarks
+    from . import dbf_schema as S
+
+    items = [item for item in (payload or {}).get("items") or [] if isinstance(item, dict)]
+    remarks = dbf_remarks.tables(items)
+    doctype = str((payload or {}).get("doctype") or "").strip().upper()
+    if direction == "receipt":
+        from .dbf_receipt import BACKUP_TABLES
+
+        return tuple(BACKUP_TABLES)
+    if direction == "stock" and (payload or {}).get("action") == "void":
+        from .dbf_transfer import TRANSFER
+        from .dbf_void import TABLES
+
+        return TABLES + S.LOCATION_TABLES + (() if doctype == TRANSFER else (dbf_remarks.TABLE,))
+    if direction == "stock" and doctype == "RL":
+        from .dbf_transfer import TABLES
+
+        new = ("STMAS",) if any(item.get("new_ok") is True for item in items) else ()
+        return TABLES + new + remarks
+    if direction == "stock":
+        from .dbf_stock import TABLES
+
+        return TABLES + S.LOCATION_TABLES + remarks
+    base = S.SALES_BACKUP_TABLES if direction == "sales" else S.PURCHASE_BACKUP_TABLES
+    return base + S.LOCATION_TABLES + remarks
+
+
 def _handle_dbf_task(
     cfg: CompanionConfig, qc: QueueClient, task, index_batch=None
 ) -> None:
@@ -319,12 +351,14 @@ def _handle_dbf_task(
 
     try:
         with held(st.account_dir):
-            # Express 开着这本账套（独占试开 ISRUN.DBF 被拒，``account_lock``）：一个字节不动——不备份、不写、不重建索引，按
-            # 「等账套」回报。以前只有有人值守的单在弹询问框前探（``gui_tray_workers``）；没人在电脑前的单直接写，到重建索引
-            # 拿不到独占才发现，再用写前备份整表覆盖回去，这期间 Express 里刚存的单随之被抹掉（11-12）。持着 ``PEARNLY.LCK``
-            # 探：别的电脑的 CC 桌面版这时不会来写。
-            if account_lock.is_account_busy(st.account_dir):
-                log.info(f"… dbf task {task.id} the account set is open in Express, nothing touched, retry later")
+            # Express 开着本次要写的表（逐张独占试开 DBF 与 CDX，任一被拒，``account_lock.busy_tables``）：一个字节不动——不备份、
+            # 不写、不重建索引，按「等账套」回报。以前只有有人值守的单在弹询问框前探（``gui_tray_workers``）；没人在电脑前的单直接写，
+            # 到重建索引拿不到独占才发现，再用写前备份整表覆盖回去，这期间 Express 里刚存的单随之被抹掉（11-12）。只试 ISRUN 不够：
+            # 科目表窗口不开 ISRUN、却开着 ARTRNRM（正版 18 种窗口实测）。持着 ``PEARNLY.LCK`` 探：别的电脑的 CC 桌面版这时不会来写。
+            held_tables = account_lock.busy_tables(st.account_dir, _write_tables(direction, payload))
+            if held_tables:
+                log.info(f"… dbf task {task.id} the account set is open in Express ({','.join(held_tables)}), "
+                         "nothing touched, retry later")
                 qc.ack_failure(task.id, "the account set is open in Express", error_code=ERR_WAITING_LOCK,
                                outcome="waiting_lock")
                 return "waiting_lock"
