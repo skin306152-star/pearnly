@@ -424,19 +424,22 @@ def _route(remote: str) -> None:
         frappe.log_error(title="Assistant route not recorded")
 
 
-def create(project=None, period=None, scope=None, mode=None) -> dict:
+def create(project=None, period=None, scope=None, mode=None, ledger=None) -> dict:
     """新对话；`project` / `period` / `scope`：建在哪家、处理哪个月、哪个范围（产品不认这家或这个人不能用，照常建在
     「最近」；产品不收月份、范围的丢掉）。
     `mode="operator"`（统一对话框架 14.8）：同一事务里建代录任务并互相指上（`tasks.create`）；要有公司和月份，产品不允许这个人
-    对这家代录就拒（不悄悄建成直写）。"""
+    对这家代录就拒（不悄悄建成直写）。
+    `ledger`：新建页选的本对话账套（`ledger_options` 列的那几本，测试机1 11-12）；要在这家这个月可选的里，不在按请求错误拒绝
+    （同 `move`），没给照函数算（`ledger.initial`）。"""
     mode = requested_mode(mode)
     if mode not in (None, "", *MODES):
         frappe.throw(_("Invalid request"))
     if mode == "operator":
-        return _create_operator(project, period, scope)
+        return _create_operator(project, period, scope, ledger)
     steps = timing.Steps(TURN_LOG)
     user, product = _user(), config.product()
     project, period, scope = _guard(projects.placement, project, period, scope, user)
+    chosen = _guard(ledger_initial, project, period, scope, user, ledger)
     api = engine.adapter()
     handle = engine.prepared(api)
     steps.done("prepare")
@@ -447,15 +450,33 @@ def create(project=None, period=None, scope=None, mode=None) -> dict:
     _route(sid)
     doc = frappe.get_doc({"doctype": SESSION, "session_id": sid, "user": user, "product": product,
                           "engine_code": config.engine_code(), "title": "", "project": project, "period": period,
-                          "project_scope": scope, "project_ledger": ledger.initial(project, period, scope, user)
-                          }).insert(ignore_permissions=True)
+                          "project_scope": scope, "project_ledger": chosen}).insert(ignore_permissions=True)
     sidebar.changed(user, "created", sid)
     steps.done("store")
     steps.log("conversation create")
     return _summary(doc, status)
 
 
-def _create_operator(project, period, scope) -> dict:
+def ledger_initial(project, period, scope, user, wanted=None) -> str:
+    """新建时存哪本（`ledger.initial`）：没挂公司的不看 ``wanted``（给了也按请求错误拒绝，不悄悄丢掉）。"""
+    if not project:
+        if wanted is not None and str(wanted).strip():
+            raise contracts.ContractError("invalid ledger")
+        return ""
+    return ledger.initial(project, period, scope, user, wanted)
+
+
+def ledger_options(project, period=None, scope=None) -> dict:
+    """新建页（还没有会话，直写、代录同一个）右栏账套行要的：这家这个月（该分店）的默认与可选（`ledger.offered`，只读不存）。
+    本人不能用的公司按建对话的落点判据（`projects.placement`）拒绝。"""
+    user = _user()
+    target, period, scope = _guard(projects.placement, project, period, scope, user)
+    if not target:
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    return ledger.offered(target, period, scope, user)
+
+
+def _create_operator(project, period, scope, wanted=None) -> dict:
     from pearnly_core.express_operator import products, tasks
 
     user = _user()
@@ -464,18 +485,23 @@ def _create_operator(project, period, scope) -> dict:
         frappe.throw(_("Invalid request"))
     if not products.enabled() or not products.allowed(user, ref):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    chosen = ""
+    if wanted is not None and str(wanted).strip():
+        # 新建页选的本对话账套：先核再建任务（不在可选里不建）；没选的由 `open_operator` 照函数算
+        _target, checked_period, checked_scope = _guard(projects.placement, ref, period, scope, user)
+        chosen = _guard(ledger.initial, ref, checked_period or period, checked_scope, user, wanted)
     title = (projects._view([ref], user).get(ref) or {}).get("title") or ""
-    made = tasks.create(ref, period, title, scope=scope or "")
+    made = tasks.create(ref, period, title, scope=scope or "", ledger=chosen)
     row = frappe.db.get_value(SESSION, {"session_id": made.get("session_id") or "", "user": user}, FIELDS, as_dict=True)
     if not row:
         frappe.throw(_("Invalid request"))
     return _summary(row, None)
 
 
-def open_operator(task, scope="") -> str:
+def open_operator(task, scope="", ledger_id="") -> str:
     """代录任务的会话（`tasks.create` 与旧任务补建的补丁共用）：本站先建一行（编号 `op_<任务号>`，挂在任务的公司、月份上，
     标题先放任务名或公司名、记成占位标题，首条消息发出时同直写一样换成用户的话再概括，`titles.PLACEHOLDER`），远端会话第一次
-    发话时才开。没配引擎的站点不建，回空串。"""
+    发话时才开。没配引擎的站点不建，回空串。``ledger_id``：新建页选的本对话账套（`_create_operator` 已核过）；没给照函数算。"""
     code = config.engine_code()
     if not code:
         return ""
@@ -491,7 +517,7 @@ def open_operator(task, scope="") -> str:
                     "engine_code": code, "title": title, "title_source": titles.PLACEHOLDER,
                     "starred": 1 if task.get("starred") else 0,
                     "project": task.company, "period": task.period, "project_scope": scope,
-                    "project_ledger": ledger.initial(task.company, task.period, scope, task.owner),
+                    "project_ledger": ledger_id or ledger.initial(task.company, task.period, scope, task.owner),
                     "operator_task": task.name, "remote_ids": "[]"}).insert(ignore_permissions=True)
     sidebar.changed(task.owner, "created", sid)
     return sid
