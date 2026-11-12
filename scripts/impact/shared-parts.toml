@@ -222,7 +222,7 @@ name = "CC 桌面版机器通道（cc_desktop）"
 paths = ["apps/pearnly_core/pearnly_core/cc_desktop/**"]
 markers = ["pearnly_core.cc_desktop", "pearnly_core import cc_desktop", "pearnly_cc_desktop"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "companion/src/**/*.py"]
-entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel", "cc.operator.page", "erp.cc.companies", "erp.cc.chat-push", "cc.mrerp-login", "erp.mrerp.direct", "cc.desktop.bridge"]
+entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel", "cc.operator.page", "erp.cc.companies", "erp.cc.chat-push", "cc.mrerp-login", "erp.mrerp.direct", "cc.desktop.bridge", "cowork.cc-chat.push"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/express/ledger_check.py" = "录过的票先核账本的产品通道（express_doc_check），还没有调用方；「录过的票」判定接入时登记入口（A 线 11-11，docs/work/2026-11-11-cc-ledger-check.md）", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py" = "只在注释里提到 cc_desktop.http_auth 的做法" }
 
 [[part]]
