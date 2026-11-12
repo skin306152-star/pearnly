@@ -1,0 +1,7 @@
+# 业务链（验收测试标准 §3.1 A10、A11）：一条链经过哪些地图行；chain 类场景用 chain = "<id>" 指过来。
+# 第一期只登记示范用的一条；其余（方案 §3.2 的 W / P 系列）随各期补。
+
+[[chain]]
+id = "erp.purchase-to-express"
+title = "ERP 采购单：提交 → 写进 Express → 单号回显 → 账本读回"
+rows = ["erp.desk.pearnly-purchase.action.Submit", "erp.desk.pearnly-purchase.action.Express"]

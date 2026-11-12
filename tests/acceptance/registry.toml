@@ -1,0 +1,31 @@
+# L3 真环境验收场景（验收测试标准 §3.2）。每条：
+# id、title、class（normal / variant / chain / misuse / explore）、layer = "L3"、
+# env（A 本机实验栈 + 真模型 / B 测试机实验栈 + CC 桌面版 + 验收账套 / C 线上测试租户 / D 真手机）、
+# module、rows（真的走到并断言了的地图行）、covers（改了就让证据过期的产品文件，glob）、
+# resources（要占用的资源，名字见 scripts/acceptance/locks.py）、budget_usd、tier（gate 上线前必跑 / weekly）、
+# 可选：via = "api"（被验收的那段没走界面：不算界面覆盖）、needs_server（要账套服务器，只在 08:00–20:40 开跑）、
+#       misuse = [代号…]、chain = "<链 id>"。
+
+[[scenario]]
+id = "acc.erp.purchase.express"
+title = "ERP 采购单提交 → CC 桌面版写进 Express 验收账套 → 单号回显 → 账本读回与不变式"
+class = "chain"
+chain = "erp.purchase-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_purchase_express.py"
+rows = ["erp.desk.pearnly-purchase.action.Submit", "erp.desk.pearnly-purchase.action.Express"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/entry.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/dbf_writer.py",
+  "companion/src/companion/dbf_schema.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc1", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"

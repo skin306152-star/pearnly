@@ -1,0 +1,14 @@
+# 存量欠的验收场景（行 id|欠项），只许减少：补上场景后同一提交删掉对应条目；新入口不进这里。规则见 docs/development/acceptance-testing.md §3.1。
+erp.desk.pearnly-purchase.action.Express|misuse:M02
+erp.desk.pearnly-purchase.action.Express|misuse:M04
+erp.desk.pearnly-purchase.action.Express|misuse:M07
+erp.desk.pearnly-purchase.action.Express|misuse:M08
+erp.desk.pearnly-purchase.action.Express|misuse:M09
+erp.desk.pearnly-purchase.action.Express|misuse:M11
+erp.desk.pearnly-purchase.action.Submit|misuse:M02
+erp.desk.pearnly-purchase.action.Submit|misuse:M04
+erp.desk.pearnly-purchase.action.Submit|misuse:M07
+erp.desk.pearnly-purchase.action.Submit|misuse:M08
+erp.desk.pearnly-purchase.action.Submit|misuse:M09
+erp.desk.pearnly-purchase.action.Submit|misuse:M10
+erp.desk.pearnly-purchase.action.Submit|misuse:M11

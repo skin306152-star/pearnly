@@ -1,0 +1,20 @@
+# 地图行的验收属性（验收测试标准 §3.1）：按行 id 挂，机器据此推出这一行欠哪些场景。
+# effect：read 只读 / site 写本站数据 / ledger 写外部账本（Express、MR.ERP）/ send 对外发消息 / paid 付费调用，可多个；
+# upload = 有上传；card = 有提问卡 / 允许卡 / 开始前卡片；shared_doc = 多人可同时改的单据；line = LINE 入口；
+# na = { "misuse:M08" = "原因" }（也可写 "chain"、"L3:normal"、"variant:new+old"）。
+# 没标属性的行不算欠账（存量逐步标，第四期补全）；标了就按规则算，欠的要么补场景、要么进 owed_baseline.txt（只许减少）。
+
+[policy]
+# 新加的地图行必须同时标属性：主会话定何时打开（11-12：新闸先只报告）
+enforce_new_rows = false
+# 上线验收闸从「只报告」改成「拦」：第二期完成后对写账本的改动打开（主会话 11-12）
+gate_blocks = false
+
+[row."erp.desk.pearnly-purchase.action.Submit"]
+effect = ["site", "ledger"]
+shared_doc = true
+na = { "misuse:M03" = "网页提交没有「停止」这个动作；写到一半停止在 CC 对话与代录的行上验" }
+
+[row."erp.desk.pearnly-purchase.action.Express"]
+effect = ["ledger"]
+na = { "misuse:M03" = "网页提交没有「停止」这个动作；写到一半停止在 CC 对话与代录的行上验" }
