@@ -15,8 +15,8 @@ ERP 的模型给不了账套（`erp_push_documents` 没有账套参数，写哪�
    - D：票据日期 2024-12-15，在两本的会计期间（2025 起、次年段到 2026-12-31）之外（Express 原生录单拒，Message#70）。
    写账规则要人定的项（对方、存货、科目…）在 T.8 上先记住（同网页选过一次），判定没有要问的，T.9 被拒只能是因为不是本对话账套。
    实验室没有真的 CC 桌面版来领，推出去的单停在已排队（写账件 ``book_key`` 就是写向哪本）。
-2. 在这家新建对话（月份默认上个月 2026-10）说一句；右栏「ชุดบัญชี」一行值为空（两本同期、没记住），点开选 T.8 → 右栏显示 T.8，
-   接口读回的本对话账套是 T.8。
+2. 新建页（还没建会话）选这家（月份默认上个月 2026-10）：账套胶囊未定（两本同期、没记住），点开选 T.8，再说第一句建对话 → 接口
+   读回的本对话账套就是 T.8、不出提问卡；右栏「ชุดบัญชี」一行显示 T.8（测试机1 11-12：第一句之前就要能选）。
 3. 说一句建写入计划（A、D）→ ready、写 A 1 张、目标 T.8，D 跳过、原因期间不符（``account_period_mismatch``，不另选账套），出「写入」；
    不出任何提问卡。点「写入」、按计划开始 → started；推 A → 排上了（网页留在 A 上的「选哪本」不再挡：对话里按本对话账套重新准备）。
 4. 说一句建写入计划（B、C）→ ready、2 张、目标 T.8；点「写入」、开始；推 B → 排上了（改投：原来记的是 T.9）。
@@ -33,7 +33,7 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from cc_conversation_ledger import CHIP, CLOSE_PANEL, OPEN_PANEL, RESULT as _RESULT  # noqa: E402
+from cc_conversation_ledger import CHIP, CLOSE_PANEL, OPEN_PANEL, RESULT as _RESULT, new_page_ledger  # noqa: E402
 
 # 认工具结果只认假智能体回的那一段（「[lab-agent] 工具名 <结果原文>」）：气泡里步骤行也写着「工具名 {入参}」，按工具名认会把
 # 还没回结果时的入参当结果（11-12 手机格读到 {documents} 当成推送结果，结果全空）
@@ -50,7 +50,7 @@ assert RESULT.count("[lab-agent] '+tool") == 2 and "before.has" in RESULT and "t
 from cc_lib import JS  # noqa: E402
 from erp_lib import void_documents  # noqa: E402
 
-TITLE = ("ERP CC 本对话账套（R2-5）：右栏选 T.8 后建计划不问账套、点写入开始推进 T.8；网页记成 T.9 的单在对话里改投 T.8；"
+TITLE = ("ERP CC 本对话账套（R2-5）：新建页选 T.8 再发第一句、右栏显示 T.8，建计划不问账套、点写入开始推进 T.8；网页记成 T.9 的单在对话里改投 T.8；"
          "开始后右栏换 T.9 不建新计划推被拒，库里没有写向 T.9 的写账件")
 READY = "document.readyState === 'complete' && !!document.querySelector('textarea[aria-label]')"
 USER = "admin@erp.regression"
@@ -227,14 +227,17 @@ def _push(line, document):
 def steps(params, camera_code=None):
     sid = "new URLSearchParams(location.search).get('c')||''"
     return [
-        {"name": "这家开对话", "js": JS + RESULT + "const switched=await toMode('chat'); await until(()=>q('[data-slot=\"cc-chin-company\"]')); "
-         f"const picked=await pickCompany({json.dumps(params['title'])}); const sent=await say({json.dumps(params['open_line'])}); "
+        {"name": "新建页选 T.8 后开对话", "js": JS + RESULT + "const switched=await toMode('chat'); await until(()=>q('[data-slot=\"cc-chin-company\"]')); "
+         f"const picked=await pickCompany({json.dumps(params['title'])}); " + new_page_ledger(params["label8"]) +
+         f"const sent=await say({json.dumps(params['open_line'])}); "
          f"const replied=await until(()=>replies().some(e=>e.innerText.includes('[lab-agent]')&&e.innerText.includes({json.dumps(params['tag'])})),240); "
          "await until(()=>!q('[data-slot=\"cc-run-indicator\"]'),80); "
          f"await until(()=>!!({sid}),80); const session={sid}; "
          "const row=(await listed('chat')).find(s=>s.id===session)||{}; "
-         "return {switched, picked, sent, replied, session, period: row.period||'', project: row.project||''};"},
-        {"name": "右栏选 T.8", "js": _pick_ledger(params["label8"])},
+         "const read=session?((await call('pearnly_core.assistant.api.ledgers',{session_id:session}))||{}):{}; "
+         "return {switched, picked, chip_found, chip_before, chip_options, chip_after, sent, replied, session, "
+         "period: row.period||'', project: row.project||'', current: read.current||'', asked: asked()};"},
+        {"name": "右栏显示 T.8", "js": _pick_ledger(params["label8"])},
         {"name": "A 建写入计划", "js": _plan(params["plan_a"])},
         {"name": "A 点写入", "js": CLICK},
         {"name": "A 按计划开始", "js": _start(params["tag"])},
@@ -254,7 +257,7 @@ ON_ITS_WAY = ("queued", "sent", "already_pending")
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
     opened, chose8, plan_a, click_a, start_a, push_a, plan_bc, click_bc, start_bc, push_b, chose9, push_c = (
-        by.get(k) or {} for k in ("这家开对话", "右栏选 T.8", "A 建写入计划", "A 点写入", "A 按计划开始", "A 推送", "B、C 建写入计划",
+        by.get(k) or {} for k in ("新建页选 T.8 后开对话", "右栏显示 T.8", "A 建写入计划", "A 点写入", "A 按计划开始", "A 推送", "B、C 建写入计划",
                                   "B、C 点写入", "B、C 按计划开始", "B 推送（网页记的是 T.9）", "右栏换 T.9", "C 不建新计划直接推"))
     ids, t8, label8, label9 = params["ids"], params["t8"], params["label8"], params["label9"]
     t8_only = [(t8, "T.8")]  # 计划里的目标名是账套名（`operator.book_target`），右栏下拉另带位置（`target.option_name`）
@@ -269,11 +272,14 @@ def judge(params, results, camera_code=None):
          "ok": params["default"] == "" and bool(label8) and bool(label9) and label8 != label9
          and (params["web"].get(params["docs"][0]) or {}).get("ledger_book") in (None, "")
          and "payload" in params["prepared"]},
-        {"case": "在这家新建对话：月份是 2026-10、CC 回了这一句", "seen": opened,
-         "ok": bool(opened.get("picked")) and bool(opened.get("replied")) and opened.get("period") == "2026-10"
-         and opened.get("project") == params["company"]},
-        {"case": "右栏账套一行：两本同期、没记住时值为空；点开列出 T.8、T.9，选 T.8 后显示 T.8，服务端读回本对话账套是 T.8", "seen": chose8,
-         "ok": chose8.get("found") is True and chose8.get("before") == "" and {label8, label9} <= set(chose8.get("options") or [])
+        {"case": "新建页（还没建会话）选了公司就有账套胶囊：两本同期、没记住时未定；点开列出 T.8、T.9，选 T.8 后显示 T.8；"
+                 "再说第一句建对话（月份 2026-10、CC 回了这一句），服务端读回本对话账套就是 T.8，没出提问卡", "seen": opened,
+         "ok": bool(opened.get("picked")) and opened.get("chip_found") is True and opened.get("chip_before") not in (label8, label9)
+         and {label8, label9} <= set(opened.get("chip_options") or []) and opened.get("chip_after") == label8
+         and bool(opened.get("replied")) and opened.get("period") == "2026-10" and opened.get("project") == params["company"]
+         and opened.get("current") == t8 and opened.get("asked") == 0},
+        {"case": "右栏账套一行显示新建页选的 T.8；点开列出 T.8、T.9，服务端读回仍是 T.8", "seen": chose8,
+         "ok": chose8.get("found") is True and chose8.get("before") == label8 and {label8, label9} <= set(chose8.get("options") or [])
          and bool(chose8.get("changed")) and chose8.get("after") == label8 and chose8.get("current") == t8},
         {"case": "A、D 建写入计划：ready、写 A 1 张、目标 T.8，出「写入」；D 的日期在 T.8 会计期间之外（Express 会拒）跳过、原因"
                  "期间不符，不另选别的账套；不出选账套的提问卡", "seen": plan_a,
