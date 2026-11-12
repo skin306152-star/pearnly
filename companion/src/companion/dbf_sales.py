@@ -31,6 +31,7 @@ from . import glbal_mark
 from . import guided
 from . import master_create
 from . import pos_journal
+from . import service_vat
 from . import write_verify
 from . import stock_guard, stock_location
 from . import stock_sale
@@ -38,6 +39,7 @@ from . import stock_template
 from . import cdx_reindex
 from .consistency import account_company_matches
 from .dbf_writer import (
+    ERR_DEFERRED_VAT,
     ERR_ACCOUNT_DIR,
     ERR_COMPANY,
     ERR_FIELD_WIDTH,
@@ -296,6 +298,19 @@ def write_sale(
     total = Decimal(entry.total_amount)
     # 整张免税的单（ERP 增值税登记户、全是免税商品）带 `vat_fields`（AMT01 0、AMTRAT0 全额）：照原生也写销项税记录（实录第 10 条）
     has_vat = vat > 0 or bool(entry.vat_fields)
+    # 服务品销项税口径（ARTRN.SRV_VATTYP，11-12 晚）：载荷带 srv_vattyp = 2 且有服务品 → 照原生收付实现记：税贷「未到期销项税」
+    # （ISINFO.ACCNUM27）、开单不写销项税记录、单头 VATDAT 空；科目没设或不能记账 → 不写、转人工（同进货的口径 2）
+    write_items = entry.items_status == "ok" and bool(entry.items)
+    srv = service_vat.for_sale(payload, has_vat=vat > 0, service=not write_items or any(
+        str(it.get("item_mode") or "").strip() != stock_sale.ITEM_MODE for it in entry.items))
+    deferred_vat = ""
+    if srv == service_vat.CASH_BASIS:
+        deferred_vat = account_rules.default_account(account_dir, service_vat.DEFERRED_OUTPUT_VAT_SLOT)
+        if not (deferred_vat and account_rules.postable_account(account_dir, deferred_vat)):
+            return DbfWriteResult(False, error_code=ERR_DEFERRED_VAT,
+                                  error=f"deferred output VAT account {deferred_vat!r} (ISINFO."
+                                        f"{service_vat.DEFERRED_OUTPUT_VAT_SLOT}) is not postable")
+    records_vat = has_vat and not deferred_vat
 
     # 不查重:账套里已有同号 / 同票的单照写(用户 2026-09-30、2026-10-08:Express 手工录入也不拦重复)。
     try:
@@ -355,6 +370,8 @@ def write_sale(
             userid,
             depcod,
             **_located(locations, moves),
+            srv=srv,
+            deferred_vat=deferred_vat,
         )
         stloc_expected, notes = record_locations(account_dir, moves, notes)
         # 按台号码:明细行号 = 载荷顺序(库存 / 非库存两条路都从 1 起,混行转人工)
@@ -388,7 +405,7 @@ def write_sale(
             account_dir,
             docnum,
             total,
-            has_vat,
+            records_vat,  # 口径 2 开单不写销项税记录
             base=base,
             detail_n=detail_n,
             has_stock=has_stock,
@@ -406,7 +423,7 @@ def write_sale(
         verify = write_verify.check(account_dir, write_verify.Expected(
             side="sales", docnum=docnum, party_code=entry.customer_code, docdat=docdat,
             rectyp=S.SALES_RECTYP[entry.doctype], refnum=entry.ref_no, lines=[row[:3] for row in gl_rows],
-            tax_id=entry.customer_tax_id, branch=entry.customer_branch, has_vat=has_vat, since=since),
+            tax_id=entry.customer_tax_id, branch=entry.customer_branch, has_vat=records_vat, since=since),
             extra=pos_differ)
         clock.lap("write_check")
         _discard_backup(backup_dir)  # 校验通过(已提交)→ 删快照,磁盘恒定
@@ -471,8 +488,11 @@ def _write_all(
     *,
     locations=None,
     moves=None,
+    srv=None,
+    deferred_vat="",
 ) -> tuple:
-    """写完销项六表,返回 (凭证号, 逐行 mode, 有无库存行, 诚实标注, 实际写的分录 [(SEQIT, ACCNUM, 借贷, 金额)])。"""
+    """写完销项六表,返回 (凭证号, 逐行 mode, 有无库存行, 诚实标注, 实际写的分录 [(SEQIT, ACCNUM, 借贷, 金额)])。
+    ``srv`` / ``deferred_vat``:服务品销项税口径与口径 2 的「未到期销项税」科目(``service_vat.for_sale``);不给同以前。"""
     prefix = entry.doctype  # IV / HS
     cash = prefix == "HS"
     # 按这套账自己的设置(2026-10-08):单据簿的日记账 / 默认部门;赊销的应收行记客户档上的科目、到期日按客户档
@@ -543,7 +563,8 @@ def _write_all(
                 "IVCAMT": netamt if cash else 0.0,
                 "DOCSTAT": "N",
                 "USERID": userid,
-                **audit_fields(docdat, depcod, has_vat, orgnum, duedat),
+                **audit_fields(docdat, depcod, has_vat, orgnum, duedat, srv=srv),
+                **({"VATDAT": None} if deferred_vat else {}),  # 口径 2:收款时 Express 才记税期(原生单头 VATDAT 空)
                 **({"PAYTRM": payterm} if "PAYTRM" in ar.field_names else {}),
                 # 销售员照 Express 取客户档上的（G-A15，11-12）；客户档没有就不写这一栏（同以前）
                 **({"SLMCOD": salesman} if salesman and "SLMCOD" in {f.upper() for f in ar.field_names} else {}),
@@ -585,7 +606,7 @@ def _write_all(
                     slmcod=salesman, **numbered,
                 )
 
-    if has_vat:
+    if has_vat and not deferred_vat:  # 口径 2 开单不写销项税记录(收款时 Express 转)
         iv = _open(account_dir, "ISVAT", dbf.READ_WRITE)
         try:
             columns = {f.upper() for f in iv.field_names}
@@ -641,6 +662,9 @@ def _write_all(
     departmental = _department_accounts(account_dir) if depcod else frozenset()
     gl_rows = revenue_journal(account_dir, _gl_rows(entry), entry.items if write_detail else [], line_modes,
                               entry.items_account) + cogs_rows
+    if deferred_vat:  # 口径 2:税那一行贷「未到期销项税」(原生 4124 / 4127 张)
+        gl_rows = [(seq, deferred_vat if seq == S.SALES_SEQIT["output_vat"] else acc, side, amt)
+                   for seq, acc, side, amt in gl_rows]
     gi = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
     written = [_gl_line(docnum, seqit, docdat, accnum, descrp, trntyp, amt, depcod, departmental)
                for seqit, accnum, trntyp, amt in gl_rows]
