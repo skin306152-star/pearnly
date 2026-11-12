@@ -38,6 +38,9 @@ NO_TAX = "express.company_tax_missing"
 NO_BOOK = "express.account_set_missing"
 NO_STOCK_BOOK = "express.stock_book_missing"  # 账套 ISRUN 没有这个库存单别（OU / JU / TK）
 SEVERAL_BOOKS = "express.account_set_several"
+# 单据日期不在账套整个会计期间（本年起 ~ 次年止）里：Express 原生录单会拒（Message#70 วันที่ไม่อยู่ในงวด），不写、如实报。只在 CC
+# 对话 / 代录里按本对话账套写时出现（按日期选的天然在期间内）；日期不会自己变，不每分钟重试（`target.pick`）
+PERIOD_OUTSIDE = "express.account_period_mismatch"
 NO_WRITER = "express.no_writer"
 READING = "express.masters_reading"
 NOT_CONNECTED = "express.cc_desktop_not_connected"
@@ -373,7 +376,7 @@ def pages(doc: dict) -> list:
     return [page]
 
 
-__all__ = ["ATTENTION_STATES", "CHOICE", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER",
+__all__ = ["ATTENTION_STATES", "CHOICE", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
            "OFFLINE", "OPEN_STATES", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]

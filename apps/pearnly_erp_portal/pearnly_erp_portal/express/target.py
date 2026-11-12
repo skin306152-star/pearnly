@@ -9,9 +9,12 @@
 - 选出的那份没有一台电脑能写：停下（``express.no_writer``），每分钟再看。
 
 CC 对话 / 代录任务里（A 线 11-12）：调用方经 `conversation.wanted` 传 ``wanted``（本对话账套的账套键）：就用这家名单里的那一本，
-不按单据日期另判（Express 自己的期间闸照旧，D3）；不在这家名单里 → 没有账套；空串（本对话账套未定）→ ``ledger_needed``。
+不按单据日期另判、不另选别的账套；不在这家名单里 → 没有账套；空串（本对话账套未定）→ ``ledger_needed``。单据日期落在这本的整个
+会计期间（本年起 ~ 次年止）之外 → 期间不符（``express.account_period_mismatch``，不写）：Express 原生录单同样拒（Message#70），
+判据同 Cowork 推送（`account_match.conflict`）；账套没报期间的不拦。
 """
 from pearnly_core.cc_desktop import books
+from pearnly_core.express_rules.targets import account_match
 
 from pearnly_erp_portal.express import choices, contracts, conversation
 
@@ -52,6 +55,8 @@ def pick(company_row, day, wanted=None) -> dict:
         book = named(company_row, wanted)
         if book is None:
             return {"book": None, "reason": contracts.NO_BOOK, "options": []}
+        if account_match.conflict("express", {"attributes": book}, fields={"date": day}):
+            return {"book": book, "reason": contracts.PERIOD_OUTSIDE, "options": []}
         return {"book": book, "reason": "" if book["writers"] else contracts.NO_WRITER, "options": []}
     found = candidates(company_row, day)
     if not found:

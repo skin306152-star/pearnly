@@ -128,3 +128,8 @@ R2-5 真实路径（主会话 11-12 生产只读查清，会话 sesn_01XqgMQffeA
 - B3：`erp_set_printed_total` 只改数（回 `released: false`），加了公司闸。B5：Write Plan 加字段 `ledger`，开始时账套变了回
   `ledger_changed` 并作废计划，放行时变了整批拒。
 - 部署回读加：`tabPearnly Assistant Write Plan.ledger` 存在。
+- 期间闸（主会话 11-12 追加）：`target.pick(wanted=…)` 原来只按名单取那一本、不看单据日期，对话里期间外的单会被直写进 Express，
+  而 Express 原生录单拒（Message#70）。改为：账套报了期间、单据日期落在「本年起 ~ 次年止」之外 → 不写，原因
+  `express.account_period_mismatch`（判据复用 `account_match.conflict`，没报期间不拦）；不进每分钟重试；判定 / 计划报
+  `account_period_mismatch`（同 Cowork 推送的码，`write_plan.SKIP_PERIOD_MISMATCH`），代录交单照 held 报。新词条
+  `express.reason.periodOutside`（四语，沿用共用层 `operator.report.reason.period_outside` 的说法），单据页同一张原因表。
