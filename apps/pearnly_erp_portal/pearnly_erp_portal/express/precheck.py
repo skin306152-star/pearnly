@@ -33,6 +33,7 @@ from pearnly_core.express_rules.contracts import pos as pos_contract
 from pearnly_core.express_rules.push import common as receipt_rules
 from pearnly_core.express_rules.push import choices as choice_rules
 from pearnly_core.express_rules.push import service_vat as service_vat_rules
+from pearnly_core.express_rules.targets import account_match
 from pearnly_core.write_precheck import contracts as card
 from pearnly_core.write_precheck import preselect
 
@@ -53,6 +54,8 @@ NOT_PERMITTED = "not_permitted"
 ALREADY_QUEUED = "already_queued"
 WRITTEN = "already_written"
 NO_ACCOUNT_SET = "no_account_set"  # 这家没有能写这张单的账套（`contracts.NO_BOOK`）：如实报，不归「等电脑」（A 线 11-12 A9）
+# 单据日期不在本对话账套的会计期间里（`contracts.PERIOD_OUTSIDE`，Express 会拒）：如实报，码同 Cowork 推送
+PERIOD_MISMATCH = account_match.PERIOD_MISMATCH
 
 NOTE_SAME_BRANCH = "express.precheck.note.sameBranch"    # 同税号、同分店的档
 NOTE_ONLY_RECORD = "express.precheck.note.onlyRecord"    # 这个税号只有这一个档
@@ -278,6 +281,8 @@ def _state(result):
         return card.NOT_WRITABLE, str(result["failed"])
     if hold == contracts.NO_BOOK:
         return card.NOT_WRITABLE, NO_ACCOUNT_SET
+    if hold == contracts.PERIOD_OUTSIDE:
+        return card.NOT_WRITABLE, PERIOD_MISMATCH
     if hold and not hold.startswith(contracts.CHOICE):
         return (card.WAITING if hold in contracts.RETRY_REASONS else card.NOT_WRITABLE), hold
     return card.CHECK, ""
