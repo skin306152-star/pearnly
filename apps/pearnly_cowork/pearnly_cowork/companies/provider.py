@@ -5,6 +5,9 @@
 - `view`：侧栏组头显示的名称与副标题（税号）。
 - `context`：给 CC 的公司说明（`service.context_text`），出错记日志、回空串，不挡发话。
 - `SCOPE = True`：对话可以再指定一个分店（5 位分店号，空 = 不指定，补充 甲.2）。
+- `LEDGER` / `ledgers`：本对话账套（共用层 `pearnly_core.assistant.ledger`，A 线 11-12）：这家（对话指定的分店）的账套，
+  覆盖本月的按 `identity.covering`，多本时按记住的现用账套 / 可写优先（`current_book.pick`，同定时任务与自动推），恰好一本即默认；
+  一本都不覆盖用最新一本可写的（同原右栏兜底）。编号 = ``"<连接>|<账套键>"``（:func:`ledger_id` / :func:`ledger_parts`）。
 - `API` / `SECTIONS`：给页面的声明（共用层 `projects.listing` 原样转交）：公司接口的方法前缀，与 Cowork 有的全部分区
   （页面只出声明了的；`sections()` 按本人收窄：改名、删除只给管理员；ERP 声明自己的一份，见 `pearnly_erp_portal.masters.cc_projects`）。
 """
@@ -17,6 +20,9 @@ from pearnly_cowork.companies.access import COMPANY
 KIND = "company"
 PERIOD = True
 SCOPE = True
+LEDGER = True
+LEDGER_SEP = "|"
+LEDGER_OPTIONS_MAX = 50
 API = "pearnly_cowork.companies.api."
 # 待处理、月结台账、知识库、单据文件夹、定时任务、记住的选择、申报草稿；从账套目录添加公司、改名、删除、刷新账套
 SECTIONS = ("pending", "month", "notes", "folders", "tasks", "choices", "drafts", "create", "rename", "delete", "catalog")
@@ -54,11 +60,58 @@ def view(refs, user) -> dict:
     return {row.name: {"title": row.title or "", "subtitle": row.tax_id or ""} for row in rows}
 
 
+def ledger_id(connection, key) -> str:
+    return f"{connection or ''}{LEDGER_SEP}{key or ''}"
+
+
+def ledger_parts(value) -> tuple[str, str]:
+    """本对话账套编号 → (连接, 账套键)；认不出回两个空串。"""
+    connection, sep, key = str(value or "").partition(LEDGER_SEP)
+    return (connection, key) if sep and connection and key else ("", "")
+
+
+def _month(period) -> str:
+    if period:
+        return str(period)
+    from frappe.utils import nowdate
+
+    return str(nowdate())[:7]
+
+
+def ledgers(ref, period, work_scope, user) -> dict:
+    """这家这个月（对话指定的分店）可选的账套与默认（见文件头）。只读：读接口也调（`listed_books`，不补存主档税号）。"""
+    from pearnly_cowork.companies import current_book, service
+
+    if not service.exists(ref):
+        return {"options": [], "default": ""}
+    row = service.get(ref)
+    sets = service.listed_books(row, None)
+    branch = identity.scope_value(work_scope) or ""
+    sets = (identity.scoped(sets, branch) or sets) if branch else sets
+    month = _month(period)
+    covering = identity.covering(sets, month)
+    if len(covering) > 1:
+        workspace = frappe.db.get_value(COMPANY, ref, "workspace")
+        picked = current_book.pick(workspace, row.get("identity"), f"{month}-01", covering)
+        chosen = picked[0] if len(picked) == 1 else None
+    elif covering:
+        chosen = covering[0]
+    else:
+        chosen = (identity.writable_first(sets) or [None])[0]  # 一本都不覆盖：最新一本可写的
+    marked = {id(item) for item in covering}
+    ordered = covering + [item for item in sets if id(item) not in marked and item.get("writable") is not False]
+    options = [{"id": ledger_id(item.get("connection"), item.get("key")), "label": item.get("label") or item.get("key"),
+                "covers": id(item) in marked} for item in ordered[:LEDGER_OPTIONS_MAX]]
+    return {"options": options,
+            "default": ledger_id(chosen.get("connection"), chosen.get("key")) if chosen else ""}
+
+
 def context(ref, period, work_scope, user) -> str:
     from pearnly_cowork.companies import service
 
     try:
-        return service.context_text(ref, period or "", work_scope if identity.scope_value(work_scope) else "")
+        return service.context_text(ref, period or "", work_scope if identity.scope_value(work_scope) else "",
+                                    ledger=True)
     except Exception:
         frappe.log_error(title="Cowork company context failed")
         return ""

@@ -23,12 +23,11 @@ LIST_MAX = 20
 CHOICES_MAX = 200
 
 GUIDANCE = [
-    "When a <company> note is present, work for that company by default: use its account set covering the work "
-    "month, its documents folder and month folder for cowork_folder_files, cowork_folder_fetch and new scheduled "
-    "tasks; ask before working on another company. Do not move existing scheduled tasks to another folder unless the "
-    "user asks. An MR.ERP company's account sets get their fiscal dates when its account sets are refreshed; until "
-    "then none is marked as covering the month: with one year use it; with several, ask the user once which year to "
-    "use.",
+    "When a <company> note is present, work for that company by default: write only into this conversation's account "
+    "set (<conversation_account_set>, never one chosen by the document date), use its documents folder and month "
+    "folder for cowork_folder_files, cowork_folder_fetch and new scheduled tasks; ask before working on another "
+    "company. Do not move existing scheduled tasks to another folder unless the user asks. An MR.ERP company's account "
+    "sets get their fiscal dates when its account sets are refreshed.",
     "When the user states or confirms a lasting fact about how this client's books are kept that is not already in "
     "the team notes (who is paid rent and the withholding rate, how POS days are closed, how a kind of receipt is "
     "booked), offer once in one short sentence to save it with cowork_company_note_save. Do not save one-off details, "
@@ -214,6 +213,8 @@ def profile(tool_input) -> str:
                           for item in rules.listing(row.name, CHOICES_MAX)]
     if filed == row.name and filed_scope:
         found["work_branch"] = filed_scope
+    if filed == row.name:
+        _with_conversation_book(found)
     if row.adapter == "mrerp":
         # MR.ERP 公司没有自动推送（只判 Express，`push.application.assess`；台账同样给 None），也不用账套记忆与公司规则：
         # 记住的是每份账套的导入菜单与默认值（存在连接上，`connections.service.mrerp_menu`），这里列出来
@@ -225,6 +226,32 @@ def profile(tool_input) -> str:
 
     found["automation"] = automation.view(row.name)
     return _json(_local_profile(found))
+
+
+CONVERSATION_BOOK_NOTE = ("conversation_account_set is where every write in this conversation goes (the account set of "
+                          "this conversation); account_sets lists only it. Never choose another by the document date.")
+CONVERSATION_BOOK_NEEDED = ("conversation_account_set is not decided yet: before the first write ask the user once with "
+                            "ask_user which of account_sets to write to and set it with pearnly_conversation_ledger.")
+
+
+def _with_conversation_book(found) -> None:
+    """本对话公司的资料（A 线 11-12，R2-5 的模型按这里的账套与期间自己判写哪本）：已定本对话账套时账套只给它、明说它是写入目标
+    （覆盖本月的那一份也换成它）；未定时照列，另说先问一次。"""
+    from pearnly_cowork.assistant import write_scope
+
+    pin = write_scope.pinned()
+    if not pin:
+        return
+    if not pin.get("key"):
+        found["conversation_account_set"] = {"status": "needed", "note": CONVERSATION_BOOK_NEEDED}
+        return
+    sets = found.get("account_sets") or []
+    mine = [item for item in sets if write_scope._is_pin(pin, item.get("connection"), item.get("key"))]
+    book = mine[0] if mine else {"connection": pin["connection"], "key": pin["key"], "label": pin.get("label")}
+    found["account_sets_total"] = len(sets)
+    found["account_sets"] = [book]
+    found["period_set"] = {"key": book.get("key"), "label": book.get("label"), "connection": book.get("connection")}
+    found["conversation_account_set"] = {**found["period_set"], "note": CONVERSATION_BOOK_NOTE}
 
 
 MRERP_SETS_SHOWN = 5
@@ -493,6 +520,12 @@ def _period(row, tool_input) -> str:
     return str(tool_input.get("period") or (filed_period if filed == row.name else "") or "")
 
 
+def _branch(row, tool_input) -> str:
+    """存公司规则的范围：分店没给用本对话的分店（C5，对话指定了分店时规则记在这个分店；卡片与执行同一处）。"""
+    filed, _filed_period, filed_scope = _filed()
+    return str(tool_input.get("branch") or (filed_scope if row and filed == row.name else "") or "")
+
+
 def choice_save(tool_input) -> str:
     service.require_write()
     row = _company(tool_input, write=True)
@@ -501,7 +534,7 @@ def choice_save(tool_input) -> str:
     if row.adapter == "mrerp":
         return _json({"status": "not_saved", "reason": MRERP_NO_RULES})
     sets = service.books(row, limit=None)
-    branch, period = str(tool_input.get("branch") or ""), _period(row, tool_input)
+    branch, period = _branch(row, tool_input), _period(row, tool_input)
     if tool_input.get("key"):
         saved = saved_choices.promote(row, sets, str(tool_input["key"]), branch, period, session=_session())
     else:
@@ -574,7 +607,7 @@ def _choice_rows(row, text, branch) -> list:
 def preview_choice_save(tool_input) -> list:
     row = _company(tool_input, write=True)
     text, branch, _source = _described(row, tool_input)
-    return _choice_rows(row, text, None if branch is None else str(tool_input.get("branch") or ""))
+    return _choice_rows(row, text, None if branch is None else _branch(row, tool_input))
 
 
 def preview_choice_remove(tool_input) -> list:
@@ -615,7 +648,9 @@ TOOLS = [
                     "by its source code. An MR.ERP company has automation null and no rules or account set choices "
                     "like Express: its remembered choices are the MR.ERP import menus and default values (source "
                     "mrerp), and mrerp_settings lists, per account set, those and what is still needed (change them "
-                    "with cowork_mrerp_setup); its account sets carry fiscal periods once they were refreshed.",
+                    "with cowork_mrerp_setup); its account sets carry fiscal periods once they were refreshed. For "
+                    "this conversation's company, conversation_account_set is the one account set every write goes "
+                    "into.",
      "input_schema": {"type": "object", "properties": {"company": COMPANY_PROP, "period": {"type": "string"}}},
      "handler": "pearnly_cowork.assistant.company_tools.profile"},
     {"name": "cowork_company_note_save", "label": "Saved a company note",

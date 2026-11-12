@@ -42,6 +42,9 @@ PLAN_NOTE = ("Before writing, say back to the user in one sentence: the company,
              "wait for the user's reply. Only after the user answers in a new message call pearnly_write_start with this "
              "plan. If the user changes something (e.g. drop one), make a new plan and say it back again. Never start on "
              "your own, never say anything was written before pearnly_write_start reports it.")
+RETARGETED_NOTE = ("retargeted lists documents that were aimed at another account set of this company and will go into "
+                   "this conversation's account set instead: when saying the plan back, list them separately (which "
+                   "documents, from which account set to which).")
 NO_COMPANY_NOTE = ("This conversation is not filed under a company, so nothing can be written. Ask the user with ask_user "
                    "which company to enter it into, file this conversation under it (pearnly_file_conversation), then "
                    "make the plan again.")
@@ -107,7 +110,11 @@ def _judge(company: str, doc_ids: list) -> tuple[dict, dict]:
         documents += [doc for doc in precheck_products.check(company, doc_ids[start:start + CHECK_MAX]).get("documents") or []
                       if isinstance(doc, dict) and doc.get("doc_id")]
     versions = {str(doc["doc_id"]): _version(doc) for doc in documents}
-    return precheck.merge(documents), versions
+    card = precheck.merge(documents)
+    # 改投（A 线 11-12）：产品按「目标 = 本对话账套」判，原来指着同公司另一本的单逐张带 {from, to}（票上原目标不动）
+    moved = [{"document": str(doc["doc_id"]), "from": doc["retargeted"].get("from"), "to": doc["retargeted"].get("to")}
+             for doc in documents if isinstance(doc.get("retargeted"), dict)]
+    return ({**card, "retargeted": moved} if moved else card), versions
 
 
 def _sorted_out(card: dict, doc_ids: list, versions: dict) -> tuple[list, list]:
@@ -188,8 +195,11 @@ def make(tool_input) -> dict:
     out = {"plan": doc.name, "company": company, "company_title": str(card.get("company_title") or ""),
            "account_sets": _targets(card, write), "count": len(write), "documents": write,
            "skipped_count": len(skipped), "skipped": skipped[:SKIPPED_SHOWN]}
+    moved = [item for item in card.get("retargeted") or () if item.get("document") in write]
+    if moved:
+        out["retargeted"] = moved[:SKIPPED_SHOWN]
     # 工具结果的状态与 B 线「录吧」的约定（主会话 11-11）：有要写的回 ready，做不了回 nothing_to_write（带原因）；计划表里自己记 awaiting
-    return {**out, "status": READY, "note": PLAN_NOTE}
+    return {**out, "status": READY, "note": PLAN_NOTE + (" " + RETARGETED_NOTE if moved else "")}
 
 
 def _replace_open(session_id: str) -> None:
