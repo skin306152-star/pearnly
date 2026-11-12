@@ -206,15 +206,34 @@ def run_state(row, api, latest, as_of=None, operator=None):
 
 
 def _remote_status(api, remote) -> str:
-    """这段远端会话此刻的状态，用读得到它的那把密钥读（`engine.reader`）；哪把都读不到按空闲（接着聊会开新段）。"""
+    """这段远端会话此刻的状态，用读得到它的那把密钥读（`engine.reader`）；哪把都读不到（没配以前的密钥时当前密钥回「不存在」
+    也算）按空闲。"""
     source = engine.reader(api, remote)
-    return source.status(remote) if source is not None else "idle"
+    if source is None:
+        return "idle"
+    try:
+        return source.status(remote)
+    except Exception as err:
+        if engine.gone(source, err):
+            return "idle"
+        raise
 
 
 def _remote_events(api, remote, newest_first=False):
-    """这段远端会话的事件，用读得到它的那把密钥读；哪把都读不到就没有。"""
+    """这段远端会话的事件，用读得到它的那把密钥读；哪把都读不到（同上）就没有。"""
     source = engine.reader(api, remote)
-    return source.events(remote, newest_first=newest_first) if source is not None else iter(())
+    if source is None:
+        return iter(())
+    return _unless_gone(source, lambda: source.events(remote, newest_first=newest_first))
+
+
+def _unless_gone(source, read):
+    """边读边交；读的时候（调用或迭代时）引擎说「不存在」就到此为止。"""
+    try:
+        yield from read()
+    except Exception as err:
+        if not engine.gone(source, err):
+            raise
 
 
 def _operator_run(row, api, latest, as_of, operator):
@@ -858,7 +877,14 @@ def _segment_events(api, remotes) -> list[list]:
 
     def read(pair):
         source, remote = pair
-        return list(source.events(remote)) if source is not None else None
+        if source is None:
+            return None
+        try:
+            return list(source.events(remote))
+        except Exception as err:
+            if engine.gone(source, err):  # 没配以前的密钥、当前密钥回「不存在」：同哪把都读不到
+                return None
+            raise
 
     if len(pairs) < 2:
         return [read(pair) for pair in pairs]

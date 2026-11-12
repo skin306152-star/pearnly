@@ -52,7 +52,19 @@
 - 文案：`check-copy.py` 新增 1、拦截 0；`--report` 见上表。`i18n-build.py` 已重生成四语翻译包。
 - 回归实验室（挂本分支，`run.py --migrate --jobs 3`）受影响流程 7 个 20 格全过（430 秒）：`cc.chat`、`cc.operator`、`cc.operator.replay`、
   `cc.sidebar-modes`、`cowork.cc.sidebar-modes`、`cc.attach-delete`、`cowork.cc.attach-delete`。实验栈没配以前的密钥，这一遍验的是「没配 = 同以前」。
-- 「换密钥后」的行为（两把密钥）只在单元测试里用替身验过；线上效果看部署步骤第 3 步。
+- **真密钥验证（11-12，主会话要求）**：本机用生产镜像 `b3adf474`（真 anthropic SDK）挂本分支代码，走新代码的真实读取路径
+  （`engine.reader`、`sessions.events(status=True)`、`files.listing`；frappe 用测试替身，不连库），对已知旧会话 `sesn_016b6tjzCvxUkkewu5XSnbsc`；
+  在 HTTP 层记下每个请求的方法、路径和密钥尾号。脚本 `~/pearnly-devtools/release-1111/realkeys/realkeys.py`，结果同目录 `result.txt`。密钥只经环境变量进进程。
+  | 配置 | 读这段用 | 事件 | 用户 / CC 消息 | 状态 | 附件 | 「之前的消息无法显示」 |
+  |---|---|---|---|---|---|---|
+  | 当前 6QAA + 以前 [IwAA] | 以前的密钥（只读） | 145 | 5 / 5 | idle | 2 | 无 |
+  | 只配 6QAA | 当前（回「不存在」） | 1 | 0 / 1 | idle | 0 | 有 |
+  - 请求：前者 6QAA `GET /v1/sessions/<sid>` 1 次（探测，404），IwAA `GET /v1/sessions/<sid>` 2、`…/events` 1、`…/resources` 1、`/v1/files` 1；
+    后者 6QAA 三个 GET。**两种配置下都没有任何非 GET 请求**；真适配器上 open / post / upload / attach / mount / rename / archive / delete 对以前的密钥全部 `ReadOnlyKey`。零费用。
+  - 这一步发现并修了一处：只配当前密钥时整段重放原来照旧抛 404（「没配 = 同以前」）；按主会话口径改为当前密钥回「不存在」的段同样只说那一句、
+    状态按空闲（`engine.gone`、`sessions._unless_gone`），正常路径不多读；别的错（一时不通）照旧报错。新增单元测试一个，`test_assistant.py` 245 个过。
+- 变基到 origin/main `32695c276`（第 12 车）：适配器与 main 新加的 `session_usage`（用量记账）同处冲突，两边都保留；用量记账只读刚结束一轮的那段
+  （接着聊后一定是当前密钥的新段），不受影响。
 
 ### 共用件连带回归（`check-impact.py`：命中 `assistant`，11 个入口）
 

@@ -62,6 +62,12 @@ class ReadOnly:
         raise ReadOnlyKey(f"previous assistant keys only read; refused: {name}")
 
 
+def gone(source, err) -> bool:
+    """`source`（适配器或以前密钥的只读适配器）说这个错误是「这把密钥下没有这段会话」。"""
+    check = getattr(source, "gone", None)
+    return bool(check and check(err))
+
+
 def previous_keys() -> list:
     """站点配置里以前用过的密钥（列表；也认一个字符串），去掉空的和当前这把。"""
     found = frappe.conf.get(PREVIOUS_KEYS) or []

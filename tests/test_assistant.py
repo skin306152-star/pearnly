@@ -7579,6 +7579,26 @@ class PreviousKeyTests(unittest.TestCase):
         row = next(line.split("\t") for line in tsv if line.split("\t")[0] == sessions.HISTORY_UNAVAILABLE)
         self.assertTrue(all(cell.strip() for cell in row[:4]))
 
+    def test_without_previous_keys_a_segment_the_current_key_cannot_see_shows_the_line(self):
+        """只配当前密钥（没配以前的）：正常路径不多读；当前密钥回「不存在」的段同样只说一句、不报错，状态按空闲。
+        别的错（远端一时不通）照旧报错（见 HistoryReadTests）。"""
+        del frappe.conf[engine.PREVIOUS_KEYS]
+        sessions = self._sessions()
+        current = _KeyView({"sesn_new": [self.E3]})
+        _, patches = RunStatusTests._patched(self, sessions, self._row(["sesn_old", "sesn_new"]), current)
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            page = sessions.events("sesn_mine1", status=True)
+            self.assertEqual([e["id"] for e in page["events"]], ["pearnly_gap_sesn_old", "sevt_new1"])
+            self.assertEqual(page["events"][0]["content"][0]["text"], sessions.HISTORY_UNAVAILABLE)
+            stack.enter_context(mock.patch.object(sessions, "owned", return_value=self._row(["sesn_old"])))
+            page = sessions.events("sesn_mine1", status=True)
+            self.assertEqual(([e["id"] for e in page["events"]], page["run"]["status"]), (["pearnly_gap_sesn_old"], "idle"))
+            page = sessions.events("sesn_mine1", after="sevt_old1", status=True)  # 增量读不到锚点：退回整段，同上
+            self.assertEqual([e["id"] for e in page["events"]], ["pearnly_gap_sesn_old"])
+        self.assertEqual({c[0] for c in current.calls}, {"events", "status"})  # 没有多出的探测以外的调用
+
     def _turn(self, sessions, row, current, old):
         settings = types.SimpleNamespace(engine=types.SimpleNamespace(code=CLAUDE), model="claude-haiku-5-5", api_key=KEY)
         stored = {}
