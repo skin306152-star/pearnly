@@ -134,6 +134,8 @@ As Of,As Of
 Assign to,Assign to
 Assigned to me,Assigned to me
 At most 5 photos per entry,At most 5 photos per entry
+At most {0} collection methods,At most {0} collection methods
+At most {0} invoices,At most {0} invoices
 At most {0} photos per entry,At most {0} photos per entry
 At time of due date,At time of due date
 Attach,Attach
@@ -283,6 +285,7 @@ Choose file,Choose file
 Choose invoices,Choose invoices
 Choose purchase or sales first,Choose purchase or sales first
 Choose purchase or sales for this invoice and submit again,Choose purchase or sales for this invoice and submit again
+Choose the account set,Choose the account set
 Choose the collection method,Choose the collection method
 Choose the company,Choose the company
 Choose the customer,Choose the customer
@@ -1611,6 +1614,7 @@ This code is already used by {0} ({1}),This code is already used by {0} ({1})
 This collection cannot be changed,This collection cannot be changed
 This collection cannot be withdrawn,This collection cannot be withdrawn
 This collection method is not available,This collection method is not available
+This company does not use Express,This company does not use Express
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.","This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these."
 This computer cannot enter documents into Express,This computer cannot enter documents into Express
 This counter sells for this company; stock leaves its warehouse,This counter sells for this company; stock leaves its warehouse

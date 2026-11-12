@@ -84,11 +84,7 @@ def api_my_collection(name):
     card = service.card(name)
     if card["status"] != contracts.DRAFT:
         return {"card": card}
-    found = _explained(service.open_invoices, card["company"], card["customer"], day=card["doc_date"], refresh=False,
-                       exclude=name)
-    available = {row["docnum"]: row["available"] for row in found["items"]}
-    return {"card": card, "available": {row["docnum"]: available.get(row["docnum"], "0.00") for row in card["invoices"]},
-            "methods": _explained(service.methods, card["company"], card["doc_date"]), "staff": service.staff_choices(name)}
+    return {"card": card, **_explained(service.edit_choices, name), "staff": service.staff_choices(name)}
 
 
 @frappe.whitelist(methods=["POST"])
