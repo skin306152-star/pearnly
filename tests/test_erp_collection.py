@@ -320,7 +320,9 @@ express_push.office_actor = lambda owner, company, book_key: "office@x"
 sys.modules["pearnly_erp_portal.express.push"] = express_push
 
 from pearnly_erp_portal.collection import access, contracts as C, push, records, service, snapshot  # noqa: E402
-from pearnly_erp_portal.express import desktop  # noqa: E402
+from pearnly_erp_portal.express import desktop, target as express_target  # noqa: E402
+
+REAL_PICK = express_target.pick  # 选账套的真规则（Base 里换成固定一本；Books 换回真的）
 
 # ── NLTTEST 的 30 行收款类型（评估记录「两处都没有科目的类型不给选」那张表；DOCCOD 不唯一，22 有两种）────────
 NLTTEST = [
@@ -645,7 +647,7 @@ class Base(unittest.TestCase):
                        side_effect=lambda user=None: list(ALLOWED.get(user or frappe.session.user, []))),
             mock.patch("pearnly_erp_portal.masters.company.active_company", side_effect=lambda user=None: "CO-1"),
             mock.patch("pearnly_erp_portal.express.target.pick",
-                       side_effect=lambda row, day: {"book": BOOK, "reason": "", "options": []}),
+                       side_effect=lambda row, day, wanted=None: {"book": BOOK, "reason": "", "options": []}),
             mock.patch("pearnly_erp_portal.express.facts.load", side_effect=lambda key: FACTS),
             mock.patch("pearnly_core.cc_desktop.books.for_company", side_effect=lambda tax, branch: [BOOK]),
             mock.patch.object(snapshot, "requests", self.requests),
@@ -1059,6 +1061,65 @@ class WebPage(Base):
         page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js").read_text(encoding="utf-8")
         self.assertNotIn("set_primary_action", page)
         self.assertNotIn("limit: 0", page)
+
+
+# 同期两份与跨年（A10 / A11，11-12）：选账套用真规则 `express.target.pick`，电脑报来的账套换成下面几本
+TEST26 = dict(BOOK, key="b" * 40, path=r"\\Accserver\d$\ACCOUNT\69EXP\TEST", label="TEST", period_start="2026-01-01",
+              period_end="2026-12-31", next_end="2027-12-31")
+TEST26_COPY = dict(TEST26, key="c" * 40, path=r"C:\PearnlyExpress\TEST", root=r"C:\PearnlyExpress")
+TEST25 = dict(BOOK, key="d" * 40, path=r"\\Accserver\d$\ACCOUNT\69EXP\TEST25", label="TEST25", period_start="2025-01-01",
+              period_end="2025-12-31", next_end="2026-12-31")
+OPEN = [{"docnum": "IV1", "rectyp": "3", "docdat": "2025-12-20", "customer": "2100883", "salesman": "S1",
+         "department": "CPI", "net": "1000.00", "received": "0.00", "remaining": "1000.00"}]
+
+
+class TwoBooks(Base):
+    """同期两本（69EXP\\TEST 与它的 C 盘副本）；``self.books`` 改了就是电脑此刻报来的。只有准备，没有用例。"""
+
+    def setUp(self):
+        super().setUp()
+        self.books = [TEST26, TEST26_COPY]
+        for patch in (mock.patch("pearnly_erp_portal.express.target.pick", side_effect=REAL_PICK),
+                      mock.patch("pearnly_core.cc_desktop.books.for_company", side_effect=lambda tax, branch: self.books)):
+            patch.start()
+            self.addCleanup(patch.stop)
+        for book in (TEST26, TEST26_COPY, TEST25):
+            snapshot.replace("CO-1", book["key"], OPEN, "2026-11-11T03:00:00+00:00")
+
+
+class Books(TwoBooks):
+    def test_two_books_for_the_same_year_are_asked_once_answered_and_remembered(self):
+        with self.assertRaises(C.CollectionError) as caught:
+            service.open_invoices("CO-1", "2100883")
+        self.assertEqual(caught.exception.code, "express.account_set_several")
+        asked = service.book_options("CO-1")
+        self.assertEqual([row["code"] for row in asked["options"]], [TEST26["key"], TEST26_COPY["key"]])
+        self.assertEqual(service.choose_book("CO-1", TEST26_COPY["key"]), {"chosen": TEST26_COPY["key"]})
+        self.assertIsNone(service.book_options("CO-1"))  # 记住了：不再问
+        self.assertEqual(service.open_invoices("CO-1", "2100883")["book"], TEST26_COPY["key"])
+        made = self.draft("100")
+        self.assertEqual(S.table("ERP Collection")[made["name"]]["book_key"], TEST26_COPY["key"])
+        # 与 ERP 单据同一份记忆（按公司 × 会计年度）：网页选过的这里照用，反之亦然
+        from pearnly_erp_portal.express import choices
+
+        self.assertEqual(choices.chosen("CO-1", choices.ACCOUNT_SET, "year:2026-01-01"), TEST26_COPY["key"])
+
+    def test_choosing_a_book_that_is_not_offered_is_refused(self):
+        with self.assertRaises(frappe.ValidationError):
+            service.choose_book("CO-1", TEST25["key"])
+        self.books = [TEST26]
+        self.assertIsNone(service.book_options("CO-1"))  # 只有一本：不问
+        self.assertEqual(service.choose_book("CO-1", TEST26["key"]), {"chosen": TEST26["key"]})
+
+    def test_the_edit_dialog_uses_the_drafts_own_book_not_the_book_of_its_date(self):
+        from pearnly_erp_portal.collection import api
+
+        self.books = [TEST26]
+        made = self.draft("100")
+        self.books = [TEST26, TEST26_COPY]  # 之后又报来同期一本：按日期再选会停在「同期两份」
+        opened = api.api_my_collection(made["name"])
+        self.assertEqual((opened["available"], [row["prefix"] for row in opened["methods"]["transfers"]][:1]),
+                         ({"IV1": "1000.00"}, ["TR"]))
 
 
 if __name__ == "__main__":
