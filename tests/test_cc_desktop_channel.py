@@ -211,6 +211,20 @@ class Queue(Base):
         self.assertEqual(len(self.lease(self.office)["jobs"]), 1)
         self.assertEqual(jobs.writers("boss@x", self.changes[-1]["book_key"])["state"], "missing")
 
+    def test_my_computer_offline_while_a_colleagues_is_online_is_said_as_mine_offline(self):
+        # A 线 11-12 测试机1：作业归 boss，boss 的电脑关着，同事 staff 的电脑在线、够得到这本——不派给同事（对的），但原来只说
+        # 「电脑离线」，用户看见电脑明明在线。分出 not_yours：这位用户自己的电脑离线、在线的那台不归他
+        mine = self.register("boss@x", KEY_B)
+        boss = self.context(mine["device"], "boss@x")
+        self.report(boss)
+        self.enqueue(actor="boss@x")
+        book = self.changes[-1]["book_key"]
+        self.assertEqual(jobs.writers("boss@x", book)["state"], "ok")
+        self.offline(boss)
+        self.assertEqual(jobs.writers("boss@x", book)["state"], "not_yours")
+        self.offline(self.office)  # 谁的电脑都不在线：照旧是离线
+        self.assertEqual(jobs.writers("boss@x", book)["state"], "offline")
+
     def test_a_job_nobody_can_write_does_not_hold_up_the_book(self):
         # 验收 10-25：排在最前的单录入人名下没有电脑（Administrator），同一份账套后面 staff 的单原来一直领不到
         self.enqueue(actor="boss@x", name="SD-1")

@@ -45,6 +45,8 @@ NO_WRITER = "express.no_writer"
 READING = "express.masters_reading"
 NOT_CONNECTED = "express.cc_desktop_not_connected"
 OFFLINE = "express.cc_desktop_offline"
+# 这位用户能写的电脑都关着、在线的那台是别人的（不派给别人）：说「你的电脑离线」（A 线 11-12）
+NOT_YOURS = "express.cc_desktop_not_yours"
 REFUND_WAITING = "express.pos_refund_waiting"  # 收银退货单的原 HS 还没写进 Express（`pos_day`）
 REFUND_CROSS_YEAR = "express.pos_refund_cross_year"  # 原 HS 与退货在不同年度账套：Express 原生跨年退货写法实录前停人工
 # ERP 仓库没有对应的 Express 仓库（没有仓库码）：以前不带码、CC 桌面版静默写进 Express 主仓；改为停下交人（多仓闭环 P0，G15）
@@ -377,6 +379,6 @@ def pages(doc: dict) -> list:
 
 
 __all__ = ["ATTENTION_STATES", "CHOICE", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
-           "OFFLINE", "OPEN_STATES", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
+           "NOT_YOURS", "OFFLINE", "OPEN_STATES", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]
