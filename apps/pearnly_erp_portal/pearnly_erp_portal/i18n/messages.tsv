@@ -2113,3 +2113,7 @@ Withdrawing a collection	正在撤回收款	กำลังถอนรายก
 This company does not use Express	此公司未使用 Express	บริษัทนี้ไม่ได้ใช้ Express	この会社は Express を使用していません
 At most {0} invoices	最多 {0} 张发票	ได้สูงสุด {0} ใบแจ้งหนี้	請求書は最大 {0} 件です
 At most {0} collection methods	最多 {0} 种收款方式	ได้สูงสุด {0} วิธีรับชำระ	入金方法は最大 {0} 件です
+Customer Code	客户编号	รหัสลูกค้า	顧客コード
+Invoice No	发票号码	เลขที่ใบแจ้งหนี้	請求書番号
+Invoice Date	发票日期	วันที่ใบแจ้งหนี้	請求書の日付
+Prefix	前缀	คำนำหน้า	接頭辞
