@@ -71,8 +71,9 @@ class _Conversation(_Books):
 
 
 class PickTests(_Books):
-    def test_the_wanted_book_is_used_whatever_the_document_date(self):
-        for day in ("2026-06-15", "2025-03-01", "2024-02-01", "2031-01-01"):
+    def test_the_wanted_book_is_used_whichever_book_the_date_would_pick(self):
+        # 本年、次年段里的日期都写进这本，不按日期另选同期的 T.9（期间外的见下一条：Express 会拒，不写）
+        for day in ("2026-06-15", "2025-03-01", "2026-12-31", "2025-01-01"):
             picked = target.pick(COMPANY, day, self.t8)
             self.assertEqual((picked["book"]["key"], picked["reason"]), (self.t8, ""), day)
         # 没给：同期两本照旧停下要人选一次（网页 / LINE 的现状不动）
@@ -87,8 +88,26 @@ class PickTests(_Books):
     def test_a_wanted_book_no_computer_can_write_stops_as_before(self):
         self.computer([year(T7_PATH, "vsn:7/7", "2024-01-01", "2024-12-31", "2025-12-31", writable=False),
                        year(T8_PATH, "vsn:8/8", "2025-01-01", "2025-12-31", "2026-12-31")])
-        picked = target.pick(COMPANY, "2026-06-15", self.t7)
+        picked = target.pick(COMPANY, "2025-06-15", self.t7)  # T.7 的次年段（期间内）
         self.assertEqual((picked["book"]["key"], picked["reason"]), (self.t7, E.NO_WRITER))
+
+    def test_a_wanted_book_whose_fiscal_period_misses_the_date_is_not_written(self):
+        """Express 原生录单拒期间外的日期（Message#70 วันที่ไม่อยู่ในงวด）：本对话账套 T.8（2025、次年段到 2026-12-31），票据日期
+        2027-01-05 → 不写、原因期间不符（同 Cowork `account_match.conflict`）；次年段里的 2026-06-09、本年的照写。不另判别的账套。"""
+        for day in ("2027-01-05", "2024-12-31"):
+            picked = target.pick(COMPANY, day, self.t8)
+            self.assertEqual((picked["book"]["key"], picked["reason"]), (self.t8, E.PERIOD_OUTSIDE), day)
+        for day in ("2026-06-09", "2025-03-01", "2026-12-31"):
+            self.assertEqual(target.pick(COMPANY, day, self.t8)["reason"], "", day)
+        # 期间外的日期不会自己变：不进每分钟那一轮、不算等电脑
+        self.assertNotIn(E.PERIOD_OUTSIDE, E.POLL_REASONS)
+        self.assertNotIn(E.PERIOD_OUTSIDE, E.RETRY_REASONS)
+
+    def test_a_wanted_book_without_a_reported_period_is_not_held(self):
+        row = base.book(path=T8_PATH, uid="vsn:8/8")
+        row.update(period_start=None, period_end=None)
+        key, = self.computer([row])
+        self.assertEqual(target.pick(COMPANY, "2031-01-05", key)["reason"], "")
 
     def test_current_reads_the_wanted_book(self):
         self.assertEqual(target.current(COMPANY, "2026-06-15", self.t9)["key"], self.t9)
@@ -173,6 +192,12 @@ class R2_5ReplayTests(_Conversation):
         result = self.prepare(base.doc(date="2026-06-15"))
         self.assertEqual(result["hold"], E.CHOICE + ":" + choices.ACCOUNT_SET)
 
+    def test_a_date_outside_the_conversation_account_sets_period_holds_on_the_period(self):
+        self.masters(self.t8)
+        result = self.prepare(base.doc(date="2027-01-05"))
+        self.assertEqual((result.get("hold"), result["book"]["key"]), (E.PERIOD_OUTSIDE, self.t8))
+        self.assertNotIn("payload", result)
+
     def test_an_undecided_conversation_account_set_holds_on_ledger_needed(self):
         self.pin = {"status": "needed", "id": "", "label": "", "options": []}
         self.assertEqual(self.prepare(base.doc(date="2026-06-15"))["hold"], conversation.LEDGER_NEEDED)
@@ -212,6 +237,19 @@ class NoBookTests(unittest.TestCase):
         self.assertEqual(precheck._state({"hold": conversation.LEDGER_NEEDED}),
                          (card.NOT_WRITABLE, conversation.LEDGER_NEEDED))
         self.assertEqual(precheck._state({"hold": E.NO_WRITER}), (card.WAITING, E.NO_WRITER))
+        # 期间不符：判定 / 计划如实报（同 Cowork 推送的原因码），不归等电脑
+        self.assertEqual(precheck._state({"hold": E.PERIOD_OUTSIDE}), (card.NOT_WRITABLE, precheck.PERIOD_MISMATCH))
+        self.assertEqual(precheck.PERIOD_MISMATCH, "account_period_mismatch")
+        from pearnly_core.assistant import write_plan
+        self.assertEqual(write_plan.SKIP_PERIOD_MISMATCH, precheck.PERIOD_MISMATCH)
+
+    def test_the_period_reason_has_words_in_four_languages(self):
+        from pearnly_erp_portal.express import pending
+        key = pending.REASONS[E.PERIOD_OUTSIDE]
+        rows = [line.split("\t") for line in (base.ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv")
+                .read_text(encoding="utf-8").splitlines()]
+        words = next((row[:4] for row in rows if len(row) >= 5 and row[4] == key), None)
+        self.assertTrue(words and all(words), key)
 
 
 class PlanGateTests(base.PushModule):
