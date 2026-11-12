@@ -46,14 +46,16 @@ export function listGrouped(page: { group?: string; after?: string; check?: read
 export type Filing = { project: string; period: string; scope: string };
 
 /** 新对话；filing：开在哪家公司、处理哪个月、哪个分店（公司已被删时服务端照常建在最近，月份分店随之丢弃）。
- *  mode = operator：代录会话（服务端在同一事务里建代录任务并互相指上；产品不允许代录就拒，不悄悄建成直写）。 */
-export function createSession(filing?: Partial<Filing>, mode: ListMode = "chat"): Promise<ListedSession> {
+ *  mode = operator：代录会话（服务端在同一事务里建代录任务并互相指上；产品不允许代录就拒，不悄悄建成直写）。
+ *  ledger：新建页选的本对话账套（getLedgerOptions 列的那几本；不给服务端照函数算）。 */
+export function createSession(filing?: Partial<Filing>, mode: ListMode = "chat", ledger = ""): Promise<ListedSession> {
   const operator = mode === "operator" ? { mode } : {};
   if (!filing?.project) return post("create", operator);
   return post("create", {
     project: filing.project,
     ...(filing.period ? { period: filing.period } : {}),
     ...(filing.scope ? { scope: filing.scope } : {}),
+    ...(ledger ? { ledger } : {}),
     ...operator,
   });
 }
@@ -72,6 +74,13 @@ export type LedgerView = { current: string; options: LedgerOption[] };
 
 export function getLedgers(sessionId: string): Promise<LedgerView> {
   return get("ledgers", { session_id: sessionId });
+}
+
+/** 新建页（还没有会话）的账套行（GET，只读）：这家这个月（该分店）的默认与可选；这家没有本对话账套时 options 为空。 */
+export type LedgerOffer = { default: string; options: LedgerOption[] };
+
+export function getLedgerOptions(filing: Filing): Promise<LedgerOffer> {
+  return get("ledger_options", { project: filing.project, period: filing.period || undefined, scope: filing.scope || undefined });
 }
 
 export function getSession(id: string): Promise<SessionSummary> {

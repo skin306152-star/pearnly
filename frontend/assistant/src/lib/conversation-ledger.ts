@@ -7,10 +7,12 @@
 //   改   move(..., ledger)：先按本页显示，没收下就撤回
 //   推   服务端设了账套（右栏、CC 工具 pearnly_conversation_ledger）推 pearnly.project move 带 ledger：认得的就地换，
 //        认不出（新月份的可选项还没读）重取
+//   新建 还没有会话的新建页（直写、代录同一个，测试机1 11-12：第一句之前就要能选）：GET ledger_options(公司, 月份, 分店) →
+//        {default, options}，默认预选、可改（useDraftLedger）；建会话时随 create 交上（draftLedgerOf），服务端核对后存
 
 import { useEffect } from "react";
 import { create } from "zustand";
-import { type Filing, getLedgers, type LedgerOption, type LedgerView, moveSession } from "./managed-agents/api";
+import { type Filing, getLedgerOptions, getLedgers, type LedgerOption, type LedgerView, moveSession } from "./managed-agents/api";
 import type { ProjectChange } from "./managed-agents/projects";
 import { onProjectChange } from "./managed-agents/realtime";
 import { withReport } from "./caught";
@@ -117,9 +119,67 @@ export function ledgerLabel(entry: Pick<LedgerView, "current" | "options"> | nul
   return entry?.options.find((item: LedgerOption) => item.id === entry.current)?.label ?? "";
 }
 
+// ---------------------------------------------------------------- 新建页（还没有会话）
+/** 新建页读到的：key 是「公司|月份|分店」；current 是此刻选中的（先是服务端的默认，用户改了就是改的那本）。 */
+type Draft = LedgerView & { key: string };
+export const useDraftLedger = create<{ draft: Draft | null }>(() => ({ draft: null }));
+let draftRun = "";
+
+/** 读这家这个月（该分店）的可选与默认（同一个「公司|月份|分店」只读一次；换了公司 / 月份 / 分店重读，默认重新预选）。 */
+export function loadDraftLedger(filing: Filing): Promise<void> {
+  const key = keyOf(filing);
+  if (!filing.project) {
+    draftRun = "";
+    useDraftLedger.setState({ draft: null });
+    return Promise.resolve();
+  }
+  if (draftRun === key || useDraftLedger.getState().draft?.key === key) return Promise.resolve();
+  draftRun = key;
+  return getLedgerOptions(filing)
+    .then((out) => {
+      if (draftRun !== key) return;
+      const options = out?.options ?? [];
+      // 同一家换了月份 / 分店：选着的那本仍可选就留着（同服务端 move 的 ledger.kept），否则用新的默认
+      const before = useDraftLedger.getState().draft;
+      const kept = before && before.key.split("|")[0] === filing.project && options.some((item) => item.id === before.current);
+      useDraftLedger.setState({ draft: { key, current: kept ? before.current : (out?.default ?? ""), options } });
+    })
+    .finally(() => {
+      if (draftRun === key) draftRun = "";
+    });
+}
+
+/** 新建页选了一本（只记在本页，建会话时才交给服务端）。 */
+export function chooseDraftLedger(filing: Filing, ledger: string) {
+  const draft = useDraftLedger.getState().draft;
+  if (!draft || draft.key !== keyOf(filing) || !draft.options.some((item) => item.id === ledger)) return;
+  useDraftLedger.setState({ draft: { ...draft, current: ledger } });
+}
+
+/** 建会话时交给服务端的那本：读的就是这个「公司|月份|分店」才给（换了还没重读完的不交旧的，服务端照函数算）。 */
+export function draftLedgerOf(filing: Partial<Filing> | undefined): string {
+  const draft = useDraftLedger.getState().draft;
+  return filing?.project && draft && draft.key === keyOf({ project: filing.project, period: filing.period ?? "", scope: filing.scope ?? "" })
+    ? draft.current
+    : "";
+}
+
+/** 新建页账套行要的：这个「公司|月份|分店」读到的（没读到 / 不是这个的回 null）；没读过就读。 */
+export function useDraftLedgerOf(filing: Filing): Draft | null {
+  const key = keyOf(filing);
+  const draft = useDraftLedger((s) => (s.draft && s.draft.key === key ? s.draft : null));
+  useEffect(() => {
+    void loadDraftLedger(filing).catch(withReport(undefined, "ledger"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return filing.project ? draft : null;
+}
+
 /** 测试用：回到页面刚打开的状态。 */
 export function resetLedgers() {
   inflight.clear();
   turns.clear();
+  draftRun = "";
   useLedgers.setState({ views: {} });
+  useDraftLedger.setState({ draft: null });
 }
