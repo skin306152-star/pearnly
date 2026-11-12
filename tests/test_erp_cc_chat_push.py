@@ -443,8 +443,8 @@ class PendingToolTests(unittest.TestCase):
 
 
 class PrintedTotalToolTests(unittest.TestCase):
-    """CC 补票面合计（只这一栏，已提交的单也能改）：必须带依据；原生版本记录 + 依据记录；停在票面合计上的单当场重新写账，
-    写进账本的不能改；单据详情的 checks 说清为什么停下。"""
+    """CC 补票面合计（只这一栏，已提交的单也能改）：必须带依据；原生版本记录 + 依据记录；只改数，推送交回写入计划（A 线 B3，
+    原来停在票面合计上的单当场重新写账、不过计划）；别家的单不改；写进账本的不能改；单据详情的 checks 说清为什么停下。"""
 
     def setUp(self):
         reset()
@@ -461,15 +461,17 @@ class PrintedTotalToolTests(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def test_cc_sets_the_printed_total_with_a_basis_and_the_held_document_is_written(self):
+    def test_cc_sets_the_printed_total_with_a_basis_and_the_document_waits_for_the_write_plan(self):
         row = doc(PURCHASE, "PUR-7", reason=E.PRINTED_TOTAL_MISSING, ocr_review='{"codes":["total_missing"],"total":null}',
                   printed_total=0)
         refused = call(tools.set_printed_total, document="P:PUR-7", value="1070.00")
         self.assertEqual(refused["status"], "not_saved")  # 没有依据不改
         self.assertEqual(row["printed_total"], 0)
         out = call(tools.set_printed_total, document="P:PUR-7", value="1,070.00", basis="page 2 of the original")
-        self.assertEqual((out["status"], out["printed_total"], out["released"]), ("saved", 1070.0, True))
-        self.assertIn(("send", PURCHASE, "PUR-7"), [call_[:3] for call_ in CALLS])  # 当场重新写账
+        self.assertEqual((out["status"], out["printed_total"], out["released"]), ("saved", 1070.0, False))
+        self.assertEqual(CALLS, [])  # 只改数：不当场写账（B3），推送由写入计划来
+        self.assertEqual((row["ledger_state"], row["ledger_reason"]), ("held", E.PRINTED_TOTAL_MISSING))
+        self.assertIn("pearnly_write_plan", out["note"])
         version, = [made for made in self.made if made["doctype"] == "Version"]
         self.assertEqual(json.loads(version["data"]), {"changed": [["printed_total", 0.0, 1070.0]]})
         basis, = [made for made in self.made if made["doctype"] == "Comment"]
@@ -489,6 +491,12 @@ class PrintedTotalToolTests(unittest.TestCase):
         self.assertEqual(out["lines"][0]["amount"], 1000)
         self.assertTrue(out["url"].endswith("/PUR-7"))
         self.assertEqual(row["ledger_state"], "held")
+
+    def test_another_companys_document_is_not_changed(self):
+        doc(PURCHASE, "PUR-9", company="CO-2", reason=E.PRINTED_TOTAL_MISSING, ocr_review="{}", printed_total=0)
+        out = call(tools.set_printed_total, document="P:PUR-9", value="1070", basis="x")
+        self.assertEqual((out["status"], out["reason"], out["company"]), ("not_saved", "other_company", "CO-2"))
+        self.assertEqual(STATE.db.table(PURCHASE)["PUR-9"]["printed_total"], 0)
 
     def test_a_written_document_is_not_changed(self):
         doc(PURCHASE, "PUR-8", state="written", ocr_review="{}", printed_total=100)
@@ -673,9 +681,65 @@ class PushTests(unittest.TestCase):
         self.assertEqual(CALLS, [])
 
 
+class LedgerGateTests(unittest.TestCase):
+    """本对话账套（A 线 11-12）：ERP 写哪本由服务端定（写账准备只写本对话账套，见 test_cc_conversation_ledger_erp）；本对话账套
+    未定时直写不推，回 ledger_needed（形状同 Cowork `write_scope.needed`：reason、note、可选的几本），问一次、设好再建计划。"""
+
+    def setUp(self):
+        reset()
+        patcher = mock.patch.object(direct_push, "permitted", lambda names: (list(names), []))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.pin = None
+        conversation = importlib.import_module("pearnly_erp_portal.express.conversation")
+        patcher = mock.patch.object(conversation, "pinned", lambda row, task=None: self.pin if row["name"] == "CO-1" else None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        doc(SALES, "SD-5", reason=E.NO_BOOK)
+
+    def test_an_undecided_conversation_account_set_writes_nothing_and_offers_the_books(self):
+        options = [{"id": "BK8", "label": "T.8 · S:\\68", "covers": True}, {"id": "BK9", "label": "T.9", "covers": True}]
+        self.pin = {"status": "needed", "key": "", "label": "", "options": options}
+        item = call(tools.push_documents, documents=["S:SD-5"])["results"][0]
+        self.assertEqual((item["status"], item["reason"], item["reason_code"]), ("failed", "ledger_needed", "ledger_needed"))
+        self.assertEqual([(book["id"], book["label"], book["covers"]) for book in item["allowed_account_sets"]],
+                         [("BK8", "T.8 · S:\\68", True), ("BK9", "T.9", True)])
+        self.assertIn("pearnly_conversation_ledger", item["note"])
+        self.assertEqual(CALLS, [])
+
+    def test_a_decided_one_or_none_goes_the_usual_way(self):
+        for pin in ({"status": "set", "key": "BK8", "label": "T.8", "options": []}, None):
+            CALLS.clear()
+            doc(SALES, "SD-5", reason=E.NO_BOOK)
+            self.pin = pin
+            self.assertEqual(call(tools.push_documents, documents=["S:SD-5"])["results"][0]["status"], "queued")
+            self.assertEqual(CALLS, [("send", SALES, "SD-5")])
+
+    def test_the_tool_says_every_document_goes_into_the_conversation_account_set(self):
+        push = next(t for t in tools.TOOLS if t["name"] == "erp_push_documents")
+        self.assertIn("this conversation's account set, whatever its date", push["description"])
+        self.assertNotIn("resume true", push["description"])  # B1：resume 在对话里不推，答完重新建计划
+        self.assertNotIn("has not reported this company's account set", push["description"])  # 没有账套不算等电脑
+
+
 class ResolveTests(unittest.TestCase):
     def setUp(self):
         reset()
+        self.permit = {"allowed": True}
+        patcher = mock.patch.object(direct_push, "permitted", lambda names: (list(names), []) if self.permit["allowed"]
+                                    else ([], [{"document": name, "status": "not_pushed", "reason": "not_started",
+                                                "note": "plan"} for name in names]))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_writing_after_checking_needs_the_write_plan(self):
+        """B4：「核了没有就写」也是写入：不在用户同意了的计划里不交回电脑。"""
+        doc(PURCHASE, "PUR-7", reason=LOST, ledger_job="J7")
+        JOBS["J7"] = {"job": "J7", "status": "manual", "request_key": "erp:purchase:PUR-7", "reason": LOST}
+        self.permit["allowed"] = False
+        out = call(tools.resolve_push_result, document="P:PUR-7", entered=False)
+        self.assertEqual((out["status"], out["reason"]), ("not_pushed", "not_started"))
+        self.assertEqual(CALLS, [])
 
     def test_only_an_unknown_result_is_sent_back_to_the_computer_that_wrote_it(self):
         doc(PURCHASE, "PUR-4", reason="[PERIOD_LOCKED] closed", ledger_job="J4")
