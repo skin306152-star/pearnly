@@ -83,7 +83,7 @@ def api_my_collection(name):
 
     card = service.card(name)
     if card["status"] != contracts.DRAFT:
-        return {"card": card}
+        return {"card": {**card, "express_wait": service.express_waiting(name)}}
     return {"card": card, **_explained(service.edit_choices, name), "staff": service.staff_choices(name)}
 
 

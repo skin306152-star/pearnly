@@ -129,6 +129,11 @@ class Base(T.Base):
         enqueue = mock.patch.object(frappe, "enqueue", side_effect=lambda path, **kw: self.enqueued.append((path, kw)))
         enqueue.start()
         self.addCleanup(enqueue.stop)
+        # 共用通道的「在等 Express 关闭」（express-wait-display 11-12 的约定，那支未合入前用替身）：缺省不在等
+        waits = mock.patch("pearnly_core.cc_desktop.jobs.book_express_wait", create=True,
+                           side_effect=lambda key, moment=None: {"waiting": False, "since": None})
+        waits.start()
+        self.addCleanup(waits.stop)
         T.ALLOWED["a@x"] = ["CO-1"]
         frappe.session.user = "Guest"  # webhook 是 Guest，按绑定的账号调服务
         T.S.table("Pearnly LINE Binding").update({"B1": {"name": "B1", "user": "a@x", "status": "active",
