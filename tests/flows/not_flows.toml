@@ -265,5 +265,13 @@ file = "frontend/assistant/src/kit/gallery.tsx"
 reason = "标准组件库的开发用展示页（kit.html）：只在开发服务器与 CC_KIT=1 构建里，生产构建没有（tests/test_cc_ui_kit.py 核对）"
 
 [[file]]
+file = "frontend/assistant/src/kit/guided-data.ts"
+reason = "引导式录入界面预览的示例数据（kit.html?page=guided，docs/work/2026-11-12-cc-guided-entry.md）：只在开发用展示页里，生产构建没有；引导式录入施工时界面落到产品组件并配流程"
+
+[[file]]
+file = "frontend/assistant/src/kit/guided.tsx"
+reason = "引导式录入的界面预览（kit.html?page=guided，docs/work/2026-11-12-cc-guided-entry.md）：只在开发用展示页里，生产构建没有；引导式录入施工时界面落到产品组件并配流程"
+
+[[file]]
 file = "frontend/assistant/src/kit/main.tsx"
 reason = "标准组件库的开发用展示页（kit.html）：只在开发服务器与 CC_KIT=1 构建里，生产构建没有（tests/test_cc_ui_kit.py 核对）"
