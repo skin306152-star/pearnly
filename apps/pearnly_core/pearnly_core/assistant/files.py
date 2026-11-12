@@ -334,7 +334,7 @@ def listing(session_id) -> list[dict]:
     更早的是引擎给的文件编号，认法相同；引擎另存的副本不列，见适配器 `files`），刷新后、别的设备上卡片照样按它对上（第 5 轮测试 1）。"""
     row = sessions.owned(session_id, allow_archived=True)
     api = engine.adapter()
-    found = sorted((f for remote in sessions.segments(row) for f in api.files(remote)),
+    found = sorted((f for remote in sessions.segments(row) for f in _segment_files(api, remote)[1]),
                    key=lambda f: str(f.get("created_at") or ""))
     for f in found:
         if f.get("kind") == "upload":
@@ -404,10 +404,18 @@ def _stored(row, api, fid) -> tuple[dict, callable]:
             mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
             return {"id": fid, "filename": name, "mime_type": mime, "size_bytes": None, "local": True}, read
     for remote in sessions.segments(row):
-        for f in api.files(remote):
+        source, found = _segment_files(api, remote)
+        for f in found:
             if f["id"] == fid and f["downloadable"]:
-                return f, lambda remote=remote: api.read_file(remote, fid)
+                return f, lambda remote=remote, source=source: source.read_file(remote, fid)
     frappe.throw(_("File not found"), frappe.DoesNotExistError)
+
+
+def _segment_files(api, remote) -> tuple:
+    """(读这段用的适配器, 这段的文件)：换过密钥的对话里，旧密钥建的段用以前的密钥只读地列、取（`engine.reader`）；
+    哪把都读不到就没有文件。"""
+    source = engine.reader(api, remote)
+    return (source, source.files(remote)) if source is not None else (None, [])
 
 
 def download(session_id, file_id, inline=False) -> None:

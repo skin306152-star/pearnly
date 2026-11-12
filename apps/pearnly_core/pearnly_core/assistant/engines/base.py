@@ -104,6 +104,10 @@ class Adapter(abc.ABC):
     def status(self, conversation: str) -> str:
         """`idle` / `running` / …"""
 
+    def gone(self, err) -> bool:
+        """这个错误是不是「这把密钥下没有这段会话」（删了 / 过期 / 别的密钥建的）。认不出的引擎一律不算。"""
+        return False
+
     @abc.abstractmethod
     def rename(self, conversation: str, title: str) -> None: ...
 

@@ -175,6 +175,9 @@ class Adapter(base.Adapter):
     def session_usage(self, conversation: str) -> dict | None:
         return _plain(self.api.beta.sessions.retrieve(conversation))
 
+    def gone(self, err) -> bool:
+        return _gone(err)
+
     def summarize(self, text: str, model: str, spent: list | None = None) -> str | None:
         ask = dict(model=model or self.model, system=base.TITLE_INSTRUCTION, messages=[{"role": "user", "content": text}])
         api = self.api.with_options(timeout=TITLE_TIMEOUT)

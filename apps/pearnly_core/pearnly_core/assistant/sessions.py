@@ -58,6 +58,9 @@ CHAT, OPERATOR = "chat", "operator"
 MODES = (CHAT, OPERATOR)
 LOCAL_PREFIX = "op_"  # 代录会话在本站先建、远端会话第一次发话时才开（`_remote_ready`）：编号 op_<任务号>
 SEGMENT_READERS = 4  # 整段重放时同时读几段远端会话的事件（`_segment_events`）
+# 哪把密钥都读不到的那段（远端删了、过期，或建它的密钥没配进「以前用过的密钥」，`engine.reader`）：整段重放时在它的位置说这一句，
+# 不让整段对话打不开（11-11 erpcowork 换密钥后旧对话 388 次 404）
+HISTORY_UNAVAILABLE = "Earlier messages in this conversation are unavailable."
 
 
 def _guard(fn, *args, **kwargs):
@@ -195,11 +198,23 @@ def run_state(row, api, latest, as_of=None, operator=None):
     if row.get("operator_task"):
         return _operator_run(row, api, latest, as_of, operator)
     try:
-        status = api.status(current(row))
+        status = _remote_status(api, current(row))
         return _run_status(status, row, latest, as_of)
     except Exception:
         frappe.log_error(title="Assistant status read failed")
         return None
+
+
+def _remote_status(api, remote) -> str:
+    """这段远端会话此刻的状态，用读得到它的那把密钥读（`engine.reader`）；哪把都读不到按空闲（接着聊会开新段）。"""
+    source = engine.reader(api, remote)
+    return source.status(remote) if source is not None else "idle"
+
+
+def _remote_events(api, remote, newest_first=False):
+    """这段远端会话的事件，用读得到它的那把密钥读；哪把都读不到就没有。"""
+    source = engine.reader(api, remote)
+    return source.events(remote, newest_first=newest_first) if source is not None else iter(())
 
 
 def _operator_run(row, api, latest, as_of, operator):
@@ -207,7 +222,7 @@ def _operator_run(row, api, latest, as_of, operator):
 
     if segments(row):
         try:
-            status = api.status(current(row))
+            status = _remote_status(api, current(row))
         except Exception:
             frappe.log_error(title="Assistant status read failed")
             status = None
@@ -236,7 +251,7 @@ def _check(user, check) -> dict:
     api = engine.adapter()
     runs = {}
     for row in rows:
-        run = run_state(row, api, lambda row=row: contracts.latest_status(api.events(current(row), newest_first=True)))
+        run = run_state(row, api, lambda row=row: contracts.latest_status(_remote_events(api, current(row), newest_first=True)))
         if run:
             runs[row.session_id] = run
     return runs
@@ -716,7 +731,8 @@ def segment_for_turn(row, api) -> str:
     s = config.settings()
     limit = engines.context_limit(s.engine.code, s.model)
     mode = OPERATOR if row.get("operator_task") else CHAT
-    if not limit or int(row.get("context_tokens") or 0) < limit:
+    # 当前段是以前的密钥建的（换了密钥、还没接着聊过）：当前密钥不能往里写，同到了界线一样接续到新的一段（11-12）
+    if (not limit or int(row.get("context_tokens") or 0) < limit) and engine.reader(api, current(row)) is api:
         remote = current(row)
         engine.keep_tools_current(api, remote, mode)
         return remote
@@ -726,10 +742,13 @@ def segment_for_turn(row, api) -> str:
         row.update(frappe.db.get_value(SESSION, row.name, ["remote_ids", "context_tokens", "pending_carry", "project_noted"],
                                        as_dict=True) or {})
         remote = current(row)
-        if int(row.get("context_tokens") or 0) < limit:
+        source = engine.reader(api, remote)
+        if (not limit or int(row.get("context_tokens") or 0) < limit) and source is api:
             engine.keep_tools_current(api, remote, mode)
             return remote
-        carry = contracts.carry_note(contracts.carry_over(api.events(remote)), *_worked_on(row))
+        # 前文用读得到这段的那把密钥读（以前的密钥只读）；哪把都读不到就不带前文。新的一段一律由当前密钥开
+        said = contracts.carry_over(source.events(remote)) if source is not None else ""
+        carry = contracts.carry_note(said, *_worked_on(row))
         fresh, _status = api.open(engine.prepared(api), {**_metadata(_user(), config.product()),
                                                          "pearnly_conversation": row.session_id})
         engine.tools_current(fresh, mode)
@@ -758,7 +777,7 @@ def events(session_id, after=None, status=False) -> dict:
     if after:
         anchor = _guard(contracts.event_id, after)
         try:
-            tap = contracts.StatusTap(api.events(current(row), newest_first=True))
+            tap = contracts.StatusTap(_remote_events(api, current(row), newest_first=True))
             found = contracts.since(tap, anchor)
         except Exception:
             # 引擎「列出事件」偶尔超时（工具长时间执行时更常见）：不报 500，本站的提醒照样带上；`partial` 告诉页面这次
@@ -774,7 +793,7 @@ def events(session_id, after=None, status=False) -> dict:
                     + stopped.feed(row.session_id, since=since),  # 被停掉的半段回复（批 A ④）
                     "full": False}
             return _with_run(page, row, api, tap.latest, found[-1].get("processed_at")) if status else page
-    parts = _segment_events(api, segments(row))
+    parts = _readable(_segment_events(api, segments(row)), segments(row), row)
     history = [event for part in parts for event in part]
     part = parts[-1]
     _remember_context(row, part)
@@ -797,7 +816,7 @@ def _operator_events(row, user, api, after, status) -> dict:
     if after and remotes:
         anchor = _guard(contracts.event_id, after)
         try:
-            tap = contracts.StatusTap(api.events(current(row), newest_first=True))
+            tap = contracts.StatusTap(_remote_events(api, current(row), newest_first=True))
             found = contracts.since(tap, anchor)
         except Exception:
             frappe.log_error(title="Assistant events fetch failed")
@@ -813,7 +832,7 @@ def _operator_events(row, user, api, after, status) -> dict:
                 page = _with_run(page, row, api, tap.latest, found[-1].get("processed_at"),
                                  operator=feed.events(row) if since is not None else operator)
             return page
-    parts = _segment_events(api, remotes) if remotes else []
+    parts = _readable(_segment_events(api, remotes), remotes, row) if remotes else []
     history = [event for part in parts for event in part]
     part = parts[-1] if parts else []
     if parts:
@@ -833,14 +852,41 @@ def _operator_events(row, user, api, after, status) -> dict:
 def _segment_events(api, remotes) -> list[list]:
     """各段远端会话的全部事件（旧 → 新），与 `remotes` 同序。接续过的长对话由几段组成，各段互不依赖：同时读（每段里仍按页
     顺序读），整段重放的等待从各段相加变成最慢的那一段（2026-10-15 验收：2040 条事件的对话打开约 7 秒，都在这里）。
-    结果与逐段读相同；有一段读不到照旧抛出那一段的错。只有一段时就在本线程读。读事件只走引擎适配器，不碰站点库。"""
-    if len(remotes) < 2:
-        return [list(api.events(remote)) for remote in remotes]
+    结果与逐段读相同；有一段读不到照旧抛出那一段的错。只有一段时就在本线程读。读事件只走引擎适配器，不碰站点库。
+    每段用读得到它的那把密钥读（`engine.reader`，在本线程先定好：它要读站点配置与缓存）；哪把都读不到的段给 None。"""
+    pairs = [(engine.reader(api, remote), remote) for remote in remotes]
+
+    def read(pair):
+        source, remote = pair
+        return list(source.events(remote)) if source is not None else None
+
+    if len(pairs) < 2:
+        return [read(pair) for pair in pairs]
     from concurrent.futures import ThreadPoolExecutor
 
-    with ThreadPoolExecutor(max_workers=min(len(remotes), SEGMENT_READERS),
+    with ThreadPoolExecutor(max_workers=min(len(pairs), SEGMENT_READERS),
                             thread_name_prefix="pearnly-assistant-history") as pool:
-        return list(pool.map(lambda remote: list(api.events(remote)), remotes))
+        return list(pool.map(read, pairs))
+
+
+def _readable(parts, remotes, row) -> list[list]:
+    """哪把密钥都读不到的段换成一句「之前的消息不可用」（`HISTORY_UNAVAILABLE`）：时间取它后面第一条读得到的事件，没有就取
+    前面最后一条，都没有取对话的修改时间（站点时区 → UTC）。"""
+    def stamp(part):
+        return [event.get("processed_at") for event in part or () if event.get("processed_at")]
+
+    out = []
+    for index, (part, remote) in enumerate(zip(parts, remotes)):
+        if part is not None:
+            out.append(part)
+            continue
+        after = next((stamp(p)[0] for p in parts[index + 1:] if stamp(p)), None)
+        before = next((stamp(p)[-1] for p in reversed(parts[:index]) if stamp(p)), None)
+        at = after or before or contracts.utc_iso(row.get("modified") or frappe.utils.now_datetime(),
+                                                  frappe.utils.get_system_timezone())
+        out.append([{"type": "agent.message", "id": f"pearnly_gap_{remote}"[:120], "processed_at": at,
+                     "content": [{"type": "text", "text": _(HISTORY_UNAVAILABLE)}]}])
+    return out
 
 
 def _with_run(page, row, api, latest, as_of, operator=None) -> dict:

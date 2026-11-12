@@ -10,6 +10,11 @@ class = "varies"
 class = "presence"
 secret = true
 
+# 以前用过的 CC 密钥（列表，只用来读换密钥前建的对话，`pearnly_core.assistant.engine.PREVIOUS_KEYS`；11-12）
+[key.pearnly_assistant_previous_api_keys]
+class = "presence"
+secret = true
+
 [key.pearnly_assistant_engine]
 class = "same"
 

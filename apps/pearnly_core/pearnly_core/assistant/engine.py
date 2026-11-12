@@ -30,6 +30,97 @@ def _digest(value: str, size: int) -> str:
     return hashlib.sha256(value.encode()).hexdigest()[:size]
 
 
+# ── 以前用过的密钥（11-12）：只用来读 ──────────────────────────────────────────────────────────────────────────
+# 远端会话跟着建它的那把密钥：11-10 22:00 全平台换密钥后，旧密钥建的对话新密钥读不到（「Session not
+# found（引擎回 404），11-11 erpcowork 388 条，打开旧对话历史出不来）。站点配置 `pearnly_assistant_previous_api_keys`（列表，同引擎、
+# 由后台写入，没配等同以前）列着以前用过的密钥：当前密钥读不到的那段，按顺序用它们读会话状态、事件和文件；接着聊一律在
+# 当前密钥下开新段（`sessions.segment_for_turn`）。旧密钥**只读**：建会话、发消息、传文件、改名、归档、删除、总结这些
+# 会动远端或产生费用的调用一律拒绝（`ReadOnly`）。密钥不进日志、不进报错。
+PREVIOUS_KEYS = "pearnly_assistant_previous_api_keys"
+# 哪一段该用哪把密钥读：读到过就记一天；哪把都读不到记十分钟（远端一时不通的不记，下次再试）
+READER_TTL = 24 * 3600
+GONE_TTL = 10 * 60
+CURRENT, GONE = "current", "gone"
+
+
+class ReadOnlyKey(RuntimeError):
+    """对以前用过的密钥做了读以外的调用（只报调用名，不带密钥）。"""
+
+
+class ReadOnly:
+    """以前用过的密钥的适配器，只放行读：会话状态、事件、文件列表、文件内容、会话说明。其余一律 `ReadOnlyKey`。"""
+
+    READS = ("status", "events", "files", "read_file", "metadata", "gone")
+
+    def __init__(self, inner, tag: str):
+        self._inner = inner
+        self.tag = tag  # 密钥指纹（缓存里记的就是它，不是密钥）
+
+    def __getattr__(self, name):
+        if name in self.READS:
+            return getattr(self._inner, name)
+        raise ReadOnlyKey(f"previous assistant keys only read; refused: {name}")
+
+
+def previous_keys() -> list:
+    """站点配置里以前用过的密钥（列表；也认一个字符串），去掉空的和当前这把。"""
+    found = frappe.conf.get(PREVIOUS_KEYS) or []
+    if isinstance(found, str):
+        found = [found]
+    current = str(frappe.conf.get("pearnly_assistant_api_key") or "").strip()
+    keys = []
+    for key in found:
+        key = str(key or "").strip()
+        if key and key != current and key not in keys:
+            keys.append(key)
+    return keys
+
+
+def previous_readers() -> list:
+    """以前用过的每把密钥一个只读适配器（同引擎、同模型，按进程复用）。"""
+    keys = previous_keys()
+    if not keys:
+        return []
+    s = config.settings()
+    readers = []
+    for key in keys:
+        cache_key = ("previous", s.engine.code, _digest(key, 16), s.model)
+        found = _adapters.get(cache_key)
+        if found is None:
+            found = _adapters[cache_key] = ReadOnly(frappe.get_attr(s.engine.adapter)(key, s.model), _digest(key, 16))
+        readers.append(found)
+    return readers
+
+
+def reader(api, remote):
+    """读这段远端会话用哪个适配器：当前密钥读得到 → `api`；当前读不到、以前的某把读得到 → 它的只读适配器；哪把都读不到
+    （远端删了 / 过期）→ None。没配以前的密钥：直接回 `api`，不多试（等同以前）。判断记进缓存，同一段不每次都试。
+    远端一时不通（不是「不存在」）照旧抛出。"""
+    previous = previous_readers()
+    if not previous:
+        return api
+    key = f"pearnly_assistant:reader:{_digest(config.settings().api_key, 16)}:{remote}"
+    known = frappe.cache.get_value(key)
+    if known == CURRENT:
+        return api
+    if known == GONE:
+        return None
+    for candidate in previous:
+        if known == candidate.tag:
+            return candidate
+    for candidate, tag in ((api, CURRENT), *((p, p.tag) for p in previous)):
+        try:
+            candidate.status(remote)
+        except Exception as err:
+            if not candidate.gone(err):
+                raise
+            continue
+        frappe.cache.set_value(key, tag, expires_in_sec=READER_TTL)
+        return candidate
+    frappe.cache.set_value(key, GONE, expires_in_sec=GONE_TTL)
+    return None
+
+
 PREWARM_JOB = "pearnly_core.assistant.engine.prewarm_now"
 PREWARM_TIMEOUT = 120
 

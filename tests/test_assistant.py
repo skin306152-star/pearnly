@@ -3756,7 +3756,7 @@ class DocumentPreviewTests(unittest.TestCase):
 
         root = tempfile.mkdtemp()
         with mock.patch.object(files, "sessions", sessions), \
-                mock.patch.object(files, "engine", types.SimpleNamespace(adapter=Api)), \
+                mock.patch.object(files, "engine", types.SimpleNamespace(adapter=Api, reader=lambda api, remote: api)), \
                 mock.patch.object(files, "_kept", lambda fid=None, row=None: []), \
                 mock.patch.object(files, "_rendered", lambda row, name: os.path.join(root, row.name, name)):
             self.assertEqual(files.preview("s1", "file_ok"), {"type": "document", "blocks": [
@@ -3811,7 +3811,7 @@ class DocumentPreviewTests(unittest.TestCase):
         frappe.store.clear()
         try:
             with mock.patch.object(files, "sessions", sessions), \
-                    mock.patch.object(files, "engine", types.SimpleNamespace(adapter=Api)), \
+                    mock.patch.object(files, "engine", types.SimpleNamespace(adapter=Api, reader=lambda api, remote: api)), \
                     mock.patch.dict(sys.modules, {"pypdf": types.SimpleNamespace(PdfReader=PdfReader)}):
                 row = types.SimpleNamespace(name="row1")
                 files._keep(row, "file_P", "r.pdf", b"%PDF-1.7 three pages")
@@ -3943,7 +3943,7 @@ class DocumentPreviewTests(unittest.TestCase):
         engine_api = adapter(pointed, scoped)
         try:
             with mock.patch.object(files, "sessions", sessions), \
-                    mock.patch.object(files, "engine", types.SimpleNamespace(adapter=lambda: engine_api)), \
+                    mock.patch.object(files, "engine", types.SimpleNamespace(adapter=lambda: engine_api, reader=lambda api, remote: api)), \
                     mock.patch.dict(sys.modules, {"pypdf": types.SimpleNamespace(PdfReader=PdfReader)}):
                 files._keep(types.SimpleNamespace(name="row1"), "file_01KgUp", "PP-6909-0077.pdf", b"%PDF-1.7 two pages")
                 out = files.listing("s1")
@@ -4039,7 +4039,7 @@ class DocumentPreviewTests(unittest.TestCase):
                                              set_value=lambda key, value, expires_in_sec=None: cache.__setitem__(key, value))
         try:
             with mock.patch.object(files, "sessions", sessions), \
-                    mock.patch.object(files, "engine", types.SimpleNamespace(adapter=Api)), \
+                    mock.patch.object(files, "engine", types.SimpleNamespace(adapter=Api, reader=lambda api, remote: api)), \
                     mock.patch.dict(sys.modules, {"pymupdf": fitz, "werkzeug": types.ModuleType("werkzeug"),
                                                   "werkzeug.wrappers": types.SimpleNamespace(Response=Response)}):
                 row = types.SimpleNamespace(name="row1")
@@ -7405,6 +7405,254 @@ class PushFollowUpTests(unittest.TestCase):
         self.assertFalse(self.followup.remember("cowork", "REC-3", "IV1"))
         self.assertFalse(self.followup.tell("cowork", "REC-3", True, "Express"))
         self.assertEqual(self.posted, [])
+
+
+
+def _gone_error():
+    """引擎的「这把密钥下没有这段会话」（Anthropic 404 Session not found）。"""
+    err = sdk.APIStatusError("Session not found")
+    err.status_code = 404
+    return err
+
+
+class _KeyView:
+    """一把密钥看得到的远端会话：不在里面的读、写都回 404（同 Anthropic：会话跟着建它的密钥）。记下每一次调用。"""
+
+    def __init__(self, history=None, files=None):
+        self.history, self.listed, self.calls = dict(history or {}), dict(files or {}), []
+
+    def _have(self, remote):
+        if remote not in self.history:
+            raise _gone_error()
+
+    def gone(self, err):
+        return getattr(err, "status_code", None) == 404
+
+    def status(self, remote):
+        self.calls.append(("status", remote))
+        self._have(remote)
+        return "idle"
+
+    def events(self, remote, newest_first=False):
+        self.calls.append(("events", remote))
+        self._have(remote)
+        found = list(self.history[remote])
+        return iter(list(reversed(found)) if newest_first else found)
+
+    def files(self, remote):
+        self.calls.append(("files", remote))
+        self._have(remote)
+        return list(self.listed.get(remote, []))
+
+    def read_file(self, remote, fid):
+        self.calls.append(("read_file", remote, fid))
+        self._have(remote)
+        return b"old bytes"
+
+    def open(self, prepared, metadata):
+        self.calls.append(("open",))
+        self.history["sesn_fresh"] = []
+        return "sesn_fresh", "idle"
+
+    def post(self, remote, batch):
+        self.calls.append(("post", remote))
+        self._have(remote)
+
+
+class PreviousKeyTests(unittest.TestCase):
+    """换密钥后旧对话读不到（11-11 erpcowork：11-10 22:00 全平台由 IwAA 换成 6QAA，之前建的 6 个对话打开时读历史 388 次
+    404「Session not found」；11-12 本机只读核实：同一会话 IwAA 读得到、6QAA 读不到）。以前用过的密钥只用来读；接着聊在当前
+    密钥下开新段，前文用旧密钥读出接上；哪把都读不到时对话里说一句「之前的消息不可用」。没配以前的密钥：一切同以前。"""
+
+    OLD = "sk-ant-api03-" + "o" * 40
+    E1 = {"id": "sevt_old1", "type": "user.message", "processed_at": "2026-11-09T12:30:00Z",
+          "content": [{"type": "text", "text": "บันทึกขายเชื่อ"}]}
+    E2 = {"id": "sevt_old2", "type": "agent.message", "processed_at": "2026-11-09T12:31:00Z",
+          "content": [{"type": "text", "text": "บันทึกแล้ว 3 ใบ"}]}
+    E3 = {"id": "sevt_new1", "type": "agent.message", "processed_at": "2026-11-12T03:00:00Z",
+          "content": [{"type": "text", "text": "ok"}]}
+
+    def setUp(self):
+        _configure()
+        frappe.conf[engine.PREVIOUS_KEYS] = [self.OLD]
+        frappe.store.clear()
+        self.addCleanup(frappe.store.clear)
+        self.addCleanup(_configure)
+
+    def _sessions(self):
+        return HistoryReadTests._sessions(self)
+
+    def _row(self, segments):
+        return _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids=json.dumps(segments),
+                    context_tokens=0, pending_carry="", modified=datetime.datetime(2026, 11, 9, 19, 30))
+
+    def test_previous_keys_are_a_list_and_only_ever_read(self):
+        self.assertEqual(engine.previous_keys(), [self.OLD])
+        frappe.conf[engine.PREVIOUS_KEYS] = [" ", self.OLD, KEY, self.OLD]  # 空的、当前这把、重复的都去掉
+        self.assertEqual(engine.previous_keys(), [self.OLD])
+        frappe.conf[engine.PREVIOUS_KEYS] = self.OLD  # 写成一个字符串也认
+        self.assertEqual(engine.previous_keys(), [self.OLD])
+        del frappe.conf[engine.PREVIOUS_KEYS]
+        self.assertEqual((engine.previous_keys(), engine.previous_readers()), ([], []))
+        # 只读适配器：读放行，任何会建会话、发消息、传文件、动远端、产生费用的调用都拒绝，报错里没有密钥
+        view = _KeyView({"sesn_old": [self.E1]})
+        old = engine.ReadOnly(view, "tag")
+        self.assertEqual((old.status("sesn_old"), list(old.events("sesn_old"))), ("idle", [self.E1]))
+        for name in ("open", "post", "attach", "upload", "mount", "rename", "archive", "delete", "refresh", "stream",
+                     "summarize", "prepare", "shape"):
+            with self.assertRaises(engine.ReadOnlyKey) as caught:
+                getattr(old, name)
+            self.assertNotIn(self.OLD, str(caught.exception))
+        self.assertEqual([c[0] for c in view.calls], ["status", "events"])
+        # 按配置的密钥、同引擎同模型建适配器
+        frappe.conf[engine.PREVIOUS_KEYS] = [self.OLD]
+        sdk.api = types.SimpleNamespace()
+        readers = engine.previous_readers()
+        self.assertEqual(len(readers), 1)
+        self.assertIsInstance(readers[0], engine.ReadOnly)
+        self.assertEqual(sdk.api.kwargs["api_key"], self.OLD)
+        self.assertNotIn(self.OLD, readers[0].tag)
+
+    def test_each_segment_is_read_with_the_key_that_can_see_it(self):
+        current, old = _KeyView({"sesn_new": [self.E3]}), _KeyView({"sesn_old": [self.E1, self.E2]})
+        with mock.patch.object(engine, "previous_readers", return_value=[engine.ReadOnly(old, "t_old")]):
+            self.assertIs(engine.reader(current, "sesn_new"), current)
+            self.assertIs(engine.reader(current, "sesn_old")._inner, old)
+            self.assertIsNone(engine.reader(current, "sesn_gone"))
+            # 判断记进缓存：再读同一段不再试
+            before = (len(current.calls), len(old.calls))
+            for remote in ("sesn_new", "sesn_old", "sesn_gone"):
+                engine.reader(current, remote)
+            self.assertEqual((len(current.calls), len(old.calls)), before)
+            # 远端一时不通（不是「不存在」）：照旧抛出，不记
+            flaky = types.SimpleNamespace(status=mock.Mock(side_effect=TimeoutError()), gone=lambda err: False)
+            with self.assertRaises(TimeoutError):
+                engine.reader(flaky, "sesn_other")
+        # 没配以前的密钥：不试、直接用当前的（等同以前）
+        del frappe.conf[engine.PREVIOUS_KEYS]
+        frappe.store.clear()
+        current.calls.clear()
+        self.assertIs(engine.reader(current, "sesn_old"), current)
+        self.assertEqual(current.calls, [])
+
+    def test_the_replay_reads_old_segments_with_the_previous_key(self):
+        sessions = self._sessions()
+        current, old = _KeyView({"sesn_new": [self.E3]}), _KeyView({"sesn_old": [self.E1, self.E2]})
+        _, patches = RunStatusTests._patched(self, sessions, self._row(["sesn_old", "sesn_new"]), current)
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            stack.enter_context(mock.patch.object(engine, "previous_readers", return_value=[engine.ReadOnly(old, "t_old")]))
+            page = sessions.events("sesn_mine1", status=True)
+            self.assertEqual([e["id"] for e in page["events"]], ["sevt_old1", "sevt_old2", "sevt_new1"])
+            self.assertEqual(page["run"]["status"], "idle")
+            # 当前段也是旧密钥建的（换密钥后还没接着聊过）：整段、增量、运行状态都用旧密钥读，不报错
+            stack.enter_context(mock.patch.object(sessions, "owned", return_value=self._row(["sesn_old"])))
+            page = sessions.events("sesn_mine1", status=True)
+            self.assertEqual([e["id"] for e in page["events"]], ["sevt_old1", "sevt_old2"])
+            self.assertEqual(page["run"]["status"], "idle")
+            page = sessions.events("sesn_mine1", after="sevt_old1", status=True)
+            self.assertEqual([e["id"] for e in page["events"]], ["sevt_old2"])
+            self.assertNotIn(("post", "sesn_old"), current.calls + old.calls)
+
+    def test_a_segment_no_key_can_read_shows_one_line_instead_of_failing(self):
+        sessions = self._sessions()
+        current, old = _KeyView({"sesn_new": [self.E3]}), _KeyView({})
+        _, patches = RunStatusTests._patched(self, sessions, self._row(["sesn_lost", "sesn_new"]), current)
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            stack.enter_context(mock.patch.object(engine, "previous_readers", return_value=[engine.ReadOnly(old, "t_old")]))
+            page = sessions.events("sesn_mine1")
+            first, *rest = page["events"]
+            self.assertEqual([e["id"] for e in rest], ["sevt_new1"])
+            self.assertEqual(first["type"], "agent.message")
+            self.assertEqual(first["content"], [{"type": "text", "text": sessions.HISTORY_UNAVAILABLE}])
+            self.assertTrue(contracts.OPAQUE_ID.match(first["id"]))
+            self.assertIsNotNone(contracts.instant(first["processed_at"]))
+            # 整段都读不到：只有这一句，不报错
+            stack.enter_context(mock.patch.object(sessions, "owned", return_value=self._row(["sesn_lost"])))
+            page = sessions.events("sesn_mine1", status=True)
+            self.assertEqual([e["content"][0]["text"] for e in page["events"]], [sessions.HISTORY_UNAVAILABLE])
+        # 四语齐
+        tsv = (CORE / "i18n/messages.tsv").read_text(encoding="utf-8").splitlines()
+        row = next(line.split("\t") for line in tsv if line.split("\t")[0] == sessions.HISTORY_UNAVAILABLE)
+        self.assertTrue(all(cell.strip() for cell in row[:4]))
+
+    def _turn(self, sessions, row, current, old):
+        settings = types.SimpleNamespace(engine=types.SimpleNamespace(code=CLAUDE), model="claude-haiku-5-5", api_key=KEY)
+        stored = {}
+        db = types.SimpleNamespace(set_value=lambda dt, name, values: stored.update(values), commit=lambda: None,
+                                   get_value=lambda dt, name, fields, as_dict=False: {k: stored.get(k, row.get(k)) for k in fields})
+        files = types.ModuleType("files")
+        files.kept = lambda r: []
+        cache = types.SimpleNamespace(lock=lambda *a, **k: contextlib.nullcontext(), get_value=frappe.cache.get_value,
+                                      set_value=frappe.cache.set_value)
+        with mock.patch.object(sys.modules["pearnly_core.assistant"], "files", files, create=True), \
+                mock.patch.dict(sys.modules, {"pearnly_core.assistant.files": files}), \
+                mock.patch.object(sessions.frappe, "cache", cache, create=True), \
+                mock.patch.object(sessions.config, "settings", return_value=settings), \
+                mock.patch.object(sessions.config, "product", return_value="erp"), \
+                mock.patch.object(sessions.engine, "prepared", return_value="agent"), \
+                mock.patch.object(sessions.engine, "tools_current", lambda sid, *a: None), \
+                mock.patch.object(sessions.engine, "keep_tools_current", lambda api, remote, *a: api.status(remote)), \
+                mock.patch.object(sessions, "_route", lambda remote: None), \
+                mock.patch.object(sessions.frappe, "db", db, create=True), \
+                mock.patch.object(sessions.frappe, "get_all", lambda *a, **k: [], create=True), \
+                mock.patch.object(sessions.frappe, "log_error", lambda **kw: None, create=True), \
+                mock.patch.object(engine, "previous_readers", return_value=[engine.ReadOnly(old, "t_old")]):
+            return sessions.segment_for_turn(row, current), stored
+
+    def test_going_on_in_an_old_conversation_opens_a_new_segment_under_the_current_key(self):
+        sessions = self._sessions()
+        current, old = _KeyView({}), _KeyView({"sesn_old": [self.E1, self.E2]})
+        row = self._row(["sesn_old"])
+        remote, stored = self._turn(sessions, row, current, old)
+        self.assertEqual(remote, "sesn_fresh")  # 远端编号由当前密钥开出
+        self.assertIn(("open",), current.calls)
+        self.assertEqual(json.loads(stored["remote_ids"]), ["sesn_old", "sesn_fresh"])
+        self.assertIn("User: บันทึกขายเชื่อ\n\nAssistant: บันทึกแล้ว 3 ใบ", stored["pending_carry"])  # 前文用旧密钥读出接上
+        self.assertEqual([c[0] for c in old.calls], ["status", "events"])  # 旧密钥只读
+        # 旧段哪把都读不到：照样开新段，不带前文、不报错
+        sessions = self._sessions()
+        frappe.store.clear()
+        current, old = _KeyView({}), _KeyView({})
+        remote, stored = self._turn(sessions, self._row(["sesn_lost"]), current, old)
+        self.assertEqual((remote, stored["pending_carry"]), ("sesn_fresh", ""))
+        # 当前段当前密钥读得到：照旧用它，不开新段
+        sessions = self._sessions()
+        frappe.store.clear()
+        current, old = _KeyView({"sesn_new": []}), _KeyView({})
+        remote, stored = self._turn(sessions, self._row(["sesn_old", "sesn_new"]), current, old)
+        self.assertEqual((remote, stored), ("sesn_new", {}))
+        self.assertNotIn(("open",), current.calls)
+
+    def test_files_of_an_old_segment_are_listed_and_opened_with_the_previous_key(self):
+        sessions = types.ModuleType("pearnly_core.assistant.sessions")
+        sessions.owned = lambda sid, allow_archived=False: _Row(name="row1")
+        sessions.segments = lambda row: ["sesn_old", "sesn_new"]
+        sessions._guard = lambda check, value, *a: value
+        sys.modules["pearnly_core.assistant.sessions"] = sys.modules["pearnly_core.assistant"].sessions = sessions
+        sys.modules.setdefault("pearnly_core.desk", types.ModuleType("pearnly_core.desk"))
+        sys.modules["pearnly_core.desk.heic"] = sys.modules["pearnly_core.desk"].heic = types.ModuleType("heic")
+        files = _load("pearnly_core.assistant.files", CORE / "assistant/files.py")
+        made = {"id": "file_out1", "filename": "report.xlsx", "downloadable": True, "created_at": "2026-11-09 12:40:00",
+                "kind": "output"}
+        current = _KeyView({"sesn_new": []}, {"sesn_new": []})
+        old = _KeyView({"sesn_old": []}, {"sesn_old": [made]})
+        with mock.patch.object(files.engine, "adapter", return_value=current), \
+                mock.patch.object(engine, "previous_readers", return_value=[engine.ReadOnly(old, "t_old")]), \
+                mock.patch.object(files, "_kept", lambda fid, row=None: [], create=True):
+            self.assertEqual([f["id"] for f in files.listing("s1")], ["file_out1"])
+            found, read = files._stored(_Row(name="row1"), current, "file_out1")
+            self.assertEqual((found["id"], read()), ("file_out1", b"old bytes"))
+        self.assertIn(("read_file", "sesn_old", "file_out1"), old.calls)
+
+    def test_the_new_config_key_is_classified_and_secret(self):
+        config_map = (ROOT / "scripts/impact/product-map/config.toml").read_text(encoding="utf-8")
+        block = config_map.split(f"[key.{engine.PREVIOUS_KEYS}]", 1)[1].split("\n\n", 1)[0]
+        self.assertIn('class = "presence"', block)
+        self.assertIn("secret = true", block)
 
 
 if __name__ == "__main__":
