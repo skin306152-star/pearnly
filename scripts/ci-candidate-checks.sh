@@ -30,6 +30,7 @@ offline() {
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/scripts/run-offline-tests.py --image
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_menu_publish_lock.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_core_line_token.py
+  offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_web_multipart.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_search_and_loading.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_codes_per_company.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_gs1_codes.py

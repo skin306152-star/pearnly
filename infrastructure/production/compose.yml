@@ -49,7 +49,7 @@ x-runtime: &runtime
 x-web: &web
   <<: *runtime
   mem_limit: 768m
-  command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, --threads=4, --workers=2, --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, frappe.app:application]
+  command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, --threads=4, --workers=2, --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, '${PEARNLY_WSGI_APP:-pearnly_core.web.wsgi:application}']
   depends_on:
     mariadb: {condition: service_healthy}
     redis-cache: {condition: service_healthy}
@@ -182,7 +182,7 @@ services:
     # 一家集中扣费时等锁的请求把 8 个位全占住，各租户各产品问余额都超时（2026-10-01 三租户半量压测）。等锁的线程几乎不占
     # 内存。2026-10-01 先改 2 × 16；扣费拿锁前结束读快照、台账不再抢同一行之后扣费事务很短，按压测窗口核算的数据库
     # 内存收回到 2 × 8（每个线程最多占一个数据库连接，见 capacity.py 的连接核算）。
-    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_BILLING_WEB_THREADS:-8}', '--workers=${PEARNLY_BILLING_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, frappe.app:application]
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_BILLING_WEB_THREADS:-8}', '--workers=${PEARNLY_BILLING_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, '${PEARNLY_WSGI_APP:-pearnly_core.web.wsgi:application}']
     ports: ['127.0.0.1:8184:8000']
     volumes:
       - sites-billing:/home/frappe/frappe-bench/sites
@@ -194,7 +194,7 @@ services:
     <<: *web
     # 进程数与内存上限可在 runtime.env 调（压测后按实测定），默认即原值；见文件头「可调容量」。
     mem_limit: ${PEARNLY_DMS_WEB_MEM:-1g}
-    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_DMS_WEB_THREADS:-4}', '--workers=${PEARNLY_DMS_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, frappe.app:application]
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_DMS_WEB_THREADS:-4}', '--workers=${PEARNLY_DMS_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, '${PEARNLY_WSGI_APP:-pearnly_core.web.wsgi:application}']
     volumes: &dms-volumes
       - sites-dms:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
@@ -273,7 +273,7 @@ services:
     # ERP 网页进程 2026-09-27 激活期间被内核杀过一次（768m）：上限提到 1g，并让 gunicorn 每个进程处理约 2000 个
     # 请求后换新（带抖动，不同时换），防止内存慢慢涨。只改 ERP；DMS / Cowork 网页照旧用 x-web。
     mem_limit: ${PEARNLY_ERP_WEB_MEM:-1g}
-    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_ERP_WEB_THREADS:-4}', '--workers=${PEARNLY_ERP_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, --max-requests=2000, --max-requests-jitter=200, frappe.app:application]
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_ERP_WEB_THREADS:-4}', '--workers=${PEARNLY_ERP_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, --max-requests=2000, --max-requests-jitter=200, '${PEARNLY_WSGI_APP:-pearnly_core.web.wsgi:application}']
     volumes: &erp-volumes
       - sites-erp:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
@@ -331,7 +331,7 @@ services:
     <<: *web
     mem_limit: ${PEARNLY_COWORK_WEB_MEM:-768m}
     # 同 ERP 网页：每个进程处理约 2000 个请求后换新（2026-11-11；没设时进程只涨不回收，11-10 单进程 150–404 MB、整个容器撞上限进 swap）
-    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_COWORK_WEB_THREADS:-4}', '--workers=${PEARNLY_COWORK_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, --max-requests=2000, --max-requests-jitter=200, frappe.app:application]
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, '--threads=${PEARNLY_COWORK_WEB_THREADS:-4}', '--workers=${PEARNLY_COWORK_WEB_WORKERS:-2}', --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --graceful-timeout=120, --preload, --max-requests=2000, --max-requests-jitter=200, '${PEARNLY_WSGI_APP:-pearnly_core.web.wsgi:application}']
     volumes: &cowork-volumes
       - sites-cowork:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro

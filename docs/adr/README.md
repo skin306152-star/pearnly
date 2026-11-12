@@ -39,3 +39,4 @@
 - [ADR-025 CC 桌面版直连产品站点（共用机器通道 + 共用 Express 写账规则），ERP 前台不经 Cowork](0025-cc-desktop-direct-product-sites.md)
 - [ADR-026 代录：执行目标与边界（Express 桌面程序 / MR.ERP 网页）](0026-operator-targets.md)
 - [ADR-027 CC 能力架构与标准（CC = 网页能做的事 + 代录；三层、工具模板、覆盖 / 一致 / 行为 / 验收四条标准）（已采纳 11-08）](0027-cc-capability-architecture.md)
+- [ADR-028 网页进程入口经 pearnly_core.web.wsgi，multipart 请求不再整份读进内存（只换 multipart 一路、逐项等同 Frappe、钉 Frappe 源码、一行回退）（已采纳 11-12）](0028-web-entry-multipart.md)

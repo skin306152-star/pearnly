@@ -33,8 +33,9 @@ services:
     platform: linux/amd64
     mem_limit: 3g
     # 每个产品站点一个网页进程（各占一核，本机 amd64 模拟时并行快 3 倍）：8000 ERP、8001 Cowork、8002 DMS（站点按 Host 认，三个口都能开任一站点）；
-    # 另起一个后台任务进程（对账、文件夹录入等走排队的流程要它），只听 short / default / long
-    command: [bash, -lc, "for p in 8000 8001 8002; do bench serve --port $$p --noreload & done; bench worker --queue short,default,long & wait"]
+    # 另起一个后台任务进程（对账、文件夹录入等走排队的流程要它），只听 short / default / long。
+    # 网页进程经 `pearnly_core.web.wsgi`（同 `bench serve --noreload`，先装好收 multipart 的替换，ADR-028，同生产入口）
+    command: [bash, -lc, "for p in 8000 8001 8002; do (cd sites && ../env/bin/python -m pearnly_core.web.wsgi $$p) & done; bench worker --queue short,default,long & wait"]
     working_dir: /home/frappe/frappe-bench
     environment:
       PEARNLY_REGRESSION_LAB: "1"

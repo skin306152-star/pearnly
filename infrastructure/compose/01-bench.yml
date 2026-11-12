@@ -53,7 +53,7 @@ x-web-command: &web-command
   - --worker-tmp-dir=/dev/shm
   - --timeout=120
   - --preload
-  - "frappe.app:application_with_statics()"
+  - "pearnly_core.web.wsgi:application_with_statics()"
 
 services:
   # ── Cowork ──────────────────────────────────────────────
