@@ -37,7 +37,7 @@ from pearnly_core.write_precheck import contracts as card
 from pearnly_core.write_precheck import preselect
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.express import choices, contracts, facts, pending, pos_day, printed, push, stock_entry, target
+from pearnly_erp_portal.express import choices, contracts, conversation, facts, pending, pos_day, printed, push, stock_entry, target
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.mrerp import choices as mrerp_choices, contracts as mrerp_contracts, push as mrerp_push
 
@@ -52,6 +52,7 @@ SEARCH = {"item": "products", "account": "accounts", "receipt": "accounts", pos_
 NOT_PERMITTED = "not_permitted"
 ALREADY_QUEUED = "already_queued"
 WRITTEN = "already_written"
+NO_ACCOUNT_SET = "no_account_set"  # 这家没有能写这张单的账套（`contracts.NO_BOOK`）：如实报，不归「等电脑」（A 线 11-12 A9）
 
 NOTE_SAME_BRANCH = "express.precheck.note.sameBranch"    # 同税号、同分店的档
 NOTE_ONLY_RECORD = "express.precheck.note.onlyRecord"    # 这个税号只有这一个档
@@ -218,7 +219,8 @@ def _preselect(raw, rows, data, company_row, body, doctype="", name=""):
     """没有记忆时的预选 → ``(值, 来源, 依据词条)``；没把握回空。规则在共用层（`write_precheck.preselect`）。"""
     kind, subject = raw["kind"], raw["subject"]
     if kind == choices.ACCOUNT_SET:
-        found = target.current(company_row, body.get("date") or "") if body.get("date") else None
+        found = target.current(company_row, body.get("date") or "", conversation.wanted(company_row)) \
+            if body.get("date") else None
         codes = {row["code"] for row in rows}
         if found and found.get("key") in codes and found.get("writable"):
             return found["key"], card.RULE, NOTE_WRITABLE
@@ -274,6 +276,8 @@ def _state(result):
     hold = str(result.get("hold") or "")
     if "failed" in result:
         return card.NOT_WRITABLE, str(result["failed"])
+    if hold == contracts.NO_BOOK:
+        return card.NOT_WRITABLE, NO_ACCOUNT_SET
     if hold and not hold.startswith(contracts.CHOICE):
         return (card.WAITING if hold in contracts.RETRY_REASONS else card.NOT_WRITABLE), hold
     return card.CHECK, ""
@@ -540,12 +544,17 @@ DATES = {push.PURCHASE: "doc_date", push.SALES: "doc_date", push.POS_DAY: "day",
 
 
 def _book_of(doctype, name, company):
-    """这张单写进的账套：记过的（``ledger_book``）就是它，没记按单据日期选（同写入，`target.pick`；同期几份时按选过的或今天该写的）。"""
+    """这张单写进的账套：CC 对话 / 代录里是本对话账套（`conversation.wanted`，记过的 ``ledger_book`` 也以它为准）；否则记过的
+    （``ledger_book``）就是它，没记按单据日期选（同写入，`target.pick`；同期几份时按选过的或今天该写的）。"""
+    company_row = push._company(company)
+    wanted = conversation.wanted(company_row) if company_row else None
+    if wanted is not None:
+        return wanted
     row = frappe.db.get_value(doctype, name, ["ledger_book", DATES[doctype]], as_dict=True) or {}
     if row.get("ledger_book"):
         return row["ledger_book"]
     day = str(row.get(DATES[doctype]) or "")[:10] or datetime.now(ZoneInfo("Asia/Bangkok")).date().isoformat()
-    found = target.current(push._company(company), day)
+    found = target.current(company_row, day)
     return (found or {}).get("key") or ""
 
 
@@ -605,8 +614,8 @@ def _search_rows(search, direction, data) -> list:
 def resume(company, doc_ids) -> list:
     """共用层 ``write_precheck.api.answer(resume=1)`` 调的钩子（待处理尾部的卡片）：记下答案后，停在要人选、还没交写账件的单按原来的
     写入路径重新准备（同单据页「选一次」后 `api.answer` 的做法：清掉停下的原因，`push.send`）。归代录的、在途的、转了人工的不动；
-    这家公司断开了 Express 的不重排。回 ``[{doc_id, status, reason}]``。"""
-    if not _company_ok(company):
+    这家公司断开了 Express 的不重排。回 ``[{doc_id, status, reason}]``。在 CC 对话里不推（B1：写入只走计划，共用层同样不调这里）。"""
+    if not _company_ok(company) or conversation.session():
         return []
     if mrerp_push.handles(company):
         return _resume_mrerp(company, doc_ids)
