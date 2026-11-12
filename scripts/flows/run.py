@@ -286,7 +286,10 @@ print("{{}}")
                 result = self.bench("bench", "--site", site, "migrate") if step == "migrate" else \
                     self.bench("env/bin/python", guard, "snapshot", site, timeout=300)
                 if result.returncode:
-                    raise SystemExit(f"实验室站点 {site} {'迁移' if step == 'migrate' else '数 DocType'}失败：{result.stderr[-800:]}")
+                    # stderr、stdout 都带上（bench 把错误打在 stdout）；137 = 进程被杀，多半是 bench 容器被重启了
+                    killed = "；bench 容器在这期间被重启（多半是另一个 run.py 在用同一套实验栈）" if result.returncode == 137 else ""
+                    raise SystemExit(f"实验室站点 {site} {'迁移' if step == 'migrate' else '数 DocType'}失败（退出码 {result.returncode}"
+                                     f"{killed}）：{(result.stderr or '')[-800:]}{(result.stdout or '')[-800:]}")
                 if step != "migrate":
                     counted.append(doctype_guard.parse(result.stdout, f"{site} {step}"))
             lost = doctype_guard.lost(*counted, doctype_guard.allowed_removals())
@@ -425,6 +428,31 @@ def _run_prepared(lab, flow, module, manifest, dataset, viewport, site, user, be
             "seconds": round(time.monotonic() - started, 1), "checks": checks}
 
 
+def lab_lock(folder=None):
+    """同一套实验栈（`PEARNLY_FLOWS_LAB`）同一时刻只让一个 run.py 用：每次开头都重启 bench 容器再迁移，两个同时跑会互相把对方
+    正在跑的迁移、流程杀掉（11-12 两个窗口同时补跑同一套栈，报「迁移失败」却没有原因）。拿不到锁就停，说是哪个进程占着。
+    锁随进程退出自动放掉，不留残余。"""
+    import fcntl
+
+    # 固定放在用户目录：各窗口的 TMPDIR 不一定相同（桌面 App 会话各给一个临时目录），放临时目录就锁不住别的窗口
+    folder = Path(folder or Path.home() / ".cache" / "pearnly-flows")
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{LAB}.lock"
+    handle = open(path, "a+")
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        handle.seek(0)
+        holder = handle.read().strip() or "?"
+        handle.close()
+        raise SystemExit(f"另一个 run.py（进程 {holder}）正在用实验栈 {LAB}：等它跑完再跑，或换一套实验栈（PEARNLY_FLOWS_LAB）")
+    handle.seek(0)
+    handle.truncate()
+    handle.write(str(os.getpid()))
+    handle.flush()
+    return handle
+
+
 def head():
     return subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
 
@@ -527,6 +555,7 @@ def main(argv=None) -> int:
     if args.post_status:
         lab_runs_this_tree()
     lab, results, started = Lab(), [], time.monotonic()
+    held = lab_lock() if cells else None  # noqa: F841 —— 进程退出时放锁
     if cells:
         spa_fresh()
         unbilled = lab.unbilled()

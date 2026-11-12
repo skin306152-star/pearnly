@@ -56,6 +56,41 @@ class LabMigrate(unittest.TestCase):
             lab.migrate()
         self.assertIn("迁移失败", str(stopped.exception))
 
+    def test_a_failure_says_the_exit_code_and_what_it_printed(self):
+        # 11-12：失败只打了 stderr，stderr 为空时一个字的原因都没有（bench 把错误打在 stdout；被另一个 run.py 重启容器杀掉时两边都空）
+        lab = run.Lab()
+        lab.exec = lambda *args, **kw: done("erp-new.regression.localhost\n")
+        lab.bench = lambda *args, timeout=0: SimpleNamespace(stdout="Traceback ...\nModuleNotFoundError: x", stderr="", returncode=1)
+        with self.assertRaises(SystemExit) as stopped:
+            lab.migrate()
+        self.assertIn("退出码 1", str(stopped.exception))
+        self.assertIn("ModuleNotFoundError: x", str(stopped.exception))
+
+    def test_killed_by_a_container_restart_says_so(self):
+        lab = run.Lab()
+        lab.exec = lambda *args, **kw: done("erp-new.regression.localhost\n")
+        lab.bench = lambda *args, timeout=0: SimpleNamespace(stdout="", stderr="", returncode=137)
+        with self.assertRaises(SystemExit) as stopped:
+            lab.migrate()
+        self.assertIn("退出码 137", str(stopped.exception))
+        self.assertIn("另一个 run.py", str(stopped.exception))
+
+
+class LabLock(unittest.TestCase):
+    """同一套实验栈同一时刻只让一个 run.py 用：每次都先重启 bench 容器、再迁移，两个同时跑会互相把对方的迁移杀掉（11-12）。"""
+
+    def test_a_second_run_on_the_same_lab_stops_at_once(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as folder:
+            first = run.lab_lock(folder)
+            with self.assertRaises(SystemExit) as stopped:
+                run.lab_lock(folder)
+            self.assertIn("另一个 run.py", str(stopped.exception))
+            self.assertIn(str(__import__("os").getpid()), str(stopped.exception))
+            first.close()
+            run.lab_lock(folder).close()  # 前一个结束（进程退出即放锁）后照常拿得到
+
 
 if __name__ == "__main__":
     unittest.main()
