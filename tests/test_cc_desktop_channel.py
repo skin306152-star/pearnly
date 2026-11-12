@@ -31,6 +31,7 @@ SITE = "testerp.localhost"
 KEY_A, KEY_B = "a" * 43, "b" * 43
 TAX = "0105551234567"
 PATH = r"C:\PearnlyExpress\70EXP\T9NIEX12"
+PATH_B = r"C:\PearnlyExpress\70EXP\T9GIZ"
 COMPANION = ROOT / "companion/src/companion"
 
 
@@ -255,6 +256,38 @@ class Queue(Base):
         self.assertEqual(self.changes[-1]["status"], "manual")
         jobs.retry(job["job"])
         self.assertEqual(jobs.find_by_name(job["job"])["status"], "queued")
+
+    def test_express_open_keeps_the_reason_and_rests_the_book_while_other_books_go_on(self):
+        # 11-12：Express 开着这本账套。以前原因清空、放回即可再领——电脑连着领同一张，别的账套的单领不到，界面看不出在等什么
+        other = contracts.book_key(contracts.book_identity(PATH_B, "vsn:9999/1"))
+        self.report(self.office, rows=[book_row(), book_row(path=PATH_B, uid="vsn:9999/1")])
+        job = self.enqueue(name="SD-1")
+        later = self.enqueue(name="SD-2")
+        self.lease(self.office)
+        waiting = self.ack(self.office, job["job"], result="failed", express_docnum=None, outcome="waiting_lock",
+                           error="[ACCOUNT_BUSY_LOCKED] the account set is open in Express")
+        self.assertEqual(waiting["status"], "pending")
+        found = jobs.find_by_name(job["job"])
+        self.assertEqual((found["status"], found["reason"], found["attempt"]), ("queued", ack_rules.EXPRESS_OPEN, 0))
+        self.assertEqual(self.changes[-1]["reason"], ack_rules.EXPRESS_OPEN)   # 产品收到的状态带着原因
+        self.assertEqual(self.lease(self.office)["jobs"], [])                  # 歇着：这张不派，同一本后面的 SD-2 也不派
+        elsewhere = self.enqueue(name="SD-9", key=other)
+        self.assertEqual([row["log_id"] for row in self.lease(self.office)["jobs"]], [elsewhere["job"]])  # 别的账套照常领
+        self.ack(self.office, elsewhere["job"])
+        row = fake.STATE.db.table(documents.JOB)[job["job"]]
+        row["lease_expires_at"] = devices.now() - timedelta(seconds=1)         # 歇够了
+        self.assertEqual([row["log_id"] for row in self.lease(self.office)["jobs"]], [job["job"]])
+        self.ack(self.office, job["job"])
+        self.assertEqual(jobs.find_by_name(job["job"])["reason"], "")          # 写成后原因清掉
+        self.assertEqual([row["log_id"] for row in self.lease(self.office)["jobs"]], [later["job"]])
+
+    def test_other_waits_keep_no_reason_and_are_handed_out_again_at_once(self):
+        job = self.enqueue()
+        self.lease(self.office)
+        self.ack(self.office, job["job"], result="failed", express_docnum=None, outcome="waiting_lock",
+                 error="[ACCOUNT_WRITER_BUSY] another computer is writing this account set")
+        self.assertEqual(jobs.find_by_name(job["job"])["reason"], "")
+        self.assertEqual(len(self.lease(self.office)["jobs"]), 1)
 
     def offline(self, context):
         """这台电脑不再来报到（CC 被结束、关机）：最后报到时间推到在线时限之前。"""
