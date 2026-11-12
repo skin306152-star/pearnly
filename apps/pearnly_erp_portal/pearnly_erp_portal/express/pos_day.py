@@ -350,27 +350,30 @@ def _registered(company, lookup=False) -> str:
 
 
 def _cross_year(company, original_day, refund_day) -> bool:
-    """原 HS 与退货落在不同的账套（年度账套分开时）：Express 原生跨年退货的写法实录前先停人工（主会话 10-26）。"""
-    from pearnly_erp_portal.express import push, target
+    """原 HS 与退货落在不同的账套（年度账套分开时）：Express 原生跨年退货的写法实录前先停人工（主会话 10-26）。原 HS 按它当时的
+    日期；退货在 CC 对话 / 代录里写进本对话账套（`conversation.wanted`）。"""
+    from pearnly_erp_portal.express import conversation, push, target
 
     row = push._company(company)
     first = (target.pick(row, str(original_day)).get("book") or {}).get("key")
-    second = (target.pick(row, str(refund_day)).get("book") or {}).get("key")
+    second = (target.pick(row, str(refund_day), conversation.wanted(row)).get("book") or {}).get("key")
     return bool(first and second and first != second)
 
 
 def _book_path(company, day) -> str:
     """这一天该写的账套所在位置（跨年退货：新年度账套没有现金客户档时 CC 桌面版从原年度这本复制）。"""
-    from pearnly_erp_portal.express import push, target
+    from pearnly_erp_portal.express import conversation, push, target
 
-    return str((target.pick(push._company(company), str(day)).get("book") or {}).get("path") or "")
+    row = push._company(company)
+    return str((target.pick(row, str(day), conversation.wanted(row)).get("book") or {}).get("path") or "")
 
 
 def _exempt_mode(company, day):
     """单里有免税商品时怎么写：账套开了逐行 VAT（或电脑还没回报这一项）拆开写；没开的按公司问一次、记住复用（没问过回空）。"""
-    from pearnly_erp_portal.express import choices, facts, push, target
+    from pearnly_erp_portal.express import choices, conversation, facts, push, target
 
-    book = (target.pick(push._company(company), str(day)).get("book") or {}).get("key")
+    row = push._company(company)
+    book = (target.pick(row, str(day), conversation.wanted(row)).get("book") or {}).get("key")
     if not book or facts.vat_initem(facts.load(book)) in (None, "Y"):
         return EXEMPT_SPLIT
     return choices.chosen(company, EXEMPT_MODE, "company")

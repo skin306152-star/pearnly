@@ -159,20 +159,30 @@ def listing(search=None, start=0, limit=PAGE_MAX) -> list:
     return [_row(row, mine) for row in rows[start:start + limit]]
 
 
+def period_book(row, sets, period) -> dict | None:
+    """这个月的账套（右栏 / 公司页的 ``period_set``）：本对话账套的同一个函数（`cc_projects.ledgers` 的默认：覆盖本月恰好一本、
+    多本按记过的、都不覆盖退最新可写的；A 线 11-12 A8，不再取覆盖本月的第一份）。没月份、定不了一本回 None。"""
+    from pearnly_erp_portal.masters import cc_projects
+
+    found = cc_projects.ledgers(row.name, period, "", frappe.session.user) if period else None
+    key = (found or {}).get("default") or ""
+    item = next((item for item in sets if item["key"] == key), None) if key else None
+    return {"key": item["key"], "label": item["label"], "connection": ""} if item else None
+
+
 def detail(company, period=None) -> dict:
-    """公司页要的：公司、账套（新年度在前）、覆盖这个月的那份、知识库；ERP 没有的分区（文件夹、记住的选择、定时任务、草稿）
-    给空。`desk_url` 是这家在 ERP 里的公司页。"""
+    """公司页要的：公司、账套（新年度在前）、这个月的那份（:func:`period_book`）、知识库；ERP 没有的分区（文件夹、记住的选择、
+    定时任务、草稿）给空。`desk_url` 是这家在 ERP 里的公司页。"""
     require_read()
     period = _period(period)
     row = get(company)
     sets = account_sets(row)
-    cover = covering(sets, period)
     found = {
         "company": {**_row(row), "combined_vat": False, "created_by": row.owner or "", "created_at": when(row.creation),
                     "desk_url": f"{DESK}/{row.name}"},
         "account_sets": sets,
         "branches": [],
-        "period_set": {"key": cover[0]["key"], "label": cover[0]["label"], "connection": ""} if cover else None,
+        "period_set": period_book(row, sets, period),
         "folders": [],
         "notes": company_notes.listing(row.name),
         "choices": [],
@@ -395,7 +405,8 @@ def _made(name) -> dict:
 
 
 def context_text(company, period="", user=None) -> str:
-    """给 CC 的公司说明（`cc_context.company_note`）。"""
+    """给 CC 的公司说明（`cc_context.company_note`）。接 Express 的公司有本对话账套（共用层在说明后接它那一段，A 线 11-12）：
+    账套只列出、不标「覆盖这个月」，写进哪本由那一段定。"""
     row = get(company, user)
     sets = account_sets(row)
     synced = str(row.express_synced_at or "")[:10]
@@ -404,7 +415,8 @@ def context_text(company, period="", user=None) -> str:
         "tax_id": row.tax_id or "", "branch": row.branch or "", "vat": row.vat_registered or "",
         "express": bool(row.express_enabled), "ledger": row.express_book or "", "account_sets": sets,
         "covering": [item["key"] for item in covering(sets, period)], "synced_on": synced,
-        "sync_failed": row.express_sync_state == "failed", "period": period, "notes": company_notes.listing(row.name)})
+        "sync_failed": row.express_sync_state == "failed", "period": period, "notes": company_notes.listing(row.name),
+        "conversation_ledger": bool(row.express_enabled)})
 
 
 # ---------------- 知识库 ----------------

@@ -5,7 +5,7 @@
 备好载荷（`prepare`），交进共用机器通道的写账队列（`pearnly_core.cc_desktop.jobs`，录入人 = 开这张单的人）。之后由电脑领、写、
 回报；每次状态变了，共用通道在同一事务里交回 :func:`job_changed`，单据上记 Express 单号或原因（HTTP 成功、交进队列都不算写入）。
 
-停下的单（要人选的、没有账套、没有电脑能写、主档还在读）记原因；会自己好的（`contracts.RETRY_REASONS`）每分钟再准备一次
+停下的单（要人选的、没有账套、没有电脑能写、主档还在读）记原因；会自己好的与没有账套的（`contracts.POLL_REASONS`）每分钟再准备一次
 （:func:`poll`），要人选的在单据上选一次（`api.answer`）后再准备。ERP 自己的库存照旧按单过账，写进 Express 后由主档同步对齐。
 
 写不写只有一条判据（主会话 11-01）：公司勾着「接 Express」、有「接上时刻」（:func:`linked_at`，第一次主档同步落库时记，断开清空），
@@ -22,7 +22,7 @@ from pearnly_core.cc_desktop import books, devices, jobs
 from pearnly_core.cc_desktop.wire import ack_rules
 from pearnly_core.express_rules.contracts import pos as pos_contract
 
-from pearnly_erp_portal.express import choices, contracts, pos_day, prepare, printed, stock_entry
+from pearnly_erp_portal.express import choices, contracts, conversation, pos_day, prepare, printed, stock_entry
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal import mrerp
 from pearnly_erp_portal.mrerp import contracts as mrerp_contracts, push as mrerp_push
@@ -385,13 +385,45 @@ def release_operator(doctype, name) -> bool:
     return True
 
 
+# 写入计划里这张单的编号（`cc_tools` 的 ``<类>:<单号>``，与写账前置判定的单号；出入库单两边前缀不同，两种都认）
+PLAN_PREFIXES = {PURCHASE: ("P",), SALES: ("S",), STOCK: ("M", "T"), POS_DAY: ("D",), COUNT: ("C",)}
+
+
+def plan_refusal(doctype, name) -> dict | None:
+    """CC 对话里直写（非代录）推之前问写入计划（`write_plan.permit`，A 线 B：写入只走计划，下沉到推送入口）：在本对话已开始的
+    计划里回 None；不在回 ``{"status": "not_pushed", "reason", "note"}``，单据不动。不在 CC 对话里执行（网页、LINE、每分钟重试、
+    定时、代录交单另走 `express_operator`）不经这里。"""
+    if not conversation.session():
+        return None
+    from pearnly_core.assistant import write_plan
+
+    ids = [f"{prefix}:{name}" for prefix in PLAN_PREFIXES.get(doctype, ())]
+    allowed, refused = write_plan.permit(ids)
+    if allowed or not refused:
+        return None
+    reason = next(iter(refused.values()))
+    return {"status": "not_pushed", "reason": reason, "note": write_plan.PERMIT_NOTES.get(reason, "")}
+
+
 def send(doctype, name, operator=None):
     """准备并交进写账队列（后台任务；停下的单每分钟由 :func:`poll` 再叫）。已经交进去的不再交。
 
     ``operator``：代录 Express 的批次信息（共用层 ``pearnly_core.express_operator``，CC「代录」里交的）：同一份载荷加代录标记
-    （载荷 16），由 CC 桌面版在 Express 界面里录、不直写；回执照直写同一条（`job_changed`）。回这次的结论（代录交单用）。"""
+    （载荷 16），由 CC 桌面版在 Express 界面里录、不直写；回执照直写同一条（`job_changed`）。回这次的结论（代录交单用）。
+    代录按批次的任务号（``task``）取任务会话的本对话账套（`conversation.for_task`）。CC 对话里直写只推已开始计划里的单
+    （:func:`plan_refusal`）。"""
     if doctype not in DIRECTIONS:
         return
+    if not operator:
+        refused = plan_refusal(doctype, name)
+        if refused:
+            return refused
+        return _send(doctype, name, None)
+    with conversation.for_task((operator or {}).get("task")):
+        return _send(doctype, name, operator)
+
+
+def _send(doctype, name, operator):
     if not operator and operator_owned(doctype, name):
         return {"status": "held", "reason": contracts.OPERATOR_OWNED}
     row = frappe.db.get_value(doctype, name, ["name", "creation", "status", "owner", "ledger_state",
@@ -827,7 +859,7 @@ def poll():
             if (doctype, row.name) in hands_on:
                 continue
             if not row.ledger_job and (row.ledger_state == contracts.QUEUED
-                                        or (row.ledger_reason or "") in contracts.RETRY_REASONS):
+                                        or (row.ledger_reason or "") in contracts.POLL_REASONS):
                 send(doctype, row.name)
             elif row.ledger_job and row.ledger_state == contracts.QUEUED:
                 note = _queued_note(doctype, row)

@@ -58,9 +58,12 @@ OPERATOR_OWNED = "express.operator_owned"
 REFUND_ORIGINAL_MANUAL = "express.pos_refund_original_manual"  # 原 HS 是人手工处理的：Express 单号不知道，退货单也要手工处理
 DISCONNECTED = "express.disconnected"  # 断开 Express 时还没写进去（`push.detach`）
 CHOICE = "choice_needed"
-# 过一会儿自己会好的（电脑开机、主档读完、有人在电脑上登录 CC、退货单的原 HS 写成了）：每分钟再试；要人选的、单据本身不对的
-# 不自动重试
-RETRY_REASONS = (NO_BOOK, NO_WRITER, READING, REFUND_WAITING)
+# 过一会儿自己会好的（电脑开机、主档读完、有人在电脑上登录 CC、退货单的原 HS 写成了）：每分钟再试，判定 / 计划报「等电脑」；
+# 要人选的、单据本身不对的不自动重试
+RETRY_REASONS = (NO_WRITER, READING, REFUND_WAITING)
+# 每分钟那一轮（`push.poll`）再准备的：上面几种，加「没有账套」——网页 / LINE 按单据日期选账套的单，电脑报了新年度账套就接着写。
+# 「没有账套」不算等电脑（A 线 11-12 A9：判定、计划、待处理、代录如实报「没有账套」，不再永远等电脑）
+POLL_REASONS = (NO_BOOK, *RETRY_REASONS)
 # 要人处理的单（ERP 版 CC 的「待处理」，2026-11-02）：停下等人（要人选一次、单据本身不对、电脑转了人工…；不含每分钟会自己
 # 再试的 `RETRY_REASONS`）、失败、写进去了但核对不上。只看单据上的状态与原因（`needs_person`）
 ATTENTION_STATES = (HELD, FAILED, MISMATCH)
@@ -371,6 +374,6 @@ def pages(doc: dict) -> list:
 
 
 __all__ = ["ATTENTION_STATES", "CHOICE", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER",
-           "OFFLINE", "OPEN_STATES", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
+           "OFFLINE", "OPEN_STATES", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]
