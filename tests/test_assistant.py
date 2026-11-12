@@ -1787,8 +1787,7 @@ class ToolAndDefinitionTests(unittest.TestCase):
         self.assertTrue(found.startswith('{"reply_language": "Chinese", '))
         self.assertEqual(json.loads(found)["note"], "push again")
         self.assertEqual(contracts.reply_language('{"status": "saved"}', "English"), '{"status": "saved"}')
-        self.assertEqual(contracts.reply_language("The tool failed.", "Thai"), "The tool failed.")
-        self.assertEqual(contracts.reply_language("[1, 2]", "Thai"), "[1, 2]")
+        self.assertEqual(contracts.reply_language("The tool failed.", "English"), "The tool failed.")
         self.assertIn("never copy their English sentences into what the user sees", contracts.LANGUAGE_RULE)
         toolrun = sys.modules["pearnly_core.assistant.toolrun"]
         posted = []
@@ -2516,6 +2515,52 @@ class NoticeTests(unittest.TestCase):
         self.assertEqual(judge("Please enter these invoices into Express"), "English")
         for none in ("IV69/00628", "12", "ok", "", "👍", "RR6910-007 7,169.00"):
             self.assertEqual(judge(none), "", none)
+
+    def test_a_short_thai_line_with_an_english_company_name_is_thai(self):
+        # 审计 E1（11-12）：「ลง SINCERE ICE」泰文字母少于拉丁字母，被判成英文，CC 用英文答。有泰文 / 汉字 / 假名就按那种文字，
+        # 只有拉丁字母才判英文；中文、日文仍先于泰文（中文句里夹泰文公司名仍是中文）
+        judge = contracts.message_language
+        self.assertEqual(judge("ลง SINCERE ICE"), "Thai")
+        self.assertEqual(judge("บันทึก SINCERE ICE CO., LTD. INV-2025-0091"), "Thai")
+        self.assertEqual(judge("ok ลง"), "Thai")
+        self.assertEqual(judge("Please enter these invoices into Express"), "English")
+        self.assertEqual(judge("P3-DEP-H 用 T.7 推送，公司 นิภา เอ็กซ์เชนจ์"), "Chinese")
+        self.assertEqual(judge("SINCERE ICE の請求書を入力"), "Japanese")
+        self.assertEqual(judge("ก IV69"), "")  # 一个泰文字母判不出，同前
+
+    def test_refusals_and_plain_text_results_also_carry_the_reply_language(self):
+        # 审计 E3（11-12）：工具被拒的原因是纯英文文本，不带语言标记，CC 照抄英文给泰文用户。不是 JSON 对象的结果也包成带标记的对象：
+        # 出错的原文放 reason（status failed），不出错的放 result；英文、读不到语言仍原样
+        wrapped = json.loads(contracts.reply_language("Not this company's account set.", "Thai", is_error=True))
+        self.assertEqual(list(wrapped)[0], "reply_language")
+        self.assertEqual(wrapped, {"reply_language": "Thai", "status": "failed", "reason": "Not this company's account set."})
+        self.assertEqual(json.loads(contracts.reply_language("[1, 2]", "Chinese")),
+                         {"reply_language": "Chinese", "result": [1, 2]})
+        self.assertEqual(json.loads(contracts.reply_language("done", "Japanese")),
+                         {"reply_language": "Japanese", "result": "done"})
+        self.assertEqual(contracts.reply_language("The tool failed.", "English", is_error=True), "The tool failed.")
+        self.assertEqual(contracts.reply_language("The tool failed.", "", is_error=True), "The tool failed.")
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        posted = []
+        adapter = types.SimpleNamespace(post=lambda remote, events: posted.append(events[0]))
+        with mock.patch.object(toolrun.engine, "adapter", return_value=adapter), \
+                mock.patch.object(toolrun, "turn_language", lambda conversation: "Thai"):
+            toolrun._hand_back("conv", "sesn", "sevt_9", "Refused: not allowed.", True)
+        self.assertEqual(posted, [contracts.tool_result(
+            "sevt_9", contracts.reply_language("Refused: not allowed.", "Thai", is_error=True), True)])
+        self.assertEqual(json.loads(posted[0]["content"][0]["text"])["reason"], "Refused: not allowed.")
+
+    def test_question_cards_are_written_in_the_users_language(self):
+        # 审计 E2（11-12）：提问卡题目、选项是英文——语言规则只管回复与过程短句，没写提问卡；选项理由是服务端英文原句。
+        # 规则（随每条消息带的与智能体说明里的）与 ask_user 说明都写明：卡片题目、标题、选项说明用本轮语言，数据里的名称照原样
+        from pearnly_core.assistant import definition, tools as assistant_tools
+
+        for rule in (contracts.LANGUAGE_RULE, " ".join(definition.SYSTEM.split())):
+            self.assertIn("ask_user cards", rule)
+            self.assertIn("question, header and option descriptions", rule)
+        ask = next(t for t in assistant_tools.CORE_TOOLS if t["name"] == "ask_user")
+        self.assertIn("in the user's language", ask["description"])
+        self.assertIn("names from the data keep their own spelling", ask["description"])
 
     def test_send_follows_the_language_of_this_message_and_tool_results_follow_it(self):
         sessions = self._sessions()
@@ -6573,7 +6618,7 @@ class ModeGateTests(unittest.TestCase):
                 mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True), \
                 mock.patch.object(tools_module, "declared", lambda: declared), \
                 mock.patch.object(toolrun.engine, "adapter", return_value=api), \
-                mock.patch.object(toolrun, "_with_language", lambda conversation, text: text), \
+                mock.patch.object(toolrun, "_with_language", lambda conversation, text, is_error=False: text), \
                 mock.patch.object(toolrun, "_finish", lambda *a: ran.append(a[4]) or "done"):
             status = toolrun.execute("conv", "sesn", {"id": "sevt_1", "name": tool, "input": {}})
         return status, runs, posted, ran
