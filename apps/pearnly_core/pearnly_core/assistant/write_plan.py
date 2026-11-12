@@ -8,6 +8,9 @@
 2. 只写看过之后没再改的票：逐张重算写账前置判定（`write_precheck`，与写入同一套判断）的摘要，和建计划时不同的这次不写；
 3. 停：建计划之后点过停止 / 说过停止词（`sessions.last_stop`）不放行；直写已开始的计划在停之后不再推剩下的（`permit`）。
 
+计划还记下建计划时的本对话账套（`assistant.ledger`，A 线 11-12 B5）：开始 / 放行时它变了（右栏改了、CC 换了）就不写，回
+``ledger_changed``（复述的是 T.8，不能写进 T.9），按新账套重新建计划并复述。
+
 代录：计划的单由服务端按这家公司这个月的完整待录清单定（`express_operator.api.waiting`），开始时内部走代录交单同一条路
 （`express_operator.api.hand_in`），页面不能直接开始。直写：开始只把计划标成已开始，CC 接着用本产品的推送工具推这些单，推送工具
 先问 `permit`（不在已开始计划里的不推）。计划状态作为本站事件 ``pearnly.write_plan`` 并进对话事件（`feed`）：页面据此在
@@ -59,6 +62,9 @@ CHANGED_NOTE = ("These documents changed after the plan was said back (changed),
 DIRECT_START_NOTE = ("Started: push exactly these documents (documents) now with the push tool, at most 5 per call, in this "
                      "order; report what was written only from the push results. Stop at once if a push says stopped.")
 OPERATOR_START_NOTE = "Handed to the computer that enters them; progress shows in this conversation."
+LEDGER_CHANGED_NOTE = ("This conversation's account set changed after the plan was said back (now {label}), so nothing was "
+                       "written. Make a new plan, which writes into the account set the conversation has now, and say it "
+                       "back again.")
 
 
 def _precheck():
@@ -93,6 +99,16 @@ def _stopped_at(row):
     from pearnly_core.assistant import sessions
 
     return sessions.last_stop(row.session_id)
+
+
+def _ledger(row) -> tuple[str, str]:
+    """这段对话此刻的本对话账套 (编号, 名称)；产品没有、没挂公司、未定回 ("", "")。"""
+    from pearnly_core.assistant import ledger
+
+    found = ledger.of_session(row.session_id) or {}
+    if found.get("status") != "set":
+        return "", ""
+    return str(found.get("id") or ""), str(found.get("label") or found.get("id") or "")
 
 
 # ── 判定与版本 ───────────────────────────────────────────────────────────────
@@ -187,7 +203,8 @@ def make(tool_input) -> dict:
                 "count": 0, "documents": [], "skipped_count": len(skipped), "skipped": skipped[:SKIPPED_SHOWN],
                 "status": "nothing_to_write", "note": NOTHING_NOTE}
     doc = frappe.get_doc({"doctype": DOCTYPE, "session_id": row.session_id, "user": frappe.session.user, "mode": mode,
-                          "company": company, "operator_task": task, "user_turn": _turn(row), "status": AWAITING,
+                          "company": company, "operator_task": task, "ledger": _ledger(row)[0],
+                          "user_turn": _turn(row), "status": AWAITING,
                           "documents": json.dumps([{"doc_id": doc_id, "version": versions[doc_id], **({"again": True} if doc_id in again else {})}
                                                   for doc_id in write]),
                           "skipped": json.dumps(skipped, ensure_ascii=False)}).insert(ignore_permissions=True)
@@ -229,6 +246,13 @@ def start(tool_input) -> dict:
     stopped = _stopped_at(row)
     if stopped and doc.creation and frappe.utils.get_datetime(stopped) >= _to_utc(doc.creation):
         return {"status": "stopped", "plan": doc.name, "note": STOPPED_NOTE}
+    ledger_now, label = _ledger(row)
+    if ledger_now != str(getattr(doc, "ledger", "") or ""):
+        # B5：复述时的账套不是此刻的了：不写，这份计划作废（页面的「录吧」随之消失）
+        doc.db_set({"status": REPLACED}, update_modified=True)
+        _announce(doc)
+        return {"status": "ledger_changed", "plan": doc.name,
+                "note": LEDGER_CHANGED_NOTE.format(label=label or "not decided yet")}
     planned = [item for item in json.loads(doc.documents or "[]") if isinstance(item, dict) and item.get("doc_id")]
     ids = [str(item["doc_id"]) for item in planned]
     card, versions = _judge(doc.company, ids) if ids else ({}, {})
@@ -274,14 +298,17 @@ def permit(doc_ids) -> tuple[list, dict]:
     if not sid:
         return ids, {}
     row = _conversation(sid)
-    found = frappe.get_all(DOCTYPE, filters={"session_id": sid, "status": STARTED}, fields=["name", "started", "started_at"],
-                           order_by="started_at desc", limit_page_length=1)
+    found = frappe.get_all(DOCTYPE, filters={"session_id": sid, "status": STARTED},
+                           fields=["name", "started", "started_at", "ledger"], order_by="started_at desc",
+                           limit_page_length=1)
     if not found:
         return [], {doc_id: "not_started" for doc_id in ids}
     plan = found[0]
     stopped = _stopped_at(row)
     if stopped and plan.started_at and frappe.utils.get_datetime(stopped) >= _to_utc(plan.started_at):
         return [], {doc_id: "stopped" for doc_id in ids}
+    if _ledger(row)[0] != str(getattr(plan, "ledger", "") or ""):
+        return [], {doc_id: "ledger_changed" for doc_id in ids}  # B5：开始之后换了本对话账套
     allowed = set(json.loads(plan.started or "[]"))
     return [doc_id for doc_id in ids if doc_id in allowed], {doc_id: "not_in_plan" for doc_id in ids if doc_id not in allowed}
 
@@ -292,6 +319,8 @@ PERMIT_NOTES = {
     "not_in_plan": ("Not pushed: this document is not in the plan the user agreed to. Make a new plan that includes it "
                     "and say it back again."),
     "stopped": "Not pushed: the user stopped. Tell the user how many were written before the stop and which were not.",
+    "ledger_changed": ("Not pushed: this conversation's account set changed after the plan started. Make a new plan, "
+                       "which writes into the account set the conversation has now, and say it back again."),
 }
 
 

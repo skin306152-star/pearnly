@@ -197,8 +197,9 @@ def mrerp_answer(document, values):
     return _answer(name, result)
 
 
-# 推不成、也没进账本的结论：这张单回到「待选账套」，会计员能再选一份（第 6 批审查第 4 条）
-NOT_ENTERED = ("failed", "not_found")
+# 推不成、也没进账本的结论：这张单回到「待选账套」，会计员能再选一份（第 6 批审查第 4 条）；不在写入计划里没推的（CC 对话里，
+# A 线 B）同样什么都不改
+NOT_ENTERED = ("failed", "not_found", "not_pushed")
 
 
 @frappe.whitelist(methods=["POST"])
@@ -368,6 +369,21 @@ def _still_many(codes) -> bool:
     from pearnly_cowork.companies import pending
 
     return pending.BOOK_MANY in str(codes or "").split(",")
+
+
+def remember_current_book(doc, account_set_key) -> dict | None:
+    """CC 对话里在停在「待选账套」的单上选了现用的那份（B2：写入只走计划）：多份同期时只记下这家公司现用的那份
+    （`companies.pending.current_book_choice`，同 :func:`push_to_account_set` 推成后记的那条），同组还停着的别的单按它接着判，
+    这张单不推、去向不改（推送时写进本对话账套，`tools._submit_one`）。回同 :func:`rechoose_current_book`；只有一份、选的不在
+    候选里回 None。调用方已核录入权限与写入闸。"""
+    from pearnly_cowork.companies import pending
+
+    found = pending.current_book_choice(_row(doc), account_set_key)
+    if not found:
+        return None
+    _remember(found)
+    frappe.db.commit()  # 接着判同组停着的单之前先落下记住的那份（判定只看不记、结束回滚）
+    return {"current_book": found["value"], **_settled(_continue_group(found, _row(doc).get("name")))}
 
 
 def rechoose_current_book(doc, account_set_key) -> dict | None:
