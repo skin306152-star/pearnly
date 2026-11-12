@@ -99,4 +99,19 @@ CC 桌面版窗口的本地提交 4e88e559f（`pearnly/cc-desktop-payload-3a2e3d
 
 ## 7. 检查与共用件入口
 
-（交付时补：闸门、候选离线、check-impact 逐入口、流程、CI。）
+- 本地 CI 同名闸门（`~/pearnly-devtools/gate.sh`，含 npm ci）：236 步 GATE EXIT 0（`~/pearnly-devtools/collection-on-ledger-gate.log`）。
+- 候选离线（生产镜像 b3adf474，`cand-local.sh offline`）：109 组 LANE EXIT 0（`~/pearnly-devtools/collection-on-ledger-cand.log`）。
+- 收款三组离线：`test_erp_collection.py` 51（1 条约定测试等 wait-display 进来才跑）、`test_erp_collection_line.py` 35、`test_erp_collection_cc.py` 24；
+  `test_cc_conversation_ledger*.py`、`test_companion_contract.py` 通过。
+- 文案：`check-copy.py` 无拦截；本支新增 8 条见 §4（`--report` 里其余新增是收款分支原有的）。
+- **流程没在本机跑**：本支单独挂实验栈时「我的收款」列表与 LINE 待写入回复要调 wait-display 的查询（那支未合入）会报错，流程 `erp.line.collection`、
+  `erp.page.my-collections`、`erp.collections.refused`、`erp.exports` 要在集成分支上跑（排在 wait-display 之后）。
+- `check-impact.py --base <A 线副本顶>`：登记表完整（EXIT 0）。命中共用件 cc-dbf-write（来自收款分支原有的 `payment_methods.py` 改动）与收款自己的入口：
+
+| 入口 | 结果 |
+|---|---|
+| erp.collection.server / erp.line.collection / erp.cc.collection（offline） | 通过（三组离线） |
+| erp.cc.chat-push、cc.desktop.operator（offline） | 通过（闸门里的离线组） |
+| erp.page.collections / erp.page.my-collections / erp.line.webhook-sim / cc.desktop.write / erp.cc.write / erp.cc.stock-entry（auto） | 没测到：要实验栈，且要先有 wait-display，集成分支统一跑 |
+| erp.line.chat / erp.line.collection 真机、等 Express 三处显示、同期两本作答、科目余额标记（manual） | 没测到：真机清单（共享笔记「收款-接账套与等Express-真机清单-11-12.md」）交主会话排 |
+| 其余 manual 入口（POS、调拨、作废、主档、导航、开户等） | 没测到：本支没改它们的代码，只因 `payment_methods.py` 落在共用件路径上被列出；随集成分支全套流程 |
