@@ -3,14 +3,17 @@
 //
 //   月份 — 本月往前 12 个月 + 「不指定」；新对话默认上个月（页面按这台设备的日期定，服务端只核对形状）
 //   分店 — 只在这家公司有不止一个分店时出现；默认「不指定」（CC 按票面的买方分店选账套，看不出时问一次）
+//   账套 — 新建页（还没有会话）的本对话账套（lib/conversation-ledger 的 useDraftLedgerOf）：这家这个月可选的几本，服务端的默认
+//          预选、可改，建会话时一起交上；这家没有本对话账套时不出现。已有对话在右栏公司卡里改（session-panel 的 LedgerRow）
 //
 // 用原生下拉菜单（radix），样式只用 globals.css 的 .cc-chip-btn / .cc-chin-btn / .cc-menu 与变量。
 
-import { CalendarIcon, CheckIcon, ChevronDownIcon, StoreIcon } from "lucide-react";
+import { BookOpenIcon, CalendarIcon, CheckIcon, ChevronDownIcon, StoreIcon } from "lucide-react";
 import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import type { FC, ReactNode } from "react";
 import { co } from "@/i18n";
 import { type Branch, branchShort, monthLabel, recentMonths } from "@/lib/companies";
+import { ledgerLabel, type LedgerView } from "@/lib/conversation-ledger";
 import { Marquee } from "@/components/ui/marquee";
 
 /** 下拉里的一项（选中的带勾）：月份、分店，右栏的本对话账套（session-panel 的 LedgerRow）共用。 */
@@ -124,3 +127,36 @@ export const BranchChoices: FC<{ branches: readonly Branch[]; value: string; onC
     </Choice>
   </>
 );
+
+/** 账套胶囊（新建页）：entry 是服务端给的可选与当前那本（没读到、这家没有本对话账套时不出现）；还没定时写「ชุดบัญชี」本身，
+ *  不加说明文字。 */
+// map: draft-ledger-picker
+export const LedgerChip: FC<{ entry: LedgerView | null; onChoose: (id: string) => void } & ChipLook> = ({
+  entry,
+  onChoose,
+  look = "cc-chip-btn",
+  side,
+}) => {
+  if (!entry?.options.length) return null;
+  const label = ledgerLabel(entry);
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button type="button" className={look} data-slot="cc-ledger-chip" aria-label={co.accountSets} title={label || co.accountSets}>
+          <BookOpenIcon />
+          <Marquee className="truncate">{label || co.accountSets}</Marquee>
+          <ChevronDownIcon />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content side={side} align="start" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
+          {entry.options.map((item) => (
+            <Choice key={item.id} chosen={item.id === entry.current} onSelect={() => item.id !== entry.current && onChoose(item.id)}>
+              {item.label}
+            </Choice>
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+};

@@ -46,6 +46,7 @@ import {
 } from "./api";
 import { clearUnread, noteRun, runningSessions, seedUnread } from "./activity";
 import { listMode, noteSessionTasks } from "./list-mode";
+import { draftLedgerOf } from "../conversation-ledger";
 import { type SessionSummary, splitAttachmentNote } from "./events";
 import {
   decodeCursor,
@@ -216,7 +217,7 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
     const local = draft ? fileLocally({ [threadId]: draft }) : undefined;
     let session: ListedSession;
     try {
-      session = await createSession(draft, listMode());
+      session = await createSession(draft, listMode(), draftLedgerOf(draft));
     } catch (error) {
       local?.undo({ [threadId]: NO_FILING });
       throw error;
