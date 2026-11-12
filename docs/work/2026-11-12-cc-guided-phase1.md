@@ -147,3 +147,21 @@ A 类 14 条在哪一批落地：
 销项服务品口径的载荷键（与 CC 桌面版窗口对过）：沿用进货已有的 `srv_vattyp`，**不进 `GUIDED_KEYS`**（进货单本来就带它，放进去会把代录进货单与旧版 CC 一起拦下）；
 销项单带 `srv_vattyp = "2"` 时单独盖 21，`"1"` 与旧写法相同不盖。客户档读回 `srv` 与「销项写 2」须同一批进集成分支，否则题会先出来、答了写不进。
 服务端的销项带键与盖版本等 CC 桌面版「写 2」取证完成后同批做，今晚没做。
+
+## 下一步设计（第 2 批下半 + 第 3 批，一起做）
+
+`guided` 只有经引导卡入口才有意义，所以产品接线与 `pearnly_guide` 同一批做，不单独半截接上：
+
+1. **入口**：新共用工具 `pearnly_guide`（`K/assistant/tools.py` 声明，`approval: True` 同 `ask_user` 走 `toolrun` 等人作答），模型只给 `{company?, doc_ids}`；
+   服务端在出卡前（`toolrun._refused_before_card` 同一处，或新增「出卡前改写输入」钩子）调 `write_precheck.api.card(..., guided=True)` → `guide.build`，
+   按本轮语言把 `title_key` / `label_key` / `source_key` 翻成文字（各产品 `i18n/messages.tsv` 新增 `guide.*` 词条，四语），把卡存成这次调用的输入；
+   页面按卡渲染、作答直接调 `write_precheck.api.answer`（只认本人本对话挂着的那张，复用 `toolrun.decide` 的判法）；模型只收到「答了几项、哪些单留下」。
+   放行用 `guide.writable`（没点过的预选不生效），写入计划 `write_plan` 判未定也换成引导卡口径。
+2. **接线**：`write_precheck.products.check` 按签名多传 `guided`（同 `hint` 的做法）；Cowork `assistant/precheck_source.check` → 推送评估 → `push/express/decide.decide(guided=)`
+   → `choices.resolve(guided=True)`；ERP `express/precheck.check` → `express/prepare.py:194` 同样透传。LINE、网页待处理、定时、自动推不传，行为不变（逐入口实测）。
+   判定源另出：A4（Cowork `goods_posting` 指纹未知时出题）、A8 `new_party`、A10 `new_item`（类型 / 科目组 / 分类取众数作已定项收起，单位露出；需主档读回的众数）。
+3. **模型侧**：`ask_user` 的 `refuse` 改成框架层函数：本对话有待写单据或挂着引导卡时拒绝并回「use pearnly_guide」；删掉工具说明里让模型自己出业务题的地方
+   （`K/assistant/tools.py` `ask_user`「You may add your own questions…」、`pearnly_precheck` 的「turn … into ask_user questions」、`direct_push.py:208-210`、
+   `write_plan.py:45`、`C/assistant/write_scope.py:22-30`、`C/assistant/tools.py:4385-4423,4622,4646,1411`、`C/companies/context.py:65,143`；行号以 integration-1113 为准再核）；
+   账套题（`pearnly_conversation_ledger` 现在先用 `ask_user` 问）改由引导卡的 `account_set` 题（做不做类，不预选）承担——要和 A 线接手窗口（local_90f7baa4）经主会话对一次。
+   假智能体流程断言：录单流程 `ask_user` 调用数 = 0、卡全部来自 `pearnly_guide`、同一归类键整段对话只问一次。
