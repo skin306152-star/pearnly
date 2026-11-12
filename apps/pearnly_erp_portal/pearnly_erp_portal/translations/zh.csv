@@ -577,6 +577,7 @@ Enter opening stock,录入期初库存
 Enter purchase details. Files are added as attachments only.,手动填写采购信息，文件仅作为附件。
 Enter the amount for {0},输入{0}的金额
 Enter the amount received,输入已收金额
+Enter the discount amount,输入折扣金额
 Enter the sale by hand. Files are added as attachments only.,手动填写销售内容，文件仅作为附件。
 Enter the user name,请填写用户名
 Enter {0} amount,输入{0}金额
@@ -732,6 +733,7 @@ Invalid value: {0},值无效：{0}
 Invoice,发票
 Invoice Amount,发票金额
 Invoice Status,单据状态
+Invoices,发票
 Is Paid,已付款
 Is Reversal,冲销
 Is this company VAT registered,该公司是增值税登记户吗
@@ -887,6 +889,7 @@ New · In,新建 · 入库
 New · Out,新建 · 出库
 Next,下一个
 Next Number,下一编号
+Next step,下一步
 No,序号
 No Express account set covers this date,没有覆盖此日期的 Express 账套
 No MR.ERP import result was returned. Check in MR.ERP,未取得 MR.ERP 导入结果，请在 MR.ERP 中核对

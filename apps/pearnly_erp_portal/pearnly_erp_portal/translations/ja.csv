@@ -577,6 +577,7 @@ Enter opening stock,期首在庫を登録
 Enter purchase details. Files are added as attachments only.,仕入情報を手入力します。ファイルは添付のみです。
 Enter the amount for {0},{0} の金額を入力してください
 Enter the amount received,受け取った金額を入力してください
+Enter the discount amount,割引額を入力してください
 Enter the sale by hand. Files are added as attachments only.,販売内容を手入力します。ファイルは添付のみです。
 Enter the user name,ユーザー名を入力してください
 Enter {0} amount,{0}の金額を入力
@@ -732,6 +733,7 @@ Invalid value: {0},値が無効です: {0}
 Invoice,請求書
 Invoice Amount,請求金額
 Invoice Status,伝票ステータス
+Invoices,請求書
 Is Paid,支払済み
 Is Reversal,取消仕訳
 Is this company VAT registered,この会社は VAT 登録事業者ですか
@@ -887,6 +889,7 @@ New · In,新規 · 入庫
 New · Out,新規 · 出庫
 Next,次へ
 Next Number,次の番号
+Next step,次へ
 No,番号
 No Express account set covers this date,この日付を含む Express 会計データがありません
 No MR.ERP import result was returned. Check in MR.ERP,MR.ERP の取込結果を取得できません。MR.ERP で確認してください

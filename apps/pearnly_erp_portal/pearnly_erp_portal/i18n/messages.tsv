@@ -2073,6 +2073,9 @@ The collection changed. Check it again	收款内容已变更，请重新确认	�
 Written to Express: {0}	已写入 Express：{0}	บันทึกลง Express แล้ว: {0}	Express に書き込みました：{0}
 Not written to Express: {0}	未写入 Express：{0}	ไม่ได้บันทึกลง Express: {0}	Express に書き込めませんでした：{0}
 Already collected. Current balance:	已被收款，当前余额：	มีการรับชำระแล้ว ยอดคงเหลือปัจจุบัน:	入金済みです。現在の残高：
+Enter the discount amount	输入折扣金额	กรอกยอดส่วนลด	割引額を入力してください
+Next step	下一步	ขั้นต่อไป	次へ
+Invoices	发票	ใบแจ้งหนี้	請求書
 Recorded · pending write	已记录 · 待写入	บันทึกแล้ว · รอบันทึกลง Express	記録済み · 書き込み待ち
 This account cannot record collections	此账号不能录收款	บัญชีนี้บันทึกการรับชำระไม่ได้	このアカウントは入金を記録できません
 Could not record this collection	无法录入此收款	บันทึกการรับชำระนี้ไม่ได้	この入金を記録できません
