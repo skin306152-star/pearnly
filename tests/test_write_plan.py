@@ -289,6 +289,24 @@ class WritePlanTests(unittest.TestCase):
             push = push[:push.index("\ndef ")]
             self.assertIn("direct_push.permitted(names)", push)
 
+    def test_a_plan_lists_each_retargeted_document_with_its_old_and_new_account_set(self):
+        # A 线 11-12（主会话三条）：产品按「目标 = 本对话账套」判，原来指着同公司另一本的逐张带 {from, to}；别家公司的进 skipped
+        # （原因同写入闸），不改投；建计划不写票（判定只看，票上的目标由产品在真推送那一刻才改）
+        self.conversation()
+        moved = {"from": {"connection": "EXP1", "account_set": "K9", "label": "T.9"},
+                 "to": {"connection": "EXP1", "account_set": "K8", "label": "T.8"}}
+        self.docs["D001"] = {"state": "check", "items": [], "retargeted": moved}
+        self.docs["D003"] = {"state": "not_writable", "reason": "not_this_company_book", "items": []}
+        out = self.plan(documents=["D001", "D002", "D003"])
+        self.assertEqual(out["documents"], ["D001", "D002"])
+        self.assertEqual(out["retargeted"], [{"document": "D001", **moved}])
+        self.assertIn("list them separately", out["note"])
+        self.assertEqual(out["skipped"], [{"doc_id": "D003", "reason": "not_this_company_book"}])
+        # 没有改投的计划不带这一项、说明照旧
+        out = self.plan(documents=["D002"])
+        self.assertNotIn("retargeted", out)
+        self.assertNotIn("list them separately", out["note"])
+
 
 if __name__ == "__main__":
     unittest.main()

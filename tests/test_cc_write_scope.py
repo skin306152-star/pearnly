@@ -38,6 +38,22 @@ def _load_scope():
 write_scope = _load_scope()
 
 
+def _provider():
+    """Cowork 的 provider（只用它的编号拆法 `ledger_parts`，纯函数）：按文件载入，依赖的几个模块给替身。"""
+    stubs = {"pearnly_cowork.access": types.ModuleType("pearnly_cowork.access"),
+             "pearnly_cowork.access.scope": types.ModuleType("pearnly_cowork.access.scope"),
+             "pearnly_cowork.companies.identity": types.ModuleType("pearnly_cowork.companies.identity"),
+             "pearnly_cowork.companies.access": types.SimpleNamespace(COMPANY="Cowork Company"),
+             "pearnly_cowork.companies": types.ModuleType("pearnly_cowork.companies")}
+    stubs["pearnly_cowork.access"].scope = stubs["pearnly_cowork.access.scope"]
+    stubs["pearnly_cowork.companies"].identity = stubs["pearnly_cowork.companies.identity"]
+    spec = importlib.util.spec_from_file_location("cowork_provider_for_scope", COWORK / "companies/provider.py")
+    module = importlib.util.module_from_spec(spec)
+    with mock.patch.dict(sys.modules, stubs):
+        spec.loader.exec_module(module)
+    return module
+
+
 class _Conversation(unittest.TestCase):
     """本对话挂在 ``filed``（空串 = 没挂公司）；``None`` = 不在 CC 对话里执行。"""
 
@@ -53,10 +69,21 @@ class _Conversation(unittest.TestCase):
         service = types.SimpleNamespace(listing=lambda search, start, limit: [
             {"id": "CO-A", "title": "บริษัท Pearnly จำกัด", "tax_id": "0105555000001"},
             {"id": "CO-C", "title": "Gamma", "tax_id": ""}])
-        companies = types.SimpleNamespace(identity=identity, service=service)
+        # 本对话账套（A 线 11-12，`pearnly_core.assistant.ledger`）：``self.ledger`` 是本对话的（None = 没有，照公司判），
+        # ``self.task_ledgers`` 是各代录任务会话的；编号的拆法用 Cowork provider 的真函数
+        self.ledger, self.task_ledgers = None, {}
+        ledger = types.ModuleType("pearnly_core.assistant.ledger")
+        ledger.SET, ledger.NEEDED = "set", "needed"
+        ledger.of_session = lambda session=None: self.ledger
+        ledger.of_task = lambda task: self.task_ledgers.get(task)
+        provider = types.SimpleNamespace(ledger_parts=_provider().ledger_parts)
+        companies = types.SimpleNamespace(identity=identity, service=service, provider=provider)
         patches += [mock.patch.dict(sys.modules, {"pearnly_cowork.companies": companies,
                                                   "pearnly_cowork.companies.identity": identity,
-                                                  "pearnly_cowork.companies.service": service})]
+                                                  "pearnly_cowork.companies.service": service,
+                                                  "pearnly_cowork.companies.provider": provider,
+                                                  "pearnly_core.assistant.ledger": ledger}),
+                    mock.patch.object(sys.modules["pearnly_core.assistant"], "ledger", ledger, create=True)]
         for patcher in patches:
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -191,7 +218,8 @@ class StoppedAccountSetTests(_Conversation):
                     "pages": [{"fields": {}}], "record_version": 1}
         tools.storage.read = lambda name: self.doc
         companies = types.SimpleNamespace(pending=pending, identity=sys.modules["pearnly_cowork.companies.identity"],
-                                          service=sys.modules["pearnly_cowork.companies.service"])
+                                          service=sys.modules["pearnly_cowork.companies.service"],
+                                          provider=sys.modules["pearnly_cowork.companies.provider"])
         patches = [mock.patch.dict(sys.modules, {"pearnly_cowork.companies": companies,
                                                  "pearnly_cowork.companies.pending": pending,
                                                  "pearnly_cowork.assistant.pending_api": pending_api}),

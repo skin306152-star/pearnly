@@ -837,5 +837,61 @@ class SweepAndShared(unittest.TestCase):
             sys.modules.pop("pearnly_core.write_precheck.api", None)
 
 
+class ConversationBook(unittest.TestCase):
+    """CC 对话里判定按「目标 = 本对话账套」算（A 线 11-12，主会话三条）：票上的目标不动、不写库，原来指着同公司另一本的列进
+    ``retargeted``（带名称）；别家公司的去向不改投、列在不能写（原因同写入闸）；按本对话账套算的不再问「哪份账套」。"""
+
+    def setUp(self):
+        self.aims = []
+
+        def aim(connection, account_set_key, doc_connection="", doc_account_set="", company=None, task="", day=""):
+            self.aims.append((doc_connection, doc_account_set, day))
+            if doc_account_set == "OTHER":
+                return {"reason": "not_this_company_book", "note": "n", "allowed_account_sets": []}
+            return {"connection": "C1", "key": "T8", "label": "T.8"}
+
+        self.scope = ns(aim=aim, key_of=lambda value: str(value or "").casefold(),
+                        label_of=lambda connection, key: {"T9": "T.9"}.get(key, key))
+
+    def _check(self, original, stop_book=None):
+        module, calls, patcher = load(original, stop_book=stop_book)
+        self.addCleanup(patcher.stop)
+        sys.modules["frappe"].local = ns(pearnly_assistant={"session_id": "sesn_1"})
+        sys.modules["pearnly_cowork.assistant"].write_scope = self.scope
+        sys.modules["pearnly_cowork.assistant.write_scope"] = self.scope
+        # 同真的存取：每次读都是库里的那一份（判定在内存里换掉的不会留下）
+        sys.modules["pearnly_cowork.history"].storage.read = lambda name: Doc(**vars(original))
+        return module.check("CO1", ["h1"])["documents"][0], calls
+
+    def test_a_document_aimed_at_another_book_is_judged_on_the_conversation_book_and_listed(self):
+        original = document(push_account_set="T9", invoice_date="2026-06-15")
+        found, calls = self._check(original, stop_book={"account_sets": [{"key": "T8"}, {"key": "T9"}], "current": ""})
+        self.assertEqual(found["retargeted"], {"from": {"connection": "C1", "account_set": "T9", "label": "T.9"},
+                                               "to": {"connection": "C1", "account_set": "T8", "label": "T.8"}})
+        self.assertNotIn("current_book", [item["kind"] for item in found["items"]])  # 不再问哪份
+        self.assertEqual(self.aims, [("C1", "T9", "2026-06-15")])
+        # 建计划不写票：库里那一份的目标没变，也没有任何记下 / 改投 / 提交
+        self.assertEqual((original.push_connection, original.push_account_set), ("C1", "T9"))
+        self.assertFalse([call for call in calls if call[0] in ("retarget", "save", "commit", "record")])
+
+    def test_a_document_already_on_the_conversation_book_or_without_one_is_not_listed(self):
+        for book in ("t8", ""):
+            found, _calls = self._check(document(push_account_set=book))
+            self.assertNotIn("retargeted", found)
+
+    def test_another_companys_book_is_not_retargeted(self):
+        found, _calls = self._check(document(push_account_set="OTHER"))
+        self.assertEqual((found["state"], found["reason"]), (card.NOT_WRITABLE, "not_this_company_book"))
+        self.assertNotIn("retargeted", found)
+
+    def test_outside_a_conversation_the_document_keeps_its_own_target(self):
+        module, _calls, patcher = load(document(push_account_set="T9"))
+        self.addCleanup(patcher.stop)
+        sys.modules["frappe"].local = ns(pearnly_assistant=None)
+        found = module.check("CO1", ["h1"])["documents"][0]
+        self.assertNotIn("retargeted", found)
+        self.assertEqual(self.aims, [])
+
+
 if __name__ == "__main__":
     unittest.main()
