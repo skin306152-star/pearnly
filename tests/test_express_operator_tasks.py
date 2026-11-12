@@ -484,6 +484,17 @@ class TaskTests(unittest.TestCase):
         with self.assertRaises(_Throw):
             tools.control({"task": name, "action": "retry", "documents": ["9"]})
         self.assertEqual({t["name"] for t in tools.TOOLS}, set(tools.STEP_NAMES))
+        # 没录成的原因交给模型的是产品给的那句话（测试机1 11-12：模型把「choice_needed:account_set」原样说给用户），码另放
+        # reason_code；产品没声明 reason_text、给不出话的照原样
+        self.statuses = {"h1": {"state": "saved", "docnum": "RR1"},
+                         "h3": {"state": "not_done", "reason": "choice_needed:account_set"}}
+        self.tasks.products.reason_text = lambda reason: "Choose before writing" if reason.startswith("choice_needed") else ""
+        seen = json.loads(tools.status({"task": name}))
+        third = seen["documents"][2]
+        self.assertEqual((third["reason"], third["reason_code"]), ("Choose before writing", "choice_needed:account_set"))
+        self.assertNotIn("reason_code", seen["documents"][0])
+        del self.tasks.products.reason_text
+        self.assertEqual(json.loads(tools.status({"task": name}))["documents"][2]["reason"], "choice_needed:account_set")
 
     def test_attention_lists_tasks_that_need_you_counting_each_document_once(self):
         # 主会话 11-03：「待处理」里的代录一组只算「需要你处理」的任务；任务里没录成的单都已在产品自己的待处理里列着的不另算

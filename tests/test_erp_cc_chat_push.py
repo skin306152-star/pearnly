@@ -731,6 +731,65 @@ class LedgerGateTests(unittest.TestCase):
         self.assertEqual(call(tools.push_documents, documents=["P:PUR-3"])["results"][0]["status"], "needs_choice")
         self.assertEqual(CALLS, [])
 
+    ASKED = [{"kind": "account_set", "subject": "year:2025-01-01",
+              "options": [{"code": "BK8", "name": "T.8"}, {"code": "BK9", "name": "T.9"}]}]
+
+    def _company_patch(self):
+        companies = types.ModuleType("pearnly_erp_portal.masters.company")
+        companies.allowed_companies = lambda user: list(ALLOWED.get(user, []))
+        patcher = mock.patch.dict(sys.modules, {"pearnly_erp_portal.masters.company": companies})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _seen_by_the_model(self, document):
+        """列单、单据详情、待处理三个工具交给模型的这张单（测试机1 11-12 ERP 代录：模型照列单的原因码说「choice_needed:account_set」、
+        照网页那一问建议改投 TEST2）。"""
+        self._company_patch()
+        listed = next(row for row in call(tools.list_documents)["documents"] if row["name"] == document)
+        with mock.patch.object(frappe, "get_doc", lambda doctype, name: Row(STATE.db.table(doctype)[name]), create=True):
+            detail = call(tools.document_detail, document=document)
+        pending_rows = [row for row in call(tools.pending_items)["items"] if row["document"] == document]
+        return listed, detail, pending_rows
+
+    def _the_web_left_a_question(self, session):
+        """网页按单据日期准备时停在「同期两本选哪本」（没选出账套、没交进写账件）；此刻在 ``session`` 这段对话里、本对话账套是 T.8。"""
+        frappe.local.pearnly_assistant = {"session_id": session, "may_wait": False}
+        doc(PURCHASE, "PUR-3", reason="choice_needed:account_set", needed=self.ASKED, ledger_book=None)
+        self.pin = {"status": "set", "key": "BK8", "label": "T.8", "options": []}
+        listed, detail, pending_rows = self._seen_by_the_model("P:PUR-3")
+        # 那一问不再给模型看：不当作停下要人选、不带原因码、不列网页那一问的选项（写的时候按 T.8 重新准备）
+        self.assertNotIn("reason_code", listed)
+        self.assertNotIn("reason", listed)
+        self.assertEqual((detail["push_state"], detail["push_reason"]), ("", ""))
+        self.assertNotIn("choice_needed", json.dumps(detail))
+        self.assertEqual(pending_rows, [])
+        # 不在对话里（网页、侧栏待处理背后）：照旧是要人选的那一问，原因给的是话、不是码
+        frappe.local.pearnly_assistant = {"session_id": "", "may_wait": False}
+        self.pin = None
+        listed, detail, pending_rows = self._seen_by_the_model("P:PUR-3")
+        self.assertEqual((listed["reason"], listed["reason_code"]), ("express.reason.choiceNeeded", "choice_needed:account_set"))
+        self.assertEqual(detail["push_reason"], "express.reason.choiceNeeded")
+        self.assertEqual([row["reason"] for row in pending_rows], ["express.reason.choiceNeeded"])
+
+    def test_a_question_left_by_the_web_is_not_shown_to_the_model_in_a_direct_conversation(self):
+        self._the_web_left_a_question("sesn_1")
+
+    def test_a_question_left_by_the_web_is_not_shown_to_the_model_in_an_operator_conversation(self):
+        # 代录会话（op_<任务号>）：同一套工具，同一口径
+        self._the_web_left_a_question("op_task1")
+
+    def test_a_real_question_prepared_in_the_conversation_book_still_asks(self):
+        """在本对话账套里准备过、真要人选（如费用科目）的单（``ledger_book`` 就是本对话账套）：照实回 needs_choice、不重推；原因给话。
+        网页按另一本准备的那一问（``ledger_book`` 不是这本）才重新准备。"""
+        doc(PURCHASE, "PUR-4", reason="choice_needed:account", needed=NEEDED, ledger_book="BK8")
+        self.pin = {"status": "set", "key": "BK8", "label": "T.8", "options": []}
+        item = call(tools.push_documents, documents=["P:PUR-4"])["results"][0]
+        self.assertEqual((item["status"], item["reason"]), ("needs_choice", "express.reason.choiceNeeded"))
+        self.assertEqual(CALLS, [])
+        doc(PURCHASE, "PUR-4", reason="choice_needed:account", needed=NEEDED, ledger_book="BK9")
+        self.assertEqual(call(tools.push_documents, documents=["P:PUR-4"])["results"][0]["status"], "queued")
+        self.assertEqual(CALLS, [("send", PURCHASE, "PUR-4")])
+
     def test_the_tool_says_every_document_goes_into_the_conversation_account_set(self):
         push = next(t for t in tools.TOOLS if t["name"] == "erp_push_documents")
         self.assertIn("this conversation's account set, whatever its date", push["description"])
