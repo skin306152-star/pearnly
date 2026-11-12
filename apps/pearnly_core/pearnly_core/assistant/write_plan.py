@@ -39,8 +39,9 @@ SKIP_UNKNOWN = "last_write_result_unknown"  # 上次写入结果不明：先让�
 SKIP_UNDECIDED = "undecided_items"        # 还有没定的项（ask_user 问完、pearnly_precheck_answer 存下后再建计划）
 SKIP_WAITING = "waiting_for_computer"     # 等电脑读账套、没有电脑能写（会自己好的）
 # 产品照实给的不能写原因原样进 skipped，常见的：没有账套（这家没有能写这张单的账套，A 线 11-12 A9：不归等电脑，等不到）、
-# 本对话账套未定（问一次、设好再建计划）、不是本公司的账套
+# 本对话账套未定（问一次、设好再建计划）、不是本公司的账套、日期不在账套期间里
 SKIP_NO_BOOK = "no_account_set"
+SKIP_PERIOD_MISMATCH = "account_period_mismatch"  # 单据日期不在那本账套的会计期间里（Express 会拒；Cowork、ERP 同一个码）
 SKIP_LEDGER_NEEDED = "ledger_needed"
 SKIP_NOT_FOUND = "not_found"              # 不是本人能写的单 / 找不到
 
