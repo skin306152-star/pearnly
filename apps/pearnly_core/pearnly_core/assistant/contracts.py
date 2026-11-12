@@ -148,8 +148,8 @@ def title_language(*codes) -> str:
 
 
 # 用户这句话自己的语言（11-10 线上压测 S6：泰文界面、同一句中文提问，三段并发对话两段回泰文）：服务端按文字系统判，不靠模型猜。
-# 假名 → 日文；两个以上汉字 → 中文（中文句里夹泰文公司名仍是中文，10-19 那种）；泰文字母与拉丁字母比多少（泰文句里夹 Express
-# 这类词仍是泰文）；拉丁字母至少两个词才算英文。只有单号、数字、表情这类判不出，回空串，由调用方用界面语言。
+# 假名 → 日文；两个以上汉字 → 中文（中文句里夹泰文公司名仍是中文，10-19 那种）；两个以上泰文字母 → 泰文（泰文句里夹 Express、
+# 英文公司名仍是泰文）；只有拉丁字母、至少两个词才算英文。只有单号、数字、表情这类判不出，回空串，由调用方用界面语言。
 _KANA = re.compile(r"[\u3040-\u30ff]")
 _HAN = re.compile(r"[\u4e00-\u9fff]")
 _THAI = re.compile(r"[\u0e01-\u0e5b]")
@@ -163,14 +163,10 @@ def message_language(text) -> str:
         return "Japanese"
     if len(_HAN.findall(text)) >= 2:
         return "Chinese"
-    thai = len(_THAI.findall(text))
-    words = _LATIN_WORD.findall(text)
-    latin = sum(len(word) for word in words)
-    if thai >= 2 and thai >= latin:
+    # 有两个以上泰文字母就是泰文，不再与拉丁字母比多少（审计 E1，11-12：「ลง SINCERE ICE」泰文少于英文公司名，被判成英文）
+    if len(_THAI.findall(text)) >= 2:
         return "Thai"
-    if len(words) >= 2:
-        return "English"
-    return "Thai" if thai >= 2 else ""
+    return "English" if len(_LATIN_WORD.findall(text)) >= 2 else ""
 
 
 # 随每条用户消息带上的界面语言规则（只给模型读）。智能体说明（`definition.SYSTEM`）里也有同一条，这里再写一遍：
@@ -180,23 +176,27 @@ LANGUAGE_RULE = ("This is the language of the user's own words in this message (
                  "numbers from the data mixed into the message (company names, document numbers, account names) do not "
                  "change it. Use another language only when the user asks for it. "
                  "Tool results and their notes are internal English (each carries reply_language): retell them in this "
-                 "language, never copy their English sentences into what the user sees.")
+                 "language, never copy their English sentences into what the user sees. Write ask_user cards in it too: "
+                 "the question, header and option descriptions (names from the data keep their own spelling).")
 
 
-def reply_language(text, language) -> str:
+def reply_language(text, language, is_error=False) -> str:
     """交回模型的工具结果（JSON 对象）最前面带上界面语言 ``reply_language``（语言名同 `title_language`；英文不带）。10-19 lab：
     中文对话里连着几次工具之后，CC 在两次调用之间写了一句英文（「The defaults are saved. The push ran before …」）——每条用户消息
-    带的语言标记离得远了，工具结果与里面给模型的提示又都是英文。放在最前面：结果被截断时也还在。不是 JSON 对象的原样回。"""
+    带的语言标记离得远了，工具结果与里面给模型的提示又都是英文。放在最前面：结果被截断时也还在。
+    不是 JSON 对象的（工具被拒的英文原因等，审计 E3 11-12）也包成带标记的对象：出错的原文放 ``reason``（status failed），
+    其余放 ``result``。"""
     name = _tag_body(language, 40)
     if not name or name == TITLE_FALLBACK_LANGUAGE:
         return text
     try:
         data = json.loads(text)
     except (TypeError, ValueError):
-        return text
-    if not isinstance(data, dict) or "reply_language" in data:
-        return text
-    return json.dumps({"reply_language": name, **data}, ensure_ascii=False)
+        data = text
+    if isinstance(data, dict):
+        return text if "reply_language" in data else json.dumps({"reply_language": name, **data}, ensure_ascii=False)
+    body = {"status": "failed", "reason": data} if is_error else {"result": data}
+    return json.dumps({"reply_language": name, **body}, ensure_ascii=False)
 
 
 def language_note(language) -> str:
