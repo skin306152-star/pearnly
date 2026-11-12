@@ -175,14 +175,18 @@ NY 第 7 / 8 期），看起来 NY 段就是第 13–24 位；等实验窗口 a 
 
 ### A. 服务品销项税口径
 
-- **A① 已做、暂不合入**（本地分支 `pearnly/cc21-sales-srv` f69e2e24f，叠在 011c865c5 上；引导式窗口要求与「销项写 `'2'`」同一批进集成分支——
-  先上读回的话服务端就会出题、答了收付实现却写成 1）：客户档读回带 `srv`——这家在本账套 Express 人录赊销单（ARTRN，RECTYP 3、价格类型 1 / 2、没作废、不是 CC 写的）
-  上出现过的 `SRV_VATTYP` 1 / 2 并集，`"0"` = 没有历史；ARTRN 读不了就不带。心跳目录（`catalog_probe.probe_customers`）与按需主档读取
-  （`express_masters`）都带，同供应商的 `srv`。`service_vat.history` 改成按表通用（进项 APTRN 按供应商、销项 ARTRN 按客户），进项结果不变。
-- **A② 待定（没动代码）**：载荷表头 `srv_vattyp` 写进 `ARTRN.SRV_VATTYP`。`'1'` 与现在写的一样；`'2'`（收付实现）进货那侧原生是
-  「税借未到期进项税（ISINFO.ACCNUM28）、开单不写进项税记录」，销项的原生记法（税贷到哪个科目、开单写不写销项税记录）还没取证——
-  只改单头、分录照权责记会让账对不上。已让测试机1 的子代理只读统计 `SRV_VATTYP='2'` 的原生销项单（`srv2sales62.py`），证据回来再写；
-  键名已和引导式窗口定（11-12 晚）：沿用 `srv_vattyp` 同名键、不进 GUIDED_KEYS；销项单带 `'2'` 时服务端单独盖 21（`'1'` 与旧版写法相同、不盖）。
+- **A① 客户档读回带 `srv`**（与 A② 同一批，引导式窗口要求：先上读回服务端就会出题）：这家在本账套 Express 人录赊销单（ARTRN，RECTYP 3、
+  价格类型 1 / 2、没作废、不是 CC 写的）上出现过的 `SRV_VATTYP` 1 / 2 并集，`"0"` = 没有历史；ARTRN 读不了就不带。心跳目录
+  （`catalog_probe.probe_customers`）与按需主档读取（`express_masters`）都带，同供应商的 `srv`。`service_vat.history` 改成按表通用
+  （进项 APTRN 按供应商、销项 ARTRN 按客户），进项结果不变。测试 `test_service_vat_sales.py`。
+- **A② 载荷 `srv_vattyp` 写进销货单**：表头带 `srv_vattyp = 2`（或 `cash_basis`）且这张单有服务品（有非库存行，或没有明细）→ 照原生收付实现记：
+  单头 `SRV_VATTYP` 2、`VATDAT` 空，税那一行（SEQIT 6）贷「未到期销项税」`ISINFO.ACCNUM27`，开单不写销项税记录（读回与写后核对都按「不写」核）；
+  `ACCNUM27` 没设或不能记账 → 不写、转人工（`ACCOUNT_NOT_POSTABLE`，同进货口径 2，已有词条）。不带键、带 1、全是库存品 → 与以前写死的一样。
+  原生证据（11-12 晚，测试机1 S 盘副本 136 套 / 服务器副本 2 套，只读聚合，`srv2vat62.py`，结果 `results-1112/srv2vat-*.json`）：税额 > 0 的口径 2 销项单
+  税贷 ACCNUM27 4124 张、ACCNUM10 3 张；开单不写销项税记录 5095 / 46；VATDAT 空 5141 / 5141；口径 1 对照：贷 ACCNUM10 141803、写记录 139599 / 9345。
+  测试 `test_service_vat_sales_write.py` 4 条（旧代码下口径 2 那两条红）。没做：收款时把未到期销项税转成销项税（CC 收款写路对口径 2 的发票本来就不收，
+  `express_receivables.CASH_BASIS_VAT`，主会话 11-11）；现销 HS 带口径 2 照同一规则写（原生 HS 没见过 2，服务端不会出这题）。
+- 键名已和引导式窗口定（11-12 晚）：沿用 `srv_vattyp` 同名键、不进 GUIDED_KEYS；销项单带 `'2'` 时服务端单独盖 21（`'1'` 与旧版写法相同、不盖）。
 
 ### B. 代录 × 新物料（已做）
 
