@@ -33,8 +33,10 @@ def put(original_id, filename, content, **fields):
     from pearnly_core.desk import heic
     from pearnly_core.originals.rules import file_extension
 
-    if heic.is_heic(content):
-        content, filename = heic.to_jpeg(content), heic.jpeg_name(filename)
+    from pearnly_core.originals import local_file
+
+    if heic.is_heic(local_file.head(content, 16)):  # 磁盘上的一份先看文件头，是 iPhone 照片才整份读出来转（照片小）
+        content, filename = heic.to_jpeg(local_file.as_bytes(content)), heic.jpeg_name(filename)
     stored = store.put(original_id, file_extension(filename), filename, content)
     if stored is None or stored["status"] != "ok":
         return stored

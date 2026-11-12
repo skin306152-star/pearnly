@@ -245,7 +245,14 @@ class Adapter(base.Adapter):
         engine_file = self.upload(filename, content, mime)
         return self.mount(conversation, engine_file, engine_file, filename)
 
-    def upload(self, filename: str, content: bytes, mime: str) -> str:
+    def upload(self, filename: str, content, mime: str) -> str:
+        """``content``：bytes，或磁盘上的一份（`local_file.LocalFile`）——交打开的文件句柄，SDK 边读边发（httpx 每次发送前
+        把指针拨回开头，重试也是整份；交路径对象 SDK 会整份读进内存，所以交句柄，ADR-028 第 2 步）。"""
+        from pearnly_core.originals import local_file
+
+        if local_file.is_local(content):
+            with content.reader() as handle:
+                return self.api.files.upload(file=(filename, handle, mime)).id
         return self.api.files.upload(file=(filename, content, mime)).id
 
     def mount(self, conversation: str, engine_file: str, upload_id: str, filename: str) -> dict:

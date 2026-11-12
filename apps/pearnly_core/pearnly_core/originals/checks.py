@@ -41,13 +41,17 @@ def suffix_of(filename):
 
 
 def inspect(filename, content):
-    """返回 ``{filename, suffix, kind, page_count, byte_size, sha256}``；不合格抛 ``Rejected`` 或 ``OcrInputError``。"""
+    """返回 ``{filename, suffix, kind, page_count, byte_size, sha256}``；不合格抛 ``Rejected`` 或 ``OcrInputError``。
+    ``content`` 是 bytes 或磁盘上的一份（`local_file.LocalFile`，按路径打开、摘要按块算，不整份进内存）。"""
     import pymupdf
     from PIL import Image
 
+    from pearnly_core.originals import local_file
+
     filename = filename_of(filename)
     suffix = suffix_of(filename)
-    if not isinstance(content, bytes) or not content:
+    on_disk = local_file.is_local(content)
+    if not (on_disk or isinstance(content, bytes)) or not content:
         raise Rejected("empty")
     if len(content) > MAX_FILE_BYTES:
         raise Rejected("too_large")
@@ -56,7 +60,8 @@ def inspect(filename, content):
     if suffix == ".pdf":
         kind = "pdf"
         try:
-            with pymupdf.open(stream=content, filetype="pdf") as document:
+            opened = pymupdf.open(content.path, filetype="pdf") if on_disk else pymupdf.open(stream=content, filetype="pdf")
+            with opened as document:
                 if document.needs_pass:
                     raise Rejected("pdf_password")
                 count = len(document)
@@ -69,13 +74,13 @@ def inspect(filename, content):
     elif suffix in IMAGE_EXTENSIONS:
         kind = "image"
         try:
-            with Image.open(io.BytesIO(content)) as image:
+            with Image.open(content.path if on_disk else io.BytesIO(content)) as image:
                 image.verify()
         except (OSError, ValueError, Image.DecompressionBombError) as exc:
             raise Rejected("image_unreadable") from exc
     validate_input_metadata(filename, len(content), pdf_page_count=count if kind == "pdf" else None)
     return {"filename": filename, "suffix": suffix, "kind": kind, "page_count": count,
-            "byte_size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+            "byte_size": len(content), "sha256": local_file.digest(content) if on_disk else hashlib.sha256(content).hexdigest()}
 
 
 def preview_type(picture):

@@ -71,24 +71,32 @@ def _upload(row) -> dict:
     sent = (frappe.request.files or {}).get("file") if frappe.request else None
     if not sent:
         frappe.throw(_("No file was received."))
-    content = sent.stream.read(contracts.UPLOAD_MAX_BYTES + 1)
-    if len(content) > contracts.UPLOAD_MAX_BYTES:
+    # 文件不读成 bytes（ADR-028 第 2 步）：werkzeug 已把它按块落在临时文件里，量出大小、看文件头，按块拷进本站留存位置，
+    # 往下交引擎、交代录任务、读页数都按这份磁盘文件读
+    stream = sent.stream
+    stream.seek(0, os.SEEK_END)
+    size = stream.tell()
+    stream.seek(0)
+    if size > contracts.UPLOAD_MAX_BYTES:
         from pearnly_core.originals import upload_limits
 
         frappe.throw(upload_limits.too_large())
-    name = sessions._guard(contracts.upload_name, sent.filename, len(content))
+    name = sessions._guard(contracts.upload_name, sent.filename, size)
     mime = sent.mimetype or "application/octet-stream"
-    if heic.is_heic(content):
-        content, name, mime = heic.to_jpeg(content), heic.jpeg_name(name), "image/jpeg"
+    first = stream.read(16)
+    stream.seek(0)
+    content = stream
+    if heic.is_heic(first):  # iPhone 照片：整份读出来转 JPEG（照片小）
+        content, name, mime = heic.to_jpeg(stream.read()), heic.jpeg_name(name), "image/jpeg"
+    upload_id = _new_upload_id()
+    content = _keep(row, upload_id, name, content)
     steps.done("read")
     api = engine.adapter()
-    upload_id = _new_upload_id()
     sending = _Background(lambda: api.upload(name, content, mime))
     remote = sessions.segment_for_turn(row, api)
     steps.done("session")
     task = _operator_take(row, upload_id, name, content)
     steps.done("task")
-    _keep(row, upload_id, name, content)
     meta = _remember_meta(upload_id, name, content)
     steps.done("keep")
     try:
@@ -194,13 +202,24 @@ def _folder(session_name: str, origin: str = USER) -> str:
     return base if origin == USER else os.path.join(base, origin)
 
 
-def _keep(row, file_id, name, content, origin=USER) -> None:
+def _keep(row, file_id, name, content, origin=USER):
+    """本站留存一份，回留存那份（`local_file.LocalFile`，之后都按它读）。``content``：bytes、磁盘上的一份，或可读的文件对象
+    （请求里上传的那份），后两种按块拷。"""
+    from pearnly_core.originals import local_file
+
     folder = _folder(row.name, origin)
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, f"{file_id}--{os.path.basename(name)}")
-    with open(path + ".part", "wb") as handle:
-        handle.write(content)
+    if local_file.is_local(content):
+        content.copy_to(path + ".part")
+    else:
+        with open(path + ".part", "wb") as handle:
+            if isinstance(content, (bytes, bytearray)):
+                handle.write(content)
+            else:
+                shutil.copyfileobj(content, handle, local_file.CHUNK)
     os.replace(path + ".part", path)
+    return local_file.LocalFile(path)
 
 
 def forget(session_name: str) -> None:
@@ -261,7 +280,7 @@ def kept(row) -> list[dict]:
     return out
 
 
-def add_to_conversation(filename: str, content: bytes, mime: str, *, origin: str = "tool") -> str:
+def add_to_conversation(filename: str, content, mime: str, *, origin: str = "tool") -> str:
     """工具生成的文件（例如 Cowork 导出的复核工作簿）放进当前对话，返回智能体能读到的位置；它再放进结果目录给用户。
 
     同时在本站留一份（`origin`：tool = 工具生成，folder = 产品从已授权文件夹取来），之后的工具能像用户附件一样经
@@ -269,10 +288,12 @@ def add_to_conversation(filename: str, content: bytes, mime: str, *, origin: str
     if origin not in ORIGINS:
         raise ValueError("unknown origin")
     context = getattr(frappe.local, "pearnly_assistant", None) or {}
+    from pearnly_core.originals import local_file
+
     row = sessions.owned(context.get("session_id"))
     name = sessions._guard(contracts.upload_name, filename, len(content))
-    if heic.is_heic(content):
-        content, name, mime = heic.to_jpeg(content), heic.jpeg_name(name), "image/jpeg"
+    if heic.is_heic(local_file.head(content, 16)):  # 磁盘上的一份（文件夹取来的）先看文件头，是照片才整份读出来转
+        content, name, mime = heic.to_jpeg(local_file.as_bytes(content)), heic.jpeg_name(name), "image/jpeg"
     api = engine.adapter()
     stored = api.attach(sessions.current(row), name, content, mime)
     _keep(row, stored["file_id"], name, content, origin)
@@ -349,16 +370,22 @@ META_TTL = 7 * 24 * 3600
 META_MISSING_TTL = 3600
 
 
-def _pdf_pages(content: bytes) -> int | None:
+def _pdf_pages(content) -> int | None:
+    """bytes 或磁盘上的一份。磁盘那份交文件句柄（pypdf 按需读；交路径它会先整份读进内存，生产镜像实测 40MB +38MB）。"""
     try:
         import pypdf
 
+        from pearnly_core.originals import local_file
+
+        if local_file.is_local(content):
+            with content.reader() as handle:
+                return len(pypdf.PdfReader(handle).pages) or None
         return len(pypdf.PdfReader(io.BytesIO(content)).pages) or None
     except Exception:
         return None
 
 
-def _remember_meta(fid: str, name: str, content: bytes) -> dict:
+def _remember_meta(fid: str, name: str, content) -> dict:
     """附件的说明数据：{"size_bytes"}，PDF 另带 {"pages"}（读不出页数就不带）。记进缓存，列表时不再读原件。"""
     meta = {"size_bytes": len(content)}
     if str(name).lower().endswith(".pdf"):

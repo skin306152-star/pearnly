@@ -147,10 +147,11 @@ def listing(request) -> dict:
 
 
 def content(request) -> tuple:
-    """做完的一份文件（文件名, 内容），取走即删。文件名取自请求时给的路径（不信电脑交回的名字）。"""
+    """做完的一份文件（文件名, 内容），取走即删。文件名取自请求时给的路径（不信电脑交回的名字）。内容是磁盘上那份
+    （`local_file.LocalFile`，不读进内存，ADR-028 第 2 步）：取走即删要到提交时才真删，调用方在提交前用完它。"""
     rules._require()
     path = str((request_service.status(request).get("params") or {}).get("path") or "")
-    data, _meta = request_service.result(request)
+    data, _meta = request_service.result_file(request)
     request_service.drop(request)
     try:
         path = contracts.fetch_path(path)

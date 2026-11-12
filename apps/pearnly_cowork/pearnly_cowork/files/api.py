@@ -6,7 +6,7 @@ from frappe.core.api.file import zip_files as native_zip_files
 from pearnly_cowork.access import scope
 from pearnly_cowork.files import access, service
 from pearnly_core.execution.errors import Deferred
-from pearnly_core.originals import checks as originals
+from pearnly_core.originals import checks as originals, local_file
 
 
 @frappe.whitelist(methods=["POST"])
@@ -20,7 +20,10 @@ def upload(workspace=None, request_key=None, client=None):
     incoming = frappe.request.files.get("file") if frappe.request else None
     if not incoming:
         frappe.throw(_("Select a file to upload."))
-    content = incoming.stream.read(service.MAX_BYTES + 1)
+    # 按块落到磁盘，不读成 bytes（ADR-028 第 2 步）；超限照原来那句（原件检查的 too_large）
+    content = local_file.from_upload(incoming, service.MAX_BYTES)
+    if content is None:
+        service.reject("too_large")
     for attempt in range(3):
         try:
             return service.create(workspace, incoming.filename, content, request_key, client)
