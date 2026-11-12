@@ -10,14 +10,21 @@ import gc
 import hashlib
 import inspect
 import io
+import os
 import resource
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+# 导入 frappe.app 时 Frappe 要在 ../logs 建日志文件：不管候选车道从哪个目录起，都先站到一个自带 logs 的临时目录里
+_HOME = Path(tempfile.mkdtemp())
+(_HOME / "logs").mkdir()
+(_HOME / "sites").mkdir()
+os.chdir(_HOME / "sites")
 
 import frappe  # noqa: E402
 import frappe.app  # noqa: E402
