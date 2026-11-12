@@ -10,7 +10,7 @@
 //                         行尾一个提醒点（同对话行的提醒圆点，不新造标记）；点了在这家这个月开新对话（不在后台建、不开模型轮），
 //                         对话末尾就是「需要处理」框（pending.tsx 的 PendingInChat）。侧栏还没有这家的组、归不上公司的（「未归属
 //                         公司」）放在列表最上面（SidebarError 那一块）
-//   ComposerChin        — 输入框下巴（thread.tsx 的 Chin 插槽，设计文档 3.12）：公司、月份、分店三个幽灵按钮。新对话里「公司 ▾」选这段
+//   ComposerChin        — 输入框下巴（thread.tsx 的 Chin 插槽，设计文档 3.12）：公司、月份、分店三个幽灵按钮（新对话另有账套）。新对话里「公司 ▾」选这段
 //                         对话挂哪家（用户 11-07：点了弹选择公司窗口，company-picker.tsx；有公司分组的产品一直显示）；已有对话里点公司名打开右侧
 //                         会话栏的公司卡（同顶栏，lib/company-panel 的 openCompanyCard），月份、分店改了就 move。已有对话不能换公司
 //                         （用户 10-17：「移到」已删，没挂公司的已有对话下巴里也不再有「公司 ▾」）
@@ -27,7 +27,8 @@ import { type FC, type HTMLAttributes, memo, type ReactNode, useCallback, useEff
 import { openCompanyPicker } from "@/components/company-picker";
 import { CompanyMenuItems, saveCompanyName, useRenameAfterMenu } from "@/components/company-menu";
 import { InlineRename } from "@/components/assistant-ui/thread-list";
-import { BranchChip, BranchChoices, PeriodChip, PeriodChoices } from "@/components/period-chip";
+import { BranchChip, BranchChoices, LedgerChip, PeriodChip, PeriodChoices } from "@/components/period-chip";
+import { chooseDraftLedger, useDraftLedgerOf } from "@/lib/conversation-ledger";
 import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/components/assistant-ui/sidebar-group";
 import type { DragHandle } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
@@ -390,7 +391,7 @@ export const WelcomeFiling: FC = () => {
 };
 
 /** 新的空白对话（还没建会话）：「公司 ▾」点了弹选择公司窗口（company-picker.tsx：连接里读到的全部账套公司，选了就在这段对话里
- *  用它，没建过的顺手建），选了公司后接月份与分店。有公司分组的产品（Cowork、ERP）一直显示：一家都没有时弹窗里给「连接」。
+ *  用它，没建过的顺手建），选了公司后接月份、分店与账套（本对话账套，period-chip 的 LedgerChip）。有公司分组的产品（Cowork、ERP）一直显示：一家都没有时弹窗里给「连接」。
  *  月份、分店的菜单默认向上开（下巴），手机问候下面那一行向下开。 */
 const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {
   const withPeriod = useProjects((s) => s.period);
@@ -398,6 +399,8 @@ const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {
   const draft = useProjects((s) => s.draft);
   const title = useCompanyTitle(draft.project);
   const branches = useBranches(withScope ? draft.project : "");
+  // 本对话账套（测试机1 11-12）：第一句之前就能选；服务端的默认预选，建会话时一起交上（session-list-adapter 的 initialize）
+  const ledger = useDraftLedgerOf(draft);
   const pick = (project: string, label: string) => {
     if (project && label) {
       titles.set(project, label);
@@ -426,6 +429,7 @@ const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {
       {draft.project && withScope && (
         <BranchChip look="cc-chin-btn" side={side} branches={branches} value={draft.scope} onChange={(scope) => setDraft({ ...draft, scope })} />
       )}
+      {draft.project && <LedgerChip look="cc-chin-btn" side={side} entry={ledger} onChoose={(id) => chooseDraftLedger(draft, id)} />}
     </>
   );
 };
