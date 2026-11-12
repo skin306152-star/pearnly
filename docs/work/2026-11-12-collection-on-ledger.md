@@ -80,7 +80,10 @@ origin/main 702580300
 ## 5. 科目余额 CALSTA 标记
 
 CC 桌面版窗口的本地提交 4e88e559f（`pearnly/cc-desktop-payload-3a2e3d`，未推）已把 `glbal_mark.mark` 接进全部写 GLJNLIT 的路径，**含收款 `dbf_receipt.py`**。
-本支不动 `dbf_receipt.py`（本支 companion 只改 `payment_methods.py`），无冲突；收款不需要另接。集成后真机核一张 RE 写完后 GLBAL 对应格被标待重算（真机清单第 5 项）。
+本支不动 `dbf_receipt.py`、`BACKUP_TABLES`、`worker._write_tables`（本支 companion 只改 `payment_methods.py`），无冲突；收款不需要另接。
+对照载荷窗口的用法说明（共享笔记「收款写路-GLBAL标记与占用探测-用法-11-12.md」）：收款写路的 `glbal_mark.mark`、GLBAL 进写前备份、占用探测按
+`dbf_receipt.BACKUP_TABLES` 都已在那支里接好；它推到远端后对一遍：`dbf_receipt._write_all` 有 `written` 列表与 `glbal_mark.mark(account_dir, written)`、
+`BACKUP_TABLES` 含 GLBAL、`_write_tables("receipt")` 回 `BACKUP_TABLES`，本支变基后这三处不变即可。集成后真机核一张 RE 写完后 GLBAL 对应格被标待重算（真机清单第 5 项）。
 
 ## 6. 测试
 
