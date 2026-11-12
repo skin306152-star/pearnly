@@ -687,7 +687,16 @@ def list_documents(tool_input) -> str:
     stops = {}
     targets = {row.get("name"): _stop_target(row, stops) for row in rows if row.get("name") in stopped}
     names = {}
+    pin = None
+    if _in_conversation():
+        from pearnly_cowork.assistant import write_scope
+
+        pin = write_scope.pinned()
     for row in rows:
+        if pin and asked_for_another_book(row, pin):
+            # 推往另一本时问的那一问：这段对话里照还没推的单给（推的时候按本对话账套重新判）
+            row["last_push_status"] = row["last_push_reason"] = None
+            continue
         row["last_push_reason"] = _reason(row.get("last_push_reason"))
     rows = [_account_named(_with_stop_target({key: value for key, value in row.items() if key not in STOP_FIELDS},
                                              targets.get(row.get("name"))),
@@ -2306,11 +2315,29 @@ def _primary(pages) -> int:
     return next((i for i, p in enumerate(pages) if p is page), 0)
 
 
+def asked_for_another_book(row, pin=None) -> bool:
+    """票上记着的「要人选」（``choice_needed:…``，推送时记在推往的那条连接与账套上）是推往另一本时问的，而此刻在 CC 对话里、本对话
+    账套已定（``pin``，没给就取这段对话的）：那一问对这段对话不算数——推的时候按本对话账套重新判（`_submit_one`），详情、列单也
+    不拿它给模型看（测试机1 11-12，同 ERP `express.cc_tools.prepared_elsewhere`）。推往本对话账套时问的照实给。"""
+    reason = str(_field(row, "last_push_reason") or "")
+    if not reason.startswith(CHOICE_PREFIX) or str(_field(row, "last_push_status") or "") in ("pending", "success"):
+        return False
+    if pin is None and not _in_conversation():
+        return False
+    from pearnly_cowork.assistant import write_scope
+
+    pin = pin if pin is not None else write_scope.pinned()
+    return bool(pin and pin.get("key")) and not write_scope.is_pin(pin, _field(row, "push_connection"),
+                                                                   _field(row, "push_account_set"))
+
+
 def _detail(doc) -> dict:
     pages = doc.get("pages") or []
     fields = (pages[_primary(pages)].get("fields") or {}) if pages else {}
+    elsewhere = asked_for_another_book(doc)  # 推往另一本时问的：这段对话里不算停下（同列单）
     out = {"document": doc.get("name"), "version": doc.get("record_version"), "filename": doc.get("filename"),
-           "push_status": doc.get("last_push_status"), "push_reason": _reason(doc.get("last_push_reason")),
+           "push_status": None if elsewhere else doc.get("last_push_status"),
+           "push_reason": None if elsewhere else _reason(doc.get("last_push_reason")),
            "push_connection": doc.get("push_connection"), "push_account_set": doc.get("push_account_set"),
            "duplicate_warning": doc.get("duplicate_warning"), "pages": len(pages), **_push_target(doc)}
     out = _account_named(_with_stop_target(out, _stop_target(doc)), doc.get("push_connection"), "push_account_set")
