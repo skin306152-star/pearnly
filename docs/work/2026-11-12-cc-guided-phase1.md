@@ -165,3 +165,13 @@ A 类 14 条在哪一批落地：
    `write_plan.py:45`、`C/assistant/write_scope.py:22-30`、`C/assistant/tools.py:4385-4423,4622,4646,1411`、`C/companies/context.py:65,143`；行号以 integration-1113 为准再核）；
    账套题（`pearnly_conversation_ledger` 现在先用 `ask_user` 问）改由引导卡的 `account_set` 题（做不做类，不预选）承担——要和 A 线接手窗口（local_90f7baa4）经主会话对一次。
    假智能体流程断言：录单流程 `ask_user` 调用数 = 0、卡全部来自 `pearnly_guide`、同一归类键整段对话只问一次。
+
+## 检查结果（11-12 晚，dda9e9161 / 4992f949c）
+
+- 本地全闸门（4992f949c）：239 项过；`test_flows_run` 撞回归实验栈锁（发布窗口全套流程占着），环境原因，CI 上已过。
+- Development checks：4992f949c、dda9e9161 success（CC 桌面版代码没改，Companion checks 未触发）。
+- 候选离线（生产镜像 b3adf474，`cand-local.sh offline`，测 dda9e9161）：111 组，LANE EXIT 0。
+- 流程测试（实验栈）：本批没有新增或改动入口文件，未跑；第 3、6 批接入口后跑 `cc.guide.*`。
+- 真模型、测试机、手机：未做（第 ⑥ 批后由主会话排）。
+
+保留项：`~/pearnly-devtools/cand-run-guided-phase1-fe347a`（候选离线解出的目录，每次重建；本任务收尾时删）。
