@@ -306,5 +306,80 @@ class CurrentBookTests(_Ledger):
         self.assertEqual((self.remembered, self.pushed), ([], [T8]))
 
 
+UNC = "\\\\accserver\\d$\\account\\69exp\\test"
+MAPPED = "p:\\69exp\\test"
+BID = "f0d9eb730fc68b32b827ebf17cd4422e3e4fc13b"
+ONE_BOOK = [{"connection": "EXP1", "key": UNC, "label": "TEST", "period": "2026", "identity": BID,
+             "places": [("EXP1", UNC), ("EXP2", MAPPED)]}]
+
+
+class CrossComputerTests(_Ledger):
+    """账套身份跨电脑（A 线 11-12）：测试机1 以 UNC、测试机2 以映射盘 P: 报同一本 69EXP\\TEST，两台各配一条连接
+    （EXP1、EXP2）；公司那边已合成一本（``places`` 两处）。写入闸认得两处写法，推送写进这位用户自己能写的那一处。"""
+
+    def setUp(self):
+        super().setUp()
+        patcher = mock.patch.dict(base.SETS, {"CO-T": [dict(item) for item in ONE_BOOK]})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.ledger = {"status": "set", "id": BID, "label": "TEST",
+                       "options": [{"id": BID, "label": "TEST", "covers": True}]}
+        self.serving = ("EXP2", MAPPED)  # 这位用户此刻能写的只有测试机2 那一处
+        patcher = mock.patch.object(write_scope, "_serving", lambda places, user: self.serving)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_either_spelling_of_the_one_book_passes_the_gate(self):
+        for connection, key in (("EXP1", UNC), ("EXP2", MAPPED), ("EXP2", MAPPED.upper())):
+            self.assertIsNone(write_scope.check(connection, key), (connection, key))
+        refused = write_scope.check("EXP1", T9)
+        self.assertEqual(refused["reason"], write_scope.NOT_THIS_COMPANY)
+
+    def test_a_push_without_a_target_goes_to_the_place_this_users_computer_can_write(self):
+        out = self._pushed()
+        self.assertNotIn(out.get("reason"), (write_scope.NOT_THIS_LEDGER, write_scope.NOT_THIS_COMPANY))
+        self.assertEqual(self.submitted[0][1], "EXP2")
+        self.assertEqual(self.submitted[0][5], MAPPED)
+        self.serving = ("EXP1", UNC)  # 换成测试机1 在线
+        self.submitted.clear()
+        self._pushed()
+        self.assertEqual((self.submitted[0][1], self.submitted[0][5]), ("EXP1", UNC))
+
+    def test_an_old_id_stored_before_still_names_the_book(self):
+        self.ledger = {**self.ledger, "id": "EXP2|" + MAPPED}
+        pin = write_scope.pinned()
+        self.assertEqual((pin["status"], pin["identity"]), ("set", BID))
+        self.assertEqual(sorted(pin["places"]), [("EXP1", UNC), ("EXP2", MAPPED)])
+
+
+class ServingTests(unittest.TestCase):
+    """挑执行的那一处（谁的活谁的电脑做）：只看这位用户自己的电脑；能写且在线的在前；都不在线取第一处能写的（排队等它）；
+    一处都没有这位用户的电脑回第一处（照今天，推送那边照旧说没有能写的电脑）。绝不挑只有别人电脑的那一处。"""
+
+    def _pick(self, presence, writers):
+        pool = types.SimpleNamespace(
+            presence=lambda connection: presence.get(connection, {}),
+            owned=lambda peers, actor, device="": {k: v for k, v in peers.items() if actor in v.get("users", ())},
+            writers=lambda doc, key, peers=None: [d for d in sorted(peers or {}) if d in writers.get(doc.name, ())])
+        with mock.patch.object(write_scope, "_pool", lambda: pool), \
+                mock.patch.object(write_scope.frappe, "get_doc", lambda doctype, name: types.SimpleNamespace(name=name),
+                                  create=True):
+            return write_scope._serving([("EXP1", UNC), ("EXP2", MAPPED)], "me@x")
+
+    def test_the_online_computer_of_this_user_wins(self):
+        presence = {"EXP1": {"PC1": {"users": {"me@x"}, "online": False}},
+                    "EXP2": {"PC2": {"users": {"me@x"}, "online": True}}}
+        self.assertEqual(self._pick(presence, {"EXP1": {"PC1"}, "EXP2": {"PC2"}}), ("EXP2", MAPPED))
+
+    def test_a_colleagues_online_computer_is_never_picked(self):
+        presence = {"EXP1": {"PC1": {"users": {"me@x"}, "online": False}},
+                    "EXP2": {"PC2": {"users": {"other@x"}, "online": True}}}
+        self.assertEqual(self._pick(presence, {"EXP1": {"PC1"}, "EXP2": {"PC2"}}), ("EXP1", UNC))
+
+    def test_with_no_computer_of_this_user_the_first_place_is_kept(self):
+        presence = {"EXP2": {"PC2": {"users": {"other@x"}, "online": True}}}
+        self.assertEqual(self._pick(presence, {"EXP2": {"PC2"}}), ("EXP1", UNC))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -8,7 +8,8 @@
 MR.ERP 的账套键（``comidyear:seldb``）同样在 `work_sets` 里，同一判定覆盖。
 
 本对话账套（A 线 11-12，R2-5：右栏 T.8，CC 却按票据日期另判、自己填了 T.9 一类的账套）：对话 / 代录任务定了账套
-（共用层 `pearnly_core.assistant.ledger`，Cowork 编号 ``"<连接>|<账套键>"``）时只允许那一对，别的同公司账套回
+（共用层 `pearnly_core.assistant.ledger`，Cowork 编号与电脑无关、同一本可能在几条连接上各有一处，A 线 11-12 账套身份跨电脑）时
+只允许那一本的各处写法，别的同公司账套回
 ``not_this_conversation_book``，拒绝回包只列本对话账套；账套未定回 ``ledger_needed``（带可选的几本，问一次、用
 ``pearnly_conversation_ledger`` 设）。代录按任务会话的账套（``task``）。:func:`aim`：写入点不收模型另填的账套，没填就写本对话账套；
 票上原本是别家公司的去向不改投（照拒 ``not_this_company_book``）。定时任务保存（``whole_company``）仍按公司判。
@@ -77,13 +78,66 @@ def pinned(company=None, task="") -> dict | None:
         found = ledger.of_session(session) if session else None
     if not found:
         return None
-    connection, key = provider.ledger_parts(found["id"]) if found["status"] == ledger.SET else ("", "")
-    return {**found, "connection": connection, "key": key, "status": found["status"] if key else ledger.NEEDED}
+    book = _book_of(company, found["id"]) if found["status"] == ledger.SET else None
+    if not book:
+        return {**found, "connection": "", "key": "", "identity": "", "places": [], "status": ledger.NEEDED}
+    places = _places(book)
+    return {**found, "connection": places[0][0], "key": places[0][1], "identity": _identity(book), "places": places,
+            "status": found["status"]}
+
+
+def _places(item) -> list:
+    """一本账套在各条连接上的（连接，账套键）：同一本经几台电脑（各配一条连接）报上来时有几处（账套身份跨电脑，A 线 11-12）。"""
+    found = [(str(c or ""), str(k or "")) for c, k in item.get("places") or () if k]
+    return found or [(str(item.get("connection") or ""), str(item.get("key") or ""))]
+
+
+def _identity(item) -> str:
+    from pearnly_cowork.companies import provider
+
+    return str(item.get("identity") or provider.ledger_id(item.get("connection"), item.get("key")))
+
+
+def _book_of(company, ledger_id):
+    """本对话公司（代录给了 ``company``）里编号是 ``ledger_id`` 的那本：新编号，或 11-12 以前存下的「连接|键」（读时映射）。"""
+    from pearnly_cowork.companies import provider
+
+    found = allowed(company)
+    connection, key = provider.ledger_parts(ledger_id)
+    for item in (found or {}).get("sets") or ():
+        if _identity(item) == ledger_id or (key and (connection, key_of(key)) in _keyed(item)):
+            return item
+    return None
+
+
+def _keyed(item) -> set:
+    return {(connection, key_of(key)) for connection, key in _places(item)}
 
 
 def _is_pin(pin, connection, account_set_key) -> bool:
-    return bool(pin and pin.get("key")) and (str(connection or ""), key_of(account_set_key)) == (
-        pin["connection"], key_of(pin["key"]))
+    return bool(pin and pin.get("key")) and (str(connection or ""), key_of(account_set_key)) in {
+        (c, key_of(k)) for c, k in pin.get("places") or [(pin["connection"], pin["key"])]}
+
+
+def _pool():
+    from pearnly_cowork.connections import pool
+
+    return pool
+
+
+def _serving(places, user) -> tuple:
+    """同一本账套有几处（几台电脑各配一条连接）时写进哪一处（谁的活谁的电脑做，用户 10-16）：只看这位用户自己登录 CC 的电脑
+    （`connections.pool.owned`），能写这本且此刻在线的那一处在前；都不在线取第一处它能写的（单子排在那条连接上等它）；
+    哪一处都没有它的电脑回第一处（推送那边照旧回没有能写的电脑）。别人的电脑在线也不挑。只读。"""
+    pool, first = _pool(), None
+    for connection, key in places:
+        mine = pool.owned(pool.presence(connection), user)
+        writers = pool.writers(frappe.get_doc("Cowork ERP Connection", connection), key, peers=mine) if mine else []
+        if any((mine.get(device) or {}).get("online") for device in writers):
+            return connection, key
+        if writers and first is None:
+            first = (connection, key)
+    return first or tuple(places[0])
 
 
 is_pin = _is_pin  # 这条连接与账套是不是本对话账套（:func:`pinned` 的结果）
@@ -103,7 +157,7 @@ def allowed(company=None) -> dict | None:
 
 
 def _pairs(sets) -> set:
-    return {(str(item.get("connection") or ""), key_of(item.get("key"))) for item in sets or ()}
+    return {pair for item in sets or () for pair in _keyed(item)}
 
 
 def check(connection, account_set_key, *, company=None, day="", task="", whole_company=False) -> dict | None:
@@ -149,14 +203,26 @@ def aim(connection, account_set_key, doc_connection="", doc_account_set="", *, c
             return refused
     elif doc_account_set and (str(doc_connection or ""), key_of(doc_account_set)) not in found["pairs"]:
         return refusal(found, NOT_THIS_COMPANY, day, pin)
-    return {"connection": pin["connection"], "key": pin["key"], "label": pin.get("label") or pin["key"]}
+    connection, key = place(pin)
+    return {"connection": connection, "key": key, "label": pin.get("label") or pin["key"]}
+
+
+def place(pin, connection=None) -> tuple:
+    """本对话账套写在哪一处 (连接, 账套键)：给了 ``connection`` 且这本在那条连接上有一处就用那处的写法；只有一处就是它；
+    几处（几台电脑各配一条连接）按这位用户自己能写、在线的那台挑（:func:`_serving`）。"""
+    places = pin.get("places") or [(pin["connection"], pin["key"])]
+    if connection is not None:
+        here = next((item for item in places if item[0] == str(connection or "")), None)
+        if here:
+            return here
+    return _serving(places, frappe.session.user) if len(places) > 1 else tuple(places[0])
 
 
 def label_of(connection, account_set_key) -> str:
     """本对话公司这份账套的名称（给计划回包的 ``retargeted``）；不是这家的、认不出回账套键。"""
     found = allowed()
     for item in (found or {}).get("sets") or ():
-        if (str(item.get("connection") or ""), key_of(item.get("key"))) == (str(connection or ""), key_of(account_set_key)):
+        if (str(connection or ""), key_of(account_set_key)) in _keyed(item):
             return str(item.get("label") or account_set_key)
     return str(account_set_key or "")
 
@@ -165,8 +231,10 @@ def needed(found, pin) -> dict:
     from pearnly_cowork.companies import provider
 
     shown = []
+    books = {_identity(book): book for book in found.get("sets") or ()}
     for item in (pin.get("options") or ())[:SHOWN_MAX]:
-        connection, key = provider.ledger_parts(item["id"])
+        book = books.get(item["id"])
+        connection, key = _places(book)[0] if book else provider.ledger_parts(item["id"])
         shown.append({"id": item["id"], "connection": connection, "key": key, "label": item.get("label"),
                       "covers": bool(item.get("covers"))})
     return {"reason": LEDGER_NEEDED, "note": NOTES[LEDGER_NEEDED], "company": found["company"],
@@ -210,10 +278,13 @@ def this_company_options(connection, day="") -> list | None:
     if found is None or not found["company"]:
         return None
     pin = pinned()
+    here = str(connection or "")
     if pin and pin.get("key"):
-        return [{"key": pin["key"], "label": pin.get("label") or pin["key"]}]
-    sets = [item for item in found["sets"] if str(item.get("connection") or "") == str(connection or "")]
-    return [{"key": item.get("key"), "label": item.get("label") or item.get("key")} for item in covering(sets, day)]
+        key = next((k for c, k in pin.get("places") or () if c == here), pin["key"])  # 这条连接上的那处写法
+        return [{"key": key, "label": pin.get("label") or pin["key"]}]
+    sets = [item for item in found["sets"] if any(c == here for c, _k in _places(item))]
+    return [{"key": next(k for c, k in _places(item) if c == here), "label": item.get("label") or item.get("key")}
+            for item in covering(sets, day)]
 
 
 def keep(options, connection_of=None, company=None, task="") -> list | None:
@@ -231,4 +302,4 @@ def keep(options, connection_of=None, company=None, task="") -> list | None:
 
 
 __all__ = ["LEDGER_NEEDED", "NOT_THIS_COMPANY", "NOT_THIS_LEDGER", "NO_COMPANY", "aim", "allowed", "check", "covering",
-           "is_pin", "keep", "key_of", "label_of", "needed", "pinned", "refusal", "this_company_options"]
+           "is_pin", "keep", "key_of", "label_of", "needed", "pinned", "place", "refusal", "this_company_options"]
