@@ -147,7 +147,7 @@ class TaskTests(unittest.TestCase):
 
         sessions.create = create_session
 
-        def open_operator(task, scope=""):
+        def open_operator(task, scope="", ledger_id=""):
             # 统一对话框架：建任务即建会话（op_<任务号>，同 sessions.open_operator）
             sid = f"op_{task['name']}"
             self.state["sessions"].append(_Row(name=f"s{sid}", session_id=sid, user=task["owner"], operator_task=task["name"],

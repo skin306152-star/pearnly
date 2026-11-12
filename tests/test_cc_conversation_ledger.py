@@ -148,6 +148,106 @@ class LedgerTests(unittest.TestCase):
         _summary, doc = base.ProjectTests._create(self)
         self.assertEqual(doc.project_ledger, "")
 
+    # ── 新建页（测试机1 11-12：还没建会话时选不了账套，只能等 CC 问）─────────────────────────────────────────
+    def test_the_new_page_reads_the_default_and_the_options_without_writing(self):
+        writes = len(self.db.writes)
+        out = self.sessions.ledger_options("co_abc1", "2026-09", "00012")
+        self.assertEqual(out["default"], T8)
+        self.assertEqual([(item["id"], item["label"], item["covers"]) for item in out["options"]],
+                         [(T8, "T.8", True), (T9, "T.9", True), (T7, "T.7", False)])
+        self.assertEqual(self.provider.calls[-1], ("co_abc1", "2026-09", "00012", self.OWNER))
+        self.assertEqual(self.sessions.ledger_options("co_abc1", "2026-10", "")["default"], "")  # 同期两本：未定
+        self.assertEqual(len(self.db.writes), writes)
+        # 本人不能用的公司：同建对话的落点判据（projects.placement），拒绝
+        with self.assertRaises(frappe.PermissionError):
+            self.sessions.ledger_options("co_gone9", "2026-09", "")
+        with self.assertRaises(frappe.PermissionError):
+            self.sessions.ledger_options("", "2026-09", "")
+        # 产品没有本对话账套（DMS）、provider 出错：空，不挡新建
+        self.provider.broken = True
+        self.assertEqual(self.sessions.ledger_options("co_abc1", "2026-09", ""), {"default": "", "options": []})
+        self.provider.broken = False
+        sys.modules["fake_company_provider"] = base._Provider()
+        self.assertEqual(self.sessions.ledger_options("co_abc1", "2026-09", ""), {"default": "", "options": []})
+        api_source = (base.CORE / "assistant/api.py").read_text(encoding="utf-8")
+        self.assertIn('@frappe.whitelist(methods=["GET"])\ndef ledger_options(project, period=None, scope=None):', api_source)
+
+    def test_a_new_conversation_keeps_the_ledger_picked_on_the_new_page(self):
+        # 同期两本、没记住（按函数是未定）：新建页选了 T.9 → 存 T.9，第一句之前账套就定了
+        summary, doc = base.ProjectTests._create(self, project="co_abc1", period="2026-10", ledger=T9)
+        self.assertEqual((doc.project_ledger, summary["ledger"]), (T9, T9))
+        # 能定默认（T.8）时选了另一本：照选的
+        _summary, doc = base.ProjectTests._create(self, project="co_abc1", period="2026-09", scope="00012", ledger=T9)
+        self.assertEqual(doc.project_ledger, T9)
+        # 不在这家这个月可选的里：同 move 口径按请求错误拒绝，不开远端会话、不建
+        for wrong in ("EXP1|gone", T9):
+            opened = []
+            api = types.SimpleNamespace(open=lambda handle, metadata: opened.append(1) or ("sesn_new001", "idle"))
+            period = "2024-05" if wrong == T9 else "2026-10"  # 2024 年只有 T.7
+            with mock.patch.object(self.sessions.engine, "adapter", return_value=api), \
+                    mock.patch.object(self.sessions.engine, "prepared", lambda api: {}), \
+                    self.assertRaises(frappe.ValidationError):
+                self.sessions.create(project="co_abc1", period=period, ledger=wrong)
+            self.assertEqual(opened, [])
+        # 没给：照函数算
+        _summary, doc = base.ProjectTests._create(self, project="co_abc1", period="2026-09", scope="00012")
+        self.assertEqual(doc.project_ledger, T8)
+
+    def _operator(self):
+        made = []
+        tasks = types.ModuleType("pearnly_core.express_operator.tasks")
+        tasks.create = lambda company, period, title, scope="", ledger="": made.append(
+            (company, period, scope, ledger)) or {"name": "task0001", "session_id": "op_task0001"}
+        products = types.ModuleType("pearnly_core.express_operator.products")
+        products.enabled = lambda: True
+        products.allowed = lambda user, company: company == "co_abc1"
+        package = types.ModuleType("pearnly_core.express_operator")
+        package.tasks, package.products = tasks, products
+        patcher = mock.patch.dict(sys.modules, {"pearnly_core.express_operator": package,
+                                                "pearnly_core.express_operator.tasks": tasks,
+                                                "pearnly_core.express_operator.products": products})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.db.rows.append(_Row({"name": "r8", "session_id": "op_task0001", "user": self.OWNER,
+                                  "engine_code": base.CLAUDE, "archived": 0, "starred": 0, "title": "op",
+                                  "project": "co_abc1", "period": "2026-10", "operator_task": "task0001",
+                                  "remote_ids": "[]", "project_ledger": T9,
+                                  "modified": datetime.datetime(2026, 10, 15, 9, 0),
+                                  "creation": datetime.datetime(2026, 10, 15, 9, 0)}))
+        return made
+
+    def test_a_new_operator_conversation_keeps_the_ledger_picked_on_the_new_page(self):
+        made = self._operator()
+        self.sessions.create(project="co_abc1", period="2026-10", mode="operator", ledger=T9)
+        self.assertEqual(made, [("co_abc1", "2026-10", "", T9)])
+        # 不在可选里：拒绝，不建任务
+        with self.assertRaises(frappe.ValidationError):
+            self.sessions.create(project="co_abc1", period="2024-05", mode="operator", ledger=T9)
+        self.assertEqual(len(made), 1)
+        # 没给：任务会话照函数算（open_operator 里），这里不带
+        self.sessions.create(project="co_abc1", period="2026-09", mode="operator")
+        self.assertEqual(made[-1], ("co_abc1", "2026-09", "", ""))
+
+    def test_the_operator_session_stores_the_ledger_it_was_given(self):
+        inserted = []
+
+        class Doc(_Row):
+            def insert(self, ignore_permissions=False):
+                inserted.append(self)
+                return self
+
+        task = _Row({"name": "task0042", "owner": self.OWNER, "company": "co_abc1", "period": "2026-10", "title": ""})
+        with mock.patch.object(self.sessions.frappe, "get_doc", lambda data: Doc(data), create=True), \
+                mock.patch.object(self.sessions.frappe.db, "exists", lambda *a, **k: False, create=True):
+            self.sessions.open_operator(task, scope="", ledger_id=T9)
+            self.sessions.open_operator(_Row({**task, "name": "task0043"}), scope="")
+        self.assertEqual([(doc.session_id, doc.project_ledger) for doc in inserted],
+                         [("op_task0042", T9), ("op_task0043", "")])  # 没给：照函数（同期两本，未定）
+        source = (base.CORE / "express_operator/tasks.py").read_text(encoding="utf-8")
+        self.assertIn('def create(company, period, company_title: str = "", scope: str = "", ledger: str = "") -> dict:',
+                      source)
+        self.assertIn("sessions.open_operator(doc, scope=scope, ledger_id=ledger)", source)
+
     def test_moving_the_month_keeps_the_chosen_ledger_while_offered_else_recomputes(self):
         self.row["project_ledger"] = T9  # 用户选过 T.9
         with mock.patch.object(self.sessions, "owned", lambda sid, allow_archived=False: self.row):
