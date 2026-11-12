@@ -71,3 +71,35 @@ LINE 收单（后台容器，不占网页内存）后做，见文末保留项。
 
 - LINE 收单（ERP `integrations.intake._fetch`、Cowork `line.intake._admit`）：在后台容器里下载成 bytes（11-11 已减一份，40MB 约 +41MB），
   不占网页内存，主会话定后做。做法：下载按块写临时文件，交 `registered.put` / `files.service.create` 的 `LocalFile`。
+
+## 变基到 702580300 后重新验证（11-12 晚，接手窗口 c-line-2）
+
+与 main 第 14 车（cc-composer-send：选文件时拒收超限 / 空 / 不支持类型、上传失败不写 Error Log、页面变量 `pearnly_upload_extensions`）功能相邻，逐处核对：
+- `assistant/files._upload` 合完仍是服务端自己的两道：`size > contracts.UPLOAD_MAX_BYTES` 回「文件超过 40 MB」、`sessions._guard(contracts.upload_name, …)` 拒空文件与不收的类型，
+  都在留存与开远端会话之前；页面那份上限 / 类型清单仍从同一处来（`originals.rules.UPLOAD_MAX_BYTES`、`contracts.UPLOAD_EXTENSIONS`），本支没碰。
+- 「上传失败不写 Error Log」是页面 `SiteError` 那一侧；服务端拒收走 `frappe.throw`，本支的落盘路径没有新的 `log_error`。
+- **跨两边的新测试**（流程 `cowork.upload.server-refuses`、`cc.upload.server-refuses`，`scripts/flows/upload_server_refuses.py`）：绕过页面直接按 multipart 打接口——
+  CC 附件 41MB+ 请求体 413；比 40MB 大 256KB（请求体没超 Frappe 上限）服务端回「文件超过 40 MB」（417）；空文件、.bmp 服务端拒收；
+  Cowork 录入 41MB+ 413、.bmp 在落到临时文件之后由原件检查拒收；之后这段对话留存目录为空、`remote_ids` 为空（没开远端会话）、
+  本流程开始后的 `pearnly-upload-*` 临时文件隔 15 秒两次都看不到；Cowork 没建出原件记录。两条在实验栈都过。
+  顺带看到：空文件 / 不收类型服务端回的是英文原句（`file is empty`、`unsupported file type`，`ContractError` 没翻译），main 上就如此，不在本支改。
+- 本地闸门 231 步过；候选离线 111 组 LANE EXIT 0（生产镜像 b3adf474）；Development checks 绿（bf86e4b4e）。
+- 实验栈（第 1 步新镜像 1cf98bf7 + 本支源码）：`--changed --base origin/main` 7 条 18/18（含上面两条新流程），`pearnly/flows` 回写到 bf86e4b4e；
+  补充 12 条（交接里的 10 条 + composer 的 `cowork.cc.send-unblocked`、`cc.send-unblocked`）35/35。
+- **内存复测**（同款 40 页 39MB 合成 PDF，CC 附件接口，新入口网页进程匿名内存峰值增量）：1 份 **+3MB**；15 份同时 **+51MB（每份约 3.4MB）**，15/15 成功——
+  与变基前 +0 / +49MB 同一量级。原始输出 `~/pearnly-devtools/c-line2-mem/rebased-new-1.txt`、`rebased-new-15.txt`。
+  （假引擎容器默认 128MB，收 40MB 文件会被 OOM 杀，量内存时照前一窗口用 `agents-mem.yml` 放宽到 3GB；它是测量用的假引擎，不是被测对象。）
+- **浏览器逐产品点**（内置浏览器，实验栈，1.3MB 文件、超过 werkzeug 500KB 落盘阈值）：
+
+  | 入口 | 结果 |
+  |---|---|
+  | ERP Desk 原生附件 `upload_file` | 通过：200，读回 1331866 字节一致 |
+  | ERP 采购 / 销售识别原件、入库单附件（`frappe.pearnly.erp_upload_original`） | 通过：三处都回 File 记录 |
+  | ERP CC：选 41MB 文件 / .bmp | 通过：当场拒收，「文件超过 40 MB」「不支持此文件类型」，没有附件卡 |
+  | ERP CC：选 1.3MB 文件上传、发出、下载回来 | 通过：逐字节一致，假引擎回附件已收 |
+  | Cowork 录入（`frappe.pearnly.upload_original`） | 通过：大小、页数、sha256 一致 |
+  | Cowork CC：空文件；一次选 41MB + 1.3MB | 通过：「文件为空」；超限的不进、正常的加入并发出，下载回来一致 |
+  | 控制面 `upload_file` | 通过：200，读回 sha256 一致（实验栈控制面没走完安装向导、Desk 进不去，用会话 + CSRF 直接按 multipart 打同一接口） |
+  | fatcc.com | 没测到：实验栈没有这个站点，放进部署后核对 |
+
+  这一轮各站新增 Error Log 只有实验栈固有的实时推送超时（`kind: push`）和 ERP 实验账号没有公司的 boot 项报错，与上传无关。
