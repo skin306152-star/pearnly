@@ -45,9 +45,11 @@ Express 拦的不绕过；先服务端后 CC 桌面版，同一次发布。对�
 | B5 `unit_guessed` 没人读 | CC 侧已做：引导模式不再猜（`UNIT_CHOICE`）；非引导回执键不变。服务端读出并记录**没做**（归引导式窗口） | — |
 | B2 代录销售单不填「อ้างอิง」 | **没做**：约定要求先在测试机确认这一格在 IV / HS 表单上的位置、长度、能否保存，确认前不改配方 | 测试机清单第三部分 |
 | G-B3（五个码白重试）、G-B4 | 没做：主会话定并入第 1 期（引导式窗口） | — |
+| **G-A15 销售单的销售员**（主会话 11-12 追加，另一个提交） | 已做，所有入口：写 IV / HS 时读客户档 `ARMAS.SLMCOD` 写进单头 `ARTRN.SLMCOD`；客户档没有、没有这一栏、客户是这张单新建的 → 留空。不问、不显示、不加载荷键 | `account_rules.party_salesman`；`dbf_sales._write_all` |
 
 行为变化（对所有入口，不看版本）：① 新建库存品「允许负库存」留空、三个换算系数写 1；② 账套不许负库存（或行上 `negallow = N`）时，
-「卖随单新建的物料」的销货从「写成负数」变成整单不写、回 `STOCK_INSUFFICIENT`。其余全部只在版本 21 的载荷上生效。
+「卖随单新建的物料」的销货从「写成负数」变成整单不写、回 `STOCK_INSUFFICIENT`；③ 客户档有销售员的销售单单头带上销售员（G-A15）。
+其余全部只在版本 21 的载荷上生效。B2 已由主会话改列为 G-B2′（票面号没进账，先在测试机试手填单号再定做法），仍不在本批。
 
 ## 新增文案（14 条，`python3 scripts/check-copy.py --report`：新增 14、改动 0、拦截 0）
 
@@ -90,6 +92,7 @@ Express 拦的不绕过；先服务端后 CC 桌面版，同一次发布。对�
 | 新建库存品 `NEGALLOW` 留空 | 本机 SINCTEST 副本（主档是原生的）：库存品 41 件，34 件空、7 件 Y、没有 N；账套 `ISINFO.NEGALLOW = Y`、`CHKNEGLEV = 0` | `~/pearnly-devtools/cc-payload-21-replay/probe.py` 的输出 |
 | 四个单位同码时系数是 1 | 同上：四个单位同码的 29 件里 28 件三个系数都是 1（另 1 件计数系数 0） | 同上 |
 | 物料分类在代码表 `ISTAB TABTYP = 22` | 同上：在用的 6 个分类 6 / 6 都在 22 段 | 同上；`guided.ITEM_GROUP_TABTYP` |
+| 销售单单头带销售员、取自客户档 | 测试机只读统计（S 盘副本 1033 套）：赊销单 90%、现销单 93.5% 带销售员，客户档 59% 带 | 覆盖表第 9.2 节（`pearnly/cc-guided-entry-51673b` 11301ffec） |
 | Express 拦负库存是拒绝不是警告（4224 / 4091） | 服务器测试账套 `70EXP\test` 实录（10-25） | `stock_guard.py` 文件头 |
 
 **没有原生证据的（单列，没有硬写）**
@@ -99,13 +102,17 @@ Express 拦的不绕过；先服务端后 CC 桌面版，同一次发布。对�
   查清代码表后可放宽（测试机清单第二部分第 4 项）。
 - 四个单位同码时系数为 1、`NEGALLOW` 默认空：只有 1 套；62 套分布与新建物料界面默认值在测试机清单里补。
 - Express 界面上新建物料时这三个系数的默认值：没实测（测试机清单）。
+- 销售员只写了单头 `ARTRN.SLMCOD`。库存卡 `STCRD` 也有 `SLMCOD` 一栏、销售统计 `STSTA` 也有：原生销售单的明细行带不带销售员、
+  按销售员的报表读哪张表，手上没有证据（覆盖表第 9 节只统计了单头；本机一套的单据是我们写的、全空），所以没写这两处。
+  测试机清单第二部分第 6 项补统计，结果出来再定要不要补明细行。
 
 ## 验证
 
 | 版本 | 环境 | 场景 / 命令 | 结果 |
 |---|---|---|---|
-| 工作树（本提交） | 本机 macOS，Python 3.11，dbf 0.99.11 | `companion`：`python -m pytest -q -p no:cacheprovider tests` | 1641 通过、74 跳过、9 失败。9 条失败是本机没装 PySide6（`test_write_dispatch` 8 条、`test_mrerp_login` 1 条），基线同样失败，要等 Windows 的 Companion checks |
+| 工作树（本提交） | 本机 macOS，Python 3.11，dbf 0.99.11 | `companion`：`python -m pytest -q -p no:cacheprovider tests` | 1645 通过、74 跳过、9 失败。9 条失败是本机没装 PySide6（`test_write_dispatch` 8 条、`test_mrerp_login` 1 条），基线同样失败，要等 Windows 的 Companion checks |
 | 同上 | 同上 | 新测试 `companion/tests/test_guided_payload.py` 47 条；改写 `test_stock_guard.py`（+5）、`test_stock_item_defaults.py`（3） | 新代码全过；**旧代码（c63458f5f）上**：`test_guided_payload.py` 整个文件导入失败（没有 `guided`），另 6 条逐条失败 |
+| 同上 | 同上 | G-A15：`companion/tests/test_sales_salesman.py` 4 条 | 新代码全过；实现前 3 条失败（另 1 条是「没有这一栏照旧」） |
 | 同上 | 本机 Python 3.12 | `python3 -m unittest tests.test_companion_contract tests.test_express_operator_shared` | 112 通过（新加 `GuidedPayload` 7 条 = 约定 8.5 的六条 + 回执键过服务端净化） |
 | 旧 c63458f5f 对 新工作树 | 本机，三本账套副本 | 离线回放（下节） | 不带新键、不新建物料的 111 张：每一步每个文件逐字节相同 |
 
@@ -127,6 +134,10 @@ Express 拦的不绕过；先服务端后 CC 桌面版，同一次发布。对�
 |---|---|---|---|
 | A：不带新键、不新建库存品 | RR / HP / IV / HS：只有表头、服务行、按码的库存行、带仓、带来源换算率、混行、新供应商、新客户、单位解析不出、包装单位、没有单位、卖超结存、卖成负、版本 20 带杂散新键、六轮进销 | 37 张 × 3 本 = 111 | 三本都是：结果逐张相同，**每一步每个文件逐字节相同**，最后逐字段零差异。写成 37 / 37 / 28 张（synth-forbid 有 9 张新旧同样回 `STOCK_INSUFFICIENT`） |
 | B：不带新键、随单新建库存品 | 进货新建、单位猜的、销货新建、新旧同单、卖刚买的、买刚卖的、之后一张普通进货 | 7 张 × 3 本 = 21 | SINCTEST、synth-allow：结果逐张相同；差异只有 `STMAS.NEGALLOW` 4 处（Y → 空，就是新建的 4 件）。synth-forbid：两张「卖新物料」的单旧代码写成负数、新代码回 `STOCK_INSUFFICIENT`（G-B6 的预期变化），其余差异都是这两张单没写带出来的 |
+
+G-A15（销售员）另加一本账套 **SINCTEST-slm**：同一本真账套副本，只把客户 S001 的客户档销售员填成 `SL01`。序列 A 37 张都写成、
+结果逐张相同，逐字段差异只有 `ARTRN.SLMCOD` 19 处（写成的 20 张销售单里 19 张是这位客户的，另 1 张是当场新建的客户、留空）；
+序列 B 差异是 `ARTRN.SLMCOD` 3 处加新建物料的 `STMAS.NEGALLOW` 4 处。客户档没有销售员的另外三本，加了这项之后重跑，结果与上表完全相同。
 
 B1（系数）在回放里没有差异——三本账套的模板物料系数本来就是 1；它由 `test_a_new_stock_item_does_not_copy_the_pack_factors_of_the_template` 守。
 
