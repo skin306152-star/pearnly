@@ -1353,7 +1353,9 @@ class LinkStates(PushModule):
                 mock.patch.object(self.push.jobs, "enqueue", lambda **kw: made.append(kw) or {"job": "J1"}):
             self.push.send("Purchase Document", "PUR-1")
             self.assertEqual((row["ledger_state"], row["ledger_reason"]), ("held", E.NO_BOOK))
-            self.assertIn(E.NO_BOOK, E.RETRY_REASONS)
+            # A 线 11-12 A9：「没有账套」不算等电脑（判定、计划如实报），每分钟那一轮仍再看（电脑报了账套就接着写）
+            self.assertIn(E.NO_BOOK, E.POLL_REASONS)
+            self.assertNotIn(E.NO_BOOK, E.RETRY_REASONS)
             self.push.poll()
         self.assertEqual((len(made), row["ledger_job"]), (1, "J1"))
 
@@ -2273,8 +2275,9 @@ class OperatorPrecheck(PushModule):
                                      {"P:PI-1": [{"kind": "item", "subject": "x|bulb", "value": "ZZ"}]})
 
     def test_a_document_waiting_for_the_computer_goes_back_to_the_task_as_waiting(self):
-        """线上 11-10（Cowork 代录同一类）：交单时电脑还没报这家的账套 / 主档还在读，写账准备停在「过一会儿自己会好」的原因
-        （`RETRY_REASONS`）。交回共用层的是 waiting_for_cc（任务排着等电脑），不是「未完成」；别的停下照旧。"""
+        """线上 11-10（Cowork 代录同一类）：交单时主档还在读 / 没有电脑能写，写账准备停在「过一会儿自己会好」的原因
+        （`RETRY_REASONS`）。交回共用层的是 waiting_for_cc（任务排着等电脑），不是「未完成」；别的停下照旧。「没有账套」不是等电脑
+        （A 线 11-12 A9：如实报，不永远等）。"""
         from unittest import mock
 
         held = iter([{"status": "held", "reason": E.READING}, {"status": "held", "reason": E.NO_BOOK},
@@ -2286,7 +2289,7 @@ class OperatorPrecheck(PushModule):
                 mock.patch.object(self.push, "send", lambda doctype, name, operator=None: next(held)):
             out = self.operator.submit("CO-1", ["P:PI-1", "P:PI-2", "P:PI-3"], {"id": "b1", "total": 3}, "", {})
         self.assertEqual([(row["status"], row["reason"]) for row in out],
-                         [("waiting_for_cc", E.READING), ("waiting_for_cc", E.NO_BOOK), ("held", E.WAREHOUSE_UNMAPPED)])
+                         [("waiting_for_cc", E.READING), ("held", E.NO_BOOK), ("held", E.WAREHOUSE_UNMAPPED)])
 
     def test_a_question_shared_by_several_documents_is_remembered_once_and_all_are_sent(self):
         """10-30 实机：三张同问「这家公司这一年用哪套账」，前端每张都带同一个答案；记下第一张后后面两张不再问，原来整批报
@@ -3401,7 +3404,7 @@ class PosDaySummaries(Base):
             if chosen:
                 remembered[("CO-1", "exempt_mode", "company")] = chosen
             with mock.patch.object(push, "_company", lambda name: types.SimpleNamespace(name=name), create=True), \
-                    mock.patch.object(target, "pick", lambda row, day: {"book": {"key": "BK"}}), \
+                    mock.patch.object(target, "pick", lambda row, day, wanted=None: {"book": {"key": "BK"}}), \
                     mock.patch.object(facts, "load", lambda key: {"facts": {} if initem is None else {"vat_initem": initem}}), \
                     mock.patch.object(choices, "chosen", lambda company, kind, subject: remembered.get((company, kind, subject), "")):
                 self.assertEqual(self.pos_day._exempt_mode("CO-1", "2026-10-24") or None, want, (initem, chosen))
