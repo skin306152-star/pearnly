@@ -6,7 +6,8 @@
 
 - 产品在 provider（hooks `pearnly_assistant_projects`，同 `projects`）可选声明 ``LEDGER = True`` 与
   ``ledgers(ref, period, scope, user) -> {"options": [{"id", "label", "covers"}], "default": "<id 或空>"}``：这家（该分店）可选的
-  账套，覆盖本月的在前（``covers``）；恰好能定一本才有默认。没声明的产品（DMS）、没挂公司的对话这里一律回 None。
+  账套，覆盖本月的在前（``covers``）；恰好能定一本才有默认。没声明的产品（DMS）、没挂公司的对话、``ledgers`` 回 None 的公司
+  （这家不用本对话账套，例如 ERP 不接 Express 的公司）这里一律回 None。
   provider 出错记日志、当作没有：不挡发话。
 - :func:`current`（只读版 :func:`resolved`，读接口用）：存的仍在可选里就用存的（用户选过的不被冲掉）；否则按默认补算，``store`` 时存下（不改最后活动时间），
   没有默认就是未定（``needed``）。老对话发话时（`projects.note`）补算一次。
@@ -58,10 +59,12 @@ def options_of(project, period, scope, user, found=None) -> dict | None:
     if not project or not declared(found):
         return None
     try:
-        raw = found.ledgers(project, period or "", scope or "", user) or {}
+        raw = found.ledgers(project, period or "", scope or "", user)
     except Exception:
         frappe.log_error(title="Assistant ledger options failed")
         return None
+    if raw is None:
+        return None  # 这家不用本对话账套（ERP 不接 Express 的公司：MR.ERP 账本、纯 ERP 公司），同产品没声明
     options, seen = [], set()
     for item in raw.get("options") or ():
         ledger = _ledger_id((item or {}).get("id"))

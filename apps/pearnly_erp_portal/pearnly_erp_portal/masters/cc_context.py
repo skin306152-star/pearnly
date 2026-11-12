@@ -43,7 +43,8 @@ def _set_line(item: Mapping[str, Any], covering: set, ledger: str) -> str:
 def company_note(data: Mapping[str, Any]) -> str:
     """`data`：`{id, title, short_name, tax_id, branch, vat, express, ledger, account_sets, covering, synced_on, sync_failed,
     period, notes}`。`account_sets` 已按新年度在前排好；`covering` 是覆盖这个月的账套键；`ledger` 是主档同步读的那份账套键；
-    `synced_on` 是最近一次同步落库的日子（YYYY-MM-DD，没有为空）。"""
+    `synced_on` 是最近一次同步落库的日子（YYYY-MM-DD，没有为空）；`conversation_ledger`：对话有本对话账套（共用层在说明后接它
+    那一段，A 线 11-12）：账套只列出、不标「覆盖这个月」。"""
     period = str(data.get("period") or "")
     about = []
     if data.get("short_name") and data.get("short_name") != data.get("title"):
@@ -70,9 +71,11 @@ def company_note(data: Mapping[str, Any]) -> str:
     sets = list(data.get("account_sets") or [])
     if data.get("express"):
         lines.append("Books: kept in Express; ERP purchase and sales documents are written into its account set.")
-        covering = set(data.get("covering") or ())
+        pinned = bool(data.get("conversation_ledger"))
+        covering = set() if pinned else set(data.get("covering") or ())
         if sets:
-            lines.append("Express account sets (newest first):")
+            lines.append("Express account sets (newest first; writes go only into this conversation's account set, "
+                         "named below):" if pinned else "Express account sets (newest first):")
             lines += [_set_line(item, covering, str(data.get("ledger") or "")) for item in sets[:SETS_MAX]]
             if len(sets) > SETS_MAX:
                 lines.append(f"{len(sets) - SETS_MAX} older account sets: call erp_company_profile.")
