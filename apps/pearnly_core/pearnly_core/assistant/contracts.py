@@ -39,7 +39,19 @@ LIST_CURSOR = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d{1,6})?)\
 
 
 class ContractError(ValueError):
-    pass
+    """契约不通过。``key``：给用户看的那几句（上传拒收）的四语词条键，``values`` 是它的 ``{0}`` 参数；没有键的只有接口调用方碰得到，
+    照原句回。翻成哪种语言由调用方定（`refusal_text`，本模块不依赖框架）。"""
+
+    def __init__(self, message, key=None, values=()):
+        super().__init__(message)
+        self.key, self.values = key, tuple(values)
+
+
+def refusal_text(error: ContractError, translate) -> str:
+    """回给调用方的那句：有词条键的按请求语言翻（``translate`` = frappe 的 ``_``），没有的照原句。"""
+    if getattr(error, "key", None):
+        return translate(error.key).format(*error.values)
+    return str(error)
 
 
 def session_id(value) -> str:
@@ -1177,11 +1189,11 @@ def upload_name(filename, size) -> str:
     stem, dot, ext = name.rpartition(".")
     ext = ("." + ext.lower()) if dot else ""
     if ext not in UPLOAD_EXTENSIONS:
-        raise ContractError("unsupported file type")
+        raise ContractError("unsupported file type", key="upload.typeUnsupported")
     if not isinstance(size, int) or size <= 0:
-        raise ContractError("file is empty")
+        raise ContractError("file is empty", key="upload.fileEmpty")
     if size > UPLOAD_MAX_BYTES:
-        raise ContractError("file too large")
+        raise ContractError("file too large", key="upload.tooLarge", values=(UPLOAD_MAX_BYTES // (1024 * 1024),))
     safe = re.sub(r'[\s\\/:*?"<>|\x00-\x1f\x7f]+', "_", stem).strip("._") or "upload"
     return safe[:120] + ext
 

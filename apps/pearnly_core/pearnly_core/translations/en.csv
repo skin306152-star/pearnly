@@ -330,7 +330,9 @@ Failure Reason,Failure Reason
 Failures,Failures
 File,File
 File Key,File Key
+File is empty,File is empty
 File is larger than {0} MB,File is larger than {0} MB
+File type not supported,File type not supported
 Filed Note Digest,Filed Note Digest
 Filed Under,Filed Under
 Filed the conversation under a company,Filed the conversation under a company
@@ -1442,7 +1444,9 @@ shell.wait.elapsed,{0} seconds so far
 shell.wait.pages,Recognized {0}/{1} pages · {2}%
 state is invalid or has expired,state is invalid or has expired
 upload.deferred,Unable to upload right now. Please try again later.
+upload.fileEmpty,File is empty
 upload.tooLarge,File is larger than {0} MB
+upload.typeUnsupported,File type not supported
 username / password are required,username / password are required
 {0} is entered in {1},{0} is entered in {1}
 {0} is entered in {1}: {2},{0} is entered in {1}: {2}

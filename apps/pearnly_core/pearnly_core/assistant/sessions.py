@@ -67,7 +67,8 @@ def _guard(fn, *args, **kwargs):
     try:
         return fn(*args, **kwargs)
     except contracts.ContractError as err:
-        frappe.throw(str(err))
+        # 上传拒收（不收的类型、空文件、太大）按请求语言回词条；CC 桌面版文件夹、直接调接口也看得到这句
+        frappe.throw(contracts.refusal_text(err, _))
 
 
 def _user() -> str:

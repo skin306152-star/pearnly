@@ -331,7 +331,9 @@ Failure reason,สาเหตุที่ล้มเหลว
 Failures,จำนวนที่ไม่สำเร็จ
 File,ไฟล์
 File Key,คีย์ไฟล์
+File is empty,ไฟล์ว่างเปล่า
 File is larger than {0} MB,ไฟล์มีขนาดเกิน {0} MB
+File type not supported,ไม่รองรับไฟล์ประเภทนี้
 Filed Note Digest,สรุปที่จัดเก็บ
 Filed Under,จัดเก็บไว้ที่
 Filed the conversation under a company,ผูกบทสนทนากับบริษัทแล้ว
@@ -1444,7 +1446,9 @@ shell.wait.elapsed,ผ่านไป {0} วินาที
 shell.wait.pages,อ่านแล้ว {0}/{1} หน้า · {2}%
 state is invalid or has expired,state ไม่ถูกต้องหรือหมดอายุ
 upload.deferred,ยังอัปโหลดไม่ได้ในขณะนี้ กรุณาลองใหม่ภายหลัง
+upload.fileEmpty,ไฟล์ว่างเปล่า
 upload.tooLarge,ไฟล์มีขนาดเกิน {0} MB
+upload.typeUnsupported,ไม่รองรับไฟล์ประเภทนี้
 username / password are required,ต้องระบุ username / password
 {0} is entered in {1},{0} บันทึกลง {1} แล้ว
 {0} is entered in {1}: {2},{0} บันทึกลง {1} แล้ว: {2}
