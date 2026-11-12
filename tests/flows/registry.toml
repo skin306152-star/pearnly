@@ -1728,6 +1728,7 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/public/desk/intake.js",
   "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-choices.js",
   "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js",
+  "apps/pearnly_cowork/pearnly_cowork/history/api.py",
 ]
 
 [[flow]]
