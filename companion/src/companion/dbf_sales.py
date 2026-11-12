@@ -501,6 +501,7 @@ def _write_all(
             duedat = S.be_yymmdd_to_greg(entry.due_date_be)
             payterm = (duedat - docdat).days
     name = entry.customer_name
+    salesman = account_rules.party_salesman(account_dir, entry.customer_code)
     # 凭证表头与销项税记录的分店号 = 这家客户档的分店号(税表分店一栏;真账一致 99%+)。
     orgnum = master_create.party_orgnum(account_dir, "ARMAS", "CUSCOD", entry.customer_code)
     flgvat, amount, aftdisc, total_, netval, netamt = amount_fields(
@@ -544,6 +545,8 @@ def _write_all(
                 "USERID": userid,
                 **audit_fields(docdat, depcod, has_vat, orgnum, duedat),
                 **({"PAYTRM": payterm} if "PAYTRM" in ar.field_names else {}),
+                # 销售员照 Express 取客户档上的（G-A15，11-12）；客户档没有就不写这一栏（同以前）
+                **({"SLMCOD": salesman} if salesman and "SLMCOD" in {f.upper() for f in ar.field_names} else {}),
                 **nxtseq_override,
             }
         )

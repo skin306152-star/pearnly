@@ -234,6 +234,31 @@ def control_account(account_dir, table: str, code: str, fallback: str) -> str:
     return acc if acc and acc != fallback and postable_account(account_dir, acc) else fallback
 
 
+def party_salesman(account_dir, code: str) -> str:
+    """客户档上的销售员（``ARMAS.SLMCOD``）；没有这一栏、没填、查不到客户都是空。
+
+    销售单的销售员照 Express 自己的做法取客户档上的（覆盖表 G-A15，11-12：原生赊销单 90%、现销单 93.5% 带销售员、客户档 59% 带，
+    S 盘副本 1033 套只读统计；以前直写完全不写）。不问、不显示、不加载荷键。"""
+    code = str(code or "").strip()
+    if not code:
+        return ""
+    try:
+        t = _open(account_dir, "ARMAS")
+    except Exception:  # noqa: BLE001
+        return ""
+    if t is None:
+        return ""
+    try:
+        if "SLMCOD" not in {name.upper() for name in t.field_names}:
+            return ""
+        for r in S.live_rows(t):
+            if str(_gv(r, _PARTY["ARMAS"])) == code:
+                return str(_gv(r, "SLMCOD"))
+    finally:
+        t.close()
+    return ""
+
+
 def due_date(docdat: _dt.date, days: int) -> _dt.date:
     return docdat + _dt.timedelta(days=int(days or 0)) if docdat else docdat
 
