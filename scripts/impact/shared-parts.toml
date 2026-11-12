@@ -17,6 +17,15 @@ search = ["apps/**/*.js", "apps/**/*.html"]
 entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.stock-count.switch.posted-to-active", "erp.stock-count.switch.active-to-posted", "erp.purchase.detail.not-permitted", "erp.sales.detail.not-permitted", "cowork.stocktake.switch"]
 
 [[part]]
+id = "web-entry"
+name = "网页进程入口与收 multipart（pearnly_core.web，ADR-028：三个产品与控制面所有请求都经过）"
+paths = ["apps/pearnly_core/pearnly_core/web/**"]
+markers = ["pearnly_core.web.wsgi", "pearnly_core.web import", "pearnly_core.web.multipart"]
+search = ["apps/**/*.py", "infrastructure/**/*.yml", "infrastructure/**/*.py"]
+entries = ["shared.login", "cc.assistant", "cowork.intake.upload", "cowork.recon.upload", "erp.purchase.original-upload", "erp.sales.original-upload", "erp.stock-in.attach", "erp.products.image-upload", "control.assistant"]
+not_entries = { "infrastructure/production/compose.yml" = "运行定义：五个网页服务的 gunicorn 应用（PEARNLY_WSGI_APP），入口见本共用件 entries", "infrastructure/compose/regression-lab.yml" = "回归实验室的网页进程（代替 bench serve），流程全套经它跑", "infrastructure/compose/01-bench.yml" = "本机开发编排的网页进程", "infrastructure/compose/erp-entry-preview.yml" = "临时预览编排的网页进程", "infrastructure/compose/erp-purchase-preview.yml" = "临时预览编排的网页进程", "infrastructure/compose/stocktake-preview.yml" = "临时预览编排的网页进程" }
+
+[[part]]
 id = "page-errors"
 name = "页面报错回传（Desk 页面与 LINE 单页、CC 对话页）"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/errors.js", "apps/pearnly_core/pearnly_core/desk/client_errors.py"]
