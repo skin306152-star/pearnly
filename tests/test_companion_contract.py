@@ -1474,5 +1474,24 @@ class ReceiptContract(unittest.TestCase):
         imported = {alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) for alias in node.names}
         self.assertFalse({"account_lock", "account_write_lock", "dbf_writer", "dbf_receipt"} & imported)
 
+    def test_receipt_types_carry_the_account_class_both_sides_read_the_same(self):
+        """11-12 按类放宽「只列收钱类」（docs/work/2026-11-12-collection-transfer-rule-stats.md）：CC 主档读回的每种收款类型另带
+        ``account_class``（按账套自己的科目表结构判），服务端按它判转账；值两端同一组。只加不改：判不出结构 CC 不报这一栏，
+        服务端没有这一栏照旧按名称判（老版 CC）。"""
+        names = ("ACCOUNT_BANK", "ACCOUNT_CASH_GROUP", "ACCOUNT_CASH", "ACCOUNT_OTHER", "ACCOUNT_CLASSES")
+        helper = number_constants(COMPANION / "payment_methods.py", names)
+        server = number_constants(ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/collection/contracts.py", names)
+        self.assertEqual(helper, server)
+        self.assertEqual(tuple(server["ACCOUNT_CLASSES"]), ("bank", "cash_group", "cash", "other"))
+        types = method_source_of(COMPANION / "payment_methods.py", "types")
+        self.assertTrue(quoted(types, "account_class"))
+        self.assertIn("if classes is not None", types)  # 判不出结构不报这一栏
+        for key in ("code", "prefix", "name", "name_en", "bank", "account", "account_issue"):
+            self.assertTrue(quoted(types, key), key)  # 原有各栏不动
+        rule = method_source_of(ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/collection/contracts.py", "_transfer")
+        self.assertTrue(quoted(rule, "account_class"))
+        self.assertIn("if klass in ACCOUNT_CLASSES", rule)  # 没报或认不出的值退回名称规则
+
+
 if __name__ == "__main__":
     unittest.main()

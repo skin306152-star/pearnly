@@ -8,6 +8,8 @@
   ``BKMAS.BNKACC`` 时取那家银行的 ``ACCNUM``（TB→B1→1112-01、KB→K1→1112-03，这两种自己的科目栏是空的），否则取本行 ``ACCNUM01``。
   两处都没有 → ``missing``；两处都有又不同、或同一前缀几行科目不同 → ``conflict``（写入按前缀认类型，DOCCOD 在真账套里会重复：NLTTEST
   ``22`` 有 SA 与 ``22`` 两种、``01`` QR 重复两行内容相同，内容相同不算冲突）。
+- 科目类别（:func:`account_classes`，11-12 按类放宽「只列收钱类」：服务端以科目是不是银行存款为准、名称只作辅助）：只按这本账套
+  自己的科目表结构判，不看泰文名称。统计见 ``docs/work/2026-11-12-collection-transfer-rule-stats.md``（101 本离线测试账套）。
 - 方式行编号（:func:`line_number`）：前缀 + 单号，截到 12 字（``CHQNUM`` C(12)，例 ``TBRE2403013.``）。
 - 摘要（:func:`journal_text`）：单据簿行 ``JNLEXP`` 是 xBase 表达式，例 ``'รับชำระหนี้   ' + (ARMAS->PRENAM - '\xa0' - ARMAS->CUSNAM)``。
   只认字符串常量、``+`` / ``-``、括号与 ``表->字段`` / 字段名；``-`` 照 xBase 把左边的尾部空格挪到结果末尾。认不出 → 用这份默认表达式。
@@ -25,6 +27,12 @@ from . import dbf_schema as S
 
 RECEIPT_TYPES = "ZR"   # 收款方式（ISRUN.DOCTYP）
 PAYMENT_TYPES = "ZP"   # 付款方式（付款单 PS 用，本批不写）
+# 科目类别（服务端 ``collection.contracts.ACCOUNT_CLASSES`` 同值，契约测试守住）
+ACCOUNT_BANK = "bank"
+ACCOUNT_CASH_GROUP = "cash_group"
+ACCOUNT_CASH = "cash"
+ACCOUNT_OTHER = "other"
+ACCOUNT_CLASSES = (ACCOUNT_BANK, ACCOUNT_CASH_GROUP, ACCOUNT_CASH, ACCOUNT_OTHER)
 ISSUE_MISSING = "missing"
 ISSUE_CONFLICT = "conflict"
 LINE_NUMBER_WIDTH = 12
@@ -59,13 +67,76 @@ def banks(account_dir) -> Dict[str, str]:
         table.close()
 
 
+def account_classes(account_dir) -> Optional[Dict[str, str]]:
+    """科目 → 类别（:data:`ACCOUNT_CLASSES`），只按这本账套自己的结构判（GLACC 的 PARENT、BKMAS 的科目、ISINFO.ACCNUM00）：
+
+    - 现金组：现金科目往上找，第一个底下有 BKMAS 科目（现金科目本身不算）的上级；BKMAS 里没有组内科目就取现金科目的上级
+      （例 NLTTEST 1110-00「เงินสดและเงินฝากธนาคาร」）；
+    - ``cash``：现金科目本身；
+    - ``bank``：组里不是现金科目，且在 BKMAS 里，或挂在组下的分组里（上级不是组本身、也不在现金那一支：1112-00 活期、1113-00
+      储蓄、1114-00 定期这类分组底下的科目，BKMAS 漏登的存款也算）；
+    - ``cash_group``：组里其余的（零用金、另一个现金科目这类直接挂在组下又不在 BKMAS 的）；
+    - 不在表里的科目 = ``other``（费用、借款、退票应收、关联公司往来……BKMAS 里登了也一样）。
+
+    判不出结构（没有 GLACC、没有 PARENT 栏、没有现金科目或它不在科目表里）回 ``None``：不报类别，服务端照旧按名称判。"""
+    table = _open(account_dir, "GLACC")
+    if table is None:
+        return None
+    try:
+        if "PARENT" not in [name.upper() for name in table.field_names]:
+            return None
+        parent = {_text(r, "ACCNUM"): _text(r, "PARENT") for r in S.live_rows(table) if _text(r, "ACCNUM")}
+    finally:
+        table.close()
+    info = _open(account_dir, "ISINFO")
+    cash = ""
+    if info is not None:
+        try:
+            cash = next((_text(r, "ACCNUM00") for r in S.live_rows(info)), "")
+        finally:
+            info.close()
+    if not cash or cash not in parent:
+        return None
+
+    ups: Dict[str, List[str]] = {}
+
+    def chain(acc: str) -> List[str]:
+        if acc not in ups:
+            out, seen, up = [], {acc}, parent.get(acc, "")
+            while up and up not in seen:
+                out.append(up)
+                seen.add(up)
+                up = parent.get(up, "")
+            ups[acc] = out
+        return ups[acc]
+
+    banked = {acc for acc in banks(account_dir).values() if acc and acc != cash}
+    group = next((up for up in chain(cash) if any(up in chain(acc) for acc in banked)), "") or parent.get(cash, "")
+    if not group:
+        return None
+    path = [cash] + chain(cash)
+    cash_branch = path[path.index(group) - 1]  # 组的直接下级里通往现金科目的那一个（现金直接挂在组下时就是它自己）
+    out = {cash: ACCOUNT_CASH}
+    for acc in parent:
+        if acc == cash or group not in chain(acc):
+            continue
+        nested = parent.get(acc) != group and acc != cash_branch and cash_branch not in chain(acc)
+        out[acc] = ACCOUNT_BANK if acc in banked or nested else ACCOUNT_CASH_GROUP
+    return out
+
+
 def types(account_dir, doctyp: str = RECEIPT_TYPES) -> List[dict]:
     """这本账套的收（付）款方式，ISRUN 里逐行照原样给（重复的行也给）：
-    ``{code, prefix, name, name_en, bank, account, account_issue}``，``account_issue`` 空 / ``missing`` / ``conflict``。"""
+    ``{code, prefix, name, name_en, bank, account, account_issue}``，``account_issue`` 空 / ``missing`` / ``conflict``。
+    判得出科目结构时每行另带 ``account_class``（:func:`account_classes`；没有可用科目的行为空串）；判不出不带这一栏。"""
     table = _open(account_dir, "ISRUN")
     if table is None:
         return []
     bank_accounts = banks(account_dir)
+    try:
+        classes = account_classes(account_dir)
+    except Exception:  # noqa: BLE001 — 科目表读坏了只是不报类别，不挡收款类型
+        classes = None
     try:
         rows = []
         for r in S.live_rows(table):
@@ -94,6 +165,8 @@ def types(account_dir, doctyp: str = RECEIPT_TYPES) -> List[dict]:
         if len(by_prefix[row["prefix"]]) > 1:
             row["account_issue"], row["account"] = ISSUE_CONFLICT, ""
         row.pop("_resolved")
+        if classes is not None:
+            row["account_class"] = classes.get(row["account"], ACCOUNT_OTHER) if row["account"] else ""
     return rows
 
 
@@ -234,5 +307,5 @@ def lookup_padded(account_dir, table_name: str, key_field: str, key: str, names)
     return None
 
 
-__all__ = ["DEFAULT_RECEIPT_JNLEXP", "ISSUE_CONFLICT", "ISSUE_MISSING", "PAYMENT_TYPES", "RECEIPT_TYPES", "account_of",
-           "banks", "journal_text", "line_number", "lookup_padded", "padded", "types"]
+__all__ = ["ACCOUNT_CLASSES", "DEFAULT_RECEIPT_JNLEXP", "ISSUE_CONFLICT", "ISSUE_MISSING", "PAYMENT_TYPES", "RECEIPT_TYPES",
+           "account_classes", "account_of", "banks", "journal_text", "line_number", "lookup_padded", "padded", "types"]
