@@ -157,6 +157,8 @@ def _install():
         "pearnly_cowork.push.application.api": dict(),
         # 推送原因按用户语言给模型（真的 reason_text 要查翻译表，这里标出「翻过了」）
         "pearnly_cowork.push.export_facts": dict(reason_text=lambda reason: "said:" + reason),
+        # 推送记录此刻是不是在等 Express 关闭（只读查询，另有 test_cowork_express_wait）：默认没有在等的
+        "pearnly_cowork.push.express_wait": dict(many=lambda names, moment=None: {}, CODE="ACCOUNT_BUSY_LOCKED"),
     }
     for name, attrs in leaf.items():
         module = types.ModuleType(name)
@@ -2478,6 +2480,34 @@ class PushWaitTests(unittest.TestCase):
                      "do not wait"):
             self.assertIn(word, description)
 
+    def test_a_document_waiting_for_express_to_close_says_so(self):
+        # 11-12：有人开着这本账套的 Express，电脑回报「等账套」；到点仍排队的那张另带 waiting（现成那句），原有字段不变
+        self.timeline = [{"PR-H1": {"status": "pending"}, "PR-H2": {"status": "pending"}, "PR-H3": {"status": "pending"}},
+                         {"PR-H1": {"status": "pending", "reason": "ACCOUNT_BUSY_LOCKED"},
+                          "PR-H2": {"status": "pending", "reason": "ACCOUNT_BUSY_LOCKED"},
+                          "PR-H3": {"status": "pending", "reason": "ACCOUNT_BUSY_LOCKED"}},
+                         # H2 被电脑取走在写了、H3 换了别的原因：都不再说在等 Express
+                         {"PR-H1": {"status": "pending", "reason": "ACCOUNT_BUSY_LOCKED"},
+                          "PR-H2": {"status": "leased", "reason": "ACCOUNT_BUSY_LOCKED"},
+                          "PR-H3": {"status": "pending", "reason": "[EXPRESS_BUSY] locked"}}]
+        first, second, third = self._push("H1", "H2", "H3")["results"]
+        self.assertEqual((first["status"], first["waiting"], first["last_attempt_failed"]),
+                         ("queued", "said:ACCOUNT_BUSY_LOCKED", "said:ACCOUNT_BUSY_LOCKED"))
+        self.assertEqual((second["status"], third["status"]), ("queued", "queued"))
+        self.assertNotIn("waiting", second)
+        self.assertNotIn("waiting", third)
+        self.assertEqual(third["last_attempt_failed"], "said:[EXPRESS_BUSY] locked")
+        for name in ("cowork_push_documents", "cowork_push_results"):
+            self.assertIn(tools.EXPRESS_WAIT_NOTE, next(t for t in tools.TOOLS if t["name"] == name)["description"])
+
+    def test_waiting_is_dropped_once_the_document_is_entered(self):
+        self.timeline = [{"PR-H1": {"status": "pending", "reason": "ACCOUNT_BUSY_LOCKED"}},
+                         {"PR-H1": {"status": "success", "docnum": "HP691112-001"}}]
+        item, = self._push("H1")["results"]
+        self.assertEqual((item["status"], item["docnum"]), ("entered", "HP691112-001"))
+        self.assertNotIn("waiting", item)
+        self.assertNotIn("last_attempt_failed", item)
+
     def test_no_result_within_the_limit_is_queued_with_a_hint(self):
         # 一直没回报（例如 CC 桌面版在写别的账套）：到点照实说已排队，上次没写成的原因带上，提示之后用 cowork_push_results 查
         self.timeline = [{"PR-H1": {"status": "pending"}},
@@ -3181,6 +3211,27 @@ class ListAndRunsTests(unittest.TestCase):
         self.assertFalse(any("last_push_record" in d for d in docs))
         description = next(t for t in tools.TOOLS if t["name"] == "cowork_push_results")["description"]
         self.assertIn("never ask the user to check Express", description)
+
+    def test_pending_rows_waiting_for_express_to_close_say_so(self):
+        # cowork_push_results（push_state pending）：在等 Express 关闭的那张带 waiting（现成那句）；一次查完，只问「录入中」的，
+        # 票上的失败原因栏不动，推送记录名不给模型
+        frappe.rows[0].update(last_push_status="pending", last_push_record="PR9")
+        frappe.rows[1].update(last_push_status="pending", last_push_record="PR8")
+        frappe.rows[2].update(last_push_status="manual", last_push_record="PR7", last_push_reason="X")
+        asked = []
+
+        def many(names, moment=None):
+            asked.append(sorted(names))
+            return {"PR9": datetime(2026, 11, 12, 3, 0, 0)}
+
+        with mock.patch.object(sys.modules["pearnly_cowork.push.express_wait"], "many", many), \
+                mock.patch.object(tools.application, "written", lambda records: {}, create=True):
+            docs = json.loads(tools.list_documents({"push_state": "pending", "limit": 5}))["documents"]
+        self.assertEqual(asked, [["PR8", "PR9"]])
+        self.assertEqual([d.get("waiting") for d in docs], ["said:ACCOUNT_BUSY_LOCKED", None, None, None, None])
+        self.assertEqual([d.get("last_push_status") for d in docs][:3], ["pending", "pending", "manual"])
+        self.assertEqual((docs[0]["last_push_reason"], docs[2]["last_push_reason"]), (None, "said:X"))
+        self.assertFalse(any("last_push_record" in d for d in docs))
 
     def test_the_detail_of_an_entered_document_says_how_it_was_written(self):
         # 复审 M1：用户问「这张是不是现金」CC 最常查详情；入账的带 written，没入账的不查，记录名不给
