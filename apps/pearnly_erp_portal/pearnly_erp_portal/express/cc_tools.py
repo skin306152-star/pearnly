@@ -33,6 +33,7 @@ from pearnly_erp_portal import mrerp
 from pearnly_erp_portal.mrerp import contracts as mrerp_contracts, push as mrerp_push
 
 Kind = namedtuple("Kind", "code prefix doctype date number party amount by_warehouse search")
+Owner = namedtuple("Owner", "company")  # 只为过公司闸（`_other_company` 只看单据的公司）
 KINDS = {
     "purchase": Kind("purchase", "P", push.PURCHASE, "doc_date", "system_no", "supplier_name", "grand_total", False,
                      ("name", "system_no", "doc_no", "supplier_name", "supplier_tax_id", "ledger_docnum")),
@@ -116,11 +117,37 @@ def _row(kind, name, write=False):
 def _other_company(row, tool_input) -> str:
     """CC 只写本对话公司的单（用户 11-10：「CC 或模型录进别的账套就是产品缺陷」，同 Cowork `assistant.write_scope`）：
     单据是别家的回 ``other_company``——点名别家也不写（旧口径「显式给 company 就放行」作废）；对话没挂公司回 ``no_company``；
-    是本对话公司的回空串。ERP 写哪份账套由单据的公司在服务端算（`express.target.pick`），公司对了账套就对。"""
+    是本对话公司的回空串。写哪份账套在服务端定：CC 对话里就是本对话账套（`express.conversation`，A 线 11-12；模型给不了账套），
+    未定时由 :func:`_ledger_refusal` 拦。"""
     filed = _filed()
     if not filed:
         return NO_COMPANY
     return OTHER_COMPANY if row.company != filed else ""
+
+
+LEDGER_NEEDED = "ledger_needed"  # 同 `express.conversation.LEDGER_NEEDED` 与 Cowork `write_scope.LEDGER_NEEDED`
+LEDGER_SHOWN = 10
+LEDGER_NEEDED_NOTE = ("ledger_needed: this conversation's account set is not decided yet, so nothing was written. Ask the "
+                      "user once with ask_user which account set to write to (one question, each option label exactly "
+                      "the label of one of allowed_account_sets), set it with pearnly_conversation_ledger (ledger = its "
+                      "id), then make the write plan again; do not ask again after that.")
+
+
+def _ledger_refusal(document, row) -> dict | None:
+    """本对话账套（A 线 11-12）：这家公司在本对话里写进哪本由服务端定（`express.conversation`，写账准备经 `target.pick(wanted)`
+    只写它）；本对话账套未定（0 本 / 多本）回 ``ledger_needed``（形状同 Cowork `write_scope.needed`：reason、note、可选的几本），
+    不写。账本是 MR.ERP 的公司、不在对话里、对话挂的不是这家回 None。"""
+    from pearnly_erp_portal.express import conversation
+
+    if mrerp_push.handles(row.company):
+        return None
+    pin = conversation.pinned({"name": row.company})
+    if not pin or pin["key"]:
+        return None
+    return {"document": document, "status": direct_push.FAILED, "reason": LEDGER_NEEDED, "reason_code": LEDGER_NEEDED,
+            "note": LEDGER_NEEDED_NOTE, "company": row.company,
+            "allowed_account_sets": [{"id": item["id"], "key": item["id"], "label": item.get("label") or item["id"],
+                                      "covers": bool(item.get("covers"))} for item in pin["options"][:LEDGER_SHOWN]]}
 
 
 def _refused(document, row, reason) -> dict:
@@ -221,6 +248,9 @@ def _push_one(document, tool_input) -> dict:
     refused = _other_company(row, tool_input)
     if refused:
         return _refused(document, row, refused)
+    needed = _ledger_refusal(document, row)
+    if needed:
+        return needed
     state = row.ledger_state or ""
     if state in (contracts.WRITTEN, contracts.MISMATCH, contracts.HANDLED):
         return {"document": document, "status": direct_push.ALREADY_SUCCESS, "docnum": row.ledger_docnum or ""}
@@ -505,7 +535,8 @@ def document_original(tool_input) -> str:
 
 
 def set_printed_total(tool_input) -> str:
-    """补 / 改票面合计（已提交的单也能改，只这一栏）：必须带依据；停在票面合计上的单当场重新写账（`printed.set_total`）。"""
+    """补 / 改票面合计（已提交的单也能改，只这一栏）：必须带依据；只改数（`printed.set_total(release=False)`，B3：写入只走计划，
+    推送由写入计划来），不过公司闸的别家单照拒。"""
     from pearnly_erp_portal.express import printed
 
     basis = str(tool_input.get("basis") or "").strip()
@@ -515,13 +546,24 @@ def set_printed_total(tool_input) -> str:
     kind, name, failed = _readable(tool_input, write=True, load=False)
     if not kind:
         return direct_push.dumps(failed)
+    company = frappe.db.get_value(kind.doctype, name, "company")
+    refused = _other_company(Owner(company), tool_input)
+    if refused:
+        out = direct_push.not_saved(_doc_id(kind, name), refused)
+        if refused == OTHER_COMPANY:
+            out.update(company=company, company_title=_company_title(company))
+        return direct_push.dumps(out)
     try:
-        result = printed.set_total(kind.doctype, name, tool_input.get("value"), basis=basis, by="cc")
+        result = printed.set_total(kind.doctype, name, tool_input.get("value"), basis=basis, by="cc", release=False)
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
         return direct_push.dumps({"document": _doc_id(kind, name), "status": "not_saved", "reason": str(error)[:300]})
-    return direct_push.dumps({"document": _doc_id(kind, name), "status": "saved", **result})
+    return direct_push.dumps({"document": _doc_id(kind, name), "status": "saved", **result, "note": PRINTED_NOTE})
+
+
+PRINTED_NOTE = ("Only the printed total was saved; nothing was written into Express. To write the document, make the "
+                "write plan with it (pearnly_write_plan), say it back and wait for the user's reply.")
 
 
 def pending_items(tool_input) -> str:
@@ -586,6 +628,9 @@ def resolve_push_result(tool_input) -> str:
         return direct_push.dumps(out)
     if row.ledger_state != contracts.HELD or not _unknown(_job(row)):
         return direct_push.dumps(direct_push.not_saved(document, direct_push.NO_PUSH_TO_CONFIRM))
+    _allowed, held = direct_push.permitted([document])  # B4：「核了没有就写」也是写入，只在用户同意了的计划里
+    if held:
+        return direct_push.dumps(held[0])
     try:
         api.retry(kind.doctype, name)
     except (frappe.ValidationError, frappe.PermissionError) as error:
@@ -667,11 +712,11 @@ TOOLS = [
                     "later; check with erp_push_results when the user asks), failed with a reason, "
                     + direct_push.unconfirmed_rule(PROGRAM, "erp_resolve_push_result")
                     + ", needs_choice (call pearnly_precheck for those documents, ask the user with ask_user and "
-                    "save the answers with pearnly_precheck_answer with resume true, which sends them again: do not "
-                    "push them again; for an MR.ERP company the items are its import menus and default values, chosen "
-                    "once for the company), waiting_for_cc (CC Desktop has not reported this "
-                    "company's account set yet, is still reading it, or no computer can write it now; ERP tries again "
-                    "every minute by itself), with_operator (handed to operator entry and not entered yet: operator "
+                    "save the answers with pearnly_precheck_answer, then make the write plan for them again and say "
+                    "it back; for an MR.ERP company the items are its import menus and default values, chosen "
+                    "once for the company), waiting_for_cc (CC Desktop is still reading this company's account set, "
+                    "or no computer can write it now; ERP tries again every minute by itself), with_operator (handed "
+                    "to operator entry and not entered yet: operator "
                     "entry enters it, a push from here does not), or already_success / already_pending (already "
                     "entered or on its way; it is not sent again and CC cannot change it). CC writes only the "
                     "documents of the company this conversation is filed under: a document of another company comes "
@@ -679,7 +724,10 @@ TOOLS = [
                     "so in one sentence; the user writes it from that company's own conversation); in a conversation "
                     "not filed under a company it comes back failed with reason_code no_company (ask the user with "
                     "ask_user which company, options from erp_companies labelled with the company name, file the "
-                    "conversation under the one they chose with pearnly_file_conversation, then push again).",
+                    "conversation under the one they chose with pearnly_file_conversation, then push again). Every "
+                    "document goes into this conversation's account set, whatever its date; when that account set is "
+                    "not decided yet it comes back failed with reason ledger_needed (ask once, set it with "
+                    "pearnly_conversation_ledger, make the plan again).",
      "input_schema": {"type": "object", "properties": {
          "documents": direct_push.documents_prop(PUSH_MAX), "company": COMPANY_PROP}, "required": ["documents"]},
      "handler": "pearnly_erp_portal.express.cc_tools.push_documents"},
@@ -724,8 +772,9 @@ TOOLS = [
     {"name": "erp_set_printed_total", "label": "Set the printed total",
      "description": "Set the printed total of a recognized purchase or sales document, also when it is submitted (only "
                     "this field; it is kept in the document's history). Only with a basis: the total as printed on the "
-                    "original page you looked at, or the user's words. A document held for its printed total is written "
-                    "into Express right after (the result has its push state). It does not change items or amounts: "
+                    "original page you looked at, or the user's words. It only saves the number: a document held for "
+                    "its printed total is written into Express through the write plan (pearnly_write_plan, said back, "
+                    "then pearnly_write_start after the user's reply). It does not change items or amounts: "
                     "when the items are wrong or missing, the user corrects them with Amend on the document's page (url), "
                     "which makes a corrected copy; give them the link.",
      "input_schema": {"type": "object", "properties": {

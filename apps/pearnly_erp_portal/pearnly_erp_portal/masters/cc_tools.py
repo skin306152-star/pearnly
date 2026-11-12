@@ -18,7 +18,9 @@ from pearnly_erp_portal.masters import company_notes
 LIST_MAX = 20
 
 GUIDANCE = [
-    "When a <company> note is present, work for that company by default; ask before working on another company.",
+    "When a <company> note is present, work for that company by default and write only into this conversation's "
+    "account set (<conversation_account_set>, never one chosen by the document date); ask before working on another "
+    "company.",
     "When the user states or confirms a lasting fact about how this company's books are kept that is not already in "
     "the team notes, offer once in one short sentence to save it with erp_company_note_save. Do not save one-off "
     "details, amounts of a single document, passwords, ID card or bank account numbers; if the user declines, do not "
@@ -117,11 +119,39 @@ def profile(tool_input) -> str:
         period = projects.of_session(session)[1] if session else ""
     found = service.detail(row.name, period or None)
     company = found["company"]
+    out = {"company": {key: company.get(key) for key in ("id", "title", "tax_id", "branch", "created_at")},
+           "vat_registered": row.vat_registered or "", "express": bool(row.express_enabled),
+           "account_sets": found["account_sets"], "period": period, "period_set": found["period_set"], "notes": found["notes"]}
+    if filed() == row.name:
+        _with_conversation_book(out, row)
     # 页面要 UTC（按设备时区显示）；交给 CC 的时间点换成用户当地时间，同对话里别的工具（共用层 `direct_push.local_time`）
-    return direct_push.dumps({"company": {key: company.get(key) for key in ("id", "title", "tax_id", "branch", "created_at")},
-                              "vat_registered": row.vat_registered or "", "express": bool(row.express_enabled),
-                              "account_sets": found["account_sets"], "period": period, "period_set": found["period_set"],
-                              "notes": found["notes"]}, utc=("created_at", "updated_at"))
+    return direct_push.dumps(out, utc=("created_at", "updated_at"))
+
+
+CONVERSATION_BOOK_NOTE = ("conversation_account_set is where every write in this conversation goes (the account set of "
+                          "this conversation); account_sets lists only it. Never choose another by the document date.")
+CONVERSATION_BOOK_NEEDED = ("conversation_account_set is not decided yet: before the first write ask the user once with "
+                            "ask_user which of account_sets to write to and set it with pearnly_conversation_ledger.")
+
+
+def _with_conversation_book(out, row) -> None:
+    """本对话公司的资料（A 线 11-12 A8，同 Cowork `company_tools._with_conversation_book`）：已定本对话账套时账套只给它、明说它是
+    写入目标（这个月的那一份也换成它）；未定时照列，另说先问一次。"""
+    from pearnly_erp_portal.express import conversation
+
+    pin = conversation.pinned({"name": row.name})
+    if not pin:
+        return
+    if not pin["key"]:
+        out["conversation_account_set"] = {"status": "needed", "note": CONVERSATION_BOOK_NEEDED}
+        return
+    sets = out.get("account_sets") or []
+    book = next((item for item in sets if item.get("key") == pin["key"]), None) or {
+        "connection": "", "key": pin["key"], "label": pin["label"]}
+    out["account_sets_total"] = len(sets)
+    out["account_sets"] = [book]
+    out["period_set"] = {"key": book.get("key"), "label": book.get("label"), "connection": ""}
+    out["conversation_account_set"] = {**out["period_set"], "note": CONVERSATION_BOOK_NOTE}
 
 
 def note_save(tool_input) -> str:
@@ -177,9 +207,10 @@ TOOLS = [
      "handler": "pearnly_erp_portal.masters.cc_tools.companies"},
     {"name": "erp_company_profile", "label": "Read company details",
      "description": "Read one company: tax ID, branch, VAT registration, whether its books are kept in Express, its "
-                    "Express account sets (newest first, with fiscal period), the account set covering the work month "
+                    "Express account sets (newest first, with fiscal period), the account set of the work month "
                     "(period YYYY-MM) and all team notes (with ids). Without company it reads the company this "
-                    "conversation is filed under. Times are the user's local time.",
+                    "conversation is filed under; for it, conversation_account_set is the one account set every write "
+                    "goes into. Times are the user's local time.",
      "input_schema": {"type": "object", "properties": {"company": COMPANY_PROP, "period": {"type": "string"}}},
      "handler": "pearnly_erp_portal.masters.cc_tools.profile"},
     {"name": "erp_company_note_save", "label": "Saved a company note",

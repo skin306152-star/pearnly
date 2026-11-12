@@ -24,9 +24,10 @@ LOCKED = (contracts.WRITTEN, contracts.MISMATCH)  # 已写进账本：票面合�
 EDIT_SUBJECT = "pearnly.document_edit"  # 改动依据的记录（Comment.subject，同 Cowork `assistant.document_checks`）
 
 
-def set_total(doctype, name, value, *, basis="", by="user") -> dict:
+def set_total(doctype, name, value, *, basis="", by="user", release=True) -> dict:
     """补 / 改一张单的票面合计（调用方已核过这张单的开单权）：已提交的单也能改（只这一栏，2026-11-03 主会话定），
-    原生版本记录留谁、何时、改前改后；``basis`` 依据（CC 改时必填）另记一条。停在票面合计上的单当场重新准备写账。"""
+    原生版本记录留谁、何时、改前改后；``basis`` 依据（CC 改时必填）另记一条。停在票面合计上的单当场重新准备写账；``release``
+    为假（CC 对话里改，B3：写入只走计划）只改数，单据的写账状态不动，由写入计划推。"""
     from pearnly_core.tax_documents import amounts
 
     if doctype not in (PURCHASE, SALES):
@@ -51,7 +52,7 @@ def set_total(doctype, name, value, *, basis="", by="user") -> dict:
                         "content": frappe.as_json({"by": by, "basis": str(basis)[:500],
                                                    "changes": {"printed_total": [old, float(total)]}})}).insert(
             ignore_permissions=True)
-    released = row.ledger_state == contracts.HELD and row.ledger_reason in RELEASE and not row.ledger_job
+    released = release and row.ledger_state == contracts.HELD and row.ledger_reason in RELEASE and not row.ledger_job
     if released:
         from pearnly_erp_portal.express import push
 

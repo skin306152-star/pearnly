@@ -30,7 +30,7 @@ from pearnly_core.express_rules.push.account_rules import wire_account_set
 from pearnly_core.express_rules.push.choices import NEW, norm_name
 from pearnly_core.express_rules.push.common import FACTOR_PAYLOAD_VERSION, REMARKS_PAYLOAD_VERSION
 
-from pearnly_erp_portal.express import choices, contracts, facts, target
+from pearnly_erp_portal.express import choices, contracts, conversation, facts, target
 
 DOCTYPE = "ERP Stock Entry"
 PAYLOAD_VERSION = 6
@@ -296,7 +296,7 @@ def prepare(body, company_row, ensure_masters) -> dict:
     """``{"payload", "book"}`` 或 ``{"hold": 原因, ...}``（同 `prepare.prepare` 的形状，`push.send` 照样处理）。"""
     from pearnly_erp_portal.express import prepare as invoices
 
-    picked = target.pick(company_row, body["date"])
+    picked = target.pick(company_row, body["date"], conversation.wanted(company_row))
     company_name = company_row.get("company_name") or company_row["name"]
     if picked["reason"] == contracts.SEVERAL_BOOKS:
         return {"hold": contracts.CHOICE + ":" + choices.ACCOUNT_SET, "needed": invoices._needed_book(picked, company_name)}
