@@ -1477,7 +1477,7 @@ const GUIDE = {
     result: (a: number, b: number) => `${a} entered, ${b} not entered`, entered: "Entered", already: "Already entered",
     party: "Party", number: "Number", date: "Date", total: "Total", as: "Entered as", ledgerNumber: "Number in ledger",
     customer: "Customer", openInvoices: "Open invoices", due: "Outstanding", receive: "Received now", method: "Method", cash: "Cash",
-    transfer: "Transfer", slip: "Transfer slip", item: "Item", quantity: "Qty", unit: "Unit", price: "Unit price", warehouse: "Warehouse",
+    transfer: "Transfer", slip: "Transfer slip", item: "Item", quantity: "Qty", unit: "Unit", price: "Unit price", warehouse: "Warehouse", create: "New", cost: "Unit cost",
   },
   zh: {
     collection: "收款",
@@ -1487,7 +1487,7 @@ const GUIDE = {
     result: (a: number, b: number) => `已录入 ${a} 张，${b} 张未录`, entered: "已录入", already: "已录过",
     party: "对方", number: "单号", date: "日期", total: "合计", as: "录成", ledgerNumber: "账本单号",
     customer: "客户", openInvoices: "未收清发票", due: "未收", receive: "本次收", method: "收款方式", cash: "现金",
-    transfer: "转账", slip: "转账凭证", item: "物料", quantity: "数量", unit: "单位", price: "单价", warehouse: "仓库",
+    transfer: "转账", slip: "转账凭证", item: "物料", quantity: "数量", unit: "单位", price: "单价", warehouse: "仓库", create: "新建", cost: "单位成本",
   },
   th: {
     collection: "รับชำระ",
@@ -1497,7 +1497,7 @@ const GUIDE = {
     result: (a: number, b: number) => `บันทึกแล้ว ${a} ใบ ไม่ได้บันทึก ${b} ใบ`, entered: "บันทึกแล้ว", already: "เคยบันทึกแล้ว",
     party: "คู่ค้า", number: "เลขที่", date: "วันที่", total: "รวม", as: "บันทึกเป็น", ledgerNumber: "เลขที่ในบัญชี",
     customer: "ลูกค้า", openInvoices: "ใบแจ้งหนี้ค้างรับ", due: "ค้างรับ", receive: "รับครั้งนี้", method: "วิธีรับชำระ", cash: "เงินสด",
-    transfer: "โอน", slip: "หลักฐานการโอน", item: "สินค้า", quantity: "จำนวน", unit: "หน่วย", price: "ราคาต่อหน่วย", warehouse: "คลัง",
+    transfer: "โอน", slip: "หลักฐานการโอน", item: "สินค้า", quantity: "จำนวน", unit: "หน่วย", price: "ราคาต่อหน่วย", warehouse: "คลัง", create: "สร้างใหม่", cost: "ต้นทุนต่อหน่วย",
   },
   ja: {
     collection: "入金",
@@ -1507,7 +1507,7 @@ const GUIDE = {
     result: (a: number, b: number) => `記帳 ${a} 件、未記帳 ${b} 件`, entered: "記帳済み", already: "記帳済みあり",
     party: "取引先", number: "番号", date: "日付", total: "合計", as: "記帳区分", ledgerNumber: "帳簿の番号",
     customer: "得意先", openInvoices: "未入金の請求書", due: "未入金", receive: "今回入金", method: "入金方法", cash: "現金",
-    transfer: "振込", slip: "振込明細", item: "品目", quantity: "数量", unit: "単位", price: "単価", warehouse: "倉庫",
+    transfer: "振込", slip: "振込明細", item: "品目", quantity: "数量", unit: "単位", price: "単価", warehouse: "倉庫", create: "新規", cost: "単位原価",
   },
 };
 

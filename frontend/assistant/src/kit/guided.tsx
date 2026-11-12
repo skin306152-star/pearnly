@@ -16,6 +16,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Label } from "@/components/ui/label";
 import { Message, MessageContent } from "@/components/ui/message";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Progress } from "@/components/ui/progress";
 import {
   Questionnaire, QuestionnaireActions, QuestionnaireChoice, QuestionnaireChoiceDescription, QuestionnaireChoices, QuestionnaireItem,
@@ -27,10 +28,11 @@ import { Trace, TraceLine, TraceTitle } from "@/components/ui/trace";
 import { co, guide, op, t } from "@/i18n";
 
 import {
-  BANK, COLLECTION_COMPANY, COLLECTION_LEDGER, COLLECTION_PERIOD, COMPANY, CUSTOMER, INVOICES, LEDGER, PERIOD, RESULTS, SLIP, TICKETS, words,
+  BANK, COLLECTION_COMPANY, COLLECTION_LEDGER, COLLECTION_PERIOD, COMPANY, CUSTOMER, INVOICES, LEDGER, PERIOD, PURCHASE_LINES, RESULTS,
+  SALES_LINES, SALES_TICKET, SLIP, TICKETS, WAREHOUSES, words,
 } from "./guided-data";
 
-const FRAMES = ["menu", "upload", "card", "review", "result", "collection"] as const;
+const FRAMES = ["menu", "upload", "card", "review", "expand", "result", "collection"] as const;
 type Frame = (typeof FRAMES)[number];
 
 const where = (company: string, ledger: string, period: string) => `${company} · ${co.proposal.accountSet} ${ledger} · ${period}`;
@@ -188,6 +190,103 @@ function ReviewCard({ lang, phone }: { lang: string; phone: boolean }) {
   );
 }
 
+type Line = { id: string; item: string; qty: string; unit: string; price: string; warehouse: string; created?: boolean; cost?: boolean };
+
+// 复核表里展开一张单：物料（可换成已有物料，账本里没有的标「新建」并露出名称 · 单位）、数量、单位、单价、仓库可改；
+// 销售出库没有成本基础的行多一格单位成本。手机上每行一组字段
+function Lines({ lines, phone }: { lines: readonly Line[]; phone: boolean }) {
+  const warehouse = (line: Line) => (
+    <NativeSelect defaultValue={line.warehouse} aria-label={guide.warehouse}>
+      {WAREHOUSES.map((code) => <NativeSelectOption key={code} value={code}>{code}</NativeSelectOption>)}
+    </NativeSelect>
+  );
+  const item = (line: Line) => (
+    <InputGroup>
+      <InputGroupAddon><SearchIcon /></InputGroupAddon>
+      <InputGroupInput defaultValue={line.item} aria-label={guide.item} />
+      {line.created ? <InputGroupAddon align="inline-end"><Badge variant="secondary">{guide.create}</Badge></InputGroupAddon> : null}
+    </InputGroup>
+  );
+  if (phone) {
+    return (
+      <div className="flex flex-col gap-(--cc-space-16)">
+        {lines.map((line) => (
+          <FieldGroup key={line.id}>
+            <Field><FieldLabel>{guide.item}</FieldLabel>{item(line)}</Field>
+            <div className="grid grid-cols-2 gap-(--cc-space-8)">
+              <Field><FieldLabel>{guide.quantity}</FieldLabel><Input defaultValue={line.qty} /></Field>
+              <Field><FieldLabel>{guide.unit}</FieldLabel><Input defaultValue={line.unit} /></Field>
+              <Field><FieldLabel>{guide.price}</FieldLabel><Input defaultValue={line.price} /></Field>
+              <Field><FieldLabel>{guide.warehouse}</FieldLabel>{warehouse(line)}</Field>
+              {line.cost ? <Field data-invalid="true"><FieldLabel>{guide.cost}</FieldLabel><Input aria-invalid /></Field> : null}
+            </div>
+          </FieldGroup>
+        ))}
+      </div>
+    );
+  }
+  const cost = lines.some((line) => line.cost);
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{guide.item}</TableHead>
+          <TableHead>{guide.quantity}</TableHead>
+          <TableHead>{guide.unit}</TableHead>
+          <TableHead>{guide.price}</TableHead>
+          <TableHead>{guide.warehouse}</TableHead>
+          {cost ? <TableHead>{guide.cost}</TableHead> : null}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {lines.map((line) => (
+          <TableRow key={line.id}>
+            <TableCell>{item(line)}</TableCell>
+            <TableCell><Input defaultValue={line.qty} aria-label={guide.quantity} /></TableCell>
+            <TableCell><Input defaultValue={line.unit} aria-label={guide.unit} /></TableCell>
+            <TableCell><Input defaultValue={line.price} aria-label={guide.price} /></TableCell>
+            <TableCell>{warehouse(line)}</TableCell>
+            {cost ? <TableCell>{line.cost ? <Input aria-invalid aria-label={guide.cost} /> : null}</TableCell> : null}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+function ExpandedCard({ lang, phone }: { lang: string; phone: boolean }) {
+  const w = words(lang);
+  const ticket = TICKETS[2];
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{guide.review}</CardTitle>
+        <CardDescription>{where(COMPANY, LEDGER, PERIOD)}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-(--cc-space-12)">
+        <Item variant="outline">
+          <ItemMedia><Checkbox aria-label={ticket.number} defaultChecked /></ItemMedia>
+          <ItemContent>
+            <ItemTitle>{ticket.party}</ItemTitle>
+            <ItemDescription>{ticket.number} · {ticket.date} · {w.kindCredit}</ItemDescription>
+          </ItemContent>
+          <ItemActions>{ticket.total}</ItemActions>
+        </Item>
+        <Lines lines={PURCHASE_LINES} phone={phone} />
+        <Item variant="outline">
+          <ItemMedia><Checkbox aria-label={SALES_TICKET.number} defaultChecked /></ItemMedia>
+          <ItemContent>
+            <ItemTitle>{SALES_TICKET.party}</ItemTitle>
+            <ItemDescription>{SALES_TICKET.number} · {op.group.sales}</ItemDescription>
+          </ItemContent>
+          <ItemActions>{SALES_TICKET.total}</ItemActions>
+        </Item>
+        <Lines lines={SALES_LINES} phone={phone} />
+      </CardContent>
+    </Card>
+  );
+}
+
 function ResultCard({ lang }: { lang: string }) {
   const w = words(lang);
   return (
@@ -309,6 +408,7 @@ export function Guided({ lang, frame }: { lang: string; frame: string }) {
           <RecordReply />
         </Frame>
       )}
+      {shown.includes("expand") && <Frame name="expand"><ExpandedCard lang={lang} phone={phone} /></Frame>}
       {shown.includes("result") && <Frame name="result"><ResultCard lang={lang} /><Menu /></Frame>}
       {shown.includes("collection") && (
         <Frame name="collection">

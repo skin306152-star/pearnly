@@ -71,3 +71,14 @@ export const INVOICES = [
   { id: "b", number: "IV6910-0467", date: "2026-10-21", due: "9,200.00", receive: "5,000.00", on: true },
   { id: "c", number: "IV6911-0031", date: "2026-11-02", due: "7,740.00", receive: "", on: false },
 ] as const;
+
+// 展开一张单看到的物料行：created = 账本里没有、新建；cost = 销售出库没有成本基础，要填
+export const WAREHOUSES = ["01", "02"] as const;
+export const PURCHASE_LINES = [
+  { id: "1", item: "น้ำแข็งหลอด 20 กก.", qty: "50", unit: "ถุง", price: "38.00", warehouse: "01" },
+  { id: "2", item: "ถุงพลาสติก 12x20", qty: "10", unit: "แพ็ค", price: "95.00", warehouse: "01", created: true },
+] as const;
+export const SALES_TICKET = { party: "ร้านข้าวสมชาย", number: "IV6911-0058", total: "535.00" } as const;
+export const SALES_LINES = [
+  { id: "1", item: "น้ำแข็งบด 10 กก.", qty: "20", unit: "ถุง", price: "25.00", warehouse: "01", created: true, cost: true },
+] as const;
