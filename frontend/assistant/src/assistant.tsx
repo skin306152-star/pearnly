@@ -974,6 +974,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   const filing = useFiledCompany();
   // 已建好的对话（有服务端编号）：不看消息条数，换对话时线程加载期间消息为 0，会话栏不跟着卸下再挂上
   const saved = useAuiState((s) => !!s.threadListItem.remoteId);
+  const session = useAuiState((s) => s.threadListItem.remoteId) ?? "";
   const panelOpen = usePanel((s) => s.open);
   const overlay = usePanel((s) => s.overlay);
   const mode: PanelMode = isMobile ? "phone" : fits ? "docked" : "floating";
@@ -1058,7 +1059,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
             onClose={() => results.setOpen(false)}
           />
         )}
-        {panelShown && <SessionPanel filing={filing} mode={mode} onClose={closePanel} />}
+        {panelShown && <SessionPanel session={session} filing={filing} mode={mode} onClose={closePanel} />}
       </div>
     </>
   );

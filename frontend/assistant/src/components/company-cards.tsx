@@ -40,7 +40,6 @@ import {
   type Branch,
   type Choice,
   type CompanyFolder,
-  coveringSet,
   deleteNote,
   type Detail,
   type Draft,
@@ -53,7 +52,6 @@ import {
   promoteChoice,
   saveNote,
   setChoice,
-  setForPeriod,
   taskSeedOf,
   folderIsMine,
   unbindFolder,
@@ -71,9 +69,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { reportCaught, withReport } from "../lib/caught";
 
 const NOTE_MAX = 500; // 同服务端：每条 ≤500 字
-
-/** 覆盖这个月的账套（没有月份或都不覆盖时取最新可写的；lib/companies 的 setForPeriod）。 */
-export const setFor: (sets: readonly AccountSet[], period: string) => AccountSet | undefined = setForPeriod;
 
 /** 文件夹状态的字。 */
 export function folderState(folder: Pick<CompanyFolder, "state" | "reader_gone">): string {
@@ -518,10 +513,10 @@ const SetRow: FC<{ set: AccountSet; covering: boolean }> = ({ set, covering }) =
   );
 };
 
-/** 账套清单（多分店按分店分组，真覆盖这个月的那份高亮；都不覆盖就不高亮——10-19 lab：原先退到最新可写的那份也高亮，
- *  看不出哪份覆盖本月）：账套卡与公司页会话栏的「公司」卡共用。 */
-export const SetsList: FC<{ sets: AccountSet[]; branches: Branch[]; period: string }> = ({ sets, branches, period }) => {
-  const covering = coveringSet(sets, period);
+/** 账套清单（多分店按分店分组，覆盖这个月的高亮；都不覆盖就不高亮——10-19 lab：原先退到最新可写的那份也高亮，
+ *  看不出哪份覆盖本月）：账套卡与会话栏的「公司」卡共用。覆盖不覆盖看服务端在详情里标的 covers（按详情的月份），
+ *  页面不按日期现算（A 线 11-12）。 */
+export const SetsList: FC<{ sets: AccountSet[]; branches: Branch[] }> = ({ sets, branches }) => {
   if (!sets.length) return null;
   return branches.length ? (
     <>
@@ -529,30 +524,31 @@ export const SetsList: FC<{ sets: AccountSet[]; branches: Branch[]; period: stri
         <div key={b.branch} className="flex flex-col">
           <div className="cc-subheading">{branchName(b)}</div>
           {b.account_sets.map((set) => (
-            <SetRow key={`${set.connection}-${set.key}`} set={set} covering={coveringSet(b.account_sets, period) === set} />
+            <SetRow key={`${set.connection}-${set.key}`} set={set} covering={!!set.covers} />
           ))}
         </div>
       ))}
     </>
   ) : (
     <div className="flex flex-col">
-      {sets.map((set) => <SetRow key={`${set.connection}-${set.key}`} set={set} covering={covering === set} />)}
+      {sets.map((set) => <SetRow key={`${set.connection}-${set.key}`} set={set} covering={!!set.covers} />)}
     </div>
   );
 };
 
-export const SetsSection: FC<{ sets: AccountSet[]; branches: Branch[]; period: string }> = ({ sets, branches, period }) => {
+export const SetsSection: FC<{ sets: AccountSet[]; branches: Branch[] }> = ({ sets, branches }) => {
   if (!sets.length) return null;
   return (
     <PanelCard id="sets" title={co.accountSets} summary={co.card.sets(sets.length)} slot="cc-company-sets">
-      <SetsList sets={sets} branches={branches} period={period} />
+      <SetsList sets={sets} branches={branches} />
     </PanelCard>
   );
 };
 
 // ---------------------------------------------------------------- 定时任务
-/** 这家的定时任务：点一行到任务页并定位，「＋」到任务页接着开新建表单（预填覆盖本月的账套，本机绑了文件夹时连同文件夹）。 */
-export const TasksSection: FC<{ company: string; detail: Detail; period: string }> = ({ company, detail, period }) => {
+/** 这家的定时任务：点一行到任务页并定位，「＋」到任务页接着开新建表单（预填覆盖详情那个月的账套——服务端标的 covers，
+ *  本机绑了文件夹时连同文件夹）。 */
+export const TasksSection: FC<{ company: string; detail: Detail }> = ({ company, detail }) => {
   const { setView } = useView();
   const { app, companyFolders, deviceName } = useDesktopFeatures();
   const tasks = detail.tasks ?? [];
@@ -564,7 +560,7 @@ export const TasksSection: FC<{ company: string; detail: Detail; period: string 
     useCompanyNav.setState({
       taskCompany: company,
       taskFocus: "",
-      taskSeed: taskSeedOf(detail, period, knownReaders(), app && companyFolders, deviceName),
+      taskSeed: taskSeedOf(detail, knownReaders(), app && companyFolders, deviceName),
     });
     setView("tasks");
   };
