@@ -218,8 +218,11 @@ def _install():
     spec.loader.exec_module(checks)
     # 只写本对话公司的账套（`assistant.write_scope`）另有专门的测试（test_cc_write_scope）：这里放行一切，测的是别的行为
     scope_stub = types.ModuleType("pearnly_cowork.assistant.write_scope")
-    scope_stub.check = lambda connection, account_set_key, company=None, day="": None
-    scope_stub.keep = lambda options, connection_of=None, company=None: list(options or ())
+    scope_stub.check = lambda connection, account_set_key, company=None, day="", task="", whole_company=False: None
+    scope_stub.keep = lambda options, connection_of=None, company=None, task="": list(options or ())
+    # 本对话账套（A 线 11-12）同样另有专门的测试：这里一律当作没有（照旧取票上 / 模型给的）
+    scope_stub.aim = lambda *a, **k: None
+    scope_stub.pinned = lambda company=None, task="": None
     sys.modules[scope_stub.__name__] = sys.modules["pearnly_cowork.assistant"].write_scope = scope_stub
     spec = importlib.util.spec_from_file_location("cowork_assistant_tools", COWORK / "assistant/tools.py")
     tools = importlib.util.module_from_spec(spec)

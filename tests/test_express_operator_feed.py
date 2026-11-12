@@ -636,10 +636,11 @@ class LifecycleTests(unittest.TestCase):
             # 11-08 生产事故起：交单时先问一次单号与对方（当场停下的单原来一直没有，任务卡只能写内部编号），只读，不交单
             ("status", "CO-1", ["H-1", "H-2", "H-3"]),
             ("status", "CO-1", ["H-1", "H-2"]),
-            ("submit", "CO-1", ["H-3"], {"id": name, "total": 1, "start_at": 0}, "CCD-1",
+            # 批次信息带任务号（A 线 11-12：产品按任务会话的本对话账套写），其余逐字不变
+            ("submit", "CO-1", ["H-3"], {"id": name, "total": 1, "start_at": 0, "task": name}, "CCD-1",
              {"H-3": [{"kind": "party", "subject": "S", "value": "new", "label": "S"}]}),
             ("status", "CO-1", ["H-3"]),
-            ("submit", "CO-1", ["H-2"], {"id": name, "total": 1, "start_at": 0}, "CCD-1", {}),
+            ("submit", "CO-1", ["H-2"], {"id": name, "total": 1, "start_at": 0, "task": name}, "CCD-1", {}),
             ("status", "CO-1", ["H-2"]),
         ])
 
