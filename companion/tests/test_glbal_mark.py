@@ -101,14 +101,30 @@ def _express_new_row(acc):
     return b" " + acc.ljust(15).encode() + b" " * (4 + 6 + 24) + b"\0" * (75 * 8)
 
 
-def test_the_next_fiscal_year_is_still_left_alone_and_reported(acct):
-    """下一年度的单：位置没核准，不写，记进回执 meta.glbal_unmarked（等 62 套统计）。"""
-    _glbal(acct, [("11-04-02-00", DONE12), (VAT_IN_ACC, DONE12)])
+def test_the_next_fiscal_year_marks_position_twelve_plus_k(acct):
+    """下一年度第 k 期标第 12 + k 位（S 盘副本 1033 套：第 13–24 位的 0 都落在 NY 那一期有分录的位置）；那一期还没算过（空格）照原生不碰。"""
+    _glbal(acct, [("11-04-02-00", "1" * 24), (VAT_IN_ACC, DONE12), (AP_ACC, "1" * 24)])
     before = _raw(acct)
     with glbal_mark.collecting() as unmarked:
-        res = _buy(acct, _purchase([_item("ICE01", 2, 20.0, "stock_item")], docdate="700105"))  # 2027-01-05：下一年度
-    assert res.ok and _raw(acct) == before
-    assert unmarked and all("period not in this fiscal year" in text for text in unmarked)
+        res = _buy(acct, _purchase([_item("ICE01", 2, 20.0, "stock_item")], docdate="700105"))  # 2027-01-05：下一年度第 1 期
+    assert res.ok, res.error
+    assert unmarked == []
+    states = _calsta(acct)
+    assert states["11-04-02-00"] == "1" * 12 + "0" + "1" * 11
+    assert states[AP_ACC] == "1" * 12 + "0" + "1" * 11
+    assert _raw(acct)[1] == before[1]  # 进项税那一行下一年度还没算过（空格）：一个字节不动
+
+
+def test_a_date_outside_both_years_is_left_alone_and_reported(acct):
+    _glbal(acct, [("11-04-02-00", "1" * 24), (VAT_IN_ACC, "1" * 24), (AP_ACC, "1" * 24)])
+    before = _raw(acct)
+    with glbal_mark.collecting() as unmarked:
+        res = _buy(acct, _purchase([_item("ICE01", 2, 20.0, "stock_item")], docdate="710105"))  # 2028：两个年度都不是
+    if not res.ok:  # 期间闸拦下也行：一个字节都没写
+        assert _raw(acct) == before
+        return
+    assert _raw(acct) == before
+    assert unmarked and all("period not in this or next fiscal year" in text for text in unmarked)
 
 
 def test_a_cell_never_calculated_is_left_alone_without_a_report(acct):

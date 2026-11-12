@@ -8,7 +8,8 @@ Express 原生保存一张单（11-12 正版 Express，Process Monitor 抓取 + 
 我们的直写以前写了 GLJNL / GLJNLIT 却不标 CALSTA：那些格仍是 ``'1'``（已算好），写的金额进不了科目余额与试算表，直到有人跑整本重算
 （69EXP\\TEST 里我们写的 RE0000006 三个科目 11 月不在 GLBAL 里、CALSTA 全 1；Express 自己录的 RR0000094 四行被标了 0）。
 
-做法：本年度（ISPRD 的 CY 段）第 k 期 → ``CALSTA`` 第 k 位（实证：11 月单、1 月起账的账套标第 11 位）。只把 ``'1'`` 改成 ``'0'``，
+做法：本年度（ISPRD 的 CY 段）第 k 期 → ``CALSTA`` 第 k 位（实证：11 月单、1 月起账的账套标第 11 位）；下一年度（NY 段）第 k 期 →
+第 12 + k 位（11-12 只读统计 S 盘副本 1033 套：第 13–24 位出现 0 的 2388 格里 2386 格正是 NY 那一期有分录的位置）。只把 ``'1'`` 改成 ``'0'``，
 别的字节一个不动、不追加行、不动索引键（GLBAL 不重建索引）；``'0'`` 已是待重算，不用改。
 
 照原生的另外两种情形（11-12 测试机2 正版 Express、`70EXP\\test` 原生录 RR0000025 / RR0000026，录前录后比 GLBAL 原始字节）：
@@ -18,7 +19,7 @@ Express 原生保存一张单（11-12 正版 Express，Process Monitor 抓取 + 
   本来就含 GLBAL，回滚连 CDX 一起还原）。常见情形仍只改一个字符、不重建。
 
 还没证据、**不猜**的情形（主会话 11-12）：这几格不写，记进回执 ``meta.glbal_unmarked``（「科目|部门|期: 原因」），由人跑一次重算：
-- 单据日期落在下一年度（NY 段，是不是第 13–24 位没核准）或 ISPRD 判不出期间；
+- 单据日期不在 ISPRD 的本年度与下一年度里（判不出期间）；
 - 那一位不是 ``'1'``、``'0'`` 也不是空格；
 - 账套没有 GLBAL 表。
 
@@ -55,7 +56,7 @@ FIELD = "CALSTA"
 PENDING, DONE, NEVER = "0", "1", " "  # 待重算 / 已算好 / 这一期还没算过
 
 REASON_NO_TABLE = "no GLBAL"
-REASON_PERIOD = "period not in this fiscal year"
+REASON_PERIOD = "period not in this or next fiscal year"
 REASON_STATE = "calculation state not set"
 
 _unmarked: contextvars.ContextVar[Optional[List[str]]] = contextvars.ContextVar("glbal_unmarked", default=None)
@@ -77,6 +78,11 @@ def _note(text: str) -> None:
     if bucket is not None and text not in bucket:
         bucket.append(text)
     log.warning("科目余额没标待重算：%s", text)
+
+
+def position(period) -> int:
+    """这一期在 ``CALSTA`` 里是第几位：本年度第 k 期 → 第 k 位，下一年度第 k 期 → 第 12 + k 位。"""
+    return period.index + (fiscal_period.PERIODS_PER_SLOT if period.slot == fiscal_period.SLOT_NY else 0)
 
 
 def _day(value) -> Optional[dt.date]:
@@ -116,10 +122,10 @@ def mark(account_dir, entries: Iterable) -> List[str]:
     skipped: List[str] = []
     for acc, dep, day in cells:
         period = calendar.locate(day) if (calendar is not None and day is not None) else None
-        if period is None or period.slot != fiscal_period.SLOT_CY:
+        if period is None:
             skipped.append(f"{acc}|{dep}|{day}: {REASON_PERIOD}")
             continue
-        wanted.setdefault((acc, dep), set()).add(period.index)
+        wanted.setdefault((acc, dep), set()).add(position(period))
     changed = []  # (recno, 位)
     appended = []  # (recno, 科目, 部门)
     table = dbf.Table(str(path), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
