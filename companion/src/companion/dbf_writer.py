@@ -31,6 +31,7 @@ from . import product_master
 from . import account_rules
 from . import dbf_schema as S
 from . import fiscal_period
+from . import guided
 from . import master_create
 from . import purchase_lines
 from . import service_vat
@@ -353,6 +354,12 @@ def write_purchase(
     if payload.get("respect_period_lock") and fiscal_period.locked(account_dir, docdat):
         return DbfWriteResult(False, error_code=fiscal_period.ERR_PERIOD_LOCKED,
                               error=f"accounting period of {docdat} is locked in Express")
+    # 载荷 21（引导录入，guided）的新键：值不在这本账套里整单拒收；引导模式下原来「缺了就用默认值写」的情形（新物料单位解析不出、
+    # 单位对不上、现金科目不能记账）整单不写，带候选回去出题
+    refusal = guided.invalid_values(account_dir, payload, guided.STOCK_IN, "supplier") \
+        or guided.choices_needed(account_dir, payload, guided.STOCK_IN)
+    if refusal:
+        return DbfWriteResult(False, error_code=refusal.code, error=refusal.detail, choice=refusal.choice)
     vatprd = S.be_yymmdd_to_greg(payload.get("vat_period_be") or docdate_be)
     base, vat, total = (
         Decimal(entry.base_amount),
@@ -580,7 +587,8 @@ def _write_all(
     if paid:
         # 现购:Express 原生贷现金(ISINFO.ACCNUM00),完全不碰应付(真实账套 2165 张 HP 无一例外;2026-10-08 核对)。
         # 以前贷应付、表头却写已付 → 应付控制科目虚挂一笔。
-        cash = account_rules.default_account(account_dir, "ACCNUM00")
+        # 载荷 21:人在引导卡上选了付款科目(``cash_account``,写前已核可记账)就贷它
+        cash = entry.cash_account or account_rules.default_account(account_dir, "ACCNUM00")
         if credits and cash and account_rules.postable_account(account_dir, cash):
             credits[0]["acc"] = cash
     else:
@@ -590,6 +598,10 @@ def _write_all(
             )
         payterm = account_rules.party_terms(account_dir, "APMAS", entry.supplier_code)[1]
         duedat = account_rules.due_date(docdat, payterm)
+        if entry.due_date_be:
+            # 载荷 21:复核卡上的到期日(票面写的 / 人改的)盖过供应商档账期;账期天数 = 到期日 − 单据日(同原生:到期日 = 单据日 + 账期)
+            duedat = S.be_yymmdd_to_greg(entry.due_date_be)
+            payterm = (duedat - docdat).days
     name = entry.supplier_name
     # 凭证表头与进项税记录的分店号 = 这家供应商档的分店号(税表分店一栏;真账一致 99%+)。
     orgnum = master_create.party_orgnum(account_dir, "APMAS", "SUPCOD", entry.supplier_code)

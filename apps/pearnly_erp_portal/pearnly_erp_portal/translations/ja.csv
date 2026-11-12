@@ -228,6 +228,7 @@ Cash,現金
 Cash Amount,現金
 Cash Check,現金確認
 Cash Difference,現金差異
+Cash account not set,現金勘定が未設定です
 Cash basis,現金主義
 Cashier,レジ
 Cashier (POS),レジ（POS）
@@ -352,6 +353,7 @@ Correct entry,記録を修正
 Cost,原価
 Cost Is Set,原価設定済み
 Cost Known,原価判明
+Cost of goods sold not set,売上原価が未設定です
 Could not connect to MR.ERP,MR.ERP に接続できません
 Could not read the MR.ERP master data.,MR.ERP のマスターデータを読み取れません。
 Could not read this document. Please send it again.,読み取れませんでした。もう一度送ってください
@@ -501,6 +503,7 @@ Dropdown,ドロップダウン
 Due,期日
 Due Date,支払期日
 Due date,期日
+Due date is before the document date,支払期日が伝票日付より前です
 Due later,それ以降
 Due this week,7日以内が期限
 Due time,期限時刻
@@ -1072,6 +1075,7 @@ Product Ref,商品の外部参照
 Product Rows  {0},品目明細  {0}  件
 Product Total,品目小計
 Product code,品目コード
+Product group not found in Express,Express にこの商品グループがありません
 Product is disabled,商品は無効になっています
 Product name,商品名
 Product not found,商品が見つかりません
@@ -1649,6 +1653,7 @@ Type a word from the location name to find it,保管場所名の一部を入力�
 Type a word from the supplier name to find it,仕入先名の一部を入力して検索
 Type a word from the warehouse name to find it,倉庫名の一部を入力して検索
 Type any warehouse name; a new warehouse is created if that name is new,倉庫名は自由入力です。新しい名前なら自動作成します
+Type not found in Express,Express にこの種別がありません
 Type the company name or number to find it,会社名または番号を入力して検索
 Type the customer name or code to find it,顧客名またはコードを入力して検索
 Type the item name or code,品目名かコードを入力してください
@@ -1667,6 +1672,8 @@ Unit Cost Entered,単価入力済み
 Unit Price,単価
 Unit barcode,単位バーコード
 Unit not found,該当する個体がありません
+Unit not found in Express,Express にこの単位がありません
+Unit not set,単位が未設定です
 Unit number type,番号の種類
 Unit opening registration,個体の期首登録
 Unit {0} is not defined on {1},単位「{0}」は「{1}」に定義されていません
@@ -2264,7 +2271,9 @@ express.error.ACCOUNT_WRITER_BUSY,別のパソコンがこの会計データに�
 express.error.AMOUNTS_NOT_CONSISTENT,金額が合いません。直して再送信してください
 express.error.BAD_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
 express.error.BAD_SALES_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
+express.error.CASH_ACCOUNT_CHOICE,現金勘定が未設定です
 express.error.CDX_REINDEX_FAILED,Express の索引を作れず元に戻しました。自動で再試行します
+express.error.COST_BASIS_CHOICE,売上原価が未設定です
 express.error.CUSTOMER_BRANCH_AMBIGUOUS,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
 express.error.CUSTOMER_DUP_SUSPECTED,Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください
 express.error.CUSTOMER_NOT_IN_ARMAS,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
@@ -2276,10 +2285,12 @@ express.error.ERR_LOCATION,この Express 会計データにこの倉庫はあ�
 express.error.ERR_PAYLOAD_VERSION,CC デスクトップが古いバージョンです。更新して再送信してください
 express.error.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください
 express.error.INVALID_DOC_DATE,書類の日付が無効です。修正して再送信してください
+express.error.INVALID_DUE_DATE,支払期日が伝票日付より前です
 express.error.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
 express.error.INVALID_QUANTITY,明細の数量が無効です。修正して再送信してください
 express.error.ITEMS_INVALID,明細を Express に書き込めません。確認して再送信してください
 express.error.ITEM_GROUP_ACCOUNT_MISSING,品目グループの勘定が Express の勘定科目表にありません
+express.error.ITEM_GROUP_NOT_FOUND,Express にこの商品グループがありません
 express.error.JOURNAL_BOOK_NOT_FOUND,この会計データにはこの種類の伝票帳がありません。Express で設定してください
 express.error.MAPPING_MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
 express.error.MAPPING_MISSING_ITEM,対応する在庫品目がありません。選択して再送信してください
@@ -2288,6 +2299,7 @@ express.error.MISSING_REF_NO,請求書番号がありません。追加して再
 express.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
 express.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT,この会計データでは免税明細と課税明細を同じ伝票に入れられません。Express で入力してください
 express.error.OPERATOR_UNAVAILABLE,このパソコンでは Express の代行入力ができません
+express.error.PARTY_TYPE_NOT_FOUND,Express にこの種別がありません
 express.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 express.error.POS_INVALID,POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください
 express.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
@@ -2305,6 +2317,8 @@ express.error.STOCK_ITEM_NOT_FOUND,この品目は Express の在庫品目では
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 express.error.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 express.error.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
+express.error.UNIT_CHOICE,単位が未設定です
+express.error.UNIT_CODE_NOT_FOUND,Express にこの単位がありません
 express.error.VOID_DOCUMENT_CHANGED,この伝票は Express で変更されています。Express で確認してください
 express.error.VOID_DOCUMENT_NOT_FOUND,この伝票は Express にありません
 express.kind.account,費用勘定

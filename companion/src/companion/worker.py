@@ -440,6 +440,13 @@ def _handle_operator_task(cfg, qc, task, st):
     from .account_write_lock import ERR_WRITER_BUSY, Busy, held
     from .express_operator.contract import TARGET_EXPRESS, target_of
 
+    from . import guided
+
+    if guided.uses(task.payload or {}):
+        # 载荷 21（引导录入）的新键第一批只支持直写：代录的单带了它们不录（服务端本来不派，这里兜底），转人工
+        qc.ack_failure(task.id, "guided entry keys are not supported for operator entry", error_code="PAYLOAD_INVALID",
+                       outcome="needs_review")
+        return "needs_review"
     if target_of(task.payload or {}) != TARGET_EXPRESS:
         return _handle_operator_target(cfg, qc, task)
     if sys.platform != "win32" or not str(getattr(st, "express_exe", "") or "").strip():
@@ -628,6 +635,14 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         "invoice_not_found": "needs_review",
         "receipt_type_invalid": "needs_review",
         "cash_account_missing": "needs_review",
+        # 载荷 21（引导录入，guided）：要人在引导卡上定一题（单位 / 出库成本 / 现金科目，回执 meta.choice 带候选），
+        # 或新键的值不在这本账套里（单位码、分类、对方类型），重试结论一样（整单没写）
+        "UNIT_CHOICE": "needs_review",
+        "COST_BASIS_CHOICE": "needs_review",
+        "CASH_ACCOUNT_CHOICE": "needs_review",
+        "UNIT_CODE_NOT_FOUND": "needs_review",
+        "ITEM_GROUP_NOT_FOUND": "needs_review",
+        "PARTY_TYPE_NOT_FOUND": "needs_review",
     }.get(error_code or "")
 
 
@@ -665,6 +680,14 @@ def _push_meta(res, direction: str, account_dir: str, *, writer: str = "") -> di
     # 再让会计把红字一个字一个字抄回来。成功路径恒无(见 DbfWriteResult.evidence)。
     if getattr(res, "evidence", None):
         m["evidence"] = res.evidence
+    # 载荷 21（引导录入）：要人定一题时的候选 {code, line, name, stkcod, units, unit_table, balance, cash_account, lines}，
+    # 服务端据此在引导卡上出题。别的失败与成功路径恒无。
+    if getattr(res, "choice", None):
+        m["choice"] = dict(res.choice)
+    # 库存不足的结构化明细 [{stkcod, loccod, need, have, name?, new?}]：随单新建的物料没有物料码，两产品按 name / new 显示
+    # 「{品名}：新物料，没有库存」；原文格式不变（旧解析照用）。
+    if getattr(res, "shortages", None):
+        m["shortages"] = list(res.shortages)
     if res.ok:
         m["index_requery"] = True  # write_* 仅在 _verify_index 回查命中后才 ok
         key = "created_customer" if direction == "sales" else "created_supplier"

@@ -4,7 +4,8 @@
 - ISINFO.NEGALLOW = N：卖超结存 → 整单不写，回 STOCK_INSUFFICIENT（转人工）。照 Express（服务器测试账套实录，主会话 10-25 定稿）：
   CHKNEGLEV 1 / 2（空按 2）按单个仓——每行按实际写入的仓（行上的仓库码，没带就是主仓 MAINLOC）的 STLOC.LOCBAL 核，同单同品同仓合计，
   各仓合计和 STMAS.MREMBAL 对不上的老账也按 STLOC；CHKNEGLEV 0 只按全仓 STMAS.MREMBAL 合计，允许单个仓变负；
-- 够卖、这件品自己标了允许负库存（STMAS.NEGALLOW = Y）、账套允许负库存（NEGALLOW ≠ N）、随单新建的物料：照写；
+- 够卖、这件品自己标了允许负库存（STMAS.NEGALLOW = Y）、账套允许负库存（NEGALLOW ≠ N）：照写；
+- 随单新建的物料按结存 0 一起核（覆盖表 G-B6，11-12，对所有入口生效）：账套不许负库存 → 整单不写，回报带品名与 new；账套允许 → 照写；
 - 没有 STLOC：按全仓 STMAS.MREMBAL 核；
 - 商品级 STMAS.NEGALLOW 盖过账套（服务器测试账套 1-戊、第 6 条）：Y 不核，N 当作账套不许负库存（按 CHKNEGLEV 按仓 / 全仓，账套 Y 也核），
   空跟账套，A 先跟账套、回报标 item A。
@@ -75,11 +76,62 @@ def test_an_account_set_that_allows_negative_stock_is_written_as_before(acct):
     assert _stloc(acct, "ICE01", "01")["LOCBAL"] == -4.0
 
 
-def test_a_material_created_with_the_sale_is_not_checked(acct):
+_NEW_ITEM = {"name": "น้ำแข็งบด", "code": "", "qty": "2", "unit_price": "30", "amount": "60.00", "unit": "ถัง",
+             "item_mode": "stock_sale"}
+
+
+def test_a_material_created_with_the_sale_counts_as_zero_stock(acct):
+    """覆盖表 G-B6（主会话 11-12 定稿，所有入口）：账套不许负库存时，随单新建的物料结存是 0，这张销货 Express 自己也写不进 →
+    整单不写、不建档；回报带品名与 new。以前不核，新建的档又写死允许负库存，会写出 Express 不让写的负数。"""
     _no_negative(acct)
-    item = {"name": "น้ำแข็งบด", "code": "", "qty": "2", "unit_price": "30", "amount": "60.00", "unit": "ถัง",
-            "item_mode": "stock_sale"}
-    res = _sell(acct, _sale([item]))
+    before = _state(acct)
+    res = _sell(acct, _sale([_item("ICE01", 6, 180.0, "stock_sale"), dict(_NEW_ITEM)]), make_backup=True)
+    assert not res.ok and res.error_code == stock_guard.ERR_STOCK_INSUFFICIENT
+    assert res.shortages == [{"stkcod": "ICE01", "loccod": "01", "need": "6", "have": "5"},
+                             {"stkcod": "", "loccod": "01", "need": "2", "have": "0", "name": "น้ำแข็งบด", "new": True}]
+    assert _state(acct) == before
+    meta = worker._push_meta(res, "sales", str(acct))
+    assert meta["shortages"] == res.shortages and meta["written"] is False
+
+
+def test_the_shortage_text_keeps_the_format_the_erp_page_parses(acct):
+    """原文格式不能动：ERP 单据页（transactions.js）与待处理按「物料@仓 need 要 have 有」逐行解析。已有物料的行逐字不变；
+    新建的行物料那一格是品名、行尾加 new（同库存单新建行），旧解析照样取出四格。"""
+    import re
+
+    _no_negative(acct)
+    res = _sell(acct, _sale([_item("ICE01", 6, 180.0, "stock_sale"), dict(_NEW_ITEM)]))
+    assert res.error == ("not enough stock in Express (negative stock not allowed): "
+                         "ICE01@01 need 6 have 5, น้ำแข็งบด@01 need 2 have 0 new")
+    parsed = re.findall(r"(\S+)@(\S+) need (\S+) have (\S+)", res.error)  # transactions.js 的那条正则
+    # （多行时旧正则把行间的逗号连在「有」那一格后面，是页面那边原有的样子，这里照实比）
+    assert parsed == [("ICE01", "01", "6", "5,"), ("น้ำแข็งบด", "01", "2", "0")]
+    old_only = _sell(acct, _sale([_item("ICE01", 6, 180.0, "stock_sale")]))
+    assert old_only.error == "not enough stock in Express (negative stock not allowed): ICE01@01 need 6 have 5"
+
+
+def test_a_new_material_is_sold_when_the_book_allows_negative_stock_or_the_line_says_so(acct):
+    """账套允许负库存：随单新建的物料照写（档上「允许负库存」留空）。账套不许、但行上 negallow = Y（载荷 21）：照写、档上记 Y；
+    行上 negallow = N 而账套允许：不写。"""
+    res = _sell(acct, _sale([dict(_NEW_ITEM)]))
+    assert res.ok, res.error
+    assert _rows(acct, "STMAS", STKDES="น้ำแข็งบด")[0]["NEGALLOW"].strip() == ""
+    refused = _sell(acct, _sale([dict(_NEW_ITEM, name="น้ำแข็งแห้ง", negallow="N")], payload_version=21))
+    assert not refused.ok and refused.error_code == stock_guard.ERR_STOCK_INSUFFICIENT
+    assert refused.shortages[0]["name"] == "น้ำแข็งแห้ง" and refused.shortages[0]["new"] is True
+    _no_negative(acct)
+    allowed = _sell(acct, _sale([dict(_NEW_ITEM, name="น้ำแข็งแห้ง", negallow="Y")], payload_version=21))
+    assert allowed.ok, allowed.error
+    assert _rows(acct, "STMAS", STKDES="น้ำแข็งแห้ง")[0]["NEGALLOW"] == "Y"
+    # 版本 ≤ 20 的载荷不读行上的 negallow：账套不许负库存就不写
+    old = _sell(acct, _sale([dict(_NEW_ITEM, name="น้ำแข็งป่น", negallow="Y")]))
+    assert not old.ok and old.error_code == stock_guard.ERR_STOCK_INSUFFICIENT
+
+
+def test_a_new_material_is_not_checked_when_the_lines_are_not_written(acct):
+    """明细不可信（items_status 不是 ok）的单只记表头、不新建物料：新建的行不核。"""
+    _no_negative(acct)
+    res = _sell(acct, _sale([dict(_NEW_ITEM)], items_status="mismatch"))
     assert res.ok, res.error
 
 

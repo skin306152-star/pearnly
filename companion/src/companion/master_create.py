@@ -496,6 +496,13 @@ def verify_customer_row(
     return _verify_row(account_dir, "ARMAS", "CUSCOD", code, tax_id)
 
 
+def _payterm(table, days) -> dict:
+    """新建对方档的账期天数（载荷 21 的 ``payterm``）：给了才写 ``PAYTRM``；没给不写这一栏（Express 默认 0，同以前）。"""
+    if days is None or "PAYTRM" not in {name.upper() for name in table.field_names}:
+        return {}
+    return {"PAYTRM": int(days)}
+
+
 def ensure_supplier(
     account_dir: Path,
     entry,
@@ -533,7 +540,9 @@ def ensure_supplier(
             {
                 "SUPCOD": code,
                 # 类型码照这套账现有供应商最常用的(「00」有的账套没有、有的是「应计费用」)
-                "SUPTYP": account_rules.common_type(account_dir, "APMAS", "SUPTYP"),
+                # 载荷 21（引导录入）：人在「新建对方」里选了类型（``supplier.type``，写前已核是这套账用过的）就写它
+                "SUPTYP": getattr(entry, "supplier_type", "") or account_rules.common_type(account_dir, "APMAS", "SUPTYP"),
+                **_payterm(t, getattr(entry, "supplier_payterm", None)),
                 "PRENAM": entry.supplier_prename[:_MAX_PRENAM],
                 "SUPNAM": core[:_MAX_NAME],
                 "ADDR01": addr1,
@@ -605,7 +614,9 @@ def ensure_customer(
             {
                 "CUSCOD": code,
                 # 类型码照这套账现有客户最常用的(「00」有的账套没有、有的是「国外应收」)
-                "CUSTYP": account_rules.common_type(account_dir, "ARMAS", "CUSTYP"),
+                # 载荷 21（引导录入）：人在「新建对方」里选了类型（``customer.type``，写前已核是这套账用过的）就写它
+                "CUSTYP": getattr(entry, "customer_type", "") or account_rules.common_type(account_dir, "ARMAS", "CUSTYP"),
+                **_payterm(t, getattr(entry, "customer_payterm", None)),
                 "PRENAM": entry.customer_prename[:_MAX_PRENAM],
                 "CUSNAM": core[:_MAX_NAME],
                 "ADDR01": addr1,

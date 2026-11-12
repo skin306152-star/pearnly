@@ -1,0 +1,81 @@
+# 测试机清单：CC 桌面版载荷 21 实写、62 套回放、B2 探表单
+
+属于 [CC 桌面版载荷 21](2026-11-12-cc-desktop-payload-21.md)。本任务窗口没连测试机；下面三部分互相独立，由主会话排时间。
+动测试机前照例先登记占用表并通知在用的窗口；服务器版 Express 开着时不写它的账套。
+
+**共同前提**
+
+- 被测代码：分支 `pearnly/cc-desktop-payload-3a2e3d`。实写用正式 CC 的写入路径（安装 Companion checks 这次推送产出的测试安装包，
+  或已发的正式版），不用仓库源码离线写真账套（会缺索引重建程序）。
+- 可写的账套只有：测试机 `C:\PearnlyExpress` 下的 T 账套、Express 服务器上的 `\\accserver\d$\ACCOUNT\70EXP\test`、`69EXP\TEST`、
+  `69EXP\TEST2`、NLTTEST。真账套一律只读。
+- 服务端出题与卡片还没上：新键要么等引导式第 1 期的服务端上了测试环境、直接在 CC 对话里答题带出来；要么由排测试的窗口在测试租户上
+  排一张普通的单，把排队的载荷加上表里的键、`payload_version` 改成 21 再派（具体改法由那个窗口按当时的队列结构定，本清单没验证过）。
+- 每一项的核对三步：① CC 回执（成功 / 原因码、`meta.choice`、`meta.shortages`）；② Express 界面打开这张单 / 这条主档，截图；
+  ③ 读回表里的栏（用 CC 的只读读取或把账套复制出来读）。
+
+## 第一部分：实写（建议账套：测试机 C 盘一本 T 账套 + `70EXP\test`）
+
+先记下这本账套的：`ISINFO.NEGALLOW` / `CHKNEGLEV`、现金科目 `ACCNUM00`、一件有包装单位的库存品（库存单位、采购 / 销售 / 计数单位与系数）、
+一件结存为 0 且标准成本为 0 的库存品、单位表里的两个码、物料分类表里的两个码、两个合格的存货科目组、供应商 / 客户各两种在用的类型码。
+
+| # | 载荷（版本 21） | 预期回执 | Express 里核什么 |
+|---|---|---|---|
+| 1 | 赊购 RR，库存行：已有物料，`unit` 写一个解析不出的字、`unit_code` = 它的采购包装单位，数量 2 | 成功 | 单据行单位是包装单位、数量 2；库存卡 `TFACTOR` = 主档系数、`XTRNQTY` = 2 × 系数；结存加了 2 × 系数；界面上这一行能正常打开、改、存 |
+| 2 | 赊销 IV，库存行：已有物料，`unit_code` = 单位表里一个不是它的单位的码，`factor` = "0.5"，数量 4 | 成功 | 行按库存单位、数量 2 出库 |
+| 3 | 同 2 但不带 `factor` | `UNIT_CHOICE`，`meta.choice.units` 是这件物料的各单位与系数、`unit_table` 是单位表 | 账套没动 |
+| 4 | 赊购 RR，`guided: true`，已有物料，`unit` 写单位表里另一个单位的名字、不带 `unit_code` / `factor` | `UNIT_CHOICE` | 账套没动；去掉 `guided` 重发 → 按库存单位写进去（现状） |
+| 5 | 赊购 RR，新物料（品名账套里没有），`unit_code`、`acccod`（另一个合格的科目组）、`stkgrp`（另一个分类）都给 | 成功，`line_modes[0].created = true`、`unit_guessed = false` | 物料主档：四个单位都是这个码、**三个换算系数都是 1（B1）**、科目组与分类是给的值、「ส/ค ติดลบได้?」是空；Express 里打开这条物料、修改保存不报错 |
+| 6 | 赊购 RR，`guided: true`，新物料，`unit` 解析不出、不带 `unit_code` | `UNIT_CHOICE`，`lines[0].stkcod` 为空 | 账套没动、没建档 |
+| 7 | 赊购 RR，新物料，`stkgrp` = 表里没有的码；再发一张 `acccod` = 不合格的组 | `ITEM_GROUP_NOT_FOUND`；`STOCK_ACC_GROUP_UNFIT` | 账套没动 |
+| 8 | 赊销 IV，`guided: true`，库存行是结存 0、标准成本 0 的已有物料，不带 `cost_choice`（账套允许负库存） | `COST_BASIS_CHOICE`，`meta.choice` 带行号、物料码、结存 | 账套没动 |
+| 9 | 同 8，`cost_choice: "given"`、`cost: "12.50"`，数量 2 | 成功，`reason = cost_given` | 库存卡这一行单位成本 12.50、成本额 25；凭证有「借 销货成本 25 / 贷 存货 25」；Express 的库存卡 / 毛利报表里这一行有成本 |
+| 10 | 同 8，`cost_choice: "none"` | 成功，`reason = no_cost_basis` | 这一行成本 0、没有成本分录（与现在的写法一样） |
+| 11 | 赊销 IV，有正结存的物料，`cost_choice: "given"`、`cost: "99"` | 成功，`line_modes[0].cost_ignored = true` | 成本按移动均价，不是 99 |
+| 12 | 赊销 IV，新物料，`negallow: "N"`（账套允许负库存） | `STOCK_INSUFFICIENT`，`meta.shortages` 一行 `{name, new: true, have: "0"}`，原文是「品名@仓 need n have 0 new」 | 账套没动；ERP 单据页 / Cowork 的原因显示没坏 |
+| 13 | 赊销 IV，新物料，`negallow: "Y"`，`cost_choice: "none"` | 成功 | 物料主档「ส/ค ติดลบได้?」= Y，结存为负 |
+| 14 | 赊购 RR，`due_date_be` = 单据日 + 45 天 | 成功 | 单据到期日是这一天、账期栏 45；应付账龄 / 到期报表按这一天 |
+| 15 | 赊销 IV，`due_date_be` = 单据日当天；再发一张早于单据日 | 成功（账期 0）；`PAYLOAD_INVALID`（原文 `INVALID_DUE_DATE: …`） | 第一张到期日 = 单据日 |
+| 16 | 现销 HS，`cash_account` = 一个银行科目（可记账） | 成功 | 凭证借方是这个银行科目、不是现金；Express 里现销单打开、收款栏正常 |
+| 17 | 现购 HP，`cash_account` = 同一个银行科目；再发一张 `cash_account` = 汇总科目（不能记账） | 成功（贷银行）；`ACCOUNT_NOT_POSTABLE` | — |
+| 18 | 现销 HS，`guided: true`，不带 `cash_account`——需要一本「现金科目不能记账」的账套；没有就先把 `70EXP\test` 的现金科目设成汇总科目，测完改回 | `CASH_ACCOUNT_CHOICE`，`meta.choice.cash_account` 是账套现金科目 | 账套没动；去掉 `guided` 重发 → 借方保留应收科目（现状） |
+| 19 | 赊购 RR，新供应商，`supplier.type` = 在用的另一种类型、`payterm: 30`，不带 `due_date_be` | 成功，新建供应商 | 供应商主档类型、账期 30；这张单到期日 = 单据日 + 30 |
+| 20 | 赊销 IV，新客户，`customer.type` = 在用的另一种类型、`payterm: 7`；再发一张 `type` = 没人用的码 | 成功；`PARTY_TYPE_NOT_FOUND` | 客户主档类型、账期 7 |
+| 21 | 代录的单（`entry_mode = operator`）带任一新键 | `PAYLOAD_INVALID`、转人工 | Express 没被操作 |
+
+**G-B6（所有入口，不带新键）**——在一本账套不许负库存的测试套上（`70EXP\test` 把账套设成不许负库存，测完改回；10-25 实录时就是这本）：
+
+| # | 做法 | 预期 |
+|---|---|---|
+| 22 | Cowork 网页推一张销售票，明细里有一件账套里没有的物料（走库存） | 不写，原因「Express 库存不足」；没有建出这件物料；回执 `meta.shortages` 带品名与 `new` |
+| 23 | 同一张票由 LINE 收单、ERP 网页单据、定时任务各推一次 | 同上；记下各入口显示的文字（供引导式窗口补词条） |
+| 24 | 先推一张进货票建出这件物料并入库，再推 22 那张 | 写进去；新建的物料「ส/ค ติดลบได้?」是空（跟账套） |
+| 25 | 把账套改回允许负库存，推一张卖新物料的票 | 写进去，物料选项是空，结存为负（Express 界面里再录一张卖它的单只弹提醒、能存） |
+| 26 | 在 Express 界面手工新建一件物料，看「ส/ค ติดลบได้?」和三个换算系数的默认值，截图 | 用来确认「留空」「系数 1」与 Express 自己的默认一致 |
+
+## 第二部分：62 套只读回放与原生统计（可先于实写；约 1–1.5 小时机器时间）
+
+语料在测试机（`70EXP` 的 T8 / T9 等 62 套）。只读：把账套复制到 WSL 的临时目录再跑，原件不动；读表一律 `unicode_errors=replace`。
+
+1. **新旧回放**：把 `~/pearnly-devtools/cc-payload-21-replay/`（`replay.py`、`run.py`）与两份源码（`git archive c63458f5f companion`、
+   本分支 `companion`）放到 WSL；`replay.py` 里 `BOOKS` 换成按每本账套自动取的配置（供应商 / 客户各取一个码、三件库存品、主仓、
+   ISINFO 的默认科目），对 62 本各跑序列 A（37 张）与序列 B（7 张）。预期：序列 A 每一步每个文件逐字节相同；序列 B 只差新建物料的
+   `STMAS.NEGALLOW`（Y → 空）与换算系数（模板系数不是 1 的账套会多出 `CFACTOR / PFACTOR / SFACTOR` → 1），账套不许负库存的那几本
+   「卖新物料」的单新代码不写。把 `summary.json` 带回来。
+2. **原生分布**（`probe.py` 改成遍历 62 本、只出聚合数）：账套级 `ISINFO.NEGALLOW` / `CHKNEGLEV` / `NEGAUTH`；库存品 `STMAS.NEGALLOW`
+   的 空 / Y / N / A 占比；四个单位同码的库存品里三个系数是否都是 1 的比例。
+3. **到期日与现销借方**：RR / IV 的 `DUEDAT − DOCDAT` 与 `PAYTRM` 是否处处相等；HS 借方第一行是不是现金科目、有没有原生记银行的（供
+   A13 的「收款方式」题参考）。
+4. **对方类型的代码表**：`APMAS.SUPTYP`、`ARMAS.CUSTYP` 的取值分别落在 `ISTAB` 的哪个 `TABTYP`（本机一套看着是 46 / 45）。多套一致的话，
+   `PARTY_TYPE_NOT_FOUND` 的判据可以从「已有档用过的」放宽成「类型表里有的」。
+5. 物料分类 `STKGRP` 是否都在 `ISTAB TABTYP = 22`（本机一套 6 / 6）。
+
+## 第三部分：B2 代录销售单的「อ้างอิง」（探明后才改配方）
+
+配方 `companion/src/companion/express_operator/recipes/express-1.0.1.94.json`：IV 表头的标签列表里有「อ้างอิง」，HS 的要到机器上看。
+在录制用的那台（或测试机）用 `69EXP\TEST` 手工各开一张 IV、HS：
+
+1. 两种表单上「อ้างอิง」这一格在不在、Tab 顺序里排第几（相对「ใบสั่งขาย」「พนักงานขาย」「ประเภทราคา」）、最长能输多少字节。
+2. 填 12 字节以内、15 字节、超长的票号各存一次：能否保存、存进了 `ARTRN` 的哪一栏（`YOUREF`？）、销项税记录 `ISVAT.REFNUM` 跟不跟。
+3. 留空能否保存（现状就是留空）。
+4. 结论回给本任务窗口或主会话：格子名、长度、落哪一栏；据此在配方 IV / HS 的 `header.values` 加一格填现有的 `ref_no`，并补离线回放用例。

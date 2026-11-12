@@ -228,6 +228,7 @@ Cash,เงินสด
 Cash Amount,เงินสด
 Cash Check,ตรวจเงินสด
 Cash Difference,ผลต่างเงินสด
+Cash account not set,ยังไม่ได้กำหนดบัญชีเงินสด
 Cash basis,เกณฑ์เงินสด
 Cashier,เก็บเงิน
 Cashier (POS),ขายหน้าร้าน (POS)
@@ -352,6 +353,7 @@ Correct entry,แก้ไขรายการ
 Cost,ต้นทุน
 Cost Is Set,ตั้งต้นทุนแล้ว
 Cost Known,ทราบต้นทุนแล้ว
+Cost of goods sold not set,ยังไม่ได้กำหนดต้นทุนขาย
 Could not connect to MR.ERP,เชื่อมต่อ MR.ERP ไม่ได้
 Could not read the MR.ERP master data.,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 Could not read this document. Please send it again.,ไม่สามารถอ่านเอกสารได้ กรุณาส่งใหม่อีกครั้ง
@@ -501,6 +503,7 @@ Dropdown,ดรอปดาวน์
 Due,ครบกำหนด
 Due Date,วันที่ครบกำหนด
 Due date,วันครบกำหนด
+Due date is before the document date,วันครบกำหนดอยู่ก่อนวันที่เอกสาร
 Due later,ครบกำหนดภายหลัง
 Due this week,ครบกำหนดภายใน 7 วัน
 Due time,เวลาครบกำหนด
@@ -1072,6 +1075,7 @@ Product Ref,รหัสอ้างอิงสินค้า
 Product Rows  {0},รายละเอียดรวมสินค้า  {0}  รายการ
 Product Total,รวมสินค้า
 Product code,รหัสสินค้า
+Product group not found in Express,ไม่พบกลุ่มสินค้านี้ใน Express
 Product is disabled,สินค้าถูกปิดใช้งาน
 Product name,ชื่อสินค้า
 Product not found,ไม่พบสินค้า
@@ -1649,6 +1653,7 @@ Type a word from the location name to find it,พิมพ์คำในชื�
 Type a word from the supplier name to find it,พิมพ์คำในชื่อผู้จำหน่ายเพื่อค้นหา
 Type a word from the warehouse name to find it,พิมพ์คำในชื่อคลังสินค้าเพื่อค้นหา
 Type any warehouse name; a new warehouse is created if that name is new,พิมพ์ชื่อคลังได้เอง ถ้าชื่อใหม่ระบบจะสร้างให้
+Type not found in Express,ไม่พบประเภทนี้ใน Express
 Type the company name or number to find it,พิมพ์ชื่อหรือรหัสบริษัทเพื่อค้นหา
 Type the customer name or code to find it,พิมพ์ชื่อหรือรหัสลูกค้าเพื่อค้นหา
 Type the item name or code,พิมพ์ชื่อหรือรหัสสินค้า
@@ -1667,6 +1672,8 @@ Unit Cost Entered,กรอกราคาต่อหน่วยแล้ว
 Unit Price,ราคาต่อหน่วย
 Unit barcode,บาร์โค้ดหน่วย
 Unit not found,ไม่พบรายการนี้
+Unit not found in Express,ไม่พบหน่วยนับนี้ใน Express
+Unit not set,ยังไม่ได้กำหนดหน่วยนับ
 Unit number type,ประเภทหมายเลข
 Unit opening registration,ลงทะเบียนยอดยกมารายชิ้น
 Unit {0} is not defined on {1},ไม่ได้กำหนดหน่วย「{0}」ไว้ในสินค้า「{1}」
@@ -2264,7 +2271,9 @@ express.error.ACCOUNT_WRITER_BUSY,เครื่องอื่นกำลั�
 express.error.AMOUNTS_NOT_CONSISTENT,ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่
 express.error.BAD_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 express.error.BAD_SALES_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+express.error.CASH_ACCOUNT_CHOICE,ยังไม่ได้กำหนดบัญชีเงินสด
 express.error.CDX_REINDEX_FAILED,Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
+express.error.COST_BASIS_CHOICE,ยังไม่ได้กำหนดต้นทุนขาย
 express.error.CUSTOMER_BRANCH_AMBIGUOUS,มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
 express.error.CUSTOMER_DUP_SUSPECTED,มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
 express.error.CUSTOMER_NOT_IN_ARMAS,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
@@ -2276,10 +2285,12 @@ express.error.ERR_LOCATION,ไม่มีคลังสินค้านี�
 express.error.ERR_PAYLOAD_VERSION,CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
 express.error.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 express.error.INVALID_DOC_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+express.error.INVALID_DUE_DATE,วันครบกำหนดอยู่ก่อนวันที่เอกสาร
 express.error.INVALID_INVOICE_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 express.error.INVALID_QUANTITY,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 express.error.ITEMS_INVALID,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 express.error.ITEM_GROUP_ACCOUNT_MISSING,บัญชีของกลุ่มสินค้าไม่มีในผังบัญชี Express
+express.error.ITEM_GROUP_NOT_FOUND,ไม่พบกลุ่มสินค้านี้ใน Express
 express.error.JOURNAL_BOOK_NOT_FOUND,ชุดบัญชีนี้ไม่มีสมุดสำหรับเอกสารประเภทนี้ กรุณาตั้งค่าใน Express
 express.error.MAPPING_MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
 express.error.MAPPING_MISSING_ITEM,ไม่มีสินค้าที่จับคู่ไว้ กรุณาเลือกแล้วส่งใหม่
@@ -2288,6 +2299,7 @@ express.error.MISSING_REF_NO,ไม่มีเลขที่เอกสาร
 express.error.MISSING_SUPPLIER,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
 express.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT,ชุดบัญชีนี้ใส่รายการยกเว้นภาษีและรายการที่มีภาษีในเอกสารเดียวกันไม่ได้ กรุณาบันทึกใน Express
 express.error.OPERATOR_UNAVAILABLE,คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้
+express.error.PARTY_TYPE_NOT_FOUND,ไม่พบประเภทนี้ใน Express
 express.error.PAYLOAD_INVALID,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
 express.error.POS_INVALID,ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่
 express.error.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
@@ -2305,6 +2317,8 @@ express.error.STOCK_ITEM_NOT_FOUND,สินค้านี้ไม่ใช่
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
 express.error.SUPPLIER_DUP_SUSPECTED,มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
 express.error.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
+express.error.UNIT_CHOICE,ยังไม่ได้กำหนดหน่วยนับ
+express.error.UNIT_CODE_NOT_FOUND,ไม่พบหน่วยนับนี้ใน Express
 express.error.VOID_DOCUMENT_CHANGED,เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express
 express.error.VOID_DOCUMENT_NOT_FOUND,ไม่พบเอกสารนี้ใน Express
 express.kind.account,บัญชีค่าใช้จ่าย

@@ -1406,6 +1406,13 @@ The returned quantity is more than the quantity sold	退货数量超过原单销
 The return is not in the expected form	退货单数据格式不对	ข้อมูลใบรับคืนอยู่ในรูปแบบที่ไม่ถูกต้อง	返品伝票のデータ形式が正しくありません	express.error.REFUND_INVALID
 Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの会計データの在庫勘定グループを選んでください。	express.error.STOCK_ACC_GROUP_UNFIT
 Service input VAT basis not set	服务品进项税口径未定	ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ	サービスの仮払付加価値税の基準が未設定です	express.error.SERVICE_VAT_BASIS_CHOICE
+Unit not set	单位未定	ยังไม่ได้กำหนดหน่วยนับ	単位が未設定です	express.error.UNIT_CHOICE
+Cost of goods sold not set	出库成本未定	ยังไม่ได้กำหนดต้นทุนขาย	売上原価が未設定です	express.error.COST_BASIS_CHOICE
+Cash account not set	现金科目未定	ยังไม่ได้กำหนดบัญชีเงินสด	現金勘定が未設定です	express.error.CASH_ACCOUNT_CHOICE
+Unit not found in Express	Express 中没有此单位	ไม่พบหน่วยนับนี้ใน Express	Express にこの単位がありません	express.error.UNIT_CODE_NOT_FOUND
+Product group not found in Express	Express 中没有此物料分类	ไม่พบกลุ่มสินค้านี้ใน Express	Express にこの商品グループがありません	express.error.ITEM_GROUP_NOT_FOUND
+Type not found in Express	Express 中没有此类型	ไม่พบประเภทนี้ใน Express	Express にこの種別がありません	express.error.PARTY_TYPE_NOT_FOUND
+Due date is before the document date	到期日早于单据日期	วันครบกำหนดอยู่ก่อนวันที่เอกสาร	支払期日が伝票日付より前です	express.error.INVALID_DUE_DATE
 The account set on this computer is not the registered one. Waiting for another computer.	此电脑上的账套与登记的不一致，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このパソコンの会計データは登録されたものではありません。別のパソコンを待っています	express.error.ERR_ACCOUNT_UID_MISMATCH
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	express.error.BAD_DOCTYPE
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	express.error.BAD_SALES_DOCTYPE

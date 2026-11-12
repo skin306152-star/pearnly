@@ -278,6 +278,7 @@ Card name (alphabetically),カード名（アルファベット順）
 Card restored,復元しました
 Card templates,カードテンプレート
 Cash,現金
+Cash account not set,現金勘定が未設定です
 Cash basis,現金主義
 Cash purchase,現金仕入
 Cash sales,現金売上
@@ -444,6 +445,7 @@ Copy list,リストをコピー
 Copy to,コピー先
 Correct entry,記録を修正
 Corrected Value,修正値
+Cost of goods sold not set,売上原価が未設定です
 Could not connect to MR.ERP,MR.ERP に接続できません
 Could not finish,失敗
 Could not read the MR.ERP master data.,MR.ERP のマスターデータを読み取れません。
@@ -656,6 +658,7 @@ Due (e-Filing),申告期限（電子）
 Due (paper),申告期限（紙）
 Due Time,期限時刻
 Due date,期日
+Due date is before the document date,支払期日が伝票日付より前です
 Due later,それ以降
 Due this week,7日以内が期限
 Due time,期限時刻
@@ -1297,6 +1300,7 @@ Product Name,商品名
 Product code,商品コード
 Product codes and barcodes must be stored as text.,商品コードとバーコードは文字列として保存してください。
 Product group,商品分類
+Product group not found in Express,Express にこの商品グループがありません
 Product name,商品名
 Product not found. Check the code and try again.,商品が見つかりません。コードを確認してください。
 Professional fees,専門職報酬
@@ -2100,6 +2104,7 @@ Turn this scheduled task on? Only files added to the folder from now on are proc
 Type,種別
 Type a few letters of the company or account set name to find it,会社名または会計データ名の一部を入力して検索してください
 Type a word from the inventory account group name to find it,在庫勘定グループ名の一部を入力して検索
+Type not found in Express,Express にこの種別がありません
 Type of income paid,支払った所得の種類
 "Type or scan, then press Enter",入力またはスキャンして Enter
 Type the inventory account group name or account code to find it,在庫勘定グループ名または勘定コードを入力して検索
@@ -2108,6 +2113,8 @@ Unbind LINE,LINE 連携を解除
 Unbind Pearnly Cowork LINE?,Pearnly Cowork LINE の連携を解除しますか？
 "Under 1,000 baht","1,000 バーツ未満"
 Unit,単位
+Unit not found in Express,Express にこの単位がありません
+Unit not set,単位が未設定です
 Unknown reconciliation type.,不明な照合種別です。
 Unmatched,未照合
 Unmatched Count,未照合件数
@@ -3423,7 +3430,9 @@ intake.error.ACCOUNT_SET_UNREACHABLE,現在この会計データにアクセス�
 intake.error.ACCOUNT_WRITER_BUSY,別のパソコンがこの会計データに書き込み中です。完了後に自動で送信します
 intake.error.BAD_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
 intake.error.BAD_SALES_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
+intake.error.CASH_ACCOUNT_CHOICE,現金勘定が未設定です
 intake.error.CDX_REINDEX_FAILED,Express の索引を作れず元に戻しました。自動で再試行します
+intake.error.COST_BASIS_CHOICE,売上原価が未設定です
 intake.error.CUSTOMER_BRANCH_AMBIGUOUS,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
 intake.error.CUSTOMER_DUP_SUSPECTED,Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください
 intake.error.CUSTOMER_NOT_IN_ARMAS,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
@@ -3470,10 +3479,12 @@ intake.error.ERR_UNKNOWN_UPLOAD_OUTCOME,MR.ERP の取込結果を取得できま
 intake.error.ERR_VAT_RATE_ANOMALY,付加価値税額が 7% と合いません。確認して再送信してください
 intake.error.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください
 intake.error.INVALID_DOC_DATE,書類の日付が無効です。修正して再送信してください
+intake.error.INVALID_DUE_DATE,支払期日が伝票日付より前です
 intake.error.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
 intake.error.INVALID_QUANTITY,明細の数量が無効です。修正して再送信してください
 intake.error.ITEMS_INVALID,明細を Express に書き込めません。確認して再送信してください
 intake.error.ITEM_GROUP_ACCOUNT_MISSING,品目グループの勘定が Express の勘定科目表にありません
+intake.error.ITEM_GROUP_NOT_FOUND,Express にこの商品グループがありません
 intake.error.JOURNAL_BOOK_NOT_FOUND,この会計データには振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください
 intake.error.MAPPING_MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
 intake.error.MAPPING_MISSING_ITEM,対応する在庫品目がありません。選択して再送信してください
@@ -3483,6 +3494,7 @@ intake.error.MISSING_SUPPLIER,仕入先がありません。追加して再送�
 intake.error.NO_ACCOUNT_SELECTION,このパソコンの CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください
 intake.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT,この会計データでは免税明細と課税明細を同じ伝票に入れられません。Express で入力してください
 intake.error.OPERATOR_UNAVAILABLE,このパソコンでは Express の代行入力ができません
+intake.error.PARTY_TYPE_NOT_FOUND,Express にこの種別がありません
 intake.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 intake.error.PERIOD_LOCKED,会計期間は Express で締め済みです
 intake.error.POS_INVALID,POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください
@@ -3503,6 +3515,8 @@ intake.error.STOCK_ITEM_NOT_FOUND,選んだ Express の在庫品目はもうあ�
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 intake.error.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 intake.error.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
+intake.error.UNIT_CHOICE,単位が未設定です
+intake.error.UNIT_CODE_NOT_FOUND,Express にこの単位がありません
 intake.error.USER_ABORTED_BUSY,会計データが使用中のため送信を中止しました。Express を閉じてから再送信してください
 intake.error.VOID_DOCUMENT_CHANGED,この伝票は Express で変更されています。Express で確認してください
 intake.error.VOID_DOCUMENT_NOT_FOUND,この伝票は Express にありません

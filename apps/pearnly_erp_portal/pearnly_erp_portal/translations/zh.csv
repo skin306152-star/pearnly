@@ -228,6 +228,7 @@ Cash,现金
 Cash Amount,现金
 Cash Check,现金核对
 Cash Difference,现金差额
+Cash account not set,现金科目未定
 Cash basis,收付实现制
 Cashier,收银
 Cashier (POS),收银（POS）
@@ -352,6 +353,7 @@ Correct entry,修改记录
 Cost,成本
 Cost Is Set,已设成本
 Cost Known,成本已知
+Cost of goods sold not set,出库成本未定
 Could not connect to MR.ERP,无法连接 MR.ERP
 Could not read the MR.ERP master data.,无法读取 MR.ERP 主档。
 Could not read this document. Please send it again.,识别失败，请重新发送
@@ -501,6 +503,7 @@ Dropdown,下拉
 Due,到期
 Due Date,到期日
 Due date,到期日
+Due date is before the document date,到期日早于单据日期
 Due later,以后到期
 Due this week,7 天内到期
 Due time,到期时间
@@ -1072,6 +1075,7 @@ Product Ref,物料外部标识
 Product Rows  {0},物料明细  {0}  笔
 Product Total,物料小计
 Product code,系统编码
+Product group not found in Express,Express 中没有此物料分类
 Product is disabled,物料已停用
 Product name,物料名称
 Product not found,未找到物料
@@ -1649,6 +1653,7 @@ Type a word from the location name to find it,输入仓位名称关键字查找
 Type a word from the supplier name to find it,输入供应商名称关键字查找
 Type a word from the warehouse name to find it,输入仓库名称关键字查找
 Type any warehouse name; a new warehouse is created if that name is new,仓库可以自由填写，名字没见过的会自动新建一个
+Type not found in Express,Express 中没有此类型
 Type the company name or number to find it,输入公司名称或编号查找
 Type the customer name or code to find it,输入客户名称或编号查找
 Type the item name or code,请输入物料名称或编码
@@ -1667,6 +1672,8 @@ Unit Cost Entered,单价已填写
 Unit Price,单价
 Unit barcode,单位条码
 Unit not found,该台不存在
+Unit not found in Express,Express 中没有此单位
+Unit not set,单位未定
 Unit number type,号码种类
 Unit opening registration,按台期初登记
 Unit {0} is not defined on {1},单位「{0}」未在「{1}」中定义
@@ -2264,7 +2271,9 @@ express.error.ACCOUNT_WRITER_BUSY,另一台电脑正在写入此账套，完成�
 express.error.AMOUNTS_NOT_CONSISTENT,金额合计不一致，请更正后重新提交
 express.error.BAD_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
 express.error.BAD_SALES_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
+express.error.CASH_ACCOUNT_CHOICE,现金科目未定
 express.error.CDX_REINDEX_FAILED,Express 索引重建失败，已撤回，将自动重试
+express.error.COST_BASIS_CHOICE,出库成本未定
 express.error.CUSTOMER_BRANCH_AMBIGUOUS,Express 中有多个客户使用此税号，请选择客户后重新提交
 express.error.CUSTOMER_DUP_SUSPECTED,Express 中已存在相似客户，请选择该客户或确认为新客户
 express.error.CUSTOMER_NOT_IN_ARMAS,Express 中不存在此客户且无法创建，请核对客户名称和税号
@@ -2276,10 +2285,12 @@ express.error.ERR_LOCATION,Express 账套中无此仓库
 express.error.ERR_PAYLOAD_VERSION,CC 桌面版版本过旧，请更新后重新提交
 express.error.FIELD_TOO_LONG,部分字段超出 Express 允许的长度，请缩短后重新提交
 express.error.INVALID_DOC_DATE,单据日期无效，请修改后重新提交
+express.error.INVALID_DUE_DATE,到期日早于单据日期
 express.error.INVALID_INVOICE_DATE,单据日期无效，请修改后重新提交
 express.error.INVALID_QUANTITY,明细数量无效，请修改后重新提交
 express.error.ITEMS_INVALID,明细无法写入 Express，请核对后重新提交
 express.error.ITEM_GROUP_ACCOUNT_MISSING,物料科目组的科目不在 Express 科目表中
+express.error.ITEM_GROUP_NOT_FOUND,Express 中没有此物料分类
 express.error.JOURNAL_BOOK_NOT_FOUND,此账套没有这种单据的单据簿，请在 Express 中设置
 express.error.MAPPING_MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
 express.error.MAPPING_MISSING_ITEM,缺少对应存货，请选择后重新提交
@@ -2288,6 +2299,7 @@ express.error.MISSING_REF_NO,缺少发票号，请补充后重新提交
 express.error.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
 express.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT,此账套的单据不能同时有免税行和应税行，请在 Express 中录入
 express.error.OPERATOR_UNAVAILABLE,此电脑不能代录 Express
+express.error.PARTY_TYPE_NOT_FOUND,Express 中没有此类型
 express.error.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段后重新提交
 express.error.POS_INVALID,POS 日汇总的数据格式不对，请重新导入 POS 导出
 express.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
@@ -2305,6 +2317,8 @@ express.error.STOCK_ITEM_NOT_FOUND,此商品在 Express 中不是库存品，请
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此税号，请选择供应商后重新提交
 express.error.SUPPLIER_DUP_SUSPECTED,Express 中已存在相似供应商，请选择该供应商或确认为新供应商
 express.error.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
+express.error.UNIT_CHOICE,单位未定
+express.error.UNIT_CODE_NOT_FOUND,Express 中没有此单位
 express.error.VOID_DOCUMENT_CHANGED,此单在 Express 中已被修改，请在 Express 中核对
 express.error.VOID_DOCUMENT_NOT_FOUND,Express 中找不到此单
 express.kind.account,费用科目
