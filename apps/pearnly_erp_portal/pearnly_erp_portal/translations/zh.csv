@@ -267,6 +267,7 @@ Choose a local opening stock file,请选择本地期初库存文件
 Choose an existing product for opening stock,请选择已有的物料录入期初
 Choose an image attached to this card,请选择此卡片的图片附件
 Choose at least one job role,请至少勾选一个功能权限
+Choose before writing to Express,写入 Express 前需要选择
 Choose file,选择文件
 Choose purchase or sales first,请先选择采购或销售
 Choose purchase or sales for this invoice and submit again,请选择此发票为进项或销项后重新提交
@@ -2332,6 +2333,7 @@ express.precheck.note.splitExempt,免税商品按行不计税
 express.precheck.note.vatExpense,小票、简易税票的税额一般不抵进项
 express.precheck.note.vatSales,有含税销售
 express.precheck.note.writable,有电脑能写入
+express.reason.choiceNeeded,写入 Express 前需要选择
 express.reason.itemUnmapped,Express 中没有这件商品
 express.reason.noBook,没有覆盖此日期的 Express 账套
 express.reason.noStockBook,此 Express 账套没有这种库存单的单据簿，请在 Express 中设置

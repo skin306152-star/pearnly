@@ -56,6 +56,17 @@ where = "代录 pending"
 tests = ["flow:cc.operator", "flow:cc.sidebar-modes"]
 
 [[row]]
+id = "erp.cc.operator.reason_text"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:erp:reason_text"
+group = "cc.operator.reason_text"
+where = "代录 reason_text（express_operator_status 交给模型的没录成原因，按用户语言的一句话）"
+tests = ["unit:tests/test_erp_cc_chat_push.py::test_operator_task_reasons_reach_the_model_as_words", "unit:tests/test_express_operator_tasks.py::test_the_tools_number_documents_in_task_order_and_refuse_ones_outside_it"]
+
+[[row]]
 id = "erp.cc.operator.precheck"
 product = "ERP"
 channel = "cc-operator"
