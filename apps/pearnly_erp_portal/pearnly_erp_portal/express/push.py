@@ -804,7 +804,7 @@ def actor_of(doctype, row, book_key):
 def office_actor(owner, company, book_key):
     """不在办公室电脑上登录 CC 的人交的写账（收银日汇总的建单人、在外面收款的收款员）归谁：本人有登录过 CC 的电脑（在线或关着）
     就归本人；否则归这家公司里在够得到这份账套的电脑上登录过 CC 的员工（在线的电脑优先，同一台按名字排）；一个都没有仍归本人。"""
-    if jobs.writers(owner, book_key)["state"] in ("ok", "offline"):
+    if jobs.writers(owner, book_key)["state"] in ("ok", "offline", "not_yours"):
         return owner
     peers = devices.peers()
     reach = [name for name in (books.reachers([book_key]) or {}).get(book_key) or () if name in peers]
@@ -817,9 +817,9 @@ def office_actor(owner, company, book_key):
 
 def _queued_note(doctype, row):
     """排队中的单此刻为什么还没写（页面写原因，不改状态）：这件作业归的人一台登录过 CC 的电脑都没有 →「CC 桌面版未连接」；
-    他能写的电脑都关着 → 离线；他的电脑都够不到这份账套 → 没有电脑能写。"""
+    他能写的电脑都关着 → 离线（在线的那台是别人的 → 你的电脑离线，不派给别人）；他的电脑都够不到这份账套 → 没有电脑能写。"""
     found = jobs.writers(actor_of(doctype, row, row.ledger_book), row.ledger_book) if row.ledger_book else {"state": "ok"}
-    return {"missing": contracts.NOT_CONNECTED, "offline": contracts.OFFLINE,
+    return {"missing": contracts.NOT_CONNECTED, "offline": contracts.OFFLINE, "not_yours": contracts.NOT_YOURS,
             "unreachable": contracts.NO_WRITER}.get(found["state"], "")
 
 
