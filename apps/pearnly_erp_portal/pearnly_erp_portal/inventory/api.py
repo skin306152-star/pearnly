@@ -77,7 +77,10 @@ def api_create_stock_entry(**kwargs):
 
 @frappe.whitelist()
 def api_list_stock_entries(**kwargs):
-    return documents.list_entries(**_clean(kwargs))
+    from pearnly_erp_portal.express import waiting
+
+    # 这一页里排队中、此刻在等 Express 关闭的出入库 / 调拨 / 调整单多带只读的 ``ledger_waiting``（一次查完）
+    return waiting.mark("ERP Stock Entry", documents.list_entries(**_clean(kwargs)))
 
 
 @frappe.whitelist()

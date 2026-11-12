@@ -23,8 +23,12 @@ def api_post_sale(payload, request_id, name=None):
 
 @frappe.whitelist()
 def api_sales_records(params=None, start=0, limit=20, sort_by=None, sort_order=None):
-    return records.page(_payload(params), start=start, limit=limit,
-                        sort_by=sort_by, sort_order=sort_order)
+    from pearnly_erp_portal.express import waiting
+
+    page = records.page(_payload(params), start=start, limit=limit, sort_by=sort_by, sort_order=sort_order)
+    # 这一页里排队中、此刻在等 Express 关闭的销售单多带只读的 ``ledger_waiting``（一次查完；收银行没有账本状态，不问）
+    waiting.mark("ERP Sales Document", page["items"])
+    return page
 
 
 @frappe.whitelist()
