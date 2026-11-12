@@ -47,6 +47,7 @@ import { openCompanyPicker } from "@/components/company-picker";
 import type { MrErpCredential } from "@/components/mrerp-login";
 import {
   cachedDetail,
+  loadDetail,
   folderParts,
   folderValue,
   groupTasks,
@@ -334,9 +335,10 @@ function useNewTask(open: (seed: TaskSeed | null) => void) {
   const { app, companyFolders, deviceName } = useDesktopFeatures();
   const withPeriod = useProjects((s) => s.period);
   const seedFor = async (company: string) => {
-    const detail = await cachedDetail(company);
+    // 按上个月读详情：服务端标出覆盖那个月的账套（covers），页面不按日期现算（A 线 11-12）
+    const detail = await loadDetail(company, withPeriod ? lastMonth() : "").catch(withReport(() => null, "scheduled-tasks"));
     useCompanyNav.setState({ taskCompany: company, taskFocus: "" });
-    open(detail ? taskSeedOf(detail, withPeriod ? lastMonth() : "", knownReaders(), app && companyFolders, deviceName) : null);
+    open(detail ? taskSeedOf(detail, knownReaders(), app && companyFolders, deviceName) : null);
   };
   return (company: string) => (company ? void seedFor(company) : openCompanyPicker((id) => void seedFor(id)));
 }

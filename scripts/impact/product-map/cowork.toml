@@ -1732,6 +1732,18 @@ group = "cc.action.company-picker"
 incidents = ["2026-11-03 ERP 版 CC 添加公司跳系统浏览器、要重新登录"]
 
 [[row]]
+id = "cowork.cc.action.ledger-picker"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:ledger-picker"
+where = "CC 对话右侧栏公司卡「ชุดบัญชี」一行：显示本对话账套（服务端定的写入目标），点开选这家这个月可选的另一本（move 带 ledger）；未定时值空着，这家没有本对话账套时不出"
+tests = ["unit:tests/test_cc_session_panel.py::test_the_panel_shows_and_changes_the_conversations_account_set", "unit:tests/test_cc_conversation_ledger.py::test_moving_the_month_keeps_the_chosen_ledger_while_offered_else_recomputes", "unit:tests/test_cc_conversation_ledger.py::test_the_page_reads_the_options_without_writing"]
+group = "cc.action.ledger-picker"
+incidents = ["2026-11-11 R2-5 右栏按日期现算显示 T.8，CC 按票据日期写进同期另一本"]
+
+[[row]]
 id = "cowork.cc.action.company-menu"
 product = "Cowork"
 channel = "cc-chat"
