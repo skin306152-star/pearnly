@@ -218,3 +218,5 @@ assistant:STEPS.thinking	zh	正在执行…	2026-11-06	docs/work/2026-11-06-cc-t
 assistant:STEPS.thinkingNow	zh	执行中	2026-11-06	docs/work/2026-11-06-cc-thread-polish.md
 companion:pair_err_probe_fail	zh	未能读取 Express 账套，请检查所选文件夹。	2026-11-08	docs/work/2026-11-08-japanese-everywhere.md（用户 11-08 确认，主会话转）
 companion:pair_err_unexpected	zh	操作未完成，请重试。	2026-11-08	docs/work/2026-11-08-japanese-everywhere.md（用户 11-08 确认，主会话转）
+pearnly_cowork:intake.error.ACCOUNT_BUSY_LOCKED	zh	Express 正在使用此账套，关闭后将自动写入	2026-11-12	docs/work/2026-11-12-express-wait-display.md（用户 11-12「文案统一用写入」，主会话转）
+pearnly_erp_portal:express.error.ACCOUNT_BUSY_LOCKED	zh	Express 正在使用此账套，关闭后将自动写入	2026-11-12	docs/work/2026-11-12-express-wait-display.md（用户 11-12「文案统一用写入」，主会话转）
