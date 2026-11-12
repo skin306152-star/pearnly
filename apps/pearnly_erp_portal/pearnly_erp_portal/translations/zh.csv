@@ -432,6 +432,7 @@ Custom,自定义
 Custom fields,自定义字段
 Custom fields saved,自定义字段已保存
 Customer,客户
+Customer Code,客户编号
 Customer Name,客户名称
 Customer Type,客户类型
 Customer contact updated successfully.,客户联系方式已更新
@@ -735,6 +736,8 @@ Invalid value,值无效
 Invalid value: {0},值无效：{0}
 Invoice,发票
 Invoice Amount,发票金额
+Invoice Date,发票日期
+Invoice No,发票号码
 Invoice Status,单据状态
 Invoices,发票
 Is Paid,已付款
@@ -1091,6 +1094,7 @@ Posted by,过账人
 Posted to Stock,已记入库存
 Posted {0} differences,已过账 {0} 处差异
 Posting Date,记账日期
+Prefix,前缀
 Prefix for this company's document numbers,本公司单据编号前缀
 Preview,预览
 Preview opening stock,预览核对

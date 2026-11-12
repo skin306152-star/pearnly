@@ -432,6 +432,7 @@ Custom,カスタム
 Custom fields,カスタムフィールド
 Custom fields saved,カスタムフィールドを保存しました
 Customer,顧客
+Customer Code,顧客コード
 Customer Name,顧客名
 Customer Type,顧客種類
 Customer contact updated successfully.,顧客の連絡先を更新しました
@@ -735,6 +736,8 @@ Invalid value,値が無効です
 Invalid value: {0},値が無効です: {0}
 Invoice,請求書
 Invoice Amount,請求金額
+Invoice Date,請求書の日付
+Invoice No,請求書番号
 Invoice Status,伝票ステータス
 Invoices,請求書
 Is Paid,支払済み
@@ -1091,6 +1094,7 @@ Posted by,転記者
 Posted to Stock,在庫計上済み
 Posted {0} differences,差異 {0} 件を転記しました
 Posting Date,転記日
+Prefix,接頭辞
 Prefix for this company's document numbers,この会社の伝票番号の接頭辞
 Preview,プレビュー
 Preview opening stock,プレビューして確認
