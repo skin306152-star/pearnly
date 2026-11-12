@@ -693,6 +693,8 @@ pearnly_express_operator = {
     "status": "pearnly_cowork.assistant.operator_source.status",
     "resolve": "pearnly_cowork.assistant.operator_source.resolve",
     "pending": "pearnly_cowork.assistant.operator_source.pending_documents",
+    # 没录成的原因给模型的那句话（express_operator_status，测试机1 11-12：模型把原因码原样说给用户）
+    "reason_text": "pearnly_cowork.push.export_facts.reason_text",
 }
 
 # 写账前置判定（共用层 pearnly_core.write_precheck，评估 docs/work/2026-11-04-precheck-card.md）：开始前确认卡片的取数、作答与

@@ -31,6 +31,8 @@
                                  # 收尾；单号、对方给页面把单据写成「单号 · 对方」）
         "pending": "<点路径>",   # 可选：() -> [doc_id]：本人此刻在产品自己的「待处理」里列着的单（代录的单据编号写法）。CC「待处理」
                                  # 的代录一组按单据去重用（``tasks.attention``）：任务里没录成的单都已在那里列着的，任务不另算一条
+        "reason_text": "<点路径>",  # 可选：(reason) -> str：任务里一张单没录成的原因（产品记的码）→ 按当前语言给人看的一句，
+                                 # ``express_operator_status`` 交给模型时用（模型照话转述，不说码；测试机1 11-12）；给不出回空串
     }
 回执照产品原来的写账回执走（Cowork 推送记录、ERP 单据的 express_state），``meta.operator`` 带作废单号、空单头、自动处理的事。
 
@@ -117,6 +119,18 @@ def submit(company, doc_ids, batch: dict, computer: str, answers=None) -> list:
         return []
     batch = {**batch, "target": target_of(company)}
     return list(frappe.get_attr(path)(company, list(doc_ids), batch, computer, answers or {}))
+
+
+def reason_text(reason) -> str:
+    """产品给这条原因的一句话（``reason_text``）；没声明、给不出、出错回空串（调用方照原样）。"""
+    path = _path("reason_text")
+    if not path or not reason:
+        return ""
+    try:
+        return str(frappe.get_attr(path)(str(reason)) or "")
+    except Exception:
+        frappe.log_error(title="Express operator reason text failed")
+        return ""
 
 
 STATUS_STATES = ("saved", "queued", "not_done", "cancelled", "unknown")

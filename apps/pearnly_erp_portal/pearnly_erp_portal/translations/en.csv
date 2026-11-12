@@ -267,6 +267,7 @@ Choose a local opening stock file,Choose a local opening stock file
 Choose an existing product for opening stock,Choose an existing product for opening stock
 Choose an image attached to this card,Choose an image attached to this card
 Choose at least one job role,Choose at least one job role
+Choose before writing to Express,Choose before writing to Express
 Choose file,Choose file
 Choose purchase or sales first,Choose purchase or sales first
 Choose purchase or sales for this invoice and submit again,Choose purchase or sales for this invoice and submit again
@@ -2332,6 +2333,7 @@ express.precheck.note.splitExempt,Exempt items without VAT per line
 express.precheck.note.vatExpense,Receipts and simplified tax invoices are usually not claimed
 express.precheck.note.vatSales,Has taxed sales
 express.precheck.note.writable,A computer can write it
+express.reason.choiceNeeded,Choose before writing to Express
 express.reason.itemUnmapped,The item is not in Express
 express.reason.noBook,No Express account set covers this date
 express.reason.noStockBook,This Express account set has no book for this kind of stock document. Set it up in Express

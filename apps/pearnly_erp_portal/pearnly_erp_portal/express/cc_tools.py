@@ -172,11 +172,26 @@ def _unknown(job) -> bool:
     return bool(job) and job.get("status") == "manual" and job.get("reason") == jobs.LOST
 
 
+CHOICE_WORDS = "express.reason.choiceNeeded"
+
+
+def reason_words(reason, state=contracts.HELD) -> str:
+    """存的写账原因 → 给人看的一句（按当前语言；模型照它转述，不说码）：要人选一次的（``choice_needed:<几类>``）是「写入前要选」
+    （测试机1 11-12：网页、待处理那句只写状态，模型转而把码 choice_needed:account_set 原样说给用户），其余同待处理与单据页
+    （`pending.reason_label`）。代录任务的原因也经它给模型（hooks ``pearnly_express_operator.reason_text``）。"""
+    reason = str(reason or "")
+    if not reason:
+        return ""
+    if reason.startswith(contracts.CHOICE):
+        return _(CHOICE_WORDS)
+    return pending.reason_label(state, reason)
+
+
 def _reason(state, reason) -> dict:
-    """原因：给人看的一句（`pending.reason_label`，同待处理与单据页）与原因码（给后面的调用用）；没有回空。"""
+    """原因：给人看的一句（:func:`reason_words`）与原因码（给后面的调用用）；没有回空。"""
     if not reason:
         return {}
-    return {"reason": pending.reason_label(state, reason), "reason_code": str(reason)[:300]}
+    return {"reason": reason_words(reason, state), "reason_code": str(reason)[:300]}
 
 
 def _outcome(kind, name) -> dict:
@@ -218,16 +233,19 @@ def _outcome(kind, name) -> dict:
     return {"status": direct_push.FAILED, **_reason(state, reason)}
 
 
-def _asked_by_the_web(row) -> bool:
-    """单据上记着的「要人选」是不是网页按单据日期准备时留下的（没交进写账件，如同期两本选哪本），而此刻在 CC 对话里、本对话账套
-    已定：写入计划已按本对话账套判过能写，推的时候按它重新准备（`push.send`），不拿那一问回 needs_choice；真还要人选，准备会照实
-    再停下。电脑转人工拦下要选的（有写账件）不算。"""
+def prepared_elsewhere(row) -> bool:
+    """单据上记着的「要人选」是不是按另一本准备时留下的（网页按单据日期准备：同期两本选哪本时没选出账套，或选的是另一本；
+    ``ledger_book`` 不是本对话账套、没交进写账件），而此刻在 CC 对话 / 代录里、本对话账套已定：那一问对这段对话不算数——
+    推的时候按本对话账套重新准备（`push.send`），列单、详情、待处理也不拿它给模型看（测试机1 11-12 ERP 代录：模型照网页那一问
+    说原因码、建议改投 TEST2）。在本对话账套里准备过、真要人选的（``ledger_book`` 就是这本）照实问；电脑转人工拦下要选的
+    （有写账件）不算。"""
     from pearnly_erp_portal.express import conversation
 
-    if row.get("ledger_job"):
+    if row.get("ledger_job") or not str(row.get("ledger_reason") or "").startswith(contracts.CHOICE):
         return False
-    pin = conversation.pinned({"name": row.company})
-    return bool(pin and pin["key"])
+    company = row.get("company") if hasattr(row, "get") else getattr(row, "company", "")
+    pin = conversation.pinned({"name": company}) if company else None
+    return bool(pin and pin["key"] and str(row.get("ledger_book") or "") != pin["key"])
 
 
 def _route(kind, name, row) -> str:
@@ -239,7 +257,7 @@ def _route(kind, name, row) -> str:
         # 用户在对话里叫推的（人点的入口）：MR.ERP 账号被踢过的标记这次清掉、照常登录（11-09 风险 7）
         return "sent" if mrerp_push.send(kind.doctype, name, manual=True).get("status") == "sent" else ""
     view = api._view(kind.doctype, row)
-    if view.get("needed") and not _asked_by_the_web(row):
+    if view.get("needed") and not prepared_elsewhere(row):
         return ""  # 要人选一次：先选（pearnly_precheck_answer 带 resume 选完当场再交）
     if view.get("can_retry"):
         api.retry(kind.doctype, name)  # 单据上的「再写一次」
@@ -329,7 +347,8 @@ def _follow_up(results, sent) -> None:
 
 
 def _list_row(kind, row) -> dict:
-    state = row.ledger_state or ""
+    # 按另一本准备时留下的那一问（`prepared_elsewhere`）：这段对话里不算停下，照还没写的单给（不带原因）
+    state = "" if prepared_elsewhere(row) else (row.ledger_state or "")
     date = row.get(kind.date)
     out = {"name": _doc_id(kind, row.name), "kind": kind.code, "company": row.get("company") or "",
            "invoice_no": (row.get(kind.number) if kind.number else "") or row.name,
@@ -339,7 +358,7 @@ def _list_row(kind, row) -> dict:
            "last_push_status": LAST_STATUS.get(state, ""), "last_pushed_at": row.get("ledger_sent_at")}
     if kind.party:
         out["seller_name" if kind.code == "purchase" else "buyer_name"] = row.get(kind.party) or ""
-    out.update(_reason(state, row.ledger_reason))
+    out.update(_reason(state, row.ledger_reason) if state else {})
     if state == contracts.HELD and row.ledger_job and _unknown(jobs.find_by_name(row.ledger_job)):
         out["result_unknown"] = True
     if LAST_STATUS.get(state) == "success":
@@ -416,7 +435,7 @@ def list_documents(tool_input) -> str:
         filters, or_filters = _filters(kind, companies, tool_input, only)
         if filters is None:
             continue
-        fields = ["name", kind.date, "ledger_state", "ledger_reason", "ledger_docnum", "ledger_job",
+        fields = ["name", kind.date, "ledger_state", "ledger_reason", "ledger_docnum", "ledger_job", "ledger_book",
                   "ledger_sent_at", *(f for f in (kind.number, kind.party, kind.amount) if f),
                   *(["company"] if not kind.by_warehouse else [])]
         # 每类按页取到「这一页的最后一张」为止，合并后再切（各类都按日期新 → 旧）
@@ -483,6 +502,8 @@ def document_detail(tool_input) -> str:
         return direct_push.dumps(doc)
     review = _review(doc.get("ocr_review"))
     party = doc.get("supplier_name") if kind.doctype == push.PURCHASE else doc.get("buyer_name")
+    elsewhere = prepared_elsewhere(doc)  # 按另一本准备时留下的那一问：这段对话里不算停下（同列单）
+    state, reason = ("", "") if elsewhere else (doc.get("ledger_state") or "", doc.get("ledger_reason") or "")
     out = {"document": _doc_id(kind, name), "status": doc.status, "kind": doc.get("doc_kind"),
            "number": doc.get(kind.number) or name, "document_number": doc.get("doc_no") or "",
            "date": str(doc.get("doc_date") or ""), "counterparty": party or "",
@@ -492,14 +513,15 @@ def document_detail(tool_input) -> str:
                       "amount": line.get("line_total") if line.get("line_total") is not None else line.get("amount")}
                      for line in (doc.get("lines") or [])[:LINES_SHOWN]],
            "lines_total": len(doc.get("lines") or []), "pages": len(_originals(doc)),
-           "push_state": doc.get("ledger_state") or "", "push_reason": doc.get("ledger_reason") or "",
-           "docnum": doc.get("ledger_docnum") or "", "url": pending._url({"doctype": kind.doctype, "name": name,
-                                                                          "direction": ""})}
+           "push_state": state, "push_reason": reason_words(reason, state), "docnum": doc.get("ledger_docnum") or "",
+           "url": pending._url({"doctype": kind.doctype, "name": name, "direction": ""})}
+    if reason:
+        out["push_reason_code"] = reason[:300]
     if doc.get("ocr_review"):
         hold = contracts.printed_hold(True, doc.get("printed_total"), doc.get("grand_total"), doc.get("net_payable"))
         out["checks"] = {key: value for key, value in {
             "recognition": review.get("codes") or [], "read_total": review.get("total"), "printed_hold": hold or "",
-            "push": doc.get("ledger_reason") or ""}.items() if value not in (None, "", [])}
+            "push": reason}.items() if value not in (None, "", [])}
     from pearnly_erp_portal.express import printed
 
     edits = printed.edits(kind.doctype, name)
@@ -589,11 +611,18 @@ def pending_items(tool_input) -> str:
         part = pending.pending(company, PENDING_MAX, tool_input.get("search"))
         found["items"] += part["items"]
         found["count"] += part["count"]
-    items = []
+    items, elsewhere = [], 0
     for item in found["items"][:PENDING_MAX]:
         kind = BY_DOCTYPE.get(item["doctype"])
+        stored = frappe.db.get_value(item["doctype"], item["document"], ["ledger_reason", "ledger_job", "ledger_book"],
+                                     as_dict=True) or {}
+        if prepared_elsewhere({**stored, "company": item["company"]}):
+            elsewhere += 1  # 按另一本准备时留下的那一问：这段对话里不要人处理（写的时候按本对话账套重新准备）
+            continue
+        reason = str(stored.get("ledger_reason") or "")
         row = {"document": _doc_id(kind, item["document"]) if kind else item["document"], "company": item["company"],
-               "reason": item["reason_label"], "number": item["invoice_no"], "counterparty": item["counterparty"],
+               "reason": reason_words(reason) if reason.startswith(contracts.CHOICE) else item["reason_label"],
+               "number": item["invoice_no"], "counterparty": item["counterparty"],
                "amount": item["amount"], "date": item["date"], "url": item["url"]}
         if item["doctype"] in (push.PURCHASE, push.SALES):
             saved = frappe.db.get_value(item["doctype"], item["document"],
@@ -607,7 +636,7 @@ def pending_items(tool_input) -> str:
                 row["checks"] = {"recognition": review.get("codes") or [], "printed_total": saved.get("printed_total"),
                                  "read_total": review.get("total"), "document_total": saved.get("grand_total")}
         items.append(row)
-    return direct_push.dumps({"scope": scope, "count": found["count"], "items": items})
+    return direct_push.dumps({"scope": scope, "count": found["count"] - elsewhere, "items": items})
 
 
 def push_documents(tool_input) -> str:

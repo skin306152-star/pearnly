@@ -267,6 +267,7 @@ Choose a local opening stock file,กรุณาเลือกไฟล์ส�
 Choose an existing product for opening stock,กรุณาเลือกสินค้าที่มีอยู่สำหรับสต็อกยกมา
 Choose an image attached to this card,กรุณาเลือกรูปภาพที่แนบในการ์ดนี้
 Choose at least one job role,กรุณาเลือกสิทธิ์การใช้งานอย่างน้อยหนึ่งรายการ
+Choose before writing to Express,ต้องเลือกก่อนบันทึกเข้า Express
 Choose file,เลือกไฟล์
 Choose purchase or sales first,กรุณาเลือก ซื้อ หรือ ขาย ก่อน
 Choose purchase or sales for this invoice and submit again,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
@@ -2332,6 +2333,7 @@ express.precheck.note.splitExempt,สินค้ายกเว้นภาษ�
 express.precheck.note.vatExpense,ใบเสร็จและใบกำกับภาษีอย่างย่อโดยทั่วไปไม่ขอคืนภาษีซื้อ
 express.precheck.note.vatSales,มียอดขายที่มีภาษี
 express.precheck.note.writable,มีเครื่องที่บันทึกได้
+express.reason.choiceNeeded,ต้องเลือกก่อนบันทึกเข้า Express
 express.reason.itemUnmapped,ไม่มีสินค้านี้ใน Express
 express.reason.noBook,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
 express.reason.noStockBook,ชุดบัญชี Express นี้ไม่มีสมุดสำหรับเอกสารสินค้าประเภทนี้ กรุณาตั้งค่าใน Express
