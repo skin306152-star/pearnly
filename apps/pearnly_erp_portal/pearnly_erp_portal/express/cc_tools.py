@@ -218,6 +218,18 @@ def _outcome(kind, name) -> dict:
     return {"status": direct_push.FAILED, **_reason(state, reason)}
 
 
+def _asked_by_the_web(row) -> bool:
+    """单据上记着的「要人选」是不是网页按单据日期准备时留下的（没交进写账件，如同期两本选哪本），而此刻在 CC 对话里、本对话账套
+    已定：写入计划已按本对话账套判过能写，推的时候按它重新准备（`push.send`），不拿那一问回 needs_choice；真还要人选，准备会照实
+    再停下。电脑转人工拦下要选的（有写账件）不算。"""
+    from pearnly_erp_portal.express import conversation
+
+    if row.get("ledger_job"):
+        return False
+    pin = conversation.pinned({"name": row.company})
+    return bool(pin and pin["key"])
+
+
 def _route(kind, name, row) -> str:
     """按这家公司的账本目标交直写：MR.ERP（`mrerp.push`，功能开着、公司选了 MR.ERP 账套）走导入直写，其余 Express。
     回 ``sent`` 或交不了的结论码。"""
@@ -227,7 +239,7 @@ def _route(kind, name, row) -> str:
         # 用户在对话里叫推的（人点的入口）：MR.ERP 账号被踢过的标记这次清掉、照常登录（11-09 风险 7）
         return "sent" if mrerp_push.send(kind.doctype, name, manual=True).get("status") == "sent" else ""
     view = api._view(kind.doctype, row)
-    if view.get("needed"):
+    if view.get("needed") and not _asked_by_the_web(row):
         return ""  # 要人选一次：先选（pearnly_precheck_answer 带 resume 选完当场再交）
     if view.get("can_retry"):
         api.retry(kind.doctype, name)  # 单据上的「再写一次」
