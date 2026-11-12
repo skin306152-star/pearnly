@@ -176,6 +176,7 @@ class OriginalPurge(unittest.TestCase):
             return ("gcs", found) if found else None
         layer = types.ModuleType("pearnly_core.originals")
         layer.gcs, layer.checks = cloud, types.SimpleNamespace()
+        layer.local_file = _load("local_file_under_test", CORE / "originals/local_file.py", {})  # 只依赖标准库，用真的
         layer.store = types.SimpleNamespace(parse=parse, ORACLE="oracle", GCS="gcs")
         rules = types.SimpleNamespace(IMAGE_EXTENSIONS=frozenset(), TABLE_EXTENSIONS=frozenset(), MAX_FILE_BYTES=1,
                                       OcrInputError=Exception)
