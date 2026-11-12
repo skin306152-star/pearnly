@@ -17,7 +17,7 @@ from typing import Callable, Optional
 
 from .config import CompanionConfig
 from .logger import activity, get_logger
-from . import cdx_reindex, device_link, projection_refresh, task_journal, writer_id
+from . import account_lock, cdx_reindex, device_link, projection_refresh, task_journal, writer_id
 from .queue_client import QueueClient, QueueClientConfig
 
 log = get_logger(__name__)
@@ -315,9 +315,19 @@ def _handle_dbf_task(
     # 同一份账套可能还有另一个站点的 CC 桌面版在写（Cowork 与 ERP 各派单，ADR-025）：写期间锁住账套目录里的锁文件，
     # 锁不到就按「等账套」回报（不算失败），过一会儿服务端再派
     from .account_write_lock import ERR_WRITER_BUSY, Busy, held
+    from .dbf_writer import ERR_WAITING_LOCK
 
     try:
         with held(st.account_dir):
+            # Express 开着这本账套（独占试开 ISRUN.DBF 被拒，``account_lock``）：一个字节不动——不备份、不写、不重建索引，按
+            # 「等账套」回报。以前只有有人值守的单在弹询问框前探（``gui_tray_workers``）；没人在电脑前的单直接写，到重建索引
+            # 拿不到独占才发现，再用写前备份整表覆盖回去，这期间 Express 里刚存的单随之被抹掉（11-12）。持着 ``PEARNLY.LCK``
+            # 探：别的电脑的 CC 桌面版这时不会来写。
+            if account_lock.is_account_busy(st.account_dir):
+                log.info(f"… dbf task {task.id} the account set is open in Express, nothing touched, retry later")
+                qc.ack_failure(task.id, "the account set is open in Express", error_code=ERR_WAITING_LOCK,
+                               outcome="waiting_lock")
+                return "waiting_lock"
             if direction == "sales":
                 # 会计补的期初(库存卖但客户账里此品零库存 → 先垫库存再过账)· 与销售同事务原子成败。
                 res = write_sale(
