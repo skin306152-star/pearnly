@@ -138,7 +138,9 @@
 						written: "express.state.written", mismatch: "Mismatch", held: "Pending", failed: "Failed",
 						handled: "express.state.handled", detached: "express.state.detached" }[row.ledger_state] || row.ledger_state)
 						: row.express_pending_refund ? __("express.state.refundPending") : ""))
-						+ (row.express_extra ? ` · ${__("express.summary.extra")}` : "") }] : []),
+						+ (row.express_extra ? ` · ${__("express.summary.extra")}` : ""),
+					// 所在日汇总排队中、在等 Express 关闭：状态不变，悬浮说明是现成那句（`p.express_waiting`）
+					title: (value, row) => p.express_waiting(row) }] : []),
 			],
 		});
 		await list.ready;

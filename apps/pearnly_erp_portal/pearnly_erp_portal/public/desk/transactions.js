@@ -206,6 +206,10 @@
 	};
 	listen_needed();
 	$(document).on("app_ready", listen_needed);  // 实时连接在桌面起好后才有
+	/** 「排队中」的单此刻在等 Express 关闭（有人开着这本账套；服务端读的时候算的只读字段 `ledger_waiting`，
+	 * `express/waiting.py`）→ 现成那句；不在等的回空串。采购 / 销售 / 出入库 / 收银小票列表 Express 一栏的悬浮说明同用（11-12）。 */
+	p.express_waiting = row => (row?.ledger_state === "queued" && row?.ledger_waiting === "express_open"
+		? __("express.error.ACCOUNT_BUSY_LOCKED") : "");
 	p.express = async (doctype, name, reload) => {
 		const api = "pearnly_erp_portal.express.api.";
 		const info = await p.call(api + "document_express", {doctype, name}, "POST");
@@ -223,7 +227,11 @@
 			? [...info.reason.matchAll(/(\S+)@(\S+) need (\S+) have (\S+)/g)].map(([, item, loc, need, have]) =>
 				__("express.reason.stockShort", [item, loc === "all" ? __("All") : loc, need, have])) : [];
 		// 已断开的单：状态本身就说明了（「未写入 Express（已断开）」），不再重复原因
-		const reason = info.reason && !info.reason.startsWith("choice_needed") && info.state !== "detached"
+		// 排队中、此刻在等 Express 关闭（`waiting`，这张单或它的 Express 作废那一件）：「原因」一栏显示现成那句
+		// （手机上没有悬浮，点开单据的 Express 弹窗看这一栏）
+		const waiting = info.waiting === "express_open"
+			? p.express_waiting({ledger_state: "queued", ledger_waiting: info.waiting}) : "";
+		const reason = waiting ? waiting : info.reason && !info.reason.startsWith("choice_needed") && info.state !== "detached"
 			? [__(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || coded || mrerp || info.reason), ...shortages].join("\n") : "";
 		const fields = [
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,

@@ -14,7 +14,7 @@ from pearnly_core.cc_desktop.wire import ack_rules
 from pearnly_core.express_rules.push import choices as choice_rules
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.express import choices, contracts, facts, masters, pos_day, prepare, push
+from pearnly_erp_portal.express import choices, contracts, facts, masters, pos_day, prepare, push, waiting
 from pearnly_erp_portal.masters import company as companies
 
 CAPABILITIES = {push.SALES: ("sales.read", "sales.write"), push.PURCHASE: ("purchase.read", "purchase.write"),
@@ -115,7 +115,7 @@ def _view(doctype, row):
         # 断开了：只看状态、Express 单号与原因（已断开的照实写），不再给选、再写一次
         return {"state": row.ledger_state or "", "docnum": row.ledger_docnum or "", "reason": row.ledger_reason or "",
                 "void": row.get("ledger_void_state") or "", "needed": [], "can_answer": False, "can_retry": False,
-                "can_mark_handled": False, "vat_whole": bool(row.get("vat_whole_document"))}
+                "can_mark_handled": False, "vat_whole": bool(row.get("vat_whole_document")), "waiting": ""}
     data = facts.load(row.ledger_book) if row.ledger_book else None
     job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
     blocked = _party_blocked(doctype, row, job)
@@ -126,7 +126,9 @@ def _view(doctype, row):
         void_job = jobs.find_by_name(row.ledger_void_job) if row.ledger_void_job else None
         return {"state": row.ledger_state or "", "docnum": row.ledger_docnum or "", "reason": row.ledger_void_reason or "",
                 "void": row.ledger_void_state, "needed": [], "can_answer": False,
-                "can_retry": bool(void_job and void_job["status"] == "manual") and guard.has(CAPABILITIES[doctype][1])}
+                "can_retry": bool(void_job and void_job["status"] == "manual") and guard.has(CAPABILITIES[doctype][1]),
+                # 作废那一件排队中、此刻在等 Express 关闭（同下）
+                "waiting": waiting.of_job(row.ledger_void_state, row.ledger_void_job)}
     stuck = _pos_stuck(doctype, row, job)
     return {"state": row.ledger_state or "", "docnum": row.ledger_docnum or "", "reason": row.ledger_reason or "",
             "needed": needed, "can_answer": bool(needed) and guard.has(CAPABILITIES[doctype][1]),
@@ -135,7 +137,9 @@ def _view(doctype, row):
             and guard.has(CAPABILITIES[doctype][1]),
             # 收银日汇总 / 退货单停住（定不了、跨年、原单是手工处理的…）的出口：人标记「已在 Express 手工处理」（主会话 10-26）
             "can_mark_handled": bool(stuck) and guard.has(CAPABILITIES[doctype][1]),
-            "vat_whole": bool(row.get("vat_whole_document"))}
+            "vat_whole": bool(row.get("vat_whole_document")),
+            # 排队中、此刻在等 Express 关闭（有人开着这本账套；读的时候算、不写单据的原因栏）：弹窗显示现成那句
+            "waiting": waiting.of_job(row.ledger_state, row.ledger_job)}
 
 
 def _pos_stuck(doctype, row, job) -> bool:
