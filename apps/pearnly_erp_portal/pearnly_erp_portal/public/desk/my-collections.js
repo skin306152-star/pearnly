@@ -21,7 +21,7 @@
 			const card = data.card;
 			if (card.status !== "draft") {
 				frappe.msgprint({title: card.name, message: [card.customer_name, money(card.total), card.docnum
-					|| status_label(card.status)].filter(Boolean).map(frappe.utils.escape_html).join("<br>")});
+					|| status_label(card.status), waiting(card)].filter(Boolean).map(frappe.utils.escape_html).join("<br>")});
 				return;
 			}
 			const methods = data.methods || {transfers: []};
