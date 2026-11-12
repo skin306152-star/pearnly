@@ -1,0 +1,834 @@
+# 还没进产品地图的高风险入口（过渡登记，2026-11-12 按六份盘点整理）：会写外部账本 / 动钱 / 删数据 / 对外发消息。
+# 检查脚本把它们当作地图行一样推出欠哪些验收场景。第四期逐条搬进产品地图后从这里删掉。字段见 tests/acceptance/README.md。
+# where 里的路径缩写：C/ = apps/pearnly_cowork/pearnly_cowork/，E/ = apps/pearnly_erp_portal/pearnly_erp_portal/，S/ = apps/pearnly_dms/pearnly_dms/，
+#   P/ = apps/pearnly_control/pearnly_control/，D/ = companion/src/companion/。
+# 拿不准、没登记的（要核实）：DMS 改密码 / 连接页 / 花名册会去对方登录试一下，算不算写外部系统；DMS 客户编辑器保存（确认后才写）；
+#   到期提醒邮件、自动续费扣费（代码里没找到）；看板与定时任务提醒（只发站内）；往返表回导（要再点提交才推）。
+
+# ======================================================================
+# ERP 网页（弹窗、查看页、列表多选里的动作；地图只认页头动作，这些「未单列」）
+# 路径缩写照 erp.md：E = apps/pearnly_erp_portal/pearnly_erp_portal
+# ======================================================================
+
+[[entry]]
+id = "erp.web.stock-entry.void"
+block = "ERP 网页"
+what = "入库 / 出库单查看页点作废：库存冲回；已写进 Express 的排一件「照 Express 原生作废原单」的写账"
+where = "E/public/desk/stock-entry.js:245 → E/inventory/api.py:189 api_void_stock_entry → E/inventory/documents.py:506 void_entry → E/express/push.py:542 void"
+effect = ["ledger", "delete", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #47"
+
+[[entry]]
+id = "erp.web.stock-entry.bulk-void"
+block = "ERP 网页"
+what = "入库 / 出库列表勾选多张批量作废：逐张冲回库存，已写进 Express 的逐张排作废原单"
+where = "E/public/desk/stock-entry.js:318（列表多选）→ api_void_stock_entry → E/inventory/documents.py:506"
+effect = ["ledger", "delete", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #48"
+
+[[entry]]
+id = "erp.web.stock-entry.delete-draft"
+block = "ERP 网页"
+what = "入库 / 出库草稿点删除：草稿记录删掉（盘点生成的调整单草稿删了盘点可再生成）"
+where = "E/public/desk/stock-entry.js:311 → E/inventory/api.py:177 api_delete_stock_entry_draft"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #46"
+
+[[entry]]
+id = "erp.web.stock-entry.attachment-delete"
+block = "ERP 网页"
+what = "入库 / 出库单附件区删除一个附件（图片、PDF、拍照）"
+where = "E/public/desk/stock-entry.js:166（附件行「删除」）；E/inventory/attachments"
+effect = ["delete", "site"]
+upload = true
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #44"
+
+[[entry]]
+id = "erp.web.stock-transfer.void"
+block = "ERP 网页"
+what = "调拨单作废：两仓流水冲回，按台的车换回原仓；已写进 Express 的排作废原单 RL"
+where = "调拨查看页「作废」→ api_void_stock_entry → E/inventory/documents.py:506（同一张 ERP Stock Entry）→ E/express/push.py:542"
+effect = ["ledger", "delete", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #52"
+
+[[entry]]
+id = "erp.web.stock-adjust.void"
+block = "ERP 网页"
+what = "物料调整单作废：调整流水冲回，盘点生成的调整单作废后盘点回到「已结束」；已写进 Express 的排作废原单"
+where = "调整单查看页「作废」→ E/inventory/documents.py:506 void_entry（ADJUST 分支 counts.adjustment_released）→ E/express/push.py:542"
+effect = ["ledger", "delete", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #54"
+
+[[entry]]
+id = "erp.web.express.answer"
+block = "ERP 网页"
+what = "入库 / 出库 / 调拨 / 调整单与销售单的 Express 弹窗里回答提问后保存：记住选择并重新排写账"
+where = "E/public/desk/transactions.js:249 → E/express/api.py:219 answer（采购单的回答已在地图行 erp.desk.pearnly-purchase.action.Express）"
+effect = ["ledger", "site"]
+source = "erp.md §1 #49、#108"
+
+[[entry]]
+id = "erp.web.express.retry"
+block = "ERP 网页"
+what = "Express 弹窗点「重试」：失败或停住的单重新排进写账队列，由 CC 桌面版再写一次"
+where = "E/public/desk/transactions.js:252 → E/express/api.py:254 retry（采购、销售、出入库共用）"
+effect = ["ledger", "site"]
+source = "erp.md §1 #49、#94、#108"
+
+[[entry]]
+id = "erp.web.express.printed-total"
+block = "ERP 网页"
+what = "已提交的采购 / 销售单改票面合计：留版本记录，停在票面合计上的单当场重新写账"
+where = "E/public/desk/transactions.js:110-115 → E/express/api.py:149 set_printed_total"
+effect = ["ledger", "site"]
+source = "erp.md §1 #85、#111"
+
+[[entry]]
+id = "erp.web.purchase.upload-recognize"
+block = "ERP 网页"
+what = "采购新建选「上传识别」：上传原件、后台付费识别，按页扣识别费"
+where = "E/public/desk/purchase-entry.js → E/purchasing/api.py:132 api_recognise_purchase；扣费 E/recognition/billing.py:38-49"
+effect = ["money", "site"]
+upload = true
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #78、#79；control-auth-billing.md C3-4"
+
+[[entry]]
+id = "erp.web.sales.upload-recognize"
+block = "ERP 网页"
+what = "销售新建上传原件并付费识别，按页扣识别费"
+where = "E/public/desk/sales-entry.js → E/sales/api.py:115 api_recognise_sales；扣费 E/recognition/billing.py:38-49"
+effect = ["money", "site"]
+upload = true
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #102；control-auth-billing.md C3-4"
+
+[[entry]]
+id = "erp.web.purchase.attachment-delete"
+block = "ERP 网页"
+what = "采购单新建页删除已上传的附件 / 原件"
+where = "E/purchasing/api.py:108 api_remove_purchase_attachment"
+effect = ["delete", "site"]
+upload = true
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #83"
+
+[[entry]]
+id = "erp.web.sales.attachment-delete"
+block = "ERP 网页"
+what = "销售单删除已上传的附件 / 原件"
+where = "E/sales/api.py:98 api_remove_sale_attachment"
+effect = ["delete", "site"]
+upload = true
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #111"
+
+[[entry]]
+id = "erp.web.stocktake.bulk-delete"
+block = "ERP 网页"
+what = "盘点列表勾选批量删除盘点"
+where = "E/public/desk/stocktake.js:146 api_stock_count_delete"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #61"
+
+[[entry]]
+id = "erp.web.stocktake.recount"
+block = "ERP 网页"
+what = "盘点明细行点「重盘」：清掉这件物料已记的全部数量（多人同时记数的单）"
+where = "E/public/desk/stocktake.js:433 api_stock_count_recount"
+effect = ["delete", "site"]
+shared_doc = true
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #66"
+
+[[entry]]
+id = "erp.web.stocktake.void-entry"
+block = "ERP 网页"
+what = "盘点物料记录里作废一条记数"
+where = "E/public/desk/stocktake.js:490 api_stock_count_edit_entry（voided=1）"
+effect = ["delete", "site"]
+shared_doc = true
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #67"
+
+[[entry]]
+id = "erp.web.pos.checkout"
+block = "ERP 网页"
+what = "收银台结账：选付款方式（现金 / 卡 / PromptPay / 转账、混合）完成订单、出库；当晚合进现销日汇总写 Express"
+where = "收银台付款屏「完成订单」→ E/cashier/api.py:115 api_create_sale；日汇总 E/express/pos_day.py"
+effect = ["money", "ledger", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #121"
+
+[[entry]]
+id = "erp.web.pos.refund"
+block = "ERP 网页"
+what = "收银台 / 小票页对小票退货退款：按原单行与数量退钱、货回仓；跨天的退货当晚合成退货单 SR 写 Express"
+where = "E/public/desk/pos-receipts.js:64、E/public/desk/pos/pearnly-pos-receipt.js:87 → E/cashier/api.py:133 → E/cashier/sales.py:382 refund；E/express/pos_day.py（SR）"
+effect = ["money", "ledger", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #124"
+
+[[entry]]
+id = "erp.web.pos.void"
+block = "ERP 网页"
+what = "作废单张收银小票：库存还回、单据留痕；已合进日汇总的拒绝作废"
+where = "E/public/desk/pos-receipts.js:26、E/public/desk/pos/pearnly-pos-receipt.js:52 → E/cashier/api.py:140 → E/cashier/sales.py:485 void_sale"
+effect = ["money", "delete", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #125"
+
+[[entry]]
+id = "erp.web.pos.bulk-void"
+block = "ERP 网页"
+what = "小票页勾选多张批量作废"
+where = "E/public/desk/pos-receipts.js:87 → api_void_sale（逐张）"
+effect = ["money", "delete", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #125"
+
+[[entry]]
+id = "erp.web.work.card.delete"
+block = "ERP 网页"
+what = "任务看板删除卡片"
+where = "E/public/desk/work.js → E/work/api.py:119 delete"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #142"
+
+[[entry]]
+id = "erp.web.work.list.delete"
+block = "ERP 网页"
+what = "任务看板删除列表（连同列表里的卡）"
+where = "E/public/desk/work.js → E/work/api.py:187 delete_list"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #143"
+
+[[entry]]
+id = "erp.web.work.comment.delete"
+block = "ERP 网页"
+what = "任务看板卡片详情里删除评论"
+where = "E/public/desk/work.js → E/work/api.py:134 delete_comment"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #142"
+
+[[entry]]
+id = "erp.web.profile.line-unbind"
+block = "ERP 网页"
+what = "个人信息页 LINE 绑定块点解绑：这位员工的 LINE 绑定收回、菜单撤掉"
+where = "E/public/desk/line-binding.js:55 → E/integrations/api.py:20 api_line_unbind → apps/pearnly_core/pearnly_core/line_binding.py:187 unbind"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "erp.md §1 #167；dms-line.md §3 E-WB-2"
+
+# ======================================================================
+# Cowork 网页（C = apps/pearnly_cowork/pearnly_cowork）
+# ======================================================================
+
+[[entry]]
+id = "cowork.web.intake.bulk-delete"
+block = "Cowork 网页"
+what = "录入列表勾选删除：票连推送记录和原件（甲骨文 / 谷歌存储）一起删，正在推送的跳过"
+where = "C/public/desk/intake.js:59-74"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D2 2.3"
+
+[[entry]]
+id = "cowork.web.intake.upload-recognize"
+block = "Cowork 网页"
+what = "上传页选文件上传（PDF / 图片，推 ERP 时也收往返表 .xlsx）并交识别：付费识别、按页扣费，余额不足延后"
+where = "C/public/desk/intake-upload.js:409-420,1055-1100,1135-1137（ocr.api.submit / detail）；扣费 C/ocr/execution/service.py:34,187"
+effect = ["money", "site"]
+upload = true
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D3 3.1、3.2；control-auth-billing.md C3-5"
+
+[[entry]]
+id = "cowork.web.intake.choice-repush"
+block = "Cowork 网页"
+what = "复核页提示条「要选的项」：弹窗补选后重推这张票进 Express"
+where = "C/public/desk/intake-upload.js:618-621 → submit({names}) ；targets.js:403-421 choices / save_choices"
+effect = ["ledger", "site"]
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D4 4.6"
+
+[[entry]]
+id = "cowork.web.intake.send-anyway"
+block = "Cowork 网页"
+what = "复核页提示条对疑似重复票点「仍然推送」：带 confirm_duplicate 再推一次"
+where = "C/public/desk/intake-upload.js:622-626"
+effect = ["ledger", "site"]
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D4 4.7"
+
+[[entry]]
+id = "cowork.web.intake.choose-account-set"
+block = "Cowork 网页"
+what = "复核页多份账套同期时选一份：换到这份账套并当场重推这一张，推成了才记现用账套"
+where = "C/public/desk/intake-upload.js:882-905 → C/assistant/pending_api.py:205 choose_account_set"
+effect = ["ledger", "site"]
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D4 4.10"
+
+[[entry]]
+id = "cowork.web.auto-push"
+block = "Cowork 网页"
+what = "网页上传 / LINE 交来的票按公司档位到点自动推进 Express（不经人点提交）"
+where = "C/hooks.py:588-589 定时 push.automation.sweep.run → C/push/automation/sweep.py"
+effect = ["ledger", "site"]
+source = "cowork.md §3.2 ⑦"
+
+[[entry]]
+id = "cowork.web.folder.run-now"
+block = "Cowork 网页"
+what = "定时任务列表行尾「立即运行」：CC 桌面版读文件夹、付费识别并自动推 Express / MR.ERP"
+where = "C/public/desk/intake-folders.js:129"
+effect = ["ledger", "money", "site"]
+source = "cowork.md §1 D6 6.4"
+
+[[entry]]
+id = "cowork.web.folder.delete"
+block = "Cowork 网页"
+what = "定时任务列表勾选删除：任务连运行记录和文件一起删"
+where = "C/public/desk/intake-folders.js:79-89"
+effect = ["delete", "site"]
+source = "cowork.md §1 D6 6.7"
+
+[[entry]]
+id = "cowork.web.recon.delete"
+block = "Cowork 网页"
+what = "对账中心（银行 / 收入 / 销项三页共用）任务列表勾选删除"
+where = "C/public/desk/recon.js:136-142"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D7 j"
+
+[[entry]]
+id = "cowork.web.recon.preset-delete"
+block = "Cowork 网页"
+what = "对账预设弹窗删除一条记住的答案（银行 / 收入）"
+where = "C/public/desk/recon.js:208-257（预设弹窗「删除」）"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D7 h"
+
+[[entry]]
+id = "cowork.web.stocktake.bulk-delete"
+block = "Cowork 网页"
+what = "盘点列表勾选删除盘点"
+where = "C/public/desk/stocktake.js:131-145"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D8 8.4"
+
+[[entry]]
+id = "cowork.web.stocktake.recount"
+block = "Cowork 网页"
+what = "物料记录弹窗点「重盘」：清掉这件物料已记的数量（多人同时记数的单）"
+where = "C/public/desk/stocktake.js:381-452"
+effect = ["delete", "site"]
+shared_doc = true
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D8 8.8"
+
+[[entry]]
+id = "cowork.web.stocktake.void-entry"
+block = "Cowork 网页"
+what = "物料记录弹窗作废一条记数"
+where = "C/public/desk/stocktake.js:381-452"
+effect = ["delete", "site"]
+shared_doc = true
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D8 8.8"
+
+[[entry]]
+id = "cowork.web.work.card.delete"
+block = "Cowork 网页"
+what = "工作看板删除卡片"
+where = "C/public/desk/work.js → C/work/api.py:119 delete"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D9 9.26-9.31"
+
+[[entry]]
+id = "cowork.web.work.list.delete"
+block = "Cowork 网页"
+what = "工作看板删除列表"
+where = "C/public/desk/work.js → C/work/api.py:187 delete_list"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D9 9.17-9.22"
+
+[[entry]]
+id = "cowork.web.work.comment.delete"
+block = "Cowork 网页"
+what = "卡片详情里删除评论"
+where = "C/public/desk/work.js → C/work/api.py:134 delete_comment"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D9 9.32"
+
+[[entry]]
+id = "cowork.web.work.attachment.delete"
+block = "Cowork 网页"
+what = "卡片详情里删除附件"
+where = "C/public/desk/work.js → C/work/api.py:150 detach"
+effect = ["delete", "site"]
+upload = true
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D9 9.33"
+
+[[entry]]
+id = "cowork.web.profile.line-unbind"
+block = "Cowork 网页"
+what = "个人页 LINE 块点解绑：这位成员的 LINE 绑定收回、菜单撤掉"
+where = "C/public/desk/line-binding.js:49-50 → apps/pearnly_core/pearnly_core/line_binding.py:187 unbind"
+effect = ["delete", "site"]
+ends = ["desktop", "mobile"]
+source = "cowork.md §1 D11 11.5；dms-line.md §4 C-WB-2"
+
+# ======================================================================
+# CC 桌面版（D = companion/src/companion；地图 0 行）
+# 直写 8 种写入（D/worker.py:298-347 分路）、代录 8 种单据、文件夹自动录入
+# ======================================================================
+
+[[entry]]
+id = "ccdesk.write.purchase"
+block = "CC 桌面版"
+what = "直写采购 RR / HP 进 Express 账套（含费用票、库存进货、混行、按台、仓位，必要时连带建供应商 / 存货主档）"
+where = "D/worker.py:298-347 默认分支 → D/dbf_writer.py:285、D/stock_purchase.py、D/purchase_lines.py"
+effect = ["ledger"]
+source = "cc.md §2.7 C4 #1"
+
+[[entry]]
+id = "ccdesk.write.sales"
+block = "CC 桌面版"
+what = "直写销售 IV / HS 进 Express 账套（direction = sales）"
+where = "D/dbf_sales.py:190"
+effect = ["ledger"]
+source = "cc.md §2.7 C4 #2"
+
+[[entry]]
+id = "ccdesk.write.pos-day"
+block = "CC 桌面版"
+what = "直写收银现销日汇总 HS + 收款日记账 JV（载荷 3 pos 块）进 Express"
+where = "D/dbf_sales.py + D/pos_journal.py"
+effect = ["ledger"]
+source = "cc.md §2.7 C4 #3"
+
+[[entry]]
+id = "ccdesk.write.pos-refund"
+block = "CC 桌面版"
+what = "直写收银退货单 SR（载荷 10）：退现金、货回仓、挂原 HS"
+where = "D/dbf_sales.py:241-245 分流 → D/dbf_refund.py:398"
+effect = ["ledger"]
+source = "cc.md §2.7 C4 #4"
+
+[[entry]]
+id = "ccdesk.write.stock"
+block = "CC 桌面版"
+what = "直写库存单 OU / JU / TK（载荷 6：出入库、盘点调整）进 Express"
+where = "D/dbf_stock.py:261"
+effect = ["ledger"]
+source = "cc.md §2.7 C4 #5"
+
+[[entry]]
+id = "ccdesk.write.transfer"
+block = "CC 桌面版"
+what = "直写调拨单 RL（载荷 14）进 Express"
+where = "D/dbf_transfer.py:107 write_transfer"
+effect = ["ledger"]
+source = "cc.md §2.7 C4 #6"
+
+[[entry]]
+id = "ccdesk.write.void"
+block = "CC 桌面版"
+what = "在 Express 里按原生方式作废已写进去的库存单 / 调拨单（载荷 8）"
+where = "D/dbf_void.py:165"
+effect = ["ledger", "delete"]
+source = "cc.md §2.7 C4 #7"
+
+[[entry]]
+id = "ccdesk.write.receipt"
+block = "CC 桌面版"
+what = "直写收款单 RE（载荷 20）：登记客户付款、核销应收"
+where = "D/dbf_receipt.py:426"
+effect = ["ledger", "money"]
+source = "cc.md §2.7 C4 #8"
+
+[[entry]]
+id = "ccdesk.operator.express.rr"
+block = "CC 桌面版"
+what = "代录：CC 桌面版在 Express 界面上替人录赊购单 RR"
+where = "D/express_operator/recipes/express-1.0.1.94.json forms.RR；对话里开始前卡片发起"
+effect = ["ledger"]
+card = true
+source = "cc.md §2.7 C5 #1"
+
+[[entry]]
+id = "ccdesk.operator.express.hp"
+block = "CC 桌面版"
+what = "代录：在 Express 界面上替人录现购单 HP"
+where = "D/express_operator/recipes/express-1.0.1.94.json forms.HP"
+effect = ["ledger"]
+card = true
+source = "cc.md §2.7 C5 #2"
+
+[[entry]]
+id = "ccdesk.operator.express.iv"
+block = "CC 桌面版"
+what = "代录：在 Express 界面上替人录赊销单 IV"
+where = "D/express_operator/recipes/express-1.0.1.94.json forms.IV"
+effect = ["ledger"]
+card = true
+source = "cc.md §2.7 C5 #3"
+
+[[entry]]
+id = "ccdesk.operator.express.hs"
+block = "CC 桌面版"
+what = "代录：在 Express 界面上替人录现销单 HS"
+where = "D/express_operator/recipes/express-1.0.1.94.json forms.HS"
+effect = ["ledger"]
+card = true
+source = "cc.md §2.7 C5 #4"
+
+[[entry]]
+id = "ccdesk.operator.mrerp.purchase"
+block = "CC 桌面版"
+what = "代录：在 MR.ERP 网页上替人录赊购（货）（开关默认关）"
+where = "D/mrerp_operator/recipes/mrerp-2026.11-src.json forms.purchase；开关 D/payload_contract.py:68-80"
+effect = ["ledger"]
+card = true
+source = "cc.md §2.7 C5 #5-8"
+
+[[entry]]
+id = "ccdesk.operator.mrerp.purchase-expense"
+block = "CC 桌面版"
+what = "代录：在 MR.ERP 网页上替人录赊购（费用）（开关默认关）"
+where = "D/mrerp_operator/recipes/mrerp-2026.11-src.json forms.purchase_expense"
+effect = ["ledger"]
+card = true
+source = "cc.md §2.7 C5 #5-8"
+
+[[entry]]
+id = "ccdesk.operator.mrerp.sales-credit"
+block = "CC 桌面版"
+what = "代录：在 MR.ERP 网页上替人录赊销（开关默认关）"
+where = "D/mrerp_operator/recipes/mrerp-2026.11-src.json forms.sales_credit"
+effect = ["ledger"]
+card = true
+source = "cc.md §2.7 C5 #5-8"
+
+[[entry]]
+id = "ccdesk.operator.mrerp.sales-cash"
+block = "CC 桌面版"
+what = "代录：在 MR.ERP 网页上替人录现销（开关默认关）"
+where = "D/mrerp_operator/recipes/mrerp-2026.11-src.json forms.sales_cash"
+effect = ["ledger"]
+card = true
+source = "cc.md §2.7 C5 #5-8"
+
+[[entry]]
+id = "ccdesk.folder-intake"
+block = "CC 桌面版"
+what = "文件夹自动录入：定时扫本机文件夹、上传付费识别、推进 Express / MR.ERP，结果表放回文件夹"
+where = "D/folder_worker.py、D/folder_plan.py、D/folder_store.py、D/folder_client.py"
+effect = ["ledger", "money"]
+upload = true
+source = "cc.md §2.7 C1–C3、C7、C8 表「文件夹自动录入」"
+
+# ======================================================================
+# DMS（S = apps/pearnly_dms/pearnly_dms；DMS 无地图）
+# ======================================================================
+
+[[entry]]
+id = "dms.booking.confirm"
+block = "DMS"
+what = "LINE 订车预览卡点「确认」：真建订车单写进外部 DMS，回执回到聊天（无回覆令牌时走推送）"
+where = "S/booking/conversation/qa_cards.py:463 → S/booking/conversation/booking_flow.py:70；回执 S/booking/delivery.py:256-312"
+effect = ["ledger", "send"]
+line = true
+source = "dms-line.md §1.3 D-BK-2；§1.5 D-PU-1"
+
+[[entry]]
+id = "dms.booking.retry"
+block = "DMS"
+what = "订车写入失败后点「重试」：再向外部 DMS 建单"
+where = "S/booking/conversation/qa_cards.py:483 → S/booking/conversation/booking_flow.py:109"
+effect = ["ledger", "send"]
+line = true
+source = "dms-line.md §1.3 D-BK-4"
+
+[[entry]]
+id = "dms.customer.create"
+block = "DMS"
+what = "LINE 客户卡点「保存新客户」：在外部 DMS 建客户资料，回执回到聊天"
+where = "S/intake/flow.py:250-251（ACT_CREATE，nonce 原子消费）"
+effect = ["ledger", "send"]
+line = true
+source = "dms-line.md §1.3 D-BT-2；§1.5 D-PU-6"
+
+[[entry]]
+id = "dms.customer.update"
+block = "DMS"
+what = "LINE 客户卡点「更新资料」：改写外部 DMS 里已有客户的资料"
+where = "S/intake/flow.py:252-253（ACT_UPDATE）"
+effect = ["ledger", "send"]
+line = true
+source = "dms-line.md §1.3 D-BT-3；§1.5 D-PU-6"
+
+[[entry]]
+id = "dms.review.update"
+block = "DMS"
+what = "开单回执差异卡点「更新资料」：把差异写回外部 DMS"
+where = "S/line/cards.py:469 → S/booking/conversation/review_fix.py:39,269"
+effect = ["ledger"]
+line = true
+source = "dms-line.md §1.3 D-RV-1"
+
+[[entry]]
+id = "dms.review.editor-save"
+block = "DMS"
+what = "LIFF 回执编辑器选值保存：写回外部 DMS"
+where = "S/editor/browser_api.py:273 browser_review_save"
+effect = ["ledger"]
+line = true
+source = "dms-line.md §1.4 D-LF-5"
+
+[[entry]]
+id = "dms.id-card.photo"
+block = "DMS"
+what = "LINE 里拍身份证发图：后台付费识别、出查重卡，按页扣识别费"
+where = "S/line/handlers.py:130-134；识别回调 S/hooks.py:319；扣费 S/ocr/ocr_service.py:188-225"
+effect = ["money"]
+upload = true
+line = true
+source = "dms-line.md §1.1 D-IM-1；control-auth-billing.md C3-6"
+
+[[entry]]
+id = "dms.liff.scan-upload"
+block = "DMS"
+what = "LIFF 扫证页拍照上传：开始付费识别，结果回到聊天"
+where = "S/editor/browser_api.py:303 browser_scan（回落 browser_scan_start）"
+effect = ["money"]
+upload = true
+line = true
+source = "dms-line.md §1.4 D-LF-7"
+
+[[entry]]
+id = "dms.liff.page-deliver"
+block = "DMS"
+what = "订车编辑器保存后页面替发不了时，服务端改用 LINE 推送把新卡发回聊天"
+where = "S/www/liff/dms-booking.html:84,241 → S/editor/browser_api.py:239 browser_page_deliver"
+effect = ["send"]
+line = true
+source = "dms-line.md §1.4 D-LF-4；§1.5 D-PU-7"
+
+[[entry]]
+id = "dms.query.run"
+block = "DMS"
+what = "LINE 菜单「查询」选条件后读外部 DMS，结果或读取失败通知用 LINE 推送发给业务员"
+where = "S/line/text_router.py:66-69、S/query/；推送 S/query/snapshot_sync.py:332"
+effect = ["send"]
+line = true
+source = "dms-line.md §1.2 D-RM-5；§1.5 D-PU-4"
+
+[[entry]]
+id = "dms.records.delete"
+block = "DMS"
+what = "推送记录页勾选删除记录"
+where = "S/public/desk/records.js:26 → S/records/manage.py:12 delete_records"
+effect = ["delete", "site"]
+source = "dms-line.md §1.6 D-DK-5"
+
+[[entry]]
+id = "dms.roster.delete"
+block = "DMS"
+what = "花名册删除操作员"
+where = "S/public/desk/roster.js → S/operators/roster.py:385 api_delete_operator → :332 delete_operator"
+effect = ["delete", "site"]
+source = "dms-line.md §1.6 D-DK-7；control-auth-billing.md B12-2"
+
+[[entry]]
+id = "dms.roster.unbind"
+block = "DMS"
+what = "花名册解绑操作员的 LINE：绑定收回，菜单和未结草稿跟着变"
+where = "S/operators/roster.py:427 api_unbind_operator"
+effect = ["delete", "site"]
+source = "dms-line.md §1.6 D-DK-9；control-auth-billing.md B12-3"
+
+# ======================================================================
+# LINE（发现器看不到的绑定 / 解绑路径）
+# ======================================================================
+
+[[entry]]
+id = "line.core.bind-code"
+block = "LINE"
+what = "在 LINE 里发网页上的绑定码完成绑定（ERP / Cowork / DMS 共用）；这个账号原来绑的 LINE 同时被收回"
+where = "apps/pearnly_core/pearnly_core/line_binding.py:93 consume_bind_code、:132-166 bind（换绑收回旧账号）"
+effect = ["delete", "site"]
+line = true
+source = "dms-line.md §2 S-6；§1.1 D-TX-1；§3 E-TX-1；§4 C-TX-1"
+
+[[entry]]
+id = "line.erp.unbind-word"
+block = "LINE"
+what = "ERP 官方号里打解绑词：解除这位员工的 LINE 绑定、菜单重挂"
+where = "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py:171-178"
+effect = ["delete", "site"]
+line = true
+source = "dms-line.md §3 E-TX-2"
+
+[[entry]]
+id = "line.cowork.unbind-word"
+block = "LINE"
+what = "Cowork 官方号里打解绑词：解除这位成员的 LINE 绑定"
+where = "apps/pearnly_cowork/pearnly_cowork/line/handlers.py:135-142"
+effect = ["delete", "site"]
+line = true
+source = "dms-line.md §4 C-TX-2"
+
+[[entry]]
+id = "line.dms.unbind-word"
+block = "LINE"
+what = "DMS 官方号里打解绑词（泰 / 中 / 英 / 日）：解除绑定"
+where = "apps/pearnly_dms/pearnly_dms/line/handlers.py:25,161-167"
+effect = ["delete", "site"]
+line = true
+source = "dms-line.md §1.1 D-TX-2"
+
+[[entry]]
+id = "line.dms.unfollow"
+block = "LINE"
+what = "取消关注 DMS 官方号：自动解绑"
+where = "apps/pearnly_dms/pearnly_dms/line/handlers.py:88-90"
+effect = ["delete", "site"]
+line = true
+source = "dms-line.md §1.1 D-EV-2"
+
+# ======================================================================
+# 管理后台（P = apps/pearnly_control/pearnly_control；控制面 0 行地图）
+# ======================================================================
+
+[[entry]]
+id = "control.issue.provision"
+block = "管理后台"
+what = "发号单点「Issue and provision」：两池建 Keycloak 账号、建租户与开通计划，开通完成自动发欢迎邮件给客户"
+where = "P/pearnly_control/doctype/pearnly_issue/pearnly_issue.js:219,250-276 → P/issues.py:157-178,196-268；欢迎邮件 P/onboarding/welcome.py:21-127"
+effect = ["send", "site"]
+source = "control-auth-billing.md A1-2、B7-1"
+
+[[entry]]
+id = "control.issue.page"
+block = "管理后台"
+what = "发号页 /pearnly-issue 提交发号（后端同发号单），开通完成自动发欢迎邮件"
+where = "P/www/pearnly-issue.html:184-185 → P/issues.py:330 api_issue"
+effect = ["send", "site"]
+source = "control-auth-billing.md A2-2"
+
+[[entry]]
+id = "control.welcome.retry"
+block = "管理后台"
+what = "发号单点「Retry welcome email」：再给客户发一次欢迎邮件"
+where = "P/pearnly_control/doctype/pearnly_issue/pearnly_issue.js:226 → P/onboarding/welcome.py:128"
+effect = ["send"]
+source = "control-auth-billing.md A1-6"
+
+[[entry]]
+id = "control.tenant.delete"
+block = "管理后台"
+what = "租户页「Delete tenant / Retry deletion」：排拆除，删站点与库、Keycloak 账号、LIFF、原件桶、计费与控制面记录"
+where = "P/pearnly_control/doctype/pearnly_tenant/pearnly_tenant.js:20-100 → P/teardown.py:124,403（排拆除）、:234-400（执行）"
+effect = ["delete", "site"]
+source = "control-auth-billing.md A6-3、A6-4、A14-3"
+
+[[entry]]
+id = "control.topup.approve"
+block = "管理后台"
+what = "充值审核「Approve and credit」：同意并给租户余额到账"
+where = "P/pearnly_control/doctype/pearnly_topup_request/pearnly_topup_request.js:24,30-84 → P/billing_api.py:271 admin_approve → P/billing_control.py:137"
+effect = ["money", "site"]
+source = "control-auth-billing.md A11-2"
+
+[[entry]]
+id = "control.topup.reject"
+block = "管理后台"
+what = "充值审核「Reject」：驳回充值申请，不到账"
+where = "P/pearnly_control/doctype/pearnly_topup_request/pearnly_topup_request.js:25,86-115 → P/billing_api.py:313 admin_reject"
+effect = ["money", "site"]
+source = "control-auth-billing.md A11-3"
+
+[[entry]]
+id = "control.billing.adjust"
+block = "管理后台"
+what = "手工调账：直接加减租户余额（Desk 无按钮，运营脚本调）"
+where = "P/billing_api.py:338 admin_adjust；调用方 scripts/sample-verify-billing.sh"
+effect = ["money", "site"]
+source = "control-auth-billing.md A11-4"
+
+# ======================================================================
+# 登录与身份
+# ======================================================================
+
+[[entry]]
+id = "auth.password-reset-email"
+block = "登录与身份"
+what = "登录页「忘记密码」：Keycloak 给用户发重置密码邮件（四语邮件主题）"
+where = "infrastructure/keycloak/themes/pearnly/login/login-reset-password.ftl；infrastructure/keycloak/themes/pearnly/email/*"
+effect = ["send"]
+source = "control-auth-billing.md B6-4"
+
+[[entry]]
+id = "auth.ops.drop-stale-client"
+block = "登录与身份"
+what = "运营命令删除过期的 Keycloak 客户端"
+where = "scripts/production/drop-stale-keycloak-client.py"
+effect = ["delete"]
+source = "control-auth-billing.md B9-6"
+
+# ======================================================================
+# 订阅与计费（客户侧；ERP / Cowork 首页已在地图，这里是共用扣费与 DMS 首页）
+# ======================================================================
+
+[[entry]]
+id = "billing.ocr.charge"
+block = "订阅与计费"
+what = "识别扣费：按页计价（前 200 页 ฿1.50、之后 ฿1.00）扣余额、记本月计数，同一引用重试不重复扣"
+where = "apps/pearnly_control/pearnly_control/billing.py:85-130（单价）、:197-340（扣费与幂等）"
+effect = ["money"]
+source = "control-auth-billing.md C3-2、C3-3"
+
+[[entry]]
+id = "billing.dms.subscribe"
+block = "订阅与计费"
+what = "DMS 首页选择套餐：当场扣月费"
+where = "apps/pearnly_core/pearnly_core/public/desk/home.js:193-211 → apps/pearnly_core/pearnly_core/billing_www.py:75 subscribe（DMS 站点 apps/pearnly_dms/pearnly_dms/hooks.py:338 页头）"
+effect = ["money", "site"]
+source = "control-auth-billing.md C1-1、C1-2；dms-line.md §1.6 D-DK-2"
+
+[[entry]]
+id = "billing.dms.topup"
+block = "订阅与计费"
+what = "DMS 首页充值：填金额、上传转账凭证提交充值申请"
+where = "apps/pearnly_core/pearnly_core/public/desk/home.js:231-282 → billing_www.py:67 topup；凭证 apps/pearnly_core/pearnly_core/payments/proof.py:29"
+effect = ["money", "site"]
+upload = true
+source = "control-auth-billing.md C1-3；dms-line.md §1.6 D-DK-2"
+
+[[entry]]
+id = "billing.dms.delete-records"
+block = "订阅与计费"
+what = "DMS 首页明细勾选删除充值记录"
+where = "apps/pearnly_core/pearnly_core/public/desk/home.js:146 → billing_www.py:150 delete_records"
+effect = ["delete", "site"]
+source = "control-auth-billing.md C1-5；dms-line.md §1.6 D-DK-2"
