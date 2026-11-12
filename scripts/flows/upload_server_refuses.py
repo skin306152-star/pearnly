@@ -75,8 +75,9 @@ def judge(params, results, camera_code=None):
         {"case": "CC 附件：请求体超过 Frappe 上限直接 413", "seen": over, "ok": bool(cc.get("sid")) and over.get("status") == 413},
         {"case": "CC 附件：比 40MB 大一点（请求体没超）由服务端自己的上限拒收，回「文件超过 40 MB」", "seen": near,
          "ok": refused(near) and "40 MB" in near.get("said", "")},
-        {"case": "CC 附件：空文件、不收的类型由服务端拒收，各说原因", "seen": {"empty": empty, "bmp": bmp},
-         "ok": refused(empty) and refused(bmp) and empty.get("said") != bmp.get("said")},
+        # 原因按请求语言回词条（实验账号是中文；同页面选文件时拒收的那两句，`upload.fileEmpty` / `upload.typeUnsupported`）
+        {"case": "CC 附件：空文件、不收的类型由服务端拒收，按请求语言说原因（文件为空 / 不支持此文件类型）", "seen": {"empty": empty, "bmp": bmp},
+         "ok": refused(empty) and refused(bmp) and empty.get("said") == "文件为空" and bmp.get("said") == "不支持此文件类型"},
     ]
     if params["product"] == "cowork":
         intake = by.get("Cowork 录入直接打接口") or {}

@@ -1806,6 +1806,7 @@ covers = [
   "apps/pearnly_core/pearnly_core/originals/local_file.py",
   "apps/pearnly_core/pearnly_core/originals/upload_limits.py",
   "apps/pearnly_core/pearnly_core/assistant/files.py",
+  "apps/pearnly_core/pearnly_core/assistant/contracts.py",
   "apps/pearnly_cowork/pearnly_cowork/files/api.py",
 ]
 
@@ -1822,4 +1823,5 @@ covers = [
   "apps/pearnly_core/pearnly_core/web/wsgi.py",
   "apps/pearnly_core/pearnly_core/originals/local_file.py",
   "apps/pearnly_core/pearnly_core/assistant/files.py",
+  "apps/pearnly_core/pearnly_core/assistant/contracts.py",
 ]
