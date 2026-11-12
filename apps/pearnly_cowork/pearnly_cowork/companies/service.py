@@ -197,8 +197,22 @@ def _tax_fill(company) -> tuple[dict | None, bool]:
 def _found(company, limit) -> list:
     found = [identity.book(adapter, connection, row) for connection, adapter, row in _rows()
              if adapter == company.get("adapter") and identity.belongs(company, adapter, connection, row)]
-    found = identity.newest_first(found)
+    found = identity.newest_first(_merged(found))
     return found if limit is None else found[:limit]
+
+
+def _merged(books) -> list:
+    """同一本账套（同一个 ``identity``，两台电脑在各自连接上报的）合成一条：取先到的那条显示，``places`` 收齐各处的
+    （连接，账套键），有一处写得进就算写得进（A 线 11-12）。"""
+    merged = {}
+    for item in books:
+        kept = merged.get(item["identity"])
+        if kept is None:
+            merged[item["identity"]] = {**item, "places": list(item["places"])}
+            continue
+        kept["places"] += [place for place in item["places"] if place not in kept["places"]]
+        kept["writable"] = kept["writable"] or item["writable"]
+    return list(merged.values())
 
 
 def work_sets(company, work_scope="") -> list:

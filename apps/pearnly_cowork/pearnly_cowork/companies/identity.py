@@ -131,9 +131,19 @@ def autofill(company: Mapping[str, Any], adapter: object, connection: object, ro
     return {"tax_id": found["tax_id"], "branch": found["branch"], "identity": found["key"]}
 
 
+def book_id(connection: object, key: object, attributes: Mapping[str, Any] | None = None) -> str:
+    """一本账套与电脑无关的编号（A 线 11-12，同 ERP 的 ``book_key``）：目录带了登记的文件号（CC 1.7.0 起报，
+    目录里的 ``book_uid``）就按它，两台电脑以 UNC 与映射盘报的同一本是同一个编号；没有文件号照今天按（连接，账套键）分，不按路径猜合并。"""
+    from pearnly_core.cc_desktop.contracts import book_identity, book_key
+
+    uid = _text((attributes or {}).get("book_uid"))
+    return book_key(book_identity(key, uid)) if uid else book_key(f"{_text(connection)}|{book_identity(key)}")
+
+
 def book(adapter: object, connection: object, row: Mapping[str, Any]) -> dict:
-    """一份账套给页面与 CC 的样子：`{connection, adapter, key, label, year_label, branch, period_start, period_end,
-    next_end, writable}`（``next_end`` 是次年段止，Express ISPRD 的 NY 第 12 期；没报为空串）。"""
+    """一份账套给页面与 CC 的样子：`{connection, adapter, key, identity, places, label, year_label, branch, period_start,
+    period_end, next_end, writable}`（``identity`` 见 :func:`book_id`；``places`` 是这本在各条连接上的（连接，账套键），
+    同一本经几台电脑报上来时 `service` 合成一条）（``next_end`` 是次年段止，Express ISPRD 的 NY 第 12 期；没报为空串）。"""
     attributes = _attributes(row)
     kind = _text(adapter).lower()
     key = _text(row.get("source_id"))
@@ -143,7 +153,8 @@ def book(adapter: object, connection: object, row: Mapping[str, Any]) -> dict:
     else:
         year = _text(row.get("label"))
     found = company_identity(kind, connection, row) or {}
-    return {"connection": _text(connection), "adapter": kind, "key": key, "label": _text(row.get("label")) or key,
+    return {"connection": _text(connection), "adapter": kind, "key": key, "identity": book_id(connection, key, attributes),
+            "places": [(_text(connection), key)], "label": _text(row.get("label")) or key,
             "year_label": year, "branch": found.get("branch") or "",
             # 本年起止（不含次年）：「覆盖这个月」按本年算，次年的单据进下一年度的账套
             "period_start": _text(attributes.get("period_start"))[:10],

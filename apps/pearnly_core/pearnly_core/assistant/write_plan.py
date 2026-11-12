@@ -116,6 +116,13 @@ def _ledger(row) -> tuple[str, str]:
     return str(found.get("id") or ""), str(found.get("label") or found.get("id") or "")
 
 
+def _same_ledger(project, now, planned) -> bool:
+    """此刻的本对话账套与计划记的是不是同一本（旧编号经 provider 映射后再比，账套身份跨电脑 A 线 11-12）。"""
+    from pearnly_core.assistant import ledger
+
+    return ledger.same(project or "", now, str(planned or ""))
+
+
 # ── 判定与版本 ───────────────────────────────────────────────────────────────
 def _version(doc) -> str:
     """一张单此刻的写账判定摘要：票面、分组、答案、写入目标变了，判定结果就变（版本不同）。"""
@@ -252,7 +259,7 @@ def start(tool_input) -> dict:
     if stopped and doc.creation and frappe.utils.get_datetime(stopped) >= _to_utc(doc.creation):
         return {"status": "stopped", "plan": doc.name, "note": STOPPED_NOTE}
     ledger_now, label = _ledger(row)
-    if ledger_now != str(getattr(doc, "ledger", "") or ""):
+    if not _same_ledger(doc.company, ledger_now, getattr(doc, "ledger", "")):
         # B5：复述时的账套不是此刻的了：不写，这份计划作废（页面的「录吧」随之消失）
         doc.db_set({"status": REPLACED}, update_modified=True)
         _announce(doc)
@@ -312,7 +319,7 @@ def permit(doc_ids) -> tuple[list, dict]:
     stopped = _stopped_at(row)
     if stopped and plan.started_at and frappe.utils.get_datetime(stopped) >= _to_utc(plan.started_at):
         return [], {doc_id: "stopped" for doc_id in ids}
-    if _ledger(row)[0] != str(getattr(plan, "ledger", "") or ""):
+    if not _same_ledger(row.project, _ledger(row)[0], getattr(plan, "ledger", "")):
         return [], {doc_id: "ledger_changed" for doc_id in ids}  # B5：开始之后换了本对话账套
     allowed = set(json.loads(plan.started or "[]"))
     return [doc_id for doc_id in ids if doc_id in allowed], {doc_id: "not_in_plan" for doc_id in ids if doc_id not in allowed}
