@@ -23,6 +23,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 import dbf
 
 from . import account_rules
+from . import glbal_mark
 from . import dbf_schema as S
 from .dbf_writer import ERR_VERIFY, _WriteError, _gl_line, _open
 
@@ -155,15 +156,19 @@ def write(account_dir, prefix: str, *, docnum: str, docdat, docdate_be: str, cas
     finally:
         gj.close()
     gi = _open(Path(account_dir), "GLJNLIT", dbf.READ_WRITE)
+    lines = []
+    for item in written:
+        debit, credit = (cash_acc, item["acc"]) if reverse else (item["acc"], cash_acc)
+        lines.append(_gl_line(item["voucher"], SEQIT_DEBIT, docdat, debit, item["descrp"], S.TRNTYP_DEBIT, item["amount"], depcod,
+                              departmental))
+        lines.append(_gl_line(item["voucher"], SEQIT_CREDIT, docdat, credit, item["descrp"], S.TRNTYP_CREDIT, item["amount"],
+                              depcod, departmental))
     try:
-        for item in written:
-            debit, credit = (cash_acc, item["acc"]) if reverse else (item["acc"], cash_acc)
-            S.append_native(gi, _gl_line(item["voucher"], SEQIT_DEBIT, docdat, debit, item["descrp"], S.TRNTYP_DEBIT,
-                               item["amount"], depcod, departmental))
-            S.append_native(gi, _gl_line(item["voucher"], SEQIT_CREDIT, docdat, credit, item["descrp"], S.TRNTYP_CREDIT,
-                               item["amount"], depcod, departmental))
+        for line in lines:
+            S.append_native(gi, line)
     finally:
         gi.close()
+    glbal_mark.mark(account_dir, lines)  # 科目余额对应格标待重算（照 Express 原生，11-12）
     for _item in written:
         _bump_general_book(account_dir, prefix)
     return [{"voucher": item["voucher"], "acc": item["acc"], "amount": item["amount"]} for item in written]

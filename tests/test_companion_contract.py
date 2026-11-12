@@ -1592,6 +1592,18 @@ class GuidedPayload(unittest.TestCase):
             self.assertNotIn("approval", self.common.sanitize_push_meta({"approval": junk}))
         self.assertTrue(quoted((COMPANION / "stock_guard.py").read_text(encoding="utf-8"), "NEGAUTH"))
 
+    def test_cells_of_the_account_balances_that_were_not_marked_reach_the_server(self):
+        """科目余额标待重算（CC ``glbal_mark``，11-12）：没标上的格随回执 meta.glbal_unmarked 回来，服务端净化后还在。"""
+        worker = (COMPANION / "worker.py").read_text(encoding="utf-8")
+        self.assertIn('meta["glbal_unmarked"]', worker)
+        self.assertEqual(self.common.GLBAL_UNMARKED_META, "glbal_unmarked")
+        cells = ["21-02-01-00||12: no GLBAL row", "11-04-02-00||2027-01-05: period not in this fiscal year"]
+        self.assertEqual(self.common.sanitize_push_meta({"glbal_unmarked": cells}), {"glbal_unmarked": cells})
+        self.assertEqual(self.common.sanitize_push_meta({"glbal_unmarked": "x"}), {})
+        # 每条写分录的直写都调同一步
+        for name in ("dbf_writer.py", "dbf_sales.py", "dbf_refund.py", "pos_journal.py", "dbf_stock.py", "dbf_void.py", "dbf_receipt.py"):
+            self.assertIn("glbal_mark.mark(account_dir,", (COMPANION / name).read_text(encoding="utf-8"), name)
+
     def test_a_purchase_without_an_invoice_number_is_not_refused_by_cc(self):
         """缺供应商发票号不再拒收（覆盖表 D-5）：CC 采购适配层不再回 MISSING_REF_NO；销售的票面号照旧必填。"""
         purchase = method_source_of(COMPANION / "purchase_adapter.py", "validate_purchase_payload")

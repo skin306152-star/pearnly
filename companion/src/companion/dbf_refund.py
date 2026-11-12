@@ -47,6 +47,7 @@ from .dbf_fields import EXEMPT_VATCOD
 from .consistency import account_company_matches, read_company
 from . import dbf_schema as S
 from . import fiscal_period
+from . import glbal_mark
 from . import master_create
 from . import pos_journal
 from . import stock_location
@@ -597,12 +598,13 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
         journal.close()
     departmental = _department_accounts(account_dir) if depcod else frozenset()
     entries = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
+    written = [_gl_line(docnum, seqit, docdat, acc, descrp, side, value, depcod, departmental) for seqit, acc, side, value in gl_rows]
     try:
-        for seqit, acc, side, value in gl_rows:
-            S.append_native(entries, _filtered(entries, _gl_line(docnum, seqit, docdat, acc, descrp, side, value, depcod,
-                                                       departmental)))
+        for line in written:
+            S.append_native(entries, _filtered(entries, line))
     finally:
         entries.close()
+    glbal_mark.mark(account_dir, written)  # 科目余额对应格标待重算（照 Express 原生，11-12）
     _bump_isrun(account_dir, PREFIX, jnltyp)
     return docnum, gl_rows, cash_acc, line_modes
 

@@ -17,7 +17,7 @@ from typing import Callable, Optional
 
 from .config import CompanionConfig
 from .logger import activity, get_logger
-from . import account_lock, cdx_reindex, device_link, projection_refresh, task_journal, writer_id
+from . import account_lock, cdx_reindex, device_link, glbal_mark, projection_refresh, task_journal, writer_id
 from .queue_client import QueueClient, QueueClientConfig
 
 log = get_logger(__name__)
@@ -204,6 +204,7 @@ def _write_tables(direction: str, payload: dict) -> tuple:
     作废要不要动 ARTRNRM 看原单有没有行说明（写路里读账套才知道）：这里照「可能动」带上，只多试一张表。"""
     from . import dbf_remarks
     from . import dbf_schema as S
+    from . import glbal_mark
 
     items = [item for item in (payload or {}).get("items") or [] if isinstance(item, dict)]
     remarks = dbf_remarks.tables(items)
@@ -216,7 +217,9 @@ def _write_tables(direction: str, payload: dict) -> tuple:
         from .dbf_transfer import TRANSFER
         from .dbf_void import TABLES
 
-        return TABLES + S.LOCATION_TABLES + (() if doctype == TRANSFER else (dbf_remarks.TABLE,))
+        if doctype == TRANSFER:
+            return TABLES + S.LOCATION_TABLES  # 作废调拨：没有分录、不动行说明
+        return TABLES + (glbal_mark.TABLE,) + S.LOCATION_TABLES + (dbf_remarks.TABLE,)
     if direction == "stock" and doctype == "RL":
         from .dbf_transfer import TABLES
 
@@ -225,7 +228,7 @@ def _write_tables(direction: str, payload: dict) -> tuple:
     if direction == "stock":
         from .dbf_stock import TABLES
 
-        return TABLES + S.LOCATION_TABLES + remarks
+        return TABLES + (glbal_mark.TABLE,) + S.LOCATION_TABLES + remarks
     base = S.SALES_BACKUP_TABLES if direction == "sales" else S.PURCHASE_BACKUP_TABLES
     return base + S.LOCATION_TABLES + remarks
 
@@ -350,7 +353,8 @@ def _handle_dbf_task(
     from .dbf_writer import ERR_WAITING_LOCK
 
     try:
-        with held(st.account_dir):
+        # 科目余额没标上的格（glbal_mark：行不存在、下一年度等没有证据的情形），写成后随回执 meta.glbal_unmarked 回云端
+        with held(st.account_dir), glbal_mark.collecting() as glbal_unmarked:
             # Express 开着本次要写的表（逐张独占试开 DBF 与 CDX，任一被拒，``account_lock.busy_tables``）：一个字节不动——不备份、
             # 不写、不重建索引，按「等账套」回报。以前只有有人值守的单在弹询问框前探（``gui_tray_workers``）；没人在电脑前的单直接写，
             # 到重建索引拿不到独占才发现，再用写前备份整表覆盖回去，这期间 Express 里刚存的单随之被抹掉（11-12）。只试 ISRUN 不够：
@@ -399,6 +403,8 @@ def _handle_dbf_task(
         )
         return "waiting_lock"
     meta = _push_meta(res, direction, st.account_dir, writer=common["userid"])
+    if res.ok and glbal_unmarked:
+        meta["glbal_unmarked"] = list(glbal_unmarked)[:40]  # 这张单有几格科目余额没标待重算：要人在 Express 里跑一次重算
     if res.ok:
         log.info(f"✓ dbf task {task.id} → {res.docnum}")
         task_journal.remember(
