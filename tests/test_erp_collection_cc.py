@@ -166,7 +166,7 @@ class Flow(Base):
         refused = self.call(cc_tools.push, document=made["document"])  # 还没开始：不放
         self.assertEqual((refused["status"], refused["reason"]), ("not_pushed", "not_started"))
         self.assertEqual(self.start(planned["plan"])["status"], "not_confirmed")  # 复述后用户还没回话
-        self.turn[0] += 1  # 用户：录吧
+        self.turn[0] += 1  # 用户：写入
         started = self.start(planned["plan"])
         self.assertEqual((started["status"], started["documents"]), ("started", [made["document"]]))
         self.assertEqual(self.jobs.rows, {})  # 开始只标计划；放行由收款工具做
