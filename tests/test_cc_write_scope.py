@@ -104,6 +104,10 @@ class _Conversation(unittest.TestCase):
         tools.application.choices_view = lambda name, target, account_set, kind: {"needed": [], "account_set": account_set}
         tools.application.submit = lambda *a, **k: self.submitted.append(a) or {"status": "failed", "reason": "stop here"}
         frappe.db.get_value = lambda *a, **k: ("express", 3)
+        # 写入只走计划（A 线 B，推送入口也问计划）：这里看写入闸本身，用户已同意计划；计划的门见 test_cc_conversation_ledger_cowork
+        allowed = mock.patch.object(tools.direct_push, "permitted", lambda names: (list(names), []))
+        allowed.start()
+        self.addCleanup(allowed.stop)
 
 
 class DirectPushTests(_Conversation):
