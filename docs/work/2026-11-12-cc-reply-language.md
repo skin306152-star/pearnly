@@ -21,9 +21,18 @@
   `test_refusals_and_plain_text_results_also_carry_the_reply_language`、`test_question_cards_are_written_in_the_users_language`），
   旧代码红、新代码绿；原「纯文本原样回」的断言按 E3 改为英文才原样回。`test_assistant` 251 条通过。
 - 本地闸门（照 development.yml）：225 步通过；其中 `test_flows_coverage` 一格在闸门里并发负载下返回 1（无输出），单独重跑整步通过。
-- 候选检查（生产镜像 offline）：见下。
+- 候选检查（生产镜像 offline，镜像 77e2cec0）：LANE EXIT 0，109 组。
 - 共用件连带回归：命中「CC 对话（assistant）」10 个入口（`check-impact.py --base origin/pearnly/cc-conversation-ledger`），见下表。
 
 ## 共用件入口实测
 
-（21:00 后本机实验栈 `pearnly-aline7-lab` 补：`run.py --changed --base origin/pearnly/cc-conversation-ledger`）
+11-12 20:44–20:54 回归实验室（主会话排，挂本分支 28da0c0fd，`--migrate --jobs 3`），14/14 通过：
+
+| 入口 / 流程 | 结果 |
+|---|---|
+| `cc.operator.replay`（`cc.operator.thread`、`cowork.assistant`、`erp.cc.chat-push` 一带的代录对话） | 通过：new / old × 电脑 / 手机 4 格 |
+| `cc.send-unblocked`、`cowork.cc.send-unblocked`（`cc.assistant`、`shared.assistant`：发消息、对话页照常） | 通过：电脑 / 手机 4 格 |
+| 本分支包含的 cc-conversation-ledger 三条：`cowork.cc.conversation-ledger`、`erp.cc.conversation-ledger`、`cowork.cc.operator-ledger` | 通过：电脑 / 手机 6 格（补前一棒「最终提交 b49a3796a 上没重跑」） |
+| `control.assistant`（fatcc.com 登录进对话）、`erp.cc.stocktake`、`cowork.cc.troubleshooting`、`shared.execution` | 没测到：本支只改给模型的语言判定、说明文字与工具结果的包装，不碰这些入口的取数与页面；由上面同一套对话流程间接覆盖，未单独点 |
+
+结果文件 `~/pearnly-devtools/aline7/flows-1112.json`。真模型下的语言效果（泰文夹英文公司名、提问卡语言）没测：要测试机 / 线上真模型，排在四格复测时顺带看。
