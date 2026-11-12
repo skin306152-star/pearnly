@@ -92,7 +92,10 @@ class Heic(unittest.TestCase):
             source = (ROOT / f"apps/pearnly_erp_portal/pearnly_erp_portal/{product}/recognition.py").read_text()
             self.assertIn("originals.contents(chosen)", source)
         registration = (ROOT / "apps/pearnly_core/pearnly_core/originals/registered.py").read_text()
-        self.assertIn("heic.to_jpeg(content)", registration.split("def put", 1)[1].split("def create", 1)[0])
+        # 11-12 起原件也可能是磁盘上的一份（ADR-028 第 2 步）：看文件头认，认出来整份读出来转
+        put = registration.split("def put", 1)[1].split("def create", 1)[0]
+        self.assertIn("heic.is_heic(local_file.head(content, 16))", put)
+        self.assertIn("heic.to_jpeg(local_file.as_bytes(content))", put)
 
 
 if __name__ == "__main__":
