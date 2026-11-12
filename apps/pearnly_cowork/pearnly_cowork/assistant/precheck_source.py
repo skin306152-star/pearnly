@@ -600,12 +600,14 @@ def _choose_book(doc, value) -> None:
 
 def resume(company, doc_ids) -> list:
     """待处理里停着等人定的单，记下答案后按原来的写入路径重推（同待处理页「当场选」`pending_api.answer`）；归代录的、已推出去 /
-    在途的不动。"""
+    在途的不动。在 CC 对话里不推（B1：写入只走计划，共用层同样不调这里）。"""
     from pearnly_cowork.assistant import pending_api, tools
     from pearnly_cowork.history import storage
     from pearnly_cowork.push.application import service
 
     scope.require("intake")
+    if (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id"):
+        return []
     results = []
     for name in doc_ids:
         doc = storage.read(name)
