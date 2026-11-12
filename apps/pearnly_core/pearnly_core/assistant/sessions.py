@@ -35,8 +35,8 @@ import json
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import (ask, config, context, contracts, engine, engines, notices, prefs, projects, relay,
-                                    sidebar, stopped, timing, titles, toolrun, tools, waits, write_plan)
+from pearnly_core.assistant import (ask, config, context, contracts, engine, engines, ledger, notices, prefs, projects,
+                                    relay, sidebar, stopped, timing, titles, toolrun, tools, waits, write_plan)
 
 SESSION = context.SESSION
 TURN_LOG = "pearnly.assistant.turn"  # 建对话、发送的分段计时（`timing.Steps`，批 A ②）
@@ -48,9 +48,9 @@ GROUP_SCAN = 300  # 第一页一次最多读这么多条归在组里的对话，
 ORDERED_MAX = 300  # 第一页按组里手排的先后一并给的最多这么多条
 FIELDS = ["name", "session_id", "title", "title_source", "starred", "archived", "creation", "modified",
           "remote_ids", "context_tokens", "pending_carry", "project", "period", "project_scope", "project_noted",
-          "operator_task"]
+          "operator_task", "project_ledger"]
 LIST_FIELDS = ["name", "session_id", "title", "starred", "archived", "creation", "modified", "project", "period",
-               "project_scope", "operator_task"]
+               "project_scope", "operator_task", "project_ledger"]
 UNFILED = ["is", "not set"]  # 「最近」：project 为空（新加的字段，旧行是 NULL）
 FILED = ["is", "set"]
 # 两种模式（统一对话框架 14.8）：代录会话 = operator_task 不为空；列表按 mode 筛（chat / operator，不带 = 全部）
@@ -131,7 +131,7 @@ def _summary(row, status=None, unread=False) -> dict:
             "archived_at": _when(row.modified) if row.archived else None, "unread": bool(unread),
             "project": row.get("project") or "", "period": row.get("period") or "",
             "scope": row.get("project_scope") or "", "mode": "operator" if row.get("operator_task") else "chat",
-            "task": row.get("operator_task") or ""}
+            "task": row.get("operator_task") or "", "ledger": row.get("project_ledger") or ""}
 
 
 def _tool_runs(row, ids) -> dict:
@@ -446,7 +446,8 @@ def create(project=None, period=None, scope=None, mode=None) -> dict:
     _route(sid)
     doc = frappe.get_doc({"doctype": SESSION, "session_id": sid, "user": user, "product": product,
                           "engine_code": config.engine_code(), "title": "", "project": project, "period": period,
-                          "project_scope": scope}).insert(ignore_permissions=True)
+                          "project_scope": scope, "project_ledger": ledger.initial(project, period, scope, user)
+                          }).insert(ignore_permissions=True)
     sidebar.changed(user, "created", sid)
     steps.done("store")
     steps.log("conversation create")
@@ -489,6 +490,7 @@ def open_operator(task, scope="") -> str:
                     "engine_code": code, "title": title, "title_source": titles.PLACEHOLDER,
                     "starred": 1 if task.get("starred") else 0,
                     "project": task.company, "period": task.period, "project_scope": scope,
+                    "project_ledger": ledger.initial(task.company, task.period, scope, task.owner),
                     "operator_task": task.name, "remote_ids": "[]"}).insert(ignore_permissions=True)
     sidebar.changed(task.owner, "created", sid)
     return sid
@@ -586,11 +588,13 @@ def star(session_id, starred) -> None:
     sidebar.changed(_user(), "starred", row.session_id, starred=bool(starred))
 
 
-def move(session_id, project, period=None, scope=None) -> dict:
+def move(session_id, project, period=None, scope=None, ledger_id=None) -> dict:
     """改处理月份 / 范围：只动本人的会话。对话不能换公司（用户 10-17：侧栏拖动只在本组排先后，「移到」已删）——请求里的公司
     要与这段对话现在的一致（"" = 「最近」），不一致（含从「最近」挂进公司、移回「最近」）一律拒绝；产品不认这家时同样拒绝。
     挂在「最近」的对话没有月份、范围（一并清空）。新对话开在哪家走 `create`，删公司时对话回「最近」走 `projects.release`，
-    都不经这里。只是整理，不改最后活动时间、不动置顶。"""
+    都不经这里。只是整理，不改最后活动时间、不动置顶。
+    本对话账套（`ledger.kept`，A 线 11-12）：``ledger_id`` 给了（右栏下拉）就存它（要在新的可选里）；没给时用户选过的那本在新
+    月份 / 分店仍可选就保留，否则重算。产品没声明账套的不写这一列、不回不推 ``ledger``。"""
     row = owned(session_id)
     user = _user()
     wanted = str(project or "").strip()
@@ -599,6 +603,7 @@ def move(session_id, project, period=None, scope=None) -> dict:
     target, period, scope = _guard(projects.placement, wanted, period, scope, user)
     if wanted and not target:
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    kept = _guard(ledger.kept, row, target, period, scope, ledger_id)
 
     def write(locked):
         if wanted != (locked.get("project") or ""):
@@ -608,12 +613,15 @@ def move(session_id, project, period=None, scope=None) -> dict:
 
             # 代录会话的月份就是任务的月份：交给任务改（只在准备中能改，交单后拒），会话跟着记
             tasks.update(locked.operator_task, period=period)
-        frappe.db.set_value(SESSION, locked.name, {"project": target, "period": period, "project_scope": scope},
+        frappe.db.set_value(SESSION, locked.name, {"project": target, "period": period, "project_scope": scope,
+                                                   **({} if kept is None else {"project_ledger": kept})},
                             update_modified=False)
 
     _write(session_id, write)
-    sidebar.project(user, "move", session=row.session_id, project=target, period=period, scope=scope)
-    return {"id": row.session_id, "project": target, "period": period, "scope": scope}
+    sidebar.project(user, "move", session=row.session_id, project=target, period=period, scope=scope,
+                    **({} if kept is None else {"ledger": kept}))
+    return {"id": row.session_id, "project": target, "period": period, "scope": scope,
+            **({} if kept is None else {"ledger": kept})}
 
 
 FILED_UNDER = "filed"
