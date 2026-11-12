@@ -1826,3 +1826,36 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_projects.py",
 ]
+
+[[flow]]
+id = "cowork.upload.server-refuses"
+title = "Cowork 服务端自己守住上传上限与类型（页面拒收之外，CC 桌面版 / LINE / 直接调接口都走服务端）：CC 附件与录入直接打接口，超限 413、超 40MB 一点也拒收、空文件与不收的类型拒收；被拒的不留存、不开远端会话、临时文件响应后删掉（ADR-028 × 11-12 选文件拒收）"
+module = "scripts/flows/upload_server_refuses.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/web/multipart.py",
+  "apps/pearnly_core/pearnly_core/web/wsgi.py",
+  "apps/pearnly_core/pearnly_core/originals/local_file.py",
+  "apps/pearnly_core/pearnly_core/originals/upload_limits.py",
+  "apps/pearnly_core/pearnly_core/assistant/files.py",
+  "apps/pearnly_cowork/pearnly_cowork/files/api.py",
+]
+
+[[flow]]
+id = "cc.upload.server-refuses"
+title = "ERP CC 附件服务端自己守住上限与类型：同 Cowork（直接打接口超限 413、超 40MB 一点也拒收、空文件与不收的类型拒收，被拒的不留存、不开远端会话、临时文件响应后删掉）"
+module = "scripts/flows/upload_server_refuses.py"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/web/multipart.py",
+  "apps/pearnly_core/pearnly_core/web/wsgi.py",
+  "apps/pearnly_core/pearnly_core/originals/local_file.py",
+  "apps/pearnly_core/pearnly_core/assistant/files.py",
+]

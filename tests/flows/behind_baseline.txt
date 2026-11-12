@@ -84,8 +84,6 @@ apps/pearnly_cowork/pearnly_cowork/ocr/execution/work_guard.py
 apps/pearnly_cowork/pearnly_cowork/ocr/feedback/__init__.py
 apps/pearnly_cowork/pearnly_cowork/ocr/policy.py
 apps/pearnly_cowork/pearnly_cowork/ocr/providers/client.py
-apps/pearnly_cowork/pearnly_cowork/ocr/remote/__init__.py
-apps/pearnly_cowork/pearnly_cowork/ocr/remote/contract.py
 apps/pearnly_cowork/pearnly_cowork/ocr/remote/forward.py
 apps/pearnly_cowork/pearnly_cowork/ocr/remote/tasks.py
 apps/pearnly_cowork/pearnly_cowork/ocr/schema/__init__.py
