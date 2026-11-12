@@ -133,3 +133,26 @@ R2-5 真实路径（主会话 11-12 生产只读查清，会话 sesn_01XqgMQffeA
   `express.account_period_mismatch`（判据复用 `account_match.conflict`，没报期间不拦）；不进每分钟重试；判定 / 计划报
   `account_period_mismatch`（同 Cowork 推送的码，`write_plan.SKIP_PERIOD_MISMATCH`），代录交单照 held 报。新词条
   `express.reason.periodOutside`（四语，沿用共用层 `operator.report.reason.period_outside` 的说法），单据页同一张原因表。
+
+## 15. 已知限制：Cowork 账套身份按电脑（主会话 11-12 定单开一支修）
+
+- 单电脑没问题。同一本账套被两台电脑以不同写法上报（测试机1 用 UNC `\\accserver\d$\account\69exp\test`、测试机2 用映射盘
+  `P:\69EXP\TEST`）时，Cowork 的账套身份是「连接 + 规范化路径」（只统一大小写与斜杠），两台各算一本：右栏下拉出现两条同名账套、
+  本月算「多本」要问一次；选了哪条，写入就绑在报那条的电脑的连接上，另一台不能代写。「现用账套」的键是同一个根因，早于本支。
+- ERP 不受影响：共用机器通道的 `book_key` 按文件号（`uid`，CC 1.7.0 起上报）取，与电脑和写法无关。
+- 修法（单开一支，排在本支真机验完之后、第 3 批之前）：Cowork 改用 `cc_desktop.contracts.book_identity`（有 uid 用 uid，没有才用路径）
+  作账套身份，本对话账套、现用账套、写入闸比对、右栏去重都按它；写入时按「谁的活谁的电脑做」挑执行电脑，换成它的连接与路径；
+  老数据读时按身份映射。开工前先交一页短评估。
+
+## 16. D3 实测（测试机1，11-12）：期间闸与 Express 一致
+
+69EXP\TEST，CC 报的期间 2026-01-01～2027-12-31（本年 2026、次年段 2027），用 Express 原生（代录引擎）录 RR：
+
+| 日期 | 落在 | Express | 我们的 `account_match.conflict` |
+|---|---|---|---|
+| 2026-06-15 | 本年 | 收（RR0000297） | 放行 |
+| 2027-02-15 | 次年段 | 收（RR0000298） | 放行 |
+| 2025-12-15 | 期间之前 | 拒，Message#70「วันที่ไม่อยู่ในงวด งวดบัญชีของข้อมูลนี้จะอยู่ในช่วง 01/01/2569 - 31/12/2570」，不留空单头、不占号 | 拦（account_period_mismatch） |
+| 2028-02-15 | 次年段之后 | 同上拒 | 拦 |
+
+结论：期间闸边界「本年起 ～ 次年止」就是 Express 的真实行为，Cowork（`conflict`）与 ERP（本支 f9a624d64 在本对话账套路径上复用同一判据）都不用改。
