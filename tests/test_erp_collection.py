@@ -347,6 +347,39 @@ LISTED = {"TR", "BB", "TB", "SC", "KB"}
 BOOK = {"key": "a" * 40, "path": r"\\Accserver\d$\ACCOUNT\69EXP\NLTTEST", "root": r"\\Accserver\d$\ACCOUNT",
         "company": "NLT", "label": "NLTTEST", "writers": ["PC"], "writable": True}
 FACTS = {"receipt_types": TYPES, "cash_account": CASH_ACCOUNT}
+# 新版 CC 按账套自身结构报的科目类别（`payment_methods.account_classes`，NLTTEST 本机只读副本的 GLACC / BKMAS / ISINFO 算出）
+NLTTEST_CLASSES = {"1111-00": "cash", "1111-50": "cash_group", "1112-01": "bank", "1112-02": "bank", "1112-03": "bank",
+                   "1113-01": "bank", "1113-02": "bank"}
+CLASSED = [dict(row, account_class=NLTTEST_CLASSES.get(row["account"], "other")) for row in TYPES]
+
+# 69EXP\TEST 的收款类型（11-12 实测：三种储蓄存款的名称没有「โอนเข้าบัญชี」、也没关联银行，旧规则一种转账都不给）。科目类别取同模板、
+# 同科目号的 T9SINCER 科目表实测（统计 docs/work/2026-11-12-collection-transfer-rule-stats.md）；TR 关联的 S1 不在 BKMAS，没有科目
+TEST69 = [
+    ("01", "QR", "เช็ครับ", "Cheque", "11-02-02-00", "", "other"),
+    ("02", "CH", "รับเงินสด", "Cash Received", "11-01-01-00", "", "cash"),
+    ("03", "TR", "เงินโอนเข้าบัญชี (NBD)", "Bank Transfer", "", "S1", ""),
+    ("04", "TF", "ค่าธรรมเนียมการโอน", "Bank charge", "53-02-02-00", "", "other"),
+    ("07", "VS", "บัตร Visa", "Visa card", "11-02-02-00", "", "other"),
+    ("09", "DC", "ส่วนลดเงินสด", "Cash Discount", "41-03-00-00", "", "other"),
+    ("10", "TX", "ภาษีถูกหัก ณ ที่จ่าย", "Tax A/R", "11-05-01-02", "", "other"),
+    ("11", "EX", "กำไรขาดทุนจากอัตราแลกเปลี่ยน", "Exchange rate P/L", "53-01-04-00", "", "other"),
+    ("12", "CQ", "เงินฝากออมทรัพย์กรุงเทพ", "BBL SAVING", "11-01-03-01", "", "bank"),
+    ("13", "SU", "บัญชีพัก-ลูกหนี้การค้า", "SUSPENSE ACCOUNT RECEIVABLE", "11-02-01-01", "", "other"),
+    ("14", "SC", "เงินฝากออมทรัพย์-SCB", "SCB  SAVING", "11-01-03-05", "", "bank"),
+    ("15", "OA", "ลูกหนี้เงินยืมกรรมการ", "ลูกหนี้เงินยืมกรรมการ", "15-07-00-00", "", "other"),
+    ("16", "SS", "ค่าใช้จ่ายล่งเสริมการขาย", "ค่าใช้จ่ายล่งเสริมการขาย", "52-07-00-00", "", "other"),
+    ("17", "OR", "รายได้อื่นๆ", "รายได้อื่นๆ", "42-05-00-00", "", "other"),
+    ("18", "WH", "ภาษีเงินได้หัก ณ ที่จ่ายค้างจ่", "Withholding tax", "21-03-03-00", "", "other"),
+    ("19", "19", "เงินโอนเกิน(ขาด) 7-11", "เงินโอนเกิน(ขาด) 7-11", "53-05-14-00", "", "other"),
+    ("20", "20", "ค่าใช้จ่ายอื่นๆ", "", "53-05-02-00", "", "other"),
+    ("21", "21", "ส่วนลดรับ", "ส่วนลดรับ", "51-03-02-00", "", "other"),
+    ("22", "22", "ส่วนลดจ่าย", "ส่วนลดจ่าย", "41-03-00-00", "", "other"),
+    ("23", "23", "เงินฝากออมทรัพย์ กสิกรไทย", "เงินฝากออมทรัพย์ กสิกรไทย", "11-01-03-06", "", "bank"),
+]
+TYPES69 = [{"code": code, "prefix": prefix, "name": name, "name_en": name_en, "bank": bank, "account": account,
+            "account_issue": "" if account else "missing", "account_class": klass}
+           for code, prefix, name, name_en, account, bank, klass in TEST69]
+CASH69 = "11-01-01-00"
 
 
 class Contracts(unittest.TestCase):
@@ -376,6 +409,43 @@ class Contracts(unittest.TestCase):
         two = C.catalog([TYPES[6], dict(TYPES[6], prefix="D2")], CASH_ACCOUNT)
         self.assertIsNone(two["discount"])
         self.assertFalse(C.catalog(TYPES, "")["cash"])  # 账套没有现金科目：不收现金
+
+    def test_deposit_accounts_are_transfers_by_their_account_class_whatever_the_name(self):
+        found = C.catalog(TYPES69, CASH69)
+        self.assertEqual([item["prefix"] for item in found["transfers"]], ["CQ", "SC", "23"])
+        self.assertEqual(found["discount"]["prefix"], "DC")
+        reasons = {item["prefix"]: item["reason"] for item in found["excluded"]}
+        self.assertEqual((reasons["QR"], reasons["TX"], reasons["WH"], reasons["CH"], reasons["TR"]),
+                         (C.CHEQUE, C.WITHHOLDING, C.WITHHOLDING, C.CASH_BOX, C.NO_ACCOUNT))
+        for prefix in ("TF", "VS", "EX", "SU", "OA", "SS", "OR", "19", "20", "21", "22"):
+            self.assertEqual(reasons[prefix], C.NOT_MONEY, prefix)
+        # 老版 CC 不报科目类别：照旧按名称判（这三种仍不列，升级 CC 后才列）
+        old = C.catalog([{k: v for k, v in row.items() if k != "account_class"} for row in TYPES69], CASH69)
+        self.assertEqual(old["transfers"], [])
+
+    def test_the_name_rules_still_hold_on_deposit_accounts_and_cash_kinds_are_never_transfers(self):
+        def verdict(name, klass, account="1112-01", name_en=""):
+            return C.classify({"prefix": "X", "name": name, "name_en": name_en, "account": account, "account_class": klass},
+                              CASH_ACCOUNT)
+
+        self.assertEqual(verdict("เช็ครับ", "bank"), {"role": "", "reason": C.CHEQUE})  # 支票记进存款科目的也不列
+        self.assertEqual(verdict("กระแสรายวัน ธ.กรุงเทพ", "bank", name_en="Cheque")["reason"], C.CHEQUE)
+        self.assertEqual(verdict("ภาษีถูกหัก ณ ที่จ่าย", "bank")["reason"], C.WITHHOLDING)
+        self.assertEqual(verdict("ส่วนลดเงินสด", "other", "4100-04"), {"role": C.DISCOUNT, "reason": ""})
+        self.assertEqual(verdict("รับเงินสด", "cash", CASH_ACCOUNT)["reason"], C.CASH_BOX)
+        self.assertEqual(verdict("เงินสดย่อย", "cash_group", "1111-50")["reason"], C.NOT_MONEY)  # 零用金
+        self.assertEqual(verdict("รับเงินสด", "cash_group", "11-01-01-02")["reason"], C.NOT_MONEY)  # 另一个现金科目
+        self.assertEqual(verdict("ค่าธรรมเนียมการโอน", "other", "5390-01")["reason"], C.NOT_MONEY)
+        # 名称说转账、科目却是关联公司借款（T7/T8/T9 GISP·GIZP 的 GZ / GS）：科目为准，不列
+        self.assertEqual(verdict("เงินโอนเข้าบัญชี GIZE", "other", "1210-01")["reason"], C.NOT_MONEY)
+        # 名称只作辅助：现金组里不在 BKMAS、直接挂在组下的科目，名称说转账才列
+        self.assertEqual(verdict("เงินโอนเข้าบัญชี KTB", "cash_group", "112110")["role"], C.TRANSFER)
+        self.assertEqual(verdict("Bank Transfer-S/A BBL", "bank", "1113-05")["role"], C.TRANSFER)
+        # 没有可用科目（类别空）照名称判，再按没有科目不列
+        self.assertEqual(verdict("เงินโอนเข้าบัญชี (NBD)", "", "")["reason"], C.NO_ACCOUNT)
+
+    def test_nlttest_lists_the_same_kinds_with_account_classes(self):
+        self.assertEqual(C.catalog(CLASSED, CASH_ACCOUNT), C.catalog(TYPES, CASH_ACCOUNT))
 
     def test_money_is_two_place_decimal_and_never_rounded_for_the_collector(self):
         self.assertEqual(C.money("1,000.50"), Decimal("1000.50"))
