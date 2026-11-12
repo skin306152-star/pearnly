@@ -13,7 +13,8 @@ import { co } from "@/i18n";
 import { type Branch, branchShort, monthLabel, recentMonths } from "@/lib/companies";
 import { Marquee } from "@/components/ui/marquee";
 
-const Choice: FC<{ chosen: boolean; onSelect: () => void; children: ReactNode }> = ({ chosen, onSelect, children }) => (
+/** 下拉里的一项（选中的带勾）：月份、分店，右栏的本对话账套（session-panel 的 LedgerRow）共用。 */
+export const Choice: FC<{ chosen: boolean; onSelect: () => void; children: ReactNode }> = ({ chosen, onSelect, children }) => (
   <DropdownMenu.Item className="cc-menu-item" onSelect={onSelect}>
     <Marquee className="min-w-0 flex-1 truncate">{children}</Marquee>
     {chosen && <CheckIcon />}
