@@ -202,7 +202,7 @@ class PanelStylesSourceTests(unittest.TestCase):
         self.assertIn("void chooseLedger(session, filing, id)", row)
         row = panel.split("export const LedgerMenu: FC", 1)[1].split("\n};", 1)[0]
         self.assertIn("if (!entry?.options.length) return null;", row)
-        self.assertIn('<button type="button" className="cc-panel-row" data-slot="cc-company-ledger" title={label}>', row)
+        self.assertIn('<DropdownMenu.Trigger className="cc-panel-row" data-slot="cc-company-ledger" title={label}>', row)
         self.assertIn("<Marquee className=\"min-w-0 flex-1 truncate\">{co.accountSets}</Marquee>", row)   # 沿用已有词条，不加新文案
         self.assertIn("onSelect={() => item.id !== entry.current && onChoose(item.id)}", row)
         # 前端不再有按日期现算账套的函数
