@@ -165,7 +165,7 @@ def write_transfer(
                                   new_rows=False) \
         or new_item_shortages(account_dir, items, found, lambda item: True, source)  # 要新建的存货调出仓结存是 0
     if short:
-        return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short))
+        return stock_guard.refusal(account_dir, short)
     remark = _fit(payload.get("remark") or "", 50)
     clock.lap("checks")
     # 要建新存货时主档也进写前备份（调拨本身不动 STMAS）

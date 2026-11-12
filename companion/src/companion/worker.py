@@ -688,6 +688,9 @@ def _push_meta(res, direction: str, account_dir: str, *, writer: str = "") -> di
     # 「{品名}：新物料，没有库存」；原文格式不变（旧解析照用）。
     if getattr(res, "shortages", None):
         m["shortages"] = list(res.shortages)
+    # 库存不足是因为账套「扣成负库存要批准」（ISINFO.NEGAUTH）：两产品换成「需要批准」那一句。只在是这个原因时带
+    if getattr(res, "approval", False):
+        m["approval"] = True
     if res.ok:
         m["index_requery"] = True  # write_* 仅在 _verify_index 回查命中后才 ok
         key = "created_customer" if direction == "sales" else "created_supplier"

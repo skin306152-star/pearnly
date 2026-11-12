@@ -514,6 +514,9 @@ CHOICE_META = "choice"
 # 库存不足（``STOCK_INSUFFICIENT``）的结构化明细 ``meta.shortages``：[{stkcod, loccod, need, have, name?, new?, item?}]；随单新建的物料
 # 没有物料码，带品名与 new（两产品显示「{品名}：新物料，没有库存」）。回报原文的格式不变。
 SHORTAGES_META = "shortages"
+# 库存不足是因为账套「扣成负库存要批准」（Express ISINFO.NEGAUTH 非空，CC 桌面版 stock_guard.approval_needed）：meta.approval = true，
+# 两产品据此把「账套不允许负库存」换成「账套扣成负库存需要批准」。只在是这个原因时有。
+APPROVAL_META = "approval"
 _CHOICE_TEXT = {"name": 200, "stkcod": 40, "balance": 30}
 _CHOICE_UNIT_TABLE_MAX = 400
 OPERATOR_DOC_TYPE_MAX = 10
@@ -659,6 +662,8 @@ def sanitize_push_meta(raw: Any) -> Dict[str, Any]:
     shortages = clean_shortages_meta(raw.get(SHORTAGES_META))
     if shortages:
         out[SHORTAGES_META] = shortages
+    if raw.get(APPROVAL_META) is True:
+        out[APPROVAL_META] = True
     return out
 
 
