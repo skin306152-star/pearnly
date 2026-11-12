@@ -14,6 +14,7 @@ import ast
 import datetime
 import importlib
 import importlib.util
+import io
 import sys
 import types
 import unittest
@@ -66,6 +67,7 @@ def fake_frappe(state):
     frappe._ = lambda text: text
     frappe.whitelist = lambda **kwargs: (lambda fn: fn)
     frappe.request = None
+    frappe.local = types.SimpleNamespace(request=None)  # 资料区落盘后的临时文件由响应后回调删（这里没有请求，测试自己不管）
     frappe.clear_messages = lambda: None
 
     def throw(message, exc=None):
@@ -191,7 +193,8 @@ class Product:
 
 class File:
     def __init__(self, name, content):
-        self.filename, self.stream = name, types.SimpleNamespace(read=lambda size: content)
+        # 同真的上传流：读到结尾回 b""（11-12 起资料区按块落盘，ADR-028 第 2 步）
+        self.filename, self.stream = name, io.BytesIO(content)
 
 
 def upload(company, key, task="", name="bill.pdf", content=b"%PDF-12pages"):
