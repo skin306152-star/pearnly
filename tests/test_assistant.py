@@ -6489,6 +6489,24 @@ class AskUserTests(unittest.TestCase):
         rows = {"r1": self._waiting("r1", "ask_user", status="done")}
         self.assertEqual(self._replied(rows), (0, [], [], []))
 
+    def test_nothing_waiting_leaves_the_send_request_transaction_alone(self):
+        # 实验栈 cc.operator（11-12）：代录会话第一句要先开远端会话，这些写入还没提交；没有卡片在等时这里一回滚，
+        # 远端会话就丢了、那句话没有回复。没有卡片：不提交也不回滚。有卡片：先提交再交回
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        for rows, commits in (({"r1": self._waiting("r1", "ask_user", status="done")}, 0),
+                              ({"r1": self._waiting("r1", "ask_user", user="other@x.test")}, 0)):
+            db = _AskDb(rows)
+            seen = []
+            db.commit = lambda: seen.append("commit")
+            db.rollback = lambda: seen.append("rollback")
+            with mock.patch.object(toolrun.frappe, "db", db, create=True), \
+                    mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True):
+                self.assertEqual(toolrun.replied("conv", "sesn"), 0)
+            self.assertEqual(seen, [])
+        body = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8").split("\ndef replied(", 1)[1].split("\ndef ", 1)[0]
+        self.assertLess(body.index("if not runs:"), body.index("frappe.db.commit()"))
+        self.assertNotIn("frappe.db.rollback()", body)
+
     def test_send_settles_waiting_cards_before_the_message(self):
         body = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("\ndef send(", 1)[1].split("\ndef ", 1)[0]
         self.assertIn("toolrun.replied, row.session_id, remote", body)

@@ -370,6 +370,8 @@ jobs:
         run: python3 tests/test_upload_limits.py
       - name: Verify the CC Record it quick reply shows only while a ready write plan waits and sends like typing
         run: python3 tests/test_cc_record_reply.py
+      - name: Verify a message typed while a question or Allow card waits is sent at once instead of queued behind the card
+        run: python3 tests/test_cc_send_while_card_waits.py
       - name: Verify CC phone content interactions (notes Save/Cancel, open long chats at the newest message)
         run: python3 tests/test_cc_mobile_content.py
       - name: Keep CC colors, radii and shadows in globals.css only (ccs, official Claude style variables)

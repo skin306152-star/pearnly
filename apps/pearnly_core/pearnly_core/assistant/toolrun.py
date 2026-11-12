@@ -248,14 +248,18 @@ def replied(conversation: str, remote: str) -> int:
     """卡片挂着时用户没点卡片、直接在输入框里发了消息（`sessions.send` 在送这条消息之前调）：引擎停在等这些调用的结果时
     不收用户消息，先把本人这段对话里还在等的都交回——提问卡 ``ask_user`` 每题算没选、写明回答在下一条用户消息里；其余要
     「允许」的调用一律按拒绝交回。这条路只有拒绝：没点「允许」的调用不执行（11-12 主会话：打字发送任何情况下都不能变成允许）。
-    返回交回了几张。抢占同点卡片（`decide`）：同一刻在卡片上点了的归那边，这里跳过。"""
-    frappe.db.rollback()
-    runs = frappe.db.sql(f"SELECT name, tool_use_id, user FROM `tab{TOOL_RUN}` WHERE session_id=%s "
-                         "AND status='awaiting_approval'", (conversation,), as_dict=True)
+    返回交回了几张。抢占同点卡片（`decide`）：同一刻在卡片上点了的归那边，这里跳过。
+
+    没有卡片在等时只读一次、什么都不动：发消息的请求此前可能已有没提交的写入（代录会话第一句开远端会话、接续新一段），
+    不能在这里回滚掉。有卡片在等才先提交那些写入，再逐张交回（`decide` 开头要结束读快照）。"""
+    runs = [run for run in frappe.db.sql(
+        f"SELECT name, tool_use_id, user FROM `tab{TOOL_RUN}` WHERE session_id=%s AND status='awaiting_approval'",
+        (conversation,), as_dict=True) if run.user == frappe.session.user]
+    if not runs:
+        return 0
+    frappe.db.commit()
     count = 0
     for run in runs:
-        if run.user != frappe.session.user:
-            continue
         if decide(conversation, remote, run.tool_use_id, False, replied=True) != "not_waiting":
             count += 1
     return count
