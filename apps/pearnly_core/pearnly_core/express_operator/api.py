@@ -98,7 +98,7 @@ def intake(company, request_key, task=""):
     if not incoming:
         frappe.throw(_("Select a file to upload."))
     # 按块落到磁盘，不读成 bytes（ADR-028 第 2 步）；往下的原件层、识别都按路径 / 按块读
-    content = local_file.from_upload(incoming, UPLOAD_MAX)
+    content = local_file.from_upload(incoming, UPLOAD_MAX, frappe.request)
     if content is None:
         frappe.throw(upload_limits.too_large())
     try:

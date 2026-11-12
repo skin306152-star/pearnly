@@ -301,7 +301,7 @@ class MessageTests(unittest.TestCase):
         self.assertIn(check, upload)
         self.assertLess(upload.index(check), upload.index("contracts.upload_name"))
         intake = (CORE / "express_operator/api.py").read_text(encoding="utf-8").split("def intake(", 1)[1].split("\ndef ", 1)[0]
-        self.assertIn("content = local_file.from_upload(incoming, UPLOAD_MAX)\n    if content is None:\n"
+        self.assertIn("content = local_file.from_upload(incoming, UPLOAD_MAX, frappe.request)\n    if content is None:\n"
                       "        frappe.throw(upload_limits.too_large())", intake)
 
 
@@ -319,9 +319,9 @@ class FilesStayOnDisk(unittest.TestCase):
         self.assertLess(upload.index("content = _keep("), upload.index("_operator_take(row, upload_id, name, content)"))
 
     def test_operator_materials_and_cowork_intake_land_on_disk(self):
-        self.assertIn("content = local_file.from_upload(incoming, UPLOAD_MAX)",
+        self.assertIn("content = local_file.from_upload(incoming, UPLOAD_MAX, frappe.request)",
                       self._body("apps/pearnly_core/pearnly_core/express_operator/api.py", "intake"))
-        self.assertIn("content = local_file.from_upload(incoming, service.MAX_BYTES)",
+        self.assertIn("content = local_file.from_upload(incoming, service.MAX_BYTES, frappe.request)",
                       self._body("apps/pearnly_cowork/pearnly_cowork/files/api.py", "upload"))
         for path, function in (("apps/pearnly_core/pearnly_core/express_operator/api.py", "intake"),
                                ("apps/pearnly_cowork/pearnly_cowork/files/api.py", "upload")):

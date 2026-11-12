@@ -21,7 +21,7 @@ def upload(workspace=None, request_key=None, client=None):
     if not incoming:
         frappe.throw(_("Select a file to upload."))
     # 按块落到磁盘，不读成 bytes（ADR-028 第 2 步）；超限照原来那句（原件检查的 too_large）
-    content = local_file.from_upload(incoming, service.MAX_BYTES)
+    content = local_file.from_upload(incoming, service.MAX_BYTES, frappe.request)
     if content is None:
         service.reject("too_large")
     for attempt in range(3):

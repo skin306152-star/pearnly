@@ -82,12 +82,10 @@ def digest(content, algorithm="sha256") -> str:
     return found.hexdigest()
 
 
-def from_upload(file_storage, max_bytes):
+def from_upload(file_storage, max_bytes, request=None):
     """把请求里的一份上传（werkzeug ``FileStorage``，它自己已按块落在临时文件里）按块拷到本进程的临时文件，回 ``LocalFile``；
-    超过 ``max_bytes`` 回 ``None``（调用方照原来那句报「太大」）。临时文件在响应发出后删掉（`request.after_response`），
-    没有请求上下文时由调用方 ``remove()``。"""
-    import frappe
-
+    超过 ``max_bytes`` 回 ``None``（调用方照原来那句报「太大」）。``request`` 是当前请求（``frappe.request``）：临时文件在
+    响应发出后删掉（`request.after_response`）；没有时由调用方 ``remove()``。"""
     stream = file_storage.stream
     handle = tempfile.NamedTemporaryFile(prefix="pearnly-upload-", delete=False)
     written = 0
@@ -105,7 +103,7 @@ def from_upload(file_storage, max_bytes):
         os.remove(handle.name)
         return None
     local = LocalFile(handle.name, owned=True)
-    callbacks = getattr(getattr(frappe.local, "request", None), "after_response", None)
+    callbacks = getattr(request, "after_response", None)
     if callbacks is not None:
         callbacks.add(local.remove)
     return local

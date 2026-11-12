@@ -91,14 +91,12 @@ class LocalFileBasics(unittest.TestCase):
     def test_an_upload_is_copied_to_disk_in_chunks_and_removed_after_the_response(self):
         from frappe.utils import CallbackManager
 
-        import frappe
-
         data = os.urandom(MIB + 3)
         callbacks = CallbackManager()
-        with mock.patch.object(frappe, "local", types.SimpleNamespace(request=types.SimpleNamespace(after_response=callbacks))):
-            local = local_file.from_upload(FileStorage(io.BytesIO(data), "a.pdf"), MIB + 3)
-            self.assertIsNone(local_file.from_upload(FileStorage(io.BytesIO(data), "a.pdf"), MIB + 2), "超限回 None")
-            empty = local_file.from_upload(FileStorage(io.BytesIO(b""), "e.pdf"), MIB)
+        request = types.SimpleNamespace(after_response=callbacks)
+        local = local_file.from_upload(FileStorage(io.BytesIO(data), "a.pdf"), MIB + 3, request)
+        self.assertIsNone(local_file.from_upload(FileStorage(io.BytesIO(data), "a.pdf"), MIB + 2, request), "超限回 None")
+        empty = local_file.from_upload(FileStorage(io.BytesIO(b""), "e.pdf"), MIB, request)
         self.assertEqual(Path(local.path).read_bytes(), data)
         self.assertEqual(len(empty), 0)
         callbacks.run()

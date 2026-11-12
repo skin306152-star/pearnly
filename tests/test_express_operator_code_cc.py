@@ -67,7 +67,6 @@ def fake_frappe(state):
     frappe._ = lambda text: text
     frappe.whitelist = lambda **kwargs: (lambda fn: fn)
     frappe.request = None
-    frappe.local = types.SimpleNamespace(request=None)  # 资料区落盘后的临时文件由响应后回调删（这里没有请求，测试自己不管）
     frappe.clear_messages = lambda: None
 
     def throw(message, exc=None):
