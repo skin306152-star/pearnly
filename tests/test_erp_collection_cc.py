@@ -50,6 +50,7 @@ class Base(T.Base):
         super().setUp()
         self.turn, self.stopped, self.attached = [0], [None], {}
         self.company = ["CO-1"]
+        self.ledger = [self.ledger_of(T.BOOK)]
         frappe.local.pearnly_assistant = {"session_id": SESSION, "may_wait": False}
         sessions = types.ModuleType("pearnly_core.assistant.sessions")
         sessions.user_turn = lambda sid: self.turn[0]
@@ -69,6 +70,8 @@ class Base(T.Base):
             mock.patch.object(assistant_package, "files", files, create=True),
             mock.patch.object(frappe, "get_hooks", side_effect=lambda name: HOOKS.get(name, {})),
             mock.patch.object(cc_tools, "_company", side_effect=lambda: self.company[0]),
+            # 本对话账套（共用层 `assistant.ledger`，A 线 11-12）：这段对话此刻的那一本
+            mock.patch("pearnly_core.assistant.ledger.of_session", side_effect=lambda sid=None: self.ledger[0]),
         ]
         for patch in patches:
             patch.start()
@@ -80,6 +83,11 @@ class Base(T.Base):
         T.S.table("Pearnly Assistant Session")["S-" + user] = {
             "name": "S-" + user, "session_id": SESSION, "user": user, "operator_task": "", "project": project,
             "period": "2026-11"}
+
+    @staticmethod
+    def ledger_of(book, options=()):
+        listed = [{"id": item["key"], "label": item["label"], "covers": True} for item in (options or [book])]
+        return {"status": "set", "id": book["key"], "label": book["label"], "options": listed}
 
     def call(self, fn, **tool_input):
         return json.loads(fn(tool_input))
@@ -313,6 +321,59 @@ class Withdraw(Base):
         self.assertEqual(self.call(cc_tools.withdraw, collection=queued["name"])["status"], "withdrawn")
         self.assertEqual(self.call(cc_tools.status, collection=queued["name"])["result"], "withdrawn")
         self.assertEqual(self.jobs.rows["J-" + queued["name"]]["status"], "cancelled")
+
+
+class ConversationBook(Base, T.TwoBooks):
+    """CC 对话里收款三步一律用本对话账套（A10 / A11，11-12）：列发票、列方式、建草稿同一本，不按今天、不按单据日期各算各的。"""
+
+    def setUp(self):
+        super().setUp()
+        self.loaded = []
+        loader = mock.patch("pearnly_erp_portal.express.facts.load",
+                            side_effect=lambda key: self.loaded.append(key) or T.FACTS)
+        loader.start()
+        self.addCleanup(loader.stop)
+
+    def test_across_the_year_end_the_three_steps_use_the_conversations_book(self):
+        # 今天 2026-11-11 按日期是 TEST（2026）；对话选的是 TEST25（2025 年度，次年段到 2026 年底）
+        self.books = [T.TEST26, T.TEST25]
+        self.ledger[0] = self.ledger_of(T.TEST25, [T.TEST26, T.TEST25])
+        self.as_user("a@x")
+        listed = self.call(cc_tools.invoices, customer="2100883")
+        self.assertEqual([row["docnum"] for row in listed["invoices"]], ["IV1"])
+        self.assertIn(T.snapshot.request_key(T.TEST25["key"], "2100883"), self.requests.made)
+        self.assertNotIn(T.snapshot.request_key(T.TEST26["key"], "2100883"), self.requests.made)
+        self.loaded.clear()
+        self.call(cc_tools.methods)
+        self.assertEqual(set(self.loaded), {T.TEST25["key"]})
+        for date in ("2025-12-28", None):
+            made = self.make("100", **({"date": date} if date else {}))
+            self.assertTrue(made["ready"], made)
+            self.assertEqual(T.S.table("ERP Collection")[made["name"]]["book_key"], T.TEST25["key"], date)
+
+    def test_an_undecided_conversation_book_is_asked_in_the_conversation(self):
+        self.ledger[0] = {"status": "needed", "id": "", "label": "",
+                          "options": [{"id": T.TEST26["key"], "label": "TEST", "covers": True},
+                                      {"id": T.TEST26_COPY["key"], "label": "TEST", "covers": True}]}
+        self.as_user("a@x")
+        refused = self.call(cc_tools.invoices, customer="2100883")
+        self.assertEqual((refused["status"], refused["reason"]), ("not_saved", "ledger_needed"))
+        self.assertIn("pearnly_conversation_ledger", refused["note"])
+        self.assertEqual([row["id"] for row in refused["allowed_account_sets"]], [T.TEST26["key"], T.TEST26_COPY["key"]])
+        self.assertEqual(self.call(cc_tools.methods)["reason"], "ledger_needed")
+        self.assertEqual(self.make("100")["reason"], "ledger_needed")
+        self.ledger[0] = self.ledger_of(T.TEST26_COPY, [T.TEST26, T.TEST26_COPY])  # 用户在提问卡上选了、记在会话上
+        made = self.make("100")
+        self.assertEqual(T.S.table("ERP Collection")[made["name"]]["book_key"], T.TEST26_COPY["key"])
+
+    def test_a_draft_in_another_book_than_the_conversations_is_not_written(self):
+        self.books = [T.TEST26, T.TEST25]
+        self.ledger[0] = self.ledger_of(T.TEST25, [T.TEST26, T.TEST25])
+        made = self.make("100")
+        self.ledger[0] = self.ledger_of(T.TEST26, [T.TEST26, T.TEST25])  # 之后在右栏换成 TEST
+        planned = self.plan_of(made["document"])
+        self.assertEqual(planned["status"], "nothing_to_write")
+        self.assertEqual(planned["skipped"][0]["reason"], "collection.book_not_conversation")
 
 
 if __name__ == "__main__":

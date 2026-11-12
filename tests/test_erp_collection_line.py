@@ -620,5 +620,34 @@ class RichMenu(unittest.TestCase):
             self.assertTrue((tiles / f"collection-{language}.png").is_file())
 
 
+class BookStep(Base, T.TwoBooks):
+    """同期两本账套（A10，11-12）：LINE 没有对话，选完公司问一次用哪本，按公司 × 会计年度记住（与 ERP 单据同一份记忆）。"""
+
+    def test_two_books_are_asked_once_after_the_company_and_the_answer_is_remembered(self):
+        self.tap("a=col&s=start")
+        self.assertEqual(self.step(), "book")
+        self.assertIn("Choose the account set", self.last_text())
+        self.assertIn("1. TEST · " + T.TEST26["path"], self.last_text())  # 同名两本：名称 + 位置
+        labels = [item["label"] for item in self.buttons()]
+        self.assertEqual((len(labels), labels[-1]), (3, "Cancel"))
+        self.assertTrue(labels[0].startswith("1. ") and labels[1].startswith("2. "))
+        self.tap(self.buttons()[1]["data"])
+        self.assertEqual(self.step(), "customer")
+        self.type(C1)
+        self.assertEqual(self.step(), "invoices")
+        self.assertIn(T.snapshot.request_key(T.TEST26_COPY["key"], C1), self.requests.made)
+        SESSIONS.clear()
+        self.tap("a=col&s=start")
+        self.assertEqual(self.step(), "customer")  # 记住了：不再问
+
+    def test_a_book_that_is_not_offered_is_refused(self):
+        self.tap("a=col&s=start")
+        self.tap("a=col&s=book&v=" + T.TEST25["key"])
+        self.assertEqual(self.step(), "book")
+        self.assertIn("This option is no longer current", self.last_text())
+        self.type("TEST")
+        self.assertEqual(self.step(), "book")  # 打字不算选
+
+
 if __name__ == "__main__":
     unittest.main()
