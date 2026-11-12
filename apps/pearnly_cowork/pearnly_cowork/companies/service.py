@@ -606,6 +606,9 @@ def detail(company, period=None) -> dict:
     sets = books(row)
     row = _company_row(company)  # 可能刚补了税号
     covering = _covering(sets, period)
+    # 「全部账套」里覆盖这个月的高亮（A 线 11-12）：服务端标，页面不按日期现算；复制一份再标，不改缓存的账套行
+    marked = {id(item) for item in covering}
+    sets = [{**item, "covers": id(item) in marked} for item in sets]
     found = {
         "company": {**_view_row(row), "created_by": row.created_by or "", "created_at": str(row.creation or "")},
         "account_sets": sets,

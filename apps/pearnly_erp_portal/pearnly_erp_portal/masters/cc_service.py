@@ -159,12 +159,17 @@ def listing(search=None, start=0, limit=PAGE_MAX) -> list:
     return [_row(row, mine) for row in rows[start:start + limit]]
 
 
-def period_book(row, sets, period) -> dict | None:
-    """这个月的账套（右栏 / 公司页的 ``period_set``）：本对话账套的同一个函数（`cc_projects.ledgers` 的默认：覆盖本月恰好一本、
-    多本按记过的、都不覆盖退最新可写的；A 线 11-12 A8，不再取覆盖本月的第一份）。没月份、定不了一本回 None。"""
+def _month_books(row, period) -> dict | None:
     from pearnly_erp_portal.masters import cc_projects
 
-    found = cc_projects.ledgers(row.name, period, "", frappe.session.user) if period else None
+    return cc_projects.ledgers(row.name, period, "", frappe.session.user) if period else None
+
+
+def period_book(row, sets, period, found=None) -> dict | None:
+    """这个月的账套（右栏 / 公司页的 ``period_set``）：本对话账套的同一个函数（`cc_projects.ledgers` 的默认：覆盖本月恰好一本、
+    多本按记过的、都不覆盖退最新可写的；A 线 11-12 A8，不再取覆盖本月的第一份）。没月份、定不了一本回 None。
+    ``found``：调用方已取的 `cc_projects.ledgers` 结果（:func:`detail` 同时要覆盖标记，不取两遍）。"""
+    found = found if found is not None else _month_books(row, period)
     key = (found or {}).get("default") or ""
     item = next((item for item in sets if item["key"] == key), None) if key else None
     return {"key": item["key"], "label": item["label"], "connection": ""} if item else None
@@ -176,13 +181,16 @@ def detail(company, period=None) -> dict:
     require_read()
     period = _period(period)
     row = get(company)
-    sets = account_sets(row)
+    month = _month_books(row, period)
+    # 「全部账套」里覆盖这个月的高亮（A 线 11-12）：同本对话账套的可选项（`cc_projects.ledgers` 的 covers），页面不按日期现算
+    covered = {item["id"] for item in (month or {}).get("options") or () if item.get("covers")}
+    sets = [{**item, "covers": item["key"] in covered} for item in account_sets(row)]
     found = {
         "company": {**_row(row), "combined_vat": False, "created_by": row.owner or "", "created_at": when(row.creation),
                     "desk_url": f"{DESK}/{row.name}"},
         "account_sets": sets,
         "branches": [],
-        "period_set": period_book(row, sets, period),
+        "period_set": period_book(row, sets, period, month or {}),
         "folders": [],
         "notes": company_notes.listing(row.name),
         "choices": [],

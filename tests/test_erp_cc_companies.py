@@ -445,8 +445,11 @@ class CompanyApiTests(unittest.TestCase):
         self.assertEqual(found["account_sets"], [{"connection": "", "adapter": "express", "key": "K69", "label": "Siam 69",
                                                   "year_label": "2026", "branch": "00000",
                                                   "period_start": "2026-01-01", "period_end": "2026-12-31",
-                                                  "next_end": "", "writable": True}])
+                                                  "next_end": "", "writable": True, "covers": True}])
         self.assertEqual(found["period_set"], {"key": "K69", "label": "Siam 69", "connection": ""})
+        # 「全部账套」的覆盖本月高亮由服务端标（A 线 11-12，页面不按日期现算）：别的月份不覆盖；没月份不标
+        self.assertFalse(cc_companies.detail("CO-00001", "2027-02")["account_sets"][0]["covers"])
+        self.assertFalse(cc_companies.detail("CO-00001", "")["account_sets"][0]["covers"])
         self.assertEqual((found["branches"], found["folders"], found["choices"], found["tasks"], found["drafts"]),
                          ([], [], [], None, None))
         # A 线 11-12 A8：同期两份时「这个月的那一份」与写入同一个函数（记过的那一份），不取覆盖本月的第一份；没记过不选
