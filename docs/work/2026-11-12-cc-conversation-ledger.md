@@ -156,3 +156,46 @@ R2-5 真实路径（主会话 11-12 生产只读查清，会话 sesn_01XqgMQffeA
 | 2028-02-15 | 次年段之后 | 同上拒 | 拦 |
 
 结论：期间闸边界「本年起 ～ 次年止」就是 Express 的真实行为，Cowork（`conflict`）与 ERP（本支 f9a624d64 在本对话账套路径上复用同一判据）都不用改。
+
+## 17. 测试机实测后补的两处（11-12，主会话批）
+
+### A. 新建页先选账套
+
+- 现象：测试机1 真机实测，新建页（还没建会话；直写、代录都是）没有账套行，第一句之前选不了账套，只能等 CC 问；ERP 代录那格开出来的会话账套为空。
+- 修法：
+  - 服务端：`sessions.ledger_options(project, period, scope)`（接口 `api.ledger_options`，GET 只读）按建对话的落点判据（`projects.placement`）
+    核本人能用这家，回 `ledger.offered` = `{default, options}`（复用 `ledger.options_of`，同一份 provider 算法）；没有本对话账套时都空。
+  - `sessions.create(..., ledger)` / `_create_operator` → `tasks.create(..., ledger)` → `open_operator(task, scope, ledger_id)`：新建页选的那本
+    经 `ledger.initial(..., wanted)` 核对，不在这家这个月可选的里按请求错误拒绝（同 `move` 口径；代录先核再建任务），没给照函数算。
+  - 前端：新建页那一排（电脑输入框下巴、手机问候下面；直写、代录同一个 `DraftChin`）公司、月份、分店后接账套胶囊 `LedgerChip`（标准下拉，
+    沿用词条 `co.accountSets`，不加新文案）：`useDraftLedgerOf` 读 `ledger_options`，服务端默认预选、可改；换月份 / 分店时选着的仍可选就留着；
+    建会话时 `session-list-adapter.initialize` 经 `draftLedgerOf` 随 `create` 交上。
+- 偏离：任务书写「新建页右栏」。新建页本来没有右栏（右栏只在已建的会话里出；代录模式按用户 11-04 不要右栏），所以放在新建页选公司、月份
+  的那一排（同月份胶囊的标准下拉）；建好会话后右栏公司卡照常显示并可改。
+- 测试：`test_cc_conversation_ledger.py` 新建页读默认与选项（不写库、无权拒、产品没声明为空）、直写 / 代录建会话带账套存下、不在可选里拒绝、
+  `open_operator` 存给的那本；`test_cc_session_panel.py` 新建页胶囊（源码 + 行为：读默认、可改、随 create 交上、换月份保留 / 重算、没有不出）。
+  旧代码 4 + 2 条红，新代码绿。
+- 流程：`cowork.cc.conversation-ledger`、`erp.cc.conversation-ledger` 第一步改成新建页选 T.8 再发第一句（读回本对话账套就是 T.8、不出提问卡），
+  右栏一步改为核显示 T.8；新流程 `cowork.cc.operator-ledger`（代录新建页选 T.8 → 代录会话账套 T.8 → 建计划目标 T.8、不问）。电脑与手机宽度。
+
+### B. 本对话账套已定时，旧的待选状态不再挡、不露原因码
+
+- 现象：ERP 代录那格（`AL-erp-operator-170558`），CC 回话露出原因码 `choice_needed:account_set`，还建议「改投 TEST2」。来源：`erp_list_documents`
+  的 `reason_code`（`reason` 对「要人选」只给状态「待处理」），以及网页按单据日期停在「同期两本选哪本」的那一问。
+- 按类查全（直写 / 代录 × Cowork / ERP）：
+  - ERP 直写：c9b2d229b 的 `_asked_by_the_web` 只看「没写账件 + 本对话账套已定」，在本对话账套里准备过的真问题也会被跳过。改为
+    `prepared_elsewhere`：记着的「要人选」是按另一本准备的（`ledger_book` ≠ 本对话账套、没写账件）才重新准备；按这本准备的照实回 needs_choice。
+  - ERP 直写 / 代录（同一套工具）：列单、详情、待处理在本对话账套已定时不再给那一问（照还没写的单给，不带原因码；待处理不列、计数扣掉）。
+  - ERP 代录交单：`push.send(operator)` 本来就按任务会话的本对话账套重新准备（补一条守护测试，旧代码也绿）。
+  - Cowork 直写 / 代录：推送本来就按本对话账套现判（`_submit_one`）；列单、详情里推往另一本时问的 `choice_needed:…` 同样不再给模型（`asked_for_another_book`）。
+- 原因码：
+  - ERP `reason_words`：要人选一次的给新词条 `express.reason.choiceNeeded`，其余同待处理与单据页；列单、推送结果、待处理、详情（`push_reason` 改为话，
+    码另放 `push_reason_code`）都用它。
+  - Cowork `cowork_push_documents` 推送时才发现要人选：交给模型的 `reason` 换成用户语言那句（同列单），要选的几类另给 `choose`；票上记的仍是码。
+  - 代录 `express_operator_status`：共用层 `products.reason_text`（新可选钩子 `pearnly_express_operator.reason_text`），没录成的原因给话、码放
+    `reason_code`；Cowork 声明 `export_facts.reason_text`，ERP 声明 `cc_tools.reason_words`。
+- 测试：`test_erp_cc_chat_push.py`（直写、代录会话各一条：网页那一问不给模型看；按这本准备的仍问；钩子声明）、`test_cowork_assistant_tools.py`
+  （推送要人选给话）、`test_cc_conversation_ledger_cowork.py`（推往另一本时问的不给看）、`test_express_operator_tasks.py`（代录状态给话）、
+  `test_cc_conversation_ledger_erp.py`（代录交单重新准备，守护）。旧代码 7 条红，新代码绿。
+- 文案（新增，未改已有）：`express.reason.choiceNeeded` — en「Choose before writing to Express」/ zh「写入 Express 前需要选择」/
+  th「ต้องเลือกก่อนบันทึกเข้า Express」/ ja「Express に書き込む前に選択が必要です」。
