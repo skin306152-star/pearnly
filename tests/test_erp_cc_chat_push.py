@@ -179,7 +179,18 @@ sys.modules["pearnly_erp_portal.access.guard"] = guard
 
 LOST = "cc_desktop.result_unknown"
 JOBS = {}
-jobs = _module("pearnly_core.cc_desktop.jobs", LOST=LOST, find_by_name=lambda name: dict(JOBS[name]) if name in JOBS else None)
+# 此刻在等 Express 关闭的写账件（`jobs.express_wait_many` 的替身：真的按上次回报 90 秒内算，见 test_cc_desktop_channel）
+WAITING, WAIT_CALLS = set(), []
+SENTENCE = "Express 正在使用此账套，关闭后将自动写入"
+
+
+def _express_wait_many(names, moment=None):
+    WAIT_CALLS.append(sorted(names))
+    return {name: "2026-11-12T03:00:00Z" for name in names if name in WAITING}
+
+
+jobs = _module("pearnly_core.cc_desktop.jobs", LOST=LOST, find_by_name=lambda name: dict(JOBS[name]) if name in JOBS else None,
+               express_wait_many=_express_wait_many)
 importlib.import_module("pearnly_core.cc_desktop").jobs = jobs
 
 CALLS = []
@@ -302,6 +313,8 @@ def reset():
     STATE.queries.clear()
     CALLS.clear()
     JOBS.clear()
+    WAITING.clear()
+    WAIT_CALLS.clear()
     OPERATOR.clear()
     ENABLED.update({"CO-1": True, "CO-2": True})
     FILED["company"] = "CO-1"
@@ -313,6 +326,12 @@ def reset():
 
 def call(fn, **values):
     return json.loads(fn(values))
+
+
+def translated():
+    """「在等 Express 关闭」那句按用户语言给（`pending.reason_label` 的词条翻译换成中文那一句）。"""
+    return mock.patch.object(pending, "_", lambda text, *args, **kwargs:
+                             SENTENCE if text == "express.error.ACCOUNT_BUSY_LOCKED" else text)
 
 
 NEEDED = [{"kind": "account", "subject": "Fuel", "label": "Fuel",
@@ -558,6 +577,31 @@ class ListTests(unittest.TestCase):
         self.assertIsNone(rest["next_offset"])
         self.assertEqual(rest["documents"][0]["company"], "CO-1")  # 出入库单按仓库的公司
 
+    def test_pending_rows_waiting_for_express_carry_waiting_from_one_query(self):
+        # 有人开着这本账套的 Express：排队中的单另带 waiting（现成那句、按用户语言），其余字段与结构不变
+        doc(SALES, "SD-1", state="queued", ledger_job="J1", day="2026-10-22")
+        doc(SALES, "SD-2", state="queued", ledger_job="J2", day="2026-10-21")
+        doc(PURCHASE, "PUR-3", reason="[PERIOD_LOCKED] closed", ledger_job="J3", day="2026-10-20")
+        doc(PURCHASE, "PUR-4", state="queued", day="2026-10-19")   # 还没交出去：没有写账件
+        before = call(tools.list_documents)["documents"]
+        self.assertTrue(all("waiting" not in row for row in before))
+        WAITING.update({"J1", "J3"})
+        WAIT_CALLS.clear()
+        with translated():
+            for fn in (tools.list_documents, tools.push_results):
+                rows = {row["name"]: row for row in call(fn)["documents"]}
+                self.assertEqual(rows["S:SD-1"]["waiting"], SENTENCE)
+                self.assertEqual((rows["S:SD-1"]["last_push_status"], "reason" in rows["S:SD-1"]), ("pending", False))
+                self.assertTrue(all("waiting" not in rows[name] for name in ("S:SD-2", "P:PUR-3", "P:PUR-4")))
+                # 只多这一个字段
+                self.assertEqual([{k: v for k, v in row.items() if k != "waiting"} for row in rows.values()], before)
+        self.assertEqual(WAIT_CALLS, [["J1", "J2"], ["J1", "J2"]])   # 一页一次查完，只问排队中、有写账件的
+        self.assertEqual(STATE.db.table(SALES)["SD-1"]["ledger_reason"], "")   # 单据上的原因栏不写
+        # 这一页没有排队中的单：不问
+        WAIT_CALLS.clear()
+        call(tools.list_documents, kind="purchase", push_state="waiting")
+        self.assertEqual(WAIT_CALLS, [])
+
     def test_filters_by_push_state_kind_and_search(self):
         doc(PURCHASE, "PUR-1", state="written", ledger_docnum="RR6910-001")
         doc(PURCHASE, "PUR-2", reason="choice_needed:account")
@@ -614,6 +658,36 @@ class PushTests(unittest.TestCase):
         self.assertEqual(by["P:NOPE"]["status"], "not_found")
         self.assertEqual(CALLS, [("retry", PURCHASE, "PUR-4"), ("send", SALES, "SD-5")])
         self.assertIn("erp_push_results", out["note"])
+
+    def test_a_queued_document_waiting_for_express_says_so(self):
+        doc(PURCHASE, "PUR-2", state="queued", ledger_job="J2")   # 早已交出去的
+        JOBS["J2"] = {"job": "J2", "status": "queued", "request_key": "erp:purchase:PUR-2", "reason": "ACCOUNT_BUSY_LOCKED"}
+        doc(SALES, "SD-5", reason=E.NO_BOOK)                       # 这次交出去、到点仍在排队
+        doc(SALES, "SD-6", reason=E.NO_BOOK)
+        WAITING.update({"J2", "J-SD-5"})
+        with translated():
+            out = call(tools.push_documents, documents=["P:PUR-2", "S:SD-5", "S:SD-6"])
+        self.assertEqual(out["results"], [
+            {"document": "P:PUR-2", "status": "already_pending", "waiting": SENTENCE},
+            {"document": "S:SD-5", "status": "queued", "waiting": SENTENCE},
+            {"document": "S:SD-6", "status": "queued"}])
+        self.assertIn("erp_push_results", out["note"])
+        # 电脑关了 Express、写进去了：不再带
+        WAITING.clear()
+        STATE.db.table(SALES)["SD-5"].update(ledger_state="written", ledger_docnum="HS6910-001")
+        with translated():
+            self.assertEqual(tools._outcome(tools.KINDS["sales"], "SD-5"),
+                             {"status": "entered", "docnum": "HS6910-001"})
+
+    def test_the_model_is_told_what_waiting_means_in_one_sentence(self):
+        by_name = {tool["name"]: tool for tool in tools.TOOLS}
+        for name in ("erp_push_documents", "erp_push_results", "erp_list_documents"):
+            self.assertEqual(by_name[name]["description"].count(tools.EXPRESS_WAIT_NOTE), 1, name)
+        # 与 Cowork 同一句（Cowork 的工具说明由它的 golden 锁住）
+        cowork = (COWORK / "assistant/tools.py").read_text(encoding="utf-8")
+        start = cowork.index("EXPRESS_WAIT_NOTE = (")
+        tree = ast.parse(cowork[start:cowork.index("\n\n", start)])
+        self.assertEqual(ast.literal_eval(tree.body[0].value), tools.EXPRESS_WAIT_NOTE)
 
     def test_waits_for_the_express_number(self):
         doc(SALES, "SD-5", reason=E.NO_BOOK)
