@@ -78,7 +78,8 @@ class TitleBarSourceTests(unittest.TestCase):
         self.assertIn('<div ref={setArea} className="relative flex min-h-0 flex-1 flex-row">', layout)
         self.assertIn("const panelShown = hasPanel && !(view === \"chat\" && results.open) && (mode === \"docked\" ? panelOpen : overlay);", layout)
         self.assertIn('const mode: PanelMode = isMobile ? "phone" : fits ? "docked" : "floating";', layout)
-        self.assertIn("{panelShown && <SessionPanel filing={filing} mode={mode} onClose={closePanel} />}", layout)
+        self.assertIn("{panelShown && <SessionPanel session={session} filing={filing} mode={mode} onClose={closePanel} />}", layout)
+        self.assertIn('const session = useAuiState((s) => s.threadListItem.remoteId) ?? "";', layout)
         # 返回键：原有两层不变，会话栏浮层 / 全屏另登记
         self.assertIn('useBackLayer(isMobile && view === "chat" && results.open, () => results.setOpen(false));', layout)
         self.assertIn('useBackLayer(panelShown && mode !== "docked", () => setPanelOverlay(false));', layout)
@@ -188,16 +189,31 @@ class PanelStylesSourceTests(unittest.TestCase):
         tasks = read("components/scheduled-tasks.tsx")
         self.assertEqual(tasks.count("onClick={() => newTask(taskCompany)}"), 2)
 
-    def test_company_card_lists_every_account_set_of_the_month(self):
-        # 测试窗口第 2 轮：没指定分店的对话公司卡只显示「T.9 นิภา (สาขา 00012)」，推送却进了总店 T9NIEXCP：
-        # 没指定分店时各分店覆盖这个月的都列（一份一行，总店在前），指定了分店只列那个分店的
+    def test_company_card_shows_the_conversations_account_set(self):
+        # A 线 11-12（R2-5）：右栏原先按日期现算（setsForScope：覆盖本月、都不覆盖退最新可写、同期两本静默取第一本），与服务端
+        # 写入的不是同一本；现在「ชุดบัญชี」一行是本对话账套（服务端 api.ledgers），点开可改（move 带 ledger），不再现算
         panel = read("components/session-panel.tsx")
         card = panel.split("const CompanyCard: FC", 1)[1].split("\n};", 1)[0]
-        self.assertIn("const sets = setsForScope(detail, period, scope);", card)
-        self.assertIn("{sets.length === 1 && <InfoRow icon={<BookOpenIcon />} label={co.accountSets} value={sets[0]!.label} />}", card)
-        self.assertIn("{sets.map((set) => (", card)
-        self.assertIn('className="cc-panel-row cc-panel-indent" title={set.label}', card)
-        self.assertNotIn("setFor(", card)
+        self.assertIn("<LedgerRow session={session} filing={filing} />", card)
+        self.assertNotIn("setsForScope", panel)
+        self.assertNotIn("label={co.accountSets}", card)
+        row = panel.split("export const LedgerRow: FC", 1)[1].split("\n};", 1)[0]
+        self.assertIn("const entry = useConversationLedger(session, filing);", row)
+        self.assertIn("void chooseLedger(session, filing, id)", row)
+        row = panel.split("export const LedgerMenu: FC", 1)[1].split("\n};", 1)[0]
+        self.assertIn("if (!entry?.options.length) return null;", row)
+        self.assertIn('<button type="button" className="cc-panel-row" data-slot="cc-company-ledger" title={label}>', row)
+        self.assertIn("<Marquee className=\"min-w-0 flex-1 truncate\">{co.accountSets}</Marquee>", row)   # 沿用已有词条，不加新文案
+        self.assertIn("onSelect={() => item.id !== entry.current && onChoose(item.id)}", row)
+        # 前端不再有按日期现算账套的函数
+        companies = read("lib/companies.ts")
+        for gone in ("setsForScope", "setForPeriod", "coveringSet", "coveringOf", "coveringOrNewest", "const covers ="):
+            self.assertNotIn(gone, companies, gone)
+        for rel in ("components/company-cards.tsx", "components/scheduled-tasks.tsx", "components/month-ledger.tsx",
+                    "components/pending.tsx"):
+            text = read(rel)
+            for gone in ("setsForScope", "setForPeriod", "coveringSet", "setFor("):
+                self.assertNotIn(gone, text, (rel, gone))
 
     def test_the_panel_pending_card_lists_only_other_months(self):
         # 开发窗口 10-16 定：会话栏「待处理」卡只列对话月份以外的，对话那个月的只在「本月」卡（列全部月份的公司页 11-07 删了）
@@ -218,40 +234,82 @@ class PanelLogicTests(unittest.TestCase):
         run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body + "\n(globalThis as any).done();\n",
                stubs=STUBS, lang=lang)
 
-    def test_account_sets_shown_for_the_conversation_scope(self):
+    def test_the_panel_shows_and_changes_the_conversations_account_set(self):
+        # A 线 11-12（R2-5 回放）：选中 T.8、同期还有 T.9（按日期现算会取第一本 T.9）——右栏显示服务端给的 T.8；选 T.9 调 move 带
+        # ledger；未定显示空值；推来的 move 带 ledger 就地换，认不出重取；服务端没收下撤回
         self.run_page(r"""
-import { setsForScope } from "@/lib/companies";
-const set = (key: string, branch: string, start: string, end: string, writable = true) =>
-  ({ connection: "c1", adapter: "express", key, label: key, branch, period_start: start, period_end: end, writable });
-// 照测试机 T.9：分店 00012 在前（服务端顺序），总店 T9NIEXCP 覆盖同一个月
-const b12 = [set("T9N12EXP", "00012", "2026-01-01", "2026-12-31"), set("T9N12-68", "00012", "2025-01-01", "2025-12-31")];
-const hq = [set("T9NIEXCP", "00000", "2026-01-01", "2026-12-31"), set("T9NI-68", "00000", "2025-01-01", "2025-12-31")];
-const detail: any = { account_sets: [...b12, ...hq],
-  branches: [{ branch: "00012", account_sets: b12 }, { branch: "00000", account_sets: hq }] };
-const keys = (sets: any[]) => sets.map((s) => s.key);
-// 没指定分店：各分店覆盖这个月的都列，总店在前
-assert.deepEqual(keys(setsForScope(detail, "2026-09", "")), ["T9NIEXCP", "T9N12EXP"]);
-assert.deepEqual(keys(setsForScope(detail, "2025-03", "")), ["T9NI-68", "T9N12-68"]);
-// 指定了分店：只列那个分店的
-assert.deepEqual(keys(setsForScope(detail, "2026-09", "00012")), ["T9N12EXP"]);
-assert.deepEqual(keys(setsForScope(detail, "2026-09", "00000")), ["T9NIEXCP"]);
-// 对话的分店不在名单里：照旧取整家公司覆盖这个月的一份
-assert.deepEqual(keys(setsForScope(detail, "2026-09", "00099")), ["T9N12EXP"]);
-// 有覆盖这个月的就只列覆盖的：分店 00012 只有往年的账套时不拿它最新的一份冒充这个月的
-const b12old = [set("T9N12-68", "00012", "2025-01-01", "2025-12-31")];
-const partial: any = { account_sets: [...b12old, ...hq],
-  branches: [{ branch: "00012", account_sets: b12old }, { branch: "00000", account_sets: hq }] };
-assert.deepEqual(keys(setsForScope(partial, "2026-09", "")), ["T9NIEXCP"]);
-// 一份都不覆盖这个月：每个分店各取最新可写的一份；没有月份时同样每个分店各一份
-assert.deepEqual(keys(setsForScope(detail, "2024-05", "")), ["T9NIEXCP", "T9N12EXP"]);
-assert.deepEqual(keys(setsForScope(detail, "", "")), ["T9NIEXCP", "T9N12EXP"]);
-// 只有一家（没有分店信息）：照旧覆盖这个月的那份
-const single: any = { account_sets: [set("69EXP", "", "2026-01-01", "2026-12-31"), set("68EXP", "", "2025-01-01", "2025-12-31")] };
-assert.deepEqual(keys(setsForScope(single, "2026-09", "")), ["69EXP"]);
-assert.deepEqual(keys(setsForScope({ account_sets: [] } as any, "2026-09", "")), []);
-// 旧服务端（没有 branches，按账套上的分店号现分）：同样总店在前；没有分店号的账套当总店那一组
-const old: any = { account_sets: [...b12, ...hq, set("LOOSE", "", "2026-01-01", "2026-12-31")] };
-assert.deepEqual(keys(setsForScope(old, "2026-09", "")), ["LOOSE", "T9NIEXCP", "T9N12EXP"]);
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { LedgerMenu } from "@/components/session-panel";
+import { applyLedgerChange, chooseLedger, ledgerOf, loadLedgers, resetLedgers, useLedgers } from "@/lib/conversation-ledger";
+const g = globalThis as any;
+const ok = (message: any) => ({ ok: true, status: 200, json: async () => ({ message }) });
+const T9 = { id: "c1|T9", label: "T.9", covers: true }, T8 = { id: "c1|T8", label: "T.8", covers: true };
+let served: any = { current: "c1|T8", options: [T9, T8] };
+let refuse = false;
+g.respond = async (method: string, body: any) => {
+  if (method === "ledgers") return ok(served);
+  if (method === "move") return refuse ? { ok: false, status: 417, json: async () => ({ exc_type: "ValidationError", _server_messages: "[]" }) }
+    : ok({ id: body.session_id, project: body.project, period: body.period, scope: body.scope, ledger: body.ledger });
+  return ok(null);
+};
+const filing = { project: "comp_t", period: "2026-06", scope: "" };
+// 右栏那一行（LedgerRow 读的就是 ledgerOf，再交给 LedgerMenu 画）
+const entryFor = (f: any) => ledgerOf(useLedgers.getState().views, "sesn_1", f);
+const row = () => renderToStaticMarkup(createElement(LedgerMenu, { entry: entryFor(filing), onChoose() {} }));
+const shown = (markup: string) => markup.replace(/<[^>]+>/g, "\n").split("\n").map((s) => s.trim()).filter(Boolean);
+resetLedgers();
+// 还没读到：不显示（不先显示一本按日期猜的）
+assert.equal(row(), "");
+await loadLedgers("sesn_1", filing);
+assert.deepEqual(g.calls.at(-1), { method: "ledgers", body: null });
+// 显示服务端的当前账套 T.8，不是排第一 / 按日期覆盖本月的 T.9；只显示当前那一本（点开才列可选的）
+assert.deepEqual(shown(row()), ["Account sets", "T.8"]);
+assert.ok(row().includes('data-slot="cc-company-ledger"'));
+// 选 T.9：move 带 ledger（公司、月份、分店照对话的），先按本页显示
+const picked = chooseLedger("sesn_1", filing, "c1|T9");
+assert.equal(useLedgers.getState().views.sesn_1.current, "c1|T9");
+await picked;
+assert.deepEqual(g.calls.at(-1), { method: "move", body: { session_id: "sesn_1", project: "comp_t", period: "2026-06", scope: "", ledger: "c1|T9" } });
+assert.deepEqual(shown(row()), ["Account sets", "T.9"]);
+// 推来的 move 带 ledger（CC 工具按用户的提问卡设的）：认得的就地换；认不出的标记重取，不显示猜的
+applyLedgerChange({ type: "pearnly.project", op: "move", session_id: "sesn_1", project: "comp_t", period: "2026-06", scope: "", ledger: "c1|T8" });
+assert.deepEqual(shown(row()), ["Account sets", "T.8"]);
+applyLedgerChange({ type: "pearnly.project", op: "move", session_id: "sesn_1", project: "comp_t", period: "2026-06", scope: "", ledger: "c1|T7" });
+assert.equal(useLedgers.getState().views.sesn_1.stale, true);
+// 这家公司改了（刷新账套等，part 为空）：可选的可能变了，标记重取；待处理变了（part pending）不管
+resetLedgers();
+await loadLedgers("sesn_1", filing);
+applyLedgerChange({ type: "pearnly.project", op: "upsert", project: { id: "comp_t", title: "T" }, part: "pending" }, "sesn_1", "comp_t");
+assert.equal(useLedgers.getState().views.sesn_1.stale, undefined);
+applyLedgerChange({ type: "pearnly.project", op: "upsert", project: { id: "comp_x", title: "X" } }, "sesn_1", "comp_t");
+assert.equal(useLedgers.getState().views.sesn_1.stale, undefined);
+applyLedgerChange({ type: "pearnly.project", op: "upsert", project: { id: "comp_t", title: "T" } }, "sesn_1", "comp_t");
+assert.equal(useLedgers.getState().views.sesn_1.stale, true);
+// 不带 ledger 的 move（产品没有本对话账套）不动它
+applyLedgerChange({ type: "pearnly.project", op: "move", session_id: "sesn_2", project: "comp_t", period: "2026-06", scope: "" });
+assert.equal(useLedgers.getState().views.sesn_2, undefined);
+// 月份改了：读的是别的月份的那份不拿来显示（等重取）
+assert.equal(entryFor({ ...filing, period: "2026-07" }), null);
+// 服务端没收下：撤回原来那本
+served = { current: "c1|T8", options: [T9, T8] };
+resetLedgers();
+await loadLedgers("sesn_1", filing);
+refuse = true;
+await assert.rejects(chooseLedger("sesn_1", filing, "c1|T9"));
+assert.equal(useLedgers.getState().views.sesn_1.current, "c1|T8");
+refuse = false;
+// 未定（current 为空）：这一行照样在、值空着，不加说明文字；只有一本可选也照样显示
+served = { current: "", options: [T9] };
+resetLedgers();
+await loadLedgers("sesn_1", filing);
+assert.deepEqual(shown(row()), ["Account sets"]);
+assert.ok(row().includes('data-slot="cc-company-ledger"'));
+// 这家没有本对话账套（ERP 不接 Express 的公司等）：不出这一行
+served = { current: "", options: [] };
+resetLedgers();
+await loadLedgers("sesn_1", filing);
+assert.equal(row(), "");
 """)
 
     def test_card_order_moves_only_between_visible_cards(self):
@@ -469,8 +527,9 @@ assert.equal(folderSummary([]), "");
             self.assertIn(line, cards)
         panel = read("components/session-panel.tsx")
         self.assertIn('<PanelCard id="outputs" title={t("files")} summary={co.card.files(files.length)} slot="cc-panel-outputs">', panel)
-        # 公司卡只剩对话里这一张（公司页的公司卡 CompanyPageCard 11-07 删了）
-        self.assertEqual(panel.count("summary={sets.length ? co.card.sets(sets.length) : undefined}"), 1)
+        # 公司卡只剩对话里这一张（公司页的公司卡 CompanyPageCard 11-07 删了）；本对话账套只有一本，卡头不再写「N 本」
+        self.assertEqual(panel.count('slot="cc-panel-company"'), 1)
+        self.assertNotIn("co.card.sets(sets.length)", panel)
         self.assertNotIn("CompanyPageCard", panel)
 
     def test_summaries_in_every_language_and_the_month_head(self):
@@ -674,17 +733,17 @@ class CompanyPageGoneTests(unittest.TestCase):
 
     def test_the_panel_has_one_set_of_cards(self):
         panel = read("components/session-panel.tsx")
-        self.assertIn("export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => void }> = ({ filing, mode, onClose }) => {", panel)
+        self.assertIn("export const SessionPanel: FC<{ session: string; filing: Filing; mode: PanelMode; onClose: () => void }> = ({ session, filing, mode, onClose }) => {", panel)
         self.assertNotIn("data-page", panel)
         self.assertNotIn("= page", panel)
         cards = panel.split("const all: Record<CardId, ReactNode> = {", 1)[1].split("\n  };", 1)[0]
-        for line in ("company: detail ? <CompanyCard detail={detail} period={period} scope={scope} reload={reload} /> : null,",
+        for line in ("company: detail ? <CompanyCard detail={detail} session={session} filing={filing} reload={reload} /> : null,",
                      "month: <MonthCard company={company} period={period} />,",
                      "pending: <PendingCard company={company} period={period} />,",
                      # 知识库、定时任务空的也显示（「＋」加第一条），不再要公司页的 keepEmpty
                      "notes: detail ? <NotesSection company={company} notes={detail.notes} reload={reload} /> : null,",
                      "folders: detail ? <FolderSection company={company} folders={detail.folders} reload={reload} hideEmpty /> : null,",
-                     "tasks: detail ? <TasksSection company={company} detail={detail} period={period} /> : null,",
+                     "tasks: detail ? <TasksSection company={company} detail={detail} /> : null,",
                      "outputs: <OutputsCard />,"):
             self.assertIn(line, cards)
         self.assertIn("<ChoicesSection", cards)
@@ -693,7 +752,7 @@ class CompanyPageGoneTests(unittest.TestCase):
         # 公司页公司卡上的全部账套搬进对话的公司卡：「全部账套」一行展开（多分店按分店分组，覆盖这个月的高亮）
         card = panel.split("const CompanyCard: FC", 1)[1].split("\n};", 1)[0]
         self.assertIn('aria-expanded={allSets} data-slot="cc-company-all-sets" onClick={() => setAllSets((v) => !v)}>', card)
-        self.assertIn("{allSets && <SetsList sets={detail.account_sets} branches={branches.length > 1 ? branches : []} period={period} />}", card)
+        self.assertIn("{allSets && <SetsList sets={detail.account_sets} branches={branches.length > 1 ? branches : []} />}", card)
         # 名称一行不再是「打开公司」的按钮
         self.assertIn('<div className="cc-panel-row" data-strong="" title={c.title}>', card)
         self.assertNotIn("openCompany", card)
