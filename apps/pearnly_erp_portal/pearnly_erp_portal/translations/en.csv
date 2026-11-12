@@ -1780,6 +1780,7 @@ You don't have enough points to redeem.,You don't have enough points to redeem.
 You have unsaved changes. Do you want to save the invoice?,You have unsaved changes. Do you want to save the invoice?
 You must select a customer before adding an item.,You must select a customer before adding an item.
 Your balance is not enough for recognition. Please top up and send it again.,Your balance is not enough for recognition. Please top up and send it again.
+Your computer is offline,Your computer is offline
 Zoom In,Zoom In
 Zoom Out,Zoom Out
 adjust,adjust
@@ -2338,6 +2339,7 @@ express.reason.itemUnmapped,The item is not in Express
 express.reason.noBook,No Express account set covers this date
 express.reason.noStockBook,This Express account set has no book for this kind of stock document. Set it up in Express
 express.reason.noWriter,No computer can write this account set
+express.reason.notYours,Your computer is offline
 express.reason.offline,Computer offline
 express.reason.operatorOwned,This document is in an Express operator entry
 express.reason.periodLocked,The accounting period is closed in Express

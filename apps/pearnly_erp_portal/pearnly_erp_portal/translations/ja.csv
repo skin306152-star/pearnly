@@ -1780,6 +1780,7 @@ You don't have enough points to redeem.,ポイントが足りないため利用�
 You have unsaved changes. Do you want to save the invoice?,未保存の変更があります。伝票を保存しますか？
 You must select a customer before adding an item.,商品を追加する前に顧客を選択してください
 Your balance is not enough for recognition. Please top up and send it again.,残高が不足しているため読み取りできません。チャージしてからもう一度送信してください。
+Your computer is offline,お使いのパソコンがオフライン
 Zoom In,拡大
 Zoom Out,縮小
 adjust,調整
@@ -2338,6 +2339,7 @@ express.reason.itemUnmapped,この商品は Express にありません
 express.reason.noBook,この日付を含む Express 会計データがありません
 express.reason.noStockBook,この Express 会計データにはこの種類の在庫伝票の伝票帳がありません。Express で設定してください
 express.reason.noWriter,この会計データに書き込めるパソコンがありません
+express.reason.notYours,お使いのパソコンがオフライン
 express.reason.offline,パソコンがオフライン
 express.reason.operatorOwned,この書類は Express の代行入力中です
 express.reason.periodLocked,会計期間は Express で締め済みです

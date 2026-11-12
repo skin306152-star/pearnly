@@ -138,8 +138,9 @@ def retry(name) -> dict:
 
 def writers(actor, book_key) -> dict:
     """``actor`` 交到 ``book_key`` 的单此刻有没有电脑写：``{state, devices}``。state：``ok``（有在线的）、``offline``
-    （他能写的电脑都关着，单子排队）、``unreachable``（他有电脑、都够不到这份账套）、``missing``（他一台登录过 CC 的电脑都
-    没有，界面写「CC 桌面版未连接」）。"""
+    （他能写的电脑都关着，单子排队）、``not_yours``（他能写的电脑都关着，而别人的电脑在线、够得到这本——不派给别人，
+    界面说「你的电脑离线」，不说成电脑离线，A 线 11-12 测试机1）、``unreachable``（他有电脑、都够不到这份账套）、
+    ``missing``（他一台登录过 CC 的电脑都没有，界面写「CC 桌面版未连接」）。"""
     peers = devices.peers()
     mine = [name for name, peer in peers.items() if route_contracts.serves(peer.users, actor)]
     if not mine:
@@ -148,7 +149,10 @@ def writers(actor, book_key) -> dict:
     able = [name for name in mine if name in reach]
     if not able:
         return {"state": "unreachable", "devices": []}
-    return {"state": "ok" if any(peers[name].online for name in able) else "offline", "devices": able}
+    if any(peers[name].online for name in able):
+        return {"state": "ok", "devices": able}
+    others = any(peer.online for name, peer in peers.items() if name in reach and name not in mine)
+    return {"state": "not_yours" if others else "offline", "devices": able}
 
 
 # ── 电脑领单 ───────────────────────────────────────────────────────────────────

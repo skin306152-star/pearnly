@@ -1780,6 +1780,7 @@ You don't have enough points to redeem.,积分不足，无法抵扣
 You have unsaved changes. Do you want to save the invoice?,存在未保存的更改，是否保存此单据？
 You must select a customer before adding an item.,添加物料前必须先选择客户
 Your balance is not enough for recognition. Please top up and send it again.,余额不足，无法识别。请充值后重新发送。
+Your computer is offline,您的电脑离线
 Zoom In,放大
 Zoom Out,缩小
 adjust,调整
@@ -2338,6 +2339,7 @@ express.reason.itemUnmapped,Express 中没有这件商品
 express.reason.noBook,没有覆盖此日期的 Express 账套
 express.reason.noStockBook,此 Express 账套没有这种库存单的单据簿，请在 Express 中设置
 express.reason.noWriter,没有能写此账套的电脑
+express.reason.notYours,您的电脑离线
 express.reason.offline,电脑离线
 express.reason.operatorOwned,单据在代录中
 express.reason.periodLocked,会计期间已在 Express 关账

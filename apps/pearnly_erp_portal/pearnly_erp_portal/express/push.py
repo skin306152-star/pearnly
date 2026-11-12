@@ -796,7 +796,7 @@ def actor_of(doctype, row, book_key):
     """写账作业归谁（ADR-021「谁的活谁的电脑做」，电脑只领自己登录过的人的单）：人开的单归开单人。收银日汇总是每晚系统合的，
     建单人是 Administrator、名下没有电脑，原来一直排着领不走（10-25 实验栈）：归这家公司里在电脑上登录过 CC、电脑够得到这份账套
     的员工（在线的电脑优先，同一台按名字排）。一个都没有就仍归建单人（页面写「CC 桌面版未连接」）。"""
-    if doctype != POS_DAY or jobs.writers(row.owner, book_key)["state"] in ("ok", "offline"):
+    if doctype != POS_DAY or jobs.writers(row.owner, book_key)["state"] in ("ok", "offline", "not_yours"):
         return row.owner
     company = company_of(doctype, row.name)
     peers = devices.peers()
@@ -810,9 +810,9 @@ def actor_of(doctype, row, book_key):
 
 def _queued_note(doctype, row):
     """排队中的单此刻为什么还没写（页面写原因，不改状态）：这件作业归的人一台登录过 CC 的电脑都没有 →「CC 桌面版未连接」；
-    他能写的电脑都关着 → 离线；他的电脑都够不到这份账套 → 没有电脑能写。"""
+    他能写的电脑都关着 → 离线（在线的那台是别人的 → 你的电脑离线，不派给别人）；他的电脑都够不到这份账套 → 没有电脑能写。"""
     found = jobs.writers(actor_of(doctype, row, row.ledger_book), row.ledger_book) if row.ledger_book else {"state": "ok"}
-    return {"missing": contracts.NOT_CONNECTED, "offline": contracts.OFFLINE,
+    return {"missing": contracts.NOT_CONNECTED, "offline": contracts.OFFLINE, "not_yours": contracts.NOT_YOURS,
             "unreachable": contracts.NO_WRITER}.get(found["state"], "")
 
 

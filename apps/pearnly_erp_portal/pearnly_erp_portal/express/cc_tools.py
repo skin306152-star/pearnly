@@ -59,7 +59,7 @@ PUSH_STATES = {"waiting": (contracts.HELD, contracts.FAILED), "pending": (contra
                "success": (contracts.WRITTEN, contracts.MISMATCH, contracts.HANDLED),
                "failed": (contracts.HELD, contracts.FAILED, contracts.DETACHED)}
 # 电脑那头没人写：排着的单停在这些原因上时不等结论
-OFFLINE = (contracts.OFFLINE, contracts.NOT_CONNECTED, contracts.NO_WRITER)
+OFFLINE = (contracts.OFFLINE, contracts.NOT_YOURS, contracts.NOT_CONNECTED, contracts.NO_WRITER)
 
 
 # ---------------- 公司与单据 ----------------
