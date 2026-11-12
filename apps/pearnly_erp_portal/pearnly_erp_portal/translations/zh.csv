@@ -134,6 +134,8 @@ As Of,截至
 Assign to,分派给成员
 Assigned to me,分配给我的
 At most 5 photos per entry,每条记录最多 5 张照片
+At most {0} collection methods,最多 {0} 种收款方式
+At most {0} invoices,最多 {0} 张发票
 At most {0} photos per entry,每张单据最多 {0} 张照片
 At time of due date,到期时
 Attach,添加文件
@@ -281,6 +283,7 @@ Choose file,选择文件
 Choose invoices,选择发票
 Choose purchase or sales first,请先选择采购或销售
 Choose purchase or sales for this invoice and submit again,请选择此发票为进项或销项后重新提交
+Choose the account set,选择账套
 Choose the collection method,选择收款方式
 Choose the company,选择公司
 Choose the customer,请选择客户
@@ -1604,6 +1607,7 @@ This code is already used by {0} ({1}),该码已被 {0} 使用（{1}）
 This collection cannot be changed,此收款不能修改
 This collection cannot be withdrawn,此收款不能撤回
 This collection method is not available,此收款方式不可用
+This company does not use Express,此公司未使用 Express
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",这家公司的仓，可以加多个；出入库、盘点与收银都按这些仓记账。
 This computer cannot enter documents into Express,此电脑不能代录 Express
 This counter sells for this company; stock leaves its warehouse,此收银台以该公司名义开单，并从该公司仓库出库

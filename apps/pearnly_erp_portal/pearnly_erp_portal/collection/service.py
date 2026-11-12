@@ -34,6 +34,8 @@ NO_COMPANY = "collection.company_not_linked"
 NO_CUSTOMER = "collection.customer_not_found"
 CC_UPDATE = "collection.cc_update_needed"
 VOUCHER_INVALID = "collection.voucher_invalid"
+LEDGER_NEEDED = "ledger_needed"  # CC 对话里本对话账套未定（同 `express.conversation.LEDGER_NEEDED`）
+BOOK_NOT_CONVERSATION = "collection.book_not_conversation"  # 草稿的账套不是本对话账套（之后在右栏换了，`plan.view`）
 # 凭证原件的 id 前缀。任务书写的是 ``ERC-``，但共用原件层（`pearnly_core.originals.registered.NAME` / ``links.OBJECT`` /
 # ``cloud_run.ORIGINAL``）与甲骨文上的原件服务只认 ``CWS-`` / ``ERO-``：用 ``ERC-`` 要同时改共用层并重新部署甲骨文
 # claude-ocr，否则 Claude 租户的凭证存不进去。先用 ERP 原件已有的 ``ERO-``（交主会话定，换前缀只改这一行加共用层）。
@@ -71,26 +73,61 @@ def companies_for() -> list:
     return out
 
 
+def _picked(company_row, day):
+    """这笔收款该写进哪本（与 ERP 单据同一条规则 `express.target.pick`）。CC 对话里（`express.conversation.wanted`）就是本对话账套，
+    不按日期另判：列发票、列方式、建草稿三步同一本（A 线审计 A11，11-12）；网页、LINE 按单据日期选。"""
+    from pearnly_erp_portal.express import conversation
+
+    return target.pick(company_row, day, conversation.wanted(company_row))
+
+
 def book_for(company_row, day):
-    """这笔收款写进哪本账套（与 ERP 单据同一条规则 `express.target.pick`）。没有税号 / 没有账套抛那个原因码；同期两份、没选过
-    抛 ``express.account_set_several``（``detail`` 带 ``subject`` 与可选的 ``options``，经 :func:`choose_book` 选一次）。"""
-    picked = target.pick(company_row, day)
+    """这笔收款写进哪本账套（:func:`_picked`）。没有税号 / 没有账套抛那个原因码；CC 对话里本对话账套未定抛
+    :data:`LEDGER_NEEDED`（``detail`` 带可选的几本，问一次用 ``pearnly_conversation_ledger`` 设）；网页 / LINE 同期两份、没选过抛
+    ``express.account_set_several``（``detail`` 带可选的几本，经 :func:`choose_book` 选一次）。"""
+    from pearnly_erp_portal.express import conversation
+
+    picked = _picked(company_row, day)
+    if picked["reason"] == conversation.LEDGER_NEEDED:
+        pin = conversation.pinned(company_row) or {}
+        raise contracts.CollectionError(LEDGER_NEEDED, {"options": [
+            {"code": item["id"], "name": item.get("label") or item["id"]} for item in pin.get("options") or ()]})
     if picked["reason"] == express_contracts.SEVERAL_BOOKS:
-        raise contracts.CollectionError(picked["reason"], {"subject": picked.get("subject"), "options": picked["options"]})
+        raise contracts.CollectionError(picked["reason"], {"options": picked["options"]})
     if picked["reason"] and picked["reason"] != express_contracts.NO_WRITER:
         raise contracts.CollectionError(picked["reason"])
     return picked["book"]  # 没有电脑能写也照样记（排队，电脑上线补写）
 
 
-def choose_book(company, subject, key) -> dict:
-    """同期两份账套时选一份（按公司按会计年度记住，与 ERP 单据共用一份记忆）。"""
+def book_options(company, day=None) -> dict | None:
+    """网页 / LINE 开始一笔收款前：这家公司这一天的账套定得下来回 None；同期两份、没选过回 ``{"options": [{code, name}]}``，
+    让收款员选一次（:func:`choose_book`）。其余停下的原因（没有账套、没有税号）照抛。"""
     guard.require(WRITE)
     row = _company(company)
-    options = target.pick(row, str(subject or "").replace("year:", "")[:10] or nowdate()).get("options") or []
-    found = next((item for item in options if item["code"] == key), None)
-    if found is None:
+    try:
+        book_for(row, day or nowdate())
+    except contracts.CollectionError as error:
+        if error.code == express_contracts.SEVERAL_BOOKS:
+            return {"options": error.detail["options"]}
+        raise
+    return None
+
+
+def choose_book(company, key, day=None) -> dict:
+    """同期两份账套时选一份：按公司 × 会计年度记住，与 ERP 单据同一份记忆（`express.choices.ACCOUNT_SET`，网页单据上选的、
+    CC 对话的默认账套都读它）。只认这一天可选的那几本；已经定下来的那一本再选一次照回。"""
+    guard.require(WRITE)
+    row = _company(company)
+    day = str(day or nowdate())[:10]
+    picked = target.pick(row, day)
+    if picked["reason"] == express_contracts.SEVERAL_BOOKS:
+        found = next((item for item in picked["options"] if item["code"] == key), None)
+        if found is None:
+            frappe.throw(_("Invalid value"))
+        choices.remember(company, choices.ACCOUNT_SET, picked["subject"], key, found["name"])
+        return {"chosen": key}
+    if not picked.get("book") or picked["book"]["key"] != key:
         frappe.throw(_("Invalid value"))
-    choices.remember(company, choices.ACCOUNT_SET, subject, key, found["name"])
     return {"chosen": key}
 
 
@@ -139,12 +176,12 @@ def _catalog(company, book):
     return contracts.catalog(data["receipt_types"], data.get("cash_account") or "")
 
 
-def methods(company, day=None) -> dict:
+def methods(company, day=None, book=None) -> dict:
     """收款员能选的方式：``{"cash": bool, "transfers": [{prefix, code, name}], "discount": {…} | None}``（现金走现金那一格；
-    支票、预扣、费用这类不列，规则见 `contracts`）。"""
+    支票、预扣、费用这类不列，规则见 `contracts`）。``book``：已有的草稿冻结的那本（:func:`edit_choices`），不再按日期选。"""
     guard.require(WRITE)
     row = _company(company)
-    found = _catalog(company, book_for(row, day or nowdate()))
+    found = _catalog(company, book or book_for(row, day or nowdate()))
     shape = lambda item: {"prefix": item["prefix"], "code": item["code"], "name": item["name"]}  # noqa: E731
     return {"cash": found["cash"], "transfers": [shape(item) for item in found["transfers"]],
             "discount": shape(found["discount"]) if found["discount"] else None}
@@ -198,14 +235,14 @@ def _open_rows(book_key, customer, exclude=None) -> dict:
     return out
 
 
-def open_invoices(company, customer, day=None, refresh=True, exclude=None) -> dict:
+def open_invoices(company, customer, day=None, refresh=True, exclude=None, book=None) -> dict:
     """一位客户此刻能收的发票（快照减去别的记录的预留），日期早的在前：``{"items": [{docnum, doc_date, net, received,
     remaining, reserved, available, salesman, department}], "refresh": ready | reading | offline | outdated}``。
-    ``refresh``：同时请电脑按这位客户即时读一次（读好前先给快照里的）。"""
+    ``refresh``：同时请电脑按这位客户即时读一次（读好前先给快照里的）；``book``：已有的草稿冻结的那本。"""
     guard.require(WRITE)
     row = _company(company)
     _customer_name(company, customer)
-    book = book_for(row, day or nowdate())
+    book = book or book_for(row, day or nowdate())
     state = snapshot.request(company, book, customer) if refresh else ""
     rows = _open_rows(book["key"], customer, exclude=exclude)
     items = [{**value, **{key: contracts.text(value[key]) for key in ("net", "received", "remaining", "reserved",
@@ -291,6 +328,17 @@ def staff_choices(name) -> dict:
     doc = _own(name)
     found = _choices(doc.book_key)
     return {"salesmen": found["salesmen"] or [], "departments": found["departments"] or []}
+
+
+def edit_choices(name) -> dict:
+    """改草稿的弹窗（网页「我的收款」）：各张此刻能收多少、能选的方式，都按这笔草稿冻结的那本账套（A11：不按草稿日期重新选，
+    同期又报来一本也不变）。"""
+    doc = _own(name)
+    book = {"key": doc.book_key, **_book_row(doc)}
+    found = open_invoices(doc.company, doc.customer, refresh=False, exclude=name, book=book)
+    available = {row["docnum"]: row["available"] for row in found["items"]}
+    return {"available": {row.docnum: available.get(row.docnum, "0.00") for row in doc.invoices},
+            "methods": methods(doc.company, book=book)}
 
 
 def _fill(doc, checked, people=None):
@@ -546,6 +594,7 @@ def mine(start=0, limit=20) -> dict:
             "total": list_filters.count(DOCTYPE, filters, ignore_permissions=True)}
 
 
-__all__ = ["book_for", "can_read", "card", "choose_book", "companies_for", "create_draft", "customers", "methods", "mine",
+__all__ = ["book_for", "book_options", "can_read", "card", "choose_book", "companies_for", "create_draft", "customers",
+           "edit_choices", "methods", "mine",
            "open_invoices", "release", "reserved", "set_voucher", "staff_choices", "status", "store_voucher", "update_draft",
            "withdraw"]
