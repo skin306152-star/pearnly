@@ -99,9 +99,15 @@ class Registry:
                 self.problems.append(f"registry.toml：场景 id 重复 {scenario.get('id')}")
             self.scenarios[scenario.get("id", "?")] = scenario
         self.chains = {chain.get("id", "?"): chain for chain in _toml(home / "chains.toml").get("chain", [])}
+        self.inventory = _toml(home / "inventory.toml").get("block", [])
+        for block in self.inventory:
+            numbers = [block.get(key) for key in ("asserted", "weak", "manual", "none")]
+            if not block.get("name") or not all(isinstance(n, int) for n in numbers) or sum(numbers) != block.get("actions"):
+                self.problems.append(f"inventory.toml [{block.get('name')}]：asserted + weak + manual + none 要等于 actions")
         talk = _toml(home / "cc_talk.toml")
         self.talk = {item.get("id", "?"): item for item in talk.get("kind", [])}
         self.lines = {item.get("id", "?"): item for item in talk.get("line", [])}
+        self.cases = _toml(home / "cc_talk_cases.toml")
         self.evidence = {item.get("scenario", "?"): item for item in _toml(home / "evidence.toml").get("pass", [])}
         baseline = home / "owed_baseline.txt"
         self.baseline = read_baseline(baseline.read_text(encoding="utf-8")) if baseline.is_file() else set()
@@ -184,6 +190,7 @@ class Registry:
         for line_id, line in self.lines.items():
             if not line.get("text") or not line.get("proof"):
                 say(f"cc_talk.toml [{line_id}]：text、proof 必填")
+        self._validate_cases(say)
         for chain_id, chain in self.chains.items():
             for row_id in chain.get("rows", []):
                 if row_id not in self.map_rows:
@@ -198,6 +205,34 @@ class Registry:
                 say(f"{where}：sha（提交）与 date（年-月-日）必填")
             if not item.get("run"):
                 say(f"{where}：run（证据目录的运行编号）必填")
+
+    def _validate_cases(self, say) -> None:
+        """乱用用例骨架：类别在种子库里、断言名在 cc_lines.py 里、脚本用到的词每种语言都有。"""
+        if not self.cases:
+            return
+        lines = _module("cc_lines", ROOT / "scripts" / "acceptance" / "cc_lines.py")
+        words, seen = self.cases.get("words", {}), set()
+        langs = self.cases.get("defaults", {}).get("langs", [])
+        for case in self.cases.get("case", []):
+            where = f"cc_talk_cases.toml [{case.get('id')}]"
+            if case.get("id") in seen:
+                say(f"{where}：id 重复")
+            seen.add(case.get("id"))
+            if case.get("kind") not in self.talk:
+                say(f"{where}：kind {case.get('kind')} 不在 cc_talk.toml")
+            if not case.get("hard"):
+                say(f"{where}：至少要有一条硬断言（只有说法类断言的不算场景）")
+            for name in case.get("hard", []):
+                if not (re.fullmatch(r"writes==\d+", name) or callable(getattr(lines, name, None))):
+                    say(f"{where}：硬断言 {name} 不在 cc_lines.py")
+            for name in case.get("soft", []):
+                if not (re.fullmatch(r"questions(<=|==)\d+", name) or name == "b8_language"):
+                    say(f"{where}：说法类断言 {name} 不认识")
+            for action in case.get("script", []):
+                for key in re.findall(r"\{(\w+)\}", str(action.get("say", ""))):
+                    for lang in case.get("langs", langs):
+                        if key not in words.get(lang, {}):
+                            say(f"{where}：{lang} 没有「{key}」这句话（[words.{lang}]）")
 
     # ---- 一行被哪些场景覆盖
     def covering(self, row_id: str) -> list[dict]:
@@ -354,24 +389,43 @@ def report(registry: Registry) -> str:
     for scenario in registry.scenarios.values():
         l3[scenario.get("class", "normal")] = l3.get(scenario.get("class", "normal"), 0) + 1
     owed = registry.all_owed()
-    lines = [
-        "验收总览（机器打印；对外报数只用这一屏）",
-        f"入口登记（产品地图行）：{len(rows)}（" + "、".join(f"{name} {count}" for name, count in sorted(by_product.items())) + "）",
-        f"  已标验收属性：{len([r for r in attrs if r in rows])}；还没标：{len(rows) - len([r for r in attrs if r in rows])}（没标的行不算欠账，第四期补全）",
+    lines = ["验收总览（机器打印；对外报数只用这一屏）"]
+    if registry.inventory:
+        total = {key: sum(block.get(key, 0) for block in registry.inventory)
+                 for key in ("entries", "actions", "mapped", "asserted", "weak", "manual", "none", "real")}
+        lines += [f"一、全产品入口（11-12 盘点快照，动作级）：{total['entries']} 个入口、{total['actions']} 个动作",
+                  "  块 | 动作 | 断言到业务结果的自动测试 | 只到页面或只有单测 | 只有部署检查或手工 | 完全没有 | 已登记进产品地图"]
+        for block in registry.inventory:
+            lines.append(f"  {block['name']} | {block['actions']} | {block['asserted']} | {block['weak']} | {block['manual']} | {block['none']} "
+                         f"| {block.get('mapped', 0)}")
+        lines += [f"  合计 | {total['actions']} | {total['asserted']} | {total['weak']} | {total['manual']} | {total['none']} | {total['mapped']}",
+                  f"  按现版本在真环境（真模型 / 真账本 / 真手机）验过并可重跑的：{total['real']}",
+                  f"  还没登记进产品地图的动作：{total['actions'] - total['mapped']}（DMS、管理后台、登录、CC 桌面版整块，网页弹窗与列表里的动作）",
+                  "二、机器登记（下面的数字全部由机器从登记算出）"]
+    lines += [
+        f"产品地图行：{len(rows)}（" + "、".join(f"{name} {count}" for name, count in sorted(by_product.items())) + "）",
+        f"  已标验收属性：{len([r for r in attrs if r in rows])}（第一版只标了会写外部账本的行）；还没标：{len(rows) - len([r for r in attrs if r in rows])}（没标的不算欠账）",
         f"  会写外部账本的行：{len(ledger_rows)}；其中真环境验过（证据新鲜）：{len([r for r in ledger_rows if r in verified_rows])}",
         "场景：",
         "  L2 流程（实验栈）：" + str(len(registry.flows)) + " 条（" + "、".join(f"{label} {classes[name]}" for name, label in LABELS) + "）",
         "  L3 真环境：" + str(len(registry.scenarios)) + " 条（" + "、".join(f"{label} {l3[name]}" for name, label in LABELS) + "）",
         "  L3 证据：" + "、".join(f"{state} {list(states.values()).count(state)}" for state in ("已验", "过期", "没有证据")),
         f"业务链：{len(registry.chains)} 条登记；有串联场景的 {len({s.get('chain') for s in registry.scenarios.values() if s.get('chain')} | {f.get('chain') for f in registry.flows.values() if f.get('chain')})} 条",
-        f"欠的场景：{len(owed)} 项（其中在存量基线里 {len(owed & registry.baseline)} 项）",
-        f"CC 对话乱用种子：{len(registry.talk)} 类；有固定场景的 "
+        f"欠的场景：{len(owed)} 项（其中在存量基线里 {len(owed & registry.baseline)} 项）："
+        + "、".join(f"{label} {count}" for label, count in owed_summary(owed)),
+        f"CC 对话乱用种子：{len(registry.talk)} 类；用例骨架 {len(registry.cases.get('case', []))} 条（驱动没接，都没跑过）；已登记成场景的 "
         f"{len({code for s in registry.scenarios.values() for code in s.get('talk', [])})} 类；底线 {len(registry.lines)} 条",
     ]
     for scenario_id, scenario in sorted(registry.scenarios.items()):
         state, detail = registry.freshness(scenario_id)
         lines.append(f"  · {scenario_id}  {scenario.get('title', '')}：{state}" + (f"（{detail}）" if detail else ""))
     return "\n".join(lines)
+
+
+def owed_summary(owed: set[str]) -> list[tuple[str, int]]:
+    needs = [item.partition("|")[2] for item in owed]
+    return [("真环境主线", needs.count("L3:normal")), ("串联", needs.count("chain")), ("界面主线", needs.count("normal")),
+            ("多情形", sum(1 for need in needs if need.startswith("variant"))), ("不正常使用", sum(1 for need in needs if need.startswith("misuse")))]
 
 
 LABELS = (("normal", "正常"), ("variant", "多情形"), ("chain", "串联"), ("misuse", "不正常使用"), ("explore", "探索"))

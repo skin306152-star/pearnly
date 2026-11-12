@@ -1,0 +1,99 @@
+# 全产品入口盘点快照（2026-11-12，基线 702580300；六份只读盘点报告，动作级明细在主会话共享笔记「验收体系-盘点-11-12/」）。
+# 这是**一次性的快照**，给第一版一屏总览用：产品地图现在只登记了 ERP、Cowork 两个产品的 357 行，其余入口还没进地图，
+# 机器数不出来，所以先把盘点数字固定在这里。第四期把这些入口逐行登记进产品地图后，本文件删除、总览改为全部从地图计算。
+# 字段：entries 入口数、actions 动作数（CC 的工具 / 钩子 / 桌面版各项按「动作」计）、mapped 已在产品地图里有自己一行的动作数、
+# asserted 有自动测试且断言到业务结果（落库 / 账本 / 离线业务断言）的、weak 只有页面级 / 只开页 / 只有单测的、
+# manual 只有部署检查或真机 / 手工记录的、none 完全没有的、real 按现版本在真环境（真账本 / 真手机）验过并可重跑的。
+
+[[block]]
+name = "ERP 网页"
+entries = 126
+actions = 167
+mapped = 99
+asserted = 80
+weak = 60
+manual = 1
+none = 26
+real = 0
+
+[[block]]
+name = "Cowork 网页"
+entries = 60
+actions = 127
+mapped = 62
+asserted = 43
+weak = 57
+manual = 0
+none = 27
+real = 0
+
+[[block]]
+name = "CC 对话（工具、代录入口、视图与外壳动作）"
+entries = 159
+actions = 159
+mapped = 157
+asserted = 45
+weak = 114
+manual = 0
+none = 0
+real = 0
+note = "流程里模型是假的、账本是合成的；经对话页真调到的工具只有 8 个；代录入口都停在开始前卡片"
+
+[[block]]
+name = "CC 桌面版（本体 15、直写种类 8、代录单据 8、按需读取 8）"
+entries = 39
+actions = 39
+mapped = 0
+asserted = 0
+weak = 38
+manual = 0
+none = 1
+real = 0
+note = "只有桌面版自己的离屏单测与替身回放；8 种直写都有过真写单号，但没有一条可重跑、且都早于 11-11 改版或不经 CC 入口"
+
+[[block]]
+name = "DMS 与各 LINE 官方号（DMS 28 个入口；LINE 入口 ERP 18、Cowork 15、DMS 23、共用层 6）"
+entries = 90
+actions = 171
+mapped = 52
+asserted = 136
+weak = 0
+manual = 12
+none = 23
+real = 0
+note = "盘点把这两块的 239 个动作合并成 171 个叶子统计，这里照它的口径（mapped 按入口数：90 个入口里 38 个没进地图）。自动测试多数是离线业务断言与候选离线，不是点界面；ERP、Cowork 没有自动测试走真 webhook；真机记录是一次性的"
+
+[[block]]
+name = "管理后台"
+entries = 17
+actions = 50
+mapped = 0
+asserted = 34
+weak = 0
+manual = 5
+none = 11
+real = 0
+note = "自动测试多数只在构建生产镜像时跑；充值审核没有任何自动测试"
+
+[[block]]
+name = "登录与身份"
+entries = 12
+actions = 49
+mapped = 0
+asserted = 41
+weak = 0
+manual = 7
+none = 1
+real = 0
+note = "真登录只在部署后的 e2e 里跑"
+
+[[block]]
+name = "订阅与计费（客户侧）"
+entries = 4
+actions = 25
+mapped = 0
+asserted = 20
+weak = 0
+manual = 0
+none = 5
+real = 0

@@ -18,3 +18,73 @@ na = { "misuse:M03" = "网页提交没有「停止」这个动作；写到一半
 [row."erp.desk.pearnly-purchase.action.Express"]
 effect = ["ledger"]
 na = { "misuse:M03" = "网页提交没有「停止」这个动作；写到一半停止在 CC 对话与代录的行上验" }
+
+# ---- 会写外部账本的行（11-12 按六份盘点与 CC 桌面版写入种类标；第一版只标这一类，其余各类第四期补）
+# 没标进来、还要核实的：收银交班 / 日汇总（erp.desk.pearnly-cashier.*）、公司同步 Express 主档（读）、收款（分支未合入，合入后补行）。
+
+[row."erp.desk.pearnly-sales.action.Submit"]
+effect = ["site", "ledger"]
+shared_doc = true
+na = { "misuse:M03" = "网页提交没有「停止」这个动作；写到一半停止在 CC 对话与代录的行上验" }
+
+[row."erp.desk.pearnly-sales.action.Express"]
+effect = ["site", "ledger"]
+na = { "misuse:M03" = "网页提交没有「停止」这个动作；写到一半停止在 CC 对话与代录的行上验" }
+
+[row."erp.desk.pearnly-stock-in.action.trade.action.submit"]
+effect = ["site", "ledger"]
+shared_doc = true
+na = { "misuse:M03" = "网页提交没有「停止」这个动作；写到一半停止在 CC 对话与代录的行上验" }
+
+[row."erp.desk.pearnly-stock-out.action.trade.action.submit"]
+effect = ["site", "ledger"]
+shared_doc = true
+na = { "misuse:M03" = "网页提交没有「停止」这个动作；写到一半停止在 CC 对话与代录的行上验" }
+
+[row."erp.desk.pearnly-stock-transfer.action.trade.action.submit"]
+effect = ["site", "ledger"]
+shared_doc = true
+na = { "misuse:M03" = "网页提交没有「停止」这个动作；写到一半停止在 CC 对话与代录的行上验" }
+
+[row."erp.desk.pearnly-stock-adjust.action.trade.action.submit"]
+effect = ["site", "ledger"]
+shared_doc = true
+na = { "misuse:M03" = "网页提交没有「停止」这个动作；写到一半停止在 CC 对话与代录的行上验" }
+
+[row."erp.desk.pearnly-stock-count.action.Express"]
+effect = ["site", "ledger"]
+na = { "misuse:M03" = "网页提交没有「停止」这个动作；写到一半停止在 CC 对话与代录的行上验" }
+
+[row."cowork.desk.pearnly-intake.action.Submit"]
+effect = ["site", "ledger"]
+shared_doc = true
+upload = true
+na = { "misuse:M03" = "网页提交没有「停止」这个动作；写到一半停止在 CC 对话与代录的行上验" }
+
+[row."cowork.cc.tool.cowork_push_documents"]
+effect = ["ledger"]
+card = true
+
+[row."erp.cc.tool.erp_push_documents"]
+effect = ["ledger"]
+card = true
+
+[row."cowork.cc.tool.pearnly_write_start"]
+effect = ["ledger"]
+card = true
+
+[row."erp.cc.tool.pearnly_write_start"]
+effect = ["ledger"]
+card = true
+
+[row."cowork.cc.operator.submit"]
+effect = ["ledger"]
+card = true
+
+[row."erp.cc.operator.submit"]
+effect = ["ledger"]
+card = true
+
+[row."cowork.cc.tool.cowork_run_folder_task"]
+effect = ["ledger"]
+card = true

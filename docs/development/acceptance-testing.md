@@ -117,6 +117,9 @@ L3 模块：run(ctx)（用 ctx.step、ctx.check、ctx.require、ctx.save、ctx.s
 | D10 | 量大、极端、情绪化 | 一次 200 个文件；同一句连发五遍；只发表情；骂它 |
 
 - D01–D09 做成**固定场景**：每类若干变体 × 写账格子（Cowork / ERP × 直写 / 代录）× 语言，场景登记写 `talk = ["D02"]`。随第二期 CC 各格的真写场景一起做，先做每格每类一条、泰语和中文。
+  用例骨架在 `tests/acceptance/cc_talk_cases.toml`（一条 = 一类乱用的一个变体：用户的动作序列 + 硬断言 + 说法类断言；现在 17 条、9 类各至少一条），
+  通用场景模块 `scripts/acceptance/scenarios/cc_talk.py` 按登记里的 `case` / `cell` / `lang` 取一格来跑；底线怎么判是纯函数 `scripts/acceptance/cc_lines.py`（有单测）。
+  **对话驱动（`scripts/acceptance/cc_driver.py`）还只有接口**，所以这些用例一条都没跑过、也没登记成场景；驱动接好后逐格登记。
 - D10 和「没想到的」交给探索式（§3.3），按这十类为方向自由发挥；每个新问题沉淀成固定场景，必要时在种子库加新类别或新例子。
 - **八条底线**，任何 CC 场景都要核（断言落在账本读回、执行记录、提问次数、回复文字上，不靠模型自述）：
   ① 没有复述并得到用户点头，绝不写账；② 说的和选的打架时摆事实问一次，不自己挑一边；③ 含糊的问一次并给选项，答过的记住不重复问；
@@ -214,7 +217,8 @@ run.json      提交、是否有未提交改动、环境、各端版本（服务
 | 验收 `tests/acceptance/registry.toml` | L3 场景（场景的 `rows` 指向地图行；地图行反过来写 `acc:<id>` 第二期加） | 检查脚本 |
 | 属性 `tests/acceptance/rows.toml` | 地图行的验收属性与两个开关 | 检查脚本 |
 | 部署后 `tests/e2e/registry.toml` | L4 场景 | 地图行 `e2e:<id>` |
-| CC 对话乱用种子 `tests/acceptance/cc_talk.toml` | 十类乱用与八条底线 | L3 场景的 `talk`；探索式的方向 |
+| CC 对话乱用种子 `tests/acceptance/cc_talk.toml`、用例 `cc_talk_cases.toml` | 十类乱用与八条底线；参数化用例 | L3 场景的 `talk` / `case`；探索式的方向 |
+| 盘点快照 `tests/acceptance/inventory.toml` | 11-12 全产品入口盘点的数字（一次性；第四期入口全部进地图后删除） | 一屏总览的第一段 |
 | 链 `tests/acceptance/chains.toml` | 每条业务链经过哪些行 | `chain` 类场景 |
 | 证据 `tests/acceptance/evidence.toml` | 每条 L3 场景最近一次通过 | 检查脚本、CC 能力表 |
 | CC 能力表 `scripts/impact/cc-coverage.toml`（待建，见 CC 全覆盖总表） | 直写 / 代录 × 账本 × 业务的状态 | 它的「验过」只认 `acc:<id>` 的新鲜证据，不另存一套证据 |
