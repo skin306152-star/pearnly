@@ -778,6 +778,14 @@ class LedgerGateTests(unittest.TestCase):
         # 代录会话（op_<任务号>）：同一套工具，同一口径
         self._the_web_left_a_question("op_task1")
 
+    def test_operator_task_reasons_reach_the_model_as_words(self):
+        # express_operator_status 交给模型的原因（共用层 products.reason_text）：ERP 声明的就是列单同一句话
+        hooks = (ERP / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn('"reason_text": "pearnly_erp_portal.express.cc_tools.reason_words",', hooks)
+        self.assertEqual(tools.reason_words("choice_needed:account_set"), "express.reason.choiceNeeded")
+        self.assertEqual(tools.reason_words(E.NO_WRITER), pending.reason_label(E.HELD, E.NO_WRITER))
+        self.assertEqual(tools.reason_words(""), "")
+
     def test_a_real_question_prepared_in_the_conversation_book_still_asks(self):
         """在本对话账套里准备过、真要人选（如费用科目）的单（``ledger_book`` 就是本对话账套）：照实回 needs_choice、不重推；原因给话。
         网页按另一本准备的那一问（``ledger_book`` 不是这本）才重新准备。"""
