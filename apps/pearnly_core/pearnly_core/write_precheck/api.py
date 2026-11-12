@@ -8,7 +8,7 @@
 - ``search``：大列表的项（科目、存货、对方）按这张单写进的账套服务端分页取可选值。
 - ``answer``：卡片点「开始」交回的答案 ``[{key, value}]``：按点之前那张卡片展开到每张单，交产品按现有记法记下；有答错的整批不记、
   逐条回原因码。回记下后重判的卡片，带 ``writable``（照写的单）与 ``held``（因未定项留下的单）。``resume`` 为真时（待处理里的
-  卡片：定时任务、自动推停下的单）再交产品把照写的单按原来的写入路径重新排队。
+  卡片：定时任务、自动推停下的单）再交产品把照写的单按原来的写入路径重新排队；CC 对话里只记答案、不推（写入只走计划，B1）。
 """
 import frappe
 from frappe import _
@@ -108,12 +108,25 @@ def record(company, doc_ids, answers, resume=False) -> dict:
     # 先落库：重判是「只是看」，产品判完会整笔回滚，不提交的话刚记下的答案也跟着回滚（11-05 实验室流程查出）
     frappe.db.commit()
     writable, held = contracts.writable(before, answers), contracts.held_back(before, answers)
-    results = products.resume(company, writable) if resume else []
+    planned = resume and _in_conversation()
+    results = products.resume(company, writable) if resume and not planned else []
     after = card(company, doc_ids)
     out = {**after, "writable": writable, "held": held}
     if results:
         out["results"] = results
+    if planned:
+        out["note"] = RESUME_PLAN_NOTE
     return out
+
+
+# B1（A 线 11-12）：CC 对话里 resume 只记答案、不推（写入一律走写入计划）；只给模型
+RESUME_PLAN_NOTE = ("The answers were saved; nothing was written (resume does not write in a conversation). To write these "
+                    "documents, make the write plan (pearnly_write_plan), say it back and wait for the user's reply.")
+
+
+def _in_conversation() -> bool:
+    """CC 此刻在对话里执行工具（网页待处理的卡片不在对话里，照旧 resume）。"""
+    return bool((getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id"))
 
 
 # 整家公司一个口径、不随单据变的项：交答案时没单独回答、带着预选值的，就按预选值记住（照这个值写进去了，下次不再当作要确认的

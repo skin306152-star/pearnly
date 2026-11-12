@@ -965,7 +965,12 @@ def _aim(doc, connection, account_set_key, operator=None) -> dict | None:
 
 def _submit_one(name, connection, account_set_key, posting_kind, route_device, operator=None) -> dict:
     """:func:`_push_one` 的准备那一步：停下 / 推不成回给页面的结论；交出去准备好了的回 ``{"submitted": (adapter, 连接, 请求号,
-    准备结果)}``。重来时从头读票（撞上冲突的那次整笔回滚了）。"""
+    准备结果)}``。重来时从头读票（撞上冲突的那次整笔回滚了）。CC 对话里直写（非代录）只推本对话已开始计划里的单（写入只走计划，
+    下沉到推送入口：判定卡 resume、选现用账套这些绕过推送工具的路也拦住，A 线 B）；代录走自己的开始 / 交单，网页、定时任务不经这里。"""
+    if not operator and _in_conversation():
+        _allowed, refused = direct_push.permitted([name])
+        if refused:
+            return refused[0]  # 票上什么都不留
     try:
         doc = storage.read(name)
     except (frappe.DoesNotExistError, frappe.PermissionError):
@@ -2523,10 +2528,15 @@ def choose_document_policy(tool_input) -> str:
     return _json({"status": "saved", **result})
 
 
+CURRENT_BOOK_PLAN_NOTE = ("Only the choice was saved; nothing was written. To write the document, make the write plan "
+                          "with it (pearnly_write_plan), say it back and wait for the user's reply.")
+
+
 def _choose_current_book(name, key) -> str:
     """两份同期账套哪份是现用的（``current_book``）：停在「待选账套」的单与待处理 / 复核页当场换账套同一条
     （`pending_api.choose_account_set`：推往选的那份、抄去向、按读它文件夹的电脑写，推成了才记住）；已经记住、不再停下的单
-    只改记（`pending_api.rechoose_current_book`，不推）。"""
+    只改记（`pending_api.rechoose_current_book`，不推）。CC 对话里停着的单也只记（`pending_api.remember_current_book`，B2：
+    写入只走计划，推送交回计划）。"""
     from pearnly_cowork.assistant import pending_api
     from pearnly_cowork.companies import pending
 
@@ -2535,6 +2545,15 @@ def _choose_current_book(name, key) -> str:
         refused = _scope_refusal(_field(doc, "push_connection"), key)
         if refused:
             return _json({"document": name, "status": "not_saved", **refused})
+        if pending.account_set_stop(storage.project(doc)) and _in_conversation():
+            options = _current_book_options(storage.project(doc))
+            result = pending_api.remember_current_book(doc, key)
+            if not result:
+                frappe.throw(_("cowork.policy.invalid"))
+            frappe.db.commit()
+            group = _same_group(result, options, _field(doc, "push_connection"))
+            result.pop("settled_documents", None)
+            return _json(_told({"document": name, "status": "saved", **result, "note": CURRENT_BOOK_PLAN_NOTE}, group))
         if pending.account_set_stop(storage.project(doc)):
             options = _current_book_options(storage.project(doc))  # 推完就不再停下：名称按选之前的候选
             pushed = pending_api.push_to_account_set(name, key)[0]
@@ -4634,9 +4653,9 @@ TOOLS = [
                     "company that keeps stock in Express): stock enters this company's goods documents to stock, "
                     "service enters them as expense, from now on; then push the document again. For "
                     "handling_choice_needed current_book (two account sets of the company cover the same dates): "
-                    "current_book with account_set_key from current_book_options pushes the document to that account "
-                    "set and, once it is entered, remembers it as the one in use for this company and these account "
-                    "sets; do not push it again yourself. If the user wants another one in use later, current_book "
+                    "current_book with account_set_key from current_book_options remembers it as the one in use for "
+                    "this company and these account sets and writes nothing in this conversation: write the document "
+                    "through the write plan (pearnly_write_plan) afterwards. If the user wants another one in use later, current_book "
                     "on a document of that company and date with the other account set's key changes what is "
                     "remembered without pushing. Either way, the company's other documents waiting on the same "
                     "account sets continue with the remembered one (settled is how many): each now waits at its next "

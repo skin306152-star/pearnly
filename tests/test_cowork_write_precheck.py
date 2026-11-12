@@ -743,6 +743,7 @@ class SweepAndShared(unittest.TestCase):
         frappe.PermissionError = PermissionError
         frappe.throw = lambda message, exc=None: (_ for _ in ()).throw((exc or Stop)(message))
         frappe.get_attr = lambda path: getattr(product, path.split(".")[1])
+        frappe.local = ns()  # 不在 CC 对话里（待处理的卡片）
         with mock.patch.dict(sys.modules, {"frappe": frappe}):
             sys.modules.pop("pearnly_core.write_precheck.products", None)
             sys.modules.pop("pearnly_core.write_precheck.api", None)

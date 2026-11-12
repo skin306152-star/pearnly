@@ -110,8 +110,9 @@ CORE_TOOLS = [
                     "Choices are remembered for the company the same way as everywhere else, so the next time they come "
                     "back decided. Items left unanswered keep their documents back this time; proposed items not "
                     "answered are written with the proposed value. Returns the card checked again with writable and held "
-                    "documents, or errors (nothing saved) when a value is not offered. resume true re-queues documents "
-                    "waiting in pending after saving. An answer with doc_id changes that one document only and is not "
+                    "documents, or errors (nothing saved) when a value is not offered. Saving writes nothing: write the "
+                    "documents through the write plan (pearnly_write_plan) afterwards; resume does not write in a "
+                    "conversation. An answer with doc_id changes that one document only and is not "
                     "remembered (only for payment: e.g. this supplier is usually on credit but this document was paid "
                     "in cash); the next check lists it as that document's own decided item, which can be changed again "
                     "the same way. Without doc_id a payment is remembered for the supplier (its later documents too).",

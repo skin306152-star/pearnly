@@ -11,6 +11,7 @@
   "mode",
   "company",
   "operator_task",
+  "ledger",
   "user_turn",
   "status",
   "documents",
@@ -49,6 +50,13 @@
    "fieldname": "operator_task",
    "fieldtype": "Data",
    "label": "Operator Task",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ledger",
+   "fieldtype": "Data",
+   "label": "Account Set",
+   "length": 400,
    "read_only": 1
   },
   {
@@ -92,7 +100,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-11 00:00:00.000000",
+ "modified": "2026-11-12 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Write Plan",
