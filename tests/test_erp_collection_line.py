@@ -557,6 +557,24 @@ class Results(Base):
         flow.notify(name)
         self.assertEqual(len(LINE.pushes), 1)
 
+    def test_waiting_for_express_is_said_in_the_pending_reply_only(self):
+        # 等 Express 关闭（约定：`cc_desktop.jobs.book_express_wait`，express-wait-display 11-12）：当场的回复（免费）带现成那句，
+        # 不另推送说原因；排队里的原因码不抄到收款记录上
+        name = self.released()
+        book = T.S.table("ERP Collection")[name]["book_key"]
+        self.jobs.report("J-" + name, "queued", reason="ACCOUNT_BUSY_LOCKED")
+        self.assertEqual((T.S.table("ERP Collection")[name]["status"], T.S.table("ERP Collection")[name]["reason"]),
+                         (C.QUEUED, ""))
+        for waiting in (True, False):
+            with mock.patch("pearnly_core.cc_desktop.jobs.book_express_wait", create=True,
+                            side_effect=lambda key, moment=None: {"waiting": waiting and key == book, "since": None}), \
+                    mock.patch.object(flow, "WAIT_SECONDS", 0):
+                flow._wait_on(name)
+                flow.await_result(name, "U1", "a@x", "r-wait")
+            self.assertIn("Recorded · pending write", self.last_text())
+            self.assertEqual("express.error.ACCOUNT_BUSY_LOCKED" in self.last_text(), waiting)
+        self.assertEqual(LINE.pushes, [])
+
     def test_already_collected_is_pushed_with_each_current_balance(self):
         name = self.released()
         flow._wait_off(name)
