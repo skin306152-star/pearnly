@@ -1569,6 +1569,18 @@ group = "cc.action.company-picker"
 incidents = ["2026-11-03 ERP 版 CC 添加公司跳系统浏览器、要重新登录"]
 
 [[row]]
+id = "erp.cc.action.draft-ledger-picker"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:erp:draft-ledger-picker"
+where = "CC 新建页（还没建会话；直写、代录同一个）选了公司后电脑输入框下巴 / 手机问候下面的「ชุดบัญชี」胶囊：这家这个月（该分店）可选的账套，服务端的默认预选、可改；建会话时随 create 交上（不在可选里服务端拒绝）；这家没有本对话账套时不出"
+tests = ["flow:erp.cc.conversation-ledger", "unit:tests/test_cc_session_panel.py::test_the_new_page_reads_the_default_lets_it_change_and_sends_it_with_create", "unit:tests/test_cc_conversation_ledger.py::test_the_new_page_reads_the_default_and_the_options_without_writing", "unit:tests/test_cc_conversation_ledger.py::test_a_new_conversation_keeps_the_ledger_picked_on_the_new_page", "unit:tests/test_cc_conversation_ledger.py::test_a_new_operator_conversation_keeps_the_ledger_picked_on_the_new_page"]
+group = "cc.action.draft-ledger-picker"
+incidents = ["2026-11-12 测试机1 新建页没有账套行，第一句之前选不了账套，只能等 CC 问"]
+
+[[row]]
 id = "erp.cc.action.ledger-picker"
 product = "ERP"
 channel = "cc-chat"
