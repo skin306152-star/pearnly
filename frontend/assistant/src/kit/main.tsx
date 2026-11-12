@@ -8,9 +8,14 @@ const dark = params.get("theme") === "dark";
 document.documentElement.lang = lang;
 document.documentElement.classList.toggle("dark", dark);
 
-void Promise.all([import("react-dom/client"), import("@/lib/variant"), import("./gallery")]).then(
-  ([{ createRoot }, { installVariant }, { Gallery }]) => {
+// ?page=guided：引导式录入的界面预览（./guided.tsx），其余是组件展示页
+const guided = params.get("page") === "guided";
+
+void Promise.all([import("react-dom/client"), import("@/lib/variant"), import("./gallery"), import("./guided")]).then(
+  ([{ createRoot }, { installVariant }, { Gallery }, { Guided }]) => {
     installVariant();
-    createRoot(document.getElementById("root") as HTMLElement).render(<Gallery lang={lang} dark={dark} />);
+    createRoot(document.getElementById("root") as HTMLElement).render(
+      guided ? <Guided lang={lang} frame={params.get("frame") ?? ""} /> : <Gallery lang={lang} dark={dark} />,
+    );
   },
 );

@@ -2,7 +2,8 @@
 
 - 分支 `pearnly/cc-guided-entry-51673b`，基线 `origin/main` 32695c276，工作树 `.claude/worktrees/cc-guided-entry-51673b`。
 - 本记录只有评估和方案：没改产品代码、没连测试机和生产、没花识别或模型费用。待主会话审定后才施工。
-- 界面示意在 [2026-11-12-cc-guided-entry/](2026-11-12-cc-guided-entry/)（7 张图 + 生成它们的静态页 `mockup.html`）。
+- 界面示意在 [2026-11-12-cc-guided-entry/](2026-11-12-cc-guided-entry/)：7 张静态示意（`01`–`07`，由 `mockup.html` 生成）+ 4 张**真组件预览**截图（`真组件-*.png`，
+  用 `components/ui` 的标准组件在展示页拼的，源码 `frontend/assistant/src/kit/guided.tsx`，本机 `kit.html?page=guided&lang=zh` 可看四语、深浅色、手机宽度）。
 - 范围按主会话 11-12 更正：三种业务是**采购、销售、收款**；付款不做。界面一律用标准组件库 `frontend/assistant/src/components/ui`。
 
 路径缩写：`K/` = `apps/pearnly_core/pearnly_core/`，`C/` = `apps/pearnly_cowork/pearnly_cowork/`，`E/` = `apps/pearnly_erp_portal/pearnly_erp_portal/`
@@ -200,9 +201,15 @@ ERP `E/express/operator.py:497-536`），不预选、不显示记住的值；而
   Cowork 两种模式 = 采购、销售；ERP 直写 = 采购、销售、收款；ERP 代录 = 采购、销售。直写、代录是同一个组件、同一份声明，只是列表不同。
 - **新对话**：问候下面就是输入框，菜单在它上方（示意 01）。没挂公司时点业务 → 先出公司选择（现有公司选择窗，不新造）。
 - **进行中的对话**：一批录完、对话空闲时菜单重新出现（示意 05）。选中后变成一个带「×」的选中态，可取消。
-- **手机**：同一行，三个按钮一行放得下（示意 07 左）；将来业务多了横向滑动，不换行、不进「…」。
-- **选了以后**：对话里出现一张后台出的引导卡（不是模型的话）：抬头「业务 + 公司 · 账套 · 月份」，采购 / 销售是上传区（示意 02），
-  收款是客户搜索（示意 06）。业务记在会话上，这一批上传的票默认按它定方向。
+- **手机**：同一行，三个按钮一行放得下（示意 07 第 1 台）；将来业务多了横向滑动，不换行、不进「…」。
+- **选了以后**（用户 11-12：「上传区是不是有点冗余了，可以用文案代替，用户可以在对话框上传吧」）：**不出卡**。菜单那一行变成已选的「采购 ×」；
+  输入框的占位文字从「回复…」换成按业务的一句（采购「上传采购票据」、销售「上传销售票据」、收款「输入客户名称或编号」）；上传就用输入框本来的入口
+  （加号、拖入、粘贴）（示意 02、07 第 2 台）。业务记在会话上，这一批上传的票默认按它定方向。
+- **收款同一原则**：点「收款」后也不先出卡，用户直接在输入框打客户名或编号。后台在 Express 客户里查：唯一命中 → 直接出收款表单卡（客户已填好、可改，
+  下面是该客户未收清发票、收款方式、合计，示意 06）；多个命中 → 引导卡里一题列出候选选一个；没命中 → CC 一句话说没找到。
+  表单卡本身保留：它承载勾发票、填金额、选方式这些选择和数据，不是提示。
+- **其余几张按「只起提示作用的卡不要」过了一遍**：引导卡（承载选择）、复核表（承载数据与就地修改）、结果表（承载每张单的结果与账本单号）保留；
+  「已识别 N 张」本来就是一行过程文字，不是卡；没有别的纯提示卡。
 - 代录：选业务后的引导卡就是现在的开始卡位置（资料区），上传走现有 `uploads` 链。
 
 ### 6.2 选了业务之后：一张卡收成一个入口
@@ -234,7 +241,7 @@ ERP `E/express/operator.py:497-536`），不预选、不显示记住的值；而
 
 | 情况 | 处理 |
 |---|---|
-| 没点菜单直接上传 | 照常识别；后台按票面判方向（本公司税号在买方 / 卖方），判得出的不问；判不出的在卡里出一题。之后同一条路 |
+| 没点菜单直接上传（输入框占位仍是「回复…」） | 照常识别；后台按票面判方向（本公司税号在买方 / 卖方），判得出的不问；判不出的在卡里出一题。之后同一条路 |
 | 选了采购，但一批里有几张是销售票 | 卡里一题：「这 3 张票面是销售」→ 按销售录 / 按采购录 / 这次不录，不预选（去留类，见 12-1） |
 | 一批混着采购、销售 | 一张卡按业务分组出题（`GROUPS` 已有），复核卡按业务分段，复述里分别报张数 |
 | 混进转账凭条、50 ทวิ | 录不录按租户记过的；第一次出一题 |
@@ -291,10 +298,10 @@ ERP `E/express/operator.py:497-536`），不预选、不显示记住的值；而
 
 | 界面 | 标准组件（`components/ui`） | 示意 |
 |---|---|---|
-| 业务菜单 | `ToggleGroup`（单选）+ lucide 图标；与「录吧」同一行 | 01、07 |
-| 引导卡抬头、上传区 | `Card`（标题 + 说明）、`Empty` + `Button`；已传文件 `Attachment`；识别进度沿用 `Progress` / `Trace` | 02 |
-| 引导卡（出题） | `Questionnaire`（进度、题目、选项、跳过 / 下一步）+ `Badge`（推荐）+ `Collapsible`（已定 N 项）+ `Button size="xs"`；大列表在卡内用 `InputGroup` + `Item` 列表就地搜索（卡内不放弹出层，ccs 规矩） | 03、07 中 |
-| 复核卡 | `Card` + `Table` + `Checkbox` + `Input`（`aria-invalid` 标红）+ `Badge`；手机窄屏每张票一行 `Item` | 04、07 右 |
+| 业务菜单 | `Button variant="outline"` + lucide 图标（与「录吧」同一行、同一种按钮）；已选的一项 `variant="secondary"` 带「×」。不用 `ToggleGroup`：库里它是分段开关的样子，和「录吧」并排不一致 | 01、07 |
+| 选了业务之后 | 不出卡；输入框（`thread.tsx` 现有输入框）的占位文字按业务换；已传文件沿用 `Attachment`，识别进度沿用现有上传卡 / `Trace` | 02、07 |
+| 引导卡（出题） | `Card` + `Questionnaire`（进度、题目、选项、跳过 / 下一步）+ `Badge`（推荐）+ `Collapsible`（已定 N 项）+ `Button size="xs"`；大列表在卡内用 `InputGroup` + `Item` 列表就地搜索（卡内不放弹出层，ccs 规矩） | 03、07 第 3 台 |
+| 复核卡 | `Card` + `Table` + `Checkbox` + `Input`（`aria-invalid` 标红）+ `Badge`；手机窄屏每张票一行 `Item` | 04、07 第 4 台 |
 | 「录吧」 | `Button variant="outline"` | 04 |
 | 结果卡 | `Card` + `Progress` + `Table` + `Badge` | 05 |
 | 收款表单卡 | `Card` + `Field` + `InputGroup`（搜客户）+ `Table` + `Checkbox` + `Input` + `RadioGroup` + `Item` / `Attachment`（凭证） | 06 |
@@ -305,8 +312,9 @@ ERP `E/express/operator.py:497-536`），不预选、不显示记住的值；而
   `assistant-ui/thread.tsx` 里「录吧」那一处（文件现值 K1 5、K4 5，只换本方案碰到的）。`approval-bar.tsx`、`approval-sheet.tsx`、`mode-switch.tsx` 不在本方案改动面，不动。
   基线随提交 `--update` 下降。
 - 样式只走 `globals.css` 变量与 `cc-ui-*` 槽；新外观槽（如菜单行）写在文末「标准组件库」块，过 `check-frontend-tokens.py`、`check-frontend-kit.py`。
-- 示意图是静态页按 globals.css 浅色主题的色值、圆角、字号和展示页截图里各组件的样子画的，**不是真组件渲染**（本工作树没装前端依赖，也不该为示意改产品代码）；
-  施工第一步先在展示页 `kit.html` 里用真组件拼出这五块给主会话看。没有参照 Claude 的任何界面。
+- `01`–`07` 是静态页按 globals.css 浅色主题的色值画的版式示意；`真组件-*.png` 是真的标准组件渲染（电脑中文、电脑泰文、手机中文、深色引导卡），
+  过了 `check-frontend-kit.py`、`check-frontend-tokens.py`、`check-copy.py` 与 `tsc`。真组件预览里看到的两处要在施工时处理：手机宽度下结果表、
+  收款发票表太宽（改成同复核卡一样每行一个 `Item`）；`Questionnaire` 的预选用 `QuestionnaireChoice defaultChecked`。没有参照 Claude 的任何界面。
 
 ### 10.2 文案
 
@@ -315,7 +323,9 @@ ERP `E/express/operator.py:497-536`），不预选、不显示记住的值；而
 | 键（暂名） | zh | en | th | ja |
 |---|---|---|---|---|
 | guide.collection | 收款 | Collection | รับชำระ | 入金 |
-| guide.upload | 上传票据 | Upload documents | อัปโหลดเอกสาร | 書類をアップロード |
+| guide.placeholder.purchase | 上传采购票据 | Upload purchase documents | อัปโหลดเอกสารซื้อ | 仕入書類をアップロード |
+| guide.placeholder.sales | 上传销售票据 | Upload sales documents | อัปโหลดเอกสารขาย | 売上書類をアップロード |
+| guide.placeholder.collection | 输入客户名称或编号 | Enter a customer name or code | ป้อนชื่อหรือรหัสลูกค้า | 得意先名またはコードを入力 |
 | guide.decided(n) | 已定 n 项 | n decided | กำหนดแล้ว n รายการ | 決定済み n 件 |
 | guide.review | 复核 | Review | ตรวจทาน | 確認 |
 | guide.more(n) | 还有 n 张 | n more | อีก n ใบ | ほか n 件 |

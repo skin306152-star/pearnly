@@ -1465,3 +1465,50 @@ const UI = {
 };
 
 export const ui = (UI as Record<string, (typeof UI)["en"]>)[lang] ?? UI.en;
+
+// 引导式录入（docs/work/2026-11-12-cc-guided-entry.md）：输入框上方的业务菜单、选了业务后输入框的占位文字、后台出的引导卡、复核表、结果表、收款表单卡。
+// 采购 / 销售两个业务名用 op.group 已有的；题目与选项的字由服务端按本轮语言出，不在这里
+const GUIDE = {
+  en: {
+    collection: "Collection",
+    placeholder: { purchase: "Upload purchase documents", sales: "Upload sales documents", collection: "Enter a customer name or code" } as Record<string, string>,
+    recognized: (n: number) => `${n} recognized`, recommended: "Recommended",
+    decided: (n: number) => `${n} decided`, review: "Review", more: (n: number) => `${n} more`,
+    result: (a: number, b: number) => `${a} entered, ${b} not entered`, entered: "Entered", already: "Already entered",
+    party: "Party", number: "Number", date: "Date", total: "Total", as: "Entered as", ledgerNumber: "Number in ledger",
+    customer: "Customer", openInvoices: "Open invoices", due: "Outstanding", receive: "Received now", method: "Method", cash: "Cash",
+    transfer: "Transfer", slip: "Transfer slip", item: "Item", quantity: "Qty", unit: "Unit", price: "Unit price", warehouse: "Warehouse",
+  },
+  zh: {
+    collection: "收款",
+    placeholder: { purchase: "上传采购票据", sales: "上传销售票据", collection: "输入客户名称或编号" } as Record<string, string>,
+    recognized: (n: number) => `已识别 ${n} 张`, recommended: "推荐",
+    decided: (n: number) => `已定 ${n} 项`, review: "复核", more: (n: number) => `还有 ${n} 张`,
+    result: (a: number, b: number) => `已录入 ${a} 张，${b} 张未录`, entered: "已录入", already: "已录过",
+    party: "对方", number: "单号", date: "日期", total: "合计", as: "录成", ledgerNumber: "账本单号",
+    customer: "客户", openInvoices: "未收清发票", due: "未收", receive: "本次收", method: "收款方式", cash: "现金",
+    transfer: "转账", slip: "转账凭证", item: "物料", quantity: "数量", unit: "单位", price: "单价", warehouse: "仓库",
+  },
+  th: {
+    collection: "รับชำระ",
+    placeholder: { purchase: "อัปโหลดเอกสารซื้อ", sales: "อัปโหลดเอกสารขาย", collection: "ป้อนชื่อหรือรหัสลูกค้า" } as Record<string, string>,
+    recognized: (n: number) => `อ่านแล้ว ${n} ใบ`, recommended: "แนะนำ",
+    decided: (n: number) => `กำหนดแล้ว ${n} รายการ`, review: "ตรวจทาน", more: (n: number) => `อีก ${n} ใบ`,
+    result: (a: number, b: number) => `บันทึกแล้ว ${a} ใบ ไม่ได้บันทึก ${b} ใบ`, entered: "บันทึกแล้ว", already: "เคยบันทึกแล้ว",
+    party: "คู่ค้า", number: "เลขที่", date: "วันที่", total: "รวม", as: "บันทึกเป็น", ledgerNumber: "เลขที่ในบัญชี",
+    customer: "ลูกค้า", openInvoices: "ใบแจ้งหนี้ค้างรับ", due: "ค้างรับ", receive: "รับครั้งนี้", method: "วิธีรับชำระ", cash: "เงินสด",
+    transfer: "โอน", slip: "หลักฐานการโอน", item: "สินค้า", quantity: "จำนวน", unit: "หน่วย", price: "ราคาต่อหน่วย", warehouse: "คลัง",
+  },
+  ja: {
+    collection: "入金",
+    placeholder: { purchase: "仕入書類をアップロード", sales: "売上書類をアップロード", collection: "得意先名またはコードを入力" } as Record<string, string>,
+    recognized: (n: number) => `${n} 件を読み取り済み`, recommended: "おすすめ",
+    decided: (n: number) => `決定済み ${n} 件`, review: "確認", more: (n: number) => `ほか ${n} 件`,
+    result: (a: number, b: number) => `記帳 ${a} 件、未記帳 ${b} 件`, entered: "記帳済み", already: "記帳済みあり",
+    party: "取引先", number: "番号", date: "日付", total: "合計", as: "記帳区分", ledgerNumber: "帳簿の番号",
+    customer: "得意先", openInvoices: "未入金の請求書", due: "未入金", receive: "今回入金", method: "入金方法", cash: "現金",
+    transfer: "振込", slip: "振込明細", item: "品目", quantity: "数量", unit: "単位", price: "単価", warehouse: "倉庫",
+  },
+};
+
+export const guide = (GUIDE as Record<string, (typeof GUIDE)["en"]>)[lang] ?? GUIDE.en;

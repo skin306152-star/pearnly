@@ -87,7 +87,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .sum{display:flex;justify-content:space-between;font-weight:600}
 .cap{position:absolute;left:12px;bottom:8px;font-size:12px;color:#77756f}
 /* 手机 */
-.phones{gap:28px;padding:28px;background:#e9e8e4;width:1280px;justify-content:center;position:relative}
+.phones{gap:28px;padding:28px;background:#e9e8e4;width:1700px;justify-content:center;position:relative}
 .phone{width:375px;height:780px;background:var(--bg);border-radius:36px;border:8px solid #1b1b1b;display:flex;flex-direction:column;overflow:hidden}
 .phone .top{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;font-weight:600}
 .phone .thread{padding:8px 16px}
@@ -149,18 +149,14 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
   </div></div>
 </div>
 
-<!-- 2 电脑：点了「采购」 -->
+<!-- 2 电脑：点了「采购」：不出卡，输入框占位文字换成按业务的一句，上传用输入框本来的入口 -->
 <div class="frame desk" id="d2">
   <div data-t="t-side"></div>
   <div class="main"><div class="col">
-    <div class="thread">
-      <div class="card">
-        <h4>采购</h4><div class="sub">SINCERE ICE · 账套 T.8 · 2026-06</div>
-        <div class="empty"><svg class="i" style="width:22px;height:22px"><use href="#upload"/></svg><span class="btn">上传票据</span></div>
-      </div>
-    </div>
+    <div class="thread top"><div class="cat">CC</div><div class="hello">下午好</div></div>
     <div class="above"><div class="tg"><span class="btn on"><svg class="i"><use href="#cart"/></svg>采购<svg class="i" style="width:12px;height:12px"><use href="#x"/></svg></span></div></div>
-    <div data-t="t-composer"></div>
+    <div class="composer"><div class="in">上传采购票据</div><div class="bar"><span class="round"><svg class="i"><use href="#plus"/></svg></span><span class="round send"><svg class="i"><use href="#up"/></svg></span></div></div>
+    <div class="chin"><b>SINCERE ICE<svg class="i" style="width:12px;height:12px"><use href="#down"/></svg></b><b>2026-06</b><b>账套 T.8<svg class="i" style="width:12px;height:12px"><use href="#down"/></svg></b></div>
   </div></div>
 </div>
 
@@ -268,6 +264,13 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       <div class="chin" style="padding:6px 0"><b>SINCERE ICE</b><b>2026-06</b><b>T.8</b></div></div>
     <div class="dock"><div class="above" data-t="t-menu"></div>
       <div class="composer"><span class="round"><svg class="i"><use href="#plus"/></svg></span><div class="in">回复…</div><span class="round send"><svg class="i"><use href="#up"/></svg></span></div></div>
+  </div>
+  <div class="phone">
+    <div class="top"><svg class="i"><use href="#menu"/></svg>新对话</div>
+    <div class="thread top" style="flex:1"><div class="cat">CC</div><div class="hello">下午好</div>
+      <div class="chin" style="padding:6px 0"><b>SINCERE ICE</b><b>2026-06</b><b>T.8</b></div></div>
+    <div class="dock"><div class="above"><div class="tg"><span class="btn on"><svg class="i"><use href="#cart"/></svg>采购<svg class="i" style="width:12px;height:12px"><use href="#x"/></svg></span></div></div>
+      <div class="composer"><span class="round"><svg class="i"><use href="#plus"/></svg></span><div class="in">上传采购票据</div><span class="round send"><svg class="i"><use href="#up"/></svg></span></div></div>
   </div>
   <div class="phone">
     <div class="top"><svg class="i"><use href="#menu"/></svg>6 月采购票 12 张</div>
