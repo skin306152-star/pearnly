@@ -2770,7 +2770,7 @@ class ProviderLedgerTests(unittest.TestCase):
                      express_row(self.T9, "T.9", year="68EXP", start="2025-01-01", end="2025-12-31", next_end="2026-12-31")]
         reset(C1=self.rows)
         self.company = make(key=self.T8)["id"]
-        self.ids = {label: provider.ledger_id("C1", identity.book("express", "C1", row)["key"])
+        self.ids = {label: identity.book("express", "C1", row)["identity"]
                     for label, row in zip(("T.7", "T.8", "T.9"), self.rows)}
 
     def _ledgers(self, period):
@@ -2813,6 +2813,63 @@ class ProviderLedgerTests(unittest.TestCase):
         text = provider.context(self.company, "2026-10", "", "a@example.com")
         self.assertNotIn("covers the work month", text)
         self.assertIn("writes go only into this conversation's account set", text)
+
+
+class BookIdentityTests(unittest.TestCase):
+    """账套身份与电脑无关（A 线 11-12，主会话批）：同一本账套被两台电脑以 UNC 与映射盘上报（各在自己那条连接上），
+    目录带登记的文件号 uid，按 `cc_desktop.contracts.book_identity` 认成一本——下拉只有一条、不多问、编号与 ERP 同口径
+    （`book_key`）；没报 uid（CC 1.7.0 以前）的照今天，各算一本。旧编号「连接|键」读时映射成新编号。"""
+
+    UNC, MAPPED = "\\\\ACCSERVER\\D$\\ACCOUNT\\69EXP\\TEST", "P:\\69EXP\\TEST"
+    UID = "a1b2c3d4:000000000001f2e3"
+
+    def _rows(self, uid=True):
+        one = express_row(self.UNC, "TEST", year="69EXP", start="2026-01-01", end="2026-12-31", next_end="2027-12-31")
+        two = express_row(self.MAPPED, "TEST", year="69EXP", start="2026-01-01", end="2026-12-31", next_end="2027-12-31")
+        if uid:
+            one["attributes"]["book_uid"] = two["attributes"]["book_uid"] = self.UID
+        return one, two
+
+    def _company(self, uid=True):
+        one, two = self._rows(uid)
+        reset(C1=[one], C2=[two])
+        return make(key=self.UNC)["id"]
+
+    def test_one_book_reported_by_two_computers_is_one_option(self):
+        from pearnly_core.cc_desktop import contracts as cc
+
+        company = self._company()
+        fresh_request()
+        found = provider.ledgers(company, "2026-10", "", "a@example.com")
+        self.assertEqual([item["label"] for item in found["options"]], ["TEST"])
+        self.assertEqual(found["default"], cc.book_key(cc.book_identity(self.UNC, self.UID)))
+        self.assertEqual(found["options"][0]["id"], found["default"])
+        fresh_request()
+        books = service.listed_books(service.get(company), None)
+        self.assertEqual(len(books), 1)
+        self.assertEqual(sorted(books[0]["places"]), [("C1", identity.book("express", "C1", self._rows()[0])["key"]),
+                                                      ("C2", identity.book("express", "C2", self._rows()[1])["key"])])
+
+    def test_without_uid_the_two_spellings_stay_two_books_as_today(self):
+        company = self._company(uid=False)
+        fresh_request()
+        found = provider.ledgers(company, "2026-10", "", "a@example.com")
+        self.assertEqual(len(found["options"]), 2)
+        self.assertEqual(found["default"], "")  # 两本同期、没记住：照今天要问一次
+        self.assertEqual(len({item["id"] for item in found["options"]}), 2)
+
+    def test_an_old_id_is_mapped_to_the_new_one_when_read(self):
+        company = self._company()
+        fresh_request()
+        new = provider.ledgers(company, "2026-10", "", "a@example.com")["default"]
+        old = provider.ledger_id("C2", identity.book("express", "C2", self._rows()[1])["key"])
+        fresh_request()
+        self.assertEqual(provider.canonical_ledger(company, old), new)
+        self.assertEqual(provider.canonical_ledger(company, new), new)
+        self.assertEqual(provider.canonical_ledger(company, "C9|x:\\gone"), "C9|x:\\gone")  # 认不出照原样
+        fresh_request()
+        book = provider.book_of(company, old)
+        self.assertEqual((book["identity"], len(book["places"])), (new, 2))
 
 
 class ProviderAndToolTests(unittest.TestCase):

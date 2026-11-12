@@ -97,6 +97,23 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(self.ledger.current(self.row, store=False)["status"], "needed")
         self.assertEqual(len(self.db.writes), writes)
 
+    def test_an_old_ledger_id_is_mapped_once_when_read_and_a_plan_with_it_is_not_changed(self):
+        # 账套身份跨电脑（A 线 11-12）：Cowork 编号从「连接|键」改成与电脑无关的编号；11-12 以前存下的旧编号读时经 provider 的
+        # canonical_ledger 映射成新编号并存下（只映射一次），写入计划里记着旧编号的不判 ledger_changed
+        self.provider.canonical_ledger = lambda ref, value: {"OLD|t8": T8}.get(value, value)
+        self.row["project_ledger"] = "OLD|t9-gone"
+        self.assertEqual(self.ledger.current(self.row)["id"], T8)  # 认不出：照失效按默认（同今天）
+        self.row["project_ledger"] = "OLD|t8"
+        self.row["period"] = "2026-10"  # 同期两本、没有默认：映射不出就会变成未定
+        found = self.ledger.current(self.row)
+        self.assertEqual((found["status"], found["id"]), ("set", T8))
+        self.assertEqual(self._ledger_writes()[-1], ("r2", T8, False))
+        self.assertTrue(self.ledger.same("co_abc1", "OLD|t8", T8))
+        self.assertTrue(self.ledger.same("co_abc1", T8, T8))
+        self.assertFalse(self.ledger.same("co_abc1", "OLD|t8", T9))
+        del self.provider.canonical_ledger  # 产品没声明映射（ERP）：只按原样比
+        self.assertFalse(self.ledger.same("co_abc1", "OLD|t8", T8))
+
     def test_no_ledger_without_a_company_a_declaration_or_a_working_provider(self):
         self.assertIsNone(self.ledger.current(self.db.rows[0]))  # 「最近」
         self.provider.broken = True

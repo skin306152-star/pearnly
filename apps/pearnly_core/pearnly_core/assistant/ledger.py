@@ -79,6 +79,30 @@ def options_of(project, period, scope, user, found=None) -> dict | None:
     return {"options": options, "default": default if default in seen else ""}
 
 
+def canonical(project, value, found=None) -> str:
+    """存下的编号此刻的写法：provider 声明了 ``canonical_ledger(project, value)`` 就经它映射（Cowork 11-12 以前的
+    「连接|键」→ 与电脑无关的编号，A 线 11-12），没声明、出错照原样。"""
+    text = str(value or "")
+    found = found if found is not None else _provider()
+    mapping = getattr(found, "canonical_ledger", None) if found else None
+    if not text or not project or not callable(mapping):
+        return text
+    try:
+        return _ledger_id(mapping(project, text)) or text
+    except Exception:
+        frappe.log_error(title="Assistant ledger mapping failed")
+        return text
+
+
+def same(project, left, right) -> bool:
+    """两个本对话账套编号是不是同一本（写入计划记的与此刻的；旧编号经 :func:`canonical` 映射后再比）。"""
+    left, right = str(left or ""), str(right or "")
+    if left == right:
+        return True
+    found = _provider()
+    return bool(left and right) and canonical(project, left, found) == canonical(project, right, found)
+
+
 def _view(found, chosen) -> dict:
     label = next((item["label"] for item in found["options"] if item["id"] == chosen), "")
     return {"status": SET if chosen else NEEDED, "id": chosen, "label": label, "options": found["options"]}
@@ -93,7 +117,10 @@ def resolved(row) -> dict | None:
     if found is None:
         return None
     stored = str(row.get(FIELD) or "")
-    chosen = stored if any(item["id"] == stored for item in found["options"]) else found["default"]
+    ids = {item["id"] for item in found["options"]}
+    if stored and stored not in ids:
+        stored = canonical(project, stored)  # 旧编号读时映射一次（`current` 存下新编号）
+    chosen = stored if stored in ids else found["default"]
     return _view(found, chosen)
 
 
@@ -270,5 +297,6 @@ def note(found) -> str:
     return NEEDED_NOTE.format(options=_listed(found["options"]))
 
 
-__all__ = ["FIELD", "NEEDED", "NOT_AN_OPTION", "NOT_AVAILABLE", "NOT_CHOSEN", "SET", "choose", "current", "declared",
-           "initial", "kept", "note", "of_session", "of_task", "offered", "options_of", "resolved", "tool_choose", "view"]
+__all__ = ["FIELD", "NEEDED", "NOT_AN_OPTION", "NOT_AVAILABLE", "NOT_CHOSEN", "SET", "canonical", "choose", "current", "declared",
+           "initial", "kept", "note", "of_session", "of_task", "offered", "options_of", "resolved", "same", "tool_choose",
+           "view"]
