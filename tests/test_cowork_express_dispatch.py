@@ -480,6 +480,21 @@ class Transport(unittest.TestCase):
         self.assertEqual(self.scopes[-1], {"everyone": 0, "device": A, "anyone": 0, "users": (ME,)})
         self.assertTrue(reply["jobs"][0]["attended"])
 
+    def test_a_book_waiting_for_express_to_close_rests_while_other_books_are_handed_out(self):
+        # 11-12：排头上次回报「Express 开着这本账套」不满 30 秒 → 这本先不派（以前放回即可再领，电脑连着领同一张、别的账套领不到）
+        from pearnly_core.cc_desktop.wire import ack_rules
+        self.pending = [_row("CWP-1", "s1"), _row("CWP-2", "s2", created=1)]
+        self.records["CWP-1"] = {"status": "pending", "reason": ack_rules.EXPRESS_OPEN,
+                                 "updated_at": NOW - timedelta(seconds=ack_rules.EXPRESS_OPEN_REST_SECONDS - 1)}
+        self.assertEqual(len(self.run_lease()["jobs"]), 1)
+        self.assertEqual([call[1] for call in self.calls if call[0] == "lease"], ["CWP-2"])
+        self.calls.clear()
+        self.pending = [_row("CWP-1", "s1")]
+        self.assertEqual(self.run_lease()["jobs"], [])               # 只剩它：这一轮不派
+        self.records["CWP-1"]["updated_at"] = NOW - timedelta(seconds=ack_rules.EXPRESS_OPEN_REST_SECONDS)
+        self.assertEqual(len(self.run_lease()["jobs"]), 1)           # 歇够了照常派
+        self.assertEqual([call[1] for call in self.calls if call[0] == "lease"], ["CWP-1"])
+
     def test_a_colleagues_job_is_never_taken_however_long_it_has_waited(self):
         self.pending = [_row("CWP-1", "s1", actor=OTHER, created=-86400)]
         self.assertEqual(self.run_lease()["jobs"], [])

@@ -10,6 +10,11 @@ from pearnly_core.express_rules.push import common
 
 LEASE_SECONDS = 120
 MAX_ATTEMPTS = 3
+# 等账套里「Express 开着这本账套」这一种（CC 桌面版回 `[ACCOUNT_BUSY_LOCKED] …`）：原因留在记录上（各产品据此显示现成那条
+# 「Express 正在使用此账套，关闭后将自动推送」），这本账套歇 :data:`EXPRESS_OPEN_REST_SECONDS` 再派给电脑（期间别的账套照常领）。
+# 以前原因清空、放回即可再领：电脑一直连着领同一张，别的账套的单领不到，界面上也看不出在等什么（11-12）。
+EXPRESS_OPEN = "ACCOUNT_BUSY_LOCKED"
+EXPRESS_OPEN_REST_SECONDS = 30
 # 小助手回报的这些拒绝，重试多少次结论都一样（要人改票面、选对方档或核对账套）：直接转人工，不烧重试。
 # 有意变化（旧线上按普通失败重试 3 次；2026-09-28 压测：同税号两个客户档的票在列表上一直是「录入中」）。
 # 回报格式 `[错误码] 原始信息`（小助手 `queue_client._ack`）；老版本小助手没登记 outcome 的也按码认。
@@ -84,6 +89,18 @@ def _branch(branch):
         raise LifecycleError("push.branch_invalid")
 
 
+def express_open(status, reason) -> bool:
+    """这条排队中的记录是不是在等 Express 关闭（``status`` 用各自账本的叫法：Cowork ``pending``、共用通道 ``queued``）。"""
+    return status in ("pending", "queued") and reason == EXPRESS_OPEN
+
+
+def resting(reason, since, moment) -> bool:
+    """等 Express 关闭的记录这会儿该不该先不派：上次回报（``since``）到现在不满 :data:`EXPRESS_OPEN_REST_SECONDS`。"""
+    if reason != EXPRESS_OPEN or since is None or moment is None:
+        return False
+    return 0 <= (moment - since).total_seconds() < EXPRESS_OPEN_REST_SECONDS
+
+
 def acknowledgement(*, branch, attempt, success, outcome=None, error=None):
     """State effects after a valid owned ACK. Transport/lease auth is separate.
 
@@ -98,7 +115,7 @@ def acknowledgement(*, branch, attempt, success, outcome=None, error=None):
     if stage == common.STAGE_SUCCESS:
         return Transition("success", attempt, stage)
     if stage == common.STAGE_WAITING_LOCK:
-        return Transition("pending", attempt, stage, retry=True)
+        return Transition("pending", attempt, stage, EXPRESS_OPEN if error_code(error) == EXPRESS_OPEN else "", retry=True)
     if stage in {common.STAGE_NEEDS_MAPPING, common.STAGE_NEEDS_REVIEW}:
         return Transition("manual", attempt, stage, reason_text(error) or stage)
     if stage == common.STAGE_FAILED and error_code(error) in NEEDS_PERSON_CODES:
