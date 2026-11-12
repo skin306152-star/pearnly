@@ -133,6 +133,10 @@
 		}
 		return __(text);
 	};
+	/** 「录入中」的票此刻在等 Express 关闭（服务端读的时候算的只读字段 `push_waiting`，`push/express_wait.py`）→ 现成那句；
+	 * 不在等的回空串。列表的悬浮说明与详情的提示行同用（2026-11-12：有人开着这本账套时网页只显示「录入中」）。 */
+	p.intake_push_waiting = record => (record?.last_push_status === "pending" && record?.push_waiting === "express_open"
+		? __("intake.error.ACCOUNT_BUSY_LOCKED") : "");
 	/** 结果不明（写入已发出、没拿到结果）的原因码：会计去 ERP 核对后在复核页解除。 */
 	const RESULT_UNKNOWN = /^(ERP_CONFIRMED_PUSH_RESULT_UNKNOWN|EXPRESS_MANUAL:\s*confirmed_push_unacked|confirmed_push_unacked|ERR_MRERP_READBACK_NOT_FOUND|ERR_MRERP_READBACK_NOT_LINKED|ERR_MRERP_LEGACY_MENU_UNVERIFIED)/;
 	/** 这两种退回是「Express 已有 / 上一版还在」：会计核对后可以「仍然推送」（小助手认 `duplicate_confirmed`）。 */
@@ -607,6 +611,9 @@
 			const wrapper = form.fields_dict.notice.$wrapper.empty();
 			const pushed = record?.last_push_status;
 			const many = book_many(record);
+			// 录入中、在等 Express 关闭：官方蓝色提示行（手机上没有悬浮，靠这一行）
+			const waiting = p.intake_push_waiting(record);
+			if (waiting) $("<div class='form-message blue'>").text(waiting).appendTo(wrapper);
 			if ((record?.last_push_reason && (pushed === "manual" || !pushed)) || many) {
 				const reason = String(record.last_push_reason || ACCOUNT_SET_AMBIGUOUS);
 				const row = $(`<div class='form-message ${POLICY_SKIPPED.test(reason) ? "blue" : "red"}'>`).appendTo(wrapper);

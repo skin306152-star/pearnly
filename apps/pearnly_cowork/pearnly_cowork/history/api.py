@@ -46,7 +46,10 @@ def create(workspace, pages, request_key, client=None):
 
 @frappe.whitelist()
 def detail(name):
-    return storage.project(storage.read(name))
+    from pearnly_cowork.history.push_state import marked
+
+    # 推送在等 Express 关闭的多带只读的 ``push_waiting``（读的时候算）
+    return marked([storage.project(storage.read(name))])[0]
 
 
 @frappe.whitelist(methods=["POST"])
@@ -113,6 +116,7 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
     筛选与排序都在这条 SQL 上做（列表是服务端分页的）：`sort_by` 只认白名单里的
     字段，认不出的退回默认排序，不把前端传来的字符串直接拼进 SQL。
     """
+    from pearnly_cowork.history.push_state import marked  # 本函数有同名参数 push_state（筛选值），只取这一个函数
     from pearnly_core.express_rules.contracts.history import normalize_posting_kind
 
     scope.require_read()
@@ -161,10 +165,11 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
         found = {row.name: row for row in frappe.get_list(storage.DOCTYPE,
             filters=filters + [["name", "in", page]] if isinstance(filters, list) else {**filters, "name": ["in", page]},
             fields=fields, limit_page_length=0)} if page else {}
-        return {"items": [found[name] for name in page if name in found], "total": len(rows)}
+        return {"items": marked([found[name] for name in page if name in found]), "total": len(rows)}
     items = frappe.get_list(storage.DOCTYPE, filters=filters, or_filters=or_filters, fields=fields,
         order_by=order_by, limit_start=start, limit_page_length=limit)
-    return {"items": items, "total": _total(filters, start, limit, items, or_filters)}
+    # 这一页里推送在等 Express 关闭的行多带只读的 ``push_waiting``（一次查完；状态列仍是「录入中」，说明用它）
+    return {"items": marked(items), "total": _total(filters, start, limit, items, or_filters)}
 
 
 TOTAL_SECONDS = 20
