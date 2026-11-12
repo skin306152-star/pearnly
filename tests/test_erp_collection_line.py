@@ -199,7 +199,7 @@ class Steps(Base):
         self.assertEqual([item["label"] for item in self.buttons()], ["1. ร้านป้าแดง", "2. ร้านลุงชัย", "Cancel"])
         self.tap("a=col&s=customer&v=" + C1)
         self.assertEqual((self.step(), self.payload()["order"]), ("invoices", ["IV1", "IV2"]))
-        self.assertEqual([item["label"] for item in self.flex_buttons()], ["Select", "Select", "Next"])
+        self.assertEqual([item["label"] for item in self.flex_buttons()], ["Select", "Select", "Next step"])
         self.tap("a=col&s=invoices&v=done")
         self.assertIn("Choose at least one invoice", self.last_text())
         self.tap("a=col&s=inv&v=IV1")
@@ -260,7 +260,7 @@ class Steps(Base):
         self.assertIn("1 selected · total 500.00", footer)
         self.tap("a=col&s=inv&v=IV1")
         self.assertIn("2 selected · total 1,500.00", json.dumps(self.last(), ensure_ascii=False))
-        self.assertEqual([item["label"] for item in self.flex_buttons()], ["Selected", "Selected", "Next"])
+        self.assertEqual([item["label"] for item in self.flex_buttons()], ["Selected", "Selected", "Next step"])
         self.tap("a=col&s=inv&v=IV2")
         self.assertEqual(self.payload()["picked"], ["IV1"])
         self.tap("a=col&s=inv&v=IV3")  # 别的客户的发票：不是这一步给的
@@ -403,12 +403,39 @@ class Amounts(Base):
         self.assertIn("Confirm", [item["label"] for item in self.flex_buttons()])
 
 
+class Wording(Base):
+    def test_the_discount_prompt_and_the_next_button_read_naturally(self):
+        # 11-12 三星实测：「输入折扣金额的金额」重复，「下一个」应为「下一步」
+        self.tap("a=col&s=start")
+        self.type(C1)
+        self.tap("a=col&s=inv&v=IV1")
+        self.assertIn("Next step", [item["label"] for item in self.flex_buttons()])
+        self.tap("a=col&s=invoices&v=done")
+        self.pick("Cash")
+        self.type("900")
+        self.pick("Discount")
+        self.assertIn("Enter the discount amount", self.last_text())
+        self.assertNotIn("Enter the amount for", self.last_text())
+
+
 class Release(Base):
     def card(self):
         self.to_invoices(("IV1",))
         self.pick("Cash")
         self.type("1000")
         return self.payload()["name"]
+
+    def test_an_invoice_another_collector_took_first_says_already_collected_once(self):
+        # 11-12 三星实测：别的收款员先收了同一张，点【确认】回了两遍「超过未收金额，请重新输入」
+        name = self.card()
+        with mock.patch.object(T.service, "reserved", return_value={"IV1": T.Decimal("1000")}):
+            self.tap(self.card_button("Confirm")["data"], event="evt-9")
+        text = self.last_text()
+        self.assertIn("Already collected. Current balance:", text)
+        self.assertIn("IV1 0.00", text)
+        self.assertNotIn("More than the amount due", text)
+        self.assertEqual(text.count("Already collected"), 1)
+        self.assertEqual(T.S.table("ERP Collection")[name]["status"], "draft")
 
     def test_the_confirm_button_releases_the_shown_version_with_the_event_as_consent(self):
         name = self.card()
