@@ -119,8 +119,11 @@ def api_create_sale(**kwargs):
 
 @frappe.whitelist()
 def api_list_sales(**kwargs):
+    from pearnly_erp_portal.express import waiting
+
     kwargs.pop("current_only", None)
-    return sales.list_sales(**_clean(kwargs))
+    # 收银小票列表的 Express 一栏是所在日汇总的状态：日汇总排队中、此刻在等 Express 关闭的小票多带只读的 ``ledger_waiting``
+    return waiting.mark("ERP POS Day Summary", sales.list_sales(**_clean(kwargs)), key="express_summary")
 
 
 @frappe.whitelist()

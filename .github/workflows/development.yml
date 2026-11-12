@@ -458,6 +458,8 @@ jobs:
         run: node tests/test-intake-status.cjs
       - name: Verify the Cowork intake list and detail say when a push waits for Express to close
         run: node --test tests/test-intake-push-waiting.cjs
+      - name: Verify the ERP lists and the Express dialog say when a queued document waits for Express to close
+        run: node --test tests/test-erp-express-waiting.cjs
       - name: Verify the push choice dialog puts suggested accounts first and saves only on Save
         run: node --test tests/test-push-choice-suggest.cjs
       - name: Verify Desk retry actions
