@@ -18,13 +18,23 @@ def _numbered(view: dict) -> list:
     return [{"n": index, **row} for index, row in enumerate(view.get("documents") or [], start=1)]
 
 
+def _worded(row: dict) -> dict:
+    """没录成的原因给模型的是产品给的那句话（``products.reason_text``，按当前语言），码放 ``reason_code``（测试机1 11-12：模型把
+    choice_needed:account_set 原样说给用户）；产品给不出话、或话就是原文的照原样。"""
+    from pearnly_core.express_operator import products
+
+    raw = str(row.get("reason") or "")
+    text = products.reason_text(raw) if raw else ""
+    return {**row, "reason": text, "reason_code": raw} if text and text != raw else row
+
+
 def status(tool_input) -> str:
     """任务的真实进度（以站点为准：先收尾一次）：各张的编号、状态、Express 单号、没录的原因。"""
     name = str((tool_input or {}).get("task") or "")
     view = tasks.read(name)
     if view["status"] not in ("preparing",) + tasks.FINAL:
         view = tasks.settle(name)
-    docs = _numbered(view)
+    docs = [_worded(row) for row in _numbered(view)]
     counts: dict = {}
     for row in docs:
         counts[row["state"]] = counts.get(row["state"], 0) + 1
@@ -69,7 +79,7 @@ TOOLS = [
      "label": "Checked the hands-on task",
      "description": "Read the Express entry task this conversation belongs to: overall status, the computer doing it, "
                     "and every document numbered from 1 in task order with its state (queued, saved, not_done, cancelled, "
-                    "skipped), the Express document number once saved, and the reason it was not entered. Use it to answer "
+                    "skipped), the Express document number once saved, and the reason it was not entered (in the user's words; reason_code is for you only). Use it to answer "
                     "questions such as how many were entered today or why document 2 was not entered. task is the id given "
                     "in the express_task note. next, when present, is what the user has to do now: tell them in plain "
                     "words.",
