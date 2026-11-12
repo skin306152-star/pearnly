@@ -57,6 +57,9 @@ PROCEDURE Main( cAction, cDir, cTable, cRec, cOut, cScheme, ... )
    BEGIN SEQUENCE WITH {| e | Break( e ) }
       USE ( cDir + "\" + cTable ) NEW SHARED VIA "DBFCDX"
       FWrite( n, "used=.T. lockscheme=" + LTrim( Str( dbInfo( DBI_LOCKSCHEME ) ) ) + " records=" + LTrim( Str( LastRec() ) ) + hb_eol() )
+      IF nRec == 0
+         nRec := LastRec()                 // 0 = 最后一行（计时用：复制表尾那一行）
+      ENDIF
       DO CASE
       CASE Upper( cAction ) == "CLONE"
          CloneAppend( n, nRec, aVals )
