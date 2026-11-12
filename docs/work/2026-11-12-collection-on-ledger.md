@@ -115,3 +115,12 @@ CC 桌面版窗口的本地提交 4e88e559f（`pearnly/cc-desktop-payload-3a2e3d
 | erp.page.collections / erp.page.my-collections / erp.line.webhook-sim / cc.desktop.write / erp.cc.write / erp.cc.stock-entry（auto） | 没测到：要实验栈，且要先有 wait-display，集成分支统一跑 |
 | erp.line.chat / erp.line.collection 真机、等 Express 三处显示、同期两本作答、科目余额标记（manual） | 没测到：真机清单（共享笔记「收款-接账套与等Express-真机清单-11-12.md」）交主会话排 |
 | 其余 manual 入口（POS、调拨、作废、主档、导航、开户等） | 没测到：本支没改它们的代码，只因 `payment_methods.py` 落在共用件路径上被列出；随集成分支全套流程 |
+
+## 8. 11-12 晚进度（集成分支 integration-1113 之后）
+
+- 收款 43 个提交已叠进 `pearnly/integration-1113`（42c2c707e）。闸门里 `test_erp_collection` 一次导入失败：查明机制是那一刻读 `express` 目录的
+  `stat` 与 `listdir` 同时出错、被 Python 导入器当成空目录（已在副本里逐字复现），代码与测试无关、无顺序依赖；已排除项、探针用法见共享笔记
+  「test_erp_collection-导入偶发失败-查因-11-12.md」，探针 `~/pearnly-devtools/import-probe/sitecustomize.py`。本分支没有为此改代码。
+- 11-13 真机回归照做清单：共享笔记「收款-接账套与等Express-真机清单-11-12.md」（同期两本、LINE 9 项、等 Express 三处显示、三语菜单、科目余额标记与重算）；
+  实验栈驱动 `~/pearnly-devtools/collection-lab/collect_lab.py`（只编译检查过，明天第 0 步先 `scan` 验）、开 Express 赊销单窗口 6 分钟的计划 `hold_iv.json`。
+- 科目余额那一节与 CC 桌面版验证窗口（local_becd0c1b）分工待回复。
