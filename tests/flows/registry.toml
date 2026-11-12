@@ -341,7 +341,7 @@ covers = [
 
 [[flow]]
 id = "erp.exports"
-title = "ERP 导出：销售 / 采购 / 库存 / 已过账盘点 / 班次 / 首页账本各点一次导出，走 POST、文件里有该有的单据（10-29 导出一律 POST）"
+title = "ERP 导出：销售 / 采购 / 库存 / 已过账盘点 / 班次 / 首页账本 / 收款各点一次导出，走 POST、文件里有该有的单据（10-29 导出一律 POST；收款 11-11）"
 module = "scripts/flows/erp_exports.py"
 start = "/desk/pearnly-home"
 user = "admin"
@@ -360,6 +360,7 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-shifts.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/output.py",
 ]
 
 [[flow]]
