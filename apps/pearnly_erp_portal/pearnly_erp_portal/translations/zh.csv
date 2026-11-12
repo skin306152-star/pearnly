@@ -426,6 +426,7 @@ Date (BE),日期（佛历）
 Date created (newest first),创建时间（最新优先）
 Date created (oldest first),创建时间（最早优先）
 Date must be in ascending order,“日期”必须从小到大
+Date outside the account set period,日期不在账套期间内
 Dates,日期
 Days later,天后
 Decided At,处理时间
@@ -2338,6 +2339,7 @@ express.reason.noWriter,没有能写此账套的电脑
 express.reason.offline,电脑离线
 express.reason.operatorOwned,单据在代录中
 express.reason.periodLocked,会计期间已在 Express 关账
+express.reason.periodOutside,日期不在账套期间内
 express.reason.posNetNegative,当天退货冲减后为负数
 express.reason.printedTotalMismatch,合计与票面合计不一致
 express.reason.printedTotalMissing,没有票面合计
