@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""写销货前照 Express 的负库存规则先核结存（出入库第一期，10-25）：账套 ``ISINFO.NEGALLOW = 'N'`` 或商品标了不许负时
+"""写销货前照 Express 的负库存规则先核结存（出入库第一期，10-25）：账套 ``ISINFO.NEGALLOW = 'N'``、账套设了扣成负库存要批准
+（``ISINFO.NEGAUTH`` 非空，11-12：按不许负库存核，回执带 ``approval``）或商品标了不许负时
 Express 自己录单会拦库存不足，CC 照写会把账写成 Express 不允许的负数。写前按 Express 结存核，不够就整单不写、回 :data:`ERR_STOCK_INSUFFICIENT`
 （服务端转人工，单据上显示原因）。
 
@@ -58,8 +59,27 @@ def _table_rows(account_dir, name: str, fields: Tuple[str, ...]) -> List[dict]:
 
 
 def negative_allowed(account_dir) -> bool:
-    rows = _table_rows(account_dir, "ISINFO", ("NEGALLOW",))
-    return not rows or rows[0]["NEGALLOW"].upper() != _NO
+    """这本账套我们能不能把库存写成负数：账套设了不许（``NEGALLOW = N``）不能；设了「扣成负库存要批准」（``NEGAUTH`` 非空）也不能
+    ——那一步批准只能有相应级别的人在 Express 界面上做，我们替不了（:func:`approval_needed`）。"""
+    rows = _table_rows(account_dir, "ISINFO", ("NEGALLOW", "NEGAUTH"))
+    return not rows or (rows[0]["NEGALLOW"].upper() != _NO and not rows[0]["NEGAUTH"])
+
+
+def approval_needed(account_dir) -> bool:
+    """账套允许负库存、但扣成负库存要某一级用户批准（``ISINFO.NEGAUTH`` 非空；Express 库存系统设置第 10 项「ตัดสินค้าติดลบ ขออนุมัติระดับ」，
+    原生 22.5% 的账套填了，覆盖表 9.3 / 9.5 节）。库存不足的回执据此带 ``approval``，两产品换成「需要批准」那一句。"""
+    rows = _table_rows(account_dir, "ISINFO", ("NEGALLOW", "NEGAUTH"))
+    return bool(rows) and rows[0]["NEGALLOW"].upper() != _NO and bool(rows[0]["NEGAUTH"])
+
+
+def refusal(account_dir, short: List[dict]):
+    """库存不足、整单不写的结果：原文（格式不变）+ 结构化明细 ``shortages`` + 是不是因为要批准 ``approval``。写销货、库存单、调拨、
+    作废共用这一个出口。"""
+    from .write_result import DbfWriteResult
+
+    rows = [{key: (_num(value) if isinstance(value, Decimal) else value) for key, value in item.items()} for item in short]
+    return DbfWriteResult(False, error_code=ERR_STOCK_INSUFFICIENT, error=message(short), shortages=rows,
+                          approval=approval_needed(account_dir))
 
 
 def by_warehouse(account_dir) -> bool:
@@ -195,4 +215,5 @@ def message(short: List[dict]) -> str:
         + (f" item {item['item']}" if item.get("item") else "") + (" new" if item.get("new") else "") for item in rows)
 
 
-__all__ = ["ALL_LOCATIONS", "ERR_STOCK_INSUFFICIENT", "by_warehouse", "message", "negative_allowed", "short_of", "shortages"]
+__all__ = ["ALL_LOCATIONS", "ERR_STOCK_INSUFFICIENT", "approval_needed", "by_warehouse", "message", "negative_allowed", "refusal",
+           "short_of", "shortages"]

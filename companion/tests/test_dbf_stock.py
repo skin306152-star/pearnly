@@ -395,3 +395,17 @@ def test_the_master_read_reports_the_default_account_of_each_stock_book(book):
     facts = express_masters._facts(book)
     assert facts["stock_books"] == {"OU": ISSUE_ACC, "JU": OFFSET_ACC, "TK": OFFSET_ACC}
     assert "ISRUN" in express_masters.TABLES
+
+
+def test_an_issue_that_would_go_negative_stops_when_the_book_needs_approval(book):
+    """扣成负库存要批准的账套（ISINFO.NEGAUTH 填了级别，11-12）：领用超过结存、新建物料的领用都不写，回执带 approval 与结构化的不足明细。"""
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", NEGALLOW="Y", NEGAUTH="5")
+    before = _state(book)
+    res = _write(book, _entry("OU", [_line("ICE01", 6)]))
+    assert not res.ok and res.error_code == stock_guard.ERR_STOCK_INSUFFICIENT and res.approval is True, (res.error_code, res.error)
+    assert res.shortages == [{"stkcod": "ICE01", "loccod": "01", "need": "6", "have": "5"}]
+    res = _write(book, _entry("OU", [_new("ถ่านอัดแท่ง", 2)], payload_version=15))
+    assert not res.ok and res.approval is True and "ถ่านอัดแท่ง" in res.error and "have 0" in res.error
+    assert res.shortages[0]["need"] == "2" and res.shortages[0]["have"] == "0"
+    assert _state(book) == before
+    assert _write(book, _entry("OU", [_line("ICE01", 5)])).ok

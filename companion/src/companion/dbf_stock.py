@@ -322,7 +322,7 @@ def write_stock_entry(
     short = stock_guard.shortages(account_dir, _guard_items(doctype, items), locations, new_rows=False) or new_item_shortages(
         account_dir, items, found, lambda item: kind == ISSUE or _dec(item.get("qty")) < 0, str(payload.get("loccod") or ""))
     if short:
-        return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short))
+        return stock_guard.refusal(account_dir, short)
     remark = _fit(payload.get("remark") or "", 50)
     clock.lap("checks")
     backup_dir = _backup(account_dir, TABLES + stock_location_tables(locations) + dbf_remarks.tables(items)) \

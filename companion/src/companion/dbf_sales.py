@@ -283,8 +283,7 @@ def write_sale(
     short = stock_guard.shortages(account_dir, entry.items, locations,
                                   new_rows=entry.items_status == "ok" and bool(entry.items))
     if short:
-        return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short),
-                              shortages=short)
+        return stock_guard.refusal(account_dir, short)
     # 引导模式：原来「缺了就用默认值写」的情形（单位对不上、出库没有成本基础、现金科目不能记账）整单不写，带候选回去出题。
     # 负库存先核（上面），过了才问单位与成本
     refusal = guided.choices_needed(account_dir, payload, guided.STOCK_OUT)

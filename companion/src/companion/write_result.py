@@ -44,6 +44,9 @@ class DbfWriteResult:
     # 库存不足（``STOCK_INSUFFICIENT``）的结构化明细 ``[{stkcod, loccod, need, have, name?, new?}]``（``stock_guard``；随单新建的物料
     # 没有物料码，带品名与 new），随 ack meta.shortages 回云端；原文 ``error`` 的格式不变。别的路径恒 None。
     shortages: Optional[list] = None
+    # 库存不足是因为这本账套「扣成负库存要批准」（``ISINFO.NEGAUTH`` 非空，``stock_guard.approval_needed``）：随 ack meta.approval 回云端，
+    # 两产品据此显示「需要批准」那一句。别的路径恒 False。
+    approval: bool = False
 
     @property
     def written(self) -> bool:

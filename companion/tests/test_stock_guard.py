@@ -264,3 +264,38 @@ def test_a_book_that_allows_negative_stock_writes_an_item_marked_no_only_when_it
     res = _sell(acct, _sale([_item("ICE01", 6, 180.0, "stock_sale")]))
     assert not res.ok and "ICE01@01 need 6 have 5" in res.error
     assert _sell(acct, _sale([_item("ICE01", 5, 150.0, "stock_sale")])).ok
+
+
+# ---------------- 扣成负库存要批准（ISINFO.NEGAUTH，覆盖表 D-7，主会话 11-12：并进 G-B6，所有入口） ----------------
+
+
+def test_a_book_that_needs_approval_for_negative_stock_is_checked_like_one_that_forbids_it(acct):
+    """Express 库存系统设置第 10 项「ตัดสินค้าติดลบ ขออนุมัติระดับ」（ISINFO.NEGAUTH）填了级别：允许负库存，但要这个级别的人在界面上批准
+    （原生 22.5% 的账套填了）。我们没法替人批准 → 按「不许负库存」核，整单不写；回执带 approval（两产品据此说「需要批准」）。"""
+    isinfo(acct, MAINLOC="01", NEGALLOW="Y", NEGAUTH="5")
+    assert not stock_guard.negative_allowed(acct) and stock_guard.approval_needed(acct)
+    before = _state(acct)
+    res = _sell(acct, _sale([_item("ICE01", 6, 180.0, "stock_sale")]), make_backup=True)
+    assert not res.ok and res.error_code == stock_guard.ERR_STOCK_INSUFFICIENT and res.approval is True
+    assert res.error == "not enough stock in Express (negative stock not allowed): ICE01@01 need 6 have 5"  # 原文格式不变
+    assert res.shortages == [{"stkcod": "ICE01", "loccod": "01", "need": "6", "have": "5"}]
+    assert _state(acct) == before
+    meta = worker._push_meta(res, "sales", str(acct))
+    assert meta["approval"] is True and meta["shortages"] == res.shortages
+    new = _sell(acct, _sale([dict(_NEW_ITEM)]))  # 随单新建的物料：结存 0，同样要批准
+    assert not new.ok and new.approval is True and new.shortages[0]["new"] is True
+    enough = _sell(acct, _sale([_item("ICE01", 5, 150.0, "stock_sale")]))
+    assert enough.ok, enough.error  # 够卖：照写
+    assert "approval" not in worker._push_meta(enough, "sales", str(acct))
+
+
+def test_approval_is_only_reported_when_it_is_the_reason(acct):
+    """账套本身不许负库存（NEGALLOW = N）：不是批准的事，不带 approval；没填级别的账套照旧允许负库存。"""
+    isinfo(acct, MAINLOC="01", NEGALLOW="N", NEGAUTH="5")
+    res = _sell(acct, _sale([_item("ICE01", 6, 180.0, "stock_sale")]))
+    assert not res.ok and res.approval is False and not stock_guard.approval_needed(acct)
+    assert "approval" not in worker._push_meta(res, "sales", str(acct))
+    for blank in ({"NEGAUTH": ""}, {}):
+        isinfo(acct, MAINLOC="01", NEGALLOW="Y", **blank)
+        assert stock_guard.negative_allowed(acct) and not stock_guard.approval_needed(acct)
+    assert _sell(acct, _sale([_item("ICE01", 6, 180.0, "stock_sale")])).ok
