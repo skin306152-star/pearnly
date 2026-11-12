@@ -17,6 +17,9 @@ from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
+_spec = importlib.util.spec_from_file_location("local_file_for_requests", ROOT / "apps/pearnly_core/pearnly_core/originals/local_file.py")
+local_file = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(local_file)
 
 
 def _load(name, path):
@@ -898,6 +901,7 @@ class FetchServiceTests(unittest.TestCase):
             and {"request": "r%d" % len(self.created), "status": "requested"},
             status=lambda request: self.statuses[request],
             result=lambda request: self.results[request],
+            result_file=self._result_file,
             drop=self.dropped.append)
         self.agent_state = {"version": "1.5.0", "roots": [{"id": "root1", "label": "D:\\Clients", "folders": []}]}
         self.devices_asked = []
@@ -1004,10 +1008,22 @@ class FetchServiceTests(unittest.TestCase):
         with self.assertRaises(self.frappe.ValidationError):
             self.fetch.listing("r2")  # 解开过大的不收
 
+    def _result_file(self, request):
+        """同 `request_service.result_file`：结果在磁盘上那份（11-12 起取进对话不读进内存，ADR-028 第 2 步）。"""
+        import tempfile
+
+        content, meta = self.results[request]
+        handle = tempfile.NamedTemporaryFile(delete=False)
+        handle.write(content)
+        handle.close()
+        self.addCleanup(os.remove, handle.name)
+        return local_file.LocalFile(handle.name), meta
+
     def test_content_takes_its_name_from_the_requested_path(self):
         self.statuses["r1"] = {"status": "done", "params": {"root_id": "root1", "path": "ACME\\bank\\kbank.pdf"}}
         self.results["r1"] = (b"%PDF", {"name": "..\\evil.exe"})
-        self.assertEqual(self.fetch.content("r1"), ("kbank.pdf", b"%PDF"))
+        name, content = self.fetch.content("r1")
+        self.assertEqual((name, content.read()), ("kbank.pdf", b"%PDF"))
         self.assertEqual(self.dropped, ["r1"])
 
 
