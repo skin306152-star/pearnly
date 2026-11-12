@@ -75,6 +75,57 @@
 | e | 先拷到本地操作再整体写回 | — | **整文件写回不可行**：会把这期间别人写的内容盖掉，且写回量与表大小成正比 | 改成「本机算、只把改动的字节写回、写前逐段比对原值、写回期间独占」才可行——这就是推荐方案 |
 | f | 重复工作 | — | — | ARTRN 一张单读 8 遍、ARMAS 4 遍；科目表 / ISINFO 每次查询各开一次；重建程序每表起一次进程。会话化后自然消除，不单独打补丁 |
 
+### 4.2 有没有更小的改法能拿到大部分收益（主会话 11-12 要求的对照）
+
+折算用的速率都来自 §1.2 的实测：整文件拷贝约 1.7 MB/s（53 MB / 31 秒）；Python 逐行读约 1.2 MB/s（检查段约 25 MB / 16–27 秒）。下面的秒数全是【推算】，收款 RE、NLTTEST、测试机到 accserver。
+
+**a. 备份改成服务器端复制（数据不过网络）**
+
+- 现状【代码】：`_backup` 用 `shutil.copy2`（`dbf_writer.py:241`）拷到本机（`_local_backup_root`，`dbf_writer.py:201`）。CC 用 Python 3.11（`companion/packaging/build.ps1:6`），3.11 的 `shutil` 在 Windows 上是「读进本进程再写出」（`_copyfileobj_readinto`，本机 3.11 源码核对过，没有调用系统的 CopyFile）。所以 9-28「备份放账套旁 5.6–7.4 秒、放本机更快」（`dbf_writer.py:195`）量到的是数据过两次网络的拷法，**服务器端复制从来没试过**。
+- 要成立需要：改用系统复制接口、备份放回客户服务器的共享目录里、服务器与这条连接支持服务器端复制。accserver 的 SMB 版本没查到，代码注释里写的是「老旧 SMB1」（`account_lock.py:6`）。**能省多少没有实测**，成立时备份 44–62 秒 → 估计几秒，不成立时不变。第 0 步加一项实测（M6）才能下结论。
+- 代价：备份文件回到客户服务器上（9-28 特意挪走的）；回滚的整文件还原同样依赖它。
+
+**b. 检查与读回按记录定位读，不整表取回**
+
+ARTRN 的 8 遍逐遍看【代码】：
+
+| # | 位置 | 干什么 | 能否不整表读 |
+|---|---|---|---|
+| 1 | `dbf_receipt.py:274` `existing` | 按客户 + 收款记录号找已写过的 RE | 要看全表；可与 2、4 合成一遍 |
+| 2 | `dbf_receipt.py:287` `invoice_state` | 找要收的发票、当前余额 | 同上，合并 |
+| 3 | `dbf_writer.py:219` `_backup` | 整表备份 | 见 a |
+| 4 | `dbf_receipt.py:388` `_next_docnum` | 收集用过的单号 | 同上，合并 |
+| 5 | `dbf_receipt.py:543` | 改发票余额时再找一遍发票行 | **可直接消掉**：行号第 2 遍已知，按行号读写 |
+| 6 | `cdx_reindex.py:145` | 整表重建索引 | 不能（见 c） |
+| 7 | `dbf_receipt.py:663` `appended` | 读回本次追加的单头 | **可直接消掉**：只读追加的尾部 |
+| 8 | `dbf_receipt.py:689` | 读回发票余额 | **可直接消掉**：按行号读 |
+
+- 直接可消 3 遍（5、7、8），1、2、4 合并再省 2 遍，ARTRN 从 8 遍降到 3 遍（合并扫描、备份、重建）。ARMAS 现在读 5 遍（`dbf_receipt.py:460`、`:375`、`:615`、`:484` + 备份）可降到 2 遍；GLJNLIT 读回（`:679`）改只读尾部，3 遍降到 2 遍；ARBAL 找客户行仍要扫一遍。
+- 省下约 75–80 MB 的 Python 读取，约 60–70 秒。**只做 b：单张约 145–170 秒。**
+- 想连那一遍合并扫描也省掉，就得改用 Express 的索引定位（现有重建程序的 `SEEK` 能回行号）。但这改变了查找的语义（软删行、同号多行、键补空格），每一处都要单独证明与现在等价，不属于「零影响」的改法。
+
+**a + b 合计**：a 成立时约 60–85 秒（检查约 15 + 备份约 5 + 写入约 10 + 重建 28–52 + 读回约 2）；a 不成立时约 100–140 秒。
+
+**c. 只剩「重建索引必须整表读」时**：约 30–55 秒（重建 28–52 + 其余几秒）。要到这个数，除了重建以外的每一次查找都得走索引、备份只备改动部分——等于把 b 的语义改动做到底。
+
+**与「会话 + 差异回写」对比**
+
+| | a + b | 会话 + 差异回写 |
+|---|---|---|
+| 收款单张 | 约 60–85 秒（a 没实测，不成立则 100–140） | 约 75–95 秒（第 1a 步，索引仍在远端重建）→ 约 45–50 秒（第 1b 步） |
+| 150 张 | 约 2.5–3.5 小时，批量仍要另做 | 第 3 步后约 10–15 分钟 |
+| 改到哪 | 只做收款：`dbf_receipt.py` 的检查、写入、读回重排 + 备份函数。**按类全做：七条写路及其辅助模块里约 97 处整表遍历**（`dbf_*.py`、`master_create.py`、`account_rules.py`、`product_master.py`、`stock_*.py` 等）逐处改记账代码的查找 | 记账代码 0 处；新增一层共用设施（取原件、回写、回写日志） |
+| 怎么证明没改结果 | 每处查找单独证明等价 + 回放 | 构造上同一份代码同一份输入，回放逐字节比对一次证明全部写路 |
+| 新增的风险 | 逐处改查找时漏掉软删行 / 同号行这类边角；备份回到客户服务器 | 回写中断（靠回写日志还原）、独占句柄在网络盘上的行为、本机磁盘空间 |
+| 会不会被后一步覆盖 | 会：批量（第 3 步）建立在会话上，b 改过的查找届时都改在本机跑，a 的服务器端备份不再需要 | 不会 |
+
+**结论：不先做 a + b，照会话方案，但把会话方案自己拆成风险最小的先上。** 依据：
+1. a + b 要到「1 分钟上下」取决于 a，而 a 没有任何实测、且很可能受 accserver 的 SMB 版本限制；只有 b 是 145–170 秒，差得远。
+2. 改动面并不更小：只做收款违反按类口径，按类做是 97 处记账代码的手工修改，出错点比会话方案多，且无法用一次逐字节回放整体证明。
+3. 做完仍解决不了 150 张（仍要批量），而批量会把 a + b 的改动盖掉，属于「过渡版」。
+4. 会话方案里风险最大的一块是「本机重建索引再回写 CDX」，所以拆开：**第 1a 步只回写 DBF 的差异，索引照现在的做法在远端整表重建**（索引处理与今天完全相同，单张约 75–95 秒）；回放证明本机重建与远端重建的 CDX 逐字节相同之后，才上**第 1b 步**（约 45–50 秒）。
+5. 若 M6 实测服务器端复制有效，它可以直接用在会话方案的「取原件」上吗——不能，取原件要把数据拿到本机；所以 a 的结果只影响「要不要 a + b」，不改变上面的结论，除非 M1 发现链路本身有毛病、修好后现状就够快（见 §14-1）。
+
 ## 5. 隔离与权限（并发与正确性）
 
 现有保护【代码】：
@@ -91,6 +142,41 @@
 - 暴露窗口从 3–4 分钟缩到几秒。
 - 批量：整批在一把 `PEARNLY.LCK` 内，别的电脑等；Express 中途打开 → 回写时独占拿不到 → 整批退回「等账套」，没有半批落盘。
 - 只备份改动部分（b）：在「回写期间独占 + 逐段比对」之下恢复是精确的；没有这两条时不安全（别人追加过行，截回原长度会删掉别人的行），所以不单独做 b。
+
+### 5.1 现状：有人开着这本账套的 Express 时，直写只能等（主会话 11-12 要求写准）
+
+以下全部【代码】，没有实测；收款部分看的是分支 `pearnly/collection-cc-chat`（未合入）。
+
+**怎么判定「开着」**
+- 有人值守的单：写前独占试开 `ISRUN.DBF`，打不开就不写（`companion/src/companion/gui_tray_workers.py:208`、`account_lock.py:37`）。
+- 无人值守的单（定时任务、自动推、录入人没在这台电脑登录过 CC——**LINE 上收款员录的收款属于这一类**；判定 `gui_tray_workers.py:116`，服务端算法 `apps/pearnly_core/pearnly_core/cc_desktop/wire/route_contracts.py:277`）：不探，直接照常「备份 → 写 → 重建索引」，到重建索引拿不到独占才发现（`dbf_writer.py:757`；重建程序单表最多等 90 秒，`cdx_reindex.py:30`），然后整单回滚、回报「等账套」。
+
+**等待期间单子是什么状态**
+- 服务端规则：回到待领，尝试次数不加（`apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py:100`）。Cowork 推送记录 `status = pending`、原因清空、失败次数不加（`apps/pearnly_cowork/pearnly_cowork/push/native/service.py:906`）；ERP 任务 `status = queued`、原因清空、不再钉在原来那台电脑（`apps/pearnly_core/pearnly_core/cc_desktop/jobs.py:370`）。
+- **没有次数上限，也没有时间上限**：Express 开一整天，单子就等一整天，不会转失败、不会转人工（上限只管普通失败，3 次，`ack_rules.py:12`、`:109`）。
+
+**多久重试一次**
+- 服务端没有冷却，放回即可再领。CC 这边只有「一整轮什么都没领到」才睡 3 秒；领到过任务的轮次不睡，立刻再领（`companion/src/companion/multi_profile_worker.py:361`、`config.py:57`）。
+- 所以**无人值守的单在 Express 开着期间是连续重试**：每一轮都完整做一遍 备份 → 写 → 重建失败 → 整表回滚 → 回报 → 立刻再领。按现在的速度，一轮几分钟，整天不停地经网络盘搬整表，并且每轮都在别人开着 Express 时把整张表写回去一次（§5「现状的薄弱处」）。这是比慢更需要先处理的一点，见 §12-6。
+- 有人值守的单：弹框后一直等人点，没有超时（`gui_tray_workers.py:122`）；等待期间这条取任务线程不处理别的单。
+
+**Express 关了之后多久写进去**
+- 无人值守：正在进行的那一轮失败尝试做完（最坏含 90 秒超时 + 回滚）→ 立刻再领 → 一次正常写入。按现状约几分钟【推算】；提速后相应缩短。
+- 有人值守：要有人在那台电脑上点「重试」才写；没人点就一直不写。点了之后立刻再领、探测通过即写。
+
+**用户各处看到什么**
+
+| 位置 | 看到的 | 依据 |
+|---|---|---|
+| 装 CC 的电脑（有人值守） | 弹框「账套正被占用」：「账套正被 Express 占用。关闭正在使用该账套的 Express 后点击「重试」，或点击「终止推送」。」点「终止」= 这张按失败回报 | `companion/src/companion/i18n.py:295`–`303`、`gui_tray_workers.py:150` |
+| 装 CC 的电脑托盘 | 橙黄色「正在等待 Express 释放账套…」 | `i18n.py:288`、`gui_tray.py:47` |
+| Cowork 网页 | 「录入中」，没有任何「等账套」字样 | `apps/pearnly_cowork/pearnly_cowork/history/push_state.py:61` |
+| ERP 网页（采购、销售、库存） | 「排队中」，同样看不出原因 | `apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py:585` |
+| LINE 收款 | 放行后等 20 秒，等不到回「已记录 · 待写入」+【撤回】；之后只有写成 / 失败才推送，**等账套期间没有任何消息** | 收款分支 `integrations/line_collection.py:41`、`:804`，`collection/push.py:114` |
+| 「我的收款」页 / 收款记录 | 「待写入」，原因为空 | 收款分支 `collection/push.py:84` |
+| CC 对话（直写） | 最多等 25 秒，回「已排队」类说明，说明里只提 CC 桌面版可能离线，没提 Express 开着；普通单据写成后会补一句，收款这条现在不会补 | `apps/pearnly_core/pearnly_core/assistant/direct_push.py:27`、收款分支 `collection/cc_tools.py:47` |
+
+- 「Express 正在使用此账套，关闭后将自动推送」这条文案两边都有（`apps/pearnly_cowork/pearnly_cowork/i18n/messages.tsv:1467`、`apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv:1388`），但等账套时原因被清空，**按代码它显示不出来**。也就是说：除了装 CC 那台电脑的弹框和托盘，网页、LINE、CC 对话上的人都不知道单子是在等 Express 关闭。
 
 ## 6. 入口：网页、手机、LINE、拍照
 
@@ -136,8 +222,9 @@
 
 | 步 | 内容 | 写代码 | 机器跑 | 等人 | 单张【推算】 | 150 张【推算】 |
 |---|---|---|---|---|---|---|
-| 0 | 测试机只读测量（M1–M4）+ 实验 E | 1 小时 | 1 小时 | 等主会话排测试机 | — | — |
-| 1 | 会话 + 差异回写 + 回写日志 + 断电恢复（全部写路） | 6–8 小时 | 回放 2–3 小时、测试机实写 2 小时 | 排测试机 | 约 45–50 秒（取原件 31 + 本机 3–6 + 回写与读回 5–10） | 约 2 小时 |
+| 0 | 测试机只读测量（M1–M4）；之后另排 M5、M6、实验 E | 1 小时 | 1 小时 | 等主会话排测试机 | — | — |
+| 1a | 会话 + 只回写 DBF 差异 + 回写日志 + 断电恢复（全部写路）；索引照现在在远端整表重建 | 5–7 小时 | 回放 2–3 小时、测试机实写 2 小时 | 排测试机 | 约 75–95 秒（取原件 31 + 本机 3–6 + 回写 2 + 远端重建 28–52 + 读回 2） | 约 3–4 小时 |
+| 1b | 索引在本机重建、只回写 CDX 变了的页（先由回放证明本机与远端重建逐字节相同） | 2–3 小时 | 回放 1 小时、测试机 1 小时 | 排测试机 | 约 45–50 秒 | 约 2 小时 |
 | 2 | 本机镜像：原件常驻，写前只核对指纹（长度、修改时间、变更时间、表头）+ 补读新增的尾部，不再整表取 | 4–6 小时 | 故障注入 3 小时 | 排测试机 | 约 8–20 秒 | 约 20–50 分钟 |
 | 3 | 批量：同一本账套连续的单共用一次会话，一次回写 | 3–4 小时（另加服务端领取接口，若要改） | 2 小时 | 接口约定要主会话审 | 不变 | 约 10–15 分钟 |
 
@@ -151,13 +238,41 @@
 - R3：`companion/tests` 全套 + `tests/test_companion_contract.py`。
 - 注意：重建程序是 Windows exe，本机 Mac 跑不了真重建；R1 的 CDX 比对要在 Windows（测试机或 CI 的 Windows runner）上跑，本机只能比 DBF。
 
-**需要测试机的步骤（交主会话排时间；先登记占用表；accserver 21:00 前）**
-- M1（只读，10 分钟）：测试机 PowerShell `Get-SmbConnection` 看到 accserver 的 SMB 版本；网卡协商速率；`robocopy` 一个 50 MB 文件来回各一次量读、写速度。目的：弄清 1.7 MB/s 是这条链路特有还是普遍。
-- M2（只读）：对 `70EXP\test` 与 NLTTEST 各表跑一次 `TAGS`（需独占，Express 关着时），存下全部标签名与键表达式。
-- M3（写，仅 `C:\PearnlyExpress` 副本）：正式 CC 往 C 盘账套写采购、销售、收款各 3 张，取 `[timing]`，得到「本机盘现状」基线。
-- M4（写，仅 `\\accserver\d$\ACCOUNT\70EXP\test`）：同样 9 张，取 SMB 基线（test 本要先按收款交接里的「合格测试账套」备好期间与客户）。
-- 实验 E（写，仅 C 盘副本）：同一份账套复制两份，一份 Express 界面录一张单，一份用 Harbour 共享打开追加同样的行，比两份 CDX；只为回答做法 d，不过就永久搁置 d。
-- 施工后 V1：新 CC（测试版，不发正式）重跑 M3、M4 同样 9 张 + 一批 30 张收款，分段计时对比；Express 界面逐张打开、跑应收明细表与试算表截图。
+**第 0 步：测试机只读测量清单（交主会话排在收款窗口之后；先登记占用表；accserver 21:00 前；不启动 / 不重启 CC，不开 Express，不写任何账套）**
+
+在测试机以 skin3 开 PowerShell（隐藏窗口 / 远程执行均可），结果存 `C:\PearnlyStress\_speed1112\`（本机目录，测完可删）。先建目录：`New-Item -ItemType Directory -Force C:\PearnlyStress\_speed1112 | Out-Null`。
+
+M1 链路为什么慢（全部只读）：
+1. SMB 版本与签名：`Get-SmbConnection | Format-List ServerName,ShareName,Dialect,Signed,Encrypted,UserName`（没有 accserver 那行就先 `Get-ChildItem \\accserver\d$\ACCOUNT\70EXP\test\ISRUN.DBF` 再查）。`Dialect` 1.x = 老协议，本身就慢且没有服务器端复制。
+2. 客户端签名设置：`Get-SmbClientConfiguration | Format-List RequireSecuritySignature,EnableSecuritySignature,EnableLargeMtu,EnableBandwidthThrottling`。
+3. 网卡：`Get-NetAdapter | Format-Table Name,InterfaceDescription,Status,LinkSpeed,MediaType,PhysicalMediaType`（看走有线还是无线、协商到 100 Mbps 还是 1 Gbps）；`Get-NetRoute -DestinationPrefix 0.0.0.0/0 | Format-Table InterfaceAlias,NextHop,RouteMetric`。
+4. 延迟与丢包：`Test-Connection accserver -Count 50 | Measure-Object ResponseTime -Average -Maximum`；`ping -n 20 -l 1400 accserver`。
+5. 杀毒实时扫描：`Get-MpComputerStatus | Format-List AntivirusEnabled,RealTimeProtectionEnabled,OnAccessProtectionEnabled`；`Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct | Format-Table displayName,productState`。只看不改。
+6. 读速度，大块与小块各三次（只读打开源文件，写到本机）：
+   ```powershell
+   $src='\\accserver\d$\ACCOUNT\69EXP\NLTTEST\GLJNLIT.DBF'
+   foreach($buf in 1MB,8KB){ 1..3 | % { $sw=[Diagnostics.Stopwatch]::StartNew(); $f=[IO.File]::Open($src,'Open','Read','ReadWrite'); $b=New-Object byte[] $buf; $n=0; while(($r=$f.Read($b,0,$buf)) -gt 0){$n+=$r}; $f.Close(); "{0} bytes buf={1} {2:n2}s {3:n2} MB/s" -f $n,$buf,$sw.Elapsed.TotalSeconds,($n/1MB/$sw.Elapsed.TotalSeconds) } }
+   ```
+   （`FileStream` 自带缓冲，8 KB 那组近似 Python 的读法。）
+7. 对照另一条线：同一段脚本在录制用笔记本（rec-laptop）上对 accserver 跑一次；测试机上对任意另一台电脑的共享文件跑一次。两台都慢 = accserver 或它的网络慢；只有测试机慢 = 测试机这条线的问题。
+
+M2 现成日志里的基线（只读）：`Select-String -Path "$env:LOCALAPPDATA\Pearnly\logs\companion*.log","$env:APPDATA\Pearnly\*.log" -Pattern '\[timing\]' | Select-Object -Last 400 | Out-File C:\PearnlyStress\_speed1112\timing.txt`（日志实际位置以测试机为准）。里面有历史上采购 / 销售 / 收款写 C 盘账套与网络账套的分段计时，不用新写一张单就能得到「本机盘现状几秒」「采购销售在网络盘几秒」。
+
+M3 账套规模（只读列目录）：
+```powershell
+Get-ChildItem '\\accserver\d$\ACCOUNT\70EXP','\\accserver\d$\ACCOUNT\69EXP' -Directory | % { $d=$_; Get-ChildItem "$($d.FullName)\*" -File -Include ARTRN.*,APTRN.*,GLJNL.*,GLJNLIT.*,ARBAL.*,APBAL.*,ARMAS.*,APMAS.*,STCRD.*,STMAS.*,ISVAT.* | Select @{n='set';e={$d.Name}},Name,Length } | Export-Csv C:\PearnlyStress\_speed1112\sizes.csv -NoTypeInformation
+```
+用来知道真实账套的表一般多大（NLTTEST 是否偏大）。
+
+M4 索引标签（只读，但重建程序是独占打开，**只对 `C:\PearnlyExpress` 下的副本跑**，不碰 accserver）：对一本 C 盘账套的 ARTRN、APTRN、GLJNL、GLJNLIT、ARBAL、APBAL、ARMAS、APMAS、ISRUN、ARRCPIT、ARRCPCQ 各跑
+`& "$env:LOCALAPPDATA\Programs\CC\cdx_reindex_runner.exe" TAGS <账套目录> <表> x x C:\PearnlyStress\_speed1112\tags_<表>.log`，存下标签名与键表达式。
+
+**需要写入的步骤（第 0 步之后另排；只限 `C:\PearnlyExpress` 副本与 `\\accserver\d$\ACCOUNT\70EXP\test`）**
+- M5 写速度：在 `70EXP\test` 里建一个 50 MB 的 `_m5_probe.bin`、读回、删除，各计时。
+- M6 服务器端复制：`cmd /c copy \\accserver\d$\ACCOUNT\70EXP\test\GLJNLIT.DBF \\accserver\d$\ACCOUNT\70EXP\test\_m6_probe.tmp` 计时三次后删除；明显快于 M1-6 的读速度 = 服务器端复制有效。
+- 实验 E（仅 C 盘副本）：同一份账套复制两份，一份 Express 界面录一张单，一份用 Harbour 共享打开追加同样的行，比两份 CDX；只为回答做法 d，不过就永久搁置 d。
+- 基线实写（M2 的日志不够用时才做）：正式 CC 往 C 盘副本与 `70EXP\\test` 各写采购、销售、收款 3 张，取 `[timing]`。
+- 施工后 V1：新 CC（测试版，不发正式）在 C 盘副本与 `70EXP\\test` 各写同样 9 张 + 一批 30 张收款，分段计时对比；Express 界面逐张打开、跑应收明细表与试算表截图。
 - 故障注入（仅 C 盘副本与 `70EXP\test`）：
   - F1 回写到一半杀掉 CC 进程 → 重启后自动还原，账套文件与写前逐字节相同。
   - F2 回写到一半断网（禁用网卡）→ 恢复网络后同上。
@@ -170,24 +285,30 @@
 
 | # | 问题 | 我的建议 | 不定的影响 |
 |---|---|---|---|
-| 1 | 是否按「第 0 → 1 → 3 步」开工 | 是；第 1 步是零影响的结构改动，第 3 步解决 150 张 | 不做则维持每张 3–4 分钟 |
+| 1 | 是否按「第 0 → 1 → 3 步」开工 | 主会话 11-12 已同意 | — |
 | 2 | 第 2 步（本机镜像，单张进 20 秒）做不做 | 等第 1 步上线 + F4 结果再定；不过 F4 不做 | 不做则 LINE 多数走「已记录、稍后推送」，推送条数多（官方号额度） |
 | 3 | 批量时回单号要等整批回写完（每批几张到几十张、等十几秒到几分钟），可否 | 可以；每批封顶 20 张或 30 秒 | 不接受则只能逐张，150 张约 2 小时（第 1 步）或 20–50 分钟（第 2 步） |
 | 4 | 大米客户的账套放在哪（CC 本机盘 / 局域网服务器）、ARTRN 与 GLJNLIT 多大 | 请主会话转问；本机盘的话第 1 步收益小、第 3 步仍有用 | 推算数字都按 NLTTEST + accserver 链路，换环境会变 |
-| 5 | 这家客户白天是否一直开着 Express | 必须问：开着就写不进去（现状如此，§5），提速解决不了 | 白天收款全部排到 Express 关闭后才写 |
+| 5 | 这家客户白天是否一直开着 Express | 主会话转用户。开着就写不进去（§5.1），提速解决不了 | 白天收款全部排到 Express 关闭后才写 |
+| 6 | 无人值守的单在 Express 开着时连续「备份 → 写 → 回滚」不停重试（§5.1），要不要先加「写前先探、占用就不动账套」+ 重试间隔 | 建议并入第 1a 步：会话方案在取原件前先探、回写时才独占，占用时一个字节不写；重试间隔另定 | 不处理则 LINE 收款上线后，Express 开着的每个白天 CC 都在整天搬表并反复整表回写 |
+| 7 | 等账套时网页 / LINE / CC 对话都看不出原因（§5.1） | 属文案与状态显示，不在本评估范围，单列给主会话排 | 用户以为卡住 |
 
 ## 13. 工作量与排期
 
-顺序：第 0 步（测量 + 实验 E）→ 第 1 步 → 回放与测试机验证 → 第 3 步 →（定了再做）第 2 步。合计写代码 14–19 小时、机器跑 8–10 小时，另加排测试机的等待。只有第 1 步通过 R1 逐字节比对才进下一步。
+主会话 11-12 已定：第 0 步 → 第 1 步 → 第 3 步；第 2 步等第 1 步上线和故障注入结果再定；批量每批封顶 20 张或 30 秒、单号等整批回写完才回；LINE「先回已记录、写完补结果」保留。
+
+顺序：第 0 步 → 第 1a 步 → 回放与测试机验证 → 第 1b 步 → 第 3 步 →（定了再做）第 2 步。合计写代码 15–20 小时、机器跑 9–11 小时，另加排测试机的等待。每一步通过 R1 逐字节比对才进下一步。
 
 ## 14. 没查到的（不下结论）
 
 1. 测试机到 accserver 为什么只有约 1.7 MB/s（SMB 版本、网卡速率）；别的客户局域网是否同样慢（M1）。
-2. 网络盘**写**的速度（现有计时里没有单独的写入量；回滚没实测过）。
-3. 账套在本机盘时现状一张要几秒（M3）；采购 / 销售在 SMB 上的分段计时（收款窗口只量了收款，9-28 压测只有小账套「约 10 秒、每第三张 30–35 秒」，`docs/work/2026-09-28-express-intake-stress.md:144`）。
+2. 网络盘**写**的速度（现有计时里没有单独的写入量；回滚没实测过；M5）；服务器端复制是否有效（M6）。
+3. 账套在本机盘时现状一张要几秒（M2 的现成日志）；采购 / 销售在 SMB 上的分段计时（收款窗口只量了收款，9-28 压测只有小账套「约 10 秒、每第三张 30–35 秒」，`docs/work/2026-09-28-express-intake-stress.md:144`）。
 4. 重建后 CDX 与重建前相比变了多少页（决定第 1 步回写量，推算按最坏整份 8 MB）。
 5. 本机重建与远端重建的 CDX 是否逐字节相同（R1 在 Windows 上验证；不同则第 1 步改为「回写 DBF 差异 + 远端重建」，单张约 75–95 秒【推算】）。
 6. Harbour 增量维护的 CDX 与 Express 是否一致（实验 E）。
-7. 各表标签的键表达式（M2）；本评估没有逐表列出。
+7. 各表标签的键表达式（M4）；本评估没有逐表列出。
 8. 服务端领取接口是否允许同一台电脑同时持多张任务（第 3 步前读 `apps/pearnly_cowork/pearnly_cowork/companion/queue_api.py`）。
 9. 大米客户的环境（§12-4、5）。
+10. 一次写入超过任务租约（旧通道 120 秒，`ack_rules.py:11`）时服务端怎么处理——现在一张收款 200 多秒已经超过，没核对后果。
+11. §5.1 全部来自读代码，没有在测试机上实际开着 Express 观察过一轮。
