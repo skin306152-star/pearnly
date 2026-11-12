@@ -10,14 +10,16 @@
   知识库、待处理都调它）与 `SECTIONS`（这个产品有哪些分区，页面只出声明了的；前端不按产品名分支）。
 - 实时事件 `pearnly.project` 经 `sidebar.project` 在提交后逐人推（`announce`）：对话改月份、分店（`move`，用户 10-17 起不能
   换公司）、删公司时回到「最近」只推会话主人；产品那一项建、改、删由产品挑要推的人。
-- 依赖方向：`sessions` → `projects` → `sidebar`；本模块不导入 `sessions`、`relay`。
+- 本对话账套（`ledger`，A 线 11-12）：产品声明了 `LEDGER` 时，说明（`note`）在产品公司说明后接共用层的账套说明段（含当前账套，
+  换账套说明就变、重带）；老对话没存账套的这时按产品默认补算、存下。
+- 依赖方向：`sessions` → `projects` → `ledger` → `sidebar`；本模块不导入 `sessions`、`relay`。
 """
 import importlib
 
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import config, context, contracts, sidebar
+from pearnly_core.assistant import config, context, contracts, ledger, sidebar
 
 SESSION = context.SESSION
 HOOK = "pearnly_assistant_projects"
@@ -209,6 +211,9 @@ def note(row, user) -> tuple[str, str | None]:
         try:
             if found.allowed(project, user):
                 text = found.context(project, row.get("period") or "", row.get("project_scope") or "", user) or ""
+                if text:
+                    # 本对话账套（`ledger`）接在公司说明后：老对话没存的这时补算存下；产品没声明的是空串
+                    text = "\n\n".join(part for part in (text, ledger.note(ledger.current(row))) if part)
             else:
                 project = ""
         except Exception:

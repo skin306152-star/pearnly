@@ -688,6 +688,8 @@ Server unreachable,サーバーに接続できません
 Session,セッション
 Session ID,セッションID
 Session Payload,セッションのペイロード
+Set the conversation's account set,会話の会計データを設定しました
+Setting the conversation's account set,会話の会計データを設定しています
 Sign in again before changing your username.,ユーザー名を変更する前に再ログインしてください。
 Sign out,ログアウト
 Sign out and sign in again,ログアウトして再ログイン

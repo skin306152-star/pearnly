@@ -688,6 +688,8 @@ Server unreachable,服务器无法连接
 Session,会话
 Session ID,会话 ID
 Session Payload,会话载荷
+Set the conversation's account set,已设定对话的账套
+Setting the conversation's account set,正在设定对话的账套
 Sign in again before changing your username.,请重新登录后再更改用户名。
 Sign out,退出登录
 Sign out and sign in again,退出并重新登录

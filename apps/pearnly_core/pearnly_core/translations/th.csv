@@ -688,6 +688,8 @@ Server unreachable,เชื่อมต่อเซิร์ฟเวอร์�
 Session,เซสชัน
 Session ID,รหัสเซสชัน
 Session Payload,เพย์โหลดเซสชัน
+Set the conversation's account set,ตั้งชุดบัญชีของบทสนทนาแล้ว
+Setting the conversation's account set,กำลังตั้งชุดบัญชีของบทสนทนา
 Sign in again before changing your username.,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนชื่อผู้ใช้
 Sign out,ออกจากระบบ
 Sign out and sign in again,ออกจากระบบแล้วเข้าสู่ระบบอีกครั้ง
