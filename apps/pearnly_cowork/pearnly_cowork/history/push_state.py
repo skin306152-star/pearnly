@@ -12,6 +12,8 @@ FIELDS = ('last_push_status', 'last_pushed_at', 'last_push_record', 'last_push_r
 EVENT = 'cowork_intake_changed'
 # 推送状态 / 原因变了要知道的入口（hooks.py；文件夹任务据此刷新那份文件的结果与结果表格）。history 域不导入它们。
 HOOK = 'cowork_push_state_changed'
+# 票的行在读的时候补上推送账本此刻才知道的只读标记（hooks.py；现在只有「在等 Express 关闭」→ ``push_waiting``）。
+MARKS = 'cowork_history_push_marks'
 # 票上记的推送原因最多多长：同写账回执规则 `ack_rules.OPERATOR_REASON_MAX`（代录回执带 AI 接手的完整结论，
 # 测试守住两边一致）；history 域不导入回执规则
 REASON_MAX = 2100
@@ -26,6 +28,14 @@ def _changed(history, *users):
             frappe.publish_realtime(EVENT, {'history': history}, user=user, after_commit=True)
     except Exception:
         pass
+
+
+def marked(rows):
+    """录入列表的一页、详情的一张（行带 ``last_push_status`` / ``last_push_record``）：交给登记了
+    ``cowork_history_push_marks`` 的入口各补只读字段（一页一次查完）；票上存的四栏推送状态不动。history 域不导入它们。"""
+    for path in frappe.get_hooks(MARKS) or []:
+        frappe.get_attr(path)(rows)
+    return rows
 
 
 def _announce(history):

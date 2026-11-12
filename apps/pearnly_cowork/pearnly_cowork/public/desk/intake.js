@@ -43,7 +43,8 @@
 			: row?.last_push_reason ? ["red", () => __("connect.records.failed")]
 			: row?.intake_target === p.intake_targets?.RECOGNIZE_ONLY ? ["blue", () => t("intake.status.recognized")]
 			: null);
-		const status_title = (value, row) => (value || row?.last_push_reason
+		// 录入中、在等 Express 关闭（`push_waiting`，列表接口为这一页补的只读字段）：状态不变，说明用现成那句。
+		const status_title = (value, row) => p.intake_push_waiting?.(row) || (value || row?.last_push_reason
 			? (p.intake_push_reason ? p.intake_push_reason(row?.last_push_reason) : row?.last_push_reason || "")
 			: "");
 
