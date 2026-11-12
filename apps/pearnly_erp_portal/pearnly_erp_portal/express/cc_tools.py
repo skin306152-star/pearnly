@@ -27,6 +27,7 @@ from frappe import _
 
 from pearnly_core.assistant import direct_push
 from pearnly_core.cc_desktop import jobs
+from pearnly_core.cc_desktop.wire import ack_rules
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.express import api, contracts, pending, push
 from pearnly_erp_portal import mrerp
@@ -179,6 +180,17 @@ def _reason(state, reason) -> dict:
     return {"reason": pending.reason_label(state, reason), "reason_code": str(reason)[:300]}
 
 
+def _waiting(names) -> dict:
+    """这几件写账此刻在等 Express 关闭的（有人开着这本账套，`jobs.express_wait_many`：读的时候算、一次查完）→
+    ``{任务名: 给人看的那一句}``（现成的 ``express.error.ACCOUNT_BUSY_LOCKED``，按用户语言，同单据页）。单据的原因栏不动。"""
+    names = [name for name in names if name]
+    found = jobs.express_wait_many(names) if names else {}
+    if not found:
+        return {}
+    label = pending.reason_label(contracts.QUEUED, f"[{ack_rules.EXPRESS_OPEN}]")
+    return {name: label for name in found}
+
+
 def _outcome(kind, name) -> dict:
     """一张单此刻的推送结论（同 Cowork 推送结果的词）：entered / queued / needs_choice / waiting_for_cc / unconfirmed /
     with_operator / failed。"""
@@ -195,6 +207,9 @@ def _outcome(kind, name) -> dict:
         out = {"status": direct_push.QUEUED}
         if reason in OFFLINE:
             out["cc_desktop_online"] = False
+        waiting = _waiting([row.ledger_job]).get(row.ledger_job)
+        if waiting:
+            out["waiting"] = waiting  # 有人开着这本账套的 Express：关了自动写（11-12）
         return out
     if state == contracts.HELD and mrerp_push.handles(row.company):
         # 账本是 MR.ERP（功能开着才有）：结果不明不再推、要人选先选，其余如实写原因
@@ -267,7 +282,8 @@ def _push_one(document, tool_input) -> dict:
     if state in (contracts.WRITTEN, contracts.MISMATCH, contracts.HANDLED):
         return {"document": document, "status": direct_push.ALREADY_SUCCESS, "docnum": row.ledger_docnum or ""}
     if state == contracts.QUEUED and row.ledger_job:
-        return {"document": document, "status": direct_push.ALREADY_PENDING}
+        waiting = _waiting([row.ledger_job]).get(row.ledger_job)
+        return {"document": document, "status": direct_push.ALREADY_PENDING, **({"waiting": waiting} if waiting else {})}
     if not push.enabled(row.company) and not mrerp_push.handles(row.company):
         return {"document": document, "status": direct_push.FAILED, **_reason(contracts.HELD, contracts.DISCONNECTED)}
     if push.operator_owned(kind.doctype, name):
@@ -328,7 +344,8 @@ def _follow_up(results, sent) -> None:
 # ---------------- 工具 ----------------
 
 
-def _list_row(kind, row) -> dict:
+def _list_row(kind, row, waiting=None) -> dict:
+    """``waiting``：这一页里此刻在等 Express 关闭的写账件（`_waiting`）；排队中的单在里面就另带 ``waiting``。"""
     state = row.ledger_state or ""
     date = row.get(kind.date)
     out = {"name": _doc_id(kind, row.name), "kind": kind.code, "company": row.get("company") or "",
@@ -340,6 +357,8 @@ def _list_row(kind, row) -> dict:
     if kind.party:
         out["seller_name" if kind.code == "purchase" else "buyer_name"] = row.get(kind.party) or ""
     out.update(_reason(state, row.ledger_reason))
+    if state == contracts.QUEUED and row.ledger_job and row.ledger_job in (waiting or {}):
+        out["waiting"] = waiting[row.ledger_job]
     if state == contracts.HELD and row.ledger_job and _unknown(jobs.find_by_name(row.ledger_job)):
         out["result_unknown"] = True
     if LAST_STATUS.get(state) == "success":
@@ -431,11 +450,14 @@ def list_documents(tool_input) -> str:
     page = rows[offset:offset + limit]
     places = {}
     documents = []
+    # 这一页里排队中的单：此刻在等 Express 关闭的一次查完
+    waiting = _waiting(sorted({row.ledger_job for _kind, row in page
+                               if row.ledger_state == contracts.QUEUED and row.ledger_job}))
     for kind, row in page:
         if kind.by_warehouse:
             places.setdefault(row.name, push.company_of(kind.doctype, row.name))
             row["company"] = places[row.name]
-        documents.append(_list_row(kind, row))
+        documents.append(_list_row(kind, row, waiting))
     total = max(total, offset + len(page))
     next_offset = offset + len(page)
     return direct_push.dumps({"documents": documents, "count": len(documents), "total": total, "offset": offset,
@@ -663,13 +685,17 @@ QUEUED_NOTE = ("queued: sent, but Express has not reported a result yet (CC Desk
                "be offline: it is entered once CC Desktop is back). Tell the user it is queued; check later with "
                "erp_push_results when they ask. Do not wait or sleep. A queued document is not entered yet: never say "
                "it was entered or recorded into Express, not even at the start of the reply.")
+# 给模型的一句（不是界面文案，与 Cowork `assistant.tools.EXPRESS_WAIT_NOTE` 同一句）：排队中的单带 `waiting` 时是在等 Express 关闭
+EXPRESS_WAIT_NOTE = ("waiting on a document that is queued or pending is why it has not been entered yet (someone has "
+                     "that account set open in Express): it is entered by itself once Express is closed there, so it "
+                     "is not a failure and the user has nothing else to do.")
 ROW_NOTE = ("name is the document id for the other tools (P purchase, S sales, M stock movement, transfer or adjustment, D POS day "
             "summary, C stock count); invoice_no is its number in ERP. last_push_status is pending (on its way to "
             "Express), success (entered: written.docnum is its number in Express; mismatch means the computer's check "
             "after writing did not match; handled means a person handled it in Express), manual (stopped: reason says "
             "why; result_unknown means Express may or may not have it) or failed. A document of a company whose books "
             "are kept in Express is sent to Express by itself when it is submitted in ERP: one listed as pending needs "
-            "nothing from the user.")
+            "nothing from the user. " + EXPRESS_WAIT_NOTE)
 SCOPE_PROPS = direct_push.scope_props("erp_companies", "documents", "documents")
 KIND_PROP = {"type": "string", "enum": list(KINDS)}
 COMPANY_PROP = {"type": "string", "description": "Only when the document belongs to another company than the one this "
@@ -721,7 +747,7 @@ TOOLS = [
                     f"{direct_push.PUSH_WAIT_SECONDS} seconds for the result from Express, so do not wait or check "
                     "again yourself. Each result says entered (written into Express; docnum is its document number "
                     "there, tell it to the user), queued (no result yet, or CC Desktop is offline: it is entered "
-                    "later; check with erp_push_results when the user asks), failed with a reason, "
+                    "later; check with erp_push_results when the user asks; " + EXPRESS_WAIT_NOTE + "), failed with a reason, "
                     + direct_push.unconfirmed_rule(PROGRAM, "erp_resolve_push_result")
                     + ", needs_choice (call pearnly_precheck for those documents, ask the user with ask_user and "
                     "save the answers with pearnly_precheck_answer, then make the write plan for them again and say "
