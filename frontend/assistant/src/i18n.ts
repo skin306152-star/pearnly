@@ -1477,7 +1477,7 @@ const GUIDE = {
     result: (a: number, b: number) => `${a} entered, ${b} not entered`, entered: "Entered", already: "Already entered",
     party: "Party", number: "Number", date: "Date", total: "Total", as: "Entered as", ledgerNumber: "Number in ledger",
     customer: "Customer", openInvoices: "Open invoices", due: "Outstanding", receive: "Received now", method: "Method", cash: "Cash",
-    transfer: "Transfer", slip: "Transfer slip", item: "Item", quantity: "Qty", unit: "Unit", price: "Unit price", warehouse: "Warehouse", create: "New", cost: "Unit cost",
+    transfer: "Transfer", slip: "Transfer slip", item: "Product", quantity: "Qty", unit: "Unit", price: "Unit price", warehouse: "Warehouse", create: "New", cost: "Unit cost",
   },
   zh: {
     collection: "收款",
@@ -1507,7 +1507,7 @@ const GUIDE = {
     result: (a: number, b: number) => `記帳 ${a} 件、未記帳 ${b} 件`, entered: "記帳済み", already: "記帳済みあり",
     party: "取引先", number: "番号", date: "日付", total: "合計", as: "記帳区分", ledgerNumber: "帳簿の番号",
     customer: "得意先", openInvoices: "未入金の請求書", due: "未入金", receive: "今回入金", method: "入金方法", cash: "現金",
-    transfer: "振込", slip: "振込明細", item: "品目", quantity: "数量", unit: "単位", price: "単価", warehouse: "倉庫", create: "新規", cost: "単位原価",
+    transfer: "振込", slip: "振込明細", item: "商品", quantity: "数量", unit: "単位", price: "単価", warehouse: "倉庫", create: "新規", cost: "単位原価",
   },
 };
 
