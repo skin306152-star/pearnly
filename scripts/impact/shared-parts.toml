@@ -232,7 +232,7 @@ paths = ["apps/pearnly_core/pearnly_core/express_rules/**"]
 markers = ["pearnly_core.express_rules", "pearnly_core import express_rules"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
 entries = ["erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day", "erp.cc.pos-refund", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push", "cc.operator.page", "cowork.cc.troubleshooting", "cowork.line.item-questions", "erp.trade.line-stock"]
-not_entries = { "apps/pearnly_cowork/pearnly_cowork/readback/ledger_check.py" = "录过的票先核账本的产品通道（express_doc_check），还没有调用方；「录过的票」判定接入时登记入口（A 线 11-11，docs/work/2026-11-11-cc-ledger-check.md）", "apps/pearnly_core/pearnly_core/cc_desktop/books.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/contracts.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/report_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_20_express_account_sets.py" = "一次性迁移", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_2_backfill_history_parties.py" = "一次性迁移", "apps/pearnly_core/pearnly_core/write_precheck/preselect.py" = "写账前置判定（共用层纯函数）只取写账规则的常量、分店归一与付款判定；它的入口登记在共用件 write-precheck" }
+not_entries = { "apps/pearnly_cowork/pearnly_cowork/readback/ledger_check.py" = "录过的票先核账本的产品通道（express_doc_check），还没有调用方；「录过的票」判定接入时登记入口（A 线 11-11，docs/work/2026-11-11-cc-ledger-check.md）", "apps/pearnly_core/pearnly_core/cc_desktop/books.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/contracts.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/report_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_20_express_account_sets.py" = "一次性迁移", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_2_backfill_history_parties.py" = "一次性迁移", "apps/pearnly_core/pearnly_core/write_precheck/preselect.py" = "写账前置判定（共用层纯函数）只取写账规则的常量、分店归一与付款判定；它的入口登记在共用件 write-precheck", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_projects.py" = "ERP 本对话账套的可选几本只用 account_match.for_month 按月取覆盖的账套（A 线 11-12），不写账；用户看到的入口是 erp.cc.companies（右栏 / 公司说明）与 erp.cc.chat-push，由 test_cc_conversation_ledger_erp 守住" }
 
 [[part]]
 id = "write-precheck"
@@ -465,7 +465,7 @@ paths = ["apps/pearnly_core/pearnly_core/assistant/**"]
 markers = ["pearnly_core.assistant", "pearnly_core import assistant", "pearnly_assistant_tools", "pearnly_assistant_guidance", "pearnly_assistant_step_names", "pearnly_assistant_projects"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
 entries = ["control.assistant", "shared.assistant", "cowork.assistant", "cc.assistant", "cc.operator.thread", "erp.cc.companies", "erp.cc.chat-push", "erp.cc.stocktake", "cowork.cc-chat.push", "cowork.cc.troubleshooting"]
-not_entries = { "apps/pearnly_cowork/pearnly_cowork/companion/transport.py" = "CC 桌面版回执后在推送那段对话里补一句结论（push_followup，11-08 第 9 条），用户看到的入口是 cowork.cc-chat.push", "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py" = "电脑回报后在推送那段对话里补一句结论（push_followup，11-08 第 9 条），用户看到的入口是 erp.cc.chat-push" }
+not_entries = { "apps/pearnly_cowork/pearnly_cowork/companion/transport.py" = "CC 桌面版回执后在推送那段对话里补一句结论（push_followup，11-08 第 9 条），用户看到的入口是 cowork.cc-chat.push", "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py" = "电脑回报后在推送那段对话里补一句结论（push_followup，11-08 第 9 条），用户看到的入口是 erp.cc.chat-push", "apps/pearnly_erp_portal/pearnly_erp_portal/express/conversation.py" = "只读本对话账套（assistant.ledger.of_session / of_task、projects.of_session，A 线 11-12），交给写账准备；用户看到的入口是 erp.cc.chat-push 与 cc.operator.thread，由 test_cc_conversation_ledger_erp 守住" }
 
 [[part]]
 id = "tax-documents"
@@ -2592,6 +2592,6 @@ id = "erp.cc.troubleshooting"
 product = "ERP"
 where = "ERP 版 CC 对话与单据页：待处理、单据详情、看原件、补票面合计"
 steps = "识别一张缺页的采购单并提交 → 停在「没有票面合计」进待处理；CC erp_pending / erp_document_detail / erp_document_original；erp_set_printed_total 带依据补上，或在单据页直接改票面合计"
-expect = "补对后当场重新写进 Express（C 盘 T 账套读回一致）；版本记录与依据可查；已写进账本的单不能改"
+expect = "单据页补对后当场重新写进 Express（C 盘 T 账套读回一致）；CC 补只改数（A 线 11-12 B3），经写入计划复述、用户回话后写进；版本记录与依据可查；已写进账本的单不能改"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/printed.py"]
