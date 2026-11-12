@@ -222,7 +222,7 @@ def _busy(device, moment):
         AND lease_expires_at > %s LIMIT 1""", (device, moment)))
 
 
-def _heads(keys, device, peer):
+def _heads(keys, device, peer, moment=None):
     """各份账套里**这台电脑能写的**排在最前的那件（按交进来的先后）；有一件正在写的账套不算（等它写完）。
 
     只在归这台写的单里取排头（录入人在这台电脑上登录过 CC，或钉在这台电脑上的单；`route_contracts.owns`），同 Cowork
@@ -233,7 +233,7 @@ def _heads(keys, device, peer):
         WHERE status = 'leased' AND book_key IN ({marks})""", tuple(keys))}
     users = sorted({user for user in peer.users or () if user})
     mine = f"(route_device = %s OR (IFNULL(route_device, '') = ''{' AND actor IN (' + ', '.join(['%s'] * len(users)) + ')' if users else ''}))"
-    rows = frappe.db.sql(f"""SELECT name, actor, book_key, payload_version, route_device FROM `tab{JOB}`
+    rows = frappe.db.sql(f"""SELECT name, actor, book_key, payload_version, route_device, reason, lease_expires_at FROM `tab{JOB}`
         WHERE status = 'queued' AND book_key IN ({marks}) AND {mine} ORDER BY creation, name LIMIT {HEAD_SCAN}""",
                          (*keys, device, *users), as_dict=True)
     heads, seen = [], set(taken)
@@ -241,6 +241,9 @@ def _heads(keys, device, peer):
         if row.book_key in seen or not route_contracts.owns(device, peer, row.actor, row.route_device or ""):
             continue
         seen.add(row.book_key)
+        if (row.reason == ack_rules.EXPRESS_OPEN and moment is not None and row.lease_expires_at
+                and row.lease_expires_at > moment):
+            continue  # 这本账套的排头在等 Express 关闭、还没歇够：整本先不派（后面的单也等它），看别的账套
         heads.append(row)
         if len(heads) >= route_contracts.MAX_HEADS:
             break
@@ -254,7 +257,7 @@ def _claim(context, request, moment):
     peers = devices.peers()
     me = peers.get(context.device) or route_contracts.Peer()
     peers[context.device] = me._replace(online=True)
-    heads = _heads(sorted(reach), context.device, me)
+    heads = _heads(sorted(reach), context.device, me, moment)
     if not heads:
         return []
     reachers = books.reachers([head.book_key for head in heads])
@@ -368,6 +371,9 @@ def acknowledge(context, body) -> dict:
     elif transition.status == "pending":
         # 等账套 / 普通失败重试：没写进去（CC 桌面版失败整单回滚），谁的电脑能写都行
         values.update(status="queued", attempt=transition.attempt, reason=transition.reason or "", route_device=None)
+        if transition.reason == ack_rules.EXPRESS_OPEN:
+            # Express 开着这本账套：歇一会儿再派（排队中的记录借租约到期栏记「这之前不派」，同一个时钟；`_heads` 据此跳过整本）
+            values["lease_expires_at"] = _now() + timedelta(seconds=ack_rules.EXPRESS_OPEN_REST_SECONDS)
     else:
         values.update(status="manual", attempt=transition.attempt, reason=transition.reason or transition.stage,
                       route_device=None)

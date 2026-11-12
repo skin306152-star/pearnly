@@ -36,6 +36,26 @@ class QueueTests(unittest.TestCase):
         old = ack_rules.acknowledgement(branch="legacy", attempt=1, success=False, outcome="waiting_lock")
         self.assertEqual((old.status, old.attempt, old.retry), ("pending", 1, True))
 
+    def test_express_open_keeps_its_reason_and_rests_before_the_next_hand_out(self):
+        # 11-12：等账套里「Express 开着这本账套」留原因码（界面显示「关闭后将自动推送」）、歇 30 秒再派；别的等待照旧不留
+        busy = ack_rules.acknowledgement(branch="legacy", attempt=2, success=False, outcome="waiting_lock",
+                                         error="[ACCOUNT_BUSY_LOCKED] the account set is open in Express")
+        self.assertEqual((busy.status, busy.attempt, busy.retry, busy.reason), ("pending", 2, True, ack_rules.EXPRESS_OPEN))
+        for error in (None, "[ACCOUNT_WRITER_BUSY] another computer", "[ACCOUNT_SET_UNREACHABLE] x", "[ACCOUNT_UID_MISMATCH] y"):
+            self.assertEqual(ack_rules.acknowledgement(branch="legacy", attempt=2, success=False, outcome="waiting_lock",
+                                                       error=error).reason, "")
+        self.assertTrue(ack_rules.express_open("pending", ack_rules.EXPRESS_OPEN))
+        self.assertTrue(ack_rules.express_open("queued", ack_rules.EXPRESS_OPEN))
+        self.assertFalse(ack_rules.express_open("manual", ack_rules.EXPRESS_OPEN))
+        self.assertFalse(ack_rules.express_open("pending", "[DBF_WRITE_FAILED] io"))
+        from datetime import datetime, timedelta
+        at = datetime(2026, 11, 12, 3, 0, 0)
+        rest = ack_rules.EXPRESS_OPEN_REST_SECONDS
+        self.assertTrue(ack_rules.resting(ack_rules.EXPRESS_OPEN, at, at + timedelta(seconds=rest - 1)))
+        self.assertFalse(ack_rules.resting(ack_rules.EXPRESS_OPEN, at, at + timedelta(seconds=rest)))
+        self.assertFalse(ack_rules.resting("", at, at + timedelta(seconds=1)))
+        self.assertFalse(ack_rules.resting(ack_rules.EXPRESS_OPEN, None, at))
+
     def test_zero_attempt_legacy_normalizes_only_on_failure(self):
         for outcome in ("success", "waiting_lock", "needs_review"):
             self.assertEqual(ack_rules.acknowledgement(branch="legacy", attempt=0, success=False, outcome=outcome).attempt, 0)

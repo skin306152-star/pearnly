@@ -34,7 +34,7 @@ from pearnly_core.cc_desktop.wire.ack_rules import error_code
 from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.push.native.contracts import ReservationContext
 from pearnly_core.express_rules.targets.identity import normalize_express_account_key
-from pearnly_core.cc_desktop.wire import queue_contracts, request_contracts, route_contracts
+from pearnly_core.cc_desktop.wire import ack_rules, queue_contracts, request_contracts, route_contracts
 from pearnly_core.express_operator import contracts as operator_target
 from . import credentials, delivery_store, devices, mrerp_jobs, queue_heads, receipt_auth, request_service
 
@@ -264,6 +264,8 @@ def _claim(credential, device, request, now):
         if not decision.take and decision.reason != route_contracts.NEEDS_UPDATE:
             continue  # 黏在别的电脑上、要更新的 CC 桌面版在录入人的另一台电脑上：跳过，看下一份账套（不隔离）
         row = frappe.get_doc(ledger.RECORD, head.name)
+        if ack_rules.resting(row.reason or '', row.updated_at, clock):
+            continue  # 这本账套的排头在等 Express 关闭、还没歇够：整本先不派，看别的账套（`ack_rules.EXPRESS_OPEN`）
         reservation = _context(row, credential)
         adapter = _adapter(credential.connection, delivery_store.owner(credential), device=device,
                            device_owner=owner or '', route=decision.route, version=version)
