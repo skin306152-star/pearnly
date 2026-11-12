@@ -131,7 +131,10 @@ def _plan(payload: Dict, account_dir: Path, side: str) -> _Plan:
             continue  # 没有科目可挂：不建，代录预检照旧报「商品主档没有」
         repair = product_master.shape_gaps(account_dir, found) if found and mode == NON_STOCK_MODE else {}
         plan.lines.append({"index": index, "mode": mode, "name": item_name, "unit": str(item.get("unit") or ""),
-                           "account": account, "code": found or "", "repair": repair, "exempt": exempt})
+                           "account": account, "code": found or "", "repair": repair, "exempt": exempt,
+                           # 载荷 21 的行键（版本 ≤ 20 的行上没有，guided.items 已去掉）：这一行自己的科目组盖过整单的，分类、允许负库存照给的
+                           "acccod": str(item.get("acccod") or ""), "stkgrp": str(item.get("stkgrp") or ""),
+                           "negallow": str(item.get("negallow") or "")})
     return plan
 
 
@@ -171,8 +174,9 @@ def _create(plan: _Plan, account_dir: Path, docdat: _dt.date, userid: str) -> Li
             continue
         if line["mode"] in STOCK_MODES:
             made = product_master.ensure_stock_item(account_dir, line["name"], userid=userid, unit=line["unit"],
-                                                    acccod=getattr(plan.entry, "stock_acccod", ""),
-                                                    exempt=line.get("exempt"))
+                                                    acccod=line.get("acccod") or getattr(plan.entry, "stock_acccod", ""),
+                                                    exempt=line.get("exempt"), stkgrp=line.get("stkgrp", ""),
+                                                    negallow=line.get("negallow", ""))
             line["code"] = made.stkcod
         else:
             line["code"] = product_master.ensure_item(account_dir, line["name"], line["account"], created_date=docdat,
@@ -216,6 +220,16 @@ def prepare(payload: Dict, settings, *, before_create: Callable[[], None] = lamb
     if not side:
         return Prepared(True, payload)
     account_dir = Path(settings.account_dir)
+    from .. import guided
+
+    if guided.uses(payload):
+        # 载荷 21 的四个行键（单位码、科目组、分类、允许负库存；写账线只放这四个进来，11-12 晚）：值先照直写同一套核
+        #（不在这本账套里 → 整单交人，不回落众数），再照直写把 unit_code 换进 unit（建档、录单都按这个码）
+        refusal = guided.invalid_values(account_dir, payload, guided.STOCK_IN if side == "purchase" else guided.STOCK_OUT,
+                                        "supplier" if side == "purchase" else "customer")
+        if refusal is not None:
+            return Prepared(False, payload, error_code=refusal.code, error=refusal.detail, outcome="needs_review")
+        payload = {**payload, "items": guided.items(payload)}
     items = [it for it in payload.get("items") or [] if isinstance(it, dict)]
     exempt = [it for it in items if it.get("vat_exempt") is True]
     if exempt and not _per_item_vat(account_dir):

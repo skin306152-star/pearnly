@@ -10,7 +10,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional, Tuple
 
-from .payload_contract import GUIDED_KEYS, GUIDED_PAYLOAD_VERSION
+from .payload_contract import GUIDED_KEYS, GUIDED_PAYLOAD_VERSION, OPERATOR_LINE_KEYS
 
 HEADER_KEYS = GUIDED_KEYS["header"]
 LINE_KEYS = GUIDED_KEYS["line"]
@@ -57,6 +57,18 @@ def uses(payload) -> bool:
         return True
     return any(isinstance(payload.get(block), dict) and any(key in payload[block] for key in PARTY_KEYS)
                for block in PARTY_BLOCKS)
+
+
+def operator_allowed(payload) -> bool:
+    """代录单能不能带着它的新键录：只带了代录建新物料用得上的四个行键（:data:`OPERATOR_LINE_KEYS`）→ 能；
+    出现了表头、对方块的新键或别的行键 → 不能（照旧拒收）。没带新键当然能。"""
+    payload = payload if isinstance(payload, dict) else {}
+    if any(key in payload for key in HEADER_KEYS):
+        return False
+    if any(isinstance(payload.get(block), dict) and any(key in payload[block] for key in PARTY_KEYS) for block in PARTY_BLOCKS):
+        return False
+    other = set(LINE_KEYS) - set(OPERATOR_LINE_KEYS)
+    return not any(isinstance(item, dict) and any(key in item for key in other) for item in payload.get("items") or [])
 
 
 def items(payload) -> List[Any]:
