@@ -12,7 +12,8 @@
 **前提**：集成分支测试包。`pearnly/integration-1112` 在 11-12 18:20 还是 ffeb3a5d6，**没含**载荷批与本窗口分支；构建前拼车窗口要叠上
 `pearnly/cc-desktop-verify-7f2d4c` 最新提交（含 3188c2530 与 4576865b6、637ab90ea、d33aa8f2d、9aecc4048）和收款分支。构建：
 `gh workflow run companion-build.yml --ref pearnly/integration-1112`，取 CC-Setup.exe（只当测试包装，不发 staging / 正式）。装前核版本号与源码 SHA。
-测试套：收款用 `69EXP\TEST`（收款清单约定，先问主会话此刻谁在用）；GLBAL 本年度用 `69EXP\TEST2`（11-12 已跑 5.A，第 1–11 期全算好）；
+测试套：收款真机回归用 `69EXP\TEST`（本年度 2026、GLBAL 已算过，收款清单约定；与 A 线复测错开，由主会话排）；
+GLBAL 本年度（清单 33、34）用 `69EXP\TEST2`——**明早第一件做完就交给验收体系取基线**（11-12 已跑 5.A，第 1–11 期全算好；做完写清留下的单号与 GLBAL 状态）；
 缺行 / 空格 / 新键用 `70EXP\test`（本窗口独占）。
 
 | 序 | 项 | 机器 | 做法与断言 | 估时 |
