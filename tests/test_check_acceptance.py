@@ -154,6 +154,39 @@ class CheckAcceptanceTest(unittest.TestCase):
         repo.write("tests/acceptance/rows.toml", "[policy]\ngate_blocks = true\n")
         self.assertTrue(acceptance.gate(repo.registry(), last_release)[1])
 
+    def test_ledger_rows_point_at_the_required_fields_table_once_it_exists(self):
+        repo = Repo(self)
+        repo.write("tests/acceptance/rows.toml", '[row."erp.purchase.submit"]\neffect = ["ledger"]\nfields = "express:RR"\n')
+        self.assertIsNone(repo.registry().field_keys)   # 字段表还没建：不校验
+        repo.write(acceptance.FIELDS_SOURCE, 'REQUIRED_FIELDS = {"express:HP": [{"field": "DOCNUM", "auto": "isrun"}]}\n')
+        self.assertTrue(any("express:RR 不在必填字段登记表" in line for line in repo.registry().problems))
+        repo.write(acceptance.FIELDS_SOURCE, 'REQUIRED_FIELDS = {"express:RR": [], "express:HP": []}\n')
+        self.assertEqual(repo.registry().problems, [])
+        repo.write("tests/acceptance/rows.toml", '[row."erp.purchase.submit"]\neffect = ["ledger"]\n')
+        problems, notes = acceptance.check(repo.root, "origin/main", repo.registry())
+        self.assertTrue(any("fields" in line for line in notes))      # 开关没开：只提示
+        repo.write("tests/acceptance/rows.toml", '[policy]\nenforce_fields = true\n[row."erp.purchase.submit"]\neffect = ["ledger"]\n')
+        problems, notes = acceptance.check(repo.root, "origin/main", repo.registry())
+        self.assertTrue(any("fields" in line for line in problems))   # 开关开了：不通过
+
+    def test_unmapped_high_risk_entries_owe_scenarios_like_rows(self):
+        repo = Repo(self)
+        repo.write("tests/acceptance/unmapped.toml", """
+            [[entry]]
+            id = "control.topup.approve"
+            block = "管理后台"
+            what = "充值审核到账"
+            where = "apps/pearnly_control/x.py:1"
+            effect = ["money", "site"]
+            source = "control §A"
+        """)
+        registry = repo.registry()
+        self.assertEqual(registry.problems, [])
+        owed = sorted(item.partition("|")[2] for item in registry.all_owed() if item.startswith("control.topup.approve|"))
+        self.assertEqual(owed, ["misuse:M02", "misuse:M09", "misuse:M15", "normal", "variant:new+old"])
+        repo.write("tests/acceptance/unmapped.toml", '[[entry]]\nid = "erp.purchase.submit"\nblock = "x"\n')
+        self.assertTrue(any("已经有这一行" in line for line in repo.registry().problems))
+
     def test_real_registry_passes_and_report_prints(self):
         registry = acceptance.Registry(ROOT)
         self.assertEqual(registry.problems, [])

@@ -104,6 +104,24 @@ class LocksTest(unittest.TestCase):
         with locks.hold("lab:pearnly-regression-lab", "runner", "跑"):
             pass
 
+    def test_flows_runner_lab_lock_and_this_library_block_each_other(self):
+        spec = importlib.util.spec_from_file_location("flows_run_for_locks", ROOT / "scripts" / "flows" / "run.py")
+        flows = importlib.util.module_from_spec(spec)
+        sys.modules["flows_run_for_locks"] = flows
+        spec.loader.exec_module(flows)
+        resource = f"lab:{flows.LAB}"
+        handle = flows.lab_lock(self.tmp.name)   # run.py 占着实验栈
+        try:
+            with self.assertRaises(locks.Busy):
+                locks.acquire(resource, "win-a", "想起栈跑场景", 10)
+        finally:
+            handle.close()
+        with locks.hold(resource, "runner", "验收运行器占着实验栈"):
+            with self.assertRaises(SystemExit) as caught:
+                flows.lab_lock(self.tmp.name)
+            self.assertIn("正在用实验栈", str(caught.exception))
+        flows.lab_lock(self.tmp.name).close()
+
     def test_unknown_resource_names_are_refused(self):
         for bad in ("testpc3", "ledger:", "ledger:../x", "testenv-domain:billing", "lab:a b"):
             with self.assertRaises(ValueError, msg=bad):

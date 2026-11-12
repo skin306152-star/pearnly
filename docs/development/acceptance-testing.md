@@ -52,7 +52,7 @@
 
 ### 3.1 必须覆盖的清单怎么来（规则，不靠想）
 
-地图每一行（入口或动作）带属性；机器按属性推出这一行**欠哪些场景**。属性：`effect`（read 只读 / site 写本站数据 / ledger 写外部账本 / send 对外发消息 / paid 付费调用，可多个）、`ends`、`kind`、`parts`，以及按需声明的 `variants`、`shared_doc`（多人可同时改的单据）、`upload`、`card`（有提问卡 / 允许卡 / 开始前卡片）。
+地图每一行（入口或动作）带属性；机器按属性推出这一行**欠哪些场景**。属性：`effect`（read 只读 / site 写本站数据 / ledger 写外部账本 / money 动钱 / delete 删数据或作废 / send 对外发消息 / paid 付费调用，可多个）、`ends`、`kind`、`parts`，以及按需声明的 `variants`、`shared_doc`（多人可同时改的单据）、`upload`、`card`（有提问卡 / 允许卡 / 开始前卡片）。
 
 | 规则 | 条件 | 欠的场景 |
 | --- | --- | --- |
@@ -66,6 +66,7 @@
 | A8 | `ends` 含手机 | 手机宽度跑同一条；切后台再回来（`misuse`） |
 | A9 | LINE 入口 | 重复事件、未绑定、过期卡片（`misuse`，模拟事件即可）；只能在 LINE 里验的写 `device_only` 进真机单 |
 | A10 | `effect` 含 ledger 的每一行 | 至少出现在一条 `chain` 里，且那条链的终点是账本读回 |
+| A3b | `effect` 含 money / delete / send | 同 A2、A3；另加 money：余额不足或订阅到期（M15）；delete：跨公司、跨租户删不到（M17）；send：重复事件、未绑定（M02、M16） |
 | A11 | 每个业务域 | 至少一条 `chain` 从这个域的起点单据走到最终结果（清单在 `tests/acceptance/chains.toml`，新增业务域同一提交加链；A11–A13 的机器检查第四期做） |
 | A12 | 每个产品 × 每种语言 | 一条外壳与主线的 `variant`（界面上没有漏翻的键、没有回退成别的语言）；逐条文案仍由 `check-i18n` / `check-copy` 管 |
 | A13 | 每个产品 | 隔离：别的租户、别的公司、没分到的公司都拿不到（`misuse`） |
@@ -215,7 +216,9 @@ run.json      提交、是否有未提交改动、环境、各端版本（服务
 | 共用件 `scripts/impact/shared-parts.toml` | 共用件与它的调用入口 | 地图行的 `parts` |
 | 流程 `tests/flows/registry.toml` | L2 场景 | 地图行 `flow:<id>` |
 | 验收 `tests/acceptance/registry.toml` | L3 场景（场景的 `rows` 指向地图行；地图行反过来写 `acc:<id>` 第二期加） | 检查脚本 |
-| 属性 `tests/acceptance/rows.toml` | 地图行的验收属性与两个开关 | 检查脚本 |
+| 属性 `tests/acceptance/rows.toml` | 地图行的验收属性与开关 | 检查脚本 |
+| 过渡登记 `tests/acceptance/unmapped.toml` | **还没进产品地图**的高风险入口（写外部账本 / 动钱 / 删数据 / 对外发消息）：当作地图行一样算欠账；第四期逐条搬进产品地图后从这里删 | 检查脚本 |
+| 必填字段登记表 `apps/pearnly_core/pearnly_core/express_rules/contracts/required_fields.py`（引导式录入建） | 每种单据每个必填字段「自动定 / 卡上问 / 复核可改」 | 本登记的 `fields = "<账本>:<单据>"` |
 | 部署后 `tests/e2e/registry.toml` | L4 场景 | 地图行 `e2e:<id>` |
 | CC 对话乱用种子 `tests/acceptance/cc_talk.toml`、用例 `cc_talk_cases.toml` | 十类乱用与八条底线；参数化用例 | L3 场景的 `talk` / `case`；探索式的方向 |
 | 盘点快照 `tests/acceptance/inventory.toml` | 11-12 全产品入口盘点的数字（一次性；第四期入口全部进地图后删除） | 一屏总览的第一段 |
@@ -235,6 +238,16 @@ run.json      提交、是否有未提交改动、环境、各端版本（服务
 
 还没做的（各期补）：新增写入路径（新 CC 写账工具、CC 桌面版新写入种类、新代录配方）必须有 L3 场景（第二期，接 CC 能力表时做）；证据按 CC 桌面版版本过期（第二期）；
 删场景、降级要写原因（第二期）；A11–A13 与全部行的属性（第四期）。
+
+**必填字段登记表与本登记怎么接**（引导式录入窗口照此建，11-12 约定）：
+- 字段表是产品契约，定义在代码里（运行时出题、复核都要用），**只此一处**；验收登记不抄字段，只引用键。
+- 位置与形状：`apps/pearnly_core/pearnly_core/express_rules/contracts/required_fields.py` 顶层常量 `REQUIRED_FIELDS`，一个字典字面量，
+  键是 `"<账本>:<单据>"`（如 `"express:RR"`、`"express:IV"`、`"express:RE"`、`"express:APMAS"`、`"mrerp:purchase"`），值是字段行的列表
+  （每行至少 `field`、`auto` / `ask` / `review` 之一、`default`）。键必须是字面量（本检查按语法树读，不导入框架）。
+- 引用：会写账本的行（`rows.toml` / `unmapped.toml`，以后是 CC 能力表的每个业务行）写 `fields = "express:RR"`；确实没有字段表的写 `fields_na = "原因"`。
+  字段表文件出现后，本检查核对键存在；会写账本的行没写 `fields` 现在只提示，`[policy] enforce_fields` 打开后不通过。
+- 用处：L3 写账场景的「与原生样张逐字段比」拿字段表当比对清单；「什么都缺」的离线场景、静默默认闸仍归引导式自己的测试，不在本检查里重做。
+- 字段表自己的覆盖断言（写入字段全登记、`ask` 类真出题、`review` 列在复核契约里）归引导式的 `tests/test_express_required_coverage.py`。
 
 两件相邻的事由谁拦（主会话 11-12 问）：
 - **产品地图里的测试引用与实际不符**（例：「提交」引用的流程不写 Express 也算绿）：这一行标上 `effect = ["ledger"]` 之后由本检查的规则 2 拦——它欠「真环境的正常主线」，

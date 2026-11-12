@@ -40,7 +40,7 @@ CLASSES = ("normal", "variant", "chain", "misuse", "explore")
 LAYERS = ("L2", "L3")
 ENVS = {"A": "本机实验栈 + 真模型", "B": "测试机实验栈 + CC 桌面版 + 验收账套", "C": "线上测试租户 + CC 桌面版 + 账本", "D": "真手机"}
 TIERS = ("gate", "weekly")
-EFFECTS = ("read", "site", "ledger", "send", "paid")
+EFFECTS = ("read", "site", "ledger", "money", "delete", "send", "paid")
 MISUSE = {
     "M01": "错文件 / 超限 / 空文件", "M02": "重复提交 / 双击 / 重复事件", "M03": "中途喊停", "M04": "中途换公司 / 账套 / 月份",
     "M05": "卡片挂着打字", "M06": "浏览器断网", "M07": "电脑离线 / 关机", "M08": "Express 开着占用账套", "M09": "权限不足 / 只读账号",
@@ -48,6 +48,25 @@ MISUSE = {
     "M14": "同一张票两条路各走一遍", "M15": "余额不足 / 订阅到期", "M16": "未绑定 / 解绑后点旧入口", "M17": "跨租户 / 跨公司",
     "M18": "结果不明后再来",
 }
+# 必填字段登记表（引导式录入）：定义在产品契约里（运行时要用），这里只引用它的键，不另抄一份。约定见验收测试标准 §6。
+FIELDS_SOURCE = "apps/pearnly_core/pearnly_core/express_rules/contracts/required_fields.py"
+FIELDS_NAME = "REQUIRED_FIELDS"
+
+
+def field_tables(root: Path) -> set[str] | None:
+    """字段表的键（如 "express:RR"）；文件还没有 → None。只按语法树读顶层的字典字面量键，不导入框架。"""
+    import ast
+
+    path = root / FIELDS_SOURCE
+    if not path.is_file():
+        return None
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target] if isinstance(node, ast.AnnAssign) else []
+        if any(getattr(target, "id", "") == FIELDS_NAME for target in targets) and isinstance(node.value, ast.Dict):
+            return {key.value for key in node.value.keys if isinstance(key, ast.Constant) and isinstance(key.value, str)}
+    return set()
+
+
 SHA = re.compile(r"^[0-9a-f]{7,40}$")
 
 
@@ -87,12 +106,28 @@ class Registry:
             product_map = _module("product_map", root / "scripts" / "impact" / "product_map.py")
             map_rows = {row.id: {"ends": row.ends, "tests": row.tests, "product": row.product, "kind": row.kind}
                         for row in product_map.load(root / "scripts" / "impact" / "product-map").rows.values()}
+        # 还没进产品地图的高风险入口（tests/acceptance/unmapped.toml）：当作地图行一样算欠账；第四期逐条搬进产品地图后从那里删掉
+        self.unmapped = {}
+        for entry in _toml(home / "unmapped.toml").get("entry", []):
+            entry_id = entry.get("id", "?")
+            if entry_id in map_rows or entry_id in self.unmapped:
+                self.problems.append(f"unmapped.toml [{entry_id}]：id 重复，或产品地图里已经有这一行（有了就从这里删掉）")
+            for key in ("block", "what", "where", "effect", "source"):
+                if not entry.get(key):
+                    self.problems.append(f"unmapped.toml [{entry_id}]：缺 {key}")
+            self.unmapped[entry_id] = entry
+        map_rows = {**map_rows, **{entry_id: {"ends": entry.get("ends", []), "tests": [f"flow:{flow}" for flow in entry.get("flows", [])],
+                                              "product": entry.get("block", "?"), "kind": "unmapped"}
+                                   for entry_id, entry in self.unmapped.items()}}
         self.map_rows = map_rows
         self.tracked = tracked if tracked is not None else (git(root, "ls-files") or "").splitlines()
         self.flows = {flow["id"]: flow for flow in _toml(root / "tests" / "flows" / "registry.toml").get("flow", [])}
         rows = _toml(home / "rows.toml")
         self.policy = rows.get("policy", {})
-        self.attrs = rows.get("row", {})
+        self.attrs = {**rows.get("row", {}),
+                      **{entry_id: {key: entry[key] for key in ("effect", "upload", "card", "shared_doc", "line", "na", "fields", "fields_na")
+                                    if key in entry}
+                         for entry_id, entry in self.unmapped.items()}}
         self.scenarios = {}
         for scenario in _toml(home / "registry.toml").get("scenario", []):
             if scenario.get("id") in self.scenarios:
@@ -115,15 +150,21 @@ class Registry:
 
     # ---- 规则 1：格式与引用
     def _validate(self) -> None:
+        self.field_keys = field_tables(self.root)
         locks = _module("acceptance_locks", ROOT / "scripts" / "acceptance" / "locks.py")
         say = self.problems.append
         for row_id, attrs in self.attrs.items():
             where = f"rows.toml [{row_id}]"
             if row_id not in self.map_rows:
                 say(f"{where}：产品地图里没有这一行")
+            for flow in self.unmapped.get(row_id, {}).get("flows", []):
+                if flow not in self.flows:
+                    say(f"unmapped.toml [{row_id}]：flows 里的 {flow} 不在 tests/flows/registry.toml")
             effect = attrs.get("effect")
             if not effect or any(item not in EFFECTS for item in effect):
                 say(f"{where}：effect 必填，只能是 {' / '.join(EFFECTS)}")
+            if attrs.get("fields") and self.field_keys is not None and attrs["fields"] not in self.field_keys:
+                say(f"{where}：fields = {attrs['fields']} 不在必填字段登记表（{FIELDS_SOURCE} 的 {FIELDS_NAME}）")
             for code, reason in attrs.get("na", {}).items():
                 if code.partition(":")[2] not in MISUSE and code not in ("chain", "L3:normal", "variant:new+old"):
                     say(f"{where}：na 的键 {code} 不认识")
@@ -253,9 +294,15 @@ class Registry:
     def obligations(self, row_id: str) -> list[str]:
         attrs, ends = self.attrs[row_id], self.map_rows.get(row_id, {}).get("ends", [])
         effect = set(attrs.get("effect", []))
-        need, writes = ["normal"], bool(effect & {"site", "ledger"})
+        need, writes = ["normal"], bool(effect & {"site", "ledger", "money", "delete"})
         if writes:
             need += ["variant:new+old", "misuse:M02", "misuse:M09"]
+        if "money" in effect:
+            need.append("misuse:M15")
+        if "delete" in effect:
+            need.append("misuse:M17")
+        if "send" in effect:
+            need += ["misuse:M02", "misuse:M16"]
         if attrs.get("shared_doc"):
             need.append("misuse:M10")
         if attrs.get("upload"):
@@ -329,6 +376,11 @@ def check(root: Path = ROOT, base: str = "origin/main", registry: Registry | Non
         for item in sorted(registry.baseline - read_baseline(before_baseline)):
             if item.partition("|")[0] in had_attrs:
                 problems.append(f"owed_baseline.txt：{item} 是新加的条目——基线只许减少（只有第一次标属性的存量行可以进）")
+    if registry.field_keys is not None:
+        target = problems if registry.policy.get("enforce_fields") else notes
+        for row_id, attrs in sorted(registry.attrs.items()):
+            if "ledger" in attrs.get("effect", []) and not attrs.get("fields") and not attrs.get("fields_na"):
+                target.append(f"{row_id}：会写账本的行要写 fields = \"<账本>:<单据>\"（必填字段登记表的键）或 fields_na = \"原因\"")
     # 规则 4：新加的地图行要标属性
     merge = git(root, "merge-base", base, "HEAD")
     if merge:
@@ -374,11 +426,13 @@ def gate(registry: Registry, since: str) -> tuple[list[str], bool]:
 
 
 def report(registry: Registry) -> str:
-    rows, attrs = registry.map_rows, registry.attrs
+    attrs = registry.attrs
+    rows = {row_id: row for row_id, row in registry.map_rows.items() if row_id not in registry.unmapped}
     by_product: dict[str, int] = {}
     for row in rows.values():
         by_product[row.get("product", "?")] = by_product.get(row.get("product", "?"), 0) + 1
     ledger_rows = [row_id for row_id, item in attrs.items() if "ledger" in item.get("effect", [])]
+    risk = {name: len([1 for item in attrs.values() if name in item.get("effect", [])]) for name in ("ledger", "money", "delete", "send")}
     states = {scenario_id: registry.freshness(scenario_id)[0] for scenario_id in registry.scenarios}
     verified_rows = {row_id for scenario_id, state in states.items() if state == "已验"
                      for row_id in registry.scenarios[scenario_id].get("rows", [])}
@@ -405,6 +459,8 @@ def report(registry: Registry) -> str:
     lines += [
         f"产品地图行：{len(rows)}（" + "、".join(f"{name} {count}" for name, count in sorted(by_product.items())) + "）",
         f"  已标验收属性：{len([r for r in attrs if r in rows])}（第一版只标了会写外部账本的行）；还没标：{len(rows) - len([r for r in attrs if r in rows])}（没标的不算欠账）",
+        f"  高风险入口（含还没进产品地图、先登记在 unmapped.toml 的 {len(registry.unmapped)} 个）：写外部账本 {risk['ledger']}、动钱 {risk['money']}、"
+        f"删数据 {risk['delete']}、对外发消息 {risk['send']}",
         f"  会写外部账本的行：{len(ledger_rows)}；其中真环境验过（证据新鲜）：{len([r for r in ledger_rows if r in verified_rows])}",
         "场景：",
         "  L2 流程（实验栈）：" + str(len(registry.flows)) + " 条（" + "、".join(f"{label} {classes[name]}" for name, label in LABELS) + "）",
