@@ -137,7 +137,12 @@ try {
       error: result.exceptionDetails?.exception?.description?.slice(0, 300) || null, page_errors: [...logs],
       field_help: help?.result?.value?.below || [], field_icons: help?.result?.value?.icons || [] }));
     // 页面脚本本身超时或调试连接断了：后面的步骤都跑不了，整格停下（不再耗到外面的总超时）
-    if (result.driverError) throw new Error(`step "${step.name}": ${result.exceptionDetails.exception.description}`);
+    // 顺带探一下卡在哪一层：页面还能不能跑一句最简单的脚本（不能 = 页面自己忙死，例如脚本死循环，算产品问题）、浏览器本身还应不应答
+    if (result.driverError) {
+      const page = await send("Runtime.evaluate", { expression: "1", returnByValue: true }, sessionId, 5000).then(() => "page answers").catch(() => "page hung");
+      const browser = await send("Browser.getVersion", {}, undefined, 5000).then(() => "browser answers").catch(() => "browser hung");
+      throw new Error(`step "${step.name}": ${result.exceptionDetails.exception.description} (${page}, ${browser})`);
+    }
   }
 } catch (error) {
   console.log(JSON.stringify({ error: `driver: ${error.message}` }));

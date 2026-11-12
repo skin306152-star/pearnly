@@ -13,6 +13,10 @@
   listed(m)                         侧栏同一个接口 `assistant.api.listing` 按模式列的会话（第一页）
   openSteps(slot)                   展开对话里收起的步骤组，直到出现 data-slot = slot 的那一步
   rows()                            侧栏对话行（标题文字）
+  toolResult(name)                  假智能体回的「[lab-agent] <工具名> <工具结果原文>」里那段结果，**整段 JSON 已完整画出来**时回对象，
+                                    否则回 null（回复是流式画出来的）。读工具结果一律 `await until(()=>toolResult(名))` 再取字段：
+                                    只等某个字段名出现就读（11-11 / 11-12 两次偶发：`"status"` 先出现在嵌套的跳过清单里，顶层还没画完）
+                                    或按正则取第一处同名字段（会取到嵌套的那个）都不行，`tests/test_flows_wait_values.py` 拦
 """
 from __future__ import annotations
 
@@ -46,3 +50,13 @@ JS = (
     "return !!q(`[data-slot=\"${slot}\"]`);};"
     "const rows=()=>qa('[data-slot=\"aui_thread-list-item\"]').map(e=>e.innerText.trim().split('\\n')[0]);"
 )
+
+# 工具结果整段 JSON（见文件头 toolResult）：从「<工具名> {」起按括号配对（跳过字符串里的括号）取到完整的一段再解析，取最新的那条回复
+TOOL_RESULT = (
+    "const toolResult=name=>{const mark=name+' {'; for(const e of qa('[data-role=\"assistant\"]').reverse()){const t=e.innerText; "
+    "const i=t.indexOf(mark); if(i<0) continue; const s=t.slice(i+name.length+1); let d=0, str=false, esc=false; "
+    "for(let k=0;k<s.length;k++){const c=s[k]; if(str){ if(esc) esc=false; else if(c==='\\\\') esc=true; else if(c==='\"') str=false; continue; } "
+    "if(c==='\"') str=true; else if(c==='{') d++; else if(c==='}'){ d--; if(d===0){ try{ return JSON.parse(s.slice(0,k+1)); }catch(x){ return null; } } } } "
+    "return null; } return null;};"
+)
+JS += TOOL_RESULT

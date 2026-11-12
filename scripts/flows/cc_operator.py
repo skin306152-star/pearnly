@@ -109,14 +109,12 @@ def steps(params, camera_code=None):
         # 认 [lab-tool]，照真实引擎调 pearnly_write_plan，回一条「[lab-agent] pearnly_write_plan <工具结果原文>」；这里只建计划不开始
         # （网页上没有执行电脑，开始的三道保险由离线测试 tests/test_write_plan.py 锁住）
         {"name": "说一句建写入计划", "js": JS + f"const sent=await say({json.dumps(plan_line)}); "
-         "const found=()=>qa('[data-role=\"assistant\"]').find(e=>e.innerText.includes('pearnly_write_plan {')); "
-         # 等回复里出现 status 字段再读（11-11：偶发一格读到的是还没画完的气泡，字段全空）
-         "await until(()=>!!found()&&found().innerText.includes('\"status\"'),240); const bubble=found(); "
-         # 气泡里工具结果原文之后还可能跟着步骤行的字：按字段取，不整段 JSON.parse
+         # 等工具结果整段 JSON 画完、能取到值再读（toolResult，cc_lib）：只等 "status" 出现就读会读到没画完的（11-11、11-12 偶发）
+         "await until(()=>!!toolResult('pearnly_write_plan'),240); const result=toolResult('pearnly_write_plan'); "
+         "const bubble=qa('[data-role=\"assistant\"]').find(e=>e.innerText.includes('pearnly_write_plan {')); "
          "const text=bubble?bubble.innerText.slice(bubble.innerText.indexOf('pearnly_write_plan {')):''; "
-         "const pick=(k)=>{const m=text.match(new RegExp('\"'+k+'\": ?(\"[^\"]*\"|[0-9]+)')); return m?JSON.parse(m[1]):null;}; "
-         "const plan=text?{status: pick('status'), count: pick('count'), skipped_count: pick('skipped_count'), plan: pick('plan'), "
-         "note: pick('note')}:null; "
+         "const plan=result?{status: result.status, count: result.count, skipped_count: result.skipped_count, plan: result.plan, "
+         "note: result.note}:null; "
          "await until(()=>!!q('button.aui-composer-send'),80); "
          "return {sent, replied: !!bubble, status: plan&&plan.status, count: plan&&plan.count, skipped: plan&&plan.skipped_count, "
          "plan: plan&&plan.plan, note: plan?String(plan.note||'').slice(0,80):'', send: !!q('button.aui-composer-send'), "

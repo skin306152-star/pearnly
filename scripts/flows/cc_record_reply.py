@@ -37,19 +37,15 @@ print(json.dumps({{"company": company["id"], "title": company["title"], "doc": n
             "plan_line": f"{tag} 把这张录进 Express [lab-tool]{json.dumps(plan)}[/lab-tool]"}
 
 
-def _field(name: str) -> str:
-    """从假智能体回的「[lab-agent] 工具名 <工具结果原文>」里按字段取（气泡里结果之后可能跟着步骤行的字，不整段解析）。"""
-    return (f"(()=>{{const m=text.match(new RegExp('\"{name}\": ?(\"[^\"]*\"|[0-9]+)')); return m?JSON.parse(m[1]):null;}})()")
-
-
 def steps(params, camera_code=None):
     reply = "qa('[data-role=\"assistant\"]')"
     return [
         {"name": "说一句建写入计划", "js": JS + "const switched=await toMode('chat'); await until(()=>q('[data-slot=\"cc-chin-company\"]')); "
          f"const picked=await pickCompany({json.dumps(params['title'])}); const sent=await say({json.dumps(params['plan_line'])}); "
-         f"const found=()=>{reply}.find(e=>e.innerText.includes('pearnly_write_plan {{')); await until(()=>!!found()&&found().innerText.includes('\"status\"'),240); "
-         "const bubble=found(); const text=bubble?bubble.innerText.slice(bubble.innerText.indexOf('pearnly_write_plan {')):''; "
-         f"const status={_field('status')}, plan={_field('plan')}, count={_field('count')}; window.__plan=plan; "
+         # 等工具结果整段 JSON 画完、能取到值再读（toolResult，cc_lib）
+         "await until(()=>!!toolResult('pearnly_write_plan'),240); const result=toolResult('pearnly_write_plan')||{}; "
+         f"const bubble={reply}.find(e=>e.innerText.includes('pearnly_write_plan {{')); "
+         "const status=result.status??null, plan=result.plan??null, count=result.count??null; window.__plan=plan; "
          "await until(()=>!q('[data-slot=\"cc-run-indicator\"]'),80); "
          f"const chip=await until(()=>!!q({json.dumps(CHIP)}),80); "
          f"return {{switched, picked, sent, replied: !!bubble, status, plan, count, chip, label: q({json.dumps(CHIP)})?.innerText.trim()||''}};"},
@@ -63,9 +59,9 @@ def steps(params, camera_code=None):
         {"name": "按计划开始", "js": JS + "const plan=window.__plan||''; if(!plan) return {error:'no plan'}; "
          f"const line={json.dumps(params['tag'] + ' [lab-tool]')}+JSON.stringify({{name:'pearnly_write_start', input:{{plan}}}})+'[/lab-tool]'; "
          "const sent=await say(line); "
-         f"const found=()=>{reply}.find(e=>e.innerText.includes('pearnly_write_start {{')); await until(()=>!!found()&&found().innerText.includes('\"status\"'),240); "
-         "const bubble=found(); const text=bubble?bubble.innerText.slice(bubble.innerText.indexOf('pearnly_write_start {')):''; "
-         f"const status={_field('status')}; "
+         "await until(()=>!!toolResult('pearnly_write_start'),240); const result=toolResult('pearnly_write_start')||{}; "
+         f"const bubble={reply}.find(e=>e.innerText.includes('pearnly_write_start {{')); "
+         "const status=result.status??null; "
          "await until(()=>!q('[data-slot=\"cc-run-indicator\"]'),80); "
          f"const gone=await until(()=>!q({json.dumps(CHIP)}),60); await sleep(1500); "
          f"return {{plan, sent, replied: !!bubble, status, gone, still: !!q({json.dumps(CHIP)})}};"},
