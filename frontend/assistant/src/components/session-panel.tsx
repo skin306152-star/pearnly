@@ -266,13 +266,11 @@ export const LedgerMenu: FC<{ entry: LedgerView | null; onChoose: (id: string) =
   const label = ledgerLabel(entry);
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <button type="button" className="cc-panel-row" data-slot="cc-company-ledger" title={label}>
-          <BookOpenIcon />
-          <Marquee className="min-w-0 flex-1 truncate">{co.accountSets}</Marquee>
-          <Marquee className="cc-panel-extra">{label}</Marquee>
-          <ChevronDownIcon />
-        </button>
+      <DropdownMenu.Trigger className="cc-panel-row" data-slot="cc-company-ledger" title={label}>
+        <BookOpenIcon />
+        <Marquee className="min-w-0 flex-1 truncate">{co.accountSets}</Marquee>
+        <Marquee className="cc-panel-extra">{label}</Marquee>
+        <ChevronDownIcon />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
