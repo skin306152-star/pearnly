@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CC 引导式录入 · 界面示意</title>
+<!-- 静态示意：色值、圆角、字号取自 frontend/assistant/src/globals.css 浅色主题；控件外观照标准组件库展示页（components/ui）。不是产品代码。 -->
+<style>
+:root{
+  --bg:#fcfcfb;--surface:#fff;--ink:#0b0b0b;--ink2:#52514e;--ink3:#898781;--line:rgb(0 0 0/.1);--line2:rgb(0 0 0/.2);
+  --subtle:rgb(0 0 0/.05);--sel:rgb(0 0 0/.1);--brand:#f28c28;--danger:#7f2c28;--danger-bg:#f7ecec;--ok:#265b19;--ok-bg:#e9f1dc;
+  --warn:#5a4815;--warn-bg:#f6eedf;--r-md:8px;--r-xl:12px;--r-in:14px;
+  --float:0 0 0 .5px #0000000d,0 2px 8px #0000000a,0 12px 32px #00000008;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e9e8e4;font:14px/20px ui-sans-serif,system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink)}
+.frame{display:none}
+.frame.on{display:flex}
+svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+/* 电脑 */
+.desk{width:1280px;height:820px;background:var(--bg)}
+.side{width:248px;border-right:1px solid var(--line);padding:12px;display:flex;flex-direction:column;gap:10px}
+.seg{display:inline-flex;background:var(--subtle);border-radius:8px;padding:2px;gap:2px}
+.seg span{padding:4px 12px;border-radius:6px;font-size:13px;color:var(--ink3)}
+.seg span.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px #0002;font-weight:500}
+.row{padding:6px 8px;border-radius:8px;color:var(--ink2);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row.on{background:var(--sel);color:var(--ink)}
+.grp{font-size:12px;color:var(--ink3);padding:8px 8px 2px}
+.main{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
+.col{width:720px;flex:1;display:flex;flex-direction:column;min-height:0}
+.thread{flex:1;overflow:hidden;padding:24px 0 8px;display:flex;flex-direction:column;gap:14px;justify-content:flex-end}
+.thread.top{justify-content:center;align-items:center}
+.hello{font-size:22px;line-height:28px;font-weight:600;margin-top:10px}
+.cat{width:56px;height:56px;border-radius:50%;background:var(--brand);display:grid;place-items:center;color:#fff;font-weight:700}
+.bubble{align-self:flex-end;background:var(--subtle);border-radius:10px;padding:8px 12px;max-width:70%}
+.say{font-size:16px;line-height:24px}
+.trace{display:flex;align-items:center;gap:6px;color:var(--ink3);font-size:13px}
+/* 输入框与上方一行 */
+.above{display:flex;gap:8px;align-items:center;padding:0 2px 8px;flex-wrap:nowrap}
+.composer{border:1px solid var(--line);background:var(--surface);border-radius:var(--r-in);box-shadow:var(--float);padding:8px;display:flex;flex-direction:column;gap:6px}
+.composer .in{min-height:28px;padding:4px 6px;color:var(--ink3);font-size:16px}
+.composer .bar{display:flex;align-items:center;gap:8px}
+.round{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--ink2)}
+.round.send{background:var(--ink);color:#fff;border:0;margin-left:auto}
+.chin{display:flex;gap:6px;padding:8px 4px 14px;color:var(--ink3);font-size:12px;align-items:center}
+.chin b{font-weight:400;border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:var(--ink2);display:inline-flex;gap:4px;align-items:center}
+/* 标准组件外观 */
+.btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:14px;font-weight:500;white-space:nowrap}
+.btn.pri{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.sec{background:var(--sel);border-color:transparent}
+.btn.xs{height:24px;padding:0 8px;font-size:12px;border-radius:6px}
+.tg{display:inline-flex;gap:6px}
+.tg .btn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.badge{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;font-size:12px;background:var(--subtle);color:var(--ink2);white-space:nowrap}
+.badge.dark{background:var(--ink);color:#fff}.badge.red{background:var(--danger-bg);color:var(--danger)}.badge.ok{background:var(--ok-bg);color:var(--ok)}.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.card{border:1px solid var(--line);border-radius:var(--r-xl);background:var(--surface);padding:16px;display:flex;flex-direction:column;gap:12px}
+.card h4{margin:0;font-size:14px;font-weight:600}
+.card .sub{color:var(--ink3);font-size:13px;margin-top:-8px}
+.card .foot{display:flex;justify-content:flex-end;gap:8px;align-items:center}
+.item{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.item .ic{width:32px;height:32px;border-radius:8px;background:var(--subtle);display:grid;place-items:center;color:var(--ink2);flex:none}
+.item .t{flex:1;min-width:0}.item .t small{display:block;color:var(--ink3);font-size:12px}
+.empty{border:1px dashed var(--line2);border-radius:10px;padding:22px;display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--ink3)}
+.prog{height:3px;border-radius:2px;background:var(--subtle);overflow:hidden}.prog i{display:block;height:100%;background:var(--ink)}
+.qn-p{font-size:12px;color:var(--ink3)}
+.qn-t{font-weight:600}
+.qn-d{color:var(--ink3);font-size:13px;margin-top:-8px}
+.choice{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+.choice.on{border-color:var(--ink)}
+.choice .rd{width:16px;height:16px;border-radius:50%;border:1px solid var(--line2);margin-top:2px;flex:none;display:grid;place-items:center}
+.choice.on .rd{border-color:var(--ink)}.choice.on .rd::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--ink)}
+.choice small{display:block;color:var(--ink3);font-size:12px}
+.choice .badge{margin-left:auto}
+.coll{display:flex;align-items:center;gap:6px;color:var(--ink3);font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-weight:400;color:var(--ink3);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.cb{width:16px;height:16px;border-radius:4px;border:1px solid var(--line2);display:grid;place-items:center}
+.cb.on{background:var(--ink);border-color:var(--ink);color:#fff}.cb svg{width:12px;height:12px}
+.inp{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:2px 8px;background:var(--surface);min-width:96px}
+.inp.bad{border-color:var(--danger);color:var(--danger)}
+.field{display:flex;flex-direction:column;gap:6px}.field label{font-weight:600;font-size:13px}
+.input{border:1px solid var(--line);border-radius:8px;height:32px;padding:0 10px;display:flex;align-items:center;gap:8px;background:var(--surface)}
+.radio{display:flex;gap:16px;align-items:center}.radio span{display:inline-flex;gap:6px;align-items:center}
+.dot{width:16px;height:16px;border-radius:50%;border:1px solid var(--line2);display:inline-grid;place-items:center}.dot.on{background:var(--ink);border-color:var(--ink)}
+.sum{display:flex;justify-content:space-between;font-weight:600}
+.cap{position:absolute;left:12px;bottom:8px;font-size:12px;color:#77756f}
+/* 手机 */
+.phones{gap:28px;padding:28px;background:#e9e8e4;width:1280px;justify-content:center;position:relative}
+.phone{width:375px;height:780px;background:var(--bg);border-radius:36px;border:8px solid #1b1b1b;display:flex;flex-direction:column;overflow:hidden}
+.phone .top{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;font-weight:600}
+.phone .thread{padding:8px 16px}
+.phone .dock{padding:0 12px 16px}
+.phone .composer{border-radius:22px;flex-direction:row;align-items:center;padding:6px 8px}
+.phone .composer .in{flex:1}
+.phone .above{overflow:hidden}
+.phone .btn{height:36px}
+.phone .choice{min-height:44px;align-items:center}
+.phone .card{padding:14px}
+.ptitle{position:absolute;top:6px;font-size:12px;color:#77756f}
+</style>
+</head>
+<body>
+<svg style="display:none">
+  <symbol id="plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+  <symbol id="up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7M12 19V5"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="cart" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></symbol>
+  <symbol id="tag" viewBox="0 0 24 24"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></symbol>
+  <symbol id="wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></symbol>
+  <symbol id="file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/></symbol>
+  <symbol id="upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></symbol>
+  <symbol id="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  <symbol id="camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+</svg>
+
+<!-- 共用片段用模板复制 -->
+<template id="t-side">
+  <div class="side">
+    <div class="seg"><span class="on">直写</span><span>代录</span></div>
+    <div class="row"><svg class="i" style="vertical-align:-3px"><use href="#plus"/></svg> 新对话</div>
+    <div class="grp">SINCERE ICE</div>
+    <div class="row on">6 月采购票 12 张</div>
+    <div class="row">查 5 月销项税</div>
+    <div class="grp">บริษัท นิว ลิงค์ จำกัด</div>
+    <div class="row">收款 ร้านข้าวสมชาย</div>
+  </div>
+</template>
+<template id="t-menu">
+  <div class="tg"><span class="btn"><svg class="i"><use href="#cart"/></svg>采购</span><span class="btn"><svg class="i"><use href="#tag"/></svg>销售</span><span class="btn"><svg class="i"><use href="#wallet"/></svg>收款</span></div>
+</template>
+<template id="t-composer">
+  <div class="composer"><div class="in">回复…</div><div class="bar"><span class="round"><svg class="i"><use href="#plus"/></svg></span><span class="round send"><svg class="i"><use href="#up"/></svg></span></div></div>
+  <div class="chin"><b>SINCERE ICE<svg class="i" style="width:12px;height:12px"><use href="#down"/></svg></b><b>2026-06</b><b>账套 T.8<svg class="i" style="width:12px;height:12px"><use href="#down"/></svg></b></div>
+</template>
+
+<!-- 1 电脑：新对话，输入框上方的业务菜单 -->
+<div class="frame desk" id="d1">
+  <div data-t="t-side"></div>
+  <div class="main"><div class="col">
+    <div class="thread top"><div class="cat">CC</div><div class="hello">下午好</div></div>
+    <div class="above" data-t="t-menu"></div>
+    <div data-t="t-composer"></div>
+  </div></div>
+</div>
+
+<!-- 2 电脑：点了「采购」 -->
+<div class="frame desk" id="d2">
+  <div data-t="t-side"></div>
+  <div class="main"><div class="col">
+    <div class="thread">
+      <div class="card">
+        <h4>采购</h4><div class="sub">SINCERE ICE · 账套 T.8 · 2026-06</div>
+        <div class="empty"><svg class="i" style="width:22px;height:22px"><use href="#upload"/></svg><span class="btn">上传票据</span></div>
+      </div>
+    </div>
+    <div class="above"><div class="tg"><span class="btn on"><svg class="i"><use href="#cart"/></svg>采购<svg class="i" style="width:12px;height:12px"><use href="#x"/></svg></span></div></div>
+    <div data-t="t-composer"></div>
+  </div></div>
+</div>
+
+<!-- 3 电脑：上传识别后，一张后台出的卡 -->
+<div class="frame desk" id="d3">
+  <div data-t="t-side"></div>
+  <div class="main"><div class="col">
+    <div class="thread">
+      <div class="bubble">12 个文件</div>
+      <div class="trace"><svg class="i"><use href="#check"/></svg>已识别 12 张</div>
+      <div class="card">
+        <div class="qn-p">第 1 项，共 2 项</div>
+        <div class="qn-t">บริษัท สยามแม็คโคร จำกัด（5 张）：现购还是赊购？</div>
+        <div class="choice on"><span class="rd"></span><div>现购<small>票面有收据，已付</small></div><span class="badge">推荐</span></div>
+        <div class="choice"><span class="rd"></span><div>赊购<small>记应付，以后再付</small></div></div>
+        <div class="coll"><svg class="i"><use href="#chev"/></svg>已定 6 项</div>
+        <div class="foot"><span class="btn xs sec">跳过</span><span class="btn xs pri">下一步</span></div>
+      </div>
+    </div>
+    <div class="above"><div class="tg"><span class="btn on"><svg class="i"><use href="#cart"/></svg>采购<svg class="i" style="width:12px;height:12px"><use href="#x"/></svg></span></div></div>
+    <div data-t="t-composer"></div>
+  </div></div>
+</div>
+
+<!-- 4 电脑：复核 + 「录吧」 -->
+<div class="frame desk" id="d4">
+  <div data-t="t-side"></div>
+  <div class="main"><div class="col">
+    <div class="thread">
+      <div class="card">
+        <h4>复核</h4><div class="sub">采购 12 张 · SINCERE ICE · 账套 T.8</div>
+        <table>
+          <tr><th></th><th>供应商</th><th>单号</th><th>日期</th><th class="num">合计</th><th>录成</th></tr>
+          <tr><td><span class="cb on"><svg class="i"><use href="#check"/></svg></span></td><td>สยามแม็คโคร</td><td><span class="inp">IV6906-00751</span></td><td>2026-06-03</td><td class="num">4,280.00</td><td>现购 HP</td></tr>
+          <tr><td><span class="cb on"><svg class="i"><use href="#check"/></svg></span></td><td>สยามแม็คโคร</td><td><span class="inp bad">IV/69/06751</span></td><td>2026-06-05</td><td class="num">1,926.00</td><td>现购 HP</td></tr>
+          <tr><td><span class="cb on"><svg class="i"><use href="#check"/></svg></span></td><td>ไทยน้ำทิพย์</td><td><span class="inp">TN-2606118</span></td><td>2026-06-09</td><td class="num">12,840.00</td><td>赊购 RR</td></tr>
+          <tr><td><span class="cb"></span></td><td>การไฟฟ้าส่วนภูมิภาค</td><td><span class="inp">0626-88120</span></td><td>2026-06-12</td><td class="num">3,115.40</td><td><span class="badge warn">已录过 · 跳过</span></td></tr>
+          <tr><td colspan="6" style="color:var(--ink3);border:0">还有 8 张</td></tr>
+        </table>
+      </div>
+      <div class="say">录进 SINCERE ICE 的账套 T.8：采购 11 张，1 张已录过不录。</div>
+    </div>
+    <div class="above"><span class="btn">录吧</span></div>
+    <div data-t="t-composer"></div>
+  </div></div>
+</div>
+
+<!-- 5 电脑：结果 -->
+<div class="frame desk" id="d5">
+  <div data-t="t-side"></div>
+  <div class="main"><div class="col">
+    <div class="thread">
+      <div class="bubble">录吧</div>
+      <div class="card">
+        <h4>已录入 10 张，1 张未录</h4><div class="sub">SINCERE ICE · 账套 T.8</div>
+        <div class="prog"><i style="width:100%"></i></div>
+        <table>
+          <tr><th>供应商</th><th>票面单号</th><th>Express 单号</th><th class="num">合计</th><th></th></tr>
+          <tr><td>สยามแม็คโคร</td><td>IV6906-00751</td><td>HP6906030001</td><td class="num">4,280.00</td><td><span class="badge ok">已录入</span></td></tr>
+          <tr><td>ไทยน้ำทิพย์</td><td>TN-2606118</td><td>RR6906090001</td><td class="num">12,840.00</td><td><span class="badge ok">已录入</span></td></tr>
+          <tr><td>บิ๊กซี ซูเปอร์เซ็นเตอร์</td><td>BC-118204</td><td>—</td><td class="num">856.00</td><td><span class="badge red">日期在账套期间外</span></td></tr>
+          <tr><td colspan="5" style="color:var(--ink3);border:0">还有 8 张</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="above" data-t="t-menu"></div>
+    <div data-t="t-composer"></div>
+  </div></div>
+</div>
+
+<!-- 6 电脑：收款 -->
+<div class="frame desk" id="d6">
+  <div data-t="t-side"></div>
+  <div class="main"><div class="col">
+    <div class="thread">
+      <div class="card">
+        <h4>收款</h4><div class="sub">บริษัท นิว ลิงค์ จำกัด · 账套 NLTTEST · 2026-11</div>
+        <div class="field"><label>客户</label><div class="input"><svg class="i"><use href="#search"/></svg>ร้านข้าวสมชาย（C0127）</div></div>
+        <div class="field"><label>未收清发票</label>
+          <table>
+            <tr><th></th><th>单号</th><th>日期</th><th class="num">未收</th><th class="num">本次收</th></tr>
+            <tr><td><span class="cb on"><svg class="i"><use href="#check"/></svg></span></td><td>IV6910-0412</td><td>2026-10-08</td><td class="num">18,500.00</td><td class="num"><span class="inp">18,500.00</span></td></tr>
+            <tr><td><span class="cb on"><svg class="i"><use href="#check"/></svg></span></td><td>IV6910-0467</td><td>2026-10-21</td><td class="num">9,200.00</td><td class="num"><span class="inp">5,000.00</span></td></tr>
+            <tr><td><span class="cb"></span></td><td>IV6911-0031</td><td>2026-11-02</td><td class="num">7,740.00</td><td class="num"></td></tr>
+          </table>
+        </div>
+        <div class="field"><label>收款方式</label>
+          <div class="radio"><span><i class="dot"></i>现金</span><span><i class="dot on"></i>转账 กสิกรไทย</span></div>
+          <div class="item"><span class="ic"><svg class="i"><use href="#file"/></svg></span><div class="t">转账凭证<small>slip-1112.jpg</small></div><span class="btn xs sec">更换</span></div>
+        </div>
+        <div class="sum"><span>合计</span><span>23,500.00</span></div>
+      </div>
+      <div class="say">录进 นิว ลิงค์ 的账套 NLTTEST：收 ร้านข้าวสมชาย 2 张发票共 23,500.00，转账。</div>
+    </div>
+    <div class="above"><span class="btn">录吧</span></div>
+    <div data-t="t-composer"></div>
+  </div></div>
+</div>
+
+<!-- 7 手机：菜单 / 提问卡浮在输入框上方 / 结果 -->
+<div class="frame phones" id="m1">
+  <div class="phone">
+    <div class="top"><svg class="i"><use href="#menu"/></svg>新对话</div>
+    <div class="thread top" style="flex:1"><div class="cat">CC</div><div class="hello">下午好</div>
+      <div class="chin" style="padding:6px 0"><b>SINCERE ICE</b><b>2026-06</b><b>T.8</b></div></div>
+    <div class="dock"><div class="above" data-t="t-menu"></div>
+      <div class="composer"><span class="round"><svg class="i"><use href="#plus"/></svg></span><div class="in">回复…</div><span class="round send"><svg class="i"><use href="#up"/></svg></span></div></div>
+  </div>
+  <div class="phone">
+    <div class="top"><svg class="i"><use href="#menu"/></svg>6 月采购票 12 张</div>
+    <div class="thread" style="flex:1"><div class="bubble">12 个文件</div><div class="trace"><svg class="i"><use href="#check"/></svg>已识别 12 张</div></div>
+    <div class="dock">
+      <div class="card" style="box-shadow:var(--float);margin-bottom:8px">
+        <div class="qn-p">第 1 项，共 2 项</div>
+        <div class="qn-t">สยามแม็คโคร（5 张）：现购还是赊购？</div>
+        <div class="choice on"><span class="rd"></span><div>现购<small>票面有收据，已付</small></div><span class="badge">推荐</span></div>
+        <div class="choice"><span class="rd"></span><div>赊购<small>记应付，以后再付</small></div></div>
+        <div class="foot"><span class="btn sec">跳过</span><span class="btn pri">下一步</span></div>
+      </div>
+      <div class="composer"><span class="round"><svg class="i"><use href="#plus"/></svg></span><div class="in">回复…</div><span class="round send"><svg class="i"><use href="#up"/></svg></span></div></div>
+  </div>
+  <div class="phone">
+    <div class="top"><svg class="i"><use href="#menu"/></svg>6 月采购票 12 张</div>
+    <div class="thread" style="flex:1">
+      <div class="card">
+        <h4>复核</h4><div class="sub">采购 12 张 · 账套 T.8</div>
+        <div class="item"><span class="cb on"><svg class="i"><use href="#check"/></svg></span><div class="t">สยามแม็คโคร<small>IV6906-00751 · 现购 HP</small></div>4,280.00</div>
+        <div class="item" style="border-color:var(--danger)"><span class="cb on"><svg class="i"><use href="#check"/></svg></span><div class="t">สยามแม็คโคร<small style="color:var(--danger)">IV/69/06751 · 现购 HP</small></div>1,926.00</div>
+        <div class="item"><span class="cb"></span><div class="t">การไฟฟ้าส่วนภูมิภาค<small>0626-88120</small></div><span class="badge warn">已录过 · 跳过</span></div>
+        <div class="coll"><svg class="i"><use href="#chev"/></svg>还有 9 张</div>
+      </div>
+      <div class="say" style="font-size:15px">录进 SINCERE ICE 的账套 T.8：采购 11 张，1 张已录过不录。</div>
+    </div>
+    <div class="dock"><div class="above"><span class="btn">录吧</span></div>
+      <div class="composer"><span class="round"><svg class="i"><use href="#plus"/></svg></span><div class="in">回复…</div><span class="round send"><svg class="i"><use href="#up"/></svg></span></div></div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll("[data-t]").forEach(function (el) {
+  var t = document.getElementById(el.dataset.t).content.cloneNode(true);
+  if (el.className) { el.appendChild(t); } else { el.replaceWith(t); }
+});
+var id = (location.hash || "#d1").slice(1);
+var f = document.getElementById(id); if (f) f.classList.add("on");
+</script>
+</body>
+</html>
