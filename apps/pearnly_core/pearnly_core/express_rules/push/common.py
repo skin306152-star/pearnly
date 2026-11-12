@@ -517,6 +517,9 @@ SHORTAGES_META = "shortages"
 # 库存不足是因为账套「扣成负库存要批准」（Express ISINFO.NEGAUTH 非空，CC 桌面版 stock_guard.approval_needed）：meta.approval = true，
 # 两产品据此把「账套不允许负库存」换成「账套扣成负库存需要批准」。只在是这个原因时有。
 APPROVAL_META = "approval"
+# 写成了、但有几格科目余额没标「待重算」（CC 桌面版 ``glbal_mark``：GLBAL 行不存在、下一年度、这一期还没算过等没有证据的情形）：
+# ``meta.glbal_unmarked = ["科目|部门|期: 原因", …]``。这张单的金额要在 Express 里跑一次重算才进科目余额与试算表。
+GLBAL_UNMARKED_META = "glbal_unmarked"
 _CHOICE_TEXT = {"name": 200, "stkcod": 40, "balance": 30}
 _CHOICE_UNIT_TABLE_MAX = 400
 OPERATOR_DOC_TYPE_MAX = 10
@@ -664,6 +667,11 @@ def sanitize_push_meta(raw: Any) -> Dict[str, Any]:
         out[SHORTAGES_META] = shortages
     if raw.get(APPROVAL_META) is True:
         out[APPROVAL_META] = True
+    unmarked = raw.get(GLBAL_UNMARKED_META)
+    if isinstance(unmarked, list):
+        kept = [str(x).strip()[:80] for x in unmarked[:_META_MAX_LIST] if isinstance(x, str) and x.strip()]
+        if kept:
+            out[GLBAL_UNMARKED_META] = kept
     return out
 
 

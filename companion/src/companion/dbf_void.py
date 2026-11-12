@@ -28,6 +28,7 @@ import dbf
 from . import dbf_remarks
 from . import dbf_schema as S
 from . import fiscal_period
+from . import glbal_mark
 from . import stock_guard
 from . import stock_location
 from . import stock_sale
@@ -211,7 +212,8 @@ def void_stock_entry(
     # 行附加说明（按台号码）：原生作废领用 / 调整等给行说明打删除标记，调拨 RL 保留（S 盘副本统计 157 留 : 5 删，11-02）
     remarks = () if transfer or not dbf_remarks.has_line_remarks(account_dir, docnum) else (dbf_remarks.TABLE,)
     clock.lap("checks")
-    backup_dir = _backup(account_dir, TABLES + (S.LOCATION_TABLES if has_stloc else ()) + remarks) if make_backup else None
+    backup_dir = _backup(account_dir, TABLES + (glbal_mark.TABLE,) + (S.LOCATION_TABLES if has_stloc else ()) + remarks) \
+        if make_backup else None
     clock.lap("backup")
     try:
         moves = _void_lines(account_dir, docnum, kind)
@@ -319,13 +321,16 @@ def _void_journal(account_dir: Path, docnum: str) -> None:
     finally:
         journal.close()
     entries = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
+    written = []  # 作废改的是原单的分录行（金额清空）：这几行的科目余额同样要重算
     try:
         for rec in S.live_rows(entries):
             if _text(rec, "VOUCHER") == docnum:
+                written.append({"ACCNUM": _text(rec, "ACCNUM"), "DEPCOD": _text(rec, "DEPCOD"), "VOUDAT": rec["VOUDAT"]})
                 with rec as fields:
                     fields["AMOUNT"] = None
     finally:
         entries.close()
+    glbal_mark.mark(account_dir, written)  # 科目余额对应格标待重算（照 Express 原生，11-12）
 
 
 def _verify(account_dir: Path, docnum: str) -> None:

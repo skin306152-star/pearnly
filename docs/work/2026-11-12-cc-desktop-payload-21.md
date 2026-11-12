@@ -3,7 +3,8 @@
 - 属于 [CC 引导式录入](2026-11-12-cc-guided-entry.md)（用户 11-12 批准）；依据是评估窗口的
   [Express 必填覆盖表](2026-11-12-cc-guided-entry-express-coverage.md) 第 8 节「CC 桌面版载荷接口约定」、第 2.4 节、第 5 节
   A5 / A8 / A10 / A11 / A13 / A2 / R2 / B1 / B2 / B5 / G-B6（两份文档在分支 `pearnly/cc-guided-entry-51673b`）。
-- 分支 `pearnly/cc-desktop-payload-3a2e3d`，基线 `origin/main` c63458f5f，工作树 `.claude/worktrees/cc-desktop-payload-3a2e3d`。
+- 分支 `pearnly/cc-desktop-payload-3a2e3d`，工作树 `.claude/worktrees/cc-desktop-payload-3a2e3d`。原基线 `origin/main` c63458f5f；11-12 晚按主会话
+  变基到 `pearnly/express-busy-probe-2`（它已变基到 `origin/main` 702580300），CC 桌面版版本号与那一支同为 1.12.21，README 一个条目合写。
 - 状态：**本次范围完成（代码与离线证据）**；测试机实写、62 套原生回放没做（清单见
   [测试机清单](2026-11-12-cc-desktop-payload-21-testpc-checklist.md)）；没合入、没发版，版本号与 README 条目等主会话定。
 - 分工：服务端出题、前端卡片、读 `unit_guessed`、四语词条由引导式第 1 期窗口做；本任务只做 CC 桌面版（`companion/`）与服务端里
@@ -53,6 +54,40 @@ Express 拦的不绕过；先服务端后 CC 桌面版，同一次发布。对�
 「卖随单新建的物料」的销货从「写成负数」变成整单不写、回 `STOCK_INSUFFICIENT`；③ 客户档有销售员的销售单单头带上销售员（G-A15）；
 ④ 账套填了「扣成负库存要批准」的，库存不够的销货 / 领用 / 调拨 / 作废从「写成负数」变成整单不写；⑤ 没有供应商发票号的进货单从拒收变成照写。
 其余全部只在版本 21 的载荷上生效。B2 已由主会话改列为 G-B2′（票面号没进账，先在测试机试手填单号再定做法），仍不在本批。
+
+## 科目余额标「待重算」（GLBAL，主会话 11-12 追加；所有写分录的直写）
+
+事实（共享写入实验窗口 11-12 在正版 Express 上用 Process Monitor 抓到、前后文件比对证实；共享笔记「共享写入实验-11-12/GLBAL核实/」与 P0）：
+Express 保存一张单时不累加 GLBAL 的金额，而是对每行分录的 GLBAL 行（键 = ACCNUM + DEPCOD）把 `CALSTA`（24 位）里这一期那一位置 `'0'`
+（待重算）；VFP 行锁、整行写回、解锁；金额、期初、LY / NY 栏不动，与借贷方向无关。我们以前不标——69EXP\TEST 里我们写的 RE0000006
+三个科目 11 月不在 GLBAL 里、CALSTA 全 1，Express 自己录的 RR0000094 四行被标了 0；NLTTEST 只有我们写过分录的三格没进余额。
+
+做法：共用的一步 `companion/src/companion/glbal_mark.py`（`mark(account_dir, entries)`），七条写分录的路径在写完 GLJNLIT、关表之后调它：
+采购 `dbf_writer._write_all`、销售 `dbf_sales._write_all`、退货 `dbf_refund`、POS 转账凭证 `pos_journal`、库存单 `dbf_stock`、作废 `dbf_void`
+（改的是原单分录行，同样标）、收款 `dbf_receipt`。
+
+- 期间映射：ISPRD 的本年度（CY）段第 k 期 → 第 k 位（实证：1 月起账的账套 11 月单标第 11 位）。下一年度（NY）段、判不出期间的不写。
+- 只把 `'1'` 改成 `'0'`；`'0'` 已是待重算不用改；别的值（例如空格：这一期还没算过）不写。对应行不存在不写（Express 那时怎么建行没查清）。
+- 不写的格记进 `glbal_mark.collecting()`（`worker._handle_dbf_task` 包住一次写入），写成后随回执 `meta.glbal_unmarked = ["科目|部门|期: 原因", …]`
+  回云端（服务端 `sanitize_push_meta` 放行），表示这张单要在 Express 里跑一次重算。
+- 写完立即读回要标的位，不是 `'0'` 就抛错、整单回滚。GLBAL 进了写前备份（`S.BACKUP_TABLES`、`dbf_receipt.BACKUP_TABLES`、库存单与作废的
+  `_backup`）和占用探测清单（`worker._write_tables`；调拨不写分录，不带）；**不进重建索引**——只改已有行的一个字符，不追加行、不动索引键。
+- 没做 VFP 行锁：别的表我们也不加 VFP 记录锁，靠写前占用探测（GLBAL 的 DBF 与 CDX 都拿得到独占才写）与 `PEARNLY.LCK` 保证没人同时在写。
+
+线索（不是证据，没据此写）：本机 SINCTEST 副本的 GLBAL 里 CALSTA 第 19、20 位有 `'0'`（这本账套 CY = 2025、NY = 2026，第 19 / 20 位对应
+NY 第 7 / 8 期），看起来 NY 段就是第 13–24 位；等实验窗口 a 阶段的证据再放开。
+
+测试：`companion/tests/test_glbal_mark.py` 11 条（实现前全红）：采购写完只有分录科目那几行的那一位变、别的行别的字节逐字节不变；
+销售、24 位都有值的行；下一年度 / 行不存在 / 空格位不写并回报；账套没有 GLBAL 照写并回报；读回不符整单回滚（GLBAL 还原）；回执带
+`glbal_unmarked`；各方向的探测清单含 GLBAL、调拨不含。契约测试加一条（七条写路都调同一步、服务端放行）。
+
+回放（序列 **D**：SINCTEST 的本年度 2568-10 月进销 4 张）：旧代码与新代码写出的全部表只差 `GLBAL.CALSTA` 8 格（第 10 位 1 → 0，
+正是这 4 张单分录用到的 8 个科目），别的逐字节不变；合成账套没有 GLBAL，零差异（结果里只有 notes 文字里的账套目录名不同，是回放目录名）。
+序列 A / B / C 在原来的账套上重跑结果不变（A 的日期在 SINCTEST 的下一年度，按上面的规则不写 GLBAL，所以 A 仍逐字节相同）。
+
+收款分支（`pearnly/collection-cc-chat`）合入时：它的写路在写完 GLJNLIT、关表之后同样 `glbal_mark.mark(account_dir, written)`
+（`written` = 刚追加的 GLJNLIT 行 dict，至少有 ACCNUM、DEPCOD、VOUDAT），并把 `glbal_mark.TABLE` 加进它的写前备份；
+`dbf_receipt.py` 在本分支已接上，冲突时保留这两处。
 
 ## 新增文案（14 条，`python3 scripts/check-copy.py --report`：新增 14、改动 0、拦截 0）
 
