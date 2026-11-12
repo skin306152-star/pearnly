@@ -781,6 +781,7 @@ class Engine:
             self.checkpoint("before_save", before_text, {"stage": "before_save", "lines": len(d.lines),
                                                          "total": str(total)})
         saved_text = f"单号栏是正式单号（{T} 后面跟数字，不含 NEW），没有弹窗。"
+        self._save_pressed = True  # 从这里起出的任何意外都先读账套核这张存没存（_after_save_trouble）
         self.command("save")
         self.act([{"do": "wait", "ms": self.recipe.save_wait_ms}])
         try:
@@ -898,6 +899,7 @@ class Engine:
     def begin(self, draft: Optional[Draft], doc_type: str = "") -> None:
         """开始一段记录（一张单，或探路时 ``draft=None``）。"""
         self.draft = draft
+        self._save_pressed = False
         doc_type = draft.doc_type if draft else doc_type
         self.form = self.recipe.form(doc_type) if doc_type else None
         self._t0 = time.monotonic()
@@ -907,6 +909,32 @@ class Engine:
                     "layers": {}, "checkpoints": 0, "fallbacks": [], "shots_ai": 0, "shots_evidence": 0, "voided": [],
                     "outcome": "", "reason": "", "detail": "", "docnum": "", "readback": None,
                     "placeholders": []}
+
+    def _need_human(self, draft: Draft, e: NeedHuman) -> None:
+        """保存键按下之前就转人工：截画面、按放弃流程收尾（作废两道闸照旧）。"""
+        self.rec.update(outcome="need_human", reason=e.reason, detail=e.detail[:K.DETAIL_MAX])
+        if isinstance(e, MenuChoice):
+            self.rec["menu_options"] = list(e.options)
+        self._need_human_shot(draft.doc_id)  # 作废前截下转人工那一刻的画面（2026-11-03：原来只截存成的单）
+        self.rec["voided"] = self.abandon()
+
+    def _after_save_trouble(self, draft: Draft, e: Exception) -> str:
+        """保存键按下之后出了认不出的画面（11-12 测试机2：服务品赊销单存档途中问销项税口径，单其实已存进 IV0000043）。按类处理，
+        不只哪一个框：先读账套——这张已存就回单号（不放弃、不作废、不点 Express 上的东西）；核不出来就转人工，**不碰** Express 上的
+        东西（「取消」在有明细时就是存档、作废闸也可能作废一张存好的单），并标上 ``recheck``：批次再交来时先读账套判断存没存，
+        绝不从头重录（以前会把「其实已存」当成没录成再录一遍，录出重复单）。"""
+        reason = getattr(e, "reason", "unknown_screen")
+        detail = str(getattr(e, "detail", "") or e)
+        self.form_open = None  # Express 上留着认不出的东西：下一张从菜单重开（撞上就停在开窗那一步，不会再按保存）
+        docnum = self._wait_for(self._booked, SLOW_SAVE_S)
+        if docnum:
+            self._layer("dbf")
+            self._event("saved", docnum=docnum, by="book", after=reason, screen=detail[:200])
+            self.rec.update(outcome="saved", screen_left=detail[:K.DETAIL_MAX])
+            return docnum
+        self.rec.update(outcome="need_human", reason=reason, detail=detail[:K.DETAIL_MAX], recheck=True)
+        self._need_human_shot(draft.doc_id)
+        return ""
 
     def run(self, draft: Draft) -> Dict:
         """录一张。回 ``{"outcome": saved / need_human / blocked / crash, "reason", "docnum", "voided", "readback", ...}``。
@@ -927,12 +955,13 @@ class Engine:
                 self.rec["reason"] = "unknown_screen"
             if docnum == SAVED_UNREAD:
                 docnum = ""
-        except NeedHuman as e:
-            self.rec.update(outcome="need_human", reason=e.reason, detail=e.detail[:K.DETAIL_MAX])
-            if isinstance(e, MenuChoice):
-                self.rec["menu_options"] = list(e.options)
-            self._need_human_shot(draft.doc_id)  # 作废前截下转人工那一刻的画面（2026-11-03：原来只截存成的单）
-            self.rec["voided"] = self.abandon()
+        except (NeedHuman, Unexpected) as e:
+            if not self._save_pressed:
+                if isinstance(e, Unexpected):
+                    raise
+                self._need_human(draft, e)
+            else:
+                docnum = self._after_save_trouble(draft, e)
         except Blocked as e:
             self.rec.update(outcome="blocked", reason=e.reason, detail=e.detail[:K.DETAIL_MAX])
             self.rec["voided"] = self.abandon()
@@ -948,7 +977,7 @@ class Engine:
                 self._layer("dbf")
                 self.rec["readback"] = result
                 if self.rec["outcome"] == "saved" and not result["ok"]:
-                    self.rec.update(outcome="need_human", reason="readback_mismatch", docnum=result["docnum"])
+                    self.rec.update(outcome="need_human", reason="readback_mismatch", docnum=result["docnum"], recheck=True)
                 elif self.rec["outcome"] == "saved":
                     self.rec["docnum"] = result["docnum"] or docnum
                 else:  # 没存成：录到明细时 Express 已写的金额 0 空单头（没作废掉的）报给人
@@ -957,7 +986,7 @@ class Engine:
             except Exception as e:  # noqa: BLE001 — 读不回不当成录对了
                 self.rec["readback"] = {"ok": False, "error": str(e)[:200]}
                 if self.rec["outcome"] == "saved":
-                    self.rec.update(outcome="need_human", reason="readback_mismatch", docnum=docnum)
+                    self.rec.update(outcome="need_human", reason="readback_mismatch", docnum=docnum, recheck=True)
             if self.rec["outcome"] == "saved" and self.evidence:
                 started = time.monotonic()
                 self.evidence(draft.doc_id, self.screenshot("saved"))

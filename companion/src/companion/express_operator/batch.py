@@ -582,6 +582,8 @@ class Runner:
             d.reports += rec.get("reports", [])
             d.voided += rec.get("voided", [])
             d.placeholders += rec.get("placeholders", [])
+            if rec.get("recheck"):  # 保存键按下之后出的事：再交来时先读账套判断存没存，不从头重录（11-12）
+                d.recheck = True
             readback = rec.get("readback") or {}
             d.readback_ok = readback.get("ok") if readback else None
             outcome = rec["outcome"]

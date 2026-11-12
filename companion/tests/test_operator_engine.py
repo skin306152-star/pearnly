@@ -228,9 +228,11 @@ def test_a_person_touching_express_while_it_saves_restarts_the_wait_instead_of_f
 
     rec = _engine(sim, presence).run(d)
     assert paused and rec["outcome"] == "saved" and rec["docnum"] == "HP0000001" and not rec["voided"]
-    # 对照：同样慢、人没碰，宽限用完就交给人（画面判不了）
+    # 对照：同样慢、人没碰，画面宽限用完判不了——11-12 起保存键按下之后判不了先读账套：这张其实存好了，回单号、不作废
+    #（以前交给人，站点再交来就从头重录，录出重复单）
     sim2 = FakeExpress(RECIPE.data, inject={"slow_save": 300})
-    assert _engine(sim2, lambda: False).run(samples()[1])["outcome"] == "need_human"
+    rec2 = _engine(sim2, lambda: False).run(samples()[1])
+    assert rec2["outcome"] == "saved" and rec2["docnum"] == "HP0000001" and not rec2["voided"]
 
 
 def test_a_person_touching_express_while_the_form_opens_is_waited_out():
